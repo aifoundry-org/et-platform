@@ -19,36 +19,6 @@ install(FILES host_message.h
   DESTINATION ${INCLUDE_INSTALL_DIR}/esperanto-fw
   COMPONENT master-minion)
 
-
-add_library(vaultip INTERFACE)
-target_include_directories(vaultip INTERFACE
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
-  "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/vaultip>"
-  )
-
-install(
-  TARGETS vaultip
-  EXPORT EsperantoDeviceMinionRuntimeTargets
-  LIBRARY
-    DESTINATION lib
-    COMPONENT vaultip
-  PUBLIC_HEADER
-    DESTINATION ${CMAKE_INSTALL_INCLUDE_DIR}/esperanto-fw/vaultip
-    COMPONENT vaultip
-  )
-
-install(
-  FILES
-    vaultip_hw.h
-    vaultip_static_assets.h
-    vaultip_sw.h
-    vaultip_sw_asset.h
-  DESTINATION
-    ${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/vaultip
-  COMPONENT vaultip
-  )
-
-
 add_library(device_common INTERFACE)
 target_include_directories(device_common INTERFACE
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
