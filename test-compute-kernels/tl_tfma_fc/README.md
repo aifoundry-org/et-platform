@@ -7,8 +7,9 @@ Author: emizan
 This test runs 100 iterations of tensor loads and 1 tensor FMA on full chip.
 Tensor load and store parameters are randomly generated.
 At the end the test stores data with tensor stores and generates CRCs
+The test uses all 32 shires.
 
-This test can currently run on sysemu/Zebu useing the full SW stack.
+This test can currently run on sysemu/Zebu using the full SW stack.
 
 After building sw-platform:
 1. Start zebu in one terminal: in build/zebu-regression 
