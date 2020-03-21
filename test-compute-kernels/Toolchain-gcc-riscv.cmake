@@ -188,4 +188,33 @@ macro(add_riscv_executable TARGET_NAME)
         DEPENDS ${LST_FILE}
     )
 
+    # FIXME this a required package once the esperanto-fw package has been eliminated
+    find_package(EsperantoDeviceMinionRuntime
+      # We have to force the search path to point to the build install folder
+      PATHS "${CMAKE_INSTALL_PREFIX}/lib/cmake/EsperantoDeviceMinionRuntime"
+      NO_CMAKE_PATH
+      NO_CMAKE_ENVIRONMENT_PATH
+      NO_DEFAULT_PATH
+    )
+
+    if(EsperantoDeviceMinionRuntime_FOUND)
+      set(MINION_RUNTIME_PACKAGE_NAME EsperantoDeviceMinionRuntime)
+    else()
+      find_package(esperanto-fw REQUIRED
+      # We have to force the search path because otherwise cmake finds the
+      # EsperantoRuntimeConfig.cmake file under the runtime build folder and not
+      # the install folder
+      PATHS "${CMAKE_INSTALL_PREFIX}/lib/cmake/esperanto-fw"
+      NO_CMAKE_PATH
+      NO_CMAKE_ENVIRONMENT_PATH
+      NO_DEFAULT_PATH
+      )
+      set(MINION_RUNTIME_PACKAGE_NAME esperanto-fw)
+    endif()  
+
+    get_property(MASTER_MINION_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::MasterMinion.elf PROPERTY LOCATION)
+    get_property(MACHINE_MINION_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::MachineMinion.elf PROPERTY LOCATION)
+    get_property(WORKER_MINION_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::WorkerMinion.elf PROPERTY LOCATION)
+
+
 endmacro(add_riscv_executable)

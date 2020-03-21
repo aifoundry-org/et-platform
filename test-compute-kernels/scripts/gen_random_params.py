@@ -663,6 +663,9 @@ parser.add_argument("--scenario", type=str, help="What scenario are you trying t
 parser.add_argument("--repeat", type=int, help="How many tiems do you want to repeat this scenario ?", default = 1)
 parser.add_argument("--target_dir", type=str, help="Target directory where output files are store", default = ".")
 parser.add_argument("--output_type", type=str, help="What will be the output type to be fed into test (array / switch)", default = "switch")
+parser.add_argument("--data", type=int, help="Generate random data in a file", default = 0)
+parser.add_argument("--random_data_file", type=str, help="Random data file name", default = "data.raw")
+parser.add_argument("--data_size", type=int, help="Random data size in KB", default = 1024)
 
 args = parser.parse_args()
 
@@ -671,9 +674,24 @@ if args.seed == -1:
     random.seed(initial_seed)
     seed_file = open("tensor_rand_seed","w")
     seed_file.write(str(initial_seed))
+    seed_file.close()
 else:
     random.seed(args.seed)
-    
+    seed_file = open("tensor_rand_seed","w")
+    seed_file.write(str(args.seed))
+    seed_file.close()
+
+if args.data == 1:
+    random_data_file = open(args.random_data_file,"wb")
+    remaining_data = 1024 * args.data_size
+    num_list = []
+    for i in range(remaining_data):
+        num = random.randint(0,255)
+        num_list.append(num)
+    random_data_file.write(bytes(num_list))
+    random_data_file.close()
+    sys.exit()
+
 if args.scenario == "tload_tfma":
     scenario_tload_tfma(args.shires, args.repeat, args.target_dir, args.output_type)
 elif args.scenario == "coop_tload_tfma":
@@ -686,4 +704,3 @@ elif args.scenario == "tload_tfma_tstore":
     scenario_tload_tfma_tstore(args.shires, args.repeat, args.target_dir, args.output_type)
 else:
     sys.exit("Unknown scenario, valid scenarios are: tload_tfma, coop_tload_tfma, tload_tfma_reduce, tload_tfma_tstore, producer_consumer")
-
