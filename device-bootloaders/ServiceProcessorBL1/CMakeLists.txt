@@ -39,7 +39,10 @@ add_riscv_executable(${TARGET_NAME} ${SOURCES})
 list(APPEND FLASH_IMAGE_DEPS ${TARGET_NAME}.elf)
 set(FLASH_IMAGE_DEPS ${FLASH_IMAGE_DEPS} CACHE INTERNAL "FLASH_IMAGE_DEPS")
 
-target_link_libraries(${TARGET_NAME}.elf ${MINION_RUNTIME_PACKAGE_NAME}::bootrom_helpers)
+target_link_libraries(${TARGET_NAME}.elf
+  ${MINION_RUNTIME_PACKAGE_NAME}::bootrom_helpers
+  EsperantoServiceProcessorROM::sp_rom_helpers
+  )
 set(EXPORT_NAME EsperantoBootLoaderTargets)
 
 install(TARGETS ${TARGET_NAME}.elf

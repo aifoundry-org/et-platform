@@ -97,20 +97,22 @@ message("Crypto API Found: ${EsperantoCryptoAPI_FOUND}")
 get_target_property(CRYPTO_HEADERS_INTERFACE_PATH crypto_api INTERFACE_INCLUDE_DIRECTORIES)
 set(CRYPTO_HEADERS ${CRYPTO_HEADERS_INTERFACE_PATH})
 
-get_property(BOOTROM_HELPERS_INCLUDE_PATH
-  TARGET ${MINION_RUNTIME_PACKAGE_NAME}::bootrom_helpers
-  PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
-include_directories(${BOOTROM_HELPERS_INCLUDE_PATH})
-
-get_property(VAULTIP_HELPERS_INCLUDE_PATH
-  TARGET ${MINION_RUNTIME_PACKAGE_NAME}::vaultip
-  PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
-include_directories(${VAULTIP_HELPERS_INCLUDE_PATH})
-
 get_property(FW_TYPES_HELPERS_INCLUDE_PATH
   TARGET  ${MINION_RUNTIME_PACKAGE_NAME}::fw_helpers
   PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
 include_directories(${FW_TYPES_HELPERS_INCLUDE_PATH})
+
+find_package(EsperantoServiceProcessorROM REQUIRED)
+
+get_property(VAULTIP_HELPERS_INCLUDE_PATH
+  TARGET EsperantoServiceProcessorROM::vaultip
+  PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
+include_directories(${VAULTIP_HELPERS_INCLUDE_PATH})
+
+get_property(SP_ROM_OTP_TYPES_PATH
+  TARGET  EsperantoServiceProcessorROM::sp_rom_otp_types
+  PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
+include_directories(${SP_ROM_OTP_TYPES_PATH})
 
 add_subdirectory(ServiceProcessor)
 add_subdirectory(ServiceProcessorBL1)
