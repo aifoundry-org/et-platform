@@ -75,26 +75,19 @@ install(
     include/atomic.h
     include/cacheops.h
     include/common.h
-    include/ec_domain_parameters.h
     include/esr_defines.h
     include/fcc.h
     include/flb.h
     include/hal_device.h
     include/hart.h
-    include/key_derivation_data.h
     include/kernel_params.h
     include/layout.h
     include/log.h
     include/log_levels.h
     include/macros.h
     include/minion_esr_defines.h
-    include/movellus_hpdpll_modes_config.h
     include/printf.h
     include/serial.h
-    include/service_processor_ROM_data.h
-    include/service_processor_spi_flash.h
-    include/sp_otp_data_layout.h
-    include/spio_DW_apb_ssi_config.h
     include/syscall.h
     include/tensor.h
     include/trap_handler.h
