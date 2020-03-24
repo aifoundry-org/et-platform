@@ -290,7 +290,8 @@ static void tensor_ima8a32_start(uint64_t tfmareg);
 static void tensor_quant_start(uint64_t value);
 static void tensor_reduce_start(uint64_t value);
 static int64_t port_get(unsigned id, bool block);
-static void configure_port(unsigned id, uint64_t wdata);
+static uint32_t legalize_portctrl(uint32_t wdata);
+static void configure_port(unsigned id, uint32_t wdata);
 static uint64_t flbarrier(uint64_t value);
 static uint64_t read_port_base_address(unsigned thread, unsigned id);
 
@@ -1798,8 +1799,7 @@ static uint64_t csrset(uint16_t src1, uint64_t val)
     case CSR_PORTCTRL1:
     case CSR_PORTCTRL2:
     case CSR_PORTCTRL3:
-        val &= 0x00000000030F0FF3ULL;
-        val |= 0x0000000000008000ULL;
+        val = legalize_portctrl(val);
         cpu[current_thread].portctrl[src1 - CSR_PORTCTRL0] = val;
         configure_port(src1 - CSR_PORTCTRL0, val);
         break;
@@ -2609,22 +2609,28 @@ static int64_t port_get(unsigned id, bool block)
     return offset;
 }
 
-static void configure_port(unsigned id, uint64_t wdata)
+static uint32_t legalize_portctrl(uint32_t wdata)
 {
+    int logsize = (wdata >> 5)  & 0x07;
     int scp_set = (wdata >> 16) & 0xFF;
     int scp_way = (wdata >> 24) & 0xFF;
+
+    logsize = std::max(PORT_LOG2_MIN_SIZE, std::min(PORT_LOG2_MAX_SIZE, logsize));
+    scp_set = scp_set % L1D_NUM_SETS;
+    scp_way = scp_way % L1D_NUM_WAYS;
+
+    return (wdata & 0x00000F13)
+         | (logsize << 5)
+         | (scp_set << 16)
+         | (scp_way << 24)
+         | 0x00008000;
+}
+
+static void configure_port(unsigned id, uint32_t wdata)
+{
     int logsize = (wdata >> 5)  & 0x07;
-
-    if (scp_set >= L1D_NUM_SETS)
-        scp_set = scp_set % L1D_NUM_SETS;
-
-    if (scp_way >= L1D_NUM_WAYS)
-        scp_way = scp_way % L1D_NUM_WAYS;
-
-    if (logsize < PORT_LOG2_MIN_SIZE)
-        logsize = PORT_LOG2_MIN_SIZE;
-    else if (logsize > PORT_LOG2_MAX_SIZE)
-        logsize = PORT_LOG2_MAX_SIZE;
+    int scp_set = (wdata >> 16) & 0xFF;
+    int scp_way = (wdata >> 24) & 0xFF;
 
     msg_ports[current_thread][id].enabled    = wdata & 0x1;
     msg_ports[current_thread][id].stall      = false;

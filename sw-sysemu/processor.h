@@ -78,7 +78,7 @@ struct Processor {
     uint8_t     validation1;
     uint64_t    validation2;
     uint64_t    validation3;
-    std::array<uint64_t,4> portctrl;
+    std::array<uint32_t,4> portctrl;
 
     // Other hart internal (microarchitectural or hidden) state
     prv_t       prv;
