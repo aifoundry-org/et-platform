@@ -18,7 +18,6 @@ enable_testing()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-option(HOST_SW "Enable building for the host-sw repo")
 option(BUILD_SHARED_LIBS "Build shared libs." ON)
 option(ETSOC "Build for the ETSOC")
 option(ENABLE_TESTS "Enable tests" ON)
@@ -87,7 +86,6 @@ endif()
 
 message(STATUS "CMAKE_CURRENT_SOURCE_DIR=" ${CMAKE_CURRENT_SOURCE_DIR})
 message(STATUS "CMAKE_CURRENT_BINARY_DIR=" ${CMAKE_CURRENT_BINARY_DIR})
-message(STATUS "HOST_SW=" ${HOST_SW})
 message(STATUS "ETSOC=" ${ETSOC})
 message(STATUS "ENABLE_TESTS=" ${ENABLE_TESTS})
 
