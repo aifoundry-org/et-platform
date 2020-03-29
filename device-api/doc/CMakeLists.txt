@@ -53,7 +53,7 @@ foreach(DOC_FILE ${DOC_FILES})
 endforeach()
 
 
-add_custom_target(doc
+add_custom_target(doc-html
     ${SPHINX_EXECUTABLE}
         -q -b html
         -d "${SPHINX_CACHE_DIR}"
@@ -73,3 +73,38 @@ install(
     COMPONENT documentation
     EXCLUDE_FROM_ALL
     )
+
+
+set(SPHINX_PDF_DIR "${CMAKE_CURRENT_BINARY_DIR}/latex")
+
+add_custom_target(doc-pdf
+  ${SPHINX_EXECUTABLE}
+        -M latexpdf
+        "${CMAKE_CURRENT_BINARY_DIR}"
+        "${SPHINX_PDF_DIR}"
+  COMMENT "Building PDF documentation with Sphinx"
+  DEPENDS Doxyfile.in
+          conf.py.in
+          ${DOC_FILES_DST}
+)
+
+install(
+    FILES ${CMAKE_CURRENT_BINARY_DIR}/latex/latex/esperantodeviceapi.pdf
+    DESTINATION ${DOCUMENTATION_INSTALL_DIR}
+    COMPONENT documentation
+    EXCLUDE_FROM_ALL
+  )
+
+add_custom_target(doc-all
+  DEPENDS doc-html doc-pdf
+  )
+
+# Temporary alias to preserve the existing interface
+add_custom_target(doc
+  DEPENDS doc-all
+)
+
+add_custom_target(doc-install
+  COMMAND ${CMAKE_COMMAND} -DCOMPONENT="documentation" -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
+  DEPENDS doc-all
+)
