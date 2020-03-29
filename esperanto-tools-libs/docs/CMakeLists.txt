@@ -48,15 +48,30 @@ foreach(DOC_FILE ${DOC_FILES})
     "${CMAKE_CURRENT_BINARY_DIR}/${DOC_FILE}")
 endforeach()
 
-add_custom_target(doc-runtime
-    ${SPHINX_EXECUTABLE}
-        -q -b html
+set(DOC_FILES_DST "")
+
+foreach(DOC_FILE ${DOC_FILES})
+  add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${DOC_FILE}
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/${DOC_FILE} ${CMAKE_CURRENT_BINARY_DIR}/${DOC_FILE}
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${DOC_FILE}
+    )
+  list(APPEND DOC_FILES_DST ${CMAKE_CURRENT_BINARY_DIR}/${DOC_FILE})
+endforeach()
+
+add_custom_target(doc-html
+  ${SPHINX_EXECUTABLE}
+        -q
+        -b html
         -d "${SPHINX_CACHE_DIR}"
         -j auto
         "${CMAKE_CURRENT_BINARY_DIR}"
         "${SPHINX_HTML_DIR}"
-    COMMENT "Building HTML documentation with Sphinx")
-
+  COMMENT "Building HTML documentation with Sphinx"
+  DEPENDS Doxyfile.in
+          conf.py.in
+          ${DOC_FILES_DST}
+)
 
 install(
     DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html
@@ -64,3 +79,39 @@ install(
     COMPONENT documentation
     EXCLUDE_FROM_ALL
     )
+
+
+set(SPHINX_PDF_DIR "${CMAKE_CURRENT_BINARY_DIR}/latex")
+
+add_custom_target(doc-pdf
+  ${SPHINX_EXECUTABLE}
+        -M latexpdf
+        "${CMAKE_CURRENT_BINARY_DIR}"
+        "${SPHINX_PDF_DIR}"
+  COMMENT "Building PDF documentation with Sphinx"
+  DEPENDS Doxyfile.in
+          conf.py.in
+          ${DOC_FILES_DST}
+)
+
+install(
+    FILES ${CMAKE_CURRENT_BINARY_DIR}/latex/latex/esperantoruntime.pdf
+    DESTINATION ${DOCUMENTATION_INSTALL_DIR}
+    COMPONENT documentation
+    EXCLUDE_FROM_ALL
+    )
+
+add_custom_target(doc-all
+  DEPENDS doc-html doc-pdf
+  )
+
+
+# Alias target it should be removed
+add_custom_target(doc-runtime
+    DEPENDS doc-all)
+
+
+add_custom_target(doc-install
+  COMMAND ${CMAKE_COMMAND} -DCOMPONENT="documentation" -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
+  DEPENDS doc-all
+  )
