@@ -9,13 +9,13 @@
 #------------------------------------------------------------------------------
 
 randomized_test(
-  NAME producer_consumer
-  NUMBER_OF_TESTS 9
-  GEN_COMMAND python3 ${SCRIPTS_KERNEL_DIR}/gen_random_params.py --shires 2 --scenario producer_consumer --target_dir include --output_type array --repeat 4
+  NAME tl_tfma_reduce_2s
+  NUMBER_OF_TESTS 0
+  GEN_COMMAND python3 ${SCRIPTS_KERNEL_DIR}/gen_random_params.py --shires 2 --scenario tload_tfma_reduce --target_dir include --output_type array --repeat 10 --seed 0
   OUTPUT_GEN_FILES random_seed
-                   include/tstore_configs.h
                    include/tfma_configs.h
                    include/tl0_configs.h
                    include/tl1_configs.h
-  SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/producer_consumer.c
+                   include/reduce_configs.h
+  SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/tl_tfma_reduce_2s.c
   )

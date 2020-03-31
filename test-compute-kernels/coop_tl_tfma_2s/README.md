@@ -6,7 +6,7 @@ Author: emizan
 
 This test runs 10K loops of 2 (possibly coop) tensor loads and 1 tensor FMA on full chip.
 At the end it stores data with tensor stores and does a CRC check.
-Tensor load and store parameters are randomly generated but with a constant seed.
+Tensor load and FMA parameters are randomly generated but with a constant seed.
 So running this on checkin regressions will give always the same results.
 At the end the test stores data with tensor stores and generates CRCs.
 

@@ -56,7 +56,7 @@
 #define TSTORE_STRIDE 7
 #define TSTORE_PARAMS 8
 
-#define TOTAL_MINIONS 96
+#define TOTAL_MINIONS 64
 
 // Run fewer iterations than other tests because tensor stores write on the same area and each iteration
 // will tend to overwrite the next possibly hiding errors.
