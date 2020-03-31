@@ -204,12 +204,12 @@ bool mem_directory::write(uint64_t address, op_location_t location, uint32_t shi
         // Update
         else
         {
-            it_shire->second.l2                     = new_value.l2 || it_shire->second.l2;
-            it_shire->second.l2_dirty               = new_value.l2_dirty || it_shire->second.l2_dirty;
-            it_shire->second.l2_dirty_minion_id     = new_value.l2_dirty_minion_id;
-            it_shire->second.time_stamp             = (location != COH_MINION) ? global_time_stamp : it_shire->second.time_stamp; // Update to time stamp when not writing to minion
-            it_shire->second.cb_dirty               = new_value.cb_dirty;
-            it_shire->second.minion_mask[minion_id] = new_value.minion_mask[minion_id];
+            it_shire->second.l2                     |= new_value.l2;
+            it_shire->second.l2_dirty               |= new_value.l2_dirty;
+            it_shire->second.l2_dirty_minion_id      = new_value.l2_dirty_minion_id;
+            it_shire->second.time_stamp              = (location != COH_MINION) ? global_time_stamp : it_shire->second.time_stamp; // Update to time stamp when not writing to minion
+            it_shire->second.cb_dirty               |= new_value.cb_dirty;
+            it_shire->second.minion_mask[minion_id] |= new_value.minion_mask[minion_id];
             if(new_value.cb_dirty)
                 it_shire->second.cb_dirty_quarter[cb_quarter] = true;
 
@@ -250,11 +250,11 @@ bool mem_directory::write(uint64_t address, op_location_t location, uint32_t shi
         else
         {
             it_global->second.time_stamp                   = (location == COH_GLOBAL) ? global_time_stamp : it_global->second.time_stamp;
-            it_global->second.latest_time_stamp            = global_time_stamp;
-            it_global->second.l2_dirty_shire_id            = new_value.l2_dirty_shire_id;
-            it_global->second.shire_mask[shire_id]         = new_value.shire_mask[shire_id];
-            it_global->second.cb_dirty                     = new_value.cb_dirty;
-            it_global->second.cb_dirty_quarter[cb_quarter] = new_value.cb_dirty;
+            it_global->second.latest_time_stamp             = global_time_stamp;
+            it_global->second.l2_dirty_shire_id             = new_value.l2_dirty_shire_id;
+            it_global->second.shire_mask[shire_id]         |= new_value.shire_mask[shire_id];
+            it_global->second.cb_dirty                     |= new_value.cb_dirty;
+            it_global->second.cb_dirty_quarter[cb_quarter] |= new_value.cb_dirty;
             dump_global(&it_global->second, "write", "update", address, minion);
         }
     }
@@ -313,9 +313,9 @@ bool mem_directory::read(uint64_t address, op_location_t location, uint32_t shir
     // Get timestamps
     uint64_t access_time_stamp = 0;
     
-    if(global_found) access_time_stamp = it_global->second.time_stamp;
-    if(shire_found)  access_time_stamp = it_shire->second.time_stamp;
-    if(minion_found) access_time_stamp = it_minion->second.time_stamp;
+    if(global_found)                             access_time_stamp = it_global->second.time_stamp;
+    if(shire_found  && (location != COH_GLOBAL)) access_time_stamp = it_shire->second.time_stamp;
+    if(minion_found && (location == COH_MINION)) access_time_stamp = it_minion->second.time_stamp;
 
     // Checks if access is coherent
     bool coherent = true;
@@ -400,8 +400,8 @@ bool mem_directory::read(uint64_t address, op_location_t location, uint32_t shir
         // Update
         else
         {
-            it_shire->second.l2                     = new_value.l2;
-            it_shire->second.minion_mask[minion_id] = new_value.minion_mask[minion_id];
+            it_shire->second.l2                     |= new_value.l2;
+            it_shire->second.minion_mask[minion_id] |= new_value.minion_mask[minion_id];
             dump_shire(&it_shire->second, "read", "update", address, shire_id, minion);
         }
     }
@@ -430,7 +430,7 @@ bool mem_directory::read(uint64_t address, op_location_t location, uint32_t shir
         // Update
         else
         {
-            it_global->second.shire_mask[shire_id] = new_value.shire_mask[shire_id];
+            it_global->second.shire_mask[shire_id] |= new_value.shire_mask[shire_id];
             dump_global(&it_global->second, "read", "update", address, minion);
         }
     }

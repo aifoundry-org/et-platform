@@ -168,6 +168,7 @@ std::queue<uint32_t> &get_minions_to_awake() {return minions_to_awake;}
         { \
             sys_emu::get_scp_directory().l1_scp_read(thread, idx); \
         } }
+    int orig_mcache_control;
 #else
     #define L1_SCP_CHECK_FILL(thread, idx, id) \
         { }
@@ -1525,6 +1526,9 @@ static uint64_t csrset(uint16_t src1, uint64_t val)
         cpu[current_thread].mbusaddr = val;
         break;
     case CSR_MCACHE_CONTROL:
+#ifdef SYS_EMU
+        orig_mcache_control = cpu[current_thread].mcache_control & 0x3;
+#endif
         switch (cpu[current_thread].mcache_control)
         {
         case 0: msk = ((val & 3) == 1) ? 3 : 0; break;
@@ -1547,7 +1551,7 @@ static uint64_t csrset(uint16_t src1, uint64_t val)
         }
         val &= 3;
 #ifdef SYS_EMU
-        if(sys_emu::get_coherency_check())
+        if(sys_emu::get_coherency_check() && (orig_mcache_control != (cpu[current_thread].mcache_control & 0x3)))
         {
             sys_emu::get_mem_directory().mcache_control_up((current_thread >> 1) / EMU_MINIONS_PER_SHIRE, (current_thread >> 1) % EMU_MINIONS_PER_SHIRE, cpu[current_thread].mcache_control);
         }
@@ -1634,6 +1638,9 @@ static uint64_t csrset(uint16_t src1, uint64_t val)
         log_tensor_error_value(val);
         break;
     case CSR_UCACHE_CONTROL:
+#ifdef SYS_EMU
+        orig_mcache_control = cpu[current_thread].mcache_control & 0x3;
+#endif
         require_feature_u_scratchpad();
         msk = (!(current_thread % EMU_THREADS_PER_MINION)
                && (cpu[current_thread].mcache_control & 1)) ? 1 : 3;
@@ -1647,7 +1654,7 @@ static uint64_t csrset(uint16_t src1, uint64_t val)
             cpu[current_thread^1].mcache_control = val & 3;
         }
 #ifdef SYS_EMU
-        if(sys_emu::get_coherency_check())
+        if(sys_emu::get_coherency_check() && (orig_mcache_control != (cpu[current_thread].mcache_control & 0x3)))
         {
             sys_emu::get_mem_directory().mcache_control_up((current_thread >> 1) / EMU_MINIONS_PER_SHIRE, (current_thread >> 1) % EMU_MINIONS_PER_SHIRE, cpu[current_thread].mcache_control);
         }
