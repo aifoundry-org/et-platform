@@ -17,7 +17,8 @@ sysemu_hdrs := \
     sys_emu/utils.h \
     sys_emu/checkers/mem_checker.h \
     sys_emu/checkers/l1_scp_checker.h \
-    sys_emu/checkers/l2_scp_checker.h
+    sys_emu/checkers/l2_scp_checker.h \
+    sys_emu/checkers/flb_checker.h
 
 sysemu_cpp_srcs := \
     sys_emu/gdbstub.cpp \
@@ -30,7 +31,8 @@ sysemu_cpp_srcs := \
     sys_emu/utils.cpp \
     sys_emu/checkers/mem_checker.cpp \
     sys_emu/checkers/l1_scp_checker.cpp \
-    sys_emu/checkers/l2_scp_checker.cpp
+    sys_emu/checkers/l2_scp_checker.cpp \
+    sys_emu/checkers/flb_checker.cpp
 
 ifeq ($(PROFILING), 1)
   sysemu_hdrs     += sys_emu/profiling.h

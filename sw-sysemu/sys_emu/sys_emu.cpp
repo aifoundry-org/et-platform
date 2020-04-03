@@ -38,8 +38,6 @@
 #include "mmu.h"
 #include "processor.h"
 #include "profiling.h"
-#include "l1_scp_checker.h"
-#include "l2_scp_checker.h"
 #include "utils.h"
 
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
@@ -67,6 +65,8 @@ bool            sys_emu::l1_scp_check = false;
 l1_scp_checker  sys_emu::l1_scp_checker_;
 bool            sys_emu::l2_scp_check = false;
 l2_scp_checker  sys_emu::l2_scp_checker_;
+bool            sys_emu::flb_check = false;
+flb_checker     sys_emu::flb_checker_;
 std::unique_ptr<api_communicate> sys_emu::api_listener;
 sys_emu_cmd_options              sys_emu::cmd_options;
 std::unordered_set<uint64_t>     sys_emu::breakpoints;

@@ -13,10 +13,10 @@
 #include "emu_gio.h"
 
 // Logging variables and macros
-uint32_t sd_l1_log_minion = 2048; // None by default
+uint32_t sd_l1_scp_checker_log_minion = 2048; // None by default
 
 #define SD_L1_LOG(minion, cmd) \
-  { if((minion == 0xFFFFFFFF) || (sd_l1_log_minion == 0xFFFFFFFF) || (minion == sd_l1_log_minion)) \
+  { if((minion == 0xFFFFFFFF) || (sd_l1_scp_checker_log_minion == 0xFFFFFFFF) || (minion == sd_l1_scp_checker_log_minion)) \
     { \
       cmd; \
     } \

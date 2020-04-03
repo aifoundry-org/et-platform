@@ -13,16 +13,16 @@
 #include "emu_gio.h"
 
 // Logging variables and macros
-uint32_t sd_l2_log_shire  = 64;              // None by default
-uint32_t sd_l2_log_line   = 1 * 1024 * 1024; // None by default
-uint32_t sd_l2_log_minion = 2048;            // None by default
+uint32_t sd_l2_scp_checker_log_shire  = 64;              // None by default
+uint32_t sd_l2_scp_checker_log_line   = 1 * 1024 * 1024; // None by default
+uint32_t sd_l2_scp_checker_log_minion = 2048;            // None by default
 
 #define SD_L2_LOG(shire, line, minion, cmd) \
-  { if((shire == 0xFFFFFFFF) || (sd_l2_log_shire == 0xFFFFFFFF) || (shire == sd_l2_log_shire)) \
+  { if((shire == 0xFFFFFFFF) || (sd_l2_scp_checker_log_shire == 0xFFFFFFFF) || (shire == sd_l2_scp_checker_log_shire)) \
     { \
-      if((line == 0xFFFFFFFF) || (sd_l2_log_line == 0xFFFFFFFF) || (line == sd_l2_log_line)) \
+      if((line == 0xFFFFFFFF) || (sd_l2_scp_checker_log_line == 0xFFFFFFFF) || (line == sd_l2_scp_checker_log_line)) \
       { \
-        if((minion == 0xFFFFFFFF) || (sd_l2_log_minion == 0xFFFFFFFF) || (minion == sd_l2_log_minion)) \
+        if((minion == 0xFFFFFFFF) || (sd_l2_scp_checker_log_minion == 0xFFFFFFFF) || (minion == sd_l2_scp_checker_log_minion)) \
         { \
           cmd; \
         } \

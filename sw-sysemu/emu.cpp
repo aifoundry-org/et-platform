@@ -4553,6 +4553,13 @@ static uint64_t flbarrier(uint64_t value)
     LOG(DEBUG, "FastLocalBarrier: doing barrier %u with value %u, limit %u",
         barrier, oldval, limit);
 
+#ifdef SYS_EMU
+    if(sys_emu::get_flb_check())
+    {
+        sys_emu::get_flb_checker().access(oldval, limit, barrier, current_thread);
+    }
+#endif
+
     if (oldval == limit)
     {
         // Last thread, zero barrier and return 1

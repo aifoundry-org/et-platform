@@ -15,10 +15,11 @@
 
 extern uint64_t md_log_addr;
 extern uint32_t md_log_minion;
-extern uint32_t sd_l1_log_minion;
-extern uint32_t sd_l2_log_shire;
-extern uint32_t sd_l2_log_line;
-extern uint32_t sd_l2_log_minion;
+extern uint32_t sd_l1_scp_checker_log_minion;
+extern uint32_t sd_l2_scp_checker_log_shire;
+extern uint32_t sd_l2_scp_checker_log_line;
+extern uint32_t sd_l2_scp_checker_log_minion;
+extern uint32_t sd_flb_checker_log_shire;
 
 static const char * help_msg =
 "\n ET System Emulator\n\n\
@@ -63,6 +64,8 @@ static const char * help_msg =
      -l2_scp_check_shire      Enables L2 SCP check prints for a specific shire (default: 64 [64 => no shire, -1 => all shires])\n\
      -l2_scp_check_line       Enables L2 SCP check prints for a specific minion (default: 1048576 [1048576 => no L2 scp line, -1 => all L2 scp lines])\n\
      -l2_scp_check_minion     Enables L2 SCP check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n\
+     -flb_check               Enables FLB checks\n\
+     -flb_check_shire         Enables FLB check prints for a specific shire (default: 64 [64 => no shire, -1 => all shires])\n\
      -gdb                     Start the GDB stub for remote debugging\n\
 "
 #ifdef SYSEMU_DEBUG
@@ -135,6 +138,8 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"l2_scp_check_shire",     required_argument, nullptr, 0},
         {"l2_scp_check_line",      required_argument, nullptr, 0},
         {"l2_scp_check_minion",    required_argument, nullptr, 0},
+        {"flb_check",              no_argument,       nullptr, 0},
+        {"flb_check_shire",        required_argument, nullptr, 0},
         {"gdb",                    no_argument,       nullptr, 0},
         {"m",                      no_argument,       nullptr, 0},
 #ifdef SYSEMU_DEBUG
@@ -324,7 +329,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "l1_scp_check_minion"))
         {
-            sd_l1_log_minion = atoi(optarg);
+            sd_l1_scp_checker_log_minion = atoi(optarg);
         }
         else if (!strcmp(name, "l2_scp_check"))
         {
@@ -332,15 +337,23 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "l2_scp_check_shire"))
         {
-            sd_l2_log_shire = atoi(optarg);
+            sd_l2_scp_checker_log_shire = atoi(optarg);
         }
         else if (!strcmp(name, "l2_scp_check_line"))
         {
-            sd_l2_log_line = atoi(optarg);
+            sd_l2_scp_checker_log_line = atoi(optarg);
         }
         else if (!strcmp(name, "l2_scp_check_minion"))
         {
-            sd_l2_log_minion = atoi(optarg);
+            sd_l2_scp_checker_log_minion = atoi(optarg);
+        }
+        else if (!strcmp(name, "flb_check"))
+        {
+            flb_check = true;
+        }
+        else if (!strcmp(name, "flb_check_shire"))
+        {
+            sd_flb_checker_log_shire = atoi(optarg);
         }
         else if (!strcmp(name, "gdb"))
         {

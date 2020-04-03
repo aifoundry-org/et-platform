@@ -14,10 +14,11 @@
 #include "api_communicate.h"
 #include "devices/rvtimer.h"
 #include "emu_defines.h"
-#include "mem_checker.h"
 #include "processor.h"
+#include "mem_checker.h"
 #include "l1_scp_checker.h"
 #include "l2_scp_checker.h"
+#include "flb_checker.h"
 
 #include <algorithm>
 #include <bitset>
@@ -161,6 +162,8 @@ public:
     static l1_scp_checker& get_l1_scp_checker() { return l1_scp_checker_; }
     static bool get_l2_scp_check() { return l2_scp_check; }
     static l2_scp_checker& get_l2_scp_checker() { return l2_scp_checker_; }
+    static bool get_flb_check() { return flb_check; }
+    static flb_checker& get_flb_checker() { return flb_checker_; }
     static bool get_display_trap_info() { return cmd_options.display_trap_info; }
 
     static void coop_tload_add(uint32_t thread_id, bool tenb, uint32_t id, uint32_t coop_id, uint32_t min_mask, uint32_t neigh_mask);
@@ -231,6 +234,8 @@ private:
     static l1_scp_checker  l1_scp_checker_;
     static bool            l2_scp_check;
     static l2_scp_checker  l2_scp_checker_;
+    static bool            flb_check;
+    static flb_checker     flb_checker_;
     static std::unordered_set<uint64_t> breakpoints;
     static std::bitset<EMU_NUM_THREADS> single_step;
 
