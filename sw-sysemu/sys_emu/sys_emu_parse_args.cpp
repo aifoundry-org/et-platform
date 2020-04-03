@@ -54,11 +54,12 @@ static const char * help_msg =
      -dump_at_pc_addr <addr>  Address where to start the dump\n\
      -dump_at_pc_size <size>  Size of the dump\n\
      -dump_at_pc_file <file>  File where to store the dump\n\
-     -coherency_check         Enables cache coherency checks\n\
-     -coherency_check_minion  Enables cache coherency check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n\
-     -coherency_check_addr    Enables cache coherency check prints for a specific address (default: 0x1 [none])\n\
-     -scp_check               Enables SCP checks\n\
+     -mem_check               Enables memory coherency checks\n\
+     -mem_check_minion        Enables memory coherency check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n\
+     -mem_check_addr          Enables memory coherency check prints for a specific address (default: 0x1 [none])\n\
+     -l1_scp_check            Enables L1 SCP checks\n\
      -l1_scp_check_minion     Enables L1 SCP check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n\
+     -l2_scp_check            Enables L2 SCP checks\n\
      -l2_scp_check_shire      Enables L2 SCP check prints for a specific shire (default: 64 [64 => no shire, -1 => all shires])\n\
      -l2_scp_check_line       Enables L2 SCP check prints for a specific minion (default: 1048576 [1048576 => no L2 scp line, -1 => all L2 scp lines])\n\
      -l2_scp_check_minion     Enables L2 SCP check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n\
@@ -125,11 +126,12 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"dump_at_pc_addr",        required_argument, nullptr, 0},
         {"dump_at_pc_size",        required_argument, nullptr, 0},
         {"dump_at_pc_file",        required_argument, nullptr, 0},
-        {"coherency_check",        no_argument,       nullptr, 0},
-        {"coherency_check_minion", required_argument, nullptr, 0},
-        {"coherency_check_addr",   required_argument, nullptr, 0},
-        {"scp_check",              no_argument,       nullptr, 0},
+        {"mem_check",              no_argument,       nullptr, 0},
+        {"mem_check_minion",       required_argument, nullptr, 0},
+        {"mem_check_addr",         required_argument, nullptr, 0},
+        {"l1_scp_check",           no_argument,       nullptr, 0},
         {"l1_scp_check_minion",    required_argument, nullptr, 0},
+        {"l2_scp_check",           no_argument,       nullptr, 0},
         {"l2_scp_check_shire",     required_argument, nullptr, 0},
         {"l2_scp_check_line",      required_argument, nullptr, 0},
         {"l2_scp_check_minion",    required_argument, nullptr, 0},
@@ -304,25 +306,29 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
             };
             cmd_options.dump_at_pc.emplace(dump_at_pc_pc, dump);
         }
-        else if (!strcmp(name, "coherency_check"))
+        else if (!strcmp(name, "mem_check"))
         {
-            coherency_check = true;
+            mem_check = true;
         }
-        else if (!strcmp(name, "scp_check"))
-        {
-            scp_check = true;
-        }
-        else if (!strcmp(name, "coherency_check_minion"))
+        else if (!strcmp(name, "mem_check_minion"))
         {
             md_log_minion = atoi(optarg);
         }
-        else if (!strcmp(name, "coherency_check_addr"))
+        else if (!strcmp(name, "mem_check_addr"))
         {
             sscanf(optarg, "%" PRIx64, &md_log_addr);
+        }
+        else if (!strcmp(name, "l1_scp_check"))
+        {
+            l1_scp_check = true;
         }
         else if (!strcmp(name, "l1_scp_check_minion"))
         {
             sd_l1_log_minion = atoi(optarg);
+        }
+        else if (!strcmp(name, "l2_scp_check"))
+        {
+            l2_scp_check = true;
         }
         else if (!strcmp(name, "l2_scp_check_shire"))
         {

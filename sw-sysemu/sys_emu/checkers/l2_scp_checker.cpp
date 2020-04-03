@@ -9,21 +9,13 @@
 *-------------------------------------------------------------------------*/
 
 // Local defines
-#include "scp_directory.h"
+#include "l2_scp_checker.h"
 #include "emu_gio.h"
 
 // Logging variables and macros
-uint32_t sd_l1_log_minion = 2048;            // None by default
 uint32_t sd_l2_log_shire  = 64;              // None by default
 uint32_t sd_l2_log_line   = 1 * 1024 * 1024; // None by default
 uint32_t sd_l2_log_minion = 2048;            // None by default
-
-#define SD_L1_LOG(minion, cmd) \
-  { if((minion == 0xFFFFFFFF) || (sd_l1_log_minion == 0xFFFFFFFF) || (minion == sd_l1_log_minion)) \
-    { \
-      cmd; \
-    } \
-  }
 
 #define SD_L2_LOG(shire, line, minion, cmd) \
   { if((shire == 0xFFFFFFFF) || (sd_l2_log_shire == 0xFFFFFFFF) || (shire == sd_l2_log_shire)) \
@@ -42,17 +34,8 @@ uint32_t sd_l2_log_minion = 2048;            // None by default
  *
  *  This function creates a new object of the type Scp directory
  */
-scp_directory::scp_directory()
+l2_scp_checker::l2_scp_checker()
 {
-  // Marks all L1 entries as invalid
-  for(uint32_t minion = 0; minion < EMU_NUM_MINIONS; minion++)
-  {
-    for(uint32_t entry = 0 ; entry < L1_SCP_ENTRIES; entry++)
-    {
-      minion_scp_info[minion].l1_scp_line_status[entry] = L1Scp_Invalid;
-      minion_scp_info[minion].l1_scp_line_id[entry] = -1;
-    }
-  }
   // Marks all L2 entries as invalid
   for(uint32_t shire = 0; shire < EMU_NUM_SHIRES; shire++)
   {
@@ -64,80 +47,21 @@ scp_directory::scp_directory()
   }
 }
 
-/*! \brief Fills an L1 scp entry
- *
- *  Sets an entry of the L1 scp of a specific minion as filled and sets
- *  also the id related to the fill
- */
-void scp_directory::l1_scp_fill(uint32_t current_thread, uint32_t idx, uint32_t id)
-{
-  // Ignore TENB entries
-  if(idx >= L1_SCP_ENTRIES) return;
-  uint32_t minion_id = current_thread / EMU_THREADS_PER_MINION;
-  uint32_t minion    = minion_id % EMU_MINIONS_PER_SHIRE;
-  uint32_t shire     = current_thread / EMU_THREADS_PER_SHIRE;
-  minion_scp_info[minion_id].l1_scp_line_status[idx] = L1Scp_Fill;
-  minion_scp_info[minion_id].l1_scp_line_id[idx]     = id;
-  SD_L1_LOG(minion_id, printf("scp_directory::l1_scp_fill => fill shire: %i, minion: %i, line: %i, id: %i\n", shire, minion, idx, id));
-}
-
-/*! \brief Waits for fills to L1 scp to finish
- *
- *  Waits for L1 scp fills of a given minion to finish. Only the fills associated
- *  to the request ID will be marked as valid
- */
-void scp_directory::l1_scp_wait(uint32_t current_thread, uint32_t id)
-{
-  uint32_t minion_id = current_thread / EMU_THREADS_PER_MINION;
-  uint32_t minion    = minion_id % EMU_MINIONS_PER_SHIRE;
-  uint32_t shire     = current_thread / EMU_THREADS_PER_SHIRE;
-  SD_L1_LOG(minion_id, printf("scp_directory::l1_scp_wait => shire: %i, minion: %i, id: %i\n", shire, minion, id));
-
-  // For all the entries of the minion
-  for(uint32_t entry = 0 ; entry < L1_SCP_ENTRIES; entry++)
-  {
-    // Entry has an outstanding fill and same id
-    if((minion_scp_info[minion_id].l1_scp_line_status[entry] == L1Scp_Fill) && (minion_scp_info[minion_id].l1_scp_line_id[entry] == id))
-    {
-      minion_scp_info[minion_id].l1_scp_line_status[entry] = L1Scp_Valid;
-      minion_scp_info[minion_id].l1_scp_line_id[entry]     = -1;
-      SD_L1_LOG(minion_id, printf("scp_directory::l1_scp_wait => valid shire: %i, minion: %i, line: %i, id: %i\n", shire, minion, entry, id));
-    }
-  }
-}
-
-/*! \brief Read data from L1 scp
- *
- *  Data is read from L1 scp. If data is not valid an error is raised
- */
-void scp_directory::l1_scp_read(uint32_t current_thread, uint32_t idx)
-{
-  uint32_t minion_id = current_thread / EMU_THREADS_PER_MINION;
-  uint32_t minion    = minion_id % EMU_MINIONS_PER_SHIRE;
-  uint32_t shire     = current_thread / EMU_THREADS_PER_SHIRE;
-  SD_L1_LOG(minion_id, printf("scp_directory::l1_scp_read => shire: %i, minion: %i, line: %i,\n", shire, minion, idx));
-
-  if(minion_scp_info[minion_id].l1_scp_line_status[idx] != L1Scp_Valid)
-  {
-    LOG_ALL_MINIONS(FTL, "scp_directory::l1_scp_read => line state is not valid!! It is %i\n", minion_scp_info[minion_id].l1_scp_line_status[idx]);
-  }
-}
-
 /*! \brief Fills an L2 scp entry
  *
  *  Sets an entry of the L2 scp of a specific minion/shire as filled and sets
  *  also the id related to the fill
  */
-void scp_directory::l2_scp_fill(uint32_t current_thread, uint32_t idx, uint32_t id, uint64_t src_addr)
+void l2_scp_checker::l2_scp_fill(uint32_t current_thread, uint32_t idx, uint32_t id, uint64_t src_addr)
 {
   uint32_t minion_id = current_thread / EMU_THREADS_PER_MINION;
   uint32_t minion    = minion_id % EMU_MINIONS_PER_SHIRE;
   uint32_t shire     = current_thread / EMU_THREADS_PER_SHIRE;
-  SD_L2_LOG(shire, idx, minion_id, printf("scp_directory::l2_scp_fill => valid shire: %i, minion: %i, line: %i, id: %i\n", shire, minion, idx, id));
+  SD_L2_LOG(shire, idx, minion_id, printf("l2_scp_checker::l2_scp_fill => valid shire: %i, minion: %i, line: %i, id: %i\n", shire, minion, idx, id));
 
   if((shire_scp_info[shire].l2_scp_line_status[idx] == L2Scp_Fill) && (shire_scp_info[shire].l2_scp_line_addr[idx] != src_addr))
   {
-    LOG_ALL_MINIONS(FTL, "scp_directory::l2_scp_fill => filling with a different address an already inflight fill line %i. Old addr %016llX, new addr %016llX\n",
+    LOG_ALL_MINIONS(FTL, "l2_scp_checker::l2_scp_fill => filling with a different address an already inflight fill line %i. Old addr %016llX, new addr %016llX\n",
         idx, (long long unsigned int) shire_scp_info[shire].l2_scp_line_addr[idx], (long long unsigned int) src_addr);
   }
 
@@ -167,12 +91,12 @@ void scp_directory::l2_scp_fill(uint32_t current_thread, uint32_t idx, uint32_t 
  *  Waits for L2 scp fills of a given minion to finish. Only the fills associated
  *  to the request ID will be marked as valid
  */
-void scp_directory::l2_scp_wait(uint32_t current_thread, uint32_t id)
+void l2_scp_checker::l2_scp_wait(uint32_t current_thread, uint32_t id)
 {
   uint32_t minion_id = current_thread / EMU_THREADS_PER_MINION;
   uint32_t minion    = minion_id % EMU_MINIONS_PER_SHIRE;
   uint32_t shire     = current_thread / EMU_THREADS_PER_SHIRE;
-  SD_L2_LOG(shire, 0xFFFFFFFF, minion_id, printf("scp_directory::l2_scp_wait => shire: %i, minion: %i, id: %i\n", shire, minion, id));
+  SD_L2_LOG(shire, 0xFFFFFFFF, minion_id, printf("l2_scp_checker::l2_scp_wait => shire: %i, minion: %i, id: %i\n", shire, minion, id));
 
   // Goes over all entries of minion
   auto it = shire_scp_info[shire].l2_scp_fills[minion].begin();
@@ -181,7 +105,7 @@ void scp_directory::l2_scp_wait(uint32_t current_thread, uint32_t id)
     // Same ID, set line as valid and remove from list
     if(it->id == id)
     {
-      SD_L2_LOG(shire, it->line, minion_id, printf("scp_directory::l2_scp_wait => valid shire: %i, line: %i\n", shire, it->line));
+      SD_L2_LOG(shire, it->line, minion_id, printf("l2_scp_checker::l2_scp_wait => valid shire: %i, line: %i\n", shire, it->line));
       shire_scp_info[shire].l2_scp_line_status[it->line] = L2Scp_Valid;
       auto it_orig = it;
       it++;
@@ -198,7 +122,7 @@ void scp_directory::l2_scp_wait(uint32_t current_thread, uint32_t id)
  *
  *  Data is read from L2 scp. If data is not valid an error is raised
  */
-void scp_directory::l2_scp_read(uint32_t current_thread, uint64_t addr)
+void l2_scp_checker::l2_scp_read(uint32_t current_thread, uint64_t addr)
 {
   uint32_t minion_id    = current_thread / EMU_THREADS_PER_MINION;
   uint32_t minion       = minion_id % EMU_MINIONS_PER_SHIRE;
@@ -218,17 +142,16 @@ void scp_directory::l2_scp_read(uint32_t current_thread, uint64_t addr)
   uint32_t shire_access = (addr >> 23) & 0x3FULL;
   uint32_t line_access  = (addr >> 6) & 0x1FFFF;
 
-  SD_L2_LOG(shire, line_access, minion_id, printf("scp_directory::l2_scp_read => shire: %i, minion: %i, addr: %016llX, shire_addr: %i, line: %i\n", shire, minion, (long long unsigned int) addr, shire_access, line_access));
+  SD_L2_LOG(shire, line_access, minion_id, printf("l2_scp_checker::l2_scp_read => shire: %i, minion: %i, addr: %016llX, shire_addr: %i, line: %i\n", shire, minion, (long long unsigned int) addr, shire_access, line_access));
 
   if(shire_access >= EMU_NUM_SHIRES)
   {
-    LOG_ALL_MINIONS(FTL, "scp_directory::l2_scp_read => accessing shire %i beyond limit %i\n", shire_access, EMU_NUM_SHIRES);
+    LOG_ALL_MINIONS(FTL, "l2_scp_checker::l2_scp_read => accessing shire %i beyond limit %i\n", shire_access, EMU_NUM_SHIRES);
   }
 
   if(shire_scp_info[shire_access].l2_scp_line_status[line_access] != L2Scp_Valid)
   {
-    LOG_ALL_MINIONS(FTL, "scp_directory::l2_scp_read => line state is not valid!! It is %i\n", shire_scp_info[shire_access].l2_scp_line_status[line_access]);
+    LOG_ALL_MINIONS(FTL, "l2_scp_checker::l2_scp_read => line state is not valid!! It is %i\n", shire_scp_info[shire_access].l2_scp_line_status[line_access]);
   }
-
 }
 

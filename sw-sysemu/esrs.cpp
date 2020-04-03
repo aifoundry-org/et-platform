@@ -17,7 +17,7 @@
 #include "tbox_emu.h"
 #include "txs.h"
 #ifdef SYS_EMU
-#include "mem_directory.h"
+#include "mem_checker.h"
 #endif
 
 // FIXME: the following needs to be cleaned up
@@ -755,22 +755,22 @@ void esr_write(uint64_t addr, uint64_t value)
                 break;
             case ESR_SC_IDX_COP_SM_CTL:
 #ifdef SYS_EMU
-                if(sys_emu::get_coherency_check())
+                if(sys_emu::get_mem_check())
                 {
                     // Doing a CB drain
                     if((value & 1) && (((value >> 8) & 0xF) == 10))
                     {
-                        sys_emu::get_mem_directory().cb_drain(shire, b);
+                        sys_emu::get_mem_checker().cb_drain(shire, b);
                     }
                     // Doing an L2 flush
                     else if((value & 1) && (((value >> 8) & 0xF) == 2))
                     {
-                        sys_emu::get_mem_directory().l2_flush(shire, b);
+                        sys_emu::get_mem_checker().l2_flush(shire, b);
                     }
                     // Doing an L2 evict
                     else if((value & 1) && (((value >> 8) & 0xF) == 3))
                     {
-                        sys_emu::get_mem_directory().l2_evict(shire, b);
+                        sys_emu::get_mem_checker().l2_evict(shire, b);
                     }
                 }
 #endif
@@ -853,12 +853,12 @@ void esr_write(uint64_t addr, uint64_t value)
                 break;
             case ESR_SC_IDX_COP_SM_CTL_USER:
 #ifdef SYS_EMU
-                if(sys_emu::get_coherency_check())
+                if(sys_emu::get_mem_check())
                 {
                     // Doing a CB drain
                     if((value & 1) && (((value >> 8) & 0xF) == 10))
                     {
-                        sys_emu::get_mem_directory().cb_drain(shire, b);
+                        sys_emu::get_mem_checker().cb_drain(shire, b);
                     }
                 }
 #endif

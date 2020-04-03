@@ -38,7 +38,8 @@
 #include "mmu.h"
 #include "processor.h"
 #include "profiling.h"
-#include "scp_directory.h"
+#include "l1_scp_checker.h"
+#include "l2_scp_checker.h"
 #include "utils.h"
 
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
@@ -60,10 +61,12 @@ std::list<sys_emu_coop_tload>    sys_emu::coop_tload_pending_list[EMU_NUM_THREAD
 RVTimer         sys_emu::pu_rvtimer;
 uint64_t        sys_emu::minions_en = 1;
 uint64_t        sys_emu::shires_en  = 1;
-bool            sys_emu::coherency_check = false;
-mem_directory   sys_emu::mem_dir;
-bool            sys_emu::scp_check       = false;
-scp_directory   sys_emu::scp_dir;
+bool            sys_emu::mem_check = false;
+mem_checker     sys_emu::mem_checker_;
+bool            sys_emu::l1_scp_check = false;
+l1_scp_checker  sys_emu::l1_scp_checker_;
+bool            sys_emu::l2_scp_check = false;
+l2_scp_checker  sys_emu::l2_scp_checker_;
 std::unique_ptr<api_communicate> sys_emu::api_listener;
 sys_emu_cmd_options              sys_emu::cmd_options;
 std::unordered_set<uint64_t>     sys_emu::breakpoints;

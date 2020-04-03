@@ -27,7 +27,7 @@
 #include "traps.h"
 #include "utility.h"
 #ifdef SYS_EMU
-#include "mem_directory.h"
+#include "mem_checker.h"
 #endif
 
 // FIXME: Replace with "processor.h"
@@ -299,8 +299,8 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
             }
         }
 #ifdef SYS_EMU
-        if (sys_emu::get_coherency_check()) {
-            sys_emu::get_mem_directory().access(addr, macc, cop, current_thread, size, mask);
+        if (sys_emu::get_mem_check()) {
+            sys_emu::get_mem_checker().access(addr, macc, cop, current_thread, size, mask);
         }
 #endif
         return truncated_dram_addr(addr);
@@ -310,11 +310,11 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
         if (amo_l)
             throw_access_fault(vaddr, macc);
 #ifdef SYS_EMU
-        if (sys_emu::get_coherency_check()) {
-            sys_emu::get_mem_directory().access(addr, macc, cop, current_thread, size, mask);
+        if (sys_emu::get_mem_check()) {
+            sys_emu::get_mem_checker().access(addr, macc, cop, current_thread, size, mask);
         }
-        if (sys_emu::get_scp_check()) {
-            sys_emu::get_scp_directory().l2_scp_read(current_thread, addr);
+        if (sys_emu::get_l2_scp_check()) {
+            sys_emu::get_l2_scp_checker().l2_scp_read(current_thread, addr);
         }
 #endif
         return addr;
@@ -421,8 +421,8 @@ static uint64_t pma_check_fetch_access(uint64_t vaddr, uint64_t addr,
             }
         }
 #ifdef SYS_EMU
-        if (sys_emu::get_coherency_check()) {
-            sys_emu::get_mem_directory().access(addr, macc, CacheOp_None, current_thread, 64, mreg_t(-1));
+        if (sys_emu::get_mem_check()) {
+            sys_emu::get_mem_checker().access(addr, macc, CacheOp_None, current_thread, 64, mreg_t(-1));
         }
 #endif
         return truncated_dram_addr(addr);

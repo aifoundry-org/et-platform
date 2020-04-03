@@ -14,9 +14,10 @@
 #include "api_communicate.h"
 #include "devices/rvtimer.h"
 #include "emu_defines.h"
-#include "mem_directory.h"
+#include "mem_checker.h"
 #include "processor.h"
-#include "scp_directory.h"
+#include "l1_scp_checker.h"
+#include "l2_scp_checker.h"
 
 #include <algorithm>
 #include <bitset>
@@ -154,10 +155,12 @@ public:
 
     static void thread_set_single_step(int thread_id) { single_step[thread_id] = true; }
 
-    static bool get_coherency_check() { return coherency_check; }
-    static mem_directory& get_mem_directory() { return mem_dir; }
-    static bool get_scp_check() { return scp_check; }
-    static scp_directory& get_scp_directory() { return scp_dir; }
+    static bool get_mem_check() { return mem_check; }
+    static mem_checker& get_mem_checker() { return mem_checker_; }
+    static bool get_l1_scp_check() { return l1_scp_check; }
+    static l1_scp_checker& get_l1_scp_checker() { return l1_scp_checker_; }
+    static bool get_l2_scp_check() { return l2_scp_check; }
+    static l2_scp_checker& get_l2_scp_checker() { return l2_scp_checker_; }
     static bool get_display_trap_info() { return cmd_options.display_trap_info; }
 
     static void coop_tload_add(uint32_t thread_id, bool tenb, uint32_t id, uint32_t coop_id, uint32_t min_mask, uint32_t neigh_mask);
@@ -222,10 +225,12 @@ private:
     static RVTimer         pu_rvtimer;
     static uint64_t        minions_en;
     static uint64_t        shires_en;
-    static bool            coherency_check;
-    static mem_directory   mem_dir;
-    static bool            scp_check;
-    static scp_directory   scp_dir;
+    static bool            mem_check;
+    static mem_checker     mem_checker_;
+    static bool            l1_scp_check;
+    static l1_scp_checker  l1_scp_checker_;
+    static bool            l2_scp_check;
+    static l2_scp_checker  l2_scp_checker_;
     static std::unordered_set<uint64_t> breakpoints;
     static std::bitset<EMU_NUM_THREADS> single_step;
 

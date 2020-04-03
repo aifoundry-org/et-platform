@@ -31,7 +31,7 @@ libsysemu_OBJS := $(filter-out $(sysemu_OBJDIR)/sys_emu/sys_emu_main.o,$(sysemu_
 CC       := gcc
 CXX      := g++
 LD       := ld
-CPPFLAGS := -MMD -MP -I.. -I. -DSYS_EMU
+CPPFLAGS := -MMD -MP -I.. -I. -DSYS_EMU -I./checkers
 CXXFLAGS := -Wall -Wextra -Werror -pedantic-errors -fPIC -std=c++11
 CFLAGS   := -Wall -Wextra -Werror -pedantic-errors -fPIC -std=c11
 LDLIBS   := -lm

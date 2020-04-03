@@ -36,8 +36,9 @@
 #include "processor.h"
 #ifdef SYS_EMU
 #include "sys_emu.h"
-#include "mem_directory.h"
-#include "scp_directory.h"
+#include "mem_checker.h"
+#include "l1_scp_checker.h"
+#include "l2_scp_checker.h"
 #endif
 #include "traps.h"
 #include "txs.h"
@@ -159,14 +160,14 @@ std::queue<uint32_t> &get_minions_to_awake() {return minions_to_awake;}
 // SCP checks
 #ifdef SYS_EMU
     #define L1_SCP_CHECK_FILL(thread, idx, id) \
-        { if(sys_emu::get_scp_check()) \
+        { if(sys_emu::get_l1_scp_check()) \
         { \
-            sys_emu::get_scp_directory().l1_scp_fill(thread, idx, id); \
+            sys_emu::get_l1_scp_checker().l1_scp_fill(thread, idx, id); \
         } }
     #define L1_SCP_CHECK_READ(thread, idx) \
-        { if(sys_emu::get_scp_check()) \
+        { if(sys_emu::get_l1_scp_check()) \
         { \
-            sys_emu::get_scp_directory().l1_scp_read(thread, idx); \
+            sys_emu::get_l1_scp_checker().l1_scp_read(thread, idx); \
         } }
     int orig_mcache_control;
 #else
@@ -1551,9 +1552,9 @@ static uint64_t csrset(uint16_t src1, uint64_t val)
         }
         val &= 3;
 #ifdef SYS_EMU
-        if(sys_emu::get_coherency_check() && (orig_mcache_control != (cpu[current_thread].mcache_control & 0x3)))
+        if(sys_emu::get_mem_check() && (orig_mcache_control != (cpu[current_thread].mcache_control & 0x3)))
         {
-            sys_emu::get_mem_directory().mcache_control_up((current_thread >> 1) / EMU_MINIONS_PER_SHIRE, (current_thread >> 1) % EMU_MINIONS_PER_SHIRE, cpu[current_thread].mcache_control);
+            sys_emu::get_mem_checker().mcache_control_up((current_thread >> 1) / EMU_MINIONS_PER_SHIRE, (current_thread >> 1) % EMU_MINIONS_PER_SHIRE, cpu[current_thread].mcache_control);
         }
 #endif
         break;
@@ -1654,9 +1655,9 @@ static uint64_t csrset(uint16_t src1, uint64_t val)
             cpu[current_thread^1].mcache_control = val & 3;
         }
 #ifdef SYS_EMU
-        if(sys_emu::get_coherency_check() && (orig_mcache_control != (cpu[current_thread].mcache_control & 0x3)))
+        if(sys_emu::get_mem_check() && (orig_mcache_control != (cpu[current_thread].mcache_control & 0x3)))
         {
-            sys_emu::get_mem_directory().mcache_control_up((current_thread >> 1) / EMU_MINIONS_PER_SHIRE, (current_thread >> 1) % EMU_MINIONS_PER_SHIRE, cpu[current_thread].mcache_control);
+            sys_emu::get_mem_checker().mcache_control_up((current_thread >> 1) / EMU_MINIONS_PER_SHIRE, (current_thread >> 1) % EMU_MINIONS_PER_SHIRE, cpu[current_thread].mcache_control);
         }
 #endif
         break;
@@ -2086,12 +2087,12 @@ static void dcache_evict_flush_set_way(bool evict, bool tm, int dest, int set, i
             LOG(DEBUG, "\tDoing %s: Set: %d, Way: %d, DestLevel: %d",
                 evict ? "EvictSW" : "FlushSW", set, way, dest);
 #ifdef SYS_EMU
-            if(sys_emu::get_coherency_check())
+            if(sys_emu::get_mem_check())
             {
                 unsigned shire = current_thread / EMU_THREADS_PER_SHIRE;
                 unsigned minion = (current_thread / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE;
-                if(evict) sys_emu::get_mem_directory().l1_evict_sw(shire, minion, set, way);
-                else      sys_emu::get_mem_directory().l1_flush_sw(shire, minion, set, way);
+                if(evict) sys_emu::get_mem_checker().l1_evict_sw(shire, minion, set, way);
+                else      sys_emu::get_mem_checker().l1_flush_sw(shire, minion, set, way);
             }
 #endif
 
@@ -3052,9 +3053,9 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
                 bemu::pmemwrite512(l2scp_addr, tmp.u32.data());
                 LOG_MEMWRITE512(l2scp_addr, tmp.u32);
 #ifdef SYS_EMU
-                if(sys_emu::get_scp_check())
+                if(sys_emu::get_l2_scp_check())
                 {
-                    sys_emu::get_scp_directory().l2_scp_fill(current_thread, dst + i, id, paddr);
+                    sys_emu::get_l2_scp_checker().l2_scp_fill(current_thread, dst + i, id, paddr);
                 }
 #endif
             }
@@ -4499,13 +4500,16 @@ void tensor_wait_start(uint64_t value)
 void tensor_wait_execute()
 {
 #ifdef SYS_EMU
-    if(sys_emu::get_scp_check())
+    if(sys_emu::get_l1_scp_check())
     {
         // TensorWait TLoad Id0
-        if     ((cpu[current_thread].wait.id) == 0) { sys_emu::get_scp_directory().l1_scp_wait(current_thread, 0); }
-        else if((cpu[current_thread].wait.id) == 1) { sys_emu::get_scp_directory().l1_scp_wait(current_thread, 1); }
-        else if((cpu[current_thread].wait.id) == 2) { sys_emu::get_scp_directory().l2_scp_wait(current_thread, 0); }
-        else if((cpu[current_thread].wait.id) == 3) { sys_emu::get_scp_directory().l2_scp_wait(current_thread, 1); }
+        if     ((cpu[current_thread].wait.id) == 0) { sys_emu::get_l1_scp_checker().l1_scp_wait(current_thread, 0); }
+        else if((cpu[current_thread].wait.id) == 1) { sys_emu::get_l1_scp_checker().l1_scp_wait(current_thread, 1); }
+    }
+    if(sys_emu::get_l2_scp_check())
+    {
+        if((cpu[current_thread].wait.id) == 2) { sys_emu::get_l2_scp_checker().l2_scp_wait(current_thread, 0); }
+        else if((cpu[current_thread].wait.id) == 3) { sys_emu::get_l2_scp_checker().l2_scp_wait(current_thread, 1); }
     }
 #endif
     cpu[current_thread].wait.state = Processor::Wait::State::Idle;

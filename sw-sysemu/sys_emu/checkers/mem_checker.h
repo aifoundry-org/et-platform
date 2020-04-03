@@ -8,8 +8,8 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 
-#ifndef _MEM_DIRECTORY_H_
-#define _MEM_DIRECTORY_H_
+#ifndef _MEM_CHECKER_H_
+#define _MEM_CHECKER_H_
 
 #include <map>
 
@@ -51,7 +51,7 @@ typedef std::map<uint64_t, global_mem_info_t> global_directory_map_t;
 typedef std::map<uint64_t, shire_mem_info_t>  shire_directory_map_t;
 typedef std::map<uint64_t, minion_mem_info_t> minion_directory_map_t;
 
-class mem_directory
+class mem_checker
 {
 
 private:
@@ -84,7 +84,7 @@ private:
 
 public:
 
-    mem_directory();
+    mem_checker();
 
     bool access(uint64_t addr, mem_access_type macc, cacheop_type cop, uint32_t current_thread, size_t size, mreg_t mask);
     void cb_drain(uint32_t shire_id, uint32_t cache_bank);
@@ -96,3 +96,4 @@ public:
 };
 
 #endif
+
