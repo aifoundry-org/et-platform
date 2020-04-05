@@ -442,7 +442,7 @@ static void ddr_init(uint32_t memshire_id ){
 
   do
     value_read = read_reg( memshire_id, 0x60000000);// poll_ddrc_reg 0 MSTR   0x80080020  0xffffffff 1
-  while(!((value_read & 0xffffffff) == 0x80080020));
+  while(!((value_read & 0xffffffff) == 0x00080020));
 
   do
     value_read = read_reg( memshire_id, 0x600000dc);// poll_ddrc_reg 0 INIT3  0x0074007f  0xffffffff 1
@@ -466,7 +466,7 @@ static void ddr_init(uint32_t memshire_id ){
 
   do
     value_read = read_reg( memshire_id, 0x60001000);// poll_ddrc_reg 1 MSTR   0x80080020  0xffffffff 1
-  while(!((value_read & 0xffffffff) == 0x80080020));
+  while(!((value_read & 0xffffffff) == 0x00080020));
 
   do
     value_read = read_reg( memshire_id, 0x600010dc);// poll_ddrc_reg 1 INIT3  0x0074007f  0xffffffff 1
