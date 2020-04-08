@@ -32,6 +32,8 @@ ABSL_FLAG(std::string, sysemu_pu_uart_tx_file, "",
           "Set sysemu PU UART TX log file");
 ABSL_FLAG(std::string, sysemu_pu_uart1_tx_file, "",
           "Set sysemu PU UART1 TX log file");
+ABSL_FLAG(bool, sysemu_mem_check, false, "Enable sysemu MEM check");
+ABSL_FLAG(bool, sysemu_flb_check_disable, false, "Disable sysemu FLB check");
 
 namespace et_runtime {
 namespace device {
@@ -81,6 +83,15 @@ SysEmuLauncher::SysEmuLauncher(
   } else {
     execute_args_.push_back("-pu_uart1_tx_file");
     execute_args_.push_back(sysemu_run_ + "/pu_uart1_tx.log");
+  }
+
+  // Checkers
+  if (absl::GetFlag(FLAGS_sysemu_mem_check)) {
+    execute_args_.push_back("-mem_check");
+  }
+
+  if (!absl::GetFlag(FLAGS_sysemu_flb_check_disable)) {
+    execute_args_.push_back("-flb_check");
   }
 }
 
