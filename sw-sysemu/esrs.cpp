@@ -89,6 +89,7 @@ std::array<broadcast_esrs_t, EMU_NUM_SHIRES>   broadcast_esrs;
     (((val) & ESR_REGION_PROT_MASK) >> ESR_REGION_PROT_SHIFT)
 
 #define SHIREID(shire)  (((shire) == EMU_IO_SHIRE_SP) ? IO_SHIRE_ID : (shire))
+#define NEIGHID(pos)    ((pos) % EMU_NEIGH_PER_SHIRE)
 #define MINION(hart)    ((hart) / EMU_THREADS_PER_MINION)
 #define THREAD(hart)    ((hart) % EMU_THREADS_PER_MINION)
 
@@ -634,73 +635,73 @@ void esr_write(uint64_t addr, uint64_t value)
             case ESR_DUMMY0:
                 neigh_esrs[pos].dummy0 = uint32_t(value & 0xffffffff);
                 LOG_ALL_MINIONS(DEBUG, "S%u:N%u:dummy0 = 0x%" PRIx32,
-                                SHIREID(shire), neigh, neigh_esrs[pos].dummy0);
+                                SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].dummy0);
                 break;
             case ESR_MINION_BOOT:
                 neigh_esrs[pos].minion_boot = value & VA_M;
                 LOG_ALL_MINIONS(DEBUG, "S%u:N%u:minion_boot = 0x%" PRIx64,
-                                SHIREID(shire), neigh, neigh_esrs[pos].minion_boot);
+                                SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].minion_boot);
                 break;
             case ESR_DUMMY2:
                 neigh_esrs[pos].dummy2 = bool(value & 1);
                 LOG_ALL_MINIONS(DEBUG, "S%u:N%u:dummy2 = 0x%x",
-                                SHIREID(shire), neigh, neigh_esrs[pos].dummy2 ? 1 : 0);
+                                SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].dummy2 ? 1 : 0);
                 break;
             case ESR_VMSPAGESIZE:
                 neigh_esrs[pos].vmspagesize = value & 0x3;
                 LOG_ALL_MINIONS(DEBUG, "S%u:N%u:vmspagesize = 0x%" PRIx8,
-                                SHIREID(shire), neigh, neigh_esrs[pos].vmspagesize);
+                                SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].vmspagesize);
                 break;
             case ESR_IPI_REDIRECT_PC:
                 neigh_esrs[pos].ipi_redirect_pc = value & VA_M;
                 LOG_ALL_MINIONS(DEBUG, "S%u:N%u:ipi_redirect_pc = 0x%" PRIx64,
-                                SHIREID(shire), neigh, neigh_esrs[pos].ipi_redirect_pc);
+                                SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].ipi_redirect_pc);
                 break;
             case ESR_PMU_CTRL:
                 neigh_esrs[pos].pmu_ctrl = bool(value & 1);
                 LOG_ALL_MINIONS(DEBUG, "S%u:N%u:pmu_ctrl = 0x%x",
-                                SHIREID(shire), neigh, neigh_esrs[pos].pmu_ctrl ? 1 : 0);
+                                SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].pmu_ctrl ? 1 : 0);
                 break;
             case ESR_NEIGH_CHICKEN:
                 neigh_esrs[pos].neigh_chicken = uint8_t(value & 0xff);
                 LOG_ALL_MINIONS(DEBUG, "S%u:N%u:neigh_chicken = 0x%" PRIx8,
-                                SHIREID(shire), neigh, neigh_esrs[pos].neigh_chicken);
+                                SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].neigh_chicken);
                 break;
             case ESR_ICACHE_ERR_LOG_CTL:
                 neigh_esrs[pos].icache_err_log_ctl = uint8_t(value & 0xf);
                 LOG_ALL_MINIONS(DEBUG, "S%u:N%u:icache_err_log_ctl = 0x%" PRIx8,
-                                SHIREID(shire), neigh, neigh_esrs[pos].icache_err_log_ctl);
+                                SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].icache_err_log_ctl);
                 break;
             case ESR_ICACHE_ERR_LOG_INFO:
                 neigh_esrs[pos].icache_err_log_info = value & 0x0010ff000003ffffull;
                 LOG_ALL_MINIONS(DEBUG, "S%u:N%u:icache_err_log_info = 0x%" PRIx64,
-                                SHIREID(shire), neigh, neigh_esrs[pos].icache_err_log_info);
+                                SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].icache_err_log_info);
                 break;
             case ESR_ICACHE_SBE_DBE_COUNTS:
                 neigh_esrs[pos].icache_sbe_dbe_counts = uint16_t(value & 0x7ff);
                 LOG_ALL_MINIONS(DEBUG, "S%u:N%u:icache_sbe_dbe_counts = 0x%" PRIx16,
-                                SHIREID(shire), neigh, neigh_esrs[pos].icache_sbe_dbe_counts);
+                                SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].icache_sbe_dbe_counts);
                 break;
             case ESR_TEXTURE_CONTROL:
                 neigh_esrs[pos].texture_control = uint16_t(value & 0xff80);
                 LOG_ALL_MINIONS(DEBUG, "S%u:N%u:texture_control = 0x%" PRIx16,
-                                SHIREID(shire), neigh, neigh_esrs[pos].texture_control);
+                                SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].texture_control);
                 break;
             case ESR_MPROT:
                 neigh_esrs[pos].mprot = uint8_t(value & 0x7f);
                 LOG_ALL_MINIONS(DEBUG, "S%u:N%u:mprot = 0x%" PRIx8,
-                                SHIREID(shire), neigh, neigh_esrs[pos].mprot);
+                                SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].mprot);
                 break;
             case ESR_TEXTURE_IMAGE_TABLE_PTR:
                 value &= VA_M;
                 neigh_esrs[pos].texture_image_table_ptr = value;
                 LOG_ALL_MINIONS(DEBUG, "S%u:N%u:texture_image_table_ptr = 0x%" PRIx64,
-                                SHIREID(shire), neigh, neigh_esrs[pos].texture_image_table_ptr);
+                                SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].texture_image_table_ptr);
                 tbox_id = tbox_id_from_thread(current_thread);
                 GET_TBOX(shire, tbox_id).set_image_table_address(value);
                 break;
             default:
-                LOG(WARN, "Write unknown neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), neigh, esr);
+                LOG(WARN, "Write unknown neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), NEIGHID(pos), esr);
                 throw bemu::memory_error(addr);
             }
         }
