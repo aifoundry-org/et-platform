@@ -26,14 +26,12 @@
 
 using namespace std;
 
-ABSL_FLAG(bool, sysemu_log_enable, false, "Enable sysemu logging");
-ABSL_FLAG(int, sysemu_log_minion, -1, "Enable logging of minion X");
 ABSL_FLAG(std::string, sysemu_pu_uart_tx_file, "",
           "Set sysemu PU UART TX log file");
 ABSL_FLAG(std::string, sysemu_pu_uart1_tx_file, "",
           "Set sysemu PU UART1 TX log file");
-ABSL_FLAG(bool, sysemu_mem_check, false, "Enable sysemu MEM check");
-ABSL_FLAG(bool, sysemu_flb_check_disable, false, "Disable sysemu FLB check");
+ABSL_FLAG(std::string, sysemu_params, 
+          "", "Hyperparameters to pass to simulator, overrides default values");
 
 namespace et_runtime {
 namespace device {
@@ -51,23 +49,12 @@ SysEmuLauncher::SysEmuLauncher(
       std::string("-api_comm"), connection_,
       "-mins_dis", // Disable minions by default as booting is done through an
                    // exec commandi
-      //"-l",//"-lm","0", // Enable logging of minion0
-      "-max_cycles", "1000000000", // Limiting number of virtual simulation
-                                   // cycles. Increase if needed
   };
   execute_args_.insert(execute_args_.end(), additional_options.begin(),
                        additional_options.end());
 
   // Enable async behavior of the simulator API
   execute_args_.push_back("-sim_api_async");
-
-  if (absl::GetFlag(FLAGS_sysemu_log_enable)) {
-    execute_args_.push_back("-l");
-    if (auto minion = absl::GetFlag(FLAGS_sysemu_log_minion); minion != -1) {
-        execute_args_.push_back("-lm");
-        execute_args_.push_back(fmt::format("{}", minion));
-    }
-  }
 
   if (auto file = absl::GetFlag(FLAGS_sysemu_pu_uart_tx_file); !file.empty()) {
     execute_args_.push_back("-pu_uart_tx_file");
@@ -85,14 +72,21 @@ SysEmuLauncher::SysEmuLauncher(
     execute_args_.push_back(sysemu_run_ + "/pu_uart1_tx.log");
   }
 
-  // Checkers
-  if (absl::GetFlag(FLAGS_sysemu_mem_check)) {
-    execute_args_.push_back("-mem_check");
-  }
+  // Additional SysEmu flags
+  std::string sysemuArgList = absl::GetFlag(FLAGS_sysemu_params);
 
-  if (!absl::GetFlag(FLAGS_sysemu_flb_check_disable)) {
-    execute_args_.push_back("-flb_check");
+  // Extract hyperparameters from single string
+  std::string delimiter = " ";
+  size_t pos = 0;
+  std::string token;
+
+  // Register each word as a separate argument
+  while ((pos = sysemuArgList.find(delimiter)) != std::string::npos) {
+      token = sysemuArgList.substr(0, pos);
+      execute_args_.push_back(token);
+      sysemuArgList.erase(0, pos + delimiter.length());
   }
+  execute_args_.push_back(sysemuArgList);
 }
 
 SysEmuLauncher::SysEmuLauncher(const std::string &run_dir,
