@@ -188,7 +188,7 @@ const char* csr_name(uint16_t num)
     };
     auto it = csr_names.find(num);
     if (it == csr_names.cend()) {
-        (void) snprintf(&unknown_name[unknown_name_start], 6, "0x%03" PRIx16, num & 0xfff);
+        (void) snprintf(&unknown_name[unknown_name_start], 6, "0x%03x", unsigned(num & 0xfff));
         const char * ptr = &unknown_name[unknown_name_start];
         unknown_name_start = (unknown_name_start + 5) % 60;
         return ptr;

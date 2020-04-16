@@ -107,6 +107,7 @@ protected:
     uint32_t counter = 0;
 };
 
+
 template<unsigned long long Base, unsigned long long N>
 struct MailboxRegion : public MemoryRegion {
     typedef typename MemoryRegion::addr_type      addr_type;
@@ -156,15 +157,15 @@ struct MailboxRegion : public MemoryRegion {
         }
     }
 
-    void init(size_type pos, size_type n, const_pointer source) {
+    void init(size_type pos, size_type n, const_pointer source) override {
         const auto elem = search(pos, n);
         if (!elem)
             throw std::runtime_error("bemu::MailboxRegion::init()");
         elem->init(pos - elem->first(), n, source);
     }
 
-    addr_type first() const { return Base; }
-    addr_type last() const { return Base + N - 1; }
+    addr_type first() const override { return Base; }
+    addr_type last() const override { return Base + N - 1; }
 
     void dump_data(std::ostream&, size_type, size_type) const override { }
 

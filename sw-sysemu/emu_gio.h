@@ -37,7 +37,7 @@ namespace emu {
                      unsigned((thread / EMU_THREADS_PER_NEIGH) % EMU_NEIGH_PER_SHIRE), \
                      unsigned((thread / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_NEIGH), \
                      unsigned(thread % EMU_THREADS_PER_MINION), \
-                     ##__VA_ARGS__); \
+                     __VA_ARGS__); \
     } \
 } while (0)
 
@@ -45,26 +45,26 @@ namespace emu {
 #define LOG(severity, format, ...) do { \
     _LOG_IMPL(severity, \
               log_thread[current_thread], \
-              _LOG_THREAD(current_thread), format, ##__VA_ARGS__); \
+              _LOG_THREAD(current_thread), format, __VA_ARGS__); \
 } while (0)
 
 
 #define LOG_OTHER(severity, thread, format, ...) do { \
     _LOG_IMPL(severity, \
               log_thread[current_thread], \
-              _LOG_THREAD(thread), format, ##__VA_ARGS__); \
+              _LOG_THREAD(thread), format, __VA_ARGS__); \
 } while (0)
 
 
 #define LOG_ALL_MINIONS(severity, format, ...) do { \
-    _LOG_IMPL(severity, true, _LOG_THREAD(current_thread), format, ##__VA_ARGS__); \
+    _LOG_IMPL(severity, true, _LOG_THREAD(current_thread), format, __VA_ARGS__); \
 } while(0)
 
 
 #define LOG_NOTHREAD(severity, format, ...) do { \
     if (LOG_##severity >= emu::log.getLogLevel()) \
     { \
-        emu::lprintf(LOG_##severity, format, ##__VA_ARGS__); \
+        emu::lprintf(LOG_##severity, format, __VA_ARGS__); \
     } \
 } while (0)
 
@@ -72,7 +72,7 @@ namespace emu {
 #define LOG_IF(severity, cond, format, ...) do { \
     _LOG_IMPL(severity, \
               log_thread[current_thread] && (cond), \
-               _LOG_THREAD(current_thread), format, ##__VA_ARGS__); \
+               _LOG_THREAD(current_thread), format, __VA_ARGS__); \
 } while (0)
 
 

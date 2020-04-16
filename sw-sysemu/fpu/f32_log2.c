@@ -104,7 +104,7 @@ float32_t f32_log2( float32_t a )
     } else {
         product = ( sigA >> 22 ) ? product : -(product & 0xffffffffffffff80);
     }
-    product = ( exponent << 49 ) | ( 0x1FFFFFFFFFFFFULL & product );
+    product = ( ((uint_fast64_t)exponent) << 49 ) | ( 0x1FFFFFFFFFFFFULL & product );
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
     shiftDist = softfloat_countLeadingZeros32( product >> 25 );

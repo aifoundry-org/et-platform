@@ -882,7 +882,7 @@ bool mem_checker::access(uint64_t addr, mem_access_type macc, cacheop_type cop, 
             LOG_ALL_MINIONS(FTL, "CacheOp %i not supported yet!!\n", (int) cop);
         if((cop == CacheOp_EvictL3) || (cop == CacheOp_EvictDDR))
             location = COH_GLOBAL;
-        else if((cop == CacheOp_EvictL2))
+        else if(cop == CacheOp_EvictL2)
             location = COH_SHIRE;
         break;
     case Mem_Access_Fetch: // Load instruction from memory. This must not be included in the directory. Do nothing

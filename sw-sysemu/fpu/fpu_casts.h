@@ -28,7 +28,7 @@ inline uint32_t UI32(std::true_type, const T& x) {
 }
 
 template<typename T>
-inline uint32_t UI32(std::false_type, const T& x) {
+inline uint32_t UI32(std::false_type, const T&) {
     static_assert(sizeof(T) != sizeof(T),
                   "fpu::UI32() only accepts integral types");
     return 0;
@@ -42,7 +42,7 @@ inline float32_t F32(std::true_type, const T& x) {
 }
 
 template<typename T>
-inline float32_t F32(std::false_type, const T& x) {
+inline float32_t F32(std::false_type, const T&) {
     static_assert(sizeof(T) != sizeof(T),
                   "fpu::F32() only accepts integral types");
     return float32_t {};
@@ -56,7 +56,7 @@ inline float16_t F16(std::true_type, const T& x) {
 }
 
 template<typename T>
-inline float16_t F16(std::false_type, const T& x) {
+inline float16_t F16(std::false_type, const T&) {
     static_assert(sizeof(T) != sizeof(T),
                   "fpu::F16() only accepts integral types");
     return float16_t {};
@@ -70,7 +70,7 @@ inline float11_t F11(std::true_type, const T& x) {
 }
 
 template<typename T>
-inline float11_t F11(std::false_type, const T& x) {
+inline float11_t F11(std::false_type, const T&) {
     static_assert(sizeof(T) != sizeof(T),
                   "fpu::F11() only accepts integral types");
     return float11_t {};
@@ -84,7 +84,7 @@ inline float10_t F10(std::true_type, const T& x) {
 }
 
 template<typename T>
-inline float10_t F10(std::false_type, const T& x) {
+inline float10_t F10(std::false_type, const T&) {
     static_assert(sizeof(T) != sizeof(T),
                   "fpu::F10() only accepts integral types");
     return float10_t {};

@@ -688,7 +688,7 @@ static void gdbstub_handle_read_register(const char *packet)
     char buffer[(VLEN / 8) * 2 + 1];
     uint64_t reg = strtoul(packet + 1, NULL, 16);
 
-    LOG_NOTHREAD(DEBUG, "GDB stub: read register: %ld", reg);
+    LOG_NOTHREAD(DEBUG, "GDB stub: read register: %" PRIu64, reg);
 
     if (/* reg >= XREGS_START && */ reg <= XREGS_END) {
         u64_to_hexstr(buffer, target_read_register(g_cur_general_thread, reg));
@@ -703,7 +703,7 @@ static void gdbstub_handle_read_register(const char *packet)
         int csr = target_csr_list[reg - CSR_REGS_START];
         u64_to_hexstr(buffer, target_read_csr(g_cur_general_thread, csr));
     } else {
-        LOG_NOTHREAD(INFO, "GDB stub: read register: unknown register %ld", reg);
+        LOG_NOTHREAD(INFO, "GDB stub: read register: unknown register %" PRIu64, reg);
         rsp_send_packet("E00");
         return;
     }
@@ -716,7 +716,7 @@ static void gdbstub_handle_write_register(const char *packet)
     uint64_t reg = strtoul(packet + 1, NULL, 16);
     const char *valuep = strchr(packet + 1, '=') + 1;
 
-    LOG_NOTHREAD(DEBUG, "GDB stub: write register: %ld <- \"%s\"", reg, valuep);
+    LOG_NOTHREAD(DEBUG, "GDB stub: write register: %" PRIu64 " <- \"%s\"", reg, valuep);
 
     if (/* reg >= XREGS_START && */ reg <= XREGS_END) {
         target_write_register(g_cur_general_thread, reg, hexstr_to_u64(valuep));
@@ -731,7 +731,7 @@ static void gdbstub_handle_write_register(const char *packet)
         int csr = target_csr_list[reg - CSR_REGS_START];
         target_write_csr(g_cur_general_thread, csr, hexstr_to_u32(valuep));
     } else {
-        LOG_NOTHREAD(INFO, "GDB stub: write register: unknown register %ld", reg);
+        LOG_NOTHREAD(INFO, "GDB stub: write register: unknown register %" PRIu64, reg);
         rsp_send_packet("E00");
         return;
     }
@@ -932,7 +932,7 @@ static void gdbstub_handle_read_memory(const char *packet)
         p++;
     length = strtoull(p, NULL, 16);
 
-    LOG_NOTHREAD(DEBUG, "GDB stub: read memory: from 0x%lx, size 0x%lx", addr, length);
+    LOG_NOTHREAD(DEBUG, "GDB stub: read memory: from 0x%" PRIx64 ", size 0x%" PRIx64, addr, length);
 
     if (!target_read_memory(addr, data, length))
         rsp_send_packet("E01");
@@ -953,7 +953,7 @@ static void gdbstub_handle_write_memory(const char *packet)
         p++;
     length = strtoull(p, &p, 16);
 
-    LOG_NOTHREAD(DEBUG, "GDB stub: write memory: from 0x%lx, size 0x%lx", addr, length);
+    LOG_NOTHREAD(DEBUG, "GDB stub: write memory: from 0x%" PRIx64 ", size 0x%" PRIx64, addr, length);
 
     hextomem(data, p, length);
 

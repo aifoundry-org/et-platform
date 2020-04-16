@@ -45,6 +45,17 @@ public:
     uint16_t          flags;
     insn_exec_func_t  exec_fn;
 
+private:
+    template<size_t N> static constexpr int64_t sx(uint32_t x) {
+        return (x & (UINT32_MAX << (N-1)))
+            ? ((UINT64_MAX << N) | uint64_t(x)) : uint64_t(x);
+    }
+
+    template<size_t N> static constexpr int32_t sx32(uint32_t x) {
+        return (x & (UINT32_MAX << (N-1)))
+            ? ((UINT32_MAX << N) | uint32_t(x)) : uint32_t(x);
+    }
+
 public:
     constexpr size_t size() const       { return ((bits & 3) == 3) ? 4 : 2; }
 
@@ -213,17 +224,6 @@ public:
 
     constexpr unsigned rvc_shamt() const {
         return unsigned( ((bits >> 2) & 0x1F) | ((bits >> 7) & 0x20) );
-    }
-
-private:
-    template<size_t N> static constexpr int64_t sx(uint32_t x) {
-        return (x & (UINT32_MAX << (N-1)))
-            ? ((UINT64_MAX << N) | uint64_t(x)) : uint64_t(x);
-    }
-
-    template<size_t N> static constexpr int32_t sx32(uint32_t x) {
-        return (x & (UINT32_MAX << (N-1)))
-            ? ((UINT32_MAX << N) | uint32_t(x)) : uint32_t(x);
     }
 };
 

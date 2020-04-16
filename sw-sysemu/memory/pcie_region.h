@@ -46,7 +46,7 @@ struct PcieDbiSlvRegion : public MemoryRegion {
     void read(size_type pos, size_type n, pointer result) override {
         uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
 
-        LOG_NOTHREAD(DEBUG, "PcieDbiSlvRegion::read(pos=0x%" PRIx64 ")", (long unsigned int)pos);
+        LOG_NOTHREAD(DEBUG, "PcieDbiSlvRegion::read(pos=0x%llx)", pos);
 
         if (n != 4)
             throw memory_error(first() + pos);
@@ -66,7 +66,7 @@ struct PcieDbiSlvRegion : public MemoryRegion {
         const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
         (void) source32;
 
-        LOG_NOTHREAD(DEBUG, "PcieDbiSlvRegion::write(pos=0x%" PRIx64 ")", (long unsigned int)pos);
+        LOG_NOTHREAD(DEBUG, "PcieDbiSlvRegion::write(pos=0x%llx)", pos);
 
         if (n != 4)
             throw memory_error(first() + pos);
@@ -81,6 +81,7 @@ struct PcieDbiSlvRegion : public MemoryRegion {
 
     void dump_data(std::ostream&, size_type, size_type) const override { }
 };
+
 
 template<unsigned long long Base, unsigned long long N>
 struct PcieNoPcieEsrRegion : public MemoryRegion {
@@ -97,7 +98,7 @@ struct PcieNoPcieEsrRegion : public MemoryRegion {
     void read(size_type pos, size_type n, pointer result) override {
         uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
 
-        LOG_NOTHREAD(DEBUG, "PcieNoPcieEsrRegion::read(pos=0x%" PRIx64 ")", (long unsigned int)pos);
+        LOG_NOTHREAD(DEBUG, "PcieNoPcieEsrRegion::read(pos=0x%llx)", pos);
 
         if (n != 4)
             throw memory_error(first() + pos);
@@ -114,7 +115,7 @@ struct PcieNoPcieEsrRegion : public MemoryRegion {
         const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
         (void) source32;
 
-        LOG_NOTHREAD(DEBUG, "PcieNoPcieEsrRegion::write(pos=0x%" PRIx64 ")", (long unsigned int)pos);
+        LOG_NOTHREAD(DEBUG, "PcieNoPcieEsrRegion::write(pos=0x%llx)", pos);
 
         if (n != 4)
             throw memory_error(first() + pos);
@@ -142,6 +143,7 @@ struct PcieNoPcieEsrRegion : public MemoryRegion {
 
     void dump_data(std::ostream&, size_type, size_type) const override { }
 };
+
 
 template<unsigned long long Base, unsigned long long N>
 struct PcieRegion : public MemoryRegion {
@@ -181,15 +183,15 @@ struct PcieRegion : public MemoryRegion {
         }
     }
 
-    void init(size_type pos, size_type n, const_pointer source) {
+    void init(size_type pos, size_type n, const_pointer source) override {
         const auto elem = search(pos, n);
         if (!elem)
             throw std::runtime_error("bemu::PcieRegion::init()");
         elem->init(pos - elem->first(), n, source);
     }
 
-    addr_type first() const { return Base; }
-    addr_type last() const { return Base + N - 1; }
+    addr_type first() const override { return Base; }
+    addr_type last() const override { return Base + N - 1; }
 
     void dump_data(std::ostream&, size_type, size_type) const override { }
 

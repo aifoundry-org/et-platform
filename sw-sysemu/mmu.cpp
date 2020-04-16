@@ -778,10 +778,10 @@ T mmu_load(uint64_t eaddr, mem_access_type macc)
 }
 
 // Template declarations are needed to avoid linker errors
-template unsigned char  mmu_load<unsigned char> (uint64_t eaddr, mem_access_type macc);
-template unsigned short mmu_load<unsigned short>(uint64_t eaddr, mem_access_type macc);
-template unsigned int   mmu_load<unsigned int>  (uint64_t eaddr, mem_access_type macc);
-template unsigned long  mmu_load<unsigned long> (uint64_t eaddr, mem_access_type macc);
+template uint8_t  mmu_load<uint8_t> (uint64_t eaddr, mem_access_type macc);
+template uint16_t mmu_load<uint16_t>(uint64_t eaddr, mem_access_type macc);
+template uint32_t mmu_load<uint32_t>(uint64_t eaddr, mem_access_type macc);
+template uint64_t mmu_load<uint64_t>(uint64_t eaddr, mem_access_type macc);
 
 uint16_t mmu_aligned_load16(uint64_t eaddr, mem_access_type macc)
 {
@@ -867,10 +867,10 @@ void mmu_store(uint64_t eaddr, T data, mem_access_type macc)
 }
 
 // Template declaration to avoid linker errors
-template void mmu_store<unsigned char>  (uint64_t eaddr, unsigned char data, mem_access_type macc);
-template void mmu_store<unsigned short> (uint64_t eaddr, unsigned short data, mem_access_type macc);
-template void mmu_store<unsigned int>   (uint64_t eaddr, unsigned int data, mem_access_type macc);
-template void mmu_store<unsigned long>  (uint64_t eaddr, unsigned long data, mem_access_type macc);
+template void mmu_store<uint8_t>  (uint64_t eaddr, uint8_t  data, mem_access_type macc);
+template void mmu_store<uint16_t> (uint64_t eaddr, uint16_t data, mem_access_type macc);
+template void mmu_store<uint32_t> (uint64_t eaddr, uint32_t data, mem_access_type macc);
+template void mmu_store<uint64_t> (uint64_t eaddr, uint64_t data, mem_access_type macc);
 
 void mmu_aligned_store16(uint64_t eaddr, uint16_t data, mem_access_type macc)
 {

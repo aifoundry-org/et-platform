@@ -180,7 +180,7 @@ void RBOX::RBOXEmu::write_esr(uint32_t esr_id, uint64_t data)
     {
         case CONFIG_ESR               : {
                                             cfg_esr.value = data;
-                                            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Config = {.enable = %d}",
+                                            LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Config = {.enable = %d}",
                                                          rbox_id, (uint32_t) cfg_esr.fields.enable);
                                             break;
                                         }
@@ -189,11 +189,11 @@ void RBOX::RBOXEmu::write_esr(uint32_t esr_id, uint64_t data)
                                             if (cfg_esr.fields.enable)
                                             {
                                                 in_buf_pg_esr.value = data;
-                                                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Input Buffer Pages = {.page0 = %08" PRIx64
-                                                           ", .page0_enable = %" PRId64 ", .page1 = %08" PRIx64
-                                                           ", .page1_enable = %" PRId64 "}", rbox_id,
-                                                           in_buf_pg_esr.fields.page0, in_buf_pg_esr.fields.page0_enable,
-                                                           in_buf_pg_esr.fields.page1, in_buf_pg_esr.fields.page1_enable);
+                                                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Input Buffer Pages = {.page0 = %08x"
+                                                           ", .page0_enable = %u, .page1 = %08x"
+                                                           ", .page1_enable = %u}", rbox_id,
+                                                           unsigned(in_buf_pg_esr.fields.page0), unsigned(in_buf_pg_esr.fields.page0_enable),
+                                                           unsigned(in_buf_pg_esr.fields.page1), unsigned(in_buf_pg_esr.fields.page1_enable));
                                             }
                                             break;
                                         }
@@ -202,9 +202,9 @@ void RBOX::RBOXEmu::write_esr(uint32_t esr_id, uint64_t data)
                                             if (cfg_esr.fields.enable)
                                             {
                                                 in_buf_cfg_esr.value = data;
-                                                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Input Buffer Config = {.start_offset = %08" PRIx64
-                                                           ", .buffer_size = %08" PRIx64 "}", rbox_id,
-                                                           in_buf_cfg_esr.fields.start_offset, in_buf_cfg_esr.fields.buffer_size);
+                                                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Input Buffer Config = {.start_offset = %08x"
+                                                           ", .buffer_size = %08x}", rbox_id,
+                                                           unsigned(in_buf_cfg_esr.fields.start_offset), unsigned(in_buf_cfg_esr.fields.buffer_size));
                                             }
                                             break;
                                         }
@@ -213,9 +213,9 @@ void RBOX::RBOXEmu::write_esr(uint32_t esr_id, uint64_t data)
                                             if (cfg_esr.fields.enable)
                                             {
                                                 out_buf_pg_esr.value = data;
-                                                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Output Buffer Page = {.page = %08" PRIx64
-                                                           ", .page_enable = %" PRId64 "}", rbox_id,
-                                                           out_buf_pg_esr.fields.page, out_buf_pg_esr.fields.page_enable);
+                                                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Output Buffer Page = {.page = %08x"
+                                                           ", .page_enable = %u}", rbox_id,
+                                                           unsigned(out_buf_pg_esr.fields.page), unsigned(out_buf_pg_esr.fields.page_enable));
                                             }
                                             break;
                                         }
@@ -224,12 +224,12 @@ void RBOX::RBOXEmu::write_esr(uint32_t esr_id, uint64_t data)
                                             if (cfg_esr.fields.enable)
                                             {
                                                 out_buf_cfg_esr.value = data;
-                                                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Output Buffer Config = {.start_offset = %08" PRIx64
-                                                           ", .buffer_size = %08" PRIx64 ", .port_id = %" PRId64
-                                                           ", .max_msgs = %" PRId64 ", .max_pckts_msg = %02" PRId64 "}", rbox_id,
-                                                           out_buf_cfg_esr.fields.start_offset, out_buf_cfg_esr.fields.buffer_size,
-                                                           out_buf_cfg_esr.fields.port_id, out_buf_cfg_esr.fields.max_msgs,
-                                                           out_buf_cfg_esr.fields.max_pckts_msg);
+                                                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Output Buffer Config = {.start_offset = %08x"
+                                                           ", .buffer_size = %08x, .port_id = %u"
+                                                           ", .max_msgs = %u, .max_pckts_msg = %02u}", rbox_id,
+                                                           unsigned(out_buf_cfg_esr.fields.start_offset), unsigned(out_buf_cfg_esr.fields.buffer_size),
+                                                           unsigned(out_buf_cfg_esr.fields.port_id), unsigned(out_buf_cfg_esr.fields.max_msgs),
+                                                           unsigned(out_buf_cfg_esr.fields.max_pckts_msg));
                                             }
                                             break;
                                         }
@@ -239,7 +239,7 @@ void RBOX::RBOXEmu::write_esr(uint32_t esr_id, uint64_t data)
                                             if (cfg_esr.fields.enable)
                                             {
                                                 start_esr.value = data;
-                                                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Start = {.start = %d}", rbox_id, (uint32_t) start_esr.fields.start);
+                                                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Start = {.start = %d}", rbox_id, (uint32_t) start_esr.fields.start);
                                             }
                                             break;
                                         }
@@ -248,16 +248,17 @@ void RBOX::RBOXEmu::write_esr(uint32_t esr_id, uint64_t data)
                                             if (cfg_esr.fields.enable)
                                             {
                                                 consume_esr.value = data;
-                                                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Consume = {.packet_credits = %03" PRId64 ", .msg_credits = %" PRId64
-                                                                    ", .hart_id = %02" PRId64 "}", rbox_id,
-                                                            consume_esr.fields.packet_credits, consume_esr.fields.msg_credits, consume_esr.fields.hart_id);
-                                                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Minion HART %02" PRId64 " Packet Credits %03d -> %03d "
-                                                                    " Message Credits %d -> %d",
-                                                            rbox_id, consume_esr.fields.hart_id,
+                                                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Consume = {.packet_credits = %03u, .msg_credits = %u"
+                                                                    ", .hart_id = %02u}",
+                                                            rbox_id, unsigned(consume_esr.fields.packet_credits),
+                                                            unsigned(consume_esr.fields.msg_credits), unsigned(consume_esr.fields.hart_id));
+                                                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Minion HART %02u Packet Credits %03" PRIu32 " -> %03" PRIu32
+                                                                    "  Message Credits %" PRIu32 " -> %" PRIu32,
+                                                            rbox_id, unsigned(consume_esr.fields.hart_id),
                                                             hart_packet_credits[consume_esr.fields.hart_id],
-                                                            hart_packet_credits[consume_esr.fields.hart_id] + consume_esr.fields.packet_credits,
+                                                            hart_packet_credits[consume_esr.fields.hart_id] + uint32_t(consume_esr.fields.packet_credits),
                                                             hart_msg_credits[consume_esr.fields.hart_id],
-                                                            hart_msg_credits[consume_esr.fields.hart_id]    + consume_esr.fields.msg_credits);
+                                                            hart_msg_credits[consume_esr.fields.hart_id]    + uint32_t(consume_esr.fields.msg_credits));
                                                 hart_packet_credits[consume_esr.fields.hart_id] += consume_esr.fields.packet_credits;
                                                 hart_msg_credits[consume_esr.fields.hart_id]    += consume_esr.fields.msg_credits;
                                             }
@@ -265,7 +266,7 @@ void RBOX::RBOXEmu::write_esr(uint32_t esr_id, uint64_t data)
                                         }
         default                       :
                                         {
-                                            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Write to undefined ESR %d", rbox_id, esr_id);
+                                            LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Write to undefined ESR %d", rbox_id, esr_id);
                                             break;
                                         }
 
@@ -276,30 +277,30 @@ uint64_t RBOX::RBOXEmu::read_esr(uint32_t esr_id)
 {
     switch (esr_id)
     {
-        case CONFIG_ESR               : LOG_NOTHREAD(DEBUG, "RBOX [%d] => Read CONFIG ESR with value %016" PRIx64, rbox_id, cfg_esr.value);
+        case CONFIG_ESR               : LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Read CONFIG ESR with value %016" PRIx64, rbox_id, cfg_esr.value);
                                         return cfg_esr.value;
-        case INPUT_BUFFER_PAGES_ESR   : LOG_NOTHREAD(DEBUG, "RBOX [%d] => Read INPUT BUFFER PAGES ESR with value %016" PRIx64,
+        case INPUT_BUFFER_PAGES_ESR   : LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Read INPUT BUFFER PAGES ESR with value %016" PRIx64,
                                                     rbox_id, in_buf_pg_esr.value);
                                         return in_buf_pg_esr.value; 
-        case INPUT_BUFFER_CONFIG_ESR  : LOG_NOTHREAD(DEBUG, "RBOX [%d] => Read INPUT BUFFER CONFIG ESR with value %016" PRIx64,
+        case INPUT_BUFFER_CONFIG_ESR  : LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Read INPUT BUFFER CONFIG ESR with value %016" PRIx64,
                                                    rbox_id, in_buf_cfg_esr.value);
                                         return in_buf_cfg_esr.value;
-        case OUTPUT_BUFFER_PAGE_ESR   : LOG_NOTHREAD(DEBUG, "RBOX [%d] => Read OUTPUT BUFFER PAGE ESR with value %016" PRIx64,
+        case OUTPUT_BUFFER_PAGE_ESR   : LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Read OUTPUT BUFFER PAGE ESR with value %016" PRIx64,
                                                    rbox_id, out_buf_pg_esr.value);
                                         return out_buf_pg_esr.value;
-        case OUTPUT_BUFFER_CONFIG_ESR : LOG_NOTHREAD(DEBUG, "RBOX [%d] => Read OUTPUT BUFFER CONFIG ESR with value %016" PRIx64,
+        case OUTPUT_BUFFER_CONFIG_ESR : LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Read OUTPUT BUFFER CONFIG ESR with value %016" PRIx64,
                                                    rbox_id, out_buf_cfg_esr.value);
                                         return out_buf_cfg_esr.value;
-        case STATUS_ESR               : LOG_NOTHREAD(DEBUG, "RBOX [%d] => Read STATUS ESR with value %016" PRIx64,
+        case STATUS_ESR               : LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Read STATUS ESR with value %016" PRIx64,
                                                    rbox_id, status_esr.value);
                                         return status_esr.value;
-        case START_ESR                : LOG_NOTHREAD(DEBUG, "RBOX [%d] => Read START ESR with value %016" PRIx64,
+        case START_ESR                : LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Read START ESR with value %016" PRIx64,
                                                    rbox_id, start_esr.value);
                                         return start_esr.value;
-        case CONSUME_ESR              : LOG_NOTHREAD(DEBUG, "RBOX [%d] => Read CONSUME ESR with value %016" PRIx64,
+        case CONSUME_ESR              : LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Read CONSUME ESR with value %016" PRIx64,
                                                    rbox_id, consume_esr.value);
                                         return consume_esr.value;
-        default                       : LOG_NOTHREAD(DEBUG, "RBOX [%d] => Read to UNDEFINED ESR", rbox_id);
+        default                       : LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Read to UNDEFINED ESR", rbox_id);
                                         return 0;
     }
 }
@@ -315,10 +316,10 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
     {
         case INPCKT_FULLY_COVERED_TILE:
             {
-                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Processing fully covered tile packet", rbox_id);
+                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Processing fully covered tile packet", rbox_id);
                 InPcktFullyCoveredTileT fully_covered_tile_pckt;
                 
-                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Packet Data", rbox_id);
+                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 4; qw++)
                 {
                     fully_covered_tile_pckt.qw[qw] = bemu::pmemread<uint64_t>(packet + qw * 8);
@@ -340,10 +341,10 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
             break;
         case INPCKT_LARGE_TRIANGLE_TILE:
             {
-                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Processing partially covered tile packet", rbox_id);
+                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Processing partially covered tile packet", rbox_id);
                 InPcktLargeTriTileT large_tri_tile_pckt;
 
-                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Packet Data", rbox_id);
+                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 4; qw++)
                 {
                     large_tri_tile_pckt.qw[qw] = bemu::pmemread<uint64_t>(packet + qw * 8);
@@ -365,10 +366,10 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
             break;
         case INPCKT_TRIANGLE_WITH_TILE_64x64:
             {
-                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Processing triangle with tile, triangle inside 64x64 tile aligned 64x64 tile", rbox_id);
+                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Processing triangle with tile, triangle inside 64x64 tile aligned 64x64 tile", rbox_id);
                 InPcktTriWithTile64x64T tri_with_tile_64x64_pckt;
 
-                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Packet Data", rbox_id);
+                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
                     tri_with_tile_64x64_pckt.qw[qw] = bemu::pmemread<uint64_t>(packet + qw * 8);
@@ -404,10 +405,10 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
             break;
         case INPCKT_TRIANGLE_WITH_TILE_128x128:
             {
-                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Processing triangle with tile, triangle inside 64x64 tile aligned 128x128 tile", rbox_id);
+                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Processing triangle with tile, triangle inside 64x64 tile aligned 128x128 tile", rbox_id);
                 InPcktTriWithTile128x128T tri_with_tile_128x128_pckt;
 
-                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Packet Data", rbox_id);
+                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
                     tri_with_tile_128x128_pckt.qw[qw] = bemu::pmemread<uint64_t>(packet + qw * 8);
@@ -442,10 +443,10 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
             break;
         case INPCKT_LARGE_TRIANGLE:
             {
-                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Processing large triangle packet", rbox_id);
+                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Processing large triangle packet", rbox_id);
                 InPcktLargeTriT large_tri_pckt;
 
-                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Packet Data", rbox_id);
+                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
                     large_tri_pckt.qw[qw] = bemu::pmemread<uint64_t>(packet + qw * 8);
@@ -471,10 +472,10 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
             break;
         case INPCKT_RBOX_STATE:
             {
-                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Processing RBOX state packet", rbox_id);
+                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Processing RBOX state packet", rbox_id);
                 InPcktRBOXStateT rbox_state_pckt;
 
-                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Packet Data", rbox_id);
+                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
                     rbox_state_pckt.qw[qw] = bemu::pmemread<uint64_t>(packet + qw * 8);
@@ -486,10 +487,10 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
             break;
         case INPCKT_FRAG_SHADING_STATE:
             {
-                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Processing fragment shading state packet", rbox_id);
+                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Processing fragment shading state packet", rbox_id);
                 InPcktFrgmtShdrStateT frag_shader_state_pckt;
 
-                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Packet Data", rbox_id);
+                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 4; qw++)
                 {
                     frag_shader_state_pckt.qw[qw] = bemu::pmemread<uint64_t>(packet + qw * 8);
@@ -506,7 +507,7 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
             break;
         case INPCKT_END_OF_INPUT_BUFFER:
             {
-                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Received end of input buffer packet", rbox_id);
+                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Received end of input buffer packet", rbox_id);
                 last_in_pckt = true;
             }
             break;
@@ -561,7 +562,7 @@ void RBOX::RBOXEmu::generate_tile(uint32_t tile_x, uint32_t tile_y, int64_t edge
 
                 generated_quads_in_tile++;
 
-                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Generated packet for quad at (%d, %d) for minion hart %d", rbox_id, tile_x + x, tile_y + y, target_minion_hart);
+                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Generated packet for quad at (%d, %d) for minion hart %d", rbox_id, tile_x + x, tile_y + y, target_minion_hart);
             }
 
             sample_next_quad(quad_sample);
@@ -569,7 +570,7 @@ void RBOX::RBOXEmu::generate_tile(uint32_t tile_x, uint32_t tile_y, int64_t edge
         sample_next_row(row_sample);
     }
 
-    LOG_NOTHREAD(DEBUG, "RBOX [%d] => Generated %d quads in tile", rbox_id, generated_quads_in_tile);
+    LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Generated %d quads in tile", rbox_id, generated_quads_in_tile);
 }
 
 void RBOX::RBOXEmu::sample_next_row(TriangleSampleT sample[4])
@@ -619,7 +620,7 @@ void RBOX::RBOXEmu::sample_first_quad(TriangleSampleT sample[4])
 
 void RBOX::RBOXEmu::sample_quad(uint32_t x, uint32_t y, TriangleSampleT quad_sample[4], QuadInfoT &quad)
 {
-    LOG_NOTHREAD(DEBUG, "RBOX [%d] => Sampling quad at (%d, %d) -> start sample = (%016" PRIx64 ", %016" PRIx64 ", %016" PRIx64 ", %f [%08x] )\n"
+    LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Sampling quad at (%d, %d) -> start sample = (%016" PRIx64 ", %016" PRIx64 ", %016" PRIx64 ", %f [%08x] )\n"
                         "                          Edge 0 Equation = {%016" PRIx64 ", %016" PRIx64 "}\n"
                         "                          Edge 1 Equation = {%016" PRIx64 ", %016" PRIx64 "}\n"
                         "                          Edge 2 Equation = {%016" PRIx64 ", %016" PRIx64 "}\n"
@@ -644,7 +645,7 @@ void RBOX::RBOXEmu::sample_quad(uint32_t x, uint32_t y, TriangleSampleT quad_sam
         quad.fragment[fr].sample.depth.f = quad_sample[fr].depth.f;
 
         quad.fragment[fr].coverage = sample_inside_triangle(quad.fragment[fr].sample);
-        LOG_NOTHREAD(DEBUG, "RBOX [%d] => Fragment %d Sample (%016" PRIx64 ", %016" PRIx64 ", %016" PRIx64 ", %f [%08x]) Coverage = %d", rbox_id, fr,
+        LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Fragment %d Sample (%016" PRIx64 ", %016" PRIx64 ", %016" PRIx64 ", %f [%08x]) Coverage = %d", rbox_id, fr,
                           quad.fragment[fr].sample.edge[0], quad.fragment[fr].sample.edge[1], quad.fragment[fr].sample.edge[2],
                           quad.fragment[fr].sample.depth.f, quad.fragment[fr].sample.depth.u, quad.fragment[fr].coverage);
     }
@@ -679,14 +680,14 @@ bool RBOX::RBOXEmu::test_quad(QuadInfoT &quad)
     
             uint32_t sample_depth = uint32_t(quad.fragment[f].sample.depth.f * ((1 << 24) - 1));
 
-            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Testing fragment at (%d, %d) address = %016" PRIx64 " sample_depth = %08x fragment_depth_stencil = %08x",
+            LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Testing fragment at (%d, %d) address = %016" PRIx64 " sample_depth = %08x fragment_depth_stencil = %08x",
                               rbox_id, x, y, frag_depth_stencil_address, sample_depth, frag_depth_stencil);
 
             bool depth_bound_test =  do_depth_bound_test(frag_depth);
             bool stencil_test = do_stencil_test(frag_stencil);
             bool depth_test = do_depth_test(frag_depth, sample_depth);
 
-            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Test results : depth_bound = %d stencil = %d depth = %d", rbox_id, depth_bound_test, stencil_test, depth_test);
+            LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Test results : depth_bound = %d stencil = %d depth = %d", rbox_id, depth_bound_test, stencil_test, depth_test);
 
             uint8_t out_stencil = stencil_update(frag_stencil, stencil_test, depth_test);
 
@@ -729,9 +730,9 @@ bool RBOX::RBOXEmu::sample_inside_triangle(TriangleSampleT sample)
 
 bool RBOX::RBOXEmu::do_scissor_test(int32_t x, int32_t y)
 {
-    LOG_NOTHREAD(DEBUG, "RBOX [%d] => Scissor test for fragment at (%d, %d) scissor rectangle (%" PRId64 ", %" PRId64 ", %" PRId64 ", %" PRId64 ")",
-                      rbox_id, x, y, rbox_state.scissor_start_x, rbox_state.scissor_start_y,
-                      rbox_state.scissor_width, rbox_state.scissor_height);
+    LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Scissor test for fragment at (%" PRId32 ", %" PRId32 ") scissor rectangle (%u, %u, %u, %u)",
+                      rbox_id, x, y, unsigned(rbox_state.scissor_start_x), unsigned(rbox_state.scissor_start_y),
+                      unsigned(rbox_state.scissor_width), unsigned(rbox_state.scissor_height));
 
     return    (x >=  rbox_state.scissor_start_x)
            && (y >=  rbox_state.scissor_start_y)
@@ -762,32 +763,23 @@ bool RBOX::RBOXEmu::do_stencil_test(uint8_t frag_stencil)
         {
             case COMPARE_OP_NEVER :
                 return false;
-                break;
             case COMPARE_OP_LESS :
                 return ref_stencil_masked < frag_stencil_masked;
-                break;
             case COMPARE_OP_EQUAL :
                 return ref_stencil_masked == frag_stencil_masked;
-                break;
             case COMPARE_OP_LESS_OR_EQUAL :
                 return ref_stencil_masked <= frag_stencil_masked;
-                break;
             case COMPARE_OP_GREATER :
                 return ref_stencil_masked > frag_stencil_masked;
-                break;
             case COMPARE_OP_NOT_EQUAL :
                 return ref_stencil_masked != frag_stencil_masked;
-                break;
             case COMPARE_OP_GREATER_OR_EQUAL :
                 return ref_stencil_masked >= frag_stencil_masked;
-                break;
             case COMPARE_OP_ALWAYS :
                 return true;
-                break;
         }
     }
-    else
-        return true;
+    return true;
 }
 
 bool RBOX::RBOXEmu::do_depth_test(uint32_t frag_depth, uint32_t sample_depth)
@@ -798,32 +790,23 @@ bool RBOX::RBOXEmu::do_depth_test(uint32_t frag_depth, uint32_t sample_depth)
         {
             case COMPARE_OP_NEVER :
                 return false;
-                break;
             case COMPARE_OP_LESS :
                 return sample_depth < frag_depth;
-                break;
             case COMPARE_OP_EQUAL :
                 return sample_depth == frag_depth;
-                break;
             case COMPARE_OP_LESS_OR_EQUAL :
                 return sample_depth <= frag_depth;
-                break;
             case COMPARE_OP_GREATER :
                 return sample_depth > frag_depth;
-                break;
             case COMPARE_OP_NOT_EQUAL :
                 return sample_depth != frag_depth;
-                break;
             case COMPARE_OP_GREATER_OR_EQUAL :
                 return sample_depth >= frag_depth;
-                break;
             case COMPARE_OP_ALWAYS :
                 return true;
-                break;
         }
     }
-    else
-        return true;
+    return true;
 }
 
 uint8_t RBOX::RBOXEmu::stencil_update(uint8_t frag_stencil, bool stencil_test, bool depth_test)
@@ -848,35 +831,25 @@ uint8_t RBOX::RBOXEmu::stencil_update(uint8_t frag_stencil, bool stencil_test, b
         {
             case STENCIL_OP_KEEP :
                 return frag_stencil & stencil_state.write_mask;
-                break;
             case STENCIL_OP_ZERO :
                 return 0;
-                break;
             case STENCIL_OP_REPLACE :
                 return stencil_state.ref & stencil_state.write_mask;
-                break;
             case STENCIL_OP_INC_CLAMP :
                 return ((frag_stencil == 255) ? 255 : (frag_stencil + 1)) & stencil_state.write_mask;
-                break;
             case STENCIL_OP_DEC_CLAMP :
                 return ((frag_stencil == 0) ? 0 : (frag_stencil - 1)) & stencil_state.write_mask;
-                break;
             case STENCIL_OP_INVERT :
                 return (~frag_stencil) & stencil_state.write_mask;
-                break;
             case STENCIL_OP_INC_WRAP :
                 return (frag_stencil + 1) & stencil_state.write_mask;
-                break;
             case STENCIL_OP_DEC_WRAP :
                 return (frag_stencil - 1) & stencil_state.write_mask;
-                break;
             default :
                 return 0;
-                break;
         }
     }
-    else
-        return frag_stencil;
+    return frag_stencil;
 }
 
 bool RBOX::RBOXEmu::send_quad_packet(bool step_mode)
@@ -928,14 +901,14 @@ bool RBOX::RBOXEmu::send_quad_packet(bool step_mode)
         uint32_t target_minion_hart = compute_target_minion_hart(quad[0].x, quad[0].y);
     
         if (insert_fake_quad)
-            LOG_NOTHREAD(DEBUG, "RBOX [%d] => For Minion HART %02d Insert Fake Quad Pair", rbox_id, target_minion_hart);
+            LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => For Minion HART %02d Insert Fake Quad Pair", rbox_id, target_minion_hart);
 
         if (!fsh_state_sent[target_minion_hart])
             fsh_state_sent[target_minion_hart] = send_frag_shader_state_packet(target_minion_hart, step_mode);
 
         if (!fsh_state_sent[target_minion_hart])
         {
-            LOG_NOTHREAD(DEBUG, "RBOX [%d] => For Minion HART %02d STALL : Drawcall state packet couldn't be send", rbox_id, target_minion_hart);
+            LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => For Minion HART %02d STALL : Drawcall state packet couldn't be send", rbox_id, target_minion_hart);
             return true;
         }
 
@@ -945,7 +918,7 @@ bool RBOX::RBOXEmu::send_quad_packet(bool step_mode)
         uint32_t num_packets = ((rbox_state.fragment_shader_per_sample && rbox_state.msaa_enable) ? (packets_per_sample * rbox_state.msaa_samples)
                                                                                                    :  packets_per_sample) + 1;
     
-        LOG_NOTHREAD(DEBUG, "RBOX [%d] => Target Minion HART %02d Packet Credits %03d Required Packets Per Sample %d Total Packets per Quad Message %d",
+        LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Target Minion HART %02d Packet Credits %03d Required Packets Per Sample %d Total Packets per Quad Message %d",
                    rbox_id, target_minion_hart, hart_packet_credits[target_minion_hart], packets_per_sample, num_packets);
 
         if ((hart_packet_credits[target_minion_hart] >= num_packets) &&
@@ -953,7 +926,7 @@ bool RBOX::RBOXEmu::send_quad_packet(bool step_mode)
         {
             OutPcktQuadInfoT quad_info_pckt;
             
-            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Generate quad packet for position (%05d, %05d)", rbox_id, quad[0].x, quad[0].y);
+            LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Generate quad packet for position (%05d, %05d)", rbox_id, quad[0].x, quad[0].y);
             
             for (uint32_t qw = 0; qw < 4; qw++)
                 quad_info_pckt.qw[qw] = 0;
@@ -1011,10 +984,10 @@ bool RBOX::RBOXEmu::send_quad_packet(bool step_mode)
         else
         {
             if (hart_packet_credits[target_minion_hart] < num_packets) 
-                LOG_NOTHREAD(DEBUG, "RBOX [%d] => For Minion HART %02d STALL : No packet credits available for next quad", rbox_id, target_minion_hart);
+                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => For Minion HART %02d STALL : No packet credits available for next quad", rbox_id, target_minion_hart);
 
             if ((hart_sent_packets[target_minion_hart] + num_packets) > (1U << out_buf_cfg_esr.fields.max_pckts_msg))
-                LOG_NOTHREAD(DEBUG, "RBOX [%d] => For Minion HART %02d STALL : Pending message port write", rbox_id, target_minion_hart);
+                LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => For Minion HART %02d STALL : Pending message port write", rbox_id, target_minion_hart);
 
             send_message[target_minion_hart] = ((hart_sent_packets[target_minion_hart] + num_packets) > (1U << out_buf_cfg_esr.fields.max_pckts_msg));
             return true;
@@ -1031,7 +1004,7 @@ bool RBOX::RBOXEmu::send_frag_shader_state_packet(uint32_t target_minion_hart, b
     {
         OutPcktFrgShdrStateT f_sh_pckt;
 
-        LOG_NOTHREAD(DEBUG, "RBOX [%d] => Generate Fragment Shader State Packet", rbox_id);
+        LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Generate Fragment Shader State Packet", rbox_id);
 
         for (uint32_t qw = 0; qw < 4; qw++)
             f_sh_pckt.qw[qw] = 0;
@@ -1063,7 +1036,7 @@ bool RBOX::RBOXEmu::send_end_of_phase_packet(uint32_t target_minion_hart, bool s
     {
         OutPckt256bT end_phase_pckt;
 
-        LOG_NOTHREAD(DEBUG, "RBOX [%d] => Generate End of Phase Packet for HART %02d", rbox_id, target_minion_hart);
+        LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Generate End of Phase Packet for HART %02d", rbox_id, target_minion_hart);
 
         for (uint32_t qw = 0; qw < 4; qw++)
             end_phase_pckt.qw[qw] = 0;
@@ -1107,32 +1080,32 @@ void RBOX::RBOXEmu::tile_position_to_pixels(uint32_t &tile_x, uint32_t &tile_y, 
         case TILE_SIZE_64x64 :
             tile_x = tile_x << 6;
             tile_y = tile_y << 6;
-            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Tile Size 64x64 Position (%d, %d)", rbox_id, tile_x, tile_y);
+            LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Tile Size 64x64 Position (%d, %d)", rbox_id, tile_x, tile_y);
             break;
         case TILE_SIZE_64x32 :
             tile_x = tile_x << 6;
             tile_y = tile_y << 5;
-            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Tile Size 64x32 Position (%d, %d)", rbox_id, tile_x, tile_y);
+            LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Tile Size 64x32 Position (%d, %d)", rbox_id, tile_x, tile_y);
             break;
         case TILE_SIZE_32x32 :
             tile_x = tile_x << 5;
             tile_y = tile_y << 5;
-            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Tile Size 32x32 Position (%d, %d)", rbox_id, tile_x, tile_y);
+            LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Tile Size 32x32 Position (%d, %d)", rbox_id, tile_x, tile_y);
             break;
         case TILE_SIZE_16x16 :
             tile_x = tile_x << 4;
             tile_y = tile_y << 4;
-            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Tile Size 16x16 Position (%d, %d)", rbox_id, tile_x, tile_y);
+            LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Tile Size 16x16 Position (%d, %d)", rbox_id, tile_x, tile_y);
             break;
         case TILE_SIZE_8x8 :
             tile_x = tile_x << 3;
             tile_y = tile_y << 3;
-            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Tile Size 8x8 Position (%d, %d)", rbox_id, tile_x, tile_y);
+            LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Tile Size 8x8 Position (%d, %d)", rbox_id, tile_x, tile_y);
             break;
         case TILE_SIZE_4x4 :
             tile_x = tile_x << 2;
             tile_y = tile_y << 2;
-            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Tile Size 4x4 Position (%d, %d)", rbox_id, tile_x, tile_y);
+            LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Tile Size 4x4 Position (%d, %d)", rbox_id, tile_x, tile_y);
             break;
     }
 }
@@ -1172,7 +1145,7 @@ void RBOX::RBOXEmu::send_packet(uint32_t minion_hart_id, uint64_t packet[4], uin
     {
         for (uint32_t qw = 0; qw < 4; qw++)
         {
-            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Writing QW %016" PRIx64 " at address %016" PRIx64, rbox_id, packet[qw], out_addr);
+            LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Writing QW %016" PRIx64 " at address %016" PRIx64, rbox_id, packet[qw], out_addr);
             bemu::pmemwrite<uint64_t>(out_addr, packet[qw]);
             out_addr = out_addr + 8;
         }
@@ -1191,7 +1164,7 @@ bool RBOX::RBOXEmu::report_packets(uint32_t minion_hart_id)
         {
             uint64_t msg_data = (uint64_t(minion_hart_id) << 32) | hart_sent_packets[minion_hart_id];
             
-            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Report Packets %02d to Minion HART %d", rbox_id, hart_sent_packets[minion_hart_id], minion_hart_id);
+            LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Report Packets %02d to Minion HART %d", rbox_id, hart_sent_packets[minion_hart_id], minion_hart_id);
 
             hart_sent_packets[minion_hart_id] = 0;
 
@@ -1203,7 +1176,7 @@ bool RBOX::RBOXEmu::report_packets(uint32_t minion_hart_id)
         }
         else
         {
-            LOG_NOTHREAD(DEBUG, "RBOX[%02d] => For Minion HART %02d STALL : No message credits", rbox_id, minion_hart_id);
+            LOG_NOTHREAD(DEBUG, "RBOX[%02" PRIu32 "] => For Minion HART %02d STALL : No message credits", rbox_id, minion_hart_id);
             return false;
         }
     }
@@ -1219,7 +1192,7 @@ void RBOX::RBOXEmu::write_next_packet()
 
     for (uint32_t p = 0; p < 4; p++)
     {
-        LOG_NOTHREAD(DEBUG, "RBOX [%d] => Writing QW %016" PRIx64 " at address %016" PRIx64, rbox_id, output_packets[0].second, minion_hart_out_addr);
+        LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Writing QW %016" PRIx64 " at address %016" PRIx64, rbox_id, output_packets[0].second, minion_hart_out_addr);
         bemu::pmemwrite<uint64_t>(minion_hart_out_addr, output_packets[0].second);
         output_packets.erase(output_packets.begin());
         minion_hart_out_addr += 8;

@@ -894,7 +894,7 @@ void TBOX::TBOXEmu::texture_cache_fill(int32_t bank, uint64_t tag, uint64_t data
     else
         victim_way = texture_cache_get_lru(bank);
 
-    LOG(DEBUG, "\tTexture Cache fill at bank %d way %d with tag %016lx", bank, victim_way, tag);
+    LOG(DEBUG, "\tTexture Cache fill at bank %d way %d with tag %016" PRIx64, bank, victim_way, tag);
 
     textureCacheValid[bank][victim_way] = true;
     textureCacheTags[bank][victim_way] = tag;
@@ -986,7 +986,7 @@ bool TBOX::TBOXEmu::access_memory(uint64_t address, uint64_t &data)
     return access_l2(address, data);
 #else
     data = bemu::pmemread<uint64_t>(address);
-    LOG(DEBUG, "\t\t %016lx <- PMEM64[%016lx]", data, address);
+    LOG(DEBUG, "\t\t %016" PRIx64 " <- PMEM64[%016" PRIx64 "]", data, address);
     return true;
 #endif
 }
@@ -997,14 +997,14 @@ bool TBOX::TBOXEmu::access_memory(uint64_t address, uint32_t &data)
     return access_l2(address, data);
 #else
     data = bemu::pmemread<uint32_t>(address);
-    LOG(DEBUG, "\t\t %08x <- PMEM32[%016lx]", data, address);
+    LOG(DEBUG, "\t\t %08" PRIx32 " <- PMEM32[%016" PRIx64 "]", data, address);
     return true;
 #endif
 }
 
 bool TBOX::TBOXEmu::access_l2(uint64_t address, uint64_t &data)
 {
-    LOG(DEBUG, "\t64-bit L2 access for address %016lx thread %d", address, request_hart);
+    LOG(DEBUG, "\t64-bit L2 access for address %016" PRIx64 " thread %d", address, request_hart);
 
     uint64_t req_addr_lo =  address      & ~0x3fUL;
     uint64_t req_addr_hi = (address + 7) & ~0x3fUL;
@@ -1028,7 +1028,7 @@ bool TBOX::TBOXEmu::access_l2(uint64_t address, uint64_t &data)
         if (data_ready)
         {
             data = (data_lo >> (8 * unaligned_size)) + (data_hi << (8 * (8 - unaligned_size)));
-            LOG(DEBUG, "\tSplit data ready %016lx", data);
+            LOG(DEBUG, "\tSplit data ready %016" PRIx64, data);
         }
 
         return data_ready;
@@ -1037,7 +1037,7 @@ bool TBOX::TBOXEmu::access_l2(uint64_t address, uint64_t &data)
 
 bool TBOX::TBOXEmu::access_l2(uint64_t address, uint32_t &data)
 {
-    LOG(DEBUG, "\t32-bit L2 access for address %016lx thread %d", address, request_hart);
+    LOG(DEBUG, "\t32-bit L2 access for address %016" PRIx64 " thread %d", address, request_hart);
 
     uint64_t req_addr_lo =  address      & ~0x3fUL;
     uint64_t req_addr_hi = (address + 3) & ~0x3fUL;
@@ -1061,7 +1061,7 @@ bool TBOX::TBOXEmu::access_l2(uint64_t address, uint32_t &data)
         if (data_ready)
         {
             data = (data_lo >> (8 * unaligned_size)) + (data_hi << (8 * (4 - unaligned_size)));
-            LOG(DEBUG, "\tSplit data ready %08x", data);
+            LOG(DEBUG, "\tSplit data ready %08" PRIx32, data);
         }
 
         return data_ready;
@@ -1085,13 +1085,13 @@ bool TBOX::TBOXEmu::get_l2_data(uint64_t address, uint64_t &data)
 
     if (found)
     {
-        LOG(DEBUG, "\tFound existing L2 request %d for address %016lx", req - 1, address);
+        LOG(DEBUG, "\tFound existing L2 request %d for address %016" PRIx64, req - 1, address);
         l2_requests[req - 1].thread_mask |= (1 << request_hart);
         if (l2_requests[req - 1].ready)
         {
             uint8_t *data_ptr = &((uint8_t *) l2_requests[req - 1].data)[(address & 0x3fUL)];
             data = *((uint64_t *) data_ptr);
-            LOG(DEBUG, "\tData ready %016lx", data);
+            LOG(DEBUG, "\tData ready %016" PRIx64, data);
             return true;
         }
 
@@ -1123,13 +1123,13 @@ bool TBOX::TBOXEmu::get_l2_data(uint64_t address, uint32_t &data)
 
     if (found)
     {
-        LOG(DEBUG, "\tFound existing L2 request %d for address %016lx", req - 1, address);
+        LOG(DEBUG, "\tFound existing L2 request %d for address %016" PRIx64, req - 1, address);
         l2_requests[req - 1].thread_mask |= (1 << request_hart);
         if (l2_requests[req - 1].ready)
         {
             uint8_t *data_ptr = &((uint8_t *) l2_requests[req - 1].data)[address & 0x3fUL];
             data = *((uint32_t *) data_ptr);
-            LOG(DEBUG, "\tData ready %08x", data);
+            LOG(DEBUG, "\tData ready %08" PRIx32, data);
             return true;
         }
 
@@ -1161,7 +1161,7 @@ bool TBOX::TBOXEmu::get_l2_data(uint64_t address, ImageInfo &data)
 
     if (found)
     {
-        LOG(DEBUG, "\tFound existing L2 request %d for address %016lx", req - 1, address);
+        LOG(DEBUG, "\tFound existing L2 request %d for address %016" PRIx64, req - 1, address);
         l2_requests[req - 1].thread_mask |= (1 << request_hart);
         if (l2_requests[req - 1].ready)
         {
@@ -1195,7 +1195,7 @@ void TBOX::TBOXEmu::create_l2_request(uint64_t address)
     if (free_entry == MAX_L2_REQUESTS)
         throw std::runtime_error("No free L2 request entry found.");
 
-    LOG(DEBUG, "\tCreated new L2 request %d for address %016lx thread %d", free_entry, address & ~0x3fUL, request_hart);
+    LOG(DEBUG, "\tCreated new L2 request %d for address %016" PRIx64 " thread %d", free_entry, address & ~0x3fUL, request_hart);
 
     l2_requests[free_entry].thread_mask  = (1 << request_hart);
     l2_requests[free_entry].address = address & ~0x3fUL;
@@ -2330,7 +2330,7 @@ bool TBOX::TBOXEmu::get_image_info(SampleRequest request, ImageInfo &currentImag
     uint64_t imageInfoAddress = imageTableAddress + request.info.imageid * 32;
 
 
-    LOG(DEBUG, "\tRead Image Descriptor with ID %d from Address %016lx", request.info.imageid, imageInfoAddress);
+    LOG(DEBUG, "\tRead Image Descriptor with ID %d from Address %016" PRIx64, request.info.imageid, imageInfoAddress);
     fflush(stdout);
 
     currentImage.data[0] = bemu::pmemread<uint64_t>(imageInfoAddress);
@@ -2338,7 +2338,7 @@ bool TBOX::TBOXEmu::get_image_info(SampleRequest request, ImageInfo &currentImag
     currentImage.data[2] = bemu::pmemread<uint64_t>(imageInfoAddress + 16);
     currentImage.data[3] = bemu::pmemread<uint64_t>(imageInfoAddress + 24);
 
-    LOG(DEBUG, "\tImage Info %016lx %016lx %016lx %016lx", currentImage.data[0],
+    LOG(DEBUG, "\tImage Info %016" PRIx64 " %016" PRIx64 " %016" PRIx64 " %016" PRIx64, currentImage.data[0],
                currentImage.data[1], currentImage.data[2], currentImage.data[3]);
     print_image_info(currentImage);
 
@@ -3611,8 +3611,8 @@ uint64_t TBOX::TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32_t i
         uint64_t tile_offset = tile_j * row_pitch + tile_i;
         uint64_t pixel_offset = compute_tile_offset(fmtBytesPerTexel, layout_i & ((1 << fmtTileWidthLog2) - 1), layout_j & ((1 << fmtTileHeightLog2) - 1));
 
-        LOG(DEBUG, "\t\telement_pitch = %ld mip_pitch = %ld mip_offset = (%d, %d) tile_offset = %ld pixel_offset = %ld",
-                          currentImage.info.elementpitch, mip_pitch, mip_offset[0], mip_offset[1], tile_offset, pixel_offset);
+        LOG(DEBUG, "\t\telement_pitch = %u mip_pitch = %" PRIu64 " mip_offset = (%" PRIu32 ", %" PRIu32 ") tile_offset = %" PRIu64 " pixel_offset = %" PRIu64,
+                          unsigned(currentImage.info.elementpitch), mip_pitch, mip_offset[0], mip_offset[1], tile_offset, pixel_offset);
 
         texelAddress = currentImage.info.address + (currentImage.info.elementpitch * l + mip_pitch + tile_offset) * 64 * 1024
                      + pixel_offset;
@@ -3623,15 +3623,15 @@ uint64_t TBOX::TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32_t i
 
         uint64_t mip_pitch = compute_mip_offset(currentImage.info.mippitchl0, currentImage.info.mippitchl1, currentImage.info.rowpitch, rows, mip_level);
 
-        LOG(DEBUG, "\t\telement_pitch = %ld mip_pitch = %ld row_pitch = %ld",
-                          currentImage.info.elementpitch, mip_pitch, row_pitch);
+        LOG(DEBUG, "\t\telement_pitch = %u mip_pitch = %" PRIu64 " row_pitch = %" PRIu64,
+                          unsigned(currentImage.info.elementpitch), mip_pitch, row_pitch);
 
         texelAddress = currentImage.info.address +
                      + (currentImage.info.elementpitch * l + mip_pitch + j * row_pitch) * 64
                      + i * fmtBytesPerTexel;
     }
 
-    LOG(DEBUG, "\tcomputed virtual address %016lx for texel at (%d, %d, %d) layer %d level %d", texelAddress,
+    LOG(DEBUG, "\tcomputed virtual address %016" PRIx64 " for texel at (%u, %u, %u) layer %u level %u", texelAddress,
                       i, j, k, l, mip_level);
 
     return texelAddress;
@@ -3682,38 +3682,38 @@ void TBOX::TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, u
         case 1:
             {
                 data[0] = bemu::pmemread<uint8_t>(texelAddress);
-                LOG(DEBUG, "\t\t%02x <- PMEM8[%016lx]", data[0], texelAddress);
+                LOG(DEBUG, "\t\t%02" PRIx8 "<- PMEM8[%016" PRIx64 "]", data[0], texelAddress);
             }
             break;
         case 2:
             {
                 uint16_t texelData = bemu::pmemread<uint16_t>(texelAddress);
                 memcpy_uint16(&data[0], texelData);
-                LOG(DEBUG, "\t\t%04x <- PMEM16[%016lx]", texelData, texelAddress);
+                LOG(DEBUG, "\t\t%04" PRIx16 " <- PMEM16[%016" PRIx64 "]", texelData, texelAddress);
             }
             break;
         case 4:
             {
                 uint32_t texelData = bemu::pmemread<uint32_t>(texelAddress);
                 memcpy_uint32(&data[0], texelData);
-                LOG(DEBUG, "\t\t%08x <- PMEM32[%016lx]", texelData, texelAddress);
+                LOG(DEBUG, "\t\t%08" PRIx32 " <- PMEM32[%016" PRIx64 "]", texelData, texelAddress);
             }
             break;
         case 8:
             {
                 uint64_t texelData = bemu::pmemread<uint64_t>(texelAddress);
                 memcpy_uint64(&data[0], texelData);
-                LOG(DEBUG, "\t\t%016lx <- PMEM64[%016lx]", texelData, texelAddress);
+                LOG(DEBUG, "\t\t%016" PRIx64 " <- PMEM64[%016" PRIx64 "]", texelData, texelAddress);
             }
             break;
         case 16:
             {
                 uint64_t texelData = bemu::pmemread<uint64_t>(texelAddress);
                 memcpy_uint64(&data[0], texelData);
-                LOG(DEBUG, "\t\t%016lx <- PMEM64[%016lx]", texelData, texelAddress);
+                LOG(DEBUG, "\t\t%016" PRIx64 " <- PMEM64[%016" PRIx64 "]", texelData, texelAddress);
                 texelData = bemu::pmemread<uint64_t>(texelAddress + 8);
                 memcpy_uint64(&data[8], texelData);
-                LOG(DEBUG, "\t\t%016lx <- PMEM64[%016lx]", texelData, texelAddress + 8);
+                LOG(DEBUG, "\t\t%016" PRIx64 " <- PMEM64[%016" PRIx64 "]", texelData, texelAddress + 8);
             }
             break;
         default:
@@ -3819,7 +3819,7 @@ void TBOX::TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, u
             break;
         default:
             texel[0] = texel[1] = texel[2] = texel[3] = 0.0;
-            LOG(ERR, "Format %ld not supported", currentImage.info.format);
+            LOG(ERR, "Format %u not supported", unsigned(currentImage.info.format));
             break;
     }
 
@@ -3971,7 +3971,7 @@ void TBOX::TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j,
             break;
         default:
             texel[0] = texel[1] = texel[2] = texel[3] = 0.0;
-            LOG(ERR, "Format %ld not supported", currentImage.info.format);
+            LOG(ERR, "Format %u not supported", unsigned(currentImage.info.format));
             break;
     }
 
@@ -4131,9 +4131,9 @@ const char *TBOX::TBOXEmu::toStrImageFormat(ImageFormat fmt)
 
 void TBOX::TBOXEmu::print_sample_request(SampleRequest req)
 {
-    LOG(DEBUG, "Operation = %s | Image ID = %d | Border Color ID = %d | Delta I = %ld | Delta J = %ld | Delta K = %ld | ",
+    LOG(DEBUG, "Operation = %s | Image ID = %d | Border Color ID = %d | Delta I = %u | Delta J = %u | Delta K = %u | ",
                toStrSampleOperation((SampleOperation)req.info.operation), req.info.imageid, req.info.borderid,
-               req.info.ioffset, req.info.joffset, req.info.koffset);
+               unsigned(req.info.ioffset), unsigned(req.info.joffset), unsigned(req.info.koffset));
     LOG(DEBUG, "Min = %s | Mag = %s | Mip = %s | Aniso = %s | ", toStrFilterType((FilterType)req.info.minfilter),
                toStrFilterType((FilterType)req.info.magfilter), toStrFilterType((FilterType)req.info.mipfilter),
                (req.info.aniso ? "Yes" : "No"));
@@ -4195,24 +4195,28 @@ void TBOX::TBOXEmu::print_sample_request(SampleRequest req)
 
 void TBOX::TBOXEmu::print_image_info(ImageInfo in)
 {
-    LOG(DEBUG, "Addr = %016lx | Type = %s | Format = %s (%3ld) | Width = %ld | Height = %ld | Depth = %ld | "
-               "Tiled = %ld | ",
+    LOG(DEBUG, "Addr = %016" PRIx64 " | Type = %s | Format = %s (%3u) | Width = %u | Height = %u | Depth = %u | "
+               "Tiled = %u | ",
                in.info.address, toStrImageType((ImageType)in.info.type),
-               toStrImageFormat((ImageFormat)in.info.format), in.info.format, in.info.width, in.info.height,
-               in.info.depth, in.info.tiled);
-    LOG(DEBUG, "Array Base = %ld | Array Count = %ld | Base Mip = %ld | Mip Count = %ld | ", in.info.arraybase,
-               in.info.arraycount, in.info.basemip, in.info.mipcount);
+               toStrImageFormat((ImageFormat)in.info.format), unsigned(in.info.format),
+               unsigned(in.info.width), unsigned(in.info.height),
+               unsigned(in.info.depth), unsigned(in.info.tiled));
+    LOG(DEBUG, "Array Base = %u | Array Count = %u | Base Mip = %u | Mip Count = %u | ",
+               unsigned(in.info.arraybase), unsigned(in.info.arraycount),
+               unsigned(in.info.basemip), unsigned(in.info.mipcount));
     LOG(DEBUG, "Swizzle = %s %s %s %s | ",
                toStrComponentSwizzle((ComponentSwizzle)in.info.swizzler),
                toStrComponentSwizzle((ComponentSwizzle)in.info.swizzleg),
                toStrComponentSwizzle((ComponentSwizzle)in.info.swizzleb),
                toStrComponentSwizzle((ComponentSwizzle)in.info.swizzlea));
-    LOG(DEBUG, " Row Pitch = %ld | Mip Pitch L0 = %ld | Mip Pitch L1 = %ld | Element Pitch = %ld | ",
-               in.info.rowpitch, in.info.mippitchl0, in.info.mippitchl1, in.info.elementpitch);
-    LOG(DEBUG, " Tiled = %ld | Packed Layout = %ld | First Packed Mip = %ld | First Packed Mip Level = %ld | ",
-               in.info.tiled, in.info.packedlayout, in.info.packedmip, in.info.packedlevel);
-    LOG(DEBUG, " Mip Scale by 8 = %ld | Mip Scale by 4 = %ld",
-               in.info.mipscale8, in.info.mipscale4);
+    LOG(DEBUG, " Row Pitch = %u | Mip Pitch L0 = %u | Mip Pitch L1 = %u | Element Pitch = %u | ",
+               unsigned(in.info.rowpitch), unsigned(in.info.mippitchl0),
+               unsigned(in.info.mippitchl1), unsigned(in.info.elementpitch));
+    LOG(DEBUG, " Tiled = %u | Packed Layout = %u | First Packed Mip = %u | First Packed Mip Level = %u | ",
+               unsigned(in.info.tiled), unsigned(in.info.packedlayout),
+               unsigned(in.info.packedmip), unsigned(in.info.packedlevel));
+    LOG(DEBUG, " Mip Scale by 8 = %u | Mip Scale by 4 = %u",
+               unsigned(in.info.mipscale8), unsigned(in.info.mipscale4));
 }
 
 //  Decode BC1.

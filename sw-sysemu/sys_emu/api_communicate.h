@@ -25,6 +25,7 @@ class api_communicate
 {
     public:
         api_communicate(bemu::MainMemory *mem) : mem(mem) { }
+        virtual ~api_communicate() { }
 
         virtual bool init() = 0;
         virtual bool is_enabled() = 0;
