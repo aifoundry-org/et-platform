@@ -34,7 +34,12 @@ sysemu_cpp_srcs := \
     sys_emu/checkers/l2_scp_checker.cpp \
     sys_emu/checkers/flb_checker.cpp
 
-ifeq ($(PROFILING), 1)
+ifneq ($(PROFILING),0)
   sysemu_hdrs     += sys_emu/profiling.h
   sysemu_cpp_srcs += sys_emu/profiling.cpp
+endif
+
+ifneq ($(BACKTRACE),0)
+  sysemu_hdrs     += sys_emu/crash_handler.h
+  sysemu_cpp_srcs += sys_emu/crash_handler.cpp
 endif

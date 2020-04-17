@@ -39,6 +39,9 @@
 #include "processor.h"
 #include "profiling.h"
 #include "utils.h"
+#ifdef HAVE_BACKTRACE
+#include "crash_handler.h"
+#endif
 
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
 extern std::array<uint32_t,EMU_NUM_THREADS>  ext_seip;
@@ -866,11 +869,8 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
 int
 sys_emu::main_internal(int argc, char * argv[])
 {
-#if 0
-    std::cout << "command:";
-    for (int i = 0; i < argc; ++i)
-        std::cout << " " << argv[i];
-    std::cout << std::endl;
+#ifdef HAVE_BACKTRACE
+    Crash_handler __crash_handler;
 #endif
     auto result = parse_command_line_arguments(argc, argv);
     bool status = std::get<0>(result);

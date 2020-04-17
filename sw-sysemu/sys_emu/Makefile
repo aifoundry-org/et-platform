@@ -8,12 +8,15 @@
 # agreement/contract under which the program(s) have been supplied.
 # -------------------------------------------------------------------------
 
-include ../emu.mk
-include sysemu.mk
-
 libfpu_OBJDIR ?= ../fpu/build
 sysemu_OBJDIR ?= build
-DEBUG ?= 0
+DEBUG     ?= 0
+COVERAGE  ?= 0
+PROFILING ?= 0
+BACKTRACE ?= $(DEBUG)
+
+include ../emu.mk
+include sysemu.mk
 
 sysemu_SRCS := $(sysemu_cpp_srcs) $(emu_cpp_srcs)
 sysemu_OBJS := $(patsubst %,$(sysemu_OBJDIR)/obj/%.o,$(basename $(sysemu_SRCS)))
@@ -37,21 +40,26 @@ CFLAGS   := -Wall -Wextra -Werror -pedantic-errors -fPIC -std=c11
 LDLIBS   := -lm
 
 ifeq ($(DEBUG),0)
-    CXXFLAGS += -g -O2
-    CFLAGS += -g -O2
+  CXXFLAGS += -g -O2
+  CFLAGS += -g -O2
 else
-    CPPFLAGS += -D_GLIBCXX_DEBUG
-    CXXFLAGS += -g3 -O1 -fno-inline
-    CFLAGS += -g3 -O1 -fno-inline
+  CPPFLAGS += -D_GLIBCXX_DEBUG
+  CXXFLAGS += -g3 -O1 -fno-inline
+  CFLAGS += -g3 -O1 -fno-inline
 endif
 
-ifneq ($(COVERAGE),)
+ifneq ($(BACKTRACE),0)
+  CPPFLAGS += -DHAVE_BACKTRACE
+  LDLIBS += -lunwind
+endif
+
+ifneq ($(COVERAGE),0)
   CXXFLAGS += --coverage
   CFLAGS   += --coverage
   LDLIBS   += --coverage
 endif
 
-ifneq ($(PROFILING),)
+ifneq ($(PROFILING),0)
   CPPFLAGS += -DBEMU_PROFILING -DSYSEMU_PROFILING
 endif
 
