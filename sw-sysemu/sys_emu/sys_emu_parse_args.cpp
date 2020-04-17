@@ -13,13 +13,13 @@
 #include "emu_gio.h"
 #include "sys_emu.h"
 
-extern uint64_t md_log_addr;
-extern uint32_t md_log_minion;
-extern uint32_t sd_l1_scp_checker_log_minion;
-extern uint32_t sd_l2_scp_checker_log_shire;
-extern uint32_t sd_l2_scp_checker_log_line;
-extern uint32_t sd_l2_scp_checker_log_minion;
-extern uint32_t sd_flb_checker_log_shire;
+extern uint64_t mem_checker_log_addr;
+extern uint32_t mem_checker_log_minion;
+extern uint32_t l1_scp_checker_log_minion;
+extern uint32_t l2_scp_checker_log_shire;
+extern uint32_t l2_scp_checker_log_line;
+extern uint32_t l2_scp_checker_log_minion;
+extern uint32_t flb_checker_log_shire;
 
 static const char * help_msg =
 "\n ET System Emulator\n\n\
@@ -317,11 +317,11 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "mem_check_minion"))
         {
-            md_log_minion = atoi(optarg);
+            mem_checker_log_minion = atoi(optarg);
         }
         else if (!strcmp(name, "mem_check_addr"))
         {
-            sscanf(optarg, "%" PRIx64, &md_log_addr);
+            sscanf(optarg, "%" PRIx64, &mem_checker_log_addr);
         }
         else if (!strcmp(name, "l1_scp_check"))
         {
@@ -329,7 +329,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "l1_scp_check_minion"))
         {
-            sd_l1_scp_checker_log_minion = atoi(optarg);
+            l1_scp_checker_log_minion = atoi(optarg);
         }
         else if (!strcmp(name, "l2_scp_check"))
         {
@@ -337,15 +337,15 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "l2_scp_check_shire"))
         {
-            sd_l2_scp_checker_log_shire = atoi(optarg);
+            l2_scp_checker_log_shire = atoi(optarg);
         }
         else if (!strcmp(name, "l2_scp_check_line"))
         {
-            sd_l2_scp_checker_log_line = atoi(optarg);
+            l2_scp_checker_log_line = atoi(optarg);
         }
         else if (!strcmp(name, "l2_scp_check_minion"))
         {
-            sd_l2_scp_checker_log_minion = atoi(optarg);
+            l2_scp_checker_log_minion = atoi(optarg);
         }
         else if (!strcmp(name, "flb_check"))
         {
@@ -353,7 +353,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "flb_check_shire"))
         {
-            sd_flb_checker_log_shire = atoi(optarg);
+            flb_checker_log_shire = atoi(optarg);
         }
         else if (!strcmp(name, "gdb"))
         {

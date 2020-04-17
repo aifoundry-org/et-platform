@@ -4444,7 +4444,7 @@ void tensor_wait_start(uint64_t value)
     value = value & 0xF;
     cpu[current_thread].wait.id = value;
     cpu[current_thread].wait.value = value;
-    cpu[current_thread].wait.state = Processor::Wait::State::Idle;
+    cpu[current_thread].wait.state = Processor::Wait::State::WaitReady;
 #ifdef SYS_EMU
     uint64_t id = value & 0x1;
     // TensorLoad

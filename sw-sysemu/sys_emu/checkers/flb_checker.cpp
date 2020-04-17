@@ -13,10 +13,10 @@
 #include "emu_gio.h"
 
 // Logging variables and macros
-uint32_t sd_flb_checker_log_shire = 64; // None by default
+uint32_t flb_checker_log_shire = 64; // None by default
 
-#define SD_FLB_LOG(shire, cmd) \
-  { if((shire == 0xFFFFFFFF) || (sd_flb_checker_log_shire == 0xFFFFFFFF) || (shire == sd_flb_checker_log_shire)) \
+#define FLB_CHECKER_LOG(shire, cmd) \
+  { if((shire == 0xFFFFFFFF) || (flb_checker_log_shire == 0xFFFFFFFF) || (shire == flb_checker_log_shire)) \
     { \
       cmd; \
     } \
@@ -39,7 +39,7 @@ void flb_checker::access(uint32_t oldval, uint32_t limit, uint32_t flb, uint32_t
   uint32_t shire = thread / EMU_THREADS_PER_SHIRE;
   uint32_t shire_thread = thread % EMU_THREADS_PER_SHIRE;
 
-  SD_FLB_LOG(shire, printf("flb_checker::access => shire: %i, thread: %i, entry: %i, oldval: %i, limit: %i\n",
+  FLB_CHECKER_LOG(shire, printf("flb_checker::access => shire: %i, thread: %i, entry: %i, oldval: %i, limit: %i\n",
     shire, shire_thread, flb, oldval, limit));
 
   if(oldval > limit)

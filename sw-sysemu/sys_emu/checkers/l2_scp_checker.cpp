@@ -13,16 +13,16 @@
 #include "emu_gio.h"
 
 // Logging variables and macros
-uint32_t sd_l2_scp_checker_log_shire  = 64;              // None by default
-uint32_t sd_l2_scp_checker_log_line   = 1 * 1024 * 1024; // None by default
-uint32_t sd_l2_scp_checker_log_minion = 2048;            // None by default
+uint32_t l2_scp_checker_log_shire  = 64;              // None by default
+uint32_t l2_scp_checker_log_line   = 1 * 1024 * 1024; // None by default
+uint32_t l2_scp_checker_log_minion = 2048;            // None by default
 
-#define SD_L2_LOG(shire, line, minion, cmd) \
-  { if((shire == 0xFFFFFFFF) || (sd_l2_scp_checker_log_shire == 0xFFFFFFFF) || (shire == sd_l2_scp_checker_log_shire)) \
+#define L2_SCP_CHECKER_LOG(shire, line, minion, cmd) \
+  { if((shire == 0xFFFFFFFF) || (l2_scp_checker_log_shire == 0xFFFFFFFF) || (shire == l2_scp_checker_log_shire)) \
     { \
-      if((line == 0xFFFFFFFF) || (sd_l2_scp_checker_log_line == 0xFFFFFFFF) || (line == sd_l2_scp_checker_log_line)) \
+      if((line == 0xFFFFFFFF) || (l2_scp_checker_log_line == 0xFFFFFFFF) || (line == l2_scp_checker_log_line)) \
       { \
-        if((minion == 0xFFFFFFFF) || (sd_l2_scp_checker_log_minion == 0xFFFFFFFF) || (minion == sd_l2_scp_checker_log_minion)) \
+        if((minion == 0xFFFFFFFF) || (l2_scp_checker_log_minion == 0xFFFFFFFF) || (minion == l2_scp_checker_log_minion)) \
         { \
           cmd; \
         } \
@@ -57,7 +57,7 @@ void l2_scp_checker::l2_scp_fill(uint32_t current_thread, uint32_t idx, uint32_t
   uint32_t minion_id = current_thread / EMU_THREADS_PER_MINION;
   uint32_t minion    = minion_id % EMU_MINIONS_PER_SHIRE;
   uint32_t shire     = current_thread / EMU_THREADS_PER_SHIRE;
-  SD_L2_LOG(shire, idx, minion_id, printf("l2_scp_checker::l2_scp_fill => valid shire: %i, minion: %i, line: %i, id: %i\n", shire, minion, idx, id));
+  L2_SCP_CHECKER_LOG(shire, idx, minion_id, printf("l2_scp_checker::l2_scp_fill => valid shire: %i, minion: %i, line: %i, id: %i\n", shire, minion, idx, id));
 
   if((shire_scp_info[shire].l2_scp_line_status[idx] == L2Scp_Fill) && (shire_scp_info[shire].l2_scp_line_addr[idx] != src_addr))
   {
@@ -96,7 +96,7 @@ void l2_scp_checker::l2_scp_wait(uint32_t current_thread, uint32_t id)
   uint32_t minion_id = current_thread / EMU_THREADS_PER_MINION;
   uint32_t minion    = minion_id % EMU_MINIONS_PER_SHIRE;
   uint32_t shire     = current_thread / EMU_THREADS_PER_SHIRE;
-  SD_L2_LOG(shire, 0xFFFFFFFF, minion_id, printf("l2_scp_checker::l2_scp_wait => shire: %i, minion: %i, id: %i\n", shire, minion, id));
+  L2_SCP_CHECKER_LOG(shire, 0xFFFFFFFF, minion_id, printf("l2_scp_checker::l2_scp_wait => shire: %i, minion: %i, id: %i\n", shire, minion, id));
 
   // Goes over all entries of minion
   auto it = shire_scp_info[shire].l2_scp_fills[minion].begin();
@@ -105,7 +105,7 @@ void l2_scp_checker::l2_scp_wait(uint32_t current_thread, uint32_t id)
     // Same ID, set line as valid and remove from list
     if(it->id == id)
     {
-      SD_L2_LOG(shire, it->line, minion_id, printf("l2_scp_checker::l2_scp_wait => valid shire: %i, line: %i\n", shire, it->line));
+      L2_SCP_CHECKER_LOG(shire, it->line, minion_id, printf("l2_scp_checker::l2_scp_wait => valid shire: %i, line: %i\n", shire, it->line));
       shire_scp_info[shire].l2_scp_line_status[it->line] = L2Scp_Valid;
       auto it_orig = it;
       it++;
@@ -142,7 +142,7 @@ void l2_scp_checker::l2_scp_read(uint32_t current_thread, uint64_t addr)
   uint32_t shire_access = (addr >> 23) & 0x3FULL;
   uint32_t line_access  = (addr >> 6) & 0x1FFFF;
 
-  SD_L2_LOG(shire, line_access, minion_id, printf("l2_scp_checker::l2_scp_read => shire: %i, minion: %i, addr: %016llX, shire_addr: %i, line: %i\n", shire, minion, (long long unsigned int) addr, shire_access, line_access));
+  L2_SCP_CHECKER_LOG(shire, line_access, minion_id, printf("l2_scp_checker::l2_scp_read => shire: %i, minion: %i, addr: %016llX, shire_addr: %i, line: %i\n", shire, minion, (long long unsigned int) addr, shire_access, line_access));
 
   if(shire_access >= EMU_NUM_SHIRES)
   {
