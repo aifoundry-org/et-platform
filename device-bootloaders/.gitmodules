@@ -1,3 +1,3 @@
 [submodule "shared/include/etsoc_hal"]
 	path = shared/include/etsoc_hal
-	url = git@gitlab.esperanto.ai:software/etsoc_hal.git
+	url = ../etsoc_hal.git
