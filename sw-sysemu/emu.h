@@ -132,8 +132,6 @@ extern void tensor_reduce_execute();
 extern void tensor_wait_start(uint64_t value);
 extern void tensor_wait_execute();
 
-// Shire cooperative mode
-
 extern void write_shire_coop_mode(unsigned shire, uint64_t val);
 extern uint64_t read_shire_coop_mode(unsigned shire);
 
@@ -141,18 +139,11 @@ extern uint64_t read_shire_coop_mode(unsigned shire);
 
 // ----- Esperanto fast credit counter extension --------------------------------
 
-extern uint64_t get_fcc_cnt();
 extern void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc_id);
 std::queue<uint32_t> &get_minions_to_awake();
 
 // ----- Esperanto IPI extension ------------------------------------------------
 
 // ----- Esperanto code prefetching extension -----------------------------------
-
-extern void write_icache_prefetch(int privilege, unsigned shire, uint64_t val);
-
-extern uint64_t read_icache_prefetch(int privilege, unsigned shire);
-
-extern void finish_icache_prefetch(unsigned shire);
 
 #endif // _EMU_H

@@ -110,14 +110,6 @@ typename MemoryRegion::reset_value_type memory_reset_value = {0};
 // Hart state
 std::array<Processor,EMU_NUM_THREADS>  cpu;
 
-// Other processor state
-std::array<bool,    EMU_NUM_THREADS>    mtvec_is_set;
-std::array<bool,    EMU_NUM_THREADS>    stvec_is_set;
-std::array<bool,    EMU_NUM_THREADS>    debug_mode;
-std::array<uint32_t,EMU_NUM_THREADS>    ext_seip;
-static std::array<bool,EMU_NUM_THREADS-1> tensorload_setupb_topair;
-static std::array<int, EMU_NUM_THREADS-1> tensorload_setupb_numlines;
-
 // Scratchpad
 // FIXME: The scratchpad is shared among all threads of a minion. We should
 // really just have one scratchpad per minion, not one per thread. This all
@@ -138,18 +130,6 @@ static std::array<std::vector<msg_port_write_t>,EMU_NUM_SHIRES> msg_port_pending
 static std::array<std::vector<msg_port_write_t>,EMU_NUM_SHIRES> msg_port_pending_writes_tbox;
 static std::array<std::vector<msg_port_write_t>,EMU_NUM_SHIRES> msg_port_pending_writes_rbox;
 static bool msg_port_delayed_write = false;
-
-// FCC: these are special ESRs that look like CSRs
-std::array<std::array<uint16_t,2>,EMU_NUM_THREADS> fcc;
-std::array<bool,EMU_NUM_THREADS> fcc_wait;
-
-// Shire ESRs
-// FIXME: move all these into shire_other_esrs_t
-uint64_t fcc_cnt;
-std::array<bool,EMU_NUM_SHIRES> esr_shire_coop_mode;
-#ifndef SYS_EMU
-std::array<bool,EMU_NUM_SHIRES> esr_icache_prefetch_active;
-#endif
 
 #ifndef SYS_EMU
 // only for checker, list of minions to awake (e.g. waiting for FCC that has just been written)
@@ -264,17 +244,12 @@ void reset_esrs_for_shire(unsigned shireid)
     bemu::shire_other_esrs[shire].reset(shireid);
     bemu::broadcast_esrs[shire].reset();
 
-    esr_shire_coop_mode[shire] = false;
-#ifndef SYS_EMU
-    esr_icache_prefetch_active[shire] = 0;
-#endif
-
     // reset FCC for all threads in shire
     unsigned thread0 = shire * EMU_THREADS_PER_SHIRE;
     unsigned threadN = thread0 + (shire == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_SHIRE);
     for (unsigned thread = thread0; thread < threadN; ++thread) {
-        fcc[thread][0] = 0;
-        fcc[thread][1] = 0;
+        cpu[thread].fcc[0] = 0;
+        cpu[thread].fcc[1] = 0;
     }
 }
 
@@ -463,15 +438,13 @@ void reset_hart(unsigned thread)
         memset(&msg_ports[thread][i], 0, sizeof(msg_port_conf_t));
         msg_ports[thread][i].offset = -1;
     }
-    debug_mode[thread] = false;
-    ext_seip[thread] = 0;
-    mtvec_is_set[thread] = false;
-    stvec_is_set[thread] = false;
-    fcc_wait[thread] = false;
-    if (thread != EMU_IO_SHIRE_SP*EMU_THREADS_PER_SHIRE)
-    {
-        tensorload_setupb_topair[thread] = false;
-    }
+    cpu[thread].debug_mode = false;
+    cpu[thread].ext_seip = 0;
+    cpu[thread].mtvec_is_set = false;
+    cpu[thread].stvec_is_set = false;
+    cpu[thread].fcc_wait = false;
+    cpu[thread].fcc_cnt = 0;
+    cpu[thread].tensorload_setupb_topair = false;
 }
 
 void minit(mreg dst, uint64_t val)
@@ -491,12 +464,12 @@ void check_pending_interrupts()
     // Are there any non-masked pending interrupts?
     // NB: If excl_mode != 0 this thread is either in exclusive mode or
     // blocked, but either way it cannot receive interrupts
-    uint64_t xip = (cpu[current_thread].mip | ext_seip[current_thread]) & cpu[current_thread].mie;
+    uint64_t xip = (cpu[current_thread].mip | cpu[current_thread].ext_seip) & cpu[current_thread].mie;
     if (!xip || cpu[current_thread].excl_mode)
         return;
 
     LOG(DEBUG, "Check Pending Interrupt mtvec:0x%016" PRIx64 " mip:0x%08" PRIx32 " xseip:0x%08" PRIx32 " mie:0x%08" PRIx32,
-        cpu[current_thread].mtvec, cpu[current_thread].mip, ext_seip[current_thread], cpu[current_thread].mie);
+        cpu[current_thread].mtvec, cpu[current_thread].mip, cpu[current_thread].ext_seip, cpu[current_thread].mie);
 
     // If there are any pending interrupts for the current privilege level
     // 'x', they are only taken if mstatus.xIE=1. If there are any pending
@@ -589,7 +562,7 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
 
     // Throw an error if no one ever set stvec otherwise we'll enter an infinite loop of illegal
     // instruction exceptions
-    if (stvec_is_set[current_thread] == false)
+    if (cpu[current_thread].stvec_is_set == false)
         LOG(WARN, "%s", "Trap vector has never been set. Can't take exception properly");
 
     // compute address where to jump to:
@@ -660,7 +633,7 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
 
     // Throw an error if no one ever set mtvec otherwise we'll enter an infinite loop of illegal
     // instruction exceptions
-    if (mtvec_is_set[current_thread] == false)
+    if (cpu[current_thread].mtvec_is_set == false)
         LOG(WARN, "%s", "Trap vector has never been set. Doesn't smell good...");
 
     // compute address where to jump to
@@ -1112,7 +1085,7 @@ static uint64_t csrget(uint16_t src1)
         break;
     case CSR_FCCNB:
         require_feature_ml();
-        val = (uint64_t(fcc[current_thread][1]) << 16) + uint64_t(fcc[current_thread][0]);
+        val = (uint64_t(cpu[current_thread].fcc[1]) << 16) + uint64_t(cpu[current_thread].fcc[0]);
         break;
     case CSR_PORTHEAD0:
     case CSR_PORTHEAD1:
@@ -1203,7 +1176,7 @@ static uint64_t csrset(uint16_t src1, uint64_t val)
     case CSR_STVEC:
         val = sextVA(val & ~0xFFEULL);
         cpu[current_thread].stvec = val;
-        stvec_is_set[current_thread] = true;
+        cpu[current_thread].stvec_is_set = true;
         break;
     case CSR_SCOUNTEREN:
         val &= 0x1FF;
@@ -1290,7 +1263,7 @@ static uint64_t csrset(uint16_t src1, uint64_t val)
     case CSR_MTVEC:
         val = sextVA(val & ~0xFFEULL);
         cpu[current_thread].mtvec = val;
-        mtvec_is_set[current_thread] = true;
+        cpu[current_thread].mtvec_is_set = true;
         break;
     case CSR_MCOUNTEREN:
         val &= 0x1FF;
@@ -1356,7 +1329,7 @@ static uint64_t csrset(uint16_t src1, uint64_t val)
         val = 0;
         break;
     case CSR_TDATA1:
-        if (debug_mode[current_thread])
+        if (cpu[current_thread].debug_mode)
         {
             // Preserve type, maskmax, timing; clearing dmode clears action too
             val = (val & 0x08000000000010DFULL) | (cpu[current_thread].tdata1 & 0xF7E0000000040000ULL);
@@ -1382,7 +1355,7 @@ static uint64_t csrset(uint16_t src1, uint64_t val)
         break;
     case CSR_TDATA2:
         // keep only valid virtual or pysical addresses
-        if ((~cpu[current_thread].tdata1 & 0x0800000000000000ULL) || debug_mode[current_thread])
+        if ((~cpu[current_thread].tdata1 & 0x0800000000000000ULL) || cpu[current_thread].debug_mode)
         {
             val &= VA_M;
             cpu[current_thread].tdata2 = val;
@@ -1547,8 +1520,8 @@ static uint64_t csrset(uint16_t src1, uint64_t val)
                 cpu[current_thread^1].ucache_control = val;
                 cpu[current_thread^1].mcache_control = val & 3;
             }
-            if ((~val & 2) && (current_thread != EMU_IO_SHIRE_SP_THREAD))
-                tensorload_setupb_topair[current_thread] = false;
+            if (~val & 2)
+                cpu[current_thread].tensorload_setupb_topair = false;
         }
         val &= 3;
 #ifdef SYS_EMU
@@ -1668,18 +1641,18 @@ static uint64_t csrset(uint16_t src1, uint64_t val)
     // CSR_FLB is modelled outside this fuction!
     case CSR_FCC:
         require_feature_ml();
-        fcc_cnt = val & 0x01;
+        cpu[current_thread].fcc_cnt = val % 2;
 #ifdef SYS_EMU
         // If you are not going to block decrement it
-        if (fcc[current_thread][fcc_cnt] != 0)
-            fcc[current_thread][fcc_cnt]--;
+        if (cpu[current_thread].fcc[val % 2] != 0)
+            cpu[current_thread].fcc[val % 2]--;
 #else
         // block if no credits, else decrement
-        if (fcc[current_thread][fcc_cnt] == 0 ) {
-            fcc_wait[current_thread] = true;
+        if (cpu[current_thread].fcc[val % 2] == 0 ) {
+            cpu[current_thread].fcc_wait = true;
             throw std::domain_error("FCC write with no credits");
         } else {
-            fcc[current_thread][fcc_cnt]--;
+            cpu[current_thread].fcc[val % 2]--;
         }
 #endif
         break;
@@ -1873,10 +1846,10 @@ static void csr_insn(xreg dst, uint16_t src1, uint64_t oldval, uint64_t newval, 
     switch (src1)
     {
         case CSR_SIP:
-            oldval |= ext_seip[current_thread] & cpu[current_thread].mideleg;
+            oldval |= cpu[current_thread].ext_seip & cpu[current_thread].mideleg;
             break;
         case CSR_MIP:
-            oldval |= ext_seip[current_thread];
+            oldval |= cpu[current_thread].ext_seip;
             break;
         default:
             break;
@@ -2750,7 +2723,7 @@ void tensor_load_start(uint64_t control)
     // Cooperative tensor loads require the shire to be in cooperative mode
     if (use_coop) {
         uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
-        if (!esr_shire_coop_mode[shire])
+        if (!bemu::shire_other_esrs[shire].shire_coop_mode)
             throw trap_illegal_instruction(current_inst);
     }
 
@@ -2762,11 +2735,11 @@ void tensor_load_start(uint64_t control)
     }
 
     if (tenb) {
-        tensorload_setupb_topair[current_thread] = true;
-        tensorload_setupb_numlines[current_thread] = rows;
+        cpu[current_thread].tensorload_setupb_topair = true;
+        cpu[current_thread].tensorload_setupb_numlines = rows;
         if ((current_thread^1) < EMU_NUM_THREADS) {
-            tensorload_setupb_topair[current_thread^1] = true;
-            tensorload_setupb_numlines[current_thread^1] = rows;
+            cpu[current_thread^1].tensorload_setupb_topair = true;
+            cpu[current_thread^1].tensorload_setupb_numlines = rows;
         }
     }
     else if ((trans == 0x3) || (trans == 0x4)) {
@@ -3420,7 +3393,7 @@ static void tensorstore(uint64_t tstorereg)
         if (coop > 1)
         {
             uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
-            if (!esr_shire_coop_mode[shire])
+            if (!bemu::shire_other_esrs[shire].shire_coop_mode)
                 throw trap_illegal_instruction(current_inst);
         }
 
@@ -3625,11 +3598,11 @@ static void tensor_fma32_start(uint64_t tfmareg)
     set_rounding_mode(frm());
 
     // Unpair the last TensorLoadSetupB
-    bool load_tenb = tensorload_setupb_topair[current_thread];
-    int  brows_tenb = tensorload_setupb_numlines[current_thread];
-    tensorload_setupb_topair[current_thread] = false;
+    bool load_tenb = cpu[current_thread].tensorload_setupb_topair;
+    int  brows_tenb = cpu[current_thread].tensorload_setupb_numlines;
+    cpu[current_thread].tensorload_setupb_topair = false;
     if ((current_thread^1) < EMU_NUM_THREADS)
-        tensorload_setupb_topair[current_thread^1] = false;
+        cpu[current_thread^1].tensorload_setupb_topair = false;
 
     // tenb and no TensorLoadSetupB to pair, or tenb and incompatible
     // rows/columns size, or not tenb and orphaned TensorLoadSetupB
@@ -3831,11 +3804,11 @@ static void tensor_fma16a32_start(uint64_t tfmareg)
 #endif
 
     // Unpair the last TensorLoadSetupB
-    bool load_tenb = tensorload_setupb_topair[current_thread];
-    int  brows_tenb = 2 * tensorload_setupb_numlines[current_thread];
-    tensorload_setupb_topair[current_thread] = false;
+    bool load_tenb = cpu[current_thread].tensorload_setupb_topair;
+    int  brows_tenb = 2 * cpu[current_thread].tensorload_setupb_numlines;
+    cpu[current_thread].tensorload_setupb_topair = false;
     if ((current_thread^1) < EMU_NUM_THREADS)
-        tensorload_setupb_topair[current_thread^1] = false;
+        cpu[current_thread^1].tensorload_setupb_topair = false;
 
     // tenb and no TensorLoadSetupB to pair, or tenb and incompatible
     // combination of rows and columns length, or not tenb and orphaned
@@ -3933,7 +3906,7 @@ static void tensor_ima8a32_execute()
         if(!tenb) L1_SCP_CHECK_READ(current_thread, ((bstart+k/4)%L1_SCP_ENTRIES));
 
         bool write_freg = (tenc2rf && (k+4 == acols));
-        freg_t* dst = write_freg ? FREGS : TENC;
+        freg_t* dst = write_freg ? FREGS.data() : TENC.data();
         const char* dname = write_freg ? "f" : "TenC";
 
         for (int i = 0; i < arows; ++i)
@@ -4037,7 +4010,7 @@ static void tensor_ima8a32_execute()
     // logging
     for (int i = 0; i < arows; ++i)
     {
-        const freg_t* dst = tenc2rf ? FREGS : TENC;
+        const freg_t* dst = tenc2rf ? FREGS.data() : TENC.data();
         const char* dname = tenc2rf ? "f" : "TenC";
         for (int j = 0; j < bcols; ++j)
             LOG(DEBUG, "\tC[%d][%d]: %s%u[%u] = 0x%08" PRIx32, i, j, dname,
@@ -4083,11 +4056,11 @@ static void tensor_ima8a32_start(uint64_t tfmareg)
 #endif
 
     // Unpair the last TensorLoadSetupB
-    bool load_tenb = tensorload_setupb_topair[current_thread];
-    int  brows_tenb = 4 * tensorload_setupb_numlines[current_thread];
-    tensorload_setupb_topair[current_thread] = false;
+    bool load_tenb = cpu[current_thread].tensorload_setupb_topair;
+    int  brows_tenb = 4 * cpu[current_thread].tensorload_setupb_numlines;
+    cpu[current_thread].tensorload_setupb_topair = false;
     if ((current_thread^1) < EMU_NUM_THREADS)
-        tensorload_setupb_topair[current_thread^1] = false;
+        cpu[current_thread^1].tensorload_setupb_topair = false;
 
     // tenb and no TensorLoadSetupB to pair, or tenb and incompatible
     // combination of rows and columns length, or not tenb and orphaned
@@ -4516,24 +4489,6 @@ void tensor_wait_execute()
     log_tensor_error_value(cpu[current_thread].tensor_error);
 }
 
-// ----- Shire cooperative mode ------------------------------------------------
-
-void write_shire_coop_mode(unsigned shire, uint64_t val)
-{
-    assert(shire < EMU_NUM_SHIRES);
-    esr_shire_coop_mode[shire] = !!(val & 1);
-#ifndef SYS_EMU
-    if (!esr_shire_coop_mode[shire])
-        esr_icache_prefetch_active[shire] = false;
-#endif
-}
-
-uint64_t read_shire_coop_mode(unsigned shire)
-{
-    assert(shire < EMU_NUM_SHIRES);
-    return esr_shire_coop_mode[shire] ? 1ull : 0ull;
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Esperanto fast local barrier extension emulation
@@ -4581,11 +4536,6 @@ static uint64_t flbarrier(uint64_t value)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-uint64_t get_fcc_cnt()
-{
-    return fcc_cnt;
-}
-
 void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc_id)
 {
     LOG(DEBUG,"fcc_inc(%" PRIu64 ", %" PRIu64 ", 0x%" PRIx64 ", %" PRIu64 ")",
@@ -4603,21 +4553,21 @@ void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc
         if (minion_mask & (1ull << minion))
         {
             uint64_t fcc_addr = shire*EMU_THREADS_PER_SHIRE + EMU_THREADS_PER_MINION*minion + thread;
-            LOG(DEBUG, "Incrementing FCC%" PRIu64 "[H%" PRIu64 "]=%" PRIu16, thread*2 + fcc_id, fcc_addr, uint16_t(fcc[fcc_addr][fcc_id] + 1));
-            fcc[fcc_addr][fcc_id]++;
+            LOG(DEBUG, "Incrementing FCC%" PRIu64 "[H%" PRIu64 "]=%" PRIu16, thread*2 + fcc_id, fcc_addr, uint16_t(cpu[fcc_addr].fcc[fcc_id] + 1));
+            cpu[fcc_addr].fcc[fcc_id]++;
 
 #ifndef SYS_EMU
             // wake up waiting threads (only for checker, not sysemu)
-            if (fcc_wait[fcc_addr]){
-                fcc_wait[fcc_addr] = false;
+            if (cpu[fcc_addr].fcc_wait) {
+                cpu[fcc_addr].fcc_wait = false;
                 minions_to_awake.push(fcc_addr>>1);
             }
 #endif
 
             //check for overflow
-            if (fcc[fcc_addr][fcc_id] == 0x000) {
+            if (cpu[fcc_addr].fcc[fcc_id] == 0x000) {
                 update_tensor_error(fcc_addr, 1 << 3);
-                fcc[fcc_addr][fcc_id] = 0;
+                cpu[fcc_addr].fcc[fcc_id] = 0;
             }
         }
     }
@@ -4642,15 +4592,15 @@ void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc
 } while (0)
 
 #define set_ext_seip(thread) do { \
-    if (ext_seip[thread] & (1<<SUPERVISOR_EXTERNAL_INTERRUPT)) \
+    if (cpu[thread].ext_seip & (1<<SUPERVISOR_EXTERNAL_INTERRUPT)) \
         LOG(DEBUG, "Raising external interrupt number %d", SUPERVISOR_EXTERNAL_INTERRUPT); \
-    ext_seip[thread] |= (1<<SUPERVISOR_EXTERNAL_INTERRUPT); \
+    cpu[thread].ext_seip |= (1<<SUPERVISOR_EXTERNAL_INTERRUPT); \
 } while (0)
 
 #define clear_ext_seip(thread) do { \
-    if (~ext_seip[thread] & (1<<SUPERVISOR_EXTERNAL_INTERRUPT)) \
+    if (~cpu[thread].ext_seip & (1<<SUPERVISOR_EXTERNAL_INTERRUPT)) \
         LOG(DEBUG, "Clearing external interrupt number %d", SUPERVISOR_EXTERNAL_INTERRUPT); \
-    ext_seip[thread] &= ~(1<<SUPERVISOR_EXTERNAL_INTERRUPT); \
+    cpu[thread].ext_seip &= ~(1<<SUPERVISOR_EXTERNAL_INTERRUPT); \
 } while (0)
 
 void raise_interrupt(int thread, int cause, uint64_t mip, uint64_t mbusaddr)
@@ -4734,38 +4684,4 @@ void pu_plic_interrupt_pending_clear(uint32_t source_id)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-void write_icache_prefetch(int privilege, unsigned shire, uint64_t val)
-{
-    assert(shire <= EMU_MASTER_SHIRE);
-    (void)(privilege);
-#ifdef SYS_EMU
-    (void)(shire);
-    (void)(val);
-#else
-    if (!esr_icache_prefetch_active[shire])
-    {
-        bool active = ((val >> 48) & 0xF) && esr_shire_coop_mode[shire];
-        esr_icache_prefetch_active[shire] = active;
-    }
-#endif
-}
-
-uint64_t read_icache_prefetch(int privilege __attribute__((unused)), unsigned shire)
-{
-    assert(shire <= EMU_MASTER_SHIRE);
-#ifdef SYS_EMU
-    // NB: Prefetches finish instantaneously in sys_emu
-    return 1;
-#else
-    return esr_icache_prefetch_active[shire] ? 0ull : 1ull;
-#endif
-}
-
-void finish_icache_prefetch(unsigned shire)
-{
-    assert(shire <= EMU_MASTER_SHIRE);
-#ifndef SYS_EMU
-    esr_icache_prefetch_active[shire] = false;
-#endif
-}
 // LCOV_EXCL_STOP

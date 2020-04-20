@@ -28,10 +28,10 @@
 struct Processor {
 
     // Register files
-    uint64_t    xregs[NXREGS];
-    freg_t      fregs[NFREGS];
-    mreg_t      mregs[NMREGS];
-    freg_t      tenc[NFREGS];   // TODO: this is per core not per hart
+    std::array<uint64_t,NXREGS>   xregs;
+    std::array<freg_t,NFREGS>     fregs;
+    std::array<mreg_t,NMREGS>     mregs;
+    std::array<freg_t,NFREGS>     tenc; // TODO: this is per core not per hart
 
     // RISCV control and status registers
     uint32_t    fcsr;
@@ -80,14 +80,27 @@ struct Processor {
     uint64_t    validation3;
     std::array<uint32_t,4> portctrl;
 
+    // Supervisor external interrupt pin (as 32-bit for performance)
+    uint32_t    ext_seip;
+
     // Other hart internal (microarchitectural or hidden) state
     prv_t       prv;
+    bool        debug_mode;
+    bool        fcc_wait;
 
     // Pre-computed state to improve simulation speed
     bool break_on_load;
     bool break_on_store;
     bool break_on_fetch;
     bool enabled;
+    bool mtvec_is_set;  // for debugging of benchmarks
+    bool stvec_is_set;  // for debugging of benchmarks
+
+    // FCCs are special ESRs that look like CSRs
+    std::array<uint16_t,2>  fcc;
+    uint8_t                 fcc_cnt; // FIXME: Why do we need this?
+
+    // Tensor accelerator state
 
     enum class Tensor {
         None,
@@ -95,8 +108,6 @@ struct Processor {
         Quant,
         FMA
     };
-
-    // Tensor accelerator state
 
     // Tensor reduction operation state machine
     // TODO: this is per core not per hart
@@ -153,6 +164,10 @@ struct Processor {
     // Active tensor operation state machines
     // TODO: this is per core not per hart
     std::array<Tensor,3> tensor_op;
+
+    // Keep track of TensorLoadSetupB pairing
+    bool tensorload_setupb_topair;
+    int  tensorload_setupb_numlines;
 
     bool enqueue_tensor_op(Tensor kind) {
         for (unsigned i = 0; i < 3; ++i) {

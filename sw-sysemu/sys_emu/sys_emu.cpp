@@ -44,7 +44,6 @@
 #endif
 
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
-extern std::array<uint32_t,EMU_NUM_THREADS>  ext_seip;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Static Member variables
@@ -93,8 +92,6 @@ static inline bool multithreading_is_disabled(unsigned shire)
 void
 sys_emu::fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, unsigned cnt_dest)
 {
-    extern uint16_t fcc[EMU_NUM_THREADS][2];
-
     assert(thread_dest < 2);
     assert(cnt_dest < 2);
     for(int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
@@ -127,7 +124,7 @@ sys_emu::fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread
                     running_threads.push_back(thread_id);
                 }
                 fcc_wait_threads[cnt_dest].erase(thread);
-                --fcc[thread_id][cnt_dest];
+                --cpu[thread_id].fcc[cnt_dest];
             }
         }
     }
@@ -206,7 +203,7 @@ void
 sys_emu::raise_interrupt_wakeup_check(unsigned thread_id)
 {
     // WFI/stall don't require the global interrupt bits in mstatus to be enabled
-    uint64_t xip = (cpu[thread_id].mip | ext_seip[thread_id]) & cpu[thread_id].mie;
+    uint64_t xip = (cpu[thread_id].mip | cpu[thread_id].ext_seip) & cpu[thread_id].mie;
     if (xip) {
         bool trap = false;
 
@@ -1044,7 +1041,7 @@ sys_emu::main_internal(int argc, char * argv[])
                     {
                         if (inst.is_fcc_write())
                         {
-                            unsigned cnt = get_fcc_cnt();
+                            unsigned cnt = cpu[thread_id].fcc_cnt;
                             int old_thread = *thread;
 
                             // Checks if there's a pending FCC and wakes up thread again

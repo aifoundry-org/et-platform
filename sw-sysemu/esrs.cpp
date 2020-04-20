@@ -201,6 +201,7 @@ void shire_other_esrs_t::reset(unsigned shire)
         minion_feature = 0x01;
     }
     shire_ctrl_clockmux = 0;
+    shire_coop_mode = 0;
     uc_config = 0;
     clk_gate_ctrl = ESR_SHIRE_CLK_GATE_CTRL_RESET_VAL;
     shire_channel_eco_ctl = 0;
@@ -208,6 +209,8 @@ void shire_other_esrs_t::reset(unsigned shire)
     if (shire == IO_SHIRE_ID) shire = EMU_IO_SHIRE_SP;
     recalculate_thread0_enable(shire);
     recalculate_thread1_enable(shire);
+
+    icache_prefetch_active = 0;
 }
 
 
@@ -485,7 +488,7 @@ uint64_t esr_read(uint64_t addr)
         case ESR_SHIRE_PLL_READ_DATA:
             return 0x20000; /* PLL is locked */
         case ESR_SHIRE_COOP_MODE:
-            return read_shire_coop_mode(shire);
+            return shire_other_esrs[shire].shire_coop_mode;
         case ESR_SHIRE_CTRL_CLOCKMUX:
             return shire_other_esrs[shire].shire_ctrl_clockmux;
         case ESR_SHIRE_CACHE_RAM_CFG1:
@@ -1137,6 +1140,16 @@ void esr_write(uint64_t addr, uint64_t value)
 }
 
 
+void write_shire_coop_mode(unsigned shire, uint64_t value)
+{
+    assert(shire < EMU_NUM_SHIRES);
+    value &= 1;
+    shire_other_esrs[shire].shire_coop_mode = value;
+    if (!value)
+        finish_icache_prefetch(shire);
+}
+
+
 void write_thread0_disable(unsigned shire, uint32_t value)
 {
     shire_other_esrs[shire].thread0_disable = value;
@@ -1155,6 +1168,44 @@ void write_minion_feature(unsigned shire, uint8_t value)
 {
     shire_other_esrs[shire].minion_feature = value;
     recalculate_thread1_enable(shire);
+}
+
+
+void write_icache_prefetch(int /*privilege*/, unsigned shire, uint64_t value)
+{
+    assert(shire <= EMU_MASTER_SHIRE);
+#ifdef SYS_EMU
+    (void)(shire);
+    (void)(value);
+#else
+    if (!shire_other_esrs[shire].icache_prefetch_active)
+    {
+        bool active = ((value >> 48) & 0xF) && shire_other_esrs[shire].shire_coop_mode;
+        shire_other_esrs[shire].icache_prefetch_active = active;
+    }
+#endif
+}
+
+
+uint64_t read_icache_prefetch(int /*privilege*/, unsigned shire)
+{
+    assert(shire <= EMU_MASTER_SHIRE);
+#ifdef SYS_EMU
+    (void)(shire);
+    // NB: Prefetches finish instantaneously in sys_emu
+    return 1;
+#else
+    return shire_other_esrs[shire].icache_prefetch_active;
+#endif
+}
+
+
+void finish_icache_prefetch(unsigned shire)
+{
+    assert(shire <= EMU_MASTER_SHIRE);
+#ifndef SYS_EMU
+    shire_other_esrs[shire].icache_prefetch_active = 0;
+#endif
 }
 
 

@@ -401,10 +401,13 @@ struct shire_other_esrs_t {
     uint16_t shire_dll_auto_config;
     uint8_t  minion_feature;
     uint8_t  shire_ctrl_clockmux;
-    //bool     shire_coop_mode;
+    bool     shire_coop_mode;
     bool     uc_config;
     uint16_t clk_gate_ctrl;
     uint8_t  shire_channel_eco_ctl;
+
+    // this is a proxy for icache_{msu}prefetch
+    bool     icache_prefetch_active;
 
     void reset(unsigned shireid);
 };
@@ -430,9 +433,14 @@ extern std::array<broadcast_esrs_t, EMU_NUM_SHIRES> broadcast_esrs;
 uint64_t esr_read(uint64_t addr);
 void esr_write(uint64_t addr, uint64_t value);
 
+void write_shire_coop_mode(unsigned shire, uint64_t value);
 void write_thread0_disable(unsigned shire, uint32_t value);
 void write_thread1_disable(unsigned shire, uint32_t value);
 void write_minion_feature(unsigned shire, uint8_t value);
+
+void write_icache_prefetch(int privilege, unsigned shire, uint64_t val);
+uint64_t read_icache_prefetch(int privilege, unsigned shire);
+void finish_icache_prefetch(unsigned shire);
 
 
 } // namespace bemu
