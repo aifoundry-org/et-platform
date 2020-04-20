@@ -1859,7 +1859,7 @@ int crypto_get_sp_bl1_monotonic_counter_value(uint32_t * value) {
 }
 
 int crypto_get_pcie_cfg_data_monotonic_counter_value(uint32_t * value) {
-    return crypto_get_monotonic_counter_value(VAULTIP_STATIC_ASSET_PCI_CFG_DATA_REVOCATION_COUNTER, value);
+    return crypto_get_monotonic_counter_value(VAULTIP_STATIC_ASSET_PCIE_CFG_DATA_REVOCATION_COUNTER, value);
 }
 
 int crypto_get_sp_bl2_monotonic_counter_value(uint32_t * value) {
