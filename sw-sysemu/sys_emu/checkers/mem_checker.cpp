@@ -197,9 +197,14 @@ bool mem_checker::write(uint64_t address, op_location_t location, uint32_t shire
         // Not present, insert
         if(!shire_found)
         {
-            shire_directory_map[shire_id].insert(shire_directory_map_t::value_type(address, new_value));
-            dump_shire(&new_value, "write", "insert", address, shire_id, minion);
-
+            // If access is to shire and to L2 scp, there's no change at shire
+            // level, so no need to add it
+            bool no_l2_change = (location == COH_SHIRE) && is_l2_scp;
+            if(!no_l2_change)
+            {
+                shire_directory_map[shire_id].insert(shire_directory_map_t::value_type(address, new_value));
+                dump_shire(&new_value, "write", "insert", address, shire_id, minion);
+            }
         }
         // Update
         else
@@ -394,8 +399,14 @@ bool mem_checker::read(uint64_t address, op_location_t location, uint32_t shire_
         // Not present, insert
         if(!shire_found)
         {
-            shire_directory_map[shire_id].insert(shire_directory_map_t::value_type(address, new_value));
-            dump_shire(&new_value, "read", "insert", address, shire_id, minion);
+            // If access is to shire and to L2 scp, there's no change at shire
+            // level, so no need to add it
+            bool no_l2_change = (location == COH_SHIRE) && is_l2_scp;
+            if(!no_l2_change)
+            {
+                shire_directory_map[shire_id].insert(shire_directory_map_t::value_type(address, new_value));
+                dump_shire(&new_value, "read", "insert", address, shire_id, minion);
+            }
         }
         // Update
         else
