@@ -169,13 +169,16 @@ bool mem_checker::write(uint64_t address, op_location_t location, uint32_t shire
         }
     }
 
+    // Some decoding needed to keep correct shire and global state
+    bool is_l2_scp = paddr_is_scratchpad(address);
+    bool l2_change = !((location == COH_SHIRE) && is_l2_scp); // Special case where access is to L2, but no change happens because it is not cached there
+
     // Update shire contents
     if(update_shire)
     {
         shire_mem_info_t new_value;
 
         // L2 dirty
-        bool is_l2_scp               = paddr_is_scratchpad(address);
         new_value.l2                 = ((location == COH_MINION) || (location == COH_SHIRE)) && !is_l2_scp;
         new_value.l2_dirty           = (location == COH_SHIRE) && !is_l2_scp;
         new_value.l2_dirty_minion_id = (location == COH_MINION) ? minion_id : 255;
@@ -199,8 +202,7 @@ bool mem_checker::write(uint64_t address, op_location_t location, uint32_t shire
         {
             // If access is to shire and to L2 scp, there's no change at shire
             // level, so no need to add it
-            bool no_l2_change = (location == COH_SHIRE) && is_l2_scp;
-            if(!no_l2_change)
+            if(l2_change)
             {
                 shire_directory_map[shire_id].insert(shire_directory_map_t::value_type(address, new_value));
                 dump_shire(&new_value, "write", "insert", address, shire_id, minion);
@@ -243,7 +245,7 @@ bool mem_checker::write(uint64_t address, op_location_t location, uint32_t shire
         // Shire mask
         for(uint32_t shire = 0; shire < EMU_NUM_SHIRES; shire++)
             new_value.shire_mask[shire] = false;
-        new_value.shire_mask[shire_id] = (location != COH_GLOBAL);
+        new_value.shire_mask[shire_id] = (location != COH_GLOBAL) && l2_change;
 
         // Not present, insert
         if(!global_found)
@@ -373,13 +375,16 @@ bool mem_checker::read(uint64_t address, op_location_t location, uint32_t shire_
         }
     }
 
+    // Some decoding needed to keep correct shire and global state
+    bool is_l2_scp = paddr_is_scratchpad(address);
+    bool l2_change = !((location == COH_SHIRE) && is_l2_scp); // Special case where access is to L2, but no change happens because it is not cached there
+
     // Update shire contents
     if(update_shire)
     {
         shire_mem_info_t new_value;
 
         // L2 dirty
-        bool is_l2_scp               = paddr_is_scratchpad(address);
         new_value.l2                 = !is_l2_scp;
         new_value.l2_dirty           = false;
         new_value.l2_dirty_minion_id = 255;
@@ -401,8 +406,7 @@ bool mem_checker::read(uint64_t address, op_location_t location, uint32_t shire_
         {
             // If access is to shire and to L2 scp, there's no change at shire
             // level, so no need to add it
-            bool no_l2_change = (location == COH_SHIRE) && is_l2_scp;
-            if(!no_l2_change)
+            if(l2_change)
             {
                 shire_directory_map[shire_id].insert(shire_directory_map_t::value_type(address, new_value));
                 dump_shire(&new_value, "read", "insert", address, shire_id, minion);
@@ -430,7 +434,7 @@ bool mem_checker::read(uint64_t address, op_location_t location, uint32_t shire_
           new_value.cb_dirty_quarter[quarter] = false;
         for(uint32_t shire = 0; shire < EMU_NUM_SHIRES; shire++)
             new_value.shire_mask[shire] = false;
-        new_value.shire_mask[shire_id] = (location != COH_GLOBAL);
+        new_value.shire_mask[shire_id] = (location != COH_GLOBAL) && l2_change;
 
         // Not present, insert
         if(!global_found)
