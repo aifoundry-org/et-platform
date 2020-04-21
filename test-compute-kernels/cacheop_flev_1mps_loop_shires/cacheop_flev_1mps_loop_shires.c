@@ -12,22 +12,32 @@
 #define BASE_ADDR_FOR_THIS_TEST  0x8200000000ULL
 #define POLYNOMIAL_BIT 0x000008012ULL 
 #define LFSR_SHIFTS_PER_READ 5
+#define CACHE_LINE_SIZE 8             // (since hart_id is 64 bits, and line is 512 bits)
+#define HARTS_PER_SHIRE 64
+
 
 // tensor_a is address offset to start at a random shire-id
 // tensor_b is destination of the cacheop
 // tensor_c is used to choose b/w flush and evict
+// tensor_d is a pointer to the output data
 // One minion per shire participate in the test
 // Starting at tensor_a, the address loops through all the shires, covering each of them once  
 
+// Description: One minion / shire prefetsches addresses (both harts) and the flushes or evicts them
+// to a randomized level in memory hierarchy.
+// emizan says: I am not sure why WAIT_PREFETCH, and WAIT_CACHEOPS have been commentd out by Pat
+
 static inline uint64_t generate_random_value(uint64_t lfsr) __attribute((always_inline));
-      
+
+
 int64_t main(const kernel_params_t* const kernel_params_ptr)
 {
 
-    if ((kernel_params_ptr == NULL))
+    if ((kernel_params_ptr == NULL) ||
+	((uint64_t*) kernel_params_ptr->tensor_d == NULL))
     {
         // Bad arguments
-        log_write(LOG_LEVEL_CRITICAL, "Programming returing due to error\n");
+        log_write(LOG_LEVEL_CRITICAL, "Bad input arguments to kernel\n");
         return -1;
     }
 
@@ -35,10 +45,12 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     const uint64_t hart_id = get_hart_id();
     uint64_t lfsr = (((hart_id << 24) | (hart_id << 12) | hart_id) & 0x3FFFFFFFF) ^ lfsr_init;
     uint64_t lfsr_use;
-    uint64_t dst = kernel_params_ptr->tensor_b; // 1 or 2 or 3 
+    uint64_t dst = kernel_params_ptr->tensor_b; // L2 (1) or L3 (2) or L3 (MEM)
     uint64_t op = kernel_params_ptr->tensor_c; // 1 is flush, 2 is evict 
+    volatile uint64_t *out_data = (uint64_t*) kernel_params_ptr->tensor_d;
 
-    if (hart_id % 64 == 0) {
+    // Hart 0 on every shire
+    if ((hart_id % HARTS_PER_SHIRE) == 0) {
        
        lfsr = generate_random_value(lfsr);
        lfsr_use = lfsr & 0x1F; 
@@ -57,9 +69,12 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
           //WAIT_CACHEOPS;
           if(lfsr_use == 31) { lfsr_use = 0; } else { lfsr_use++; }
        }
+       out_data[hart_id * CACHE_LINE_SIZE] = hart_id;
        return 0; 
     }
-    else if(hart_id == 1 || (hart_id % 64) == 1) {
+
+    // Hart 1 on every shire
+    else if ((hart_id % HARTS_PER_SHIRE) == 1) {
        lfsr = generate_random_value(lfsr);
        lfsr_use = lfsr & 0x1F; 
        for(int i=0;i<31;i++) {
@@ -77,10 +92,17 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
           //WAIT_CACHEOPS;
           if(lfsr_use == 31) { lfsr_use = 0; } else { lfsr_use++; }
        }
+       out_data[hart_id * CACHE_LINE_SIZE] = hart_id;
        return 0; 
     }
-    else {return 0;}
+
+    // All other harts do nothing.
+    else {
+      out_data[hart_id * CACHE_LINE_SIZE] = hart_id;
+      return 0;
+    }
 }
+
 
 // The following function is flicked from random_read
 uint64_t generate_random_value(uint64_t lfsr)
