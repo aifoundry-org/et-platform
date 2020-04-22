@@ -12,6 +12,8 @@
 
 #include "DeviceAPI/Commands.h"
 #include "ELFSupport.h"
+#include "Tracing/Tracing.h"
+
 #include "esperanto/runtime/Core/Device.h"
 
 #include <cassert>
@@ -54,6 +56,7 @@ bool Module::loadOnDevice(Device *dev) {
   // buffer the size of the ELF file
   if (first_segment->get_physical_address() < mem_manager->ramBase()) {
     mem_manager->malloc((void **)&dev_base_addr, elf_info_->elfSize());
+    TRACE_CodeManager_load_on_device(elf_info_->name(), dev_base_addr);
     RTDEBUG << "Allocating memory for PIC ELF, Addr: 0x" << std::hex
             << dev_base_addr << "\n";
   }

@@ -146,3 +146,14 @@ Functions :
         SrcType : et_runtime::Kernel::LaunchArg
       - Name: arg_vec
         Type: bytes
+  - Name: load_on_device
+    Type: Snapshot
+    Description: Snapshot inserted when a kernel is loaded in the device
+    EnablePBLogging : True
+    EnableTextLogging: True
+    DefaultON : True
+    Arguments:
+      - Name: name
+        Type : string
+      - Name: allocated_pointer
+        Type : uint64
