@@ -48,6 +48,37 @@ bool is_vaultip_disabled(void) {
     return vaultip_disabled;
 }
 
+static inline void evict_dcache(void) {
+    // use_tmask=0, dst=1 (L2/SP_RAM), set=0, way=0, num_lines=15
+    uint64_t value = (1ull << 58) + 15ull;
+
+    __asm__ __volatile__ (
+        // Wait for previous memory accesses to finish
+        "fence\n"
+        // Evict L1 Dcache: EvictSW for the 4 ways
+        "csrw evict_sw, %0\n"
+        "addi %0, %0, 64\n"
+        "csrw evict_sw, %0\n"
+        "addi %0, %0, 64\n"
+        "csrw evict_sw, %0\n"
+        "addi %0, %0, 64\n"
+        "csrw evict_sw, %0\n"
+        // Wait for the evicts to complete
+        "csrwi tensor_wait, 6\n"
+        : "=r"(value) : "0"(value) : "memory"
+    );
+}
+
+static inline void invalidate_icache(void) {
+    __asm__ __volatile__ (
+        // Wait for previous memory accesses to finish
+        "fence\n"
+        // Invalidate L1 Icache
+        "csrwi cache_invalidate, 1\n"
+        : : : "memory"
+    );
+}
+
 typedef int (*BL2_MAIN_PFN)(const SERVICE_PROCESSOR_BL1_DATA_t * data);
 
 static void invoke_sp_bl2(void) {
@@ -62,6 +93,11 @@ static void invoke_sp_bl2(void) {
     bl2_address.lo = g_service_processor_bl1_data.sp_bl2_header.info.image_info_and_signaure.info.secret_info.exec_address_lo;
     bl2_address.hi = g_service_processor_bl1_data.sp_bl2_header.info.image_info_and_signaure.info.secret_info.exec_address_hi;
     printx("Invoking SP BL2 @ 0x%08x_%08x!\r\n", bl2_address.hi, bl2_address.lo);
+
+    // Evict Dcache and invalidate Icache before jumping to BL2
+    evict_dcache();
+    invalidate_icache();
+
     bl2_address.pFN(&g_service_processor_bl1_data);
 }
 
