@@ -10,7 +10,7 @@
 
 randomized_test(
   NAME coop_tl_tfma_fc
-  NUMBER_OF_TESTS 9
+  NUMBER_OF_TESTS 4
   GEN_COMMAND python3 ${SCRIPTS_KERNEL_DIR}/gen_random_params.py --shires 32 --scenario coop_tload_tfma --target_dir include --output_type array --repeat 10
   OUTPUT_GEN_FILES random_seed
                    include/tfma_configs.h

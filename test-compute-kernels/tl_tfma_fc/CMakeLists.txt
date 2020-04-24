@@ -10,7 +10,7 @@
 
 randomized_test(
   NAME tl_tfma_fc
-  NUMBER_OF_TESTS 9
+  NUMBER_OF_TESTS 4
   GEN_COMMAND python3 ${SCRIPTS_KERNEL_DIR}/gen_random_params.py --shires 32 --scenario tload_tfma --target_dir include --output_type switch --repeat 1
   OUTPUT_GEN_FILES random_seed
                    include/tfma_configs.h

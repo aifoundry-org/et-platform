@@ -10,7 +10,7 @@
 
 randomized_test(
   NAME producer_consumer_fc
-  NUMBER_OF_TESTS 9
+  NUMBER_OF_TESTS 4
   GEN_COMMAND python3 ${SCRIPTS_KERNEL_DIR}/gen_random_params.py --shires 32 --scenario producer_consumer --target_dir include --output_type array --repeat 4
   OUTPUT_GEN_FILES random_seed
                    include/tstore_configs.h
