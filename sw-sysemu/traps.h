@@ -103,6 +103,23 @@ DEF_TRAP_N(ICACHE_ECC_COUNTER_OVERFLOW_INTERRUPT + (1ull<<63), async, trap_icach
 DEF_TRAP_N(BUS_ERROR_INTERRUPT                   + (1ull<<63), async, trap_bus_error_interrupt);
 
 
+// Traps
+void take_trap(const trap_t& t);
+
+// Interrupts
+void raise_interrupt(int thread, int cause, uint64_t mip, uint64_t mbusaddr=0);
+void raise_software_interrupt(int thread);
+void clear_software_interrupt(int thread);
+void raise_timer_interrupt(int thread);
+void clear_timer_interrupt(int thread);
+void raise_external_machine_interrupt(int thread);
+void clear_external_machine_interrupt(int thread);
+void raise_external_supervisor_interrupt(int thread);
+void clear_external_supervisor_interrupt(int thread);
+void raise_bus_error_interrupt(int thread, uint64_t busaddr);
+void clear_bus_error_interrupt(int thread);
+
+
 //} // namespace bemu
 
 #endif // BEMU_TRAPS_H

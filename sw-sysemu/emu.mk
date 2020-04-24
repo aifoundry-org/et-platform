@@ -13,6 +13,9 @@ emu_hdrs := \
 	cache.h \
 	csrs.h \
 	decode.h \
+	devices/plic.h \
+	devices/pu_uart.h \
+	devices/rvtimer.h \
 	emu.h \
 	emu_defines.h \
 	emu_gio.h \
@@ -21,23 +24,11 @@ emu_hdrs := \
 	gold.h \
 	insn.h \
 	insn_func.h \
+	insns/tensor_error.h \
+	insns/tensor_mask.h \
 	lazy_array.h \
 	literals.h \
 	memmap.h \
-	mmu.h \
-	processor.h \
-	rbox.h \
-	rbox_pi.h \
-	state.h \
-	sysreg_error.h \
-	tbox_emu.h \
-	tbox_pi.h \
-	traps.h \
-	txs.h \
-	utility.h \
-	devices/plic.h \
-	devices/pu_uart.h \
-	devices/rvtimer.h \
 	memory/dense_region.h \
 	memory/dump_data.h \
 	memory/load.h \
@@ -46,7 +37,20 @@ emu_hdrs := \
 	memory/memory_region.h \
 	memory/scratch_region.h \
 	memory/sparse_region.h \
-	memory/sysreg_region.h
+	memory/sysreg_region.h \
+	mmu.h \
+	msgport.h \
+	processor.h \
+	rbox.h \
+	rbox_pi.h \
+	state.h \
+	sysreg_error.h \
+	tbox_emu.h \
+	tbox_pi.h \
+	tensor.h \
+	traps.h \
+	txs.h \
+	utility.h
 
 emu_cpp_srcs := \
 	decode.cpp \
@@ -54,12 +58,8 @@ emu_cpp_srcs := \
 	emu.cpp \
 	emu_gio.cpp \
 	esrs.cpp \
+	flb.cpp \
 	gold.cpp \
-	insn_exec_func.cpp \
-	mmu.cpp \
-	rbox.cpp \
-	tbox_emu.cpp \
-	txs.cpp \
 	insns/arith.cpp \
 	insns/arith_atomic.cpp \
 	insns/arith_graphics.cpp \
@@ -68,6 +68,7 @@ emu_cpp_srcs := \
 	insns/c_arith.cpp \
 	insns/c_branch.cpp \
 	insns/c_loadstore.cpp \
+	insns/cache_control.cpp \
 	insns/coherent_arith_loadstore.cpp \
 	insns/coherent_packed_loadstore.cpp \
 	insns/float.cpp \
@@ -80,5 +81,14 @@ emu_cpp_srcs := \
 	insns/packed_loadstore.cpp \
 	insns/packed_mask.cpp \
 	insns/packed_trans.cpp \
+	insns/system.cpp \
+	insns/tensors.cpp \
+	insns/zicsr.cpp \
 	insns/zifencei.cpp \
-	memory/load.cpp
+	memory/load.cpp \
+	mmu.cpp \
+	msgport.cpp \
+	rbox.cpp \
+	tbox_emu.cpp \
+	traps.cpp \
+	txs.cpp

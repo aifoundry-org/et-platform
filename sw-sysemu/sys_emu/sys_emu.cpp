@@ -36,8 +36,10 @@
 #include "memory/load.h"
 #include "memory/main_memory.h"
 #include "mmu.h"
+#include "msgport.h"
 #include "processor.h"
 #include "profiling.h"
+#include "tensor.h"
 #include "utils.h"
 #ifdef HAVE_BACKTRACE
 #include "crash_handler.h"
@@ -222,7 +224,7 @@ sys_emu::raise_interrupt_wakeup_check(unsigned thread_id)
         unsigned old_thread = get_thread();
         set_thread(thread_id);
         try {
-            check_pending_interrupts();
+            check_pending_interrupts(cpu[thread_id]);
         } catch (const trap_t& t) {
             trap = true;
         }
@@ -961,7 +963,7 @@ sys_emu::main_internal(int argc, char * argv[])
                 clearlogstate();
                 set_thread(thread_id);
                 set_pc(current_pc[thread_id]);
-                check_pending_interrupts();
+                check_pending_interrupts(cpu[thread_id]);
                 // In case of reduce, we need to make sure that the other
                 // thread is also in reduce state before we complete execution
                 if (cpu[thread_id].reduce.state == Processor::Reduce::State::Send)

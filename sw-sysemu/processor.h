@@ -19,6 +19,7 @@
 #include <bitset>
 
 #include "state.h"
+#include "traps.h"
 
 //namespace bemu {
 
@@ -79,6 +80,7 @@ struct Processor {
     uint64_t    validation2;
     uint64_t    validation3;
     std::array<uint32_t,4> portctrl;
+    std::array<uint16_t,2> fcc;
 
     // Supervisor external interrupt pin (as 32-bit for performance)
     uint32_t    ext_seip;
@@ -87,6 +89,7 @@ struct Processor {
     prv_t       prv;
     bool        debug_mode;
     bool        fcc_wait;
+    uint8_t     fcc_cnt; // FIXME: Why do we need this?
 
     // Pre-computed state to improve simulation speed
     bool break_on_load;
@@ -95,10 +98,6 @@ struct Processor {
     bool enabled;
     bool mtvec_is_set;  // for debugging of benchmarks
     bool stvec_is_set;  // for debugging of benchmarks
-
-    // FCCs are special ESRs that look like CSRs
-    std::array<uint16_t,2>  fcc;
-    uint8_t                 fcc_cnt; // FIXME: Why do we need this?
 
     // Tensor accelerator state
 
@@ -193,6 +192,95 @@ struct Processor {
         return tensor_op[0];
     }
 };
+
+
+inline void activate_breakpoints(Processor& cpu)
+{
+    uint64_t mcontrol = cpu.tdata1;
+    int priv = int(cpu.prv);
+    cpu.break_on_load  = !(~mcontrol & ((8 << priv) | 1));
+    cpu.break_on_store = !(~mcontrol & ((8 << priv) | 2));
+    cpu.break_on_fetch = !(~mcontrol & ((8 << priv) | 4));
+}
+
+
+inline void set_prv(Processor& cpu, prv_t value)
+{
+    cpu.prv = value;
+    activate_breakpoints(cpu);
+}
+
+
+inline void set_tdata1(Processor& cpu, uint64_t value)
+{
+    cpu.tdata1 = value;
+    activate_breakpoints(cpu);
+}
+
+
+inline void check_pending_interrupts(const Processor& cpu)
+{
+    // Are there any non-masked pending interrupts? If excl_mode != 0 this
+    // thread is either in exclusive mode or blocked, but either way it cannot
+    // receive interrupts
+    uint_fast32_t xip = (cpu.mip | cpu.ext_seip) & cpu.mie;
+
+    if (!xip || cpu.excl_mode)
+        return;
+
+    // If there are any pending interrupts for the current privilege level
+    // 'x', they are only taken if mstatus.xIE=1. If there are any pending
+    // interrupts for a higher privilege level 'y>x' they must be taken
+    // independently of the value in mstatus.yIE. Pending interrupts for a
+    // lower privilege level 'w<x' are not taken.
+    uint_fast32_t mip = xip & ~cpu.mideleg;
+    uint_fast32_t sip = xip & cpu.mideleg;
+    uint_fast32_t mie = cpu.mstatus & 8;
+    uint_fast32_t sie = cpu.mstatus & 2;
+    switch (cpu.prv) {
+        case PRV_M:
+            if (!mip || !mie)
+                return;
+            xip = mip;
+            break;
+        case PRV_S:
+            if (!mip && !sie)
+                return;
+            xip = mip | (sie ? sip : 0);
+            break;
+        default:
+            /* nothing */
+            break;
+    }
+
+    if (xip & (1 << MACHINE_EXTERNAL_INTERRUPT)) {
+        throw trap_machine_external_interrupt();
+    }
+    if (xip & (1 << MACHINE_SOFTWARE_INTERRUPT)) {
+        throw trap_machine_software_interrupt();
+    }
+    if (xip & (1 << MACHINE_TIMER_INTERRUPT)) {
+        throw trap_machine_timer_interrupt();
+    }
+    if (xip & (1 << SUPERVISOR_EXTERNAL_INTERRUPT)) {
+        throw trap_supervisor_external_interrupt();
+    }
+    if (xip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT)) {
+        throw trap_supervisor_software_interrupt();
+    }
+    if (xip & (1 << SUPERVISOR_TIMER_INTERRUPT)) {
+        throw trap_supervisor_timer_interrupt();
+    }
+    if (xip & (1 << BAD_IPI_REDIRECT_INTERRUPT)) {
+        throw trap_bad_ipi_redirect_interrupt();
+    }
+    if (xip & (1 << ICACHE_ECC_COUNTER_OVERFLOW_INTERRUPT)) {
+        throw trap_icache_ecc_counter_overflow_interrupt();
+    }
+    if (xip & (1 << BUS_ERROR_INTERRUPT)) {
+        throw trap_bus_error_interrupt();
+    }
+}
 
 
 //} // namespace bemu

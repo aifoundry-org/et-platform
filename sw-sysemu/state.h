@@ -70,7 +70,6 @@ static_assert(VLEN == 256, "Only 256-bit vectors supported");
 enum prv_t : uint8_t {
     PRV_U = 0,
     PRV_S = 1,
-    PRV_H = 2,
     PRV_M = 3
 };
 

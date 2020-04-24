@@ -14,6 +14,11 @@
 #include <cstdint>
 #include <cstddef>
 #include <new>
+#include "processor.h"
+#include "traps.h"
+
+// FIXME: Replace with "processor.h"
+#include "emu_defines.h"
 
 //namespace bemu {
 
@@ -230,9 +235,18 @@ public:
 
 extern insn_t fetch_and_decode();
 
-inline void execute(insn_t inst) {
-    extern void check_minst_match(uint32_t bits);
-    check_minst_match(inst.bits);
+
+inline void execute(insn_t inst)
+{
+    extern std::array<Processor,EMU_NUM_THREADS> cpu;
+    extern unsigned current_thread;
+
+    uint64_t minstmask = cpu[current_thread].minstmask;
+    if ((minstmask >> 32) != 0) {
+        uint32_t mask = minstmask;
+        if (((inst.bits ^ cpu[current_thread].minstmatch) & mask) == 0)
+            throw trap_mcode_instruction(inst.bits);
+    }
     (inst.exec_fn) (inst);
 }
 

@@ -152,6 +152,12 @@
        ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5], ptr[6], ptr[7], \
        ptr[8], ptr[9], ptr[10], ptr[11], ptr[12], ptr[13], ptr[14], ptr[15])
 
+#define LOG_PRV(str, value) \
+    LOG(DEBUG, "\tprv " str " %c", "USHM"[int(value) % 4])
+
+#define LOG_MSTATUS(str, value) \
+    LOG(DEBUG, "\tmstatus " str " 0x%" PRIx64, value)
+
 #define LOG_CSR(str, index, value) \
     LOG(DEBUG, "\t%s " str " 0x%" PRIx64, csr_name(index), value)
 
@@ -609,6 +615,12 @@ inline mreg_t mkmask(unsigned len) {
     LOG_MREG(":", 7); \
 } while (0)
 
+#define DISASM_RS1_RS2(name) do { \
+    LOG(DEBUG, "I(%c): " name " x%d,x%d", PRVNAME, inst.rs1(), inst.rs2()); \
+    LOG_REG(":", inst.rs1()); \
+    LOG_REG(":", inst.rs2()); \
+} while (0)
+
 #define DISASM_RS1_RS2_BIMM(name) do { \
     LOG(DEBUG, "I(%c): " name " x%d,x%d,%" PRId64, PRVNAME, inst.rs1(), inst.rs2(), BIMM); \
     LOG_REG(":", inst.rs1()); \
@@ -621,6 +633,15 @@ inline mreg_t mkmask(unsigned len) {
 #define DISASM_RD_RS1_IIMM(name) do { \
     LOG(DEBUG, "I(%c): " name " x%d,x%d,%" PRId64, PRVNAME, inst.rd(), inst.rs1(), IIMM); \
     LOG_REG(":", inst.rs1()); \
+} while (0)
+
+#define DISASM_RD_CSR_RS1(name) do { \
+    LOG(DEBUG, "I(%c): " name " x%d,%s,x%d", PRVNAME, inst.rd(), csr_name(inst.csrimm()), inst.rs1()); \
+    LOG_REG(":", inst.rs1()); \
+} while (0)
+
+#define DISASM_RD_CSR_UIMM5(name) do { \
+    LOG(DEBUG, "I(%c): " name " x%d,%s,0x%" PRIx64, PRVNAME, inst.rd(), csr_name(inst.csrimm()), inst.uimm5()); \
 } while (0)
 
 #define DISASM_RD_RS1_RS2(name) do { \

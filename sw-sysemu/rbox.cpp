@@ -11,9 +11,9 @@
 #include <cstdio>
 #include <cfenv>
 
-#include "emu.h"
 #include "emu_gio.h"
 #include "memop.h"
+#include "msgport.h"
 #include "rbox.h"
 
 #if (EMU_RBOXES_PER_SHIRE > 1)

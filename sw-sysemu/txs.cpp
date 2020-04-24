@@ -13,11 +13,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "emu.h"
 #include "emu_gio.h"
 #include "fpu/fpu.h"
 #include "fpu/fpu_casts.h"
 #include "memop.h"
+#include "msgport.h"
 #include "rbox.h"
 #include "tbox_emu.h"
 #include "txs.h"

@@ -8,17 +8,24 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 
+#include <array>
+#include <cassert>
+#include <queue>
+#include <stdexcept>
+
 #include "emu.h"
 #include "emu_gio.h"
 #include "esrs.h"
+#include "insns/tensor_error.h"
+#ifdef SYS_EMU
+#include "mem_checker.h"
+#endif
+#include "msgport.h"
 #include "processor.h"
 #include "rbox.h"
 #include "sysreg_error.h"
 #include "tbox_emu.h"
 #include "txs.h"
-#ifdef SYS_EMU
-#include "mem_checker.h"
-#endif
 
 // FIXME: the following needs to be cleaned up
 #ifdef SYS_EMU
@@ -31,9 +38,21 @@ static inline void raise_software_interrupt(unsigned, uint64_t) {}
 static inline void clear_software_interrupt(unsigned, uint64_t) {}
 }
 #endif
-//extern void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob);
 extern unsigned current_thread;
 extern std::array<Processor,EMU_NUM_THREADS>  cpu;
+
+
+#ifndef SYS_EMU
+// only for checker, list of minions to awake (e.g. waiting for FCC that has
+// just been written)
+std::queue<uint32_t> minions_to_awake;
+
+std::queue<uint32_t>& get_minions_to_awake()
+{
+    return minions_to_awake;
+}
+#endif
+
 
 namespace bemu {
 
@@ -92,6 +111,36 @@ std::array<broadcast_esrs_t, EMU_NUM_SHIRES>   broadcast_esrs;
 #define NEIGHID(pos)    ((pos) % EMU_NEIGH_PER_SHIRE)
 #define MINION(hart)    ((hart) / EMU_THREADS_PER_MINION)
 #define THREAD(hart)    ((hart) % EMU_THREADS_PER_MINION)
+
+
+static void write_fcc_credinc(int index, uint64_t shire, uint64_t minion_mask)
+{
+    if (shire == EMU_IO_SHIRE_SP)
+        throw std::runtime_error("write_fcc_credinc_N for IOShire");
+
+    const unsigned thread0 = (index / 2) + shire * EMU_THREADS_PER_SHIRE;
+    const unsigned cnt = index % 2;
+
+    for (int minion = 0; minion < EMU_MINIONS_PER_SHIRE; ++minion) {
+        if (~minion_mask & (1ull << minion))
+            continue;
+
+        unsigned thread = thread0 + minion * EMU_THREADS_PER_MINION;
+        cpu[thread].fcc[cnt]++;
+        LOG_OTHER(DEBUG, thread, "\tfcc = 0x%" PRIx64,
+                  (uint64_t(cpu[thread].fcc[1]) << 16) + uint64_t(cpu[thread].fcc[0]));
+#ifndef SYS_EMU
+        // wake up waiting threads (only for checker, not sysemu)
+        if (cpu[thread].fcc_wait) {
+            cpu[thread].fcc_wait = false;
+            minions_to_awake.push(thread / EMU_THREADS_PER_MINION);
+        }
+#endif
+        //check for overflow
+        if (cpu[thread].fcc[cnt] == 0)
+            update_tensor_error(thread, 1 << 3);
+    }
+}
 
 
 static void recalculate_thread0_enable(unsigned shire)
@@ -958,28 +1007,28 @@ void esr_write(uint64_t addr, uint64_t value)
         case ESR_FCC_CREDINC_0:
             LOG_ALL_MINIONS(DEBUG, "S%u:fcc_credinc_0 = 0x%" PRIx64, SHIREID(shire), value);
             if (shire != EMU_IO_SHIRE_SP) {
-                fcc_inc(0, shire, value, 0);
+                write_fcc_credinc(0, shire, value);
                 sys_emu::fcc_to_threads(shire, 0, value, 0);
             }
             return;
         case ESR_FCC_CREDINC_1:
             LOG_ALL_MINIONS(DEBUG, "S%u:fcc_credinc_1 = 0x%" PRIx64, SHIREID(shire), value);
             if (shire != EMU_IO_SHIRE_SP) {
-                fcc_inc(0, shire, value, 1);
+                write_fcc_credinc(1, shire, value);
                 sys_emu::fcc_to_threads(shire, 0, value, 1);
             }
             return;
         case ESR_FCC_CREDINC_2:
             LOG_ALL_MINIONS(DEBUG, "S%u:fcc_credinc_2 = 0x%" PRIx64, SHIREID(shire), value);
             if (shire != EMU_IO_SHIRE_SP) {
-                fcc_inc(1, shire, value, 0);
+                write_fcc_credinc(2, shire, value);
                 sys_emu::fcc_to_threads(shire, 1, value, 0);
             }
             return;
         case ESR_FCC_CREDINC_3:
             LOG_ALL_MINIONS(DEBUG, "S%u:fcc_credinc_3 = 0x%" PRIx64, SHIREID(shire), value);
             if (shire != EMU_IO_SHIRE_SP) {
-                fcc_inc(1, shire, value, 1);
+                write_fcc_credinc(3, shire, value);
                 sys_emu::fcc_to_threads(shire, 1, value, 1);
             }
             return;

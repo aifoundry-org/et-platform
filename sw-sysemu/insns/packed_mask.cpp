@@ -12,7 +12,6 @@
 #include "decode.h"
 #include "emu_gio.h"
 #include "esrs.h"
-#include "gold.h"
 #include "insn.h"
 #include "insn_func.h"
 #include "log.h"

@@ -15,10 +15,11 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include "emu_gio.h"
-#include "gdbstub.h"
 #include "emu.h"
+#include "emu_gio.h"
 #include "gdb_target_xml.h"
+#include "gdbstub.h"
+#include "sys_emu.h"
 
 #define ARRAY_SIZE(x)           (sizeof(x) / sizeof(*x))
 
