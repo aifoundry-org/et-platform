@@ -136,8 +136,6 @@ softfloat_c_srcs = \
 	softfloat/s_approxRecip32_1.c \
 	softfloat/s_approxRecipSqrt_1Ks.c \
 	softfloat/s_approxRecipSqrt32_1.c \
-	softfloat/s_commonNaNToF32UI.c \
-	softfloat/s_commonNaNToF64UI.c \
 	softfloat/s_compare128M.c \
 	softfloat/s_compare96M.c \
 	softfloat/s_countLeadingZeros16.c \
@@ -145,8 +143,6 @@ softfloat_c_srcs = \
 	softfloat/s_countLeadingZeros64.c \
 	softfloat/s_countLeadingZeros8.c \
 	softfloat/s_eq128.c \
-	softfloat/s_f32UIToCommonNaN.c \
-	softfloat/s_f64UIToCommonNaN.c \
 	softfloat/s_le128.c \
 	softfloat/s_lt128.c \
 	softfloat/s_mul128By32.c \

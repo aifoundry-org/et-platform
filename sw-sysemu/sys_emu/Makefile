@@ -8,9 +8,10 @@
 # agreement/contract under which the program(s) have been supplied.
 # -------------------------------------------------------------------------
 
-libfpu_OBJDIR ?= ../fpu/build
 sysemu_OBJDIR ?= build
+libfpu_OBJDIR ?= $(sysemu_OBJDIR)
 DEBUG     ?= 0
+GPROF     ?= 0
 COVERAGE  ?= 0
 PROFILING ?= 0
 BACKTRACE ?= $(DEBUG)
@@ -31,9 +32,6 @@ sysemu_artifact_TGTS := \
 # Remove the file that implements the main function
 libsysemu_OBJS := $(filter-out $(sysemu_OBJDIR)/sys_emu/sys_emu_main.o,$(sysemu_OBJS))
 
-CC       := gcc
-CXX      := g++
-LD       := ld
 CPPFLAGS := -MMD -MP -I.. -I. -DSYS_EMU -I./checkers
 CXXFLAGS := -Wall -Wextra -Werror -pedantic-errors -fPIC -std=c++11
 CFLAGS   := -Wall -Wextra -Werror -pedantic-errors -fPIC -std=c11
@@ -44,8 +42,14 @@ ifeq ($(DEBUG),0)
   CFLAGS += -g -O2
 else
   CPPFLAGS += -D_GLIBCXX_DEBUG
-  CXXFLAGS += -g3 -O1 -fno-inline
-  CFLAGS += -g3 -O1 -fno-inline
+  CXXFLAGS += -g3 -Og
+  CFLAGS += -g3 -Og
+endif
+
+ifneq ($(GPROF),0)
+  CXXFLAGS += -pg
+  CFLAGS   += -pg
+  LDFLAGS  += -pg
 endif
 
 ifneq ($(BACKTRACE),0)
@@ -56,7 +60,7 @@ endif
 ifneq ($(COVERAGE),0)
   CXXFLAGS += --coverage
   CFLAGS   += --coverage
-  LDLIBS   += --coverage
+  LDFLAGS  += --coverage
 endif
 
 ifneq ($(PROFILING),0)
@@ -103,7 +107,7 @@ $(sysemu_OBJDIR)/libsysemu.a: $(libsysemu_OBJS)
 	$(AR) $(ARFLAGS) $@ $^
 
 $(libfpu_OBJDIR)/libfpu.a: force
-	$(MAKE) -C ../fpu libfpu_OBJDIR=$(abspath $(libfpu_OBJDIR)) DEBUG=$(DEBUG) all
+	$(MAKE) -C ../fpu libfpu_OBJDIR=$(abspath $(libfpu_OBJDIR)) DEBUG=$(DEBUG) GPROF=$(GPROF) all
 
 sysemu-artifacts.tar.gz: $(sysemu_artifact_HDRS) $(sysemu_artifact_TGTS)
 	tar zcvf sysemu-artifacts.tar.gz sysemu-artifacts

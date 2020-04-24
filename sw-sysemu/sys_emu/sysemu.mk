@@ -24,7 +24,6 @@ sysemu_cpp_srcs := \
     sys_emu/gdbstub.cpp \
     sys_emu/log.cpp \
     sys_emu/sys_emu.cpp \
-    sys_emu/sys_emu_debug.cpp \
     sys_emu/sys_emu_main.cpp \
     sys_emu/sys_emu_parse_args.cpp \
     sys_emu/testLog.cpp \
@@ -42,4 +41,8 @@ endif
 ifneq ($(BACKTRACE),0)
   sysemu_hdrs     += sys_emu/crash_handler.h
   sysemu_cpp_srcs += sys_emu/crash_handler.cpp
+endif
+
+ifeq ($(MAKECMDGOALS),debug)
+  sysemu_cpp_srcs += sys_emu/sys_emu_debug.cpp
 endif

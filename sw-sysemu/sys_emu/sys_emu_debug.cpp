@@ -8,11 +8,10 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 
-#ifdef SYSEMU_DEBUG
-
 #include "emu.h"
-#include "sys_emu.h"
 #include "memop.h"
+#include "mmu.h"
+#include "sys_emu.h"
 
 
 int                                 sys_emu::debug_steps = 0;
@@ -51,9 +50,9 @@ void sys_emu::pc_breakpoints_dump(int thread)
 {
     for (auto &it: pc_breakpoints) {
         if (it.thread == -1) // Global breakpoint
-            printf("Breakpoint set for all threads at PC 0x%lx\n", it.pc);
+            printf("Breakpoint set for all threads at PC 0x%" PRIx64 "\n", it.pc);
         else if ((thread == -1) || (thread == it.thread))
-            printf("Breakpoint set for thread %d at PC 0x%lx\n", it.thread, it.pc);
+            printf("Breakpoint set for thread %d at PC 0x%" PRIx64 "\n", it.thread, it.pc);
     }
 }
 
@@ -109,11 +108,9 @@ static size_t split(const std::string &txt, std::vector<std::string> &strs, char
 
 void sys_emu::memdump(uint64_t addr, uint64_t size)
 {
-    extern uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc);
-
     char ascii[17] = {0};
     for (uint64_t i = 0; i < size; i++) {
-        uint8_t data = bemu::pmemread<uint8_t>(vmemtranslate(addr + i, 1, Mem_Access_Load));
+        uint8_t data = bemu::pmemread<uint8_t>(vmemtranslate(addr + i, 1, Mem_Access_Load, mreg_t(-1)));
         printf("%02X ", data);
         ascii[i % 16] = std::isprint(data) ? data : '.';
         if ((i + 1) % 8 == 0 || (i + 1) == size) {
@@ -160,9 +157,9 @@ bool sys_emu::process_dbg_cmd(std::string cmd) {
       }
       if (pc_breakpoints_add(pc_break, thread)) {
         if (thread == -1)
-          printf("Set breakpoint for all threads at PC 0x%lx\n", pc_break);
+          printf("Set breakpoint for all threads at PC 0x%" PRIx64 "\n", pc_break);
         else
-          printf("Set breakpoint for thread %d at PC 0x%lx\n", thread, pc_break);
+          printf("Set breakpoint for thread %d at PC 0x%" PRIx64 "\n", thread, pc_break);
      }
    } else if ((command[0] == "list_breaks")) {
       int thread = -1;
@@ -177,7 +174,7 @@ bool sys_emu::process_dbg_cmd(std::string cmd) {
    // Architectural State Dumping
    } else if (command[0] == "pc") {
       uint32_t thid = (num_args > 1) ? std::stoi(command[1]) : 0;
-      printf("PC[%d] = 0x%lx\n", thid, current_pc[thid]);
+      printf("PC[%d] = 0x%" PRIx64 "\n", thid, current_pc[thid]);
    } else if ((command[0] == "x") || (command[0] == "xdump")) {
       std::string str = dump_xregs((num_args > 1) ? std::stoi(command[1]) : 0);
       printf("%s\n", str.c_str());
@@ -194,7 +191,7 @@ bool sys_emu::process_dbg_cmd(std::string cmd) {
         offset = std::stoul(command[1], nullptr, 0);
       }
       try {
-        printf("CSR[%d][0x%x] = 0x%lx\n", thid, offset & 0xfff, get_csr(thid, offset & 0xfff));
+        printf("CSR[%d][0x%x] = 0x%" PRIx64 "\n", thid, offset & 0xfff, get_csr(thid, offset & 0xfff));
       }
       catch (const trap_t&) {
         printf("Unrecognized CSR register\n");
@@ -246,7 +243,7 @@ void sys_emu::debug_check(void) {
     uint64_t break_pc;
     bool break_reached = get_pc_break(break_pc, break_thread);
     if (break_reached)
-        printf("Thread %d reached breakpoint at PC 0x%lx\n", break_thread, break_pc);
+        printf("Thread %d reached breakpoint at PC 0x%" PRIx64 "\n", break_thread, break_pc);
 
     if ((break_reached == true) || (debug_steps == 0)) {
        bool retry = false;
@@ -269,5 +266,3 @@ void sys_emu::debug_check(void) {
     }
     if (debug_steps > 0) debug_steps--;
 }
-
-#endif

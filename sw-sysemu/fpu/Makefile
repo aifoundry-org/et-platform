@@ -12,15 +12,14 @@ include fpu.mk
 include ../softfloat/softfloat.mk
 
 libfpu_OBJDIR ?= build
+DEBUG ?= 0
+GPROF ?= 0
 
 libfpu_SRCS := $(fpu_cpp_srcs) $(fpu_c_srcs) $(softfloat_c_srcs)
 libfpu_OBJS := $(patsubst %,$(libfpu_OBJDIR)/fpu_obj/%.o,$(basename $(libfpu_SRCS)))
 libfpu_DEPS := $(libfpu_OBJS:.o=.d)
 
 
-AR       := ar
-CC       := gcc
-CXX      := g++
 ARFLAGS  := rvs
 CPPFLAGS := -MMD -MP -I..
 CFLAGS   := -Wall -Werror -fPIC -std=c11
@@ -33,8 +32,14 @@ ifeq ($(DEBUG),0)
     CFLAGS += -g -O2
 else
     CPPFLAGS += -D_GLIBCXX_DEBUG
-    CXXFLAGS += -g3 -O1 -fno-inline
-    CFLAGS += -g3 -O1 -fno-inline
+    CXXFLAGS += -g3 -Og
+    CFLAGS += -g3 -Og
+endif
+
+ifneq ($(GPROF),0)
+  CXXFLAGS += -pg
+  CFLAGS   += -pg
+  LDFLAGS  += -pg
 endif
 
 # FIXME: Remove the following when we convert everything away from C++ floats
