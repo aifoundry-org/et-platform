@@ -19,7 +19,6 @@ emu_hdrs := \
 	emu.h \
 	emu_defines.h \
 	emu_gio.h \
-	emu_memop.h \
 	esrs.h \
 	gold.h \
 	insn.h \
@@ -29,6 +28,7 @@ emu_hdrs := \
 	lazy_array.h \
 	literals.h \
 	memmap.h \
+	memop.h \
 	memory/dense_region.h \
 	memory/dump_data.h \
 	memory/load.h \

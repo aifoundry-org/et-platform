@@ -19,7 +19,6 @@
 // FIXME: Replace with "processor.h"
 #include "emu_defines.h"
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
-extern uint64_t current_pc;
 
 //namespace bemu {
 

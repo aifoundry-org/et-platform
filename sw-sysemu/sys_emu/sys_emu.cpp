@@ -58,7 +58,6 @@ std::list<int>  sys_emu::fcc_wait_threads[EMU_NUM_FCC_COUNTERS_PER_THREAD];     
 std::list<int>  sys_emu::port_wait_threads;                                             // List of threads waiting for a port write
 std::bitset<EMU_NUM_THREADS> sys_emu::active_threads;                                   // List of threads being simulated
 uint16_t        sys_emu::pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
-uint64_t        sys_emu::current_pc[EMU_NUM_THREADS];                                   // PC for each thread
 std::list<sys_emu_coop_tload>    sys_emu::coop_tload_pending_list[EMU_NUM_THREADS];                      // List of pending cooperative tloads per thread
 RVTimer         sys_emu::pu_rvtimer;
 uint64_t        sys_emu::minions_en = 1;
@@ -189,7 +188,7 @@ sys_emu::send_ipi_redirect_to_threads(unsigned shire, uint64_t thread_mask)
                 } else {
                     LOG_OTHER(DEBUG, tid, "%s", "Waking up due to IPI_REDIRECT");
                     running_threads.push_back(tid);
-                    current_pc[tid] = new_pc;
+                    thread_set_pc(tid, new_pc);
                 }
             }
             // Otherwise IPI is dropped
@@ -842,11 +841,11 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
             for (unsigned t = 0; t < minion_thread_count; t++) {
                 unsigned tid = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + t;
                 LOG_OTHER(DEBUG, tid, "%s", "Resetting");
-                current_pc[tid] = (s == EMU_IO_SHIRE_SP) ? cmd_options.sp_reset_pc : cmd_options.reset_pc;
 
                 reset_hart(tid);
                 set_thread(tid);
                 minit(m0, 255);
+                thread_set_pc(tid, (s == EMU_IO_SHIRE_SP) ? cmd_options.sp_reset_pc : cmd_options.reset_pc);
 
                 // Puts thread id in the active list
                 activate_thread(tid);
@@ -962,7 +961,6 @@ sys_emu::main_internal(int argc, char * argv[])
                 // Gets instruction and sets state
                 clearlogstate();
                 set_thread(thread_id);
-                set_pc(current_pc[thread_id]);
                 check_pending_interrupts(cpu[thread_id]);
                 // In case of reduce, we need to make sure that the other
                 // thread is also in reduce state before we complete execution
@@ -1007,27 +1005,27 @@ sys_emu::main_internal(int argc, char * argv[])
                 else
                 {
                     // Executes the instruction
-                    inst = fetch_and_decode();
+                    inst = fetch_and_decode(cpu[thread_id]);
 
                     // Check for breakpoints
-                    if ((gdbstub_get_status() == GDBSTUB_STATUS_RUNNING) && breakpoint_exists(current_pc[thread_id])) {
-                        LOG(DEBUG, "Hit breakpoint at address 0x%" PRIx64, current_pc[thread_id]);
+                    if ((gdbstub_get_status() == GDBSTUB_STATUS_RUNNING) && breakpoint_exists(thread_get_pc(thread_id))) {
+                        LOG(DEBUG, "Hit breakpoint at address 0x%" PRIx64, thread_get_pc(thread_id));
                         gdbstub_signal_break(thread_id);
                         running_threads.clear();
                         break;
                     }
 
                     // Dumping when M0:T0 reaches a PC
-                    auto range = cmd_options.dump_at_pc.equal_range(current_pc[0]);
+                    auto range = cmd_options.dump_at_pc.equal_range(thread_get_pc(0));
                     for (auto it = range.first; it != range.second; ++it) {
                             bemu::dump_data(bemu::memory, it->second.file.c_str(),
                                             it->second.addr, it->second.size);
                      }
 
                     // Logging
-                    if (current_pc[0] == cmd_options.log_at_pc) {
+                    if (thread_get_pc(0) == cmd_options.log_at_pc) {
                         emu::log.setLogLevel(LOG_DEBUG);
-                    } else if (current_pc[0] == cmd_options.stop_log_at_pc) {
+                    } else if (thread_get_pc(0) == cmd_options.stop_log_at_pc) {
                        emu::log.setLogLevel(LOG_INFO);
                     }
 
@@ -1084,30 +1082,25 @@ sys_emu::main_internal(int argc, char * argv[])
                         {
                             ++thread;
                         }
-                        // Updates PC
-                        if(emu_state_change.pc_mod) {
-                            current_pc[thread_id] = emu_state_change.pc;
-                        } else {
-                            current_pc[thread_id] += inst.size();
-                        }
+                        advance_pc(cpu[thread_id]);
                     }
                 }
             }
             catch (const trap_t& t)
             {
+                uint64_t old_pc = thread_get_pc(thread_id);
                 take_trap(t);
-                //LOG(DEBUG, "%s", "Taking a trap");
-                if (current_pc[thread_id] == emu_state_change.pc)
+                advance_pc(cpu[thread_id]);
+                if (thread_get_pc(thread_id) == old_pc)
                 {
                     LOG_ALL_MINIONS(FTL, "Trapping to the same address that caused a trap (0x%" PRIx64 "). Avoiding infinite trap recursion.",
-                                    current_pc[thread_id]);
+                                    thread_get_pc(thread_id));
                 }
-                current_pc[thread_id] = emu_state_change.pc;
                 ++thread;
             }
             catch (const bemu::memory_error& e)
             {
-                current_pc[thread_id] += inst.size();
+                advance_pc(cpu[thread_id]);
                 raise_bus_error_interrupt(thread_id, e.addr);
                 ++thread;
             }
@@ -1137,7 +1130,7 @@ sys_emu::main_internal(int argc, char * argv[])
        while(thread != running_threads.end())
        {
           auto thread_id = * thread;
-          LOG_NOTHREAD(INFO, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, current_pc[thread_id]);
+          LOG_NOTHREAD(INFO, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, thread_get_pc(thread_id));
           thread++;
        }
 
@@ -1149,7 +1142,7 @@ sys_emu::main_internal(int argc, char * argv[])
            while(thread != fcc_wait_threads[i].end())
            {
                auto thread_id = * thread;
-               LOG_NOTHREAD(INFO, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, current_pc[thread_id]);
+               LOG_NOTHREAD(INFO, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, thread_get_pc(thread_id));
                thread++;
            }
        }
@@ -1160,7 +1153,7 @@ sys_emu::main_internal(int argc, char * argv[])
        while(thread != port_wait_threads.end())
        {
           auto thread_id = * thread;
-          LOG_NOTHREAD(INFO, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, current_pc[thread_id]);
+          LOG_NOTHREAD(INFO, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, thread_get_pc(thread_id));
           thread++;
        }
        LOG_NOTHREAD(ERR, "Error, max cycles reached (%" SCNd64 ")", cmd_options.max_cycles);

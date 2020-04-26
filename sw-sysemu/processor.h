@@ -34,6 +34,10 @@ struct Processor {
     std::array<mreg_t,NMREGS>     mregs;
     std::array<freg_t,NFREGS>     tenc; // TODO: this is per core not per hart
 
+    // Program counter
+    uint64_t    pc;
+    uint64_t    npc;
+
     // RISCV control and status registers
     uint32_t    fcsr;
     uint64_t    stvec;
@@ -192,6 +196,12 @@ struct Processor {
         return tensor_op[0];
     }
 };
+
+
+inline void advance_pc(Processor& cpu)
+{
+    cpu.pc = cpu.npc;
+}
 
 
 inline void activate_breakpoints(Processor& cpu)

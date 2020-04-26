@@ -42,7 +42,6 @@ extern void fpinit(freg dst, uint64_t val[VL/2]); // init vector register
 extern void minit(mreg dst, uint64_t val);        // init mask register
 
 // Processor state manipulation
-extern void set_pc(uint64_t pc);
 extern void set_thread(unsigned thread);
 extern unsigned get_thread();
 extern bool thread_is_blocked(unsigned thread);

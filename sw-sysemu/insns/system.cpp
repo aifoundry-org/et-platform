@@ -19,19 +19,9 @@
 // FIXME: Replace with "processor.h"
 #include "emu_defines.h"
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
-extern uint64_t current_pc;
 
 //namespace bemu {
 
-
-#if 0
-void insn_csrrc      (insn_t);
-void insn_csrrci     (insn_t);
-void insn_csrrs      (insn_t);
-void insn_csrrsi     (insn_t);
-void insn_csrrw      (insn_t);
-void insn_csrrwi     (insn_t);
-#endif
 
 void insn_c_ebreak(insn_t /*inst*/)
 {
@@ -40,7 +30,7 @@ void insn_c_ebreak(insn_t /*inst*/)
     // The spec says that hardware breakpoint sets mtval/stval to the current
     // PC but ebreak is a software breakpoint; should it also set mtval/stval
     // to the current PC or set it to 0?
-    throw trap_breakpoint(current_pc);
+    throw trap_breakpoint(PC);
 }
 
 
@@ -51,7 +41,7 @@ void insn_ebreak(insn_t /*inst*/)
     // The spec says that hardware breakpoint sets mtval/stval to the current
     // PC but ebreak is a software breakpoint; should it also set mtval/stval
     // to the current PC or set it to 0?
-    throw trap_breakpoint(current_pc);
+    throw trap_breakpoint(PC);
 }
 
 
@@ -89,7 +79,7 @@ void insn_mret(insn_t inst)
     LOG_PRV("=", mpp);
 
     // Update PC
-    log_pc_update(cpu[current_thread].mepc);
+    WRITE_PC(cpu[current_thread].mepc);
 }
 
 
@@ -125,7 +115,7 @@ void insn_sret(insn_t inst)
     LOG_PRV("=", spp);
 
     // Update PC
-    log_pc_update(cpu[current_thread].sepc);
+    WRITE_PC(cpu[current_thread].sepc);
 }
 
 

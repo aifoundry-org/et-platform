@@ -13,9 +13,6 @@
 
 #include <cstdint>
 
-#define PROFILING_WRITE_PC(thread_id, pc) \
-	profiling_write_pc(current_thread, pc)
-
 void profiling_init();
 void profiling_fini();
 void profiling_flush();

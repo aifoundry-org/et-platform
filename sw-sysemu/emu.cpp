@@ -39,7 +39,6 @@ std::array<Processor,EMU_NUM_THREADS>  cpu;
 
 system_version_t sysver = system_version_t::UNKNOWN;
 
-uint64_t current_pc = 0;
 uint32_t current_inst = 0;
 unsigned current_thread = 0;
 
@@ -143,6 +142,10 @@ void reset_hart(unsigned thread)
     // Register files
     cpu[thread].xregs[0] = 0;
 
+    // PC
+    cpu[thread].pc = 0;
+    cpu[thread].npc = 0;
+
     // RISCV control and status registers
     cpu[thread].scounteren = 0;
     cpu[thread].mstatus = 0x0000000A00001800ULL; // mpp=11, sxl=uxl=10
@@ -214,7 +217,7 @@ void minit(mreg dst, uint64_t val)
 
 void set_pc(uint64_t pc)
 {
-    current_pc = sextVA(pc);
+    cpu[current_thread].pc = sextVA(pc);
 }
 
 void set_thread(unsigned thread)

@@ -12,31 +12,10 @@
 #define _LOG_H
 
 #include <cstdint>
-#include <cassert>
-#include "emu_defines.h"
-
-struct inst_state_change {
-    bool     pc_mod;    // Is a jump instruction
-    uint64_t pc;        // PC of instruction being executed
-};
-
-extern inst_state_change emu_state_change;
-
-// We need this to be functional so that we can emulate branches
-inline void log_pc_update(uint64_t new_pc)
-{
-    assert(~new_pc & 1);
-    emu_state_change.pc_mod = true;
-    emu_state_change.pc = new_pc;
-}
-
-inline void clearlogstate()
-{
-    emu_state_change.pc_mod = false;
-    emu_state_change.pc = 0ull;
-}
 
 // There is no checker so we make this an empty interface
+inline void clearlogstate() {}
+inline void log_pc_update(uint64_t) {}
 inline void log_xreg_write(uint8_t, uint64_t) {}
 inline void log_xreg_late_write(uint8_t, uint64_t) {}
 inline void log_freg_write(uint8_t, const mreg_t&, const freg_t&) {}

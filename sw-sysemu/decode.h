@@ -14,10 +14,9 @@
 #include "esrs.h"
 
 #ifdef BEMU_PROFILING
-// sys_emu's profiling
-#include "profiling.h"
+#include "sys_emu/profiling.h"
 #else
-#define PROFILING_WRITE_PC(thread_id, pc) do {} while(0)
+inline void profiling_write_pc(int, uint64_t) {}
 #endif
 
 // -----------------------------------------------------------------------------
@@ -168,8 +167,8 @@
 // -----------------------------------------------------------------------------
 // Access instruction fields
 
-#define PC      current_pc
-#define NPC     sextVA(current_pc + inst.size())
+#define PC      cpu[current_thread].pc
+#define NPC     cpu[current_thread].npc
 
 #define BIMM    inst.b_imm()
 #define F32IMM  inst.f32imm()
@@ -297,9 +296,9 @@ inline mreg_t mkmask(unsigned len) {
 
 
 #define WRITE_PC(expr) do { \
-    uint64_t pc = sextVA(expr); \
-    PROFILING_WRITE_PC(current_thread, pc); \
-    log_pc_update(pc); \
+    NPC = sextVA(expr); \
+    profiling_write_pc(current_thread, NPC); \
+    log_pc_update(NPC); \
 } while (0)
 
 

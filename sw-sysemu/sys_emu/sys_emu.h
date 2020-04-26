@@ -109,8 +109,8 @@ public:
     /// Function used for parsing the command line arguments
     static std::tuple<bool, struct sys_emu_cmd_options> parse_command_line_arguments(int argc, char* argv[]);
 
-    static uint64_t thread_get_pc(unsigned thread_id) { return current_pc[thread_id]; }
-    static void thread_set_pc(unsigned thread_id, uint64_t pc) { current_pc[thread_id] = pc; }
+    static uint64_t thread_get_pc(unsigned thread_id) { return cpu[thread_id].pc; }
+    static void thread_set_pc(unsigned thread_id, uint64_t pc) { cpu[thread_id].pc = pc; }
     static uint64_t thread_get_reg(int thread_id, int reg) { return cpu[thread_id].xregs[reg]; }
     static void thread_set_reg(int thread_id, int reg, uint64_t data) { cpu[thread_id].xregs[reg] = data; }
     static freg_t thread_get_freg(int thread_id, int reg) { return cpu[thread_id].fregs[reg]; }
@@ -223,7 +223,6 @@ private:
     static std::list<int>  port_wait_threads; // List of threads waiting for a port write
     static std::bitset<EMU_NUM_THREADS> active_threads; // List of threads being simulated
     static uint16_t        pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
-    static uint64_t        current_pc[EMU_NUM_THREADS]; // PC for each thread
     static std::list<sys_emu_coop_tload> coop_tload_pending_list[EMU_NUM_THREADS];                      // List of pending cooperative tloads per thread
     static RVTimer         pu_rvtimer;
     static uint64_t        minions_en;

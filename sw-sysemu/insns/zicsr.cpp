@@ -28,7 +28,6 @@
 // FIXME: Replace with "processor.h"
 #include "emu_defines.h"
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
-extern uint64_t current_pc;
 extern uint32_t current_inst;
 extern bool     m_emu_done;
 

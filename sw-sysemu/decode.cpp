@@ -8,17 +8,18 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 
+#include "emu_gio.h"
 #include "insn.h"
 #include "insn_func.h"
-#include "emu_gio.h"
 #include "mmu.h"
+#include "processor.h"
+#include "utility.h"
 
 //namespace bemu {
 
 
 // program state
 extern uint32_t current_inst;
-extern uint64_t current_pc;
 
 // re-define the type
 typedef void (*insn_exec_funct_t)(insn_t);
@@ -1127,7 +1128,7 @@ static insn_exec_funct_t dec_c_sdsp(uint32_t bits __attribute__((unused)),
 //
 // -----------------------------------------------------------------------------
 
-insn_t fetch_and_decode()
+insn_t fetch_and_decode(Processor& cpu)
 {
     // Opcode map inst[1:0]=11b, indexed using inst[6:2]
     // See RV64
@@ -1154,16 +1155,18 @@ insn_t fetch_and_decode()
 
     uint16_t flags = 0;
     insn_exec_funct_t exec_fn = nullptr;
-    uint32_t bits = mmu_fetch(current_pc);
+    uint32_t bits = mmu_fetch(cpu.pc);
     current_inst = bits;
 
     // Decode the fetched bits
     if ((bits & 0x3) == 0x3) {
         int idx = ((bits >> 2) & 0x1f);
         exec_fn = functab32b[idx](bits, flags);
+        cpu.npc = sextVA(cpu.pc + 4);
     } else {
         int idx = ((bits >> 11) & 0x1c) | (bits & 0x03);
         exec_fn = functab16b[idx](bits, flags);
+        cpu.npc = sextVA(cpu.pc + 2);
     }
 
     // overwrite const members

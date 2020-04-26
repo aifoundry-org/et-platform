@@ -22,7 +22,6 @@ sysemu_hdrs := \
 
 sysemu_cpp_srcs := \
     sys_emu/gdbstub.cpp \
-    sys_emu/log.cpp \
     sys_emu/sys_emu.cpp \
     sys_emu/sys_emu_main.cpp \
     sys_emu/sys_emu_parse_args.cpp \

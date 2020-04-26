@@ -233,7 +233,7 @@ public:
 };
 
 
-extern insn_t fetch_and_decode();
+extern insn_t fetch_and_decode(Processor&);
 
 
 inline void execute(insn_t inst)

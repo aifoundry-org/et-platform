@@ -20,7 +20,6 @@
 
 // FIXME: Replace with "processor.h"
 #include "emu_defines.h"
-extern uint64_t current_pc;
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
 
 
@@ -95,7 +94,7 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
     // Set scause, stval and sepc
     cpu[current_thread].scause = cause & 0x800000000000001FULL;
     cpu[current_thread].stval = sextVA(val);
-    cpu[current_thread].sepc = sextVA(current_pc & ~1ULL);
+    cpu[current_thread].sepc = sextVA(PC & ~1ULL);
     // Jump to stvec
     set_prv(cpu[current_thread], PRV_S);
 
@@ -110,8 +109,8 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
         tvec += code * 4;
     }
     tvec &= ~0x1ULL;
+    WRITE_PC(tvec);
 
-    log_pc_update(tvec);
     log_trap(cpu[current_thread].mstatus, cpu[current_thread].scause,
              cpu[current_thread].stval, cpu[current_thread].sepc);
 }
@@ -161,7 +160,7 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
     // Set mcause, mtval and mepc
     cpu[current_thread].mcause = cause & 0x800000000000001FULL;
     cpu[current_thread].mtval = sextVA(val);
-    cpu[current_thread].mepc = sextVA(current_pc & ~1ULL);
+    cpu[current_thread].mepc = sextVA(PC & ~1ULL);
     // Jump to mtvec
     set_prv(cpu[current_thread], PRV_M);
 
@@ -176,8 +175,8 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
         tvec += code * 4;
     }
     tvec &= ~0x1ULL;
+    WRITE_PC(tvec);
 
-    log_pc_update(tvec);
     log_trap(cpu[current_thread].mstatus, cpu[current_thread].mcause,
              cpu[current_thread].mtval, cpu[current_thread].mepc);
 }
