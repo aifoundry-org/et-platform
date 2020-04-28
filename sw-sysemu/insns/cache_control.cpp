@@ -209,11 +209,12 @@ void dcache_prefetch_vaddr(uint64_t val)
                 LOG_MEMREAD512(paddr, tmp.u32);
             }
             catch (const sync_trap_t&) {
-                update_tensor_error(1 << 7);
+                /* do nothing */
                 return;
             }
             catch (const bemu::memory_error&) {
                 raise_bus_error_interrupt(current_thread, 0);
+                return;
             }
         }
     }
