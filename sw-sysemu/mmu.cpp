@@ -239,8 +239,12 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
         if (spio) {
             uint64_t addr2 = addr & ~0x4000000000ULL;
             if (addr != addr2) {
-                if (amo || ts_tl_co || !addr_is_size_aligned(addr, size))
+                if (!addr_is_size_aligned(addr, size)) {
                     throw_access_fault(vaddr, macc);
+                }
+                if (amo) {
+                    throw bemu::memory_error(addr);
+                }
                 addr = addr2;
             }
         }
