@@ -38,6 +38,10 @@ static inline void raise_software_interrupt(unsigned, uint64_t) {}
 static inline void clear_software_interrupt(unsigned, uint64_t) {}
 }
 #endif
+
+namespace bemu {
+
+
 extern unsigned current_thread;
 extern std::array<Processor,EMU_NUM_THREADS>  cpu;
 
@@ -52,9 +56,6 @@ std::queue<uint32_t>& get_minions_to_awake()
     return minions_to_awake;
 }
 #endif
-
-
-namespace bemu {
 
 
 #define ESR_NEIGH_MINION_BOOT_RESET_VAL   0x8000001000

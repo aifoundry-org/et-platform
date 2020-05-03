@@ -12,16 +12,15 @@
 #define _RBOX_H
 
 #include <cstddef>
-#include <cstdio>
 #include <vector>
 #include <utility>
 
 #include "emu_defines.h"
-
 #include "rbox_pi.h"
 
-namespace RBOX
-{
+namespace bemu {
+namespace RBOX {
+
 
     class RBOXEmu
     {
@@ -165,14 +164,17 @@ namespace RBOX
     
     }; // class RBOXEmu
 
-} // namespace RBOX
 
 #if (EMU_RBOXES_PER_SHIRE > 1)
-extern RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES][EMU_RBOXES_PER_SHIRE];
-#define GET_RBOX(shire_id, rbox_id) rbox[shire_id][rbox_id]
+    externRBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES][EMU_RBOXES_PER_SHIRE];
+#define GET_RBOX(shire_id, rbox_id) bemu::RBOX::rbox[shire_id][rbox_id]
 #else
-extern RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES];
-#define GET_RBOX(shire_id, rbox_id) rbox[shire_id]
+    extern RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES];
+#define GET_RBOX(shire_id, rbox_id) bemu::RBOX::rbox[shire_id]
 #endif
+
+
+} // namespace RBOX
+} // namespace bemu
 
 #endif // _RBOX_H

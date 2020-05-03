@@ -11,8 +11,11 @@
 #ifndef _RBOX_PI_H
 #define _RBOX_PI_H
 
-namespace RBOX
-{
+#include <cstdint>
+
+namespace bemu {
+namespace RBOX {
+
 
     typedef enum 
     {
@@ -545,7 +548,9 @@ namespace RBOX
 
     #pragma pack(pop)
 
-}
+
+} // namespace RBOX
+} // namespace bemu
 
 #endif
 

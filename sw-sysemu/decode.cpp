@@ -15,7 +15,7 @@
 #include "processor.h"
 #include "utility.h"
 
-//namespace bemu {
+namespace bemu {
 
 
 // program state
@@ -1174,4 +1174,4 @@ insn_t fetch_and_decode(Processor& cpu)
 }
 
 
-//} // namespace bemu
+} // namespace bemu

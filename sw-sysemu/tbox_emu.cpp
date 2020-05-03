@@ -21,14 +21,18 @@
 #define min(a, b) (((a) <= (b)) ? (a) : (b))
 #define max(a, b) (((a) >= (b)) ? (a) : (b))
 
+namespace bemu {
+namespace TBOX {
+
+
 // Accelerators
 #if (EMU_TBOXES_PER_SHIRE > 1)
-TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES][EMU_TBOXES_PER_SHIRE];
+TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES][EMU_TBOXES_PER_SHIRE];
 #else
-TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES];
+TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES];
 #endif
 
-const uint32_t TBOX::TBOXEmu::BYTES_PER_TEXEL_IN_MEMORY[] = {
+const uint32_t TBOXEmu::BYTES_PER_TEXEL_IN_MEMORY[] = {
     0,  // FORMAT_UNDEFINED
     1,  // FORMAT_R4G4_UNORM_PACK8
     2,  // FORMAT_R4G4B4A4_UNORM_PACK16
@@ -217,7 +221,7 @@ const uint32_t TBOX::TBOXEmu::BYTES_PER_TEXEL_IN_MEMORY[] = {
     0   // MAX_IMAGE_FORMAT
 };
 
-const uint32_t TBOX::TBOXEmu::BYTES_PER_TEXEL_IN_L1[] = {
+const uint32_t TBOXEmu::BYTES_PER_TEXEL_IN_L1[] = {
     0,  // FORMAT_UNDEFINED
     4,  // FORMAT_R4G4_UNORM_PACK8
     4,  // FORMAT_R4G4B4A4_UNORM_PACK16
@@ -406,7 +410,7 @@ const uint32_t TBOX::TBOXEmu::BYTES_PER_TEXEL_IN_L1[] = {
     0   // MAX_IMAGE_FORMAT
 };
 
-const TBOX::TBOXEmu::EncodeSRGBFP16 TBOX::TBOXEmu::SRGB2LINEAR_TABLE[256] =
+const TBOXEmu::EncodeSRGBFP16 TBOXEmu::SRGB2LINEAR_TABLE[256] =
 {
     {{0, 0x00, 0x0, 0}},
     {{0, 0x20, 0x3, 0}},
@@ -719,7 +723,7 @@ static inline void memcpy_uint64(uint8_t *dst, uint64_t src)
 }
 
 
-TBOX::TBOXEmu::TBOXEmu()
+TBOXEmu::TBOXEmu()
 {
     imageTableAddress = 0;
     num_total_l2_requests = 0;
@@ -735,7 +739,7 @@ TBOX::TBOXEmu::TBOXEmu()
 }
 
 /* Receives two parts of 64 bits */
-void TBOX::TBOXEmu::set_request_header(uint32_t thread, uint64_t src1, uint64_t src2)
+void TBOXEmu::set_request_header(uint32_t thread, uint64_t src1, uint64_t src2)
 {
     if (thread >= EMU_NUM_THREADS)
         throw std::runtime_error("Thread id out-of-range");
@@ -745,7 +749,7 @@ void TBOX::TBOXEmu::set_request_header(uint32_t thread, uint64_t src1, uint64_t 
 }
 
 /* Receives the header of the Sample Request */
-void TBOX::TBOXEmu::set_request_header(uint32_t thread, SampleRequest header)
+void TBOXEmu::set_request_header(uint32_t thread, SampleRequest header)
 {
     if (thread >= EMU_NUM_THREADS)
         throw std::runtime_error("Thread id out-of-range");
@@ -753,7 +757,7 @@ void TBOX::TBOXEmu::set_request_header(uint32_t thread, SampleRequest header)
     currentRequest[thread] = header;
 }
 
-void TBOX::TBOXEmu::set_request_coordinates(uint32_t thread, uint32_t idx, freg_t coord)
+void TBOXEmu::set_request_coordinates(uint32_t thread, uint32_t idx, freg_t coord)
 {
     if (thread >= EMU_NUM_THREADS)
         throw std::runtime_error("Thread id out-of-range");
@@ -765,7 +769,7 @@ void TBOX::TBOXEmu::set_request_coordinates(uint32_t thread, uint32_t idx, freg_
 }
 
 /* idx == component R (0), G (1), B (2) or A (3)*/
-freg_t TBOX::TBOXEmu::get_request_results(uint32_t thread, uint32_t idx)
+freg_t TBOXEmu::get_request_results(uint32_t thread, uint32_t idx)
 {
     if (thread >= EMU_NUM_THREADS)
         throw std::runtime_error("Thread id out-of-range");
@@ -779,7 +783,7 @@ freg_t TBOX::TBOXEmu::get_request_results(uint32_t thread, uint32_t idx)
 /*
     This function return the TBOX results with packed channels
 */
-unsigned TBOX::TBOXEmu::get_request_results(uint32_t thread, freg_t* data)
+unsigned TBOXEmu::get_request_results(uint32_t thread, freg_t* data)
 {
     if (thread >= EMU_NUM_THREADS)
         throw std::runtime_error("Thread id out-of-range");
@@ -797,7 +801,7 @@ unsigned TBOX::TBOXEmu::get_request_results(uint32_t thread, freg_t* data)
     return out_channel;
 }
 
-void TBOX::TBOXEmu::set_request_pending(uint32_t thread, bool value)
+void TBOXEmu::set_request_pending(uint32_t thread, bool value)
 {
     if (thread >= EMU_NUM_THREADS)
         throw std::runtime_error("Thread id out-of-range");
@@ -805,7 +809,7 @@ void TBOX::TBOXEmu::set_request_pending(uint32_t thread, bool value)
     request_pending[thread] = value;
 }
 
-bool TBOX::TBOXEmu::check_request_pending(uint32_t thread)
+bool TBOXEmu::check_request_pending(uint32_t thread)
 {
     if (thread >= EMU_NUM_THREADS)
         throw std::runtime_error("Thread id out-of-range");
@@ -813,13 +817,13 @@ bool TBOX::TBOXEmu::check_request_pending(uint32_t thread)
     return request_pending[thread];
 }
 
-void TBOX::TBOXEmu::set_image_table_address(uint64_t address) { imageTableAddress = address; }
+void TBOXEmu::set_image_table_address(uint64_t address) { imageTableAddress = address; }
 
-uint64_t TBOX::TBOXEmu::get_image_table_address() { return imageTableAddress; }
+uint64_t TBOXEmu::get_image_table_address() { return imageTableAddress; }
 
-void TBOX::TBOXEmu::print_sample_request(uint32_t thread) const { print_sample_request(currentRequest[thread]); }
+void TBOXEmu::print_sample_request(uint32_t thread) const { print_sample_request(currentRequest[thread]); }
 
-void TBOX::TBOXEmu::texture_cache_initialize()
+void TBOXEmu::texture_cache_initialize()
 {
     for (uint32_t b = 0; b < TEXTURE_CACHE_BANKS; b++)
         for (uint32_t l = 0; l < TEXTURE_CACHE_LINES_PER_BANK; l++)
@@ -829,7 +833,7 @@ void TBOX::TBOXEmu::texture_cache_initialize()
         }
 }
 
-void TBOX::TBOXEmu::texture_cache_update_lru(uint32_t bank, uint32_t access_way)
+void TBOXEmu::texture_cache_update_lru(uint32_t bank, uint32_t access_way)
 {
     bool found_access = false;
     uint32_t l;
@@ -841,7 +845,7 @@ void TBOX::TBOXEmu::texture_cache_update_lru(uint32_t bank, uint32_t access_way)
     textureCacheLRU[bank][TEXTURE_CACHE_LINES_PER_BANK - 1] = access_way;
 }
 
-uint32_t TBOX::TBOXEmu::texture_cache_get_lru(uint32_t bank)
+uint32_t TBOXEmu::texture_cache_get_lru(uint32_t bank)
 {
     uint32_t lru_way = textureCacheLRU[bank][0];
     for (uint32_t l = 0; l < (TEXTURE_CACHE_LINES_PER_BANK - 1); l++)
@@ -851,7 +855,7 @@ uint32_t TBOX::TBOXEmu::texture_cache_get_lru(uint32_t bank)
     return lru_way;
 }
 
-bool TBOX::TBOXEmu::texture_cache_lookup(int32_t bank, uint64_t tag, uint64_t data[TEXTURE_CACHE_QWORDS_PER_LINE])
+bool TBOXEmu::texture_cache_lookup(int32_t bank, uint64_t tag, uint64_t data[TEXTURE_CACHE_QWORDS_PER_LINE])
 {
     bool hit = false;
     uint32_t l = 0;
@@ -876,7 +880,7 @@ bool TBOX::TBOXEmu::texture_cache_lookup(int32_t bank, uint64_t tag, uint64_t da
     return hit;
 }
 
-void TBOX::TBOXEmu::texture_cache_fill(int32_t bank, uint64_t tag, uint64_t data[TEXTURE_CACHE_QWORDS_PER_LINE])
+void TBOXEmu::texture_cache_fill(int32_t bank, uint64_t tag, uint64_t data[TEXTURE_CACHE_QWORDS_PER_LINE])
 {
     uint8_t victim_way;
     bool invalid_way = false;
@@ -903,7 +907,7 @@ void TBOX::TBOXEmu::texture_cache_fill(int32_t bank, uint64_t tag, uint64_t data
         textureCacheData[bank][victim_way][q] = data[q];
 }
 
-void TBOX::TBOXEmu::image_info_cache_initialize()
+void TBOXEmu::image_info_cache_initialize()
 {
     for (uint32_t l = 0; l < IMAGE_INFO_CACHE_SIZE; l++)
     {
@@ -912,7 +916,7 @@ void TBOX::TBOXEmu::image_info_cache_initialize()
     }
 }
 
-void TBOX::TBOXEmu::image_info_cache_update_lru(uint32_t access_way)
+void TBOXEmu::image_info_cache_update_lru(uint32_t access_way)
 {
     bool found_access = false;
     uint32_t l;
@@ -924,7 +928,7 @@ void TBOX::TBOXEmu::image_info_cache_update_lru(uint32_t access_way)
     imageInfoCacheLRU[IMAGE_INFO_CACHE_SIZE - 1] = access_way;
 }
 
-uint32_t TBOX::TBOXEmu::image_info_cache_get_lru()
+uint32_t TBOXEmu::image_info_cache_get_lru()
 {
     uint32_t lru_way = imageInfoCacheLRU[0];
     for (uint32_t l = 0; l < (IMAGE_INFO_CACHE_SIZE - 1); l++)
@@ -934,7 +938,7 @@ uint32_t TBOX::TBOXEmu::image_info_cache_get_lru()
     return lru_way;
 }
 
-bool TBOX::TBOXEmu::image_info_cache_lookup(uint32_t tag, ImageInfo &data)
+bool TBOXEmu::image_info_cache_lookup(uint32_t tag, ImageInfo &data)
 {
     bool hit = false;
     uint32_t l = 0;
@@ -954,7 +958,7 @@ bool TBOX::TBOXEmu::image_info_cache_lookup(uint32_t tag, ImageInfo &data)
     return hit;
 }
 
-void TBOX::TBOXEmu::image_info_cache_fill(uint32_t tag, ImageInfo data)
+void TBOXEmu::image_info_cache_fill(uint32_t tag, ImageInfo data)
 {
     uint8_t victim_way;
     bool invalid_way = false;
@@ -980,7 +984,7 @@ void TBOX::TBOXEmu::image_info_cache_fill(uint32_t tag, ImageInfo data)
     imageInfoCache[victim_way] = data;
 }
 
-bool TBOX::TBOXEmu::access_memory(uint64_t address, uint64_t &data)
+bool TBOXEmu::access_memory(uint64_t address, uint64_t &data)
 {
 #ifdef TBOX_MINION_SIM
     return access_l2(address, data);
@@ -991,7 +995,7 @@ bool TBOX::TBOXEmu::access_memory(uint64_t address, uint64_t &data)
 #endif
 }
 
-bool TBOX::TBOXEmu::access_memory(uint64_t address, uint32_t &data)
+bool TBOXEmu::access_memory(uint64_t address, uint32_t &data)
 {
 #ifdef TBOX_MINION_SIM
     return access_l2(address, data);
@@ -1002,7 +1006,7 @@ bool TBOX::TBOXEmu::access_memory(uint64_t address, uint32_t &data)
 #endif
 }
 
-bool TBOX::TBOXEmu::access_l2(uint64_t address, uint64_t &data)
+bool TBOXEmu::access_l2(uint64_t address, uint64_t &data)
 {
     LOG(DEBUG, "\t64-bit L2 access for address %016" PRIx64 " thread %d", address, request_hart);
 
@@ -1035,7 +1039,7 @@ bool TBOX::TBOXEmu::access_l2(uint64_t address, uint64_t &data)
     }
 }
 
-bool TBOX::TBOXEmu::access_l2(uint64_t address, uint32_t &data)
+bool TBOXEmu::access_l2(uint64_t address, uint32_t &data)
 {
     LOG(DEBUG, "\t32-bit L2 access for address %016" PRIx64 " thread %d", address, request_hart);
 
@@ -1068,7 +1072,7 @@ bool TBOX::TBOXEmu::access_l2(uint64_t address, uint32_t &data)
     }
 }
 
-bool TBOX::TBOXEmu::get_l2_data(uint64_t address, uint64_t &data)
+bool TBOXEmu::get_l2_data(uint64_t address, uint64_t &data)
 {
     bool found = false;
 
@@ -1106,7 +1110,7 @@ bool TBOX::TBOXEmu::get_l2_data(uint64_t address, uint64_t &data)
     }
 }
 
-bool TBOX::TBOXEmu::get_l2_data(uint64_t address, uint32_t &data)
+bool TBOXEmu::get_l2_data(uint64_t address, uint32_t &data)
 {
     bool found = false;
 
@@ -1144,7 +1148,7 @@ bool TBOX::TBOXEmu::get_l2_data(uint64_t address, uint32_t &data)
     }
 }
 
-bool TBOX::TBOXEmu::get_l2_data(uint64_t address, ImageInfo &data)
+bool TBOXEmu::get_l2_data(uint64_t address, ImageInfo &data)
 {
     bool found = false;
 
@@ -1183,7 +1187,7 @@ bool TBOX::TBOXEmu::get_l2_data(uint64_t address, ImageInfo &data)
     }
 }
 
-void TBOX::TBOXEmu::create_l2_request(uint64_t address)
+void TBOXEmu::create_l2_request(uint64_t address)
 {
     if (num_total_l2_requests == MAX_L2_REQUESTS)
         throw std::runtime_error("No more L2 requests can be stored.");
@@ -1207,7 +1211,7 @@ void TBOX::TBOXEmu::create_l2_request(uint64_t address)
     num_new_l2_requests[request_hart]++;
 }
 
-void TBOX::TBOXEmu::clear_l2_requests(uint32_t thread)
+void TBOXEmu::clear_l2_requests(uint32_t thread)
 {
     uint32_t num_cleared_l2_requests = 0;
 
@@ -1235,19 +1239,19 @@ void TBOX::TBOXEmu::clear_l2_requests(uint32_t thread)
     num_pending_l2_requests[thread] = 0;
 }
 
-void TBOX::TBOXEmu::reset_l2_requests_counters(uint32_t thread)
+void TBOXEmu::reset_l2_requests_counters(uint32_t thread)
 {
     num_new_l2_requests[thread] = 0;
     num_pending_l2_requests[thread] = 0;
 }
 
-//TBOX::TBOXEmu::L2Request* TBOX::TBOXEmu::get_l2_request_queue() const { return l2_requests; }
+//TBOXEmu::L2Request* TBOXEmu::get_l2_request_queue() const { return l2_requests; }
 
-uint32_t TBOX::TBOXEmu::get_num_new_l2_requests(uint32_t thread) const { return num_new_l2_requests[thread]; }
+uint32_t TBOXEmu::get_num_new_l2_requests(uint32_t thread) const { return num_new_l2_requests[thread]; }
 
-uint32_t TBOX::TBOXEmu::get_num_pending_l2_requests(uint32_t thread) const { return num_pending_l2_requests[thread]; }
+uint32_t TBOXEmu::get_num_pending_l2_requests(uint32_t thread) const { return num_pending_l2_requests[thread]; }
 
-bool TBOX::TBOXEmu::read_image_info_cache_line(uint64_t address, ImageInfo &data)
+bool TBOXEmu::read_image_info_cache_line(uint64_t address, ImageInfo &data)
 {
 #ifdef TBOX_MINION_SIM
     return get_l2_data(address, data);
@@ -1260,7 +1264,7 @@ bool TBOX::TBOXEmu::read_image_info_cache_line(uint64_t address, ImageInfo &data
 #endif
 }
 
-bool TBOX::TBOXEmu::read_texture_cache_line(ImageInfo currentImage, uint64_t address[4], uint64_t data[TEXTURE_CACHE_QWORDS_PER_LINE])
+bool TBOXEmu::read_texture_cache_line(ImageInfo currentImage, uint64_t address[4], uint64_t data[TEXTURE_CACHE_QWORDS_PER_LINE])
 {
     bool data_ready;
 
@@ -1278,7 +1282,7 @@ bool TBOX::TBOXEmu::read_texture_cache_line(ImageInfo currentImage, uint64_t add
         return false;
 }
 
-bool TBOX::TBOXEmu::read_texture_cache_line_data(ImageInfo currentImage, uint64_t address[4], uint64_t data[TEXTURE_CACHE_QWORDS_PER_LINE])
+bool TBOXEmu::read_texture_cache_line_data(ImageInfo currentImage, uint64_t address[4], uint64_t data[TEXTURE_CACHE_QWORDS_PER_LINE])
 {
     ImageFormat fmt = (ImageFormat)currentImage.info.format;
 
@@ -1410,7 +1414,7 @@ bool TBOX::TBOXEmu::read_texture_cache_line_data(ImageInfo currentImage, uint64_
 }
 
 /* startTexel: in sRGB selects left or right half*/
-void TBOX::TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, uint32_t startTexel,
+void TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, uint32_t startTexel,
                                                        uint64_t inData[TEXTURE_CACHE_QWORDS_PER_LINE],
                                                        uint64_t outData[TEXTURE_CACHE_QWORDS_PER_LINE])
 {
@@ -2271,7 +2275,7 @@ void TBOX::TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, u
     }
 }
 
-void TBOX::TBOXEmu::sample_quad(uint32_t thread, bool output_result)
+void TBOXEmu::sample_quad(uint32_t thread, bool output_result)
 {
     LOG(DEBUG, "%s", "\tTBOX => Sample Quad");
 
@@ -2283,7 +2287,7 @@ void TBOX::TBOXEmu::sample_quad(uint32_t thread, bool output_result)
     sample_quad(currentRequest[thread], currentImage, input[thread], output[thread], output_result);
 }
 
-void TBOX::TBOXEmu::sample_quad(SampleRequest currentRequest, freg_t input[], freg_t output[])
+void TBOXEmu::sample_quad(SampleRequest currentRequest, freg_t input[], freg_t output[])
 {
     LOG(DEBUG, "%s", "\tTBOX => Sample Quad");
 
@@ -2296,13 +2300,13 @@ void TBOX::TBOXEmu::sample_quad(SampleRequest currentRequest, freg_t input[], fr
     sample_quad(currentRequest, currentImage, input, output, true);
 }
 
-bool TBOX::TBOXEmu::get_image_info(uint32_t thread, ImageInfo &currentImage)
+bool TBOXEmu::get_image_info(uint32_t thread, ImageInfo &currentImage)
 {
     request_hart = thread;
     return TBOXEmu::get_image_info(currentRequest[thread], currentImage);
 }
 
-bool TBOX::TBOXEmu::get_image_info(SampleRequest request, ImageInfo &currentImage)
+bool TBOXEmu::get_image_info(SampleRequest request, ImageInfo &currentImage)
 {
 
 #ifdef TBOX_IMAGE_INFO_CACHE
@@ -2345,7 +2349,7 @@ bool TBOX::TBOXEmu::get_image_info(SampleRequest request, ImageInfo &currentImag
     return true;
 }
 
-void TBOX::TBOXEmu::sample_quad(SampleRequest currentRequest, ImageInfo currentImage, freg_t input[], freg_t output[], bool output_result)
+void TBOXEmu::sample_quad(SampleRequest currentRequest, ImageInfo currentImage, freg_t input[], freg_t output[], bool output_result)
 {
     // Checks.
     if (((currentRequest.info.operation == SAMPLE_OP_SAMPLE)
@@ -2437,7 +2441,7 @@ void TBOX::TBOXEmu::sample_quad(SampleRequest currentRequest, ImageInfo currentI
     }
 }
 
-void TBOX::TBOXEmu::sample_pixel(SampleRequest currentRequest, freg_t input[], freg_t output[],
+void TBOXEmu::sample_pixel(SampleRequest currentRequest, freg_t input[], freg_t output[],
                                  uint32_t quad, uint32_t pixel,
                                  ImageInfo currentImage, FilterType filter, uint32_t mip_level,
                                  uint32_t mip_beta, bool output_result)
@@ -2539,7 +2543,7 @@ void TBOX::TBOXEmu::sample_pixel(SampleRequest currentRequest, freg_t input[], f
             a) From Texture Cache or b) From Main Memory (thought Virtual Address module)
 
 */
-void TBOX::TBOXEmu::sample_bilinear(SampleRequest currentRequest, freg_t s, freg_t t, freg_t r, uint32_t req,
+void TBOXEmu::sample_bilinear(SampleRequest currentRequest, freg_t s, freg_t t, freg_t r, uint32_t req,
                                     ImageInfo currentImage, FilterType filter, uint32_t slice,
                                     uint32_t sample_mip_level, float sample_mip_beta, uint32_t aniso_sample,
                                     float aniso_weight, float aniso_deltas, float aniso_deltat, float &red,
@@ -2931,7 +2935,7 @@ void TBOX::TBOXEmu::sample_bilinear(SampleRequest currentRequest, freg_t s, freg
     }
 }
 
-float TBOX::TBOXEmu::apply_component_swizzle(ComponentSwizzle swizzle, float source, float red, float green,
+float TBOXEmu::apply_component_swizzle(ComponentSwizzle swizzle, float source, float red, float green,
                                              float blue, float alpha)
 {
     float swizzled_component;
@@ -2968,7 +2972,7 @@ float TBOX::TBOXEmu::apply_component_swizzle(ComponentSwizzle swizzle, float sou
     return swizzled_component;
 }
 
-void TBOX::TBOXEmu::wrap_texel_coord(uint32_t c[2], int32_t c_ul, uint32_t mip_dim, AddressMode addrmode)
+void TBOXEmu::wrap_texel_coord(uint32_t c[2], int32_t c_ul, uint32_t mip_dim, AddressMode addrmode)
 {
     switch (addrmode)
     {
@@ -2995,7 +2999,7 @@ void TBOX::TBOXEmu::wrap_texel_coord(uint32_t c[2], int32_t c_ul, uint32_t mip_d
     }
 }
 
-uint64_t TBOX::TBOXEmu::compute_mip_offset(uint32_t mip_pitch_l0, uint32_t mip_pitch_l1, uint32_t row_pitch, uint32_t rows, uint32_t mip_level)
+uint64_t TBOXEmu::compute_mip_offset(uint32_t mip_pitch_l0, uint32_t mip_pitch_l1, uint32_t row_pitch, uint32_t rows, uint32_t mip_level)
 {
 	uint64_t mip_offset = 0;
 	uint64_t mip_row_pitch = row_pitch;
@@ -3026,7 +3030,7 @@ uint64_t TBOX::TBOXEmu::compute_mip_offset(uint32_t mip_pitch_l0, uint32_t mip_p
 	return mip_offset;
 }
 
-void TBOX::TBOXEmu::compute_packed_mip_offset(ImageInfo currentImage,
+void TBOXEmu::compute_packed_mip_offset(ImageInfo currentImage,
                                               uint32_t bytesTexel __attribute__((unused)),
                                               bool isCompressed __attribute__((unused)),
                                               uint32_t tileWidthLog2, uint32_t tileHeightLog2,
@@ -3108,7 +3112,7 @@ void TBOX::TBOXEmu::compute_packed_mip_offset(ImageInfo currentImage,
     }
 }
 
-uint64_t TBOX::TBOXEmu::compute_tile_offset(uint32_t bytesTexel, uint32_t tile_i, uint32_t tile_j)
+uint64_t TBOXEmu::compute_tile_offset(uint32_t bytesTexel, uint32_t tile_i, uint32_t tile_j)
 {
     uint64_t tile_offset = 0;
     switch(bytesTexel)
@@ -3178,7 +3182,7 @@ uint64_t TBOX::TBOXEmu::compute_tile_offset(uint32_t bytesTexel, uint32_t tile_i
 }
 
 
-void TBOX::TBOXEmu::read_bilinear_texels(ImageInfo currentImage, uint32_t i[2], uint32_t j[2], uint32_t k, uint32_t l,
+void TBOXEmu::read_bilinear_texels(ImageInfo currentImage, uint32_t i[2], uint32_t j[2], uint32_t k, uint32_t l,
                                          uint32_t sample_mip_level, float *texel_ul, float *texel_ur,
                                          float *texel_ll, float *texel_lr)
 {
@@ -3190,7 +3194,7 @@ void TBOX::TBOXEmu::read_bilinear_texels(ImageInfo currentImage, uint32_t i[2], 
 
 #define CREATE_TAG(i, j) ((((((((currentRequest.info.imageid << 5) | uint64_t(mip_level)) << 16) | uint64_t(i)) << 14) | (uint64_t(j) >> 2)) << 12) | k | l)
 
-void TBOX::TBOXEmu::create_texture_cache_tags(SampleRequest currentRequest, ImageInfo currentImage,
+void TBOXEmu::create_texture_cache_tags(SampleRequest currentRequest, ImageInfo currentImage,
                                               FilterType filter, uint32_t i[2], uint32_t j[2], uint32_t k, uint32_t l,
                                               uint32_t mip_level, uint32_t &num_banks, int32_t banks[4], uint64_t tags[4],
                                               uint64_t address[4][4])
@@ -3498,7 +3502,7 @@ void TBOX::TBOXEmu::create_texture_cache_tags(SampleRequest currentRequest, Imag
     }
 }
 
-uint64_t TBOX::TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32_t i, uint32_t j, uint32_t k, uint32_t l,
+uint64_t TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32_t i, uint32_t j, uint32_t k, uint32_t l,
                                               uint32_t mip_level)
 {
     uint32_t fmtBytesPerTexel = -1;
@@ -3637,7 +3641,7 @@ uint64_t TBOX::TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32_t i
     return texelAddress;
 }
 
-void TBOX::TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, uint32_t k, uint32_t l, uint32_t mip_level,
+void TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, uint32_t k, uint32_t l, uint32_t mip_level,
                               float *texel)
 {
     uint32_t fmtBytesPerTexel;
@@ -3834,7 +3838,7 @@ void TBOX::TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, u
     LOG(DEBUG, "\t\tTexel value = (%f, %f, %f, %f)", texel[0], texel[1], texel[2], texel[3]);
 }
 
-void TBOX::TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j,
+void TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j,
                               uint64_t line_data[TEXTURE_CACHE_QWORDS_PER_LINE], float *texel, bool data_ready)
 {
     if (!data_ready)
@@ -3978,7 +3982,7 @@ void TBOX::TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j,
     LOG(DEBUG, "\t\tTexel value = (%f, %f, %f, %f)", texel[0], texel[1], texel[2], texel[3]);
 }
 
-float TBOX::TBOXEmu::compare_texel(CompareOperation compop, float reference, float input)
+float TBOXEmu::compare_texel(CompareOperation compop, float reference, float input)
 {
     switch (compop)
     {
@@ -3995,7 +3999,7 @@ float TBOX::TBOXEmu::compare_texel(CompareOperation compop, float reference, flo
     }
 }
 
-const char *TBOX::TBOXEmu::toStrSampleOperation(SampleOperation op)
+const char *TBOXEmu::toStrSampleOperation(SampleOperation op)
 {
     switch (op)
     {
@@ -4010,7 +4014,7 @@ const char *TBOX::TBOXEmu::toStrSampleOperation(SampleOperation op)
     }
 }
 
-const char *TBOX::TBOXEmu::toStrFilterType(FilterType type)
+const char *TBOXEmu::toStrFilterType(FilterType type)
 {
     switch (type)
     {
@@ -4020,7 +4024,7 @@ const char *TBOX::TBOXEmu::toStrFilterType(FilterType type)
     }
 }
 
-const char *TBOX::TBOXEmu::toStrAddressMode(AddressMode am)
+const char *TBOXEmu::toStrAddressMode(AddressMode am)
 {
     switch (am)
     {
@@ -4033,7 +4037,7 @@ const char *TBOX::TBOXEmu::toStrAddressMode(AddressMode am)
     }
 }
 
-const char *TBOX::TBOXEmu::toStrCompareOperation(CompareOperation cop)
+const char *TBOXEmu::toStrCompareOperation(CompareOperation cop)
 {
     switch (cop)
     {
@@ -4048,7 +4052,7 @@ const char *TBOX::TBOXEmu::toStrCompareOperation(CompareOperation cop)
     }
 }
 
-const char *TBOX::TBOXEmu::toStrComponentSwizzle(ComponentSwizzle swz)
+const char *TBOXEmu::toStrComponentSwizzle(ComponentSwizzle swz)
 {
     switch (swz)
     {
@@ -4064,7 +4068,7 @@ const char *TBOX::TBOXEmu::toStrComponentSwizzle(ComponentSwizzle swz)
     }
 }
 
-const char *TBOX::TBOXEmu::toStrBorderColor(BorderColor bc)
+const char *TBOXEmu::toStrBorderColor(BorderColor bc)
 {
     switch (bc)
     {
@@ -4076,7 +4080,7 @@ const char *TBOX::TBOXEmu::toStrBorderColor(BorderColor bc)
     }
 }
 
-const char *TBOX::TBOXEmu::toStrImageType(ImageType type)
+const char *TBOXEmu::toStrImageType(ImageType type)
 {
     switch (type)
     {
@@ -4091,7 +4095,7 @@ const char *TBOX::TBOXEmu::toStrImageType(ImageType type)
     }
 }
 
-const char *TBOX::TBOXEmu::toStrImageFormat(ImageFormat fmt)
+const char *TBOXEmu::toStrImageFormat(ImageFormat fmt)
 {
     switch (fmt)
     {
@@ -4129,7 +4133,7 @@ const char *TBOX::TBOXEmu::toStrImageFormat(ImageFormat fmt)
     }
 }
 
-void TBOX::TBOXEmu::print_sample_request(SampleRequest req)
+void TBOXEmu::print_sample_request(SampleRequest req)
 {
     LOG(DEBUG, "Operation = %s | Image ID = %d | Border Color ID = %d | Delta I = %u | Delta J = %u | Delta K = %u | ",
                toStrSampleOperation((SampleOperation)req.info.operation), req.info.imageid, req.info.borderid,
@@ -4193,7 +4197,7 @@ void TBOX::TBOXEmu::print_sample_request(SampleRequest req)
     }
 }
 
-void TBOX::TBOXEmu::print_image_info(ImageInfo in)
+void TBOXEmu::print_image_info(ImageInfo in)
 {
     LOG(DEBUG, "Addr = %016" PRIx64 " | Type = %s | Format = %s (%3u) | Width = %u | Height = %u | Depth = %u | "
                "Tiled = %u | ",
@@ -4220,7 +4224,7 @@ void TBOX::TBOXEmu::print_image_info(ImageInfo in)
 }
 
 //  Decode BC1.
-void TBOX::TBOXEmu::decode_BC1(uint8_t *inBuffer, uint8_t *outBuffer, bool hasAlpha)
+void TBOXEmu::decode_BC1(uint8_t *inBuffer, uint8_t *outBuffer, bool hasAlpha)
 {
     uint32_t color0, color1;
     float RGBA0[4], RGBA1[4];
@@ -4280,7 +4284,7 @@ void TBOX::TBOXEmu::decode_BC1(uint8_t *inBuffer, uint8_t *outBuffer, bool hasAl
 }
 
 //  Decode BC2.
-void TBOX::TBOXEmu::decode_BC2(uint8_t *inBuffer, uint8_t *outBuffer)
+void TBOXEmu::decode_BC2(uint8_t *inBuffer, uint8_t *outBuffer)
 {
     uint32_t color0, color1;
     float RGBA0[4], RGBA1[4];
@@ -4332,7 +4336,7 @@ void TBOX::TBOXEmu::decode_BC2(uint8_t *inBuffer, uint8_t *outBuffer)
 }
 
 // Decode BC3_UNORM
-void TBOX::TBOXEmu::decode_BC3(uint8_t *inBuffer, uint8_t *outBuffer)
+void TBOXEmu::decode_BC3(uint8_t *inBuffer, uint8_t *outBuffer)
 {
     uint32_t color0, color1;
     float RGBA0[4], RGBA1[4];
@@ -4397,13 +4401,13 @@ void TBOX::TBOXEmu::decode_BC3(uint8_t *inBuffer, uint8_t *outBuffer)
 }
 
 // Decode BC4_UNORM
-void TBOX::TBOXEmu::decode_BC4_UNORM(uint8_t *inBuffer, uint8_t *outBuffer) { decode_BC4(inBuffer, outBuffer, false); }
+void TBOXEmu::decode_BC4_UNORM(uint8_t *inBuffer, uint8_t *outBuffer) { decode_BC4(inBuffer, outBuffer, false); }
 
 // Decode BC4_SNORM
-void TBOX::TBOXEmu::decode_BC4_SNORM(uint8_t *inBuffer, uint8_t *outBuffer) { decode_BC4(inBuffer, outBuffer, true); }
+void TBOXEmu::decode_BC4_SNORM(uint8_t *inBuffer, uint8_t *outBuffer) { decode_BC4(inBuffer, outBuffer, true); }
 
 // Decode BC4
-void TBOX::TBOXEmu::decode_BC4(uint8_t *inBuffer, uint8_t *outBuffer, bool signedFormat)
+void TBOXEmu::decode_BC4(uint8_t *inBuffer, uint8_t *outBuffer, bool signedFormat)
 {
     float red0, red1;
     float decodedColor[4];
@@ -4443,13 +4447,13 @@ void TBOX::TBOXEmu::decode_BC4(uint8_t *inBuffer, uint8_t *outBuffer, bool signe
 }
 
 // Decode BC5_UNORM
-void TBOX::TBOXEmu::decode_BC5_UNORM(uint8_t *inBuffer, uint8_t *outBuffer) { decode_BC5(inBuffer, outBuffer, false); }
+void TBOXEmu::decode_BC5_UNORM(uint8_t *inBuffer, uint8_t *outBuffer) { decode_BC5(inBuffer, outBuffer, false); }
 
 // Decode BC5_SNORM
-void TBOX::TBOXEmu::decode_BC5_SNORM(uint8_t *inBuffer, uint8_t *outBuffer) { decode_BC5(inBuffer, outBuffer, true); }
+void TBOXEmu::decode_BC5_SNORM(uint8_t *inBuffer, uint8_t *outBuffer) { decode_BC5(inBuffer, outBuffer, true); }
 
 // Decode BC5
-void TBOX::TBOXEmu::decode_BC5(uint8_t *inBuffer, uint8_t *outBuffer, bool signedFormat)
+void TBOXEmu::decode_BC5(uint8_t *inBuffer, uint8_t *outBuffer, bool signedFormat)
 {
     float red0, red1, green0, green1;
     float decodedColor[4];
@@ -4504,7 +4508,7 @@ void TBOX::TBOXEmu::decode_BC5(uint8_t *inBuffer, uint8_t *outBuffer, bool signe
 }
 
 //  Decodes and selects the proper color using BC3/BC4/BC5 4-bit color encoding.
-float TBOX::TBOXEmu::decode4BitComponent(uint32_t code, float color0, float color1, bool signedFormat)
+float TBOXEmu::decode4BitComponent(uint32_t code, float color0, float color1, bool signedFormat)
 {
     float output = 0.0f;
 
@@ -4632,7 +4636,7 @@ float TBOX::TBOXEmu::decode4BitComponent(uint32_t code, float color0, float colo
 }
 
 //  Decodes and selects the proper RGB color for BC1/BC2/BC3 2-bit color encoding without transparent color.
-void TBOX::TBOXEmu::decode2BitRGB(uint32_t code, float RGB0[], float RGB1[], float output[])
+void TBOXEmu::decode2BitRGB(uint32_t code, float RGB0[], float RGB1[], float output[])
 {
     //  Select color for the texel and store.
     switch (code)
@@ -4679,7 +4683,7 @@ void TBOX::TBOXEmu::decode2BitRGB(uint32_t code, float RGB0[], float RGB1[], flo
 }
 
 //  Decodes and selects the proper RGB color for BC1/BC2/BC3 2-bit color encoding with transparent color.
-void TBOX::TBOXEmu::decode2BitRGBTransparent(uint32_t code, float RGB0[], float RGB1[], float output[])
+void TBOXEmu::decode2BitRGBTransparent(uint32_t code, float RGB0[], float RGB1[], float output[])
 {
     //  Select color for the texel and store.
     switch (code)
@@ -4725,7 +4729,7 @@ void TBOX::TBOXEmu::decode2BitRGBTransparent(uint32_t code, float RGB0[], float 
     }
 }
 
-uint32_t TBOX::TBOXEmu::convertTo_R8G8B8A8_UNORM(float decodedColor[])
+uint32_t TBOXEmu::convertTo_R8G8B8A8_UNORM(float decodedColor[])
 {
     uint8_t color[4];
 
@@ -4739,7 +4743,7 @@ uint32_t TBOX::TBOXEmu::convertTo_R8G8B8A8_UNORM(float decodedColor[])
     return (color[0] | (color[1] << 8) | (color[2] << 16) | (color[3] << 24));
 }
 
-uint32_t TBOX::TBOXEmu::convertTo_R8G8B8A8_SNORM(float decodedColor[])
+uint32_t TBOXEmu::convertTo_R8G8B8A8_SNORM(float decodedColor[])
 {
     uint8_t color[4];
 
@@ -4751,7 +4755,7 @@ uint32_t TBOX::TBOXEmu::convertTo_R8G8B8A8_SNORM(float decodedColor[])
     return (color[0] | (color[1] << 8) | (color[2] << 16) | (color[3] << 24));
 }
 
-bool TBOX::TBOXEmu::filterSupported(ImageFormat format)
+bool TBOXEmu::filterSupported(ImageFormat format)
 {
     switch (format)
     {
@@ -4791,7 +4795,7 @@ bool TBOX::TBOXEmu::filterSupported(ImageFormat format)
     }
 }
 
-bool TBOX::TBOXEmu::comparisonSupported(ImageFormat format)
+bool TBOXEmu::comparisonSupported(ImageFormat format)
 {
     switch (format)
     {
@@ -4804,7 +4808,7 @@ bool TBOX::TBOXEmu::comparisonSupported(ImageFormat format)
     }
 }
 
-bool TBOX::TBOXEmu::isCompressedFormat(ImageFormat format)
+bool TBOXEmu::isCompressedFormat(ImageFormat format)
 {
     switch (format)
     {
@@ -4830,7 +4834,7 @@ bool TBOX::TBOXEmu::isCompressedFormat(ImageFormat format)
     }
 }
 
-TBOX::TBOXEmu::CompressedFormatInfo TBOX::TBOXEmu::getCompressedFormatInfo(ImageFormat format)
+TBOXEmu::CompressedFormatInfo TBOXEmu::getCompressedFormatInfo(ImageFormat format)
 {
     switch (format)
     {
@@ -4863,7 +4867,7 @@ TBOX::TBOXEmu::CompressedFormatInfo TBOX::TBOXEmu::getCompressedFormatInfo(Image
     }
 }
 
-TBOX::TBOXEmu::CompressedFormatInfo TBOX::TBOXEmu::getCompressedFormatInfoL1(ImageFormat format)
+TBOXEmu::CompressedFormatInfo TBOXEmu::getCompressedFormatInfoL1(ImageFormat format)
 {
     switch (format)
     {
@@ -4896,7 +4900,7 @@ TBOX::TBOXEmu::CompressedFormatInfo TBOX::TBOXEmu::getCompressedFormatInfoL1(Ima
     }
 }
 
-bool TBOX::TBOXEmu::isSRGBFormat(ImageFormat format)
+bool TBOXEmu::isSRGBFormat(ImageFormat format)
 {
     switch (format)
     {
@@ -4913,7 +4917,7 @@ bool TBOX::TBOXEmu::isSRGBFormat(ImageFormat format)
     }
 }
 
-bool TBOX::TBOXEmu::isFloat32Format(ImageFormat format)
+bool TBOXEmu::isFloat32Format(ImageFormat format)
 {
     switch (format)
     {
@@ -4941,7 +4945,7 @@ bool TBOX::TBOXEmu::isFloat32Format(ImageFormat format)
 }
 
 
-void TBOX::TBOXEmu::getCompressedTexel(ImageFormat format, uint32_t comprBlockI, uint32_t comprBlockJ, uint8_t data[])
+void TBOXEmu::getCompressedTexel(ImageFormat format, uint32_t comprBlockI, uint32_t comprBlockJ, uint8_t data[])
 {
     uint8_t compressedData[16];
     uint8_t decompressedData[16 * 4];
@@ -5039,7 +5043,7 @@ void TBOX::TBOXEmu::getCompressedTexel(ImageFormat format, uint32_t comprBlockI,
  * GL_ARB_texture_compression_bptc support.
  */
 
-const TBOX::TBOXEmu::bptc_unorm_mode TBOX::TBOXEmu::bptc_unorm_modes[] = {
+const TBOXEmu::bptc_unorm_mode TBOXEmu::bptc_unorm_modes[] = {
     /* 0 */ {3, 4, false, false, 4, 0, true, false, 3, 0},
     /* 1 */ {2, 6, false, false, 6, 0, false, true, 3, 0},
     /* 2 */ {3, 6, false, false, 5, 0, false, false, 2, 0},
@@ -5049,7 +5053,7 @@ const TBOX::TBOXEmu::bptc_unorm_mode TBOX::TBOXEmu::bptc_unorm_modes[] = {
     /* 6 */ {1, 0, false, false, 7, 7, true, false, 4, 0},
     /* 7 */ {2, 6, false, false, 5, 5, true, false, 2, 0}};
 
-const TBOX::TBOXEmu::bptc_float_mode TBOX::TBOXEmu::bptc_float_modes[] = {
+const TBOXEmu::bptc_float_mode TBOXEmu::bptc_float_modes[] = {
     /* 00 */
     {false,
      true,
@@ -5288,7 +5292,7 @@ const TBOX::TBOXEmu::bptc_float_mode TBOX::TBOXEmu::bptc_float_modes[] = {
  * within the block. The value of the two bits represents which subset to use
  * (0 or 1).
  */
-const uint32_t TBOX::TBOXEmu::partition_table1[N_PARTITIONS] = {
+const uint32_t TBOXEmu::partition_table1[N_PARTITIONS] = {
     0x50505050U, 0x40404040U, 0x54545454U, 0x54505040U, 0x50404000U, 0x55545450U, 0x55545040U, 0x54504000U,
     0x50400000U, 0x55555450U, 0x55544000U, 0x54400000U, 0x55555440U, 0x55550000U, 0x55555500U, 0x55000000U,
     0x55150100U, 0x00004054U, 0x15010000U, 0x00405054U, 0x00004050U, 0x15050100U, 0x05010000U, 0x40505054U,
@@ -5302,7 +5306,7 @@ const uint32_t TBOX::TBOXEmu::partition_table1[N_PARTITIONS] = {
 /* This partition table is used when the mode has three subsets. In this case
  * the values can be 0, 1 or 2.
  */
-const uint32_t TBOX::TBOXEmu::partition_table2[N_PARTITIONS] = {
+const uint32_t TBOXEmu::partition_table2[N_PARTITIONS] = {
     0xaa685050U, 0x6a5a5040U, 0x5a5a4200U, 0x5450a0a8U, 0xa5a50000U, 0xa0a05050U, 0x5555a0a0U, 0x5a5a5050U,
     0xaa550000U, 0xaa555500U, 0xaaaa5500U, 0x90909090U, 0x94949494U, 0xa4a4a4a4U, 0xa9a59450U, 0x2a0a4250U,
     0xa5945040U, 0x0a425054U, 0xa5a5a500U, 0x55a0a0a0U, 0xa8a85454U, 0x6a6a4040U, 0xa4a45000U, 0x1a1a0500U,
@@ -5312,7 +5316,7 @@ const uint32_t TBOX::TBOXEmu::partition_table2[N_PARTITIONS] = {
     0xaa444444U, 0x54a854a8U, 0x95809580U, 0x96969600U, 0xa85454a8U, 0x80959580U, 0xaa141414U, 0x96960000U,
     0xaaaa1414U, 0xa05050a0U, 0xa0a5a5a0U, 0x96000000U, 0x40804080U, 0xa9a8a9a8U, 0xaaaaaa44U, 0x2a4a5254U};
 
-const uint8_t TBOX::TBOXEmu::anchor_indices[][N_PARTITIONS] = {
+const uint8_t TBOXEmu::anchor_indices[][N_PARTITIONS] = {
     /* Anchor index values for the second subset of two-subset partitioning */
     {0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf,
      0xf, 0x2, 0x8, 0x2, 0x2, 0x8, 0x8, 0xf, 0x2, 0x8, 0x2, 0x2, 0x8, 0x8, 0x2, 0x2,
@@ -5333,7 +5337,7 @@ const uint8_t TBOX::TBOXEmu::anchor_indices[][N_PARTITIONS] = {
      0xf, 0x3, 0xf, 0xa, 0xa, 0x8, 0x9, 0xa, 0x6, 0xf, 0x8, 0xf, 0x3, 0x6, 0x6, 0x8,
      0xf, 0x3, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0x3, 0xf, 0xf, 0x8}};
 
-int TBOX::TBOXEmu::extract_bits(const uint8_t *block, int offset, int n_bits)
+int TBOXEmu::extract_bits(const uint8_t *block, int offset, int n_bits)
 {
     int byte_index = offset / 8;
     int bit_index = offset % 8;
@@ -5357,7 +5361,7 @@ int TBOX::TBOXEmu::extract_bits(const uint8_t *block, int offset, int n_bits)
     }
 }
 
-uint8_t TBOX::TBOXEmu::expand_component(uint8_t byte, int n_bits)
+uint8_t TBOXEmu::expand_component(uint8_t byte, int n_bits)
 {
     /* Expands a n-bit quantity into a byte by copying the most-significant
      * bits into the unused least-significant bits.
@@ -5365,7 +5369,7 @@ uint8_t TBOX::TBOXEmu::expand_component(uint8_t byte, int n_bits)
     return byte << (8 - n_bits) | (byte >> (2 * n_bits - 8));
 }
 
-int TBOX::TBOXEmu::extract_unorm_endpoints(const bptc_unorm_mode *mode, const uint8_t *block, int bit_offset,
+int TBOXEmu::extract_unorm_endpoints(const bptc_unorm_mode *mode, const uint8_t *block, int bit_offset,
                                            uint8_t endpoints[][4])
 {
     int component;
@@ -5471,7 +5475,7 @@ int TBOX::TBOXEmu::extract_unorm_endpoints(const bptc_unorm_mode *mode, const ui
     return bit_offset;
 }
 
-bool TBOX::TBOXEmu::is_anchor(int n_subsets, int partition_num, int texel)
+bool TBOXEmu::is_anchor(int n_subsets, int partition_num, int texel)
 {
     if (texel == 0)
         return true;
@@ -5489,7 +5493,7 @@ bool TBOX::TBOXEmu::is_anchor(int n_subsets, int partition_num, int texel)
     }
 }
 
-int TBOX::TBOXEmu::count_anchors_before_texel(int n_subsets, int partition_num, int texel)
+int TBOXEmu::count_anchors_before_texel(int n_subsets, int partition_num, int texel)
 {
     int count = 1;
 
@@ -5517,7 +5521,7 @@ int TBOX::TBOXEmu::count_anchors_before_texel(int n_subsets, int partition_num, 
     return count;
 }
 
-int32_t TBOX::TBOXEmu::interpolate(int32_t a, int32_t b, int index, int index_bits)
+int32_t TBOXEmu::interpolate(int32_t a, int32_t b, int index, int index_bits)
 {
     static const uint8_t weights2[] = {0, 21, 43, 64};
     static const uint8_t weights3[] = {0, 9, 18, 27, 37, 46, 55, 64};
@@ -5530,7 +5534,7 @@ int32_t TBOX::TBOXEmu::interpolate(int32_t a, int32_t b, int index, int index_bi
     return ((64 - weight) * a + weight * b + 32) >> 6;
 }
 
-void TBOX::TBOXEmu::apply_rotation(int rotation, uint8_t *result)
+void TBOXEmu::apply_rotation(int rotation, uint8_t *result)
 {
     uint8_t t;
 
@@ -5544,7 +5548,7 @@ void TBOX::TBOXEmu::apply_rotation(int rotation, uint8_t *result)
     result[3] = t;
 }
 
-void TBOX::TBOXEmu::fetch_rgba_unorm_from_block(const uint8_t *block, uint8_t *result, int texel)
+void TBOXEmu::fetch_rgba_unorm_from_block(const uint8_t *block, uint8_t *result, int texel)
 {
     int mode_num = ffs(block[0]);
     const bptc_unorm_mode *mode;
@@ -5664,7 +5668,7 @@ void TBOX::TBOXEmu::fetch_rgba_unorm_from_block(const uint8_t *block, uint8_t *r
     apply_rotation(rotation, result);
 }
 
-void TBOX::TBOXEmu::fetch_bptc_rgba_unorm_bytes(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j,
+void TBOXEmu::fetch_bptc_rgba_unorm_bytes(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j,
                                                 uint8_t *texel)
 {
     const uint8_t *block;
@@ -5674,7 +5678,7 @@ void TBOX::TBOXEmu::fetch_bptc_rgba_unorm_bytes(const uint8_t *map, uint32_t row
     fetch_rgba_unorm_from_block(block, texel, (i % 4) + (j % 4) * 4);
 }
 
-void TBOX::TBOXEmu::fetch_bptc_rgba_unorm(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float *texel)
+void TBOXEmu::fetch_bptc_rgba_unorm(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float *texel)
 {
     uint8_t texel_bytes[4];
 
@@ -5686,7 +5690,7 @@ void TBOX::TBOXEmu::fetch_bptc_rgba_unorm(const uint8_t *map, uint32_t rowStride
     texel[3] = fpu::FLT(fpu::un8_to_f32(texel_bytes[3]));
 }
 
-void TBOX::TBOXEmu::fetch_bptc_srgb_alpha_unorm(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float *texel)
+void TBOXEmu::fetch_bptc_srgb_alpha_unorm(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float *texel)
 {
     uint8_t texel_bytes[4];
 
@@ -5698,7 +5702,7 @@ void TBOX::TBOXEmu::fetch_bptc_srgb_alpha_unorm(const uint8_t *map, uint32_t row
     texel[3] = fpu::FLT(fpu::un8_to_f32(texel_bytes[3]));
 }
 
-int32_t TBOX::TBOXEmu::sign_extend(int32_t value, int n_bits)
+int32_t TBOXEmu::sign_extend(int32_t value, int n_bits)
 {
     if ((value & (1 << (n_bits - 1))))
     {
@@ -5708,7 +5712,7 @@ int32_t TBOX::TBOXEmu::sign_extend(int32_t value, int n_bits)
     return value;
 }
 
-int TBOX::TBOXEmu::signed_unquantize(int value, int n_endpoint_bits)
+int TBOXEmu::signed_unquantize(int value, int n_endpoint_bits)
 {
     bool sign;
 
@@ -5737,7 +5741,7 @@ int TBOX::TBOXEmu::signed_unquantize(int value, int n_endpoint_bits)
     return value;
 }
 
-int TBOX::TBOXEmu::unsigned_unquantize(int value, int n_endpoint_bits)
+int TBOXEmu::unsigned_unquantize(int value, int n_endpoint_bits)
 {
     if (n_endpoint_bits >= 15)
         return value;
@@ -5751,7 +5755,7 @@ int TBOX::TBOXEmu::unsigned_unquantize(int value, int n_endpoint_bits)
     return ((value << 15) + 0x4000) >> (n_endpoint_bits - 1);
 }
 
-int TBOX::TBOXEmu::extract_float_endpoints(const bptc_float_mode *mode, const uint8_t *block, int bit_offset,
+int TBOXEmu::extract_float_endpoints(const bptc_float_mode *mode, const uint8_t *block, int bit_offset,
                                            int32_t endpoints[][3], bool is_signed)
 {
     const bptc_float_bitfield *bitfield;
@@ -5827,9 +5831,9 @@ int TBOX::TBOXEmu::extract_float_endpoints(const bptc_float_mode *mode, const ui
     return bit_offset;
 }
 
-int32_t TBOX::TBOXEmu::finish_unsigned_unquantize(int32_t value) { return value * 31 / 64; }
+int32_t TBOXEmu::finish_unsigned_unquantize(int32_t value) { return value * 31 / 64; }
 
-int32_t TBOX::TBOXEmu::finish_signed_unquantize(int32_t value)
+int32_t TBOXEmu::finish_signed_unquantize(int32_t value)
 {
     if (value < 0)
         return (-value * 31 / 32) | 0x8000;
@@ -5837,7 +5841,7 @@ int32_t TBOX::TBOXEmu::finish_signed_unquantize(int32_t value)
         return value * 31 / 32;
 }
 
-void TBOX::TBOXEmu::fetch_rgb_float_from_block(const uint8_t *block, float *result, int texel, bool is_signed)
+void TBOXEmu::fetch_rgb_float_from_block(const uint8_t *block, float *result, int texel, bool is_signed)
 {
     int mode_num;
     const bptc_float_mode *mode;
@@ -5919,7 +5923,7 @@ void TBOX::TBOXEmu::fetch_rgb_float_from_block(const uint8_t *block, float *resu
     result[3] = 1.0f;
 }
 
-void TBOX::TBOXEmu::fetch_bptc_rgb_float(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float *texel, bool is_signed)
+void TBOXEmu::fetch_bptc_rgb_float(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float *texel, bool is_signed)
 {
     const uint8_t *block;
 
@@ -5928,17 +5932,17 @@ void TBOX::TBOXEmu::fetch_bptc_rgb_float(const uint8_t *map, uint32_t rowStride,
     fetch_rgb_float_from_block(block, texel, (i % 4) + (j % 4) * 4, is_signed);
 }
 
-void TBOX::TBOXEmu::fetch_bptc_rgb_signed_float(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float *texel)
+void TBOXEmu::fetch_bptc_rgb_signed_float(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float *texel)
 {
     fetch_bptc_rgb_float(map, rowStride, i, j, texel, true);
 }
 
-void TBOX::TBOXEmu::fetch_bptc_rgb_unsigned_float(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float *texel)
+void TBOXEmu::fetch_bptc_rgb_unsigned_float(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float *texel)
 {
     fetch_bptc_rgb_float(map, rowStride, i, j, texel, false);
 }
 
-uint16_t TBOX::TBOXEmu::sharedexp_to_float16(uint32_t exponent, uint32_t mantissa)
+uint16_t TBOXEmu::sharedexp_to_float16(uint32_t exponent, uint32_t mantissa)
 {
     //
     // A shared exponent float point value encodes this float point value (always positive) :
@@ -5996,3 +6000,5 @@ uint16_t TBOX::TBOXEmu::sharedexp_to_float16(uint32_t exponent, uint32_t mantiss
 }
 
 
+} // namespace TBOX
+} // namespace bemu

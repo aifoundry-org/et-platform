@@ -12,11 +12,10 @@
 #define _TBOX_EMU_H
 
 #include "emu_defines.h"
-
 #include "tbox_pi.h"
 
-namespace TBOX
-{
+namespace bemu {
+namespace TBOX {
 
     class TBOXEmu
     {
@@ -327,15 +326,19 @@ namespace TBOX
         bool filterSupported(ImageFormat format);
     };  // Class TBOXEmu
 
-}   // Namespace TBOX
 
 // Accelerators
 #if (EMU_TBOXES_PER_SHIRE > 1)
-extern TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES][EMU_TBOXES_PER_SHIRE];
-#define GET_TBOX(shire_id, tbox_id) tbox[shire_id][tbox_id]
+    extern TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES][EMU_TBOXES_PER_SHIRE];
+    #define GET_TBOX(shire_id, tbox_id) bemu::TBOX::tbox[shire_id][tbox_id]
 #else
-extern TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES];
-#define GET_TBOX(shire_id, tbox_id) tbox[shire_id]
+    extern TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES];
+    #define GET_TBOX(shire_id, tbox_id) bemu::TBOX::tbox[shire_id]
 #endif
+
+
+} // namespace TBOX
+} // namespace bemu
+
 
 #endif // _TBOX_EMU_H

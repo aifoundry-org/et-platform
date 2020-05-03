@@ -13,7 +13,7 @@
 
 #include "insn.h"
 
-//namespace bemu {
+namespace bemu {
 
 
 /* RV64I */
@@ -419,6 +419,6 @@ void insn_shl          (insn_t);
 void insn_shg          (insn_t);
 
 
-//} // namespace bemu
+} // namespace bemu
 
 #endif // BEMU_INSN_FUNC_H

@@ -22,7 +22,11 @@
 #include "tbox_emu.h"
 #include "txs.h"
 
+namespace bemu {
+
+
 static TBOX::TBOXEmu tbox_emulator;
+
 
 void init_txs(uint64_t imgTableAddr)
 {
@@ -35,6 +39,7 @@ void init_txs(uint64_t imgTableAddr)
 
     tbox_emulator.texture_cache_initialize();
 }
+
 
 // Computes the TBOX ID inside the Shire.
 uint32_t tbox_id_from_thread(uint32_t thread)
@@ -66,6 +71,7 @@ uint32_t tbox_id_from_thread(uint32_t thread)
 
 
 static char coord_name[5]="strq";
+
 
 /*
     Adds a sample_request in TBOX and execute it
@@ -100,7 +106,7 @@ void new_sample_request(uint32_t thread, uint32_t port_id, uint32_t number_packe
     {
         freg_t coordinates;
         memcpy(&coordinates, &(val[((i+1)<<2)]), sizeof(freg_t));
-        tbox[shire_id][tbox_id].set_request_coordinates(thread, i, coordinates);
+        GET_TBOX(shire_id, tbox_id).set_request_coordinates(thread, i, coordinates);
         LOG_NOTHREAD(DEBUG, "\t Set *%c* texture coordinates", coord_name[i]);
         for(uint32_t c = 0; c < VL_TBOX; c++)
         {
@@ -129,6 +135,7 @@ void new_sample_request(uint32_t thread, uint32_t port_id, uint32_t number_packe
     }
 }
 
+
 void checker_sample_quad(uint32_t thread, uint64_t basePtr,
                          TBOX::SampleRequest currentRequest_, freg_t input[], freg_t output[])
 {
@@ -145,8 +152,11 @@ void checker_sample_quad(uint32_t thread, uint64_t basePtr,
     tbox_emulator.set_image_table_address(base_copy);
 }
 
+
 void decompress_texture_cache_line_data(TBOX::ImageInfo currentImage, uint32_t startTexel, uint64_t inData[], uint64_t outData[])
 {
     tbox_emulator.decompress_texture_cache_line_data(currentImage, startTexel, inData, outData);
 }
 
+
+} // namespace bemu

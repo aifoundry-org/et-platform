@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-//namespace bemu {
+namespace bemu {
 
 
 void set_delayed_msg_port_write(bool);
@@ -22,6 +22,6 @@ void write_msg_port_data_from_rbox(unsigned target_thread, unsigned port, unsign
 void commit_msg_port_data_from_rbox(unsigned target_thread, unsigned port, unsigned rbox);
 
 
-//} // namespace bemu
+} // namespace bemu
 
 #endif // bemu_msgport_h

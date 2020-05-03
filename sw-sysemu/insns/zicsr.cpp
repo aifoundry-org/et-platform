@@ -12,6 +12,7 @@
 #include <unordered_map>
 
 #include "decode.h"
+#include "emu_defines.h"
 #include "emu_gio.h"
 #include "insn.h"
 #include "insn_func.h"
@@ -20,16 +21,10 @@
 #ifdef SYS_EMU
 #include "sys_emu.h"
 #endif
-#include "traps.h"
 #include "tensor.h"
+#include "traps.h"
 #include "txs.h"
 #include "utility.h"
-
-// FIXME: Replace with "processor.h"
-#include "emu_defines.h"
-extern std::array<Processor,EMU_NUM_THREADS> cpu;
-extern uint32_t current_inst;
-extern bool     m_emu_done;
 
 
 // vendor, arch, imp, ISA values
@@ -45,6 +40,14 @@ extern bool     m_emu_done;
                      (1ull << 20) | /* "U" User mode implemented */                     \
                      (1ull << 23) | /* "X": Non-standard extensions present */          \
                      (2ull << 62))  /* XLEN = 64-bit */
+
+
+namespace bemu {
+
+
+extern std::array<Processor,EMU_NUM_THREADS> cpu;
+extern uint32_t                              current_inst;
+extern bool                                  m_emu_done;
 
 
 // Fast local barrier
@@ -78,8 +81,6 @@ void tensor_quant_start(uint64_t);
 void tensor_reduce_start(uint64_t);
 void tensor_store_start(uint64_t);
 void tensor_wait_start(uint64_t);
-
-//namespace bemu {
 
 
 // UART -- for VALIDATION1
@@ -1050,7 +1051,7 @@ static uint64_t csrset(uint16_t csr, uint64_t val)
         tensor_load_start(val);
         break;
     case CSR_GSC_PROGRESS:
-        val &= (VL-1);
+        val &= (VLENW-1);
         cpu[current_thread].gsc_progress = val;
         break;
     case CSR_TENSOR_LOAD_L2:
@@ -1377,4 +1378,4 @@ void set_csr(unsigned thread, uint16_t csr, uint64_t value)
 }
 
 
-//} // namespace bemu
+} // namespace bemu

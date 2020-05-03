@@ -15,7 +15,7 @@
 #include "sys_emu.h"
 #endif
 
-//namespace bemu {
+namespace bemu {
 
 
 // Fast local barriers can be accessed through UC to do stores and loads,
@@ -44,4 +44,4 @@ uint64_t write_flb(uint64_t value)
 }
 
 
-//} // namespace bemu
+} // namespace bemu

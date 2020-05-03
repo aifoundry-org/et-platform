@@ -30,9 +30,13 @@
 #include <unordered_set>
 #include <vector>
 
+namespace bemu {
+
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
 extern uint64_t get_csr(unsigned thread, uint16_t cnum);
 extern void set_csr(unsigned thread, uint16_t cnum, uint64_t data);
+
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Defines
@@ -109,14 +113,14 @@ public:
     /// Function used for parsing the command line arguments
     static std::tuple<bool, struct sys_emu_cmd_options> parse_command_line_arguments(int argc, char* argv[]);
 
-    static uint64_t thread_get_pc(unsigned thread_id) { return cpu[thread_id].pc; }
-    static void thread_set_pc(unsigned thread_id, uint64_t pc) { cpu[thread_id].pc = pc; }
-    static uint64_t thread_get_reg(int thread_id, int reg) { return cpu[thread_id].xregs[reg]; }
-    static void thread_set_reg(int thread_id, int reg, uint64_t data) { cpu[thread_id].xregs[reg] = data; }
-    static freg_t thread_get_freg(int thread_id, int reg) { return cpu[thread_id].fregs[reg]; }
-    static void thread_set_freg(int thread_id, int reg, freg_t data) { cpu[thread_id].fregs[reg] = data; }
-    static uint64_t thread_get_csr(int thread_id, int csr) { return get_csr(thread_id, csr); }
-    static void thread_set_csr(int thread_id, int csr, uint32_t data) { set_csr(thread_id, csr, data); }
+    static uint64_t thread_get_pc(unsigned thread_id) { return bemu::cpu[thread_id].pc; }
+    static void thread_set_pc(unsigned thread_id, uint64_t pc) { bemu::cpu[thread_id].pc = pc; }
+    static uint64_t thread_get_reg(int thread_id, int reg) { return bemu::cpu[thread_id].xregs[reg]; }
+    static void thread_set_reg(int thread_id, int reg, uint64_t data) { bemu::cpu[thread_id].xregs[reg] = data; }
+    static bemu::freg_t thread_get_freg(int thread_id, int reg) { return bemu::cpu[thread_id].fregs[reg]; }
+    static void thread_set_freg(int thread_id, int reg, bemu::freg_t data) { bemu::cpu[thread_id].fregs[reg] = data; }
+    static uint64_t thread_get_csr(int thread_id, int csr) { return bemu::get_csr(thread_id, csr); }
+    static void thread_set_csr(int thread_id, int csr, uint32_t data) { bemu::set_csr(thread_id, csr, data); }
 
     static void fcc_to_threads(unsigned shire_id, unsigned thread_dest,
                                uint64_t thread_mask, unsigned cnt_dest);
@@ -137,7 +141,7 @@ public:
     static uint64_t get_emu_cycle()  { return emu_cycle; }
     static RVTimer& get_pu_rvtimer() { return pu_rvtimer; }
 
-    static bool thread_is_disabled(unsigned thread) { return !cpu[thread].enabled; }
+    static bool thread_is_disabled(unsigned thread) { return !bemu::cpu[thread].enabled; }
 
     static void activate_thread(int thread_id) { active_threads[thread_id] = true; }
     static void deactivate_thread(int thread_id) { active_threads[thread_id] = false; }

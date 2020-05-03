@@ -8,7 +8,6 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 
-#include "emu.h"
 #include "memop.h"
 #include "mmu.h"
 #include "sys_emu.h"
@@ -106,11 +105,37 @@ static size_t split(const std::string &txt, std::vector<std::string> &strs, char
    return strs.size();
 }
 
+static std::string dump_xregs(unsigned thread_id)
+{
+    std::stringstream str;
+    if (thread_id < EMU_NUM_THREADS) {
+        for (size_t ii = 0; ii < bemu::NXREGS; ++ii) {
+            str << "XREG[" << std::dec << ii << "] = 0x" << std::hex << sys_emu::thread_get_reg(thread_id, ii) << "\n";
+        }
+    }
+    return str.str();
+}
+
+static std::string dump_fregs(unsigned thread_id)
+{
+    std::stringstream str;
+    if (thread_id < EMU_NUM_THREADS) {
+        for (size_t ii = 0; ii < bemu::NFREGS; ++ii) {
+            const auto value = sys_emu::thread_get_freg(thread_id, ii);
+            for (size_t jj = 0; jj < bemu::VLEN/32; ++jj) {
+                str << "FREG[" << std::dec << ii << "][" << jj <<  "] = 0x" << std::hex << value.u32[jj] << "\t";
+            }
+            str << "\n";
+        }
+    }
+    return str.str();
+}
+
 void sys_emu::memdump(uint64_t addr, uint64_t size)
 {
     char ascii[17] = {0};
     for (uint64_t i = 0; i < size; i++) {
-        uint8_t data = bemu::pmemread<uint8_t>(vmemtranslate(addr + i, 1, Mem_Access_Load, mreg_t(-1)));
+        uint8_t data = bemu::pmemread<uint8_t>(bemu::vmemtranslate(addr + i, 1, bemu::Mem_Access_Load, bemu::mreg_t(-1)));
         printf("%02X ", data);
         ascii[i % 16] = std::isprint(data) ? data : '.';
         if ((i + 1) % 8 == 0 || (i + 1) == size) {
@@ -147,7 +172,7 @@ bool sys_emu::process_dbg_cmd(std::string cmd) {
       prompt = false;
    // Breakpoints
    } else if ((command[0] == "b") || (command[0] == "break")) {
-      uint64_t pc_break = current_pc[0];
+      uint64_t pc_break = thread_get_pc(0);
       int thread = -1;
       if (num_args == 2) {
         pc_break = std::stoull(command[1], nullptr, 0);
@@ -174,7 +199,7 @@ bool sys_emu::process_dbg_cmd(std::string cmd) {
    // Architectural State Dumping
    } else if (command[0] == "pc") {
       uint32_t thid = (num_args > 1) ? std::stoi(command[1]) : 0;
-      printf("PC[%d] = 0x%" PRIx64 "\n", thid, current_pc[thid]);
+      printf("PC[%d] = 0x%" PRIx64 "\n", thid, thread_get_pc(thid));
    } else if ((command[0] == "x") || (command[0] == "xdump")) {
       std::string str = dump_xregs((num_args > 1) ? std::stoi(command[1]) : 0);
       printf("%s\n", str.c_str());
@@ -191,9 +216,9 @@ bool sys_emu::process_dbg_cmd(std::string cmd) {
         offset = std::stoul(command[1], nullptr, 0);
       }
       try {
-        printf("CSR[%d][0x%x] = 0x%" PRIx64 "\n", thid, offset & 0xfff, get_csr(thid, offset & 0xfff));
+        printf("CSR[%d][0x%x] = 0x%" PRIx64 "\n", thid, offset & 0xfff, thread_get_csr(thid, offset & 0xfff));
       }
-      catch (const trap_t&) {
+      catch (const bemu::trap_t&) {
         printf("Unrecognized CSR register\n");
       }
    } else if ((command[0] == "m") || (command[0] == "mdump")) {
@@ -222,8 +247,9 @@ bool sys_emu::get_pc_break(uint64_t &pc, int &thread) {
          if (((minions_en >> m) & 1) == 0) continue;
          for (unsigned ii = 0; ii < minion_thread_count; ii++) {
             unsigned thread_id = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
-            if ( pc_breakpoints_exists(current_pc[thread_id], thread_id)) {
-               pc = current_pc[thread_id];
+            uint64_t thread_pc = thread_get_pc(thread_id);
+            if (pc_breakpoints_exists(thread_pc, thread_id)) {
+               pc = thread_pc;
                thread = thread_id;
                return true;
             }

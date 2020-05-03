@@ -18,11 +18,10 @@
 #include "memory_error.h"
 #include "memory_region.h"
 
-extern unsigned current_thread;
-
 namespace bemu {
 
 
+extern unsigned current_thread;
 extern typename MemoryRegion::reset_value_type memory_reset_value;
 
 
@@ -112,7 +111,7 @@ protected:
 
     size_type slice(size_type pos) const {
         size_type num = (pos >> 23) & 255;
-        if (num == 255) return ::current_thread / EMU_THREADS_PER_SHIRE;
+        if (num == 255) return current_thread / EMU_THREADS_PER_SHIRE;
         if (num == IO_SHIRE_ID) return EMU_IO_SHIRE_SP;
         return num;
     }

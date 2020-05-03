@@ -20,7 +20,7 @@
 // FIXME: Replace with "processor.h"
 #include "emu_defines.h"
 
-//namespace bemu {
+namespace bemu {
 
 
 class insn_t
@@ -251,6 +251,6 @@ inline void execute(insn_t inst)
 }
 
 
-//} // namespace bemu
+} // namespace bemu
 
 #endif // BEMU_INSN_H

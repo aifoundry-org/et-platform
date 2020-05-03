@@ -9,6 +9,7 @@
 *-------------------------------------------------------------------------*/
 
 #include "decode.h"
+#include "emu_defines.h"
 #include "emu_gio.h"
 #include "log.h"
 #include "processor.h"
@@ -18,8 +19,9 @@
 #include "traps.h"
 #include "utility.h"
 
-// FIXME: Replace with "processor.h"
-#include "emu_defines.h"
+namespace bemu {
+
+
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
 
 
@@ -49,9 +51,6 @@ extern std::array<Processor,EMU_NUM_THREADS> cpu;
         LOG(DEBUG, "Clearing external interrupt number %d", SUPERVISOR_EXTERNAL_INTERRUPT); \
     cpu[thread].ext_seip &= ~(1<<SUPERVISOR_EXTERNAL_INTERRUPT); \
 } while (0)
-
-
-//namespace bemu {
 
 
 static void trap_to_smode(uint64_t cause, uint64_t val)
@@ -261,4 +260,4 @@ void clear_bus_error_interrupt(int thread)
 }
 
 
-//} // namespace bemu
+} // namespace bemu

@@ -26,6 +26,7 @@
 
 namespace bemu {
 
+
 extern typename MemoryRegion::reset_value_type memory_reset_value;
 
 

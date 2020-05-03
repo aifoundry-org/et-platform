@@ -28,7 +28,7 @@
 #define L1_SCP_ENTRIES    (L1_SCP_NUM_SETS * L1_SCP_NUM_WAYS)
 #define L1_SCP_LINE_SIZE  L1D_LINE_SIZE
 
-//namespace bemu {
+namespace bemu {
 
 
 typedef Packed<L1D_LINE_SIZE*8> cache_line_t;
@@ -94,6 +94,6 @@ inline unsigned dcache_index(uint64_t paddr, uint32_t mcache_control, uint32_t t
     return set;
 }
 
-//} // namespace bemu
+} // namespace bemu
 
 #endif // BEMU_CACHE_H

@@ -8,16 +8,10 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 
-#include <array>
-#include <cassert>
-#include <cfenv>        // FIXME: remove this when we purge std::fesetround() from the code!
-#include <cstring>
-#include <deque>
-#include <stdexcept>
-
 #include "cache.h"
 #include "decode.h"
 #include "emu.h"
+#include "emu_defines.h"
 #include "emu_gio.h"
 #include "esrs.h"
 #include "log.h"
@@ -33,11 +27,10 @@
 #include "traps.h"
 #include "utility.h"
 
-// FIXME: Replace with "processor.h"
-#include "emu_defines.h"
-extern std::array<Processor,EMU_NUM_THREADS> cpu;
+namespace bemu {
 
-//namespace bemu {
+
+extern std::array<Processor,EMU_NUM_THREADS> cpu;
 
 
 // Tensor extension
@@ -347,4 +340,4 @@ void dcache_unlock_vaddr(bool tm, uint64_t vaddr, int numlines, int id __attribu
 }
 
 
-//} // namespace bemu
+} // namespace bemu

@@ -9,6 +9,7 @@
 *-------------------------------------------------------------------------*/
 
 #include "decode.h"
+#include "emu_defines.h"
 #include "emu_gio.h"
 #include "insn.h"
 #include "insn_func.h"
@@ -17,11 +18,10 @@
 #include "processor.h"
 #include "utility.h"
 
-// FIXME: Replace with "processor.h"
-#include "emu_defines.h"
-extern std::array<Processor,EMU_NUM_THREADS> cpu;
+namespace bemu {
 
-// namespace bemu {
+
+extern std::array<Processor,EMU_NUM_THREADS> cpu;
 
 
 void insn_c_ld(insn_t inst)
@@ -84,4 +84,4 @@ void insn_c_swsp(insn_t inst)
 }
 
 
-//} // namespace bemu
+} // namespace bemu

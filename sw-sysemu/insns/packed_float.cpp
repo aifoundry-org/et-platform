@@ -9,21 +9,21 @@
 *-------------------------------------------------------------------------*/
 
 #include "decode.h"
+#include "emu_defines.h"
 #include "emu_gio.h"
+#include "fpu/fpu.h"
+#include "fpu/fpu_casts.h"
 #include "insn.h"
 #include "insn_func.h"
 #include "log.h"
 #include "processor.h"
 #include "traps.h"
 #include "utility.h"
-#include "fpu/fpu.h"
-#include "fpu/fpu_casts.h"
 
-// FIXME: Replace with "processor.h"
-#include "emu_defines.h"
+namespace bemu {
+
+
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
-
-//namespace bemu {
 
 
 void insn_fadd_ps(insn_t inst)
@@ -350,4 +350,4 @@ void insn_fswizz_ps(insn_t inst)
 }
 
 
-//} // namespace bemu
+} // namespace bemu

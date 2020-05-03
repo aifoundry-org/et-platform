@@ -30,6 +30,9 @@
 #include "mem_checker.h"
 #endif
 
+namespace bemu {
+
+
 // FIXME: Replace with "processor.h"
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
 extern unsigned current_thread;
@@ -1116,3 +1119,6 @@ bool mmu_check_cacheop_access(uint64_t paddr, cacheop_type cop)
     }
     return true;
 }
+
+
+} // namespace bemu

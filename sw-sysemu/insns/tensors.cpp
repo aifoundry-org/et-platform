@@ -15,6 +15,7 @@
 #include "cache.h"
 #include "decode.h"
 #include "emu.h"
+#include "emu_defines.h"
 #include "emu_gio.h"
 #include "fpu/fpu.h"
 #include "fpu/fpu_casts.h"
@@ -25,18 +26,12 @@
 #ifdef SYS_EMU
 #include "sys_emu.h"
 #endif
+#include "tensor.h"
 #include "tensor_error.h"
 #include "tensor_mask.h"
 #include "traps.h"
-#include "tensor.h"
 #include "utility.h"
 
-// FIXME: Replace with "processor.h"
-#include "emu_defines.h"
-extern std::array<Processor,EMU_NUM_THREADS> cpu;
-extern uint32_t current_inst;
-
-//namespace bemu {
 
 #define FREGS cpu[current_thread].fregs
 #define TENC  cpu[current_thread].tenc
@@ -57,6 +52,13 @@ extern uint32_t current_inst;
     #define L1_SCP_CHECK_FILL(thread, idx, id)  do { } while (0)
     #define L1_SCP_CHECK_READ(thread, idx)      do { } while (0)
 #endif
+
+
+namespace bemu {
+
+
+extern std::array<Processor,EMU_NUM_THREADS> cpu;
+extern uint32_t current_inst;
 
 
 // Scratchpad
@@ -649,12 +651,12 @@ void tensor_quant_execute()
         // PACK_128B RTL operates on even registers first, and then on odd
         // registers, so it generates two writes to the destination register
         // when a row spans a vector.
-        log_tensor_quant_new_transform((funct == 10) && (ncols > VL));
+        log_tensor_quant_new_transform((funct == 10) && (ncols > VLENW));
 
         for (unsigned row = 0; row < nrows; ++row) {
-            for (unsigned col = 0; col < ncols; col += VL) {
-                unsigned nelem = std::min(ncols - col, VL);
-                unsigned fs1 = (fstart + row*2 + col/VL) % NFREGS;
+            for (unsigned col = 0; col < ncols; col += VLENW) {
+                unsigned nelem = std::min(ncols - col, unsigned(VLENW));
+                unsigned fs1 = (fstart + row*2 + col/VLENW) % NFREGS;
                 unsigned fd = (funct == 10) ? ((fstart + row*2) % NFREGS) : fs1;
                 switch (funct) {
                 case 1: // INT32_TO_FP32
@@ -978,9 +980,9 @@ static void tensor_fma32_execute()
                 {
                     for (int j = 0; j < bcols; ++j)
                     {
-                        FREGS[i*TFMA_REGS_PER_ROW + j/VL].u32[j%VL] = 0;
-                        LOG(DEBUG, "\tTensorFMA32(0) f%u[%u] = 0x0", i*TFMA_REGS_PER_ROW+j/VL, j%VL);
-                        log_tensor_fma_write(0, true, i*TFMA_REGS_PER_ROW+j/VL, j%VL, 0);
+                        FREGS[i*TFMA_REGS_PER_ROW + j/VLENW].u32[j%VLENW] = 0;
+                        LOG(DEBUG, "\tTensorFMA32(0) f%u[%u] = 0x0", i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW);
+                        log_tensor_fma_write(0, true, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, 0);
                     }
                 }
                 continue;
@@ -998,10 +1000,10 @@ static void tensor_fma32_execute()
                 {
                     float32_t b = tmpb.f32[j];
                     float32_t c = fpu::f32_mul(a, b);
-                    FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] = fpu::UI32(c);
+                    FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW] = fpu::UI32(c);
                     LOG(DEBUG, "\tTensorFMA32(%d) f%u[%u]: 0x%08" PRIx32 " = 0x%08" PRIx32 " * 0x%08" PRIx32,
-                        k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(a), fpu::UI32(b));
-                    log_tensor_fma_write(k, true, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
+                        k, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, fpu::UI32(c), fpu::UI32(a), fpu::UI32(b));
+                    log_tensor_fma_write(k, true, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW]);
                 }
             }
             else
@@ -1016,12 +1018,12 @@ static void tensor_fma32_execute()
                     // If the product will be 0, we can skip the operation
                     if (fpu::UI32(b)==0)
                         continue;
-                    float32_t c0 = FREGS[i*TFMA_REGS_PER_ROW+j/VL].f32[j%VL];
+                    float32_t c0 = FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].f32[j%VLENW];
                     float32_t c = fpu::f32_mulAdd(a, b, c0);
-                    FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] = fpu::UI32(c);
+                    FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW] = fpu::UI32(c);
                     LOG(DEBUG, "\tTensorFMA32(%d) f%u[%u]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + 0x%08" PRIx32 " * 0x%08" PRIx32,
-                        k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(c0), fpu::UI32(a), fpu::UI32(b));
-                    log_tensor_fma_write(k, true, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
+                        k, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, fpu::UI32(c), fpu::UI32(c0), fpu::UI32(a), fpu::UI32(b));
+                    log_tensor_fma_write(k, true, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW]);
                 }
             }
         }
@@ -1032,7 +1034,7 @@ static void tensor_fma32_execute()
     {
         for (int j = 0; j < bcols; ++j)
             LOG(DEBUG, "\tC[%d][%d]: f%u[%u] = 0x%08" PRIx32, i, j,
-                i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
+                i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW]);
     }
 
     set_fp_exceptions();
@@ -1185,9 +1187,9 @@ static void tensor_fma16a32_execute()
                 {
                     for (int j = 0; j < bcols; ++j)
                     {
-                        FREGS[i*TFMA_REGS_PER_ROW + j/VL].u32[j%VL] = 0;
-                        LOG(DEBUG, "\tTensorFMA16A32(0) f%u[%u] = 0x0", i*TFMA_REGS_PER_ROW+j/VL, j%VL);
-                        log_tensor_fma_write(0, true, i*TFMA_REGS_PER_ROW+j/VL, j%VL, 0);
+                        FREGS[i*TFMA_REGS_PER_ROW + j/VLENW].u32[j%VLENW] = 0;
+                        LOG(DEBUG, "\tTensorFMA16A32(0) f%u[%u] = 0x0", i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW);
+                        log_tensor_fma_write(0, true, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, 0);
                     }
                 }
                 continue;
@@ -1207,10 +1209,10 @@ static void tensor_fma16a32_execute()
                     float16_t b1 = tmpb.f16[2*j+0];
                     float16_t b2 = tmpb.f16[2*j+1];
                     float32_t c = fpu::f1632_mulAdd2(a1, b1, a2, b2);
-                    FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] = fpu::UI32(c);
+                    FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW] = fpu::UI32(c);
                     LOG(DEBUG, "\tTensorFMA16A32(%d) f%u[%u]: 0x%08" PRIx32 " = (0x%04" PRIx16 " * 0x%04" PRIx16 ") + (0x%04" PRIx16 " * 0x%04" PRIx16 ")",
-                        k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI16(a1), fpu::UI16(b1), fpu::UI16(a2), fpu::UI16(b2));
-                    log_tensor_fma_write(k/2, true, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
+                        k/2, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, fpu::UI32(c), fpu::UI16(a1), fpu::UI16(b1), fpu::UI16(a2), fpu::UI16(b2));
+                    log_tensor_fma_write(k/2, true, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW]);
                 }
             }
             // If all products will be 0, we can skip the operation. NB: The detection
@@ -1226,12 +1228,12 @@ static void tensor_fma16a32_execute()
                     // element (16-bit) granularity.
                     if ((fpu::UI16(b1)==0) && (fpu::UI16(b2)==0))
                         continue;
-                    float32_t c0 = FREGS[i*TFMA_REGS_PER_ROW+j/VL].f32[j%VL];
+                    float32_t c0 = FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].f32[j%VLENW];
                     float32_t c = fpu::f1632_mulAdd3(a1, b1, a2, b2, c0);
-                    FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] = fpu::UI32(c);
+                    FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW] = fpu::UI32(c);
                     LOG(DEBUG, "\tTensorFMA16A32(%d) f%u[%u]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%04" PRIx16 " * 0x%04" PRIx16 ") + (0x%04" PRIx16 " * 0x%04" PRIx16 ")",
-                        k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(c0), fpu::UI16(a1), fpu::UI16(b1), fpu::UI16(a2), fpu::UI16(b2));
-                    log_tensor_fma_write(k/2, true, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
+                        k/2, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, fpu::UI32(c), fpu::UI32(c0), fpu::UI16(a1), fpu::UI16(b1), fpu::UI16(a2), fpu::UI16(b2));
+                    log_tensor_fma_write(k/2, true, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW]);
                 }
             }
         }
@@ -1242,7 +1244,7 @@ static void tensor_fma16a32_execute()
     {
         for (int j = 0; j < bcols; ++j)
             LOG(DEBUG, "\tC[%d][%d]: f%u[%u] = 0x%08" PRIx32, i, j,
-                i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
+                i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW]);
     }
 
     set_fp_exceptions();
@@ -1402,17 +1404,17 @@ static void tensor_ima8a32_execute()
                 {
                     for (int j = 0; j < bcols; ++j)
                     {
-                        FREGS[i*TFMA_REGS_PER_ROW + j/VL].u32[j%VL] = (first_pass && !k) ? 0 : TENC[i*TFMA_REGS_PER_ROW + j/VL].u32[j%VL];
-                        LOG(DEBUG, "\tTensorIMA8A32(%d) f%u[%u] = 0x%08" PRIx32, k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
-                        log_tensor_fma_write(k/4, true, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW + j/VL].u32[j%VL]);
+                        FREGS[i*TFMA_REGS_PER_ROW + j/VLENW].u32[j%VLENW] = (first_pass && !k) ? 0 : TENC[i*TFMA_REGS_PER_ROW + j/VLENW].u32[j%VLENW];
+                        LOG(DEBUG, "\tTensorIMA8A32(%d) f%u[%u] = 0x%08" PRIx32, k/4, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW]);
+                        log_tensor_fma_write(k/4, true, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, FREGS[i*TFMA_REGS_PER_ROW + j/VLENW].u32[j%VLENW]);
                     }
                 }
                 else if (first_pass && !k)
                 {
                     for (int j = 0; j < bcols; ++j)
                     {
-                        TENC[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] = 0;
-                        log_tensor_fma_write(0, false, i*TFMA_REGS_PER_ROW+j/VL, j%VL, TENC[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
+                        TENC[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW] = 0;
+                        log_tensor_fma_write(0, false, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, TENC[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW]);
                     }
                 }
                 continue;
@@ -1438,10 +1440,10 @@ static void tensor_ima8a32_execute()
                     int32_t b4 = ub ? BSRC(3) : sext8_2(BSRC(3));
 #undef BSRC
                     int32_t c = (a1 * b1) + (a2 * b2) + (a3 * b3) + (a4 * b4);
-                    dst[i*TFMA_REGS_PER_ROW+j/VL].i32[j%VL] = c;
+                    dst[i*TFMA_REGS_PER_ROW+j/VLENW].i32[j%VLENW] = c;
                     LOG(DEBUG, "\tTensorIMA8A32(%d) %s%u[%u]: 0x%08" PRIx32 " = (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ")",
-                        k/4, dname, i*TFMA_REGS_PER_ROW+j/VL, j%VL, c, uint8_t(a1), uint8_t(b1), uint8_t(a2), uint8_t(b2), uint8_t(a3), uint8_t(b3), uint8_t(a4), uint8_t(b4));
-                    log_tensor_fma_write(k/4, write_freg, i*TFMA_REGS_PER_ROW+j/VL, j%VL, uint32_t(c));
+                        k/4, dname, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, c, uint8_t(a1), uint8_t(b1), uint8_t(a2), uint8_t(b2), uint8_t(a3), uint8_t(b3), uint8_t(a4), uint8_t(b4));
+                    log_tensor_fma_write(k/4, write_freg, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, uint32_t(c));
                 }
             }
             // If all products are 0, we can skip the operation, except if TenC must
@@ -1476,12 +1478,12 @@ static void tensor_ima8a32_execute()
                         if (!write_freg && (tmpb.u32[j] == 0) && ((j+8 >= bcols) || (tmpb.u32[j+8] == 0)))
                             continue;
                     }
-                    int32_t c0 = TENC[i*TFMA_REGS_PER_ROW+j/VL].i32[j%VL];
+                    int32_t c0 = TENC[i*TFMA_REGS_PER_ROW+j/VLENW].i32[j%VLENW];
                     int32_t c = c0 + (a1 * b1) + (a2 * b2) + (a3 * b3) + (a4 * b4);
-                    dst[i*TFMA_REGS_PER_ROW+j/VL].i32[j%VL] = c;
+                    dst[i*TFMA_REGS_PER_ROW+j/VLENW].i32[j%VLENW] = c;
                     LOG(DEBUG, "\tTensorIMA8A32(%d) %s%u[%u]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ")",
-                        k/4, dname, i*TFMA_REGS_PER_ROW+j/VL, j%VL, c, c0, uint8_t(a1), uint8_t(b1), uint8_t(a2), uint8_t(b2), uint8_t(a3), uint8_t(b3), uint8_t(a4), uint8_t(b4));
-                    log_tensor_fma_write(k/4, write_freg, i*TFMA_REGS_PER_ROW+j/VL, j%VL, uint32_t(c));
+                        k/4, dname, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, c, c0, uint8_t(a1), uint8_t(b1), uint8_t(a2), uint8_t(b2), uint8_t(a3), uint8_t(b3), uint8_t(a4), uint8_t(b4));
+                    log_tensor_fma_write(k/4, write_freg, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, uint32_t(c));
                 }
             }
         }
@@ -1496,7 +1498,7 @@ static void tensor_ima8a32_execute()
         const char* dname = tenc2rf ? "f" : "TenC";
         for (int j = 0; j < bcols; ++j)
             LOG(DEBUG, "\tC[%d][%d]: %s%u[%u] = 0x%08" PRIx32, i, j, dname,
-                i*TFMA_REGS_PER_ROW+j/VL, j%VL, dst[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
+                i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, dst[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW]);
     }
 }
 
@@ -1758,7 +1760,7 @@ void tensor_reduce_step(unsigned thread)
         LOG(DEBUG, "\t%s(recv) op=fadd sender=H%u rounding_mode=%s", reducecmd[type], thread, get_rounding_mode(frm()));
         LOG_FREG_OTHER(thread, "(othr) :", send.regid);
         LOG_FREG("(this) :", recv.regid);
-        for (unsigned j = 0; j < VL; j++) {
+        for (unsigned j = 0; j < VLENW; j++) {
             FREGS[recv.regid].f32[j] = fpu::f32_add(cpu[thread].fregs[send.regid].f32[j], FREGS[recv.regid].f32[j]);
         }
         LOG_FREG("(this) =", recv.regid);
@@ -1768,7 +1770,7 @@ void tensor_reduce_step(unsigned thread)
         LOG(DEBUG, "\t%s(recv) op=fmax sender=H%u", reducecmd[type], thread);
         LOG_FREG_OTHER(thread, "(othr) :", send.regid);
         LOG_FREG("(this) :", recv.regid);
-        for (unsigned j = 0; j < VL; j++) {
+        for (unsigned j = 0; j < VLENW; j++) {
             FREGS[recv.regid].f32[j] = fpu::f32_maximumNumber(cpu[thread].fregs[send.regid].f32[j], FREGS[recv.regid].f32[j]);
         }
         LOG_FREG("(this) =", recv.regid);
@@ -1778,7 +1780,7 @@ void tensor_reduce_step(unsigned thread)
         LOG(DEBUG, "\t%s(recv) op=fmin sender=H%u", reducecmd[type], thread);
         LOG_FREG_OTHER(thread, "(othr) :", send.regid);
         LOG_FREG("(this) :", recv.regid);
-        for (unsigned j = 0; j < VL; j++) {
+        for (unsigned j = 0; j < VLENW; j++) {
             FREGS[recv.regid].f32[j] = fpu::f32_minimumNumber(cpu[thread].fregs[send.regid].f32[j], FREGS[recv.regid].f32[j]);
         }
         LOG_FREG("(this) =", recv.regid);
@@ -1788,7 +1790,7 @@ void tensor_reduce_step(unsigned thread)
         LOG(DEBUG, "\t%s(recv) op=iadd sender=H%u", reducecmd[type], thread);
         LOG_FREG_OTHER(thread, "(othr) :", send.regid);
         LOG_FREG("(this) :", recv.regid);
-        for (unsigned j = 0; j < VL; j++) {
+        for (unsigned j = 0; j < VLENW; j++) {
             FREGS[recv.regid].u32[j] = cpu[thread].fregs[send.regid].u32[j] + FREGS[recv.regid].u32[j];
         }
         LOG_FREG("(this) =", recv.regid);
@@ -1797,7 +1799,7 @@ void tensor_reduce_step(unsigned thread)
         LOG(DEBUG, "\t%s(recv) op=imax sender=H%u", reducecmd[type], thread);
         LOG_FREG_OTHER(thread, "(othr) :", send.regid);
         LOG_FREG("(this) :", recv.regid);
-        for (unsigned j = 0; j < VL; j++) {
+        for (unsigned j = 0; j < VLENW; j++) {
             FREGS[recv.regid].i32[j] = std::max(cpu[thread].fregs[send.regid].i32[j], FREGS[recv.regid].i32[j]);
         }
         LOG_FREG("(this) =", recv.regid);
@@ -1806,7 +1808,7 @@ void tensor_reduce_step(unsigned thread)
         LOG(DEBUG, "\t%s(recv) op=imin sender=H%u", reducecmd[type], thread);
         LOG_FREG_OTHER(thread, "(othr) :", send.regid);
         LOG_FREG("(this) :", recv.regid);
-        for (unsigned j = 0; j < VL; j++) {
+        for (unsigned j = 0; j < VLENW; j++) {
             FREGS[recv.regid].i32[j] = std::min(cpu[thread].fregs[send.regid].i32[j], FREGS[recv.regid].i32[j]);
         }
         LOG_FREG("(this) =", recv.regid);
@@ -1978,4 +1980,4 @@ void tensor_wait_execute()
 }
 
 
-//} // namespace bemu
+} // namespace bemu

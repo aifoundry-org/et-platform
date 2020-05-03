@@ -16,13 +16,18 @@
 #include "msgport.h"
 #include "rbox.h"
 
+namespace bemu {
+namespace RBOX {
+
+
 #if (EMU_RBOXES_PER_SHIRE > 1)
-RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES][EMU_RBOXES_PER_SHIRE];
+RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES][EMU_RBOXES_PER_SHIRE];
 #else
-RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES];
+RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES];
 #endif
 
-void RBOX::RBOXEmu::reset(uint32_t id)
+
+void RBOXEmu::reset(uint32_t id)
 {
     rbox_id = id;
 
@@ -38,7 +43,7 @@ void RBOX::RBOXEmu::reset(uint32_t id)
     started = false;
 }
 
-void RBOX::RBOXEmu::run(bool step_mode)
+void RBOXEmu::run(bool step_mode)
 {
     if (!started && start_esr.fields.start)
     {
@@ -174,7 +179,7 @@ void RBOX::RBOXEmu::run(bool step_mode)
     }
 }
 
-void RBOX::RBOXEmu::write_esr(uint32_t esr_id, uint64_t data)
+void RBOXEmu::write_esr(uint32_t esr_id, uint64_t data)
 {
     switch (esr_id)
     {
@@ -273,7 +278,7 @@ void RBOX::RBOXEmu::write_esr(uint32_t esr_id, uint64_t data)
     }
 }
 
-uint64_t RBOX::RBOXEmu::read_esr(uint32_t esr_id)
+uint64_t RBOXEmu::read_esr(uint32_t esr_id)
 {
     switch (esr_id)
     {
@@ -305,7 +310,7 @@ uint64_t RBOX::RBOXEmu::read_esr(uint32_t esr_id)
     }
 }
 
-uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
+uint32_t RBOXEmu::process_packet(uint64_t packet)
 {
     InPcktHeaderT header;
     header.qw = bemu::pmemread<uint64_t>(packet);
@@ -518,9 +523,9 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
     return packet_size;
 }
 
-const uint32_t RBOX::RBOXEmu::tile_dimensions[6][2] = {{64, 64}, {64, 32}, {32, 32}, {16, 16}, {8, 8}, {4, 4}};
+const uint32_t RBOXEmu::tile_dimensions[6][2] = {{64, 64}, {64, 32}, {32, 32}, {16, 16}, {8, 8}, {4, 4}};
 
-void RBOX::RBOXEmu::generate_tile(uint32_t tile_x, uint32_t tile_y, int64_t edge_samples[3], DepthT depth_sample, TileSizeT tile_sz)
+void RBOXEmu::generate_tile(uint32_t tile_x, uint32_t tile_y, int64_t edge_samples[3], DepthT depth_sample, TileSizeT tile_sz)
 {
     TriangleSampleT tile_sample;
     for (uint32_t eq = 0; eq < 3; eq++)
@@ -573,7 +578,7 @@ void RBOX::RBOXEmu::generate_tile(uint32_t tile_x, uint32_t tile_y, int64_t edge
     LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Generated %d quads in tile", rbox_id, generated_quads_in_tile);
 }
 
-void RBOX::RBOXEmu::sample_next_row(TriangleSampleT sample[4])
+void RBOXEmu::sample_next_row(TriangleSampleT sample[4])
 {
     for (uint32_t fr = 0; fr < 4; fr++)
     {
@@ -587,7 +592,7 @@ void RBOX::RBOXEmu::sample_next_row(TriangleSampleT sample[4])
     }
 }
 
-void RBOX::RBOXEmu::sample_next_quad(TriangleSampleT sample[4])
+void RBOXEmu::sample_next_quad(TriangleSampleT sample[4])
 {
     for(uint32_t fr = 0; fr < 4; fr++)
     {
@@ -601,7 +606,7 @@ void RBOX::RBOXEmu::sample_next_quad(TriangleSampleT sample[4])
     }
 }
 
-void RBOX::RBOXEmu::sample_first_quad(TriangleSampleT sample[4])
+void RBOXEmu::sample_first_quad(TriangleSampleT sample[4])
 {
     for (uint32_t eq = 0; eq < 3; eq++)
     {
@@ -618,7 +623,7 @@ void RBOX::RBOXEmu::sample_first_quad(TriangleSampleT sample[4])
     std::fesetround(saved_round_mode);
 }
 
-void RBOX::RBOXEmu::sample_quad(uint32_t x, uint32_t y, TriangleSampleT quad_sample[4], QuadInfoT &quad)
+void RBOXEmu::sample_quad(uint32_t x, uint32_t y, TriangleSampleT quad_sample[4], QuadInfoT &quad)
 {
     LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Sampling quad at (%d, %d) -> start sample = (%016" PRIx64 ", %016" PRIx64 ", %016" PRIx64 ", %f [%08x] )\n"
                         "                          Edge 0 Equation = {%016" PRIx64 ", %016" PRIx64 "}\n"
@@ -655,7 +660,7 @@ void RBOX::RBOXEmu::sample_quad(uint32_t x, uint32_t y, TriangleSampleT quad_sam
     quad.triangle_data_ptr = current_triangle.triangle_data_ptr;
 }
 
-bool RBOX::RBOXEmu::test_quad(QuadInfoT &quad)
+bool RBOXEmu::test_quad(QuadInfoT &quad)
 {
     bool quad_coverage = false;
 
@@ -712,7 +717,7 @@ bool RBOX::RBOXEmu::test_quad(QuadInfoT &quad)
     return quad_coverage;
 }
 
-uint64_t RBOX::RBOXEmu::compute_depth_stencil_buffer_address(uint32_t x, uint32_t y)
+uint64_t RBOXEmu::compute_depth_stencil_buffer_address(uint32_t x, uint32_t y)
 {
     uint32_t row = y / 4;
     uint32_t line = x / 4;
@@ -721,14 +726,14 @@ uint64_t RBOX::RBOXEmu::compute_depth_stencil_buffer_address(uint32_t x, uint32_
     return rbox_state.depth_stencil_buffer_ptr + depth_stencil_buffer_offset;
 }
 
-bool RBOX::RBOXEmu::sample_inside_triangle(TriangleSampleT sample)
+bool RBOXEmu::sample_inside_triangle(TriangleSampleT sample)
 {
     return ((sample.edge[0] == 0) ? current_triangle.top_or_left_edge[0] : ((sample.edge[0] & EDGE_EQ_SAMPLE_SIGN_MASK) == 0)) &&
            ((sample.edge[1] == 0) ? current_triangle.top_or_left_edge[1] : ((sample.edge[1] & EDGE_EQ_SAMPLE_SIGN_MASK) == 0)) &&
            ((sample.edge[2] == 0) ? current_triangle.top_or_left_edge[2] : ((sample.edge[2] & EDGE_EQ_SAMPLE_SIGN_MASK) == 0));
 }
 
-bool RBOX::RBOXEmu::do_scissor_test(int32_t x, int32_t y)
+bool RBOXEmu::do_scissor_test(int32_t x, int32_t y)
 {
     LOG_NOTHREAD(DEBUG, "RBOX [%" PRIu32 "] => Scissor test for fragment at (%" PRId32 ", %" PRId32 ") scissor rectangle (%u, %u, %u, %u)",
                       rbox_id, x, y, unsigned(rbox_state.scissor_start_x), unsigned(rbox_state.scissor_start_y),
@@ -740,14 +745,14 @@ bool RBOX::RBOXEmu::do_scissor_test(int32_t x, int32_t y)
            && (y <= (rbox_state.scissor_start_y + rbox_state.scissor_height));
 }
 
-bool RBOX::RBOXEmu::do_depth_bound_test(uint32_t frag_depth)
+bool RBOXEmu::do_depth_bound_test(uint32_t frag_depth)
 {
     return   !rbox_state.depth_bound_enable
            || (    (frag_depth >= rbox_state.depth_bound_min)
                &&  (frag_depth <= rbox_state.depth_bound_max));
 }
 
-bool RBOX::RBOXEmu::do_stencil_test(uint8_t frag_stencil)
+bool RBOXEmu::do_stencil_test(uint8_t frag_stencil)
 {
     StencilStateT stencil_state;
     if (current_triangle.back_facing)
@@ -782,7 +787,7 @@ bool RBOX::RBOXEmu::do_stencil_test(uint8_t frag_stencil)
     return true;
 }
 
-bool RBOX::RBOXEmu::do_depth_test(uint32_t frag_depth, uint32_t sample_depth)
+bool RBOXEmu::do_depth_test(uint32_t frag_depth, uint32_t sample_depth)
 {
     if (rbox_state.depth_test_enable)
     {
@@ -809,7 +814,7 @@ bool RBOX::RBOXEmu::do_depth_test(uint32_t frag_depth, uint32_t sample_depth)
     return true;
 }
 
-uint8_t RBOX::RBOXEmu::stencil_update(uint8_t frag_stencil, bool stencil_test, bool depth_test)
+uint8_t RBOXEmu::stencil_update(uint8_t frag_stencil, bool stencil_test, bool depth_test)
 {
     StencilStateT stencil_state;
     if (current_triangle.back_facing)
@@ -852,7 +857,7 @@ uint8_t RBOX::RBOXEmu::stencil_update(uint8_t frag_stencil, bool stencil_test, b
     return frag_stencil;
 }
 
-bool RBOX::RBOXEmu::send_quad_packet(bool step_mode)
+bool RBOXEmu::send_quad_packet(bool step_mode)
 {
     if (!rbox_state.fragment_shader_disabled && !output_quads.empty())
     {
@@ -997,7 +1002,7 @@ bool RBOX::RBOXEmu::send_quad_packet(bool step_mode)
     return false;
 }
 
-bool RBOX::RBOXEmu::send_frag_shader_state_packet(uint32_t target_minion_hart, bool step_mode)
+bool RBOXEmu::send_frag_shader_state_packet(uint32_t target_minion_hart, bool step_mode)
 {
     if ((hart_packet_credits[target_minion_hart] > 0) &&
         (hart_sent_packets[target_minion_hart] < (1U << out_buf_cfg_esr.fields.max_pckts_msg)))
@@ -1029,7 +1034,7 @@ bool RBOX::RBOXEmu::send_frag_shader_state_packet(uint32_t target_minion_hart, b
     }
 }
 
-bool RBOX::RBOXEmu::send_end_of_phase_packet(uint32_t target_minion_hart, bool step_mode)
+bool RBOXEmu::send_end_of_phase_packet(uint32_t target_minion_hart, bool step_mode)
 {
     if ((hart_packet_credits[target_minion_hart] > 0) &&
         (hart_sent_packets[target_minion_hart] < (1U << out_buf_cfg_esr.fields.max_pckts_msg)))
@@ -1060,7 +1065,7 @@ bool RBOX::RBOXEmu::send_end_of_phase_packet(uint32_t target_minion_hart, bool s
 }
 
 
-float RBOX::RBOXEmu::convert_edge_to_fp32(int64_t edge)
+float RBOXEmu::convert_edge_to_fp32(int64_t edge)
 {
     bool sign = ((edge & EDGE_EQ_SAMPLE_SIGN_MASK) != 0);
     uint64_t edge_abs = sign ? -edge : edge;
@@ -1068,12 +1073,12 @@ float RBOX::RBOXEmu::convert_edge_to_fp32(int64_t edge)
     return (sign ? -edge_abs_fp32 : edge_abs_fp32);
 }
 
-float RBOX::RBOXEmu::convert_depth_to_fp32(uint32_t depth)
+float RBOXEmu::convert_depth_to_fp32(uint32_t depth)
 {
     return float(depth) / float((1 << 24) - 1);
 }
 
-void RBOX::RBOXEmu::tile_position_to_pixels(uint32_t &tile_x, uint32_t &tile_y, TileSizeT tile_size)
+void RBOXEmu::tile_position_to_pixels(uint32_t &tile_x, uint32_t &tile_y, TileSizeT tile_size)
 {
     switch(tile_size)
     {
@@ -1110,7 +1115,7 @@ void RBOX::RBOXEmu::tile_position_to_pixels(uint32_t &tile_x, uint32_t &tile_y, 
     }
 }
 
-uint32_t RBOX::RBOXEmu::compute_target_minion_hart(uint32_t x, uint32_t y)
+uint32_t RBOXEmu::compute_target_minion_hart(uint32_t x, uint32_t y)
 {
     // Minions in a Shire are distributed in rows of Shire Layout With.
     
@@ -1119,7 +1124,7 @@ uint32_t RBOX::RBOXEmu::compute_target_minion_hart(uint32_t x, uint32_t y)
             * (1 << rbox_state.shire_layout_width));
 }
 
-uint64_t RBOX::RBOXEmu::compute_minion_hart_out_addr(uint32_t target_minion_hart)
+uint64_t RBOXEmu::compute_minion_hart_out_addr(uint32_t target_minion_hart)
 {
     uint64_t minion_hart_out_addr = (uint64_t(out_buf_pg_esr.fields.page) << 21)
                                   + (uint64_t(out_buf_cfg_esr.fields.start_offset) << 6)
@@ -1129,12 +1134,12 @@ uint64_t RBOX::RBOXEmu::compute_minion_hart_out_addr(uint32_t target_minion_hart
     return minion_hart_out_addr;
 }
 
-void RBOX::RBOXEmu::update_minion_hart_out_ptr(uint32_t target_minion_hart)
+void RBOXEmu::update_minion_hart_out_ptr(uint32_t target_minion_hart)
 {
     hart_ptr[target_minion_hart] = (hart_ptr[target_minion_hart] + 1) % (1 << out_buf_cfg_esr.fields.buffer_size);
 }
 
-void RBOX::RBOXEmu::send_packet(uint32_t minion_hart_id, uint64_t packet[4], uint64_t &out_addr, bool step_mode)
+void RBOXEmu::send_packet(uint32_t minion_hart_id, uint64_t packet[4], uint64_t &out_addr, bool step_mode)
 {
     if (step_mode)
     {
@@ -1156,7 +1161,7 @@ void RBOX::RBOXEmu::send_packet(uint32_t minion_hart_id, uint64_t packet[4], uin
     }
 }
 
-bool RBOX::RBOXEmu::report_packets(uint32_t minion_hart_id)
+bool RBOXEmu::report_packets(uint32_t minion_hart_id)
 {
     if (hart_sent_packets[minion_hart_id] > 0)
     {
@@ -1185,7 +1190,7 @@ bool RBOX::RBOXEmu::report_packets(uint32_t minion_hart_id)
     
 }
 
-void RBOX::RBOXEmu::write_next_packet()
+void RBOXEmu::write_next_packet()
 {
     uint32_t packet_hart_id = output_packets[0].first;
     uint64_t minion_hart_out_addr = compute_minion_hart_out_addr(packet_hart_id);
@@ -1203,3 +1208,6 @@ void RBOX::RBOXEmu::write_next_packet()
     update_minion_hart_out_ptr(packet_hart_id);
 }
 
+
+} // namespace RBOX
+} // namespace bemu

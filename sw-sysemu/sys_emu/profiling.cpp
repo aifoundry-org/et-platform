@@ -55,7 +55,7 @@ void profiling_dump(const char *filename)
     std::ofstream file(filename);
 
     if (!file.is_open()) {
-        emu::log << LOG_ERR << "cannot open " << filename << endm;
+        LOG_NOTHREAD(ERR, "Cannot open %s", filename);
         return;
     }
 

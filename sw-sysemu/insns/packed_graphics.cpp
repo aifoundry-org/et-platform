@@ -9,8 +9,11 @@
 *-------------------------------------------------------------------------*/
 
 #include "decode.h"
+#include "emu_defines.h"
 #include "emu_gio.h"
 #include "esrs.h"
+#include "fpu/fpu.h"
+#include "fpu/fpu_casts.h"
 #include "gold.h"
 #include "insn.h"
 #include "insn_func.h"
@@ -18,14 +21,11 @@
 #include "processor.h"
 #include "traps.h"
 #include "utility.h"
-#include "fpu/fpu.h"
-#include "fpu/fpu_casts.h"
 
-// FIXME: Replace with "processor.h"
-#include "emu_defines.h"
+namespace bemu {
+
+
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
-
-//namespace bemu {
 
 
 static inline int32_t frcp_fix_rast_vs_gold(int32_t x, int32_t y)
@@ -300,4 +300,4 @@ void insn_frcp_fix_rast(insn_t inst)
 }
 
 
-//} namespace bemu
+} // namespace bemu

@@ -9,18 +9,17 @@
 *-------------------------------------------------------------------------*/
 
 #include "decode.h"
+#include "emu_defines.h"
 #include "emu_gio.h"
 #include "insn.h"
 #include "insn_func.h"
-#include "log.h"
 #include "processor.h"
-#include "utility.h"
+#include "traps.h"
 
-// FIXME: Replace with "state.h"
-#include "emu_defines.h"
+namespace bemu {
+
+
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
-
-//namespace bemu {
 
 
 void insn_fence_i(insn_t inst)
@@ -30,4 +29,4 @@ void insn_fence_i(insn_t inst)
 }
 
 
-//} // namespace bemu
+} // namespace bemu

@@ -79,7 +79,7 @@ bool mem_checker::write(uint64_t address, op_location_t location, uint32_t shire
         (long long unsigned int) address, location, shire_id, minion_id, thread_id, (int) size, cb_quarter,
         global_found, shire_found, minion_found));
 
-    uint32_t l1_set = dcache_index(address, l1_minion_control[minion], (minion << 1) | thread_id, EMU_THREADS_PER_MINION);
+    uint32_t l1_set = bemu::dcache_index(address, l1_minion_control[minion], (minion << 1) | thread_id, EMU_THREADS_PER_MINION);
     // Marks the L1 accessed sets
     if(location == COH_MINION)
     {
@@ -170,7 +170,7 @@ bool mem_checker::write(uint64_t address, op_location_t location, uint32_t shire
     }
 
     // Some decoding needed to keep correct shire and global state
-    bool is_l2_scp = paddr_is_scratchpad(address);
+    bool is_l2_scp = bemu::paddr_is_scratchpad(address);
     bool l2_change = !((location == COH_SHIRE) && is_l2_scp); // Special case where access is to L2, but no change happens because it is not cached there
 
     // Update shire contents
@@ -306,7 +306,7 @@ bool mem_checker::read(uint64_t address, op_location_t location, uint32_t shire_
         (long long unsigned int) address, location, shire_id, minion_id, thread_id,
         global_found, shire_found, minion_found));
 
-    uint32_t l1_set = dcache_index(address, l1_minion_control[minion], (minion << 1) | thread_id, EMU_THREADS_PER_MINION);
+    uint32_t l1_set = bemu::dcache_index(address, l1_minion_control[minion], (minion << 1) | thread_id, EMU_THREADS_PER_MINION);
     // Marks the L1 accessed sets
     if(location == COH_MINION)
     {
@@ -376,7 +376,7 @@ bool mem_checker::read(uint64_t address, op_location_t location, uint32_t shire_
     }
 
     // Some decoding needed to keep correct shire and global state
-    bool is_l2_scp = paddr_is_scratchpad(address);
+    bool is_l2_scp = bemu::paddr_is_scratchpad(address);
     bool l2_change = !((location == COH_SHIRE) && is_l2_scp); // Special case where access is to L2, but no change happens because it is not cached there
 
     // Update shire contents
@@ -510,7 +510,7 @@ bool mem_checker::evict_va(uint64_t address, op_location_t location, uint32_t sh
         // Dirty evict: updates time stamp and marks line as dirty in shire
         if(* dirty_evict)
         {
-            bool is_l2_scp              = paddr_is_scratchpad(address);
+            bool is_l2_scp              = bemu::paddr_is_scratchpad(address);
             it_shire->second.l2         = !is_l2_scp;
             it_shire->second.l2_dirty   = !is_l2_scp;
             it_shire->second.time_stamp = it_minion->second.time_stamp;
@@ -644,7 +644,7 @@ void mem_checker::l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t s
             {
                 LOG_ALL_MINIONS(FTL, "Should have found address %llX in shire when doing l1_clear_set\n", (long long unsigned int) addr);
             }
-            bool is_l2_scp              = paddr_is_scratchpad(addr);
+            bool is_l2_scp              = bemu::paddr_is_scratchpad(addr);
             it_shire->second.l2         = !is_l2_scp;
             it_shire->second.l2_dirty   = !is_l2_scp;
             it_shire->second.time_stamp = it_minion->second.time_stamp;
@@ -829,7 +829,7 @@ mem_checker::mem_checker()
 }
 
 // Public function to access a memory position
-bool mem_checker::access(uint64_t addr, mem_access_type macc, cacheop_type cop, uint32_t current_thread, size_t size, mreg_t mask)
+bool mem_checker::access(uint64_t addr, bemu::mem_access_type macc, bemu::cacheop_type cop, uint32_t current_thread, size_t size, bemu::mreg_t mask)
 {
 
     op_location_t location = COH_MINION;
@@ -841,69 +841,69 @@ bool mem_checker::access(uint64_t addr, mem_access_type macc, cacheop_type cop, 
 
     switch (macc)
     {
-    case Mem_Access_Load:
+    case bemu::Mem_Access_Load:
         //location = COH_MINION;
         break;
-    case Mem_Access_LoadL:
+    case bemu::Mem_Access_LoadL:
         location = COH_SHIRE;
         break;
-    case Mem_Access_LoadG:
+    case bemu::Mem_Access_LoadG:
         location = COH_GLOBAL;
         break;
-    case Mem_Access_TxLoad:
+    case bemu::Mem_Access_TxLoad:
         location = COH_SHIRE;
         break;
-    case Mem_Access_TxLoadL2Scp:
+    case bemu::Mem_Access_TxLoadL2Scp:
         location = COH_GLOBAL;
         break;
-    case Mem_Access_Prefetch:
-        if     (cop == CacheOp_PrefetchL1)
+    case bemu::Mem_Access_Prefetch:
+        if     (cop == bemu::CacheOp_PrefetchL1)
             location = COH_MINION;
-        else if(cop == CacheOp_PrefetchL2)
+        else if(cop == bemu::CacheOp_PrefetchL2)
             location = COH_SHIRE;
-        else if(cop == CacheOp_PrefetchL3)
+        else if(cop == bemu::CacheOp_PrefetchL3)
             location = COH_GLOBAL;
         else
             LOG_ALL_MINIONS(FTL, "Invalid CacheOp type %i for prefetch!!\n", (int) cop);
         break;
-    case Mem_Access_Store:
+    case bemu::Mem_Access_Store:
         operation = 2;
         //location  = COH_MINION;
         break;
-    case Mem_Access_StoreL:
+    case bemu::Mem_Access_StoreL:
         operation = 2;
         location  = COH_SHIRE;
         break;
-    case Mem_Access_StoreG:
+    case bemu::Mem_Access_StoreG:
         operation = 2;
         location  = COH_GLOBAL;
         break;
-    case Mem_Access_TxStore:
+    case bemu::Mem_Access_TxStore:
         operation = 2;
         location  = COH_CB;
         break;
-    case Mem_Access_AtomicL:
+    case bemu::Mem_Access_AtomicL:
         operation = 2;
         location  = COH_SHIRE;
         break;
-    case Mem_Access_AtomicG:
+    case bemu::Mem_Access_AtomicG:
         operation = 2;
         location  = COH_GLOBAL;
         break;
-    case Mem_Access_CacheOp:
-        if((cop == CacheOp_EvictL2) || (cop == CacheOp_EvictL3) || (cop == CacheOp_EvictDDR))
+    case bemu::Mem_Access_CacheOp:
+        if((cop == bemu::CacheOp_EvictL2) || (cop == bemu::CacheOp_EvictL3) || (cop == bemu::CacheOp_EvictDDR))
             operation = 6;
         else
             LOG_ALL_MINIONS(FTL, "CacheOp %i not supported yet!!\n", (int) cop);
-        if((cop == CacheOp_EvictL3) || (cop == CacheOp_EvictDDR))
+        if((cop == bemu::CacheOp_EvictL3) || (cop == bemu::CacheOp_EvictDDR))
             location = COH_GLOBAL;
-        else if(cop == CacheOp_EvictL2)
+        else if(cop == bemu::CacheOp_EvictL2)
             location = COH_SHIRE;
         break;
-    case Mem_Access_Fetch: // Load instruction from memory. This must not be included in the directory. Do nothing
+    case bemu::Mem_Access_Fetch: // Load instruction from memory. This must not be included in the directory. Do nothing
         return true;
         break;
-    case Mem_Access_PTW:     // Page table walker access. Must not be invoked. Fail if so.
+    case bemu::Mem_Access_PTW:     // Page table walker access. Must not be invoked. Fail if so.
         throw std::invalid_argument("unexpected operation PTW");
         break;
     }

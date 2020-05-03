@@ -18,7 +18,7 @@
 
 #include "fpu/fpu_types.h"
 
-//namespace bemu {
+namespace bemu {
 
 
 // -----------------------------------------------------------------------------
@@ -49,8 +49,15 @@ union Packed {
 enum : unsigned {
     XLEN = 64,
     FLEN = 32,
-    VLEN = 256,
-    MLEN = (VLEN/32),
+
+    VLEN  = 256,
+    VLENB = (VLEN/8),
+    VLENH = (VLEN/16),
+    VLENW = (VLEN/32),
+    VLEND = (VLEN/64),
+
+    MLEN  = (VLEN/32),
+    MLENW = (VLEN/32),
 
     NXREGS = 32,
     NFREGS = 32,
@@ -74,6 +81,6 @@ enum prv_t : uint8_t {
 };
 
 
-//} // namespace bemu
+} // namespace bemu
 
 #endif // BEMU_STATE_H

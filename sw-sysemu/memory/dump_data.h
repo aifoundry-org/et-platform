@@ -19,7 +19,7 @@ namespace bemu {
 
 
 template<typename Container>
-void dump_data(std::ostream& os, const Container& cont, size_t pos, size_t n,
+void dump_data(std::ostream& os, const Container& cont, std::size_t pos, std::size_t n,
                const typename Container::value_type& default_value)
 {
     typedef typename Container::value_type value_type;
@@ -39,7 +39,7 @@ void dump_data(std::ostream& os, const Container& cont, size_t pos, size_t n,
 
 template<typename Container>
 void dump_data(const Container& cont, const char* filename,
-               unsigned long long addr, size_t n)
+               unsigned long long addr, std::size_t n)
 {
     std::ofstream file;
     file.exceptions(std::ofstream::failbit | std::ofstream::badbit);

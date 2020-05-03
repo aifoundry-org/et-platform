@@ -21,15 +21,14 @@
 #include "dense_region.h"
 #include "sparse_region.h"
 
-// From emu.cpp
-extern unsigned current_thread;
-extern void pu_plic_interrupt_pending_set(uint32_t source_id);
-extern void pu_plic_interrupt_pending_clear(uint32_t source_id);
-
 namespace bemu {
 
 
+extern void pu_plic_interrupt_pending_set(uint32_t source_id);
+extern void pu_plic_interrupt_pending_clear(uint32_t source_id);
+
 extern typename MemoryRegion::reset_value_type memory_reset_value;
+
 
 template <unsigned long long Base, unsigned long long N>
 struct PU_TRG_MMin_Region : public MemoryRegion
@@ -191,7 +190,7 @@ protected:
         return lhs->last() < rhs;
     }
 
-    template<size_t M>
+    template<std::size_t M>
     MemoryRegion* search(const std::array<MemoryRegion*,M>& cont,
                          size_type pos, size_type n) const
     {
@@ -204,6 +203,7 @@ protected:
     }
 
     MemoryRegion* search(size_type pos, size_type n) const {
+        extern unsigned current_thread;
         return (current_thread == EMU_IO_SHIRE_SP_THREAD)
                 ? search(spio_regions, pos, n)
                 : search(minion_regions, pos, n);

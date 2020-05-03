@@ -23,8 +23,10 @@ inline void profiling_write_pc(int, uint64_t) {}
 // Convenience macros to simplify instruction emulation sequences
 // -----------------------------------------------------------------------------
 
+namespace bemu {
 
-// namespace bemu {
+
+extern uint32_t current_inst;
 
 
 // -----------------------------------------------------------------------------
@@ -109,7 +111,7 @@ inline void profiling_write_pc(int, uint64_t) {}
     LOG(DEBUG, "\tgsc_progress " str " %u", unsigned(cpu[current_thread].gsc_progress))
 
 #define LOG_MEMWRITE(size, addr, value) \
-   LOG(DEBUG, "\tMEM%zu[0x%" PRIx64 "] = 0x%llx", size_t(size) , addr, static_cast<unsigned long long>(value))
+   LOG(DEBUG, "\tMEM%zu[0x%" PRIx64 "] = 0x%llx", std::size_t(size) , addr, static_cast<unsigned long long>(value))
 
 #define LOG_MEMWRITE128(addr, ptr) \
    LOG(DEBUG, "\tMEM128[0x%" PRIx64 "] = {" \
@@ -128,7 +130,7 @@ inline void profiling_write_pc(int, uint64_t) {}
        ptr[8], ptr[9], ptr[10], ptr[11], ptr[12], ptr[13], ptr[14], ptr[15])
 
 #define LOG_MEMREAD(size, addr, value) \
-   LOG(DEBUG, "\tMEM%zu[0x%" PRIx64 "] : 0x%llx", size_t(size), addr, static_cast<unsigned long long>(value))
+   LOG(DEBUG, "\tMEM%zu[0x%" PRIx64 "] : 0x%llx", std::size_t(size), addr, static_cast<unsigned long long>(value))
 
 #define LOG_MEMREAD128(addr, ptr) \
    LOG(DEBUG, "\tMEM128[0x%" PRIx64 "] : {" \
@@ -230,7 +232,6 @@ inline void profiling_write_pc(int, uint64_t) {}
 
 
 #define set_rounding_mode(expr) do { \
-    extern uint32_t current_inst; \
     uint_fast8_t round = (expr); \
     if (round == 7) round = FRM; \
     if (round > 4) throw trap_illegal_instruction(current_inst); \
@@ -239,50 +240,43 @@ inline void profiling_write_pc(int, uint64_t) {}
 
 
 #define require_fp_active() do { \
-    extern uint32_t current_inst; \
     if ((cpu[current_thread].mstatus & 0x6000ULL) == 0) \
         throw trap_illegal_instruction(current_inst); \
 } while (0)
 
 
 #define require_feature_gfx() do { \
-    extern uint32_t current_inst; \
-    if (bemu::shire_other_esrs[current_thread / EMU_THREADS_PER_SHIRE].minion_feature & 0x1) \
+    if (shire_other_esrs[current_thread / EMU_THREADS_PER_SHIRE].minion_feature & 0x1) \
         throw trap_illegal_instruction(current_inst); \
 } while (0)
 
 
 #define require_feature_ml() do { \
-    extern uint32_t current_inst; \
-    if (bemu::shire_other_esrs[current_thread / EMU_THREADS_PER_SHIRE].minion_feature & 0x2) \
+    if (shire_other_esrs[current_thread / EMU_THREADS_PER_SHIRE].minion_feature & 0x2) \
         throw trap_illegal_instruction(current_inst); \
 } while (0)
 
 
 #define require_feature_ml_on_thread0() do { \
-    extern uint32_t current_inst; \
     if ((current_thread % EMU_THREADS_PER_MINION) || \
-        (bemu::shire_other_esrs[current_thread / EMU_THREADS_PER_SHIRE].minion_feature & 0x2)) \
+        (shire_other_esrs[current_thread / EMU_THREADS_PER_SHIRE].minion_feature & 0x2)) \
         throw trap_illegal_instruction(current_inst); \
 } while (0)
 
 #define require_feature_u_cacheops() do { \
-    extern uint32_t current_inst; \
-    if (bemu::shire_other_esrs[current_thread / EMU_THREADS_PER_SHIRE].minion_feature & 0x4) \
+    if (shire_other_esrs[current_thread / EMU_THREADS_PER_SHIRE].minion_feature & 0x4) \
         throw trap_illegal_instruction(current_inst); \
 } while (0)
 
 
 #define require_feature_u_scratchpad() do { \
-    extern uint32_t current_inst; \
-    if (bemu::shire_other_esrs[current_thread / EMU_THREADS_PER_SHIRE].minion_feature & 0x8) \
+    if (shire_other_esrs[current_thread / EMU_THREADS_PER_SHIRE].minion_feature & 0x8) \
         throw trap_illegal_instruction(current_inst); \
 } while (0)
 
 
 #define require_lock_unlock_enabled() do { \
-    extern uint32_t current_inst; \
-    if (bemu::shire_other_esrs[current_thread / EMU_THREADS_PER_SHIRE].minion_feature & 0x24) \
+    if (shire_other_esrs[current_thread / EMU_THREADS_PER_SHIRE].minion_feature & 0x24) \
         throw trap_illegal_instruction(current_inst); \
 } while (0)
 
@@ -341,7 +335,7 @@ inline mreg_t mkmask(unsigned len) {
 
 #define WRITE_FD_REG(expr, load) do { \
     FD.u32[0] = fpu::UI32(expr); \
-    for (size_t e = 1; e < MLEN; ++e) { \
+    for (std::size_t e = 1; e < MLEN; ++e) { \
         FD.u32[e] = 0; \
     } \
     LOG_FREG("=", inst.fd()); \
@@ -358,7 +352,7 @@ inline mreg_t mkmask(unsigned len) {
 #define WRITE_VD_REG(expr, load) do { \
     LOG_MREG(":", 0); \
     if (M0.any()) { \
-        for (size_t e = 0; e < MLEN; ++e) { \
+        for (std::size_t e = 0; e < MLEN; ++e) { \
             if (M0[e]) { \
                 FD.u32[e] = fpu::UI32(expr); \
             } \
@@ -377,9 +371,9 @@ inline mreg_t mkmask(unsigned len) {
 
 #define SCATTER(expr) do { \
     LOG_GSC_PROGRESS(":"); \
-    for (size_t e = 0; e < cpu[current_thread].gsc_progress; ++e) \
+    for (std::size_t e = 0; e < cpu[current_thread].gsc_progress; ++e) \
         log_mem_write(false, -1, 0, 0, 0); \
-    for (size_t e = cpu[current_thread].gsc_progress; e < MLEN; ++e) { \
+    for (std::size_t e = cpu[current_thread].gsc_progress; e < MLEN; ++e) { \
         if (M0[e]) { \
             try { \
                 expr; \
@@ -403,9 +397,9 @@ inline mreg_t mkmask(unsigned len) {
 #define GATHER(expr) do { \
     LOG_GSC_PROGRESS(":"); \
     bool dirty = false; \
-    for (size_t e = 0; e < cpu[current_thread].gsc_progress; ++e) \
+    for (std::size_t e = 0; e < cpu[current_thread].gsc_progress; ++e) \
         log_mem_read(false, -1, 0, 0); \
-    for (size_t e = cpu[current_thread].gsc_progress; e < MLEN; ++e) { \
+    for (std::size_t e = cpu[current_thread].gsc_progress; e < MLEN; ++e) { \
         if (M0[e]) { \
             try { \
                 FD.u32[e] = fpu::UI32(expr); \
@@ -438,7 +432,7 @@ inline mreg_t mkmask(unsigned len) {
 
 
 #define SCATTER32(expr) do { \
-    for (size_t e = 0; e < MLEN; ++e) { \
+    for (std::size_t e = 0; e < MLEN; ++e) { \
         if (M0[e]) { \
             expr; \
         } else { \
@@ -449,7 +443,7 @@ inline mreg_t mkmask(unsigned len) {
 
 
 #define GATHER32(expr) do { \
-    for (size_t e = 0; e < MLEN; ++e) { \
+    for (std::size_t e = 0; e < MLEN; ++e) { \
         if (M0[e]) { \
             FD.u32[e] = fpu::UI32(expr); \
         } else { \
@@ -469,10 +463,10 @@ inline mreg_t mkmask(unsigned len) {
 #define GSCAMO(expr) do { \
     LOG_GSC_PROGRESS(":"); \
     bool dirty = false; \
-    for (size_t e = 0; e < cpu[current_thread].gsc_progress; ++e) \
+    for (std::size_t e = 0; e < cpu[current_thread].gsc_progress; ++e) \
         log_mem_read_write(false, -1, 0, 0, 0); \
     freg_t tmp(FD); \
-    for (size_t e = cpu[current_thread].gsc_progress; e < MLEN; ++e) { \
+    for (std::size_t e = cpu[current_thread].gsc_progress; e < MLEN; ++e) { \
         if (M0[e]) { \
             try { \
                 FD.u32[e] = fpu::UI32(expr); \
@@ -508,9 +502,9 @@ inline mreg_t mkmask(unsigned len) {
 #define GSCAMO(expr) do { \
     LOG_GSC_PROGRESS(":"); \
     bool dirty = false; \
-    for (size_t e = 0; e < cpu[current_thread].gsc_progress; ++e) \
+    for (std::size_t e = 0; e < cpu[current_thread].gsc_progress; ++e) \
         log_mem_read_write(false, -1, 0, 0, 0); \
-    for (size_t e = cpu[current_thread].gsc_progress; e < MLEN; ++e) { \
+    for (std::size_t e = cpu[current_thread].gsc_progress; e < MLEN; ++e) { \
         if (M0[e]) { \
             try { \
                 FD.u32[e] = fpu::UI32(expr); \
@@ -543,7 +537,7 @@ inline mreg_t mkmask(unsigned len) {
 #endif // ZSIM
 
 #define WRITE_VD_NOMASK(expr) do { \
-    for (size_t e = 0; e < MLEN; ++e) { \
+    for (std::size_t e = 0; e < MLEN; ++e) { \
         FD.u32[e] = fpu::UI32(expr); \
     } \
     LOG_FREG("=", inst.fd()); \
@@ -564,7 +558,7 @@ inline mreg_t mkmask(unsigned len) {
 #define WRITE_VMD(expr) do { \
     LOG_MREG(":", 0); \
     if (M0.any()) { \
-        for (size_t e = 0; e < MLEN; ++e) { \
+        for (std::size_t e = 0; e < MLEN; ++e) { \
             if (M0[e]) { \
                 MD[e] = (expr); \
             } \
@@ -1025,6 +1019,6 @@ inline mreg_t mkmask(unsigned len) {
 } while (0)
 
 
-//} namespace bemu
+} // namespace bemu
 
 #endif // BEMU_DECODE_H

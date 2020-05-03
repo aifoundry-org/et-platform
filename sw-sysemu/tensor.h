@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-//namespace bemu {
+namespace bemu {
 
 
 void tensor_fma_execute();
@@ -15,6 +15,6 @@ void tensor_wait_start(uint64_t value);
 void tensor_wait_execute();
 
 
-//} // namespace bemu
+} // namespace bemu
 
 #endif // bemu_tensor_h

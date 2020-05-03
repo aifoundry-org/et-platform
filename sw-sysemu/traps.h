@@ -14,7 +14,7 @@
 #include <cstddef>
 #include <cstdint>
 
-//namespace bemu {
+namespace bemu {
 
 
 // Base class for all traps
@@ -120,6 +120,6 @@ void raise_bus_error_interrupt(int thread, uint64_t busaddr);
 void clear_bus_error_interrupt(int thread);
 
 
-//} // namespace bemu
+} // namespace bemu
 
 #endif // BEMU_TRAPS_H

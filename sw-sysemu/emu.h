@@ -11,18 +11,17 @@
 #ifndef _EMU_H
 #define _EMU_H
 
-#include <string>
 #ifndef SYS_EMU
 #include <queue>
 #endif
-#include "emu_defines.h"
 
+#include "emu_defines.h"
 #include "memory/main_memory.h"
 
-// Processor configuration
 namespace bemu {
-    extern MainMemory memory;
-}
+
+
+extern MainMemory memory;
 
 // Configure the emulation environment
 extern void init_emu(system_version_t);
@@ -33,13 +32,11 @@ extern void reset_hart(unsigned thread);
 
 // Helpers
 extern bool emu_done();
-extern std::string dump_xregs(unsigned thread_id);
-extern std::string dump_fregs(unsigned thread_id);
 extern uint64_t get_csr(unsigned thread, uint16_t cnum);
 extern void set_csr(unsigned thread, uint16_t cnum, uint64_t data);
-extern void init(xreg dst, uint64_t val);         // init general purpose register
-extern void fpinit(freg dst, uint64_t val[VL/2]); // init vector register
-extern void minit(mreg dst, uint64_t val);        // init mask register
+extern void init(xreg dst, uint64_t val);          // init general purpose register
+extern void fpinit(freg dst, uint64_t val[VLEND]); // init vector register
+extern void minit(mreg dst, uint64_t val);         // init mask register
 
 // Processor state manipulation
 extern void set_thread(unsigned thread);
@@ -54,5 +51,8 @@ extern void set_msg_funcs(void (*func_msg_to_thread) (int));
 #ifndef SYS_EMU
 std::queue<uint32_t>& get_minions_to_awake();
 #endif
+
+
+} // namespace bemu
 
 #endif // _EMU_H

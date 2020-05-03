@@ -9,6 +9,7 @@
 *-------------------------------------------------------------------------*/
 
 #include "decode.h"
+#include "emu_defines.h"
 #include "emu_gio.h"
 #include "esrs.h"
 #include "insn.h"
@@ -17,11 +18,10 @@
 #include "processor.h"
 #include "utility.h"
 
-// FIXME: Replace with "processor.h"
-#include "emu_defines.h"
-extern std::array<Processor,EMU_NUM_THREADS> cpu;
+namespace bemu {
 
-//namespace bemu {
+
+extern std::array<Processor,EMU_NUM_THREADS> cpu;
 
 
 static inline uint_fast16_t bitmixb(uint_fast16_t sel, uint_fast16_t val0, uint_fast16_t val1)
@@ -56,4 +56,4 @@ void insn_bitmixb(insn_t inst)
 }
 
 
-//} // namespace bemu
+} // namespace bemu

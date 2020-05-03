@@ -37,7 +37,7 @@
 
 #include <cstdint>
 
-// namespace bemu {
+namespace bemu {
 
 
 inline bool paddr_is_maxion_space(uint64_t addr)
@@ -120,6 +120,6 @@ inline bool paddr_is_dram(uint64_t addr)
 { return addr >= 0x8000000000ULL; }
 
 
-//} namespace bemu
+} // namespace bemu
 
 #endif // BEMU_MEMMAP_H

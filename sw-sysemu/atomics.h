@@ -19,7 +19,7 @@
 #include "softfloat/internals.h"
 #include "softfloat/specialize.h"
 
-// namespace bemu {
+namespace bemu {
 
 template<typename T>
 struct replace
@@ -99,6 +99,6 @@ struct f32_minimum
 };
 
 
-//} namespace bemu
+} // namespace bemu
 
 #endif // BEMU_ATOMICS_H

@@ -2,12 +2,10 @@
 #define bemu_tensor_mask_h
 
 #include <cstdint>
+#include "emu_defines.h"
 #include "processor.h"
 
-// FIXME: Replace with "processor.h"
-#include "emu_defines.h"
-
-//namespace bemu {
+namespace bemu {
 
 
 inline bool tmask_pass(int bit)
@@ -20,6 +18,6 @@ inline bool tmask_pass(int bit)
 }
 
 
-//} // namespace bemu
+} // namespace bemu
 
 #endif // bemu_tensor_mask_h

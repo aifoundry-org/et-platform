@@ -2,13 +2,11 @@
 #define bemu_tensor_error_h
 
 #include <cstdint>
+#include "emu_defines.h"
 #include "emu_gio.h"
 #include "processor.h"
 
-// FIXME: Replace with "processor.h"
-#include "emu_defines.h"
-
-//namespace bemu {
+namespace bemu {
 
 
 inline void update_tensor_error(unsigned thread, uint16_t value)
@@ -31,6 +29,6 @@ inline void update_tensor_error(uint16_t value)
 }
 
 
-//} // namespace bemu
+} // namespace bemu
 
 #endif // bemu_tensor_error_h

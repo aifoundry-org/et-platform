@@ -13,7 +13,7 @@
 #include <cassert>
 #include <cfenv>        // FIXME: remove this when we purge std::fesetround() from the code!
 
-#include "decode.h"
+//#include "decode.h"
 #include "emu.h"
 #include "emu_gio.h"
 #include "esrs.h"
@@ -26,13 +26,13 @@
 #include "traps.h"
 #include "utility.h"
 
+namespace bemu {
+
 extern void reset_msg_ports(unsigned);
 
 // Memory state
-namespace bemu {
 MainMemory memory{};
 typename MemoryRegion::reset_value_type memory_reset_value = {0};
-}
 
 // Hart state
 std::array<Processor,EMU_NUM_THREADS>  cpu;
@@ -47,36 +47,6 @@ bool m_emu_done = false;
 bool emu_done()
 {
    return m_emu_done;
-}
-
-std::string dump_xregs(unsigned thread_id)
-{
-   std::stringstream str;
-   if (thread_id < EMU_NUM_THREADS)
-   {
-      for (size_t ii = 0; ii < NXREGS; ++ii)
-      {
-         str << "XREG[" << std::dec << ii << "] = 0x" << std::hex << cpu[thread_id].xregs[ii] << "\n";
-      }
-   }
-   return str.str();
-}
-
-std::string dump_fregs(unsigned thread_id)
-{
-   std::stringstream str;
-   if (thread_id < EMU_NUM_THREADS)
-   {
-      for (size_t ii = 0; ii < NFREGS; ++ii)
-      {
-         for (size_t jj = 0; jj < VL; ++jj)
-         {
-            str << "FREG[" << std::dec << ii << "][" << jj <<  "] = 0x" << std::hex << cpu[thread_id].fregs[ii].u32[jj] << "\t";
-         }
-         str << "\n";
-      }
-   }
-   return str.str();
 }
 
 void init_emu(system_version_t ver)
@@ -131,9 +101,9 @@ void init(xreg dst, uint64_t val)
     }
 }
 
-void fpinit(freg dst, uint64_t val[VL/2])
+void fpinit(freg dst, uint64_t val[VLEND])
 {
-    for (size_t i = 0; i < VL/2; ++i)
+    for (size_t i = 0; i < VLEND; ++i)
         cpu[current_thread].fregs[dst].u64[i] = val[i];
 }
 
@@ -211,7 +181,7 @@ void reset_hart(unsigned thread)
 
 void minit(mreg dst, uint64_t val)
 {
-    cpu[current_thread].mregs[dst] = std::bitset<VL>(val);
+    cpu[current_thread].mregs[dst] = val;
     LOG(DEBUG, "init m[%d] <-- 0x%02lx", int(dst), cpu[current_thread].mregs[dst].to_ulong());
 }
 
@@ -252,3 +222,6 @@ void pu_plic_interrupt_pending_clear(uint32_t source_id)
 }
 
 // LCOV_EXCL_STOP
+
+
+} // namespace bemu

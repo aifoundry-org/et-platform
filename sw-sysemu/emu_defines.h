@@ -14,6 +14,9 @@
 #include "state.h"
 #include "traps.h"
 
+namespace bemu {
+
+
 // Maximum number of threads
 #define EMU_NUM_SHIRES          35
 #define EMU_NUM_MINION_SHIRES   (EMU_NUM_SHIRES - 1)
@@ -262,11 +265,6 @@ enum et_core_t {
    ET_MAXION
 };
 
-// Number of 32-bit lanes in a vector register
-#ifndef VL
-#define VL  (VLEN/32)
-#endif
-
 /* Obsolete texsnd/texrcv instuctions use the low 128b of the fregs for data transfers */
 #define VL_TBOX 4
 
@@ -287,5 +285,8 @@ enum et_core_t {
 
 
 #define MEM_RESET_PATTERN_SIZE 4 // mem reset pattern is 4 bytes (to allow for instance, 0xDEADBEEF)
+
+
+} // namespace bemu
 
 #endif // BEMU_DEFINES_H

@@ -11,25 +11,27 @@
 #include <cstdio>
 #include <cstdarg>
 
+#include "emu_defines.h"
 #include "emu_gio.h"
+#include "testLog.h"
 
-namespace emu {
+namespace bemu {
 
-    testLog log("EMU", LOG_INFO);
-
-    void lprintf(logLevel level, const char* fmt, ...)
-    {
-        static thread_local char lbuf[4096] = {'\0'};
-        va_list ap;
-        va_start(ap, fmt);
-        (void) vsnprintf(lbuf, 4096, fmt, ap);
-        va_end(ap);
-        emu::log << level << lbuf << endm;
-    }
-
-}
 
 std::bitset<EMU_NUM_THREADS> log_thread;
+testLog                      log("EMU", LOG_INFO);
+
+
+void lprintf(logLevel level, const char* fmt, ...)
+{
+    static thread_local char lbuf[4096] = {'\0'};
+    va_list ap;
+    va_start(ap, fmt);
+    (void) vsnprintf(lbuf, 4096, fmt, ap);
+    va_end(ap);
+    log << level << lbuf << endm;
+}
+
 
 void log_set_threads(const std::bitset<EMU_NUM_THREADS> &threads)
 {
@@ -38,3 +40,6 @@ void log_set_threads(const std::bitset<EMU_NUM_THREADS> &threads)
     else
         log_thread = threads;
 }
+
+
+} // namespace bemu

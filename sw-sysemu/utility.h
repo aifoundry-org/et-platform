@@ -13,7 +13,7 @@
 
 #include <cstdint>
 
-// namespace bemu {
+namespace bemu {
 
 
 template<size_t N>
@@ -53,6 +53,6 @@ inline bool addr_is_size_aligned(uint64_t addr, size_t size)
 }
 
 
-//} namespace bemu
+} // namespace bemu
 
 #endif // BEMU_UTILITY_H

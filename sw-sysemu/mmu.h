@@ -17,7 +17,7 @@
 #include "state.h"
 #include "emu_defines.h"
 
-//namespace bemu {
+namespace bemu {
 
 
 // MMU virtual to physical address translation
@@ -78,6 +78,6 @@ uint64_t mmu_local_compare_exchange64(uint64_t eaddr, uint64_t expected,
 bool mmu_check_cacheop_access(uint64_t paddr, cacheop_type cop);
 
 
-//} // namespace bemu
+} // namespace bemu
 
 #endif // BEMU_MMU_H

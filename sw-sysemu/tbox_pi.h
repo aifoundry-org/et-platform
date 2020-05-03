@@ -9,11 +9,14 @@
 *-------------------------------------------------------------------------*/
 
 #ifndef _TBOX_PO_H_
-
 #define _TBOX_PO_H_
 
-namespace TBOX
-{
+#include <cstdint>
+
+namespace bemu {
+namespace TBOX {
+
+
     typedef enum
     {
         SAMPLE_OP_SAMPLE       =  0,
@@ -414,7 +417,9 @@ namespace TBOX
         } info;
     } ImageInfo;
 
-}   // namespace TBOX
+
+} // namespace TBOX
+} // namespace bemu
 
 #endif
 

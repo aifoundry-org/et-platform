@@ -15,14 +15,16 @@
 
 #include "cache.h"
 #include "decode.h"
+#include "emu_defines.h"
 #include "emu_gio.h"
 #include "log.h"
 #include "memop.h"
 #include "processor.h"
 #include "traps.h"
 
-// FIXME: Replace with "processor.h"
-#include "emu_defines.h"
+namespace bemu {
+
+
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
 extern uint32_t current_inst;
 
@@ -32,8 +34,6 @@ extern uint32_t current_inst;
 
 extern bool scp_locked[EMU_NUM_MINIONS][L1D_NUM_SETS][L1D_NUM_WAYS];
 extern uint64_t scp_trans[EMU_NUM_MINIONS][L1D_NUM_SETS][L1D_NUM_WAYS];
-
-//namespace bemu {
 
 
 enum msg_port_conf_action {
@@ -455,4 +455,4 @@ void configure_port(unsigned id, uint32_t wdata)
 }
 
 
-//} // namespace bemu
+} // namespace bemu

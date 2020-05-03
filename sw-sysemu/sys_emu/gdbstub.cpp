@@ -136,12 +136,12 @@ static inline void u64_to_hexstr(char *str, uint64_t value)
     sprintf(str, "%016" PRIx64, bswap64(value));
 }
 
-static inline void freg_to_hexstr(char *str, freg_t freg)
+static inline void freg_to_hexstr(char *str, bemu::freg_t freg)
 {
     char tmp[8 * 2 + 1];
     str[0] = '\0';
 
-    for (unsigned i = 0; i < VLEN / 64; i++) {
+    for (unsigned i = 0; i < bemu::VLEN / 64; i++) {
         u64_to_hexstr(tmp, freg.u64[i]);
         strcat(str, tmp);
     }
@@ -157,12 +157,12 @@ static inline uint32_t hexstr_to_u32(const char *buf)
     return bswap32(strtoul(buf, NULL, 16));
 }
 
-static inline freg_t hexstr_to_freg(const char *buf)
+static inline bemu::freg_t hexstr_to_freg(const char *buf)
 {
-    freg_t freg;
+    bemu::freg_t freg;
     char tmp[8 * 2 + 1];
 
-    for (unsigned i = 0; i < VLEN / 64; i++) {
+    for (unsigned i = 0; i < bemu::VLEN / 64; i++) {
         strncpy(tmp, &buf[i * 16], 16);
         freg.u64[i] = hexstr_to_u64(tmp);
     }
@@ -262,12 +262,12 @@ static void target_write_register(int thread, int reg, uint64_t data)
     sys_emu::thread_set_reg(to_target_thread(thread), reg, data);
 }
 
-static freg_t target_read_fregister(int thread, int reg)
+static bemu::freg_t target_read_fregister(int thread, int reg)
 {
     return sys_emu::thread_get_freg(to_target_thread(thread), reg);
 }
 
-static void target_write_fregister(int thread, int reg, freg_t data)
+static void target_write_fregister(int thread, int reg, bemu::freg_t data)
 {
     sys_emu::thread_set_freg(to_target_thread(thread), reg, data);
 }
@@ -333,9 +333,9 @@ static void target_remote_command(char *cmd)
     if (strcmp(tokens[0], "log") == 0) {
         if (ntokens > 1) {
             if (strcmp(tokens[1], "on") == 0)
-                emu::log.setLogLevel(LOG_DEBUG);
+                bemu::log.setLogLevel(LOG_DEBUG);
             else if (strcmp(tokens[1], "off") == 0)
-                emu::log.setLogLevel(LOG_INFO);
+                bemu::log.setLogLevel(LOG_INFO);
         }
     }
 }
@@ -654,7 +654,7 @@ static void gdbstub_handle_qsthreadinfo(void)
 static void gdbstub_handle_read_general_registers(void)
 {
     char reply[((NUM_XREGS + 1) * 8 + NUM_FREGS * 32 + NUM_CSR_FREGS * 4) * 2 + 1];
-    char tmp[(VLEN / 8) * 2 + 1];
+    char tmp[(bemu::VLEN / 8) * 2 + 1];
     reply[0] = '\0';
 
     /* General purpose registers */
@@ -674,11 +674,11 @@ static void gdbstub_handle_read_general_registers(void)
     }
 
     /* Floating-point related CSRs */
-    u32_to_hexstr(tmp, (uint32_t)target_read_csr(g_cur_general_thread, CSR_FFLAGS));
+    u32_to_hexstr(tmp, (uint32_t)target_read_csr(g_cur_general_thread, bemu::CSR_FFLAGS));
     strcat(reply, tmp);
-    u32_to_hexstr(tmp, (uint32_t)target_read_csr(g_cur_general_thread, CSR_FRM));
+    u32_to_hexstr(tmp, (uint32_t)target_read_csr(g_cur_general_thread, bemu::CSR_FRM));
     strcat(reply, tmp);
-    u32_to_hexstr(tmp, (uint32_t)target_read_csr(g_cur_general_thread, CSR_FCSR));
+    u32_to_hexstr(tmp, (uint32_t)target_read_csr(g_cur_general_thread, bemu::CSR_FCSR));
     strcat(reply, tmp);
 
     rsp_send_packet(reply);
@@ -686,7 +686,7 @@ static void gdbstub_handle_read_general_registers(void)
 
 static void gdbstub_handle_read_register(const char *packet)
 {
-    char buffer[(VLEN / 8) * 2 + 1];
+    char buffer[(bemu::VLEN / 8) * 2 + 1];
     uint64_t reg = strtoul(packet + 1, NULL, 16);
 
     LOG_NOTHREAD(DEBUG, "GDB stub: read register: %" PRIu64, reg);
@@ -698,7 +698,7 @@ static void gdbstub_handle_read_register(const char *packet)
     } else if (reg >= FREGS_START && reg <= FREGS_END) { /* Floating-point vector registers */
         freg_to_hexstr(buffer, target_read_fregister(g_cur_general_thread, reg - FREGS_START));
     } else if (reg >= CSR_FREGS_START && reg <= CSR_FREGS_END) { /* fflags, frm, fcsr */
-        int fcsr = CSR_FFLAGS + (reg - CSR_FREGS_START);
+        int fcsr = bemu::CSR_FFLAGS + (reg - CSR_FREGS_START);
         u32_to_hexstr(buffer, target_read_csr(g_cur_general_thread, fcsr));
     } else if (reg >= CSR_REGS_START && reg <= CSR_REGS_END) {
         int csr = target_csr_list[reg - CSR_REGS_START];
@@ -726,7 +726,7 @@ static void gdbstub_handle_write_register(const char *packet)
     } else if (reg >= FREGS_START && reg <= FREGS_END) { /* Floating-point vector registers */
         target_write_fregister(g_cur_general_thread, reg - FREGS_START, hexstr_to_freg(valuep));
     } else if (reg >= CSR_FREGS_START && reg <= CSR_FREGS_END) { /* fflags, frm, fcsr */
-        int fcsr = CSR_FFLAGS + (reg - CSR_FREGS_START);
+        int fcsr = bemu::CSR_FFLAGS + (reg - CSR_FREGS_START);
         target_write_csr(g_cur_general_thread, fcsr, hexstr_to_u32(valuep));
     } else if (reg >= CSR_REGS_START && reg <= CSR_REGS_END) {
         int csr = target_csr_list[reg - CSR_REGS_START];

@@ -18,9 +18,9 @@ inline void clearlogstate() {}
 inline void log_pc_update(uint64_t) {}
 inline void log_xreg_write(uint8_t, uint64_t) {}
 inline void log_xreg_late_write(uint8_t, uint64_t) {}
-inline void log_freg_write(uint8_t, const mreg_t&, const freg_t&) {}
-inline void log_freg_load(uint8_t, const mreg_t&, const freg_t&) {}
-inline void log_mreg_write(uint8_t, const mreg_t&) {}
+inline void log_freg_write(uint8_t, const bemu::mreg_t&, const bemu::freg_t&) {}
+inline void log_freg_load(uint8_t, const bemu::mreg_t&, const bemu::freg_t&) {}
+inline void log_mreg_write(uint8_t, const bemu::mreg_t&) {}
 inline void log_fflags_write(uint64_t) {}
 inline void log_mem_write(bool, int, uint64_t, uint64_t, uint64_t) {}
 inline void log_mem_read(bool, int, uint64_t, uint64_t) {}
@@ -41,11 +41,11 @@ inline void log_tensor_fma_write(uint8_t, bool, uint8_t, int, uint32_t) {}
 
 // TensorQuant
 inline void log_tensor_quant_new_transform(bool = false) {}
-inline void log_tensor_quant_write(uint8_t, uint8_t, const mreg_t&, const freg_t&) {}
+inline void log_tensor_quant_write(uint8_t, uint8_t, const bemu::mreg_t&, const bemu::freg_t&) {}
 
 // TensorReduce
 inline void log_tensor_reduce(bool, uint8_t, uint8_t) {}
-inline void log_tensor_reduce_write(uint8_t, const freg_t&) {}
+inline void log_tensor_reduce_write(uint8_t, const bemu::freg_t&) {}
 
 // TensorStore
 inline void log_tensor_store(bool, uint8_t, uint8_t, uint8_t) {}

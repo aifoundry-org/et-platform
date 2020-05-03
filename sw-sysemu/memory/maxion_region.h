@@ -18,8 +18,6 @@
 #include "memory_error.h"
 #include "memory_region.h"
 
-extern unsigned current_thread;
-
 namespace bemu {
 
 
@@ -37,12 +35,14 @@ struct MaxionRegion : public MemoryRegion {
     static_assert(N == 256_MiB, "bemu::MaxionRegion has illegal size");
 
     void read(size_type pos, size_type n, pointer result) override {
+        extern unsigned current_thread;
         if (current_thread != EMU_IO_SHIRE_SP_THREAD)
             throw memory_error(first() + pos);
         default_value(result, n, memory_reset_value, pos);
     }
 
     void write(size_type pos, size_type, const_pointer) override {
+        extern unsigned current_thread;
         if (current_thread != EMU_IO_SHIRE_SP_THREAD)
             throw memory_error(first() + pos);
     }

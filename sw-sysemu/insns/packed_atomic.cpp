@@ -8,22 +8,22 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 
+#include "atomics.h"
 #include "decode.h"
+#include "emu_defines.h"
 #include "emu_gio.h"
+#include "fpu/fpu_casts.h"
 #include "insn.h"
 #include "insn_func.h"
 #include "log.h"
 #include "mmu.h"
 #include "processor.h"
 #include "utility.h"
-#include "atomics.h"
-#include "fpu/fpu_casts.h"
 
-// FIXME: Replace with "processor.h"
-#include "emu_defines.h"
+namespace bemu {
+
+
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
-
-//namespace bemu {
 
 
 void insn_famoaddg_pi(insn_t inst)
@@ -180,4 +180,4 @@ void insn_famoxorl_pi(insn_t inst)
 }
 
 
-//} // namespace bemu
+} // namespace bemu

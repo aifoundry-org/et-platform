@@ -21,7 +21,7 @@
 #include "state.h"
 #include "traps.h"
 
-//namespace bemu {
+namespace bemu {
 
 
 // A logical processor (Hart)
@@ -293,6 +293,6 @@ inline void check_pending_interrupts(const Processor& cpu)
 }
 
 
-//} // namespace bemu
+} // namespace bemu
 
 #endif // BEMU_PROCESSOR_H
