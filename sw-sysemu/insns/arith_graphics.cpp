@@ -21,7 +21,7 @@
 namespace bemu {
 
 
-extern std::array<Processor,EMU_NUM_THREADS> cpu;
+extern std::array<Hart,EMU_NUM_THREADS> cpu;
 
 
 static inline uint_fast16_t bitmixb(uint_fast16_t sel, uint_fast16_t val0, uint_fast16_t val1)

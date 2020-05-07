@@ -35,8 +35,8 @@ MainMemory memory{};
 typename MemoryRegion::reset_value_type memory_reset_value = {0};
 
 // Hart state
-std::array<Processor,EMU_NUM_THREADS>  cpu;
-std::array<Core,EMU_NUM_MINIONS>       core;
+std::array<Hart,EMU_NUM_THREADS>  cpu;
+std::array<Core,EMU_NUM_MINIONS>  core;
 
 system_version_t sysver = system_version_t::UNKNOWN;
 
@@ -165,7 +165,7 @@ void reset_hart(unsigned thread)
     // Reset tensor operation state machines
     cpu[thread].core->reduce.count = 0;
     cpu[thread].core->reduce.state = Core::Reduce::State::Idle;
-    cpu[thread].wait.state = Processor::Wait::State::Idle;
+    cpu[thread].wait.state = Hart::Wait::State::Idle;
     cpu[thread].core->txquant = 0xFFFFFFFFFFFFFFFFULL;
     cpu[thread].core->shadow_txquant = 0xFFFFFFFFFFFFFFFFULL;
     cpu[thread].core->txfma = 0xFFFFFFFFFFFFFFFFULL;

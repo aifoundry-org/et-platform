@@ -10,7 +10,7 @@ namespace bemu {
 
 inline bool tmask_pass(int bit)
 {
-    extern std::array<Processor,EMU_NUM_THREADS> cpu;
+    extern std::array<Hart,EMU_NUM_THREADS> cpu;
     extern unsigned current_thread;
 
     // Returns the pass bit for a specific bit

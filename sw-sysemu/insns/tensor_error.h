@@ -11,7 +11,7 @@ namespace bemu {
 
 inline void update_tensor_error(unsigned thread, uint16_t value)
 {
-    extern std::array<Processor,EMU_NUM_THREADS> cpu;
+    extern std::array<Hart,EMU_NUM_THREADS> cpu;
 
     cpu[thread].tensor_error |= value;
     if (value)

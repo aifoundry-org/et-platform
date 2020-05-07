@@ -24,7 +24,7 @@
 namespace bemu {
 
 
-extern std::array<Processor,EMU_NUM_THREADS> cpu;
+extern std::array<Hart,EMU_NUM_THREADS> cpu;
 
 
 static inline uint8_t sat8(int32_t x)

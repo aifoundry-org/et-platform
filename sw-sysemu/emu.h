@@ -38,7 +38,7 @@ extern void init(xreg dst, uint64_t val);          // init general purpose regis
 extern void fpinit(freg dst, uint64_t val[VLEND]); // init vector register
 extern void minit(mreg dst, uint64_t val);         // init mask register
 
-// Processor state manipulation
+// Hart state manipulation
 extern void set_thread(unsigned thread);
 extern unsigned get_thread();
 extern bool thread_is_blocked(unsigned thread);

@@ -43,7 +43,7 @@ namespace bemu {
 
 
 extern unsigned current_thread;
-extern std::array<Processor,EMU_NUM_THREADS>  cpu;
+extern std::array<Hart,EMU_NUM_THREADS>  cpu;
 
 
 #ifndef SYS_EMU

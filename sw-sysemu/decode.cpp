@@ -1128,7 +1128,7 @@ static insn_exec_funct_t dec_c_sdsp(uint32_t bits __attribute__((unused)),
 //
 // -----------------------------------------------------------------------------
 
-insn_t fetch_and_decode(Processor& cpu)
+insn_t fetch_and_decode(Hart& cpu)
 {
     // Opcode map inst[1:0]=11b, indexed using inst[6:2]
     // See RV64

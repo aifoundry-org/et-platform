@@ -114,9 +114,9 @@ struct Core {
 
 
 //
-// A logical processor (Hart)
+// A hardware thread
 //
-struct Processor {
+struct Hart {
     Core*  core;
 
     // Register files
@@ -210,13 +210,13 @@ struct Processor {
 };
 
 
-inline void advance_pc(Processor& cpu)
+inline void advance_pc(Hart& cpu)
 {
     cpu.pc = cpu.npc;
 }
 
 
-inline void activate_breakpoints(Processor& cpu)
+inline void activate_breakpoints(Hart& cpu)
 {
     uint64_t mcontrol = cpu.tdata1;
     int priv = int(cpu.prv);
@@ -226,21 +226,21 @@ inline void activate_breakpoints(Processor& cpu)
 }
 
 
-inline void set_prv(Processor& cpu, prv_t value)
+inline void set_prv(Hart& cpu, prv_t value)
 {
     cpu.prv = value;
     activate_breakpoints(cpu);
 }
 
 
-inline void set_tdata1(Processor& cpu, uint64_t value)
+inline void set_tdata1(Hart& cpu, uint64_t value)
 {
     cpu.tdata1 = value;
     activate_breakpoints(cpu);
 }
 
 
-inline void check_pending_interrupts(const Processor& cpu)
+inline void check_pending_interrupts(const Hart& cpu)
 {
     // Are there any non-masked pending interrupts? If excl_mode != 0 this
     // thread is either in exclusive mode or blocked, but either way it cannot

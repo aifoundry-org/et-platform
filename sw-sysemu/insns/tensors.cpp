@@ -57,7 +57,7 @@
 namespace bemu {
 
 
-extern std::array<Processor,EMU_NUM_THREADS> cpu;
+extern std::array<Hart,EMU_NUM_THREADS> cpu;
 extern uint32_t current_inst;
 
 
@@ -929,19 +929,19 @@ static void tensor_fma32_execute()
         // If not resolved, put the thread to sleep
         if(!resolved)
         {
-            cpu[current_thread].wait.state = Processor::Wait::State::TxFMA;
+            cpu[current_thread].wait.state = Hart::Wait::State::TxFMA;
             cpu[current_thread].wait.value = 0; // Marks FMA32 for replay
             LOG(DEBUG, "TensorFMA32 TenB => minion cooperative mask: 0x%08X, minion ready mask: 0x%08x", requested_mask, present_mask);
             return;
         }
         else
         {
-            cpu[current_thread].wait.state = Processor::Wait::State::Idle;
+            cpu[current_thread].wait.state = Hart::Wait::State::Idle;
         }
     }
     else
     {
-        cpu[current_thread].wait.state = Processor::Wait::State::Idle;
+        cpu[current_thread].wait.state = Hart::Wait::State::Idle;
     }
 #endif
 
@@ -1098,7 +1098,7 @@ void tensor_fma32_start(uint64_t tfmareg)
     }
 #elif SYS_EMU
     cpu[current_thread].core->txfma = tfmareg;
-    cpu[current_thread].wait.state = Processor::Wait::State::TxFMA;
+    cpu[current_thread].wait.state = Hart::Wait::State::TxFMA;
 #else
     cpu[current_thread].core->txfma = tfmareg;
     tensor_fma32_execute();
@@ -1133,19 +1133,19 @@ static void tensor_fma16a32_execute()
         // If not resolved, put the thread to sleep
         if(!resolved)
         {
-            cpu[current_thread].wait.state = Processor::Wait::State::TxFMA;
+            cpu[current_thread].wait.state = Hart::Wait::State::TxFMA;
             cpu[current_thread].wait.value = 1; // Marks FMA16A32 for replay
             LOG(DEBUG, "TensorFMA16A32 TenB => minion cooperative mask: 0x%08X, minion ready mask: 0x%08x", requested_mask, present_mask);
             return;
         }
         else
         {
-            cpu[current_thread].wait.state = Processor::Wait::State::Idle;
+            cpu[current_thread].wait.state = Hart::Wait::State::Idle;
         }
     }
     else
     {
-        cpu[current_thread].wait.state = Processor::Wait::State::Idle;
+        cpu[current_thread].wait.state = Hart::Wait::State::Idle;
     }
 #endif
 
@@ -1305,7 +1305,7 @@ void tensor_fma16a32_start(uint64_t tfmareg)
     }
 #elif SYS_EMU
     cpu[current_thread].core->txfma = tfmareg;
-    cpu[current_thread].wait.state = Processor::Wait::State::TxFMA;
+    cpu[current_thread].wait.state = Hart::Wait::State::TxFMA;
 #else
     cpu[current_thread].core->txfma = tfmareg;
     tensor_fma16a32_execute();
@@ -1343,19 +1343,19 @@ static void tensor_ima8a32_execute()
         // If not resolved, put the thread to sleep
         if(!resolved)
         {
-            cpu[current_thread].wait.state = Processor::Wait::State::TxFMA;
+            cpu[current_thread].wait.state = Hart::Wait::State::TxFMA;
             cpu[current_thread].wait.value = 3; // Marks IMA8A32 for replay
             LOG(DEBUG, "TensorIMA8A32 TenB => minion cooperative mask: 0x%08X, minion ready mask: 0x%08x", requested_mask, present_mask);
             return;
         }
         else
         {
-            cpu[current_thread].wait.state = Processor::Wait::State::Idle;
+            cpu[current_thread].wait.state = Hart::Wait::State::Idle;
         }
     }
     else
     {
-        cpu[current_thread].wait.state = Processor::Wait::State::Idle;
+        cpu[current_thread].wait.state = Hart::Wait::State::Idle;
     }
 #endif
 
@@ -1557,7 +1557,7 @@ void tensor_ima8a32_start(uint64_t tfmareg)
     }
 #elif SYS_EMU
     cpu[current_thread].core->txfma = tfmareg;
-    cpu[current_thread].wait.state = Processor::Wait::State::TxFMA;
+    cpu[current_thread].wait.state = Hart::Wait::State::TxFMA;
 #else
     cpu[current_thread].core->txfma = tfmareg;
     tensor_ima8a32_execute();
@@ -1586,7 +1586,7 @@ void tensor_fma_execute()
     case 3: tensor_ima8a32_execute(); break;
     default: throw std::runtime_error("Illegal tensor_fma configuration");
     }
-    if(cpu[current_thread].wait.state != Processor::Wait::State::TxFMA) {
+    if(cpu[current_thread].wait.state != Hart::Wait::State::TxFMA) {
         cpu[current_thread].core->txfma = 0xFFFFFFFFFFFFFFFFULL;
     }
 #ifdef ZSIM
@@ -1889,7 +1889,7 @@ void tensor_wait_start(uint64_t value)
     value = value & 0xF;
     cpu[current_thread].wait.id = value;
     cpu[current_thread].wait.value = value;
-    cpu[current_thread].wait.state = Processor::Wait::State::WaitReady;
+    cpu[current_thread].wait.state = Hart::Wait::State::WaitReady;
 #ifdef SYS_EMU
     uint64_t id = value & 0x1;
     // TensorLoad
@@ -1901,7 +1901,7 @@ void tensor_wait_start(uint64_t value)
         // If not resolved, put the thread to sleep
         if(!resolved)
         {
-            cpu[current_thread].wait.state = Processor::Wait::State::Wait;
+            cpu[current_thread].wait.state = Hart::Wait::State::Wait;
             LOG(DEBUG, "TensorWait with id %i not ready => minion cooperative mask: 0x%08X, minion ready mask: 0x%08x", (int) id, requested_mask, present_mask);
         }
     }
@@ -1958,7 +1958,7 @@ void tensor_wait_execute()
         else if((cpu[current_thread].wait.id) == 3) { sys_emu::get_l2_scp_checker().l2_scp_wait(current_thread, 1); }
     }
 #endif
-    cpu[current_thread].wait.state = Processor::Wait::State::Idle;
+    cpu[current_thread].wait.state = Hart::Wait::State::Idle;
     log_tensor_error_value(cpu[current_thread].tensor_error);
 }
 

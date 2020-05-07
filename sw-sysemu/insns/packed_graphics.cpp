@@ -25,7 +25,7 @@
 namespace bemu {
 
 
-extern std::array<Processor,EMU_NUM_THREADS> cpu;
+extern std::array<Hart,EMU_NUM_THREADS> cpu;
 
 
 static inline int32_t frcp_fix_rast_vs_gold(int32_t x, int32_t y)

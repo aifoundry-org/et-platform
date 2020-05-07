@@ -22,7 +22,7 @@
 namespace bemu {
 
 
-extern std::array<Processor,EMU_NUM_THREADS> cpu;
+extern std::array<Hart,EMU_NUM_THREADS> cpu;
 
 
 void insn_fbc_ps(insn_t inst)

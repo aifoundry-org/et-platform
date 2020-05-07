@@ -20,7 +20,7 @@
 namespace bemu {
 
 
-extern std::array<Processor,EMU_NUM_THREADS> cpu;
+extern std::array<Hart,EMU_NUM_THREADS> cpu;
 
 
 static inline int64_t idiv(int64_t a, int64_t b)

@@ -983,18 +983,18 @@ sys_emu::main_internal(int argc, char * argv[])
                     }
                     ++thread;
                 }
-                else if (bemu::cpu[thread_id].wait.state != bemu::Processor::Wait::State::Idle)
+                else if (bemu::cpu[thread_id].wait.state != bemu::Hart::Wait::State::Idle)
                 {
-                    if (bemu::cpu[thread_id].wait.state == bemu::Processor::Wait::State::WaitReady)
+                    if (bemu::cpu[thread_id].wait.state == bemu::Hart::Wait::State::WaitReady)
                     {
                         bemu::tensor_wait_execute();
                     }
-                    else if (bemu::cpu[thread_id].wait.state == bemu::Processor::Wait::State::Wait)
+                    else if (bemu::cpu[thread_id].wait.state == bemu::Hart::Wait::State::Wait)
                     {
                         LOG(DEBUG, "%s", "Rechecking TensorWait state");
                         bemu::tensor_wait_start(bemu::cpu[thread_id].wait.value);
                     }
-                    else if (bemu::cpu[thread_id].wait.state == bemu::Processor::Wait::State::TxFMA)
+                    else if (bemu::cpu[thread_id].wait.state == bemu::Hart::Wait::State::TxFMA)
                     {
                         LOG(DEBUG, "%s", "Rechecking TensorFMA state");
                         bemu::tensor_fma_execute();

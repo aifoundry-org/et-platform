@@ -233,12 +233,12 @@ public:
 };
 
 
-extern insn_t fetch_and_decode(Processor&);
+extern insn_t fetch_and_decode(Hart&);
 
 
 inline void execute(insn_t inst)
 {
-    extern std::array<Processor,EMU_NUM_THREADS> cpu;
+    extern std::array<Hart,EMU_NUM_THREADS> cpu;
     extern unsigned current_thread;
 
     uint64_t minstmask = cpu[current_thread].minstmask;
