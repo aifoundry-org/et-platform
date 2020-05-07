@@ -549,8 +549,8 @@ uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc, mreg_t
     // Read matp/satp
     // NB: Sv39/Mv39, Sv48/Mv48, etc. have the same behavior and encoding
     const uint64_t atp = (curprv == PRV_M)
-            ? cpu[current_thread].matp
-            : cpu[current_thread].satp;
+            ? cpu[current_thread].core->matp
+            : cpu[current_thread].core->satp;
     const uint64_t atp_mode = (atp >> 60) & 0xF;
     const uint64_t atp_ppn  = atp & PPN_M;
 

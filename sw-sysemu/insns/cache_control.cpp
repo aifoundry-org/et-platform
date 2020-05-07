@@ -222,7 +222,7 @@ void dcache_lock_paddr(int way, uint64_t paddr)
         return;
     }
 
-    unsigned set = dcache_index(paddr, cpu[current_thread].mcache_control, current_thread, EMU_THREADS_PER_MINION);
+    unsigned set = dcache_index(paddr, cpu[current_thread].core->mcache_control, current_thread, EMU_THREADS_PER_MINION);
 
     // Check if paddr already locked in the cache
     int nlocked = 0;

@@ -36,6 +36,7 @@ typename MemoryRegion::reset_value_type memory_reset_value = {0};
 
 // Hart state
 std::array<Processor,EMU_NUM_THREADS>  cpu;
+std::array<Core,EMU_NUM_MINIONS>       core;
 
 system_version_t sysver = system_version_t::UNKNOWN;
 
@@ -54,6 +55,11 @@ void init_emu(system_version_t ver)
     sysver = ver;
    // FIXME: remove '#include <cfenv>' when we purge this function from the code
    std::fesetround(FE_TONEAREST); // set rne for host
+
+   for (unsigned tid = 0; tid < EMU_NUM_THREADS; ++tid) {
+       unsigned cid = tid / EMU_THREADS_PER_MINION;
+       cpu[tid].core = &core[cid];
+   }
 }
 
 void reset_esrs_for_shire(unsigned shireid)
@@ -135,14 +141,14 @@ void reset_hart(unsigned thread)
                         : thread;
 
     // Esperanto control and status registers
-    cpu[thread].matp = 0;
+    cpu[thread].core->matp = 0;
     cpu[thread].minstmask = 0;
     cpu[thread].minstmatch = 0;
     // TODO: cpu[thread].amofence_ctrl <= ...
-    cpu[thread].menable_shadows = 0;
-    cpu[thread].excl_mode = 0;
-    cpu[thread].mcache_control = 0;
-    cpu[thread].ucache_control = 0x200;
+    cpu[thread].core->menable_shadows = 0;
+    cpu[thread].core->excl_mode = 0;
+    cpu[thread].core->mcache_control = 0;
+    cpu[thread].core->ucache_control = 0x200;
     cpu[thread].gsc_progress = 0;
     for (auto &elem : cpu[thread].portctrl) {
         elem = 0x8000;
@@ -157,16 +163,16 @@ void reset_hart(unsigned thread)
     cpu[thread].break_on_fetch = false;
 
     // Reset tensor operation state machines
-    cpu[thread].reduce.count = 0;
-    cpu[thread].reduce.state = Processor::Reduce::State::Idle;
+    cpu[thread].core->reduce.count = 0;
+    cpu[thread].core->reduce.state = Core::Reduce::State::Idle;
     cpu[thread].wait.state = Processor::Wait::State::Idle;
-    cpu[thread].txquant = 0xFFFFFFFFFFFFFFFFULL;
-    cpu[thread].shadow_txquant = 0xFFFFFFFFFFFFFFFFULL;
-    cpu[thread].txfma = 0xFFFFFFFFFFFFFFFFULL;
-    cpu[thread].shadow_txfma = 0xFFFFFFFFFFFFFFFFULL;
+    cpu[thread].core->txquant = 0xFFFFFFFFFFFFFFFFULL;
+    cpu[thread].core->shadow_txquant = 0xFFFFFFFFFFFFFFFFULL;
+    cpu[thread].core->txfma = 0xFFFFFFFFFFFFFFFFULL;
+    cpu[thread].core->shadow_txfma = 0xFFFFFFFFFFFFFFFFULL;
     cpu[thread].txload.fill(0xFFFFFFFFFFFFFFFFULL);
     cpu[thread].shadow_txload.fill(0xFFFFFFFFFFFFFFFFULL);
-    cpu[thread].tensor_op.fill(Processor::Tensor::None);
+    cpu[thread].core->tensor_op.fill(Core::Tensor::None);
 
     // Other processor state outside of cpu[thread]
     reset_msg_ports(thread);
@@ -176,7 +182,7 @@ void reset_hart(unsigned thread)
     cpu[thread].stvec_is_set = false;
     cpu[thread].fcc_wait = false;
     cpu[thread].fcc_cnt = 0;
-    cpu[thread].tensorload_setupb_topair = false;
+    cpu[thread].core->tensorload_setupb_topair = false;
 }
 
 void minit(mreg dst, uint64_t val)
@@ -203,7 +209,7 @@ unsigned get_thread()
 bool thread_is_blocked(unsigned thread)
 {
     unsigned other_excl = 1 + ((~thread & 1) << 1);
-    return cpu[thread].excl_mode == other_excl;
+    return cpu[thread].core->excl_mode == other_excl;
 }
 
 uint32_t get_mask(unsigned maskNr)

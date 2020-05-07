@@ -963,17 +963,17 @@ sys_emu::main_internal(int argc, char * argv[])
                 bemu::check_pending_interrupts(bemu::cpu[thread_id]);
                 // In case of reduce, we need to make sure that the other
                 // thread is also in reduce state before we complete execution
-                if (bemu::cpu[thread_id].reduce.state == bemu::Processor::Reduce::State::Send)
+                if (bemu::cpu[thread_id].core->reduce.state == bemu::Core::Reduce::State::Send)
                 {
-                    LOG(DEBUG, "Waiting to send data to H%u", bemu::cpu[thread_id].reduce.thread);
+                    LOG(DEBUG, "Waiting to send data to H%u", bemu::cpu[thread_id].core->reduce.thread);
                     ++thread;
                 }
-                else if (bemu::cpu[thread_id].reduce.state == bemu::Processor::Reduce::State::Recv)
+                else if (bemu::cpu[thread_id].core->reduce.state == bemu::Core::Reduce::State::Recv)
                 {
-                    unsigned other_thread = bemu::cpu[thread_id].reduce.thread;
+                    unsigned other_thread = bemu::cpu[thread_id].core->reduce.thread;
                     // If pairing minion is in ready to send, consume the data
-                    if ((bemu::cpu[other_thread].reduce.state == bemu::Processor::Reduce::State::Send) &&
-                        (bemu::cpu[other_thread].reduce.thread == thread_id))
+                    if ((bemu::cpu[other_thread].core->reduce.state == bemu::Core::Reduce::State::Send) &&
+                        (bemu::cpu[other_thread].core->reduce.thread == thread_id))
                     {
                         bemu::tensor_reduce_execute();
                     }
@@ -1057,7 +1057,7 @@ sys_emu::main_internal(int argc, char * argv[])
                         }
                         else if (inst.is_wfi())
                         {
-                            if (bemu::cpu[thread_id].excl_mode) {
+                            if (bemu::cpu[thread_id].core->excl_mode) {
                                 LOG(DEBUG, "%s", "Not going to sleep (WFI) because exclusive mode");
                             } else {
                                 LOG(DEBUG, "%s", "Going to sleep (WFI)");
@@ -1068,7 +1068,7 @@ sys_emu::main_internal(int argc, char * argv[])
                         }
                         else if (inst.is_stall_write())
                         {
-                            if (bemu::cpu[thread_id].excl_mode) {
+                            if (bemu::cpu[thread_id].core->excl_mode) {
                                 LOG(DEBUG, "%s", "Not going to sleep (STALL) because exclusive mode");
                             } else {
                                 LOG(DEBUG, "%s", "Going to sleep (STALL)");

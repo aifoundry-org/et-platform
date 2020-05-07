@@ -34,8 +34,8 @@
 
 
 #define FREGS cpu[current_thread].fregs
-#define TENC  cpu[current_thread].tenc
-#define SCP   scp[current_thread]
+#define TENC  cpu[current_thread].core->tenc
+#define SCP   cpu[current_thread].core->scp
 
 
 // SCP checks
@@ -61,13 +61,6 @@ extern std::array<Processor,EMU_NUM_THREADS> cpu;
 extern uint32_t current_inst;
 
 
-// Scratchpad
-// FIXME: The scratchpad is shared among all threads of a minion. We should
-// really just have one scratchpad per minion, not one per thread. This all
-// works for now because only thread0 of a minion can access the scratchpad.
-std::array<std::array<cache_line_t,L1_SCP_ENTRIES+TFMA_MAX_AROWS>,EMU_NUM_THREADS> scp;
-
-
 static inline int frm()
 {
     return (cpu[current_thread].fcsr >> 5) & 0x7;
@@ -87,7 +80,7 @@ static const char* get_rounding_mode(int mode)
 }
 
 
-static const char* get_reduce_state(Processor::Reduce::State state)
+static const char* get_reduce_state(Core::Reduce::State state)
 {
     static const char* stnames[] = {
         "Idle", "Send", "Recv"
@@ -126,7 +119,7 @@ void clear_l1scp(unsigned minion)
 {
     unsigned thread = minion * EMU_THREADS_PER_MINION;
     for (int i = 0; i < L1_SCP_ENTRIES; ++i) {
-        scp[thread][i].u8.fill(0);
+        cpu[thread].core->scp[i].u8.fill(0);
     }
 }
 
@@ -225,19 +218,15 @@ void tensor_load_start(uint64_t control)
     }
 
     // Check if SCP is enabled
-    if (cpu[current_thread].mcache_control != 0x3) {
+    if (cpu[current_thread].core->mcache_control != 0x3) {
         LOG(WARN, "%s", "\tTensorLoad with SCP disabled!!");
         update_tensor_error(1 << 4);
         return;
     }
 
     if (tenb) {
-        cpu[current_thread].tensorload_setupb_topair = true;
-        cpu[current_thread].tensorload_setupb_numlines = rows;
-        if ((current_thread^1) < EMU_NUM_THREADS) {
-            cpu[current_thread^1].tensorload_setupb_topair = true;
-            cpu[current_thread^1].tensorload_setupb_numlines = rows;
-        }
+        cpu[current_thread].core->tensorload_setupb_topair = true;
+        cpu[current_thread].core->tensorload_setupb_numlines = rows;
     }
     else if ((trans == 0x3) || (trans == 0x4)) {
         // Invalid transformation
@@ -560,14 +549,14 @@ void tensor_quant_start(uint64_t value)
         line, nrows, ncols, fstart, get_rounding_mode(frm()));
 
 #ifdef ZSIM
-    bool txquant_busy = (cpu[current_thread].txquant != 0xFFFFFFFFFFFFFFFFULL);
+    bool txquant_busy = (cpu[current_thread].core->txquant != 0xFFFFFFFFFFFFFFFFULL);
     if (txquant_busy) {
-        if (cpu[current_thread].shadow_txquant != 0xFFFFFFFFFFFFFFFFULL)
+        if (cpu[current_thread].core->shadow_txquant != 0xFFFFFFFFFFFFFFFFULL)
             throw std::runtime_error("tensor_quant_start() called while "
                                      "this thread's TensorQuant FSM is active");
     }
 #else
-    if (cpu[current_thread].txquant != 0xFFFFFFFFFFFFFFFFULL) {
+    if (cpu[current_thread].core->txquant != 0xFFFFFFFFFFFFFFFFULL) {
         throw std::runtime_error("tensor_quant_start() called while "
                                  "this thread's TensorQuant FSM is active");
     }
@@ -589,7 +578,7 @@ void tensor_quant_start(uint64_t value)
             break;
         }
         if ((funct >= 4) && (funct <= 7) &&
-            (cpu[current_thread].mcache_control != 0x3)) {
+            (cpu[current_thread].core->mcache_control != 0x3)) {
             LOG(DEBUG, "\tTransformation %d is %s but scratchpad is disabled",
                 trans, get_quant_transform(funct));
             update_tensor_error(1 << 4);
@@ -601,13 +590,13 @@ void tensor_quant_start(uint64_t value)
     // Activate the state machine
 #ifdef ZSIM
     if (txquant_busy) {
-        cpu[current_thread].shadow_txquant = value;
+        cpu[current_thread].core->shadow_txquant = value;
     } else {
-        cpu[current_thread].txquant = value;
-        assert(cpu[current_thread].enqueue_tensor_op(Processor::Tensor::Quant));
+        cpu[current_thread].core->txquant = value;
+        assert(cpu[current_thread].core->enqueue_tensor_op(Core::Tensor::Quant));
     }
 #else
-    cpu[current_thread].txquant = value;
+    cpu[current_thread].core->txquant = value;
     tensor_quant_execute();
 #endif
 }
@@ -615,19 +604,19 @@ void tensor_quant_start(uint64_t value)
 
 void tensor_quant_execute()
 {
-    uint64_t quant = cpu[current_thread].txquant;
+    uint64_t quant = cpu[current_thread].core->txquant;
     unsigned fstart = (quant >> 57) & 0x1F;
     unsigned ncols  = (quant >> 55) & 0x3;
     unsigned nrows  = (quant >> 51) & 0xF;
     unsigned line   = (quant >> 45) & 0x3F;
 
 #ifdef ZSIM
-    if (cpu[current_thread].active_tensor_op() != Processor::Tensor::Quant) {
+    if (cpu[current_thread].core->active_tensor_op() != Core::Tensor::Quant) {
         throw std::runtime_error("tensor_quant_execute() called while this "
                                  "thread's TensorQuant FSM is inactive");
     }
 #else
-    if (cpu[current_thread].txquant == 0xFFFFFFFFFFFFFFFFULL) {
+    if (cpu[current_thread].core->txquant == 0xFFFFFFFFFFFFFFFFULL) {
         throw std::runtime_error("tensor_quant_execute() called while this "
                                  "thread's TensorQuant FSM is inactive");
     }
@@ -769,12 +758,12 @@ void tensor_quant_execute()
             line = (line + 1) % L1_SCP_ENTRIES;
         }
     }
-    cpu[current_thread].txquant = 0xFFFFFFFFFFFFFFFFULL;
+    cpu[current_thread].core->txquant = 0xFFFFFFFFFFFFFFFFULL;
 #ifdef ZSIM
-    assert(cpu[current_thread].dequeue_tensor_op() == Processor::Tensor::Quant);
-    if (cpu[current_thread].shadow_txquant != 0xFFFFFFFFFFFFFFFFULL) {
-        std::swap(cpu[current_thread].txquant, cpu[current_thread].shadow_txquant);
-        assert(cpu[current_thread].enqueue_tensor_op(Processor::Tensor::Quant));
+    assert(cpu[current_thread].core->dequeue_tensor_op() == Core::Tensor::Quant);
+    if (cpu[current_thread].core->shadow_txquant != 0xFFFFFFFFFFFFFFFFULL) {
+        std::swap(cpu[current_thread].core->txquant, cpu[current_thread].core->shadow_txquant);
+        assert(cpu[current_thread].core->enqueue_tensor_op(Core::Tensor::Quant));
     }
 #endif
 }
@@ -802,7 +791,7 @@ void tensor_store_start(uint64_t tstorereg)
         log_tensor_store(true, rows, 4, 1);
 
         // Check if L1 SCP is enabled
-        if (cpu[current_thread].mcache_control != 0x3)
+        if (cpu[current_thread].core->mcache_control != 0x3)
         {
             update_tensor_error(1 << 4);
             log_tensor_store_error(1 << 4);
@@ -917,15 +906,15 @@ void tensor_store_start(uint64_t tstorereg)
 
 static void tensor_fma32_execute()
 {
-    bool usemsk     = (cpu[current_thread].txfma >> 63) & 0x1;
-    int  bcols      = (cpu[current_thread].txfma >> 55) & 0x3;
-    int  arows      = (cpu[current_thread].txfma >> 51) & 0xF;
-    int  acols      = (cpu[current_thread].txfma >> 47) & 0xF;
-    int  aoffset    = (cpu[current_thread].txfma >> 43) & 0xF;
-    bool tenb       = (cpu[current_thread].txfma >> 20) & 0x1;
-    int  bstart     = (cpu[current_thread].txfma >> 12) & 0x3F;
-    int  astart     = (cpu[current_thread].txfma >>  4) & 0x3F;
-    bool first_pass = (cpu[current_thread].txfma >>  0) & 1;
+    bool usemsk     = (cpu[current_thread].core->txfma >> 63) & 0x1;
+    int  bcols      = (cpu[current_thread].core->txfma >> 55) & 0x3;
+    int  arows      = (cpu[current_thread].core->txfma >> 51) & 0xF;
+    int  acols      = (cpu[current_thread].core->txfma >> 47) & 0xF;
+    int  aoffset    = (cpu[current_thread].core->txfma >> 43) & 0xF;
+    bool tenb       = (cpu[current_thread].core->txfma >> 20) & 0x1;
+    int  bstart     = (cpu[current_thread].core->txfma >> 12) & 0x3F;
+    int  astart     = (cpu[current_thread].core->txfma >>  4) & 0x3F;
+    bool first_pass = (cpu[current_thread].core->txfma >>  0) & 1;
 
     bcols = (bcols + 1) * 4;
     arows = arows + 1;
@@ -1062,14 +1051,14 @@ void tensor_fma32_start(uint64_t tfmareg)
         usemsk, aoffset, first_pass, bcols, acols, arows, tenb, bstart, astart, get_rounding_mode(frm()));
 
 #ifdef ZSIM
-    bool txfma_busy = (cpu[current_thread].txfma != 0xFFFFFFFFFFFFFFFFULL);
+    bool txfma_busy = (cpu[current_thread].core->txfma != 0xFFFFFFFFFFFFFFFFULL);
     if (txfma_busy) {
-        if (cpu[current_thread].shadow_txfma != 0xFFFFFFFFFFFFFFFFULL)
+        if (cpu[current_thread].core->shadow_txfma != 0xFFFFFFFFFFFFFFFFULL)
             throw std::runtime_error("tensor_fma32_start() called while "
                                      "this thread's TensorFMA FSM is active");
     }
 #else
-    if (cpu[current_thread].txfma != 0xFFFFFFFFFFFFFFFFULL) {
+    if (cpu[current_thread].core->txfma != 0xFFFFFFFFFFFFFFFFULL) {
         throw std::runtime_error("tensor_fma32_start() called while "
                                  "this thread's TensorFMA FSM is active");
     }
@@ -1079,17 +1068,15 @@ void tensor_fma32_start(uint64_t tfmareg)
     set_rounding_mode(frm());
 
     // Unpair the last TensorLoadSetupB
-    bool load_tenb = cpu[current_thread].tensorload_setupb_topair;
-    int  brows_tenb = cpu[current_thread].tensorload_setupb_numlines;
-    cpu[current_thread].tensorload_setupb_topair = false;
-    if ((current_thread^1) < EMU_NUM_THREADS)
-        cpu[current_thread^1].tensorload_setupb_topair = false;
+    bool load_tenb = cpu[current_thread].core->tensorload_setupb_topair;
+    int  brows_tenb = cpu[current_thread].core->tensorload_setupb_numlines;
+    cpu[current_thread].core->tensorload_setupb_topair = false;
 
     // tenb and no TensorLoadSetupB to pair, or tenb and incompatible
     // rows/columns size, or not tenb and orphaned TensorLoadSetupB
     if ((tenb && (!load_tenb || (brows_tenb != acols))) || (!tenb && load_tenb)) {
         // If L1 SCP is disabled we should set multiple bits in tesnor_error
-        if (cpu[current_thread].mcache_control != 3)
+        if (cpu[current_thread].core->mcache_control != 3)
             update_tensor_error((1 << 4) | (1 << 6));
         else
             update_tensor_error(1 << 6);
@@ -1097,40 +1084,40 @@ void tensor_fma32_start(uint64_t tfmareg)
     }
 
     // Check if L1 SCP is enabled
-    if (cpu[current_thread].mcache_control != 3) {
+    if (cpu[current_thread].core->mcache_control != 3) {
         update_tensor_error(1 << 4);
         return;
     }
 
 #ifdef ZSIM
     if (txfma_busy) {
-        cpu[current_thread].shadow_txfma = tfmareg;
+        cpu[current_thread].core->shadow_txfma = tfmareg;
     } else {
-        cpu[current_thread].txfma = tfmareg;
-        assert(cpu[current_thread].enqueue_tensor_op(Processor::Tensor::FMA));
+        cpu[current_thread].core->txfma = tfmareg;
+        assert(cpu[current_thread].core->enqueue_tensor_op(Core::Tensor::FMA));
     }
 #elif SYS_EMU
-    cpu[current_thread].txfma = tfmareg;
+    cpu[current_thread].core->txfma = tfmareg;
     cpu[current_thread].wait.state = Processor::Wait::State::TxFMA;
 #else
-    cpu[current_thread].txfma = tfmareg;
+    cpu[current_thread].core->txfma = tfmareg;
     tensor_fma32_execute();
-    cpu[current_thread].txfma = 0xFFFFFFFFFFFFFFFFULL;
+    cpu[current_thread].core->txfma = 0xFFFFFFFFFFFFFFFFULL;
 #endif
 }
 
 
 static void tensor_fma16a32_execute()
 {
-    bool usemsk     = (cpu[current_thread].txfma >> 63) & 0x1;
-    int  bcols      = (cpu[current_thread].txfma >> 55) & 0x3;
-    int  arows      = (cpu[current_thread].txfma >> 51) & 0xF;
-    int  acols      = (cpu[current_thread].txfma >> 47) & 0xF;
-    int  aoffset    = (cpu[current_thread].txfma >> 43) & 0xF;
-    bool tenb       = (cpu[current_thread].txfma >> 20) & 0x1;
-    int  bstart     = (cpu[current_thread].txfma >> 12) & 0x3F;
-    int  astart     = (cpu[current_thread].txfma >>  4) & 0x3F;
-    bool first_pass = (cpu[current_thread].txfma >>  0) & 1;
+    bool usemsk     = (cpu[current_thread].core->txfma >> 63) & 0x1;
+    int  bcols      = (cpu[current_thread].core->txfma >> 55) & 0x3;
+    int  arows      = (cpu[current_thread].core->txfma >> 51) & 0xF;
+    int  acols      = (cpu[current_thread].core->txfma >> 47) & 0xF;
+    int  aoffset    = (cpu[current_thread].core->txfma >> 43) & 0xF;
+    bool tenb       = (cpu[current_thread].core->txfma >> 20) & 0x1;
+    int  bstart     = (cpu[current_thread].core->txfma >> 12) & 0x3F;
+    int  astart     = (cpu[current_thread].core->txfma >>  4) & 0x3F;
+    bool first_pass = (cpu[current_thread].core->txfma >>  0) & 1;
 
     bcols = (bcols + 1) * 4;
     arows = arows + 1;
@@ -1273,32 +1260,30 @@ void tensor_fma16a32_start(uint64_t tfmareg)
         usemsk, aoffset, first_pass, bcols, acols, arows, tenb, bstart, astart, get_rounding_mode(rtz));
 
 #ifdef ZSIM
-    bool txfma_busy = (cpu[current_thread].txfma != 0xFFFFFFFFFFFFFFFFULL);
+    bool txfma_busy = (cpu[current_thread].core->txfma != 0xFFFFFFFFFFFFFFFFULL);
     if (txfma_busy) {
-        if (cpu[current_thread].shadow_txfma != 0xFFFFFFFFFFFFFFFFULL)
+        if (cpu[current_thread].core->shadow_txfma != 0xFFFFFFFFFFFFFFFFULL)
             throw std::runtime_error("tensor_fma16a32_start() called while "
                                      "this thread's TensorFMA FSM is active");
     }
 #else
-    if (cpu[current_thread].txfma != 0xFFFFFFFFFFFFFFFFULL) {
+    if (cpu[current_thread].core->txfma != 0xFFFFFFFFFFFFFFFFULL) {
         throw std::runtime_error("tensor_fma16a32_start() called while "
                                  "this thread's TensorFMA FSM is active");
     }
 #endif
 
     // Unpair the last TensorLoadSetupB
-    bool load_tenb = cpu[current_thread].tensorload_setupb_topair;
-    int  brows_tenb = 2 * cpu[current_thread].tensorload_setupb_numlines;
-    cpu[current_thread].tensorload_setupb_topair = false;
-    if ((current_thread^1) < EMU_NUM_THREADS)
-        cpu[current_thread^1].tensorload_setupb_topair = false;
+    bool load_tenb = cpu[current_thread].core->tensorload_setupb_topair;
+    int  brows_tenb = 2 * cpu[current_thread].core->tensorload_setupb_numlines;
+    cpu[current_thread].core->tensorload_setupb_topair = false;
 
     // tenb and no TensorLoadSetupB to pair, or tenb and incompatible
     // combination of rows and columns length, or not tenb and orphaned
     // TensorLoadSetupB
     if ((tenb && (!load_tenb || (brows_tenb != acols))) || (!tenb && load_tenb)) {
         // If L1 SCP is disabled we should set multiple bits in tesnor_error
-        if (cpu[current_thread].mcache_control != 3)
+        if (cpu[current_thread].core->mcache_control != 3)
             update_tensor_error((1 << 4) | (1 << 6));
         else
             update_tensor_error(1 << 6);
@@ -1306,43 +1291,43 @@ void tensor_fma16a32_start(uint64_t tfmareg)
     }
 
     // Check if L1 SCP is enabled
-    if (cpu[current_thread].mcache_control != 3) {
+    if (cpu[current_thread].core->mcache_control != 3) {
         update_tensor_error(1 << 4);
         return;
     }
 
 #ifdef ZSIM
     if (txfma_busy) {
-        cpu[current_thread].shadow_txfma = tfmareg;
+        cpu[current_thread].core->shadow_txfma = tfmareg;
     } else {
-        cpu[current_thread].txfma = tfmareg;
-        assert(cpu[current_thread].enqueue_tensor_op(Processor::Tensor::FMA));
+        cpu[current_thread].core->txfma = tfmareg;
+        assert(cpu[current_thread].core->enqueue_tensor_op(Core::Tensor::FMA));
     }
 #elif SYS_EMU
-    cpu[current_thread].txfma = tfmareg;
+    cpu[current_thread].core->txfma = tfmareg;
     cpu[current_thread].wait.state = Processor::Wait::State::TxFMA;
 #else
-    cpu[current_thread].txfma = tfmareg;
+    cpu[current_thread].core->txfma = tfmareg;
     tensor_fma16a32_execute();
-    cpu[current_thread].txfma = 0xFFFFFFFFFFFFFFFFULL;
+    cpu[current_thread].core->txfma = 0xFFFFFFFFFFFFFFFFULL;
 #endif
 }
 
 
 static void tensor_ima8a32_execute()
 {
-    bool usemsk     = (cpu[current_thread].txfma >> 63) & 0x1;
-    int  bcols      = (cpu[current_thread].txfma >> 55) & 0x3;
-    int  arows      = (cpu[current_thread].txfma >> 51) & 0xF;
-    int  acols      = (cpu[current_thread].txfma >> 47) & 0xF;
-    int  aoffset    = (cpu[current_thread].txfma >> 43) & 0xF;
-    bool tenc2rf    = (cpu[current_thread].txfma >> 23) & 0x1;
-    bool ub         = (cpu[current_thread].txfma >> 22) & 0x1;
-    bool ua         = (cpu[current_thread].txfma >> 21) & 0x1;
-    bool tenb       = (cpu[current_thread].txfma >> 20) & 0x1;
-    int  bstart     = (cpu[current_thread].txfma >> 12) & 0x3F;
-    int  astart     = (cpu[current_thread].txfma >>  4) & 0x3F;
-    bool first_pass = (cpu[current_thread].txfma >>  0) & 1;
+    bool usemsk     = (cpu[current_thread].core->txfma >> 63) & 0x1;
+    int  bcols      = (cpu[current_thread].core->txfma >> 55) & 0x3;
+    int  arows      = (cpu[current_thread].core->txfma >> 51) & 0xF;
+    int  acols      = (cpu[current_thread].core->txfma >> 47) & 0xF;
+    int  aoffset    = (cpu[current_thread].core->txfma >> 43) & 0xF;
+    bool tenc2rf    = (cpu[current_thread].core->txfma >> 23) & 0x1;
+    bool ub         = (cpu[current_thread].core->txfma >> 22) & 0x1;
+    bool ua         = (cpu[current_thread].core->txfma >> 21) & 0x1;
+    bool tenb       = (cpu[current_thread].core->txfma >> 20) & 0x1;
+    int  bstart     = (cpu[current_thread].core->txfma >> 12) & 0x3F;
+    int  astart     = (cpu[current_thread].core->txfma >>  4) & 0x3F;
+    bool first_pass = (cpu[current_thread].core->txfma >>  0) & 1;
 
     bcols = (bcols + 1) * 4;
     arows = arows + 1;
@@ -1527,32 +1512,30 @@ void tensor_ima8a32_start(uint64_t tfmareg)
         usemsk, aoffset, first_pass, bcols, acols, arows, ub, ua, tenc2rf, tenb, bstart, astart);
 
 #ifdef ZSIM
-    bool txfma_busy = (cpu[current_thread].txfma != 0xFFFFFFFFFFFFFFFFULL);
+    bool txfma_busy = (cpu[current_thread].core->txfma != 0xFFFFFFFFFFFFFFFFULL);
     if (txfma_busy) {
-        if (cpu[current_thread].shadow_txfma != 0xFFFFFFFFFFFFFFFFULL)
+        if (cpu[current_thread].core->shadow_txfma != 0xFFFFFFFFFFFFFFFFULL)
             throw std::runtime_error("tensor_ima8a32_start() called while "
                                      "this thread's TensorFMA FSM is active");
     }
 #else
-    if (cpu[current_thread].txfma != 0xFFFFFFFFFFFFFFFFULL) {
+    if (cpu[current_thread].core->txfma != 0xFFFFFFFFFFFFFFFFULL) {
         throw std::runtime_error("tensor_ima8a32_start() called while "
                                  "this thread's TensorFMA FSM is active");
     }
 #endif
 
     // Unpair the last TensorLoadSetupB
-    bool load_tenb = cpu[current_thread].tensorload_setupb_topair;
-    int  brows_tenb = 4 * cpu[current_thread].tensorload_setupb_numlines;
-    cpu[current_thread].tensorload_setupb_topair = false;
-    if ((current_thread^1) < EMU_NUM_THREADS)
-        cpu[current_thread^1].tensorload_setupb_topair = false;
+    bool load_tenb = cpu[current_thread].core->tensorload_setupb_topair;
+    int  brows_tenb = 4 * cpu[current_thread].core->tensorload_setupb_numlines;
+    cpu[current_thread].core->tensorload_setupb_topair = false;
 
     // tenb and no TensorLoadSetupB to pair, or tenb and incompatible
     // combination of rows and columns length, or not tenb and orphaned
     // TensorLoadSetupB
     if ((tenb && (!load_tenb || (brows_tenb != acols))) || (!tenb && load_tenb)) {
         // If L1 SCP is disabled we should set multiple bits in tesnor_error
-        if (cpu[current_thread].mcache_control != 3)
+        if (cpu[current_thread].core->mcache_control != 3)
             update_tensor_error((1 << 4) | (1 << 6));
         else
             update_tensor_error(1 << 6);
@@ -1560,25 +1543,25 @@ void tensor_ima8a32_start(uint64_t tfmareg)
     }
 
     // Check if L1 SCP is enabled
-    if (cpu[current_thread].mcache_control != 3) {
+    if (cpu[current_thread].core->mcache_control != 3) {
         update_tensor_error(1 << 4);
         return;
     }
 
 #ifdef ZSIM
     if (txfma_busy) {
-        cpu[current_thread].shadow_txfma = tfmareg;
+        cpu[current_thread].core->shadow_txfma = tfmareg;
     } else {
-        cpu[current_thread].txfma = tfmareg;
-        assert(cpu[current_thread].enqueue_tensor_op(Processor::Tensor::FMA));
+        cpu[current_thread].core->txfma = tfmareg;
+        assert(cpu[current_thread].core->enqueue_tensor_op(Core::Tensor::FMA));
     }
 #elif SYS_EMU
-    cpu[current_thread].txfma = tfmareg;
+    cpu[current_thread].core->txfma = tfmareg;
     cpu[current_thread].wait.state = Processor::Wait::State::TxFMA;
 #else
-    cpu[current_thread].txfma = tfmareg;
+    cpu[current_thread].core->txfma = tfmareg;
     tensor_ima8a32_execute();
-    cpu[current_thread].txfma = 0xFFFFFFFFFFFFFFFFULL;
+    cpu[current_thread].core->txfma = 0xFFFFFFFFFFFFFFFFULL;
 #endif
 }
 
@@ -1586,17 +1569,17 @@ void tensor_ima8a32_start(uint64_t tfmareg)
 void tensor_fma_execute()
 {
 #ifdef ZSIM
-    if (cpu[current_thread].active_tensor_op() != Processor::Tensor::FMA) {
+    if (cpu[current_thread].core->active_tensor_op() != Core::Tensor::FMA) {
         throw std::runtime_error("tensor_fma_execute() called while "
                                  "TensorFMA FSM is inactive");
     }
 #else
-    if (cpu[current_thread].txfma == 0xFFFFFFFFFFFFFFFFULL) {
+    if (cpu[current_thread].core->txfma == 0xFFFFFFFFFFFFFFFFULL) {
         throw std::runtime_error("tensor_fma_execute() called while "
                                  "this thread's TensorFMA FSM is inactive");
     }
 #endif
-    switch ((cpu[current_thread].txfma >> 1) & 0x7)
+    switch ((cpu[current_thread].core->txfma >> 1) & 0x7)
     {
     case 0: tensor_fma32_execute(); break;
     case 1: tensor_fma16a32_execute(); break;
@@ -1604,13 +1587,13 @@ void tensor_fma_execute()
     default: throw std::runtime_error("Illegal tensor_fma configuration");
     }
     if(cpu[current_thread].wait.state != Processor::Wait::State::TxFMA) {
-        cpu[current_thread].txfma = 0xFFFFFFFFFFFFFFFFULL;
+        cpu[current_thread].core->txfma = 0xFFFFFFFFFFFFFFFFULL;
     }
 #ifdef ZSIM
-    assert(cpu[current_thread].dequeue_tensor_op() == Processor::Tensor::FMA);
-    if (cpu[current_thread].shadow_txfma != 0xFFFFFFFFFFFFFFFFULL) {
-        std::swap(cpu[current_thread].txfma, cpu[current_thread].shadow_txfma);
-        assert(cpu[current_thread].enqueue_tensor_op(Processor::Tensor::FMA));
+    assert(cpu[current_thread].core->dequeue_tensor_op() == Core::Tensor::FMA);
+    if (cpu[current_thread].core->shadow_txfma != 0xFFFFFFFFFFFFFFFFULL) {
+        std::swap(cpu[current_thread].core->txfma, cpu[current_thread].core->shadow_txfma);
+        assert(cpu[current_thread].core->enqueue_tensor_op(Core::Tensor::FMA));
     }
 #endif
 }
@@ -1631,8 +1614,8 @@ void tensor_reduce_start(uint64_t value)
     unsigned minmask   = (1 << (level + 1)) - 1;
     unsigned operation = (value >> 24) & 0xF;
 
-    if ((cpu[current_thread].reduce.state != Processor::Reduce::State::Idle) &&
-        (cpu[current_thread].reduce.state != Processor::Reduce::State::Skip))
+    if ((cpu[current_thread].core->reduce.state != Core::Reduce::State::Idle) &&
+        (cpu[current_thread].core->reduce.state != Core::Reduce::State::Skip))
         throw std::runtime_error("tensor_reduce_start() called while "
                                  "this thread's TensorReduce FSM is active");
 
@@ -1643,62 +1626,62 @@ void tensor_reduce_start(uint64_t value)
         set_rounding_mode(frm());
     }
 
-    cpu[current_thread].reduce.regid  = (value >> 57) & 0x1F;
-    cpu[current_thread].reduce.count  = (value >> 16) & 0x7F;
-    cpu[current_thread].reduce.optype = operation | (type << 4);
+    cpu[current_thread].core->reduce.regid  = (value >> 57) & 0x1F;
+    cpu[current_thread].core->reduce.count  = (value >> 16) & 0x7F;
+    cpu[current_thread].core->reduce.optype = operation | (type << 4);
 
     if (type == 0) {
-        cpu[current_thread].reduce.state = Processor::Reduce::State::Send;
-        cpu[current_thread].reduce.thread = (value >> 2) & 0x3FFE;
+        cpu[current_thread].core->reduce.state = Core::Reduce::State::Send;
+        cpu[current_thread].core->reduce.thread = (value >> 2) & 0x3FFE;
     } else if (type == 1) {
-        cpu[current_thread].reduce.state = Processor::Reduce::State::Recv;
-        cpu[current_thread].reduce.thread = (value >> 2) & 0x3FFE;
+        cpu[current_thread].core->reduce.state = Core::Reduce::State::Recv;
+        cpu[current_thread].core->reduce.thread = (value >> 2) & 0x3FFE;
     } else if (type == 2) {
         // Broadcast: compute sender/receiver using recursive halving
         unsigned minion = current_thread / EMU_THREADS_PER_MINION;
         if ((minion & minmask) == distance) {
-            cpu[current_thread].reduce.state = Processor::Reduce::State::Recv;
-            cpu[current_thread].reduce.thread = EMU_THREADS_PER_MINION * (minion - distance);
+            cpu[current_thread].core->reduce.state = Core::Reduce::State::Recv;
+            cpu[current_thread].core->reduce.thread = EMU_THREADS_PER_MINION * (minion - distance);
         } else if ((minion & minmask) == 0) {
-            cpu[current_thread].reduce.state = Processor::Reduce::State::Send;
-            cpu[current_thread].reduce.thread = EMU_THREADS_PER_MINION * (minion + distance);
+            cpu[current_thread].core->reduce.state = Core::Reduce::State::Send;
+            cpu[current_thread].core->reduce.thread = EMU_THREADS_PER_MINION * (minion + distance);
         } else {
-            cpu[current_thread].reduce.state = Processor::Reduce::State::Skip;
+            cpu[current_thread].core->reduce.state = Core::Reduce::State::Skip;
         }
     } else {
         // Reduce: compute sender/receiver using recursive halving
         unsigned minion = current_thread / EMU_THREADS_PER_MINION;
         if ((minion & minmask) == distance) {
-            cpu[current_thread].reduce.state = Processor::Reduce::State::Send;
-            cpu[current_thread].reduce.thread = EMU_THREADS_PER_MINION * (minion - distance);
+            cpu[current_thread].core->reduce.state = Core::Reduce::State::Send;
+            cpu[current_thread].core->reduce.thread = EMU_THREADS_PER_MINION * (minion - distance);
         } else if ((minion & minmask) == 0) {
-            cpu[current_thread].reduce.state = Processor::Reduce::State::Recv;
-            cpu[current_thread].reduce.thread = EMU_THREADS_PER_MINION * (minion + distance);
+            cpu[current_thread].core->reduce.state = Core::Reduce::State::Recv;
+            cpu[current_thread].core->reduce.thread = EMU_THREADS_PER_MINION * (minion + distance);
         } else {
-            cpu[current_thread].reduce.state = Processor::Reduce::State::Skip;
+            cpu[current_thread].core->reduce.state = Core::Reduce::State::Skip;
         }
     }
 
-    if (cpu[current_thread].reduce.state == Processor::Reduce::State::Skip) {
+    if (cpu[current_thread].core->reduce.state == Core::Reduce::State::Skip) {
         LOG(DEBUG, "\t%s(skip) with level: %u, distance: %u, minmask: 0x%08u",
             reducecmd[type], level, distance, minmask);
         return;
     }
 
     // Sending and receiving from the same minion should fail immediately
-    if (cpu[current_thread].reduce.thread == current_thread) {
-        cpu[current_thread].reduce.state = Processor::Reduce::State::Skip;
+    if (cpu[current_thread].core->reduce.thread == current_thread) {
+        cpu[current_thread].core->reduce.state = Core::Reduce::State::Skip;
         LOG(DEBUG, "\t%s(error) other_thread: %u, start_reg: %u, num_reg: %u", reducecmd[type],
-            current_thread, cpu[current_thread].reduce.regid, cpu[current_thread].reduce.count);
+            current_thread, cpu[current_thread].core->reduce.regid, cpu[current_thread].core->reduce.count);
         update_tensor_error(1 << 9);
         return;
     }
 
     // Illegal operation on a receiving minion should fail immediately
-    if ((cpu[current_thread].reduce.state == Processor::Reduce::State::Recv) &&
+    if ((cpu[current_thread].core->reduce.state == Core::Reduce::State::Recv) &&
         (operation == 1 || operation == 5 || operation > 8))
     {
-        cpu[current_thread].reduce.state = Processor::Reduce::State::Skip;
+        cpu[current_thread].core->reduce.state = Core::Reduce::State::Skip;
         LOG(DEBUG, "\t%s(error) illegal operation: %u", reducecmd[type], operation);
         update_tensor_error(1 << 9);
         return;
@@ -1707,16 +1690,16 @@ void tensor_reduce_start(uint64_t value)
     // Sending or receiving 0 registers means do nothing
     // NB: This check has lower priority than other errors because
     // tensor_error[9] should be set even when "count" == 0".
-    if (cpu[current_thread].reduce.count == 0) {
-        cpu[current_thread].reduce.state = Processor::Reduce::State::Skip;
+    if (cpu[current_thread].core->reduce.count == 0) {
+        cpu[current_thread].core->reduce.state = Core::Reduce::State::Skip;
         LOG(DEBUG, "\t%s(skip) num_reg: 0", reducecmd[type]);
         return;
     }
 
-    assert(cpu[current_thread].enqueue_tensor_op(Processor::Tensor::Reduce));
+    assert(cpu[current_thread].core->enqueue_tensor_op(Core::Tensor::Reduce));
 
-    log_tensor_reduce(cpu[current_thread].reduce.state == Processor::Reduce::State::Recv,
-                      cpu[current_thread].reduce.regid, cpu[current_thread].reduce.count);
+    log_tensor_reduce(cpu[current_thread].core->reduce.state == Core::Reduce::State::Recv,
+                      cpu[current_thread].core->reduce.regid, cpu[current_thread].core->reduce.count);
 
 #if !defined(SYS_EMU) && !defined(ZSIM)
     tensor_reduce_execute();
@@ -1731,8 +1714,8 @@ void tensor_reduce_step(unsigned thread)
         "TensorBroadcast", "TensorReduce"
     };
 
-    Processor::Reduce& send = cpu[thread].reduce;
-    Processor::Reduce& recv = cpu[current_thread].reduce;
+    Core::Reduce& send = cpu[thread].core->reduce;
+    Core::Reduce& recv = cpu[current_thread].core->reduce;
 
     unsigned type = (recv.optype >> 4);
 
@@ -1740,8 +1723,8 @@ void tensor_reduce_step(unsigned thread)
         throw std::runtime_error("Tensor reduce sender register count is 0");
     }
     if (!send.count) {
-        assert(cpu[thread].dequeue_tensor_op() == Processor::Tensor::Reduce);
-        cpu[thread].reduce.state = Processor::Reduce::State::Idle;
+        assert(cpu[thread].core->dequeue_tensor_op() == Core::Tensor::Reduce);
+        cpu[thread].core->reduce.state = Core::Reduce::State::Idle;
     }
     if (recv.count-- == 0) {
         LOG(WARN, "%s", "Mismatched tensor reduce register count");
@@ -1750,8 +1733,8 @@ void tensor_reduce_step(unsigned thread)
         return;
     }
     if (!recv.count) {
-        assert(cpu[current_thread].dequeue_tensor_op() == Processor::Tensor::Reduce);
-        cpu[current_thread].reduce.state = Processor::Reduce::State::Idle;
+        assert(cpu[current_thread].core->dequeue_tensor_op() == Core::Tensor::Reduce);
+        cpu[current_thread].core->reduce.state = Core::Reduce::State::Idle;
     }
 
     switch (recv.optype & 0xF) {
@@ -1838,28 +1821,28 @@ void tensor_reduce_execute()
     };
 
     // Get information from receiver
-    unsigned other_thread   = cpu[current_thread].reduce.thread;
-    unsigned this_start_reg = cpu[current_thread].reduce.regid;
-    unsigned this_num_reg   = cpu[current_thread].reduce.count;
-    unsigned type           = cpu[current_thread].reduce.optype >> 4;
+    unsigned other_thread   = cpu[current_thread].core->reduce.thread;
+    unsigned this_start_reg = cpu[current_thread].core->reduce.regid;
+    unsigned this_num_reg   = cpu[current_thread].core->reduce.count;
+    unsigned type           = cpu[current_thread].core->reduce.optype >> 4;
 
-    if (cpu[current_thread].reduce.state == Processor::Reduce::State::Skip) {
+    if (cpu[current_thread].core->reduce.state == Core::Reduce::State::Skip) {
         return;
     }
-    if (cpu[current_thread].active_tensor_op() != Processor::Tensor::Reduce) {
+    if (cpu[current_thread].core->active_tensor_op() != Core::Tensor::Reduce) {
         throw std::runtime_error("tensor_reduce_execute() called while "
                                  "this thread's TensorReduce FSM is inactive");
     }
 #ifdef SYS_EMU
-    if (cpu[other_thread].active_tensor_op() != Processor::Tensor::Reduce) {
+    if (cpu[other_thread].core->active_tensor_op() != Core::Tensor::Reduce) {
         throw std::runtime_error("tensor_reduce_execute() called while "
                                  "the other thread's TensorReduce FSM is inactive");
     }
 #endif
 
-    if (cpu[current_thread].reduce.state != Processor::Reduce::State::Recv) {
+    if (cpu[current_thread].core->reduce.state != Core::Reduce::State::Recv) {
 #ifndef SYS_EMU
-        if (cpu[current_thread].reduce.state == Processor::Reduce::State::Send) {
+        if (cpu[current_thread].core->reduce.state == Core::Reduce::State::Send) {
             LOG(DEBUG, "\t%s(send) receiver=H%u, start_reg=%u, num_reg=%u", reducecmd[type], other_thread, this_start_reg, this_num_reg);
             for (unsigned i = 0; i < this_num_reg; ++i) {
                 unsigned this_op_reg = (i + this_start_reg) % NFREGS;
@@ -1867,29 +1850,29 @@ void tensor_reduce_execute()
             }
         }
 #endif
-        if (cpu[current_thread].reduce.state == Processor::Reduce::State::Skip)
-            cpu[current_thread].reduce.state = Processor::Reduce::State::Idle;
+        if (cpu[current_thread].core->reduce.state == Core::Reduce::State::Skip)
+            cpu[current_thread].core->reduce.state = Core::Reduce::State::Idle;
         return;
     }
 
     // Get information from sender
-    unsigned this_thread     = cpu[other_thread].reduce.thread;
-    unsigned other_start_reg = cpu[other_thread].reduce.regid;
-    unsigned other_num_reg   = cpu[other_thread].reduce.count;
+    unsigned this_thread     = cpu[other_thread].core->reduce.thread;
+    unsigned other_start_reg = cpu[other_thread].core->reduce.regid;
+    unsigned other_num_reg   = cpu[other_thread].core->reduce.count;
 
     if (this_thread != current_thread) {
         LOG(WARN, "\t%s(recv) sender=H%u receiver=H%u sender_start_reg=%u sender_num_reg=%u sender_state=%s",
-            reducecmd[type], other_thread, this_thread, other_start_reg, other_num_reg, get_reduce_state(cpu[other_thread].reduce.state));
+            reducecmd[type], other_thread, this_thread, other_start_reg, other_num_reg, get_reduce_state(cpu[other_thread].core->reduce.state));
         throw std::runtime_error("Mismatched tensor reduce sender target minion");
     }
-    if (cpu[other_thread].reduce.state != Processor::Reduce::State::Send) {
+    if (cpu[other_thread].core->reduce.state != Core::Reduce::State::Send) {
         LOG(WARN, "\t%s(recv) with sender=H%u receiver=H%u sender_start_reg=%u sender_num_reg=%u sender_state=%s",
-            reducecmd[type], other_thread, this_thread, other_start_reg, other_num_reg, get_reduce_state(cpu[other_thread].reduce.state));
+            reducecmd[type], other_thread, this_thread, other_start_reg, other_num_reg, get_reduce_state(cpu[other_thread].core->reduce.state));
         throw std::runtime_error("Mismatched tensor reduce sender state");
     }
     if (other_num_reg != this_num_reg) {
         LOG(WARN, "\t%s(recv) with sender=H%u receiver=H%u sender_start_reg=%u sender_num_reg=%u receiver_start_reg=%u receiver_num_reg=%u sender_state=%s",
-            reducecmd[type], other_thread, this_thread, other_start_reg, other_num_reg, this_start_reg, this_num_reg, get_reduce_state(cpu[other_thread].reduce.state));
+            reducecmd[type], other_thread, this_thread, other_start_reg, other_num_reg, this_start_reg, this_num_reg, get_reduce_state(cpu[other_thread].core->reduce.state));
     }
 
     unsigned count = std::min(this_num_reg, other_num_reg);

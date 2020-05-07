@@ -188,7 +188,7 @@ static uint64_t csrget(uint16_t csr)
         val = cpu[current_thread].mip & cpu[current_thread].mideleg;
         break;
     case CSR_SATP:
-        val = cpu[current_thread].satp;
+        val = cpu[current_thread].core->satp;
         break;
     case CSR_MSTATUS:
         val = cpu[current_thread].mstatus;
@@ -356,7 +356,7 @@ static uint64_t csrget(uint16_t csr)
         break;
         // ----- Esperanto registers -------------------------------------
     case CSR_MATP:
-        val = cpu[current_thread].matp;
+        val = cpu[current_thread].core->matp;
         break;
     case CSR_MINSTMASK:
         val = cpu[current_thread].minstmask;
@@ -368,16 +368,16 @@ static uint64_t csrget(uint16_t csr)
         val = 0;
         break;
     case CSR_MENABLE_SHADOWS:
-        val = cpu[current_thread].menable_shadows;
+        val = cpu[current_thread].core->menable_shadows;
         break;
     case CSR_EXCL_MODE:
-        val = cpu[current_thread].excl_mode & 1;
+        val = cpu[current_thread].core->excl_mode & 1;
         break;
     case CSR_MBUSADDR:
         val = cpu[current_thread].mbusaddr;
         break;
     case CSR_MCACHE_CONTROL:
-        val = cpu[current_thread].mcache_control;
+        val = cpu[current_thread].core->mcache_control;
         break;
     case CSR_EVICT_SW:
     case CSR_FLUSH_SW:
@@ -416,7 +416,7 @@ static uint64_t csrget(uint16_t csr)
         break;
     case CSR_UCACHE_CONTROL:
         require_feature_u_scratchpad();
-        val = cpu[current_thread].ucache_control;
+        val = cpu[current_thread].core->ucache_control;
         break;
     case CSR_PREFETCH_VA:
         require_feature_u_cacheops();
@@ -507,7 +507,7 @@ static uint64_t csrget(uint16_t csr)
         val = port_get(csr - CSR_PORTHEADNB0, false);
         break;
     case CSR_HARTID:
-        if (PRV != PRV_M && (cpu[current_thread].menable_shadows & 1) == 0) {
+        if (PRV != PRV_M && (cpu[current_thread].core->menable_shadows & 1) == 0) {
             throw trap_illegal_instruction(current_inst);
         }
         val = cpu[current_thread].mhartid;
@@ -609,9 +609,7 @@ static uint64_t csrset(uint16_t csr, uint64_t val)
         case SATP_MODE_BARE:
         case SATP_MODE_SV39:
         case SATP_MODE_SV48:
-            cpu[current_thread].satp = val;
-            if ((current_thread^1) < EMU_NUM_THREADS)
-                cpu[current_thread^1].satp = val;
+            cpu[current_thread].core->satp = val;
             break;
         default: // reserved
             // do not write the register if attempting to set an unsupported mode
@@ -829,16 +827,14 @@ static uint64_t csrset(uint16_t csr, uint64_t val)
         // ----- Esperanto registers -------------------------------------
     case CSR_MATP: // Shared register
         // do not write the register if it is locked (L==1)
-        if (~cpu[current_thread].matp & 0x800000000000000ULL) {
+        if (~cpu[current_thread].core->matp & 0x800000000000000ULL) {
             // MODE is 4 bits, L is 1 bits, ASID is 0bits, PPN is PPN_M bits
             val &= 0xF800000000000000ULL | PPN_M;
             switch (val >> 60) {
             case MATP_MODE_BARE:
             case MATP_MODE_MV39:
             case MATP_MODE_MV48:
-                cpu[current_thread].matp = val;
-                if ((current_thread^1) < EMU_NUM_THREADS)
-                    cpu[current_thread^1].matp = val;
+                cpu[current_thread].core->matp = val;
                 break;
             default: // reserved
                 // do not write the register if attempting to set an unsupported mode
@@ -860,20 +856,14 @@ static uint64_t csrset(uint16_t csr, uint64_t val)
         break;
     case CSR_MENABLE_SHADOWS:
         val &= 1;
-        cpu[current_thread].menable_shadows = val;
-        if ((current_thread^1) < EMU_NUM_THREADS)
-            cpu[current_thread^1].menable_shadows = val;
+        cpu[current_thread].core->menable_shadows = val;
         break;
     case CSR_EXCL_MODE:
         val &= 1;
         if (val) {
-            cpu[current_thread].excl_mode = 1 + ((current_thread & 1) << 1);
-            if ((current_thread^1) < EMU_NUM_THREADS)
-                cpu[current_thread^1].excl_mode = 1 + ((current_thread & 1) << 1);
+            cpu[current_thread].core->excl_mode = 1 + ((current_thread & 1) << 1);
         } else {
-            cpu[current_thread].excl_mode = 0;
-            if ((current_thread^1) < EMU_NUM_THREADS)
-                cpu[current_thread^1].excl_mode = 0;
+            cpu[current_thread].core->excl_mode = 0;
         }
         break;
     case CSR_MBUSADDR:
@@ -882,33 +872,29 @@ static uint64_t csrset(uint16_t csr, uint64_t val)
         break;
     case CSR_MCACHE_CONTROL:
 #ifdef SYS_EMU
-        orig_mcache_control = cpu[current_thread].mcache_control & 0x3;
+        orig_mcache_control = cpu[current_thread].core->mcache_control & 0x3;
 #endif
-        switch (cpu[current_thread].mcache_control) {
+        switch (cpu[current_thread].core->mcache_control) {
         case  0: msk = ((val & 3) == 1) ? 3 : 0; break;
         case  1: msk = ((val & 3) != 2) ? 3 : 0; break;
         case  3: msk = ((val & 3) != 2) ? 3 : 0; break;
         default: assert(0); break;
         }
-        val = (val & msk) | (cpu[current_thread].ucache_control & ~msk);
+        val = (val & msk) | (cpu[current_thread].core->ucache_control & ~msk);
         if (msk) {
-            dcache_change_mode(cpu[current_thread].mcache_control, val);
-            cpu[current_thread].ucache_control = val;
-            cpu[current_thread].mcache_control = val & 3;
-            if ((current_thread^1) < EMU_NUM_THREADS) {
-                cpu[current_thread^1].ucache_control = val;
-                cpu[current_thread^1].mcache_control = val & 3;
-            }
+            dcache_change_mode(cpu[current_thread].core->mcache_control, val);
+            cpu[current_thread].core->ucache_control = val;
+            cpu[current_thread].core->mcache_control = val & 3;
             if (~val & 2)
-                cpu[current_thread].tensorload_setupb_topair = false;
+                cpu[current_thread].core->tensorload_setupb_topair = false;
         }
         val &= 3;
 #ifdef SYS_EMU
-        if (sys_emu::get_mem_check() && (orig_mcache_control != (cpu[current_thread].mcache_control & 0x3))) {
+        if (sys_emu::get_mem_check() && (orig_mcache_control != (cpu[current_thread].core->mcache_control & 0x3))) {
             sys_emu::get_mem_checker().mcache_control_up(
                 (current_thread >> 1) / EMU_MINIONS_PER_SHIRE,
                 (current_thread >> 1) % EMU_MINIONS_PER_SHIRE,
-                cpu[current_thread].mcache_control);
+                cpu[current_thread].core->mcache_control);
         }
 #endif
         break;
@@ -994,26 +980,22 @@ static uint64_t csrset(uint16_t csr, uint64_t val)
         break;
     case CSR_UCACHE_CONTROL:
 #ifdef SYS_EMU
-        orig_mcache_control = cpu[current_thread].mcache_control & 0x3;
+        orig_mcache_control = cpu[current_thread].core->mcache_control & 0x3;
 #endif
         require_feature_u_scratchpad();
         msk = (!(current_thread % EMU_THREADS_PER_MINION)
-               && (cpu[current_thread].mcache_control & 1)) ? 1 : 3;
-        val = (cpu[current_thread].mcache_control & msk) | (val & ~msk & 0x07df);
+               && (cpu[current_thread].core->mcache_control & 1)) ? 1 : 3;
+        val = (cpu[current_thread].core->mcache_control & msk) | (val & ~msk & 0x07df);
         assert((val & 3) != 2);
-        dcache_change_mode(cpu[current_thread].mcache_control, val);
-        cpu[current_thread].ucache_control = val;
-        cpu[current_thread].mcache_control = val & 3;
-        if ((current_thread^1) < EMU_NUM_THREADS) {
-            cpu[current_thread^1].ucache_control = val;
-            cpu[current_thread^1].mcache_control = val & 3;
-        }
+        dcache_change_mode(cpu[current_thread].core->mcache_control, val);
+        cpu[current_thread].core->ucache_control = val;
+        cpu[current_thread].core->mcache_control = val & 3;
 #ifdef SYS_EMU
-        if(sys_emu::get_mem_check() && (orig_mcache_control != (cpu[current_thread].mcache_control & 0x3))) {
+        if(sys_emu::get_mem_check() && (orig_mcache_control != (cpu[current_thread].core->mcache_control & 0x3))) {
             sys_emu::get_mem_checker().mcache_control_up(
                 (current_thread >> 1) / EMU_MINIONS_PER_SHIRE,
                 (current_thread >> 1) % EMU_MINIONS_PER_SHIRE,
-                cpu[current_thread].mcache_control);
+                cpu[current_thread].core->mcache_control);
         }
 #endif
         break;
