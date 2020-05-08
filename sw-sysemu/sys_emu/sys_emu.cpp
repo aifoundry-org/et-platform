@@ -83,6 +83,18 @@ static inline bool multithreading_is_disabled(unsigned shire)
     return bemu::shire_other_esrs[shire].minion_feature & 0x10;
 }
 
+static inline bool thread_in_reduce_send(unsigned thread)
+{
+    return ((thread % EMU_THREADS_PER_MINION) == 0)
+        && (bemu::cpu[thread].core->reduce.state == bemu::Core::Reduce::State::Send);
+}
+
+static inline bool thread_in_reduce_recv(unsigned thread)
+{
+    return ((thread % EMU_THREADS_PER_MINION) == 0)
+        && (bemu::cpu[thread].core->reduce.state == bemu::Core::Reduce::State::Recv);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Sends an FCC to the desired minions specified in thread mask to the 1st or
 // second thread (thread_dest), to the counter 0 or 1 (cnt_dest), inside the shire
@@ -963,17 +975,16 @@ sys_emu::main_internal(int argc, char * argv[])
                 bemu::check_pending_interrupts(bemu::cpu[thread_id]);
                 // In case of reduce, we need to make sure that the other
                 // thread is also in reduce state before we complete execution
-                if (bemu::cpu[thread_id].core->reduce.state == bemu::Core::Reduce::State::Send)
+                if (thread_in_reduce_send(thread_id))
                 {
                     LOG(DEBUG, "Waiting to send data to H%u", bemu::cpu[thread_id].core->reduce.thread);
                     ++thread;
                 }
-                else if (bemu::cpu[thread_id].core->reduce.state == bemu::Core::Reduce::State::Recv)
+                else if (thread_in_reduce_recv(thread_id))
                 {
                     unsigned other_thread = bemu::cpu[thread_id].core->reduce.thread;
                     // If pairing minion is in ready to send, consume the data
-                    if ((bemu::cpu[other_thread].core->reduce.state == bemu::Core::Reduce::State::Send) &&
-                        (bemu::cpu[other_thread].core->reduce.thread == thread_id))
+                    if (thread_in_reduce_send(other_thread) && (bemu::cpu[other_thread].core->reduce.thread == thread_id))
                     {
                         bemu::tensor_reduce_execute();
                     }
