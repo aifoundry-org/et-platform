@@ -234,7 +234,7 @@ sys_emu::raise_interrupt_wakeup_check(unsigned thread_id)
         unsigned old_thread = bemu::get_thread();
         bemu::set_thread(thread_id);
         try {
-            bemu::check_pending_interrupts(bemu::cpu[thread_id]);
+            bemu::cpu[thread_id].check_pending_interrupts();
         } catch (const bemu::trap_t& t) {
             trap = true;
         }
@@ -949,15 +949,12 @@ sys_emu::main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<a
                 continue;
             }
 
-            // Try to execute one instruction, this may trap
-            bemu::insn_t inst {0, 0, nullptr};
-
             try
             {
                 // Gets instruction and sets state
                 clearlogstate();
                 bemu::set_thread(thread_id);
-                bemu::check_pending_interrupts(bemu::cpu[thread_id]);
+                bemu::cpu[thread_id].check_pending_interrupts();
                 // In case of reduce, we need to make sure that the other
                 // thread is also in reduce state before we complete execution
                 if (thread_in_reduce_send(thread_id))
@@ -1000,7 +997,7 @@ sys_emu::main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<a
                 else
                 {
                     // Executes the instruction
-                    inst = bemu::fetch_and_decode(bemu::cpu[thread_id]);
+                    bemu::cpu[thread_id].fetch();
 
                     // Check for breakpoints
                     if ((gdbstub_get_status() == GDBSTUB_STATUS_RUNNING) && breakpoint_exists(thread_get_pc(thread_id))) {
@@ -1013,9 +1010,9 @@ sys_emu::main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<a
                     // Dumping when M0:T0 reaches a PC
                     auto range = cmd_options.dump_at_pc.equal_range(thread_get_pc(0));
                     for (auto it = range.first; it != range.second; ++it) {
-                            bemu::dump_data(bemu::memory, it->second.file.c_str(),
-                                            it->second.addr, it->second.size);
-                     }
+                        bemu::dump_data(bemu::memory, it->second.file.c_str(),
+                                        it->second.addr, it->second.size);
+                    }
 
                     // Logging
                     if (thread_get_pc(0) == cmd_options.log_at_pc) {
@@ -1024,7 +1021,7 @@ sys_emu::main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<a
                         bemu::log.setLogLevel(LOG_INFO);
                     }
 
-                    bemu::execute(inst);
+                    bemu::cpu[thread_id].execute();
 
                     if (bemu::get_msg_port_stall(thread_id, 0))
                     {
@@ -1034,7 +1031,7 @@ sys_emu::main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<a
                     }
                     else
                     {
-                        if (inst.is_fcc_write())
+                        if (bemu::cpu[thread_id].inst.is_fcc_write())
                         {
                             unsigned cnt = bemu::cpu[thread_id].fcc_cnt;
                             int old_thread = *thread;
@@ -1051,7 +1048,7 @@ sys_emu::main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<a
                                 pending_fcc[old_thread][cnt]--;
                             }
                         }
-                        else if (inst.is_wfi())
+                        else if (bemu::cpu[thread_id].inst.is_wfi())
                         {
                             if (bemu::cpu[thread_id].core->excl_mode) {
                                 LOG(DEBUG, "%s", "Not going to sleep (WFI) because exclusive mode");
@@ -1062,7 +1059,7 @@ sys_emu::main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<a
                                 raise_interrupt_wakeup_check(thread_id);
                             }
                         }
-                        else if (inst.is_stall_write())
+                        else if (bemu::cpu[thread_id].inst.is_stall_write())
                         {
                             if (bemu::cpu[thread_id].core->excl_mode) {
                                 LOG(DEBUG, "%s", "Not going to sleep (STALL) because exclusive mode");
@@ -1077,7 +1074,7 @@ sys_emu::main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<a
                         {
                             ++thread;
                         }
-                        bemu::advance_pc(bemu::cpu[thread_id]);
+                        bemu::cpu[thread_id].advance_pc();
                     }
                 }
             }
@@ -1085,7 +1082,7 @@ sys_emu::main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<a
             {
                 uint64_t old_pc = thread_get_pc(thread_id);
                 take_trap(t);
-                bemu::advance_pc(bemu::cpu[thread_id]);
+                bemu::cpu[thread_id].advance_pc();
                 if (thread_get_pc(thread_id) == old_pc)
                 {
                     LOG_ALL_MINIONS(FTL, "Trapping to the same address that caused a trap (0x%" PRIx64 "). Avoiding infinite trap recursion.",
@@ -1095,7 +1092,7 @@ sys_emu::main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<a
             }
             catch (const bemu::memory_error& e)
             {
-                bemu::advance_pc(bemu::cpu[thread_id]);
+                bemu::cpu[thread_id].advance_pc();
                 bemu::raise_bus_error_interrupt(thread_id, e.addr);
                 ++thread;
             }

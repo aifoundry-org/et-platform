@@ -18,12 +18,10 @@
 namespace bemu {
 
 
-// program state
-extern uint32_t current_inst;
-
-// re-define the type
+// Instruction execution function
 typedef void (*insn_exec_funct_t)(insn_t);
 
+// Instruction decode function
 typedef insn_exec_funct_t (*insn_decode_func_t)(uint32_t, uint16_t&);
 
 
@@ -1128,49 +1126,48 @@ static insn_exec_funct_t dec_c_sdsp(uint32_t bits __attribute__((unused)),
 //
 // -----------------------------------------------------------------------------
 
-insn_t fetch_and_decode(Hart& cpu)
+// Opcode map inst[1:0]=11b, indexed using inst[6:2]
+static const insn_decode_func_t functab32b[32] = {
+               /*xx.000*/  /*xx.001*/    /*xx.010*/     /*xx.011*/    /*xx.100*/   /*xx.101*/     /*xx.110*/     /*xx.111*/
+    /*00.xxx*/ dec_load,   dec_load_fp,  dec_custom0,   dec_misc_mem, dec_op_imm,  dec_auipc,     dec_op_imm_32, dec_insn_48b_0,
+    /*01.xxx*/ dec_store,  dec_store_fp, dec_custom1,   dec_amo,      dec_op,      dec_lui,       dec_op_32,     dec_insn_64b,
+    /*10.xxx*/ dec_madd,   dec_msub,     dec_nmsub,     dec_nmadd,    dec_op_fp,   dec_reserved0, dec_custom2,   dec_insn_48b_1,
+    /*11.xxx*/ dec_branch, dec_jalr,     dec_reserved1, dec_jal,      dec_system,  dec_reserved2, dec_custom3,   dec_insn_80b
+};
+
+
+// Opcode map inst[1:0]={00b,01b,10b}, indexed using inst[15:13,1:0]
+static const insn_decode_func_t functab16b[32] = {
+                /*xxx.00*/      /*xxx.01*/          /*xxx.10*/         /*xxx.11*/
+    /*000.xx*/  dec_c_addi4spn, dec_c_addi,         dec_c_slli,        nullptr,
+    /*001.xx*/  dec_c_fld,      dec_c_addiw,        dec_c_fldsp,       nullptr,
+    /*010.xx*/  dec_c_lw,       dec_c_li,           dec_c_lwsp,        nullptr,
+    /*011.xx*/  dec_c_ld,       dec_c_lui_addi16sp, dec_c_ldsp,        nullptr,
+    /*100.xx*/  dec_c_reserved, dec_c_misc_alu,     dec_c_jalr_mv_add, nullptr,
+    /*101.xx*/  dec_c_fsd,      dec_c_j,            dec_c_fsdsp,       nullptr,
+    /*110.xx*/  dec_c_sw,       dec_c_beqz,         dec_c_swsp,        nullptr,
+    /*111.xx*/  dec_c_sd,       dec_c_bnez,         dec_c_sdsp,        nullptr
+};
+
+
+void Hart::execute()
 {
-    // Opcode map inst[1:0]=11b, indexed using inst[6:2]
-    // See RV64
-    static const insn_decode_func_t functab32b[32] = {
-                   /*xx.000*/  /*xx.001*/    /*xx.010*/     /*xx.011*/    /*xx.100*/   /*xx.101*/     /*xx.110*/     /*xx.111*/
-        /*00.xxx*/ dec_load,   dec_load_fp,  dec_custom0,   dec_misc_mem, dec_op_imm,  dec_auipc,     dec_op_imm_32, dec_insn_48b_0,
-        /*01.xxx*/ dec_store,  dec_store_fp, dec_custom1,   dec_amo,      dec_op,      dec_lui,       dec_op_32,     dec_insn_64b,
-        /*10.xxx*/ dec_madd,   dec_msub,     dec_nmsub,     dec_nmadd,    dec_op_fp,   dec_reserved0, dec_custom2,   dec_insn_48b_1,
-        /*11.xxx*/ dec_branch, dec_jalr,     dec_reserved1, dec_jal,      dec_system,  dec_reserved2, dec_custom3,   dec_insn_80b
-    };
-
-    // Opcode map inst[1:0]={00b,01b,10b}, indexed using inst[15:13,1:0]
-    static const insn_decode_func_t functab16b[32] = {
-                    /*xxx.00*/      /*xxx.01*/          /*xxx.10*/         /*xxx.11*/
-        /*000.xx*/  dec_c_addi4spn, dec_c_addi,         dec_c_slli,        nullptr,
-        /*001.xx*/  dec_c_fld,      dec_c_addiw,        dec_c_fldsp,       nullptr,
-        /*010.xx*/  dec_c_lw,       dec_c_li,           dec_c_lwsp,        nullptr,
-        /*011.xx*/  dec_c_ld,       dec_c_lui_addi16sp, dec_c_ldsp,        nullptr,
-        /*100.xx*/  dec_c_reserved, dec_c_misc_alu,     dec_c_jalr_mv_add, nullptr,
-        /*101.xx*/  dec_c_fsd,      dec_c_j,            dec_c_fsdsp,       nullptr,
-        /*110.xx*/  dec_c_sw,       dec_c_beqz,         dec_c_swsp,        nullptr,
-        /*111.xx*/  dec_c_sd,       dec_c_bnez,         dec_c_sdsp,        nullptr
-    };
-
-    uint16_t flags = 0;
-    insn_exec_funct_t exec_fn = nullptr;
-    uint32_t bits = mmu_fetch(cpu.pc);
-    current_inst = bits;
-
     // Decode the fetched bits
-    if ((bits & 0x3) == 0x3) {
-        int idx = ((bits >> 2) & 0x1f);
-        exec_fn = functab32b[idx](bits, flags);
-        cpu.npc = sextVA(cpu.pc + 4);
+    insn_exec_funct_t exec_fn = nullptr;
+    if ((inst.bits & 0x3) == 0x3) {
+        int idx = ((inst.bits >> 2) & 0x1f);
+        exec_fn = functab32b[idx](inst.bits, inst.flags);
+        npc = sextVA(pc + 4);
     } else {
-        int idx = ((bits >> 11) & 0x1c) | (bits & 0x03);
-        exec_fn = functab16b[idx](bits, flags);
-        cpu.npc = sextVA(cpu.pc + 2);
+        int idx = ((inst.bits >> 11) & 0x1c) | (inst.bits & 0x03);
+        exec_fn = functab16b[idx](inst.bits, inst.flags);
+        npc = sextVA(pc + 2);
     }
-
-    // overwrite const members
-    return insn_t { bits, flags, exec_fn };
+    if ((minstmask >> 32) != 0) {
+        if (((inst.bits ^ minstmatch) & uint32_t(minstmask)) == 0)
+            throw trap_mcode_instruction(inst.bits);
+    }
+    (exec_fn) (inst);
 }
 
 

@@ -14,11 +14,6 @@
 #include <cstdint>
 #include <cstddef>
 #include <new>
-#include "processor.h"
-#include "traps.h"
-
-// FIXME: Replace with "processor.h"
-#include "emu_defines.h"
 
 namespace bemu {
 
@@ -26,8 +21,6 @@ namespace bemu {
 class insn_t
 {
 public:
-    typedef void (*insn_exec_func_t)(insn_t);
-
     enum : uint16_t {
         flag_1ULP         = 0x0001,
         flag_CMO          = 0x0002, // Coherent Memory Operation (AMOs, etc)
@@ -48,7 +41,6 @@ public:
 
     uint32_t          bits;
     uint16_t          flags;
-    insn_exec_func_t  exec_fn;
 
 private:
     template<size_t N> static constexpr int64_t sx(uint32_t x) {
@@ -231,24 +223,6 @@ public:
         return unsigned( ((bits >> 2) & 0x1F) | ((bits >> 7) & 0x20) );
     }
 };
-
-
-extern insn_t fetch_and_decode(Hart&);
-
-
-inline void execute(insn_t inst)
-{
-    extern std::array<Hart,EMU_NUM_THREADS> cpu;
-    extern unsigned current_thread;
-
-    uint64_t minstmask = cpu[current_thread].minstmask;
-    if ((minstmask >> 32) != 0) {
-        uint32_t mask = minstmask;
-        if (((inst.bits ^ cpu[current_thread].minstmatch) & mask) == 0)
-            throw trap_mcode_instruction(inst.bits);
-    }
-    (inst.exec_fn) (inst);
-}
 
 
 } // namespace bemu

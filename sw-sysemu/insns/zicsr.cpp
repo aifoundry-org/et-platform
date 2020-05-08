@@ -46,8 +46,7 @@ namespace bemu {
 
 
 extern std::array<Hart,EMU_NUM_THREADS> cpu;
-extern uint32_t                              current_inst;
-extern bool                                  m_emu_done;
+extern bool                             m_emu_done;
 
 
 // Fast local barrier
@@ -130,11 +129,11 @@ static void check_counter_is_enabled(int n)
     switch (PRV) {
     case PRV_U:
         if ((cpu[current_thread].scounteren & enabled) == 0)
-            throw trap_illegal_instruction(current_inst);
+            throw trap_illegal_instruction(cpu[current_thread].inst.bits);
         break;
     case PRV_S:
         if (enabled == 0)
-            throw trap_illegal_instruction(current_inst);
+            throw trap_illegal_instruction(cpu[current_thread].inst.bits);
         break;
     default:
         break;
@@ -340,7 +339,7 @@ static uint64_t csrget(uint16_t csr)
     case CSR_HPMCOUNTER29:
     case CSR_HPMCOUNTER30:
     case CSR_HPMCOUNTER31:
-        throw trap_illegal_instruction(current_inst);
+        throw trap_illegal_instruction(cpu[current_thread].inst.bits);
         break;
     case CSR_MVENDORID:
         val = CSR_VENDOR_ID;
@@ -491,7 +490,7 @@ static uint64_t csrget(uint16_t csr)
         if (((cpu[current_thread].portctrl[csr-CSR_PORTHEAD0] & 0x1) == 0)
             || ((PRV == PRV_U) && ((cpu[current_thread].portctrl[csr-CSR_PORTHEAD0] & 0x8) == 0)))
         {
-            throw trap_illegal_instruction(current_inst);
+            throw trap_illegal_instruction(cpu[current_thread].inst.bits);
         }
         val = port_get(csr - CSR_PORTHEAD0, true);
         break;
@@ -502,13 +501,13 @@ static uint64_t csrget(uint16_t csr)
         if (((cpu[current_thread].portctrl[csr-CSR_PORTHEADNB0] & 0x1) == 0)
             || ((PRV == PRV_U) && ((cpu[current_thread].portctrl[csr-CSR_PORTHEADNB0] & 0x8) == 0)))
         {
-            throw trap_illegal_instruction(current_inst);
+            throw trap_illegal_instruction(cpu[current_thread].inst.bits);
         }
         val = port_get(csr - CSR_PORTHEADNB0, false);
         break;
     case CSR_HARTID:
         if (PRV != PRV_M && (cpu[current_thread].core->menable_shadows & 1) == 0) {
-            throw trap_illegal_instruction(current_inst);
+            throw trap_illegal_instruction(cpu[current_thread].inst.bits);
         }
         val = cpu[current_thread].mhartid;
         break;
@@ -517,7 +516,7 @@ static uint64_t csrget(uint16_t csr)
         break;
         // ----- All other registers -------------------------------------
     default:
-        throw trap_illegal_instruction(current_inst);
+        throw trap_illegal_instruction(cpu[current_thread].inst.bits);
     }
     return val;
 }
@@ -728,12 +727,12 @@ static uint64_t csrset(uint16_t csr, uint64_t val)
             {
                 val &= ~0x000000000000F000ULL;
             }
-            set_tdata1(cpu[current_thread], val);
+            cpu[current_thread].set_tdata1(val);
         }
         else if (~cpu[current_thread].tdata1 & 0x0800000000000000ULL) {
             // Preserve type, dmode, maskmax, timing, action
             val = (val & 0x00000000000000DFULL) | (cpu[current_thread].tdata1 & 0xFFE000000004F000ULL);
-            set_tdata1(cpu[current_thread], val);
+            cpu[current_thread].set_tdata1(val);
         }
         else {
             // Ignore writes to the register
@@ -822,7 +821,7 @@ static uint64_t csrset(uint16_t csr, uint64_t val)
     case CSR_MARCHID:
     case CSR_MIMPID:
     case CSR_MHARTID:
-        throw trap_illegal_instruction(current_inst);
+        throw trap_illegal_instruction(cpu[current_thread].inst.bits);
         break;
         // ----- Esperanto registers -------------------------------------
     case CSR_MATP: // Shared register
@@ -934,7 +933,7 @@ static uint64_t csrset(uint16_t csr, uint64_t val)
         case  0: tensor_fma32_start(val); break;
         case  1: tensor_fma16a32_start(val); break;
         case  3: tensor_ima8a32_start(val); break;
-        default: throw trap_illegal_instruction(current_inst); break;
+        default: throw trap_illegal_instruction(cpu[current_thread].inst.bits); break;
         }
         break;
     case CSR_TENSOR_CONV_SIZE:
@@ -1153,10 +1152,10 @@ static uint64_t csrset(uint16_t csr, uint64_t val)
     case CSR_PORTHEADNB2:
     case CSR_PORTHEADNB3:
     case CSR_HARTID:
-        throw trap_illegal_instruction(current_inst);
+        throw trap_illegal_instruction(cpu[current_thread].inst.bits);
         // ----- All other registers -------------------------------------
     default:
-        throw trap_illegal_instruction(current_inst);
+        throw trap_illegal_instruction(cpu[current_thread].inst.bits);
     }
 
     return val;

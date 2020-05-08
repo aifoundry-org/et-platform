@@ -53,7 +53,6 @@ emu_hdrs := \
 	utility.h
 
 emu_cpp_srcs := \
-	decode.cpp \
 	devices/rvtimer.cpp \
 	emu.cpp \
 	emu_gio.cpp \
@@ -88,6 +87,7 @@ emu_cpp_srcs := \
 	memory/load.cpp \
 	mmu.cpp \
 	msgport.cpp \
+	processor.cpp \
 	rbox.cpp \
 	tbox_emu.cpp \
 	traps.cpp \

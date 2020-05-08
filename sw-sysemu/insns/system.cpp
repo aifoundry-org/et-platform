@@ -75,7 +75,7 @@ void insn_mret(insn_t inst)
     LOG_MSTATUS("=", mstatus);
 
     // Set prv = mpp
-    set_prv(cpu[current_thread], mpp);
+    cpu[current_thread].set_prv(mpp);
     LOG_PRV("=", mpp);
 
     // Update PC
@@ -111,7 +111,7 @@ void insn_sret(insn_t inst)
     LOG_MSTATUS("=", mstatus);
 
     // Set prv = spp
-    set_prv(cpu[current_thread], spp);
+    cpu[current_thread].set_prv(spp);
     LOG_PRV("=", spp);
 
     // Update PC

@@ -26,7 +26,6 @@ namespace bemu {
 
 
 extern std::array<Hart,EMU_NUM_THREADS> cpu;
-extern uint32_t current_inst;
 
 // MsgPort defines
 #define PORT_LOG2_MIN_SIZE   2
@@ -375,7 +374,7 @@ int64_t port_get(unsigned id, bool block)
 {
     if (((PRV == PRV_U) && !msg_ports[current_thread][id].umode) || !msg_ports[current_thread][id].enabled)
     {
-        throw trap_illegal_instruction(current_inst);
+        throw trap_illegal_instruction(cpu[current_thread].inst.bits);
     }
 
     if (msg_port_empty(current_thread,id))

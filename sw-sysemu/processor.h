@@ -20,6 +20,8 @@
 
 #include "cache.h"
 #include "emu_defines.h"
+#include "insn.h"
+#include "mmu.h"
 #include "state.h"
 #include "traps.h"
 
@@ -117,6 +119,16 @@ struct Core {
 // A hardware thread
 //
 struct Hart {
+
+    void advance_pc();
+    void activate_breakpoints();
+    void set_prv(prv_t value);
+    void set_tdata1(uint64_t value);
+    void check_pending_interrupts() const;
+    void fetch();
+    void execute();
+
+    // Core that this hart belongs to
     Core*  core;
 
     // Register files
@@ -127,6 +139,9 @@ struct Hart {
     // Program counter
     uint64_t    pc;
     uint64_t    npc;
+
+    // Instruction being executed
+    insn_t      inst;
 
     // RISCV control and status registers
     uint32_t    fcsr;
@@ -210,44 +225,44 @@ struct Hart {
 };
 
 
-inline void advance_pc(Hart& cpu)
+inline void Hart::advance_pc()
 {
-    cpu.pc = cpu.npc;
+    pc = npc;
 }
 
 
-inline void activate_breakpoints(Hart& cpu)
+inline void Hart::activate_breakpoints()
 {
-    uint64_t mcontrol = cpu.tdata1;
-    int priv = int(cpu.prv);
-    cpu.break_on_load  = !(~mcontrol & ((8 << priv) | 1));
-    cpu.break_on_store = !(~mcontrol & ((8 << priv) | 2));
-    cpu.break_on_fetch = !(~mcontrol & ((8 << priv) | 4));
+    uint64_t mcontrol = tdata1;
+    int priv = int(prv);
+    break_on_load  = !(~mcontrol & ((8 << priv) | 1));
+    break_on_store = !(~mcontrol & ((8 << priv) | 2));
+    break_on_fetch = !(~mcontrol & ((8 << priv) | 4));
 }
 
 
-inline void set_prv(Hart& cpu, prv_t value)
+inline void Hart::set_prv(prv_t value)
 {
-    cpu.prv = value;
-    activate_breakpoints(cpu);
+    prv = value;
+    activate_breakpoints();
 }
 
 
-inline void set_tdata1(Hart& cpu, uint64_t value)
+inline void Hart::set_tdata1(uint64_t value)
 {
-    cpu.tdata1 = value;
-    activate_breakpoints(cpu);
+    tdata1 = value;
+    activate_breakpoints();
 }
 
 
-inline void check_pending_interrupts(const Hart& cpu)
+inline void Hart::check_pending_interrupts() const
 {
     // Are there any non-masked pending interrupts? If excl_mode != 0 this
     // thread is either in exclusive mode or blocked, but either way it cannot
     // receive interrupts
-    uint_fast32_t xip = (cpu.mip | cpu.ext_seip) & cpu.mie;
+    uint_fast32_t xip = (mip | ext_seip) & mie;
 
-    if (!xip || cpu.core->excl_mode)
+    if (!xip || core->excl_mode)
         return;
 
     // If there are any pending interrupts for the current privilege level
@@ -255,11 +270,11 @@ inline void check_pending_interrupts(const Hart& cpu)
     // interrupts for a higher privilege level 'y>x' they must be taken
     // independently of the value in mstatus.yIE. Pending interrupts for a
     // lower privilege level 'w<x' are not taken.
-    uint_fast32_t mip = xip & ~cpu.mideleg;
-    uint_fast32_t sip = xip & cpu.mideleg;
-    uint_fast32_t mie = cpu.mstatus & 8;
-    uint_fast32_t sie = cpu.mstatus & 2;
-    switch (cpu.prv) {
+    uint_fast32_t mip = xip & ~mideleg;
+    uint_fast32_t sip = xip & mideleg;
+    uint_fast32_t mie = mstatus & 8;
+    uint_fast32_t sie = mstatus & 2;
+    switch (prv) {
         case PRV_M:
             if (!mip || !mie)
                 return;
@@ -302,6 +317,13 @@ inline void check_pending_interrupts(const Hart& cpu)
     if (xip & (1 << BUS_ERROR_INTERRUPT)) {
         throw trap_bus_error_interrupt();
     }
+}
+
+
+inline void Hart::fetch()
+{
+    inst.bits = mmu_fetch(pc);
+    inst.flags = 0;
 }
 
 

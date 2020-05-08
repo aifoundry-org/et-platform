@@ -40,7 +40,6 @@ std::array<Core,EMU_NUM_MINIONS>  core;
 
 system_version_t sysver = system_version_t::UNKNOWN;
 
-uint32_t current_inst = 0;
 unsigned current_thread = 0;
 
 bool m_emu_done = false;
@@ -121,6 +120,9 @@ void reset_hart(unsigned thread)
     // PC
     cpu[thread].pc = 0;
     cpu[thread].npc = 0;
+
+    // Currently executing instruction
+    cpu[thread].inst = insn_t { 0, 0 };
 
     // RISCV control and status registers
     cpu[thread].scounteren = 0;

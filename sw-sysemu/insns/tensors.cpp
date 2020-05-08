@@ -58,7 +58,6 @@ namespace bemu {
 
 
 extern std::array<Hart,EMU_NUM_THREADS> cpu;
-extern uint32_t current_inst;
 
 
 static inline int frm()
@@ -214,7 +213,7 @@ void tensor_load_start(uint64_t control)
     if (use_coop) {
         uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
         if (!bemu::shire_other_esrs[shire].shire_coop_mode)
-            throw trap_illegal_instruction(current_inst);
+            throw trap_illegal_instruction(cpu[current_thread].inst.bits);
     }
 
     // Check if SCP is enabled
@@ -862,7 +861,7 @@ void tensor_store_start(uint64_t tstorereg)
         {
             uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
             if (!bemu::shire_other_esrs[shire].shire_coop_mode)
-                throw trap_illegal_instruction(current_inst);
+                throw trap_illegal_instruction(cpu[current_thread].inst.bits);
         }
 
         // For all the rows

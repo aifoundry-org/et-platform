@@ -95,7 +95,7 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
     cpu[current_thread].stval = sextVA(val);
     cpu[current_thread].sepc = sextVA(PC & ~1ULL);
     // Jump to stvec
-    set_prv(cpu[current_thread], PRV_S);
+    cpu[current_thread].set_prv(PRV_S);
 
     // Throw an error if no one ever set stvec otherwise we'll enter an
     // infinite loop of illegal instruction exceptions
@@ -161,7 +161,7 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
     cpu[current_thread].mtval = sextVA(val);
     cpu[current_thread].mepc = sextVA(PC & ~1ULL);
     // Jump to mtvec
-    set_prv(cpu[current_thread], PRV_M);
+    cpu[current_thread].set_prv(PRV_M);
 
     // Throw an error if no one ever set mtvec otherwise we'll enter an
     // infinite loop of illegal instruction exceptions

@@ -26,9 +26,6 @@ inline void profiling_write_pc(int, uint64_t) {}
 namespace bemu {
 
 
-extern uint32_t current_inst;
-
-
 // -----------------------------------------------------------------------------
 // Log operands
 
@@ -234,50 +231,50 @@ extern uint32_t current_inst;
 #define set_rounding_mode(expr) do { \
     uint_fast8_t round = (expr); \
     if (round == 7) round = FRM; \
-    if (round > 4) throw trap_illegal_instruction(current_inst); \
+    if (round > 4) throw trap_illegal_instruction(cpu[current_thread].inst.bits); \
     softfloat_roundingMode = round; \
 } while (0)
 
 
 #define require_fp_active() do { \
     if ((cpu[current_thread].mstatus & 0x6000ULL) == 0) \
-        throw trap_illegal_instruction(current_inst); \
+        throw trap_illegal_instruction(cpu[current_thread].inst.bits); \
 } while (0)
 
 
 #define require_feature_gfx() do { \
     if (shire_other_esrs[current_thread / EMU_THREADS_PER_SHIRE].minion_feature & 0x1) \
-        throw trap_illegal_instruction(current_inst); \
+        throw trap_illegal_instruction(cpu[current_thread].inst.bits); \
 } while (0)
 
 
 #define require_feature_ml() do { \
     if (shire_other_esrs[current_thread / EMU_THREADS_PER_SHIRE].minion_feature & 0x2) \
-        throw trap_illegal_instruction(current_inst); \
+        throw trap_illegal_instruction(cpu[current_thread].inst.bits); \
 } while (0)
 
 
 #define require_feature_ml_on_thread0() do { \
     if ((current_thread % EMU_THREADS_PER_MINION) || \
         (shire_other_esrs[current_thread / EMU_THREADS_PER_SHIRE].minion_feature & 0x2)) \
-        throw trap_illegal_instruction(current_inst); \
+        throw trap_illegal_instruction(cpu[current_thread].inst.bits); \
 } while (0)
 
 #define require_feature_u_cacheops() do { \
     if (shire_other_esrs[current_thread / EMU_THREADS_PER_SHIRE].minion_feature & 0x4) \
-        throw trap_illegal_instruction(current_inst); \
+        throw trap_illegal_instruction(cpu[current_thread].inst.bits); \
 } while (0)
 
 
 #define require_feature_u_scratchpad() do { \
     if (shire_other_esrs[current_thread / EMU_THREADS_PER_SHIRE].minion_feature & 0x8) \
-        throw trap_illegal_instruction(current_inst); \
+        throw trap_illegal_instruction(cpu[current_thread].inst.bits); \
 } while (0)
 
 
 #define require_lock_unlock_enabled() do { \
     if (shire_other_esrs[current_thread / EMU_THREADS_PER_SHIRE].minion_feature & 0x24) \
-        throw trap_illegal_instruction(current_inst); \
+        throw trap_illegal_instruction(cpu[current_thread].inst.bits); \
 } while (0)
 
 
