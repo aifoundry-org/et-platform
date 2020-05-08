@@ -866,11 +866,11 @@ bool TBOXEmu::texture_cache_lookup(int32_t bank, uint64_t tag, uint64_t data[TEX
     {
         uint32_t access_way = l - 1;
 
-        LOG(DEBUG, "\tTexture Cache hit at bank %d way %u for tag %" PRIx64, bank, access_way, tag);
-        LOG(DEBUG, "%s", "\tData:");
+        LOG_NOTHREAD(DEBUG, "\tTexture Cache hit at bank %d way %u for tag %" PRIx64, bank, access_way, tag);
+        LOG_NOTHREAD(DEBUG, "%s", "\tData:");
         for (uint32_t q = 0; q < TEXTURE_CACHE_QWORDS_PER_LINE; q++)
         {
-            LOG(DEBUG, "\t%" PRIx64, textureCacheData[bank][access_way][q]);
+            LOG_NOTHREAD(DEBUG, "\t%" PRIx64, textureCacheData[bank][access_way][q]);
             data[q] = textureCacheData[bank][access_way][q];
         }
 
@@ -898,7 +898,7 @@ void TBOXEmu::texture_cache_fill(int32_t bank, uint64_t tag, uint64_t data[TEXTU
     else
         victim_way = texture_cache_get_lru(bank);
 
-    LOG(DEBUG, "\tTexture Cache fill at bank %d way %d with tag %016" PRIx64, bank, victim_way, tag);
+    LOG_NOTHREAD(DEBUG, "\tTexture Cache fill at bank %d way %d with tag %016" PRIx64, bank, victim_way, tag);
 
     textureCacheValid[bank][victim_way] = true;
     textureCacheTags[bank][victim_way] = tag;
@@ -949,7 +949,7 @@ bool TBOXEmu::image_info_cache_lookup(uint32_t tag, ImageInfo &data)
     {
         uint32_t access_way = l - 1;
 
-        LOG(DEBUG, "\tImage Descriptor Cache hit at way %d for tag %d", access_way, tag);
+        LOG_NOTHREAD(DEBUG, "\tImage Descriptor Cache hit at way %d for tag %d", access_way, tag);
 
         data = imageInfoCache[access_way];
         image_info_cache_update_lru(access_way);
@@ -976,7 +976,7 @@ void TBOXEmu::image_info_cache_fill(uint32_t tag, ImageInfo data)
     else
         victim_way = image_info_cache_get_lru();
 
-    LOG(DEBUG, "\tImage Descriptor Cache fill at way %d with tag %d", victim_way, tag);
+    LOG_NOTHREAD(DEBUG, "\tImage Descriptor Cache fill at way %d with tag %d", victim_way, tag);
 
     imageInfoCacheValid[victim_way] = true;
     imageInfoCacheTags[victim_way] = tag;
@@ -989,8 +989,8 @@ bool TBOXEmu::access_memory(uint64_t address, uint64_t &data)
 #ifdef TBOX_MINION_SIM
     return access_l2(address, data);
 #else
-    data = bemu::pmemread<uint64_t>(address);
-    LOG(DEBUG, "\t\t %016" PRIx64 " <- PMEM64[%016" PRIx64 "]", data, address);
+    data = bemu::pmemread<uint64_t>(Noshire_agent{}, address);
+    LOG_NOTHREAD(DEBUG, "\t\t %016" PRIx64 " <- PMEM64[%016" PRIx64 "]", data, address);
     return true;
 #endif
 }
@@ -1000,15 +1000,15 @@ bool TBOXEmu::access_memory(uint64_t address, uint32_t &data)
 #ifdef TBOX_MINION_SIM
     return access_l2(address, data);
 #else
-    data = bemu::pmemread<uint32_t>(address);
-    LOG(DEBUG, "\t\t %08" PRIx32 " <- PMEM32[%016" PRIx64 "]", data, address);
+    data = bemu::pmemread<uint32_t>(Noshire_agent{}, address);
+    LOG_NOTHREAD(DEBUG, "\t\t %08" PRIx32 " <- PMEM32[%016" PRIx64 "]", data, address);
     return true;
 #endif
 }
 
 bool TBOXEmu::access_l2(uint64_t address, uint64_t &data)
 {
-    LOG(DEBUG, "\t64-bit L2 access for address %016" PRIx64 " thread %d", address, request_hart);
+    LOG_NOTHREAD(DEBUG, "\t64-bit L2 access for address %016" PRIx64 " thread %d", address, request_hart);
 
     uint64_t req_addr_lo =  address      & ~0x3fUL;
     uint64_t req_addr_hi = (address + 7) & ~0x3fUL;
@@ -1017,7 +1017,7 @@ bool TBOXEmu::access_l2(uint64_t address, uint64_t &data)
         return get_l2_data(address, data);
     else
     {
-        LOG(DEBUG, "%s", "\tL2 access split cache line access");
+        LOG_NOTHREAD(DEBUG, "%s", "\tL2 access split cache line access");
 
         uint32_t unaligned_size = 8 - (address & 0x7UL);
 
@@ -1032,7 +1032,7 @@ bool TBOXEmu::access_l2(uint64_t address, uint64_t &data)
         if (data_ready)
         {
             data = (data_lo >> (8 * unaligned_size)) + (data_hi << (8 * (8 - unaligned_size)));
-            LOG(DEBUG, "\tSplit data ready %016" PRIx64, data);
+            LOG_NOTHREAD(DEBUG, "\tSplit data ready %016" PRIx64, data);
         }
 
         return data_ready;
@@ -1041,7 +1041,7 @@ bool TBOXEmu::access_l2(uint64_t address, uint64_t &data)
 
 bool TBOXEmu::access_l2(uint64_t address, uint32_t &data)
 {
-    LOG(DEBUG, "\t32-bit L2 access for address %016" PRIx64 " thread %d", address, request_hart);
+    LOG_NOTHREAD(DEBUG, "\t32-bit L2 access for address %016" PRIx64 " thread %d", address, request_hart);
 
     uint64_t req_addr_lo =  address      & ~0x3fUL;
     uint64_t req_addr_hi = (address + 3) & ~0x3fUL;
@@ -1050,7 +1050,7 @@ bool TBOXEmu::access_l2(uint64_t address, uint32_t &data)
         return get_l2_data(address, data);
     else
     {
-        LOG(DEBUG, "%s", "\tL2 access split cache line access");
+        LOG_NOTHREAD(DEBUG, "%s", "\tL2 access split cache line access");
 
         uint32_t unaligned_size = 4 - (address & 0x3UL);
 
@@ -1065,7 +1065,7 @@ bool TBOXEmu::access_l2(uint64_t address, uint32_t &data)
         if (data_ready)
         {
             data = (data_lo >> (8 * unaligned_size)) + (data_hi << (8 * (4 - unaligned_size)));
-            LOG(DEBUG, "\tSplit data ready %08" PRIx32, data);
+            LOG_NOTHREAD(DEBUG, "\tSplit data ready %08" PRIx32, data);
         }
 
         return data_ready;
@@ -1089,13 +1089,13 @@ bool TBOXEmu::get_l2_data(uint64_t address, uint64_t &data)
 
     if (found)
     {
-        LOG(DEBUG, "\tFound existing L2 request %d for address %016" PRIx64, req - 1, address);
+        LOG_NOTHREAD(DEBUG, "\tFound existing L2 request %d for address %016" PRIx64, req - 1, address);
         l2_requests[req - 1].thread_mask |= (1 << request_hart);
         if (l2_requests[req - 1].ready)
         {
             uint8_t *data_ptr = &((uint8_t *) l2_requests[req - 1].data)[(address & 0x3fUL)];
             data = *((uint64_t *) data_ptr);
-            LOG(DEBUG, "\tData ready %016" PRIx64, data);
+            LOG_NOTHREAD(DEBUG, "\tData ready %016" PRIx64, data);
             return true;
         }
 
@@ -1127,13 +1127,13 @@ bool TBOXEmu::get_l2_data(uint64_t address, uint32_t &data)
 
     if (found)
     {
-        LOG(DEBUG, "\tFound existing L2 request %d for address %016" PRIx64, req - 1, address);
+        LOG_NOTHREAD(DEBUG, "\tFound existing L2 request %d for address %016" PRIx64, req - 1, address);
         l2_requests[req - 1].thread_mask |= (1 << request_hart);
         if (l2_requests[req - 1].ready)
         {
             uint8_t *data_ptr = &((uint8_t *) l2_requests[req - 1].data)[address & 0x3fUL];
             data = *((uint32_t *) data_ptr);
-            LOG(DEBUG, "\tData ready %08" PRIx32, data);
+            LOG_NOTHREAD(DEBUG, "\tData ready %08" PRIx32, data);
             return true;
         }
 
@@ -1165,7 +1165,7 @@ bool TBOXEmu::get_l2_data(uint64_t address, ImageInfo &data)
 
     if (found)
     {
-        LOG(DEBUG, "\tFound existing L2 request %d for address %016" PRIx64, req - 1, address);
+        LOG_NOTHREAD(DEBUG, "\tFound existing L2 request %d for address %016" PRIx64, req - 1, address);
         l2_requests[req - 1].thread_mask |= (1 << request_hart);
         if (l2_requests[req - 1].ready)
         {
@@ -1199,7 +1199,7 @@ void TBOXEmu::create_l2_request(uint64_t address)
     if (free_entry == MAX_L2_REQUESTS)
         throw std::runtime_error("No free L2 request entry found.");
 
-    LOG(DEBUG, "\tCreated new L2 request %d for address %016" PRIx64 " thread %d", free_entry, address & ~0x3fUL, request_hart);
+    LOG_NOTHREAD(DEBUG, "\tCreated new L2 request %d for address %016" PRIx64 " thread %d", free_entry, address & ~0x3fUL, request_hart);
 
     l2_requests[free_entry].thread_mask  = (1 << request_hart);
     l2_requests[free_entry].address = address & ~0x3fUL;
@@ -1219,20 +1219,20 @@ void TBOXEmu::clear_l2_requests(uint32_t thread)
     {
         if (!l2_requests[e].free)
         {
-            if (l2_requests[e].thread_mask & (1 << thread)) LOG(DEBUG, "\tClear L2 request %d for thread %d", e, thread);
+            if (l2_requests[e].thread_mask & (1 << thread)) LOG_NOTHREAD(DEBUG, "\tClear L2 request %d for thread %d", e, thread);
 
             l2_requests[e].thread_mask &= ~(1 << thread);
 
             if (l2_requests[e].thread_mask == 0)
             {
-                LOG(DEBUG, "\tFree L2 request %d as all threads are cleared", e);
+                LOG_NOTHREAD(DEBUG, "\tFree L2 request %d as all threads are cleared", e);
                 l2_requests[e].free = true;
                 num_total_l2_requests--;
                 num_cleared_l2_requests++;
             }
         }
     }
-    LOG(DEBUG, "\tClear Thread %d L2 Requests,  Total %d Created %d Cleared %d",
+    LOG_NOTHREAD(DEBUG, "\tClear Thread %d L2 Requests,  Total %d Created %d Cleared %d",
                       thread, num_total_l2_requests, num_created_l2_requests[thread], num_cleared_l2_requests);
     num_new_l2_requests[thread] = 0;
     num_created_l2_requests[thread] = 0;
@@ -1256,10 +1256,10 @@ bool TBOXEmu::read_image_info_cache_line(uint64_t address, ImageInfo &data)
 #ifdef TBOX_MINION_SIM
     return get_l2_data(address, data);
 #else
-    data.data[0] = bemu::pmemread<uint64_t>(address + 0);
-    data.data[1] = bemu::pmemread<uint64_t>(address + 8);
-    data.data[2] = bemu::pmemread<uint64_t>(address + 16);
-    data.data[3] = bemu::pmemread<uint64_t>(address + 24);
+    data.data[0] = bemu::pmemread<uint64_t>(Noshire_agent{}, address + 0);
+    data.data[1] = bemu::pmemread<uint64_t>(Noshire_agent{}, address + 8);
+    data.data[2] = bemu::pmemread<uint64_t>(Noshire_agent{}, address + 16);
+    data.data[3] = bemu::pmemread<uint64_t>(Noshire_agent{}, address + 24);
     return true;
 #endif
 }
@@ -1421,7 +1421,7 @@ void TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, uint32_
     ImageFormat fmt = (ImageFormat)currentImage.info.format;
     bool tiled = currentImage.info.tiled;
 
-    LOG(DEBUG, "Decompress Texture Cache Line format %x tiled %d", fmt, tiled);
+    LOG_NOTHREAD(DEBUG, "Decompress Texture Cache Line format %x tiled %d", fmt, tiled);
 
     switch (fmt)
     {
@@ -2277,7 +2277,7 @@ void TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, uint32_
 
 void TBOXEmu::sample_quad(uint32_t thread, bool output_result)
 {
-    LOG(DEBUG, "%s", "\tTBOX => Sample Quad");
+    LOG_NOTHREAD(DEBUG, "%s", "\tTBOX => Sample Quad");
 
     ImageInfo currentImage;
 
@@ -2289,7 +2289,7 @@ void TBOXEmu::sample_quad(uint32_t thread, bool output_result)
 
 void TBOXEmu::sample_quad(SampleRequest currentRequest, freg_t input[], freg_t output[])
 {
-    LOG(DEBUG, "%s", "\tTBOX => Sample Quad");
+    LOG_NOTHREAD(DEBUG, "%s", "\tTBOX => Sample Quad");
 
     return;
 
@@ -2320,11 +2320,11 @@ bool TBOXEmu::get_image_info(SampleRequest request, ImageInfo &currentImage)
         {
             image_info_cache_fill(request.info.imageid, currentImage);
 
-            LOG(DEBUG, "\tRead Image Descriptor with ID %ld from Address %016lx", request.info.imageid, imageInfoAddress);
+            LOG_NOTHREAD(DEBUG, "\tRead Image Descriptor with ID %ld from Address %016lx", request.info.imageid, imageInfoAddress);
         }
         else
         {
-            LOG(DEBUG, "\tRead Image Descriptor with ID %ld. Data not available for address %lx",
+            LOG_NOTHREAD(DEBUG, "\tRead Image Descriptor with ID %ld. Data not available for address %lx",
                                request.info.imageid, imageInfoAddress);
             return false;
         }
@@ -2334,15 +2334,15 @@ bool TBOXEmu::get_image_info(SampleRequest request, ImageInfo &currentImage)
     uint64_t imageInfoAddress = imageTableAddress + request.info.imageid * 32;
 
 
-    LOG(DEBUG, "\tRead Image Descriptor with ID %d from Address %016" PRIx64, request.info.imageid, imageInfoAddress);
+    LOG_NOTHREAD(DEBUG, "\tRead Image Descriptor with ID %d from Address %016" PRIx64, request.info.imageid, imageInfoAddress);
     fflush(stdout);
 
-    currentImage.data[0] = bemu::pmemread<uint64_t>(imageInfoAddress);
-    currentImage.data[1] = bemu::pmemread<uint64_t>(imageInfoAddress + 8);
-    currentImage.data[2] = bemu::pmemread<uint64_t>(imageInfoAddress + 16);
-    currentImage.data[3] = bemu::pmemread<uint64_t>(imageInfoAddress + 24);
+    currentImage.data[0] = bemu::pmemread<uint64_t>(Noshire_agent{}, imageInfoAddress);
+    currentImage.data[1] = bemu::pmemread<uint64_t>(Noshire_agent{}, imageInfoAddress + 8);
+    currentImage.data[2] = bemu::pmemread<uint64_t>(Noshire_agent{}, imageInfoAddress + 16);
+    currentImage.data[3] = bemu::pmemread<uint64_t>(Noshire_agent{}, imageInfoAddress + 24);
 
-    LOG(DEBUG, "\tImage Info %016" PRIx64 " %016" PRIx64 " %016" PRIx64 " %016" PRIx64, currentImage.data[0],
+    LOG_NOTHREAD(DEBUG, "\tImage Info %016" PRIx64 " %016" PRIx64 " %016" PRIx64 " %016" PRIx64, currentImage.data[0],
                currentImage.data[1], currentImage.data[2], currentImage.data[3]);
     print_image_info(currentImage);
 
@@ -2431,7 +2431,7 @@ void TBOXEmu::sample_quad(SampleRequest currentRequest, ImageInfo currentImage, 
                 }
                 break;
             default:
-                LOG(ERR, "%s", "Unsupported sample operation");
+                LOG_NOTHREAD(ERR, "%s", "Unsupported sample operation");
                 break;
         }
 
@@ -2449,7 +2449,7 @@ void TBOXEmu::sample_pixel(SampleRequest currentRequest, freg_t input[], freg_t 
     uint32_t num_mips = (mip_beta == 0) || (mip_level == uint32_t(currentImage.info.mipcount - 1)) ? 1 : 2;
     float mip_beta_fp = 1.0 - (float(mip_beta) / 256.0);
 
-    LOG(DEBUG, "\tsample pixel %d with filter %s mip level %d mip beta %02x", pixel,
+    LOG_NOTHREAD(DEBUG, "\tsample pixel %d with filter %s mip level %d mip beta %02x", pixel,
                       toStrFilterType(filter), mip_level, mip_beta);
 
     float red     = 0.0;
@@ -2472,24 +2472,24 @@ void TBOXEmu::sample_pixel(SampleRequest currentRequest, freg_t input[], freg_t 
         aniso_count = (aniso_count >> 1) + (aniso_count & 0x01);
         aniso_count = aniso_count * 2;
         if (aniso_count == 0)
-            LOG(WARN, "Aniso count is 0!! aniso_ratio = %f round(aniso_ratio) = %f", aniso_ratio, round(aniso_ratio));
+            LOG_NOTHREAD(WARN, "Aniso count is 0!! aniso_ratio = %f round(aniso_ratio) = %f", aniso_ratio, round(aniso_ratio));
 
         aniso_weight = 1.0f / float(aniso_count);
 
-        LOG(DEBUG, "\taniso_count = %d aniso_weight = %f", aniso_count, aniso_weight);
+        LOG_NOTHREAD(DEBUG, "\taniso_count = %d aniso_weight = %f", aniso_count, aniso_weight);
 
     }
 
     for (uint32_t aniso_sample_idx = 0; aniso_sample_idx < aniso_count; aniso_sample_idx++)
     {
-        if (aniso_count > 1) LOG(DEBUG, "\taniso sample %d out of %d", aniso_sample_idx, aniso_count);
+        if (aniso_count > 1) LOG_NOTHREAD(DEBUG, "\taniso sample %d out of %d", aniso_sample_idx, aniso_count);
 
         uint32_t sample_mip_level = mip_level;
         float sample_mip_beta = mip_beta_fp;
 
         for (uint32_t mip = 0; mip < num_mips; mip++)
         {
-            if (num_mips > 1) LOG(DEBUG, "\tmip sample %d", mip);
+            if (num_mips > 1) LOG_NOTHREAD(DEBUG, "\tmip sample %d", mip);
             uint32_t num_slices = (currentImage.info.type == IMAGE_TYPE_3D) ? 2 : 1;
 
             freg_t s = input[0];
@@ -2498,7 +2498,7 @@ void TBOXEmu::sample_pixel(SampleRequest currentRequest, freg_t input[], freg_t 
 
             for (uint32_t slice = 0; slice < num_slices; slice++)
             {
-                if (num_slices > 1) LOG(DEBUG, "\tslice sample %d", slice);
+                if (num_slices > 1) LOG_NOTHREAD(DEBUG, "\tslice sample %d", slice);
                 sample_bilinear(currentRequest, s, t, r, quad * 4 + pixel, currentImage, filter, slice, sample_mip_level,
                                 sample_mip_beta, aniso_sample_idx, aniso_weight, aniso_deltas, aniso_deltat, red,
                                 green, blue, alpha, output_result);
@@ -2597,26 +2597,26 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, freg_t s, freg_t t, 
         else
             l = 0;
 
-        LOG(DEBUG, "%s", "\tLD operation (texel coordinates)");
+        LOG_NOTHREAD(DEBUG, "%s", "\tLD operation (texel coordinates)");
         switch (currentImage.info.type)
             {
             case IMAGE_TYPE_1D:
-                LOG(DEBUG, "\tmip width %u i %u", mip_width, i[0]);
+                LOG_NOTHREAD(DEBUG, "\tmip width %u i %u", mip_width, i[0]);
                 break;
             case IMAGE_TYPE_2D:
-                LOG(DEBUG, "\tmip width %u mip height %u i %u j %u", mip_width, mip_height, i[0], j[0]);
+                LOG_NOTHREAD(DEBUG, "\tmip width %u mip height %u i %u j %u", mip_width, mip_height, i[0], j[0]);
                 break;
             case IMAGE_TYPE_3D:
-                LOG(DEBUG, "\tmip width %u mip height %u mip depth %u i %u j %u k %u",
+                LOG_NOTHREAD(DEBUG, "\tmip width %u mip height %u mip depth %u i %u j %u k %u",
                     mip_width, mip_height, mip_depth, i[0], j[0], k[0]);
                 break;
             case IMAGE_TYPE_1D_ARRAY:
-                LOG(DEBUG, "\tmip width %u i %u l %u", mip_width, i[0], l);
+                LOG_NOTHREAD(DEBUG, "\tmip width %u i %u l %u", mip_width, i[0], l);
                 break;
             case IMAGE_TYPE_CUBE:
             case IMAGE_TYPE_2D_ARRAY:
             case IMAGE_TYPE_CUBE_ARRAY:
-                LOG(DEBUG, "\tmip width %u mip height %u i %u j %u l %u", mip_width, mip_height, i[0], j[0], l);
+                LOG_NOTHREAD(DEBUG, "\tmip width %u mip height %u i %u j %u l %u", mip_width, mip_height, i[0], j[0], l);
                 break;
             }
     }
@@ -2656,25 +2656,25 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, freg_t s, freg_t t, 
             a = 0;
 
 
-        LOG(DEBUG, "%s", "\tSAMPLE operation (unnormalized coordinates)");
+        LOG_NOTHREAD(DEBUG, "%s", "\tSAMPLE operation (unnormalized coordinates)");
         switch (currentImage.info.type)
             {
             case IMAGE_TYPE_1D:
-                LOG(DEBUG, "\tmip width %u u %f", mip_width, u);
+                LOG_NOTHREAD(DEBUG, "\tmip width %u u %f", mip_width, u);
                 break;
             case IMAGE_TYPE_2D:
-                LOG(DEBUG, "\tmip width %u mip height %u u %f v %f", mip_width, mip_height, u, v);
+                LOG_NOTHREAD(DEBUG, "\tmip width %u mip height %u u %f v %f", mip_width, mip_height, u, v);
                 break;
             case IMAGE_TYPE_3D:
-                LOG(DEBUG, "\tmip width %u mip height %u mip depth %u u %f v %f w %f", mip_width, mip_height, mip_depth, u, v, w);
+                LOG_NOTHREAD(DEBUG, "\tmip width %u mip height %u mip depth %u u %f v %f w %f", mip_width, mip_height, mip_depth, u, v, w);
                 break;
             case IMAGE_TYPE_1D_ARRAY:
-                LOG(DEBUG, "\tmip width %u u %f a = %u", mip_width, u, a);
+                LOG_NOTHREAD(DEBUG, "\tmip width %u u %f a = %u", mip_width, u, a);
                 break;
             case IMAGE_TYPE_CUBE:
             case IMAGE_TYPE_2D_ARRAY:
             case IMAGE_TYPE_CUBE_ARRAY:
-                LOG(DEBUG, "\tmip width %u mip height %u u %f v %f a %u", mip_width, mip_height, u, v, a);
+                LOG_NOTHREAD(DEBUG, "\tmip width %u mip height %u u %f v %f a %u", mip_width, mip_height, u, v, a);
                 break;
             }
 
@@ -2714,7 +2714,7 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, freg_t s, freg_t t, 
 
         if ((currentRequest.info.operation == SAMPLE_OP_LD) && out_of_bounds)
         {
-            LOG(ERR, "%s", "\tOut of bound access");
+            LOG_NOTHREAD(ERR, "%s", "\tOut of bound access");
 
             red   = 0.0f;
             green = 0.0f;
@@ -2751,10 +2751,10 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, freg_t s, freg_t t, 
 
             output_result = output_result && data_ready;
 
-            LOG(DEBUG, "%s", "\tTexture cache access");
-            LOG(DEBUG, "\t\tBank = %d Tag = %" PRIx64 " Hit = %d", banks[0], tags[0], hit);
-            for ( int i = 0; i< 4; i++) LOG(DEBUG, "\t\tAddress[%d] = %" PRIx64, i, address[0][i]);
-            for ( int i = 0; i< 8;i++) LOG(DEBUG, "\t\tData[%d] = %" PRIx64, i, data[i]);;
+            LOG_NOTHREAD(DEBUG, "%s", "\tTexture cache access");
+            LOG_NOTHREAD(DEBUG, "\t\tBank = %d Tag = %" PRIx64 " Hit = %d", banks[0], tags[0], hit);
+            for ( int i = 0; i< 4; i++) LOG_NOTHREAD(DEBUG, "\t\tAddress[%d] = %" PRIx64, i, address[0][i]);
+            for ( int i = 0; i< 8;i++) LOG_NOTHREAD(DEBUG, "\t\tData[%d] = %" PRIx64, i, data[i]);;
 
             read_texel(currentImage, i[0], j[0], data, texel_ul, output_result);
 #else
@@ -2814,11 +2814,11 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, freg_t s, freg_t t, 
             }
         }
 
-        LOG(DEBUG, "\tTexture cache banks accessed = %u", num_banks);
+        LOG_NOTHREAD(DEBUG, "\tTexture cache banks accessed = %u", num_banks);
         for (uint32_t b = 0; b < num_banks; b++) {
-            LOG(DEBUG, "\t\tBank = %d Tag = %" PRIx64 " Hit = %d", banks[b], tags[b], hits[b]);
-            for ( int i = 0; i< 4; i++) LOG(DEBUG, "\t\tAddress[%d] = %" PRIx64, i, address[b][i]);
-            for ( int i = 0; i< 8; i++) LOG(DEBUG, "\t\tData[%d] = %" PRIx64, i, data[b][i]);
+            LOG_NOTHREAD(DEBUG, "\t\tBank = %d Tag = %" PRIx64 " Hit = %d", banks[b], tags[b], hits[b]);
+            for ( int i = 0; i< 4; i++) LOG_NOTHREAD(DEBUG, "\t\tAddress[%d] = %" PRIx64, i, address[b][i]);
+            for ( int i = 0; i< 8; i++) LOG_NOTHREAD(DEBUG, "\t\tData[%d] = %" PRIx64, i, data[b][i]);
         }
 
         switch (num_banks)
@@ -2929,7 +2929,7 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, freg_t s, freg_t t, 
     }
 
     if (output_result) {
-        LOG(DEBUG, "\tResult = {0x%08x (%f), 0x%08x (%f), 0x%08x (%f), 0x%08x (%f)}",
+        LOG_NOTHREAD(DEBUG, "\tResult = {0x%08x (%f), 0x%08x (%f), 0x%08x (%f), 0x%08x (%f)}",
             fpu::F2UI32(red), red, fpu::F2UI32(green), green,
             fpu::F2UI32(blue), blue, fpu::F2UI32(alpha), alpha);
     }
@@ -2988,13 +2988,13 @@ void TBOXEmu::wrap_texel_coord(uint32_t c[2], int32_t c_ul, uint32_t mip_dim, Ad
             break;
 
         case ADDRESS_MODE_CLAMP_TO_BORDER:
-            LOG(WARN, "%s", "CLAMP_TO_BORDER implemented as CLAMP_TO_EDGE.");
+            LOG_NOTHREAD(WARN, "%s", "CLAMP_TO_BORDER implemented as CLAMP_TO_EDGE.");
             c[0] = min(uint32_t(max(0, c_ul)), mip_dim - 1);
             c[1] = min(uint32_t(max(0, c_ul + 1)), mip_dim - 1);
             break;
 
         default:
-            LOG(ERR, "%s", "Unsupported address mode.");
+            LOG_NOTHREAD(ERR, "%s", "Unsupported address mode.");
             break;
     }
 }
@@ -3204,7 +3204,7 @@ void TBOXEmu::create_texture_cache_tags(SampleRequest currentRequest, ImageInfo 
     uint32_t comprBlockWidth;
     uint32_t comprBlockHeight;
 
-    LOG(DEBUG, "\tCreate Texture Cache Tags for UL (%d, %d, %d) layer %d mip_level %d", i[0], j[0], k, l, mip_level);
+    LOG_NOTHREAD(DEBUG, "\tCreate Texture Cache Tags for UL (%d, %d, %d) layer %d mip_level %d", i[0], j[0], k, l, mip_level);
 
     ImageFormat fmt = (ImageFormat)currentImage.info.format;
 
@@ -3615,7 +3615,7 @@ uint64_t TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32_t i, uint
         uint64_t tile_offset = tile_j * row_pitch + tile_i;
         uint64_t pixel_offset = compute_tile_offset(fmtBytesPerTexel, layout_i & ((1 << fmtTileWidthLog2) - 1), layout_j & ((1 << fmtTileHeightLog2) - 1));
 
-        LOG(DEBUG, "\t\telement_pitch = %u mip_pitch = %" PRIu64 " mip_offset = (%" PRIu32 ", %" PRIu32 ") tile_offset = %" PRIu64 " pixel_offset = %" PRIu64,
+        LOG_NOTHREAD(DEBUG, "\t\telement_pitch = %u mip_pitch = %" PRIu64 " mip_offset = (%" PRIu32 ", %" PRIu32 ") tile_offset = %" PRIu64 " pixel_offset = %" PRIu64,
                           unsigned(currentImage.info.elementpitch), mip_pitch, mip_offset[0], mip_offset[1], tile_offset, pixel_offset);
 
         texelAddress = currentImage.info.address + (currentImage.info.elementpitch * l + mip_pitch + tile_offset) * 64 * 1024
@@ -3627,7 +3627,7 @@ uint64_t TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32_t i, uint
 
         uint64_t mip_pitch = compute_mip_offset(currentImage.info.mippitchl0, currentImage.info.mippitchl1, currentImage.info.rowpitch, rows, mip_level);
 
-        LOG(DEBUG, "\t\telement_pitch = %u mip_pitch = %" PRIu64 " row_pitch = %" PRIu64,
+        LOG_NOTHREAD(DEBUG, "\t\telement_pitch = %u mip_pitch = %" PRIu64 " row_pitch = %" PRIu64,
                           unsigned(currentImage.info.elementpitch), mip_pitch, row_pitch);
 
         texelAddress = currentImage.info.address +
@@ -3635,20 +3635,20 @@ uint64_t TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32_t i, uint
                      + i * fmtBytesPerTexel;
     }
 
-    LOG(DEBUG, "\tcomputed virtual address %016" PRIx64 " for texel at (%u, %u, %u) layer %u level %u", texelAddress,
+    LOG_NOTHREAD(DEBUG, "\tcomputed virtual address %016" PRIx64 " for texel at (%u, %u, %u) layer %u level %u", texelAddress,
                       i, j, k, l, mip_level);
 
     return texelAddress;
 }
 
-void TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, uint32_t k, uint32_t l, uint32_t mip_level,
-                              float *texel)
+void TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, uint32_t k,
+                         uint32_t l, uint32_t mip_level, float *texel)
 {
     uint32_t fmtBytesPerTexel;
     uint32_t comprBlockI = 0;
     uint32_t comprBlockJ = 0;
 
-    LOG(DEBUG, "\tread texel at (%d, %d, %d) layer %d level %d", i, j, k, l, mip_level);
+    LOG_NOTHREAD(DEBUG, "\tread texel at (%d, %d, %d) layer %d level %d", i, j, k, l, mip_level);
 
     ImageFormat fmt = (ImageFormat)currentImage.info.format;
 
@@ -3685,39 +3685,39 @@ void TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, uint32_
     {
         case 1:
             {
-                data[0] = bemu::pmemread<uint8_t>(texelAddress);
-                LOG(DEBUG, "\t\t%02" PRIx8 "<- PMEM8[%016" PRIx64 "]", data[0], texelAddress);
+                data[0] = bemu::pmemread<uint8_t>(Noshire_agent{}, texelAddress);
+                LOG_NOTHREAD(DEBUG, "\t\t%02" PRIx8 "<- PMEM8[%016" PRIx64 "]", data[0], texelAddress);
             }
             break;
         case 2:
             {
-                uint16_t texelData = bemu::pmemread<uint16_t>(texelAddress);
+                uint16_t texelData = bemu::pmemread<uint16_t>(Noshire_agent{}, texelAddress);
                 memcpy_uint16(&data[0], texelData);
-                LOG(DEBUG, "\t\t%04" PRIx16 " <- PMEM16[%016" PRIx64 "]", texelData, texelAddress);
+                LOG_NOTHREAD(DEBUG, "\t\t%04" PRIx16 " <- PMEM16[%016" PRIx64 "]", texelData, texelAddress);
             }
             break;
         case 4:
             {
-                uint32_t texelData = bemu::pmemread<uint32_t>(texelAddress);
+                uint32_t texelData = bemu::pmemread<uint32_t>(Noshire_agent{}, texelAddress);
                 memcpy_uint32(&data[0], texelData);
-                LOG(DEBUG, "\t\t%08" PRIx32 " <- PMEM32[%016" PRIx64 "]", texelData, texelAddress);
+                LOG_NOTHREAD(DEBUG, "\t\t%08" PRIx32 " <- PMEM32[%016" PRIx64 "]", texelData, texelAddress);
             }
             break;
         case 8:
             {
-                uint64_t texelData = bemu::pmemread<uint64_t>(texelAddress);
+                uint64_t texelData = bemu::pmemread<uint64_t>(Noshire_agent{}, texelAddress);
                 memcpy_uint64(&data[0], texelData);
-                LOG(DEBUG, "\t\t%016" PRIx64 " <- PMEM64[%016" PRIx64 "]", texelData, texelAddress);
+                LOG_NOTHREAD(DEBUG, "\t\t%016" PRIx64 " <- PMEM64[%016" PRIx64 "]", texelData, texelAddress);
             }
             break;
         case 16:
             {
-                uint64_t texelData = bemu::pmemread<uint64_t>(texelAddress);
+                uint64_t texelData = bemu::pmemread<uint64_t>(Noshire_agent{}, texelAddress);
                 memcpy_uint64(&data[0], texelData);
-                LOG(DEBUG, "\t\t%016" PRIx64 " <- PMEM64[%016" PRIx64 "]", texelData, texelAddress);
-                texelData = bemu::pmemread<uint64_t>(texelAddress + 8);
+                LOG_NOTHREAD(DEBUG, "\t\t%016" PRIx64 " <- PMEM64[%016" PRIx64 "]", texelData, texelAddress);
+                texelData = bemu::pmemread<uint64_t>(Noshire_agent{}, texelAddress + 8);
                 memcpy_uint64(&data[8], texelData);
-                LOG(DEBUG, "\t\t%016" PRIx64 " <- PMEM64[%016" PRIx64 "]", texelData, texelAddress + 8);
+                LOG_NOTHREAD(DEBUG, "\t\t%016" PRIx64 " <- PMEM64[%016" PRIx64 "]", texelData, texelAddress + 8);
             }
             break;
         default:
@@ -3823,7 +3823,7 @@ void TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, uint32_
             break;
         default:
             texel[0] = texel[1] = texel[2] = texel[3] = 0.0;
-            LOG(ERR, "Format %u not supported", unsigned(currentImage.info.format));
+            LOG_NOTHREAD(ERR, "Format %u not supported", unsigned(currentImage.info.format));
             break;
     }
 
@@ -3835,7 +3835,7 @@ void TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, uint32_
         texel[3] = texel[3];
     }
 
-    LOG(DEBUG, "\t\tTexel value = (%f, %f, %f, %f)", texel[0], texel[1], texel[2], texel[3]);
+    LOG_NOTHREAD(DEBUG, "\t\tTexel value = (%f, %f, %f, %f)", texel[0], texel[1], texel[2], texel[3]);
 }
 
 void TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j,
@@ -3852,7 +3852,7 @@ void TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j,
 
     uint32_t fmtBytesPerTexel;
 
-    LOG(DEBUG, "\tread texel at (%d, %d)", i, j);
+    LOG_NOTHREAD(DEBUG, "\tread texel at (%d, %d)", i, j);
 
     ImageFormat fmt = (ImageFormat)currentImage.info.format;
 
@@ -3880,14 +3880,14 @@ void TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j,
             {
                 uint32_t texelData = ((uint32_t *)line_data)[((j & 3) << 2) + (i & 3)];
                 memcpy_uint32(&data[0], texelData);
-                LOG(DEBUG, "\t\tcache line texel (%d, %d) : %08" PRIx32, i & 3, j & 3, texelData);
+                LOG_NOTHREAD(DEBUG, "\t\tcache line texel (%d, %d) : %08" PRIx32, i & 3, j & 3, texelData);
             }
             break;
         case 8:
             {
                 uint64_t texelData = line_data[((j & 3) << 1) + (i & 1)];
                 memcpy_uint64(&data[0], texelData);
-                LOG(DEBUG, "\t\tcache line texel (%d, %d) : %016" PRIx64, i & 1, j & 3, texelData);
+                LOG_NOTHREAD(DEBUG, "\t\tcache line texel (%d, %d) : %016" PRIx64, i & 1, j & 3, texelData);
             }
             break;
         case 16:
@@ -3896,7 +3896,7 @@ void TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j,
                 memcpy_uint64(&data[0], texelData);
                 texelData = line_data[((j & 3) << 1) + 1];
                 memcpy_uint64(&data[8], texelData);
-                LOG(DEBUG, "\t\tcache line texel (0, %d) : %016" PRIx64 " %016" PRIx64, j & 3, cast_bytes_to_uint64(&data[0]), cast_bytes_to_uint64(&data[8]));
+                LOG_NOTHREAD(DEBUG, "\t\tcache line texel (0, %d) : %016" PRIx64 " %016" PRIx64, j & 3, cast_bytes_to_uint64(&data[0]), cast_bytes_to_uint64(&data[8]));
             }
             break;
         default:
@@ -3975,11 +3975,11 @@ void TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j,
             break;
         default:
             texel[0] = texel[1] = texel[2] = texel[3] = 0.0;
-            LOG(ERR, "Format %u not supported", unsigned(currentImage.info.format));
+            LOG_NOTHREAD(ERR, "Format %u not supported", unsigned(currentImage.info.format));
             break;
     }
 
-    LOG(DEBUG, "\t\tTexel value = (%f, %f, %f, %f)", texel[0], texel[1], texel[2], texel[3]);
+    LOG_NOTHREAD(DEBUG, "\t\tTexel value = (%f, %f, %f, %f)", texel[0], texel[1], texel[2], texel[3]);
 }
 
 float TBOXEmu::compare_texel(CompareOperation compop, float reference, float input)
@@ -4135,17 +4135,17 @@ const char *TBOXEmu::toStrImageFormat(ImageFormat fmt)
 
 void TBOXEmu::print_sample_request(SampleRequest req)
 {
-    LOG(DEBUG, "Operation = %s | Image ID = %d | Border Color ID = %d | Delta I = %u | Delta J = %u | Delta K = %u | ",
+    LOG_NOTHREAD(DEBUG, "Operation = %s | Image ID = %d | Border Color ID = %d | Delta I = %u | Delta J = %u | Delta K = %u | ",
                toStrSampleOperation((SampleOperation)req.info.operation), req.info.imageid, req.info.borderid,
                unsigned(req.info.ioffset), unsigned(req.info.joffset), unsigned(req.info.koffset));
-    LOG(DEBUG, "Min = %s | Mag = %s | Mip = %s | Aniso = %s | ", toStrFilterType((FilterType)req.info.minfilter),
+    LOG_NOTHREAD(DEBUG, "Min = %s | Mag = %s | Mip = %s | Aniso = %s | ", toStrFilterType((FilterType)req.info.minfilter),
                toStrFilterType((FilterType)req.info.magfilter), toStrFilterType((FilterType)req.info.mipfilter),
                (req.info.aniso ? "Yes" : "No"));
-    LOG(DEBUG, "Address Mode = %s %s %s | ", toStrAddressMode((AddressMode)req.info.addrmodeu),
+    LOG_NOTHREAD(DEBUG, "Address Mode = %s %s %s | ", toStrAddressMode((AddressMode)req.info.addrmodeu),
                toStrAddressMode((AddressMode)req.info.addrmodev),
                toStrAddressMode((AddressMode)req.info.addrmodew));
-    LOG(DEBUG, "Border Color = %s | ", toStrBorderColor((BorderColor)req.info.border));
-    LOG(DEBUG, "Swizzle = %s %s %s %s | ", toStrComponentSwizzle((ComponentSwizzle)req.info.swizzler),
+    LOG_NOTHREAD(DEBUG, "Border Color = %s | ", toStrBorderColor((BorderColor)req.info.border));
+    LOG_NOTHREAD(DEBUG, "Swizzle = %s %s %s %s | ", toStrComponentSwizzle((ComponentSwizzle)req.info.swizzler),
                toStrComponentSwizzle((ComponentSwizzle)req.info.swizzleg),
                toStrComponentSwizzle((ComponentSwizzle)req.info.swizzleb),
                toStrComponentSwizzle((ComponentSwizzle)req.info.swizzlea));
@@ -4153,12 +4153,12 @@ void TBOXEmu::print_sample_request(SampleRequest req)
     {
         case SAMPLE_OP_GATHER4:
         case SAMPLE_OP_GATHER4_PO:
-            LOG(DEBUG, "Component Selection = %d | ", (req.info.component & 0x3));
+            LOG_NOTHREAD(DEBUG, "Component Selection = %d | ", (req.info.component & 0x3));
             break;
         case SAMPLE_OP_SAMPLE_C:
         case SAMPLE_OP_SAMPLE_C_L:
         case SAMPLE_OP_GATHER4_C:
-            LOG(DEBUG, "Compare Operation = %s | ", toStrCompareOperation((CompareOperation)req.info.compop));
+            LOG_NOTHREAD(DEBUG, "Compare Operation = %s | ", toStrCompareOperation((CompareOperation)req.info.compop));
             break;
     }
     switch (req.info.operation)
@@ -4166,7 +4166,7 @@ void TBOXEmu::print_sample_request(SampleRequest req)
         case SAMPLE_OP_SAMPLE_L:
         case SAMPLE_OP_SAMPLE_C_L:
         case SAMPLE_OP_LD:
-            LOG(DEBUG, "LODs = %f %f %f %f  %f %f %f %f",
+            LOG_NOTHREAD(DEBUG, "LODs = %f %f %f %f  %f %f %f %f",
                 fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lod_array[0][0]))),
                 fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lod_array[0][1]))),
                 fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lod_array[0][2]))),
@@ -4179,7 +4179,7 @@ void TBOXEmu::print_sample_request(SampleRequest req)
         case SAMPLE_OP_SAMPLE:
         case SAMPLE_OP_SAMPLE_C:
             for (uint32_t quad = 0; quad < 2; quad++)
-                LOG(DEBUG, "Quad %d | LOD = %f | Aniso Ratio = %f | Aniso Delta S = %f | Aniso Delta T = %f",
+                LOG_NOTHREAD(DEBUG, "Quad %d | LOD = %f | Aniso Ratio = %f | Aniso Delta S = %f | Aniso Delta T = %f",
                     quad,
                     fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lodanisoq.lod[quad]))),
                     fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lodanisoq.anisoratio[quad]))),
@@ -4190,7 +4190,7 @@ void TBOXEmu::print_sample_request(SampleRequest req)
         case SAMPLE_OP_GATHER4_PO:
         case SAMPLE_OP_GATHER4_C:
         case SAMPLE_OP_GATHER4_PO_C:
-            LOG(DEBUG, "Quad 0 LOD = %f | Quad 1 LOD = %f",
+            LOG_NOTHREAD(DEBUG, "Quad 0 LOD = %f | Quad 1 LOD = %f",
                 fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lodanisoq.lod[0]))),
                 fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lodanisoq.lod[1]))));
             break;
@@ -4199,27 +4199,27 @@ void TBOXEmu::print_sample_request(SampleRequest req)
 
 void TBOXEmu::print_image_info(ImageInfo in)
 {
-    LOG(DEBUG, "Addr = %016" PRIx64 " | Type = %s | Format = %s (%3u) | Width = %u | Height = %u | Depth = %u | "
+    LOG_NOTHREAD(DEBUG, "Addr = %016" PRIx64 " | Type = %s | Format = %s (%3u) | Width = %u | Height = %u | Depth = %u | "
                "Tiled = %u | ",
                in.info.address, toStrImageType((ImageType)in.info.type),
                toStrImageFormat((ImageFormat)in.info.format), unsigned(in.info.format),
                unsigned(in.info.width), unsigned(in.info.height),
                unsigned(in.info.depth), unsigned(in.info.tiled));
-    LOG(DEBUG, "Array Base = %u | Array Count = %u | Base Mip = %u | Mip Count = %u | ",
+    LOG_NOTHREAD(DEBUG, "Array Base = %u | Array Count = %u | Base Mip = %u | Mip Count = %u | ",
                unsigned(in.info.arraybase), unsigned(in.info.arraycount),
                unsigned(in.info.basemip), unsigned(in.info.mipcount));
-    LOG(DEBUG, "Swizzle = %s %s %s %s | ",
+    LOG_NOTHREAD(DEBUG, "Swizzle = %s %s %s %s | ",
                toStrComponentSwizzle((ComponentSwizzle)in.info.swizzler),
                toStrComponentSwizzle((ComponentSwizzle)in.info.swizzleg),
                toStrComponentSwizzle((ComponentSwizzle)in.info.swizzleb),
                toStrComponentSwizzle((ComponentSwizzle)in.info.swizzlea));
-    LOG(DEBUG, " Row Pitch = %u | Mip Pitch L0 = %u | Mip Pitch L1 = %u | Element Pitch = %u | ",
+    LOG_NOTHREAD(DEBUG, " Row Pitch = %u | Mip Pitch L0 = %u | Mip Pitch L1 = %u | Element Pitch = %u | ",
                unsigned(in.info.rowpitch), unsigned(in.info.mippitchl0),
                unsigned(in.info.mippitchl1), unsigned(in.info.elementpitch));
-    LOG(DEBUG, " Tiled = %u | Packed Layout = %u | First Packed Mip = %u | First Packed Mip Level = %u | ",
+    LOG_NOTHREAD(DEBUG, " Tiled = %u | Packed Layout = %u | First Packed Mip = %u | First Packed Mip Level = %u | ",
                unsigned(in.info.tiled), unsigned(in.info.packedlayout),
                unsigned(in.info.packedmip), unsigned(in.info.packedlevel));
-    LOG(DEBUG, " Mip Scale by 8 = %u | Mip Scale by 4 = %u",
+    LOG_NOTHREAD(DEBUG, " Mip Scale by 8 = %u | Mip Scale by 4 = %u",
                unsigned(in.info.mipscale8), unsigned(in.info.mipscale4));
 }
 

@@ -80,7 +80,7 @@ struct PU_Uart : public MemoryRegion
         DW_APB_UART_CTR         = 0xfc
     };
 
-    void read(size_type pos, size_type n, pointer result) override {
+    void read(const Agent&, size_type pos, size_type n, pointer result) override {
         switch (pos) {
         case DW_APB_UART_LSR:
             assert(n == 4);
@@ -135,7 +135,7 @@ struct PU_Uart : public MemoryRegion
         }
     }
 
-    void write(size_type pos, size_type n, const_pointer source) override {
+    void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
         switch (pos) {
         case DW_APB_UART_RBR:
             assert(n == 4);
@@ -193,7 +193,7 @@ struct PU_Uart : public MemoryRegion
         }
     }
 
-    void init(size_type, size_type, const_pointer) override {
+    void init(const Agent&, size_type, size_type, const_pointer) override {
         throw std::runtime_error("bemu::PU_Uart::init()");
     }
 

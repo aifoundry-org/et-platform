@@ -8,255 +8,121 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 
-#include "decode.h"
-#include "emu_defines.h"
 #include "emu_gio.h"
-#include "log.h"
 #include "processor.h"
-#ifdef SYS_EMU
-#include "sys_emu.h"
-#endif
 #include "traps.h"
 #include "utility.h"
 
 namespace bemu {
 
 
-extern std::array<Hart,EMU_NUM_THREADS> cpu;
-
-
-#define set_mip_bit(thread, cause) do {  \
-    if (~cpu[thread].mip & 1<<(cause)) \
-        LOG(DEBUG, "Raising interrupt number %d", cause); \
-    cpu[thread].mip |= 1<<(cause); \
-} while (0)
-
-
-#define clear_mip_bit(thread, cause) do {  \
-    if (cpu[thread].mip & 1<<(cause)) \
-        LOG(DEBUG, "Clearing interrupt number %d", cause); \
-    cpu[thread].mip &= ~(1<<(cause)); \
-} while (0)
-
-
-#define set_ext_seip(thread) do { \
-    if (cpu[thread].ext_seip & (1<<SUPERVISOR_EXTERNAL_INTERRUPT)) \
-        LOG(DEBUG, "Raising external interrupt number %d", SUPERVISOR_EXTERNAL_INTERRUPT); \
-    cpu[thread].ext_seip |= (1<<SUPERVISOR_EXTERNAL_INTERRUPT); \
-} while (0)
-
-
-#define clear_ext_seip(thread) do { \
-    if (~cpu[thread].ext_seip & (1<<SUPERVISOR_EXTERNAL_INTERRUPT)) \
-        LOG(DEBUG, "Clearing external interrupt number %d", SUPERVISOR_EXTERNAL_INTERRUPT); \
-    cpu[thread].ext_seip &= ~(1<<SUPERVISOR_EXTERNAL_INTERRUPT); \
-} while (0)
-
-
-static void trap_to_smode(uint64_t cause, uint64_t val)
+static inline void set_mip_bit(Hart& cpu, int cause)
 {
-    // Get current privilege mode
-    uint64_t curprv = PRV;
-    bool interrupt = (cause & 0x8000000000000000ULL);
-    int code = (cause & 63);
-    assert(curprv <= PRV_S);
-
-#ifdef SYS_EMU
-    if (sys_emu::get_display_trap_info())
-        LOG(INFO, "\tTrapping to S-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
-#else
-    LOG(DEBUG, "\tTrapping to S-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
-#endif
-
-    // if checking against RTL, clear the correspoding MIP bit it will be set
-    // to 1 again if the pending bit was not really cleared just before
-    // entering the interrupt again
-    // TODO: you won't be able to read the MIP CSR from code or you'll get
-    // checker errors (you would have errors if the interrupt is cleared by a
-    // memory mapped store)
-#ifndef SYS_EMU
-    if (interrupt) {
-        // Clear external supervisor interrupt
-        if (code == 0x9 && !(cpu[current_thread].mip & 0x200)) {
-            clear_external_supervisor_interrupt(current_thread);
-            LOG(DEBUG, "%s", "\tClearing external supervisor interrupt");
-        }
-        cpu[current_thread].mip &= ~(1<<code);
+    if ((cpu.mip & (1ULL << cause)) == 0) {
+        LOG_HART(DEBUG, cpu, "Raising interrupt number %d", cause);
     }
-#endif
-
-    // Take sie
-    uint64_t mstatus = cpu[current_thread].mstatus;
-    uint64_t sie = (mstatus >> 1) & 0x1;
-    // Set spie = sie, sie = 0, spp = prv
-    cpu[current_thread].mstatus = (mstatus & 0xFFFFFFFFFFFFFEDDULL) | (curprv << 8) | (sie << 5);
-    // Set scause, stval and sepc
-    cpu[current_thread].scause = cause & 0x800000000000001FULL;
-    cpu[current_thread].stval = sextVA(val);
-    cpu[current_thread].sepc = sextVA(PC & ~1ULL);
-    // Jump to stvec
-    cpu[current_thread].set_prv(PRV_S);
-
-    // Throw an error if no one ever set stvec otherwise we'll enter an
-    // infinite loop of illegal instruction exceptions
-    if (cpu[current_thread].stvec_is_set == false)
-        LOG(WARN, "%s", "Trap vector has never been set. Can't take exception properly");
-
-    // compute address where to jump to
-    uint64_t tvec = cpu[current_thread].stvec;
-    if ((tvec & 1) && interrupt) {
-        tvec += code * 4;
-    }
-    tvec &= ~0x1ULL;
-    WRITE_PC(tvec);
-
-    log_trap(cpu[current_thread].mstatus, cpu[current_thread].scause,
-             cpu[current_thread].stval, cpu[current_thread].sepc);
+    cpu.mip |= (1ULL << cause);
 }
 
 
-static void trap_to_mmode(uint64_t cause, uint64_t val)
+static inline void clear_mip_bit(Hart& cpu, int cause)
 {
-    // Get current privilege mode
-    uint64_t curprv = PRV;
-    bool interrupt = (cause & 0x8000000000000000ULL);
-    int code = (cause & 63);
-
-    // Check if we should deletegate the trap to S-mode
-    if ((curprv < PRV_M) && ((interrupt ? cpu[current_thread].mideleg : cpu[current_thread].medeleg) & (1ull<<code))) {
-        trap_to_smode(cause, val);
-        return;
+    if ((cpu.mip & (1ULL << cause)) != 0) {
+        LOG_HART(DEBUG, cpu, "Clearing interrupt number %d", cause);
     }
-
-    // if checking against RTL, clear the correspoding MIP bit it will be set
-    // to 1 again if the pending bit was not really cleared just before
-    // entering the interrupt again
-    // TODO: you won't be able to read the MIP CSR from code or you'll get
-    // checker errors (you would have errors if the interrupt is cleared by a
-    // memory mapped store)
-#ifndef SYS_EMU
-    if (interrupt) {
-        cpu[current_thread].mip &= ~(1<<code);
-        // Clear external supervisor interrupt
-        if (cause == 9 && !(cpu[current_thread].mip & 0x200)) {
-            clear_external_supervisor_interrupt(current_thread);
-        }
-    }
-#endif
-
-#ifdef SYS_EMU
-    if (sys_emu::get_display_trap_info())
-        LOG(INFO, "\tTrapping to M-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
-#else
-    LOG(DEBUG, "\tTrapping to M-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
-#endif
-
-    // Take mie
-    uint64_t mstatus = cpu[current_thread].mstatus;
-    uint64_t mie = (mstatus >> 3) & 0x1;
-    // Set mpie = mie, mie = 0, mpp = prv
-    cpu[current_thread].mstatus = (mstatus & 0xFFFFFFFFFFFFE777ULL) | (curprv << 11) | (mie << 7);
-    // Set mcause, mtval and mepc
-    cpu[current_thread].mcause = cause & 0x800000000000001FULL;
-    cpu[current_thread].mtval = sextVA(val);
-    cpu[current_thread].mepc = sextVA(PC & ~1ULL);
-    // Jump to mtvec
-    cpu[current_thread].set_prv(PRV_M);
-
-    // Throw an error if no one ever set mtvec otherwise we'll enter an
-    // infinite loop of illegal instruction exceptions
-    if (cpu[current_thread].mtvec_is_set == false)
-        LOG(WARN, "%s", "Trap vector has never been set. Doesn't smell good...");
-
-    // compute address where to jump to
-    uint64_t tvec = cpu[current_thread].mtvec;
-    if ((tvec & 1) && interrupt) {
-        tvec += code * 4;
-    }
-    tvec &= ~0x1ULL;
-    WRITE_PC(tvec);
-
-    log_trap(cpu[current_thread].mstatus, cpu[current_thread].mcause,
-             cpu[current_thread].mtval, cpu[current_thread].mepc);
+    cpu.mip &= ~(1ULL << cause);
 }
 
 
-void take_trap(const trap_t& t)
+static inline void set_ext_seip(Hart& cpu)
 {
-    trap_to_mmode(t.cause(), t.tval());
+    if ((cpu.ext_seip & (1ULL << SUPERVISOR_EXTERNAL_INTERRUPT)) == 0) {
+        LOG_HART(DEBUG, cpu, "Raising external interrupt number %d", SUPERVISOR_EXTERNAL_INTERRUPT);
+    }
+    cpu.ext_seip |= (1ULL << SUPERVISOR_EXTERNAL_INTERRUPT);
 }
 
 
-void raise_interrupt(int thread, int cause, uint64_t mip, uint64_t mbusaddr)
+static inline void clear_ext_seip(Hart& cpu)
 {
-    if (cause == SUPERVISOR_EXTERNAL_INTERRUPT && !(mip & (1<<SUPERVISOR_EXTERNAL_INTERRUPT))) {
-        set_ext_seip(thread);
+    if ((cpu.ext_seip & (1ULL << SUPERVISOR_EXTERNAL_INTERRUPT)) != 0) {
+        LOG_HART(DEBUG, cpu, "Clearing external interrupt number %d", SUPERVISOR_EXTERNAL_INTERRUPT);
+    }
+    cpu.ext_seip &= ~(1ULL << SUPERVISOR_EXTERNAL_INTERRUPT);
+}
+
+
+void raise_interrupt(Hart& cpu, int cause, uint64_t mip, uint64_t mbusaddr)
+{
+    if ((cause == SUPERVISOR_EXTERNAL_INTERRUPT) && ((mip & (1ULL << SUPERVISOR_EXTERNAL_INTERRUPT)) == 0)) {
+        set_ext_seip(cpu);
     } else {
-        set_mip_bit(thread, cause);
-        if (cause == BUS_ERROR_INTERRUPT)
-            cpu[thread].mbusaddr = zextPA(mbusaddr);
+        set_mip_bit(cpu, cause);
+        if (cause == BUS_ERROR_INTERRUPT) {
+            cpu.mbusaddr = zextPA(mbusaddr);
+        }
     }
 }
 
 
-void raise_software_interrupt(int thread)
+void raise_software_interrupt(Hart& cpu)
 {
-    set_mip_bit(thread, MACHINE_SOFTWARE_INTERRUPT);
+    set_mip_bit(cpu, MACHINE_SOFTWARE_INTERRUPT);
 }
 
 
-void clear_software_interrupt(int thread)
+void clear_software_interrupt(Hart& cpu)
 {
-    clear_mip_bit(thread, MACHINE_SOFTWARE_INTERRUPT);
+    clear_mip_bit(cpu, MACHINE_SOFTWARE_INTERRUPT);
 }
 
 
-void raise_timer_interrupt(int thread)
+void raise_timer_interrupt(Hart& cpu)
 {
-    set_mip_bit(thread, MACHINE_TIMER_INTERRUPT);
+    set_mip_bit(cpu, MACHINE_TIMER_INTERRUPT);
 }
 
 
-void clear_timer_interrupt(int thread)
+void clear_timer_interrupt(Hart& cpu)
 {
-    clear_mip_bit(thread, MACHINE_TIMER_INTERRUPT);
+    clear_mip_bit(cpu, MACHINE_TIMER_INTERRUPT);
 }
 
 
-void raise_external_machine_interrupt(int thread)
+void raise_external_machine_interrupt(Hart& cpu)
 {
-    set_mip_bit(thread, MACHINE_EXTERNAL_INTERRUPT);
+    set_mip_bit(cpu, MACHINE_EXTERNAL_INTERRUPT);
 }
 
 
-void clear_external_machine_interrupt(int thread)
+void clear_external_machine_interrupt(Hart& cpu)
 {
-    clear_mip_bit(thread, MACHINE_EXTERNAL_INTERRUPT);
+    clear_mip_bit(cpu, MACHINE_EXTERNAL_INTERRUPT);
 }
 
 
-void raise_external_supervisor_interrupt(int thread)
+void raise_external_supervisor_interrupt(Hart& cpu)
 {
-    set_ext_seip(thread);
+    set_ext_seip(cpu);
 }
 
 
-void clear_external_supervisor_interrupt(int thread)
+void clear_external_supervisor_interrupt(Hart& cpu)
 {
-    clear_ext_seip(thread);
+    clear_ext_seip(cpu);
 }
 
 
-void raise_bus_error_interrupt(int thread, uint64_t busaddr)
+void raise_bus_error_interrupt(Hart& cpu, uint64_t busaddr)
 {
-    set_mip_bit(thread, BUS_ERROR_INTERRUPT);
-    cpu[thread].mbusaddr = zextPA(busaddr);
+    set_mip_bit(cpu, BUS_ERROR_INTERRUPT);
+    cpu.mbusaddr = zextPA(busaddr);
 }
 
 
-void clear_bus_error_interrupt(int thread)
+void clear_bus_error_interrupt(Hart& cpu)
 {
-    clear_mip_bit(thread, BUS_ERROR_INTERRUPT);
+    clear_mip_bit(cpu, BUS_ERROR_INTERRUPT);
 }
 
 

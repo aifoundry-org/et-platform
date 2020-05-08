@@ -21,9 +21,6 @@
 namespace bemu {
 
 
-extern std::array<Hart,EMU_NUM_THREADS> cpu;
-
-
 static inline uint_fast16_t bitmixb(uint_fast16_t sel, uint_fast16_t val0, uint_fast16_t val1)
 {
     uint_fast16_t val = 0;
@@ -41,14 +38,14 @@ static inline uint_fast16_t bitmixb(uint_fast16_t sel, uint_fast16_t val0, uint_
 }
 
 
-void insn_packb(insn_t inst)
+void insn_packb(Hart& cpu)
 {
     DISASM_RD_RS1_RS2("packb");
     WRITE_RD( (RS1 & 0xff) | ((RS2 & 0xff) << 8) );
 }
 
 
-void insn_bitmixb(insn_t inst)
+void insn_bitmixb(Hart& cpu)
 {
     require_feature_gfx();
     DISASM_RD_RS1_RS2("bitmixb");

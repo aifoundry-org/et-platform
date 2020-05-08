@@ -47,9 +47,9 @@ class l2_scp_checker
     l2_scp_checker();
 
     // Accessors
-    void l2_scp_fill(uint32_t current_thread, uint32_t idx, uint32_t id, uint64_t src_addr);
-    void l2_scp_wait(uint32_t current_thread, uint32_t id);
-    void l2_scp_read(uint32_t current_thread, uint64_t addr);
+    void l2_scp_fill(uint32_t thread, uint32_t idx, uint32_t id, uint64_t src_addr);
+    void l2_scp_wait(uint32_t thread, uint32_t id);
+    void l2_scp_read(uint32_t thread, uint64_t addr);
 
   private:
     shire_scp_info_t  shire_scp_info[EMU_NUM_SHIRES];

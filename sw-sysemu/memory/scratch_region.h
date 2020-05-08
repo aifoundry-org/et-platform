@@ -21,7 +21,6 @@
 namespace bemu {
 
 
-extern unsigned current_thread;
 extern typename MemoryRegion::reset_value_type memory_reset_value;
 
 
@@ -46,19 +45,19 @@ struct ScratchRegion : public MemoryRegion
     static_assert((M > 0) && (M < 128),
                   "bemu::ScratchRegion must have at most 127 buckets");
 
-    void read(size_type pos, size_type n, pointer result) override {
-        read_const(pos, n, result);
+    void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
+        read_const(agent, pos, n, result);
     }
 
-    void write(size_type pos, size_type n, const_pointer source) override {
+    void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         if (!Writeable)
             throw memory_error(first() + pos);
-        init(pos, n, source);
+        init(agent, pos, n, source);
     }
 
-    void init(size_type pos, size_type n, const_pointer source) override {
+    void init(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         size_type index = normalize(pos);
-        size_type bucket = slice(index);
+        size_type bucket = slice(agent, index);
         size_type offset = index % 8_MiB;
         if (out_of_range(bucket, offset, n)) {
             throw memory_error(first() + pos);
@@ -76,7 +75,10 @@ struct ScratchRegion : public MemoryRegion
     void dump_data(std::ostream& os, size_type pos, size_type n) const override {
         value_type elem;
         while (n-- > 0) {
-            this->read_const(pos++, 1, &elem);
+            if (((pos >> 23) & 255) == 255) {
+                throw std::runtime_error("bemu::ScratchRegion::dump_data()");
+            }
+            this->read_const(Noshire_agent{}, pos++, 1, &elem);
             os.write(reinterpret_cast<const char*>(&elem), sizeof(value_type));
         }
     }
@@ -85,9 +87,9 @@ struct ScratchRegion : public MemoryRegion
     storage_type  storage;
 
 protected:
-    void read_const(size_type pos, size_type n, pointer result) const {
+    void read_const(const Agent& agent, size_type pos, size_type n, pointer result) const {
         size_type index = normalize(pos);
-        size_type bucket = slice(index);
+        size_type bucket = slice(agent, index);
         size_type offset = index % 8_MiB;
         if (out_of_range(bucket, offset, n)) {
             throw memory_error(first() + pos);
@@ -109,10 +111,14 @@ protected:
         return pos | ((pos << 1) & 0x40000000ull);
     }
 
-    size_type slice(size_type pos) const {
+    size_type slice(const Agent& agent, size_type pos) const {
         size_type num = (pos >> 23) & 255;
-        if (num == 255) return current_thread / EMU_THREADS_PER_SHIRE;
-        if (num == IO_SHIRE_ID) return EMU_IO_SHIRE_SP;
+        if (num == 255) {
+            num = agent.shireid();
+        }
+        if (num == IO_SHIRE_ID) {
+            return EMU_IO_SHIRE_SP;
+        }
         return num;
     }
 

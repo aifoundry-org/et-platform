@@ -23,20 +23,17 @@
 namespace bemu {
 
 
-extern std::array<Hart,EMU_NUM_THREADS> cpu;
-
-
-void insn_fadd_ps(insn_t inst)
+void insn_fadd_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2_RM("fadd.ps");
-    set_rounding_mode(RM);
+    set_rounding_mode(cpu, RM);
     WRITE_VD( fpu::f32_add(FS1.f32[e], FS2.f32[e]) );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_fbci_ps(insn_t inst)
+void insn_fbci_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_F32IMM("fbci.ps");
@@ -44,7 +41,7 @@ void insn_fbci_ps(insn_t inst)
 }
 
 
-void insn_fbcx_ps(insn_t inst)
+void insn_fbcx_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_RS1("fbcx.ps");
@@ -52,7 +49,7 @@ void insn_fbcx_ps(insn_t inst)
 }
 
 
-void insn_fclass_ps(insn_t inst)
+void insn_fclass_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1("fclass.ps");
@@ -60,7 +57,7 @@ void insn_fclass_ps(insn_t inst)
 }
 
 
-void insn_fcmov_ps(insn_t inst)
+void insn_fcmov_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2_FS3("fcmov.ps");
@@ -68,7 +65,7 @@ void insn_fcmov_ps(insn_t inst)
 }
 
 
-void insn_fcmovm_ps(insn_t inst)
+void insn_fcmovm_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fcmovm.ps");
@@ -77,184 +74,184 @@ void insn_fcmovm_ps(insn_t inst)
 }
 
 
-void insn_fcvt_f16_ps(insn_t inst)
+void insn_fcvt_f16_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FRM("fcvt.f16.ps");
-    set_rounding_mode(FRM);
+    set_rounding_mode(cpu, FRM);
     WRITE_VD( fpu::f32_to_f16(FS1.f32[e]) );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_fcvt_ps_f16(insn_t inst)
+void insn_fcvt_ps_f16(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1("fcvt.ps.f16");
     WRITE_VD( fpu::f16_to_f32(FS1.f16[2*e]) );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_fcvt_ps_pw(insn_t inst)
+void insn_fcvt_ps_pw(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_RM("fcvt.ps.pw");
-    set_rounding_mode(RM);
+    set_rounding_mode(cpu, RM);
     WRITE_VD( fpu::i32_to_f32(FS1.i32[e]) );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_fcvt_ps_pwu(insn_t inst)
+void insn_fcvt_ps_pwu(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_RM("fcvt.ps.pwu");
-    set_rounding_mode(RM);
+    set_rounding_mode(cpu, RM);
     WRITE_VD( fpu::ui32_to_f32(FS1.u32[e]) );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_fcvt_pw_ps(insn_t inst)
+void insn_fcvt_pw_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_RM("fcvt.pw.ps");
-    set_rounding_mode(RM);
+    set_rounding_mode(cpu, RM);
     WRITE_VD( fpu::f32_to_i32(FS1.f32[e]) );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_fcvt_pwu_ps(insn_t inst)
+void insn_fcvt_pwu_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_RM("fcvt.pwu.ps");
-    set_rounding_mode(RM);
+    set_rounding_mode(cpu, RM);
     WRITE_VD( fpu::f32_to_ui32(FS1.f32[e]) );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_fdiv_ps(insn_t inst)
+void insn_fdiv_ps(Hart& cpu)
 {
     DISASM_FD_FS1_FS2_RM("fdiv.ps");
-    throw trap_mcode_instruction(inst.bits);
+    throw trap_mcode_instruction(cpu.inst.bits);
 }
 
 
-void insn_feq_ps(insn_t inst)
+void insn_feq_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("feq.ps");
     WRITE_VD( fpu::f32_eq(FS1.f32[e], FS2.f32[e]) ? UINT32_MAX : 0 );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_feqm_ps(insn_t inst)
+void insn_feqm_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_MD_FS1_FS2("feqm.ps");
     WRITE_VMD( fpu::f32_eq(FS1.f32[e], FS2.f32[e]) );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_ffrc_ps(insn_t inst)
+void insn_ffrc_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1("ffrc.ps");
     WRITE_VD( fpu::f32_frac(FS1.f32[e]) );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_fle_ps(insn_t inst)
+void insn_fle_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fle.ps");
     WRITE_VD( fpu::f32_le(FS1.f32[e], FS2.f32[e]) ? UINT32_MAX : 0 );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_flem_ps(insn_t inst)
+void insn_flem_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_MD_FS1_FS2("flem.ps");
     WRITE_VMD( fpu::f32_le(FS1.f32[e], FS2.f32[e]) );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_flt_ps(insn_t inst)
+void insn_flt_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("flt.ps");
     WRITE_VD( fpu::f32_lt(FS1.f32[e], FS2.f32[e]) ? UINT32_MAX : 0 );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_fltm_ps(insn_t inst)
+void insn_fltm_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_MD_FS1_FS2("fltm.ps");
     WRITE_VMD( fpu::f32_lt(FS1.f32[e], FS2.f32[e]) );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_fmadd_ps(insn_t inst)
+void insn_fmadd_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2_FS3_RM("fmadd.ps");
-    set_rounding_mode(RM);
+    set_rounding_mode(cpu, RM);
     WRITE_VD( fpu::f32_mulAdd(FS1.f32[e], FS2.f32[e], FS3.f32[e]) );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_fmax_ps(insn_t inst)
+void insn_fmax_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fmax.ps");
     WRITE_VD( fpu::f32_maximumNumber(FS1.f32[e], FS2.f32[e]) );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_fmin_ps(insn_t inst)
+void insn_fmin_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fmin.ps");
     WRITE_VD( fpu::f32_minimumNumber(FS1.f32[e], FS2.f32[e]) );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_fmsub_ps(insn_t inst)
+void insn_fmsub_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2_FS3_RM("fmsub.ps");
-    set_rounding_mode(RM);
+    set_rounding_mode(cpu, RM);
     WRITE_VD( fpu::f32_mulSub(FS1.f32[e], FS2.f32[e], FS3.f32[e]) );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_fmul_ps(insn_t inst)
+void insn_fmul_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2_RM("fmul.ps");
-    set_rounding_mode(RM);
+    set_rounding_mode(cpu, RM);
     WRITE_VD( fpu::f32_mul(FS1.f32[e], FS2.f32[e]) );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_fmvs_x_ps(insn_t inst)
+void insn_fmvs_x_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_RD_FS1_UIMM3("fmvs.x.ps");
@@ -262,7 +259,7 @@ void insn_fmvs_x_ps(insn_t inst)
 }
 
 
-void insn_fmvz_x_ps(insn_t inst)
+void insn_fmvz_x_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_RD_FS1_UIMM3("fmvz.x.ps");
@@ -270,37 +267,37 @@ void insn_fmvz_x_ps(insn_t inst)
 }
 
 
-void insn_fnmadd_ps(insn_t inst)
+void insn_fnmadd_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2_FS3_RM("fnmadd.ps");
-    set_rounding_mode(RM);
+    set_rounding_mode(cpu, RM);
     WRITE_VD( fpu::f32_subMulAdd(FS1.f32[e], FS2.f32[e], FS3.f32[e]) );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_fnmsub_ps(insn_t inst)
+void insn_fnmsub_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2_FS3_RM("fnmsub.ps");
-    set_rounding_mode(RM);
+    set_rounding_mode(cpu, RM);
     WRITE_VD( fpu::f32_subMulSub(FS1.f32[e], FS2.f32[e], FS3.f32[e]) );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_fround_ps(insn_t inst)
+void insn_fround_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_RM("fround.ps");
-    set_rounding_mode(RM);
+    set_rounding_mode(cpu, RM);
     WRITE_VD( fpu::f32_roundToInt(FS1.f32[e]) );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_fsgnj_ps(insn_t inst)
+void insn_fsgnj_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fsgnj.ps");
@@ -308,7 +305,7 @@ void insn_fsgnj_ps(insn_t inst)
 }
 
 
-void insn_fsgnjn_ps(insn_t inst)
+void insn_fsgnjn_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fsgnjn.ps");
@@ -316,7 +313,7 @@ void insn_fsgnjn_ps(insn_t inst)
 }
 
 
-void insn_fsgnjx_ps(insn_t inst)
+void insn_fsgnjx_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fsgnjx.ps");
@@ -324,24 +321,24 @@ void insn_fsgnjx_ps(insn_t inst)
 }
 
 
-void insn_fsqrt_ps(insn_t inst)
+void insn_fsqrt_ps(Hart& cpu)
 {
     DISASM_FD_FS1_RM("fsqrt.ps");
-    throw trap_mcode_instruction(inst.bits);
+    throw trap_mcode_instruction(cpu.inst.bits);
 }
 
 
-void insn_fsub_ps(insn_t inst)
+void insn_fsub_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2_RM("fsub.ps");
-    set_rounding_mode(RM);
+    set_rounding_mode(cpu, RM);
     WRITE_VD( fpu::f32_sub(FS1.f32[e], FS2.f32[e]) );
-    set_fp_exceptions();
+    set_fp_exceptions(cpu);
 }
 
 
-void insn_fswizz_ps(insn_t inst)
+void insn_fswizz_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_UIMM8("fswizz.ps");

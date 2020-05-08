@@ -44,31 +44,31 @@ struct PeripheralRegion : public MemoryRegion {
         pu_uart1_base   = 0x02007000,
     };
 
-    void read(size_type pos, size_type n, pointer result) override {
+    void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
         const auto elem = search(pos, n);
         if (!elem) {
             default_value(result, n, memory_reset_value, pos);
             return;
         }
-        elem->read(pos - elem->first(), n, result);
+        elem->read(agent, pos - elem->first(), n, result);
     }
 
-    void write(size_type pos, size_type n, const_pointer source) override {
+    void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         const auto elem = search(pos, n);
         if (elem) {
             try {
-                elem->write(pos - elem->first(), n, source);
+                elem->write(agent, pos - elem->first(), n, source);
             } catch (const memory_error&) {
                 throw memory_error(first() + pos);
             }
         }
     }
 
-    void init(size_type pos, size_type n, const_pointer source) override {
+    void init(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         const auto elem = search(pos, n);
         if (!elem)
             throw std::runtime_error("bemu::PeripheralRegion::init()");
-        elem->init(pos - elem->first(), n, source);
+        elem->init(agent, pos - elem->first(), n, source);
     }
 
     addr_type first() const override { return Base; }

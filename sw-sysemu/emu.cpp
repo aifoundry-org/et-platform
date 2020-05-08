@@ -28,8 +28,6 @@
 
 namespace bemu {
 
-extern void reset_msg_ports(unsigned);
-
 // Memory state
 MainMemory memory{};
 typename MemoryRegion::reset_value_type memory_reset_value = {0};
@@ -39,8 +37,6 @@ std::array<Hart,EMU_NUM_THREADS>  cpu;
 std::array<Core,EMU_NUM_MINIONS>  core;
 
 system_version_t sysver = system_version_t::UNKNOWN;
-
-unsigned current_thread = 0;
 
 bool m_emu_done = false;
 
@@ -63,16 +59,16 @@ void init_emu(system_version_t ver)
 
 void reset_esrs_for_shire(unsigned shireid)
 {
-    unsigned shire = (shireid == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shireid;
+    unsigned shire = shire_index(shireid);
     unsigned neigh_count = (shire == EMU_IO_SHIRE_SP) ? 1 : EMU_NEIGH_PER_SHIRE;
 
     for (unsigned neigh = 0; neigh < neigh_count; ++neigh) {
         unsigned idx = EMU_NEIGH_PER_SHIRE*shire + neigh;
-        bemu::neigh_esrs[idx].reset();
+        neigh_esrs[idx].reset();
     }
-    bemu::shire_cache_esrs[shire].reset();
-    bemu::shire_other_esrs[shire].reset(shireid);
-    bemu::broadcast_esrs[shire].reset();
+    shire_cache_esrs[shire].reset();
+    shire_other_esrs[shire].reset(shireid);
+    broadcast_esrs[shire].reset();
 
     // reset FCC for all threads in shire
     unsigned thread0 = shire * EMU_THREADS_PER_SHIRE;
@@ -86,10 +82,7 @@ void reset_esrs_for_shire(unsigned shireid)
 // forward declarations
 
 // Messaging extension
-int64_t port_get(unsigned id, bool block);
-uint32_t legalize_portctrl(uint32_t wdata);
-void configure_port(unsigned id, uint32_t wdata);
-uint64_t read_port_base_address(unsigned thread, unsigned id);
+void configure_port(Hart&, unsigned, uint32_t);
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -97,25 +90,10 @@ uint64_t read_port_base_address(unsigned thread, unsigned id);
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-void init(xreg dst, uint64_t val)
-{
-    if (dst != x0)
-    {
-       cpu[current_thread].xregs[dst] = val;
-       LOG(DEBUG, "init x%d <-- 0x%016" PRIx64, dst, val);
-    }
-}
-
-void fpinit(freg dst, uint64_t val[VLEND])
-{
-    for (size_t i = 0; i < VLEND; ++i)
-        cpu[current_thread].fregs[dst].u64[i] = val[i];
-}
-
 void reset_hart(unsigned thread)
 {
     // Register files
-    cpu[thread].xregs[0] = 0;
+    cpu[thread].xregs[x0] = 0;
 
     // PC
     cpu[thread].pc = 0;
@@ -138,26 +116,29 @@ void reset_hart(unsigned thread)
     cpu[thread].mip = 0;
     cpu[thread].tdata1 = 0x20C0000000000000ULL;
     // TODO: cpu[thread].dcsr <= xdebugver=1, prv=3;
-    cpu[thread].mhartid = (thread == (EMU_IO_SHIRE_SP*EMU_THREADS_PER_SHIRE))
-                        ? (IO_SHIRE_ID*EMU_THREADS_PER_SHIRE)
+    cpu[thread].mhartid = (thread == EMU_IO_SHIRE_SP_THREAD)
+                        ? IO_SHIRE_SP_HARTID
                         : thread;
 
     // Esperanto control and status registers
-    cpu[thread].core->matp = 0;
     cpu[thread].minstmask = 0;
     cpu[thread].minstmatch = 0;
     // TODO: cpu[thread].amofence_ctrl <= ...
-    cpu[thread].core->menable_shadows = 0;
-    cpu[thread].core->excl_mode = 0;
-    cpu[thread].core->mcache_control = 0;
-    cpu[thread].core->ucache_control = 0x200;
     cpu[thread].gsc_progress = 0;
-    for (auto &elem : cpu[thread].portctrl) {
-        elem = 0x8000;
+
+    // Port control
+    for (unsigned p = 0; p < cpu[thread].portctrl.size(); ++p) {
+        configure_port(cpu[thread], p, 0);
     }
 
     // Other hart internal (microarchitectural or hidden) state
     cpu[thread].prv = PRV_M;
+    cpu[thread].debug_mode = false;
+    cpu[thread].ext_seip = 0;
+    cpu[thread].mtvec_is_set = false;
+    cpu[thread].stvec_is_set = false;
+    cpu[thread].fcc_wait = false;
+    cpu[thread].fcc_cnt = 0;
 
     // Pre-computed state to improve simulation speed
     cpu[thread].break_on_load = false;
@@ -165,47 +146,29 @@ void reset_hart(unsigned thread)
     cpu[thread].break_on_fetch = false;
 
     // Reset tensor operation state machines
+    cpu[thread].wait.state = Hart::Wait::State::Idle;
+    cpu[thread].txload.fill(0xFFFFFFFFFFFFFFFFULL);
+    cpu[thread].shadow_txload.fill(0xFFFFFFFFFFFFFFFFULL);
+
+    // Reset core-shared state
+    cpu[thread].core->matp = 0;
+    cpu[thread].core->menable_shadows = 0;
+    cpu[thread].core->excl_mode = 0;
+    cpu[thread].core->mcache_control = 0;
+    cpu[thread].core->ucache_control = 0x200;
+    for (auto& set : cpu[thread].core->scp_lock) {
+        set.fill(false);
+    }
+ 
+    // Reset core-shared tensor operation state machines
     cpu[thread].core->reduce.count = 0;
     cpu[thread].core->reduce.state = Core::Reduce::State::Idle;
-    cpu[thread].wait.state = Hart::Wait::State::Idle;
     cpu[thread].core->txquant = 0xFFFFFFFFFFFFFFFFULL;
     cpu[thread].core->shadow_txquant = 0xFFFFFFFFFFFFFFFFULL;
     cpu[thread].core->txfma = 0xFFFFFFFFFFFFFFFFULL;
     cpu[thread].core->shadow_txfma = 0xFFFFFFFFFFFFFFFFULL;
-    cpu[thread].txload.fill(0xFFFFFFFFFFFFFFFFULL);
-    cpu[thread].shadow_txload.fill(0xFFFFFFFFFFFFFFFFULL);
     cpu[thread].core->tensor_op.fill(Core::Tensor::None);
-
-    // Other processor state outside of cpu[thread]
-    reset_msg_ports(thread);
-    cpu[thread].debug_mode = false;
-    cpu[thread].ext_seip = 0;
-    cpu[thread].mtvec_is_set = false;
-    cpu[thread].stvec_is_set = false;
-    cpu[thread].fcc_wait = false;
-    cpu[thread].fcc_cnt = 0;
     cpu[thread].core->tensorload_setupb_topair = false;
-}
-
-void minit(mreg dst, uint64_t val)
-{
-    cpu[current_thread].mregs[dst] = val;
-    LOG(DEBUG, "init m[%d] <-- 0x%02lx", int(dst), cpu[current_thread].mregs[dst].to_ulong());
-}
-
-void set_pc(uint64_t pc)
-{
-    cpu[current_thread].pc = sextVA(pc);
-}
-
-void set_thread(unsigned thread)
-{
-    current_thread = thread;
-}
-
-unsigned get_thread()
-{
-    return current_thread;
 }
 
 bool thread_is_blocked(unsigned thread)
@@ -214,19 +177,14 @@ bool thread_is_blocked(unsigned thread)
     return cpu[thread].core->excl_mode == other_excl;
 }
 
-uint32_t get_mask(unsigned maskNr)
-{
-    return cpu[current_thread].mregs[maskNr].to_ulong();
-}
-
 void pu_plic_interrupt_pending_set(uint32_t source_id)
 {
-    bemu::memory.pu_io_space.pu_plic.interrupt_pending_set(source_id);
+    memory.pu_io_space.pu_plic.interrupt_pending_set(source_id);
 }
 
 void pu_plic_interrupt_pending_clear(uint32_t source_id)
 {
-    bemu::memory.pu_io_space.pu_plic.interrupt_pending_clear(source_id);
+    memory.pu_io_space.pu_plic.interrupt_pending_clear(source_id);
 }
 
 // LCOV_EXCL_STOP

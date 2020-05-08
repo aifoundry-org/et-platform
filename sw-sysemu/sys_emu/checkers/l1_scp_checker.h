@@ -38,9 +38,9 @@ class l1_scp_checker
     l1_scp_checker();
 
     // Accessors
-    void l1_scp_fill(uint32_t current_thread, uint32_t idx, uint32_t id);
-    void l1_scp_wait(uint32_t current_thread, uint32_t id);
-    void l1_scp_read(uint32_t current_thread, uint32_t idx);
+    void l1_scp_fill(uint32_t thread, uint32_t idx, uint32_t id);
+    void l1_scp_wait(uint32_t thread, uint32_t id);
+    void l1_scp_read(uint32_t thread, uint32_t idx);
 
   private:
     minion_scp_info_t minion_scp_info[EMU_NUM_MINIONS];

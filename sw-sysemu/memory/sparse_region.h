@@ -45,7 +45,7 @@ struct SparseRegion : public MemoryRegion
     static_assert((N > 0) && !(N % M),
                   "bemu::SparseRegion size must be a multiple of bucket size");
 
-    void read(size_type pos, size_type n, pointer result) override {
+    void read(const Agent&, size_type pos, size_type n, pointer result) override {
         size_type bucket = pos / M;
         size_type offset = pos % M;
         size_type count = std::min(n, M - offset);
@@ -57,13 +57,13 @@ struct SparseRegion : public MemoryRegion
         }
     }
 
-    void write(size_type pos, size_type n, const_pointer source) override {
+    void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         if (!Writeable)
             throw memory_error(first() + pos);
-        init(pos, n, source);
+        init(agent, pos, n, source);
     }
 
-    void init(size_type pos, size_type n, const_pointer source) override {
+    void init(const Agent&, size_type pos, size_type n, const_pointer source) override {
         size_type bucket = pos / M;
         size_type offset = pos % M;
         size_type count = std::min(n, M - offset);

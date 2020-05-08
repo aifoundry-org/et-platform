@@ -70,29 +70,25 @@ inline unsigned hart1_split_dcache_index(uint64_t paddr)
     return (L1D_NUM_SETS - 2) + ((paddr / L1D_LINE_SIZE) % 2);
 }
 
-inline unsigned dcache_index(uint64_t paddr, uint32_t mcache_control, uint32_t thread, uint32_t threads_per_minion)
+
+inline unsigned dcache_index(uint64_t paddr, uint8_t mcache_control, unsigned thread_in_minion)
 {
-    unsigned set;
-    switch (mcache_control)
-    {
+    switch (mcache_control) {
         case 0:
-            set = shared_dcache_index(paddr);
-            break;
+            return shared_dcache_index(paddr);
         case 1:
-            set = (thread % threads_per_minion)
-                    ? hart1_split_dcache_index(paddr)
-                    : hart0_split_dcache_index(paddr);
-            break;
+            return (thread_in_minion == 0)
+                ? hart0_split_dcache_index(paddr)
+                : hart1_split_dcache_index(paddr);
         case 3:
-            set = (thread % threads_per_minion)
-                    ? hart1_split_dcache_index(paddr)
-                    : hart0_spltscp_dcache_index(paddr);
-            break;
+            return (thread_in_minion == 0)
+                ? hart0_spltscp_dcache_index(paddr)
+                : hart1_split_dcache_index(paddr);
         default:
             throw std::runtime_error("illegal mcache_control value");
     }
-    return set;
 }
+
 
 } // namespace bemu
 

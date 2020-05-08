@@ -32,17 +32,17 @@ struct SysregRegion : public MemoryRegion {
     static_assert(N == ESR_REGION_SIZE,
                   "bemu::SysregRegion has illegal size");
 
-    void read(size_type pos, size_type count, pointer result) override {
+    void read(const Agent& agent, size_type pos, size_type count, pointer result) override {
         assert(count == 8);
-        *reinterpret_cast<uint64_t*>(result) = esr_read(first() + pos);
+        *reinterpret_cast<uint64_t*>(result) = esr_read(agent, first() + pos);
     }
 
-    void write(size_type pos, size_type count, const_pointer source) override {
+    void write(const Agent& agent, size_type pos, size_type count, const_pointer source) override {
         assert(count == 8);
-        esr_write(first() + pos, *reinterpret_cast<const uint64_t*>(source));
+        esr_write(agent, first() + pos, *reinterpret_cast<const uint64_t*>(source));
     }
 
-    void init(size_type, size_type, const_pointer) override {
+    void init(const Agent&, size_type, size_type, const_pointer) override {
         throw std::runtime_error("bemu::SysregRegion::init()");
     }
 

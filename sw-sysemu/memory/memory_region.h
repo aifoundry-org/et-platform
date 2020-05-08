@@ -13,6 +13,7 @@
 
 #include <cstddef>
 #include <iosfwd>
+#include "agent.h"
 
 namespace bemu {
 
@@ -29,13 +30,13 @@ struct MemoryRegion
     virtual ~MemoryRegion() {}
 
     // Copies @n bytes starting from offset @pos into @result
-    virtual void read(size_type pos, size_type n, pointer result) = 0;
+    virtual void read(const Agent& agent, size_type pos, size_type n, pointer result) = 0;
 
     // Copies @n bytes from @source starting into offset @pos
-    virtual void write(size_type pos, size_type n, const_pointer source) = 0;
+    virtual void write(const Agent& agent, size_type pos, size_type n, const_pointer source) = 0;
 
     // Initialized @n bytes starting at offset @pos from values in @source
-    virtual void init(size_type pos, size_type n, const_pointer source) = 0;
+    virtual void init(const Agent& agent, size_type pos, size_type n, const_pointer source) = 0;
 
     // Returns the first valid address of this region
     virtual addr_type first() const = 0;
@@ -46,9 +47,12 @@ struct MemoryRegion
     // Outputs region data to a stream
     virtual void dump_data(std::ostream& os, size_type pos, size_type n) const = 0;
 
-    static void default_value(pointer result, size_type n, reset_value_type pattern, size_type offset){
-      for ( unsigned i = 0 ; i < n; i++)
-        result[i] = pattern[(i + offset) % MEM_RESET_PATTERN_SIZE];
+    static void default_value(pointer result, size_type n,
+                              reset_value_type pattern, size_type offset)
+    {
+        for (unsigned i = 0 ; i < n; ++i) {
+            result[i] = pattern[(i + offset) % MEM_RESET_PATTERN_SIZE];
+        }
     }
 };
 

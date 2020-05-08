@@ -17,6 +17,10 @@
 namespace bemu {
 
 
+// Forward declaration
+struct Hart;
+
+
 // Base class for all traps
 struct trap_t {
     virtual uint64_t cause() const = 0;
@@ -104,20 +108,20 @@ DEF_TRAP_N(BUS_ERROR_INTERRUPT                   + (1ull<<63), async, trap_bus_e
 
 
 // Traps
-void take_trap(const trap_t& t);
+void take_trap(Hart&, const trap_t&);
 
 // Interrupts
-void raise_interrupt(int thread, int cause, uint64_t mip, uint64_t mbusaddr=0);
-void raise_software_interrupt(int thread);
-void clear_software_interrupt(int thread);
-void raise_timer_interrupt(int thread);
-void clear_timer_interrupt(int thread);
-void raise_external_machine_interrupt(int thread);
-void clear_external_machine_interrupt(int thread);
-void raise_external_supervisor_interrupt(int thread);
-void clear_external_supervisor_interrupt(int thread);
-void raise_bus_error_interrupt(int thread, uint64_t busaddr);
-void clear_bus_error_interrupt(int thread);
+void raise_interrupt(Hart& cpu, int cause, uint64_t mip, uint64_t mbusaddr=0);
+void raise_software_interrupt(Hart& cpu);
+void clear_software_interrupt(Hart& cpu);
+void raise_timer_interrupt(Hart& cpu);
+void clear_timer_interrupt(Hart& cpu);
+void raise_external_machine_interrupt(Hart& cpu);
+void clear_external_machine_interrupt(Hart& cpu);
+void raise_external_supervisor_interrupt(Hart& cpu);
+void clear_external_supervisor_interrupt(Hart& cpu);
+void raise_bus_error_interrupt(Hart& cpu, uint64_t busaddr);
+void clear_bus_error_interrupt(Hart& cpu);
 
 
 } // namespace bemu

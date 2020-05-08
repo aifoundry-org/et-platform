@@ -24,7 +24,6 @@ namespace bemu {
 #define EMU_MASTER_SHIRE        (EMU_NUM_MINION_SHIRES - 2)
 #define EMU_SPARE_SHIRE         (EMU_NUM_MINION_SHIRES - 1)
 #define EMU_IO_SHIRE_SP         (EMU_NUM_SHIRES - 1)
-#define IO_SHIRE_ID             254
 #define EMU_THREADS_PER_MINION  2
 #define EMU_MINIONS_PER_NEIGH   8
 #define EMU_THREADS_PER_NEIGH   (EMU_THREADS_PER_MINION * EMU_MINIONS_PER_NEIGH)
@@ -39,6 +38,15 @@ namespace bemu {
 #define EMU_NUM_TBOXES          (EMU_NUM_COMPUTE_SHIRES * EMU_TBOXES_PER_SHIRE)
 #define EMU_NUM_RBOXES          (EMU_NUM_COMPUTE_SHIRES * EMU_RBOXES_PER_SHIRE)
 #define EMU_IO_SHIRE_SP_THREAD  (EMU_NUM_THREADS - 1)
+#define IO_SHIRE_ID             254
+#define IO_SHIRE_SP_HARTID      (IO_SHIRE_ID * EMU_THREADS_PER_SHIRE)
+
+
+inline long shire_index(long shireid)
+{
+    return (shireid == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shireid;
+}
+
 
 #define NR_MSG_PORTS    4
 

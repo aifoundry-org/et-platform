@@ -20,10 +20,7 @@
 namespace bemu {
 
 
-extern std::array<Hart,EMU_NUM_THREADS> cpu;
-
-
-void insn_c_ebreak(insn_t /*inst*/)
+void insn_c_ebreak(Hart& cpu)
 {
     DISASM_NOARG("c.ebreak");
 
@@ -34,7 +31,7 @@ void insn_c_ebreak(insn_t /*inst*/)
 }
 
 
-void insn_ebreak(insn_t /*inst*/)
+void insn_ebreak(Hart& cpu)
 {
     DISASM_NOARG("ebreak");
 
@@ -45,7 +42,7 @@ void insn_ebreak(insn_t /*inst*/)
 }
 
 
-void insn_ecall(insn_t /*inst*/)
+void insn_ecall(Hart& cpu)
 {
     DISASM_NOARG("ecall");
 
@@ -57,48 +54,48 @@ void insn_ecall(insn_t /*inst*/)
 }
 
 
-void insn_mret(insn_t inst)
+void insn_mret(Hart& cpu)
 {
     DISASM_NOARG("mret");
 
     if (PRV != PRV_M)
-        throw trap_illegal_instruction(inst.bits);
+        throw trap_illegal_instruction(cpu.inst.bits);
 
     // Take mpie and mpp
-    uint64_t mstatus = cpu[current_thread].mstatus;
+    uint64_t mstatus = cpu.mstatus;
     uint64_t mpie = (mstatus >> 7) & 0x1;
     prv_t    mpp = prv_t((mstatus >> 11) & 0x3);
 
     // Set mie = mpie, mpie = 1, mpp = U (0)
     mstatus = (mstatus & 0xFFFFFFFFFFFFE777ULL) | (mpie << 3) | (1 << 7);
-    cpu[current_thread].mstatus = mstatus;
+    cpu.mstatus = mstatus;
     LOG_MSTATUS("=", mstatus);
 
     // Set prv = mpp
-    cpu[current_thread].set_prv(mpp);
+    cpu.set_prv(mpp);
     LOG_PRV("=", mpp);
 
     // Update PC
-    WRITE_PC(cpu[current_thread].mepc);
+    WRITE_PC(cpu.mepc);
 }
 
 
-void insn_sfence_vma(insn_t inst)
+void insn_sfence_vma(Hart& cpu)
 {
     DISASM_RS1_RS2("sfence.vma");
 
-    throw trap_mcode_instruction(inst.bits);
+    throw trap_mcode_instruction(cpu.inst.bits);
 }
 
 
-void insn_sret(insn_t inst)
+void insn_sret(Hart& cpu)
 {
     DISASM_NOARG("sret");
 
     uint64_t curprv = PRV;
-    uint64_t mstatus = cpu[current_thread].mstatus;
+    uint64_t mstatus = cpu.mstatus;
     if (curprv == PRV_U || (curprv == PRV_S && (((mstatus >> 22) & 1) == 1)))
-        throw trap_illegal_instruction(inst.bits);
+        throw trap_illegal_instruction(cpu.inst.bits);
 
     // Take spie and spp
     uint64_t spie = (mstatus >> 5) & 0x1;
@@ -107,26 +104,26 @@ void insn_sret(insn_t inst)
     // Clean sie, spie and spp
     // Set sie = spie, spie = 1, spp = U (0)
     mstatus = (mstatus & 0xFFFFFFFFFFFFFEDDULL) | (spie << 1) | (1 << 5);
-    cpu[current_thread].mstatus = mstatus;
+    cpu.mstatus = mstatus;
     LOG_MSTATUS("=", mstatus);
 
     // Set prv = spp
-    cpu[current_thread].set_prv(spp);
+    cpu.set_prv(spp);
     LOG_PRV("=", spp);
 
     // Update PC
-    WRITE_PC(cpu[current_thread].sepc);
+    WRITE_PC(cpu.sepc);
 }
 
 
-void insn_wfi(insn_t inst)
+void insn_wfi(Hart& cpu)
 {
     DISASM_NOARG("wfi");
 
     uint64_t curprv = PRV;
-    uint64_t mstatus = cpu[current_thread].mstatus;
+    uint64_t mstatus = cpu.mstatus;
     if (curprv == PRV_U || (curprv == PRV_S && (((mstatus >> 21) & 1) == 1)))
-        throw trap_illegal_instruction(inst.bits);
+        throw trap_illegal_instruction(cpu.inst.bits);
 }
 
 

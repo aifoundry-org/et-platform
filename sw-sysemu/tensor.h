@@ -6,13 +6,13 @@
 namespace bemu {
 
 
-void tensor_fma_execute();
-void tensor_load_execute(bool tenb);
-void tensor_quant_execute();
-void tensor_reduce_step(unsigned thread);
-void tensor_reduce_execute();
-void tensor_wait_start(uint64_t value);
-void tensor_wait_execute();
+void tensor_fma_execute(Hart& cpu);
+void tensor_load_execute(Hart& cpu, bool tenb);
+void tensor_quant_execute(Hart& cpu);
+void tensor_reduce_step(Hart& rcv_cpu, Hart& snd_cpu);
+void tensor_reduce_execute(Hart& cpu);
+void tensor_wait_start(Hart& cpu, uint64_t value);
+void tensor_wait_execute(Hart& cpu);
 
 
 } // namespace bemu

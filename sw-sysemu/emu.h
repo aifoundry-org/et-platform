@@ -34,18 +34,12 @@ extern void reset_hart(unsigned thread);
 extern bool emu_done();
 extern uint64_t get_csr(unsigned thread, uint16_t cnum);
 extern void set_csr(unsigned thread, uint16_t cnum, uint64_t data);
-extern void init(xreg dst, uint64_t val);          // init general purpose register
-extern void fpinit(freg dst, uint64_t val[VLEND]); // init vector register
-extern void minit(mreg dst, uint64_t val);         // init mask register
 
 // Hart state manipulation
-extern void set_thread(unsigned thread);
-extern unsigned get_thread();
 extern bool thread_is_blocked(unsigned thread);
-extern uint32_t get_mask(unsigned maskNr);
 
 // Main memory accessors
-extern void set_msg_funcs(void (*func_msg_to_thread) (int));
+extern void set_msg_funcs(void (*func_msg_to_thread) (unsigned));
 
 // FIXME: This should be made internal to the checker
 #ifndef SYS_EMU

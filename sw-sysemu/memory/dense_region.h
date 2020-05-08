@@ -38,7 +38,7 @@ struct DenseRegion : public MemoryRegion {
     static_assert((N > 0) && !(N % 64),
                   "bemu::DenseRegion size must be a multiple of 64");
 
-    void read(size_type pos, size_type n, pointer result) override {
+    void read(const Agent&, size_type pos, size_type n, pointer result) override {
         if (storage.empty()) {
             default_value(result, n, memory_reset_value, pos);
         } else {
@@ -46,13 +46,13 @@ struct DenseRegion : public MemoryRegion {
         }
     }
 
-    void write(size_type pos, size_type n, const_pointer source) override {
+    void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         if (!Writeable)
             throw memory_error(first() + pos);
-        init(pos, n, source);
+        init(agent, pos, n, source);
     }
 
-    void init(size_type pos, size_type n, const_pointer source) override {
+    void init(const Agent&, size_type pos, size_type n, const_pointer source) override {
         if (storage.empty()) {
             storage.allocate();
             storage.fill_pattern(memory_reset_value, MEM_RESET_PATTERN_SIZE);

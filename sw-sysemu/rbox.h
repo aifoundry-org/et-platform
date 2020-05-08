@@ -15,6 +15,7 @@
 #include <vector>
 #include <utility>
 
+#include "agent.h"
 #include "emu_defines.h"
 #include "rbox_pi.h"
 
@@ -22,7 +23,7 @@ namespace bemu {
 namespace RBOX {
 
 
-    class RBOXEmu
+    class RBOXEmu : public Agent
     {
     
     private :
@@ -155,7 +156,8 @@ namespace RBOX {
         void write_next_packet();
 
     public:
-
+        long shireid() const override { return rbox_id / EMU_RBOXES_PER_SHIRE; }
+        std::string name() const override { return std::string("RBOX_") + std::to_string(rbox_id); }
         void write_esr(uint32_t esr_id, uint64_t data);
         uint64_t read_esr(uint32_t esr_id);
 
@@ -166,7 +168,7 @@ namespace RBOX {
 
 
 #if (EMU_RBOXES_PER_SHIRE > 1)
-    externRBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES][EMU_RBOXES_PER_SHIRE];
+    extern RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES][EMU_RBOXES_PER_SHIRE];
 #define GET_RBOX(shire_id, rbox_id) bemu::RBOX::rbox[shire_id][rbox_id]
 #else
     extern RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES];

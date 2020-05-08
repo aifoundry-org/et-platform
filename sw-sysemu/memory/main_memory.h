@@ -16,6 +16,7 @@
 #include <functional>
 #include <stdexcept>
 
+#include "agent.h"
 #include "emu_defines.h"
 #include "literals.h"
 #include "mailbox_region.h"
@@ -105,19 +106,19 @@ struct MainMemory {
         dram_base           = 0x8000000000ULL,
     };
 
-    void read(addr_type addr, size_type n, void* result) {
+    void read(const Agent& agent, addr_type addr, size_type n, void* result) {
         const auto elem = search(addr, n);
-        elem->read(addr - elem->first(), n, reinterpret_cast<pointer>(result));
+        elem->read(agent, addr - elem->first(), n, reinterpret_cast<pointer>(result));
     }
 
-    void write(addr_type addr, size_type n, const void* source) {
+    void write(const Agent& agent, addr_type addr, size_type n, const void* source) {
         auto elem = search(addr, n);
-        elem->write(addr - elem->first(), n, reinterpret_cast<const_pointer>(source));
+        elem->write(agent, addr - elem->first(), n, reinterpret_cast<const_pointer>(source));
     }
 
-    void init(addr_type addr, size_type n, const void* source) {
+    void init(const Agent& agent, addr_type addr, size_type n, const void* source) {
         auto elem = search(addr, n);
-        elem->init(addr - elem->first(), n, reinterpret_cast<const_pointer>(source));
+        elem->init(agent, addr - elem->first(), n, reinterpret_cast<const_pointer>(source));
     }
 
     addr_type first() const { return pu_maxion_space.first(); }

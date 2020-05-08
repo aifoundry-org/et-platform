@@ -8,18 +8,23 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 
+#include "decode.h"
 #include "emu_gio.h"
 #include "insn.h"
 #include "insn_func.h"
+#include "log.h"
 #include "mmu.h"
 #include "processor.h"
 #include "utility.h"
+#ifdef SYS_EMU
+#include "sys_emu.h"
+#endif
 
 namespace bemu {
 
 
 // Instruction execution function
-typedef void (*insn_exec_funct_t)(insn_t);
+typedef void (*insn_exec_funct_t)(Hart&);
 
 // Instruction decode function
 typedef insn_exec_funct_t (*insn_decode_func_t)(uint32_t, uint16_t&);
@@ -1122,7 +1127,7 @@ static insn_exec_funct_t dec_c_sdsp(uint32_t bits __attribute__((unused)),
 
 // -----------------------------------------------------------------------------
 //
-// Fetch and decode an instruction
+// Decode and execute an instruction
 //
 // -----------------------------------------------------------------------------
 
@@ -1167,7 +1172,143 @@ void Hart::execute()
         if (((inst.bits ^ minstmatch) & uint32_t(minstmask)) == 0)
             throw trap_mcode_instruction(inst.bits);
     }
-    (exec_fn) (inst);
+    (exec_fn)(*this);
+}
+
+
+// -----------------------------------------------------------------------------
+//
+// Trap execution
+//
+// -----------------------------------------------------------------------------
+
+static void trap_to_smode(Hart& cpu, uint64_t cause, uint64_t val)
+{
+    bool interrupt = (cause & 0x8000000000000000ULL);
+    int code = (cause & 63);
+    assert(cpu.prv <= PRV_S);
+
+#ifdef SYS_EMU
+    if (sys_emu::get_display_trap_info())
+        LOG_HART(INFO, cpu, "\tTrapping to S-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
+#else
+    LOG_HART(DEBUG, cpu, "\tTrapping to S-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
+#endif
+
+    // if checking against RTL, clear the correspoding MIP bit it will be set
+    // to 1 again if the pending bit was not really cleared just before
+    // entering the interrupt again
+    // TODO: you won't be able to read the MIP CSR from code or you'll get
+    // checker errors (you would have errors if the interrupt is cleared by a
+    // memory mapped store)
+#ifndef SYS_EMU
+    if (interrupt) {
+        // Clear external supervisor interrupt
+        if (code == 0x9 && !(cpu.mip & 0x200)) {
+            clear_external_supervisor_interrupt(cpu);
+            LOG_HART(DEBUG, cpu, "%s", "\tClearing external supervisor interrupt");
+        }
+        cpu.mip &= ~(1ull<<code);
+    }
+#endif
+
+    // Take sie
+    uint64_t mstatus = cpu.mstatus;
+    uint64_t sie = (mstatus >> 1) & 0x1;
+    // Set spie = sie, sie = 0, spp = prv
+    cpu.mstatus = (mstatus & 0xFFFFFFFFFFFFFEDDULL) | (cpu.prv << 8) | (sie << 5);
+    // Set scause, stval and sepc
+    cpu.scause = cause & 0x800000000000001FULL;
+    cpu.stval = sextVA(val);
+    cpu.sepc = sextVA(cpu.pc & ~1ULL);
+    // Jump to stvec
+    cpu.set_prv(PRV_S);
+
+    // Throw an error if no one ever set stvec otherwise we'll enter an
+    // infinite loop of illegal instruction exceptions
+    if (cpu.stvec_is_set == false) {
+        LOG_HART(WARN, cpu, "%s", "Trap vector has never been set. Can't take exception properly");
+    }
+
+    // compute address where to jump to
+    uint64_t tvec = cpu.stvec;
+    if ((tvec & 1) && interrupt) {
+        tvec += code * 4;
+    }
+    tvec &= ~0x1ULL;
+    WRITE_PC(tvec);
+
+    notify_trap(cpu, cpu.mstatus, cpu.scause, cpu.stval, cpu.sepc);
+}
+
+
+static void trap_to_mmode(Hart& cpu, uint64_t cause, uint64_t val)
+{
+    bool interrupt = (cause & 0x8000000000000000ULL);
+    int code = (cause & 63);
+
+    // Check if we should deletegate the trap to S-mode
+    if ((cpu.prv < PRV_M) && ((interrupt ? cpu.mideleg : cpu.medeleg) & (1ull<<code))) {
+        trap_to_smode(cpu, cause, val);
+        return;
+    }
+
+    // if checking against RTL, clear the correspoding MIP bit it will be set
+    // to 1 again if the pending bit was not really cleared just before
+    // entering the interrupt again
+    // TODO: you won't be able to read the MIP CSR from code or you'll get
+    // checker errors (you would have errors if the interrupt is cleared by a
+    // memory mapped store)
+#ifndef SYS_EMU
+    if (interrupt) {
+        cpu.mip &= ~(1ull<<code);
+        // Clear external supervisor interrupt
+        if (cause == 9 && !(cpu.mip & 0x200)) {
+            clear_external_supervisor_interrupt(cpu);
+        }
+    }
+#endif
+
+#ifdef SYS_EMU
+    if (sys_emu::get_display_trap_info())
+        LOG_HART(INFO, cpu, "\tTrapping to M-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
+#else
+    LOG_HART(DEBUG, cpu, "\tTrapping to M-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
+#endif
+
+    // Take mie
+    uint64_t mstatus = cpu.mstatus;
+    uint64_t mie = (mstatus >> 3) & 0x1;
+    // Set mpie = mie, mie = 0, mpp = prv
+    cpu.mstatus = (mstatus & 0xFFFFFFFFFFFFE777ULL) | (cpu.prv << 11) | (mie << 7);
+    // Set mcause, mtval and mepc
+    cpu.mcause = cause & 0x800000000000001FULL;
+    cpu.mtval = sextVA(val);
+    cpu.mepc = sextVA(cpu.pc & ~1ULL);
+    // Jump to mtvec
+    cpu.set_prv(PRV_M);
+
+    // Throw an error if no one ever set mtvec otherwise we'll enter an
+    // infinite loop of illegal instruction exceptions
+    if (cpu.mtvec_is_set == false) {
+        LOG_HART(WARN, cpu, "%s", "Trap vector has never been set. Doesn't smell good...");
+    }
+
+    // compute address where to jump to
+    uint64_t tvec = cpu.mtvec;
+    if ((tvec & 1) && interrupt) {
+        tvec += code * 4;
+    }
+    tvec &= ~0x1ULL;
+    WRITE_PC(tvec);
+
+    notify_trap(cpu, cpu.mstatus, cpu.mcause, cpu.mtval, cpu.mepc);
+}
+
+
+void Hart::take_trap(const trap_t& t)
+{
+    trap_to_mmode(*this, t.cause(), t.tval());
 }
 
 

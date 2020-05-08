@@ -34,13 +34,13 @@ struct NullRegion : public MemoryRegion {
     static_assert((N > 0) && !(N % 64),
                   "bemu::NullRegion size must be a multiple of 64");
 
-    void read(size_type pos, size_type n, pointer result) override {
+    void read(const Agent&, size_type pos, size_type n, pointer result) override {
         default_value(result, n, memory_reset_value, pos);
     }
 
-    void write(size_type, size_type, const_pointer) override { }
+    void write(const Agent&, size_type, size_type, const_pointer) override { }
 
-    void init(size_type, size_type, const_pointer) override {
+    void init(const Agent&, size_type, size_type, const_pointer) override {
         throw std::runtime_error("bemu::NullRegion::init()");
     }
 

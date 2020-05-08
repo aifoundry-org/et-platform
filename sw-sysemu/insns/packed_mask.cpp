@@ -25,9 +25,6 @@
 namespace bemu {
 
 
-extern std::array<Hart,EMU_NUM_THREADS> cpu;
-
-
 static inline size_t popcount1(const mreg_t& m)
 { return m.count(); }
 
@@ -36,7 +33,7 @@ static inline size_t popcount0(const mreg_t& m)
 { return MLEN - m.count(); }
 
 
-void insn_maskand(insn_t inst)
+void insn_maskand(Hart& cpu)
 {
     require_fp_active();
     DISASM_MD_MS1_MS2("maskand");
@@ -44,7 +41,7 @@ void insn_maskand(insn_t inst)
 }
 
 
-void insn_masknot(insn_t inst)
+void insn_masknot(Hart& cpu)
 {
     require_fp_active();
     DISASM_MD_MS1("masknot");
@@ -52,7 +49,7 @@ void insn_masknot(insn_t inst)
 }
 
 
-void insn_maskor(insn_t inst)
+void insn_maskor(Hart& cpu)
 {
     require_fp_active();
     DISASM_MD_MS1_MS2("maskor");
@@ -60,7 +57,7 @@ void insn_maskor(insn_t inst)
 }
 
 
-void insn_maskpopc(insn_t inst)
+void insn_maskpopc(Hart& cpu)
 {
     require_fp_active();
     DISASM_RD_MS1("maskpopc");
@@ -68,7 +65,7 @@ void insn_maskpopc(insn_t inst)
 }
 
 // LCOV_EXCL_START
-void insn_maskpopc_rast(insn_t inst)
+void insn_maskpopc_rast(Hart& cpu)
 {
     require_feature_gfx();
     require_fp_active();
@@ -84,7 +81,7 @@ void insn_maskpopc_rast(insn_t inst)
 }
 // LCOV_EXCL_STOP
 
-void insn_maskpopcz(insn_t inst)
+void insn_maskpopcz(Hart& cpu)
 {
     require_fp_active();
     DISASM_RD_MS1("maskpopcz");
@@ -92,7 +89,7 @@ void insn_maskpopcz(insn_t inst)
 }
 
 
-void insn_maskxor(insn_t inst)
+void insn_maskxor(Hart& cpu)
 {
     require_fp_active();
     DISASM_MD_MS1_MS2("maskxor");
@@ -100,7 +97,7 @@ void insn_maskxor(insn_t inst)
 }
 
 
-void insn_mov_m_x(insn_t inst)
+void insn_mov_m_x(Hart& cpu)
 {
     require_fp_active();
     DISASM_MD_RS1_UIMM8("mov.m.x");
@@ -108,7 +105,7 @@ void insn_mov_m_x(insn_t inst)
 }
 
 
-void insn_mova_m_x(insn_t inst)
+void insn_mova_m_x(Hart& cpu)
 {
     require_fp_active();
     DISASM_RS1("mova.m.x");
@@ -124,18 +121,18 @@ void insn_mova_m_x(insn_t inst)
 }
 
 
-void insn_mova_x_m(insn_t inst)
+void insn_mova_x_m(Hart& cpu)
 {
     require_fp_active();
     DISASM_RD_ALLMASK("mova.x.m");
-    LATE_WRITE_RD((cpu[current_thread].mregs[0].to_ullong() << (0*MLEN)) +
-                  (cpu[current_thread].mregs[1].to_ullong() << (1*MLEN)) +
-                  (cpu[current_thread].mregs[2].to_ullong() << (2*MLEN)) +
-                  (cpu[current_thread].mregs[3].to_ullong() << (3*MLEN)) +
-                  (cpu[current_thread].mregs[4].to_ullong() << (4*MLEN)) +
-                  (cpu[current_thread].mregs[5].to_ullong() << (5*MLEN)) +
-                  (cpu[current_thread].mregs[6].to_ullong() << (6*MLEN)) +
-                  (cpu[current_thread].mregs[7].to_ullong() << (7*MLEN)));
+    LATE_WRITE_RD((cpu.mregs[0].to_ullong() << (0*MLEN)) +
+                  (cpu.mregs[1].to_ullong() << (1*MLEN)) +
+                  (cpu.mregs[2].to_ullong() << (2*MLEN)) +
+                  (cpu.mregs[3].to_ullong() << (3*MLEN)) +
+                  (cpu.mregs[4].to_ullong() << (4*MLEN)) +
+                  (cpu.mregs[5].to_ullong() << (5*MLEN)) +
+                  (cpu.mregs[6].to_ullong() << (6*MLEN)) +
+                  (cpu.mregs[7].to_ullong() << (7*MLEN)));
 }
 
 

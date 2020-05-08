@@ -34,20 +34,18 @@ struct MaxionRegion : public MemoryRegion {
 
     static_assert(N == 256_MiB, "bemu::MaxionRegion has illegal size");
 
-    void read(size_type pos, size_type n, pointer result) override {
-        extern unsigned current_thread;
-        if (current_thread != EMU_IO_SHIRE_SP_THREAD)
+    void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
+        if (agent.shireid() != IO_SHIRE_ID)
             throw memory_error(first() + pos);
         default_value(result, n, memory_reset_value, pos);
     }
 
-    void write(size_type pos, size_type, const_pointer) override {
-        extern unsigned current_thread;
-        if (current_thread != EMU_IO_SHIRE_SP_THREAD)
+    void write(const Agent& agent, size_type pos, size_type, const_pointer) override {
+        if (agent.shireid() != IO_SHIRE_ID)
             throw memory_error(first() + pos);
     }
 
-    void init(size_type, size_type, const_pointer) override {
+    void init(const Agent&, size_type, size_type, const_pointer) override {
         throw std::runtime_error("bemu::MaxionRegion::init()");
     }
 

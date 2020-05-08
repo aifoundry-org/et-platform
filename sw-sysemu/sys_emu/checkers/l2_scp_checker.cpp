@@ -52,17 +52,17 @@ l2_scp_checker::l2_scp_checker()
  *  Sets an entry of the L2 scp of a specific minion/shire as filled and sets
  *  also the id related to the fill
  */
-void l2_scp_checker::l2_scp_fill(uint32_t current_thread, uint32_t idx, uint32_t id, uint64_t src_addr)
+void l2_scp_checker::l2_scp_fill(uint32_t thread, uint32_t idx, uint32_t id, uint64_t src_addr)
 {
-  uint32_t minion_id = current_thread / EMU_THREADS_PER_MINION;
+  uint32_t minion_id = thread / EMU_THREADS_PER_MINION;
   uint32_t minion    = minion_id % EMU_MINIONS_PER_SHIRE;
-  uint32_t shire     = current_thread / EMU_THREADS_PER_SHIRE;
+  uint32_t shire     = thread / EMU_THREADS_PER_SHIRE;
   L2_SCP_CHECKER_LOG(shire, idx, minion_id, printf("l2_scp_checker::l2_scp_fill => valid shire: %i, minion: %i, line: %i, id: %i\n", shire, minion, idx, id));
 
   if((shire_scp_info[shire].l2_scp_line_status[idx] == L2Scp_Fill) && (shire_scp_info[shire].l2_scp_line_addr[idx] != src_addr))
   {
-    LOG_ALL_MINIONS(FTL, "l2_scp_checker::l2_scp_fill => filling with a different address an already inflight fill line %i. Old addr %016llX, new addr %016llX\n",
-        idx, (long long unsigned int) shire_scp_info[shire].l2_scp_line_addr[idx], (long long unsigned int) src_addr);
+    LOG_NOTHREAD(FTL, "l2_scp_checker::l2_scp_fill => filling with a different address an already inflight fill line %i. Old addr %016llX, new addr %016llX\n",
+                 idx, (long long unsigned int) shire_scp_info[shire].l2_scp_line_addr[idx], (long long unsigned int) src_addr);
   }
 
   // If line is being overwritten with exact same addr as before and it is already valid, the line
@@ -91,11 +91,11 @@ void l2_scp_checker::l2_scp_fill(uint32_t current_thread, uint32_t idx, uint32_t
  *  Waits for L2 scp fills of a given minion to finish. Only the fills associated
  *  to the request ID will be marked as valid
  */
-void l2_scp_checker::l2_scp_wait(uint32_t current_thread, uint32_t id)
+void l2_scp_checker::l2_scp_wait(uint32_t thread, uint32_t id)
 {
-  uint32_t minion_id = current_thread / EMU_THREADS_PER_MINION;
+  uint32_t minion_id = thread / EMU_THREADS_PER_MINION;
   uint32_t minion    = minion_id % EMU_MINIONS_PER_SHIRE;
-  uint32_t shire     = current_thread / EMU_THREADS_PER_SHIRE;
+  uint32_t shire     = thread / EMU_THREADS_PER_SHIRE;
   L2_SCP_CHECKER_LOG(shire, 0xFFFFFFFF, minion_id, printf("l2_scp_checker::l2_scp_wait => shire: %i, minion: %i, id: %i\n", shire, minion, id));
 
   // Goes over all entries of minion
@@ -122,11 +122,11 @@ void l2_scp_checker::l2_scp_wait(uint32_t current_thread, uint32_t id)
  *
  *  Data is read from L2 scp. If data is not valid an error is raised
  */
-void l2_scp_checker::l2_scp_read(uint32_t current_thread, uint64_t addr)
+void l2_scp_checker::l2_scp_read(uint32_t thread, uint64_t addr)
 {
-  uint32_t minion_id    = current_thread / EMU_THREADS_PER_MINION;
+  uint32_t minion_id    = thread / EMU_THREADS_PER_MINION;
   uint32_t minion       = minion_id % EMU_MINIONS_PER_SHIRE;
-  uint32_t shire        = current_thread / EMU_THREADS_PER_SHIRE;
+  uint32_t shire        = thread / EMU_THREADS_PER_SHIRE;
 
   // Non-linear address, convert it!
   if(addr & 0x40000000ULL)
@@ -146,12 +146,12 @@ void l2_scp_checker::l2_scp_read(uint32_t current_thread, uint64_t addr)
 
   if(shire_access >= EMU_NUM_SHIRES)
   {
-    LOG_ALL_MINIONS(FTL, "l2_scp_checker::l2_scp_read => accessing shire %i beyond limit %i\n", shire_access, EMU_NUM_SHIRES);
+    LOG_NOTHREAD(FTL, "l2_scp_checker::l2_scp_read => accessing shire %i beyond limit %i\n", shire_access, EMU_NUM_SHIRES);
   }
 
   if(shire_scp_info[shire_access].l2_scp_line_status[line_access] != L2Scp_Valid)
   {
-    LOG_ALL_MINIONS(FTL, "l2_scp_checker::l2_scp_read => line state is not valid!! It is %i\n", shire_scp_info[shire_access].l2_scp_line_status[line_access]);
+    LOG_NOTHREAD(FTL, "l2_scp_checker::l2_scp_read => line state is not valid!! It is %i\n", shire_scp_info[shire_access].l2_scp_line_status[line_access]);
   }
 }
 

@@ -20,10 +20,7 @@
 namespace bemu {
 
 
-extern std::array<Hart,EMU_NUM_THREADS> cpu;
-
-
-void insn_jal(insn_t inst)
+void insn_jal(Hart& cpu)
 {
     DISASM_RD_JIMM("jal");
     WRITE_RD(NPC);
@@ -31,7 +28,7 @@ void insn_jal(insn_t inst)
 }
 
 
-void insn_jalr(insn_t inst)
+void insn_jalr(Hart& cpu)
 {
     DISASM_RD_RS1_IIMM("jalr");
     uint64_t tmp = (RS1 + IIMM) & ~1ull;
@@ -40,7 +37,7 @@ void insn_jalr(insn_t inst)
 }
 
 
-void insn_beq(insn_t inst)
+void insn_beq(Hart& cpu)
 {
     DISASM_RS1_RS2_BIMM("beq");
     if (RS1 == RS2)
@@ -48,7 +45,7 @@ void insn_beq(insn_t inst)
 }
 
 
-void insn_bge(insn_t inst)
+void insn_bge(Hart& cpu)
 {
     DISASM_RS1_RS2_BIMM("bge");
     if (int64_t(RS1) >= int64_t(RS2))
@@ -56,7 +53,7 @@ void insn_bge(insn_t inst)
 }
 
 
-void insn_bgeu(insn_t inst)
+void insn_bgeu(Hart& cpu)
 {
     DISASM_RS1_RS2_BIMM("bgeu");
     if (RS1 >= RS2)
@@ -64,7 +61,7 @@ void insn_bgeu(insn_t inst)
 }
 
 
-void insn_blt(insn_t inst)
+void insn_blt(Hart& cpu)
 {
     DISASM_RS1_RS2_BIMM("blt");
     if (int64_t(RS1) < int64_t(RS2))
@@ -72,7 +69,7 @@ void insn_blt(insn_t inst)
 }
 
 
-void insn_bltu(insn_t inst)
+void insn_bltu(Hart& cpu)
 {
     DISASM_RS1_RS2_BIMM("bltu");
     if (RS1 < RS2)
@@ -80,7 +77,7 @@ void insn_bltu(insn_t inst)
 }
 
 
-void insn_bne(insn_t inst)
+void insn_bne(Hart& cpu)
 {
     DISASM_RS1_RS2_BIMM("bne");
     if (RS1 != RS2)

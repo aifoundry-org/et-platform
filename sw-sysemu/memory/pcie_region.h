@@ -44,7 +44,7 @@ struct PcieDbiSlvRegion : public MemoryRegion {
         PF0_MSIX_CAP                     = 0xb0,
     };
 
-    void read(size_type pos, size_type n, pointer result) override {
+    void read(const Agent&, size_type pos, size_type n, pointer result) override {
         uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
 
         LOG_NOTHREAD(DEBUG, "PcieDbiSlvRegion::read(pos=0x%llx)", pos);
@@ -63,7 +63,7 @@ struct PcieDbiSlvRegion : public MemoryRegion {
         }
     }
 
-    void write(size_type pos, size_type n, const_pointer source) override {
+    void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
         const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
         (void) source32;
 
@@ -73,7 +73,7 @@ struct PcieDbiSlvRegion : public MemoryRegion {
             throw memory_error(first() + pos);
     }
 
-    void init(size_type, size_type, const_pointer) override {
+    void init(const Agent&, size_type, size_type, const_pointer) override {
         throw std::runtime_error("bemu::PcieDbiSlvRegion::init()");
     }
 
@@ -96,7 +96,7 @@ struct PcieNoPcieEsrRegion : public MemoryRegion {
         MSI_TX_VEC = 0x18,
     };
 
-    void read(size_type pos, size_type n, pointer result) override {
+    void read(const Agent&, size_type pos, size_type n, pointer result) override {
         uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
 
         LOG_NOTHREAD(DEBUG, "PcieNoPcieEsrRegion::read(pos=0x%llx)", pos);
@@ -112,7 +112,7 @@ struct PcieNoPcieEsrRegion : public MemoryRegion {
         }
     }
 
-    void write(size_type pos, size_type n, const_pointer source) override {
+    void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
         const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
         (void) source32;
 
@@ -128,14 +128,14 @@ struct PcieNoPcieEsrRegion : public MemoryRegion {
                 if (sys_emu::get_api_communicate())
                     sys_emu::get_api_communicate()->raise_host_interrupt();
                 else
-                    LOG(WARN, "%s", "API Communicate is NULL!");
+                    LOG_NOTHREAD(WARN, "%s", "API Communicate is NULL!");
             }
 #endif
             break;
         }
     }
 
-    void init(size_type, size_type, const_pointer) override {
+    void init(const Agent&, size_type, size_type, const_pointer) override {
         throw std::runtime_error("bemu::PcieNoPcieEsrRegion::init()");
     }
 
@@ -164,31 +164,31 @@ struct PcieRegion : public MemoryRegion {
         r_pcie_nopciesr_pos = 0x3F80001000,
     };
 
-    void read(size_type pos, size_type n, pointer result) override {
+    void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
         const auto elem = search(pos, n);
         if (!elem) {
             default_value(result, n, memory_reset_value, pos);
             return;
         }
-        elem->read(pos - elem->first(), n, result);
+        elem->read(agent, pos - elem->first(), n, result);
     }
 
-    void write(size_type pos, size_type n, const_pointer source) override {
+    void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         const auto elem = search(pos, n);
         if (elem) {
             try {
-                elem->write(pos - elem->first(), n, source);
+                elem->write(agent, pos - elem->first(), n, source);
             } catch (const memory_error&) {
                 throw memory_error(first() + pos);
             }
         }
     }
 
-    void init(size_type pos, size_type n, const_pointer source) override {
+    void init(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         const auto elem = search(pos, n);
         if (!elem)
             throw std::runtime_error("bemu::PcieRegion::init()");
-        elem->init(pos - elem->first(), n, source);
+        elem->init(agent, pos - elem->first(), n, source);
     }
 
     addr_type first() const override { return Base; }

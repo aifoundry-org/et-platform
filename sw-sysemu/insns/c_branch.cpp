@@ -20,10 +20,7 @@
 namespace bemu {
 
 
-extern std::array<Hart,EMU_NUM_THREADS> cpu;
-
-
-void insn_c_beqz(insn_t inst)
+void insn_c_beqz(Hart& cpu)
 {
     C_DISASM_RS1P_BIMM("c.beqz");
     if (C_RS1P == 0)
@@ -31,7 +28,7 @@ void insn_c_beqz(insn_t inst)
 }
 
 
-void insn_c_bnez(insn_t inst)
+void insn_c_bnez(Hart& cpu)
 {
     C_DISASM_RS1P_BIMM("c.bneqz");
     if (C_RS1P != 0)
@@ -39,7 +36,7 @@ void insn_c_bnez(insn_t inst)
 }
 
 
-void insn_c_j(insn_t inst)
+void insn_c_j(Hart& cpu)
 {
     C_DISASM_JIMM("c.j");
     WRITE_X0(NPC);
@@ -47,7 +44,7 @@ void insn_c_j(insn_t inst)
 }
 
 
-void insn_c_jalr(insn_t inst)
+void insn_c_jalr(Hart& cpu)
 {
     C_DISASM_RS1("c.jalr");
     uint64_t tmp = C_RS1 & ~1ull;
@@ -56,7 +53,7 @@ void insn_c_jalr(insn_t inst)
 }
 
 
-void insn_c_jr(insn_t inst)
+void insn_c_jr(Hart& cpu)
 {
     C_DISASM_RS1("c.jr");
     WRITE_X0(NPC);

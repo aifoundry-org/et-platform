@@ -21,96 +21,93 @@
 namespace bemu {
 
 
-extern std::array<Hart,EMU_NUM_THREADS> cpu;
-
-
-void insn_fence(insn_t inst __attribute__((unused)))
+void insn_fence(Hart& cpu)
 {
     DISASM_NOARG("fence");
 }
 
 
-void insn_lb(insn_t inst)
+void insn_lb(Hart& cpu)
 {
     DISASM_LOAD_RD_RS1_IIMM("lb");
-    uint64_t tmp = sext<8>(mmu_load<uint8_t>(RS1 + IIMM, Mem_Access_Load));
+    uint64_t tmp = sext<8>(mmu_load8(cpu, RS1 + IIMM, Mem_Access_Load));
     LOAD_WRITE_RD(tmp);
 }
 
 
-void insn_lbu(insn_t inst)
+void insn_lbu(Hart& cpu)
 {
     DISASM_LOAD_RD_RS1_IIMM("lbu");
-    uint64_t tmp = mmu_load<uint8_t>(RS1 + IIMM, Mem_Access_Load);
+    uint64_t tmp = mmu_load8(cpu, RS1 + IIMM, Mem_Access_Load);
     LOAD_WRITE_RD(tmp);
 }
 
 
-void insn_ld(insn_t inst)
+void insn_ld(Hart& cpu)
 {
     DISASM_LOAD_RD_RS1_IIMM("ld");
-    uint64_t tmp = mmu_load<uint64_t>(RS1 + IIMM, Mem_Access_Load);
+    uint64_t tmp = mmu_load64(cpu, RS1 + IIMM, Mem_Access_Load);
     LOAD_WRITE_RD(tmp);
 }
 
 
-void insn_lh(insn_t inst)
+void insn_lh(Hart& cpu)
 {
     DISASM_LOAD_RD_RS1_IIMM("lh");
-    uint64_t tmp = sext<16>(mmu_load<uint16_t>(RS1 + IIMM, Mem_Access_Load));
+    uint64_t tmp = sext<16>(mmu_load16(cpu, RS1 + IIMM, Mem_Access_Load));
     LOAD_WRITE_RD(tmp);
 }
 
 
-void insn_lhu(insn_t inst)
+void insn_lhu(Hart& cpu)
 {
     DISASM_LOAD_RD_RS1_IIMM("lhu");
-    uint64_t tmp = mmu_load<uint16_t>(RS1 + IIMM, Mem_Access_Load);
+    uint64_t tmp = mmu_load16(cpu, RS1 + IIMM, Mem_Access_Load);
     LOAD_WRITE_RD(tmp);
 }
 
 
-void insn_lw(insn_t inst)
+void insn_lw(Hart& cpu)
 {
     DISASM_LOAD_RD_RS1_IIMM("lw");
-    uint64_t tmp = sext<32>(mmu_load<uint32_t>(RS1 + IIMM, Mem_Access_Load));
+    uint64_t tmp = sext<32>(mmu_load32(cpu, RS1 + IIMM, Mem_Access_Load));
     LOAD_WRITE_RD(tmp);
 }
 
 
-void insn_lwu(insn_t inst)
+void insn_lwu(Hart& cpu)
 {
     DISASM_LOAD_RD_RS1_IIMM("lw");
-    uint64_t tmp = mmu_load<uint32_t>(RS1 + IIMM, Mem_Access_Load);
+    uint64_t tmp = mmu_load32(cpu, RS1 + IIMM, Mem_Access_Load);
     LOAD_WRITE_RD(tmp);
 }
 
 
-void insn_sb(insn_t inst)
+void insn_sb(Hart& cpu)
 {
     DISASM_STORE_RS2_RS1_SIMM("sb");
-    mmu_store<uint8_t>(RS1 + SIMM, uint8_t(RS2), Mem_Access_Store);
+    mmu_store8(cpu, RS1 + SIMM, uint8_t(RS2), Mem_Access_Store);
 }
 
 
-void insn_sd(insn_t inst)
+void insn_sd(Hart& cpu)
 {
     DISASM_STORE_RS2_RS1_SIMM("sd");
-    mmu_store<uint64_t>(RS1 + SIMM, RS2, Mem_Access_Store);
+    mmu_store64(cpu, RS1 + SIMM, RS2, Mem_Access_Store);
 }
 
 
-void insn_sh(insn_t inst)
+void insn_sh(Hart& cpu)
 {
     DISASM_STORE_RS2_RS1_SIMM("sh");
-    mmu_store<uint16_t>(RS1 + SIMM, uint16_t(RS2), Mem_Access_Store);
+    mmu_store16(cpu, RS1 + SIMM, uint16_t(RS2), Mem_Access_Store);
 }
 
 
-void insn_sw(insn_t inst)
+void insn_sw(Hart& cpu)
 {
     DISASM_STORE_RS2_RS1_SIMM("sw");
-    mmu_store<uint32_t>(RS1 + SIMM, uint32_t(RS2), Mem_Access_Store);
+    mmu_store32(cpu, RS1 + SIMM, uint32_t(RS2), Mem_Access_Store);
 }
 
 

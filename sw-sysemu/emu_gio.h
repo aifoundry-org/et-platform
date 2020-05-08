@@ -17,66 +17,38 @@
 #include "emu_defines.h"
 #include "testLog.h"
 
-#define _LOG_THREAD(thread) \
-    ((thread) == EMU_IO_SHIRE_SP_THREAD \
-        ? (IO_SHIRE_ID * EMU_THREADS_PER_SHIRE) \
-        : (thread))
 
-#define _LOG_IMPL(severity, cond, thread, format, ...) do { \
-    if ((LOG_##severity >= bemu::log.getLogLevel()) && (cond)) \
-    { \
-        bemu::lprintf(LOG_##severity, "[H%u S%u:N%u:C%u:T%u] " format, \
-                     unsigned(thread), \
-                     unsigned(thread / EMU_THREADS_PER_SHIRE), \
-                     unsigned((thread / EMU_THREADS_PER_NEIGH) % EMU_NEIGH_PER_SHIRE), \
-                     unsigned((thread / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_NEIGH), \
-                     unsigned(thread % EMU_THREADS_PER_MINION), \
-                     __VA_ARGS__); \
+#define LOG_HART_IF(severity, agent, cond, format, ...) do { \
+    if (LOG_##severity >= bemu::log.getLogLevel() && bemu::log_thread[bemu::hart_index(agent)] && (cond)) { \
+        bemu::lprintf(LOG_##severity, "[%s] " format, (agent).name().c_str(), __VA_ARGS__); \
     } \
 } while (0)
 
 
-#define LOG(severity, format, ...) do { \
-    _LOG_IMPL(severity, \
-              bemu::log_thread[bemu::current_thread], \
-              _LOG_THREAD(bemu::current_thread), format, __VA_ARGS__); \
+#define LOG_HART(severity, agent, format, ...) do { \
+    if (LOG_##severity >= bemu::log.getLogLevel() && bemu::log_thread[bemu::hart_index(agent)]) { \
+        bemu::lprintf(LOG_##severity, "[%s] " format, (agent).name().c_str(), __VA_ARGS__); \
+    } \
 } while (0)
 
 
-#define LOG_OTHER(severity, thread, format, ...) do { \
-    _LOG_IMPL(severity, \
-              bemu::log_thread[bemu::current_thread], \
-              _LOG_THREAD(thread), format, __VA_ARGS__); \
+#define LOG_AGENT(severity, agent, format, ...) do { \
+    if (LOG_##severity >= bemu::log.getLogLevel()) { \
+        bemu::lprintf(LOG_##severity, "[%s] " format, (agent).name().c_str(), __VA_ARGS__); \
+    } \
 } while (0)
-
-
-#define LOG_ALL_MINIONS(severity, format, ...) do { \
-    _LOG_IMPL(severity, true, _LOG_THREAD(bemu::current_thread), format, __VA_ARGS__); \
-} while(0)
 
 
 #define LOG_NOTHREAD(severity, format, ...) do { \
-    if (LOG_##severity >= bemu::log.getLogLevel()) \
-    { \
+    if (LOG_##severity >= bemu::log.getLogLevel()) { \
         bemu::lprintf(LOG_##severity, format, __VA_ARGS__); \
     } \
 } while (0)
 
 
-#define LOG_IF(severity, cond, format, ...) do { \
-    _LOG_IMPL(severity, \
-              bemu::log_thread[bemu::current_thread] && (cond), \
-               _LOG_THREAD(bemu::current_thread), format, __VA_ARGS__); \
-} while (0)
-
-
-#define DEBUG_MASK(_MR) LOG(DEBUG, "\tmask = 0x%02lx",(_MR).to_ulong())
-
-
 namespace bemu {
 
 
-extern unsigned                     current_thread;
 extern std::bitset<EMU_NUM_THREADS> log_thread;
 extern testLog                      log;
 

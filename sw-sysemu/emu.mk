@@ -24,7 +24,6 @@ emu_hdrs := \
 	insn.h \
 	insn_func.h \
 	insns/tensor_error.h \
-	insns/tensor_mask.h \
 	lazy_array.h \
 	literals.h \
 	memmap.h \

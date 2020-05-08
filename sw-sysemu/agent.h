@@ -8,35 +8,32 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 
-#include "decode.h"
-#include "emu_defines.h"
-#include "emu_gio.h"
-#include "fpu/fpu_casts.h"
-#include "insn.h"
-#include "insn_func.h"
-#include "log.h"
-#include "mmu.h"
-#include "processor.h"
-#include "utility.h"
+#ifndef BEMU_AGENT_H
+#define BEMU_AGENT_H
+
+#include <string>
 
 namespace bemu {
 
 
-void insn_flw(Hart& cpu)
-{
-    require_fp_active();
-    DISASM_LOAD_FD_RS1_IIMM("flw");
-    LOAD_FD(mmu_load32(cpu, RS1 + IIMM, Mem_Access_Load));
+//
+// A system agent abstract class
+//
+struct Agent {
+    virtual long shireid() const = 0;
+    virtual std::string name() const = 0;
+};
 
-}
 
-
-void insn_fsw(Hart& cpu)
-{
-    require_fp_active();
-    DISASM_STORE_FS2_RS1_SIMM("fsw");
-    mmu_store32(cpu, RS1 + SIMM, FS2.u32[0], Mem_Access_Store);
-}
+//
+// An agent that returns -1 for shireid()
+//
+struct Noshire_agent: public Agent {
+    long shireid() const override { return -1L; }
+    std::string name() const override { return std::string(""); }
+};
 
 
 } // namespace bemu
+
+#endif // BEMU_AGENT_H

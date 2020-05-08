@@ -86,7 +86,7 @@ public:
 
     mem_checker();
 
-    bool access(uint64_t addr, bemu::mem_access_type macc, bemu::cacheop_type cop, uint32_t current_thread, size_t size, bemu::mreg_t mask);
+    bool access(uint64_t addr, bemu::mem_access_type macc, bemu::cacheop_type cop, uint32_t thread, size_t size, bemu::mreg_t mask);
     void cb_drain(uint32_t shire_id, uint32_t cache_bank);
     void l2_flush(uint32_t shire_id, uint32_t cache_bank);
     void l2_evict(uint32_t shire_id, uint32_t cache_bank);

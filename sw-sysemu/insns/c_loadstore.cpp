@@ -21,66 +21,63 @@
 namespace bemu {
 
 
-extern std::array<Hart,EMU_NUM_THREADS> cpu;
-
-
-void insn_c_ld(insn_t inst)
+void insn_c_ld(Hart& cpu)
 {
     C_DISASM_LOAD_RS2P_RS1P_IMMLSD("c.ld");
-    uint64_t tmp = mmu_load<uint64_t>(C_RS1P + C_IMMLSD, Mem_Access_Load);
+    uint64_t tmp = mmu_load64(cpu, C_RS1P + C_IMMLSD, Mem_Access_Load);
     LOAD_WRITE_C_RS2P(tmp);
 }
 
 
-void insn_c_ldsp(insn_t inst)
+void insn_c_ldsp(Hart& cpu)
 {
     C_DISASM_LOAD_LDSP("c.ldsp");
-    uint64_t tmp = mmu_load<uint64_t>(X2 + C_IMMLDSP, Mem_Access_Load);
+    uint64_t tmp = mmu_load64(cpu, X2 + C_IMMLDSP, Mem_Access_Load);
     LOAD_WRITE_C_RS1(tmp);
 }
 
 
-void insn_c_lw(insn_t inst)
+void insn_c_lw(Hart& cpu)
 {
     C_DISASM_LOAD_RS2P_RS1P_IMMLSW("c.lw");
-    uint64_t tmp = sext<32>(mmu_load<uint32_t>(C_RS1P + C_IMMLSW, Mem_Access_Load));
+    uint64_t tmp = sext<32>(mmu_load32(cpu, C_RS1P + C_IMMLSW, Mem_Access_Load));
     LOAD_WRITE_C_RS2P(tmp);
 }
 
 
-void insn_c_lwsp(insn_t inst)
+void insn_c_lwsp(Hart& cpu)
 {
     C_DISASM_LOAD_LWSP("c.lwsp");
-    uint64_t tmp = sext<32>(mmu_load<uint32_t>(X2 + C_IMMLWSP, Mem_Access_Load));
+    uint64_t tmp = sext<32>(mmu_load32(cpu, X2 + C_IMMLWSP, Mem_Access_Load));
     LOAD_WRITE_C_RS1(tmp);
 }
 
 
-void insn_c_sd(insn_t inst)
+void insn_c_sd(Hart& cpu)
 {
     C_DISASM_STORE_RS2P_RS1P_IMMLSD("c.sd");
-    mmu_store<uint64_t>(C_RS1P + C_IMMLSD, C_RS2P, Mem_Access_Store);
+    mmu_store64(cpu, C_RS1P + C_IMMLSD, C_RS2P, Mem_Access_Store);
 }
 
 
-void insn_c_sdsp(insn_t inst)
+void insn_c_sdsp(Hart& cpu)
 {
     C_DISASM_STORE_SWSP("c.sdsp");
-    mmu_store<uint64_t>(X2 + C_IMMSDSP, C_RS2, Mem_Access_Store);
+    mmu_store64(cpu, X2 + C_IMMSDSP, C_RS2, Mem_Access_Store);
 }
 
 
-void insn_c_sw(insn_t inst)
+void insn_c_sw(Hart& cpu)
 {
     C_DISASM_STORE_RS2P_RS1P_IMMLSW("c.sd");
-    mmu_store<uint32_t>(C_RS1P + C_IMMLSW, uint32_t(C_RS2P), Mem_Access_Store);
+    mmu_store32(cpu, C_RS1P + C_IMMLSW, uint32_t(C_RS2P), Mem_Access_Store);
 }
 
 
-void insn_c_swsp(insn_t inst)
+void insn_c_swsp(Hart& cpu)
 {
     C_DISASM_STORE_SWSP("c.swsp");
-    mmu_store<uint32_t>(X2 + C_IMMSWSP, uint32_t(C_RS2), Mem_Access_Store);
+    mmu_store32(cpu, X2 + C_IMMSWSP, uint32_t(C_RS2), Mem_Access_Store);
 }
 
 

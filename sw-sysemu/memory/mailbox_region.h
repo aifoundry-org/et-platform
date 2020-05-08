@@ -45,7 +45,7 @@ struct PU_TRG_MMin_Region : public MemoryRegion
         PCI_MMM_CNT = 0xC,
     };
 
-    void read(size_type pos, size_type n, pointer result) override {
+    void read(const Agent&, size_type pos, size_type n, pointer result) override {
         uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
 
         if (n != 4)
@@ -64,7 +64,7 @@ struct PU_TRG_MMin_Region : public MemoryRegion
         }
     }
 
-    void write(size_type pos, size_type n, const_pointer source) override {
+    void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
         const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
 
         if (n != 4)
@@ -82,7 +82,7 @@ struct PU_TRG_MMin_Region : public MemoryRegion
         }
     }
 
-    void init(size_type, size_type, const_pointer) override {
+    void init(const Agent&, size_type, size_type, const_pointer) override {
         throw std::runtime_error("bemu::MailboxRegion::PU_TRG_MMin_Region::init()");
     }
 
@@ -136,31 +136,31 @@ struct MailboxRegion : public MemoryRegion {
         pu_trg_pcie_sp_pos = 0x1000A000,
     };
 
-    void read(size_type pos, size_type n, pointer result) override {
-        const auto elem = search(pos, n);
+    void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
+        const auto elem = search(agent, pos, n);
         if (!elem) {
             default_value(result, n, memory_reset_value, pos);
             return;
         }
-        elem->read(pos - elem->first(), n, result);
+        elem->read(agent, pos - elem->first(), n, result);
     }
 
-    void write(size_type pos, size_type n, const_pointer source) override {
-        const auto elem = search(pos, n);
+    void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
+        const auto elem = search(agent, pos, n);
         if (elem) {
             try {
-                elem->write(pos - elem->first(), n, source);
+                elem->write(agent, pos - elem->first(), n, source);
             } catch (const memory_error&) {
                 throw memory_error(first() + pos);
             }
         }
     }
 
-    void init(size_type pos, size_type n, const_pointer source) override {
-        const auto elem = search(pos, n);
+    void init(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
+        const auto elem = search(agent, pos, n);
         if (!elem)
             throw std::runtime_error("bemu::MailboxRegion::init()");
-        elem->init(pos - elem->first(), n, source);
+        elem->init(agent, pos - elem->first(), n, source);
     }
 
     addr_type first() const override { return Base; }
@@ -202,9 +202,8 @@ protected:
         return *lo;
     }
 
-    MemoryRegion* search(size_type pos, size_type n) const {
-        extern unsigned current_thread;
-        return (current_thread == EMU_IO_SHIRE_SP_THREAD)
+    MemoryRegion* search(const Agent& agent, size_type pos, size_type n) const {
+        return (agent.shireid() == IO_SHIRE_ID)
                 ? search(spio_regions, pos, n)
                 : search(minion_regions, pos, n);
     }

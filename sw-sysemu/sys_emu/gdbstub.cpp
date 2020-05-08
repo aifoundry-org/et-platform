@@ -230,10 +230,10 @@ static inline bool target_thread_is_alive(int thread)
         /* && !sys_emu::thread_is_running(to_target_thread(thread)) */ ;
 }
 
-static bool target_read_memory(uint64_t addr, uint8_t *buffer, uint64_t size)
+static bool target_read_memory(int thread, uint64_t addr, uint8_t *buffer, uint64_t size)
 {
     try {
-        bemu::memory.read(addr, size, buffer);
+        bemu::memory.read(bemu::get_cpu(to_target_thread(thread)), addr, size, buffer);
         return true;
     } catch (...) {
         LOG_NOTHREAD(INFO, "%s", "GDB stub: read memory exception");
@@ -241,10 +241,10 @@ static bool target_read_memory(uint64_t addr, uint8_t *buffer, uint64_t size)
     }
 }
 
-static bool target_write_memory(uint64_t addr, const uint8_t *buffer, uint64_t size)
+static bool target_write_memory(int thread, uint64_t addr, const uint8_t *buffer, uint64_t size)
 {
     try {
-        bemu::memory.write(addr, size, buffer);
+        bemu::memory.write(bemu::get_cpu(to_target_thread(thread)), addr, size, buffer);
         return true;
     } catch (...) {
         LOG_NOTHREAD(INFO, "%s", "GDB stub: write memory exception");
@@ -935,7 +935,7 @@ static void gdbstub_handle_read_memory(const char *packet)
 
     LOG_NOTHREAD(DEBUG, "GDB stub: read memory: from 0x%" PRIx64 ", size 0x%" PRIx64, addr, length);
 
-    if (!target_read_memory(addr, data, length))
+    if (!target_read_memory(g_cur_general_thread, addr, data, length))
         rsp_send_packet("E01");
 
     memtohex(send, data, length);
@@ -958,7 +958,7 @@ static void gdbstub_handle_write_memory(const char *packet)
 
     hextomem(data, p, length);
 
-    if (!target_write_memory(addr, data, length))
+    if (!target_write_memory(g_cur_general_thread, addr, data, length))
         rsp_send_packet("E01");
 
     rsp_send_packet("OK");

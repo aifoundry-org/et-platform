@@ -19,13 +19,10 @@
 namespace bemu {
 
 
-extern std::array<Hart,EMU_NUM_THREADS> cpu;
-
-
-void insn_fence_i(insn_t inst)
+void insn_fence_i(Hart& cpu)
 {
     DISASM_NOARG("fence.i");
-    throw trap_mcode_instruction(inst.bits);
+    throw trap_mcode_instruction(cpu.inst.bits);
 }
 
 

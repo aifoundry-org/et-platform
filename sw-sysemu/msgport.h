@@ -12,7 +12,7 @@ unsigned get_msg_port_write_width(unsigned thread, unsigned port);
 
 bool get_msg_port_stall(unsigned thread, unsigned port);
 
-void write_msg_port_data(unsigned target_thread, unsigned port, uint32_t* data, uint8_t oob);
+void write_msg_port_data(unsigned target_thread, unsigned port, unsigned source_thread, uint32_t* data);
 void commit_msg_port_data(unsigned target_thread, unsigned port, unsigned source_thread);
 
 void write_msg_port_data_from_tbox(unsigned target_thread, unsigned port, unsigned tbox, uint32_t* data, uint8_t oob);

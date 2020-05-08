@@ -108,7 +108,7 @@ std::array<broadcast_esrs_t, EMU_NUM_SHIRES>   broadcast_esrs;
 #define PP(val) \
     (((val) & ESR_REGION_PROT_MASK) >> ESR_REGION_PROT_SHIFT)
 
-#define SHIREID(shire)  (((shire) == EMU_IO_SHIRE_SP) ? IO_SHIRE_ID : (shire))
+#define SHIREID(shire)  (((shire) == EMU_IO_SHIRE_SP) ? IO_SHIRE_ID : unsigned(shire))
 #define NEIGHID(pos)    ((pos) % EMU_NEIGH_PER_SHIRE)
 #define MINION(hart)    ((hart) / EMU_THREADS_PER_MINION)
 #define THREAD(hart)    ((hart) % EMU_THREADS_PER_MINION)
@@ -128,8 +128,8 @@ static void write_fcc_credinc(int index, uint64_t shire, uint64_t minion_mask)
 
         unsigned thread = thread0 + minion * EMU_THREADS_PER_MINION;
         cpu[thread].fcc[cnt]++;
-        LOG_OTHER(DEBUG, thread, "\tfcc = 0x%" PRIx64,
-                  (uint64_t(cpu[thread].fcc[1]) << 16) + uint64_t(cpu[thread].fcc[0]));
+        LOG_HART(DEBUG, cpu[thread], "\tfcc = 0x%" PRIx64,
+                 (uint64_t(cpu[thread].fcc[1]) << 16) + uint64_t(cpu[thread].fcc[0]));
 #ifndef SYS_EMU
         // wake up waiting threads (only for checker, not sysemu)
         if (cpu[thread].fcc_wait) {
@@ -139,7 +139,7 @@ static void write_fcc_credinc(int index, uint64_t shire, uint64_t minion_mask)
 #endif
         //check for overflow
         if (cpu[thread].fcc[cnt] == 0)
-            update_tensor_error(thread, 1 << 3);
+            update_tensor_error(cpu[thread], 1 << 3);
     }
 }
 
@@ -170,11 +170,15 @@ static void recalculate_thread1_enable(unsigned shire)
 }
 
 
-static uint64_t legalize_esr_address(uint64_t addr)
+static uint64_t legalize_esr_address(const Agent& agent, uint64_t addr)
 {
     uint64_t shire = addr & ESR_REGION_SHIRE_MASK;
     if (shire == ESR_REGION_SHIRE_MASK) {
-        shire = (current_thread / EMU_THREADS_PER_SHIRE) << ESR_REGION_SHIRE_SHIFT;
+        long shireid = agent.shireid();
+        if (shireid < 0) {
+            throw std::runtime_error("Non-shire agent illegal ESR address");
+        }
+        shire = uint64_t(shireid) << ESR_REGION_SHIRE_SHIFT;
     }
     if (shire == (IO_SHIRE_ID << ESR_REGION_SHIRE_SHIFT)) {
         shire = EMU_IO_SHIRE_SP << ESR_REGION_SHIRE_SHIFT;
@@ -264,7 +268,7 @@ void shire_other_esrs_t::reset(unsigned shire)
 }
 
 
-uint64_t esr_read(uint64_t addr)
+uint64_t esr_read(const Agent& agent, uint64_t addr)
 {
     // Broadcast is special...
     switch (addr) {
@@ -278,7 +282,7 @@ uint64_t esr_read(uint64_t addr)
     }
 
     // Redirect local shire requests to the corresponding shire
-    uint64_t addr2 = legalize_esr_address(addr);
+    uint64_t addr2 = legalize_esr_address(agent, addr);
 
     // parse address
     unsigned shire = ((addr2 & ESR_REGION_SHIRE_MASK) >> ESR_REGION_SHIRE_SHIFT);
@@ -297,16 +301,16 @@ uint64_t esr_read(uint64_t addr)
         switch (esr) {
         case ESR_PU_RVTIM_MTIME:
         case ESR_PU_RVTIM_MTIMECMP:
-            throw bemu::sysreg_error(esr);
+            throw sysreg_error(esr);
         }
 #endif
-        LOG(WARN, "Read unknown R_PU_RVTim ESR 0x%" PRIx64, esr);
-        throw bemu::memory_error(addr);
+        LOG_AGENT(WARN, agent, "Read unknown R_PU_RVTim ESR 0x%" PRIx64, esr);
+        throw memory_error(addr);
     }
 
     if (shire >= EMU_NUM_SHIRES) {
-        LOG(WARN, "Read illegal ESR S%u:0x%llx", SHIREID(shire), addr2 & ~ESR_REGION_SHIRE_MASK);
-        throw bemu::memory_error(addr);
+        LOG_AGENT(WARN, agent, "Read illegal ESR S%u:0x%llx", SHIREID(shire), addr2 & ~ESR_REGION_SHIRE_MASK);
+        throw memory_error(addr);
     }
 
     uint64_t sregion = addr2 & ESR_SREGION_MASK;
@@ -314,17 +318,17 @@ uint64_t esr_read(uint64_t addr)
     if (sregion == ESR_HART_REGION) {
         uint64_t esr = addr2 & ESR_HART_ESR_MASK;
         unsigned hart = (addr2 & ESR_REGION_HART_MASK) >> ESR_REGION_HART_SHIFT;
-        LOG(WARN, "Read unknown hart ESR S%u:M%u:T%u:0x%" PRIx64,
-            SHIREID(shire), MINION(hart), THREAD(hart), esr);
-        throw bemu::memory_error(addr);
+        LOG_AGENT(WARN, agent, "Read unknown hart ESR S%u:M%u:T%u:0x%" PRIx64,
+                  SHIREID(shire), MINION(hart), THREAD(hart), esr);
+        throw memory_error(addr);
     }
 
     if (sregion == ESR_NEIGH_REGION) {
         unsigned neigh = (addr2 & ESR_REGION_NEIGH_MASK) >> ESR_REGION_NEIGH_SHIFT;
         uint64_t esr = addr2 & ESR_NEIGH_ESR_MASK;
         if ((shire == EMU_IO_SHIRE_SP) || (neigh >= EMU_NEIGH_PER_SHIRE)) {
-            LOG(WARN, "Read illegal neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), neigh, esr);
-            throw bemu::memory_error(addr);
+            LOG_AGENT(WARN, agent, "Read illegal neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), neigh, esr);
+            throw memory_error(addr);
         }
         unsigned pos = neigh + EMU_NEIGH_PER_SHIRE * shire;
         switch (esr) {
@@ -363,8 +367,8 @@ uint64_t esr_read(uint64_t addr)
         case ESR_TEXTURE_IMAGE_TABLE_PTR:
             return neigh_esrs[pos].texture_image_table_ptr;
         }
-        LOG(WARN, "Read unknown neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), neigh, esr);
-        throw bemu::memory_error(addr);
+        LOG_AGENT(WARN, agent, "Read unknown neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), neigh, esr);
+        throw memory_error(addr);
     }
 
     uint64_t sregion_extra = addr2 & ESR_SREGION_EXT_MASK;
@@ -373,8 +377,8 @@ uint64_t esr_read(uint64_t addr)
         uint64_t esr = addr2 & ESR_CACHE_ESR_MASK;
         unsigned bnk = (addr2 & ESR_REGION_BANK_MASK) >> ESR_REGION_BANK_SHIFT;
         if (bnk >= 4) {
-            LOG(WARN, "Read illegal shire_cache ESR S%u:B%u:0x%" PRIx64, SHIREID(shire), bnk, esr);
-            throw bemu::memory_error(addr);
+            LOG_AGENT(WARN, agent, "Read illegal shire_cache ESR S%u:B%u:0x%" PRIx64, SHIREID(shire), bnk, esr);
+            throw memory_error(addr);
         }
         switch (esr) {
         case ESR_SC_L3_SHIRE_SWIZZLE_CTL:
@@ -431,15 +435,15 @@ uint64_t esr_read(uint64_t addr)
         case ESR_SC_IDX_COP_SM_CTL_USER:
             return 4ull << 24; // idx_cop_sm_state = IDLE
         }
-        LOG(WARN, "Read unknown shire_cache ESR S%u:B%u:0x%" PRIx64, SHIREID(shire), bnk, esr);
-        throw bemu::memory_error(addr);
+        LOG_AGENT(WARN, agent, "Read unknown shire_cache ESR S%u:B%u:0x%" PRIx64, SHIREID(shire), bnk, esr);
+        throw memory_error(addr);
     }
 
     if (sregion_extra == ESR_RBOX_REGION) {
         uint64_t esr = addr2 & ESR_RBOX_ESR_MASK;
         if (shire >= EMU_NUM_COMPUTE_SHIRES) {
-            LOG(WARN, "Read illegal rbox ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
-            throw bemu::memory_error(addr);
+            LOG_AGENT(WARN, agent, "Read illegal rbox ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
+            throw memory_error(addr);
         }
         switch (esr) {
         case ESR_RBOX_CONFIG:
@@ -452,8 +456,8 @@ uint64_t esr_read(uint64_t addr)
         case ESR_RBOX_STATUS:
             return GET_RBOX(shire, 0).read_esr((esr >> 3) & 0x3FFF);
         }
-        LOG(WARN, "Read unknown rbox ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
-        throw bemu::memory_error(addr);
+        LOG_AGENT(WARN, agent, "Read unknown rbox ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
+        throw memory_error(addr);
     }
 
     if (sregion_extra == ESR_SHIRE_REGION) {
@@ -572,41 +576,46 @@ uint64_t esr_read(uint64_t addr)
         case ESR_SHIRE_CHANNEL_ECO_CTL:
             return shire_other_esrs[shire].shire_channel_eco_ctl;
         }
-        LOG(WARN, "Read unknown shire_other ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
-        throw bemu::memory_error(addr);
+        LOG_AGENT(WARN, agent, "Read unknown shire_other ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
+        throw memory_error(addr);
     }
 
-    LOG(WARN, "Read illegal ESR 0x%" PRIx64, addr);
-    throw bemu::memory_error(addr);
+    LOG_AGENT(WARN, agent, "Read illegal ESR 0x%" PRIx64, addr);
+    throw memory_error(addr);
 }
 
 
-void esr_write(uint64_t addr, uint64_t value)
+void esr_write(const Agent& agent, uint64_t addr, uint64_t value)
 {
     uint64_t addr2;
     uint64_t mask;
-    unsigned shire = current_thread / EMU_THREADS_PER_SHIRE;
+    long shire = shire_index(agent.shireid());
 
     // Broadcast is special...
     switch (addr) {
     case ESR_BROADCAST_DATA:
+        if (shire < 0) {
+            throw std::runtime_error("Non-shire agent illegal ESR address");
+        }
         broadcast_esrs[shire].data = value;
-        LOG_ALL_MINIONS(DEBUG, "broadcast_data = 0x%" PRIx64, value);
+        LOG_AGENT(DEBUG, agent, "broadcast_data = 0x%" PRIx64, value);
         return;
     case ESR_UBROADCAST:
     case ESR_SBROADCAST:
     case ESR_MBROADCAST:
+        if (shire < 0) {
+            throw std::runtime_error("Non-shire agent illegal ESR address");
+        }
         addr2 = decode_broadcast_esr_value(value);
         if ((PP(addr2) == 2) || (PP(addr2) > PP(addr))) {
-            LOG(WARN, "Request %cbroadcast to %c-mode ESR",
-                "uhsm"[PP(addr)], "UHSM"[PP(addr2)]);
-            throw bemu::memory_error(addr);
+            LOG_AGENT(WARN, agent, "Request %cbroadcast to %c-mode ESR", "uhsm"[PP(addr)], "UHSM"[PP(addr2)]);
+            throw memory_error(addr);
         }
-        LOG_ALL_MINIONS(DEBUG, "%cbroadcast = 0x%" PRIx64, "uhsm"[PP(addr)], value);
+        LOG_AGENT(DEBUG, agent, "%cbroadcast = 0x%" PRIx64, "uhsm"[PP(addr)], value);
         mask = value & ESR_BROADCAST_ESR_SHIRE_MASK;
         while (mask) {
             if (mask & 1)
-                esr_write(addr2, broadcast_esrs[shire].data);
+                esr_write(agent, addr2, broadcast_esrs[shire].data);
             addr2 += 1ull << ESR_REGION_SHIRE_SHIFT;
             mask >>= 1;
         }
@@ -614,7 +623,7 @@ void esr_write(uint64_t addr, uint64_t value)
     }
 
     // Redirect local shire requests to the corresponding shire
-    addr2 = legalize_esr_address(addr);
+    addr2 = legalize_esr_address(agent, addr);
 
     // parse address
     shire = ((addr2 & ESR_REGION_SHIRE_MASK) >> ESR_REGION_SHIRE_SHIFT);
@@ -635,16 +644,16 @@ void esr_write(uint64_t addr, uint64_t value)
         switch (esr) {
         case ESR_PU_RVTIM_MTIME:
         case ESR_PU_RVTIM_MTIMECMP:
-            throw bemu::sysreg_error(esr);
+            throw sysreg_error(esr);
         }
 #endif
-        LOG(WARN, "Write unknown R_PU_RVTim ESR 0x%" PRIx64, esr);
-        throw bemu::memory_error(addr);
+        LOG_AGENT(WARN, agent, "Write unknown R_PU_RVTim ESR 0x%" PRIx64, esr);
+        throw memory_error(addr);
     }
 
     if (shire >= EMU_NUM_SHIRES) {
-        LOG(WARN, "Write illegal ESR S%u:0x%llx", SHIREID(shire), addr2 & ~ESR_REGION_SHIRE_MASK);
-        throw bemu::memory_error(addr);
+        LOG_AGENT(WARN, agent, "Write illegal ESR S%u:0x%llx", SHIREID(shire), addr2 & ~ESR_REGION_SHIRE_MASK);
+        throw memory_error(addr);
     }
 
     uint64_t sregion = addr2 & ESR_SREGION_MASK;
@@ -658,12 +667,12 @@ void esr_write(uint64_t addr, uint64_t value)
             if (get_msg_port_write_width(hartid, port) > 8)
                 throw std::runtime_error("Write to port with incompatible size");
             uint64_t tmp = value;
-            write_msg_port_data(hartid, port, (uint32_t*)&tmp, 0);
+            write_msg_port_data(hartid, port, hart_index(dynamic_cast<const Hart&>(agent)), (uint32_t*)&tmp);
             return;
         }
-        LOG(WARN, "Write unknown hart ESR S%u:M%u:T%u:0x%" PRIx64,
-            SHIREID(shire), MINION(hart), THREAD(hart), esr);
-        throw bemu::memory_error(addr);
+        LOG_AGENT(WARN, agent, "Write unknown hart ESR S%u:M%u:T%u:0x%" PRIx64,
+                  SHIREID(shire), MINION(hart), THREAD(hart), esr);
+        throw memory_error(addr);
     }
 
     if (sregion == ESR_NEIGH_REGION) {
@@ -672,90 +681,90 @@ void esr_write(uint64_t addr, uint64_t value)
         unsigned frst = neigh + EMU_NEIGH_PER_SHIRE * shire;
         unsigned last = frst + 1;
         if (shire == EMU_IO_SHIRE_SP) {
-            LOG(WARN, "Write illegal neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), neigh, esr);
-            throw bemu::memory_error(addr);
+            LOG_AGENT(WARN, agent, "Write illegal neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), neigh, esr);
+            throw memory_error(addr);
         }
         if (neigh == ESR_REGION_NEIGH_BROADCAST) {
             frst = EMU_NEIGH_PER_SHIRE * shire;
             last = frst + EMU_NEIGH_PER_SHIRE;
         } else if (neigh >= EMU_NEIGH_PER_SHIRE) {
-            LOG(WARN, "Write illegal neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), neigh, esr);
-            throw bemu::memory_error(addr);
+            LOG_AGENT(WARN, agent, "Write illegal neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), neigh, esr);
+            throw memory_error(addr);
         }
         for (unsigned pos = frst; pos < last; ++pos) {
             unsigned tbox_id;
             switch (esr) {
             case ESR_DUMMY0:
                 neigh_esrs[pos].dummy0 = uint32_t(value & 0xffffffff);
-                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:dummy0 = 0x%" PRIx32,
+                LOG_AGENT(DEBUG, agent, "S%u:N%u:dummy0 = 0x%" PRIx32,
                                 SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].dummy0);
                 break;
             case ESR_MINION_BOOT:
                 neigh_esrs[pos].minion_boot = value & VA_M;
-                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:minion_boot = 0x%" PRIx64,
+                LOG_AGENT(DEBUG, agent, "S%u:N%u:minion_boot = 0x%" PRIx64,
                                 SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].minion_boot);
                 break;
             case ESR_DUMMY2:
                 neigh_esrs[pos].dummy2 = bool(value & 1);
-                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:dummy2 = 0x%x",
+                LOG_AGENT(DEBUG, agent, "S%u:N%u:dummy2 = 0x%x",
                                 SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].dummy2 ? 1 : 0);
                 break;
             case ESR_VMSPAGESIZE:
                 neigh_esrs[pos].vmspagesize = value & 0x3;
-                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:vmspagesize = 0x%" PRIx8,
+                LOG_AGENT(DEBUG, agent, "S%u:N%u:vmspagesize = 0x%" PRIx8,
                                 SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].vmspagesize);
                 break;
             case ESR_IPI_REDIRECT_PC:
                 neigh_esrs[pos].ipi_redirect_pc = value & VA_M;
-                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:ipi_redirect_pc = 0x%" PRIx64,
+                LOG_AGENT(DEBUG, agent, "S%u:N%u:ipi_redirect_pc = 0x%" PRIx64,
                                 SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].ipi_redirect_pc);
                 break;
             case ESR_PMU_CTRL:
                 neigh_esrs[pos].pmu_ctrl = bool(value & 1);
-                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:pmu_ctrl = 0x%x",
+                LOG_AGENT(DEBUG, agent, "S%u:N%u:pmu_ctrl = 0x%x",
                                 SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].pmu_ctrl ? 1 : 0);
                 break;
             case ESR_NEIGH_CHICKEN:
                 neigh_esrs[pos].neigh_chicken = uint8_t(value & 0xff);
-                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:neigh_chicken = 0x%" PRIx8,
+                LOG_AGENT(DEBUG, agent, "S%u:N%u:neigh_chicken = 0x%" PRIx8,
                                 SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].neigh_chicken);
                 break;
             case ESR_ICACHE_ERR_LOG_CTL:
                 neigh_esrs[pos].icache_err_log_ctl = uint8_t(value & 0xf);
-                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:icache_err_log_ctl = 0x%" PRIx8,
+                LOG_AGENT(DEBUG, agent, "S%u:N%u:icache_err_log_ctl = 0x%" PRIx8,
                                 SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].icache_err_log_ctl);
                 break;
             case ESR_ICACHE_ERR_LOG_INFO:
                 neigh_esrs[pos].icache_err_log_info = value & 0x0010ff000003ffffull;
-                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:icache_err_log_info = 0x%" PRIx64,
+                LOG_AGENT(DEBUG, agent, "S%u:N%u:icache_err_log_info = 0x%" PRIx64,
                                 SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].icache_err_log_info);
                 break;
             case ESR_ICACHE_SBE_DBE_COUNTS:
                 neigh_esrs[pos].icache_sbe_dbe_counts = uint16_t(value & 0x7ff);
-                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:icache_sbe_dbe_counts = 0x%" PRIx16,
+                LOG_AGENT(DEBUG, agent, "S%u:N%u:icache_sbe_dbe_counts = 0x%" PRIx16,
                                 SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].icache_sbe_dbe_counts);
                 break;
             case ESR_TEXTURE_CONTROL:
                 neigh_esrs[pos].texture_control = uint16_t(value & 0xff80);
-                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:texture_control = 0x%" PRIx16,
+                LOG_AGENT(DEBUG, agent, "S%u:N%u:texture_control = 0x%" PRIx16,
                                 SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].texture_control);
                 break;
             case ESR_MPROT:
                 neigh_esrs[pos].mprot = uint8_t(value & 0x7f);
-                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:mprot = 0x%" PRIx8,
+                LOG_AGENT(DEBUG, agent, "S%u:N%u:mprot = 0x%" PRIx8,
                                 SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].mprot);
                 break;
             case ESR_TEXTURE_IMAGE_TABLE_PTR:
                 value &= VA_M;
                 neigh_esrs[pos].texture_image_table_ptr = value;
-                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:texture_image_table_ptr = 0x%" PRIx64,
+                LOG_AGENT(DEBUG, agent, "S%u:N%u:texture_image_table_ptr = 0x%" PRIx64,
                                 SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].texture_image_table_ptr);
-                tbox_id = tbox_id_from_thread(current_thread);
+                tbox_id = tbox_id_from_thread(hart_index(dynamic_cast<const Hart&>(agent)));
                 GET_TBOX(shire, tbox_id).set_image_table_address(value);
                 break;
             default:
-                LOG(WARN, "Write unknown neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), NEIGHID(pos), esr);
-                throw bemu::memory_error(addr);
+                LOG_AGENT(WARN, agent, "Write unknown neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), NEIGHID(pos), esr);
+                throw memory_error(addr);
             }
         }
         return;
@@ -772,39 +781,39 @@ void esr_write(uint64_t addr, uint64_t value)
             frst = 0;
             last = frst + 4;
         } else if (bnk >= 4) {
-            LOG(WARN, "Write illegal shire_cache ESR S%u:B%u:0x%" PRIx64, SHIREID(shire), bnk, esr);
-            throw bemu::memory_error(addr);
+            LOG_AGENT(WARN, agent, "Write illegal shire_cache ESR S%u:B%u:0x%" PRIx64, SHIREID(shire), bnk, esr);
+            throw memory_error(addr);
         }
         for (unsigned b = frst; b < last; ++b) {
             switch (esr) {
             case ESR_SC_L3_SHIRE_SWIZZLE_CTL:
                 shire_cache_esrs[shire].bank[b].sc_l3_shire_swizzle_ctl = value;
-                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_l3_shire_swizzle_ctl = 0x%" PRIx64,
+                LOG_AGENT(DEBUG, agent, "S%u:B%u:sc_l3_shire_swizzle_ctl = 0x%" PRIx64,
                                 SHIREID(shire), b, shire_cache_esrs[shire].bank[b].sc_l3_shire_swizzle_ctl);
                 break;
             case ESR_SC_REQQ_CTL:
                 shire_cache_esrs[shire].bank[b].sc_reqq_ctl = uint32_t(value);
-                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_reqq_ctl = 0x%" PRIx32,
+                LOG_AGENT(DEBUG, agent, "S%u:B%u:sc_reqq_ctl = 0x%" PRIx32,
                                 SHIREID(shire), b, shire_cache_esrs[shire].bank[b].sc_reqq_ctl);
                 break;
             case ESR_SC_PIPE_CTL:
                 shire_cache_esrs[shire].bank[b].sc_pipe_ctl = value;
-                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_pipe_ctl = 0x%" PRIx64,
+                LOG_AGENT(DEBUG, agent, "S%u:B%u:sc_pipe_ctl = 0x%" PRIx64,
                                 SHIREID(shire), b, shire_cache_esrs[shire].bank[b].sc_pipe_ctl);
                 break;
             case ESR_SC_L2_CACHE_CTL:
                 shire_cache_esrs[shire].bank[b].sc_l2_cache_ctl = value;
-                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_l2_cache_ctl = 0x%" PRIx64,
+                LOG_AGENT(DEBUG, agent, "S%u:B%u:sc_l2_cache_ctl = 0x%" PRIx64,
                                 SHIREID(shire), b, shire_cache_esrs[shire].bank[b].sc_l2_cache_ctl);
                 break;
             case ESR_SC_L3_CACHE_CTL:
                 shire_cache_esrs[shire].bank[b].sc_l3_cache_ctl = value;
-                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_l3_cache_ctl = 0x%" PRIx64,
+                LOG_AGENT(DEBUG, agent, "S%u:B%u:sc_l3_cache_ctl = 0x%" PRIx64,
                                 SHIREID(shire), b, shire_cache_esrs[shire].bank[b].sc_l3_cache_ctl);
                 break;
             case ESR_SC_SCP_CACHE_CTL:
                 shire_cache_esrs[shire].bank[b].sc_scp_cache_ctl = value;
-                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_scp_cache_ctl = 0x%" PRIx64,
+                LOG_AGENT(DEBUG, agent, "S%u:B%u:sc_scp_cache_ctl = 0x%" PRIx64,
                                 SHIREID(shire), b, shire_cache_esrs[shire].bank[b].sc_scp_cache_ctl);
                 break;
             case ESR_SC_IDX_COP_SM_CTL:
@@ -832,77 +841,77 @@ void esr_write(uint64_t addr, uint64_t value)
                 break;
             case ESR_SC_IDX_COP_SM_PHYSICAL_INDEX:
                 shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_physical_index = value;
-                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_idx_cop_sm_physical_index = 0x%" PRIx64,
+                LOG_AGENT(DEBUG, agent, "S%u:B%u:sc_idx_cop_sm_physical_index = 0x%" PRIx64,
                                 SHIREID(shire), b, shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_physical_index);
                 break;
             case ESR_SC_IDX_COP_SM_DATA0:
                 shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_data0 = value;
-                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_idx_cop_sm_data0 = 0x%" PRIx64,
+                LOG_AGENT(DEBUG, agent, "S%u:B%u:sc_idx_cop_sm_data0 = 0x%" PRIx64,
                                 SHIREID(shire), b, shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_data0);
                 break;
             case ESR_SC_IDX_COP_SM_DATA1:
                 shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_data1 = value;
-                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_idx_cop_sm_data1 = 0x%" PRIx64,
+                LOG_AGENT(DEBUG, agent, "S%u:B%u:sc_idx_cop_sm_data1 = 0x%" PRIx64,
                                 SHIREID(shire), b, shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_data1);
                 break;
             case ESR_SC_IDX_COP_SM_ECC:
                 shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_ecc = value;
-                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_idx_cop_sm_ecc = 0x%" PRIx64,
+                LOG_AGENT(DEBUG, agent, "S%u:B%u:sc_idx_cop_sm_ecc = 0x%" PRIx64,
                                 SHIREID(shire), b, shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_ecc);
                 break;
             case ESR_SC_ERR_LOG_CTL:
                 shire_cache_esrs[shire].bank[b].sc_err_log_ctl = uint16_t(value);
-                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_err_log_ctl = 0x%" PRIx16,
+                LOG_AGENT(DEBUG, agent, "S%u:B%u:sc_err_log_ctl = 0x%" PRIx16,
                                 SHIREID(shire), b, shire_cache_esrs[shire].bank[b].sc_err_log_ctl);
                 break;
             case ESR_SC_ERR_LOG_INFO:
                 shire_cache_esrs[shire].bank[b].sc_err_log_info = value;
-                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_err_log_info = 0x%" PRIx64,
+                LOG_AGENT(DEBUG, agent, "S%u:B%u:sc_err_log_info = 0x%" PRIx64,
                                 SHIREID(shire), b, shire_cache_esrs[shire].bank[b].sc_err_log_info);
                 break;
             case ESR_SC_SBE_DBE_COUNTS:
                 shire_cache_esrs[shire].bank[b].sc_sbe_dbe_counts = value;
-                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_sbe_dbe_counts = 0x%" PRIx64,
+                LOG_AGENT(DEBUG, agent, "S%u:B%u:sc_sbe_dbe_counts = 0x%" PRIx64,
                                 SHIREID(shire), b, shire_cache_esrs[shire].bank[b].sc_sbe_dbe_counts);
                 break;
             case ESR_SC_REQQ_DEBUG_CTL:
                 shire_cache_esrs[shire].bank[b].sc_reqq_debug_ctl = value;
-                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_reqq_debug_ctl = 0x%" PRIx64,
+                LOG_AGENT(DEBUG, agent, "S%u:B%u:sc_reqq_debug_ctl = 0x%" PRIx64,
                                 SHIREID(shire), b, shire_cache_esrs[shire].bank[b].sc_reqq_debug_ctl);
                 break;
             case ESR_SC_ECO_CTL:
                 shire_cache_esrs[shire].bank[b].sc_eco_ctl = uint8_t(value);
-                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_eco_ctl = 0x%" PRIx8,
+                LOG_AGENT(DEBUG, agent, "S%u:B%u:sc_eco_ctl = 0x%" PRIx8,
                                 SHIREID(shire), b, shire_cache_esrs[shire].bank[b].sc_eco_ctl);
                 break;
             case ESR_SC_PERFMON_CTL_STATUS:
                 shire_cache_esrs[shire].bank[b].sc_perfmon_ctl_status = value;
-                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_perfmon_ctl_status = 0x%" PRIx64,
+                LOG_AGENT(DEBUG, agent, "S%u:B%u:sc_perfmon_ctl_status = 0x%" PRIx64,
                                 SHIREID(shire), b, shire_cache_esrs[shire].bank[b].sc_perfmon_ctl_status);
                 break;
             case ESR_SC_PERFMON_CYC_CNTR:
                 shire_cache_esrs[shire].bank[b].sc_perfmon_cyc_cntr = value;
-                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_perfmon_cyc_cntr = 0x%" PRIx64,
+                LOG_AGENT(DEBUG, agent, "S%u:B%u:sc_perfmon_cyc_cntr = 0x%" PRIx64,
                                 SHIREID(shire), b, shire_cache_esrs[shire].bank[b].sc_perfmon_cyc_cntr);
                 break;
             case ESR_SC_PERFMON_P0_CNTR:
                 shire_cache_esrs[shire].bank[b].sc_perfmon_p0_cntr = value;
-                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_perfmon_p0_cntr = 0x%" PRIx64,
+                LOG_AGENT(DEBUG, agent, "S%u:B%u:sc_perfmon_p0_cntr = 0x%" PRIx64,
                                 SHIREID(shire), b, shire_cache_esrs[shire].bank[b].sc_perfmon_p0_cntr);
                 break;
             case ESR_SC_PERFMON_P1_CNTR:
                 shire_cache_esrs[shire].bank[b].sc_perfmon_p1_cntr = value;
-                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_perfmon_p1_cntr = 0x%" PRIx64,
+                LOG_AGENT(DEBUG, agent, "S%u:B%u:sc_perfmon_p1_cntr = 0x%" PRIx64,
                                 SHIREID(shire), b, shire_cache_esrs[shire].bank[b].sc_perfmon_p1_cntr);
                 break;
             case ESR_SC_PERFMON_P0_QUAL:
                 shire_cache_esrs[shire].bank[b].sc_perfmon_p0_qual = value;
-                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_perfmon_p0_qual = 0x%" PRIx64,
+                LOG_AGENT(DEBUG, agent, "S%u:B%u:sc_perfmon_p0_qual = 0x%" PRIx64,
                                 SHIREID(shire), b, shire_cache_esrs[shire].bank[b].sc_perfmon_p0_qual);
                 break;
             case ESR_SC_PERFMON_P1_QUAL:
                 shire_cache_esrs[shire].bank[b].sc_perfmon_p1_qual = value;
-                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_perfmon_p1_qual = 0x%" PRIx64,
+                LOG_AGENT(DEBUG, agent, "S%u:B%u:sc_perfmon_p1_qual = 0x%" PRIx64,
                                 SHIREID(shire), b, shire_cache_esrs[shire].bank[b].sc_perfmon_p1_qual);
                 break;
             case ESR_SC_IDX_COP_SM_CTL_USER:
@@ -919,8 +928,8 @@ void esr_write(uint64_t addr, uint64_t value)
                 // shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_ctl = value;
                 break;
              default:
-                LOG(WARN, "Write unknown shire_cache ESR S%u:B%u:0x%" PRIx64, SHIREID(shire), bnk, esr);
-                throw bemu::memory_error(addr);
+                LOG_AGENT(WARN, agent, "Write unknown shire_cache ESR S%u:B%u:0x%" PRIx64, SHIREID(shire), bnk, esr);
+                throw memory_error(addr);
             }
         }
         return;
@@ -929,41 +938,41 @@ void esr_write(uint64_t addr, uint64_t value)
     if (sregion_extra == ESR_RBOX_REGION) {
         uint64_t esr = addr2 & ESR_RBOX_ESR_MASK;
         if (shire >= EMU_NUM_COMPUTE_SHIRES) {
-            LOG(WARN, "Write illegal rbox ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
-            throw bemu::memory_error(addr);
+            LOG_AGENT(WARN, agent, "Write illegal rbox ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
+            throw memory_error(addr);
         }
         switch (esr) {
         case ESR_RBOX_CONFIG:
-            LOG_ALL_MINIONS(DEBUG, "S%u:rbox_config = 0x%" PRIx64, SHIREID(shire), value);
+            LOG_AGENT(DEBUG, agent, "S%u:rbox_config = 0x%" PRIx64, SHIREID(shire), value);
             GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
             return;
         case ESR_RBOX_IN_BUF_PG:
-            LOG_ALL_MINIONS(DEBUG, "S%u:rbox_in_buf_pg = 0x%" PRIx64, SHIREID(shire), value);
+            LOG_AGENT(DEBUG, agent, "S%u:rbox_in_buf_pg = 0x%" PRIx64, SHIREID(shire), value);
             GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
             return;
         case ESR_RBOX_IN_BUF_CFG:
-            LOG_ALL_MINIONS(DEBUG, "S%u:rbox_in_buf_cfg = 0x%" PRIx64, SHIREID(shire), value);
+            LOG_AGENT(DEBUG, agent, "S%u:rbox_in_buf_cfg = 0x%" PRIx64, SHIREID(shire), value);
             GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
             return;
         case ESR_RBOX_OUT_BUF_PG:
-            LOG_ALL_MINIONS(DEBUG, "S%u:rbox_out_buf_pg = 0x%" PRIx64, SHIREID(shire), value);
+            LOG_AGENT(DEBUG, agent, "S%u:rbox_out_buf_pg = 0x%" PRIx64, SHIREID(shire), value);
             GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
             return;
         case ESR_RBOX_OUT_BUF_CFG:
-            LOG_ALL_MINIONS(DEBUG, "S%u:rbox_out_buf_cfg = 0x%" PRIx64, SHIREID(shire), value);
+            LOG_AGENT(DEBUG, agent, "S%u:rbox_out_buf_cfg = 0x%" PRIx64, SHIREID(shire), value);
             GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
             return;
         case ESR_RBOX_START:
-            LOG_ALL_MINIONS(DEBUG, "S%u:rbox_start = 0x%" PRIx64, SHIREID(shire), value);
+            LOG_AGENT(DEBUG, agent, "S%u:rbox_start = 0x%" PRIx64, SHIREID(shire), value);
             GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
             return;
         case ESR_RBOX_CONSUME:
-            LOG_ALL_MINIONS(DEBUG, "S%u:rbox_consume = 0x%" PRIx64, SHIREID(shire), value);
+            LOG_AGENT(DEBUG, agent, "S%u:rbox_consume = 0x%" PRIx64, SHIREID(shire), value);
             GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
             return;
         }
-        LOG(WARN, "Write unknown rbox ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
-        throw bemu::memory_error(addr);
+        LOG_AGENT(WARN, agent, "Write unknown rbox ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
+        throw memory_error(addr);
     }
 
     if (sregion_extra == ESR_SHIRE_REGION) {
@@ -971,63 +980,63 @@ void esr_write(uint64_t addr, uint64_t value)
         switch (esr) {
         case ESR_MINION_FEATURE:
             write_minion_feature(shire, uint8_t(value & 0x3f));
-            LOG_ALL_MINIONS(DEBUG, "S%u:minion_feature = 0x%" PRIx8,
+            LOG_AGENT(DEBUG, agent, "S%u:minion_feature = 0x%" PRIx8,
                             SHIREID(shire), shire_other_esrs[shire].minion_feature);
             return;
         case ESR_SHIRE_CONFIG:
             shire_other_esrs[shire].shire_config = uint32_t(value & 0x3ffffff);
-            LOG_ALL_MINIONS(DEBUG, "S%u:shire_config = 0x%" PRIx32,
+            LOG_AGENT(DEBUG, agent, "S%u:shire_config = 0x%" PRIx32,
                             SHIREID(shire), shire_other_esrs[shire].shire_config);
             return;
         case ESR_THREAD1_DISABLE:
             write_thread1_disable(shire, uint32_t(value));
-            LOG_ALL_MINIONS(DEBUG, "S%u:thread1_disable = 0x%" PRIx32,
+            LOG_AGENT(DEBUG, agent, "S%u:thread1_disable = 0x%" PRIx32,
                             SHIREID(shire), shire_other_esrs[shire].thread1_disable);
             return;
         case ESR_IPI_REDIRECT_TRIGGER:
-            LOG_ALL_MINIONS(DEBUG, "S%u:ipi_redirect_trigger = 0x%" PRIx64, SHIREID(shire), value);
+            LOG_AGENT(DEBUG, agent, "S%u:ipi_redirect_trigger = 0x%" PRIx64, SHIREID(shire), value);
             if (shire != EMU_IO_SHIRE_SP)
                 sys_emu::send_ipi_redirect_to_threads(shire, value);
             return;
         case ESR_IPI_REDIRECT_FILTER:
             shire_other_esrs[shire].ipi_redirect_filter = value;
-            LOG_ALL_MINIONS(DEBUG, "S%u:ipi_redirect_filter = 0x%" PRIx64,
+            LOG_AGENT(DEBUG, agent, "S%u:ipi_redirect_filter = 0x%" PRIx64,
                             SHIREID(shire), shire_other_esrs[shire].ipi_redirect_filter);
             return;
         case ESR_IPI_TRIGGER:
             shire_other_esrs[shire].ipi_trigger = value;
-            LOG_ALL_MINIONS(DEBUG, "S%u:ipi_trigger = 0x%" PRIx64,
+            LOG_AGENT(DEBUG, agent, "S%u:ipi_trigger = 0x%" PRIx64,
                             SHIREID(shire), shire_other_esrs[shire].ipi_trigger);
             if (shire != EMU_IO_SHIRE_SP)
                 sys_emu::raise_software_interrupt(shire, value);
             return;
         case ESR_IPI_TRIGGER_CLEAR:
-            LOG_ALL_MINIONS(DEBUG, "S%u:ipi_trigger_clear = 0x%" PRIx64, SHIREID(shire), value);
+            LOG_AGENT(DEBUG, agent, "S%u:ipi_trigger_clear = 0x%" PRIx64, SHIREID(shire), value);
             sys_emu::clear_software_interrupt(shire, value);
             return;
         case ESR_FCC_CREDINC_0:
-            LOG_ALL_MINIONS(DEBUG, "S%u:fcc_credinc_0 = 0x%" PRIx64, SHIREID(shire), value);
+            LOG_AGENT(DEBUG, agent, "S%u:fcc_credinc_0 = 0x%" PRIx64, SHIREID(shire), value);
             if (shire != EMU_IO_SHIRE_SP) {
                 write_fcc_credinc(0, shire, value);
                 sys_emu::fcc_to_threads(shire, 0, value, 0);
             }
             return;
         case ESR_FCC_CREDINC_1:
-            LOG_ALL_MINIONS(DEBUG, "S%u:fcc_credinc_1 = 0x%" PRIx64, SHIREID(shire), value);
+            LOG_AGENT(DEBUG, agent, "S%u:fcc_credinc_1 = 0x%" PRIx64, SHIREID(shire), value);
             if (shire != EMU_IO_SHIRE_SP) {
                 write_fcc_credinc(1, shire, value);
                 sys_emu::fcc_to_threads(shire, 0, value, 1);
             }
             return;
         case ESR_FCC_CREDINC_2:
-            LOG_ALL_MINIONS(DEBUG, "S%u:fcc_credinc_2 = 0x%" PRIx64, SHIREID(shire), value);
+            LOG_AGENT(DEBUG, agent, "S%u:fcc_credinc_2 = 0x%" PRIx64, SHIREID(shire), value);
             if (shire != EMU_IO_SHIRE_SP) {
                 write_fcc_credinc(2, shire, value);
                 sys_emu::fcc_to_threads(shire, 1, value, 0);
             }
             return;
         case ESR_FCC_CREDINC_3:
-            LOG_ALL_MINIONS(DEBUG, "S%u:fcc_credinc_3 = 0x%" PRIx64, SHIREID(shire), value);
+            LOG_AGENT(DEBUG, agent, "S%u:fcc_credinc_3 = 0x%" PRIx64, SHIREID(shire), value);
             if (shire != EMU_IO_SHIRE_SP) {
                 write_fcc_credinc(3, shire, value);
                 sys_emu::fcc_to_threads(shire, 1, value, 1);
@@ -1066,38 +1075,38 @@ void esr_write(uint64_t addr, uint64_t value)
         case ESR_FAST_LOCAL_BARRIER30:
         case ESR_FAST_LOCAL_BARRIER31:
             shire_other_esrs[shire].fast_local_barrier[(esr - ESR_FAST_LOCAL_BARRIER0)>>3] = uint8_t(value);
-            LOG_ALL_MINIONS(DEBUG, "S%u:fast_local_barrier%llu = 0x%" PRIx8,
+            LOG_AGENT(DEBUG, agent, "S%u:fast_local_barrier%llu = 0x%" PRIx8,
                             SHIREID(shire), (esr - ESR_FAST_LOCAL_BARRIER0)>>3,
                             shire_other_esrs[shire].fast_local_barrier[(esr - ESR_FAST_LOCAL_BARRIER0)>>3]);
             return;
         case ESR_MTIME_LOCAL_TARGET:
             shire_other_esrs[shire].mtime_local_target = uint32_t(value);
-            LOG_ALL_MINIONS(DEBUG, "S%u:mtime_local_target = 0x%" PRIx32,
+            LOG_AGENT(DEBUG, agent, "S%u:mtime_local_target = 0x%" PRIx32,
                             SHIREID(shire), shire_other_esrs[shire].mtime_local_target);
             return;
         case ESR_SHIRE_POWER_CTRL:
             shire_other_esrs[shire].shire_power_ctrl = uint16_t(value & 0xfff);
-            LOG_ALL_MINIONS(DEBUG, "S%u:shire_power_ctrl = 0x%" PRIx16,
+            LOG_AGENT(DEBUG, agent, "S%u:shire_power_ctrl = 0x%" PRIx16,
                             SHIREID(shire), shire_other_esrs[shire].shire_power_ctrl);
             return;
         case ESR_POWER_CTRL_NEIGH_NSLEEPIN:
             shire_other_esrs[shire].power_ctrl_neigh_nsleepin = uint32_t(value);
-            LOG_ALL_MINIONS(DEBUG, "S%u:power_ctrl_neigh_nsleepin = 0x%" PRIx32,
+            LOG_AGENT(DEBUG, agent, "S%u:power_ctrl_neigh_nsleepin = 0x%" PRIx32,
                             SHIREID(shire), shire_other_esrs[shire].power_ctrl_neigh_nsleepin);
             return;
         case ESR_POWER_CTRL_NEIGH_ISOLATION:
             shire_other_esrs[shire].power_ctrl_neigh_isolation = uint32_t(value);
-            LOG_ALL_MINIONS(DEBUG, "S%u:power_ctrl_neigh_isolation = 0x%" PRIx32,
+            LOG_AGENT(DEBUG, agent, "S%u:power_ctrl_neigh_isolation = 0x%" PRIx32,
                             SHIREID(shire), shire_other_esrs[shire].power_ctrl_neigh_isolation);
             return;
         case ESR_THREAD0_DISABLE:
             write_thread0_disable(shire, uint32_t(value));
-            LOG_ALL_MINIONS(DEBUG, "S%u:thread0_disable = 0x%" PRIx32,
+            LOG_AGENT(DEBUG, agent, "S%u:thread0_disable = 0x%" PRIx32,
                             SHIREID(shire), shire_other_esrs[shire].thread0_disable);
             return;
         case ESR_SHIRE_PLL_AUTO_CONFIG:
             shire_other_esrs[shire].shire_pll_auto_config = uint32_t(value & 0x1ffff);
-            LOG_ALL_MINIONS(DEBUG, "S%u:shire_pll_auto_config = 0x%" PRIx32,
+            LOG_AGENT(DEBUG, agent, "S%u:shire_pll_auto_config = 0x%" PRIx32,
                             SHIREID(shire), shire_other_esrs[shire].shire_pll_auto_config);
             return;
         case ESR_SHIRE_PLL_CONFIG_DATA_0:
@@ -1105,88 +1114,88 @@ void esr_write(uint64_t addr, uint64_t value)
         case ESR_SHIRE_PLL_CONFIG_DATA_2:
         case ESR_SHIRE_PLL_CONFIG_DATA_3:
             shire_other_esrs[shire].shire_pll_config_data[(esr - ESR_SHIRE_PLL_CONFIG_DATA_0)>>3] = value;
-            LOG_ALL_MINIONS(DEBUG, "S%u:shire_pll_config_data_%llu = 0x%" PRIx64,
+            LOG_AGENT(DEBUG, agent, "S%u:shire_pll_config_data_%llu = 0x%" PRIx64,
                             SHIREID(shire), (esr - ESR_SHIRE_PLL_CONFIG_DATA_0)>>3,
                             shire_other_esrs[shire].shire_pll_config_data[(esr - ESR_SHIRE_PLL_CONFIG_DATA_0)>>3]);
             return;
         case ESR_SHIRE_COOP_MODE:
-            LOG_ALL_MINIONS(DEBUG, "S%u:shire_coop_mode = 0x%x", SHIREID(shire), unsigned(value & 0x1));
+            LOG_AGENT(DEBUG, agent, "S%u:shire_coop_mode = 0x%x", SHIREID(shire), unsigned(value & 0x1));
             write_shire_coop_mode(shire, value);
             return;
         case ESR_SHIRE_CTRL_CLOCKMUX:
             shire_other_esrs[shire].shire_ctrl_clockmux = uint8_t(value & 0x4f);
-            LOG_ALL_MINIONS(DEBUG, "S%u:shire_ctrl_clockmux = 0x%" PRIx8,
+            LOG_AGENT(DEBUG, agent, "S%u:shire_ctrl_clockmux = 0x%" PRIx8,
                             SHIREID(shire), shire_other_esrs[shire].shire_ctrl_clockmux);
             return;
         case ESR_SHIRE_CACHE_RAM_CFG1:
             shire_other_esrs[shire].shire_cache_ram_cfg1 = value & 0xfffffffffull;
-            LOG_ALL_MINIONS(DEBUG, "S%u:shire_cache_ram_cfg1 = 0x%" PRIx64,
+            LOG_AGENT(DEBUG, agent, "S%u:shire_cache_ram_cfg1 = 0x%" PRIx64,
                             SHIREID(shire), shire_other_esrs[shire].shire_cache_ram_cfg1);
             return;
         case ESR_SHIRE_CACHE_RAM_CFG2:
             shire_other_esrs[shire].shire_cache_ram_cfg2 = uint32_t(value & 0x3ffff);
-            LOG_ALL_MINIONS(DEBUG, "S%u:shire_cache_ram_cfg2 = 0x%" PRIx32,
+            LOG_AGENT(DEBUG, agent, "S%u:shire_cache_ram_cfg2 = 0x%" PRIx32,
                             SHIREID(shire), shire_other_esrs[shire].shire_cache_ram_cfg2);
             return;
         case ESR_SHIRE_CACHE_RAM_CFG3:
             shire_other_esrs[shire].shire_cache_ram_cfg3 = value & 0xfffffffffull;
-            LOG_ALL_MINIONS(DEBUG, "S%u:shire_cache_ram_cfg3 = 0x%" PRIx64,
+            LOG_AGENT(DEBUG, agent, "S%u:shire_cache_ram_cfg3 = 0x%" PRIx64,
                             SHIREID(shire), shire_other_esrs[shire].shire_cache_ram_cfg3);
             return;
         case ESR_SHIRE_CACHE_RAM_CFG4:
             shire_other_esrs[shire].shire_cache_ram_cfg4 = value & 0xfffffffffull;
-            LOG_ALL_MINIONS(DEBUG, "S%u:shire_cache_ram_cfg4 = 0x%" PRIx64,
+            LOG_AGENT(DEBUG, agent, "S%u:shire_cache_ram_cfg4 = 0x%" PRIx64,
                             SHIREID(shire), shire_other_esrs[shire].shire_cache_ram_cfg4);
             return;
         case ESR_SHIRE_DLL_AUTO_CONFIG:
             shire_other_esrs[shire].shire_dll_auto_config = uint16_t(value & 0x3fff);
-            LOG_ALL_MINIONS(DEBUG, "S%u:shire_dll_auto_config = 0x%" PRIx16,
+            LOG_AGENT(DEBUG, agent, "S%u:shire_dll_auto_config = 0x%" PRIx16,
                             SHIREID(shire), shire_other_esrs[shire].shire_dll_auto_config);
             return;
         case ESR_SHIRE_DLL_CONFIG_DATA_0:
             shire_other_esrs[shire].shire_dll_config_data_0 = value;
-            LOG_ALL_MINIONS(DEBUG, "S%u:shire_dll_config_data_0 = 0x%" PRIx64,
+            LOG_AGENT(DEBUG, agent, "S%u:shire_dll_config_data_0 = 0x%" PRIx64,
                             SHIREID(shire), shire_other_esrs[shire].shire_dll_config_data_0);
             return;
         case ESR_SHIRE_DLL_CONFIG_DATA_1:
             shire_other_esrs[shire].shire_dll_config_data_1 = value;
-            LOG_ALL_MINIONS(DEBUG, "S%u:shire_dll_config_data_1 = 0x%" PRIx64,
+            LOG_AGENT(DEBUG, agent, "S%u:shire_dll_config_data_1 = 0x%" PRIx64,
                             SHIREID(shire), shire_other_esrs[shire].shire_dll_config_data_1);
             return;
         case ESR_UC_CONFIG:
             shire_other_esrs[shire].uc_config = value & 1;
-            LOG_ALL_MINIONS(DEBUG, "S%u:uc_config = %d",
+            LOG_AGENT(DEBUG, agent, "S%u:uc_config = %d",
                             SHIREID(shire), int(shire_other_esrs[shire].uc_config));
             return;
         case ESR_ICACHE_UPREFETCH:
-            LOG_ALL_MINIONS(DEBUG, "S%u:icache_uprefetch = 0x%" PRIx64, SHIREID(shire), value);
+            LOG_AGENT(DEBUG, agent, "S%u:icache_uprefetch = 0x%" PRIx64, SHIREID(shire), value);
             write_icache_prefetch(PRV_U, shire, value);
             return;
         case ESR_ICACHE_SPREFETCH:
-            LOG_ALL_MINIONS(DEBUG, "S%u:icache_sprefetch = 0x%" PRIx64, SHIREID(shire), value);
+            LOG_AGENT(DEBUG, agent, "S%u:icache_sprefetch = 0x%" PRIx64, SHIREID(shire), value);
             write_icache_prefetch(PRV_S, shire, value);
             return;
         case ESR_ICACHE_MPREFETCH:
-            LOG_ALL_MINIONS(DEBUG, "S%u:icache_mprefetch = 0x%" PRIx64, SHIREID(shire), value);
+            LOG_AGENT(DEBUG, agent, "S%u:icache_mprefetch = 0x%" PRIx64, SHIREID(shire), value);
             write_icache_prefetch(PRV_M, shire, value);
             return;
         case ESR_CLK_GATE_CTRL:
             shire_other_esrs[shire].clk_gate_ctrl = uint16_t(value & 0x7ff);
-            LOG_ALL_MINIONS(DEBUG, "S%u:clk_gate_ctrl = 0x%" PRIx16,
+            LOG_AGENT(DEBUG, agent, "S%u:clk_gate_ctrl = 0x%" PRIx16,
                             SHIREID(shire), shire_other_esrs[shire].clk_gate_ctrl);
             return;
         case ESR_SHIRE_CHANNEL_ECO_CTL:
             shire_other_esrs[shire].shire_channel_eco_ctl = uint8_t(value);
-            LOG_ALL_MINIONS(DEBUG, "S%u:shire_channel_eco_ctl = 0x%" PRIx8,
+            LOG_AGENT(DEBUG, agent, "S%u:shire_channel_eco_ctl = 0x%" PRIx8,
                             SHIREID(shire), shire_other_esrs[shire].shire_channel_eco_ctl);
             return;
         }
-        LOG(WARN, "Write unknown shire_other ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
-        throw bemu::memory_error(addr);
+        LOG_AGENT(WARN, agent, "Write unknown shire_other ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
+        throw memory_error(addr);
     }
 
-    LOG(WARN, "Write illegal ESR 0x%" PRIx64, addr);
-    throw bemu::memory_error(addr);
+    LOG_AGENT(WARN, agent, "Write illegal ESR 0x%" PRIx64, addr);
+    throw memory_error(addr);
 }
 
 

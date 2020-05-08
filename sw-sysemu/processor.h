@@ -18,6 +18,7 @@
 #include <array>
 #include <bitset>
 
+#include "agent.h"
 #include "cache.h"
 #include "emu_defines.h"
 #include "insn.h"
@@ -32,20 +33,6 @@ namespace bemu {
 // A processing core
 //
 struct Core {
-    // Only one TenC in the core
-    std::array<freg_t,NFREGS>   tenc;
-
-    // L1 scratchpad
-    std::array<cache_line_t,L1_SCP_ENTRIES+TFMA_MAX_AROWS>  scp;
-
-    // CSRs shared between threads of a core
-    uint64_t    satp;
-    uint64_t    matp;
-    uint8_t     menable_shadows;  // 2b
-    uint8_t     excl_mode;        // 1b
-    uint8_t     mcache_control;   // 2b
-    uint16_t    ucache_control;
-
     // Tensor operations
     enum class Tensor {
         None,
@@ -66,7 +53,28 @@ struct Core {
             Recv = 2,
             Skip = 3
         } state;
-    } reduce;
+    };
+
+    // Only one TenC in the core
+    std::array<freg_t,NFREGS>   tenc;
+
+    // L1 scratchpad
+    std::array<cache_line_t,L1_SCP_ENTRIES+TFMA_MAX_AROWS>  scp;
+
+    // L1 D-cache lock bits and addresses of locked lines
+    std::array<std::array<bool,L1D_NUM_WAYS>,L1D_NUM_SETS>      scp_lock;
+    std::array<std::array<uint64_t,L1D_NUM_WAYS>,L1D_NUM_SETS>  scp_addr;
+
+    // CSRs shared between threads of a core
+    uint64_t    satp;
+    uint64_t    matp;
+    uint8_t     menable_shadows;  // 2b
+    uint8_t     excl_mode;        // 1b
+    uint8_t     mcache_control;   // 2b
+    uint16_t    ucache_control;
+
+    // Tensor reduction operation state machine
+    Reduce reduce;
 
     // Tensor quantization operation state machine
     uint64_t txquant;
@@ -118,7 +126,37 @@ struct Core {
 //
 // A hardware thread
 //
-struct Hart {
+struct Hart : public Agent {
+    // Message port configuration
+    struct Port {
+        bool            enabled;
+        bool            enable_oob;
+        bool            umode;
+        uint8_t         logsize;
+        uint8_t         max_msgs;
+        uint8_t         scp_set;
+        uint8_t         scp_way;
+        bool            stall;
+        uint8_t         rd_ptr;
+        uint8_t         wr_ptr;
+        uint8_t         size;
+        std::bitset<16> oob_data;
+    };
+
+    // Tensor wait operation state machine
+    struct Wait {
+        uint8_t  id;    // ID of the wait
+        uint64_t value; // Value used to do the tensor wait
+        enum class State : uint8_t {
+            Idle = 0,
+            Wait = 1,
+            WaitReady = 2,
+            TxFMA = 3
+        } state;
+    };
+
+    long shireid() const override;
+    std::string name() const override;
 
     void advance_pc();
     void activate_breakpoints();
@@ -127,14 +165,10 @@ struct Hart {
     void check_pending_interrupts() const;
     void fetch();
     void execute();
+    void take_trap(const trap_t&);
 
     // Core that this hart belongs to
     Core*  core;
-
-    // Register files
-    std::array<uint64_t,NXREGS>   xregs;
-    std::array<freg_t,NFREGS>     fregs;
-    std::array<mreg_t,NMREGS>     mregs;
 
     // Program counter
     uint64_t    pc;
@@ -142,6 +176,11 @@ struct Hart {
 
     // Instruction being executed
     insn_t      inst;
+
+    // Register files
+    std::array<uint64_t,NXREGS>   xregs;
+    std::array<freg_t,NFREGS>     fregs;
+    std::array<mreg_t,NMREGS>     mregs;
 
     // RISCV control and status registers
     uint32_t    fcsr;
@@ -168,6 +207,8 @@ struct Hart {
     // TODO: dcsr, dpc, dscratch
     uint16_t    mhartid;
 
+    uint8_t frm() const { return (fcsr >> 5) & 7; }
+
     // Esperanto control and status registers
     uint64_t    minstmask;        // 33b
     uint32_t    minstmatch;
@@ -175,14 +216,14 @@ struct Hart {
     uint64_t    tensor_conv_size; // can we remove?
     uint64_t    tensor_conv_ctrl; // can we remove?
     uint32_t    tensor_coop;
-    uint16_t    tensor_mask;
+    std::bitset<16> tensor_mask;
     uint16_t    tensor_error;
     uint8_t     gsc_progress;     // log2(MLEN) bits
     uint64_t    validation0;
     uint8_t     validation1;
     uint64_t    validation2;
     uint64_t    validation3;
-    std::array<uint32_t,4> portctrl;
+    std::array<Port,4>     portctrl;
     std::array<uint16_t,2> fcc;
 
     // Supervisor external interrupt pin (as 32-bit for performance)
@@ -203,16 +244,7 @@ struct Hart {
     bool stvec_is_set;  // for debugging of benchmarks
 
     // Tensor wait operation state machine
-    struct Wait {
-        uint8_t  id;    // ID of the wait
-        uint64_t value; // Value used to do the tensor wait
-        enum class State : uint8_t {
-            Idle = 0,
-            Wait = 1,
-            WaitReady = 2,
-            TxFMA = 3
-        } state;
-    } wait;
+    Wait wait;
 
     // TensorLoad state machines
     std::array<uint64_t,2> txload;
@@ -223,6 +255,28 @@ struct Hart {
     std::array<uint64_t,2> shadow_txload;
     std::array<uint64_t,2> shadow_txstride;
 };
+
+
+
+inline long Hart::shireid() const
+{
+    return mhartid / EMU_THREADS_PER_SHIRE;
+}
+
+
+inline std::string Hart::name() const
+{
+    return std::string("H")
+         + std::to_string(mhartid)
+         + std::string(" S")
+         + std::to_string(mhartid / EMU_THREADS_PER_SHIRE)
+         + std::string(":N")
+         + std::to_string((mhartid / EMU_THREADS_PER_NEIGH) % EMU_NEIGH_PER_SHIRE)
+         + std::string(":C")
+         + std::to_string((mhartid / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_NEIGH)
+         + std::string(":T")
+         + std::to_string(mhartid % EMU_THREADS_PER_MINION);
+}
 
 
 inline void Hart::advance_pc()
@@ -322,8 +376,34 @@ inline void Hart::check_pending_interrupts() const
 
 inline void Hart::fetch()
 {
-    inst.bits = mmu_fetch(pc);
+    inst.bits = mmu_fetch(*this, pc);
     inst.flags = 0;
+}
+
+
+inline uint64_t hart_index(const Hart& cpu)
+{
+    return (cpu.mhartid == IO_SHIRE_SP_HARTID)
+        ? EMU_IO_SHIRE_SP_THREAD
+        : cpu.mhartid;
+}
+
+
+inline uint64_t core_index(const Hart& cpu)
+{
+    return hart_index(cpu) / EMU_THREADS_PER_MINION;
+}
+
+
+inline uint64_t neigh_index(const Hart& cpu)
+{
+    return hart_index(cpu) / EMU_THREADS_PER_NEIGH;
+}
+
+
+inline long shire_index(const Hart& cpu)
+{
+    return shire_index(cpu.shireid());
 }
 
 

@@ -89,7 +89,7 @@ void new_sample_request(uint32_t thread, uint32_t port_id, uint32_t number_packe
     /* Get data from port and send it to TBOX */
     for(unsigned i=0; i<number_packets*2; i++)
     {
-        val[i] = bemu::pmemread<uint64_t>(base_address);
+        val[i] = pmemread<uint64_t>(Noshire_agent{}, base_address);
         base_address+=8; // 8 bytes
     }
 

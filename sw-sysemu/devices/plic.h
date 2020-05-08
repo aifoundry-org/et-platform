@@ -58,7 +58,7 @@ struct PLIC : public MemoryRegion
     };
 
     // MemoryRegion methods
-    void read(size_type pos, size_type n, pointer result) override {
+    void read(const Agent&, size_type pos, size_type n, pointer result) override {
         uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
 
         if (n != 4)
@@ -75,7 +75,7 @@ struct PLIC : public MemoryRegion
         }
     }
 
-    void write(size_type pos, size_type n, const_pointer source) override {
+    void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
         const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
 
         if (n != 4)
@@ -93,7 +93,7 @@ struct PLIC : public MemoryRegion
         }
     }
 
-    void init(size_type, size_type, const_pointer) override {
+    void init(const Agent&, size_type, size_type, const_pointer) override {
         throw std::runtime_error("bemu::PLIC::init()");
     }
 

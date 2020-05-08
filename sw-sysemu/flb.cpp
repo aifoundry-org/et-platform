@@ -20,26 +20,24 @@ namespace bemu {
 
 // Fast local barriers can be accessed through UC to do stores and loads,
 // and also through the CSR that implement the fast local barrier function.
-uint64_t write_flb(uint64_t value)
+uint64_t write_flb(const Hart& cpu, uint64_t value)
 {
     unsigned barrier = value & 0x1F;
     unsigned limit   = (value >> 5) & 0xFF;
 
-    unsigned shire  = current_thread / EMU_THREADS_PER_SHIRE;
-    unsigned oldval = bemu::shire_other_esrs[shire].fast_local_barrier[barrier];
+    unsigned shire  = shire_index(cpu);
+    unsigned oldval = shire_other_esrs[shire].fast_local_barrier[barrier];
 
-    LOG_ALL_MINIONS(DEBUG, "S%u:fast_local_barrier%u : 0x%x",
-                    (shire == EMU_IO_SHIRE_SP) ? IO_SHIRE_ID : shire, barrier, oldval);
+    LOG_AGENT(DEBUG, cpu, "S%u:fast_local_barrier%u : 0x%x", unsigned(cpu.shireid()), barrier, oldval);
 
 #ifdef SYS_EMU
     if (sys_emu::get_flb_check())
-        sys_emu::get_flb_checker().access(oldval, limit, barrier, current_thread);
+        sys_emu::get_flb_checker().access(oldval, limit, barrier, hart_index(cpu));
 #endif
 
     unsigned newval = (oldval == limit) ? 0 : (oldval + 1);
-    LOG_ALL_MINIONS(DEBUG, "S%u:fast_local_barrier%u = 0x%x",
-                    (shire == EMU_IO_SHIRE_SP) ? IO_SHIRE_ID : shire, barrier, newval);
-    bemu::shire_other_esrs[shire].fast_local_barrier[barrier] = newval;
+    LOG_AGENT(DEBUG, cpu, "S%u:fast_local_barrier%u = 0x%x", unsigned(cpu.shireid()), barrier, newval);
+    shire_other_esrs[shire].fast_local_barrier[barrier] = newval;
     return (newval == 0);
 }
 

@@ -24,9 +24,6 @@
 namespace bemu {
 
 
-extern std::array<Hart,EMU_NUM_THREADS> cpu;
-
-
 static inline uint8_t sat8(int32_t x)
 { return std::min(INT8_MAX, std::max(INT8_MIN, x)); }
 
@@ -35,7 +32,7 @@ static inline uint8_t satu8(int32_t x)
 { return std::min(UINT8_MAX, std::max(0, x)); }
 
 
-void insn_fadd_pi(insn_t inst)
+void insn_fadd_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fadd.pi");
@@ -43,7 +40,7 @@ void insn_fadd_pi(insn_t inst)
 }
 
 
-void insn_faddi_pi(insn_t inst)
+void insn_faddi_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_VIMM("faddi.pi");
@@ -51,7 +48,7 @@ void insn_faddi_pi(insn_t inst)
 }
 
 
-void insn_fand_pi(insn_t inst)
+void insn_fand_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fand.pi");
@@ -59,7 +56,7 @@ void insn_fand_pi(insn_t inst)
 }
 
 
-void insn_fandi_pi(insn_t inst)
+void insn_fandi_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_UVIMM("fandi.pi");
@@ -67,7 +64,7 @@ void insn_fandi_pi(insn_t inst)
 }
 
 
-void insn_fbci_pi(insn_t inst)
+void insn_fbci_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_I32IMM("fbci.pi");
@@ -75,21 +72,21 @@ void insn_fbci_pi(insn_t inst)
 }
 
 
-void insn_fdiv_pi(insn_t inst)
+void insn_fdiv_pi(Hart& cpu)
 {
     DISASM_FD_FS1_FS2("fdiv.pi");
-    throw trap_mcode_instruction(inst.bits);
+    throw trap_mcode_instruction(cpu.inst.bits);
 }
 
 
-void insn_fdivu_pi(insn_t inst)
+void insn_fdivu_pi(Hart& cpu)
 {
     DISASM_FD_FS1_FS2("fdivu.pi");
-    throw trap_mcode_instruction(inst.bits);
+    throw trap_mcode_instruction(cpu.inst.bits);
 }
 
 
-void insn_feq_pi(insn_t inst)
+void insn_feq_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("feq.pi");
@@ -97,7 +94,7 @@ void insn_feq_pi(insn_t inst)
 }
 
 
-void insn_fle_pi(insn_t inst)
+void insn_fle_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fle.pi");
@@ -105,7 +102,7 @@ void insn_fle_pi(insn_t inst)
 }
 
 
-void insn_flt_pi(insn_t inst)
+void insn_flt_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("flt.pi");
@@ -113,7 +110,7 @@ void insn_flt_pi(insn_t inst)
 }
 
 
-void insn_fltm_pi(insn_t inst)
+void insn_fltm_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_MD_FS1_FS2("fltm.pi");
@@ -121,7 +118,7 @@ void insn_fltm_pi(insn_t inst)
 }
 
 
-void insn_fltu_pi(insn_t inst)
+void insn_fltu_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fltu.pi");
@@ -129,7 +126,7 @@ void insn_fltu_pi(insn_t inst)
 }
 
 
-void insn_fmax_pi(insn_t inst)
+void insn_fmax_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fmax.pi");
@@ -137,7 +134,7 @@ void insn_fmax_pi(insn_t inst)
 }
 
 
-void insn_fmaxu_pi(insn_t inst)
+void insn_fmaxu_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fmaxu.pi");
@@ -145,7 +142,7 @@ void insn_fmaxu_pi(insn_t inst)
 }
 
 
-void insn_fmin_pi(insn_t inst)
+void insn_fmin_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fmin.pi");
@@ -153,7 +150,7 @@ void insn_fmin_pi(insn_t inst)
 }
 
 
-void insn_fminu_pi(insn_t inst)
+void insn_fminu_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fminu.pi");
@@ -161,7 +158,7 @@ void insn_fminu_pi(insn_t inst)
 }
 
 
-void insn_fmul_pi(insn_t inst)
+void insn_fmul_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fmul.pi");
@@ -169,7 +166,7 @@ void insn_fmul_pi(insn_t inst)
 }
 
 
-void insn_fmulh_pi(insn_t inst)
+void insn_fmulh_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fmulh.pi");
@@ -177,7 +174,7 @@ void insn_fmulh_pi(insn_t inst)
 }
 
 
-void insn_fmulhu_pi(insn_t inst)
+void insn_fmulhu_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fmulhu.pi");
@@ -185,7 +182,7 @@ void insn_fmulhu_pi(insn_t inst)
 }
 
 
-void insn_fnot_pi(insn_t inst)
+void insn_fnot_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1("fnot.pi");
@@ -193,7 +190,7 @@ void insn_fnot_pi(insn_t inst)
 }
 
 
-void insn_for_pi(insn_t inst)
+void insn_for_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("for.pi");
@@ -201,7 +198,7 @@ void insn_for_pi(insn_t inst)
 }
 
 
-void insn_fpackrepb_pi(insn_t inst)
+void insn_fpackrepb_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1("fpackrepb.pi");
@@ -213,7 +210,7 @@ void insn_fpackrepb_pi(insn_t inst)
 }
 
 
-void insn_fpackreph_pi(insn_t inst)
+void insn_fpackreph_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1("fpackreph.pi");
@@ -223,21 +220,21 @@ void insn_fpackreph_pi(insn_t inst)
 }
 
 
-void insn_frem_pi(insn_t inst)
+void insn_frem_pi(Hart& cpu)
 {
     DISASM_FD_FS1_FS2("frem.pi");
-    throw trap_mcode_instruction(inst.bits);
+    throw trap_mcode_instruction(cpu.inst.bits);
 }
 
 
-void insn_fremu_pi(insn_t inst)
+void insn_fremu_pi(Hart& cpu)
 {
     DISASM_FD_FS1_FS2("fremu.pi");
-    throw trap_mcode_instruction(inst.bits);
+    throw trap_mcode_instruction(cpu.inst.bits);
 }
 
 
-void insn_fsat8_pi(insn_t inst)
+void insn_fsat8_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1("fsat8.pi");
@@ -245,7 +242,7 @@ void insn_fsat8_pi(insn_t inst)
 }
 
 
-void insn_fsatu8_pi(insn_t inst)
+void insn_fsatu8_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1("fsatu8.pi");
@@ -253,7 +250,7 @@ void insn_fsatu8_pi(insn_t inst)
 }
 
 
-void insn_fsetm_pi(insn_t inst)
+void insn_fsetm_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_MD_FS1("fsetm.pi");
@@ -261,7 +258,7 @@ void insn_fsetm_pi(insn_t inst)
 }
 
 
-void insn_fsll_pi(insn_t inst)
+void insn_fsll_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fsll.pi");
@@ -269,7 +266,7 @@ void insn_fsll_pi(insn_t inst)
 }
 
 
-void insn_fslli_pi(insn_t inst)
+void insn_fslli_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_SHAMT5("fslli.pi");
@@ -277,7 +274,7 @@ void insn_fslli_pi(insn_t inst)
 }
 
 
-void insn_fsra_pi(insn_t inst)
+void insn_fsra_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fsra.pi");
@@ -285,7 +282,7 @@ void insn_fsra_pi(insn_t inst)
 }
 
 
-void insn_fsrai_pi(insn_t inst)
+void insn_fsrai_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_SHAMT5("fsrai.pi");
@@ -293,7 +290,7 @@ void insn_fsrai_pi(insn_t inst)
 }
 
 
-void insn_fsrl_pi(insn_t inst)
+void insn_fsrl_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fsrl.pi");
@@ -301,7 +298,7 @@ void insn_fsrl_pi(insn_t inst)
 }
 
 
-void insn_fsrli_pi(insn_t inst)
+void insn_fsrli_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_SHAMT5("fsrli.pi");
@@ -309,7 +306,7 @@ void insn_fsrli_pi(insn_t inst)
 }
 
 
-void insn_fsub_pi(insn_t inst)
+void insn_fsub_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fsub.pi");
@@ -317,7 +314,7 @@ void insn_fsub_pi(insn_t inst)
 }
 
 
-void insn_fxor_pi(insn_t inst)
+void insn_fxor_pi(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fxor.pi");

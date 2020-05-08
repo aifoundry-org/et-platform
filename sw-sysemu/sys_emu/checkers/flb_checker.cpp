@@ -44,8 +44,8 @@ void flb_checker::access(uint32_t oldval, uint32_t limit, uint32_t flb, uint32_t
 
   if(oldval > limit)
   {
-    LOG_ALL_MINIONS(FTL, "flb_checker::access => accessing with a limit lower than current value! shire: %i, thread: %i, entry: %i, oldval: %i, limit: %i\n",
-      shire, shire_thread, flb, oldval, limit);
+    LOG_NOTHREAD(FTL, "flb_checker::access => accessing with a limit lower than current value! shire: %i, thread: %i, entry: %i, oldval: %i, limit: %i\n",
+                 shire, shire_thread, flb, oldval, limit);
   }
 }
 
