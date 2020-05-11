@@ -23,7 +23,7 @@
                     {
                         "id" : "VAULTIP_FW",
                         "size" : 96,
-                        "file" : "src/ServiceProcessorROM/vaultip_firmware/firmware_eip130_ram_2.5.12_rom_keys.sbi"
+                        "file" : "src/ServiceProcessorROM/vaultip_firmware/firmware_eip130_ram_2.5.13_rom_keys.sbi"
                     },
                     {
                         "id" : "SP_CERTIFICATES",
@@ -88,7 +88,7 @@
                     {
                         "id" : "VAULTIP_FW",
                         "size" : 96,
-                        "file" : "src/ServiceProcessorROM/vaultip_firmware/firmware_eip130_ram_2.5.12_rom_keys.sbi"
+                        "file" : "src/ServiceProcessorROM/vaultip_firmware/firmware_eip130_ram_2.5.13_rom_keys.sbi"
                     },
                     {
                         "id" : "MACHINE_MINION",
