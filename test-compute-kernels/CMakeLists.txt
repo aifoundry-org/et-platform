@@ -220,6 +220,7 @@ add_subdirectory("cacheop_flev_s64")
 add_subdirectory("fcc_with_cacheops")
 #add_subdirectory("fcc_overflow")
 add_subdirectory("uberkernel")
+add_subdirectory("load_bw")
 
 
 # Export the package for use from the build-tree
