@@ -22,6 +22,7 @@
 #include "bl2_reset.h"
 #include "bl2_sp_pll.h"
 #include "bl2_sp_otp.h"
+#include "bl2_sp_memshire_pll.h"
 #include "bl2_minion_pll_and_dll.h"
 #include "bl2_ddr_config.h"
 
@@ -94,6 +95,12 @@ static void taskMain(void *pvParameters)
         printf("release_memshire_from_reset() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
+    if (0 != configure_memshire_plls()) {
+        printf("configure_memshire_plls() failed!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("SP MemShire PLLs configured and locked.\n");
+
     if (0 != ddr_config()) {
         printf("ddr_config() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
