@@ -108,7 +108,7 @@ public:
     sys_emu() = default;
     virtual ~sys_emu() = default;
 
-    bool init_simulator(const sys_emu_cmd_options& cmd_options);
+    bool init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<api_communicate> api_comm);
 
     /// Function used for parsing the command line arguments
     static std::tuple<bool, struct sys_emu_cmd_options> parse_command_line_arguments(int argc, char* argv[]);
@@ -136,7 +136,7 @@ public:
     static void clear_external_supervisor_interrupt(unsigned shire_id);
     static void evl_dv_handle_irq_inj(bool raise, uint64_t subopcode, uint64_t shire_mask);
     static void shire_enable_threads(unsigned shire_id);
-    int main_internal(int argc, char * argv[]);
+    int main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<api_communicate> api_comm = nullptr);
 
     static uint64_t get_emu_cycle()  { return emu_cycle; }
     static RVTimer& get_pu_rvtimer() { return pu_rvtimer; }
@@ -181,8 +181,6 @@ public:
     static bool breakpoint_exists(uint64_t addr);
 
     static api_communicate *get_api_communicate() { return api_listener.get(); }
-
-    static bool init_api_listener(const char *communication_path, bemu::MainMemory* memory);
 
 protected:
 

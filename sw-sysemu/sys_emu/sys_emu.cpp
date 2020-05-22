@@ -444,22 +444,6 @@ sys_emu::clear_external_supervisor_interrupt(unsigned shire_id)
     }
 }
 
-bool
-sys_emu::init_api_listener(const char *communication_path, bemu::MainMemory* memory) {
-    (void) communication_path;
-    (void) memory;
-    // Now api_communicate is an interface
-    /*api_listener = std::unique_ptr<api_communicate>(new api_communicate(memory));
-
-    api_listener->set_comm_path(communication_path);
-
-    if(!api_listener->init())
-    {
-        throw std::runtime_error("Failed to initialize api listener");
-    }*/
-    return true;
-}
-
 void
 sys_emu::evl_dv_handle_irq_inj(bool raise, uint64_t subopcode, uint64_t shire_mask)
 {
@@ -733,7 +717,7 @@ sys_emu::breakpoint_exists(uint64_t addr)
 ////////////////////////////////////////////////////////////////////////////////
 
 bool
-sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
+sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<api_communicate> api_comm)
 {
     this->cmd_options = cmd_options;
     if (cmd_options.elf_file.empty()      &&
@@ -800,8 +784,16 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
     }
 
     // Initialize Simulator API
-    if (!cmd_options.api_comm_path.empty()) {
-        init_api_listener(cmd_options.api_comm_path.c_str(), &bemu::memory);
+    if (api_comm) {
+        api_listener = std::move(api_comm);
+
+        api_listener->set_memory(&bemu::memory);
+        api_listener->set_comm_path(cmd_options.api_comm_path);
+
+        if(!api_listener->init())
+        {
+            throw std::runtime_error("Failed to initialize api listener");
+        }
     }
 
     // Reset the SoC
@@ -876,20 +868,13 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
 ////////////////////////////////////////////////////////////////////////////////
 
 int
-sys_emu::main_internal(int argc, char * argv[])
+sys_emu::main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<api_communicate> api_comm)
 {
 #ifdef HAVE_BACKTRACE
     Crash_handler __crash_handler;
 #endif
-    auto result = parse_command_line_arguments(argc, argv);
-    bool status = std::get<0>(result);
-    sys_emu_cmd_options cmd_options = std::get<1>(result);
 
-    if (!status) {
-        return 0;
-    }
-
-    if (!init_simulator(cmd_options))
+    if (!init_simulator(cmd_options, std::move(api_comm)))
         return EXIT_FAILURE;
 
 #ifdef SYSEMU_PROFILING
