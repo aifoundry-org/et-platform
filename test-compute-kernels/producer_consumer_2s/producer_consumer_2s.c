@@ -208,10 +208,10 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 	uint64_t target_minion_id = tload_tstore_mappings[mappings_iter_idx + mappings_minion_idx + PAIR_IDX];
 	uint64_t target_shire_id = (target_minion_id >> 5) & 0x1F;
 	uint64_t target_minion_mask = 1ULL << (target_minion_id & 0x1F); 
-	volatile uint64_t *fcc0_addr = (volatile uint64_t *)ESR_SHIRE(target_shire_id, FCC_CREDINC_0);
-	store((uint64_t) fcc0_addr, target_minion_mask);
+	SEND_FCC(target_shire_id, 0, 1, target_minion_mask);
+	__asm__ __volatile__ ("fence\n");
 
-	WAIT_FCC(0); 
+	WAIT_FCC(1);
 
 	// LOAD_IDX is the index inside the buffer where this minion will read from
 	uint64_t tl_iter = (iter == NUM_ITER -1) ? iter : iter + 1;
