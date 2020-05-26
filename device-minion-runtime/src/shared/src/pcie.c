@@ -61,6 +61,7 @@ void PCIe_init(bool expect_link_up)
     }
     else {
         //Normally ServiceProcessorROM releases reset, however this codepath skips that
+        printf("Releasing PShire from Reset ...\n");
         release_pshire_from_reset();
     }
 
@@ -84,11 +85,6 @@ void PCIe_init(bool expect_link_up)
 
 static void pcie_init_pshire(void)
 {
-    //TODO FIXME JIRA SW-327: Use PShire PLL
-    //For now, for emulation, we are bypassing the PShire PLL, and not configuring it at all
-    //or waiting for it to lock.
-    PCIE_ESR->pshire_ctrl.B.pll0_byp = 1;
-
     //TODO: ABP Reset deassert? In "PCIe Initialization Sequence" doc, TBD what state to check
 
     //Wait for PERST_N
