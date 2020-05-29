@@ -168,15 +168,18 @@ int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
 
 static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __attribute__((unused)) const grid_config_t* const grid_config_ptr)
 {
-    const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
+    const uint64_t shire_id = get_shire_id();
+    const uint32_t minion_mask = (shire_id == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
+    const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
+    const uint64_t first_worker = (shire_id == MASTER_SHIRE) ? 32 : 0;
 
-    // arg1 = 0 to enable all thread 1s
-    syscall(SYSCALL_PRE_KERNEL_SETUP_INT, 0, 0, 0);
+    // arg1 = enable all worker thread 1s of the shire
+    // arg2 = first worker hart of the shire
+    syscall(SYSCALL_PRE_KERNEL_SETUP_INT, minion_mask, first_worker, 0);
 
-    // Second HART (first minion thread 1) in the shire
+    // Second worker HART (first minion thread 1) in the shire
     // Thread 0s have more init to do than thread 1s, so use a thread 1 for per-shire init
-    // TODO: Change condition to properly support sync-minions
-    if (get_hart_id() % 64U == 1U)
+    if ((get_hart_id() % 64U) == (first_worker + 1))
     {
         // Init all FLBs except reserved FLBs 28-31
         for (uint64_t barrier = 0; barrier < 28; barrier++)
@@ -330,7 +333,7 @@ static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr)
     // draining coalescing buffer and evicting L1->L2 and L2->L3
     WAIT_FCC(0);
 
-    syscall(SYSCALL_POST_KERNEL_CLEANUP_INT, 0, 0, 0);
+    syscall(SYSCALL_POST_KERNEL_CLEANUP_INT, thread_count, 0, 0);
 
     WAIT_FLB(thread_count, 31, result);
 

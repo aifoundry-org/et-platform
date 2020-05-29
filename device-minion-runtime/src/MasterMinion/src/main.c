@@ -82,8 +82,8 @@ void __attribute__((noreturn)) main(void)
 
     if (hart_id == 2048)
     {
-        // Enable thread 1 on minion 1 and 2 for kernel sync fw-threads, and sync-minions
-        syscall(SYSCALL_ENABLE_THREAD1_INT, 0x0000FFFC, 0, 0);
+        // Enable thread 1 on minion 1 and 2 for kernel sync fw-threads
+        syscall(SYSCALL_ENABLE_THREAD1_INT, 0, 6, 0);
 
         master_thread();
     }
