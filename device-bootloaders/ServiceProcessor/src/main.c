@@ -1,5 +1,6 @@
 #include "serial.h"
 #include "interrupt.h"
+#include "minion.h"
 #include "mailbox.h"
 #include "pcie.h"
 #include "dummy_isr.h"
@@ -33,6 +34,8 @@ int main(void)
     INT_init();
     PCIe_init(false /*expect_link_up*/);
     MBOX_init();
+    enable_master_shire();
+    enable_compute_shire();  
 
     static TaskHandle_t taskHandleA;
     static StackType_t stackA[TASK_STACK_SIZE];

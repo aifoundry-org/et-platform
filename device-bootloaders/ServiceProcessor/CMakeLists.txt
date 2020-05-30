@@ -18,6 +18,7 @@ set(SOURCES
     src/crt.S
     src/dummy_isr.c
     src/interrupt.c
+    src/minion.c
     src/main.c
     src/stubs.c
     src/mailbox.c
