@@ -15,10 +15,10 @@
 int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3);
 
 static int64_t ipi_trigger(uint64_t hart_mask, uint64_t shire_id);
-static int64_t enable_thread1(uint64_t hart_disable_mask);
+static int64_t enable_thread1(uint64_t disable_mask, uint64_t enable_mask);
 
-static int64_t pre_kernel_setup(uint64_t arg1);
-static int64_t post_kernel_cleanup(void);
+static int64_t pre_kernel_setup(uint64_t hart_enable_mask, uint64_t first_worker);
+static int64_t post_kernel_cleanup(uint64_t thread_count);
 
 static int64_t init_l1(void);
 static inline void evict_all_l1_ways(uint64_t use_tmask, uint64_t dest_level, uint64_t set, uint64_t num_sets);
@@ -55,13 +55,13 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
             ret = ipi_trigger(arg1, arg2);
             break;
         case SYSCALL_ENABLE_THREAD1_INT:
-            ret = enable_thread1(arg1);
+            ret = enable_thread1(arg1, arg2);
             break;
         case SYSCALL_PRE_KERNEL_SETUP_INT:
-            ret = pre_kernel_setup(arg1);
+            ret = pre_kernel_setup(arg1, arg2);
             break;
         case SYSCALL_POST_KERNEL_CLEANUP_INT:
-            ret = post_kernel_cleanup();
+            ret = post_kernel_cleanup(arg1);
             break;
         case SYSCALL_GET_MTIME_INT:
             ret = (int64_t)*mtime_reg;
@@ -96,23 +96,24 @@ static int64_t ipi_trigger(uint64_t hart_mask, uint64_t shire_id)
     return 0;
 }
 
-// hart_disable_mask is a bitmask to DISABLE a thread1: bit 0 = minion 0, bit 31 = minion 31
-static int64_t enable_thread1(uint64_t hart_disable_mask)
+// disable_mask is a bitmask to DISABLE a thread1: bit 0 = minion 0, bit 31 = minion 31
+// enable_mask is a bitmask to ENABLE a thread1: bit 0 = minion 0, bit 31 = minion 31
+static int64_t enable_thread1(uint64_t disable_mask, uint64_t enable_mask)
 {
-    volatile uint64_t* const enable_thread1_ptr = (volatile uint64_t *)ESR_SHIRE(THIS_SHIRE, THREAD1_DISABLE);
-    *enable_thread1_ptr = hart_disable_mask;
+    volatile uint64_t* const disable_thread1_ptr = (volatile uint64_t *)ESR_SHIRE(THIS_SHIRE, THREAD1_DISABLE);
+    *disable_thread1_ptr = (*disable_thread1_ptr & ~enable_mask) | disable_mask;
 
     return 0;
 }
 
 // All the M-mode only work that needs to be done before a kernel launch
 // to avoid the overhead of making multiple syscalls
-static int64_t pre_kernel_setup(uint64_t arg1)
+static int64_t pre_kernel_setup(uint64_t thread1_enable_mask, uint64_t first_worker)
 {
-    // First HART in the shire
-    if (get_hart_id() % 64U == 0U)
+    // First worker HART in the shire
+    if ((get_hart_id() % 64U) == first_worker)
     {
-        enable_thread1(arg1);
+        enable_thread1(0, thread1_enable_mask);
     }
 
     // Thread 0 in each minion
@@ -134,10 +135,9 @@ static int64_t pre_kernel_setup(uint64_t arg1)
 
 // All the M-mode only work that needs to be done after a kernel returns
 // to avoid the overhead of making multiple syscalls
-static int64_t post_kernel_cleanup(void)
+static int64_t post_kernel_cleanup(uint64_t thread_count)
 {
     bool result;
-    const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
 
     // Thread 0 in each minion evicts L1
     if (get_thread_id() == 0)
