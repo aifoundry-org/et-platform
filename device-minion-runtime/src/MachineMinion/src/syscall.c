@@ -38,8 +38,8 @@ static inline void sc_idx_cop_sm_ctl_wait_idle(volatile const uint64_t * const i
 
 static int64_t shire_cache_bank_op_with_params(uint64_t shire, uint64_t bank, uint64_t op);
 
-static inline void l1_shared_to_split(uint64_t scp_en);
-static inline void l1_split_to_shared(uint64_t scp_enabled);
+static inline void l1_shared_to_split(uint64_t scp_en, uint64_t cacheop);
+static inline void l1_split_to_shared(uint64_t scp_enabled, uint64_t cacheop);
 static int64_t set_l1_cache_control(uint64_t d1_split, uint64_t scp_en);
 
 int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3)
@@ -404,11 +404,8 @@ static int64_t shire_cache_bank_op_with_params(uint64_t shire, uint64_t bank, ui
 }
 
 // change L1 configuration from Shared to Split, optionally with Scratchpad enabled
-static inline void l1_shared_to_split(uint64_t scp_en)
+static inline void l1_shared_to_split(uint64_t scp_en, uint64_t cacheop)
 {
-    // Gain exclusive access to the processor
-    excl_mode(1);
-
     // Evict all cache lines from the L1 to L2
     evict_l1_all(0, to_L2);
 
@@ -416,7 +413,7 @@ static inline void l1_shared_to_split(uint64_t scp_en)
     WAIT_CACHEOPS
 
     // Change L1 Dcache to split mode
-    mcache_control(1, 0, 0);
+    mcache_control(1, 0, cacheop);
 
     if (scp_en)
     {
@@ -424,19 +421,13 @@ static inline void l1_shared_to_split(uint64_t scp_en)
         FENCE;
 
         // Change L1 Dcache to split mode and SCP enabled
-        mcache_control(1, 1, 0);
+        mcache_control(1, 1, cacheop);
     }
-
-    // Release the hold of the processor
-    excl_mode(0);
 }
 
 // change L1 configuration from Split to Shared
-static inline void l1_split_to_shared(uint64_t scp_enabled)
+static inline void l1_split_to_shared(uint64_t scp_enabled, uint64_t cacheop)
 {
-    // Gain exclusive access to the processor
-    excl_mode(1);
-
     if (scp_enabled)
     {
         // Evict sets 12-15
@@ -453,19 +444,13 @@ static inline void l1_split_to_shared(uint64_t scp_enabled)
     WAIT_CACHEOPS
 
     // Change L1 Dcache to shared mode
-    mcache_control(0, 0, 0);
-
-    // Release the hold of the processor
-    excl_mode(0);
+    mcache_control(0, 0, cacheop);
 }
 
 static int64_t set_l1_cache_control(uint64_t d1_split, uint64_t scp_en)
 {
-    int64_t rv = 0;
-
-    const uint64_t mcache_control_reg = mcache_control_get();
-    const uint64_t cur_split = mcache_control_reg & 1;
-    const uint64_t cur_scp_en = (mcache_control_reg >> 1) & 1;
+    uint64_t mcache_control_reg;
+    uint64_t cur_split, cur_scp_en, cur_cacheop;
 
     // Can't enable the SCP without splitting
     if (scp_en && !d1_split)
@@ -473,12 +458,20 @@ static int64_t set_l1_cache_control(uint64_t d1_split, uint64_t scp_en)
         return -1;
     }
 
+    // Gain exclusive access to the processor
+    excl_mode(1);
+
+    mcache_control_reg = mcache_control_get();
+    cur_split = mcache_control_reg & 1;
+    cur_scp_en = (mcache_control_reg >> 1) & 1;
+    cur_cacheop = mcache_control_reg & 0x7DC; // CacheOp_RepRate and CacheOp_Max
+
     if (!cur_split)
     {
         // It is shared and we want to split
         if (d1_split)
         {
-            l1_shared_to_split(scp_en);
+            l1_shared_to_split(scp_en, cur_cacheop);
         }
     }
     else
@@ -486,9 +479,12 @@ static int64_t set_l1_cache_control(uint64_t d1_split, uint64_t scp_en)
         // It is split (maybe with SCP on) and we want shared mode
         if (!d1_split)
         {
-            l1_split_to_shared(cur_scp_en);
+            l1_split_to_shared(cur_scp_en, cur_cacheop);
         }
     }
 
-    return rv;
+    // Release the hold of the processor
+    excl_mode(0);
+
+    return 0;
 }
