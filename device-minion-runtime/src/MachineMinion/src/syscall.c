@@ -244,6 +244,10 @@ static int64_t init_l1(void)
         }
     }
 
+    // Reset CacheOp values (CacheOp_RepRate = 0, CacheOp_Max = 8)
+    mcache_control_reg = mcache_control_get();
+    mcache_control(mcache_control_reg & 1, (mcache_control_reg >> 1) & 1, 0x200);
+
     excl_mode(0); // release exclusive access to the processor
 
     return rv;
