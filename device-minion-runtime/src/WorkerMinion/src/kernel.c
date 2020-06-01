@@ -246,8 +246,12 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __a
             : "x31"
         );
 
-        // Enables 4 elements of FPU
-        asm volatile ("mov.m.x m0, zero, 0xF");
+        // Enables 8 lanes of FPU, clears m1-m7
+        asm volatile (
+            "li       %0, 0xFF \n" // m0=0xFF, m1-m7=0
+            "mova.m.x %0       \n"
+            : "=&r" (temp)
+        );
 
         // Ensure all cache evicts are complete
         WAIT_CACHEOPS
