@@ -76,6 +76,10 @@ void dcache_evict_flush_set_way(Hart& cpu, bool evict, uint64_t value)
     int  way   = (value >>  6) & 0x3;
     int  count = (value & 0xF) + 1;
 
+    if (tm) {
+        LOG_TENSOR_MASK(":");
+    }
+
     // Skip all if dest is L1, or if set is outside the cache limits
     if ((dest == 0) || (set >= L1D_NUM_SETS))
         return;
@@ -128,44 +132,39 @@ void dcache_evict_flush_vaddr(Hart& cpu, bool evict, uint64_t value)
     //int      id     = X31 & 0x0000000000000001ULL;
 
     LOG_REG(":", 31);
+    if (tm) {
+        LOG_TENSOR_MASK(":");
+    }
 
     // Skip all if dest is L1
     if (dest == 0)
         return;
 
-    for (int i = 0; i < count; ++i) {
-        // skip if masked
-        if (tm && !cpu.tensor_mask[i])
-            continue;
+    cacheop_type cop = CacheOp_None;
+    switch (dest) {
+    case 1: cop = evict ? CacheOp_EvictL2  : CacheOp_FlushL2; break;
+    case 2: cop = evict ? CacheOp_EvictL3  : CacheOp_FlushL3; break;
+    case 3: cop = evict ? CacheOp_EvictDDR : CacheOp_FlushDDR; break;
+    default: break;
+    }
 
-        uint64_t paddr;
-        try {
-            cacheop_type cop = CacheOp_None;
-            if (evict) {
-                switch (dest) {
-                case 1: cop = CacheOp_EvictL2; break;
-                case 2: cop = CacheOp_EvictL3; break;
-                case 3: cop = CacheOp_EvictDDR; break;
-                default: break;
-                }
-            } else {
-                switch (dest) {
-                case 1: cop = CacheOp_FlushL2; break;
-                case 2: cop = CacheOp_FlushL3; break;
-                case 3: cop = CacheOp_FlushDDR; break;
-                default: break;
-                }
+    for (int i = 0; i < count; ++i) {
+        if (!tm || cpu.tensor_mask[i]) {
+            try {
+                uint64_t paddr = vmemtranslate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, mreg_t(-1), cop);
+                LOG_HART(DEBUG, cpu, "\tDoing %s: 0x%016" PRIx64 " (0x%016" PRIx64 "), DestLevel: %d",
+                         evict ? "EvictVA" : "FlushVA", vaddr, paddr, dest);
             }
-            paddr = vmemtranslate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, mreg_t(-1), cop);
+            catch (const sync_trap_t& t) {
+                LOG_HART(DEBUG, cpu, "\t%s: 0x%016" PRIx64 ", DestLevel: %d generated exception (suppressed)",
+                         evict ? "EvictVA" : "FlushVA", vaddr, dest);
+                update_tensor_error(cpu, 1 << 7);
+                return;
+            }
+        } else {
+            LOG_HART(DEBUG, cpu, "\tSkipping %s: 0x%016" PRIx64 ", DestLevel: %d" PRIx64,
+                     evict ? "EvictVA" : "FlushVA", vaddr, dest);
         }
-        catch (const sync_trap_t& t) {
-            LOG_HART(DEBUG, cpu, "\t%s: %016" PRIx64 ", DestLevel: %01x generated exception (suppressed)",
-                evict ? "EvictVA" : "FlushVA", vaddr, dest);
-            update_tensor_error(cpu, 1 << 7);
-            return;
-        }
-        LOG_HART(DEBUG, cpu, "\tDoing %s: %016" PRIx64 " (%016" PRIx64 "), DestLevel: %01x",
-            evict ? "EvictVA" : "FlushVA", vaddr, paddr, dest);
         vaddr += stride;
     }
 }
@@ -181,6 +180,9 @@ void dcache_prefetch_vaddr(Hart& cpu, uint64_t value)
     //int      id   = X31 & 0x0000000000000001ULL;
 
     LOG_REG(":", 31);
+    if (tm) {
+        LOG_TENSOR_MASK(":");
+    }
 
     // Skip all if dest is MEM
     if (dest == 3)
@@ -269,7 +271,7 @@ void dcache_lock_paddr(Hart& cpu, uint64_t value)
     }
     cpu.core->scp_lock[set][way] = true;
     cpu.core->scp_addr[set][way] = paddr;
-    LOG_HART(DEBUG, cpu, "\tDoing LockSW: (%016" PRIx64 "), Way: %d, Set: %d", paddr, way, set);
+    LOG_HART(DEBUG, cpu, "\tDoing LockSW: (0x%016" PRIx64 "), Way: %d, Set: %d", paddr, way, set);
 }
 
 
@@ -293,31 +295,34 @@ void dcache_lock_vaddr(Hart& cpu, uint64_t value)
     //int      id     = X31 & 0x0000000000000001ULL;
 
     LOG_REG(":", 31);
+    if (tm) {
+        LOG_TENSOR_MASK(":");
+    }
 
     cache_line_t tmp;
     std::fill_n(tmp.u64.data(), tmp.u64.size(), 0);
 
     for (int i = 0; i < count; ++i) {
-        // Skip if masked
-        if (tm && !cpu.tensor_mask[i])
-            continue;
-
-        try {
-            // LockVA is a hint, so no need to model soft-locking of the cache.
-            // We just need to make sure we zero the cache line.
-            uint64_t paddr = vmemtranslate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, mreg_t(-1), CacheOp_Lock);
-            pmemwrite512(cpu, paddr, tmp.u32.data());
-            LOG_MEMWRITE512(paddr, tmp.u32);
-            LOG_HART(DEBUG, cpu, "\tDoing LockVA: 0x%016" PRIx64 " (0x%016" PRIx64 ")", vaddr, paddr);
-        }
-        catch (const sync_trap_t& t) {
-            // Stop the operation if there is an exception
-            LOG_HART(DEBUG, cpu, "\tLockVA 0x%016" PRIx64 " generated exception (suppressed)", vaddr);
-            update_tensor_error(cpu, 1 << 7);
-            return;
-        }
-        catch (const memory_error&) {
-            raise_bus_error_interrupt(cpu, 0);
+        if (!tm || cpu.tensor_mask[i]) {
+            try {
+                // LockVA is a hint, so no need to model soft-locking of the cache.
+                // We just need to make sure we zero the cache line.
+                uint64_t paddr = vmemtranslate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, mreg_t(-1), CacheOp_Lock);
+                pmemwrite512(cpu, paddr, tmp.u32.data());
+                LOG_MEMWRITE512(paddr, tmp.u32);
+                LOG_HART(DEBUG, cpu, "\tDoing LockVA: 0x%016" PRIx64 " (0x%016" PRIx64 ")", vaddr, paddr);
+            }
+            catch (const sync_trap_t& t) {
+                // Stop the operation if there is an exception
+                LOG_HART(DEBUG, cpu, "\tLockVA 0x%016" PRIx64 " generated exception (suppressed)", vaddr);
+                update_tensor_error(cpu, 1 << 7);
+                return;
+            }
+            catch (const memory_error&) {
+                raise_bus_error_interrupt(cpu, 0);
+            }
+        } else {
+            LOG_HART(DEBUG, cpu, "\tSkipping LockVA: 0x%016" PRIx64, vaddr);
         }
         vaddr += stride;
     }
@@ -333,24 +338,25 @@ void dcache_unlock_vaddr(Hart& cpu, uint64_t value)
     //int      id     = X31 & 0x0000000000000001ULL;
 
     LOG_REG(":", 31);
+    if (tm) {
+        LOG_TENSOR_MASK(":");
+    }
 
     for (int i = 0; i < count; ++i) {
-        // Skip if masked
-        if (tm && !cpu.tensor_mask[i]) {
+        if (!tm || cpu.tensor_mask[i]) {
+            try {
+                // Soft-locking of the cache is not modeled, so there is nothing more to do here.
+                uint64_t paddr = vmemtranslate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, mreg_t(-1), CacheOp_Unlock);
+                LOG_HART(DEBUG, cpu, "\tDoing UnlockVA: 0x%016" PRIx64 " (0x%016" PRIx64 ")", vaddr, paddr);
+            }
+            catch (const sync_trap_t& t) {
+                // Stop the operation if there is an exception
+                LOG_HART(DEBUG, cpu, "\tUnlockVA: 0x%016" PRIx64 " generated exception (suppressed)", vaddr);
+                update_tensor_error(cpu, 1 << 7);
+                return;
+            }
+        } else {
             LOG_HART(DEBUG, cpu, "\tSkipping UnlockVA: 0x%016" PRIx64, vaddr);
-            continue;
-        }
-
-        try {
-            // Soft-locking of the cache is not modeled, so there is nothing more to do here.
-            uint64_t paddr = vmemtranslate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, mreg_t(-1), CacheOp_Unlock);
-            LOG_HART(DEBUG, cpu, "\tDoing UnlockVA: 0x%016" PRIx64 " (0x%016" PRIx64 ")", vaddr, paddr);
-        }
-        catch (const sync_trap_t& t) {
-            // Stop the operation if there is an exception
-            LOG_HART(DEBUG, cpu, "\tUnlockVA: 0x%016" PRIx64 " generated exception (suppressed)", vaddr);
-            update_tensor_error(cpu, 1 << 7);
-            return;
         }
         vaddr += stride;
     }
