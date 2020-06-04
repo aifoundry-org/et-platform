@@ -70,6 +70,11 @@ install(TARGETS ${TARGET_NAME}.elf
   RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/MasterMinion
   COMPONENT master-minion)
 
+install(
+  FILES ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.lst
+  DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/MasterMinion
+  COMPONENT master-minion)
+
 message("Master minion hex to install ${TARGET_NAME_OUTPUT}")
 
 string(REPLACE " " ";" OUTPUT_LIST ${${TARGET_NAME}_OUTPUT})
