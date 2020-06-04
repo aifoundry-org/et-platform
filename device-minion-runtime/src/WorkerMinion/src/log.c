@@ -5,6 +5,7 @@
 
 #include <stdarg.h>
 #include <stddef.h>
+#include <string.h>
 
 // TODO All worker harts currently crudely share the same log level
 static log_level_t current_log_level = LOG_LEVEL_WARNING;
@@ -40,4 +41,32 @@ int64_t log_write(log_level_t level, const char* const fmt, ...)
     }
 
     return message_send_worker(get_shire_id(), get_hart_id(), &message);
+}
+
+int64_t log_write_str(log_level_t level, const char *str, size_t length)
+{
+    if (level > current_log_level)
+    {
+        return 0;
+    }
+
+    while (length > 0) {
+        message_t message;
+        message.id = MESSAGE_ID_LOG_WRITE;
+
+        char *data = (char *)message.data;
+        size_t len;
+        for (len = 0; len < length && len < sizeof(message.data) - 1; len++)
+            data[len] = str[len];
+        data[len] = '\0';
+
+        length -= len;
+        str += len;
+
+        int64_t ret = message_send_worker(get_shire_id(), get_hart_id(), &message);
+        if (ret < 0)
+            return ret;
+    }
+
+    return 0;
 }
