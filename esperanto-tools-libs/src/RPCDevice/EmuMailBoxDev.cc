@@ -204,6 +204,10 @@ bool EmuMailBoxDev::mboxReady() {
 
 bool EmuMailBoxDev::mboxReset() {
   TRACE_RPCDevice_mbox_reset();
+
+  if (!rpcDev_.alive()) {
+    return false;
+  }
   // first update status the status from the remote
   auto res = readRemoteStatus();
   assert(res);
@@ -229,6 +233,10 @@ bool EmuMailBoxDev::mboxReset() {
 bool EmuMailBoxDev::write(const void *data, ssize_t size) {
 
   TRACE_RPCDevice_write(size);
+
+  if (!rpcDev_.alive()) {
+    return false;
+  }
 
   const device_fw::mbox_header_t header = {.length = (uint16_t)size,
                                            .magic = MBOX_MAGIC};
@@ -275,6 +283,9 @@ bool EmuMailBoxDev::write(const void *data, ssize_t size) {
 ssize_t EmuMailBoxDev::read(void *data, ssize_t size, TimeDuration wait_time) {
   TRACE_RPCDevice_read(size);
 
+  if (!rpcDev_.alive()) {
+    return 0;
+  }
   // read the mailbox from the simulator currently is not blocking like in the
   // pcie driver
   auto received = waitForHostInterrupt(wait_time);

@@ -145,7 +145,7 @@ bool TargetSysEmu::deinit() {
   if (!this->alive()) {
     return false;
   }
-  // If ti is alive then send a shut down command
+  // If it is alive then send a shut down command
   auto res = this->shutdown();
   assert(res);
   // Wait until we have killed the simulator
@@ -156,11 +156,12 @@ bool TargetSysEmu::deinit() {
 bool TargetSysEmu::alive() {
   auto status = simulator_status_.wait_for(0ms);
 
+  // check if the simulator has startedy
   if (status == std::future_status::ready) {
     simulator_status_.wait();
     return false;
   }
-  return true;
+  return device_alive_;
 }
 
 bool TargetSysEmu::getStatus() {

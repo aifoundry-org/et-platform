@@ -118,6 +118,11 @@ void Device::deviceListener() {
       continue;
     }
     if (!res) {
+      // Break the loop if the
+      if (!target_device_->alive()) {
+        break;
+      }
+
       RTERROR << "Error reading from the device mailbox \n";
       continue;
     }
@@ -209,8 +214,10 @@ void Device::uninitDeviceThread() {
   queue_cv_.notify_one();
   command_executor_.join();
 
+  RTINFO << "Executor Thread joined";
   /// Release the target device / or simulator
   target_device_->deinit();
+  RTINFO << "Target device Deinitialized";
 }
 
 Stream &Device::defaultStream() const { return *defaultStream_; }

@@ -11,6 +11,7 @@
 #include "TargetRPC.h"
 
 #include "EmuMailBoxDev.h"
+#include "esperanto/runtime/Support/Logging.h"
 #include "esperanto/simulator-api.grpc.pb.h"
 
 #include <inttypes.h>
@@ -31,6 +32,7 @@ bool RPCTarget::init() {
   channel_ = grpc::CreateCustomChannel(
       path_, grpc::InsecureChannelCredentials(), ch_args);
   stub_ = SimAPI::NewStub(channel_);
+  device_alive_ = true;
   return true;
 }
 
@@ -400,6 +402,8 @@ bool RPCTarget::waitForHostInterrupt(TimeDuration wait_time) {
   request.set_allocated_host_interrupt(host_interrupt);
   // Do RPC and wait for reply
   auto reply_res = doRPC(request);
+
+  RTINFO << "Interrupt reply received";
   if (!reply_res.first) {
     return false;
   }
@@ -407,7 +411,10 @@ bool RPCTarget::waitForHostInterrupt(TimeDuration wait_time) {
 
   assert(reply.has_interrupt());
   auto &interrupt_rsp = reply.interrupt();
-  assert(interrupt_rsp.success());
+  if (not interrupt_rsp.success()) {
+    RTINFO << "No interrupt raised";
+    return false;
+  }
   return true;
 }
 
@@ -461,6 +468,10 @@ bool RPCTarget::boot(uint64_t pc) {
 }
 
 bool RPCTarget::shutdown() {
+  // Mark the device as not alive ahead of time so that we can
+  // do a proper teardown
+  device_alive_ = false;
+
   simulator_api::Request request;
   auto shutdown_req = new ShutdownReq();
   request.set_allocated_shutdown(shutdown_req);
@@ -474,6 +485,7 @@ bool RPCTarget::shutdown() {
   assert(reply.has_shutdown());
   auto &shutdown_rsp = reply.shutdown();
   assert(shutdown_rsp.success());
+  RTINFO << "RPC device shutdown";
   return true;
 }
 
