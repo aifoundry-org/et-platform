@@ -55,6 +55,11 @@ install(TARGETS ${TARGET_NAME}.elf
   RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/MachineMinion
   COMPONENT machine-minion)
 
+install(
+  FILES ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.lst
+  DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/MachineMinion
+  COMPONENT machine-minion)
+
 string(REPLACE " " ";" OUTPUT_LIST ${${TARGET_NAME}_OUTPUT})
 foreach(FILE ${OUTPUT_LIST})
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${FILE}
