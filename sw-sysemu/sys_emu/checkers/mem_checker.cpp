@@ -895,7 +895,8 @@ bool mem_checker::access(uint64_t addr, bemu::mem_access_type macc, bemu::cacheo
             operation = 6;
         else
             LOG_NOTHREAD(FTL, "CacheOp %i not supported yet!!\n", (int) cop);
-        if((cop == bemu::CacheOp_EvictL3) || (cop == bemu::CacheOp_EvictDDR))
+        if((cop == bemu::CacheOp_EvictL3) || (cop == bemu::CacheOp_EvictDDR) ||
+           (cop == bemu::CacheOp_EvictL2 && bemu::paddr_is_scratchpad(addr))) // evict l2 scp to l2 can be interpreted as 'global' (it cannot be evicted to l3)
             location = COH_GLOBAL;
         else if(cop == bemu::CacheOp_EvictL2)
             location = COH_SHIRE;
