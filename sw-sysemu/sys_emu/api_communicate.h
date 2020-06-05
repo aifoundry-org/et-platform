@@ -24,9 +24,7 @@ struct MainMemory;
 class api_communicate
 {
     public:
-        api_communicate();
         virtual ~api_communicate() { }
-
         virtual bool init() = 0;
         virtual bool is_enabled() = 0;
         virtual bool is_done() = 0;
