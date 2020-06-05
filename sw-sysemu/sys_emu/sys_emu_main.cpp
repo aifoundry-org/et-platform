@@ -11,6 +11,7 @@
 #include "sys_emu.h"
 
 #include <cstdlib>
+#include <iostream>
 
 ////////////////////////////////////////////////////////////////////////////////
 // Main function
@@ -27,6 +28,7 @@ int main(int argc, char * argv[])
     sys_emu_cmd_options cmd_options = std::get<1>(result);
 
     if (!status) {
+        sys_emu::get_command_line_help(std::cout);
         return EXIT_FAILURE;
     }
 

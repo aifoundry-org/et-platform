@@ -93,8 +93,6 @@ struct sys_emu_cmd_options {
 #endif
 };
 
-std::tuple<bool, struct sys_emu_cmd_options> parse_command_line_arguments(int argc, char* argv[]);
-
 struct sys_emu_coop_tload
 {
     bool     tenb;
@@ -117,6 +115,7 @@ public:
 
     /// Function used for parsing the command line arguments
     static std::tuple<bool, struct sys_emu_cmd_options> parse_command_line_arguments(int argc, char* argv[]);
+    static void get_command_line_help(std::ostream& stream);
 
     static uint64_t thread_get_pc(unsigned thread_id) { return bemu::get_cpu(thread_id).pc; }
     static void thread_set_pc(unsigned thread_id, uint64_t pc) { bemu::get_cpu(thread_id).pc = pc; }

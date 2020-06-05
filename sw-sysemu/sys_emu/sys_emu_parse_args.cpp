@@ -376,12 +376,16 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
 #endif
         else if (!strcmp(name, "help")) {
-           printf("%s", help_msg);
-           std::tuple<bool, sys_emu_cmd_options> ret_value(false, sys_emu_cmd_options());
-           return ret_value;
+            std::tuple<bool, sys_emu_cmd_options> ret_value(false, sys_emu_cmd_options());
+            return ret_value;
         }
     }
 
     std::tuple<bool, sys_emu_cmd_options> ret_value(true, cmd_options);
     return ret_value;
+}
+
+void sys_emu::get_command_line_help(std::ostream& stream)
+{
+    stream << help_msg;
 }
