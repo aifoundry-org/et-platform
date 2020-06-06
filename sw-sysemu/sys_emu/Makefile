@@ -107,7 +107,7 @@ $(sysemu_OBJDIR)/libsysemu.a: $(libsysemu_OBJS)
 	$(AR) $(ARFLAGS) $@ $^
 
 $(libfpu_OBJDIR)/libfpu.a: force
-	$(MAKE) -C ../fpu libfpu_OBJDIR=$(abspath $(libfpu_OBJDIR)) DEBUG=$(DEBUG) GPROF=$(GPROF) all
+	$(MAKE) -C ../fpu libfpu_OBJDIR=$(abspath $(libfpu_OBJDIR)) DEBUG=$(DEBUG) GPROF=$(GPROF) $(abspath $(libfpu_OBJDIR))/libfpu.a
 
 sysemu-artifacts.tar.gz: $(sysemu_artifact_HDRS) $(sysemu_artifact_TGTS)
 	tar zcvf sysemu-artifacts.tar.gz sysemu-artifacts
