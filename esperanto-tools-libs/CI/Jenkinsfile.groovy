@@ -19,6 +19,25 @@ def trenary_op(String a, String b){
     return b
 }
 
+def launch_job(String SW_PLATFORM_BRANCH, String BRANCH, String VariantName, String Config) {
+    build job: 'Software/sw-platform/component-builds/component-builder',
+        parameters: [
+        string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+        string(name: 'COMPONENT_COMMITS',
+               value: "host-software/esperanto-tools-libs:${BRANCH}"),
+        string(name: "PARENT_JOB_NAME",
+               value: "${JOB_NAME}-${VariantName}"),
+        string(name: "PARENT_BUILD_NUMBER",
+               value: "${BUILD_NUMBER}"),
+        string(name: 'GIT_STEPS',
+               value: "./CI/jenkins_job_runner.py ./host-software/esperanto-tools-libs/CI/${Config} GIT_STEPS"),
+        string(name: 'BUILD_STEPS',
+               value: "./CI/jenkins_job_runner.py ./host-software/esperanto-tools-libs/CI/${Config} BUILD_STEPS"),
+        string(name: 'TEST_STEPS',
+               value: "./CI/jenkins_job_runner.py ./host-software/esperanto-tools-libs/CI/${Config} TEST_STEPS")
+    ]
+}
+
 pipeline {
     parameters {
         string(name: 'BRANCH',
@@ -57,51 +76,63 @@ pipeline {
         }
     }
     stages {
-        stage('Checkout') {
+        stage("Setup") {
             steps {
                 updateGitlabCommitStatus name: "${JOB_NAME}", state: 'pending'
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: BRANCH]],
-                    doGenerateSubmoduleConfigurations: false,
-                    extensions: [[$class: 'CleanCheckout']],
-                    submoduleCfg: [],
-                    userRemoteConfigs: [[
-                        credentialsId: 'jennkis_aws_centos',
-                        url: 'git@gitlab.esperanto.ai:software/device-firmware.git'
-                    ]]
-                ])
-
-                sshagent (credentials: ['jennkis_aws_centos']) {
-                    sh 'git submodule deinit --all -f'
-                    sh 'git clean -xfd'
-                    sh 'git submodule foreach --recursive git clean -xfd'
-                    sh 'git reset --hard'
-                    sh 'git submodule foreach --recursive git reset --hard'
-                    sh 'git submodule sync'
-                }
-                echo 'Git Checkout Done '
             }
         }
+        stage("Build Variants") {
+            parallel {
+                stage("Checkin") {
+                    steps {
+                        script {
+                            launch_job("${params.SW_PLATFORM_BRANCH}", "${BRANCH}", "Checkin", "Runtime-checkin.json")
+                        }
+                    }
+                }
+                /*  SW-3188
+                stage("Address Sanitizer") {
+                    steps {
+                        script {
+                            launch_job("${params.SW_PLATFORM_BRANCH}", "${BRANCH}", "AddressSanitizer", "Runtime-address-sanitizer.json")
+                        }
+                    }
+                }
 
-        stage('ComponentBuild') {
-            steps {
-                build job: 'Software/sw-platform/component-builds/component-builder',
-                    parameters: [
-                    string(name: 'BRANCH', value: "${params.SW_PLATFORM_BRANCH}"),
-                    string(name: 'COMPONENT_COMMITS',
-                           value: "host-software/esperanto-tools-libs:${BRANCH}"),
-                    string(name: "PARENT_JOB_NAME",
-                           value: "${JOB_NAME}"),
-                    string(name: "PARENT_BUILD_NUMBER",
-                           value: "${BUILD_NUMBER}"),
-                    string(name: 'GIT_STEPS',
-                           value: "./CI/jenkins_job_runner.py ./host-software/esperanto-tools-libs/CI/Runtime-checkin.json GIT_STEPS"),
-                    string(name: 'BUILD_STEPS',
-                           value: "./CI/jenkins_job_runner.py ./host-software/esperanto-tools-libs/CI/Runtime-checkin.json BUILD_STEPS"),
-                    string(name: 'TEST_STEPS',
-                           value: "./CI/jenkins_job_runner.py ./host-software/esperanto-tools-libs/CI/Runtime-checkin.json TEST_STEPS")
-                ]
+                stage("Thread Sanitizer") {
+                    steps {
+                        script {
+                            launch_job("${params.SW_PLATFORM_BRANCH}", "${BRANCH}", "ThreadSanitizer", "Runtime-thread-sanitizer.json")
+                        }
+                    }
+                }
+
+                stage("Memory Sanitizer") {
+                    steps {
+                        script {
+                            launch_job("${params.SW_PLATFORM_BRANCH}", "${BRANCH}", "MemorySanitizer", "Runtime-memory-sanitizer.json")
+                        }
+                    }
+                }
+
+                 */
+
+                stage("Undefined Sanitizer") {
+                    steps {
+                        script {
+                            launch_job("${params.SW_PLATFORM_BRANCH}", "${BRANCH}", "UndefinedSanitizer", "Runtime-undefined-sanitizer.json")
+                        }
+                    }
+                }
+
+                stage("Coverage") {
+                    steps {
+                        script {
+                            launch_job("${params.SW_PLATFORM_BRANCH}", "${BRANCH}", "Coverage", "Runtime-Coverage.json")
+                        }
+                    }
+                }
+
             }
         }
     }
