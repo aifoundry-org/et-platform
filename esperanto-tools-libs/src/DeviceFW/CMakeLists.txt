@@ -23,3 +23,5 @@ target_include_directories(etrt_DeviceFW PRIVATE
   ${PROJECT_BINARY_DIR}/src
   ${EXTERNAL_INCLUDE_DIRECTORIES}
   )
+
+add_sanitizers(etrt_DeviceFW)

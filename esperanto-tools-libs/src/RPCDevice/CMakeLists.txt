@@ -31,3 +31,5 @@ target_include_directories(etrt_RPCDevice PRIVATE
 if(MINION_RUNTIME_FOUND)
   target_include_directories(etrt_RPCDevice PRIVATE "${ESPERANTO_FW_INCLUDE_DIR}/")
 endif(MINION_RUNTIME_FOUND)
+
+add_sanitizers(etrt_RPCDevice)

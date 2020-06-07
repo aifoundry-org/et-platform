@@ -102,3 +102,5 @@ target_include_directories(etrt_Tracing PUBLIC
 
 target_link_libraries(etrt_Tracing
   protobuf)
+
+add_sanitizers(etrt_Tracing)

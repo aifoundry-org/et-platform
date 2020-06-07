@@ -30,6 +30,8 @@ target_include_directories(etrt_CodeManagement PRIVATE
   ${EXTERNAL_INCLUDE_DIRECTORIES}
   )
 
+add_sanitizers(etrt_CodeManagement)
+
 if(MINION_RUNTIME_FOUND)
   target_include_directories(etrt_CodeManagement PRIVATE "${ESPERANTO_FW_INCLUDE_DIR}/")
 endif(MINION_RUNTIME_FOUND)

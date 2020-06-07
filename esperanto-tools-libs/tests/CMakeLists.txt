@@ -89,6 +89,7 @@ function(create_test_targets TEST_LIST TEST_PROPERTIES)
     target_link_libraries(${TEST_TARGET} ${COMMON_TEST_LIBRARIES})
     target_include_directories(${TEST_TARGET} PUBLIC ${GFLAGS_INCLUDE_DIRS})
     target_include_directories(${TEST_TARGET} PUBLIC ${GLOG_INCLUDE_DIRS})
+    add_sanitizers(${TEST_TARGET})
     gtest_discover_tests(${TEST_TARGET}
       EXTRA_ARGS ${TEST_ARGS} --etrt_trace ${CMAKE_CURRENT_BINARY_DIR}/${TEST_TARGET}.etrt_trace
       TEST_PREFIX runtime:
