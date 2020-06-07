@@ -56,7 +56,7 @@ int64_t log_write_str(log_level_t level, const char *str, size_t length)
 
         char *data = (char *)message.data;
         size_t len;
-        for (len = 0; len < length && len < sizeof(message.data) - 1; len++)
+        for (len = 0; len < length && len < sizeof(message.data) - 1 && str[len]; len++)
             data[len] = str[len];
         data[len] = '\0';
 
