@@ -42,13 +42,12 @@ SysEmuLauncher::SysEmuLauncher(
     : sysemu_run_(run_dir), connection_(con), device_alive_(false) {
   execute_args_ = {
       absl::GetFlag(FLAGS_sysemu_path), // Path to SysEMU
-      "-minions",
-      "FFFFFFFF",             // All minions enabled
+      "-minions", "FFFFFFFF", // All minions enabled
       "-shires", "1FFFFFFFF", // All shires enabled
       "-master_min",          // Enable master shire
       std::string("-api_comm"), connection_,
-      "-mins_dis", // Disable minions by default as booting is done through an
-                   // exec commandi
+      "-mins_dis",            // Disable minions by default as booting is done through Sim API
+      "-max_cycles", "20000000",
   };
   execute_args_.insert(execute_args_.end(), additional_options.begin(),
                        additional_options.end());
