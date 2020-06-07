@@ -47,7 +47,7 @@ SysEmuLauncher::SysEmuLauncher(
       "-master_min",          // Enable master shire
       std::string("-api_comm"), connection_,
       "-mins_dis",            // Disable minions by default as booting is done through Sim API
-      "-max_cycles", "20000000",
+      "-max_cycles", "50000000",
   };
   execute_args_.insert(execute_args_.end(), additional_options.begin(),
                        additional_options.end());
