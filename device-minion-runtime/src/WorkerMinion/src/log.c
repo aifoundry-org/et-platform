@@ -50,7 +50,7 @@ int64_t log_write_str(log_level_t level, const char *str, size_t length)
         return 0;
     }
 
-    while (length > 0) {
+    while (length > 0 && *str) {
         message_t message;
         message.id = MESSAGE_ID_LOG_WRITE;
 
