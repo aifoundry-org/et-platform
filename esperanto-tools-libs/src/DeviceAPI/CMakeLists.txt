@@ -68,7 +68,7 @@ target_include_directories(etrt_DeviceAPI PRIVATE
   ${PROJECT_SOURCE_DIR}/src
   ${PROJECT_BINARY_DIR}/include
   ${PROJECT_BINARY_DIR}/src
-  ${EXTERNAL_INCLUDE_DIRECTORIES}
+  ${ESPERANTO_DEVICE_API_INCLUDE_DIR}
   )
 
 add_sanitizers(etrt_DeviceAPI)

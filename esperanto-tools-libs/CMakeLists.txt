@@ -22,29 +22,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/external/sanitizer-cm
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CoverageSupport.cmake)
 
 option(BUILD_SHARED_LIBS "Build shared libs." ON)
-option(ETSOC "Build for the ETSOC")
-option(ENABLE_TESTS "Enable tests" ON)
 option(ENABLE_PCIE "Enable pcie support by default" OFF)
 option(ENABLE_CCACHE "Enable ccahe in the builds" OFF)
-## FIXME this option needs to be deprecated and etsoc will need to start
-## setting the --sysemu runtime option eventually
-option(ENABLE_SYSEMU_ARTIFACT "Enable artifactory path for etsoc builds" OFF)
-option(BUILD_DEPENDENCIES "Build all dependencies from source" OFF)
-
-# Providers for third-party dependencies (gRPC_*_PROVIDER properties):
-# "module": build the dependency using sources from git submodule under external
-# "package": use cmake's find_package functionality to locate a pre-installed dependency
-# TODO enable correct use of package to find preinstalled dependencies for now "package"
-# will mean to use the DEPENDENCIES_PATH to derive the include and library paths
-set(runtime_DEVICE_API_PROVIDER "module" CACHE STRING "Provider of device-api library")
-set_property(CACHE runtime_DEVICE_API_PROVIDER PROPERTY STRINGS "module" "package")
-set(runtime_SIMULATOR_API_PROVIDER "module" CACHE STRING "Provider of simualtor-api library")
-set_property(CACHE runtime_DEVICE_API_PROVIDER PROPERTY STRINGS "module" "package")
-set(runtime_SW_SYSEMU_PROVIDER "module" CACHE STRING "Provider of the sw-sysemu executable")
-set_property(CACHE runtime_SW_SYSEMU_PROVIDER PROPERTY STRINGS "module" "package")
-set(runtime_ELFIO_PROVIDER "module" CACHE STRING "Provider of the sw-sysemu executable")
-set_property(CACHE runtime_ELFIO_PROVIDER PROPERTY STRINGS "module" "package")
-set(DOCUMENTATION_INSTALL_DIR  "${CMAKE_INSTALL_PREFIX}" CACHE STRING "Documentation installation path")
 
 execute_process(
   COMMAND git rev-parse --verify HEAD
@@ -64,6 +43,7 @@ if(ENABLE_CCACHE)
 endif(ENABLE_CCACHE)
 
 set(DEPENDENCIES_PATH "/usr" CACHE PATH "Path where runtime dependencies are installed")
+set(SYSEMU_PATH  ${DEPENDENCIES_PATH}/bin/sys_emu)
 
 set(INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/include/ CACHE STRING "Include install dir")
 set(LIB_INSTALL_DIR  ${CMAKE_INSTALL_PREFIX}/lib/  CACHE STRING "Library install dir")
@@ -77,125 +57,39 @@ foreach(p LIB BIN INCLUDE CMAKE)
   endif()
 endforeach()
 
-# To be overwritten in cases where we want to also "release" the external tools
-# used by the runtime
-set(RT_EXTERNAL_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/external-install"
-  CACHE PATH "Instalation path of external dependencies")
-
-if(NOT "${CMAKE_INSTALL_PREFIX}" STREQUAL "")
-  set(RT_EXTERNAL_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH
-     "Instalation path of external dependencies" FORCE)
-endif()
-
-message(STATUS "CMAKE_CURRENT_SOURCE_DIR=" ${CMAKE_CURRENT_SOURCE_DIR})
-message(STATUS "CMAKE_CURRENT_BINARY_DIR=" ${CMAKE_CURRENT_BINARY_DIR})
-message(STATUS "ETSOC=" ${ETSOC})
-message(STATUS "ENABLE_TESTS=" ${ENABLE_TESTS})
-
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     message(STATUS "No build type selected, default to Debug")
     set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type." FORCE)
 endif()
 
-set(external_project_dependencies "" CACHE STRING "External project list")
-
-set(EXTERNAL_INCLUDE_DIRECTORIES
-  ${RT_EXTERNAL_INSTALL_PREFIX}/include
-  ${DEPENDENCIES_PATH}/include
-  )
-
-set(EXTERNAL_LINK_DIRECTORIES
-  ${RT_EXTERNAL_INSTALL_PREFIX}/lib64
-  ${RT_EXTERNAL_INSTALL_PREFIX}/lib
-  ${DEPENDENCIES_PATH}/lib64
-  ${DEPENDENCIES_PATH}/lib
-  )
-
-
+# System dependencies
 find_package(Sanitizers REQUIRED)
+find_package(gflags REQUIRED)
+find_package(Glog REQUIRED)
+find_package(fmt REQUIRED)
+find_package(GTest REQUIRED)
+find_package(elfio REQUIRED)
+find_package(absl REQUIRED)
 
-# List of packages to find
+# Esperanto dependencies
+find_package(SimulatorAPI REQUIRED)
+find_package(esperanto-device-api REQUIRED)
+find_package(EsperantoDeviceMinionRuntime REQUIRED)
+find_package(EsperantoTestKernels REQUIRED)
 
-if (NOT BUILD_DEPENDENCIES)
-  find_package(gflags)
-endif()
+include_directories(${ESPERANTO_DEVICE_API_INCLUDE_DIR})
 
-if(NOT BUILD_DEPENDENCIES)
-  find_package(Glog)
-endif()
-
-if(NOT BUILD_DEPENDENCIES)
-  find_package(fmt CONFIG)
-endif()
-
-if(NOT BUILD_DEPENDENCIES)
-  find_package(GTest)
-endif()
-
-if(NOT BUILD_DEPENDENCIES)
-  find_package(elfio)
-endif()
-message("ELFIO FOUND ${elfio_FOUND}")
-
-# Build any external dependencies
-add_subdirectory(external)
-list(APPEND CMAKE_PREFIX_PATH ${RT_EXTERNAL_INSTALL_PREFIX})
-
-find_package(absl CONFIG REQUIRED)
-message("ABSEIL Found : '${absl_FOUND}'")
-
-find_package(SimulatorAPI CONFIG REQUIRED)
-message("Sim API Found: ${SimulatorAPI_FOUND}")
-
-find_package(esperanto-device-api CONFIG REQUIRED
-  PATHS "${RT_EXTERNAL_INSTALL_PREFIX}/lib/cmake/esperanto-device-api"
-  NO_CMAKE_PATH
-  NO_CMAKE_ENVIRONMENT_PATH
-  NO_DEFAULT_PATH
-)
-message("Esperanto Device API Found: ${espernato-device-api_FOUND}")
-
-set(MINION_RUNTIME_FOUND 0)
-# Currenly esperanto-fw is not required. Will be the case once we get completly rid
-# of the fake-fw. Also prevert CMake from using the default search path currently it
-# needs to be specified manually
-# FIXME this a required package once the esperanto-fw package has been eliminated
-find_package(EsperantoDeviceMinionRuntime
-  NO_CMAKE_PATH
-  NO_CMAKE_ENVIRONMENT_PATH
-  NO_DEFAULT_PATH
-  )
-
-if(EsperantoDeviceMinionRuntime_FOUND)
-  set(MINION_RUNTIME_PACKAGE_NAME EsperantoDeviceMinionRuntime)
-  message("EsperantoDeviceMinionRuntime found: " ${EsperantoDeviceMinionRuntime_FOUND})
-  set(MINION_RUNTIME_FOUND 1)
-  set(ESPERANTO_FW_INCLUDE_DIR ${ESPERANTO_DEVICE_MINION_RUNTIME_INCLUDE_DIR})
-else()
-  find_package(esperanto-fw CONFIG
-      NO_CMAKE_PATH
-      NO_CMAKE_ENVIRONMENT_PATH
-      NO_DEFAULT_PATH
-      )
-  set(MINION_RUNTIME_PACKAGE_NAME esperanto-fw)
-  message("Esperanto-FW found: " ${MINION_RUNTIME_FOUND})
-  set(MINION_RUNTIME_FOUND ${esperanto-fw_FOUND})
-endif()
-
-find_package(EsperantoTestKernels
-   NO_DEFAULT_PATH
-  )
-message("EsperantoTestKernels found: " ${EsperantoTestKernels_FOUND})
+set(MINION_RUNTIME_PACKAGE_NAME EsperantoDeviceMinionRuntime)
+message("EsperantoDeviceMinionRuntime found: " ${EsperantoDeviceMinionRuntime_FOUND})
+set(MINION_RUNTIME_FOUND 1)
+set(ESPERANTO_FW_INCLUDE_DIR ${ESPERANTO_DEVICE_MINION_RUNTIME_INCLUDE_DIR})
 
 # Add rules for auto-generated headers.
 add_subdirectory(include)
 add_subdirectory(docs)
 add_subdirectory(src)
-if (ENABLE_TESTS)
-  add_subdirectory(tests)
-  add_subdirectory(tools)
-endif(ENABLE_TESTS)
-
+add_subdirectory(tests)
+add_subdirectory(tools)
 
 ### Add package information
 include(CMakePackageConfigHelpers)

@@ -25,7 +25,6 @@ link_directories(${GTEST_DIR}/lib64
 ### External dependencies
 
 set(CI_DEPENDENCIES convolution.elf
-                    bootrom.mem
                     gpu_0_softmax_110.elf
                     sample-kernel
                     etsocmaxsplat.elf
@@ -99,26 +98,22 @@ function(create_test_targets TEST_LIST TEST_PROPERTIES)
   endforeach(TEST_INFO)
 endfunction()
 
+get_property(MASTER_MINION_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::MasterMinion.elf PROPERTY LOCATION)
+get_property(MACHINE_MINION_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::MachineMinion.elf PROPERTY LOCATION)
+get_property(WORKER_MINION_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::WorkerMinion.elf PROPERTY LOCATION)
 
-if(MINION_RUNTIME_FOUND)
-  get_property(MASTER_MINION_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::MasterMinion.elf PROPERTY LOCATION)
-  get_property(MACHINE_MINION_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::MachineMinion.elf PROPERTY LOCATION)
-  get_property(WORKER_MINION_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::WorkerMinion.elf PROPERTY LOCATION)
+if (EsperantoTestKernels_FOUND)
+  get_property(EMPTY_KERNEL_ELF TARGET esperanto-test-kernels::empty.elf PROPERTY LOCATION)
+else()
+  get_property(EMPTY_KERNEL_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::empty.elf PROPERTY LOCATION)
+endif()
 
-  if (EsperantoTestKernels_FOUND)
-    get_property(EMPTY_KERNEL_ELF TARGET esperanto-test-kernels::empty.elf PROPERTY LOCATION)
-  else()
-    get_property(EMPTY_KERNEL_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::empty.elf PROPERTY LOCATION)
-  endif()
+get_filename_component(KERNELS_DIR ${EMPTY_KERNEL_ELF} DIRECTORY)
 
-  get_filename_component(KERNELS_DIR ${EMPTY_KERNEL_ELF} DIRECTORY)
+# Example when passsing arguments then make sure that you use the "=" operation between
+# the option and its value and you space separate the different options.
 
-  # Example when passsing arguments then make sure that you use the "=" operation between
-  # the option and its value and you space separate the different options.
-
-  set(DEV_FW_ARGS "--master_minion_elf=${MASTER_MINION_ELF} --machine_minion_elf=${MACHINE_MINION_ELF} --worker_minion_elf=${WORKER_MINION_ELF}")
-
-endif(MINION_RUNTIME_FOUND)
+set(DEV_FW_ARGS "--master_minion_elf=${MASTER_MINION_ELF} --machine_minion_elf=${MACHINE_MINION_ELF} --worker_minion_elf=${WORKER_MINION_ELF}")
 
 set(TEST_LIST
   test_error_or.cc:""
@@ -133,45 +128,43 @@ set(TEST_LIST
 
 create_test_targets("${TEST_LIST}" "LABELS;Generic;TIMEOUT;600")
 
-if(MINION_RUNTIME_FOUND)
-  # List of tests to be compiled if we have support for device-fw
-  # List of tests that are currently running only in the simulator
-  set(SIM_DEVFW_TEST_LIST
-    test_code_manager.cc:"${DEV_FW_ARGS}"
-    test_module_load.cc:"${DEV_FW_ARGS}"
-    test_module_manager.cc:"${DEV_FW_ARGS}"
-    # This tests exercises the simulator API but given that we need to test the mailbox this
-    # can be enabled only for the case of device-fw
-    device-fw/test_mb_sim_api.cc:""
-    device-fw/test_load_device_fw.cc:${DEV_FW_ARGS}
-    device-fw/test_elf_parsing_dev_fw.cc:"${DEV_FW_ARGS} --empty_elf ${EMPTY_KERNEL_ELF}"
-    device-fw/test_mailbox.cc:"${DEV_FW_ARGS}"
-    device-fw/test_sysemu_launch_kernels.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
-    device-fw/test_device_api_sysemu.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
-    device-fw/test_streams.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
-    )
-  create_test_targets("${SIM_DEVFW_TEST_LIST}" "LABELS;Generic;LABELS;DeviceFW;TIMEOUT;120")
+# List of tests to be compiled if we have support for device-fw
+# List of tests that are currently running only in the simulator
+set(SIM_DEVFW_TEST_LIST
+  test_code_manager.cc:"${DEV_FW_ARGS}"
+  test_module_load.cc:"${DEV_FW_ARGS}"
+  test_module_manager.cc:"${DEV_FW_ARGS}"
+  # This tests exercises the simulator API but given that we need to test the mailbox this
+  # can be enabled only for the case of device-fw
+  device-fw/test_mb_sim_api.cc:""
+  device-fw/test_load_device_fw.cc:${DEV_FW_ARGS}
+  device-fw/test_elf_parsing_dev_fw.cc:"${DEV_FW_ARGS} --empty_elf ${EMPTY_KERNEL_ELF}"
+  device-fw/test_mailbox.cc:"${DEV_FW_ARGS}"
+  device-fw/test_sysemu_launch_kernels.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
+  device-fw/test_device_api_sysemu.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
+  device-fw/test_streams.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
+  )
+create_test_targets("${SIM_DEVFW_TEST_LIST}" "LABELS;Generic;LABELS;DeviceFW;TIMEOUT;120")
 
-  # List of tests that run either in the simulator or in PCIE
-  set(DUAL_MODE_OPTS "${DEV_FW_ARGS}")
-  if(ENABLE_PCIE)
-    set(DUAL_MODE_OPTS "${DUAL_MODE_OPTS} --dev_target=pcie")
-    set(DUAL_TEST_LABELS "LABELS;QEMU-Driver-SNPS;TIMEOUT;600")
-  else()
-    set(DUAL_TEST_LABELS "LABELS;Generic;LABELS;DeviceFW;TIMEOUT;120")
-  endif(ENABLE_PCIE)
+# List of tests that run either in the simulator or in PCIE
+set(DUAL_MODE_OPTS "${DEV_FW_ARGS}")
+if(ENABLE_PCIE)
+  set(DUAL_MODE_OPTS "${DUAL_MODE_OPTS} --dev_target=pcie")
+  set(DUAL_TEST_LABELS "LABELS;QEMU-Driver-SNPS;TIMEOUT;600")
+else()
+  set(DUAL_TEST_LABELS "LABELS;Generic;LABELS;DeviceFW;TIMEOUT;120")
+endif(ENABLE_PCIE)
 
-  set(DUAL_TEST_LIST
-    device-fw/test_device_api.cc:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR}"
-    device-fw/test_launch_uberkernel.cc:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR}"
-    )
-  create_test_targets("${DUAL_TEST_LIST}" "${DUAL_TEST_LABELS}")
+set(DUAL_TEST_LIST
+  device-fw/test_device_api.cc:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR}"
+  device-fw/test_launch_uberkernel.cc:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR}"
+  )
+create_test_targets("${DUAL_TEST_LIST}" "${DUAL_TEST_LABELS}")
 
-  # PCIE only tests
-  set(QEMU_TEST_LIST
-    pcie/test_pcie_device.cc:""
-    pcie/test_pcie_launch_kernels.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
-    )
+# PCIE only tests
+set(QEMU_TEST_LIST
+  pcie/test_pcie_device.cc:""
+  pcie/test_pcie_launch_kernels.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
+  )
 
-  create_test_targets("${QEMU_TEST_LIST}" "LABELS;QEMU-Driver-SNPS;TIMEOUT;600")
-endif(MINION_RUNTIME_FOUND)
+create_test_targets("${QEMU_TEST_LIST}" "LABELS;QEMU-Driver-SNPS;TIMEOUT;600")
