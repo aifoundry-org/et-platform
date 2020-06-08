@@ -127,6 +127,7 @@ include_directories(${PROJECT_SOURCE_DIR}/external/abseil)
 target_include_directories(etrt_obj PUBLIC ${EXTERNAL_INCLUDE_DIRECTORIES})
 target_include_directories(etrt_obj PUBLIC ${GLOG_INCLUDE_DIRS})
 target_include_directories(etrt_obj PUBLIC ${FMTLIB_INCLUDE_DIRS})
+target_include_directories(etrt_obj PUBLIC ${ESPERANTO_DEVICE_API_INCLUDE_DIR})
 
 # Library dependencies
 target_link_libraries(etrt_obj pthread)
@@ -147,41 +148,32 @@ foreach(FOLDER ${SUBFOLDERS})
   list(APPEND LIB_OBJS $<TARGET_OBJECTS:etrt_${FOLDER}>)
 endforeach()
 
-# Generate both static and shared libraries
-add_library(etrt SHARED $<TARGET_OBJECTS:etrt_obj> ${LIB_OBJS})
-target_link_libraries(etrt
+# List of common library dependencies
+set(COMMON_LIBRARY_DEPENDENCIES
   absl::flags
   absl::flags_internal
   absl::flags_parse
   ${GLOG_LIBRARIES}
   ${GFLAGS_LIBRARIES}
-  ${FMTLIB_LIBRARIES}
   etsim_api
   stdc++fs
-  )
+  fmt::fmt
+ )
+
+if(SANITIZE_ADDRESS)
+  list(APPEND COMMON_LIBRARY_DEPENDENCIES asan)
+elseif(SANITIZE_THREAD)
+  list(APPEND COMMON_LIBRARY_DEPENDENCIES  tsan)
+elseif(SANITIZE_UNDEFINED)
+  list(APPEND COMMON_LIBRARY_DEPENDENCIES ubsan)
+endif()
+
+# Generate both static and shared libraries
+add_library(etrt SHARED $<TARGET_OBJECTS:etrt_obj> ${LIB_OBJS})
+target_link_libraries(etrt ${COMMON_LIBRARY_DEPENDENCIES})
 target_link_directories(etrt PUBLIC
                                ${EXTERNAL_LINK_DIRECTORIES}
                                ${SIMULATOR_API_LIB_DIR})
-
-if(SANITIZE_ADDRESS)
-
-  target_link_libraries(etrt
-    asan
-    )
-
-elseif(SANITIZE_THREAD)
-
-  target_link_libraries(etrt
-    tsan
-    )
-
-elseif(SANITIZE_UNDEFINED)
-
-  target_link_libraries(etrt
-    ubsan
-    )
-
-endif()
 
 ## Build shared library
 install(TARGETS etrt
@@ -201,15 +193,8 @@ message("GLOG ${GLOG_LIBRARIES}")
 # us to invoke find_package on all of the runtime's dependencies. Currently
 # this is not possible because the dependencies have not been built and installed
 # prior to configuring the cmake, and this results in calls to find_package to fail.
-target_link_libraries(etrt_static
-  absl::flags
-  absl::flags_internal
-  absl::flags_parse
-  ${GLOG_LIBRARIES}
-  ${GFLAGS_LIBRARIES}
-  ${FMTLIB_LIBRARIES}
-  etsim_api_static
-  stdc++fs
+target_link_libraries(etrt_static ${COMMON_LIBRARY_DEPENDENCIES}
+
   )
 
 target_link_directories(etrt_static PUBLIC

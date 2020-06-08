@@ -158,7 +158,6 @@ Kernel::KernelLaunch::KernelLaunch(const Kernel &kernel, const ArgValues &args)
 
 ErrorOr<std::shared_ptr<device_api::devfw_commands::KernelLaunchCmd>>
 Kernel::KernelLaunch::launchHelper(Stream *stream) {
-#if ENABLE_DEVICE_FW
   auto entry_res = kernel_.kernelEntryPoint();
   if (entry_res.getError() != etrtSuccess) {
     return entry_res.getError();
@@ -196,14 +195,10 @@ Kernel::KernelLaunch::launchHelper(Stream *stream) {
       std::make_shared<device_api::devfw_commands::KernelLaunchCmd>(
           stream->id(), dev_api_params, info, false);
   return launch_cmd;
-#else
-  return nullptr;
-#endif
 }
 
 etrtError Kernel::KernelLaunch::launchBlocking(Stream *stream) {
 
-#if ENABLE_DEVICE_FW
   auto create_command_res = launchHelper(stream);
   if (create_command_res.getError() != etrtSuccess) {
     return create_command_res.getError();
@@ -230,23 +225,17 @@ etrtError Kernel::KernelLaunch::launchBlocking(Stream *stream) {
     assert(false);
   }
 
-#else
-  std::terminate();
-#endif // ENABLE_DEVICE_FW
   return etrtSuccess;
 }
 
 etrtError Kernel::KernelLaunch::launchNonBlocking(Stream *stream) {
 
-#if ENABLE_DEVICE_FW
   auto create_command_res = launchHelper(stream);
   if (create_command_res.getError() != etrtSuccess) {
     return create_command_res.getError();
   }
   auto launch_cmd = create_command_res.get();
   stream->addCommand(launch_cmd);
-
-#endif // ENABLE_DEVICE_FW
 
   return etrtSuccess;
 }

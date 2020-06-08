@@ -37,7 +37,6 @@ bool RPCTarget::init() {
 }
 
 bool RPCTarget::postFWLoadInit() {
-#if ENABLE_DEVICE_FW
 
   // We expect that the device-cw is already loaded and "booted" at this point
   // we are resetting the mailboxes
@@ -54,7 +53,6 @@ bool RPCTarget::postFWLoadInit() {
   success = mailboxDev_->ready(std::chrono::seconds(20));
   assert(success);
 
-#endif // ENABLE_DEVICE_FW
   return true;
 }
 
@@ -157,7 +155,6 @@ bool RPCTarget::writeDevMemDMA(uintptr_t dev_addr, size_t size,
   return true;
 }
 
-#if ENABLE_DEVICE_FW
 /// @brief Read from target_sim the status header of the mailbox
 std::tuple<bool, std::tuple<uint32_t, uint32_t>> RPCTarget::readMBStatus() {
   // Preparate request to read the mailbox status
@@ -356,7 +353,6 @@ bool RPCTarget::writeTxRb(const device_fw::ringbuffer_s &rb) {
 
   return true;
 }
-#endif // ENABLE_DEVICE_FW
 
 bool RPCTarget::raiseDevicePuPlicPcieMessageInterrupt() {
   simulator_api::Request request;
@@ -424,28 +420,17 @@ ssize_t RPCTarget::mboxMsgMaxSize() const {
 
 bool RPCTarget::mb_write(const void *data, ssize_t size) {
   bool res = false;
-#if ENABLE_DEVICE_FW
   res = mailboxDev_->write(data, size);
-#else
-  abort();
-#endif // ENABLE_DEVICE_FW
   return res;
 }
 ssize_t RPCTarget::mb_read(void *data, ssize_t size, TimeDuration wait_time) {
   ssize_t res = false;
-#if ENABLE_DEVICE_FW
   res = mailboxDev_->read(data, size, wait_time);
-#else
-  abort();
-#endif // ENABLE_DEVICE_FW
   return res;
 }
 
 bool RPCTarget::launch() {
   bool res = true;
-#if !ENABLE_DEVICE_FW
-  res = raiseDeviceMasterShireIpiInterrupt();
-#endif // ENABLE_DEVICE_FW
   return res;
 }
 

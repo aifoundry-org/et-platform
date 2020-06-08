@@ -25,9 +25,7 @@ BulkDev::BulkDev(const std::experimental::filesystem::path &char_dev)
     : CharacterDevice(char_dev) {
   // FIXME enable using the value of the IOCTL
   auto input_base_addr = queryBaseAddr();
-#if ENABLE_DEVICE_FW
   size_ = HOST_MANAGED_DRAM_END - HOST_MANAGED_DRAM_START;
-#endif
   TRACE_PCIeDevice_bulk_device_register(input_base_addr, size_);
 }
 

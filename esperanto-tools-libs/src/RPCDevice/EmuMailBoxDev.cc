@@ -21,7 +21,6 @@
 namespace et_runtime {
 namespace device {
 
-#if ENABLE_DEVICE_FW
 RingBuffer::RingBuffer(RingBufferType type, RPCTarget &target)
     : type_(type),   //
       ringbuffer_(), //
@@ -136,10 +135,6 @@ bool RingBuffer::writeRingBufferState() {
   }
   return res;
 }
-
-#endif // ENABLE_DEVICE_FW
-
-#if ENABLE_DEVICE_FW
 
 EmuMailBoxDev::EmuMailBoxDev(RPCTarget &dev)
     : tx_ring_buffer_(RingBufferType::TX, dev),        //
@@ -344,53 +339,6 @@ ssize_t EmuMailBoxDev::read(void *data, ssize_t size, TimeDuration wait_time) {
 
 ssize_t EmuMailBoxDev::mboxMaxMsgSize() const { return MBOX_MAX_LENGTH; }
 
-#else
-
-EmuMailBoxDev::EmuMailBoxDev(RPCTarget &dev)
-    : tx_ring_buffer_(RingBufferType::TX, dev), //
-      rx_ring_buffer_(RingBufferType::RX, dev), //
-      slave_status_(0),                         //
-      rpcDev_(dev)                              //
-{}
-
-bool EmuMailBoxDev::readRemoteStatus() {
-  std::terminate();
-  return false;
-}
-bool EmuMailBoxDev::writeRemoteStatus() {
-  std::terminate();
-  return false;
-}
-
-bool EmuMailBoxDev::mboxDestroy() {
-  std::terminate();
-  return false;
-}
-
-bool EmuMailBoxDev::mboxReady() {
-  std::terminate();
-  return false;
-}
-
-bool EmuMailBoxDev::mboxReset() {
-  std::terminate();
-  return false;
-}
-
-bool EmuMailBoxDev::write(const void *data, ssize_t size) {
-  std::terminate();
-  return false;
-}
-
-ssize_t EmuMailBoxDev::read(void *data, ssize_t size, TimeDuration wait_time) {
-  std::terminate();
-  return 0;
-}
-
-ssize_t EmuMailBoxDev::mboxMaxMsgSize() const { return 0; }
-
-#endif // ENABLE_DEVICE_FW
-
 bool EmuMailBoxDev::waitForHostInterrupt(TimeDuration wait_time) {
   return rpcDev_.waitForHostInterrupt(wait_time);
 }
@@ -414,7 +362,7 @@ bool EmuMailBoxDev::ready(TimeDuration wait_time) {
       RTERROR << "Mailbox not ready in time \n";
       return false;
     }
-#if ENABLE_DEVICE_FW
+
     // Clean up the ring buffer state, consume all messages similar to reset
     tx_ring_buffer_.init();
     auto res = tx_ring_buffer_.writeRingBufferState();
@@ -431,7 +379,6 @@ bool EmuMailBoxDev::ready(TimeDuration wait_time) {
 
     rpcDev_.raiseDevicePuPlicPcieMessageInterrupt();
     rpcDev_.waitForHostInterrupt(polling_interval);
-#endif // ENABLE_DEVICE_FW
   }
   return ready;
 }
