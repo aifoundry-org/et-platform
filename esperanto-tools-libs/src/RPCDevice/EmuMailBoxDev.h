@@ -30,7 +30,7 @@ enum class RingBufferType : uint8_t {
   TX = 2,
 };
 
-#if ENABLE_DEVICE_FW
+
 /// @brief Implementation of the ringbuffer that device-fw supports
 /// over the mailbox.
 class RingBuffer {
@@ -63,14 +63,6 @@ private:
   RPCTarget &rpcDev_;
 };
 
-#else
-
-class RingBuffer {
-public:
-  RingBuffer(RingBufferType type, RPCTarget &target) {}
-};
-
-#endif
 
 ///
 /// @brief Helper class that impements the mailbox protocol.

@@ -98,16 +98,11 @@ bool Device::addCommand(
 
 bool Device::registerMBReadCallBack(et_runtime::device_api::CommandBase *cmd,
                                     const MBReadCallBack &cb) {
-#if ENABLE_DEVICE_FW
   auto emplace_res = cb_map_.emplace(cmd->id(), std::forward_as_tuple(cmd, cb));
   return emplace_res.second;
-#else
-  return false;
-#endif
 }
 
 void Device::deviceListener() {
-#if ENABLE_DEVICE_FW
   while (true) {
     // Allocate a vector of the maximum mailbox message size to read
     // data in
@@ -144,7 +139,6 @@ void Device::deviceListener() {
       assert(false);
     }
   }
-#endif
 }
 
 void Device::deviceExecute() {

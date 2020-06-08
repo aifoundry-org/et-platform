@@ -66,7 +66,6 @@ public:
   /// @brief Shutdown target
   bool shutdown();
 
-#if ENABLE_DEVICE_FW
   // Interace for interacting with the MailBox state using the simulator API
 
   /// @brief Get mailbox emu device
@@ -88,7 +87,6 @@ public:
 
   /// @brief Write the tx ring buffer
   bool writeTxRb(const device_fw::ringbuffer_s &rb);
-#endif // ENABLE_DEVICE_FW
 
   /// @brief Raise the PU PLIC PCIe Message Interrupt in the target "device"
   /// in which case this is the simulator

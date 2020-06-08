@@ -68,7 +68,6 @@ UberKernel::UberKernelLaunch::UberKernelLaunch(const UberKernel &kernel,
 ErrorOr<std::shared_ptr<device_api::devfw_commands::KernelLaunchCmd>>
 UberKernel::UberKernelLaunch::launchHelper(Stream *stream) {
 
-#if ENABLE_DEVICE_FW
   auto entry_res = kernel_.kernelEntryPoint();
   if (entry_res.getError() != etrtSuccess) {
     return entry_res.getError();
@@ -116,13 +115,9 @@ UberKernel::UberKernelLaunch::launchHelper(Stream *stream) {
       std::make_shared<device_api::devfw_commands::KernelLaunchCmd>(
           stream->id(), params, info, true);
   return launch_cmd;
-#else
-  return nullptr;
-#endif
 }
 
 etrtError UberKernel::UberKernelLaunch::launchBlocking(Stream *stream) {
-#if ENABLE_DEVICE_FW
 
   auto create_command_res = launchHelper(stream);
   if (create_command_res.getError() != etrtSuccess) {
@@ -148,12 +143,10 @@ etrtError UberKernel::UberKernelLaunch::launchBlocking(Stream *stream) {
     assert(false);
   }
 
-#endif
   return etrtSuccess;
 }
 
 etrtError UberKernel::UberKernelLaunch::launchNonBlocking(Stream *stream) {
-#if ENABLE_DEVICE_FW
 
   auto create_command_res = launchHelper(stream);
   if (create_command_res.getError() != etrtSuccess) {
@@ -162,9 +155,6 @@ etrtError UberKernel::UberKernelLaunch::launchNonBlocking(Stream *stream) {
   auto launch_cmd = create_command_res.get();
   stream->addCommand(launch_cmd);
 
-#else
-  std::terminate();
-#endif
   return etrtSuccess;
 }
 

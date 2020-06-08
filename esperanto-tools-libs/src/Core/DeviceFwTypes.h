@@ -20,13 +20,9 @@
 namespace et_runtime {
 namespace device_fw {
 
-#if ENABLE_DEVICE_FW
-
 #include <esperanto-fw/layout.h>
 #include <esperanto-fw/mailbox_common.h>
 #include <esperanto-fw/ringbuffer_common.h>
-
-#endif // ENABLE_DEVICE_FW
 
 } // namespace device_fw
 } // namespace et_runtime

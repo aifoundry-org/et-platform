@@ -51,11 +51,7 @@ public:
   /// device
   // FIXME remove this hard-coded value
   constexpr uintptr_t baseAddr() const {
-#if ENABLE_DEVICE_FW
     return HOST_MANAGED_DRAM_START;
-#else
-    return -1;
-#endif
   }
 
   /// @brief Return the SOC DRAM size
