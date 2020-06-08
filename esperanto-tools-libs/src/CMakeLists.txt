@@ -163,6 +163,26 @@ target_link_directories(etrt PUBLIC
                                ${EXTERNAL_LINK_DIRECTORIES}
                                ${SIMULATOR_API_LIB_DIR})
 
+if(SANITIZE_ADDRESS)
+
+  target_link_libraries(etrt
+    asan
+    )
+
+elseif(SANITIZE_THREAD)
+
+  target_link_libraries(etrt
+    tsan
+    )
+
+elseif(SANITIZE_UNDEFINED)
+
+  target_link_libraries(etrt
+    ubsan
+    )
+
+endif()
+
 ## Build shared library
 install(TARGETS etrt
   EXPORT EsperantoRuntimeTargets

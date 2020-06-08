@@ -35,6 +35,8 @@ if (${external_project_dependencies})
 endif()
 target_link_libraries(runtime-tester ${COMMON_LIBRARIES})
 
+add_sanitizers(runtime-tester)
+
 ## Build static library
 install(TARGETS runtime-tester
   EXPORT EsperantoRuntimeTargets

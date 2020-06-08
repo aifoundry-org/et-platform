@@ -17,6 +17,9 @@ set(CMAKE_CXX_STANDARD 17)
 enable_testing()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/external/sanitizer-cmake/cmake")
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CoverageSupport.cmake)
 
 option(BUILD_SHARED_LIBS "Build shared libs." ON)
 option(ETSOC "Build for the ETSOC")
@@ -108,6 +111,8 @@ set(EXTERNAL_LINK_DIRECTORIES
   ${DEPENDENCIES_PATH}/lib
   )
 
+
+find_package(Sanitizers REQUIRED)
 
 # List of packages to find
 
