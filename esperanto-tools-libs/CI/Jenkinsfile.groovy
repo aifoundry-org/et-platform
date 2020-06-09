@@ -34,7 +34,8 @@ def launch_job(String SW_PLATFORM_BRANCH, String BRANCH, String VariantName, Str
         string(name: 'BUILD_STEPS',
                value: "./CI/jenkins_job_runner.py ./host-software/esperanto-tools-libs/CI/${Config} BUILD_STEPS"),
         string(name: 'TEST_STEPS',
-               value: "./CI/jenkins_job_runner.py ./host-software/esperanto-tools-libs/CI/${Config} TEST_STEPS")
+               value: "./CI/jenkins_job_runner.py ./host-software/esperanto-tools-libs/CI/${Config} TEST_STEPS"),
+        string(name: 'N_FAILED_TESTS', value: '2')
     ]
 }
 
@@ -90,7 +91,6 @@ pipeline {
                         }
                     }
                 }
-                /*  SW-3188
                 stage("Address Sanitizer") {
                     steps {
                         script {
@@ -98,7 +98,7 @@ pipeline {
                         }
                     }
                 }
-
+                /*  SW-3188
                 stage("Thread Sanitizer") {
                     steps {
                         script {
@@ -107,6 +107,8 @@ pipeline {
                     }
                 }
 
+                 */
+
                 stage("Memory Sanitizer") {
                     steps {
                         script {
@@ -114,8 +116,6 @@ pipeline {
                         }
                     }
                 }
-
-                 */
 
                 stage("Undefined Sanitizer") {
                     steps {
@@ -133,22 +133,22 @@ pipeline {
                     }
                 }
 
-            }
-        }
+                stage('Integration Smoke Test') {
+                    steps {
+                        build job: 'Software/sw-platform/checkin-regressions/integration-smoketest',
+                            parameters: [
+                            string(name: 'NODE', value: "AWS"),
+                            string(name: 'BRANCH', value: "${params.SW_PLATFORM_BRANCH}"),
+                            string(name: 'COMPONENT_COMMITS',
+                                   value: "host-software/esperanto-tools-libs:${BRANCH}"),
+                            string(name: "PARENT_JOB_NAME",
+                                   value: "${JOB_NAME}"),
+                            string(name: "PARENT_BUILD_NUMBER",
+                                   value: "${BUILD_NUMBER}")
+                        ]
+                    }
+                }
 
-        stage('Integration Smoke Test') {
-            steps {
-                build job: 'Software/sw-platform/checkin-regressions/integration-smoketest',
-                    parameters: [
-                    string(name: 'NODE', value: "AWS"),
-                    string(name: 'BRANCH', value: "${params.SW_PLATFORM_BRANCH}"),
-                    string(name: 'COMPONENT_COMMITS',
-                           value: "host-software/esperanto-tools-libs:${BRANCH}"),
-                    string(name: "PARENT_JOB_NAME",
-                           value: "${JOB_NAME}"),
-                    string(name: "PARENT_BUILD_NUMBER",
-                           value: "${BUILD_NUMBER}")
-                ]
             }
         }
     }
