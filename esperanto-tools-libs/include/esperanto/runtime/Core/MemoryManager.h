@@ -111,7 +111,7 @@ private:
   void initMemRegions();
   void uninitMemRegions();
 
-  std::unordered_map<uint8_t *, std::unique_ptr<uint8_t>> host_mem_region_;
+  std::unordered_map<uint8_t *, std::unique_ptr<uint8_t[]>> host_mem_region_;
   std::unique_ptr<LinearMemoryAllocator> dev_mem_region_;
   std::unique_ptr<LinearMemoryAllocator> kernels_dev_mem_region_;
   Device &device_;
