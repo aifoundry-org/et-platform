@@ -80,11 +80,11 @@ public:
 class MBSimAPITest : public ::testing::Test {
 
 protected:
-  MBSimAPITest()
-      : sim_(), sim_api_(&sim_, true), rpc_(0, sim_.communicationPath()) {}
+  MBSimAPITest() : sim_(), sim_api_{}, rpc_(0, sim_.communicationPath()) {}
 
   void SetUp() override {
-    auto res = sim_api_.init();
+    sim_api_ = std::make_unique<SimAPIServer<DummySimulator>>(&sim_, true);
+    auto res = sim_api_->init();
     ASSERT_TRUE(res);
     res = rpc_.init();
     ASSERT_TRUE(res);
@@ -93,17 +93,21 @@ protected:
     sim_thread_ = std::thread([this]() { execution_loop(); });
   }
 
-  void TearDown() override { sim_thread_.join(); }
+  void TearDown() override {
+    sim_thread_.join();
+    sim_api_.reset();
+    SimAPIServer<DummySimulator>::clearCallData();
+  }
 
   // Simulator Execution loop
   void execution_loop() {
     while (!sim_.is_done()) {
-      sim_api_.nextCmd(false);
+      sim_api_->nextCmd(false);
     }
   }
 
   DummySimulator sim_;
-  SimAPIServer<DummySimulator> sim_api_;
+  std::unique_ptr<SimAPIServer<DummySimulator>> sim_api_;
   et_runtime::device::RPCTarget rpc_;
   std::thread sim_thread_;
 };
@@ -133,7 +137,7 @@ TEST_F(MBSimAPITest, BlockOnDeviceInterrupt) {
   });
   // send interrupt to host
   std::this_thread::sleep_for(3s);
-  sim_api_.raiseHostInterrupt();
+  sim_api_->raiseHostInterrupt();
   rpc_thread.join();
   rpc_.shutdown();
 }
@@ -143,7 +147,7 @@ TEST_F(MBSimAPITest, ReadEmptyMailBoxMessage) {
   // Prepare the mailbox status
   sim_.mbox_.master_status = et_runtime::device_fw::MBOX_STATUS_READY;
   // Raise a host interrupt on the device
-  sim_api_.raiseHostInterrupt();
+  sim_api_->raiseHostInterrupt();
   uint8_t data[MBOX_MAX_LENGTH];
   // Read the mailbox message it should be empty
   auto res = rpc_.mb_read(data, sizeof(data));
@@ -170,7 +174,7 @@ TEST_F(MBSimAPITest, ReadMailBoxMessage) {
   memcpy(sim_.mbox_.tx_ring_buffer.queue, state.queue, sizeof(state.queue));
 
   // Raise a host interrupt on the device, to mark the device ready
-  sim_api_.raiseHostInterrupt();
+  sim_api_->raiseHostInterrupt();
   std::vector<uint16_t> res_data(elem_num, 0);
 
   // Read the mailbox message
@@ -192,7 +196,7 @@ TEST_F(MBSimAPITest, WriteMailBoxMessage) {
       data.size() * sizeof(typename decltype(data)::value_type);
 
   // Raise a host interrupt on the device so that the host can proceed
-  sim_api_.raiseHostInterrupt();
+  sim_api_->raiseHostInterrupt();
 
   // Write the mailbox message
   auto res = rpc_.mb_write(data.data(), data_size);
