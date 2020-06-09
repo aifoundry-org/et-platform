@@ -25,7 +25,7 @@ KernelActions::state(Stream *stream) const {
   stream->addCommand(state_cmd);
 
   auto rsp_future = state_cmd->getFuture();
-  auto &response = rsp_future.get().response();
+  auto response = rsp_future.get().response();
   assert(response.response_info.message_id ==
          ::device_api::MBOX_DEVAPI_MESSAGE_ID_KERNEL_STATE_RSP);
   return static_cast<::device_api::DEV_API_KERNEL_STATE>(response.status);
@@ -39,7 +39,7 @@ KernelActions::abort(Stream *stream) const {
   stream->addCommand(abort_cmd);
 
   auto rsp_future = abort_cmd->getFuture();
-  auto &response = rsp_future.get().response();
+  auto response = rsp_future.get().response();
   assert(response.response_info.message_id ==
          ::device_api::MBOX_DEVAPI_MESSAGE_ID_KERNEL_ABORT_RSP);
   return static_cast<::device_api::DEV_API_KERNEL_ABORT_RESPONSE_RESULT>(
