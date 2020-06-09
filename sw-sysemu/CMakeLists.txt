@@ -12,14 +12,23 @@ cmake_minimum_required(VERSION 3.5)
 
 project(sw-sysemu)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 find_package(SimulatorAPI CONFIG REQUIRED)
+find_package(libunwind)
+
+set(SYSEMU_LIBS_FLAGS "")
+
+if(LIBUNWIND_FOUND)
+    list(APPEND SYSEMU_LIBS_FLAGS "BACKTRACE=1")
+endif()
 
 set(LIBSYSEMU_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/libsysemu-build)
 set(LIBFPU_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/libfpu-build)
 
 # libsysemu
 add_custom_target(build-sysemu-libsysemu ALL
-    COMMAND ${CMAKE_MAKE_PROGRAM} ${LIBSYSEMU_BUILD_DIR}/libsysemu.a sysemu_OBJDIR=${LIBSYSEMU_BUILD_DIR}
+    COMMAND ${CMAKE_MAKE_PROGRAM} ${LIBSYSEMU_BUILD_DIR}/libsysemu.a sysemu_OBJDIR=${LIBSYSEMU_BUILD_DIR} ${SYSEMU_LIBS_FLAGS}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/sys_emu
 )
 
@@ -34,7 +43,7 @@ set_target_properties(libsysemu
 
 # libfpu
 add_custom_target(build-sysemu-libfpu ALL
-    COMMAND ${CMAKE_MAKE_PROGRAM} ${LIBFPU_BUILD_DIR}/libfpu.a libfpu_OBJDIR=${LIBFPU_BUILD_DIR}
+    COMMAND ${CMAKE_MAKE_PROGRAM} ${LIBFPU_BUILD_DIR}/libfpu.a libfpu_OBJDIR=${LIBFPU_BUILD_DIR} ${SYSEMU_LIBS_FLAGS}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/sys_emu
 )
 
@@ -69,6 +78,16 @@ target_link_libraries(sys_emu
     libfpu
     etsim_api_static
 )
+
+if(LIBUNWIND_FOUND)
+    include_directories(
+        ${LIBUNWIND_INCLUDE_DIRS}
+    )
+
+    target_link_libraries(sys_emu
+        ${LIBUNWIND_LIBRARIES}
+    )
+endif()
 
 install(TARGETS sys_emu
     RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
