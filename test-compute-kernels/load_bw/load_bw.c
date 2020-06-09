@@ -6,6 +6,7 @@
 #include "common.h"
 #include "kernel_params.h"
 #include "log.h"
+#include "cacheops.h"
 
 #define CACHE_LINE_SIZE 8
 
@@ -31,18 +32,19 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
         return -1;
     }
 
-    // The number of iterations is 
     uint64_t hart_id = get_hart_id();
-    uint64_t minion_id = hart_id >> 1;
-  
-    if (hart_id & 1) {     
+    uint64_t minion_id = hart_id >> 1;  
+    if (hart_id & 1) {
         return 0;
     }
 
+    // Set marker for waveforms
+    __asm__ __volatile("slti x0,x0,0xfb");
+ 
     uint64_t array_size = (uint64_t) kernel_params_ptr->tensor_b;
     uint64_t num_minions = (uint64_t) kernel_params_ptr->tensor_c;
     uint64_t num_iter = array_size / num_minions;
-    volatile uint64_t *out_data = (uint64_t*) kernel_params_ptr->tensor_d;
+    volatile uint64_t *out_data = (uint64_t*) (kernel_params_ptr->tensor_d);
 
     if (num_minions > 1024) {
       log_write(LOG_LEVEL_CRITICAL, "Number of minions should be <= 1024"); 
@@ -53,9 +55,33 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 	return 0;
     }
 
+    uint64_t clean_addr_base = 0x8180000000;
     uint64_t sum = 0;
+    
+    // Phase 1 -- evict input tensor and laod clean lines into L3
+    __asm__ __volatile__("slti x0,x0,0xaa");
+  
+    // Evict input tensor
+    for (uint64_t i = 0; i < num_iter; i++) {
+        uint64_t offset = (minion_id*num_iter) + i;
+        uint64_t offset_addr = kernel_params_ptr->tensor_a + offset*8;
+	evict_va(0, to_Mem, offset_addr, 0, 0x40, 0, 0);
+    }
+    WAIT_CACHEOPS;
 
-    // Start marker
+    // Now load clean lines so you evict dirty lines.
+    // In total bring in 4MB x 32 = 128MB
+    for (uint64_t i=0; i < 0x800; i++) {
+      uint64_t *clean_addr = (uint64_t *) (clean_addr_base + minion_id * 0x20000 + i * 64);
+      uint64_t content = *clean_addr;
+      sum = sum + content;
+    }
+   
+    __asm__ __volatile__("slti x0,x0,0xab");
+
+
+    // Phase 2 -- this is the actual load_bw test:
+    // Fetch pointers from tensor a and load their contents
     __asm__ __volatile__("slti x0,x0,0xaa");
 
     // num_iter is the same as the number of addresses each minion will access
@@ -64,8 +90,8 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 
         uint64_t *offset_addr = (uint64_t *) (kernel_params_ptr->tensor_a + offset*8);
 	uint64_t *final_addr = (uint64_t *) *offset_addr;
-	uint64_t val1 = *final_addr;
-	sum = sum + val1; // + val2;
+	uint64_t val = *final_addr;
+	sum = sum + val;
     }
 
     // End marker
