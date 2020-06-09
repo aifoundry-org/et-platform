@@ -73,7 +73,9 @@ private:
     void l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t set, bool evict);
 
     bool is_minion_clean(minion_directory_map_t::iterator it_minion);
+    bool is_minion_dirty(minion_directory_map_t::iterator it_minion);
     bool is_shire_clean (shire_directory_map_t::iterator  it_shire);
+    bool is_shire_dirty (shire_directory_map_t::iterator  it_shire);
     bool is_global_clean(global_directory_map_t::iterator it_global);
 
     void dump_minion(minion_mem_info_t * minion_info, std::string func, std::string op, uint64_t addr, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id);
