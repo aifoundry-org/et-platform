@@ -153,8 +153,8 @@ set(COMMON_LIBRARY_DEPENDENCIES
   absl::flags
   absl::flags_internal
   absl::flags_parse
-  ${GLOG_LIBRARIES}
-  ${GFLAGS_LIBRARIES}
+  glog
+  gflags
   etsim_api
   stdc++fs
   fmt::fmt

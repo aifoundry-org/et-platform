@@ -135,5 +135,21 @@ pipeline {
 
             }
         }
+
+        stage('Integration Smoke Test') {
+            steps {
+                build job: 'Software/sw-platform/checkin-regressions/integration-smoketest',
+                    parameters: [
+                    string(name: 'NODE', value: "AWS"),
+                    string(name: 'BRANCH', value: "${params.SW_PLATFORM_BRANCH}"),
+                    string(name: 'COMPONENT_COMMITS',
+                           value: "host-software/esperanto-tools-libs:${BRANCH}"),
+                    string(name: "PARENT_JOB_NAME",
+                           value: "${JOB_NAME}"),
+                    string(name: "PARENT_BUILD_NUMBER",
+                           value: "${BUILD_NUMBER}")
+                ]
+            }
+        }
     }
 }
