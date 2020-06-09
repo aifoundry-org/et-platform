@@ -77,8 +77,6 @@ find_package(esperanto-device-api REQUIRED)
 find_package(EsperantoDeviceMinionRuntime REQUIRED)
 find_package(EsperantoTestKernels REQUIRED)
 
-include_directories(${ESPERANTO_DEVICE_API_INCLUDE_DIR})
-
 set(MINION_RUNTIME_PACKAGE_NAME EsperantoDeviceMinionRuntime)
 message("EsperantoDeviceMinionRuntime found: " ${EsperantoDeviceMinionRuntime_FOUND})
 set(MINION_RUNTIME_FOUND 1)
