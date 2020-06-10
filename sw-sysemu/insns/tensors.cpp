@@ -285,7 +285,10 @@ void tensor_load_execute(Hart& cpu, bool tenb)
     if(use_coop)
     {
         uint32_t thread = hart_index(cpu);
+        uint32_t requested_mask;
+        uint32_t present_mask;
         sys_emu::coop_tload_add(thread, tenb, tenb ? 0 : id, cpu.tensor_coop & 0xF, (cpu.tensor_coop >> 8) & 0xFF, cpu.tensor_coop >> 16);
+        sys_emu::coop_tload_check(thread, false, id, requested_mask, present_mask);
     }
 #endif
 
