@@ -8,8 +8,8 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 
-#ifndef BEMU_PU_UART_H
-#define BEMU_PU_UART_H
+#ifndef BEMU_UART_H
+#define BEMU_UART_H
 
 #include <cassert>
 #include <cerrno>
@@ -24,7 +24,7 @@ namespace bemu {
 
 
 template <unsigned long long Base, size_t N>
-struct PU_Uart : public MemoryRegion
+struct Uart : public MemoryRegion
 {
     typedef typename MemoryRegion::addr_type      addr_type;
     typedef typename MemoryRegion::size_type      size_type;
@@ -141,7 +141,7 @@ struct PU_Uart : public MemoryRegion
             assert(n == 4);
             if ((fd != -1) && (::write(fd, source, 1) < 0)) {
                 auto error = std::error_code(errno, std::system_category());
-                throw std::system_error(error, "bemu::PU_Uart::write()");
+                throw std::system_error(error, "bemu::Uart::write()");
             }
             break;
         case DW_APB_UART_IER:
@@ -194,7 +194,7 @@ struct PU_Uart : public MemoryRegion
     }
 
     void init(const Agent&, size_type, size_type, const_pointer) override {
-        throw std::runtime_error("bemu::PU_Uart::init()");
+        throw std::runtime_error("bemu::Uart::init()");
     }
 
     addr_type first() const override { return Base; }
@@ -209,4 +209,4 @@ struct PU_Uart : public MemoryRegion
 
 } // namespace bemu
 
-#endif // BEMU_PU_UART_H
+#endif // BEMU_UART_H
