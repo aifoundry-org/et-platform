@@ -759,15 +759,15 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<
     }
 
     // Setup PU UART stream
-    if (!cmd_options.pu_uart_tx_file.empty()) {
-        int fd = open(cmd_options.pu_uart_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    if (!cmd_options.pu_uart0_tx_file.empty()) {
+        int fd = open(cmd_options.pu_uart0_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
-            LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.pu_uart_tx_file.c_str());
+            LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.pu_uart0_tx_file.c_str());
             return false;
         }
-        bemu::memory.pu_io_space.pu_uart.fd = fd;
+        bemu::memory.pu_io_space.pu_uart0.fd = fd;
     } else {
-        bemu::memory.pu_io_space.pu_uart.fd = STDOUT_FILENO;
+        bemu::memory.pu_io_space.pu_uart0.fd = STDOUT_FILENO;
     }
 
     // Setup PU UART1 stream
@@ -1157,8 +1157,8 @@ sys_emu::main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<a
     if(!cmd_options.dump_mem.empty())
         bemu::dump_data(bemu::memory, cmd_options.dump_mem.c_str(), bemu::memory.first(), (bemu::memory.last() - bemu::memory.first()) + 1);
 
-    if(!cmd_options.pu_uart_tx_file.empty())
-        close(bemu::memory.pu_io_space.pu_uart.fd);
+    if(!cmd_options.pu_uart0_tx_file.empty())
+        close(bemu::memory.pu_io_space.pu_uart0.fd);
 
     if(!cmd_options.pu_uart1_tx_file.empty())
         close(bemu::memory.pu_io_space.pu_uart1.fd);

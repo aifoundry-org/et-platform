@@ -40,7 +40,7 @@ struct PeripheralRegion : public MemoryRegion {
     enum : unsigned long long {
         // base addresses for the various regions of the address space
         pu_plic_base    = 0x00000000,
-        pu_uart_base    = 0x02002000,
+        pu_uart0_base   = 0x02002000,
         pu_uart1_base   = 0x02007000,
     };
 
@@ -78,7 +78,7 @@ struct PeripheralRegion : public MemoryRegion {
 
     // Members
     PU_PLIC <pu_plic_base,  32_MiB>  pu_plic{};
-    PU_Uart <pu_uart_base,   4_KiB>  pu_uart{};
+    PU_Uart <pu_uart0_base,  4_KiB>  pu_uart0{};
     PU_Uart <pu_uart1_base,  4_KiB>  pu_uart1{};
 
 protected:
@@ -98,7 +98,7 @@ protected:
     // These arrays must be sorted by region offset
     std::array<MemoryRegion*,3> regions = {{
         &pu_plic,
-        &pu_uart,
+        &pu_uart0,
         &pu_uart1,
     }};
 };

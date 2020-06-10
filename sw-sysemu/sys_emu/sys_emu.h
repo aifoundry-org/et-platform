@@ -81,7 +81,7 @@ struct sys_emu_cmd_options {
     uint64_t    max_cycles                   = 10000000;
     bool        mins_dis                     = false;
     uint32_t    mem_reset                    = 0;
-    std::string pu_uart_tx_file;
+    std::string pu_uart0_tx_file;
     std::string pu_uart1_tx_file;
     uint64_t    log_at_pc                    = ~0ull;
     uint64_t    stop_log_at_pc               = ~0ull;
