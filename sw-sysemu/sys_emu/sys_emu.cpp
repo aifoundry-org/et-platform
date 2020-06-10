@@ -758,7 +758,7 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<
             return false;
     }
 
-    // Setup PU UART stream
+    // Setup PU UART0 stream
     if (!cmd_options.pu_uart0_tx_file.empty()) {
         int fd = open(cmd_options.pu_uart0_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
@@ -780,6 +780,30 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<
         bemu::memory.pu_io_space.pu_uart1.fd = fd;
     } else {
         bemu::memory.pu_io_space.pu_uart1.fd = STDOUT_FILENO;
+    }
+
+    // Setup SPIO UART0 stream
+    if (!cmd_options.spio_uart0_tx_file.empty()) {
+        int fd = open(cmd_options.spio_uart0_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        if (fd < 0) {
+            LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.spio_uart0_tx_file.c_str());
+            return false;
+        }
+        bemu::memory.spio_space.spio_uart0.fd = fd;
+    } else {
+        bemu::memory.spio_space.spio_uart0.fd = STDOUT_FILENO;
+    }
+
+    // Setup SPIO UART1 stream
+    if (!cmd_options.spio_uart1_tx_file.empty()) {
+        int fd = open(cmd_options.spio_uart1_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        if (fd < 0) {
+            LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.spio_uart1_tx_file.c_str());
+            return false;
+        }
+        bemu::memory.spio_space.spio_uart1.fd = fd;
+    } else {
+        bemu::memory.spio_space.spio_uart1.fd = STDOUT_FILENO;
     }
 
     // Initialize Simulator API

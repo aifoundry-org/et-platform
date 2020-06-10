@@ -83,6 +83,8 @@ struct sys_emu_cmd_options {
     uint32_t    mem_reset                    = 0;
     std::string pu_uart0_tx_file;
     std::string pu_uart1_tx_file;
+    std::string spio_uart0_tx_file;
+    std::string spio_uart1_tx_file;
     uint64_t    log_at_pc                    = ~0ull;
     uint64_t    stop_log_at_pc               = ~0ull;
     bool        display_trap_info            = false;
