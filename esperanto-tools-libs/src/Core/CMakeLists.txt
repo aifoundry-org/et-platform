@@ -25,12 +25,10 @@ add_library(etrt_Core OBJECT
   )
 
 target_include_directories(etrt_Core PRIVATE
-  ${CMAKE_CURRENT_BINARY_DIR}
-  ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/incOBlude
   ${PROJECT_SOURCE_DIR}/src
   ${PROJECT_BINARY_DIR}/include
   ${PROJECT_BINARY_DIR}/src
-  ${EXTERNAL_INCLUDE_DIRECTORIES}
   )
 
 add_sanitizers(etrt_Core)

@@ -54,9 +54,9 @@ void MemoryManager::uninitMemRegions() {
 }
 
 etrtError MemoryManager::mallocHost(void **ptr, size_t size) {
-  uint8_t *tptr = new uint8_t[size];
-  *ptr = tptr;
-  host_mem_region_[tptr] = std::unique_ptr<uint8_t>(tptr);
+  std::unique_ptr<uint8_t[]> tptr{new uint8_t[size]};
+  *ptr = tptr.get();
+  host_mem_region_.insert(std::make_pair(tptr.get(), std::move(tptr)));
   return etrtSuccess;
 }
 

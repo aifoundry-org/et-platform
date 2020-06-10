@@ -8,20 +8,17 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-add_library(etrt_Support OBJECT
-  CommandLineOptions.cc
-  DeviceGuard.cc
-  MemoryRange.cc
+add_library(etrt_C-API OBJECT
+  etrt.cc
   )
 
-target_include_directories(etrt_Support PRIVATE
+target_include_directories(etrt_C-API PRIVATE
   ${CMAKE_CURRENT_BINARY_DIR}
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/src
   ${PROJECT_BINARY_DIR}/include
   ${PROJECT_BINARY_DIR}/src
-  ${EXTERNAL_INCLUDE_DIRECTORIES}
   ${ESPERANTO_DEVICE_API_INCLUDE_DIR}
   )
 
-add_sanitizers(etrt_Support)
+add_sanitizers(etrt_C-API)

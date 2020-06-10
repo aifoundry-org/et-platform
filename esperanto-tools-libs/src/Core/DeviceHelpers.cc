@@ -30,7 +30,7 @@ static bool set_log_level_helper(Device &dev,
   dev.defaultStream().addCommand(log_level_cmd);
 
   auto response_future = log_level_cmd->getFuture();
-  auto &response = response_future.get().response();
+  auto response = response_future.get().response();
   // FIXME the command type should be a constant of the response class
   assert(response.response_info.message_id ==
              ::device_api::MBOX_DEVAPI_MESSAGE_ID_SET_MASTER_LOG_LEVEL_RSP ||

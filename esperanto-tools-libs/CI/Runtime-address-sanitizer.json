@@ -15,13 +15,13 @@
     ],
     "BUILD_STEPS": [
         "echo \"BUILD START\"",
-        "./sw-platform.py et-sw-platform  --network host \"mkdir -p build install && cd build && cmake .. -DSANITIZE_ADDRESS=ON && make runtime -j $(nproc) \" ",
+        "./sw-platform.py et-sw-platform --privileged --network host \"mkdir -p build install && cd build && cmake .. -DSANITIZE_ADDRESS=ON && make runtime -j $(nproc) \" ",
         "./sw-platform.py et-sw-platform  --network host \"ccache --show-stats \" ",
         "echo \"BUILD DONE\""
     ],
     "TEST_STEPS": [
         "echo \"TEST START\"",
-        "./sw-platform.py et-sw-platform  \"cd build/host-software/runtime && ctest3 -T Test -R runtime -L Generic --no-compress-output\" ",
+        "./sw-platform.py et-sw-platform --privileged \"cd build/host-software/runtime && ctest3 -T Test -R runtime -L Generic --no-compress-output\" ",
         "echo \"TEST DONE\""
     ]
 }

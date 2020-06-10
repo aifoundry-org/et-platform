@@ -127,7 +127,7 @@ etrtError UberKernel::UberKernelLaunch::launchBlocking(Stream *stream) {
   stream->addCommand(launch_cmd);
 
   auto response_future = launch_cmd->getFuture();
-  auto &response = response_future.get().response();
+  auto response = response_future.get().response();
   assert(response.response_info.message_id ==
          ::device_api::MBOX_DEVAPI_MESSAGE_ID_KERNEL_LAUNCH_RSP);
 

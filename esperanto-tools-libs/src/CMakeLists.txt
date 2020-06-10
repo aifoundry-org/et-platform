@@ -27,6 +27,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -fPIC -Wall")
 
 # List of subdirectories with our sources
 set(SUBFOLDERS
+  C-API
   CodeManagement
   Core
   DeviceAPI
@@ -104,8 +105,6 @@ set(ETRT_SOURCES
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/DeviceAPI/Event.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/DeviceAPI/Command.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/EsperantoRuntime.h
-  # FIXME the following should be deprecated once we move to the simulator API
-  C-API/etrt.cc
   demangle.h
   etlibdevice.h
   )
@@ -113,21 +112,7 @@ set(ETRT_SOURCES
 add_library(etrt_obj OBJECT ${ETRT_SOURCES})
 
 # Include path dependencies
-if(MINION_RUNTIME_FOUND)
-  target_include_directories(etrt_obj PRIVATE "${ESPERANTO_FW_INCLUDE_DIR}/esperanto-fw")
-endif(MINION_RUNTIME_FOUND)
-target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include")
-target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Device")
-target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/etrpc")
-target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/")
-target_include_directories(etrt_obj PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/..")
-target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/../include")
-include_directories(${PROJECT_SOURCE_DIR}/external/abseil)
-target_include_directories(etrt_obj PUBLIC ${EXTERNAL_INCLUDE_DIRECTORIES})
-target_include_directories(etrt_obj PUBLIC ${GLOG_INCLUDE_DIRS})
-target_include_directories(etrt_obj PUBLIC ${FMTLIB_INCLUDE_DIRS})
-target_include_directories(etrt_obj PUBLIC ${ESPERANTO_DEVICE_API_INCLUDE_DIR})
+# target_include_directories(etrt_obj PRIVATE "${ESPERANTO_FW_INCLUDE_DIR}/esperanto-fw")
 
 # Library dependencies
 target_link_libraries(etrt_obj pthread)

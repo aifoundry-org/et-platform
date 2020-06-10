@@ -17,6 +17,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/../include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/../src)
 include_directories(${EXTERNAL_INCLUDE_DIRECTORIES})
+include_directories(${ESPERANTO_FW_INCLUDE_DIR})
 
 link_directories(${GTEST_DIR}/lib64
   ${EXTERNAL_LINK_DIRECTORIES}

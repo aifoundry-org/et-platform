@@ -46,7 +46,7 @@ uint64_t GitVersionChecker::deviceFWHash() {
   def_stream.addCommand(devfw_cmd);
 
   auto response_future = devfw_cmd->getFuture();
-  auto &response = response_future.get().response();
+  auto response = response_future.get().response();
   assert(response.response_info.message_id ==
          ::device_api::MBOX_DEVAPI_MESSAGE_ID_DEVICE_FW_VERSION_RSP);
   device_fw_commit_ = response.device_fw_commit;
@@ -70,7 +70,7 @@ bool DeviceAPIChecker::getDeviceAPIVersion() {
   dev_.defaultStream().addCommand(devapi_cmd);
 
   auto response_future = devapi_cmd->getFuture();
-  auto &response = response_future.get().response();
+  auto response = response_future.get().response();
   assert(response.response_info.message_id ==
          ::device_api::MBOX_DEVAPI_MESSAGE_ID_DEVICE_API_VERSION_RSP);
   mmFWDevAPIMajor_ = response.major;
