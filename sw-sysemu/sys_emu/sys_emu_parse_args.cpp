@@ -34,7 +34,6 @@ static const char * help_msg =
      -ls <shire>,<threads>    Log given Threads of a Shire. Can be used multiple times. (default: all)\n\
      -minions <mask>          A mask of Minions that should be enabled in each Shire (default: 1 Minion/Shire)\n\
      -shires <mask>           A mask of Shires that should be enabled. (default: 1 Shire)\n\
-     -master_min              Enables master shire\n\
      -single_thread           Disable 2nd Minion thread\n\
      -mins_dis                Minions start disabled\n\
      -reset_pc <addr>         Sets boot program counter (default: 0x8000001000)\n\
@@ -209,15 +208,15 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "minions"))
         {
-            sscanf(optarg, "%" PRIx64, &minions_en);
+            sscanf(optarg, "%" PRIx64, &cmd_options.minions_en);
         }
         else if (!strcmp(name, "shires"))
         {
-            sscanf(optarg, "%" PRIx64, &shires_en);
+            sscanf(optarg, "%" PRIx64, &cmd_options.shires_en);
         }
         else if (!strcmp(name, "master_min"))
         {
-            cmd_options.master_min = true;
+            LOG_NOTHREAD(WARN, "%s", "Ignoring deprecated option '-master_min'");
         }
         else if (!strcmp(name, "single_thread"))
         {
