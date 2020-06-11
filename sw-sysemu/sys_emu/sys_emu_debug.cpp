@@ -135,7 +135,7 @@ void sys_emu::memdump(uint64_t addr, uint64_t size)
 {
     char ascii[17] = {0};
     for (uint64_t i = 0; i < size; i++) {
-        uint8_t data = bemu::pmemread<uint8_t>(bemu::vmemtranslate(addr + i, 1, bemu::Mem_Access_Load, bemu::mreg_t(-1)));
+        uint8_t data = bemu::pmemread<uint8_t>(bemu::Noshire_agent{}, addr + i);
         printf("%02X ", data);
         ascii[i % 16] = std::isprint(data) ? data : '.';
         if ((i + 1) % 8 == 0 || (i + 1) == size) {
@@ -237,14 +237,14 @@ bool sys_emu::process_dbg_cmd(std::string cmd) {
 bool sys_emu::get_pc_break(uint64_t &pc, int &thread) {
    for (int s = 0; s < EMU_NUM_SHIRES; s++)
    {
-      if (((shires_en >> s) & 1) == 0) continue;
+      if (((cmd_options.shires_en >> s) & 1) == 0) continue;
 
       unsigned shire_minion_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
       unsigned minion_thread_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_MINION);
 
       for (unsigned m = 0; m < shire_minion_count; m++)
       {
-         if (((minions_en >> m) & 1) == 0) continue;
+         if (((cmd_options.minions_en >> m) & 1) == 0) continue;
          for (unsigned ii = 0; ii < minion_thread_count; ii++) {
             unsigned thread_id = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
             uint64_t thread_pc = thread_get_pc(thread_id);

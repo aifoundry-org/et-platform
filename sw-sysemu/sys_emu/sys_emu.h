@@ -66,6 +66,8 @@ struct sys_emu_cmd_options {
     std::string elf_file;
     std::string mem_desc_file;
     std::string api_comm_path;
+    uint64_t    minions_en                   = 1;
+    uint64_t    shires_en                    = 1;
     bool        master_min                   = false;
     bool        second_thread                = true;
     bool        log_en                       = false;
@@ -79,8 +81,10 @@ struct sys_emu_cmd_options {
     uint64_t    max_cycles                   = 10000000;
     bool        mins_dis                     = false;
     uint32_t    mem_reset                    = 0;
-    std::string pu_uart_tx_file;
+    std::string pu_uart0_tx_file;
     std::string pu_uart1_tx_file;
+    std::string spio_uart0_tx_file;
+    std::string spio_uart1_tx_file;
     uint64_t    log_at_pc                    = ~0ull;
     uint64_t    stop_log_at_pc               = ~0ull;
     bool        display_trap_info            = false;
@@ -231,8 +235,6 @@ private:
     static uint16_t        pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
     static std::list<sys_emu_coop_tload> coop_tload_pending_list[EMU_NUM_THREADS];                      // List of pending cooperative tloads per thread
     static RVTimer         pu_rvtimer;
-    static uint64_t        minions_en;
-    static uint64_t        shires_en;
     static bool            mem_check;
     static mem_checker     mem_checker_;
     static bool            l1_scp_check;
