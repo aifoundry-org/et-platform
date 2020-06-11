@@ -17,6 +17,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(SimulatorAPI CONFIG REQUIRED)
 find_package(libunwind)
 
+set(SYSEMU_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/bin/ CACHE STRING "SysEmu install dir")
 set(SYSEMU_LIBS_FLAGS "")
 
 if(LIBUNWIND_FOUND)
@@ -90,6 +91,25 @@ if(LIBUNWIND_FOUND)
 endif()
 
 install(TARGETS sys_emu
-    RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+    RUNTIME DESTINATION ${SYSEMU_INSTALL_DIR}
     COMPONENT tools
+)
+
+### Add package information
+include(CMakePackageConfigHelpers)
+
+# Export the package for use from the build-tree
+export(PACKAGE Sysemu)
+
+# Create SysemuConfig.cmake
+configure_package_config_file(
+    SysemuConfig.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/SysemuConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_PREFIX}/cmake
+)
+
+# Install the SysemuConfig.cmake and SysemuConfigVersion.cmake
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/SysemuConfig.cmake
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/cmake/
+    COMPONENT sysemu
 )
