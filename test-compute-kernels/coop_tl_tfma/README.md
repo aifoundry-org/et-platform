@@ -17,7 +17,7 @@ tensor_c = 0x8280000000, tensor_d = 0x100000, shire_mask 0xFFFFFFFF.
 This should not spill into the output tensor (tensor_c). A 2MB image should be enough.
 
 3. Run with sys_emu:
-sys_emu -master_min -mem_desc mem_desc.txt -shires 1ffffffff -minions ffffffff -max_cycles 100000000
+sys_emu -mem_desc mem_desc.txt -shires 1ffffffff -minions ffffffff -max_cycles 100000000
 This will take ~9mins. See the CRC outputs and copy the correct values into include/crc_vals.h
 Build and run again. You should see no errors. Generate the zebu images and send it to Zebu
 
