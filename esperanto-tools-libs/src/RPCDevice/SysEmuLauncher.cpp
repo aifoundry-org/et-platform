@@ -26,12 +26,18 @@
 
 using namespace std;
 
-ABSL_FLAG(std::string, sysemu_pu_uart_tx_file, "",
-          "Set sysemu PU UART TX log file");
+ABSL_FLAG(uint64_t, sysemu_max_cycles, 50000000,
+          "Set SysEmu maximum cycles to run before finishing simulation");
+ABSL_FLAG(std::string, sysemu_pu_uart0_tx_file, "",
+          "Set SysEmu PU UART0 TX log file");
 ABSL_FLAG(std::string, sysemu_pu_uart1_tx_file, "",
-          "Set sysemu PU UART1 TX log file");
-ABSL_FLAG(std::string, sysemu_params, 
-          "", "Hyperparameters to pass to simulator, overrides default values");
+          "Set SysEmu PU UART1 TX log file");
+ABSL_FLAG(std::string, sysemu_spio_uart0_tx_file, "",
+          "Set SysEmu SPIO UART0 TX log file");
+ABSL_FLAG(std::string, sysemu_spio_uart1_tx_file, "",
+          "Set SysEmu SPIO UART1 TX log file");
+ABSL_FLAG(std::string, sysemu_params, "",
+          "Hyperparameters to pass to SysEmu, overrides default values");
 
 namespace et_runtime {
 namespace device {
@@ -44,10 +50,8 @@ SysEmuLauncher::SysEmuLauncher(
       absl::GetFlag(FLAGS_sysemu_path), // Path to SysEMU
       "-minions", "FFFFFFFF", // All minions enabled
       "-shires", "1FFFFFFFF", // All shires enabled
-      "-master_min",          // Enable master shire
       std::string("-api_comm"), connection_,
       "-mins_dis",            // Disable minions by default as booting is done through Sim API
-      "-max_cycles", "50000000",
   };
   execute_args_.insert(execute_args_.end(), additional_options.begin(),
                        additional_options.end());
@@ -55,12 +59,16 @@ SysEmuLauncher::SysEmuLauncher(
   // Enable async behavior of the simulator API
   execute_args_.push_back("-sim_api_async");
 
-  if (auto file = absl::GetFlag(FLAGS_sysemu_pu_uart_tx_file); !file.empty()) {
-    execute_args_.push_back("-pu_uart_tx_file");
+  // Set maximum simulator cycles
+  execute_args_.push_back("-max_cycles");
+  execute_args_.push_back(std::to_string(absl::GetFlag(FLAGS_sysemu_max_cycles)));
+
+  if (auto file = absl::GetFlag(FLAGS_sysemu_pu_uart0_tx_file); !file.empty()) {
+    execute_args_.push_back("-pu_uart0_tx_file");
     execute_args_.push_back(file);
   } else {
-    execute_args_.push_back("-pu_uart_tx_file");
-    execute_args_.push_back(sysemu_run_ + "/pu_uart_tx.log");
+    execute_args_.push_back("-pu_uart0_tx_file");
+    execute_args_.push_back(sysemu_run_ + "/pu_uart0_tx.log");
   }
 
   if (auto file = absl::GetFlag(FLAGS_sysemu_pu_uart1_tx_file); !file.empty()) {
@@ -69,6 +77,22 @@ SysEmuLauncher::SysEmuLauncher(
   } else {
     execute_args_.push_back("-pu_uart1_tx_file");
     execute_args_.push_back(sysemu_run_ + "/pu_uart1_tx.log");
+  }
+
+  if (auto file = absl::GetFlag(FLAGS_sysemu_spio_uart0_tx_file); !file.empty()) {
+    execute_args_.push_back("-spio_uart0_tx_file");
+    execute_args_.push_back(file);
+  } else {
+    execute_args_.push_back("-spio_uart0_tx_file");
+    execute_args_.push_back(sysemu_run_ + "/spio_uart0_tx.log");
+  }
+
+  if (auto file = absl::GetFlag(FLAGS_sysemu_spio_uart1_tx_file); !file.empty()) {
+    execute_args_.push_back("-spio_uart1_tx_file");
+    execute_args_.push_back(file);
+  } else {
+    execute_args_.push_back("-spio_uart1_tx_file");
+    execute_args_.push_back(sysemu_run_ + "/spio_uart1_tx.log");
   }
 
   // Additional SysEmu flags
