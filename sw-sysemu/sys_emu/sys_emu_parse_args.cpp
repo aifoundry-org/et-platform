@@ -34,7 +34,6 @@ static const char * help_msg =
      -ls <shire>,<threads>    Log given Threads of a Shire. Can be used multiple times. (default: all)\n\
      -minions <mask>          A mask of Minions that should be enabled in each Shire (default: 1 Minion/Shire)\n\
      -shires <mask>           A mask of Shires that should be enabled. (default: 1 Shire)\n\
-     -master_min              Enables master shire\n\
      -single_thread           Disable 2nd Minion thread\n\
      -mins_dis                Minions start disabled\n\
      -reset_pc <addr>         Sets boot program counter (default: 0x8000001000)\n\
@@ -42,8 +41,10 @@ static const char * help_msg =
      -max_cycles <cycles>     Stops execution after provided number of cycles (default: 10M)\n\
      -mem_reset <byte>        Reset value of main memory (default: 0)\n\
      -mem_reset32 <uint32>    Reset value of main memory (default: 0)\n\
-     -pu_uart_tx_file <path>  Path to the file in which to dump the contents of PU UART TX\n\
+     -pu_uart0_tx_file <path> Path to the file in which to dump the contents of PU UART0 TX\n\
      -pu_uart1_tx_file <path> Path to the file in which to dump the contents of PU UART1 TX\n\
+     -spio_uart0_tx_file <path> Path to the file in which to dump the contents of SPIO UART0 TX\n\
+     -spio_uart1_tx_file <path> Path to the file in which to dump the contents of SPIO UART1 TX\n\
      -log_at_pc <PC>          Enables logging when minion reaches a given PC\n\
      -stop_log_at_pc <PC>     Disables logging when minion reaches a given PC\n\
      -display_trap_info       Displays trap logging in the INFO channel instead of DEBUG\n\
@@ -116,8 +117,11 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"max_cycles",             required_argument, nullptr, 0},
         {"mem_reset",              required_argument, nullptr, 0},
         {"mem_reset32",            required_argument, nullptr, 0},
-        {"pu_uart_tx_file",        required_argument, nullptr, 0},
+        {"pu_uart_tx_file",        required_argument, nullptr, 0}, // same as '-pu_uart0_tx_file', kept for backwards compatibility
+        {"pu_uart0_tx_file",       required_argument, nullptr, 0},
         {"pu_uart1_tx_file",       required_argument, nullptr, 0},
+        {"spio_uart0_tx_file",     required_argument, nullptr, 0},
+        {"spio_uart1_tx_file",     required_argument, nullptr, 0},
         {"log_at_pc",              required_argument, nullptr, 0},
         {"stop_log_at_pc",         required_argument, nullptr, 0},
         {"display_trap_info",      no_argument,       nullptr, 0},
@@ -209,15 +213,15 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "minions"))
         {
-            sscanf(optarg, "%" PRIx64, &minions_en);
+            sscanf(optarg, "%" PRIx64, &cmd_options.minions_en);
         }
         else if (!strcmp(name, "shires"))
         {
-            sscanf(optarg, "%" PRIx64, &shires_en);
+            sscanf(optarg, "%" PRIx64, &cmd_options.shires_en);
         }
         else if (!strcmp(name, "master_min"))
         {
-            cmd_options.master_min = true;
+            LOG_NOTHREAD(WARN, "%s", "Ignoring deprecated option '-master_min'");
         }
         else if (!strcmp(name, "single_thread"))
         {
@@ -249,13 +253,21 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {
           cmd_options.mem_reset = strtol(optarg, NULL, 0);
         }
-        else if (!strcmp(name, "pu_uart_tx_file"))
+        else if (!strcmp(name, "pu_uart0_tx_file") || !strcmp(name, "pu_uart_tx_file"))
         {
-            cmd_options.pu_uart_tx_file = optarg;
+            cmd_options.pu_uart0_tx_file = optarg;
         }
         else if (!strcmp(name, "pu_uart1_tx_file"))
         {
             cmd_options.pu_uart1_tx_file = optarg;
+        }
+        else if (!strcmp(name, "spio_uart0_tx_file"))
+        {
+            cmd_options.spio_uart0_tx_file = optarg;
+        }
+        else if (!strcmp(name, "spio_uart1_tx_file"))
+        {
+            cmd_options.spio_uart1_tx_file = optarg;
         }
         else if (!strcmp(name, "log_at_pc"))
         {

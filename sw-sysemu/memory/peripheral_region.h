@@ -16,7 +16,7 @@
 #include <functional>
 #include <vector>
 #include "devices/plic.h"
-#include "devices/pu_uart.h"
+#include "devices/uart.h"
 #include "literals.h"
 #include "memory_error.h"
 #include "memory_region.h"
@@ -40,7 +40,7 @@ struct PeripheralRegion : public MemoryRegion {
     enum : unsigned long long {
         // base addresses for the various regions of the address space
         pu_plic_base    = 0x00000000,
-        pu_uart_base    = 0x02002000,
+        pu_uart0_base   = 0x02002000,
         pu_uart1_base   = 0x02007000,
     };
 
@@ -78,8 +78,8 @@ struct PeripheralRegion : public MemoryRegion {
 
     // Members
     PU_PLIC <pu_plic_base,  32_MiB>  pu_plic{};
-    PU_Uart <pu_uart_base,   4_KiB>  pu_uart{};
-    PU_Uart <pu_uart1_base,  4_KiB>  pu_uart1{};
+    Uart    <pu_uart0_base,  4_KiB>  pu_uart0{};
+    Uart    <pu_uart1_base,  4_KiB>  pu_uart1{};
 
 protected:
     static inline bool above(const MemoryRegion* lhs, size_type rhs) {
@@ -98,7 +98,7 @@ protected:
     // These arrays must be sorted by region offset
     std::array<MemoryRegion*,3> regions = {{
         &pu_plic,
-        &pu_uart,
+        &pu_uart0,
         &pu_uart1,
     }};
 };

@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <functional>
 #include "dense_region.h"
+#include "devices/uart.h"
 #include "literals.h"
 #include "memory_error.h"
 #include "memory_region.h"
@@ -38,8 +39,10 @@ struct SvcProcRegion : public MemoryRegion {
 
     enum : unsigned long long {
         // base addresses for the various regions of the address space
-        sp_rom_base    = 0x00000000,
-        sp_sram_base   = 0x00400000,
+        sp_rom_base     = 0x00000000,
+        sp_sram_base    = 0x00400000,
+        spio_uart0_base = 0x12022000,
+        spio_uart1_base = 0x14052000,
     };
 
     void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
@@ -77,6 +80,8 @@ struct SvcProcRegion : public MemoryRegion {
     // Members
     DenseRegion  <sp_rom_base, 128_KiB, false>  sp_rom{};
     SparseRegion <sp_sram_base, 1_MiB, 64_KiB>  sp_sram{};
+    Uart         <spio_uart0_base,  4_KiB>      spio_uart0{};
+    Uart         <spio_uart1_base,  4_KiB>      spio_uart1{};
 
 protected:
     static inline bool above(const MemoryRegion* lhs, size_type rhs) {
@@ -93,9 +98,11 @@ protected:
     }
 
     // These arrays must be sorted by region offset
-    std::array<MemoryRegion*,2> regions = {{
+    std::array<MemoryRegion*,4> regions = {{
         &sp_rom,
         &sp_sram,
+        &spio_uart0,
+        &spio_uart1,
     }};
 };
 

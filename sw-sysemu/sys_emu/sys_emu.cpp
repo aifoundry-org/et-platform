@@ -63,8 +63,6 @@ std::bitset<EMU_NUM_THREADS> sys_emu::active_threads;                           
 uint16_t        sys_emu::pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
 std::list<sys_emu_coop_tload>    sys_emu::coop_tload_pending_list[EMU_NUM_THREADS];                      // List of pending cooperative tloads per thread
 RVTimer         sys_emu::pu_rvtimer;
-uint64_t        sys_emu::minions_en = 1;
-uint64_t        sys_emu::shires_en  = 1;
 bool            sys_emu::mem_check = false;
 mem_checker     sys_emu::mem_checker_;
 bool            sys_emu::l1_scp_check = false;
@@ -113,7 +111,7 @@ sys_emu::fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread
     for(int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
     {
         // Skip disabled minion
-        if (((minions_en >> m) & 1) == 0) continue;
+        if (((cmd_options.minions_en >> m) & 1) == 0) continue;
 
         if ((thread_mask >> m) & 1)
         {
@@ -760,16 +758,16 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<
             return false;
     }
 
-    // Setup PU UART stream
-    if (!cmd_options.pu_uart_tx_file.empty()) {
-        int fd = open(cmd_options.pu_uart_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    // Setup PU UART0 stream
+    if (!cmd_options.pu_uart0_tx_file.empty()) {
+        int fd = open(cmd_options.pu_uart0_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
-            LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.pu_uart_tx_file.c_str());
+            LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.pu_uart0_tx_file.c_str());
             return false;
         }
-        bemu::memory.pu_io_space.pu_uart.fd = fd;
+        bemu::memory.pu_io_space.pu_uart0.fd = fd;
     } else {
-        bemu::memory.pu_io_space.pu_uart.fd = STDOUT_FILENO;
+        bemu::memory.pu_io_space.pu_uart0.fd = STDOUT_FILENO;
     }
 
     // Setup PU UART1 stream
@@ -782,6 +780,30 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<
         bemu::memory.pu_io_space.pu_uart1.fd = fd;
     } else {
         bemu::memory.pu_io_space.pu_uart1.fd = STDOUT_FILENO;
+    }
+
+    // Setup SPIO UART0 stream
+    if (!cmd_options.spio_uart0_tx_file.empty()) {
+        int fd = open(cmd_options.spio_uart0_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        if (fd < 0) {
+            LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.spio_uart0_tx_file.c_str());
+            return false;
+        }
+        bemu::memory.spio_space.spio_uart0.fd = fd;
+    } else {
+        bemu::memory.spio_space.spio_uart0.fd = STDOUT_FILENO;
+    }
+
+    // Setup SPIO UART1 stream
+    if (!cmd_options.spio_uart1_tx_file.empty()) {
+        int fd = open(cmd_options.spio_uart1_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        if (fd < 0) {
+            LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.spio_uart1_tx_file.c_str());
+            return false;
+        }
+        bemu::memory.spio_space.spio_uart1.fd = fd;
+    } else {
+        bemu::memory.spio_space.spio_uart1.fd = STDOUT_FILENO;
     }
 
     // Initialize Simulator API
@@ -810,11 +832,7 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<
         bemu::reset_esrs_for_shire(s);
 
         // Skip disabled shire
-        if (((shires_en >> s) & 1) == 0)
-            continue;
-
-        // Skip master shire if not enabled
-        if ((cmd_options.master_min == 0) && (s >= EMU_MASTER_SHIRE))
+        if (((cmd_options.shires_en >> s) & 1) == 0)
             continue;
 
         bool disable_multithreading =
@@ -827,7 +845,7 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<
                 (s == EMU_IO_SHIRE_SP) ? 1 : EMU_MINIONS_PER_SHIRE;
 
         // Enable threads
-        uint32_t minion_mask = minions_en & ((1ull << shire_minion_count) - 1);
+        uint32_t minion_mask = cmd_options.minions_en & ((1ull << shire_minion_count) - 1);
         bemu::write_thread0_disable(s, ~minion_mask);
         if (disable_multithreading) {
             bemu::write_thread1_disable(s, 0xffffffff);
@@ -838,7 +856,7 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<
         // For all the minions
         for (unsigned m = 0; m < shire_minion_count; m++) {
             // Skip disabled minion
-            if (((minions_en >> m) & 1) == 0)
+            if (((cmd_options.minions_en >> m) & 1) == 0)
                 continue;
 
             // Inits threads
@@ -1163,8 +1181,8 @@ sys_emu::main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<a
     if(!cmd_options.dump_mem.empty())
         bemu::dump_data(bemu::memory, cmd_options.dump_mem.c_str(), bemu::memory.first(), (bemu::memory.last() - bemu::memory.first()) + 1);
 
-    if(!cmd_options.pu_uart_tx_file.empty())
-        close(bemu::memory.pu_io_space.pu_uart.fd);
+    if(!cmd_options.pu_uart0_tx_file.empty())
+        close(bemu::memory.pu_io_space.pu_uart0.fd);
 
     if(!cmd_options.pu_uart1_tx_file.empty())
         close(bemu::memory.pu_io_space.pu_uart1.fd);
