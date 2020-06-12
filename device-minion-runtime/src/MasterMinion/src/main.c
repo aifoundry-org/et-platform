@@ -132,7 +132,7 @@ static void __attribute__((noreturn)) master_thread(void)
     );
 
 #ifdef DEBUG_SEND_MESSAGES_TO_SP
-    static uint8_t buffer[MBOX_MAX_MESSAGE_LENGTH] __attribute__((aligned(MBOX_BUFFER_ALIGNMENT)));
+    static uint8_t buffer[MBOX_MAX_MESSAGE_LENGTH] __attribute__((aligned(MBOX_BUFFER_ALIGNMENT))) = {0};
     uint16_t length = generate_message(buffer);
 #endif
 
@@ -255,7 +255,7 @@ static void fake_message_from_host(void)
 
 static void handle_messages_from_host(void)
 {
-    static uint8_t buffer[MBOX_MAX_MESSAGE_LENGTH] __attribute__((aligned(MBOX_BUFFER_ALIGNMENT)));
+    static uint8_t buffer[MBOX_MAX_MESSAGE_LENGTH] __attribute__((aligned(MBOX_BUFFER_ALIGNMENT))) = {0};
     int64_t length;
 
     MBOX_update_status(MBOX_PCIE);
@@ -348,7 +348,7 @@ static void handle_message_from_host(int64_t length, uint8_t* buffer)
 
 static void handle_messages_from_sp(void)
 {
-    static uint8_t buffer[MBOX_MAX_MESSAGE_LENGTH] __attribute__((aligned(MBOX_BUFFER_ALIGNMENT)));
+    static uint8_t buffer[MBOX_MAX_MESSAGE_LENGTH] __attribute__((aligned(MBOX_BUFFER_ALIGNMENT))) = {0};
     int64_t length;
 
     MBOX_update_status(MBOX_SP);
@@ -371,7 +371,7 @@ static void handle_message_from_sp(int64_t length, const uint8_t* const buffer)
     log_write(LOG_LEVEL_INFO, "Received message from SP, length = %" PRId64 "\r\n", length);
 
 #ifdef DEBUG_SEND_MESSAGES_TO_SP
-    static uint8_t receive_data;
+    static uint8_t receive_data = 0;
 
     for (int64_t i = 0; i < length; i++)
     {
@@ -409,7 +409,7 @@ static void handle_messages_from_workers(void)
 
 static void handle_message_from_worker(uint64_t shire, uint64_t hart)
 {
-    static message_t message;
+    static message_t message = {0};
     const kernel_id_t kernel = get_shire_kernel_id(shire);
 
     message_receive_master(shire, hart, &message);
@@ -538,7 +538,7 @@ static uint16_t lfsr(void)
 // Generates a random length message with a predictable pattern
 uint16_t generate_message(uint8_t* const buffer)
 {
-    static uint8_t transmit_data;
+    static uint8_t transmit_data = 0;
     uint16_t length;
 
     do {

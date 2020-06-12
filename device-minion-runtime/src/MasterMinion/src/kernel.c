@@ -29,7 +29,7 @@ typedef struct
 } kernel_status_t;
 
 // Local state
-static kernel_status_t kernel_status[MAX_SIMULTANEOUS_KERNELS];
+static kernel_status_t kernel_status[MAX_SIMULTANEOUS_KERNELS] = {0};
 
 // Shared state - Worker minion fetch kernel parameters from these
 static kernel_config_t* const kernel_config = (kernel_config_t*)FW_MASTER_TO_WORKER_KERNEL_CONFIGS;

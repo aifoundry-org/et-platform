@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-volatile bool pcie_interrupt_flag;
+volatile bool pcie_interrupt_flag = false;
 
 void pcie_isr(void)
 {

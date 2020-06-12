@@ -73,19 +73,14 @@ SECTIONS
 
     .bss (NOLOAD) :
     {
-        /* Align here to ensure crt.S bss init asm has an aligned start address */
-        . = ALIGN(4);
-        __bss_start = .;
-
         *(.bss .bss.* .gnu.linkonce.b.*)
     } > SDATA
 
     .sbss (NOLOAD) :
     {
         *(.sbss .sbss.* .gnu.linkonce.sb.*)
-
-        /* Align here to ensure crt.S bss init asm has an aligned end address */
-        . = ALIGN(4);
-        __bss_end = .;
     } > SDATA
 }
+
+ASSERT(SIZEOF(.bss) == 0,  "Error, image is shared so .bss section must be empty");
+ASSERT(SIZEOF(.sbss) == 0, "Error, image is shared so .sbss section must be empty");

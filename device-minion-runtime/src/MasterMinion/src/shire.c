@@ -9,7 +9,7 @@ typedef struct
 } shire_status_t;
 
 // Local state
-static shire_status_t shire_status[NUM_SHIRES];
+static shire_status_t shire_status[NUM_SHIRES] = {0};
 
 void update_shire_state(uint64_t shire, shire_state_t shire_state)
 {

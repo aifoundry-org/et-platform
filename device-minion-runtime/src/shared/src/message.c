@@ -115,7 +115,7 @@ int64_t broadcast_message_send_master(uint64_t dest_shire_mask, uint64_t dest_ha
     // TODO FIXME how does the master know when it's safe to update the broadcast message buffer?
     // No ack from minion...
 
-    static message_number_t number;
+    static message_number_t number = 0;
 
     // First broadcast message number is 1, so OK for worker minion
     // to init previous_broadcast_message_number to 0

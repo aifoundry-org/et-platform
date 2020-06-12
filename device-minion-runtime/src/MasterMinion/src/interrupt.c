@@ -18,7 +18,7 @@ static void plicDisableInterrupt(
     volatile uint32_t* const baseEnableReg,
     uint32_t intID);
 
-void (*vectorTable[PU_PLIC_INTR_CNT])(void);
+void (*vectorTable[PU_PLIC_INTR_CNT])(void) = {NULL};
 
 void* pullVectorTable = vectorTable;
 

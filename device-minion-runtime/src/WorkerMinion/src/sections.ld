@@ -74,20 +74,12 @@ SECTIONS
 
     .bss (NOLOAD) :
     {
-        /* Align here to ensure crt.S bss init asm has an aligned start address */
-        . = ALIGN(4);
-        __bss_start = .;
-
         *(.bss .bss.* .gnu.linkonce.b.*)
     } > SDATA
 
     .sbss (NOLOAD) :
     {
         *(.sbss .sbss.* .gnu.linkonce.sb.*)
-
-        /* Align here to ensure crt.S bss init asm has an aligned end address */
-        . = ALIGN(4);
-        __bss_end = .;
     } > SDATA
 
     .user_text :

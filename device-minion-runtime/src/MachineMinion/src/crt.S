@@ -1,6 +1,3 @@
-.extern __bss_start
-.extern __bss_end
-
 #include "layout.h"
 
 .section .text.init, "ax", @progbits
@@ -21,14 +18,7 @@ _start:
     li    sp, FW_MMODE_STACK_BASE
     sub   sp, sp, a0
 
-    # zero out the bss section
-    la   x26, __bss_start
-    la   x27, __bss_end
-    bge  x26, x27, bss_loop_end
-1:  sw   x0,  0(x26)
-    addi x26, x26, 4
-    blt  x26, x27, 1b
+    # we compile with -fno-zero-initialized-in-bss, therefore, no BSS is present
 
-bss_loop_end:
     la   a1, main
     jalr x0, a1
