@@ -62,7 +62,7 @@ void message_init_worker(uint64_t shire, uint64_t hart)
 // Should only be called by master minion
 uint64_t get_message_flags(uint64_t shire)
 {
-    return atomic_read(&(*worker_to_master_message_flags)[shire]);
+    return atomic_load_global_64(&(*worker_to_master_message_flags)[shire]);
 }
 
 // Atomically reads the message ID from a worker minion's master->worker mailbox
@@ -115,7 +115,7 @@ int64_t broadcast_message_send_master(uint64_t dest_shire_mask, uint64_t dest_ha
     // TODO FIXME how does the master know when it's safe to update the broadcast message buffer?
     // No ack from minion...
 
-    static message_number_t number;
+    static message_number_t number = 0;
 
     // First broadcast message number is 1, so OK for worker minion
     // to init previous_broadcast_message_number to 0
@@ -217,15 +217,7 @@ static inline __attribute__((always_inline)) void set_message_flag(uint64_t shir
     const uint64_t hart_mask = 1ULL << hart;
     volatile uint64_t* const message_flags_ptr = &(*worker_to_master_message_flags)[shire];
 
-    // Description: Global atomic 64-bit or operation between the value in integer register 'rs2'
-    // and the value in the memory address pointed by integer register 'rs1'.
-    // The original value in memory is returned in integer register 'rd'.
-    // Assembly: amoorg.d rd, rs2, (rs1)
-    asm volatile (
-        "amoorg.d x0, %1, %2"
-        : "+m" (*message_flags_ptr)
-        : "r" (message_flags_ptr), "r" (hart_mask)
-    );
+    atomic_or_global_64(message_flags_ptr, hart_mask);
 }
 
 // Atomically clears a message pending flag for a worker minion
@@ -235,15 +227,7 @@ static inline __attribute__((always_inline)) void clear_message_flag(uint64_t sh
     const uint64_t hart_mask = ~(1ULL << hart);
     volatile uint64_t* const message_flags_ptr = &(*worker_to_master_message_flags)[shire];
 
-    // Description: Global atomic 64-bit and operation between the value in integer register 'rs2'
-    // and the value in the memory address pointed by integer register 'rs1'.
-    // The original value in memory is returned in integer register 'rd'.
-    // Assembly: amoandg.d rd, rs2, (rs1)
-    asm volatile (
-        "amoandg.d x0, %1, %2"
-        : "+m" (*message_flags_ptr)
-        : "r" (message_flags_ptr), "r" (hart_mask)
-    );
+    atomic_and_global_64(message_flags_ptr, hart_mask);
 }
 
 // Evicts a message to L3 (point of coherency)

@@ -29,7 +29,7 @@ typedef struct
 } kernel_status_t;
 
 // Local state
-static kernel_status_t kernel_status[MAX_SIMULTANEOUS_KERNELS];
+static kernel_status_t kernel_status[MAX_SIMULTANEOUS_KERNELS] = {0};
 
 // Shared state - Worker minion fetch kernel parameters from these
 static kernel_config_t* const kernel_config = (kernel_config_t*)FW_MASTER_TO_WORKER_KERNEL_CONFIGS;
@@ -166,7 +166,7 @@ void update_kernel_state(kernel_id_t kernel_id, kernel_state_t kernel_state)
             kernel_status[kernel_id].kernel_state = KERNEL_STATE_RUNNING;
 
             // Mark all shires associated with this kernel as running
-            for (uint64_t shire = 0; shire < 33; shire++)
+            for (uint64_t shire = 0; shire < NUM_SHIRES; shire++)
             {
                 if (kernel_status[kernel_id].shire_mask & (1ULL << shire))
                 {
@@ -205,7 +205,7 @@ void update_kernel_state(kernel_id_t kernel_id, kernel_state_t kernel_state)
                                         DEV_API_KERNEL_LAUNCH_ERROR_RESULT_OK);
 
             // Mark all shires associated with this kernel as complete
-            for (uint64_t shire = 0; shire < 33; shire++)
+            for (uint64_t shire = 0; shire < NUM_SHIRES; shire++)
             {
                 if (kernel_status[kernel_id].shire_mask & (1ULL << shire))
                 {
@@ -263,7 +263,7 @@ void launch_kernel(const struct kernel_launch_cmd_t* const launch_cmd)
 
         volatile kernel_config_t* const kernel_config_ptr = &kernel_config[kernel_id];
 
-        for (uint64_t shire = 0; shire < 33; shire++)
+        for (uint64_t shire = 0; shire < NUM_SHIRES; shire++)
         {
             if (shire_mask & (1ULL << shire))
             {
@@ -293,7 +293,7 @@ void launch_kernel(const struct kernel_launch_cmd_t* const launch_cmd)
         // FIXME SW-1471 generate an event message back to the host that we launched
         kernel_status_ptr->shire_mask = shire_mask;
 
-        for (uint64_t shire = 0; shire < 33; shire++)
+        for (uint64_t shire = 0; shire < NUM_SHIRES; shire++)
         {
             if (shire_mask & (1ULL << shire))
             {

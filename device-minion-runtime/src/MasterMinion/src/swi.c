@@ -2,7 +2,7 @@
 
 void swi_handler(void);
 
-volatile bool swi_flag;
+volatile bool swi_flag = false;
 
 void swi_handler(void)
 {

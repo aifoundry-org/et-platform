@@ -3,109 +3,58 @@
 
 #include <stdint.h>
 
-// Generic atomic_read wrapper
-#define atomic_read(x) _Generic((x), \
-    volatile uint64_t*: read_u64, \
-    uint64_t*: read_u64, \
-    volatile int64_t*: read_64, \
-    int64_t*: read_64 \
-)(x)
-
-// Generic atomic_write wrapper
-#define atomic_write(x, y) _Generic((x), \
-    volatile uint64_t*: write_u64, \
-    uint64_t*: write_u64, \
-    volatile int64_t*: write_64, \
-    int64_t*: write_64 \
-)(x, y)
-
-// Generic atomic_add wrapper
-#define atomic_add(x, y) _Generic((x), \
-    volatile uint64_t*: add_u64, \
-    uint64_t*: add_u64, \
-    volatile int64_t*: add_64, \
-    int64_t*: add_64 \
-)(x, y)
-
-static inline __attribute__((always_inline)) uint64_t read_u64(const volatile uint64_t* const address)
-{
-    uint64_t result;
-
-    // Description: Global atomic 64-bit or operation between the value in integer register 'rs2'
-    // and the value in the memory address pointed by integer register 'rs1'.
-    // The original value in memory is returned in integer register 'rd'.
-    // Assembly: amoorg.d rd, rs2, (rs1)
-    asm volatile (
-        "amoorg.d %0, %1, x0"
-        : "=r" (result)
-        : "r" (address), "m" (*address)
-    );
-
-    return result;
+#define atomic_load_template(scope, type, cscope, size)                                            \
+static inline uint##size##_t atomic_load_##cscope##_##size(volatile const uint##size##_t *address) \
+{                                                                                                  \
+    uint##size##_t result;                                                                         \
+    asm volatile(                                                                                  \
+        "amoor" #scope "." #type " %[res], x0, %[addr]"                                            \
+        : [res]  "=r" (result)                                                                     \
+        : [addr]  "A" (*address)                                                                   \
+    );                                                                                             \
+    return result;                                                                                 \
 }
 
-static inline __attribute__((always_inline)) int64_t read_64(const volatile int64_t* const address)
-{
-    int64_t result;
-
-    asm volatile (
-        "amoorg.d %0, %1, x0"
-        : "=r" (result)
-        : "r" (address), "m" (*address)
-    );
-
-    return result;
+#define atomic_store_template(scope, type, cscope, size)                                                  \
+static inline void atomic_store_##cscope##_##size(volatile uint##size##_t *address, uint##size##_t value) \
+{                                                                                                         \
+    asm volatile(                                                                                         \
+        "amoswap" #scope "." #type " x0, %[val], %[addr]"                                                 \
+        : [addr] "=A" (*address)                                                                          \
+        : [val]   "r" (value)                                                                             \
+    );                                                                                                    \
 }
 
-static inline __attribute__((always_inline)) void write_u64(volatile uint64_t* const address, uint64_t data)
-{
-    // Description: Global atomic 64-bit swap operation between the value in integer register 'rs2'
-    // and the value in the memory address pointed by integer register 'rs1'.
-    // Assembly: amoswapg.d rd, rs2, (rs1)
-    asm volatile (
-        "amoswapg.d x0, %1, %2 \n"
-        : "=m" (*address)
-        : "r" (address), "r" (data)
-    );
+#define atomic_op_template(name, op, scope, type, cscope, size)                                                        \
+static inline uint##size##_t atomic_##name##_##cscope##_##size(volatile uint##size##_t *address, uint##size##_t value) \
+{                                                                                                                      \
+    uint##size##_t result;                                                                                             \
+    asm volatile(                                                                                                      \
+        "amo" #op "" #scope "." #type " %[res], %[val], %[addr]"                                                       \
+        : [res]  "=r" (result),                                                                                        \
+          [addr] "+A" (*address)                                                                                       \
+        : [val]   "r" (value)                                                                                          \
+    );                                                                                                                 \
+    return result;                                                                                                     \
 }
 
-static inline __attribute__((always_inline)) void write_64(volatile int64_t* const address, int64_t data)
-{
-    asm volatile (
-        "amoswapg.d x0, %1, %2 \n"
-        : "=m" (*address)
-        : "r" (address), "r" (data)
-    );
-}
+#define atomic_define_variants(func)           \
+    atomic_##func##_template(l, w, local,  32) \
+    atomic_##func##_template(l, d, local,  64) \
+    atomic_##func##_template(g, w, global, 32) \
+    atomic_##func##_template(g, d, global, 64)
 
-static inline __attribute__((always_inline)) uint64_t add_u64(volatile uint64_t* const address, uint64_t data)
-{
-    uint64_t prev;
+#define atomic_define_op_variants(name, op)        \
+    atomic_op_template(name, op, l, w, local,  32) \
+    atomic_op_template(name, op, l, d, local,  64) \
+    atomic_op_template(name, op, g, w, global, 32) \
+    atomic_op_template(name, op, g, d, global, 64)
 
-    // Description: Global atomic 64-bit addition operation between the value in integer register ‘rs2’
-    // and the value in the memory address pointed by integer register ‘rs1’.
-    // The original value in memory is returned in integer register ‘rd’.
-    // Assembly: amoaddg.d rd, rs2, (rs1)
-    asm volatile (
-        "amoaddg.d %0, %2, %3 \n"
-        : "=r" (prev), "+m" (*address)
-        : "r" (address), "r" (data)
-    );
-
-    return prev;
-}
-
-static inline __attribute__((always_inline)) int64_t add_64(volatile int64_t* const address, int64_t data)
-{
-    int64_t prev;
-
-    asm volatile (
-        "amoaddg.d %0, %2, %3 \n"
-        : "=r" (prev), "+m" (*address)
-        : "r" (address), "r" (data)
-    );
-
-    return prev;
-}
+atomic_define_variants(load)
+atomic_define_variants(store)
+atomic_define_op_variants(exchange, swap)
+atomic_define_op_variants(add, add)
+atomic_define_op_variants(and, and)
+atomic_define_op_variants(or, or)
 
 #endif

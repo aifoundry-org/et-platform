@@ -1,5 +1,6 @@
 #include "kernel.h"
 #include "kernel_sync.h"
+#include "barrier.h"
 #include "cacheops.h"
 #include "kernel_info.h"
 #include "fcc.h"
@@ -16,6 +17,8 @@
 #include <inttypes.h>
 
 static const uint8_t tensor_zeros[64] __attribute__ ((aligned (64))) = {0};
+
+static local_fcc_barrier_t post_kernel_barrier[NUM_SHIRES] = {0};
 
 static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, const grid_config_t* const grid_config_ptr);
 static void kernel_return_function(int64_t return_value) __attribute__ ((used, section(".user_text"))); // must be placed in U-mode accessible section
@@ -190,6 +193,9 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __a
         // Enable cooperative TensorLoads and TensorStores in this shire
         volatile uint64_t* const shire_coop_mode_ptr = (volatile uint64_t *)ESR_SHIRE(THIS_SHIRE, SHIRE_COOP_MODE);
         *shire_coop_mode_ptr = 1;
+
+        // Init post-kernel launch barrier
+        local_fcc_barrier_init(&post_kernel_barrier[shire_id]);
     }
 
     // Empty all FCCs
@@ -299,6 +305,7 @@ static void log_errors(int64_t return_value, uint64_t tensor_error)
 static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr)
 {
     bool result;
+    const uint64_t shire_id = get_shire_id();
     const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
     const uint32_t minion_mask = (get_shire_id() == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
 
@@ -321,24 +328,13 @@ static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr)
     WAIT_TENSOR_STORE
     WAIT_TENSOR_REDUCE
 
-    // Empty FCC0
-    init_fcc(FCC_0);
-
-    WAIT_FLB(thread_count, 29, result);
-
-    if (result)
-    {
-        // Last thread to join barrier sends FCC0 to all HARTs in this shire
-        SEND_FCC(THIS_SHIRE, THREAD_0, FCC_0, minion_mask);
-        SEND_FCC(THIS_SHIRE, THREAD_1, FCC_0, minion_mask);
-    }
-
-    // Wait until all HARTs are synchronized in post_kernel_cleanup before
-    // draining coalescing buffer and evicting L1->L2 and L2->L3
-    WAIT_FCC(0);
+    // Local barrier with all the participating threads of the shire
+    local_fcc_barrier(&post_kernel_barrier[shire_id], thread_count, minion_mask);
 
     syscall(SYSCALL_POST_KERNEL_CLEANUP_INT, thread_count, 0, 0);
 
+    // FIXME: Dangerous to FCCs/FLBs, a malicious thread running in another shire might send FLBs...
+    init_fcc(FCC_0);
     WAIT_FLB(thread_count, 31, result);
 
     // Last thread to join barrier sends done FCC1 to master shire sync thread

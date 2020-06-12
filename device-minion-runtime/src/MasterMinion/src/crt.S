@@ -1,6 +1,3 @@
-.extern __bss_start
-.extern __bss_end
-
 #include "layout.h"
 
 .section .text.init, "ax", @progbits
@@ -21,19 +18,7 @@ _start:
     li    sp, FW_SMODE_STACK_BASE
     sub   sp, sp, a0
 
-    # skip bss init if not minion 0 thread 0 in the shire
-    csrr  a0, hartid
-    andi  a0, a0, 0x3F
-    bnez  a0, bss_loop_end
+    # we compile with -fno-zero-initialized-in-bss, therefore, no BSS is present
 
-    # zero out the bss section
-    la   x26, __bss_start
-    la   x27, __bss_end
-    bge  x26, x27, bss_loop_end
-1:  sw   x0,  0(x26)
-    addi x26, x26, 4
-    blt  x26, x27, 1b
-
-bss_loop_end:
     la   a1, main
     jalr x0, a1
