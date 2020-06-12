@@ -9,7 +9,7 @@ typedef struct
 } shire_status_t;
 
 // Local state
-static shire_status_t shire_status[33];
+static shire_status_t shire_status[NUM_SHIRES];
 
 void update_shire_state(uint64_t shire, shire_state_t shire_state)
 {
@@ -43,7 +43,7 @@ void update_shire_state(uint64_t shire, shire_state_t shire_state)
 
 bool all_shires_ready(uint64_t shire_mask)
 {
-    for (uint64_t shire = 0; shire < 33; shire++)
+    for (uint64_t shire = 0; shire < NUM_SHIRES; shire++)
     {
         if (shire_mask & (1ULL << shire))
         {

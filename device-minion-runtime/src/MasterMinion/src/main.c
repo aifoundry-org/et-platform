@@ -390,7 +390,7 @@ static void handle_message_from_sp(int64_t length, const uint8_t* const buffer)
 static void handle_messages_from_workers(void)
 {
     // Check for messages from every hart in every shire
-    for (uint64_t shire = 0; shire < 33; shire++)
+    for (uint64_t shire = 0; shire < NUM_SHIRES; shire++)
     {
         const uint64_t flags = get_message_flags(shire);
 
