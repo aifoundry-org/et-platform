@@ -159,6 +159,7 @@ endif(ENABLE_PCIE)
 set(DUAL_TEST_LIST
   device-fw/test_device_api.cc:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR}"
   device-fw/test_launch_uberkernel.cc:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR}"
+  device-fw/test_hang.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
   )
 create_test_targets("${DUAL_TEST_LIST}" "${DUAL_TEST_LABELS}")
 
@@ -166,9 +167,6 @@ create_test_targets("${DUAL_TEST_LIST}" "${DUAL_TEST_LABELS}")
 set(QEMU_TEST_LIST
   pcie/test_pcie_device.cc:""
   pcie/test_pcie_launch_kernels.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
-  pcie/test_hang.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
   )
 
 create_test_targets("${QEMU_TEST_LIST}" "LABELS;QEMU-Driver-SNPS;TIMEOUT;600")
-
-
