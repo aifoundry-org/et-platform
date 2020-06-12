@@ -73,6 +73,7 @@ install(
  install(
    FILES
     include/atomic.h
+    include/barrier.h
     include/cacheops.h
     include/common.h
     include/esr_defines.h
