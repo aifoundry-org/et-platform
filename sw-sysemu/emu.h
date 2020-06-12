@@ -41,6 +41,10 @@ extern bool thread_is_blocked(unsigned thread);
 // Main memory accessors
 extern void set_msg_funcs(void (*func_msg_to_thread) (unsigned));
 
+// Decode an instruction and return an opaque handler unique per opcode
+// FIXME: we need a better place to put this
+extern uintptr_t decode(uint32_t bits);
+
 // FIXME: This should be made internal to the checker
 #ifndef SYS_EMU
 std::queue<uint32_t>& get_minions_to_awake();

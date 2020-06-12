@@ -1155,6 +1155,24 @@ static const insn_decode_func_t functab16b[32] = {
 };
 
 
+// FIXME: we need a better place to put this code, but it uses all these
+// decode tables only visible to this file...
+uintptr_t decode(uint32_t bits)
+{
+    insn_t inst = { bits, 0 };
+    insn_exec_funct_t exec_fn = nullptr;
+
+    if ((inst.bits & 0x3) == 0x3) {
+        int idx = ((inst.bits >> 2) & 0x1f);
+        exec_fn = functab32b[idx](inst.bits, inst.flags);
+    } else {
+        int idx = ((inst.bits >> 11) & 0x1c) | (inst.bits & 0x03);
+        exec_fn = functab16b[idx](inst.bits, inst.flags);
+    }
+    return reinterpret_cast<uintptr_t>(exec_fn);
+}
+
+
 void Hart::execute()
 {
     // Decode the fetched bits
