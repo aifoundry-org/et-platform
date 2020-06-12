@@ -8,15 +8,15 @@
 #include <stddef.h>
 
 #define BASE_ADDR_FOR_THIS_TEST  0x8200000000ULL
-#define POLYNOMIAL_BIT 0x000008012ULL 
+#define POLYNOMIAL_BIT 0x000008012ULL
 #define LFSR_SHIFTS_PER_READ 5
 
 // tensor_a is address offset to start at a random shire-id
 // One minion per shire participate in the test
-// Starting at tensor_a, the address loops through all the shires, covering each of them once  
+// Starting at tensor_a, the address loops through all the shires, covering each of them once
 
 static inline uint64_t generate_random_value(uint64_t lfsr) __attribute((always_inline));
-       
+
 int64_t main(const kernel_params_t* const kernel_params_ptr)
 {
 
@@ -28,20 +28,20 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     }
 
     const uint64_t hart_id = get_hart_id();
-    uint64_t lsfr_init = kernel_params_ptr->tensor_a & 0xFFF0; 
+    uint64_t lsfr_init = kernel_params_ptr->tensor_a & 0xFFF0;
     uint64_t lfsr = (((hart_id << 24) | (hart_id << 12) | hart_id) & 0x3FFFFFFFF) ^ lsfr_init;
     uint64_t lfsr_use;
 
     if ((hart_id % 64) == 0) {
        lfsr = generate_random_value(lfsr);
-       lfsr_use = lfsr & 0x1F; 
+       lfsr_use = lfsr & 0x1F;
          for(int i=0;i<31;i++) {
            long unsigned int shire_addr = BASE_ADDR_FOR_THIS_TEST | (lfsr_use << 6);
-           volatile uint64_t* atomic_addr = (uint64_t*)shire_addr; 
-           atomic_add(atomic_addr,0x1);
+           volatile uint64_t* atomic_addr = (uint64_t*)shire_addr;
+           atomic_add_global_64(atomic_addr,0x1);
            if(lfsr_use == 31) { lfsr_use = 0; } else { lfsr_use++; }
          }
-       return 0; 
+       return 0;
     }
     else {return 0;}
 }
@@ -88,5 +88,5 @@ uint64_t generate_random_value(uint64_t lfsr)
         lfsr ^= (polynomial & (uint64_t)mask);
 #endif
     }
-    return lfsr;  
+    return lfsr;
 }

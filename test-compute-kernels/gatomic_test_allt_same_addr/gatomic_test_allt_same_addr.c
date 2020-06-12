@@ -29,10 +29,10 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     long unsigned int shire_addr;
     volatile uint64_t* atomic_addr;
     shire_addr = BASE_ADDR_FOR_THIS_TEST | addr;
-    atomic_addr = (uint64_t*)shire_addr;    
+    atomic_addr = (uint64_t*)shire_addr;
 
     //Each minion updates the same addr
-    atomic_add(atomic_addr,0x1);
+    atomic_add_global_64(atomic_addr,0x1);
     return 0;
-    
+
 }
