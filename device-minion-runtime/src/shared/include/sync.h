@@ -26,6 +26,7 @@ static inline bool local_fcc_barrier(local_fcc_barrier_t *barrier, uint32_t thre
         while (atomic_load_local_32(&barrier->out) != thread_count - 1) {
             SEND_FCC(THIS_SHIRE, THREAD_0, FCC_0, minion_mask);
             SEND_FCC(THIS_SHIRE, THREAD_1, FCC_0, minion_mask);
+            FENCE
         }
         atomic_add_local_32(&barrier->out, 1);
         return true;
