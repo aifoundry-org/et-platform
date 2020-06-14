@@ -1,6 +1,5 @@
 #include "kernel.h"
 #include "kernel_sync.h"
-#include "barrier.h"
 #include "cacheops.h"
 #include "kernel_info.h"
 #include "fcc.h"
@@ -11,6 +10,7 @@
 #include "macros.h"
 #include "message.h"
 #include "printf.h"
+#include "sync.h"
 #include "syscall_internal.h"
 
 #include <stdbool.h>

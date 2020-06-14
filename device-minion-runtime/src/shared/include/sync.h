@@ -1,5 +1,5 @@
-#ifndef BARRIER_H
-#define BARRIER_H
+#ifndef SYNC_H
+#define SYNC_H
 
 #include <stdint.h>
 #include <stdbool.h>

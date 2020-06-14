@@ -73,7 +73,6 @@ install(
  install(
    FILES
     include/atomic.h
-    include/barrier.h
     include/cacheops.h
     include/common.h
     include/esr_defines.h
@@ -89,6 +88,7 @@ install(
     include/minion_esr_defines.h
     include/printf.h
     include/serial.h
+    include/sync.h
     include/syscall.h
     include/tensor.h
     include/trap_handler.h
