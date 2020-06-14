@@ -43,4 +43,33 @@ static inline bool local_fcc_barrier(local_fcc_barrier_t *barrier, uint32_t thre
     }
 }
 
+typedef struct {
+    uint32_t flag;
+} __attribute__((aligned(CACHE_LINE_SIZE))) global_fcc_flag_t;
+
+static inline void global_fcc_flag_init(global_fcc_flag_t *flag)
+{
+    atomic_store_global_32(&flag->flag, 0);
+}
+
+static inline void global_fcc_flag_wait(global_fcc_flag_t *flag)
+{
+    do {
+        WAIT_FCC(FCC_0);
+    } while (atomic_load_global_32(&flag->flag) != 1);
+
+    atomic_store_global_32(&flag->flag, 0);
+}
+
+static inline void global_fcc_flag_notify(global_fcc_flag_t *flag, uint32_t minion, uint32_t thread)
+{
+    atomic_store_global_32(&flag->flag, 1);
+    FENCE
+
+    do {
+        SEND_FCC(THIS_SHIRE, thread, FCC_0, 1U << minion);
+        FENCE
+    } while (atomic_load_global_32(&flag->flag) != 0);
+}
+
 #endif
