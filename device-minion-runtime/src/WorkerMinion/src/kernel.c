@@ -1,6 +1,5 @@
 #include "kernel.h"
 #include "kernel_sync.h"
-#include "barrier.h"
 #include "cacheops.h"
 #include "kernel_info.h"
 #include "fcc.h"
@@ -11,6 +10,7 @@
 #include "macros.h"
 #include "message.h"
 #include "printf.h"
+#include "sync.h"
 #include "syscall_internal.h"
 
 #include <stdbool.h>
@@ -333,7 +333,7 @@ static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr)
 
     syscall(SYSCALL_POST_KERNEL_CLEANUP_INT, thread_count, 0, 0);
 
-    // FIXME: Dangerous to FCCs/FLBs, a malicious thread running in another shire might send FLBs...
+    // FIXME: Dangerous to use FCCs/FLBs, a malicious thread running in another shire might send them...
     init_fcc(FCC_0);
     WAIT_FLB(thread_count, 31, result);
 
