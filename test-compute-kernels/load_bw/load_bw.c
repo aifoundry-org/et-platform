@@ -7,8 +7,11 @@
 #include "kernel_params.h"
 #include "log.h"
 #include "cacheops.h"
+#include "fcc.h"
+#include "flb.h"
 
 #define CACHE_LINE_SIZE 8
+#define FCC_FLB 2
 
 // Load BW test.
 // The test receives as input an array of addresses
@@ -77,6 +80,41 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
       sum = sum + content;
     }
    
+    // Prefetch tensor into L2
+    for (uint64_t i = 0; i < num_iter; i++) {
+        uint64_t offset = (minion_id*num_iter) + i;
+	uint64_t offset_addr = kernel_params_ptr->tensor_a + offset*8;
+	prefetch_va(0, 1, offset_addr, 0, 0x40, 0, 0);
+    }
+
+    WAIT_CACHEOPS;
+
+    // Sync up minions across shires.
+    // Minion with minion_id = shire_id sends credit to all other shires to minions with same minion_id.
+    uint64_t local_minion_id = minion_id & 0x1F;
+    uint64_t target_min_mask = 1ULL << local_minion_id;
+    uint64_t shire_id = minion_id >> 5;
+    if (local_minion_id == shire_id) {
+      for (uint64_t target_shire=0; target_shire < 32; target_shire++) {
+	if (shire_id == target_shire) continue;
+	SEND_FCC(target_shire, 0, 0, target_min_mask);
+      }
+    } else {
+      WAIT_FCC(0);
+    }
+
+    // Synchronize all minions in shires now
+    uint64_t barrier_result;
+    WAIT_FLB(32, FCC_FLB, barrier_result);
+    if (barrier_result == 1) {
+      target_min_mask = 0xFFFFFFFFUL;
+      target_min_mask = target_min_mask & (~(1ULL << minion_id));
+      SEND_FCC(shire_id, 0, 1, target_min_mask);
+    } else {
+      WAIT_FCC(1);
+    }
+    FENCE;
+
     __asm__ __volatile__("slti x0,x0,0xab");
 
 
