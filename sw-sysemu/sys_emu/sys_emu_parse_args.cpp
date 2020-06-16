@@ -35,7 +35,7 @@ static const char * help_msg =
      -minions <mask>          A mask of Minions that should be enabled in each Shire (default: 1 Minion/Shire)\n\
      -shires <mask>           A mask of Shires that should be enabled. (default: 1 Shire)\n\
      -single_thread           Disable 2nd Minion thread\n\
-     -mins_dis                Minions start disabled\n\
+     -mins_dis                Minions (not including SP) start disabled\n\
      -reset_pc <addr>         Sets boot program counter (default: 0x8000001000)\n\
      -sp_reset_pc <addr>      Sets Service Processor boot program counter (default: 0x40000000)\n\
      -max_cycles <cycles>     Stops execution after provided number of cycles (default: 10M)\n\
@@ -109,7 +109,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"ls",                     required_argument, nullptr, 0},
         {"minions",                required_argument, nullptr, 0},
         {"shires",                 required_argument, nullptr, 0},
-        {"master_min",             no_argument,       nullptr, 0},
+        {"master_min",             no_argument,       nullptr, 0}, // deprecated, use -shires <mask> to enable Master Shire and SP
         {"single_thread",          no_argument,       nullptr, 0},
         {"mins_dis",               no_argument,       nullptr, 0},
         {"reset_pc",               required_argument, nullptr, 0},
