@@ -38,6 +38,7 @@ static const char * help_msg =
      -mins_dis                Minions (not including SP) start disabled\n\
      -reset_pc <addr>         Sets boot program counter (default: 0x8000001000)\n\
      -sp_reset_pc <addr>      Sets Service Processor boot program counter (default: 0x40000000)\n\
+     -set_xreg <t>,<r>,<val>  Sets the xregister (integer) <r> of thread <t> to value <val>. <t> can be 'sp' for the Service Processor\n\
      -max_cycles <cycles>     Stops execution after provided number of cycles (default: 10M)\n\
      -mem_reset <byte>        Reset value of main memory (default: 0)\n\
      -mem_reset32 <uint32>    Reset value of main memory (default: 0)\n\
@@ -95,7 +96,8 @@ std::tuple<bool, struct sys_emu_cmd_options>
 sys_emu::parse_command_line_arguments(int argc, char* argv[])
 {
     sys_emu_cmd_options cmd_options;
-    int ret, index;
+    int opt, index;
+    bool ret = true;
     uint64_t dump_at_end_addr = 0, dump_at_end_size = 0;
     uint64_t dump_at_pc_pc, dump_at_pc_addr, dump_at_pc_size;
 
@@ -114,6 +116,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"mins_dis",               no_argument,       nullptr, 0},
         {"reset_pc",               required_argument, nullptr, 0},
         {"sp_reset_pc",            required_argument, nullptr, 0},
+        {"set_xreg",               required_argument, nullptr, 0},
         {"max_cycles",             required_argument, nullptr, 0},
         {"mem_reset",              required_argument, nullptr, 0},
         {"mem_reset32",            required_argument, nullptr, 0},
@@ -156,8 +159,8 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {nullptr,                  0,                 nullptr, 0}
     };
 
-    while ((ret = getopt_long_only(argc, argv, "", long_options, &index)) != -1) {
-        if (ret == '?') {
+    while ((opt = getopt_long_only(argc, argv, "", long_options, &index)) != -1) {
+        if (opt == '?') {
             LOG_NOTHREAD(FTL, "%s", "Wrong arguments");
             continue;
         }
@@ -239,6 +242,41 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {
             sscanf(optarg, "%" PRIx64, &cmd_options.sp_reset_pc);
         }
+        else if (!strcmp(name, "set_xreg"))
+        {
+            uint64_t thread, xreg, value;
+            char *tokens[3];
+
+            int ntokens = strsplit(optarg, ",", tokens, 3);
+            if (ntokens != 3) {
+                LOG_NOTHREAD(FTL, "%s", "Command line option '-set_xreg': Wrong number of arguments\n");
+                ret = false;
+                break;
+            }
+
+            if (!strcmp(tokens[0], "sp")) {
+                thread = EMU_IO_SHIRE_SP_THREAD;
+            } else {
+                thread = atoi(tokens[0]);
+                if (thread == IO_SHIRE_SP_HARTID) {
+                    thread = EMU_IO_SHIRE_SP_THREAD;
+                } else if (thread >= EMU_NUM_THREADS) {
+                    LOG_NOTHREAD(FTL, "%s", "Command line option '-set_xreg': Invalid thread\n");
+                    ret = false;
+                    break;
+                }
+            }
+
+            xreg = atoi(tokens[1]);
+            if (xreg == 0 || xreg >= bemu::NXREGS) {
+                LOG_NOTHREAD(FTL, "%s", "Command line option '-set_xreg': Invalid xreg\n");
+                ret = false;
+                break;
+            }
+
+            value = strtoull(tokens[2], nullptr, 0);
+            cmd_options.set_xreg.push_back({thread, xreg, value});
+        }
         else if (!strcmp(name, "max_cycles"))
         {
             sscanf(optarg, "%" SCNu64, &cmd_options.max_cycles);
@@ -291,12 +329,8 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "dump_file"))
         {
-            sys_emu_cmd_options::dump_info dump = {
-                dump_at_end_addr,
-                dump_at_end_size,
-                std::string(optarg)
-             };
-            cmd_options.dump_at_end.push_back(dump);
+            cmd_options.dump_at_end.push_back({dump_at_end_addr, dump_at_end_size,
+                std::string(optarg)});
         }
         else if (!strcmp(name, "dump_mem"))
         {
@@ -388,12 +422,12 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
 #endif
         else if (!strcmp(name, "help")) {
-            std::tuple<bool, sys_emu_cmd_options> ret_value(false, sys_emu_cmd_options());
-            return ret_value;
+            ret = false;
+            break;
         }
     }
 
-    std::tuple<bool, sys_emu_cmd_options> ret_value(true, cmd_options);
+    std::tuple<bool, sys_emu_cmd_options> ret_value(ret, cmd_options);
     return ret_value;
 }
 

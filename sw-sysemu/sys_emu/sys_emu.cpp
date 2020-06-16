@@ -877,6 +877,10 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<
         }
     }
 
+    // Initialize xregs passed to command line
+    for (auto &info: cmd_options.set_xreg)
+        bemu::cpu[info.thread].xregs[info.xreg] = info.value;
+
     return true;
 }
 
