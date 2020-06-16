@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <fmt/format.h>
 #include <glog/logging.h>
+#include <limits>
 #include <memory>
 #include <stddef.h>
 #include <sys/prctl.h>
@@ -26,7 +27,7 @@
 
 using namespace std;
 
-ABSL_FLAG(uint64_t, sysemu_max_cycles, 50000000,
+ABSL_FLAG(uint64_t, sysemu_max_cycles, std::numeric_limits<uint64_t>::max(),
           "Set SysEmu maximum cycles to run before finishing simulation");
 ABSL_FLAG(std::string, sysemu_pu_uart0_tx_file, "",
           "Set SysEmu PU UART0 TX log file");
@@ -61,7 +62,12 @@ SysEmuLauncher::SysEmuLauncher(
 
   // Set maximum simulator cycles
   execute_args_.push_back("-max_cycles");
-  execute_args_.push_back(std::to_string(absl::GetFlag(FLAGS_sysemu_max_cycles)));
+
+  // FIXME SW-3281, for now do not remove the command-line option as it is being
+  // still set by the tests, For now ignore the command-line value.
+  auto max_cycles =  std::numeric_limits<uint64_t>::max();
+
+  execute_args_.push_back(std::to_string(max_cycles));
 
   if (auto file = absl::GetFlag(FLAGS_sysemu_pu_uart0_tx_file); !file.empty()) {
     execute_args_.push_back("-pu_uart0_tx_file");
