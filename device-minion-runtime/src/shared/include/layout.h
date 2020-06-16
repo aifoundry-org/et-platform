@@ -73,8 +73,10 @@ static_assert((FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER + FW_MASTER_TO_WORKE
 #define FW_MASTER_TO_WORKER_KERNEL_CONFIGS           (U_CODE_REGION_BASE + U_CODE_REGION_SIZE)
 #define FW_MASTER_TO_WORKER_KERNEL_CONFIGS_SIZE      0x1000
 
+// Give 4K for VM stack pages
+// Bits[8:6] of an address specify memshire number, and bit[9] the controller within memshire. Offset by 1<<6 = 64 to distribute stack bases across different memory controllers
 #define KERNEL_UMODE_STACK_BASE 0x8005000000ULL
-#define KERNEL_UMODE_STACK_SIZE 4096 // 4K for VM stack pages
+#define KERNEL_UMODE_STACK_SIZE (4096 + 64)
 
 #ifndef __ASSEMBLER__
 // Ensure the shared kernel configs don't overlap with the U-stacks
