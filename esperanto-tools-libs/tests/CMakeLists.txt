@@ -171,11 +171,4 @@ set(QEMU_TEST_LIST
 
 create_test_targets("${QEMU_TEST_LIST}" "LABELS;QEMU-Driver-SNPS;TIMEOUT;600")
 
-set(ZEBU_FC_PERF_TEST_LIST
-   pcie/test_load_bw_closed_8b.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR} --shires=32"
-   pcie/test_load_bw_closed_4b.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR} --shires=32"
-   pcie/test_load_bw_closed_1b.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR} --shires=32"
-   pcie/test_load_bw_open_8b.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR} --shires=32"
-)
-create_test_targets("${ZEBU_FC_PERF_TEST_LIST}" "LABELS;Zebu-Perf-Kernels;TIMEOUT;600")
 
