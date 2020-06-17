@@ -9,6 +9,7 @@
 #include "hart.h"
 #include "layout.h"
 #include "printf.h"
+#include "shire_cache.h"
 
 #include <stdint.h>
 
@@ -24,17 +25,9 @@ static int64_t init_l1(void);
 static inline void evict_all_l1_ways(uint64_t use_tmask, uint64_t dest_level, uint64_t set, uint64_t num_sets);
 static int64_t evict_l1(uint64_t use_tmask, uint64_t dest_level);
 
-static int64_t evict_l2_start(void);
-static int64_t evict_l2_wait(void);
 static int64_t evict_l2(void);
-
 static int64_t flush_l3(void);
 static int64_t evict_l3(void);
-
-static inline void sc_idx_cop_sm_ctl_all_banks_go(uint64_t opcode);
-static inline void sc_idx_cop_sm_ctl_all_banks_wait_idle(void);
-static inline void sc_idx_cop_sm_ctl_go(volatile uint64_t* const addr, uint64_t opcode);
-static inline void sc_idx_cop_sm_ctl_wait_idle(volatile const uint64_t * const idx_cop_sm_ctl_ptr);
 
 static int64_t shire_cache_bank_op_with_params(uint64_t shire, uint64_t bank, uint64_t op);
 
@@ -315,97 +308,37 @@ static int64_t evict_l1(uint64_t use_tmask, uint64_t dest_level)
     return rv;
 }
 
-static int64_t evict_l2_start(void)
-{
-    sc_idx_cop_sm_ctl_all_banks_wait_idle();
-    sc_idx_cop_sm_ctl_all_banks_go(3); // Opcode = L2_Evict (Evicts all L2 indexes)
-
-    return 0;
-}
-
-static int64_t evict_l2_wait(void)
-{
-    sc_idx_cop_sm_ctl_all_banks_wait_idle();
-
-    return 0;
-}
-
 static int64_t evict_l2(void)
 {
-    int64_t rv;
+    sc_idx_cop_sm_ctl_all_banks_wait_idle(THIS_SHIRE);
+    sc_idx_cop_sm_ctl_all_banks_go(THIS_SHIRE, SC_CACHEOP_OPCODE_L2_EVICT); // Evict all L2 indexes
+    sc_idx_cop_sm_ctl_all_banks_wait_idle(THIS_SHIRE);
 
-    rv = evict_l2_start();
-
-    if (rv >= 0)
-    {
-        rv = evict_l2_wait();
-    }
-
-    return rv;
+    return 0;
 }
 
 static int64_t flush_l3(void)
 {
-    sc_idx_cop_sm_ctl_all_banks_wait_idle();
-    sc_idx_cop_sm_ctl_all_banks_go(5); // Opcode = L3_Flush (Flushes all L3 indexes)
-    sc_idx_cop_sm_ctl_all_banks_wait_idle();
+    sc_idx_cop_sm_ctl_all_banks_wait_idle(THIS_SHIRE);
+    sc_idx_cop_sm_ctl_all_banks_go(THIS_SHIRE, SC_CACHEOP_OPCODE_L3_FLUSH); // Flush all L3 indexes
+    sc_idx_cop_sm_ctl_all_banks_wait_idle(THIS_SHIRE);
 
     return 0;
 }
 
 static int64_t evict_l3(void)
 {
-    sc_idx_cop_sm_ctl_all_banks_wait_idle();
-    sc_idx_cop_sm_ctl_all_banks_go(6); // Opcode = L3_Evict (Evicts all L3 indexes)
-    sc_idx_cop_sm_ctl_all_banks_wait_idle();
+    sc_idx_cop_sm_ctl_all_banks_wait_idle(THIS_SHIRE);
+    sc_idx_cop_sm_ctl_all_banks_go(THIS_SHIRE, SC_CACHEOP_OPCODE_L3_EVICT); // Evict all L3 indexes
+    sc_idx_cop_sm_ctl_all_banks_wait_idle(THIS_SHIRE);
 
     return 0;
-}
-
-static inline void sc_idx_cop_sm_ctl_all_banks_go(uint64_t opcode)
-{
-    // Broadcast to all 4 banks
-    volatile uint64_t* const addr = (volatile uint64_t *)ESR_CACHE(THIS_SHIRE, 0xF, SC_IDX_COP_SM_CTL);
-    sc_idx_cop_sm_ctl_go(addr, opcode);
-}
-
-static inline void sc_idx_cop_sm_ctl_all_banks_wait_idle(void)
-{
-    for (uint64_t i = 0; i < 4; i++)
-    {
-        volatile uint64_t* const addr = (volatile uint64_t *)ESR_CACHE(THIS_SHIRE, i, SC_IDX_COP_SM_CTL);
-        sc_idx_cop_sm_ctl_wait_idle(addr);
-    }
-}
-
-static inline void sc_idx_cop_sm_ctl_go(volatile uint64_t* const addr, uint64_t opcode)
-{
-    *addr = (1ULL           << 0) | // Go bit = 1
-            ((opcode & 0xF) << 8);  // Opcode
-}
-
-static inline void sc_idx_cop_sm_ctl_wait_idle(volatile const uint64_t* const addr)
-{
-    uint64_t state;
-
-    do {
-        state = (*addr >> 24) & 0xFF;
-    } while (state != 4);
-}
-
-static inline void shire_cache_bank_op(uint64_t shire, uint64_t bank, uint64_t op)
-{
-    volatile uint64_t* const addr = (volatile uint64_t *)ESR_CACHE(shire, bank, SC_IDX_COP_SM_CTL);
-
-    sc_idx_cop_sm_ctl_wait_idle(addr);
-    sc_idx_cop_sm_ctl_go(addr, op);
-    sc_idx_cop_sm_ctl_wait_idle(addr);
 }
 
 static int64_t shire_cache_bank_op_with_params(uint64_t shire, uint64_t bank, uint64_t op)
 {
     // XXX: Here we might want to forbid some harmful operations or shire(s)
-    shire_cache_bank_op(shire, bank, op);
+    sc_cache_bank_op(shire, bank, op);
 
     return 0;
 }

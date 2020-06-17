@@ -88,6 +88,7 @@ install(
     include/minion_esr_defines.h
     include/printf.h
     include/serial.h
+    include/shire_cache.h
     include/sync.h
     include/syscall.h
     include/tensor.h
