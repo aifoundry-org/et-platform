@@ -271,12 +271,19 @@ void launch_kernel(const struct kernel_launch_cmd_t* const launch_cmd)
             }
         }
 
-        // Copy params and info into kernel config bufferb
+        uint64_t kernel_launch_flags = 0;
+
+        // Additional kernel-launch flags
+        // [SW-3260] Evict L3 to make sure no DMA-ed L3 lines are dirty at kernel launch
+        kernel_launch_flags |= KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH;
+
+        // Copy params, info and flags into kernel config buffer
         kernel_config_ptr->kernel_params = launch_cmd->kernel_params;
         kernel_config_ptr->kernel_info.compute_pc = launch_cmd->kernel_info.compute_pc;
         kernel_config_ptr->kernel_info.uber_kernel_nodes = launch_cmd->kernel_info.uber_kernel_nodes;
         kernel_config_ptr->kernel_info.shire_mask = launch_cmd->kernel_info.shire_mask;
         kernel_config_ptr->num_shires = num_shires;
+        kernel_config_ptr->kernel_launch_flags = kernel_launch_flags;
 
         // Fix up kernel_params_ptr for the copy in kernel_config
         kernel_config_ptr->kernel_info.kernel_params_ptr = &kernel_config[kernel_id].kernel_params;

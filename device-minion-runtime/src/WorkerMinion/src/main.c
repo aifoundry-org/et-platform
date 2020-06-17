@@ -83,8 +83,9 @@ void __attribute__((noreturn)) main(void)
                 const uint64_t* const kernel_stack_addr = (uint64_t*)(KERNEL_UMODE_STACK_BASE - (hart_id * KERNEL_UMODE_STACK_SIZE));
                 const kernel_params_t* const kernel_params_ptr = kernel_config_ptr->kernel_info.kernel_params_ptr;
                 const grid_config_t* const grid_config_ptr = NULL; // TODO FIXME
+                const uint64_t kernel_launch_flags = kernel_config_ptr->kernel_launch_flags;
 
-                rv = launch_kernel(kernel_entry_addr, kernel_stack_addr, kernel_params_ptr, grid_config_ptr);
+                rv = launch_kernel(kernel_entry_addr, kernel_stack_addr, kernel_params_ptr, grid_config_ptr, kernel_launch_flags);
                 break;
             }
         }

@@ -1,7 +1,8 @@
-#include "kernel.h"
-#include "kernel_sync.h"
 #include "cacheops.h"
+#include "kernel.h"
+#include "kernel_config.h"
 #include "kernel_info.h"
+#include "kernel_sync.h"
 #include "fcc.h"
 #include "flb.h"
 #include "hart.h"
@@ -20,7 +21,7 @@ static const uint8_t tensor_zeros[64] __attribute__ ((aligned (64))) = {0};
 
 static local_fcc_barrier_t post_kernel_barrier[NUM_SHIRES] = {0};
 
-static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, const grid_config_t* const grid_config_ptr);
+static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, const grid_config_t* const grid_config_ptr, uint64_t kernel_launch_flags);
 static void kernel_return_function(int64_t return_value) __attribute__ ((used, section(".user_text"))); // must be placed in U-mode accessible section
 static void log_errors(int64_t return_value, uint64_t tensor_error);
 static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr);
@@ -29,7 +30,8 @@ static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr);
 int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
                       const uint64_t* const kernel_stack_addr,
                       const kernel_params_t* const kernel_params_ptr,
-                      const grid_config_t* const grid_config_ptr)
+                      const grid_config_t* const grid_config_ptr,
+                      uint64_t kernel_launch_flags)
 {
     uint64_t* firmware_sp;
     int64_t return_value;
@@ -41,7 +43,7 @@ int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
         : "=r" (firmware_sp)
     );
 
-    pre_kernel_setup(kernel_params_ptr, grid_config_ptr);
+    pre_kernel_setup(kernel_params_ptr, grid_config_ptr, kernel_launch_flags);
 
     // -Save firmware context on supervisor stack and sp to supervisor stack SP region
     // -Switch sp to kernel_stack_addr
@@ -169,15 +171,16 @@ int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
     return return_value;
 }
 
-static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __attribute__((unused)) const grid_config_t* const grid_config_ptr)
+static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __attribute__((unused)) const grid_config_t* const grid_config_ptr, uint64_t kernel_launch_flags)
 {
     const uint64_t shire_id = get_shire_id();
     const uint32_t minion_mask = (shire_id == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
     const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
     const uint64_t first_worker = (shire_id == MASTER_SHIRE) ? 32 : 0;
 
-    // arg1 = enable all worker thread 1s of the shire
-    // arg2 = first worker hart of the shire
+    // Enable Thread 1, init L1, invalidate I-cache
+    //   arg1 = enable all worker thread 1s of the shire
+    //   arg2 = first worker hart of the shire
     syscall(SYSCALL_PRE_KERNEL_SETUP_INT, minion_mask, first_worker, 0);
 
     // Second worker HART (first minion thread 1) in the shire
@@ -196,6 +199,14 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __a
 
         // Init post-kernel launch barrier
         local_fcc_barrier_init(&post_kernel_barrier[shire_id]);
+    }
+
+    // [SW-3260] Force L3 evict in the firmware before starting a kernel - for performance analysis
+    if (kernel_launch_flags & KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH) {
+        // First Thread of first Minion of Shires 0-31 evict their L3 chunk
+        // NOTE: This will only evict the whole L3 if all the 32 Shires participate in the launch
+        if ((get_hart_id() % 64U == 0) && (shire_id < 32))
+            syscall(SYSCALL_EVICT_L3_INT, 0, 0, 0);
     }
 
     // Empty all FCCs
