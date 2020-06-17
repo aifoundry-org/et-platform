@@ -49,7 +49,7 @@ TEST(ModuleManager, loadOnSysEMU) {
   // Start the simulator
   ASSERT_EQ(dev->init(), etrtSuccess);
 
-  auto conv_elf = dir_name / "convolution.elf";
+  auto conv_elf = dir_name / "../convolution.elf";
 
   et_runtime::ModuleManager module_manager;
 
@@ -60,7 +60,7 @@ TEST(ModuleManager, loadOnSysEMU) {
   EXPECT_EQ(load_res.getError(), etrtSuccess);
   EXPECT_EQ(load_res.get(), conv_mid);
 
-  auto softmax_elf = dir_name / "gpu_0_softmax_110.elf";
+  auto softmax_elf = dir_name / "../gpu_0_softmax_110.elf";
   auto module_res2 =
       module_manager.createModule("softmax", softmax_elf.string());
   auto softmax_mid = get<0>(module_res2);
