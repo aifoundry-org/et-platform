@@ -337,10 +337,17 @@ static int64_t evict_l3(void)
 
 static int64_t shire_cache_bank_op_with_params(uint64_t shire, uint64_t bank, uint64_t op)
 {
-    // XXX: Here we might want to forbid some harmful operations or shire(s)
-    sc_cache_bank_op(shire, bank, op);
-
-    return 0;
+    switch (op) {
+    case SC_CACHEOP_OPCODE_L2_FLUSH:
+    case SC_CACHEOP_OPCODE_L2_EVICT:
+    case SC_CACHEOP_OPCODE_L3_FLUSH:
+    case SC_CACHEOP_OPCODE_L3_EVICT:
+    case SC_CACHEOP_OPCODE_CB_INV:
+        sc_cache_bank_op(shire, bank, op);
+        return 0;
+    default:
+        return -1;
+    }
 }
 
 // change L1 configuration from Shared to Split, optionally with Scratchpad enabled
