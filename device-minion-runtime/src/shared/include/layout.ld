@@ -36,6 +36,6 @@ FW_WORKER_SDATA_SIZE = 0x1000000; /* 16M */
 
 /* All S-mode stacks are laid out at the end of the SDATA region */
 FW_SMODE_STACK_BASE  = S_DATA_REGION_BASE + S_DATA_REGION_SIZE;
-FW_SMODE_STACK_SIZE  = 4096; /* 4K stack * 2112 stacks = 8448KB */
+FW_SMODE_STACK_SIZE  = 4096 + 64; /* (4K + 64B) stack * 2112 stacks = 8580KB */
 
 KERNEL_UMODE_ENTRY   = 0x8005000000;
