@@ -13,7 +13,7 @@ INCLUDE layout.ld
 
 ENTRY(_boot)
 
-STACK_SIZE = 768;
+STACK_SIZE = 1024 + 64;
 HART_COUNT = 2112;
 
 MEMORY

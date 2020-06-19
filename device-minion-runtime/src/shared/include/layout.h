@@ -40,7 +40,8 @@
 // Software layout
 #define FW_MACHINE_MMODE_ENTRY  (M_CODE_REGION_BASE + 0x1000ULL) // Default reset vector
 #define FW_MMODE_STACK_BASE     (M_DATA_REGION_BASE + M_DATA_REGION_SIZE)
-#define FW_MMODE_STACK_SIZE     768 // Large enough for reentrant M-mode traps, but small enough so all 2112 stacks + code fit in 2MB region
+#define FW_MMODE_STACK_SIZE     (1024 + 64) // Large enough for re-entrant M-mode traps, but small enough so all 2112 stacks + data fit in 6MB region
+                                            // 64B is the offset to distribute stack bases across memory controllers.
 
 #define FW_MASTER_SMODE_ENTRY   S_CODE_REGION_BASE
 #define FW_WORKER_SMODE_ENTRY   (S_CODE_REGION_BASE + 0x400000ULL) // SCODE + 4M
@@ -62,7 +63,7 @@
 #define FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER_SIZE MESSAGE_BUFFER_SIZE
 
 #define FW_SMODE_STACK_BASE     (S_DATA_REGION_BASE + S_DATA_REGION_SIZE)
-#define FW_SMODE_STACK_SIZE     4096 /* 4K stack * 2112 stacks = 8448KB */
+#define FW_SMODE_STACK_SIZE     (4096 + 64) /* (4K + 64B) stack * 2112 stacks = 8580KB. 64B is the offset to distribute stack bases across memory controllers. */
 
 #ifndef __ASSEMBLER__
 // Ensure the shared message buffers don't overlap with the S-stacks
