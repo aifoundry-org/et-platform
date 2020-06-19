@@ -866,17 +866,20 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<
                 bemu::cpu[tid].mregs[bemu::m0].set();
                 thread_set_pc(tid, (s == EMU_IO_SHIRE_SP) ? cmd_options.sp_reset_pc : cmd_options.reset_pc);
 
-                LOG_AGENT(DEBUG, bemu::cpu[tid], "%s", "Resetting");
-
                 // Puts thread id in the active list
                 activate_thread(tid);
-                if (!cmd_options.mins_dis) {
+                if ((s == EMU_IO_SHIRE_SP) || !cmd_options.mins_dis) {
+                    LOG_AGENT(DEBUG, bemu::cpu[tid], "%s", "Resetting");
                     assert(!thread_is_disabled(tid));
                     running_threads.push_back(tid);
                 }
             }
         }
     }
+
+    // Initialize xregs passed to command line
+    for (auto &info: cmd_options.set_xreg)
+        bemu::cpu[info.thread].xregs[info.xreg] = info.value;
 
     return true;
 }

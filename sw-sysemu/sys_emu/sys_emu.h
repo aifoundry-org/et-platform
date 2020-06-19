@@ -63,6 +63,12 @@ struct sys_emu_cmd_options {
         std::string file;
     };
 
+    struct set_xreg_info {
+        uint64_t thread;
+        uint64_t xreg;
+        uint64_t value;
+    };
+
     std::string elf_file;
     std::string mem_desc_file;
     std::string api_comm_path;
@@ -77,6 +83,7 @@ struct sys_emu_cmd_options {
     std::string dump_mem;
     uint64_t    reset_pc                     = RESET_PC;
     uint64_t    sp_reset_pc                  = SP_RESET_PC;
+    std::vector<set_xreg_info> set_xreg;
     bool        coherency_check              = false;
     uint64_t    max_cycles                   = 10000000;
     bool        mins_dis                     = false;
