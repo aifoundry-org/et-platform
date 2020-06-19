@@ -117,6 +117,7 @@ include_directories(${SP_ROM_OTP_TYPES_PATH})
 add_subdirectory(ServiceProcessor)
 add_subdirectory(ServiceProcessorBL1)
 add_subdirectory(ServiceProcessorBL2)
+add_subdirectory(tools)
 
 # Export the package for use from the build-tree
 # (this registers the build-tree with a global CMake-registry)
