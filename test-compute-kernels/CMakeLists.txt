@@ -221,6 +221,8 @@ add_subdirectory("fcc_with_cacheops")
 #add_subdirectory("fcc_overflow")
 add_subdirectory("uberkernel")
 add_subdirectory("load_bw")
+add_subdirectory("load_lat")
+add_subdirectory("write_bw")
 
 
 # Export the package for use from the build-tree
