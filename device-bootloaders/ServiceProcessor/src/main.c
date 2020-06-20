@@ -34,8 +34,8 @@ int main(void)
     INT_init();
     PCIe_init(false /*expect_link_up*/);
     MBOX_init();
-    enable_master_shire();
-    enable_compute_shire();  
+    // enable_master_shire(); // [SW-2275] TODO: Uncomment after removing Zebu force signals that enable the Master/Worker Shires
+    // enable_compute_shire();
 
     static TaskHandle_t taskHandleA;
     static StackType_t stackA[TASK_STACK_SIZE];
