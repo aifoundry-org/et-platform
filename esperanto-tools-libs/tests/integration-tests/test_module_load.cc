@@ -49,7 +49,7 @@ TEST(Module, loadOnSysEMU_convolution_elf) {
   // Start the simulator
   ASSERT_EQ(dev->init(), etrtSuccess);
 
-  auto conv_elf = dir_name / "convolution.elf";
+  auto conv_elf = dir_name / "../convolution.elf";
 
   auto module = make_unique<Module>("convolution.elf", conv_elf.string());
   EXPECT_TRUE(module->readELF());
@@ -75,7 +75,7 @@ TEST(Module, loadOnSysEMU_etsocmaxsplat_elf) {
   // Start the simulator
   ASSERT_EQ(dev->init(), etrtSuccess);
 
-  auto conv_elf = dir_name / "etsocmaxsplat.elf";
+  auto conv_elf = dir_name / "../etsocmaxsplat.elf";
   auto module = make_unique<Module>("etsocmaxsplat.elf", conv_elf.string());
   EXPECT_TRUE(module->readELF());
 
@@ -106,7 +106,7 @@ TEST(Module, loadOnSysEMU_high_address_kernel) {
   // Start the simulator
   ASSERT_EQ(dev->init(), etrtSuccess);
 
-  auto conv_elf = dir_name / "sample-kernel";
+  auto conv_elf = dir_name / "../sample-kernel";
   auto module = make_unique<Module>("sample_kernel", conv_elf.string());
   EXPECT_TRUE(module->readELF());
 

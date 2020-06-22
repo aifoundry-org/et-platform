@@ -31,7 +31,7 @@ TEST(ELFInfo, load_elf) {
   fs::path p = "/proc/self/exe";
   auto test_real_path = fs::read_symlink(p);
   auto dir_name = test_real_path.remove_filename();
-  auto conv_elf = dir_name / "convolution.elf";
+  auto conv_elf = dir_name / "../convolution.elf";
 
   // FIXME SW-1369 do not consume the downloaded ELF file
   ELFInfo elf_info{"convolution", conv_elf.string()};
@@ -47,7 +47,7 @@ TEST(ELFInfo, load_elf_vector) {
   fs::path p = "/proc/self/exe";
   auto test_real_path = fs::read_symlink(p);
   auto dir_name = test_real_path.remove_filename();
-  auto conv_elf = dir_name / "convolution.elf";
+  auto conv_elf = dir_name / "../convolution.elf";
 
   ELFInfo elf_info{"convolution", conv_elf.string()};
 
@@ -66,7 +66,7 @@ TEST(KernelELFInfo, parse_kernel_elf) {
   fs::path p = "/proc/self/exe";
   auto test_real_path = fs::read_symlink(p);
   auto dir_name = test_real_path.remove_filename();
-  auto conv_elf = dir_name / "convolution.elf";
+  auto conv_elf = dir_name / "../convolution.elf";
 
   KernelELFInfo elf_info{"convolution", conv_elf.string()};
 
@@ -84,7 +84,7 @@ TEST(KernelELFInfo, parse_multisegment_elf) {
   fs::path p = "/proc/self/exe";
   auto test_real_path = fs::read_symlink(p);
   auto dir_name = test_real_path.remove_filename();
-  auto conv_elf = dir_name / "etsocmaxsplat.elf";
+  auto conv_elf = dir_name / "../etsocmaxsplat.elf";
 
   KernelELFInfo elf_info{"etsocmaxsplat.elf", conv_elf.string()};
 

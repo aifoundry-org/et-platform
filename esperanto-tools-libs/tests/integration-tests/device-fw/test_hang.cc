@@ -1,5 +1,5 @@
 //******************************************************************************
-// Copyright (C) 2018,2019, Esperanto Technologies Inc.
+// Copyright (C) 2018,2020, Esperanto Technologies Inc.
 // The copyright to the computer program(s) herein is the
 // property of Esperanto Technologies, Inc. All Rights Reserved.
 // The program(s) may be used and/or copied only with
@@ -7,6 +7,9 @@
 // in accordance with the terms and conditions stipulated in the
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
+
+
+#include "device-fw-fixture.h"
 
 #include <esperanto/runtime/Core/CommandLineOptions.h>
 #include <esperanto/runtime/Core/Device.h>
@@ -27,35 +30,12 @@
 #include <vector>
 #include <fstream>
 
-#define NUM_SHIRES 2
-
 using namespace et_runtime::device;
 using namespace et_runtime;
 namespace fs = std::experimental::filesystem;
 
 ABSL_FLAG(std::string, kernels_dir, "",
           "Directory where different kernel ELF files are located");
-
-
-// Test Fixture for creating a PCIE device
-class PCIEKernelLaunchTest: public ::testing::Test {
-protected:
-  void SetUp() override {
-    // Just use the commented line instead to run on sysemu
-    //absl::SetFlag(&FLAGS_dev_target, DeviceTargetOption("sysemu_grpc"));  
-    absl::SetFlag(&FLAGS_dev_target, DeviceTargetOption("pcie"));
-    dev_ = std::make_shared<Device>(0);
-    auto error = dev_->init();
-    ASSERT_EQ(error, etrtSuccess);
-  }
-
-  void TearDown() override {
-    dev_->resetDevice();
-  }
-  std::shared_ptr<Device> dev_;
-};
-
-
 
 // Hang kernel test
 // Steps:
@@ -65,20 +45,20 @@ protected:
 // Since it will remain running forever, send an abort
 // Monitor state again, it should be unused
 // TBD: Launch beef kernel afterwards, once SW-1373 is fixed.
-TEST_F(PCIEKernelLaunchTest, hang_kernel) {
+TEST_F(DeviceFWTest, hang_kernel) {
 
   // Get kernel info
   auto kernels_dir = absl::GetFlag(FLAGS_kernels_dir);
   fs::path hang_kernel_loc = fs::path(kernels_dir) / fs::path("hang.elf");
   std::cout <<  "Running: " << hang_kernel_loc.string() << "\n";
-	  
+
   auto &registry = CodeRegistry::registry();
 
   auto register_res = registry.registerKernel("main", {Kernel::ArgType::T_layer_dynamic_info},
                                               hang_kernel_loc.string());
   ASSERT_TRUE((bool)register_res);
   auto &kernel = std::get<1>(register_res.get());
- 
+
   // First make sure that kernel is on the unused state
   KernelActions kernel_actions;
   const TimeDuration wait_interval = std::chrono::seconds(5);
@@ -91,7 +71,7 @@ TEST_F(PCIEKernelLaunchTest, hang_kernel) {
   ASSERT_EQ(load_res.getError(), etrtSuccess);
   auto module_id = load_res.get();
 
-  Kernel::layer_dynamic_info_t layer_info = {};  
+  Kernel::layer_dynamic_info_t layer_info = {};
   // Set the kernel launch arguments
   Kernel::LaunchArg arg;
   arg.type = Kernel::ArgType::T_layer_dynamic_info;
@@ -112,11 +92,11 @@ TEST_F(PCIEKernelLaunchTest, hang_kernel) {
     if (kernel_state_res.get() ==  ::device_api::DEV_API_KERNEL_STATE_RUNNING) {
       break;
     }
-    std::this_thread::sleep_for(wait_interval);   
+    std::this_thread::sleep_for(wait_interval);
   }
 
   ASSERT_EQ(kernel_state_res.get(), ::device_api::DEV_API_KERNEL_STATE_RUNNING);
-  
+
   // Abort kernel and then poll until it becomes unused again.
   // If it takes too long, fail
   kernel_actions.abort(&dev_->defaultStream());
@@ -142,7 +122,7 @@ TEST_F(PCIEKernelLaunchTest, hang_kernel) {
   fs::path beef_kernel_path = fs::path(kernels_dir)  / fs::path("beef.elf");
 
   register_res = registry.registerKernel("beef_main", {Kernel::ArgType::T_layer_dynamic_info},
-                                              beef_kernel_path.string());  
+                                              beef_kernel_path.string());
   ASSERT_TRUE((bool)register_res);
   auto &beef_kernel = std::get<1>(register_res.get());
 
