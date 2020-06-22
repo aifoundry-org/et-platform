@@ -32,6 +32,7 @@ endif(ENABLE_PCIE)
 set(DUAL_TEST_LIST
   test_device_api.cc:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR}"
   test_launch_uberkernel.cc:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR}"
-  test_hang.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
+  # FIXME SW-3254
+  # test_hang.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
   )
 create_test_targets("${DUAL_TEST_LIST}" "${DUAL_TEST_LABELS}")
