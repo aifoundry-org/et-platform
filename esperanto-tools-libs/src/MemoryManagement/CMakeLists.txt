@@ -8,16 +8,17 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-
-set(TEST_LIST
-  test_command_response.cc:""
-  test_command_queue.cc:""
-  test_device_manager.cc:""
-  test_error_or.cc:""
-  test_elf_parsing.cc:""
-  test_memory_manager.cc:""
+add_library(etrt_MemoryManagement OBJECT
+  TensorInfo.cc
   )
 
-create_test_targets("${TEST_LIST}" "LABELS;Generic;TIMEOUT;600")
+target_include_directories(etrt_MemoryManagement PRIVATE
+  ${CMAKE_CURRENT_BINARY_DIR}
+  ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/src
+  ${PROJECT_BINARY_DIR}/include
+  ${PROJECT_BINARY_DIR}/src
 
-add_subdirectory(memory_management)
+  )
+
+add_sanitizers(etrt_MemoryManagement)
