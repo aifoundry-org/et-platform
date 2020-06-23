@@ -21,7 +21,7 @@
     ],
     "TEST_STEPS": [
         "echo \"TEST START\"",
-        "./sw-platform.py et-sw-platform  \"cd build/host-software/runtime && ctest3 -T Test -R runtime -L Generic --no-compress-output\" ",
+        "./sw-platform.py et-sw-platform  \"cd build/host-software/runtime && ctest3 -T Test -L Generic --no-compress-output\" ",
         "echo \"TEST DONE\""
     ]
 }
