@@ -62,8 +62,9 @@
 #define FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER CACHE_LINE_ALIGN(FW_MASTER_TO_WORKER_MESSAGE_BUFFERS + FW_MASTER_TO_WORKER_MESSAGE_BUFFERS_SIZE)
 #define FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER_SIZE MESSAGE_BUFFER_SIZE
 
-#define FW_SMODE_STACK_BASE     (S_DATA_REGION_BASE + S_DATA_REGION_SIZE)
-#define FW_SMODE_STACK_SIZE     (4096 + 64) /* (4K + 64B) stack * 2112 stacks = 8580KB. 64B is the offset to distribute stack bases across memory controllers. */
+#define FW_SMODE_STACK_BASE                (S_DATA_REGION_BASE + S_DATA_REGION_SIZE)
+#define FW_SMODE_STACK_SCRATCH_REGION_SIZE 64                                          /* Used by trap handler. 64B is the offset to distribute stack bases across memory controllers. */
+#define FW_SMODE_STACK_SIZE                (4096 + FW_SMODE_STACK_SCRATCH_REGION_SIZE) /* (4K + 64B) stack * 2112 stacks = 8580KB */
 
 #ifndef __ASSEMBLER__
 // Ensure the shared message buffers don't overlap with the S-stacks

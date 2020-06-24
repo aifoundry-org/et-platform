@@ -74,7 +74,6 @@ void __attribute__((noreturn)) main(void)
     asm volatile (
         "la    %0, trap_handler \n"
         "csrw  stvec, %0        \n" // supervisor trap vector
-        "csrw  sscratch, sp     \n" // Initial saved stack pointer points to S-mode stack scratch region
         : "=&r" (temp)
     );
 
