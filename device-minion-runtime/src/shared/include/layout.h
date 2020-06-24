@@ -38,10 +38,10 @@
 #define U_CODE_REGION_SIZE 0x0000001000ULL
 
 // Software layout
-#define FW_MACHINE_MMODE_ENTRY  (M_CODE_REGION_BASE + 0x1000ULL) // Default reset vector
-#define FW_MMODE_STACK_BASE     (M_DATA_REGION_BASE + M_DATA_REGION_SIZE)
-#define FW_MMODE_STACK_SIZE     (1024 + 64) // Large enough for re-entrant M-mode traps, but small enough so all 2112 stacks + data fit in 6MB region
-                                            // 64B is the offset to distribute stack bases across memory controllers.
+#define FW_MACHINE_MMODE_ENTRY             (M_CODE_REGION_BASE + 0x1000ULL)            // Default reset vector
+#define FW_MMODE_STACK_BASE                (M_DATA_REGION_BASE + M_DATA_REGION_SIZE)
+#define FW_MMODE_STACK_SCRATCH_REGION_SIZE 64                                          /* Used by trap handler. 64B is the offset to distribute stack bases across memory controllers. */
+#define FW_MMODE_STACK_SIZE                (1024 + FW_MMODE_STACK_SCRATCH_REGION_SIZE) // Large enough for re-entrant M-mode traps, but small enough so all 2112 stacks + data fit in 6MB region
 
 #define FW_MASTER_SMODE_ENTRY   S_CODE_REGION_BASE
 #define FW_WORKER_SMODE_ENTRY   (S_CODE_REGION_BASE + 0x400000ULL) // SCODE + 4M
@@ -82,7 +82,7 @@ static_assert((FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER + FW_MASTER_TO_WORKE
 
 #ifndef __ASSEMBLER__
 // Ensure the shared kernel configs don't overlap with the U-stacks
-static_assert((FW_MASTER_TO_WORKER_KERNEL_CONFIGS + FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER_SIZE) < (KERNEL_UMODE_STACK_BASE - (NUM_HARTS * KERNEL_UMODE_STACK_SIZE)), "U-stack / kenrel config region collision");
+static_assert((FW_MASTER_TO_WORKER_KERNEL_CONFIGS + FW_MASTER_TO_WORKER_KERNEL_CONFIGS_SIZE) < (KERNEL_UMODE_STACK_BASE - (NUM_HARTS * KERNEL_UMODE_STACK_SIZE)), "U-stack / kenrel config region collision");
 #endif
 
 #define KERNEL_UMODE_ENTRY      KERNEL_UMODE_STACK_BASE

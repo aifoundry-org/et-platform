@@ -22,7 +22,6 @@ void __attribute__((noreturn)) main(void)
         "csrs  mideleg, %0          \n"
         "li    %0, 0x100            \n" // Delegate user environment calls to supervisor mode
         "csrs  medeleg, %0          \n"
-        "csrw  mscratch, sp         \n" // Initial saved stack pointer points to M-mode stack scratch region
         "csrwi menable_shadows, 0x3 \n" // Enable shadow registers for hartid and sleep txfma
         "csrsi mie, 0x8             \n" // Enable machine software interrupts
         "csrsi mstatus, 0x8         \n" // Enable interrupts
