@@ -10,6 +10,8 @@
 
 add_library(etrt_MemoryManagement OBJECT
   TensorInfo.cc
+  BaseMemoryAllocator.cc
+  LinearAllocator.cc
   )
 
 target_include_directories(etrt_MemoryManagement PRIVATE
