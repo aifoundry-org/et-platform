@@ -11,6 +11,9 @@
 include(ExternalProject)
 include(GoogleTest)
 
+find_package(sentry REQUIRED)
+find_package(breakpad REQUIRED)
+
 include_directories(${GTEST_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src)
@@ -18,6 +21,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/../include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/../src)
 include_directories(${EXTERNAL_INCLUDE_DIRECTORIES})
 include_directories(${ESPERANTO_FW_INCLUDE_DIR})
+include_directories(${BREAKPAD_INCLUDE_DIR}/breakpad)
 
 link_directories(${GTEST_DIR}/lib64
   ${EXTERNAL_LINK_DIRECTORIES}
@@ -53,8 +57,41 @@ set(COMMON_TEST_LIBRARIES
    -Wl,--whole-archive etrt_static -Wl,--no-whole-archive
   libgtest_main.a
   libgtest.a
+  libbreakpad_client.a
   )
 
+
+
+# Helper function to build a test binary
+#
+# Args
+# NAME : binary name of the test
+# SOURCES : list of source files
+macro(build_test_binary)
+  cmake_parse_arguments(TEST
+    ""
+    "TARGET;"
+    "SOURCES;"
+    ${ARGN})
+
+  add_executable(${TEST_TARGET} ${TEST_SOURCES})
+
+  # Externa dependencies
+  if(${external_test_dependencies})
+    add_dependencies(${TEST_TARGET} ${external_test_dependencies})
+  endif()
+  if (${external_project_dependencies})
+    add_dependencies(${TEST_TARGET} ${external_project_dependencies})
+  endif()
+  add_dependencies(${TEST_TARGET} ci-dependencies)
+
+  target_link_libraries(${TEST_TARGET} ${COMMON_TEST_LIBRARIES})
+  target_include_directories(${TEST_TARGET} PUBLIC ${GFLAGS_INCLUDE_DIRS})
+  target_include_directories(${TEST_TARGET} PUBLIC ${GLOG_INCLUDE_DIRS})
+
+  add_sanitizers(${TEST_TARGET})
+
+endmacro()
 
 ## Helper function for creating the different test binary targets
 ## Args:
@@ -78,19 +115,13 @@ function(create_test_targets TEST_LIST TEST_PROPERTIES)
     string(REPLACE " " ";" TEST_ARGS "${TEST_ARGS}")
     # message("Test args: " ${TEST_ARGS})
     get_filename_component(TEST_TARGET ${TEST_FILE} NAME_WE)
-    add_executable(${TEST_TARGET} ${TEST_FILE})
-    if(${external_test_dependencies})
-      add_dependencies(${TEST_TARGET} ${external_test_dependencies})
-    endif()
-    if (${external_project_dependencies})
-      add_dependencies(${TEST_TARGET} ${external_project_dependencies})
-    endif()
-    add_dependencies(${TEST_TARGET} ci-dependencies)
-    target_link_libraries(${TEST_TARGET} ${COMMON_TEST_LIBRARIES})
-    target_include_directories(${TEST_TARGET} PUBLIC ${GFLAGS_INCLUDE_DIRS})
-    target_include_directories(${TEST_TARGET} PUBLIC ${GLOG_INCLUDE_DIRS})
-    add_sanitizers(${TEST_TARGET})
-    gtest_discover_tests(${TEST_TARGET}
+
+    build_test_binary(
+      TARGET ${TEST_TARGET}
+      SOURCES ${TEST_FILE}
+      )
+
+    gtest_discover_tests(${TEST_PREFIX} ${TEST_TARGET}
       EXTRA_ARGS ${TEST_ARGS} --etrt_trace ${CMAKE_CURRENT_BINARY_DIR}/${TEST_TARGET}.etrt_trace
       TEST_PREFIX runtime:
       PROPERTIES ${TEST_PROPERTIES}
@@ -113,3 +144,4 @@ get_filename_component(KERNELS_DIR ${EMPTY_KERNEL_ELF} DIRECTORY)
 
 add_subdirectory(unit-tests)
 add_subdirectory(integration-tests)
+add_subdirectory(tools)
