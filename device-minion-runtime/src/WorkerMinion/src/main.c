@@ -24,7 +24,6 @@ void __attribute__((noreturn)) main(void)
     asm volatile (
         "la    %0, trap_handler \n"
         "csrw  stvec, %0        \n"
-        "csrw  sscratch, sp     \n" // sscratch points to S-mode stack scratch region
         : "=&r" (temp)
     );
 
