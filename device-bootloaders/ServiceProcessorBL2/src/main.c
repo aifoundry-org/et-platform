@@ -223,7 +223,7 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
     //SERIAL_init(UART0);
 
     printf("\n*** SP BL2 STARTED ***\r\n");
-    printf("File version %u.%u.%u\n", image_version_info->file_version_major, image_version_info->file_version_minor, image_version_info->file_version_revision);
+    printf("BL2 version: %u.%u.%u (" BL2_VARIANT ")\n", image_version_info->file_version_major, image_version_info->file_version_minor, image_version_info->file_version_revision);
     printf("GIT version: %s\n", GIT_VERSION_STRING);
     printf("GIT hash: %s\n", GIT_HASH_STRING);
 

@@ -12,11 +12,9 @@ set(TARGET_NAME ServiceProcessorBL2_production)
 set(ZEBU_FILENAME ServiceProcessorBL2_production)
 set(INSTALL_DIR ${BL2_INSTALL_DIR}/BL2/production)
 
+add_definitions(-DBL2_VARIANT="production")
+
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
-set_target_properties(
-  ${TARGET_NAME}.elf
-  PROPERTIES COMPILE_FLAGS " -DPRODUCTION=1"
-  )
 
 list(APPEND FLASH_IMAGE_DEPS ${TARGET_NAME}.elf)
 set(FLASH_IMAGE_DEPS ${FLASH_IMAGE_DEPS} CACHE INTERNAL "FLASH_IMAGE_DEPS")
