@@ -13,6 +13,7 @@ set(ZEBU_FILENAME ServiceProcessorBL2_fast-boot)
 set(INSTALL_DIR ${BL2_INSTALL_DIR}/BL2/fast-boot)
 
 add_definitions(-DBL2_VARIANT="fast-boot")
+add_definitions(-DFAST_BOOT=1)
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 

@@ -76,7 +76,12 @@ static void taskMain(void *pvParameters)
     // Disable buffering on stdout
     setbuf(stdout, NULL);
 
+    // In non-fast-boot mode, the bootrom initializes PCIe link
+#if FAST_BOOT
+    PCIe_init(false /*expect_link_up*/);
+#else
     PCIe_init(true /*expect_link_up*/);
+#endif
 
     printf("---------------------------------------------\n");
     printf("Starting MINIONs reset release sequence...\n");
@@ -132,6 +137,8 @@ static void taskMain(void *pvParameters)
         goto FIRMWARE_LOAD_ERROR;
     }
 
+    // In fast-boot mode we skip loading from flash, and assume everything is already pre-loaded
+#if !FAST_BOOT
     printf("---------------------------------------------\n");
     printf("Attempting to load Machine Minion firmware...\n");
     if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_MACHINE_MINION)) {
@@ -155,6 +162,7 @@ static void taskMain(void *pvParameters)
         goto FIRMWARE_LOAD_ERROR;
     }
     printf("Worker Minion firmware loaded.\n");
+#endif
 
     printf("---------------------------------------------\n");
     printf("time: %lu\n", timer_get_ticks_count());
@@ -220,7 +228,10 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
     // Disable buffering on stdout
     setbuf(stdout, NULL);
 
-    //SERIAL_init(UART0);
+    // In non-fast-boot mode, the bootrom initializes SPIO UART0
+#if FAST_BOOT
+    SERIAL_init(UART0);
+#endif
 
     printf("\n*** SP BL2 STARTED ***\r\n");
     printf("BL2 version: %u.%u.%u (" BL2_VARIANT ")\n", image_version_info->file_version_major, image_version_info->file_version_minor, image_version_info->file_version_revision);
@@ -245,8 +256,6 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
 
     vaultip_disabled = is_vaultip_disabled();
 
-    //SERIAL_init(UART0);
-
     SERIAL_init(UART1);
     SERIAL_init(PU_UART0);
     SERIAL_init(PU_UART1);
@@ -270,10 +279,15 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
             goto FATAL_ERROR;
         }
     }
+
+    // In fast-boot mode we skip loading from flash, and assume everything is already pre-loaded
+#if !FAST_BOOT
     if (0 != flashfs_drv_init(&g_service_processor_bl2_data.flash_fs_bl2_info, &bl1_data->flash_fs_bl1_info)) {
         printf("flashfs_drv_init() failed!\n");
         goto FATAL_ERROR;
     }
+#endif
+
     printf("Starting RTOS...\n");
 
     gs_taskHandleMain = xTaskCreateStatic(taskMain,

@@ -13,6 +13,7 @@ set(ZEBU_FILENAME ServiceProcessorBL2_production)
 set(INSTALL_DIR ${BL2_INSTALL_DIR}/BL2/production)
 
 add_definitions(-DBL2_VARIANT="production")
+add_definitions(-DFAST_BOOT=0)
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
