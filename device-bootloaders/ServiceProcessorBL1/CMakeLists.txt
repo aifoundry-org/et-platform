@@ -43,10 +43,9 @@ target_link_libraries(${TARGET_NAME}.elf
   ${MINION_RUNTIME_PACKAGE_NAME}::bootrom_helpers
   EsperantoServiceProcessorROM::sp_rom_helpers
   )
-set(EXPORT_NAME EsperantoBootLoaderTargets)
 
 install(TARGETS ${TARGET_NAME}.elf
-  EXPORT ${EXPORT_NAME}
+  EXPORT ${BOOTLOADERS_EXPORT_NAME}
   RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/ServiceProcessor
   COMPONENT bootloader)
 

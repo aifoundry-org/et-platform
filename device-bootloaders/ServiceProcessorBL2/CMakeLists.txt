@@ -8,12 +8,13 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-set (FILE_VERSION_MAJOR 0)
-set (FILE_VERSION_MINOR 0)
-set (FILE_REVISION_NUMBER 1)
+set(FILE_VERSION_MAJOR 0)
+set(FILE_VERSION_MINOR 0)
+set(FILE_REVISION_NUMBER 1)
 
-set(SOURCES
-    ${FREERTOS_SRC_FILES}
+set(BL2_INSTALL_DIR ${LIB_INSTALL_DIR}/esperanto-fw/ServiceProcessor)
+
+set(BL2_SOURCES
     src/bl2_entry.S
     src/crt.S
     src/dummy_isr.c
@@ -38,13 +39,18 @@ set(SOURCES
     src/crc32.c
     src/memory_copy_8x32.S
     # This file get compiled different based on the serial_device.h configuration of each target
-    ${SHARED_SRC_DIR}/serial.c
     src/bl2_build_configuration.c)
 
-set(TARGET_NAME ServiceProcessorBL2)
-set(LINKER_SCRIPT src/sections.ld)
+list(TRANSFORM BL2_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
+
+set(SOURCES
+    ${BL2_SOURCES}
+    ${FREERTOS_SRC_FILES}
+    ${SHARED_SRC_DIR}/serial.c
+)
+
+set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/src/sections.ld)
 set(ZEBU_TARGET SP_RAM)
-set(ZEBU_FILENAME ServiceProcessorBL2)
 
 include_directories(include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../shared/include)
@@ -54,35 +60,7 @@ include_directories(${FLASH_TOOL_HEADERS})
 include_directories(${PKCS11_HEADERS})
 include_directories(${CRYPTO_HEADERS})
 
-add_riscv_executable(${TARGET_NAME} ${CMAKE_CURRENT_LIST_DIR} ${SOURCES})
+add_subdirectory(include)
 
-list(APPEND FLASH_IMAGE_DEPS ${TARGET_NAME}.elf)
-set(FLASH_IMAGE_DEPS ${FLASH_IMAGE_DEPS} CACHE INTERNAL "FLASH_IMAGE_DEPS")
-
-target_link_libraries(${TARGET_NAME}.elf
-  ${MINION_RUNTIME_PACKAGE_NAME}::bootrom_helpers
-  EsperantoServiceProcessorROM::sp_rom_helpers
-  )
-set(EXPORT_NAME EsperantoBootLoaderTargets)
-
-install(TARGETS ${TARGET_NAME}.elf
-  EXPORT ${EXPORT_NAME}
-  RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/ServiceProcessor
-  COMPONENT bootloader)
-
-install(
-  FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.lst
-    ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.map
-    ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.bin
-  DESTINATION
-    ${LIB_INSTALL_DIR}/esperanto-fw/ServiceProcessor
-  COMPONENT service-processor
-  )
-
-string(REPLACE " " ";" OUTPUT_LIST ${${TARGET_NAME}_OUTPUT})
-foreach(FILE ${OUTPUT_LIST})
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${FILE}
-    DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/ServiceProcessor
-    COMPONENT zebu)
-endforeach(FILE)
+# BL2 build variants
+add_subdirectory(BL2)

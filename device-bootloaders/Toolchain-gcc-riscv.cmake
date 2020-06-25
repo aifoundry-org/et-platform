@@ -14,8 +14,6 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 
 # TODO FIXME move this to a shared dir that isn't project specific
 get_filename_component(ELFTOHEX_ABS_PATH "${ESPERANTO_DEVICE_MINION_RUNTIME_BIN_DIR}/esperanto-fw/elftohex.py" ABSOLUTE)
-get_filename_component(GET_GIT_HASH_ABS_PATH "${ESPERANTO_DEVICE_MINION_RUNTIME_BIN_DIR}/esperanto-fw/get_git_hash.py" ABSOLUTE)
-get_filename_component(GET_GIT_VERSION_ABS_PATH "${ESPERANTO_DEVICE_MINION_RUNTIME_BIN_DIR}/esperanto-fw/get_git_version.py" ABSOLUTE)
 
 set(CMAKE_AR         ${GCC_PATH}/bin/riscv64-unknown-elf-ar      CACHE PATH   "ar"       FORCE)
 set(CMAKE_RANLIB     ${GCC_PATH}/bin/riscv64-unknown-elf-ranlib  CACHE PATH   "ranlib"   FORCE)
@@ -23,8 +21,6 @@ set(CMAKE_C_COMPILER ${GCC_PATH}/bin/riscv64-unknown-elf-gcc     CACHE PATH   "g
 set(CMAKE_OBJCOPY    ${GCC_PATH}/bin/riscv64-unknown-elf-objcopy CACHE PATH   "objcopy"  FORCE)
 set(CMAKE_OBJDUMP    ${GCC_PATH}/bin/riscv64-unknown-elf-objdump CACHE PATH   "objdump"  FORCE)
 set(CMAKE_ELFTOHEX   ${ELFTOHEX_ABS_PATH}                        CACHE PATH   "elftohex" FORCE)
-set(CMAKE_GET_GIT_HASH ${GET_GIT_HASH_ABS_PATH}                  CACHE PATH   "get-git-hash" FORCE)
-set(CMAKE_GET_GIT_VERSION ${GET_GIT_VERSION_ABS_PATH}            CACHE PATH   "get-git-version" FORCE)
 
 # Our gcc has -fdelete-null-pointer-checks enabled by default, needed for -Wnull-dereference
 #
@@ -43,9 +39,6 @@ set(CMAKE_C_FLAGS "-Og -g3 -std=gnu11 --specs=nano.specs -mcmodel=medany -march=
 -Wpointer-arith -Wundef -Wbad-function-cast -Wcast-qual -Wcast-align -Wconversion -Wlogical-op \
 -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wno-main" CACHE STRING "c flags" FORCE)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-
-
 # macro to create an executable .elf plus .bin, .hex, .lst and .map files
 # if LINKER_SCRIPT is defined, uses it instead of the default
 macro(add_riscv_executable TARGET_NAME)
@@ -63,36 +56,6 @@ macro(add_riscv_executable TARGET_NAME)
     endif()
 
     set(HEX_FILE ${TARGET_NAME}.hex)
-
-    if (NOT DEFINED GIT_HASH_STRING)
-        execute_process(COMMAND ${CMAKE_GET_GIT_HASH} ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_HASH_STRING RESULT_VARIABLE RES)
-        if (RES)
-            message(FATAL_ERROR "Get git hash string failed with: ${OUTPUT_VARIABLE}")
-        endif()
-    endif()
-    if (NOT DEFINED GIT_HASH_ARRAY)
-        execute_process(COMMAND ${CMAKE_GET_GIT_HASH} -a ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_HASH_ARRAY RESULT_VARIABLE RES)
-        if (RES)
-            message(FATAL_ERROR "Get git hash array string failed with: ${OUTPUT_VARIABLE}")
-        endif()
-    endif()
-    if (NOT DEFINED GIT_VERSION_STRING)
-        execute_process(COMMAND ${CMAKE_GET_GIT_VERSION} ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_VERSION_STRING RESULT_VARIABLE RES)
-        if (RES)
-            message(FATAL_ERROR "Get git version failed with: ${OUTPUT_VARIABLE}")
-        endif()
-    endif()
-    if (NOT DEFINED GIT_VERSION_ARRAY)
-        execute_process(COMMAND ${CMAKE_GET_GIT_VERSION} -a ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_VERSION_ARRAY RESULT_VARIABLE RES)
-        if (RES)
-            message(FATAL_ERROR "Get git version array string failed with: ${OUTPUT_VARIABLE}")
-        endif()
-    endif()
-
-    configure_file (
-        "${CMAKE_CURRENT_SOURCE_DIR}/include/build_configuration.h.in"
-        "${CMAKE_CURRENT_BINARY_DIR}/include/build_configuration.h"
-    )
 
     add_executable(${ELF_FILE} ${ARGN}) # ARGN is "the rest of the arguments", i.e. the source list
     if (DEFINED TARGET_RUNTIME_OUTPUT_DIRECTORY)
