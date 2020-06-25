@@ -31,6 +31,8 @@ SECTIONS
 {
     .text : ALIGN(128)
     {
+        /* Place boot code first */
+        *(.text.init)
         *(SORT_BY_ALIGNMENT(.text) SORT_BY_ALIGNMENT(.text.*) SORT_BY_ALIGNMENT(.gnu.linkonce.t.*))
     } > CODE
 
@@ -60,7 +62,7 @@ SECTIONS
         __data_start = .;
 
         *(SORT_BY_ALIGNMENT(.data) SORT_BY_ALIGNMENT(.data.*) SORT_BY_ALIGNMENT(.gnu.linkonce.d.*))
-    } > DATA 
+    } > DATA
 
     /* We want the small data sections together, so single-instruction offsets
       can access them all, and initialized data all before uninitialized, so

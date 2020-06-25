@@ -13,6 +13,7 @@
 # Reset handler code for Service Processor core
 #=========================================================================
 
+.section .text.init, "ax", @progbits
 .global bl2_entry
 
 bl2_entry:
