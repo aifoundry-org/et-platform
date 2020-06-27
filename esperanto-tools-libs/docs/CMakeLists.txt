@@ -19,6 +19,8 @@ if(NOT DEFINED SPHINX_THEME_DIR)
     set(SPHINX_THEME_DIR)
 endif()
 
+
+
 # configured documentation tools and intermediate build results
 set(BINARY_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/_build")
 
@@ -38,19 +40,14 @@ configure_file(
     "${CMAKE_CURRENT_BINARY_DIR}/conf.py"
     @ONLY)
 
-file(GLOB_RECURSE DOC_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}} *.rst)
+file(GLOB_RECURSE DOC_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.rst)
+file(GLOB_RECURSE STATIC_FILES RELATIVE  ${CMAKE_CURRENT_SOURCE_DIR}/ _static/*)
 
 set(TRACING_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../src/Tracing)
 
-foreach(DOC_FILE ${DOC_FILES})
-  configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/${DOC_FILE}"
-    "${CMAKE_CURRENT_BINARY_DIR}/${DOC_FILE}")
-endforeach()
-
 set(DOC_FILES_DST "")
 
-foreach(DOC_FILE ${DOC_FILES})
+foreach(DOC_FILE ${DOC_FILES} ${STATIC_FILES})
   add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${DOC_FILE}
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/${DOC_FILE} ${CMAKE_CURRENT_BINARY_DIR}/${DOC_FILE}
