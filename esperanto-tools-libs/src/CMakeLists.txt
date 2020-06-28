@@ -32,6 +32,7 @@ set(SUBFOLDERS
   Core
   DeviceAPI
   DeviceFW
+  MemoryManagement
   PCIEDevice
   RPCDevice
   Support

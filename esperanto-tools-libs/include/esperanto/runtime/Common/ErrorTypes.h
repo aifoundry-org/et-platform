@@ -530,6 +530,12 @@ enum etrtError {
   etrtErrorModuleFailedToDestroy,
 
   /**
+   * This error indicates that we failed to deallocate memory, could not find
+   * the allocated tensor
+   */
+  etrtErrorFreeUnknownTensor,
+
+  /**
    * This indicates an internal startup failure in the ET Runtime.
    */
   etrtErrorStartupFailure = 0x7f,

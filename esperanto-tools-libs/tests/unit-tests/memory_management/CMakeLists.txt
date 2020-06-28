@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# Copyright (C) 2019, Esperanto Technologies Inc.
+# Copyright (C) 2020, Esperanto Technologies Inc.
 # The copyright to the computer program(s) herein is the
 # property of Esperanto Technologies, Inc. All Rights Reserved.
 # The program(s) may be used and/or copied only with
@@ -8,16 +8,9 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-
 set(TEST_LIST
-  test_command_response.cc:""
-  test_command_queue.cc:""
-  test_device_manager.cc:""
-  test_error_or.cc:""
-  test_elf_parsing.cc:""
-  test_memory_manager.cc:""
+  test_tensor_info.cc:""
+  test_linear_allocator.cc:""
   )
 
 create_test_targets("${TEST_LIST}" "LABELS;Generic;TIMEOUT;600")
-
-add_subdirectory(memory_management)

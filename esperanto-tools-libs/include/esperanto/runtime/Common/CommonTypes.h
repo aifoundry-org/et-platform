@@ -17,6 +17,11 @@
 namespace et_runtime {
 #endif // __cplusplus
 
+/// Unique identify of a network that has been loaded on our device.
+/// A Network is comprised of a set of one or more compute Kernels/UberKernels
+/// and their associated tensors.
+typedef int64_t NetworkID;
+
 /// Unique identifier for a code module loaded by the runtime it effectively keeps
 /// track of the ELF files loaded through the runtime
 typedef int64_t CodeModuleID;
@@ -36,6 +41,9 @@ typedef uint64_t StreamID;
 
 /// Unique ID of a Command
 typedef uint64_t CommandID;
+
+/// Unique ID of a Tensor
+typedef uint64_t TensorID;
 
 typedef uint64_t MBOXMessageTypeID;
 
