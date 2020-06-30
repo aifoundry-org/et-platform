@@ -17,6 +17,7 @@
 #include "literals.h"
 #include "memory_error.h"
 #include "memory_region.h"
+#include "processor.h"
 
 namespace bemu {
 
@@ -35,14 +36,26 @@ struct MaxionRegion : public MemoryRegion {
     static_assert(N == 256_MiB, "bemu::MaxionRegion has illegal size");
 
     void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
-        if (agent.shireid() != IO_SHIRE_ID)
+        try {
+            const Hart& cpu = dynamic_cast<const Hart&>(agent);
+            if (cpu.mhartid != IO_SHIRE_SP_HARTID)
+                throw memory_error(first() + pos);
+        }
+        catch (const std::bad_cast&) {
             throw memory_error(first() + pos);
+        }
         default_value(result, n, memory_reset_value, pos);
     }
 
     void write(const Agent& agent, size_type pos, size_type, const_pointer) override {
-        if (agent.shireid() != IO_SHIRE_ID)
+        try {
+            const Hart& cpu = dynamic_cast<const Hart&>(agent);
+            if (cpu.mhartid != IO_SHIRE_SP_HARTID)
+                throw memory_error(first() + pos);
+        }
+        catch (const std::bad_cast&) {
             throw memory_error(first() + pos);
+        }
     }
 
     void init(const Agent&, size_type, size_type, const_pointer) override {

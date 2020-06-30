@@ -14,11 +14,12 @@
 #include <array>
 #include <cstdint>
 #include <functional>
+#include "dense_region.h"
 #include "emu_defines.h"
 #include "literals.h"
 #include "memory_error.h"
 #include "memory_region.h"
-#include "dense_region.h"
+#include "processor.h"
 #include "sparse_region.h"
 
 namespace bemu {
@@ -202,10 +203,45 @@ protected:
         return *lo;
     }
 
+    //
+    // The specification says that access is controlled as follows:
+    // Mailbox:
+    // ----------------+----+----+------------+------------+----+----+----+-----
+    // Region name     | SvcProc |         Minion          |  Maxion | PCIe host
+    //                 | Rd | Wr | Rd         | Wr         | Rd | Wr | Rd | Wr
+    // ----------------+----+----+------------+------------+----+----+----+-----
+    // R_PU_MBOX_MM_MX | Y  | Y  | mprot[1:0] | mprot[1:0] | Y  | Y  | N  | N
+    // R_PU_MBOX_MM_SP | Y  | Y  | mprot[1:0] | mprot[1:0] | N  | N  | N  | N
+    // R_PU_MBOX_PC_MM | Y  | Y  | mprot[1:0] | mprot[1:0] | N  | N  | Y  | Y
+    // R_PU_MBOX_MX_SP | Y  | Y  | N          | N          | Y  | Y  | N  | N
+    // R_PU_MBOX_PC_MX | Y  | Y  | N          | N          | Y  | Y  | Y  | Y
+    // R_PU_MBOX_SPARE | Y  | Y  | N          | N          | N  | N  | N  | N
+    // R_PU_MBOX_PC_SP | Y  | Y  | N          | N          | N  | N  | Y  | Y
+    // ----------------+----+----+------------+------------+----+----+----+-----
+    //
+    // Trigger:
+    // -----------------+-----------------------------
+    // Region           | Access
+    // -----------------+-----------------------------
+    // R_PU_TRG_MMIN    | Master/mprot[1:0] (+SvcProc)
+    // R_PU_TRG_MMIN_SP | SvcProc
+    // R_PU_TRG_MAX     | Maxion (+SvcProc)
+    // R_PU_TRG_MAX_SP  | SvcProc
+    // R_PU_TRG_PCIE    | PCIe Host (+SvcProc)
+    // R_PU_TRG_PCIE_SP | SvcProc
+    // -----------------+-----------------------------
+    //
+
     MemoryRegion* search(const Agent& agent, size_type pos, size_type n) const {
-        return (agent.shireid() == IO_SHIRE_ID)
+        try {
+            const Hart& cpu = dynamic_cast<const Hart&>(agent);
+            return (cpu.mhartid == IO_SHIRE_SP_HARTID)
                 ? search(spio_regions, pos, n)
                 : search(minion_regions, pos, n);
+        }
+        catch (const std::bad_cast&) {
+            throw std::runtime_error("Mailbox does not support non-Hart accesses");
+        }
     }
 
     // These arrays must be sorted by region offset

@@ -12,9 +12,14 @@
 #include <cfenv>
 
 #include "emu_gio.h"
-#include "memop.h"
+#include "memory/main_memory.h"
 #include "msgport.h"
 #include "rbox.h"
+
+namespace bemu {
+    extern MainMemory memory;
+}
+
 
 namespace bemu {
 namespace RBOX {
@@ -313,7 +318,7 @@ uint64_t RBOXEmu::read_esr(uint32_t esr_id)
 uint32_t RBOXEmu::process_packet(uint64_t packet)
 {
     InPcktHeaderT header;
-    header.qw = bemu::pmemread<uint64_t>(*this, packet);
+    bemu::memory.read(*this, packet, 8, &header.qw);
 
     uint32_t packet_size = 0;
 
@@ -327,7 +332,7 @@ uint32_t RBOXEmu::process_packet(uint64_t packet)
                 LOG_AGENT(DEBUG, *this, "RBOX [%" PRIu32 "] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 4; qw++)
                 {
-                    fully_covered_tile_pckt.qw[qw] = bemu::pmemread<uint64_t>(*this, packet + qw * 8);
+                    bemu::memory.read(*this, packet + qw * 8, 8, &fully_covered_tile_pckt.qw[qw]);
                     LOG_AGENT(DEBUG, *this, "\t[%u] = %016" PRIx64, qw, fully_covered_tile_pckt.qw[qw]);
                 }
 
@@ -352,7 +357,7 @@ uint32_t RBOXEmu::process_packet(uint64_t packet)
                 LOG_AGENT(DEBUG, *this, "RBOX [%" PRIu32 "] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 4; qw++)
                 {
-                    large_tri_tile_pckt.qw[qw] = bemu::pmemread<uint64_t>(*this, packet + qw * 8);
+                    bemu::memory.read(*this, packet + qw * 8, 8, &large_tri_tile_pckt.qw[qw]);
                     LOG_AGENT(DEBUG, *this, "\t[%u] = %016" PRIx64, qw, large_tri_tile_pckt.qw[qw]);
                 }
 
@@ -377,7 +382,7 @@ uint32_t RBOXEmu::process_packet(uint64_t packet)
                 LOG_AGENT(DEBUG, *this, "RBOX [%" PRIu32 "] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
-                    tri_with_tile_64x64_pckt.qw[qw] = bemu::pmemread<uint64_t>(*this, packet + qw * 8);
+                    bemu::memory.read(*this, packet + qw * 8, 8, &tri_with_tile_64x64_pckt.qw[qw]);
                     LOG_AGENT(DEBUG, *this, "\t[%u] = %016" PRIx64, qw, tri_with_tile_64x64_pckt.qw[qw]);
                 }
 
@@ -416,7 +421,7 @@ uint32_t RBOXEmu::process_packet(uint64_t packet)
                 LOG_AGENT(DEBUG, *this, "RBOX [%" PRIu32 "] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
-                    tri_with_tile_128x128_pckt.qw[qw] = bemu::pmemread<uint64_t>(*this, packet + qw * 8);
+                    bemu::memory.read(*this, packet + qw * 8, 8, &tri_with_tile_128x128_pckt.qw[qw]);
                     LOG_AGENT(DEBUG, *this, "\t[%u] = %016" PRIx64, qw, tri_with_tile_128x128_pckt.qw[qw]);
                 }
                 for (uint32_t eq = 0; eq < 3; eq++)
@@ -454,7 +459,7 @@ uint32_t RBOXEmu::process_packet(uint64_t packet)
                 LOG_AGENT(DEBUG, *this, "RBOX [%" PRIu32 "] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
-                    large_tri_pckt.qw[qw] = bemu::pmemread<uint64_t>(*this, packet + qw * 8);
+                    bemu::memory.read(*this, packet + qw * 8, 8, &large_tri_pckt.qw[qw]);
                     LOG_AGENT(DEBUG, *this, "\t[%u] = %016" PRIx64, qw, large_tri_pckt.qw[qw]);
                 }
 
@@ -483,7 +488,7 @@ uint32_t RBOXEmu::process_packet(uint64_t packet)
                 LOG_AGENT(DEBUG, *this, "RBOX [%" PRIu32 "] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
-                    rbox_state_pckt.qw[qw] = bemu::pmemread<uint64_t>(*this, packet + qw * 8);
+                    bemu::memory.read(*this, packet + qw * 8, 8, &rbox_state_pckt.qw[qw]);
                     LOG_AGENT(DEBUG, *this, "\t[%u] = %016" PRIx64, qw, rbox_state_pckt.qw[qw]);
                 }
                 rbox_state = rbox_state_pckt.state;
@@ -498,7 +503,7 @@ uint32_t RBOXEmu::process_packet(uint64_t packet)
                 LOG_AGENT(DEBUG, *this, "RBOX [%" PRIu32 "] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 4; qw++)
                 {
-                    frag_shader_state_pckt.qw[qw] = bemu::pmemread<uint64_t>(*this, packet + qw * 8);
+                    bemu::memory.read(*this, packet + qw * 8, 8, &frag_shader_state_pckt.qw[qw]);
                     LOG_AGENT(DEBUG, *this, "\t[%u] = %016" PRIx64, qw,frag_shader_state_pckt.qw[qw]);
                 }
                 frag_shader_state = frag_shader_state_pckt.state;
@@ -678,7 +683,8 @@ bool RBOXEmu::test_quad(QuadInfoT &quad)
         if (quad.fragment[f].coverage)
         {
             uint64_t frag_depth_stencil_address = compute_depth_stencil_buffer_address(x, y);
-            uint32_t frag_depth_stencil = bemu::pmemread<uint32_t>(*this, frag_depth_stencil_address);
+            uint32_t frag_depth_stencil;
+            bemu::memory.read(*this, frag_depth_stencil_address, 4, &frag_depth_stencil);
 
             uint8_t frag_stencil = frag_depth_stencil >> 24;
             uint32_t frag_depth = frag_depth_stencil & 0x00FFFFFF;
@@ -705,7 +711,7 @@ bool RBOXEmu::test_quad(QuadInfoT &quad)
                     out_depth = frag_depth;
 
                 uint32_t out_depth_stencil = (out_stencil << 24) | out_depth;
-                bemu::pmemwrite<uint32_t>(*this, frag_depth_stencil_address, out_depth_stencil);
+                bemu::memory.write(*this, frag_depth_stencil_address, 4, &out_depth_stencil);
             }
 
             quad.fragment[f].coverage = quad.fragment[f].coverage && depth_bound_test && stencil_test && depth_test;
@@ -1151,7 +1157,7 @@ void RBOXEmu::send_packet(uint32_t minion_hart_id, uint64_t packet[4], uint64_t 
         for (uint32_t qw = 0; qw < 4; qw++)
         {
             LOG_AGENT(DEBUG, *this, "RBOX [%" PRIu32 "] => Writing QW %016" PRIx64 " at address %016" PRIx64, rbox_id, packet[qw], out_addr);
-            bemu::pmemwrite<uint64_t>(*this, out_addr, packet[qw]);
+            bemu::memory.write(*this, out_addr, 8, &packet[qw]);
             out_addr = out_addr + 8;
         }
 
@@ -1198,7 +1204,7 @@ void RBOXEmu::write_next_packet()
     for (uint32_t p = 0; p < 4; p++)
     {
         LOG_AGENT(DEBUG, *this, "RBOX [%" PRIu32 "] => Writing QW %016" PRIx64 " at address %016" PRIx64, rbox_id, output_packets[0].second, minion_hart_out_addr);
-        bemu::pmemwrite<uint64_t>(*this, minion_hart_out_addr, output_packets[0].second);
+        bemu::memory.write(*this, minion_hart_out_addr, 8, &output_packets[0].second);
         output_packets.erase(output_packets.begin());
         minion_hart_out_addr += 8;
     }

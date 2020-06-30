@@ -17,11 +17,14 @@
 #include "emu_defines.h"
 #include "emu_gio.h"
 #include "log.h"
-#include "memop.h"
+#include "memory/main_memory.h"
 #include "processor.h"
 #include "traps.h"
 
 namespace bemu {
+
+
+extern MainMemory memory;
 
 
 extern std::array<Hart,EMU_NUM_THREADS> cpu;
@@ -86,7 +89,7 @@ static void write_msg_port_data_to_scp(Hart& cpu, unsigned id, uint32_t *data, u
     for (unsigned w = 0; w < nwords; w++) {
         LOG_AGENT(DEBUG, cpu, "Writing MSG_PORT (H%u p%u) data 0x%08" PRIx32 " to addr 0x%16" PRIx64,
                   cpu.mhartid, id, data[w], base_addr + 4 * w);
-        pmemwrite<uint32_t>(cpu, base_addr + 4 * w, data[w]);
+        memory.write(cpu, base_addr + 4 * w, sizeof(uint32_t), &data[w]);
     }
 
     if (cpu.portctrl[id].enable_oob) {

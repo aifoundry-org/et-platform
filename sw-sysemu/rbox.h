@@ -156,7 +156,6 @@ namespace RBOX {
         void write_next_packet();
 
     public:
-        long shireid() const override { return rbox_id / EMU_RBOXES_PER_SHIRE; }
         std::string name() const override { return std::string("RBOX_") + std::to_string(rbox_id); }
         void write_esr(uint32_t esr_id, uint64_t data);
         uint64_t read_esr(uint32_t esr_id);

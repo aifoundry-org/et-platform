@@ -32,7 +32,7 @@ sysemu_artifact_TGTS := \
 # Remove the file that implements the main function
 libsysemu_OBJS := $(filter-out $(sysemu_OBJDIR)/sys_emu/sys_emu_main.o,$(sysemu_OBJS))
 
-CPPFLAGS := -MMD -MP -I.. -I. -DSYS_EMU -I./checkers
+CPPFLAGS := -MMD -MP -I.. -I. -DSYS_EMU
 CXXFLAGS := -Wall -Wextra -Werror -pedantic-errors -fPIC -std=c++11
 CFLAGS   := -Wall -Wextra -Werror -pedantic-errors -fPIC -std=c11
 LDLIBS   := -lm

@@ -11,15 +11,6 @@
 #ifndef _SYS_EMU_H_
 #define _SYS_EMU_H_
 
-#include "api_communicate.h"
-#include "devices/rvtimer.h"
-#include "emu_defines.h"
-#include "processor.h"
-#include "mem_checker.h"
-#include "l1_scp_checker.h"
-#include "l2_scp_checker.h"
-#include "flb_checker.h"
-
 #include <algorithm>
 #include <bitset>
 #include <cstdint>
@@ -29,6 +20,15 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+
+#include "api_communicate.h"
+#include "emu_defines.h"
+#include "processor.h"
+#include "checkers/flb_checker.h"
+#include "checkers/l1_scp_checker.h"
+#include "checkers/l2_scp_checker.h"
+#include "checkers/mem_checker.h"
+#include "devices/rvtimer.h"
 
 namespace bemu {
 
