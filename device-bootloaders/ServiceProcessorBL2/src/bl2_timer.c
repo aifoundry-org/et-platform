@@ -1,9 +1,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "io.h"
 #include "bl2_timer.h"
-#include "etsoc_hal/rvtimer.h"
-#include "hal_device.h"
+#include "etsoc_hal/inc/rvtimer.h"
+#include "etsoc_hal/inc/hal_device.h"
 
 /*
  * Initially the timer uses a 100 MHz oscillator clock.
@@ -31,12 +32,11 @@ static uint64_t gs_timer_1_MHz_ticks_before_pll_turned_on = 0;
 
 uint64_t timer_get_ticks_count(void) {
     uint64_t tick_count;
-    volatile Rvtimer_t * rvtimer = (Rvtimer_t*)R_SP_RVTIM_BASEADDR;
-    tick_count = rvtimer->mtime.B.value;
+    tick_count = ioread64(R_SP_RVTIM_BASEADDR + RVTIMER_MTIME_ADDRESS);
     if (0 == gs_timer_raw_ticks_before_pll_turned_on) {
         return tick_count / gs_timer_divider;
     } else {
-        return gs_timer_1_MHz_ticks_before_pll_turned_on + 
+        return gs_timer_1_MHz_ticks_before_pll_turned_on +
                 ((tick_count - gs_timer_raw_ticks_before_pll_turned_on) / gs_timer_divider);
     }
 }

@@ -3,17 +3,16 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "io.h"
 #include "bl2_sp_pll.h"
-
 #include "bl2_main.h"
 
-#include "etsoc_hal/mvls_tn7_hpdpll.ipxact.h"
-#include "etsoc_hal/rm_esr.h"
-#include "etsoc_hal/cm_esr.h"
-#include "etsoc_hal/pshire_esr.h"
-#include "hal_device.h"
+#include "etsoc_hal/inc/rm_esr.h"
+#include "etsoc_hal/inc/cm_esr.h"
+#include "etsoc_hal/inc/pshire_esr.h"
+#include "etsoc_hal/inc/hal_device.h"
 
-#include "movellus_hpdpll_modes_config.h"
+#include "etsoc_hal/inc/movellus_hpdpll_modes_config.h"
 
 #define PLL_LOCK_TIMEOUT 10000
 
@@ -34,15 +33,14 @@ static uint32_t gs_sp_pll_4_frequency;
 static uint32_t gs_pcie_pll_0_frequency;
 
 static int release_pshire_from_reset(void) {
-    volatile Reset_Manager_t * reset_manager = (Reset_Manager_t*)R_SP_CRU_BASEADDR;
-    reset_manager->rm_pshire_cold.R = (Reset_Manager_rm_pshire_cold_t){ .B = { .rstn = 1 }}.R;
-    reset_manager->rm_pshire_warm.R = (Reset_Manager_rm_pshire_warm_t){ .B = { .rstn = 1 }}.R;
+    iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_PSHIRE_COLD_ADDRESS, RESET_MANAGER_RM_PSHIRE_COLD_RSTN_SET(1));
+    iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_PSHIRE_WARM_ADDRESS, RESET_MANAGER_RM_PSHIRE_WARM_RSTN_SET(1));
     return 0;
 }
 
 uint32_t get_input_clock_index(void) {
-    volatile Reset_Manager_t * reset_manager = (Reset_Manager_t*)R_SP_CRU_BASEADDR;
-    return reset_manager->rm_status2.B.strap_in;
+    uint32_t rm_status2 = ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_STATUS2_ADDRESS);
+    return RESET_MANAGER_RM_STATUS2_STRAP_IN_GET(rm_status2);
 }
 
 static int configure_pll_off(volatile uint32_t * pll_registers) {
@@ -148,24 +146,21 @@ FOUND_CONFIG_DATA:
 }
 
 static int clock_manager_pll_bypass(PLL_ID_t pll, bool bypass_enable) {
-    volatile Clock_Manager_t * sp_clock_manager = (volatile Clock_Manager_t *)R_SP_CRU_BASEADDR;
-    volatile Pshire_t * pshire_manager = (volatile Pshire_t *)R_PCIE_ESR_BASEADDR;
-
     switch (pll) {
     case PLL_ID_SP_PLL_0:
-        sp_clock_manager->cm_ios_ctrl.R = ((Clock_Manager_cm_ios_ctrl_t){.B = { .mission = bypass_enable ? 0 : 1 }}).R;
+        iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_IOS_CTRL_ADDRESS, CLOCK_MANAGER_CM_IOS_CTRL_MISSION_SET(bypass_enable ? 0 : 1));
         break;
     case PLL_ID_SP_PLL_1:
-        sp_clock_manager->cm_pll1_ctrl.R = ((Clock_Manager_cm_pll1_ctrl_t){.B = { .enable = bypass_enable ? 0 : 1 }}).R;
+        iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL1_CTRL_ADDRESS, CLOCK_MANAGER_CM_PLL1_CTRL_ENABLE_SET(bypass_enable ? 0 : 1));
         break;
     case PLL_ID_SP_PLL_2:
-        sp_clock_manager->cm_pll2_ctrl.R = ((Clock_Manager_cm_pll2_ctrl_t){.B = { .enable = bypass_enable ? 0 : 1 }}).R;
+        iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL2_CTRL_ADDRESS, CLOCK_MANAGER_CM_PLL2_CTRL_ENABLE_SET(bypass_enable ? 0 : 1));
         break;
     case PLL_ID_SP_PLL_4:
-        sp_clock_manager->cm_pll4_ctrl.R = ((Clock_Manager_cm_pll4_ctrl_t){.B = { .enable = bypass_enable ? 0 : 1 }}).R;
+        iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL4_CTRL_ADDRESS, CLOCK_MANAGER_CM_PLL4_CTRL_ENABLE_SET(bypass_enable ? 0 : 1));
         break;
     case PLL_ID_PSHIRE:
-        pshire_manager->pshire_ctrl.R = ((Pshire_pshire_ctrl_t){.B = { .pll0_byp = bypass_enable ? 1 : 0 }}).R;
+        iowrite32(R_PCIE_ESR_BASEADDR + PSHIRE_PSHIRE_CTRL_ADDRESS, PSHIRE_PSHIRE_CTRL_PLL0_BYP_SET(bypass_enable ? 1 : 0));
         break;
 
     case PLL_ID_SP_PLL_3:

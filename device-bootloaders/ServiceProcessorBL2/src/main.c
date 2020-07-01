@@ -6,6 +6,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include "io.h"
 #include "service_processor_ROM_data.h"
 #include "service_processor_BL1_data.h"
 #include "service_processor_BL2_data.h"
@@ -26,8 +27,8 @@
 #include "bl2_minion_pll_and_dll.h"
 #include "bl2_ddr_config.h"
 
-#include "rm_esr.h"
-#include "hal_device.h"
+#include "etsoc_hal/inc/rm_esr.h"
+#include "etsoc_hal/inc/hal_device.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -47,8 +48,7 @@ SERVICE_PROCESSOR_BL2_DATA_t * get_service_processor_bl2_data(void) {
 }
 
 bool is_vaultip_disabled(void) {
-    volatile Reset_Manager_t * reset_manager = (Reset_Manager_t*)R_SP_CRU_BASEADDR;
-    Reset_Manager_rm_status2_t rm_status2;
+    uint32_t rm_status2;
     static bool initialized = false;
     static bool vaultip_disabled = false;
 
@@ -56,8 +56,8 @@ bool is_vaultip_disabled(void) {
         if (0 != sp_otp_get_vaultip_chicken_bit(&vaultip_disabled)) {
             vaultip_disabled = false;
         }
-        rm_status2.R = reset_manager->rm_status2.R;
-        if (0 != rm_status2.B.a0_unlock && 0 != rm_status2.B.skip_vault) {
+        rm_status2 = ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_STATUS2_ADDRESS);
+        if (0 != RESET_MANAGER_RM_STATUS2_A0_UNLOCK_GET(rm_status2) && 0 != RESET_MANAGER_RM_STATUS2_SKIP_VAULT_GET(rm_status2)) {
             vaultip_disabled = true;
         }
     }

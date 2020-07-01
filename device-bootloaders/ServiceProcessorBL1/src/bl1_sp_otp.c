@@ -4,15 +4,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "io.h"
 #include "printx.h"
 #include "bl1_main.h"
 
 #include <stdint.h>
 
-#include "rm_esr.h"
-#include "cm_esr.h"
+#include "etsoc_hal/inc/rm_esr.h"
+#include "etsoc_hal/inc/cm_esr.h"
 #include "bl1_sp_otp.h"
-#include "hal_device.h"
+#include "etsoc_hal/inc/hal_device.h"
 
 static uint32_t gs_sp_otp_lock_bits[2];
 static bool gs_is_otp_available;
@@ -22,13 +23,12 @@ static MISC_CONFIGURATION_BITS_t gs_misc_configuration;
 #define WRCK_TIMEOUT 100
 
 int sp_otp_init(void) {
-    Reset_Manager_rm_status2_t rm_status2;
-    volatile Reset_Manager_t * reset_manager = (Reset_Manager_t*)R_SP_CRU_BASEADDR;
+    uint32_t rm_status2;
     volatile uint32_t * sp_otp_data = (uint32_t*)R_SP_EFUSE_BASEADDR;
 
     // check the bootstrap pins to test if the OTP is available
-    rm_status2.R = reset_manager->rm_status2.R;
-    if (rm_status2.B.error_sms_udr) {
+    rm_status2 = ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_STATUS2_ADDRESS);
+    if (RESET_MANAGER_RM_STATUS2_ERROR_SMS_UDR_GET(rm_status2)) {
         gs_sp_otp_lock_bits[0] = 0xFFFFFFFF;
         gs_sp_otp_lock_bits[1] = 0xFFFFFFFF;
         gs_chicken_bits.R = 0xFFFFFFFF;
@@ -84,19 +84,19 @@ int sp_otp_write(uint32_t offset, uint32_t value) {
     if (!gs_is_otp_available) {
         return -1;
     }
-    
+
     if (is_bank_locked(bank_index)) {
 #ifdef PRINT_OTP_STATUS
         MESSAGE_ERROR("OTP register %02x is locked!\n", offset);
 #endif
         return 0;
     }
-    
+
     old_value = sp_otp_data[offset];
     value = value & old_value;
     sp_otp_data[offset] = value;
     new_value = sp_otp_data[offset];
-#ifdef PRINT_OTP_STATUS 
+#ifdef PRINT_OTP_STATUS
     MESSAGE_INFO_DEBUG("Set OTP[%02x] to 0x%08x, result: 0x%08x\n", offset, value, new_value);
 #endif
     if (SP_OTP_INDEX_LOCK_REG_BITS_31_00_OFFSET == offset) {
@@ -116,7 +116,7 @@ int sp_otp_get_pll_configuration_data(OTP_PLL_CONFIGURATION_OVERRIDE_t * table, 
     if (!gs_is_otp_available) {
         return -1;
     }
-    
+
     for (index = 0; index < SP_OTP_MAX_PLL_CONFIG_ENTRIES_COUNT; index += 4) {
         if (!is_bank_locked(SP_OTP_INDEX_PLL_CFG_OVERRIDE + index)) {
             *count = 0;
@@ -306,7 +306,7 @@ static int get_whitelist_configuration_data(uint32_t flags, OTP_PCIE_WHITELIST_E
     if (!gs_is_otp_available) {
         return -1;
     }
-    
+
     for (index = 0; index < SP_OTP_MAX_PCIE_CONFIG_ENTRIES_COUNT; index += 2) {
         if (!is_bank_locked(SP_OTP_INDEX_PLL_CFG_OVERRIDE + 2 * index)) {
             *count = 0;

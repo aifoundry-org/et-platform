@@ -1,5 +1,4 @@
-#include "etsoc_hal/mvls_tn7_hpdpll.ipxact.h"
-#include "movellus_hpdpll_modes_config.h"
+#include "etsoc_hal/inc/movellus_hpdpll_modes_config.h"
 
 #define MEMSHIRE_PLL_CONFIG_BASE 0x61000000
 
@@ -64,8 +63,8 @@ static int program_memshire_pll(uint8_t ms_num, uint8_t mode) {
 
 static int configure_memshire_plls(void) {
 
-  if (0 != program_memshire_pll(0, 19)) return -1;    
-  
+  if (0 != program_memshire_pll(0, 19)) return -1;
+
   if (0 != program_memshire_pll(4, 19)) return -1;
 
   return 0;

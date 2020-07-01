@@ -13,10 +13,11 @@
 
 #include <stdio.h>
 
+#include "io.h"
 #include "bl2_spi_controller.h"
-#include "etsoc_hal/DW_apb_ssi.h"
+#include "etsoc_hal/inc/DW_apb_ssi.h"
 #include "spio_DW_apb_ssi_config.h"
-#include "hal_device.h"
+#include "etsoc_hal/inc/hal_device.h"
 #include "bl2_main.h"
 
 #pragma GCC push_options
@@ -60,50 +61,52 @@
 #define TX_TIMEOUT 0x1000
 #define RX_TIMEOUT 0x1000
 
-static volatile Ssi_t * get_spi_registers(SPI_CONTROLLER_ID_t id) {
+static uintptr_t get_spi_registers(SPI_CONTROLLER_ID_t id) {
     switch (id) {
     case SPI_CONTROLLER_ID_SPI_0:
-        return (volatile Ssi_t *)R_SP_SPI0_BASEADDR;
+        return R_SP_SPI0_BASEADDR;
     case SPI_CONTROLLER_ID_SPI_1:
-        return (volatile Ssi_t *)R_SP_SPI1_BASEADDR;
+        return R_SP_SPI1_BASEADDR;
     default:
-        return NULL;
+        return 0;
     }
 }
 
 int spi_controller_init(SPI_CONTROLLER_ID_t id) {
-    volatile Ssi_t * spi_regs = get_spi_registers(id);
-    if (NULL == spi_regs) {
+    uintptr_t spi_regs = get_spi_registers(id);
+    if (0 == spi_regs) {
         return -1;
     }
 
     // MESSAGE_INFO_DEBUG("SSI_VERSION_ID: 0x%08x\n", spi_regs->SSI_VERSION_ID);
 
-    spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 0 }}.R;
+    iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(0));
 
-    spi_regs->CTRLR0.R = (Ssi_CTRLR0_t){ .B = { .DFS = SSI_CTRLR0_DFS_DFS_FRAME_08BITS,
-                                              .FRF = SSI_CTRLR0_FRF_FRF_MOTOROLA_SPI,
-                                              .SCPH = SCPH_VALUE,
-                                              .SCPOL = SCPOL_VALUE,
-                                              .TMOD = SSI_CTRLR0_TMOD_TMOD_TX_AND_RX,
-                                              .SRL = SSI_CTRLR0_SRL_SRL_NORMAL_MODE,
-                                              .DFS_32 = SSI_CTRLR0_DFS_32_DFS_32_FRAME_08BITS,
-                                              .SPI_FRF = SSI_CTRLR0_SPI_FRF_SPI_FRF_STD_SPI_FRF,
-                                              .SSTE = 0 }}.R;
+    iowrite32(spi_regs + SSI_CTRLR0_ADDRESS,
+        SSI_CTRLR0_DFS_SET(SSI_CTRLR0_DFS_DFS_FRAME_08BITS)            |
+        SSI_CTRLR0_FRF_SET(SSI_CTRLR0_FRF_FRF_MOTOROLA_SPI)            |
+        SSI_CTRLR0_SCPH_SET(SCPH_VALUE)                                |
+        SSI_CTRLR0_SCPOL_SET(SCPOL_VALUE)                              |
+        SSI_CTRLR0_TMOD_SET(SSI_CTRLR0_TMOD_TMOD_TX_AND_RX)            |
+        SSI_CTRLR0_SRL_SET(SSI_CTRLR0_SRL_SRL_NORMAL_MODE)             |
+        SSI_CTRLR0_DFS_32_SET(SSI_CTRLR0_DFS_32_DFS_32_FRAME_08BITS)   |
+        SSI_CTRLR0_SPI_FRF_SET(SSI_CTRLR0_SPI_FRF_SPI_FRF_STD_SPI_FRF) |
+        SSI_CTRLR0_SSTE_SET(0));
 
-    spi_regs->CTRLR1.R = (Ssi_CTRLR1_t){ .B = { .NDF = 0 }}.R;
+    iowrite32(spi_regs + SSI_CTRLR1_ADDRESS, SSI_CTRLR1_NDF_SET(0));
 
-    spi_regs->TXFTLR.R = (Ssi_TXFTLR_t){ .B = { .TFT = SPI_TX_FIFO_MAX_DEPTH }}.R;
-    spi_regs->RXFTLR.R = (Ssi_RXFTLR_t){ .B = { .RFT = SPI_RX_FIFO_MAX_DEPTH }}.R;
+    iowrite32(spi_regs + SSI_TXFTLR_ADDRESS, SSI_TXFTLR_TFT_SET(SPI_TX_FIFO_MAX_DEPTH));
+    iowrite32(spi_regs + SSI_RXFTLR_ADDRESS, SSI_RXFTLR_RFT_SET(SPI_RX_FIFO_MAX_DEPTH));
 
-    spi_regs->IMR.R = (Ssi_IMR_t){ .B = { .TXEIM = 0,
-                                        .TXOIM = 0,
-                                        .RXUIM = 0,
-                                        .RXOIM = 0,
-                                        .RXFIM = 0,
-                                        .MSTIM = 0 }}.R;
+    iowrite32(spi_regs + SSI_IMR_ADDRESS,
+        SSI_IMR_TXEIM_SET(0) |
+        SSI_IMR_TXOIM_SET(0) |
+        SSI_IMR_RXUIM_SET(0) |
+        SSI_IMR_RXOIM_SET(0) |
+        SSI_IMR_RXFIM_SET(0) |
+        SSI_IMR_MSTIM_SET(0));
 
-    spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 1 }}.R;
+    iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(1));
 
     return 0;
 }
@@ -115,7 +118,7 @@ static inline uint32_t reverse_endian(const uint32_t v) {
 #endif
 
 #ifdef WRITES_USE_32_BIT_FRAMES
-static int spi_controller_tx32_data(volatile Ssi_t * spi_regs, const uint8_t * spi_command, uint32_t spi_command_length, uint8_t * tx_data, uint32_t tx_data_size, uint32_t slave_en_mask) {
+static int spi_controller_tx32_data(uintptr_t spi_regs, const uint8_t * spi_command, uint32_t spi_command_length, uint8_t * tx_data, uint32_t tx_data_size, uint32_t slave_en_mask) {
     int rv;
     //Ssi_SR_t sr;
     //Ssi_TXFLR_t txflr;
@@ -124,7 +127,7 @@ static int spi_controller_tx32_data(volatile Ssi_t * spi_regs, const uint8_t * s
     const uint32_t * tx_data_32;
     const uint32_t * tx_data_32_end;
     const uint32_t * spi_command_32;
-    Ssi_TXFLR_t txflr;
+    uint32_t txflr;
     #if SPI_TX_VERBOSITY > 2
     uint32_t n;
     #endif
@@ -182,40 +185,40 @@ static int spi_controller_tx32_data(volatile Ssi_t * spi_regs, const uint8_t * s
     tx_data_32_end = (const uint32_t*)(const void*)(tx_data + tx_data_size);
 
     // transmit the command (and address)
-    spi_regs->DR0.B.DR = reverse_endian(*spi_command_32);
+    iowrite32(spi_regs + SSI_DR0_ADDRESS, reverse_endian(*spi_command_32));
     // transmit the data
     while (tx_data_32 < tx_data_32_end) {
-        spi_regs->DR0.B.DR = reverse_endian(*tx_data_32);
+        iowrite32(spi_regs + SSI_DR0_ADDRESS, reverse_endian(*tx_data_32));
         tx_data_32++;
     }
 
     // set SLAVE ENABLE REGISTER to start the transfer
-    spi_regs->SER.R = slave_en_mask;
+    iowrite32(spi_regs + SSI_SER_ADDRESS, slave_en_mask);
 
     // wait for all the command/data bytes to be sent
     timeout = 0;
-    txflr.R = spi_regs->TXFLR.R;
-    while (txflr.B.TXTFL > 0) {
+    txflr = ioread32(spi_regs + SSI_TXFLR_ADDRESS);
+    while (SSI_TXFLR_TXTFL_GET(txflr) > 0) {
         timeout++;
         if (timeout > TX_TIMEOUT) {
             rv = -1;
-            MESSAGE_ERROR("TX ERR 2: SR=0x%x, TXTFL=0x%x\n", spi_regs->SR.R, txflr.R);
+            MESSAGE_ERROR("TX ERR 2: SR=0x%x, TXTFL=0x%x\n", ioread32(spi_regs + SSI_SR_ADDRESS), txflr);
             goto DONE;
         }
-        txflr.R = spi_regs->TXFLR.R;
+        txflr = ioread32(spi_regs + SSI_TXFLR_ADDRESS);
     }
 
     rv = 0;
 DONE:
-    spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 0 }}.R;
-    spi_regs->SER.R = (Ssi_SER_t){ .B = { .SER = 0 }}.R;
+    iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(0));
+    iowrite32(spi_regs + SSI_SER_ADDRESS, SSI_SER_SER_SET(0));
     return rv;
 }
 #endif
 
-static int spi_controller_tx_data(volatile Ssi_t * spi_regs, const uint8_t * spi_command, uint32_t spi_command_length, uint8_t * tx_data, uint32_t tx_data_size, uint32_t slave_en_mask) {
+static int spi_controller_tx_data(uintptr_t spi_regs, const uint8_t * spi_command, uint32_t spi_command_length, uint8_t * tx_data, uint32_t tx_data_size, uint32_t slave_en_mask) {
     int rv;
-    Ssi_TXFLR_t txflr;
+    uint32_t txflr;
     uint32_t timeout;
     const uint8_t * tx_data_end;
     const uint8_t * spi_command_end;
@@ -256,48 +259,48 @@ static int spi_controller_tx_data(volatile Ssi_t * spi_regs, const uint8_t * spi
 
     // transmit the command, address and dummy bits
     while (spi_command < spi_command_end) {
-        spi_regs->DR0.B.DR = (uint32_t)*spi_command;
+        iowrite32(spi_regs + SSI_DR0_ADDRESS, (uint32_t)*spi_command);
         spi_command++;
     }
     // transmit the data
     while (tx_data < tx_data_end) {
-        spi_regs->DR0.B.DR = (uint32_t)*tx_data;
+        iowrite32(spi_regs + SSI_DR0_ADDRESS, (uint32_t)*tx_data);
         tx_data++;
     }
 
     // set SLAVE ENABLE REGISTER to start the transfer
-    spi_regs->SER.R = slave_en_mask;
+    iowrite32(spi_regs + SSI_SER_ADDRESS, slave_en_mask);
 
     // wait for all the command/data bytes to be sent
     timeout = 0;
-    txflr.R = spi_regs->TXFLR.R;
-    while (txflr.B.TXTFL > 0) {
+    txflr = ioread32(spi_regs + SSI_TXFLR_ADDRESS);
+    while (SSI_TXFLR_TXTFL_GET(txflr) > 0) {
         timeout++;
         if (timeout > TX_TIMEOUT) {
             rv = -1;
-            MESSAGE_ERROR("TX ERR 2: SR=0x%x, TXTFL=0x%x\n", spi_regs->SR.R, txflr.R);
+            MESSAGE_ERROR("TX ERR 2: SR=0x%x, TXTFL=0x%x\n", ioread32(spi_regs + SSI_SR_ADDRESS), txflr);
             goto DONE;
         }
-        txflr.R = spi_regs->TXFLR.R;
+        txflr = ioread32(spi_regs + SSI_TXFLR_ADDRESS);
     }
 
     rv = 0;
 DONE:
-    spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 0 }}.R;
-    spi_regs->SER.R = (Ssi_SER_t){ .B = { .SER = 0 }}.R;
+    iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(0));
+    iowrite32(spi_regs + SSI_SER_ADDRESS, SSI_SER_SER_SET(0));
     return rv;
 }
 
 #ifdef READS_USE_32_BIT_FRAMES
-static int spi_controller_rx32_data(volatile Ssi_t * spi_regs, const uint8_t * spi_command, uint32_t spi_command_length, uint32_t read_frames, uint32_t skip_read_size, uint8_t * rx_data, uint32_t rx_data_size) {
+static int spi_controller_rx32_data(uintptr_t spi_regs, const uint8_t * spi_command, uint32_t spi_command_length, uint32_t read_frames, uint32_t skip_read_size, uint8_t * rx_data, uint32_t rx_data_size) {
     int rv;
     //Ssi_SR_t sr;
     //Ssi_TXFLR_t txflr;
-    Ssi_RXFLR_t rxflr;
+    uint32_t rxflr;
     uint32_t timeout;
     union {
         uint8_t u8[4];
-        uint32_t u32;        
+        uint32_t u32;
     } read_value;
     uint32_t n;
     const uint32_t * spi_command_32;
@@ -342,15 +345,15 @@ static int spi_controller_rx32_data(volatile Ssi_t * spi_regs, const uint8_t * s
     spi_command_32 = (const uint32_t*)(const void*)spi_command;
 
     // transmit the command (and address)
-    spi_regs->DR0.B.DR = reverse_endian(*spi_command_32);
+    iowrite32(spi_regs + SSI_DR0_ADDRESS, reverse_endian(*spi_command_32));
 
     // read the data from the RX FIFO
     timeout = 0;
     while (read_frames > 0) {
-        rxflr.R = spi_regs->RXFLR.R;
-        if (rxflr.B.RXTFL > 0) {
-            for (n = 0; n < rxflr.R; n++) {
-                read_value.u32 = reverse_endian(spi_regs->DR0.B.DR);
+        rxflr = ioread32(spi_regs + SSI_RXFLR_ADDRESS);
+        if (SSI_RXFLR_RXTFL_GET(rxflr) > 0) {
+            for (n = 0; n < rxflr; n++) {
+                read_value.u32 = reverse_endian(ioread32(spi_regs + SSI_DR0_ADDRESS));
                 if (0 == skip_read_size) {
                     data = read_value.u8;
                     data_size = 4;
@@ -390,9 +393,9 @@ static int spi_controller_rx32_data(volatile Ssi_t * spi_regs, const uint8_t * s
             timeout++;
             if (timeout > RX_TIMEOUT) {
                 rv = -1;
-                MESSAGE_ERROR("RX ERR: SR=0x%x, TXTFL=0x%x, RXTFL=0x%x\n", spi_regs->SR.R, spi_regs->TXFLR.R, rxflr.R);
-                MESSAGE_ERROR("        CTRLR0=0x%x, SSIENR=0x%x, SER=0x%x\n", spi_regs->CTRLR0.R, spi_regs->SSIENR.R, spi_regs->SER.R);
-                MESSAGE_ERROR("        BAUDR=0x%x, TXFTLR=0x%x, RXFTLR=0x%x\n", spi_regs->BAUDR.R, spi_regs->TXFTLR.R, spi_regs->RXFTLR.R);
+                MESSAGE_ERROR("RX ERR: SR=0x%x, TXTFL=0x%x, RXTFL=0x%x\n", ioread32(spi_regs + SSI_SR_ADDRESS), ioread32(spi_regs + SSI_TXFLR_ADDRESS), rxflr);
+                MESSAGE_ERROR("        CTRLR0=0x%x, SSIENR=0x%x, SER=0x%x\n", ioread32(spi_regs + SSI_CTRLR0_ADDRESS), ioread32(spi_regs + SSI_SSIENR_ADDRESS), ioread32(spi_regs + SSI_SER_ADDRESS));
+                MESSAGE_ERROR("        BAUDR=0x%x, TXFTLR=0x%x, RXFTLR=0x%x\n", ioread32(spi_regs + SSI_BAUDR_ADDRESS), ioread32(spi_regs + SSI_TXFTLR_ADDRESS), ioread32(spi_regs + SSI_RXFTLR_ADDRESS));
                 //MESSAGE_ERROR("SR! 0x%x\n", sr.R);
                 goto DONE;
             }
@@ -402,17 +405,17 @@ static int spi_controller_rx32_data(volatile Ssi_t * spi_regs, const uint8_t * s
 
     rv = 0;
 DONE:
-    spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 0 }}.R;
-    spi_regs->SER.R = (Ssi_SER_t){ .B = { .SER = 0 }}.R;
+    iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(0));
+    iowrite32(spi_regs + SSI_SER_ADDRESS, SSI_SER_SER_SET(0));
     return rv;
 }
 #endif
 
-static int spi_controller_rx_data(volatile Ssi_t * spi_regs, const uint8_t * spi_command, uint32_t spi_command_length, uint8_t * rx_data, uint32_t rx_data_size) {
+static int spi_controller_rx_data(uintptr_t spi_regs, const uint8_t * spi_command, uint32_t spi_command_length, uint8_t * rx_data, uint32_t rx_data_size) {
     int rv;
-    Ssi_SR_t sr;
+    uint32_t sr;
     //Ssi_TXFLR_t txflr;
-    Ssi_RXFLR_t rxflr;
+    uint32_t rxflr;
     uint32_t timeout;
     uint8_t byte_value;
     #if SPI_RX_VERBOSITY > 2
@@ -420,7 +423,7 @@ static int spi_controller_rx_data(volatile Ssi_t * spi_regs, const uint8_t * spi
     #endif
 
     (void)sr;
-    
+
     #if SPI_RX_VERBOSITY == 1
     MESSAGE_INFO_DEBUG("rx\n");
     #elif SPI_RX_VERBOSITY >= 2
@@ -438,18 +441,18 @@ static int spi_controller_rx_data(volatile Ssi_t * spi_regs, const uint8_t * spi
 
     // transmit the command, address and dummy bits
     while (spi_command_length > 0) {
-        spi_regs->DR0.B.DR = (uint32_t)*spi_command;
+        iowrite32(spi_regs + SSI_DR0_ADDRESS, (uint32_t)*spi_command);
         spi_command++;
         spi_command_length--;
     }
 
     //txflr.R = 0;
-    sr.R = spi_regs->SR.R;
+    sr = ioread32(spi_regs + SSI_SR_ADDRESS);
     timeout = 0;
     while (rx_data_size > 0) {
-        rxflr.R = spi_regs->RXFLR.R;
-        if (rxflr.B.RXTFL > 0) {
-            byte_value = spi_regs->DR0.B.DR & 0xFF;
+        rxflr = ioread32(spi_regs + SSI_RXFLR_ADDRESS);
+        if (SSI_RXFLR_RXTFL_GET(rxflr) > 0) {
+            byte_value = ioread32(spi_regs + SSI_DR0_ADDRESS) & 0xFF;
             *rx_data = byte_value;
             rx_data++;
             rx_data_size--;
@@ -458,10 +461,10 @@ static int spi_controller_rx_data(volatile Ssi_t * spi_regs, const uint8_t * spi
             timeout++;
             if (timeout > RX_TIMEOUT) {
                 rv = -1;
-                MESSAGE_ERROR("RX ERR: SR=0x%x, TXTFL=0x%x, RXTFL=0x%x\n", spi_regs->SR.R, spi_regs->TXFLR.R, rxflr.R);
-                MESSAGE_ERROR("        CTRLR0=0x%x, SSIENR=0x%x, SER=0x%x\n", spi_regs->CTRLR0.R, spi_regs->SSIENR.R, spi_regs->SER.R);
-                MESSAGE_ERROR("        BAUDR=0x%x, TXFTLR=0x%x, RXFTLR=0x%x\n", spi_regs->BAUDR.R, spi_regs->TXFTLR.R, spi_regs->RXFTLR.R);
-                MESSAGE_ERROR("SR! 0x%x\n", sr.R);
+                MESSAGE_ERROR("RX ERR: SR=0x%x, TXTFL=0x%x, RXTFL=0x%x\n", ioread32(spi_regs + SSI_SR_ADDRESS), ioread32(spi_regs + SSI_TXFLR_ADDRESS), rxflr);
+                MESSAGE_ERROR("        CTRLR0=0x%x, SSIENR=0x%x, SER=0x%x\n", ioread32(spi_regs + SSI_CTRLR0_ADDRESS), ioread32(spi_regs + SSI_SSIENR_ADDRESS), ioread32(spi_regs + SSI_SER_ADDRESS));
+                MESSAGE_ERROR("        BAUDR=0x%x, TXFTLR=0x%x, RXFTLR=0x%x\n", ioread32(spi_regs + SSI_BAUDR_ADDRESS), ioread32(spi_regs + SSI_TXFTLR_ADDRESS), ioread32(spi_regs + SSI_RXFTLR_ADDRESS));
+                MESSAGE_ERROR("SR! 0x%x\n", sr);
                 goto DONE;
             }
         }
@@ -469,8 +472,8 @@ static int spi_controller_rx_data(volatile Ssi_t * spi_regs, const uint8_t * spi
 
     rv = 0;
 DONE:
-    spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 0 }}.R;
-    spi_regs->SER.R = (Ssi_SER_t){ .B = { .SER = 0 }}.R;
+    iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(0));
+    iowrite32(spi_regs + SSI_SER_ADDRESS, SSI_SER_SER_SET(0));
     return rv;
 }
 
@@ -479,9 +482,8 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
     int rv;
     uint8_t spi_command[1 + 3 + MAX_DUMMY_BYTES] __attribute__ ((aligned (4)));
     uint32_t spi_command_length;
-    volatile Ssi_t * spi_regs = get_spi_registers(id);
+    uintptr_t spi_regs = get_spi_registers(id);
     uint32_t dfs32_frame_size;
-    Ssi_BAUDR_t baud_rate;
     uint32_t slave_en_mask;
 
 #if defined(WRITES_USE_32_BIT_FRAMES) || defined(READS_USE_32_BIT_FRAMES)
@@ -500,7 +502,7 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
     uint32_t n;
 #endif
 
-    if (NULL == spi_regs) {
+    if (0 == spi_regs) {
         return -1;
     }
     if (slave_index >= SPI_SSI_NUM_SLAVES) {
@@ -579,38 +581,36 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
     dfs32_frame_size = SSI_CTRLR0_DFS_32_DFS_32_FRAME_08BITS;
 #endif
 
-    spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 0 }}.R;
-    slave_en_mask = (Ssi_SER_t){ .B = { .SER = (1u << slave_index) & SLAVE_MASK }}.R;
+    iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(0));
+    slave_en_mask = SSI_SER_SER_SET((1u << slave_index) & SLAVE_MASK);
 
     if (command->data_receive) {
-        baud_rate.R = (Ssi_BAUDR_t){ .B = { .SCKDV = RX_BAUD_RATE_DIVIDER_VALUE }}.R;
-        spi_regs->BAUDR.R = baud_rate.R;
-        spi_regs->CTRLR0.R = (Ssi_CTRLR0_t){ .B = { 
-                                                // .DFS = 0,
-                                                .FRF = SSI_CTRLR0_FRF_FRF_MOTOROLA_SPI,
-                                                .SCPH = SCPH_VALUE,
-                                                .SCPOL = SCPOL_VALUE,
-                                                .TMOD = SSI_CTRLR0_TMOD_TMOD_EEPROM_READ,
-                                                .SRL = SSI_CTRLR0_SRL_SRL_NORMAL_MODE,
-                                                .DFS_32 = dfs32_frame_size & 0x1Fu,
-                                                .SPI_FRF = SSI_CTRLR0_SPI_FRF_SPI_FRF_STD_SPI_FRF,
-                                                .SSTE = 0 }}.R;
-        
+        iowrite32(spi_regs + SSI_BAUDR_ADDRESS, SSI_BAUDR_SCKDV_SET(RX_BAUD_RATE_DIVIDER_VALUE));
+        iowrite32(spi_regs + SSI_CTRLR0_ADDRESS, (uint32_t)(
+            // SSI_CTRLR0_DFS_SET(0) |
+            SSI_CTRLR0_FRF_SET(SSI_CTRLR0_FRF_FRF_MOTOROLA_SPI)            |
+            SSI_CTRLR0_SCPH_SET(SCPH_VALUE)                                |
+            SSI_CTRLR0_SCPOL_SET(SCPOL_VALUE)                              |
+            SSI_CTRLR0_TMOD_SET(SSI_CTRLR0_TMOD_TMOD_EEPROM_READ)          |
+            SSI_CTRLR0_SRL_SET(SSI_CTRLR0_SRL_SRL_NORMAL_MODE)             |
+            SSI_CTRLR0_DFS_32_SET(dfs32_frame_size & 0x1Fu)                |
+            SSI_CTRLR0_SPI_FRF_SET(SSI_CTRLR0_SPI_FRF_SPI_FRF_STD_SPI_FRF) |
+            SSI_CTRLR0_SSTE_SET(0)));
+
 #ifdef READS_USE_32_BIT_FRAMES
         if (use_32bit_frames) {
             read_frames = true_read_size / 4;
             //MESSAGE_INFO_DEBUG("RX frames: %u\n", read_frames);
-            spi_regs->CTRLR1.R = (Ssi_CTRLR1_t){ .B = { .NDF = (uint16_t)(read_frames - 1u) }}.R;
+            iowrite32(spi_regs + SSI_CTRLR1_ADDRESS, SSI_CTRLR1_NDF_SET((uint16_t)(read_frames - 1u)));
         } else {
             //MESSAGE_INFO_DEBUG("RX bytes: %u\n", true_read_size);
-            spi_regs->CTRLR1.R = (Ssi_CTRLR1_t){ .B = { .NDF = (uint16_t)(true_read_size - 1u) }}.R;
+            iowrite32(spi_regs + SSI_CTRLR1_ADDRESS, SSI_CTRLR1_NDF_SET((uint16_t)(true_read_size - 1u)));
         }
 #else
-        spi_regs->CTRLR1.R = (Ssi_CTRLR1_t){ .B = { .NDF = (uint16_t)(command->data_size - 1u) }}.R;
+        iowrite32(spi_regs + SSI_CTRLR1_ADDRESS, SSI_CTRLR1_NDF_SET((uint16_t)(command->data_size - 1u)));
 #endif
-
-        spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 1 }}.R;
-        spi_regs->SER.R = slave_en_mask;
+        iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(1));
+        iowrite32(spi_regs + SSI_SER_ADDRESS, slave_en_mask);
 
 #ifdef READS_USE_32_BIT_FRAMES
         if (use_32bit_frames) {
@@ -622,35 +622,34 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
         rv = spi_controller_rx_data(spi_regs, spi_command, spi_command_length, command->data_buffer, command->data_size);
 #endif
     } else {
-        baud_rate.R = (Ssi_BAUDR_t){ .B = { .SCKDV = TX_BAUD_RATE_DIVIDER_VALUE }}.R;
-        spi_regs->BAUDR.R = baud_rate.R;
-        spi_regs->CTRLR0.R = (Ssi_CTRLR0_t){ .B = { 
-                                                // .DFS = 0,
-                                                .FRF = SSI_CTRLR0_FRF_FRF_MOTOROLA_SPI,
-                                                .SCPH = SCPH_VALUE,
-                                                .SCPOL = SCPOL_VALUE,
-                                                .TMOD = SSI_CTRLR0_TMOD_TMOD_TX_ONLY,
-                                                .SRL = SSI_CTRLR0_SRL_SRL_NORMAL_MODE,
-                                                .DFS_32 = dfs32_frame_size & 0x1Fu,
-                                                .SPI_FRF = SSI_CTRLR0_SPI_FRF_SPI_FRF_STD_SPI_FRF,
-                                                .SSTE = 0 }}.R;
-        spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 1 }}.R;
+        iowrite32(spi_regs + SSI_BAUDR_ADDRESS, SSI_BAUDR_SCKDV_SET(TX_BAUD_RATE_DIVIDER_VALUE));
+        iowrite32(spi_regs + SSI_CTRLR0_ADDRESS, (uint32_t)(
+            // SSI_CTRLR0_DFS_SET(0)                                       |
+            SSI_CTRLR0_FRF_SET(SSI_CTRLR0_FRF_FRF_MOTOROLA_SPI)            |
+            SSI_CTRLR0_SCPH_SET(SCPH_VALUE)                                |
+            SSI_CTRLR0_SCPOL_SET(SCPOL_VALUE)                              |
+            SSI_CTRLR0_TMOD_SET(SSI_CTRLR0_TMOD_TMOD_TX_ONLY)              |
+            SSI_CTRLR0_SRL_SET(SSI_CTRLR0_SRL_SRL_NORMAL_MODE)             |
+            SSI_CTRLR0_DFS_32_SET(dfs32_frame_size & 0x1Fu)                |
+            SSI_CTRLR0_SPI_FRF_SET(SSI_CTRLR0_SPI_FRF_SPI_FRF_STD_SPI_FRF) |
+            SSI_CTRLR0_SSTE_SET(0)));
+        iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(1));
 #ifdef WRITES_USE_32_BIT_FRAMES
-    if (use_32bit_frames) {
-        rv = spi_controller_tx32_data(spi_regs, spi_command, spi_command_length, command->data_buffer, command->data_size, slave_en_mask);
-    } else {
-        rv = spi_controller_tx_data(spi_regs, spi_command, spi_command_length, command->data_buffer, command->data_size, slave_en_mask);
-    }
+        if (use_32bit_frames) {
+            rv = spi_controller_tx32_data(spi_regs, spi_command, spi_command_length, command->data_buffer, command->data_size, slave_en_mask);
+        } else {
+            rv = spi_controller_tx_data(spi_regs, spi_command, spi_command_length, command->data_buffer, command->data_size, slave_en_mask);
+        }
 #else
-    rv = spi_controller_tx_data(spi_regs, spi_command, spi_command_length, command->data_buffer, command->data_size);
+        rv = spi_controller_tx_data(spi_regs, spi_command, spi_command_length, command->data_buffer, command->data_size);
 #endif
     }
 
     // force the CS# to go high at the end of the command
-    spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 0 }}.R;
-    spi_regs->SER.R = (Ssi_SER_t){ .B = { .SER = 0 }}.R;
-    spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 1 }}.R;
-    spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 0 }}.R;
+    iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(0));
+    iowrite32(spi_regs + SSI_SER_ADDRESS, SSI_SER_SER_SET(0));
+    iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(1));
+    iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(0));
 
     return rv;
 }

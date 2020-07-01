@@ -16,9 +16,10 @@
 #include "bl1_build_configuration.h"
 #include "build_configuration.h"
 #include "bl1_sp_otp.h"
+#include "io.h"
 
-#include "rm_esr.h"
-#include "hal_device.h"
+#include "etsoc_hal/inc/rm_esr.h"
+#include "etsoc_hal/inc/hal_device.h"
 
 //#define MINIMAL_IMAGE
 
@@ -30,8 +31,7 @@ SERVICE_PROCESSOR_BL1_DATA_t * get_service_processor_bl1_data(void) {
 }
 
 bool is_vaultip_disabled(void) {
-    volatile Reset_Manager_t * reset_manager = (Reset_Manager_t*)R_SP_CRU_BASEADDR;
-    Reset_Manager_rm_status2_t rm_status2;
+    uint32_t rm_status2;
     static bool initialized = false;
     static bool vaultip_disabled = false;
 
@@ -39,8 +39,9 @@ bool is_vaultip_disabled(void) {
         if (0 != sp_otp_get_vaultip_chicken_bit(&vaultip_disabled)) {
             vaultip_disabled = false;
         }
-        rm_status2.R = reset_manager->rm_status2.R;
-        if (0 != rm_status2.B.a0_unlock && 0 != rm_status2.B.skip_vault) {
+
+        rm_status2 = ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_STATUS2_ADDRESS);
+        if (0 != RESET_MANAGER_RM_STATUS2_A0_UNLOCK_GET(rm_status2) && 0 != RESET_MANAGER_RM_STATUS2_SKIP_VAULT_GET(rm_status2)) {
             vaultip_disabled = true;
         }
     }
