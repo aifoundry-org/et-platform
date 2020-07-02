@@ -36,13 +36,6 @@ public:
   BaseMemoryAllocator(BaseMemoryAllocator &) = delete;
   virtual ~BaseMemoryAllocator() = default;
 
-  /// @brief Allocate a buffer of type TesnorType and of size bites
-  ///
-  /// @param[in] type Type of the buffer to allocate
-  /// @param[in] size Size in bytes of the buffer to allocate
-  /// @returns  Error of the ID of the tensor that was allocated
-  virtual ErrorOr<TensorID> malloc(TensorType type, TensorSizeTy size) = 0;
-
   /// @brief Deallocate the specific tensor
   ///
   /// @param[in] id ID of the tensor to deallocate

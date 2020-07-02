@@ -39,13 +39,13 @@ public:
   /// @param[in] type Type of the buffer to allocate
   /// @param[in] size Size in bytes of the buffer to allocate
   /// @returns  Error of the ID of the tensor that was allocated
-  ErrorOr<TensorID> malloc(TensorType type, TensorSizeTy size) override;
+  ErrorOr<TensorID> malloc(TensorType type, TensorSizeTy size);
 
   /// @brief Deallocate the specific tensor
   ///
   /// @param[in] id ID of the tensor to deallocate
   /// @returns Error os success
-  etrtError free(TensorID tid) override;
+  etrtError free(TensorID tid);
 
   /// @brief Return the total free memory
   TensorSizeTy freeMemory() override;
