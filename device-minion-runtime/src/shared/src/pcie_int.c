@@ -9,36 +9,29 @@
 *-------------------------------------------------------------------------
 */
 
+#include "io.h"
 #include "pcie_int.h"
-
 #include "pcie_device.h"
-
-typedef PE0_DWC_pcie_ctl_DBI_Slave_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_t PCI_MSI_CAP_ID_NEXT_CTRL_REG_t;
-typedef PE0_DWC_pcie_ctl_DBI_Slave_PF0_MSIX_CAP_PCI_MSIX_CAP_ID_NEXT_CTRL_REG_t PCI_MSIX_CAP_ID_NEXT_CTRL_REG_t;
 
 pcie_int_t pcie_get_int_type(void)
 {
+    uint32_t msi, msix, status;
+
     //The PCI spec defines 3 different interrupt mechanisms. Per the PCI spec, the host system
     //software will enable exactly one of them at a time.
 
-    PCI_MSI_CAP_ID_NEXT_CTRL_REG_t PCI_MSI_CAP_ID_NEXT_CTRL_REG = {
-        .R = PCIE0->PF0_MSI_CAP.PCI_MSI_CAP_ID_NEXT_CTRL_REG.R
-    };
+    msi = ioread32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_ADDRESS);
+    if (PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_PCI_MSI_ENABLE_GET(msi))
+        return pcie_int_msi;
 
-    if (PCI_MSI_CAP_ID_NEXT_CTRL_REG.B.PCI_MSI_ENABLE) return pcie_int_msi;
+    msix = ioread32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSIX_CAP_PCI_MSIX_CAP_ID_NEXT_CTRL_REG_ADDRESS);
+    if (PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSIX_CAP_PCI_MSIX_CAP_ID_NEXT_CTRL_REG_PCI_MSIX_ENABLE_GET(msix))
+        return pcie_int_msix;
 
-    PCI_MSIX_CAP_ID_NEXT_CTRL_REG_t PCI_MSIX_CAP_ID_NEXT_CTRL_REG = {
-        .R = PCIE0->PF0_MSIX_CAP.PCI_MSIX_CAP_ID_NEXT_CTRL_REG.R
-    };
-
-    if (PCI_MSIX_CAP_ID_NEXT_CTRL_REG.B.PCI_MSIX_ENABLE) return pcie_int_msix;
-
-    PE0_DWC_pcie_ctl_DBI_Slave_PF0_TYPE0_HDR_STATUS_COMMAND_REG_t status_command = {
-        .R = PCIE0->PF0_TYPE0_HDR.STATUS_COMMAND_REG.R
-    };
-
+    status = ioread32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_STATUS_COMMAND_REG_ADDRESS);
     //PCI_TYPE0_INT_EN bit is named "disable" in PCIe spec. Sigh Synopsis. 0 = legacy ints enabled.
-    if (status_command.B.PCI_TYPE0_INT_EN == 0) return pcie_int_legacy;
+    if (PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_STATUS_COMMAND_REG_PCI_TYPE0_INT_EN_GET(status) == 0)
+        return pcie_int_legacy;
 
     return pcie_int_none;
 }
@@ -53,19 +46,13 @@ uint32_t pcie_get_int_vecs(pcie_int_t int_type)
         {
             //The host dynamically determines how many vectors to give you based
             //on it's resources. You'll get between 1 and the number requested.
-            PCI_MSI_CAP_ID_NEXT_CTRL_REG_t PCI_MSI_CAP_ID_NEXT_CTRL_REG = {
-                .R = PCIE0->PF0_MSI_CAP.PCI_MSI_CAP_ID_NEXT_CTRL_REG.R
-            };
-            
-            return 1U << PCI_MSI_CAP_ID_NEXT_CTRL_REG.B.PCI_MSI_MULTIPLE_MSG_EN;
+            uint32_t msi = ioread32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_ADDRESS);
+            return 1U << PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_PCI_MSI_MULTIPLE_MSG_EN_GET(msi);
         }
         case pcie_int_msix:
         {
-            PCI_MSIX_CAP_ID_NEXT_CTRL_REG_t PCI_MSIX_CAP_ID_NEXT_CTRL_REG = { 
-                .R = PCIE0->PF0_MSIX_CAP.PCI_MSIX_CAP_ID_NEXT_CTRL_REG.R
-            };
-
-            return PCI_MSIX_CAP_ID_NEXT_CTRL_REG.B.PCI_MSIX_TABLE_SIZE + 1U;
+            uint32_t msix = ioread32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSIX_CAP_PCI_MSIX_CAP_ID_NEXT_CTRL_REG_ADDRESS);
+            return (uint32_t)PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSIX_CAP_PCI_MSIX_CAP_ID_NEXT_CTRL_REG_PCI_MSIX_TABLE_SIZE_GET(msix) + 1U;
         }
         case pcie_int_none:
             //Intentional fall through
@@ -83,20 +70,26 @@ int pcie_interrupt_host(uint32_t vec)
         return -1;
     }
 
-    uint32_t msi_mask;
+    uint32_t msi_mask, tmp;
 
     switch (int_type)
     {
         case pcie_int_msi:
             msi_mask = 1U << vec;
 
-            PCIE_NOPCIESR->msi_tx_vec.R |= msi_mask;
-            PCIE_NOPCIESR->msi_tx_vec.R &= ~msi_mask;
+            tmp = ioread32(PCIE_NOPCIESR + PSHIRE_USR1_MSI_TX_VEC_ADDRESS);
+            tmp |= msi_mask;
+            iowrite32(PCIE_NOPCIESR + PSHIRE_USR1_MSI_TX_VEC_ADDRESS, tmp);
+
+            tmp = ioread32(PCIE_NOPCIESR + PSHIRE_USR1_MSI_TX_VEC_ADDRESS);
+            tmp &= ~msi_mask;
+            iowrite32(PCIE_NOPCIESR + PSHIRE_USR1_MSI_TX_VEC_ADDRESS, tmp);
+
             //TODO: this can bit-bang faster than the synopsis IP can
             //handle if you call pcie_interrupt_host() back-to-back
             break;
         case pcie_int_msix:
-            *MSIX_TRIG_REG = (uint64_t)vec;
+            iowrite64(MSIX_TRIG_REG, (uint64_t)vec);
             break;
         case pcie_int_legacy:
             //Intentional fall through. Even though hardware supports legacy, the sw stack is

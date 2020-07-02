@@ -1,10 +1,11 @@
 #include "interrupt.h"
-#include "hal_device.h"
-#include "pu_plic.h"
+#include "io.h"
+#include "etsoc_hal/inc/hal_device.h"
+#include "etsoc_hal/inc/pu_plic.h"
 
 #include <stddef.h>
 
-#define PU_PLIC ((volatile Pu_plic_t* const)R_PU_PLIC_BASEADDR)
+#define PU_PLIC R_PU_PLIC_BASEADDR
 #define PRIORITY_MASK 0x7U
 
 static void plicEnableInterrupt(
@@ -25,19 +26,25 @@ void* pullVectorTable = vectorTable;
 void INT_init(void)
 {
     //Set thresholds to not mask any interrupts
-    PU_PLIC->threshold_t11.R = 0;
+    iowrite32(PU_PLIC + PU_PLIC_THRESHOLD_T11_ADDRESS, 0);
 }
 
 void INT_enableInterrupt(interrupt_t interrupt, uint32_t priority, void (*isr)(void))
 {
     vectorTable[interrupt] = isr;
-    plicEnableInterrupt(&PU_PLIC->priority_0.R, &PU_PLIC->enable_t11_r0.R, (uint32_t)interrupt, priority);
+    plicEnableInterrupt(
+        (volatile uint32_t* const )(PU_PLIC + PU_PLIC_PRIORITY_0_ADDRESS),
+        (volatile uint32_t* const )(PU_PLIC + PU_PLIC_ENABLE_T11_R0_ADDRESS),
+        (uint32_t)interrupt, priority);
 }
 
 void INT_disableInterrupt(interrupt_t interrupt)
 {
     // TODO FIXME target enumeration is a mystery, t0 is wrong
-    plicDisableInterrupt(&PU_PLIC->priority_0.R, &PU_PLIC->enable_t11_r0.R, (uint32_t)interrupt);
+    plicDisableInterrupt(
+        (volatile uint32_t* const )(PU_PLIC + PU_PLIC_PRIORITY_0_ADDRESS),
+        (volatile uint32_t* const )(PU_PLIC + PU_PLIC_ENABLE_T11_R0_ADDRESS),
+        (uint32_t)interrupt);
     vectorTable[interrupt] = NULL;
 }
 
