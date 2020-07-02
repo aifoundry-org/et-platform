@@ -8,20 +8,7 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-# Add the device-api as an external project that we build from source
-include(ExternalProject)
-
-option(BUILD_SHARED_LIBS "Build shared libs." ON)
-if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    message(STATUS "No build type selected, default to Debug")
-    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type." FORCE)
-else(${CMAKE_BUILD_TYPE} MATCHES Release)
-    message(STATUS "Release type selected")
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type." FORCE)
-endif()
-
 set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined" )
-
 # FIXME : disable for now hidden visibility by default: -fvisibility=hidden -fvisibility-inlines-hidden
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -std=c++17 -Wall")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -g3 -O0 -Werror")

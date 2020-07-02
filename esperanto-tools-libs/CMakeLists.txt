@@ -57,11 +57,6 @@ foreach(p LIB BIN INCLUDE CMAKE)
   endif()
 endforeach()
 
-if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    message(STATUS "No build type selected, default to Debug")
-    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type." FORCE)
-endif()
-
 # System dependencies
 find_package(Sanitizers REQUIRED)
 find_package(gflags REQUIRED)
