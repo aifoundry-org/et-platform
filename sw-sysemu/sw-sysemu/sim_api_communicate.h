@@ -61,7 +61,7 @@ class sim_api_communicate final : public api_communicate
             bool mb_write(const struct mbox_t& mbox)  override;
             bool raise_device_interrupt(simulator_api::DeviceInterruptType type) override;
 
-            long shireid() const override { return -1L; }
+            /* For bemu::Agent */
             std::string name() const override { return std::string("SysEmuWrapper"); }
         protected:
             void shire_threads_set_pc(unsigned shire_id, uint64_t pc);
