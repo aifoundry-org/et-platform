@@ -13,7 +13,7 @@ We are going to cover:
 
 * The memory requirements of loading and launching a network in our system.
 
-* How DRAM is divided in our system an managed.
+* How DRAM is divided in our system and managed.
 
 Types of Tensors In The System
 ------------------------------
@@ -240,3 +240,10 @@ Linear Memory Allocator
 
 The Linear Memory Allocator is implemented under class
 :class:`et_runtime::device::memory_management::LinearAllocator`
+
+
+Bidirectional Memory Allocator
+""""""""""""""""""""""""""""""
+
+The Bidirectional Memory Allocator is implemented under class
+:class:`et_runtime::device::memory_management::BidirectionalAllocator`

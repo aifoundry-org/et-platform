@@ -11,6 +11,7 @@
 set(TEST_LIST
   test_tensor_info.cc:""
   test_linear_allocator.cc:""
+  test_bidirectional_allocator.cc:""
   )
 
 create_test_targets("${TEST_LIST}" "LABELS;Generic;TIMEOUT;600")
