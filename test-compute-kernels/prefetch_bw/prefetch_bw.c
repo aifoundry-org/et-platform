@@ -13,15 +13,8 @@
 #define CACHE_LINE_SIZE 8
 #define FCC_FLB 2
 
-// Write BW test.
-// Not clearly an open / closed page test, however we should see
-// memory controller stats to get BW.
-// DMA loads 32MB array into L3.
-// Then each minion evicts 32KB bytes to DDR. Minions are assigned sequential blocks.
-// A problem that we have to generate predictable traffic is that we do not know where runtime
-// will place input tensor. The algorithm will be different if it is placed on a row or column boundary
-//
-// Todo: Probably this tes should change to use stores / tensor stores and then evicts to DDR
+// Prefetch test
+// Tries to reach max BW in the memshire
 int64_t main(const kernel_params_t* const kernel_params_ptr)
 {
 
@@ -29,6 +22,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
         ((uint64_t*)kernel_params_ptr->tensor_a == NULL) ||
         (kernel_params_ptr->tensor_b == 0) ||
 	(kernel_params_ptr->tensor_c == 0) ||
+        (kernel_params_ptr->tensor_d == 0) ||
 	(uint64_t*)kernel_params_ptr->tensor_d == NULL)
     {
         // Bad arguments
@@ -36,13 +30,9 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     }
 
     uint64_t hart_id = get_hart_id();
-    uint64_t minion_id = hart_id >> 1;
-
-    // Have odd hart finish with even one to reduce reads to memory
-    // Todo: Verify that this is important.
+    uint64_t minion_id = hart_id >> 1;  
     if (hart_id & 1) {
-      WAIT_FCC(0);
-      return 0;
+        return 0;
     }
 
     // Set marker for waveforms
@@ -51,18 +41,15 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     uint64_t base_addr = (uint64_t) kernel_params_ptr->tensor_a;
     uint64_t array_size = (uint64_t) kernel_params_ptr->tensor_b;
     uint64_t num_minions = (uint64_t) kernel_params_ptr->tensor_c;
-    uint64_t num_iter = array_size / (num_minions * 1024);
-    volatile uint64_t *out_data = (uint64_t*) (kernel_params_ptr->tensor_d);
+    uint64_t num_columns = (uint64_t) kernel_params_ptr->tensor_d;
+    uint64_t num_iter = array_size / (num_columns * CACHE_LINE_SIZE * 8 * num_minions);
+    volatile uint64_t *out_data = (uint64_t*) (kernel_params_ptr->tensor_e);
 
     if (num_minions > 1024) {
       log_write(LOG_LEVEL_CRITICAL, "Number of minions should be <= 1024"); 
       return -1;
     }
 
-    if (minion_id > num_minions) {
-      return 0;
-    }
-    
     // Sync up minions across shires.
     // Minion with minion_id = shire_id sends credit to all other shires to minions with same minion_id.
     uint64_t local_minion_id = minion_id & 0x1F;
@@ -89,34 +76,40 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     }
     FENCE;
 
+
+    if ((minion_id % (1024 / num_minions)) != 0) {   // was % 4
+	return 0;
+    }
+    
     // Phase 1 -- evict input tensor and laod clean lines into L3
     __asm__ __volatile__("slti x0,x0,0xaa");
   
-    // Delay loop for minions that try to evict addresses that are already out.
-    // This avoids reads to the memshire after these minions finish their kernel.
-    if (minion_id >= 928) {
-      for (volatile uint64_t j=0; j < 40000; j++);
-    }
-
-    // Evict input tensor -- it should all be in the L3
-    // TODO: There is a big empty gap for MC3-MC15. The gap is when some minions finish
-    // Then activity resumes for minions that go slower. But some minions apparently never stop activity ?
-    // To finish when all minions finish you need to re-sync the minions.
-    // In that way you will be able to remove the delay loop.
-    // TODO: This is a mixed open-close pattern. To have only closed, set num lines to 1
-    // and have the last term minion_id * 0x40 (instead of 0x400)
+    // Prefetch area of memory specified by tensr_a argument.
+    // bank_ms_mc_offset: There are 128 bank/ms/mc groups. Each with 32 lines / row
+    //                    Based on minion id minions are mapped to a bank/ms/mc.
+    //                    For example minions 0-7 (if participating all) go to bank/mc/ms = 0
+    // start_row_offset: For each iteration, what is the base address for all minions.
+    // minion_row_offset: Within the row, on which column does the minion start fetching
+    //                    1024 minions: 0x8000 x minion_id
+    //                    512 minions: 0x10000 x (minion_id / 2)
+    //                    256 minions: 0x20000 x (minion_id / 4)
+    //                    128 minions: 0x40000 x (minion_id / 8)
+    // num_iter: Equal to array_size / total amount fetched per iteration by all minions
     for (uint64_t i = 0; i < num_iter; i++) {
-      uint64_t final_addr = base_addr + (i * num_minions) * 0x400 + minion_id * 0x400;
-      evict_va(0, to_Mem, final_addr, 15, 0x40, 0, 0);
+      uint64_t start_row_offset = 0x20000 * (num_minions / 8) * i; // divide num_minions by 8 or something ?
+      uint64_t minion_row_offset = (array_size / num_minions) * (minion_id / (1024 / num_minions));
+      uint64_t bank_mc_ms_offset = (minion_id / 8) * 0x40;
+      uint64_t final_addr = base_addr + start_row_offset + minion_row_offset + bank_mc_ms_offset;
+      prefetch_va(0, to_L1, final_addr, num_columns - 1, 0x2000, 0, 0);
+      //if (minion_id == 0 || minion_id == 4 || minion_id == 8 || minion_id == 16) {
+      // 	log_write(LOG_LEVEL_CRITICAL, "Prefetching 0x%lx\n", final_addr); 
+      //}
     }
 
     WAIT_CACHEOPS;
     __asm__ __volatile__("slti x0,x0,0xab");
 
-    SEND_FCC(shire_id, 1, 0, (1ULL << local_minion_id));
-
     // Put minion ID and sum into output buffer
     out_data[CACHE_LINE_SIZE * minion_id] = minion_id;
-
     return 0;
 }
