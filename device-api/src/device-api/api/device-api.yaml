@@ -10,4 +10,4 @@
 
 Modules:
   - !include rpc-calls.yaml
-  - !include tracing-events.yaml
+  - !include tracing/tracing-events.yaml

@@ -11,11 +11,7 @@
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/device_api.h.in
                ${CMAKE_CURRENT_BINARY_DIR}/device_api.h)
 
-set(DEVICE_API_SCHEMA_FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/device-api.yaml
-  ${CMAKE_CURRENT_SOURCE_DIR}/rpc-calls.yaml
-  ${CMAKE_CURRENT_SOURCE_DIR}/tracing-events.yaml
-  )
+file(GLOB_RECURSE DEVICE_API_SCHEMA_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}} *.yaml)
 
 # List of Jinja files to generate files for
 SET(JINJA_FILES
@@ -33,13 +29,13 @@ foreach(TMPL_TUPLE ${JINJA_FILES})
   add_custom_command(
      OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT}
      COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/device_api_codegen.py
-     ARGS  --spec ${CMAKE_CURRENT_SOURCE_DIR}/device-api.yaml
-           --schema ${CMAKE_CURRENT_SOURCE_DIR}/device-api.schema.json
+     ARGS  --spec ${CMAKE_CURRENT_SOURCE_DIR}/api/device-api.yaml
+           --schema ${CMAKE_CURRENT_SOURCE_DIR}/schema/device-api.schema.json
            --template ${CMAKE_CURRENT_SOURCE_DIR}/${TMPL}
            --output ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT}
      DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/device_api_codegen.py
              ${DEVICE_API_SCHEMA_FILES}
-             ${CMAKE_CURRENT_SOURCE_DIR}/device-api.schema.json
+             ${CMAKE_CURRENT_SOURCE_DIR}/schema/device-api.schema.json
              ${CMAKE_CURRENT_SOURCE_DIR}/${TMPL}
      )
    add_custom_target(${GEN_OUTPUT} ALL
@@ -55,8 +51,12 @@ install(FILES ${DEV_API_HDRS}
   DESTINATION ${INCLUDE_INSTALL_DIR}/esperanto/device-api
   COMPONENT device-api)
 
-install(FILES ${DEVICE_API_SCHEMA_FILES}
-             ${CMAKE_CURRENT_SOURCE_DIR}/device-api.schema.json
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/api
+  DESTINATION ${LIB_INSTALL_DIR}/esperanto/device-api/
+  COMPONENT device-api)
+
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/schema/device-api.schema.json
   DESTINATION ${LIB_INSTALL_DIR}/esperanto/device-api/schema
   COMPONENT device-api)
 
