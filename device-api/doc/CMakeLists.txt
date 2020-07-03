@@ -54,7 +54,7 @@ endforeach()
 
 
 add_custom_target(doc-html
-    ${SPHINX_EXECUTABLE}
+   flock ${CMAKE_CURRENT_BINARY_DIR}/doxygen.lock ${SPHINX_EXECUTABLE}
         -q -b html
         -d "${SPHINX_CACHE_DIR}"
         -j auto
@@ -78,7 +78,7 @@ install(
 set(SPHINX_PDF_DIR "${CMAKE_CURRENT_BINARY_DIR}/latex")
 
 add_custom_target(doc-pdf
-  ${SPHINX_EXECUTABLE}
+  flock ${CMAKE_CURRENT_BINARY_DIR}/doxygen.lock ${SPHINX_EXECUTABLE}
         -M latexpdf
         "${CMAKE_CURRENT_BINARY_DIR}"
         "${SPHINX_PDF_DIR}"
