@@ -21,6 +21,8 @@
 #include "memory_region.h"
 #include "devices/pcie_esr.h"
 #include "devices/pcie_apb_subsys.h"
+#include "devices/pll.h"
+#include "devices/shire_lpddr.h"
 #include "sparse_region.h"
 
 namespace bemu {
@@ -45,8 +47,11 @@ struct SvcProcRegion : public MemoryRegion {
         sp_sram_base         = 0x00400000,
         spio_uart0_base      = 0x12022000,
         spio_uart1_base      = 0x14052000,
+        pll2_base            = 0x14055000,
+        pll4_base            = 0x14057000,
         pcie_esr_base        = 0x18200000,
         pcie_apb_subsys_base = 0x18400000,
+        shire_lpddr_base     = 0x20000000,
     };
 
     void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
@@ -86,8 +91,11 @@ struct SvcProcRegion : public MemoryRegion {
     SparseRegion  <sp_sram_base, 1_MiB, 64_KiB>  sp_sram{};
     Uart          <spio_uart0_base,  4_KiB>      spio_uart0{};
     Uart          <spio_uart1_base,  4_KiB>      spio_uart1{};
+    PLL           <pll2_base,        4_KiB, 2>   pll2{};
+    PLL           <pll4_base,        4_KiB, 4>   pll4{};
     PcieEsr       <pcie_esr_base,    4_KiB>      pcie_esr{};
     PcieApbSubsys <pcie_apb_subsys_base, 2_MiB>  pcie_apb_subsys{};
+    ShireLpddr    <shire_lpddr_base, 512_MiB>    shire_lppdr;
 
 protected:
     static inline bool above(const MemoryRegion* lhs, size_type rhs) {
@@ -104,13 +112,16 @@ protected:
     }
 
     // These arrays must be sorted by region offset
-    std::array<MemoryRegion*,6> regions = {{
+    std::array<MemoryRegion*,9> regions = {{
         &sp_rom,
         &sp_sram,
         &spio_uart0,
         &spio_uart1,
+        &pll2,
+        &pll4,
         &pcie_esr,
         &pcie_apb_subsys,
+        &shire_lppdr
     }};
 };
 
