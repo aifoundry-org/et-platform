@@ -15,4 +15,4 @@ Modules:
   - !include pcie-device.yaml
   - !include rpc-device.yaml
   - !include test-module.yaml
-DeviceAPI: !include @ESPERANTO_DEVICE_API_LIB_DIR@/esperanto/device-api/schema/device-api.yaml
+DeviceAPI: !include @ESPERANTO_DEVICE_API_LIB_DIR@/esperanto/device-api/api/device-api.yaml
