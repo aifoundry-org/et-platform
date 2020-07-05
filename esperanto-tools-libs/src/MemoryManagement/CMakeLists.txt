@@ -13,6 +13,7 @@ add_library(etrt_MemoryManagement OBJECT
   BaseMemoryAllocator.cc
   BidirectionalAllocator.cc
   LinearAllocator.cc
+  MemoryManagerInternals.cc
   )
 
 target_include_directories(etrt_MemoryManagement PRIVATE

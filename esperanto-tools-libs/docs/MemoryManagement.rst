@@ -128,7 +128,7 @@ Memory Regions
 
 
 .. figure :: _static/MemoryRegions.svg
-  :scale: 130%
+  :scale: 100%
 
   The proposed memory regions
 
@@ -247,3 +247,9 @@ Bidirectional Memory Allocator
 
 The Bidirectional Memory Allocator is implemented under class
 :class:`et_runtime::device::memory_management::BidirectionalAllocator`
+
+Combined Memory Allocator
+"""""""""""""""""""""""""
+
+The class :class:`et_runtime::device::memory_management::MemoryManagerInternals`
+implements the combined memory allocator that separates the code and data regions.
