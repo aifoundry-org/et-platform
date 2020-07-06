@@ -1216,6 +1216,9 @@ void write_thread0_disable(unsigned shire, uint32_t value)
 {
     shire_other_esrs[shire].thread0_disable = value;
     recalculate_thread0_enable(shire);
+#ifdef SYS_EMU
+    sys_emu::recalculate_thread_disable(shire);
+#endif
 }
 
 
@@ -1223,6 +1226,9 @@ void write_thread1_disable(unsigned shire, uint32_t value)
 {
     shire_other_esrs[shire].thread1_disable = value;
     recalculate_thread1_enable(shire);
+#ifdef SYS_EMU
+    sys_emu::recalculate_thread_disable(shire);
+#endif
 }
 
 
