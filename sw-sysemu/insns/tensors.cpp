@@ -20,7 +20,7 @@
 #include "fpu/fpu.h"
 #include "fpu/fpu_casts.h"
 #include "log.h"
-#include "memop.h"
+#include "memory/main_memory.h"
 #include "mmu.h"
 #include "processor.h"
 #ifdef SYS_EMU
@@ -62,6 +62,9 @@
 
 
 namespace bemu {
+
+
+extern MainMemory memory;
 
 
 static const char* get_rounding_mode(const Hart& cpu, int mode)
@@ -318,7 +321,7 @@ void tensor_load_execute(Hart& cpu, bool tenb)
                     uint64_t vaddr = sextVA(addr + i*stride);
                     assert(addr_is_size_aligned(vaddr, L1D_LINE_SIZE));
                     uint64_t paddr = vmemtranslate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxLoad, mreg_t(-1));
-                    pmemread512(cpu, paddr, SCP[idx].u32.data());
+                    memory.read(cpu, paddr, L1D_LINE_SIZE, SCP[idx].u32.data());
                     LOG_MEMREAD512(paddr, SCP[idx].u32.data());
                     LOG_SCP_32x16("=", idx);
                     L1_SCP_CHECK_FILL(cpu, idx, id);
@@ -355,7 +358,7 @@ void tensor_load_execute(Hart& cpu, bool tenb)
                         uint64_t vaddr = sextVA(addr + boffset + (4*i+r)*stride);
                         assert(addr_is_size_aligned(vaddr, 16));
                         uint64_t paddr = vmemtranslate(cpu, vaddr, 16, Mem_Access_TxLoad, mreg_t(-1));
-                        pmemread128(cpu, paddr, tmp.u32.data());
+                        memory.read(cpu, paddr, 16, tmp.u32.data());
                         LOG_MEMREAD128(paddr, tmp.u32);
                         for (int c = 0; c < 16; ++c)
                             SCP[idx].u8[c*4 + r] = tmp.u8[c];
@@ -398,7 +401,7 @@ void tensor_load_execute(Hart& cpu, bool tenb)
                         uint64_t vaddr = sextVA(addr + boffset + (2*i+r)*stride);
                         assert(addr_is_size_aligned(vaddr, 32));
                         uint64_t paddr = vmemtranslate(cpu, vaddr, 32, Mem_Access_TxLoad, mreg_t(-1));
-                        pmemread256(cpu, paddr, tmp.u32.data());
+                        memory.read(cpu, paddr, 32, tmp.u32.data());
                         LOG_MEMREAD256(paddr, tmp.u32);
                         for (int c = 0; c < 16; ++c)
                             SCP[idx].u16[c*2 + r] = tmp.u16[c];
@@ -437,7 +440,7 @@ void tensor_load_execute(Hart& cpu, bool tenb)
             assert(addr_is_size_aligned(vaddr, L1D_LINE_SIZE));
             try {
                 uint64_t paddr = vmemtranslate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxLoad, mreg_t(-1));
-                pmemread512(cpu, paddr, tmp[j].u32.data());
+                memory.read(cpu, paddr, L1D_LINE_SIZE, tmp[j].u32.data());
                 LOG_MEMREAD512(paddr, tmp[j].u32);
             }
             catch (const sync_trap_t&) {
@@ -509,9 +512,9 @@ void tensor_load_l2_start(Hart& cpu, uint64_t control)
             try {
                 cache_line_t tmp;
                 uint64_t paddr = vmemtranslate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxLoadL2Scp, mreg_t(-1));
-                pmemread512(cpu, paddr, tmp.u32.data());
+                memory.read(cpu, paddr, L1D_LINE_SIZE, tmp.u32.data());
                 LOG_MEMREAD512(paddr, tmp.u32);
-                pmemwrite512(cpu, l2scp_addr, tmp.u32.data());
+                memory.write(cpu, l2scp_addr, L1D_LINE_SIZE, tmp.u32.data());
                 LOG_MEMWRITE512(l2scp_addr, tmp.u32);
                 L2_SCP_CHECK_FILL(cpu, dst + i, id, addr);
             }
@@ -800,7 +803,7 @@ void tensor_store_start(Hart& cpu, uint64_t tstorereg)
             LOG_SCP_32x16(":", src);
             try {
                 uint64_t paddr = vmemtranslate(cpu, addr, L1D_LINE_SIZE, Mem_Access_TxStore, mreg_t(-1));
-                pmemwrite512(cpu, paddr, SCP[src].u32.data());
+                memory.write(cpu, paddr, L1D_LINE_SIZE, SCP[src].u32.data());
                 LOG_MEMWRITE512(paddr, SCP[src].u32);
                 for (int col=0; col < 16; col++) {
                     notify_tensor_store_write(cpu, paddr + col*4, SCP[src].u32[col]);
@@ -873,7 +876,7 @@ void tensor_store_start(Hart& cpu, uint64_t tstorereg)
                     uint64_t paddr = vmemtranslate(cpu, vaddr + col*16, 16, Mem_Access_TxStore, mreg_t(-1));
                     if (!(col & 1)) LOG_FREG(":", src);
                     const uint32_t* ptr = &FREGS[src].u32[(col & 1) * 4];
-                    pmemwrite128(cpu, paddr, ptr);
+                    memory.write(cpu, paddr, 16, ptr);
                     LOG_MEMWRITE128(paddr, ptr);
                     for (int w=0; w < 4; w++) {
                         notify_tensor_store_write(cpu, paddr + w*4, *(ptr+w));

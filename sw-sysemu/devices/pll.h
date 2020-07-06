@@ -8,58 +8,61 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 
-#ifndef BEMU_MAXION_REGION_H
-#define BEMU_MAXION_REGION_H
+#ifndef BEMU_PLL_H
+#define BEMU_PLL_H
 
-#include <algorithm>
-#include <stdexcept>
-#include "emu_defines.h"
-#include "literals.h"
-#include "memory_error.h"
-#include "memory_region.h"
-#include "processor.h"
+#include <array>
+#include <cstdint>
+#include "memory/memory_error.h"
+#include "memory/memory_region.h"
+#ifdef SYS_EMU
+#include "sys_emu.h"
+#endif
 
 namespace bemu {
 
-
-extern typename MemoryRegion::reset_value_type memory_reset_value;
-
-
-template<unsigned long long Base, unsigned long long N>
-struct MaxionRegion : public MemoryRegion {
+template<unsigned long long Base, unsigned long long N, int id>
+struct PLL : public MemoryRegion {
     typedef typename MemoryRegion::addr_type      addr_type;
     typedef typename MemoryRegion::size_type      size_type;
     typedef typename MemoryRegion::value_type     value_type;
     typedef typename MemoryRegion::pointer        pointer;
     typedef typename MemoryRegion::const_pointer  const_pointer;
 
-    static_assert(N == 256_MiB, "bemu::MaxionRegion has illegal size");
+    enum : unsigned long long {
+        PLL_REG_INDEX_REG_LOCK_DETECT_STATUS = 0xE4 // Register 0x39
+    };
 
-    void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
-        try {
-            const Hart& cpu = dynamic_cast<const Hart&>(agent);
-            if (cpu.mhartid != IO_SHIRE_SP_HARTID)
-                throw memory_error(first() + pos);
-        }
-        catch (const std::bad_cast&) {
+    void read(const Agent&, size_type pos, size_type n, pointer result) override {
+        uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
+
+        LOG_NOTHREAD(DEBUG, "PLL%d::read(pos=0x%llx)", id, pos);
+
+        if (n < 4)
             throw memory_error(first() + pos);
+
+        switch (pos) {
+        case PLL_REG_INDEX_REG_LOCK_DETECT_STATUS:
+            *result32 = (1u << 0); // Status locked
+            break;
+        default:
+            *result32 = 0;
+            break;
         }
-        default_value(result, n, memory_reset_value, pos);
     }
 
-    void write(const Agent& agent, size_type pos, size_type, const_pointer) override {
-        try {
-            const Hart& cpu = dynamic_cast<const Hart&>(agent);
-            if (cpu.mhartid != IO_SHIRE_SP_HARTID)
-                throw memory_error(first() + pos);
-        }
-        catch (const std::bad_cast&) {
+    void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
+        const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
+        (void) source32;
+
+        LOG_NOTHREAD(DEBUG, "PLL%d::write(pos=0x%llx)", id, pos);
+
+        if (n < 4)
             throw memory_error(first() + pos);
-        }
     }
 
     void init(const Agent&, size_type, size_type, const_pointer) override {
-        throw std::runtime_error("bemu::MaxionRegion::init()");
+        throw std::runtime_error("bemu::PLL::init()");
     }
 
     addr_type first() const override { return Base; }
@@ -71,4 +74,4 @@ struct MaxionRegion : public MemoryRegion {
 
 } // namespace bemu
 
-#endif // BEMU_MAXION_REGION_H
+#endif // BEMU_PLL_H

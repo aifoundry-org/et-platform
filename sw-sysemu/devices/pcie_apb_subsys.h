@@ -8,75 +8,78 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 
-#ifndef BEMU_UART_H
-#define BEMU_UART_H
+#ifndef BEMU_PCIE_APB_SUBSYS_H
+#define BEMU_PCIE_APB_SUBSYS_H
 
-#include <cassert>
-#include <cerrno>
-#include <cinttypes>
+#include <array>
 #include <cstdint>
-#include <system_error>
-#include <unistd.h>
 #include "memory/memory_error.h"
 #include "memory/memory_region.h"
+#ifdef SYS_EMU
+#include "sys_emu.h"
+#endif
 
 namespace bemu {
 
-template <unsigned long long Base, size_t N>
-struct Uart : public MemoryRegion
-{
+template<unsigned long long Base, unsigned long long N>
+struct PcieApbSubsys : public MemoryRegion {
     typedef typename MemoryRegion::addr_type      addr_type;
     typedef typename MemoryRegion::size_type      size_type;
     typedef typename MemoryRegion::value_type     value_type;
     typedef typename MemoryRegion::pointer        pointer;
     typedef typename MemoryRegion::const_pointer  const_pointer;
 
-    // Registers from DW_apb_uart.csr
-    enum : size_type {
-        DW_APB_UART_RBR = 0x00,
-        DW_APB_UART_LSR = 0x14,
+    enum : unsigned long long {
+        PE0_LINK_DBG_1 = 0xb0,
+        PE0_LINK_DBG_2 = 0xb4,
+    };
+
+    enum : unsigned long long {
+        SMLH_LTSSM_STATE_LINK_UP = 0x11u,
     };
 
     void read(const Agent&, size_type pos, size_type n, pointer result) override {
+        uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
+
+        LOG_NOTHREAD(DEBUG, "PcieApbSubsys::read(pos=0x%llx)", pos);
+
+        if (n < 4)
+            throw memory_error(first() + pos);
+
         switch (pos) {
-        case DW_APB_UART_LSR:
-            assert(n == 4);
-            *reinterpret_cast<uint32_t*>(result) = 0;
+        case PE0_LINK_DBG_2:
+            *result32 = (0u                       << 24) | // CDM in reset
+                        (3u                       <<  8) | // Rate = 3 (PCIe Gen 4)
+                        (SMLH_LTSSM_STATE_LINK_UP <<  0);  // LTSSM state
+
             break;
         default:
-            *reinterpret_cast<uint32_t*>(result) = 0;
+            *result32 = 0;
             break;
         }
     }
 
     void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
-        switch (pos) {
-        case DW_APB_UART_RBR:
-            assert(n == 4);
-            if ((fd != -1) && (::write(fd, source, 1) < 0)) {
-                auto error = std::error_code(errno, std::system_category());
-                throw std::system_error(error, "bemu::Uart::write()");
-            }
-            break;
-        default:
-            break;
-        }
+        const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
+        (void) source32;
+
+        LOG_NOTHREAD(DEBUG, "PcieApbSubsys::write(pos=0x%llx)", pos);
+
+        if (n < 4)
+            throw memory_error(first() + pos);
     }
 
     void init(const Agent&, size_type, size_type, const_pointer) override {
-        throw std::runtime_error("bemu::Uart::init()");
+        throw std::runtime_error("bemu::PcieApbSubsys::init()");
     }
 
     addr_type first() const override { return Base; }
     addr_type last() const override { return Base + N - 1; }
 
     void dump_data(std::ostream&, size_type, size_type) const override { }
-
-    // For exposition only
-    int fd = -1;
 };
 
 
 } // namespace bemu
 
-#endif // BEMU_UART_H
+#endif // BEMU_PCIE_APB_SUBSYS_H

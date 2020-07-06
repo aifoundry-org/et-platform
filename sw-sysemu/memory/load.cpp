@@ -55,7 +55,7 @@ void load_elf(MainMemory& mem, const char* filename)
             if (lma >= MainMemory::dram_base)
                 lma &= ~0x4000000000ULL;
 
-            mem.init(Noshire_agent{}, lma, sec->get_size(), sec->get_data());
+            mem.init(Noagent{}, lma, sec->get_size(), sec->get_data());
         }
     }
 }
@@ -76,7 +76,7 @@ void load_raw(MainMemory& mem, const char* filename, unsigned long long addr)
             break;
         if (addr >= MainMemory::dram_base)
             addr &= ~0x4000000000ULL;
-        mem.init(Noshire_agent{}, addr, count, reinterpret_cast<MainMemory::const_pointer>(fbuf));
+        mem.init(Noagent{}, addr, count, reinterpret_cast<MainMemory::const_pointer>(fbuf));
         addr += count;
     }
 }

@@ -155,7 +155,7 @@ struct Hart : public Agent {
         } state;
     };
 
-    long shireid() const override;
+    long shireid() const;
     std::string name() const override;
 
     void advance_pc();
