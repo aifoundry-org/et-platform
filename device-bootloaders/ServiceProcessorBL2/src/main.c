@@ -106,10 +106,12 @@ static void taskMain(void *pvParameters)
     }
     printf("SP MemShire PLLs configured and locked.\n");
 
+#if !FAST_BOOT
     if (0 != ddr_config()) {
         printf("ddr_config() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
+#endif
     printf("DRAM ready.\n");
 
     if (0 != release_minions_from_cold_reset()) {
