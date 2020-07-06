@@ -483,15 +483,24 @@ sys_emu::shire_enable_threads(unsigned shire_id)
     if (shire_id == IO_SHIRE_ID)
         shire_id = EMU_IO_SHIRE_SP;
 
-    unsigned thread0 = EMU_THREADS_PER_SHIRE * shire_id;
-    unsigned shire_thread_count = (shire_id == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_SHIRE);
-
     bemu::write_thread0_disable(shire_id, 0);
     bemu::write_thread1_disable(shire_id, 0);
 
+    write_thread_disable(shire_id);
+}
+
+void
+sys_emu::write_thread_disable(unsigned shire_id)
+{
+    if (shire_id == IO_SHIRE_ID)
+        shire_id = EMU_IO_SHIRE_SP;
+
+    unsigned thread0 = EMU_THREADS_PER_SHIRE * shire_id;
+    unsigned shire_thread_count = (shire_id == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_SHIRE);
+
     for (unsigned t = 0; t < shire_thread_count; ++t) {
         unsigned thread_id = thread0 + t;
-        if (thread_is_active(thread_id) && !thread_is_disabled(thread_id))
+        if (thread_is_active(thread_id) && !thread_is_disabled(thread_id) && !thread_is_running(thread_id))
             running_threads.push_back(thread_id);
     }
 }
