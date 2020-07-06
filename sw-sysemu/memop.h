@@ -11,60 +11,25 @@
 #ifndef BEMU_MEMOP_H
 #define BEMU_MEMOP_H
 
+#include <cstdint>
 #include "memory/main_memory.h"
 
 namespace bemu {
 
 
-template<typename T> inline T pmemread(const Agent& agent, uint64_t paddr)
+template<typename T>
+inline void pmemread(uint64_t paddr, T* data)
 {
     extern MainMemory memory;
-    T ret;
-    memory.read(agent, paddr, sizeof(T), &ret);
-    return ret;
-}
-
-
-inline void pmemread128(const Agent& agent, uint64_t paddr, void* result)
-{
-    extern MainMemory memory;
-    memory.read(agent, paddr, 16, result);
-}
-
-
-inline void pmemread256(const Agent& agent, uint64_t paddr, void* result)
-{
-    extern MainMemory memory;
-    memory.read(agent, paddr, 32, result);
-}
-
-
-inline void pmemread512(const Agent& agent, uint64_t paddr, void* result)
-{
-    extern MainMemory memory;
-    memory.read(agent, paddr, 64, result);
+    memory.read(Noagent{}, paddr, sizeof(T), data);
 }
 
 
 template <typename T>
-inline void pmemwrite(const Agent& agent, uint64_t paddr, T data)
+inline void pmemwrite(uint64_t paddr, const T* data)
 {
     extern MainMemory memory;
-    memory.write(agent, paddr, sizeof(T), &data);
-}
-
-
-inline void pmemwrite128(const Agent& agent, uint64_t paddr, const void* source)
-{
-    extern MainMemory memory;
-    memory.write(agent, paddr, 16, source);
-}
-
-
-inline void pmemwrite512(const Agent& agent, uint64_t paddr, const void* source)
-{
-    extern MainMemory memory;
-    memory.write(agent, paddr, 64, source);
+    memory.write(Noagent{}, paddr, sizeof(T), data);
 }
 
 

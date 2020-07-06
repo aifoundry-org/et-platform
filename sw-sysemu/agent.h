@@ -20,16 +20,14 @@ namespace bemu {
 // A system agent abstract class
 //
 struct Agent {
-    virtual long shireid() const = 0;
     virtual std::string name() const = 0;
 };
 
 
 //
-// An agent that returns -1 for shireid()
+// An external agent
 //
-struct Noshire_agent: public Agent {
-    long shireid() const override { return -1L; }
+struct Noagent: public Agent {
     std::string name() const override { return std::string(""); }
 };
 

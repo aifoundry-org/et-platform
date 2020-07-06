@@ -48,6 +48,12 @@ inline long shire_index(long shireid)
 }
 
 
+inline long shireid(long shire)
+{
+    return (shire == EMU_IO_SHIRE_SP) ? IO_SHIRE_ID : shire;
+}
+
+
 #define NR_MSG_PORTS    4
 
 // Some TensorFMA defines

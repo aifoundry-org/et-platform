@@ -53,12 +53,17 @@ struct PcieDbiSlvRegion : public MemoryRegion {
             throw memory_error(first() + pos);
 
         switch (pos) {
+        case PF0_TYPE0_HDR_STATUS_COMMAND_REG:
+            *result32 = (1u << 1); // MEM_SPACE_EN
+            break;
         case PF0_MSI_CAP:
             *result32 = (1u << 16) | (0u << 20); /* PCI_MSI_ENABLE = 1, PCI_MSI_MULTIPLE_MSG_EN = 0 */
             break;
+        case PF0_MSIX_CAP:
+            *result32 = (1u << 31); /* PCI_MSIX_ENABLE = 1 */
+            break;
         default:
             *result32 = 0;
-            std::memcpy(result32, memory_reset_value, std::min(sizeof(memory_reset_value),4UL));            
             break;
         }
     }
@@ -107,7 +112,6 @@ struct PcieNoPcieEsrRegion : public MemoryRegion {
         switch (pos) {
         default:
           *result32 = 0;
-          memcpy(result32, memory_reset_value, std::min(sizeof(memory_reset_value), 4UL));
           break;
         }
     }

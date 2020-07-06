@@ -45,28 +45,20 @@ struct ScratchRegion : public MemoryRegion
     static_assert((M > 0) && (M < 128),
                   "bemu::ScratchRegion must have at most 127 buckets");
 
-    void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
-        read_const(agent, pos, n, result);
-    }
-
-    void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
-        if (!Writeable)
-            throw memory_error(first() + pos);
-        init(agent, pos, n, source);
-    }
-
-    void init(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
-        size_type index = normalize(pos);
-        size_type bucket = slice(agent, index);
-        size_type offset = index % 8_MiB;
-        if (out_of_range(bucket, offset, n)) {
+    void read(const Agent&, size_type pos, size_type n, pointer result) override {
+        if (!read_impl(pos, n, result)) {
             throw memory_error(first() + pos);
         }
-        if (storage[bucket].empty()) {
-            storage[bucket].allocate();
-            storage[bucket].fill_pattern(memory_reset_value, MEM_RESET_PATTERN_SIZE);
-        }
-        std::copy_n(source, n, storage[bucket].begin() + offset);
+    }
+
+    void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
+        if (!Writeable || !write_impl(pos, n, source))
+            throw memory_error(first() + pos);
+    }
+
+    void init(const Agent&, size_type pos, size_type n, const_pointer source) override {
+        if (!write_impl(pos, n, source))
+            throw memory_error(first() + pos);
     }
 
     addr_type first() const override { return Base; }
@@ -75,10 +67,9 @@ struct ScratchRegion : public MemoryRegion
     void dump_data(std::ostream& os, size_type pos, size_type n) const override {
         value_type elem;
         while (n-- > 0) {
-            if (((pos >> 23) & 255) == 255) {
+            if (!read_impl(pos++, 1, &elem)) {
                 throw std::runtime_error("bemu::ScratchRegion::dump_data()");
             }
-            this->read_const(Noshire_agent{}, pos++, 1, &elem);
             os.write(reinterpret_cast<const char*>(&elem), sizeof(value_type));
         }
     }
@@ -87,39 +78,37 @@ struct ScratchRegion : public MemoryRegion
     storage_type  storage;
 
 protected:
-    void read_const(const Agent& agent, size_type pos, size_type n, pointer result) const {
-        size_type index = normalize(pos);
-        size_type bucket = slice(agent, index);
-        size_type offset = index % 8_MiB;
+    bool read_impl(size_type pos, size_type n, pointer result) const {
+        size_type bucket = slice(pos);
+        size_type offset = pos % 8_MiB;
         if (out_of_range(bucket, offset, n)) {
-            throw memory_error(first() + pos);
+            return false;
         }
         if (storage[bucket].empty()) {
             default_value(result, n, memory_reset_value, pos);
         } else {
             std::copy_n(storage[bucket].cbegin() + offset, n, result);
         }
+        return true;
     }
 
-    size_type normalize(size_type pos) const {
-        if (pos >= 1_GiB) {
-            pos = ( (pos         & ~0x4fffffc0ull) |
-                    ((pos <<  1) &  0x40000000ull) |
-                    ((pos << 17) &  0x0f800000ull) |
-                    ((pos >>  5) &  0x007fffc0ull) );
+    bool write_impl(size_type pos, size_type n, const_pointer source) {
+        size_type bucket = slice(pos);
+        size_type offset = pos % 8_MiB;
+        if (out_of_range(bucket, offset, n)) {
+            return false;
         }
-        return pos | ((pos << 1) & 0x40000000ull);
+        if (storage[bucket].empty()) {
+            storage[bucket].allocate();
+            storage[bucket].fill_pattern(memory_reset_value, MEM_RESET_PATTERN_SIZE);
+        }
+        std::copy_n(source, n, storage[bucket].begin() + offset);
+        return true;
     }
 
-    size_type slice(const Agent& agent, size_type pos) const {
+    size_type slice(size_type pos) const {
         size_type num = (pos >> 23) & 255;
-        if (num == 255) {
-            num = agent.shireid();
-        }
-        if (num == IO_SHIRE_ID) {
-            return EMU_IO_SHIRE_SP;
-        }
-        return num;
+        return (num == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : num;
     }
 
     bool out_of_range(size_type bucket, size_type offset, size_type n) const {

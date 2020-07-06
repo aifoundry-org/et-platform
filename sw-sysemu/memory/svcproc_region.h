@@ -19,6 +19,12 @@
 #include "literals.h"
 #include "memory_error.h"
 #include "memory_region.h"
+#ifdef SYS_EMU
+#include "devices/pcie_esr.h"
+#include "devices/pcie_apb_subsys.h"
+#include "devices/pll.h"
+#include "devices/shire_lpddr.h"
+#endif
 #include "sparse_region.h"
 
 namespace bemu {
@@ -39,10 +45,15 @@ struct SvcProcRegion : public MemoryRegion {
 
     enum : unsigned long long {
         // base addresses for the various regions of the address space
-        sp_rom_base     = 0x00000000,
-        sp_sram_base    = 0x00400000,
-        spio_uart0_base = 0x12022000,
-        spio_uart1_base = 0x14052000,
+        sp_rom_base          = 0x00000000,
+        sp_sram_base         = 0x00400000,
+        spio_uart0_base      = 0x12022000,
+        spio_uart1_base      = 0x14052000,
+        pll2_base            = 0x14055000,
+        pll4_base            = 0x14057000,
+        pcie_esr_base        = 0x18200000,
+        pcie_apb_subsys_base = 0x18400000,
+        shire_lpddr_base     = 0x20000000,
     };
 
     void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
@@ -78,10 +89,17 @@ struct SvcProcRegion : public MemoryRegion {
     void dump_data(std::ostream&, size_type, size_type) const override { }
 
     // Members
-    DenseRegion  <sp_rom_base, 128_KiB, false>  sp_rom{};
-    SparseRegion <sp_sram_base, 1_MiB, 64_KiB>  sp_sram{};
-    Uart         <spio_uart0_base,  4_KiB>      spio_uart0{};
-    Uart         <spio_uart1_base,  4_KiB>      spio_uart1{};
+    DenseRegion   <sp_rom_base, 128_KiB, false>  sp_rom{};
+    SparseRegion  <sp_sram_base, 1_MiB, 64_KiB>  sp_sram{};
+    Uart          <spio_uart0_base,  4_KiB>      spio_uart0{};
+    Uart          <spio_uart1_base,  4_KiB>      spio_uart1{};
+#ifdef SYS_EMU
+    PLL           <pll2_base,        4_KiB, 2>   pll2{};
+    PLL           <pll4_base,        4_KiB, 4>   pll4{};
+    PcieEsr       <pcie_esr_base,    4_KiB>      pcie_esr{};
+    PcieApbSubsys <pcie_apb_subsys_base, 2_MiB>  pcie_apb_subsys{};
+    ShireLpddr    <shire_lpddr_base, 512_MiB>    shire_lppdr;
+#endif
 
 protected:
     static inline bool above(const MemoryRegion* lhs, size_type rhs) {
@@ -98,12 +116,26 @@ protected:
     }
 
     // These arrays must be sorted by region offset
+#ifdef SYS_EMU
+    std::array<MemoryRegion*,9> regions = {{
+        &sp_rom,
+        &sp_sram,
+        &spio_uart0,
+        &spio_uart1,
+        &pll2,
+        &pll4,
+        &pcie_esr,
+        &pcie_apb_subsys,
+        &shire_lppdr
+    }};
+#else
     std::array<MemoryRegion*,4> regions = {{
         &sp_rom,
         &sp_sram,
         &spio_uart0,
         &spio_uart1,
     }};
+#endif
 };
 
 

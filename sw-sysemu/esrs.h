@@ -431,8 +431,8 @@ extern std::array<broadcast_esrs_t, EMU_NUM_SHIRES> broadcast_esrs;
 // -----------------------------------------------------------------------------
 // Access ESRs by address
 
-uint64_t esr_read(const Agent&, uint64_t addr);
-void esr_write(const Agent&, uint64_t addr, uint64_t value);
+uint64_t esr_read(const Agent& agent, uint64_t addr);
+void esr_write(const Agent& agent, uint64_t addr, uint64_t value);
 
 void write_shire_coop_mode(unsigned shire, uint64_t value);
 void write_thread0_disable(unsigned shire, uint32_t value);
