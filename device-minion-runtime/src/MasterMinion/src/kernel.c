@@ -49,7 +49,7 @@ void kernel_init(void)
 
 static void send_kernel_launch_response(const struct kernel_launch_cmd_t* const cmd, const dev_api_kernel_launch_error_e error)
 {
-    log_write(LOG_LEVEL_INFO, "Sending Kernel Respose " PRIi64 "\r\n", error);
+    log_write(LOG_LEVEL_INFO, "Sending Kernel Launch Response %" PRIi64 "\r\n", error);
     struct kernel_launch_rsp_t rsp;
     rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_KERNEL_LAUNCH_RSP;
     prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
@@ -59,7 +59,7 @@ static void send_kernel_launch_response(const struct kernel_launch_cmd_t* const 
     int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
     if (result != 0)
     {
-        log_write(LOG_LEVEL_ERROR, "DeviceAPI Kernel Launch Response MBOX_send error " PRIi64 "\r\n", result);
+        log_write(LOG_LEVEL_ERROR, "DeviceAPI Kernel Launch Response MBOX_send error %" PRIi64 "\r\n", result);
     }
 
 }

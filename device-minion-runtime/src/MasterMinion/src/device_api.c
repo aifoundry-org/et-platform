@@ -46,7 +46,7 @@ void handle_device_api_message_from_host(const mbox_message_id_t* message_id,
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
         if (result != 0)
         {
-            log_write(LOG_LEVEL_ERROR, "DeviceAPI Reflect Test send error " PRIi64 "\r\n", result);
+            log_write(LOG_LEVEL_ERROR, "DeviceAPI Reflect Test send error %" PRIi64 "\r\n", result);
         }
     }
     else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_DEVICE_FW_VERSION_CMD)
@@ -59,7 +59,7 @@ void handle_device_api_message_from_host(const mbox_message_id_t* message_id,
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
         if (result != 0)
         {
-            log_write(LOG_LEVEL_ERROR, "DeviceAPI Device FW Version MBOX_send error " PRIi64 "\r\n", result);
+            log_write(LOG_LEVEL_ERROR, "DeviceAPI Device FW Version MBOX_send error %" PRIi64 "\r\n", result);
         }
     }
     else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_DEVICE_API_VERSION_CMD) {
@@ -76,7 +76,7 @@ void handle_device_api_message_from_host(const mbox_message_id_t* message_id,
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
         if (result != 0)
         {
-            log_write(LOG_LEVEL_ERROR, "DeviceAPI DeviceAPI Version MBOX_send error " PRIi64 "\r\n", result);
+            log_write(LOG_LEVEL_ERROR, "DeviceAPI DeviceAPI Version MBOX_send error %" PRIi64 "\r\n", result);
         }
     }
     else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_KERNEL_ABORT_CMD)
@@ -98,7 +98,7 @@ void handle_device_api_message_from_host(const mbox_message_id_t* message_id,
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
         if (result != 0)
         {
-            log_write(LOG_LEVEL_ERROR, "DeviceAPI Kernel Abort error " PRIi64 "\r\n", result);
+            log_write(LOG_LEVEL_ERROR, "DeviceAPI Kernel Abort error %" PRIi64 "\r\n", result);
         }
     }
     else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_KERNEL_LAUNCH_CMD)
@@ -120,12 +120,12 @@ void handle_device_api_message_from_host(const mbox_message_id_t* message_id,
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
 
         rsp.status = get_kernel_state(cmd->kernel_id);
-        log_write(LOG_LEVEL_INFO, "Kernel: " PRIi64 " status: " PRIi64 "\r\n", cmd->kernel_id, rsp.status);
+        log_write(LOG_LEVEL_INFO, "Kernel: %" PRIi64 " status: %" PRIi64 "\r\n", cmd->kernel_id, rsp.status);
 
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
         if (result != 0)
         {
-            log_write(LOG_LEVEL_ERROR, "DeviceAPI Kernel Status MBOX_sedn error " PRIi64 "\r\n", result);
+            log_write(LOG_LEVEL_ERROR, "DeviceAPI Kernel Status MBOX_send error %" PRIi64 "\r\n", result);
         }
     }
     else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_SET_MASTER_LOG_LEVEL_CMD)
@@ -139,7 +139,7 @@ void handle_device_api_message_from_host(const mbox_message_id_t* message_id,
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
         if (result != 0)
         {
-            log_write(LOG_LEVEL_ERROR, "DeviceAPI DeviceAPI Set Master Log Level MBOX_send error " PRIi64 "\r\n", result);
+            log_write(LOG_LEVEL_ERROR, "DeviceAPI DeviceAPI Set Master Log Level MBOX_send error %" PRIi64 "\r\n", result);
         }
 
     }
@@ -161,11 +161,11 @@ void handle_device_api_message_from_host(const mbox_message_id_t* message_id,
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
         if (result != 0)
         {
-            log_write(LOG_LEVEL_ERROR, "DeviceAPI DeviceAPI Set Master Log Level MBOX_send error " PRIi64 "\r\n", result);
+            log_write(LOG_LEVEL_ERROR, "DeviceAPI DeviceAPI Set Master Log Level MBOX_send error %" PRIi64 "\r\n", result);
         }
     }
     else
     {
-        log_write(LOG_LEVEL_ERROR, "Invalid DeviceAPI message ID: 5" PRIu64 "\r\n", *message_id);
+        log_write(LOG_LEVEL_ERROR, "Invalid DeviceAPI message ID: %" PRIu64 "\r\n", *message_id);
     }
 }
