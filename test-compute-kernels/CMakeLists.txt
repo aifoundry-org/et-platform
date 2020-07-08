@@ -14,14 +14,11 @@ include(ExternalProject)
 include(GNUInstallDirs)
 cmake_policy(SET CMP0076 NEW)
 
-# First step as the artifacts of this package are consumed by the toolchain script
 
-# FIXME this a required package once the esperanto-fw package has been eliminated
-find_package(EsperantoDeviceMinionRuntime CONFIG REQUIRED
-  NO_CMAKE_PATH
-  NO_CMAKE_ENVIRONMENT_PATH
-  NO_DEFAULT_PATH
-  )
+set(GCC_SYSROOT_PATH /esperanto/minion CACHE STRING "Path to the gcc riscv toolchain sysroot folder")
+
+# First step as the artifacts of this package are consumed by the toolchain script
+find_package(EsperantoDeviceMinionRuntime REQUIRED)
 
 # Must set CMAKE_TOOLCHAIN_FILE before project() is called
 set(CMAKE_TOOLCHAIN_FILE Toolchain-gcc-riscv.cmake)
