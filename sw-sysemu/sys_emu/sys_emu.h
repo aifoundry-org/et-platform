@@ -150,7 +150,7 @@ public:
     static void raise_external_supervisor_interrupt(unsigned shire_id);
     static void clear_external_supervisor_interrupt(unsigned shire_id);
     static void evl_dv_handle_irq_inj(bool raise, uint64_t subopcode, uint64_t shire_mask);
-    static void shire_enable_threads(unsigned shire_id);
+    static void shire_enable_threads(unsigned shire_id, uint32_t thread0_disable, uint32_t thread1_disable);
     int main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<api_communicate> api_comm = nullptr);
 
     static uint64_t get_emu_cycle()  { return emu_cycle; }
