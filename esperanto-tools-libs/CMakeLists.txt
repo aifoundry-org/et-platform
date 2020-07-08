@@ -24,6 +24,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CoverageSupport.cmake)
 option(BUILD_SHARED_LIBS "Build shared libs." ON)
 option(ENABLE_PCIE "Enable pcie support by default" OFF)
 option(ENABLE_CCACHE "Enable ccahe in the builds" OFF)
+set(DOCUMENTATION_INSTALL_DIR "${CMAKE_INSTALL_DIR}/doc" CACHE PATH "Documentation installation path")
 
 execute_process(
   COMMAND git rev-parse --verify HEAD
