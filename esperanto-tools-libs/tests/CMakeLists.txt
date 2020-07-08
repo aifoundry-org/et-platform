@@ -134,11 +134,7 @@ get_property(MASTER_MINION_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::MasterMini
 get_property(MACHINE_MINION_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::MachineMinion.elf PROPERTY LOCATION)
 get_property(WORKER_MINION_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::WorkerMinion.elf PROPERTY LOCATION)
 
-if (EsperantoTestKernels_FOUND)
-  get_property(EMPTY_KERNEL_ELF TARGET esperanto-test-kernels::empty.elf PROPERTY LOCATION)
-else()
-  get_property(EMPTY_KERNEL_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::empty.elf PROPERTY LOCATION)
-endif()
+get_property(EMPTY_KERNEL_ELF TARGET esperanto-test-kernels::empty.elf PROPERTY LOCATION)
 
 get_filename_component(KERNELS_DIR ${EMPTY_KERNEL_ELF} DIRECTORY)
 
