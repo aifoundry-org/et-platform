@@ -34,20 +34,14 @@ set(CI_DEPENDENCIES convolution.elf
                     sample-kernel
                     etsocmaxsplat.elf
   )
-set(CI_DN_TARGETS "")
 
 ## Download the external depednencies from Artifactory
 foreach(CI_DEPENDENCY ${CI_DEPENDENCIES})
-  add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${CI_DEPENDENCY}
-    COMMAND mkdir -p `dirname ${CI_DEPENDENCY}`
-    COMMAND wget http://sc-artifactory1.esperanto.ai/artifactory/sw-ci-inputs/runtime/${CI_DEPENDENCY} -O ${CI_DEPENDENCY}
-    )
-  list(APPEND CI_DN_TARGETS ${CMAKE_CURRENT_BINARY_DIR}/${CI_DEPENDENCY})
+  configure_file(inputs/${CI_DEPENDENCY} ${CMAKE_CURRENT_BINARY_DIR}/${CI_DEPENDENCY} COPYONLY)
 endforeach(CI_DEPENDENCY)
 
 add_custom_target(ci-dependencies
-  DEPENDS ${CI_DN_TARGETS}
+  DEPENDS ${CI_DEPENDENCIES}
   )
 
 add_compile_options(-g3 -O0 -std=c++17)
