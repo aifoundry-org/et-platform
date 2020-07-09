@@ -34,20 +34,14 @@ set(CI_DEPENDENCIES convolution.elf
                     sample-kernel
                     etsocmaxsplat.elf
   )
-set(CI_DN_TARGETS "")
 
 ## Download the external depednencies from Artifactory
 foreach(CI_DEPENDENCY ${CI_DEPENDENCIES})
-  add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${CI_DEPENDENCY}
-    COMMAND mkdir -p `dirname ${CI_DEPENDENCY}`
-    COMMAND wget http://sc-artifactory1.esperanto.ai/artifactory/sw-ci-inputs/runtime/${CI_DEPENDENCY} -O ${CI_DEPENDENCY}
-    )
-  list(APPEND CI_DN_TARGETS ${CMAKE_CURRENT_BINARY_DIR}/${CI_DEPENDENCY})
+  configure_file(inputs/${CI_DEPENDENCY} ${CMAKE_CURRENT_BINARY_DIR}/${CI_DEPENDENCY} COPYONLY)
 endforeach(CI_DEPENDENCY)
 
 add_custom_target(ci-dependencies
-  DEPENDS ${CI_DN_TARGETS}
+  DEPENDS ${CI_DEPENDENCIES}
   )
 
 add_compile_options(-g3 -O0 -std=c++17)
@@ -134,11 +128,7 @@ get_property(MASTER_MINION_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::MasterMini
 get_property(MACHINE_MINION_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::MachineMinion.elf PROPERTY LOCATION)
 get_property(WORKER_MINION_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::WorkerMinion.elf PROPERTY LOCATION)
 
-if (EsperantoTestKernels_FOUND)
-  get_property(EMPTY_KERNEL_ELF TARGET esperanto-test-kernels::empty.elf PROPERTY LOCATION)
-else()
-  get_property(EMPTY_KERNEL_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::empty.elf PROPERTY LOCATION)
-endif()
+get_property(EMPTY_KERNEL_ELF TARGET esperanto-test-kernels::empty.elf PROPERTY LOCATION)
 
 get_filename_component(KERNELS_DIR ${EMPTY_KERNEL_ELF} DIRECTORY)
 
