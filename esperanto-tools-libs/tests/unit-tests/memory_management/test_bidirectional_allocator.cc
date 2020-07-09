@@ -10,6 +10,8 @@
 
 #include "MemoryManagement/BidirectionalAllocator.h"
 
+#include "esperanto/runtime/Core/CommandLineOptions.h"
+
 #include <glog/logging.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -103,6 +105,8 @@ TEST_F(TestBidirectionalAllocator, mallocs_both_directions) {
   res = allocator->mallocBack(type, tensor_size);
   ASSERT_TRUE((bool)res);
   auto tid_2 = res.get();
+
+  allocator->printStateJSON();
 
   // The list should be empty now
   ASSERT_EQ(allocator->freeMemory(), free_size_aux);

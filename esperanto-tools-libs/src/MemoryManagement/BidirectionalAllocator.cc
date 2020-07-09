@@ -10,8 +10,11 @@
 
 #include "BidirectionalAllocator.h"
 
+#include "Tracing/Tracing.h"
+
 #include <algorithm>
 #include <iostream>
+#include <sstream>
 
 using namespace et_runtime;
 using namespace et_runtime::device::memory_management;
@@ -20,6 +23,8 @@ BidirectionalAllocator::BidirectionalAllocator(TensorOffsetTy base,
                                                TensorSizeTy size)
     : free_list_(), allocated_front_list_(), allocated_back_list_() {
   free_list_.push_back(TensorInfo<FreeRegion>(base, size));
+  // FIXME add the device-id
+  TRACE_MemoryManager_BidirectionalAllocator_Constructor(0, base, size);
 }
 
 BidirectionalAllocator::allocated_tensor_info::value_type
@@ -71,18 +76,26 @@ ErrorOr<TensorID> BidirectionalAllocator::mallocFront(TensorType type,
           -> bool { return *tensor.get() < *elem.get(); });
   auto insert_pos = allocated_front_list_.insert(alloc_pos, tensor);
 
+  TensorID left_tensor = 0, right_tensor = 0;
   // Update the prev/next pointers of the adjacent tensors
   // and maintain the double linked list in the tensor metadata
   if (insert_pos != allocated_front_list_.begin()) {
     auto prev_pos = std::prev(insert_pos);
+    left_tensor = (*prev_pos)->id();
     (*prev_pos)->next(tensor->base());
     tensor->prev((*prev_pos)->base());
   }
   auto next_pos = std::next(insert_pos);
   if (next_pos != allocated_front_list_.end()) {
     (*next_pos)->prev(tensor->base());
+    right_tensor = (*next_pos)->id();
     tensor->next((*next_pos)->base());
   }
+
+  // FIXME add the device-id
+  TRACE_MemoryManager_BidirectionalAllocator_mallocFront(
+      0, static_cast<int>(type), tensor->id(), base, md_size, size, left_tensor,
+      right_tensor);
   return tensor->id();
 }
 
@@ -129,18 +142,26 @@ ErrorOr<TensorID> BidirectionalAllocator::mallocBack(TensorType type,
           -> bool { return *elem.get() < *tensor.get(); });
   auto insert_pos = allocated_back_list_.insert(alloc_pos.base(), tensor);
 
+  TensorID left_tensor = 0, right_tensor = 0;
   // Update the prev/next pointers of the adjacent tensors
   // and maintain the double linked list in the tensor metadata
   if (insert_pos != allocated_back_list_.begin()) {
     auto prev_pos = std::prev(insert_pos);
     (*prev_pos)->next(tensor->base());
+    left_tensor = (*prev_pos)->id();
     tensor->prev((*prev_pos)->base());
   }
   auto next_pos = std::next(insert_pos);
   if (next_pos != allocated_back_list_.end()) {
     (*next_pos)->prev(tensor->base());
+    right_tensor = (*next_pos)->id();
     tensor->next((*next_pos)->base());
   }
+
+  // FIXME add the device-id
+  TRACE_MemoryManager_BidirectionalAllocator_mallocBack(
+      0, static_cast<int>(type), tensor->id(), base, md_size, size, left_tensor,
+      right_tensor);
   return tensor->id();
 }
 
@@ -156,7 +177,6 @@ BidirectionalAllocator::removeFromAllocatedList(
   if (res == alloc_list->end()) {
     return etrtErrorFreeUnknownTensor;
   }
-
   // Update the double linked list tracked in the tensor metadata
   if (res != alloc_list->begin()) {
     auto prev_pos = std::prev(res);
@@ -173,6 +193,9 @@ BidirectionalAllocator::removeFromAllocatedList(
 }
 
 etrtError BidirectionalAllocator::free(TensorID tid) {
+
+  // FIXME add device_id
+  TRACE_MemoryManager_BidirectionalAllocator_free(0, tid);
   // Search for the tensor in the forward list allocated list
   auto dead_tensor_res = removeFromAllocatedList(&allocated_front_list_, tid);
   if (dead_tensor_res.getError() != etrtSuccess) {
@@ -271,4 +294,42 @@ void BidirectionalAllocator::printState() {
     std::cout << "\t" << *i << "\n";
   }
   std::cout << "\n";
+}
+
+void BidirectionalAllocator::printStateJSON() {
+  std::stringstream sstr;
+  sstr << " { \"FreeList\": [";
+  decltype(free_list_)::size_type cnt = 0;
+  for (auto i = free_list_.begin(); i != free_list_.end(); ++i, ++cnt) {
+    sstr << "{ \"Base\":" << i->base()  //
+         << ", \"size\": " << i->size() //
+         << "}";
+    if (cnt + 1 < free_list_.size()) {
+      sstr << ",";
+    }
+  }
+  sstr << "],";
+
+  sstr << "\"AllocRegion\": [";
+  for (auto i = allocated_front_list_.begin(); i != allocated_front_list_.end();
+       ++i) {
+    sstr << "{"
+         << "\"ID\": " << (*i)->id() << ", \"mdbase\": " << (*i)->mdBase()
+         << ", \"base\": " << (*i)->base() << ", \"size\": " << (*i)->size()
+         << "}, ";
+  }
+  cnt = 0;
+  for (auto i = allocated_back_list_.begin(); i != allocated_back_list_.end();
+       ++i, ++cnt) {
+    sstr << "{"
+         << "\"ID\": " << (*i)->id() << ", \"mdbase\": " << (*i)->mdBase()
+         << ", \"base\": " << (*i)->base() << ", \"size\": " << (*i)->size()
+         << "}";
+    if (cnt + 1 < allocated_back_list_.size()) {
+      sstr << ",";
+    }
+  }
+
+  sstr << "] }";
+  TRACE_MemoryManager_BidirectionalAllocator_jsonStatus(sstr.str());
 }
