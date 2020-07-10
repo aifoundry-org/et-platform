@@ -123,6 +123,8 @@ TEST_F(TestLinearAllocator, multiple_malloc_success) {
     ASSERT_EQ(tensor->base(),
               dram_base + md_size + 2 * (md_size + tensor_size));
   }
+
+  allocator->printStateJSON();
 }
 
 // parametried test class, receives as parameters a vector of tuples

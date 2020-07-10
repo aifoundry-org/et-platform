@@ -53,6 +53,10 @@ public:
   /// @brief Print the allocator status
   void printState() override;
 
+  /// @brief Print in the stdout the state of the memory allocator in JSON
+  /// format
+  void printStateJSON() override;
+
 private:
   /// Friend class used for our testing
   friend class ::TestLinearAllocator;

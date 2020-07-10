@@ -13,6 +13,7 @@
 #include "BidirectionalAllocator.h"
 #include "LinearAllocator.h"
 #include "TensorInfo.h"
+#include "Tracing/Tracing.h"
 
 #include <algorithm>
 #include <iostream>
@@ -26,22 +27,27 @@ MemoryManagerInternals::MemoryManagerInternals(uint64_t code_size,
       data_region_(new BidirectionalAllocator(code_size, data_size)) {}
 
 ErrorOr<TensorID> MemoryManagerInternals::mallocCode(TensorSizeTy size) {
+  TRACE_MemoryManager_MemoryManagerInternals_mallocCode(size);
   return code_region_->malloc(TensorType::Code, size);
 }
 
 ErrorOr<TensorID> MemoryManagerInternals::mallocConstant(TensorSizeTy size) {
-  return data_region_->mallocFront(TensorType::Constant, size);
+  TRACE_MemoryManager_MemoryManagerInternals_mallocConstant(
+      size) return data_region_->mallocFront(TensorType::Constant, size);
 }
 
 ErrorOr<TensorID> MemoryManagerInternals::mallocPlaceholder(TensorSizeTy size) {
+  TRACE_MemoryManager_MemoryManagerInternals_mallocPlaceholder(size);
   return data_region_->mallocBack(TensorType::Placeholder, size);
 }
 
 etrtError MemoryManagerInternals::freeCode(TensorID tid) {
+  TRACE_MemoryManager_MemoryManagerInternals_freeCode(tid);
   return code_region_->free(tid);
 }
 
 etrtError MemoryManagerInternals::freeData(TensorID tid) {
+  TRACE_MemoryManager_MemoryManagerInternals_freeData(tid);
   return data_region_->free(tid);
 }
 

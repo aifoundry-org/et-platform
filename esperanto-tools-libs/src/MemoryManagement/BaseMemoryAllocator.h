@@ -48,6 +48,10 @@ public:
   /// @brief Print in the stdout the state of the memory allocator
   virtual void printState() = 0;
 
+  /// @brief Print in the stdout the state of the memory allocator in JSON
+  /// format
+  virtual void printStateJSON() = 0;
+
   /// @brief Return the meta-data size of a specific tensor type
   static TensorSizeTy mdSize(TensorType type);
 

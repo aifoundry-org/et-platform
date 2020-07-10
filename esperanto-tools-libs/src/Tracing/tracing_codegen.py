@@ -160,7 +160,7 @@ class CodeGeneratorHelper(object):
         Args:
            module (dict) : Specification for a module
         """
-        return "true" if module.get("EnablePBLogging", False) else "false"
+        return "true" if module.get("EnablePBLogging", True) else "false"
 
     @staticmethod
     def module_enable_text_logging(module):
@@ -169,7 +169,7 @@ class CodeGeneratorHelper(object):
         Args:
            module (dict) : Specification for a module
         """
-        return "true" if module.get("EnableTextLogging", False) else "false"
+        return "true" if module.get("EnableTextLogging", True) else "false"
 
     @staticmethod
     def function_enable_pb_logging(function):
@@ -178,7 +178,7 @@ class CodeGeneratorHelper(object):
         Args:
            function (dict) : Specification for a function
         """
-        return "true" if function.get("EnablePBLogging", False) else "false"
+        return "true" if function.get("EnablePBLogging", True) else "false"
 
     @staticmethod
     def function_enable_text_logging(function):
@@ -187,7 +187,7 @@ class CodeGeneratorHelper(object):
         Args:
            function (dict) : Specification for a function
         """
-        return "true" if function.get("EnableTextLogging", False) else "false"
+        return "true" if function.get("EnableTextLogging", True) else "false"
 
     @staticmethod
     def function_get_argname_list(function):
