@@ -28,12 +28,12 @@ bool sim_api_communicate::SysEmuWrapper::boot(uint64_t pc)
     // Boot all compute shire threads
     for (int s = 0; s < EMU_NUM_COMPUTE_SHIRES; s++) {
         shire_threads_set_pc(s, pc);
-        sys_emu::shire_enable_threads(s);
+        sys_emu::shire_enable_threads(s, 0, 0);
     }
 
     // Boot all master shire threads
     shire_threads_set_pc(EMU_MASTER_SHIRE, pc);
-    sys_emu::shire_enable_threads(EMU_MASTER_SHIRE);
+    sys_emu::shire_enable_threads(EMU_MASTER_SHIRE, 0, 0);
 
     return true;
 }

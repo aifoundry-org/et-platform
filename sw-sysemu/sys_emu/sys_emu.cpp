@@ -478,30 +478,80 @@ sys_emu::evl_dv_handle_irq_inj(bool raise, uint64_t subopcode, uint64_t shire_ma
 }
 
 void
-sys_emu::shire_enable_threads(unsigned shire_id)
+sys_emu::shire_enable_threads(unsigned shire_id, uint32_t thread0_disable, uint32_t thread1_disable)
 {
     if (shire_id == IO_SHIRE_ID)
         shire_id = EMU_IO_SHIRE_SP;
 
-    bemu::write_thread0_disable(shire_id, 0);
-    bemu::write_thread1_disable(shire_id, 0);
+    bemu::write_thread0_disable(shire_id, thread0_disable);
+    bemu::write_thread1_disable(shire_id, thread1_disable);
 
-    write_thread_disable(shire_id);
+    recalculate_thread_disable(shire_id);
 }
 
 void
-sys_emu::write_thread_disable(unsigned shire_id)
+sys_emu::recalculate_thread_disable(unsigned shire_id)
 {
     if (shire_id == IO_SHIRE_ID)
         shire_id = EMU_IO_SHIRE_SP;
 
-    unsigned thread0 = EMU_THREADS_PER_SHIRE * shire_id;
-    unsigned shire_thread_count = (shire_id == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_SHIRE);
+    unsigned thread_count = (shire_id == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_SHIRE);
 
-    for (unsigned t = 0; t < shire_thread_count; ++t) {
-        unsigned thread_id = thread0 + t;
-        if (thread_is_active(thread_id) && !thread_is_disabled(thread_id) && !thread_is_running(thread_id))
+    for (unsigned t = 0; t < thread_count; ++t) {
+        unsigned thread_id = t + EMU_THREADS_PER_SHIRE * shire_id;
+        if (!thread_is_active(thread_id))
+            continue;
+        if (bemu::get_cpu(thread_id).enabled && !thread_is_running(thread_id)) {
+            auto wfi_stall_it = std::find(wfi_stall_wait_threads.begin(), wfi_stall_wait_threads.end(), thread_id);
+            if (wfi_stall_it != wfi_stall_wait_threads.end())
+                continue;
+
+            auto port_it = std::find(port_wait_threads.begin(), port_wait_threads.end(), thread_id);
+            if (port_it != port_wait_threads.end())
+                continue;
+
+            bool waits_for_fcc = false;
+            for (auto &fcc_wait_it: fcc_wait_threads) {
+                auto th = std::find(fcc_wait_it.begin(), fcc_wait_it.end(), thread_id);
+                if (th != fcc_wait_it.end()) {
+                    waits_for_fcc = true;
+                    break;
+                }
+            }
+            if (waits_for_fcc)
+                continue;
+
             running_threads.push_back(thread_id);
+        } else if (!bemu::get_cpu(thread_id).enabled) {
+            auto wfi_stall_it = std::find(wfi_stall_wait_threads.begin(), wfi_stall_wait_threads.end(), thread_id);
+            if (wfi_stall_it != wfi_stall_wait_threads.end()) {
+                wfi_stall_wait_threads.erase(wfi_stall_it);
+                continue;
+            }
+
+            auto port_it = std::find(port_wait_threads.begin(), port_wait_threads.end(), thread_id);
+            if (port_it != port_wait_threads.end()) {
+                port_wait_threads.erase(port_it);
+                continue;
+            }
+
+            bool waited_for_fcc = false;
+            for (auto &fcc_wait_it: fcc_wait_threads) {
+                auto th = std::find(fcc_wait_it.begin(), fcc_wait_it.end(), thread_id);
+                if (th != fcc_wait_it.end()) {
+                    fcc_wait_it.erase(th);
+                    waited_for_fcc = true;
+                    break;
+                }
+            }
+            if (waited_for_fcc)
+                continue;
+
+            auto it = std::find(running_threads.begin(), running_threads.end(), thread_id);
+            if (it != running_threads.end()) {
+                running_threads.erase(it);
+            }
+        }
     }
 }
 
