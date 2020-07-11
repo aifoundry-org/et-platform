@@ -15,8 +15,8 @@ file(GLOB_RECURSE DEVICE_API_SCHEMA_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}} 
 
 # List of Jinja files to generate files for
 SET(JINJA_FILES
-  "device_api_types.h.jinja:device_api_types.h"
-  "tracing_types.h.jinja:tracing_types.h"
+  "device_api_types.h.jinja:device_api_types_non_privileged.h"
+  "tracing_types.h.jinja:tracing_types_non_privileged.h"
   )
 
 set(DEV_API_HDRS "${CMAKE_CURRENT_BINARY_DIR}/device_api.h"
@@ -29,7 +29,7 @@ foreach(TMPL_TUPLE ${JINJA_FILES})
   add_custom_command(
      OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT}
      COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/device_api_codegen.py
-     ARGS  --spec ${CMAKE_CURRENT_SOURCE_DIR}/api/device-api.yaml
+     ARGS  --spec ${CMAKE_CURRENT_SOURCE_DIR}/non-privileged-api/device-api-non-privileged.yaml
            --schema ${CMAKE_CURRENT_SOURCE_DIR}/schema/device-api.schema.json
            --template ${CMAKE_CURRENT_SOURCE_DIR}/${TMPL}
            --output ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT}
@@ -52,7 +52,7 @@ install(FILES ${DEV_API_HDRS}
   COMPONENT device-api)
 
 
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/api
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/non-privileged-api
   DESTINATION ${LIB_INSTALL_DIR}/esperanto/device-api/
   COMPONENT device-api)
 
