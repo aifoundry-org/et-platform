@@ -101,17 +101,19 @@ void __attribute__((noreturn)) main(void)
     {
         const uint64_t* const worker_entry = (uint64_t*)FW_WORKER_SMODE_ENTRY;
         const uint32_t minion_mask = (get_shire_id() == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
+        const uint32_t first_hart = (get_shire_id() == MASTER_SHIRE) ? 32 : 0;
+        const uint32_t first_neighborhood = (get_shire_id() == MASTER_SHIRE) ? 2 : 0;
+        const uint32_t neighborhood_mask = (get_shire_id() == MASTER_SHIRE) ? 0xC : 0xF;
 
-        // First HART in each neighborhood
-        if (get_hart_id() % 16 == 0)
+        // First HART in each shire
+        if (get_hart_id() % 64 == first_hart)
         {
-            const uint64_t neighborhood_id = get_neighborhood_id();
-
             // Set MPROT for all neighborhoods in worker shire to disable access to OS, PCI-E and IO regions and enable secure memory permissions
-            volatile uint64_t* const mprot_ptr = (volatile uint64_t *)ESR_NEIGH(THIS_SHIRE, neighborhood_id, MPROT);
-            uint64_t mprot = *mprot_ptr;
+            volatile uint64_t* const mprot_neighborhood0_ptr = (volatile uint64_t *)ESR_NEIGH(THIS_SHIRE, first_neighborhood, MPROT);
+            volatile uint64_t* const mprot_broadcast_ptr = (volatile uint64_t *)ESR_NEIGH(THIS_SHIRE, neighborhood_mask, MPROT); // 0xF = broadcast to all 4 neighborhoods
+            uint64_t mprot = *mprot_neighborhood0_ptr;
             mprot |= 0x46; // set enable_secure_memory, disable_pcie_access and io_access_mode = b10 (disabled)
-            *mprot_ptr = mprot;
+            *mprot_broadcast_ptr = mprot;
 
             // minion thread1s aren't enabled yet, so send FCC0 to all thread0s
             SEND_FCC(THIS_SHIRE, THREAD_0, FCC_0, minion_mask);
