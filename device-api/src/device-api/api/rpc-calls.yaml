@@ -226,7 +226,7 @@ Messages :
         Type: uint64_t
 #-------------------------------------------------------------------------------
   - Name: set_master_log_level_cmd
-    Descripiton: Set the master shire logging level
+    Description: Set the master shire logging level
     Type: Command
     PairedMessage: set_master_log_level_rsp
     Fields:

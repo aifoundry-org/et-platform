@@ -30,6 +30,7 @@
                 "Struct": { "type": "string" },
                 "Enum": { "type": "string" }
             },
+            "additionalProperties" : false,
             "required": ["Name", "Type"]
         },
         "TraceRecordEntry": {
@@ -46,6 +47,7 @@
                              "bool", "bytes"]
                 }
             },
+            "additionalProperties" : false,
             "required": ["Name", "Type"]
         },
 
@@ -74,6 +76,7 @@
                     }
                 }
             },
+            "additionalProperties" : false,
             "required" : ["Name", "Values", "Type"]
         },
         "Struct": {
@@ -89,6 +92,7 @@
                     "items": { "$ref": "#definitions/MemberField" }
                 }
             },
+            "additionalProperties" : false,
             "required" : ["Name", "Fields"]
         },
         "Message": {
@@ -112,6 +116,7 @@
                     "items": { "$ref": "#definitions/MemberField" }
                 }
             },
+            "additionalProperties" : false,
             "required" : ["Name", "Type", "PairedMessage", "Fields"]
         },
         "TraceEvent": {
@@ -131,12 +136,12 @@
                     "items": { "$ref": "#definitions/TraceRecordEntry" }
                 }
             },
+            "additionalProperties" : false,
             "required" : ["Name", "Fields", "Type"]
         },
         "Module": {
             "type": "object",
             "description": "Module specification that can describe multiple profiling tracing functions",
-            "required": [ "Name", "Functions"],
             "properties": {
                 "Name": {
                     "type": "string",
@@ -165,6 +170,7 @@
                     "minItems": 1
                 }
             },
+            "additionalProperties" : false,
             "required": ["Name"]
         }
     }
