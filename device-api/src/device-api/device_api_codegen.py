@@ -65,6 +65,14 @@ class DevAPICodeGeneratorHelper(object):
     def __init__(self, spec_data):
         self.spec_data = spec_data
 
+    @property
+    def api_name(self):
+        return self.spec_data['Name']
+
+    @property
+    def c_api_name(self):
+        return self.api_name.replace("-", "_").lower()
+
     def spec_hash(self):
         """Return string that corresponds to a 64bit number of the LSB bigs of the md5 sub of the schema"""
         m = hashlib.md5()

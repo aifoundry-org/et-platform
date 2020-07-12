@@ -8,6 +8,7 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
+Name: Non-Privileged
 Modules:
   - !include rpc-calls.yaml
   - !include tracing/tracing-events.yaml

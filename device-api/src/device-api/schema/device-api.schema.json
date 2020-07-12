@@ -3,13 +3,17 @@
     "description": "Esperanto Runtime Tracing Specification",
     "type": "object",
     "properties": {
+        "Name": {
+            "description": "Name of the API",
+            "type": "string"
+        },
         "Modules":  {
             "description": "List of different modules we have in the system that we want to enable tracing for",
             "type": "array",
             "items": { "$ref": "#/definitions/Module" }
         }
     },
-    "required": [ "Modules"],
+    "required": [ "Name", "Modules"],
     "definitions": {
         "MemberField": {
             "type": "object",

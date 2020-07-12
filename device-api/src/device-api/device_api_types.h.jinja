@@ -10,8 +10,8 @@
 
 // WARNING: this file is auto-generated do not edit directly
 
-#ifndef ET_DEVICE_API_TYPES_H
-#define ET_DEVICE_API_TYPES_H
+#ifndef ET_DEVICE_API_TYPES_<< cgh.c_api_name | upper >>_H
+#define ET_DEVICE_API_TYPES_<< cgh.c_api_name | upper >>_H
 
 #include "device_api_message_types.h"
 
@@ -25,7 +25,7 @@ namespace device_api {
 #endif
 
 // 8 LSB bytes MD5 checksum of the device-api spec
-#define DEVICE_API_HASH  0x<< cgh.spec_hash() >>ULL
+#define DEVICE_API_<<cgh.c_api_name | upper>>_HASH  0x<< cgh.spec_hash() >>ULL
 
 // DeviceAPI Enumerations
 <% for enum in cgh.enums() -%>
@@ -104,4 +104,4 @@ static inline std::ostream& operator<< "<<" >>(std::ostream& output, const << st
 } // namespace device_api
 #endif
 
-#endif // ET_DEVICE_API_TYPES_H
+#endif // ET_DEVICE_API_TYPES_<< cgh.c_api_name | upper >>_H
