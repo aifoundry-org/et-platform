@@ -96,6 +96,7 @@ static int64_t ipi_trigger(uint64_t hart_mask, uint64_t shire_id)
 // enable_mask is a bitmask to ENABLE a thread1: bit 0 = minion 0, bit 31 = minion 31
 static int64_t enable_thread1(uint64_t disable_mask, uint64_t enable_mask)
 {
+    // [SW-3478]: FIXME/TODO: Add per shire locking/mutex to avoid race conditions
     volatile uint64_t* const disable_thread1_ptr = (volatile uint64_t *)ESR_SHIRE(THIS_SHIRE, THREAD1_DISABLE);
     *disable_thread1_ptr = (*disable_thread1_ptr & ~enable_mask) | disable_mask;
 

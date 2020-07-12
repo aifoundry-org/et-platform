@@ -30,9 +30,7 @@ void __attribute__((noreturn)) main(void)
     const uint64_t shire_id = get_shire_id();
     const uint64_t hart_id = get_hart_id();
     const uint64_t shire_mask = 1ULL << shire_id;
-    const uint32_t minion_mask = (shire_id == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
     const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
-    const uint64_t first_worker = (shire_id == MASTER_SHIRE) ? 32 : 0;
 
     message_init_worker(shire_id, hart_id);
 
@@ -42,11 +40,11 @@ void __attribute__((noreturn)) main(void)
         "csrsi sstatus, 0x2 \n" // Enable interrupts
     );
 
-    // First worker HART in the shire
-    if ((hart_id % 64U) == first_worker)
+    // First HART in the shire, except Master Shire (32), where H0 of MasterFW will also enable userspace sync minions of that shire
+    if ((hart_id % 64U) == 0 && (shire_id != MASTER_SHIRE))
     {
         // Enable all thread1s so they can run BIST, master can communicate with them, etc.
-        syscall(SYSCALL_ENABLE_THREAD1_INT, 0, minion_mask, 0);
+        syscall(SYSCALL_ENABLE_THREAD1_INT, 0, 0xFFFFFFFFu, 0);
     }
 
     // Empty all FCCs
