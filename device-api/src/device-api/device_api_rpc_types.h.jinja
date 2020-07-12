@@ -10,27 +10,14 @@
 
 // WARNING: this file is auto-generated do not edit directly
 
-#ifndef ET_DEVICE_API_TYPES_<< cgh.c_api_name | upper >>_H
-#define ET_DEVICE_API_TYPES_<< cgh.c_api_name | upper >>_H
+#ifndef ET_DEVICE_API_RPC_TYPES_<< cgh.c_api_name | upper >>_H
+#define ET_DEVICE_API_RPC_TYPES_<< cgh.c_api_name | upper >>_H
 
-#include "device_api_message_types.h"
+#include "esperanto/device-api/device_api_message_types.h"
 
 #include <stdint.h>
 
-#ifdef __cplusplus
-
-#include <ostream>
-
-namespace device_api {
-#endif
-
-// 8 LSB bytes MD5 checksum of the device-api spec
-#define DEVICE_API_<<cgh.c_api_name | upper>>_HASH  0x<< cgh.spec_hash() >>ULL
-#define DEVICE_API_<<cgh.c_api_name | upper>>_MAJOR <<cgh.spec_data['Version_Major']>>
-#define DEVICE_API_<<cgh.c_api_name | upper>>_MINOR <<cgh.spec_data['Version_Minor']>>
-#define DEVICE_API_<<cgh.c_api_name | upper>>_PATCH <<cgh.spec_data['Version_Patch']>>
-
-// DeviceAPI Enumerations
+// DeviceAPI << cgh.api_name >> Enumerations
 <% for enum in cgh.enums() -%>
 
 typedef << enum["Type"] >> << enum.c_type_name>>;
@@ -44,7 +31,7 @@ enum << enum.Name | upper >> {
 
 <% endfor %>
 
-// DeviceAPI structs
+// DeviceAPI << cgh.api_name>> structs
 // Structs that are being used in other tests
 
 <% for struct in cgh.structs() -%>
@@ -57,18 +44,7 @@ struct << struct["Name"] >> {
 
 <% endfor %>
 
-// Device API Enum
-typedef uint64_t device_api_msg_t;
-
-enum device_api_msg_e {
-    MBOX_DEVAPI_MESSAGE_ID_NONE = << cgh.message_start_id >>,
-<%- for message in cgh.messages() %>
-    MBOX_DEVAPI_MESSAGE_ID_<< message["Name"] | upper >> = << cgh.message_start_id + loop.index >>,
-<%- endfor %>
-    MBOX_DEVAPI_MESSAGE_ID_LAST  = << cgh.message_max_id >>
-};
-
-// The real RPC messages that we exchange
+// The real  << cgh.api_name>> RPC messages that we exchange
 <% for message in cgh.messages() %>
 /// @brief << message["Description"] >>
 struct << message["Name"] >>_t {
@@ -86,25 +62,4 @@ struct << message["Name"] >>_t {
 };
 <% endfor %>
 
-#ifdef __cplusplus
-
-// Overloads of the operators<<"<<">> to enable outputing the structs in C++
-
-<% for struct in cgh.structs() -%>
-/// @brief Output << struct["Description"] >>
-static inline std::ostream& operator<< "<<" >>(std::ostream& output, const << struct['Name'] >>& obj)
-{
-  output
-  <% for field in struct.get("Fields", []) -%>
-  << "<< \"" >> << field["Name"] >><< ":\" <<" >> obj.<< field["Name"] >>
-  <% endfor %>;
-
-  return output;
-};
-<% endfor %>
-
-
-} // namespace device_api
-#endif
-
-#endif // ET_DEVICE_API_TYPES_<< cgh.c_api_name | upper >>_H
+#endif // ET_DEVICE_API_RPC_TYPES_<< cgh.c_api_name | upper >>_H

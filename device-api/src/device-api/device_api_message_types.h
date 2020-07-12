@@ -18,10 +18,6 @@
 // host and device. The requirement is that fields are naturally aligned. To easily enforce this
 // make sure that member fields are ordered by decreasing size.
 
-#ifdef __cplusplus
-namespace device_api {
-#endif
-
 typedef uint64_t mbox_message_id_t;
 
 /// @brief common header that is expected to be at the beginning of each device-api message
@@ -61,9 +57,5 @@ static inline mbox_message_id_t get_device_api_message_id(const void* msg) {
     const struct common_header_t* header = (const struct common_header_t*) msg;
     return header->message_id;
 }
-
-#ifdef __cplusplus
-} // namespace device_api
-#endif
 
 #endif // ET_DEVICE_API_MESSAGE_TYPES_H

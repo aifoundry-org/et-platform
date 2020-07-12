@@ -19,7 +19,9 @@ set(DEV_API_HDRS "${CMAKE_CURRENT_BINARY_DIR}/device_api.h"
 ################### Privileged API Headers #########################
 # List of Jinja files to generate files for
 SET(JINJA_FILES
-  "device_api_types.h.jinja:device_api_types_privileged.h"
+  "device_api_spec.h.jinja:device_api_spec_privileged.h"
+  "device_api_rpc_types.h.jinja:device_api_rpc_types_privileged.h"
+  "device_api_cxx.h.jinja:device_api_cxx_privileged.h"
   )
 
 foreach(TMPL_TUPLE ${JINJA_FILES})
@@ -47,7 +49,9 @@ endforeach()
 ################### Non Privileged API Headers #########################
 # List of Jinja files to generate files for
 SET(JINJA_FILES
-  "device_api_types.h.jinja:device_api_types_non_privileged.h"
+  "device_api_spec.h.jinja:device_api_spec_non_privileged.h"
+  "device_api_rpc_types.h.jinja:device_api_rpc_types_non_privileged.h"
+  "device_api_cxx.h.jinja:device_api_cxx_non_privileged.h"
   "tracing_types.h.jinja:tracing_types_non_privileged.h"
   )
 

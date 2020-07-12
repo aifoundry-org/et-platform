@@ -15,7 +15,7 @@
 #define ESPERANTO_DEVICE_API_VERSION_MINOR @EsperantoDeviceAPI_VERSION_MINOR@
 #define ESPERANTO_DEVICE_API_VERSION_PATCH @EsperantoDeviceAPI_VERSION_PATCH@
 
-#include "device_api_types_non_privileged.h"
-#include "tracing_types_non_privileged.h"
+#include "esperanto/device-api/device_api_spec_privileged.h"
+#include "esperanto/device-api/device_api_spec_non_privileged.h"
 
 #endif // ET_DEVICE_API_H
