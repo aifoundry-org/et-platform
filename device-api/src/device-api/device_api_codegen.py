@@ -40,6 +40,18 @@ class Loader(yaml.SafeLoader):
 
 Loader.add_constructor('!include', Loader.include)
 
+class Enum(object):
+    """Class holding the information of a enum"""
+    def __init__(self, schema):
+        for k, v in schema.items():
+            setattr(self, k ,v)
+
+    @property
+    def c_type_name(self):
+        """Return string with the C type name"""
+        return f"{self.Name}_e"
+
+
 class DevAPICodeGeneratorHelper(object):
     """Helper class that provides a set of static methods to help us with code-generation
 
@@ -106,7 +118,7 @@ class DevAPICodeGeneratorHelper(object):
         rpc_calls = self.rpc_calls()
         if not rpc_calls:
             return []
-        return rpc_calls.get("Enums", [])
+        return [Enum(i) for i in rpc_calls.get("Enums", [])]
 
     def structs(self):
         """Return the list of defined structs
@@ -161,13 +173,13 @@ class DevAPICodeGeneratorHelper(object):
             return "uint8_t"
         elif type == "enum":
             enum_name = field["Enum"]
-            enums = list(filter(lambda x : x["Name"] in enum_name, self.enums()))
+            enums = list(filter(lambda x : x.Name == enum_name, self.enums()))
             if not len(enums) == 1:
                 raise RuntimeError(f"None or multiple enums found: {enums}, {enum_name}")
-            return enum_name
+            return enums[0].c_type_name
         elif type == "struct":
             struct_name = field["Struct"]
-            structs = list(filter(lambda x : x["Name"] in struct_name, self.structs()))
+            structs = list(filter(lambda x : x["Name"] == struct_name, self.structs()))
             if not len(structs) == 1:
                 raise RuntimeError(f"None or multiple structs found: {structs}, {struct_name}")
             return f'{struct_name}'
@@ -185,10 +197,10 @@ class DevAPICodeGeneratorHelper(object):
         type = field["Type"]
         if type == "enum":
             enum_name = field["Enum"]
-            enums = list(filter(lambda x : x["Name"] in enum_name, self.enums()))
+            enums = list(filter(lambda x : x.Name == enum_name, self.enums()))
             if not len(enums) == 1:
                 raise RuntimeError(f"None or multiple enums found: {enums}, {enum_name}")
-            return enums[0]["Type"]
+            return enums[0].Type
         else:
             return self.message_field_type(field)
 
@@ -206,7 +218,7 @@ class DevAPICodeGeneratorHelper(object):
         """Validate that in trace event a bytes type appears only once and at the end"""
         fields = trace_event.get("Fields", [])
         for i in range(len(fields)):
-            if fields[i]["Type"] in  "bytes" and i != (len(fields) - 1):
+            if fields[i]["Type"] ==  "bytes" and i != (len(fields) - 1):
                 raise RuntimeError(f"Found bytes field not at the end of record, {trace_event}")
 
     @staticmethod

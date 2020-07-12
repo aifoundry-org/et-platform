@@ -30,12 +30,12 @@ namespace device_api {
 // DeviceAPI Enumerations
 <% for enum in cgh.enums() -%>
 
-typedef << enum["Type"] >> << enum["Name"] >>_e;
+typedef << enum["Type"] >> << enum.c_type_name>>;
 
 /// @brief << enum["Description"] >>
-enum << enum["Name"] | upper >> {
-  <% for val in enum.get("Values", []) -%>
-  << enum["Name"] | upper >>_<< val["Name"] >> = << val["Value"] >>,
+enum << enum.Name | upper >> {
+  <% for val in enum.Values -%>
+  << enum.Name | upper >>_<< val["Name"] >> = << val["Value"] >>,
   <% endfor %>
 };
 

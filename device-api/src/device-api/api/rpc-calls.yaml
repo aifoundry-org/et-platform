@@ -192,7 +192,7 @@ Messages :
         Type: uint64_t
       - Name: error
         Type: enum
-        Enum: dev_api_kernel_launch_error_e
+        Enum: dev_api_kernel_launch_error
 #-------------------------------------------------------------------------------
   - Name: kernel_abort_cmd
     Description: Command to abort a currently running kernel on the device
@@ -208,7 +208,7 @@ Messages :
     Fields:
       - Name: status
         Type: enum
-        Enum: dev_api_kernel_abort_response_result_e
+        Enum: dev_api_kernel_abort_response_result
 #-------------------------------------------------------------------------------
   - Name: kernel_state_cmd
     Description: Query the state if a currently running kernel
@@ -232,7 +232,7 @@ Messages :
     Fields:
       - Name: log_level
         Type: enum
-        Enum: log_levels_e
+        Enum: log_levels
   - Name: set_master_log_level_rsp
     Type: Response
     PairedMessage: set_master_log_level_cmd
@@ -247,7 +247,7 @@ Messages :
     Fields:
       - Name: log_level
         Type: enum
-        Enum: log_levels_e
+        Enum: log_levels
   - Name: set_worker_log_level_rsp
     Type: Response
     PairedMessage: set_worker_log_level_cmd
@@ -263,7 +263,7 @@ Messages :
     Fields:
       - Name: error_type
         Type: enum
-        Enum: dev_api_error_type_e
+        Enum: dev_api_error_type
 #-------------------------------------------------------------------------------
   - Name: trace_buffer_full
     Description: Binary trace buffer is full and the host should consume it
