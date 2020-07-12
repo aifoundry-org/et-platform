@@ -19,6 +19,14 @@
             "description": "Version Patch Number",
             "type" : "integer"
         },
+        "MessageStartID": {
+            "description": "Starting ID of the API messages, default 0, used as the stating value of the C-enumeration",
+            "type": "integer"
+        },
+        "MessageMaxID": {
+            "description": "Maximum number of messages this API can support, unlimited if not specified",
+            "type": "integer"
+        },
         "Modules":  {
             "description": "List of different modules we have in the system that we want to enable tracing for",
             "type": "array",

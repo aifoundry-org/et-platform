@@ -61,11 +61,11 @@ struct << struct["Name"] >> {
 typedef uint64_t device_api_msg_t;
 
 enum device_api_msg_e {
-    MBOX_DEVAPI_MESSAGE_ID_NONE = 1000,
+    MBOX_DEVAPI_MESSAGE_ID_NONE = << cgh.message_start_id >>,
 <%- for message in cgh.messages() %>
-    MBOX_DEVAPI_MESSAGE_ID_<< message["Name"] | upper >> = << 1000 + loop.index >>,
+    MBOX_DEVAPI_MESSAGE_ID_<< message["Name"] | upper >> = << cgh.message_start_id + loop.index >>,
 <%- endfor %>
-    MBOX_DEVAPI_MESSAGE_ID_LAST
+    MBOX_DEVAPI_MESSAGE_ID_LAST  = << cgh.message_max_id >>
 };
 
 // The real RPC messages that we exchange

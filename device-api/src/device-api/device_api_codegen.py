@@ -139,6 +139,28 @@ class DevAPICodeGeneratorHelper(object):
             return []
         return rpc_calls.get("Structs", [])
 
+    @property
+    def message_start_id(self):
+        """Return the stating ID of the messages, used when building C/C++ enumerations"""
+        id = self.spec_data.get("MessageStartID", 0)
+        if id < 0:
+            raise RuntimeError("Expecting a positive MessageStartID value")
+        return id
+
+    @property
+    def message_max_id(self):
+        """Return the last ID that the messages can have or the length of messages we have """
+        res = self.spec_data.get("MessageMaxID", 0)
+        if res < 0:
+            raise RuntimeError("Expecting positive value for MessageMaxID")
+        if res == 0:
+            return self.message_start_id + len(self.messages()) + 1
+        last_message_id = self.message_start_id + len(self.messages())
+        if res < last_message_id:
+            raise RuntimeError(f"MessageMaxID: {res} should be larger than the last "
+                               "message ID: {last_message_id}")
+        return res
+
     def messages(self):
         """Return the list of defined message types
 
