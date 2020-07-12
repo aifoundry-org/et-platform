@@ -26,6 +26,9 @@ namespace device_api {
 
 // 8 LSB bytes MD5 checksum of the device-api spec
 #define DEVICE_API_<<cgh.c_api_name | upper>>_HASH  0x<< cgh.spec_hash() >>ULL
+#define DEVICE_API_<<cgh.c_api_name | upper>>_MAJOR <<cgh.spec_data['Version_Major']>>
+#define DEVICE_API_<<cgh.c_api_name | upper>>_MINOR <<cgh.spec_data['Version_Minor']>>
+#define DEVICE_API_<<cgh.c_api_name | upper>>_PATCH <<cgh.spec_data['Version_Patch']>>
 
 // DeviceAPI Enumerations
 <% for enum in cgh.enums() -%>

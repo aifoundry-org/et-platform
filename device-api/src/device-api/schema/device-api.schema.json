@@ -7,13 +7,26 @@
             "description": "Name of the API",
             "type": "string"
         },
+        "Version_Major": {
+            "description": "Version Major Number",
+            "type" : "integer"
+        },
+        "Version_Minor": {
+            "description": "Version Minor Number",
+            "type" : "integer"
+        },
+        "Version_Patch": {
+            "description": "Version Patch Number",
+            "type" : "integer"
+        },
         "Modules":  {
             "description": "List of different modules we have in the system that we want to enable tracing for",
             "type": "array",
             "items": { "$ref": "#/definitions/Module" }
         }
     },
-    "required": [ "Name", "Modules"],
+    "required": [ "Name", "Version_Major", "Version_Minor", "Version_Patch", "Modules"],
+    "additionalProperties" : false,
     "definitions": {
         "MemberField": {
             "type": "object",

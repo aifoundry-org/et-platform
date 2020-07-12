@@ -9,6 +9,9 @@
 #------------------------------------------------------------------------------
 
 Name: Non-Privileged
+Version_Major: 0
+Version_Minor: 1
+Version_Patch: 0
 Modules:
   - !include rpc-calls.yaml
   - !include tracing/tracing-events.yaml
