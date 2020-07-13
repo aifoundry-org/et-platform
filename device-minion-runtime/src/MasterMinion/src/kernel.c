@@ -1,7 +1,7 @@
 #include "kernel.h"
 #include "broadcast.h"
 #include "cacheops.h"
-#include "device_api.h"
+#include "device_api_non_privileged.h"
 #include "esr_defines.h"
 #include "fcc.h"
 #include "hart.h"
@@ -51,7 +51,7 @@ static void send_kernel_launch_response(const struct kernel_launch_cmd_t *const 
 {
     log_write(LOG_LEVEL_CRITICAL, "Sending Kernel Launch Response %" PRIi64 "\r\n", error);
     struct kernel_launch_rsp_t rsp;
-    rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_KERNEL_LAUNCH_RSP;
+    rsp.response_info.message_id = MBOX_DEVAPI_NON_PRIVILEGED_MID_KERNEL_LAUNCH_RSP;
     prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
     rsp.kernel_id = cmd->kernel_params.kernel_id;
     rsp.error = error;

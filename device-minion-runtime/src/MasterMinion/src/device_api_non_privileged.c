@@ -1,4 +1,4 @@
-#include "device_api.h"
+#include "device_api_non_privileged.h"
 
 #include "build_configuration.h"
 #include "kernel.h"
@@ -9,6 +9,7 @@
 #include "syscall_internal.h"
 
 #include <esperanto/device-api/device_api.h>
+#include <esperanto/device-api/device_api_rpc_types_non_privileged.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
@@ -27,26 +28,27 @@ log_level_t devapi_loglevel_to_fw(const enum LOG_LEVELS log_level)
     return (log_level_e)log_level;
 }
 
-void handle_device_api_message_from_host(const mbox_message_id_t *message_id, uint8_t *buffer)
+void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t* message_id,
+                                                        uint8_t* buffer)
 {
     {
         struct command_header_t *const cmd = (void *)buffer;
         cmd->device_timestamp_mtime = (uint64_t)syscall(SYSCALL_GET_MTIME_INT, 0, 0, 0);
     }
 
-    if (*message_id == MBOX_DEVAPI_MESSAGE_ID_REFLECT_TEST_CMD) {
-        const struct reflect_test_cmd_t *const cmd = (const void *const)buffer;
+    if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_REFLECT_TEST_CMD) {
+        const struct reflect_test_cmd_t* const cmd = (const void* const) buffer;
         struct reflect_test_rsp_t rsp;
-        rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_REFLECT_TEST_RSP;
+        rsp.response_info.message_id = MBOX_DEVAPI_NON_PRIVILEGED_MID_REFLECT_TEST_RSP;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
         if (result != 0) {
             log_write(LOG_LEVEL_ERROR, "DeviceAPI Reflect Test send error %" PRIi64 "\r\n", result);
         }
-    } else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_DEVICE_FW_VERSION_CMD) {
-        const struct device_fw_version_cmd_t *const cmd = (const void *const)buffer;
+    } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_DEVICE_FW_VERSION_CMD) {
+        const struct device_fw_version_cmd_t* const cmd = (const void* const) buffer;
         struct device_fw_version_rsp_t rsp;
-        rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_DEVICE_FW_VERSION_RSP;
+        rsp.response_info.message_id = MBOX_DEVAPI_NON_PRIVILEGED_MID_DEVICE_FW_VERSION_RSP;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
         memcpy(&rsp.device_fw_commit, IMAGE_VERSION_INFO_SYMBOL.git_hash,
                sizeof(rsp.device_fw_commit));
@@ -55,15 +57,15 @@ void handle_device_api_message_from_host(const mbox_message_id_t *message_id, ui
             log_write(LOG_LEVEL_ERROR,
                       "DeviceAPI Device FW Version MBOX_send error %" PRIi64 "\r\n", result);
         }
-    } else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_DEVICE_API_VERSION_CMD) {
-        const struct device_api_version_cmd_t *const cmd = (const void *const)buffer;
+    } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_DEVICE_API_VERSION_CMD) {
+        const struct device_api_version_cmd_t* const cmd = (const void* const) buffer;
         struct device_api_version_rsp_t rsp;
-        rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_DEVICE_API_VERSION_RSP;
+        rsp.response_info.message_id = MBOX_DEVAPI_NON_PRIVILEGED_MID_DEVICE_API_VERSION_RSP;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
         rsp.major = ESPERANTO_DEVICE_API_VERSION_MAJOR;
         rsp.minor = ESPERANTO_DEVICE_API_VERSION_MINOR;
         rsp.patch = ESPERANTO_DEVICE_API_VERSION_PATCH;
-        rsp.api_hash = DEVICE_API_HASH;
+        rsp.api_hash = DEVICE_API_NON_PRIVILEGED_HASH;
         // FIXME SW-1319
         rsp.accept = true;
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
@@ -71,7 +73,7 @@ void handle_device_api_message_from_host(const mbox_message_id_t *message_id, ui
             log_write(LOG_LEVEL_ERROR,
                       "DeviceAPI DeviceAPI Version MBOX_send error %" PRIi64 "\r\n", result);
         }
-    } else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_KERNEL_ABORT_CMD) {
+    } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_KERNEL_ABORT_CMD) {
         log_write(LOG_LEVEL_INFO, "received kernel abort message fom host\r\n");
 
 #ifdef DEBUG_PRINT_HOST_MESSAGE
@@ -80,7 +82,7 @@ void handle_device_api_message_from_host(const mbox_message_id_t *message_id, ui
 
         const struct kernel_abort_cmd_t *const cmd = (const void *const)buffer;
         struct kernel_abort_rsp_t rsp;
-        rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_KERNEL_ABORT_RSP;
+        rsp.response_info.message_id = MBOX_DEVAPI_NON_PRIVILEGED_MID_KERNEL_ABORT_RSP;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
 
         abort_kernel(cmd->kernel_id);
@@ -90,7 +92,7 @@ void handle_device_api_message_from_host(const mbox_message_id_t *message_id, ui
         if (result != 0) {
             log_write(LOG_LEVEL_ERROR, "DeviceAPI Kernel Abort error %" PRIi64 "\r\n", result);
         }
-    } else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_KERNEL_LAUNCH_CMD) {
+    } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_KERNEL_LAUNCH_CMD) {
         log_write(LOG_LEVEL_INFO, "received kernel launch message fom host\r\n");
 
 #ifdef DEBUG_PRINT_HOST_MESSAGE
@@ -99,10 +101,10 @@ void handle_device_api_message_from_host(const mbox_message_id_t *message_id, ui
 
         const struct kernel_launch_cmd_t *const cmd = (const void *const)buffer;
         launch_kernel(cmd);
-    } else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_KERNEL_STATE_CMD) {
-        const struct kernel_state_cmd_t *const cmd = (const void *const)buffer;
+    } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_KERNEL_STATE_CMD) {
+        const struct kernel_state_cmd_t* const cmd = (const void* const) buffer;
         struct kernel_state_rsp_t rsp;
-        rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_KERNEL_STATE_RSP;
+        rsp.response_info.message_id = MBOX_DEVAPI_NON_PRIVILEGED_MID_KERNEL_STATE_RSP;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
 
         rsp.status = get_kernel_state(cmd->kernel_id);
@@ -114,10 +116,10 @@ void handle_device_api_message_from_host(const mbox_message_id_t *message_id, ui
             log_write(LOG_LEVEL_ERROR, "DeviceAPI Kernel Status MBOX_send error %" PRIi64 "\r\n",
                       result);
         }
-    } else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_SET_MASTER_LOG_LEVEL_CMD) {
-        const struct set_master_log_level_cmd_t *const cmd = (const void *const)buffer;
+    } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_SET_MASTER_LOG_LEVEL_CMD) {
+        const struct set_master_log_level_cmd_t* const cmd = (const void* const) buffer;
         struct set_master_log_level_rsp_t rsp;
-        rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_SET_MASTER_LOG_LEVEL_RSP;
+        rsp.response_info.message_id = MBOX_DEVAPI_NON_PRIVILEGED_MID_SET_MASTER_LOG_LEVEL_RSP;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
         log_set_level(devapi_loglevel_to_fw(cmd->log_level));
         rsp.status = true;
@@ -127,11 +129,10 @@ void handle_device_api_message_from_host(const mbox_message_id_t *message_id, ui
                       "DeviceAPI DeviceAPI Set Master Log Level MBOX_send error %" PRIi64 "\r\n",
                       result);
         }
-
-    } else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_SET_WORKER_LOG_LEVEL_CMD) {
-        const struct set_worker_log_level_cmd_t *const cmd = (const void *const)buffer;
+    } else if (*message_id ==  MBOX_DEVAPI_NON_PRIVILEGED_MID_SET_WORKER_LOG_LEVEL_CMD) {
+        const struct set_worker_log_level_cmd_t* const cmd = (const void* const) buffer;
         struct set_worker_log_level_rsp_t rsp;
-        rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_SET_WORKER_LOG_LEVEL_RSP;
+        rsp.response_info.message_id = MBOX_DEVAPI_NON_PRIVILEGED_MID_SET_WORKER_LOG_LEVEL_RSP;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
 
         // send message to workers

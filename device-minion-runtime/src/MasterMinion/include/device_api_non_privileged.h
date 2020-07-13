@@ -1,5 +1,5 @@
-#ifndef DEVICE_API_H
-#define DEVICE_API_H
+#ifndef DEVICE_API_NON_PRIVILEGED_H
+#define DEVICE_API_NON_PRIVILEGED_H
 
 #include "kernel_params.h"
 #include "kernel_info.h"
@@ -26,6 +26,7 @@ log_level_t devapi_loglevel_to_fw(const enum LOG_LEVELS log_level);
 ///             to allow us to modify the contents of the message upon arrive and record
 ///             necessary additional information, like timestamps. We also expect that the
 ///             buffer has the expected size for the type of the message held
-void handle_device_api_message_from_host(const mbox_message_id_t *message_id, uint8_t *buffer);
+void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t* message_id,
+                                                        uint8_t* buffer);
 
 #endif

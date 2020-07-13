@@ -1,7 +1,7 @@
 #include "build_configuration.h"
 #include "fcc.h"
 #include "cacheops.h"
-#include "device_api.h"
+#include "device_api_non_privileged.h"
 #include "hart.h"
 #include "host_message.h"
 #include "interrupt.h"
@@ -368,9 +368,9 @@ static void handle_message_from_host(int64_t length, uint8_t *buffer)
         MBOX_send(MBOX_PCIE, &done_message, sizeof(done_message));
 
         //TODO: notify glow kernel HARTs that data is done being transferred
-    } else if (MBOX_DEVAPI_MESSAGE_ID_NONE < *message_id &&
-               *message_id < MBOX_DEVAPI_MESSAGE_ID_LAST) {
-        handle_device_api_message_from_host(message_id, buffer);
+    } else if (MBOX_DEVAPI_NON_PRIVILEGED_MID_NONE < *message_id
+             && *message_id < MBOX_DEVAPI_NON_PRIVILEGED_MID_LAST) {
+        handle_device_api_non_privileged_message_from_host(message_id, buffer);
     } else {
         log_write(LOG_LEVEL_ERROR, "Invalid message id: %" PRIu64 "\r\n", *message_id);
 
