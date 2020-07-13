@@ -17,7 +17,7 @@
 
 #include "esperanto/runtime/CodeManagement/Kernel.h"
 namespace et_runtime {
-ErrorOr<::device_api::DEV_API_KERNEL_STATE>
+ErrorOr<::device_api::non_privileged::DEV_API_KERNEL_STATE>
 KernelActions::state(Stream *stream) const {
 
   auto state_cmd = std::make_shared<device_api::devfw_commands::KernelStateCmd>(
@@ -27,11 +27,12 @@ KernelActions::state(Stream *stream) const {
   auto rsp_future = state_cmd->getFuture();
   auto response = rsp_future.get().response();
   assert(response.response_info.message_id ==
-         ::device_api::MBOX_DEVAPI_MESSAGE_ID_KERNEL_STATE_RSP);
-  return static_cast<::device_api::DEV_API_KERNEL_STATE>(response.status);
+         ::device_api::MBOX_DEVAPI_NON_PRIVILEGED_MID_KERNEL_STATE_RSP);
+  return static_cast<::device_api::non_privileged::DEV_API_KERNEL_STATE>(
+      response.status);
 }
 
-ErrorOr<::device_api::DEV_API_KERNEL_ABORT_RESPONSE_RESULT>
+ErrorOr<::device_api::non_privileged::DEV_API_KERNEL_ABORT_RESPONSE_RESULT>
 KernelActions::abort(Stream *stream) const {
 
   auto abort_cmd = std::make_shared<device_api::devfw_commands::KernelAbortCmd>(
@@ -41,8 +42,9 @@ KernelActions::abort(Stream *stream) const {
   auto rsp_future = abort_cmd->getFuture();
   auto response = rsp_future.get().response();
   assert(response.response_info.message_id ==
-         ::device_api::MBOX_DEVAPI_MESSAGE_ID_KERNEL_ABORT_RSP);
-  return static_cast<::device_api::DEV_API_KERNEL_ABORT_RESPONSE_RESULT>(
+         ::device_api::MBOX_DEVAPI_NON_PRIVILEGED_MID_KERNEL_ABORT_RSP);
+  return static_cast<
+      ::device_api::non_privileged::DEV_API_KERNEL_ABORT_RESPONSE_RESULT>(
       response.status);
 }
 

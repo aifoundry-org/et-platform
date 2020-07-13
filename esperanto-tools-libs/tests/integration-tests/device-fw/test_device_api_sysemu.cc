@@ -79,14 +79,16 @@ TEST_F(DeviceFWTest, DeviceAPI_CheckKernelStatus) {
   ASSERT_EQ(kernel_state_res.getError(), etrtSuccess);
 
   RTINFO << "Kernel Status: " << (int)kernel_state_res.get() << "\n";
-  ASSERT_EQ(kernel_state_res.get(), ::device_api::DEV_API_KERNEL_STATE_UNUSED);
+  ASSERT_EQ(kernel_state_res.get(),
+            ::device_api::non_privileged::DEV_API_KERNEL_STATE_UNUSED);
 
   auto kernel_abort_res = kernel_actions.abort(&dev_->defaultStream());
   ASSERT_EQ(kernel_abort_res.getError(), etrtSuccess);
 
   RTINFO << "Kernel abort: " << (int)kernel_abort_res.get() << "\n";
-  ASSERT_EQ(kernel_abort_res.get(),
-            ::device_api::DEV_API_KERNEL_ABORT_RESPONSE_RESULT_OK);
+  ASSERT_EQ(
+      kernel_abort_res.get(),
+      ::device_api::non_privileged::DEV_API_KERNEL_ABORT_RESPONSE_RESULT_OK);
 }
 
 int main(int argc, char **argv) {

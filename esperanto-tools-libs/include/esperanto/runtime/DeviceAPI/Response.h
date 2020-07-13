@@ -15,8 +15,8 @@
 
 #include "esperanto/runtime/Common/ErrorTypes.h"
 
-#include <esperanto/device-api/device_api.h>
 #include <chrono>
+#include <esperanto/device-api/device_api_cxx_non_privileged.h>
 
 namespace et_runtime {
 namespace device_api {
@@ -68,12 +68,12 @@ public:
   Response(const ResponseType &r) : rsp_(r) {}
 
   /// @brief Return the type of the response
-  ::device_api::device_api_msg_e type() const {
+  ::device_api::device_api_non_privileged_msg_e type() const {
     return rsp_.response_info.message_id;
   }
 
   /// @brief Return the information of the commmand the response matches
-  const ::device_api::command_header_t &cmd_info() const {
+  const ::device_api::non_privileged::command_header_t &cmd_info() const {
     return rsp_.response_info.command_info;
   }
 

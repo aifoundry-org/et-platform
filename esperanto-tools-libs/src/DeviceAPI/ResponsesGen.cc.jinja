@@ -22,7 +22,7 @@ namespace devfw_responses {
 <% set class_name = cgh.name_to_camelcase(msg['Name']) -%>
 <% set msg_name = msg['Name'] -%>
 
-<< class_name >>::<<class_name>>(const ::device_api::<<msg_name>>_t& msg):
+<< class_name >>::<<class_name>>(const ::device_api::non_privileged::<<msg_name>>_t& msg):
    Response(msg)
 {
   auto rsp = new et_runtime::tracing::DeviceAPI_rsp_hdr();

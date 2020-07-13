@@ -98,7 +98,7 @@ Functions :
         Type : string
       - Name: args
         Type: enum
-        Enum : kernel_argument_type_e
+        Enum : kernel_argument_type
         Repeated : True
         SrcType: et_runtime::Kernel::ArgType
   - Name: kernel_launch

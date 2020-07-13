@@ -39,7 +39,7 @@ message DeviceAPI_event_hdr {
   <% set functions = module['Functions'] -%>
 
   <% for enum in enums %>
-enum << mname >>_<< enum['Name'] >>_e {
+enum << mname >>_<< enum['Name'] >> {
     <% for value in enum['Values'] -%>
     << mname | upper >>_<< enum['Name'] | upper >>_<< value['Name'] | upper >> = << value['Value'] >>;
     <% endfor %>

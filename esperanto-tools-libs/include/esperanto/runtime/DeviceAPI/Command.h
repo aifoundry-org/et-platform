@@ -114,7 +114,7 @@ public:
   }
 
   /// @brief Return the command information
-  const ::device_api::command_header_t &cmd_header() const {
+  const ::device_api::non_privileged::command_header_t &cmd_header() const {
     return cmd_info_.command_info;
   }
 

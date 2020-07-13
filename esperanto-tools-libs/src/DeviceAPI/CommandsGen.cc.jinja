@@ -30,11 +30,11 @@ namespace devfw_commands {
 
 << class_name >>::<< class_name >>(uint32_t stream_id,
  <%- for f in msg['Fields'] -%>
- <%- set namespace = "::device_api::" if cgh.custom_type(f) else "" -%>
+ <%- set namespace = "::device_api::non_privileged::" if cgh.custom_type(f) else "" -%>
  const << namespace >><< cgh.message_field_type(f) >>& << f['Name'] >> <% if not loop.last %>,<% endif %>
  <%- endfor -%>)
 {
-  cmd_info_.command_info.message_id = ::device_api::MBOX_DEVAPI_MESSAGE_ID_<< msg['Name'] | upper >>;
+  cmd_info_.command_info.message_id = ::device_api::MBOX_DEVAPI_NON_PRIVILEGED_MID_<< msg['Name'] | upper >>;
   cmd_info_.command_info.command_id = id_;
   auto time = std::chrono::high_resolution_clock::now();
   cmd_info_.command_info.host_timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
