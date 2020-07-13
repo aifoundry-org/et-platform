@@ -8,7 +8,7 @@ Build Instructions
 How To Build This Repo
 ======================
 
-This repo is build as a submodule of the sw-platform repo. We can also
+This repo is built as a submodule of the sw-platform repo. We can also
 build it stand-alone as it does not have external Esperanto build dependencies.
 
 What Artifacts Are Generated ?

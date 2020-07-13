@@ -1,5 +1,8 @@
 .. _DeviceAPI:
 
+.. toctree::
+   :maxdepth: 2
+
 
 ************************
 Device API Specification
