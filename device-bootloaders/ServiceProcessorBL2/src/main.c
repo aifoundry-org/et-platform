@@ -25,7 +25,7 @@
 #include "bl2_sp_otp.h"
 #include "bl2_sp_memshire_pll.h"
 #include "bl2_minion_pll_and_dll.h"
-#include "bl2_ddr_config.h"
+#include "bl2_ddr_init.h"
 
 #include "etsoc_hal/inc/rm_esr.h"
 #include "etsoc_hal/inc/hal_device.h"
