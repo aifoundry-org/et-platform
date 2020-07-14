@@ -5,7 +5,7 @@
 #include <linux/mutex.h>
 #include <linux/types.h>
 #include <linux/wait.h>
-#include "et_mbox_id.h"
+#include "device_api_spec_privileged.h"
 #include "et_ringbuffer.h"
 
 struct et_mbox_mem
@@ -40,16 +40,6 @@ struct et_mbox {
 	void __iomem *r_pu_trg_pcie;
 	void (*send_interrupt)(void __iomem *r_pu_trg_pcie);
 	volatile long unsigned int flags;
-};
-
-struct dma_run_to_done_message_t {
-	uint64_t message_id;
-	uint32_t chan;
-};
-
-struct dma_done_message_t {
-	uint32_t chan;
-	int32_t status;
 };
 
 #define ET_MBOX_HEADER_SIZE ( sizeof(struct et_mbox_header) )

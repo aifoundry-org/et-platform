@@ -38,7 +38,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Esperanto <esperanto@gmail.com or admin@esperanto.com>");
 MODULE_DESCRIPTION("PCIe device driver for esperanto soc-1");
-MODULE_VERSION("1.0");  
+MODULE_VERSION("1.0");
 
 #define DRIVER_NAME "esperanto"
 
@@ -60,8 +60,8 @@ static unsigned long dev_bitmap;
 #define MIN_VECS 1
 #define REQ_VECS 2
 
-/* 
- * Timeout is 250ms. Picked because it's unlikley the driver will miss an IRQ, 
+/*
+ * Timeout is 250ms. Picked because it's unlikley the driver will miss an IRQ,
  * so this is a contigency and does not need to be checked often.
  */
 #define MISSED_IRQ_TIMEOUT (HZ / 4)
@@ -151,7 +151,7 @@ static ssize_t esperanto_pcie_read(struct file *fp, char __user *buf,
 		rv = et_mmio_read_to_user(buf, count, pos, et_dev);
 	} else {
 		rv = et_dma_push_to_user(buf, count, pos,
-					 ET_DMA_ID_WRITE_0, et_dev);
+					 ET_DMA_CHAN_ID_WRITE_0, et_dev);
 	}
 
 	return rv;
@@ -177,7 +177,7 @@ static ssize_t esperanto_pcie_write(struct file *fp, const char __user *buf,
 		rv = et_mmio_write_from_user(buf, count, pos, et_dev);
 	} else {
 		rv = et_dma_pull_from_user(buf, count, pos,
-					   ET_DMA_ID_READ_0, et_dev);
+					   ET_DMA_CHAN_ID_READ_0, et_dev);
 	}
 
 	return rv;
@@ -580,7 +580,7 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		goto error_free_irq_vecs;
 	}
 
-	rc = request_irq(irq_vec, et_pcie_isr, IRQF_SHARED, DRIVER_NAME, 
+	rc = request_irq(irq_vec, et_pcie_isr, IRQF_SHARED, DRIVER_NAME,
 			 (void*)et_dev);
 	if (rc) {
 		dev_err(&pdev->dev, "request irq failed\n");

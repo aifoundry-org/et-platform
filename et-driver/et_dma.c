@@ -11,6 +11,7 @@
 #include <asm/uaccess.h>
 
 #include "hal_device.h"
+#include "device_api_rpc_types_privileged.h"
 #include "et_layout.h"
 #include "et_pci_dev.h"
 
@@ -82,16 +83,16 @@ void et_dma_destroy(struct et_pci_dev *et_dev)
 				usleep_range(1, 10);
 			}
 		}
-		
+
 		mutex_destroy(&et_dev->dma_chans[i].state_mutex);
 	}
 }
 
-enum et_dma_state et_dma_get_state(enum et_dma_id id, struct et_pci_dev *et_dev)
+enum ET_DMA_STATE et_dma_get_state(enum ET_DMA_CHAN_ID id, struct et_pci_dev *et_dev)
 {
-	enum et_dma_state rv;
+	enum ET_DMA_STATE rv;
 
-	if (id < ET_DMA_ID_READ_0 || id > ET_DMA_ID_WRITE_3) {
+	if (id < ET_DMA_CHAN_ID_READ_0 || id > ET_DMA_CHAN_ID_WRITE_3) {
 		return ET_DMA_STATE_ABORTED;
 	}
 
@@ -153,7 +154,7 @@ int et_dma_bounds_check(uint64_t soc_addr, uint64_t count)
  * Writes one data element of a DMA tranfser list via MMIO. This structure is used
  * to configure the DMA engine.
  */
-static void write_xfer_list_data(enum et_dma_id id, uint32_t i,
+static void write_xfer_list_data(enum ET_DMA_CHAN_ID id, uint32_t i,
 				 uint64_t sar, uint64_t dar, uint32_t size,
 				 bool lie, struct et_pci_dev *et_dev)
 {
@@ -175,7 +176,7 @@ static void write_xfer_list_data(enum et_dma_id id, uint32_t i,
  * Writes one data element of a DMA tranfser list via MMIO. This structure is used
  * to configure the DMA engine.
  */
-static void write_xfer_list_link(enum et_dma_id id, uint32_t i,
+static void write_xfer_list_link(enum ET_DMA_CHAN_ID id, uint32_t i,
 				 uint64_t ptr, struct et_pci_dev *et_dev)
 {
 	void __iomem *offset = et_dev->iomem[IOMEM_R_DRCT_DRAM] +
@@ -189,19 +190,19 @@ static void write_xfer_list_link(enum et_dma_id id, uint32_t i,
 }
 
 static ssize_t et_dma_contig_buff(dma_addr_t buff, uint64_t soc_addr,
-				  ssize_t count, enum et_dma_id id,
+				  ssize_t count, enum ET_DMA_CHAN_ID id,
 				  struct et_pci_dev *et_dev)
 {
 	ssize_t rv;
-	struct dma_run_to_done_message_t run_msg = {
-		.message_id = MBOX_MESSAGE_ID_DMA_RUN_TO_DONE,
+	struct dma_run_to_done_cmd_t run_msg = {
+		.command_info.message_id = MBOX_DEVAPI_PRIVILEGED_MID_DMA_RUN_TO_DONE_CMD,
 		.chan = (uint32_t)id
 	};
 	uint64_t src_addr, dest_addr;
-	enum et_dma_state state;
+	enum ET_DMA_STATE state;
 
 	/* read: source is on host, dest is on SoC */
-	if (id <= ET_DMA_ID_READ_3) {
+	if (id <= ET_DMA_CHAN_ID_READ_3) {
 		src_addr = (uint64_t)buff;
 		dest_addr = soc_addr;
 	}
@@ -248,7 +249,7 @@ static ssize_t et_dma_contig_buff(dma_addr_t buff, uint64_t soc_addr,
 }
 
 ssize_t et_dma_pull_from_user(const char __user *buf, size_t count, loff_t *pos,
-			      enum et_dma_id id, struct et_pci_dev *et_dev)
+			      enum ET_DMA_CHAN_ID id, struct et_pci_dev *et_dev)
 {
 	ssize_t rv;
 	uint64_t soc_addr = (uint64_t)*pos;
@@ -256,7 +257,7 @@ ssize_t et_dma_pull_from_user(const char __user *buf, size_t count, loff_t *pos,
 	dma_addr_t kern_buff_addr;
 	struct et_dma_chan *dma_chan;
 
-	if (id < ET_DMA_ID_READ_0 || id > ET_DMA_ID_READ_3) {
+	if (id < ET_DMA_CHAN_ID_READ_0 || id > ET_DMA_CHAN_ID_READ_3) {
 		pr_err("invalid DMA read channel %d\n", id);
 		return -EINVAL;
 	}
@@ -323,7 +324,7 @@ set_idle:
 }
 
 ssize_t et_dma_push_to_user(char __user *buf, size_t count, loff_t *pos,
-			    enum et_dma_id id, struct et_pci_dev *et_dev)
+			    enum ET_DMA_CHAN_ID id, struct et_pci_dev *et_dev)
 {
 	ssize_t rv, dma_cnt;
 	uint64_t soc_addr = (uint64_t)*pos;
@@ -331,7 +332,7 @@ ssize_t et_dma_push_to_user(char __user *buf, size_t count, loff_t *pos,
 	dma_addr_t kern_buff_addr;
 	struct et_dma_chan *dma_chan;
 
-	if (id < ET_DMA_ID_WRITE_0 || id > ET_DMA_ID_WRITE_3) {
+	if (id < ET_DMA_CHAN_ID_WRITE_0 || id > ET_DMA_CHAN_ID_WRITE_3) {
 		pr_err("invalid DMA write channel %d\n", id);
 		return -EINVAL;
 	}

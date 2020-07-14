@@ -69,7 +69,7 @@ void et_mbox_init(struct et_mbox *mbox, void __iomem *mem,
 	mbox->send_interrupt = send_interrupt;
 
 	mbox->flags = 0;
-	
+
 	mutex_init(&mbox->msg_list_mutex);
 	mutex_init(&mbox->read_mutex);
 	mutex_init(&mbox->write_mutex);
@@ -179,7 +179,7 @@ void et_mbox_reset(struct et_mbox *mbox)
 	//Flush PCIe writes again for complete safety: the send_interrupt()
 	//routine is really just an iowrite32(), flush them as well
 	slave_status = ioread32(&mbox->mem->slave_status);
-	
+
 	mutex_unlock(&mbox->write_mutex);
 	mutex_unlock(&mbox->read_mutex);
 	mutex_unlock(&mbox->msg_list_mutex);
@@ -236,12 +236,12 @@ ssize_t et_mbox_write(struct et_mbox *mbox, void *buff, size_t count)
 
 	//Notify the SoC new data is ready. Again, the head index change needs
 	//to be assured to be in SoC mem before the IPI is fired.
-	
+
 	mbox->send_interrupt(mbox->r_pu_trg_pcie);
 
 	//Flush writes to PCIe
 	temp = ioread32(&mbox->mem->slave_status);
-	
+
 	mutex_unlock(&mbox->write_mutex);
 
 	return count;
@@ -281,7 +281,7 @@ error:
 	return rc;
 }
 
-/* 
+/*
  * If there's a mailbox message available, pop it from the list and return 1,
  * otherwise return 0.
  */
@@ -394,25 +394,26 @@ static int handle_msg(struct et_mbox *mbox, void __iomem *queue,
 	//Dispatch based on ID. Messages for the kernel are handled right away,
 	//messages for user mode are saved off for the user to fetch at their
 	//leisure.
-	if (msg_id == MBOX_MESSAGE_ID_DMA_DONE) {
+	if (msg_id == MBOX_DEVAPI_PRIVILEGED_MID_DMA_RUN_TO_DONE_RSP) {
 		//The SoC is signaling a DMA engine finished it's work. Wake
 		//up the DMA channel the message is for.
-		
-		struct dma_done_message_t done_msg;
-		enum et_dma_id dma_id;
 
-		if (header.length != sizeof(done_msg) + ET_MBOX_MSG_ID_SIZE) {
+		struct dma_run_to_done_rsp_t done_msg;
+		enum ET_DMA_CHAN_ID dma_id;
+
+		if (header.length != sizeof(done_msg)) {
 			iowrite32(MBOX_STATUS_ERROR, &mbox->mem->slave_status);
 			mbox->send_interrupt(mbox->r_pu_trg_pcie);
 			panic("Mailbox corrupt (DMA Done size wrong)");
 		}
 
-		*tail_index = et_ringbuffer_read(queue, (uint8_t *)&done_msg,
-						 *tail_index, sizeof(done_msg));
+		done_msg.response_info.message_id = msg_id;
+		*tail_index = et_ringbuffer_read(queue, (uint8_t *)&done_msg + ET_MBOX_MSG_ID_SIZE,
+						 *tail_index, sizeof(done_msg) - ET_MBOX_MSG_ID_SIZE);
 
-		dma_id = (enum et_dma_id)done_msg.chan;
+		dma_id = (enum ET_DMA_CHAN_ID)done_msg.chan;
 
-		if (dma_id < ET_DMA_ID_READ_0 || dma_id > ET_DMA_ID_WRITE_3) {
+		if (dma_id < ET_DMA_CHAN_ID_READ_0 || dma_id > ET_DMA_CHAN_ID_WRITE_3) {
 			iowrite32(MBOX_STATUS_ERROR, &mbox->mem->slave_status);
 			mbox->send_interrupt(mbox->r_pu_trg_pcie);
 			panic("Mailbox corrupt (DMA Done chan invalid)");
@@ -453,32 +454,32 @@ static int handle_msg(struct et_mbox *mbox, void __iomem *queue,
 /*
  * Handles mbox IRQ. The mbox IRQ signals a state change and/or a new message
  * in the mailbox.
- * 
+ *
  * This method handles mailbox messages for the kernel immediatley, and saves
  * off messages for user mode to be consumed later.
- * 
+ *
  * User mode messages must not block kernel messages from being processed (e.x.
  * if the first msg in the mbox is for the user and the second is for the
  * kernel, the kernel message should not be stuck in line behind the user
  * message).
- * 
+ *
  * This method must be tolerant of spurrious IRQs (no state change or new msg),
  * and taking an IRQ while messages are still in filght.
- * 
+ *
  * Reasons it may fire:
- * 
+ *
  * - The host sent a state update and/or msg to this mbox
- * 
+ *
  * - The host sent a state update and/or msg to another mbox, and MSI
  *   multivector support is not available (IRQ is spurrious for this mbox)
- * 
+ *
  * - The host sent two (or more) messages and two (or more) IRQs, but the ISR
  *   handeled multiple messages in one pass, (follow-on IRQs should be ignored)
- * 
+ *
  *   Another version of this: the ISR sees the data for the first message, and
  *   only a portion of the data for the second message (rest of data and second
  *   IRQ still in flight)
- * 
+ *
  * - Perodic wakeup fired (incase IRQs missed). There may be a state update or
  *   msg, there may be a message in flight (should take no action and wait for
  *   next IRQ), or there may be no changes (IRQ is spurrious)
@@ -507,12 +508,12 @@ void et_mbox_isr_bottom(struct et_mbox *mbox, struct et_pci_dev *et_dev)
 		rv = handle_msg(mbox, queue, &head_index, &tail_index, et_dev);
 
 		if (rv < 0) break;
-		
+
 		got_msg = true;
-		
+
 		//Check if there are more messages
 		head_index = ioread32(&mbox->mem->tx_ring_buffer.head_index);
-		bytes_avail = et_ringbuffer_used(head_index, tail_index);		
+		bytes_avail = et_ringbuffer_used(head_index, tail_index);
 	}
 
 	if (got_msg) {
