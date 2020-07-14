@@ -24,6 +24,7 @@ set(SOURCES
     src/syscall.c
     src/interrupt.c
     src/swi.c
+    src/device_api_privileged.c
     src/device_api_non_privileged.c
     src/exception.c
     src/main.c
