@@ -10,6 +10,9 @@
 #include "semphr.h"
 #include "task.h"
 
+#include <esperanto/device-api/device_api.h>
+#include <esperanto/device-api/device_api_rpc_types_non_privileged.h>
+
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -176,9 +179,13 @@ static void mbox_task(void* pvParameters)
 
             switch (*message_id)
             {
-                case MBOX_MESSAGE_ID_REFLECT_TEST:
+                case MBOX_DEVAPI_NON_PRIVILEGED_MID_REFLECT_TEST_CMD:
                     {
-                        int64_t result = MBOX_send(mbox, buffer, (uint32_t)length);
+                        const struct reflect_test_cmd_t* const cmd = (const void* const) buffer;
+                        struct reflect_test_rsp_t rsp;
+                        rsp.response_info.message_id = MBOX_DEVAPI_NON_PRIVILEGED_MID_REFLECT_TEST_RSP;
+                        rsp.response_info.command_info = cmd->command_info;
+                        int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
 
                         if (result != 0)
                         {

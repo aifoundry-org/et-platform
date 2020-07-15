@@ -16,9 +16,8 @@ include(ExternalProject)
 include(GNUInstallDirs)
 cmake_policy(SET CMP0076 NEW)
 
-# First step as the artifacts of this package are consumed by the toolchain script
 
-# FIXME this a required package once the esperanto-fw package has been eliminated
+find_package(esperanto-device-api CONFIG REQUIRED)
 find_package(EsperantoDeviceMinionRuntime REQUIRED)
 
 set(MINION_RUNTIME_PACKAGE_NAME EsperantoDeviceMinionRuntime)

@@ -61,6 +61,7 @@ include_directories(${FREERTOS_INC_DIRS})
 include_directories(${FLASH_TOOL_HEADERS})
 include_directories(${PKCS11_HEADERS})
 include_directories(${CRYPTO_HEADERS})
+include_directories(${ESPERANTO_DEVICE_API_INCLUDE_DIR})
 
 add_subdirectory(include)
 
