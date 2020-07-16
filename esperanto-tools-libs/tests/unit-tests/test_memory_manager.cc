@@ -113,15 +113,3 @@ TEST(LinearMemoryAllocator, emplace_buffer) {
   res = allocator.emplace((void *)ptr_2, buf_size);
   ASSERT_FALSE(res);
 }
-
-TEST(MemoryManager, alloc_host) {
-  absl::SetFlag(&FLAGS_dev_target, DeviceTargetOption("fake_device"));
-  FakeDevice dev;
-  auto mem_manager = MemoryManager(dev);
-  uint8_t *ptr = nullptr;
-  auto res = mem_manager.mallocHost((void **)&ptr, 10);
-  ASSERT_TRUE(ptr != nullptr);
-  ASSERT_EQ(res, etrtSuccess);
-  res = mem_manager.freeHost(ptr);
-  ASSERT_EQ(res, etrtSuccess);
-}
