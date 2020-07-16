@@ -279,9 +279,9 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
         crc = crc32_8bytes((void *) (kernel_params_ptr->tensor_c + shire_id * 32768), 32768, crc);
 	uint32_t *crc_ptr = (uint32_t*)(base_dst_addr + 1048576 + shire_id * 64);
 	*crc_ptr = crc;
-	if (shire_id == 0) {
-            log_write(LOG_LEVEL_CRITICAL, "Shire %lu, CRC value %x\n", shire_id, crc);       
-	}
+	//if (shire_id == 0) {
+        //    log_write(LOG_LEVEL_CRITICAL, "Shire %lu, CRC value %x\n", shire_id, crc);
+	//}
     }
 
     return 0;
