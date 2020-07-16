@@ -127,6 +127,66 @@ TEST_F(TestLinearAllocator, multiple_malloc_success) {
   allocator->printStateJSON();
 }
 
+// parametrized test class, receives as parameters a tuple
+class TestLinearAllocatorEmplaceFailure
+    : public TestLinearAllocator,
+      public testing::WithParamInterface<std::tuple<int, int, int, int>> {};
+
+// Memory Emplacements expected errors
+TEST_P(TestLinearAllocatorEmplaceFailure, single_emplace_failures) {
+  auto [region_start, region_size, emplace_start, emplace_size] = GetParam();
+  allocator.reset(new LinearAllocator(region_start, region_size));
+  auto type = BufferType::Code;
+  auto res = allocator->emplace(type, emplace_start, emplace_size);
+
+  ASSERT_FALSE((bool)res);
+}
+
+INSTANTIATE_TEST_CASE_P(
+    EmplaceFail, TestLinearAllocatorEmplaceFailure,
+    testing::Values(
+        // region start, region_size, emplace_start emplace size
+        // Start offset outside region
+        std::tuple<int, int, int, int>{100, 100, 0, 1},
+        std::tuple<int, int, int, int>{100, 100, 100, 1},
+        // Meta-data size increases buffer size and cannot fit
+        std::tuple<int, int, int, int>{100, 100, 100, 100},
+        std::tuple<int, int, int, int>{100, 100, 120, 79}));
+
+// parametrized test class, receives as parameters a tuple
+class TestLinearAllocatorEmplaceSuccess
+    : public TestLinearAllocator,
+      public testing::WithParamInterface<std::tuple<int, int, int, int, int>> {
+};
+
+// Memory Emplacements expected errors
+TEST_P(TestLinearAllocatorEmplaceSuccess, single_emplace_success) {
+  auto type = BufferType::Code;
+  auto md_size = allocator->mdSize(type);
+  auto [region_start, left_free, emplace_size, right_free, free_list_size] =
+      GetParam();
+  auto emplace_start = region_start + md_size + left_free;
+  auto region_size = emplace_start + emplace_size + right_free - region_start;
+  allocator.reset(new LinearAllocator(region_start, region_size));
+
+  auto res = allocator->emplace(type, emplace_start, emplace_size);
+
+  allocator->printState();
+
+  ASSERT_TRUE((bool)res);
+
+  ASSERT_EQ(free_list().size(), free_list_size);
+}
+
+INSTANTIATE_TEST_CASE_P(
+    EmplaceSuccess, TestLinearAllocatorEmplaceSuccess,
+    testing::Values(
+        // region start, left_free, emplaze_size, right_Free, free_list_size
+        std::tuple<int, int, int, int, int>{100, 10, 10, 10, 2},
+        std::tuple<int, int, int, int, int>{100, 0, 10, 10, 1},
+        std::tuple<int, int, int, int, int>{100, 10, 10, 0, 1},
+        std::tuple<int, int, int, int, int>{100, 0, 10, 0, 0}));
+
 // parametried test class, receives as parameters a vector of tuples
 class TestLinearAllocatorMallocFree
     : public TestLinearAllocator,

@@ -12,6 +12,7 @@
 #include "MemoryManagement/BidirectionalAllocator.h"
 #include "MemoryManagement/LinearAllocator.h"
 #include "MemoryManagement/MemoryManagerInternals.h"
+#include "sys_inc.h"
 
 #include <glog/logging.h>
 #include <gmock/gmock.h>

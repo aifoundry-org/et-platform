@@ -35,12 +35,6 @@ LinearAllocator::findAllocatedBuffer(BufferID tid) {
       });
 }
 
-// std::tuple<bool, const std::shared_ptr<AbstractBufferInfo>>>
-// LinearAllocator::find_allocated_buffer(BufferID tid) const
-// {
-
-// }
-
 ErrorOr<BufferID> LinearAllocator::malloc(BufferType type, BufferSizeTy size) {
   // Compute the buffer type's metadata header size
   auto md_size = mdSize(type);
@@ -95,6 +89,88 @@ ErrorOr<BufferID> LinearAllocator::malloc(BufferType type, BufferSizeTy size) {
   TRACE_MemoryManager_LinearAllocator_malloc(0, static_cast<int>(type),
                                              buffer->id(), base, md_size, size,
                                              left_buffer, right_buffer);
+
+  return buffer->id();
+}
+
+ErrorOr<BufferID> LinearAllocator::emplace(BufferType type,
+                                           BufferOffsetTy offset,
+                                           BufferSizeTy size) {
+  // Compute the buffer type's metadata header size
+  auto md_size = mdSize(type);
+  // The beggining of the buffer starts from the meta-data header
+  auto buffer_base = offset - md_size;
+
+  // Integer underflow
+  if (offset < buffer_base) {
+    return etrtErrorMemoryAllocation;
+  }
+
+  auto total_size = md_size + size;
+
+  // find the first free buffer where we can allocate a buffer
+  auto res =
+      std::find_if(free_list_.begin(), free_list_.end(),
+                   [=](const decltype(free_list_)::value_type &elem) -> bool {
+                     return elem.base() <= buffer_base &&
+                            buffer_base + total_size <= elem.endOffset();
+                   });
+
+  if (res == free_list_.end()) {
+    return etrtErrorMemoryAllocation;
+  }
+
+  // we ran out of space in this buffer
+  if (res->size() == total_size) {
+    // Remove free bucket from the list
+    free_list_.erase(res);
+  } else {
+    decltype(free_list_)::value_type left_part(res->base(),
+                                               buffer_base - res->base()),
+        right_part(buffer_base + total_size,
+                   res->endOffset() - (buffer_base + total_size));
+
+    auto it = res;
+    if (right_part.size() > 0) {
+      // insert before the element that we found
+      it = free_list_.insert(it, right_part);
+    }
+    if (left_part.size() > 0) {
+      // insert before the right patr
+      it = free_list_.insert(it, left_part);
+    }
+    free_list_.erase(res);
+  }
+
+  auto buffer = createBufferInfo(type, buffer_base + md_size, size);
+
+  // Insert the buffer in the allocated list
+  auto alloc_pos = std::find_if(
+      allocated_list_.begin(), allocated_list_.end(),
+      [&buffer](const decltype(allocated_list_)::value_type &elem) -> bool {
+        return *buffer.get() < *elem.get();
+      });
+  auto insert_pos = allocated_list_.insert(alloc_pos, buffer);
+
+  // Update the prev/next pointers of the adjacent buffers
+  // and maintain the double linked list in the buffer metadata
+  BufferID left_buffer = 0, right_buffer = 0;
+  if (insert_pos != allocated_list_.begin()) {
+    auto prev_pos = std::prev(insert_pos);
+    left_buffer = (*prev_pos)->id();
+    (*prev_pos)->next(buffer->base());
+    buffer->prev((*prev_pos)->base());
+  }
+  auto next_pos = std::next(insert_pos);
+  if (next_pos != allocated_list_.end()) {
+    right_buffer = (*next_pos)->id();
+    (*next_pos)->prev(buffer->base());
+    buffer->next((*next_pos)->base());
+  }
+  // FIXME add the device-id
+  TRACE_MemoryManager_LinearAllocator_emplace(
+      0, static_cast<int>(type), buffer->id(), buffer_base, md_size, size,
+      left_buffer, right_buffer);
 
   return buffer->id();
 }

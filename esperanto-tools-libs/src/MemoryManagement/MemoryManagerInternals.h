@@ -47,6 +47,13 @@ public:
   /// @param[in] size Size of the buffer in bytes
   ErrorOr<BufferID> mallocCode(BufferSizeTy size);
 
+  /// @brief Emplace a buffer in the code region
+  ///
+  /// @param[in] offset Offset inside the code region the buffer is going to be
+  /// emplaced
+  /// @param[in] size Size of the buffer
+  ErrorOr<BufferID> emplaceCode(BufferOffsetTy offset, BufferSizeTy size);
+
   /// @brief Allocate a Constant buffer in the data region
   ///
   /// @param[in] size Size of the buffer in bytes

@@ -205,7 +205,7 @@ public:
   /// @param[in] base   Offset in the region where the buffer is stored
   /// @param[in] size   Size in bytes of the buffer.
   BufferInfo(BufferOffsetTy base, BufferSizeTy size) : buffer_info_() {
-    assert(size > 0);
+    assert(size >= 0);
     buffer_info_.hdr.in_use = true;
     buffer_info_.hdr.type = type();
     buffer_info_.hdr.id = nextBufferID();

@@ -31,6 +31,12 @@ ErrorOr<BufferID> MemoryManagerInternals::mallocCode(BufferSizeTy size) {
   return code_region_->malloc(BufferType::Code, size);
 }
 
+ErrorOr<BufferID> MemoryManagerInternals::emplaceCode(BufferOffsetTy offset,
+                                                      BufferSizeTy size) {
+  TRACE_MemoryManager_MemoryManagerInternals_emplaceCode(offset, size);
+  return code_region_->emplace(BufferType::Code, offset, size);
+}
+
 ErrorOr<BufferID> MemoryManagerInternals::mallocConstant(BufferSizeTy size) {
   TRACE_MemoryManager_MemoryManagerInternals_mallocConstant(
       size) return data_region_->mallocFront(BufferType::Constant, size);

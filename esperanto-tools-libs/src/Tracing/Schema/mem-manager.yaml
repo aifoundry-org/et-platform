@@ -76,6 +76,26 @@ Functions :
         Type: int64
       - Name: right_tensor
         Type: int64
+  - Name: LinearAllocator_emplace
+    Description: Emplace a buffer inside a Linear Allocator
+    Type: ObjectCreate
+    Arguments:
+      - Name: device_id
+        Type: int32
+      - Name: type
+        Type: int32
+      - Name: tensor_id
+        Type: int64
+      - Name: base
+        Type: int64
+      - Name: md_size
+        Type: int32
+      - Name: size
+        Type: int64
+      - Name: left_tensor
+        Type: int64
+      - Name: right_tensor
+        Type: int64
   - Name: LinearAllocator_free
     Description: Free of a Linear Allocator
     Type: ObjectDestroy
@@ -163,6 +183,14 @@ Functions :
     Description: Allocate a code buffer
     Type: Snapshot
     Arguments:
+      - Name: size
+        Type: int64
+  - Name: MemoryManagerInternals_emplaceCode
+    Description: Emplace a code buffer
+    Type: Snapshot
+    Arguments:
+      - Name: offset
+        Type: int64
       - Name: size
         Type: int64
   - Name: MemoryManagerInternals_mallocConstant

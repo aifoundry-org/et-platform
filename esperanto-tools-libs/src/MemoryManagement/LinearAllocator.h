@@ -41,6 +41,15 @@ public:
   /// @returns  Error of the ID of the buffer that was allocated
   ErrorOr<BufferID> malloc(BufferType type, BufferSizeTy size);
 
+  /// @brief Emplace a buffer in the allocator
+  ///
+  /// @param[in] type Type of the buffer to allocate
+  /// @param[in] offset Offset inside the code region the buffer is going to be
+  /// emplaced
+  /// @param[in] size Size of the buffer
+  ErrorOr<BufferID> emplace(BufferType type, BufferOffsetTy offset,
+                            BufferSizeTy size);
+
   /// @brief Deallocate the specific buffer
   ///
   /// @param[in] id ID of the buffer to deallocate
