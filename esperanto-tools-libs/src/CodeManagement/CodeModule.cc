@@ -55,7 +55,7 @@ bool Module::loadOnDevice(Device *dev) {
   // If compiled as PIC (i.e. without absolute SOC addresses) then allocate a
   // buffer the size of the ELF file
   if (first_segment->get_physical_address() < mem_manager->ramBase()) {
-    mem_manager->malloc((void **)&dev_base_addr, elf_info_->elfSize());
+    mem_manager->mallocCode((void **)&dev_base_addr, elf_info_->elfSize());
     TRACE_CodeManager_load_on_device(elf_info_->name(), dev_base_addr);
     RTDEBUG << "Allocating memory for PIC ELF, Addr: 0x" << std::hex
             << dev_base_addr << "\n";
@@ -87,9 +87,10 @@ bool Module::loadOnDevice(Device *dev) {
         // Set devPtr to zero as the functions have entrypoint addresses
         // that are absolute
         devPtr = load_address;
-        auto res = mem_manager->reserveMemory(reinterpret_cast<void *>(devPtr),
-                                              mem_size);
-        assert(res == etrtSuccess);
+        auto res = mem_manager->reserveMemoryCode(devPtr, mem_size);
+        if (res != etrtSuccess) {
+          return false;
+        }
         write_address = devPtr;
       }
 

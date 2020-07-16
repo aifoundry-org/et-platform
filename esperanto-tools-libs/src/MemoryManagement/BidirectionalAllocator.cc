@@ -28,7 +28,7 @@ BidirectionalAllocator::BidirectionalAllocator(BufferOffsetTy base,
 }
 
 BidirectionalAllocator::allocated_buffer_info::value_type
-BidirectionalAllocator::findAllocatedBuffer(BufferID tid) {
+BidirectionalAllocator::findAllocatedBuffer(BufferID tid) const {
   for (auto &i : {&allocated_front_list_, &allocated_back_list_}) {
     auto res = find_if(
         i->begin(), i->end(),
@@ -41,9 +41,9 @@ BidirectionalAllocator::findAllocatedBuffer(BufferID tid) {
   return allocated_buffer_info::value_type();
 }
 
-ErrorOr<BufferID> BidirectionalAllocator::mallocFront(BufferType type,
-                                                      BufferSizeTy size,
-                                                      BufferSizeTy alignment) {
+ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
+BidirectionalAllocator::mallocFront(BufferType type, BufferSizeTy size,
+                                    BufferSizeTy alignment) {
   // Compute the buffer type's metadata header size
   auto md_size = mdSize(type);
   auto total_size = alignmentFixSize(size, md_size, alignment);
@@ -100,12 +100,14 @@ ErrorOr<BufferID> BidirectionalAllocator::mallocFront(BufferType type,
   TRACE_MemoryManager_BidirectionalAllocator_mallocFront(
       0, static_cast<int>(type), buffer->id(), base, aligned_start, md_size,
       size, total_size, left_buffer, right_buffer);
-  return buffer->id();
+
+  return std::tuple<BufferID, BufferOffsetTy>(buffer->id(), aligned_start);
 }
 
-ErrorOr<BufferID> BidirectionalAllocator::mallocBack(BufferType type,
-                                                     BufferSizeTy size,
-                                                     BufferSizeTy alignment) {
+ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
+BidirectionalAllocator::mallocBack(BufferType type, BufferSizeTy size,
+                                   BufferSizeTy alignment) {
+
   // Compute the buffer type's metadata header size
   auto md_size = mdSize(type);
   auto total_size = alignmentFixSize(size, md_size, alignment);
@@ -170,7 +172,8 @@ ErrorOr<BufferID> BidirectionalAllocator::mallocBack(BufferType type,
   TRACE_MemoryManager_BidirectionalAllocator_mallocBack(
       0, static_cast<int>(type), buffer->id(), base, aligned_start, md_size,
       size, total_size, left_buffer, right_buffer);
-  return buffer->id();
+
+  return std::tuple<BufferID, BufferOffsetTy>(buffer->id(), aligned_start);
 }
 
 ErrorOr<BidirectionalAllocator::allocated_buffer_info::value_type>
@@ -344,4 +347,9 @@ void BidirectionalAllocator::printStateJSON() {
 
   sstr << "] }";
   TRACE_MemoryManager_BidirectionalAllocator_jsonStatus(sstr.str());
+}
+
+bool BidirectionalAllocator::bufferExists(BufferID tid) const {
+  auto res = findAllocatedBuffer(tid);
+  return res != nullptr;
 }

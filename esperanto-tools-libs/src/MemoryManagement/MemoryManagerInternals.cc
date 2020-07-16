@@ -21,36 +21,41 @@
 using namespace et_runtime;
 using namespace et_runtime::device::memory_management;
 
-MemoryManagerInternals::MemoryManagerInternals(uint64_t code_size,
+MemoryManagerInternals::MemoryManagerInternals(uint64_t dram_base_addr,
+                                               uint64_t code_size,
                                                uint64_t data_size)
-    : code_region_(new LinearAllocator(0, code_size)),
-      data_region_(new BidirectionalAllocator(code_size, data_size)) {}
+    : dram_base_addr_(dram_base_addr),
+      code_region_(new LinearAllocator(dram_base_addr, code_size)),
+      data_region_(
+          new BidirectionalAllocator(dram_base_addr + code_size, data_size)) {}
 
-ErrorOr<BufferID> MemoryManagerInternals::mallocCode(BufferSizeTy size,
-                                                     BufferSizeTy alignment) {
+ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
+MemoryManagerInternals::mallocCode(BufferSizeTy size, BufferSizeTy alignment) {
   TRACE_MemoryManager_MemoryManagerInternals_mallocCode(size);
   return code_region_->malloc(BufferType::Code, size, alignment);
 }
 
-ErrorOr<BufferID> MemoryManagerInternals::emplaceCode(BufferOffsetTy offset,
-                                                      BufferSizeTy size) {
+ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
+MemoryManagerInternals::emplaceCode(BufferOffsetTy offset, BufferSizeTy size) {
   TRACE_MemoryManager_MemoryManagerInternals_emplaceCode(offset, size);
   return code_region_->emplace(BufferType::Code, offset, size);
 }
-
-ErrorOr<BufferID>
+ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
 MemoryManagerInternals::mallocConstant(BufferSizeTy size,
                                        BufferSizeTy alignment) {
-  TRACE_MemoryManager_MemoryManagerInternals_mallocConstant(
-      size) return data_region_->mallocFront(BufferType::Constant, size,
-                                             alignment);
+  TRACE_MemoryManager_MemoryManagerInternals_mallocConstant(size);
+  return data_region_->mallocFront(BufferType::Constant, size, alignment);
 }
 
-ErrorOr<BufferID>
+ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
 MemoryManagerInternals::mallocPlaceholder(BufferSizeTy size,
                                           BufferSizeTy alignment) {
   TRACE_MemoryManager_MemoryManagerInternals_mallocPlaceholder(size);
   return data_region_->mallocBack(BufferType::Placeholder, size, alignment);
+}
+
+bool MemoryManagerInternals::dataBufferExists(BufferID id) const {
+  return data_region_->bufferExists(id);
 }
 
 etrtError MemoryManagerInternals::freeCode(BufferID tid) {

@@ -68,9 +68,10 @@ public:
   /// @param[in] type Type of the buffer to allocate
   /// @param[in] size Size in bytes of the buffer to allocate
   /// @param[in] alignment Size in bytes of the buffer alignment
-  /// @returns  Error of the ID of the buffer that was allocated
-  ErrorOr<BufferID> mallocFront(BufferType type, BufferSizeTy size,
-                                BufferSizeTy alignment);
+  /// @returns  Error of the ID of the buffer that was allocated and its aligned
+  /// offset
+  ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
+  mallocFront(BufferType type, BufferSizeTy size, BufferSizeTy alignment);
 
   /// @brief Allocate a buffer of type TesnorType and of size bites startng
   /// from the front of the memory region
@@ -78,9 +79,10 @@ public:
   /// @param[in] type Type of the buffer to allocate
   /// @param[in] size Size in bytes of the buffer to allocate
   /// @param[in] alignment Size in bytes of the buffer alignment
-  /// @returns  Error of the ID of the buffer that was allocated
-  ErrorOr<BufferID> mallocBack(BufferType type, BufferSizeTy size,
-                               BufferSizeTy alignment);
+  /// @returns  Error of the ID of the buffer that was allocated and its aligned
+  /// offset
+  ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
+  mallocBack(BufferType type, BufferSizeTy size, BufferSizeTy alignment);
 
   /// @brief Deallocate the specific buffer
   ///
@@ -97,6 +99,9 @@ public:
   /// @brief Print in the stdout the state of the memory allocator in JSON
   /// format
   void printStateJSON() override;
+
+  /// @brief Returns true the buffer has been allocated
+  bool bufferExists(BufferID tid) const;
 
 private:
   /// Friend class used for our testing
@@ -123,8 +128,8 @@ private:
   /// @brief Find the information of an allocated buffer
   ///
   /// @param[in] tid  ID of the buffer to deallocate
-  /// @returns Iterator to the allocated_list_ object
-  allocated_buffer_info::value_type findAllocatedBuffer(BufferID tid);
+  /// @returns Pointer to the allocated_list_ object or null otherwise
+  allocated_buffer_info::value_type findAllocatedBuffer(BufferID tid) const;
 
   /// @brief Remove buffer from allocated list if it exists, return true on
   /// success

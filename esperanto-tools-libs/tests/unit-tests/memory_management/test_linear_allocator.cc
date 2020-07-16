@@ -16,6 +16,7 @@
 #include <memory>
 #include <vector>
 
+using namespace et_runtime;
 using namespace et_runtime::device::memory_management;
 
 class TestLinearAllocator : public ::testing::Test {
@@ -64,7 +65,7 @@ TEST_F(TestLinearAllocator, single_malloc_success) {
   ASSERT_TRUE((bool)res);
 
   // We expect to have allocated the first tensor
-  auto tid = res.get();
+  auto tid = std::get<0>(res.get());
   EXPECT_NE(tid, 0);
 
   // The list should be empty now
@@ -102,7 +103,7 @@ TEST_F(TestLinearAllocator, single_malloc_aligned_success) {
       // allocator->printState();
 
       // We expect to have allocated the first tensor
-      auto tid = res.get();
+      auto tid = std::get<0>(res.get());
 
       auto tensor = allocated_list().back();
       ASSERT_EQ(tensor->alignedStart() % alignment, 0);
@@ -262,7 +263,7 @@ TEST_P(TestLinearAllocatorMallocFree, malloc_free_random) {
   for (auto size : tensor_size) {
     auto res = allocator->malloc(type, size, 0);
     ASSERT_TRUE((bool)res);
-    tensors.push_back(res.get());
+    tensors.push_back(std::get<0>(res.get()));
   }
 
   // allocator->printState();
