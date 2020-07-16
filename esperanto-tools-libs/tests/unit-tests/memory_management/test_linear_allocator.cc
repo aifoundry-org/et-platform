@@ -23,15 +23,15 @@ class TestLinearAllocator : public ::testing::Test {
 public:
   std::unique_ptr<LinearAllocator> allocator;
 
-  std::list<TensorInfo<FreeRegion>> &free_list() {
+  std::list<BufferInfo<FreeRegion>> &free_list() {
     return allocator->free_list_;
   }
-  std::list<std::shared_ptr<AbstractTensorInfo>> &allocated_list() {
+  std::list<std::shared_ptr<AbstractBufferInfo>> &allocated_list() {
     return allocator->allocated_list_;
   }
 
-  auto findAllocatedTensor(et_runtime::TensorID tid) {
-    return allocator->findAllocatedTensor(tid);
+  auto findAllocatedBuffer(et_runtime::BufferID tid) {
+    return allocator->findAllocatedBuffer(tid);
   }
 };
 
@@ -46,7 +46,7 @@ TEST(List, prev) {
 // tensor meta-data
 TEST_F(TestLinearAllocator, malloc_fail_md_size) {
   allocator.reset(new LinearAllocator(100, 100));
-  auto res = allocator->malloc(TensorType::Code, 100);
+  auto res = allocator->malloc(BufferType::Code, 100);
 
   ASSERT_FALSE((bool)res);
 }
@@ -54,7 +54,7 @@ TEST_F(TestLinearAllocator, malloc_fail_md_size) {
 // Single memory allocations
 TEST_F(TestLinearAllocator, single_malloc_success) {
   allocator.reset(new LinearAllocator(100, 100));
-  auto type = TensorType::Code;
+  auto type = BufferType::Code;
   auto res = allocator->malloc(type, 100 - allocator->mdSize(type));
 
   ASSERT_TRUE((bool)res);
@@ -78,10 +78,10 @@ TEST_F(TestLinearAllocator, single_malloc_success) {
 // Multiple allocations
 TEST_F(TestLinearAllocator, multiple_malloc_success) {
 
-  auto type = TensorType::Code;
+  auto type = BufferType::Code;
   auto md_size = allocator->mdSize(type);
-  TensorSizeTy tensor_size = 20;
-  TensorOffsetTy dram_base = 100;
+  BufferSizeTy tensor_size = 20;
+  BufferOffsetTy dram_base = 100;
   auto dram_size = 3 * (tensor_size + md_size);
 
   allocator.reset(new LinearAllocator(dram_base, dram_size));
@@ -143,11 +143,11 @@ class TestLinearAllocatorMallocFree
 TEST_P(TestLinearAllocatorMallocFree, malloc_free_random) {
 
   std::vector<std::tuple<int, int>> tensor_free_order = GetParam();
-  auto type = TensorType::Code;
+  auto type = BufferType::Code;
   auto md_size = allocator->mdSize(type);
-  std::vector<TensorSizeTy> tensor_size = {20, 30, 40};
-  std::vector<et_runtime::TensorID> tensors = {};
-  TensorOffsetTy dram_base = 0;
+  std::vector<BufferSizeTy> tensor_size = {20, 30, 40};
+  std::vector<et_runtime::BufferID> tensors = {};
+  BufferOffsetTy dram_base = 0;
   auto dram_size = 0;
   for (auto &i : tensor_size) {
     dram_size += i + md_size;
@@ -170,7 +170,7 @@ TEST_P(TestLinearAllocatorMallocFree, malloc_free_random) {
   for (auto i : tensor_free_order) {
     auto &[tensor, free_list_size] = i;
     auto tid = tensors[tensor];
-    auto tit = findAllocatedTensor(tid);
+    auto tit = findAllocatedBuffer(tid);
     total_free_size += (*tit)->totalSize();
     auto free_res = allocator->free(tid);
     ASSERT_EQ(free_res, etrtSuccess);

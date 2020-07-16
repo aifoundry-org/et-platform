@@ -15,56 +15,56 @@ namespace et_runtime {
 namespace device {
 namespace memory_management {
 
-TensorSizeTy BaseMemoryAllocator::mdSize(TensorType type) {
+BufferSizeTy BaseMemoryAllocator::mdSize(BufferType type) {
   switch (type) {
-  case TensorType::Free:
-    return TensorInfo<FreeRegion>::mdSize();
+  case BufferType::Free:
+    return BufferInfo<FreeRegion>::mdSize();
     break;
-  case TensorType::Code:
-    return TensorInfo<CodeBuffer>::mdSize();
+  case BufferType::Code:
+    return BufferInfo<CodeBuffer>::mdSize();
     break;
-  case TensorType::Constant:
-    return TensorInfo<ConstantTensor>::mdSize();
+  case BufferType::Constant:
+    return BufferInfo<ConstantBuffer>::mdSize();
     break;
-  case TensorType::Placeholder:
-    return TensorInfo<PlaceholderTensor>::mdSize();
+  case BufferType::Placeholder:
+    return BufferInfo<PlaceholderBuffer>::mdSize();
     break;
-  case TensorType::Logging:
-    return TensorInfo<LoggingBuffer>::mdSize();
+  case BufferType::Logging:
+    return BufferInfo<LoggingBuffer>::mdSize();
     break;
   default:
-    RTERROR << "Unknown tensor Info \n";
+    RTERROR << "Unknown buffer Info \n";
     std::terminate();
     break;
   }
   return -1;
 }
 
-std::shared_ptr<AbstractTensorInfo>
-BaseMemoryAllocator::createTensorInfo(TensorType type, TensorOffsetTy base,
-                                      TensorSizeTy size) {
+std::shared_ptr<AbstractBufferInfo>
+BaseMemoryAllocator::createBufferInfo(BufferType type, BufferOffsetTy base,
+                                      BufferSizeTy size) {
   switch (type) {
-  case TensorType::Free:
-    return std::make_shared<TensorInfo<FreeRegion>>(base, size);
+  case BufferType::Free:
+    return std::make_shared<BufferInfo<FreeRegion>>(base, size);
     break;
-  case TensorType::Code:
-    return std::make_shared<TensorInfo<CodeBuffer>>(base, size);
+  case BufferType::Code:
+    return std::make_shared<BufferInfo<CodeBuffer>>(base, size);
     break;
-  case TensorType::Constant:
-    return std::make_shared<TensorInfo<ConstantTensor>>(base, size);
+  case BufferType::Constant:
+    return std::make_shared<BufferInfo<ConstantBuffer>>(base, size);
     break;
-  case TensorType::Placeholder:
-    return std::make_shared<TensorInfo<PlaceholderTensor>>(base, size);
+  case BufferType::Placeholder:
+    return std::make_shared<BufferInfo<PlaceholderBuffer>>(base, size);
     break;
-  case TensorType::Logging:
-    return std::make_shared<TensorInfo<LoggingBuffer>>(base, size);
+  case BufferType::Logging:
+    return std::make_shared<BufferInfo<LoggingBuffer>>(base, size);
     break;
   default:
-    RTERROR << "Unknown tensor Info \n";
+    RTERROR << "Unknown buffer Info \n";
     std::terminate();
     break;
   }
-  return std::make_shared<TensorInfo<LoggingBuffer>>(base, size);
+  return std::make_shared<BufferInfo<LoggingBuffer>>(base, size);
 }
 
 } // namespace memory_management

@@ -13,7 +13,7 @@
 #ifndef ET_RUNTIME_MEMORY_MANAGEMENT_BASE_MEMORY_ALLOCATOR_H
 #define ET_RUNTIME_MEMORY_MANAGEMENT_BASE_MEMORY_ALLOCATOR_H
 
-#include "TensorInfo.h"
+#include "BufferInfo.h"
 
 #include "esperanto/runtime/Common/CommonTypes.h"
 #include "esperanto/runtime/Support/ErrorOr.h"
@@ -36,14 +36,14 @@ public:
   BaseMemoryAllocator(BaseMemoryAllocator &) = delete;
   virtual ~BaseMemoryAllocator() = default;
 
-  /// @brief Deallocate the specific tensor
+  /// @brief Deallocate the specific buffer
   ///
-  /// @param[in] id ID of the tensor to deallocate
+  /// @param[in] id ID of the buffer to deallocate
   /// @returns Error os success
-  virtual etrtError free(TensorID) = 0;
+  virtual etrtError free(BufferID) = 0;
 
   /// @brief Return the total free memory
-  virtual TensorSizeTy freeMemory() = 0;
+  virtual BufferSizeTy freeMemory() = 0;
 
   /// @brief Print in the stdout the state of the memory allocator
   virtual void printState() = 0;
@@ -52,16 +52,16 @@ public:
   /// format
   virtual void printStateJSON() = 0;
 
-  /// @brief Return the meta-data size of a specific tensor type
-  static TensorSizeTy mdSize(TensorType type);
+  /// @brief Return the meta-data size of a specific buffer type
+  static BufferSizeTy mdSize(BufferType type);
 
-  /// @brief Create a tensor of a specific type.
+  /// @brief Create a buffer of a specific type.
   ///
-  /// @param[in] type Type of the tensor
-  /// @param[in] base Base offset of the tensor in the memory region
-  /// @param[in] size Size in bytes of the tensor/memory-region
-  static std::shared_ptr<AbstractTensorInfo>
-  createTensorInfo(TensorType type, TensorOffsetTy base, TensorSizeTy size);
+  /// @param[in] type Type of the buffer
+  /// @param[in] base Base offset of the buffer in the memory region
+  /// @param[in] size Size in bytes of the buffer/memory-region
+  static std::shared_ptr<AbstractBufferInfo>
+  createBufferInfo(BufferType type, BufferOffsetTy base, BufferSizeTy size);
 
 private:
 };

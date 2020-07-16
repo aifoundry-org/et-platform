@@ -15,15 +15,15 @@ We are going to cover:
 
 * How DRAM is divided in our system and managed.
 
-Types of Tensors In The System
+Types of Buffers In The System
 ------------------------------
 
 When running a Machine Learninng model through Glow, we need to
 allocate different types of tensors in the device. Some of these
 tensors belong to the model (Filters, Weights, Biases, etc), while
 other tensors are internally created by Neuralizer when compiling the
-code, and thus other Backends do not require them (for example, Tensor
-Scales used by RISCV-ET TensorQuant instruction).
+code, and thus other Backends do not require them (for example, Buffer
+Scales used by RISCV-ET BufferQuant instruction).
 
 
 The usage that the device is going to do from these tensors is also
@@ -35,9 +35,9 @@ completes (or even when the first layer of the network has executed) ,
 while Outputs may remain in the device until their value is consumed.
 
 Most of the information required is in
-https://gitlab.esperanto.ai/software/host-sw/blob/master/Neuralizer/inc/ETensor.h
+https://gitlab.esperanto.ai/software/host-sw/blob/master/Neuralizer/inc/EBuffer.h
 class and in
-https://gitlab.esperanto.ai/software/host-sw/blob/master/Neuralizer/inc/NeuralizerTensorTypes.h
+https://gitlab.esperanto.ai/software/host-sw/blob/master/Neuralizer/inc/NeuralizerBufferTypes.h
 enumerators.
 
 Here a brief description of the properties of the tensors that we
@@ -100,7 +100,7 @@ Memory Regions Of Each Network & Lifetime
 -----------------------------------------
 
 +---------------+---------------+------------------------------------------------+--------------------------------+-----------------------------------+
-| Region Name   |  Tensor Name  |      Description                               |  Desired Access Permissions    | Lifetime                          |
+| Region Name   |  Buffer Name  |      Description                               |  Desired Access Permissions    | Lifetime                          |
 +===============+===============+================================================+================================+===================================+
 | Code          |  Code         | ELF files that hold the code of the different  |  * PCIe: Write                 | * Allocation when model is loaded |
 |               |               | compute kernels that we want to execute        |  * Minion: Read, Execute       | * Deallocation when model is      |
@@ -209,18 +209,18 @@ To facilitate debugging of memory different allocated buffers/tensors
 will have the following meta-data to allow us to associate the buffer
 back to the original execution and system execution
 
-Common Tensor Types are defined in :ref:`file_src_MemoryManagement_TensorInfo.h`
+Common Buffer Types are defined in :ref:`file_src_MemoryManagement_BufferInfo.h`
 
 +-------------------------------------------------------------------+--------------------+
 | Struct                                                            | Description        |
 +===================================================================+====================+
-| :class:`et_runtime::device::memory_management::TensorCommonMD`    | Common meta-data   |
+| :class:`et_runtime::device::memory_management::BufferCommonMD`    | Common meta-data   |
 +-------------------------------------------------------------------+--------------------+
 | :class:`et_runtime::device::memory_management::CodeBuffer`        | Code region buffer |
 +-------------------------------------------------------------------+--------------------+
-| :class:`et_runtime::device::memory_management::ConstantTensor`    | Constant Tensor    |
+| :class:`et_runtime::device::memory_management::ConstantBuffer`    | Constant Buffer    |
 +-------------------------------------------------------------------+--------------------+
-| :class:`et_runtime::device::memory_management::PlaceholderTensor` | Place holder       |
+| :class:`et_runtime::device::memory_management::PlaceholderBuffer` | Place holder       |
 +-------------------------------------------------------------------+--------------------+
 | :class:`et_runtime::device::memory_management::LoggingBuffer`     | Logging Buffer     |
 +-------------------------------------------------------------------+--------------------+

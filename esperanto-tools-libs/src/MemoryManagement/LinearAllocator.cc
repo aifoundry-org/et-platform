@@ -19,15 +19,15 @@
 using namespace et_runtime;
 using namespace et_runtime::device::memory_management;
 
-LinearAllocator::LinearAllocator(TensorOffsetTy base, TensorSizeTy size)
+LinearAllocator::LinearAllocator(BufferOffsetTy base, BufferSizeTy size)
     : free_list_(), allocated_list_() {
-  free_list_.push_back(TensorInfo<FreeRegion>(base, size));
+  free_list_.push_back(BufferInfo<FreeRegion>(base, size));
   // FIXME add the device-ID of the memory allocator)
   TRACE_MemoryManager_LinearAllocator_Constructor(0, base, size);
 }
 
-LinearAllocator::allocated_tensor_info::iterator
-LinearAllocator::findAllocatedTensor(TensorID tid) {
+LinearAllocator::allocated_buffer_info::iterator
+LinearAllocator::findAllocatedBuffer(BufferID tid) {
   return find_if(
       allocated_list_.begin(), allocated_list_.end(),
       [tid](const decltype(allocated_list_)::value_type &elem) -> bool {
@@ -35,17 +35,17 @@ LinearAllocator::findAllocatedTensor(TensorID tid) {
       });
 }
 
-// std::tuple<bool, const std::shared_ptr<AbstractTensorInfo>>>
-// LinearAllocator::find_allocated_tensor(TensorID tid) const
+// std::tuple<bool, const std::shared_ptr<AbstractBufferInfo>>>
+// LinearAllocator::find_allocated_buffer(BufferID tid) const
 // {
 
 // }
 
-ErrorOr<TensorID> LinearAllocator::malloc(TensorType type, TensorSizeTy size) {
-  // Compute the tensor type's metadata header size
+ErrorOr<BufferID> LinearAllocator::malloc(BufferType type, BufferSizeTy size) {
+  // Compute the buffer type's metadata header size
   auto md_size = mdSize(type);
   auto total_size = md_size + size;
-  // find the first free buffer where we can allocate a tensor
+  // find the first free buffer where we can allocate a buffer
   auto res =
       std::find_if(free_list_.begin(), free_list_.end(),
                    [=](const decltype(free_list_)::value_type &elem) -> bool {
@@ -62,55 +62,55 @@ ErrorOr<TensorID> LinearAllocator::malloc(TensorType type, TensorSizeTy size) {
     free_list_.erase(res);
   } else {
     // Resize the free buffer
-    res->tensor_info().hdr.base += total_size;
-    res->tensor_info().hdr.size -= total_size;
+    res->buffer_info().hdr.base += total_size;
+    res->buffer_info().hdr.size -= total_size;
   }
 
-  auto tensor = createTensorInfo(type, base + md_size, size);
+  auto buffer = createBufferInfo(type, base + md_size, size);
 
-  // Insert the tensor in the allocated list
+  // Insert the buffer in the allocated list
   auto alloc_pos = std::find_if(
       allocated_list_.begin(), allocated_list_.end(),
-      [&tensor](const decltype(allocated_list_)::value_type &elem) -> bool {
-        return *tensor.get() < *elem.get();
+      [&buffer](const decltype(allocated_list_)::value_type &elem) -> bool {
+        return *buffer.get() < *elem.get();
       });
-  auto insert_pos = allocated_list_.insert(alloc_pos, tensor);
+  auto insert_pos = allocated_list_.insert(alloc_pos, buffer);
 
-  // Update the prev/next pointers of the adjacent tensors
-  // and maintain the double linked list in the tensor metadata
-  TensorID left_tensor = 0, right_tensor = 0;
+  // Update the prev/next pointers of the adjacent buffers
+  // and maintain the double linked list in the buffer metadata
+  BufferID left_buffer = 0, right_buffer = 0;
   if (insert_pos != allocated_list_.begin()) {
     auto prev_pos = std::prev(insert_pos);
-    left_tensor = (*prev_pos)->id();
-    (*prev_pos)->next(tensor->base());
-    tensor->prev((*prev_pos)->base());
+    left_buffer = (*prev_pos)->id();
+    (*prev_pos)->next(buffer->base());
+    buffer->prev((*prev_pos)->base());
   }
   auto next_pos = std::next(insert_pos);
   if (next_pos != allocated_list_.end()) {
-    right_tensor = (*next_pos)->id();
-    (*next_pos)->prev(tensor->base());
-    tensor->next((*next_pos)->base());
+    right_buffer = (*next_pos)->id();
+    (*next_pos)->prev(buffer->base());
+    buffer->next((*next_pos)->base());
   }
   // FIXME add the device-id
   TRACE_MemoryManager_LinearAllocator_malloc(0, static_cast<int>(type),
-                                             tensor->id(), base, md_size, size,
-                                             left_tensor, right_tensor);
+                                             buffer->id(), base, md_size, size,
+                                             left_buffer, right_buffer);
 
-  return tensor->id();
+  return buffer->id();
 }
 
-etrtError LinearAllocator::free(TensorID tid) {
+etrtError LinearAllocator::free(BufferID tid) {
 
   // FIXME add device-id
   TRACE_MemoryManager_LinearAllocator_free(0, tid);
 
-  // Search for the tensor in the allocated list
-  auto buffer = findAllocatedTensor(tid);
+  // Search for the buffer in the allocated list
+  auto buffer = findAllocatedBuffer(tid);
   if (buffer == allocated_list_.end()) {
-    return etrtErrorFreeUnknownTensor;
+    return etrtErrorFreeUnknownBuffer;
   }
 
-  // Update the double linked list tracked in the tensor metadata
+  // Update the double linked list tracked in the buffer metadata
   if (buffer != allocated_list_.begin()) {
     auto prev_pos = std::prev(buffer);
     (*prev_pos)->next((*buffer)->next());
@@ -120,12 +120,12 @@ etrtError LinearAllocator::free(TensorID tid) {
     (*next_pos)->prev((*buffer)->prev());
   }
 
-  auto dead_tensor = *buffer;
+  auto dead_buffer = *buffer;
   allocated_list_.erase(buffer);
   // Update the list, find and if necessary not concatenate the free region
-  auto free_base = dead_tensor->mdBase();
-  auto free_end_offset = dead_tensor->endOffset();
-  auto free_size = dead_tensor->totalSize();
+  auto free_base = dead_buffer->mdBase();
+  auto free_end_offset = dead_buffer->endOffset();
+  auto free_size = dead_buffer->totalSize();
 
   auto free_list_neighbor = find_if(
       free_list_.begin(), free_list_.end(),
@@ -142,7 +142,7 @@ etrtError LinearAllocator::free(TensorID tid) {
 
       if (last_elem.endOffset() == free_base) {
         // If the previous buffer is directly next to this one, extend its size
-        last_elem.tensor_info().hdr.size += free_size;
+        last_elem.buffer_info().hdr.size += free_size;
       } else {
         // otherwise add another free region at the end of the free list
         free_list_.emplace_back(free_base, free_size);
@@ -154,36 +154,36 @@ etrtError LinearAllocator::free(TensorID tid) {
     // check if the free-region on the right is directly next to the new free
     // space and expand it
     if (free_end_offset == free_list_neighbor->mdBase()) {
-      free_list_neighbor->tensor_info().hdr.base = free_base;
-      free_list_neighbor->tensor_info().hdr.size += free_size;
+      free_list_neighbor->buffer_info().hdr.base = free_base;
+      free_list_neighbor->buffer_info().hdr.size += free_size;
       // Check if the expanded region on the right "touches" the existing region
       // to the left and merge them if true
       if (left_neighbor != free_list_.end() //
           && left_neighbor->endOffset() == free_list_neighbor->mdBase()) {
         // merge the 2 memory regions
-        left_neighbor->tensor_info().hdr.size += free_list_neighbor->size();
+        left_neighbor->buffer_info().hdr.size += free_list_neighbor->size();
         free_list_.erase(free_list_neighbor);
       }
     } else if (left_neighbor != free_list_.end() //
                && left_neighbor->endOffset() == free_base) {
       // The new free region is "touching" the left neighbor, extend the
       // left neighbor
-      left_neighbor->tensor_info().hdr.size += free_size;
+      left_neighbor->buffer_info().hdr.size += free_size;
       // We do not need to check the right neighbor as we not from the above
       // that we are not
     } else {
       // We do not need to expand any of the existing free regions to the left
       // or the right, create a new one
       free_list_.insert(free_list_neighbor,
-                        TensorInfo<FreeRegion>(free_base, free_size));
+                        BufferInfo<FreeRegion>(free_base, free_size));
     }
   }
 
   return etrtSuccess;
 }
 
-TensorSizeTy LinearAllocator::freeMemory() {
-  TensorSizeTy free_mem = 0;
+BufferSizeTy LinearAllocator::freeMemory() {
+  BufferSizeTy free_mem = 0;
   for (auto &i : free_list_) {
     free_mem += i.size();
   }

@@ -28,15 +28,15 @@ public:
 };
 
 TEST_F(TestMemoryManagerInternals, allocate_network_tensors) {
-  TensorSizeTy kernel_size = 10;
-  auto code_md_size = BaseMemoryAllocator::mdSize(TensorType::Code);
+  BufferSizeTy kernel_size = 10;
+  auto code_md_size = BaseMemoryAllocator::mdSize(BufferType::Code);
   auto code_additional_free = 100;
-  TensorSizeTy code_size = kernel_size + code_md_size + code_additional_free;
+  BufferSizeTy code_size = kernel_size + code_md_size + code_additional_free;
   auto constant_tensor1_size = 100, constant_tensor2_size = 300;
-  auto constant_md_size = BaseMemoryAllocator::mdSize(TensorType::Constant);
+  auto constant_md_size = BaseMemoryAllocator::mdSize(BufferType::Constant);
   auto activation_size = 10;
   auto placeholder_md_size =
-      BaseMemoryAllocator::mdSize(TensorType::Placeholder);
+      BaseMemoryAllocator::mdSize(BufferType::Placeholder);
   auto data_additional_free = 30;
   auto data_size = constant_tensor1_size + constant_tensor2_size +
                    2 * constant_md_size + activation_size +

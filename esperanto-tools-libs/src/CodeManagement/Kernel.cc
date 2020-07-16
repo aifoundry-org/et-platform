@@ -336,7 +336,7 @@ std::ostream &operator<<(std::ostream &os,
     os << " .value " << arg.value.vdouble;
     break;
   case et_runtime::Kernel::ArgType::T_tensor:
-    os << " .value Fix Tensor";
+    os << " .value Fix Buffer";
     break;
   case et_runtime::Kernel::ArgType::T_layer_dynamic_info:
     os << std::hex << " tensor_a = 0x" << arg.value.layer_dynamic_info.tensor_a

@@ -11,8 +11,8 @@
 #include "MemoryManagerInternals.h"
 
 #include "BidirectionalAllocator.h"
+#include "BufferInfo.h"
 #include "LinearAllocator.h"
-#include "TensorInfo.h"
 #include "Tracing/Tracing.h"
 
 #include <algorithm>
@@ -26,27 +26,27 @@ MemoryManagerInternals::MemoryManagerInternals(uint64_t code_size,
     : code_region_(new LinearAllocator(0, code_size)),
       data_region_(new BidirectionalAllocator(code_size, data_size)) {}
 
-ErrorOr<TensorID> MemoryManagerInternals::mallocCode(TensorSizeTy size) {
+ErrorOr<BufferID> MemoryManagerInternals::mallocCode(BufferSizeTy size) {
   TRACE_MemoryManager_MemoryManagerInternals_mallocCode(size);
-  return code_region_->malloc(TensorType::Code, size);
+  return code_region_->malloc(BufferType::Code, size);
 }
 
-ErrorOr<TensorID> MemoryManagerInternals::mallocConstant(TensorSizeTy size) {
+ErrorOr<BufferID> MemoryManagerInternals::mallocConstant(BufferSizeTy size) {
   TRACE_MemoryManager_MemoryManagerInternals_mallocConstant(
-      size) return data_region_->mallocFront(TensorType::Constant, size);
+      size) return data_region_->mallocFront(BufferType::Constant, size);
 }
 
-ErrorOr<TensorID> MemoryManagerInternals::mallocPlaceholder(TensorSizeTy size) {
+ErrorOr<BufferID> MemoryManagerInternals::mallocPlaceholder(BufferSizeTy size) {
   TRACE_MemoryManager_MemoryManagerInternals_mallocPlaceholder(size);
-  return data_region_->mallocBack(TensorType::Placeholder, size);
+  return data_region_->mallocBack(BufferType::Placeholder, size);
 }
 
-etrtError MemoryManagerInternals::freeCode(TensorID tid) {
+etrtError MemoryManagerInternals::freeCode(BufferID tid) {
   TRACE_MemoryManager_MemoryManagerInternals_freeCode(tid);
   return code_region_->free(tid);
 }
 
-etrtError MemoryManagerInternals::freeData(TensorID tid) {
+etrtError MemoryManagerInternals::freeData(BufferID tid) {
   TRACE_MemoryManager_MemoryManagerInternals_freeData(tid);
   return data_region_->free(tid);
 }

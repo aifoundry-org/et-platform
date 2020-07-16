@@ -19,16 +19,16 @@
 using namespace et_runtime;
 using namespace et_runtime::device::memory_management;
 
-BidirectionalAllocator::BidirectionalAllocator(TensorOffsetTy base,
-                                               TensorSizeTy size)
+BidirectionalAllocator::BidirectionalAllocator(BufferOffsetTy base,
+                                               BufferSizeTy size)
     : free_list_(), allocated_front_list_(), allocated_back_list_() {
-  free_list_.push_back(TensorInfo<FreeRegion>(base, size));
+  free_list_.push_back(BufferInfo<FreeRegion>(base, size));
   // FIXME add the device-id
   TRACE_MemoryManager_BidirectionalAllocator_Constructor(0, base, size);
 }
 
-BidirectionalAllocator::allocated_tensor_info::value_type
-BidirectionalAllocator::findAllocatedTensor(TensorID tid) {
+BidirectionalAllocator::allocated_buffer_info::value_type
+BidirectionalAllocator::findAllocatedBuffer(BufferID tid) {
   for (auto &i : {&allocated_front_list_, &allocated_back_list_}) {
     auto res = find_if(
         i->begin(), i->end(),
@@ -38,15 +38,15 @@ BidirectionalAllocator::findAllocatedTensor(TensorID tid) {
       return *res;
     }
   }
-  return allocated_tensor_info::value_type();
+  return allocated_buffer_info::value_type();
 }
 
-ErrorOr<TensorID> BidirectionalAllocator::mallocFront(TensorType type,
-                                                      TensorSizeTy size) {
-  // Compute the tensor type's metadata header size
+ErrorOr<BufferID> BidirectionalAllocator::mallocFront(BufferType type,
+                                                      BufferSizeTy size) {
+  // Compute the buffer type's metadata header size
   auto md_size = mdSize(type);
   auto total_size = md_size + size;
-  // find the first free buffer where we can allocate a tensor
+  // find the first free buffer where we can allocate a buffer
   auto res =
       std::find_if(free_list_.begin(), free_list_.end(),
                    [=](const decltype(free_list_)::value_type &elem) -> bool {
@@ -63,48 +63,48 @@ ErrorOr<TensorID> BidirectionalAllocator::mallocFront(TensorType type,
     free_list_.erase(res);
   } else {
     // Resize the free buffer
-    res->tensor_info().hdr.base += total_size;
-    res->tensor_info().hdr.size -= total_size;
+    res->buffer_info().hdr.base += total_size;
+    res->buffer_info().hdr.size -= total_size;
   }
 
-  auto tensor = createTensorInfo(type, base + md_size, size);
+  auto buffer = createBufferInfo(type, base + md_size, size);
 
-  // Insert the tensor in the allocated list
+  // Insert the buffer in the allocated list
   auto alloc_pos = std::find_if(
       allocated_front_list_.begin(), allocated_front_list_.end(),
-      [&tensor](const decltype(allocated_front_list_)::value_type &elem)
-          -> bool { return *tensor.get() < *elem.get(); });
-  auto insert_pos = allocated_front_list_.insert(alloc_pos, tensor);
+      [&buffer](const decltype(allocated_front_list_)::value_type &elem)
+          -> bool { return *buffer.get() < *elem.get(); });
+  auto insert_pos = allocated_front_list_.insert(alloc_pos, buffer);
 
-  TensorID left_tensor = 0, right_tensor = 0;
-  // Update the prev/next pointers of the adjacent tensors
-  // and maintain the double linked list in the tensor metadata
+  BufferID left_buffer = 0, right_buffer = 0;
+  // Update the prev/next pointers of the adjacent buffers
+  // and maintain the double linked list in the buffer metadata
   if (insert_pos != allocated_front_list_.begin()) {
     auto prev_pos = std::prev(insert_pos);
-    left_tensor = (*prev_pos)->id();
-    (*prev_pos)->next(tensor->base());
-    tensor->prev((*prev_pos)->base());
+    left_buffer = (*prev_pos)->id();
+    (*prev_pos)->next(buffer->base());
+    buffer->prev((*prev_pos)->base());
   }
   auto next_pos = std::next(insert_pos);
   if (next_pos != allocated_front_list_.end()) {
-    (*next_pos)->prev(tensor->base());
-    right_tensor = (*next_pos)->id();
-    tensor->next((*next_pos)->base());
+    (*next_pos)->prev(buffer->base());
+    right_buffer = (*next_pos)->id();
+    buffer->next((*next_pos)->base());
   }
 
   // FIXME add the device-id
   TRACE_MemoryManager_BidirectionalAllocator_mallocFront(
-      0, static_cast<int>(type), tensor->id(), base, md_size, size, left_tensor,
-      right_tensor);
-  return tensor->id();
+      0, static_cast<int>(type), buffer->id(), base, md_size, size, left_buffer,
+      right_buffer);
+  return buffer->id();
 }
 
-ErrorOr<TensorID> BidirectionalAllocator::mallocBack(TensorType type,
-                                                     TensorSizeTy size) {
-  // Compute the tensor type's metadata header size
+ErrorOr<BufferID> BidirectionalAllocator::mallocBack(BufferType type,
+                                                     BufferSizeTy size) {
+  // Compute the buffer type's metadata header size
   auto md_size = mdSize(type);
   auto total_size = md_size + size;
-  // find the first free buffer where we can allocate a tensor, starting the
+  // find the first free buffer where we can allocate a buffer, starting the
   // search from the end.
   auto res =
       std::find_if(free_list_.rbegin(), free_list_.rend(),
@@ -130,54 +130,54 @@ ErrorOr<TensorID> BidirectionalAllocator::mallocBack(TensorType type,
     free_list_.erase(fwit_elem);
   } else {
     // Resize the free buffer, remove from the end of the buffer
-    res->tensor_info().hdr.size -= total_size;
+    res->buffer_info().hdr.size -= total_size;
   }
 
-  auto tensor = createTensorInfo(type, base + md_size, size);
+  auto buffer = createBufferInfo(type, base + md_size, size);
 
-  // Insert the tensor in the allocated list
+  // Insert the buffer in the allocated list
   auto alloc_pos = std::find_if(
       allocated_back_list_.rbegin(), allocated_back_list_.rend(),
-      [&tensor](const decltype(allocated_back_list_)::value_type &elem)
-          -> bool { return *elem.get() < *tensor.get(); });
-  auto insert_pos = allocated_back_list_.insert(alloc_pos.base(), tensor);
+      [&buffer](const decltype(allocated_back_list_)::value_type &elem)
+          -> bool { return *elem.get() < *buffer.get(); });
+  auto insert_pos = allocated_back_list_.insert(alloc_pos.base(), buffer);
 
-  TensorID left_tensor = 0, right_tensor = 0;
-  // Update the prev/next pointers of the adjacent tensors
-  // and maintain the double linked list in the tensor metadata
+  BufferID left_buffer = 0, right_buffer = 0;
+  // Update the prev/next pointers of the adjacent buffers
+  // and maintain the double linked list in the buffer metadata
   if (insert_pos != allocated_back_list_.begin()) {
     auto prev_pos = std::prev(insert_pos);
-    (*prev_pos)->next(tensor->base());
-    left_tensor = (*prev_pos)->id();
-    tensor->prev((*prev_pos)->base());
+    (*prev_pos)->next(buffer->base());
+    left_buffer = (*prev_pos)->id();
+    buffer->prev((*prev_pos)->base());
   }
   auto next_pos = std::next(insert_pos);
   if (next_pos != allocated_back_list_.end()) {
-    (*next_pos)->prev(tensor->base());
-    right_tensor = (*next_pos)->id();
-    tensor->next((*next_pos)->base());
+    (*next_pos)->prev(buffer->base());
+    right_buffer = (*next_pos)->id();
+    buffer->next((*next_pos)->base());
   }
 
   // FIXME add the device-id
   TRACE_MemoryManager_BidirectionalAllocator_mallocBack(
-      0, static_cast<int>(type), tensor->id(), base, md_size, size, left_tensor,
-      right_tensor);
-  return tensor->id();
+      0, static_cast<int>(type), buffer->id(), base, md_size, size, left_buffer,
+      right_buffer);
+  return buffer->id();
 }
 
-ErrorOr<BidirectionalAllocator::allocated_tensor_info::value_type>
+ErrorOr<BidirectionalAllocator::allocated_buffer_info::value_type>
 BidirectionalAllocator::removeFromAllocatedList(
-    allocated_tensor_info *alloc_list, TensorID tid) {
+    allocated_buffer_info *alloc_list, BufferID tid) {
   auto res =
       find_if(alloc_list->begin(), alloc_list->end(),
-              [tid](const allocated_tensor_info::value_type &elem) -> bool {
+              [tid](const allocated_buffer_info::value_type &elem) -> bool {
                 return tid == elem->id();
               });
 
   if (res == alloc_list->end()) {
-    return etrtErrorFreeUnknownTensor;
+    return etrtErrorFreeUnknownBuffer;
   }
-  // Update the double linked list tracked in the tensor metadata
+  // Update the double linked list tracked in the buffer metadata
   if (res != alloc_list->begin()) {
     auto prev_pos = std::prev(res);
     (*prev_pos)->next((*res)->next());
@@ -192,25 +192,25 @@ BidirectionalAllocator::removeFromAllocatedList(
   return ptr;
 }
 
-etrtError BidirectionalAllocator::free(TensorID tid) {
+etrtError BidirectionalAllocator::free(BufferID tid) {
 
   // FIXME add device_id
   TRACE_MemoryManager_BidirectionalAllocator_free(0, tid);
-  // Search for the tensor in the forward list allocated list
-  auto dead_tensor_res = removeFromAllocatedList(&allocated_front_list_, tid);
-  if (dead_tensor_res.getError() != etrtSuccess) {
+  // Search for the buffer in the forward list allocated list
+  auto dead_buffer_res = removeFromAllocatedList(&allocated_front_list_, tid);
+  if (dead_buffer_res.getError() != etrtSuccess) {
     // Search the back list
-    dead_tensor_res = removeFromAllocatedList(&allocated_back_list_, tid);
-    if (dead_tensor_res.getError() != etrtSuccess) {
-      return dead_tensor_res.getError();
+    dead_buffer_res = removeFromAllocatedList(&allocated_back_list_, tid);
+    if (dead_buffer_res.getError() != etrtSuccess) {
+      return dead_buffer_res.getError();
     }
   }
 
-  auto dead_tensor = dead_tensor_res.get();
+  auto dead_buffer = dead_buffer_res.get();
   // Update the list, find and if necessary not concatenate the free region
-  auto free_base = dead_tensor->mdBase();
-  auto free_end_offset = dead_tensor->endOffset();
-  auto free_size = dead_tensor->totalSize();
+  auto free_base = dead_buffer->mdBase();
+  auto free_end_offset = dead_buffer->endOffset();
+  auto free_size = dead_buffer->totalSize();
 
   auto free_list_neighbor = find_if(
       free_list_.begin(), free_list_.end(),
@@ -228,7 +228,7 @@ etrtError BidirectionalAllocator::free(TensorID tid) {
       if (last_elem.endOffset() == free_base) {
         // If the previous buffer is directly next to this one, extend its
         // size
-        last_elem.tensor_info().hdr.size += free_size;
+        last_elem.buffer_info().hdr.size += free_size;
       } else {
         // otherwise add another free region at the end of the free list
         free_list_.emplace_back(free_base, free_size);
@@ -240,37 +240,37 @@ etrtError BidirectionalAllocator::free(TensorID tid) {
     // check if the free-region on the right is directly next to the new free
     // space and expand it
     if (free_end_offset == free_list_neighbor->mdBase()) {
-      free_list_neighbor->tensor_info().hdr.base = free_base;
-      free_list_neighbor->tensor_info().hdr.size += free_size;
+      free_list_neighbor->buffer_info().hdr.base = free_base;
+      free_list_neighbor->buffer_info().hdr.size += free_size;
       // Check if the expanded region on the right "touches" the existing
       // region
       // to the left and merge them if true
       if (left_neighbor != free_list_.end() //
           && left_neighbor->endOffset() == free_list_neighbor->mdBase()) {
         // merge the 2 memory regions
-        left_neighbor->tensor_info().hdr.size += free_list_neighbor->size();
+        left_neighbor->buffer_info().hdr.size += free_list_neighbor->size();
         free_list_.erase(free_list_neighbor);
       }
     } else if (left_neighbor != free_list_.end() //
                && left_neighbor->endOffset() == free_base) {
       // The new free region is "touching" the left neighbor, extend the
       // left neighbor
-      left_neighbor->tensor_info().hdr.size += free_size;
+      left_neighbor->buffer_info().hdr.size += free_size;
       // We do not need to check the right neighbor as we not from the above
       // that we are not
     } else {
       // We do not need to expand any of the existing free regions to the left
       // or the right, create a new one
       free_list_.insert(free_list_neighbor,
-                        TensorInfo<FreeRegion>(free_base, free_size));
+                        BufferInfo<FreeRegion>(free_base, free_size));
     }
   }
 
   return etrtSuccess;
 }
 
-TensorSizeTy BidirectionalAllocator::freeMemory() {
-  TensorSizeTy free_mem = 0;
+BufferSizeTy BidirectionalAllocator::freeMemory() {
+  BufferSizeTy free_mem = 0;
   for (auto &i : free_list_) {
     free_mem += i.size();
   }

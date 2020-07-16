@@ -40,52 +40,52 @@ namespace memory_management {
 /// The bidirectional allocator will be used to manage the data-region of the
 /// device's DRAM:
 ///
-/// * One side (left/front) is used to allocate Constant tensors: Constant
-/// tensors are loaded once when we initialize the model on the device, and stay
+/// * One side (left/front) is used to allocate Constant buffers: Constant
+/// buffers are loaded once when we initialize the model on the device, and stay
 /// stationary until the model gets unloaded from the device.
-/// * The opposite side (right/back) is used to allocate Placeholder tensors.
-/// The placeholder tensors are allocated per inference and de-allocated at the
+/// * The opposite side (right/back) is used to allocate Placeholder buffers.
+/// The placeholder buffers are allocated per inference and de-allocated at the
 /// end of the inference execution, resulting in more frequent memory
 /// fragmentation
 ///
 /// The bidirectinal allocator tries to reduce the internal memory fragmentation
-/// of the data region, by separating the tensors based on their lifecycle on
+/// of the data region, by separating the buffers based on their lifecycle on
 /// the device and trying to keep the "middle" of the data-region free,
 class BidirectionalAllocator final : public BaseMemoryAllocator {
 public:
   /// @enum direction of the allocation
   enum class AllocDirection : uint8_t {
     None = 0,
-    Front, ///< Allocate a tensor, starting search at the front of the free-list
-    Back, ///< Allocatee a tensor starting search from the back of the free-list
+    Front, ///< Allocate a buffer, starting search at the front of the free-list
+    Back, ///< Allocatee a buffer starting search from the back of the free-list
   };
 
-  BidirectionalAllocator(TensorOffsetTy base, TensorSizeTy size);
+  BidirectionalAllocator(BufferOffsetTy base, BufferSizeTy size);
 
   /// @brief Allocate a buffer of type TesnorType and of size bites startng
   /// from the front of the memory region
   ///
   /// @param[in] type Type of the buffer to allocate
   /// @param[in] size Size in bytes of the buffer to allocate
-  /// @returns  Error of the ID of the tensor that was allocated
-  ErrorOr<TensorID> mallocFront(TensorType type, TensorSizeTy size);
+  /// @returns  Error of the ID of the buffer that was allocated
+  ErrorOr<BufferID> mallocFront(BufferType type, BufferSizeTy size);
 
   /// @brief Allocate a buffer of type TesnorType and of size bites startng
   /// from the front of the memory region
   ///
   /// @param[in] type Type of the buffer to allocate
   /// @param[in] size Size in bytes of the buffer to allocate
-  /// @returns  Error of the ID of the tensor that was allocated
-  ErrorOr<TensorID> mallocBack(TensorType type, TensorSizeTy size);
+  /// @returns  Error of the ID of the buffer that was allocated
+  ErrorOr<BufferID> mallocBack(BufferType type, BufferSizeTy size);
 
-  /// @brief Deallocate the specific tensor
+  /// @brief Deallocate the specific buffer
   ///
-  /// @param[in] id ID of the tensor to deallocate
+  /// @param[in] id ID of the buffer to deallocate
   /// @returns Error os success
-  etrtError free(TensorID tid);
+  etrtError free(BufferID tid);
 
   /// @brief Return the total free memory
-  TensorSizeTy freeMemory() override;
+  BufferSizeTy freeMemory() override;
 
   /// @brief Print the allocator status
   void printState() override;
@@ -98,37 +98,38 @@ private:
   /// Friend class used for our testing
   friend class ::TestBidirectionalAllocator;
 
-  /// Container type holding the information of the allocated tensors of this
+  /// Container type holding the information of the allocated buffers of this
   /// memory allocator
-  using allocated_tensor_info = std::list<std::shared_ptr<AbstractTensorInfo>>;
+  using allocated_buffer_info = std::list<std::shared_ptr<AbstractBufferInfo>>;
 
-  TensorOffsetTy base_; ///< Base offset of the memory region this allocator manages
-  TensorSizeTy size_; ///< Size of the memory region this allocator mmanages
+  BufferOffsetTy
+      base_; ///< Base offset of the memory region this allocator manages
+  BufferSizeTy size_; ///< Size of the memory region this allocator mmanages
 
-  std::list<TensorInfo<FreeRegion>> free_list_; ///< List of un-allocated memory
+  std::list<BufferInfo<FreeRegion>> free_list_; ///< List of un-allocated memory
 
-  allocated_tensor_info
+  allocated_buffer_info
       allocated_front_list_; ///< List of allocated buffers from the front of
                              ///< this allocator
 
-  allocated_tensor_info
+  allocated_buffer_info
       allocated_back_list_; ///< List of allocated buffers from the back in this
                             ///< allocator
 
-  /// @brief Find the information of an allocated tensor
+  /// @brief Find the information of an allocated buffer
   ///
-  /// @param[in] tid  ID of the tensor to deallocate
+  /// @param[in] tid  ID of the buffer to deallocate
   /// @returns Iterator to the allocated_list_ object
-  allocated_tensor_info::value_type findAllocatedTensor(TensorID tid);
+  allocated_buffer_info::value_type findAllocatedBuffer(BufferID tid);
 
-  /// @brief Remove tensor from allocated list if it exists, return true on
+  /// @brief Remove buffer from allocated list if it exists, return true on
   /// success
   ///
   /// @param[in] alloc_list Pointer to the allocation list to do the seach in
-  /// @param[in] tid ID of the tensor to remove
-  /// @returns True if the tensor was found and removed
-  ErrorOr<allocated_tensor_info::value_type>
-  removeFromAllocatedList(allocated_tensor_info *alloc_list, TensorID tid);
+  /// @param[in] tid ID of the buffer to remove
+  /// @returns True if the buffer was found and removed
+  ErrorOr<allocated_buffer_info::value_type>
+  removeFromAllocatedList(allocated_buffer_info *alloc_list, BufferID tid);
 };
 
 } // namespace memory_management
