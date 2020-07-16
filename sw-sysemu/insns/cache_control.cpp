@@ -154,7 +154,7 @@ void dcache_evict_flush_vaddr(Hart& cpu, bool evict, uint64_t value)
     for (int i = 0; i < count; ++i) {
         if (!tm || cpu.tensor_mask[i]) {
             try {
-                uint64_t paddr = vmemtranslate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, mreg_t(-1), cop);
+                uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, cop);
                 LOG_HART(DEBUG, cpu, "\tDoing %s: 0x%016" PRIx64 " (0x%016" PRIx64 "), DestLevel: %d",
                          evict ? "EvictVA" : "FlushVA", vaddr, paddr, dest);
             }
@@ -202,7 +202,7 @@ void dcache_prefetch_vaddr(Hart& cpu, uint64_t value)
         if (!tm || cpu.tensor_mask[i]) {
             try {
                 cache_line_t tmp;
-                uint64_t paddr = vmemtranslate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_Prefetch, mreg_t(-1), cop);
+                uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_Prefetch, cop);
                 memory.read(cpu, paddr, L1D_LINE_SIZE, tmp.u32.data());
                 LOG_MEMREAD512(paddr, tmp.u32);
             }
@@ -310,7 +310,7 @@ void dcache_lock_vaddr(Hart& cpu, uint64_t value)
             try {
                 // LockVA is a hint, so no need to model soft-locking of the cache.
                 // We just need to make sure we zero the cache line.
-                uint64_t paddr = vmemtranslate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, mreg_t(-1), CacheOp_Lock);
+                uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, CacheOp_Lock);
                 memory.write(cpu, paddr, L1D_LINE_SIZE, tmp.u32.data());
                 LOG_MEMWRITE512(paddr, tmp.u32);
                 LOG_HART(DEBUG, cpu, "\tDoing LockVA: 0x%016" PRIx64 " (0x%016" PRIx64 ")", vaddr, paddr);
@@ -349,7 +349,7 @@ void dcache_unlock_vaddr(Hart& cpu, uint64_t value)
         if (!tm || cpu.tensor_mask[i]) {
             try {
                 // Soft-locking of the cache is not modeled, so there is nothing more to do here.
-                uint64_t paddr = vmemtranslate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, mreg_t(-1), CacheOp_Unlock);
+                uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, CacheOp_Unlock);
                 LOG_HART(DEBUG, cpu, "\tDoing UnlockVA: 0x%016" PRIx64 " (0x%016" PRIx64 ")", vaddr, paddr);
             }
             catch (const sync_trap_t& t) {

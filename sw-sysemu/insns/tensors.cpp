@@ -320,7 +320,7 @@ void tensor_load_execute(Hart& cpu, bool tenb)
                 try {
                     uint64_t vaddr = sextVA(addr + i*stride);
                     assert(addr_is_size_aligned(vaddr, L1D_LINE_SIZE));
-                    uint64_t paddr = vmemtranslate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxLoad, mreg_t(-1));
+                    uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxLoad);
                     memory.read(cpu, paddr, L1D_LINE_SIZE, SCP[idx].u32.data());
                     LOG_MEMREAD512(paddr, SCP[idx].u32.data());
                     LOG_SCP_32x16("=", idx);
@@ -357,7 +357,7 @@ void tensor_load_execute(Hart& cpu, bool tenb)
                         Packed<128> tmp;
                         uint64_t vaddr = sextVA(addr + boffset + (4*i+r)*stride);
                         assert(addr_is_size_aligned(vaddr, 16));
-                        uint64_t paddr = vmemtranslate(cpu, vaddr, 16, Mem_Access_TxLoad, mreg_t(-1));
+                        uint64_t paddr = mmu_translate(cpu, vaddr, 16, Mem_Access_TxLoad);
                         memory.read(cpu, paddr, 16, tmp.u32.data());
                         LOG_MEMREAD128(paddr, tmp.u32);
                         for (int c = 0; c < 16; ++c)
@@ -400,7 +400,7 @@ void tensor_load_execute(Hart& cpu, bool tenb)
                         Packed<256> tmp;
                         uint64_t vaddr = sextVA(addr + boffset + (2*i+r)*stride);
                         assert(addr_is_size_aligned(vaddr, 32));
-                        uint64_t paddr = vmemtranslate(cpu, vaddr, 32, Mem_Access_TxLoad, mreg_t(-1));
+                        uint64_t paddr = mmu_translate(cpu, vaddr, 32, Mem_Access_TxLoad);
                         memory.read(cpu, paddr, 32, tmp.u32.data());
                         LOG_MEMREAD256(paddr, tmp.u32);
                         for (int c = 0; c < 16; ++c)
@@ -439,7 +439,7 @@ void tensor_load_execute(Hart& cpu, bool tenb)
             uint64_t vaddr = sextVA(addr + j*stride);
             assert(addr_is_size_aligned(vaddr, L1D_LINE_SIZE));
             try {
-                uint64_t paddr = vmemtranslate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxLoad, mreg_t(-1));
+                uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxLoad);
                 memory.read(cpu, paddr, L1D_LINE_SIZE, tmp[j].u32.data());
                 LOG_MEMREAD512(paddr, tmp[j].u32);
             }
@@ -511,7 +511,7 @@ void tensor_load_l2_start(Hart& cpu, uint64_t control)
             assert(addr_is_size_aligned(vaddr, L1D_LINE_SIZE));
             try {
                 cache_line_t tmp;
-                uint64_t paddr = vmemtranslate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxLoadL2Scp, mreg_t(-1));
+                uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxLoadL2Scp);
                 memory.read(cpu, paddr, L1D_LINE_SIZE, tmp.u32.data());
                 LOG_MEMREAD512(paddr, tmp.u32);
                 memory.write(cpu, l2scp_addr, L1D_LINE_SIZE, tmp.u32.data());
@@ -802,7 +802,7 @@ void tensor_store_start(Hart& cpu, uint64_t tstorereg)
             assert(addr_is_size_aligned(addr, L1D_LINE_SIZE));
             LOG_SCP_32x16(":", src);
             try {
-                uint64_t paddr = vmemtranslate(cpu, addr, L1D_LINE_SIZE, Mem_Access_TxStore, mreg_t(-1));
+                uint64_t paddr = mmu_translate(cpu, addr, L1D_LINE_SIZE, Mem_Access_TxStore);
                 memory.write(cpu, paddr, L1D_LINE_SIZE, SCP[src].u32.data());
                 LOG_MEMWRITE512(paddr, SCP[src].u32);
                 for (int col=0; col < 16; col++) {
@@ -873,7 +873,7 @@ void tensor_store_start(Hart& cpu, uint64_t tstorereg)
             {
                 try {
                     uint64_t vaddr = sextVA((addr + row * stride) & mask);
-                    uint64_t paddr = vmemtranslate(cpu, vaddr + col*16, 16, Mem_Access_TxStore, mreg_t(-1));
+                    uint64_t paddr = mmu_translate(cpu, vaddr + col*16, 16, Mem_Access_TxStore);
                     if (!(col & 1)) LOG_FREG(":", src);
                     const uint32_t* ptr = &FREGS[src].u32[(col & 1) * 4];
                     memory.write(cpu, paddr, 16, ptr);
