@@ -38,7 +38,9 @@ FW_WORKER_SDATA_SIZE = 0x1000000; /* 16M */
 FW_SMODE_STACK_BASE  = S_DATA_REGION_BASE + S_DATA_REGION_SIZE;
 FW_SMODE_STACK_SIZE  = 4096; /* 4K stack * 2112 stacks = 8448KB */
 
-/* Size of the kenrel buffer meta-data prefix in bytes */
+/* Prefix of the kenrel buffer meta-data prefix in bytes
+*  Align to a page boundary.
+*/
 ELF_BUFFER_MD_SIZE = 4096;
 
 KERNEL_UMODE_ENTRY   = 0x8005000000 + ELF_BUFFER_MD_SIZE;

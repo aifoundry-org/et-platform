@@ -95,16 +95,6 @@ macro(test_kernel)
     EXPORT ${EXPORT_NAME}
     RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/kernels
     COMPONENT kernels)
-
-  message("${TEST_KERNEL_NAME} kernel hex to install ${TARGET_NAME_OUTPUT}")
-
-  string(REPLACE " " ";" OUTPUT_LIST ${${TARGET_NAME}_OUTPUT})
-  foreach(FILE ${OUTPUT_LIST})
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${FILE}
-      DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/kernels/${TEST_KERNEL_NAME}
-      COMPONENT zebu)
-  endforeach(FILE)
-
 endmacro()
 
 
@@ -169,13 +159,6 @@ macro(randomized_test)
       EXPORT ${EXPORT_NAME}
       RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/kernels/${TARGET_NAME}
       COMPONENT kernels)
-
-    string(REPLACE " " ";" OUTPUT_LIST ${${TARGET_NAME}_OUTPUT})
-    foreach(FILE ${OUTPUT_LIST})
-      install(FILES ${FILE}
-        DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/kernels/${TEST_NAME}
-        COMPONENT zebu)
-    endforeach(FILE)
 
   configure_file(${CMAKE_CURRENT_SOURCE_DIR}/mem_desc.txt ${TEST_BUILD_FOLDER}/mem_desc.txt)
 
