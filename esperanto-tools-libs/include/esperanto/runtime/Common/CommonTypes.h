@@ -42,8 +42,8 @@ typedef uint64_t StreamID;
 /// Unique ID of a Command
 typedef uint64_t CommandID;
 
-/// Unique ID of a Tensor
-typedef uint64_t TensorID;
+/// Unique ID of a Buffer
+typedef uint64_t BufferID;
 
 typedef uint64_t MBOXMessageTypeID;
 

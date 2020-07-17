@@ -288,35 +288,6 @@ enum etrtError etrtResetDevice();
  */
 
 /**
- * @brief  Allocate memory on the Host.
- *
- * Take a byte count and return a pointer (in the given pointer-pointer) to that
- * number of (contiguous, long-word aligned, pinned) bytes of memory on the
- * Host. This will return a failure indication if it is not possible to meet the
- * given request.
- *
- * @param[out] ptr  A pointer to a pointer where the allocated Host memory
- * region is located.
- * @param[in]  size  The number of bytes of memory that should be allocated on
- * the Host.
- * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorMemoryAllocation
- */
-enum etrtError etrtMallocHost(void **ptr, size_t size);
-
-/**
- * @brief  Free allocated Host memory.
- *
- * Take a pointer to a location in Host memory and free it.
- * This call will fail if the given pointer does not correspond to the start of
- * a region of Host memory that was not previously allocated (via
- * etrtMallocHost) by the caller's thread.
- *
- * @param[in] ptr  A pointer to a previously allocated region of Host memory.
- * @return  etrtSuccess, etrtErrorInvalidValue
- */
-enum etrtError etrtFreeHost(void *ptr);
-
-/**
  * @brief  Allocate memory on the Device.
  *
  * Take a byte count and return a pointer (in the given pointer-pointer) to that
@@ -347,27 +318,6 @@ enum etrtError etrtMalloc(void **devPtr, size_t size);
  * @return  etrtSuccess, etrtErrorInvalidValue
  */
 enum etrtError etrtFree(void *devPtr);
-
-/**
- * @brief Get information related to a region of memory allocated by this API.
- *
- * Given a pointer to a region of (Host or Device) memory currently allocated by
- * the calling process, return information about that memory region. The
- * returned information includes: where the region resides (i.e., on the Host or
- * on an attached Device), the Device on which the region exists (should it not
- * be on the Host), the Host address that corresponds to a Device's memory
- * location, and the Device address that corresponds to a Host memory location.
- *
- * TODO add a reference to the `etrtPointerAttributes` data structure
- *
- * @param[in] attributes  A pointer to the data structure that is to be filled
- * with memory region information.
- * @param[in] ptr  A pointer to an allocated region of (Host or Device) memory
- * @return  etrtSuccess, etrtErrorInvalidValue
- */
-enum etrtError
-etrtPointerGetAttributes(struct etrtPointerAttributes *attributes,
-                         const void *ptr);
 
 /**
  * @brief  Asynchronously copy the contents of one region of allocated memory to

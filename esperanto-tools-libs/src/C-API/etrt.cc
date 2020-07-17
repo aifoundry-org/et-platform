@@ -67,17 +67,6 @@ enum etrtError etrtSetDevice(int device) {
   deviceManager->setActiveDevice(device);
   return etrtSuccess;
 }
-
-enum etrtError etrtMallocHost(void **ptr, size_t size) {
-  GetDev dev;
-  return dev->mem_manager().mallocHost(ptr, size);
-}
-
-enum etrtError etrtFreeHost(void *ptr) {
-  GetDev dev;
-  return dev->mem_manager().freeHost(ptr);
-}
-
 enum etrtError etrtMalloc(void **devPtr, size_t size) {
   GetDev dev;
   return dev->mem_manager().malloc(devPtr, size);
@@ -86,13 +75,6 @@ enum etrtError etrtMalloc(void **devPtr, size_t size) {
 enum etrtError etrtFree(void *devPtr) {
   GetDev dev;
   return dev->mem_manager().free(devPtr);
-}
-
-enum etrtError
-etrtPointerGetAttributes(struct etrtPointerAttributes *attributes,
-                         const void *ptr) {
-  GetDev dev;
-  return dev->mem_manager().pointerGetAttributes(attributes, ptr);
 }
 
 // FIXME re-enable when the inteface is stable

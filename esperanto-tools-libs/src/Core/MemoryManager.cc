@@ -53,22 +53,6 @@ void MemoryManager::uninitMemRegions() {
 
 }
 
-etrtError MemoryManager::mallocHost(void **ptr, size_t size) {
-  std::unique_ptr<uint8_t[]> tptr{new uint8_t[size]};
-  *ptr = tptr.get();
-  host_mem_region_.insert(std::make_pair(tptr.get(), std::move(tptr)));
-  return etrtSuccess;
-}
-
-etrtError MemoryManager::freeHost(void *ptr) {
-  uint8_t *tptr = reinterpret_cast<uint8_t *>(ptr);
-  auto num_removed = host_mem_region_.erase(tptr);
-  if (num_removed == 0) {
-    return etrtErrorHostMemoryNotRegistered;
-  }
-  return etrtSuccess;
-}
-
 etrtError MemoryManager::reserveMemory(void *ptr, size_t size) {
   // For now this applies only to the dev mem region
   auto res = dev_mem_region_->emplace(ptr, size);
@@ -87,32 +71,6 @@ etrtError MemoryManager::malloc(void **devPtr, size_t size) {
 etrtError MemoryManager::free(void *devPtr) {
   dev_mem_region_->free(devPtr);
   return etrtSuccess;
-}
-
-etrtError
-MemoryManager::pointerGetAttributes(struct etrtPointerAttributes *attributes,
-                                    const void *ptr) {
-  void *p = (void *)ptr;
-  attributes->device = 0;
-  attributes->isManaged = false;
-  auto tptr = reinterpret_cast<uint8_t *>(const_cast<void *>(ptr));
-  if (host_mem_region_.find(tptr) != host_mem_region_.end()) {
-    attributes->memoryType = etrtMemoryTypeHost;
-    attributes->devicePointer = nullptr;
-    attributes->hostPointer = p;
-  } else if (dev_mem_region_->isPtrAllocated(ptr)) {
-    attributes->memoryType = etrtMemoryTypeDevice;
-    attributes->devicePointer = p;
-    attributes->hostPointer = nullptr;
-  } else {
-    THROW("Unexpected pointer");
-  }
-  return etrtSuccess;
-}
-
-bool MemoryManager::isPtrAllocatedHost(const void *ptr) {
-  uint8_t *tptr = reinterpret_cast<uint8_t *>(const_cast<void *>(ptr));
-  return host_mem_region_.find(tptr) == host_mem_region_.end();
 }
 
 bool MemoryManager::isPtrAllocatedDev(const void *ptr) {

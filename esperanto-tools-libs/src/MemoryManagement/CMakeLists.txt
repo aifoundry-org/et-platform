@@ -9,7 +9,7 @@
 #------------------------------------------------------------------------------
 
 add_library(etrt_MemoryManagement OBJECT
-  TensorInfo.cc
+  BufferInfo.cc
   BaseMemoryAllocator.cc
   BidirectionalAllocator.cc
   LinearAllocator.cc

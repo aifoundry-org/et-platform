@@ -31,15 +31,6 @@
 
 #include <stddef.h>
 
-
-/**
- * @brief ET Runtime memory types
- */
-enum etrtMemoryType {
-  etrtMemoryTypeHost = 1,  /**< Host memory */
-  etrtMemoryTypeDevice = 2 /**< Device memory */
-};
-
 /**
  * @brief ET Runtime memory copy types
  */
@@ -51,45 +42,6 @@ enum etrtMemcpyKind {
   etrtMemcpyDefault =
       4 /**< Direction of the transfer is inferred from the pointer values.
            Requires unified virtual addressing */
-};
-
-/**
- * @brief ET Runtime pointer attributes
- */
-struct etrtPointerAttributes {
-  /**
-   * The physical location of the memory, ::etrtMemoryTypeHost or
-   * ::etrtMemoryTypeDevice.
-   */
-  enum etrtMemoryType memoryType;
-
-  /**
-   * The device against which the memory was allocated or registered.
-   * If the memory type is ::etrtMemoryTypeDevice then this identifies
-   * the device on which the memory referred physically resides.  If
-   * the memory type is ::etrtMemoryTypeHost then this identifies the
-   * device which was current when the memory was allocated or registered
-   * (and if that device is deinitialized then this allocation will vanish
-   * with that device's state).
-   */
-  int device;
-
-  /**
-   * The address which may be dereferenced on the current device to access
-   * the memory or NULL if no such address exists.
-   */
-  void *devicePointer;
-
-  /**
-   * The address which may be dereferenced on the host to access the
-   * memory or NULL if no such address exists.
-   */
-  void *hostPointer;
-
-  /**
-   * Indicates if this pointer points to managed memory
-   */
-  int isManaged;
 };
 
 #endif // ETRT_BIN_H

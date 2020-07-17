@@ -32,23 +32,32 @@ namespace memory_management {
 /// enough to hold the memory block
 class LinearAllocator final : public BaseMemoryAllocator {
 public:
-  LinearAllocator(TensorOffsetTy base, TensorSizeTy size);
+  LinearAllocator(BufferOffsetTy base, BufferSizeTy size);
 
   /// @brief Allocate a buffer of type TesnorType and of size bites
   ///
   /// @param[in] type Type of the buffer to allocate
   /// @param[in] size Size in bytes of the buffer to allocate
-  /// @returns  Error of the ID of the tensor that was allocated
-  ErrorOr<TensorID> malloc(TensorType type, TensorSizeTy size);
+  /// @returns  Error of the ID of the buffer that was allocated
+  ErrorOr<BufferID> malloc(BufferType type, BufferSizeTy size);
 
-  /// @brief Deallocate the specific tensor
+  /// @brief Emplace a buffer in the allocator
   ///
-  /// @param[in] id ID of the tensor to deallocate
+  /// @param[in] type Type of the buffer to allocate
+  /// @param[in] offset Offset inside the code region the buffer is going to be
+  /// emplaced
+  /// @param[in] size Size of the buffer
+  ErrorOr<BufferID> emplace(BufferType type, BufferOffsetTy offset,
+                            BufferSizeTy size);
+
+  /// @brief Deallocate the specific buffer
+  ///
+  /// @param[in] id ID of the buffer to deallocate
   /// @returns Error os success
-  etrtError free(TensorID tid);
+  etrtError free(BufferID tid);
 
   /// @brief Return the total free memory
-  TensorSizeTy freeMemory() override;
+  BufferSizeTy freeMemory() override;
 
   /// @brief Print the allocator status
   void printState() override;
@@ -61,22 +70,22 @@ private:
   /// Friend class used for our testing
   friend class ::TestLinearAllocator;
 
-  /// Container type holding the information of the allocated tensors of this
+  /// Container type holding the information of the allocated buffers of this
   /// memory allocator
-  using allocated_tensor_info = std::list<std::shared_ptr<AbstractTensorInfo>>;
+  using allocated_buffer_info = std::list<std::shared_ptr<AbstractBufferInfo>>;
 
-  TensorOffsetTy base_; ///< Base offset of the memory region this allocator manages
-  TensorSizeTy size_; ///< Size of the memory region this allocator mmanages
+  BufferOffsetTy
+      base_; ///< Base offset of the memory region this allocator manages
+  BufferSizeTy size_; ///< Size of the memory region this allocator mmanages
 
-  std::list<TensorInfo<FreeRegion>> free_list_; ///< List of un-allocated memory
-  allocated_tensor_info allocated_list_; ///< List of allocated buffers in this allocator
+  std::list<BufferInfo<FreeRegion>> free_list_; ///< List of un-allocated memory
+  allocated_buffer_info allocated_list_; ///< List of allocated buffers in this allocator
 
-  /// @brief Find the information of an allocated tensor
+  /// @brief Find the information of an allocated buffer
   ///
-  /// @param[in] tid  ID of the tensor to deallocate
+  /// @param[in] tid  ID of the buffer to deallocate
   /// @returns Iterator to the allocated_list_ object
-  allocated_tensor_info::iterator findAllocatedTensor(TensorID tid);
-
+  allocated_buffer_info::iterator findAllocatedBuffer(BufferID tid);
 };
 
 } // namespace memory_management

@@ -51,23 +51,6 @@ public:
 
   /// FIXME SW-1292
   ///
-  /// @brief  Allocate memory on the Host.
-  ///
-  /// Take a byte count and return an error or a @ref HostMemoryPtr to that
-  /// number of directly DMA-able bytes of memory on the Host. This will return
-  /// a failure indication if it is not possible to meet the given request.
-  /// @ref HostMemoryPtr provides unique_ptr semantics and memory gets
-  /// automatically deallocated then lifetime of the pointer ends.
-  ///
-  /// @param[in]  size  The number of bytes of memory that should be allocated
-  /// on the Host.
-  /// @return  Error or @HostMemoryPtr to the allocated memory location on the
-  /// host
-  ///
-  ErrorOr<HostMemoryPtr> mallocHost();
-
-  /// FIXME SW-1292
-  ///
   /// @brief Allocate memory on the Device.
   ///
   /// Take a byte count and return a @ref DeviceMemoryPtr to
@@ -86,22 +69,12 @@ public:
   /// valid pointer
   ErrorOr<DeviceMemoryPtr> mallocDevice(size_t size);
 
-  /// @brief Allocate pinned memory on the host
-  etrtError mallocHost(void **ptr, size_t size);
-  /// @brief Deallocate host memory
-  etrtError freeHost(void *ptr);
   /// @brief Reserve a memory region starting at address ptr
   etrtError reserveMemory(void *ptr, size_t size);
   /// @brief Allocate memory on the device
   etrtError malloc(void **devPtr, size_t size);
   /// @brief Free device memory.
   etrtError free(void *devPtr);
-  /// @brief For a given pointer get its attributes
-  etrtError pointerGetAttributes(struct etrtPointerAttributes *attributes,
-                                 const void *ptr);
-
-  /// @brief Return true iff this is a host pointer
-  bool isPtrAllocatedHost(const void *ptr);
   /// @brief Return true iff this is a device pointer
   bool isPtrAllocatedDev(const void *ptr);
   /// @brief Return true iff this points in a device region
@@ -111,7 +84,6 @@ private:
   void initMemRegions();
   void uninitMemRegions();
 
-  std::unordered_map<uint8_t *, std::unique_ptr<uint8_t[]>> host_mem_region_;
   std::unique_ptr<LinearMemoryAllocator> dev_mem_region_;
   std::unique_ptr<LinearMemoryAllocator> kernels_dev_mem_region_;
   Device &device_;
