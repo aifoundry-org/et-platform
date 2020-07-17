@@ -84,7 +84,7 @@ TEST(Module, loadOnSysEMU_etsocmaxsplat_elf) {
   auto entrypoint_res = module->onDeviceKernelEntryPoint("etsocmaxsplat");
   ASSERT_TRUE(entrypoint_res);
   auto address = entrypoint_res.get();
-  EXPECT_EQ(address, 0x82100010a0);
+  EXPECT_EQ(address, 0x80050010A0);
 
   // Stop the simulator
   EXPECT_EQ(etrtSuccess, dev->resetDevice());

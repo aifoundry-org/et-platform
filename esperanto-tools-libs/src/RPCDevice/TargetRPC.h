@@ -66,6 +66,12 @@ public:
   /// @brief Shutdown target
   bool shutdown();
 
+  /// @brief Return the absolute base DRAM address we can access
+  uintptr_t dramBaseAddr() const;
+
+  /// @brief Return the size of DRAM we can write to in bytes.
+  uintptr_t dramSize() const;
+
   // Interace for interacting with the MailBox state using the simulator API
 
   /// @brief Get mailbox emu device

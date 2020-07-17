@@ -85,7 +85,6 @@ private:
   void uninitMemRegions();
 
   std::unique_ptr<LinearMemoryAllocator> dev_mem_region_;
-  std::unique_ptr<LinearMemoryAllocator> kernels_dev_mem_region_;
   Device &device_;
 };
 } // namespace device

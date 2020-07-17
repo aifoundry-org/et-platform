@@ -18,10 +18,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#define INCLUDE_FOR_HOST
-#include "../kernels/sys_inc.h"
-#undef INCLUDE_FOR_HOST
-
 namespace et_runtime {
 namespace device {
 
@@ -39,14 +35,11 @@ bool MemoryManager::deInit() {
   return true;
 }
 
-uintptr_t MemoryManager::ramBase() const { return RAM_MEMORY_REGION; }
+uintptr_t MemoryManager::ramBase() const { return device_.dramBaseAddr(); }
 
 void MemoryManager::initMemRegions() {
-  dev_mem_region_.reset(new LinearMemoryAllocator(GLOBAL_MEM_REGION_BASE,
-                                                  GLOBAL_MEM_REGION_SIZE));
-  kernels_dev_mem_region_.reset(
-    new LinearMemoryAllocator(EXEC_MEM_REGION_BASE, EXEC_MEM_REGION_SIZE));
-
+  dev_mem_region_.reset(
+      new LinearMemoryAllocator(device_.dramBaseAddr(), device_.dramSize()));
 }
 
 void MemoryManager::uninitMemRegions() {
