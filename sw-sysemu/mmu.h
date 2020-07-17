@@ -25,9 +25,8 @@ struct Hart;
 
 
 // MMU virtual to physical address translation
-uint64_t vmemtranslate(const Hart& cpu, uint64_t addr, size_t size,
-                       mem_access_type macc, mreg_t mask,
-                       cacheop_type cop = CacheOp_None);
+uint64_t mmu_translate(const Hart& cpu, uint64_t vaddr, size_t bytes,
+                       mem_access_type macc, cacheop_type cop = CacheOp_None);
 
 
 // MMU virtual memory read accesses
@@ -44,7 +43,7 @@ void mmu_store8    (const Hart& cpu, uint64_t eaddr, uint8_t data, mem_access_ty
 void mmu_store16   (const Hart& cpu, uint64_t eaddr, uint16_t data, mem_access_type macc);
 void mmu_store32   (const Hart& cpu, uint64_t eaddr, uint32_t data, mem_access_type macc);
 void mmu_store64   (const Hart& cpu, uint64_t eaddr, uint64_t data, mem_access_type macc);
-void mmu_storeVLEN (const Hart& cpu, uint64_t eaddr, freg_t data, mreg_t mask, mem_access_type macc);
+void mmu_storeVLEN (const Hart& cpu, uint64_t eaddr, const freg_t& data, mreg_t mask, mem_access_type macc);
 
 
 // MMU naturally aligned virtual memory read accesses
@@ -56,7 +55,7 @@ void     mmu_aligned_loadVLEN (const Hart& cpu, uint64_t eaddr, freg_t& data, mr
 // MMU naturally aligned virtual memory write accesses
 void mmu_aligned_store16   (const Hart& cpu, uint64_t eaddr, uint16_t data, mem_access_type macc);
 void mmu_aligned_store32   (const Hart& cpu, uint64_t eaddr, uint32_t data, mem_access_type macc);
-void mmu_aligned_storeVLEN (const Hart& cpu, uint64_t eaddr, freg_t data, mreg_t mask, mem_access_type macc);
+void mmu_aligned_storeVLEN (const Hart& cpu, uint64_t eaddr, const freg_t& data, mreg_t mask, mem_access_type macc);
 
 
 // MMU global atomic memory accesses
