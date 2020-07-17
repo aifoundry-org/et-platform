@@ -13,6 +13,7 @@
 #include "EmuMailBoxDev.h"
 #include "esperanto/runtime/Support/Logging.h"
 #include "esperanto/simulator-api.grpc.pb.h"
+#include <esperanto-fw/fw-helpers/layout.h>
 
 #include <inttypes.h>
 
@@ -57,6 +58,10 @@ bool RPCTarget::postFWLoadInit() {
 }
 
 bool RPCTarget::deinit() { return shutdown(); }
+
+uintptr_t RPCTarget::dramBaseAddr() const { return DRAM_MEMMAP_BEGIN; }
+
+uintptr_t RPCTarget::dramSize() const { return DRAM_MEMMAP_SIZE; }
 
 bool RPCTarget::getStatus() {
   assert(true);

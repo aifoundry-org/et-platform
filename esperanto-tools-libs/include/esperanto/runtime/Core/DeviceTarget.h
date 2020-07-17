@@ -107,6 +107,13 @@ public:
   virtual bool deinit() = 0;
   /// @brief Get status information from the device
   virtual bool getStatus() = 0;
+
+  /// @brief Return the absolute base DRAM address we can access
+  virtual uintptr_t dramBaseAddr() const = 0;
+
+  /// @brief Return the size of DRAM we can write to in bytes.
+  virtual uintptr_t dramSize() const = 0;
+
   ///
   /// @brief Get static configuration information from the device
   ///

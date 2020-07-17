@@ -54,8 +54,13 @@ public:
   bool launch() override;
   bool boot(uint64_t pc) override;
   bool shutdown() override;
+
+  /// @brief Return the absolute base DRAM address we can access
   uintptr_t dramBaseAddr() const;
+
+  /// @brief Return the size of DRAM we can write to in bytes.
   uintptr_t dramSize() const;
+
   ssize_t mboxMsgMaxSize() const override;
 
 private:

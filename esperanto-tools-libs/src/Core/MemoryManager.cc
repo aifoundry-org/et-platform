@@ -15,7 +15,6 @@
 #include "Tracing/Tracing.h"
 #include "esperanto/runtime/EsperantoRuntime.h"
 
-#include <esperanto-fw/fw-helpers/layout.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -36,11 +35,11 @@ bool MemoryManager::deInit() {
   return true;
 }
 
-uintptr_t MemoryManager::ramBase() const { return DRAM_MEMMAP_BEGIN; }
+uintptr_t MemoryManager::ramBase() const { return device_.dramBaseAddr(); }
 
 void MemoryManager::initMemRegions() {
   dev_mem_region_.reset(
-      new LinearMemoryAllocator(DRAM_MEMMAP_BEGIN, DRAM_MEMMAP_SIZE));
+      new LinearMemoryAllocator(device_.dramBaseAddr(), device_.dramSize()));
 }
 
 void MemoryManager::uninitMemRegions() {

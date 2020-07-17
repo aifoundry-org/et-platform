@@ -84,6 +84,12 @@ etrtError Device::resetDevice() {
   return etrtSuccess;
 }
 
+uintptr_t Device::dramBaseAddr() const {
+  return target_device_->dramBaseAddr();
+}
+
+uintptr_t Device::dramSize() const { return target_device_->dramSize(); }
+
 bool Device::deviceAlive() { return target_device_->alive(); }
 
 bool Device::addCommand(

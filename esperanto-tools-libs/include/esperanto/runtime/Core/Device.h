@@ -83,6 +83,12 @@ public:
   /// @brief Return true if the device is alive and we can execute commands
   bool deviceAlive();
 
+  /// @brief Return the absolute base DRAM address we can access
+  uintptr_t dramBaseAddr() const;
+
+  /// @brief Return the size of DRAM we can write to in bytes.
+  uintptr_t dramSize() const;
+
   /// @brief load the DeviceFW on the target device
   etrtError loadFirmwareOnDevice();
 
