@@ -90,37 +90,6 @@ TEST(Module, loadOnSysEMU_etsocmaxsplat_elf) {
   EXPECT_EQ(etrtSuccess, dev->resetDevice());
 }
 
-// Load a kernel that has a single segment and the ELF
-// has high addresses
-TEST(Module, loadOnSysEMU_high_address_kernel) {
-  // Send memory definition
-  fs::path p = "/proc/self/exe";
-  auto test_real_path = fs::read_symlink(p);
-  auto dir_name = test_real_path.remove_filename();
-
-  absl::SetFlag(&FLAGS_dev_target, DeviceTargetOption("sysemu_grpc"));
-  auto device_manager = et_runtime::getDeviceManager();
-  auto ret_value = device_manager->registerDevice(0);
-  auto dev = ret_value.get();
-
-  // Start the simulator
-  ASSERT_EQ(dev->init(), etrtSuccess);
-
-  auto conv_elf = dir_name / "../sample-kernel";
-  auto module = make_unique<Module>("sample_kernel", conv_elf.string());
-  EXPECT_TRUE(module->readELF());
-
-  EXPECT_TRUE(module->loadOnDevice(dev.get()));
-
-  auto entrypoint_res = module->onDeviceKernelEntryPoint("etsocfullyconnected");
-  ASSERT_TRUE(entrypoint_res);
-  auto address = entrypoint_res.get();
-  EXPECT_EQ(address, 0x81800006a0);
-
-  // Stop the simulator
-  EXPECT_EQ(etrtSuccess, dev->resetDevice());
-}
-
 } // namespace
 
 int main(int argc, char **argv) {
