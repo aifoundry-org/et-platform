@@ -93,7 +93,7 @@ bool CharacterDevice::read(uintptr_t addr, void *data, ssize_t size) {
   auto rc = ::read(fd_, data, size);
   err = errno;
   if (rc != size) {
-    RTERROR << "Failed to write full data, wrote: " << rc;
+    RTERROR << "Failed to read full data, wrote: " << rc;
     RTERROR << " Error: " << std::strerror(err) << "\n";
     return false;
   }
