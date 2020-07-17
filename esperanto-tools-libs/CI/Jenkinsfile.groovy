@@ -149,6 +149,35 @@ pipeline {
                     }
                 }
 
+                stage('Glow-Integration-Top-Level') {
+                    steps {
+                        build job: 'Software/sw-platform/glow-rt-devfw-sysemu/rt-devfw-integration-top-level',
+                            parameters: [
+                            string(name: 'BRANCH', value: "${params.SW_PLATFORM_BRANCH}"),
+                            string(name: 'COMPONENT_COMMITS',
+                                   value: "host-software/esperanto-tools-libs:${BRANCH}"),
+                            string(name: 'PARENT_JOB_NAME', value: JOB_NAME),
+                            string(name: 'PARENT_BUILD_NUMBER', value: BUILD_NUMBER),
+                            string(name: 'TIMEOUT', value: "5")
+                        ]
+                    }
+                }
+
+                stage('Zebu Checkin') {
+                    steps {
+                        build job: 'Software/sw-platform/Zebu/zebu-checkin',
+                            parameters: [
+                            string(name: 'BRANCH', value: "${params.SW_PLATFORM_BRANCH}"),
+                            string(name: 'COMPONENT_COMMITS',
+                                   value: "host-software/esperanto-tools-libs:${BRANCH}"),
+                            string(name: 'PARENT_JOB_NAME', value: JOB_NAME),
+                            string(name: 'PARENT_BUILD_NUMBER', value: BUILD_NUMBER),
+                            string(name: 'TIMEOUT', value: '8')
+                        ]
+                    }
+                }
+
+
             }
         }
     }
