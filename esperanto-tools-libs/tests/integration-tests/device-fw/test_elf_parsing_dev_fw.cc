@@ -25,7 +25,7 @@ namespace fs = std::experimental::filesystem;
 
 // Test device-fw elf parsing functionality
 // FIXME SW-1225
-TEST(ELFInfo, DISABLED_parse_device_fw_elf) {
+TEST(ELFInfo, parse_device_fw_elf) {
 
   // We expect that the elf we test with is installed next to the test-binary
   // Find the absolute pasth of the test binary
@@ -47,7 +47,7 @@ ABSL_FLAG(std::string, empty_elf, "", "Path to the empty ELF binary");
 // Test kernel elf parsing where we are we have only the
 // ELF entrypoint and no magic annocated symbols
 // FIXME SW-1225
-TEST(KernelELFInfo, DISABLED_parse_dev_fw_kernel_elf) {
+TEST(KernelELFInfo, parse_dev_fw_kernel_elf) {
 
   auto empty_elf = absl::GetFlag(FLAGS_empty_elf);
 
@@ -57,13 +57,13 @@ TEST(KernelELFInfo, DISABLED_parse_dev_fw_kernel_elf) {
   // For this kernel they are no raw kernel entrypoints
   EXPECT_TRUE(elf_info.rawKernelExists("empty"));
 
-  EXPECT_EQ(0x8105000000, elf_info.entryAddr());
+  EXPECT_EQ(0x8005001000, elf_info.entryAddr());
 }
 
 // Test kernel elf parsing where we are we have only the
 // ELF entrypoint and no magic annocated symbols
 // FIXME SW-1225
-TEST(KernelELFInfo, DISABLED_code_module_dev_fw) {
+TEST(KernelELFInfo, code_module_dev_fw) {
 
   auto empty_elf = absl::GetFlag(FLAGS_empty_elf);
 
@@ -75,7 +75,7 @@ TEST(KernelELFInfo, DISABLED_code_module_dev_fw) {
   RTDEBUG << "Elf Entry Addr 0x" << std::hex << module.elfEntryAddr() << "\n";
 
   // For this kernel they are no raw kernel entrypoints
-  EXPECT_EQ(0x8105000000, module.elfEntryAddr());
+  EXPECT_EQ(0x8005001000, module.elfEntryAddr());
 }
 
 int main(int argc, char **argv) {
