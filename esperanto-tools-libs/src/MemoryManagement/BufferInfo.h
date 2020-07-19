@@ -24,10 +24,10 @@ namespace device {
 namespace memory_management {
 
 /// Type that holds the buffer offset, inside the DRAM region we control
-using BufferOffsetTy = uint64_t;
+using BufferOffsetTy = int64_t;
 
 /// Size of a buffer in bytes
-using BufferSizeTy = uint64_t;
+using BufferSizeTy = int64_t;
 
 /// Size of the padding of a buffer in bytes
 using PaddingSizeTy = uint32_t;
@@ -215,12 +215,17 @@ public:
   };
 
   /// @brief Return the size in bytes of the buffer metadata
+  /// The size is increased to be cache-line mulitple to avoid miss-aligning
+  /// the buffer being allocated.
   static constexpr BufferSizeTy mdSize() {
     // The free list has no meta-data on the device
     if (type() == BufferType::Free) {
       return 0;
     }
-    return sizeof(buffer_type_t);
+    auto type_size = sizeof(buffer_type_t);
+    auto aligned_md_size = (((type_size + 63U) / 64U) * 64U);
+    assert(aligned_md_size >= type_size);
+    return aligned_md_size;
   }
 
   /// @brief Return the md_base, this includes the starting point of the

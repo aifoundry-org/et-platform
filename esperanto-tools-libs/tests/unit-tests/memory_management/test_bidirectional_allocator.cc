@@ -60,9 +60,13 @@ TEST_F(TestBidirectionalAllocator, mallocFront_fail_md_size) {
 
 // Single memory allocations
 TEST_F(TestBidirectionalAllocator, single_mallocFront_success) {
-  allocator.reset(new BidirectionalAllocator(100, 100));
+  auto base_start = 100;
   auto type = BufferType::Code;
-  auto res = allocator->mallocFront(type, 100 - allocator->mdSize(type));
+  auto buffer_size = 10;
+  auto total_size = buffer_size + allocator->mdSize(type);
+
+  allocator.reset(new BidirectionalAllocator(base_start, total_size));
+  auto res = allocator->mallocFront(type, buffer_size);
 
   ASSERT_TRUE((bool)res);
 
@@ -77,8 +81,8 @@ TEST_F(TestBidirectionalAllocator, single_mallocFront_success) {
   ASSERT_TRUE((bool)res);
   ASSERT_EQ(free_list().size(), 1);
   auto free_entry = free_list().front();
-  ASSERT_EQ(free_entry.base(), 100);
-  ASSERT_EQ(free_entry.size(), 100);
+  ASSERT_EQ(free_entry.base(), base_start);
+  ASSERT_EQ(free_entry.size(), total_size);
   ASSERT_TRUE(allocated_front_list().empty());
 }
 
