@@ -10,7 +10,6 @@
 
 #include "esperanto/runtime/Core/MemoryManager.h"
 
-#include "Core/MemoryAllocator.h"
 #include "DeviceAPI/Commands.h"
 #include "MemoryManagement/BidirectionalAllocator.h"
 #include "MemoryManagement/LinearAllocator.h"
