@@ -1,3 +1,13 @@
+/*-------------------------------------------------------------------------
+* Copyright (C) 2019,2020 Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*-------------------------------------------------------------------------*/
+
 #ifndef __SP_OTP_H__
 #define __SP_OTP_H__
 
@@ -6,11 +16,18 @@
 
 #include "sp_otp_data_layout.h"
 
+#define ERROR_SP_OTP_OTP_NOT_AVAILABLE -1000
+#define ERROR_SP_OTP_OTP_READ          -1001
+#define ERROR_SP_OTP_BANK_LOCKED       -1002
+#define ERROR_SP_OTP_BANK_NOT_LOCKED   -1003
+
 int sp_otp_init(void);
 int sp_otp_read(uint32_t offset, uint32_t * result);
 int sp_otp_write(uint32_t offset, uint32_t value);
 
 int sp_otp_get_pll_configuration_data(OTP_PLL_CONFIGURATION_OVERRIDE_t * table, uint32_t table_size, uint32_t * count);
+int sp_otp_get_pll_configuration_delay(OTP_PLL_CONFIGURATION_DELAY_t * config_delay);
+int sp_otp_get_pll_lock_timeout(OTP_PLL_LOCK_TIMEOUT_t * lock_timeout);
 int sp_otp_get_uart_configuration_data(OTP_UART_CONFIGURATION_OVERRIDE_t * configuration);
 int sp_otp_get_spi_configuration_data(OTP_SPI_CONFIGURATION_OVERRIDE_t * pll_100,
                                OTP_SPI_CONFIGURATION_OVERRIDE_t * pll_75,
