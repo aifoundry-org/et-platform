@@ -18,7 +18,7 @@
 
 #include "bl2_main.h"
 #include "bl2_certificates.h"
-#include "bl2_sp_otp.h"
+#include "sp_otp.h"
 #include "bl2_flashfs_driver.h"
 #include "constant_memory_compare.h"
 #include "bl2_crypto.h"
@@ -182,14 +182,14 @@ static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t * certificat
         }
 
 
-        if (0 != constant_time_memory_compare(&(certificate->certificate_info.issuer_key_identifier), 
+        if (0 != constant_time_memory_compare(&(certificate->certificate_info.issuer_key_identifier),
                                               &(parent_certificate->certificate_info.subject_key_identifier),
                                               sizeof(certificate->certificate_info.subject_key_identifier))) {
             printf("enhanced_certificate_check: Certificate parent key identifier mismatch!\n");
             return -1;
         }
 
-        if (0 != constant_time_memory_compare(&(certificate->certificate_info.issuer), 
+        if (0 != constant_time_memory_compare(&(certificate->certificate_info.issuer),
                                               &(parent_certificate->certificate_info.subject),
                                               sizeof(certificate->certificate_info.issuer))) {
             printf("enhanced_certificate_check: Certificate parent info mismatch!\n");
@@ -199,8 +199,8 @@ static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t * certificat
         if (gs_ignore_signatures) {
             MESSAGE_INFO("CRT SIG IGN\n");
         } else {
-            if (0 != crypto_verify_pk_signature(&(parent_certificate->certificate_info.subject_public_key), 
-                                                &(certificate->certificate_info_signature), 
+            if (0 != crypto_verify_pk_signature(&(parent_certificate->certificate_info.subject_public_key),
+                                                &(certificate->certificate_info_signature),
                                                 &(certificate->certificate_info),
                                                 sizeof(certificate->certificate_info))) {
                 printf("enhanced_certificate_check: signature check failed!\n");

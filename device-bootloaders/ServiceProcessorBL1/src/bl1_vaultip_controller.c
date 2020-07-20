@@ -24,7 +24,7 @@
 #include "system_registers.h"
 #include "bl1_flash_fs.h"
 #include "cache_flush_ops.h"
-//#include "bl1_sp_otp.h"
+//#include "sp_otp.h"
 //#include "bl1_pll.h"
 #include "bl1_timer.h"
 
@@ -150,7 +150,7 @@ static int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t * pinput_token) 
 /*
     MESSAGE_INFO_DEBUG("Wrote token:\n");
     for (n = 0; n < 64; n+=8) {
-        MESSAGE_INFO_DEBUG("  %08x %08x %08x %08x %08x %08x %08x %08x\n", 
+        MESSAGE_INFO_DEBUG("  %08x %08x %08x %08x %08x %08x %08x %08x\n",
                pinput_token->dw[n+0], pinput_token->dw[n+1], pinput_token->dw[n+2], pinput_token->dw[n+3],
                pinput_token->dw[n+4], pinput_token->dw[n+5], pinput_token->dw[n+6], pinput_token->dw[n+7]);
     }
@@ -301,14 +301,14 @@ int vaultip_get_system_information(uint32_t identity, VAULTIP_OUTPUT_TOKEN_SYSTE
     volatile VAULTIP_HW_REGS_t * vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
 
     (void)vaultip_regs;
-    
+
     memset(&gs_input_token, 0, sizeof(gs_input_token));
     memset(&gs_output_token, 0, sizeof(gs_output_token));
 
     gs_input_token.dw_00.TokenID = get_next_token_id();
     gs_input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_SYSTEM;
     gs_input_token.dw_00.SubCode = VAULTIP_TOKEN_SYSTEM_SUBCODE_SYSTEM_INFORMATION;
-    
+
     gs_input_token.dw_01.Identity = identity;
 
     //time_start = timer_get_ticks_count();
@@ -696,7 +696,7 @@ int vaultip_provision_huk(uint32_t coid) {
     gs_input_token.dw_00.TokenID = get_next_token_id();
     gs_input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_ASSET_MANAGEMENT;
     gs_input_token.dw_00.SubCode = VAULTIP_TOKEN_ASSET_MANAGEMENT_SUBCODE_PROVISION_RANDOM_HUK;
-    
+
     gs_input_token.dw_01.Identity = coid;
 
     gs_input_token.provision_huk.dw_02.AssetNumber = VAULTIP_STATIC_ASSET_HUK;
@@ -976,7 +976,7 @@ int vaultip_mac_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32
     gs_input_token.mac.dw_06.AS_LoadKey = 1u;
     gs_input_token.mac.dw_06.AS_LoadMAC = 0u;
     gs_input_token.mac.dw_06.KeyLength = 0u;
- 
+
     gs_input_token.mac.dw_07.MAC_AS_ID = 0;
     gs_input_token.dw[28] = key_asset_id;
 
@@ -1046,7 +1046,7 @@ int vaultip_mac_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t
     gs_input_token.mac.dw_06.AS_LoadKey = 1u;
     gs_input_token.mac.dw_06.AS_LoadMAC = 1u;
     gs_input_token.mac.dw_06.KeyLength = 0u;
- 
+
     gs_input_token.mac.dw_07.MAC_AS_ID = 0;
     memcpy(gs_input_token.mac.dw_23_08, mac, mac_size);
 
@@ -1112,7 +1112,7 @@ int vaultip_mac_update(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t
     gs_input_token.mac.dw_06.AS_LoadKey = 1u;
     gs_input_token.mac.dw_06.AS_LoadMAC = 0u;
     gs_input_token.mac.dw_06.KeyLength = 0u;
- 
+
     gs_input_token.mac.dw_07.MAC_AS_ID = mac_asset_id;
     gs_input_token.dw[28] = key_asset_id;
 
@@ -1178,7 +1178,7 @@ int vaultip_mac_final_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, 
     gs_input_token.mac.dw_06.AS_LoadKey = 1u;
     gs_input_token.mac.dw_06.AS_LoadMAC = 0u;
     gs_input_token.mac.dw_06.KeyLength = 0u;
- 
+
     gs_input_token.mac.dw_07.MAC_AS_ID = mac_asset_id;
 
     gs_input_token.mac.dw_24.TotalMessageLength_31_00 = total_msg_size & 0xFFFFFFFF;
@@ -1249,7 +1249,7 @@ int vaultip_mac_final_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, ui
     gs_input_token.mac.dw_06.AS_LoadKey = 1u;
     gs_input_token.mac.dw_06.AS_LoadMAC = 1u;
     gs_input_token.mac.dw_06.KeyLength = 0u;
- 
+
     gs_input_token.mac.dw_07.MAC_AS_ID = mac_asset_id;
     memcpy(gs_input_token.mac.dw_23_08, mac, mac_size);
 
@@ -1530,9 +1530,9 @@ int vaultip_static_asset_search(uint32_t identity, VAULTIP_STATIC_ASSET_ID_t ass
     }
 }
 
-int vaultip_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t identity, uint32_t public_key_asset_id, 
-                                 uint32_t curve_parameters_asset_id, uint32_t temp_message_digest_asset_id, 
-                                 const void * message, uint32_t message_size, uint32_t hash_data_length, 
+int vaultip_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t identity, uint32_t public_key_asset_id,
+                                 uint32_t curve_parameters_asset_id, uint32_t temp_message_digest_asset_id,
+                                 const void * message, uint32_t message_size, uint32_t hash_data_length,
                                  const void * sig_data_address, uint32_t sig_data_size) {
     uint32_t modulus_size;
     uint32_t modulus_words;
@@ -1596,8 +1596,8 @@ int vaultip_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t identit
     }
 }
 
-int vaultip_public_key_rsa_pss_verify(uint32_t modulus_size, uint32_t identity, uint32_t public_key_asset_id, 
-                                      uint32_t temp_message_digest_asset_id, const void * message, uint32_t message_size, 
+int vaultip_public_key_rsa_pss_verify(uint32_t modulus_size, uint32_t identity, uint32_t public_key_asset_id,
+                                      uint32_t temp_message_digest_asset_id, const void * message, uint32_t message_size,
                                       uint32_t hash_data_length, const void * sig_data_address, uint32_t sig_data_size,
                                       uint32_t salt_length) {
     uint32_t modulus_words;

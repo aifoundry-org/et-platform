@@ -17,7 +17,7 @@
 #include "bl1_flash_fs.h"
 #include "bl1_sp_certificates.h"
 #include "bl1_sp_firmware_loader.h"
-#include "bl1_sp_otp.h"
+#include "sp_otp.h"
 #include "constant_memory_compare.h"
 #include "bl1_crypto.h"
 #include "key_derivation_data.h"
@@ -128,9 +128,9 @@ static int verify_bl2_image_file_header(ESPERANTO_IMAGE_FILE_HEADER_t * sp_bl2_f
         MESSAGE_INFO("BL2 SIG IGN\n");
         return 0;
     } else {
-        if (0 != crypto_verify_pk_signature(&(sp_bl2_file_header->info.signing_certificate.certificate_info.subject_public_key), 
+        if (0 != crypto_verify_pk_signature(&(sp_bl2_file_header->info.signing_certificate.certificate_info.subject_public_key),
                                             &(sp_bl2_file_header->info.image_info_and_signaure.info_signature),
-                                            &(sp_bl2_file_header->info.image_info_and_signaure.info), 
+                                            &(sp_bl2_file_header->info.image_info_and_signaure.info),
                                             sizeof(sp_bl2_file_header->info.image_info_and_signaure.info))) {
             printx("bl2_firmware signature is not valid!\n");
             return -1;
@@ -247,7 +247,7 @@ static int load_bl2_code_and_data(const ESPERANTO_IMAGE_FILE_HEADER_t * sp_bl2_f
             printx("load_bl2_code_and_data: encrypted code+data hash mismatch!\n");
             goto CLEANUP_ON_ERROR;
         }
-    
+
         if (0 != crypto_aes_decrypt_final(&gs_sp_bl2_aes_context, NULL, 0, NULL)) {
             printx("load_bl2_code_and_data: crypto_aes_decrypt_final() failed!\n");
             goto CLEANUP_ON_ERROR;

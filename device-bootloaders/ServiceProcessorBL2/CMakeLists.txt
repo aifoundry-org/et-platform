@@ -32,7 +32,6 @@ set(BL2_SOURCES
     src/bl2_firmware_loader.c
     src/bl2_reset.c
     src/bl2_sp_pll.c
-    src/bl2_sp_otp.c
     src/bl2_ddr_init.c
     src/bl2_minion_pll_and_dll.c
     src/bl2_timer.c
@@ -47,6 +46,7 @@ set(SOURCES
     ${BL2_SOURCES}
     ${FREERTOS_SRC_FILES}
     ${SHARED_SRC_DIR}/serial.c
+    ${SHARED_SRC_DIR}/sp_otp.c
 )
 
 set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/src/sections.ld)

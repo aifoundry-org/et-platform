@@ -1,18 +1,15 @@
 //#define PRINT_OTP_STATUS
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "io.h"
-#include "printx.h"
-#include "bl1_main.h"
-
-#include <stdint.h>
+#include "sp_otp.h"
 
 #include "etsoc_hal/inc/rm_esr.h"
 #include "etsoc_hal/inc/cm_esr.h"
-#include "bl1_sp_otp.h"
 #include "etsoc_hal/inc/hal_device.h"
 
 static uint32_t gs_sp_otp_lock_bits[2];
@@ -912,8 +909,8 @@ FAILURE:
 }
 
 void sp_otp_diag(void) {
-    MESSAGE_INFO("OTP: %03x %03x\n", 0xFFF & (gs_chicken_bits.R >> 20u), 0xFFF & (gs_misc_configuration.R >> 20u));
 #if 0
+    MESSAGE_INFO("OTP: %03x %03x\n", 0xFFF & (gs_chicken_bits.R >> 20u), 0xFFF & (gs_misc_configuration.R >> 20u));
     uint32_t dw0, dw1, dw2, dw3;
     sp_otp_read(232, &dw0);
     sp_otp_read(233, &dw1);

@@ -22,7 +22,7 @@
 #include "bl2_vaultip_driver.h"
 #include "bl2_reset.h"
 #include "bl2_sp_pll.h"
-#include "bl2_sp_otp.h"
+#include "sp_otp.h"
 #include "bl2_sp_memshire_pll.h"
 #include "bl2_minion_pll_and_dll.h"
 #include "bl2_ddr_init.h"

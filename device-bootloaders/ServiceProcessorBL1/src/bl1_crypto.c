@@ -22,7 +22,7 @@
 #include "bl1_flash_fs.h"
 #include "printx.h"
 //#include "bl1_sp_gpio.h"
-//#include "bl1_sp_otp.h"
+//#include "sp_otp.h"
 
 #pragma GCC diagnostic ignored "-Wswitch-enum"
 
@@ -84,7 +84,7 @@ int crypto_derive_kdk_key(const void * kdk_derivation_data, size_t kdk_derivatio
         MESSAGE_ERROR_DEBUG("derive_kdk: vaultip_asset_create() failed!\n");
         return -1;
     }
- 
+
     // derive KDK
     if (0 != vaultip_asset_load_derive(get_rom_identity(), *kdk_asset_id, huk_asset_id, NULL, 0, (const uint8_t *)kdk_derivation_data, (uint32_t)kdk_derivation_data_size, NULL, 0)) {
         MESSAGE_ERROR_DEBUG("derive_kdk: vaultip_asset_load_derive() failed!\n");
@@ -126,7 +126,7 @@ int crypto_derive_mac_key(ESPERANTO_MAC_TYPE_t mac_alg, uint32_t kdk_asset_id, c
         MESSAGE_ERROR_DEBUG("derive_mack: vaultip_asset_create() failed!\n");
         return -1;
     }
- 
+
     // derive MACK
     if (0 != vaultip_asset_load_derive(get_rom_identity(), *mack_asset_id, kdk_asset_id, NULL, 0, (const uint8_t *)mack_derivation_data, (uint32_t)mack_derivation_data_size, NULL, 0)) {
         MESSAGE_ERROR_DEBUG("derive_mack: vaultip_asset_load_derive() failed!\n");
@@ -151,7 +151,7 @@ int crypto_derive_enc_key(uint32_t kdk_asset_id, const void * enck_derivation_da
         MESSAGE_ERROR_DEBUG("derive_enck: vaultip_asset_create() failed!\n");
         return -1;
     }
- 
+
     // derive ENCK
     if (0 != vaultip_asset_load_derive(get_rom_identity(), *enck_asset_id, kdk_asset_id, NULL, 0, (const uint8_t *)enck_derivation_data, (uint32_t)enck_derivation_data_size, NULL, 0)) {
         MESSAGE_ERROR_DEBUG("derive_enck: vaultip_asset_load_derive() failed!\n");
@@ -352,11 +352,11 @@ int crypto_hash_init(CRYPTO_HASH_CONTEXT_t * hash_context, HASH_ALG_t hash_alg) 
         return -1;
     }
 
-    if (0 != vaultip_asset_create(get_rom_identity(), 
-                                  temp_digest_asset_policy.lo, 
-                                  temp_digest_asset_policy.hi, 
-                                  temp_digest_asset_other_settings, 
-                                  0, // lifetime, 
+    if (0 != vaultip_asset_create(get_rom_identity(),
+                                  temp_digest_asset_policy.lo,
+                                  temp_digest_asset_policy.hi,
+                                  temp_digest_asset_other_settings,
+                                  0, // lifetime,
                                   &(hash_context->temp_digest_asset_id))) {
         MESSAGE_ERROR_DEBUG("crypto_hash_init: vaultip_asset_create() failed!\n");
         return -1;
@@ -443,7 +443,7 @@ static void crypto_reverse_copy(void * dst, const void * src, size_t size) {
     }
 }
 
-int crypto_mac_verify(ESPERANTO_MAC_TYPE_t mac_alg, 
+int crypto_mac_verify(ESPERANTO_MAC_TYPE_t mac_alg,
                       const uint32_t mack_key,
                       const void * data, size_t data_size,
                       const void * mac) {
@@ -1355,9 +1355,9 @@ static int crypto_ecdsa_verify(const PUBLIC_KEY_EC_t * ecdsa_public_key, const P
     // MESSAGE_INFO_DEBUG("Message data addr: %p, size: 0x%x\n", data, data_size);
 
     // verify the signature
-    if (0 != vaultip_public_key_ecdsa_verify(ecdsa_public_key->curveID, get_rom_identity(), 
+    if (0 != vaultip_public_key_ecdsa_verify(ecdsa_public_key->curveID, get_rom_identity(),
                                              public_key_asset_id, public_key_parameters_asset_id, temp_hash_asset_id,
-                                             data, (uint32_t)data_size, total_data_size, 
+                                             data, (uint32_t)data_size, total_data_size,
                                              signature_data_ptr, signature_data_size)) {
         MESSAGE_ERROR_DEBUG("crypto_ecdsa_verify: vaultip_public_key_ecdsa_verify() failed!\n");
         rv = -1;
@@ -1637,9 +1637,9 @@ static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t * rsa_public_key, const PUBL
     }
 
     // verify the signature
-    if (0 != vaultip_public_key_rsa_pss_verify(rsa_public_key->keySize, get_rom_identity(), 
+    if (0 != vaultip_public_key_rsa_pss_verify(rsa_public_key->keySize, get_rom_identity(),
                                              public_key_asset_id, temp_hash_asset_id,
-                                             data, (uint32_t)data_size, total_data_size, 
+                                             data, (uint32_t)data_size, total_data_size,
                                              signature_data_ptr, signature_data_size, salt_length)) {
         MESSAGE_ERROR_DEBUG("crypto_rsa_verify: vaultip_public_key_rsa_pss_verify() failed!\n");
         rv = -1;
@@ -1661,7 +1661,7 @@ DONE:
 
 int crypto_verify_pk_signature(const PUBLIC_KEY_t * public_key, const PUBLIC_SIGNATURE_t * signature, const void * data, size_t data_size) {
     int rv;
-    ASSET_POLICY_t temp_digest_asset_policy = (ASSET_POLICY_t){ 
+    ASSET_POLICY_t temp_digest_asset_policy = (ASSET_POLICY_t){
         .u64 = VAL_POLICY_TEMP_MAC
     };
     VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t temp_digest_asset_other_settings = (VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t){

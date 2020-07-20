@@ -15,7 +15,7 @@
 #include "bl1_crypto.h"
 #include "bl1_build_configuration.h"
 #include "build_configuration.h"
-#include "bl1_sp_otp.h"
+#include "sp_otp.h"
 #include "io.h"
 
 #include "etsoc_hal/inc/rm_esr.h"

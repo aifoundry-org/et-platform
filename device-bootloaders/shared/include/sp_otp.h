@@ -1,5 +1,5 @@
-#ifndef __BL1_SP_OTP_H__
-#define __BL1_SP_OTP_H__
+#ifndef __SP_OTP_H__
+#define __SP_OTP_H__
 
 #include <stdint.h>
 #include <stdbool.h>

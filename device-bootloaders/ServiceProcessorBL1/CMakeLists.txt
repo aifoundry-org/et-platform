@@ -18,10 +18,10 @@ set(SOURCES
     src/bl1_crypto.c
     src/bl1_sp_certificates.c
     src/bl1_sp_firmware_loader.c
-    src/bl1_sp_otp.c
     src/bl1_vaultip_controller.c
-    # This file get compiled different based on the serial_device.h configuration of each target
     ${SHARED_SRC_DIR}/serial.c
+    ${SHARED_SRC_DIR}/sp_otp.c
+    # This file get compiled different based on the serial_device.h configuration of each target
     src/bl1_build_configuration.c)
 
 set(TARGET_NAME ServiceProcessorBL1)

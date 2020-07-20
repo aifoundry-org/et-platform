@@ -18,7 +18,7 @@
 #include "bl2_crypto.h"
 #include "bl2_certificates.h"
 #include "bl2_firmware_loader.h"
-#include "bl2_sp_otp.h"
+#include "sp_otp.h"
 #include "constant_memory_compare.h"
 
 #include "key_derivation_data.h"
@@ -184,9 +184,9 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type, ESP
         MESSAGE_INFO("Image SIG IGN\n");
         return 0;
     } else {
-        if (0 != crypto_verify_pk_signature(&(image_file_header->info.signing_certificate.certificate_info.subject_public_key), 
+        if (0 != crypto_verify_pk_signature(&(image_file_header->info.signing_certificate.certificate_info.subject_public_key),
                                             &(image_file_header->info.image_info_and_signaure.info_signature),
-                                            &(image_file_header->info.image_info_and_signaure.info), 
+                                            &(image_file_header->info.image_info_and_signaure.info),
                                             sizeof(image_file_header->info.image_info_and_signaure.info))) {
             printf("firmware signature is not valid!\n");
             return -1;
@@ -341,7 +341,7 @@ static int load_image_code_and_data( ESPERANTO_FLASH_REGION_ID_t region_id, cons
             printf("load_image_code_and_data: encrypted code+data hash mismatch!\n");
             goto CLEANUP_ON_ERROR;
         }
-    
+
         if (0 != crypto_aes_decrypt_final(&gs_aes_context, NULL, 0, NULL)) {
             printf("load_bl1_code_and_data: crypto_aes_decrypt_final() failed!\n");
             goto CLEANUP_ON_ERROR;

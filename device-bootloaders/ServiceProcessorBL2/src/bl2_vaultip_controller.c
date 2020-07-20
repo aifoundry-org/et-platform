@@ -25,7 +25,7 @@
 #include "system_registers.h"
 #include "bl2_flash_fs.h"
 #include "cache_flush_ops.h"
-//#include "bl2_sp_otp.h"
+//#include "sp_otp.h"
 //#include "bl2_pll.h"
 #include "bl2_timer.h"
 
