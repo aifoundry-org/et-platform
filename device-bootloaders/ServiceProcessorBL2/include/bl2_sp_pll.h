@@ -3,6 +3,10 @@
 
 #include <stdint.h>
 
+#define ERROR_SP_PLL_CONFIG_DATA_NOT_FOUND             -1000
+#define ERROR_SP_PLL_PLL_LOCK_TIMEOUT                  -1001
+#define ERROR_SP_PLL_INVALID_PLL_ID                    -1002
+
 typedef enum PLL_ID_e {
     PLL_ID_INVALID,
     PLL_ID_SP_PLL_0,

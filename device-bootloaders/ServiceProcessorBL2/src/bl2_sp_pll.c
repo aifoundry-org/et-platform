@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "error.h"
 #include "io.h"
 #include "bl2_sp_pll.h"
 #include "bl2_main.h"
@@ -32,10 +33,9 @@ static uint32_t gs_sp_pll_2_frequency;
 static uint32_t gs_sp_pll_4_frequency;
 static uint32_t gs_pcie_pll_0_frequency;
 
-static int release_pshire_from_reset(void) {
+static void release_pshire_from_reset(void) {
     iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_PSHIRE_COLD_ADDRESS, RESET_MANAGER_RM_PSHIRE_COLD_RSTN_SET(1));
     iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_PSHIRE_WARM_ADDRESS, RESET_MANAGER_RM_PSHIRE_WARM_RSTN_SET(1));
-    return 0;
 }
 
 uint32_t get_input_clock_index(void) {
@@ -84,14 +84,12 @@ static int configure_pll(volatile uint32_t * pll_registers, uint8_t mode, PLL_ID
         }
     }
 
-    return -1;
+    return ERROR_SP_PLL_CONFIG_DATA_NOT_FOUND;
 
 FOUND_CONFIG_DATA:
 
     if (PLL_ID_PSHIRE == pll_id) {
-        if (0 != release_pshire_from_reset()) {
-            return -1;
-        }
+        release_pshire_from_reset();
     }
 
     // program the PLL registers using generated configuration data
@@ -135,14 +133,15 @@ FOUND_CONFIG_DATA:
     // POTENTIAL BUG WORKAROUND END
     ///////////////////////////////////////////////////////////////////////////////////////
 
-    // wait for the PLL to lock
+    // Wait for the PLL to lock within a given timeout
     while (timeout > 0) {
         if (pll_registers[PLL_REG_INDEX_REG_LOCK_DETECT_STATUS] & 1) {
             return 0;
         }
-        // XXX: Should timeout be decremented?
+        --timeout;
     }
-    return -2;
+
+    return ERROR_SP_PLL_PLL_LOCK_TIMEOUT;
 }
 
 static int clock_manager_pll_bypass(PLL_ID_t pll, bool bypass_enable) {
@@ -166,7 +165,7 @@ static int clock_manager_pll_bypass(PLL_ID_t pll, bool bypass_enable) {
     case PLL_ID_SP_PLL_3:
     case PLL_ID_INVALID:
     default:
-        return -1;
+        return ERROR_SP_PLL_INVALID_PLL_ID;
     }
 
     return 0;
@@ -177,12 +176,10 @@ static int configure_sp_pll(PLL_ID_t pll_id, volatile uint32_t * pll_registers, 
 
     rv = configure_pll(pll_registers, mode[get_input_clock_index()], pll_id);
     if (0 != rv) {
-        rv = -1;
         goto ERROR;
     }
 
     if (0 != clock_manager_pll_bypass(pll_id, false)) {
-        rv = -2;
         goto ERROR;
     }
 
@@ -225,7 +222,7 @@ int configure_sp_pll_4(void) {
 
 int get_pll_frequency(PLL_ID_t pll_id, uint32_t * frequency) {
     if (NULL == frequency) {
-        return -1;
+        return ERROR_INVALID_ARGUMENT;
     }
 
     switch (pll_id) {
@@ -247,7 +244,7 @@ int get_pll_frequency(PLL_ID_t pll_id, uint32_t * frequency) {
     case PLL_ID_SP_PLL_3:
     case PLL_ID_INVALID:
     default:
-        return -1;
+        return ERROR_SP_PLL_INVALID_PLL_ID;
     }
 }
 
