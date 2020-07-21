@@ -8,6 +8,8 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
+add_subdirectory(python)
+
 set(TRACING_PB ${CMAKE_CURRENT_BINARY_DIR}/etrt-trace)
 
 file(GLOB_RECURSE SCHEMA_SRC_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}} Schema/*.yaml)
@@ -58,7 +60,7 @@ set(_PROTOBUF_PROTOC $<TARGET_FILE:protobuf::protoc>)
 
 set(ETRT_TRACING_PROTO_SRCS "${CMAKE_CURRENT_BINARY_DIR}/etrt-trace.pb.cc")
 set(ETRT_TRACING_PROTO_HDRS "${CMAKE_CURRENT_BINARY_DIR}/etrt-trace.pb.h")
-set(ETRT_TRACING_PROTO_PY "${CMAKE_CURRENT_BINARY_DIR}/etrt_trace_pb2.py")
+set(ETRT_TRACING_PROTO_PY "${CMAKE_CURRENT_BINARY_DIR}/python/rt_logging/etrt_trace_pb2.py")
 
 add_custom_command(
   OUTPUT ${ETRT_TRACING_PROTO_SRCS} ${ETRT_TRACING_PROTO_HDRS}
@@ -73,7 +75,7 @@ add_custom_command(
   OUTPUT  ${ETRT_TRACING_PROTO_PY}
   COMMAND python3 -m grpc_tools.protoc
   ARGS    -I"${CMAKE_CURRENT_BINARY_DIR}"
-          --python_out=${CMAKE_CURRENT_BINARY_DIR}
+          --python_out=${CMAKE_CURRENT_BINARY_DIR}/python/rt_logging/
           ${TRACING_PB}
   DEPENDS ${TRACING_PB}
   )
