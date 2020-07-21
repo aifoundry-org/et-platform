@@ -42,10 +42,11 @@ BidirectionalAllocator::findAllocatedBuffer(BufferID tid) {
 }
 
 ErrorOr<BufferID> BidirectionalAllocator::mallocFront(BufferType type,
-                                                      BufferSizeTy size) {
+                                                      BufferSizeTy size,
+                                                      BufferSizeTy alignment) {
   // Compute the buffer type's metadata header size
   auto md_size = mdSize(type);
-  auto total_size = md_size + size;
+  auto total_size = alignmentFixSize(size, md_size, alignment);
   // find the first free buffer where we can allocate a buffer
   auto res =
       std::find_if(free_list_.begin(), free_list_.end(),
@@ -63,11 +64,14 @@ ErrorOr<BufferID> BidirectionalAllocator::mallocFront(BufferType type,
     free_list_.erase(res);
   } else {
     // Resize the free buffer
-    res->buffer_info().hdr.base += total_size;
-    res->buffer_info().hdr.size -= total_size;
+    res->base(res->base() + total_size);
+    res->size(res->size() - total_size);
   }
 
-  auto buffer = createBufferInfo(type, base + md_size, size);
+  auto aligned_start = alignedStart(base, md_size, alignment);
+  assert((aligned_start + size) <= (base + total_size));
+
+  auto buffer = createBufferInfo(type, base, aligned_start, size, total_size);
 
   // Insert the buffer in the allocated list
   auto alloc_pos = std::find_if(
@@ -94,16 +98,17 @@ ErrorOr<BufferID> BidirectionalAllocator::mallocFront(BufferType type,
 
   // FIXME add the device-id
   TRACE_MemoryManager_BidirectionalAllocator_mallocFront(
-      0, static_cast<int>(type), buffer->id(), base, md_size, size, left_buffer,
-      right_buffer);
+      0, static_cast<int>(type), buffer->id(), base, aligned_start, md_size,
+      size, total_size, left_buffer, right_buffer);
   return buffer->id();
 }
 
 ErrorOr<BufferID> BidirectionalAllocator::mallocBack(BufferType type,
-                                                     BufferSizeTy size) {
+                                                     BufferSizeTy size,
+                                                     BufferSizeTy alignment) {
   // Compute the buffer type's metadata header size
   auto md_size = mdSize(type);
-  auto total_size = md_size + size;
+  auto total_size = alignmentFixSize(size, md_size, alignment);
   // find the first free buffer where we can allocate a buffer, starting the
   // search from the end.
   auto res =
@@ -130,10 +135,13 @@ ErrorOr<BufferID> BidirectionalAllocator::mallocBack(BufferType type,
     free_list_.erase(fwit_elem);
   } else {
     // Resize the free buffer, remove from the end of the buffer
-    res->buffer_info().hdr.size -= total_size;
+    res->size(res->size() - total_size);
   }
 
-  auto buffer = createBufferInfo(type, base + md_size, size);
+  auto aligned_start = alignedStart(base, md_size, alignment);
+  assert((aligned_start + size) <= (base + total_size));
+
+  auto buffer = createBufferInfo(type, base, aligned_start, size, total_size);
 
   // Insert the buffer in the allocated list
   auto alloc_pos = std::find_if(
@@ -160,8 +168,8 @@ ErrorOr<BufferID> BidirectionalAllocator::mallocBack(BufferType type,
 
   // FIXME add the device-id
   TRACE_MemoryManager_BidirectionalAllocator_mallocBack(
-      0, static_cast<int>(type), buffer->id(), base, md_size, size, left_buffer,
-      right_buffer);
+      0, static_cast<int>(type), buffer->id(), base, aligned_start, md_size,
+      size, total_size, left_buffer, right_buffer);
   return buffer->id();
 }
 
@@ -208,14 +216,14 @@ etrtError BidirectionalAllocator::free(BufferID tid) {
 
   auto dead_buffer = dead_buffer_res.get();
   // Update the list, find and if necessary not concatenate the free region
-  auto free_base = dead_buffer->mdBase();
+  auto free_base = dead_buffer->base();
   auto free_end_offset = dead_buffer->endOffset();
-  auto free_size = dead_buffer->totalSize();
+  auto free_size = dead_buffer->size();
 
   auto free_list_neighbor = find_if(
       free_list_.begin(), free_list_.end(),
       [free_base](const decltype(free_list_)::value_type &elem) -> bool {
-        return free_base < elem.mdBase();
+        return free_base < elem.base();
       });
 
   if (free_list_neighbor == free_list_.end()) {
@@ -228,7 +236,7 @@ etrtError BidirectionalAllocator::free(BufferID tid) {
       if (last_elem.endOffset() == free_base) {
         // If the previous buffer is directly next to this one, extend its
         // size
-        last_elem.buffer_info().hdr.size += free_size;
+        last_elem.size(last_elem.size() + free_size);
       } else {
         // otherwise add another free region at the end of the free list
         free_list_.emplace_back(free_base, free_size);
@@ -239,23 +247,23 @@ etrtError BidirectionalAllocator::free(BufferID tid) {
     auto left_neighbor = std::prev(free_list_neighbor);
     // check if the free-region on the right is directly next to the new free
     // space and expand it
-    if (free_end_offset == free_list_neighbor->mdBase()) {
-      free_list_neighbor->buffer_info().hdr.base = free_base;
-      free_list_neighbor->buffer_info().hdr.size += free_size;
+    if (free_end_offset == free_list_neighbor->base()) {
+      free_list_neighbor->base(free_base);
+      free_list_neighbor->size(free_list_neighbor->size() + free_size);
       // Check if the expanded region on the right "touches" the existing
       // region
       // to the left and merge them if true
       if (left_neighbor != free_list_.end() //
-          && left_neighbor->endOffset() == free_list_neighbor->mdBase()) {
+          && left_neighbor->endOffset() == free_list_neighbor->base()) {
         // merge the 2 memory regions
-        left_neighbor->buffer_info().hdr.size += free_list_neighbor->size();
+        left_neighbor->size(left_neighbor->size() + free_list_neighbor->size());
         free_list_.erase(free_list_neighbor);
       }
     } else if (left_neighbor != free_list_.end() //
                && left_neighbor->endOffset() == free_base) {
       // The new free region is "touching" the left neighbor, extend the
       // left neighbor
-      left_neighbor->buffer_info().hdr.size += free_size;
+      left_neighbor->size(left_neighbor->size() + free_size);
       // We do not need to check the right neighbor as we not from the above
       // that we are not
     } else {
@@ -280,9 +288,7 @@ BufferSizeTy BidirectionalAllocator::freeMemory() {
 void BidirectionalAllocator::printState() {
   std::cout << "Free List: \n";
   for (auto &i : free_list_) {
-    std::cout << "\tRegion: " << i.base() //
-              << " size: " << i.size()    //
-              << "\n";
+    std::cout << "\t" << i << "\n";
   }
   std::cout << "Alloc Region\n";
   for (auto &i : allocated_front_list_) {
@@ -313,17 +319,23 @@ void BidirectionalAllocator::printStateJSON() {
   sstr << "\"AllocRegion\": [";
   for (auto i = allocated_front_list_.begin(); i != allocated_front_list_.end();
        ++i) {
-    sstr << "{"
-         << "\"ID\": " << (*i)->id() << ", \"mdbase\": " << (*i)->mdBase()
-         << ", \"base\": " << (*i)->base() << ", \"size\": " << (*i)->size()
+    sstr << "{"                                            //
+         << "\"ID\": " << (*i)->id()                       //
+         << ", \"base\": " << (*i)->base()                 //
+         << ", \"mdbase\": " << (*i)->mdBase()             //
+         << ", \"alignedStart\": " << (*i)->alignedStart() //
+         << ", \"size\": " << (*i)->size()                 //
          << "}, ";
   }
   cnt = 0;
   for (auto i = allocated_back_list_.begin(); i != allocated_back_list_.end();
        ++i, ++cnt) {
-    sstr << "{"
-         << "\"ID\": " << (*i)->id() << ", \"mdbase\": " << (*i)->mdBase()
-         << ", \"base\": " << (*i)->base() << ", \"size\": " << (*i)->size()
+    sstr << "{"                                            //
+         << "\"ID\": " << (*i)->id()                       //
+         << ", \"base\": " << (*i)->base()                 //
+         << ", \"mdbase\": " << (*i)->mdBase()             //
+         << ", \"alignedStart\": " << (*i)->alignedStart() //
+         << ", \"size\": " << (*i)->size()                 //
          << "}";
     if (cnt + 1 < allocated_back_list_.size()) {
       sstr << ",";

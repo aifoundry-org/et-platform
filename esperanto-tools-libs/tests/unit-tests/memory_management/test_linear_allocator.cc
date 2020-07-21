@@ -46,7 +46,7 @@ TEST(List, prev) {
 // tensor meta-data
 TEST_F(TestLinearAllocator, malloc_fail_md_size) {
   allocator.reset(new LinearAllocator(100, 100));
-  auto res = allocator->malloc(BufferType::Code, 100);
+  auto res = allocator->malloc(BufferType::Code, 100, 0);
 
   ASSERT_FALSE((bool)res);
 }
@@ -59,7 +59,7 @@ TEST_F(TestLinearAllocator, single_malloc_success) {
   auto total_size = buffer_size + allocator->mdSize(type);
 
   allocator.reset(new LinearAllocator(base_start, total_size));
-  auto res = allocator->malloc(type, buffer_size);
+  auto res = allocator->malloc(type, buffer_size, 0);
 
   ASSERT_TRUE((bool)res);
 
@@ -74,9 +74,49 @@ TEST_F(TestLinearAllocator, single_malloc_success) {
   ASSERT_TRUE((bool)res);
   ASSERT_EQ(free_list().size(), 1);
   auto free_entry = free_list().front();
+
   ASSERT_EQ(free_entry.base(), base_start);
   ASSERT_EQ(free_entry.size(), total_size);
   ASSERT_TRUE(allocated_list().empty());
+}
+
+// Single memory allocations where we align the pointer to
+// different addresses
+TEST_F(TestLinearAllocator, single_malloc_aligned_success) {
+  auto base_start = 100;
+  auto max_alignment = 1ULL << 14; // 16KB
+  auto type = BufferType::Code;
+  auto buffer_size = 10;
+  auto total_size = buffer_size + allocator->mdSize(type) + max_alignment * 2;
+
+  allocator.reset(new LinearAllocator(base_start, total_size));
+
+  for (int i = 0; i < 14; i++) {
+    for (int j = 0; j <= i; j++) {
+      auto alignment = 1ULL << i;
+      auto size = buffer_size + (1ULL << j);
+      auto res = allocator->malloc(type, size, alignment);
+
+      ASSERT_TRUE((bool)res);
+
+      // allocator->printState();
+
+      // We expect to have allocated the first tensor
+      auto tid = res.get();
+
+      auto tensor = allocated_list().back();
+      ASSERT_EQ(tensor->alignedStart() % alignment, 0);
+
+      auto free_res = allocator->free(tid);
+      ASSERT_TRUE((bool)res);
+      ASSERT_EQ(free_list().size(), 1);
+      auto free_entry = free_list().front();
+
+      ASSERT_EQ(free_entry.base(), base_start);
+      ASSERT_EQ(free_entry.size(), total_size);
+      ASSERT_TRUE(allocated_list().empty());
+    }
+  }
 }
 
 // Multiple allocations
@@ -95,18 +135,18 @@ TEST_F(TestLinearAllocator, multiple_malloc_success) {
 
   // First allocation
   {
-    auto res = allocator->malloc(type, tensor_size);
+    auto res = allocator->malloc(type, tensor_size, 0);
     ASSERT_TRUE((bool)res);
     ASSERT_EQ(free_list().front().base(), dram_base + (tensor_size + md_size));
     ASSERT_EQ(free_list().front().size(), dram_size - (tensor_size + md_size));
 
     auto tensor = allocated_list().back();
-    ASSERT_EQ(tensor->base(), dram_base + md_size);
+    ASSERT_EQ(tensor->alignedStart(), dram_base + md_size);
   }
 
   // Second allocation
   {
-    auto res = allocator->malloc(type, tensor_size);
+    auto res = allocator->malloc(type, tensor_size, 0);
     ASSERT_TRUE((bool)res);
     ASSERT_EQ(free_list().front().base(),
               dram_base + 2 * (tensor_size + md_size));
@@ -114,17 +154,17 @@ TEST_F(TestLinearAllocator, multiple_malloc_success) {
               dram_size - 2 * (tensor_size + md_size));
 
     auto tensor = allocated_list().back();
-    ASSERT_EQ(tensor->base(), dram_base + 2 * md_size + tensor_size);
+    ASSERT_EQ(tensor->alignedStart(), dram_base + 2 * md_size + tensor_size);
   }
 
   // Third allocation
   {
-    auto res = allocator->malloc(type, tensor_size);
+    auto res = allocator->malloc(type, tensor_size, 0);
     ASSERT_TRUE((bool)res);
     ASSERT_TRUE(free_list().empty());
 
     auto tensor = allocated_list().back();
-    ASSERT_EQ(tensor->base(),
+    ASSERT_EQ(tensor->alignedStart(),
               dram_base + md_size + 2 * (md_size + tensor_size));
   }
 
@@ -220,7 +260,7 @@ TEST_P(TestLinearAllocatorMallocFree, malloc_free_random) {
   allocator.reset(new LinearAllocator(dram_base, dram_size));
 
   for (auto size : tensor_size) {
-    auto res = allocator->malloc(type, size);
+    auto res = allocator->malloc(type, size, 0);
     ASSERT_TRUE((bool)res);
     tensors.push_back(res.get());
   }
@@ -231,16 +271,18 @@ TEST_P(TestLinearAllocatorMallocFree, malloc_free_random) {
 
   auto total_free_size = allocator->freeMemory();
 
+  // allocator->printState();
+
   for (auto i : tensor_free_order) {
     auto &[tensor, free_list_size] = i;
     auto tid = tensors[tensor];
     auto tit = findAllocatedBuffer(tid);
-    total_free_size += (*tit)->totalSize();
+    total_free_size += (*tit)->size();
     auto free_res = allocator->free(tid);
+    // allocator->printState();
     ASSERT_EQ(free_res, etrtSuccess);
     ASSERT_EQ(free_list().size(), free_list_size);
     ASSERT_EQ(total_free_size, allocator->freeMemory());
-    // allocator->printState();
   }
   ASSERT_EQ(free_list().front().size(), dram_size);
 }

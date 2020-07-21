@@ -72,8 +72,15 @@ struct BufferCommonMD {
   bool in_use;         ///< True iff the memory region is being used
   BufferType type;     ///< Type of the buffer
   BufferID id;         ///< Global Id of this constant buffer
-  BufferOffsetTy base; ///< Base offset of the buffer
-  BufferSizeTy size;   ///< Size of the tesnor
+  BufferOffsetTy base; ///< Base offset of the buffer region, this includes both
+                       ///< any alignment padding and the meta-data prefix.
+  BufferOffsetTy
+      aligned_start; ///< The aligned offset that we return as the "pointer"
+                     /// that has been allocated inside this region. Before the
+                     /// offset of the pointer we place the tensor meta-data on
+                     /// the device.
+  BufferSizeTy req_size; ///< Requested allocation size by malloc
+  BufferSizeTy size;     ///< Total size of the buffer region.
   BufferOffsetTy
       next; ///< Pointer to the Next buffer allocated in the memory region
   BufferOffsetTy
@@ -140,19 +147,27 @@ public:
   AbstractBufferInfo() = default;
   virtual ~AbstractBufferInfo() = default;
 
+  /// @brief Return the offset of this buffer
+  virtual const BufferOffsetTy base() const = 0;
+
+  /// @brief Set the base the offset of this buffer
+  virtual void base(BufferOffsetTy) = 0;
+
   /// @brief Return the md_base, this includes the starting point of the
   /// meta-data that are prefixed befored the buffer data
   virtual const BufferOffsetTy mdBase() const = 0;
 
-  /// @brief Return the offset of this buffer
-  virtual const BufferOffsetTy base() const = 0;
+  /// @brief Return the aligned start of this buffer region
+  virtual const BufferOffsetTy alignedStart() const = 0;
+
+  /// @brief Return  the requested allocation size of this buffer
+  virtual const BufferSizeTy reqSize() const = 0;
 
   /// @brief Return the size of this buffer
   virtual const BufferSizeTy size() const = 0;
 
-  /// @brief Return the total size of this buffer, including padding and
-  /// meta-data
-  virtual const BufferSizeTy totalSize() const = 0;
+  /// @brief Set the size of this buffer
+  virtual void size(BufferSizeTy size) = 0;
 
   /// @brief Return the region end offset
   virtual const BufferOffsetTy endOffset() const = 0;
@@ -202,17 +217,30 @@ public:
 
   /// Constructor
   ///
-  /// @param[in] base   Offset in the region where the buffer is stored
+  /// @param[in] base   Base offset in the region where the buffer is stored
+  /// @param[in] aligned_ptr Aligned offset in the region that is the actual
+  /// start of the data
+  /// @param[in] req_size Requested allocation size by malloc
   /// @param[in] size   Size in bytes of the buffer.
-  BufferInfo(BufferOffsetTy base, BufferSizeTy size) : buffer_info_() {
+  BufferInfo(BufferOffsetTy base, BufferOffsetTy aligned_start,
+             BufferSizeTy req_size, BufferSizeTy size)
+      : buffer_info_() {
     assert(size >= 0);
     buffer_info_.hdr.in_use = true;
     buffer_info_.hdr.type = type();
     buffer_info_.hdr.id = nextBufferID();
     buffer_info_.hdr.base = base;
+    buffer_info_.hdr.aligned_start = aligned_start;
+    buffer_info_.hdr.req_size = req_size;
     buffer_info_.hdr.size = size;
     buffer_info_.hdr.permissions = permissions();
   };
+
+  ///
+  /// @param[in] base   Base offset in the region where the buffer is stored
+  /// @param[in] size   Size in bytes of the buffer.
+  BufferInfo(BufferOffsetTy base, BufferSizeTy size)
+      : BufferInfo(base, base, size, size){};
 
   /// @brief Return the size in bytes of the buffer metadata
   /// The size is increased to be cache-line mulitple to avoid miss-aligning
@@ -231,24 +259,34 @@ public:
   /// @brief Return the md_base, this includes the starting point of the
   /// meta-data that are prefixed befored the buffer data
   const BufferOffsetTy mdBase() const override {
-    auto md_base = base() - mdSize();
+    auto md_base = alignedStart() - mdSize();
     // check for underflow
-    assert(md_base <= base());
+    assert(md_base <= alignedStart());
     return md_base;
   }
 
   /// @brief Return the offset of this buffer
   const BufferOffsetTy base() const override { return buffer_info_.hdr.base; }
 
+  /// @brief Set the base the offset of this buffer
+  void base(BufferOffsetTy base) override { buffer_info_.hdr.base = base; }
+
+  const BufferOffsetTy alignedStart() const override {
+    return buffer_info_.hdr.aligned_start;
+  }
+  /// @brief Return  the requested allocation size of this buffer
+  const BufferSizeTy reqSize() const override {
+    return buffer_info_.hdr.req_size;
+  }
+
   /// @brief Return the size of this buffer
   const BufferSizeTy size() const override { return buffer_info_.hdr.size; }
 
-  /// @brief Return the region end offset
-  const BufferOffsetTy endOffset() const { return mdBase() + totalSize(); }
+  /// @brief Set the size of this buffer
+  void size(BufferSizeTy size) override { buffer_info_.hdr.size = size; }
 
-  /// @brief Return the total size of this buffer, including padding and
-  /// meta-data
-  const BufferSizeTy totalSize() const override { return size() + mdSize(); }
+  /// @brief Return the region end offset
+  const BufferOffsetTy endOffset() const { return base() + size(); }
 
   /// @brief Return the type of the buffer
   static const BufferType type();
@@ -270,10 +308,6 @@ public:
 
   /// @brief Return the permission bit-mask of this buffer
   const BufferPermissionsTy permissions() const;
-
-  /// @brief Return reference to the buffer info. Used to udpate/set the
-  /// buffer-type specific information of the buffer.
-  buffer_type_t &buffer_info() { return buffer_info_; }
 
 private:
   TENSOR_TYPE buffer_info_;

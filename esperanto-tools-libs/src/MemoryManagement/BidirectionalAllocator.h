@@ -67,16 +67,20 @@ public:
   ///
   /// @param[in] type Type of the buffer to allocate
   /// @param[in] size Size in bytes of the buffer to allocate
+  /// @param[in] alignment Size in bytes of the buffer alignment
   /// @returns  Error of the ID of the buffer that was allocated
-  ErrorOr<BufferID> mallocFront(BufferType type, BufferSizeTy size);
+  ErrorOr<BufferID> mallocFront(BufferType type, BufferSizeTy size,
+                                BufferSizeTy alignment);
 
   /// @brief Allocate a buffer of type TesnorType and of size bites startng
   /// from the front of the memory region
   ///
   /// @param[in] type Type of the buffer to allocate
   /// @param[in] size Size in bytes of the buffer to allocate
+  /// @param[in] alignment Size in bytes of the buffer alignment
   /// @returns  Error of the ID of the buffer that was allocated
-  ErrorOr<BufferID> mallocBack(BufferType type, BufferSizeTy size);
+  ErrorOr<BufferID> mallocBack(BufferType type, BufferSizeTy size,
+                               BufferSizeTy alignment);
 
   /// @brief Deallocate the specific buffer
   ///
