@@ -23,10 +23,11 @@ static const bool mbox_master[MBOX_COUNT] = {false, true};
 
 void MBOX_init(void)
 {
+    // First configure the PLIC to accept PCIe interrupts (note that External Interrupts are now enabled yet)
+    INT_enableInterrupt(PU_PLIC_PCIE_MESSAGE_INTR, 1, pcie_isr);
+
     init_mbox(MBOX_SP);
     init_mbox(MBOX_PCIE);
-
-    INT_enableInterrupt(PU_PLIC_PCIE_MESSAGE_INTR, 1, pcie_isr);
 }
 
 int64_t MBOX_send(mbox_e mbox, const void* const buffer_ptr, uint32_t length)
