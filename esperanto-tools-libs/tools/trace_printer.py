@@ -11,7 +11,7 @@
 #------------------------------------------------------------------------------
 
 """ Helper script that can help us dump in text the contents of a runtime trace"""
-import etrt_trace_pb2
+from rt_logging import etrt_trace_pb2
 from google.protobuf.internal.encoder import _VarintBytes
 from google.protobuf.internal.decoder import _DecodeVarint32
 

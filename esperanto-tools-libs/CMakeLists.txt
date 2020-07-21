@@ -24,6 +24,8 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CoverageSupport.cmake)
 option(BUILD_SHARED_LIBS "Build shared libs." ON)
 option(ENABLE_PCIE "Enable pcie support by default" OFF)
 option(ENABLE_CCACHE "Enable ccahe in the builds" OFF)
+# If not empty install any runtime python packages
+set(PYTHON "" CACHE PATH "Path to the python binary to install our python packages under")
 set(DOCUMENTATION_INSTALL_DIR "${CMAKE_INSTALL_DIR}/doc" CACHE PATH "Documentation installation path")
 
 execute_process(
