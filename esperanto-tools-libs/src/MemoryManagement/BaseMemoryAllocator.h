@@ -59,11 +59,25 @@ public:
   ///
   /// @param[in] type Type of the buffer
   /// @param[in] base Base offset of the buffer in the memory region
+  /// @param[in] aligned_start Aligned offset that is the actuall start of the
+  /// buffer we report to the user
+  /// @param[in] req_size Requested allocation size
   /// @param[in] size Size in bytes of the buffer/memory-region
   static std::shared_ptr<AbstractBufferInfo>
-  createBufferInfo(BufferType type, BufferOffsetTy base, BufferSizeTy size);
+  createBufferInfo(BufferType type, BufferOffsetTy base,
+                   BufferOffsetTy aligned_start, BufferSizeTy req_size,
+                   BufferSizeTy size);
 
-private:
+protected:
+  /// @brief Increase the size of the allocation to accomodate for returning
+  /// an aligned pointer
+  static BufferSizeTy alignmentFixSize(BufferSizeTy size, BufferSizeTy mdSize,
+                                       BufferSizeTy alignment);
+
+  /// @brief Return an alinged stating offset that will be the return value of
+  /// the memory allocation
+  static BufferSizeTy alignedStart(BufferOffsetTy base, BufferSizeTy mdSize,
+                                   BufferSizeTy alignment);
 };
 
 } // namespace memory_management

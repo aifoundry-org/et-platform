@@ -22,6 +22,9 @@ BufferID nextBufferID() {
 template <> const BufferType BufferInfo<FreeRegion>::type() {
   return BufferType::Free;
 }
+template <> void BufferInfo<FreeRegion>::base(BufferOffsetTy base) {
+  buffer_info_.hdr.base = buffer_info_.hdr.aligned_start = base;
+}
 
 template <>
 const BufferPermissionsTy BufferInfo<FreeRegion>::permissions() const {
@@ -65,9 +68,11 @@ const BufferPermissionsTy BufferInfo<LoggingBuffer>::permissions() const {
 }
 
 std::ostream &operator<<(std::ostream &os, const AbstractBufferInfo &t) {
-  os << "Buffer: " << std::dec << t.id() //.
-     << " MDBase: " << t.mdBase()        //
-     << " Base: " << t.base()            //
+  os << "Buffer: " << std::dec << t.id()      //.
+     << " base: " << t.base()                 //
+     << " MDBase: " << t.mdBase()             //
+     << " alignedStart: " << t.alignedStart() //
+     << " reqSize: " << t.reqSize()           //
      << " Size: " << t.size();
   return os;
 }

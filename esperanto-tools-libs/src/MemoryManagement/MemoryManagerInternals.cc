@@ -26,9 +26,10 @@ MemoryManagerInternals::MemoryManagerInternals(uint64_t code_size,
     : code_region_(new LinearAllocator(0, code_size)),
       data_region_(new BidirectionalAllocator(code_size, data_size)) {}
 
-ErrorOr<BufferID> MemoryManagerInternals::mallocCode(BufferSizeTy size) {
+ErrorOr<BufferID> MemoryManagerInternals::mallocCode(BufferSizeTy size,
+                                                     BufferSizeTy alignment) {
   TRACE_MemoryManager_MemoryManagerInternals_mallocCode(size);
-  return code_region_->malloc(BufferType::Code, size);
+  return code_region_->malloc(BufferType::Code, size, alignment);
 }
 
 ErrorOr<BufferID> MemoryManagerInternals::emplaceCode(BufferOffsetTy offset,
@@ -37,14 +38,19 @@ ErrorOr<BufferID> MemoryManagerInternals::emplaceCode(BufferOffsetTy offset,
   return code_region_->emplace(BufferType::Code, offset, size);
 }
 
-ErrorOr<BufferID> MemoryManagerInternals::mallocConstant(BufferSizeTy size) {
+ErrorOr<BufferID>
+MemoryManagerInternals::mallocConstant(BufferSizeTy size,
+                                       BufferSizeTy alignment) {
   TRACE_MemoryManager_MemoryManagerInternals_mallocConstant(
-      size) return data_region_->mallocFront(BufferType::Constant, size);
+      size) return data_region_->mallocFront(BufferType::Constant, size,
+                                             alignment);
 }
 
-ErrorOr<BufferID> MemoryManagerInternals::mallocPlaceholder(BufferSizeTy size) {
+ErrorOr<BufferID>
+MemoryManagerInternals::mallocPlaceholder(BufferSizeTy size,
+                                          BufferSizeTy alignment) {
   TRACE_MemoryManager_MemoryManagerInternals_mallocPlaceholder(size);
-  return data_region_->mallocBack(BufferType::Placeholder, size);
+  return data_region_->mallocBack(BufferType::Placeholder, size, alignment);
 }
 
 etrtError MemoryManagerInternals::freeCode(BufferID tid) {

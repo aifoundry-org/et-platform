@@ -45,7 +45,8 @@ public:
   /// @brief Allocate a buffer in the code region
   ///
   /// @param[in] size Size of the buffer in bytes
-  ErrorOr<BufferID> mallocCode(BufferSizeTy size);
+  /// @param[in] alignment Size in bytes of the buffer alignment
+  ErrorOr<BufferID> mallocCode(BufferSizeTy size, BufferSizeTy alignment);
 
   /// @brief Emplace a buffer in the code region
   ///
@@ -57,12 +58,15 @@ public:
   /// @brief Allocate a Constant buffer in the data region
   ///
   /// @param[in] size Size of the buffer in bytes
-  ErrorOr<BufferID> mallocConstant(BufferSizeTy size);
+  /// @param[in] alignment Size in bytes of the buffer alignment
+  ErrorOr<BufferID> mallocConstant(BufferSizeTy size, BufferSizeTy alignment);
 
   /// @brief Allocate a Placeholder buffer in the data region
   ///
   /// @param[in] size Size of the buffer in bytes
-  ErrorOr<BufferID> mallocPlaceholder(BufferSizeTy size);
+  /// @param[in] alignment Size in bytes of the buffer alignment
+  ErrorOr<BufferID> mallocPlaceholder(BufferSizeTy size,
+                                      BufferSizeTy alignment);
 
   /// @brief Free a buffer from the code region
   //

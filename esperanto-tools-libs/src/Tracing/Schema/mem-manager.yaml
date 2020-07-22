@@ -68,8 +68,12 @@ Functions :
         Type: int64
       - Name: base
         Type: int64
+      - Name: aligned_start
+        Type: int64
       - Name: md_size
         Type: int32
+      - Name: req_size
+        Type: int64
       - Name: size
         Type: int64
       - Name: left_tensor
@@ -136,8 +140,12 @@ Functions :
         Type: int64
       - Name: base
         Type: int64
+      - Name: aligned_start
+        Type: int64
       - Name: md_size
         Type: int32
+      - Name: req_size
+        Type: int64
       - Name: size
         Type: int64
       - Name: left_tensor
@@ -156,8 +164,12 @@ Functions :
         Type: int64
       - Name: base
         Type: int64
+      - Name: aligned_start
+        Type: int64
       - Name: md_size
         Type: int32
+      - Name: req_size
+        Type: int64
       - Name: size
         Type: int64
       - Name: left_tensor

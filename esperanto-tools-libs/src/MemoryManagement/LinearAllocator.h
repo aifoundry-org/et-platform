@@ -38,8 +38,10 @@ public:
   ///
   /// @param[in] type Type of the buffer to allocate
   /// @param[in] size Size in bytes of the buffer to allocate
+  /// @param[in] alignment Size in bytes of the buffer alignment
   /// @returns  Error of the ID of the buffer that was allocated
-  ErrorOr<BufferID> malloc(BufferType type, BufferSizeTy size);
+  ErrorOr<BufferID> malloc(BufferType type, BufferSizeTy size,
+                           BufferSizeTy alignment);
 
   /// @brief Emplace a buffer in the allocator
   ///

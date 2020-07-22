@@ -45,16 +45,16 @@ TEST_F(TestMemoryManagerInternals, allocate_network_tensors) {
   allocator.reset(new MemoryManagerInternals(code_size, data_size));
   ASSERT_EQ(allocator->freeMemory(), code_size + data_size);
   // Allocate the network
-  auto malloc_res = allocator->mallocCode(kernel_size);
+  auto malloc_res = allocator->mallocCode(kernel_size, 0);
   ASSERT_TRUE((bool)malloc_res);
   auto code_tid = malloc_res.get();
-  malloc_res = allocator->mallocConstant(constant_tensor1_size);
+  malloc_res = allocator->mallocConstant(constant_tensor1_size, 0);
   ASSERT_TRUE((bool)malloc_res);
   auto c1_tid = malloc_res.get();
-  malloc_res = allocator->mallocConstant(constant_tensor2_size);
+  malloc_res = allocator->mallocConstant(constant_tensor2_size, 0);
   ASSERT_TRUE((bool)malloc_res);
   auto c2_tid = malloc_res.get();
-  malloc_res = allocator->mallocPlaceholder(activation_size);
+  malloc_res = allocator->mallocPlaceholder(activation_size, 0);
   ASSERT_TRUE((bool)malloc_res);
   auto plc_tid = malloc_res.get();
 
