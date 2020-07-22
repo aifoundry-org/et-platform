@@ -80,6 +80,14 @@ public:
   /// @brief Return true iff this points in a device region
   bool isPtrInDevRegion(const void *ptr);
 
+  /// @brief Run memory-manager sanity check
+  /// Note: Placeholder to be called by Glow
+  bool runSanityCheck() const { return true; }
+
+  /// @brief Dump the memory manager state in the log
+  /// Note: Placeholder to be called by Glow
+  void recordStateLogs() const { ; }
+
 private:
   void initMemRegions();
   void uninitMemRegions();
