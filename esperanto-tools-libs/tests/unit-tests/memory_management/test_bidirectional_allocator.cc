@@ -71,6 +71,8 @@ TEST_F(TestBidirectionalAllocator, single_mallocFront_success) {
 
   ASSERT_TRUE((bool)res);
 
+  ASSERT_TRUE(allocator->sanityCheck());
+
   // We expect to have allocated the first tensor
   auto tid = std::get<0>(res.get());
   EXPECT_NE(tid, 0);
@@ -85,6 +87,8 @@ TEST_F(TestBidirectionalAllocator, single_mallocFront_success) {
   ASSERT_EQ(free_entry.base(), base_start);
   ASSERT_EQ(free_entry.size(), total_size);
   ASSERT_TRUE(allocated_front_list().empty());
+
+  ASSERT_TRUE(allocator->sanityCheck());
 }
 
 // One memory allocation from each direction, and reverse order frees
@@ -110,7 +114,10 @@ TEST_F(TestBidirectionalAllocator, mallocs_both_directions) {
   ASSERT_TRUE((bool)res);
   auto tid_2 = std::get<0>(res.get());
 
-  allocator->printStateJSON();
+  ASSERT_TRUE(allocator->sanityCheck());
+
+  auto json = allocator->stateJSON();
+  std::cout << json << "\n";
 
   // The list should be empty now
   ASSERT_EQ(allocator->freeMemory(), free_size_aux);
@@ -126,6 +133,7 @@ TEST_F(TestBidirectionalAllocator, mallocs_both_directions) {
   ASSERT_EQ(free_list().size(), 1);
   ASSERT_TRUE(allocated_front_list().empty());
   ASSERT_TRUE(allocated_back_list().empty());
+  ASSERT_TRUE(allocator->sanityCheck());
 }
 
 // parametrized test class, receives as parameters the direction of allocation
@@ -179,6 +187,8 @@ TEST_P(TestBidirectionalAllocatorMallocAlignmentDirections,
 
     ASSERT_TRUE((bool)res);
 
+    ASSERT_TRUE(allocator->sanityCheck());
+
     allocator->printState();
 
     // We expect to have allocated the first tensor
@@ -194,6 +204,7 @@ TEST_P(TestBidirectionalAllocatorMallocAlignmentDirections,
 
     ASSERT_EQ(free_entry.base(), dram_base);
     ASSERT_EQ(free_entry.size(), dram_size);
+    ASSERT_TRUE(allocator->sanityCheck());
   }
 }
 
@@ -303,6 +314,8 @@ TEST_P(TestBidirectionalAllocatorMallocDirections, multiple_mallocs_success) {
     auto tensor = last_tensor_allocated();
     ASSERT_EQ(tensor->alignedStart(), tensor_start(allocated_size));
   }
+
+  ASSERT_TRUE(allocator->sanityCheck());
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -355,6 +368,8 @@ TEST_P(TestBidirectionalAllocatorMallocFreeOrder, mallocFront_free_random) {
     tensors.push_back(tid);
   }
 
+  ASSERT_TRUE(allocator->sanityCheck());
+
   // allocator->printState();
 
   ASSERT_TRUE(free_list().empty());
@@ -374,6 +389,7 @@ TEST_P(TestBidirectionalAllocatorMallocFreeOrder, mallocFront_free_random) {
     // allocator->printState();
   }
   ASSERT_EQ(free_list().front().size(), dram_size);
+  ASSERT_TRUE(allocator->sanityCheck());
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -458,6 +474,7 @@ TEST_P(TestBidirectionalAllocatorMallocFreeAlterOrder,
     }
     tensors.push_back(tid);
   }
+  ASSERT_TRUE(allocator->sanityCheck());
 
   // allocator->printState();
 
@@ -477,6 +494,7 @@ TEST_P(TestBidirectionalAllocatorMallocFreeAlterOrder,
     // allocator->printState();
   }
   ASSERT_EQ(free_list().front().size(), dram_size);
+  ASSERT_TRUE(allocator->sanityCheck());
 }
 
 INSTANTIATE_TEST_CASE_P(

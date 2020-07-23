@@ -95,8 +95,14 @@ public:
   /// @brief Report the sum of free memory both in the code and data regions.
   uint64_t freeMemory();
 
+  /// @brief Run memory-manager sanity check
+  bool runSanityCheck() const;
+
   /// @brief Print the state of both the code and data regions
-  void printState();
+  void printState() const;
+
+  /// @brief Record the state in the rhntime logs
+  void recordState() const;
 
 private:
   uint64_t dram_base_addr_;

@@ -71,6 +71,8 @@ TEST_F(TestLinearAllocator, single_malloc_success) {
   // The list should be empty now
   ASSERT_TRUE(free_list().empty());
 
+  ASSERT_TRUE(allocator->sanityCheck());
+
   auto free_res = allocator->free(tid);
   ASSERT_TRUE((bool)res);
   ASSERT_EQ(free_list().size(), 1);
@@ -79,6 +81,8 @@ TEST_F(TestLinearAllocator, single_malloc_success) {
   ASSERT_EQ(free_entry.base(), base_start);
   ASSERT_EQ(free_entry.size(), total_size);
   ASSERT_TRUE(allocated_list().empty());
+
+  ASSERT_TRUE(allocator->sanityCheck());
 }
 
 // Single memory allocations where we align the pointer to
@@ -104,6 +108,8 @@ TEST_F(TestLinearAllocator, single_malloc_aligned_success) {
 
       // We expect to have allocated the first tensor
       auto tid = std::get<0>(res.get());
+
+      ASSERT_TRUE(allocator->sanityCheck());
 
       auto tensor = allocated_list().back();
       ASSERT_EQ(tensor->alignedStart() % alignment, 0);
@@ -169,7 +175,10 @@ TEST_F(TestLinearAllocator, multiple_malloc_success) {
               dram_base + md_size + 2 * (md_size + tensor_size));
   }
 
-  allocator->printStateJSON();
+  ASSERT_TRUE(allocator->sanityCheck());
+
+  auto json = allocator->stateJSON();
+  std::cout << json << "\n";
 }
 
 // parametrized test class, receives as parameters a tuple
@@ -183,7 +192,6 @@ TEST_P(TestLinearAllocatorEmplaceFailure, single_emplace_failures) {
   allocator.reset(new LinearAllocator(region_start, region_size));
   auto type = BufferType::Code;
   auto res = allocator->emplace(type, emplace_start, emplace_size);
-
   ASSERT_FALSE((bool)res);
 }
 
@@ -204,7 +212,7 @@ class TestLinearAllocatorEmplaceSuccess
       public testing::WithParamInterface<std::tuple<int, int, int, int, int>> {
 };
 
-// Memory Emplacements expected errors
+// Memory Emplacements expected success
 TEST_P(TestLinearAllocatorEmplaceSuccess, single_emplace_success) {
   auto type = BufferType::Code;
   auto md_size = allocator->mdSize(type);
@@ -219,6 +227,8 @@ TEST_P(TestLinearAllocatorEmplaceSuccess, single_emplace_success) {
   allocator->printState();
 
   ASSERT_TRUE((bool)res);
+
+  ASSERT_TRUE(allocator->sanityCheck());
 
   ASSERT_EQ(free_list().size(), free_list_size);
 }
@@ -266,6 +276,8 @@ TEST_P(TestLinearAllocatorMallocFree, malloc_free_random) {
     tensors.push_back(std::get<0>(res.get()));
   }
 
+  ASSERT_TRUE(allocator->sanityCheck());
+
   // allocator->printState();
 
   ASSERT_TRUE(free_list().empty());
@@ -285,6 +297,9 @@ TEST_P(TestLinearAllocatorMallocFree, malloc_free_random) {
     ASSERT_EQ(free_list().size(), free_list_size);
     ASSERT_EQ(total_free_size, allocator->freeMemory());
   }
+
+  ASSERT_TRUE(allocator->sanityCheck());
+
   ASSERT_EQ(free_list().front().size(), dram_size);
 }
 

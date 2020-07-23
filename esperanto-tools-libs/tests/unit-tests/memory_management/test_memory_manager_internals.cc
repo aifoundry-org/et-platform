@@ -63,6 +63,9 @@ TEST_F(TestMemoryManagerInternals, allocate_network_tensors) {
   ASSERT_EQ(allocator->freeMemory(),
             code_additional_free + data_additional_free);
 
+  allocator->printState();
+  allocator->recordState();
+
   // deallocate the memory
   auto free_res = allocator->freeCode(code_tid);
   ASSERT_EQ(free_res, etrtSuccess);
@@ -72,6 +75,9 @@ TEST_F(TestMemoryManagerInternals, allocate_network_tensors) {
   ASSERT_EQ(free_res, etrtSuccess);
   free_res = allocator->freeData(plc_tid);
   ASSERT_EQ(free_res, etrtSuccess);
+
+  allocator->printState();
+  allocator->recordState();
 
   ASSERT_EQ(allocator->freeMemory(), code_size + data_size);
 }

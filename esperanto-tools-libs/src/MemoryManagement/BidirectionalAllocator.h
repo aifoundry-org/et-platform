@@ -93,12 +93,14 @@ public:
   /// @brief Return the total free memory
   BufferSizeTy freeMemory() override;
 
-  /// @brief Print the allocator status
+  /// @brief Run a sanity check and return true on success
+  bool sanityCheck() const override;
+
+  /// @brief Print the allocator state
   void printState() override;
 
-  /// @brief Print in the stdout the state of the memory allocator in JSON
-  /// format
-  void printStateJSON() override;
+  /// @brief Return JSON string with the state of the allocator
+  const std::string stateJSON() const override;
 
   /// @brief Returns true the buffer has been allocated
   bool bufferExists(BufferID tid) const;
@@ -139,6 +141,8 @@ private:
   /// @returns True if the buffer was found and removed
   ErrorOr<allocated_buffer_info::value_type>
   removeFromAllocatedList(allocated_buffer_info *alloc_list, BufferID tid);
+
+  const BufferOffsetTy endOffset() const { return base_ + size_; }
 };
 
 } // namespace memory_management
