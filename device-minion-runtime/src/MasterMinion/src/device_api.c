@@ -103,7 +103,7 @@ void handle_device_api_message_from_host(const mbox_message_id_t* message_id,
     }
     else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_KERNEL_LAUNCH_CMD)
     {
-        log_write(LOG_LEVEL_INFO, "received kernel launch message fom host \r\n");
+        log_write(LOG_LEVEL_INFO, "received kernel launch message fom host\r\n");
 
 #ifdef DEBUG_PRINT_HOST_MESSAGE
         print_host_message(buffer, length);

@@ -124,6 +124,14 @@ static void __attribute__((noreturn)) master_thread(void)
 
     kernel_init();
 
+    // [SW-3499] FIXME/HACK: Add delay to give enough time for all the shires to send SHIRE_STATE_READY,
+    // before the FW starts processing Host messages (kernel launch).
+    volatile uint64_t hack_delay = 0;
+    while (hack_delay < 5000) {
+        asm volatile("fence\n");
+        hack_delay++;
+    }
+
     // Enable supervisor external and software interrupts
     asm volatile (
         "li    %0, 0x202    \n"
@@ -343,7 +351,6 @@ static void handle_message_from_host(int64_t length, uint8_t* buffer)
     }
     else
     {
-        log_write(LOG_LEVEL_INFO, "laldlfkjsldkf");
         log_write(LOG_LEVEL_ERROR, "Invalid message id: %" PRIu64 "\r\n", *message_id);
 
 #ifdef DEBUG_PRINT_HOST_MESSAGE
@@ -427,7 +434,11 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
         break;
 
         case MESSAGE_ID_SHIRE_READY:
-            log_write(LOG_LEVEL_DEBUG, "MESSAGE_ID_SHIRE_READY received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
+            // [SW-3499] FIXME/HACK: This should be LOG_LEVEL_DEBUG. With INFO it adds delay to FW init
+            // such that it gives enough time for all the shires to send SHIRE_STATE_READY, before the FW
+            // starts processing Host messages (kernel launch).
+            //log_write(LOG_LEVEL_DEBUG, "MESSAGE_ID_SHIRE_READY received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
+            log_write(LOG_LEVEL_INFO, "S%" PRId64 " (H%" PRId64 ") READY\r\n", shire, hart);
             update_shire_state(shire, SHIRE_STATE_READY);
         break;
 
