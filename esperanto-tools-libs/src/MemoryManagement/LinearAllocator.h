@@ -41,7 +41,8 @@ public:
   /// @param[in] alignment Size in bytes of the buffer alignment
   /// @returns  Error or the ID of the buffer that was allocated and its offset
   ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
-  malloc(BufferType type, BufferSizeTy size, BufferSizeTy alignment);
+  malloc(BufferType type, BufferSizeTy size,
+         BufferSizeTy alignment = MIN_ALIGNMENT);
 
   /// @brief Emplace a buffer in the allocator
   ///

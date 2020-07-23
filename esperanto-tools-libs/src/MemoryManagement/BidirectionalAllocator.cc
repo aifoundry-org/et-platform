@@ -45,6 +45,11 @@ BidirectionalAllocator::findAllocatedBuffer(BufferID tid) const {
 ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
 BidirectionalAllocator::mallocFront(BufferType type, BufferSizeTy size,
                                     BufferSizeTy alignment) {
+  if (alignment < MIN_ALIGNMENT) {
+    RTERROR << "Alignment size smaller that minimum alignment \n";
+    return etrtErrorMemoryAllocation;
+  }
+
   // Compute the buffer type's metadata header size
   auto md_size = mdSize(type);
   auto total_size = alignmentFixSize(size, md_size, alignment);
@@ -108,6 +113,10 @@ BidirectionalAllocator::mallocFront(BufferType type, BufferSizeTy size,
 ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
 BidirectionalAllocator::mallocBack(BufferType type, BufferSizeTy size,
                                    BufferSizeTy alignment) {
+  if (alignment < MIN_ALIGNMENT) {
+    RTERROR << "Alignment size smaller that minimum alignment \n";
+    return etrtErrorMemoryAllocation;
+  }
 
   // Compute the buffer type's metadata header size
   auto md_size = mdSize(type);
@@ -301,6 +310,10 @@ bool BidirectionalAllocator::sanityCheck() const {
       }
       if (i->endOffset() > endOffset()) {
         RTERROR << *i << " exceeds the region end: " << endOffset();
+        return false;
+      }
+      if ((i->alignedStart() % MIN_ALIGNMENT) != 0) {
+        RTERROR << *i << " Buffeer is misaligned \n";
         return false;
       }
       current_end = i->endOffset();

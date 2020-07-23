@@ -40,6 +40,10 @@ ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
 LinearAllocator::malloc(BufferType type, BufferSizeTy size,
                         BufferSizeTy alignment) {
 
+  if (alignment < MIN_ALIGNMENT) {
+    RTERROR << "Alignment size smaller that minimum alignment \n";
+    return etrtErrorMemoryAllocation;
+  }
   // Compute the buffer type's metadata header size
   auto md_size = mdSize(type);
   auto total_size = alignmentFixSize(size, md_size, alignment);
@@ -284,6 +288,10 @@ bool LinearAllocator::sanityCheck() const {
     }
     if (i->endOffset() > endOffset()) {
       RTERROR << *i << " exceeds the region end: " << endOffset();
+      return false;
+    }
+    if ((i->alignedStart() % MIN_ALIGNMENT) != 0) {
+      RTERROR << *i << " Buffeer is misaligned \n";
       return false;
     }
     current_end = i->endOffset();

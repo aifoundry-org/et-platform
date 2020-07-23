@@ -64,10 +64,10 @@ TEST_F(TestBidirectionalAllocator, single_mallocFront_success) {
   auto base_start = 100;
   auto type = BufferType::Code;
   auto buffer_size = 10;
-  auto total_size = buffer_size + allocator->mdSize(type);
+  auto total_size = buffer_size + allocator->mdSize(type) + 2 * MIN_ALIGNMENT;
 
   allocator.reset(new BidirectionalAllocator(base_start, total_size));
-  auto res = allocator->mallocFront(type, buffer_size, 0);
+  auto res = allocator->mallocFront(type, buffer_size);
 
   ASSERT_TRUE((bool)res);
 
@@ -76,9 +76,6 @@ TEST_F(TestBidirectionalAllocator, single_mallocFront_success) {
   // We expect to have allocated the first tensor
   auto tid = std::get<0>(res.get());
   EXPECT_NE(tid, 0);
-
-  // The list should be empty now
-  ASSERT_TRUE(free_list().empty());
 
   auto free_res = allocator->free(tid);
   ASSERT_TRUE((bool)res);
@@ -92,7 +89,7 @@ TEST_F(TestBidirectionalAllocator, single_mallocFront_success) {
 }
 
 // One memory allocation from each direction, and reverse order frees
-TEST_F(TestBidirectionalAllocator, mallocs_both_directions) {
+TEST_F(TestBidirectionalAllocator, malloc_both_directions) {
 
   auto type = BufferType::Code;
   auto md_size = allocator->mdSize(type);
@@ -100,17 +97,18 @@ TEST_F(TestBidirectionalAllocator, mallocs_both_directions) {
   BufferOffsetTy dram_base = 100;
   BufferSizeTy free_buffer = 20;
   BufferSizeTy free_size_aux = 30;
-  auto dram_size = 2 * (tensor_size + md_size) + free_size_aux;
+  auto dram_size =
+      2 * (tensor_size + md_size + 2 * MIN_ALIGNMENT) + free_size_aux;
 
   allocator.reset(new BidirectionalAllocator(dram_base, dram_size));
 
-  auto res = allocator->mallocFront(type, tensor_size, 0);
+  auto res = allocator->mallocFront(type, tensor_size);
   ASSERT_TRUE((bool)res);
 
   // firs tensor id
   auto tid_1 = std::get<0>(res.get());
 
-  res = allocator->mallocBack(type, tensor_size, 0);
+  res = allocator->mallocBack(type, tensor_size);
   ASSERT_TRUE((bool)res);
   auto tid_2 = std::get<0>(res.get());
 
@@ -120,12 +118,12 @@ TEST_F(TestBidirectionalAllocator, mallocs_both_directions) {
   std::cout << json << "\n";
 
   // The list should be empty now
-  ASSERT_EQ(allocator->freeMemory(), free_size_aux);
+  ASSERT_TRUE(allocator->freeMemory() > free_size_aux);
 
   auto free_res = allocator->free(tid_1);
   ASSERT_EQ(free_res, etrtSuccess);
 
-  ASSERT_EQ(allocator->freeMemory(), dram_size - (tensor_size + md_size));
+  ASSERT_TRUE(allocator->freeMemory() < dram_size - (tensor_size + md_size));
 
   free_res = allocator->free(tid_2);
   ASSERT_EQ(free_res, etrtSuccess);
@@ -183,6 +181,9 @@ TEST_P(TestBidirectionalAllocatorMallocAlignmentDirections,
 
   for (int i = 0; i < 14; i++) {
     auto alignment = 1ULL << i;
+    if (alignment < MIN_ALIGNMENT) {
+      continue;
+    }
     auto res = ((*allocator).*mallocFunc)(type, tensor_size, alignment);
 
     ASSERT_TRUE((bool)res);
@@ -230,47 +231,36 @@ TEST_P(TestBidirectionalAllocatorMallocDirections, multiple_mallocs_success) {
       BidirectionalAllocator::*mallocFunc)(BufferType type, BufferSizeTy size,
                                            BufferSizeTy alignment);
 
-  // Function that computes the begining address
-  // of the free list based on the allocation direction
-  std::function<BufferOffsetTy(BufferSizeTy size)> free_list_start;
-
-  // Function that computes the begining address
-  // of the tensor based on the allocation direction
-  std::function<BufferOffsetTy(BufferSizeTy size)> tensor_start;
-
   // helper that returns the allocation list
   std::function<std::shared_ptr<AbstractBufferInfo> &()> last_tensor_allocated;
+
+  std::function<bool(std::shared_ptr<AbstractBufferInfo> &)>
+      boundary_comparison;
 
   auto type = BufferType::Code;
   auto md_size = allocator->mdSize(type);
   BufferSizeTy tensor_size = 20;
   BufferOffsetTy dram_base = 100;
-  auto dram_size = 3 * (tensor_size + md_size);
+  auto dram_size = 3 * (tensor_size + md_size + 2 * MIN_ALIGNMENT);
 
   if (direction == BidirectionalAllocator::AllocDirection::Front) {
     mallocFunc = &BidirectionalAllocator::mallocFront;
+
     last_tensor_allocated = [this]() -> std::shared_ptr<AbstractBufferInfo> & {
       return allocated_front_list().back();
     };
-    free_list_start = [dram_base](BufferSizeTy size) -> BufferOffsetTy {
-      return dram_base + size;
-    };
-    tensor_start = [dram_base, tensor_size](
-                       BufferSizeTy allocated_size) -> BufferOffsetTy {
-      return dram_base + allocated_size - tensor_size;
+    boundary_comparison =
+        [this](std::shared_ptr<AbstractBufferInfo> &a) -> bool {
+      return a->endOffset() == free_list().front().base();
     };
   } else {
     mallocFunc = &BidirectionalAllocator::mallocBack;
     last_tensor_allocated = [this]() -> std::shared_ptr<AbstractBufferInfo> & {
       return allocated_back_list().front();
     };
-    // the free list base remains the beginning of the region
-    free_list_start = [dram_base](BufferSizeTy size) -> BufferOffsetTy {
-      return dram_base;
-    };
-    tensor_start = [dram_base, dram_size,
-                    md_size](BufferSizeTy allocated_size) -> BufferOffsetTy {
-      return dram_base + dram_size - (allocated_size - md_size);
+    boundary_comparison =
+        [this](std::shared_ptr<AbstractBufferInfo> &a) -> bool {
+      return a->base() == free_list().back().endOffset();
     };
   }
 
@@ -279,40 +269,25 @@ TEST_P(TestBidirectionalAllocatorMallocDirections, multiple_mallocs_success) {
   ASSERT_EQ(free_list().front().size(), dram_size);
   /// TODO check the double linked list meta-data
 
-  BufferSizeTy allocated_size = 0;
-
   // First allocation
   {
-    auto res = ((*allocator).*mallocFunc)(type, tensor_size, 0);
+    auto res = ((*allocator).*mallocFunc)(type, tensor_size, MIN_ALIGNMENT);
     ASSERT_TRUE((bool)res);
-    allocated_size += tensor_size + md_size;
-    ASSERT_EQ(free_list().front().base(), free_list_start(allocated_size));
-    ASSERT_EQ(free_list().front().size(), dram_size - allocated_size);
-
     auto tensor = last_tensor_allocated();
-    ASSERT_EQ(tensor->alignedStart(), tensor_start(allocated_size));
+    ASSERT_TRUE(boundary_comparison(tensor));
   }
-
   // Second allocation
   {
-    auto res = ((*allocator).*mallocFunc)(type, tensor_size, 0);
+    auto res = ((*allocator).*mallocFunc)(type, tensor_size, MIN_ALIGNMENT);
     ASSERT_TRUE((bool)res);
-    allocated_size += tensor_size + md_size;
-    ASSERT_EQ(free_list().front().base(), free_list_start(allocated_size));
-    ASSERT_EQ(free_list().front().size(), dram_size - allocated_size);
-
     auto tensor = last_tensor_allocated();
-    ASSERT_EQ(tensor->alignedStart(), tensor_start(allocated_size));
+    ASSERT_TRUE(boundary_comparison(tensor));
   }
 
   // Third allocation
   {
-    auto res = ((*allocator).*mallocFunc)(type, tensor_size, 0);
+    auto res = ((*allocator).*mallocFunc)(type, tensor_size, MIN_ALIGNMENT);
     ASSERT_TRUE((bool)res);
-    ASSERT_TRUE(free_list().empty());
-    allocated_size += tensor_size + md_size;
-    auto tensor = last_tensor_allocated();
-    ASSERT_EQ(tensor->alignedStart(), tensor_start(allocated_size));
   }
 
   ASSERT_TRUE(allocator->sanityCheck());
@@ -349,7 +324,7 @@ TEST_P(TestBidirectionalAllocatorMallocFreeOrder, mallocFront_free_random) {
   BufferOffsetTy dram_base = 0;
   auto dram_size = 0;
   for (auto &i : tensor_size) {
-    dram_size += i + md_size;
+    dram_size += i + md_size + 2 * MIN_ALIGNMENT;
   }
 
   allocator.reset(new BidirectionalAllocator(dram_base, dram_size));
@@ -357,11 +332,11 @@ TEST_P(TestBidirectionalAllocatorMallocFreeOrder, mallocFront_free_random) {
   for (auto size : tensor_size) {
     et_runtime::BufferID tid;
     if (alloc_direction == BidirectionalAllocator::AllocDirection::Front) {
-      auto res = allocator->mallocFront(type, size, 0);
+      auto res = allocator->mallocFront(type, size);
       ASSERT_TRUE((bool)res);
       tid = std::get<0>(res.get());
     } else {
-      auto res = allocator->mallocBack(type, size, 0);
+      auto res = allocator->mallocBack(type, size);
       ASSERT_TRUE((bool)res);
       tid = std::get<0>(res.get());
     }
@@ -371,8 +346,6 @@ TEST_P(TestBidirectionalAllocatorMallocFreeOrder, mallocFront_free_random) {
   ASSERT_TRUE(allocator->sanityCheck());
 
   // allocator->printState();
-
-  ASSERT_TRUE(free_list().empty());
 
   auto total_free_size = allocator->freeMemory();
 
@@ -384,7 +357,7 @@ TEST_P(TestBidirectionalAllocatorMallocFreeOrder, mallocFront_free_random) {
     total_free_size += t_ptr->size();
     auto free_res = allocator->free(tid);
     ASSERT_EQ(free_res, etrtSuccess);
-    ASSERT_EQ(free_list().size(), free_list_size);
+    ASSERT_TRUE(free_list().size() >= free_list_size);
     ASSERT_EQ(total_free_size, allocator->freeMemory());
     // allocator->printState();
   }
@@ -456,7 +429,7 @@ TEST_P(TestBidirectionalAllocatorMallocFreeAlterOrder,
   for (int i = 0; i < alloc_direction.size(); i++) {
     auto tsize = min_tensor_size * (i + 1);
     tensor_info.push_back({tsize, alloc_direction[i]});
-    dram_size += tsize + md_size;
+    dram_size += tsize + md_size + 2 * MIN_ALIGNMENT;
   }
 
   allocator.reset(new BidirectionalAllocator(dram_base, dram_size));
@@ -464,11 +437,11 @@ TEST_P(TestBidirectionalAllocatorMallocFreeAlterOrder,
   for (auto [size, alloc_direction] : tensor_info) {
     et_runtime::BufferID tid;
     if (alloc_direction == BidirectionalAllocator::AllocDirection::Front) {
-      auto res = allocator->mallocFront(type, size, 0);
+      auto res = allocator->mallocFront(type, size);
       ASSERT_TRUE((bool)res);
       tid = std::get<0>(res.get());
     } else {
-      auto res = allocator->mallocBack(type, size, 0);
+      auto res = allocator->mallocBack(type, size);
       ASSERT_TRUE((bool)res);
       tid = std::get<0>(res.get());
     }
@@ -477,8 +450,6 @@ TEST_P(TestBidirectionalAllocatorMallocFreeAlterOrder,
   ASSERT_TRUE(allocator->sanityCheck());
 
   // allocator->printState();
-
-  ASSERT_TRUE(free_list().empty());
 
   auto total_free_size = allocator->freeMemory();
 
@@ -490,7 +461,7 @@ TEST_P(TestBidirectionalAllocatorMallocFreeAlterOrder,
     total_free_size += t_ptr->size();
     auto free_res = allocator->free(tid);
     ASSERT_EQ(free_res, etrtSuccess);
-    ASSERT_EQ(total_free_size, allocator->freeMemory());
+    ASSERT_TRUE(total_free_size <= allocator->freeMemory());
     // allocator->printState();
   }
   ASSERT_EQ(free_list().front().size(), dram_size);

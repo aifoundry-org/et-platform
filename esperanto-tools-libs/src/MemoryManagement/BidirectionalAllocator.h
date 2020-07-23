@@ -71,7 +71,8 @@ public:
   /// @returns  Error of the ID of the buffer that was allocated and its aligned
   /// offset
   ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
-  mallocFront(BufferType type, BufferSizeTy size, BufferSizeTy alignment);
+  mallocFront(BufferType type, BufferSizeTy size,
+              BufferSizeTy alignment = MIN_ALIGNMENT);
 
   /// @brief Allocate a buffer of type TesnorType and of size bites startng
   /// from the front of the memory region
@@ -82,7 +83,8 @@ public:
   /// @returns  Error of the ID of the buffer that was allocated and its aligned
   /// offset
   ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
-  mallocBack(BufferType type, BufferSizeTy size, BufferSizeTy alignment);
+  mallocBack(BufferType type, BufferSizeTy size,
+             BufferSizeTy alignment = MIN_ALIGNMENT);
 
   /// @brief Deallocate the specific buffer
   ///

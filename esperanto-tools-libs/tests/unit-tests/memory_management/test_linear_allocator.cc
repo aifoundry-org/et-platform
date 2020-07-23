@@ -47,7 +47,7 @@ TEST(List, prev) {
 // tensor meta-data
 TEST_F(TestLinearAllocator, malloc_fail_md_size) {
   allocator.reset(new LinearAllocator(100, 100));
-  auto res = allocator->malloc(BufferType::Code, 100, 0);
+  auto res = allocator->malloc(BufferType::Code, 100);
 
   ASSERT_FALSE((bool)res);
 }
@@ -57,19 +57,16 @@ TEST_F(TestLinearAllocator, single_malloc_success) {
   auto base_start = 100;
   auto type = BufferType::Code;
   auto buffer_size = 10;
-  auto total_size = buffer_size + allocator->mdSize(type);
+  auto total_size = buffer_size + allocator->mdSize(type) + 2 * MIN_ALIGNMENT;
 
   allocator.reset(new LinearAllocator(base_start, total_size));
-  auto res = allocator->malloc(type, buffer_size, 0);
+  auto res = allocator->malloc(type, buffer_size);
 
   ASSERT_TRUE((bool)res);
 
   // We expect to have allocated the first tensor
   auto tid = std::get<0>(res.get());
   EXPECT_NE(tid, 0);
-
-  // The list should be empty now
-  ASSERT_TRUE(free_list().empty());
 
   ASSERT_TRUE(allocator->sanityCheck());
 
@@ -99,6 +96,9 @@ TEST_F(TestLinearAllocator, single_malloc_aligned_success) {
   for (int i = 0; i < 14; i++) {
     for (int j = 0; j <= i; j++) {
       auto alignment = 1ULL << i;
+      if (alignment < MIN_ALIGNMENT) {
+        continue;
+      }
       auto size = buffer_size + (1ULL << j);
       auto res = allocator->malloc(type, size, alignment);
 
@@ -131,9 +131,9 @@ TEST_F(TestLinearAllocator, multiple_malloc_success) {
 
   auto type = BufferType::Code;
   auto md_size = allocator->mdSize(type);
-  BufferSizeTy tensor_size = 20;
+  BufferSizeTy tensor_size = MIN_ALIGNMENT;
   BufferOffsetTy dram_base = 100;
-  auto dram_size = 3 * (tensor_size + md_size);
+  auto dram_size = 3 * (tensor_size + md_size + MIN_ALIGNMENT);
 
   allocator.reset(new LinearAllocator(dram_base, dram_size));
 
@@ -142,37 +142,26 @@ TEST_F(TestLinearAllocator, multiple_malloc_success) {
 
   // First allocation
   {
-    auto res = allocator->malloc(type, tensor_size, 0);
+    auto res = allocator->malloc(type, tensor_size);
     ASSERT_TRUE((bool)res);
-    ASSERT_EQ(free_list().front().base(), dram_base + (tensor_size + md_size));
-    ASSERT_EQ(free_list().front().size(), dram_size - (tensor_size + md_size));
-
     auto tensor = allocated_list().back();
-    ASSERT_EQ(tensor->alignedStart(), dram_base + md_size);
+    ASSERT_EQ(free_list().front().base(), tensor->endOffset());
+    ASSERT_EQ(free_list().front().size(), dram_size - tensor->size());
   }
 
   // Second allocation
   {
-    auto res = allocator->malloc(type, tensor_size, 0);
+    auto res = allocator->malloc(type, tensor_size);
     ASSERT_TRUE((bool)res);
-    ASSERT_EQ(free_list().front().base(),
-              dram_base + 2 * (tensor_size + md_size));
-    ASSERT_EQ(free_list().front().size(),
-              dram_size - 2 * (tensor_size + md_size));
-
     auto tensor = allocated_list().back();
-    ASSERT_EQ(tensor->alignedStart(), dram_base + 2 * md_size + tensor_size);
+    ASSERT_EQ(free_list().front().base(), tensor->endOffset());
   }
 
   // Third allocation
   {
-    auto res = allocator->malloc(type, tensor_size, 0);
+    auto res = allocator->malloc(type, tensor_size);
     ASSERT_TRUE((bool)res);
     ASSERT_TRUE(free_list().empty());
-
-    auto tensor = allocated_list().back();
-    ASSERT_EQ(tensor->alignedStart(),
-              dram_base + md_size + 2 * (md_size + tensor_size));
   }
 
   ASSERT_TRUE(allocator->sanityCheck());
@@ -237,10 +226,10 @@ INSTANTIATE_TEST_CASE_P(
     EmplaceSuccess, TestLinearAllocatorEmplaceSuccess,
     testing::Values(
         // region start, left_free, emplaze_size, right_Free, free_list_size
-        std::tuple<int, int, int, int, int>{100, 10, 10, 10, 2},
-        std::tuple<int, int, int, int, int>{100, 0, 10, 10, 1},
-        std::tuple<int, int, int, int, int>{100, 10, 10, 0, 1},
-        std::tuple<int, int, int, int, int>{100, 0, 10, 0, 0}));
+        std::tuple<int, int, int, int, int>{128, 64, 10, 10, 2},
+        std::tuple<int, int, int, int, int>{128, 0, 10, 10, 1},
+        std::tuple<int, int, int, int, int>{128, 64, 10, 0, 1},
+        std::tuple<int, int, int, int, int>{128, 0, 10, 0, 0}));
 
 // parametried test class, receives as parameters a vector of tuples
 class TestLinearAllocatorMallocFree
@@ -265,13 +254,13 @@ TEST_P(TestLinearAllocatorMallocFree, malloc_free_random) {
   BufferOffsetTy dram_base = 0;
   auto dram_size = 0;
   for (auto &i : tensor_size) {
-    dram_size += i + md_size;
+    dram_size += i + md_size + 2 * MIN_ALIGNMENT;
   }
 
   allocator.reset(new LinearAllocator(dram_base, dram_size));
 
   for (auto size : tensor_size) {
-    auto res = allocator->malloc(type, size, 0);
+    auto res = allocator->malloc(type, size);
     ASSERT_TRUE((bool)res);
     tensors.push_back(std::get<0>(res.get()));
   }
@@ -279,8 +268,6 @@ TEST_P(TestLinearAllocatorMallocFree, malloc_free_random) {
   ASSERT_TRUE(allocator->sanityCheck());
 
   // allocator->printState();
-
-  ASSERT_TRUE(free_list().empty());
 
   auto total_free_size = allocator->freeMemory();
 
@@ -294,7 +281,7 @@ TEST_P(TestLinearAllocatorMallocFree, malloc_free_random) {
     auto free_res = allocator->free(tid);
     // allocator->printState();
     ASSERT_EQ(free_res, etrtSuccess);
-    ASSERT_EQ(free_list().size(), free_list_size);
+    ASSERT_TRUE(free_list().size() >= free_list_size);
     ASSERT_EQ(total_free_size, allocator->freeMemory());
   }
 
