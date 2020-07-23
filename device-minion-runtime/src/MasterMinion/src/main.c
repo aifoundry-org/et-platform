@@ -31,6 +31,7 @@
 //#define DEBUG_FAKE_ABORT_FROM_HOST
 
 #ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
+#include <esperanto/device-api/device_api.h>
 static void fake_message_from_host(void);
 #endif
 
@@ -214,8 +215,14 @@ static void fake_message_from_host(void)
     // For now, fake host launches kernel 0 any time it's unused.
     if (kernel_state == KERNEL_STATE_UNUSED)
     {
-        const host_message_t host_message = {
-            .message_id = MBOX_MESSAGE_ID_KERNEL_LAUNCH,
+        const struct kernel_launch_cmd_t launch_cmd = {
+            .command_info = {
+                .message_id = MESSAGE_ID_KERNEL_LAUNCH,
+                .command_id = 0,
+                .host_timestamp = 0,
+                .device_timestamp_mtime = 0,
+                .stream_id = 0
+            },
             .kernel_params = {
                 .tensor_a = 0,
                 .tensor_b = 0,
@@ -231,14 +238,13 @@ static void fake_message_from_host(void)
                 .compute_pc = KERNEL_UMODE_ENTRY,
                 .uber_kernel_nodes = 0, // unused
                 .shire_mask = 0x1, //0xFFFFFFFF
-                .kernel_params_ptr = NULL, // gets fixed up
-                .grid_config_ptr = NULL // TODO
-            }
+            },
+            .uber_kernel = 0 // Don't care, unused
         };
 
         log_write(LOG_LEVEL_DEBUG, "faking kernel launch message fom host\r\n");
 
-        launch_kernel(&host_message.kernel_params, &host_message.kernel_info);
+        launch_kernel(&launch_cmd);
     }
 
 #ifdef DEBUG_FAKE_ABORT_FROM_HOST
