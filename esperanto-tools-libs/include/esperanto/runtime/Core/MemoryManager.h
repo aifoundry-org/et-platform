@@ -98,6 +98,9 @@ public:
 private:
   friend class ::et_runtime::Module;
 
+  static constexpr int64_t DATA_ALIGNMENT =
+      1ULL << 13; ///< 8KB alignment requirement
+
   /// Code allocation functions are exposed only in the Module class that is a
   /// friend
 
@@ -110,7 +113,7 @@ private:
   void initMemRegions();
   void uninitMemRegions();
 
-  constexpr static uint64_t CODE_SIZE = 1ULL << 32; // 4GB
+  static constexpr uint64_t CODE_SIZE = 1ULL << 32; // 4GB
 
   std::unique_ptr<memory_management::MemoryManagerInternals> impl_;
 

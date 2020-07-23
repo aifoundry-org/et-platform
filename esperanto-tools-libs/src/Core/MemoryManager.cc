@@ -63,7 +63,7 @@ etrtError MemoryManager::reserveMemoryCode(uintptr_t ptr, size_t size) {
 }
 
 etrtError MemoryManager::malloc(void **devPtr, size_t size) {
-  auto res = impl_->mallocConstant(size, 0);
+  auto res = impl_->mallocConstant(size, MemoryManager::DATA_ALIGNMENT);
   if (!res) {
     return res.getError();
   }
@@ -75,7 +75,7 @@ etrtError MemoryManager::malloc(void **devPtr, size_t size) {
 }
 
 etrtError MemoryManager::mallocCode(void **devPtr, size_t size) {
-  auto res = impl_->mallocCode(size, 0);
+  auto res = impl_->mallocCode(size, DATA_ALIGNMENT);
   if (!res) {
     return res.getError();
   }
