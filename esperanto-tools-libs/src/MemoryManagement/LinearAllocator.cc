@@ -36,8 +36,10 @@ LinearAllocator::findAllocatedBuffer(BufferID tid) {
       });
 }
 
-ErrorOr<BufferID> LinearAllocator::malloc(BufferType type, BufferSizeTy size,
-                                          BufferSizeTy alignment) {
+ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
+LinearAllocator::malloc(BufferType type, BufferSizeTy size,
+                        BufferSizeTy alignment) {
+
   // Compute the buffer type's metadata header size
   auto md_size = mdSize(type);
   auto total_size = alignmentFixSize(size, md_size, alignment);
@@ -95,12 +97,12 @@ ErrorOr<BufferID> LinearAllocator::malloc(BufferType type, BufferSizeTy size,
       0, static_cast<int>(type), buffer->id(), base, aligned_start, md_size,
       size, total_size, left_buffer, right_buffer);
 
-  return buffer->id();
+  return std::tuple<BufferID, BufferOffsetTy>(buffer->id(), base);
 }
 
-ErrorOr<BufferID> LinearAllocator::emplace(BufferType type,
-                                           BufferOffsetTy offset,
-                                           BufferSizeTy size) {
+ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
+LinearAllocator::emplace(BufferType type, BufferOffsetTy offset,
+                         BufferSizeTy size) {
   // Compute the buffer type's metadata header size
   auto md_size = mdSize(type);
   // The beggining of the buffer starts from the meta-data header
@@ -178,7 +180,7 @@ ErrorOr<BufferID> LinearAllocator::emplace(BufferType type,
       0, static_cast<int>(type), buffer->id(), buffer_base, md_size, size,
       left_buffer, right_buffer);
 
-  return buffer->id();
+  return std::tuple<BufferID, BufferOffsetTy>(buffer->id(), buffer_base);
 }
 
 etrtError LinearAllocator::free(BufferID tid) {

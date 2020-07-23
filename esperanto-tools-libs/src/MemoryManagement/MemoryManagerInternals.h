@@ -39,34 +39,43 @@ class BidirectionalAllocator;
 /// buffers, deallocates memory and reports the status of
 class MemoryManagerInternals {
 public:
-  MemoryManagerInternals(uint64_t code_size, uint64_t data_size);
+  MemoryManagerInternals(uint64_t dram_base_addr, uint64_t code_size,
+                         uint64_t data_size);
   ~MemoryManagerInternals() = default;
 
   /// @brief Allocate a buffer in the code region
   ///
   /// @param[in] size Size of the buffer in bytes
-  /// @param[in] alignment Size in bytes of the buffer alignment
-  ErrorOr<BufferID> mallocCode(BufferSizeTy size, BufferSizeTy alignment);
+  /// @return Tuple with the buffer ID and the offset where it was allocated in
+  /// DRAM
+  ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
+  mallocCode(BufferSizeTy size, BufferSizeTy alignment);
 
   /// @brief Emplace a buffer in the code region
   ///
   /// @param[in] offset Offset inside the code region the buffer is going to be
   /// emplaced
   /// @param[in] size Size of the buffer
-  ErrorOr<BufferID> emplaceCode(BufferOffsetTy offset, BufferSizeTy size);
+  /// @returns Tuple with the buffer ID and the offset where it was allocated in
+  /// DRAM
+  ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
+  emplaceCode(BufferOffsetTy offset, BufferSizeTy size);
 
   /// @brief Allocate a Constant buffer in the data region
   ///
   /// @param[in] size Size of the buffer in bytes
-  /// @param[in] alignment Size in bytes of the buffer alignment
-  ErrorOr<BufferID> mallocConstant(BufferSizeTy size, BufferSizeTy alignment);
+  /// @returns Tuple with the buffer ID and the offset where it was allocated in
+  /// DRAM
+  ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
+  mallocConstant(BufferSizeTy size, BufferSizeTy alignment);
 
   /// @brief Allocate a Placeholder buffer in the data region
   ///
   /// @param[in] size Size of the buffer in bytes
-  /// @param[in] alignment Size in bytes of the buffer alignment
-  ErrorOr<BufferID> mallocPlaceholder(BufferSizeTy size,
-                                      BufferSizeTy alignment);
+  /// @returns Tuple with the buffer ID and the offset where it was allocated in
+  /// DRAM
+  ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
+  mallocPlaceholder(BufferSizeTy size, BufferSizeTy alignment);
 
   /// @brief Free a buffer from the code region
   //
@@ -78,6 +87,11 @@ public:
   // @param[in] id ID of the buffer to deallocate from the data region.
   etrtError freeData(BufferID id);
 
+  /// @brief Check if the buffer is allocated
+  ///
+  /// @param[in] id Buffer ID
+  bool dataBufferExists(BufferID id) const;
+
   /// @brief Report the sum of free memory both in the code and data regions.
   uint64_t freeMemory();
 
@@ -85,6 +99,7 @@ public:
   void printState();
 
 private:
+  uint64_t dram_base_addr_;
   std::unique_ptr<LinearAllocator> code_region_;
   std::unique_ptr<BidirectionalAllocator> data_region_;
 };

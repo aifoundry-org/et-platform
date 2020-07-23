@@ -13,6 +13,7 @@
 #include "MemoryManagement/LinearAllocator.h"
 #include "MemoryManagement/MemoryManagerInternals.h"
 
+#include <esperanto-fw/fw-helpers/layout.h>
 #include <glog/logging.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -42,21 +43,22 @@ TEST_F(TestMemoryManagerInternals, allocate_network_tensors) {
                    2 * constant_md_size + activation_size +
                    placeholder_md_size + data_additional_free;
 
-  allocator.reset(new MemoryManagerInternals(code_size, data_size));
+  allocator.reset(
+      new MemoryManagerInternals(DRAM_MEMMAP_BEGIN, code_size, data_size));
   ASSERT_EQ(allocator->freeMemory(), code_size + data_size);
   // Allocate the network
   auto malloc_res = allocator->mallocCode(kernel_size, 0);
   ASSERT_TRUE((bool)malloc_res);
-  auto code_tid = malloc_res.get();
+  auto code_tid = std::get<0>(malloc_res.get());
   malloc_res = allocator->mallocConstant(constant_tensor1_size, 0);
   ASSERT_TRUE((bool)malloc_res);
-  auto c1_tid = malloc_res.get();
+  auto c1_tid = std::get<0>(malloc_res.get());
   malloc_res = allocator->mallocConstant(constant_tensor2_size, 0);
   ASSERT_TRUE((bool)malloc_res);
-  auto c2_tid = malloc_res.get();
+  auto c2_tid = std::get<0>(malloc_res.get());
   malloc_res = allocator->mallocPlaceholder(activation_size, 0);
   ASSERT_TRUE((bool)malloc_res);
-  auto plc_tid = malloc_res.get();
+  auto plc_tid = std::get<0>(malloc_res.get());
 
   ASSERT_EQ(allocator->freeMemory(),
             code_additional_free + data_additional_free);

@@ -18,8 +18,6 @@ add_library(etrt_Core OBJECT
   Event.cc
   KernelActions.cc
   MemoryManager.cc
-  MemoryAllocator.cc
-  MemoryAllocator.h
   Stream.cc
   VersionCheckers.cc
   )

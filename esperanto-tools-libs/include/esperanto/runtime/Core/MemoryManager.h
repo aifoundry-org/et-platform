@@ -11,6 +11,7 @@
 #ifndef ET_RUNTIME_MEMORY_MANAGER_H
 #define ET_RUNTIME_MEMORY_MANAGER_H
 
+#include "esperanto/runtime/Common/CommonTypes.h"
 #include "esperanto/runtime/Common/ErrorTypes.h"
 #include "esperanto/runtime/Support/ErrorOr.h"
 
@@ -28,8 +29,13 @@ class Device;
 class AbstractMemoryPtr;
 class DeviceMemoryPtr;
 class HostMemoryPtr;
+class Module;
 
 namespace device {
+
+namespace memory_management {
+class MemoryManagerInternals;
+}
 
 struct LinearMemoryAllocator;
 
@@ -70,13 +76,14 @@ public:
   ErrorOr<DeviceMemoryPtr> mallocDevice(size_t size);
 
   /// @brief Reserve a memory region starting at address ptr
-  etrtError reserveMemory(void *ptr, size_t size);
+  etrtError reserveMemoryCode(uintptr_t ptr, size_t size);
+
   /// @brief Allocate memory on the device
   etrtError malloc(void **devPtr, size_t size);
+
   /// @brief Free device memory.
   etrtError free(void *devPtr);
-  /// @brief Return true iff this is a device pointer
-  bool isPtrAllocatedDev(const void *ptr);
+
   /// @brief Return true iff this points in a device region
   bool isPtrInDevRegion(const void *ptr);
 
@@ -89,11 +96,34 @@ public:
   void recordStateLogs() const { ; }
 
 private:
+  friend class ::et_runtime::Module;
+
+  static constexpr int64_t DATA_ALIGNMENT =
+      1ULL << 13; ///< 8KB alignment requirement
+
+  /// Code allocation functions are exposed only in the Module class that is a
+  /// friend
+
+  /// @brief Allocate buffer in the code region on the device
+  etrtError mallocCode(void **devPtr, size_t size);
+
+  /// @brief Deallocate code buffer
+  etrtError freeCode(void *devPtr);
+
   void initMemRegions();
   void uninitMemRegions();
 
-  std::unique_ptr<LinearMemoryAllocator> dev_mem_region_;
+  static constexpr uint64_t CODE_SIZE = 1ULL << 32; // 4GB
+
+  std::unique_ptr<memory_management::MemoryManagerInternals> impl_;
+
+  using buffer_map_t = std::unordered_map<BufferOffsetTy, BufferID>;
+
   Device &device_;
+  buffer_map_t
+      data_buffer_map_; ///< Map from a data buffer address to a BufferID
+  buffer_map_t
+      code_buffer_map_; ///< Map from a code buffer address to a BufferID
 };
 } // namespace device
 } // namespace et_runtime

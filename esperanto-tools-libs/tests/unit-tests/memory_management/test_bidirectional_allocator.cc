@@ -18,6 +18,7 @@
 #include <memory>
 #include <vector>
 
+using namespace et_runtime;
 using namespace et_runtime::device::memory_management;
 
 class TestBidirectionalAllocator : public ::testing::Test {
@@ -71,7 +72,7 @@ TEST_F(TestBidirectionalAllocator, single_mallocFront_success) {
   ASSERT_TRUE((bool)res);
 
   // We expect to have allocated the first tensor
-  auto tid = res.get();
+  auto tid = std::get<0>(res.get());
   EXPECT_NE(tid, 0);
 
   // The list should be empty now
@@ -103,11 +104,11 @@ TEST_F(TestBidirectionalAllocator, mallocs_both_directions) {
   ASSERT_TRUE((bool)res);
 
   // firs tensor id
-  auto tid_1 = res.get();
+  auto tid_1 = std::get<0>(res.get());
 
   res = allocator->mallocBack(type, tensor_size, 0);
   ASSERT_TRUE((bool)res);
-  auto tid_2 = res.get();
+  auto tid_2 = std::get<0>(res.get());
 
   allocator->printStateJSON();
 
@@ -140,7 +141,7 @@ TEST_P(TestBidirectionalAllocatorMallocAlignmentDirections,
   auto direction = GetParam();
   // Function pointer to the malloc function to execute: either mallocFront or
   // malloc Back
-  et_runtime::ErrorOr<et_runtime::BufferID> (
+  et_runtime::ErrorOr<std::tuple<et_runtime::BufferID, BufferOffsetTy>> (
       BidirectionalAllocator::*mallocFunc)(BufferType type, BufferSizeTy size,
                                            BufferSizeTy alignment);
 
@@ -181,7 +182,7 @@ TEST_P(TestBidirectionalAllocatorMallocAlignmentDirections,
     allocator->printState();
 
     // We expect to have allocated the first tensor
-    auto tid = res.get();
+    auto tid = std::get<0>(res.get());
 
     auto tensor = last_tensor_allocated();
     ASSERT_EQ(tensor->alignedStart() % alignment, 0);
@@ -213,7 +214,8 @@ TEST_P(TestBidirectionalAllocatorMallocDirections, multiple_mallocs_success) {
   auto direction = GetParam();
   // Function pointer to the malloc function to execute: either mallocFront or
   // malloc Back
-  et_runtime::ErrorOr<et_runtime::BufferID> (
+
+  et_runtime::ErrorOr<std::tuple<et_runtime::BufferID, BufferOffsetTy>> (
       BidirectionalAllocator::*mallocFunc)(BufferType type, BufferSizeTy size,
                                            BufferSizeTy alignment);
 
@@ -344,11 +346,11 @@ TEST_P(TestBidirectionalAllocatorMallocFreeOrder, mallocFront_free_random) {
     if (alloc_direction == BidirectionalAllocator::AllocDirection::Front) {
       auto res = allocator->mallocFront(type, size, 0);
       ASSERT_TRUE((bool)res);
-      tid = res.get();
+      tid = std::get<0>(res.get());
     } else {
       auto res = allocator->mallocBack(type, size, 0);
       ASSERT_TRUE((bool)res);
-      tid = res.get();
+      tid = std::get<0>(res.get());
     }
     tensors.push_back(tid);
   }
@@ -448,11 +450,11 @@ TEST_P(TestBidirectionalAllocatorMallocFreeAlterOrder,
     if (alloc_direction == BidirectionalAllocator::AllocDirection::Front) {
       auto res = allocator->mallocFront(type, size, 0);
       ASSERT_TRUE((bool)res);
-      tid = res.get();
+      tid = std::get<0>(res.get());
     } else {
       auto res = allocator->mallocBack(type, size, 0);
       ASSERT_TRUE((bool)res);
-      tid = res.get();
+      tid = std::get<0>(res.get());
     }
     tensors.push_back(tid);
   }

@@ -39,9 +39,9 @@ public:
   /// @param[in] type Type of the buffer to allocate
   /// @param[in] size Size in bytes of the buffer to allocate
   /// @param[in] alignment Size in bytes of the buffer alignment
-  /// @returns  Error of the ID of the buffer that was allocated
-  ErrorOr<BufferID> malloc(BufferType type, BufferSizeTy size,
-                           BufferSizeTy alignment);
+  /// @returns  Error or the ID of the buffer that was allocated and its offset
+  ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
+  malloc(BufferType type, BufferSizeTy size, BufferSizeTy alignment);
 
   /// @brief Emplace a buffer in the allocator
   ///
@@ -49,8 +49,8 @@ public:
   /// @param[in] offset Offset inside the code region the buffer is going to be
   /// emplaced
   /// @param[in] size Size of the buffer
-  ErrorOr<BufferID> emplace(BufferType type, BufferOffsetTy offset,
-                            BufferSizeTy size);
+  ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
+  emplace(BufferType type, BufferOffsetTy offset, BufferSizeTy size);
 
   /// @brief Deallocate the specific buffer
   ///
