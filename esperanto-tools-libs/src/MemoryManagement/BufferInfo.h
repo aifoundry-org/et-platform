@@ -29,6 +29,9 @@ using BufferSizeTy = int64_t;
 /// Size of the padding of a buffer in bytes
 using PaddingSizeTy = uint32_t;
 
+static constexpr BufferSizeTy MIN_ALIGNMENT =
+    64; ///< Minimum buffer alignent is 64 bytes ( 1 cache line)
+
 /// @enum BufferType BufferInfo.h
 ///
 /// @brief Type of the buffer/buffer/memory-region
@@ -248,7 +251,8 @@ public:
       return 0;
     }
     auto type_size = sizeof(buffer_type_t);
-    auto aligned_md_size = (((type_size + 63U) / 64U) * 64U);
+    auto aligned_md_size =
+        (((type_size + MIN_ALIGNMENT - 1) / MIN_ALIGNMENT) * MIN_ALIGNMENT);
     assert(aligned_md_size >= type_size);
     return aligned_md_size;
   }

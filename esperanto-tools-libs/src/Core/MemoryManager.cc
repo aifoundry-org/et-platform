@@ -107,5 +107,9 @@ bool MemoryManager::isPtrInDevRegion(const void *ptr) {
   return impl_->dataBufferExists(reinterpret_cast<BufferID>(ptr));
 }
 
+bool MemoryManager::runSanityCheck() const { return impl_->runSanityCheck(); }
+
+void MemoryManager::recordState() const { impl_->recordState(); }
+
 } // namespace device
 } // namespace et_runtime

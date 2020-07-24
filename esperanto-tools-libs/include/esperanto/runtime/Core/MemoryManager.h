@@ -88,12 +88,10 @@ public:
   bool isPtrInDevRegion(const void *ptr);
 
   /// @brief Run memory-manager sanity check
-  /// Note: Placeholder to be called by Glow
-  bool runSanityCheck() const { return true; }
+  bool runSanityCheck() const;
 
-  /// @brief Dump the memory manager state in the log
-  /// Note: Placeholder to be called by Glow
-  void recordStateLogs() const { ; }
+  /// @brief Dump the memory manager state in the runtime log
+  void recordState() const;
 
 private:
   friend class ::et_runtime::Module;

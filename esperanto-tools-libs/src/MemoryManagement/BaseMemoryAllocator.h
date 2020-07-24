@@ -45,12 +45,14 @@ public:
   /// @brief Return the total free memory
   virtual BufferSizeTy freeMemory() = 0;
 
+  /// @brief Run a sanity check and return true on success
+  virtual bool sanityCheck() const = 0;
+
   /// @brief Print in the stdout the state of the memory allocator
   virtual void printState() = 0;
 
-  /// @brief Print in the stdout the state of the memory allocator in JSON
-  /// format
-  virtual void printStateJSON() = 0;
+  /// @brief Return JSON string with the state of the allocator
+  virtual const std::string stateJSON() const = 0;
 
   /// @brief Return the meta-data size of a specific buffer type
   static BufferSizeTy mdSize(BufferType type);

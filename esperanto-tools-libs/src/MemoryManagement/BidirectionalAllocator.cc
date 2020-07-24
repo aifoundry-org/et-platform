@@ -21,7 +21,8 @@ using namespace et_runtime::device::memory_management;
 
 BidirectionalAllocator::BidirectionalAllocator(BufferOffsetTy base,
                                                BufferSizeTy size)
-    : free_list_(), allocated_front_list_(), allocated_back_list_() {
+    : base_(base), size_(size), free_list_(), allocated_front_list_(),
+      allocated_back_list_() {
   free_list_.push_back(BufferInfo<FreeRegion>(base, size));
   // FIXME add the device-id
   TRACE_MemoryManager_BidirectionalAllocator_Constructor(0, base, size);
@@ -44,6 +45,11 @@ BidirectionalAllocator::findAllocatedBuffer(BufferID tid) const {
 ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
 BidirectionalAllocator::mallocFront(BufferType type, BufferSizeTy size,
                                     BufferSizeTy alignment) {
+  if (alignment < MIN_ALIGNMENT) {
+    RTERROR << "Alignment size smaller that minimum alignment \n";
+    return etrtErrorMemoryAllocation;
+  }
+
   // Compute the buffer type's metadata header size
   auto md_size = mdSize(type);
   auto total_size = alignmentFixSize(size, md_size, alignment);
@@ -107,6 +113,10 @@ BidirectionalAllocator::mallocFront(BufferType type, BufferSizeTy size,
 ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
 BidirectionalAllocator::mallocBack(BufferType type, BufferSizeTy size,
                                    BufferSizeTy alignment) {
+  if (alignment < MIN_ALIGNMENT) {
+    RTERROR << "Alignment size smaller that minimum alignment \n";
+    return etrtErrorMemoryAllocation;
+  }
 
   // Compute the buffer type's metadata header size
   auto md_size = mdSize(type);
@@ -288,6 +298,44 @@ BufferSizeTy BidirectionalAllocator::freeMemory() {
   return free_mem;
 }
 
+bool BidirectionalAllocator::sanityCheck() const {
+
+  for (const auto &alloc_list : {allocated_front_list_, allocated_back_list_}) {
+    BufferOffsetTy current_end = base_;
+    for (const auto &i : alloc_list) {
+      if (i->base() < current_end) {
+        RTERROR << *i << ", starts before the end of previous buffer: "
+                << current_end;
+        return false;
+      }
+      if (i->endOffset() > endOffset()) {
+        RTERROR << *i << " exceeds the region end: " << endOffset();
+        return false;
+      }
+      if ((i->alignedStart() % MIN_ALIGNMENT) != 0) {
+        RTERROR << *i << " Buffeer is misaligned \n";
+        return false;
+      }
+      current_end = i->endOffset();
+    }
+  }
+  auto current_end = base_;
+  for (const auto &i : free_list_) {
+    if (i.base() < current_end) {
+      RTERROR << i
+              << ", starts before the end of previous buffer: " << current_end;
+      return false;
+    }
+    if (i.endOffset() > endOffset()) {
+      RTERROR << i << " exceeds the region end: " << endOffset();
+      return false;
+    }
+    current_end = i.endOffset();
+  }
+
+  return true;
+}
+
 void BidirectionalAllocator::printState() {
   std::cout << "Free List: \n";
   for (auto &i : free_list_) {
@@ -305,7 +353,7 @@ void BidirectionalAllocator::printState() {
   std::cout << "\n";
 }
 
-void BidirectionalAllocator::printStateJSON() {
+const std::string BidirectionalAllocator::stateJSON() const {
   std::stringstream sstr;
   sstr << " { \"FreeList\": [";
   decltype(free_list_)::size_type cnt = 0;
@@ -347,6 +395,7 @@ void BidirectionalAllocator::printStateJSON() {
 
   sstr << "] }";
   TRACE_MemoryManager_BidirectionalAllocator_jsonStatus(sstr.str());
+  return sstr.str();
 }
 
 bool BidirectionalAllocator::bufferExists(BufferID tid) const {

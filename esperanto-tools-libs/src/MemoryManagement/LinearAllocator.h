@@ -41,7 +41,8 @@ public:
   /// @param[in] alignment Size in bytes of the buffer alignment
   /// @returns  Error or the ID of the buffer that was allocated and its offset
   ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
-  malloc(BufferType type, BufferSizeTy size, BufferSizeTy alignment);
+  malloc(BufferType type, BufferSizeTy size,
+         BufferSizeTy alignment = MIN_ALIGNMENT);
 
   /// @brief Emplace a buffer in the allocator
   ///
@@ -61,12 +62,14 @@ public:
   /// @brief Return the total free memory
   BufferSizeTy freeMemory() override;
 
-  /// @brief Print the allocator status
+  /// @brief Run a sanity check and return true on success
+  bool sanityCheck() const override;
+
+  /// @brief Print the allocator state
   void printState() override;
 
-  /// @brief Print in the stdout the state of the memory allocator in JSON
-  /// format
-  void printStateJSON() override;
+  /// @brief Return JSON string with the state of the allocator
+  const std::string stateJSON() const override;
 
 private:
   /// Friend class used for our testing
@@ -88,6 +91,8 @@ private:
   /// @param[in] tid  ID of the buffer to deallocate
   /// @returns Iterator to the allocated_list_ object
   allocated_buffer_info::iterator findAllocatedBuffer(BufferID tid);
+
+  const BufferOffsetTy endOffset() const { return base_ + size_; }
 };
 
 } // namespace memory_management

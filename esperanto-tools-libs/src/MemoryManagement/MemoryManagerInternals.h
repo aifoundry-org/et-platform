@@ -49,7 +49,7 @@ public:
   /// @return Tuple with the buffer ID and the offset where it was allocated in
   /// DRAM
   ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
-  mallocCode(BufferSizeTy size, BufferSizeTy alignment);
+  mallocCode(BufferSizeTy size, BufferSizeTy alignment = MIN_ALIGNMENT);
 
   /// @brief Emplace a buffer in the code region
   ///
@@ -67,7 +67,7 @@ public:
   /// @returns Tuple with the buffer ID and the offset where it was allocated in
   /// DRAM
   ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
-  mallocConstant(BufferSizeTy size, BufferSizeTy alignment);
+  mallocConstant(BufferSizeTy size, BufferSizeTy alignment = MIN_ALIGNMENT);
 
   /// @brief Allocate a Placeholder buffer in the data region
   ///
@@ -75,7 +75,7 @@ public:
   /// @returns Tuple with the buffer ID and the offset where it was allocated in
   /// DRAM
   ErrorOr<std::tuple<BufferID, BufferOffsetTy>>
-  mallocPlaceholder(BufferSizeTy size, BufferSizeTy alignment);
+  mallocPlaceholder(BufferSizeTy size, BufferSizeTy alignment = MIN_ALIGNMENT);
 
   /// @brief Free a buffer from the code region
   //
@@ -95,8 +95,14 @@ public:
   /// @brief Report the sum of free memory both in the code and data regions.
   uint64_t freeMemory();
 
+  /// @brief Run memory-manager sanity check
+  bool runSanityCheck() const;
+
   /// @brief Print the state of both the code and data regions
-  void printState();
+  void printState() const;
+
+  /// @brief Record the state in the rhntime logs
+  void recordState() const;
 
 private:
   uint64_t dram_base_addr_;

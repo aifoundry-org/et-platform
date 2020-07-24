@@ -72,7 +72,19 @@ uint64_t MemoryManagerInternals::freeMemory() {
   return code_region_->freeMemory() + data_region_->freeMemory();
 }
 
-void MemoryManagerInternals::printState() {
+bool MemoryManagerInternals::runSanityCheck() const {
+  bool res = true;
+  res = res && code_region_->sanityCheck();
+  res = res && data_region_->sanityCheck();
+  return res;
+}
+
+void MemoryManagerInternals::printState() const {
   code_region_->printState();
   data_region_->printState();
+}
+
+void MemoryManagerInternals::recordState() const {
+  code_region_->stateJSON();
+  data_region_->stateJSON();
 }
