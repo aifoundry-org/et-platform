@@ -3,18 +3,6 @@
 #include "et_layout.h"
 #include "hal_device.h"
 
-const enum et_cdev_type MINOR_TYPES[] = {
-	et_cdev_type_mb_sp,
-	et_cdev_type_mb_mm,
-	et_cdev_type_bulk
-};
-
-const char *MINOR_NAMES[] = {
-	"et%dmb_sp",
-	"et%dmb_mm",
-	"et%dbulk"
-};
-
 //BAR0
 //Name              Host Addr       Size   Notes
 //R_L3_DRAM         BAR0 + 0x0000   ~32GB  SoC DRAM
