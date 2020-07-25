@@ -37,8 +37,6 @@ namespace memory_management {
 class MemoryManagerInternals;
 }
 
-struct LinearMemoryAllocator;
-
 /// @brief MemoryManager, responsible for tracking device memory use.
 class MemoryManager {
 public:
