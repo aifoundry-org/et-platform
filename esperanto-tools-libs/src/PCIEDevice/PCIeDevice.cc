@@ -43,7 +43,7 @@ bool PCIeDevice::init() {
   RTINFO << "PCIEDevice: Reset MM mailbox \n";
   // Wait for the device to be ready
   // FIXME "random" wait time and polling interval
-  auto wait_time = std::chrono::seconds(2 * 60);
+  auto wait_time = std::chrono::seconds(5 * 60);
   bool mb_ready = mm_.ready(wait_time);
   RTINFO << "PCIEDevice: MM mailbox ready " << mb_ready << "\n";
   if (!mb_ready) {
