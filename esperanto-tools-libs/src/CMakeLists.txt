@@ -17,7 +17,6 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -fPIC -Wall")
 
 # List of subdirectories with our sources
 set(SUBFOLDERS
-  C-API
   CodeManagement
   Core
   DeviceAPI
@@ -75,7 +74,6 @@ set(ETRT_SOURCES
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Common/ProjectAutogen.h.in
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Common/ErrorTypes.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Common/CommonTypes.h
-  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/C-API/etrt.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/CodeManagement/Kernel.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/CodeManagement/Library.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/CodeManagement/CodeRegistry.h
