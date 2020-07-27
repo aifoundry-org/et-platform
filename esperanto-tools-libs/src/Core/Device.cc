@@ -47,7 +47,7 @@ Device::Device()
 
 Device::Device(int index)
     : device_index_(index), fw_manager_(std::make_unique<FWManager>()),
-      mem_manager_(std::make_unique<et_runtime::device::MemoryManager>(*this)),
+      mem_manager_(std::make_unique<et_runtime::device::MemoryManager>(this)),
       command_executor_(), terminate_cmd_executor_(false), device_reader_() {
   auto target_type = DeviceTarget::deviceToCreate();
   target_device_ = DeviceTarget::deviceFactory(target_type, index);

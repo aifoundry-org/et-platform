@@ -84,10 +84,10 @@ public:
   bool deviceAlive();
 
   /// @brief Return the absolute base DRAM address we can access
-  uintptr_t dramBaseAddr() const;
+  virtual uintptr_t dramBaseAddr() const;
 
   /// @brief Return the size of DRAM we can write to in bytes.
-  uintptr_t dramSize() const;
+  virtual uintptr_t dramSize() const;
 
   /// @brief load the DeviceFW on the target device
   etrtError loadFirmwareOnDevice();

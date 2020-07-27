@@ -36,11 +36,15 @@ TEST(RefCount, simple) {
 class MockDevice : public Device {
 public:
   MockDevice() : Device() {}
+
+  uintptr_t dramSize() const override { return 1ULL << 33; }
+  uintptr_t dramBaseAddr() const override { return 0; }
 };
 
 class MockMemoryManager : public MemoryManager {
 public:
-  MockMemoryManager(Device &dev) : MemoryManager(dev) {}
+  MockMemoryManager(Device *dev) : MemoryManager(dev) { initMemRegions(); }
+
   MOCK_METHOD1(freeData, etrtError(BufferID bid));
   MOCK_METHOD1(freeCode, etrtError(BufferID bid));
 
@@ -52,7 +56,7 @@ class TestDeviceBuffer : public ::testing::Test {
 public:
   TestDeviceBuffer() {
     dev_ = std::make_unique<MockDevice>();
-    mem_manager_ = std::make_unique<MockMemoryManager>(*dev_.get());
+    mem_manager_ = std::make_unique<MockMemoryManager>(dev_.get());
   }
 
   std::unique_ptr<MockDevice> dev_;

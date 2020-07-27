@@ -63,6 +63,14 @@ enum etrt_event_flags_e {
       8, ///<  Disable timing on this event, @todo deprecate this option
 };
 
+struct BufferDebugInfo {
+  NetworkID network_id; ///< ID of the network this buffer is associated with
+  BufferID buffer_id; ///< ID of the buffer / tensor as reported by the runtime
+                      ///< caller
+  int64_t invocation_id; ///< ID of the invocation of the nextwork this buffer
+                         ///< is associated with
+};
+
 /// Enumeration with the different allocations we can have in the system
 enum etrt_mem_alloc_e {
   ETRT_MEM_ALLOC_UNKNOWN = 0, ///< Unknown type of memory allocation
