@@ -309,7 +309,7 @@ static void log_errors(int64_t return_value, uint64_t tensor_error)
 
     if (tensor_error != 0)
     {
-        log_write(LOG_LEVEL_ERROR, "tensor_error 0x%016" PRIx64, tensor_error);
+        log_write(LOG_LEVEL_ERROR, "tensor_error 0x%" PRIx64, tensor_error);
     }
 }
 

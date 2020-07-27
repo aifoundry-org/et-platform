@@ -235,7 +235,7 @@ void launch_kernel(const struct kernel_launch_cmd_t* const launch_cmd)
 
     if (!all_shires_ready(shire_mask))
     {
-        log_write(LOG_LEVEL_ERROR, "aborting kernel %d launch, not all shires ready\r\n", kernel_id);
+        log_write(LOG_LEVEL_ERROR, "aborting kernel %d launch, not all shires ready, needed shires: 0x%" PRIx64 "\r\n", kernel_id, shire_mask);
         allShiresReady = false;
     }
 
