@@ -373,6 +373,7 @@ etrtError Device::memset(void *devPtr, int value, size_t count) {
 }
 
 etrtError Device::moduleUnload(et_runtime::CodeModuleID mid) {
-  /// FIXME SW-1370 correctly unload the module form the device
+  /// As of now the device does not have to take any action to unload a
+  /// module. The CodeManager deletes the memory and that suffices
   return etrtSuccess;
 }

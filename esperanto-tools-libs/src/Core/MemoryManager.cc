@@ -56,12 +56,14 @@ void MemoryManager::uninitMemRegions() {
 
 }
 
-etrtError MemoryManager::reserveMemoryCode(uintptr_t ptr, size_t size) {
+ErrorOr<DeviceBuffer> MemoryManager::reserveMemoryCode(uintptr_t ptr,
+                                                       size_t size) {
   auto res = impl_->emplaceCode(ptr, size);
   if (!res) {
     return etrtErrorHostMemoryAlreadyRegistered;
   }
-  return etrtSuccess;
+  auto [bid, offset] = res.get();
+  return DeviceBuffer(bid, offset, &code_deallocator_);
 }
 
 etrtError MemoryManager::malloc(void **devPtr, size_t size) {

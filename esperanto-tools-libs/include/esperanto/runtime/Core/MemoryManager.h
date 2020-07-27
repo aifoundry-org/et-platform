@@ -98,9 +98,6 @@ public:
   /// valid DeviceBuffer object
   ErrorOr<DeviceBuffer> mallocPlaceholder(size_t size,
                                           const BufferDebugInfo &info);
-  // TODO: REMOVE
-  /// @brief Reserve a memory region starting at address ptr
-  etrtError reserveMemoryCode(uintptr_t ptr, size_t size);
 
   // TODO: REMOVE
   /// @brief Allocate memory on the device
@@ -147,6 +144,11 @@ protected:
   /// @return  ErrorOr ( etrtErrorInvalidValue, etrtErrorMemoryAllocation ) or a
   /// valid DeviceBuffer object
   ErrorOr<DeviceBuffer> mallocCode(size_t size, const BufferDebugInfo &info);
+
+  /// @brief Reserve a memory region starting at address ptr
+  /// @return  ErrorOr ( etrtErrorInvalidValue, etrtErrorMemoryAllocation ) or a
+  /// valid DeviceBuffer object
+  ErrorOr<DeviceBuffer> reserveMemoryCode(uintptr_t ptr, size_t size);
 
   // Revisit
   /// @brief Deallocate code buffer

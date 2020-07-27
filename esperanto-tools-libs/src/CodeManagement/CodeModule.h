@@ -12,6 +12,7 @@
 #define ET_RUNTIME_CODE_MODULE_H
 
 #include "esperanto/runtime/Common/CommonTypes.h"
+#include "esperanto/runtime/Core/Memory.h"
 #include "esperanto/runtime/Support/ErrorOr.h"
 #include "esperanto/runtime/Support/MemoryRange.h"
 
@@ -58,7 +59,7 @@ public:
   bool loadOnDevice(Device *dev);
 
   /// @brief True iff the module is loaded on the device
-  bool onDevice() { return onDevice_; }
+  bool onDevice() { return device_buffer_.id() != 0; }
 
   /// @brief PC where the kernel entrypoint is located
   ErrorOr<uintptr_t> onDeviceKernelEntryPoint(const std::string &kernel_name);
@@ -69,7 +70,7 @@ private:
 
   CodeModuleID module_id_;                  ///< ID of this module
   std::unique_ptr<KernelELFInfo> elf_info_; ///< Pointer to the decoded ELF
-  bool onDevice_ = false; ///< True iff the module is loaded on the device
+  DeviceBuffer device_buffer_; ///< Buffer on the device that holds the ELF data
   std::vector<std::tuple<support::MemoryRange, uintptr_t>>
       device_remap_; ///< Mapping of the ELF segment load address ( and size) to
                      ///< the load address of the segment on the device. To be

@@ -55,7 +55,14 @@ bool Module::loadOnDevice(Device *dev) {
   // If compiled as PIC (i.e. without absolute SOC addresses) then allocate a
   // buffer the size of the ELF file
   if (first_segment->get_physical_address() < mem_manager->ramBase()) {
-    mem_manager->mallocCode((void **)&dev_base_addr, elf_info_->elfSize());
+    // FIXME pass the necessary information from the higher levels
+    BufferDebugInfo info;
+    auto res = mem_manager->mallocCode(elf_info_->elfSize(), info);
+    if (!res) {
+      return false;
+    }
+    device_buffer_ = res.get();
+    dev_base_addr = device_buffer_.offset();
     TRACE_CodeManager_load_on_device(elf_info_->name(), dev_base_addr);
     RTDEBUG << "Allocating memory for PIC ELF, Addr: 0x" << std::hex
             << dev_base_addr << "\n";
@@ -88,9 +95,10 @@ bool Module::loadOnDevice(Device *dev) {
         // that are absolute
         devPtr = load_address;
         auto res = mem_manager->reserveMemoryCode(devPtr, mem_size);
-        if (res != etrtSuccess) {
+        if (res.getError() != etrtSuccess) {
           return false;
         }
+        device_buffer_ = res.get();
         write_address = devPtr;
       }
 
@@ -109,7 +117,6 @@ bool Module::loadOnDevice(Device *dev) {
       if (response.error() != etrtSuccess) {
         return false;
       }
-      onDevice_ = true;
     }
   }
   return true;
@@ -117,7 +124,7 @@ bool Module::loadOnDevice(Device *dev) {
 
 ErrorOr<uintptr_t>
 Module::onDeviceKernelEntryPoint(const std::string &kernel_name) {
-  if (!onDevice_) {
+  if (!onDevice()) {
     return etrtErrorModuleNotOnDevice;
   }
   auto kernel_offset = rawKernelOffset(kernel_name);
