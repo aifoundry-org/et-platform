@@ -13,6 +13,7 @@
 
 #include "esperanto/runtime/Common/CommonTypes.h"
 #include "esperanto/runtime/Common/ErrorTypes.h"
+#include "esperanto/runtime/Core/Memory.h"
 #include "esperanto/runtime/Support/ErrorOr.h"
 
 #include <cstddef>
@@ -27,7 +28,7 @@ namespace et_runtime {
 
 class Device;
 class AbstractMemoryPtr;
-class DeviceMemoryPtr;
+class DeviceBuffer;
 class HostMemoryPtr;
 class Module;
 
@@ -37,15 +38,13 @@ namespace memory_management {
 class MemoryManagerInternals;
 }
 
-struct LinearMemoryAllocator;
-
 /// @brief MemoryManager, responsible for tracking device memory use.
 class MemoryManager {
 public:
   static constexpr size_t kHostMemRegionSize = (1 << 20) * 256;
 
   MemoryManager(Device &dev);
-  ~MemoryManager();
+  virtual ~MemoryManager();
 
   /// For now have separate init/deinit functions we need to delegate to the
   /// device the responsibility to initialize the different components in the
@@ -59,7 +58,7 @@ public:
   ///
   /// @brief Allocate memory on the Device.
   ///
-  /// Take a byte count and return a @ref DeviceMemoryPtr to
+  /// Take a byte count and return a @ref DeviceBuffer to
   /// that number of (contiguous, long-word aligned) bytes of shared global
   /// memory on the calling thread's currently attached Device. The allocated
   /// Device memory region is associated with the calling thread and will be
@@ -67,13 +66,13 @@ public:
   /// failure indication if it is not possible to meet the given request.
   ///
   /// The memory on the device gets deallocated automatically when the lifetime
-  /// of the @ref DeviceMemoryPtr object ends.
+  /// of the @ref DeviceBuffer object ends.
   ///
   /// @param[in]  size  The number of bytes of memory that should be allocated
   /// on the Device.
   /// @return  ErrorOr ( etrtErrorInvalidValue, etrtErrorMemoryAllocation ) or a
   /// valid pointer
-  ErrorOr<DeviceMemoryPtr> mallocDevice(size_t size);
+  ErrorOr<DeviceBuffer> mallocDevice(size_t size);
 
   /// @brief Reserve a memory region starting at address ptr
   etrtError reserveMemoryCode(uintptr_t ptr, size_t size);
@@ -93,8 +92,9 @@ public:
   /// @brief Dump the memory manager state in the runtime log
   void recordState() const;
 
-private:
+protected:
   friend class ::et_runtime::Module;
+  friend class ::et_runtime::DeviceBuffer;
 
   static constexpr int64_t DATA_ALIGNMENT =
       1ULL << 13; ///< 8KB alignment requirement
@@ -107,6 +107,12 @@ private:
 
   /// @brief Deallocate code buffer
   etrtError freeCode(void *devPtr);
+
+  /// @brief Deallocate code buffer
+  virtual etrtError freeCode(BufferID bid) { return etrtSuccess; }
+
+  /// @brief Deallocate a data buffer
+  virtual etrtError freeData(BufferID bid) { return etrtSuccess; }
 
   void initMemRegions();
   void uninitMemRegions();
@@ -122,6 +128,11 @@ private:
       data_buffer_map_; ///< Map from a data buffer address to a BufferID
   buffer_map_t
       code_buffer_map_; ///< Map from a code buffer address to a BufferID
+
+  Deallocator
+      code_deallocator_; ///< Callable object to allow deallocating code buffers
+  Deallocator
+      data_deallocator_; ///< Callable object to allow deallocating data buffers
 };
 } // namespace device
 } // namespace et_runtime

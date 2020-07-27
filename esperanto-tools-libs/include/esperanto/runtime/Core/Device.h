@@ -216,6 +216,12 @@ public:
   /// @return Success or error of the operation
   etrtError moduleUnload(et_runtime::CodeModuleID mid);
 
+protected:
+  /// @brief Default constructor. Made protect so that it can be
+  /// called only from derived classes that want to skip the default
+  /// initialization (e.g. mock classes)
+  Device();
+
 private:
   void initDeviceThread();
   void uninitDeviceThread();

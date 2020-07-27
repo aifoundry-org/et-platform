@@ -51,6 +51,7 @@ set(COMMON_TEST_LIBRARIES
    -Wl,--whole-archive etrt_static -Wl,--no-whole-archive
   libgtest_main.a
   libgtest.a
+  libgmock.a
   libbreakpad_client.a
   )
 

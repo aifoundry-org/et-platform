@@ -9,6 +9,7 @@
 #------------------------------------------------------------------------------
 
 set(TEST_LIST
+  test_device_ptr.cc:""
   test_tensor_info.cc:""
   test_linear_allocator.cc:""
   test_bidirectional_allocator.cc:""

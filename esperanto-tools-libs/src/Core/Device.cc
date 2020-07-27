@@ -41,6 +41,10 @@ ABSL_FLAG(std::string, shires, "2", "Number of active worker shires");
 using namespace et_runtime;
 using namespace et_runtime::device;
 
+Device::Device()
+    : device_index_(), fw_manager_(), mem_manager_(), command_executor_(),
+      terminate_cmd_executor_(false), device_reader_() {}
+
 Device::Device(int index)
     : device_index_(index), fw_manager_(std::make_unique<FWManager>()),
       mem_manager_(std::make_unique<et_runtime::device::MemoryManager>(*this)),

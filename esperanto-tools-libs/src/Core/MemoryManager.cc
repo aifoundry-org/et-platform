@@ -25,7 +25,10 @@ namespace et_runtime {
 namespace device {
 
 MemoryManager::MemoryManager(Device &dev)
-    : impl_(), device_(dev), data_buffer_map_(), code_buffer_map_() {}
+    : impl_(), device_(dev), data_buffer_map_(), code_buffer_map_() {
+  code_deallocator_ = [this](BufferID id) -> auto { return freeCode(id); };
+  data_deallocator_ = [this](BufferID id) -> auto { return freeData(id); };
+}
 
 MemoryManager::~MemoryManager() {}
 
