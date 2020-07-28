@@ -1,5 +1,7 @@
 #include <stdio.h>
 
+#include <etsoc_hal/inc/etsoc_shire_other_esr.h>
+
 #include "bl2_minion_pll_and_dll.h"
 #include "minion_esr_defines.h"
 
@@ -20,9 +22,6 @@ typedef enum
 } esr_region_t;
 
 const uint64_t ESR_MEMORY_REGION = 0x0100000000UL;     // [32]=1
-
-//const uint64_t SHIRE_MASK = 0x1FFFFFFFFUL; // Eventually move this out to header file
-const uint64_t SHIRE_MASK = 0x100000001UL; // SW-JIRA 2275
 
 static inline volatile uint64_t* __attribute__((always_inline)) esr_address(esr_protection_t pp, uint8_t shire_id, esr_region_t region, uint32_t address)
 {
@@ -183,38 +182,45 @@ static void pll_config(uint8_t shire_id)
     while(!(read_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_DLL_READ_DATA) & 0x20000));
 }
 
-static void minion_pll_config(uint64_t minion_shire_mask) {
-    for (uint8_t i = 0; i <= 33; i++) {
-        if (minion_shire_mask & 1)
+static void minion_pll_config(uint64_t shire_mask) {
+    for (uint8_t i = 0; i <= 32; i++) {
+        if (shire_mask & 1)
             pll_config(i);
-        minion_shire_mask >>=1;
+        shire_mask >>= 1;
     }
 }
 
-int configure_minion_plls_and_dlls(void) {
-    minion_pll_config(SHIRE_MASK);
+int configure_minion_plls_and_dlls(uint64_t shire_mask) {
+    minion_pll_config(shire_mask);
     return 0;
 }
 
-int enable_minion_neighborhoods(void) {
-    // TDB - SW - JIRA - 2275 - Need to enable all Minions Shires(Show move this logic to Minion Firmware since it supports broadcast)
-    //enable shire 0 Shire Cache and also all 4 Neighs
-    write_esr(PP_MACHINE, 0, REGION_OTHER, SHIRE_OTHER_CONFIG, ESR_SHIRE_CONFIG_0_EN);
-    //enable shire 32 neigh Shire Cache and also all 4 Neighs
-    write_esr(PP_MACHINE, 32, REGION_OTHER, SHIRE_OTHER_CONFIG, ESR_SHIRE_CONFIG_32_EN);
+int enable_minion_neighborhoods(uint64_t shire_mask) {
+    // TDB - SW - JIRA - 2275 - Move this logic to Minion Firmware since it supports broadcast?
+    for (uint8_t i = 0; i <= 32; i++) {
+        if (shire_mask & 1) {
+            // Set Shire ID, enable cache and all 4 Neighborhoods
+            const uint64_t config =
+                ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_SHIRE_ID_SET(i) |
+                ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_CACHE_EN_SET(1) |
+                ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_SET(0xF);
+            write_esr(PP_MACHINE, i, REGION_OTHER, SHIRE_OTHER_CONFIG, config);
+        }
+        shire_mask >>= 1;
+    }
     return 0;
 }
 
-int enable_minion_threads(void) {
-    // TDB - SW - JIRA -2275 - Need to enable all Minions Shires (Show move this logic to Minion Firmware since it supports broadcast)
-    //enable all Minion thread 0 on shire 0
-    write_esr(PP_MACHINE, 0, REGION_OTHER, SHIRE_OTHER_THREAD0_DISABLE, 0x0);
-    //enable all Minion thread 1 on shire 0
-    write_esr(PP_MACHINE, 0, REGION_OTHER, SHIRE_OTHER_THREAD1_DISABLE, 0x0);
-    //enable all Minion thread 0 on shire 32
-    write_esr(PP_MACHINE, 32, REGION_OTHER, SHIRE_OTHER_THREAD0_DISABLE, 0x0);
-    //enable all Minion thread 1 on shire 32
-    write_esr(PP_MACHINE, 32, REGION_OTHER, SHIRE_OTHER_THREAD1_DISABLE, 0x0);
-
+int enable_minion_threads(uint64_t shire_mask) {
+    // TDB - SW - JIRA - 2275 - Move this logic to Minion Firmware since it supports broadcast?
+    for (uint8_t i = 0; i <= 32; i++) {
+        if (shire_mask & 1) {
+            // Enable all Minion thread 0s
+            write_esr(PP_MACHINE, i, REGION_OTHER, SHIRE_OTHER_THREAD0_DISABLE, 0x0);
+            // Enable all Minion thread 1s
+            write_esr(PP_MACHINE, i, REGION_OTHER, SHIRE_OTHER_THREAD1_DISABLE, 0x0);
+        }
+        shire_mask >>= 1;
+    }
     return 0;
 }

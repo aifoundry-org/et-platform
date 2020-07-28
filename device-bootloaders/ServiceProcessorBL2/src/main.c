@@ -30,6 +30,7 @@
 #include "etsoc_hal/inc/rm_esr.h"
 #include "etsoc_hal/inc/hal_device.h"
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 #include "bl2_crypto.h"
@@ -71,6 +72,7 @@ static StaticTask_t gs_taskBufferMain;
 
 static void taskMain(void *pvParameters)
 {
+    uint64_t minion_shires_mask;
     (void)pvParameters;
 
     // Disable buffering on stdout
@@ -83,8 +85,11 @@ static void taskMain(void *pvParameters)
     PCIe_init(true /*expect_link_up*/);
 #endif
 
+    minion_shires_mask = 0x100000001UL; // [SW-2275] TODO: Read from eFuses/OTP
+
     printf("---------------------------------------------\n");
-    printf("Starting MINIONs reset release sequence...\n");
+    printf("Minion shires to enable: 0x%" PRIx64 "\n", minion_shires_mask);
+    printf("Starting Minions reset release sequence...\n");
 
     if (0 != configure_sp_pll_2()) {
         printf("configure_sp_pll_2() failed!\n");
@@ -126,7 +131,7 @@ static void taskMain(void *pvParameters)
     }
     printf("Released Minions from warm reset.\n");
 
-    if (0 != configure_minion_plls_and_dlls()) {
+    if (0 != configure_minion_plls_and_dlls(minion_shires_mask)) {
         printf("configure_minion_plls_and_dlls() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
@@ -169,13 +174,13 @@ static void taskMain(void *pvParameters)
     printf("---------------------------------------------\n");
     printf("time: %lu\n", timer_get_ticks_count());
 
-    if (0 != enable_minion_neighborhoods()) {
+    if (0 != enable_minion_neighborhoods(minion_shires_mask)) {
         printf("Failed to enable minion neighborhoods!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
     printf("Minion neighborhoods enabled.\n");
 
-    if (0 != enable_minion_threads()) {
+    if (0 != enable_minion_threads(minion_shires_mask)) {
         printf("Failed to enable minion threads!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
