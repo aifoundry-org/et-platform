@@ -136,6 +136,40 @@ int sp_otp_write(uint32_t offset, uint32_t value) {
     return 0;
 }
 
+int sp_otp_get_neighborhood_status_mask(uint32_t index, uint32_t * value) {
+    if (!gs_is_otp_available) {
+        return ERROR_SP_OTP_OTP_NOT_AVAILABLE;
+    }
+
+    if ((index > 3) || (value == NULL)) {
+        return ERROR_INVALID_ARGUMENT;
+    }
+
+    if (0 != sp_otp_read(SP_OTP_INDEX_NEIGHBORHOOD_STATUS_NH0_NH31 + index, value)) {
+        *value = 0;
+        return ERROR_SP_OTP_OTP_READ;
+    }
+
+    return 0;
+}
+
+int sp_otp_get_neighborhood_status_nh128_nh135_other(OTP_NEIGHBORHOOD_STATUS_NH128_NH135_OTHER_t *status) {
+    if (!gs_is_otp_available) {
+        return ERROR_SP_OTP_OTP_NOT_AVAILABLE;
+    }
+
+    if (status == NULL) {
+        return ERROR_INVALID_ARGUMENT;
+    }
+
+    if (0 != sp_otp_read(SP_OTP_INDEX_NEIGHBORHOOD_STATUS_NH128_NH135_OTHER, &(status->R))) {
+        status->R = 0;
+        return ERROR_SP_OTP_OTP_READ;
+    }
+
+    return 0;
+}
+
 int sp_otp_get_pll_configuration_data(OTP_PLL_CONFIGURATION_OVERRIDE_t * table, uint32_t table_size, uint32_t * count) {
     uint32_t index, wr_index;
     uint32_t valid_count = 0;
