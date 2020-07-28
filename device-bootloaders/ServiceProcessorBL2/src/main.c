@@ -66,6 +66,40 @@ bool is_vaultip_disabled(void) {
     return vaultip_disabled;
 }
 
+static uint64_t calculate_minion_shire_enable_mask(void) {
+    int ret;
+    OTP_NEIGHBORHOOD_STATUS_NH128_NH135_OTHER_t status_other;
+    uint64_t enable_mask = 0;
+
+    // 32 Worker Shires: There are 4 OTP entries containing the status of their Neighboorhods
+    for (uint32_t entry = 0; entry < 4; entry++) {
+        uint32_t status;
+
+        ret = sp_otp_get_neighborhood_status_mask(entry, &status);
+        if (ret < 0) {
+            // If the OTP read fails, assume we have to enable all Neighboorhods
+            status = 0xFFFFFFFF;
+        }
+
+        // Each Neighboorhod status OTP entry contains information for 8 Shires
+        for (uint32_t i = 0; i < 8; i++) {
+            // Only enable a Shire if *ALL* its Neighboorhods are Functional
+            if ((status & 0xF) == 0) {
+                enable_mask |= 1ULL << (entry * 8 + i);
+            }
+            status >>= 4;
+        }
+    }
+
+    // Master Shire Neighboorhods status
+    ret = sp_otp_get_neighborhood_status_nh128_nh135_other(&status_other);
+    if ((ret < 0) || ((status_other.B.neighborhood_status & 0xF) == 0)) {
+        enable_mask |= 1ULL << 32;
+    }
+
+    return enable_mask;
+}
+
 static TaskHandle_t gs_taskHandleMain;
 static StackType_t gs_stackMain[TASK_STACK_SIZE];
 static StaticTask_t gs_taskBufferMain;
@@ -85,7 +119,7 @@ static void taskMain(void *pvParameters)
     PCIe_init(true /*expect_link_up*/);
 #endif
 
-    minion_shires_mask = 0x100000001UL; // [SW-2275] TODO: Read from eFuses/OTP
+    minion_shires_mask = calculate_minion_shire_enable_mask();
 
     printf("---------------------------------------------\n");
     printf("Minion shires to enable: 0x%" PRIx64 "\n", minion_shires_mask);
