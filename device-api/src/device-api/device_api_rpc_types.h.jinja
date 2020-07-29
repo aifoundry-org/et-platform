@@ -27,6 +27,7 @@ enum << enum.Name | upper >> {
   <% for val in enum.Values -%>
   << enum.Name | upper >>_<< val["Name"] >> = << val["Value"] >>,
   <% endfor %>
+  << enum["Name"] | upper >>_MAX
 };
 
 <% endfor %>

@@ -10,13 +10,29 @@
 
 Name: DeviceFWTracing
 TraceEvents:
-  - Name: text_entry
-    Type: TraceEntry
+  - Name: string
+    Type : TraceEntry
+    Group : TEXT
     Fields:
-      - Name: text
+      - Name: msg
         Type: bytes
+  - Name: perfctr
+    Type : TraceEntry
+    Group : PERF
+    Fields:
+      - Name: ctr1
+        Type: uint32_t
+      - Name: ctr2
+        Type: uint32_t
+  - Name: uber_kernel_marker
+    Type: TraceEntry
+    Group : WORKLOAD
+    Fields:
+      - Name: subkernel_id
+        Type: uint32_t
   - Name: kernel_launch
     Type: TraceEntry
+    Group : WORKLOAD
     Fields:
       - Name: tensor_a
         Type: uint64_t
@@ -34,13 +50,11 @@ TraceEvents:
         Type: uint64_t
       - Name: kernel_id
         Type: uint64_t
-  - Name: kernel_finished
+  - Name: kernel_state
     Type : TraceEntry
+    Group : WORKLOAD
     Fields:
-      - Name: status
+      - Name: kernel_id
         Type: uint64_t
-  - Name: uber_kernel_marker
-    Type: TraceEntry
-    Fields:
-      - Name: subkernel_id
-        Type: uint32_t
+      - Name: state
+        Type: uint64_t

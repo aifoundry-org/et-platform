@@ -8,16 +8,9 @@
  * agreement/contract under which the program(s) have been supplied.
  ------------------------------------------------------------------------------ */
 
-#ifndef ET_DEVICE_API_H
-#define ET_DEVICE_API_H
+#ifndef ET_TRACE_CONFIG_H
+#define ET_TRACE_CONFIG_H
 
-#define ESPERANTO_DEVICE_API_VERSION_MAJOR @EsperantoDeviceAPI_VERSION_MAJOR@
-#define ESPERANTO_DEVICE_API_VERSION_MINOR @EsperantoDeviceAPI_VERSION_MINOR@
-#define ESPERANTO_DEVICE_API_VERSION_PATCH @EsperantoDeviceAPI_VERSION_PATCH@
+#define ENABLE_DEVICEFW_TRACE @ENABLE_DEVICEFW_TRACE_OPTION@
 
-#include "esperanto/device-api/device_api_spec_privileged.h"
-#include "esperanto/device-api/device_api_spec_non_privileged.h"
-#include "device_api_rpc_types.h"
-#include "device-mrt-trace.h"
-
-#endif // ET_DEVICE_API_H
+#endif // ET_TRACE_CONFIG_H

@@ -26,6 +26,30 @@ Enums:
         Value: 4
       - Name: TRACE
         Value: 5
+      - Name: NONE
+        Value: 6
+  - Name: trace_groups
+    Type: uint32_t
+    Values:
+      - Name: NONE
+        Value: 0
+      - Name: TEXT
+        Value: 1
+      - Name: PERF
+        Value: 2
+      - Name: WORKLOAD
+        Value: 3
+  - Name: trace_status
+    Type: int32_t
+    Values:
+      - Name: SUCCESS
+        Value: 0
+      - Name: BUFFER_FULL
+        Value: 1
+      - Name: INVALID_VAL
+        Value: 2
+      - Name: DISABLED
+        Value: 3
   - Name: dev_api_kernel_launch_error
     Type: uint32_t
     Values:
@@ -265,12 +289,71 @@ Messages :
         Type: enum
         Enum: dev_api_error_type
 #-------------------------------------------------------------------------------
-  - Name: trace_buffer_full
-    Description: Binary trace buffer is full and the host should consume it
-    Type: Event
-    PairedMessage: None
+  - Name: discover_trace_buffer_cmd
+    Description: Discover the trace buffer address, size and knob states
+    Type: Command
+    PairedMessage: discover_trace_buffer_rsp
     Fields:
-      - Name: ring_buffer_start
+      - Name: dummy
+        Type: bool
+  - Name: discover_trace_buffer_rsp
+    Type: Response
+    PairedMessage: discover_trace_buffer_cmd
+    Fields:
+      - Name: trace_base
         Type: uint64_t
-      - Name: size
+      - Name: trace_mem_size
         Type: uint64_t
+      - Name: status
+        Type: enum
+        Enum: trace_status_e
+#-------------------------------------------------------------------------------
+  - Name: configure_trace_group_knob_cmd
+    Description: Configure the state of a trace group
+    Type: Command
+    PairedMessage: configure_trace_group_knob_rsp
+    Fields:
+      - Name: group_id
+        Type: enum
+        Enum: trace_groups_e
+      - Name: enabled
+        Type: bool
+  - Name: configure_trace_group_knob_rsp
+    Type: Response
+    PairedMessage: configure_trace_group_knob_cmd
+    Fields:
+      - Name: status
+        Type: bool
+#-------------------------------------------------------------------------------
+  - Name: configure_trace_event_knob_cmd
+    Description: Configure the logging level of a group
+    Type: Command
+    PairedMessage: configure_trace_event_knob_rsp
+    Fields:
+      - Name: event_id
+        Type: uint64_t
+      - Name: log_level
+        Type: enum
+        Enum: log_levels_e
+      - Name: uart_log_enabled
+        Type: bool
+  - Name: configure_trace_event_knob_rsp
+    Type: Response
+    PairedMessage: configure_trace_event_knob_cmd
+    Fields:
+      - Name: status
+        Type: bool
+#-------------------------------------------------------------------------------
+  - Name: configure_trace_buffer_size_knob_cmd
+    Description: Configure the trace buffer size
+    Type: Command
+    PairedMessage: configure_trace_buffer_size_knob_rsp
+    Fields:
+      - Name: buffer_size
+        Type: uint32_t
+  - Name: configure_trace_buffer_size_knob_rsp
+    Type: Response
+    PairedMessage: configure_trace_buffer_size_knob_cmd
+    Fields:
+      - Name: status
+        Type: bool

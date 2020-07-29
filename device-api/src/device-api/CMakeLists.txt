@@ -55,6 +55,14 @@ SET(JINJA_FILES
   "tracing_types.h.jinja:tracing_types_non_privileged.h"
   )
 
+message(STATUS "ENABLE_DEVICEFW_TRACE=" ${ENABLE_DEVICEFW_TRACE})
+if (ENABLE_DEVICEFW_TRACE)
+    set(ENABLE_DEVICEFW_TRACE_OPTION "1")
+else(ENABLE_DEVICEFW_TRACE)
+    set(ENABLE_DEVICEFW_TRACE_OPTION "0")
+endif(ENABLE_DEVICEFW_TRACE)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/trace_config.h.in ${CMAKE_CURRENT_BINARY_DIR}/trace_config.h @ONLY)
+
 foreach(TMPL_TUPLE ${JINJA_FILES})
   string(REPLACE ":" ";" TMPL_LIST ${TMPL_TUPLE})
   list(GET TMPL_LIST 0 TMPL)
@@ -75,6 +83,8 @@ foreach(TMPL_TUPLE ${JINJA_FILES})
              DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT})
   list(APPEND DEV_API_HDRS ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT})
 endforeach()
+
+list(APPEND DEV_API_HDRS ${CMAKE_CURRENT_BINARY_DIR}/trace_config.h)
 
 add_custom_target(gen-device-api
   DEPENDS ${DEV_API_HDRS})
