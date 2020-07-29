@@ -72,9 +72,18 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
     init_fcc(FCC_0);
     init_fcc(FCC_1);
 
-    while (1) {
+
+    while (1)
+    {
         // wait for a kernel launch sync request from master_thread
         WAIT_FCC(0);
+
+        // Init trace for kernel launch
+        // As sync threads don't rcv MESSAGE_ID_UPDATE_TRACE_CONTROL, evict trace control here
+        evict_trace_control();
+        trace_init_buffer();
+
+        log_string(LOG_LEVELS_CRITICAL, "Trace message from sync minion");
 
         // read fresh kernel_config
         evict(to_L3, kernel_config_ptr, sizeof(kernel_config_t));
@@ -142,6 +151,9 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
             sync_message.data[0] = kernel_id;
             message_send_worker(get_shire_id(), get_hart_id(), &sync_message);
         }
+
+        // Evict trace buffer so that master can consume it
+        evict_trace_buffer();
     }
 }
 

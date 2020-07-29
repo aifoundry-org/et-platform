@@ -149,7 +149,125 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
                       "DeviceAPI DeviceAPI Set Master Log Level MBOX_send error %" PRIi64 "\r\n",
                       result);
         }
-    } else {
+    }
+    else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_DISCOVER_TRACE_BUFFER_CMD)
+    {
+        const struct discover_trace_buffer_cmd_t* const cmd = (const void* const) buffer;
+        struct discover_trace_buffer_rsp_t rsp;
+        rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_DISCOVER_TRACE_BUFFER_RSP;
+        prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
+#if ENABLE_DEVICEFW_TRACE
+        struct trace_control_region_t* trace_ctrl_region = (struct trace_control_region_t*)DEVICE_MRT_TRACE_BASE;
+        rsp.trace_base = DEVICE_MRT_TRACE_BASE;
+        rsp.trace_mem_size = trace_ctrl_region->buffer_size;
+        rsp.status = TRACE_STATUS_SUCCESS;
+#else
+        rsp.status = TRACE_STATUS_DISABLED;
+#endif
+        int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
+        if (result != 0)
+        {
+            log_write(LOG_LEVEL_ERROR, "DeviceAPI Discover trace buffer MBOX_send error " PRIi64 "\r\n", result);
+        }
+
+    }
+    else if (*message_id ==  MBOX_DEVAPI_MESSAGE_ID_CONFIGURE_TRACE_GROUP_KNOB_CMD)
+    {
+        const struct configure_trace_group_knob_cmd_t* const cmd = (const void* const) buffer;
+        struct configure_trace_group_knob_rsp_t rsp;
+        rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_CONFIGURE_TRACE_GROUP_KNOB_RSP;
+        prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
+
+#if ENABLE_DEVICEFW_TRACE
+        struct trace_control_region_t* trace_ctrl_region = (struct trace_control_region_t*)DEVICE_MRT_TRACE_BASE;
+        if (cmd->enabled)
+        {
+            trace_ctrl_region->group_knobs[cmd->group_id/(sizeof(uint64_t) * BITS_PER_BYTE)] |= (1ULL << cmd->group_id);
+        }
+        else
+        {
+            trace_ctrl_region->group_knobs[cmd->group_id/(sizeof(uint64_t) * BITS_PER_BYTE)] &= ~(1ULL << cmd->group_id);
+        }
+
+        // Evict control region changes
+        evict_trace_control();
+
+        // send message to workers
+        message_t message;
+        message.id = MESSAGE_ID_UPDATE_TRACE_CONTROL;
+        broadcast_message_send_master(0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF, &message);
+
+        rsp.status = true;
+#else
+        rsp.status = false;
+#endif
+        int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
+        if (result != 0)
+        {
+            log_write(LOG_LEVEL_ERROR, "DeviceAPI Configure Group knob MBOX_send error " PRIi64 "\r\n", result);
+        }
+    }
+    else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_CONFIGURE_TRACE_EVENT_KNOB_CMD)
+    {
+        const struct configure_trace_event_knob_cmd_t* const cmd = (const void* const) buffer;
+        struct configure_trace_event_knob_rsp_t rsp;
+        rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_CONFIGURE_TRACE_EVENT_KNOB_RSP;
+        prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
+
+#if ENABLE_DEVICEFW_TRACE
+        struct trace_control_region_t* trace_ctrl_region = (struct trace_control_region_t*)DEVICE_MRT_TRACE_BASE;
+        trace_ctrl_region->event_knobs[cmd->event_id].log_level = (unsigned)(cmd->log_level) & 0xF;
+        trace_ctrl_region->event_knobs[cmd->event_id].uart_en = cmd->uart_log_enabled ? 1:0;
+
+        // Evict control region changes
+        evict_trace_control();
+
+        // send message to workers
+        message_t message;
+        message.id = MESSAGE_ID_UPDATE_TRACE_CONTROL;
+        broadcast_message_send_master(0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF, &message);
+
+        rsp.status = true;
+#else
+        rsp.status = false;
+#endif
+        int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
+        if (result != 0)
+        {
+            log_write(LOG_LEVEL_ERROR, "DeviceAPI Configure Event kbob MBOX_send error " PRIi64 "\r\n", result);
+        }
+    }
+    else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_CONFIGURE_TRACE_BUFFER_SIZE_KNOB_CMD)
+    {
+        const struct configure_trace_buffer_size_knob_cmd_t* const cmd = (const void* const) buffer;
+        struct configure_trace_buffer_size_knob_rsp_t rsp;
+        rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_CONFIGURE_TRACE_BUFFER_SIZE_KNOB_RSP;
+        prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
+
+#if ENABLE_DEVICEFW_TRACE
+        struct trace_control_region_t* trace_ctrl_region = (struct trace_control_region_t*)DEVICE_MRT_TRACE_BASE;
+        trace_ctrl_region->buffer_size = cmd->buffer_size;
+
+        // Evict control region changes
+        evict_trace_control();
+
+        // send message to workers
+        message_t message;
+        message.id = MESSAGE_ID_UPDATE_TRACE_CONTROL;
+        broadcast_message_send_master(0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF, &message);
+
+        rsp.status = true;
+#else
+        rsp.status = false;
+#endif
+        int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
+        if (result != 0)
+        {
+            log_write(LOG_LEVEL_ERROR, "DeviceAPI Configure Buffer size knob MBOX_send error " PRIi64 "\r\n", result);
+        }
+    }
+    else
+    {
         log_write(LOG_LEVEL_ERROR, "Invalid DeviceAPI message ID: %" PRIu64 "\r\n", *message_id);
     }
 }

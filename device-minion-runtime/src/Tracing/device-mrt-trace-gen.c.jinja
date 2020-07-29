@@ -1,0 +1,214 @@
+/*------------------------------------------------------------------------------
+ * Copyright (C) 2019, Esperanto Technologies Inc.
+ * The copyright to the computer program(s) herein is the
+ * property of Esperanto Technologies, Inc. All Rights Reserved.
+ * The program(s) may be used and/or copied only with
+ * the written permission of Esperanto Technologies and
+ * in accordance with the terms and conditions stipulated in the
+ * agreement/contract under which the program(s) have been supplied.
+ ------------------------------------------------------------------------------ */
+
+// WARNING: this file is auto-generated do not edit directly
+
+#include "esperanto/device-api/device_api.h"
+#include "syscall.h"
+#include <stdint.h>
+#include <stddef.h>
+#include <string.h>
+#include "log.h"
+#include "layout.h"
+#include "hart.h"
+#include "cacheops.h"
+#include "syscall_internal.h"
+
+#if ENABLE_DEVICEFW_TRACE
+
+// Final Ring buffer length used for event logging
+#define DEVICE_MRT_BUFFER_LENGTH(x)  (x - sizeof(struct buffer_header_t))
+
+static const size_t event_size_array[] = {
+         0,
+<%- for trace in cgh.traces() %>
+     <%- if trace["Name"] == "string" %>
+         offsetof(struct trace_<< trace["Name"] >>_t, msg),
+     <%- else %>
+         sizeof(struct trace_<< trace["Name"] >>_t),
+     <%- endif %>
+<%- endfor %>
+    };
+
+// Returns the remaining space in ring buffer
+static size_t ring_buffer_avail_space(struct buffer_header_t* rbuffer, size_t buffer_size)
+{
+    return ((rbuffer->head < rbuffer->tail) ? rbuffer->tail - rbuffer->head : buffer_size - rbuffer->head + rbuffer->tail) - 1;
+}
+
+// Ring buffer utility functions
+static int ring_buffer_check_space(struct buffer_header_t* rbuffer, size_t buffer_size, size_t event_size)
+{
+    size_t rem = ring_buffer_avail_space(rbuffer, buffer_size);
+    if (rem < event_size)
+        return TRACE_STATUS_BUFFER_FULL;
+
+    return TRACE_STATUS_SUCCESS;
+}
+
+static int log_add(uint16_t hartid, void *event, size_t size, char *string)
+{
+    // Obtain the trace buffer control region address
+    struct trace_control_region_t* trace_ctrl_region = (struct trace_control_region_t*)DEVICE_MRT_TRACE_BASE;
+
+    // Compute the trace ring buffer address using hartid
+    struct buffer_header_t* rbuffer_header = (struct buffer_header_t*)(ALIGN(DEVICE_MRT_TRACE_BASE +
+                                              sizeof(struct trace_control_region_t), TRACE_CONTROL_REGION_ALIGNEMNT) +
+                                              trace_ctrl_region->buffer_size * hartid);
+
+    struct message_head_t *msg_hdr;
+
+    if (TRACE_STATUS_SUCCESS == ring_buffer_check_space(rbuffer_header, DEVICE_MRT_BUFFER_LENGTH(trace_ctrl_region->buffer_size), size))
+    {
+        if (string)
+        {
+            memcpy((void*)&(rbuffer_header->buffer[rbuffer_header->head]), event, offsetof(struct trace_string_t, msg));
+            memcpy((void*)(&(rbuffer_header->buffer[rbuffer_header->head]) + offsetof(struct trace_string_t, msg)), string, ((struct trace_string_t*)event)->size);
+        }
+        else
+        {
+            // Copy the event into ring buffer
+            memcpy((void*)&(rbuffer_header->buffer[rbuffer_header->head]), event, (size_t)size);
+        }
+
+        // Move the head pointer forward
+        rbuffer_header->head += (uint32_t)size;
+    }
+    else
+    {
+        // Current implementation:
+        // On overflow, fill remaining space with zeros. avoiding event copied in two parts.
+        // Start writing from start of the buffer after tail adjustments.
+        size_t avail_size = ring_buffer_avail_space(rbuffer_header, DEVICE_MRT_BUFFER_LENGTH(trace_ctrl_region->buffer_size));
+        size_t crnt_event_size;
+
+        // head needs to overflow, and available size is not enough
+        if (rbuffer_header->head > rbuffer_header->tail)
+        {
+            // +1 to also include the unused byte to differentiate between full and empty condition
+            memset((void*)&(rbuffer_header->buffer[rbuffer_header->head]), TRACE_EVENT_ID_NONE, avail_size + 1);
+
+            // wrap head pointer
+            rbuffer_header->head = 0;
+            avail_size = 0;
+        }
+
+        // Check if maximum creatable space is enough or not?, account for consecutive overflow
+        if (size > (DEVICE_MRT_BUFFER_LENGTH(trace_ctrl_region->buffer_size) - rbuffer_header->tail + avail_size))
+        {
+            // Okay its not enough, head and tail both needs to overflow, Mark the remaining space as invalid
+            memset((void*)&(rbuffer_header->buffer[rbuffer_header->head]), TRACE_EVENT_ID_NONE,
+                    (DEVICE_MRT_BUFFER_LENGTH(trace_ctrl_region->buffer_size) - rbuffer_header->tail + avail_size + 1));
+
+            rbuffer_header->head = 0;
+            rbuffer_header->tail = 0;
+            avail_size = 0;
+        }
+
+        // Compute the size to advance the tail pointer in the ring buffer
+        while(avail_size <= size)
+        {
+            msg_hdr = (struct message_head_t *)((void *)&(rbuffer_header->buffer[rbuffer_header->tail]));
+
+            // Retrieve the event size from the message header
+            crnt_event_size = event_size_array[msg_hdr->event_id];
+            if (msg_hdr->event_id == TRACE_EVENT_ID_TEXT_STRING)
+            {
+                crnt_event_size += ((struct trace_string_t *)msg_hdr)->size;
+                crnt_event_size = ALIGN(crnt_event_size, 8);
+            }
+            else if (msg_hdr->event_id == TRACE_EVENT_ID_NONE)
+            {
+                // reached the unused space from previous overflow, as we already know there is enough space, just wrap tail and break
+                rbuffer_header->tail = 0;
+                break;
+            }
+
+            // Adjust tail to point to oldest event in buffer freeing space for new events
+            rbuffer_header->tail = (rbuffer_header->tail + crnt_event_size) % DEVICE_MRT_BUFFER_LENGTH(trace_ctrl_region->buffer_size);
+
+            avail_size += crnt_event_size;
+        }
+
+        // Copy the event to ring buffer
+        if (string)
+        {
+            memcpy((void*)&(rbuffer_header->buffer[rbuffer_header->head]), event, offsetof(struct trace_string_t, msg));
+            memcpy((void*)(&(rbuffer_header->buffer[rbuffer_header->head]) + offsetof(struct trace_string_t, msg)), string, ((struct trace_string_t*)event)->size);
+        }
+        else
+        {
+            // Copy the event into ring buffer
+            memcpy((void*)&(rbuffer_header->buffer[rbuffer_header->head]), event, (size_t)size);
+        }
+
+        // Move the head pointer forward
+        rbuffer_header->head += size;
+    }
+
+    // Return success
+    return TRACE_STATUS_SUCCESS;
+}
+<%- for trace in cgh.traces() %>
+
+int log_<< trace["Name"] >>(log_levels_e level<%- for field in trace.get("Fields", []) %> <%- if field["Type"] == "bytes" %>, char *msg<%- else %>, << cgh.message_field_type(field) >> << field["Name"] >> <%- endif %> <%- endfor %>)
+{
+
+    int ret = TRACE_STATUS_SUCCESS;
+    struct trace_control_region_t* trace_ctrl_region = (struct trace_control_region_t*)DEVICE_MRT_TRACE_BASE;
+
+    if (trace_ctrl_region->group_knobs[TRACE_GROUPS_<< trace["Group"] >> / (sizeof(uint64_t) << '<<' >> 3)] & (1 << '<<' >> TRACE_GROUPS_<< trace["Group"] >> )) {
+        if (trace_ctrl_region->event_knobs[TRACE_EVENT_ID_<< trace["Group"]>>_<< trace["Name"] | upper >>].log_level != LOG_LEVELS_NONE &&
+            level <= trace_ctrl_region->event_knobs[TRACE_EVENT_ID_<< trace["Group"]>>_<< trace["Name"] | upper >>].log_level) {
+            struct trace_<< trace["Name"] >>_t e;
+            uint16_t hartid = (uint16_t)get_hart_id();
+            <%- if trace["Name"] == "string" %>
+            size_t size = strlen(msg);
+            <%- endif %>
+
+            e.header.event_id = TRACE_EVENT_ID_<< trace["Group"]>>_<< trace["Name"] | upper >>;
+            asm volatile ("csrr %0, hpmcounter3" : "=r" (e.header.mtime));
+
+            <% for field in trace.get("Fields", []) %>
+                <%- if field["Type"] == "bytes" %>
+            e.size = size;
+                <%- else %>
+            e.<<field["Name"]>> = << field["Name"] >>;
+                <%- endif %>
+            <%- endfor %>
+
+            // Add the log in memory
+            <%- if trace["Name"] == "string" %>
+            ret = log_add(hartid, (void *)&e, ALIGN(offsetof(struct trace_string_t, msg) + size, 8), msg);
+            <%- else %>
+            ret = log_add(hartid, (void *)&e, sizeof(e), NULL);
+            <%- endif %>
+
+            // Write the log on UART interface if enabled
+            if (trace_ctrl_region->event_knobs[TRACE_EVENT_ID_<< trace["Group"]>>_<< trace["Name"] | upper >>].uart_en) {
+                log_write(level, "Event: TRACE_EVENT_ID_<< trace["Group"]>>_<< trace["Name"] | upper >>, <%- for field in trace.get("Fields", []) %> <%- if field["Type"] == "bytes" %> string: %s, <%- else %> <<field["Name"]>>: = %d, <%- endif %> <%- endfor %> Hartid: %d \r\n",
+                <%- for field in trace.get("Fields", []) %>
+                    <%- if field["Type"] == "bytes" %>
+                msg,
+                   <%- else %>
+                << field["Name"] >>,
+                    <%- endif %>
+                <%- endfor %>
+                hartid);
+            }
+        }
+    }
+
+    return ret;
+}
+
+<%- endfor %>
+
+#endif

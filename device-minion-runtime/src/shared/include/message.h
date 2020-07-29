@@ -18,7 +18,8 @@ typedef enum {
     MESSAGE_ID_KERNEL_EXCEPTION,
     MESSAGE_ID_EXCEPTION,
     MESSAGE_ID_LOG_WRITE,
-    MESSAGE_ID_SET_LOG_LEVEL
+    MESSAGE_ID_SET_LOG_LEVEL,
+    MESSAGE_ID_UPDATE_TRACE_CONTROL
 } message_id_t;
 
 typedef uint8_t message_number_t;

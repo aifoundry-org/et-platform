@@ -45,4 +45,9 @@ static void handle_message(uint64_t shire, uint64_t hart, message_t *const messa
     } else if (message_ptr->id == MESSAGE_ID_LOOPBACK) {
         message_send_worker(shire, hart, message_ptr);
     }
+    else if (message_ptr->id == MESSAGE_ID_UPDATE_TRACE_CONTROL)
+    {
+        // Evict to invalidate control region to get new changes
+        evict_trace_control();
+    }
 }

@@ -167,6 +167,10 @@ static void __attribute__((noreturn)) master_thread(void)
     SERIAL_init(UART0);
     log_write(LOG_LEVEL_CRITICAL, "\r\nMaster minion " GIT_VERSION_STRING "\r\n");
 
+    log_write(LOG_LEVEL_CRITICAL, "\r\nMaster initializing trace subsystem \r\n");
+    trace_init_master();
+    log_string(LOG_LEVELS_CRITICAL, "Trace message from Master minion");
+
     INT_init();
 
     log_write(LOG_LEVEL_INFO, "Initializing message buffers...");
@@ -500,11 +504,12 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
                   shire, hart);
         break;
 
-    default:
-        log_write(LOG_LEVEL_WARNING,
-                  "Unknown message id = 0x%016" PRIx64 "received from shire %" PRId64
-                  " hart %" PRId64 "\r\n",
-                  message.id, shire, hart);
+        case MESSAGE_ID_UPDATE_TRACE_CONTROL:
+            log_write(LOG_LEVEL_WARNING, "Invalid MESSAGE_ID_UPDATE_TRACE_CONTROL received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
+        break;
+
+        default:
+            log_write(LOG_LEVEL_WARNING, "Unknown message id = 0x%016" PRIx64 "received from shire %" PRId64 " hart %" PRId64 "\r\n", message.id, shire, hart);
         break;
     }
 }
