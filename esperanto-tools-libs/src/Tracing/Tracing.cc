@@ -10,6 +10,7 @@
 
 #include "Tracing.h"
 
+#include "Core/CoreState.h"
 #include "esperanto/runtime/Core/CommandLineOptions.h"
 
 #include "Tracing/etrt-trace.pb.h"
@@ -23,7 +24,9 @@ namespace et_runtime {
 namespace tracing {
 
 static std::ostream *getFileStream() {
-  static std::unique_ptr<std::fstream> ostream;
+  auto &core_state = getCoreState();
+  auto &ostream = core_state.runtime_trace;
+
   if (ostream.get() == nullptr) {
     if (auto path = absl::GetFlag(FLAGS_etrt_trace); !path.empty()) {
       ostream = std::make_unique<std::fstream>(

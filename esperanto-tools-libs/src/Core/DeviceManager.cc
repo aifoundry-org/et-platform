@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 
 #include "esperanto/runtime/Core/DeviceManager.h"
+#include "CoreState.h"
 #include "PCIEDevice/PCIeDevice.h"
 #include "esperanto/runtime/Common/CommonTypes.h"
 #include "esperanto/runtime/Core/Device.h"
@@ -33,7 +34,8 @@ namespace et_runtime {
 DeviceManager::DeviceManager() : active_device_(0), devices_(MAX_DEVICE_NUM) {}
 
 shared_ptr<DeviceManager> getDeviceManager() {
-  static shared_ptr<DeviceManager> deviceManager;
+  auto &core_state = getCoreState();
+  auto &deviceManager = core_state.dev_manager;
 
   if (!deviceManager) {
     deviceManager = make_shared<DeviceManager>();
