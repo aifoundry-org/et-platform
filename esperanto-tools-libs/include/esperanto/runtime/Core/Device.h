@@ -31,6 +31,7 @@ class DeviceFWTest;
 
 namespace et_runtime {
 
+class CodeRegistry;
 class Event;
 class EtAction;
 class EtActionEvent;
@@ -216,6 +217,8 @@ public:
   /// @return Success or error of the operation
   etrtError moduleUnload(et_runtime::CodeModuleID mid);
 
+  CodeRegistry &codeRegistry() { return *code_registry_; }
+
 protected:
   /// @brief Default constructor. Made protect so that it can be
   /// called only from derived classes that want to skip the default
@@ -253,6 +256,11 @@ private:
                    ///< device
   std::unique_ptr<et_runtime::device::MemoryManager>
       mem_manager_; ///< Memory manager of the device
+  // Respect the member order, the code_registry_ needs to be initialized after
+  // the memory manager as it is consuming it. Also it will be destroyed before
+  // the memory_manager
+  std::unique_ptr<et_runtime::CodeRegistry>
+      code_registry_; ///< Core registry of all modules loaded on the device
   bool device_thread_exit_requested_ =
       false; ///< This is true if we have requested to terminate the simulation
   Stream *defaultStream_ =
