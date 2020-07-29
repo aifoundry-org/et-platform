@@ -21,11 +21,12 @@ class TestDeviceBuffer;
 
 namespace et_runtime {
 
-class PointerAttributes;
 class Module;
+class Device;
 
-class AbstractMemoryPtr {
-};
+/// @enum Enumeration of the different types of buffers we can have in the
+/// system
+enum class BufferType { Unkown = 0, Host, Device };
 
 /// @class RefCount Memory.h
 ///
@@ -55,13 +56,23 @@ private:
   std::atomic_int64_t val_; ///< Atomic counter
 };
 
+/// @class HostBuffer Memory.h
+///
 /// Class holding a pointer to Host allocated memory.
-/// The memory has been allocated through the device and it is
-/// pineed on the cost.
-class HostMemoryPtr final : public AbstractMemoryPtr {
+///
+class HostBuffer {
 
 public:
-  PointerAttributes getAttributes();
+  HostBuffer(void *ptr) : ptr_(ptr) {}
+
+  /// @brief return the type of this buffer that this Host
+  BufferType type() const { return BufferType::Host; }
+
+  /// @brief return the stored pointer
+  void *ptr() const { return ptr_; }
+
+private:
+  void *ptr_ = nullptr;
 };
 
 /// @brief Callable object that will be used to deallocate the
@@ -79,7 +90,7 @@ using Deallocator = std::function<etrtError(BufferID)>;
 /// "fat-pointer" checks: e.g. when doing a memcpy inside this
 /// buffer we should be able to retrieve the buffer's size and be
 /// able to perform any necessary bounds checks
-class DeviceBuffer final : public AbstractMemoryPtr {
+class DeviceBuffer {
 public:
   /// @brief Default constructor, not device buffer assigned
   DeviceBuffer();
@@ -124,11 +135,18 @@ public:
   /// @brief Return true if the DeviceBuffer holds a BufferID
   explicit operator bool() const;
 
-  /// @brief Return the attributes of this Device Buffer
-  PointerAttributes getAttributes();
+  /// @brief Return type of this buffer that is Device
+  BufferType type() const { return BufferType::Device; }
 
   /// @brief Return the ID of this DeviceBuffer
   const BufferID id() const { return buffer_id_; }
+
+  /// @brief Return a "pointer" on the device. Currently this returns
+  /// an absolute address on the device that is computed based on the base
+  /// DRAM address as initialized in the MemoryManager. This is not a public
+  /// interface and should be called only by the Device class.
+  /// FIXME the following interface should be revisited
+  void *ptr() const { return reinterpret_cast<void *>(offset_); }
 
   /// @brief Compare to DeviceBuffer, used
   friend bool operator<(const DeviceBuffer &a, const DeviceBuffer &b);
@@ -139,6 +157,7 @@ public:
 private:
   friend class ::TestDeviceBuffer;
   friend class ::et_runtime::Module;
+  friend class ::et_runtime::Device;
 
   BufferID buffer_id_;    ///< ID of the buffer
   BufferOffsetTy offset_; ///< Offset of the buffer inside the Device DRAM
@@ -146,7 +165,7 @@ private:
   Deallocator
       *deallocator_; ///< Callable object that will deallocate the buffer
 
-  /// @brief return the offset of this DeviceBuffer on the device
+  /// @brief Return the offset of this DeviceBuffer on the device
   const BufferOffsetTy offset() const { return offset_; }
 
   /// @brief Copy the other DeviceBuffer contents to this one

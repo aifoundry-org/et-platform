@@ -25,13 +25,11 @@
 struct etrtPointerAttributes;
 
 class TestMemoryManager;
+class TestDevice;
 
 namespace et_runtime {
 
 class Device;
-class AbstractMemoryPtr;
-class DeviceBuffer;
-class HostMemoryPtr;
 class Module;
 
 namespace device {
@@ -121,6 +119,7 @@ protected:
   friend class ::et_runtime::Module;
   friend class ::et_runtime::DeviceBuffer;
   friend class ::TestMemoryManager;
+  friend class ::TestDevice;
 
   static constexpr int64_t DATA_ALIGNMENT =
       1ULL << 13; ///< 8KB alignment requirement
