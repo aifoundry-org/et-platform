@@ -49,7 +49,7 @@ void kernel_init(void)
 
 static void send_kernel_launch_response(const struct kernel_launch_cmd_t* const cmd, const dev_api_kernel_launch_error_e error)
 {
-    log_write(LOG_LEVEL_INFO, "Sending Kernel Launch Response %" PRIi64 "\r\n", error);
+    log_write(LOG_LEVEL_CRITICAL, "Sending Kernel Launch Response %" PRIi64 "\r\n", error);
     struct kernel_launch_rsp_t rsp;
     rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_KERNEL_LAUNCH_RSP;
     prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
@@ -308,7 +308,7 @@ void launch_kernel(const struct kernel_launch_cmd_t* const launch_cmd)
             }
         }
 
-        log_write(LOG_LEVEL_INFO, "launching kernel %d\r\n", kernel_id);
+        log_write(LOG_LEVEL_CRITICAL, "launching kernel %d\r\n", kernel_id);
     }
     else
     {
@@ -329,7 +329,7 @@ dev_api_kernel_abort_response_result_e abort_kernel(kernel_id_t kernel_id)
 
         if (0 == broadcast_message_send_master(kernel_status[kernel_id].shire_mask, 0xFFFFFFFFFFFFFFFFU, &message))
         {
-            log_write(LOG_LEVEL_INFO, "abort_kernel: aborted kernel %d\r\n", kernel_id);
+            log_write(LOG_LEVEL_CRITICAL, "abort_kernel: aborted kernel %d\r\n", kernel_id);
             update_kernel_state(kernel_id, KERNEL_STATE_ABORTED);
 
             return DEV_API_KERNEL_ABORT_RESPONSE_RESULT_OK;
