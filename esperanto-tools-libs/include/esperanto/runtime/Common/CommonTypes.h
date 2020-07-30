@@ -48,6 +48,9 @@ typedef uint64_t BufferID;
 /// Type that holds the buffer offset, inside the DRAM region we control
 typedef int64_t BufferOffsetTy;
 
+/// Size of a buffer in bytes
+typedef int64_t BufferSizeTy;
+
 typedef uint64_t MBOXMessageTypeID;
 
 /// Enumeration with the different types of events we can create in the system

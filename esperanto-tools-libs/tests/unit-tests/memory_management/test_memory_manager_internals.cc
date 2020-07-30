@@ -12,6 +12,7 @@
 #include "MemoryManagement/BidirectionalAllocator.h"
 #include "MemoryManagement/LinearAllocator.h"
 #include "MemoryManagement/MemoryManagerInternals.h"
+#include "esperanto/runtime/Core/Memory.h"
 
 #include <esperanto-fw/fw-helpers/layout.h>
 #include <glog/logging.h>
@@ -29,10 +30,10 @@ public:
 };
 
 TEST_F(TestMemoryManagerInternals, allocate_network_tensors) {
-  BufferSizeTy kernel_size = 10;
+  et_runtime::BufferSizeTy kernel_size = 10;
   auto code_md_size = BaseMemoryAllocator::mdSize(BufferType::Code);
   auto code_additional_free = 100;
-  BufferSizeTy code_size =
+  et_runtime::BufferSizeTy code_size =
       kernel_size + code_md_size + code_additional_free + 2 * MIN_ALIGNMENT;
   auto constant_tensor1_size = 100, constant_tensor2_size = 300;
   auto constant_md_size = BaseMemoryAllocator::mdSize(BufferType::Constant);

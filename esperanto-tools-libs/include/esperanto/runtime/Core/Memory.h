@@ -66,7 +66,7 @@ public:
   HostBuffer(void *ptr) : ptr_(ptr) {}
 
   /// @brief return the type of this buffer that this Host
-  BufferType type() const { return BufferType::Host; }
+  static constexpr BufferType type() { return BufferType::Host; }
 
   /// @brief return the stored pointer
   void *ptr() const { return ptr_; }
@@ -98,10 +98,12 @@ public:
   /// @brief Constructor
   ///
   /// @param[in] id: ID of the allocated buffer
-  /// @param[in] offset: Offset of the device where the data starts
+  /// @param[in] offset: Offset on the device DRAM region where the data starts
+  /// @param[in] size: Size of the buffer region, usable by the user.
   /// @param[in] mem_mannager: Pointer to the memory allocator where the buffer
   /// is part of
-  DeviceBuffer(BufferID id, BufferOffsetTy offset, Deallocator *deallocator);
+  DeviceBuffer(BufferID id, BufferOffsetTy offset, BufferSizeTy size,
+               Deallocator *deallocator);
 
   /// @brief Destructor, Release the device memory
   ~DeviceBuffer();
@@ -136,7 +138,7 @@ public:
   explicit operator bool() const;
 
   /// @brief Return type of this buffer that is Device
-  BufferType type() const { return BufferType::Device; }
+  static constexpr BufferType type() { return BufferType::Device; }
 
   /// @brief Return the ID of this DeviceBuffer
   const BufferID id() const { return buffer_id_; }
@@ -147,6 +149,9 @@ public:
   /// interface and should be called only by the Device class.
   /// FIXME the following interface should be revisited
   void *ptr() const { return reinterpret_cast<void *>(offset_); }
+
+  /// @brief Return the size of the buffer
+  BufferSizeTy size() const { return size_; }
 
   /// @brief Compare to DeviceBuffer, used
   friend bool operator<(const DeviceBuffer &a, const DeviceBuffer &b);
@@ -161,6 +166,7 @@ private:
 
   BufferID buffer_id_;    ///< ID of the buffer
   BufferOffsetTy offset_; ///< Offset of the buffer inside the Device DRAM
+  BufferSizeTy size_;     ///< Size of the buffer
   RefCounter *ref_cntr_;  ///< Reference counter
   Deallocator
       *deallocator_; ///< Callable object that will deallocate the buffer

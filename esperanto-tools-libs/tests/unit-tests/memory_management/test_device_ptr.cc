@@ -65,19 +65,19 @@ public:
 
 TEST_F(TestDeviceBuffer, dealloc_data) {
   EXPECT_CALL(*mem_manager_, freeData(testing::_)).Times(1);
-  DeviceBuffer buf(1, 100, mem_manager_->data_deallocator());
+  DeviceBuffer buf(1, 100, 10, mem_manager_->data_deallocator());
   ASSERT_EQ(buf.ref_cntr(), 1);
 }
 
 TEST_F(TestDeviceBuffer, dealloc_code) {
   EXPECT_CALL(*mem_manager_, freeCode(testing::_)).Times(1);
-  DeviceBuffer buf(1, 100, mem_manager_->code_deallocator());
+  DeviceBuffer buf(1, 100, 10, mem_manager_->code_deallocator());
   ASSERT_EQ(buf.ref_cntr(), 1);
 }
 
 TEST_F(TestDeviceBuffer, copy_constr) {
   EXPECT_CALL(*mem_manager_, freeData(testing::_)).Times(1);
-  DeviceBuffer buf(1, 100, mem_manager_->data_deallocator());
+  DeviceBuffer buf(1, 100, 10, mem_manager_->data_deallocator());
 
   {
     DeviceBuffer buf2(buf);
@@ -94,15 +94,15 @@ TEST_F(TestDeviceBuffer, copy_constr) {
 
 TEST_F(TestDeviceBuffer, assignment_op) {
   EXPECT_CALL(*mem_manager_, freeData(testing::_)).Times(2);
-  DeviceBuffer buf(1, 100, mem_manager_->data_deallocator());
-  DeviceBuffer buf2(1, 100, mem_manager_->data_deallocator());
+  DeviceBuffer buf(1, 100, 10, mem_manager_->data_deallocator());
+  DeviceBuffer buf2(1, 100, 10, mem_manager_->data_deallocator());
 
   buf2 = buf;
 }
 
 TEST_F(TestDeviceBuffer, move_constr) {
   EXPECT_CALL(*mem_manager_, freeData(testing::_)).Times(1);
-  DeviceBuffer buf(1, 100, mem_manager_->data_deallocator());
+  DeviceBuffer buf(1, 100, 10, mem_manager_->data_deallocator());
   DeviceBuffer buf2(std::move(buf));
 
   EXPECT_EQ(buf2.ref_cntr(), 1);
@@ -111,7 +111,7 @@ TEST_F(TestDeviceBuffer, move_constr) {
 
 TEST_F(TestDeviceBuffer, move_op) {
   EXPECT_CALL(*mem_manager_, freeData(testing::_)).Times(1);
-  DeviceBuffer buf(1, 100, mem_manager_->data_deallocator());
+  DeviceBuffer buf(1, 100, 10, mem_manager_->data_deallocator());
   DeviceBuffer buf2;
 
   buf2 = std::move(buf);
@@ -123,8 +123,8 @@ TEST_F(TestDeviceBuffer, move_op) {
 TEST_F(TestDeviceBuffer, containers_map) {
   std::map<DeviceBuffer, int> dev_map;
   EXPECT_CALL(*mem_manager_, freeData(testing::_)).Times(2);
-  DeviceBuffer buf(1, 100, mem_manager_->data_deallocator());
-  DeviceBuffer buf2(2, 100, mem_manager_->data_deallocator());
+  DeviceBuffer buf(1, 100, 10, mem_manager_->data_deallocator());
+  DeviceBuffer buf2(2, 100, 10, mem_manager_->data_deallocator());
 
   dev_map[buf] = 1;
   dev_map[buf2] = 2;
@@ -133,8 +133,8 @@ TEST_F(TestDeviceBuffer, containers_map) {
 TEST_F(TestDeviceBuffer, containers_unordered_map) {
   std::unordered_map<DeviceBuffer, int> dev_map;
   EXPECT_CALL(*mem_manager_, freeData(testing::_)).Times(2);
-  DeviceBuffer buf(1, 100, mem_manager_->data_deallocator());
-  DeviceBuffer buf2(2, 100, mem_manager_->data_deallocator());
+  DeviceBuffer buf(1, 100, 10, mem_manager_->data_deallocator());
+  DeviceBuffer buf2(2, 100, 10, mem_manager_->data_deallocator());
 
   dev_map[buf] = 1;
   dev_map[buf2] = 2;

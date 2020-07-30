@@ -15,11 +15,12 @@
 namespace et_runtime {
 
 DeviceBuffer::DeviceBuffer()
-    : buffer_id_(0), offset_(0), ref_cntr_(nullptr), deallocator_(nullptr) {}
+    : buffer_id_(0), offset_(0), size_(0), ref_cntr_(nullptr),
+      deallocator_(nullptr) {}
 
 DeviceBuffer::DeviceBuffer(BufferID id, BufferOffsetTy offset,
-                           Deallocator *deallocator)
-    : buffer_id_(id), offset_(offset), ref_cntr_(new RefCounter()),
+                           BufferSizeTy size, Deallocator *deallocator)
+    : buffer_id_(id), offset_(offset), size_(size), ref_cntr_(new RefCounter()),
       deallocator_(deallocator) {
   ref_cntr_->inc();
 }
@@ -63,6 +64,7 @@ DeviceBuffer::operator bool() const { return buffer_id_ == 0; }
 void DeviceBuffer::copyBuffer(const DeviceBuffer &other) {
   buffer_id_ = other.buffer_id_;
   offset_ = other.offset_;
+  size_ = other.size_;
   ref_cntr_ = other.ref_cntr_;
   deallocator_ = other.deallocator_;
 }
@@ -70,6 +72,7 @@ void DeviceBuffer::copyBuffer(const DeviceBuffer &other) {
 void DeviceBuffer::zeroFields() {
   buffer_id_ = 0;
   offset_ = 0;
+  size_ = 0;
   ref_cntr_ = nullptr;
   deallocator_ = nullptr;
 }
