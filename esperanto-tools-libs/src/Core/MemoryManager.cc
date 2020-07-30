@@ -63,7 +63,7 @@ ErrorOr<DeviceBuffer> MemoryManager::reserveMemoryCode(uintptr_t ptr,
     return etrtErrorHostMemoryAlreadyRegistered;
   }
   auto [bid, offset] = res.get();
-  return DeviceBuffer(bid, offset, &code_deallocator_);
+  return DeviceBuffer(bid, offset, size, &code_deallocator_);
 }
 
 etrtError MemoryManager::malloc(void **devPtr, size_t size) {
@@ -86,7 +86,7 @@ MemoryManager::mallocConstant(size_t size, const BufferDebugInfo &info) {
   }
   auto [buffer_id, base] = res.get();
   TRACE_MemoryManager_malloc(size, base);
-  return DeviceBuffer(buffer_id, base, &data_deallocator_);
+  return DeviceBuffer(buffer_id, base, size, &data_deallocator_);
 }
 
 ErrorOr<DeviceBuffer>
@@ -97,7 +97,7 @@ MemoryManager::mallocPlaceholder(size_t size, const BufferDebugInfo &info) {
   }
   auto [buffer_id, base] = res.get();
   TRACE_MemoryManager_malloc(size, base);
-  return DeviceBuffer(buffer_id, base, &data_deallocator_);
+  return DeviceBuffer(buffer_id, base, size, &data_deallocator_);
 }
 
 etrtError MemoryManager::mallocCode(void **devPtr, size_t size) {
@@ -120,7 +120,7 @@ ErrorOr<DeviceBuffer> MemoryManager::mallocCode(size_t size,
   }
   auto [buffer_id, base] = res.get();
   TRACE_MemoryManager_malloc(size, base);
-  return DeviceBuffer(buffer_id, base, &code_deallocator_);
+  return DeviceBuffer(buffer_id, base, size, &code_deallocator_);
 }
 
 etrtError MemoryManager::free(void *devPtr) {

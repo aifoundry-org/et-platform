@@ -162,6 +162,11 @@ enum etrtError {
   etrtErrorInvalidMemcpyDirection = 21,
 
   /**
+   * Out of bounds memory copy to / from device buffer
+   */
+  etrtErrorMemcpyOutOfBounds,
+
+  /**
    * This indicates that a ET Runtime API call cannot be executed because
    * it is being called during process shut down, at a point in time after
    * ET driver has been unloaded.

@@ -178,7 +178,7 @@ public:
   /// @return  etrtSuccess, etrtErrorInvalidValue,
   /// etrtErrorInvalidMemoryDirection
   template <class DstBuffer, class SrcBuffer>
-  etrtError memcpy(const DstBuffer &dst, const SrcBuffer &src, size_t count);
+  etrtError memcpy(const DstBuffer &dst, const SrcBuffer &src, ssize_t count);
   /// FIXME SW-1293
   ///
   /// @brief  Sets the bytes in allocated memory region to a given value.
@@ -243,6 +243,31 @@ private:
   /// for responses back form the Device
   void deviceListener();
 
+  template <class DstBuffer, class SrcBuffer>
+  static constexpr etrtMemcpyKind direction(const DstBuffer &dst,
+                                            const SrcBuffer &src) {
+    enum etrtMemcpyKind kind = etrtMemcpyHostToHost;
+
+    // All addresses not in device address space count as host address even if
+    // it was not created with MallocHost
+    bool is_dst_host = dst.type() == BufferType::Host;
+    bool is_src_host = src.type() == BufferType::Host;
+    if (is_src_host) {
+      if (is_dst_host) {
+        kind = etrtMemcpyHostToHost;
+      } else {
+        kind = etrtMemcpyHostToDevice;
+      }
+    } else {
+      if (is_dst_host) {
+        kind = etrtMemcpyDeviceToHost;
+      } else {
+        kind = etrtMemcpyDeviceToDevice;
+      }
+    }
+    return kind;
+  }
+
   int device_index_; ///< Index of the device in the system: e.g. it is device
                      ///< #1 as enumerated by the OS.
   std::unique_ptr<et_runtime::device::DeviceTarget>
@@ -303,11 +328,10 @@ private:
 
 extern template etrtError
 Device::memcpy<DeviceBuffer, HostBuffer>(const DeviceBuffer &dst,
-                                         const HostBuffer &src, size_t count);
+                                         const HostBuffer &src, ssize_t count);
 
-extern template etrtError
-Device::memcpy<HostBuffer, DeviceBuffer>(const HostBuffer &dst,
-                                         const DeviceBuffer &src, size_t count);
+extern template etrtError Device::memcpy<HostBuffer, DeviceBuffer>(
+    const HostBuffer &dst, const DeviceBuffer &src, ssize_t count);
 
 } // namespace et_runtime
 

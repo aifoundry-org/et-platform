@@ -23,9 +23,6 @@ namespace et_runtime {
 namespace device {
 namespace memory_management {
 
-/// Size of a buffer in bytes
-using BufferSizeTy = int64_t;
-
 /// Size of the padding of a buffer in bytes
 using PaddingSizeTy = uint32_t;
 

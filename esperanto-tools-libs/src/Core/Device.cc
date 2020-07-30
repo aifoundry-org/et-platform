@@ -345,40 +345,24 @@ etrtError Device::memcpy(void *dst, const void *src, size_t count,
 
 template <class DstBuffer, class SrcBuffer>
 etrtError Device::memcpy(const DstBuffer &dst, const SrcBuffer &src,
-                         size_t count) {
+                         ssize_t count) {
   Stream *et_stream = defaultStream_;
-  enum etrtMemcpyKind kind;
 
-  // All addresses not in device address space count as host address even if
-  // it was not created with MallocHost
-  bool is_dst_host = dst.type() == BufferType::Host;
-  bool is_src_host = src.type() == BufferType::Host;
-  if (is_src_host) {
-    if (is_dst_host) {
-      kind = etrtMemcpyHostToHost;
-    } else {
-      kind = etrtMemcpyHostToDevice;
+  if constexpr (direction(dst, src) == etrtMemcpyHostToDevice) {
+    if (dst.size() < count) {
+      return etrtErrorMemcpyOutOfBounds;
     }
-  } else {
-    if (is_dst_host) {
-      kind = etrtMemcpyDeviceToHost;
-    } else {
-      kind = etrtMemcpyDeviceToDevice;
-    }
-  }
-
-  switch (kind) {
-  case etrtMemcpyHostToDevice: {
     et_stream->addCommand(std::shared_ptr<device_api::CommandBase>(
         new device_api::pcie_commands::WriteCommand(dst.ptr(), src.ptr(),
                                                     count)));
-  } break;
-  case etrtMemcpyDeviceToHost: {
+  } else if constexpr (direction(dst, src) == etrtMemcpyDeviceToHost) {
+    if (src.size() < count) {
+      return etrtErrorMemcpyOutOfBounds;
+    }
     et_stream->addCommand(std::shared_ptr<device_api::CommandBase>(
         new device_api::pcie_commands::ReadCommand(dst.ptr(), src.ptr(),
                                                    count)));
-  } break;
-  case etrtMemcpyDeviceToDevice: {
+  } else {
     abort();
     /* FIXME SW-1293
 
@@ -402,8 +386,6 @@ etrtError Device::memcpy(const DstBuffer &dst, const SrcBuffer &src,
     setupArgument(&dst, 8, 16);
     launch(nullptr, kern);
     */
-  } break;
-  default:
     THROW("Unsupported Memcpy kind");
   }
   auto res = defaultStream_->synchronize();
@@ -412,11 +394,10 @@ etrtError Device::memcpy(const DstBuffer &dst, const SrcBuffer &src,
 
 template etrtError
 Device::memcpy<DeviceBuffer, HostBuffer>(const DeviceBuffer &dst,
-                                         const HostBuffer &src, size_t count);
+                                         const HostBuffer &src, ssize_t count);
 
-template etrtError
-Device::memcpy<HostBuffer, DeviceBuffer>(const HostBuffer &dst,
-                                         const DeviceBuffer &src, size_t count);
+template etrtError Device::memcpy<HostBuffer, DeviceBuffer>(
+    const HostBuffer &dst, const DeviceBuffer &src, ssize_t count);
 
 etrtError Device::memset(void *devPtr, int value, size_t count) {
   abort();

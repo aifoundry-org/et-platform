@@ -58,6 +58,18 @@ TEST_F(TestDevice, memcpy_host_to_dev) {
   dev_->memcpy(buffer, host_ptr, size);
 }
 
+TEST_F(TestDevice, memcpy_host_to_dev_failure) {
+  BufferDebugInfo info = {1, 1, 1};
+  int size = 100;
+  auto res = dev_->mem_manager().mallocConstant(size, info);
+  auto buffer = res.get();
+  ASSERT_TRUE((bool)res);
+  int data[size];
+  HostBuffer host_ptr(data);
+  auto mres = dev_->memcpy(buffer, host_ptr, size + 10);
+  ASSERT_TRUE(mres != etrtSuccess);
+}
+
 TEST_F(TestDevice, memcpy_dev_to_host) {
   BufferDebugInfo info = {1, 1, 1};
   int size = 100;
@@ -67,4 +79,33 @@ TEST_F(TestDevice, memcpy_dev_to_host) {
   int data[size];
   HostBuffer host_ptr(data);
   dev_->memcpy(host_ptr, buffer, size);
+}
+
+TEST_F(TestDevice, memcpy_dev_to_host_failure) {
+  BufferDebugInfo info = {1, 1, 1};
+  int size = 100;
+  auto res = dev_->mem_manager().mallocConstant(size, info);
+  auto buffer = res.get();
+  ASSERT_TRUE((bool)res);
+  int data[size];
+  HostBuffer host_ptr(data);
+  auto mres = dev_->memcpy(host_ptr, buffer, size + 10);
+  ASSERT_TRUE(mres != etrtSuccess);
+}
+
+TEST_F(TestDevice, memcpy_addition_outOfBounds) {
+  BufferDebugInfo info = {1, 1, 1};
+  int size = 100;
+  auto res = dev_->mem_manager().mallocConstant(size, info);
+  auto buffer = res.get();
+  ASSERT_TRUE((bool)res);
+  int data[size];
+  HostBuffer host_ptr(data);
+
+  auto derived_buffer = buffer + 10;
+  auto mres = dev_->memcpy(host_ptr, derived_buffer, size - 10);
+  ASSERT_EQ(mres, etrtSuccess);
+
+  mres = dev_->memcpy(host_ptr, derived_buffer, size);
+  ASSERT_NE(mres, etrtSuccess);
 }
