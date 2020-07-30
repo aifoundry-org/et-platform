@@ -34,46 +34,85 @@ namespace fs = std::experimental::filesystem;
 
 namespace {
 
-TEST(ModuleManager, loadOnSysEMU) {
-  // Send memory definition
-  fs::path p = "/proc/self/exe";
-  auto test_real_path = fs::read_symlink(p);
-  auto dir_name = test_real_path.remove_filename();
+class TestModuleManager : public ::testing::Test {
+public:
+  void SetUp() override {
+    // Send memory definition
+    fs::path p = "/proc/self/exe";
+    auto test_real_path = fs::read_symlink(p);
+    dir_name_ = test_real_path.remove_filename();
 
-  absl::SetFlag(&FLAGS_dev_target, DeviceTargetOption("sysemu_grpc"));
+    absl::SetFlag(&FLAGS_dev_target, DeviceTargetOption("sysemu_grpc"));
+    auto device_manager = et_runtime::getDeviceManager();
+    auto ret_value = device_manager->registerDevice(0);
+    dev_ = ret_value.get();
 
-  auto device_manager = et_runtime::getDeviceManager();
-  auto ret_value = device_manager->registerDevice(0);
-  auto dev = ret_value.get();
+    // Start the simulator
+    ASSERT_EQ(dev_->init(), etrtSuccess);
+  }
 
-  // Start the simulator
-  ASSERT_EQ(dev->init(), etrtSuccess);
+  void TearDown() override {
 
-  auto conv_elf = dir_name / "../convolution.elf";
+    // Stop the simulator
+    EXPECT_EQ(etrtSuccess, dev_->resetDevice());
+  }
+
+  fs::path dir_name_;
+  std::shared_ptr<Device> dev_;
+};
+
+TEST_F(TestModuleManager, loadOnSysEMU) {
+  auto conv_elf = dir_name_ / "../convolution.elf";
 
   et_runtime::ModuleManager module_manager;
 
   auto module_res =
       module_manager.createModule("convolution.elf", conv_elf.string());
   auto conv_mid = get<0>(module_res);
-  auto load_res = module_manager.loadOnDevice(conv_mid, dev.get());
+  auto load_res = module_manager.loadOnDevice(conv_mid, dev_.get());
   EXPECT_EQ(load_res.getError(), etrtSuccess);
   EXPECT_EQ(load_res.get(), conv_mid);
 
-  auto softmax_elf = dir_name / "../gpu_0_softmax_110.elf";
+  auto softmax_elf = dir_name_ / "../gpu_0_softmax_110.elf";
   auto module_res2 =
       module_manager.createModule("softmax", softmax_elf.string());
   auto softmax_mid = get<0>(module_res2);
-  load_res = module_manager.loadOnDevice(softmax_mid, dev.get());
+  load_res = module_manager.loadOnDevice(softmax_mid, dev_.get());
   EXPECT_EQ(load_res.getError(), etrtSuccess);
   EXPECT_EQ(load_res.get(), softmax_mid);
 
   //
   module_manager.destroyModule(conv_mid);
   module_manager.destroyModule(softmax_mid);
+}
 
-  // Stop the simulator
-  EXPECT_EQ(etrtSuccess, dev->resetDevice());
+TEST_F(TestModuleManager, load_unload_reload) {
+  auto conv_elf = dir_name_ / "../convolution.elf";
+
+  et_runtime::ModuleManager module_manager;
+
+  // Load
+  {
+    auto module_res =
+        module_manager.createModule("convolution.elf", conv_elf.string());
+    auto conv_mid = get<0>(module_res);
+    auto load_res = module_manager.loadOnDevice(conv_mid, dev_.get());
+    ASSERT_EQ(load_res.getError(), etrtSuccess);
+    ASSERT_EQ(load_res.get(), conv_mid);
+
+    // Unload
+    ASSERT_TRUE(module_manager.destroyModule(conv_mid));
+  }
+
+  // Reoad
+  {
+    auto module_res =
+        module_manager.createModule("convolution.elf", conv_elf.string());
+    auto conv_mid = get<0>(module_res);
+    auto load_res = module_manager.loadOnDevice(conv_mid, dev_.get());
+    ASSERT_EQ(load_res.getError(), etrtSuccess);
+    ASSERT_EQ(load_res.get(), conv_mid);
+  }
 }
 
 } // namespace

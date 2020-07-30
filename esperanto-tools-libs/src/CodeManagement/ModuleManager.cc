@@ -87,9 +87,6 @@ bool ModuleManager::destroyModule(CodeModuleID mid) {
                        return std::get<0>(e) == mid;
                      }),
       module_storage_.end());
-  /// SW-1370
-  // FIXME we should be de-allocating memory from the device when we delete a
-  // loaded module and free Code-Space
   return true;
 }
 

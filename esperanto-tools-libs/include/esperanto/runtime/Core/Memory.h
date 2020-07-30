@@ -22,6 +22,7 @@ class TestDeviceBuffer;
 namespace et_runtime {
 
 class PointerAttributes;
+class Module;
 
 class AbstractMemoryPtr {
 };
@@ -137,6 +138,7 @@ public:
 
 private:
   friend class ::TestDeviceBuffer;
+  friend class ::et_runtime::Module;
 
   BufferID buffer_id_;    ///< ID of the buffer
   BufferOffsetTy offset_; ///< Offset of the buffer inside the Device DRAM

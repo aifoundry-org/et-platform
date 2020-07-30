@@ -24,7 +24,7 @@
 namespace et_runtime {
 namespace device {
 
-MemoryManager::MemoryManager(Device &dev)
+MemoryManager::MemoryManager(Device *dev)
     : impl_(), device_(dev), data_buffer_map_(), code_buffer_map_() {
   code_deallocator_ = [this](BufferID id) -> auto { return freeCode(id); };
   data_deallocator_ = [this](BufferID id) -> auto { return freeData(id); };
@@ -42,26 +42,28 @@ bool MemoryManager::deInit() {
   return true;
 }
 
-uintptr_t MemoryManager::ramBase() const { return device_.dramBaseAddr(); }
+uintptr_t MemoryManager::ramBase() const { return device_->dramBaseAddr(); }
 
 void MemoryManager::initMemRegions() {
-  assert(MemoryManager::CODE_SIZE < device_.dramSize());
+  assert(MemoryManager::CODE_SIZE < device_->dramSize());
 
   impl_.reset(new memory_management::MemoryManagerInternals(
-      device_.dramBaseAddr(), MemoryManager::CODE_SIZE,
-      device_.dramSize() - MemoryManager::CODE_SIZE));
+      device_->dramBaseAddr(), MemoryManager::CODE_SIZE,
+      device_->dramSize() - MemoryManager::CODE_SIZE));
 }
 
 void MemoryManager::uninitMemRegions() {
 
 }
 
-etrtError MemoryManager::reserveMemoryCode(uintptr_t ptr, size_t size) {
+ErrorOr<DeviceBuffer> MemoryManager::reserveMemoryCode(uintptr_t ptr,
+                                                       size_t size) {
   auto res = impl_->emplaceCode(ptr, size);
   if (!res) {
     return etrtErrorHostMemoryAlreadyRegistered;
   }
-  return etrtSuccess;
+  auto [bid, offset] = res.get();
+  return DeviceBuffer(bid, offset, &code_deallocator_);
 }
 
 etrtError MemoryManager::malloc(void **devPtr, size_t size) {
@@ -76,6 +78,28 @@ etrtError MemoryManager::malloc(void **devPtr, size_t size) {
   return etrtSuccess;
 }
 
+ErrorOr<DeviceBuffer>
+MemoryManager::mallocConstant(size_t size, const BufferDebugInfo &info) {
+  auto res = impl_->mallocConstant(size, MemoryManager::DATA_ALIGNMENT);
+  if (!res) {
+    return res.getError();
+  }
+  auto [buffer_id, base] = res.get();
+  TRACE_MemoryManager_malloc(size, base);
+  return DeviceBuffer(buffer_id, base, &data_deallocator_);
+}
+
+ErrorOr<DeviceBuffer>
+MemoryManager::mallocPlaceholder(size_t size, const BufferDebugInfo &info) {
+  auto res = impl_->mallocPlaceholder(size, MemoryManager::DATA_ALIGNMENT);
+  if (!res) {
+    return res.getError();
+  }
+  auto [buffer_id, base] = res.get();
+  TRACE_MemoryManager_malloc(size, base);
+  return DeviceBuffer(buffer_id, base, &data_deallocator_);
+}
+
 etrtError MemoryManager::mallocCode(void **devPtr, size_t size) {
   auto res = impl_->mallocCode(size, DATA_ALIGNMENT);
   if (!res) {
@@ -86,6 +110,17 @@ etrtError MemoryManager::mallocCode(void **devPtr, size_t size) {
   code_buffer_map_[base] = buffer_id;
   TRACE_MemoryManager_malloc(size, reinterpret_cast<uint64_t>(*devPtr));
   return etrtSuccess;
+}
+
+ErrorOr<DeviceBuffer> MemoryManager::mallocCode(size_t size,
+                                                const BufferDebugInfo &info) {
+  auto res = impl_->mallocCode(size, MemoryManager::DATA_ALIGNMENT);
+  if (!res) {
+    return res.getError();
+  }
+  auto [buffer_id, base] = res.get();
+  TRACE_MemoryManager_malloc(size, base);
+  return DeviceBuffer(buffer_id, base, &code_deallocator_);
 }
 
 etrtError MemoryManager::free(void *devPtr) {
@@ -105,6 +140,10 @@ etrtError MemoryManager::freeCode(void *devPtr) {
   code_buffer_map_.erase(it);
   return impl_->freeCode(bid);
 }
+
+etrtError MemoryManager::freeCode(BufferID bid) { return impl_->freeCode(bid); }
+
+etrtError MemoryManager::freeData(BufferID bid) { return impl_->freeData(bid); }
 
 bool MemoryManager::isPtrInDevRegion(const void *ptr) {
   return impl_->dataBufferExists(reinterpret_cast<BufferID>(ptr));

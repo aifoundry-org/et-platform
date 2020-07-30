@@ -15,15 +15,18 @@
 #include "esperanto/runtime/CodeManagement/Kernel.h"
 #include "esperanto/runtime/CodeManagement/UberKernel.h"
 #include "esperanto/runtime/Core/Device.h"
+#include "esperanto/runtime/Core/DeviceManager.h"
 
 namespace et_runtime {
 
 CodeRegistry::CodeRegistry() : mod_manager_(new ModuleManager()) {}
 
 CodeRegistry &CodeRegistry::registry() {
-  static CodeRegistry registry;
-
-  return registry;
+  /// FIXME SW-3761
+  /// The following should be removed for now return the registry of ddevice 0
+  auto device_manager = et_runtime::getDeviceManager();
+  auto device = device_manager->getActiveDevice();
+  return device.get()->codeRegistry();
 }
 
 template <class KernelClass, class KernelArgTypes>

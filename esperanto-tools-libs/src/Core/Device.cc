@@ -47,7 +47,9 @@ Device::Device()
 
 Device::Device(int index)
     : device_index_(index), fw_manager_(std::make_unique<FWManager>()),
-      mem_manager_(std::make_unique<et_runtime::device::MemoryManager>(*this)),
+      mem_manager_(std::make_unique<et_runtime::device::MemoryManager>(this)),
+      code_registry_(std::make_unique<CodeRegistry>()),
+
       command_executor_(), terminate_cmd_executor_(false), device_reader_() {
   auto target_type = DeviceTarget::deviceToCreate();
   target_device_ = DeviceTarget::deviceFactory(target_type, index);
@@ -371,6 +373,7 @@ etrtError Device::memset(void *devPtr, int value, size_t count) {
 }
 
 etrtError Device::moduleUnload(et_runtime::CodeModuleID mid) {
-  /// FIXME SW-1370 correctly unload the module form the device
+  /// As of now the device does not have to take any action to unload a
+  /// module. The CodeManager deletes the memory and that suffices
   return etrtSuccess;
 }
