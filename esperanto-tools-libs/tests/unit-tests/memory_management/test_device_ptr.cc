@@ -139,3 +139,18 @@ TEST_F(TestDeviceBuffer, containers_unordered_map) {
   dev_map[buf] = 1;
   dev_map[buf2] = 2;
 }
+
+TEST_F(TestDeviceBuffer, add_op) {
+  EXPECT_CALL(*mem_manager_, freeData(testing::_)).Times(1);
+  auto base_offset = 100;
+  auto size = 20;
+  DeviceBuffer buf(1, base_offset, size, mem_manager_->data_deallocator());
+
+  auto buf2 = buf + 10;
+  ASSERT_EQ(reinterpret_cast<BufferOffsetTy>(buf2.ptr()), base_offset + 10);
+  ASSERT_EQ(buf2.size(), size - 10);
+
+  auto buf3 = 20 + buf2;
+  ASSERT_EQ(reinterpret_cast<BufferOffsetTy>(buf3.ptr()), base_offset + 30);
+  ASSERT_EQ(buf3.size(), size - 30);
+}

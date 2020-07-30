@@ -102,4 +102,15 @@ bool operator==(const et_runtime::DeviceBuffer &a,
   return a.id() == b.id();
 }
 
+DeviceBuffer operator+(const DeviceBuffer &lhs, BufferSizeTy val) {
+  DeviceBuffer buf = lhs;
+  buf.offset_ += val;
+  buf.size_ -= val;
+  return buf;
+}
+
+DeviceBuffer operator+(BufferSizeTy val, const DeviceBuffer &rhs) {
+  return rhs + val;
+}
+
 } // namespace et_runtime

@@ -147,7 +147,8 @@ public:
   /// an absolute address on the device that is computed based on the base
   /// DRAM address as initialized in the MemoryManager. This is not a public
   /// interface and should be called only by the Device class.
-  /// FIXME the following interface should be revisited
+  ///
+  /// FIXME the following interface should be revisited and removed
   void *ptr() const { return reinterpret_cast<void *>(offset_); }
 
   /// @brief Return the size of the buffer
@@ -158,6 +159,11 @@ public:
 
   /// @brief Equality comparison
   friend bool operator==(const DeviceBuffer &a, const DeviceBuffer &b);
+
+  /// @Brief Add operators takes as an argument an existing buffer and the
+  /// offset to add
+  friend DeviceBuffer operator+(const DeviceBuffer &lhs, BufferSizeTy val);
+  friend DeviceBuffer operator+(BufferSizeTy val, const DeviceBuffer &lhs);
 
 private:
   friend class ::TestDeviceBuffer;
@@ -189,6 +195,26 @@ bool operator<(const et_runtime::DeviceBuffer &a,
 
 bool operator==(const et_runtime::DeviceBuffer &a,
                 const et_runtime::DeviceBuffer &b);
+
+/// @Brief Add operator takes as an argument an existing buffer and the offset
+/// to add and returns new DeviceBuffer
+///
+/// @param[in]: lhs Input DeviceBuffer
+/// @param[in]: val Offet to the DeviceBuffer
+/// @returns New DeviceBuffer that shared the same buffer ID and ref-counter as
+/// the original one, but the offset of the buffer has been shifted by "val"
+/// bytes and its size has been reduced by the same value
+DeviceBuffer operator+(const DeviceBuffer &lhs, BufferSizeTy val);
+
+/// @Brief Add operator takes as an argument an existing buffer and the offset
+/// to add and returns new DeviceBuffer
+///
+/// @param[in]: val Offet to the DeviceBuffer
+/// @param[in]: rhs Input DeviceBuffer
+/// @returns New DeviceBuffer that shared the same buffer ID and ref-counter as
+/// as the original one, but the offset of the buffer has been shifted by "val"
+/// bytes and its size has been reduced by the same value
+DeviceBuffer operator+(BufferSizeTy val, const DeviceBuffer &rhs);
 
 }; // namespace et_runtime
 
