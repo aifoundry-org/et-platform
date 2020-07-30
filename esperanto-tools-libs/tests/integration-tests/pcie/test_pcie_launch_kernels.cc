@@ -88,12 +88,13 @@ TEST_F(PCIEKernelLaunchTest, beef_kernel) {
 
   int array_size = 200;
   int size = sizeof(uint64_t) * array_size;
-  void *dev_ptr = 0;
-  auto status = dev_->mem_manager().malloc(&dev_ptr, size);
-  ASSERT_EQ(status, etrtSuccess);
+  BufferDebugInfo info = {1, 1, 1};
+  auto malloc_res = dev_->mem_manager().mallocConstant(size, info);
+  ASSERT_TRUE((bool)malloc_res);
 
+  auto device_buffer = malloc_res.get();
   Kernel::layer_dynamic_info_t layer_info = {};
-  layer_info.tensor_a = reinterpret_cast<uint64_t>(dev_ptr);
+  layer_info.tensor_a = reinterpret_cast<uint64_t>(device_buffer.ptr());
   layer_info.tensor_b = size;
   Kernel::LaunchArg arg;
   arg.type = Kernel::ArgType::T_layer_dynamic_info;
@@ -106,7 +107,7 @@ TEST_F(PCIEKernelLaunchTest, beef_kernel) {
   std::vector<uint64_t> data(array_size, 0xEEEEEEEEEEEEEEEEULL);
   std::vector<uint64_t> refdata(array_size, 0xBEEFBEEFBEEFBEEFULL);
 
-  auto res = dev_->memcpy(data.data(), dev_ptr, size, etrtMemcpyDeviceToHost);
+  auto res = dev_->memcpy(HostBuffer(data.data()), device_buffer, size);
   ASSERT_EQ(launch_res, etrtSuccess);
   ASSERT_THAT(data, ::testing::ElementsAreArray(refdata));
 }

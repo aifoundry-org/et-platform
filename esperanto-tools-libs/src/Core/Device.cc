@@ -343,6 +343,81 @@ etrtError Device::memcpy(void *dst, const void *src, size_t count,
   return res;
 }
 
+template <class DstBuffer, class SrcBuffer>
+etrtError Device::memcpy(const DstBuffer &dst, const SrcBuffer &src,
+                         size_t count) {
+  Stream *et_stream = defaultStream_;
+  enum etrtMemcpyKind kind;
+
+  // All addresses not in device address space count as host address even if
+  // it was not created with MallocHost
+  bool is_dst_host = dst.type() == BufferType::Host;
+  bool is_src_host = src.type() == BufferType::Host;
+  if (is_src_host) {
+    if (is_dst_host) {
+      kind = etrtMemcpyHostToHost;
+    } else {
+      kind = etrtMemcpyHostToDevice;
+    }
+  } else {
+    if (is_dst_host) {
+      kind = etrtMemcpyDeviceToHost;
+    } else {
+      kind = etrtMemcpyDeviceToDevice;
+    }
+  }
+
+  switch (kind) {
+  case etrtMemcpyHostToDevice: {
+    et_stream->addCommand(std::shared_ptr<device_api::CommandBase>(
+        new device_api::pcie_commands::WriteCommand(dst.ptr(), src.ptr(),
+                                                    count)));
+  } break;
+  case etrtMemcpyDeviceToHost: {
+    et_stream->addCommand(std::shared_ptr<device_api::CommandBase>(
+        new device_api::pcie_commands::ReadCommand(dst.ptr(), src.ptr(),
+                                                   count)));
+  } break;
+  case etrtMemcpyDeviceToDevice: {
+    abort();
+    /* FIXME SW-1293
+
+    int dev_count = count;
+    const char *kern = "CopyKernel_Int8";
+
+    if ((dev_count % 4) == 0) {
+      dev_count /= 4;
+      kern = "CopyKernel_Int32";
+    }
+
+    dim3 gridDim(defaultGridDim1D(dev_count));
+    dim3 blockDim(defaultBlockDim1D());
+    EtLaunchConf launch_conf;
+    launch_conf.gridDim = gridDim;
+    launch_conf.blockDim = blockDim;
+    launch_conf.etStream = nullptr;
+    appendLaunchConf(launch_conf);
+    setupArgument(&dev_count, 4, 0);
+    setupArgument(&src, 8, 8);
+    setupArgument(&dst, 8, 16);
+    launch(nullptr, kern);
+    */
+  } break;
+  default:
+    THROW("Unsupported Memcpy kind");
+  }
+  auto res = defaultStream_->synchronize();
+  return res;
+}
+
+template etrtError
+Device::memcpy<DeviceBuffer, HostBuffer>(const DeviceBuffer &dst,
+                                         const HostBuffer &src, size_t count);
+
+template etrtError
+Device::memcpy<HostBuffer, DeviceBuffer>(const HostBuffer &dst,
+                                         const DeviceBuffer &src, size_t count);
+
 etrtError Device::memset(void *devPtr, int value, size_t count) {
   abort();
   /* FIXME SW-1293

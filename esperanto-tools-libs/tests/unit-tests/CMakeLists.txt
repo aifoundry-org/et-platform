@@ -12,6 +12,7 @@
 set(TEST_LIST
   test_command_response.cc:""
   test_command_queue.cc:""
+  test_data_transfers.cc:""
   test_device_manager.cc:""
   test_error_or.cc:""
   test_elf_parsing.cc:""

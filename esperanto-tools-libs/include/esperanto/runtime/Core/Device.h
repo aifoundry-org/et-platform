@@ -175,13 +175,10 @@ public:
   /// @param[in] src  A pointer to the location from which the memory is to be
   /// copied.
   /// @param[in] count  The number of bytes that should be copied.
-  /// @param[in] kind  Enum indicating the direction of the transfer (i.e.,
-  /// H->H, H->D, D->H, or D->D).
   /// @return  etrtSuccess, etrtErrorInvalidValue,
   /// etrtErrorInvalidMemoryDirection
-  //  etrtError memcpy(AbstractMemoryPtr *dst, const AbstractMemoryPtr *src,
-  //                   size_t count);
-
+  template <class DstBuffer, class SrcBuffer>
+  etrtError memcpy(const DstBuffer &dst, const SrcBuffer &src, size_t count);
   /// FIXME SW-1293
   ///
   /// @brief  Sets the bytes in allocated memory region to a given value.
@@ -197,7 +194,7 @@ public:
   /// @param[in] count  Number of bytes to be written with the given value.
   /// @return  etrtSuccess, etrtErrorInvalidValue
   ////
-  etrtError memset(AbstractMemoryPtr &ptr, uint8_t value, size_t count);
+  /// etrtError memset(AbstractMemoryPtr &ptr, uint8_t value, size_t count);
 
   /// FIXME SW-1293
   etrtError memcpyAsync(void *dst, const void *src, size_t count,
@@ -303,6 +300,15 @@ private:
   std::thread device_reader_; ///< Thread responsible for reading the mailbox
                               ///< for responses.
 };
+
+extern template etrtError
+Device::memcpy<DeviceBuffer, HostBuffer>(const DeviceBuffer &dst,
+                                         const HostBuffer &src, size_t count);
+
+extern template etrtError
+Device::memcpy<HostBuffer, DeviceBuffer>(const HostBuffer &dst,
+                                         const DeviceBuffer &src, size_t count);
+
 } // namespace et_runtime
 
 #endif // ET_RUNTIME_DEVICE_H
