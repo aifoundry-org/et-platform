@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include "printx.h"
 
@@ -92,7 +93,7 @@ static void invoke_sp_bl2(void) {
     } bl2_address;
     bl2_address.lo = g_service_processor_bl1_data.sp_bl2_header.info.image_info_and_signaure.info.secret_info.exec_address_lo;
     bl2_address.hi = g_service_processor_bl1_data.sp_bl2_header.info.image_info_and_signaure.info.secret_info.exec_address_hi;
-    printx("Invoking SP BL2 @ 0x%08x_%08x!\r\n", bl2_address.hi, bl2_address.lo);
+    printx("Invoking SP BL2 @ 0x%" PRIx64 "!\r\n", bl2_address.u64);
 
     // Evict Dcache and invalidate Icache before jumping to BL2
     evict_dcache();
