@@ -14,7 +14,6 @@
 #include "bl1_timer.h"
 #include "bl1_crypto.h"
 #include "bl1_build_configuration.h"
-#include "build_configuration.h"
 #include "sp_otp.h"
 #include "io.h"
 

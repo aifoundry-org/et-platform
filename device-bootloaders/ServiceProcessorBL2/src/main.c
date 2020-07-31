@@ -14,7 +14,6 @@
 #include "bl2_firmware_loader.h"
 #include "bl2_flash_fs.h"
 #include "bl2_build_configuration.h"
-#include "build_configuration.h"
 
 #include "bl2_main.h"
 #include "bl2_timer.h"

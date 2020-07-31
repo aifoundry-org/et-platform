@@ -34,6 +34,8 @@ include_directories(${SHARED_INC_DIRS})
 include_directories(${FLASH_TOOL_HEADERS})
 include_directories(${CRYPTO_HEADERS})
 
+add_subdirectory(include)
+
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
 list(APPEND FLASH_IMAGE_DEPS ${TARGET_NAME}.elf)

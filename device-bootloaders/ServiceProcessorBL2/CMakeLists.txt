@@ -53,7 +53,7 @@ set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/src/sections.ld)
 set(ZEBU_TARGET SP_RAM)
 
 include_directories(include)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../shared/include)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 include_directories(${SHARED_INC_DIR})
 include_directories(${FREERTOS_INC_DIRS})
 include_directories(${FLASH_TOOL_HEADERS})

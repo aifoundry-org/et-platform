@@ -1,7 +1,6 @@
 #include "bl2_build_configuration.h"
-#include "build_configuration.h"
 
-// the esperanto_sign_elf tool will search the elf binary for a 
+// the esperanto_sign_elf tool will search the elf binary for a
 // symbol named 'g_image_version_info'.
 // The symbol is expected to be of type IMAGE_VERSION_INFO_t as defined in esperanto_executable_image.h
 //
