@@ -12,9 +12,10 @@
 #include "esr_defines.h"
 #include "crc32.h"
 #include "log.h"
+#include "sync_minions.h"
 
-#define ALL_BANKS_MASK 0xFUL;
-#define OPCODE_FLUSH_CB 0x0A01UL;
+#define _32KB 32768
+#define _1MB 1048576
 
 // Tensor Load NOC / L3 / DDDR stress test
 // Random tensor load 0 (SCP) and 1 (TenB) followed by FMA
@@ -146,6 +147,8 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     tensor_wait(TENSOR_STORE_WAIT);
 
     // Synchronization for all minions in a shire.
+    drain_scb(shire_id, minion_id, 0);
+
     uint64_t barrier_result;
     WAIT_FLB(32, 0, barrier_result);
     if (barrier_result == 1) {
@@ -196,22 +199,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     
      
     if (crc_barrier_result == 1) {
- 
-        uint32_t crc = 0;
-
-        // Adding CRC check
-        if (ts_addr % 4) {
-            return -2;
-        }
-
-        // Total number of bytes:
-        // 16 lines / minion * 64 bytes / line * 32 minions = 32768
-        crc = crc32_8bytes((void *) (kernel_params_ptr->tensor_c + shire_id * 32768), 32768, crc);
-	uint32_t *crc_ptr = (uint32_t*)(base_dst_addr + 1048576 + shire_id * 64);
-        *crc_ptr = crc;
-	//if (shire_id == 0) {
-        //    log_write(LOG_LEVEL_CRITICAL, "Shire %lu, CRC value %x\n", shire_id, crc);
-        //}
+	generate_crc(kernel_params_ptr->tensor_c, shire_id, _32KB, _1MB, 0);
     }
 
     return 0;

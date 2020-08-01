@@ -3,6 +3,7 @@
 #define CRC32_H
 
 #include <stdint.h>
+#include "log.h"
 
 //static const uint32_t crc32polynomial = 0xEDB88320;                                                                                                                                                                                                                                                                                                                
 
@@ -346,6 +347,21 @@ static uint32_t crc32_8bytes(const void* data_ptr, uint64_t length, uint32_t pre
     }
 
     return ~crc;
+}
+
+
+// Generates CRC value per shire and attaches it at the end of output tensor
+// This code will be run by all active shires, so each shire writes in a separate cache line
+// Example: Each shire stores 32KB of data (1KB per minion), in total 1MB
+static inline void generate_crc(uint64_t output_data_addr, uint64_t shire_id, uint64_t total_data, uint64_t data_per_shire, uint64_t dump_crc)
+{
+    uint32_t crc = 0;
+    crc = crc32_8bytes((void *) (output_data_addr + shire_id * data_per_shire), data_per_shire, crc);
+    uint32_t *crc_ptr = (uint32_t*)(output_data_addr + total_data + shire_id * 64);
+    *crc_ptr = crc;
+    if (dump_crc == 1) {
+	log_write(LOG_LEVEL_CRITICAL, "Shire %lu, CRC value %x\n", shire_id, crc);
+    }
 }
 
 #endif
