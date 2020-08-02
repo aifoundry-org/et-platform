@@ -9,6 +9,8 @@
 #include "cacheops.h"
 #include "fcc.h"
 #include "flb.h"
+#include "sync_minions.h"
+#include "markers.h"
 
 #define CACHE_LINE_SIZE 8
 #define FCC_FLB 2
@@ -36,7 +38,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     }
 
     // Set marker for waveforms
-    __asm__ __volatile("slti x0,x0,0xfb");
+    START_WAVES_MARKER;
  
     uint64_t base_addr = (uint64_t) kernel_params_ptr->tensor_a;
     uint64_t array_size = (uint64_t) kernel_params_ptr->tensor_b;
@@ -51,38 +53,13 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     }
 
     // Sync up minions across shires.
-    // Minion with minion_id = shire_id sends credit to all other shires to minions with same minion_id.
-    uint64_t local_minion_id = minion_id & 0x1F;
-    uint64_t target_min_mask = 1ULL << local_minion_id;
-    uint64_t shire_id = minion_id >> 5;
-    if (local_minion_id == shire_id) {
-      for (uint64_t target_shire=0; target_shire < 32; target_shire++) {
-        if (shire_id == target_shire) continue;
-        SEND_FCC(target_shire, 0, 0, target_min_mask);
-      }
-    } else {
-      WAIT_FCC(0);
-    }
-
-    // Synchronize all minions in shires now
-    uint64_t barrier_result;
-    WAIT_FLB(32, FCC_FLB, barrier_result);
-    if (barrier_result == 1) {
-      target_min_mask = 0xFFFFFFFFUL;
-      target_min_mask = target_min_mask & (~(1ULL << minion_id));
-      SEND_FCC(shire_id, 0, 1, target_min_mask);
-    } else {
-      WAIT_FCC(1);
-    }
-    FENCE;
-
+    sync_up_all_minions(minion_id, 32, FCC_FLB);
 
     if ((minion_id % (1024 / num_minions)) != 0) {   // was % 4
 	return 0;
     }
     
-    // Phase 1 -- evict input tensor and laod clean lines into L3
-    __asm__ __volatile__("slti x0,x0,0xaa");
+    START_PHASE_MARKER;
   
     // Prefetch area of memory specified by tensr_a argument.
     // bank_ms_mc_offset: There are 128 bank/ms/mc groups. Each with 32 lines / row
@@ -101,13 +78,11 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
       uint64_t bank_mc_ms_offset = (minion_id / 8) * 0x40;
       uint64_t final_addr = base_addr + start_row_offset + minion_row_offset + bank_mc_ms_offset;
       prefetch_va(0, to_L1, final_addr, num_columns - 1, 0x2000, 0, 0);
-      //if (minion_id == 0 || minion_id == 4 || minion_id == 8 || minion_id == 16) {
-      // 	log_write(LOG_LEVEL_CRITICAL, "Prefetching 0x%lx\n", final_addr); 
-      //}
     }
 
     WAIT_CACHEOPS;
-    __asm__ __volatile__("slti x0,x0,0xab");
+
+    END_PHASE_MARKER;
 
     // Put minion ID and sum into output buffer
     out_data[CACHE_LINE_SIZE * minion_id] = minion_id;

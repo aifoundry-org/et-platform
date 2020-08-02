@@ -15,6 +15,7 @@
 #include "sync_minions.h"
 
 #define TSTORE_FLB 0
+#define CRC_FLB 1
 #define _32KB 32768
 #define _1MB 1048576
 
@@ -147,7 +148,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 
     tensor_wait(TENSOR_STORE_WAIT);
 
-    // Synchronization for all minions in a shire.
+    // Drain SCB so data move to L3
     drain_scb(shire_id, minion_id, TSTORE_FLB);
 
     __asm__ __volatile__ ("fence\n");
@@ -164,7 +165,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 
     // Sync up all minions in shire, one will generate the shire CRC value
     uint64_t crc_barrier_result;
-    WAIT_FLB(32, 1, crc_barrier_result);
+    WAIT_FLB(32, CRC_FLB, crc_barrier_result);
      
     if (crc_barrier_result == 1) {
 	generate_crc(kernel_params_ptr->tensor_c, shire_id, _32KB, _1MB, 1);

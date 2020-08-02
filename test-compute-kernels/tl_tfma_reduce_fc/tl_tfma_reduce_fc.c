@@ -12,11 +12,12 @@
 #include "esr_defines.h"
 #include "crc32.h"
 #include "log.h"
+#include "sync_minions.h"
 
-#define ALL_BANKS_MASK 0xFUL;
-#define OPCODE_FLUSH_CB 0x0A01UL;
 #define TSTORE_FLB 0
 #define CRC_FLB 1
+#define _32KB 32768
+#define _1MB 1048576
 
 // Tensor Load + FMA + Reduce NOC / L3 / DDR stress test
 // Random tensor load 0 (SCP) and  and 1 (TenB) followed by FMA
@@ -217,38 +218,8 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 
     tensor_wait(TENSOR_STORE_WAIT);
 
-    // Synchronization for all minions in a shire.
-    uint64_t barrier_result;
-    WAIT_FLB(32, TSTORE_FLB, barrier_result);
-    if (barrier_result == 1) {
-
-	// The last minion to reach this barrier flushes the CB and sends a credit to all others to continue
-	// Having more than one minions flush the CB at the same time may end up in having one of the flushes
-	// dropped by the shire cache
-
-	uint64_t sc_bank_mask = ALL_BANKS_MASK;
-        uint64_t flush_cb_opcode = OPCODE_FLUSH_CB;
-        volatile uint64_t *cb_flush_addr = (volatile uint64_t *)ESR_CACHE(shire_id, sc_bank_mask, SC_IDX_COP_SM_CTL_USER);
-        store((uint64_t) cb_flush_addr, flush_cb_opcode);
-
-	__asm__ __volatile__ ("fence\n");
-	// You will need to poll each bank separately
-        uint64_t cb_busy = 0;
-        while (cb_busy != 0x4) {
-            uint64_t cb_busy_bank[4];
-            for (uint64_t b=0; b < 4; b++) {
-                cb_flush_addr = (volatile uint64_t *)ESR_CACHE(shire_id, b, SC_IDX_COP_SM_CTL_USER);
-                cb_busy_bank[b] = ((*cb_flush_addr) >> 24) & 0x4;
-            }
-            cb_busy = cb_busy_bank[0] | cb_busy_bank[1] | cb_busy_bank[2] | cb_busy_bank[3];
-        }
-      	
-	uint64_t target_min_mask = 0xFFFFFFFFUL;
-	target_min_mask = target_min_mask & (~(1ULL << (minion_id & 0x1f)));
-	SEND_FCC(shire_id, 0, 0, target_min_mask);
-    } else {
-	WAIT_FCC(0);
-    }
+    // Drain SCB so data move to L3
+    drain_scb(shire_id, minion_id, TSTORE_FLB);
 
     __asm__ __volatile__ ("fence\n");
 
@@ -267,21 +238,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     WAIT_FLB(32, CRC_FLB, crc_barrier_result);
      
     if (crc_barrier_result == 1) {
- 
-        uint32_t crc = 0;
-
-        if (ts_addr % 4) {
-            return -2;
-        }
-
-        // Total number of bytes:
-        // 16 lines / minion * 64 bytes / line * 32 minions = 32768
-        crc = crc32_8bytes((void *) (kernel_params_ptr->tensor_c + shire_id * 32768), 32768, crc);
-	uint32_t *crc_ptr = (uint32_t*)(base_dst_addr + 1048576 + shire_id * 64);
-	*crc_ptr = crc;
-	//if (shire_id == 0) {
-        //    log_write(LOG_LEVEL_CRITICAL, "Shire %lu, CRC value %x\n", shire_id, crc);
-	//}
+        generate_crc(kernel_params_ptr->tensor_c, shire_id, _32KB, _1MB, 0);
     }
 
     return 0;

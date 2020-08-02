@@ -9,6 +9,8 @@
 #include "cacheops.h"
 #include "fcc.h"
 #include "flb.h"
+#include "sync_minions.h"
+#include "markers.h"
 
 #define CACHE_LINE_SIZE 8
 #define FCC_FLB 2
@@ -46,7 +48,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     }
 
     // Set marker for waveforms
-    __asm__ __volatile("slti x0,x0,0xfb");
+    START_WAVES_MARKER;
  
     uint64_t base_addr = (uint64_t) kernel_params_ptr->tensor_a;
     uint64_t array_size = (uint64_t) kernel_params_ptr->tensor_b;
@@ -64,33 +66,10 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     }
     
     // Sync up minions across shires.
-    // Minion with minion_id = shire_id sends credit to all other shires to minions with same minion_id.
-    uint64_t local_minion_id = minion_id & 0x1F;
-    uint64_t target_min_mask = 1ULL << local_minion_id;
-    uint64_t shire_id = minion_id >> 5;
-    if (local_minion_id == shire_id) {
-      for (uint64_t target_shire=0; target_shire < 32; target_shire++) {
-        if (shire_id == target_shire) continue;
-        SEND_FCC(target_shire, 0, 0, target_min_mask);
-      }
-    } else {
-      WAIT_FCC(0);
-    }
-
-    // Synchronize all minions in shires now
-    uint64_t barrier_result;
-    WAIT_FLB(32, FCC_FLB, barrier_result);
-    if (barrier_result == 1) {
-      target_min_mask = 0xFFFFFFFFUL;
-      target_min_mask = target_min_mask & (~(1ULL << minion_id));
-      SEND_FCC(shire_id, 0, 1, target_min_mask);
-    } else {
-      WAIT_FCC(1);
-    }
-    FENCE;
+    sync_up_all_minions(minion_id, 32, FCC_FLB);
 
     // Phase 1 -- evict input tensor and laod clean lines into L3
-    __asm__ __volatile__("slti x0,x0,0xaa");
+    START_PHASE_MARKER;
   
     // Delay loop for minions that try to evict addresses that are already out.
     // This avoids reads to the memshire after these minions finish their kernel.
@@ -111,8 +90,12 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     }
 
     WAIT_CACHEOPS;
-    __asm__ __volatile__("slti x0,x0,0xab");
 
+    END_PHASE_MARKER;
+
+    // Unblock thread 1
+    uint64_t shire_id = (minion_id >> 5) & 0x1F;
+    uint64_t local_minion_id = minion_id & 0x1F;
     SEND_FCC(shire_id, 1, 0, (1ULL << local_minion_id));
 
     // Put minion ID and sum into output buffer

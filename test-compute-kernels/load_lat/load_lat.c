@@ -7,6 +7,7 @@
 #include "kernel_params.h"
 #include "log.h"
 #include "cacheops.h"
+#include "markers.h"
 
 #define CACHE_LINE_SIZE 8
 #define FCC_FLB 2
@@ -43,7 +44,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     }
 
     // Set marker for waveforms
-    __asm__ __volatile("slti x0,x0,0xfb");
+    START_WAVES_MARKER;
  
     uint64_t base_addr = (uint64_t) kernel_params_ptr->tensor_a;
     uint64_t num_iter = (uint64_t) kernel_params_ptr->tensor_b;
@@ -60,7 +61,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 	return 0;
     }
     
-    __asm__ __volatile("slti x0,x0,0xaa");
+    START_PHASE_MARKER;
     
     uint64_t sum = 0;
     // Closed page accesses.
@@ -82,7 +83,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     }
 
     // End marker
-    __asm__ __volatile__("slti x0,x0,0xab");
+    END_PHASE_MARKER;
     
     // Put minion ID and sum into output buffer
     out_data[0] = minion_id;
