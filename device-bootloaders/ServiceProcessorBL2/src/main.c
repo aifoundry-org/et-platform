@@ -83,7 +83,7 @@ static uint64_t calculate_minion_shire_enable_mask(void) {
         // Each Neighboorhod status OTP entry contains information for 8 Shires
         for (uint32_t i = 0; i < 8; i++) {
             // Only enable a Shire if *ALL* its Neighboorhods are Functional
-            if ((status & 0xF) == 0) {
+            if ((status & 0xF) == 0xF) {
                 enable_mask |= 1ULL << (entry * 8 + i);
             }
             status >>= 4;
@@ -92,7 +92,7 @@ static uint64_t calculate_minion_shire_enable_mask(void) {
 
     // Master Shire Neighboorhods status
     ret = sp_otp_get_neighborhood_status_nh128_nh135_other(&status_other);
-    if ((ret < 0) || ((status_other.B.neighborhood_status & 0xF) == 0)) {
+    if ((ret < 0) || ((status_other.B.neighborhood_status & 0xF) == 0xF)) {
         enable_mask |= 1ULL << 32;
     }
 
