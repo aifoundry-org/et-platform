@@ -48,22 +48,22 @@ static inline void* mbox_ptr_to_void_ptr(volatile const mbox_t* const mbox_ptr);
 void MBOX_init_pcie(void)
 {
     init_task(MBOX_PCIE, "mbox_pcie");
-    init_mbox(MBOX_PCIE);
     INT_enableInterrupt(SPIO_PLIC_MBOX_HOST_INTR, 1, mbox_pcie_isr);
+    init_mbox(MBOX_PCIE);
 }
 
 void MBOX_init_mm(void)
 {
     init_task(MBOX_MASTER_MINION, "mbox_mm");
-    init_mbox(MBOX_MASTER_MINION);
     INT_enableInterrupt(SPIO_PLIC_MBOX_MMIN_INTR, 1, mbox_master_minion_isr);
+    init_mbox(MBOX_MASTER_MINION);
 }
 
 void MBOX_init_max(void)
 {
     init_task(MBOX_MAXION, "mbox_max");
-    init_mbox(MBOX_MAXION);
     INT_enableInterrupt(SPIO_PLIC_MBOX_MXN_INTR,  1, mbox_maxion_isr);
+    init_mbox(MBOX_MAXION);
 }
 
 int64_t MBOX_send(mbox_e mbox, const void* const buffer_ptr, uint32_t length)
