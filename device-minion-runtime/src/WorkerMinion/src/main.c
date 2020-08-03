@@ -61,7 +61,6 @@ void __attribute__((noreturn)) main(void)
         message_send_worker(shire_id, hart_id, &message);
     }
 
-
     for (;;)
     {
         int64_t rv = -1;
@@ -70,8 +69,8 @@ void __attribute__((noreturn)) main(void)
         // or SWI (message passing slow path)
         WAIT_FCC(FCC_0);
 
+        // Init trace buffer for kernel run
         trace_init_buffer();
-        log_string(LOG_LEVELS_CRITICAL, "Trace message from worker minion");
 
         for (uint64_t kernel_id = 0; kernel_id < MAX_SIMULTANEOUS_KERNELS; kernel_id++)
         {
@@ -91,6 +90,7 @@ void __attribute__((noreturn)) main(void)
             }
         }
 
+        // Evict trace buffer after kernel run.
         evict_trace_buffer();
 
         if (rv != 0)

@@ -22,14 +22,12 @@
 
 #if ENABLE_DEVICEFW_TRACE
 
-int trace_init_buffer(void);
-
-int trace_init_master(void)
+void trace_init_master(void)
 {
     struct trace_control_region_t *cntrl = (struct trace_control_region_t *)DEVICE_MRT_TRACE_BASE;
 
     // Enable all groups
-    for (unsigned int i = 0; i<(TRACE_GROUPS_MAX/(sizeof(uint64_t) * BITS_PER_BYTE) + 1); i++)
+    for (unsigned int i = 0; i<(TRACE_GROUP_ID_MAX/(sizeof(uint64_t) * BITS_PER_BYTE) + 1); i++)
         cntrl->group_knobs[i] = 0xFFFFFFFFFFFFFFFF;
 
     // Initialize Event knobs
@@ -51,11 +49,9 @@ int trace_init_master(void)
 
     // Init buffer associated with master
     trace_init_buffer();
-
-    return TRACE_STATUS_SUCCESS;
 }
 
-int trace_init_buffer(void)
+void trace_init_buffer(void)
 {
     // Init buffer
     uint64_t hart_id = get_hart_id();
@@ -67,7 +63,6 @@ int trace_init_buffer(void)
     buf_head->hart_id = (uint16_t)hart_id;
     buf_head->head = 0;
     buf_head->tail = 0;
-    return TRACE_STATUS_SUCCESS;
 }
 
 void evict_trace_buffer(void)

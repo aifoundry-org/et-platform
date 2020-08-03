@@ -28,12 +28,14 @@
 
 static const size_t event_size_array[] = {
          0,
-<%- for trace in cgh.traces() %>
+<%- for group in cgh.traces() %>
+  <%- for trace in group.get("Events", []) %>
      <%- if trace["Name"] == "string" %>
          offsetof(struct trace_<< trace["Name"] >>_t, msg),
      <%- else %>
          sizeof(struct trace_<< trace["Name"] >>_t),
      <%- endif %>
+  <%- endfor %>
 <%- endfor %>
     };
 
@@ -53,7 +55,7 @@ static int ring_buffer_check_space(struct buffer_header_t* rbuffer, size_t buffe
     return TRACE_STATUS_SUCCESS;
 }
 
-static int log_add(uint16_t hartid, void *event, size_t size, char *string)
+static void log_add(uint16_t hartid, void *event, size_t size, char *string)
 {
     // Obtain the trace buffer control region address
     struct trace_control_region_t* trace_ctrl_region = (struct trace_control_region_t*)DEVICE_MRT_TRACE_BASE;
@@ -152,28 +154,24 @@ static int log_add(uint16_t hartid, void *event, size_t size, char *string)
         // Move the head pointer forward
         rbuffer_header->head += size;
     }
-
-    // Return success
-    return TRACE_STATUS_SUCCESS;
 }
-<%- for trace in cgh.traces() %>
+<%- for group in cgh.traces() %>
+  <%- for trace in group.get("Events", []) %>
 
 int log_<< trace["Name"] >>(log_levels_e level<%- for field in trace.get("Fields", []) %> <%- if field["Type"] == "bytes" %>, char *msg<%- else %>, << cgh.message_field_type(field) >> << field["Name"] >> <%- endif %> <%- endfor %>)
 {
-
-    int ret = TRACE_STATUS_SUCCESS;
     struct trace_control_region_t* trace_ctrl_region = (struct trace_control_region_t*)DEVICE_MRT_TRACE_BASE;
 
-    if (trace_ctrl_region->group_knobs[TRACE_GROUPS_<< trace["Group"] >> / (sizeof(uint64_t) << '<<' >> 3)] & (1 << '<<' >> TRACE_GROUPS_<< trace["Group"] >> )) {
-        if (trace_ctrl_region->event_knobs[TRACE_EVENT_ID_<< trace["Group"]>>_<< trace["Name"] | upper >>].log_level != LOG_LEVELS_NONE &&
-            level <= trace_ctrl_region->event_knobs[TRACE_EVENT_ID_<< trace["Group"]>>_<< trace["Name"] | upper >>].log_level) {
+    if (trace_ctrl_region->group_knobs[TRACE_GROUP_ID_<< group["Name"] | upper >> / (sizeof(uint64_t) << '<<' >> 3)] & (1 << '<<' >> TRACE_GROUP_ID_<< group["Name"] | upper >> )) {
+        if (trace_ctrl_region->event_knobs[TRACE_EVENT_ID_<< group["Name"] | upper >>_<< trace["Name"] | upper >>].log_level != LOG_LEVELS_NONE &&
+            level <= trace_ctrl_region->event_knobs[TRACE_EVENT_ID_<< group["Name"] | upper >>_<< trace["Name"] | upper >>].log_level) {
             struct trace_<< trace["Name"] >>_t e;
             uint16_t hartid = (uint16_t)get_hart_id();
             <%- if trace["Name"] == "string" %>
             size_t size = strlen(msg);
             <%- endif %>
 
-            e.header.event_id = TRACE_EVENT_ID_<< trace["Group"]>>_<< trace["Name"] | upper >>;
+            e.header.event_id = TRACE_EVENT_ID_<< group["Name"] | upper >>_<< trace["Name"] | upper >>;
             asm volatile ("csrr %0, hpmcounter3" : "=r" (e.header.mtime));
 
             <% for field in trace.get("Fields", []) %>
@@ -186,14 +184,14 @@ int log_<< trace["Name"] >>(log_levels_e level<%- for field in trace.get("Fields
 
             // Add the log in memory
             <%- if trace["Name"] == "string" %>
-            ret = log_add(hartid, (void *)&e, ALIGN(offsetof(struct trace_string_t, msg) + size, 8), msg);
+            log_add(hartid, (void *)&e, ALIGN(offsetof(struct trace_string_t, msg) + size, 8), msg);
             <%- else %>
-            ret = log_add(hartid, (void *)&e, sizeof(e), NULL);
+            log_add(hartid, (void *)&e, sizeof(e), NULL);
             <%- endif %>
 
             // Write the log on UART interface if enabled
-            if (trace_ctrl_region->event_knobs[TRACE_EVENT_ID_<< trace["Group"]>>_<< trace["Name"] | upper >>].uart_en) {
-                log_write(level, "Event: TRACE_EVENT_ID_<< trace["Group"]>>_<< trace["Name"] | upper >>, <%- for field in trace.get("Fields", []) %> <%- if field["Type"] == "bytes" %> string: %s, <%- else %> <<field["Name"]>>: = %d, <%- endif %> <%- endfor %> Hartid: %d \r\n",
+            if (trace_ctrl_region->event_knobs[TRACE_EVENT_ID_<< group["Name"] | upper >>_<< trace["Name"] | upper >>].uart_en) {
+                log_write(level, "Event: TRACE_EVENT_ID_<< group["Name"] | upper >>_<< trace["Name"] | upper >>, <%- for field in trace.get("Fields", []) %> <%- if field["Type"] == "bytes" %> string: %s, <%- else %> <<field["Name"]>>: = %d, <%- endif %> <%- endfor %> Hartid: %d \r\n",
                 <%- for field in trace.get("Fields", []) %>
                     <%- if field["Type"] == "bytes" %>
                 msg,
@@ -203,12 +201,15 @@ int log_<< trace["Name"] >>(log_levels_e level<%- for field in trace.get("Fields
                 <%- endfor %>
                 hartid);
             }
+
+            return TRACE_STATUS_SUCCESS;
         }
     }
 
-    return ret;
+    return TRACE_STATUS_DISABLED;
 }
 
+  <%- endfor %>
 <%- endfor %>
 
 #endif

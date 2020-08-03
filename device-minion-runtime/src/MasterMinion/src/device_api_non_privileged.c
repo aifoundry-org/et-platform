@@ -234,7 +234,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
         if (result != 0)
         {
-            log_write(LOG_LEVEL_ERROR, "DeviceAPI Configure Event kbob MBOX_send error " PRIi64 "\r\n", result);
+            log_write(LOG_LEVEL_ERROR, "DeviceAPI Configure Event knob MBOX_send error " PRIi64 "\r\n", result);
         }
     }
     else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_CONFIGURE_TRACE_BUFFER_SIZE_KNOB_CMD)
