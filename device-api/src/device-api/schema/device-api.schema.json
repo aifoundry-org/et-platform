@@ -75,7 +75,25 @@
             "additionalProperties" : false,
             "required": ["Name", "Type"]
         },
-
+        "TraceGroupEntry": {
+            "type": "object",
+            "description": "A member field of a trace group record",
+            "properties": {
+                "Name": {
+                    "type":"string"
+                },
+                "Description": { "type": "string"} ,
+                "Type" : {
+                    "type" : "string",
+                    "enum" : ["TraceEntry"]
+                },
+                "Fields": {
+                    "type": "array",
+                    "items": { "$ref": "#definitions/TraceRecordEntry" }
+                }
+            },
+            "required" : ["Name", "Fields", "Type"]
+        },
         "Enum": {
             "type": "object",
             "description": "A Struct that is comprised of different member fields",
@@ -144,7 +162,7 @@
             "additionalProperties" : false,
             "required" : ["Name", "Type", "PairedMessage", "Fields"]
         },
-        "TraceEvent": {
+        "TraceGroup": {
             "type": "object",
             "description": "Description of a trace-event record",
             "properties": {
@@ -152,17 +170,12 @@
                     "type":"string"
                 },
                 "Description": { "type": "string"} ,
-                "Type" : {
-                    "type" : "string",
-                    "enum" : ["TraceEntry"]
-                },
-                "Fields": {
+                "Events": {
                     "type": "array",
-                    "items": { "$ref": "#definitions/TraceRecordEntry" }
+                    "items": { "$ref": "#definitions/TraceGroupEntry" }
                 }
             },
-            "additionalProperties" : false,
-            "required" : ["Name", "Fields", "Type"]
+            "required" : ["Name", "Events"]
         },
         "Module": {
             "type": "object",
@@ -189,9 +202,9 @@
                     "items": { "$ref": "#definitions/Message" },
                     "minItems": 1
                 },
-                "TraceEvents": {
+                "TraceGroups": {
                     "type": "array",
-                    "items": { "$ref": "#definitions/TraceEvent" },
+                    "items": { "$ref": "#definitions/TraceGroup" },
                     "minItems": 1
                 }
             },

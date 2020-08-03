@@ -28,17 +28,6 @@ Enums:
         Value: 5
       - Name: NONE
         Value: 6
-  - Name: trace_groups
-    Type: uint32_t
-    Values:
-      - Name: NONE
-        Value: 0
-      - Name: TEXT
-        Value: 1
-      - Name: PERF
-        Value: 2
-      - Name: WORKLOAD
-        Value: 3
   - Name: trace_status
     Type: int32_t
     Values:
@@ -314,8 +303,7 @@ Messages :
     PairedMessage: configure_trace_group_knob_rsp
     Fields:
       - Name: group_id
-        Type: enum
-        Enum: trace_groups_e
+        Type: uint64_t
       - Name: enabled
         Type: bool
   - Name: configure_trace_group_knob_rsp

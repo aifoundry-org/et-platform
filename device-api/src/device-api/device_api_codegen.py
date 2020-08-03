@@ -104,7 +104,7 @@ class DevAPICodeGeneratorHelper(object):
         """Return list of all the rpc Events"""
         return [ i for i in self.rpc_calls()['Messages'] if i['Type'] == 'Event']
 
-    def trace_events(self):
+    def trace_groups(self):
         """Return the schema of the DeviceFwTracing module
 
         Returns:
@@ -178,10 +178,10 @@ class DevAPICodeGeneratorHelper(object):
         Returns:
           list[dict] " List of defined TraceEvents
         """
-        trace_events = self.trace_events()
-        if not trace_events:
+        trace_groups = self.trace_groups()
+        if not trace_groups:
             return []
-        return trace_events.get("TraceEvents", [])
+        return trace_groups.get("TraceGroups", [])
 
     def custom_type(self, field):
         """Return true if this is a custom device-api type

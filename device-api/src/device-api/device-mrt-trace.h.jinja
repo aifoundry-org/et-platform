@@ -32,18 +32,30 @@ namespace device_api {
 #define NUMBER_OF_TRACE_BUFFERS         (2112UL)              /* (Minion count) * (Thread count) * (Number of minion shires) */
 
 // Trace event Enum
-typedef uint32_t trace_events_e;
+typedef uint64_t trace_events_e;
 
-enum TRACE_EVENT {
+enum TRACE_EVENTS {
     TRACE_EVENT_ID_NONE = 0,
-<%- for trace in cgh.traces() %>
-    TRACE_EVENT_ID_<< trace["Group"]>>_<< trace["Name"] | upper >> = << loop.index >>,
+<%- for group in cgh.traces() %>
+  <%- for trace in group.get("Events", []) %>
+    TRACE_EVENT_ID_<< group["Name"] | upper >>_<< trace["Name"] | upper >>,
+  <%- endfor %>
 <%- endfor %>
     TRACE_EVENT_ID_MAX
 };
 
+typedef uint64_t trace_groups_e;
+
+enum TRACE_GROUPS {
+    TRACE_GROUP_ID_NONE = 0,
+<%- for group in cgh.traces() %>
+    TRACE_GROUP_ID_<< group["Name"] | upper >>,
+<%- endfor %>
+    TRACE_GROUP_ID_MAX
+};
+
 struct trace_control_region_t {
-    uint64_t group_knobs[TRACE_GROUPS_MAX/(sizeof(uint64_t) * BITS_PER_BYTE) + 1];
+    uint64_t group_knobs[TRACE_GROUP_ID_MAX/(sizeof(uint64_t) * BITS_PER_BYTE) + 1];
     struct event_knob_t {
         uint8_t log_level:4;
         uint8_t uart_en:1;
@@ -64,8 +76,9 @@ struct message_head_t {
     uint64_t mtime;
 };
 
-/* TODO: we need to look into padding constraints, we can same memory here */
-<%- for trace in cgh.traces() %>
+<%- for group in cgh.traces() %>
+  <%- for trace in group.get("Events", []) %>
+
 // The real structure that goes into memory
 struct trace_<< trace["Name"] >>_t {
     struct message_head_t header;
@@ -79,18 +92,21 @@ struct trace_<< trace["Name"] >>_t {
     <%- endif %>
   <%- endfor %>
 };
-<% endfor %>
+  <%- endfor %>
+<%- endfor %>
 
 #if ENABLE_DEVICEFW_TRACE
 
 // Below logic requires modifications
-int trace_init_master(void);
-int trace_init_buffer(void);
+void trace_init_master(void);
+void trace_init_buffer(void);
 void evict_trace_buffer(void);
 void evict_trace_control(void);
 
- <%- for trace in cgh.traces() %>
+<%- for group in cgh.traces() %>
+  <%- for trace in group.get("Events", []) %>
 int log_<< trace["Name"] >>(log_levels_e level<%- for field in trace.get("Fields", []) %> <%- if field["Type"] == "bytes" %>, char *msg<%- else %>, << cgh.message_field_type(field) >> << field["Name"] >> <%- endif %> <%- endfor %>);
+  <%- endfor %>
 <%- endfor %>
 
 #else
@@ -104,9 +120,11 @@ int log_<< trace["Name"] >>(log_levels_e level<%- for field in trace.get("Fields
 #define evict_trace_control() { \
 } while(0);
 
-<%- for trace in cgh.traces() %>
+<%- for group in cgh.traces() %>
+  <%- for trace in group.get("Events", []) %>
 #define log_<< trace["Name"] >>(level<%- for field in trace.get("Fields", []) %> <%- if field["Type"] == "bytes" %>, msg<%- else %>, << field["Name"] >> <%- endif %> <%- endfor %>)  { \
 } while(0);
+  <%- endfor %>
 <%- endfor %>
 
 #endif

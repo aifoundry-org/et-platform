@@ -9,52 +9,55 @@
 #------------------------------------------------------------------------------
 
 Name: DeviceFWTracing
-TraceEvents:
-  - Name: string
-    Type : TraceEntry
-    Group : TEXT
-    Fields:
-      - Name: msg
-        Type: bytes
-  - Name: perfctr
-    Type : TraceEntry
-    Group : PERF
-    Fields:
-      - Name: ctr1
-        Type: uint32_t
-      - Name: ctr2
-        Type: uint32_t
-  - Name: uber_kernel_marker
-    Type: TraceEntry
-    Group : WORKLOAD
-    Fields:
-      - Name: subkernel_id
-        Type: uint32_t
-  - Name: kernel_launch
-    Type: TraceEntry
-    Group : WORKLOAD
-    Fields:
-      - Name: tensor_a
-        Type: uint64_t
-      - Name: tensor_b
-        Type: uint64_t
-      - Name: tensor_c
-        Type: uint64_t
-      - Name: tensor_d
-        Type: uint64_t
-      - Name: tensor_e
-        Type: uint64_t
-      - Name: tensor_f
-        Type: uint64_t
-      - Name: tensor_g
-        Type: uint64_t
-      - Name: kernel_id
-        Type: uint64_t
-  - Name: kernel_state
-    Type : TraceEntry
-    Group : WORKLOAD
-    Fields:
-      - Name: kernel_id
-        Type: uint64_t
-      - Name: state
-        Type: uint64_t
+TraceGroups:
+  - Name: Text
+    Events:
+      - Name: string
+        Type : TraceEntry
+        Fields:
+          - Name: msg
+            Type: bytes
+
+  - Name: Performance
+    Events:
+      - Name: perfctr
+        Type : TraceEntry
+        Fields:
+          - Name: ctr1
+            Type: uint32_t
+          - Name: ctr2
+            Type: uint32_t
+
+  - Name: Workload
+    Events:
+      - Name: uber_kernel_marker
+        Type: TraceEntry
+        Fields:
+          - Name: subkernel_id
+            Type: uint32_t
+      - Name: kernel_launch
+        Type: TraceEntry
+        Fields:
+          - Name: tensor_a
+            Type: uint64_t
+          - Name: tensor_b
+            Type: uint64_t
+          - Name: tensor_c
+            Type: uint64_t
+          - Name: tensor_d
+            Type: uint64_t
+          - Name: tensor_e
+            Type: uint64_t
+          - Name: tensor_f
+            Type: uint64_t
+          - Name: tensor_g
+            Type: uint64_t
+          - Name: kernel_id
+            Type: uint64_t
+      - Name: kernel_state
+        Type : TraceEntry
+        Fields:
+          - Name: kernel_id
+            Type: uint64_t
+          - Name: state
+            Type: uint64_t
