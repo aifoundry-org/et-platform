@@ -19,6 +19,7 @@ Some initialization steps have been disabled/by-passed to make it more suitable 
 
 The changes in comparison to the production variant are:
 
+* Contains a "fake BL1-DATA" (`SERVICE_PROCESSOR_BL1_DATA_t`)
 * Expects the SPIO UART0 to not be initialized, therefore it initializes it
 * Skips FlashFS initialization (which requires SPI)
 * Expects the PCIe link to be down, therefore it performs full PCIe link initialization

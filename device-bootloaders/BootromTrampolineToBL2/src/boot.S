@@ -89,10 +89,6 @@ _boot:
 
 .option push
 .option norelax
-    # Set register a0 (x10) to point to side-loaded BL1-data needed by BL2
-    # BL1-data is assumed to be loaded where BL1 would normally have its .data: @ 0x404F0000
-    li a0, 0x404F0000
-
     # BL2's entry point is located @ 0x40400000
     la ra, 0x40400000
 .option pop
