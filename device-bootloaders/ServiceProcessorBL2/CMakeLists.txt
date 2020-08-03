@@ -20,6 +20,7 @@ set(BL2_SOURCES
     src/dummy_isr.c
     src/interrupt.c
     src/main.c
+    src/mailbox.c
     src/stubs.c
     src/bl2_spi_controller.c
     src/bl2_spi_flash.c

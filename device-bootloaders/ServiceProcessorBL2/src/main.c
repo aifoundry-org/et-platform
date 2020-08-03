@@ -1,6 +1,7 @@
 #include "serial.h"
 #include "interrupt.h"
 #include "dummy_isr.h"
+#include "mailbox.h"
 #include "pcie.h"
 
 #include "FreeRTOS.h"
@@ -118,6 +119,9 @@ static void taskMain(void *pvParameters)
     PCIe_init(true /*expect_link_up*/);
 #endif
 
+    MBOX_init_pcie();
+    printf("Mailbox to host initialized.\n");
+
     minion_shires_mask = calculate_minion_shire_enable_mask();
 
     printf("---------------------------------------------\n");
@@ -149,8 +153,8 @@ static void taskMain(void *pvParameters)
         printf("ddr_config() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
-#endif
     printf("DRAM ready.\n");
+#endif
 
     if (0 != release_minions_from_cold_reset()) {
         printf("release_minions_from_cold_reset() failed!\n");
@@ -218,6 +222,9 @@ static void taskMain(void *pvParameters)
         goto FIRMWARE_LOAD_ERROR;
     }
     printf("Minion threads enabled.\n");
+
+    MBOX_init_pcie();
+    printf("Mailbox to MM initialized.\n");
 
     goto DONE;
 
