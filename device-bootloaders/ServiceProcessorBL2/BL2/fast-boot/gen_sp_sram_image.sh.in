@@ -1,0 +1,31 @@
+#!/bin/bash
+#------------------------------------------------------------------------------
+# Copyright (C) 2020, Esperanto Technologies Inc.
+# The copyright to the computer program(s) herein is the
+# property of Esperanto Technologies, Inc. All Rights Reserved.
+# The program(s) may be used and/or copied only with
+# the written permission of Esperanto Technologies and
+# in accordance with the terms and conditions stipulated in the
+# agreement/contract under which the program(s) have been supplied.
+#------------------------------------------------------------------------------s
+
+set -e
+
+RAM_IMAGE=sp-sram.bin
+HEX_PREFIX=sp-sram
+BIN_PREFIX=sp-sram
+
+# Zero-initialize the SP RAM image
+truncate -s 1M ${RAM_IMAGE}
+
+# Write BL2 at offset: 0x40400000 (BL2 entry point) - 0x40400000 = 0
+dd if=@TARGET_NAME@.bin of=${RAM_IMAGE} bs=1 conv=notrunc seek=0
+
+# Split SP RAM image into 4 parts
+dd if=${RAM_IMAGE} of=${BIN_PREFIX}_0.bin bs=1024 count=256 skip=0
+dd if=${RAM_IMAGE} of=${BIN_PREFIX}_1.bin bs=1024 count=256 skip=256
+dd if=${RAM_IMAGE} of=${BIN_PREFIX}_2.bin bs=1024 count=256 skip=512
+dd if=${RAM_IMAGE} of=${BIN_PREFIX}_3.bin bs=1024 count=256 skip=768
+
+# Convert .bin files to Zebu .hex format
+@ROM_TOOLS_DIR@/make_sp_sram.py ${HEX_PREFIX} ${BIN_PREFIX}
