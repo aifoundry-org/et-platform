@@ -114,7 +114,6 @@ get_property(SP_ROM_OTP_TYPES_PATH
 include_directories(${SP_ROM_OTP_TYPES_PATH})
 
 add_subdirectory(BootromTrampolineToBL2)
-add_subdirectory(ServiceProcessor)
 add_subdirectory(ServiceProcessorBL1)
 add_subdirectory(ServiceProcessorBL2)
 
