@@ -275,6 +275,28 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
     // Disable buffering on stdout
     setbuf(stdout, NULL);
 
+    // In fast-boot mode, generate fake BL1-data (we are not running BL1)
+#if FAST_BOOT
+    static SERVICE_PROCESSOR_BL1_DATA_t fake_bl1_data;
+    fake_bl1_data.service_processor_bl1_data_size = sizeof(fake_bl1_data);
+    fake_bl1_data.service_processor_bl1_version = SERVICE_PROCESSOR_BL1_DATA_VERSION;
+    fake_bl1_data.service_processor_rom_version = 0xDEADBEEF;
+    fake_bl1_data.sp_gpio_pins = 0;
+    fake_bl1_data.sp_pll0_frequency = 0;
+    fake_bl1_data.sp_pll1_frequency = 0;
+    fake_bl1_data.pcie_pll0_frequency = 0;
+    fake_bl1_data.timer_raw_ticks_before_pll_turned_on = 0;
+    fake_bl1_data.vaultip_coid_set = 0;
+    fake_bl1_data.spi_controller_rx_baudrate_divider = 0;
+    fake_bl1_data.spi_controller_tx_baudrate_divider = 0;
+    // fake_bl1_data.flash_fs_bl1_info bypassed
+    // fake_bl1_data.pcie_config_header bypassed
+    // fake_bl1_data.sp_certificates[2] bypassed
+    // fake_bl1_data.sp_bl1_header bypassed
+    // fake_bl1_data.sp_bl2_header bypassed
+    bl1_data = &fake_bl1_data;
+#endif
+
     // In non-fast-boot mode, the bootrom initializes SPIO UART0
 #if FAST_BOOT
     SERIAL_init(UART0);
