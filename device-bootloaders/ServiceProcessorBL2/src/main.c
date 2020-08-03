@@ -223,7 +223,7 @@ static void taskMain(void *pvParameters)
     }
     printf("Minion threads enabled.\n");
 
-    MBOX_init_pcie();
+    MBOX_init_mm();
     printf("Mailbox to MM initialized.\n");
 
     goto DONE;
