@@ -2,7 +2,7 @@
 #include "interrupt.h"
 #include "dummy_isr.h"
 #include "mailbox.h"
-#include "pcie.h"
+#include "pcie_init.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
