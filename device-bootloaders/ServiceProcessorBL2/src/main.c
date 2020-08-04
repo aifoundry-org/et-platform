@@ -114,7 +114,7 @@ static void taskMain(void *pvParameters)
 
     // In non-fast-boot mode, the bootrom initializes PCIe link
 #if FAST_BOOT
-    // Configure PCIe PLL to speed-up PCIe init
+    PCIe_release_pshire_from_reset();
     configure_pcie_pll();
     PCIe_init(false /*expect_link_up*/);
 #else
@@ -242,8 +242,9 @@ DONE:
 }
 
 static int copy_bl1_data(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data) {
-    printf("SP BL1 data address: %p\n", bl1_data);
-    if (NULL == bl1_data || sizeof(SERVICE_PROCESSOR_BL1_DATA_t) != bl1_data->service_processor_bl1_data_size || SERVICE_PROCESSOR_BL1_DATA_VERSION != bl1_data->service_processor_bl1_version) {
+    if (NULL == bl1_data ||
+        sizeof(SERVICE_PROCESSOR_BL1_DATA_t) != bl1_data->service_processor_bl1_data_size ||
+        SERVICE_PROCESSOR_BL1_DATA_VERSION != bl1_data->service_processor_bl1_version) {
         printf("Invalid BL1 DATA!\n");
         return -1;
     }
@@ -305,7 +306,9 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
 #endif
 
     printf("\n*** SP BL2 STARTED ***\r\n");
-    printf("BL2 version: %u.%u.%u (" BL2_VARIANT ")\n", image_version_info->file_version_major, image_version_info->file_version_minor, image_version_info->file_version_revision);
+    printf("BL2 version: %u.%u.%u (" BL2_VARIANT ")\n", image_version_info->file_version_major,
+                                                        image_version_info->file_version_minor,
+                                                        image_version_info->file_version_revision);
     printf("GIT version: " GIT_VERSION_STRING "\n");
     // printf("GIT hash: " GIT_HASH_STRING "\n");
 

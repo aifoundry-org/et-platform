@@ -36,6 +36,12 @@ static void pcie_wait_for_ints(void);
 
 #define SMLH_LTSSM_STATE_LINK_UP 0x11
 
+void PCIe_release_pshire_from_reset(void)
+{
+    iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_PSHIRE_COLD_ADDRESS, RESET_MANAGER_RM_PSHIRE_COLD_RSTN_SET(1));
+    iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_PSHIRE_WARM_ADDRESS, RESET_MANAGER_RM_PSHIRE_WARM_RSTN_SET(1));
+}
+
 void PCIe_init(bool expect_link_up)
 {
     uint32_t tmp;

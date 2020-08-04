@@ -14,6 +14,7 @@
 
 #include <stdbool.h>
 
+void PCIe_release_pshire_from_reset(void);
 void PCIe_init(bool expect_link_up);
 
 #endif

@@ -33,11 +33,6 @@ static uint32_t gs_sp_pll_2_frequency;
 static uint32_t gs_sp_pll_4_frequency;
 static uint32_t gs_pcie_pll_0_frequency;
 
-static void release_pshire_from_reset(void) {
-    iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_PSHIRE_COLD_ADDRESS, RESET_MANAGER_RM_PSHIRE_COLD_RSTN_SET(1));
-    iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_PSHIRE_WARM_ADDRESS, RESET_MANAGER_RM_PSHIRE_WARM_RSTN_SET(1));
-}
-
 uint32_t get_input_clock_index(void) {
     uint32_t rm_status2 = ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_STATUS2_ADDRESS);
     return RESET_MANAGER_RM_STATUS2_STRAP_IN_GET(rm_status2);
@@ -65,7 +60,7 @@ static void update_pll_registers(volatile uint32_t * pll_registers) {
     pll_registers[PLL_REG_INDEX_REG_UPDATE_STROBE] = strobe;
 }
 
-static int configure_pll(volatile uint32_t * pll_registers, uint8_t mode, PLL_ID_t pll_id) {
+static int configure_pll(volatile uint32_t * pll_registers, uint8_t mode) {
     uint32_t timeout = PLL_LOCK_TIMEOUT;
     uint8_t register_index;
     uint16_t register_value;
@@ -87,10 +82,6 @@ static int configure_pll(volatile uint32_t * pll_registers, uint8_t mode, PLL_ID
     return ERROR_SP_PLL_CONFIG_DATA_NOT_FOUND;
 
 FOUND_CONFIG_DATA:
-
-    if (PLL_ID_PSHIRE == pll_id) {
-        release_pshire_from_reset();
-    }
 
     // program the PLL registers using generated configuration data
     for (entry_index = 0; entry_index < gs_hpdpll_settings[pll_settings_index].count; entry_index++) {
@@ -174,7 +165,7 @@ static int clock_manager_pll_bypass(PLL_ID_t pll, bool bypass_enable) {
 static int configure_sp_pll(PLL_ID_t pll_id, volatile uint32_t * pll_registers, const uint8_t mode[INPUT_CLK_CONFIG_COUNT]) {
     int rv;
 
-    rv = configure_pll(pll_registers, mode[get_input_clock_index()], pll_id);
+    rv = configure_pll(pll_registers, mode[get_input_clock_index()]);
     if (0 != rv) {
         goto ERROR;
     }
