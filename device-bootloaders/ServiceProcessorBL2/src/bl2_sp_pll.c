@@ -220,6 +220,20 @@ int configure_sp_pll_4(void) {
     return rv;
 }
 
+int configure_pcie_pll(void) {
+    int rv;
+    static const uint8_t mode[INPUT_CLK_CONFIG_COUNT] = { 6, 12, 18 };
+
+    rv = configure_sp_pll(PLL_ID_PSHIRE, (uint32_t*)R_PCIE_PLLP0_BASEADDR, mode);
+    if (0 == rv) {
+        gs_pcie_pll_0_frequency = 1010;
+    } else {
+        gs_pcie_pll_0_frequency = 0;
+    }
+
+    return rv;
+}
+
 int get_pll_frequency(PLL_ID_t pll_id, uint32_t * frequency) {
     if (NULL == frequency) {
         return ERROR_INVALID_ARGUMENT;

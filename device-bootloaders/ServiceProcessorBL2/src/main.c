@@ -114,6 +114,8 @@ static void taskMain(void *pvParameters)
 
     // In non-fast-boot mode, the bootrom initializes PCIe link
 #if FAST_BOOT
+    // Configure PCIe PLL to speed-up PCIe init
+    configure_pcie_pll();
     PCIe_init(false /*expect_link_up*/);
 #else
     PCIe_init(true /*expect_link_up*/);

@@ -36,12 +36,6 @@ static void pcie_wait_for_ints(void);
 
 #define SMLH_LTSSM_STATE_LINK_UP 0x11
 
-static int release_pshire_from_reset(void) {
-    iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_PSHIRE_COLD_ADDRESS, RESET_MANAGER_RM_PSHIRE_COLD_RSTN_SET(1));
-    iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_PSHIRE_WARM_ADDRESS, RESET_MANAGER_RM_PSHIRE_WARM_RSTN_SET(1));
-    return 0;
-}
-
 void PCIe_init(bool expect_link_up)
 {
     uint32_t tmp;
@@ -60,11 +54,6 @@ void PCIe_init(bool expect_link_up)
         else {
             printf("Warning: PCIe link not properly inited, trying again...\r\n");
         }
-    }
-    else {
-        //Normally ServiceProcessorROM releases reset, however this codepath skips that
-        printf("Releasing PShire from Reset ...\n");
-        release_pshire_from_reset();
     }
 
     if (init_link) {
