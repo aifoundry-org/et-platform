@@ -106,7 +106,7 @@ void MBOX_update_status(mbox_e mbox)
 
             case MBOX_STATUS_WAITING:
                 // The slave has requested we reset the mailbox interface.
-                log_write(LOG_LEVEL_INFO, "received slave reset req\r\n");
+                log_write(LOG_LEVEL_DEBUG, "received slave reset req\r\n");
                 reset_mbox(mbox);
             break;
 
@@ -126,7 +126,7 @@ void MBOX_update_status(mbox_e mbox)
                 if ((mbox_hw[mbox]->slave_status != MBOX_STATUS_READY) &&
                     (mbox_hw[mbox]->slave_status != MBOX_STATUS_WAITING))
                 {
-                    log_write(LOG_LEVEL_INFO, "received master ready, going slave ready\r\n");
+                    log_write(LOG_LEVEL_DEBUG, "received master ready, going slave ready\r\n");
                     mbox_hw[mbox]->slave_status = MBOX_STATUS_READY;
                     send_interrupt(mbox);
                 }
@@ -136,7 +136,7 @@ void MBOX_update_status(mbox_e mbox)
                 if ((mbox_hw[mbox]->slave_status != MBOX_STATUS_READY) &&
                     (mbox_hw[mbox]->slave_status != MBOX_STATUS_WAITING))
                 {
-                    log_write(LOG_LEVEL_INFO, "received master waiting, going slave ready\r\n");
+                    log_write(LOG_LEVEL_DEBUG, "received master waiting, going slave ready\r\n");
                     mbox_hw[mbox]->slave_status = MBOX_STATUS_READY;
                     send_interrupt(mbox);
                 }
