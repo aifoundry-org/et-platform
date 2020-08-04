@@ -12,7 +12,6 @@ add_subdirectory("include")
 
 add_library(bootrom_helpers STATIC
   src/constant_memory_compare.c
-  src/pcie.c
   src/pcie_int.c
   src/ringbuffer.c
   src/backtrace.c
@@ -38,7 +37,7 @@ install(
 install(
   FILES
     include/constant_memory_compare.h
-    include/pcie.h
+    include/pcie_device.h
     include/pcie_int.h
     include/mailbox_common.h
     include/ringbuffer_common.h
