@@ -13,8 +13,8 @@
 #include "esperanto/runtime/Support/Logging.h"
 
 #include "Tracing/Tracing.h"
-
 #include <cassert>
+#include <et_ioctl.h>
 #include <thread>
 #include <unistd.h>
 
