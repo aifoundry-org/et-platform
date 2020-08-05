@@ -115,20 +115,25 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     // Fill up the SCP to avoid X's in VCS
     tensor_load(0, 0, 0 /*start line*/, 0, 0, // regular tl0 on scp
 	base_src_addr, 0, 15 /*num lines*/, 0x40, 0);
-    
+
     tensor_wait(TENSOR_LOAD_WAIT_0);
-    
+
     tensor_load(0, 0, 16 /*start line*/, 0, 0, // regular tl0 on scp
 	base_src_addr, 0, 15 /*num lines*/, 0x40, 0);
-	
+
     tensor_wait(TENSOR_LOAD_WAIT_0);
-    
+
     tensor_load(0, 0, 32 /*start line*/, 0, 0, // regular tl0 on scp
 	base_src_addr, 0, 15 /*num lines*/, 0x40, 0);
-	
+
     // Do not use masks (to maximize number of cache line accesses
     // Write always to the RF and do not add TenC
     tensor_wait(TENSOR_LOAD_WAIT_0);
+
+    // Do a tensor store to make sure the data output buffer is initialized
+    tensor_store(0, 0, 3, 15, base_dst_addr + (minion_id) * 1024, 0, 0x40);
+
+    tensor_wait(TENSOR_STORE_WAIT);
 
     for (uint64_t iter=0; iter < NUM_ITER; iter++) {		
 
