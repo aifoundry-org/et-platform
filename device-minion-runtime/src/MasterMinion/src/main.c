@@ -124,6 +124,14 @@ static void __attribute__((noreturn)) master_thread(void)
 
     kernel_init();
 
+    // [SW-3499] FIXME/HACK: Add delay to give enough time for all the shires to send SHIRE_STATE_READY,
+    //                       before the FW starts processing Host messages (kernel launch).
+    volatile uint64_t hack_delay = 0;
+    while (hack_delay < 5000) {
+        asm volatile("fence\n");
+        hack_delay++;
+    }
+
     // Enable supervisor external and software interrupts
     asm volatile (
         "li    %0, 0x202    \n"
