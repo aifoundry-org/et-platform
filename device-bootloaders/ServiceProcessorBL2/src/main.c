@@ -126,7 +126,6 @@ static void taskMain(void *pvParameters)
 
     minion_shires_mask = calculate_minion_shire_enable_mask();
 
-    printf("---------------------------------------------\n");
     printf("Minion shires to enable: 0x%" PRIx64 "\n", minion_shires_mask);
     printf("Starting Minions reset release sequence...\n");
 
@@ -148,7 +147,7 @@ static void taskMain(void *pvParameters)
         printf("configure_memshire_plls() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
-    printf("SP MemShire PLLs configured and locked.\n");
+    printf("SP MS PLLs configured and locked.\n");
 
 #if !FAST_BOOT
     if (0 != ddr_config()) {
@@ -176,8 +175,7 @@ static void taskMain(void *pvParameters)
     }
     printf("Minion shires PLLs and DLLs configured.\n");
 
-    printf("---------------------------------------------\n");
-    printf("Attempting to load SW ROOT/Issuing Certificate chain...\n");
+    printf("Loading SW certificates chain...\n");
     if (0 != load_sw_certificates_chain()) {
         printf("Failed to load SW ROOT/Issuing Certificate chain!\n");
         goto FIRMWARE_LOAD_ERROR;
@@ -185,7 +183,6 @@ static void taskMain(void *pvParameters)
 
     // In fast-boot mode we skip loading from flash, and assume everything is already pre-loaded
 #if !FAST_BOOT
-    printf("---------------------------------------------\n");
     printf("Attempting to load Machine Minion firmware...\n");
     if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_MACHINE_MINION)) {
         printf("Failed to load Machine Minion firmware!\n");
@@ -193,7 +190,6 @@ static void taskMain(void *pvParameters)
     }
     printf("Machine Minion firmware loaded.\n");
 
-    printf("---------------------------------------------\n");
     printf("Attempting to load Master Minion firmware...\n");
     if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_MASTER_MINION)) {
         printf("Failed to load Master Minion firmware!\n");
@@ -201,7 +197,6 @@ static void taskMain(void *pvParameters)
     }
     printf("Master Minion firmware loaded.\n");
 
-    printf("---------------------------------------------\n");
     printf("Attempting to load Worker Minion firmware...\n");
     if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_WORKER_MINION)) {
         printf("Failed to load Worker Minion firmware!\n");
@@ -210,7 +205,6 @@ static void taskMain(void *pvParameters)
     printf("Worker Minion firmware loaded.\n");
 #endif
 
-    printf("---------------------------------------------\n");
     printf("time: %lu\n", timer_get_ticks_count());
 
     if (0 != enable_minion_neighborhoods(minion_shires_mask)) {
@@ -305,11 +299,11 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
     SERIAL_init(UART0);
 #endif
 
-    printf("\n*** SP BL2 STARTED ***\r\n");
-    printf("BL2 version: %u.%u.%u (" BL2_VARIANT ")\n", image_version_info->file_version_major,
-                                                        image_version_info->file_version_minor,
-                                                        image_version_info->file_version_revision);
-    printf("GIT version: " GIT_VERSION_STRING "\n");
+    printf("\n** SP BL2 STARTED **\r\n");
+    printf("BL2 version: %u.%u.%u:" GIT_VERSION_STRING " (" BL2_VARIANT ")\n",
+        image_version_info->file_version_major,
+        image_version_info->file_version_minor,
+        image_version_info->file_version_revision);
     // printf("GIT hash: " GIT_HASH_STRING "\n");
 
     memset(&g_service_processor_bl2_data, 0, sizeof(g_service_processor_bl2_data));

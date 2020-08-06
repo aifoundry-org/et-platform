@@ -45,7 +45,6 @@ void PCIe_release_pshire_from_reset(void)
 void PCIe_init(bool expect_link_up)
 {
     uint32_t tmp;
-    printf("Initializing PCIe\r\n");
 
     //If the PCIe link should already be up (e.x. ServiceProcessorROM should have ran
     //pcie_boot_config()), and it's not, try again anyways; however, the init timing may be
