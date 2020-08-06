@@ -85,6 +85,7 @@ install(
     include/log_levels.h
     include/macros.h
     include/minion_esr_defines.h
+    include/minion_fw_boot_config.h
     include/printf.h
     include/serial.h
     include/shire_cache.h

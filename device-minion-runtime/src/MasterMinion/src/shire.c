@@ -10,6 +10,7 @@ typedef struct
 
 // Local state
 static shire_status_t shire_status[NUM_SHIRES] = {0};
+static uint64_t booted_shires = 0;
 
 void update_shire_state(uint64_t shire, shire_state_t shire_state)
 {
@@ -25,6 +26,8 @@ void update_shire_state(uint64_t shire, shire_state_t shire_state)
         if (current_state != SHIRE_STATE_ERROR)
         {
             shire_status[shire].shire_state = shire_state;
+            // Update mask of booted shires (coming from SHIRE_STATE_UNKNOWN)
+            booted_shires |= 1ULL << shire;
         }
         else
         {
@@ -39,6 +42,11 @@ void update_shire_state(uint64_t shire, shire_state_t shire_state)
             }
         }
     }
+}
+
+bool all_shires_booted(uint64_t shire_mask)
+{
+    return (booted_shires & shire_mask) == shire_mask;
 }
 
 bool all_shires_ready(uint64_t shire_mask)

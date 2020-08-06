@@ -27,7 +27,7 @@ FW_WORKER_SCODE_SIZE = 0x400000;  /* 4M */
 FW_WORKER_UCODE_BASE = U_CODE_REGION_BASE;
 FW_WORKER_UCODE_SIZE = U_CODE_REGION_SIZE;
 
-/* Master and worker firmware split the SDATA region 16M each, last 16M for shared message buffers + S-stacks */
+/* Master and worker firmware split the SDATA region 16M each, last 16M for Minion FW boot config + shared message buffers + S-stacks */
 FW_MASTER_SDATA_BASE = S_DATA_REGION_BASE;
 FW_MASTER_SDATA_SIZE = 0x1000000; /* 16M */
 

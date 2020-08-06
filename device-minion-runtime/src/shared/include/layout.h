@@ -46,11 +46,14 @@
 #define FW_MASTER_SMODE_ENTRY   S_CODE_REGION_BASE
 #define FW_WORKER_SMODE_ENTRY   (S_CODE_REGION_BASE + 0x400000ULL) // SCODE + 4M
 
-// SDATA is divded into 3 16MB regions: Master data, worker data, and shared message buffers + S-stacks.
+// SDATA is divded into 3 16MB regions: Master data, worker data, and Minion FW boot config + shared message buffers + S-stacks.
 // Shared message buffers placed at the beginning of 3rd region
 // S-mode stacks grow from the end of the 3rd region
 
-#define FW_WORKER_TO_MASTER_MESSAGE_FLAGS            CACHE_LINE_ALIGN(S_DATA_REGION_BASE + 0x2000000) /* SDATA_REGION_BASE + 32M */
+#define FW_MINION_FW_BOOT_CONFIG                     CACHE_LINE_ALIGN(S_DATA_REGION_BASE + 0x2000000) /* SDATA_REGION_BASE + 32M */
+#define FW_MINION_FW_BOOT_CONFIG_SIZE                64
+
+#define FW_WORKER_TO_MASTER_MESSAGE_FLAGS            CACHE_LINE_ALIGN(FW_MINION_FW_BOOT_CONFIG + FW_MINION_FW_BOOT_CONFIG_SIZE)
 #define FW_WORKER_TO_MASTER_MESSAGE_FLAGS_SIZE       (NUM_SHIRES * MESSAGE_FLAG_SIZE)
 
 #define FW_WORKER_TO_MASTER_MESSAGE_BUFFERS          CACHE_LINE_ALIGN(FW_WORKER_TO_MASTER_MESSAGE_FLAGS + FW_WORKER_TO_MASTER_MESSAGE_FLAGS_SIZE)
