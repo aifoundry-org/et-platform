@@ -11,6 +11,7 @@
 #include "mailbox.h"
 #include "mailbox_id.h"
 #include "message.h"
+#include "minion_fw_boot_config.h"
 #include "pcie_device.h"
 #include "pcie_dma.h"
 #include "pcie_isr.h"
@@ -101,9 +102,60 @@ void __attribute__((noreturn)) main(void)
     }
 }
 
+static inline void check_and_handle_sp_and_worker_messages(void)
+{
+    if (swi_flag) {
+        swi_flag = false;
+
+        // Ensure flag clears before messages are handled
+        asm volatile ("fence");
+
+        handle_messages_from_sp();
+        handle_messages_from_workers();
+    }
+}
+
+static inline void check_and_handle_host_messages_and_pcie_events(void)
+{
+    // External interrupts
+    if (pcie_interrupt_flag) {
+        pcie_interrupt_flag = false;
+
+        // Ensure flag clears before messages are handled
+        asm volatile ("fence");
+
+#ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
+        fake_message_from_host();
+#endif
+
+        handle_messages_from_host();
+        handle_pcie_events();
+    }
+}
+
+static void wait_all_shires_booted(uint64_t expected)
+{
+    while (1) {
+        if (all_shires_booted(expected))
+            break;
+
+        asm volatile("csrci sstatus, 0x2"); // Disable supervisor interrupts
+
+        if (!swi_flag) {
+            asm volatile("wfi");
+        }
+
+        asm volatile("csrsi sstatus, 0x2"); // Enable supervisor interrupts
+
+        check_and_handle_sp_and_worker_messages();
+        handle_timer_events();
+    }
+}
+
 static void __attribute__((noreturn)) master_thread(void)
 {
     uint64_t temp;
+    volatile minion_fw_boot_config_t *boot_config = (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
 
     SERIAL_init(UART0);
     log_write(LOG_LEVEL_CRITICAL, "\r\nMaster minion " GIT_VERSION_STRING "\r\n");
@@ -124,13 +176,7 @@ static void __attribute__((noreturn)) master_thread(void)
 
     kernel_init();
 
-    // [SW-3499] FIXME/HACK: Add delay to give enough time for all the shires to send SHIRE_STATE_READY,
-    //                       before the FW starts processing Host messages (kernel launch).
-    volatile uint64_t hack_delay = 0;
-    while (hack_delay < 5000) {
-        asm volatile("fence\n");
-        hack_delay++;
-    }
+    log_write(LOG_LEVEL_CRITICAL, "Boot config Minion Shires: 0x%" PRIx64 "\n", boot_config->minion_shires);
 
     // Enable supervisor external and software interrupts
     asm volatile (
@@ -140,14 +186,18 @@ static void __attribute__((noreturn)) master_thread(void)
         : "=&r" (temp)
     );
 
+    // Wait until all Shires have booted before starting the main loop that handles PCIe messages
+    wait_all_shires_booted(boot_config->minion_shires);
+
+    log_write(LOG_LEVEL_CRITICAL, "All Shires ready!\n");
+
 #ifdef DEBUG_SEND_MESSAGES_TO_SP
     static uint8_t buffer[MBOX_MAX_MESSAGE_LENGTH] __attribute__((aligned(MBOX_BUFFER_ALIGNMENT))) = {0};
     uint16_t length = generate_message(buffer);
 #endif
 
     // Wait for a message from the host, worker minion, PCI-E, etc.
-    for (;;)
-    {
+    while (1) {
 
 #ifdef DEBUG_SEND_MESSAGES_TO_SP
         MBOX_update_status(MBOX_SP);
@@ -156,12 +206,9 @@ static void __attribute__((noreturn)) master_thread(void)
 
         int64_t result = MBOX_send(MBOX_SP, buffer, length);
 
-        if (result == 0)
-        {
+        if (result == 0) {
             length = generate_message(buffer);
-        }
-        else
-        {
+        } else {
             log_write(LOG_LEVEL_DEBUG, "MBOX_send error %d\r\n, result");
         }
 #endif
@@ -174,41 +221,14 @@ static void __attribute__((noreturn)) master_thread(void)
 
         bool event_pending = swi_flag || pcie_interrupt_flag;
 
-        if (!event_pending)
-        {
+        if (!event_pending) {
             asm volatile("wfi");
         }
 
         asm volatile("csrsi sstatus, 0x2"); // Enable supervisor interrupts
 
-        if (swi_flag)
-        {
-            swi_flag = false;
-
-            // Ensure flag clears before messages are handled
-            asm volatile ("fence");
-
-            handle_messages_from_sp();
-            handle_messages_from_workers();
-        }
-
-        // External interrupts
-        if (pcie_interrupt_flag)
-        {
-            pcie_interrupt_flag = false;
-
-            // Ensure flag clears before messages are handled
-            asm volatile ("fence");
-
-#ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
-            fake_message_from_host();
-#endif
-
-            handle_messages_from_host();
-            handle_pcie_events();
-        }
-
-        // Timer interrupts
+        check_and_handle_sp_and_worker_messages();
+        check_and_handle_host_messages_and_pcie_events();
         handle_timer_events();
     }
 }
@@ -434,11 +454,7 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
         break;
 
         case MESSAGE_ID_SHIRE_READY:
-            // [SW-3499] FIXME/HACK: This should be LOG_LEVEL_DEBUG. With INFO it adds delay to FW init
-            // such that it gives enough time for all the shires to send SHIRE_STATE_READY, before the FW
-            // starts processing Host messages (kernel launch).
-            //log_write(LOG_LEVEL_DEBUG, "MESSAGE_ID_SHIRE_READY received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
-            log_write(LOG_LEVEL_DEBUG, "S%" PRId64 " (H%" PRId64 ") READY\r\n", shire, hart);
+            log_write(LOG_LEVEL_DEBUG, "MESSAGE_ID_SHIRE_READY received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
             update_shire_state(shire, SHIRE_STATE_READY);
         break;
 
