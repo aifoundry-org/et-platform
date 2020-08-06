@@ -74,6 +74,8 @@ find_package(SimulatorAPI REQUIRED)
 find_package(esperanto-device-api REQUIRED)
 find_package(EsperantoDeviceMinionRuntime REQUIRED)
 find_package(EsperantoTestKernels REQUIRED)
+find_package(EsperantoPCIeDriver REQUIRED)
+
 
 set(MINION_RUNTIME_PACKAGE_NAME EsperantoDeviceMinionRuntime)
 message("EsperantoDeviceMinionRuntime found: " ${EsperantoDeviceMinionRuntime_FOUND})

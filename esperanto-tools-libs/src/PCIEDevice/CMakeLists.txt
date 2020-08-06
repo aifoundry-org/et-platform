@@ -8,13 +8,18 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
+get_property(PCIE_DRIVER_INC_DIR
+  TARGET et-pcie-driver
+  PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
+
+include_directories(${PCIE_DRIVER_INC_DIR})
+
 add_library(etrt_PCIEDevice OBJECT
   BulkDev.cc
   BulkDev.h
   CharDevice.cc
   CharDevice.h
   CMakeLists.txt
-  LinuxETIOCTL.h
   MailBoxDev.cc
   MailBoxDev.h
   PCIeDevice.cc
