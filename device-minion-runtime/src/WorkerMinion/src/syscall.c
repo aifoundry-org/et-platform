@@ -39,6 +39,15 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
         case SYSCALL_GET_MTIME:
             ret = syscall(SYSCALL_GET_MTIME_INT, arg1, arg2, arg3);
             break;
+        case SYSCALL_CONFIGURE_PMCS:
+	    ret = syscall(SYSCALL_CONFIGURE_PMCS, arg1, arg2, arg3);
+            break;
+        case SYSCALL_SAMPLE_PMCS:
+	    ret = syscall(SYSCALL_SAMPLE_PMCS, arg1, arg2, arg3);
+	    break;
+        case SYSCALL_RESET_PMCS:
+	    ret = syscall(SYSCALL_RESET_PMCS, arg1, arg2, arg3);
+	    break;
         default:
             ret = -1; // unhandled syscall
             break;

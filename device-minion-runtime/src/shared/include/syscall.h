@@ -15,7 +15,10 @@ enum {
     SYSCALL_LOG_WRITE               = 400,
     SYSCALL_GET_LOG_LEVEL           = 401,
     SYSCALL_MESSAGE_SEND            = 402,
-    SYSCALL_GET_MTIME               = 403
+    SYSCALL_GET_MTIME               = 403,
+    SYSCALL_CONFIGURE_PMCS          = 404,       // emizan: This should not be used but I am adding it for testing with hardcoded values.
+    SYSCALL_SAMPLE_PMCS             = 405,
+    SYSCALL_RESET_PMCS              = 406
 };
 
 static inline __attribute__((always_inline)) int64_t syscall(uint64_t syscall, uint64_t arg1, uint64_t arg2, uint64_t arg3)
