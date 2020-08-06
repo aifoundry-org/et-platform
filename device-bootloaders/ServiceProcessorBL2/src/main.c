@@ -216,14 +216,14 @@ static void taskMain(void *pvParameters)
 
     printf("time: %lu\n", timer_get_ticks_count());
 
-    // Write Minion FW boot config before booting Minion Shires
-    write_minion_fw_boot_config(minion_shires_mask);
-
     if (0 != enable_minion_neighborhoods(minion_shires_mask)) {
         printf("Failed to enable minion neighborhoods!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
     printf("Minion neighborhoods enabled.\n");
+
+    // Shires caches are enabled, now write Minion FW boot config before enabling Minion threads
+    write_minion_fw_boot_config(minion_shires_mask);
 
     if (0 != enable_minion_threads(minion_shires_mask)) {
         printf("Failed to enable minion threads!\n");
