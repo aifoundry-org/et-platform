@@ -121,7 +121,7 @@ inline bool paddr_is_dram(uint64_t addr)
 
 
 inline bool paddr_is_dram_uncacheable(uint64_t addr)
-{ return (addr >= 0x8000000000ULL) && ((addr & 0x4000000000ULL) == 1); }
+{ return (addr >= 0x8000000000ULL) && ((addr & 0x4000000000ULL) != 0); }
 
 
 } // namespace bemu
