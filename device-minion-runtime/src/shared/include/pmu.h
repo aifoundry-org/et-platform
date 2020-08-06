@@ -181,7 +181,7 @@ static inline void stop_sc_pmcs(uint64_t shire_id, uint64_t b)
 
 
 // Read a shire cache PMC. Return -1 on incorrect counter
-static uint64_t sample_sc_pmcs(uint64_t shire_id, uint64_t b, uint64_t pmc)
+static inline uint64_t sample_sc_pmcs(uint64_t shire_id, uint64_t b, uint64_t pmc)
 {
     uint64_t val = 0;
     uint64_t *sc_bank_pmc_addr = 0;
@@ -253,6 +253,10 @@ static inline uint64_t sample_ms_pmcs(uint64_t ms_id, uint64_t pmc)
     val = *ms_pmc_addr;
     return val;
 }
+
+int64_t configure_pmcs(uint64_t reset_counters);
+int64_t sample_pmcs(uint64_t reset_counters);
+int64_t reset_pmcs(void);
 
 
 #endif

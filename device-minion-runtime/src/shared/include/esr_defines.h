@@ -863,7 +863,7 @@ typedef uint64_t esr_address_t;
 #define SHIRE_MASTER 32
 #define SHIRE_OWN    0xFF
 #define MEMSHIRE0_SHIRE_ID  0xE8
-#define MEMSHIRE_SHIREID(ms_id)              ms_id + MEMSHIRE0_SHIRE_ID
+#define MEMSHIRE_SHIREID(ms_id)              (ms_id + MEMSHIRE0_SHIRE_ID)
 
 // Thread defines
 #define THREAD_0 0
