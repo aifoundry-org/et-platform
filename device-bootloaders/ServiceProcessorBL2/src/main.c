@@ -2,11 +2,13 @@
 #include "interrupt.h"
 #include "dummy_isr.h"
 #include "mailbox.h"
+#include "minion_fw_boot_config.h"
 #include "pcie_init.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include "cache_flush_ops.h"
 #include "io.h"
 #include "service_processor_ROM_data.h"
 #include "service_processor_BL1_data.h"
@@ -98,6 +100,13 @@ static uint64_t calculate_minion_shire_enable_mask(void) {
     }
 
     return enable_mask;
+}
+
+static inline void write_minion_fw_boot_config(uint64_t minion_shires)
+{
+    volatile minion_fw_boot_config_t *boot_config = (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
+    boot_config->minion_shires = minion_shires;
+    l1_data_cache_flush_region((void *)(uintptr_t)boot_config, sizeof(*boot_config));
 }
 
 static TaskHandle_t gs_taskHandleMain;
@@ -206,6 +215,9 @@ static void taskMain(void *pvParameters)
 #endif
 
     printf("time: %lu\n", timer_get_ticks_count());
+
+    // Write Minion FW boot config before booting Minion Shires
+    write_minion_fw_boot_config(minion_shires_mask);
 
     if (0 != enable_minion_neighborhoods(minion_shires_mask)) {
         printf("Failed to enable minion neighborhoods!\n");
