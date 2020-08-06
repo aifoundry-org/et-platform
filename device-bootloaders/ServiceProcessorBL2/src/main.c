@@ -104,9 +104,10 @@ static uint64_t calculate_minion_shire_enable_mask(void) {
 
 static inline void write_minion_fw_boot_config(uint64_t minion_shires)
 {
-    volatile minion_fw_boot_config_t *boot_config = (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
+    volatile minion_fw_boot_config_t *boot_config;
+    // Use "High" DDR aliased addresses (bit 38) which are uncacheable by the SP
+    boot_config = (volatile minion_fw_boot_config_t *)(FW_MINION_FW_BOOT_CONFIG | (1ULL << 38));
     boot_config->minion_shires = minion_shires;
-    l1_data_cache_flush_region((void *)(uintptr_t)boot_config, sizeof(*boot_config));
 }
 
 static TaskHandle_t gs_taskHandleMain;
@@ -222,7 +223,7 @@ static void taskMain(void *pvParameters)
     }
     printf("Minion neighborhoods enabled.\n");
 
-    // Shires caches are enabled, now write Minion FW boot config before enabling Minion threads
+    // Write Minion FW boot config before booting Minion threads up
     write_minion_fw_boot_config(minion_shires_mask);
 
     if (0 != enable_minion_threads(minion_shires_mask)) {
