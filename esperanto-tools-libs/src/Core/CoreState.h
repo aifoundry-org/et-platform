@@ -34,6 +34,7 @@ struct CoreState {
   std::shared_ptr<DeviceManager> dev_manager;
 
   CoreState() = default;
+  ~CoreState();
 
   /// The CoreState is not copyable or movable
   CoreState(CoreState &) = delete;
