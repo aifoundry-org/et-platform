@@ -10,6 +10,7 @@
 #include "layout.h"
 #include "printf.h"
 #include "shire_cache.h"
+#include "pmu.h"
 
 #include <stdint.h>
 
@@ -73,6 +74,15 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
             break;
         case SYSCALL_EVICT_L1_INT:
             ret = evict_l1(arg1, arg2);
+            break;
+        case SYSCALL_CONFIGURE_PMCS_INT:
+            ret = configure_pmcs(arg1);
+            break;
+        case SYSCALL_SAMPLE_PMCS_INT:
+            ret = sample_pmcs(arg1);
+            break;
+        case SYSCALL_RESET_PMCS_INT:
+            ret = reset_pmcs();
             break;
         default:
             ret = -1; // unhandled syscall! Ignoring for now.
