@@ -30,7 +30,7 @@ static std::ostream *getFileStream() {
   if (ostream.get() == nullptr) {
     if (auto path = absl::GetFlag(FLAGS_etrt_trace); !path.empty()) {
       ostream = std::make_unique<std::fstream>(
-          path, std::ios::out | std::ios::trunc | std::ios::binary);
+        path, std::ios::out | std::ios::app | std::ios::ate | std::ios::binary);
     }
   }
   return ostream.get();

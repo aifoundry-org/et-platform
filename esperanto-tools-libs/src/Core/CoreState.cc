@@ -12,6 +12,11 @@
 
 namespace et_runtime {
 
+CoreState::~CoreState() {
+  dev_manager.reset();
+  runtime_trace.reset();
+}
+
 struct CoreState &getCoreState() {
   static std::unique_ptr<CoreState> core_state;
   if (!core_state) {
