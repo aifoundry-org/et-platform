@@ -40,7 +40,7 @@ bool parse_mem_file(const char * filename)
         }
         else if(sscanf(buffer, "File Load: 40'h%" PRIX64 ", %s", &base_addr, str) == 2)
         {
-            LOG_NOTHREAD(INFO, "New File Load found: @ 0x%" PRIx64, base_addr);
+            LOG_NOTHREAD(INFO, "New File Load found: %s @ 0x%" PRIx64, str, base_addr);
             try
             {
                 bemu::load_raw(bemu::memory, str, base_addr);

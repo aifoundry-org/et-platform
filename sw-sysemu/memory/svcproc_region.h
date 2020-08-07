@@ -20,6 +20,7 @@
 #include "memory_error.h"
 #include "memory_region.h"
 #ifdef SYS_EMU
+#include "devices/cru.h"
 #include "devices/efuse.h"
 #include "devices/pcie_esr.h"
 #include "devices/pcie_apb_subsys.h"
@@ -50,6 +51,7 @@ struct SvcProcRegion : public MemoryRegion {
         sp_sram_base         = 0x00400000,
         spio_uart0_base      = 0x12022000,
         sp_efuse_base        = 0x12026000,
+        sp_cru_base          = 0x12028000,
         spio_uart1_base      = 0x14052000,
         pll2_base            = 0x14055000,
         pll4_base            = 0x14057000,
@@ -97,6 +99,7 @@ struct SvcProcRegion : public MemoryRegion {
     Uart          <spio_uart1_base,  4_KiB>      spio_uart1{};
 #ifdef SYS_EMU
     Efuse         <sp_efuse_base,    8_KiB>      sp_efuse{};
+    Cru           <sp_cru_base,      4_KiB>      sp_cru{};
     PLL           <pll2_base,        4_KiB, 2>   pll2{};
     PLL           <pll4_base,        4_KiB, 4>   pll4{};
     PcieEsr       <pcie_esr_base,    4_KiB>      pcie_esr{};
@@ -120,11 +123,12 @@ protected:
 
     // These arrays must be sorted by region offset
 #ifdef SYS_EMU
-    std::array<MemoryRegion*,10> regions = {{
+    std::array<MemoryRegion*,11> regions = {{
         &sp_rom,
         &sp_sram,
         &spio_uart0,
         &sp_efuse,
+        &sp_cru,
         &spio_uart1,
         &pll2,
         &pll4,
