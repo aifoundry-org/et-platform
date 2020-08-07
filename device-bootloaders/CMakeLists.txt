@@ -141,5 +141,5 @@ install(FILES
 
 # Install the export set for use with the install-tree
 install(EXPORT EsperantoBootLoaderTargets
-  NAMESPACE esperanto-bl::
+  NAMESPACE EsperantoBootLoader::
   DESTINATION "${LIB_INSTALL_DIR}/cmake/EsperantoBootLoader")
