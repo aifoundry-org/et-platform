@@ -156,6 +156,7 @@ static void __attribute__((noreturn)) master_thread(void)
 {
     uint64_t temp;
     volatile minion_fw_boot_config_t *boot_config = (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
+    uint64_t boot_minion_shires = boot_config->minion_shires & ((1ULL << NUM_SHIRES) - 1);
 
     SERIAL_init(UART0);
     log_write(LOG_LEVEL_CRITICAL, "\r\nMaster minion " GIT_VERSION_STRING "\r\n");
@@ -176,7 +177,7 @@ static void __attribute__((noreturn)) master_thread(void)
 
     kernel_init();
 
-    log_write(LOG_LEVEL_CRITICAL, "Boot config Minion Shires: 0x%" PRIx64 "\n", boot_config->minion_shires);
+    log_write(LOG_LEVEL_CRITICAL, "Boot config Minion Shires: 0x%" PRIx64 "\n", boot_minion_shires);
 
     // Enable supervisor external and software interrupts
     asm volatile (
@@ -187,7 +188,7 @@ static void __attribute__((noreturn)) master_thread(void)
     );
 
     // Wait until all Shires have booted before starting the main loop that handles PCIe messages
-    wait_all_shires_booted(boot_config->minion_shires);
+    wait_all_shires_booted(boot_minion_shires);
 
     log_write(LOG_LEVEL_CRITICAL, "All Shires ready!\n");
 
