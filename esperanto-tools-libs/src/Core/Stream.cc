@@ -48,6 +48,11 @@ etrtError Stream::synchronize() {
   addCommand(std::dynamic_pointer_cast<device_api::CommandBase>(event));
   auto future = event->getFuture();
   auto response = future.get();
+  // FIXME SW-3863
+  // flush any previous command in the queue
+  while (!noCommands()) {
+    popCommand();
+  }
   return response.error();
 }
 

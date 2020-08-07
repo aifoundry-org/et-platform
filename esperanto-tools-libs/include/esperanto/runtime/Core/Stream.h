@@ -249,6 +249,9 @@ private:
   StreamID id_ = -1;    ///< ID of the current stream
   Device &dev_;                         ///< Device this stream belongs to
   bool is_blocking_ = false;            ///< True if this is a blocking stream
+
+  // FIXME SW-3863 revisit the need to maintain the list of commands in the
+  // stream.
   std::queue<std::shared_ptr<et_runtime::device_api::CommandBase>> actions_ =
       {}; ///< Queue of commands that this stream has pending
 };
