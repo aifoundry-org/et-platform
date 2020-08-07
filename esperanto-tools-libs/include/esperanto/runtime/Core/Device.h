@@ -216,6 +216,8 @@ public:
 
   CodeRegistry &codeRegistry() { return *code_registry_; }
 
+  const CodeRegistry &codeRegistry() const { return *code_registry_; }
+
 protected:
   /// @brief Default constructor. Made protect so that it can be
   /// called only from derived classes that want to skip the default

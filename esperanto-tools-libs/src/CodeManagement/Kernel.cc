@@ -158,7 +158,7 @@ Kernel::KernelLaunch::KernelLaunch(const Kernel &kernel, const ArgValues &args)
 
 ErrorOr<std::shared_ptr<device_api::devfw_commands::KernelLaunchCmd>>
 Kernel::KernelLaunch::launchHelper(Stream *stream) {
-  auto entry_res = kernel_.kernelEntryPoint();
+  auto entry_res = kernel_.kernelEntryPoint(&stream->dev());
   if (entry_res.getError() != etrtSuccess) {
     return entry_res.getError();
   }
@@ -288,9 +288,9 @@ Kernel::createKernelLaunch(const ArgValues &args) const {
   return std::make_unique<Kernel::KernelLaunch>(*this, args);
 }
 
-ErrorOr<uintptr_t> Kernel::kernelEntryPoint() const {
+ErrorOr<uintptr_t> Kernel::kernelEntryPoint(const Device *dev) const {
   auto module_id = moduleID();
-  auto module = CodeRegistry::registry().getModule(module_id);
+  auto module = dev->codeRegistry().getModule(module_id);
   assert(module != nullptr);
 
   if (!module->onDevice()) {

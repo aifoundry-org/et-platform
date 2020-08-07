@@ -35,7 +35,7 @@ ABSL_FLAG(std::string, kernels_dir, "",
 TEST_F(DeviceFWTest, launch_uberkernel) {
   auto kernels_dir = absl::GetFlag(FLAGS_kernels_dir);
   fs::path uberkernel = fs::path(kernels_dir) / fs::path("uberkernel.elf");
-  auto &registry = CodeRegistry::registry();
+  auto &registry = dev_->codeRegistry();
 
   // Register a 2 layer uberkernel
   auto register_res =

@@ -319,7 +319,7 @@ public:
   ///
   /// @returns Error if we failed to load the module on the device or the PC of
   /// the kenrel
-  ErrorOr<uintptr_t> kernelEntryPoint() const;
+  ErrorOr<uintptr_t> kernelEntryPoint(const Device *dev) const;
 
 protected:
   /// Delegating constructor that is going to do the basic initialization for
