@@ -48,7 +48,7 @@ TEST_F(DeviceFWTest, DeviceAPI_SetLogLevelWorker) {
 TEST_F(DeviceFWTest, DeviceAPI_CheckKernelStatus) {
   auto kernels_dir = absl::GetFlag(FLAGS_kernels_dir);
   fs::path beef_kernel = fs::path(kernels_dir) / fs::path("hang.elf");
-  auto &registry = CodeRegistry::registry();
+  auto &registry = dev_->codeRegistry();
 
   auto register_res = registry.registerKernel(
       "main", {Kernel::ArgType::T_layer_dynamic_info}, beef_kernel.string());

@@ -66,7 +66,7 @@ CodeRegistry::registerUberKernel(
   return registerKernelHelper<UberKernel>(name, arg_list, elf_path);
 }
 
-et_runtime::Module *CodeRegistry::getModule(CodeModuleID mid) {
+et_runtime::Module *CodeRegistry::getModule(CodeModuleID mid) const {
   auto res = mod_manager_->getModule(mid);
   if (!res) {
     return nullptr;

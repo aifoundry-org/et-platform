@@ -77,7 +77,7 @@ public:
   /// @param[in] mid Id of the module
   ///
   /// @return Pointer to code module
-  et_runtime::Module *getModule(CodeModuleID mid);
+  et_runtime::Module *getModule(CodeModuleID mid) const;
 
   /// @brief Destroy a registered module
   ///

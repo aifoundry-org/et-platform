@@ -52,7 +52,7 @@ protected:
 TEST_F(PCIEKernelLaunchTest, empty_kernel) {
   auto kernels_dir = absl::GetFlag(FLAGS_kernels_dir);
   fs::path empty_kernel = fs::path(kernels_dir)  / fs::path("empty.elf");
-  auto &registry = CodeRegistry::registry();
+  auto &registry = dev_->codeRegistry();
 
   auto res = registry.registerKernel(
       "main", {Kernel::ArgType::T_layer_dynamic_info}, empty_kernel.string());
@@ -75,7 +75,7 @@ TEST_F(PCIEKernelLaunchTest, empty_kernel) {
 TEST_F(PCIEKernelLaunchTest, beef_kernel) {
   auto kernels_dir = absl::GetFlag(FLAGS_kernels_dir);
   fs::path beef_kernel = fs::path(kernels_dir) / fs::path("beef.elf");
-  auto &registry = CodeRegistry::registry();
+  auto &registry = dev_->codeRegistry();
 
   auto register_res = registry.registerKernel(
       "main", {Kernel::ArgType::T_layer_dynamic_info}, beef_kernel.string());

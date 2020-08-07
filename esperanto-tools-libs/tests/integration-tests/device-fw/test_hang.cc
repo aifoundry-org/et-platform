@@ -52,7 +52,7 @@ TEST_F(DeviceFWTest, hang_kernel) {
   fs::path hang_kernel_loc = fs::path(kernels_dir) / fs::path("hang.elf");
   std::cout <<  "Running: " << hang_kernel_loc.string() << "\n";
 
-  auto &registry = CodeRegistry::registry();
+  auto &registry = dev_->codeRegistry();
 
   auto register_res = registry.registerKernel("main", {Kernel::ArgType::T_layer_dynamic_info},
                                               hang_kernel_loc.string());

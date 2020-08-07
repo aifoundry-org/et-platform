@@ -70,7 +70,7 @@ TEST_F(TestCodeRegistry, registerKernel) {
   auto dir_name = test_real_path.remove_filename();
   auto conv_elf = dir_name / "convolution.elf";
 
-  auto res = CodeRegistry::registry().registerKernel(
+  auto res = dev_->codeRegistry().registerKernel(
       "convolution", {Kernel::ArgType::T_layer_dynamic_info},
       conv_elf.string());
   ASSERT_TRUE(res);
@@ -91,7 +91,7 @@ TEST_F(TestCodeRegistry, registerUberKernel) {
   // FIXME Use a real Uber Kernel
   auto conv_elf = dir_name / "convolution.elf";
 
-  auto res = CodeRegistry::registry().registerUberKernel(
+  auto res = dev_->codeRegistry().registerUberKernel(
       "convolutio_2", {{Kernel::ArgType::T_layer_dynamic_info}},
       conv_elf.string());
   ASSERT_TRUE(res);

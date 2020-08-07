@@ -68,7 +68,7 @@ UberKernel::UberKernelLaunch::UberKernelLaunch(const UberKernel &kernel,
 ErrorOr<std::shared_ptr<device_api::devfw_commands::KernelLaunchCmd>>
 UberKernel::UberKernelLaunch::launchHelper(Stream *stream) {
 
-  auto entry_res = kernel_.kernelEntryPoint();
+  auto entry_res = kernel_.kernelEntryPoint(&stream->dev());
   if (entry_res.getError() != etrtSuccess) {
     return entry_res.getError();
   }
