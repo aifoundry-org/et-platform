@@ -11,6 +11,7 @@
 #include "printf.h"
 #include "shire_cache.h"
 #include "pmu.h"
+#include "minion_cfg.h"
 
 #include <stdint.h>
 
@@ -83,6 +84,9 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
             break;
         case SYSCALL_RESET_PMCS_INT:
             ret = reset_pmcs();
+            break;
+	case SYSCALL_CONFIGURE_COMPUTE_MINION:
+            ret = configure_compute_minion(arg1, arg2);
             break;
         default:
             ret = -1; // unhandled syscall! Ignoring for now.

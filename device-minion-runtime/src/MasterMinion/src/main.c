@@ -163,10 +163,6 @@ static void __attribute__((noreturn)) master_thread(void)
 
     INT_init();
 
-    log_write(LOG_LEVEL_CRITICAL, "Initializing mailboxes...");
-    MBOX_init();
-    log_write(LOG_LEVEL_CRITICAL, "done\r\n");
-
     log_write(LOG_LEVEL_CRITICAL, "Initializing message buffers...");
     message_init_master();
     log_write(LOG_LEVEL_CRITICAL, "done\r\n");
@@ -187,10 +183,17 @@ static void __attribute__((noreturn)) master_thread(void)
         : "=&r" (temp)
     );
 
+    // Bring up Compute Minions
+    syscall(SYSCALL_CONFIGURE_COMPUTE_MINION, boot_minion_shires, 0x1u, 0);
+
+    log_write(LOG_LEVEL_CRITICAL, "All Compute Minions configured!\n");
+
     // Wait until all Shires have booted before starting the main loop that handles PCIe messages
     wait_all_shires_booted(boot_minion_shires);
-
     log_write(LOG_LEVEL_CRITICAL, "All Shires ready!\n");
+
+    MBOX_init();
+    log_write(LOG_LEVEL_CRITICAL, "Mailbox to Host initialzed\r\n");
 
 #ifdef DEBUG_SEND_MESSAGES_TO_SP
     static uint8_t buffer[MBOX_MAX_MESSAGE_LENGTH] __attribute__((aligned(MBOX_BUFFER_ALIGNMENT))) = {0};
