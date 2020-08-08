@@ -69,7 +69,7 @@ struct sys_emu_cmd_options {
         uint64_t value;
     };
 
-    std::string elf_file;
+    std::vector<std::string> elf_files;
     std::string mem_desc_file;
     std::string api_comm_path;
     uint64_t    minions_en                   = 1;
@@ -87,6 +87,7 @@ struct sys_emu_cmd_options {
     bool        coherency_check              = false;
     uint64_t    max_cycles                   = 10000000;
     bool        mins_dis                     = false;
+    bool        sp_dis                       = false;
     uint32_t    mem_reset                    = 0;
     std::string pu_uart0_tx_file;
     std::string pu_uart1_tx_file;
