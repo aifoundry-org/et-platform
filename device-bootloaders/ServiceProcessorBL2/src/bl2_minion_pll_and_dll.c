@@ -145,7 +145,7 @@ int enable_minion_neighborhoods(uint64_t shire_mask) {
     return 0;
 }
 
-int enable_master_minion_threads(uint8_t mm_id) {
+int enable_master_shire_threads(uint8_t mm_id) {
     // Enable all Minion thread 0s
     write_esr(PP_MACHINE, mm_id, REGION_OTHER, SHIRE_OTHER_THREAD0_DISABLE, 0x0);
     return 0;
