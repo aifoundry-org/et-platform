@@ -68,7 +68,6 @@ private:
   std::string prefix_;
   BulkDev bulk_;
   MailBoxDev mm_;
-  MailBoxDev sp_;
 };
 
 } // namespace device
