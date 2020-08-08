@@ -50,71 +50,6 @@ static inline void __attribute__((always_inline)) write_esr(esr_protection_t pp,
 #define TIMEOUT_PLL_LOCK 100000
 
 /*==================== Function Separator =============================*/
-static void pll_config_multiple_write(uint8_t shire_id, uint32_t reg_first, uint32_t reg_num)
-{
-    uint64_t reg_value;
-
-    // Enable PLL auto config
-    reg_value =  SHIRE_OTHER_PLL_AUTO_CONFIG_PCLK_SEL
-            | (reg_num << SHIRE_OTHER_PLL_AUTO_CONFIG_REG_NUM_OFF)
-            | (reg_first << SHIRE_OTHER_PLL_AUTO_CONFIG_REG_FIRST_OFF)
-            | (0x1 << SHIRE_OTHER_PLL_AUTO_CONFIG_ENABLE_OFF);
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_AUTO_CONFIG, reg_value);
-
-    // Start PLL auto config
-    reg_value =  SHIRE_OTHER_PLL_AUTO_CONFIG_PCLK_SEL
-            | (reg_num << SHIRE_OTHER_PLL_AUTO_CONFIG_REG_NUM_OFF)
-            | (reg_first << SHIRE_OTHER_PLL_AUTO_CONFIG_REG_FIRST_OFF)
-            | (0x1 << SHIRE_OTHER_PLL_AUTO_CONFIG_WRITE_OFF)
-            | (0x1 << SHIRE_OTHER_PLL_AUTO_CONFIG_RUN_OFF)
-            | (0x1 << SHIRE_OTHER_PLL_AUTO_CONFIG_ENABLE_OFF);
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_AUTO_CONFIG, reg_value);
-
-    // Wait for the PLL configuration to finish
-    while((read_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_PLL_READ_DATA) & 0x10000));
-
-    // Stop the PLL auto config
-    reg_value =  SHIRE_OTHER_PLL_AUTO_CONFIG_PCLK_SEL
-            | (reg_num << SHIRE_OTHER_PLL_AUTO_CONFIG_REG_NUM_OFF)
-            | (reg_first << SHIRE_OTHER_PLL_AUTO_CONFIG_REG_FIRST_OFF);
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_AUTO_CONFIG, reg_value);
-}
-
-/*
-static void dll_config_multiple_write(uint32_t shire_id, uint32_t reg_first, uint32_t reg_num)
-{
-    uint64_t reg_value;
-
-    // Enable DLL auto config
-    reg_value =  SHIRE_OTHER_DLL_AUTO_CONFIG_PCLK_SEL
-            | (0x1 << SHIRE_OTHER_DLL_AUTO_CONFIG_DLL_EN_OFF)
-            | (reg_num << SHIRE_OTHER_DLL_AUTO_CONFIG_REG_NUM_OFF)
-            | (reg_first << SHIRE_OTHER_DLL_AUTO_CONFIG_REG_FIRST_OFF)
-            | (0x1 << SHIRE_OTHER_DLL_AUTO_CONFIG_ENABLE_OFF);
-    write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_DLL_AUTO_CONFIG, reg_value);
-
-    // Start DLL auto config
-    reg_value =  SHIRE_OTHER_DLL_AUTO_CONFIG_PCLK_SEL
-            | (0x1 << SHIRE_OTHER_DLL_AUTO_CONFIG_DLL_EN_OFF)
-            | (reg_num << SHIRE_OTHER_DLL_AUTO_CONFIG_REG_NUM_OFF)
-            | (reg_first << SHIRE_OTHER_DLL_AUTO_CONFIG_REG_FIRST_OFF)
-            | (0x1 << SHIRE_OTHER_DLL_AUTO_CONFIG_WRITE_OFF)
-            | (0x1 << SHIRE_OTHER_DLL_AUTO_CONFIG_RUN_OFF)
-            | (0x1 << SHIRE_OTHER_DLL_AUTO_CONFIG_ENABLE_OFF);
-    write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_DLL_AUTO_CONFIG, reg_value);
-
-    // Wait for the DLL configuration to finish
-    while((read_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_DLL_READ_DATA) & 0x10000));
-
-    // Stop the DLL auto config
-    reg_value =  SHIRE_OTHER_DLL_AUTO_CONFIG_PCLK_SEL
-            | (0x1 << SHIRE_OTHER_DLL_AUTO_CONFIG_DLL_EN_OFF)
-            | (reg_num << SHIRE_OTHER_DLL_AUTO_CONFIG_REG_NUM_OFF)
-            | (reg_first << SHIRE_OTHER_DLL_AUTO_CONFIG_REG_FIRST_OFF);
-    write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_DLL_AUTO_CONFIG, reg_value);
-}
-*/
-
 static void pll_config(uint8_t shire_id)
 {
     uint64_t reg_value;
@@ -136,7 +71,7 @@ static void pll_config(uint8_t shire_id)
 
     // PLL configuration (register values taken from Movellus testbench for LVDPLL v1.2.1a)
     /////////////////////////////////////////////////////////////////////////////
-
+/*  SW-3876 Moving Compute Minion PLL configuration to Master Minion since its will support dynamic scaling of Frequency as DVFS is implemented: https://esperantotech.atlassian.net/wiki/spaces/SW/pages/836337737/Power+Management+System+Software+Specification#Cold-Reset-Sequence
     // Write PLL registers 0x00 to 0x0f. PLL registers can be downloaded in chunks of 16 registers
     write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_0, 0x0000000f000101b8); // 750 MHz
     write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_1, 0x02bb1bf40aeb02bb);
@@ -169,7 +104,7 @@ static void pll_config(uint8_t shire_id)
 
     // Select PLL[0] output. Bits[2:0]=3'b100. Bit 3 to '1' to go with DLL output
     write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_CTRL_CLOCKMUX, 0xc);
-
+*/
     // DLL configuration (register values taken from Movellus testbench v 1.1.0b)
     /////////////////////////////////////////////////////////////////////////////
 
@@ -196,10 +131,9 @@ int configure_minion_plls_and_dlls(uint64_t shire_mask) {
 }
 
 int enable_minion_neighborhoods(uint64_t shire_mask) {
-    // TDB - SW - JIRA - 2275 - Move this logic to Minion Firmware since it supports broadcast?
     for (uint8_t i = 0; i <= 32; i++) {
         if (shire_mask & 1) {
-            // Set Shire ID, enable cache and all 4 Neighborhoods
+            // Set Shire ID, enable cache and all Neighborhoods
             const uint64_t config =
                 ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_SHIRE_ID_SET(i) |
                 ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_CACHE_EN_SET(1) |
@@ -211,16 +145,8 @@ int enable_minion_neighborhoods(uint64_t shire_mask) {
     return 0;
 }
 
-int enable_minion_threads(uint64_t shire_mask) {
-    // TDB - SW - JIRA - 2275 - Move this logic to Minion Firmware since it supports broadcast?
-    for (uint8_t i = 0; i <= 32; i++) {
-        if (shire_mask & 1) {
-            // Enable all Minion thread 0s
-            write_esr(PP_MACHINE, i, REGION_OTHER, SHIRE_OTHER_THREAD0_DISABLE, 0x0);
-            // Enable all Minion thread 1s
-            write_esr(PP_MACHINE, i, REGION_OTHER, SHIRE_OTHER_THREAD1_DISABLE, 0x0);
-        }
-        shire_mask >>= 1;
-    }
+int enable_master_minion_threads(uint8_t mm_id) {
+    // Enable all Minion thread 0s
+    write_esr(PP_MACHINE, mm_id, REGION_OTHER, SHIRE_OTHER_THREAD0_DISABLE, 0x0);
     return 0;
 }

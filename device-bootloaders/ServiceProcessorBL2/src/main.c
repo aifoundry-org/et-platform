@@ -226,11 +226,12 @@ static void taskMain(void *pvParameters)
     // Write Minion FW boot config before booting Minion threads up
     write_minion_fw_boot_config(minion_shires_mask);
 
-    if (0 != enable_minion_threads(minion_shires_mask)) {
-        printf("Failed to enable minion threads!\n");
+    // TODO: SW-3877 need to READ Master Shire ID from OTP, potentially reprogram NOC
+    if (0 != enable_master_shire_threads(32)) {
+        printf("Failed to enable Master minion threads!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
-    printf("Minion threads enabled.\n");
+    printf("Master minion threads enabled.\n");
 
     MBOX_init_mm();
     printf("Mailbox to MM initialized.\n");
