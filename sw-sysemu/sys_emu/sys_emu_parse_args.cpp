@@ -36,6 +36,7 @@ static const char * help_msg =
      -shires <mask>           A mask of Shires that should be enabled. (default: 1 Shire)\n\
      -single_thread           Disable 2nd Minion thread\n\
      -mins_dis                Minions (not including SP) start disabled\n\
+     -sp_dis                  SP starts disabled\n\
      -reset_pc <addr>         Sets boot program counter (default: 0x8000001000)\n\
      -sp_reset_pc <addr>      Sets Service Processor boot program counter (default: 0x40000000)\n\
      -set_xreg <t>,<r>,<val>  Sets the xregister (integer) <r> of thread <t> to value <val>. <t> can be 'sp' for the Service Processor\n\
@@ -114,6 +115,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"master_min",             no_argument,       nullptr, 0}, // deprecated, use -shires <mask> to enable Master Shire and SP
         {"single_thread",          no_argument,       nullptr, 0},
         {"mins_dis",               no_argument,       nullptr, 0},
+        {"sp_dis",                 no_argument,       nullptr, 0},
         {"reset_pc",               required_argument, nullptr, 0},
         {"sp_reset_pc",            required_argument, nullptr, 0},
         {"set_xreg",               required_argument, nullptr, 0},
@@ -173,7 +175,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "elf"))
         {
-            cmd_options.elf_file = optarg;
+            cmd_options.elf_files.push_back({std::string(optarg)});
         }
         else if (!strcmp(name, "mem_desc"))
         {
@@ -234,6 +236,10 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {
             cmd_options.mins_dis = true;
         }
+        else if (!strcmp(name, "sp_dis"))
+        {
+            cmd_options.sp_dis = true;
+        }
         else if (!strcmp(name, "reset_pc"))
         {
             sscanf(optarg, "%" PRIx64, &cmd_options.reset_pc);
@@ -285,7 +291,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {
           cmd_options.mem_reset = strtol(optarg, NULL, 0) & 0xFF;
           cmd_options.mem_reset |= cmd_options.mem_reset << 8;
-          cmd_options.mem_reset |= cmd_options.mem_reset << 16;          
+          cmd_options.mem_reset |= cmd_options.mem_reset << 16;
         }
         else if (!strcmp(name, "mem_reset32"))
         {

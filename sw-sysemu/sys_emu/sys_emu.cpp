@@ -778,7 +778,7 @@ bool
 sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<api_communicate> api_comm)
 {
     this->cmd_options = cmd_options;
-    if (cmd_options.elf_file.empty()      &&
+    if (cmd_options.elf_files.empty()     &&
         cmd_options.mem_desc_file.empty() &&
         cmd_options.api_comm_path.empty())
     {
@@ -802,13 +802,14 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<
     // Callbacks for port writes
     bemu::set_msg_funcs(msg_to_thread);
 
-    // Parses the memory description
-    if (!cmd_options.elf_file.empty()) {
+    // Parses the ELF files and memory description
+    for (const auto &elf: cmd_options.elf_files) {
+        LOG_NOTHREAD(INFO, "Loading ELF: \"%s\"", elf.c_str());
         try {
-            bemu::load_elf(bemu::memory, cmd_options.elf_file.c_str());
+            bemu::load_elf(bemu::memory, elf.c_str());
         }
         catch (...) {
-            LOG_NOTHREAD(FTL, "Error loading ELF \"%s\"", cmd_options.elf_file.c_str());
+            LOG_NOTHREAD(FTL, "Error loading ELF \"%s\"", elf.c_str());
             return false;
         }
     }
@@ -927,7 +928,8 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<
 
                 // Puts thread id in the active list
                 activate_thread(tid);
-                if ((s == EMU_IO_SHIRE_SP) || !cmd_options.mins_dis) {
+                if (((s == EMU_IO_SHIRE_SP) && !cmd_options.sp_dis) ||
+                    ((s != EMU_IO_SHIRE_SP) && !cmd_options.mins_dis)) {
                     LOG_AGENT(DEBUG, bemu::cpu[tid], "%s", "Resetting");
                     assert(!thread_is_disabled(tid));
                     running_threads.push_back(tid);

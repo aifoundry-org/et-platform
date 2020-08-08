@@ -55,7 +55,7 @@ struct Efuse : public MemoryRegion {
         if (pos < EFUSE_SIZE_BYTES) {
             uint32_t bank = pos / BANK_SIZE_BYTES;
             uint32_t lock_bits = storage[LOCK_BITS_BANK + bank / 32];
-            if (lock_bits & (1 << (bank % 32))) {
+            if (!(lock_bits & (1 << (bank % 32)))) {
                 storage[pos / sizeof(uint32_t)] = ~*source32;
             }
         }
