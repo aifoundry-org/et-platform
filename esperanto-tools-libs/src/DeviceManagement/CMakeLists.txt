@@ -41,8 +41,6 @@ install(TARGETS DM
         COMPONENT et-runtime
 )
 
-if(MINION_RUNTIME_FOUND)
-  target_include_directories(etrt_DeviceManagement PRIVATE "${ESPERANTO_FW_INCLUDE_DIR}/")
-endif(MINION_RUNTIME_FOUND)
+target_include_directories(etrt_DeviceManagement PRIVATE "${ESPERANTO_DEVICE_MINION_RUNTIME_INCLUDE_DIR}/")
 
 add_sanitizers(etrt_DeviceManagement)

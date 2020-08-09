@@ -15,7 +15,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -std=c++17 -Wall")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -g3 -O0 -Werror")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O2 -DNDEBUG")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -fPIC -Wall")
- 
+
 # List of subdirectories with our sources
 set(SUBFOLDERS
   CodeManagement
@@ -103,7 +103,7 @@ set(ETRT_SOURCES
 add_library(etrt_obj OBJECT ${ETRT_SOURCES})
 
 # Include path dependencies
-# target_include_directories(etrt_obj PRIVATE "${ESPERANTO_FW_INCLUDE_DIR}/esperanto-fw")
+# target_include_directories(etrt_obj PRIVATE "${ESPERANTO_DEVICE_MINION_RUNTIME_INCLUDE_DIR}/esperanto-fw")
 
 # Library dependencies
 target_link_libraries(etrt_obj pthread)

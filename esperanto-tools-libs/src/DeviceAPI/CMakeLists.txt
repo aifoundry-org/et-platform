@@ -73,6 +73,4 @@ target_include_directories(etrt_DeviceAPI PRIVATE
 
 add_sanitizers(etrt_DeviceAPI)
 
-if(MINION_RUNTIME_FOUND)
-  target_include_directories(etrt_DeviceAPI PRIVATE "${ESPERANTO_FW_INCLUDE_DIR}/")
-endif(MINION_RUNTIME_FOUND)
+target_include_directories(etrt_DeviceAPI PRIVATE "${ESPERANTO_DEVICE_MINION_RUNTIME_INCLUDE_DIR}/")

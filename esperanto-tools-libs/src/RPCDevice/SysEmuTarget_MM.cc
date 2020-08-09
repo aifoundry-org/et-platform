@@ -87,6 +87,12 @@ SysEmuTargetMM::SysEmuTargetMM(int index) : RPCTargetMM(index, "") {
   std::vector<std::string> additional_params(std::istream_iterator<std::string>{iss},
                                              std::istream_iterator<std::string>());
 
+  // Preload BootromTrampolineToBL2 and BL2 SP ELFs
+  static const std::vector<std::string> sp_elfs = {
+    absl::GetFlag(FLAGS_bootrom_trampoline_to_bl2_elf),
+    absl::GetFlag(FLAGS_bl2_elf)
+  };
+
   sys_emu_ = make_unique<SysEmuLauncher>(absl::GetFlag(FLAGS_sysemu_path),
                                          run_folder,
                                          socket_path_,
@@ -96,6 +102,7 @@ SysEmuTargetMM::SysEmuTargetMM(int index) : RPCTargetMM(index, "") {
                                          absl::GetFlag(FLAGS_sysemu_pu_uart1_tx_file),
                                          absl::GetFlag(FLAGS_sysemu_spio_uart0_tx_file),
                                          absl::GetFlag(FLAGS_sysemu_spio_uart1_tx_file),
+                                         sp_elfs,
                                          additional_params);
 };
 
