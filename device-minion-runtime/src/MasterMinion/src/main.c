@@ -163,9 +163,9 @@ static void __attribute__((noreturn)) master_thread(void)
 
     INT_init();
 
-    log_write(LOG_LEVEL_CRITICAL, "Initializing message buffers...");
+    log_write(LOG_LEVEL_INFO, "Initializing message buffers...");
     message_init_master();
-    log_write(LOG_LEVEL_CRITICAL, "done\r\n");
+    log_write(LOG_LEVEL_INFO, "done\r\n");
 
     // Empty all FCCs
     init_fcc(FCC_0);
@@ -173,7 +173,7 @@ static void __attribute__((noreturn)) master_thread(void)
 
     kernel_init();
 
-    log_write(LOG_LEVEL_CRITICAL, "Boot config Minion Shires: 0x%" PRIx64 "\n", boot_minion_shires);
+    log_write(LOG_LEVEL_INFO, "Boot config Minion Shires: 0x%" PRIx64 "\n", boot_minion_shires);
 
     // Enable supervisor external and software interrupts
     asm volatile (
@@ -186,11 +186,11 @@ static void __attribute__((noreturn)) master_thread(void)
     // Bring up Compute Minions
     syscall(SYSCALL_CONFIGURE_COMPUTE_MINION, boot_minion_shires, 0x1u, 0);
 
-    log_write(LOG_LEVEL_CRITICAL, "All Compute Minions configured!\n");
+    log_write(LOG_LEVEL_INFO, "All Compute Minions configured!\n");
 
     // Wait until all Shires have booted before starting the main loop that handles PCIe messages
     wait_all_shires_booted(boot_minion_shires);
-    log_write(LOG_LEVEL_CRITICAL, "All Shires ready!\n");
+    log_write(LOG_LEVEL_CRITICAL, "All Shires (0x%" PRIx64 ") ready!\n",boot_minion_shires);
 
     MBOX_init();
     log_write(LOG_LEVEL_CRITICAL, "Mailbox to Host initialzed\r\n");
