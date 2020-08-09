@@ -5,46 +5,6 @@
 #include "bl2_minion_pll_and_dll.h"
 #include "minion_esr_defines.h"
 
-typedef enum
-{
-    PP_USER       = 0,
-    PP_SUPERVISOR = 1,
-    PP_MESSAGES   = 2,
-    PP_MACHINE    = 3
-} esr_protection_t;
-
-typedef enum
-{
-    REGION_MINION        = 0,    // HART ESR
-    REGION_NEIGHBOURHOOD = 1,    // Neighbor ESR
-    REGION_TBOX          = 2,    //
-    REGION_OTHER         = 3     // Shire Cache ESR and Shire Other ESR
-} esr_region_t;
-
-const uint64_t ESR_MEMORY_REGION = 0x0100000000UL;     // [32]=1
-
-static inline volatile uint64_t* __attribute__((always_inline)) esr_address(esr_protection_t pp, uint8_t shire_id, esr_region_t region, uint32_t address)
-{
-    volatile uint64_t *p = (uint64_t *) (  ESR_MEMORY_REGION
-                         | ((uint64_t)(pp       & 0x03    ) << 30)
-                         | ((uint64_t)(shire_id & 0xff    ) << 22)
-                         | ((uint64_t)(region   & 0x03    ) << 20)
-                         | ((uint64_t)(address  & 0x01ffff) <<  3));
-    return p;
-}
-
-static inline uint64_t __attribute__((always_inline)) read_esr(esr_protection_t pp, uint8_t shire_id, esr_region_t region, uint32_t address)
-{
-    volatile uint64_t *p = esr_address(pp, shire_id, region, address);
-    return *p;
-}
-
-static inline void __attribute__((always_inline)) write_esr(esr_protection_t pp, uint8_t shire_id, esr_region_t region, uint32_t address, uint64_t value)
-{
-    volatile uint64_t *p = esr_address(pp, shire_id, region, address);
-    *p = value;
-}
-
 /*==================== Function Separator =============================*/
 #define TIMEOUT_PLL_CONFIG 100000
 #define TIMEOUT_PLL_LOCK 100000
@@ -146,7 +106,7 @@ int enable_minion_neighborhoods(uint64_t shire_mask) {
 }
 
 int enable_master_shire_threads(uint8_t mm_id) {
-    // Enable all Minion thread 0s
-    write_esr(PP_MACHINE, mm_id, REGION_OTHER, SHIRE_OTHER_THREAD0_DISABLE, 0x0);
+    // Enable only Device Runtime Management thread on Master Shire
+    write_esr(PP_MACHINE, mm_id, REGION_OTHER, SHIRE_OTHER_THREAD0_DISABLE, ~(MM_RT_THREADS));
     return 0;
 }
