@@ -1,3 +1,80 @@
+/*-------------------------------------------------------------------------
+* Copyright (C) 2020, Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*-------------------------------------------------------------------------
+*/
+
+typedef enum
+{
+    PP_USER       = 0,
+    PP_SUPERVISOR = 1,
+    PP_MESSAGES   = 2,
+    PP_MACHINE    = 3
+} esr_protection_t;
+
+
+typedef enum
+{
+    REGION_MINION        = 0,    // HART ESR
+    REGION_NEIGHBOURHOOD = 1,    // Neighbor ESR
+    REGION_TBOX          = 2,    //
+    REGION_OTHER         = 3     // Shire Cache ESR and Shire Other ESR
+} esr_regions_t;
+
+const uint64_t ESR_MEMORY_REGION = 0x0100000000UL;     // [32]=1
+
+static inline volatile uint64_t* __attribute__((always_inline)) esr_address(esr_protection_t pp, uint8_t shire_id, esr_regions_t region, uint32_t address)
+{
+    volatile uint64_t *p = (uint64_t *) (  ESR_MEMORY_REGION
+                         | ((uint64_t)(pp       & 0x03    ) << 30)
+                         | ((uint64_t)(shire_id & 0xff    ) << 22)
+                         | ((uint64_t)(region   & 0x03    ) << 20)
+                         | ((uint64_t)(address  & 0x01ffff) <<  3));
+    return p;
+}
+
+static inline uint64_t __attribute__((always_inline)) read_esr(esr_protection_t pp, uint8_t shire_id, esr_regions_t region, uint32_t address)
+{
+    volatile uint64_t *p = esr_address(pp, shire_id, region, address);
+    return *p;
+}
+
+static inline void __attribute__((always_inline)) write_esr(esr_protection_t pp, uint8_t shire_id, esr_regions_t region, uint32_t address, uint64_t value)
+{
+    volatile uint64_t *p = esr_address(pp, shire_id, region, address);
+    *p = value;
+}
+
+// Virtual Master Minion Shire NOC ID
+#define MM_SHIRE_ID 32
+
+// Virtual Master Minion Shire NOC ID Mask
+#define MM_SHIRE_ID_MASK 0x100000000U
+
+// Virtual Compute Shire NOC ID Mask
+#define CM_SHIRE_ID_MASK 0xFFFFFFFFU
+
+// Define for All Threads available in a Minion Shire
+#define MM_ALL_THREADS 0xFFFFFFFFU
+
+// Define for Threads which participate in the Device Runtime FW management.
+// Currently only lower 16 Minions (64 Harts) of the whole Minion Shire which
+// participate in the Device Runtime. This might change with Virtual Queue
+// implementation
+#define MM_RT_THREADS 0x0000FFFFU
+
+
+// Define for Threads which participate in the Device Runtime FW management.
+// Currently the upper 16 Minions (64 Harts) of the whole Minion Shire
+// participates in Compute Minion Kernel execution. 
+#define MM_COMPUTE_THREADS 0xFFFF0000U
+
+
 /*typedef struct packed {
    logic [1:0] tbox3_id;
    logic [1:0] tbox2_id;
