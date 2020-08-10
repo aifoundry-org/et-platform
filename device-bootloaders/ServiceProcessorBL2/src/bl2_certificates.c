@@ -304,7 +304,8 @@ int load_sw_certificates_chain(void) {
     }
 
     if (gs_vaultip_disabled) {
-        printf("Skip VaultIP OTP SW ROOT CA HASH check!\n");
+	//TODO: Update the following to Log macro - set to INFO/DEBUG
+        //printf("Skip VaultIP OTP SW ROOT CA HASH check!\n");
         sw_root_ca_hash_available = false;
     } else {
         if (0 != is_sw_root_ca_hash_provisioned(&sw_root_ca_hash_available)) {
@@ -314,7 +315,8 @@ int load_sw_certificates_chain(void) {
     }
 
     if (!sw_root_ca_hash_available) {
-        printf("SW ROOT CA not provisioned. Using SP ROOT CA.\n");
+	//TODO: Update the following to Log macro - set to INFO/DEBUG
+        //printf("SW ROOT CA not provisioned. Using SP ROOT CA.\n");
         memcpy(bl2_data->sw_certificates, bl2_data->sp_certificates, sizeof(bl2_data->sw_certificates));
         return 0;
     }

@@ -216,7 +216,8 @@ static void update_mbox_status(mbox_e mbox)
             case MBOX_STATUS_READY:
                 if (mbox_hw[mbox]->master_status == MBOX_STATUS_WAITING)
                 {
-                    printf("%s received slave ready, going master ready\r\n", taskName);
+                    // TODO: Update the following to Log macro - set to INFO/DEBUG
+                    // printf("%s received slave ready, going master ready\r\n", taskName);
                     mbox_hw[mbox]->master_status = MBOX_STATUS_READY;
                     send_interrupt(mbox);
                 }
@@ -224,7 +225,8 @@ static void update_mbox_status(mbox_e mbox)
 
             case MBOX_STATUS_WAITING:
                 // The slave has requested we reset the mailbox interface.
-                printf("%s received slave reset req\r\n", taskName);
+                // TODO: Update the following to Log macro - set to INFO/DEBUG
+                //printf("%s received slave reset req\r\n", taskName);
                 reset_mbox(mbox);
             break;
 
