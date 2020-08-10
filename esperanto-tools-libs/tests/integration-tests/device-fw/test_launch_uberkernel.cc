@@ -52,12 +52,13 @@ TEST_F(DeviceFWTest, launch_uberkernel) {
 
   int array_size = 200;
   int size = sizeof(uint64_t) * array_size;
-  void *dev_ptr = 0;
-  auto status = dev_->mem_manager().malloc(&dev_ptr, size);
-  ASSERT_EQ(status, etrtSuccess);
+  BufferDebugInfo info;
+  auto malloc_res= dev_->mem_manager().mallocConstant(size, info);
+  ASSERT_TRUE((bool)malloc_res);
+  auto device_buffer = malloc_res.get();
 
   Kernel::layer_dynamic_info_t layer_info = {};
-  layer_info.tensor_a = reinterpret_cast<uint64_t>(dev_ptr);
+  layer_info.tensor_a = reinterpret_cast<uint64_t>(device_buffer.ptr());
   layer_info.tensor_b = size;
   Kernel::LaunchArg arg;
   arg.type = Kernel::ArgType::T_layer_dynamic_info;
@@ -65,12 +66,12 @@ TEST_F(DeviceFWTest, launch_uberkernel) {
 
   int array_size_2 = 400;
   size = sizeof(uint64_t) * array_size_2;
-  void *dev_ptr_2 = 0;
-  status = dev_->mem_manager().malloc(&dev_ptr_2, size);
-  ASSERT_EQ(status, etrtSuccess);
+  malloc_res = dev_->mem_manager().mallocConstant(size, info);
+  ASSERT_TRUE((bool)malloc_res);
+  auto device_buffer_2 = malloc_res.get();
 
   layer_info = {};
-  layer_info.tensor_a = reinterpret_cast<uint64_t>(dev_ptr_2);
+  layer_info.tensor_a = reinterpret_cast<uint64_t>(device_buffer_2.ptr());
   layer_info.tensor_b = size;
   Kernel::LaunchArg arg2;
   arg2.type = Kernel::ArgType::T_layer_dynamic_info;
@@ -85,8 +86,7 @@ TEST_F(DeviceFWTest, launch_uberkernel) {
   {
     std::vector<uint64_t> data(array_size, 0xEEEEEEEEEEEEEEEEULL);
     std::vector<uint64_t> refdata(array_size, 0xBEEFBEEFBEEFBEEFULL);
-    auto res = dev_->memcpy(data.data(), dev_ptr, array_size * sizeof(uint64_t),
-                            etrtMemcpyDeviceToHost);
+    auto res = dev_->memcpy(HostBuffer(data.data()), device_buffer, array_size * sizeof(uint64_t));
     ASSERT_EQ(res, etrtSuccess);
     ASSERT_THAT(data, ::testing::ElementsAreArray(refdata));
   }
@@ -96,8 +96,7 @@ TEST_F(DeviceFWTest, launch_uberkernel) {
     std::vector<uint64_t> data(array_size_2, 0xEEEEEEEEEEEEEEEEULL);
     std::vector<uint64_t> refdata(array_size_2, 0xBEEFBEEFBEEFBEEFULL);
     auto res =
-        dev_->memcpy(data.data(), dev_ptr_2, array_size_2 * sizeof(uint64_t),
-                     etrtMemcpyDeviceToHost);
+      dev_->memcpy(HostBuffer(data.data()), device_buffer_2, array_size_2 * sizeof(uint64_t));
     ASSERT_EQ(res, etrtSuccess);
     ASSERT_THAT(data, ::testing::ElementsAreArray(refdata));
   }
