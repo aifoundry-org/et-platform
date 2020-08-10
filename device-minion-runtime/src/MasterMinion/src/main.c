@@ -20,6 +20,7 @@
 #include "shire.h"
 #include "swi.h"
 #include "syscall_internal.h"
+#include "device-mrt-trace.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -167,15 +168,17 @@ static void __attribute__((noreturn)) master_thread(void)
     SERIAL_init(UART0);
     log_write(LOG_LEVEL_CRITICAL, "\r\nMaster minion " GIT_VERSION_STRING "\r\n");
 
-    log_write(LOG_LEVEL_CRITICAL, "\r\nMaster initializing trace subsystem \r\n");
-    trace_init_master();
-    log_string(LOG_LEVELS_CRITICAL, "Trace message from Master minion");
-
     INT_init();
 
     log_write(LOG_LEVEL_INFO, "Initializing message buffers...");
     message_init_master();
     log_write(LOG_LEVEL_INFO, "done\r\n");
+
+    log_write(LOG_LEVEL_CRITICAL, "Master: Initializing trace subsystem...");
+    TRACE_init();
+    TRACE_init_buffer();
+    log_write(LOG_LEVEL_CRITICAL, "done\r\n");
+    TRACE_string(LOG_LEVELS_CRITICAL, "Trace message from Master minion");
 
     // Empty all FCCs
     init_fcc(FCC_0);
@@ -504,8 +507,16 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
                   shire, hart);
         break;
 
-        case MESSAGE_ID_UPDATE_TRACE_CONTROL:
+        case MESSAGE_ID_TRACE_UPDATE_CONTROL:
             log_write(LOG_LEVEL_WARNING, "Invalid MESSAGE_ID_UPDATE_TRACE_CONTROL received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
+        break;
+
+        case MESSAGE_ID_TRACE_BUFFER_RESET:
+            log_write(LOG_LEVEL_WARNING, "Invalid MESSAGE_ID_TRACE_BUFFER_RESET received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
+        break;
+
+        case MESSAGE_ID_TRACE_BUFFER_EVICT:
+            log_write(LOG_LEVEL_WARNING, "Invalid MESSAGE_ID_TRACE_BUFFER_EVICT received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
         break;
 
         default:

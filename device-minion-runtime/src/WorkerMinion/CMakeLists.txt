@@ -30,6 +30,7 @@ set(SOURCES
 set(TARGET_NAME WorkerMinion)
 set(LINKER_SCRIPT src/sections.ld)
 set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
+set(TRACE_ENABLED TRUE)
 
 include_directories(include)
 include_directories(${SHARED_INC_DIRS})

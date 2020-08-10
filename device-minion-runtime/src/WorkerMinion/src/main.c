@@ -9,6 +9,7 @@
 #include "layout.h"
 #include "message.h"
 #include "syscall_internal.h"
+#include "device-mrt-trace.h"
 
 #include <stdint.h>
 
@@ -61,6 +62,12 @@ void __attribute__((noreturn)) main(void)
         message_send_worker(shire_id, hart_id, &message);
     }
 
+    // Wait till master inits trace subsystem
+    WAIT_FCC(FCC_0);
+
+    // Init trace for worker minion
+    TRACE_init_buffer();
+
     for (;;)
     {
         int64_t rv = -1;
@@ -68,9 +75,6 @@ void __attribute__((noreturn)) main(void)
         // Wait for a credit (kernel launch fastpath)
         // or SWI (message passing slow path)
         WAIT_FCC(FCC_0);
-
-        // Init trace buffer for kernel run
-        trace_init_buffer();
 
         for (uint64_t kernel_id = 0; kernel_id < MAX_SIMULTANEOUS_KERNELS; kernel_id++)
         {
@@ -89,9 +93,6 @@ void __attribute__((noreturn)) main(void)
                 break;
             }
         }
-
-        // Evict trace buffer after kernel run.
-        evict_trace_buffer();
 
         if (rv != 0)
         {

@@ -10,13 +10,12 @@
 
 set(DEVAPI_LIB ${ESPERANTO_DEVICE_API_LIB_DIR}/esperanto/device-api)
 set(DEVAPI_CODE_GEN ${DEVAPI_LIB}/device_api_codegen.py)
-set(DEVICE_MRT_TRACE_API_HDRS "${DEVAPI_LIB}/device-mrt-trace.h")
 
 # List of Jinja files to generate files for
 SET(JINJA_FILES
-  "device-mrt-trace-gen.c.jinja:device-mrt-trace-gen.c"
+  "device-mrt-trace.h.jinja:device-mrt-trace.h"
+  "device-mrt-trace.c.jinja:device-mrt-trace.c"
   )
-
 
 include_directories(${ESPERANTO_DEVICE_API_INCLUDE_DIR})
 include_directories(${SHARED_INC_DIRS})
@@ -34,23 +33,45 @@ foreach(TMPL_TUPLE ${JINJA_FILES})
            --output ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT}
      DEPENDS ${DEVAPI_CODE_GEN}
              ${CMAKE_CURRENT_SOURCE_DIR}/${TMPL}
+             ${DEVAPI_LIB}/api/tracing/device-mrt-trace.yaml
+             ${DEVAPI_LIB}/schema/device-api.schema.json
      )
    add_custom_target(${GEN_OUTPUT} ALL
              DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT})
   list(APPEND GEN_FILES ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT})
 endforeach()
 
-add_custom_target(gen-device-mrt-trace-api
-  DEPENDS ${DEVAPI_LIB})
+add_custom_target(gen-device-mrt-trace
+  DEPENDS ${GEN_FILES}
+  )
 
 add_library(device-mrt-trace STATIC
-    ${GEN_FILES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/device-mrt-trace.c
-    )
+  ${CMAKE_CURRENT_BINARY_DIR}/device-mrt-trace.c
+  ${CMAKE_CURRENT_BINARY_DIR}/device-mrt-trace.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/trace_helpers.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/ring_buffer.c
+  )
+
+list(APPEND INC_PATH ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(device-mrt-trace PUBLIC
+  "$<BUILD_INTERFACE:${INC_PATH}>"
+  "$<INSTALL_INTERFACE:${INCLUDE_INSTALL_DIR}/esperanto-fw/device-mrt-trace>"
+  )
 
 install(TARGETS device-mrt-trace
-        EXPORT  EsperantoDeviceMinionRuntimeTargets
-        ARCHIVE
-           DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw
-           COMPONENT device-mrt-trace
-        )
+  EXPORT  EsperantoDeviceMinionRuntimeTargets
+  ARCHIVE
+    DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw
+    COMPONENT device-mrt-trace
+  PUBLIC_HEADER
+    DESTINATION ${INCLUDE_INSTALL_DIR}/esperanto-fw/device-mrt-trace
+    COMPONENT device-mrt-trace
+  )
+install(
+  FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/device-mrt-trace.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/trace_helpers.h
+  DESTINATION
+    ${INCLUDE_INSTALL_DIR}/esperanto-fw/device-mrt-trace
+  COMPONENT device-mrt-trace
+  )

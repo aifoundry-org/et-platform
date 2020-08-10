@@ -795,6 +795,7 @@ INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/ \
                          @PROJECT_SOURCE_DIR@/src/MachineMinion/ \
                          @PROJECT_SOURCE_DIR@/src/MasterMinion/ \
                          @PROJECT_SOURCE_DIR@/src/WorkerMinion/ \
+                         @PROJECT_BINARY_DIR@/src/Tracing/ \
                          @PROJECT_SOURCE_DIR@/include \
 
 # This tag can be used to specify the character encoding of the source files

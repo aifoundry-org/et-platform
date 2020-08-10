@@ -3,6 +3,7 @@
 #include "layout.h"
 #include "log.h"
 #include "message.h"
+#include "device-mrt-trace.h"
 
 static message_number_t previous_broadcast_message_number[NUM_HARTS]
     __attribute__((section(".data"))) = { 0 };
@@ -45,9 +46,19 @@ static void handle_message(uint64_t shire, uint64_t hart, message_t *const messa
     } else if (message_ptr->id == MESSAGE_ID_LOOPBACK) {
         message_send_worker(shire, hart, message_ptr);
     }
-    else if (message_ptr->id == MESSAGE_ID_UPDATE_TRACE_CONTROL)
+    else if (message_ptr->id == MESSAGE_ID_TRACE_UPDATE_CONTROL)
     {
         // Evict to invalidate control region to get new changes
-        evict_trace_control();
+        TRACE_update_control();
+    }
+    else if (message_ptr->id == MESSAGE_ID_TRACE_BUFFER_RESET)
+    {
+        // Reset trace buffer for next run
+        TRACE_init_buffer();
+    }
+    else if (message_ptr->id == MESSAGE_ID_TRACE_BUFFER_EVICT)
+    {
+        // Evict trace buffer for consumption
+        TRACE_evict_buffer();
     }
 }
