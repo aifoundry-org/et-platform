@@ -26,19 +26,6 @@ Enums:
         Value: 4
       - Name: TRACE
         Value: 5
-      - Name: NONE
-        Value: 6
-  - Name: trace_status
-    Type: int32_t
-    Values:
-      - Name: SUCCESS
-        Value: 0
-      - Name: BUFFER_FULL
-        Value: 1
-      - Name: INVALID_VAL
-        Value: 2
-      - Name: DISABLED
-        Value: 3
   - Name: dev_api_kernel_launch_error
     Type: uint32_t
     Values:
@@ -279,23 +266,23 @@ Messages :
         Enum: dev_api_error_type
 #-------------------------------------------------------------------------------
   - Name: discover_trace_buffer_cmd
-    Description: Discover the trace buffer address, size and knob states
+    Description: Discover the trace buffer address and size of buffer
     Type: Command
     PairedMessage: discover_trace_buffer_rsp
     Fields:
       - Name: dummy
         Type: bool
   - Name: discover_trace_buffer_rsp
+    Description: Trace Discover reply
     Type: Response
     PairedMessage: discover_trace_buffer_cmd
     Fields:
       - Name: trace_base
         Type: uint64_t
-      - Name: trace_mem_size
-        Type: uint64_t
+      - Name: trace_buffer_size
+        Type: uint32_t
       - Name: status
-        Type: enum
-        Enum: trace_status_e
+        Type: bool
 #-------------------------------------------------------------------------------
   - Name: configure_trace_group_knob_cmd
     Description: Configure the state of a trace group
@@ -304,9 +291,10 @@ Messages :
     Fields:
       - Name: group_id
         Type: uint64_t
-      - Name: enabled
+      - Name: enable
         Type: bool
   - Name: configure_trace_group_knob_rsp
+    Description: Trace group configure command reply
     Type: Response
     PairedMessage: configure_trace_group_knob_cmd
     Fields:
@@ -314,18 +302,16 @@ Messages :
         Type: bool
 #-------------------------------------------------------------------------------
   - Name: configure_trace_event_knob_cmd
-    Description: Configure the logging level of a group
+    Description: Configure the state of a trace event
     Type: Command
     PairedMessage: configure_trace_event_knob_rsp
     Fields:
       - Name: event_id
         Type: uint64_t
-      - Name: log_level
-        Type: enum
-        Enum: log_levels_e
-      - Name: uart_log_enabled
+      - Name: enable
         Type: bool
   - Name: configure_trace_event_knob_rsp
+    Description: Trace event configure command reply
     Type: Response
     PairedMessage: configure_trace_event_knob_cmd
     Fields:
@@ -340,8 +326,85 @@ Messages :
       - Name: buffer_size
         Type: uint32_t
   - Name: configure_trace_buffer_size_knob_rsp
+    Description: Trace buffer size configure command reply
     Type: Response
     PairedMessage: configure_trace_buffer_size_knob_cmd
+    Fields:
+      - Name: status
+        Type: bool
+#-------------------------------------------------------------------------------
+  - Name: configure_trace_state_knob_cmd
+    Description: Enables or disables trace component
+    Type: Command
+    PairedMessage: configure_trace_state_knob_rsp
+    Fields:
+      - Name: enable
+        Type: bool
+  - Name: configure_trace_state_knob_rsp
+    Description: Trace enable disable command reply
+    Type: Response
+    PairedMessage: configure_trace_state_knob_cmd
+    Fields:
+      - Name: status
+        Type: bool
+#-------------------------------------------------------------------------------
+  - Name: configure_trace_uart_logging_knob_cmd
+    Description: Enables or disables trace event uart logging
+    Type: Command
+    PairedMessage: configure_trace_uart_logging_knob_rsp
+    Fields:
+      - Name: enable
+        Type: bool
+  - Name: configure_trace_uart_logging_knob_rsp
+    Description: Trace enable disable command reply
+    Type: Response
+    PairedMessage: configure_trace_uart_logging_knob_cmd
+    Fields:
+      - Name: status
+        Type: bool
+#-------------------------------------------------------------------------------
+  - Name: configure_trace_log_level_knob_cmd
+    Description: Configures trace logging level
+    Type: Command
+    PairedMessage: configure_trace_log_level_knob_rsp
+    Fields:
+      - Name: log_level
+        Type: enum
+        Enum: log_levels_e
+  - Name: configure_trace_log_level_knob_rsp
+    Description: Trace enable disable command reply
+    Type: Response
+    PairedMessage: configure_trace_log_level_knob_cmd
+    Fields:
+      - Name: status
+        Type: bool
+#-------------------------------------------------------------------------------
+  - Name: reset_trace_buffers_cmd
+    Description: Resets trace buffer for next run
+    Type: Command
+    PairedMessage: reset_trace_buffers_rsp
+    Fields:
+      - Name: dummy
+        Type: bool
+  - Name: reset_trace_buffers_rsp
+    Description: Trace reset buffer command reply
+    Type: Response
+    PairedMessage: reset_trace_buffers_cmd
+    Fields:
+      - Name: status
+        Type: bool
+#-------------------------------------------------------------------------------
+  - Name: prepare_trace_buffers_cmd
+    Description: Prepares trace buffers for consumption
+    Type: Command
+    PairedMessage: prepare_trace_buffers_rsp
+    Fields:
+      - Name: dummy
+        Type: bool
+  - Name: prepare_trace_buffers_rsp
+    Description: Prepare trace buffer command reply
+    Type: Response
+    PairedMessage: prepare_trace_buffers_cmd
     Fields:
       - Name: status
         Type: bool

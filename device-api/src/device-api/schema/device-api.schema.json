@@ -75,7 +75,7 @@
             "additionalProperties" : false,
             "required": ["Name", "Type"]
         },
-        "TraceGroupEntry": {
+        "TraceEventEntry": {
             "type": "object",
             "description": "A member field of a trace group record",
             "properties": {
@@ -172,7 +172,7 @@
                 "Description": { "type": "string"} ,
                 "Events": {
                     "type": "array",
-                    "items": { "$ref": "#definitions/TraceGroupEntry" }
+                    "items": { "$ref": "#definitions/TraceEventEntry" }
                 }
             },
             "required" : ["Name", "Events"]

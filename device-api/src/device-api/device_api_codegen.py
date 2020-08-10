@@ -104,7 +104,7 @@ class DevAPICodeGeneratorHelper(object):
         """Return list of all the rpc Events"""
         return [ i for i in self.rpc_calls()['Messages'] if i['Type'] == 'Event']
 
-    def trace_groups(self):
+    def trace_module(self):
         """Return the schema of the DeviceFwTracing module
 
         Returns:
@@ -172,16 +172,16 @@ class DevAPICodeGeneratorHelper(object):
             return []
         return rpc_calls.get("Messages", [])
 
-    def traces(self):
+    def trace_groups(self):
         """Return the list of defined trace events
 
         Returns:
           list[dict] " List of defined TraceEvents
         """
-        trace_groups = self.trace_groups()
-        if not trace_groups:
+        trace_mod = self.trace_module()
+        if not trace_mod:
             return []
-        return trace_groups.get("TraceGroups", [])
+        return trace_mod.get("TraceGroups", [])
 
     def custom_type(self, field):
         """Return true if this is a custom device-api type
@@ -268,6 +268,69 @@ class DevAPICodeGeneratorHelper(object):
             "uint64_t": 8,
             }
         return types[type_name]
+
+    @staticmethod
+    def get_type_format_specifier(type_name):
+        """Return the format specifier for of a C type"""
+        types = {
+            "double":   "%lf",
+            "float":    "%f",
+            "int8_t":   "%d",
+            "uint8_t":  "%u",
+            "int16_t":  "%d",
+            "uint16_t": "%u",
+            "int32_t":  "%d",
+            "uint32_t": "%u",
+            "int64_t":  "%ld",
+            "uint64_t": "%lu",
+            "bytes":    "%s",
+            }
+        return types[type_name]
+
+    @staticmethod
+    def fields_to_arg_list(obj):
+        """Return string with all the arguments present in Fields list
+
+        Args:
+          obj (dict): obj specification
+        """
+        fields = obj.get("Fields", [])
+        params = []
+        for field in fields:
+            if field['Type'] == "bytes":
+                params += [f"const char* {field['Name']}"]
+            else:
+                params += [f"const {field['Type']} {field['Name']}"]
+        return ", ".join(params)
+
+    @staticmethod
+    def fields_to_printf_format(obj):
+        """Return printf stype string with all the arguments present in the Fields list
+
+        Args:
+          obj (dict): obj specification
+        """
+        fields = obj.get("Fields", [])
+        params = []
+        for field in fields:
+            specifier = DevAPICodeGeneratorHelper.get_type_format_specifier(field['Type'])
+            params += [f"{field['Name']}: {specifier}"]
+        return ", ".join(params)
+
+    @staticmethod
+    def get_field_from_type(obj, typ):
+        """Return the very first field Name of type typ if present in Fields list
+
+        Returns:
+          obj (dict): obj specification
+          typ (string): type to look for
+        """
+
+        fields = obj.get("Fields", [])
+        for field in fields:
+            if field["Type"] == typ:
+                return field["Name"]
+        return []
 
     def validate_api(self):
         """Run a couple of checks on the schema to avoid common mistakes"""

@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# Copyright (C) 2019, Esperanto Technologies Inc.
+# Copyright (C) 2020, Esperanto Technologies Inc.
 # The copyright to the computer program(s) herein is the
 # property of Esperanto Technologies, Inc. All Rights Reserved.
 # The program(s) may be used and/or copied only with
@@ -11,16 +11,20 @@
 Name: DeviceFWTracing
 TraceGroups:
   - Name: Text
+    Description: Group of events that perform text base logging
     Events:
       - Name: string
+        Description: Logs a string of charachters
         Type : TraceEntry
         Fields:
           - Name: msg
             Type: bytes
 
   - Name: Performance
+    Description: Group of events that log performance counters
     Events:
       - Name: perfctr
+        Description: Logs two performance counters
         Type : TraceEntry
         Fields:
           - Name: ctr1
@@ -29,13 +33,16 @@ TraceGroups:
             Type: uint32_t
 
   - Name: Workload
+    Description: Group of events performing kernel execution logging
     Events:
       - Name: uber_kernel_marker
+        Description: Logs sub kernel ID of uber-kernel
         Type: TraceEntry
         Fields:
           - Name: subkernel_id
             Type: uint32_t
       - Name: kernel_launch
+        Description: Logs a kernel launch
         Type: TraceEntry
         Fields:
           - Name: tensor_a
@@ -52,9 +59,12 @@ TraceGroups:
             Type: uint64_t
           - Name: tensor_g
             Type: uint64_t
+          - Name: tensor_h
+            Type: uint64_t
           - Name: kernel_id
             Type: uint64_t
       - Name: kernel_state
+        Description: Logs the current kernel state
         Type : TraceEntry
         Fields:
           - Name: kernel_id

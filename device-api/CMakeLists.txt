@@ -18,7 +18,7 @@ project(EsperantoDeviceAPI
 list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/CMake)
 
 #set(CMAKE_VERBOSE_MAKEFILE ON)
-option(ENABLE_DEVICEFW_TRACE "Enable device Tracing" ON)
+
 option(ENABLE_CCACHE "Enable ccahe in the builds" OFF)
 set(INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/include/ CACHE STRING "Include install dir")
 set(LIB_INSTALL_DIR  ${CMAKE_INSTALL_PREFIX}/lib/  CACHE STRING "Library install dir")
