@@ -152,6 +152,20 @@ static void wait_all_shires_booted(uint64_t expected)
     }
 }
 
+static void wait_sp_mm_mbox_ready(mbox_e mbox) 
+{
+    // Wait for 20 seconds
+    uint32_t timeout = 1000000;
+
+    while (timeout > 0) {
+        if (MBOX_ready(mbox)) {
+            log_write(LOG_LEVEL_CRITICAL,"\n MM -> SP Mbox ready !\n"); 
+            break;
+        }
+        --timeout;
+    }
+}
+
 static void __attribute__((noreturn)) master_thread(void)
 {
     uint64_t temp;
@@ -192,6 +206,10 @@ static void __attribute__((noreturn)) master_thread(void)
     wait_all_shires_booted(boot_minion_shires);
     log_write(LOG_LEVEL_CRITICAL, "All Shires (0x%" PRIx64 ") ready!\n",boot_minion_shires);
 
+    // Wait for SP -> MM Mbox being ready
+    wait_sp_mm_mbox_ready(MBOX_SP);
+
+    // Indicate to Host MM is ready to accept new commands
     MBOX_init();
     log_write(LOG_LEVEL_CRITICAL, "Mailbox to Host initialzed\r\n");
 
