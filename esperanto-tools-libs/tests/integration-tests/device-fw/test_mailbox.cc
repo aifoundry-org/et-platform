@@ -60,21 +60,6 @@ TEST_F(MailboxEmuTest, resetMailBox) {
   EXPECT_TRUE(success);
 }
 
-TEST_F(DeviceFWTest, reflectTest) {
-  auto *target_device_ptr = &dev_->getTargetDevice();
-  auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
-  EXPECT_TRUE(target_device != nullptr);
-
-  auto reflect_cmd = std::make_shared<devfw_commands::ReflectTestCmd>(
-      dev_->defaultStream().id(), true);
-  dev_->defaultStream().addCommand(reflect_cmd);
-
-  auto ft = reflect_cmd->getFuture();
-  auto response = ft.get().response();
-  ASSERT_EQ(response.response_info.message_id,
-            ::device_api::MBOX_DEVAPI_MESSAGE_ID_REFLECT_TEST_RSP);
-}
-
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
   google::InstallFailureSignalHandler();
