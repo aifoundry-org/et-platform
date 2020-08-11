@@ -47,7 +47,8 @@ set(BIN_INSTALL_DIR bin CACHE STRING "Bin install dir")
 set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
 set(LIB_INSTALL_DIR  lib/  CACHE STRING "Library install dir")
 set(SYSCONFIG_INSTALL_DIR etc/et-fw/ CACHE STRING "Config install dir")
-set(ROM_TOOLS_DIR ${CMAKE_INSTALL_PREFIX}/bin/esperanto-fw/ServiceProcessorROM)
+# FIXME: This repo will only generate the .ELF. The .hex will be outside so this will be removed
+set(BOOT_ARTIFACTS_TOOLS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../boot-images/tools)
 
 set(DEVFW_EXTERNAL_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/external-install"
   CACHE PATH "Instalation path of external dependencies")
@@ -107,11 +108,6 @@ get_property(VAULTIP_HELPERS_INCLUDE_PATH
   TARGET EsperantoServiceProcessorROM::vaultip
   PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
 include_directories(${VAULTIP_HELPERS_INCLUDE_PATH})
-
-get_property(SP_ROM_OTP_TYPES_PATH
-  TARGET  EsperantoServiceProcessorROM::sp_rom_otp_types
-  PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
-include_directories(${SP_ROM_OTP_TYPES_PATH})
 
 add_subdirectory(BootromTrampolineToBL2)
 add_subdirectory(ServiceProcessorBL1)

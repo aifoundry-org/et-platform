@@ -28,4 +28,4 @@ dd if=${RAM_IMAGE} of=${BIN_PREFIX}_2.bin bs=1024 count=256 skip=512
 dd if=${RAM_IMAGE} of=${BIN_PREFIX}_3.bin bs=1024 count=256 skip=768
 
 # Convert .bin files to Zebu .hex format
-@ROM_TOOLS_DIR@/make_sp_sram.py ${HEX_PREFIX} ${BIN_PREFIX}
+@BOOT_ARTIFACTS_TOOLS_DIR@/make_sp_sram.py ${HEX_PREFIX} ${BIN_PREFIX}

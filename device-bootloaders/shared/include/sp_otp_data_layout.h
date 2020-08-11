@@ -11,8 +11,6 @@
 #ifndef __SP_OTP_DATA_LAYOUT_H__
 #define __SP_OTP_DATA_LAYOUT_H__
 
-#include "sp_otp_data_layout_gen.h"
-
 #include <stdint.h>
 
 typedef struct OTP_NEIGHBORHOOD_STATUS_NH128_NH135_OTHER_s {
