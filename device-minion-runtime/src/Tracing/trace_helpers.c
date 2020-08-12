@@ -15,6 +15,7 @@
 #include "message.h"
 #include "broadcast.h"
 #include "fcc.h"
+#include "ring_buffer.h"
 
 void TRACE_init(void)
 {
@@ -24,16 +25,16 @@ void TRACE_init(void)
     trace_events_e evnt_dwrd;
 
     // Enable all groups
-    for (trace_groups_e i = TRACE_GROUP_ID_NONE + 1UL;
-         i < TRACE_GROUP_ID_LAST; i++)
+    for (trace_groups_e i = TRACE_GROUP_ID_NONE + 1UL; i < TRACE_GROUP_ID_LAST;
+         i++)
     {
         grp_dwrd = i / (sizeof(uint64_t) * 8UL);
         cntrl->group_knobs[grp_dwrd] |= 1ULL << i;
     }
 
     // Initialize Event knobs
-    for (trace_events_e i = TRACE_EVENT_ID_NONE + 1UL;
-         i < TRACE_EVENT_ID_LAST; i++)
+    for (trace_events_e i = TRACE_EVENT_ID_NONE + 1UL; i < TRACE_EVENT_ID_LAST;
+         i++)
     {
         evnt_dwrd = i / (sizeof(uint64_t) * 8UL);
         cntrl->event_knobs[evnt_dwrd] |= 1ULL << i;
@@ -43,9 +44,9 @@ void TRACE_init(void)
     cntrl->buffer_size = DEVICE_MRT_DEFAULT_BUFFER_SIZE;
 
     // Enable trace
-    cntrl->trace_state.log_level = LOG_LEVELS_TRACE;
-    cntrl->trace_state.uart_en = 0;
-    cntrl->trace_state.trace_en = 1;
+    cntrl->log_level = LOG_LEVELS_TRACE;
+    cntrl->uart_en = 0;
+    cntrl->trace_en = 1;
 
     // Evict control region
     TRACE_update_control();
@@ -56,13 +57,15 @@ void TRACE_init(void)
     broadcast_message_send_master(0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF, &message);
 
     // Release worker minions to init trace
-    broadcast(0xFFFFFFFFU, 0xFFFFFFFF, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC_CREDINC_0_REGNO); // thread 0 FCC 0
-    broadcast(0xFFFFFFFFU, 0xFFFFFFFF, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC_CREDINC_2_REGNO); // thread 1 FCC 0
+    broadcast(0xFFFFFFFFU, 0xFFFFFFFF, PRV_U, ESR_SHIRE_REGION,
+              ESR_SHIRE_FCC_CREDINC_0_REGNO);  // thread 0 FCC 0
+    broadcast(0xFFFFFFFFU, 0xFFFFFFFF, PRV_U, ESR_SHIRE_REGION,
+              ESR_SHIRE_FCC_CREDINC_2_REGNO);  // thread 1 FCC 0
 
     // Release workers present in master shire to init trace
     SEND_FCC(MASTER_SHIRE, THREAD_0, FCC_0, 0xFFFF0000U);
     SEND_FCC(MASTER_SHIRE, THREAD_1, FCC_0, 0xFFFF0000U);
- }
+}
 
 void TRACE_init_buffer(void)
 {
@@ -71,9 +74,7 @@ void TRACE_init_buffer(void)
     struct trace_control_t *cntrl =
         (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
     struct buffer_header_t *buf_head =
-        (struct buffer_header_t *)(ALIGN(DEVICE_MRT_TRACE_BASE +
-            sizeof(struct trace_control_t) + cntrl->buffer_size * hart_id,
-            TRACE_BUFFER_REGION_ALIGNEMNT));
+        DEVICE_MRT_BUFFER_BASE(hart_id, cntrl->buffer_size);
 
     // Init buffer header
     buf_head->hart_id = (uint16_t)hart_id;
@@ -87,9 +88,7 @@ void TRACE_evict_buffer(void)
     struct trace_control_t *cntrl =
         (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
     struct buffer_header_t *buf_head =
-        (struct buffer_header_t *)ALIGN(DEVICE_MRT_TRACE_BASE +
-            sizeof(struct trace_control_t) + cntrl->buffer_size * hart_id,
-            TRACE_BUFFER_REGION_ALIGNEMNT);
+        DEVICE_MRT_BUFFER_BASE(hart_id, cntrl->buffer_size);
 
     asm volatile ("fence");
     evict(to_L3, buf_head, cntrl->buffer_size);

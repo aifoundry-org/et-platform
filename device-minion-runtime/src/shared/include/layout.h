@@ -110,9 +110,9 @@ static_assert((FW_MASTER_TO_WORKER_KERNEL_CONFIGS + FW_MASTER_TO_WORKER_KERNEL_C
 
 #define KERNEL_UMODE_ENTRY KERNEL_UMODE_STACK_BASE
 
-// TODO: Look into this, for now hardcoding the address at the end of 16GB region
-#define DEVICE_MRT_TRACE_MEM_SIZE  (0x40000000)
-#define DEVICE_MRT_TRACE_BASE      (0x83C0000000)
+// TODO: For now hardcoding the address at the end of 16GB region
+#define DEVICE_MRT_TRACE_MEM_SIZE 0x40000000ULL
+#define DEVICE_MRT_TRACE_BASE 0x83C0000000ULL
 
 //Storage for DMA configuration linked lists.
 //Store at end of R_L3_DRAM region, 64MB at 0x87FC800000 - 0x87FFFFFFFF

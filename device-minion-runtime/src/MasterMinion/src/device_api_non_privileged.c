@@ -274,7 +274,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_CONFIGURE_TRACE_STATE_KNOB_RSP;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
 
-        trace_ctrl->trace_state.trace_en = cmd->enable ? 1 : 0;
+        trace_ctrl->trace_en = cmd->enable & 0x01;
 
         // Evict control region changes
         TRACE_update_control();
@@ -301,7 +301,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_CONFIGURE_TRACE_UART_LOGGING_KNOB_RSP;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
 
-        trace_ctrl->trace_state.uart_en = cmd->enable ? 1 : 0;
+        trace_ctrl->uart_en = cmd->enable & 0x01;
 
         // Evict control region changes
         TRACE_update_control();
@@ -328,7 +328,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_CONFIGURE_TRACE_LOG_LEVEL_KNOB_RSP;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
 
-        trace_ctrl->trace_state.log_level = (unsigned)(cmd->log_level) & 0xF;
+        trace_ctrl->log_level = cmd->log_level;
 
         // Evict control region changes
         TRACE_update_control();

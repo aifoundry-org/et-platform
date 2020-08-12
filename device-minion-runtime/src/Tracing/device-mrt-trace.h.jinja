@@ -10,18 +10,14 @@
 
 // WARNING: this file is auto-generated do not edit directly
 
-#ifndef ET_DEVICE_MRT_TRACE_GEN_H
-#define ET_DEVICE_MRT_TRACE_GEN_H
+#ifndef ET_DEVICE_MRT_TRACE_H
+#define ET_DEVICE_MRT_TRACE_H
 
 #include "esperanto/device-api/device_api.h"
 #include "trace_helpers.h"
 
 #include <stdint.h>
 #include <stddef.h>
-
-#ifdef __cplusplus
-namespace device_api {
-#endif
 
 <%- for group in cgh.trace_groups() %>
   <%- for trace in group.get("Events", []) %>
@@ -34,13 +30,9 @@ namespace device_api {
 <%- endfor %>
 /// @return TRACE_STATUS_SUCCESS, TRACE_STATUS_DISABLED
 ///
-int TRACE_<< trace["Name"] >>(const log_levels_e level,
+trace_status_e TRACE_<< trace["Name"] >>(const log_levels_e level,
                               << cgh.fields_to_arg_list(trace) >>);
   <%- endfor %>
 <%- endfor %>
 
-#ifdef __cplusplus
-} // namespace device_api
-#endif
-
-#endif // ET_DEVICE_MRT_TRACE_GEN_H
+#endif  // ET_DEVICE_MRT_TRACE_H

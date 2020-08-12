@@ -11,10 +11,6 @@
 #ifndef ET_TRACE_HELPERS_H
 #define ET_TRACE_HELPERS_H
 
-#ifdef __cplusplus
-namespace device_api {
-#endif
-
 /// @brief Initializes trace subsystem, sets up control region, sets all the
 /// knobs to default states, and does all the required cache maintainance
 void TRACE_init(void);
@@ -38,8 +34,4 @@ void TRACE_evict_buffer(void);
 ///
 void TRACE_update_control(void);
 
-#ifdef __cplusplus
-} // namespace device_api
-#endif
-
-#endif // ET_TRACE_HELPERS_H
+#endif  // ET_TRACE_HELPERS_H

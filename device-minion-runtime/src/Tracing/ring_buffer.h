@@ -14,14 +14,15 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#ifdef __cplusplus
-namespace device_api {
-#endif
+// Final Ring buffer length used for event logging
+#define DEVICE_MRT_BUFFER_LENGTH(x) (x - sizeof(struct buffer_header_t))
+
+// Returns buffer address associated with the given hart
+#define DEVICE_MRT_BUFFER_BASE(hart_id, size)                               \
+    ((void *)ALIGN(DEVICE_MRT_TRACE_BASE + sizeof(struct trace_control_t) + \
+                       size * hart_id,                                      \
+                   TRACE_BUFFER_REGION_ALIGNEMNT))
 
 void *ring_buffer_alloc_space(uint16_t hartid, size_t size);
 
-#ifdef __cplusplus
-} // namespace device_api
-#endif
-
-#endif // ET_RING_BUFFER_H
+#endif  // ET_RING_BUFFER_H
