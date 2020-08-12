@@ -29,9 +29,8 @@ PCIeDevice::PCIeDevice(int index)
     : DeviceTarget(index),                     //
       index_(index),                           //
       prefix_(absl::StrFormat("et%d", index)), //
-      bulk_("/dev/" + prefix_ + "bulk"),       //
-      mm_("/dev/" + prefix_ + "mb_mm"),        //
-      sp_("/dev/" + prefix_ + "mb_sp")         //
+      bulk_("/dev/" + prefix_ + "_ops"),       //
+      mm_("/dev/" + prefix_ + "_ops")          //
 {}
 
 bool PCIeDevice::init() {
@@ -131,7 +130,7 @@ std::vector<DeviceInformation> PCIeDevice::enumerateDevices() {
   std::vector<DeviceInformation> infos;
   /// We are going to match one of the character devices if it exists we are
   /// assuing the rest have been created
-  const std::regex dev_name_re("et[[:digit:]]+bulk");
+  const std::regex dev_name_re("et[[:digit:]]+_ops");
   for (auto &file : fs::directory_iterator("/dev")) {
     auto &path = file.path();
     if (fs::is_character_file(path)) {

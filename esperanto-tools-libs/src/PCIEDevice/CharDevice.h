@@ -73,6 +73,25 @@ public:
     return true;
   }
 
+  /// @brief Execute an IOCTL command on the character device that reads/writes
+  /// form a buffer
+  ///
+  /// @param[in] request The IOCTL command number + size
+  /// @param[in] data pointer to the actuall data to read/write
+  ///
+  /// @return Tuple of bool and int. If the ioctl was succesfull the tuple
+  /// value is <true, return_value>, where return_value holds size of the data
+  /// read/written.
+  std::tuple<bool, ssize_t> ioctl_rw(unsigned int request, const void *data) {
+    auto rc = ::ioctl(fd_, request, data);
+    if (rc < 0) {
+      auto error = errno;
+      RTERROR << "Failed to execute IOCTL: " << std::strerror(error) << "\n";
+      return {false, 0};
+    }
+    return {true, rc};
+  }
+
   /// @brief Execute an IOCTL command on the character device
   ///
   /// @param[in] request The IOCTL command number

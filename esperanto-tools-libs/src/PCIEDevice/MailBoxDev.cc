@@ -40,7 +40,7 @@ bool MailBoxDev::ready(TimeDuration wait_time) {
   // once the driver is fixed
   while (ready == 0) {
     bool valid = false;
-    auto res = ioctl(GET_MBOX_READY, &ready);
+    auto res = ioctl(ETSOC1_IOCTL_GET_MBOX_READY, &ready);
     std::tie(valid, ready) = res;
     if (!valid) {
       RTERROR << "Failed to get the status of the mailbox \n";
@@ -66,7 +66,7 @@ bool MailBoxDev::reset() {
   uint64_t unused;
   // FIXME SW-642: currently we query only the master minion fix the ioctl
   // once the driver is fixed
-  auto valid = ioctl_set(RESET_MBOX, &unused);
+  auto valid = ioctl_set(ETSOC1_IOCTL_RESET_MBOX, &unused);
   if (!valid) {
     RTERROR << "Failed to g \n";
     std::terminate();
@@ -79,7 +79,7 @@ ssize_t MailBoxDev::queryMboxMaxMsgSize() {
   ssize_t mb_size;
   // FIXME SW-642: currently we query only the master minion fix the ioctl
   // once the driver is adapted
-  auto [valid, res] = ioctl(GET_MBOX_MAX_MSG, &mb_size);
+  auto [valid, res] = ioctl(ETSOC1_IOCTL_GET_MBOX_MAX_MSG, &mb_size);
   if (!valid) {
     RTERROR << "Failed to get maximum mailbox message size \n";
     std::terminate();
@@ -90,9 +90,11 @@ ssize_t MailBoxDev::queryMboxMaxMsgSize() {
 bool MailBoxDev::write(const void *data, ssize_t size) {
   // FIXME currently we do not take into consideration the maximum mailbox size
   TRACE_PCIeDevice_mailbox_write_start((uint64_t)data, size);
-  auto write_size = ::write(fd_, data, size);
-  assert(write_size == size);
+  auto [success, write_size] = ioctl_rw(ETSOC1_IOCTL_PUSH_MBOX(size), data);
   TRACE_PCIeDevice_mailbox_write_end();
+  if (!success || (write_size != size)) {
+    return false;
+  }
   return true;
 }
 
@@ -104,7 +106,8 @@ ssize_t MailBoxDev::read(void *data, ssize_t size, TimeDuration wait_time) {
   ssize_t mb_read = 0;
   TRACE_PCIeDevice_mailbox_read_start((uint64_t)data, size);
   while (mb_read == 0) {
-    mb_read = ::read(fd_, data, size);
+    auto res = ioctl_rw(ETSOC1_IOCTL_POP_MBOX(size), data);
+    mb_read = std::get<0>(res);
     std::this_thread::sleep_for(polling_interval);
     if (end < Clock::now()) {
       break;

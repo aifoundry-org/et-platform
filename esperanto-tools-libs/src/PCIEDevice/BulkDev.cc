@@ -32,7 +32,8 @@ BulkDev::BulkDev(const std::experimental::filesystem::path &char_dev)
 BulkDev::BulkDev(BulkDev &&other) : CharacterDevice(std::move(other)) {}
 
 bool BulkDev::enable_mmio() {
-  auto success = ioctl_set(SET_BULK_CFG, static_cast<uint32_t>(BULK_CFG_MMIO));
+  auto success = ioctl_set(ETSOC1_IOCTL_SET_BULK_CFG,
+                           static_cast<uint32_t>(BULK_CFG_MMIO));
   if (!success) {
     RTERROR << "Failed to enable MMIO \n";
     std::terminate();
@@ -42,7 +43,8 @@ bool BulkDev::enable_mmio() {
 }
 
 bool BulkDev::enable_dma() {
-  auto success = ioctl_set(SET_BULK_CFG, static_cast<uint32_t>(BULK_CFG_DMA));
+  auto success =
+      ioctl_set(ETSOC1_IOCTL_SET_BULK_CFG, static_cast<uint32_t>(BULK_CFG_DMA));
   if (!success) {
     RTERROR << "Failed to enable DMA \n";
     std::terminate();
@@ -54,7 +56,7 @@ bool BulkDev::enable_dma() {
 uintptr_t BulkDev::queryBaseAddr() {
 
   uintptr_t arg;
-  auto [valid, res] = ioctl(GET_DRAM_BASE, &arg);
+  auto [valid, res] = ioctl(ETSOC1_IOCTL_GET_DRAM_BASE, &arg);
   if (!valid) {
     RTERROR << "Failed to get DRAM Base address \n";
     std::terminate();
@@ -64,7 +66,7 @@ uintptr_t BulkDev::queryBaseAddr() {
 
 uintptr_t BulkDev::querySize() {
   uintptr_t arg;
-  auto [valid, res] = ioctl(GET_DRAM_SIZE, &arg);
+  auto [valid, res] = ioctl(ETSOC1_IOCTL_GET_DRAM_SIZE, &arg);
   if (!valid) {
     RTERROR << "Failed to get DRAM size \n";
     std::terminate();
