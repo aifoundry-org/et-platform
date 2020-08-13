@@ -10,8 +10,6 @@ set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 
-# TODO FIXME move this to a shared dir that isn't project specific
-get_filename_component(ELFTOHEX_ABS_PATH "${ESPERANTO_DEVICE_MINION_RUNTIME_BIN_DIR}/esperanto-fw/elftohex.py" ABSOLUTE)
 get_filename_component(GET_GIT_HASH_ABS_PATH "${ESPERANTO_DEVICE_MINION_RUNTIME_BIN_DIR}/esperanto-fw/get_git_hash.py" ABSOLUTE)
 get_filename_component(GET_GIT_VERSION_ABS_PATH "${ESPERANTO_DEVICE_MINION_RUNTIME_BIN_DIR}/esperanto-fw/get_git_version.py" ABSOLUTE)
 
