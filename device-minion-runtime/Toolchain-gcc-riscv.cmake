@@ -11,16 +11,14 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 
 # TODO FIXME move this to a shared dir that isn't project specific
-get_filename_component(ELFTOHEX_ABS_PATH "src/elftohex.py" ABSOLUTE)
-get_filename_component(GET_GIT_HASH_ABS_PATH "src/get_git_hash.py" ABSOLUTE)
-get_filename_component(GET_GIT_VERSION_ABS_PATH "src/get_git_version.py" ABSOLUTE)
+get_filename_component(GET_GIT_HASH_ABS_PATH "scripts/get_git_hash.py" ABSOLUTE)
+get_filename_component(GET_GIT_VERSION_ABS_PATH "scripts/get_git_version.py" ABSOLUTE)
 
 set(CMAKE_AR         ${GCC_SYSROOT_PATH}/bin/riscv64-unknown-elf-ar      CACHE PATH   "ar"       FORCE)
 set(CMAKE_RANLIB     ${GCC_SYSROOT_PATH}/bin/riscv64-unknown-elf-ranlib  CACHE PATH   "ranlib"   FORCE)
 set(CMAKE_C_COMPILER ${GCC_SYSROOT_PATH}/bin/riscv64-unknown-elf-gcc     CACHE PATH   "gcc"      FORCE)
 set(CMAKE_OBJCOPY    ${GCC_SYSROOT_PATH}/bin/riscv64-unknown-elf-objcopy CACHE PATH   "objcopy"  FORCE)
 set(CMAKE_OBJDUMP    ${GCC_SYSROOT_PATH}/bin/riscv64-unknown-elf-objdump CACHE PATH   "objdump"  FORCE)
-set(CMAKE_ELFTOHEX   ${ELFTOHEX_ABS_PATH}                        CACHE PATH   "elftohex" FORCE)
 set(CMAKE_GET_GIT_HASH ${GET_GIT_HASH_ABS_PATH}                  CACHE PATH   "get-git-hash" FORCE)
 set(CMAKE_GET_GIT_VERSION ${GET_GIT_VERSION_ABS_PATH}            CACHE PATH   "get-git-version" FORCE)
 
@@ -44,7 +42,7 @@ set(CMAKE_C_FLAGS "-Og -g3 -std=gnu11 --specs=nano.specs -mcmodel=medany -march=
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 
 
-# macro to create an executable .elf plus .bin, .hex, .lst and .map files
+# macro to create an executable .elf plus .bin, .lst and .map files
 # if LINKER_SCRIPT is defined, uses it instead of the default
 macro(add_riscv_executable TARGET_NAME)
     set(ELF_FILE ${TARGET_NAME}.elf)
@@ -59,8 +57,6 @@ macro(add_riscv_executable TARGET_NAME)
         set(MAP_FILE ${TARGET_NAME}.map)
         set(LST_FILE ${TARGET_NAME}.lst)
     endif()
-
-    set(HEX_FILE ${TARGET_NAME}.hex)
 
     if (NOT DEFINED GIT_HASH_STRING)
         execute_process(COMMAND ${CMAKE_GET_GIT_HASH} ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_HASH_STRING RESULT_VARIABLE RES)
@@ -136,26 +132,6 @@ macro(add_riscv_executable TARGET_NAME)
         DEPENDS ${ELF_FILE}
     )
 
-    if (DEFINED ZEBU_TARGET)
-        # custom command to generate a ZeBu hex file from the elf
-        # This file creates multiple output files that are not captured correctly as outputs.
-        # Create a token file file to mark success of converting the ELF to hex, and prevent
-        # regeneration of the hex files if the ELF has not changed
-        add_custom_command(
-            OUTPUT ${HEX_FILE}.done
-            COMMAND ${CMAKE_ELFTOHEX} ${ZEBU_TARGET} ${ELF_FILE_PATH} --output-file ${ZEBU_FILENAME}
-            COMMAND date > ${HEX_FILE}.done
-            DEPENDS ${ELF_FILE}
-        )
-
-        # call elftohex and get the list of files it will generate per target
-        execute_process(
-            COMMAND ${CMAKE_ELFTOHEX} ${ZEBU_TARGET} ${ELF_FILE_PATH} --output-file ${ZEBU_FILENAME} --print-output-files
-            OUTPUT_VARIABLE "${TARGET_NAME}_OUTPUT"
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-    endif()
-
     # custom command to generate an assembly listing from the elf
     add_custom_command(
         OUTPUT ${LST_FILE}
@@ -173,15 +149,6 @@ macro(add_riscv_executable TARGET_NAME)
         ALL
         DEPENDS ${BIN_FILE}
     )
-
-    if (DEFINED ZEBU_TARGET)
-        # Generate the ZeBu hex file
-        add_custom_target(
-            "${TARGET_NAME}.hex.always"
-            ALL
-            DEPENDS ${ELFTOHEX_ABS_PATH} ${HEX_FILE}.done
-        )
-    endif()
 
     # Always generate the assembly listing
     add_custom_target(

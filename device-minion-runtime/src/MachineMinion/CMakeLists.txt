@@ -35,8 +35,6 @@ set(SOURCES
 set(TARGET_NAME MachineMinion)
 set(LINKER_SCRIPT src/sections.ld)
 set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
-set(ZEBU_TARGET DDR_NEW)
-set(ZEBU_FILENAME memImage)
 
 include_directories(include)
 include_directories(${SHARED_INC_DIRS})
@@ -49,9 +47,6 @@ endif(EsperantoCryptoAPI_FOUND)
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
-list(APPEND FLASH_IMAGE_DEPS ${TARGET_NAME}.elf)
-set(FLASH_IMAGE_DEPS ${FLASH_IMAGE_DEPS} CACHE INTERNAL "FLASH_IMAGE_DEPS")
-
 install(TARGETS ${TARGET_NAME}.elf
   EXPORT EsperantoDeviceMinionRuntimeTargets
   RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/MachineMinion
@@ -59,12 +54,7 @@ install(TARGETS ${TARGET_NAME}.elf
 
 install(
   FILES ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.lst
+        ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.map
+        ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.bin
   DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/MachineMinion
   COMPONENT machine-minion)
-
-string(REPLACE " " ";" OUTPUT_LIST ${${TARGET_NAME}_OUTPUT})
-foreach(FILE ${OUTPUT_LIST})
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${FILE}
-    DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/MachineMinion
-    COMPONENT zebu)
-endforeach(FILE)
