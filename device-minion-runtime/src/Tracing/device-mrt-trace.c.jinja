@@ -1,4 +1,4 @@
-/*------------------------------------------------------------------------------
+/*-------------------------------------------------------------------------
  * Copyright (C) 2020, Esperanto Technologies Inc.
  * The copyright to the computer program(s) herein is the
  * property of Esperanto Technologies, Inc. All Rights Reserved.
@@ -6,21 +6,21 @@
  * the written permission of Esperanto Technologies and
  * in accordance with the terms and conditions stipulated in the
  * agreement/contract under which the program(s) have been supplied.
- ------------------------------------------------------------------------------ */
+ *-------------------------------------------------------------------------
+ */
 
 // WARNING: this file is auto-generated do not edit directly
 
 #include "device-mrt-trace.h"
-#include "log.h"
-#include "layout.h"
 #include "hart.h"
+#include "layout.h"
+#include "log.h"
 #include "ring_buffer.h"
 
-#include <string.h>
 #include <inttypes.h>
+#include <string.h>
 
-const size_t event_size_array[] =
-{
+const size_t event_size_array[] = {
     0,
 <%- for group in cgh.trace_groups() %>
   <%- for trace in group.get("Events", []) %>
@@ -48,12 +48,11 @@ trace_status_e TRACE_<< trace["Name"] >>(const log_levels_e level,
         cntrl->group_knobs[<< group_id >> / (sizeof(uint64_t) <<'<<'>> 3)];
     uint64_t event_knob =
         cntrl->event_knobs[<< event_id >> / (sizeof(uint64_t) <<'<<'>> 3)];
-    group_knob &= (1 <<'<<'>> << group_id >> );
-    event_knob &= (1 <<'<<'>> << event_id >> );
+    group_knob &= (1 <<'<<'>> << group_id >>);
+    event_knob &= (1 <<'<<'>> << event_id >>);
 
     if (cntrl->trace_en && group_knob && event_knob &&
-        level <= cntrl->log_level)
-    {
+        level <= cntrl->log_level) {
         uint16_t hart_id = (uint16_t)get_hart_id();
         <%- if group["Name"] == "Text" %>
           <%- set str_name = cgh.get_field_from_type(trace, "bytes") %>
@@ -80,12 +79,11 @@ trace_status_e TRACE_<< trace["Name"] >>(const log_levels_e level,
 
         <%- if group["Name"] == "Text" %>
         // String needs to copied seperatly
-        memcpy((void*)&(e-><< str_name >>[0]), << str_name >>, size);
+        memcpy((void *)&(e-><< str_name >>[0]), << str_name >>, size);
         <%- endif %>
 
         // Write the log on UART interface if enabled
-        if (cntrl->uart_en)
-        {
+        if (cntrl->uart_en) {
             log_write(level, "Event: << event_id >>, "
                       << cgh.fields_to_printf_format(trace) >>", Hartid: %" PRIu16 "\r\n",
                       <%- for field in trace.get("Fields", []) %>

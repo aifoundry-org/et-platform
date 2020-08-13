@@ -35,20 +35,15 @@ void __attribute__((noreturn)) main(void)
         : "=&r"(temp));
 
     // Enable counter number 3 for trace logging
-    asm volatile (
-        "csrsi mcounteren, 8  \n"
-        "csrsi scounteren, 8  \n"
-    );
+    asm volatile("csrsi mcounteren, 8  \n"
+                 "csrsi scounteren, 8  \n");
 
     // Enable counter in 1st core of the neighbourhood only. Enabling it for all
     // cores will accumulate the cycles from all the cores and won't give us any
     // advantage
-    if (get_hart_id() % 16 == 0 || get_hart_id() % 16 == 1)
-    {
+    if (get_hart_id() % 16 == 0 || get_hart_id() % 16 == 1) {
         // Enable mhpmevent3 for each neighborhood to count cycles
-        asm volatile (
-            "csrwi mhpmevent3, 1  \n"
-        );
+        asm volatile("csrwi mhpmevent3, 1  \n");
     }
 
     if (get_hart_id() % 64 == 0) // First HART every shire, master or worker

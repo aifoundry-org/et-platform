@@ -1,8 +1,9 @@
 #include "build_configuration.h"
-#include "fcc.h"
 #include "cacheops.h"
+#include "device-mrt-trace.h"
 #include "device_api_privileged.h"
 #include "device_api_non_privileged.h"
+#include "fcc.h"
 #include "hart.h"
 #include "host_message.h"
 #include "interrupt.h"
@@ -20,7 +21,6 @@
 #include "shire.h"
 #include "swi.h"
 #include "syscall_internal.h"
-#include "device-mrt-trace.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -508,16 +508,28 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
         break;
 
         case MESSAGE_ID_TRACE_UPDATE_CONTROL:
-            log_write(LOG_LEVEL_WARNING, "Invalid MESSAGE_ID_UPDATE_TRACE_CONTROL received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
-        break;
+            log_write(
+                LOG_LEVEL_WARNING,
+                "Invalid MESSAGE_ID_UPDATE_TRACE_CONTROL received from shire %" PRId64
+                " hart %" PRId64 "\r\n",
+                shire, hart);
+            break;
 
         case MESSAGE_ID_TRACE_BUFFER_RESET:
-            log_write(LOG_LEVEL_WARNING, "Invalid MESSAGE_ID_TRACE_BUFFER_RESET received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
-        break;
+            log_write(
+                LOG_LEVEL_WARNING,
+                "Invalid MESSAGE_ID_TRACE_BUFFER_RESET received from shire %" PRId64
+                " hart %" PRId64 "\r\n",
+                shire, hart);
+            break;
 
         case MESSAGE_ID_TRACE_BUFFER_EVICT:
-            log_write(LOG_LEVEL_WARNING, "Invalid MESSAGE_ID_TRACE_BUFFER_EVICT received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
-        break;
+            log_write(
+                LOG_LEVEL_WARNING,
+                "Invalid MESSAGE_ID_TRACE_BUFFER_EVICT received from shire %" PRId64
+                " hart %" PRId64 "\r\n",
+                shire, hart);
+            break;
 
         default:
             log_write(LOG_LEVEL_WARNING, "Unknown message id = 0x%016" PRIx64 "received from shire %" PRId64 " hart %" PRId64 "\r\n", message.id, shire, hart);

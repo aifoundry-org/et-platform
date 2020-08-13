@@ -1,4 +1,4 @@
-/*------------------------------------------------------------------------------
+/*-------------------------------------------------------------------------
  * Copyright (C) 2020, Esperanto Technologies Inc.
  * The copyright to the computer program(s) herein is the
  * property of Esperanto Technologies, Inc. All Rights Reserved.
@@ -6,13 +6,14 @@
  * the written permission of Esperanto Technologies and
  * in accordance with the terms and conditions stipulated in the
  * agreement/contract under which the program(s) have been supplied.
- ------------------------------------------------------------------------------ */
+ *-------------------------------------------------------------------------
+ */
 
 #ifndef ET_RING_BUFFER_H
 #define ET_RING_BUFFER_H
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 // Final Ring buffer length used for event logging
 #define DEVICE_MRT_BUFFER_LENGTH(x) (x - sizeof(struct buffer_header_t))
@@ -25,4 +26,4 @@
 
 void *ring_buffer_alloc_space(uint16_t hartid, size_t size);
 
-#endif  // ET_RING_BUFFER_H
+#endif // ET_RING_BUFFER_H

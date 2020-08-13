@@ -1,4 +1,4 @@
-/*------------------------------------------------------------------------------
+/*-------------------------------------------------------------------------
  * Copyright (C) 2020, Esperanto Technologies Inc.
  * The copyright to the computer program(s) herein is the
  * property of Esperanto Technologies, Inc. All Rights Reserved.
@@ -6,7 +6,8 @@
  * the written permission of Esperanto Technologies and
  * in accordance with the terms and conditions stipulated in the
  * agreement/contract under which the program(s) have been supplied.
- ------------------------------------------------------------------------------ */
+ *-------------------------------------------------------------------------
+ */
 
 // WARNING: this file is auto-generated do not edit directly
 
@@ -16,8 +17,8 @@
 #include "esperanto/device-api/device_api.h"
 #include "trace_helpers.h"
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 <%- for group in cgh.trace_groups() %>
   <%- for trace in group.get("Events", []) %>
@@ -35,4 +36,4 @@ trace_status_e TRACE_<< trace["Name"] >>(const log_levels_e level,
   <%- endfor %>
 <%- endfor %>
 
-#endif  // ET_DEVICE_MRT_TRACE_H
+#endif // ET_DEVICE_MRT_TRACE_H

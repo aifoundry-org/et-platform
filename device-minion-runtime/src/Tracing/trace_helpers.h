@@ -1,4 +1,4 @@
-/*------------------------------------------------------------------------------
+/*-------------------------------------------------------------------------
  * Copyright (C) 2020, Esperanto Technologies Inc.
  * The copyright to the computer program(s) herein is the
  * property of Esperanto Technologies, Inc. All Rights Reserved.
@@ -6,7 +6,8 @@
  * the written permission of Esperanto Technologies and
  * in accordance with the terms and conditions stipulated in the
  * agreement/contract under which the program(s) have been supplied.
- ------------------------------------------------------------------------------ */
+ *-------------------------------------------------------------------------
+ */
 
 #ifndef ET_TRACE_HELPERS_H
 #define ET_TRACE_HELPERS_H
@@ -34,4 +35,4 @@ void TRACE_evict_buffer(void);
 ///
 void TRACE_update_control(void);
 
-#endif  // ET_TRACE_HELPERS_H
+#endif // ET_TRACE_HELPERS_H

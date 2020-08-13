@@ -1,5 +1,6 @@
 #include "build_configuration.h"
 #include "cacheops.h"
+#include "device-mrt-trace.h"
 #include "fcc.h"
 #include "flb.h"
 #include "hart.h"
@@ -9,7 +10,6 @@
 #include "layout.h"
 #include "message.h"
 #include "syscall_internal.h"
-#include "device-mrt-trace.h"
 
 #include <stdint.h>
 
