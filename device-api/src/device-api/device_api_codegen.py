@@ -273,17 +273,17 @@ class DevAPICodeGeneratorHelper(object):
     def get_type_format_specifier(type_name):
         """Return the format specifier for of a C type"""
         types = {
-            "double":   "%lf",
-            "float":    "%f",
-            "int8_t":   "%d",
-            "uint8_t":  "%u",
-            "int16_t":  "%d",
-            "uint16_t": "%u",
-            "int32_t":  "%d",
-            "uint32_t": "%u",
-            "int64_t":  "%ld",
-            "uint64_t": "%lu",
-            "bytes":    "%s",
+            "double":   "\"%lf\"",
+            "float":    "\"%f\"",
+            "int8_t":   "\"%\" PRId8 ",
+            "uint8_t":  "\"%\" PRIu8 ",
+            "int16_t":  "\"%\" PRId16 ",
+            "uint16_t": "\"%\" PRIu16 ",
+            "int32_t":  "\"%\" PRId32 ",
+            "uint32_t": "\"%\" PRIu32 ",
+            "int64_t":  "\"%\" PRId64 ",
+            "uint64_t": "\"%\" PRIu64 ",
+            "bytes":    "\"%s\"",
             }
         return types[type_name]
 
@@ -314,14 +314,14 @@ class DevAPICodeGeneratorHelper(object):
         params = []
         for field in fields:
             specifier = DevAPICodeGeneratorHelper.get_type_format_specifier(field['Type'])
-            params += [f"{field['Name']}: {specifier}"]
-        return ", ".join(params)
+            params += [f"\"{field['Name']}: \"" + specifier]
+        return "\", \"".join(params)
 
     @staticmethod
     def get_field_from_type(obj, typ):
         """Return the very first field Name of type typ if present in Fields list
 
-        Returns:
+        Args:
           obj (dict): obj specification
           typ (string): type to look for
         """
