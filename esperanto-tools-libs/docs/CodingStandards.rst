@@ -9,6 +9,19 @@ Coding Standards
 
 In this project we are following the `Google code style guide <https://google.github.io/styleguide/cppguide.html>`_
 
+
+Code Formatting
+---------------
+
+As part of each commit you should run the ``clang-format`` by executing script:
+
+.. code-block:: bash
+   :linenos:
+
+   cd <REPO>/host-software/esperanto-tools-libs
+   ./scripts/git-clang-format
+
+
 Code Organization
 -----------------
 

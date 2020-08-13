@@ -3,18 +3,22 @@
 Esperanto Runtime Overview
 ==========================
 
-The Esperanto runtime library provides the means to interface with the device
-and the PCIe driver.
+The Esperanto runtime library provides the means to interface with the Device
+through the PCIe driver.
 
-It maintains and keeps track of the state of the Esperanto accelerator.
+It maintains and keeps track part of the state of the Esperanto Device. This
+is an intermediate implementation step that enables higher-levels of the
+software stack, while we are still working in the internals of the Device
+software.
 
-More specifically the r provides the following functionality:
+More specifically it provides the following functionality:
 
-* Converts the functionality to provides through its API to specific
-  Device-API commands. Per command, it keeps track if its status and
-  waits for the respective Response to arrive from the Device.
-  It communicates any Device-API Events reported from the device back to
-  the caller of the Runtime library.
+* Converts the functionality it provides at its API to specific
+  Device-API `Commands`. Per `Command`, it keeps track if its status and
+  waits for the respective `Response` to arrive from the Device.
+  It communicates any Device-API `Events` reported from the device back to
+  the caller of the Runtime library, converting them to the appropriate error
+  information if necessary.
 
 * It is responsible for loading the compiled code binaries on the device.
 
@@ -24,7 +28,7 @@ More specifically the r provides the following functionality:
   the DRAM across the different networks that are loaded on the device.
 
 * It tracks the different user-space streams that execute on the host and result in different
-  neural-network "launches" on the device, as well as their state and status.
+  neural-network `inferences` on the device, as well as their state and status.
 
 * It enables system-wide logging, aggregating information across the Runtime library
   itself and the device.
@@ -65,7 +69,7 @@ This current design decision allows us to simplify our runtime library in the fo
 
 * Different instances of the library can be loaded from different Linux-processes
 
-* The version of the runtime needs to be using the same/compatible version of the Device-API with the M&M Firmware.
+* The version of the runtime needs to be using the same/compatible version of the Device-API with the Device-Minion-Runtime.
   Having a 1-1 match between the runtime and the loaded M&M Firmware removes that problem.
 
 
@@ -86,7 +90,7 @@ changes will have to be made.
   * Implementing global static state in a single library that is shared across multiple processes is not
     "wise" (?). So this functionality will have to move inside our kernel driver.
 
-* We need to have a mature DeviceAPI that will allow even different version of the runtime to talk to the same
+* We need to have a mature DeviceAPI that will allow even different versions of the runtime to talk to the same
   device.
 
 The runtime keeps track of the device memory status
@@ -95,9 +99,6 @@ The runtime keeps track of the device memory status
 The runtime library keeps track of how the device memory is partitioned across the different kernels and keeps
 track how memory is being used.
 
-.. todo::
-
-   We need to define the different memory regions on the device
 
 The PCIe Linux Kernel Driver Only Moves Data
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -107,6 +108,10 @@ as little state about the system and just be responsible for the data movement.
 
 Device Management
 ^^^^^^^^^^^^^^^^^^
+
+.. todo::
+
+   This needs to be revisited/re-worded as we define the Device-Management that interacts with the ServiceProcessor.
 
 The purpose of the Device Management API is to:
 
@@ -130,7 +135,7 @@ The Runtime library needs to provide the following functionality to the caller:
 
 * Enable the data transfer between the host and the device:
 
-  * Allocate DMA-able memory on the host.
+  * Allocate DMA-able memory on the host. TODO
 
   * Copy host memory to the device.
 
@@ -163,9 +168,9 @@ Kernel Launch
 
 For more details see: :ref:`KernelLaunch`
 
-Device Profiling
------------------
+Device Profiling - Performance Counter Interface
+-------------------------------------------------
 
 .. todo::
 
-   Populate the related information and section
+   Populate the related information and section, if we need to provide perf-counter support in any way.
