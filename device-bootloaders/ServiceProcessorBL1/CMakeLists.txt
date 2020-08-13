@@ -26,8 +26,6 @@ set(SOURCES
 
 set(TARGET_NAME ServiceProcessorBL1)
 set(LINKER_SCRIPT src/bl1_sections.ld)
-set(ZEBU_TARGET SP_RAM)
-set(ZEBU_FILENAME ServiceProcessorBL1)
 
 include_directories(include)
 include_directories(${SHARED_INC_DIRS})
@@ -38,17 +36,14 @@ add_subdirectory(include)
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
-list(APPEND FLASH_IMAGE_DEPS ${TARGET_NAME}.elf)
-set(FLASH_IMAGE_DEPS ${FLASH_IMAGE_DEPS} CACHE INTERNAL "FLASH_IMAGE_DEPS")
-
 target_link_libraries(${TARGET_NAME}.elf
   ${MINION_RUNTIME_PACKAGE_NAME}::bootrom_helpers
   EsperantoServiceProcessorROM::sp_rom_helpers
   )
 
 install(TARGETS ${TARGET_NAME}.elf
-  EXPORT ${BOOTLOADERS_EXPORT_NAME}
-  RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/ServiceProcessor
+  EXPORT EsperantoBootLoaderTargets
+  RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/ServiceProcessorBL1
   COMPONENT bootloader)
 
 install(
@@ -57,14 +52,6 @@ install(
     ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.map
     ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.bin
   DESTINATION
-    ${LIB_INSTALL_DIR}/esperanto-fw/ServiceProcessor
+    ${LIB_INSTALL_DIR}/esperanto-fw/ServiceProcessorBL1
   COMPONENT service-processor
   )
-
-
-string(REPLACE " " ";" OUTPUT_LIST ${${TARGET_NAME}_OUTPUT})
-foreach(FILE ${OUTPUT_LIST})
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${FILE}
-    DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/ServiceProcessor
-    COMPONENT zebu)
-endforeach(FILE)

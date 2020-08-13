@@ -37,13 +37,12 @@ include_directories(${FREERTOS_INC_DIRS})
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
 target_link_libraries(${TARGET_NAME}.elf ${MINION_RUNTIME_PACKAGE_NAME}::bootrom_helpers)
-set(EXPORT_NAME EsperantoBootLoaderTargets)
 
 list(APPEND FLASH_IMAGE_DEPS ${TARGET_NAME}.elf)
 set(FLASH_IMAGE_DEPS ${FLASH_IMAGE_DEPS} CACHE INTERNAL "FLASH_IMAGE_DEPS")
 
 install(TARGETS ${TARGET_NAME}.elf
-  EXPORT ${EXPORT_NAME}
+  EXPORT EsperantoBootLoaderTargets
   RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/ServiceProcessor
   COMPONENT service-processor)
 

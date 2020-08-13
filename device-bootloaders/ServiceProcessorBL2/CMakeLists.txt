@@ -12,7 +12,7 @@ set(FILE_VERSION_MAJOR 0)
 set(FILE_VERSION_MINOR 0)
 set(FILE_REVISION_NUMBER 1)
 
-set(BL2_INSTALL_DIR ${LIB_INSTALL_DIR}/esperanto-fw/ServiceProcessor)
+set(BL2_INSTALL_DIR ${LIB_INSTALL_DIR}/esperanto-fw/ServiceProcessorBL2)
 
 set(BL2_SOURCES
     src/bl2_entry.S

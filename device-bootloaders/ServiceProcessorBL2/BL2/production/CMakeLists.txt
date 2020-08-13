@@ -9,16 +9,11 @@
 #------------------------------------------------------------------------------
 
 set(TARGET_NAME ServiceProcessorBL2_production)
-set(ZEBU_FILENAME ServiceProcessorBL2_production)
-set(INSTALL_DIR ${BL2_INSTALL_DIR}/BL2/production)
 
 add_definitions(-DBL2_VARIANT="production")
 add_definitions(-DFAST_BOOT=0)
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
-
-list(APPEND FLASH_IMAGE_DEPS ${TARGET_NAME}.elf)
-set(FLASH_IMAGE_DEPS ${FLASH_IMAGE_DEPS} CACHE INTERNAL "FLASH_IMAGE_DEPS")
 
 target_link_libraries(${TARGET_NAME}.elf
   ${MINION_RUNTIME_PACKAGE_NAME}::bootrom_helpers
@@ -26,8 +21,8 @@ target_link_libraries(${TARGET_NAME}.elf
   )
 
 install(TARGETS ${TARGET_NAME}.elf
-  EXPORT ${BOOTLOADERS_EXPORT_NAME}
-  RUNTIME DESTINATION ${INSTALL_DIR}
+  EXPORT EsperantoBootLoaderTargets
+  RUNTIME DESTINATION ${BL2_INSTALL_DIR}/production
   COMPONENT bootloader)
 
 install(
@@ -36,13 +31,6 @@ install(
     ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.map
     ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.bin
   DESTINATION
-    ${INSTALL_DIR}
+    ${BL2_INSTALL_DIR}/production
   COMPONENT service-processor
   )
-
-string(REPLACE " " ";" OUTPUT_LIST ${${TARGET_NAME}_OUTPUT})
-foreach(FILE ${OUTPUT_LIST})
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${FILE}
-    DESTINATION ${INSTALL_DIR}
-    COMPONENT zebu)
-endforeach(FILE)

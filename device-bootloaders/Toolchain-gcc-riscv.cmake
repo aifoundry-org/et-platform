@@ -12,15 +12,11 @@ set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 
-# TODO FIXME move this to a shared dir that isn't project specific
-get_filename_component(ELFTOHEX_ABS_PATH "${ESPERANTO_DEVICE_MINION_RUNTIME_BIN_DIR}/esperanto-fw/elftohex.py" ABSOLUTE)
-
 set(CMAKE_AR         ${GCC_PATH}/bin/riscv64-unknown-elf-ar      CACHE PATH   "ar"       FORCE)
 set(CMAKE_RANLIB     ${GCC_PATH}/bin/riscv64-unknown-elf-ranlib  CACHE PATH   "ranlib"   FORCE)
 set(CMAKE_C_COMPILER ${GCC_PATH}/bin/riscv64-unknown-elf-gcc     CACHE PATH   "gcc"      FORCE)
 set(CMAKE_OBJCOPY    ${GCC_PATH}/bin/riscv64-unknown-elf-objcopy CACHE PATH   "objcopy"  FORCE)
 set(CMAKE_OBJDUMP    ${GCC_PATH}/bin/riscv64-unknown-elf-objdump CACHE PATH   "objdump"  FORCE)
-set(CMAKE_ELFTOHEX   ${ELFTOHEX_ABS_PATH}                        CACHE PATH   "elftohex" FORCE)
 
 # Our gcc has -fdelete-null-pointer-checks enabled by default, needed for -Wnull-dereference
 #
@@ -39,7 +35,7 @@ set(CMAKE_C_FLAGS "-Og -g3 -std=gnu11 --specs=nano.specs -mcmodel=medany -march=
 -Wpointer-arith -Wundef -Wbad-function-cast -Wcast-qual -Wcast-align -Wconversion -Wlogical-op \
 -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wno-main" CACHE STRING "c flags" FORCE)
 
-# macro to create an executable .elf plus .bin, .hex, .lst and .map files
+# macro to create an executable .elf plus .bin, .lst and .map files
 # if LINKER_SCRIPT is defined, uses it instead of the default
 macro(add_riscv_executable TARGET_NAME)
     set(ELF_FILE ${TARGET_NAME}.elf)
@@ -54,8 +50,6 @@ macro(add_riscv_executable TARGET_NAME)
         set(MAP_FILE ${TARGET_NAME}.map)
         set(LST_FILE ${TARGET_NAME}.lst)
     endif()
-
-    set(HEX_FILE ${TARGET_NAME}.hex)
 
     add_executable(${ELF_FILE} ${ARGN}) # ARGN is "the rest of the arguments", i.e. the source list
     if (DEFINED TARGET_RUNTIME_OUTPUT_DIRECTORY)
@@ -100,26 +94,6 @@ macro(add_riscv_executable TARGET_NAME)
         DEPENDS ${ELF_FILE}
     )
 
-    if (DEFINED ZEBU_TARGET)
-        # custom command to generate a ZeBu hex file from the elf
-        # This file creates multiple output files that are not captured correctly as outputs.
-        # Create a token file file to mark success of converting the ELF to hex, and prevent
-        # regeneration of the hex files if the ELF has not changed
-        add_custom_command(
-            OUTPUT ${HEX_FILE}.done
-            COMMAND ${CMAKE_ELFTOHEX} ${ZEBU_TARGET} ${ELF_FILE_PATH} --output-file ${ZEBU_FILENAME}
-            COMMAND date > ${HEX_FILE}.done
-            DEPENDS ${ELF_FILE}
-        )
-
-        # call elftohex and get the list of files it will generate per target
-        execute_process(
-            COMMAND ${CMAKE_ELFTOHEX} ${ZEBU_TARGET} ${ELF_FILE_PATH} --output-file ${ZEBU_FILENAME} --print-output-files
-            OUTPUT_VARIABLE "${TARGET_NAME}_OUTPUT"
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-    endif()
-
     # custom command to generate an assembly listing from the elf
     add_custom_command(
         OUTPUT ${LST_FILE}
@@ -127,31 +101,17 @@ macro(add_riscv_executable TARGET_NAME)
         DEPENDS ${ELF_FILE}
     )
 
-    # These custom targets are unintuitive:
-    # Must use a unique name: can't be the same between components (e.g. MasterMinion and ServiceProcessor), so include ${TARGET_NAME}
-    # Must not match an existing target (e.g. can't be "${BIN_FILE"}), so append ".always". Don't understand this.
-
-    # Always generate the bin file
-    add_custom_target(
-        "${TARGET_NAME}.bin.always"
-        ALL
-        DEPENDS ${BIN_FILE}
+    add_custom_target(${TARGET_NAME}.map ALL
+        DEPENDS ${ELF_FILE}
+                ${CMAKE_CURRENT_BINARY_DIR}/${MAP_FILE}
     )
 
-    if (DEFINED ZEBU_TARGET)
-        # Generate the ZeBu hex file
-        add_custom_target(
-            "${TARGET_NAME}.hex.always"
-            ALL
-            DEPENDS ${ELFTOHEX_ABS_PATH} ${HEX_FILE}.done
-        )
-    endif()
+    add_custom_target(${TARGET_NAME}.lst ALL
+        DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${LST_FILE}
+    )
 
-    # Always generate the assembly listing
-    add_custom_target(
-        "${TARGET_NAME}.lst.always"
-        ALL
-        DEPENDS ${LST_FILE}
+    add_custom_target(${TARGET_NAME}.bin ALL
+        DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${BIN_FILE}
     )
 
 endmacro(add_riscv_executable)

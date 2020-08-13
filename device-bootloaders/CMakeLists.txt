@@ -42,7 +42,6 @@ include(CMakePackageConfigHelpers)
 # set(devicefw_FLASH_TOOL_PROVIDER "module" CACHE STRING "Provider of the flash tools library")
 # set_property(CACHE devicefw_FLASH_TOOL_PROVIDER PROPERTY STRINGS "module" "package")
 
-set(BOOTLOADERS_EXPORT_NAME EsperantoBootLoaderTargets)
 set(BIN_INSTALL_DIR bin CACHE STRING "Bin install dir")
 set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
 set(LIB_INSTALL_DIR  lib/  CACHE STRING "Library install dir")
@@ -64,10 +63,6 @@ add_subdirectory(shared/include)
 include_directories("${PROJECT_SOURCE_DIR}/shared/include/")
 include_directories("${PROJECT_SOURCE_DIR}/shared/include/etsoc_hal")
 include_directories("${PROJECT_SOURCE_DIR}/shared/include/etsoc_hal/inc")
-
-
-# List of files the flash image depends on: i.e. *.elf files etc
-set(FLASH_IMAGE_DEPS "" CACHE INTERNAL "")
 
 get_filename_component(SHARED_SRC_DIR "shared/src" ABSOLUTE)
 set(SHARED_INC_DIRS "${PROJECT_SOURCE_DIR}/shared/include")

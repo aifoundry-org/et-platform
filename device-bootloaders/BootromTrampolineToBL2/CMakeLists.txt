@@ -12,18 +12,11 @@ set(SOURCES src/boot.S)
 
 set(TARGET_NAME BootromTrampolineToBL2)
 set(LINKER_SCRIPT src/sections.ld)
-set(ZEBU_TARGET ROM)
-set(ZEBU_FILENAME BootromTrampolineToBL2)
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
-set(EXPORT_NAME EsperantoBootLoaderTargets)
-
-list(APPEND FLASH_IMAGE_DEPS ${TARGET_NAME}.elf)
-set(FLASH_IMAGE_DEPS ${FLASH_IMAGE_DEPS} CACHE INTERNAL "FLASH_IMAGE_DEPS")
-
 install(TARGETS ${TARGET_NAME}.elf
-  EXPORT ${EXPORT_NAME}
+  EXPORT EsperantoBootLoaderTargets
   RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/BootromTrampolineToBL2
   COMPONENT service-processor)
 
@@ -36,11 +29,3 @@ install(
     ${LIB_INSTALL_DIR}/esperanto-fw/BootromTrampolineToBL2
   COMPONENT service-processor
   )
-
-
-string(REPLACE " " ";" OUTPUT_LIST ${${TARGET_NAME}_OUTPUT})
-foreach(FILE ${OUTPUT_LIST})
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${FILE}
-    DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/BootromTrampolineToBL2
-    COMPONENT zebu)
-endforeach(FILE)
