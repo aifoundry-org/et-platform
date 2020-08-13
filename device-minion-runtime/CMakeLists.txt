@@ -42,7 +42,7 @@ set(SYSCONFIG_INSTALL_DIR etc/et-fw/ CACHE STRING "Config install dir")
 set(EXTERNAL_PROJECT_DEPENDENCIES "" CACHE STRING "External project list")
 
 set(DEVFW_EXTERNAL_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/external-install"
-  CACHE PATH "Instalation path of external dependencies")
+  CACHE PATH "Installation path of external dependencies")
 
 list(APPEND CMAKE_PREFIX_PATH ${DEVFW_EXTERNAL_INSTALL_PREFIX})
 
@@ -75,10 +75,8 @@ add_subdirectory(external)
 # so that we will find TutorialConfig.h
 include_directories("${PROJECT_BINARY_DIR}/include")
 
-# List of files the flash image depends on: i.e. *.elf files etc
-set(FLASH_IMAGE_DEPS "" CACHE INTERNAL "")
-
 add_subdirectory(src)
+add_subdirectory(scripts)
 add_subdirectory(tools)
 
 ### Add package information

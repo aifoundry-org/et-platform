@@ -32,8 +32,3 @@ add_subdirectory("shared/")
 add_subdirectory("MachineMinion")
 add_subdirectory("MasterMinion")
 add_subdirectory("WorkerMinion")
-
-install(
-  PROGRAMS elftohex.py get_git_hash.py get_git_version.py
-  DESTINATION ${BIN_INSTALL_DIR}/esperanto-fw
-  COMPONENT tools)
