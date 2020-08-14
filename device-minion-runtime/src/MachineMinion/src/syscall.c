@@ -77,10 +77,10 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
             ret = evict_l1(arg1, arg2);
             break;
         case SYSCALL_CONFIGURE_PMCS_INT:
-            ret = configure_pmcs(arg1);
+            ret = configure_pmcs(arg1, arg2);
             break;
         case SYSCALL_SAMPLE_PMCS_INT:
-            ret = sample_pmcs(arg1);
+            ret = sample_pmcs(arg1, arg2);
             break;
         case SYSCALL_RESET_PMCS_INT:
             ret = reset_pmcs();

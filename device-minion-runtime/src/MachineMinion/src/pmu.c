@@ -23,7 +23,7 @@
 // conf_area point to the beginning of the memory buffer where the configuration values are stored
 // reset_counters is a boolean that determines whether we reset / start counters after the configuration
 // return 0 id all configuration succeeds, or negative number equal to the number of failed configurations.
-int64_t configure_pmcs(uint64_t reset_counters)
+int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_buffer_addr)
 {
     uint64_t hart_id = get_hart_id();
     uint64_t neigh_id = (hart_id >> 4) & 0x3;
@@ -37,7 +37,10 @@ int64_t configure_pmcs(uint64_t reset_counters)
     // emizan:
     // We assume conf buffer is available -- hardcode it for now
     // It is not used so it does not matter
-    uint64_t conf_buffer_addr = 0x8280000000ULL;
+    // uint64_t conf_buffer_addr = 0x8280000000ULL;
+    if (conf_buffer_addr == 0) {
+        return -1;
+    }
     uint64_t *conf_buffer = (uint64_t *) conf_buffer_addr;
 
     // minion counters: Each hart configures all counters so that we measure events for all the harts
@@ -111,7 +114,7 @@ int64_t reset_pmcs(void)
 // Each of harts 0-11 read one neigh PMC
 // Harts 12-14 read shire cache PMCs
 // Hart 15 of neighs 0-2, shires 0-7 read memshire PMCs
-int64_t sample_pmcs(uint64_t reset_counters)
+int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr)
 {
     int64_t ret = 0;
     uint64_t hart_id = get_hart_id();
@@ -124,7 +127,10 @@ int64_t sample_pmcs(uint64_t reset_counters)
     // Here give it a hard coded value
     // Should it be: MRT_TRACE_CONTROL_BASE + MRT_TRACE_CONTROL_SIZE + (HART_ID * SIZE PER HART)
     // Is the buffer a unit64, or should it be a structure ?
-    uint64_t *log_buffer = (uint64_t *) (0x83C0000000ULL + hart_id * 0x20000);
+    if (log_buffer_addr == 0) {
+        return -1;
+    }
+    uint64_t *log_buffer = (uint64_t *) log_buffer_addr;
     uint64_t neigh_minion_id = (hart_id >> 1) & 0x7;
 
     // Minion and neigh PMCs
@@ -133,8 +139,8 @@ int64_t sample_pmcs(uint64_t reset_counters)
         if (pmc_data == PMU_INCORRECT_COUNTER) {
             ret = ret - 1;
         }
-        *log_buffer = pmc_data;
-        log_buffer++;
+        *(log_buffer+hart_id*8) = pmc_data;
+        //log_buffer++;
     }
 
     // SC PMCs
@@ -145,8 +151,8 @@ int64_t sample_pmcs(uint64_t reset_counters)
         if (pmc_data == PMU_INCORRECT_COUNTER) {
             ret = ret - 1;
         }
-        *log_buffer = pmc_data;
-        log_buffer++;
+        *(log_buffer+hart_id*8) = pmc_data;
+        //log_buffer++;
     }
 
     // MS PMCs
@@ -156,8 +162,8 @@ int64_t sample_pmcs(uint64_t reset_counters)
         if (pmc_data == PMU_INCORRECT_COUNTER) {
             ret = ret - 1;
         }
-        *log_buffer = pmc_data;
-        log_buffer++;
+        *(log_buffer+hart_id*8) = pmc_data;
+        //log_buffer++;
     }
 
     if (reset_counters) {

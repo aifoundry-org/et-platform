@@ -254,8 +254,8 @@ static inline uint64_t sample_ms_pmcs(uint64_t ms_id, uint64_t pmc)
     return val;
 }
 
-int64_t configure_pmcs(uint64_t reset_counters);
-int64_t sample_pmcs(uint64_t reset_counters);
+int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_area_addr);
+int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr);
 int64_t reset_pmcs(void);
 
 
