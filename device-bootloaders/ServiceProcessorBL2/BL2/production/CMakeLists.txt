@@ -17,7 +17,7 @@ add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
 target_link_libraries(${TARGET_NAME}.elf
   ${MINION_RUNTIME_PACKAGE_NAME}::bootrom_helpers
-  EsperantoServiceProcessorROM::sp_rom_helpers
+  EsperantoServiceProcessorROM::sp-rom-headers-for-bl
   )
 
 install(TARGETS ${TARGET_NAME}.elf
