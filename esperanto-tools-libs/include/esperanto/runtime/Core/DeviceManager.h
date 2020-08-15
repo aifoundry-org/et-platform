@@ -24,7 +24,7 @@
 namespace et_runtime {
 
 class Device;
-class DeviceInformation;
+struct DeviceInformation;
 
 /// @class DeviceManager
 /// @brief Esperanto Device Manager class.

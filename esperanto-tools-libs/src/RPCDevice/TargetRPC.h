@@ -61,16 +61,16 @@ public:
   /// @brief Boot the device Minions at a given PC
   ///
   /// @param[in] pc : Start address of the Minions
-  bool boot(uint64_t pc);
+  bool boot(uint64_t pc) override;
 
   /// @brief Shutdown target
-  bool shutdown();
+  bool shutdown() override;
 
   /// @brief Return the absolute base DRAM address we can access
-  uintptr_t dramBaseAddr() const;
+  uintptr_t dramBaseAddr() const override;
 
   /// @brief Return the size of DRAM we can write to in bytes.
-  uintptr_t dramSize() const;
+  uintptr_t dramSize() const override;
 
   // Interace for interacting with the MailBox state using the simulator API
 
