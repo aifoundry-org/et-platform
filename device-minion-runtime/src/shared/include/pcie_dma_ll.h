@@ -5,8 +5,8 @@
 #include <assert.h>
 
 typedef struct {
-   union {
-      struct {
+    union {
+        struct {
             /* Description:                                                   */
             /**
              *    Cycle Bit (CB). Used in linked list mode only. It is used to 
@@ -69,13 +69,13 @@ typedef struct {
              *    This field is not defined in a link LL element.
              */
             uint32_t RIE : 1; /* bit 4; R/W; 0x0 */
-            uint32_t reserved: 27;
+            uint32_t reserved : 27;
         } B;
-      uint32_t R;
-   } ;
-} __attribute__ ((__packed__)) transfer_list_ctrl_t;
+        uint32_t R;
+    };
+} __attribute__((__packed__)) transfer_list_ctrl_t;
 
-static_assert (sizeof(transfer_list_ctrl_t) == 4, "invalid size");
+static_assert(sizeof(transfer_list_ctrl_t) == 4, "invalid size");
 
 typedef struct {
     transfer_list_ctrl_t ctrl;
@@ -84,7 +84,7 @@ typedef struct {
     uint64_t dar;
 } data_elem_t;
 
-static_assert (sizeof(data_elem_t) == 24, "invalid size");
+static_assert(sizeof(data_elem_t) == 24, "invalid size");
 
 typedef struct {
     transfer_list_ctrl_t ctrl;
@@ -93,13 +93,13 @@ typedef struct {
     uint64_t reserved1;
 } link_elem_t;
 
-static_assert (sizeof(link_elem_t) == 24, "invalid size");
+static_assert(sizeof(link_elem_t) == 24, "invalid size");
 
 typedef union {
     data_elem_t data;
     link_elem_t link;
 } transfer_list_elem_t;
 
-static_assert (sizeof(transfer_list_elem_t) == 24, "invalid size");
+static_assert(sizeof(transfer_list_elem_t) == 24, "invalid size");
 
 #endif

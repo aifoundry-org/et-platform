@@ -20,7 +20,8 @@ static inline void local_fcc_barrier_init(local_fcc_barrier_t *barrier)
     atomic_store_local_32(&barrier->out, 0);
 }
 
-static inline bool local_fcc_barrier(local_fcc_barrier_t *barrier, uint32_t thread_count, uint32_t minion_mask)
+static inline bool local_fcc_barrier(local_fcc_barrier_t *barrier, uint32_t thread_count,
+                                     uint32_t minion_mask)
 {
     if (atomic_add_local_32(&barrier->in, 1) == thread_count - 1) {
         while (atomic_load_local_32(&barrier->out) != thread_count - 1) {

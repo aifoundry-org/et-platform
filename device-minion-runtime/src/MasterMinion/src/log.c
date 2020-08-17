@@ -16,10 +16,9 @@ log_level_t get_log_level(void)
 }
 
 // print a log message to the UART for display
-int64_t log_write(log_level_t level, const char* const fmt, ...)
+int64_t log_write(log_level_t level, const char *const fmt, ...)
 {
-    if (level <= current_log_level)
-    {
+    if (level <= current_log_level) {
         va_list va;
         va_start(va, fmt);
         vprintf(fmt, va);

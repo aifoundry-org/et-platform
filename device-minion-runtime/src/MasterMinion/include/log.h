@@ -7,6 +7,6 @@
 
 void log_set_level(log_level_t level);
 log_level_t get_log_level(void);
-int64_t log_write(log_level_t level, const char* const fmt, ...);
+int64_t log_write(log_level_t level, const char *const fmt, ...);
 
 #endif

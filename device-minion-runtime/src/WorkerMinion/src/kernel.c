@@ -17,31 +17,31 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
-static const uint8_t tensor_zeros[64] __attribute__ ((aligned (64))) = {0};
+static const uint8_t tensor_zeros[64] __attribute__((aligned(64))) = { 0 };
 
-static local_fcc_barrier_t post_kernel_barrier[NUM_SHIRES] = {0};
+static local_fcc_barrier_t post_kernel_barrier[NUM_SHIRES] = { 0 };
 
-static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, const grid_config_t* const grid_config_ptr, uint64_t kernel_launch_flags);
-static void kernel_return_function(int64_t return_value) __attribute__ ((used, section(".user_text"))); // must be placed in U-mode accessible section
+static void pre_kernel_setup(const kernel_params_t *const kernel_params_ptr,
+                             const grid_config_t *const grid_config_ptr,
+                             uint64_t kernel_launch_flags);
+static void kernel_return_function(int64_t return_value)
+    __attribute__((used, section(".user_text"))); // must be placed in U-mode accessible section
 static void log_errors(int64_t return_value, uint64_t tensor_error);
-static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr);
+static void post_kernel_cleanup(const kernel_params_t *const kernel_params_ptr);
 
 // Saves firmware context and launches kernel in user mode with clean stack and registers
-int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
-                      const uint64_t* const kernel_stack_addr,
-                      const kernel_params_t* const kernel_params_ptr,
-                      const grid_config_t* const grid_config_ptr,
-                      uint64_t kernel_launch_flags)
+int64_t launch_kernel(const uint64_t *const kernel_entry_addr,
+                      const uint64_t *const kernel_stack_addr,
+                      const kernel_params_t *const kernel_params_ptr,
+                      const grid_config_t *const grid_config_ptr, uint64_t kernel_launch_flags)
 {
-    uint64_t* firmware_sp;
+    uint64_t *firmware_sp;
     int64_t return_value;
     uint64_t tensor_error;
 
-    asm volatile (
-        "csrr  %0, sscratch \n"
-        "addi  %0, %0, 8    \n"
-        : "=r" (firmware_sp)
-    );
+    asm volatile("csrr  %0, sscratch \n"
+                 "addi  %0, %0, 8    \n"
+                 : "=r"(firmware_sp));
 
     pre_kernel_setup(kernel_params_ptr, grid_config_ptr, kernel_launch_flags);
 
@@ -50,7 +50,7 @@ int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
     // -Setup ra and user stack frame so the kernel can ret to kernel_return_function
     // -Wipe register state (no leakage from S to U mode)
     // -sret to kernel_entry_addr in user mode
-    asm volatile (
+    asm volatile(
         "addi  sp, sp, -( 29 * 8 ) \n" // save context on stack (except ra, which is in clobber list)
         "la    ra,  1f             \n" // set return address to instruction after sret
         "sd    x1,  0  * 8( sp )   \n"
@@ -159,8 +159,9 @@ int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
         "1:                        \n" // firmware context resumes from here via return_from_kernel()
         "mv    %1, a0              \n" // collect kernel return value
         "csrr  %2, tensor_error    \n" // collect tensor_error
-        : "=m" (*firmware_sp), "=r" (return_value), "=r" (tensor_error)
-        : "r" (kernel_return_function), "r" (kernel_stack_addr), "r" (kernel_entry_addr), "r" (kernel_params_ptr), "r" (grid_config_ptr)
+        : "=m"(*firmware_sp), "=r"(return_value), "=r"(tensor_error)
+        : "r"(kernel_return_function), "r"(kernel_stack_addr), "r"(kernel_entry_addr),
+          "r"(kernel_params_ptr), "r"(grid_config_ptr)
         : "ra" // SYSCALL_RETURN_FROM_KERNEL rets back to 1: so ra is clobbered. Rest of context is preserved.
     );
 
@@ -171,7 +172,9 @@ int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
     return return_value;
 }
 
-static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __attribute__((unused)) const grid_config_t* const grid_config_ptr, uint64_t kernel_launch_flags)
+static void pre_kernel_setup(const kernel_params_t *const kernel_params_ptr,
+                             __attribute__((unused)) const grid_config_t *const grid_config_ptr,
+                             uint64_t kernel_launch_flags)
 {
     const uint64_t shire_id = get_shire_id();
     const uint32_t minion_mask = (shire_id == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
@@ -185,16 +188,15 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __a
 
     // Second worker HART (first minion thread 1) in the shire
     // Thread 0s have more init to do than thread 1s, so use a thread 1 for per-shire init
-    if ((get_hart_id() % 64U) == (first_worker + 1))
-    {
+    if ((get_hart_id() % 64U) == (first_worker + 1)) {
         // Init all FLBs except reserved FLBs 28-31
-        for (uint64_t barrier = 0; barrier < 28; barrier++)
-        {
+        for (uint64_t barrier = 0; barrier < 28; barrier++) {
             INIT_FLB(THIS_SHIRE, barrier);
         }
 
         // Enable cooperative TensorLoads and TensorStores in this shire
-        volatile uint64_t* const shire_coop_mode_ptr = (volatile uint64_t *)ESR_SHIRE(THIS_SHIRE, SHIRE_COOP_MODE);
+        volatile uint64_t *const shire_coop_mode_ptr =
+            (volatile uint64_t *)ESR_SHIRE(THIS_SHIRE, SHIRE_COOP_MODE);
         *shire_coop_mode_ptr = 1;
 
         // Init post-kernel launch barrier
@@ -215,36 +217,29 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __a
 
     // Disable message ports
     // "Attempting to write a value lower than 2 sets LogMsgSize to the value 2."
-    asm volatile (
-        "csrwi portctrl0, 0 \n"
-        "csrwi portctrl1, 0 \n"
-        "csrwi portctrl2, 0 \n"
-        "csrwi portctrl3, 0 \n"
-    );
+    asm volatile("csrwi portctrl0, 0 \n"
+                 "csrwi portctrl1, 0 \n"
+                 "csrwi portctrl2, 0 \n"
+                 "csrwi portctrl3, 0 \n");
 
     // Thread 0 in each minion
-    if (get_thread_id() == 0)
-    {
+    if (get_thread_id() == 0) {
         uint64_t temp, temp2;
 
         // Perform a dummy TensorFMA to consume an unpaired TensorLoadSetupB, if any (rare)
         // If there isn't an unpaired TensorLoadSetupB (common case), this just generates a TensorError
-        asm volatile (
-            "li    %0, 0x0000000000100006 \n" // B in memory, TensorType = IMA8A32
-            "csrw  tensor_fma, %0         \n"
-            "csrwi tensor_wait, 7         \n"
-            : "=&r" (temp)
-        );
+        asm volatile("li    %0, 0x0000000000100006 \n" // B in memory, TensorType = IMA8A32
+                     "csrw  tensor_fma, %0         \n"
+                     "csrwi tensor_wait, 7         \n"
+                     : "=&r"(temp));
 
         // Zero out TensorExtensionCSRs - previous FMA typically causes a TensorError
-        asm volatile (
-            "csrwi tensor_mask,  0 \n"
-            "csrwi tensor_error, 0 \n"
-            "csrwi tensor_coop,  0 \n"
-        );
+        asm volatile("csrwi tensor_mask,  0 \n"
+                     "csrwi tensor_error, 0 \n"
+                     "csrwi tensor_coop,  0 \n");
 
         // Zero out TenC
-        asm volatile (
+        asm volatile(
             "la    %0, tensor_zeros       \n"
             "li    x31, 0                 \n" // 0-byte stride, ID 0
             "li    %1, 0x000000000000000F \n" // Load 16 lines to L1SP lines 0-15
@@ -258,42 +253,37 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __a
             "li    %1, 0x01FF800000610007 \n" // 16x16 TenC = 16x64 A in L1 SP lines 0-15 * 64x16 B in L1SP lines 16-31
             "csrw  tensor_fma, %1         \n"
             "csrwi tensor_wait, 7         \n"
-            : "=&r" (temp), "=&r" (temp2)
-            : "m" (tensor_zeros[64])
-            : "x31"
-        );
+            : "=&r"(temp), "=&r"(temp2)
+            : "m"(tensor_zeros[64])
+            : "x31");
 
         // Enables 8 lanes of FPU, clears m1-m7
-        asm volatile (
-            "li       %0, 0xFF \n" // m0=0xFF, m1-m7=0
-            "mova.m.x %0       \n"
-            : "=&r" (temp)
-        );
+        asm volatile("li       %0, 0xFF \n" // m0=0xFF, m1-m7=0
+                     "mova.m.x %0       \n"
+                     : "=&r"(temp));
 
         // Ensure all cache evicts are complete
         WAIT_CACHEOPS
     }
 
     // Clear floating point flags and set rounding mode to 0 (round near even)
-    asm volatile ("csrw fcsr, zero");
+    asm volatile("csrw fcsr, zero");
 
     // Ensure all FLB and FCC init is complete
-    asm volatile ("fence");
+    asm volatile("fence");
 
     bool result;
 
     WAIT_FLB(thread_count, 28, result);
 
     // Last thread to join barrier sends ready FCC1 to master shire sync thread
-    if (result)
-    {
+    if (result) {
         notify_kernel_sync_thread(kernel_params_ptr->kernel_id, FCC_1);
     }
 
     // Wait for go FCC1 from master shire sync thread
     WAIT_FCC(1);
 }
-
 
 static void kernel_return_function(int64_t return_value)
 {
@@ -302,18 +292,16 @@ static void kernel_return_function(int64_t return_value)
 
 static void log_errors(int64_t return_value, uint64_t tensor_error)
 {
-    if ((return_value < 0) && (return_value != KERNEL_LAUNCH_ERROR_ABORTED))
-    {
+    if ((return_value < 0) && (return_value != KERNEL_LAUNCH_ERROR_ABORTED)) {
         log_write(LOG_LEVEL_ERROR, "return_value %" PRId64, return_value);
     }
 
-    if (tensor_error != 0)
-    {
+    if (tensor_error != 0) {
         log_write(LOG_LEVEL_ERROR, "tensor_error 0x%" PRIx64, tensor_error);
     }
 }
 
-static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr)
+static void post_kernel_cleanup(const kernel_params_t *const kernel_params_ptr)
 {
     bool result;
     const uint64_t shire_id = get_shire_id();
@@ -349,8 +337,7 @@ static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr)
     WAIT_FLB(thread_count, 31, result);
 
     // Last thread to join barrier sends done FCC1 to master shire sync thread
-    if (result)
-    {
+    if (result) {
         notify_kernel_sync_thread(kernel_id, FCC_1);
     }
 }

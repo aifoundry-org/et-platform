@@ -13,5 +13,5 @@ void swi_handler(void)
     swi_flag = true;
 
     // Clear pending software interrupt
-    asm volatile ("csrci sip, 0x2");
+    asm volatile("csrci sip, 0x2");
 }

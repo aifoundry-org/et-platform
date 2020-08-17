@@ -7,7 +7,7 @@
 
 typedef union _AIC_REGISTER_s {
     uint32_t R;
-    struct  {
+    struct {
         uint32_t mbx1_in_free : 1;
         uint32_t mbx1_token_done : 1;
         uint32_t mbx2_in_free : 1;
@@ -261,19 +261,19 @@ typedef union _EIP_VERSION_s {
 } EIP_VERSION_t;
 
 typedef struct _VAULTIP_HW_REGS_s {
-    uint32_t MAILBOX1[MAILBOX_SIZE/sizeof(uint32_t)];
+    uint32_t MAILBOX1[MAILBOX_SIZE / sizeof(uint32_t)];
 
     uint32_t reserved1[(0x0400 - 0x0100) / sizeof(uint32_t)];
 
-    uint32_t MAILBOX2[MAILBOX_SIZE/sizeof(uint32_t)];
+    uint32_t MAILBOX2[MAILBOX_SIZE / sizeof(uint32_t)];
 
     uint32_t reserved2[(0x0800 - 0x0500) / sizeof(uint32_t)];
 
-    uint32_t MAILBOX3[MAILBOX_SIZE/sizeof(uint32_t)];
+    uint32_t MAILBOX3[MAILBOX_SIZE / sizeof(uint32_t)];
 
     uint32_t reserved3[(0x0C00 - 0x0900) / sizeof(uint32_t)];
 
-    uint32_t MAILBOX4[MAILBOX_SIZE/sizeof(uint32_t)];
+    uint32_t MAILBOX4[MAILBOX_SIZE / sizeof(uint32_t)];
 
     uint32_t reserved4[(0x3E00 - 0x0D00) / sizeof(uint32_t)];
 
@@ -315,14 +315,14 @@ typedef struct _VAULTIP_HW_REGS_s {
     EIP_OPTIONS2_t EIP_OPTIONS2;
     EIP_OPTIONS_t EIP_OPTIONS;
     EIP_VERSION_t EIP_VERSION;
-    uint32_t FWRAM_IN[(0x1C000-0x4000)/sizeof(uint32_t)];
+    uint32_t FWRAM_IN[(0x1C000 - 0x4000) / sizeof(uint32_t)];
 
     uint32_t reserved8[(0x20000 - 0x1C000) / sizeof(uint32_t)];
 } VAULTIP_HW_REGS_t;
 
-#define VAULTIP_MAXIMUM_FIRMWARE_SIZE       0x18000
+#define VAULTIP_MAXIMUM_FIRMWARE_SIZE 0x18000
 
-#define VAULTIP_DMAC_MST_RUNPARAMS          0xF878
-#define VAULTIP_DMAC_OPTIONS2               0xF8DC
+#define VAULTIP_DMAC_MST_RUNPARAMS 0xF878
+#define VAULTIP_DMAC_OPTIONS2      0xF8DC
 
 #endif // __VAULT_IP_H__

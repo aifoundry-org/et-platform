@@ -6,8 +6,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-typedef enum
-{
+typedef enum {
     SHIRE_STATE_UNKNOWN = 0,
     SHIRE_STATE_READY,
     SHIRE_STATE_RUNNING,
