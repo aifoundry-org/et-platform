@@ -5,8 +5,7 @@
 
 typedef uint64_t log_level_t;
 
-typedef enum
-{
+typedef enum {
     LOG_LEVEL_CRITICAL = 0,
     LOG_LEVEL_ERROR = 1,
     LOG_LEVEL_WARNING = 2,

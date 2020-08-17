@@ -9,15 +9,14 @@
 
 // sends a log message from a worker minion in user privilege to the master minion for display
 // Not intended for firmware use - only call from kernels in user mode
-int64_t log_write(log_level_t level, const char* const fmt, ...)
+int64_t log_write(log_level_t level, const char *const fmt, ...)
 {
     // TODO two syscalls is more overhead, but can't pass va_args through syscall and should do
     // string manipulation in lowest privilege possible. Could check current_log_level in syscall
     // after building string and drop there.
     const log_level_t current_log_level = (log_level_t)syscall(SYSCALL_GET_LOG_LEVEL, 0, 0, 0);
 
-    if (level > current_log_level)
-    {
+    if (level > current_log_level) {
         return 0;
     }
 
@@ -26,10 +25,9 @@ int64_t log_write(log_level_t level, const char* const fmt, ...)
 
     va_list va;
     va_start(va, fmt);
-    char* string_ptr = (char*)message.data;
+    char *string_ptr = (char *)message.data;
 
-    if (vsnprintf(string_ptr, sizeof(message.data), fmt, va) < 0)
-    {
+    if (vsnprintf(string_ptr, sizeof(message.data), fmt, va) < 0) {
         return -1;
     }
 

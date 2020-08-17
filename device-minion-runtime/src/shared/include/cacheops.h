@@ -23,12 +23,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-enum cop_dest {
-   to_L1  = 0x0ULL,
-   to_L2  = 0x1ULL,
-   to_L3  = 0x2ULL,
-   to_Mem = 0x3ULL
-};
+enum cop_dest { to_L1 = 0x0ULL, to_L2 = 0x1ULL, to_L3 = 0x2ULL, to_Mem = 0x3ULL };
 
 //-------------------------------------------------------------------------------------------------
 //
@@ -38,19 +33,15 @@ enum cop_dest {
 //   destination. Optionally, a repeat count can be specified to evict more adjacent cache lines.
 //   Optionally, each potential line eviction can be gated by the value of the TensorMask CSR.
 //
-inline void __attribute__((always_inline)) evict_sw(uint64_t use_tmask, uint64_t dst, uint64_t way, uint64_t set, uint64_t num_lines, uint64_t warl)
+inline void __attribute__((always_inline)) evict_sw(uint64_t use_tmask, uint64_t dst, uint64_t way,
+                                                    uint64_t set, uint64_t num_lines, uint64_t warl)
 {
-   uint64_t csr_enc = ((warl      & 0x73FFFFFFFFFC3F30ULL )       ) |
-                      ((use_tmask & 1                     ) << 63 ) |
-                      ((dst       & 0x3                   ) << 58 ) |
-                      ((set       & 0xF                   ) << 14 ) |
-                      ((way       & 0x3                   ) << 6  ) |
-                      ((num_lines & 0xF                   )       ) ;
+    uint64_t csr_enc = ((warl & 0x73FFFFFFFFFC3F30ULL)) | ((use_tmask & 1) << 63) |
+                       ((dst & 0x3) << 58) | ((set & 0xF) << 14) | ((way & 0x3) << 6) |
+                       ((num_lines & 0xF));
 
-   __asm__ __volatile__ ( "csrw 0x7f9, %[csr_enc]\n" : : [csr_enc] "r" (csr_enc));
-
+    __asm__ __volatile__("csrw 0x7f9, %[csr_enc]\n" : : [csr_enc] "r"(csr_enc));
 }
-
 
 //-------------------------------------------------------------------------------------------------
 //
@@ -60,18 +51,15 @@ inline void __attribute__((always_inline)) evict_sw(uint64_t use_tmask, uint64_t
 //   line is dirty. Optionally, a repeat count can be specified to flush more adjacent cache lines.
 //   Optionally, each potential line flush can be gated by the value of the TensorMask CSR.
 //
-inline void __attribute__((always_inline)) flush_sw(uint64_t use_tmask, uint64_t dst, uint64_t way, uint64_t set, uint64_t num_lines, uint64_t warl)
+inline void __attribute__((always_inline)) flush_sw(uint64_t use_tmask, uint64_t dst, uint64_t way,
+                                                    uint64_t set, uint64_t num_lines, uint64_t warl)
 {
-   uint64_t csr_enc = ((warl      & 0x73FFFFFFFFFC3F30ULL )       ) |
-                      ((use_tmask & 1                     ) << 63 ) |
-                      ((dst       & 0x3                   ) << 58 ) |
-                      ((set       & 0xF                   ) << 14 ) |
-                      ((way       & 0x3                   ) << 6  ) |
-                      ((num_lines & 0xF                   )       ) ;
+    uint64_t csr_enc = ((warl & 0x73FFFFFFFFFC3F30ULL)) | ((use_tmask & 1) << 63) |
+                       ((dst & 0x3) << 58) | ((set & 0xF) << 14) | ((way & 0x3) << 6) |
+                       ((num_lines & 0xF));
 
-   __asm__ __volatile__ ( "csrw 0x7fb, %[csr_enc]\n" : : [csr_enc] "r" (csr_enc));
+    __asm__ __volatile__("csrw 0x7fb, %[csr_enc]\n" : : [csr_enc] "r"(csr_enc));
 }
-
 
 //-------------------------------------------------------------------------------------------------
 //
@@ -82,13 +70,11 @@ inline void __attribute__((always_inline)) flush_sw(uint64_t use_tmask, uint64_t
 //
 inline void __attribute__((always_inline)) lock_sw(uint64_t way, uint64_t paddr, uint64_t warl)
 {
-   uint64_t csr_enc = ((warl  & 0x807FFF000000003FULL )       ) |
-                      ((way   & 0x3                   ) << 55 ) |
-                      ((paddr & 0xFFFFFFFFC0ULL       )       ) ;
+    uint64_t csr_enc = ((warl & 0x807FFF000000003FULL)) | ((way & 0x3) << 55) |
+                       ((paddr & 0xFFFFFFFFC0ULL));
 
-   __asm__ __volatile__ ( "csrw 0x7fd, %[csr_enc]\n" : : [csr_enc] "r" (csr_enc));
+    __asm__ __volatile__("csrw 0x7fd, %[csr_enc]\n" : : [csr_enc] "r"(csr_enc));
 }
-
 
 //-------------------------------------------------------------------------------------------------
 //
@@ -98,13 +84,10 @@ inline void __attribute__((always_inline)) lock_sw(uint64_t way, uint64_t paddr,
 //
 inline void __attribute__((always_inline)) unlock_sw(uint64_t way, uint64_t set, uint64_t warl)
 {
-   uint64_t csr_enc = ((warl & 0x807FFFFFFFFFFC3FULL )       ) |
-                      ((way  & 0xFF                  ) << 55 ) |
-                      ((set  & 0xF                   ) << 6  );
+    uint64_t csr_enc = ((warl & 0x807FFFFFFFFFFC3FULL)) | ((way & 0xFF) << 55) | ((set & 0xF) << 6);
 
-   __asm__ __volatile__ ( "csrw 0x7ff, %[csr_enc]\n" : : [csr_enc] "r" (csr_enc));
+    __asm__ __volatile__("csrw 0x7ff, %[csr_enc]\n" : : [csr_enc] "r"(csr_enc));
 }
-
 
 //-------------------------------------------------------------------------------------------------
 //
@@ -115,23 +98,21 @@ inline void __attribute__((always_inline)) unlock_sw(uint64_t way, uint64_t set,
 //   are calculated using the provided stride.
 //   Optionally, each potential line eviction can be gated by the value of the TensorMask CSR.
 //
-inline void __attribute__((always_inline)) evict_va(uint64_t use_tmask, uint64_t dst, uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id, uint64_t warl)
+inline void __attribute__((always_inline))
+evict_va(uint64_t use_tmask, uint64_t dst, uint64_t addr, uint64_t num_lines, uint64_t stride,
+         uint64_t id, uint64_t warl)
 {
-   uint64_t csr_enc = ((warl      & 0x73FF000000000030ULL )       ) |
-                      ((use_tmask & 1                     ) << 63 ) |
-                      ((dst       & 0x3                   ) << 58 ) | //00=L1, 01=L2, 10=L3, 11=MEM
-                      ((addr      & 0xFFFFFFFFFFC0ULL     )       ) |
-                      ((num_lines & 0xF                   )       ) ;
+    uint64_t csr_enc = ((warl & 0x73FF000000000030ULL)) | ((use_tmask & 1) << 63) |
+                       ((dst & 0x3) << 58) | //00=L1, 01=L2, 10=L3, 11=MEM
+                       ((addr & 0xFFFFFFFFFFC0ULL)) | ((num_lines & 0xF));
 
-   uint64_t x31_enc = (stride & 0xFFFFFFFFFFC0ULL) | (id & 0x1);
+    uint64_t x31_enc = (stride & 0xFFFFFFFFFFC0ULL) | (id & 0x1);
 
-   __asm__ __volatile__ (
-      "add x31, zero, %[x31_enc]\n"
-      "csrw 0x89f, %[csr_enc]\n"
-      :
-      : [x31_enc] "r" (x31_enc), [csr_enc] "r" (csr_enc)
-      : "x31"
-   );
+    __asm__ __volatile__("add x31, zero, %[x31_enc]\n"
+                         "csrw 0x89f, %[csr_enc]\n"
+                         :
+                         : [x31_enc] "r"(x31_enc), [csr_enc] "r"(csr_enc)
+                         : "x31");
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -141,11 +122,10 @@ inline void __attribute__((always_inline)) evict_va(uint64_t use_tmask, uint64_t
 //   This function evicts all cache lines from address to address+size up to the provided
 //   cache level.
 //
-static inline void evict(enum cop_dest dest, volatile const void* const address, size_t size)
+static inline void evict(enum cop_dest dest, volatile const void *const address, size_t size)
 {
     evict_va(0, dest, (uint64_t)address, (((uint64_t)address & 0x3F) + size) >> 6, 64, 0, 0);
 }
-
 
 //-------------------------------------------------------------------------------------------------
 //
@@ -156,25 +136,21 @@ static inline void evict(enum cop_dest dest, volatile const void* const address,
 //   more lines, whose addresses are calculated using the provided stride.
 //   Optionally, each potential line flush can be gated by the value of the TensorMask CSR.
 //
-inline void __attribute__((always_inline)) flush_va(uint64_t use_tmask, uint64_t dst, uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id, uint64_t warl)
+inline void __attribute__((always_inline))
+flush_va(uint64_t use_tmask, uint64_t dst, uint64_t addr, uint64_t num_lines, uint64_t stride,
+         uint64_t id, uint64_t warl)
 {
-   uint64_t csr_enc = ((warl      & 0x73FF000000000030ULL )       ) |
-                      ((use_tmask & 1                     ) << 63 ) |
-                      ((dst       & 0x3                   ) << 58 ) |
-                      ((addr      & 0xFFFFFFFFFFC0ULL     )       ) |
-                      ((num_lines & 0xF                   )       ) ;
+    uint64_t csr_enc = ((warl & 0x73FF000000000030ULL)) | ((use_tmask & 1) << 63) |
+                       ((dst & 0x3) << 58) | ((addr & 0xFFFFFFFFFFC0ULL)) | ((num_lines & 0xF));
 
-   uint64_t x31_enc = (stride & 0xFFFFFFFFFFC0ULL) | (id & 0x1);
+    uint64_t x31_enc = (stride & 0xFFFFFFFFFFC0ULL) | (id & 0x1);
 
-   __asm__ __volatile__ (
-      "add x31, zero, %[x31_enc]\n"
-      "csrw 0x8bf, %[csr_enc]\n"
-      :
-      : [x31_enc] "r" (x31_enc), [csr_enc] "r" (csr_enc)
-      : "x31"
-   );
+    __asm__ __volatile__("add x31, zero, %[x31_enc]\n"
+                         "csrw 0x8bf, %[csr_enc]\n"
+                         :
+                         : [x31_enc] "r"(x31_enc), [csr_enc] "r"(csr_enc)
+                         : "x31");
 }
-
 
 //-------------------------------------------------------------------------------------------------
 //
@@ -185,25 +161,21 @@ inline void __attribute__((always_inline)) flush_va(uint64_t use_tmask, uint64_t
 //   calculated using the provided stride.
 //   Optionally, each line prefetch can be gated by the value of the TensorMask CSR.
 //
-inline void __attribute__((always_inline)) prefetch_va(uint64_t use_tmask, uint64_t dst, uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id, uint64_t warl)
+inline void __attribute__((always_inline))
+prefetch_va(uint64_t use_tmask, uint64_t dst, uint64_t addr, uint64_t num_lines, uint64_t stride,
+            uint64_t id, uint64_t warl)
 {
-   uint64_t csr_enc = ((warl      & 0x73FF000000000030ULL )       ) |
-                      ((use_tmask & 1                     ) << 63 ) |
-                      ((dst       & 0x3                   ) << 58 ) |
-                      ((addr      & 0xFFFFFFFFFFC0ULL     )       ) |
-                      ((num_lines & 0xF                   )       ) ;
+    uint64_t csr_enc = ((warl & 0x73FF000000000030ULL)) | ((use_tmask & 1) << 63) |
+                       ((dst & 0x3) << 58) | ((addr & 0xFFFFFFFFFFC0ULL)) | ((num_lines & 0xF));
 
-   uint64_t x31_enc = (stride & 0xFFFFFFFFFFC0ULL) | (id & 0x1);
+    uint64_t x31_enc = (stride & 0xFFFFFFFFFFC0ULL) | (id & 0x1);
 
-   __asm__ __volatile__ (
-      "add x31, zero, %[x31_enc]\n"
-      "csrw 0x81f, %[csr_enc]\n"
-      :
-      : [x31_enc] "r" (x31_enc), [csr_enc] "r" (csr_enc)
-      : "x31"
-   );
+    __asm__ __volatile__("add x31, zero, %[x31_enc]\n"
+                         "csrw 0x81f, %[csr_enc]\n"
+                         :
+                         : [x31_enc] "r"(x31_enc), [csr_enc] "r"(csr_enc)
+                         : "x31");
 }
-
 
 //-------------------------------------------------------------------------------------------------
 //
@@ -215,24 +187,21 @@ inline void __attribute__((always_inline)) prefetch_va(uint64_t use_tmask, uint6
 //   calculated using the provided stride.
 //   Optionally, each line lock can be gated by the value of the TensorMask CSR.
 //
-inline void __attribute__((always_inline)) lock_va(uint64_t use_tmask, uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id, uint64_t warl)
+inline void __attribute__((always_inline))
+lock_va(uint64_t use_tmask, uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id,
+        uint64_t warl)
 {
-   uint64_t csr_enc = ((warl      & 0x7FFF000000000030ULL )       ) |
-                      ((use_tmask & 1                     ) << 63 ) |
-                      ((addr      & 0xFFFFFFFFFFC0ULL     )       ) |
-                      ((num_lines & 0xF                   )       ) ;
+    uint64_t csr_enc = ((warl & 0x7FFF000000000030ULL)) | ((use_tmask & 1) << 63) |
+                       ((addr & 0xFFFFFFFFFFC0ULL)) | ((num_lines & 0xF));
 
-   uint64_t x31_enc = (stride & 0xFFFFFFFFFFC0ULL) | (id & 0x1);
+    uint64_t x31_enc = (stride & 0xFFFFFFFFFFC0ULL) | (id & 0x1);
 
-   __asm__ __volatile__ (
-      "add x31, zero, %[x31_enc]\n"
-      "csrw 0x8df, %[csr_enc]\n"
-      :
-      : [x31_enc] "r" (x31_enc), [csr_enc] "r" (csr_enc)
-      : "x31"
-   );
+    __asm__ __volatile__("add x31, zero, %[x31_enc]\n"
+                         "csrw 0x8df, %[csr_enc]\n"
+                         :
+                         : [x31_enc] "r"(x31_enc), [csr_enc] "r"(csr_enc)
+                         : "x31");
 }
-
 
 //-------------------------------------------------------------------------------------------------
 //
@@ -243,40 +212,32 @@ inline void __attribute__((always_inline)) lock_va(uint64_t use_tmask, uint64_t 
 //   calculated using the provided stride.
 //   Optionally, each unlock can be gated by the value of the TensorMask CSR.
 //
-inline void __attribute__((always_inline)) unlock_va(uint64_t use_tmask, uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id, uint64_t warl)
+inline void __attribute__((always_inline))
+unlock_va(uint64_t use_tmask, uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id,
+          uint64_t warl)
 {
-   uint64_t csr_enc = ((warl      & 0x7FFF000000000030ULL )       ) |
-                      ((use_tmask & 1                     ) << 63 ) |
-                      ((addr      & 0xFFFFFFFFFFC0ULL     )       ) |
-                      ((num_lines & 0xF                   )       ) ;
+    uint64_t csr_enc = ((warl & 0x7FFF000000000030ULL)) | ((use_tmask & 1) << 63) |
+                       ((addr & 0xFFFFFFFFFFC0ULL)) | ((num_lines & 0xF));
 
-   uint64_t x31_enc = (stride & 0xFFFFFFFFFFC0ULL) | (id & 0x1);
+    uint64_t x31_enc = (stride & 0xFFFFFFFFFFC0ULL) | (id & 0x1);
 
-   __asm__ __volatile__ (
-      "add x31, zero, %[x31_enc]\n"
-      "csrw 0x8ff, %[csr_enc]\n"
-      :
-      : [x31_enc] "r" (x31_enc), [csr_enc] "r" (csr_enc)
-      : "x31"
-   );
+    __asm__ __volatile__("add x31, zero, %[x31_enc]\n"
+                         "csrw 0x8ff, %[csr_enc]\n"
+                         :
+                         : [x31_enc] "r"(x31_enc), [csr_enc] "r"(csr_enc)
+                         : "x31");
 }
-
 
 //
 // MCACHE_CONTROL
 //
-inline void __attribute__((always_inline)) mcache_control(uint64_t d1_split, uint64_t scp_en, uint64_t warl)
+inline void __attribute__((always_inline))
+mcache_control(uint64_t d1_split, uint64_t scp_en, uint64_t warl)
 {
-   uint64_t csr_enc = ((warl     & 0xFFFFFFFFFFFFFFFCULL )      ) |
-                      ((scp_en   & 0x1                   ) << 1 ) |
-                      ((d1_split & 0x1                   ) << 0 ) ;
+    uint64_t csr_enc = ((warl & 0xFFFFFFFFFFFFFFFCULL)) | ((scp_en & 0x1) << 1) |
+                       ((d1_split & 0x1) << 0);
 
-   __asm__ __volatile__ (
-      "csrw 0x7e0, %[csr_enc]\n"
-      :
-      : [csr_enc] "r" (csr_enc)
-      : "x31"
-   );
+    __asm__ __volatile__("csrw 0x7e0, %[csr_enc]\n" : : [csr_enc] "r"(csr_enc) : "x31");
 }
 
 //
@@ -286,10 +247,7 @@ inline uint64_t __attribute__((always_inline)) mcache_control_get(void)
 {
     uint64_t ret;
 
-    __asm__ __volatile__ (
-        "csrr %0, 0x7e0\n"
-        : "=r" (ret)
-   );
+    __asm__ __volatile__("csrr %0, 0x7e0\n" : "=r"(ret));
 
     return ret;
 }
@@ -297,51 +255,31 @@ inline uint64_t __attribute__((always_inline)) mcache_control_get(void)
 //
 // UCACHE_CONTROL
 //
-inline void __attribute__((always_inline)) ucache_control(uint64_t scp_en, uint64_t cacheop_rate, uint64_t cacheop_max, uint64_t warl)
+inline void __attribute__((always_inline))
+ucache_control(uint64_t scp_en, uint64_t cacheop_rate, uint64_t cacheop_max, uint64_t warl)
 {
-   uint64_t csr_enc = ((warl         & 0xFFFFFFFFFFFFF821ULL )      ) |
-                      ((cacheop_max  & 0x1F                  ) << 6 ) |
-                      ((cacheop_rate & 0x7                   ) << 2 ) |
-                      ((scp_en       & 0x1                   ) << 1 ) ;
+    uint64_t csr_enc = ((warl & 0xFFFFFFFFFFFFF821ULL)) | ((cacheop_max & 0x1F) << 6) |
+                       ((cacheop_rate & 0x7) << 2) | ((scp_en & 0x1) << 1);
 
-   __asm__ __volatile__ (
-      "csrw 0x810, %[csr_enc]\n"
-      :
-      : [csr_enc] "r" (csr_enc)
-      : "x31"
-   );
+    __asm__ __volatile__("csrw 0x810, %[csr_enc]\n" : : [csr_enc] "r"(csr_enc) : "x31");
 }
-
 
 inline void __attribute__((always_inline)) excl_mode(uint64_t val)
 {
-   __asm__ __volatile__ (
-      "csrw 0x7d3, %[csr_enc]\n"
-      :
-      : [csr_enc] "r" (val)
-      : "x31"
-   );
+    __asm__ __volatile__("csrw 0x7d3, %[csr_enc]\n" : : [csr_enc] "r"(val) : "x31");
 }
-
 
 inline void __attribute__((always_inline)) scp(uint64_t warl, uint64_t DEscratchpad)
 {
-
     // Hard partition L1 Data cache between the harts
     //mcache_control(0,0,0);
     FENCE;
     WAIT_CACHEOPS;
 
     // Enable scratchpad
-    uint64_t csr_enc = ((warl & 0x7FFFFFFFFFFFFFFF) << 1) |
-                       ((DEscratchpad & 0x1));
+    uint64_t csr_enc = ((warl & 0x7FFFFFFFFFFFFFFF) << 1) | ((DEscratchpad & 0x1));
 
-   __asm__ __volatile__ (
-      "csrw 0x810, %[csr_enc]\n"
-      :
-      : [csr_enc] "r" (csr_enc)
-      : "x31"
-   );
+    __asm__ __volatile__("csrw 0x810, %[csr_enc]\n" : : [csr_enc] "r"(csr_enc) : "x31");
 }
 
 #endif // ! __CACHEOPS_H

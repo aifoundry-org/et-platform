@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
-void print_exception(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t mstatus, uint64_t hart_id);
+void print_exception(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t mstatus,
+                     uint64_t hart_id);
 
 #endif

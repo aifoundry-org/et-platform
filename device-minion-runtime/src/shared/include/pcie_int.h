@@ -14,12 +14,7 @@
 
 #include <stdint.h>
 
-typedef enum {
-    pcie_int_none = 0,
-    pcie_int_legacy,
-    pcie_int_msi,
-    pcie_int_msix
-} pcie_int_t;
+typedef enum { pcie_int_none = 0, pcie_int_legacy, pcie_int_msi, pcie_int_msix } pcie_int_t;
 
 /* Returns the int type the host has configured. The host should pick exactly one
  * type to enable at once. If the link is not up yet, no interrupts will be enabled.

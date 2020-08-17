@@ -1,8 +1,7 @@
 #ifndef KERNEL_STATE_H
 #define KERNEL_STATE_H
 
-typedef enum
-{
+typedef enum {
     KERNEL_STATE_UNUSED = 0,
     KERNEL_STATE_LAUNCHED,
     KERNEL_STATE_RUNNING,

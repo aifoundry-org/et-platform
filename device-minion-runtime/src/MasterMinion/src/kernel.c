@@ -19,8 +19,7 @@
 
 //#define DEBUG_PRINT_KERNEL_INSTRUCTIONS
 
-typedef struct
-{
+typedef struct {
     struct kernel_launch_cmd_t launch_cmd;
     kernel_state_t kernel_state;
     uint64_t shire_mask;
@@ -29,25 +28,26 @@ typedef struct
 } kernel_status_t;
 
 // Local state
-static kernel_status_t kernel_status[MAX_SIMULTANEOUS_KERNELS] = {0};
+static kernel_status_t kernel_status[MAX_SIMULTANEOUS_KERNELS] = { 0 };
 
 // Shared state - Worker minion fetch kernel parameters from these
-static kernel_config_t* const kernel_config = (kernel_config_t*)FW_MASTER_TO_WORKER_KERNEL_CONFIGS;
+static kernel_config_t *const kernel_config = (kernel_config_t *)FW_MASTER_TO_WORKER_KERNEL_CONFIGS;
 
 /// \brief preparate a response to the kernel respose
-static void send_kernel_launch_response(const struct kernel_launch_cmd_t* const launch_cmd, const dev_api_kernel_launch_error_e error);
+static void send_kernel_launch_response(const struct kernel_launch_cmd_t *const launch_cmd,
+                                        const dev_api_kernel_launch_error_e error);
 
 static void clear_kernel_config(kernel_id_t kernel_id);
 
 void kernel_init(void)
 {
-    for (uint64_t kernel = 0; kernel < MAX_SIMULTANEOUS_KERNELS; kernel++)
-    {
+    for (uint64_t kernel = 0; kernel < MAX_SIMULTANEOUS_KERNELS; kernel++) {
         clear_kernel_config(kernel);
     }
 }
 
-static void send_kernel_launch_response(const struct kernel_launch_cmd_t* const cmd, const dev_api_kernel_launch_error_e error)
+static void send_kernel_launch_response(const struct kernel_launch_cmd_t *const cmd,
+                                        const dev_api_kernel_launch_error_e error)
 {
     log_write(LOG_LEVEL_CRITICAL, "Sending Kernel Launch Response %" PRIi64 "\r\n", error);
     struct kernel_launch_rsp_t rsp;
@@ -57,24 +57,22 @@ static void send_kernel_launch_response(const struct kernel_launch_cmd_t* const 
     rsp.error = error;
 
     int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
-    if (result != 0)
-    {
-        log_write(LOG_LEVEL_ERROR, "DeviceAPI Kernel Launch Response MBOX_send error %" PRIi64 "\r\n", result);
+    if (result != 0) {
+        log_write(LOG_LEVEL_ERROR,
+                  "DeviceAPI Kernel Launch Response MBOX_send error %" PRIi64 "\r\n", result);
     }
-
 }
 
 // Waits for all the shires associated with a kernel to report ready via a FCC,
 // then synchronizes their release to run the kernel by sending a FCC
 void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
 {
-    volatile const kernel_config_t* const kernel_config_ptr = &kernel_config[kernel_id];
+    volatile const kernel_config_t *const kernel_config_ptr = &kernel_config[kernel_id];
 
     init_fcc(FCC_0);
     init_fcc(FCC_1);
 
-    while (1)
-    {
+    while (1) {
         // wait for a kernel launch sync request from master_thread
         WAIT_FCC(0);
 
@@ -82,18 +80,20 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
         evict(to_L3, kernel_config_ptr, sizeof(kernel_config_t));
         WAIT_CACHEOPS
 
-        const uint64_t num_shires = kernel_config_ptr->num_shires; // Also contains Master shire if sync-minions are used
+        const uint64_t num_shires =
+            kernel_config_ptr->num_shires; // Also contains Master shire if sync-minions are used
         const uint64_t shire_mask = kernel_config_ptr->kernel_info.shire_mask;
 
-        if ((num_shires > 0) && (shire_mask > 0))
-        {
+        if ((num_shires > 0) && (shire_mask > 0)) {
             const bool uses_sync_minions = (shire_mask & (1ULL << MASTER_SHIRE)) != 0;
             const uint64_t sync_minions_mask = uses_sync_minions ? 0xFFFF0000U : 0;
             const uint64_t compute_shires_mask = shire_mask & ~(1ULL << MASTER_SHIRE);
 
             // Broadcast launch FCC0 to all HARTs in all required compute shires
-            broadcast(0xFFFFFFFFU, compute_shires_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC_CREDINC_0_REGNO); // thread 0 FCC 0
-            broadcast(0xFFFFFFFFU, compute_shires_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC_CREDINC_2_REGNO); // thread 1 FCC 0
+            broadcast(0xFFFFFFFFU, compute_shires_mask, PRV_U, ESR_SHIRE_REGION,
+                      ESR_SHIRE_FCC_CREDINC_0_REGNO); // thread 0 FCC 0
+            broadcast(0xFFFFFFFFU, compute_shires_mask, PRV_U, ESR_SHIRE_REGION,
+                      ESR_SHIRE_FCC_CREDINC_2_REGNO); // thread 1 FCC 0
             if (sync_minions_mask) {
                 // Send launch FCC0 to sync-minions of master shire
                 SEND_FCC(MASTER_SHIRE, THREAD_0, FCC_0, sync_minions_mask);
@@ -101,14 +101,15 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
             }
 
             // Wait for a ready FCC1 from each shire, plus sync-minions of master shire
-            for (uint64_t i = 0; i < num_shires; i++)
-            {
+            for (uint64_t i = 0; i < num_shires; i++) {
                 WAIT_FCC(1);
             }
 
             // Broadcast go FCC1 to all HARTs in all required compute shires
-            broadcast(0xFFFFFFFFU, compute_shires_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC_CREDINC_1_REGNO); // thread 0 FCC 1
-            broadcast(0xFFFFFFFFU, compute_shires_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC_CREDINC_3_REGNO); // thread 1 FCC 1
+            broadcast(0xFFFFFFFFU, compute_shires_mask, PRV_U, ESR_SHIRE_REGION,
+                      ESR_SHIRE_FCC_CREDINC_1_REGNO); // thread 0 FCC 1
+            broadcast(0xFFFFFFFFU, compute_shires_mask, PRV_U, ESR_SHIRE_REGION,
+                      ESR_SHIRE_FCC_CREDINC_3_REGNO); // thread 1 FCC 1
             if (sync_minions_mask) {
                 // Send go FCC1 to sync-minions of master shire
                 SEND_FCC(MASTER_SHIRE, THREAD_0, FCC_1, sync_minions_mask);
@@ -116,13 +117,15 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
             }
 
             // Send message to master minion indicating the kernel is starting
-            message_t sync_message = {.id = MESSAGE_ID_KERNEL_LAUNCH_ACK, .data = {0}};
+            message_t sync_message = {
+                .id = MESSAGE_ID_KERNEL_LAUNCH_ACK,
+                .data = { 0 },
+            };
             sync_message.data[0] = kernel_id;
             message_send_worker(get_shire_id(), get_hart_id(), &sync_message);
 
             // Wait for a done FCC1 from each shire, plus sync-minions of master shire
-            for (uint64_t i = 0; i < num_shires; i++)
-            {
+            for (uint64_t i = 0; i < num_shires; i++) {
                 WAIT_FCC(1);
             }
 
@@ -130,11 +133,12 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
             sync_message.id = MESSAGE_ID_KERNEL_COMPLETE;
             sync_message.data[0] = kernel_id;
             message_send_worker(get_shire_id(), get_hart_id(), &sync_message);
-        }
-        else
-        {
+        } else {
             // Invalid config, send error message to the master minion
-            message_t sync_message = {.id = MESSAGE_ID_KERNEL_LAUNCH_NACK, .data = {0}};
+            message_t sync_message = {
+                .id = MESSAGE_ID_KERNEL_LAUNCH_NACK,
+                .data = { 0 },
+            };
             sync_message.data[0] = kernel_id;
             message_send_worker(get_shire_id(), get_hart_id(), &sync_message);
         }
@@ -143,130 +147,117 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
 
 void update_kernel_state(kernel_id_t kernel_id, kernel_state_t kernel_state)
 {
-    if (kernel_id >= KERNEL_ID_NONE)
-    {
+    if (kernel_id >= KERNEL_ID_NONE) {
         return; // error
     }
 
     // Update kernel state per shire state change
-    switch (kernel_state)
-    {
-        case KERNEL_STATE_UNUSED:
-            kernel_status[kernel_id].kernel_state = KERNEL_STATE_UNUSED;
+    switch (kernel_state) {
+    case KERNEL_STATE_UNUSED:
+        kernel_status[kernel_id].kernel_state = KERNEL_STATE_UNUSED;
         break;
 
-        case KERNEL_STATE_LAUNCHED:
-            kernel_status[kernel_id].kernel_state = KERNEL_STATE_LAUNCHED;
+    case KERNEL_STATE_LAUNCHED:
+        kernel_status[kernel_id].kernel_state = KERNEL_STATE_LAUNCHED;
         break;
 
-        case KERNEL_STATE_RUNNING:
-        {
-            kernel_status[kernel_id].start_time = (uint64_t)syscall(SYSCALL_GET_MTIME_INT, 0, 0, 0);
+    case KERNEL_STATE_RUNNING: {
+        kernel_status[kernel_id].start_time = (uint64_t)syscall(SYSCALL_GET_MTIME_INT, 0, 0, 0);
 
-            kernel_status[kernel_id].kernel_state = KERNEL_STATE_RUNNING;
+        kernel_status[kernel_id].kernel_state = KERNEL_STATE_RUNNING;
 
-            // Mark all shires associated with this kernel as running
-            for (uint64_t shire = 0; shire < NUM_SHIRES; shire++)
-            {
-                if (kernel_status[kernel_id].shire_mask & (1ULL << shire))
-                {
-                    update_shire_state(shire, SHIRE_STATE_RUNNING);
-                }
+        // Mark all shires associated with this kernel as running
+        for (uint64_t shire = 0; shire < NUM_SHIRES; shire++) {
+            if (kernel_status[kernel_id].shire_mask & (1ULL << shire)) {
+                update_shire_state(shire, SHIRE_STATE_RUNNING);
             }
         }
+    } break;
+
+    case KERNEL_STATE_ABORTED:
+        kernel_status[kernel_id].kernel_state = KERNEL_STATE_ABORTED;
         break;
 
-        case KERNEL_STATE_ABORTED:
-            kernel_status[kernel_id].kernel_state = KERNEL_STATE_ABORTED;
-        break;
+    case KERNEL_STATE_ERROR: {
+        send_kernel_launch_response(&kernel_status[kernel_id].launch_cmd,
+                                    DEV_API_KERNEL_LAUNCH_ERROR_RESULT_ERROR);
 
-        case KERNEL_STATE_ERROR:
-        {
-            send_kernel_launch_response(&kernel_status[kernel_id].launch_cmd,
-                                        DEV_API_KERNEL_LAUNCH_ERROR_RESULT_ERROR);
+        clear_kernel_config(kernel_id);
+        kernel_status[kernel_id].kernel_state = KERNEL_STATE_ERROR;
+    } break;
 
-            clear_kernel_config(kernel_id);
-            kernel_status[kernel_id].kernel_state = KERNEL_STATE_ERROR;
-        }
-        break;
+    case KERNEL_STATE_COMPLETE: {
+        kernel_status[kernel_id].end_time = (uint64_t)syscall(SYSCALL_GET_MTIME_INT, 0, 0, 0);
+        // TODO FIXME mtime is currently 40MHz and not the specified 10MHz for two reasons:
+        // 1. RTLMIN-5392: PU RV Timer is dividing clk_100Mhz /25 instead of /10
+        // 2. In ZeBu, clk_100 is forced to 1GHz for now - it will reduce to 100MHz eventually.
+        // 1GHz / 25 = 40Mhz
+        uint64_t elapsed_time_us =
+            (kernel_status[kernel_id].end_time - kernel_status[kernel_id].start_time) / 40;
 
-        case KERNEL_STATE_COMPLETE:
-        {
-            kernel_status[kernel_id].end_time = (uint64_t)syscall(SYSCALL_GET_MTIME_INT, 0, 0, 0);
-            // TODO FIXME mtime is currently 40MHz and not the specified 10MHz for two reasons:
-            // 1. RTLMIN-5392: PU RV Timer is dividing clk_100Mhz /25 instead of /10
-            // 2. In ZeBu, clk_100 is forced to 1GHz for now - it will reduce to 100MHz eventually.
-            // 1GHz / 25 = 40Mhz
-            uint64_t elapsed_time_us = (kernel_status[kernel_id].end_time - kernel_status[kernel_id].start_time) / 40;
+        log_write(LOG_LEVEL_INFO, "kernel %d complete, %" PRId64 "us\r\n", kernel_id,
+                  elapsed_time_us);
 
-            log_write(LOG_LEVEL_INFO, "kernel %d complete, %" PRId64 "us\r\n", kernel_id, elapsed_time_us);
+        send_kernel_launch_response(&kernel_status[kernel_id].launch_cmd,
+                                    DEV_API_KERNEL_LAUNCH_ERROR_RESULT_OK);
 
-            send_kernel_launch_response(&kernel_status[kernel_id].launch_cmd,
-                                        DEV_API_KERNEL_LAUNCH_ERROR_RESULT_OK);
-
-            // Mark all shires associated with this kernel as complete
-            for (uint64_t shire = 0; shire < NUM_SHIRES; shire++)
-            {
-                if (kernel_status[kernel_id].shire_mask & (1ULL << shire))
-                {
-                    update_shire_state(shire, SHIRE_STATE_COMPLETE);
-                }
+        // Mark all shires associated with this kernel as complete
+        for (uint64_t shire = 0; shire < NUM_SHIRES; shire++) {
+            if (kernel_status[kernel_id].shire_mask & (1ULL << shire)) {
+                update_shire_state(shire, SHIRE_STATE_COMPLETE);
             }
-
-            clear_kernel_config(kernel_id);
-            kernel_status[kernel_id].kernel_state = KERNEL_STATE_UNUSED;
         }
-        break;
 
-        case KERNEL_STATE_UNKNOWN:
-        default:
+        clear_kernel_config(kernel_id);
+        kernel_status[kernel_id].kernel_state = KERNEL_STATE_UNUSED;
+    } break;
+
+    case KERNEL_STATE_UNKNOWN:
+    default:
         break;
     }
 }
 
-void launch_kernel(const struct kernel_launch_cmd_t* const launch_cmd)
+void launch_kernel(const struct kernel_launch_cmd_t *const launch_cmd)
 {
     const kernel_id_t kernel_id = launch_cmd->kernel_params.kernel_id;
     const uint64_t shire_mask = launch_cmd->kernel_info.shire_mask;
-    kernel_status_t* const kernel_status_ptr = &kernel_status[kernel_id];
+    kernel_status_t *const kernel_status_ptr = &kernel_status[kernel_id];
     uint64_t num_shires = 0;
     bool allShiresReady = true;
     bool kernelReady = true;
 
-    if (!all_shires_ready(shire_mask))
-    {
-        log_write(LOG_LEVEL_ERROR, "aborting kernel %d launch, not all shires ready, needed shires: 0x%" PRIx64 "\r\n", kernel_id, shire_mask);
+    if (!all_shires_ready(shire_mask)) {
+        log_write(LOG_LEVEL_ERROR,
+                  "aborting kernel %d launch, not all shires ready, needed shires: 0x%" PRIx64
+                  "\r\n",
+                  kernel_id, shire_mask);
         allShiresReady = false;
     }
 
 #ifdef DEBUG_PRINT_KERNEL_INSTRUCTIONS
-    const uint32_t* pc = (uint32_t*)kernel_info_ptr->compute_pc;
+    const uint32_t *pc = (uint32_t *)kernel_info_ptr->compute_pc;
 
-    for (int i = 0 ; i < 10; i++)
-    {
+    for (int i = 0; i < 10; i++) {
         log_write(LOG_LEVEL_INFO, "PC: 0x%010" PRIxPTR " data: 0x%08" PRIx32 "\r\n", pc, *pc);
         pc += 1;
     }
 #endif
 
     // Confirm this kernel is not active
-    if (kernel_status_ptr->kernel_state != KERNEL_STATE_UNUSED)
-    {
+    if (kernel_status_ptr->kernel_state != KERNEL_STATE_UNUSED) {
         log_write(LOG_LEVEL_ERROR, "aborting kernel %d launch, state not unused\r\n", kernel_id);
         kernelReady = false;
     }
 
-    if (allShiresReady && kernelReady)
-    {
+    if (allShiresReady && kernelReady) {
         // Update the kernel status cmd with the kernel-launch command we are going to use
         kernel_status_ptr->launch_cmd = *launch_cmd;
 
-        volatile kernel_config_t* const kernel_config_ptr = &kernel_config[kernel_id];
+        volatile kernel_config_t *const kernel_config_ptr = &kernel_config[kernel_id];
 
-        for (uint64_t shire = 0; shire < NUM_SHIRES; shire++)
-        {
-            if (shire_mask & (1ULL << shire))
-            {
+        for (uint64_t shire = 0; shire < NUM_SHIRES; shire++) {
+            if (shire_mask & (1ULL << shire)) {
                 num_shires++;
             }
         }
@@ -280,7 +271,8 @@ void launch_kernel(const struct kernel_launch_cmd_t* const launch_cmd)
         // Copy params, info and flags into kernel config buffer
         kernel_config_ptr->kernel_params = launch_cmd->kernel_params;
         kernel_config_ptr->kernel_info.compute_pc = launch_cmd->kernel_info.compute_pc;
-        kernel_config_ptr->kernel_info.uber_kernel_nodes = launch_cmd->kernel_info.uber_kernel_nodes;
+        kernel_config_ptr->kernel_info.uber_kernel_nodes =
+            launch_cmd->kernel_info.uber_kernel_nodes;
         kernel_config_ptr->kernel_info.shire_mask = launch_cmd->kernel_info.shire_mask;
         kernel_config_ptr->num_shires = num_shires;
         kernel_config_ptr->kernel_launch_flags = kernel_launch_flags;
@@ -300,18 +292,14 @@ void launch_kernel(const struct kernel_launch_cmd_t* const launch_cmd)
         // FIXME SW-1471 generate an event message back to the host that we launched
         kernel_status_ptr->shire_mask = shire_mask;
 
-        for (uint64_t shire = 0; shire < NUM_SHIRES; shire++)
-        {
-            if (shire_mask & (1ULL << shire))
-            {
+        for (uint64_t shire = 0; shire < NUM_SHIRES; shire++) {
+            if (shire_mask & (1ULL << shire)) {
                 set_shire_kernel_id(shire, kernel_id);
             }
         }
 
         log_write(LOG_LEVEL_CRITICAL, "launching kernel %d\r\n", kernel_id);
-    }
-    else
-    {
+    } else {
         send_kernel_launch_response(&kernel_status[kernel_id].launch_cmd,
                                     DEV_API_KERNEL_LAUNCH_ERROR_SHIRES_NOT_READY);
     }
@@ -323,12 +311,15 @@ dev_api_kernel_abort_response_result_e abort_kernel(kernel_id_t kernel_id)
 {
     const kernel_state_t kernel_state = kernel_status[kernel_id].kernel_state;
 
-    if ((kernel_state == KERNEL_STATE_LAUNCHED) || (kernel_state == KERNEL_STATE_RUNNING) || (kernel_state == KERNEL_STATE_ERROR))
-    {
-        message_t message = {.id = MESSAGE_ID_KERNEL_ABORT, .data = {0}};
+    if ((kernel_state == KERNEL_STATE_LAUNCHED) || (kernel_state == KERNEL_STATE_RUNNING) ||
+        (kernel_state == KERNEL_STATE_ERROR)) {
+        message_t message = {
+            .id = MESSAGE_ID_KERNEL_ABORT,
+            .data = { 0 },
+        };
 
-        if (0 == broadcast_message_send_master(kernel_status[kernel_id].shire_mask, 0xFFFFFFFFFFFFFFFFU, &message))
-        {
+        if (0 == broadcast_message_send_master(kernel_status[kernel_id].shire_mask,
+                                               0xFFFFFFFFFFFFFFFFU, &message)) {
             log_write(LOG_LEVEL_CRITICAL, "abort_kernel: aborted kernel %d\r\n", kernel_id);
             update_kernel_state(kernel_id, KERNEL_STATE_ABORTED);
 
@@ -341,12 +332,9 @@ dev_api_kernel_abort_response_result_e abort_kernel(kernel_id_t kernel_id)
 
 kernel_state_t get_kernel_state(kernel_id_t kernel_id)
 {
-    if (kernel_id >= KERNEL_ID_NONE)
-    {
+    if (kernel_id >= KERNEL_ID_NONE) {
         return KERNEL_STATE_UNKNOWN;
-    }
-    else
-    {
+    } else {
         return kernel_status[kernel_id].kernel_state;
     }
 }
@@ -354,7 +342,7 @@ kernel_state_t get_kernel_state(kernel_id_t kernel_id)
 // Clear fields of kernel config so worker minion recognize it's inactive
 static void clear_kernel_config(kernel_id_t kernel_id)
 {
-    volatile kernel_config_t* const kernel_config_ptr = &kernel_config[kernel_id];
+    volatile kernel_config_t *const kernel_config_ptr = &kernel_config[kernel_id];
     kernel_config_ptr->kernel_info.shire_mask = 0;
 
     // Evict kernel config to point of coherency - sync threads and worker minion will read it

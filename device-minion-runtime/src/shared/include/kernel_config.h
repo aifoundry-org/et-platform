@@ -8,8 +8,7 @@
 
 #define KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH (1 << 0)
 
-typedef struct
-{
+typedef struct {
     kernel_info_t kernel_info;
     kernel_params_t kernel_params;
     uint64_t num_shires;

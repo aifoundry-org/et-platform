@@ -21,10 +21,9 @@ log_level_t get_log_level(void)
 }
 
 // sends a log message from a worker minion to the master minion for display
-int64_t log_write(log_level_t level, const char* const fmt, ...)
+int64_t log_write(log_level_t level, const char *const fmt, ...)
 {
-    if (level > current_log_level)
-    {
+    if (level > current_log_level) {
         return 0;
     }
 
@@ -33,10 +32,9 @@ int64_t log_write(log_level_t level, const char* const fmt, ...)
 
     va_list va;
     va_start(va, fmt);
-    char* string_ptr = (char*)message.data;
+    char *string_ptr = (char *)message.data;
 
-    if (vsnprintf(string_ptr, sizeof(message.data), fmt, va) < 0)
-    {
+    if (vsnprintf(string_ptr, sizeof(message.data), fmt, va) < 0) {
         return -1;
     }
 
@@ -45,8 +43,7 @@ int64_t log_write(log_level_t level, const char* const fmt, ...)
 
 int64_t log_write_str(log_level_t level, const char *str, size_t length)
 {
-    if (level > current_log_level)
-    {
+    if (level > current_log_level) {
         return 0;
     }
 

@@ -3,8 +3,7 @@
 
 #include <stdint.h>
 
-typedef struct
-{
+typedef struct {
     uint64_t address;
     uint64_t length;
 } scatter_gather_t;

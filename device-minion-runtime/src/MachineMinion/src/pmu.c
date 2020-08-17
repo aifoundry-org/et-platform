@@ -18,7 +18,6 @@
 //static int64_t sample_pmcs(uint64_t reset_counters);
 //static int64_t reset_pmcs(void);
 
-
 // Configure PMCs
 // conf_area point to the beginning of the memory buffer where the configuration values are stored
 // reset_counters is a boolean that determines whether we reset / start counters after the configuration
@@ -41,25 +40,28 @@ int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_buffer_addr)
     if (conf_buffer_addr == 0) {
         return -1;
     }
-    uint64_t *conf_buffer = (uint64_t *) conf_buffer_addr;
+    uint64_t *conf_buffer = (uint64_t *)conf_buffer_addr;
 
     // minion counters: Each hart configures all counters so that we measure events for all the harts
-    uint64_t *hart_minion_cfg_data = conf_buffer + PMU_EVENT_SHIRE_AREA * shire_id + PMU_MINION_COUNTERS_PER_HART * odd_hart;
-    for (uint64_t i=0; i < PMU_MINION_COUNTERS_PER_HART; i++) {
+    uint64_t *hart_minion_cfg_data =
+        conf_buffer + PMU_EVENT_SHIRE_AREA * shire_id + PMU_MINION_COUNTERS_PER_HART * odd_hart;
+    for (uint64_t i = 0; i < PMU_MINION_COUNTERS_PER_HART; i++) {
         ret = ret + configure_neigh_event(*hart_minion_cfg_data, PMU_MHPMEVENT3 + i);
     }
 
     // neigh counters: Only one minion per neigh needs to configure the counters
-    uint64_t *hart_neigh_cfg_data = conf_buffer + PMU_EVENT_SHIRE_AREA * shire_id + PMU_MINION_COUNTERS_PER_HART * 2
-            + PMU_NEIGH_COUNTERS_PER_HART * odd_hart;
+    uint64_t *hart_neigh_cfg_data = conf_buffer + PMU_EVENT_SHIRE_AREA * shire_id +
+                                    PMU_MINION_COUNTERS_PER_HART * 2 +
+                                    PMU_NEIGH_COUNTERS_PER_HART * odd_hart;
     if (program_neigh_harts) {
         ret = ret + configure_neigh_event(*hart_neigh_cfg_data, PMU_MHPMEVENT7);
         ret = ret + configure_neigh_event(*hart_neigh_cfg_data, PMU_MHPMEVENT8);
     }
 
     // sc location
-    uint64_t *hart_sc_cfg_data = conf_buffer + PMU_EVENT_SHIRE_AREA * shire_id + PMU_MINION_COUNTERS_PER_HART * 2
-            + PMU_NEIGH_COUNTERS_PER_HART * 2 + odd_hart;
+    uint64_t *hart_sc_cfg_data = conf_buffer + PMU_EVENT_SHIRE_AREA * shire_id +
+                                 PMU_MINION_COUNTERS_PER_HART * 2 +
+                                 PMU_NEIGH_COUNTERS_PER_HART * 2 + odd_hart;
     if (program_sc_harts) {
         // One bank per neigh
         ret = ret + configure_sc_event(shire_id, neigh_id, odd_hart, *hart_sc_cfg_data);
@@ -68,7 +70,8 @@ int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_buffer_addr)
     // Shire id's 0-7 just to simplify code initialize ms-id's 0-7.
     // TBD: Use shires closer to memshires
     // Currently last hart on each neigh of shires 0-7 programs memshire pref ctrl registers,
-    uint64_t *hart_ms_cfg_data = conf_buffer + PMU_EVENT_MEMSHIRE_OFFSET + shire_id * PMU_MS_COUNTERS_PER_MS;
+    uint64_t *hart_ms_cfg_data =
+        conf_buffer + PMU_EVENT_MEMSHIRE_OFFSET + shire_id * PMU_MS_COUNTERS_PER_MS;
     if (program_ms_harts) {
         ret = ret + configure_ms_event(shire_id, neigh_id, *hart_ms_cfg_data);
     }
@@ -109,7 +112,6 @@ int64_t reset_pmcs(void)
     return ret;
 }
 
-
 // Sample PMCs
 // Each of harts 0-11 read one neigh PMC
 // Harts 12-14 read shire cache PMCs
@@ -130,7 +132,7 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr)
     if (log_buffer_addr == 0) {
         return -1;
     }
-    uint64_t *log_buffer = (uint64_t *) log_buffer_addr;
+    uint64_t *log_buffer = (uint64_t *)log_buffer_addr;
     uint64_t neigh_minion_id = (hart_id >> 1) & 0x7;
 
     // Minion and neigh PMCs
@@ -139,7 +141,7 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr)
         if (pmc_data == PMU_INCORRECT_COUNTER) {
             ret = ret - 1;
         }
-        *(log_buffer+hart_id*8) = pmc_data;
+        *(log_buffer + hart_id * 8) = pmc_data;
         //log_buffer++;
     }
 
@@ -151,7 +153,7 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr)
         if (pmc_data == PMU_INCORRECT_COUNTER) {
             ret = ret - 1;
         }
-        *(log_buffer+hart_id*8) = pmc_data;
+        *(log_buffer + hart_id * 8) = pmc_data;
         //log_buffer++;
     }
 
@@ -162,7 +164,7 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr)
         if (pmc_data == PMU_INCORRECT_COUNTER) {
             ret = ret - 1;
         }
-        *(log_buffer+hart_id*8) = pmc_data;
+        *(log_buffer + hart_id * 8) = pmc_data;
         //log_buffer++;
     }
 

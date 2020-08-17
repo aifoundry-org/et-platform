@@ -18,15 +18,12 @@
 //
 //   Regular 64b RISCV store (sd instruction)
 //
-inline __attribute__((always_inline)) void store(unsigned long addr, unsigned long value) {
-
-    __asm__ __volatile__
-        (
-         "  sd %[value], 0(%[addr])\n"
-         :
-         : [addr] "r" (addr), [value] "r" (value)
-         : "memory"
-        );
+inline __attribute__((always_inline)) void store(unsigned long addr, unsigned long value)
+{
+    __asm__ __volatile__("  sd %[value], 0(%[addr])\n"
+                         :
+                         : [addr] "r"(addr), [value] "r"(value)
+                         : "memory");
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -35,15 +32,12 @@ inline __attribute__((always_inline)) void store(unsigned long addr, unsigned lo
 //
 //   Regular 64b RISCV load (ld instruction)
 //
-inline __attribute__((always_inline)) void load(unsigned long addr, unsigned long value) {
-
-    __asm__ __volatile__
-        (
-         "  ld %[value], 0(%[addr])\n"
-         :[value] "+&r" (value)
-         :[addr] "r" (addr)         
-         :"memory"
-        );
+inline __attribute__((always_inline)) void load(unsigned long addr, unsigned long value)
+{
+    __asm__ __volatile__("  ld %[value], 0(%[addr])\n"
+                         : [value] "+&r"(value)
+                         : [addr] "r"(addr)
+                         : "memory");
 }
 
 #endif

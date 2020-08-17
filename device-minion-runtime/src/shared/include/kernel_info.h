@@ -11,8 +11,8 @@ typedef struct {
     uint64_t compute_pc;
     uint64_t uber_kernel_nodes; // TODO FIXME remove when no longer needed
     uint64_t shire_mask;
-    kernel_params_t* kernel_params_ptr;
-    grid_config_t* grid_config_ptr;
+    kernel_params_t *kernel_params_ptr;
+    grid_config_t *grid_config_ptr;
 } kernel_info_t;
 
 #endif

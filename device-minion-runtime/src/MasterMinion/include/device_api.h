@@ -14,8 +14,8 @@
 /// \param[in] cmd: Pointer to the command this reply corresponds to. The command header
 ///        will be copied in the response body for the runtime to identify which is the original
 ///        command the reply corresponds to
-void prepare_device_api_reply(const struct command_header_t* const cmd,
-                              struct response_header_t* const rsp);
+void prepare_device_api_reply(const struct command_header_t *const cmd,
+                              struct response_header_t *const rsp);
 
 /// \brief Convert the log-level enum from the one defined in the DeviceAPI to the FW internal type
 log_level_t devapi_loglevel_to_fw(const enum LOG_LEVELS log_level);
@@ -26,8 +26,6 @@ log_level_t devapi_loglevel_to_fw(const enum LOG_LEVELS log_level);
 ///             to allow us to modify the contents of the message upon arrive and record
 ///             necessary additional information, like timestamps. We also expect that the
 ///             buffer has the expected size for the type of the message held
-void handle_device_api_message_from_host(const mbox_message_id_t* message_id,
-                                         uint8_t* buffer);
-
+void handle_device_api_message_from_host(const mbox_message_id_t *message_id, uint8_t *buffer);
 
 #endif
