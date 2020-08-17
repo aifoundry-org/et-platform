@@ -14,7 +14,11 @@
 
 /// @brief Initializes trace subsystem, sets up control region, sets all the
 /// knobs to default states, and does all the required cache maintainance
-void TRACE_init(void);
+void TRACE_init_master(void);
+
+/// @brief Does all the required cache maintainance, and initializes worker's
+/// trace buffer
+void TRACE_init_worker(void);
 
 /// @brief Initializes trace buffer for logging, which includes setting up
 /// ring buffer indexes and hart-id of the logging thread in buffer header

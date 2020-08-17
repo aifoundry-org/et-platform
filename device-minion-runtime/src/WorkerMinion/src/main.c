@@ -27,6 +27,10 @@ void __attribute__((noreturn)) main(void)
                  "csrw  stvec, %0        \n"
                  : "=&r"(temp));
 
+    // Init trace for worker minion
+    TRACE_init_worker();
+    TRACE_string(LOG_LEVELS_CRITICAL, "Trace message from worker");
+
     const uint64_t shire_id = get_shire_id();
     const uint64_t hart_id = get_hart_id();
     const uint64_t shire_mask = 1ULL << shire_id;
@@ -62,30 +66,24 @@ void __attribute__((noreturn)) main(void)
         message_send_worker(shire_id, hart_id, &message);
     }
 
-    // Wait till master inits trace subsystem
-    WAIT_FCC(FCC_0);
-
-    // Init trace for worker minion
-    TRACE_init_buffer();
-
-    for (;;)
-    {
+    for (;;) {
         int64_t rv = -1;
 
         // Wait for a credit (kernel launch fastpath)
         // or SWI (message passing slow path)
         WAIT_FCC(FCC_0);
 
-        for (uint64_t kernel_id = 0; kernel_id < MAX_SIMULTANEOUS_KERNELS; kernel_id++)
-        {
-            volatile const kernel_config_t* const kernel_config_ptr = &kernel_config[kernel_id];
+        for (uint64_t kernel_id = 0; kernel_id < MAX_SIMULTANEOUS_KERNELS; kernel_id++) {
+            volatile const kernel_config_t *const kernel_config_ptr = &kernel_config[kernel_id];
 
-            if (kernel_config_ptr->kernel_info.shire_mask & shire_mask)
-            {
-                const uint64_t* const kernel_entry_addr = (uint64_t*)kernel_config_ptr->kernel_info.compute_pc;
-                const uint64_t* const kernel_stack_addr = (uint64_t*)(KERNEL_UMODE_STACK_BASE - (hart_id * KERNEL_UMODE_STACK_SIZE));
-                const kernel_params_t* const kernel_params_ptr = kernel_config_ptr->kernel_info.kernel_params_ptr;
-                const grid_config_t* const grid_config_ptr = NULL; // TODO FIXME
+            if (kernel_config_ptr->kernel_info.shire_mask & shire_mask) {
+                const uint64_t *const kernel_entry_addr =
+                    (uint64_t *)kernel_config_ptr->kernel_info.compute_pc;
+                const uint64_t *const kernel_stack_addr =
+                    (uint64_t *)(KERNEL_UMODE_STACK_BASE - (hart_id * KERNEL_UMODE_STACK_SIZE));
+                const kernel_params_t *const kernel_params_ptr =
+                    kernel_config_ptr->kernel_info.kernel_params_ptr;
+                const grid_config_t *const grid_config_ptr = NULL; // TODO FIXME
                 const uint64_t kernel_launch_flags = kernel_config_ptr->kernel_launch_flags;
 
                 rv = launch_kernel(kernel_entry_addr, kernel_stack_addr, kernel_params_ptr,
@@ -94,8 +92,7 @@ void __attribute__((noreturn)) main(void)
             }
         }
 
-        if (rv != 0)
-        {
+        if (rv != 0) {
             // Something went wrong launching the kernel.
             // Can't rely on post_kernel_cleanup(), so evict to invalidate.
             for (uint64_t kernel_id = 0; kernel_id < MAX_SIMULTANEOUS_KERNELS; kernel_id++) {

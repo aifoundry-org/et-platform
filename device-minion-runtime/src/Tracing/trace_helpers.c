@@ -18,7 +18,7 @@
 #include "message.h"
 #include "ring_buffer.h"
 
-void TRACE_init(void)
+void TRACE_init_master(void)
 {
     struct trace_control_t *cntrl =
         (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
@@ -50,20 +50,24 @@ void TRACE_init(void)
     // Evict control region
     TRACE_update_control();
 
-    // send message to workers
-    message_t message;
-    message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
-    broadcast_message_send_master(0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF, &message);
+    // Init master's trace buffer
+    TRACE_init_buffer();
+}
 
-    // Release worker minions to init trace
-    broadcast(0xFFFFFFFFU, 0xFFFFFFFF, PRV_U, ESR_SHIRE_REGION,
-              ESR_SHIRE_FCC_CREDINC_0_REGNO); // thread 0 FCC 0
-    broadcast(0xFFFFFFFFU, 0xFFFFFFFF, PRV_U, ESR_SHIRE_REGION,
-              ESR_SHIRE_FCC_CREDINC_2_REGNO); // thread 1 FCC 0
+void TRACE_init_worker(void)
+{
+    // TODO: hack to keep workers waiting until master inits system.
+    // Depends on SW-3589. Once done, remove the while loop and also
+    // struct trace_control_t *cntrl
+    struct trace_control_t *cntrl =
+        (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
 
-    // Release workers present in master shire to init trace
-    SEND_FCC(MASTER_SHIRE, THREAD_0, FCC_0, 0xFFFF0000U);
-    SEND_FCC(MASTER_SHIRE, THREAD_1, FCC_0, 0xFFFF0000U);
+    while (cntrl->buffer_size == 0)
+      // Evict control region
+      TRACE_update_control();
+
+    // Init worker's trace buffer
+    TRACE_init_buffer();
 }
 
 void TRACE_init_buffer(void)
