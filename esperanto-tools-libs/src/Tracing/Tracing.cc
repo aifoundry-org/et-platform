@@ -18,6 +18,8 @@
 #include <google/protobuf/util/delimited_message_util.h>
 #include <memory>
 
+#include <mutex>
+
 ABSL_FLAG(std::string, etrt_trace, "", "Path to runtime Protobuf trace");
 
 namespace et_runtime {
@@ -29,8 +31,12 @@ static std::ostream *getFileStream() {
 
   if (ostream.get() == nullptr) {
     if (auto path = absl::GetFlag(FLAGS_etrt_trace); !path.empty()) {
-      ostream = std::make_unique<std::fstream>(
-        path, std::ios::out | std::ios::app | std::ios::ate | std::ios::binary);
+      std::ios::openmode open_mode = std::ios::out | std::ios::app | std::ios::binary | std::ios::ate;
+      static std::once_flag s_once_flag;
+      std::call_once(s_once_flag, [&open_mode]() {
+        open_mode |= std::ios::trunc; //TODO: only truncate the first time. THis is obviously a hack, we need to get rid of all global mutable state
+      });
+      ostream = std::make_unique<std::fstream>(path,  open_mode);
     }
   }
   return ostream.get();
