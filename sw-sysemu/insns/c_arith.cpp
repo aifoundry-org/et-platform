@@ -122,8 +122,8 @@ void insn_c_slli(Hart& cpu)
 
 void insn_c_srai(Hart& cpu)
 {
-    C_DISASM_RDS1_SHAMT("c.srai");
-    WRITE_C_RS1(int64_t(C_RS1) >> C_SHAMT);
+    C_DISASM_RDS1P_SHAMT("c.srai");
+    WRITE_C_RS1P(int64_t(C_RS1P) >> C_SHAMT);
 }
 
 
