@@ -46,8 +46,6 @@ set(BIN_INSTALL_DIR bin CACHE STRING "Bin install dir")
 set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
 set(LIB_INSTALL_DIR  lib/  CACHE STRING "Library install dir")
 set(SYSCONFIG_INSTALL_DIR etc/et-fw/ CACHE STRING "Config install dir")
-# FIXME: This repo will only generate the .ELF. The .hex will be outside so this will be removed
-set(BOOT_ARTIFACTS_TOOLS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../boot-images/tools)
 
 set(DEVFW_EXTERNAL_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/external-install"
   CACHE PATH "Instalation path of external dependencies")
