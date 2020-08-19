@@ -14,7 +14,7 @@
     ],
     "BUILD_STEPS": [
         "echo \"BUILD START\"",
-        "./sw-platform.py et-sw-platform --network host --mount-home \"mkdir -p build install && cd build && cmake .. -DAWS_BUILD=ON && cd device-software && make -j $(nproc) flash-image \" ",
+        "./sw-platform.py et-sw-platform --network host --mount-home \"mkdir -p build install && cd build && cmake .. -DAWS_BUILD=ON && cd device-software && make -j $(nproc) device-artifacts \" ",
         "echo \"BUILD DONE\""
     ],
     "TEST_STEPS": [
