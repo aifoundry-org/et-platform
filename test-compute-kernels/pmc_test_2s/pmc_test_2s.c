@@ -74,13 +74,14 @@
 #define REDUCE_PARAMS 5
 
 #define TOTAL_MINIONS 64
-#define NUM_ITER 100
+#define NUM_ITER 10
 #define NUM_RANDOM_SAMPLES 10
 
 #include "tl0_configs.h"
 #include "tl1_configs.h"
 #include "tfma_configs.h"
 #include "reduce_configs.h"
+#include "markers.h"
 
 int64_t main(const kernel_params_t* const kernel_params_ptr)
 {
@@ -97,6 +98,8 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 	// Bad arguments
 	return -1;
     }
+
+    START_WAVES_MARKER;
 
     volatile uint64_t pmc_cfg = (uint64_t) kernel_params_ptr->tensor_e;
     volatile uint64_t pmc_log = (uint64_t) kernel_params_ptr->tensor_g;
@@ -247,6 +250,8 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
         return -1;
     }
 
+    syscall(SYSCALL_SAMPLE_PMCS, 1, pmc_log, 0);
+
     uint64_t crc_barrier_result;
     WAIT_FLB(32, CRC_FLB, crc_barrier_result);
      
@@ -255,7 +260,6 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     }
     uint64_t local_minion_id = minion_id & 0x1F;
     SEND_FCC(shire_id, 1, 0, (1ULL << local_minion_id));
-    syscall(SYSCALL_SAMPLE_PMCS, 1, pmc_log, 0);
 
     return 0;
 }
