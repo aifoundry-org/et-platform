@@ -57,6 +57,16 @@ namespace bemu {
         cpu.fregs[n].u32[4], cpu.fregs[n].u32[5], \
         cpu.fregs[n].u32[6], cpu.fregs[n].u32[7])
 
+#define LOG_CREG(str, n) \
+    LOG_HART(DEBUG, cpu, "\tc%d " str " {" \
+        " 0:0x%08" PRIx32 " 1:0x%08" PRIx32 " 2:0x%08" PRIx32 " 3:0x%08" PRIx32 \
+        " 4:0x%08" PRIx32 " 5:0x%08" PRIx32 " 6:0x%08" PRIx32 " 7:0x%08" PRIx32 \
+        " }", n, \
+        cpu.core->tenc[n].u32[0], cpu.core->tenc[n].u32[1], \
+        cpu.core->tenc[n].u32[2], cpu.core->tenc[n].u32[3], \
+        cpu.core->tenc[n].u32[4], cpu.core->tenc[n].u32[5], \
+        cpu.core->tenc[n].u32[6], cpu.core->tenc[n].u32[7])
+
 #define LOG_MREG(str, n) \
     LOG_HART(DEBUG, cpu, "\tm%d " str " 0x%02lx", n, cpu.mregs[n].to_ulong())
 
@@ -67,10 +77,10 @@ namespace bemu {
         " }", \
         (row >= L1_SCP_ENTRIES) ? "TenB" : "SCP", \
         (row >= L1_SCP_ENTRIES) ? (row - L1_SCP_ENTRIES) : row, \
-        (col)+0, SCP[row].u32[(col)+0], (col)+1, SCP[row].u32[(col)+1], \
-        (col)+2, SCP[row].u32[(col)+2], (col)+3, SCP[row].u32[(col)+3], \
-        (col)+4, SCP[row].u32[(col)+4], (col)+5, SCP[row].u32[(col)+5], \
-        (col)+6, SCP[row].u32[(col)+6], (col)+7, SCP[row].u32[(col)+7])
+        (col)+0, cpu.core->scp[row].u32[(col)+0], (col)+1, cpu.core->scp[row].u32[(col)+1], \
+        (col)+2, cpu.core->scp[row].u32[(col)+2], (col)+3, cpu.core->scp[row].u32[(col)+3], \
+        (col)+4, cpu.core->scp[row].u32[(col)+4], (col)+5, cpu.core->scp[row].u32[(col)+5], \
+        (col)+6, cpu.core->scp[row].u32[(col)+6], (col)+7, cpu.core->scp[row].u32[(col)+7])
 
 #define LOG_SCP_32x16(str, row) \
     LOG_HART(DEBUG, cpu, "\t%s[%d] " str " {" \
@@ -81,16 +91,16 @@ namespace bemu {
         " }", \
         (row >= L1_SCP_ENTRIES) ? "TenB" : "SCP", \
         (row >= L1_SCP_ENTRIES) ? (row - L1_SCP_ENTRIES) : row, \
-        SCP[row].u32[0], SCP[row].u32[1], SCP[row].u32[2], SCP[row].u32[3], \
-        SCP[row].u32[4], SCP[row].u32[5], SCP[row].u32[6], SCP[row].u32[7], \
-        SCP[row].u32[8], SCP[row].u32[9], SCP[row].u32[10], SCP[row].u32[11], \
-        SCP[row].u32[12], SCP[row].u32[13], SCP[row].u32[14], SCP[row].u32[15])
+        cpu.core->scp[row].u32[0], cpu.core->scp[row].u32[1], cpu.core->scp[row].u32[2], cpu.core->scp[row].u32[3], \
+        cpu.core->scp[row].u32[4], cpu.core->scp[row].u32[5], cpu.core->scp[row].u32[6], cpu.core->scp[row].u32[7], \
+        cpu.core->scp[row].u32[8], cpu.core->scp[row].u32[9], cpu.core->scp[row].u32[10], cpu.core->scp[row].u32[11], \
+        cpu.core->scp[row].u32[12], cpu.core->scp[row].u32[13], cpu.core->scp[row].u32[14], cpu.core->scp[row].u32[15])
 
 #define LOG_SCP_32x1(str, row, col) \
     LOG_HART(DEBUG, cpu, "\t%s[%d] " str " { %d:0x%08" PRIx32 " }", \
         (row >= L1_SCP_ENTRIES) ? "TenB" : "SCP", \
         (row >= L1_SCP_ENTRIES) ? (row - L1_SCP_ENTRIES) : row, \
-        col, SCP[row].u32[col])
+        col, cpu.core->scp[row].u32[col])
 
 #define LOG_FREG_HART(cpu, str, n) \
     LOG_HART(DEBUG, cpu, "\tf%d " str " {" \

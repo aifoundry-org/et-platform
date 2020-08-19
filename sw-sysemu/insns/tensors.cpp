@@ -955,10 +955,14 @@ static void tensor_fma32_execute(Hart& cpu)
 
         // Model TenB as an extension of the scratchpad
         cache_line_t& tmpb = SCP[tenb ? (k+L1_SCP_ENTRIES) : ((bstart+k)%L1_SCP_ENTRIES)];
-        if(!tenb) L1_SCP_CHECK_READ(cpu, ((bstart+k)%L1_SCP_ENTRIES));
+        LOG_SCP_32x16(":", tenb ? (k+L1_SCP_ENTRIES) : ((bstart+k)%L1_SCP_ENTRIES));
+        if (!tenb)
+            L1_SCP_CHECK_READ(cpu, ((bstart+k)%L1_SCP_ENTRIES));
 
         for (int i = 0; i < arows; ++i)
         {
+            bool written[2] = { false, false };
+
             // Skip computation for this row
             if (usemsk && !cpu.tensor_mask[i])
             {
@@ -969,9 +973,11 @@ static void tensor_fma32_execute(Hart& cpu)
                     for (int j = 0; j < bcols; ++j)
                     {
                         FREGS[i*TFMA_REGS_PER_ROW + j/VLENW].u32[j%VLENW] = 0;
-                        LOG_HART(DEBUG, cpu, "\tTensorFMA32(0) f%u[%u] = 0x0", i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW);
                         notify_tensor_fma_write(cpu, 0, true, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, 0);
+                        written[j/VLENW] = true;
                     }
+                    if (written[0]) LOG_FREG("=", i*TFMA_REGS_PER_ROW);
+                    if (written[1]) LOG_FREG("=", i*TFMA_REGS_PER_ROW + 1);
                 }
                 continue;
             }
@@ -979,6 +985,7 @@ static void tensor_fma32_execute(Hart& cpu)
             uint32_t a_scp_entry = (astart+i) % L1_SCP_ENTRIES;
             float32_t a = SCP[a_scp_entry].f32[(aoffset+k) % (L1D_LINE_SIZE/4)];
             L1_SCP_CHECK_READ(cpu, a_scp_entry);
+            LOG_SCP_32x1(":", a_scp_entry, ((aoffset+k) % (L1D_LINE_SIZE/4)));
 
             // If first_pass is 1 and this is the first iteration we do FMUL
             // instead of FMA
@@ -989,9 +996,8 @@ static void tensor_fma32_execute(Hart& cpu)
                     float32_t b = tmpb.f32[j];
                     float32_t c = fpu::f32_mul(a, b);
                     FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW] = fpu::UI32(c);
-                    LOG_HART(DEBUG, cpu, "\tTensorFMA32(%d) f%u[%u]: 0x%08" PRIx32 " = 0x%08" PRIx32 " * 0x%08" PRIx32,
-                        k, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, fpu::UI32(c), fpu::UI32(a), fpu::UI32(b));
                     notify_tensor_fma_write(cpu, k, true, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW]);
+                    written[j/VLENW] = true;
                 }
             }
             else
@@ -1009,20 +1015,13 @@ static void tensor_fma32_execute(Hart& cpu)
                     float32_t c0 = FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].f32[j%VLENW];
                     float32_t c = fpu::f32_mulAdd(a, b, c0);
                     FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW] = fpu::UI32(c);
-                    LOG_HART(DEBUG, cpu, "\tTensorFMA32(%d) f%u[%u]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + 0x%08" PRIx32 " * 0x%08" PRIx32,
-                        k, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, fpu::UI32(c), fpu::UI32(c0), fpu::UI32(a), fpu::UI32(b));
                     notify_tensor_fma_write(cpu, k, true, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW]);
+                    written[j/VLENW] = true;
                 }
             }
+            if (written[0]) LOG_FREG("=", i*TFMA_REGS_PER_ROW);
+            if (written[1]) LOG_FREG("=", i*TFMA_REGS_PER_ROW + 1);
         }
-    }
-
-    // logging
-    for (int i = 0; i < arows; ++i)
-    {
-        for (int j = 0; j < bcols; ++j)
-            LOG_HART(DEBUG, cpu, "\tC[%d][%d]: f%u[%u] = 0x%08" PRIx32, i, j,
-                i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW]);
     }
 
     set_fp_exceptions(cpu);
@@ -1161,10 +1160,14 @@ static void tensor_fma16a32_execute(Hart& cpu)
 
         // Model TenB as an extension of the scratchpad
         cache_line_t& tmpb = SCP[tenb ? ((k/2)+L1_SCP_ENTRIES) : ((bstart+k/2)%L1_SCP_ENTRIES)];
-        if(!tenb) L1_SCP_CHECK_READ(cpu, ((bstart+k/2)%L1_SCP_ENTRIES));
+        LOG_SCP_32x16(":", tenb ? ((k/2)+L1_SCP_ENTRIES) : ((bstart+k/2)%L1_SCP_ENTRIES));
+        if (!tenb)
+            L1_SCP_CHECK_READ(cpu, ((bstart+k/2)%L1_SCP_ENTRIES));
 
         for (int i = 0; i < arows; ++i)
         {
+            bool written[2] = { false, false };
+
             // Skip computation for this row
             if (usemsk && !cpu.tensor_mask[i])
             {
@@ -1175,9 +1178,11 @@ static void tensor_fma16a32_execute(Hart& cpu)
                     for (int j = 0; j < bcols; ++j)
                     {
                         FREGS[i*TFMA_REGS_PER_ROW + j/VLENW].u32[j%VLENW] = 0;
-                        LOG_HART(DEBUG, cpu, "\tTensorFMA16A32(0) f%u[%u] = 0x0", i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW);
                         notify_tensor_fma_write(cpu, 0, true, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, 0);
+                        written[j/VLENW] = true;
                     }
+                    if (written[0]) LOG_FREG("=", i*TFMA_REGS_PER_ROW);
+                    if (written[1]) LOG_FREG("=", i*TFMA_REGS_PER_ROW + 1);
                 }
                 continue;
             }
@@ -1185,6 +1190,7 @@ static void tensor_fma16a32_execute(Hart& cpu)
             uint32_t a_scp_entry = (astart+i) % L1_SCP_ENTRIES;
             float16_t a1 = SCP[a_scp_entry].f16[(aoffset+k+0) % (L1D_LINE_SIZE/2)];
             float16_t a2 = SCP[a_scp_entry].f16[(aoffset+k+1) % (L1D_LINE_SIZE/2)];
+            LOG_SCP_32x1(":", a_scp_entry, ((aoffset+k+0) % (L1D_LINE_SIZE/2)) / 2);
             L1_SCP_CHECK_READ(cpu, a_scp_entry);
 
             // If first_pass is 1 and this is the first iteration we do
@@ -1197,9 +1203,8 @@ static void tensor_fma16a32_execute(Hart& cpu)
                     float16_t b2 = tmpb.f16[2*j+1];
                     float32_t c = fpu::f1632_mulAdd2(a1, b1, a2, b2);
                     FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW] = fpu::UI32(c);
-                    LOG_HART(DEBUG, cpu, "\tTensorFMA16A32(%d) f%u[%u]: 0x%08" PRIx32 " = (0x%04" PRIx16 " * 0x%04" PRIx16 ") + (0x%04" PRIx16 " * 0x%04" PRIx16 ")",
-                        k/2, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, fpu::UI32(c), fpu::UI16(a1), fpu::UI16(b1), fpu::UI16(a2), fpu::UI16(b2));
                     notify_tensor_fma_write(cpu, k/2, true, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW]);
+                    written[j/VLENW] = true;
                 }
             }
             // If all products will be 0, we can skip the operation. NB: The detection
@@ -1218,20 +1223,13 @@ static void tensor_fma16a32_execute(Hart& cpu)
                     float32_t c0 = FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].f32[j%VLENW];
                     float32_t c = fpu::f1632_mulAdd3(a1, b1, a2, b2, c0);
                     FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW] = fpu::UI32(c);
-                    LOG_HART(DEBUG, cpu, "\tTensorFMA16A32(%d) f%u[%u]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%04" PRIx16 " * 0x%04" PRIx16 ") + (0x%04" PRIx16 " * 0x%04" PRIx16 ")",
-                        k/2, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, fpu::UI32(c), fpu::UI32(c0), fpu::UI16(a1), fpu::UI16(b1), fpu::UI16(a2), fpu::UI16(b2));
                     notify_tensor_fma_write(cpu, k/2, true, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW]);
+                    written[j/VLENW] = true;
                 }
             }
+            if (written[0]) LOG_FREG("=", i*TFMA_REGS_PER_ROW);
+            if (written[1]) LOG_FREG("=", i*TFMA_REGS_PER_ROW + 1);
         }
-    }
-
-    // logging
-    for (int i = 0; i < arows; ++i)
-    {
-        for (int j = 0; j < bcols; ++j)
-            LOG_HART(DEBUG, cpu, "\tC[%d][%d]: f%u[%u] = 0x%08" PRIx32, i, j,
-                i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW]);
     }
 
     set_fp_exceptions(cpu);
@@ -1373,14 +1371,17 @@ static void tensor_ima8a32_execute(Hart& cpu)
 
         // Model TenB as an extension of the scratchpad
         cache_line_t& tmpb = SCP[tenb ? ((k/4)+L1_SCP_ENTRIES) : ((bstart+k/4)%L1_SCP_ENTRIES)];
-        if(!tenb) L1_SCP_CHECK_READ(cpu, ((bstart+k/4)%L1_SCP_ENTRIES));
+        LOG_SCP_32x16(":", tenb ? ((k/4)+L1_SCP_ENTRIES) : ((bstart+k/4)%L1_SCP_ENTRIES));
+        if (!tenb)
+            L1_SCP_CHECK_READ(cpu, ((bstart+k/4)%L1_SCP_ENTRIES));
 
         bool write_freg = (tenc2rf && (k+4 == acols));
         freg_t* dst = write_freg ? FREGS.data() : TENC.data();
-        const char* dname = write_freg ? "f" : "TenC";
 
         for (int i = 0; i < arows; ++i)
         {
+            bool written[2] = { false, false };
+
             // We should skip computation for this row, but:
             // * if first_pass is set and this is the first iteration then we still set TenC to 0
             // * if tenc2rf is set and we are in the last pass then we must copy TenC to FREGS even for this row.
@@ -1391,9 +1392,11 @@ static void tensor_ima8a32_execute(Hart& cpu)
                     for (int j = 0; j < bcols; ++j)
                     {
                         FREGS[i*TFMA_REGS_PER_ROW + j/VLENW].u32[j%VLENW] = (first_pass && !k) ? 0 : TENC[i*TFMA_REGS_PER_ROW + j/VLENW].u32[j%VLENW];
-                        LOG_HART(DEBUG, cpu, "\tTensorIMA8A32(%d) f%u[%u] = 0x%08" PRIx32, k/4, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW]);
                         notify_tensor_fma_write(cpu, k/4, true, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, FREGS[i*TFMA_REGS_PER_ROW + j/VLENW].u32[j%VLENW]);
+                        written[j/VLENW] = true;
                     }
+                    if (written[0]) LOG_FREG("=", i*TFMA_REGS_PER_ROW);
+                    if (written[1]) LOG_FREG("=", i*TFMA_REGS_PER_ROW + 1);
                 }
                 else if (first_pass && !k)
                 {
@@ -1401,7 +1404,10 @@ static void tensor_ima8a32_execute(Hart& cpu)
                     {
                         TENC[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW] = 0;
                         notify_tensor_fma_write(cpu, 0, false, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, TENC[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW]);
+                        written[j/VLENW] = true;
                     }
+                    if (written[0]) LOG_CREG("=", i*TFMA_REGS_PER_ROW);
+                    if (written[1]) LOG_CREG("=", i*TFMA_REGS_PER_ROW + 1);
                 }
                 continue;
             }
@@ -1416,6 +1422,7 @@ static void tensor_ima8a32_execute(Hart& cpu)
                 int32_t a3 = ua ? ASRC(2) : sext8_2(ASRC(2));
                 int32_t a4 = ua ? ASRC(3) : sext8_2(ASRC(3));
 #undef ASRC
+                LOG_SCP_32x1(":", (astart+i) % L1_SCP_ENTRIES, ((aoffset+k) % L1D_LINE_SIZE) / 4);
                 L1_SCP_CHECK_READ(cpu, (astart+i) % L1_SCP_ENTRIES);
                 for (int j = 0; j < bcols; ++j)
                 {
@@ -1427,9 +1434,8 @@ static void tensor_ima8a32_execute(Hart& cpu)
 #undef BSRC
                     int32_t c = (a1 * b1) + (a2 * b2) + (a3 * b3) + (a4 * b4);
                     dst[i*TFMA_REGS_PER_ROW+j/VLENW].i32[j%VLENW] = c;
-                    LOG_HART(DEBUG, cpu, "\tTensorIMA8A32(%d) %s%u[%u]: 0x%08" PRIx32 " = (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ")",
-                        k/4, dname, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, c, uint8_t(a1), uint8_t(b1), uint8_t(a2), uint8_t(b2), uint8_t(a3), uint8_t(b3), uint8_t(a4), uint8_t(b4));
                     notify_tensor_fma_write(cpu, k/4, write_freg, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, uint32_t(c));
+                    written[j/VLENW] = true;
                 }
             }
             // If all products are 0, we can skip the operation, except if TenC must
@@ -1467,25 +1473,24 @@ static void tensor_ima8a32_execute(Hart& cpu)
                     int32_t c0 = TENC[i*TFMA_REGS_PER_ROW+j/VLENW].i32[j%VLENW];
                     int32_t c = c0 + (a1 * b1) + (a2 * b2) + (a3 * b3) + (a4 * b4);
                     dst[i*TFMA_REGS_PER_ROW+j/VLENW].i32[j%VLENW] = c;
-                    LOG_HART(DEBUG, cpu, "\tTensorIMA8A32(%d) %s%u[%u]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ")",
-                        k/4, dname, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, c, c0, uint8_t(a1), uint8_t(b1), uint8_t(a2), uint8_t(b2), uint8_t(a3), uint8_t(b3), uint8_t(a4), uint8_t(b4));
                     notify_tensor_fma_write(cpu, k/4, write_freg, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, uint32_t(c));
+                    written[j/VLENW] = true;
                 }
+            }
+            if (write_freg)
+            {
+                if (written[0]) LOG_FREG("=", i*TFMA_REGS_PER_ROW);
+                if (written[1]) LOG_FREG("=", i*TFMA_REGS_PER_ROW + 1);
+            }
+            else
+            {
+                if (written[0]) LOG_CREG("=", i*TFMA_REGS_PER_ROW);
+                if (written[1]) LOG_CREG("=", i*TFMA_REGS_PER_ROW + 1);
             }
         }
     }
     if (tenc2rf)
         dirty_fp_state();
-
-    // logging
-    for (int i = 0; i < arows; ++i)
-    {
-        const freg_t* dst = tenc2rf ? FREGS.data() : TENC.data();
-        const char* dname = tenc2rf ? "f" : "TenC";
-        for (int j = 0; j < bcols; ++j)
-            LOG_HART(DEBUG, cpu, "\tC[%d][%d]: %s%u[%u] = 0x%08" PRIx32, i, j, dname,
-                i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, dst[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW]);
-    }
 }
 
 
