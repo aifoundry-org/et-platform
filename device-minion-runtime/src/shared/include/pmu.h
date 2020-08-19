@@ -178,7 +178,7 @@ static inline uint64_t read_neigh_pmc(uint64_t pmc)
     default:
         return PMU_INCORRECT_COUNTER;
     }
-    return 0;
+    return val;
 }
 
 // Configure an event for a shire cache perf counter
