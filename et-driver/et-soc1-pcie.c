@@ -46,6 +46,8 @@ MODULE_VERSION("1.0");
 #define ET_PCIE_TEST_DEVICE_ID 0x9038
 #define ET_PCIE_SOC1_ID 0xeb01
 
+#define MBOX_TIMEOUT_SEC 60
+
 static const struct pci_device_id esperanto_pcie_tbl[] = {
 	{ PCI_DEVICE(ET_PCIE_VENDOR_ID, ET_PCIE_TEST_DEVICE_ID) },
 	{ PCI_DEVICE(ET_PCIE_VENDOR_ID, ET_PCIE_SOC1_ID) },
@@ -223,6 +225,7 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 	struct et_pci_dev *et_dev;
 	struct miscdevice *misc_ops_dev_ptr = fp->private_data;
 	size_t size;
+	int rc;
 
 	et_dev = container_of(misc_ops_dev_ptr,
 			      struct et_pci_dev, misc_ops_dev);
@@ -274,7 +277,16 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 		return 0;
 
 	case ETSOC1_IOCTL_GET_MBOX_READY & ~IOCSIZE_MASK:
-		mbox_rdy = (uint64_t)et_mbox_ready(ops_mbox_ptr);
+		rc =
+		wait_event_interruptible_timeout(ops_mbox_ptr->user_msg_wq,
+						 et_mbox_ready(ops_mbox_ptr),
+						 MBOX_TIMEOUT_SEC * HZ);
+		if (rc == -ERESTARTSYS)
+			return rc;
+		else if (!rc)
+			return -ETIMEDOUT;
+
+		mbox_rdy = !!et_mbox_ready(ops_mbox_ptr);
 		if (copy_to_user((uint64_t *)arg, &mbox_rdy, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_MBOX_READY: failed to copy to user\n");
 			return -ENOMEM;
@@ -304,6 +316,7 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 	struct et_pci_dev *et_dev;
 	struct miscdevice *misc_mgmt_dev_ptr = fp->private_data;
 	size_t size;
+	int rc;
 
 	et_dev = container_of(misc_mgmt_dev_ptr,
 			      struct et_pci_dev, misc_mgmt_dev);
@@ -325,7 +338,16 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 		return 0;
 
 	case ETSOC1_IOCTL_GET_MBOX_READY & ~IOCSIZE_MASK:
-		mbox_rdy = (uint64_t)et_mbox_ready(mgmt_mbox_ptr);
+		rc =
+		wait_event_interruptible_timeout(mgmt_mbox_ptr->user_msg_wq,
+						 et_mbox_ready(mgmt_mbox_ptr),
+						 MBOX_TIMEOUT_SEC * HZ);
+		if (rc == -ERESTARTSYS)
+			return rc;
+		else if (!rc)
+			return -ETIMEDOUT;
+
+		mbox_rdy = !!et_mbox_ready(mgmt_mbox_ptr);
 		if (copy_to_user((uint64_t *)arg, &mbox_rdy, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_MBOX_READY: failed to copy to user\n");
 			return -ENOMEM;

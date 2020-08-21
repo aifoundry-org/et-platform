@@ -105,55 +105,12 @@ void et_mbox_destroy(struct et_mbox *mbox)
 	mbox->mem = NULL;
 	mbox->r_pu_trg_pcie = NULL;
 	mbox->send_interrupt = NULL;
+	mbox->is_ready = false;
 }
 
 bool et_mbox_ready(struct et_mbox *mbox)
 {
-	uint32_t master_status, slave_status;
-
-	master_status = ioread32(&mbox->mem->master_status);
-	slave_status = ioread32(&mbox->mem->slave_status);
-
-	//The host is always the mbox slave
-	switch (master_status) {
-	case MBOX_STATUS_NOT_READY:
-		break;
-	case MBOX_STATUS_READY:
-		if (slave_status != MBOX_STATUS_READY &&
-		    slave_status != MBOX_STATUS_WAITING) {
-			pr_info("received master ready, going slave ready");
-			iowrite32(MBOX_STATUS_READY, &mbox->mem->slave_status);
-
-			//Flush PCIe write
-			slave_status = ioread32(&mbox->mem->slave_status);
-
-			mbox->send_interrupt(mbox->r_pu_trg_pcie);
-
-			//Flush interrupt IPI write
-			slave_status = ioread32(&mbox->mem->slave_status);
-		}
-		break;
-	case MBOX_STATUS_WAITING:
-		if (slave_status != MBOX_STATUS_READY &&
-		    slave_status != MBOX_STATUS_WAITING) {
-			pr_info("received master waiting, going slave ready");
-			iowrite32(MBOX_STATUS_READY, &mbox->mem->slave_status);
-
-			//Flush PCIe write
-			slave_status = ioread32(&mbox->mem->slave_status);
-
-			mbox->send_interrupt(mbox->r_pu_trg_pcie);
-
-			//Flush interrupt IPI write
-			slave_status = ioread32(&mbox->mem->slave_status);
-		}
-		break;
-	case MBOX_STATUS_ERROR:
-		break;
-	}
-
-	return master_status == MBOX_STATUS_READY &&
-	       slave_status == MBOX_STATUS_READY;
+	return mbox->is_ready;
 }
 
 void et_mbox_reset(struct et_mbox *mbox)
@@ -183,6 +140,8 @@ void et_mbox_reset(struct et_mbox *mbox)
 	mutex_unlock(&mbox->write_mutex);
 	mutex_unlock(&mbox->read_mutex);
 	mutex_unlock(&mbox->msg_list_mutex);
+
+	mbox->is_ready = false;
 }
 
 ssize_t et_mbox_write(struct et_mbox *mbox, void *buff, size_t count)
@@ -451,6 +410,55 @@ static int handle_msg(struct et_mbox *mbox, void __iomem *queue,
 	//TODO: white list all messages? else case is an error? specific white list per mbox?
 }
 
+static void et_mbox_handshaking(struct et_mbox *mbox)
+{
+	u32 master_status, slave_status;
+
+	master_status = ioread32(&mbox->mem->master_status);
+	slave_status = ioread32(&mbox->mem->slave_status);
+
+	//The host is always the mbox slave
+	switch (master_status) {
+	case MBOX_STATUS_NOT_READY:
+		break;
+	case MBOX_STATUS_READY:
+		if (slave_status != MBOX_STATUS_READY &&
+		    slave_status != MBOX_STATUS_WAITING) {
+			pr_info("received master ready, going slave ready");
+			iowrite32(MBOX_STATUS_READY, &mbox->mem->slave_status);
+
+			//Flush PCIe write
+			slave_status = ioread32(&mbox->mem->slave_status);
+
+			mbox->send_interrupt(mbox->r_pu_trg_pcie);
+
+			//Flush interrupt IPI write
+			slave_status = ioread32(&mbox->mem->slave_status);
+		}
+		break;
+	case MBOX_STATUS_WAITING:
+		if (slave_status != MBOX_STATUS_READY &&
+		    slave_status != MBOX_STATUS_WAITING) {
+			pr_info("received master waiting, going slave ready");
+			iowrite32(MBOX_STATUS_READY, &mbox->mem->slave_status);
+
+			//Flush PCIe write
+			slave_status = ioread32(&mbox->mem->slave_status);
+
+			mbox->send_interrupt(mbox->r_pu_trg_pcie);
+
+			//Flush interrupt IPI write
+			slave_status = ioread32(&mbox->mem->slave_status);
+		}
+		break;
+	case MBOX_STATUS_ERROR:
+		break;
+	}
+
+	mbox->is_ready = master_status == MBOX_STATUS_READY &&
+				slave_status == MBOX_STATUS_READY;
+}
+
 /*
  * Handles mbox IRQ. The mbox IRQ signals a state change and/or a new message
  * in the mailbox.
@@ -492,8 +500,11 @@ void et_mbox_isr_bottom(struct et_mbox *mbox, struct et_pci_dev *et_dev)
 	bool got_msg = false;
 	int rv;
 
-	//Check if ready, and also check for state updates
-	if (!et_mbox_ready(mbox)) return;
+	if (!et_mbox_ready(mbox)) {
+		et_mbox_handshaking(mbox);
+		wake_up_interruptible(&mbox->user_msg_wq);
+		return;
+	}
 
 	mutex_lock(&mbox->read_mutex);
 

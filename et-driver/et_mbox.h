@@ -40,6 +40,7 @@ struct et_mbox {
 	void __iomem *r_pu_trg_pcie;
 	void (*send_interrupt)(void __iomem *r_pu_trg_pcie);
 	volatile long unsigned int flags;
+	bool is_ready;
 };
 
 #define ET_MBOX_HEADER_SIZE ( sizeof(struct et_mbox_header) )
