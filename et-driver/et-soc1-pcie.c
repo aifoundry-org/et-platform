@@ -355,20 +355,12 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 		return 0;
 
 	case ETSOC1_IOCTL_PUSH_MBOX(0):
-		if (et_mbox_write_from_user(mgmt_mbox_ptr,
-					    (char __user *)arg, size)) {
-			pr_err("ioctl: ETSOC1_IOCTL_PUSH_MBOX: failed to write mbox from user\n");
-			return -ENOMEM;
-		}
-	return 0;
+		return et_mbox_write_from_user(mgmt_mbox_ptr,
+					       (char __user *)arg, size);
 
 	case ETSOC1_IOCTL_POP_MBOX(0):
-		if (et_mbox_read_to_user(mgmt_mbox_ptr,
-					 (char __user *)arg, size)) {
-			pr_err("ioctl: ETSOC1_IOCTL_POP_MBOX: failed to read mbox to user\n");
-			return -ENOMEM;
-		}
-		return 0;
+		return et_mbox_read_to_user(mgmt_mbox_ptr,
+					    (char __user *)arg, size);
 
 	default:
 		pr_err("%s: unknown cmd: 0x%x\n", __func__, cmd);
