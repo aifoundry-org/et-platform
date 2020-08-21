@@ -14,10 +14,6 @@
 #include "hart.h"
 #include "pmu.h"
 
-//static int64_t configure_pmcs(uint64_t reset_counters);
-//static int64_t sample_pmcs(uint64_t reset_counters);
-//static int64_t reset_pmcs(void);
-
 // Configure PMCs
 // conf_area point to the beginning of the memory buffer where the configuration values are stored
 // reset_counters is a boolean that determines whether we reset / start counters after the configuration
@@ -28,7 +24,7 @@ int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_buffer_addr)
     uint64_t neigh_id = (hart_id >> 4) & 0x3;
     uint64_t shire_id = (hart_id >> 6) & 0x1F;
     uint64_t odd_hart = hart_id & 0x1;
-    uint64_t program_neigh_harts = ((hart_id & 0xF) >= 0x8) && ((hart_id & 0xF) < 0xC);
+    uint64_t program_neigh_harts = ((hart_id & 0xF) == 0x8) || ((hart_id & 0xF) == 0x9);
     uint64_t program_sc_harts = ((hart_id & 0xF) == 0xC) || ((hart_id & 0xF) == 0xD);
     uint64_t program_ms_harts = ((hart_id & 0xF) == 0xF);
     int64_t ret = 0;
@@ -50,13 +46,14 @@ int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_buffer_addr)
         ret = ret + configure_neigh_event(*hart_minion_cfg_data, PMU_MHPMEVENT3 + i);
     }
 
-    // neigh counters: Only one minion per neigh needs to configure the counters
-    uint64_t *hart_neigh_cfg_data = conf_buffer + PMU_EVENT_SHIRE_AREA * shire_id +
-                                    PMU_MINION_COUNTERS_PER_HART * 2 +
-                                    PMU_NEIGH_COUNTERS_PER_HART * odd_hart;
+    // neigh counters: Only one minion per neigh needs to configure the counters (8 or 9)
     if (program_neigh_harts) {
-        ret = ret + configure_neigh_event(*hart_neigh_cfg_data, PMU_MHPMEVENT7);
-        ret = ret + configure_neigh_event(*hart_neigh_cfg_data, PMU_MHPMEVENT8);
+        for (uint64_t i = 0; i < PMU_NEIGH_COUNTERS_PER_HART; i++) {
+            uint64_t *hart_neigh_cfg_data = conf_buffer + PMU_EVENT_SHIRE_AREA * shire_id +
+                                            PMU_MINION_COUNTERS_PER_HART * 2 +
+                                            PMU_NEIGH_COUNTERS_PER_HART * odd_hart;
+            ret = ret + configure_neigh_event(*hart_neigh_cfg_data, PMU_MHPMEVENT7+i);
+        }
     }
 
     // sc location
