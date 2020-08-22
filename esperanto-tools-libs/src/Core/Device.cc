@@ -134,13 +134,15 @@ void Device::deviceListener() {
       continue;
     }
     auto response =
-        reinterpret_cast<::device_api::response_header_t *>(message.data());
+        reinterpret_cast<::device_api::non_privileged::response_header_t *>(
+            message.data());
     RTDEBUG << "MessageID: " << response->message_id << "\n";
     auto msgid = response->message_id;
-    if (::device_api::MBOX_DEVAPI_MESSAGE_ID_NONE < msgid &&
-        msgid < ::device_api::MBOX_DEVAPI_MESSAGE_ID_LAST) {
+    if (::device_api::MBOX_DEVAPI_NON_PRIVILEGED_MID_NONE < msgid &&
+        msgid < ::device_api::MBOX_DEVAPI_NON_PRIVILEGED_MID_LAST) {
       auto rsp_header =
-        reinterpret_cast<::device_api::response_header_t*>(message.data());
+          reinterpret_cast<::device_api::non_privileged::response_header_t *>(
+              message.data());
       auto it = cb_map_.find(rsp_header->command_info.command_id);
       assert(it != cb_map_.end());
       auto &[cmd, cb] = it->second;

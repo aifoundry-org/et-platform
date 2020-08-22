@@ -169,7 +169,7 @@ Kernel::KernelLaunch::launchHelper(Stream *stream) {
   assert(args_[0].type == ArgType::T_layer_dynamic_info);
   auto layer_info = args_[0].value.layer_dynamic_info;
 
-  ::device_api::dev_api_kernel_params_t dev_api_params = {
+  ::device_api::non_privileged::dev_api_kernel_params_t dev_api_params = {
       .tensor_a = layer_info.tensor_a,
       .tensor_b = layer_info.tensor_b,
       .tensor_c = layer_info.tensor_c,
@@ -185,7 +185,7 @@ Kernel::KernelLaunch::launchHelper(Stream *stream) {
   auto active_shires_opt = absl::GetFlag(FLAGS_shires);
   int active_shires = std::stoi(active_shires_opt);
 
-  ::device_api::dev_api_kernel_info_t info = {
+  ::device_api::non_privileged::dev_api_kernel_info_t info = {
       .compute_pc = kernel_entry_point,
       .uber_kernel_nodes = 0,
       .shire_mask = (1ULL << active_shires) - 1,
@@ -211,15 +211,17 @@ etrtError Kernel::KernelLaunch::launchBlocking(Stream *stream) {
   auto response = ft.get().response();
 
   assert(response.response_info.message_id ==
-         ::device_api::MBOX_DEVAPI_MESSAGE_ID_KERNEL_LAUNCH_RSP);
+         ::device_api::MBOX_DEVAPI_NON_PRIVILEGED_MID_KERNEL_LAUNCH_RSP);
 
   auto &cmd_info = launch_cmd->cmd_info();
   assert(response.kernel_id == cmd_info.kernel_params.kernel_id);
 
-  if (response.error == ::device_api::DEV_API_KERNEL_LAUNCH_ERROR::
-                            DEV_API_KERNEL_LAUNCH_ERROR_OK ||
-      response.error == ::device_api::DEV_API_KERNEL_LAUNCH_ERROR::
-                            DEV_API_KERNEL_LAUNCH_ERROR_RESULT_OK) {
+  if (response.error ==
+          ::device_api::non_privileged::DEV_API_KERNEL_LAUNCH_ERROR::
+              DEV_API_KERNEL_LAUNCH_ERROR_OK ||
+      response.error ==
+          ::device_api::non_privileged::DEV_API_KERNEL_LAUNCH_ERROR::
+              DEV_API_KERNEL_LAUNCH_ERROR_RESULT_OK) {
     RTDEBUG << "Received successfull launch \n";
   } else {
     assert(false);

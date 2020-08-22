@@ -94,14 +94,14 @@ UberKernel::UberKernelLaunch::launchHelper(Stream *stream) {
     return memcpy_res;
   }
 
-  ::device_api::dev_api_kernel_params_t params = {0};
+  ::device_api::non_privileged::dev_api_kernel_params_t params = {0};
   params.tensor_a = reinterpret_cast<uint64_t>(uber_kernel_args);
 
   // FIXME we should be querying the device-fw for that information first
   auto active_shires_opt = absl::GetFlag(FLAGS_shires);
   int active_shires = std::stoi(active_shires_opt);
 
-  ::device_api::dev_api_kernel_info_t info = {
+  ::device_api::non_privileged::dev_api_kernel_info_t info = {
       .compute_pc = kernel_entry_point,
       .uber_kernel_nodes = 0,
       .shire_mask = (1ULL << active_shires) - 1,
@@ -129,15 +129,17 @@ etrtError UberKernel::UberKernelLaunch::launchBlocking(Stream *stream) {
   auto response_future = launch_cmd->getFuture();
   auto response = response_future.get().response();
   assert(response.response_info.message_id ==
-         ::device_api::MBOX_DEVAPI_MESSAGE_ID_KERNEL_LAUNCH_RSP);
+         ::device_api::MBOX_DEVAPI_NON_PRIVILEGED_MID_KERNEL_LAUNCH_RSP);
 
   auto &cmd_info = launch_cmd->cmd_info();
   assert(response.kernel_id == cmd_info.kernel_params.kernel_id);
 
-  if (response.error == ::device_api::DEV_API_KERNEL_LAUNCH_ERROR::
-                            DEV_API_KERNEL_LAUNCH_ERROR_OK ||
-      response.error == ::device_api::DEV_API_KERNEL_LAUNCH_ERROR::
-                            DEV_API_KERNEL_LAUNCH_ERROR_RESULT_OK) {
+  if (response.error ==
+          ::device_api::non_privileged::DEV_API_KERNEL_LAUNCH_ERROR::
+              DEV_API_KERNEL_LAUNCH_ERROR_OK ||
+      response.error ==
+          ::device_api::non_privileged::DEV_API_KERNEL_LAUNCH_ERROR::
+              DEV_API_KERNEL_LAUNCH_ERROR_RESULT_OK) {
     RTDEBUG << "Received successfull launch \n";
   } else {
     assert(false);

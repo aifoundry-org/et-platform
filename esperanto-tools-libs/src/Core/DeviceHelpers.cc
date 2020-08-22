@@ -22,8 +22,9 @@
 namespace et_runtime {
 
 template <class SetLogLevelCmd, class SetLogLevelRsp>
-static bool set_log_level_helper(Device &dev,
-                                 ::device_api::LOG_LEVELS log_level) {
+static bool
+set_log_level_helper(Device &dev,
+                     ::device_api::non_privileged::LOG_LEVELS log_level) {
 
   auto log_level_cmd = std::make_shared<SetLogLevelCmd>(0, log_level);
 
@@ -33,46 +34,48 @@ static bool set_log_level_helper(Device &dev,
   auto response = response_future.get().response();
   // FIXME the command type should be a constant of the response class
   assert(response.response_info.message_id ==
-             ::device_api::MBOX_DEVAPI_MESSAGE_ID_SET_MASTER_LOG_LEVEL_RSP ||
+             ::device_api::
+                 MBOX_DEVAPI_NON_PRIVILEGED_MID_SET_MASTER_LOG_LEVEL_RSP ||
          response.response_info.message_id ==
-             ::device_api::MBOX_DEVAPI_MESSAGE_ID_SET_WORKER_LOG_LEVEL_RSP);
+             ::device_api::
+                 MBOX_DEVAPI_NON_PRIVILEGED_MID_SET_WORKER_LOG_LEVEL_RSP);
   return static_cast<bool>(response.status);
 }
 
 template <class SetLogLevelCmd, class SetLogLevelRsp>
 bool SetLogLevel<SetLogLevelCmd, SetLogLevelRsp>::set_level_critical() {
   return set_log_level_helper<SetLogLevelCmd, SetLogLevelRsp>(
-      dev_, ::device_api::LOG_LEVELS_CRITICAL);
+      dev_, ::device_api::non_privileged::LOG_LEVELS_CRITICAL);
 }
 
 template <class SetLogLevelCmd, class SetLogLevelRsp>
 bool SetLogLevel<SetLogLevelCmd, SetLogLevelRsp>::set_level_error() {
   return set_log_level_helper<SetLogLevelCmd, SetLogLevelRsp>(
-      dev_, ::device_api::LOG_LEVELS_ERROR);
+      dev_, ::device_api::non_privileged::LOG_LEVELS_ERROR);
 }
 
 template <class SetLogLevelCmd, class SetLogLevelRsp>
 bool SetLogLevel<SetLogLevelCmd, SetLogLevelRsp>::set_level_warning() {
   return set_log_level_helper<SetLogLevelCmd, SetLogLevelRsp>(
-      dev_, ::device_api::LOG_LEVELS_WARNING);
+      dev_, ::device_api::non_privileged::LOG_LEVELS_WARNING);
 }
 
 template <class SetLogLevelCmd, class SetLogLevelRsp>
 bool SetLogLevel<SetLogLevelCmd, SetLogLevelRsp>::set_level_info() {
   return set_log_level_helper<SetLogLevelCmd, SetLogLevelRsp>(
-      dev_, ::device_api::LOG_LEVELS_INFO);
+      dev_, ::device_api::non_privileged::LOG_LEVELS_INFO);
 }
 
 template <class SetLogLevelCmd, class SetLogLevelRsp>
 bool SetLogLevel<SetLogLevelCmd, SetLogLevelRsp>::set_level_debug() {
   return set_log_level_helper<SetLogLevelCmd, SetLogLevelRsp>(
-      dev_, ::device_api::LOG_LEVELS_DEBUG);
+      dev_, ::device_api::non_privileged::LOG_LEVELS_DEBUG);
 }
 
 template <class SetLogLevelCmd, class SetLogLevelRsp>
 bool SetLogLevel<SetLogLevelCmd, SetLogLevelRsp>::set_level_trace() {
   return set_log_level_helper<SetLogLevelCmd, SetLogLevelRsp>(
-      dev_, ::device_api::LOG_LEVELS_TRACE);
+      dev_, ::device_api::non_privileged::LOG_LEVELS_TRACE);
 }
 
 template class SetLogLevel<

@@ -17,7 +17,7 @@
 #include "esperanto/runtime/CodeManagement/UberKernel.h"
 #include "esperanto/runtime/Support/ErrorOr.h"
 
-#include <esperanto/device-api/device_api.h>
+#include <esperanto/device-api/device_api_cxx_non_privileged.h>
 #include <stdint.h>
 
 /// This file implements a number of helper classes that enable interatiions
@@ -62,10 +62,11 @@ public:
   }
 
   /// @brief Return the state of the kernel or encountered error
-  ErrorOr<::device_api::DEV_API_KERNEL_STATE> state(Stream *stream) const;
+  ErrorOr<::device_api::non_privileged::DEV_API_KERNEL_STATE>
+  state(Stream *stream) const;
 
   /// @brief Abort a running kenrel or return an encountered error
-  ErrorOr<::device_api::DEV_API_KERNEL_ABORT_RESPONSE_RESULT>
+  ErrorOr<::device_api::non_privileged::DEV_API_KERNEL_ABORT_RESPONSE_RESULT>
   abort(Stream *stream) const;
 
 private:

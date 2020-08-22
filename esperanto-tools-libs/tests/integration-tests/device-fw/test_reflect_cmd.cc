@@ -24,7 +24,7 @@ TEST_F(DeviceFWTest, reflectTest) {
   auto ft = reflect_cmd->getFuture();
   auto response = ft.get().response();
   ASSERT_EQ(response.response_info.message_id,
-            ::device_api::MBOX_DEVAPI_MESSAGE_ID_REFLECT_TEST_RSP);
+            ::device_api::MBOX_DEVAPI_NON_PRIVILEGED_MID_REFLECT_TEST_RSP);
 }
 
 int main(int argc, char **argv) {

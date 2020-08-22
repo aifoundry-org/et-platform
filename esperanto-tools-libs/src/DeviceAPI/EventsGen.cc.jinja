@@ -22,7 +22,7 @@ namespace devfw_events{
 <% set class_name = cgh.name_to_camelcase(msg['Name']) -%>
 <% set msg_name = msg['Name'] -%>
 
-<< class_name >>::<<class_name>>(const ::device_api::<<msg_name>>_t& msg):
+<< class_name >>::<<class_name>>(const ::device_api::non_privileged::<<msg_name>>_t& msg):
    Event(msg)
 {
   auto event_hdr = new et_runtime::tracing::DeviceAPI_event_hdr();

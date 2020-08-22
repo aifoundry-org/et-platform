@@ -22,16 +22,15 @@ std::ostream &operator<<(std::ostream &os,
 }
 
 template <>
-std::vector<et_runtime::tracing::CodeManager_kernel_argument_type_e>
+std::vector<et_runtime::tracing::CodeManager_kernel_argument_type>
 conv_vec<et_runtime::Kernel::ArgType,
-         et_runtime::tracing::CodeManager_kernel_argument_type_e>(
+         et_runtime::tracing::CodeManager_kernel_argument_type>(
     const std::vector<et_runtime::Kernel::ArgType> &src) {
-  std::vector<et_runtime::tracing::CodeManager_kernel_argument_type_e> res(
+  std::vector<et_runtime::tracing::CodeManager_kernel_argument_type> res(
       src.size());
   for (unsigned int i = 0; i < src.size(); i++) {
-    res[i] =
-        static_cast<et_runtime::tracing::CodeManager_kernel_argument_type_e>(
-            static_cast<int>(src[i]));
+    res[i] = static_cast<et_runtime::tracing::CodeManager_kernel_argument_type>(
+        static_cast<int>(src[i]));
   }
   return res;
 }

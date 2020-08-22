@@ -48,7 +48,7 @@ uint64_t GitVersionChecker::deviceFWHash() {
   auto response_future = devfw_cmd->getFuture();
   auto response = response_future.get().response();
   assert(response.response_info.message_id ==
-         ::device_api::MBOX_DEVAPI_MESSAGE_ID_DEVICE_FW_VERSION_RSP);
+         ::device_api::MBOX_DEVAPI_NON_PRIVILEGED_MID_DEVICE_FW_VERSION_RSP);
   device_fw_commit_ = response.device_fw_commit;
 
   return device_fw_commit_;
@@ -63,16 +63,15 @@ bool DeviceAPIChecker::getDeviceAPIVersion() {
 
   auto devapi_cmd =
       std::make_shared<device_api::devfw_commands::DeviceApiVersionCmd>(
-          0, ESPERANTO_DEVICE_API_VERSION_MAJOR,
-          ESPERANTO_DEVICE_API_VERSION_MINOR,
-          ESPERANTO_DEVICE_API_VERSION_PATCH, DEVICE_API_HASH);
+          0, DEVICE_API_NON_PRIVILEGED_MAJOR, DEVICE_API_NON_PRIVILEGED_MINOR,
+          DEVICE_API_NON_PRIVILEGED_PATCH, DEVICE_API_NON_PRIVILEGED_HASH);
 
   dev_.defaultStream().addCommand(devapi_cmd);
 
   auto response_future = devapi_cmd->getFuture();
   auto response = response_future.get().response();
   assert(response.response_info.message_id ==
-         ::device_api::MBOX_DEVAPI_MESSAGE_ID_DEVICE_API_VERSION_RSP);
+         ::device_api::MBOX_DEVAPI_NON_PRIVILEGED_MID_DEVICE_API_VERSION_RSP);
   mmFWDevAPIMajor_ = response.major;
   mmFWDevAPIMinor_ = response.minor;
   mmFWDevAPIPatch_ = response.patch;
@@ -90,13 +89,13 @@ bool DeviceAPIChecker::isDeviceSupported() {
   }
 
   bool supported = true;
-  if ((mmFWDevAPIMajor_ != ESPERANTO_DEVICE_API_VERSION_MAJOR) ||
+  if ((mmFWDevAPIMajor_ != DEVICE_API_NON_PRIVILEGED_MAJOR) ||
       (mmFWAccept_ == false) ||
-      (mmFWDevAPIMinor_ < ESPERANTO_DEVICE_API_VERSION_MAJOR)) {
+      (mmFWDevAPIMinor_ < DEVICE_API_NON_PRIVILEGED_MAJOR)) {
     supported = false;
   }
 
-  TRACE_Device_device_api_supported(supported, DEVICE_API_HASH,
+  TRACE_Device_device_api_supported(supported, DEVICE_API_NON_PRIVILEGED_HASH,
                                     mmFWDevAPIHash_);
   return supported;
 }

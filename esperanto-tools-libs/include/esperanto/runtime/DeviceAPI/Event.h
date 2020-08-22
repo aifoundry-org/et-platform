@@ -14,7 +14,7 @@
 /// @file
 
 #include "esperanto/runtime/Common/CommonTypes.h"
-#include <esperanto/device-api/device_api.h>
+#include <esperanto/device-api/device_api_cxx_non_privileged.h>
 
 #include <chrono>
 #include <cstdint>
@@ -43,7 +43,9 @@ public:
   Event(const EventType &e) : event_(e) {}
 
   /// @brief Return the type of the event
-  ::device_api::device_api_msg_e type() const { return event_.event_info.message_id; }
+  ::device_api::device_api_non_privileged_msg_e type() const {
+    return event_.event_info.message_id;
+  }
 
   /// @brief Return the device timestamp the event was generated
   uint64_t device_timestamp() const { return event_.event_info.device_timestamp; }
