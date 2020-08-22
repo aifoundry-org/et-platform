@@ -23,7 +23,8 @@
 static bool gs_vaultip_disabled;
 static bool gs_ignore_signatures;
 
-static int verify_certificate_name_sequence(const SECURITY_CERTIFICATE_NAME_SEQUENCE_t * sequence) {
+static int verify_certificate_name_sequence(const SECURITY_CERTIFICATE_NAME_SEQUENCE_t *sequence)
+{
     if (sequence->organization_length > sizeof(sequence->organization)) {
         return -1;
     }
@@ -48,7 +49,8 @@ static int verify_certificate_name_sequence(const SECURITY_CERTIFICATE_NAME_SEQU
     return 0;
 }
 
-static int basic_certificate_check(const ESPERANTO_CERTIFICATE_t * certificate) {
+static int basic_certificate_check(const ESPERANTO_CERTIFICATE_t *certificate)
+{
     if (NULL == certificate) {
         return -1;
     }
@@ -68,25 +70,29 @@ static int basic_certificate_check(const ESPERANTO_CERTIFICATE_t * certificate) 
         return -1;
     }
 
-    if (certificate->certificate_info.hash_algorithm != certificate->certificate_info_signature.hashAlg) {
+    if (certificate->certificate_info.hash_algorithm !=
+        certificate->certificate_info_signature.hashAlg) {
         printx("basic_certificate_check: certificate signature hash algorithm mismatch!\n");
         return -1;
     }
 
-    if (certificate->certificate_info.signing_key_type != certificate->certificate_info_signature.keyType) {
+    if (certificate->certificate_info.signing_key_type !=
+        certificate->certificate_info_signature.keyType) {
         printx("basic_certificate_check: certificate signature signing key type mismatch!\n");
         return -1;
     }
 
     switch (certificate->certificate_info.signing_key_type) {
     case PUBLIC_KEY_TYPE_EC:
-        if (certificate->certificate_info.curveID != certificate->certificate_info_signature.ec.curveID) {
+        if (certificate->certificate_info.curveID !=
+            certificate->certificate_info_signature.ec.curveID) {
             printx("basic_certificate_check: certificate signature EC curve mismatch!\n");
             return -1;
         }
         break;
     case PUBLIC_KEY_TYPE_RSA:
-        if (certificate->certificate_info.keySize != certificate->certificate_info_signature.rsa.keySize) {
+        if (certificate->certificate_info.keySize !=
+            certificate->certificate_info_signature.rsa.keySize) {
             printx("basic_certificate_check: certificate signature RSA key size mismatch!\n");
             return -1;
         }
@@ -120,14 +126,17 @@ static int basic_certificate_check(const ESPERANTO_CERTIFICATE_t * certificate) 
 //         hash[58], hash[59], hash[60], hash[61], hash[62], hash[63]);
 // }
 
-static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t * certificate, const ESPERANTO_CERTIFICATE_t * parent_certificate, uint32_t required_designation_flags) {
+static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t *certificate,
+                                      const ESPERANTO_CERTIFICATE_t *parent_certificate,
+                                      uint32_t required_designation_flags)
+{
     if (NULL == certificate) {
         return -1;
     }
 
     if (NULL == parent_certificate) {
         return -1;
-    }  else {
+    } else {
         // we are checking a lower-level certificate
 
         if (0 == parent_certificate->certificate_info.is_CA) {
@@ -141,14 +150,17 @@ static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t * certificat
         //     return -1;
         // }
 
-        if (required_designation_flags != (parent_certificate->certificate_info.esperanto_designation & required_designation_flags)) {
+        if (required_designation_flags !=
+            (parent_certificate->certificate_info.esperanto_designation &
+             required_designation_flags)) {
             printx("enhanced_certificate_check: esperanto designation mismatch!\n");
             return -1;
         }
 
-        if (0 != constant_time_memory_compare(&(certificate->certificate_info.issuer_key_identifier),
-                                              &(parent_certificate->certificate_info.subject_key_identifier),
-                                              sizeof(certificate->certificate_info.subject_key_identifier))) {
+        if (0 != constant_time_memory_compare(
+                     &(certificate->certificate_info.issuer_key_identifier),
+                     &(parent_certificate->certificate_info.subject_key_identifier),
+                     sizeof(certificate->certificate_info.subject_key_identifier))) {
             printx("enhanced_certificate_check: Certificate parent key identifier mismatch!\n");
             return -1;
         }
@@ -163,10 +175,10 @@ static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t * certificat
         if (gs_ignore_signatures) {
             MESSAGE_INFO("CRT SIG IGN\n");
         } else {
-            if (0 != crypto_verify_pk_signature(&(parent_certificate->certificate_info.subject_public_key),
-                                                &(certificate->certificate_info_signature),
-                                                &(certificate->certificate_info),
-                                                sizeof(certificate->certificate_info))) {
+            if (0 != crypto_verify_pk_signature(
+                         &(parent_certificate->certificate_info.subject_public_key),
+                         &(certificate->certificate_info_signature),
+                         &(certificate->certificate_info), sizeof(certificate->certificate_info))) {
                 printx("enhanced_certificate_check: signature check failed!\n");
                 return -1;
             }
@@ -176,18 +188,23 @@ static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t * certificat
     return 0;
 }
 
-static int verify_certificate(const ESPERANTO_CERTIFICATE_t * certificate, const ESPERANTO_CERTIFICATE_t * parent_certificate, uint32_t required_designation_flags) {
+static int verify_certificate(const ESPERANTO_CERTIFICATE_t *certificate,
+                              const ESPERANTO_CERTIFICATE_t *parent_certificate,
+                              uint32_t required_designation_flags)
+{
     if (0 != basic_certificate_check(certificate)) {
         return -1;
     }
-    if (0 != enhanced_certificate_check(certificate, parent_certificate, required_designation_flags)) {
+    if (0 !=
+        enhanced_certificate_check(certificate, parent_certificate, required_designation_flags)) {
         return -1;
     }
     return 0;
 }
 
-int verify_bl2_certificate(const ESPERANTO_CERTIFICATE_t * certificate) {
-    SERVICE_PROCESSOR_BL1_DATA_t * bl1_data = get_service_processor_bl1_data();
+int verify_bl2_certificate(const ESPERANTO_CERTIFICATE_t *certificate)
+{
+    SERVICE_PROCESSOR_BL1_DATA_t *bl1_data = get_service_processor_bl1_data();
 
     gs_vaultip_disabled = is_vaultip_disabled();
     gs_ignore_signatures = false;
@@ -201,7 +218,8 @@ int verify_bl2_certificate(const ESPERANTO_CERTIFICATE_t * certificate) {
         return -1;
     }
 
-    if (0 != verify_certificate(certificate, &(bl1_data->sp_certificates[1]), ESPERANTO_CERTIFICATE_DESIGNATION_BL2_CA)) {
+    if (0 != verify_certificate(certificate, &(bl1_data->sp_certificates[1]),
+                                ESPERANTO_CERTIFICATE_DESIGNATION_BL2_CA)) {
         printx("verify_bl2_certificate: verify_certificate(0 failed!\n");
         return -1;
     }

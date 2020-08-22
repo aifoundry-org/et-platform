@@ -22,15 +22,17 @@
 #pragma GCC push_options
 #pragma GCC diagnostic ignored "-Wswitch-enum"
 
-#define SPI_FLASH_CMD_RDSR          0x05
-#define SPI_FLASH_CMD_WREN          0x06
-#define SPI_FLASH_CMD_RDID          0x9F
-#define SPI_FLASH_CMD_RDSFDP        0x5A
-#define SPI_FLASH_CMD_NORMAL_READ   0x03
-#define SPI_FLASH_CMD_FAST_READ     0x0B
-#define SPI_FLASH_CMD_PAGE_PROGRAM  0x02
+#define SPI_FLASH_CMD_RDSR         0x05
+#define SPI_FLASH_CMD_WREN         0x06
+#define SPI_FLASH_CMD_RDID         0x9F
+#define SPI_FLASH_CMD_RDSFDP       0x5A
+#define SPI_FLASH_CMD_NORMAL_READ  0x03
+#define SPI_FLASH_CMD_FAST_READ    0x0B
+#define SPI_FLASH_CMD_PAGE_PROGRAM 0x02
 
-static int get_flash_controller_and_slave_ids(SPI_FLASH_ID_t id, SPI_CONTROLLER_ID_t * controller_id, uint8_t * slave_index) {
+static int get_flash_controller_and_slave_ids(SPI_FLASH_ID_t id, SPI_CONTROLLER_ID_t *controller_id,
+                                              uint8_t *slave_index)
+{
     switch (id) {
     case SPI_FLASH_ON_PACKAGE:
         *controller_id = SPI_CONTROLLER_ID_SPI_0;
@@ -45,7 +47,8 @@ static int get_flash_controller_and_slave_ids(SPI_FLASH_ID_t id, SPI_CONTROLLER_
     }
 }
 
-int spi_flash_init(SPI_FLASH_ID_t flash_id) {
+int spi_flash_init(SPI_FLASH_ID_t flash_id)
+{
     SPI_CONTROLLER_ID_t controller_id;
     uint8_t slave_index;
 
@@ -57,7 +60,8 @@ int spi_flash_init(SPI_FLASH_ID_t flash_id) {
     return spi_controller_init(controller_id);
 }
 
-int spi_flash_wren(SPI_FLASH_ID_t flash_id) {
+int spi_flash_wren(SPI_FLASH_ID_t flash_id)
+{
     SPI_COMMAND_t command;
     SPI_CONTROLLER_ID_t controller_id;
     uint8_t slave_index;
@@ -82,7 +86,8 @@ int spi_flash_wren(SPI_FLASH_ID_t flash_id) {
     return 0;
 }
 
-int spi_flash_rdsr(SPI_FLASH_ID_t flash_id, uint8_t * status) {
+int spi_flash_rdsr(SPI_FLASH_ID_t flash_id, uint8_t *status)
+{
     SPI_COMMAND_t command;
     SPI_CONTROLLER_ID_t controller_id;
     uint8_t slave_index;
@@ -109,7 +114,8 @@ int spi_flash_rdsr(SPI_FLASH_ID_t flash_id, uint8_t * status) {
     return 0;
 }
 
-int spi_flash_rdid(SPI_FLASH_ID_t flash_id, uint8_t * manufacturer_id, uint8_t device_id[2]) {
+int spi_flash_rdid(SPI_FLASH_ID_t flash_id, uint8_t *manufacturer_id, uint8_t device_id[2])
+{
     SPI_COMMAND_t command;
     SPI_CONTROLLER_ID_t controller_id;
     uint8_t slave_index;
@@ -138,7 +144,9 @@ int spi_flash_rdid(SPI_FLASH_ID_t flash_id, uint8_t * manufacturer_id, uint8_t d
     return 0;
 }
 
-int spi_flash_rdsfdp(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t * data_buffer, uint32_t data_buffer_size) {
+int spi_flash_rdsfdp(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *data_buffer,
+                     uint32_t data_buffer_size)
+{
     SPI_COMMAND_t command;
     SPI_CONTROLLER_ID_t controller_id;
     uint8_t slave_index;
@@ -164,7 +172,9 @@ int spi_flash_rdsfdp(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t * data_b
 }
 
 #define MAXIMUM_READ_SIZE 256
-int spi_flash_normal_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t * data_buffer, uint32_t data_buffer_size) {
+int spi_flash_normal_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *data_buffer,
+                          uint32_t data_buffer_size)
+{
     SPI_COMMAND_t command;
     SPI_CONTROLLER_ID_t controller_id;
     uint8_t slave_index;
@@ -201,7 +211,9 @@ int spi_flash_normal_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t * d
     return 0;
 }
 
-int spi_flash_fast_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t * data_buffer, uint32_t data_buffer_size) {
+int spi_flash_fast_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *data_buffer,
+                        uint32_t data_buffer_size)
+{
     SPI_COMMAND_t command;
     SPI_CONTROLLER_ID_t controller_id;
     uint8_t slave_index;
@@ -238,7 +250,9 @@ int spi_flash_fast_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t * dat
     return 0;
 }
 
-int spi_flash_program(SPI_FLASH_ID_t flash_id, uint32_t address, const uint8_t * data_buffer, uint32_t data_buffer_size) {
+int spi_flash_program(SPI_FLASH_ID_t flash_id, uint32_t address, const uint8_t *data_buffer,
+                      uint32_t data_buffer_size)
+{
     SPI_COMMAND_t command;
     SPI_CONTROLLER_ID_t controller_id;
     uint8_t slave_index;
@@ -255,7 +269,7 @@ int spi_flash_program(SPI_FLASH_ID_t flash_id, uint32_t address, const uint8_t *
     command.data_size = data_buffer_size;
 #pragma GCC push_options
 #pragma GCC diagnostic ignored "-Wcast-qual"
-    command.data_buffer = (uint8_t*)data_buffer;
+    command.data_buffer = (uint8_t *)data_buffer;
 #pragma GCC pop_options
 
     if (0 != spi_controller_command(controller_id, slave_index, &command)) {

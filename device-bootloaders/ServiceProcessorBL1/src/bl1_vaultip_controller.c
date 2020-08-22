@@ -40,23 +40,23 @@
 //#define TRACK_ASSETS_COUNT
 
 // timeout used by the FW CHECK START
-#define DEFAULT_FIRMWARE_CHECK_START_TIMEOUT    0x10000 // 64K loop iterations
+#define DEFAULT_FIRMWARE_CHECK_START_TIMEOUT 0x10000 // 64K loop iterations
 // timeout used by the FW ACCEPTED
-#define DEFAULT_FIRMWARE_ACCEPTED_TIMEOUT       50000 // 50 ms
+#define DEFAULT_FIRMWARE_ACCEPTED_TIMEOUT 50000 // 50 ms
 // timeout used by the SYSTEM_INFO command
-#define DEFAULT_READ_TOKEN_TIMEOUT_1            150000 // 150 ms
+#define DEFAULT_READ_TOKEN_TIMEOUT_1 150000 // 150 ms
 // timeout used by the FIPS-SELF-TEST command
-#define DEFAULT_READ_TOKEN_TIMEOUT_2            200000 // 200 ms
+#define DEFAULT_READ_TOKEN_TIMEOUT_2 200000 // 200 ms
 // timeout used by the regular commands
-#define DEFAULT_READ_TOKEN_TIMEOUT_3            10000 // 10 ms
+#define DEFAULT_READ_TOKEN_TIMEOUT_3 10000 // 10 ms
 // timeout used by the signature verify commands
-#define DEFAULT_READ_TOKEN_TIMEOUT_4            20000 // 20 ms
+#define DEFAULT_READ_TOKEN_TIMEOUT_4 20000 // 20 ms
 // timeout used by the hash, decrypt and MAC commands
-#define DEFAULT_READ_TOKEN_TIMEOUT_5            50000 // 50ms
+#define DEFAULT_READ_TOKEN_TIMEOUT_5 50000 // 50ms
 
-#define DEFAULT_READ_TOKEN_TIMEOUT_HUK          1000000 // 1000ms
-#define DEFAULT_READ_TOKEN_TIMEOUT_OTP_WRITE    1000000 // 1000ms
-#define DEFAULT_READ_TOKEN_TIMEOUT_MC_INC       40000 // 40ms
+#define DEFAULT_READ_TOKEN_TIMEOUT_HUK       1000000 // 1000ms
+#define DEFAULT_READ_TOKEN_TIMEOUT_OTP_WRITE 1000000 // 1000ms
+#define DEFAULT_READ_TOKEN_TIMEOUT_MC_INC    40000 // 40ms
 
 #define PTR232LO(x) ((uint32_t)(((size_t)x) & 0xFFFFFFFFu))
 #define PTR232HI(x) ((uint32_t)((((size_t)x) >> 32u) & 0xFFFFFFFFu))
@@ -66,44 +66,54 @@ static uint16_t gs_next_token_id = 0x2000;
 static VAULTIP_INPUT_TOKEN_t gs_input_token;
 static VAULTIP_OUTPUT_TOKEN_t gs_output_token;
 
-static const uint32_t gs_firmware_output_token_timeout_1 = DEFAULT_READ_TOKEN_TIMEOUT_1; // used by GetSystemInformation
-static const uint32_t gs_firmware_output_token_timeout_2 = DEFAULT_READ_TOKEN_TIMEOUT_2; // used by FIPS-SELF-TEST
-static const uint32_t gs_firmware_output_token_timeout_3 = DEFAULT_READ_TOKEN_TIMEOUT_3; // used by most other commands
-static const uint32_t gs_firmware_output_token_timeout_4 = DEFAULT_READ_TOKEN_TIMEOUT_4; // used by signature verify
-static const uint32_t gs_firmware_output_token_timeout_5 = DEFAULT_READ_TOKEN_TIMEOUT_5; // used by hash, decrypt, MAC
+static const uint32_t gs_firmware_output_token_timeout_1 =
+    DEFAULT_READ_TOKEN_TIMEOUT_1; // used by GetSystemInformation
+static const uint32_t gs_firmware_output_token_timeout_2 =
+    DEFAULT_READ_TOKEN_TIMEOUT_2; // used by FIPS-SELF-TEST
+static const uint32_t gs_firmware_output_token_timeout_3 =
+    DEFAULT_READ_TOKEN_TIMEOUT_3; // used by most other commands
+static const uint32_t gs_firmware_output_token_timeout_4 =
+    DEFAULT_READ_TOKEN_TIMEOUT_4; // used by signature verify
+static const uint32_t gs_firmware_output_token_timeout_5 =
+    DEFAULT_READ_TOKEN_TIMEOUT_5; // used by hash, decrypt, MAC
 
 #ifdef TRACK_ASSETS_COUNT
 static uint32_t gs_asset_count = 0;
 #endif
 
-void memory_copy_8x32(volatile uint32_t * dst, const volatile uint32_t * src, const volatile uint32_t * src_end);
+void memory_copy_8x32(volatile uint32_t *dst, const volatile uint32_t *src,
+                      const volatile uint32_t *src_end);
 
-static inline void * volatile_cast(volatile void * vp) {
+static inline void *volatile_cast(volatile void *vp)
+{
     union {
-        volatile void * vp;
-        void * p;
+        volatile void *vp;
+        void *p;
     } u;
 
     u.vp = vp;
     return u.p;
 }
 
-static inline void * const_cast(const void * vp) {
+static inline void *const_cast(const void *vp)
+{
     union {
-        const void * vp;
-        void * p;
+        const void *vp;
+        void *p;
     } u;
 
     u.vp = vp;
     return u.p;
 }
 
-static uint16_t get_next_token_id(void) {
+static uint16_t get_next_token_id(void)
+{
     return gs_next_token_id++;
 }
 
-static int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t * pinput_token) {
-    volatile VAULTIP_HW_REGS_t * vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
+static int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t *pinput_token)
+{
+    volatile VAULTIP_HW_REGS_t *vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
     MODULE_STATUS_t module_status;
     MAILBOX_STAT_t mailbox_stat;
     //uint32_t n;
@@ -113,7 +123,8 @@ static int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t * pinput_token) 
     }
 
     module_status.R = vaultip_regs->MODULE_STATUS.R;
-    if (0 != module_status.B.FatalError || 0 == module_status.B.fw_image_checks_done || 0 == module_status.B.fw_image_accepted) {
+    if (0 != module_status.B.FatalError || 0 == module_status.B.fw_image_checks_done ||
+        0 == module_status.B.fw_image_accepted) {
         return -1;
     }
 
@@ -147,7 +158,7 @@ static int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t * pinput_token) 
         MESSAGE_ERROR("MAILBOX_STAT mbx1_in_full is not 1!\n");
         return -1;
     }
-/*
+    /*
     MESSAGE_INFO_DEBUG("Wrote token:\n");
     for (n = 0; n < 64; n+=8) {
         MESSAGE_INFO_DEBUG("  %08x %08x %08x %08x %08x %08x %08x %08x\n",
@@ -162,8 +173,9 @@ static int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t * pinput_token) 
     return 0;
 }
 
-static int vaultip_read_output_token(VAULTIP_OUTPUT_TOKEN_t * poutput_token, uint32_t timeout) {
-    volatile VAULTIP_HW_REGS_t * vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
+static int vaultip_read_output_token(VAULTIP_OUTPUT_TOKEN_t *poutput_token, uint32_t timeout)
+{
+    volatile VAULTIP_HW_REGS_t *vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
     MODULE_STATUS_t module_status;
     MAILBOX_STAT_t mailbox_stat;
     uint64_t time_end;
@@ -173,14 +185,15 @@ static int vaultip_read_output_token(VAULTIP_OUTPUT_TOKEN_t * poutput_token, uin
     }
 
     module_status.R = vaultip_regs->MODULE_STATUS.R;
-    if (0 != module_status.B.FatalError || 0 == module_status.B.fw_image_checks_done || 0 == module_status.B.fw_image_accepted) {
-        MESSAGE_ERROR("read_output_token: Error 1: MODULE_STATS=%08x\n", module_status.R );
+    if (0 != module_status.B.FatalError || 0 == module_status.B.fw_image_checks_done ||
+        0 == module_status.B.fw_image_accepted) {
+        MESSAGE_ERROR("read_output_token: Error 1: MODULE_STATS=%08x\n", module_status.R);
         return -1;
     }
 
     mailbox_stat.R = vaultip_regs->MAILBOX_STAT.R;
     if (0 == mailbox_stat.B.mbx1_linked || 0 != mailbox_stat.B.mbx1_available) {
-        MESSAGE_ERROR("read_output_token: Error 2: mailbox_stat=%08x\n", mailbox_stat.R );
+        MESSAGE_ERROR("read_output_token: Error 2: mailbox_stat=%08x\n", mailbox_stat.R);
         return -1;
     }
 
@@ -236,7 +249,8 @@ static int vaultip_read_output_token(VAULTIP_OUTPUT_TOKEN_t * poutput_token, uin
     return 0;
 }
 
-static void print_failed_input_token_info(const uint32_t * input_token_words, uint32_t words_count) {
+static void print_failed_input_token_info(const uint32_t *input_token_words, uint32_t words_count)
+{
     uint32_t n;
 
     (void)input_token_words;
@@ -254,9 +268,10 @@ static void print_failed_input_token_info(const uint32_t * input_token_words, ui
 }
 
 //VAULTIP_TOKEN_SYSTEM_SUBCODE_SELF_TEST
-int vaultip_self_test(void) {
+int vaultip_self_test(void)
+{
     //uint64_t time_start, time_end, time_delta;
-    volatile VAULTIP_HW_REGS_t * vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
+    volatile VAULTIP_HW_REGS_t *vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
 
     (void)vaultip_regs;
 
@@ -282,7 +297,8 @@ int vaultip_self_test(void) {
     //time_end = timer_get_ticks_count();
 
     MESSAGE_INFO_DEBUG("MODULE_STATUS: %08x\n", vaultip_regs->MODULE_STATUS.R);
-    if (1 == vaultip_regs->MODULE_STATUS.B.FIPS_mode && 0 == vaultip_regs->MODULE_STATUS.B.Non_FIPS_mode) {
+    if (1 == vaultip_regs->MODULE_STATUS.B.FIPS_mode &&
+        0 == vaultip_regs->MODULE_STATUS.B.Non_FIPS_mode) {
         MESSAGE_INFO("FIPS ON\n");
     }
 
@@ -296,9 +312,11 @@ int vaultip_self_test(void) {
     }
 }
 
-int vaultip_get_system_information(uint32_t identity, VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t * system_info) {
+int vaultip_get_system_information(uint32_t identity,
+                                   VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t *system_info)
+{
     //uint64_t time_start, time_end, time_delta;
-    volatile VAULTIP_HW_REGS_t * vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
+    volatile VAULTIP_HW_REGS_t *vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
 
     (void)vaultip_regs;
 
@@ -334,13 +352,16 @@ int vaultip_get_system_information(uint32_t identity, VAULTIP_OUTPUT_TOKEN_SYSTE
         *system_info = gs_output_token.system_info;
         return 0;
     } else {
-        MESSAGE_ERROR_DEBUG("vaultip_get_system_information: gs_output_token = 0x%x\n", gs_output_token.dw[0]);
+        MESSAGE_ERROR_DEBUG("vaultip_get_system_information: gs_output_token = 0x%x\n",
+                            gs_output_token.dw[0]);
         print_failed_input_token_info(gs_input_token.dw, 2);
         return -1;
     }
 }
 
-int vaultip_public_data_read(uint32_t identity, uint32_t asset_id, uint8_t * data_buffer, uint32_t data_buffer_size, uint32_t * data_size) {
+int vaultip_public_data_read(uint32_t identity, uint32_t asset_id, uint8_t *data_buffer,
+                             uint32_t data_buffer_size, uint32_t *data_size)
+{
     if (NULL == data_buffer || 0 == data_buffer_size || NULL == data_size) {
         MESSAGE_ERROR("Invalid arguments!\n");
         return -1;
@@ -381,7 +402,9 @@ int vaultip_public_data_read(uint32_t identity, uint32_t asset_id, uint8_t * dat
     }
 }
 
-int vaultip_monotonic_counter_read(uint32_t identity, uint32_t asset_id, uint8_t * counter_buffer, uint32_t counter_buffer_size, uint32_t * data_size) {
+int vaultip_monotonic_counter_read(uint32_t identity, uint32_t asset_id, uint8_t *counter_buffer,
+                                   uint32_t counter_buffer_size, uint32_t *data_size)
+{
     if (NULL == counter_buffer || 0 == counter_buffer_size || NULL == data_size) {
         MESSAGE_ERROR("Invalid arguments!\n");
         return -1;
@@ -397,7 +420,8 @@ int vaultip_monotonic_counter_read(uint32_t identity, uint32_t asset_id, uint8_t
 
     gs_input_token.monotonic_counter_read.dw_02.AS_ID = asset_id;
     gs_input_token.monotonic_counter_read.dw_03.OutputDataLength = counter_buffer_size & 0x3FF;
-    gs_input_token.monotonic_counter_read.dw_04.OutputDataAddress_31_00 = (uint32_t)(size_t)counter_buffer;
+    gs_input_token.monotonic_counter_read.dw_04.OutputDataAddress_31_00 =
+        (uint32_t)(size_t)counter_buffer;
     gs_input_token.monotonic_counter_read.dw_05.OutputDataAddress_63_32 = 0;
 
     l1_data_cache_flush_region(counter_buffer, counter_buffer_size);
@@ -422,7 +446,8 @@ int vaultip_monotonic_counter_read(uint32_t identity, uint32_t asset_id, uint8_t
     }
 }
 
-int vaultip_monotonic_counter_increment(uint32_t identity, uint32_t asset_id) {
+int vaultip_monotonic_counter_increment(uint32_t identity, uint32_t asset_id)
+{
     memset(&gs_input_token, 0, sizeof(gs_input_token));
     memset(&gs_output_token, 0, sizeof(gs_output_token));
 
@@ -430,7 +455,8 @@ int vaultip_monotonic_counter_increment(uint32_t identity, uint32_t asset_id) {
 
     gs_input_token.dw_00.TokenID = get_next_token_id();
     gs_input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_ASSET_MANAGEMENT;
-    gs_input_token.dw_00.SubCode = VAULTIP_TOKEN_ASSET_MANAGEMENT_SUBCODE_MONOTONIC_COUNTER_INCREMENT;
+    gs_input_token.dw_00.SubCode =
+        VAULTIP_TOKEN_ASSET_MANAGEMENT_SUBCODE_MONOTONIC_COUNTER_INCREMENT;
 
     gs_input_token.monotonic_counter_increment.dw_02.AS_ID = asset_id;
 
@@ -447,13 +473,17 @@ int vaultip_monotonic_counter_increment(uint32_t identity, uint32_t asset_id) {
     if (0 == gs_output_token.dw_00.Error) {
         return 0;
     } else {
-        MESSAGE_ERROR_DEBUG("monotonic_counter_increment: gs_output_token = 0x%x\n", gs_output_token.dw[0]);
+        MESSAGE_ERROR_DEBUG("monotonic_counter_increment: gs_output_token = 0x%x\n",
+                            gs_output_token.dw[0]);
         print_failed_input_token_info(gs_input_token.dw, 3);
         return -1;
     }
 }
 
-int vaultip_otp_data_write(uint32_t identity, uint32_t asset_number, uint32_t policy_number, bool CRC, const void * input_data, size_t input_data_length, const void * associated_data, size_t associated_data_length) {
+int vaultip_otp_data_write(uint32_t identity, uint32_t asset_number, uint32_t policy_number,
+                           bool CRC, const void *input_data, size_t input_data_length,
+                           const void *associated_data, size_t associated_data_length)
+{
     if (associated_data_length > 232) {
         return -1;
     }
@@ -500,7 +530,9 @@ int vaultip_otp_data_write(uint32_t identity, uint32_t asset_number, uint32_t po
     }
 }
 
-int vaultip_register_read(uint32_t identity, bool incremental_read, uint32_t number, const uint32_t * address, uint32_t * result) {
+int vaultip_register_read(uint32_t identity, bool incremental_read, uint32_t number,
+                          const uint32_t *address, uint32_t *result)
+{
     uint32_t n;
 
     if (number > VAULTIP_INPUT_TOKEN_REGISTER_READ_MAXIMUM_NUMBER) {
@@ -549,7 +581,9 @@ int vaultip_register_read(uint32_t identity, bool incremental_read, uint32_t num
     }
 }
 
-int vaultip_register_write(uint32_t identity, bool incremental_write, uint32_t number, const uint32_t * mask, const uint32_t * address, const uint32_t * value) {
+int vaultip_register_write(uint32_t identity, bool incremental_write, uint32_t number,
+                           const uint32_t *mask, const uint32_t *address, const uint32_t *value)
+{
     uint32_t n;
 
     if (number > VAULTIP_INPUT_TOKEN_REGISTER_READ_MAXIMUM_NUMBER) {
@@ -607,7 +641,8 @@ int vaultip_register_write(uint32_t identity, bool incremental_write, uint32_t n
     }
 }
 
-int vaultip_trng_configuration(uint32_t identity) {
+int vaultip_trng_configuration(uint32_t identity)
+{
     memset(&gs_input_token, 0, sizeof(gs_input_token));
     memset(&gs_output_token, 0, sizeof(gs_output_token));
 
@@ -628,7 +663,7 @@ int vaultip_trng_configuration(uint32_t identity) {
     gs_input_token.trng_configuration.dw_03.Scale = 0;
 
     //suppress_token_read_diagnostics = true;
-        print_failed_input_token_info(gs_input_token.dw, 4);
+    print_failed_input_token_info(gs_input_token.dw, 4);
 
     if (0 != vaultip_send_input_token(&gs_input_token)) {
         MESSAGE_ERROR("send_input_token() failed!\n");
@@ -651,7 +686,8 @@ int vaultip_trng_configuration(uint32_t identity) {
     }
 }
 
-int vaultip_trng_get_random_number(void * dst, uint16_t size, bool raw) {
+int vaultip_trng_get_random_number(void *dst, uint16_t size, bool raw)
+{
     memset(&gs_input_token, 0, sizeof(gs_input_token));
     memset(&gs_output_token, 0, sizeof(gs_output_token));
 
@@ -660,7 +696,8 @@ int vaultip_trng_get_random_number(void * dst, uint16_t size, bool raw) {
     gs_input_token.dw_00.SubCode = VAULTIP_TOKEN_TRNG_SUBCODE_GET_RANDOM_NUMBER;
 
     gs_input_token.trn_get_random_number.dw_02.Size = size;
-    gs_input_token.trn_get_random_number.dw_02.RawKey = raw ? VAULTIP_TRNG_RAW : VAULTIP_TRNG_NORMAL;
+    gs_input_token.trn_get_random_number.dw_02.RawKey = raw ? VAULTIP_TRNG_RAW :
+                                                              VAULTIP_TRNG_NORMAL;
     gs_input_token.trn_get_random_number.dw_03.OutputDataAddress_31_00 = PTR232LO(dst);
     gs_input_token.trn_get_random_number.dw_04.OutputDataAddress_63_32 = PTR232HI(dst);
 
@@ -683,13 +720,15 @@ int vaultip_trng_get_random_number(void * dst, uint16_t size, bool raw) {
     if (0 == gs_output_token.dw_00.Error) {
         return 0;
     } else {
-        MESSAGE_ERROR_DEBUG("trng_get_random_number: gs_output_token = 0x%x\n", gs_output_token.dw[0]);
+        MESSAGE_ERROR_DEBUG("trng_get_random_number: gs_output_token = 0x%x\n",
+                            gs_output_token.dw[0]);
         print_failed_input_token_info(gs_input_token.dw, 5);
         return -1;
     }
 }
 
-int vaultip_provision_huk(uint32_t coid) {
+int vaultip_provision_huk(uint32_t coid)
+{
     memset(&gs_input_token, 0, sizeof(gs_input_token));
     memset(&gs_output_token, 0, sizeof(gs_output_token));
 
@@ -732,7 +771,8 @@ int vaultip_provision_huk(uint32_t coid) {
     }
 }
 
-int vaultip_reset(uint32_t identity) {
+int vaultip_reset(uint32_t identity)
+{
     memset(&gs_input_token, 0, sizeof(gs_input_token));
     memset(&gs_output_token, 0, sizeof(gs_output_token));
 
@@ -759,12 +799,14 @@ int vaultip_reset(uint32_t identity) {
     }
 }
 
-int vaultip_hash(uint32_t identity, HASH_ALG_t hash_alg, const void * msg, size_t msg_size, uint8_t * hash) {
-    void * temp_msg;
+int vaultip_hash(uint32_t identity, HASH_ALG_t hash_alg, const void *msg, size_t msg_size,
+                 uint8_t *hash)
+{
+    void *temp_msg;
     uint32_t hash_size;
     uint32_t hash_type;
 
-    switch(hash_alg) {
+    switch (hash_alg) {
     case HASH_ALG_SHA2_256:
         hash_type = VAULTIP_HASH_ALGORITHM_SHA_256;
         hash_size = 256 / 8;
@@ -820,10 +862,12 @@ int vaultip_hash(uint32_t identity, HASH_ALG_t hash_alg, const void * msg, size_
     }
 }
 
-int vaultip_hash_update(uint32_t identity, HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void * msg, size_t msg_size, bool init) {
+int vaultip_hash_update(uint32_t identity, HASH_ALG_t hash_alg, uint32_t digest_asset_id,
+                        const void *msg, size_t msg_size, bool init)
+{
     uint32_t hash_type;
 
-    switch(hash_alg) {
+    switch (hash_alg) {
     case HASH_ALG_SHA2_256:
         hash_type = VAULTIP_HASH_ALGORITHM_SHA_256;
         break;
@@ -849,7 +893,8 @@ int vaultip_hash_update(uint32_t identity, HASH_ALG_t hash_alg, uint32_t digest_
     gs_input_token.hash.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
     gs_input_token.hash.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
     gs_input_token.hash.dw_06.Algorithm = hash_type & 0xFu;
-    gs_input_token.hash.dw_06.Mode = init ? VAULTIP_HASH_MODE_INITIAL_NOT_FINAL : VAULTIP_HASH_MODE_CONTINUED_NOT_FINAL;
+    gs_input_token.hash.dw_06.Mode = init ? VAULTIP_HASH_MODE_INITIAL_NOT_FINAL :
+                                            VAULTIP_HASH_MODE_CONTINUED_NOT_FINAL;
     gs_input_token.hash.dw_07.Digest_AS_ID = digest_asset_id;
     gs_input_token.hash.dw_24.TotalMessageLength_31_00 = 0;
     gs_input_token.hash.dw_25.TotalMessageLength_60_32 = 0;
@@ -875,11 +920,14 @@ int vaultip_hash_update(uint32_t identity, HASH_ALG_t hash_alg, uint32_t digest_
     }
 }
 
-int vaultip_hash_final(uint32_t identity, HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void * msg, size_t msg_size, bool init, size_t total_msg_length, uint8_t * hash) {
+int vaultip_hash_final(uint32_t identity, HASH_ALG_t hash_alg, uint32_t digest_asset_id,
+                       const void *msg, size_t msg_size, bool init, size_t total_msg_length,
+                       uint8_t *hash)
+{
     uint32_t hash_size;
     uint32_t hash_type;
 
-    switch(hash_alg) {
+    switch (hash_alg) {
     case HASH_ALG_SHA2_256:
         hash_type = VAULTIP_HASH_ALGORITHM_SHA_256;
         hash_size = 256 / 8;
@@ -908,7 +956,8 @@ int vaultip_hash_final(uint32_t identity, HASH_ALG_t hash_alg, uint32_t digest_a
     gs_input_token.hash.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
     gs_input_token.hash.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
     gs_input_token.hash.dw_06.Algorithm = hash_type & 0xFu;
-    gs_input_token.hash.dw_06.Mode = init ? VAULTIP_HASH_MODE_INITIAL_FINAL : VAULTIP_HASH_MODE_CONTINUED_FINAL;
+    gs_input_token.hash.dw_06.Mode = init ? VAULTIP_HASH_MODE_INITIAL_FINAL :
+                                            VAULTIP_HASH_MODE_CONTINUED_FINAL;
     gs_input_token.hash.dw_07.Digest_AS_ID = digest_asset_id;
     gs_input_token.hash.dw_24.TotalMessageLength_31_00 = (uint32_t)total_msg_length;
     gs_input_token.hash.dw_25.TotalMessageLength_60_32 = (total_msg_length >> 32u) & 0x1FFFFFFFu;
@@ -935,11 +984,13 @@ int vaultip_hash_final(uint32_t identity, HASH_ALG_t hash_alg, uint32_t digest_a
     }
 }
 
-int vaultip_mac_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t key_asset_id, const void * msg, size_t msg_size, uint8_t * mac) {
+int vaultip_mac_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t key_asset_id,
+                         const void *msg, size_t msg_size, uint8_t *mac)
+{
     uint32_t mac_type;
     uint32_t mac_size;
 
-    switch(mac_alg) {
+    switch (mac_alg) {
     case ESPERANTO_MAC_TYPE_AES_CMAC:
         mac_type = VAULTIP_MAC_ALGORITHM_AES_CMAC;
         mac_size = 128 / 8;
@@ -1005,11 +1056,13 @@ int vaultip_mac_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32
     }
 }
 
-int vaultip_mac_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t key_asset_id, const void * msg, size_t msg_size, const uint8_t * mac) {
+int vaultip_mac_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t key_asset_id,
+                       const void *msg, size_t msg_size, const uint8_t *mac)
+{
     uint32_t mac_type;
     uint32_t mac_size;
 
-    switch(mac_alg) {
+    switch (mac_alg) {
     case ESPERANTO_MAC_TYPE_AES_CMAC:
         mac_type = VAULTIP_MAC_ALGORITHM_AES_CMAC;
         mac_size = 128 / 8;
@@ -1076,10 +1129,12 @@ int vaultip_mac_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t
     }
 }
 
-int vaultip_mac_update(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t mac_asset_id, uint32_t key_asset_id, const void * msg, size_t msg_size, bool init) {
+int vaultip_mac_update(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t mac_asset_id,
+                       uint32_t key_asset_id, const void *msg, size_t msg_size, bool init)
+{
     uint32_t mac_type;
 
-    switch(mac_alg) {
+    switch (mac_alg) {
     case ESPERANTO_MAC_TYPE_AES_CMAC:
         mac_type = VAULTIP_MAC_ALGORITHM_AES_CMAC;
         break;
@@ -1108,7 +1163,8 @@ int vaultip_mac_update(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t
     gs_input_token.mac.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
     gs_input_token.mac.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
     gs_input_token.mac.dw_06.Algorithm = mac_type & 0xFu;
-    gs_input_token.mac.dw_06.Mode = init ? VAULTIP_MAC_MODE_INITIAL_FINAL : VAULTIP_MAC_MODE_CONTINUED_FINAL;
+    gs_input_token.mac.dw_06.Mode = init ? VAULTIP_MAC_MODE_INITIAL_FINAL :
+                                           VAULTIP_MAC_MODE_CONTINUED_FINAL;
     gs_input_token.mac.dw_06.AS_LoadKey = 1u;
     gs_input_token.mac.dw_06.AS_LoadMAC = 0u;
     gs_input_token.mac.dw_06.KeyLength = 0u;
@@ -1137,11 +1193,14 @@ int vaultip_mac_update(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t
     }
 }
 
-int vaultip_mac_final_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t mac_asset_id, uint32_t key_asset_id, const void * msg, size_t msg_size, size_t total_msg_size, bool init, uint8_t * mac) {
+int vaultip_mac_final_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg,
+                               uint32_t mac_asset_id, uint32_t key_asset_id, const void *msg,
+                               size_t msg_size, size_t total_msg_size, bool init, uint8_t *mac)
+{
     uint32_t mac_type;
     uint32_t mac_size;
 
-    switch(mac_alg) {
+    switch (mac_alg) {
     case ESPERANTO_MAC_TYPE_AES_CMAC:
         mac_type = VAULTIP_MAC_ALGORITHM_AES_CMAC;
         mac_size = 128 / 8;
@@ -1174,7 +1233,8 @@ int vaultip_mac_final_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, 
     gs_input_token.mac.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
     gs_input_token.mac.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
     gs_input_token.mac.dw_06.Algorithm = mac_type & 0xFu;
-    gs_input_token.mac.dw_06.Mode = init ? VAULTIP_MAC_MODE_INITIAL_FINAL : VAULTIP_MAC_MODE_CONTINUED_FINAL;
+    gs_input_token.mac.dw_06.Mode = init ? VAULTIP_MAC_MODE_INITIAL_FINAL :
+                                           VAULTIP_MAC_MODE_CONTINUED_FINAL;
     gs_input_token.mac.dw_06.AS_LoadKey = 1u;
     gs_input_token.mac.dw_06.AS_LoadMAC = 0u;
     gs_input_token.mac.dw_06.KeyLength = 0u;
@@ -1208,11 +1268,14 @@ int vaultip_mac_final_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, 
     }
 }
 
-int vaultip_mac_final_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t mac_asset_id, uint32_t key_asset_id, const void * msg, size_t msg_size, size_t total_msg_size, bool init, const uint8_t * mac) {
+int vaultip_mac_final_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t mac_asset_id,
+                             uint32_t key_asset_id, const void *msg, size_t msg_size,
+                             size_t total_msg_size, bool init, const uint8_t *mac)
+{
     uint32_t mac_type;
     uint32_t mac_size;
 
-    switch(mac_alg) {
+    switch (mac_alg) {
     case ESPERANTO_MAC_TYPE_AES_CMAC:
         mac_type = VAULTIP_MAC_ALGORITHM_AES_CMAC;
         mac_size = 128 / 8;
@@ -1245,7 +1308,8 @@ int vaultip_mac_final_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, ui
     gs_input_token.mac.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
     gs_input_token.mac.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
     gs_input_token.mac.dw_06.Algorithm = mac_type & 0xFu;
-    gs_input_token.mac.dw_06.Mode = init ? VAULTIP_MAC_MODE_INITIAL_FINAL : VAULTIP_MAC_MODE_CONTINUED_FINAL;
+    gs_input_token.mac.dw_06.Mode = init ? VAULTIP_MAC_MODE_INITIAL_FINAL :
+                                           VAULTIP_MAC_MODE_CONTINUED_FINAL;
     gs_input_token.mac.dw_06.AS_LoadKey = 1u;
     gs_input_token.mac.dw_06.AS_LoadMAC = 1u;
     gs_input_token.mac.dw_06.KeyLength = 0u;
@@ -1279,7 +1343,9 @@ int vaultip_mac_final_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, ui
     }
 }
 
-static int vaultip_aes_cbc(uint32_t identity, uint32_t key_asset_id, uint8_t * IV, void * data, size_t data_size, bool encrypt) {
+static int vaultip_aes_cbc(uint32_t identity, uint32_t key_asset_id, uint8_t *IV, void *data,
+                           size_t data_size, bool encrypt)
+{
     memset(&gs_input_token, 0, sizeof(gs_input_token));
     memset(&gs_output_token, 0, sizeof(gs_output_token));
 
@@ -1332,15 +1398,22 @@ static int vaultip_aes_cbc(uint32_t identity, uint32_t key_asset_id, uint8_t * I
     }
 }
 
-int vaultip_aes_cbc_encrypt(uint32_t identity, uint32_t key_asset_id, uint8_t * IV, void * data, size_t data_size) {
+int vaultip_aes_cbc_encrypt(uint32_t identity, uint32_t key_asset_id, uint8_t *IV, void *data,
+                            size_t data_size)
+{
     return vaultip_aes_cbc(identity, key_asset_id, IV, data, data_size, true);
 }
 
-int vaultip_aes_cbc_decrypt(uint32_t identity, uint32_t key_asset_id, uint8_t * IV, void * data, size_t data_size) {
+int vaultip_aes_cbc_decrypt(uint32_t identity, uint32_t key_asset_id, uint8_t *IV, void *data,
+                            size_t data_size)
+{
     return vaultip_aes_cbc(identity, key_asset_id, IV, data, data_size, false);
 }
 
-int vaultip_asset_create(uint32_t identity, uint32_t policy_31_00, uint32_t policy_63_32, VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t other_settings, uint32_t lifetime, uint32_t * asset_id) {
+int vaultip_asset_create(uint32_t identity, uint32_t policy_31_00, uint32_t policy_63_32,
+                         VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t other_settings,
+                         uint32_t lifetime, uint32_t *asset_id)
+{
     //uint32_t n;
 
     memset(&gs_input_token, 0, sizeof(gs_input_token));
@@ -1375,7 +1448,8 @@ int vaultip_asset_create(uint32_t identity, uint32_t policy_31_00, uint32_t poli
         *asset_id = gs_output_token.asset_create.dw_01.AS_ID;
 #ifdef TRACK_ASSETS_COUNT
         gs_asset_count++;
-        MESSAGE_INFO_DEBUG("Created asset id 0x%08x (%u)\n", gs_output_token.asset_create.dw_01.AS_ID, gs_asset_count);
+        MESSAGE_INFO_DEBUG("Created asset id 0x%08x (%u)\n",
+                           gs_output_token.asset_create.dw_01.AS_ID, gs_asset_count);
 #endif
         return 0;
     } else {
@@ -1385,7 +1459,9 @@ int vaultip_asset_create(uint32_t identity, uint32_t policy_31_00, uint32_t poli
     }
 }
 
-int vaultip_asset_load_plaintext(uint32_t identity, uint32_t asset_id, const void * data, uint32_t data_size) {
+int vaultip_asset_load_plaintext(uint32_t identity, uint32_t asset_id, const void *data,
+                                 uint32_t data_size)
+{
     //uint32_t n;
 
     memset(&gs_input_token, 0, sizeof(gs_input_token));
@@ -1406,7 +1482,7 @@ int vaultip_asset_load_plaintext(uint32_t identity, uint32_t asset_id, const voi
     //     MESSAGE_INFO_DEBUG("asset_load[%u]=%08x\n", n, gs_input_token.dw[n]);
     // }
 
-//    MESSAGE_INFO_DEBUG("asset_load_plaintext: assetid=0x%08x, length=0x%08x\n", asset_id, data_size);
+    //    MESSAGE_INFO_DEBUG("asset_load_plaintext: assetid=0x%08x, length=0x%08x\n", asset_id, data_size);
 
     l1_data_cache_flush_region(data, data_size);
 
@@ -1428,7 +1504,11 @@ int vaultip_asset_load_plaintext(uint32_t identity, uint32_t asset_id, const voi
     }
 }
 
-int vaultip_asset_load_derive(uint32_t identity, uint32_t asset_id, uint32_t kdk_asset_id, const uint8_t * key_expansion_IV, uint32_t key_expansion_IV_length, const uint8_t * associated_data, uint32_t associated_data_size, const uint8_t * salt, uint32_t salt_size) {
+int vaultip_asset_load_derive(uint32_t identity, uint32_t asset_id, uint32_t kdk_asset_id,
+                              const uint8_t *key_expansion_IV, uint32_t key_expansion_IV_length,
+                              const uint8_t *associated_data, uint32_t associated_data_size,
+                              const uint8_t *salt, uint32_t salt_size)
+{
     memset(&gs_input_token, 0, sizeof(gs_input_token));
     memset(&gs_output_token, 0, sizeof(gs_output_token));
 
@@ -1448,7 +1528,8 @@ int vaultip_asset_load_derive(uint32_t identity, uint32_t asset_id, uint32_t kdk
     gs_input_token.asset_load.dw_07.OutputDataAddress_63_32 = PTR232HI(key_expansion_IV);
     gs_input_token.asset_load.dw_08.OutputDataLength = key_expansion_IV_length & 0x7FF;
     gs_input_token.asset_load.dw_09.Key_AS_ID = kdk_asset_id;
-    memcpy(gs_input_token.asset_load.dw_10_63[0].AssociatedData, associated_data, associated_data_size);
+    memcpy(gs_input_token.asset_load.dw_10_63[0].AssociatedData, associated_data,
+           associated_data_size);
 
     l1_data_cache_flush_region(salt, salt_size);
     l1_data_cache_flush_region(key_expansion_IV, key_expansion_IV_length);
@@ -1470,7 +1551,8 @@ int vaultip_asset_load_derive(uint32_t identity, uint32_t asset_id, uint32_t kdk
     }
 }
 
-int vaultip_asset_delete(uint32_t identity, uint32_t asset_id) {
+int vaultip_asset_delete(uint32_t identity, uint32_t asset_id)
+{
     memset(&gs_input_token, 0, sizeof(gs_input_token));
     memset(&gs_output_token, 0, sizeof(gs_output_token));
 
@@ -1501,7 +1583,9 @@ int vaultip_asset_delete(uint32_t identity, uint32_t asset_id) {
     }
 }
 
-int vaultip_static_asset_search(uint32_t identity, VAULTIP_STATIC_ASSET_ID_t asset_number, uint32_t * asset_id, uint32_t * data_length) {
+int vaultip_static_asset_search(uint32_t identity, VAULTIP_STATIC_ASSET_ID_t asset_number,
+                                uint32_t *asset_id, uint32_t *data_length)
+{
     memset(&gs_input_token, 0, sizeof(gs_input_token));
     memset(&gs_output_token, 0, sizeof(gs_output_token));
 
@@ -1530,10 +1614,13 @@ int vaultip_static_asset_search(uint32_t identity, VAULTIP_STATIC_ASSET_ID_t ass
     }
 }
 
-int vaultip_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t identity, uint32_t public_key_asset_id,
-                                 uint32_t curve_parameters_asset_id, uint32_t temp_message_digest_asset_id,
-                                 const void * message, uint32_t message_size, uint32_t hash_data_length,
-                                 const void * sig_data_address, uint32_t sig_data_size) {
+int vaultip_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t identity,
+                                    uint32_t public_key_asset_id,
+                                    uint32_t curve_parameters_asset_id,
+                                    uint32_t temp_message_digest_asset_id, const void *message,
+                                    uint32_t message_size, uint32_t hash_data_length,
+                                    const void *sig_data_address, uint32_t sig_data_size)
+{
     uint32_t modulus_size;
     uint32_t modulus_words;
     //uint32_t n;
@@ -1591,15 +1678,19 @@ int vaultip_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t identit
     if (0 == gs_output_token.dw_00.Error) {
         return 0;
     } else {
-        MESSAGE_ERROR_DEBUG("public_key_ecdsa_verify: output token[0] = 0x%08x\n", gs_output_token.dw[0]);
+        MESSAGE_ERROR_DEBUG("public_key_ecdsa_verify: output token[0] = 0x%08x\n",
+                            gs_output_token.dw[0]);
         return -1;
     }
 }
 
-int vaultip_public_key_rsa_pss_verify(uint32_t modulus_size, uint32_t identity, uint32_t public_key_asset_id,
-                                      uint32_t temp_message_digest_asset_id, const void * message, uint32_t message_size,
-                                      uint32_t hash_data_length, const void * sig_data_address, uint32_t sig_data_size,
-                                      uint32_t salt_length) {
+int vaultip_public_key_rsa_pss_verify(uint32_t modulus_size, uint32_t identity,
+                                      uint32_t public_key_asset_id,
+                                      uint32_t temp_message_digest_asset_id, const void *message,
+                                      uint32_t message_size, uint32_t hash_data_length,
+                                      const void *sig_data_address, uint32_t sig_data_size,
+                                      uint32_t salt_length)
+{
     uint32_t modulus_words;
     //uint32_t n;
 
@@ -1650,13 +1741,15 @@ int vaultip_public_key_rsa_pss_verify(uint32_t modulus_size, uint32_t identity, 
     if (0 == gs_output_token.dw_00.Error) {
         return 0;
     } else {
-        MESSAGE_ERROR_DEBUG("vaultip_public_key_rsa_pss_verify: output token[0] = 0x%08x\n", gs_output_token.dw[0]);
+        MESSAGE_ERROR_DEBUG("vaultip_public_key_rsa_pss_verify: output token[0] = 0x%08x\n",
+                            gs_output_token.dw[0]);
         print_failed_input_token_info(gs_input_token.dw, 13);
         return -1;
     }
 }
 
-int vaultip_clock_switch(uint32_t identity, uint32_t token) {
+int vaultip_clock_switch(uint32_t identity, uint32_t token)
+{
     memset(&gs_input_token, 0, sizeof(gs_input_token));
     memset(&gs_output_token, 0, sizeof(gs_output_token));
 

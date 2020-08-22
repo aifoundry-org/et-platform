@@ -5,7 +5,7 @@
 #include <assert.h>
 
 #define MAILBOX_INTERFACE_VERSION 0x00000001
-#define LOW_PRIORITY_QUEUE_SIZE 15
+#define LOW_PRIORITY_QUEUE_SIZE   15
 
 typedef enum MAILBOX_MASTER_STATUS_e {
     MAILBOX_MASTER_STATUS_NOT_READY = 0,
@@ -36,18 +36,19 @@ typedef struct MAILBOX_QUEUE_DESCRIPTOR_s {
     uint32_t head_index;
     uint32_t tail_index;
 } MAILBOX_QUEUE_DESCRIPTOR_t;
-static_assert(8 == sizeof(MAILBOX_QUEUE_DESCRIPTOR_t), "sizeof(MAILBOX_QUEUE_DESCRIPTOR_t) is not 8!");
+static_assert(8 == sizeof(MAILBOX_QUEUE_DESCRIPTOR_t),
+              "sizeof(MAILBOX_QUEUE_DESCRIPTOR_t) is not 8!");
 
 typedef struct SECURE_MAILBOX_CONTROL_s {
     uint32_t status;
     uint32_t reserved[5];
-    uint32_t hi_pri_req_ready;  // request to the other side
-    uint32_t hi_pri_rsp_ready;  // response to requests from the other side
+    uint32_t hi_pri_req_ready; // request to the other side
+    uint32_t hi_pri_rsp_ready; // response to requests from the other side
 
-    uint32_t lo_pri_req_head;   // head index for the request queue to the other side
-    uint32_t lo_pri_rsp_tail;   // tail index for the response queue from the other side
-    uint32_t lo_pri_req_tail;   // tail index for the request queue from the other side
-    uint32_t lo_pri_rsp_head;   // head index for the response queue to the other side
+    uint32_t lo_pri_req_head; // head index for the request queue to the other side
+    uint32_t lo_pri_rsp_tail; // tail index for the response queue from the other side
+    uint32_t lo_pri_req_tail; // tail index for the request queue from the other side
+    uint32_t lo_pri_rsp_head; // head index for the response queue to the other side
 } SECURE_MAILBOX_CONTROL_t;
 
 typedef struct SECURE_MAILBOX_INTERFACE_s {
@@ -105,6 +106,7 @@ typedef struct SECURE_MAILBOX_INTERFACE_s {
 
     MESSAGE_PAYLOAD_t lo_pri_s2m_rsp_queue[LOW_PRIORITY_QUEUE_SIZE];
 } SECURE_MAILBOX_INTERFACE_t;
-static_assert(4096 == sizeof(SECURE_MAILBOX_INTERFACE_t), "sizeof(SECURE_MAILBOX_INTERFACE_t) is not 4096!");
+static_assert(4096 == sizeof(SECURE_MAILBOX_INTERFACE_t),
+              "sizeof(SECURE_MAILBOX_INTERFACE_t) is not 4096!");
 
 #endif

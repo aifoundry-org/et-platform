@@ -28,10 +28,10 @@ typedef struct SPI_COMMAND {
     bool data_receive;
     uint32_t address;
     uint32_t data_size;
-    uint8_t * data_buffer;
+    uint8_t *data_buffer;
 } SPI_COMMAND_t;
 
 int spi_controller_init(SPI_CONTROLLER_ID_t id);
-int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMMAND_t * command);
+int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMMAND_t *command);
 
 #endif

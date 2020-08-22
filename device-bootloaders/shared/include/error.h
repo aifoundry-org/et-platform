@@ -12,7 +12,7 @@
 #define __ERROR_H__
 
 // Generic errors: [0, -999]
-#define ERROR_NO_ERROR          0
+#define ERROR_NO_ERROR         0
 #define ERROR_INVALID_ARGUMENT -1
 
 #endif

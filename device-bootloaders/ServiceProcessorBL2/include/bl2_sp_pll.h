@@ -3,9 +3,9 @@
 
 #include <stdint.h>
 
-#define ERROR_SP_PLL_CONFIG_DATA_NOT_FOUND             -1000
-#define ERROR_SP_PLL_PLL_LOCK_TIMEOUT                  -1001
-#define ERROR_SP_PLL_INVALID_PLL_ID                    -1002
+#define ERROR_SP_PLL_CONFIG_DATA_NOT_FOUND -1000
+#define ERROR_SP_PLL_PLL_LOCK_TIMEOUT      -1001
+#define ERROR_SP_PLL_INVALID_PLL_ID        -1002
 
 typedef enum PLL_ID_e {
     PLL_ID_INVALID,
@@ -30,7 +30,8 @@ int configure_sp_pll_2(void);
 int configure_sp_pll_4(void);
 int configure_pcie_pll(void);
 int configure_minion_plls(void);
-int get_pll_frequency(PLL_ID_t pll_id, uint32_t * frequency);
-int pll_init(uint32_t sp_pll_0_frequency, uint32_t sp_pll_1_frequency, uint32_t pcie_pll_0_frequency);
+int get_pll_frequency(PLL_ID_t pll_id, uint32_t *frequency);
+int pll_init(uint32_t sp_pll_0_frequency, uint32_t sp_pll_1_frequency,
+             uint32_t pcie_pll_0_frequency);
 
 #endif

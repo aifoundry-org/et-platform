@@ -28,13 +28,14 @@
 static bool gs_vaultip_disabled;
 static bool gs_ignore_signatures;
 
-static void dump_sha512(const uint8_t hash[512/8]) {
-    printf("%02x%02x%02x%02x%02x%02x..%02x%02x%02x%02x%02x%02x\n",
-        hash[0], hash[1], hash[2], hash[3], hash[4], hash[5],
-        hash[58], hash[59], hash[60], hash[61], hash[62], hash[63]);
+static void dump_sha512(const uint8_t hash[512 / 8])
+{
+    printf("%02x%02x%02x%02x%02x%02x..%02x%02x%02x%02x%02x%02x\n", hash[0], hash[1], hash[2],
+           hash[3], hash[4], hash[5], hash[58], hash[59], hash[60], hash[61], hash[62], hash[63]);
 }
 
-static int verify_certificate_name_sequence(const SECURITY_CERTIFICATE_NAME_SEQUENCE_t * sequence) {
+static int verify_certificate_name_sequence(const SECURITY_CERTIFICATE_NAME_SEQUENCE_t *sequence)
+{
     if (sequence->organization_length > sizeof(sequence->organization)) {
         return -1;
     }
@@ -59,7 +60,8 @@ static int verify_certificate_name_sequence(const SECURITY_CERTIFICATE_NAME_SEQU
     return 0;
 }
 
-static int basic_certificate_check(const ESPERANTO_CERTIFICATE_t * certificate) {
+static int basic_certificate_check(const ESPERANTO_CERTIFICATE_t *certificate)
+{
     if (NULL == certificate) {
         return -1;
     }
@@ -79,25 +81,29 @@ static int basic_certificate_check(const ESPERANTO_CERTIFICATE_t * certificate) 
         return -1;
     }
 
-    if (certificate->certificate_info.hash_algorithm != certificate->certificate_info_signature.hashAlg) {
+    if (certificate->certificate_info.hash_algorithm !=
+        certificate->certificate_info_signature.hashAlg) {
         printf("basic_certificate_check: certificate signature hash algorithm mismatch!\n");
         return -1;
     }
 
-    if (certificate->certificate_info.signing_key_type != certificate->certificate_info_signature.keyType) {
+    if (certificate->certificate_info.signing_key_type !=
+        certificate->certificate_info_signature.keyType) {
         printf("basic_certificate_check: certificate signature signing key type mismatch!\n");
         return -1;
     }
 
     switch (certificate->certificate_info.signing_key_type) {
     case PUBLIC_KEY_TYPE_EC:
-        if (certificate->certificate_info.curveID != certificate->certificate_info_signature.ec.curveID) {
+        if (certificate->certificate_info.curveID !=
+            certificate->certificate_info_signature.ec.curveID) {
             printf("basic_certificate_check: certificate signature EC curve mismatch!\n");
             return -1;
         }
         break;
     case PUBLIC_KEY_TYPE_RSA:
-        if (certificate->certificate_info.keySize != certificate->certificate_info_signature.rsa.keySize) {
+        if (certificate->certificate_info.keySize !=
+            certificate->certificate_info_signature.rsa.keySize) {
             printf("basic_certificate_check: certificate signature RSA key size mismatch!\n");
             return -1;
         }
@@ -131,17 +137,22 @@ static int basic_certificate_check(const ESPERANTO_CERTIFICATE_t * certificate) 
 //         hash[58], hash[59], hash[60], hash[61], hash[62], hash[63]);
 // }
 
-static int is_sw_root_ca_hash_provisioned(bool * provisioned) {
+static int is_sw_root_ca_hash_provisioned(bool *provisioned)
+{
     *provisioned = false;
     return 0;
 }
 
-static const uint8_t * get_sw_root_ca_sha512_hash(void) {
+static const uint8_t *get_sw_root_ca_sha512_hash(void)
+{
     return NULL;
 }
 
-static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t * certificate, const ESPERANTO_CERTIFICATE_t * parent_certificate, uint32_t required_designation_flags) {
-    static uint8_t hash_result[512/8];
+static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t *certificate,
+                                      const ESPERANTO_CERTIFICATE_t *parent_certificate,
+                                      uint32_t required_designation_flags)
+{
+    static uint8_t hash_result[512 / 8];
 
     if (NULL == certificate) {
         return -1;
@@ -149,12 +160,13 @@ static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t * certificat
 
     if (NULL == parent_certificate) {
         // we are checking the SW ROOT CA certificate
-        if (0 != crypto_hash(HASH_ALG_SHA2_512, certificate, sizeof(ESPERANTO_CERTIFICATE_t), hash_result)) {
+        if (0 != crypto_hash(HASH_ALG_SHA2_512, certificate, sizeof(ESPERANTO_CERTIFICATE_t),
+                             hash_result)) {
             printf("enhanced_certificate_check: vaultip_hash_sha_512(sp_root_ca) failed!\n");
             return -1;
         }
 
-        if (0 != constant_time_memory_compare(hash_result, get_sw_root_ca_sha512_hash(), 512/8)) {
+        if (0 != constant_time_memory_compare(hash_result, get_sw_root_ca_sha512_hash(), 512 / 8)) {
             printf("enhanced_certificate_check: Invalid SW ROOT CA certificate hash!\n");
             printf("Expected: ");
             dump_sha512(get_sw_root_ca_sha512_hash());
@@ -162,7 +174,7 @@ static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t * certificat
             dump_sha512(hash_result);
             return -1;
         }
-    }  else {
+    } else {
         // we are checking a lower-level certificate
 
         if (0 == parent_certificate->certificate_info.is_CA) {
@@ -176,15 +188,17 @@ static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t * certificat
         //     return -1;
         // }
 
-        if (required_designation_flags != (parent_certificate->certificate_info.esperanto_designation & required_designation_flags)) {
+        if (required_designation_flags !=
+            (parent_certificate->certificate_info.esperanto_designation &
+             required_designation_flags)) {
             printf("enhanced_certificate_check: esperanto designation mismatch!\n");
             return -1;
         }
 
-
-        if (0 != constant_time_memory_compare(&(certificate->certificate_info.issuer_key_identifier),
-                                              &(parent_certificate->certificate_info.subject_key_identifier),
-                                              sizeof(certificate->certificate_info.subject_key_identifier))) {
+        if (0 != constant_time_memory_compare(
+                     &(certificate->certificate_info.issuer_key_identifier),
+                     &(parent_certificate->certificate_info.subject_key_identifier),
+                     sizeof(certificate->certificate_info.subject_key_identifier))) {
             printf("enhanced_certificate_check: Certificate parent key identifier mismatch!\n");
             return -1;
         }
@@ -199,10 +213,10 @@ static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t * certificat
         if (gs_ignore_signatures) {
             MESSAGE_INFO("CRT SIG IGN\n");
         } else {
-            if (0 != crypto_verify_pk_signature(&(parent_certificate->certificate_info.subject_public_key),
-                                                &(certificate->certificate_info_signature),
-                                                &(certificate->certificate_info),
-                                                sizeof(certificate->certificate_info))) {
+            if (0 != crypto_verify_pk_signature(
+                         &(parent_certificate->certificate_info.subject_public_key),
+                         &(certificate->certificate_info_signature),
+                         &(certificate->certificate_info), sizeof(certificate->certificate_info))) {
                 printf("enhanced_certificate_check: signature check failed!\n");
                 return -1;
             }
@@ -212,20 +226,26 @@ static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t * certificat
     return 0;
 }
 
-static int verify_certificate(const ESPERANTO_CERTIFICATE_t * certificate, const ESPERANTO_CERTIFICATE_t * parent_certificate, uint32_t required_designation_flags) {
+static int verify_certificate(const ESPERANTO_CERTIFICATE_t *certificate,
+                              const ESPERANTO_CERTIFICATE_t *parent_certificate,
+                              uint32_t required_designation_flags)
+{
     if (0 != basic_certificate_check(certificate)) {
         return -1;
     }
-    if (0 != enhanced_certificate_check(certificate, parent_certificate, required_designation_flags)) {
+    if (0 !=
+        enhanced_certificate_check(certificate, parent_certificate, required_designation_flags)) {
         return -1;
     }
     return 0;
 }
 
-int verify_esperanto_image_certificate(const ESPERANTO_IMAGE_TYPE_t image_type, const ESPERANTO_CERTIFICATE_t * certificate) {
-    SERVICE_PROCESSOR_BL2_DATA_t * bl2_data = get_service_processor_bl2_data();
+int verify_esperanto_image_certificate(const ESPERANTO_IMAGE_TYPE_t image_type,
+                                       const ESPERANTO_CERTIFICATE_t *certificate)
+{
+    SERVICE_PROCESSOR_BL2_DATA_t *bl2_data = get_service_processor_bl2_data();
     uint32_t designation_flags;
-    const ESPERANTO_CERTIFICATE_t * parent_certificate;
+    const ESPERANTO_CERTIFICATE_t *parent_certificate;
 
     if (gs_vaultip_disabled) {
         MESSAGE_ERROR("CE DIS!\n");
@@ -273,17 +293,20 @@ int verify_esperanto_image_certificate(const ESPERANTO_IMAGE_TYPE_t image_type, 
     return 0;
 }
 
-static int verify_sw_certificates_chain(const ESPERANTO_CERTIFICATE_t sw_certificates[2]) {
+static int verify_sw_certificates_chain(const ESPERANTO_CERTIFICATE_t sw_certificates[2])
+{
     if (NULL == sw_certificates) {
         return -1;
     }
 
-    if (0 != verify_certificate(&sw_certificates[0], NULL, ESPERANTO_CERTIFICATE_DESIGNATION_ROOT_CA)) {
+    if (0 !=
+        verify_certificate(&sw_certificates[0], NULL, ESPERANTO_CERTIFICATE_DESIGNATION_ROOT_CA)) {
         printf("verify_sw_certificates_chain: Invalid SW ROOT CA certificate!\n");
         return -1;
     }
     printf("SW ROOT CA Certificate OK!\n");
-    if (0 != verify_certificate(&sw_certificates[1], &sw_certificates[0], ESPERANTO_CERTIFICATE_DESIGNATION_ISSUING_CA)) {
+    if (0 != verify_certificate(&sw_certificates[1], &sw_certificates[0],
+                                ESPERANTO_CERTIFICATE_DESIGNATION_ISSUING_CA)) {
         printf("verify_sw_certificates_chain: Invalid ISSUING CA certificate!\n");
         return -1;
     }
@@ -291,10 +314,11 @@ static int verify_sw_certificates_chain(const ESPERANTO_CERTIFICATE_t sw_certifi
     return 0;
 }
 
-int load_sw_certificates_chain(void) {
+int load_sw_certificates_chain(void)
+{
     bool sw_root_ca_hash_available;
     uint32_t sw_certificates_size;
-    SERVICE_PROCESSOR_BL2_DATA_t * bl2_data = get_service_processor_bl2_data();
+    SERVICE_PROCESSOR_BL2_DATA_t *bl2_data = get_service_processor_bl2_data();
 
     gs_vaultip_disabled = is_vaultip_disabled();
     gs_ignore_signatures = false;
@@ -304,7 +328,7 @@ int load_sw_certificates_chain(void) {
     }
 
     if (gs_vaultip_disabled) {
-	//TODO: Update the following to Log macro - set to INFO/DEBUG
+        //TODO: Update the following to Log macro - set to INFO/DEBUG
         //printf("Skip VaultIP OTP SW ROOT CA HASH check!\n");
         sw_root_ca_hash_available = false;
     } else {
@@ -315,14 +339,16 @@ int load_sw_certificates_chain(void) {
     }
 
     if (!sw_root_ca_hash_available) {
-	//TODO: Update the following to Log macro - set to INFO/DEBUG
+        //TODO: Update the following to Log macro - set to INFO/DEBUG
         //printf("SW ROOT CA not provisioned. Using SP ROOT CA.\n");
-        memcpy(bl2_data->sw_certificates, bl2_data->sp_certificates, sizeof(bl2_data->sw_certificates));
+        memcpy(bl2_data->sw_certificates, bl2_data->sp_certificates,
+               sizeof(bl2_data->sw_certificates));
         return 0;
     }
 
     // load the SW CA certificates
-    if (0 != flashfs_drv_get_file_size(ESPERANTO_FLASH_REGION_ID_SW_CERTIFICATES, &sw_certificates_size)) {
+    if (0 != flashfs_drv_get_file_size(ESPERANTO_FLASH_REGION_ID_SW_CERTIFICATES,
+                                       &sw_certificates_size)) {
         printf("flashfs_drv_get_file_size(SW_CRT) failed!\n");
         return -1;
     }
@@ -330,7 +356,8 @@ int load_sw_certificates_chain(void) {
         printf("Invalid SW certificates file size!\n");
         return -1;
     }
-    if (0 != flashfs_drv_read_file(ESPERANTO_FLASH_REGION_ID_SW_CERTIFICATES, 0, bl2_data->sw_certificates, sizeof(bl2_data->sw_certificates))) {
+    if (0 != flashfs_drv_read_file(ESPERANTO_FLASH_REGION_ID_SW_CERTIFICATES, 0,
+                                   bl2_data->sw_certificates, sizeof(bl2_data->sw_certificates))) {
         printf("flashfs_drv_read_file(SW_CRT) failed!\n");
         return -1;
     }
@@ -344,4 +371,3 @@ int load_sw_certificates_chain(void) {
     bl2_data->sw_certificates_loaded = 1;
     return 0;
 }
-

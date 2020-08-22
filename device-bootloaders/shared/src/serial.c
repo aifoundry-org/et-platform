@@ -72,15 +72,15 @@ int SERIAL_init(uintptr_t uartRegs)
 }
 
 // Blocks until the entire string has been written to the fifo
-void SERIAL_write(uintptr_t uartRegs, const char* const string, int length)
+void SERIAL_write(uintptr_t uartRegs, const char *const string, int length)
 {
-    for (int i = 0; i < length; i++)
-    {
+    for (int i = 0; i < length; i++) {
         /* if THRE_MODE_USER == Enabled AND FIFO_MODE != NONE and both modes are active
            (IER[7] set to one and FCR[0] set to one respectively), the functionality is
            switched to indicate the transmitter FIFO is full, and no longer controls THRE
            interrupts, which are then controlled by the FCR[5:4] threshold setting. */
-        while (UART_LSR_THRE_GET(ioread32(uartRegs + UART_LSR_ADDRESS)) == 1U) {}
+        while (UART_LSR_THRE_GET(ioread32(uartRegs + UART_LSR_ADDRESS)) == 1U) {
+        }
 
         /* Write characters to be transmitted to transmit FIFO by writing to THR */
         iowrite32(uartRegs + UART_RBR_THR_ADDRESS, UART_RBR_THR_THR_SET(string[i]));
@@ -92,10 +92,10 @@ static void set_baud_divisor(uintptr_t uartRegs, unsigned int baudRate, unsigned
     // See Synopsys DesignWare DW_apb_uart Databook 4.02a July 2018 section 2.4 Fractional Baud Rate Support
 
     // Divisor
-    const unsigned int baud_divisor = clkFreq/(16U*baudRate);
+    const unsigned int baud_divisor = clkFreq / (16U * baudRate);
 
     // Divisor Latch Fractional Value, rounded to nearest 16th given DLF_SIZE = 4
-    const unsigned int baud_dlf = ((((2U*clkFreq)/baudRate) + 1U) / 2U) - (16U*baud_divisor);
+    const unsigned int baud_dlf = ((((2U * clkFreq) / baudRate) + 1U) / 2U) - (16U * baud_divisor);
 
     iowrite32(uartRegs + UART_RBR_DLL_ADDRESS, UART_RBR_DLL_DLL_SET(baud_divisor & 0xff));
     iowrite32(uartRegs + UART_IER_DLH_ADDRESS, UART_IER_DLH_DLH_SET((baud_divisor >> 8) & 0xff));

@@ -15,76 +15,31 @@
 #include <stdint.h>
 
 #define SYSTEM_REGISTER_GET_MISA(val) \
-    __asm__ __volatile__ ( \
-        "csrr    %[result], misa" \
-        : [result] "=r" (val) \
-        : \
-        : \
-    );
+    __asm__ __volatile__("csrr    %[result], misa" : [result] "=r"(val) : :);
 
 #define SYSTEM_REGISTER_GET_MVENDORID(val) \
-    __asm__ __volatile__ ( \
-        "csrr    %[result], mvendorid" \
-        : [result] "=r" (val) \
-        : \
-        : \
-    );
+    __asm__ __volatile__("csrr    %[result], mvendorid" : [result] "=r"(val) : :);
 
 #define SYSTEM_REGISTER_GET_MARCHID(val) \
-    __asm__ __volatile__ ( \
-        "csrr    %[result], marchid" \
-        : [result] "=r" (val) \
-        : \
-        : \
-    );
+    __asm__ __volatile__("csrr    %[result], marchid" : [result] "=r"(val) : :);
 
 #define SYSTEM_REGISTER_GET_MIMPID(val) \
-    __asm__ __volatile__ ( \
-        "csrr    %[result], mimpid" \
-        : [result] "=r" (val) \
-        : \
-        : \
-    );
+    __asm__ __volatile__("csrr    %[result], mimpid" : [result] "=r"(val) : :);
 
 #define SYSTEM_REGISTER_GET_MHARTID(val) \
-    __asm__ __volatile__ ( \
-        "csrr    %[result], mhartid" \
-        : [result] "=r" (val) \
-        : \
-        : \
-    );
+    __asm__ __volatile__("csrr    %[result], mhartid" : [result] "=r"(val) : :);
 
 #define SYSTEM_REGISTER_GET_MSTATUS(val) \
-    __asm__ __volatile__ ( \
-        "csrr    %[result], mstatus" \
-        : [result] "=r" (val) \
-        : \
-        : \
-    );
+    __asm__ __volatile__("csrr    %[result], mstatus" : [result] "=r"(val) : :);
 
 #define SYSTEM_REGISTER_GET_MTVEC(val) \
-    __asm__ __volatile__ ( \
-        "csrr    %[result], mtvec" \
-        : [result] "=r" (val) \
-        : \
-        : \
-    );
+    __asm__ __volatile__("csrr    %[result], mtvec" : [result] "=r"(val) : :);
 
 #define SYSTEM_REGISTER_GET_MTIME(val) \
-    __asm__ __volatile__ ( \
-        "csrr    %[result], time" \
-        : [result] "=r" (val) \
-        : \
-        : \
-    );
+    __asm__ __volatile__("csrr    %[result], time" : [result] "=r"(val) : :);
 
 #define SYSTEM_REGISTER_GET_MTIMECMP(val) \
-    __asm__ __volatile__ ( \
-        "csrr    %[result], timecmp" \
-        : [result] "=r" (val) \
-        : \
-        : \
-    );
+    __asm__ __volatile__("csrr    %[result], timecmp" : [result] "=r"(val) : :);
 
 uint64_t system_register_get_mtvec(void);
 uint64_t system_register_set_mtvec(void);

@@ -16,73 +16,49 @@
 static inline uint8_t ioread8(uintptr_t addr)
 {
     uint8_t val;
-    asm volatile(
-        "lb %0, %1\n"
-        : "=r" (val)
-        : "m" (*(const volatile uint8_t *)addr));
+    asm volatile("lb %0, %1\n" : "=r"(val) : "m"(*(const volatile uint8_t *)addr));
     return val;
 }
 
 static inline void iowrite8(uintptr_t addr, uint8_t val)
 {
-    asm volatile(
-        "sb %1, %0\n"
-        : "=m" (*(volatile uint8_t *)addr)
-        : "r" (val));
+    asm volatile("sb %1, %0\n" : "=m"(*(volatile uint8_t *)addr) : "r"(val));
 }
 
 static inline uint16_t ioread16(uintptr_t addr)
 {
     uint16_t val;
-    asm volatile(
-        "lh %0, %1\n"
-        : "=r" (val)
-        : "m" (*(const volatile uint16_t *)addr));
+    asm volatile("lh %0, %1\n" : "=r"(val) : "m"(*(const volatile uint16_t *)addr));
     return val;
 }
 
 static inline void iowrite16(uintptr_t addr, uint16_t val)
 {
-    asm volatile(
-        "sh %1, %0\n"
-        : "=m" (*(volatile uint16_t *)addr)
-        : "r" (val));
+    asm volatile("sh %1, %0\n" : "=m"(*(volatile uint16_t *)addr) : "r"(val));
 }
 
 static inline uint32_t ioread32(uintptr_t addr)
 {
     uint32_t val;
-    asm volatile(
-        "lw %0, %1\n"
-        : "=r" (val)
-        : "m" (*(const volatile uint32_t *)addr));
+    asm volatile("lw %0, %1\n" : "=r"(val) : "m"(*(const volatile uint32_t *)addr));
     return val;
 }
 
 static inline void iowrite32(uintptr_t addr, uint32_t val)
 {
-    asm volatile(
-        "sw %1, %0\n"
-        : "=m" (*(volatile uint32_t *)addr)
-        : "r" (val));
+    asm volatile("sw %1, %0\n" : "=m"(*(volatile uint32_t *)addr) : "r"(val));
 }
 
 static inline uint64_t ioread64(uintptr_t addr)
 {
     uint64_t val;
-    asm volatile(
-        "ld %0, %1\n"
-        : "=r" (val)
-        : "m" (*(const volatile uint64_t *)addr));
+    asm volatile("ld %0, %1\n" : "=r"(val) : "m"(*(const volatile uint64_t *)addr));
     return val;
 }
 
 static inline void iowrite64(uintptr_t addr, uint64_t val)
 {
-    asm volatile(
-        "sd %1, %0\n"
-        : "=m" (*(volatile uint64_t *)addr)
-        : "r" (val));
+    asm volatile("sd %1, %0\n" : "=m"(*(volatile uint64_t *)addr) : "r"(val));
 }
 
 #endif

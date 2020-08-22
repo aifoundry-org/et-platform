@@ -23,30 +23,26 @@
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
-void* __attribute__((used)) _sbrk (int incr)
+void *__attribute__((used)) _sbrk(int incr)
 {
-	extern char __heap_start; //set by linker
-	extern char __heap_end; //set by linker
+    extern char __heap_start; //set by linker
+    extern char __heap_end; //set by linker
 
-	static char *heap_end; // Previous end of heap or 0 if none
-	char        *prev_heap_end;
+    static char *heap_end; // Previous end of heap or 0 if none
+    char *prev_heap_end;
 
-	if (0 == heap_end)
-    {
-		heap_end = &__heap_start; // Initialize first time round
-	}
+    if (0 == heap_end) {
+        heap_end = &__heap_start; // Initialize first time round
+    }
 
-	prev_heap_end  = heap_end;
-	heap_end      += incr;
+    prev_heap_end = heap_end;
+    heap_end += incr;
 
-	if (heap_end >= (&__heap_end))
-    {
-		errno = ENOMEM;
-		return (char*)-1;
-	}
-    else
-    {
-        return (void*)prev_heap_end;
+    if (heap_end >= (&__heap_end)) {
+        errno = ENOMEM;
+        return (char *)-1;
+    } else {
+        return (void *)prev_heap_end;
     }
 }
 

@@ -6,6 +6,6 @@
 
 #include "../../ServiceProcessorBL2/include/build_configuration.h"
 
-const IMAGE_VERSION_INFO_t * get_image_version_info(void);
+const IMAGE_VERSION_INFO_t *get_image_version_info(void);
 
 #endif

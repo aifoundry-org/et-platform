@@ -36,8 +36,9 @@
     .epilog_tag = IMAGE_VERSION_INFO_EPILOG_TAG
 };
 
-const IMAGE_VERSION_INFO_t * get_image_version_info(void);
+const IMAGE_VERSION_INFO_t *get_image_version_info(void);
 
-const IMAGE_VERSION_INFO_t * get_image_version_info(void) {
+const IMAGE_VERSION_INFO_t *get_image_version_info(void)
+{
     return &IMAGE_VERSION_INFO_SYMBOL;
 }

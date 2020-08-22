@@ -18,6 +18,6 @@
 
 #include "service_processor_BL1_data.h"
 
-int verify_bl2_certificate(const ESPERANTO_CERTIFICATE_t * certificate);
+int verify_bl2_certificate(const ESPERANTO_CERTIFICATE_t *certificate);
 
 #endif

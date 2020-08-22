@@ -26,21 +26,21 @@
 
 #define UNUSED_ARGUMENT(x) (void)x
 
-typedef int (* PRINTF_CHAR_FN)(void * context, char c);
+typedef int (*PRINTF_CHAR_FN)(void *context, char c);
 
 // Although the C99 spec clearly states that it is OK to pass the VA by pointer.
 // ISO/IEC 9899:1999 - paragraph 7.15 'Variable arguments <stdarg.h>, footnote 212
 // states:
-// "It is permitted to create a pointer to a va_list and pass that pointer to  
-// another function, in which case the original function may make further use  
+// "It is permitted to create a pointer to a va_list and pass that pointer to
+// another function, in which case the original function may make further use
 // of the original list after the other function returns."
 //
 // However, this fails on the GCC x86 compilers with the following message:
 // passing argument ... from incompatible pointer type [-Werror=incompatible-pointer-types]
 // expected ‘__va_list_tag (*)[1]’ but argument is of type ‘__va_list_tag **
 //
-// 
-// As a work around for this problem, we will wrap the va_list argument in a structure, 
+//
+// As a work around for this problem, we will wrap the va_list argument in a structure,
 // and pass the structure by pointer.
 
 typedef struct VA_LIST_STRUCT {
@@ -85,12 +85,14 @@ typedef struct PRINTX_SPECIFIER {
 #ifdef SUPPORT_SSIZE
         ssize_t ssize;
 #endif
-        const void * ptr;
-        const char * str;
+        const void *ptr;
+        const char *str;
     } val;
 } PRINTX_SPECIFIER_t;
 
-static int print_impl_char(PRINTF_CHAR_FN print_char_pfn, void * context, const PRINTX_SPECIFIER_t * pprintx_specifier) {
+static int print_impl_char(PRINTF_CHAR_FN print_char_pfn, void *context,
+                           const PRINTX_SPECIFIER_t *pprintx_specifier)
+{
     int count;
     int padding;
 
@@ -129,20 +131,23 @@ static int print_impl_char(PRINTF_CHAR_FN print_char_pfn, void * context, const 
 #endif
     return count;
 }
-static int print_impl_string_len(const char * str) {
-    const char * str_end = str;
+static int print_impl_string_len(const char *str)
+{
+    const char *str_end = str;
     while (*str_end) {
         str_end++;
     }
     return (int)(str_end - str);
 }
 
-static int print_impl_string(PRINTF_CHAR_FN print_char_pfn, void * context, const PRINTX_SPECIFIER_t * pprintx_specifier) {
+static int print_impl_string(PRINTF_CHAR_FN print_char_pfn, void *context,
+                             const PRINTX_SPECIFIER_t *pprintx_specifier)
+{
     int count = 0;
-    const char * str = pprintx_specifier->val.str;
+    const char *str = pprintx_specifier->val.str;
     int str_len;
     int padding = 0;
-    
+
     if (pprintx_specifier->width_specified) {
         str_len = print_impl_string_len(str);
         if (pprintx_specifier->width > str_len) {
@@ -163,7 +168,7 @@ static int print_impl_string(PRINTF_CHAR_FN print_char_pfn, void * context, cons
 #ifdef SUPPORT_LEFT_ADJUSTED
     }
 #endif
-    while(0 != *str) {
+    while (0 != *str) {
         if (0 != print_char_pfn(context, *str)) {
             return -1;
         }
@@ -184,7 +189,9 @@ static int print_impl_string(PRINTF_CHAR_FN print_char_pfn, void * context, cons
     return count;
 }
 // maximum value: 18446744073709551615
-static int print_impl_unsigned_integer(PRINTF_CHAR_FN print_char_pfn, void * context, const PRINTX_SPECIFIER_t * pprintx_specifier) {
+static int print_impl_unsigned_integer(PRINTF_CHAR_FN print_char_pfn, void *context,
+                                       const PRINTX_SPECIFIER_t *pprintx_specifier)
+{
     char buffer[20];
     int count = 0;
     int offset = 0;
@@ -198,7 +205,8 @@ static int print_impl_unsigned_integer(PRINTF_CHAR_FN print_char_pfn, void * con
         val = val / 10u;
     } while (0 != val);
 
-    if (pprintx_specifier->zero_padded && pprintx_specifier->width_specified && pprintx_specifier->width > offset) {
+    if (pprintx_specifier->zero_padded && pprintx_specifier->width_specified &&
+        pprintx_specifier->width > offset) {
         padding = pprintx_specifier->width - offset;
         while (padding > 0) {
             buffer[offset] = '0';
@@ -207,7 +215,8 @@ static int print_impl_unsigned_integer(PRINTF_CHAR_FN print_char_pfn, void * con
         }
     }
 
-    if (!pprintx_specifier->zero_padded && pprintx_specifier->width_specified && pprintx_specifier->width > offset) {
+    if (!pprintx_specifier->zero_padded && pprintx_specifier->width_specified &&
+        pprintx_specifier->width > offset) {
         padding = pprintx_specifier->width - offset;
     } else {
         padding = 0;
@@ -248,7 +257,9 @@ static int print_impl_unsigned_integer(PRINTF_CHAR_FN print_char_pfn, void * con
 }
 
 // maximum value: FFFFFFFFFFFFFFFF
-static int print_impl_hex(PRINTF_CHAR_FN print_char_pfn, void * context, const PRINTX_SPECIFIER_t * pprintx_specifier, bool upper_case) {
+static int print_impl_hex(PRINTF_CHAR_FN print_char_pfn, void *context,
+                          const PRINTX_SPECIFIER_t *pprintx_specifier, bool upper_case)
+{
     char buffer[18];
     int count = 0;
     int offset = 0;
@@ -270,7 +281,8 @@ static int print_impl_hex(PRINTF_CHAR_FN print_char_pfn, void * context, const P
         val = val / 16;
     } while (0 != val);
 
-    if (pprintx_specifier->zero_padded && pprintx_specifier->width_specified && pprintx_specifier->width > offset) {
+    if (pprintx_specifier->zero_padded && pprintx_specifier->width_specified &&
+        pprintx_specifier->width > offset) {
         padding = pprintx_specifier->width - offset;
 #ifdef SUPPORT_ALTERNATE_FORM
         if (pprintx_specifier->alternate_form) {
@@ -291,12 +303,13 @@ static int print_impl_hex(PRINTF_CHAR_FN print_char_pfn, void * context, const P
 #ifdef SUPPORT_ALTERNATE_FORM
     if (pprintx_specifier->alternate_form) {
         buffer[offset] = upper_case ? 'X' : 'x';
-        offset++;      
+        offset++;
         buffer[offset] = '0';
         offset++;
     }
 #endif
-    if (!pprintx_specifier->zero_padded && pprintx_specifier->width_specified && pprintx_specifier->width > offset) {
+    if (!pprintx_specifier->zero_padded && pprintx_specifier->width_specified &&
+        pprintx_specifier->width > offset) {
         padding = pprintx_specifier->width - offset;
     } else {
         padding = 0;
@@ -338,7 +351,9 @@ static int print_impl_hex(PRINTF_CHAR_FN print_char_pfn, void * context, const P
 
 // minimum value: -9223372036854775808
 // maximum value: 9223372036854775807
-static int print_impl_signed_integer(PRINTF_CHAR_FN print_char_pfn, void * context, const PRINTX_SPECIFIER_t * pprintx_specifier) {
+static int print_impl_signed_integer(PRINTF_CHAR_FN print_char_pfn, void *context,
+                                     const PRINTX_SPECIFIER_t *pprintx_specifier)
+{
     char buffer[20];
     int count = 0;
     int offset = 0;
@@ -359,7 +374,8 @@ static int print_impl_signed_integer(PRINTF_CHAR_FN print_char_pfn, void * conte
         val = val / 10u;
     } while (0 != val);
 
-    if (pprintx_specifier->zero_padded && pprintx_specifier->width_specified && pprintx_specifier->width > offset) {
+    if (pprintx_specifier->zero_padded && pprintx_specifier->width_specified &&
+        pprintx_specifier->width > offset) {
         padding = pprintx_specifier->width - offset;
         if (negative || pprintx_specifier->print_sign || pprintx_specifier->space_before_positive) {
             padding--;
@@ -381,7 +397,8 @@ static int print_impl_signed_integer(PRINTF_CHAR_FN print_char_pfn, void * conte
         offset++;
     }
 
-    if (!pprintx_specifier->zero_padded && pprintx_specifier->width_specified && pprintx_specifier->width > offset) {
+    if (!pprintx_specifier->zero_padded && pprintx_specifier->width_specified &&
+        pprintx_specifier->width > offset) {
         padding = pprintx_specifier->width - offset;
     } else {
         padding = 0;
@@ -420,9 +437,11 @@ static int print_impl_signed_integer(PRINTF_CHAR_FN print_char_pfn, void * conte
     return count;
 }
 
-static void print_conversion_get_arg_val(VA_LIST_STRUCT_t * args, PRINTX_SPECIFIER_t * pprintx_specifier, bool sign_extend) {
+static void print_conversion_get_arg_val(VA_LIST_STRUCT_t *args,
+                                         PRINTX_SPECIFIER_t *pprintx_specifier, bool sign_extend)
+{
     if (sign_extend) {
-        switch( pprintx_specifier->modifier) {
+        switch (pprintx_specifier->modifier) {
         case PRINTX_MODIFIER_H:
 #ifdef COMPILER_PROMOTES_VAR_ARGS_TO_32_BIT
             pprintx_specifier->val.s64 = va_arg(args->ap, int);
@@ -456,7 +475,7 @@ static void print_conversion_get_arg_val(VA_LIST_STRUCT_t * args, PRINTX_SPECIFI
             return;
         }
     } else {
-        switch( pprintx_specifier->modifier) {
+        switch (pprintx_specifier->modifier) {
         case PRINTX_MODIFIER_H:
 #ifdef COMPILER_PROMOTES_VAR_ARGS_TO_32_BIT
             pprintx_specifier->val.u64 = va_arg(args->ap, unsigned int);
@@ -488,8 +507,10 @@ static void print_conversion_get_arg_val(VA_LIST_STRUCT_t * args, PRINTX_SPECIFI
     }
 }
 
-static int print_conversion_specifier(PRINTF_CHAR_FN print_char_pfn, void * context, const char ** pformat, VA_LIST_STRUCT_t * args) {
-    PRINTX_SPECIFIER_t printx_specifier = {0};
+static int print_conversion_specifier(PRINTF_CHAR_FN print_char_pfn, void *context,
+                                      const char **pformat, VA_LIST_STRUCT_t *args)
+{
+    PRINTX_SPECIFIER_t printx_specifier = { 0 };
     bool allow_flags;
     bool allow_width;
 
@@ -499,7 +520,7 @@ static int print_conversion_specifier(PRINTF_CHAR_FN print_char_pfn, void * cont
 
     allow_flags = true;
     allow_width = true;
-    for(;;) {
+    for (;;) {
         switch (**pformat) {
         case '%':
             if (0 != print_char_pfn(context, '%')) {
@@ -642,12 +663,14 @@ static int print_conversion_specifier(PRINTF_CHAR_FN print_char_pfn, void * cont
     }
 }
 
-static int print_impl(PRINTF_CHAR_FN print_char_pfn, void * context, const char * format, VA_LIST_STRUCT_t * args) {
+static int print_impl(PRINTF_CHAR_FN print_char_pfn, void *context, const char *format,
+                      VA_LIST_STRUCT_t *args)
+{
     char c, h0, h1;
     int r;
     int count = 0;
 
-    while(0 != *format) {
+    while (0 != *format) {
         switch (*format) {
         case '\\': // process special characters
             format++;
@@ -714,11 +737,12 @@ static int print_impl(PRINTF_CHAR_FN print_char_pfn, void * context, const char 
         } // switch
         format++;
     } // while
-    
+
     return count;
 }
 
-static int print_to_serial(void * context, char c) {
+static int print_to_serial(void *context, char c)
+{
     UNUSED_ARGUMENT(context);
 
     SERIAL_write(UART0, &c, 1);
@@ -727,13 +751,14 @@ static int print_to_serial(void * context, char c) {
 }
 
 typedef struct SPRINTX_CONTEXT {
-    char * buffer;
+    char *buffer;
     size_t buffer_size;
     size_t current_offset;
 } SPRINTX_CONTEXT_t;
 
-static int print_to_string(void * context, char c) {
-    SPRINTX_CONTEXT_t * sprintx_context = (SPRINTX_CONTEXT_t*)context;
+static int print_to_string(void *context, char c)
+{
+    SPRINTX_CONTEXT_t *sprintx_context = (SPRINTX_CONTEXT_t *)context;
     if (sprintx_context->current_offset < sprintx_context->buffer_size) {
         sprintx_context->buffer[sprintx_context->current_offset] = c;
         sprintx_context->current_offset++;
@@ -742,12 +767,14 @@ static int print_to_string(void * context, char c) {
     return -1;
 }
 
-static int vprintx(const char *format, VA_LIST_STRUCT_t * args) {
+static int vprintx(const char *format, VA_LIST_STRUCT_t *args)
+{
     return print_impl(print_to_serial, NULL, format, args);
 }
 
-static int vsnprintx(char *str, size_t size, const char *format, VA_LIST_STRUCT_t * args) {
-	int count;
+static int vsnprintx(char *str, size_t size, const char *format, VA_LIST_STRUCT_t *args)
+{
+    int count;
     SPRINTX_CONTEXT_t context;
     if (NULL == str) {
         return -1;
@@ -757,18 +784,19 @@ static int vsnprintx(char *str, size_t size, const char *format, VA_LIST_STRUCT_
     context.current_offset = 0;
     count = print_impl(print_to_string, &context, format, args);
     if (count < 0) {
-    	return count;
+        return count;
     }
     // is there enough room for a terminating NULL?
     if (((uint32_t)count) >= size) {
-    	return -1;
+        return -1;
     }
     // add terminating NULL, but don't include it in the returned count
     str[count] = 0;
     return count;
 }
 
-int printx(const char *format, ...) {
+int printx(const char *format, ...)
+{
     VA_LIST_STRUCT_t args;
     int i;
 
@@ -779,7 +807,8 @@ int printx(const char *format, ...) {
     return i;
 }
 
-int snprintx(char *str, size_t size, const char *format, ...) {
+int snprintx(char *str, size_t size, const char *format, ...)
+{
     VA_LIST_STRUCT_t args;
     int i;
 
@@ -789,4 +818,3 @@ int snprintx(char *str, size_t size, const char *format, ...) {
 
     return i;
 }
-

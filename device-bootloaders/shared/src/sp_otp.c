@@ -23,16 +23,15 @@
 #include "etsoc_hal/inc/cm_esr.h"
 #include "etsoc_hal/inc/hal_device.h"
 
-#define OTP_ENTRY_SIZE_BYTES  4u
-#define OTP_BANK_SIZE_BYTES   16u
+#define OTP_ENTRY_SIZE_BYTES 4u
+#define OTP_BANK_SIZE_BYTES  16u
 
 #define OTP_BANK_SIZE_ENTRIES (OTP_BANK_SIZE_BYTES / OTP_ENTRY_SIZE_BYTES)
 
-#define OTP_CALC_START_BANK_INDEX(entry_index) \
-    ((entry_index) / OTP_BANK_SIZE_ENTRIES)
+#define OTP_CALC_START_BANK_INDEX(entry_index) ((entry_index) / OTP_BANK_SIZE_ENTRIES)
 
 #define OTP_CALC_END_BANK_INDEX(entry_index, entry_count, entry_size) \
-    ((((entry_index) * OTP_ENTRY_SIZE_BYTES) + (entry_count) * (entry_size) - 1) / OTP_BANK_SIZE_BYTES)
+    ((((entry_index)*OTP_ENTRY_SIZE_BYTES) + (entry_count) * (entry_size)-1) / OTP_BANK_SIZE_BYTES)
 
 #define WRCK_TIMEOUT 1000
 
@@ -41,9 +40,10 @@ static bool gs_is_otp_available;
 static OTP_CHICKEN_BITS_t gs_chicken_bits;
 static MISC_CONFIGURATION_BITS_t gs_misc_configuration;
 
-int sp_otp_init(void) {
+int sp_otp_init(void)
+{
     uint32_t rm_status2;
-    volatile uint32_t * sp_otp_data = (uint32_t*)R_SP_EFUSE_BASEADDR;
+    volatile uint32_t *sp_otp_data = (uint32_t *)R_SP_EFUSE_BASEADDR;
 
     // check the bootstrap pins to test if the OTP is available
     rm_status2 = ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_STATUS2_ADDRESS);
@@ -64,7 +64,8 @@ int sp_otp_init(void) {
     return 0;
 }
 
-static inline bool otp_is_bank_locked(uint32_t bank_index) {
+static inline bool otp_is_bank_locked(uint32_t bank_index)
+{
     uint32_t reg_index = bank_index / 32;
     uint32_t bit_index = bank_index & 0x1Fu;
     uint32_t mask = 1u << bit_index;
@@ -76,7 +77,8 @@ static inline bool otp_is_bank_locked(uint32_t bank_index) {
     }
 }
 
-static inline bool otp_is_bank_range_locked(uint32_t start_idx, uint32_t end_idx) {
+static inline bool otp_is_bank_range_locked(uint32_t start_idx, uint32_t end_idx)
+{
     for (uint32_t idx = start_idx; idx <= end_idx; idx++) {
         if (!otp_is_bank_locked(idx)) {
             return false;
@@ -85,8 +87,9 @@ static inline bool otp_is_bank_range_locked(uint32_t start_idx, uint32_t end_idx
     return true;
 }
 
-int sp_otp_read(uint32_t index, uint32_t * result) {
-    volatile uint32_t * sp_otp_data = (uint32_t*)R_SP_EFUSE_BASEADDR;
+int sp_otp_read(uint32_t index, uint32_t *result)
+{
+    volatile uint32_t *sp_otp_data = (uint32_t *)R_SP_EFUSE_BASEADDR;
 
     if (NULL == result) {
         return ERROR_INVALID_ARGUMENT;
@@ -104,8 +107,9 @@ int sp_otp_read(uint32_t index, uint32_t * result) {
     return 0;
 }
 
-int sp_otp_write(uint32_t offset, uint32_t value) {
-    volatile uint32_t * sp_otp_data = (uint32_t*)R_SP_EFUSE_BASEADDR;
+int sp_otp_write(uint32_t offset, uint32_t value)
+{
+    volatile uint32_t *sp_otp_data = (uint32_t *)R_SP_EFUSE_BASEADDR;
     uint32_t bank_index = OTP_CALC_START_BANK_INDEX(offset);
     uint32_t old_value, new_value;
 
@@ -136,7 +140,8 @@ int sp_otp_write(uint32_t offset, uint32_t value) {
     return 0;
 }
 
-int sp_otp_get_neighborhood_status_mask(uint32_t index, uint32_t * value) {
+int sp_otp_get_neighborhood_status_mask(uint32_t index, uint32_t *value)
+{
     if (!gs_is_otp_available) {
         return ERROR_SP_OTP_OTP_NOT_AVAILABLE;
     }
@@ -153,7 +158,9 @@ int sp_otp_get_neighborhood_status_mask(uint32_t index, uint32_t * value) {
     return 0;
 }
 
-int sp_otp_get_neighborhood_status_nh128_nh135_other(OTP_NEIGHBORHOOD_STATUS_NH128_NH135_OTHER_t *status) {
+int sp_otp_get_neighborhood_status_nh128_nh135_other(
+    OTP_NEIGHBORHOOD_STATUS_NH128_NH135_OTHER_t *status)
+{
     if (!gs_is_otp_available) {
         return ERROR_SP_OTP_OTP_NOT_AVAILABLE;
     }
@@ -170,14 +177,16 @@ int sp_otp_get_neighborhood_status_nh128_nh135_other(OTP_NEIGHBORHOOD_STATUS_NH1
     return 0;
 }
 
-int sp_otp_get_pll_configuration_data(OTP_PLL_CONFIGURATION_OVERRIDE_t * table, uint32_t table_size, uint32_t * count) {
+int sp_otp_get_pll_configuration_data(OTP_PLL_CONFIGURATION_OVERRIDE_t *table, uint32_t table_size,
+                                      uint32_t *count)
+{
     uint32_t index, wr_index;
     uint32_t valid_count = 0;
     OTP_PLL_CONFIGURATION_OVERRIDE_t otp_cfg_override;
-    const uint32_t otp_pll_bank_start_index = OTP_CALC_START_BANK_INDEX(SP_OTP_INDEX_PLL_CFG_OVERRIDE);
-    const uint32_t otp_pll_bank_end_index = OTP_CALC_END_BANK_INDEX(SP_OTP_INDEX_PLL_CFG_OVERRIDE,
-                                                                    SP_OTP_MAX_PLL_CONFIG_ENTRIES_COUNT,
-                                                                    sizeof(table[0]));
+    const uint32_t otp_pll_bank_start_index =
+        OTP_CALC_START_BANK_INDEX(SP_OTP_INDEX_PLL_CFG_OVERRIDE);
+    const uint32_t otp_pll_bank_end_index = OTP_CALC_END_BANK_INDEX(
+        SP_OTP_INDEX_PLL_CFG_OVERRIDE, SP_OTP_MAX_PLL_CONFIG_ENTRIES_COUNT, sizeof(table[0]));
 
     if (!gs_is_otp_available) {
         return ERROR_SP_OTP_OTP_NOT_AVAILABLE;
@@ -189,7 +198,7 @@ int sp_otp_get_pll_configuration_data(OTP_PLL_CONFIGURATION_OVERRIDE_t * table, 
         return 0;
     }
 
-    for (index = 0; index < SP_OTP_MAX_PLL_CONFIG_ENTRIES_COUNT; index ++) {
+    for (index = 0; index < SP_OTP_MAX_PLL_CONFIG_ENTRIES_COUNT; index++) {
         if (0 != sp_otp_read(SP_OTP_INDEX_PLL_CFG_OVERRIDE + index, &(otp_cfg_override.R))) {
             return ERROR_SP_OTP_OTP_READ;
         }
@@ -207,7 +216,7 @@ int sp_otp_get_pll_configuration_data(OTP_PLL_CONFIGURATION_OVERRIDE_t * table, 
     }
 
     wr_index = 0;
-    for (index = 0; index < SP_OTP_MAX_PLL_CONFIG_ENTRIES_COUNT; index ++) {
+    for (index = 0; index < SP_OTP_MAX_PLL_CONFIG_ENTRIES_COUNT; index++) {
         if (0 != sp_otp_read(SP_OTP_INDEX_PLL_CFG_OVERRIDE + index, &(otp_cfg_override.R))) {
             goto READ_ERROR;
         }
@@ -229,7 +238,8 @@ READ_ERROR:
     return ERROR_SP_OTP_OTP_READ;
 }
 
-int sp_otp_get_pll_configuration_delay(OTP_PLL_CONFIGURATION_DELAY_t * config_delay) {
+int sp_otp_get_pll_configuration_delay(OTP_PLL_CONFIGURATION_DELAY_t *config_delay)
+{
     if (!gs_is_otp_available) {
         return ERROR_SP_OTP_OTP_NOT_AVAILABLE;
     }
@@ -251,7 +261,8 @@ int sp_otp_get_pll_configuration_delay(OTP_PLL_CONFIGURATION_DELAY_t * config_de
     return 0;
 }
 
-int sp_otp_get_pll_lock_timeout(OTP_PLL_LOCK_TIMEOUT_t * lock_timeout) {
+int sp_otp_get_pll_lock_timeout(OTP_PLL_LOCK_TIMEOUT_t *lock_timeout)
+{
     if (!gs_is_otp_available) {
         return ERROR_SP_OTP_OTP_NOT_AVAILABLE;
     }
@@ -273,7 +284,8 @@ int sp_otp_get_pll_lock_timeout(OTP_PLL_LOCK_TIMEOUT_t * lock_timeout) {
     return 0;
 }
 
-int sp_otp_get_uart_configuration_data(OTP_UART_CONFIGURATION_OVERRIDE_t * configuration) {
+int sp_otp_get_uart_configuration_data(OTP_UART_CONFIGURATION_OVERRIDE_t *configuration)
+{
     if (!gs_is_otp_available) {
         return ERROR_SP_OTP_OTP_NOT_AVAILABLE;
     }
@@ -295,10 +307,11 @@ int sp_otp_get_uart_configuration_data(OTP_UART_CONFIGURATION_OVERRIDE_t * confi
     return 0;
 }
 
-int sp_otp_get_spi_configuration_data(OTP_SPI_CONFIGURATION_OVERRIDE_t * pll_100,
-                               OTP_SPI_CONFIGURATION_OVERRIDE_t * pll_75,
-                               OTP_SPI_CONFIGURATION_OVERRIDE_t * pll_50,
-                               OTP_SPI_CONFIGURATION_OVERRIDE_t * pll_off) {
+int sp_otp_get_spi_configuration_data(OTP_SPI_CONFIGURATION_OVERRIDE_t *pll_100,
+                                      OTP_SPI_CONFIGURATION_OVERRIDE_t *pll_75,
+                                      OTP_SPI_CONFIGURATION_OVERRIDE_t *pll_50,
+                                      OTP_SPI_CONFIGURATION_OVERRIDE_t *pll_off)
+{
     if (!gs_is_otp_available) {
         return ERROR_SP_OTP_OTP_NOT_AVAILABLE;
     }
@@ -359,7 +372,9 @@ READ_ERROR:
     return ERROR_SP_OTP_OTP_READ;
 }
 
-int sp_otp_get_flash_configuration_data(OTP_FLASH_CONFIGURATION_OVERRIDE_t * spi0, OTP_FLASH_CONFIGURATION_OVERRIDE_t * spi1) {
+int sp_otp_get_flash_configuration_data(OTP_FLASH_CONFIGURATION_OVERRIDE_t *spi0,
+                                        OTP_FLASH_CONFIGURATION_OVERRIDE_t *spi1)
+{
     if (!gs_is_otp_available) {
         return ERROR_SP_OTP_OTP_NOT_AVAILABLE;
     }
@@ -407,14 +422,18 @@ READ_ERROR:
     return ERROR_SP_OTP_OTP_READ;
 }
 
-static int get_whitelist_configuration_data(uint32_t flags, OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_t * table, uint32_t table_size, uint32_t * count) {
+static int get_whitelist_configuration_data(uint32_t flags,
+                                            OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_t *table,
+                                            uint32_t table_size, uint32_t *count)
+{
     uint32_t index, wr_index;
     uint32_t valid_count = 0;
     OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_1_t entry_override;
-    const uint32_t otp_pcie_bank_start_index = OTP_CALC_START_BANK_INDEX(SP_OTP_INDEX_PCIE_PHY_CFG_WHITEIST_OVERRIDE);
-    const uint32_t otp_pcie_bank_end_index = OTP_CALC_END_BANK_INDEX(SP_OTP_INDEX_PCIE_PHY_CFG_WHITEIST_OVERRIDE,
-                                                                     SP_OTP_MAX_PCIE_CONFIG_ENTRIES_COUNT,
-                                                                     sizeof(table[0]));
+    const uint32_t otp_pcie_bank_start_index =
+        OTP_CALC_START_BANK_INDEX(SP_OTP_INDEX_PCIE_PHY_CFG_WHITEIST_OVERRIDE);
+    const uint32_t otp_pcie_bank_end_index =
+        OTP_CALC_END_BANK_INDEX(SP_OTP_INDEX_PCIE_PHY_CFG_WHITEIST_OVERRIDE,
+                                SP_OTP_MAX_PCIE_CONFIG_ENTRIES_COUNT, sizeof(table[0]));
 
     if (!gs_is_otp_available) {
         return ERROR_SP_OTP_OTP_NOT_AVAILABLE;
@@ -426,8 +445,9 @@ static int get_whitelist_configuration_data(uint32_t flags, OTP_PCIE_WHITELIST_E
         return 0;
     }
 
-    for (index = 0; index < SP_OTP_MAX_PCIE_CONFIG_ENTRIES_COUNT; index ++) {
-        if (0 != sp_otp_read(SP_OTP_INDEX_PCIE_PHY_CFG_WHITEIST_OVERRIDE + 1 + 2 * index, &(entry_override.R))) {
+    for (index = 0; index < SP_OTP_MAX_PCIE_CONFIG_ENTRIES_COUNT; index++) {
+        if (0 != sp_otp_read(SP_OTP_INDEX_PCIE_PHY_CFG_WHITEIST_OVERRIDE + 1 + 2 * index,
+                             &(entry_override.R))) {
             return ERROR_SP_OTP_OTP_READ;
         }
         if (flags == entry_override.B.FLAGS) {
@@ -444,12 +464,14 @@ static int get_whitelist_configuration_data(uint32_t flags, OTP_PCIE_WHITELIST_E
     }
 
     wr_index = 0;
-    for (index = 0; index < SP_OTP_MAX_PCIE_CONFIG_ENTRIES_COUNT; index ++) {
-        if (0 != sp_otp_read(SP_OTP_INDEX_PCIE_PHY_CFG_WHITEIST_OVERRIDE + 1 + 2 * index, &(entry_override.R))) {
+    for (index = 0; index < SP_OTP_MAX_PCIE_CONFIG_ENTRIES_COUNT; index++) {
+        if (0 != sp_otp_read(SP_OTP_INDEX_PCIE_PHY_CFG_WHITEIST_OVERRIDE + 1 + 2 * index,
+                             &(entry_override.R))) {
             goto READ_ERROR;
         }
         if (flags == entry_override.B.FLAGS) {
-            if (0 != sp_otp_read(SP_OTP_INDEX_PCIE_PHY_CFG_WHITEIST_OVERRIDE + 2 * index, &(table[wr_index].dw_0.R))) {
+            if (0 != sp_otp_read(SP_OTP_INDEX_PCIE_PHY_CFG_WHITEIST_OVERRIDE + 2 * index,
+                                 &(table[wr_index].dw_0.R))) {
                 goto READ_ERROR;
             }
             table[wr_index].dw_1.R = entry_override.R;
@@ -470,19 +492,26 @@ READ_ERROR:
     return ERROR_SP_OTP_OTP_READ;
 }
 
-int sp_otp_get_pcie_whitelist_configuration_data(OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_t * table, uint32_t table_size, uint32_t * count) {
+int sp_otp_get_pcie_whitelist_configuration_data(OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_t *table,
+                                                 uint32_t table_size, uint32_t *count)
+{
     return get_whitelist_configuration_data(0x0, table, table_size, count);
 }
 
-int sp_otp_get_pre_configuration_data(OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_t * table, uint32_t table_size, uint32_t * count) {
+int sp_otp_get_pre_configuration_data(OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_t *table,
+                                      uint32_t table_size, uint32_t *count)
+{
     return get_whitelist_configuration_data(0x1, table, table_size, count);
 }
 
-int sp_otp_get_post_configuration_data(OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_t * table, uint32_t table_size, uint32_t * count) {
+int sp_otp_get_post_configuration_data(OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_t *table,
+                                       uint32_t table_size, uint32_t *count)
+{
     return get_whitelist_configuration_data(0x2, table, table_size, count);
 }
 
-static int get_otp_counter(uint32_t index, uint32_t * counter) {
+static int get_otp_counter(uint32_t index, uint32_t *counter)
+{
     uint32_t counter_data;
     uint32_t n, count;
 
@@ -514,19 +543,25 @@ static int get_otp_counter(uint32_t index, uint32_t * counter) {
     return 0;
 }
 
-int sp_otp_get_sp_issuing_ca_certificate_monotonic_version_counter(uint32_t * counter) {
-    return get_otp_counter(SP_OTP_INDEX_SP_ISSUING_CA_CERTIFICATE_MONOTONIC_VERSION_COUNTER, counter);
+int sp_otp_get_sp_issuing_ca_certificate_monotonic_version_counter(uint32_t *counter)
+{
+    return get_otp_counter(SP_OTP_INDEX_SP_ISSUING_CA_CERTIFICATE_MONOTONIC_VERSION_COUNTER,
+                           counter);
 }
 
-int sp_otp_get_pcie_cfg_data_certificate_monotonic_version_counter(uint32_t * counter) {
-    return get_otp_counter(SP_OTP_INDEX_SP_PCIE_PHY_CONFIG_DATA_CERTIFICATE_MONOTONIC_VERSION_COUNTER, counter);
+int sp_otp_get_pcie_cfg_data_certificate_monotonic_version_counter(uint32_t *counter)
+{
+    return get_otp_counter(
+        SP_OTP_INDEX_SP_PCIE_PHY_CONFIG_DATA_CERTIFICATE_MONOTONIC_VERSION_COUNTER, counter);
 }
 
-int sp_otp_get_sp_bl1_certificate_monotonic_version_counter(uint32_t * counter) {
+int sp_otp_get_sp_bl1_certificate_monotonic_version_counter(uint32_t *counter)
+{
     return get_otp_counter(SP_OTP_INDEX_SP_BL1_CERTIFICATE_MONOTONIC_VERSION_COUNTER, counter);
 }
 
-int sp_otp_get_vaultip_chicken_bit(bool * disable_vault) {
+int sp_otp_get_vaultip_chicken_bit(bool *disable_vault)
+{
     if (NULL == disable_vault) {
         return ERROR_INVALID_ARGUMENT;
     }
@@ -551,7 +586,8 @@ int sp_otp_get_vaultip_chicken_bit(bool * disable_vault) {
     return 0;
 }
 
-int sp_otp_get_vaultip_plain_text_firmware_chicken_bit(bool * allow_plain_text_firmware) {
+int sp_otp_get_vaultip_plain_text_firmware_chicken_bit(bool *allow_plain_text_firmware)
+{
     if (NULL == allow_plain_text_firmware) {
         return ERROR_INVALID_ARGUMENT;
     }
@@ -576,7 +612,9 @@ int sp_otp_get_vaultip_plain_text_firmware_chicken_bit(bool * allow_plain_text_f
     return 0;
 }
 
-int sp_otp_get_vaultip_clock_switch_chicken_bit(bool * switch_clocks, uint32_t * clock_switch_input_token) {
+int sp_otp_get_vaultip_clock_switch_chicken_bit(bool *switch_clocks,
+                                                uint32_t *clock_switch_input_token)
+{
     int rv;
 
     if (NULL == switch_clocks || NULL == clock_switch_input_token) {
@@ -591,7 +629,8 @@ int sp_otp_get_vaultip_clock_switch_chicken_bit(bool * switch_clocks, uint32_t *
     switch (gs_chicken_bits.B.VaultIP_FWp_Allowed_Chicken_Bit) {
     case 1:
         *switch_clocks = true;
-        if (0 != sp_otp_read(SP_OTP_INDEX_VAULTIP_FIRMWARE_CLOCK_SWITCH_INPUT_TOKEN, clock_switch_input_token)) {
+        if (0 != sp_otp_read(SP_OTP_INDEX_VAULTIP_FIRMWARE_CLOCK_SWITCH_INPUT_TOKEN,
+                             clock_switch_input_token)) {
             rv = ERROR_SP_OTP_OTP_READ;
             goto FAILURE;
         }
@@ -613,7 +652,8 @@ FAILURE:
     return rv;
 }
 
-int sp_otp_get_vaultip_FIPS_mode(bool * use_FIPS_mode) {
+int sp_otp_get_vaultip_FIPS_mode(bool *use_FIPS_mode)
+{
     if (NULL == use_FIPS_mode) {
         return ERROR_INVALID_ARGUMENT;
     }
@@ -632,7 +672,8 @@ int sp_otp_get_vaultip_FIPS_mode(bool * use_FIPS_mode) {
     return 0;
 }
 
-int sp_otp_get_engineering_mode(bool * allow_engineering_keys) {
+int sp_otp_get_engineering_mode(bool *allow_engineering_keys)
+{
     if (NULL == allow_engineering_keys) {
         return ERROR_INVALID_ARGUMENT;
     }
@@ -651,7 +692,8 @@ int sp_otp_get_engineering_mode(bool * allow_engineering_keys) {
     return 0;
 }
 
-int sp_otp_get_signatures_check_chicken_bit(bool * ignore_signatures) {
+int sp_otp_get_signatures_check_chicken_bit(bool *ignore_signatures)
+{
     if (NULL == ignore_signatures) {
         return ERROR_INVALID_ARGUMENT;
     }
@@ -676,7 +718,8 @@ int sp_otp_get_signatures_check_chicken_bit(bool * ignore_signatures) {
     return 0;
 }
 
-int sp_otp_get_pcie_cfg_white_list_check_chicken_bit(bool * ignore_white_list) {
+int sp_otp_get_pcie_cfg_white_list_check_chicken_bit(bool *ignore_white_list)
+{
     if (NULL == ignore_white_list) {
         return ERROR_INVALID_ARGUMENT;
     }
@@ -701,7 +744,8 @@ int sp_otp_get_pcie_cfg_white_list_check_chicken_bit(bool * ignore_white_list) {
     return 0;
 }
 
-int sp_otp_get_sp_l1_cache_chicken_bit(bool * enable_l1_cache) {
+int sp_otp_get_sp_l1_cache_chicken_bit(bool *enable_l1_cache)
+{
     if (NULL == enable_l1_cache) {
         return ERROR_INVALID_ARGUMENT;
     }
@@ -726,7 +770,8 @@ int sp_otp_get_sp_l1_cache_chicken_bit(bool * enable_l1_cache) {
     return 0;
 }
 
-int sp_otp_get_vaultip_firmware_check_start_timeout(bool * use_otp_timeout, uint32_t * timeout) {
+int sp_otp_get_vaultip_firmware_check_start_timeout(bool *use_otp_timeout, uint32_t *timeout)
+{
     int rv;
 
     if (NULL == use_otp_timeout || NULL == timeout) {
@@ -757,7 +802,8 @@ FAILURE:
     return rv;
 }
 
-int sp_otp_get_vaultip_firmware_accepted_timeout(bool * use_otp_timeout, uint32_t * timeout) {
+int sp_otp_get_vaultip_firmware_accepted_timeout(bool *use_otp_timeout, uint32_t *timeout)
+{
     int rv;
 
     if (NULL == use_otp_timeout || NULL == timeout) {
@@ -788,7 +834,8 @@ FAILURE:
     return rv;
 }
 
-int sp_otp_get_vaultip_firmware_output_token_timeout_1(bool * use_otp_timeout, uint32_t * timeout) {
+int sp_otp_get_vaultip_firmware_output_token_timeout_1(bool *use_otp_timeout, uint32_t *timeout)
+{
     int rv;
 
     if (NULL == use_otp_timeout || NULL == timeout) {
@@ -819,7 +866,8 @@ FAILURE:
     return rv;
 }
 
-int sp_otp_get_vaultip_firmware_output_token_timeout_2(bool * use_otp_timeout, uint32_t * timeout) {
+int sp_otp_get_vaultip_firmware_output_token_timeout_2(bool *use_otp_timeout, uint32_t *timeout)
+{
     int rv;
 
     if (NULL == use_otp_timeout || NULL == timeout) {
@@ -850,7 +898,8 @@ FAILURE:
     return rv;
 }
 
-int sp_otp_get_vaultip_firmware_output_token_timeout_3(bool * use_otp_timeout, uint32_t * timeout) {
+int sp_otp_get_vaultip_firmware_output_token_timeout_3(bool *use_otp_timeout, uint32_t *timeout)
+{
     int rv;
 
     if (NULL == use_otp_timeout || NULL == timeout) {
@@ -881,7 +930,8 @@ FAILURE:
     return rv;
 }
 
-int sp_otp_get_vaultip_firmware_output_token_timeout_4(bool * use_otp_timeout, uint32_t * timeout) {
+int sp_otp_get_vaultip_firmware_output_token_timeout_4(bool *use_otp_timeout, uint32_t *timeout)
+{
     int rv;
 
     if (NULL == use_otp_timeout || NULL == timeout) {
@@ -912,7 +962,8 @@ FAILURE:
     return rv;
 }
 
-int sp_otp_get_vaultip_firmware_output_token_timeout_5(bool * use_otp_timeout, uint32_t * timeout) {
+int sp_otp_get_vaultip_firmware_output_token_timeout_5(bool *use_otp_timeout, uint32_t *timeout)
+{
     int rv;
 
     if (NULL == use_otp_timeout || NULL == timeout) {
@@ -943,8 +994,8 @@ FAILURE:
     return rv;
 }
 
-
-int sp_otp_get_vaultip_clock_switch_token(bool * use_clock_switch, uint32_t * token) {
+int sp_otp_get_vaultip_clock_switch_token(bool *use_clock_switch, uint32_t *token)
+{
     int rv;
 
     if (NULL == use_clock_switch || NULL == token) {
@@ -975,7 +1026,8 @@ FAILURE:
     return rv;
 }
 
-int sp_otp_get_special_customer_designator(uint8_t * designator) {
+int sp_otp_get_special_customer_designator(uint8_t *designator)
+{
     int rv;
     OTP_CRITICAL_PAOTP_SPECIAL_CUSTOMER_DESIGNATOR_t temp;
 
@@ -1001,7 +1053,8 @@ FAILURE:
     return rv;
 }
 
-int sp_otp_get_critical_patch_data(uint32_t index, OTP_CRITICAL_PATCH_t * patch_data) {
+int sp_otp_get_critical_patch_data(uint32_t index, OTP_CRITICAL_PATCH_t *patch_data)
+{
     int rv;
     uint32_t otp_patch_index;
     uint32_t bank_index;
@@ -1048,7 +1101,8 @@ FAILURE:
     return rv;
 }
 
-void sp_otp_diag(void) {
+void sp_otp_diag(void)
+{
 #if 0
     MESSAGE_INFO("OTP: %03x %03x\n", 0xFFF & (gs_chicken_bits.R >> 20u), 0xFFF & (gs_misc_configuration.R >> 20u));
     uint32_t dw0, dw1, dw2, dw3;

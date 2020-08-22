@@ -24,14 +24,16 @@
 //#pragma GCC optimize ("O2")
 #pragma GCC diagnostic ignored "-Wswitch-enum"
 
-#define INVALID_REGION_INDEX 0xFFFFFFFF
+#define INVALID_REGION_INDEX         0xFFFFFFFF
 #define MAXIMUM_FAILED_BOOT_ATTEMPTS 3
 #define USE_SFDP
 #define PAGE_PROGRAM_TIMEOUT 2000
 
-static FLASH_FS_BL1_INFO_t * sg_flash_fs_bl1_info = NULL;
+static FLASH_FS_BL1_INFO_t *sg_flash_fs_bl1_info = NULL;
 
-static int flash_fs_scan_regions(uint32_t partition_size, ESPERANTO_PARTITION_BL1_INFO_t * partition_info) {
+static int flash_fs_scan_regions(uint32_t partition_size,
+                                 ESPERANTO_PARTITION_BL1_INFO_t *partition_info)
+{
     uint32_t crc;
     uint32_t n;
     uint32_t region_offset_end;
@@ -49,13 +51,16 @@ static int flash_fs_scan_regions(uint32_t partition_size, ESPERANTO_PARTITION_BL
         }
 
         crc = 0;
-        crc32(&(partition_info->regions_table[n]), offsetof(ESPERANATO_REGION_INFO_t, region_info_checksum), &crc);
+        crc32(&(partition_info->regions_table[n]),
+              offsetof(ESPERANATO_REGION_INFO_t, region_info_checksum), &crc);
         if (crc != partition_info->regions_table[n].region_info_checksum) {
-            printx("flash_fs_scan_regions: region %u CRC mismatch! (expected %08x, got %08x)\n", n, partition_info->regions_table[n].region_info_checksum, crc);
+            printx("flash_fs_scan_regions: region %u CRC mismatch! (expected %08x, got %08x)\n", n,
+                   partition_info->regions_table[n].region_info_checksum, crc);
             return -1;
         }
 
-        if (0 == partition_info->regions_table[n].region_offset || partition_info->regions_table[n].region_offset >= partition_size_in_blocks) {
+        if (0 == partition_info->regions_table[n].region_offset ||
+            partition_info->regions_table[n].region_offset >= partition_size_in_blocks) {
             printx("flash_fs_scan_regions: invalid region %u offset!\n", n);
             return -1;
         }
@@ -63,7 +68,8 @@ static int flash_fs_scan_regions(uint32_t partition_size, ESPERANTO_PARTITION_BL
             printx("flash_fs_scan_regions: region %u has zero size!\n", n);
             return -1;
         }
-        region_offset_end = partition_info->regions_table[n].region_offset + partition_info->regions_table[n].region_reserved_size;
+        region_offset_end = partition_info->regions_table[n].region_offset +
+                            partition_info->regions_table[n].region_reserved_size;
         if (region_offset_end < partition_info->regions_table[n].region_offset) {
             printx("flash_fs_scan_regions: region %u offset/size overflow!\n", n);
             return -1; // integer overflow
@@ -85,29 +91,43 @@ static int flash_fs_scan_regions(uint32_t partition_size, ESPERANTO_PARTITION_BL
     return 0;
 }
 
-static int flash_fs_scan_partition(uint32_t partition_size, ESPERANTO_PARTITION_BL1_INFO_t * partition_info) {
+static int flash_fs_scan_partition(uint32_t partition_size,
+                                   ESPERANTO_PARTITION_BL1_INFO_t *partition_info)
+{
     return flash_fs_scan_regions(partition_size, partition_info);
 }
 
-static int init_partition_info_data(ESPERANTO_PARTITION_BL1_INFO_t * restrict bl1_partition_info, const ESPERANTO_PARTITION_ROM_INFO_t * restrict rom_partition_info) {
+static int
+init_partition_info_data(ESPERANTO_PARTITION_BL1_INFO_t *restrict bl1_partition_info,
+                         const ESPERANTO_PARTITION_ROM_INFO_t *restrict rom_partition_info)
+{
     if (NULL == bl1_partition_info || NULL == rom_partition_info) {
         printx("init_partition_info_data: invalid arguments!\n");
         return -1;
     }
 
-    memcpy(&(bl1_partition_info->header), &(rom_partition_info->header), sizeof(rom_partition_info->header));
-    memcpy(&(bl1_partition_info->regions_table), &(rom_partition_info->regions_table), sizeof(rom_partition_info->regions_table));
+    memcpy(&(bl1_partition_info->header), &(rom_partition_info->header),
+           sizeof(rom_partition_info->header));
+    memcpy(&(bl1_partition_info->regions_table), &(rom_partition_info->regions_table),
+           sizeof(rom_partition_info->regions_table));
 
-    bl1_partition_info->priority_designator_region_index = rom_partition_info->priority_designator_region_index;
+    bl1_partition_info->priority_designator_region_index =
+        rom_partition_info->priority_designator_region_index;
     bl1_partition_info->boot_counters_region_index = rom_partition_info->boot_counters_region_index;
-    bl1_partition_info->configuration_data_region_index = rom_partition_info->configuration_data_region_index;
+    bl1_partition_info->configuration_data_region_index =
+        rom_partition_info->configuration_data_region_index;
     bl1_partition_info->vaultip_fw_region_index = rom_partition_info->vaultip_fw_region_index;
     bl1_partition_info->pcie_config_region_index = rom_partition_info->pcie_config_region_index;
-    bl1_partition_info->sp_certificates_region_index = rom_partition_info->sp_certificates_region_index;
+    bl1_partition_info->sp_certificates_region_index =
+        rom_partition_info->sp_certificates_region_index;
     bl1_partition_info->sp_bl1_region_index = rom_partition_info->sp_bl1_region_index;
 
-    memcpy(&(bl1_partition_info->priority_designator_region_data), &(rom_partition_info->priority_designator_region_data), sizeof(rom_partition_info->priority_designator_region_data));
-    memcpy(&(bl1_partition_info->boot_counters_region_data), &(rom_partition_info->boot_counters_region_data), sizeof(rom_partition_info->boot_counters_region_data));
+    memcpy(&(bl1_partition_info->priority_designator_region_data),
+           &(rom_partition_info->priority_designator_region_data),
+           sizeof(rom_partition_info->priority_designator_region_data));
+    memcpy(&(bl1_partition_info->boot_counters_region_data),
+           &(rom_partition_info->boot_counters_region_data),
+           sizeof(rom_partition_info->boot_counters_region_data));
 
     bl1_partition_info->priority_counter = rom_partition_info->priority_counter;
     bl1_partition_info->attempted_boot_counter = rom_partition_info->attempted_boot_counter;
@@ -117,10 +137,12 @@ static int init_partition_info_data(ESPERANTO_PARTITION_BL1_INFO_t * restrict bl
     return 0;
 }
 
-int flash_fs_init(FLASH_FS_BL1_INFO_t * restrict flash_fs_bl1_info, const FLASH_FS_ROM_INFO_t * restrict flash_fs_rom_info) {
+int flash_fs_init(FLASH_FS_BL1_INFO_t *restrict flash_fs_bl1_info,
+                  const FLASH_FS_ROM_INFO_t *restrict flash_fs_rom_info)
+{
     uint32_t n;
     uint32_t partition_size;
-    
+
     if (NULL == flash_fs_bl1_info || NULL == flash_fs_rom_info) {
         printx("flash_fs_init: invalid arguments!\n");
         return -1;
@@ -130,7 +152,8 @@ int flash_fs_init(FLASH_FS_BL1_INFO_t * restrict flash_fs_bl1_info, const FLASH_
     memset(flash_fs_bl1_info, 0, sizeof(FLASH_FS_BL1_INFO_t));
 
     for (n = 0; n < 2; n++) {
-        if (0 != init_partition_info_data(&(flash_fs_bl1_info->partition_info[n]), &(flash_fs_rom_info->partition_info[n]))) {
+        if (0 != init_partition_info_data(&(flash_fs_bl1_info->partition_info[n]),
+                                          &(flash_fs_rom_info->partition_info[n]))) {
             printx("flash_fs_init: init_partition_info_data(%u) failed!\n", n);
             return -1;
         }
@@ -140,7 +163,8 @@ int flash_fs_init(FLASH_FS_BL1_INFO_t * restrict flash_fs_bl1_info, const FLASH_
     flash_fs_bl1_info->flash_size = flash_fs_rom_info->flash_size;
     flash_fs_bl1_info->active_partition = flash_fs_rom_info->active_partition;
     flash_fs_bl1_info->other_partition_valid = flash_fs_rom_info->other_partition_valid;
-    flash_fs_bl1_info->configuration_region_address = flash_fs_rom_info->configuration_region_address;
+    flash_fs_bl1_info->configuration_region_address =
+        flash_fs_rom_info->configuration_region_address;
     flash_fs_bl1_info->pcie_config_file_info = flash_fs_rom_info->pcie_config_file_info;
     flash_fs_bl1_info->vaultip_firmware_file_info = flash_fs_rom_info->vaultip_firmware_file_info;
     flash_fs_bl1_info->sp_certificates_file_info = flash_fs_rom_info->sp_certificates_file_info;
@@ -164,7 +188,8 @@ int flash_fs_init(FLASH_FS_BL1_INFO_t * restrict flash_fs_bl1_info, const FLASH_
         }
     }
 
-    if (false == flash_fs_bl1_info->partition_info[flash_fs_bl1_info->active_partition].partition_valid) {
+    if (false ==
+        flash_fs_bl1_info->partition_info[flash_fs_bl1_info->active_partition].partition_valid) {
         // the active boot partition is no longer valid!
         printx("No valid partition found!\n");
         return -1;
@@ -174,10 +199,12 @@ int flash_fs_init(FLASH_FS_BL1_INFO_t * restrict flash_fs_bl1_info, const FLASH_
     return 0;
 }
 
-static int flash_fs_load_file_info(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t * file_data_address, uint32_t * file_size) {
+static int flash_fs_load_file_info(ESPERANTO_FLASH_REGION_ID_t region_id,
+                                   uint32_t *file_data_address, uint32_t *file_size)
+{
     uint32_t crc;
     uint32_t partition_address;
-    ESPERANATO_FILE_INFO_t * file_info = NULL;
+    ESPERANATO_FILE_INFO_t *file_info = NULL;
     uint32_t region_index;
     uint32_t region_address;
     uint32_t region_size;
@@ -197,7 +224,8 @@ static int flash_fs_load_file_info(ESPERANTO_FLASH_REGION_ID_t region_id, uint32
     switch (region_id) {
     case ESPERANTO_FLASH_REGION_ID_SP_BL2:
         file_info = &(sg_flash_fs_bl1_info->sp_bl2_file_info);
-        region_index = sg_flash_fs_bl1_info->partition_info[sg_flash_fs_bl1_info->active_partition].sp_bl2_region_index;
+        region_index = sg_flash_fs_bl1_info->partition_info[sg_flash_fs_bl1_info->active_partition]
+                           .sp_bl2_region_index;
         break;
     default:
         return -1;
@@ -208,13 +236,22 @@ static int flash_fs_load_file_info(ESPERANTO_FLASH_REGION_ID_t region_id, uint32
     }
 
     //printx("flash_fs_load_file_info(%x)\n", region_id);
-    region_address = sg_flash_fs_bl1_info->partition_info[sg_flash_fs_bl1_info->active_partition].regions_table[region_index].region_offset * FLASH_PAGE_SIZE;
-    region_size = sg_flash_fs_bl1_info->partition_info[sg_flash_fs_bl1_info->active_partition].regions_table[region_index].region_reserved_size * FLASH_PAGE_SIZE;
+    region_address = sg_flash_fs_bl1_info->partition_info[sg_flash_fs_bl1_info->active_partition]
+                         .regions_table[region_index]
+                         .region_offset *
+                     FLASH_PAGE_SIZE;
+    region_size = sg_flash_fs_bl1_info->partition_info[sg_flash_fs_bl1_info->active_partition]
+                      .regions_table[region_index]
+                      .region_reserved_size *
+                  FLASH_PAGE_SIZE;
     //printx("reg_addr: %x\n", region_address);
     //printx("reg_size: %u\n", region_size);
 
-    if (0 == file_info->file_header_tag && 0 == file_info->file_header_size && 0 == file_info->file_size && 0 == file_info->file_header_crc) {
-        if (0 != spi_flash_normal_read(sg_flash_fs_bl1_info->flash_id, partition_address + region_address, (uint8_t*)file_info, sizeof(ESPERANATO_FILE_INFO_t))) {
+    if (0 == file_info->file_header_tag && 0 == file_info->file_header_size &&
+        0 == file_info->file_size && 0 == file_info->file_header_crc) {
+        if (0 != spi_flash_normal_read(sg_flash_fs_bl1_info->flash_id,
+                                       partition_address + region_address, (uint8_t *)file_info,
+                                       sizeof(ESPERANATO_FILE_INFO_t))) {
             printx("flash_fs_load_file_info: failed to read file info!\n");
             memset(file_info, 0, sizeof(ESPERANATO_FILE_INFO_t));
             return -1;
@@ -247,13 +284,15 @@ static int flash_fs_load_file_info(ESPERANTO_FLASH_REGION_ID_t region_id, uint32
         }
     }
 
-    *file_data_address = (uint32_t)(partition_address + region_address + sizeof(ESPERANATO_FILE_INFO_t));
+    *file_data_address =
+        (uint32_t)(partition_address + region_address + sizeof(ESPERANATO_FILE_INFO_t));
     *file_size = file_info->file_size;
 
     return 0;
 }
 
-int flash_fs_get_file_size(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t * size) {
+int flash_fs_get_file_size(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t *size)
+{
     uint32_t file_data_address;
     uint32_t file_size;
 
@@ -266,7 +305,9 @@ int flash_fs_get_file_size(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t * siz
     return 0;
 }
 
-int flash_fs_read_file(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t offset, void * buffer, uint32_t buffer_size) {
+int flash_fs_read_file(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t offset, void *buffer,
+                       uint32_t buffer_size)
+{
     uint32_t file_data_address;
     uint32_t file_size;
     uint32_t end_offset;
@@ -297,7 +338,8 @@ int flash_fs_read_file(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t offset, v
         return -1;
     }
 
-    if (0 != spi_flash_normal_read(sg_flash_fs_bl1_info->flash_id, file_data_address + offset, (uint8_t*)buffer, buffer_size)) {
+    if (0 != spi_flash_normal_read(sg_flash_fs_bl1_info->flash_id, file_data_address + offset,
+                                   (uint8_t *)buffer, buffer_size)) {
         printx("flash_fs_read_file: failed to read file data!\n");
         memset(buffer, 0, buffer_size);
         return -1;

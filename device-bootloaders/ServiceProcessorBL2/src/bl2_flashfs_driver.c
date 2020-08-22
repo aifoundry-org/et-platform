@@ -15,8 +15,8 @@
 #pragma GCC push_options
 #pragma GCC diagnostic ignored "-Wswitch-enum"
 
-#define FLASHFS_DRIVER_TASK_STACK_SIZE 4096
-#define FLASHFS_DRIVER_REQUEST_QUEUE_SIZE 4
+#define FLASHFS_DRIVER_TASK_STACK_SIZE     4096
+#define FLASHFS_DRIVER_REQUEST_QUEUE_SIZE  4
 #define FLASHFS_DRIVER_RESPONSE_QUEUE_SIZE 4
 
 typedef enum FLASHFS_DRIVER_REQUEST_e {
@@ -34,7 +34,7 @@ typedef struct FLASHFS_DRIVER_REQUEST_MESSAGE_s {
     FLASHFS_DRIVER_REQUEST_t request;
     union {
         struct {
-            void * buffer;
+            void *buffer;
         } get_config_data;
         struct {
             ESPERANTO_FLASH_REGION_ID_t region_id;
@@ -42,7 +42,7 @@ typedef struct FLASHFS_DRIVER_REQUEST_MESSAGE_s {
         struct {
             ESPERANTO_FLASH_REGION_ID_t region_id;
             uint32_t offset;
-            void * buffer;
+            void *buffer;
             uint32_t buffer_size;
         } read_file;
     } args;
@@ -60,11 +60,15 @@ typedef struct FLASHFS_DRIVER_RESPONSE_MESSAGE_s {
 } FLASHFS_DRIVER_RESPONSE_MESSAGE_t;
 
 static QueueHandle_t gs_flashfs_driver_reqeust_queue;
-static uint8_t gs_flashfs_driver_reqeust_queue_storage_buffer[FLASHFS_DRIVER_REQUEST_QUEUE_SIZE * sizeof(FLASHFS_DRIVER_REQUEST_MESSAGE_t)];
+static uint8_t
+    gs_flashfs_driver_reqeust_queue_storage_buffer[FLASHFS_DRIVER_REQUEST_QUEUE_SIZE *
+                                                   sizeof(FLASHFS_DRIVER_REQUEST_MESSAGE_t)];
 static StaticQueue_t gs_flashfs_driver_reqeust_queue_buffer;
 
 static QueueHandle_t gs_flashfs_driver_response_queue;
-static uint8_t gs_flashfs_driver_response_queue_storage_buffer[FLASHFS_DRIVER_RESPONSE_QUEUE_SIZE * sizeof(FLASHFS_DRIVER_RESPONSE_MESSAGE_t)];
+static uint8_t
+    gs_flashfs_driver_response_queue_storage_buffer[FLASHFS_DRIVER_RESPONSE_QUEUE_SIZE *
+                                                    sizeof(FLASHFS_DRIVER_RESPONSE_MESSAGE_t)];
 static StaticQueue_t gs_flashfs_driver_response_queue_buffer;
 
 static TaskHandle_t gs_flashfs_driver_task_handle;
@@ -73,11 +77,13 @@ static StaticTask_t gs_flashfs_driver_task_buffer;
 
 static uint64_t gs_next_request_id;
 
-static uint64_t get_next_request_id(void) {
+static uint64_t get_next_request_id(void)
+{
     return ++gs_next_request_id;
 }
 
-static void flashfs_driver_task(void *pvParameters) {
+static void flashfs_driver_task(void *pvParameters)
+{
     (void)pvParameters;
     FLASHFS_DRIVER_REQUEST_MESSAGE_t req_msg;
     FLASHFS_DRIVER_RESPONSE_MESSAGE_t rsp_msg;
@@ -85,8 +91,7 @@ static void flashfs_driver_task(void *pvParameters) {
     // Disable buffering on stdout
     setbuf(stdout, NULL);
 
-    while (1)
-    {
+    while (1) {
         if (pdTRUE != xQueueReceive(gs_flashfs_driver_reqeust_queue, &req_msg, portMAX_DELAY)) {
             printf("flashfs_driver_task:  xQueueReceive() failed!\r\n");
             continue;
@@ -96,22 +101,27 @@ static void flashfs_driver_task(void *pvParameters) {
         rsp_msg.request = req_msg.request;
 
         switch (req_msg.request) {
-        // case FLASHFS_DRIVER_REQUEST_GET_CONFIG_DATA:
-        //     rsp_msg.status_code = flash_fs_get_config_data(req_msg.args.get_config_data.buffer);
-        //     break;
+            // case FLASHFS_DRIVER_REQUEST_GET_CONFIG_DATA:
+            //     rsp_msg.status_code = flash_fs_get_config_data(req_msg.args.get_config_data.buffer);
+            //     break;
 
         case FLASHFS_DRIVER_REQUEST_GET_FILE_SIZE:
-            rsp_msg.status_code = flash_fs_get_file_size(req_msg.args.get_file_size.region_id, &rsp_msg.args.get_file_size.size);
+            rsp_msg.status_code = flash_fs_get_file_size(req_msg.args.get_file_size.region_id,
+                                                         &rsp_msg.args.get_file_size.size);
             break;
 
         case FLASHFS_DRIVER_REQUEST_READ_FILE:
-            rsp_msg.status_code = flash_fs_read_file(req_msg.args.read_file.region_id, req_msg.args.read_file.offset, req_msg.args.read_file.buffer, req_msg.args.read_file.buffer_size);
+            rsp_msg.status_code = flash_fs_read_file(req_msg.args.read_file.region_id,
+                                                     req_msg.args.read_file.offset,
+                                                     req_msg.args.read_file.buffer,
+                                                     req_msg.args.read_file.buffer_size);
             break;
 
         case FLASHFS_DRIVER_REQUEST_RESET_BOOT_COUNTERS:
         case FLASHFS_DRIVER_REQUEST_INCREMENT_COMPLETED_BOOT_COUNT:
         default:
-            printf("flashfs_driver_task: invalid or not supported request code %u!\r\n", req_msg.request);
+            printf("flashfs_driver_task: invalid or not supported request code %u!\r\n",
+                   req_msg.request);
             rsp_msg.status_code = -1;
         }
 
@@ -119,11 +129,12 @@ static void flashfs_driver_task(void *pvParameters) {
             printf("flashfs_driver_task:  xQueueSend() failed!\r\n");
             continue;
         }
-
     }
 }
 
-int flashfs_drv_init(FLASH_FS_BL2_INFO_t * restrict flash_fs_bl2_info, const FLASH_FS_BL1_INFO_t * restrict flash_fs_bl1_info) {
+int flashfs_drv_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info,
+                     const FLASH_FS_BL1_INFO_t *restrict flash_fs_bl1_info)
+{
     gs_next_request_id = 0;
 
     if (0 != flash_fs_init(flash_fs_bl2_info, flash_fs_bl1_info)) {
@@ -131,31 +142,27 @@ int flashfs_drv_init(FLASH_FS_BL2_INFO_t * restrict flash_fs_bl2_info, const FLA
         return -1;
     }
 
-    gs_flashfs_driver_reqeust_queue = xQueueCreateStatic(FLASHFS_DRIVER_REQUEST_QUEUE_SIZE,
-                                                      sizeof(FLASHFS_DRIVER_REQUEST_MESSAGE_t),
-                                                      gs_flashfs_driver_reqeust_queue_storage_buffer,
-                                                      &gs_flashfs_driver_reqeust_queue_buffer);
+    gs_flashfs_driver_reqeust_queue = xQueueCreateStatic(
+        FLASHFS_DRIVER_REQUEST_QUEUE_SIZE, sizeof(FLASHFS_DRIVER_REQUEST_MESSAGE_t),
+        gs_flashfs_driver_reqeust_queue_storage_buffer, &gs_flashfs_driver_reqeust_queue_buffer);
     if (NULL == gs_flashfs_driver_reqeust_queue) {
         printf("flashfs_drv_init:  xQueueCreateStatic(request_queue) failed!\r\n");
         return -1;
     }
 
-    gs_flashfs_driver_response_queue = xQueueCreateStatic(FLASHFS_DRIVER_RESPONSE_QUEUE_SIZE,
-                                                      sizeof(FLASHFS_DRIVER_RESPONSE_MESSAGE_t),
-                                                      gs_flashfs_driver_response_queue_storage_buffer,
-                                                      &gs_flashfs_driver_response_queue_buffer);
+    gs_flashfs_driver_response_queue = xQueueCreateStatic(
+        FLASHFS_DRIVER_RESPONSE_QUEUE_SIZE, sizeof(FLASHFS_DRIVER_RESPONSE_MESSAGE_t),
+        gs_flashfs_driver_response_queue_storage_buffer, &gs_flashfs_driver_response_queue_buffer);
     if (NULL == gs_flashfs_driver_response_queue) {
         printf("flashfs_drv_init:  xQueueCreateStatic(response_queue) failed!\r\n");
         return -1;
     }
 
-    gs_flashfs_driver_task_handle = xTaskCreateStatic(flashfs_driver_task,
-                                                   "FLASHFS_DRV_TASK",
-                                                   FLASHFS_DRIVER_TASK_STACK_SIZE,
-                                                   NULL, // pvParameters
-                                                   FLASHFS_DRIVER_TASK_PRIORITY,
-                                                   gs_flashfs_driver_task_stack_buffer,
-                                                   &gs_flashfs_driver_task_buffer);
+    gs_flashfs_driver_task_handle =
+        xTaskCreateStatic(flashfs_driver_task, "FLASHFS_DRV_TASK", FLASHFS_DRIVER_TASK_STACK_SIZE,
+                          NULL, // pvParameters
+                          FLASHFS_DRIVER_TASK_PRIORITY, gs_flashfs_driver_task_stack_buffer,
+                          &gs_flashfs_driver_task_buffer);
     if (NULL == gs_flashfs_driver_task_handle) {
         printf("flashfs_drv_init:  xTaskCreateStatic() failed!\r\n");
         return -1;
@@ -164,7 +171,9 @@ int flashfs_drv_init(FLASH_FS_BL2_INFO_t * restrict flash_fs_bl2_info, const FLA
     return 0;
 }
 
-static int queue_request_and_wait_for_response(const FLASHFS_DRIVER_REQUEST_MESSAGE_t * req_msg, FLASHFS_DRIVER_RESPONSE_MESSAGE_t * rsp_msg) {
+static int queue_request_and_wait_for_response(const FLASHFS_DRIVER_REQUEST_MESSAGE_t *req_msg,
+                                               FLASHFS_DRIVER_RESPONSE_MESSAGE_t *rsp_msg)
+{
     if (pdTRUE != xQueueSend(gs_flashfs_driver_reqeust_queue, req_msg, portMAX_DELAY)) {
         printf("queue_request_and_wait_for_response:  xQueueSend() failed!\r\n");
         return -1;
@@ -188,7 +197,8 @@ static int queue_request_and_wait_for_response(const FLASHFS_DRIVER_REQUEST_MESS
     return 0;
 }
 
-int flashfs_drv_get_config_data(void * buffer) {
+int flashfs_drv_get_config_data(void *buffer)
+{
     FLASHFS_DRIVER_REQUEST_MESSAGE_t req;
     FLASHFS_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -209,7 +219,8 @@ int flashfs_drv_get_config_data(void * buffer) {
     return 0;
 }
 
-int flashfs_drv_get_file_size(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t * size) {
+int flashfs_drv_get_file_size(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t *size)
+{
     FLASHFS_DRIVER_REQUEST_MESSAGE_t req;
     FLASHFS_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -231,7 +242,9 @@ int flashfs_drv_get_file_size(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t * 
     return 0;
 }
 
-int flashfs_drv_read_file(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t offset, void * buffer, uint32_t buffer_size) {
+int flashfs_drv_read_file(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t offset, void *buffer,
+                          uint32_t buffer_size)
+{
     FLASHFS_DRIVER_REQUEST_MESSAGE_t req;
     FLASHFS_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -255,11 +268,13 @@ int flashfs_drv_read_file(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t offset
     return 0;
 }
 
-int flashfs_drv_reset_boot_counters(void) {
+int flashfs_drv_reset_boot_counters(void)
+{
     return -1;
 }
 
-int flashfs_drv_increment_completed_boot_count(void) {
+int flashfs_drv_increment_completed_boot_count(void)
+{
     return -1;
 }
 

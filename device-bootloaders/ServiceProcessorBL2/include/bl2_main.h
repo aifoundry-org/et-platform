@@ -14,7 +14,7 @@
 
 #include "service_processor_BL2_data.h"
 
-SERVICE_PROCESSOR_BL2_DATA_t * get_service_processor_bl2_data(void);
+SERVICE_PROCESSOR_BL2_DATA_t *get_service_processor_bl2_data(void);
 
 bool is_vaultip_disabled(void);
 
@@ -23,10 +23,10 @@ bool is_vaultip_disabled(void);
 #define MESSAGE_INFO_DEBUG(cformat, ...)
 #else
 #define MESSAGE_ERROR_DEBUG(cformat, ...) printf(cformat, ##__VA_ARGS__)
-#define MESSAGE_INFO_DEBUG(cformat, ...) printf(cformat, ##__VA_ARGS__)
+#define MESSAGE_INFO_DEBUG(cformat, ...)  printf(cformat, ##__VA_ARGS__)
 #endif
 
 #define MESSAGE_ERROR(cformat, ...) printf(cformat, ##__VA_ARGS__)
-#define MESSAGE_INFO(cformat, ...) printf(cformat, ##__VA_ARGS__)
+#define MESSAGE_INFO(cformat, ...)  printf(cformat, ##__VA_ARGS__)
 
 #endif

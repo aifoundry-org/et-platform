@@ -24,4 +24,3 @@
 #define PU_UART1 (R_PU_UART1_BASEADDR)
 
 #endif
-

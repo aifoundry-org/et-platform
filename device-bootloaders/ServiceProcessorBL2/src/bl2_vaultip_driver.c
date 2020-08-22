@@ -9,7 +9,6 @@
 
 #include "bl2_task_priorities.h"
 
-
 #include "vaultip_hw.h"
 #include "vaultip_sw.h"
 #include "vaultip_sw_asset.h"
@@ -21,8 +20,8 @@
 #pragma GCC push_options
 #pragma GCC diagnostic ignored "-Wswitch-enum"
 
-#define VAULTIP_DRIVER_TASK_STACK_SIZE 4096
-#define VAULTIP_DRIVER_REQUEST_QUEUE_SIZE 4
+#define VAULTIP_DRIVER_TASK_STACK_SIZE     4096
+#define VAULTIP_DRIVER_REQUEST_QUEUE_SIZE  4
 #define VAULTIP_DRIVER_RESPONSE_QUEUE_SIZE 4
 
 typedef enum VAULTIP_DRIVER_REQUEST_e {
@@ -35,7 +34,7 @@ typedef enum VAULTIP_DRIVER_REQUEST_e {
     VAULTIP_DRIVER_TRNG_GET_RANDOM_NUMBER,
     VAULTIP_DRIVER_PROVISION_HUK,
     VAULTIP_DRIVER_RESET,
-    
+
     VAULTIP_DRIVER_HASH,
     VAULTIP_DRIVER_HASH_UPDATE,
     VAULTIP_DRIVER_HASH_FINAL,
@@ -74,29 +73,29 @@ typedef struct VAULTIP_DRIVER_REQUEST_MESSAGE_s {
     union {
         struct {
             uint32_t identity;
-            VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t * system_info;
+            VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t *system_info;
         } get_system_information;
         struct {
             uint32_t identity;
             bool incremental_read;
             uint32_t number;
-            const uint32_t * address;
-            uint32_t * result;
+            const uint32_t *address;
+            uint32_t *result;
         } register_read;
         struct {
             uint32_t identity;
             bool incremental_write;
             uint32_t number;
-            const uint32_t * mask;
-            const uint32_t * address;
-            const uint32_t * value;
+            const uint32_t *mask;
+            const uint32_t *address;
+            const uint32_t *value;
         } register_write;
         struct {
             uint32_t identity;
         } trng_configuration;
         struct {
             uint32_t identity;
-            void * destination;
+            void *destination;
             uint16_t size;
             bool raw;
         } get_random_number;
@@ -110,15 +109,15 @@ typedef struct VAULTIP_DRIVER_REQUEST_MESSAGE_s {
         struct {
             uint32_t identity;
             HASH_ALG_t hash_alg;
-            const void * msg;
+            const void *msg;
             size_t msg_size;
-            uint8_t * hash;
+            uint8_t *hash;
         } hash;
         struct {
             uint32_t identity;
             HASH_ALG_t hash_alg;
             uint32_t digest_asset_id;
-            const void * msg;
+            const void *msg;
             size_t msg_size;
             bool init;
         } hash_update;
@@ -126,35 +125,35 @@ typedef struct VAULTIP_DRIVER_REQUEST_MESSAGE_s {
             uint32_t identity;
             HASH_ALG_t hash_alg;
             uint32_t digest_asset_id;
-            const void * msg;
+            const void *msg;
             size_t msg_size;
             bool init;
             size_t total_msg_length;
-            uint8_t * hash;
+            uint8_t *hash;
         } hash_final;
 
         struct {
             uint32_t identity;
             ESPERANTO_MAC_TYPE_t mac_alg;
             uint32_t key_asset_id;
-            const void * msg;
+            const void *msg;
             size_t msg_size;
-            uint8_t * mac;
+            uint8_t *mac;
         } mac_generate;
         struct {
             uint32_t identity;
             ESPERANTO_MAC_TYPE_t mac_alg;
             uint32_t key_asset_id;
-            const void * msg;
+            const void *msg;
             size_t msg_size;
-            const uint8_t * mac;
+            const uint8_t *mac;
         } mac_verify;
         struct {
             uint32_t identity;
             ESPERANTO_MAC_TYPE_t mac_alg;
             uint32_t mac_asset_id;
             uint32_t key_asset_id;
-            const void * msg;
+            const void *msg;
             size_t msg_size;
             bool init;
         } mac_update;
@@ -163,36 +162,36 @@ typedef struct VAULTIP_DRIVER_REQUEST_MESSAGE_s {
             ESPERANTO_MAC_TYPE_t mac_alg;
             uint32_t mac_asset_id;
             uint32_t key_asset_id;
-            const void * msg;
+            const void *msg;
             size_t msg_size;
             size_t total_msg_size;
             bool init;
-            uint8_t * mac;
+            uint8_t *mac;
         } mac_final_generate;
         struct {
             uint32_t identity;
             ESPERANTO_MAC_TYPE_t mac_alg;
             uint32_t mac_asset_id;
             uint32_t key_asset_id;
-            const void * msg;
+            const void *msg;
             size_t msg_size;
             size_t total_msg_size;
             bool init;
-            const uint8_t * mac;
+            const uint8_t *mac;
         } mac_final_verify;
 
         struct {
             uint32_t identity;
             uint32_t key_asset_id;
-            uint8_t * IV;
-            void * data;
+            uint8_t *IV;
+            void *data;
             size_t data_size;
         } aes_cbc_encrypt;
         struct {
             uint32_t identity;
             uint32_t key_asset_id;
-            uint8_t * IV;
-            void * data;
+            uint8_t *IV;
+            void *data;
             size_t data_size;
         } aes_cbc_decrypt;
 
@@ -202,23 +201,23 @@ typedef struct VAULTIP_DRIVER_REQUEST_MESSAGE_s {
             uint32_t policy_63_32;
             VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t other_settings;
             uint32_t lifetime;
-            uint32_t * asset_id;
+            uint32_t *asset_id;
         } asset_create;
         struct {
             uint32_t identity;
             uint32_t asset_id;
-            const void * data;
+            const void *data;
             uint32_t data_size;
         } asset_load_plaintext;
         struct {
             uint32_t identity;
             uint32_t asset_id;
             uint32_t kdk_asset_id;
-            const uint8_t * key_expansion_IV;
+            const uint8_t *key_expansion_IV;
             uint32_t key_expansion_IV_length;
-            const uint8_t * associated_data;
+            const uint8_t *associated_data;
             uint32_t associated_data_size;
-            const uint8_t * salt;
+            const uint8_t *salt;
             uint32_t salt_size;
         } asset_load_derive;
         struct {
@@ -228,23 +227,23 @@ typedef struct VAULTIP_DRIVER_REQUEST_MESSAGE_s {
         struct {
             uint32_t identity;
             VAULTIP_STATIC_ASSET_ID_t asset_number;
-            uint32_t * asset_id;
-            uint32_t * data_length;
+            uint32_t *asset_id;
+            uint32_t *data_length;
         } static_asset_search;
 
         struct {
             uint32_t identity;
             uint32_t asset_id;
-            uint8_t * data_buffer;
+            uint8_t *data_buffer;
             uint32_t data_buffer_size;
-            uint32_t * data_size;
+            uint32_t *data_size;
         } public_data_read;
         struct {
             uint32_t identity;
             uint32_t asset_id;
-            uint8_t * counter_buffer;
+            uint8_t *counter_buffer;
             uint32_t counter_buffer_size;
-            uint32_t * data_size;
+            uint32_t *data_size;
         } monotonic_counter_read;
         struct {
             uint32_t identity;
@@ -255,9 +254,9 @@ typedef struct VAULTIP_DRIVER_REQUEST_MESSAGE_s {
             uint32_t asset_number;
             uint32_t policy_number;
             bool CRC;
-            const void * input_data;
+            const void *input_data;
             size_t input_data_length;
-            const void * associated_data;
+            const void *associated_data;
             size_t associated_data_length;
         } otp_data_write;
 
@@ -267,10 +266,10 @@ typedef struct VAULTIP_DRIVER_REQUEST_MESSAGE_s {
             uint32_t public_key_asset_id;
             uint32_t curve_parameters_asset_id;
             uint32_t temp_message_digest_asset_id;
-            const void * message;
+            const void *message;
             uint32_t message_size;
             uint32_t hash_data_length;
-            const void * sig_data_address;
+            const void *sig_data_address;
             uint32_t sig_data_size;
         } public_key_ecdsa_verify;
         struct {
@@ -278,10 +277,10 @@ typedef struct VAULTIP_DRIVER_REQUEST_MESSAGE_s {
             uint32_t identity;
             uint32_t public_key_asset_id;
             uint32_t temp_message_digest_asset_id;
-            const void * message;
+            const void *message;
             uint32_t message_size;
             uint32_t hash_data_length;
-            const void * sig_data_address;
+            const void *sig_data_address;
             uint32_t sig_data_size;
             uint32_t salt_length;
         } public_key_rsa_pss_verify;
@@ -300,11 +299,15 @@ typedef struct VAULTIP_DRIVER_RESPONSE_MESSAGE_s {
 } VAULTIP_DRIVER_RESPONSE_MESSAGE_t;
 
 static QueueHandle_t gs_vaultip_driver_reqeust_queue;
-static uint8_t gs_vaultip_driver_reqeust_queue_storage_buffer[VAULTIP_DRIVER_REQUEST_QUEUE_SIZE * sizeof(VAULTIP_DRIVER_REQUEST_MESSAGE_t)];
+static uint8_t
+    gs_vaultip_driver_reqeust_queue_storage_buffer[VAULTIP_DRIVER_REQUEST_QUEUE_SIZE *
+                                                   sizeof(VAULTIP_DRIVER_REQUEST_MESSAGE_t)];
 static StaticQueue_t gs_vaultip_driver_reqeust_queue_buffer;
 
 static QueueHandle_t gs_vaultip_driver_response_queue;
-static uint8_t gs_vaultip_driver_response_queue_storage_buffer[VAULTIP_DRIVER_RESPONSE_QUEUE_SIZE * sizeof(VAULTIP_DRIVER_RESPONSE_MESSAGE_t)];
+static uint8_t
+    gs_vaultip_driver_response_queue_storage_buffer[VAULTIP_DRIVER_RESPONSE_QUEUE_SIZE *
+                                                    sizeof(VAULTIP_DRIVER_RESPONSE_MESSAGE_t)];
 static StaticQueue_t gs_vaultip_driver_response_queue_buffer;
 
 static TaskHandle_t gs_vaultip_driver_task_handle;
@@ -313,11 +316,13 @@ static StaticTask_t gs_vaultip_driver_task_buffer;
 
 static uint64_t gs_next_request_id;
 
-static uint64_t get_next_request_id(void) {
+static uint64_t get_next_request_id(void)
+{
     return ++gs_next_request_id;
 }
 
-static void vaultip_driver_task(void *pvParameters) {
+static void vaultip_driver_task(void *pvParameters)
+{
     (void)pvParameters;
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req_msg;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp_msg;
@@ -325,8 +330,7 @@ static void vaultip_driver_task(void *pvParameters) {
     // Disable buffering on stdout
     setbuf(stdout, NULL);
 
-    while (1)
-    {
+    while (1) {
         if (pdTRUE != xQueueReceive(gs_vaultip_driver_reqeust_queue, &req_msg, portMAX_DELAY)) {
             printf("vaultip_driver_task:  xQueueReceive() failed!\r\n");
             continue;
@@ -340,19 +344,31 @@ static void vaultip_driver_task(void *pvParameters) {
             rsp_msg.status_code = vaultip_self_test();
             break;
         case VAULTIP_DRIVER_GET_SYSTEM_INFORMATION:
-            rsp_msg.status_code = vaultip_get_system_information(req_msg.args.get_system_information.identity, req_msg.args.get_system_information.system_info);
+            rsp_msg.status_code =
+                vaultip_get_system_information(req_msg.args.get_system_information.identity,
+                                               req_msg.args.get_system_information.system_info);
             break;
         case VAULTIP_DRIVER_REGISTER_READ:
-            rsp_msg.status_code = vaultip_register_read(req_msg.args.register_read.identity, req_msg.args.register_read.incremental_read, req_msg.args.register_read.number, req_msg.args.register_read.address, req_msg.args.register_read.result);
+            rsp_msg.status_code = vaultip_register_read(req_msg.args.register_read.identity,
+                                                        req_msg.args.register_read.incremental_read,
+                                                        req_msg.args.register_read.number,
+                                                        req_msg.args.register_read.address,
+                                                        req_msg.args.register_read.result);
             break;
         case VAULTIP_DRIVER_REGISTER_WRITE:
-            rsp_msg.status_code = vaultip_register_write(req_msg.args.register_read.identity, req_msg.args.register_write.incremental_write, req_msg.args.register_write.number, req_msg.args.register_write.mask, req_msg.args.register_write.address, req_msg.args.register_write.value);
+            rsp_msg.status_code = vaultip_register_write(
+                req_msg.args.register_read.identity, req_msg.args.register_write.incremental_write,
+                req_msg.args.register_write.number, req_msg.args.register_write.mask,
+                req_msg.args.register_write.address, req_msg.args.register_write.value);
             break;
         case VAULTIP_DRIVER_TRNG_CONFIGURATION:
-            rsp_msg.status_code = vaultip_trng_configuration(req_msg.args.trng_configuration.identity);
+            rsp_msg.status_code =
+                vaultip_trng_configuration(req_msg.args.trng_configuration.identity);
             break;
         case VAULTIP_DRIVER_TRNG_GET_RANDOM_NUMBER:
-            rsp_msg.status_code = vaultip_trng_get_random_number(req_msg.args.get_random_number.destination, req_msg.args.get_random_number.size, req_msg.args.get_random_number.raw);
+            rsp_msg.status_code = vaultip_trng_get_random_number(
+                req_msg.args.get_random_number.destination, req_msg.args.get_random_number.size,
+                req_msg.args.get_random_number.raw);
             break;
         case VAULTIP_DRIVER_PROVISION_HUK:
             rsp_msg.status_code = vaultip_provision_huk(req_msg.args.provision_huk.coid);
@@ -362,79 +378,175 @@ static void vaultip_driver_task(void *pvParameters) {
             break;
 
         case VAULTIP_DRIVER_HASH:
-            rsp_msg.status_code = vaultip_hash(req_msg.args.hash.identity, req_msg.args.hash.hash_alg, req_msg.args.hash.msg, req_msg.args.hash.msg_size, req_msg.args.hash.hash);
+            rsp_msg.status_code = vaultip_hash(req_msg.args.hash.identity,
+                                               req_msg.args.hash.hash_alg, req_msg.args.hash.msg,
+                                               req_msg.args.hash.msg_size, req_msg.args.hash.hash);
             break;
         case VAULTIP_DRIVER_HASH_UPDATE:
-            rsp_msg.status_code = vaultip_hash_update(req_msg.args.hash.identity, req_msg.args.hash_update.hash_alg, req_msg.args.hash_update.digest_asset_id, req_msg.args.hash_update.msg, req_msg.args.hash_update.msg_size, req_msg.args.hash_update.init);
+            rsp_msg.status_code = vaultip_hash_update(
+                req_msg.args.hash.identity, req_msg.args.hash_update.hash_alg,
+                req_msg.args.hash_update.digest_asset_id, req_msg.args.hash_update.msg,
+                req_msg.args.hash_update.msg_size, req_msg.args.hash_update.init);
             break;
         case VAULTIP_DRIVER_HASH_FINAL:
-            rsp_msg.status_code = vaultip_hash_final(req_msg.args.hash.identity, req_msg.args.hash_final.hash_alg, req_msg.args.hash_final.digest_asset_id, req_msg.args.hash_final.msg, req_msg.args.hash_final.msg_size, req_msg.args.hash_final.init, req_msg.args.hash_final.total_msg_length, req_msg.args.hash_final.hash);
+            rsp_msg.status_code = vaultip_hash_final(
+                req_msg.args.hash.identity, req_msg.args.hash_final.hash_alg,
+                req_msg.args.hash_final.digest_asset_id, req_msg.args.hash_final.msg,
+                req_msg.args.hash_final.msg_size, req_msg.args.hash_final.init,
+                req_msg.args.hash_final.total_msg_length, req_msg.args.hash_final.hash);
             break;
 
         case VAULTIP_DRIVER_MAC_GENERATE:
-            rsp_msg.status_code = vaultip_mac_generate(req_msg.args.mac_generate.identity, req_msg.args.mac_generate.mac_alg, req_msg.args.mac_generate.key_asset_id, req_msg.args.mac_generate.msg, req_msg.args.mac_generate.msg_size, req_msg.args.mac_generate.mac);
+            rsp_msg.status_code = vaultip_mac_generate(
+                req_msg.args.mac_generate.identity, req_msg.args.mac_generate.mac_alg,
+                req_msg.args.mac_generate.key_asset_id, req_msg.args.mac_generate.msg,
+                req_msg.args.mac_generate.msg_size, req_msg.args.mac_generate.mac);
             break;
         case VAULTIP_DRIVER_MAC_VERIFY:
-            rsp_msg.status_code = vaultip_mac_verify(req_msg.args.mac_verify.identity, req_msg.args.mac_verify.mac_alg, req_msg.args.mac_verify.key_asset_id, req_msg.args.mac_verify.msg, req_msg.args.mac_verify.msg_size, req_msg.args.mac_verify.mac);
+            rsp_msg.status_code = vaultip_mac_verify(
+                req_msg.args.mac_verify.identity, req_msg.args.mac_verify.mac_alg,
+                req_msg.args.mac_verify.key_asset_id, req_msg.args.mac_verify.msg,
+                req_msg.args.mac_verify.msg_size, req_msg.args.mac_verify.mac);
             break;
         case VAULTIP_DRIVER_MAC_UPDATE:
-            rsp_msg.status_code = vaultip_mac_update(req_msg.args.mac_update.identity, req_msg.args.mac_update.mac_alg, req_msg.args.mac_update.mac_asset_id, req_msg.args.mac_update.key_asset_id, req_msg.args.mac_update.msg, req_msg.args.mac_update.msg_size, req_msg.args.mac_update.init);
+            rsp_msg.status_code = vaultip_mac_update(
+                req_msg.args.mac_update.identity, req_msg.args.mac_update.mac_alg,
+                req_msg.args.mac_update.mac_asset_id, req_msg.args.mac_update.key_asset_id,
+                req_msg.args.mac_update.msg, req_msg.args.mac_update.msg_size,
+                req_msg.args.mac_update.init);
             break;
         case VAULTIP_DRIVER_MAC_FINAL_GENERATE:
-            rsp_msg.status_code = vaultip_mac_final_generate(req_msg.args.mac_final_generate.identity, req_msg.args.mac_final_generate.mac_alg, req_msg.args.mac_final_generate.mac_asset_id, req_msg.args.mac_final_generate.key_asset_id, req_msg.args.mac_final_generate.msg, req_msg.args.mac_final_generate.msg_size, req_msg.args.mac_final_generate.total_msg_size, req_msg.args.mac_final_generate.init, req_msg.args.mac_final_generate.mac);
+            rsp_msg.status_code = vaultip_mac_final_generate(
+                req_msg.args.mac_final_generate.identity, req_msg.args.mac_final_generate.mac_alg,
+                req_msg.args.mac_final_generate.mac_asset_id,
+                req_msg.args.mac_final_generate.key_asset_id, req_msg.args.mac_final_generate.msg,
+                req_msg.args.mac_final_generate.msg_size,
+                req_msg.args.mac_final_generate.total_msg_size,
+                req_msg.args.mac_final_generate.init, req_msg.args.mac_final_generate.mac);
             break;
         case VAULTIP_DRIVER_MAC_FINAL_VERIFY:
-            rsp_msg.status_code = vaultip_mac_final_verify(req_msg.args.mac_final_verify.identity, req_msg.args.mac_final_verify.mac_alg, req_msg.args.mac_final_verify.mac_asset_id, req_msg.args.mac_final_verify.key_asset_id, req_msg.args.mac_final_verify.msg, req_msg.args.mac_final_verify.msg_size, req_msg.args.mac_final_verify.total_msg_size, req_msg.args.mac_final_verify.init, req_msg.args.mac_final_verify.mac);
+            rsp_msg.status_code = vaultip_mac_final_verify(
+                req_msg.args.mac_final_verify.identity, req_msg.args.mac_final_verify.mac_alg,
+                req_msg.args.mac_final_verify.mac_asset_id,
+                req_msg.args.mac_final_verify.key_asset_id, req_msg.args.mac_final_verify.msg,
+                req_msg.args.mac_final_verify.msg_size,
+                req_msg.args.mac_final_verify.total_msg_size, req_msg.args.mac_final_verify.init,
+                req_msg.args.mac_final_verify.mac);
             break;
 
         case VAULTIP_DRIVER_AES_CBC_ENCRYPT:
-            rsp_msg.status_code = vaultip_aes_cbc_encrypt(req_msg.args.aes_cbc_encrypt.identity, req_msg.args.aes_cbc_encrypt.key_asset_id, req_msg.args.aes_cbc_encrypt.IV, req_msg.args.aes_cbc_encrypt.data, req_msg.args.aes_cbc_encrypt.data_size);
+            rsp_msg.status_code = vaultip_aes_cbc_encrypt(req_msg.args.aes_cbc_encrypt.identity,
+                                                          req_msg.args.aes_cbc_encrypt.key_asset_id,
+                                                          req_msg.args.aes_cbc_encrypt.IV,
+                                                          req_msg.args.aes_cbc_encrypt.data,
+                                                          req_msg.args.aes_cbc_encrypt.data_size);
             break;
         case VAULTIP_DRIVER_AES_CBC_DECRYPT:
-            rsp_msg.status_code = vaultip_aes_cbc_decrypt(req_msg.args.aes_cbc_decrypt.identity, req_msg.args.aes_cbc_decrypt.key_asset_id, req_msg.args.aes_cbc_decrypt.IV, req_msg.args.aes_cbc_decrypt.data, req_msg.args.aes_cbc_decrypt.data_size);
+            rsp_msg.status_code = vaultip_aes_cbc_decrypt(req_msg.args.aes_cbc_decrypt.identity,
+                                                          req_msg.args.aes_cbc_decrypt.key_asset_id,
+                                                          req_msg.args.aes_cbc_decrypt.IV,
+                                                          req_msg.args.aes_cbc_decrypt.data,
+                                                          req_msg.args.aes_cbc_decrypt.data_size);
             break;
 
         case VAULTIP_DRIVER_ASSET_CREATE:
-            rsp_msg.status_code = vaultip_asset_create(req_msg.args.asset_create.identity, req_msg.args.asset_create.policy_31_00, req_msg.args.asset_create.policy_63_32, req_msg.args.asset_create.other_settings, req_msg.args.asset_create.lifetime, req_msg.args.asset_create.asset_id);
+            rsp_msg.status_code = vaultip_asset_create(
+                req_msg.args.asset_create.identity, req_msg.args.asset_create.policy_31_00,
+                req_msg.args.asset_create.policy_63_32, req_msg.args.asset_create.other_settings,
+                req_msg.args.asset_create.lifetime, req_msg.args.asset_create.asset_id);
             break;
         case VAULTIP_DRIVER_ASSET_LOAD_PLAINTEXT:
-            rsp_msg.status_code = vaultip_asset_load_plaintext(req_msg.args.asset_load_plaintext.identity, req_msg.args.asset_load_plaintext.asset_id, req_msg.args.asset_load_plaintext.data, req_msg.args.asset_load_plaintext.data_size);
+            rsp_msg.status_code = vaultip_asset_load_plaintext(
+                req_msg.args.asset_load_plaintext.identity,
+                req_msg.args.asset_load_plaintext.asset_id, req_msg.args.asset_load_plaintext.data,
+                req_msg.args.asset_load_plaintext.data_size);
             break;
         case VAULTIP_DRIVER_ASSET_LOAD_DERIVE:
-            rsp_msg.status_code = vaultip_asset_load_derive(req_msg.args.asset_load_derive.identity, req_msg.args.asset_load_derive.asset_id, req_msg.args.asset_load_derive.kdk_asset_id, req_msg.args.asset_load_derive.key_expansion_IV, req_msg.args.asset_load_derive.key_expansion_IV_length, req_msg.args.asset_load_derive.associated_data, req_msg.args.asset_load_derive.associated_data_size, req_msg.args.asset_load_derive.salt, req_msg.args.asset_load_derive.salt_size);
+            rsp_msg.status_code = vaultip_asset_load_derive(
+                req_msg.args.asset_load_derive.identity, req_msg.args.asset_load_derive.asset_id,
+                req_msg.args.asset_load_derive.kdk_asset_id,
+                req_msg.args.asset_load_derive.key_expansion_IV,
+                req_msg.args.asset_load_derive.key_expansion_IV_length,
+                req_msg.args.asset_load_derive.associated_data,
+                req_msg.args.asset_load_derive.associated_data_size,
+                req_msg.args.asset_load_derive.salt, req_msg.args.asset_load_derive.salt_size);
             break;
         case VAULTIP_DRIVER_ASSET_DELETE:
-            rsp_msg.status_code = vaultip_asset_delete(req_msg.args.asset_delete.identity, req_msg.args.asset_delete.asset_id);
+            rsp_msg.status_code = vaultip_asset_delete(req_msg.args.asset_delete.identity,
+                                                       req_msg.args.asset_delete.asset_id);
             break;
         case VAULTIP_DRIVER_STATIC_ASSET_SEARCH:
-            rsp_msg.status_code = vaultip_static_asset_search(req_msg.args.static_asset_search.identity, req_msg.args.static_asset_search.asset_number, req_msg.args.static_asset_search.asset_id, req_msg.args.static_asset_search.data_length);
+            rsp_msg.status_code =
+                vaultip_static_asset_search(req_msg.args.static_asset_search.identity,
+                                            req_msg.args.static_asset_search.asset_number,
+                                            req_msg.args.static_asset_search.asset_id,
+                                            req_msg.args.static_asset_search.data_length);
             break;
 
         case VAULTIP_DRIVER_PUBLIC_DATA_READ:
-            rsp_msg.status_code = vaultip_public_data_read(req_msg.args.public_data_read.identity, req_msg.args.public_data_read.asset_id, req_msg.args.public_data_read.data_buffer, req_msg.args.public_data_read.data_buffer_size, req_msg.args.public_data_read.data_size);
+            rsp_msg.status_code = vaultip_public_data_read(
+                req_msg.args.public_data_read.identity, req_msg.args.public_data_read.asset_id,
+                req_msg.args.public_data_read.data_buffer,
+                req_msg.args.public_data_read.data_buffer_size,
+                req_msg.args.public_data_read.data_size);
             break;
         case VAULTIP_DRIVER_MONOTONIC_COUNTER_READ:
-            rsp_msg.status_code = vaultip_monotonic_counter_read(req_msg.args.monotonic_counter_read.identity, req_msg.args.monotonic_counter_read.asset_id, req_msg.args.monotonic_counter_read.counter_buffer, req_msg.args.monotonic_counter_read.counter_buffer_size, req_msg.args.monotonic_counter_read.data_size);
+            rsp_msg.status_code = vaultip_monotonic_counter_read(
+                req_msg.args.monotonic_counter_read.identity,
+                req_msg.args.monotonic_counter_read.asset_id,
+                req_msg.args.monotonic_counter_read.counter_buffer,
+                req_msg.args.monotonic_counter_read.counter_buffer_size,
+                req_msg.args.monotonic_counter_read.data_size);
             break;
         case VAULTIP_DRIVER_MONOTONIC_COUNTER_INCREMENT:
-            rsp_msg.status_code = vaultip_monotonic_counter_increment(req_msg.args.monotonic_counter_increment.identity, req_msg.args.monotonic_counter_increment.asset_id);
+            rsp_msg.status_code = vaultip_monotonic_counter_increment(
+                req_msg.args.monotonic_counter_increment.identity,
+                req_msg.args.monotonic_counter_increment.asset_id);
             break;
         case VAULTIP_DRIVER_OTP_DATA_WRITE:
-            rsp_msg.status_code = vaultip_otp_data_write(req_msg.args.otp_data_write.identity, req_msg.args.otp_data_write.asset_number, req_msg.args.otp_data_write.policy_number, req_msg.args.otp_data_write.CRC, req_msg.args.otp_data_write.input_data, req_msg.args.otp_data_write.input_data_length, req_msg.args.otp_data_write.associated_data, req_msg.args.otp_data_write.associated_data_length);
+            rsp_msg.status_code = vaultip_otp_data_write(
+                req_msg.args.otp_data_write.identity, req_msg.args.otp_data_write.asset_number,
+                req_msg.args.otp_data_write.policy_number, req_msg.args.otp_data_write.CRC,
+                req_msg.args.otp_data_write.input_data,
+                req_msg.args.otp_data_write.input_data_length,
+                req_msg.args.otp_data_write.associated_data,
+                req_msg.args.otp_data_write.associated_data_length);
             break;
 
         case VAULTIP_DRIVER_PUBLIC_KEY_ECDSA_VERIFY:
-            rsp_msg.status_code = vaultip_public_key_ecdsa_verify(req_msg.args.public_key_ecdsa_verify.curve_id, req_msg.args.public_key_ecdsa_verify.identity, req_msg.args.public_key_ecdsa_verify.public_key_asset_id, req_msg.args.public_key_ecdsa_verify.curve_parameters_asset_id, req_msg.args.public_key_ecdsa_verify.temp_message_digest_asset_id, req_msg.args.public_key_ecdsa_verify.message, req_msg.args.public_key_ecdsa_verify.message_size, req_msg.args.public_key_ecdsa_verify.hash_data_length, req_msg.args.public_key_ecdsa_verify.sig_data_address, req_msg.args.public_key_ecdsa_verify.sig_data_size);
+            rsp_msg.status_code = vaultip_public_key_ecdsa_verify(
+                req_msg.args.public_key_ecdsa_verify.curve_id,
+                req_msg.args.public_key_ecdsa_verify.identity,
+                req_msg.args.public_key_ecdsa_verify.public_key_asset_id,
+                req_msg.args.public_key_ecdsa_verify.curve_parameters_asset_id,
+                req_msg.args.public_key_ecdsa_verify.temp_message_digest_asset_id,
+                req_msg.args.public_key_ecdsa_verify.message,
+                req_msg.args.public_key_ecdsa_verify.message_size,
+                req_msg.args.public_key_ecdsa_verify.hash_data_length,
+                req_msg.args.public_key_ecdsa_verify.sig_data_address,
+                req_msg.args.public_key_ecdsa_verify.sig_data_size);
             break;
         case VAULTIP_DRIVER_PUBLIC_KEY_RSA_PSS_VERIFY:
-            rsp_msg.status_code = vaultip_public_key_rsa_pss_verify(req_msg.args.public_key_rsa_pss_verify.modulus_size, req_msg.args.public_key_rsa_pss_verify.identity, req_msg.args.public_key_rsa_pss_verify.public_key_asset_id, req_msg.args.public_key_rsa_pss_verify.temp_message_digest_asset_id, req_msg.args.public_key_rsa_pss_verify.message, req_msg.args.public_key_rsa_pss_verify.message_size, req_msg.args.public_key_rsa_pss_verify.hash_data_length, req_msg.args.public_key_rsa_pss_verify.sig_data_address, req_msg.args.public_key_rsa_pss_verify.sig_data_size, req_msg.args.public_key_rsa_pss_verify.salt_length);
+            rsp_msg.status_code = vaultip_public_key_rsa_pss_verify(
+                req_msg.args.public_key_rsa_pss_verify.modulus_size,
+                req_msg.args.public_key_rsa_pss_verify.identity,
+                req_msg.args.public_key_rsa_pss_verify.public_key_asset_id,
+                req_msg.args.public_key_rsa_pss_verify.temp_message_digest_asset_id,
+                req_msg.args.public_key_rsa_pss_verify.message,
+                req_msg.args.public_key_rsa_pss_verify.message_size,
+                req_msg.args.public_key_rsa_pss_verify.hash_data_length,
+                req_msg.args.public_key_rsa_pss_verify.sig_data_address,
+                req_msg.args.public_key_rsa_pss_verify.sig_data_size,
+                req_msg.args.public_key_rsa_pss_verify.salt_length);
             break;
         case VAULTIP_DRIVER_CLOCK_SWITCH:
-            rsp_msg.status_code = vaultip_clock_switch(req_msg.args.clock_switch.identity, req_msg.args.clock_switch.token);
+            rsp_msg.status_code = vaultip_clock_switch(req_msg.args.clock_switch.identity,
+                                                       req_msg.args.clock_switch.token);
             break;
 
         default:
-            printf("vaultip_driver_task: invalid or not supported request code %u!\r\n", req_msg.request);
+            printf("vaultip_driver_task: invalid or not supported request code %u!\r\n",
+                   req_msg.request);
             rsp_msg.status_code = -1;
         }
 
@@ -442,38 +554,34 @@ static void vaultip_driver_task(void *pvParameters) {
             printf("vaultip_driver_task:  xQueueSend() failed!\r\n");
             continue;
         }
-
     }
 }
 
-int vaultip_drv_init(void) {
+int vaultip_drv_init(void)
+{
     gs_next_request_id = 0;
 
-    gs_vaultip_driver_reqeust_queue = xQueueCreateStatic(VAULTIP_DRIVER_REQUEST_QUEUE_SIZE,
-                                                      sizeof(VAULTIP_DRIVER_REQUEST_MESSAGE_t),
-                                                      gs_vaultip_driver_reqeust_queue_storage_buffer,
-                                                      &gs_vaultip_driver_reqeust_queue_buffer);
+    gs_vaultip_driver_reqeust_queue = xQueueCreateStatic(
+        VAULTIP_DRIVER_REQUEST_QUEUE_SIZE, sizeof(VAULTIP_DRIVER_REQUEST_MESSAGE_t),
+        gs_vaultip_driver_reqeust_queue_storage_buffer, &gs_vaultip_driver_reqeust_queue_buffer);
     if (NULL == gs_vaultip_driver_reqeust_queue) {
         printf("vaultip_drv_init:  xQueueCreateStatic(request_queue) failed!\r\n");
         return -1;
     }
 
-    gs_vaultip_driver_response_queue = xQueueCreateStatic(VAULTIP_DRIVER_RESPONSE_QUEUE_SIZE,
-                                                      sizeof(VAULTIP_DRIVER_RESPONSE_MESSAGE_t),
-                                                      gs_vaultip_driver_response_queue_storage_buffer,
-                                                      &gs_vaultip_driver_response_queue_buffer);
+    gs_vaultip_driver_response_queue = xQueueCreateStatic(
+        VAULTIP_DRIVER_RESPONSE_QUEUE_SIZE, sizeof(VAULTIP_DRIVER_RESPONSE_MESSAGE_t),
+        gs_vaultip_driver_response_queue_storage_buffer, &gs_vaultip_driver_response_queue_buffer);
     if (NULL == gs_vaultip_driver_response_queue) {
         printf("vaultip_drv_init:  xQueueCreateStatic(response_queue) failed!\r\n");
         return -1;
     }
 
-    gs_vaultip_driver_task_handle = xTaskCreateStatic(vaultip_driver_task,
-                                                      "VAULTIP_DRV_TASK",
-                                                      VAULTIP_DRIVER_TASK_STACK_SIZE,
-                                                      NULL, // pvParameters
-                                                      VAULTIP_DRIVER_TASK_PRIORITY,
-                                                      gs_vaultip_driver_task_stack_buffer,
-                                                      &gs_vaultip_driver_task_buffer);
+    gs_vaultip_driver_task_handle =
+        xTaskCreateStatic(vaultip_driver_task, "VAULTIP_DRV_TASK", VAULTIP_DRIVER_TASK_STACK_SIZE,
+                          NULL, // pvParameters
+                          VAULTIP_DRIVER_TASK_PRIORITY, gs_vaultip_driver_task_stack_buffer,
+                          &gs_vaultip_driver_task_buffer);
     if (NULL == gs_vaultip_driver_task_handle) {
         printf("vaultip_drv_init:  xTaskCreateStatic() failed!\r\n");
         return -1;
@@ -482,7 +590,9 @@ int vaultip_drv_init(void) {
     return 0;
 }
 
-static int queue_request_and_wait_for_response(const VAULTIP_DRIVER_REQUEST_MESSAGE_t * req_msg, VAULTIP_DRIVER_RESPONSE_MESSAGE_t * rsp_msg) {
+static int queue_request_and_wait_for_response(const VAULTIP_DRIVER_REQUEST_MESSAGE_t *req_msg,
+                                               VAULTIP_DRIVER_RESPONSE_MESSAGE_t *rsp_msg)
+{
     if (pdTRUE != xQueueSend(gs_vaultip_driver_reqeust_queue, req_msg, portMAX_DELAY)) {
         printf("queue_request_and_wait_for_response:  xQueueSend() failed!\r\n");
         return -1;
@@ -506,7 +616,8 @@ static int queue_request_and_wait_for_response(const VAULTIP_DRIVER_REQUEST_MESS
     return 0;
 }
 
-int vaultip_drv_self_test(void) {
+int vaultip_drv_self_test(void)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -526,7 +637,9 @@ int vaultip_drv_self_test(void) {
     return 0;
 }
 
-int vaultip_drv_get_system_information(uint32_t identity, VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t * system_info) {
+int vaultip_drv_get_system_information(uint32_t identity,
+                                       VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t *system_info)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -536,19 +649,23 @@ int vaultip_drv_get_system_information(uint32_t identity, VAULTIP_OUTPUT_TOKEN_S
     req.args.get_system_information.system_info = system_info;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_get_system_information: queue_request_and_wait_for_response() failed!\r\n");
+        printf(
+            "vaultip_drv_get_system_information: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_get_system_information: vaultip_drv_get_system_information() failed!\r\n");
+        printf(
+            "vaultip_drv_get_system_information: vaultip_drv_get_system_information() failed!\r\n");
         return -1;
     }
 
     return 0;
 }
 
-int vaultip_drv_register_read(uint32_t identity, bool incremental_read, uint32_t number, const uint32_t * address, uint32_t * result) {
+int vaultip_drv_register_read(uint32_t identity, bool incremental_read, uint32_t number,
+                              const uint32_t *address, uint32_t *result)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -573,7 +690,9 @@ int vaultip_drv_register_read(uint32_t identity, bool incremental_read, uint32_t
     return 0;
 }
 
-int vaultip_drv_register_write(uint32_t identity, bool incremental_write, uint32_t number, const uint32_t * mask, const uint32_t * address, const uint32_t * value) {
+int vaultip_drv_register_write(uint32_t identity, bool incremental_write, uint32_t number,
+                               const uint32_t *mask, const uint32_t *address, const uint32_t *value)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -599,7 +718,8 @@ int vaultip_drv_register_write(uint32_t identity, bool incremental_write, uint32
     return 0;
 }
 
-int vaultip_drv_trng_configuration(uint32_t identity) {
+int vaultip_drv_trng_configuration(uint32_t identity)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -620,7 +740,8 @@ int vaultip_drv_trng_configuration(uint32_t identity) {
     return 0;
 }
 
-int vaultip_drv_trng_get_random_number(uint32_t identity, void * dst, uint16_t size, bool raw) {
+int vaultip_drv_trng_get_random_number(uint32_t identity, void *dst, uint16_t size, bool raw)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -632,19 +753,22 @@ int vaultip_drv_trng_get_random_number(uint32_t identity, void * dst, uint16_t s
     req.args.get_random_number.raw = raw;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_trng_get_random_number: queue_request_and_wait_for_response() failed!\r\n");
+        printf(
+            "vaultip_drv_trng_get_random_number: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_trng_get_random_number: vaultip_drv_trng_get_random_number() failed!\r\n");
+        printf(
+            "vaultip_drv_trng_get_random_number: vaultip_drv_trng_get_random_number() failed!\r\n");
         return -1;
     }
 
     return 0;
 }
 
-int vaultip_drv_provision_huk(uint32_t coid) {
+int vaultip_drv_provision_huk(uint32_t coid)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -664,7 +788,8 @@ int vaultip_drv_provision_huk(uint32_t coid) {
 
     return 0;
 }
-int vaultip_drv_reset(uint32_t identity) {
+int vaultip_drv_reset(uint32_t identity)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -684,7 +809,9 @@ int vaultip_drv_reset(uint32_t identity) {
 
     return 0;
 }
-int vaultip_drv_hash(uint32_t identity, HASH_ALG_t hash_alg, const void * msg, size_t msg_size, uint8_t * hash) {
+int vaultip_drv_hash(uint32_t identity, HASH_ALG_t hash_alg, const void *msg, size_t msg_size,
+                     uint8_t *hash)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -720,7 +847,9 @@ int vaultip_drv_hash(uint32_t identity, HASH_ALG_t hash_alg, const void * msg, s
 
     return 0;
 }
-int vaultip_drv_hash_update(uint32_t identity, HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void * msg, size_t msg_size, bool init) {
+int vaultip_drv_hash_update(uint32_t identity, HASH_ALG_t hash_alg, uint32_t digest_asset_id,
+                            const void *msg, size_t msg_size, bool init)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -745,7 +874,10 @@ int vaultip_drv_hash_update(uint32_t identity, HASH_ALG_t hash_alg, uint32_t dig
 
     return 0;
 }
-int vaultip_drv_hash_final(uint32_t identity, HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void * msg, size_t msg_size, bool init, size_t total_msg_length, uint8_t * hash) {
+int vaultip_drv_hash_final(uint32_t identity, HASH_ALG_t hash_alg, uint32_t digest_asset_id,
+                           const void *msg, size_t msg_size, bool init, size_t total_msg_length,
+                           uint8_t *hash)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -773,7 +905,9 @@ int vaultip_drv_hash_final(uint32_t identity, HASH_ALG_t hash_alg, uint32_t dige
     return 0;
 }
 
-int vaultip_drv_mac_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t key_asset_id, const void * msg, size_t msg_size, uint8_t * mac) {
+int vaultip_drv_mac_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t key_asset_id,
+                             const void *msg, size_t msg_size, uint8_t *mac)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -798,7 +932,9 @@ int vaultip_drv_mac_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, ui
 
     return 0;
 }
-int vaultip_drv_mac_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t key_asset_id, const void * msg, size_t msg_size, const uint8_t * mac) {
+int vaultip_drv_mac_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t key_asset_id,
+                           const void *msg, size_t msg_size, const uint8_t *mac)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -823,7 +959,9 @@ int vaultip_drv_mac_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint
 
     return 0;
 }
-int vaultip_drv_mac_update(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t mac_asset_id, uint32_t key_asset_id, const void * msg, size_t msg_size, bool init) {
+int vaultip_drv_mac_update(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t mac_asset_id,
+                           uint32_t key_asset_id, const void *msg, size_t msg_size, bool init)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -849,7 +987,10 @@ int vaultip_drv_mac_update(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint
 
     return 0;
 }
-int vaultip_drv_mac_final_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t mac_asset_id, uint32_t key_asset_id, const void * msg, size_t msg_size, size_t total_msg_size, bool init, uint8_t * mac) {
+int vaultip_drv_mac_final_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg,
+                                   uint32_t mac_asset_id, uint32_t key_asset_id, const void *msg,
+                                   size_t msg_size, size_t total_msg_size, bool init, uint8_t *mac)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -877,7 +1018,11 @@ int vaultip_drv_mac_final_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_a
 
     return 0;
 }
-int vaultip_drv_mac_final_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t mac_asset_id, uint32_t key_asset_id, const void * msg, size_t msg_size, size_t total_msg_size, bool init, const uint8_t * mac) {
+int vaultip_drv_mac_final_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg,
+                                 uint32_t mac_asset_id, uint32_t key_asset_id, const void *msg,
+                                 size_t msg_size, size_t total_msg_size, bool init,
+                                 const uint8_t *mac)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -906,7 +1051,9 @@ int vaultip_drv_mac_final_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg
     return 0;
 }
 
-int vaultip_drv_aes_cbc_encrypt(uint32_t identity, uint32_t key_asset_id, uint8_t * IV, void * data, size_t data_size) {
+int vaultip_drv_aes_cbc_encrypt(uint32_t identity, uint32_t key_asset_id, uint8_t *IV, void *data,
+                                size_t data_size)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -930,7 +1077,9 @@ int vaultip_drv_aes_cbc_encrypt(uint32_t identity, uint32_t key_asset_id, uint8_
 
     return 0;
 }
-int vaultip_drv_aes_cbc_decrypt(uint32_t identity, uint32_t key_asset_id, uint8_t * IV, void * data, size_t data_size) {
+int vaultip_drv_aes_cbc_decrypt(uint32_t identity, uint32_t key_asset_id, uint8_t *IV, void *data,
+                                size_t data_size)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -953,10 +1102,12 @@ int vaultip_drv_aes_cbc_decrypt(uint32_t identity, uint32_t key_asset_id, uint8_
     }
 
     return 0;
-
 }
 
-int vaultip_drv_asset_create(uint32_t identity, uint32_t policy_31_00, uint32_t policy_63_32, VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t other_settings, uint32_t lifetime, uint32_t * asset_id) {
+int vaultip_drv_asset_create(uint32_t identity, uint32_t policy_31_00, uint32_t policy_63_32,
+                             VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t other_settings,
+                             uint32_t lifetime, uint32_t *asset_id)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -981,7 +1132,9 @@ int vaultip_drv_asset_create(uint32_t identity, uint32_t policy_31_00, uint32_t 
 
     return 0;
 }
-int vaultip_drv_asset_load_plaintext(uint32_t identity, uint32_t asset_id, const void * data, uint32_t data_size) {
+int vaultip_drv_asset_load_plaintext(uint32_t identity, uint32_t asset_id, const void *data,
+                                     uint32_t data_size)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -993,7 +1146,8 @@ int vaultip_drv_asset_load_plaintext(uint32_t identity, uint32_t asset_id, const
     req.args.asset_load_plaintext.data_size = data_size;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_asset_load_plaintext: queue_request_and_wait_for_response() failed!\r\n");
+        printf(
+            "vaultip_drv_asset_load_plaintext: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
@@ -1004,7 +1158,11 @@ int vaultip_drv_asset_load_plaintext(uint32_t identity, uint32_t asset_id, const
 
     return 0;
 }
-int vaultip_drv_asset_load_derive(uint32_t identity, uint32_t asset_id, uint32_t kdk_asset_id, const uint8_t * key_expansion_IV, uint32_t key_expansion_IV_length, const uint8_t * associated_data, uint32_t associated_data_size, const uint8_t * salt, uint32_t salt_size) {
+int vaultip_drv_asset_load_derive(uint32_t identity, uint32_t asset_id, uint32_t kdk_asset_id,
+                                  const uint8_t *key_expansion_IV, uint32_t key_expansion_IV_length,
+                                  const uint8_t *associated_data, uint32_t associated_data_size,
+                                  const uint8_t *salt, uint32_t salt_size)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -1032,7 +1190,8 @@ int vaultip_drv_asset_load_derive(uint32_t identity, uint32_t asset_id, uint32_t
 
     return 0;
 }
-int vaultip_drv_asset_delete(uint32_t identity, uint32_t asset_id) {
+int vaultip_drv_asset_delete(uint32_t identity, uint32_t asset_id)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -1053,7 +1212,9 @@ int vaultip_drv_asset_delete(uint32_t identity, uint32_t asset_id) {
 
     return 0;
 }
-int vaultip_drv_static_asset_search(uint32_t identity, VAULTIP_STATIC_ASSET_ID_t asset_number, uint32_t * asset_id, uint32_t * data_length) {
+int vaultip_drv_static_asset_search(uint32_t identity, VAULTIP_STATIC_ASSET_ID_t asset_number,
+                                    uint32_t *asset_id, uint32_t *data_length)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -1065,7 +1226,8 @@ int vaultip_drv_static_asset_search(uint32_t identity, VAULTIP_STATIC_ASSET_ID_t
     req.args.static_asset_search.data_length = data_length;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_static_asset_search: queue_request_and_wait_for_response() failed!\r\n");
+        printf(
+            "vaultip_drv_static_asset_search: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
@@ -1077,7 +1239,9 @@ int vaultip_drv_static_asset_search(uint32_t identity, VAULTIP_STATIC_ASSET_ID_t
     return 0;
 }
 
-int vaultip_drv_public_data_read(uint32_t identity, uint32_t asset_id, uint8_t * data_buffer, uint32_t data_buffer_size, uint32_t * data_size) {
+int vaultip_drv_public_data_read(uint32_t identity, uint32_t asset_id, uint8_t *data_buffer,
+                                 uint32_t data_buffer_size, uint32_t *data_size)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -1101,7 +1265,10 @@ int vaultip_drv_public_data_read(uint32_t identity, uint32_t asset_id, uint8_t *
 
     return 0;
 }
-int vaultip_drv_monotonic_counter_read(uint32_t identity, uint32_t asset_id, uint8_t * counter_buffer, uint32_t counter_buffer_size, uint32_t * data_size) {
+int vaultip_drv_monotonic_counter_read(uint32_t identity, uint32_t asset_id,
+                                       uint8_t *counter_buffer, uint32_t counter_buffer_size,
+                                       uint32_t *data_size)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -1114,7 +1281,8 @@ int vaultip_drv_monotonic_counter_read(uint32_t identity, uint32_t asset_id, uin
     req.args.monotonic_counter_read.data_size = data_size;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_monotonic_counter_read: queue_request_and_wait_for_response() failed!\r\n");
+        printf(
+            "vaultip_drv_monotonic_counter_read: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
@@ -1125,7 +1293,8 @@ int vaultip_drv_monotonic_counter_read(uint32_t identity, uint32_t asset_id, uin
 
     return 0;
 }
-int vaultip_drv_monotonic_counter_increment(uint32_t identity, uint32_t asset_id) {
+int vaultip_drv_monotonic_counter_increment(uint32_t identity, uint32_t asset_id)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -1135,18 +1304,23 @@ int vaultip_drv_monotonic_counter_increment(uint32_t identity, uint32_t asset_id
     req.args.monotonic_counter_increment.asset_id = asset_id;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_monotonic_counter_increment: queue_request_and_wait_for_response() failed!\r\n");
+        printf(
+            "vaultip_drv_monotonic_counter_increment: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_monotonic_counter_increment: vaultip_static_asset_search() failed!\r\n");
+        printf(
+            "vaultip_drv_monotonic_counter_increment: vaultip_static_asset_search() failed!\r\n");
         return -1;
     }
 
     return 0;
 }
-int vaultip_drv_otp_data_write(uint32_t identity, uint32_t asset_number, uint32_t policy_number, bool CRC, const void * input_data, size_t input_data_length, const void * associated_data, size_t associated_data_length) {
+int vaultip_drv_otp_data_write(uint32_t identity, uint32_t asset_number, uint32_t policy_number,
+                               bool CRC, const void *input_data, size_t input_data_length,
+                               const void *associated_data, size_t associated_data_length)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -1174,7 +1348,13 @@ int vaultip_drv_otp_data_write(uint32_t identity, uint32_t asset_number, uint32_
     return 0;
 }
 
-int vaultip_drv_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t identity, uint32_t public_key_asset_id, uint32_t curve_parameters_asset_id, uint32_t temp_message_digest_asset_id, const void * message, uint32_t message_size, uint32_t hash_data_length, const void * sig_data_address, uint32_t sig_data_size) {
+int vaultip_drv_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t identity,
+                                        uint32_t public_key_asset_id,
+                                        uint32_t curve_parameters_asset_id,
+                                        uint32_t temp_message_digest_asset_id, const void *message,
+                                        uint32_t message_size, uint32_t hash_data_length,
+                                        const void *sig_data_address, uint32_t sig_data_size)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -1192,18 +1372,26 @@ int vaultip_drv_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t ide
     req.args.public_key_ecdsa_verify.sig_data_size = sig_data_size;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_public_key_ecdsa_verify: queue_request_and_wait_for_response() failed!\r\n");
+        printf(
+            "vaultip_drv_public_key_ecdsa_verify: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_public_key_ecdsa_verify: vaultip_public_key_ecdsa_verify() failed!\r\n");
+        printf(
+            "vaultip_drv_public_key_ecdsa_verify: vaultip_public_key_ecdsa_verify() failed!\r\n");
         return -1;
     }
 
     return 0;
 }
-int vaultip_drv_public_key_rsa_pss_verify(uint32_t modulus_size, uint32_t identity, uint32_t public_key_asset_id, uint32_t temp_message_digest_asset_id, const void * message, uint32_t message_size, uint32_t hash_data_length, const void * sig_data_address, uint32_t sig_data_size, uint32_t salt_length) {
+int vaultip_drv_public_key_rsa_pss_verify(uint32_t modulus_size, uint32_t identity,
+                                          uint32_t public_key_asset_id,
+                                          uint32_t temp_message_digest_asset_id,
+                                          const void *message, uint32_t message_size,
+                                          uint32_t hash_data_length, const void *sig_data_address,
+                                          uint32_t sig_data_size, uint32_t salt_length)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
@@ -1221,18 +1409,21 @@ int vaultip_drv_public_key_rsa_pss_verify(uint32_t modulus_size, uint32_t identi
     req.args.public_key_rsa_pss_verify.salt_length = salt_length;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_public_key_rsa_pss_verify: queue_request_and_wait_for_response() failed!\r\n");
+        printf(
+            "vaultip_drv_public_key_rsa_pss_verify: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_public_key_rsa_pss_verify: vaultip_public_key_rsa_pss_verify() failed!\r\n");
+        printf(
+            "vaultip_drv_public_key_rsa_pss_verify: vaultip_public_key_rsa_pss_verify() failed!\r\n");
         return -1;
     }
 
     return 0;
 }
-int vaultip_drv_clock_switch(uint32_t identity, uint32_t token) {
+int vaultip_drv_clock_switch(uint32_t identity, uint32_t token)
+{
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
