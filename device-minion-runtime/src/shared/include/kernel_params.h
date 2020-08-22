@@ -2,7 +2,7 @@
 #define KERNEL_PARAMS_H
 
 #include <stdint.h>
-#include <esperanto/device-api/device_api.h>
+#include <esperanto/device-api/device_api_rpc_types_non_privileged.h>
 
 #ifdef __cplusplus
 // FIXME This header is still included by the runtime, remove the dependency
