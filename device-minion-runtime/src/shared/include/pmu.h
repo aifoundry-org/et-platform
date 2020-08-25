@@ -40,6 +40,10 @@
 #define PMU_EVENT_MEMSHIRE_OFFSET PMU_EVENT_SHIRE_AREA * 32
 #define PMU_MS_COUNTERS_PER_MS    4
 
+// Thread in neigh that does all the PMC configuration, starting / topping and sampling
+// There is a 1-1 neigh-bank mapping. Only 1 hread needs to do that to avoid races as the CTL_STATUS register is shared
+// among counters / events
+#define NEIGH_HART_SC 13
 // Values to reset and start counting shire cache and memshire PMCs
 #define PMU_SC_START_CTRL_VAL 0x00060033ULL
 #define PMU_MS_START_CTRL_VAL 0x40DE06FFULL
@@ -198,18 +202,27 @@ static inline int64_t configure_sc_event(uint64_t shire_id, uint64_t b, uint64_t
     return ret;
 }
 
+
+static inline void set_sc_pmcs(uint64_t shire_id, uint64_t b, uint64_t val)
+{
+    uint64_t *sc_bank_perfctrl_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_CTL_STATUS);
+    *sc_bank_perfctrl_addr = val;
+}
+
 // Reset and start a shire cache PMC
 static inline void reset_sc_pmcs(uint64_t shire_id, uint64_t b)
 {
     uint64_t *sc_bank_perfctrl_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_CTL_STATUS);
-    *sc_bank_perfctrl_addr = PMU_SC_START_CTRL_VAL;
+    uint64_t init_val = *sc_bank_perfctrl_addr;
+    *sc_bank_perfctrl_addr = PMU_SC_START_CTRL_VAL | init_val;
 }
 
 // Stop a shire cache PMC
 static inline void stop_sc_pmcs(uint64_t shire_id, uint64_t b)
 {
     uint64_t *sc_bank_perfctrl_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_CTL_STATUS);
-    *sc_bank_perfctrl_addr = PMU_SC_STOP_CTRL_VAL;
+    uint64_t init_val = *sc_bank_perfctrl_addr;
+    *sc_bank_perfctrl_addr = init_val ^ PMU_SC_START_CTRL_VAL;
 }
 
 // Read a shire cache PMC. Return -1 on incorrect counter
