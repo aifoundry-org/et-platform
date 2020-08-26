@@ -778,11 +778,12 @@ bool
 sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<api_communicate> api_comm)
 {
     this->cmd_options = cmd_options;
-    if (cmd_options.elf_files.empty()     &&
-        cmd_options.mem_desc_file.empty() &&
+    if (cmd_options.elf_files.empty()       &&
+        cmd_options.file_load_files.empty() &&
+        cmd_options.mem_desc_file.empty()   &&
         cmd_options.api_comm_path.empty())
     {
-        LOG_NOTHREAD(FTL, "%s", "Need an elf file or a mem_desc file or runtime API!");
+        LOG_NOTHREAD(FTL, "%s", "Need an ELF file, a file load, a mem_desc file or runtime API!");
     }
 
 #ifdef SYSEMU_DEBUG
@@ -816,6 +817,18 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<
     if (!cmd_options.mem_desc_file.empty()) {
         if (!parse_mem_file(cmd_options.mem_desc_file.c_str()))
             return false;
+    }
+
+    // Load files
+    for (const auto &info: cmd_options.file_load_files) {
+        LOG_NOTHREAD(INFO, "Loading file @ 0x%" PRIx64 ": \"%s\"", info.addr, info.file.c_str());
+        try {
+            bemu::load_raw(bemu::memory, info.file.c_str(), info.addr);
+        }
+        catch (...) {
+            LOG_NOTHREAD(FTL, "Error loading file \"%s\"", info.file.c_str());
+            return false;
+        }
     }
 
     // Setup PU UART0 stream
