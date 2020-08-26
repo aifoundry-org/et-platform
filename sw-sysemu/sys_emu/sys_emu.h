@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <list>
 #include <memory>
+#include <string>
 #include <tuple>
 #include <unordered_map>
 #include <unordered_set>
@@ -57,6 +58,11 @@ inline Hart& get_cpu(unsigned thread) {
 /// \bried Struct holding the values of the parsed command line arguments
 ////////////////////////////////////////////////////////////////////////////////
 struct sys_emu_cmd_options {
+    struct file_load_info {
+        uint64_t addr;
+        std::string file;
+    };
+
     struct dump_info {
         uint64_t addr;
         uint64_t size;
@@ -70,6 +76,7 @@ struct sys_emu_cmd_options {
     };
 
     std::vector<std::string> elf_files;
+    std::vector<file_load_info> file_load_files;
     std::string mem_desc_file;
     std::string api_comm_path;
     uint64_t    minions_en                   = 1;
