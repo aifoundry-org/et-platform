@@ -59,14 +59,17 @@ int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_buffer_addr)
                                  PMU_NEIGH_COUNTERS_PER_HART * 2;
     // We use 1 hart so that there is no race between configuration / resetting and sampling
     if (program_sc_harts) {
-        uint64_t pmc0_cfg = *hart_sc_cfg_data;
-        uint64_t pmc1_cfg = *(hart_sc_cfg_data+1);
+        // Turn off clock gating so you count cycles and related events properly
+        volatile uint64_t *sc_reqq_ctl_esr = (uint64_t *)ESR_CACHE(shire_id, neigh_id, SC_REQQ_CTL);
+        *sc_reqq_ctl_esr |= (0x1ULL << 22);
+
+        uint64_t ctl_status_cfg = *hart_sc_cfg_data;
+        uint64_t pmc0_cfg = *(hart_sc_cfg_data+1);
+        uint64_t pmc1_cfg = *(hart_sc_cfg_data+2);
         ret = ret + configure_sc_event(shire_id, neigh_id, 0, pmc0_cfg);
         ret = ret + configure_sc_event(shire_id, neigh_id, 1, pmc1_cfg);
-        uint64_t sc_pmu_events_or_resources_0 = pmc0_cfg >> 63;
-        uint64_t sc_pmu_events_or_resources_1 = pmc1_cfg >> 63;
         // Set bits in ctl_status register that show whether we monitor events or resources.
-        set_sc_pmcs(shire_id, neigh_id, (sc_pmu_events_or_resources_0 << 8) | (sc_pmu_events_or_resources_1 << 21));
+        set_sc_pmcs(shire_id, neigh_id, ctl_status_cfg);
     }
 
     // Shire id's 0-7 just to simplify code initialize ms-id's 0-7.
