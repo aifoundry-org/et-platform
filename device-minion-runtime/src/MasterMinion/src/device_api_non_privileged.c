@@ -11,6 +11,7 @@
 
 #include <esperanto/device-api/device_api.h>
 #include <esperanto/device-api/device_api_rpc_types_non_privileged.h>
+#include <esperanto/device-api/tracing_types_non_privileged.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
@@ -151,7 +152,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
                       result);
         }
     } else if (*message_id ==
-               MBOX_DEVAPI_MESSAGE_ID_DISCOVER_TRACE_BUFFER_CMD) {
+               MBOX_DEVAPI_NON_PRIVILEGED_MID_DISCOVER_TRACE_BUFFER_CMD) {
         const struct discover_trace_buffer_cmd_t *const cmd =
             (const void *const)buffer;
         struct discover_trace_buffer_rsp_t rsp;
@@ -159,7 +160,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
             (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
 
         rsp.response_info.message_id =
-            MBOX_DEVAPI_MESSAGE_ID_DISCOVER_TRACE_BUFFER_RSP;
+            MBOX_DEVAPI_NON_PRIVILEGED_MID_DISCOVER_TRACE_BUFFER_RSP;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
 
         rsp.trace_base = DEVICE_MRT_TRACE_BASE;
@@ -175,7 +176,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         }
 
     } else if (*message_id ==
-               MBOX_DEVAPI_MESSAGE_ID_CONFIGURE_TRACE_GROUP_KNOB_CMD) {
+               MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_GROUP_KNOB_CMD) {
         const struct configure_trace_group_knob_cmd_t *const cmd =
             (const void *const)buffer;
         struct configure_trace_group_knob_rsp_t rsp;
@@ -183,7 +184,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
             (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
 
         rsp.response_info.message_id =
-            MBOX_DEVAPI_MESSAGE_ID_CONFIGURE_TRACE_GROUP_KNOB_RSP;
+            MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_GROUP_KNOB_RSP;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
 
         if (cmd->enable) {
@@ -212,14 +213,14 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
                       result);
         }
     } else if (*message_id ==
-               MBOX_DEVAPI_MESSAGE_ID_CONFIGURE_TRACE_EVENT_KNOB_CMD) {
+               MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_EVENT_KNOB_CMD) {
         const struct configure_trace_event_knob_cmd_t *const cmd =
             (const void *const)buffer;
         struct configure_trace_event_knob_rsp_t rsp;
         struct trace_control_t *trace_ctrl =
             (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
         rsp.response_info.message_id =
-            MBOX_DEVAPI_MESSAGE_ID_CONFIGURE_TRACE_EVENT_KNOB_RSP;
+            MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_EVENT_KNOB_RSP;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
 
         if (cmd->enable) {
@@ -248,7 +249,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
                       result);
         }
     } else if (*message_id ==
-               MBOX_DEVAPI_MESSAGE_ID_CONFIGURE_TRACE_BUFFER_SIZE_KNOB_CMD) {
+               MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_BUFFER_SIZE_KNOB_CMD) {
         const struct configure_trace_buffer_size_knob_cmd_t *const cmd =
             (const void *const)buffer;
         struct configure_trace_buffer_size_knob_rsp_t rsp;
@@ -256,7 +257,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
             (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
 
         rsp.response_info.message_id =
-            MBOX_DEVAPI_MESSAGE_ID_CONFIGURE_TRACE_BUFFER_SIZE_KNOB_RSP;
+            MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_BUFFER_SIZE_KNOB_RSP;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
 
         trace_ctrl->buffer_size = cmd->buffer_size;
@@ -280,7 +281,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
                 result);
         }
     } else if (*message_id ==
-               MBOX_DEVAPI_MESSAGE_ID_CONFIGURE_TRACE_STATE_KNOB_CMD) {
+               MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_STATE_KNOB_CMD) {
         const struct configure_trace_state_knob_cmd_t *const cmd =
             (const void *const)buffer;
         struct configure_trace_state_knob_rsp_t rsp;
@@ -288,7 +289,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
             (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
 
         rsp.response_info.message_id =
-            MBOX_DEVAPI_MESSAGE_ID_CONFIGURE_TRACE_STATE_KNOB_RSP;
+            MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_STATE_KNOB_RSP;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
 
         trace_ctrl->trace_en = cmd->enable & 0x01;
@@ -312,7 +313,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
                 result);
         }
     } else if (*message_id ==
-               MBOX_DEVAPI_MESSAGE_ID_CONFIGURE_TRACE_UART_LOGGING_KNOB_CMD) {
+               MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_UART_LOGGING_KNOB_CMD) {
         const struct configure_trace_uart_logging_knob_cmd_t *const cmd =
             (const void *const)buffer;
         struct configure_trace_uart_logging_knob_rsp_t rsp;
@@ -320,7 +321,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
             (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
 
         rsp.response_info.message_id =
-            MBOX_DEVAPI_MESSAGE_ID_CONFIGURE_TRACE_UART_LOGGING_KNOB_RSP;
+            MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_UART_LOGGING_KNOB_RSP;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
 
         trace_ctrl->uart_en = cmd->enable & 0x01;
@@ -344,7 +345,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
                 result);
         }
     } else if (*message_id ==
-               MBOX_DEVAPI_MESSAGE_ID_CONFIGURE_TRACE_LOG_LEVEL_KNOB_CMD) {
+               MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_LOG_LEVEL_KNOB_CMD) {
         const struct configure_trace_log_level_knob_cmd_t *const cmd =
             (const void *const)buffer;
         struct configure_trace_log_level_knob_rsp_t rsp;
@@ -352,7 +353,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
             (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
 
         rsp.response_info.message_id =
-            MBOX_DEVAPI_MESSAGE_ID_CONFIGURE_TRACE_LOG_LEVEL_KNOB_RSP;
+            MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_LOG_LEVEL_KNOB_RSP;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
 
         trace_ctrl->log_level = cmd->log_level;
@@ -375,13 +376,13 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
                 "\r\n",
                 result);
         }
-    } else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_RESET_TRACE_BUFFERS_CMD) {
+    } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_RESET_TRACE_BUFFERS_CMD) {
         const struct reset_trace_buffers_cmd_t *const cmd =
             (const void *const)buffer;
         struct reset_trace_buffers_rsp_t rsp;
 
         rsp.response_info.message_id =
-            MBOX_DEVAPI_MESSAGE_ID_RESET_TRACE_BUFFERS_RSP;
+            MBOX_DEVAPI_NON_PRIVILEGED_MID_RESET_TRACE_BUFFERS_RSP;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
 
         // reset trace buffer for next run
@@ -402,13 +403,13 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
                       result);
         }
     } else if (*message_id ==
-               MBOX_DEVAPI_MESSAGE_ID_PREPARE_TRACE_BUFFERS_CMD) {
+               MBOX_DEVAPI_NON_PRIVILEGED_MID_PREPARE_TRACE_BUFFERS_CMD) {
         const struct prepare_trace_buffers_cmd_t *const cmd =
             (const void *const)buffer;
         struct prepare_trace_buffers_rsp_t rsp;
 
         rsp.response_info.message_id =
-            MBOX_DEVAPI_MESSAGE_ID_PREPARE_TRACE_BUFFERS_RSP;
+            MBOX_DEVAPI_NON_PRIVILEGED_MID_PREPARE_TRACE_BUFFERS_RSP;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
 
         // reset trace buffer for next run

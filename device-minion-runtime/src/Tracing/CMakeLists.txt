@@ -27,13 +27,13 @@ foreach(TMPL_TUPLE ${JINJA_FILES})
   add_custom_command(
      OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT}
      COMMAND ${DEVAPI_CODE_GEN}
-     ARGS  --spec ${DEVAPI_LIB}/api/device-api.yaml
+     ARGS  --spec ${DEVAPI_LIB}/non-privileged-api/device-api-non-privileged.yaml
            --schema ${DEVAPI_LIB}/schema/device-api.schema.json
            --template ${CMAKE_CURRENT_SOURCE_DIR}/${TMPL}
            --output ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT}
      DEPENDS ${DEVAPI_CODE_GEN}
              ${CMAKE_CURRENT_SOURCE_DIR}/${TMPL}
-             ${DEVAPI_LIB}/api/tracing/device-mrt-trace.yaml
+             ${DEVAPI_LIB}/non-privileged-api/tracing/device-mrt-trace.yaml
              ${DEVAPI_LIB}/schema/device-api.schema.json
      )
    add_custom_target(${GEN_OUTPUT} ALL

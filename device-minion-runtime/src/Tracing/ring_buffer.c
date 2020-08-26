@@ -10,7 +10,7 @@
  */
 
 #include "ring_buffer.h"
-#include "esperanto/device-api/device_api.h"
+#include "esperanto/device-api/tracing_types_non_privileged.h"
 #include "layout.h"
 
 #include <string.h>
