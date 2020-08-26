@@ -10,17 +10,13 @@
 
 // WARNING: this file is auto-generated do not edit directly
 
-#ifndef ET_DEVICE_API_TRACING_TYPES_H
-#define ET_DEVICE_API_TRACING_TYPES_H
+#ifndef ET_DEVICE_API_TRACING_TYPES_<< cgh.c_api_name | upper >>_H
+#define ET_DEVICE_API_TRACING_TYPES_<< cgh.c_api_name | upper >>_H
 
-#include "device_api_types.h"
+#include "device_api_rpc_types_non_privileged.h"
 
 #include <stdint.h>
 #include <stddef.h>
-
-#ifdef __cplusplus
-namespace device_api {
-#endif
 
 /// @brief Default trace buffer size
 #define DEVICE_MRT_DEFAULT_BUFFER_SIZE  4096UL
@@ -115,8 +111,4 @@ struct trace_<< trace["Name"] >>_t {
   <%- endfor %>
 <%- endfor %>
 
-#ifdef __cplusplus
-} // namespace device_api
-#endif
-
-#endif // ET_DEVICE_API_TRACING_TYPES_H
+#endif // ET_DEVICE_API_TRACING_TYPES_<< cgh.c_api_name | upper >>_H

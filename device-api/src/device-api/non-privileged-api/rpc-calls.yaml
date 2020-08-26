@@ -370,7 +370,7 @@ Messages :
     Fields:
       - Name: log_level
         Type: enum
-        Enum: log_levels_e
+        Enum: log_levels
   - Name: configure_trace_log_level_knob_rsp
     Description: Trace enable disable command reply
     Type: Response

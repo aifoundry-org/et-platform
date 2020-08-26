@@ -15,4 +15,4 @@ Version_Patch: 0
 MessageStartID: 1000
 Modules:
   - !include rpc-calls.yaml
-  - !include tracing/tracing-events.yaml
+  - !include tracing/device-mrt-trace.yaml

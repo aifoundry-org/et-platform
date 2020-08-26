@@ -17,7 +17,5 @@
 
 #include "esperanto/device-api/device_api_spec_privileged.h"
 #include "esperanto/device-api/device_api_spec_non_privileged.h"
-#include "device_api_rpc_types.h"
-#include "tracing_types.h"
 
 #endif // ET_DEVICE_API_H

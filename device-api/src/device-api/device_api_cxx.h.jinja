@@ -23,7 +23,9 @@ namespace device_api {
 namespace <<cgh.c_api_name | lower>> {
 
 #include "device_api_rpc_types_<<cgh.c_api_name | lower>>.h"
-
+<% if cgh.c_api_name | lower == "non_privileged" %>
+#include "tracing_types_non_privileged.h"
+<% endif %>
 // Overloads of the operators<<"<<">> to enable outputing the structs in C++
 
 <% for struct in cgh.structs() %>
