@@ -104,12 +104,12 @@ public:
   const CommandInfo &cmd_info() const { return cmd_info_; }
 
   /// @brief Return the type of thecCommand
-  virtual MBOXMessageTypeID commandTypeID() const {
+  MBOXMessageTypeID commandTypeID() const override {
     return cmd_info_.command_info.message_id;
   }
 
   /// @brief Return the expected Response type
-  constexpr MBOXMessageTypeID responseTypeID() const {
+  MBOXMessageTypeID responseTypeID() const override {
     return Response::responseTypeID();
   }
 

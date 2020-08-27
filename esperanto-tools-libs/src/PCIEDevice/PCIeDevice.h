@@ -34,7 +34,7 @@ public:
 
   TargetType type() override { return DeviceTarget::TargetType::PCIe; }
   bool init() override;
-  bool postFWLoadInit() {
+  bool postFWLoadInit() override {
     // Do nothing
     return true;
   }
@@ -56,10 +56,10 @@ public:
   bool shutdown() override;
 
   /// @brief Return the absolute base DRAM address we can access
-  uintptr_t dramBaseAddr() const;
+  uintptr_t dramBaseAddr() const override;
 
   /// @brief Return the size of DRAM we can write to in bytes.
-  uintptr_t dramSize() const;
+  uintptr_t dramSize() const override;
 
   ssize_t mboxMsgMaxSize() const override;
 
