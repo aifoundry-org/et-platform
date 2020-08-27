@@ -369,38 +369,66 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 	return -EINVAL;
 }
 
-static int esperanto_pcie_open(struct inode *inode, struct file *filp)
+static int esperanto_pcie_ops_open(struct inode *inode, struct file *filp)
 {
-	//int rc;
+	struct et_pci_dev *et_dev;
+	struct miscdevice *misc_ops_dev_ptr = filp->private_data;
 
- 	/*mutex_lock(&minor_dev->open_close_mutex);
+	et_dev = container_of(misc_ops_dev_ptr,
+			      struct et_pci_dev, misc_ops_dev);
 
- 	if (minor_dev->ref_count == 0) { //TODO: is there anything in inode I can use - does it keep refcnt somewhere and does that refcnt work like I want?
- 		minor_dev->ref_count++;
- 		rc = 0;
- 	}
- 	else {
- 		pr_err("Tried to open same device multiple times\n");
- 		rc = -ENODEV;
- 	}
+	spin_lock(&et_dev->ops_open_lock);
+	if (et_dev->is_ops_open) {
+		spin_unlock(&et_dev->ops_open_lock);
+		pr_err("Tried to open same device multiple times\n");
+		return -EBUSY; /* already open */
+	}
+	et_dev->is_ops_open = true;
+	spin_unlock(&et_dev->ops_open_lock);
 
- 	mutex_unlock(&minor_dev->open_close_mutex);*/
-
-	//return rc;
 	return 0;
 }
 
-static int esperanto_pcie_release(struct inode *inode, struct file *filp)
+static int esperanto_pcie_mgmt_open(struct inode *inode, struct file *filp)
 {
-	/*struct et_pci_minor_dev *minor_dev = filp->private_data;
+	struct et_pci_dev *et_dev;
+	struct miscdevice *misc_mgmt_dev_ptr = filp->private_data;
 
-	mutex_lock(&minor_dev->open_close_mutex);
+	et_dev = container_of(misc_mgmt_dev_ptr,
+			      struct et_pci_dev, misc_mgmt_dev);
 
- 	if (minor_dev->ref_count) {
- 		minor_dev->ref_count--;
- 	}
+	spin_lock(&et_dev->mgmt_open_lock);
+	if (et_dev->is_mgmt_open) {
+		spin_unlock(&et_dev->mgmt_open_lock);
+		pr_err("Tried to open same device multiple times\n");
+		return -EBUSY; /* already open */
+	}
+	et_dev->is_mgmt_open = true;
+	spin_unlock(&et_dev->mgmt_open_lock);
 
- 	mutex_unlock(&minor_dev->open_close_mutex);*/
+	return 0;
+}
+
+static int esperanto_pcie_ops_release(struct inode *inode, struct file *filp)
+{
+	struct et_pci_dev *et_dev;
+	struct miscdevice *misc_ops_dev_ptr = filp->private_data;
+
+	et_dev = container_of(misc_ops_dev_ptr,
+			      struct et_pci_dev, misc_ops_dev);
+	et_dev->is_ops_open = false;
+
+	return 0;
+}
+
+static int esperanto_pcie_mgmt_release(struct inode *inode, struct file *filp)
+{
+	struct et_pci_dev *et_dev;
+	struct miscdevice *misc_mgmt_dev_ptr = filp->private_data;
+
+	et_dev = container_of(misc_mgmt_dev_ptr,
+			      struct et_pci_dev, misc_mgmt_dev);
+	et_dev->is_mgmt_open = false;
 
 	return 0;
 }
@@ -411,15 +439,15 @@ static const struct file_operations et_pcie_ops_fops = {
 	.write = esperanto_pcie_write,
 	.llseek = esperanto_pcie_llseek,
 	.unlocked_ioctl = esperanto_pcie_ops_ioctl,
-	.open = esperanto_pcie_open,
-	.release = esperanto_pcie_release,
+	.open = esperanto_pcie_ops_open,
+	.release = esperanto_pcie_ops_release,
 };
 
 static const struct file_operations et_pcie_mgmt_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = esperanto_pcie_mgmt_ioctl,
-	.open = esperanto_pcie_open,
-	.release = esperanto_pcie_release,
+	.open = esperanto_pcie_mgmt_open,
+	.release = esperanto_pcie_mgmt_release,
 };
 
 static int create_et_pci_dev(struct et_pci_dev **new_dev, struct pci_dev *pdev)
@@ -441,6 +469,9 @@ static int create_et_pci_dev(struct et_pci_dev **new_dev, struct pci_dev *pdev)
 		return -ENODEV;
 	}
 
+	et_dev->is_ops_open = false;
+	et_dev->is_mgmt_open = false;
+
 	mutex_init(&et_dev->dev_mutex);
 
 	snprintf(wq_name, sizeof(wq_name), "%s_wq%d",
@@ -454,6 +485,8 @@ static int create_et_pci_dev(struct et_pci_dev **new_dev, struct pci_dev *pdev)
 
 	timer_setup(&et_dev->missed_irq_timer, et_missed_irq_timeout, 0);
 
+	spin_lock_init(&et_dev->ops_open_lock);
+	spin_lock_init(&et_dev->mgmt_open_lock);
 	spin_lock_init(&et_dev->abort_lock);
 
 	return 0;

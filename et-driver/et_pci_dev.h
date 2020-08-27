@@ -43,7 +43,11 @@ struct et_pci_dev {
 	struct et_dma_chan dma_chans[ET_DMA_NUM_CHANS];
 	struct mutex dev_mutex;
 	struct miscdevice misc_ops_dev;
+	spinlock_t ops_open_lock; /* for serializing access to is_ops_open */
+	bool is_ops_open;
 	struct miscdevice misc_mgmt_dev;
+	spinlock_t mgmt_open_lock; /* for serializing access to is_mgmt_open */
+	bool is_mgmt_open;
 	void __iomem *iomem[IOMEM_REGIONS];
 	uint32_t bulk_cfg;
 	int num_irq_vecs;
