@@ -90,7 +90,7 @@ public:
   ///
   /// @param[in] id ID of the buffer to deallocate
   /// @returns Error os success
-  etrtError free(BufferID tid);
+  etrtError free(BufferID tid) override;
 
   /// @brief Return the total free memory
   BufferSizeTy freeMemory() override;

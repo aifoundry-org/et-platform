@@ -71,7 +71,7 @@ public:
   etrtError execute(et_runtime::Device *device_target) override;
 
   // FIXME invalid command id
-  MBOXMessageTypeID commandTypeID() const { return 0; }
+  MBOXMessageTypeID commandTypeID() const override { return 0; }
 
 private:
   void *dstHostPtr;
@@ -87,7 +87,7 @@ public:
   etrtError execute(et_runtime::Device *device_target) override;
 
   // FIXME invalid command id
-  MBOXMessageTypeID commandTypeID() const { return 0; }
+  MBOXMessageTypeID commandTypeID() const override { return 0; }
 
 private:
   void *dstDevPtr;

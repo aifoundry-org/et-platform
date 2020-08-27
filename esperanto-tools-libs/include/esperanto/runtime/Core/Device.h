@@ -53,7 +53,7 @@ public:
   /// CallBack function type that a Command can register with the Device.
   using MBReadCallBack = std::function<bool(const std::vector<uint8_t> &)>;
 
-  Device(int index);
+  explicit Device(int index);
 
   virtual ~Device();
 

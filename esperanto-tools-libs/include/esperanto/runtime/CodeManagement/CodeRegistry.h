@@ -39,10 +39,6 @@ public:
   /// @brief Default contructor for the registry
   CodeRegistry();
 
-  /// @brief Return Reference to the class singleton that cores the registered
-  /// code.
-  static CodeRegistry &registry();
-
   ///
   /// @brief Register a kernel with the runtime
   ///

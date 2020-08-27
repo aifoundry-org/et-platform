@@ -21,14 +21,6 @@ namespace et_runtime {
 
 CodeRegistry::CodeRegistry() : mod_manager_(new ModuleManager()) {}
 
-CodeRegistry &CodeRegistry::registry() {
-  /// FIXME SW-3761
-  /// The following should be removed for now return the registry of ddevice 0
-  auto device_manager = et_runtime::getDeviceManager();
-  auto device = device_manager->getActiveDevice();
-  return device.get()->codeRegistry();
-}
-
 template <class KernelClass, class KernelArgTypes>
 ErrorOr<std::tuple<KernelCodeID, KernelClass &>>
 CodeRegistry::registerKernelHelper(const std::string &name,
