@@ -121,6 +121,12 @@ TEST_F(MBSimAPITest, RaiseDevicePuPlicPcieMessageInterrupt) {
   rpc_.shutdown();
 }
 
+// Send a device SPIO PLIC PCIe Message Interrupt
+TEST_F(MBSimAPITest, RaiseDeviceSpioPlicPcieMessageInterrupt) {
+  rpc_.raiseDeviceSpioPlicPcieMessageInterrupt();
+  rpc_.shutdown();
+}
+
 // Receive a Device Interrupt
 TEST_F(MBSimAPITest, BlockOnDeviceInterrupt) {
   // Thread that waits to receive an interrupt from the device.
