@@ -159,7 +159,7 @@ void reset_hart(unsigned thread)
     for (auto& set : cpu[thread].core->scp_lock) {
         set.fill(false);
     }
- 
+
     // Reset core-shared tensor operation state machines
     cpu[thread].core->reduce.count = 0;
     cpu[thread].core->reduce.state = Core::Reduce::State::Idle;
@@ -185,6 +185,16 @@ void pu_plic_interrupt_pending_set(uint32_t source_id)
 void pu_plic_interrupt_pending_clear(uint32_t source_id)
 {
     memory.pu_io_space.pu_plic.interrupt_pending_clear(source_id);
+}
+
+void sp_plic_interrupt_pending_set(uint32_t source_id)
+{
+    memory.spio_space.sp_plic.interrupt_pending_set(source_id);
+}
+
+void sp_plic_interrupt_pending_clear(uint32_t source_id)
+{
+    memory.spio_space.sp_plic.interrupt_pending_clear(source_id);
 }
 
 // LCOV_EXCL_STOP

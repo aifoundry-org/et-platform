@@ -24,6 +24,7 @@
 #include "devices/efuse.h"
 #include "devices/pcie_esr.h"
 #include "devices/pcie_apb_subsys.h"
+#include "devices/plic.h"
 #include "devices/pll.h"
 #include "devices/shire_lpddr.h"
 #endif
@@ -49,6 +50,7 @@ struct SvcProcRegion : public MemoryRegion {
         // base addresses for the various regions of the address space
         sp_rom_base          = 0x00000000,
         sp_sram_base         = 0x00400000,
+        sp_plic_base         = 0x10000000,
         spio_uart0_base      = 0x12022000,
         sp_efuse_base        = 0x12026000,
         sp_cru_base          = 0x12028000,
@@ -95,6 +97,7 @@ struct SvcProcRegion : public MemoryRegion {
     // Members
     DenseRegion   <sp_rom_base, 128_KiB, false>  sp_rom{};
     SparseRegion  <sp_sram_base, 1_MiB, 64_KiB>  sp_sram{};
+    SP_PLIC       <sp_plic_base,    32_MiB>      sp_plic{};
     Uart          <spio_uart0_base,  4_KiB>      spio_uart0{};
     Uart          <spio_uart1_base,  4_KiB>      spio_uart1{};
 #ifdef SYS_EMU
@@ -123,9 +126,10 @@ protected:
 
     // These arrays must be sorted by region offset
 #ifdef SYS_EMU
-    std::array<MemoryRegion*,11> regions = {{
+    std::array<MemoryRegion*,12> regions = {{
         &sp_rom,
         &sp_sram,
+        &sp_plic,
         &spio_uart0,
         &sp_efuse,
         &sp_cru,
@@ -137,9 +141,10 @@ protected:
         &shire_lppdr
     }};
 #else
-    std::array<MemoryRegion*,4> regions = {{
+    std::array<MemoryRegion*,5> regions = {{
         &sp_rom,
         &sp_sram,
+        &sp_plic,
         &spio_uart0,
         &spio_uart1,
     }};

@@ -287,7 +287,7 @@ private:
 template <unsigned long long Base, size_t N>
 struct PU_PLIC : public PLIC<Base, N, 41, 12>
 {
-    static void Target_M_mode_Notify(bool raise) {
+    static void Target_Minion_Machine_external_interrupt(bool raise) {
         (void) raise;
 #ifdef SYS_EMU
         for (int i = 0; i < EMU_NUM_MINION_SHIRES; i++) {
@@ -299,7 +299,7 @@ struct PU_PLIC : public PLIC<Base, N, 41, 12>
 #endif
     }
 
-    static void Target_S_mode_Notify(bool raise) {
+    static void Target_Minion_Supervisor_external_interrupt(bool raise) {
         (void) raise;
 #ifdef SYS_EMU
         for (int i = 0; i < EMU_NUM_MINION_SHIRES; i++) {
@@ -313,8 +313,40 @@ struct PU_PLIC : public PLIC<Base, N, 41, 12>
 
     const std::vector<PLIC_Interrupt_Target> &get_target_list() const {
         static const std::vector<PLIC_Interrupt_Target> targets = {
-            {10, 0x21, Target_M_mode_Notify},
-            {11, 0x20, Target_S_mode_Notify},
+            {10, 0x21, Target_Minion_Machine_external_interrupt},
+            {11, 0x20, Target_Minion_Supervisor_external_interrupt},
+        };
+        return targets;
+    }
+};
+
+template <unsigned long long Base, size_t N>
+struct SP_PLIC : public PLIC<Base, N, 148, 2>
+{
+    static void Target_SP_Machine_external_interrupt(bool raise) {
+        (void) raise;
+#ifdef SYS_EMU
+        if (raise)
+            sys_emu::raise_external_interrupt(IO_SHIRE_ID);
+        else
+            sys_emu::clear_external_interrupt(IO_SHIRE_ID);
+#endif
+    }
+
+    static void Target_SP_Supervisor_external_interrupt(bool raise) {
+        (void) raise;
+#ifdef SYS_EMU
+        if (raise)
+            sys_emu::raise_external_supervisor_interrupt(IO_SHIRE_ID);
+        else
+            sys_emu::clear_external_supervisor_interrupt(IO_SHIRE_ID);
+#endif
+    }
+
+    const std::vector<PLIC_Interrupt_Target> &get_target_list() const {
+        static const std::vector<PLIC_Interrupt_Target> targets = {
+            {0, 0, Target_SP_Machine_external_interrupt},
+            {1, 1, Target_SP_Supervisor_external_interrupt},
         };
         return targets;
     }
