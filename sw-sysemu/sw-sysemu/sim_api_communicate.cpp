@@ -99,6 +99,12 @@ bool sim_api_communicate::SysEmuWrapper::raise_device_interrupt(simulator_api::D
             reinterpret_cast<bemu::MemoryRegion::const_pointer>(&trigger));
         break;
     }
+    case simulator_api::DeviceInterruptType::SPIO_PLIC_MBOX_HOST_INTERRUPT: {
+        uint32_t trigger = 1;
+        sim_->mem->pu_mbox_space.pu_trg_pcie.write(*this, bemu::IPI_TRIGGER, sizeof(trigger),
+            reinterpret_cast<bemu::MemoryRegion::const_pointer>(&trigger));
+        break;
+    }
     default:
         return false;
     }
