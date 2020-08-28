@@ -1,5 +1,6 @@
 #include "build_configuration.h"
 #include "cacheops.h"
+#include "device-mrt-trace.h"
 #include "fcc.h"
 #include "flb.h"
 #include "hart.h"
@@ -25,6 +26,10 @@ void __attribute__((noreturn)) main(void)
     asm volatile("la    %0, trap_handler \n"
                  "csrw  stvec, %0        \n"
                  : "=&r"(temp));
+
+    // Init trace for worker minion
+    TRACE_init_worker();
+    TRACE_string(LOG_LEVELS_CRITICAL, "Trace message from worker");
 
     const uint64_t shire_id = get_shire_id();
     const uint64_t hart_id = get_hart_id();

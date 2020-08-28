@@ -48,6 +48,7 @@ set(SOURCES
 set(TARGET_NAME MasterMinion)
 set(LINKER_SCRIPT src/sections.ld)
 set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
+set(TRACE_ENABLED TRUE)
 
 include_directories(include)
 include_directories(${ESPERANTO_DEVICE_API_INCLUDE_DIR})

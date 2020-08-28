@@ -1,5 +1,6 @@
-#include "kernel.h"
+#include "device-mrt-trace.h"
 #include "hart.h"
+#include "kernel.h"
 #include "layout.h"
 #include "log.h"
 #include "message.h"
@@ -44,5 +45,14 @@ static void handle_message(uint64_t shire, uint64_t hart, message_t *const messa
         log_set_level(message_ptr->data[0]);
     } else if (message_ptr->id == MESSAGE_ID_LOOPBACK) {
         message_send_worker(shire, hart, message_ptr);
+    } else if (message_ptr->id == MESSAGE_ID_TRACE_UPDATE_CONTROL) {
+        // Evict to invalidate control region to get new changes
+        TRACE_update_control();
+    } else if (message_ptr->id == MESSAGE_ID_TRACE_BUFFER_RESET) {
+        // Reset trace buffer for next run
+        TRACE_init_buffer();
+    } else if (message_ptr->id == MESSAGE_ID_TRACE_BUFFER_EVICT) {
+        // Evict trace buffer for consumption
+        TRACE_evict_buffer();
     }
 }
