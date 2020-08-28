@@ -378,25 +378,6 @@ bool RPCTarget::raiseDevicePuPlicPcieMessageInterrupt() {
   return true;
 }
 
-bool RPCTarget::raiseDeviceMasterShireIpiInterrupt() {
-  simulator_api::Request request;
-  auto device_interrupt = new DeviceInterrupt();
-  device_interrupt->set_type(
-      simulator_api::DeviceInterruptType::MASTER_SHIRE_IPI_INTERRUPT);
-  request.set_allocated_device_interrupt(device_interrupt);
-  // Do RPC and wait for reply
-  auto reply_res = doRPC(request);
-  if (!reply_res.first) {
-    return false;
-  }
-  auto reply = reply_res.second;
-
-  assert(reply.has_interrupt());
-  auto &interrupt_rsp = reply.interrupt();
-  assert(interrupt_rsp.success());
-  return true;
-}
-
 bool RPCTarget::waitForHostInterrupt(TimeDuration wait_time) {
   simulator_api::Request request;
   auto host_interrupt = new HostInterrupt();

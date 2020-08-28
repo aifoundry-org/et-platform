@@ -121,14 +121,7 @@ TEST_F(MBSimAPITest, RaiseDevicePuPlicPcieMessageInterrupt) {
   rpc_.shutdown();
 }
 
-// Send an IPI to the Master Shire
-TEST_F(MBSimAPITest, RaiseDeviceMasterShireIpiInterrupt) {
-  rpc_.raiseDeviceMasterShireIpiInterrupt();
-  rpc_.shutdown();
-}
-
 // Receive a Device Interrupt
-
 TEST_F(MBSimAPITest, BlockOnDeviceInterrupt) {
   // Thread that waits to receive an interrupt from the device.
   auto rpc_thread = std::thread([this]() {
