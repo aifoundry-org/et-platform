@@ -33,7 +33,7 @@ set(LIBFPU_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/libfpu-build)
 
 # libsysemu
 add_custom_target(build-sysemu-libsysemu ALL
-    COMMAND ${CMAKE_MAKE_PROGRAM} ${LIBSYSEMU_BUILD_DIR}/libsysemu.a sysemu_OBJDIR=${LIBSYSEMU_BUILD_DIR} ${SYSEMU_LIBS_FLAGS}
+    COMMAND $(MAKE) ${LIBSYSEMU_BUILD_DIR}/libsysemu.a sysemu_OBJDIR=${LIBSYSEMU_BUILD_DIR} ${SYSEMU_LIBS_FLAGS}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/sys_emu
 )
 
@@ -48,7 +48,7 @@ set_target_properties(libsysemu
 
 # libfpu
 add_custom_target(build-sysemu-libfpu ALL
-    COMMAND ${CMAKE_MAKE_PROGRAM} ${LIBFPU_BUILD_DIR}/libfpu.a libfpu_OBJDIR=${LIBFPU_BUILD_DIR} ${SYSEMU_LIBS_FLAGS}
+    COMMAND $(MAKE) ${LIBFPU_BUILD_DIR}/libfpu.a libfpu_OBJDIR=${LIBFPU_BUILD_DIR} ${SYSEMU_LIBS_FLAGS}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/sys_emu
 )
 

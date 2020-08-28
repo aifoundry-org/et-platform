@@ -8,10 +8,13 @@
 #include <unistd.h>
 #include <endian.h>
 
-// Local
-#include "sim_api_communicate.h"
+// SysEMU
 #include "emu_gio.h"
 #include "sys_emu.h"
+#include "memory/mailbox_region.h"
+
+// sw-sysemu
+#include "sim_api_communicate.h"
 
 using namespace std;
 
@@ -90,13 +93,12 @@ bool sim_api_communicate::SysEmuWrapper::raise_device_interrupt(simulator_api::D
     LOG_NOTHREAD(DEBUG, "sim_api_communicate: raise_device_interrupt(type = %d)", (int)type);
 
     switch (type) {
-    case simulator_api::DeviceInterruptType::PU_PLIC_PCIE_MESSAGE_INTERRUPT:
-        sim_->mem->pu_mbox_space.pu_trg_mmin.interrupt_inc();
+    case simulator_api::DeviceInterruptType::PU_PLIC_PCIE_MESSAGE_INTERRUPT: {
+        uint32_t trigger = 1;
+        sim_->mem->pu_mbox_space.pu_trg_pcie.write(*this, bemu::MMM_INT_INC, sizeof(trigger),
+            reinterpret_cast<bemu::MemoryRegion::const_pointer>(&trigger));
         break;
-    case simulator_api::DeviceInterruptType::MASTER_SHIRE_IPI_INTERRUPT:
-        // Send an IPI to the thread 0 of Master Shire
-        sys_emu::raise_software_interrupt(EMU_MASTER_SHIRE, 1);
-        break;
+    }
     default:
         return false;
     }

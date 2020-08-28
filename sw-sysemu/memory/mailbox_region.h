@@ -12,39 +12,61 @@
 #define BEMU_MAILBOX_REGION_H
 
 #include <array>
+#include <atomic>
 #include <cstdint>
 #include <functional>
-#include "dense_region.h"
-#include "emu_defines.h"
-#include "literals.h"
+#include "emu_gio.h"
 #include "memory_error.h"
 #include "memory_region.h"
-#include "processor.h"
+#include "dense_region.h"
 #include "sparse_region.h"
+#include "literals.h"
+#include "processor.h"
 
 namespace bemu {
 
-
 extern void pu_plic_interrupt_pending_set(uint32_t source_id);
 extern void pu_plic_interrupt_pending_clear(uint32_t source_id);
+extern void sp_plic_interrupt_pending_set(uint32_t source_id);
+extern void sp_plic_interrupt_pending_clear(uint32_t source_id);
 
 extern typename MemoryRegion::reset_value_type memory_reset_value;
 
+typedef typename MemoryRegion::addr_type      addr_type;
+typedef typename MemoryRegion::size_type      size_type;
+typedef typename MemoryRegion::value_type     value_type;
+typedef typename MemoryRegion::pointer        pointer;
+typedef typename MemoryRegion::const_pointer  const_pointer;
+
+enum : unsigned long long {
+    IPI_TRIGGER = 0x0,
+    MMM_INT_INC = 0x4,
+    PCI_INT_DEC = 0x8,
+    PCI_MMM_CNT = 0xC,
+};
+
+enum : unsigned long long { // Starting at +0x2000
+    IPI_CLEAR = 0x0,
+};
+
+struct IMailboxInterrupts {
+    virtual void pcie_interrupt_counter_inc() = 0;
+    virtual void pcie_interrupt_counter_dec() = 0;
+    virtual uint32_t pcie_interrupt_counter_get() const = 0;
+
+    virtual void mm_to_sp_interrupt_ipi_trigger_write(uint32_t value) = 0;
+    virtual void mm_to_sp_interrupt_ipi_clear_write(uint32_t value) = 0;
+    virtual uint32_t mm_to_sp_interrupt_reg_get() const = 0;
+
+    virtual void host_to_sp_interrupt_ipi_trigger_write(uint32_t value) = 0;
+    virtual void host_to_sp_interrupt_ipi_clear_write(uint32_t value) = 0;
+    virtual uint32_t host_to_sp_interrupt_reg_get() const = 0;
+};
 
 template <unsigned long long Base, unsigned long long N>
-struct PU_TRG_MMin_Region : public MemoryRegion
+struct PU_TRG_MMin : public MemoryRegion
 {
-    typedef typename MemoryRegion::addr_type      addr_type;
-    typedef typename MemoryRegion::size_type      size_type;
-    typedef typename MemoryRegion::value_type     value_type;
-    typedef typename MemoryRegion::pointer        pointer;
-    typedef typename MemoryRegion::const_pointer  const_pointer;
-
-    enum : unsigned long long {
-        MMM_INT_INC = 0x4,
-        PCI_INT_DEC = 0x8,
-        PCI_MMM_CNT = 0xC,
-    };
+    PU_TRG_MMin(IMailboxInterrupts &mb) : mb_(mb) {}
 
     void read(const Agent&, size_type pos, size_type n, pointer result) override {
         uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
@@ -53,14 +75,14 @@ struct PU_TRG_MMin_Region : public MemoryRegion
             throw memory_error(first() + pos);
 
         switch (pos) {
-        case MMM_INT_INC:
-            *result32 = 0;
+        case IPI_TRIGGER:
+            *result32 = mb_.mm_to_sp_interrupt_reg_get();
             break;
         case PCI_INT_DEC:
             *result32 = 0;
             break;
         case PCI_MMM_CNT:
-            *result32 = counter;
+            *result32 = mb_.pcie_interrupt_counter_get();
             break;
         }
     }
@@ -68,23 +90,27 @@ struct PU_TRG_MMin_Region : public MemoryRegion
     void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
         const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
 
+        LOG_NOTHREAD(DEBUG, "PU_TRG_MMin::write(pos=0x%llx, data32 = 0x%" PRIx32 ")", pos, *source32);
+
         if (n != 4)
             throw memory_error(first() + pos);
 
         switch (pos) {
-        case MMM_INT_INC:
+        case IPI_TRIGGER:
+            mb_.mm_to_sp_interrupt_ipi_trigger_write(*source32);
             break;
         case PCI_INT_DEC:
-            counter -= *source32 & 1;
-            check_trigger_int();
+            if (*source32 & 1)
+                mb_.pcie_interrupt_counter_dec();
             break;
         case PCI_MMM_CNT:
+            // Read-only
             break;
         }
     }
 
     void init(const Agent&, size_type, size_type, const_pointer) override {
-        throw std::runtime_error("bemu::MailboxRegion::PU_TRG_MMin_Region::init()");
+        throw std::runtime_error("bemu::PU_TRG_MMin::init()");
     }
 
     addr_type first() const override { return Base; }
@@ -92,30 +118,167 @@ struct PU_TRG_MMin_Region : public MemoryRegion
 
     void dump_data(std::ostream&, size_type, size_type) const override { }
 
-    void interrupt_inc() { ++counter; check_trigger_int(); }
-
 protected:
-    void check_trigger_int() {
-        // PU_PLIC_PCIE_MESSAGE_INTR_ID
-        if (counter > 0) {
-            pu_plic_interrupt_pending_set(33);
-        } else {
-            pu_plic_interrupt_pending_clear(33);
+    IMailboxInterrupts& mb_;
+};
+
+template <unsigned long long Base, unsigned long long N>
+struct PU_TRG_MMin_SP : public MemoryRegion
+{
+    PU_TRG_MMin_SP(IMailboxInterrupts &mb) : mb_(mb) {}
+
+    void read(const Agent&, size_type pos, size_type n, pointer result) override {
+        uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
+
+        LOG_NOTHREAD(DEBUG, "PU_TRG_MMin_SP::read(pos=0x%llx)", pos);
+
+        if (n != 4)
+            throw memory_error(first() + pos);
+
+        switch (pos) {
+        case IPI_CLEAR:
+            *result32 = mb_.mm_to_sp_interrupt_reg_get();
+            break;
         }
     }
 
-    uint32_t counter = 0;
+    void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
+        const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
+
+        LOG_NOTHREAD(DEBUG, "PU_TRG_MMin_SP::write(pos=0x%llx, data32 = 0x%" PRIx32 ")", pos, *source32);
+
+        if (n != 4)
+            throw memory_error(first() + pos);
+
+        switch (pos) {
+        case IPI_CLEAR:
+            mb_.mm_to_sp_interrupt_ipi_clear_write(*source32);
+            break;
+        }
+    }
+
+    void init(const Agent&, size_type, size_type, const_pointer) override {
+        throw std::runtime_error("bemu::PU_TRG_MMin_SP::init()");
+    }
+
+    addr_type first() const override { return Base; }
+    addr_type last() const override { return Base + N - 1; }
+
+    void dump_data(std::ostream&, size_type, size_type) const override { }
+
+protected:
+    IMailboxInterrupts& mb_;
 };
 
+template <unsigned long long Base, unsigned long long N>
+struct PU_TRG_PCIe : public MemoryRegion
+{
+    PU_TRG_PCIe(IMailboxInterrupts &mb) : mb_(mb) {}
+
+    void read(const Agent&, size_type pos, size_type n, pointer result) override {
+        uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
+
+        if (n != 4)
+            throw memory_error(first() + pos);
+
+        switch (pos) {
+        case IPI_TRIGGER:
+            *result32 = mb_.host_to_sp_interrupt_reg_get();
+            break;
+        case MMM_INT_INC:
+            *result32 = 0;
+            break;
+        case PCI_MMM_CNT:
+            *result32 = mb_.pcie_interrupt_counter_get();
+            break;
+        }
+    }
+
+    void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
+        const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
+
+        LOG_NOTHREAD(DEBUG, "PU_TRG_PCIe::write(pos=0x%llx, data32 = 0x%" PRIx32 ")", pos, *source32);
+
+        if (n != 4)
+            throw memory_error(first() + pos);
+
+        switch (pos) {
+        case IPI_TRIGGER:
+            mb_.host_to_sp_interrupt_ipi_trigger_write(*source32);
+            break;
+        case MMM_INT_INC:
+            if (*source32 & 1)
+                mb_.pcie_interrupt_counter_inc();
+            break;
+        case PCI_MMM_CNT:
+            // Read-only
+            break;
+        }
+    }
+
+    void init(const Agent&, size_type, size_type, const_pointer) override {
+        throw std::runtime_error("bemu::PU_TRG_PCIe::init()");
+    }
+
+    addr_type first() const override { return Base; }
+    addr_type last() const override { return Base + N - 1; }
+
+    void dump_data(std::ostream&, size_type, size_type) const override { }
+
+protected:
+    IMailboxInterrupts& mb_;
+};
+
+template <unsigned long long Base, unsigned long long N>
+struct PU_TRG_PCIe_SP : public MemoryRegion
+{
+    PU_TRG_PCIe_SP(IMailboxInterrupts &mb) : mb_(mb) {}
+
+    void read(const Agent&, size_type pos, size_type n, pointer result) override {
+        uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
+
+        LOG_NOTHREAD(DEBUG, "PU_TRG_PCIe_SP::read(pos=0x%llx)", pos);
+
+        if (n != 4)
+            throw memory_error(first() + pos);
+
+        switch (pos) {
+        case IPI_CLEAR:
+            *result32 = mb_.host_to_sp_interrupt_reg_get();
+            break;
+        }
+    }
+
+    void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
+        const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
+
+        LOG_NOTHREAD(DEBUG, "PU_TRG_PCIe_SP::write(pos=0x%llx, data32 = 0x%" PRIx32 ")", pos, *source32);
+
+        if (n != 4)
+            throw memory_error(first() + pos);
+
+        switch (pos) {
+        case IPI_CLEAR:
+            mb_.host_to_sp_interrupt_ipi_clear_write(*source32);
+            break;
+        }
+    }
+
+    void init(const Agent&, size_type, size_type, const_pointer) override {
+        throw std::runtime_error("bemu::PU_TRG_PCIe_SP::init()");
+    }
+
+    addr_type first() const override { return Base; }
+    addr_type last() const override { return Base + N - 1; }
+
+    void dump_data(std::ostream&, size_type, size_type) const override { }
+
+protected:
+    IMailboxInterrupts& mb_;
+};
 
 template<unsigned long long Base, unsigned long long N>
-struct MailboxRegion : public MemoryRegion {
-    typedef typename MemoryRegion::addr_type      addr_type;
-    typedef typename MemoryRegion::size_type      size_type;
-    typedef typename MemoryRegion::value_type     value_type;
-    typedef typename MemoryRegion::pointer        pointer;
-    typedef typename MemoryRegion::const_pointer  const_pointer;
-
+struct MailboxRegion : public MemoryRegion, public IMailboxInterrupts {
     static_assert(N == 512_MiB, "bemu::MailboxRegion has illegal size");
 
     enum : unsigned long long {
@@ -169,9 +332,51 @@ struct MailboxRegion : public MemoryRegion {
 
     void dump_data(std::ostream&, size_type, size_type) const override { }
 
+    void pcie_interrupt_counter_inc() override {
+        pcie_interrupt_counter++;
+        pcie_interrupt_check_trigger();
+    }
+
+    void pcie_interrupt_counter_dec() override {
+        pcie_interrupt_counter--;
+        pcie_interrupt_check_trigger();
+    }
+
+    uint32_t pcie_interrupt_counter_get() const override {
+        return pcie_interrupt_counter;
+    }
+
+    void mm_to_sp_interrupt_ipi_trigger_write(uint32_t value) override {
+        mm_to_sp_interrupt_reg |= value;
+        mm_to_sp_interrupt_check_trigger();
+    }
+
+    void mm_to_sp_interrupt_ipi_clear_write(uint32_t value) override {
+        mm_to_sp_interrupt_reg &= ~value;
+        mm_to_sp_interrupt_check_trigger();
+    }
+
+    uint32_t mm_to_sp_interrupt_reg_get() const override {
+        return mm_to_sp_interrupt_reg;
+    }
+
+    void host_to_sp_interrupt_ipi_trigger_write(uint32_t value) override {
+        host_to_sp_interrupt_reg |= value;
+        host_to_sp_interrupt_check_trigger();
+    }
+
+    void host_to_sp_interrupt_ipi_clear_write(uint32_t value) override {
+        host_to_sp_interrupt_reg &= ~value;
+        host_to_sp_interrupt_check_trigger();
+    }
+
+    uint32_t host_to_sp_interrupt_reg_get() const override {
+        return host_to_sp_interrupt_reg;
+    }
+
     // Members
-    PU_TRG_MMin_Region <pu_trg_mmin_pos, 8_KiB>       pu_trg_mmin{};
-    DenseRegion        <pu_trg_mmin_sp_pos, 8_KiB>    pu_trg_mmin_sp{};
+    PU_TRG_MMin        <pu_trg_mmin_pos, 8_KiB>       pu_trg_mmin{*this};
+    PU_TRG_MMin_SP     <pu_trg_mmin_sp_pos, 8_KiB>    pu_trg_mmin_sp{*this};
     DenseRegion        <pu_sram_mm_mx_pos, 4_KiB>     pu_sram_mm_mx{};
     DenseRegion        <pu_mbox_mm_mx_pos, 4_KiB>     pu_mbox_mm_mx{};
     DenseRegion        <pu_mbox_mm_sp_pos, 4_KiB>     pu_mbox_mm_sp{};
@@ -183,10 +388,38 @@ struct MailboxRegion : public MemoryRegion {
     DenseRegion        <pu_mbox_pc_sp_pos, 4_KiB>     pu_mbox_pc_sp{};
     DenseRegion        <pu_trg_max_pos, 8_KiB>        pu_trg_max{};
     DenseRegion        <pu_trg_max_sp_pos, 8_KiB>     pu_trg_max_sp{};
-    DenseRegion        <pu_trg_pcie_pos, 8_KiB>       pu_trg_pcie{};
-    DenseRegion        <pu_trg_pcie_sp_pos , 8_KiB>   pu_trg_pcie_sp{};
+    PU_TRG_PCIe        <pu_trg_pcie_pos, 8_KiB>       pu_trg_pcie{*this};
+    PU_TRG_PCIe_SP     <pu_trg_pcie_sp_pos , 8_KiB>   pu_trg_pcie_sp{*this};
 
 protected:
+
+    void pcie_interrupt_check_trigger() {
+        // PU_PLIC_PCIE_MESSAGE_INTR_ID = 33
+        if (pcie_interrupt_counter > 0) {
+            pu_plic_interrupt_pending_set(33);
+        } else {
+            pu_plic_interrupt_pending_clear(33);
+        }
+    }
+
+    void mm_to_sp_interrupt_check_trigger() {
+        // SPIO_PLIC_MBOX_MMIN_INTR_ID = 114
+        if (mm_to_sp_interrupt_reg != 0) {
+            sp_plic_interrupt_pending_set(114);
+        } else {
+            sp_plic_interrupt_pending_clear(114);
+        }
+    }
+
+    void host_to_sp_interrupt_check_trigger() {
+        // SPIO_PLIC_MBOX_HOST_INTR_ID = 115
+        if (host_to_sp_interrupt_reg != 0) {
+            sp_plic_interrupt_pending_set(115);
+        } else {
+            sp_plic_interrupt_pending_clear(115);
+        }
+    }
+
     static inline bool above(const MemoryRegion* lhs, size_type rhs) {
         return lhs->last() < rhs;
     }
@@ -270,6 +503,10 @@ protected:
         &pu_mbox_pc_mm,
         &pu_sram,
     }};
+
+    std::atomic<uint32_t> pcie_interrupt_counter{0};
+    std::atomic<uint32_t> mm_to_sp_interrupt_reg{0};
+    std::atomic<uint32_t> host_to_sp_interrupt_reg{0};
 };
 
 
