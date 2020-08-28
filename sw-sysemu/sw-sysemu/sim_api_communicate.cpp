@@ -99,10 +99,6 @@ bool sim_api_communicate::SysEmuWrapper::raise_device_interrupt(simulator_api::D
             reinterpret_cast<bemu::MemoryRegion::const_pointer>(&trigger));
         break;
     }
-    case simulator_api::DeviceInterruptType::MASTER_SHIRE_IPI_INTERRUPT:
-        // Send an IPI to the thread 0 of Master Shire
-        sys_emu::raise_software_interrupt(EMU_MASTER_SHIRE, 1);
-        break;
     default:
         return false;
     }
