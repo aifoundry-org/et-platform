@@ -26,6 +26,8 @@
 #define DIVIDER_50  5ULL // PLLs @ 50%
 #define DIVIDER_OFF 4ULL // PLLs off
 
+#define RVTimer_INTERVAL 0x3FFFFFFULL
+
 static uint32_t gs_timer_divider = DIVIDER_OFF;
 static uint64_t gs_timer_raw_ticks_before_pll_turned_on = 0;
 static uint64_t gs_timer_1_MHz_ticks_before_pll_turned_on = 0;
@@ -46,6 +48,9 @@ void timer_init(uint64_t timer_raw_ticks_before_pll_turned_on, uint32_t sp_pll0_
 {
     gs_timer_raw_ticks_before_pll_turned_on = timer_raw_ticks_before_pll_turned_on;
     gs_timer_1_MHz_ticks_before_pll_turned_on = timer_raw_ticks_before_pll_turned_on / DIVIDER_OFF;
+
+    //Setup RVTIMER interrupt intervals
+    iowrite64(R_SP_RVTIM_BASEADDR + RVTIMER_MTIMECMP_ADDRESS, RVTimer_INTERVAL);
 
     switch (sp_pll0_frequency) {
     case 1000:
