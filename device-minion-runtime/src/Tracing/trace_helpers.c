@@ -62,7 +62,8 @@ void TRACE_init_worker(void)
     struct trace_control_t *cntrl =
         (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
 
-    while (cntrl->buffer_size == 0)
+    // TODO: FIXME: HACK: This assumes there's no garbage in memory!!!!!
+    while (cntrl->buffer_size != DEVICE_MRT_DEFAULT_BUFFER_SIZE)
       // Evict control region
       TRACE_update_control();
 
