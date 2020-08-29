@@ -14,6 +14,7 @@ add_library(etrt_Core OBJECT
   Device.cc
   DeviceManager.cc
   DeviceHelpers.cc
+  TraceHelper.cc
   DeviceTarget.cc
   Error.cc
   Event.cc

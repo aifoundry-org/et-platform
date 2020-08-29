@@ -23,12 +23,16 @@ foreach(SCHEMA_FILE ${SCHEMA_SRC_FILES})
   list(APPEND SCHEMA_FILES ${CMAKE_CURRENT_BINARY_DIR}/${SCHEMA_FILE})
 endforeach()
 
+set(DEVAPI_LIB ${ESPERANTO_DEVICE_API_LIB_DIR}/esperanto/device-api)
+list(APPEND SCHEMA_FILES ${DEVAPI_LIB}/non-privileged-api/*.yaml)
+
 # List of Jinja files to generate files for
 SET(JINJA_FILES
   "etrt-trace.pb.jinja:etrt-trace"
   "TracingCommonGen.h.jinja:TracingCommonGen.h"
   "TracingGen.h.jinja:TracingGen.h"
   "TracingGen.cc.jinja:TracingGen.cc"
+  "DeviceFWTrace.cc.jinja:DeviceFWTrace.cc"
   )
 
 set(GEN_FILES "")
@@ -90,6 +94,7 @@ add_library(etrt_Tracing OBJECT
   ${ETRT_TRACING_PROTO_SRCS}
   ${ETRT_TRACING_PROTO_HDRS}
   ${CMAKE_CURRENT_BINARY_DIR}/TracingGen.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/DeviceFWTrace.cc
   ${CMAKE_CURRENT_BINARY_DIR}/TracingGen.h
   ${CMAKE_CURRENT_BINARY_DIR}/TracingCommonGen.h
   )
@@ -100,6 +105,7 @@ target_include_directories(etrt_Tracing PUBLIC
   ${PROJECT_SOURCE_DIR}/src
   ${PROJECT_BINARY_DIR}/include
   ${PROJECT_BINARY_DIR}/src
+  ${ESPERANTO_DEVICE_API_INCLUDE_DIR}
  )
 
 target_link_libraries(etrt_Tracing

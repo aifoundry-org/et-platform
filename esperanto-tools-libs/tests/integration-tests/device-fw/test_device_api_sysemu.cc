@@ -25,8 +25,6 @@ ABSL_FLAG(std::string, kernels_dir, "",
 
 using namespace et_runtime;
 
-
-///  FIXME SW-1364
 // Test setting the master minion logging levels
 TEST_F(DeviceFWTest, DeviceAPI_SetLogLevelWorker) {
   SetWorkerLogLevel worker_level(*dev_);

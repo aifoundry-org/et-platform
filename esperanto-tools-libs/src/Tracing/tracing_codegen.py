@@ -92,15 +92,21 @@ class CodeGeneratorHelper(object):
             entries = []
             if 'Messages' in mod:
                 entries = mod.get('Messages', [])
-            elif 'TraceEvents' in mod:
-                entries = mod.get('TraceEvents', [])
+            elif 'TraceGroups' in mod:
+                groups = mod.get('TraceGroups', [])
+                for group in groups:
+                    events = group.get('Events', [])
+                    for event in events:
+                        entries.append(event)
             for msg in entries:
                 if msg['Type'] == 'Command':
                     field_name = 'cmd_hdr'
                 elif msg['Type'] == 'Response':
                     field_name = 'rsp_hdr'
-                elif msg['Type'] == 'Event' or msg['Type'] == 'TraceEntry':
+                elif msg['Type'] == 'Event':
                     field_name = 'event_hdr'
+                elif msg['Type'] == 'TraceEntry':
+                    field_name = 'trace_hdr'
                 else:
                      assert(False)
                 hdr = {
@@ -318,6 +324,20 @@ class CodeGeneratorHelper(object):
                 params += [f"{type}* {arg['Name']}"]
         return ", ".join(params)
 
+    @staticmethod
+    def get_field_from_type(obj, typ):
+        """Return the very first field Name of type typ if present in Fields list
+
+        Returns:
+          obj (dict): obj specification
+          typ (string): type to look for
+        """
+
+        fields = obj.get("Fields", [])
+        for field in fields:
+            if field["Type"] == typ:
+                return field["Name"]
+        return []
 
 def gen_code(args):
     """Generate code form the input Jinja template
