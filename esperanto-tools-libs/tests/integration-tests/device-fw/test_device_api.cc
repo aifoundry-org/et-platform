@@ -11,6 +11,7 @@
 #include "device-fw-fixture.h"
 
 #include "esperanto/runtime/Core/DeviceHelpers.h"
+#include "esperanto/runtime/Core/TraceHelper.h"
 #include "esperanto/runtime/Core/VersionCheckers.h"
 
 #include <thread>
@@ -52,6 +53,85 @@ TEST_F(DeviceFWTest, DeviceAPI_SetLogLevelMaster) {
   success = master_level.set_level_debug();
   ASSERT_TRUE(success);
   success = master_level.set_level_trace();
+  ASSERT_TRUE(success);
+}
+
+// Test setting the logging levels
+TEST_F(DeviceFWTest, DeviceAPI_ConfigureTraccLogLevelKnob) {
+  TraceHelper trace_helper(*dev_);
+  bool success;
+
+  success = trace_helper.set_level_critical();
+  ASSERT_TRUE(success);
+  success = trace_helper.set_level_error();
+  ASSERT_TRUE(success);
+  success = trace_helper.set_level_warning();
+  ASSERT_TRUE(success);
+  success = trace_helper.set_level_info();
+  ASSERT_TRUE(success);
+  success = trace_helper.set_level_debug();
+  ASSERT_TRUE(success);
+  success = trace_helper.set_level_trace();
+  ASSERT_TRUE(success);
+}
+
+// Test enable/disable feature of the trace groups
+TEST_F(DeviceFWTest, DeviceAPI_ConfigureTraceGroupKnobs) {
+  TraceHelper trace_helper(*dev_);
+  bool success;
+
+  for (::device_api::non_privileged::trace_groups_e i =
+           ::device_api::non_privileged::TRACE_GROUP_ID_NONE + 1;
+       i < ::device_api::non_privileged::TRACE_GROUP_ID_LAST; i++) {
+    success = trace_helper.configure_trace_group_knob(i, 0);
+    ASSERT_TRUE(success);
+    success = trace_helper.configure_trace_group_knob(i, 1);
+    ASSERT_TRUE(success);
+  }
+}
+
+// Test enable/disable feature of trace event
+TEST_F(DeviceFWTest, DeviceAPI_ConfigureTraceEventKnobs) {
+  TraceHelper trace_helper(*dev_);
+  bool success;
+
+  for (::device_api::non_privileged::trace_events_e i =
+           ::device_api::non_privileged::TRACE_EVENT_ID_NONE + 1;
+       i < ::device_api::non_privileged::TRACE_EVENT_ID_LAST; i++) {
+    success = trace_helper.configure_trace_event_knob(i, 0);
+    ASSERT_TRUE(success);
+    success = trace_helper.configure_trace_event_knob(i, 1);
+    ASSERT_TRUE(success);
+  }
+}
+
+// Test trace buffer size configuration feature
+TEST_F(DeviceFWTest, DeviceAPI_ConfigureTraceBufferSizeKnob) {
+  TraceHelper trace_helper(*dev_);
+
+  auto success = trace_helper.configure_trace_buffer_size_knob(8192);
+  ASSERT_TRUE(success);
+}
+
+// Test enable/disable feature of trace subsysem
+TEST_F(DeviceFWTest, DeviceAPI_ConfigureTraceStateKnob) {
+  TraceHelper trace_helper(*dev_);
+  bool success;
+
+  success = trace_helper.configure_trace_state_knob(0);
+  ASSERT_TRUE(success);
+  success = trace_helper.configure_trace_state_knob(1);
+  ASSERT_TRUE(success);
+}
+
+// Test enable/disable feature of trace logging on uart interface
+TEST_F(DeviceFWTest, DeviceAPI_ConfigureTraceUartLoggingKnob) {
+  TraceHelper trace_helper(*dev_);
+  bool success;
+
+  success = trace_helper.configure_trace_uart_logging_knob(0);
+  ASSERT_TRUE(success);
+  success = trace_helper.configure_trace_uart_logging_knob(1);
   ASSERT_TRUE(success);
 }
 

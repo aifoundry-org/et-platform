@@ -30,6 +30,11 @@ message DeviceAPI_event_hdr {
   uint64 device_timestamp_mtime = 1;
 };
 
+message DeviceAPI_trace_hdr {
+  uint64 device_timestamp_mtime = 1;
+  uint32 hartid = 2;
+};
+
 <% for module in spec['Modules'] -%>
 
   <% set mname = module['Name'] -%>

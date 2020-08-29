@@ -8,6 +8,41 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
+set(DEVAPI_LIB ${ESPERANTO_DEVICE_API_LIB_DIR}/esperanto/device-api)
+set(DEVAPI_CODE_GEN ${DEVAPI_LIB}/device_api_codegen.py)
+
+# List of Jinja files to generate files for
+SET(JINJA_FILES
+  "device-fw-testing-helpers.h.jinja:device-fw-testing-helpers.h"
+  )
+
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
+foreach(TMPL_TUPLE ${JINJA_FILES})
+  string(REPLACE ":" ";" TMPL_LIST ${TMPL_TUPLE})
+  list(GET TMPL_LIST 0 TMPL)
+  list(GET TMPL_LIST 1 GEN_OUTPUT)
+  add_custom_command(
+     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT}
+     COMMAND ${DEVAPI_CODE_GEN}
+     ARGS  --spec ${DEVAPI_LIB}/non-privileged-api/device-api-non-privileged.yaml
+           --schema ${DEVAPI_LIB}/schema/device-api.schema.json
+           --template ${CMAKE_CURRENT_SOURCE_DIR}/${TMPL}
+           --output ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT}
+     DEPENDS ${DEVAPI_CODE_GEN}
+             ${CMAKE_CURRENT_SOURCE_DIR}/${TMPL}
+             ${DEVAPI_LIB}/non-privileged-api/tracing/device-mrt-trace.yaml
+             ${DEVAPI_LIB}/schema/device-api.schema.json
+     )
+   add_custom_target(${GEN_OUTPUT} ALL
+             DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT})
+  list(APPEND GEN_FILES ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT})
+endforeach()
+
+add_custom_target(gen-devicefw-helpers
+  DEPENDS ${GEN_FILES}
+  )
+
 # List of tests that are currently running only in the simulator
 set(SIM_DEVFW_TEST_LIST
   test_mb_sim_api.cc:""
@@ -15,6 +50,7 @@ set(SIM_DEVFW_TEST_LIST
   test_elf_parsing_dev_fw.cc:"${DEV_FW_ARGS} --empty_elf ${EMPTY_KERNEL_ELF}"
   test_mailbox.cc:"${DEV_FW_ARGS}"
   test_sysemu_launch_kernels.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
+  test_device_tracing.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
   test_device_api_sysemu.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
   test_streams.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
   )

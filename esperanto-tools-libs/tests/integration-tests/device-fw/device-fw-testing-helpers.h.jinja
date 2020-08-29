@@ -1,0 +1,216 @@
+/*------------------------------------------------------------------------------
+ * Copyright (C) 2020, Esperanto Technologies Inc.
+ * The copyright to the computer program(s) herein is the
+ * property of Esperanto Technologies, Inc. All Rights Reserved.
+ * The program(s) may be used and/or copied only with
+ * the written permission of Esperanto Technologies and
+ * in accordance with the terms and conditions stipulated in the
+ * agreement/contract under which the program(s) have been supplied.
+ ------------------------------------------------------------------------------ */
+
+// WARNING: this file is auto-generated do not edit directly
+
+#include "Tracing/Tracing.h"
+#include "Tracing/TracingHelpers.h"
+#include "esperanto/runtime/Support/Logging.h"
+
+#include <esperanto/device-api/device_api.h>
+#include <memory>
+#include <thread>
+
+using namespace et_runtime::device_api;
+using namespace et_runtime::tracing;
+
+static bool Test_Trace_verify_device_traces(uint8_t *trace_buffers,
+                                            size_t buffer_size,
+                                            uint32_t num_of_buffers,
+                                            uint32_t group_id,
+                                            uint64_t event_id) {
+  size_t tail;
+  size_t head;
+  uint8_t *trace_buffer;
+  ::device_api::non_privileged::buffer_header_t *buffer_hdr;
+  ::device_api::non_privileged::message_header_t *msg_hdr;
+
+  for (uint32_t i = 0; i < num_of_buffers; i++) {
+    trace_buffer = trace_buffers + buffer_size * i;
+    buffer_hdr = (::device_api::non_privileged::buffer_header_t *)trace_buffer;
+    tail = buffer_hdr->tail;
+    head = buffer_hdr->head;
+
+    while (tail != head) {
+      msg_hdr = (::device_api::non_privileged::message_header_t *)(&(buffer_hdr->buffer[tail]));
+
+      switch (msg_hdr->event_id) {
+      case ::device_api::non_privileged::TRACE_EVENT_ID_NONE: {
+        // Buffer overflow condition, reset tail
+        tail = 0;
+        break;
+      }
+<%- for group in cgh.trace_groups() %>
+  <%- for trace in group.get("Events", []) %>
+  case ::device_api::non_privileged::TRACE_EVENT_ID_<< group["Name"] | upper >>_<< trace["Name"] | upper >>: {
+
+    // Verify if this event is valid
+    if ((group_id == ::device_api::non_privileged::TRACE_GROUP_ID_NONE) && 
+        (event_id != 0) && (event_id == ::device_api::non_privileged::TRACE_EVENT_ID_<< group["Name"] | upper >>_<< trace["Name"] | upper >>)){
+      return false;
+    }
+    // Verify if this group is valid
+    else if ((event_id == ::device_api::non_privileged::TRACE_EVENT_ID_NONE) && 
+         (group_id != 0) && (group_id == ::device_api::non_privileged::TRACE_GROUP_ID_<< group["Name"] | upper >>)){
+      return false;
+    }
+    <%- if group["Name"] == "Text" %>
+    ::device_api::non_privileged::trace_<< trace["Name"] >>_t *trace_<< trace["Name"] >> =
+        (::device_api::non_privileged::trace_<< trace["Name"] >>_t *)msg_hdr;
+      <%- set str_name = cgh.get_field_from_type(trace, "bytes") %>
+    std::vector<uint8_t> << str_name >>(trace_<< trace["Name"] >>-><< str_name >>,
+        trace_<< trace["Name"] >>-><< str_name >> + trace_<< trace["Name"] >>->size);
+    tail += ALIGN(offsetof(::device_api::non_privileged::trace_<< trace["Name"] >>_t,
+            << str_name >>) + trace_<< trace["Name"]>>->size, 8);
+    <%- else %>
+    tail += sizeof(::device_api::non_privileged::trace_<< trace["Name"] >>_t);
+    <%- endif %>
+    break;
+  }
+  <%- endfor %>
+<%- endfor %>
+      default:
+        RTERROR  <% raw %> << <% endraw %> "Invalid event id:" <% raw %> << <% endraw %> msg_hdr->event_id <% raw %> << <% endraw %> "\n";
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+bool Test_Trace_verify_group_disable(uint8_t *trace_buffers,
+                                     size_t buffer_size,
+                                     uint32_t num_of_buffers,
+                                     uint32_t group_id) {
+  return Test_Trace_verify_device_traces(trace_buffers, buffer_size, num_of_buffers, 
+      group_id, ::device_api::non_privileged::TRACE_EVENT_ID_NONE);
+}
+
+bool Test_Trace_verify_event_disable(uint8_t *trace_buffers,
+                                     size_t buffer_size,
+                                     uint32_t num_of_buffers,
+                                     uint64_t event_id) {
+  return Test_Trace_verify_device_traces(trace_buffers, buffer_size, num_of_buffers, 
+      ::device_api::non_privileged::TRACE_GROUP_ID_NONE, event_id);
+}
+
+bool Test_Trace_verify_state_disable(uint8_t *trace_buffers,
+                                     size_t buffer_size,
+                                     uint32_t num_of_buffers) {
+  size_t tail;
+  size_t head;
+  uint8_t *trace_buffer;
+  ::device_api::non_privileged::buffer_header_t *buffer_hdr;
+
+  for (uint32_t i = 0; i < num_of_buffers; i++) {
+    trace_buffer = trace_buffers + buffer_size * i;
+    buffer_hdr = (::device_api::non_privileged::buffer_header_t *)trace_buffer;
+    tail = buffer_hdr->tail;
+    head = buffer_hdr->head;
+
+    // Exclude sync-minions
+    if ((buffer_hdr->hart_id < 2080) && (tail != head)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool Test_Trace_verify_loglevel_disable(uint8_t *trace_buffers,
+                                        size_t buffer_size,
+                                        uint32_t num_of_buffers,
+                                        uint64_t log_level) {
+  size_t tail;
+  size_t head;
+  uint8_t *trace_buffer;
+  ::device_api::non_privileged::buffer_header_t *buffer_hdr;
+  ::device_api::non_privileged::message_header_t *msg_hdr;
+
+  for (uint32_t i = 0; i < num_of_buffers; i++) {
+    trace_buffer = trace_buffers + buffer_size * i;
+    buffer_hdr = (::device_api::non_privileged::buffer_header_t *)trace_buffer;
+    tail = buffer_hdr->tail;
+    head = buffer_hdr->head;
+
+    while (tail != head) {
+      msg_hdr = (::device_api::non_privileged::message_header_t *)(&(buffer_hdr->buffer[tail]));
+
+      switch (msg_hdr->event_id) {
+      case ::device_api::non_privileged::TRACE_EVENT_ID_NONE: {
+        // Buffer overflow condition, reset tail
+        tail = 0;
+        break;
+      }
+<%- for group in cgh.trace_groups() %>
+  <%- for trace in group.get("Events", []) %>
+  case ::device_api::non_privileged::TRACE_EVENT_ID_<< group["Name"] | upper >>_<< trace["Name"] | upper >>: {
+
+    <%- if trace["Name"] == "kernel_state" %>
+    ::device_api::non_privileged::trace_<< trace["Name"] >>_t *trace_<< trace["Name"] >> =
+        (::device_api::non_privileged::trace_<< trace["Name"] >>_t *)msg_hdr;
+
+    if (log_level < trace_<< trace["Name"]>>->state) {
+      return false;
+    }
+
+    <%- endif %>
+    <%- if group["Name"] == "Text" %>
+    ::device_api::non_privileged::trace_<< trace["Name"] >>_t *trace_<< trace["Name"] >> =
+        (::device_api::non_privileged::trace_<< trace["Name"] >>_t *)msg_hdr;
+      <%- set str_name = cgh.get_field_from_type(trace, "bytes") %>
+    std::vector<uint8_t> << str_name >>(trace_<< trace["Name"] >>-><< str_name >>,
+        trace_<< trace["Name"] >>-><< str_name >> + trace_<< trace["Name"] >>->size);
+    tail += ALIGN(offsetof(::device_api::non_privileged::trace_<< trace["Name"] >>_t,
+            << str_name >>) + trace_<< trace["Name"]>>->size, 8);
+    <%- else %>
+    tail += sizeof(::device_api::non_privileged::trace_<< trace["Name"] >>_t);
+    <%- endif %>
+    break;
+  }
+  <%- endfor %>
+<%- endfor %>
+      default:
+        RTERROR  <% raw %> << <% endraw %> "Invalid event id:" <% raw %> << <% endraw %> msg_hdr->event_id <% raw %> << <% endraw %> "\n";
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+bool Test_Trace_verify_buffer_size(uint8_t *trace_buffers,
+                                   size_t buffer_size,
+                                   uint32_t num_of_buffers) {
+  uint16_t prev_hart_id = 0;
+  uint16_t curr_hart_id;
+  uint8_t *trace_buffer;
+  ::device_api::non_privileged::buffer_header_t *buffer_hdr;
+  ::device_api::non_privileged::message_header_t *msg_hdr;
+
+  for (uint32_t i = 0; i < num_of_buffers; i++) {
+    trace_buffer = trace_buffers + buffer_size * i;
+    buffer_hdr = (::device_api::non_privileged::buffer_header_t *)trace_buffer;
+    curr_hart_id = buffer_hdr->hart_id;
+
+    if (curr_hart_id != 0)
+    {
+      if (curr_hart_id - prev_hart_id != 1)
+      {
+        return false;
+      }
+      prev_hart_id = curr_hart_id;
+    }
+    else
+    {
+      prev_hart_id = i;
+    }
+  }
+  return true;
+}
