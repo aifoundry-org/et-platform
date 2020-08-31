@@ -90,8 +90,11 @@ public:
   /// @brief Return the size of DRAM we can write to in bytes.
   virtual uintptr_t dramSize() const;
 
-  /// @brief load the DeviceFW on the target device
+  /// @brief Load the Firmware on the target device
   etrtError loadFirmwareOnDevice();
+
+  /// @brief configure the Firmware prior to booting
+  etrtError configureFirmware();
 
   ///
   /// @brief Set the path to the firmware files and load their contents

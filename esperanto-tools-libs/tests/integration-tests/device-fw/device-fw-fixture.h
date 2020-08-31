@@ -62,8 +62,11 @@ protected:
     res = dev_->mem_manager().init();
     ASSERT_TRUE(res);
 
-    auto success = dev_->loadFirmwareOnDevice();
-    ASSERT_TRUE(success == etrtSuccess);
+    auto load_success = dev_->loadFirmwareOnDevice();
+    ASSERT_TRUE(load_success == etrtSuccess);
+
+    auto config_success = dev_->configureFirmware();
+    ASSERT_TRUE(config_success == etrtSuccess);
   }
 
   void TearDown() override {
