@@ -57,7 +57,7 @@ TEST_F(DeviceFWTest, DeviceAPI_SetLogLevelMaster) {
 }
 
 // Test setting the logging levels
-TEST_F(DeviceFWTest, DeviceAPI_ConfigureTraccLogLevelKnob) {
+TEST_F(DeviceFWTest, DeviceAPI_ConfigureTraceLogLevelKnob) {
   TraceHelper trace_helper(*dev_);
   bool success;
 
