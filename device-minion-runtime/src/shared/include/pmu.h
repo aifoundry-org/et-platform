@@ -38,17 +38,20 @@
 #define PMU_EVENT_SHIRE_AREA \
     (PMU_MINION_COUNTERS_PER_HART * 2 + PMU_NEIGH_COUNTERS_PER_HART * 2 + PMU_SC_COUNTERS_PER_BANK)
 #define PMU_EVENT_MEMSHIRE_OFFSET PMU_EVENT_SHIRE_AREA * 32
-#define PMU_MS_COUNTERS_PER_MS    4
+#define PMU_MS_COUNTERS_PER_MS    5
 
 // Thread in neigh that does all the PMC configuration, starting / topping and sampling
 // There is a 1-1 neigh-bank mapping. Only 1 hread needs to do that to avoid races as the CTL_STATUS register is shared
 // among counters / events
 #define NEIGH_HART_SC 13
+#define NEIGH_HART_MS 15
+
 // Values to reset and start counting shire cache and memshire PMCs
+// For the time we ignore overflows and disable interrupts.
+// This could be moved in the configuration buffer but we need to add support for
+// overflows, etc in the firmware in that case.
 #define PMU_SC_START_CTRL_VAL 0x00060033ULL
-#define PMU_MS_START_CTRL_VAL 0x40DE06FFULL
-#define PMU_SC_STOP_CTRL_VAL  0
-#define PMU_MS_STOP_CTRL_VAL  0
+#define PMU_MS_START_CTRL_VAL 0x00060033ULL
 
 // Indices of shire cache and memshire PMCs.
 #define PMU_SC_CYCLE_PMC 0
@@ -202,7 +205,7 @@ static inline int64_t configure_sc_event(uint64_t shire_id, uint64_t b, uint64_t
     return ret;
 }
 
-
+// Set a shire cache PMC to a value
 static inline void set_sc_pmcs(uint64_t shire_id, uint64_t b, uint64_t val)
 {
     uint64_t *sc_bank_perfctrl_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_CTL_STATUS);
@@ -263,12 +266,21 @@ static inline int64_t configure_ms_event(uint64_t ms_id, uint64_t evt_reg, uint6
     return ret;
 }
 
+// Set a memshire PMC to a value
+static inline void set_ms_pmcs(uint64_t ms_id, uint64_t val)
+{
+    uint64_t *ms_perfctrl_addr =
+        (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_CTL_STATUS);
+    *ms_perfctrl_addr = val;
+}
+
 // Reset and start a memshire PMC
 static inline void reset_ms_pmcs(uint64_t ms_id)
 {
     uint64_t *ms_pmc_ctrl_addr =
         (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_CTL_STATUS);
-    *ms_pmc_ctrl_addr = PMU_MS_START_CTRL_VAL;
+    uint64_t init_val = *ms_pmc_ctrl_addr;
+    *ms_pmc_ctrl_addr = init_val | PMU_MS_START_CTRL_VAL;
 }
 
 // Stop a memshire PMC
@@ -276,7 +288,8 @@ static inline void stop_ms_pmcs(uint64_t ms_id)
 {
     uint64_t *ms_pmc_ctrl_addr =
         (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_CTL_STATUS);
-    *ms_pmc_ctrl_addr = PMU_MS_STOP_CTRL_VAL;
+    uint64_t init_val = *ms_pmc_ctrl_addr;
+    *ms_pmc_ctrl_addr = init_val ^ PMU_MS_START_CTRL_VAL;
 }
 
 // Read a memshire PMC. Return -1 on incorrect counter
