@@ -31,9 +31,21 @@ log_level_t devapi_loglevel_to_fw(const enum LOG_LEVELS log_level)
     return (log_level_e)log_level;
 }
 
+static inline void broadcast_message_to_all_workers(const message_t *message, uint64_t shire_mask)
+{
+    broadcast_message_send_master(shire_mask & 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF, message);
+    if (shire_mask & (1ULL << MASTER_SHIRE)) {
+        // Lower 16 Minions of Master Shire run Master FW, upper 16 Minions run Worker FW
+        broadcast_message_send_master(1ULL << MASTER_SHIRE, 0xFFFFFFFF00000000, message);
+    }
+}
+
 void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t* message_id,
                                                         uint8_t* buffer)
 {
+    minion_fw_boot_config_t *boot_config = (minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
+    uint64_t booted_minion_shires = boot_config->minion_shires & ((1ULL << NUM_SHIRES) - 1);
+
     {
         struct command_header_t *const cmd = (void *)buffer;
         cmd->device_timestamp_mtime = (uint64_t)syscall(SYSCALL_GET_MTIME_INT, 0, 0, 0);
@@ -135,10 +147,6 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
     } else if (*message_id ==  MBOX_DEVAPI_NON_PRIVILEGED_MID_SET_WORKER_LOG_LEVEL_CMD) {
         const struct set_worker_log_level_cmd_t* const cmd = (const void* const) buffer;
         struct set_worker_log_level_rsp_t rsp;
-        volatile minion_fw_boot_config_t *boot_config =
-            (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
-        uint64_t booted_minion_shires = boot_config->minion_shires & ((1ULL << NUM_SHIRES) - 1);
-
         rsp.response_info.message_id = MBOX_DEVAPI_NON_PRIVILEGED_MID_SET_WORKER_LOG_LEVEL_RSP;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
 
@@ -146,8 +154,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         message_t message;
         message.id = MESSAGE_ID_SET_LOG_LEVEL;
         message.data[0] = devapi_loglevel_to_fw(cmd->log_level);
-
-        broadcast_message_send_master(booted_minion_shires, 0xFFFFFFFFFFFFFFFF, &message);
+        broadcast_message_to_all_workers(&message, booted_minion_shires);
 
         rsp.status = true;
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
@@ -187,9 +194,6 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         struct configure_trace_group_knob_rsp_t rsp;
         struct trace_control_t *trace_ctrl =
             (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
-        volatile minion_fw_boot_config_t *boot_config =
-            (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
-        uint64_t booted_minion_shires = boot_config->minion_shires & ((1ULL << NUM_SHIRES) - 1);
 
         rsp.response_info.message_id =
             MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_GROUP_KNOB_RSP;
@@ -209,7 +213,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         // send message to workers
         message_t message;
         message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
-        broadcast_message_send_master(booted_minion_shires, 0xFFFFFFFFFFFFFFFF, &message);
+        broadcast_message_to_all_workers(&message, booted_minion_shires);
 
         rsp.status = true;
 
@@ -227,10 +231,6 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         struct configure_trace_event_knob_rsp_t rsp;
         struct trace_control_t *trace_ctrl =
             (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
-        volatile minion_fw_boot_config_t *boot_config =
-            (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
-        uint64_t booted_minion_shires = boot_config->minion_shires & ((1ULL << NUM_SHIRES) - 1);
-
         rsp.response_info.message_id =
             MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_EVENT_KNOB_RSP;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
@@ -249,7 +249,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         // send message to workers
         message_t message;
         message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
-        broadcast_message_send_master(booted_minion_shires, 0xFFFFFFFFFFFFFFFF, &message);
+        broadcast_message_to_all_workers(&message, booted_minion_shires);
 
         rsp.status = true;
 
@@ -267,9 +267,6 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         struct configure_trace_buffer_size_knob_rsp_t rsp;
         struct trace_control_t *trace_ctrl =
             (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
-        volatile minion_fw_boot_config_t *boot_config =
-            (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
-        uint64_t booted_minion_shires = boot_config->minion_shires & ((1ULL << NUM_SHIRES) - 1);
 
         rsp.response_info.message_id =
             MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_BUFFER_SIZE_KNOB_RSP;
@@ -283,7 +280,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         // send message to workers
         message_t message;
         message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
-        broadcast_message_send_master(booted_minion_shires, 0xFFFFFFFFFFFFFFFF, &message);
+        broadcast_message_to_all_workers(&message, booted_minion_shires);
 
         rsp.status = true;
 
@@ -302,9 +299,6 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         struct configure_trace_state_knob_rsp_t rsp;
         struct trace_control_t *trace_ctrl =
             (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
-        volatile minion_fw_boot_config_t *boot_config =
-            (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
-        uint64_t booted_minion_shires = boot_config->minion_shires & ((1ULL << NUM_SHIRES) - 1);
 
         rsp.response_info.message_id =
             MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_STATE_KNOB_RSP;
@@ -318,7 +312,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         // send message to workers
         message_t message;
         message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
-        broadcast_message_send_master(booted_minion_shires, 0xFFFFFFFFFFFFFFFF, &message);
+        broadcast_message_to_all_workers(&message, booted_minion_shires);
 
         rsp.status = true;
 
@@ -337,9 +331,6 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         struct configure_trace_uart_logging_knob_rsp_t rsp;
         struct trace_control_t *trace_ctrl =
             (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
-        volatile minion_fw_boot_config_t *boot_config =
-            (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
-        uint64_t booted_minion_shires = boot_config->minion_shires & ((1ULL << NUM_SHIRES) - 1);
 
         rsp.response_info.message_id =
             MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_UART_LOGGING_KNOB_RSP;
@@ -353,7 +344,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         // send message to workers
         message_t message;
         message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
-        broadcast_message_send_master(booted_minion_shires, 0xFFFFFFFFFFFFFFFF, &message);
+        broadcast_message_to_all_workers(&message, booted_minion_shires);
 
         rsp.status = true;
 
@@ -372,9 +363,6 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         struct configure_trace_log_level_knob_rsp_t rsp;
         struct trace_control_t *trace_ctrl =
             (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
-        volatile minion_fw_boot_config_t *boot_config =
-            (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
-        uint64_t booted_minion_shires = boot_config->minion_shires & ((1ULL << NUM_SHIRES) - 1);
 
         rsp.response_info.message_id =
             MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_LOG_LEVEL_KNOB_RSP;
@@ -388,7 +376,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         // send message to workers
         message_t message;
         message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
-        broadcast_message_send_master(booted_minion_shires, 0xFFFFFFFFFFFFFFFF, &message);
+        broadcast_message_to_all_workers(&message, booted_minion_shires);
 
         rsp.status = true;
 
@@ -404,9 +392,6 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         const struct reset_trace_buffers_cmd_t *const cmd =
             (const void *const)buffer;
         struct reset_trace_buffers_rsp_t rsp;
-        volatile minion_fw_boot_config_t *boot_config =
-            (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
-        uint64_t booted_minion_shires = boot_config->minion_shires & ((1ULL << NUM_SHIRES) - 1);
 
         rsp.response_info.message_id =
             MBOX_DEVAPI_NON_PRIVILEGED_MID_RESET_TRACE_BUFFERS_RSP;
@@ -418,7 +403,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         // send message to workers
         message_t message;
         message.id = MESSAGE_ID_TRACE_BUFFER_RESET;
-        broadcast_message_send_master(booted_minion_shires, 0xFFFFFFFFFFFFFFFF, &message);
+        broadcast_message_to_all_workers(&message, booted_minion_shires);
 
         rsp.status = true;
 
@@ -434,9 +419,6 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         const struct prepare_trace_buffers_cmd_t *const cmd =
             (const void *const)buffer;
         struct prepare_trace_buffers_rsp_t rsp;
-        volatile minion_fw_boot_config_t *boot_config =
-            (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
-        uint64_t booted_minion_shires = boot_config->minion_shires & ((1ULL << NUM_SHIRES) - 1);
 
         rsp.response_info.message_id =
             MBOX_DEVAPI_NON_PRIVILEGED_MID_PREPARE_TRACE_BUFFERS_RSP;
@@ -448,7 +430,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         // send message to workers
         message_t message;
         message.id = MESSAGE_ID_TRACE_BUFFER_EVICT;
-        broadcast_message_send_master(booted_minion_shires, 0xFFFFFFFFFFFFFFFF, &message);
+        broadcast_message_to_all_workers(&message, booted_minion_shires);
 
         rsp.status = true;
 
