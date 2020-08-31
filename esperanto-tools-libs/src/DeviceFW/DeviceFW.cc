@@ -16,6 +16,9 @@
 #include "esperanto/runtime/Support/HelperMacros.h"
 #include "esperanto/runtime/Support/Logging.h"
 
+#include <esperanto-fw/fw-helpers/layout.h>
+#include <esperanto-fw/fw-helpers/minion_fw_boot_config.h>
+
 #include <absl/flags/flag.h>
 #include <memory>
 #include <string>
@@ -92,6 +95,25 @@ etrtError DeviceFW::loadOnDevice(device::DeviceTarget *dev) {
                          data_ptr);
       }
     }
+  }
+
+  return etrtSuccess;
+};
+
+etrtError DeviceFW::configureFirmware(device::DeviceTarget *dev) {
+  // [SW-3998] TODO: For Zebu we will create a new Firmware class because we start booting BL2 there
+  if (dev->type() != device::DeviceTarget::TargetType::SysEmuGRPC) {
+    return etrtSuccess;
+  }
+
+  minion_fw_boot_config_t boot_config;
+  memset(&boot_config, 0, sizeof(boot_config));
+  boot_config.minion_shires = 0x1FFFFFFFF;
+
+  auto ret = dev->writeDevMemMMIO(FW_MINION_FW_BOOT_CONFIG, sizeof(boot_config),
+                                  reinterpret_cast<const void *>(&boot_config));
+  if (!ret) {
+    return etrtErrorUnknown;
   }
 
   return etrtSuccess;

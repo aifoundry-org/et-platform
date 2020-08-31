@@ -30,6 +30,7 @@ public:
   bool setFWFilePaths(const std::vector<std::string> &paths) override;
   bool readFW() override;
   etrtError loadOnDevice(device::DeviceTarget *dev) override;
+  etrtError configureFirmware(device::DeviceTarget *dev) override;
 
 private:
   std::unique_ptr<ELFInfo> master_minion_, machine_minion_, worker_minion_;

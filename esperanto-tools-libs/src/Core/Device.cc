@@ -70,8 +70,12 @@ etrtError Device::init() {
   mem_manager_->init();
   initDeviceThread();
   // Load the FW on the device
-  auto success = loadFirmwareOnDevice();
-  assert(success == etrtSuccess);
+  auto load_success = loadFirmwareOnDevice();
+  assert(load_success == etrtSuccess);
+  // Configure the FW
+  auto config_success = configureFirmware();
+  assert(config_success == etrtSuccess);
+  // Post-FW load initialization
   auto res = target_device_->postFWLoadInit();
   assert(res);
   // Initialize thread that is responsible for listening to mailbox
@@ -178,7 +182,10 @@ etrtError Device::loadFirmwareOnDevice() {
     return etrtSuccess;
   }
   return fw_manager_->firmware().loadOnDevice(target_device_.get());
+}
 
+etrtError Device::configureFirmware() {
+  return fw_manager_->firmware().configureFirmware(target_device_.get());
 }
 
 bool Device::setFWFilePaths(const std::vector<std::string> &paths) {
