@@ -33,6 +33,10 @@ struct DeviceTargetOption {
 
 #include "esperanto/runtime/Core/CommandLineOptionsDef.in"
 
+// TODO FIXME: Cleanup all this command line options mess
+ABSL_DECLARE_FLAG(uint64_t, sysemu_max_cycles);
+ABSL_DECLARE_FLAG(uint64_t, sysemu_shires_mask);
+
 namespace et_runtime {
 ///
 /// @brief Helper function that parses any runtime command

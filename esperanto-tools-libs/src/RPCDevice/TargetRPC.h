@@ -127,7 +127,7 @@ public:
   bool launch() final;
 
 protected:
-  std::string path_;
+  std::string socket_path_;
   std::shared_ptr<grpc::Channel> channel_;
   std::unique_ptr<simulator_api::SimAPI::Stub> stub_;
   grpc::CompletionQueue cq_;

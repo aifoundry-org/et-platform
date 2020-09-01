@@ -24,18 +24,24 @@ namespace device {
 class SysEmuLauncher {
 
 public:
-  SysEmuLauncher(const std::string &run_dir, const std::string &con,
-                 const std::vector<std::string> &additional_options);
-  SysEmuLauncher(const std::string &run_dir, const std::string &con);
+  SysEmuLauncher(
+      const std::string &executable,
+      const std::string &run_dir,
+      const std::string &api_connection,
+      uint64_t max_cycles,
+      uint64_t shires_mask,
+      const std::string &pu_uart0_tx_file,
+      const std::string &pu_uart1_tx_file,
+      const std::string &spio_uart0_tx_file,
+      const std::string &spio_uart1_tx_file,
+      const std::vector<std::string> &additional_options);
   ~SysEmuLauncher();
 
   bool launchSimulator();
 
 private:
   std::string sysemu_run_; ///< Path to sysemu runfolder
-  std::string connection_; ///< Path fo the socket used to talk to sysemu
-  std::vector<std::string>
-      execute_args_;  ///< Arguments we are going to use to instantiate sysemu
+  std::vector<std::string> execute_args_;  ///< Arguments we are going to use to instantiate sysemu
   bool device_alive_; ///< True iff the simulator has been launched
 
   void createProcess(const char *path, const std::vector<std::string> &argv,

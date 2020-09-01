@@ -24,14 +24,13 @@ namespace et_runtime {
 namespace device {
 
 RPCTarget::RPCTarget(int index, const std::string &p)
-    : DeviceTarget(index), path_(p),
+    : DeviceTarget(index), socket_path_(p),
       mailboxDev_(std::make_unique<EmuMailBoxDev>(*this)) {}
 
 bool RPCTarget::init() {
   grpc::ChannelArguments ch_args;
   ch_args.SetMaxReceiveMessageSize(-1);
-  channel_ = grpc::CreateCustomChannel(
-      path_, grpc::InsecureChannelCredentials(), ch_args);
+  channel_ = grpc::CreateCustomChannel(socket_path_, grpc::InsecureChannelCredentials(), ch_args);
   stub_ = SimAPI::NewStub(channel_);
   device_alive_ = true;
   return true;

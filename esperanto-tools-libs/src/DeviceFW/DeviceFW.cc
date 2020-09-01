@@ -15,6 +15,8 @@
 #include "esperanto/runtime/Core/DeviceTarget.h"
 #include "esperanto/runtime/Support/HelperMacros.h"
 #include "esperanto/runtime/Support/Logging.h"
+// FIXME TODO: Remove this!
+#include "esperanto/runtime/Core/CommandLineOptions.h"
 
 #include <esperanto-fw/fw-helpers/layout.h>
 #include <esperanto-fw/fw-helpers/minion_fw_boot_config.h>
@@ -27,11 +29,11 @@
 #include <vector>
 
 ABSL_FLAG(std::string, master_minion_elf, MASTER_MINION_ELF,
-          "Path to the MasterMiniion.elf file");
+          "Path to the MasterMinion ELF file");
 ABSL_FLAG(std::string, worker_minion_elf, WORKER_MINION_ELF,
-          "Path to the WorkerMiniion.elf file");
+          "Path to the WorkerMinion ELF file");
 ABSL_FLAG(std::string, machine_minion_elf, MACHINE_MINION_ELF,
-          "Path to the MachineMiniion.elf file");
+          "Path to the MachineMinion ELF file");
 
 namespace et_runtime {
 namespace device_fw {
@@ -55,7 +57,7 @@ bool DeviceFW::setFWFilePaths(const std::vector<std::string> &paths) {
   for (auto &[elf_name, elf_info] : images) {
     auto path = paths[i];
     if (path.find_last_not_of(elf_name) == std::string::npos) {
-      THROW("The Expected order of DeviceFW ELF-file paths is: "
+      THROW("The expected order of DeviceFW ELF-file paths is: "
             "MasterMinion.elf, MachineMinion.elf, WorkerMinion.elf");
     }
     elf_info = std::make_unique<ELFInfo>(elf_name, path);
@@ -108,7 +110,8 @@ etrtError DeviceFW::configureFirmware(device::DeviceTarget *dev) {
 
   minion_fw_boot_config_t boot_config;
   memset(&boot_config, 0, sizeof(boot_config));
-  boot_config.minion_shires = 0x1FFFFFFFF;
+  // TODO FIXME: Pass properly the shire mask instead of reading it from command line options!!!!
+  boot_config.minion_shires = absl::GetFlag(FLAGS_sysemu_shires_mask);
 
   auto ret = dev->writeDevMemMMIO(FW_MINION_FW_BOOT_CONFIG, sizeof(boot_config),
                                   reinterpret_cast<const void *>(&boot_config));
