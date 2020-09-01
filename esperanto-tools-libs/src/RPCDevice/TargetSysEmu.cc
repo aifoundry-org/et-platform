@@ -39,6 +39,8 @@ ABSL_FLAG(std::string, sysemu_socket_dir, "",
           "Existing folder where SysEMU sockets are going to be created, < 100 characters.");
 ABSL_FLAG(uint64_t, sysemu_max_cycles, std::numeric_limits<uint64_t>::max(),
           "Set SysEmu maximum cycles to run before finishing simulation");
+ABSL_FLAG(uint64_t, sysemu_shires_mask, 0x1FFFFFFFFu,
+          "Set SysEmu Shire mask (enabled Shires)");
 ABSL_FLAG(std::string, sysemu_pu_uart0_tx_file, "",
           "Set SysEmu PU UART0 TX log file");
 ABSL_FLAG(std::string, sysemu_pu_uart1_tx_file, "",
@@ -110,6 +112,7 @@ TargetSysEmu::TargetSysEmu(int index) : RPCTarget(index, "") {
                                          run_folder,
                                          socket_path_,
                                          absl::GetFlag(FLAGS_sysemu_max_cycles),
+                                         absl::GetFlag(FLAGS_sysemu_shires_mask),
                                          absl::GetFlag(FLAGS_sysemu_pu_uart0_tx_file),
                                          absl::GetFlag(FLAGS_sysemu_pu_uart1_tx_file),
                                          absl::GetFlag(FLAGS_sysemu_spio_uart0_tx_file),

@@ -15,6 +15,8 @@
 #include "esperanto/runtime/Core/DeviceTarget.h"
 #include "esperanto/runtime/Support/HelperMacros.h"
 #include "esperanto/runtime/Support/Logging.h"
+// FIXME TODO: Remove this!
+#include "esperanto/runtime/Core/CommandLineOptions.h"
 
 #include <esperanto-fw/fw-helpers/layout.h>
 #include <esperanto-fw/fw-helpers/minion_fw_boot_config.h>
@@ -108,7 +110,8 @@ etrtError DeviceFW::configureFirmware(device::DeviceTarget *dev) {
 
   minion_fw_boot_config_t boot_config;
   memset(&boot_config, 0, sizeof(boot_config));
-  boot_config.minion_shires = 0x1FFFFFFFF;
+  // TODO FIXME: Pass properly the shire mask instead of reading it from command line options!!!!
+  boot_config.minion_shires = absl::GetFlag(FLAGS_sysemu_shires_mask);
 
   auto ret = dev->writeDevMemMMIO(FW_MINION_FW_BOOT_CONFIG, sizeof(boot_config),
                                   reinterpret_cast<const void *>(&boot_config));

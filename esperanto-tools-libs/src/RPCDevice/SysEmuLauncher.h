@@ -29,6 +29,7 @@ public:
       const std::string &run_dir,
       const std::string &api_connection,
       uint64_t max_cycles,
+      uint64_t shires_mask,
       const std::string &pu_uart0_tx_file,
       const std::string &pu_uart1_tx_file,
       const std::string &spio_uart0_tx_file,

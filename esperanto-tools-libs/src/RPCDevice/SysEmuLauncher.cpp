@@ -33,6 +33,7 @@ SysEmuLauncher::SysEmuLauncher(
   const std::string &run_dir,
   const std::string &api_connection,
   uint64_t max_cycles,
+  uint64_t shires_mask,
   const std::string &pu_uart0_tx_file,
   const std::string &pu_uart1_tx_file,
   const std::string &spio_uart0_tx_file,
@@ -46,7 +47,7 @@ SysEmuLauncher::SysEmuLauncher(
       "-sim_api_async",       // Enable async behavior of the simulator API
       "-max_cycles", std::to_string(max_cycles),
       "-minions", "FFFFFFFF", // All minions enabled
-      "-shires", "1FFFFFFFF", // All shires enabled
+      "-shires", fmt::format("0x{:X}", shires_mask),
       "-mins_dis",            // Disable minions by default as booting is done through Sim API
   };
 
