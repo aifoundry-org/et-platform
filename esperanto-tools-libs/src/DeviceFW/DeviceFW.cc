@@ -27,11 +27,11 @@
 #include <vector>
 
 ABSL_FLAG(std::string, master_minion_elf, MASTER_MINION_ELF,
-          "Path to the MasterMiniion.elf file");
+          "Path to the MasterMinion ELF file");
 ABSL_FLAG(std::string, worker_minion_elf, WORKER_MINION_ELF,
-          "Path to the WorkerMiniion.elf file");
+          "Path to the WorkerMinion ELF file");
 ABSL_FLAG(std::string, machine_minion_elf, MACHINE_MINION_ELF,
-          "Path to the MachineMiniion.elf file");
+          "Path to the MachineMinion ELF file");
 
 namespace et_runtime {
 namespace device_fw {
@@ -55,7 +55,7 @@ bool DeviceFW::setFWFilePaths(const std::vector<std::string> &paths) {
   for (auto &[elf_name, elf_info] : images) {
     auto path = paths[i];
     if (path.find_last_not_of(elf_name) == std::string::npos) {
-      THROW("The Expected order of DeviceFW ELF-file paths is: "
+      THROW("The expected order of DeviceFW ELF-file paths is: "
             "MasterMinion.elf, MachineMinion.elf, WorkerMinion.elf");
     }
     elf_info = std::make_unique<ELFInfo>(elf_name, path);

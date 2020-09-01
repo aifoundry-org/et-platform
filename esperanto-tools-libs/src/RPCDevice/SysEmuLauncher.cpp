@@ -10,8 +10,6 @@
 
 #include "SysEmuLauncher.h"
 
-#include "RPCDevice/TargetDeviceInfo.h"
-#include "esperanto/runtime/Core/CommandLineOptions.h"
 #include "esperanto/runtime/Support/Logging.h"
 
 #include <fcntl.h>
@@ -27,100 +25,66 @@
 
 using namespace std;
 
-ABSL_FLAG(uint64_t, sysemu_max_cycles, std::numeric_limits<uint64_t>::max(),
-          "Set SysEmu maximum cycles to run before finishing simulation");
-ABSL_FLAG(std::string, sysemu_pu_uart0_tx_file, "",
-          "Set SysEmu PU UART0 TX log file");
-ABSL_FLAG(std::string, sysemu_pu_uart1_tx_file, "",
-          "Set SysEmu PU UART1 TX log file");
-ABSL_FLAG(std::string, sysemu_spio_uart0_tx_file, "",
-          "Set SysEmu SPIO UART0 TX log file");
-ABSL_FLAG(std::string, sysemu_spio_uart1_tx_file, "",
-          "Set SysEmu SPIO UART1 TX log file");
-ABSL_FLAG(std::string, sysemu_params, "",
-          "Hyperparameters to pass to SysEmu, overrides default values");
-
 namespace et_runtime {
 namespace device {
 
 SysEmuLauncher::SysEmuLauncher(
-    const std::string &run_dir, const std::string &con,
-    const std::vector<std::string> &additional_options)
-    : sysemu_run_(run_dir), connection_(con), device_alive_(false) {
+  const std::string &executable,
+  const std::string &run_dir,
+  const std::string &api_connection,
+  uint64_t max_cycles,
+  const std::string &pu_uart0_tx_file,
+  const std::string &pu_uart1_tx_file,
+  const std::string &spio_uart0_tx_file,
+  const std::string &spio_uart1_tx_file,
+  const std::vector<std::string> &additional_options)
+    : sysemu_run_(run_dir), device_alive_(false) {
   execute_args_ = {
-      absl::GetFlag(FLAGS_sysemu_path), // Path to SysEMU
+      executable,             // Path to SysEMU's executable
+      "-api_comm", api_connection,
+      "-sim_api",
+      "-sim_api_async",       // Enable async behavior of the simulator API
+      "-max_cycles", std::to_string(max_cycles),
       "-minions", "FFFFFFFF", // All minions enabled
       "-shires", "1FFFFFFFF", // All shires enabled
-      std::string("-api_comm"), connection_,
       "-mins_dis",            // Disable minions by default as booting is done through Sim API
   };
-  execute_args_.insert(execute_args_.end(), additional_options.begin(),
-                       additional_options.end());
 
-  // Enable async behavior of the simulator API
-  execute_args_.push_back("-sim_api_async");
-
-  // Set maximum simulator cycles
-  execute_args_.push_back("-max_cycles");
-
-  // FIXME SW-3281, for now do not remove the command-line option as it is being
-  // still set by the tests, For now ignore the command-line value.
-  auto max_cycles =  std::numeric_limits<uint64_t>::max();
-
-  execute_args_.push_back(std::to_string(max_cycles));
-
-  if (auto file = absl::GetFlag(FLAGS_sysemu_pu_uart0_tx_file); !file.empty()) {
+  if (!pu_uart0_tx_file.empty()) {
     execute_args_.push_back("-pu_uart0_tx_file");
-    execute_args_.push_back(file);
+    execute_args_.push_back(pu_uart0_tx_file);
   } else {
     execute_args_.push_back("-pu_uart0_tx_file");
     execute_args_.push_back(sysemu_run_ + "/pu_uart0_tx.log");
   }
 
-  if (auto file = absl::GetFlag(FLAGS_sysemu_pu_uart1_tx_file); !file.empty()) {
+  if (!pu_uart1_tx_file.empty()) {
     execute_args_.push_back("-pu_uart1_tx_file");
-    execute_args_.push_back(file);
+    execute_args_.push_back(pu_uart1_tx_file);
   } else {
     execute_args_.push_back("-pu_uart1_tx_file");
     execute_args_.push_back(sysemu_run_ + "/pu_uart1_tx.log");
   }
 
-  if (auto file = absl::GetFlag(FLAGS_sysemu_spio_uart0_tx_file); !file.empty()) {
+  if (!spio_uart0_tx_file.empty()) {
     execute_args_.push_back("-spio_uart0_tx_file");
-    execute_args_.push_back(file);
+    execute_args_.push_back(spio_uart0_tx_file);
   } else {
     execute_args_.push_back("-spio_uart0_tx_file");
     execute_args_.push_back(sysemu_run_ + "/spio_uart0_tx.log");
   }
 
-  if (auto file = absl::GetFlag(FLAGS_sysemu_spio_uart1_tx_file); !file.empty()) {
+  if (!spio_uart1_tx_file.empty()) {
     execute_args_.push_back("-spio_uart1_tx_file");
-    execute_args_.push_back(file);
+    execute_args_.push_back(spio_uart1_tx_file);
   } else {
     execute_args_.push_back("-spio_uart1_tx_file");
     execute_args_.push_back(sysemu_run_ + "/spio_uart1_tx.log");
   }
 
-  // Additional SysEmu flags
-  std::string sysemuArgList = absl::GetFlag(FLAGS_sysemu_params);
-
-  // Extract hyperparameters from single string
-  std::string delimiter = " ";
-  size_t pos = 0;
-  std::string token;
-
-  // Register each word as a separate argument
-  while ((pos = sysemuArgList.find(delimiter)) != std::string::npos) {
-      token = sysemuArgList.substr(0, pos);
-      execute_args_.push_back(token);
-      sysemuArgList.erase(0, pos + delimiter.length());
-  }
-  execute_args_.push_back(sysemuArgList);
+  // Additional SysEMU options
+  execute_args_.insert(execute_args_.end(), additional_options.begin(), additional_options.end());
 }
-
-SysEmuLauncher::SysEmuLauncher(const std::string &run_dir,
-                               const std::string &con)
-    : SysEmuLauncher(run_dir, con, {}) {}
 
 SysEmuLauncher::~SysEmuLauncher() {}
 
@@ -129,8 +93,7 @@ void SysEmuLauncher::createProcess(const char *path,
                                    const std::vector<std::string> &argv,
                                    pid_t *pid) {
 
-  // prepare C-style argv (wrapped however by std::unique_ptr) with last
-  // additional NULL
+  // Prepare C-style argv (wrapped however by std::unique_ptr) with last additional NULL
   std::unique_ptr<const char *[]> c_argv(new const char *[argv.size() + 1]);
   for (size_t i = 0; i < argv.size(); i++) {
     c_argv[i] = argv[i].c_str();
@@ -151,36 +114,39 @@ void SysEmuLauncher::createProcess(const char *path,
     const char *envp[] = {// "GRPC_TRACE=api",
                           // "GRPC_VERBOSITY=DEBUG",
                           NULL};
+
     // tee sysemu to a log file and redirect there the stdout and stderr
     auto tee_log_file = fmt::format("tee {}/sysemu.log", sysemu_run_);
     auto tee = popen(tee_log_file.c_str(), "w");
     assert(tee != nullptr);
+
     auto pipe_fd = fileno(tee);
     assert(pipe_fd > 0);
+
     auto res = dup2(pipe_fd, STDOUT_FILENO);
     assert(res > 0);
     res = dup2(pipe_fd, STDERR_FILENO);
     assert(res > 0);
-    execvpe(path, const_cast<char *const *>(c_argv.get()),
-            const_cast<char *const *>(envp));
+
+    execvpe(path, const_cast<char *const *>(c_argv.get()), const_cast<char *const *>(envp));
     int errno_val = errno;
 
     write(error_report_pipe_fd[1], &errno_val, sizeof(int));
     res = pclose(tee);
     assert(res == 0);
-    exit(EXIT_FAILURE);
-  }
 
-  // parent
-  close(error_report_pipe_fd[1]);
-  int exec_errno = 0;
-  if (TEMP_FAILURE_RETRY(
-          read(error_report_pipe_fd[0], &exec_errno, sizeof(int))) != 0) {
-    fprintf(stderr, "Failed to start sys-emu: %s (%s)\n", path,
-            strerror(exec_errno));
     exit(EXIT_FAILURE);
+  } else {
+    // parent
+    close(error_report_pipe_fd[1]);
+
+    int exec_errno = 0;
+    if (TEMP_FAILURE_RETRY(read(error_report_pipe_fd[0], &exec_errno, sizeof(int))) != 0) {
+      fprintf(stderr, "Failed to start sys-emu: %s (%s)\n", path, strerror(exec_errno));
+      exit(EXIT_FAILURE);
+    }
+    close(error_report_pipe_fd[0]);
   }
-  close(error_report_pipe_fd[0]);
 }
 
 bool SysEmuLauncher::launchSimulator() {

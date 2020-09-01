@@ -44,11 +44,9 @@ public:
   bool registerDeviceEventCallback() override;
 
 private:
-  std::future<bool>
-      simulator_status_; ///< Future holding the simulator thread status;
-  std::unique_ptr<SysEmuLauncher>
-      sys_emu_; ///< Object responsible for lauching and monitoring
-                /// the sysemu simulator
+  std::future<bool> simulator_status_; ///< Future holding the simulator thread status;
+  std::unique_ptr<SysEmuLauncher> sys_emu_; ///< Object responsible for lauching and monitoring
+                                            ///  the sysemu simulator
 
   std::string name_ = "SysEmuGRPC";
   /// @brief Wait for a connectio from SysEmu
