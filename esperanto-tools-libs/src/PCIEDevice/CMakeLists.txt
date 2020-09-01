@@ -15,13 +15,7 @@ get_property(PCIE_DRIVER_INC_DIR
 include_directories(${PCIE_DRIVER_INC_DIR})
 
 add_library(etrt_PCIEDevice OBJECT
-  BulkDev.cc
-  BulkDev.h
-  CharDevice.cc
-  CharDevice.h
   CMakeLists.txt
-  MailBoxDev.cc
-  MailBoxDev.h
   PCIeDevice.cc
   PCIeDevice.h
   )

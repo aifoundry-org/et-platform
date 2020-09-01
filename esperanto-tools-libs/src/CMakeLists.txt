@@ -8,6 +8,7 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
+#TODO this should be improved, make use of modern cmake and not hardcode compiler flags. THis is a mess, the compiler gets flags repeated with no control.
 set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined" )
 # FIXME : disable for now hidden visibility by default: -fvisibility=hidden -fvisibility-inlines-hidden
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -std=c++17 -Wall")
