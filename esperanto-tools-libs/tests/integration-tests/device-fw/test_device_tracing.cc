@@ -14,18 +14,19 @@
 #include "device-fw-testing-helpers.h"
 #include "esperanto/runtime/CodeManagement/CodeRegistry.h"
 #include "esperanto/runtime/Core/TraceHelper.h"
+#include <chrono>
+#include <ctime>
 
 using namespace et_runtime::device;
 using namespace et_runtime::device_api;
 using namespace et_runtime;
 namespace fs = std::experimental::filesystem;
+using namespace std::chrono;
 
-ABSL_FLAG(std::string, kernels_dir, "",
-          "Directory where different kernel ELF files are located");
+ABSL_FLAG(std::string, trace_elf, "", "Path to elf to execute");
 
 TEST_F(DeviceFWTest, Trace_test) {
-  auto kernels_dir = absl::GetFlag(FLAGS_kernels_dir);
-  fs::path trace_kernel = fs::path(kernels_dir)  / fs::path("trace.elf");
+  fs::path trace_kernel = fs::path(absl::GetFlag(FLAGS_trace_elf));
   auto &registry = dev_->codeRegistry();
 
   auto register_res = registry.registerKernel(
@@ -73,9 +74,197 @@ TEST_F(DeviceFWTest, Trace_test) {
   ASSERT_EQ(result, ::device_api::non_privileged::TRACE_STATUS_SUCCESS);
 }
 
+TEST_F(DeviceFWTest, Trace_FindLoggingOverhead) {
+  fs::path trace_kernel = fs::path(absl::GetFlag(FLAGS_trace_elf));
+  auto &registry = dev_->codeRegistry();
+
+  auto register_res = registry.registerKernel(
+      "main", {Kernel::ArgType::T_layer_dynamic_info}, trace_kernel.string());
+  ASSERT_TRUE((bool)register_res);
+  auto &kernel = std::get<1>(register_res.get());
+
+  auto load_res = registry.moduleLoad(kernel.moduleID(), dev_.get());
+  ASSERT_EQ(load_res.getError(), etrtSuccess);
+  auto module_id = load_res.get();
+
+  TraceHelper trace_helper(*dev_);
+  auto success = 0;
+
+  ::device_api::non_privileged::discover_trace_buffer_rsp_t rsp = {0};
+
+  // Discover the trace buffer properties
+  rsp = trace_helper.discover_trace_buffer();
+  ASSERT_TRUE(rsp.status);
+
+  // Disable the trace logging
+  success = trace_helper.configure_trace_state_knob(0);
+  ASSERT_TRUE(success);
+
+  // Flush the data
+  success = trace_helper.prepare_trace_buffers();
+  ASSERT_TRUE(success);
+
+  // Clear the ring buffer and state
+  success = trace_helper.reset_trace_buffers();
+  ASSERT_TRUE(success);
+
+  // Disable the trace logging
+  success = trace_helper.configure_trace_state_knob(0);
+  ASSERT_TRUE(success);
+
+  Kernel::layer_dynamic_info_t layer_info = {0};
+  Kernel::LaunchArg arg;
+  arg.type = Kernel::ArgType::T_layer_dynamic_info;
+  arg.value.layer_dynamic_info = layer_info;
+  auto args = std::vector<Kernel::LaunchArg>({arg});
+  auto launch = kernel.createKernelLaunch(args);
+
+  /* Executing workload without tracing...    */
+
+  // Save current time before launching the kernel
+  auto start1 = chrono::high_resolution_clock::now();
+
+  // Launch the kernel
+  auto launch_res = launch->launchBlocking(&dev_->defaultStream());
+
+  // Ensure previous operation was successfull
+  ASSERT_EQ(launch_res, etrtSuccess);
+
+  // Save current time once kernel is executed and ended
+  auto end1 = chrono::high_resolution_clock::now();
+
+  // Calculate the differnce to find kernel execution time
+  auto delta1 =
+      chrono::duration_cast<chrono::microseconds>(end1 - start1).count();
+
+  /* Executing workload with tracing... */
+
+  //  Enable trace logging
+  success = trace_helper.configure_trace_state_knob(1);
+  ASSERT_TRUE(success);
+
+  // Save current time before launching the kernel
+  auto start2 = chrono::high_resolution_clock::now();
+
+  // Launch the kernel
+  launch_res = launch->launchBlocking(&dev_->defaultStream());
+  ASSERT_EQ(launch_res, etrtSuccess);
+
+  // Save current time once kernel is executed and ended
+  auto end2 = chrono::high_resolution_clock::now();
+
+  // Calculate the differnce to find kernel execution time
+  auto delta2 =
+      chrono::duration_cast<chrono::microseconds>(end2 - start2).count();
+
+  // Calculate the overhead by finding the difference in execution time with and
+  // without trace
+  auto execution_overhead = delta2 - delta1;
+
+  // Calculate percent overhead
+  auto percent_overhead = (execution_overhead * 100) / delta1;
+
+  std::vector<uint8_t> data(rsp.trace_buffer_size * NUMBER_OF_TRACE_BUFFERS);
+
+  // Get trace buffer properties
+  rsp = trace_helper.discover_trace_buffer();
+  ASSERT_TRUE(rsp.status);
+
+  // Disable trace logging before reading the data
+  success = trace_helper.configure_trace_state_knob(0);
+  ASSERT_TRUE(success);
+
+  // Flush any remaining data
+  success = trace_helper.prepare_trace_buffers();
+  ASSERT_TRUE(success);
+
+  // Save current time before reading the data
+  auto start3 = chrono::high_resolution_clock::now();
+
+  // Read data from device memory into host buffer
+  auto res = dev_->memcpy(
+      data.data(),
+      (const void *)(rsp.trace_base +
+                     ALIGN(
+                         sizeof(::device_api::non_privileged::trace_control_t),
+                         TRACE_BUFFER_REGION_ALIGNEMNT)),
+      rsp.trace_buffer_size * NUMBER_OF_TRACE_BUFFERS, etrtMemcpyDeviceToHost);
+
+  // Save current time after the data is read
+  auto end3 = chrono::high_resolution_clock::now();
+
+  // Calculate data copy time by calculating the difference
+  auto delta3 =
+      chrono::duration_cast<chrono::microseconds>(end3 - start3).count();
+
+  // Save current time before parsing the data into protobuf
+  auto start4 = chrono::high_resolution_clock::now();
+
+  // Parse the trace data into protobuff
+  auto result = et_runtime::tracing::DeviceAPI_DeviceFW_process_device_traces(
+      &data[0], rsp.trace_buffer_size, NUMBER_OF_TRACE_BUFFERS);
+
+  ASSERT_EQ(result, ::device_api::non_privileged::TRACE_STATUS_SUCCESS);
+
+  // Save the current time as data is parsed
+  auto end4 = chrono::high_resolution_clock::now();
+
+  // Find the data parsing time
+  auto delta4 =
+      chrono::duration_cast<chrono::microseconds>(end4 - start4).count();
+
+  // Calculate timestamps
+  microseconds ms1 = duration_cast<microseconds>(start1.time_since_epoch());
+  seconds s1 = duration_cast<seconds>(ms1);
+  std::time_t t1 = s1.count();
+  std::size_t fractional_seconds1 = ms1.count() % 1000000;
+
+  microseconds ms2 = duration_cast<microseconds>(end1.time_since_epoch());
+  seconds s2 = duration_cast<seconds>(ms2);
+  std::time_t t2 = s2.count();
+  std::size_t fractional_seconds2 = ms2.count() % 1000000;
+
+  microseconds ms3 = duration_cast<microseconds>(start2.time_since_epoch());
+  seconds s3 = duration_cast<seconds>(ms3);
+  std::time_t t3 = s3.count();
+  std::size_t fractional_seconds3 = ms3.count() % 1000000;
+
+  microseconds ms4 = duration_cast<microseconds>(end2.time_since_epoch());
+  seconds s4 = duration_cast<seconds>(ms4);
+  std::time_t t4 = s4.count();
+  std::size_t fractional_seconds4 = ms4.count() % 1000000;
+
+  RTINFO << "Kernel Launch without Trace\r\n";
+  RTINFO << "Host Launch Timestamp: " << fractional_seconds1 << " microseconds "
+         << std::ctime(&t1);
+  RTINFO << "\t\t\tCM Kernel Start\r\n";
+  RTINFO << "\t\t\t" << delta1 << " microseconds \r\n";
+  RTINFO << "\t\t\tCM Kernel Complete\r\n";
+  RTINFO << "Host Resp TimeStamp: " << fractional_seconds2 << " microseconds "
+         << std::ctime(&t2);
+
+  RTINFO << "Kernel Launch with Trace\r\n";
+  RTINFO << "Host Launch Timestamp: " << fractional_seconds3 << " microseconds "
+         << std::ctime(&t3);
+  RTINFO << "\t\t\tCM Kernel Start\r\n";
+  RTINFO << "\t\t\t" << delta2 << " microseconds \r\n";
+  RTINFO << "\t\t\tCM Kernel Complete\r\n";
+  RTINFO << "Host Resp TimeStamp: " << fractional_seconds4 << " microseconds "
+         << std::ctime(&t4);
+
+  RTINFO << "Overhead Calculation\r\n";
+  RTINFO << "CM overhead = " << execution_overhead << "(" << percent_overhead
+         << "%)\r\n";
+  RTINFO << "Host Overhead = \r\n";
+  RTINFO << "\t\t- Trace Data fetch from Device: " << delta3 << " ("
+         << (delta3 * 100) / (delta1) << "%)\r\n";
+  RTINFO << "\t\t- Post Processing (Adding overhead to convert Trace binary to "
+            "Protobuf): "
+         << delta4 << " (" << (delta4 * 100) / (delta1) << "%)\r\n";
+}
+
 TEST_F(DeviceFWTest, Trace_TestTraceLogLevelKnob) {
-  auto kernels_dir = absl::GetFlag(FLAGS_kernels_dir);
-  fs::path trace_kernel = fs::path(kernels_dir) / fs::path("trace.elf");
+  fs::path trace_kernel = fs::path(absl::GetFlag(FLAGS_trace_elf));
   auto &registry = dev_->codeRegistry();
 
   auto register_res = registry.registerKernel(
@@ -150,8 +339,7 @@ TEST_F(DeviceFWTest, Trace_TestTraceLogLevelKnob) {
 }
 
 TEST_F(DeviceFWTest, Trace_TestTraceGroupKnobs) {
-  auto kernels_dir = absl::GetFlag(FLAGS_kernels_dir);
-  fs::path trace_kernel = fs::path(kernels_dir) / fs::path("trace.elf");
+  fs::path trace_kernel = fs::path(absl::GetFlag(FLAGS_trace_elf));
   auto &registry = dev_->codeRegistry();
 
   auto register_res = registry.registerKernel(
@@ -229,8 +417,7 @@ TEST_F(DeviceFWTest, Trace_TestTraceGroupKnobs) {
 }
 
 TEST_F(DeviceFWTest, Trace_TestTraceEventKnobs) {
-  auto kernels_dir = absl::GetFlag(FLAGS_kernels_dir);
-  fs::path trace_kernel = fs::path(kernels_dir) / fs::path("trace.elf");
+  fs::path trace_kernel = fs::path(absl::GetFlag(FLAGS_trace_elf));
   auto &registry = dev_->codeRegistry();
 
   auto register_res = registry.registerKernel(
@@ -308,8 +495,7 @@ TEST_F(DeviceFWTest, Trace_TestTraceEventKnobs) {
 }
 
 TEST_F(DeviceFWTest, Trace_TestTraceStateKnob) {
-  auto kernels_dir = absl::GetFlag(FLAGS_kernels_dir);
-  fs::path trace_kernel = fs::path(kernels_dir) / fs::path("trace.elf");
+  fs::path trace_kernel = fs::path(absl::GetFlag(FLAGS_trace_elf));
   auto &registry = dev_->codeRegistry();
 
   auto register_res = registry.registerKernel(
@@ -376,8 +562,7 @@ TEST_F(DeviceFWTest, Trace_TestTraceStateKnob) {
 }
 
 TEST_F(DeviceFWTest, Trace_TestTraceUartLoggingKnob) {
-  auto kernels_dir = absl::GetFlag(FLAGS_kernels_dir);
-  fs::path trace_kernel = fs::path(kernels_dir) / fs::path("trace.elf");
+  fs::path trace_kernel = fs::path(absl::GetFlag(FLAGS_trace_elf));
   auto &registry = dev_->codeRegistry();
 
   auto register_res = registry.registerKernel(
@@ -445,8 +630,7 @@ TEST_F(DeviceFWTest, Trace_TestTraceUartLoggingKnob) {
 }
 
 TEST_F(DeviceFWTest, Trace_TestTraceBufferSizeKnob) {
-  auto kernels_dir = absl::GetFlag(FLAGS_kernels_dir);
-  fs::path trace_kernel = fs::path(kernels_dir) / fs::path("trace.elf");
+  fs::path trace_kernel = fs::path(absl::GetFlag(FLAGS_trace_elf));
   auto &registry = dev_->codeRegistry();
 
   auto register_res = registry.registerKernel(
@@ -526,3 +710,4 @@ int main(int argc, char **argv) {
   et_runtime::ParseCommandLineOptions(argc, argv, {"test_device_tracing.cc"});
   return RUN_ALL_TESTS();
 }
+
