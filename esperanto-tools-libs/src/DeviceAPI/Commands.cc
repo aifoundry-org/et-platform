@@ -14,7 +14,6 @@
 #include "DeviceAPI/EventsGen.h"
 
 #include "Core/DeviceFwTypes.h"
-#include "PCIEDevice/MailBoxDev.h"
 #include "esperanto/runtime/Core/CommandLineOptions.h"
 #include "esperanto/runtime/Core/Device.h"
 #include "esperanto/runtime/Support/Logging.h"

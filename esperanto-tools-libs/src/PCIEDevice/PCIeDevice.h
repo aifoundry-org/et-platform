@@ -15,10 +15,6 @@
 
 /// @file
 
-#include "BulkDev.h"
-#include "MailBoxDev.h"
-
-#include <cassert>
 #include <string>
 
 namespace et_runtime {
@@ -28,7 +24,6 @@ namespace device {
 class PCIeDevice final : public DeviceTarget {
 public:
   PCIeDevice(int index);
-  ~PCIeDevice() = default;
 
   static std::vector<DeviceInformation> enumerateDevices();
 
@@ -64,10 +59,15 @@ public:
   ssize_t mboxMsgMaxSize() const override;
 
 private:
-  int index_;
-  std::string prefix_;
-  BulkDev bulk_;
-  MailBoxDev mm_;
+
+  void resetMbox(TimeDuration wait_time);
+  bool readyMbox(TimeDuration wait_time);
+  bool read(uintptr_t addr, void *data, ssize_t size);
+  bool write(uintptr_t addr, const void *data, ssize_t size);
+
+  ssize_t mboxMaxMsgSize_;
+  std::string path_;
+  int fd_;
 };
 
 } // namespace device
