@@ -98,6 +98,10 @@ public:
   /// in which case this is the simulator
   bool raiseDevicePuPlicPcieMessageInterrupt();
 
+  /// @brief Raise the SPIO PLIC PCIe Message Interrupt in the target "device"
+  /// in which case this is the simulator
+  bool raiseDeviceSpioPlicPcieMessageInterrupt();
+
   /// @brief Wait to receive an interrupt from the device or timeout.
   ///
   /// @param[in] wait_time : Time to wait to receive the interrupt, but default
