@@ -10,34 +10,20 @@
 #include "flb.h"
 #include "kernel_params.h"
 #include "esr_defines.h"
-#include "crc32.h"
 #include "log.h"
 #include "sync_minions.h"
 #include "syscall.h"
 
+// This test uses kernel tl_tfma_reduce_2s.
+// Before it begins it confgiures the PMCs based on an input tensor
+// and at the end it samples PMC values and sends them to an output tensor.
+// Mostly used for PMC validation testing.
+// Also demonstrates the tensor backdoor for PMC data.
+
 #define TSTORE_FLB 0
-#define CRC_FLB 1
+#define SYNC_FLB 1
 #define _32KB 32768
 #define _1MB 1048576
-
-// Tensor Load + FMA + Reduce NOC / L3 / DDR stress test
-// Random tensor load 0 (SCP) and  and 1 (TenB) followed by FMA
-// followed by a reduce. For the reduce we form random partners
-// among the 1024 minions and use the send/receive reduce forms.
-// On every iteration we load next set of constrained random parameters
-// for tensor loads, FMAs, an reduces. Loads are non-coops.
-// Every other iteration the order of receiver sender-receiver changes,
-// but the pairs do not change. In the NOC there should be a balance between
-// tensor load and reduce traffic. 
-// For Zebu we run on all shires, and run many iterations
-// At the end we store data to memory so that we can run a CRC check on Zebu.
-// CRC check is not used in VCS because it takes a long time and it is not needed 
-// since we have cosim/BEMU.
-
-// The randmozed parameters are passed using arrays.
-// There are array entried for every iteration of the loop
-// and within each iteration parameters for each minion.
-
 
 #define TL_COOP_CSR_IDX 0
 #define TL_IS_COOP_IDX 1
@@ -74,7 +60,7 @@
 #define REDUCE_PARAMS 5
 
 #define TOTAL_MINIONS 64
-#define NUM_ITER 10
+#define NUM_ITER 100
 #define NUM_RANDOM_SAMPLES 10
 
 #include "tl0_configs.h"
@@ -99,20 +85,22 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 	return -1;
     }
 
+    // In case you need waves
     START_WAVES_MARKER;
 
     volatile uint64_t pmc_cfg = (uint64_t) kernel_params_ptr->tensor_e;
     volatile uint64_t pmc_log = (uint64_t) kernel_params_ptr->tensor_g;
 
-    //log_write(LOG_LEVEL_CRITICAL, "Param: %lx\n", pmc_cfg);
+    // Configure PMCs
     syscall(SYSCALL_CONFIGURE_PMCS, 1, pmc_cfg, 0);
 
     uint64_t hart_id = get_hart_id();
     uint64_t minion_id = hart_id >> 1;
     uint64_t shire_id = (hart_id >> 6) & 0x3f;
-  
+
+    // Odd harts just run a dummy loop and then wait for even harts to finish and unblock them
     if (hart_id & 1) {
-        //C_TEST_PASS;
+        for (volatile uint64_t dummy=0; dummy < NUM_ITER * 10; dummy++);
         WAIT_FCC(0);
         syscall(SYSCALL_SAMPLE_PMCS, 1, pmc_log, 0);
 	return 0;
@@ -250,16 +238,14 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
         return -1;
     }
 
-    syscall(SYSCALL_SAMPLE_PMCS, 1, pmc_log, 0);
-
-    uint64_t crc_barrier_result;
-    WAIT_FLB(32, CRC_FLB, crc_barrier_result);
-     
-    if (crc_barrier_result == 1) {
-      generate_crc(kernel_params_ptr->tensor_c, shire_id, _32KB, _1MB, 0);
-    }
+    // Sync up all minions in shire before doing the syscalls
+    // to make sure we count all shire events
+    uint64_t sync_barrier_result;
+    WAIT_FLB(32, SYNC_FLB, sync_barrier_result);
     uint64_t local_minion_id = minion_id & 0x1F;
     SEND_FCC(shire_id, 1, 0, (1ULL << local_minion_id));
+
+    syscall(SYSCALL_SAMPLE_PMCS, 1, pmc_log, 0);
 
     return 0;
 }
