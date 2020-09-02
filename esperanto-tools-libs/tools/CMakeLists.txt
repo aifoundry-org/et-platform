@@ -53,7 +53,7 @@ configure_file(trace_printer.py trace_printer.py COPYONLY)
 add_custom_target(gen-python-tools ALL
   COMMAND ${CMAKE_COMMAND} -E copy_if_different
           ${CMAKE_CURRENT_BINARY_DIR}/../src/Tracing/python/rt_logging/etrt_trace_pb2.py
-          ${CMAKE_CURRENT_BINARY_DIR}/etrt_trace_pb2.py
+          ${CMAKE_CURRENT_BINARY_DIR}/rt_logging/etrt_trace_pb2.py
   DEPENDS etrt-tracing-gen-code
   )
 
