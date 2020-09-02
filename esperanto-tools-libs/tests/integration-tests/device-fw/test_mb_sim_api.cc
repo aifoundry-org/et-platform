@@ -61,11 +61,11 @@ public:
   bool write(uint64_t ad, size_t size, const void *data) override {
     return true;
   }
-  bool mb_read(struct mbox_t* mbox) override {
+  bool mb_read(simulator_api::MailBoxTarget target, struct mbox_t* mbox) override {
     *mbox = mbox_;
     return true;
   }
-  bool mb_write(const struct mbox_t& mbox) override {
+  bool mb_write(simulator_api::MailBoxTarget target, const struct mbox_t& mbox) override {
     mbox_ = mbox;
     return true;
   }

@@ -165,6 +165,7 @@ std::tuple<bool, std::tuple<uint32_t, uint32_t>> RPCTarget::readMBStatus() {
   simulator_api::Request request;
 
   auto mb = new MailBoxMessage();
+  mb->set_target(MailBoxTarget::MB_TARGET_MM);
   mb->set_type(MailBoxAccessType::MB_READ);
   mb->set_req_status(MailBoxAccessStatus::MB_STATUS_NONE);
 
@@ -194,6 +195,7 @@ bool RPCTarget::writeMBStatus(uint32_t master_status, uint32_t slave_status) {
   simulator_api::Request request;
 
   auto mb = new MailBoxMessage();
+  mb->set_target(MailBoxTarget::MB_TARGET_MM);
   mb->set_type(MailBoxAccessType::MB_WRITE);
   mb->set_req_status(MailBoxAccessStatus::MB_STATUS_NONE);
 
@@ -224,6 +226,7 @@ std::tuple<bool, device_fw::ringbuffer_s> RPCTarget::readRxRb() {
   simulator_api::Request request;
 
   auto mb = new MailBoxMessage();
+  mb->set_target(MailBoxTarget::MB_TARGET_MM);
   mb->set_type(MailBoxAccessType::MB_READ);
   mb->set_req_status(MailBoxAccessStatus::MB_STATUS_NONE);
 
@@ -260,6 +263,7 @@ bool RPCTarget::writeRxRb(const device_fw::ringbuffer_s &rb) {
   simulator_api::Request request;
 
   auto mb = new MailBoxMessage();
+  mb->set_target(MailBoxTarget::MB_TARGET_MM);
   mb->set_type(MailBoxAccessType::MB_WRITE);
   mb->set_req_status(MailBoxAccessStatus::MB_STATUS_NONE);
 
@@ -296,6 +300,7 @@ std::tuple<bool, device_fw::ringbuffer_s> RPCTarget::readTxRb() {
 
   simulator_api::Request request;
   auto mb = new MailBoxMessage();
+  mb->set_target(MailBoxTarget::MB_TARGET_MM);
   mb->set_type(MailBoxAccessType::MB_READ);
   mb->set_req_status(MailBoxAccessStatus::MB_STATUS_NONE);
 
@@ -331,6 +336,7 @@ bool RPCTarget::writeTxRb(const device_fw::ringbuffer_s &rb) {
   simulator_api::Request request;
 
   auto mb = new MailBoxMessage();
+  mb->set_target(MailBoxTarget::MB_TARGET_MM);
   mb->set_type(MailBoxAccessType::MB_WRITE);
   mb->set_req_status(MailBoxAccessStatus::MB_STATUS_NONE);
 
