@@ -26,7 +26,7 @@ sim_api_communicate::SysEmuWrapper::SysEmuWrapper(sim_api_communicate* sim)
 
 bool sim_api_communicate::SysEmuWrapper::boot(uint64_t pc)
 {
-    LOG_NOTHREAD(INFO, "sim_api_communicate: boot(pc = 0x%016" PRIx64 ")", pc);
+    LOG_NOTHREAD(INFO, "sim_api_communicate: boot(pc = 0x%" PRIx64 ")", pc);
 
     // Boot all compute shire threads
     for (int s = 0; s < EMU_NUM_COMPUTE_SHIRES; s++) {
@@ -72,20 +72,40 @@ bool sim_api_communicate::SysEmuWrapper::write(uint64_t ad, size_t size, const v
     return true;
 }
 
-bool sim_api_communicate::SysEmuWrapper::mb_read(struct mbox_t* mbox)
+bool sim_api_communicate::SysEmuWrapper::mb_read(simulator_api::MailBoxTarget target, struct mbox_t* mbox)
 {
-    LOG_NOTHREAD(DEBUG, "%s", "sim_api_communicate: mb_read");
-    sim_->mem->pu_mbox_space.pu_mbox_pc_mm.read(*this, 0, sizeof(*mbox),
-        reinterpret_cast<bemu::MemoryRegion::pointer>(mbox));
-    return true;
+    LOG_NOTHREAD(DEBUG, "sim_api_communicate: mb_read(target = %d)", target);
+
+    switch (target) {
+    case simulator_api::MailBoxTarget::MB_TARGET_MM:
+        sim_->mem->pu_mbox_space.pu_mbox_pc_mm.read(*this, 0, sizeof(*mbox),
+            reinterpret_cast<bemu::MemoryRegion::pointer>(mbox));
+        return true;
+    case simulator_api::MailBoxTarget::MB_TARGET_SP:
+        sim_->mem->pu_mbox_space.pu_mbox_pc_sp.read(*this, 0, sizeof(*mbox),
+            reinterpret_cast<bemu::MemoryRegion::pointer>(mbox));
+        return true;
+    }
+
+    return false;
 }
 
-bool sim_api_communicate::SysEmuWrapper::mb_write(const struct mbox_t& mbox)
+bool sim_api_communicate::SysEmuWrapper::mb_write(simulator_api::MailBoxTarget target, const struct mbox_t& mbox)
 {
-    LOG_NOTHREAD(DEBUG, "%s", "sim_api_communicate: mb_write");
-    sim_->mem->pu_mbox_space.pu_mbox_pc_mm.write(*this, 0, sizeof(mbox),
-        reinterpret_cast<bemu::MemoryRegion::const_pointer>(&mbox));
-    return true;
+    LOG_NOTHREAD(DEBUG, "sim_api_communicate: mb_write(target = %d)", target);
+
+    switch (target) {
+    case simulator_api::MailBoxTarget::MB_TARGET_MM:
+        sim_->mem->pu_mbox_space.pu_mbox_pc_mm.write(*this, 0, sizeof(mbox),
+            reinterpret_cast<bemu::MemoryRegion::const_pointer>(&mbox));
+        return true;
+    case simulator_api::MailBoxTarget::MB_TARGET_SP:
+        sim_->mem->pu_mbox_space.pu_mbox_pc_sp.write(*this, 0, sizeof(mbox),
+            reinterpret_cast<bemu::MemoryRegion::const_pointer>(&mbox));
+        return true;
+    }
+
+    return false;
 }
 
 bool sim_api_communicate::SysEmuWrapper::raise_device_interrupt(simulator_api::DeviceInterruptType type)
