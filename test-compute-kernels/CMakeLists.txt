@@ -206,6 +206,7 @@ add_subdirectory("load_lat")
 add_subdirectory("write_bw")
 add_subdirectory("prefetch_bw")
 add_subdirectory("pmc_test_2s")
+add_subdirectory("pmc_test_fc")
 
 # Export the package for use from the build-tree
 # (this registers the build-tree with a global CMake-registry)
