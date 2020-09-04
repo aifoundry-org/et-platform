@@ -30,6 +30,7 @@ static void log_errors(int64_t return_value, uint64_t tensor_error);
 static void post_kernel_cleanup(const kernel_params_t *const kernel_params_ptr);
 
 // Saves firmware context and launches kernel in user mode with clean stack and registers
+// Note that global Supervisor interrupts are disabled after returning from this function
 int64_t launch_kernel(const uint64_t *const kernel_entry_addr,
                       const uint64_t *const kernel_stack_addr,
                       const kernel_params_t *const kernel_params_ptr,
