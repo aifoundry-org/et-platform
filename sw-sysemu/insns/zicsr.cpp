@@ -523,12 +523,16 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         val = (cpu.fcsr & 0x000000E0) | (val & 0x8000001F);
         cpu.fcsr = val;
         dirty_fp_state();
+        // Return 'fflags' view of 'fcsr'
+        val &= 0x8000001f;
         break;
     case CSR_FRM:
         require_fp_active();
         val = (cpu.fcsr & 0x8000001F) | ((val & 0x7) << 5);
         cpu.fcsr = val;
         dirty_fp_state();
+        // Return 'frm' view of 'fcsr'
+        val = (val >> 5) & 0x7;
         break;
     case CSR_FCSR:
         require_fp_active();
@@ -549,6 +553,8 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
             val |= 0x8000000000000000ULL;
         }
         cpu.mstatus = val;
+        // Return 'sstatus' view of 'mstatus'
+        val &= 0x80000003000DE133ULL;
         break;
     case CSR_SIE:
         // Only ssie, stie, and seie are writeable, and only if they are delegated
@@ -556,6 +562,8 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         msk = cpu.mideleg & 0x0000000000000222ULL;
         val = (cpu.mie & ~msk) | (val & msk);
         cpu.mie = val;
+        // Return 'sie' view of 'mie'
+        val &= cpu.mideleg;
         break;
     case CSR_STVEC:
         val = sextVA(val & ~0xFFEULL);
@@ -588,6 +596,8 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         msk = cpu.mideleg & 0x0000000000000002ULL;
         val = (cpu.mip & ~msk) | (val & msk);
         cpu.mip = val;
+        // Return 'sip' view of 'mip'
+        val &= cpu.mideleg;
         break;
     case CSR_SATP: // Shared register
         // MODE is 4 bits, ASID is 0bits, PPN is PPN_M bits
