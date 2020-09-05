@@ -38,11 +38,6 @@ void __attribute__((noreturn)) main(void)
 
     message_init_worker(shire_id, hart_id);
 
-    // Enable supervisor software interrupts
-    asm volatile("csrsi sie, 0x2     \n" // Enable supervisor software interrupts
-                 "csrsi sstatus, 0x2 \n" // Enable interrupts
-    );
-
     // First HART in the shire, except Master Shire (32), where H0 of MasterFW will also enable userspace sync minions of that shire
     if ((hart_id % 64U) == 0 && (shire_id != MASTER_SHIRE)) {
         // Enable all thread1s so they can run BIST, master can communicate with them, etc.
@@ -66,8 +61,14 @@ void __attribute__((noreturn)) main(void)
         message_send_worker(shire_id, hart_id, &message);
     }
 
+    // Enable supervisor software interrupts
+    asm volatile("csrsi sie, 0x2\n");
+
     for (;;) {
         int64_t rv = -1;
+
+        // Enable global interrupts (sstatus.SIE = 1)
+        asm volatile("csrsi sstatus, 0x2\n");
 
         // Wait for a credit (kernel launch fastpath)
         // or SWI (message passing slow path)
