@@ -67,24 +67,36 @@ Device::~Device() {
 }
 
 etrtError Device::init() {
+  bool success;
+
   mem_manager_->init();
   initDeviceThread();
+
   // Load the FW on the device
-  auto load_success = loadFirmwareOnDevice();
-  assert(load_success == etrtSuccess);
+  success = loadFirmwareOnDevice();
+  assert(success == etrtSuccess);
+
   // Configure the FW
-  auto config_success = configureFirmware();
-  assert(config_success == etrtSuccess);
+  success = configureFirmware();
+  assert(success == etrtSuccess);
+
+  // Boot the FW
+  success = bootFirmware();
+  assert(success == etrtSuccess);
+
   // Post-FW load initialization
   auto res = target_device_->postFWLoadInit();
   assert(res);
+
   // Initialize thread that is responsible for listening to mailbox
   // Resposes/Events. do that after the FW is loaded and the device
   // is initialized
   device_reader_ = std::thread([this]() { this->deviceListener(); });
+
   // Detach the device-reader it is expected to run in parallel and
   // consume any replies back from the device.
   device_reader_.detach();
+
   return etrtSuccess;
 }
 
@@ -186,6 +198,10 @@ etrtError Device::loadFirmwareOnDevice() {
 
 etrtError Device::configureFirmware() {
   return fw_manager_->firmware().configureFirmware(target_device_.get());
+}
+
+etrtError Device::bootFirmware() {
+  return fw_manager_->firmware().bootFirmware(target_device_.get());
 }
 
 bool Device::setFWFilePaths(const std::vector<std::string> &paths) {

@@ -93,8 +93,11 @@ public:
   /// @brief Load the Firmware on the target device
   etrtError loadFirmwareOnDevice();
 
-  /// @brief configure the Firmware prior to booting
+  /// @brief Configure the Firmware prior to booting
   etrtError configureFirmware();
+
+  /// @brief Boot the Firmware
+  etrtError bootFirmware();
 
   ///
   /// @brief Set the path to the firmware files and load their contents

@@ -35,7 +35,6 @@ public:
 
   enum class FWType : uint8_t {
     NONE = 0,
-    FAKE_FW,
     DEVICE_FW,
   };
 
@@ -46,6 +45,7 @@ public:
   virtual bool readFW() = 0;
   virtual etrtError loadOnDevice(device::DeviceTarget *dev) = 0;
   virtual etrtError configureFirmware(device::DeviceTarget *dev) = 0;
+  virtual etrtError bootFirmware(device::DeviceTarget *dev) = 0;
 
   static std::unique_ptr<Firmware> allocateFirmware();
 };

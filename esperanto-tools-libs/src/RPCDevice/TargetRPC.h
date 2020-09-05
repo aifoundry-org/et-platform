@@ -58,11 +58,6 @@ public:
   bool readDevMemDMA(uintptr_t dev_addr, size_t size, void *buf) final;
   bool writeDevMemDMA(uintptr_t dev_addr, size_t size, const void *buf) final;
 
-  /// @brief Boot the device Minions at a given PC
-  ///
-  /// @param[in] pc : Start address of the Minions
-  bool boot(uint64_t pc) override;
-
   /// @brief Shutdown target
   bool shutdown() override;
 
@@ -94,6 +89,9 @@ public:
   /// @brief Write the tx ring buffer
   bool writeTxRb(const device_fw::ringbuffer_s &rb);
 
+  /// @brief Boot specific Minions of a Shire
+  bool boot_shire(uint32_t shire_id, uint32_t thread0_enable, uint32_t thread1_enable);
+
   /// @brief Raise the PU PLIC PCIe Message Interrupt in the target "device"
   /// in which case this is the simulator
   bool raiseDevicePuPlicPcieMessageInterrupt();
@@ -116,15 +114,11 @@ public:
   bool mb_write(const void *data, ssize_t size) final;
   /// @brief READ a full mailbox message, this corresponds to the API that the
   /// PCIE device exposes
-  ssize_t mb_read(void *data, ssize_t size,
-                  TimeDuration wait_time = TimeDuration::max()) final;
+  ssize_t mb_read(void *data, ssize_t size, TimeDuration wait_time = TimeDuration::max()) final;
 
   // FIXME populate this class with the interface for doing MMIO and raising
   // interrupts to the target device. This interface is to be used by the
   // EmuMailBoxDev to implement the underlying MailBoxProtocol
-
-  // FIXME kernel launch semantics
-  bool launch() final;
 
 protected:
   std::string socket_path_;

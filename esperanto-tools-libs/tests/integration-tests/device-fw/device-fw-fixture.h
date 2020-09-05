@@ -36,6 +36,8 @@ class MailboxEmuTest : public ::testing::Test {
 
 protected:
   void SetUp() override {
+    bool success;
+
     fs::path p = "/proc/self/exe";
     auto test_real_path = fs::read_symlink(p);
     auto dir_name = test_real_path.remove_filename();
@@ -62,11 +64,14 @@ protected:
     res = dev_->mem_manager().init();
     ASSERT_TRUE(res);
 
-    auto load_success = dev_->loadFirmwareOnDevice();
-    ASSERT_TRUE(load_success == etrtSuccess);
+    success = dev_->loadFirmwareOnDevice();
+    ASSERT_TRUE(success == etrtSuccess);
 
-    auto config_success = dev_->configureFirmware();
-    ASSERT_TRUE(config_success == etrtSuccess);
+    success = dev_->configureFirmware();
+    ASSERT_TRUE(success == etrtSuccess);
+
+    success = dev_->bootFirmware();
+    ASSERT_TRUE(success == etrtSuccess);
   }
 
   void TearDown() override {

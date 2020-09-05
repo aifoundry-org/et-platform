@@ -11,6 +11,8 @@
 #include "DeviceFW.h"
 
 #include "CodeManagement/ELFSupport.h"
+#include "RPCDevice/TargetRPC.h"
+
 #include "esperanto/runtime/Common/ProjectAutogen.h"
 #include "esperanto/runtime/Core/DeviceTarget.h"
 #include "esperanto/runtime/Support/HelperMacros.h"
@@ -19,6 +21,7 @@
 #include "esperanto/runtime/Core/CommandLineOptions.h"
 
 #include <esperanto-fw/fw-helpers/layout.h>
+#include <esperanto-fw/fw-helpers/minion_esr_defines.h>
 #include <esperanto-fw/fw-helpers/minion_fw_boot_config.h>
 
 #include <absl/flags/flag.h>
@@ -115,6 +118,22 @@ etrtError DeviceFW::configureFirmware(device::DeviceTarget *dev) {
 
   auto ret = dev->writeDevMemMMIO(FW_MINION_FW_BOOT_CONFIG, sizeof(boot_config),
                                   reinterpret_cast<const void *>(&boot_config));
+  if (!ret) {
+    return etrtErrorUnknown;
+  }
+
+  return etrtSuccess;
+};
+
+etrtError DeviceFW::bootFirmware(device::DeviceTarget *dev) {
+  // On Zebu the Minions are booted directly
+  if (dev->type() != device::DeviceTarget::TargetType::SysEmuGRPC) {
+    return etrtSuccess;
+  }
+
+  // Boot Minion Firmware Minions
+  auto *rpc_target = dynamic_cast<device::RPCTarget *>(dev);
+  auto ret = rpc_target->boot_shire(MM_SHIRE_ID, MM_RT_THREADS, 0);
   if (!ret) {
     return etrtErrorUnknown;
   }

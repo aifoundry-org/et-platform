@@ -37,7 +37,6 @@ bool RPCTarget::init() {
 }
 
 bool RPCTarget::postFWLoadInit() {
-
   // We expect that the device-cw is already loaded and "booted" at this point
   // we are resetting the mailboxes
   auto success = waitForHostInterrupt(std::chrono::seconds(30));
@@ -439,15 +438,12 @@ ssize_t RPCTarget::mb_read(void *data, ssize_t size, TimeDuration wait_time) {
   return res;
 }
 
-bool RPCTarget::launch() {
-  bool res = true;
-  return res;
-}
-
-bool RPCTarget::boot(uint64_t pc) {
+bool RPCTarget::boot_shire(uint32_t shire_id, uint32_t thread0_enable, uint32_t thread1_enable) {
   simulator_api::Request request;
   auto boot_req = new BootReq();
-  boot_req->set_pc(pc);
+  boot_req->set_shire_id(shire_id);
+  boot_req->set_thread0_enable(thread0_enable);
+  boot_req->set_thread1_enable(thread1_enable);
   request.set_allocated_boot(boot_req);
   // Do RPC and wait for reply
   auto reply_res = doRPC(request);
