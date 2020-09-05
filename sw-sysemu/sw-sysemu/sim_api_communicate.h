@@ -51,7 +51,7 @@ class sim_api_communicate final : public api_communicate
         class SysEmuWrapper final : public bemu::Agent, public AbstractSimulator {
         public:
             SysEmuWrapper(sim_api_communicate* sim);
-            bool boot(uint64_t pc) override;
+            bool boot(uint32_t shire_id, uint32_t thread0_enable, uint32_t thread1_enable) override;
             bool shutdown() override;
             bool is_done() override;
             int active_threads() override;

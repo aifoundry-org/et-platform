@@ -24,19 +24,12 @@ sim_api_communicate::SysEmuWrapper::SysEmuWrapper(sim_api_communicate* sim)
 {
 }
 
-bool sim_api_communicate::SysEmuWrapper::boot(uint64_t pc)
+bool sim_api_communicate::SysEmuWrapper::boot(uint32_t shire_id, uint32_t thread0_enable, uint32_t thread1_enable)
 {
-    LOG_NOTHREAD(INFO, "sim_api_communicate: boot(pc = 0x%" PRIx64 ")", pc);
+    LOG_NOTHREAD(INFO, "sim_api_communicate: boot(shire = %" PRId32 ", t0 = 0x%" PRIx32 ", t1 = 0x%" PRIx32 ")",
+        shire_id, thread0_enable, thread1_enable);
 
-    // Boot all compute shire threads
-    for (int s = 0; s < EMU_NUM_COMPUTE_SHIRES; s++) {
-        shire_threads_set_pc(s, pc);
-        sys_emu::shire_enable_threads(s, 0, 0);
-    }
-
-    // Boot all master shire threads
-    shire_threads_set_pc(EMU_MASTER_SHIRE, pc);
-    sys_emu::shire_enable_threads(EMU_MASTER_SHIRE, 0, 0);
+    sys_emu::shire_enable_threads(shire_id, ~thread0_enable, ~thread1_enable);
 
     return true;
 }
