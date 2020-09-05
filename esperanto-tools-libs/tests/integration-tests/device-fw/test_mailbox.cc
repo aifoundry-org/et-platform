@@ -23,7 +23,6 @@ TEST_F(MailboxEmuTest, waitForHostInterrupt) {
   auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
   ASSERT_TRUE(target_device != nullptr);
 
-  target_device->boot(0x8000001000);
   auto res = target_device->waitForHostInterrupt(std::chrono::seconds(30));
   ASSERT_TRUE(res);
 }
@@ -33,7 +32,6 @@ TEST_F(MailboxEmuTest, waitForMailboxReady) {
   auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
   EXPECT_TRUE(target_device != nullptr);
 
-  target_device->boot(0x8000001000);
   auto res = target_device->waitForHostInterrupt(std::chrono::seconds(30));
 
   auto &mb_emu = target_device->mailboxDev();
@@ -46,7 +44,6 @@ TEST_F(MailboxEmuTest, resetMailBox) {
   auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
   EXPECT_TRUE(target_device != nullptr);
 
-  target_device->boot(0x8000001000);
   auto res = target_device->waitForHostInterrupt(std::chrono::seconds(30));
 
   auto &mb_emu = target_device->mailboxDev();

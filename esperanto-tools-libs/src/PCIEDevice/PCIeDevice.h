@@ -46,8 +46,6 @@ public:
   bool mb_write(const void *data, ssize_t size) final;
   ssize_t mb_read(void *data, ssize_t size,
                   TimeDuration wait_time = TimeDuration::max()) final;
-  bool launch() override;
-  bool boot(uint64_t pc) override;
   bool shutdown() override;
 
   /// @brief Return the absolute base DRAM address we can access

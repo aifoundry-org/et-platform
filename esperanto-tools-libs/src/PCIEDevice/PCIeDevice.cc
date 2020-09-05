@@ -8,7 +8,7 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "PCIeDevice.h" 
+#include "PCIeDevice.h"
 
 #include "Core/DeviceFwTypes.h"
 #include "esperanto/runtime/Core/CommandLineOptions.h"
@@ -29,7 +29,7 @@
 #include "Tracing/Tracing.h"
 #include "esperanto/runtime/Support/TimeHelpers.h"
 
-namespace fs = std::experimental::filesystem; 
+namespace fs = std::experimental::filesystem;
 
 namespace et_runtime {
 namespace device {
@@ -68,7 +68,7 @@ namespace {
       auto error = errno;
       RTERROR << "Failed to execute IOCTL: " << std::strerror(error) << "\n";
       //check if ioctl failed due to timeout, check the retryEnd time limit and retry after a while
-      if (errno == ETIMEDOUT && Clock::now() < retryEnd) { 
+      if (errno == ETIMEDOUT && Clock::now() < retryEnd) {
         RTERROR << "IOCTL not ready in time, retrying after " << std::chrono::duration_cast<std::chrono::milliseconds>(kPollingInterval).count() << "ms \n";
         std::this_thread::sleep_for(kPollingInterval);
         return wrap_ioctl(fd, request, retryEnd, args...);
@@ -108,12 +108,12 @@ PCIeDevice::PCIeDevice(int index)
       std::terminate();
     }
     RTDEBUG << "Maximum mbox message size: " << mboxMaxMsgSize_ << "\n";
-}                     
+}
 
 bool PCIeDevice::read(uintptr_t addr, void *data, ssize_t size) {
   RTINFO << "Dev: " << path_ << "PCIE Read: 0x" << std::hex << addr << " size "
           << std::dec << size << "\n";
-    
+
     off_t target_offset = static_cast<off_t>(addr);
     auto offset = lseek(fd_, target_offset, SEEK_SET);
     auto err = errno;
@@ -187,7 +187,7 @@ bool PCIeDevice::init() {
   RTINFO << "PCIeDevice: Initialization \n";
   resetMbox(kWaitTime);
   RTINFO << "PCIEDevice: Reset MM mailbox \n";
-  // Wait for the device to be ready  
+  // Wait for the device to be ready
   auto mb_ready = readyMbox(kWaitTime);
   RTINFO << "PCIEDevice: MM mailbox ready " << mb_ready << "\n";
   device_alive_ = mb_ready;
@@ -243,7 +243,6 @@ bool PCIeDevice::readDevMemDMA(uintptr_t dev_addr, size_t size, void *buf) {
   auto res = read(dev_addr, buf, size);
   TRACE_PCIeDevice_dma_read_end();
   return res;
-  
 }
 
 bool PCIeDevice::writeDevMemDMA(uintptr_t dev_addr, size_t size,
@@ -283,22 +282,12 @@ ssize_t PCIeDevice::mb_read(void *data, ssize_t size, TimeDuration wait_time) {
   return dataRead;
 }
 
-bool PCIeDevice::launch() {
-  abort();
-  return true;
-}
-
-bool PCIeDevice::boot(uint64_t pc) {
-  assert(false);
-  return true;
-}
-
 bool PCIeDevice::shutdown() {
   assert(false);
   return true;
 }
 
-//FIXME: Ioannis had a comment meaning this should be fixed; I guess we should get the 
+//FIXME: Ioannis had a comment meaning this should be fixed; I guess we should get the
 // baseAddr from the device with an ioctl
 uintptr_t PCIeDevice::dramBaseAddr() const { return HOST_MANAGED_DRAM_START; }
 

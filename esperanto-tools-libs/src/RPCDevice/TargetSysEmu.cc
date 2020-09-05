@@ -154,8 +154,6 @@ bool TargetSysEmu::init() {
 }
 
 bool TargetSysEmu::postFWLoadInit() {
-  // Boot device-fw
-  boot(0x8000001000);
   auto success = RPCTarget::postFWLoadInit();
   assert(success);
   return true;

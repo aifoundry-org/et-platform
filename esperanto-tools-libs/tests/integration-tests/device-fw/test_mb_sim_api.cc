@@ -31,8 +31,7 @@ public:
     // accessible.
     auto socket_file = std::tmpfile();
     // Get filename from the socket number
-    auto file_path =
-        fs::path("/proc/self/fd") / std::to_string(fileno(socket_file));
+    auto file_path = fs::path("/proc/self/fd") / std::to_string(fileno(socket_file));
     cout << "FilePath : " + file_path.string() << "\n";
     auto socket_name = fs::read_symlink(file_path).string();
     // Remove the following suffix  and replace it with -sysemu.sock
@@ -42,7 +41,7 @@ public:
     return string("unix://") + socket_name;
   }
 
-  bool boot(uint64_t pc) override {
+  bool boot(uint32_t shire_id, uint32_t thread0_enable, uint32_t thread1_enable) override {
     return true;
   }
   bool shutdown() override {
@@ -161,8 +160,7 @@ TEST_F(MBSimAPITest, ReadMailBoxMessage) {
   device::RingBuffer rb(device::RingBufferType::RX, rpc_);
   auto elem_num = 20;
   std::vector<uint16_t> data(elem_num, 0xbeef);
-  uint16_t data_size =
-      data.size() * sizeof(typename decltype(data)::value_type);
+  uint16_t data_size = data.size() * sizeof(typename decltype(data)::value_type);
   const device_fw::mbox_header_t header = {.length = (uint16_t)data_size,
                                            .magic = MBOX_MAGIC};
   rb.write(&header, sizeof(header));
@@ -191,8 +189,7 @@ TEST_F(MBSimAPITest, WriteMailBoxMessage) {
   // reference data
   auto elem_num = 20;
   std::vector<uint16_t> data(elem_num, 0xbeef);
-  uint16_t data_size =
-      data.size() * sizeof(typename decltype(data)::value_type);
+  uint16_t data_size = data.size() * sizeof(typename decltype(data)::value_type);
 
   // Raise a host interrupt on the device so that the host can proceed
   sim_api_->raiseHostInterrupt();

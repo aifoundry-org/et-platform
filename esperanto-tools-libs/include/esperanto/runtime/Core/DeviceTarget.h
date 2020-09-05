@@ -145,15 +145,13 @@ public:
   virtual bool readDevMemMMIO(uintptr_t dev_addr, size_t size, void *buf) = 0;
 
   /// @brief Write device memory using MMIO
-  virtual bool writeDevMemMMIO(uintptr_t dev_addr, size_t size,
-                               const void *buf) = 0;
+  virtual bool writeDevMemMMIO(uintptr_t dev_addr, size_t size, const void *buf) = 0;
 
   /// @brief Read device memory using MMIO
   virtual bool readDevMemDMA(uintptr_t dev_addr, size_t size, void *buf) = 0;
 
   /// @brief Write device memory using MMIO
-  virtual bool writeDevMemDMA(uintptr_t dev_addr, size_t size,
-                              const void *buf) = 0;
+  virtual bool writeDevMemDMA(uintptr_t dev_addr, size_t size, const void *buf) = 0;
 
   /// @brief Return the maximum size of a mailbox message
   virtual ssize_t mboxMsgMaxSize() const = 0;
@@ -178,20 +176,11 @@ public:
   virtual ssize_t mb_read(void *data, ssize_t size,
                           TimeDuration wait_time = TimeDuration::max()) = 0;
 
-  /// @brief Launch the kernel
-  virtual bool launch() = 0;
-
-  /// @brief Boot the device Minions at a given PC
-  ///
-  /// @param[in] pc : Start address of the Minions
-  virtual bool boot(uint64_t pc) = 0;
-
   /// @brief Shutdown the device
   virtual bool shutdown() = 0;
 
   /// @brief Factory function that will generate the appropriate target device
-  static std::unique_ptr<DeviceTarget> deviceFactory(TargetType target,
-                                                     int index);
+  static std::unique_ptr<DeviceTarget> deviceFactory(TargetType target, int index);
   /// @brief Return the type of device to allocate as specified by the command
   /// line arguments
   /// FIXME this functions should not be released in production
@@ -206,9 +195,8 @@ public:
 
 protected:
   int index_; ///< Index fo the device
-  bool device_alive_ =
-      false; ///< Flag to guard that the device has been initlize correctly and
-             ///< gate any incorrect re-initialization or de-initialization
+  bool device_alive_ = false; ///< Flag to guard that the device has been initialize correctly and
+                              ///< gate any incorrect re-initialization or de-initialization
 };
 } // namespace device
 } // namespace et_runtime
