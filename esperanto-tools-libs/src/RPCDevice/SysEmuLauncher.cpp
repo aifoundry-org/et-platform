@@ -49,6 +49,7 @@ SysEmuLauncher::SysEmuLauncher(
       "-minions", "FFFFFFFF", // All minions enabled
       "-shires", fmt::format("0x{:X}", shires_mask),
       "-mins_dis",            // Disable minions by default as booting is done through Sim API
+      "-sp_dis",              // In case we are doing a SP boot, also start with SP not running
   };
 
   if (!pu_uart0_tx_file.empty()) {

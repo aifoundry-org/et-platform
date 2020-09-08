@@ -41,6 +41,8 @@ ABSL_FLAG(uint64_t, sysemu_max_cycles, std::numeric_limits<uint64_t>::max(),
           "Set SysEmu maximum cycles to run before finishing simulation");
 ABSL_FLAG(uint64_t, sysemu_shires_mask, 0x1FFFFFFFFu,
           "Set SysEmu Shire mask (enabled Shires)");
+ABSL_FLAG(bool, sysemu_boot_sp, false,
+          "Boot the SP instead of the FW Minions. It's up to the user to load BL2/OTP, etc.");
 ABSL_FLAG(std::string, sysemu_pu_uart0_tx_file, "",
           "Set SysEmu PU UART0 TX log file");
 ABSL_FLAG(std::string, sysemu_pu_uart1_tx_file, "",
