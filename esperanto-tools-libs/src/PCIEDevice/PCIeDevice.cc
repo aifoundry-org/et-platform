@@ -98,7 +98,7 @@ PCIeDevice::PCIeDevice(int index)
   , path_(absl::StrFormat("/dev/et%d_ops", index)) {
     fd_ = open(path_.c_str(), O_RDWR);
     if (fd_ < 0) {
-      RTERROR << "Error opening driver\n";
+      RTERROR << "Error opening driver: " << std::strerror(errno) << "\n";
       //#TODO deal with errors in the same way across all the code
       std::terminate();
     }
@@ -108,6 +108,14 @@ PCIeDevice::PCIeDevice(int index)
       std::terminate();
     }
     RTDEBUG << "Maximum mbox message size: " << mboxMaxMsgSize_ << "\n";
+}
+
+PCIeDevice::~PCIeDevice() {
+  auto res = close(fd_);
+  if (res < 0) {
+    RTERROR << "Failed to close file, error: " << std::strerror(errno) << "\n";
+    std::terminate();
+  }
 }
 
 bool PCIeDevice::read(uintptr_t addr, void *data, ssize_t size) {
