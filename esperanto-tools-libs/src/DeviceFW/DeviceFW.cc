@@ -111,6 +111,13 @@ etrtError DeviceFW::configureFirmware(device::DeviceTarget *dev) {
     return etrtSuccess;
   }
 
+  // [SW-3998] TODO: This is not the proper place to put this. Create a new "BL2" Firmware sub-class
+  // BL2 will write the fw_boot_config from the OTP data, so do nothing here.
+  auto boot_sp = absl::GetFlag(FLAGS_sysemu_boot_sp);
+  if (boot_sp) {
+    return etrtSuccess;
+  }
+
   minion_fw_boot_config_t boot_config;
   memset(&boot_config, 0, sizeof(boot_config));
   // TODO FIXME: Pass properly the shire mask instead of reading it from command line options!!!!
@@ -126,14 +133,29 @@ etrtError DeviceFW::configureFirmware(device::DeviceTarget *dev) {
 };
 
 etrtError DeviceFW::bootFirmware(device::DeviceTarget *dev) {
+  // TODO: Not the best place to check for this
   // On Zebu the Minions are booted directly
   if (dev->type() != device::DeviceTarget::TargetType::SysEmuGRPC) {
     return etrtSuccess;
   }
 
-  // Boot Minion Firmware Minions
+  uint32_t shire_id, thread0_enable, thread1_enable;
+  auto boot_sp = absl::GetFlag(FLAGS_sysemu_boot_sp);
+
+  if (boot_sp) {
+    // Service Processor
+    shire_id = 254; // IOShire ID
+    thread0_enable = 1;
+    thread1_enable = 0;
+  } else {
+    // Device Minion Runtime FW Minions
+    shire_id = MM_SHIRE_ID;
+    thread0_enable = MM_RT_THREADS;
+    thread1_enable = 0;
+  }
+
   auto *rpc_target = dynamic_cast<device::RPCTarget *>(dev);
-  auto ret = rpc_target->boot_shire(MM_SHIRE_ID, MM_RT_THREADS, 0);
+  auto ret = rpc_target->boot_shire(shire_id, thread0_enable, thread1_enable);
   if (!ret) {
     return etrtErrorUnknown;
   }
