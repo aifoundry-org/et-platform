@@ -50,7 +50,6 @@ set(SIM_DEVFW_TEST_LIST
   test_elf_parsing_dev_fw.cc:"${DEV_FW_ARGS} --empty_elf ${EMPTY_KERNEL_ELF}"
   test_mailbox.cc:"${DEV_FW_ARGS}"
   test_sysemu_launch_kernels.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
-  test_device_tracing.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
   test_device_api_sysemu.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
   test_streams.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
   )
@@ -66,6 +65,8 @@ else()
 endif(ENABLE_PCIE)
 
 set(DUAL_TEST_LIST
+  # FIXME SW-4087
+  #test_device_tracing.cc:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR}"
   test_device_api.cc:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR}"
   test_launch_uberkernel.cc:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR}"
   test_reflect_cmd.cc:"${DUAL_MODE_OPTS}"

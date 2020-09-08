@@ -523,6 +523,6 @@ int main(int argc, char **argv) {
   FLAGS_minloglevel = 0;
   FLAGS_logtostderr = 1;
   testing::InitGoogleTest(&argc, argv);
-  et_runtime::ParseCommandLineOptions(argc, argv, {"test_pcie_launch_kernels.cc"});
+  et_runtime::ParseCommandLineOptions(argc, argv, {"test_device_tracing.cc"});
   return RUN_ALL_TESTS();
 }
