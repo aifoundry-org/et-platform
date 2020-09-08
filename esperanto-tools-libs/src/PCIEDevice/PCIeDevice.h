@@ -24,6 +24,7 @@ namespace device {
 class PCIeDevice final : public DeviceTarget {
 public:
   PCIeDevice(int index);
+  ~PCIeDevice();
 
   static std::vector<DeviceInformation> enumerateDevices();
 
