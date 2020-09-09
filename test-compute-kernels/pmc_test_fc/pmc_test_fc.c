@@ -13,6 +13,7 @@
 #include "log.h"
 #include "sync_minions.h"
 #include "syscall.h"
+#include "device-mrt-trace.h"
 
 // This test uses kernel tl_tfma_reduce_2s.
 // Before it begins it confgiures the PMCs based on an input tensor
@@ -85,11 +86,18 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 	return -1;
     }
 
+    TRACE_kernel_launch(LOG_LEVELS_ERROR, kernel_params_ptr->tensor_a, kernel_params_ptr->tensor_b,
+                        kernel_params_ptr->tensor_c, kernel_params_ptr->tensor_d, kernel_params_ptr->tensor_e,
+                        kernel_params_ptr->tensor_f, kernel_params_ptr->tensor_g, kernel_params_ptr->tensor_h,
+                        kernel_params_ptr->kernel_id);
+
     // In case you need waves
     START_WAVES_MARKER;
 
     volatile uint64_t pmc_cfg = (uint64_t) kernel_params_ptr->tensor_e;
     volatile uint64_t pmc_log = (uint64_t) kernel_params_ptr->tensor_g;
+
+    TRACE_string(LOG_LEVELS_INFO, "Configuring PMCs");
 
     // Configure PMCs
     syscall(SYSCALL_CONFIGURE_PMCS, 1, pmc_cfg, 0);
@@ -245,6 +253,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     uint64_t local_minion_id = minion_id & 0x1F;
     SEND_FCC(shire_id, 1, 0, (1ULL << local_minion_id));
 
+    TRACE_string(LOG_LEVELS_INFO, "Sampling PMCs");
     syscall(SYSCALL_SAMPLE_PMCS, 1, pmc_log, 0);
 
     return 0;

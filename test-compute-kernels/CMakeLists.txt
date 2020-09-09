@@ -122,6 +122,7 @@ macro(randomized_test)
 
     set(TEST_NAME "${RANDOMIZED_TEST_NAME}_${TEST_ID}")
     set(TEST_BUILD_FOLDER ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME})
+    set(TRACE_ENABLED TRUE)
 
     execute_process(COMMAND mkdir -p ${TEST_BUILD_FOLDER})
 
