@@ -24,13 +24,13 @@ TraceGroups:
     Description: Group of events that log performance counters
     Events:
       - Name: perfctr
-        Description: Logs two performance counters
+        Description: Logs one performance counter event value
         Type : TraceEntry
         Fields:
-          - Name: ctr1
-            Type: uint32_t
-          - Name: ctr2
-            Type: uint32_t
+          - Name: event
+            Type: uint64_t
+          - Name: value
+            Type: uint64_t
 
   - Name: Workload
     Description: Group of events performing kernel execution logging
