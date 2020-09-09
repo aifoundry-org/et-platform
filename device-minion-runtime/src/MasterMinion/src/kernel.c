@@ -318,8 +318,7 @@ dev_api_kernel_abort_response_result_e abort_kernel(kernel_id_t kernel_id)
             .data = { 0 },
         };
 
-        if (0 == broadcast_message_send_master(kernel_status[kernel_id].shire_mask,
-                                               0xFFFFFFFFFFFFFFFFU, &message)) {
+        if (0 == broadcast_message_send_master(kernel_status[kernel_id].shire_mask, &message)) {
             log_write(LOG_LEVEL_CRITICAL, "abort_kernel: aborted kernel %d\r\n", kernel_id);
             update_kernel_state(kernel_id, KERNEL_STATE_ABORTED);
 

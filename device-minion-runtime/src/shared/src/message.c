@@ -117,10 +117,18 @@ int64_t message_send_master(uint64_t dest_shire, uint64_t dest_hart, const messa
     return 0;
 }
 
-// Broadcasts a message to all HARTS in dest_hart_mask in all shires in dest_shire_mask
+static inline int64_t broadcast_ipi_trigger(uint64_t dest_shire_mask, uint64_t dest_hart_mask)
+{
+    const uint64_t broadcast_parameters = broadcast_encode_parameters(
+        ESR_SHIRE_IPI_TRIGGER_PROT, ESR_SHIRE_REGION, ESR_SHIRE_IPI_TRIGGER_REGNO);
+
+    // Broadcast dest_hart_mask to IPI_TRIGGER ESR in all shires in dest_shire_mask
+    return syscall(SYSCALL_BROADCAST_INT, dest_hart_mask, dest_shire_mask, broadcast_parameters);
+}
+
+// Broadcasts a message to all worker HARTS in all Shires in dest_shire_mask
 // Should only be called by master minion
-int64_t broadcast_message_send_master(uint64_t dest_shire_mask, uint64_t dest_hart_mask,
-                                      const message_t *const message)
+int64_t broadcast_message_send_master(uint64_t dest_shire_mask, const message_t *const message)
 {
     // TODO FIXME how does the master know when it's safe to update the broadcast message buffer?
     // No ack from minion...
@@ -134,12 +142,11 @@ int64_t broadcast_message_send_master(uint64_t dest_shire_mask, uint64_t dest_ha
 
     evict_message(master_to_worker_broadcast_message_buffer_ptr);
 
-    const uint64_t broadcast_parameters = broadcast_encode_parameters(
-        ESR_SHIRE_IPI_TRIGGER_PROT, ESR_SHIRE_REGION, ESR_SHIRE_IPI_TRIGGER_REGNO);
-
-    // Broadcast dest_hart_mask to IPI_TRIGGER ESR in all shires in dest_shire_mask
-    syscall(SYSCALL_BROADCAST_INT, dest_hart_mask, dest_shire_mask, broadcast_parameters);
-
+    broadcast_ipi_trigger(dest_shire_mask & 0xFFFFFFFFu, 0xFFFFFFFFFFFFFFFFu);
+    if (dest_shire_mask & (1ULL << MASTER_SHIRE)) {
+        // Upper 32 Threads of Shire 32 run Worker FW
+        syscall(SYSCALL_IPI_TRIGGER_INT, 0xFFFFFFFF00000000u, MASTER_SHIRE, 0);
+    }
     return 0;
 }
 

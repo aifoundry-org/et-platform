@@ -31,15 +31,6 @@ log_level_t devapi_loglevel_to_fw(const enum LOG_LEVELS log_level)
     return (log_level_e)log_level;
 }
 
-static inline void broadcast_message_to_all_workers(const message_t *message, uint64_t shire_mask)
-{
-    broadcast_message_send_master(shire_mask & 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF, message);
-    if (shire_mask & (1ULL << MASTER_SHIRE)) {
-        // Lower 16 Minions of Master Shire run Master FW, upper 16 Minions run Worker FW
-        broadcast_message_send_master(1ULL << MASTER_SHIRE, 0xFFFFFFFF00000000, message);
-    }
-}
-
 void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t* message_id,
                                                         uint8_t* buffer)
 {
@@ -154,7 +145,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         message_t message;
         message.id = MESSAGE_ID_SET_LOG_LEVEL;
         message.data[0] = devapi_loglevel_to_fw(cmd->log_level);
-        broadcast_message_to_all_workers(&message, booted_minion_shires);
+        broadcast_message_send_master(booted_minion_shires, &message);
 
         rsp.status = true;
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
@@ -213,7 +204,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         // send message to workers
         message_t message;
         message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
-        broadcast_message_to_all_workers(&message, booted_minion_shires);
+        broadcast_message_send_master(booted_minion_shires, &message);
 
         rsp.status = true;
 
@@ -249,7 +240,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         // send message to workers
         message_t message;
         message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
-        broadcast_message_to_all_workers(&message, booted_minion_shires);
+        broadcast_message_send_master(booted_minion_shires, &message);
 
         rsp.status = true;
 
@@ -280,7 +271,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         // send message to workers
         message_t message;
         message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
-        broadcast_message_to_all_workers(&message, booted_minion_shires);
+        broadcast_message_send_master(booted_minion_shires, &message);
 
         rsp.status = true;
 
@@ -312,7 +303,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         // send message to workers
         message_t message;
         message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
-        broadcast_message_to_all_workers(&message, booted_minion_shires);
+        broadcast_message_send_master(booted_minion_shires, &message);
 
         rsp.status = true;
 
@@ -344,7 +335,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         // send message to workers
         message_t message;
         message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
-        broadcast_message_to_all_workers(&message, booted_minion_shires);
+        broadcast_message_send_master(booted_minion_shires, &message);
 
         rsp.status = true;
 
@@ -376,7 +367,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         // send message to workers
         message_t message;
         message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
-        broadcast_message_to_all_workers(&message, booted_minion_shires);
+        broadcast_message_send_master(booted_minion_shires, &message);
 
         rsp.status = true;
 
@@ -403,7 +394,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         // send message to workers
         message_t message;
         message.id = MESSAGE_ID_TRACE_BUFFER_RESET;
-        broadcast_message_to_all_workers(&message, booted_minion_shires);
+        broadcast_message_send_master(booted_minion_shires, &message);
 
         rsp.status = true;
 
@@ -430,7 +421,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         // send message to workers
         message_t message;
         message.id = MESSAGE_ID_TRACE_BUFFER_EVICT;
-        broadcast_message_to_all_workers(&message, booted_minion_shires);
+        broadcast_message_send_master(booted_minion_shires, &message);
 
         rsp.status = true;
 
@@ -450,9 +441,8 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         message_t message;
         message.id = MESSAGE_ID_PMC_CONFIGURE;
         message.data[0] = cmd->conf_buffer_addr;
+        broadcast_message_send_master(booted_minion_shires, &message);
 
-        // Do not send anything to master shire yet
-        broadcast_message_to_all_workers(&message, booted_minion_shires & 0xFFFFFFFFULL);
         rsp.response_info.message_id = MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_PMCS_RSP;
         rsp.status = true;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);

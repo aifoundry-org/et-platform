@@ -54,8 +54,7 @@ int64_t message_send_master(uint64_t dest_shire, uint64_t dest_hart,
 int64_t message_send_worker(uint64_t source_shire, uint64_t source_hart,
                             const message_t *const message);
 
-int64_t broadcast_message_send_master(uint64_t dest_shire_mask, uint64_t dest_hart_mask,
-                                      const message_t *const message);
+int64_t broadcast_message_send_master(uint64_t dest_shire_mask, const message_t *const message);
 message_number_t broadcast_message_receive_worker(message_t *const message);
 
 void message_receive_master(uint64_t source_shire, uint64_t source_hart, message_t *const message);
