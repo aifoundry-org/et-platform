@@ -72,6 +72,7 @@ install(
  install(
    FILES
     include/atomic.h
+    include/atomic-impl.h
     include/cacheops.h
     include/common.h
     include/esr_defines.h
