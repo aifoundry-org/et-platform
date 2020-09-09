@@ -1,3 +1,4 @@
+#include "atomic.h"
 #include "device-mrt-trace.h"
 #include "hart.h"
 #include "kernel.h"
@@ -26,8 +27,10 @@ void swi_handler(void)
     const uint64_t shire = get_shire_id();
     const uint64_t hart = get_hart_id();
 
-    if (broadcast_message_available(previous_broadcast_message_number[hart])) {
-        previous_broadcast_message_number[hart] = broadcast_message_receive_worker(&message);
+    volatile uint8_t *addr = &previous_broadcast_message_number[hart];
+    if (broadcast_message_available(atomic_load_global_8(addr))) {
+        message_number_t number = broadcast_message_receive_worker(&message);
+        atomic_store_global_8(addr, number);
         handle_message(shire, hart, &message);
     }
 
