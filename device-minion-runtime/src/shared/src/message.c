@@ -27,6 +27,8 @@ static messageBuffers_t *const worker_to_master_message_buffers =
 // master -> worker
 static volatile message_t *const master_to_worker_broadcast_message_buffer_ptr =
     (message_t *)FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER;
+static volatile broadcast_message_ctrl_t *const master_to_worker_broadcast_message_ctrl_ptr =
+    (broadcast_message_ctrl_t *)FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL;
 static messageBuffers_t *const master_to_worker_message_buffers =
     (messageBuffers_t *)FW_MASTER_TO_WORKER_MESSAGE_BUFFERS;
 
@@ -128,25 +130,38 @@ static inline int64_t broadcast_ipi_trigger(uint64_t dest_shire_mask, uint64_t d
 
 // Broadcasts a message to all worker HARTS in all Shires in dest_shire_mask
 // Should only be called by master minion
+// Blocks until all the receivers have ACK'd
 int64_t broadcast_message_send_master(uint64_t dest_shire_mask, const message_t *const message)
 {
-    // TODO FIXME how does the master know when it's safe to update the broadcast message buffer?
-    // No ack from minion...
-
-    static message_number_t number = 0;
-
     // First broadcast message number is 1, so OK for worker minion
     // to init previous_broadcast_message_number to 0
+    static message_number_t number = 0;
+    uint32_t receiver_count;
+
+    // Copy message to shared buffer
     *master_to_worker_broadcast_message_buffer_ptr = *message;
     master_to_worker_broadcast_message_buffer_ptr->number = ++number;
-
     evict_message(master_to_worker_broadcast_message_buffer_ptr);
 
+    // Write broadcast message control data
+    atomic_store_global_32(&master_to_worker_broadcast_message_ctrl_ptr->count, 0);
+
+    // Send IPI to receivers
     broadcast_ipi_trigger(dest_shire_mask & 0xFFFFFFFFu, 0xFFFFFFFFFFFFFFFFu);
+    receiver_count = (uint32_t)__builtin_popcountl(dest_shire_mask & 0xFFFFFFFFu) * 64;
     if (dest_shire_mask & (1ULL << MASTER_SHIRE)) {
         // Upper 32 Threads of Shire 32 run Worker FW
         syscall(SYSCALL_IPI_TRIGGER_INT, 0xFFFFFFFF00000000u, MASTER_SHIRE, 0);
+        receiver_count += 32;
     }
+
+    // Wait until all the receivers have ACK'd. Then it's safe to send another broadcast message
+    while (atomic_load_global_32(&master_to_worker_broadcast_message_ctrl_ptr->count) !=
+           receiver_count) {
+        // Relax thread
+        asm volatile("fence\n" ::: "memory");
+    }
+
     return 0;
 }
 
@@ -155,9 +170,13 @@ message_number_t broadcast_message_receive_worker(message_t *const message)
     // Evict to invalidate, must not be dirty
     evict_message(master_to_worker_broadcast_message_buffer_ptr);
 
+    // Copy message from shared to local buffer
     *message = *master_to_worker_broadcast_message_buffer_ptr;
 
-    return master_to_worker_broadcast_message_buffer_ptr->number;
+    // Notify we have received the message
+    atomic_add_global_32(&master_to_worker_broadcast_message_ctrl_ptr->count, 1);
+
+    return message->number;
 }
 
 // Sends a message from worker minion to master minion

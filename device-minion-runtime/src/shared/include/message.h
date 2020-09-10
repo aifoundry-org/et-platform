@@ -33,9 +33,17 @@ typedef struct {
     uint64_t data[7];
 } __attribute__((aligned(64))) message_t; // always aligned to a cache line
 
+typedef struct {
+    uint32_t count;
+} __attribute__((aligned(64))) broadcast_message_ctrl_t; // always aligned to a cache line
+
 // Ensure message_t maps directly to a 64-byte cache line
 static_assert(sizeof(message_t) == 64, "sizeof message_t must be 64 bytes");
 static_assert(_Alignof(message_t) == 64, "_Alignof message_t must be 64 bytes");
+
+// Ensure broadcast_message_ctrl_t maps directly to a 64-byte cache line
+static_assert(sizeof(broadcast_message_ctrl_t) == 64, "sizeof broadcast_message_ctrl_t must be 64 bytes");
+static_assert(_Alignof(broadcast_message_ctrl_t) == 64, "_Alignof broadcast_message_ctrl_t must be 64 bytes");
 
 void message_init_master(void);
 void message_init_worker(uint64_t shire, uint64_t hart);
