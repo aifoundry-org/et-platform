@@ -13,6 +13,7 @@
 #include "esr_defines.h"
 #include "hart.h"
 #include "pmu.h"
+#include "device-mrt-trace.h"
 
 // Configure PMCs
 // reset_counters is a boolean that determines whether we reset / start counters after the configuration
@@ -154,6 +155,7 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr)
             ret = ret - 1;
         }
         *(log_buffer + hart_id * 8) = pmc_data;
+        TRACE_perfctr(LOG_LEVELS_INFO, 1, pmc_data);
     }
 
     // SC PMCs
@@ -166,6 +168,7 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr)
                ret = ret - 1;
             }
             *(log_buffer + (shire_id * 64 + neigh_id * 16 + NEIGH_HART_SC + i- 1)* 8) = pmc_data;
+            TRACE_perfctr(LOG_LEVELS_INFO, i+1, pmc_data);
         }
     }
 
@@ -180,6 +183,7 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr)
             }
             // Put data on location for last hart of neighs 0-2. Last hart of shire stores nothing
             *(log_buffer + (shire_id * 64 + (neigh_id - 3 + i)* 16 + (hart_id & 0xF)) * 8) = pmc_data;
+            TRACE_perfctr(LOG_LEVELS_INFO, i+1, pmc_data);
         }
     }
 
