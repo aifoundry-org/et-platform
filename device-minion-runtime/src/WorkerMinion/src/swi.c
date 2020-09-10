@@ -16,8 +16,12 @@ void swi_handler(void)
 {
     message_t message;
 
-    // We got a software interrupt handed down from M-mode.
-    // M-mode already cleared the IPI - check messages
+    // We got a software interrupt (IPI) handed down from M-mode.
+    // M-mode already cleared the MSIP (IPI) - check messages
+
+    // Clear pending software interrupt (SSIP)
+    asm volatile("csrci sip, 0x2");
+
     const uint64_t shire = get_shire_id();
     const uint64_t hart = get_hart_id();
 
@@ -30,9 +34,6 @@ void swi_handler(void)
         message_receive_worker(shire, hart, &message);
         handle_message(shire, hart, &message);
     }
-
-    // Clear pending software interrupt
-    asm volatile("csrci sip, 0x2");
 }
 
 static void handle_message(uint64_t shire, uint64_t hart, message_t *const message_ptr)
