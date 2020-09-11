@@ -170,6 +170,7 @@ endmacro(randomized_test)
 
 add_subdirectory("beef")
 add_subdirectory("trace")
+add_subdirectory("trace_ring_buffer")
 add_subdirectory("crc32")
 add_subdirectory("empty")
 add_subdirectory("hang")
