@@ -144,13 +144,13 @@ static void wait_all_shires_booted(uint64_t expected)
     }
 }
 
-static void wait_sp_mm_mbox_ready(mbox_e mbox)
+static void wait_sp_mm_mbox_ready(void)
 {
-    // Wait for 20 seconds
-    uint32_t timeout = 1000000;
+    // TODO: Proper delay, or better to make this async? Does MM FW init depend on SP?
+    uint32_t timeout = 10;
 
     while (timeout > 0) {
-        if (MBOX_ready(mbox)) {
+        if (MBOX_ready(MBOX_SP)) {
             log_write(LOG_LEVEL_CRITICAL, "\n MM -> SP Mbox ready !\n");
             break;
         }
@@ -203,7 +203,8 @@ static void __attribute__((noreturn)) master_thread(void)
     log_write(LOG_LEVEL_CRITICAL, "All Shires (0x%" PRIx64 ") ready!\n", boot_minion_shires);
 
     // Wait for SP -> MM Mbox being ready
-    wait_sp_mm_mbox_ready(MBOX_SP);
+    // TODO: Should we block wait for this?
+    wait_sp_mm_mbox_ready();
 
     // Indicate to Host MM is ready to accept new commands
     MBOX_init();
