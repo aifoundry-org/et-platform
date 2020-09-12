@@ -408,3 +408,17 @@ Messages :
     Fields:
       - Name: status
         Type: bool
+#-------------------------------------------------------------------------------
+  - Name: configure_pmcs_cmd
+    Description: Configure performance monitoring counter events
+    Type: Command
+    PairedMessage: configure_pmcs_rsp
+    Fields:
+      - Name: conf_buffer_addr
+        Type: uint64_t
+  - Name: configure_pmcs_rsp
+    Type: Response
+    PairedMessage: configure_pmcs_cmd
+    Fields:
+      - Name: status
+        Type: bool
