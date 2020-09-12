@@ -37,8 +37,8 @@ int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_buffer_addr)
     uint64_t *conf_buffer = (uint64_t *)conf_buffer_addr;
 
     // minion counters: Each hart configures all counters so that we measure events for all the harts
-    // TBD: To avoid using PMC3 so that it is reserved for timestamp, just do not configure it, so make the loop i = 1...
-    for (uint64_t i = 0; i < PMU_MINION_COUNTERS_PER_HART; i++) {
+    // Since we reserve PMC3 to be used as a timer for tracing, we start from PMC4
+    for (uint64_t i = 1; i < PMU_MINION_COUNTERS_PER_HART; i++) {
         uint64_t *hart_minion_cfg_data =
             conf_buffer + PMU_EVENT_SHIRE_AREA * shire_id + PMU_MINION_COUNTERS_PER_HART * odd_hart + i;
         ret = ret + configure_neigh_event(*hart_minion_cfg_data, PMU_MHPMEVENT3 + i);
@@ -111,8 +111,9 @@ int64_t reset_pmcs(void)
     uint64_t reset_sc_harts = ((hart_id & 0xF) == NEIGH_HART_SC);
     uint64_t reset_ms_harts = (shire_id < 8) && (neigh_id == 3) && ((hart_id & 0xF) == NEIGH_HART_MS);
 
-    // TBD: To avoid reseting PMC3 that is used for timestamp, neigh_minion_id should be > 0
-    if (neigh_minion_id < PMU_MINION_COUNTERS_PER_HART + PMU_NEIGH_COUNTERS_PER_HART) {
+    // To avoid reseting PMC3 that is used for timestamp, neigh_minion_id should be > 0
+    if (neigh_minion_id < PMU_MINION_COUNTERS_PER_HART + PMU_NEIGH_COUNTERS_PER_HART &&
+        neigh_minion_id > 0) {
         ret = ret + reset_neigh_pmc(PMU_MHPMCOUNTER3 + neigh_minion_id);
     }
 
@@ -149,6 +150,7 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr)
 
     // Minion and neigh PMCs
     // TBD: To avoid reseting PMC3 that is used for timestamp, neigh_minion_id should be > 0
+    // Right now we keep on reading these PMCs, but we do not have to
     if (neigh_minion_id < PMU_MINION_COUNTERS_PER_HART + PMU_NEIGH_COUNTERS_PER_HART) {
         uint64_t pmc_data = read_neigh_pmc(PMU_MHPMCOUNTER3 + neigh_minion_id);
         if (pmc_data == PMU_INCORRECT_COUNTER) {
