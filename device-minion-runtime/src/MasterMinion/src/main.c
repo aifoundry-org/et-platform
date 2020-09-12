@@ -462,12 +462,12 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
         update_kernel_state(kernel, KERNEL_STATE_ERROR);
         break;
 
-    case MESSAGE_ID_KERNEL_COMPLETE: {
+    case MESSAGE_ID_KERNEL_COMPLETE:
         log_write(LOG_LEVEL_DEBUG,
                   "MESSAGE_ID_KERNEL_COMPLETE received from shire %" PRId64 " hart %" PRId64 "\r\n",
                   shire, hart);
         update_kernel_state(message.data[0], KERNEL_STATE_COMPLETE);
-    } break;
+        break;
 
     case MESSAGE_ID_LOOPBACK:
         log_write(LOG_LEVEL_DEBUG,
@@ -533,7 +533,7 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
 
     default:
         log_write(LOG_LEVEL_WARNING,
-                  "Unknown message id = 0x%016" PRIx64 "received from shire %" PRId64
+                  "Unknown message id = 0x%016" PRIx64 " received from shire %" PRId64
                   " hart %" PRId64 "\r\n",
                   message.id, shire, hart);
         break;

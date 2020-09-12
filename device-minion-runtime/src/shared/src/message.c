@@ -41,14 +41,18 @@ evict_message(const volatile message_t *const message);
 // Should only be called by master minion
 void message_init_master(void)
 {
-    // master->worker messages use message ID to indicate if a message is valid and unread
     for (uint64_t shire = 0; shire < NUM_SHIRES; shire++) {
+        // master->worker messages use message ID to indicate if a message is valid and unread
         for (uint64_t hart = 0; hart < HARTS_PER_SHIRE; hart++) {
             volatile message_t *const message_ptr =
                 &(*master_to_worker_message_buffers)[shire][hart];
             message_ptr->id = MESSAGE_ID_NONE;
             evict_message(message_ptr);
         }
+
+        // Clear worker->master message flags (bitmask containing worker id that sent the msg)
+        volatile uint64_t *const message_flags_ptr = &(*worker_to_master_message_flags)[shire];
+        atomic_store_global_64(message_flags_ptr, 0);
     }
 }
 
