@@ -528,6 +528,13 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
                   shire, hart);
         break;
 
+    case MESSAGE_ID_PMC_CONFIGURE:
+        log_write(LOG_LEVEL_WARNING,
+                  "Invalid MESSAGE_ID_PMC_CONFGIURE received from shire %" PRId64
+                  " hart %" PRId64 "\r\n",
+                  shire, hart);
+        break;
+
     default:
         log_write(LOG_LEVEL_WARNING,
                   "Unknown message id = 0x%016" PRIx64 "received from shire %" PRId64

@@ -441,6 +441,29 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
                       "\r\n",
                       result);
         }
+    } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_PMCS_CMD) {
+        const struct configure_pmcs_cmd_t *const cmd =
+            (const void *const)buffer;
+        struct configure_pmcs_rsp_t rsp;
+
+        // Send message to workers to configure PMCs
+        message_t message;
+        message.id = MESSAGE_ID_PMC_CONFIGURE;
+        message.data[0] = cmd->conf_buffer_addr;
+
+        // Do not send anything to master shire yet
+        broadcast_message_to_all_workers(&message, booted_minion_shires & 0xFFFFFFFFULL);
+        rsp.response_info.message_id = MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_PMCS_RSP;
+        rsp.status = true;
+        prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
+
+        int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
+        if (result != 0) {
+            log_write(LOG_LEVEL_ERROR,
+                      "Configure PMCs MBOX_send error " PRIi64
+                      "\r\n",
+                      result);
+        }
     } else {
         log_write(LOG_LEVEL_ERROR, "Invalid DeviceAPI message ID: %" PRIu64 "\r\n", *message_id);
     }
