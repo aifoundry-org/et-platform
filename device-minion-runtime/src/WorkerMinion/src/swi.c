@@ -4,6 +4,7 @@
 #include "layout.h"
 #include "log.h"
 #include "message.h"
+#include "syscall_internal.h"
 
 static message_number_t previous_broadcast_message_number[NUM_HARTS]
     __attribute__((section(".data"))) = { 0 };
