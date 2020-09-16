@@ -55,5 +55,8 @@ static void handle_message(uint64_t shire, uint64_t hart, message_t *const messa
     } else if (message_ptr->id == MESSAGE_ID_TRACE_BUFFER_EVICT) {
         // Evict trace buffer for consumption
         TRACE_evict_buffer();
+    } else if (message_ptr->id == MESSAGE_ID_PMC_CONFIGURE) {
+        // Make a syscall to M-mode to configure PMCs
+        syscall(SYSCALL_CONFIGURE_PMCS_INT, 1, message_ptr->data[0], 0);
     }
 }
