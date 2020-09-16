@@ -20,6 +20,7 @@ add_library(etrt_Core OBJECT
   Event.cc
   KernelActions.cc
   MemoryManager.cc
+  PmcConfig.cc
   Stream.cc
   VersionCheckers.cc
   )
