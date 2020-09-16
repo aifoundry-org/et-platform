@@ -19,11 +19,12 @@ libfpu_SRCS := $(fpu_cpp_srcs) $(fpu_c_srcs) $(softfloat_c_srcs)
 libfpu_OBJS := $(patsubst %,$(libfpu_OBJDIR)/fpu_obj/%.o,$(basename $(libfpu_SRCS)))
 libfpu_DEPS := $(libfpu_OBJS:.o=.d)
 
+EXTRA_MAKE_OPTS ?= 
 
 ARFLAGS  := rvs
 CPPFLAGS := -MMD -MP -I..
 CFLAGS   := -Wall -Werror -fPIC -std=c11
-CXXFLAGS := -Wall -Werror -Wextra -pedantic-errors -fPIC -std=c++11
+CXXFLAGS := -Wall -Werror -Wextra -pedantic-errors -fPIC -std=c++11 $(EXTRA_MAKE_OPTS)
 LDFLAGS  := -shared
 DEBUG ?= 0
 
