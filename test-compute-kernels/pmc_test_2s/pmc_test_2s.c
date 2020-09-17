@@ -76,20 +76,10 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
         ((uint64_t*)kernel_params_ptr->tensor_a == NULL) ||
         (kernel_params_ptr->tensor_b == 0) ||
         ((uint64_t*)kernel_params_ptr->tensor_c == NULL) ||
-        (kernel_params_ptr->tensor_d == 0) || 
-        ((uint64_t*)kernel_params_ptr->tensor_e == NULL) ||
-        (kernel_params_ptr->tensor_f == 0) ||
-        ((uint64_t*)kernel_params_ptr->tensor_g == NULL) ||
-        (kernel_params_ptr->tensor_h == 0))
-    {
+        (kernel_params_ptr->tensor_d == 0)) {
 	// Bad arguments
 	return -1;
     }
-
-    TRACE_kernel_launch(LOG_LEVELS_ERROR, kernel_params_ptr->tensor_a, kernel_params_ptr->tensor_b,
-                        kernel_params_ptr->tensor_c, kernel_params_ptr->tensor_d, kernel_params_ptr->tensor_e,
-                        kernel_params_ptr->tensor_f, kernel_params_ptr->tensor_g, kernel_params_ptr->tensor_h,
-                        kernel_params_ptr->kernel_id);
 
     // In case you need waves
     START_WAVES_MARKER;
@@ -97,7 +87,17 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     volatile uint64_t pmc_cfg = (uint64_t) kernel_params_ptr->tensor_e;
     volatile uint64_t pmc_log = (uint64_t) kernel_params_ptr->tensor_g;
 
-    TRACE_string(LOG_LEVELS_INFO, "Configuring PMCs");
+    // If we pass null CFG or LOG buffer ptrs then we use tracing.
+    // If not then we use back door.
+    uint8_t use_trace = (pmc_cfg != 0 && pmc_log != 0);
+
+    if (use_trace) {
+        TRACE_kernel_launch(LOG_LEVELS_ERROR, kernel_params_ptr->tensor_a, kernel_params_ptr->tensor_b,
+                            kernel_params_ptr->tensor_c, kernel_params_ptr->tensor_d, kernel_params_ptr->tensor_e,
+                            kernel_params_ptr->tensor_f, kernel_params_ptr->tensor_g, kernel_params_ptr->tensor_h,
+                            kernel_params_ptr->kernel_id);
+        TRACE_string(LOG_LEVELS_INFO, "Configuring PMCs");
+    }
 
     // Configure PMCs
     syscall(SYSCALL_CONFIGURE_PMCS, 1, pmc_cfg, 0);
@@ -110,9 +110,13 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     if (hart_id & 1) {
         for (volatile uint64_t dummy=0; dummy < NUM_ITER * 10; dummy++);
         WAIT_FCC(0);
+        if (use_trace) {
+            TRACE_string(LOG_LEVELS_INFO, "Sampling PMCs");
+        }
         syscall(SYSCALL_SAMPLE_PMCS, 1, pmc_log, 0);
 	return 0;
     }
+
     setM0MaskFF();
     uint64_t tl_minion_idx = minion_id * TL_PARAMS;
     uint64_t tfma_minion_idx = minion_id * TFMA_PARAMS;
@@ -253,7 +257,10 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     uint64_t local_minion_id = minion_id & 0x1F;
     SEND_FCC(shire_id, 1, 0, (1ULL << local_minion_id));
 
-    TRACE_string(LOG_LEVELS_INFO, "Sampling PMCs");
+    if (use_trace) {
+        TRACE_string(LOG_LEVELS_INFO, "Sampling PMCs");
+    }
+
     syscall(SYSCALL_SAMPLE_PMCS, 1, pmc_log, 0);
 
     return 0;
