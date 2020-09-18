@@ -14,6 +14,8 @@
 #include "hart.h"
 #include "pmu.h"
 #include "device-mrt-trace.h"
+#include "log.h"
+#include "printf.h"
 
 // Configure PMCs
 // reset_counters is a boolean that determines whether we reset / start counters after the configuration
@@ -30,7 +32,7 @@ int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_buffer_addr)
     uint64_t program_ms_harts = (((hart_id & 0xF) == NEIGH_HART_MS) && (shire_id < 8) && (neigh_id == 3));
     int64_t ret = 0;
 
-    // Currently we use conf buffer back door
+    // If the conf buffer has not been set, do not do anything
     if (conf_buffer_addr == 0) {
         return -1;
     }
@@ -132,7 +134,7 @@ int64_t reset_pmcs(void)
 // Each of harts 0-11 read one neigh PMC
 // Hart 13 reads shire cache PMCs
 // Hart 15 of neigh 3, shires 0-7 read memshire PMCs
-int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr)
+int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_tensor_addr)
 {
     int64_t ret = 0;
     uint64_t hart_id = get_hart_id();
@@ -142,10 +144,10 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr)
     uint64_t read_ms_harts = ((hart_id & 0xF) == NEIGH_HART_MS) && (neigh_id == 3) && (shire_id < 8);
 
     // Use log buffer back door
-    if (log_buffer_addr == 0) {
-        return -1;
-    }
-    uint64_t *log_buffer = (uint64_t *)log_buffer_addr;
+    //if (log_buffer_addr == 0) {
+    //    return -1;
+    //}
+    uint64_t *log_tensor = (uint64_t *)log_tensor_addr;
     uint64_t neigh_minion_id = (hart_id >> 1) & 0x7;
 
     // Minion and neigh PMCs
@@ -156,8 +158,11 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr)
         if (pmc_data == PMU_INCORRECT_COUNTER) {
             ret = ret - 1;
         }
-        *(log_buffer + hart_id * 8) = pmc_data;
-        TRACE_perfctr(LOG_LEVELS_INFO, 1, pmc_data);
+        if (log_tensor) {
+            *(log_tensor + hart_id * 8) = pmc_data;
+        } else {
+            TRACE_perfctr(LOG_LEVELS_INFO, 1, pmc_data);
+        }
     }
 
     // SC PMCs
@@ -169,8 +174,11 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr)
             if (pmc_data == PMU_INCORRECT_COUNTER) {
                ret = ret - 1;
             }
-            *(log_buffer + (shire_id * 64 + neigh_id * 16 + NEIGH_HART_SC + i- 1)* 8) = pmc_data;
-            TRACE_perfctr(LOG_LEVELS_INFO, i+1, pmc_data);
+            if (log_tensor) {
+                *(log_tensor + (shire_id * 64 + neigh_id * 16 + NEIGH_HART_SC + i- 1)* 8) = pmc_data;
+            } else {
+                TRACE_perfctr(LOG_LEVELS_INFO, i+1, pmc_data);
+            }
         }
     }
 
@@ -184,8 +192,11 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr)
                 ret = ret - 1;
             }
             // Put data on location for last hart of neighs 0-2. Last hart of shire stores nothing
-            *(log_buffer + (shire_id * 64 + (neigh_id - 3 + i)* 16 + (hart_id & 0xF)) * 8) = pmc_data;
-            TRACE_perfctr(LOG_LEVELS_INFO, i+1, pmc_data);
+            if (log_tensor) {
+                *(log_tensor + (shire_id * 64 + (neigh_id - 3 + i)* 16 + (hart_id & 0xF)) * 8) = pmc_data;
+            } else {
+                TRACE_perfctr(LOG_LEVELS_INFO, i+1, pmc_data);
+            }
         }
     }
 
