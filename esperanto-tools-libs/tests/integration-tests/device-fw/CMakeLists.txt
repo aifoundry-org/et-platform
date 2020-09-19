@@ -74,3 +74,11 @@ set(DUAL_TEST_LIST
   # test_hang.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
   )
 create_test_targets("${DUAL_TEST_LIST}" "${DUAL_TEST_LABELS}")
+
+set(PCIE_TEST_LIST
+   # For some reason it fails on CI and passes locally, uncomment once you fix the CI failures
+   # test_pmc.cc:"${DEV_FW_ARGS} --dev_target=pcie --kernels_dir ${KERNELS_DIR}"
+   # To run FC uncomment: emizan to automate that
+   # test_pmc.cc:"${DEV_FW_ARGS} --dev_target=pcie --shires=32 --kernels_dir ${KERNELS_DIR}"
+   )
+create_test_targets("${PCIE_TEST_LIST}" "LABELS;QEMU-Driver-SNPS;TIMEOUT;600")
