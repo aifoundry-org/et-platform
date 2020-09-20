@@ -29,7 +29,8 @@ ABSL_FLAG(std::string, kernels_dir, "",
 
 ABSL_FLAG(std::string, trace_elf, "", "Path to elf to execute");
 
-TEST_F(DeviceFWTest, Trace_RingBufferTest_DataRead) {
+/*FIXME TODO: Re-enable afer SW-4325 is fixed 
+ TEST_F(DeviceFWTest, Trace_RingBufferTest_DataRead) {
   fs::path trace_kernel = fs::path(absl::GetFlag(FLAGS_kernels_dir)) /
                           fs::path("trace_ring_buffer.elf");
   auto &registry = dev_->codeRegistry();
@@ -298,6 +299,7 @@ TEST_F(DeviceFWTest, Trace_RingBufferTest_BufferWrapped) {
 
   ASSERT_TRUE(result2);
 }
+*/
 
 TEST_F(DeviceFWTest, Trace_test) {
   fs::path trace_kernel = fs::path(absl::GetFlag(FLAGS_trace_elf));
