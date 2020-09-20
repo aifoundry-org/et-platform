@@ -80,10 +80,6 @@ void __attribute__((noreturn)) main(void)
     const uint64_t hart_id = get_hart_id();
 
     if (hart_id == 2048) {
-        // Enable thread 1 on minion 1 and 2 for kernel sync fw-threads
-        // Also enable thread 1 of minions 16-31 (worker minions user-mode kernel sync minions)
-        syscall(SYSCALL_ENABLE_THREAD1_INT, 0, 0xFFFF0000u | 6u, 0);
-
         master_thread();
     } else if ((hart_id >= 2050) && (hart_id < 2054)) {
         kernel_sync_thread(hart_id - 2050);

@@ -38,12 +38,6 @@ void __attribute__((noreturn)) main(void)
 
     message_init_worker(shire_id, hart_id);
 
-    // First HART in the shire, except Master Shire (32), where H0 of MasterFW will also enable userspace sync minions of that shire
-    if ((hart_id % 64U) == 0 && (shire_id != MASTER_SHIRE)) {
-        // Enable all thread1s so they can run BIST, master can communicate with them, etc.
-        syscall(SYSCALL_ENABLE_THREAD1_INT, 0, 0xFFFFFFFFu, 0);
-    }
-
     // Empty all FCCs
     init_fcc(FCC_0);
     init_fcc(FCC_1);
