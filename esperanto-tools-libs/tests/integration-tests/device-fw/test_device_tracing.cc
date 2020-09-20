@@ -16,6 +16,7 @@
 #include "esperanto/runtime/Core/TraceHelper.h"
 #include <chrono>
 #include <ctime>
+#include <string>
 
 using namespace et_runtime::device;
 using namespace et_runtime::device_api;
@@ -23,7 +24,280 @@ using namespace et_runtime;
 namespace fs = std::experimental::filesystem;
 using namespace std::chrono;
 
+ABSL_FLAG(std::string, kernels_dir, "",
+          "Directory where different kernel ELF files are located");
+
 ABSL_FLAG(std::string, trace_elf, "", "Path to elf to execute");
+
+TEST_F(DeviceFWTest, Trace_RingBufferTest_DataRead) {
+  fs::path trace_kernel = fs::path(absl::GetFlag(FLAGS_kernels_dir)) /
+                          fs::path("trace_ring_buffer.elf");
+  auto &registry = dev_->codeRegistry();
+
+  auto register_res = registry.registerKernel(
+      "main", {Kernel::ArgType::T_layer_dynamic_info}, trace_kernel.string());
+  ASSERT_TRUE((bool)register_res);
+  auto &kernel = std::get<1>(register_res.get());
+
+  auto load_res = registry.moduleLoad(kernel.moduleID(), dev_.get());
+  ASSERT_EQ(load_res.getError(), etrtSuccess);
+  auto module_id = load_res.get();
+
+  TraceHelper trace_helper(*dev_);
+  auto success = trace_helper.set_level_critical();
+  ASSERT_TRUE(success);
+
+  ::device_api::non_privileged::discover_trace_buffer_rsp_t rsp = {0};
+
+  // Discover the trace buffer properties
+  rsp = trace_helper.discover_trace_buffer();
+  ASSERT_TRUE(rsp.status);
+
+  // This test case expect ring buffer to be of size 4096 bytes.
+  ASSERT_EQ(rsp.trace_buffer_size, 4096);
+
+  // Disable the trace logging
+  success = trace_helper.configure_trace_state_knob(0);
+  ASSERT_TRUE(success);
+
+  // Flush the data
+  success = trace_helper.prepare_trace_buffers();
+  ASSERT_TRUE(success);
+
+  // Clear the ring buffers and state
+  success = trace_helper.reset_trace_buffers();
+  ASSERT_TRUE(success);
+
+  // Disable the trace logging
+  success = trace_helper.configure_trace_state_knob(1);
+  ASSERT_TRUE(success);
+
+  // Prepare kernel launch
+  Kernel::layer_dynamic_info_t layer_info = {0};
+  Kernel::LaunchArg arg;
+  arg.type = Kernel::ArgType::T_layer_dynamic_info;
+  arg.value.layer_dynamic_info = layer_info;
+  auto args = std::vector<Kernel::LaunchArg>({arg});
+  auto launch = kernel.createKernelLaunch(args);
+
+  // Lauch the kernel
+  auto launch_res = launch->launchBlocking(&dev_->defaultStream());
+  ASSERT_EQ(launch_res, etrtSuccess);
+
+  // Get trace buffer properties
+  rsp = trace_helper.discover_trace_buffer();
+  ASSERT_TRUE(rsp.status);
+
+  // Disable trace logging before reading the data
+  success = trace_helper.configure_trace_state_knob(0);
+  ASSERT_TRUE(success);
+
+  // Flush any remaining data
+  success = trace_helper.prepare_trace_buffers();
+  ASSERT_TRUE(success);
+
+  std::vector<uint8_t> data(rsp.trace_buffer_size * NUMBER_OF_TRACE_BUFFERS);
+
+  // Read data from device memory into host buffer
+  auto res = dev_->memcpy(
+      data.data(),
+      (const void *)(rsp.trace_base +
+                     ALIGN(
+                         sizeof(::device_api::non_privileged::trace_control_t),
+                         TRACE_BUFFER_REGION_ALIGNEMNT)),
+      rsp.trace_buffer_size * NUMBER_OF_TRACE_BUFFERS, etrtMemcpyDeviceToHost);
+
+  // Parse the trace data into protobuff
+  auto result = et_runtime::tracing::DeviceAPI_DeviceFW_process_device_traces(
+      &data[0], rsp.trace_buffer_size, NUMBER_OF_TRACE_BUFFERS);
+
+  ASSERT_EQ(result, ::device_api::non_privileged::TRACE_STATUS_SUCCESS);
+
+  auto result2 = Test_Trace_verify_ring_buffer_data(
+      &data[0], rsp.trace_buffer_size, NUMBER_OF_TRACE_BUFFERS, 1);
+
+  ASSERT_TRUE(result2);
+}
+
+TEST_F(DeviceFWTest, Trace_RingBufferTest_BufferFull) {
+  fs::path trace_kernel = fs::path(absl::GetFlag(FLAGS_kernels_dir)) /
+                          fs::path("trace_ring_buffer.elf");
+  auto &registry = dev_->codeRegistry();
+
+  auto register_res = registry.registerKernel(
+      "main", {Kernel::ArgType::T_layer_dynamic_info}, trace_kernel.string());
+  ASSERT_TRUE((bool)register_res);
+  auto &kernel = std::get<1>(register_res.get());
+
+  auto load_res = registry.moduleLoad(kernel.moduleID(), dev_.get());
+  ASSERT_EQ(load_res.getError(), etrtSuccess);
+  auto module_id = load_res.get();
+
+  TraceHelper trace_helper(*dev_);
+  auto success = trace_helper.set_level_error();
+  ASSERT_TRUE(success);
+
+  ::device_api::non_privileged::discover_trace_buffer_rsp_t rsp = {0};
+
+  // Discover the trace buffer properties
+  rsp = trace_helper.discover_trace_buffer();
+  ASSERT_TRUE(rsp.status);
+
+  // This test case expect ring buffer to be of size 4096.
+  ASSERT_EQ(rsp.trace_buffer_size, 4096);
+
+  // Disable the trace logging
+  success = trace_helper.configure_trace_state_knob(0);
+  ASSERT_TRUE(success);
+
+  // Flush the data
+  success = trace_helper.prepare_trace_buffers();
+  ASSERT_TRUE(success);
+
+  // Clear the ring buffer and state
+  success = trace_helper.reset_trace_buffers();
+  ASSERT_TRUE(success);
+
+  // Disable the trace logging
+  success = trace_helper.configure_trace_state_knob(1);
+  ASSERT_TRUE(success);
+
+  // Prepare kernel launch
+  Kernel::layer_dynamic_info_t layer_info = {0};
+  Kernel::LaunchArg arg;
+  arg.type = Kernel::ArgType::T_layer_dynamic_info;
+  arg.value.layer_dynamic_info = layer_info;
+  auto args = std::vector<Kernel::LaunchArg>({arg});
+  auto launch = kernel.createKernelLaunch(args);
+
+  // Lauch the kernel
+  auto launch_res = launch->launchBlocking(&dev_->defaultStream());
+  ASSERT_EQ(launch_res, etrtSuccess);
+
+  // Get trace buffer properties
+  rsp = trace_helper.discover_trace_buffer();
+  ASSERT_TRUE(rsp.status);
+
+  // Disable trace logging before reading the data
+  success = trace_helper.configure_trace_state_knob(0);
+  ASSERT_TRUE(success);
+
+  // Flush any remaining data
+  success = trace_helper.prepare_trace_buffers();
+  ASSERT_TRUE(success);
+
+  std::vector<uint8_t> data(rsp.trace_buffer_size * NUMBER_OF_TRACE_BUFFERS);
+
+  // Read data from device memory into host buffer
+  auto res = dev_->memcpy(
+      data.data(),
+      (const void *)(rsp.trace_base +
+                     ALIGN(
+                         sizeof(::device_api::non_privileged::trace_control_t),
+                         TRACE_BUFFER_REGION_ALIGNEMNT)),
+      rsp.trace_buffer_size * NUMBER_OF_TRACE_BUFFERS, etrtMemcpyDeviceToHost);
+
+  // Parse the trace data into protobuff
+  auto result = et_runtime::tracing::DeviceAPI_DeviceFW_process_device_traces(
+      &data[0], rsp.trace_buffer_size, NUMBER_OF_TRACE_BUFFERS);
+
+  ASSERT_EQ(result, ::device_api::non_privileged::TRACE_STATUS_SUCCESS);
+
+  auto result2 = Test_Trace_verify_ring_buffer_data(
+      &data[0], rsp.trace_buffer_size, NUMBER_OF_TRACE_BUFFERS, 2);
+
+  ASSERT_TRUE(result2);
+}
+
+TEST_F(DeviceFWTest, Trace_RingBufferTest_BufferWrapped) {
+  fs::path trace_kernel = fs::path(absl::GetFlag(FLAGS_kernels_dir)) /
+                          fs::path("trace_ring_buffer.elf");
+  auto &registry = dev_->codeRegistry();
+
+  auto register_res = registry.registerKernel(
+      "main", {Kernel::ArgType::T_layer_dynamic_info}, trace_kernel.string());
+  ASSERT_TRUE((bool)register_res);
+  auto &kernel = std::get<1>(register_res.get());
+
+  auto load_res = registry.moduleLoad(kernel.moduleID(), dev_.get());
+  ASSERT_EQ(load_res.getError(), etrtSuccess);
+  auto module_id = load_res.get();
+
+  TraceHelper trace_helper(*dev_);
+  auto success = trace_helper.set_level_warning();
+  ASSERT_TRUE(success);
+
+  ::device_api::non_privileged::discover_trace_buffer_rsp_t rsp = {0};
+
+  // Discover the trace buffer properties
+  rsp = trace_helper.discover_trace_buffer();
+  ASSERT_TRUE(rsp.status);
+
+  // This test case expect ring buffer to be of size 4096.
+  ASSERT_EQ(rsp.trace_buffer_size, 4096);
+
+  // Disable the trace logging
+  success = trace_helper.configure_trace_state_knob(0);
+  ASSERT_TRUE(success);
+
+  // Flush the data
+  success = trace_helper.prepare_trace_buffers();
+  ASSERT_TRUE(success);
+
+  // Clear the ring buffer and state
+  success = trace_helper.reset_trace_buffers();
+  ASSERT_TRUE(success);
+
+  // Disable the trace logging
+  success = trace_helper.configure_trace_state_knob(1);
+  ASSERT_TRUE(success);
+
+  // Prepare kernel launch
+  Kernel::layer_dynamic_info_t layer_info = {0};
+  Kernel::LaunchArg arg;
+  arg.type = Kernel::ArgType::T_layer_dynamic_info;
+  arg.value.layer_dynamic_info = layer_info;
+  auto args = std::vector<Kernel::LaunchArg>({arg});
+  auto launch = kernel.createKernelLaunch(args);
+
+  // Lauch the kernel
+  auto launch_res = launch->launchBlocking(&dev_->defaultStream());
+  ASSERT_EQ(launch_res, etrtSuccess);
+
+  // Get trace buffer properties
+  rsp = trace_helper.discover_trace_buffer();
+  ASSERT_TRUE(rsp.status);
+
+  // Disable trace logging before reading the data
+  success = trace_helper.configure_trace_state_knob(0);
+  ASSERT_TRUE(success);
+
+  // Flush any remaining data
+  success = trace_helper.prepare_trace_buffers();
+  ASSERT_TRUE(success);
+
+  std::vector<uint8_t> data(rsp.trace_buffer_size * NUMBER_OF_TRACE_BUFFERS);
+
+  // Read data from device memory into host buffer
+  auto res = dev_->memcpy(
+      data.data(),
+      (const void *)(rsp.trace_base +
+                     ALIGN(
+                         sizeof(::device_api::non_privileged::trace_control_t),
+                         TRACE_BUFFER_REGION_ALIGNEMNT)),
+      rsp.trace_buffer_size * NUMBER_OF_TRACE_BUFFERS, etrtMemcpyDeviceToHost);
+
+  // Parse the trace data into protobuff
+  auto result = et_runtime::tracing::DeviceAPI_DeviceFW_process_device_traces(
+      &data[0], rsp.trace_buffer_size, NUMBER_OF_TRACE_BUFFERS);
+
+  ASSERT_EQ(result, ::device_api::non_privileged::TRACE_STATUS_SUCCESS);
+
+  auto result2 = Test_Trace_verify_ring_buffer_data(
+      &data[0], rsp.trace_buffer_size, NUMBER_OF_TRACE_BUFFERS, 3);
+
+  ASSERT_TRUE(result2);
+}
 
 TEST_F(DeviceFWTest, Trace_test) {
   fs::path trace_kernel = fs::path(absl::GetFlag(FLAGS_trace_elf));
