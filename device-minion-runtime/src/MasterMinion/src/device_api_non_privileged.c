@@ -43,7 +43,7 @@ static inline void broadcast_message_to_all_workers(const message_t *message, ui
 void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t* message_id,
                                                         uint8_t* buffer)
 {
-    minion_fw_boot_config_t *boot_config = (minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
+    volatile minion_fw_boot_config_t *boot_config = (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
     uint64_t booted_minion_shires = boot_config->minion_shires & ((1ULL << NUM_SHIRES) - 1);
 
     {
