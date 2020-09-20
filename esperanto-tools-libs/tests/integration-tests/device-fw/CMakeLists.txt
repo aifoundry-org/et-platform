@@ -65,8 +65,7 @@ else()
 endif(ENABLE_PCIE)
 
 set(DUAL_TEST_LIST
-  # FIXME SW-4087
-  #test_device_tracing.cc:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR} --trace_elf ${TRACE_KERNEL_ELF}"
+  test_device_tracing.cc:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR} --trace_elf ${TRACE_KERNEL_ELF}"
   test_device_api.cc:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR}"
   test_launch_uberkernel.cc:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR}"
   test_reflect_cmd.cc:"${DUAL_MODE_OPTS}"
