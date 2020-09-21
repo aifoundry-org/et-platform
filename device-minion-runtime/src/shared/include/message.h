@@ -33,9 +33,17 @@ typedef struct {
     uint64_t data[7];
 } __attribute__((aligned(64))) message_t; // always aligned to a cache line
 
+typedef struct {
+    uint32_t count;
+} __attribute__((aligned(64))) broadcast_message_ctrl_t; // always aligned to a cache line
+
 // Ensure message_t maps directly to a 64-byte cache line
 static_assert(sizeof(message_t) == 64, "sizeof message_t must be 64 bytes");
 static_assert(_Alignof(message_t) == 64, "_Alignof message_t must be 64 bytes");
+
+// Ensure broadcast_message_ctrl_t maps directly to a 64-byte cache line
+static_assert(sizeof(broadcast_message_ctrl_t) == 64, "sizeof broadcast_message_ctrl_t must be 64 bytes");
+static_assert(_Alignof(broadcast_message_ctrl_t) == 64, "_Alignof broadcast_message_ctrl_t must be 64 bytes");
 
 void message_init_master(void);
 void message_init_worker(uint64_t shire, uint64_t hart);
@@ -54,8 +62,7 @@ int64_t message_send_master(uint64_t dest_shire, uint64_t dest_hart,
 int64_t message_send_worker(uint64_t source_shire, uint64_t source_hart,
                             const message_t *const message);
 
-int64_t broadcast_message_send_master(uint64_t dest_shire_mask, uint64_t dest_hart_mask,
-                                      const message_t *const message);
+int64_t broadcast_message_send_master(uint64_t dest_shire_mask, const message_t *const message);
 message_number_t broadcast_message_receive_worker(message_t *const message);
 
 void message_receive_master(uint64_t source_shire, uint64_t source_hart, message_t *const message);
