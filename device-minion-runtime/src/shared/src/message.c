@@ -44,16 +44,18 @@ void message_init_master(void)
     for (uint64_t shire = 0; shire < NUM_SHIRES; shire++) {
         // master->worker messages use message ID to indicate if a message is valid and unread
         for (uint64_t hart = 0; hart < HARTS_PER_SHIRE; hart++) {
-            volatile message_t *const message_ptr =
-                &(*master_to_worker_message_buffers)[shire][hart];
-            message_ptr->id = MESSAGE_ID_NONE;
-            evict_message(message_ptr);
+            volatile message_t *const msg = &(*master_to_worker_message_buffers)[shire][hart];
+            atomic_store_global_32(&msg->id, MESSAGE_ID_NONE);
         }
 
         // Clear worker->master message flags (bitmask containing worker id that sent the msg)
-        volatile uint64_t *const message_flags_ptr = &(*worker_to_master_message_flags)[shire];
-        atomic_store_global_64(message_flags_ptr, 0);
+        volatile uint64_t *const flags = &(*worker_to_master_message_flags)[shire];
+        atomic_store_global_64(flags, 0);
     }
+
+    // Master->worker broadcast message number and id
+    atomic_store_global_8(&master_to_worker_broadcast_message_buffer_ptr->number, 0);
+    atomic_store_global_32(&master_to_worker_broadcast_message_buffer_ptr->id, MESSAGE_ID_NONE);
 }
 
 // Initializes message buffer
@@ -62,12 +64,8 @@ void message_init_worker(uint64_t shire, uint64_t hart)
 {
     hart %= 64U; // allow raw 0-2111 hart_id to be passed in
 
-    volatile message_t *const message_ptr = &(*worker_to_master_message_buffers)[shire][hart];
-    message_ptr->id = MESSAGE_ID_NONE;
-    evict_message(message_ptr);
-
-    // worker->master messages use message flag to indicate if a message is valid and unread
-    clear_message_flag(shire, hart);
+    volatile message_t *const msg = &(*worker_to_master_message_buffers)[shire][hart];
+    atomic_store_global_32(&msg->id, MESSAGE_ID_NONE);
 }
 
 // Atomically reads the message pending flags for a shire
