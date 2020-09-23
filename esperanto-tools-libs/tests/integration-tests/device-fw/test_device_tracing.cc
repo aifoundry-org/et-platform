@@ -107,12 +107,6 @@ ABSL_FLAG(std::string, trace_elf, "", "Path to elf to execute");
                          TRACE_BUFFER_REGION_ALIGNEMNT)),
       rsp.trace_buffer_size * NUMBER_OF_TRACE_BUFFERS, etrtMemcpyDeviceToHost);
 
-  // Parse the trace data into protobuff
-  auto result = et_runtime::tracing::DeviceAPI_DeviceFW_process_device_traces(
-      &data[0], rsp.trace_buffer_size, NUMBER_OF_TRACE_BUFFERS);
-
-  ASSERT_EQ(result, ::device_api::non_privileged::TRACE_STATUS_SUCCESS);
-
   auto result2 = Test_Trace_verify_ring_buffer_data(
       &data[0], rsp.trace_buffer_size, NUMBER_OF_TRACE_BUFFERS, 1);
 
@@ -197,12 +191,6 @@ TEST_F(DeviceFWTest, Trace_RingBufferTest_BufferFull) {
                          TRACE_BUFFER_REGION_ALIGNEMNT)),
       rsp.trace_buffer_size * NUMBER_OF_TRACE_BUFFERS, etrtMemcpyDeviceToHost);
 
-  // Parse the trace data into protobuff
-  auto result = et_runtime::tracing::DeviceAPI_DeviceFW_process_device_traces(
-      &data[0], rsp.trace_buffer_size, NUMBER_OF_TRACE_BUFFERS);
-
-  ASSERT_EQ(result, ::device_api::non_privileged::TRACE_STATUS_SUCCESS);
-
   auto result2 = Test_Trace_verify_ring_buffer_data(
       &data[0], rsp.trace_buffer_size, NUMBER_OF_TRACE_BUFFERS, 2);
 
@@ -286,12 +274,6 @@ TEST_F(DeviceFWTest, Trace_RingBufferTest_BufferWrapped) {
                          sizeof(::device_api::non_privileged::trace_control_t),
                          TRACE_BUFFER_REGION_ALIGNEMNT)),
       rsp.trace_buffer_size * NUMBER_OF_TRACE_BUFFERS, etrtMemcpyDeviceToHost);
-
-  // Parse the trace data into protobuff
-  auto result = et_runtime::tracing::DeviceAPI_DeviceFW_process_device_traces(
-      &data[0], rsp.trace_buffer_size, NUMBER_OF_TRACE_BUFFERS);
-
-  ASSERT_EQ(result, ::device_api::non_privileged::TRACE_STATUS_SUCCESS);
 
   auto result2 = Test_Trace_verify_ring_buffer_data(
       &data[0], rsp.trace_buffer_size, NUMBER_OF_TRACE_BUFFERS, 3);
