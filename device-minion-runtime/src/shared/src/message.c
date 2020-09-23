@@ -10,27 +10,28 @@
 
 #include <stdbool.h>
 
-// message flags must never be cached, access exclusively via atomics
-typedef volatile uint64_t
-    messageFlags_t[NUM_SHIRES]; // Each shire has a message flag bitfield, one bit per HART
-typedef volatile message_t
-    messageBuffers_t[NUM_SHIRES][HARTS_PER_SHIRE]; // Each shire has 64 message buffers, one per HART
+// Note: Message flags must never be cached, access exclusively via atomics
+
+// Each shire has a message flag bitfield, one bit per HART
+typedef volatile uint64_t message_flags_t[NUM_SHIRES];
+// Each shire has 64 message buffers, one per HART
+typedef volatile message_t message_buffers_t[NUM_SHIRES][HARTS_PER_SHIRE];
 
 // worker -> master
 // workers atomically set a flag bit in a per-shire message flag dword before sending IPI to master
 // so master can check 33 flag registers instead of 2048 message buffers
-static messageFlags_t *const worker_to_master_message_flags =
-    (messageFlags_t *)FW_WORKER_TO_MASTER_MESSAGE_FLAGS;
-static messageBuffers_t *const worker_to_master_message_buffers =
-    (messageBuffers_t *)FW_WORKER_TO_MASTER_MESSAGE_BUFFERS;
+static message_flags_t *const worker_to_master_message_flags =
+    (message_flags_t *)FW_WORKER_TO_MASTER_MESSAGE_FLAGS;
+static message_buffers_t *const worker_to_master_message_buffers =
+    (message_buffers_t *)FW_WORKER_TO_MASTER_MESSAGE_BUFFERS;
 
 // master -> worker
 static volatile message_t *const master_to_worker_broadcast_message_buffer_ptr =
     (message_t *)FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER;
 static volatile broadcast_message_ctrl_t *const master_to_worker_broadcast_message_ctrl_ptr =
     (broadcast_message_ctrl_t *)FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL;
-static messageBuffers_t *const master_to_worker_message_buffers =
-    (messageBuffers_t *)FW_MASTER_TO_WORKER_MESSAGE_BUFFERS;
+static message_buffers_t *const master_to_worker_message_buffers =
+    (message_buffers_t *)FW_MASTER_TO_WORKER_MESSAGE_BUFFERS;
 
 static inline __attribute__((always_inline)) void set_message_flag(uint64_t shire, uint64_t hart);
 static inline __attribute__((always_inline)) void clear_message_flag(uint64_t shire, uint64_t hart);
@@ -62,9 +63,11 @@ void message_init_master(void)
 // Should only be called by worker minion
 void message_init_worker(uint64_t shire, uint64_t hart)
 {
-    hart %= 64U; // allow raw 0-2111 hart_id to be passed in
+    volatile message_t *msg;
 
-    volatile message_t *const msg = &(*worker_to_master_message_buffers)[shire][hart];
+    // Allow raw 0-2111 hart_id to be passed in
+    msg = &(*worker_to_master_message_buffers)[shire][hart % 64];
+
     atomic_store_global_32(&msg->id, MESSAGE_ID_NONE);
 }
 
@@ -79,41 +82,45 @@ uint64_t get_message_flags(uint64_t shire)
 // Should only be called by worker minion
 message_id_t get_message_id(uint64_t shire, uint64_t hart)
 {
-    hart %= 64U; // allow raw 0-2111 hart_id to be passed in
-    const volatile message_t *const message_ptr = &(*master_to_worker_message_buffers)[shire][hart];
+    const volatile message_t *msg;
 
-    // Evict to invalidate, must not be dirty
-    evict_message(message_ptr);
+    // Allow raw 0-2111 hart_id to be passed in
+    msg = &(*master_to_worker_message_buffers)[shire][hart % 64];
 
-    return message_ptr->id;
+    return atomic_load_global_32(&msg->id);
 }
 
 // returns true if the broadcast message id != the previously received broadcast message
 bool broadcast_message_available(message_number_t previous_broadcast_message_number)
 {
-    // Evict to invalidate, must not be dirty
-    evict_message(master_to_worker_broadcast_message_buffer_ptr);
+    message_number_t cur_number =
+        atomic_load_global_8(&master_to_worker_broadcast_message_buffer_ptr->number);
 
-    return (master_to_worker_broadcast_message_buffer_ptr->number !=
-            previous_broadcast_message_number);
+    return (cur_number != previous_broadcast_message_number);
 }
 
 // Sends a message from master minion to worker minion
 // Should only be called by master minion
 int64_t message_send_master(uint64_t dest_shire, uint64_t dest_hart, const message_t *const message)
 {
-    dest_hart %= 64U; // allow raw 0-2111 hart_id to be passed in
-    volatile message_t *const dest_message_ptr =
-        &(*master_to_worker_message_buffers)[dest_shire][dest_hart];
+    volatile message_t *dest_message_ptr;
+
+    // Allow raw 0-2111 hart_id to be passed in
+    dest_hart %= 64;
 
     // Wait if message ID is set to avoid overwriting a pending message
-    // TODO FIXME could use atomics here, but atomic/cache interaction is unclear
-    while (get_message_id(dest_shire, dest_hart) != MESSAGE_ID_NONE)
-        ;
+    while (get_message_id(dest_shire, dest_hart) != MESSAGE_ID_NONE) {
+        // Relax thread
+        asm volatile("fence\n" ::: "memory");
+    }
 
+    // Copy message to shared buffer
+    dest_message_ptr = &(*master_to_worker_message_buffers)[dest_shire][dest_hart];
     *dest_message_ptr = *message;
-
     evict_message(dest_message_ptr);
+
+    // Ensure the evict to L3 has completed before sending the IPI
+    asm volatile("fence");
 
     // Send an IPI
     syscall(SYSCALL_IPI_TRIGGER_INT, (1ULL << dest_hart), dest_shire, 0);
@@ -137,15 +144,15 @@ int64_t broadcast_message_send_master(uint64_t dest_shire_mask, const message_t 
 {
     // First broadcast message number is 1, so OK for worker minion
     // to init previous_broadcast_message_number to 0
-    static message_number_t number = 0;
+    static message_number_t number = 1;
     uint32_t receiver_count;
 
     // Copy message to shared buffer
     *master_to_worker_broadcast_message_buffer_ptr = *message;
-    master_to_worker_broadcast_message_buffer_ptr->number = ++number;
+    master_to_worker_broadcast_message_buffer_ptr->number = number++;
     evict_message(master_to_worker_broadcast_message_buffer_ptr);
 
-    // Write broadcast message control data
+    // Configure broadcast message control data
     atomic_store_global_32(&master_to_worker_broadcast_message_ctrl_ptr->count, 0);
 
     // Send IPI to receivers
@@ -186,16 +193,20 @@ message_number_t broadcast_message_receive_worker(message_t *const message)
 int64_t message_send_worker(uint64_t source_shire, uint64_t source_hart,
                             const message_t *const message)
 {
-    source_hart %= 64U; // allow raw 0-2111 hart_id to be passed in
-    volatile message_t *const dest_message_ptr =
-        &(*worker_to_master_message_buffers)[source_shire][source_hart];
+    volatile message_t *dest_message_ptr;
+
+    // Allow raw 0-2111 hart_id to be passed in
+    source_hart %= 64;
 
     // Wait if message flag is set to avoid overwriting a pending message
-    while ((get_message_flags(source_shire) & (1ULL << source_hart)))
-        ;
+    while ((get_message_flags(source_shire) & (1ULL << source_hart))) {
+        // Relax thread
+        asm volatile("fence\n" ::: "memory");
+    }
 
+    // Copy message to destination buffer
+    dest_message_ptr = &(*worker_to_master_message_buffers)[source_shire][source_hart];
     *dest_message_ptr = *message;
-
     evict_message(dest_message_ptr);
 
     // Set a message flag to indicate this worker HART has a pending message
@@ -214,13 +225,14 @@ int64_t message_send_worker(uint64_t source_shire, uint64_t source_hart,
 // Should only be called by master minion
 void message_receive_master(uint64_t source_shire, uint64_t source_hart, message_t *const message)
 {
-    source_hart %= 64U; // allow raw 0-2111 hart_id to be passed in
-    const volatile message_t *const source_message_ptr =
-        &(*worker_to_master_message_buffers)[source_shire][source_hart];
+    const volatile message_t *source_message_ptr;
+
+    // Allow raw 0-2111 hart_id to be passed in
+    source_hart %= 64;
 
     // Evict to invalidate, must not be dirty
+    source_message_ptr = &(*worker_to_master_message_buffers)[source_shire][source_hart];
     evict_message(source_message_ptr);
-
     *message = *source_message_ptr;
 
     // Ensure the message read completes before the flag/ID is cleared
@@ -234,41 +246,39 @@ void message_receive_master(uint64_t source_shire, uint64_t source_hart, message
 // Should only be called by worker minion
 void message_receive_worker(uint64_t dest_shire, uint64_t dest_hart, message_t *const message)
 {
-    dest_hart %= 64U; // allow raw 0-2111 hart_id to be passed in
+    volatile message_t *source_message_ptr;
 
-    // Check for direct message
-    volatile message_t *const source_message_ptr =
-        &(*master_to_worker_message_buffers)[dest_shire][dest_hart];
+    // Allow raw 0-2111 hart_id to be passed in
+    dest_hart %= 64;
 
     // Evict to invalidate, must not be dirty
+    source_message_ptr = &(*master_to_worker_message_buffers)[dest_shire][dest_hart];
     evict_message(source_message_ptr);
-
     *message = *source_message_ptr;
 
-    // Clear message ID to indicate the worker has received the message from the master
-    source_message_ptr->id = MESSAGE_ID_NONE;
+    // Ensure the message read completes before the flag/ID is cleared
+    asm volatile("fence");
 
-    evict_message(source_message_ptr);
+    // Clear message ID to indicate the worker has received the message from the master
+    atomic_store_global_32(&source_message_ptr->id, MESSAGE_ID_NONE);
 }
 
 // Atomically sets a message pending flag for a worker minion
 // Should only be called by worker minion
 static inline __attribute__((always_inline)) void set_message_flag(uint64_t shire, uint64_t hart)
 {
-    const uint64_t hart_mask = 1ULL << hart;
     volatile uint64_t *const message_flags_ptr = &(*worker_to_master_message_flags)[shire];
 
-    atomic_or_global_64(message_flags_ptr, hart_mask);
+    atomic_or_global_64(message_flags_ptr, 1ULL << hart);
 }
 
 // Atomically clears a message pending flag for a worker minion
 // Should only be called by master minion
 static inline __attribute__((always_inline)) void clear_message_flag(uint64_t shire, uint64_t hart)
 {
-    const uint64_t hart_mask = ~(1ULL << hart);
     volatile uint64_t *const message_flags_ptr = &(*worker_to_master_message_flags)[shire];
 
-    atomic_and_global_64(message_flags_ptr, hart_mask);
+    atomic_and_global_64(message_flags_ptr, ~(1ULL << hart));
 }
 
 // Evicts a message to L3 (point of coherency)
