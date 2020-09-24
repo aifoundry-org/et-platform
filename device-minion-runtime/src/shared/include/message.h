@@ -23,8 +23,9 @@ typedef enum {
     MESSAGE_ID_TRACE_BUFFER_RESET,
     MESSAGE_ID_TRACE_BUFFER_EVICT,
     MESSAGE_ID_PMC_CONFIGURE
-} message_id_t;
+} message_id_e;
 
+typedef uint32_t message_id_t;
 typedef uint8_t message_number_t;
 
 typedef struct {
