@@ -26,6 +26,8 @@ class ConfigureTraceLogLevelKnobCmd;
 class ConfigureTraceGroupKnobCmd;
 class ConfigureTraceEventKnobCmd;
 class ConfigureTraceBufferSizeKnobCmd;
+class ConfigureTraceShireMaskKnobCmd;
+class ConfigureTraceHartsMaskKnobCmd;
 class ConfigureTraceStateKnobCmd;
 class ConfigureTraceUartLoggingKnobCmd;
 class ResetTraceBuffersCmd;
@@ -38,6 +40,8 @@ class ConfigureTraceLogLevelKnobRsp;
 class ConfigureTraceGroupKnobRsp;
 class ConfigureTraceEventKnobRsp;
 class ConfigureTraceBufferSizeKnobRsp;
+class ConfigureTraceShireMaskKnobRsp;
+class ConfigureTraceHartsMaskKnobRsp;
 class ConfigureTraceStateKnobRsp;
 class ConfigureTraceUartLoggingKnobRsp;
 class ResetTraceBuffersRsp;
@@ -90,6 +94,20 @@ public:
   /// @param[in] buffer_size : New buffer size to configure
   /// @returns true, false
   bool configure_trace_buffer_size_knob(uint32_t buffer_size);
+
+  ///
+  /// @brief Allows to configure trace shire mask
+  ///
+  /// @param[in] shire_mask : New trace shire mask to configure
+  /// @returns true, false
+  bool configure_trace_shire_mask_knob(uint64_t shire_mask);
+
+  ///
+  /// @brief Allows to configure trace harts mask
+  ///
+  /// @param[in] harts_mask : New trace harts mask to configure
+  /// @returns true, false
+  bool configure_trace_harts_mask_knob(uint64_t harts_mask);
 
   ///
   /// @brief Allows to enable or disable complete device side tracing

@@ -88,6 +88,40 @@ bool TraceHelper::configure_trace_buffer_size_knob(uint32_t buffer_size) {
   return static_cast<bool>(response.status);
 }
 
+bool TraceHelper::configure_trace_shire_mask_knob(uint64_t shire_mask) {
+
+  auto log_level_cmd = std::make_shared<
+      device_api::devfw_commands::ConfigureTraceShireMaskKnobCmd>(0,
+                                                                   shire_mask);
+
+  dev_.defaultStream().addCommand(log_level_cmd);
+
+  auto response_future = log_level_cmd->getFuture();
+  auto response = response_future.get().response();
+  assert(
+      response.response_info.message_id ==
+      ::device_api::
+          MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_SHIRE_MASK_KNOB_RSP);
+  return static_cast<bool>(response.status);
+}
+
+bool TraceHelper::configure_trace_harts_mask_knob(uint64_t harts_mask) {
+
+  auto log_level_cmd = std::make_shared<
+      device_api::devfw_commands::ConfigureTraceHartsMaskKnobCmd>(0,
+                                                                   harts_mask);
+
+  dev_.defaultStream().addCommand(log_level_cmd);
+
+  auto response_future = log_level_cmd->getFuture();
+  auto response = response_future.get().response();
+  assert(
+      response.response_info.message_id ==
+      ::device_api::
+          MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_HARTS_MASK_KNOB_RSP);
+  return static_cast<bool>(response.status);
+}
+
 bool TraceHelper::configure_trace_state_knob(uint8_t enable) {
 
   auto log_level_cmd =
