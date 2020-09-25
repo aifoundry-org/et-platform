@@ -31,6 +31,7 @@ set(SOURCES
     src/build_configuration.c
     src/mailbox.c
     src/pcie_isr.c
+    src/vqueue.c
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/printf.c
     ${SHARED_SRC_DIR}/message.c
@@ -39,6 +40,7 @@ set(SOURCES
     ${SHARED_SRC_DIR}/pcie_dma.c
     ${SHARED_SRC_DIR}/pcie_int.c
     ${SHARED_SRC_DIR}/broadcast.c
+    ${SHARED_SRC_DIR}/circbuffer.c
     )
 
 set(TARGET_NAME MasterMinion)

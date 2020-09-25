@@ -14,6 +14,7 @@ add_library(firmware_helpers STATIC
   src/pcie_int.c
   src/ringbuffer.c
   src/backtrace.c
+  src/circbuffer.c
   )
 
 target_include_directories(firmware_helpers PUBLIC
@@ -49,6 +50,9 @@ install(
     include/ringbuffer_common.h
     include/ringbuffer.h
     include/trap_handler.h
+    include/circbuffer_common.h
+    include/circbuffer.h
+    include/vqueue_common.h
   DESTINATION
     ${INCLUDE_INSTALL_DIR}/esperanto-fw/firmware_helpers
   COMPONENT firmware_helpers
