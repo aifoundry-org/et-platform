@@ -52,7 +52,9 @@ trace_status_e TRACE_<< trace["Name"] >>(const log_levels_e level,
     event_knob &= (1 <<'<<'>> << event_id >>);
 
     if (cntrl->trace_en && group_knob && event_knob &&
-        level <= cntrl->log_level) {
+        level <= cntrl->log_level &&
+        SHIRE_ENABLED(cntrl->shire_mask, get_shire_id()) &&
+        HART_ENABLED(cntrl->harts_mask, get_hart_id())) {
         uint16_t hart_id = (uint16_t)get_hart_id();
         <%- if group["Name"] == "Text" %>
           <%- set str_name = cgh.get_field_from_type(trace, "bytes") %>
