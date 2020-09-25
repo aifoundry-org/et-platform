@@ -491,9 +491,8 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
         break;
 
     case MESSAGE_ID_LOG_WRITE:
-        if (get_log_level() > LOG_LEVEL_INFO) {
-            print_log_message(shire, hart, &message);
-        }
+        // Always enable worker prints for now, since it's just for debugging...
+        print_log_message(shire, hart, &message);
         break;
 
     case MESSAGE_ID_SET_LOG_LEVEL:
