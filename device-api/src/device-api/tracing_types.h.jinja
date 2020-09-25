@@ -21,6 +21,12 @@
 /// @brief Default trace buffer size
 #define DEVICE_MRT_DEFAULT_BUFFER_SIZE  4096UL
 
+// Checks if a shire is enabled for tracing
+#define SHIRE_ENABLED(shire_mask, shire_id) ((shire_mask >> shire_id) & 1UL)
+
+// Checks if hart is enabled for tracing
+#define HART_ENABLED(harts_mask, hart_id)   ((harts_mask >> (hart_id % 64)) && 1UL)
+
 /// @brief Alignemnt requirement for trace buffer region
 #define TRACE_BUFFER_REGION_ALIGNEMNT  4096UL
 
@@ -70,6 +76,8 @@ enum TRACE_STATUS {
 struct trace_control_t {
   uint64_t group_knobs[TRACE_GROUP_ID_LAST/(sizeof(uint64_t) * 8) + 1]; ///< Bitmap used for group control knobs
   uint64_t event_knobs[TRACE_EVENT_ID_LAST/(sizeof(uint64_t) * 8) + 1]; ///< Bitmap used for event control knobs
+  uint64_t harts_mask; ///< Harts bitmap to enabling tracing for. Same mask for all the harts.
+  uint64_t shire_mask; ///< Shires bitmap to enable tracing for.
   log_levels_e log_level; ///< Represent threshold log level, values taken
                           ///< by this field are defined by enum LOG_LEVELS
   uint32_t buffer_size; ///< Per minion buffer size control knob

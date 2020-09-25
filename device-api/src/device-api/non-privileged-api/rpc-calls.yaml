@@ -279,6 +279,10 @@ Messages :
     Fields:
       - Name: trace_base
         Type: uint64_t
+      - Name: shire_mask
+        Type: uint64_t
+      - Name: harts_mask
+        Type: uint64_t
       - Name: trace_buffer_size
         Type: uint32_t
       - Name: status
@@ -329,6 +333,36 @@ Messages :
     Description: Trace buffer size configure command reply
     Type: Response
     PairedMessage: configure_trace_buffer_size_knob_cmd
+    Fields:
+      - Name: status
+        Type: bool
+#-------------------------------------------------------------------------------
+  - Name: configure_trace_shire_mask_knob_cmd
+    Description: Configure the trace shire mask
+    Type: Command
+    PairedMessage: configure_trace_shire_mask_knob_rsp
+    Fields:
+      - Name: shire_mask
+        Type: uint64_t
+  - Name: configure_trace_shire_mask_knob_rsp
+    Description: Trace shire mask configure command reply
+    Type: Response
+    PairedMessage: configure_trace_shire_mask_knob_cmd
+    Fields:
+      - Name: status
+        Type: bool
+#-------------------------------------------------------------------------------
+  - Name: configure_trace_harts_mask_knob_cmd
+    Description: Configure the trace harts mask
+    Type: Command
+    PairedMessage: configure_trace_harts_mask_knob_rsp
+    Fields:
+      - Name: harts_mask
+        Type: uint64_t
+  - Name: configure_trace_harts_mask_knob_rsp
+    Description: Trace harts mask configure command reply
+    Type: Response
+    PairedMessage: configure_trace_harts_mask_knob_cmd
     Fields:
       - Name: status
         Type: bool
