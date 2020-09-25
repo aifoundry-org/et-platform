@@ -28,8 +28,7 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
         ret = return_from_kernel((int64_t)arg1);
         break;
     case SYSCALL_LOG_WRITE:
-        // Always enable user-space prints for now, since it's just for debugging...
-        ret = log_write_str(LOG_LEVEL_CRITICAL, (const char *)arg1, (size_t)arg2);
+        ret = log_write_str(LOG_LEVEL_WARNING, (const char *)arg1, (size_t)arg2);
         break;
     case SYSCALL_GET_LOG_LEVEL:
         ret = (int64_t)get_log_level();
