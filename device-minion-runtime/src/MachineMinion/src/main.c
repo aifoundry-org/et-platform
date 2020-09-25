@@ -46,8 +46,7 @@ void __attribute__((noreturn)) main(void)
         asm volatile("csrwi mhpmevent3, 1  \n");
     }
 
-    if (get_hart_id() % 64 == 0) // First HART every shire, master or worker
-    {
+    if (get_hart_id() % 64 == 0) { // First HART every shire, master or worker
         // Block user-level PC redirection
         volatile uint64_t *const ipi_redirect_filter_ptr =
             (volatile uint64_t *)ESR_SHIRE(THIS_SHIRE, IPI_REDIRECT_FILTER);
@@ -55,8 +54,7 @@ void __attribute__((noreturn)) main(void)
     }
 
     if ((get_shire_id() == 32) &&
-        ((get_minion_id() & 0x1F) < 16)) // Master shire non-sync minions (lower 16)
-    {
+        ((get_minion_id() & 0x1F) < 16)) { // Master shire non-sync minions (lower 16)
         const uint64_t *const master_entry = (uint64_t *)FW_MASTER_SMODE_ENTRY;
         const uint32_t minion_mask = 0xFFFFU;
         bool result;
@@ -76,8 +74,8 @@ void __attribute__((noreturn)) main(void)
                 *mprot_ptr = mprot;
             } else {
                 // Set MPROT for neighborhoods 1-3 in master shire to disable access to OS, PCI-E and IO regions and enable secure memory permissions
-                mprot |=
-                    0x4E; // set enable_secure_memory, disable_osbox_access, disable_pcie_access and io_access_mode = b10 (disabled)
+                // Set enable_secure_memory, disable_osbox_access, disable_pcie_access and io_access_mode = b10 (disabled)
+                mprot |= 0x4E;
                 *mprot_ptr = mprot;
             }
 
@@ -102,8 +100,7 @@ void __attribute__((noreturn)) main(void)
                      "mret           \n" // return in S-mode
                      :
                      : "r"(master_entry));
-    } else // Worker shire and Master shire sync-minions (upper 16)
-    {
+    } else { // Worker shire and Master shire sync-minions (upper 16)
         const uint64_t *const worker_entry = (uint64_t *)FW_WORKER_SMODE_ENTRY;
         const uint32_t minion_mask = (get_shire_id() == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
 
@@ -115,8 +112,8 @@ void __attribute__((noreturn)) main(void)
             volatile uint64_t *const mprot_ptr =
                 (volatile uint64_t *)ESR_NEIGH(THIS_SHIRE, neighborhood_id, MPROT);
             uint64_t mprot = *mprot_ptr;
-            mprot |=
-                0x46; // set enable_secure_memory, disable_pcie_access and io_access_mode = b10 (disabled)
+            // Set enable_secure_memory, disable_pcie_access and io_access_mode = b10 (disabled)
+            mprot |= 0x46;
             *mprot_ptr = mprot;
 
             // minion thread1s aren't enabled yet, so send FCC0 to all thread0s
