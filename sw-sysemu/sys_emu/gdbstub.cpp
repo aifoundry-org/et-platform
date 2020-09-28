@@ -198,16 +198,13 @@ static inline char *strconcat(char *dst, const char *suffix)
 /* Conversion from GDB thread ID to SysEMU thread ID (thread index) */
 static inline int to_target_thread(int thread_id)
 {
-    return ((thread_id - 1) == IO_SHIRE_ID * EMU_THREADS_PER_SHIRE) ?
-        EMU_IO_SHIRE_SP_THREAD :
-        thread_id - 1;
+    return ((thread_id - 1) == IO_SHIRE_SP_HARTID) ? EMU_IO_SHIRE_SP_THREAD : thread_id - 1;
 }
 
 static inline int to_gdb_thread(int thread_id)
 {
-    if ((thread_id == IO_SHIRE_ID * EMU_THREADS_PER_SHIRE) ||
-        (thread_id == EMU_IO_SHIRE_SP_THREAD * EMU_THREADS_PER_SHIRE)) {
-            return IO_SHIRE_ID * EMU_THREADS_PER_SHIRE + 1;
+    if ((thread_id == IO_SHIRE_SP_HARTID) || (thread_id == EMU_IO_SHIRE_SP_THREAD)) {
+        return IO_SHIRE_SP_HARTID + 1;
     } else {
         return thread_id + 1;
     }
@@ -584,13 +581,15 @@ static void gdbstub_handle_qxfer_threads(char *tokens[], int ntokens)
                 unsigned minion_id = minion + EMU_MINIONS_PER_SHIRE * shire_id;
 
                 for (unsigned thread = 0; thread < thread_count; thread++) {
-                    unsigned gdb_thread_id = 1 + thread + minion_id * EMU_THREADS_PER_MINION;
+                    unsigned thread_id = thread + minion_id * EMU_THREADS_PER_MINION;
+                    bool is_sp = thread_id == IO_SHIRE_SP_HARTID;
+                    unsigned gdb_thread_id = to_gdb_thread(thread_id);
 
                     if (target_thread_exists(gdb_thread_id)) {
                         char desc[512];
                         snprintf(desc, sizeof(desc),
-                            "    <thread id=\"%X\" core=\"%d\" name=\"S%d:M%d:T%d\"></thread>\n",
-                            gdb_thread_id, minion_id, shire_id, minion, thread);
+                            "    <thread id=\"%X\" core=\"%d\" name=\"S%d:M%d:T%d%s\"></thread>\n",
+                            gdb_thread_id, minion_id, shire_id, minion, thread, is_sp ? " (SP)" : "");
                         g_thread_list_xml = strconcat(g_thread_list_xml, desc);
                     }
                 }

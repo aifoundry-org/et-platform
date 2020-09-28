@@ -34,6 +34,7 @@ namespace bemu {
 
 
 extern MainMemory memory;
+extern system_version_t sysver;
 
 
 //------------------------------------------------------------------------------
@@ -274,6 +275,15 @@ static uint64_t pma_check_data_access(const Hart& cpu, uint64_t vaddr,
                 // Since we do not model the NoC to all its detail we need to
                 // put this check here.
                 throw memory_error(addr);
+            }
+            if (ts_tl_co) {
+                if (sysver == system_version_t::ETSOC1_A0) {
+                    // NB: On ET-SoC-1 A0 the PMA does not catch this case
+                    // which leads to undefined behavior.
+                    LOG_HART(WARN, cpu, "CacheOp to uncacheable addr 0x%016"
+                             PRIx64 " is UNDEFINED behavior", vaddr);
+                }
+                throw_access_fault(vaddr, macc);
             }
             // NB: The high-to-low conversion of the DRAM address happens in
             // the ETL2AXI bridge but we do not model this device, so we do

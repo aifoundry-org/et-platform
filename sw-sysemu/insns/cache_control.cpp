@@ -210,9 +210,6 @@ void dcache_prefetch_vaddr(Hart& cpu, uint64_t value)
                 update_tensor_error(cpu, 1 << 7);
                 return;
             }
-            catch (const memory_error&) {
-                raise_bus_error_interrupt(cpu, 0);
-            }
         }
         vaddr += stride;
     }
@@ -268,10 +265,6 @@ void dcache_lock_paddr(Hart& cpu, uint64_t value)
         update_tensor_error(cpu, 1 << 7);
         return;
     }
-    catch (const memory_error&) {
-        raise_bus_error_interrupt(cpu, 0);
-        return;
-    }
     cpu.core->scp_lock[set][way] = true;
     cpu.core->scp_addr[set][way] = paddr;
     LOG_HART(DEBUG, cpu, "\tDoing LockSW: (0x%016" PRIx64 "), Way: %d, Set: %d", paddr, way, set);
@@ -320,9 +313,6 @@ void dcache_lock_vaddr(Hart& cpu, uint64_t value)
                 LOG_HART(DEBUG, cpu, "\tLockVA 0x%016" PRIx64 " generated exception (suppressed)", vaddr);
                 update_tensor_error(cpu, 1 << 7);
                 return;
-            }
-            catch (const memory_error&) {
-                raise_bus_error_interrupt(cpu, 0);
             }
         } else {
             LOG_HART(DEBUG, cpu, "\tSkipping LockVA: 0x%016" PRIx64, vaddr);
