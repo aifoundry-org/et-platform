@@ -1,6 +1,6 @@
 /*
- * FreeRTOS Kernel V10.2.0
- * Copyright (C) 2019 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS Kernel V10.4.1
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -19,8 +19,8 @@
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * http://www.FreeRTOS.org
- * http://aws.amazon.com/freertos
+ * https://www.FreeRTOS.org
+ * https://github.com/FreeRTOS
  *
  * 1 tab == 4 spaces!
  */
@@ -44,22 +44,35 @@ extern "C" {
  */
 
 /* Type definitions. */
-
-#if __riscv_xlen != 64
-	#error This port only supports RV64
+#if __riscv_xlen == 64
+	#define portSTACK_TYPE			uint64_t
+	#define portBASE_TYPE			int64_t
+	#define portUBASE_TYPE			uint64_t
+	#define portMAX_DELAY 			( TickType_t ) 0xffffffffffffffffUL
+	#define portPOINTER_SIZE_TYPE 	uint64_t
+#elif __riscv_xlen == 32
+	#define portSTACK_TYPE	uint32_t
+	#define portBASE_TYPE	int32_t
+	#define portUBASE_TYPE	uint32_t
+	#define portMAX_DELAY ( TickType_t ) 0xffffffffUL
+#else
+	#error Assembler did not define __riscv_xlen
 #endif
 
-#define portSTACK_TYPE	uint64_t
-#define portBASE_TYPE	long long
-#define portPOINTER_SIZE_TYPE uintptr_t
 
 typedef portSTACK_TYPE StackType_t;
-typedef long long BaseType_t;
-typedef unsigned long long UBaseType_t;
-typedef uint64_t TickType_t;
-#define portMAX_DELAY ( TickType_t ) 0xffffffffffffffffULL
+typedef portBASE_TYPE BaseType_t;
+typedef portUBASE_TYPE UBaseType_t;
+typedef portUBASE_TYPE TickType_t;
 
-/* 64-bit tick type on a 64-bit architecture, so reads of the tick count do
+/* Legacy type definitions. */
+#define portCHAR		char
+#define portFLOAT		float
+#define portDOUBLE		double
+#define portLONG		long
+#define portSHORT		short
+
+/* 32-bit tick type on a 32-bit architecture, so reads of the tick count do
 not need to be guarded with a critical section. */
 #define portTICK_TYPE_IS_ATOMIC 1
 /*-----------------------------------------------------------*/
@@ -67,8 +80,12 @@ not need to be guarded with a critical section. */
 /* Architecture specifics. */
 #define portSTACK_GROWTH			( -1 )
 #define portTICK_PERIOD_MS			( ( TickType_t ) 1000 / configTICK_RATE_HZ )
-#define portBYTE_ALIGNMENT 16
-#define portHAS_STACK_OVERFLOW_CHECKING 0
+#ifdef __riscv64
+	#error This is the RV32 port that has not yet been adapted for 64.
+	#define portBYTE_ALIGNMENT			16
+#else
+	#define portBYTE_ALIGNMENT			16
+#endif
 /*-----------------------------------------------------------*/
 
 
@@ -112,7 +129,7 @@ extern void vTaskExitCritical( void );
 
 	/*-----------------------------------------------------------*/
 
-	#define portGET_HIGHEST_PRIORITY( uxTopPriority, uxReadyPriorities ) uxTopPriority = ( 31UL - __builtin_clz( uxReadyPriorities ) )
+	#define portGET_HIGHEST_PRIORITY( uxTopPriority, uxReadyPriorities ) uxTopPriority = ( 31UL - ( UBaseType_t ) __builtin_clz( uxReadyPriorities ) )
 
 #endif /* configUSE_PORT_OPTIMISED_TASK_SELECTION */
 
@@ -135,8 +152,35 @@ not necessary for to use this port.  They are defined so the common demo files
 	#define portFORCE_INLINE inline __attribute__(( always_inline))
 #endif
 
+#define portMEMORY_BARRIER() __asm volatile( "" ::: "memory" )
+/*-----------------------------------------------------------*/
+
+
+/* configCLINT_BASE_ADDRESS is a legacy definition that was replaced by the
+configMTIME_BASE_ADDRESS and configMTIMECMP_BASE_ADDRESS definitions.  For
+backward compatibility derive the newer definitions from the old if the old
+definition is found. */
+#if defined( configCLINT_BASE_ADDRESS ) && !defined( configMTIME_BASE_ADDRESS ) && ( configCLINT_BASE_ADDRESS == 0 )
+	/* Legacy case where configCLINT_BASE_ADDRESS was defined as 0 to indicate
+	there was no CLINT.  Equivalent now is to set the MTIME and MTIMECMP
+	addresses to 0. */
+	#define configMTIME_BASE_ADDRESS 	( 0 )
+	#define configMTIMECMP_BASE_ADDRESS ( 0 )
+#elif defined( configCLINT_BASE_ADDRESS ) && !defined( configMTIME_BASE_ADDRESS )
+	/* Legacy case where configCLINT_BASE_ADDRESS was set to the base address of
+	the CLINT.  Equivalent now is to derive the MTIME and MTIMECMP addresses
+	from the CLINT address. */
+	#define configMTIME_BASE_ADDRESS 	( ( configCLINT_BASE_ADDRESS ) + 0xBFF8UL )
+	#define configMTIMECMP_BASE_ADDRESS ( ( configCLINT_BASE_ADDRESS ) + 0x4000UL )
+#elif !defined( configMTIME_BASE_ADDRESS ) || !defined( configMTIMECMP_BASE_ADDRESS )
+	#error configMTIME_BASE_ADDRESS and configMTIMECMP_BASE_ADDRESS must be defined in FreeRTOSConfig.h.  Set them to zero if there is no MTIME (machine time) clock.  See https://www.FreeRTOS.org/Using-FreeRTOS-on-RISC-V.html
+#endif
+
+
+
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* PORTMACRO_H */
+

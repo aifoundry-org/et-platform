@@ -14,27 +14,27 @@
 
 #include "FreeRTOS.h"
 #include "etsoc_hal/inc/pu_plic.h"
+#include "etsoc_hal/inc/pu_plic_intr_device.h"
 #include "etsoc_hal/inc/spio_plic.h"
+#include "etsoc_hal/inc/spio_plic_intr_device.h"
 #include "etsoc_hal/inc/hal_device.h"
 #include "task.h"
 
 #include <stdio.h>
 #include <inttypes.h>
 
-//TODO FIXME generate these. Copied by hand by wearle 5/3/2019.
-#define SPIO_PLIC_INTR_SRC_CNT 156
-#define PU_PLIC_INTR_SRC_CNT   42
-
 #define SPIO_PLIC R_SP_PLIC_BASEADDR
 #define PU_PLIC   R_PU_PLIC_BASEADDR
 
 #define PRIORITY_MASK 0x7U
 
-void (*vectorTable[SPIO_PLIC_INTR_SRC_CNT])(void);
-void *pullVectorTable = vectorTable;
+static void (*vectorTable[SPIO_PLIC_INTR_SRC_CNT])(void);
 
 static void (*pu_plicVectorTable[PU_PLIC_INTR_SRC_CNT])(void);
 static uint16_t pu_plicEnabledIntCnt;
+
+//FreeRTOS's freertos_risc_v_trap_handler will call this ISR (defined by portasmHANDLE_INTERRUPT)
+void external_interrupt_handler(uint64_t cause);
 
 static void plicEnableInterrupt(volatile uint32_t *const basePriorityReg,
                                 volatile uint32_t *const baseEnableReg, uint32_t intID,
@@ -66,7 +66,7 @@ void INT_enableInterrupt(interrupt_t interrupt, uint32_t priority, void (*isr)(v
     taskENTER_CRITICAL();
 
     if (interrupt < PU_PLIC_NO_INTERRUPT_INTR) {
-        //Interrupt comes from SPIO_PLIC. FreeRTOS's freertos_risc_v_trap_handler will call ISR by indexing into vectorTable.
+        //Interrupt comes from SPIO_PLIC
         vectorTable[interrupt] = isr;
 
         plicEnableInterrupt((volatile uint32_t *const)(SPIO_PLIC + SPIO_PLIC_PRIORITY_0_ADDRESS),
@@ -149,10 +149,30 @@ static void plicDisableInterrupt(volatile uint32_t *const basePriorityReg,
     *priorityReg = 0;
 }
 
+void external_interrupt_handler(uint64_t cause)
+{
+    // Assumption: taskENTER_CRITICAL is met. This is called from machine interrupt context (highest HART priority), and the RTOS is single-threaded
+
+    (void) cause;
+
+    // Load MaxID into to claim the interrupt
+    uint32_t ulMaxID = ioread32(SPIO_PLIC + SPIO_PLIC_MAXID_T0_ADDRESS);
+
+    // If ulMaxID is zero, the interrupt has already been claimed (unlikely)
+    if (ulMaxID == 0)
+        return;
+
+    // Dispatch it
+    (*vectorTable[ulMaxID])();
+
+    // Write ulMaxID to indicate the interrupt has been serviced
+    iowrite32(SPIO_PLIC + SPIO_PLIC_MAXID_T0_ADDRESS, ulMaxID);
+}
+
 static void pu_plicISR(void)
 {
     //Assumption: taskENTER_CRITICAL is met. This is called from machine interrupt context (highest HART priority), and the RTOS is single-threaded
-    //Assumption: FreeRTOS's freertos_risc_v_trap_handler reads SP_PLIC's maxID reg before vectoring here, claiming the SP_PLIC int
+    //Assumption: external_interrupt_handler reads SP_PLIC's MaxID reg before vectoring here, claiming the SP_PLIC int
 
     //The SP PLIC got an IRQ from the PU PLIC. Claim it.
     uint32_t pu_plicIntID = ioread32(PU_PLIC + PU_PLIC_MAXID_T0_ADDRESS);
@@ -168,5 +188,5 @@ static void pu_plicISR(void)
     //Important: it needs to match the int ID read above
     iowrite32(PU_PLIC + PU_PLIC_MAXID_T0_ADDRESS, pu_plicIntID);
 
-    //Assumption: FreeRTOS's freertos_risc_v_trap_handler will write the SP_PLIC's maxID reg after this returns,
+    //Assumption: external_interrupt_handler will write the SP_PLIC's MaxID reg after this returns,
 }

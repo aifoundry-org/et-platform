@@ -16,6 +16,7 @@ set(BL2_INSTALL_DIR ${LIB_INSTALL_DIR}/esperanto-fw/ServiceProcessorBL2)
 
 set(BL2_SOURCES
     src/bl2_entry.S
+    src/bl2_trap_handler.S
     src/crt.S
     src/dummy_isr.c
     src/interrupt.c
@@ -53,6 +54,9 @@ set(SOURCES
 
 set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/src/sections.ld)
 set(ZEBU_TARGET SP_RAM)
+
+# FreeRTOS definitions
+add_definitions("-DportasmHANDLE_INTERRUPT=external_interrupt_handler")
 
 include_directories(include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)

@@ -44,7 +44,7 @@ void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
                                    uint32_t *pulIdleTaskStackSize);
 void vApplicationIdleHook(void);
 void vApplicationTickHook(void);
-void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName);
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName);
 
 static SERVICE_PROCESSOR_BL2_DATA_t g_service_processor_bl2_data;
 
@@ -453,7 +453,7 @@ void vApplicationTickHook(void)
     //SERIAL_write(UART0, ".", 1);
 }
 
-void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName)
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
 {
     (void)xTask;
     (void)pcTaskName;

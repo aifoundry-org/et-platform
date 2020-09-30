@@ -24,8 +24,8 @@ bl2_entry:
 .option pop
 
     # initialize trap vector
-    #la    t0, mtrap_vector
-    #csrw  mtvec, t0
+    la    t0, mtrap_vector
+    csrw  mtvec, t0
 
     la a1, _init_handler
     jalr x0, a1

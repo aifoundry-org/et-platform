@@ -1,6 +1,6 @@
 /*
- * FreeRTOS Kernel V10.2.0
- * Copyright (C) 2019 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS Kernel V10.4.1
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -19,8 +19,8 @@
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * http://www.FreeRTOS.org
- * http://aws.amazon.com/freertos
+ * https://www.FreeRTOS.org
+ * https://github.com/FreeRTOS
  *
  * 1 tab == 4 spaces!
  */
@@ -49,18 +49,30 @@
  *
  */
 
+//******************************************************************************
+// Copyright (C) 2018,2019,2020 Esperanto Technologies Inc.
+// The copyright to the computer program(s) herein is the
+// property of Esperanto Technologies, Inc. All Rights Reserved.
+// The program(s) may be used and/or copied only with
+// the written permission of Esperanto Technologies and
+// in accordance with the terms and conditions stipulated in the
+// agreement/contract under which the program(s) have been supplied.
+//------------------------------------------------------------------------------
+
+/*
+ * This freertos_risc_v_chip_specific_extensions.h is for use with Esperanto Minion devices.
+ */
 
 #ifndef __FREERTOS_RISC_V_EXTENSIONS_H__
 #define __FREERTOS_RISC_V_EXTENSIONS_H__
 
-#define portasmHAS_CLINT 1
+#define portasmHAS_MTIME 1
 #define portasmADDITIONAL_CONTEXT_SIZE 0 /* Must be even number on 32-bit cores. */
 
 .macro portasmSAVE_ADDITIONAL_REGISTERS
 	/* No additional registers to save, so this macro does nothing. */
 	.endm
 
-/* Restore the additional registers found on the Pulpino. */
 .macro portasmRESTORE_ADDITIONAL_REGISTERS
 	/* No additional registers to restore, so this macro does nothing. */
 	.endm

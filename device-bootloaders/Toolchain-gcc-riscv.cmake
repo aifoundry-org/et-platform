@@ -35,6 +35,8 @@ set(CMAKE_C_FLAGS "-Og -g3 -std=gnu11 --specs=nano.specs -mcmodel=medany -march=
 -Wpointer-arith -Wundef -Wbad-function-cast -Wcast-qual -Wcast-align -Wconversion -Wlogical-op \
 -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wno-main" CACHE STRING "c flags" FORCE)
 
+add_definitions("-DRISCV_ET_MINION")
+
 # macro to create an executable .elf plus .bin, .lst and .map files
 # if LINKER_SCRIPT is defined, uses it instead of the default
 macro(add_riscv_executable TARGET_NAME)
