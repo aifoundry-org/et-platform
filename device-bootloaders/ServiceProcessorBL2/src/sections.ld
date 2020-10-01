@@ -21,6 +21,8 @@ DATA_SIZE = RAM_SIZE - CODE_SIZE;
 CODE_BASE_ADDR = RAM_BASE_ADDR;
 DATA_BASE_ADDR = CODE_BASE_ADDR + CODE_SIZE;
 
+STACK_SIZE = 0x4000;
+
 MEMORY
 {
     CODE (rx)  : org = CODE_BASE_ADDR, l = CODE_SIZE
@@ -58,7 +60,7 @@ SECTIONS
 
     .data : ALIGN(128)
     {
-        /* ALIGN(128) above should ensure crt.S data init asm has 64-bit aligned start address */
+        /* ALIGN(128) above should ensure data init asm has 64-bit aligned start address */
         __data_start = .;
 
         *(SORT_BY_ALIGNMENT(.data) SORT_BY_ALIGNMENT(.data.*) SORT_BY_ALIGNMENT(.gnu.linkonce.d.*))
@@ -80,14 +82,14 @@ SECTIONS
         *(.srodata.cst16) *(.srodata.cst8) *(.srodata.cst4) *(.srodata.cst2) *(.srodata .srodata.*)
         *(SORT_BY_ALIGNMENT(.sdata) SORT_BY_ALIGNMENT(.sdata.*) SORT_BY_ALIGNMENT(.gnu.linkonce.s.*))
 
-        /* Align here to ensure crt.S data init asm has 64-bit aligned end address */
+        /* Align here to ensure data init asm has 64-bit aligned end address */
         . = ALIGN(8);
         __data_end = .;
     } > DATA
 
     .bss (NOLOAD) : ALIGN(128)
     {
-        /* ALIGN(128) above should ensure crt.S bss init asm has a 64-bit aligned start address */
+        /* ALIGN(128) above should ensure bss init asm has a 64-bit aligned start address */
         __bss_start = .;
 
         *(.bss .bss.* .gnu.linkonce.b.*)
@@ -97,29 +99,23 @@ SECTIONS
     {
         *(.sbss .sbss.* .gnu.linkonce.sb.*)
 
-        /* Align here to ensure crt.S bss init asm has a 64-bit aligned end address */
+        /* Align here to ensure bss init asm has a 64-bit aligned end address */
         . = ALIGN(8);
         __bss_end = .;
     } > DATA
 
     /* The default stack alignment is 16 bytes in RV32I and RV64I */
-    . = ALIGN(16);
-
-    /* Only used by main() before scheduler starts and ISRs */
-    stack (NOLOAD) :
+    /* Used by main() before scheduler starts and ISRs, and by FreeRTOS afterwards */
+    stack (NOLOAD) : ALIGN(16)
     {
-        /* The default stack alignment is 16 bytes in RV32I and RV64I */
-        . = ALIGN(16);
-
-        KEEP(*(stack stack.*))
-        __stack_base = .;
+        __stack_bottom = .;
+        . += STACK_SIZE;
+        __stack_top = .;
         __freertos_irq_stack_top = .;
         ASSERT(. == ALIGN(16), "stack must be 16-byte aligned");
     } > DATA
 
-    . = ALIGN(4);
-
-    heap (NOLOAD) :
+    heap (NOLOAD) : ALIGN(8)
     {
         __heap_start = .;
         __heap_end = RAM_BASE_ADDR + RAM_SIZE - .;

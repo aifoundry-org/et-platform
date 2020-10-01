@@ -8,11 +8,13 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------
 */
-
-.global mtrap_vector
 .extern freertos_risc_v_trap_handler
 
+    .text
+
     .align 12 /* Minion requires machine trap vector to be 4K aligned, mtvec[11:0] = 0 */
+
+    .global mtrap_vector
 mtrap_vector:
     // Jump directly to FreeRTOS trap handler
     j freertos_risc_v_trap_handler

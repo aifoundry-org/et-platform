@@ -17,7 +17,6 @@ set(BL2_INSTALL_DIR ${LIB_INSTALL_DIR}/esperanto-fw/ServiceProcessorBL2)
 set(BL2_SOURCES
     src/bl2_entry.S
     src/bl2_trap_handler.S
-    src/crt.S
     src/dummy_isr.c
     src/interrupt.c
     src/main.c
