@@ -55,7 +55,7 @@ private:
   bool launchSimulator();
 
   bool simulator_running();
-  bool alive();
+  bool alive() override;
 };
 
 } // namespace device

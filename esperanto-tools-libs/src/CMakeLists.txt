@@ -15,11 +15,12 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -std=c++17 -Wall")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -g3 -O0 -Werror")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O2 -DNDEBUG")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -fPIC -Wall")
-
+ 
 # List of subdirectories with our sources
 set(SUBFOLDERS
   CodeManagement
   Core
+  NewCore
   DeviceAPI
   DeviceFW
   MemoryManagement
@@ -90,7 +91,6 @@ set(ETRT_SOURCES
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/Memory.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/MemoryManager.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/Stream.h
-  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/DeviceAPI
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/DeviceAPI/Response.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/DeviceAPI/Event.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/DeviceAPI/Command.h

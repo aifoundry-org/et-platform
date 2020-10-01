@@ -91,13 +91,13 @@ pipeline {
                         }
                     }
                 }
-                stage("Address Sanitizer") {
+                /*stage("Address Sanitizer") {
                     steps {
                         script {
                             launch_job("${params.SW_PLATFORM_BRANCH}", "${BRANCH}", "AddressSanitizer", "Runtime-address-sanitizer.json")
                         }
                     }
-                }
+                }*/
                 /*  SW-3188
                 stage("Thread Sanitizer") {
                     steps {
@@ -109,13 +109,13 @@ pipeline {
 
                  */
 
-                stage("Memory Sanitizer") {
+                /*stage("Memory Sanitizer") {
                     steps {
                         script {
                             launch_job("${params.SW_PLATFORM_BRANCH}", "${BRANCH}", "MemorySanitizer", "Runtime-memory-sanitizer.json")
                         }
                     }
-                }
+                }*/
 
                 stage("Undefined Sanitizer") {
                     steps {

@@ -8,32 +8,22 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-add_library(etrt_Core OBJECT
-  CommandQueue.h
-  CoreState.cc
-  Device.cc
-  DeviceManager.cc
-  DeviceHelpers.cc
-  TraceHelper.cc
-  DeviceTarget.cc
-  Error.cc
-  Event.cc
-  KernelActions.cc
-  MemoryManager.cc
-  PmcConfig.cc
-  Stream.cc
-  VersionCheckers.cc
+add_library(etrt_NewCore OBJECT
+  Runtime.cpp
+  RuntimeImp.cpp
+  TargetSilicon.cpp
+  TargetSysEmu.cpp
   )
 
-target_include_directories(etrt_Core PRIVATE
+target_include_directories(etrt_NewCore PRIVATE
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/src
   ${PROJECT_BINARY_DIR}/include
   ${PROJECT_BINARY_DIR}/src
   )
 
-add_sanitizers(etrt_Core)
+add_sanitizers(etrt_NewCore)
 
 if(MINION_RUNTIME_FOUND)
-  target_include_directories(etrt_Core PRIVATE "${ESPERANTO_FW_INCLUDE_DIR}/")
+  target_include_directories(etrt_NewCore PRIVATE "${ESPERANTO_FW_INCLUDE_DIR}/")
 endif(MINION_RUNTIME_FOUND)
