@@ -1,0 +1,25 @@
+/*-------------------------------------------------------------------------
+ * Copyright (C) 2020, Esperanto Technologies Inc.
+ * The copyright to the computer program(s) herein is the
+ * property of Esperanto Technologies, Inc. All Rights Reserved.
+ * The program(s) may be used and/or copied only with
+ * the written permission of Esperanto Technologies and
+ * in accordance with the terms and conditions stipulated in the
+ * agreement/contract under which the program(s) have been supplied.
+ *-------------------------------------------------------------------------*/
+
+#pragma once
+
+#include <cstddef>
+#include <cstdint>
+
+namespace rt {
+class ITarget {
+public:
+  virtual uint64_t getDramBaseAddr() const = 0;
+  virtual size_t getDramSize() const = 0;
+
+  virtual ~ITarget() = default;
+  // TODO. there are a lot of missing stuff I will be adding when I need it
+};
+} // namespace rt
