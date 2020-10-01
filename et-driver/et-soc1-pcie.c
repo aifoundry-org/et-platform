@@ -603,10 +603,10 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		goto error_disable_dev;
 	}
 
-	et_mbox_init(&et_dev->mbox_mm, et_dev->iomem[IOMEM_R_PU_MBOX_PC_MM],
-		     et_dev->iomem[IOMEM_R_PU_TRG_PCIE], interrupt_mbox_mm);
 	et_mbox_init(&et_dev->mbox_sp, et_dev->iomem[IOMEM_R_PU_MBOX_PC_SP],
 		     et_dev->iomem[IOMEM_R_PU_TRG_PCIE], interrupt_mbox_sp);
+	et_mbox_init(&et_dev->mbox_mm, et_dev->iomem[IOMEM_R_PU_MBOX_PC_MM],
+		     et_dev->iomem[IOMEM_R_PU_TRG_PCIE], interrupt_mbox_mm);
 
 	et_dma_init(et_dev);
 
