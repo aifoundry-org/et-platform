@@ -49,6 +49,5 @@ install(TARGETS ${TARGET_NAME}.elf
 install(
   FILES ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.lst
         ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.map
-        ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.bin
   DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/WorkerMinion
   COMPONENT worker-minion)
