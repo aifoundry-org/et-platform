@@ -8,10 +8,6 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-set (FILE_VERSION_MAJOR 0)
-set (FILE_VERSION_MINOR 0)
-set (FILE_REVISION_NUMBER 1)
-
 set(SOURCES
     ${SHARED_SRC_DIR}/boot.S
     src/trap_handler.S
@@ -36,7 +32,6 @@ set(SOURCES
 set(TARGET_NAME MachineMinion)
 set(LINKER_SCRIPT src/sections.ld)
 set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
-set(TRACE_ENABLED TRUE)
 
 include_directories(include)
 include_directories(${SHARED_INC_DIRS})
@@ -49,6 +44,8 @@ else()
 endif(EsperantoCryptoAPI_FOUND)
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
+
+target_link_libraries(${TARGET_NAME}.elf device-mrt-trace)
 
 install(TARGETS ${TARGET_NAME}.elf
   EXPORT EsperantoDeviceMinionRuntimeTargets

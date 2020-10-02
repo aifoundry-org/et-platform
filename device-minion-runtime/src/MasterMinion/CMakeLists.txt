@@ -8,10 +8,6 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-set (FILE_VERSION_MAJOR 0)
-set (FILE_VERSION_MINOR 0)
-set (FILE_REVISION_NUMBER 1)
-
 # Add the device_api submodule as an external project. The code-generator code needs to always
 # compile for the host. CMake does not support having different targets use
 # different toolchains in the same build. For simplicity submodules that are self
@@ -48,7 +44,6 @@ set(SOURCES
 set(TARGET_NAME MasterMinion)
 set(LINKER_SCRIPT src/sections.ld)
 set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
-set(TRACE_ENABLED TRUE)
 
 include_directories(include)
 include_directories(${ESPERANTO_DEVICE_API_INCLUDE_DIR})
@@ -61,6 +56,8 @@ else()
 endif(EsperantoCryptoAPI_FOUND)
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
+
+target_link_libraries(${TARGET_NAME}.elf device-mrt-trace)
 
 install(TARGETS ${TARGET_NAME}.elf
   EXPORT EsperantoDeviceMinionRuntimeTargets

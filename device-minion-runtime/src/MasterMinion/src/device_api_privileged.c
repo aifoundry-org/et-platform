@@ -1,6 +1,6 @@
 #include "device_api_privileged.h"
 
-#include "build_configuration.h"
+#include "device_minion_runtime_build_configuration.h"
 #include "pcie_dma.h"
 #include "log.h"
 #include "mailbox.h"

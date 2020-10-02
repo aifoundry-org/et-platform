@@ -10,17 +10,11 @@ set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 
-# TODO FIXME move this to a shared dir that isn't project specific
-get_filename_component(GET_GIT_HASH_ABS_PATH "scripts/get_git_hash.py" ABSOLUTE)
-get_filename_component(GET_GIT_VERSION_ABS_PATH "scripts/get_git_version.py" ABSOLUTE)
-
 set(CMAKE_AR         ${GCC_SYSROOT_PATH}/bin/riscv64-unknown-elf-ar      CACHE PATH   "ar"       FORCE)
 set(CMAKE_RANLIB     ${GCC_SYSROOT_PATH}/bin/riscv64-unknown-elf-ranlib  CACHE PATH   "ranlib"   FORCE)
 set(CMAKE_C_COMPILER ${GCC_SYSROOT_PATH}/bin/riscv64-unknown-elf-gcc     CACHE PATH   "gcc"      FORCE)
 set(CMAKE_OBJCOPY    ${GCC_SYSROOT_PATH}/bin/riscv64-unknown-elf-objcopy CACHE PATH   "objcopy"  FORCE)
 set(CMAKE_OBJDUMP    ${GCC_SYSROOT_PATH}/bin/riscv64-unknown-elf-objdump CACHE PATH   "objdump"  FORCE)
-set(CMAKE_GET_GIT_HASH ${GET_GIT_HASH_ABS_PATH}                  CACHE PATH   "get-git-hash" FORCE)
-set(CMAKE_GET_GIT_VERSION ${GET_GIT_VERSION_ABS_PATH}            CACHE PATH   "get-git-version" FORCE)
 
 # Our gcc has -fdelete-null-pointer-checks enabled by default, needed for -Wnull-dereference
 #
@@ -39,8 +33,7 @@ set(CMAKE_C_FLAGS "-Og -g3 -std=gnu11 --specs=nano.specs -mcmodel=medany -march=
 -Wpointer-arith -Wundef -Wbad-function-cast -Wcast-qual -Wcast-align -Wconversion -Wlogical-op \
 -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wno-main" CACHE STRING "c flags" FORCE)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-
+add_definitions("-DRISCV_ET_MINION")
 
 # macro to create an executable .elf plus .bin, .lst and .map files
 # if LINKER_SCRIPT is defined, uses it instead of the default
@@ -57,36 +50,6 @@ macro(add_riscv_executable TARGET_NAME)
         set(MAP_FILE ${TARGET_NAME}.map)
         set(LST_FILE ${TARGET_NAME}.lst)
     endif()
-
-    if (NOT DEFINED GIT_HASH_STRING)
-        execute_process(COMMAND ${CMAKE_GET_GIT_HASH} ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_HASH_STRING RESULT_VARIABLE RES)
-        if (RES)
-            message(FATAL_ERROR "Get git hash string failed with: ${OUTPUT_VARIABLE}")
-        endif()
-    endif()
-    if (NOT DEFINED GIT_HASH_ARRAY)
-        execute_process(COMMAND ${CMAKE_GET_GIT_HASH} -a ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_HASH_ARRAY RESULT_VARIABLE RES)
-        if (RES)
-            message(FATAL_ERROR "Get git hash array string failed with: ${OUTPUT_VARIABLE}")
-        endif()
-    endif()
-    if (NOT DEFINED GIT_VERSION_STRING)
-        execute_process(COMMAND ${CMAKE_GET_GIT_VERSION} ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_VERSION_STRING RESULT_VARIABLE RES)
-        if (RES)
-            message(FATAL_ERROR "Get git version failed with: ${OUTPUT_VARIABLE}")
-        endif()
-    endif()
-    if (NOT DEFINED GIT_VERSION_ARRAY)
-        execute_process(COMMAND ${CMAKE_GET_GIT_VERSION} -a ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_VERSION_ARRAY RESULT_VARIABLE RES)
-        if (RES)
-            message(FATAL_ERROR "Get git version array string failed with: ${OUTPUT_VARIABLE}")
-        endif()
-    endif()
-
-    configure_file (
-        "${CMAKE_CURRENT_SOURCE_DIR}/include/build_configuration.h.in"
-        "${CMAKE_CURRENT_BINARY_DIR}/include/build_configuration.h"
-    )
 
     add_executable(${ELF_FILE} ${ARGN}) # ARGN is "the rest of the arguments", i.e. the source list
     if (DEFINED TARGET_RUNTIME_OUTPUT_DIRECTORY)
@@ -122,11 +85,6 @@ macro(add_riscv_executable TARGET_NAME)
     # putting libraries in CMAKE_EXE_LINKER_FLAGS is too early
     target_link_libraries(${ELF_FILE} c m gcc)
 
-    if (TRACE_ENABLED)
-      # Link trace library if tracing is enabled
-      target_link_libraries(${ELF_FILE} device-mrt-trace)
-    endif()
-
     # Pass -L{$SHARED_INC_DIR} to linker so linker scripts can INCLUDE shared defines
     target_link_directories(${ELF_FILE} PRIVATE ${SHARED_INC_DIR})
 
@@ -144,22 +102,17 @@ macro(add_riscv_executable TARGET_NAME)
         DEPENDS ${ELF_FILE}
     )
 
-    # These custom targets are unintuitive:
-    # Must use a unique name: can't be the same between components (e.g. MasterMinion and ServiceProcessor), so include ${TARGET_NAME}
-    # Must not match an existing target (e.g. can't be "${BIN_FILE"}), so append ".always". Don't understand this.
-
-    # Always generate the bin file
-    add_custom_target(
-        "${TARGET_NAME}.bin.always"
-        ALL
-        DEPENDS ${BIN_FILE}
+    add_custom_target(${TARGET_NAME}.map ALL
+        DEPENDS ${ELF_FILE}
+                ${CMAKE_CURRENT_BINARY_DIR}/${MAP_FILE}
     )
 
-    # Always generate the assembly listing
-    add_custom_target(
-        "${TARGET_NAME}.lst.always"
-        ALL
-        DEPENDS ${LST_FILE}
+    add_custom_target(${TARGET_NAME}.lst ALL
+        DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${LST_FILE}
+    )
+
+    add_custom_target(${TARGET_NAME}.bin ALL
+        DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${BIN_FILE}
     )
 
 endmacro(add_riscv_executable)

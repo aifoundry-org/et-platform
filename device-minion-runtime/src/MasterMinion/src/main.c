@@ -1,4 +1,4 @@
-#include "build_configuration.h"
+#include "device_minion_runtime_build_configuration.h"
 #include "cacheops.h"
 #include "device-mrt-trace.h"
 #include "device_api_privileged.h"
