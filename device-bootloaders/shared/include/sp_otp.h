@@ -83,4 +83,5 @@ int sp_otp_get_critical_patch_data(uint32_t index, OTP_CRITICAL_PATCH_t *patch_d
 
 void sp_otp_diag(void);
 
+int sp_otp_get_silicon_revision(OTP_SILICON_REVISION_t * si_revision);
 #endif

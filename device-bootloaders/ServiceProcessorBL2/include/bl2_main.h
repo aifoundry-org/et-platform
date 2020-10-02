@@ -15,6 +15,7 @@
 #include "service_processor_BL2_data.h"
 
 SERVICE_PROCESSOR_BL2_DATA_t *get_service_processor_bl2_data(void);
+const IMAGE_VERSION_INFO_t *get_service_processor_bl2_image_info(void);
 
 bool is_vaultip_disabled(void);
 

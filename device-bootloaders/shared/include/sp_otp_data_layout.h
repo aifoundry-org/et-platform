@@ -48,8 +48,7 @@ typedef struct OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_0_s {
 typedef struct OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_1_s {
     union {
         struct {
-            uint32_t
-                FLAGS : 2; // 0 - add to white list, 1 - apply before PCIe config, 2 - apply after PCIe config, 3 - ignore
+            uint32_t FLAGS : 2; // 0 - add to white list, 1 - apply before PCIe config, 2 - apply after PCIe config, 3 - ignore
             uint32_t OFFSET_23_02 : 22; // bits 23:2 of the offset
             uint32_t MEM_SPACE : 4; // memory space
             uint32_t IS_REGION : 1; // when 0: single-register entry, when 1: region entry
@@ -286,6 +285,24 @@ typedef struct OTP_PLL_LOCK_TIMEOUT_s {
         uint32_t R;
     };
 } OTP_PLL_LOCK_TIMEOUT_t;
+
+typedef struct OTP_SILICON_REVISION_s {
+    union {
+        struct {
+            uint32_t MS_29_H2 : 4;      // MS_29_H2 field 
+            uint32_t MS_30_H2 : 4;      // MS_30_H2 field
+            uint32_t MS_31_H2 : 4;      // MS_31_H2 field
+            uint32_t MS_32_H2 : 4;      // MS_32_H2 field
+            uint32_t MS_33_H2 : 4;      // MS_33_H2 field 
+            uint32_t MX_0_H2 : 4;       // MX_0_H2  field
+            uint32_t si_major_rev : 4;  // si_major_rev field
+            uint32_t si_minor_rev : 4;  // si_minor_rev field
+        } B;
+        uint32_t R;
+    };
+} OTP_SILICON_REVISION_t;
+
+#define SP_OTP_INDEX_SILICON_REVISION                                              12
 
 #define SP_OTP_MAX_PCIE_CONFIG_ENTRIES_COUNT 16
 #define SP_OTP_MAX_PLL_CONFIG_ENTRIES_COUNT  16

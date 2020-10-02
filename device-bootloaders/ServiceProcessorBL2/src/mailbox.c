@@ -4,6 +4,7 @@
 #include "hal_device.h"
 #include "interrupt.h"
 #include "pcie_int.h"
+#include "bl2_asset_trk.h"
 
 #include "FreeRTOS.h"
 #include "queue.h"
@@ -12,6 +13,8 @@
 
 #include <esperanto/device-api/device_api.h>
 #include <esperanto/device-api/device_api_rpc_types_non_privileged.h>
+
+#include <esperanto/device-api/device_management.h>
 
 #include <inttypes.h>
 #include <stdbool.h>
@@ -177,7 +180,10 @@ static void mbox_task(void *pvParameters)
                     printf("mbox_send error %" PRId64 "\r\n", result);
                 }
             } break;
-
+            case DM_SVC_ASSET_GET_FW_VERSION...DM_SVC_ASSET_GET_MEMORY_TYPE: {
+                /* Process asset tracking service request cmd */
+                asset_tracking_process_request(mbox, (uint32_t)*message_id); 
+	    } break;
             default:
                 printf("Invalid message id: %" PRIu64 "\r\n", *message_id);
                 printf("message length: %" PRIi64 ", buffer:\r\n", length);

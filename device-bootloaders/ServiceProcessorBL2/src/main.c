@@ -36,6 +36,8 @@
 #include <stdio.h>
 #include <string.h>
 #include "bl2_crypto.h"
+#include "bl2_asset_trk.h"
+#include <esperanto/device-api/device_management.h>
 
 #define TASK_STACK_SIZE 4096 // overkill for now
 
@@ -52,6 +54,14 @@ SERVICE_PROCESSOR_BL2_DATA_t *get_service_processor_bl2_data(void)
 {
     return &g_service_processor_bl2_data;
 }
+
+static const IMAGE_VERSION_INFO_t *sp_bl2_image_version_info;
+
+const IMAGE_VERSION_INFO_t *get_service_processor_bl2_image_info(void)
+{
+    return sp_bl2_image_version_info;
+}
+
 
 bool is_vaultip_disabled(void)
 {
@@ -307,6 +317,9 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 {
     bool vaultip_disabled;
     const IMAGE_VERSION_INFO_t *image_version_info = get_image_version_info();
+
+    /* Save the BL2 image info */   
+    sp_bl2_image_version_info = image_version_info;
 
     // Disable buffering on stdout
     setbuf(stdout, NULL);

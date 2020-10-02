@@ -36,6 +36,7 @@ set(BL2_SOURCES
     src/bl2_ddr_init.c
     src/bl2_minion_pll_and_dll.c
     src/bl2_timer.c
+    src/bl2_asset_trk.c
     src/crc32.c
     src/memory_copy_8x32.S
     # This file get compiled different based on the serial_device.h configuration of each target

@@ -53,6 +53,19 @@ static bool gs_aes_context_created;
 static bool gs_vaultip_disabled;
 static bool gs_ignore_signatures;
 
+static ESPERANTO_IMAGE_FILE_HEADER_t *mm_image_file_header;
+static ESPERANTO_IMAGE_FILE_HEADER_t *wm_image_file_header;
+
+ESPERANTO_IMAGE_FILE_HEADER_t *get_mm_image_file_header(void)
+{
+    return mm_image_file_header;
+}
+
+ESPERANTO_IMAGE_FILE_HEADER_t *get_wm_image_file_header(void)
+{
+    return wm_image_file_header;
+}
+
 static int get_kdk_derivation_data(const ESPERANTO_IMAGE_TYPE_t image_type,
                                    const uint8_t **kdk_data, size_t *kdk_data_size,
                                    const uint8_t **mac_data, size_t *mac_data_size,
@@ -485,11 +498,13 @@ int load_firmware(const ESPERANTO_IMAGE_TYPE_t image_type)
         region_id = ESPERANTO_FLASH_REGION_ID_MACHINE_MINION;
         image_name = "MACHINE_MINION";
         image_file_header = &(bl2_data->machine_minion_header);
+        mm_image_file_header = image_file_header;
         break;
     case ESPERANTO_IMAGE_TYPE_MASTER_MINION:
         region_id = ESPERANTO_FLASH_REGION_ID_MASTER_MINION;
         image_name = "MASTER_MINION";
         image_file_header = &(bl2_data->master_minion_header);
+        wm_image_file_header = image_file_header;
         break;
     case ESPERANTO_IMAGE_TYPE_WORKER_MINION:
         region_id = ESPERANTO_FLASH_REGION_ID_WORKER_MINION;

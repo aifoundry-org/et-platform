@@ -19,5 +19,6 @@
 #include "service_processor_BL2_data.h"
 
 int load_firmware(const ESPERANTO_IMAGE_TYPE_t image_type);
-
+ESPERANTO_IMAGE_FILE_HEADER_t *get_mm_image_file_header(void);
+ESPERANTO_IMAGE_FILE_HEADER_t *get_wm_image_file_header(void);
 #endif

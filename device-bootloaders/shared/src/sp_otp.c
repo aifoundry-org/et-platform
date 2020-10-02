@@ -1113,3 +1113,25 @@ void sp_otp_diag(void)
     MESSAGE_INFO("SP_OTP words 232-235: %08x %08x %08x %08x\n", dw0, dw1, dw2, dw3);
 #endif
 }
+
+int sp_otp_get_silicon_revision(OTP_SILICON_REVISION_t * si_revision) {
+    if (!gs_is_otp_available) {
+        return ERROR_SP_OTP_OTP_NOT_AVAILABLE;
+    }
+
+    if (NULL == si_revision) {
+        return ERROR_INVALID_ARGUMENT;
+    }
+
+    if (!otp_is_bank_locked(OTP_CALC_START_BANK_INDEX(SP_OTP_INDEX_SILICON_REVISION))) {
+        si_revision->R = 0xFFFFFFFF;
+        return 0;
+    }
+
+    if (0 != sp_otp_read(SP_OTP_INDEX_SILICON_REVISION, &(si_revision->R))) {
+        si_revision->R = 0;
+        return ERROR_SP_OTP_OTP_READ;
+    }
+
+    return 0;
+}
