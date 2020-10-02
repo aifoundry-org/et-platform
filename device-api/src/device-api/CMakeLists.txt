@@ -14,7 +14,8 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/device_api.h.in
 file(GLOB_RECURSE DEVICE_API_SCHEMA_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}} *.yaml)
 
 set(DEV_API_HDRS "${CMAKE_CURRENT_BINARY_DIR}/device_api.h"
-                 "${CMAKE_CURRENT_SOURCE_DIR}/device_api_message_types.h")
+                 "${CMAKE_CURRENT_SOURCE_DIR}/device_api_message_types.h" 
+                 "${CMAKE_CURRENT_SOURCE_DIR}/device_management.h")
 
 ################### Privileged API Headers #########################
 # List of Jinja files to generate files for
