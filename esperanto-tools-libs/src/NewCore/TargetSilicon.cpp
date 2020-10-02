@@ -19,6 +19,12 @@ TargetSilicon::TargetSilicon() {
   device_->init();
 }
 
+std::vector<Device> TargetSilicon::getDevices() const {
+  static Device d;
+  // TODO. Whenever we support multiple devices, fix this. #SW-4438
+  return {d};
+}
+
 size_t TargetSilicon::getDramSize() const { return device_->dramSize(); }
 uint64_t TargetSilicon::getDramBaseAddr() const { return device_->dramBaseAddr(); }
 

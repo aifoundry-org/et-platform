@@ -91,7 +91,8 @@ pipeline {
                         }
                     }
                 }
-                /*stage("Address Sanitizer") {
+                /* All sanitizers have been disabled. They should be enabled when deprecating the old runtime. See ticket: SW-4451
+                stage("Address Sanitizer") {
                     steps {
                         script {
                             launch_job("${params.SW_PLATFORM_BRANCH}", "${BRANCH}", "AddressSanitizer", "Runtime-address-sanitizer.json")

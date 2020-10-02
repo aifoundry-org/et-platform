@@ -10,12 +10,15 @@
 
 #pragma once
 
+#include "runtime/IRuntime.h"
 #include <cstddef>
 #include <cstdint>
 
 namespace rt {
 class ITarget {
 public:
+  virtual std::vector<Device> getDevices() const = 0;
+
   virtual uint64_t getDramBaseAddr() const = 0;
   virtual size_t getDramSize() const = 0;
 

@@ -22,6 +22,7 @@ public:
   ~TargetSysEmu();
 
   // ITarget
+  std::vector<Device> getDevices() const override;
   size_t getDramSize() const override;
   uint64_t getDramBaseAddr() const override;
 
