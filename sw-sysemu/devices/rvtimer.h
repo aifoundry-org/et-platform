@@ -14,7 +14,11 @@
 #include <cinttypes>
 #include <limits>
 #include "emu_defines.h"
+#ifdef SYS_EMU
+#include "sys_emu.h"
+#endif
 
+template <uint64_t interrupt_shire_mask>
 struct RVTimer
 {
     enum {
@@ -31,8 +35,6 @@ struct RVTimer
         interrupt = false;
     }
 
-    void update(uint64_t cycle);
-
     bool is_active() const {
         return mtimecmp != std::numeric_limits<uint64_t>::max();
     }
@@ -41,15 +43,40 @@ struct RVTimer
         return mtime;
     }
 
-    uint64_t read_mtimecmp() const {
-        return mtimecmp;
-    }
-
     void write_mtime(uint64_t val) {
         mtime = val;
     }
 
-    void write_mtimecmp(uint64_t val);
+    uint64_t read_mtimecmp() const {
+        return mtimecmp;
+    }
+
+    void write_mtimecmp(uint64_t val)
+    {
+        bool had_interrupt = interrupt;
+        mtimecmp = val;
+        interrupt = (mtime >= mtimecmp);
+        if (had_interrupt && !interrupt) {
+#ifdef SYS_EMU
+            sys_emu::clear_timer_interrupt(interrupt_shire_mask);
+#endif
+        }
+    }
+
+    void update(uint64_t cycle)
+    {
+        if ((cycle % tick_freq) != 0)
+            return;
+
+        if (++mtime >= mtimecmp) {
+            if (!interrupt) {
+#ifdef SYS_EMU
+                sys_emu::raise_timer_interrupt(interrupt_shire_mask);
+#endif
+                interrupt = true;
+            }
+        }
+    }
 
 private:
     uint64_t mtime;

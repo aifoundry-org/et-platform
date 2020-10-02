@@ -27,6 +27,7 @@
 #include "devices/plic.h"
 #include "devices/pll.h"
 #include "devices/shire_lpddr.h"
+#include "devices/spio_rvtimer_region.h"
 #endif
 #include "sparse_region.h"
 
@@ -51,10 +52,11 @@ struct SvcProcRegion : public MemoryRegion {
         sp_rom_base          = 0x00000000,
         sp_sram_base         = 0x00400000,
         sp_plic_base         = 0x10000000,
-        spio_uart0_base      = 0x12022000,
+        sp_uart0_base        = 0x12022000,
         sp_efuse_base        = 0x12026000,
         sp_cru_base          = 0x12028000,
-        spio_uart1_base      = 0x14052000,
+        sp_rvtim_base        = 0x12100000,
+        sp_uart1_base        = 0x14052000,
         pll2_base            = 0x14055000,
         pll4_base            = 0x14057000,
         pcie_esr_base        = 0x18200000,
@@ -98,11 +100,12 @@ struct SvcProcRegion : public MemoryRegion {
     DenseRegion   <sp_rom_base, 128_KiB, false>  sp_rom{};
     SparseRegion  <sp_sram_base, 1_MiB, 64_KiB>  sp_sram{};
     SP_PLIC       <sp_plic_base,    32_MiB>      sp_plic{};
-    Uart          <spio_uart0_base,  4_KiB>      spio_uart0{};
-    Uart          <spio_uart1_base,  4_KiB>      spio_uart1{};
+    Uart          <sp_uart0_base,  4_KiB>        spio_uart0{};
+    Uart          <sp_uart1_base,  4_KiB>        spio_uart1{};
 #ifdef SYS_EMU
     Efuse         <sp_efuse_base,    8_KiB>      sp_efuse{};
     Cru           <sp_cru_base,      4_KiB>      sp_cru{};
+    SpioRVTimerRegion <sp_rvtim_base,4_KiB>      sp_rvtim{};
     PLL           <pll2_base,        4_KiB, 2>   pll2{};
     PLL           <pll4_base,        4_KiB, 4>   pll4{};
     PcieEsr       <pcie_esr_base,    4_KiB>      pcie_esr{};
@@ -126,13 +129,14 @@ protected:
 
     // These arrays must be sorted by region offset
 #ifdef SYS_EMU
-    std::array<MemoryRegion*,12> regions = {{
+    std::array<MemoryRegion*,13> regions = {{
         &sp_rom,
         &sp_sram,
         &sp_plic,
         &spio_uart0,
         &sp_efuse,
         &sp_cru,
+        &sp_rvtim,
         &spio_uart1,
         &pll2,
         &pll4,
