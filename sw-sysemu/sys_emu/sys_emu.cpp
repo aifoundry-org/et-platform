@@ -263,8 +263,8 @@ sys_emu::raise_timer_interrupt(uint64_t shire_mask)
 
         unsigned shire_minion_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
         unsigned minion_thread_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_MINION);
+        uint32_t target = (s == EMU_IO_SHIRE_SP ? 1 : bemu::shire_other_esrs[s].mtime_local_target);
 
-        uint32_t target = bemu::shire_other_esrs[s].mtime_local_target;
         for (unsigned m = 0; m < shire_minion_count; m++) {
             if (!(target & (1ULL << m)))
                 continue;
@@ -294,8 +294,8 @@ sys_emu::clear_timer_interrupt(uint64_t shire_mask)
 
         unsigned shire_minion_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
         unsigned minion_thread_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_MINION);
+        uint32_t target = (s == EMU_IO_SHIRE_SP ? 1 : bemu::shire_other_esrs[s].mtime_local_target);
 
-        uint32_t target = bemu::shire_other_esrs[s].mtime_local_target;
         for (unsigned m = 0; m < shire_minion_count; m++) {
             if (target & (1ULL << m)) {
                 for (unsigned ii = 0; ii < minion_thread_count; ii++) {
@@ -989,6 +989,7 @@ sys_emu::main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<a
              || !fcc_wait_threads[1].empty()
              || !port_wait_threads.empty()
              ||  bemu::memory.sysreg_space.ioshire_pu_rvtimer.is_active()
+             ||  bemu::memory.spio_space.sp_rvtim.rvtimer.is_active()
              || (api_listener && api_listener->is_enabled())
              || (cmd_options.gdb && (gdbstub_get_status() != GDBSTUB_STATUS_NOT_INITIALIZED))
             )
@@ -1022,6 +1023,7 @@ sys_emu::main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<a
 
         // Update devices
         bemu::memory.sysreg_space.ioshire_pu_rvtimer.update(emu_cycle);
+        bemu::memory.spio_space.sp_rvtim.rvtimer.update(emu_cycle);
 
         auto thread = running_threads.begin();
 

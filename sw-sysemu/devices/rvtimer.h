@@ -18,6 +18,7 @@
 #include "sys_emu.h"
 #endif
 
+template <uint64_t interrupt_shire_mask>
 struct RVTimer
 {
     enum {
@@ -57,7 +58,7 @@ struct RVTimer
         interrupt = (mtime >= mtimecmp);
         if (had_interrupt && !interrupt) {
 #ifdef SYS_EMU
-            sys_emu::clear_timer_interrupt((1ULL << EMU_NUM_SHIRES) - 1);
+            sys_emu::clear_timer_interrupt(interrupt_shire_mask);
 #endif
         }
     }
@@ -70,7 +71,7 @@ struct RVTimer
         if (++mtime >= mtimecmp) {
             if (!interrupt) {
 #ifdef SYS_EMU
-                sys_emu::raise_timer_interrupt((1ULL << EMU_NUM_SHIRES) - 1);
+                sys_emu::raise_timer_interrupt(interrupt_shire_mask);
 #endif
                 interrupt = true;
             }
