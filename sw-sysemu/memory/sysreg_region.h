@@ -15,6 +15,7 @@
 #include <cstdint>
 #include "esrs.h"
 #include "memory_region.h"
+#include "devices/rvtimer.h"
 
 namespace bemu {
 
@@ -50,6 +51,8 @@ struct SysregRegion : public MemoryRegion {
     addr_type last() const override { return Base + N - 1; }
 
     void dump_data(std::ostream&, size_type, size_type) const override { }
+
+    RVTimer ioshire_pu_rvtimer;
 };
 
 

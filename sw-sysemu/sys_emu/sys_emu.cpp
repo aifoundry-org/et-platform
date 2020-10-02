@@ -62,7 +62,6 @@ std::list<int>  sys_emu::port_wait_threads;                                     
 std::bitset<EMU_NUM_THREADS> sys_emu::active_threads;                                   // List of threads being simulated
 uint16_t        sys_emu::pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
 std::list<sys_emu_coop_tload>    sys_emu::coop_tload_pending_list[EMU_NUM_THREADS];                      // List of pending cooperative tloads per thread
-RVTimer         sys_emu::pu_rvtimer;
 bool            sys_emu::mem_check = false;
 mem_checker     sys_emu::mem_checker_;
 bool            sys_emu::l1_scp_check = false;
@@ -989,7 +988,7 @@ sys_emu::main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<a
              || !fcc_wait_threads[0].empty()
              || !fcc_wait_threads[1].empty()
              || !port_wait_threads.empty()
-             ||  pu_rvtimer.is_active()
+             ||  bemu::memory.sysreg_space.ioshire_pu_rvtimer.is_active()
              || (api_listener && api_listener->is_enabled())
              || (cmd_options.gdb && (gdbstub_get_status() != GDBSTUB_STATUS_NOT_INITIALIZED))
             )
@@ -1022,7 +1021,7 @@ sys_emu::main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<a
         }
 
         // Update devices
-        pu_rvtimer.update(emu_cycle);
+        bemu::memory.sysreg_space.ioshire_pu_rvtimer.update(emu_cycle);
 
         auto thread = running_threads.begin();
 

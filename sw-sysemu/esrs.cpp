@@ -291,9 +291,9 @@ uint64_t esr_read(const Agent& agent, uint64_t addr)
 #ifdef SYS_EMU
         switch (esr) {
         case ESR_PU_RVTIM_MTIME:
-            return sys_emu::get_pu_rvtimer().read_mtime();
+            return bemu::memory.sysreg_space.ioshire_pu_rvtimer.read_mtime();
         case ESR_PU_RVTIM_MTIMECMP:
-            return sys_emu::get_pu_rvtimer().read_mtimecmp();
+            return bemu::memory.sysreg_space.ioshire_pu_rvtimer.read_mtimecmp();
         }
 #else
         switch (esr) {
@@ -625,10 +625,10 @@ void esr_write(const Agent& agent, uint64_t addr, uint64_t value)
 #ifdef SYS_EMU
         switch (esr) {
         case ESR_PU_RVTIM_MTIME:
-            sys_emu::get_pu_rvtimer().write_mtime(value);
+            bemu::memory.sysreg_space.ioshire_pu_rvtimer.write_mtime(value);
             return;
         case ESR_PU_RVTIM_MTIMECMP:
-            sys_emu::get_pu_rvtimer().write_mtimecmp(value);
+            bemu::memory.sysreg_space.ioshire_pu_rvtimer.write_mtimecmp(value);
             return;
         }
 #else

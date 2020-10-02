@@ -29,7 +29,6 @@
 #include "checkers/l1_scp_checker.h"
 #include "checkers/l2_scp_checker.h"
 #include "checkers/mem_checker.h"
-#include "devices/rvtimer.h"
 
 namespace bemu {
 
@@ -163,7 +162,6 @@ public:
     int main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<api_communicate> api_comm = nullptr);
 
     static uint64_t get_emu_cycle()  { return emu_cycle; }
-    static RVTimer& get_pu_rvtimer() { return pu_rvtimer; }
 
     static bool thread_is_disabled(unsigned thread) { return !bemu::get_cpu(thread).enabled; }
 
@@ -250,7 +248,6 @@ private:
     static std::bitset<EMU_NUM_THREADS> active_threads; // List of threads being simulated
     static uint16_t        pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
     static std::list<sys_emu_coop_tload> coop_tload_pending_list[EMU_NUM_THREADS];                      // List of pending cooperative tloads per thread
-    static RVTimer         pu_rvtimer;
     static bool            mem_check;
     static mem_checker     mem_checker_;
     static bool            l1_scp_check;
