@@ -13,23 +13,20 @@
 #include "TargetSysEmu.h"
 
 using namespace rt;
-namespace {
-Device sDevice; // TODO. Whenever we support multiple devices, fix this. #SW-4438
-}
 RuntimeImp::RuntimeImp(Kind kind) {
   switch (kind) {
   case Kind::SysEmu:
-    hardware_ = std::make_unique<TargetSysEmu>();
+    target_ = std::make_unique<TargetSysEmu>();
     break;
   case Kind::Silicon:
-    hardware_ = std::make_unique<TargetSilicon>();
+    target_ = std::make_unique<TargetSilicon>();
     break;
   default:
     throw Exception("Not implemented");
   }
 }
 
-std::vector<Device> RuntimeImp::getDevices() const { return {sDevice}; }
+std::vector<Device> RuntimeImp::getDevices() const { return target_->getDevices(); }
 
 Kernel RuntimeImp::loadCode(Device device, std::byte* elf, size_t elf_size) { throw Exception("Not implemented yet"); }
 

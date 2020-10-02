@@ -39,7 +39,7 @@ public:
   void waitForStream(Stream stream) override;
 
 private:
-  std::unique_ptr<ITarget> hardware_;
+  std::unique_ptr<ITarget> target_;
 };
 
 } // namespace rt

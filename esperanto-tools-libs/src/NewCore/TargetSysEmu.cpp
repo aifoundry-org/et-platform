@@ -11,6 +11,7 @@
 #include "TargetSysEmu.h"
 #include "RPCDevice/SysEmuLauncher.h"
 #include "RPCDevice/TargetSysEmu.h"
+#include <vector>
 using namespace rt;
 
 //#see SW-4433. There are a lot of tech debt in current implementation.
@@ -26,6 +27,12 @@ TargetSysEmu::TargetSysEmu() {
 
 size_t TargetSysEmu::getDramSize() const { return device_->dramSize(); }
 uint64_t TargetSysEmu::getDramBaseAddr() const { return device_->dramBaseAddr(); }
+
+std::vector<Device> TargetSysEmu::getDevices() const {
+  static Device d;
+  // TODO. Whenever we support multiple devices, fix this. #SW-4438
+  return {d};
+}
 
 TargetSysEmu::~TargetSysEmu() {
   device_->deinit(); // TODO. see SW-4433; we shouldn't call anything like this explicetly
