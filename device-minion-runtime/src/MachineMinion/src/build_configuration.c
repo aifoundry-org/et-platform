@@ -1,4 +1,4 @@
-#include "build_configuration.h"
+#include "device_minion_runtime_build_configuration.h"
 
 // the esperanto_sign_elf tool will search the elf binary for a
 // symbol named 'g_image_version_info'.
@@ -29,9 +29,9 @@
 const IMAGE_VERSION_INFO_t IMAGE_VERSION_INFO_SYMBOL
     __attribute__((used, section(".rodata.keep"))) = {
         .prolog_tag = IMAGE_VERSION_INFO_PROLOG_TAG,
-        .file_version_revision = FILE_REVISION_NUMBER,
-        .file_version_minor = FILE_VERSION_MINOR,
-        .file_version_major = FILE_VERSION_MAJOR,
+        .file_version_revision = DEVICE_MINION_RUNTIME_REVISION_NUMBER,
+        .file_version_minor = DEVICE_MINION_RUNTIME_VERSION_MINOR,
+        .file_version_major = DEVICE_MINION_RUNTIME_VERSION_MAJOR,
         .git_hash = GIT_HASH_ARRAY,
         .git_version = GIT_VERSION_ARRAY,
         .epilog_tag = IMAGE_VERSION_INFO_EPILOG_TAG,

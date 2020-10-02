@@ -64,7 +64,7 @@ from_any_mode:
 
 .option push
 .option norelax
-    la    gp, __global_pointer$         /* switch to the M-mode global pointer */
+    la    gp, __global_pointer$         /* Switch to the M-mode global pointer */
 .option pop
 
     csrr  t1, mepc

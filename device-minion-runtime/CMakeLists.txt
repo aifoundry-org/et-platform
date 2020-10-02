@@ -10,10 +10,13 @@
 
 cmake_minimum_required(VERSION 3.5)
 
+set(DEVICE_MINION_RUNTIME_VERSION_MAJOR   0)
+set(DEVICE_MINION_RUNTIME_VERSION_MINOR   0)
+set(DEVICE_MINION_RUNTIME_REVISION_NUMBER 1)
+
 include(ExternalProject)
 include(GNUInstallDirs)
 cmake_policy(SET CMP0076 NEW)
-
 
 set(GCC_SYSROOT_PATH /esperanto/minion CACHE STRING "Path to the gcc riscv toolchain sysroot folder")
 # Must set CMAKE_TOOLCHAIN_FILE before project() is called
@@ -71,9 +74,7 @@ add_subdirectory(external)
 
 ############################ FW build Rules ############### ####################
 
-# add the binary tree to the search path for include files
-# so that we will find TutorialConfig.h
-include_directories("${PROJECT_BINARY_DIR}/include")
+include_directories("${PROJECT_BINARY_DIR}/src/shared/include")
 
 add_subdirectory(src)
 add_subdirectory(scripts)
