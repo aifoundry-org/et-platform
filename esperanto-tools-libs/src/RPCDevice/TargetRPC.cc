@@ -158,52 +158,16 @@ bool RPCTarget::writeDevMemDMA(uintptr_t dev_addr, size_t size,
   return true;
 }
 
-/// @brief Read from target_sim the status header of the mailbox
-std::tuple<bool, std::tuple<uint32_t, uint32_t>> RPCTarget::readMBStatus() {
-  // Preparate request to read the mailbox status
+bool RPCTarget::mailboxReadAccess(MailBoxTarget target, uint32_t offset, size_t size, void *data) {
+  // Create request
   simulator_api::Request request;
-
-  auto mb = new MailBoxMessage();
-  mb->set_target(MailBoxTarget::MB_TARGET_MM);
+  auto mb = new MailBoxAccess();
+  mb->set_target(target);
   mb->set_type(MailBoxAccessType::MB_READ);
-  mb->set_req_status(MailBoxAccessStatus::MB_STATUS_NONE);
-
-  auto mb_status = new MailBoxStatus();
-  mb->set_allocated_status(mb_status);
+  mb->set_status(MailBoxAccessStatus::MB_STATUS_NONE);
+  mb->set_offset(offset);
+  mb->set_size(size);
   request.set_allocated_mailbox(mb);
-
-  // Do RPC and wait for reply
-  auto reply_res = doRPC(request);
-  if (!reply_res.first) {
-    return {false, {{}, {}}};
-  }
-  auto reply = reply_res.second;
-  assert(reply.has_mailbox());
-
-  auto &mb_resp = reply.mailbox();
-  assert(mb_resp.type() == MailBoxAccessType::MB_READ);
-  assert(mb_resp.req_status() == MailBoxAccessStatus::MB_STATUS_SUCCESS);
-  assert(mb_resp.has_status());
-
-  auto status = mb_resp.status();
-  return {true, {status.master_status(), status.slave_status()}};
-}
-
-bool RPCTarget::writeMBStatus(uint32_t master_status, uint32_t slave_status) {
-  // Prepare request to write the mailbox status
-  simulator_api::Request request;
-
-  auto mb = new MailBoxMessage();
-  mb->set_target(MailBoxTarget::MB_TARGET_MM);
-  mb->set_type(MailBoxAccessType::MB_WRITE);
-  mb->set_req_status(MailBoxAccessStatus::MB_STATUS_NONE);
-
-  auto mb_status = new MailBoxStatus();
-  mb_status->set_master_status(master_status);
-  mb_status->set_slave_status(slave_status);
-  mb->set_allocated_status(mb_status);
-  request.set_allocated_mailbox(mb);
-
   // Do RPC and wait for reply
   auto reply_res = doRPC(request);
   if (!reply_res.first) {
@@ -211,155 +175,42 @@ bool RPCTarget::writeMBStatus(uint32_t master_status, uint32_t slave_status) {
   }
   auto reply = reply_res.second;
   assert(reply.has_mailbox());
-  auto &mb_resp = reply.mailbox();
-  // Check that the write was successful
-  assert(mb_resp.type() == MailBoxAccessType::MB_WRITE);
-  assert(mb_resp.req_status() == MailBoxAccessStatus::MB_STATUS_SUCCESS);
-  assert(mb_resp.has_status());
 
+  auto &mb_resp = reply.mailbox();
+  assert(mb_resp.target() == target);
+  assert(mb_resp.type() == MailBoxAccessType::MB_READ);
+  assert(mb_resp.status() == MailBoxAccessStatus::MB_STATUS_SUCCESS);
+  assert(mb_resp.offset() == offset);
+  assert(mb_resp.size() == size);
+  memcpy(data, reinterpret_cast<const void *>(mb_resp.data().c_str()), size);
   return true;
 }
 
-std::tuple<bool, device_fw::ringbuffer_s> RPCTarget::readRxRb() {
-  // Read teh RX ringbuffer
+bool RPCTarget::mailboxWriteAccess(MailBoxTarget target, uint32_t offset, size_t size,
+                                   const void *data) {
+  // Create request
   simulator_api::Request request;
-
-  auto mb = new MailBoxMessage();
-  mb->set_target(MailBoxTarget::MB_TARGET_MM);
-  mb->set_type(MailBoxAccessType::MB_READ);
-  mb->set_req_status(MailBoxAccessStatus::MB_STATUS_NONE);
-
-  auto rbi = new simulator_api::RingBuffer();
-  mb->set_allocated_rx_ring_buffer(rbi);
-  request.set_allocated_mailbox(mb);
-
-  // Do RPC and wait for reply
-  auto reply_res = doRPC(request);
-  if (!reply_res.first) {
-    return {false, {}};
-  }
-  auto reply = reply_res.second;
-
-  assert(reply.has_mailbox());
-  auto &mb_resp = reply.mailbox();
-  assert(mb_resp.type() == MailBoxAccessType::MB_READ);
-  assert(mb_resp.req_status() == MailBoxAccessStatus::MB_STATUS_SUCCESS);
-  assert(mb_resp.has_rx_ring_buffer());
-
-  // Get RX ringbuffer state
-  auto rb = mb_resp.rx_ring_buffer();
-  device_fw::ringbuffer_s orb = {};
-  orb.head_index = rb.head_index();
-  orb.tail_index = rb.tail_index();
-  assert(rb.queue().size() == RINGBUFFER_LENGTH);
-  memcpy(orb.queue, rb.queue().data(), RINGBUFFER_LENGTH);
-
-  return {true, orb};
-}
-
-bool RPCTarget::writeRxRb(const device_fw::ringbuffer_s &rb) {
-  // Write the RX ring buffer, prepare request
-  simulator_api::Request request;
-
-  auto mb = new MailBoxMessage();
-  mb->set_target(MailBoxTarget::MB_TARGET_MM);
+  auto mb = new MailBoxAccess();
+  mb->set_target(target);
   mb->set_type(MailBoxAccessType::MB_WRITE);
-  mb->set_req_status(MailBoxAccessStatus::MB_STATUS_NONE);
-
-  auto rbw = new simulator_api::RingBuffer();
-  // Write the ring buffer state
-  rbw->set_head_index(rb.head_index);
-  rbw->set_tail_index(rb.tail_index);
-  rbw->set_queue(rb.queue, RINGBUFFER_LENGTH);
-  mb->set_allocated_rx_ring_buffer(rbw);
-
+  mb->set_status(MailBoxAccessStatus::MB_STATUS_NONE);
+  mb->set_offset(offset);
+  mb->set_size(size);
+  mb->set_data(data, size);
   request.set_allocated_mailbox(mb);
-
   // Do RPC and wait for reply
   auto reply_res = doRPC(request);
   if (!reply_res.first) {
     return false;
   }
   auto reply = reply_res.second;
-
-  // Check that the OAwrite was succesful
   assert(reply.has_mailbox());
   auto &mb_resp = reply.mailbox();
+  assert(mb_resp.target() == target);
   assert(mb_resp.type() == MailBoxAccessType::MB_WRITE);
-  assert(mb_resp.req_status() == MailBoxAccessStatus::MB_STATUS_SUCCESS);
-  assert(mb_resp.has_rx_ring_buffer());
-  return true;
-}
-
-// FIXME in the future see if the two read*Rb and write*Rb functions
-// could be combined
-
-std::tuple<bool, device_fw::ringbuffer_s> RPCTarget::readTxRb() {
-  // Read the TX ring buffer
-
-  simulator_api::Request request;
-  auto mb = new MailBoxMessage();
-  mb->set_target(MailBoxTarget::MB_TARGET_MM);
-  mb->set_type(MailBoxAccessType::MB_READ);
-  mb->set_req_status(MailBoxAccessStatus::MB_STATUS_NONE);
-
-  auto rbi = new simulator_api::RingBuffer();
-  mb->set_allocated_tx_ring_buffer(rbi);
-  request.set_allocated_mailbox(mb);
-
-  // Do RPC and wait for reply
-  auto reply_res = doRPC(request);
-  if (!reply_res.first) {
-    return {false, {}};
-  }
-
-  auto reply = reply_res.second;
-  assert(reply.has_mailbox());
-  auto &mb_resp = reply.mailbox();
-  assert(mb_resp.type() == MailBoxAccessType::MB_READ);
-  assert(mb_resp.req_status() == MailBoxAccessStatus::MB_STATUS_SUCCESS);
-  assert(mb_resp.has_tx_ring_buffer());
-  auto rb = mb_resp.tx_ring_buffer();
-
-  device_fw::ringbuffer_s orb = {};
-  orb.head_index = rb.head_index();
-  orb.tail_index = rb.tail_index();
-  assert(rb.queue().size() == RINGBUFFER_LENGTH);
-  memcpy(orb.queue, rb.queue().data(), RINGBUFFER_LENGTH);
-
-  return {true, orb};
-}
-
-bool RPCTarget::writeTxRb(const device_fw::ringbuffer_s &rb) {
-  // Write the TX ringbuffer state
-  simulator_api::Request request;
-
-  auto mb = new MailBoxMessage();
-  mb->set_target(MailBoxTarget::MB_TARGET_MM);
-  mb->set_type(MailBoxAccessType::MB_WRITE);
-  mb->set_req_status(MailBoxAccessStatus::MB_STATUS_NONE);
-
-  auto rbw = new simulator_api::RingBuffer();
-  rbw->set_head_index(rb.head_index);
-  rbw->set_tail_index(rb.tail_index);
-  rbw->set_queue(rb.queue, RINGBUFFER_LENGTH);
-  mb->set_allocated_tx_ring_buffer(rbw);
-  request.set_allocated_mailbox(mb);
-
-  // Do RPC and wait for reply
-  auto reply_res = doRPC(request);
-  if (!reply_res.first) {
-    return false;
-  }
-  auto reply = reply_res.second;
-
-  assert(reply.has_mailbox());
-
-  auto &mb_resp = reply.mailbox();
-  assert(mb_resp.type() == MailBoxAccessType::MB_WRITE);
-  assert(mb_resp.req_status() == MailBoxAccessStatus::MB_STATUS_SUCCESS);
-  assert(mb_resp.has_tx_ring_buffer());
-
+  assert(mb_resp.status() == MailBoxAccessStatus::MB_STATUS_SUCCESS);
+  assert(mb_resp.offset() == offset);
+  assert(mb_resp.size() == size);
   return true;
 }
 
@@ -428,14 +279,11 @@ ssize_t RPCTarget::mboxMsgMaxSize() const {
 }
 
 bool RPCTarget::mb_write(const void *data, ssize_t size) {
-  bool res = false;
-  res = mailboxDev_->write(data, size);
-  return res;
+  return mailboxDev_->write(data, size);
 }
+
 ssize_t RPCTarget::mb_read(void *data, ssize_t size, TimeDuration wait_time) {
-  ssize_t res = false;
-  res = mailboxDev_->read(data, size, wait_time);
-  return res;
+  return mailboxDev_->read(data, size, wait_time);
 }
 
 bool RPCTarget::boot_shire(uint32_t shire_id, uint32_t thread0_enable, uint32_t thread1_enable) {

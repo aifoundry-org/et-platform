@@ -33,6 +33,7 @@ using grpc::Status;
 using simulator_api::Reply;
 using simulator_api::Request;
 using simulator_api::SimAPI;
+using simulator_api::MailBoxTarget;
 
 namespace et_runtime {
 namespace device {
@@ -72,22 +73,11 @@ public:
   /// @brief Get mailbox emu device
   EmuMailBoxDev &mailboxDev() { return *mailboxDev_; }
 
-  /// @brief Read from target_sim the status header of the mailbox
-  std::tuple<bool, std::tuple<uint32_t, uint32_t>> readMBStatus();
-  /// @brief Write the mailbox status
-  bool writeMBStatus(uint32_t master_status, uint32_t slave_status);
+  /// @brief Read access to the target mailbox
+  bool mailboxReadAccess(MailBoxTarget target, uint32_t offset, size_t size, void *data);
 
-  /// @brief Read the rx ring buffer
-  std::tuple<bool, device_fw::ringbuffer_s> readRxRb();
-
-  /// @brief Write the rx ring buffer
-  bool writeRxRb(const device_fw::ringbuffer_s &rb);
-
-  /// @brief Read the tx ring buffer
-  std::tuple<bool, device_fw::ringbuffer_s> readTxRb();
-
-  /// @brief Write the tx ring buffer
-  bool writeTxRb(const device_fw::ringbuffer_s &rb);
+  /// @brief Write access to the target mailbox
+  bool mailboxWriteAccess(MailBoxTarget target, uint32_t offset, size_t size, const void *data);
 
   /// @brief Boot specific Minions of a Shire
   bool boot_shire(uint32_t shire_id, uint32_t thread0_enable, uint32_t thread1_enable);
@@ -109,11 +99,10 @@ public:
   /// @brief get the maximum mailbox message
   ssize_t mboxMsgMaxSize() const final;
 
-  /// @brief Write a full mailbox message, this corresponds to the API that the
-  /// PCIE device exposes
+  /// @brief Write a full mailbox message, this corresponds to the API that the PCIE device exposes
   bool mb_write(const void *data, ssize_t size) final;
-  /// @brief READ a full mailbox message, this corresponds to the API that the
-  /// PCIE device exposes
+
+  /// @brief READ a full mailbox message, this corresponds to the API that the PCIE device exposes
   ssize_t mb_read(void *data, ssize_t size, TimeDuration wait_time = TimeDuration::max()) final;
 
   // FIXME populate this class with the interface for doing MMIO and raising
@@ -127,8 +116,7 @@ protected:
   grpc::CompletionQueue cq_;
 
   std::unique_ptr<EmuMailBoxDev> mailboxDev_;
-  std::pair<bool, simulator_api::Reply>
-  doRPC(const simulator_api::Request &req);
+  std::pair<bool, simulator_api::Reply> doRPC(const simulator_api::Request &req);
 };
 
 } // namespace device
