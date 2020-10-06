@@ -16,7 +16,7 @@
 
 static uint32_t PCIE_SPEED[5] = {PCIE_GEN_1, PCIE_GEN_2, PCIE_GEN_3, PCIE_GEN_4, PCIE_GEN_5};
 
-int64_t dm_service_asset_get_fw_version(char *fw_version)
+static int64_t dm_service_asset_get_fw_version(char *fw_version)
 {
    (void)fw_version;
    const IMAGE_VERSION_INFO_t * image_version_info = get_service_processor_bl2_image_info();
@@ -47,14 +47,14 @@ int64_t dm_service_asset_get_fw_version(char *fw_version)
    return 0;
 }
 
-int64_t dm_service_asset_get_manufacturer_name(char *mfg_name)
+static int64_t dm_service_asset_get_manufacturer_name(char *mfg_name)
 {
    // TODO : Retrieve this parameter from BL2 partition header SW-4327
    memcpy(mfg_name, "Esperanto", strlen("Esperanto"));
    return 0;
 }
 
-int64_t dm_service_asset_get_part_number(char *part_num)
+static int64_t dm_service_asset_get_part_number(char *part_num)
 {
    
     // TODO : Retrieve this parameter from BL2 partition header SW-4327
@@ -62,14 +62,14 @@ int64_t dm_service_asset_get_part_number(char *part_num)
     return 0;
 }
 
-int64_t dm_service_asset_get_serial_number(char *ser_num)
+static int64_t dm_service_asset_get_serial_number(char *ser_num)
 {
     // TODO : Retrieve this parameter from BL2 partition header SW-4327
     memcpy(ser_num, "SERNO1", strlen("SERNO1"));
     return 0;
 }
 
-int64_t dm_service_asset_get_chip_rev(uint32_t *chip_rev)
+static int64_t dm_service_asset_get_chip_rev(uint32_t *chip_rev)
 {
     (void)chip_rev;
     printf("Silicon Revision Info...\n");
@@ -85,7 +85,7 @@ int64_t dm_service_asset_get_chip_rev(uint32_t *chip_rev)
 
 }
 
-int64_t dm_service_asset_get_PCIE_speed(uint32_t *speed)
+static int64_t dm_service_asset_get_PCIE_speed(uint32_t *speed)
 {
 
    uint32_t pcie_gen,tmp;
@@ -101,21 +101,21 @@ int64_t dm_service_asset_get_PCIE_speed(uint32_t *speed)
    return 0;
 }
 
-int64_t dm_service_asset_get_module_rev(uint32_t *rev)
+static int64_t dm_service_asset_get_module_rev(uint32_t *rev)
 {
    // TODO : Retrieve this parameter from BL2 partition header SW-4327
    *rev = 1.0;
    return 0;
 }
 
-int64_t dm_service_asset_get_form_factor(char *form_factor)
+static int64_t dm_service_asset_get_form_factor(char *form_factor)
 {
    // TODO : Retrieve this parameter from BL2 partition header SW-4327
    memcpy(form_factor, "M.2", strlen("M.2"));
    return 0;
 }
 
-int64_t dm_service_asset_get_memory_details(char *mem_vendor, char* mem_part)
+static int64_t dm_service_asset_get_memory_details(char *mem_vendor, char* mem_part)
 {
     //TODO: Retrieve this parameter from SP BL2 DDR discovery SW-4354
    memcpy(mem_vendor, "Micron", strlen("Micron"));
@@ -123,14 +123,14 @@ int64_t dm_service_asset_get_memory_details(char *mem_vendor, char* mem_part)
    return 0;
 }
 
-int64_t dm_service_asset_get_memory_size(uint32_t *mem_size)
+static int64_t dm_service_asset_get_memory_size(uint32_t *mem_size)
 {
    //TODO: Retrieve this parameter from SP BL2 DDR discovery SW-4354
    *mem_size = 16;
    return 0;
 }
 
-int64_t dm_service_asset_get_memory_type(char *mem_type)
+static int64_t dm_service_asset_get_memory_type(char *mem_type)
 {
    //TODO: Retrieve this parameter from SP BL2 DDR discovery SW-4354
    memcpy(mem_type, "LPDDR4", strlen("LPDDR4"));
