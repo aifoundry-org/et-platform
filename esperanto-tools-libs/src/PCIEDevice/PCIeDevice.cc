@@ -93,9 +93,9 @@ namespace {
   }
 }
 
-PCIeDevice::PCIeDevice(int index)
+PCIeDevice::PCIeDevice(int index, bool mgmtNode)
   : DeviceTarget(index)
-  , path_(absl::StrFormat("/dev/et%d_ops", index)) {
+  , path_(absl::StrFormat("/dev/et%d_%s", index, (mgmtNode) ? "mgmt" : "ops" )) {
     fd_ = open(path_.c_str(), O_RDWR);
     if (fd_ < 0) {
       RTERROR << "Error opening driver: " << std::strerror(errno) << "\n";
