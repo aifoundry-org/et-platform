@@ -23,6 +23,7 @@ set(SUBFOLDERS
   NewCore
   DeviceAPI
   DeviceFW
+  DeviceManagement
   MemoryManagement
   PCIEDevice
   RPCDevice

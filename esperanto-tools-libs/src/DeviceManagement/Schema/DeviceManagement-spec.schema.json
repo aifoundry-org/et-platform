@@ -1,0 +1,328 @@
+{
+    "instance" : {
+        "revision": "vendor-1.0",
+        "name": "DM Instance",
+        "short_desc": "Gets the DM Instance",
+        "desc": "Gets the Device Management Instance",
+        "type": "DeviceManagement &",
+        "access_method": "Library call",
+        "symbol_name": "getInstance"
+    },
+	"metrics": {
+		"GET_MODULE_MANUFACTURE_NAME": {
+			"revision": "vendor-1.0",
+			"short_desc": "Gets manufacturer name",
+			"desc": "Gets the module's manufacturer's name",
+			"id": 0,
+			"type": "int",
+			"valid_range": [0, 1],
+			"access_method": "Instance call",
+			"symbol_name": "serviceRequest",
+			"parameters": {
+				"device_node": { "const char *": "et0_mgmt" },
+				"cmd_id": { "uint32_t": 0 },
+				"input_buff": { "const char *": "" },
+				"input_size": { "const uint32_t": 0 },
+				"output_buff": { "char *": "" },
+				"output_size": { "const uint32_t": 8 },
+				"host_latency_msec": { "uint32_t *": 0 },
+				"device_latency_msec": { "uint32_t *": 0 },
+				"timeout": { "uint32_t": [0, 1000] }
+			}
+        },
+        "GET_MODULE_PART_NUMBER": {
+			"revision": "vendor-1.0",
+			"short_desc": "Gets the module part number",
+			"desc": "Gets the module part number",
+			"id": 1,
+			"type": "int",
+			"valid_range": [0, 1],
+			"access_method": "Instance call",
+			"symbol_name": "serviceRequest",
+			"parameters": {
+				"device_node": { "const char *": "et0_mgmt" },
+				"cmd_id": { "uint32_t": 1 },
+				"input_buff": { "const char *": "" },
+				"input_size": { "const uint32_t": 0 },
+				"output_buff": { "char *": "" },
+				"output_size": { "const uint32_t": 4 },
+				"host_latency_msec": { "uint32_t *": 0 },
+				"device_latency_msec": { "uint32_t *": 0 },
+				"timeout": { "uint32_t": [0, 1000] }
+			}
+		},
+        "GET_MODULE_SERIAL_NUMBER": {
+			"revision": "vendor-1.0",
+			"short_desc": "Gets serial number",
+			"desc": "Gets the module serial number",
+			"id": 2,
+			"type": "int",
+			"valid_range": [0, 1],
+			"access_method": "Instance call",
+			"symbol_name": "serviceRequest",
+			"parameters": {
+				"device_node": { "const char *": "et0_mgmt" },
+				"cmd_id": { "uint32_t": 2 },
+				"input_buff": { "const char *": "" },
+				"input_size": { "const uint32_t": 0 },
+				"output_buff": { "char *": "" },
+				"output_size": { "const uint32_t": 8 },
+				"host_latency_msec": { "uint32_t *": 0 },
+				"device_latency_msec": { "uint32_t *": 0 },
+				"timeout": { "uint32_t": [0, 1000] }
+			}
+        },
+        "GET_MODULE_ASSET_TAG": {
+			"revision": "vendor-1.0",
+			"short_desc": "Gets asset tag",
+			"desc": "Gets the module asset tag",
+			"id": 3,
+			"type": "int",
+			"valid_range": [0, 1],
+			"access_method": "Instance call",
+			"symbol_name": "serviceRequest",
+			"parameters": {
+				"device_node": { "const char *": "et0_mgmt" },
+				"cmd_id": { "uint32_t": 3 },
+				"input_buff": { "const char *": "" },
+				"input_size": { "const uint32_t": 0 },
+				"output_buff": { "char *": "" },
+				"output_size": { "const uint32_t": 8 },
+				"host_latency_msec": { "uint32_t *": 0 },
+				"device_latency_msec": { "uint32_t *": 0 },
+				"timeout": { "uint32_t": [0, 1000] }
+			}
+        },
+        "GET_ASIC_CHIP_REVISION": {
+			"revision": "vendor-1.0",
+			"short_desc": "Gets chip revision",
+			"desc": "Gets the ASIC chip revision",
+			"id": 4,
+			"type": "int",
+			"valid_range": [0, 1],
+			"access_method": "Instance call",
+			"symbol_name": "serviceRequest",
+			"parameters": {
+				"device_node": { "const char *": "et0_mgmt" },
+				"cmd_id": { "uint32_t": 4 },
+				"input_buff": { "const char *": "" },
+				"input_size": { "const uint32_t": 0 },
+				"output_buff": { "char *": "" },
+				"output_size": { "const uint32_t": 4 },
+				"host_latency_msec": { "uint32_t *": 0 },
+				"device_latency_msec": { "uint32_t *": 0 },
+				"timeout": { "uint32_t": [0, 1000] }
+			}
+        },
+        "GET_MODULE_FIRMWARE_REVISIONS": {
+			"revision": "vendor-1.0",
+			"short_desc": "Gets firmware revision",
+			"desc": "Gets the module firmware revision",
+			"id": 5,
+			"type": "int",
+			"valid_range": [0, 1],
+			"access_method": "Instance call",
+			"symbol_name": "serviceRequest",
+			"parameters": {
+				"device_node": { "const char *": "et0_mgmt" },
+				"cmd_id": { "uint32_t": 5 },
+				"input_buff": { "const char *": "" },
+				"input_size": { "const uint32_t": 0 },
+				"output_buff": { "char *": "" },
+				"output_size": { "const uint32_t": 8 },
+				"host_latency_msec": { "uint32_t *": 0 },
+				"device_latency_msec": { "uint32_t *": 0 },
+				"timeout": { "uint32_t": [0, 1000] }
+			}
+        },
+        "GET_MODULE_DRIVER_REVISION": {
+			"revision": "vendor-1.0",
+			"short_desc": "Gets driver revision",
+			"desc": "Gets the module driver revision",
+			"id": 6,
+			"type": "int",
+			"valid_range": [0, 1],
+			"access_method": "Instance call",
+			"symbol_name": "serviceRequest",
+			"parameters": {
+				"device_node": { "const char *": "et0_mgmt" },
+				"cmd_id": { "uint32_t": 6 },
+				"input_buff": { "const char *": "" },
+				"input_size": { "const uint32_t": 0 },
+				"output_buff": { "char *": "" },
+				"output_size": { "const uint32_t": 8 },
+				"host_latency_msec": { "uint32_t *": 0 },
+				"device_latency_msec": { "uint32_t *": 0 },
+				"timeout": { "uint32_t": [0, 1000] }
+			}
+        },
+        "GET_MODULE_PCIE_ADDR": {
+			"revision": "vendor-1.0",
+			"short_desc": "Gets PCIE address",
+			"desc": "Gets the module PCIE address",
+			"id": 7,
+			"type": "int",
+			"valid_range": [0, 1],
+			"access_method": "Instance call",
+			"symbol_name": "serviceRequest",
+			"parameters": {
+				"device_node": { "const char *": "et0_mgmt" },
+				"cmd_id": { "uint32_t": 7 },
+				"input_buff": { "const char *": "" },
+				"input_size": { "const uint32_t": 0 },
+				"output_buff": { "char *": "" },
+				"output_size": { "const uint32_t": 8 },
+				"host_latency_msec": { "uint32_t *": 0 },
+				"device_latency_msec": { "uint32_t *": 0 },
+				"timeout": { "uint32_t": [0, 1000] }
+			}
+        },
+        "GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED": {
+			"revision": "vendor-1.0",
+			"short_desc": "Gets PCIE ports and speed",
+			"desc": "Gets the module PCIE ports and max speed",
+			"id": 8,
+			"type": "int",
+			"valid_range": [0, 1],
+			"access_method": "Instance call",
+			"symbol_name": "serviceRequest",
+			"parameters": {
+				"device_node": { "const char *": "et0_mgmt" },
+				"cmd_id": { "uint32_t": 8 },
+				"input_buff": { "const char *": "" },
+				"input_size": { "const uint32_t": 0 },
+				"output_buff": { "char *": "" },
+				"output_size": { "const uint32_t": 8 },
+				"host_latency_msec": { "uint32_t *": 0 },
+				"device_latency_msec": { "uint32_t *": 0 },
+				"timeout": { "uint32_t": [0, 1000] }
+			}
+        },
+        "GET_MODULE_MEMORY_SIZE_MB": {
+			"revision": "vendor-1.0",
+			"short_desc": "Gets memory size",
+			"desc": "Gets the module memory size in MB",
+			"id": 9,
+			"type": "int",
+			"valid_range": [0, 1],
+			"access_method": "Instance call",
+			"symbol_name": "serviceRequest",
+			"parameters": {
+				"device_node": { "const char *": "et0_mgmt" },
+				"cmd_id": { "uint32_t": 9 },
+				"input_buff": { "const char *": "" },
+				"input_size": { "const uint32_t": 0 },
+				"output_buff": { "char *": "" },
+				"output_size": { "const uint32_t": 4 },
+				"host_latency_msec": { "uint32_t *": 0 },
+				"device_latency_msec": { "uint32_t *": 0 },
+				"timeout": { "uint32_t": [0, 1000] }
+			}
+        },
+        "GET_MODULE_REVISION": {
+			"revision": "vendor-1.0",
+			"short_desc": "Gets module revision",
+			"desc": "Gets the module revision",
+			"id": 10,
+			"type": "int",
+			"valid_range": [0, 1],
+			"access_method": "Instance call",
+			"symbol_name": "serviceRequest",
+			"parameters": {
+				"device_node": { "const char *": "et0_mgmt" },
+				"cmd_id": { "uint32_t": 10 },
+				"input_buff": { "const char *": "" },
+				"input_size": { "const uint32_t": 0 },
+				"output_buff": { "char *": "" },
+				"output_size": { "const uint32_t": 8 },
+				"host_latency_msec": { "uint32_t *": 0 },
+				"device_latency_msec": { "uint32_t *": 0 },
+				"timeout": { "uint32_t": [0, 1000] }
+			}
+        },
+        "GET_MODULE_FORM_FACTOR": {
+			"revision": "vendor-1.0",
+			"short_desc": "Gets module form factor",
+			"desc": "Gets the module form factor",
+			"id": 11,
+			"type": "int",
+			"valid_range": [0, 1],
+			"access_method": "Instance call",
+			"symbol_name": "serviceRequest",
+			"parameters": {
+				"device_node": { "const char *": "et0_mgmt" },
+				"cmd_id": { "uint32_t": 11 },
+				"input_buff": { "const char *": "" },
+				"input_size": { "const uint32_t": 0 },
+				"output_buff": { "char *": "" },
+				"output_size": { "const uint32_t": 8 },
+				"host_latency_msec": { "uint32_t *": 0 },
+				"device_latency_msec": { "uint32_t *": 0 },
+				"timeout": { "uint32_t": [0, 1000] }
+			}
+        },
+        "GET_MODULE_MEMORY_VENDOR_PART_NUMBER": {
+			"revision": "vendor-1.0",
+			"short_desc": "Gets memory vendor part number",
+			"desc": "Gets the module's memory vendor's part number",
+			"id": 12,
+			"type": "int",
+			"valid_range": [0, 1],
+			"access_method": "Instance call",
+			"symbol_name": "serviceRequest",
+			"parameters": {
+				"device_node": { "const char *": "et0_mgmt" },
+				"cmd_id": { "uint32_t": 12 },
+				"input_buff": { "const char *": "" },
+				"input_size": { "const uint32_t": 0 },
+				"output_buff": { "char *": "" },
+				"output_size": { "const uint32_t": 8 },
+				"host_latency_msec": { "uint32_t *": 0 },
+				"device_latency_msec": { "uint32_t *": 0 },
+				"timeout": { "uint32_t": [0, 1000] }
+			}
+        },
+        "GET_MODULE_MEMORY_TYPE": {
+			"revision": "vendor-1.0",
+			"short_desc": "Gets memory type",
+			"desc": "Gets the module memory type",
+			"id": 13,
+			"type": "int",
+			"valid_range": [0, 1],
+			"access_method": "Instance call",
+			"symbol_name": "serviceRequest",
+			"parameters": {
+				"device_node": { "const char *": "et0_mgmt" },
+				"cmd_id": { "uint32_t": 13 },
+				"input_buff": { "const char *": "" },
+				"input_size": { "const uint32_t": 0 },
+				"output_buff": { "char *": "" },
+				"output_size": { "const uint32_t": 8 },
+				"host_latency_msec": { "uint32_t *": 0 },
+				"device_latency_msec": { "uint32_t *": 0 },
+				"timeout": { "uint32_t": [0, 1000] }
+			}
+        },
+        "GET_FUSED_PUBLIC_KEYS": {
+			"revision": "vendor-1.0",
+			"short_desc": "Gets fused public keys",
+			"desc": "Gets fused public keys",
+			"id": 14,
+			"type": "int",
+			"valid_range": [0, 1],
+			"access_method": "Instance call",
+			"symbol_name": "serviceRequest",
+			"parameters": {
+				"device_node": { "const char *": "et0_mgmt" },
+				"cmd_id": { "uint32_t": 14 },
+				"input_buff": { "const char *": "" },
+				"input_size": { "const uint32_t": 0 },
+				"output_buff": { "char *": "" },
+				"output_size": { "const uint32_t": 8 },
+				"host_latency_msec": { "uint32_t *": 0 },
+				"device_latency_msec": { "uint32_t *": 0 },
+				"timeout": { "uint32_t": [0, 1000] }
+            }
+        }
+    }
+}
