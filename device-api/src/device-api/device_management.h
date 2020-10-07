@@ -11,50 +11,63 @@
 #ifndef ET_DEVICE_MANAGEMENT_H
 #define ET_DEVICE_MANAGEMENT_H
 
-#include "esperanto/device-api/device_api_message_types.h"
+
+
+//TODO : This file needs to be removed once auto generation is implemented. 
 
 #include <stdint.h>
+
+struct dmControlBlock *create_dmctrlblk(struct dmControlBlock *dmcntlblk, uint32_t cmd_id, uint32_t latency, uint32_t payload_size, char payload[]);
 
 
 #define MAX_LENGTH 8  
 
-// FIXME:TODO
-// The following structs need to be defined and generated similar to Device API
+struct dmControlBlock {
+  uint32_t cmd_id;
+  uint32_t dev_latency;
+  char cmd_payload[0];
+}__packed__;
 
-/// @brief Device Management command
 
-/// @brief Device Management reply
-struct dm_rsp_t {
-  struct response_header_t dm_response_info;
-  char rsp_char[MAX_LENGTH];
+enum CommandCode {
+  GET_MODULE_MANUFACTURE_NAME = 0x00,   // Asset Tracking
+  GET_MODULE_PART_NUMBER,               // Asset Tracking
+  GET_MODULE_SERIAL_NUMBER,             // Asset Tracking
+  GET_MODULE_ASSET_TAG,                 // Asset Tracking
+  GET_ASIC_CHIP_REVISION,               // Asset Tracking
+  GET_MODULE_FIRMWARE_REVISIONS,        // Asset Tracking
+  GET_MODULE_DRIVER_REVISION,           // Asset Tracking
+  GET_MODULE_PCIE_ADDR,                 // Asset Tracking
+  GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED,  // Asset Tracking
+  GET_MODULE_MEMORY_SIZE_MB,            // Asset Tracking
+  GET_MODULE_REVISION,                  // Asset Tracking
+  GET_MODULE_FORM_FACTOR,               // Asset Tracking
+  GET_MODULE_MEMORY_VENDOR_PART_NUMBER, // Asset Tracking
+  GET_MODULE_MEMORY_TYPE,               // Asset Tracking
+  GET_FUSED_PUBLIC_KEYS,                // Asset Tracking
+  /*                Unsupported right now
+    GET_MODULE_POWER_STATE,                 // Health & Perf
+    GET_MODULE_ALERTS,                      // Health & Perf
+    GET_MODULE_TEMPERATURE_THRESHOLDS,      // Health & Perf
+    GET_MODULE_CURRENT_TEMPERATURE,         // Health & Perf
+    GET_MODULE_TEMPERATURE_THROTTLE_STATUS, // Health & Perf
+    GET_MODULE_RESIDENCY_THROTTLE_STATES,   // Health & Perf
+    GET_MODULE_MAX_TEMPERATURE,             // Health & Perf
+    GET_MODULE_MEMORY_UECC,                 // Health & Perf
+    GET_MODULE_MEMORY_ECC,                  // Health & Perf
+    GET_MODULE_PCIE_CE_UCE,                 // Health & Perf
+    GET_FIRMWARE_BOOT_STATUS,               // Health & Perf
+    GET_MODULE_UPTIME,                      // Health & Perf
+    GET_MODULE_VOLTAGE,                     // Health & Perf
+    GET_MODULE_POWER,                       // Health & Perf
+    GET_ASIC_FREQUENCIES,                   // Health & Perf
+    GET_DRAM_BANDWIDTH,                     // Health & Perf
+    GET_DRAM_CAPACITY_UTILIZATION,          // Health & Perf
+    GET_ASIC_PER_CORE_DATAPATH_UTILIZATION, // Health & Perf
+    GET_ASIC_UTILIZATION,                   // Health & Perf
+    GET_ASIC_STALLS,                        // Health & Perf
+    GET_ASIC_LATENCY,                       // Health & Perf
+  */
 };
-
-
-// Device management commands ID's
-
-// Device management commands:  Asset tracking service commands
-#define DM_SVC_ASSET_GET_FW_VERSION      0x1
-#define DM_SVC_ASSET_GET_MFG_NAME        0x2
-#define DM_SVC_ASSET_GET_PART_NUMBER     0x3
-#define DM_SVC_ASSET_GET_SERIAL_NUMBER   0x4
-#define DM_SVC_ASSET_GET_CHIP_REVISION   0x5
-#define DM_SVC_ASSET_GET_PCIE_PORTS      0x6
-#define DM_SVC_ASSET_GET_MODULE_REV      0x7
-#define DM_SVC_ASSET_GET_FORM_FACTOR     0x8
-#define DM_SVC_ASSET_GET_MEMORY_DETAILS  0x9
-#define DM_SVC_ASSET_GET_MEMORY_SIZE     0x10
-#define DM_SVC_ASSET_GET_MEMORY_TYPE     0x11
-
-
-// Asset sizes in bytes
-#define FW_VERSION_MAX_LENGTH     0x8
-#define MFG_NAME_MAX_LENGTH       0x8
-#define PART_NUMBER_MAX_LENGTH    0x8
-#define SERIAL_NUMBER_MAX_LENGTH  0x8 
-#define MEM_VENDOR_MAX_LENGTH     0x8
-#define MEM_PART_MAX_LENGTH       0x8
-#define MEM_TYPE_MAX_LENGTH       0x8
-#define FORM_FACTOR_MAX_LENGTH    0x8
-#define MODULE_REV_MAX_LENGTH     0x8   
 
 #endif // ET_DEVICE_MANAGEMENT_H
