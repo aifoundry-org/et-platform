@@ -155,7 +155,7 @@ etrtError DeviceFW::bootFirmware(device::DeviceTarget *dev) {
   }
 
   auto *rpc_target = dynamic_cast<device::RPCTarget *>(dev);
-  auto ret = rpc_target->boot_shire(shire_id, thread0_enable, thread1_enable);
+  auto ret = rpc_target->rpcBootShire(shire_id, thread0_enable, thread1_enable);
   if (!ret) {
     return etrtErrorUnknown;
   }

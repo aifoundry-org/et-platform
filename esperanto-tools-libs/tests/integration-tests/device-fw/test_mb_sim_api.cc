@@ -54,18 +54,18 @@ public:
   int active_threads() override {
     return 0;
   }
-  bool read(uint64_t ad, size_t size, void *data) override {
+  bool memory_read(uint64_t ad, size_t size, void *data) override {
     return true;
   }
-  bool write(uint64_t ad, size_t size, const void *data) override {
+  bool memory_write(uint64_t ad, size_t size, const void *data) override {
     return true;
   }
-  bool mb_read(simulator_api::MailBoxTarget target, uint32_t offset, size_t size, void *data) override {
+  bool mailbox_read(simulator_api::MailboxTarget target, uint32_t offset, size_t size, void *data) override {
     const uint8_t *const mbox_ptr = reinterpret_cast<const uint8_t *const>(&mbox_);
     memcpy(data, mbox_ptr + offset, size);
     return true;
   }
-  bool mb_write(simulator_api::MailBoxTarget target, uint32_t offset, size_t size, const void *data) override {
+  bool mailbox_write(simulator_api::MailboxTarget target, uint32_t offset, size_t size, const void *data) override {
     uint8_t *const mbox_ptr = reinterpret_cast<uint8_t *const>(&mbox_);
     memcpy(mbox_ptr + offset, data, size);
     return true;
@@ -121,13 +121,13 @@ TEST_F(MBSimAPITest, StartThread) { rpc_.shutdown(); }
 
 // Send a device PU PLIC PCIe Message Interrupt
 TEST_F(MBSimAPITest, RaiseDevicePuPlicPcieMessageInterrupt) {
-  rpc_.raiseDevicePuPlicPcieMessageInterrupt();
+  rpc_.rpcRaiseDevicePuPlicPcieMessageInterrupt();
   rpc_.shutdown();
 }
 
 // Send a device SPIO PLIC PCIe Message Interrupt
 TEST_F(MBSimAPITest, RaiseDeviceSpioPlicPcieMessageInterrupt) {
-  rpc_.raiseDeviceSpioPlicPcieMessageInterrupt();
+  rpc_.rpcRaiseDeviceSpioPlicPcieMessageInterrupt();
   rpc_.shutdown();
 }
 
@@ -135,7 +135,7 @@ TEST_F(MBSimAPITest, RaiseDeviceSpioPlicPcieMessageInterrupt) {
 TEST_F(MBSimAPITest, BlockOnDeviceInterrupt) {
   // Thread that waits to receive an interrupt from the device.
   auto rpc_thread = std::thread([this]() {
-    rpc_.waitForHostInterrupt();
+    rpc_.rpcWaitForHostInterrupt();
     return true;
   });
   // send interrupt to host

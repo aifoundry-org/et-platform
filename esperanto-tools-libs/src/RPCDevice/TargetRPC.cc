@@ -39,7 +39,7 @@ bool RPCTarget::init() {
 bool RPCTarget::postFWLoadInit() {
   // We expect that the device-cw is already loaded and "booted" at this point
   // we are resetting the mailboxes
-  auto success = waitForHostInterrupt(std::chrono::seconds(30));
+  auto success = rpcWaitForHostInterrupt(std::chrono::seconds(30));
   assert(success);
 
   // For DeviceFW reset the mailbox as well and wait for device-fw to be ready
@@ -86,8 +86,7 @@ bool RPCTarget::registerDeviceEventCallback() {
   return false;
 }
 
-std::pair<bool, simulator_api::Reply>
-RPCTarget::doRPC(const simulator_api::Request &request) {
+std::pair<bool, simulator_api::Reply> RPCTarget::doRPC(const simulator_api::Request &request) {
   simulator_api::Reply reply;
   Status status;
   grpc::ClientContext context;
@@ -98,73 +97,113 @@ RPCTarget::doRPC(const simulator_api::Request &request) {
 }
 
 bool RPCTarget::readDevMemMMIO(uintptr_t dev_addr, size_t size, void *buf) {
-  // FIXME use "DMA" to do bulk mmio transfers
   return readDevMemDMA(dev_addr, size, buf);
 }
-bool RPCTarget::writeDevMemMMIO(uintptr_t dev_addr, size_t size,
-                                const void *buf) {
+
+bool RPCTarget::writeDevMemMMIO(uintptr_t dev_addr, size_t size, const void *buf) {
   return writeDevMemDMA(dev_addr, size, buf);
 }
 
 bool RPCTarget::readDevMemDMA(uintptr_t dev_addr, size_t size, void *buf) {
-  // Create request
+  return rpcMemoryRead(dev_addr, size, buf);
+}
+
+bool RPCTarget::writeDevMemDMA(uintptr_t dev_addr, size_t size, const void *buf) {
+  return rpcMemoryWrite(dev_addr, size, buf);
+}
+
+ssize_t RPCTarget::mboxMsgMaxSize() const {
+  return mailboxDev_->mboxMaxMsgSize();
+}
+
+bool RPCTarget::mb_write(const void *data, ssize_t size) {
+  return mailboxDev_->write(data, size);
+}
+
+ssize_t RPCTarget::mb_read(void *data, ssize_t size, TimeDuration wait_time) {
+  return mailboxDev_->read(data, size, wait_time);
+}
+
+/* RPC */
+
+bool RPCTarget::rpcBootShire(uint32_t shire_id, uint32_t thread0_enable, uint32_t thread1_enable) {
   simulator_api::Request request;
-  auto dma = new DMAAccess();
-  dma->set_type(DMAAccessType::DMA_READ);
-  dma->set_status(DMAAccessStatus::DMAStatus_NONE);
-  dma->set_addr(dev_addr);
-  dma->set_size(size);
-  request.set_allocated_dma(dma);
+  auto boot_req = new BootReq();
+  boot_req->set_shire_id(shire_id);
+  boot_req->set_thread0_enable(thread0_enable);
+  boot_req->set_thread1_enable(thread1_enable);
+  request.set_allocated_boot(boot_req);
   // Do RPC and wait for reply
   auto reply_res = doRPC(request);
   if (!reply_res.first) {
     return false;
   }
   auto reply = reply_res.second;
-  assert(reply.has_dma());
 
-  auto &dma_resp = reply.dma();
-  assert(dma_resp.type() == DMAAccessType::DMA_READ);
-  assert(dma_resp.addr() == dev_addr);
-  assert(dma_resp.size() == size);
-  assert(dma_resp.status() == DMAAccessStatus::DMAStatus_SUCCESS);
-  memcpy(buf, reinterpret_cast<const void *>(dma_resp.data().c_str()), size);
+  assert(reply.has_boot());
+  auto &boot_rsp = reply.boot();
+  assert(boot_rsp.success());
   return true;
 }
 
-bool RPCTarget::writeDevMemDMA(uintptr_t dev_addr, size_t size,
-                               const void *buf) {
+bool RPCTarget::rpcMemoryRead(uint64_t dev_addr, uint64_t size, void *buf) {
   // Create request
   simulator_api::Request request;
-  auto dma = new DMAAccess();
-  dma->set_type(DMAAccessType::DMA_WRITE);
-  dma->set_status(DMAAccessStatus::DMAStatus_NONE);
-  dma->set_addr(dev_addr);
-  dma->set_size(size);
-  dma->set_data(buf, size);
-  request.set_allocated_dma(dma);
+  auto mem = new MemoryAccess();
+  mem->set_type(MemoryAccessType::MEMORY_READ);
+  mem->set_status(MemoryAccessStatus::MEMORY_ACCESS_STATUS_NONE);
+  mem->set_addr(dev_addr);
+  mem->set_size(size);
+  request.set_allocated_memory(mem);
   // Do RPC and wait for reply
   auto reply_res = doRPC(request);
   if (!reply_res.first) {
     return false;
   }
   auto reply = reply_res.second;
-  assert(reply.has_dma());
-  auto &dma_resp = reply.dma();
-  assert(dma_resp.type() == DMAAccessType::DMA_WRITE);
-  assert(dma_resp.addr() == dev_addr);
-  assert(dma_resp.size() == size);
-  assert(dma_resp.status() == DMAAccessStatus::DMAStatus_SUCCESS);
+  assert(reply.has_memory());
+
+  auto &mem_resp = reply.memory();
+  assert(mem_resp.type() == MemoryAccessType::MEMORY_READ);
+  assert(mem_resp.addr() == dev_addr);
+  assert(mem_resp.size() == size);
+  assert(mem_resp.status() == MemoryAccessStatus::MEMORY_ACCESS_STATUS_SUCCESS);
+  memcpy(buf, reinterpret_cast<const void *>(mem_resp.data().c_str()), size);
   return true;
 }
 
-bool RPCTarget::mailboxReadAccess(MailBoxTarget target, uint32_t offset, size_t size, void *data) {
+bool RPCTarget::rpcMemoryWrite(uint64_t dev_addr, uint64_t size, const void *buf) {
   // Create request
   simulator_api::Request request;
-  auto mb = new MailBoxAccess();
+  auto mem = new MemoryAccess();
+  mem->set_type(MemoryAccessType::MEMORY_WRITE);
+  mem->set_status(MemoryAccessStatus::MEMORY_ACCESS_STATUS_NONE);
+  mem->set_addr(dev_addr);
+  mem->set_size(size);
+  mem->set_data(buf, size);
+  request.set_allocated_memory(mem);
+  // Do RPC and wait for reply
+  auto reply_res = doRPC(request);
+  if (!reply_res.first) {
+    return false;
+  }
+  auto reply = reply_res.second;
+  assert(reply.has_memory());
+  auto &mem_resp = reply.memory();
+  assert(mem_resp.type() == MemoryAccessType::MEMORY_WRITE);
+  assert(mem_resp.addr() == dev_addr);
+  assert(mem_resp.size() == size);
+  assert(mem_resp.status() == MemoryAccessStatus::MEMORY_ACCESS_STATUS_SUCCESS);
+  return true;
+}
+
+bool RPCTarget::rpcMailboxRead(MailboxTarget target, uint32_t offset, uint32_t size, void *data) {
+  // Create request
+  simulator_api::Request request;
+  auto mb = new MailboxAccess();
   mb->set_target(target);
-  mb->set_type(MailBoxAccessType::MB_READ);
-  mb->set_status(MailBoxAccessStatus::MB_STATUS_NONE);
+  mb->set_type(MailboxAccessType::MAILBOX_READ);
+  mb->set_status(MailboxAccessStatus::MAILBOX_ACCESS_STATUS_NONE);
   mb->set_offset(offset);
   mb->set_size(size);
   request.set_allocated_mailbox(mb);
@@ -178,22 +217,22 @@ bool RPCTarget::mailboxReadAccess(MailBoxTarget target, uint32_t offset, size_t 
 
   auto &mb_resp = reply.mailbox();
   assert(mb_resp.target() == target);
-  assert(mb_resp.type() == MailBoxAccessType::MB_READ);
-  assert(mb_resp.status() == MailBoxAccessStatus::MB_STATUS_SUCCESS);
+  assert(mb_resp.type() == MailboxAccessType::MAILBOX_READ);
+  assert(mb_resp.status() == MailboxAccessStatus::MAILBOX_ACCESS_STATUS_SUCCESS);
   assert(mb_resp.offset() == offset);
   assert(mb_resp.size() == size);
   memcpy(data, reinterpret_cast<const void *>(mb_resp.data().c_str()), size);
   return true;
 }
 
-bool RPCTarget::mailboxWriteAccess(MailBoxTarget target, uint32_t offset, size_t size,
-                                   const void *data) {
+bool RPCTarget::rpcMailboxWrite(MailboxTarget target, uint32_t offset, uint32_t size,
+                                const void *data) {
   // Create request
   simulator_api::Request request;
-  auto mb = new MailBoxAccess();
+  auto mb = new MailboxAccess();
   mb->set_target(target);
-  mb->set_type(MailBoxAccessType::MB_WRITE);
-  mb->set_status(MailBoxAccessStatus::MB_STATUS_NONE);
+  mb->set_type(MailboxAccessType::MAILBOX_WRITE);
+  mb->set_status(MailboxAccessStatus::MAILBOX_ACCESS_STATUS_NONE);
   mb->set_offset(offset);
   mb->set_size(size);
   mb->set_data(data, size);
@@ -207,14 +246,14 @@ bool RPCTarget::mailboxWriteAccess(MailBoxTarget target, uint32_t offset, size_t
   assert(reply.has_mailbox());
   auto &mb_resp = reply.mailbox();
   assert(mb_resp.target() == target);
-  assert(mb_resp.type() == MailBoxAccessType::MB_WRITE);
-  assert(mb_resp.status() == MailBoxAccessStatus::MB_STATUS_SUCCESS);
+  assert(mb_resp.type() == MailboxAccessType::MAILBOX_WRITE);
+  assert(mb_resp.status() == MailboxAccessStatus::MAILBOX_ACCESS_STATUS_SUCCESS);
   assert(mb_resp.offset() == offset);
   assert(mb_resp.size() == size);
   return true;
 }
 
-bool RPCTarget::raiseDevicePuPlicPcieMessageInterrupt() {
+bool RPCTarget::rpcRaiseDevicePuPlicPcieMessageInterrupt() {
   simulator_api::Request request;
   auto device_interrupt = new DeviceInterrupt();
   device_interrupt->set_type(
@@ -233,7 +272,7 @@ bool RPCTarget::raiseDevicePuPlicPcieMessageInterrupt() {
   return true;
 }
 
-bool RPCTarget::raiseDeviceSpioPlicPcieMessageInterrupt() {
+bool RPCTarget::rpcRaiseDeviceSpioPlicPcieMessageInterrupt() {
   simulator_api::Request request;
   auto device_interrupt = new DeviceInterrupt();
   device_interrupt->set_type(
@@ -252,7 +291,7 @@ bool RPCTarget::raiseDeviceSpioPlicPcieMessageInterrupt() {
   return true;
 }
 
-bool RPCTarget::waitForHostInterrupt(TimeDuration wait_time) {
+bool RPCTarget::rpcWaitForHostInterrupt(TimeDuration wait_time) {
   simulator_api::Request request;
   auto host_interrupt = new HostInterrupt();
   request.set_allocated_host_interrupt(host_interrupt);
@@ -271,38 +310,6 @@ bool RPCTarget::waitForHostInterrupt(TimeDuration wait_time) {
     RTINFO << "No interrupt raised";
     return false;
   }
-  return true;
-}
-
-ssize_t RPCTarget::mboxMsgMaxSize() const {
-  return mailboxDev_->mboxMaxMsgSize();
-}
-
-bool RPCTarget::mb_write(const void *data, ssize_t size) {
-  return mailboxDev_->write(data, size);
-}
-
-ssize_t RPCTarget::mb_read(void *data, ssize_t size, TimeDuration wait_time) {
-  return mailboxDev_->read(data, size, wait_time);
-}
-
-bool RPCTarget::boot_shire(uint32_t shire_id, uint32_t thread0_enable, uint32_t thread1_enable) {
-  simulator_api::Request request;
-  auto boot_req = new BootReq();
-  boot_req->set_shire_id(shire_id);
-  boot_req->set_thread0_enable(thread0_enable);
-  boot_req->set_thread1_enable(thread1_enable);
-  request.set_allocated_boot(boot_req);
-  // Do RPC and wait for reply
-  auto reply_res = doRPC(request);
-  if (!reply_res.first) {
-    return false;
-  }
-  auto reply = reply_res.second;
-
-  assert(reply.has_boot());
-  auto &boot_rsp = reply.boot();
-  assert(boot_rsp.success());
   return true;
 }
 

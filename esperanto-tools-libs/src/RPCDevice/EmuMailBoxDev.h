@@ -115,8 +115,6 @@ protected:
   bool mboxDestroy();
   bool mboxReady();
   bool mboxReset();
-  bool waitForHostInterrupt(TimeDuration wait_time);
-  bool raiseDevicePuPlicPcieMessageInterrupt();
 };
 } // namespace device
 

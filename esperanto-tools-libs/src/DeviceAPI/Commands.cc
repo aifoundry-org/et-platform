@@ -56,7 +56,7 @@ etrtError WriteCommand::execute(Device *device) {
   if ( count < threshold_size) {
     target_device.writeDevMemMMIO((uintptr_t)dstDevPtr, count, srcHostPtr);
   } else {
-      target_device.writeDevMemDMA((uintptr_t)dstDevPtr, count, srcHostPtr);
+    target_device.writeDevMemDMA((uintptr_t)dstDevPtr, count, srcHostPtr);
   }
   setResponse(pcie_responses::WriteResponse());
   return etrtSuccess;
