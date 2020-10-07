@@ -65,36 +65,36 @@ bool sim_api_communicate::SysEmuWrapper::write(uint64_t ad, size_t size, const v
     return true;
 }
 
-bool sim_api_communicate::SysEmuWrapper::mb_read(simulator_api::MailBoxTarget target, struct mbox_t* mbox)
+bool sim_api_communicate::SysEmuWrapper::mb_read(simulator_api::MailBoxTarget target, uint32_t offset, size_t size, void *data)
 {
-    LOG_NOTHREAD(DEBUG, "sim_api_communicate: mb_read(target = %d)", target);
+    LOG_NOTHREAD(DEBUG, "sim_api_communicate: mb_read(target = %d, offset = %d, size = %d)", target, offset, size);
 
     switch (target) {
     case simulator_api::MailBoxTarget::MB_TARGET_MM:
-        sim_->mem->pu_mbox_space.pu_mbox_pc_mm.read(*this, 0, sizeof(*mbox),
-            reinterpret_cast<bemu::MemoryRegion::pointer>(mbox));
+        sim_->mem->pu_mbox_space.pu_mbox_pc_mm.read(*this, offset, size,
+            reinterpret_cast<bemu::MemoryRegion::pointer>(data));
         return true;
     case simulator_api::MailBoxTarget::MB_TARGET_SP:
-        sim_->mem->pu_mbox_space.pu_mbox_pc_sp.read(*this, 0, sizeof(*mbox),
-            reinterpret_cast<bemu::MemoryRegion::pointer>(mbox));
+        sim_->mem->pu_mbox_space.pu_mbox_pc_sp.read(*this, offset, size,
+            reinterpret_cast<bemu::MemoryRegion::pointer>(data));
         return true;
     }
 
     return false;
 }
 
-bool sim_api_communicate::SysEmuWrapper::mb_write(simulator_api::MailBoxTarget target, const struct mbox_t& mbox)
+bool sim_api_communicate::SysEmuWrapper::mb_write(simulator_api::MailBoxTarget target, uint32_t offset, size_t size, const void *data)
 {
-    LOG_NOTHREAD(DEBUG, "sim_api_communicate: mb_write(target = %d)", target);
+    LOG_NOTHREAD(DEBUG, "sim_api_communicate: mb_write(target = %d, offset = %d, size = %d)", target, offset, size);
 
     switch (target) {
     case simulator_api::MailBoxTarget::MB_TARGET_MM:
-        sim_->mem->pu_mbox_space.pu_mbox_pc_mm.write(*this, 0, sizeof(mbox),
-            reinterpret_cast<bemu::MemoryRegion::const_pointer>(&mbox));
+        sim_->mem->pu_mbox_space.pu_mbox_pc_mm.write(*this, offset, size,
+            reinterpret_cast<bemu::MemoryRegion::const_pointer>(data));
         return true;
     case simulator_api::MailBoxTarget::MB_TARGET_SP:
-        sim_->mem->pu_mbox_space.pu_mbox_pc_sp.write(*this, 0, sizeof(mbox),
-            reinterpret_cast<bemu::MemoryRegion::const_pointer>(&mbox));
+        sim_->mem->pu_mbox_space.pu_mbox_pc_sp.write(*this, offset, size,
+            reinterpret_cast<bemu::MemoryRegion::const_pointer>(data));
         return true;
     }
 

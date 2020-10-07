@@ -57,8 +57,8 @@ class sim_api_communicate final : public api_communicate
             int active_threads() override;
             bool read(uint64_t ad, size_t size, void *data) override;
             bool write(uint64_t ad, size_t size, const void *data) override;
-            bool mb_read(simulator_api::MailBoxTarget target, struct mbox_t* mbox)  override;
-            bool mb_write(simulator_api::MailBoxTarget target, const struct mbox_t& mbox)  override;
+            bool mb_read(simulator_api::MailBoxTarget target, uint32_t offset, size_t size, void *data)  override;
+            bool mb_write(simulator_api::MailBoxTarget target, uint32_t offset, size_t size, const void *data)  override;
             bool raise_device_interrupt(simulator_api::DeviceInterruptType type) override;
 
             /* For bemu::Agent */
