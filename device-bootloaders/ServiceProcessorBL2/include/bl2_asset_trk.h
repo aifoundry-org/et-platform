@@ -12,6 +12,6 @@
 #define PCIE_GEN_5   32
 
 // Function prototypes 
-void asset_tracking_process_request(mbox_e mbox, uint32_t cmd_id);
+void assetTrackingProcessRequest(mbox_e mbox, uint32_t cmd_id);
 
 #endif
