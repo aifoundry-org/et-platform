@@ -16,6 +16,7 @@ set(TEST_LIST
   test_device_manager.cc:""
   test_error_or.cc:""
   test_elf_parsing.cc:""
+  utest_memory_manager.cpp:""
   )
 
 create_test_targets("${TEST_LIST}" "LABELS;Generic;TIMEOUT;600")

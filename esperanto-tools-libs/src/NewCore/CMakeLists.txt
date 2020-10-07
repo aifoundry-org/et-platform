@@ -13,6 +13,7 @@ add_library(etrt_NewCore OBJECT
   RuntimeImp.cpp
   TargetSilicon.cpp
   TargetSysEmu.cpp
+  MemoryManager.cpp
   )
 
 target_include_directories(etrt_NewCore PRIVATE
