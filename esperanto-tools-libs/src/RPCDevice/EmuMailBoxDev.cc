@@ -52,9 +52,9 @@ int64_t RingBuffer::write(const void *const buffer, uint32_t length) {
 
   if (head_index_ + length > RINGBUFFER_LENGTH) {
     size_t count = RINGBUFFER_LENGTH - head_index_;
-    res = rpcDev_.mailboxWriteAccess(MailBoxTarget::MB_TARGET_MM,
-                                     offset_from_mb_ + rb_queue_offset_ + head_index_,
-                                     count, &data_ptr[0]);
+    res = rpcDev_.rpcMailboxWrite(MailboxTarget::MAILBOX_TARGET_MM,
+                                  offset_from_mb_ + rb_queue_offset_ + head_index_,
+                                  count, &data_ptr[0]);
     if (!res) {
       return 0;
     }
@@ -64,9 +64,9 @@ int64_t RingBuffer::write(const void *const buffer, uint32_t length) {
     length -= count;
   }
 
-  res = rpcDev_.mailboxWriteAccess(MailBoxTarget::MB_TARGET_MM,
-                                   offset_from_mb_ + rb_queue_offset_ + head_index_,
-                                   length, &data_ptr[written]);
+  res = rpcDev_.rpcMailboxWrite(MailboxTarget::MAILBOX_TARGET_MM,
+                                offset_from_mb_ + rb_queue_offset_ + head_index_,
+                                length, &data_ptr[written]);
   if (!res) {
     return written;
   }
@@ -97,9 +97,9 @@ int64_t RingBuffer::read(void *const buffer, uint32_t length) {
 
   if (tail_index_ + length > RINGBUFFER_LENGTH) {
     size_t count = RINGBUFFER_LENGTH - tail_index_;
-    res = rpcDev_.mailboxReadAccess(MailBoxTarget::MB_TARGET_MM,
-                                    offset_from_mb_ + rb_queue_offset_ + tail_index_,
-                                    count, &data_ptr[0]);
+    res = rpcDev_.rpcMailboxRead(MailboxTarget::MAILBOX_TARGET_MM,
+                                 offset_from_mb_ + rb_queue_offset_ + tail_index_,
+                                 count, &data_ptr[0]);
     if (!res) {
       return 0;
     }
@@ -109,9 +109,9 @@ int64_t RingBuffer::read(void *const buffer, uint32_t length) {
     length -= count;
   }
 
-  res = rpcDev_.mailboxReadAccess(MailBoxTarget::MB_TARGET_MM,
-                                  offset_from_mb_ + rb_queue_offset_ + tail_index_,
-                                  length, &data_ptr[read]);
+  res = rpcDev_.rpcMailboxRead(MailboxTarget::MAILBOX_TARGET_MM,
+                               offset_from_mb_ + rb_queue_offset_ + tail_index_,
+                               length, &data_ptr[read]);
   if (!res) {
     return read;
   }
@@ -138,16 +138,16 @@ bool RingBuffer::full() {
 bool RingBuffer::readRingBufferIndices() {
   bool res;
 
-  res = rpcDev_.mailboxReadAccess(MailBoxTarget::MB_TARGET_MM,
-                                  offset_from_mb_ + rb_head_index_off_,
-                                  sizeof(head_index_), &head_index_);
+  res = rpcDev_.rpcMailboxRead(MailboxTarget::MAILBOX_TARGET_MM,
+                               offset_from_mb_ + rb_head_index_off_,
+                               sizeof(head_index_), &head_index_);
   if (!res) {
     return false;
   }
 
-  res = rpcDev_.mailboxReadAccess(MailBoxTarget::MB_TARGET_MM,
-                                  offset_from_mb_ + rb_tail_index_off_,
-                                  sizeof(tail_index_), &tail_index_);
+  res = rpcDev_.rpcMailboxRead(MailboxTarget::MAILBOX_TARGET_MM,
+                               offset_from_mb_ + rb_tail_index_off_,
+                               sizeof(tail_index_), &tail_index_);
   if (!res) {
     return false;
   }
@@ -156,20 +156,15 @@ bool RingBuffer::readRingBufferIndices() {
 }
 
 bool RingBuffer::writeRingBufferHeadIndex() {
-  bool res;
-  res = rpcDev_.mailboxWriteAccess(MailBoxTarget::MB_TARGET_MM,
-                                   offset_from_mb_ + rb_head_index_off_,
-                                   sizeof(head_index_), &head_index_);
-  return res;
+  return rpcDev_.rpcMailboxWrite(MailboxTarget::MAILBOX_TARGET_MM,
+                                 offset_from_mb_ + rb_head_index_off_,
+                                 sizeof(head_index_), &head_index_);
 }
 
-
 bool RingBuffer::writeRingBufferTailIndex() {
-  bool res;
-  res = rpcDev_.mailboxWriteAccess(MailBoxTarget::MB_TARGET_MM,
-                                   offset_from_mb_ + rb_tail_index_off_,
-                                   sizeof(tail_index_), &tail_index_);
-  return res;
+  return rpcDev_.rpcMailboxWrite(MailboxTarget::MAILBOX_TARGET_MM,
+                                 offset_from_mb_ + rb_tail_index_off_,
+                                 sizeof(tail_index_), &tail_index_);
 }
 
 EmuMailBoxDev::EmuMailBoxDev(RPCTarget &dev)
@@ -184,14 +179,14 @@ bool EmuMailBoxDev::readRemoteStatus() {
   const size_t mb_slave_status_off = offsetof(device_fw::mbox_t, slave_status);
   bool res;
 
-  res = rpcDev_.mailboxReadAccess(MailBoxTarget::MB_TARGET_MM, mb_master_status_off,
-                                  sizeof(master_status_), &master_status_);
+  res = rpcDev_.rpcMailboxRead(MailboxTarget::MAILBOX_TARGET_MM, mb_master_status_off,
+                               sizeof(master_status_), &master_status_);
   if (!res) {
     return false;
   }
 
-  res = rpcDev_.mailboxReadAccess(MailBoxTarget::MB_TARGET_MM, mb_slave_status_off,
-                                  sizeof(slave_status_), &slave_status_);
+  res = rpcDev_.rpcMailboxRead(MailboxTarget::MAILBOX_TARGET_MM, mb_slave_status_off,
+                               sizeof(slave_status_), &slave_status_);
   if (!res) {
     return false;
   }
@@ -201,7 +196,7 @@ bool EmuMailBoxDev::readRemoteStatus() {
 bool EmuMailBoxDev::writeRemoteStatus() {
   const size_t mb_slave_status_off = offsetof(device_fw::mbox_t, slave_status);
   // The host is always the mbox slave, so only write slave status
-  return rpcDev_.mailboxWriteAccess(MailBoxTarget::MB_TARGET_MM, mb_slave_status_off,
+  return rpcDev_.rpcMailboxWrite(MailboxTarget::MAILBOX_TARGET_MM, mb_slave_status_off,
                                     sizeof(slave_status_), &slave_status_);
 }
 
@@ -256,7 +251,7 @@ bool EmuMailBoxDev::mboxReset() {
   auto res = readRemoteStatus();
   assert(res);
 
-  RTDEBUG << "Reseting slave, transitioning to WAITING \n";
+  RTDEBUG << "Resetting slave, transitioning to WAITING\n";
   slave_status_ = device_fw::MBOX_STATUS_WAITING;
 
   // Write back the status to the remote simulator
@@ -286,7 +281,7 @@ bool EmuMailBoxDev::write(const void *data, ssize_t size) {
                                            .magic = MBOX_MAGIC};
 
   if (!mboxReady()) {
-    RTINFO << "Mbox not ready\n";
+    RTINFO << "Mailbox: Not ready\n";
     return false;
   }
 
@@ -302,7 +297,7 @@ bool EmuMailBoxDev::write(const void *data, ssize_t size) {
   assert(res);
 
   if (rb.free() < sizeof(header) + size) {
-    RTERROR << "No room for message (" << rb.free() << " free, "
+    RTERROR << "Mailbox: No room for message (" << rb.free() << " free, "
             << sizeof(header) + size << " needed)\n";
     return false;
   }
@@ -320,7 +315,7 @@ bool EmuMailBoxDev::write(const void *data, ssize_t size) {
   assert(res);
 
   // Raise interrupt to M&M to consume the new mailbox message
-  res = raiseDevicePuPlicPcieMessageInterrupt();
+  res = rpcDev_.rpcRaiseDevicePuPlicPcieMessageInterrupt();
   assert(res);
   return true;
 }
@@ -331,9 +326,9 @@ ssize_t EmuMailBoxDev::read(void *data, ssize_t size, TimeDuration wait_time) {
   if (!rpcDev_.alive()) {
     return 0;
   }
-  // read the mailbox from the simulator currently is not blocking like in the
-  // pcie driver
-  auto received = waitForHostInterrupt(wait_time);
+
+  // Read the mailbox from the simulator currently is not blocking like in the PCIe driver
+  auto received = rpcDev_.rpcWaitForHostInterrupt(wait_time);
   if (!received) {
     return 0;
   }
@@ -342,7 +337,7 @@ ssize_t EmuMailBoxDev::read(void *data, ssize_t size, TimeDuration wait_time) {
   RingBuffer &rb = tx_ring_buffer_;
 
   if (!mboxReady()) {
-    RTERROR << "MBox not ready\n";
+    RTERROR << "Mailbox: Not ready\n";
     return 0;
   }
 
@@ -356,7 +351,7 @@ ssize_t EmuMailBoxDev::read(void *data, ssize_t size, TimeDuration wait_time) {
 
   // Wait for there to be a message in the mailbox before reading.
   if (rb.used() < sizeof(header)) {
-    RTDEBUG << "MB: No new message available \n";
+    RTDEBUG << "Mailbox: No new message available\n";
     return 0;
   }
 
@@ -366,14 +361,14 @@ ssize_t EmuMailBoxDev::read(void *data, ssize_t size, TimeDuration wait_time) {
   // Check if the message is valid
   if (header.length < 1 || header.length > MBOX_MAX_LENGTH ||
       header.magic != MBOX_MAGIC) {
-    RTERROR << "Invalid header \n";
+    RTERROR << "Mailbox: Invalid header\n";
     std::terminate();
     return false;
   }
 
   // Check if the buffer is big enough to store the message body
   if (size < header.length) {
-    RTERROR << "Insufficient buffer to store mailbox message \n";
+    RTERROR << "Mailbox: Insufficient buffer to store mailbox message\n";
     std::terminate();
     return false;
   }
@@ -385,24 +380,16 @@ ssize_t EmuMailBoxDev::read(void *data, ssize_t size, TimeDuration wait_time) {
   // Write back to the simulator that we consumed the message
   rb.writeRingBufferTailIndex();
 
-  RTDEBUG << "Mailbox READ, read size: " << header.length << " \n";
+  RTDEBUG << "Mailbox READ, read size: " << header.length << "\n";
   return header.length;
 }
 
 ssize_t EmuMailBoxDev::mboxMaxMsgSize() const { return MBOX_MAX_LENGTH; }
 
-bool EmuMailBoxDev::waitForHostInterrupt(TimeDuration wait_time) {
-  return rpcDev_.waitForHostInterrupt(wait_time);
-}
-
-bool EmuMailBoxDev::raiseDevicePuPlicPcieMessageInterrupt() {
-  return rpcDev_.raiseDevicePuPlicPcieMessageInterrupt();
-}
-
 bool EmuMailBoxDev::ready(TimeDuration wait_time) {
   auto start = Clock::now();
   auto end = start + wait_time;
-  static const TimeDuration polling_interval = std::chrono::seconds(1);
+  static const TimeDuration polling_interval = std::chrono::milliseconds(100);
 
   auto ready = mboxReady();
   while (!ready) {
@@ -411,7 +398,7 @@ bool EmuMailBoxDev::ready(TimeDuration wait_time) {
       return ready;
     }
     if (end < Clock::now()) {
-      RTERROR << "Mailbox not ready in time \n";
+      RTERROR << "Mailbox not ready in time\n";
       return false;
     }
 
@@ -419,18 +406,18 @@ bool EmuMailBoxDev::ready(TimeDuration wait_time) {
     tx_ring_buffer_.init();
     auto res = tx_ring_buffer_.writeRingBufferTailIndex();
     if(!res) {
-      RTERROR << "tx_ring_buffer write to tail index failed \n";
+      RTERROR << "tx_ring_buffer write to tail index failed\n";
       return false;
     }
     rx_ring_buffer_.init();
     res = rx_ring_buffer_.writeRingBufferHeadIndex();
     if(!res) {
-      RTERROR << "rx_ring_buffer write to head index failed \n";
+      RTERROR << "rx_ring_buffer write to head index failed\n";
       return false;
     }
 
-    rpcDev_.raiseDevicePuPlicPcieMessageInterrupt();
-    rpcDev_.waitForHostInterrupt(polling_interval);
+    rpcDev_.rpcRaiseDevicePuPlicPcieMessageInterrupt();
+    rpcDev_.rpcWaitForHostInterrupt(polling_interval);
   }
   return ready;
 }
@@ -438,7 +425,7 @@ bool EmuMailBoxDev::ready(TimeDuration wait_time) {
 bool EmuMailBoxDev::reset(TimeDuration wait_time) {
   auto start = Clock::now();
   auto end = start + wait_time;
-  static const TimeDuration polling_interval = std::chrono::seconds(1);
+  static const TimeDuration polling_interval = std::chrono::milliseconds(100);
 
   auto reset = mboxReset();
   while (!reset) {
@@ -447,11 +434,11 @@ bool EmuMailBoxDev::reset(TimeDuration wait_time) {
       return reset;
     }
     if (end < Clock::now()) {
-      RTERROR << "Mailbox not reset in time \n";
+      RTERROR << "Mailbox not reset in time\n";
       return false;
     }
-    rpcDev_.raiseDevicePuPlicPcieMessageInterrupt();
-    rpcDev_.waitForHostInterrupt(polling_interval);
+    rpcDev_.rpcRaiseDevicePuPlicPcieMessageInterrupt();
+    rpcDev_.rpcWaitForHostInterrupt(polling_interval);
   }
   return reset;
 }

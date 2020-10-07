@@ -33,7 +33,7 @@ using grpc::Status;
 using simulator_api::Reply;
 using simulator_api::Request;
 using simulator_api::SimAPI;
-using simulator_api::MailBoxTarget;
+using simulator_api::MailboxTarget;
 
 namespace et_runtime {
 namespace device {
@@ -54,47 +54,18 @@ public:
   virtual bool submitCommand() override;
   virtual bool registerResponseCallback() override;
   virtual bool registerDeviceEventCallback() override;
+
   bool readDevMemMMIO(uintptr_t dev_addr, size_t size, void *buf) final;
   bool writeDevMemMMIO(uintptr_t dev_addr, size_t size, const void *buf) final;
+
   bool readDevMemDMA(uintptr_t dev_addr, size_t size, void *buf) final;
   bool writeDevMemDMA(uintptr_t dev_addr, size_t size, const void *buf) final;
-
-  /// @brief Shutdown target
-  bool shutdown() override;
 
   /// @brief Return the absolute base DRAM address we can access
   uintptr_t dramBaseAddr() const override;
 
   /// @brief Return the size of DRAM we can write to in bytes.
   uintptr_t dramSize() const override;
-
-  // Interace for interacting with the MailBox state using the simulator API
-
-  /// @brief Get mailbox emu device
-  EmuMailBoxDev &mailboxDev() { return *mailboxDev_; }
-
-  /// @brief Read access to the target mailbox
-  bool mailboxReadAccess(MailBoxTarget target, uint32_t offset, size_t size, void *data);
-
-  /// @brief Write access to the target mailbox
-  bool mailboxWriteAccess(MailBoxTarget target, uint32_t offset, size_t size, const void *data);
-
-  /// @brief Boot specific Minions of a Shire
-  bool boot_shire(uint32_t shire_id, uint32_t thread0_enable, uint32_t thread1_enable);
-
-  /// @brief Raise the PU PLIC PCIe Message Interrupt in the target "device"
-  /// in which case this is the simulator
-  bool raiseDevicePuPlicPcieMessageInterrupt();
-
-  /// @brief Raise the SPIO PLIC PCIe Message Interrupt in the target "device"
-  /// in which case this is the simulator
-  bool raiseDeviceSpioPlicPcieMessageInterrupt();
-
-  /// @brief Wait to receive an interrupt from the device or timeout.
-  ///
-  /// @param[in] wait_time : Time to wait to receive the interrupt, but default
-  ///  block indefinitely.
-  bool waitForHostInterrupt(TimeDuration wait_time = TimeDuration::max());
 
   /// @brief get the maximum mailbox message
   ssize_t mboxMsgMaxSize() const final;
@@ -105,9 +76,36 @@ public:
   /// @brief READ a full mailbox message, this corresponds to the API that the PCIE device exposes
   ssize_t mb_read(void *data, ssize_t size, TimeDuration wait_time = TimeDuration::max()) final;
 
-  // FIXME populate this class with the interface for doing MMIO and raising
-  // interrupts to the target device. This interface is to be used by the
-  // EmuMailBoxDev to implement the underlying MailBoxProtocol
+  /// @brief Shutdown target
+  bool shutdown() override;
+
+  /// @brief Get mailbox emu device
+  EmuMailBoxDev &mailboxDev() { return *mailboxDev_; }
+
+  /// @brief Boot specific Minions of a Shire
+  bool rpcBootShire(uint32_t shire_id, uint32_t thread0_enable, uint32_t thread1_enable);
+
+  /// @brief Memory read access to the target mailbox
+  bool rpcMemoryRead(uint64_t offset, uint64_t size, void *data);
+
+  /// @brief Memory write access to the target mailbox
+  bool rpcMemoryWrite(uint64_t offset, uint64_t size, const void *data);
+
+  /// @brief Mailbox read access to the target mailbox
+  bool rpcMailboxRead(MailboxTarget target, uint32_t offset, uint32_t size, void *data);
+
+  /// @brief Mailbox write access to the target mailbox
+  bool rpcMailboxWrite(MailboxTarget target, uint32_t offset, uint32_t size, const void *data);
+
+  /// @brief Raise PU PLIC PCIe Message Interrupt to the simulator
+  bool rpcRaiseDevicePuPlicPcieMessageInterrupt();
+
+  /// @brief Raise SPIO PLIC PCIe Message Interrupt to the simulator
+  bool rpcRaiseDeviceSpioPlicPcieMessageInterrupt();
+
+  /// @brief Wait to receive an interrupt from the device or timeout.
+  /// @param[in] wait_time : Time to wait to receive the interrupt, but default block indefinitely.
+  bool rpcWaitForHostInterrupt(TimeDuration wait_time = TimeDuration::max());
 
 protected:
   std::string socket_path_;
