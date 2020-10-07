@@ -60,12 +60,14 @@ public:
   bool write(uint64_t ad, size_t size, const void *data) override {
     return true;
   }
-  bool mb_read(simulator_api::MailBoxTarget target, struct mbox_t* mbox) override {
-    *mbox = mbox_;
+  bool mb_read(simulator_api::MailBoxTarget target, uint32_t offset, size_t size, void *data) override {
+    const uint8_t *const mbox_ptr = reinterpret_cast<const uint8_t *const>(&mbox_);
+    memcpy(data, mbox_ptr + offset, size);
     return true;
   }
-  bool mb_write(simulator_api::MailBoxTarget target, const struct mbox_t& mbox) override {
-    mbox_ = mbox;
+  bool mb_write(simulator_api::MailBoxTarget target, uint32_t offset, size_t size, const void *data) override {
+    uint8_t *const mbox_ptr = reinterpret_cast<uint8_t *const>(&mbox_);
+    memcpy(mbox_ptr + offset, data, size);
     return true;
   }
   bool raise_device_interrupt(simulator_api::DeviceInterruptType type) override {
@@ -104,6 +106,9 @@ protected:
       sim_api_->nextCmd(false);
     }
   }
+
+  static constexpr size_t tx_ring_buffer_off_ = offsetof(device_fw::mbox_t, tx_ring_buffer);
+  static constexpr size_t rx_ring_buffer_off_ = offsetof(device_fw::mbox_t, rx_ring_buffer);
 
   DummySimulator sim_;
   std::unique_ptr<SimAPIServer<DummySimulator>> sim_api_;
@@ -157,26 +162,40 @@ TEST_F(MBSimAPITest, ReadEmptyMailBoxMessage) {
 TEST_F(MBSimAPITest, ReadMailBoxMessage) {
   // Prepare the mailbox status
   sim_.mbox_.master_status = et_runtime::device_fw::MBOX_STATUS_READY;
-  device::RingBuffer rb(device::RingBufferType::RX, rpc_);
+  device::RingBuffer rb(tx_ring_buffer_off_, rpc_);
+  bool res;
+  int64_t wr_res;
+
+  // Reference data
   auto elem_num = 20;
   std::vector<uint16_t> data(elem_num, 0xbeef);
   uint16_t data_size = data.size() * sizeof(typename decltype(data)::value_type);
   const device_fw::mbox_header_t header = {.length = (uint16_t)data_size,
                                            .magic = MBOX_MAGIC};
-  rb.write(&header, sizeof(header));
-  rb.write(data.data(), data_size);
-  auto &state = rb.state();
-  sim_.mbox_.tx_ring_buffer.head_index = state.head_index;
-  sim_.mbox_.tx_ring_buffer.tail_index = state.tail_index;
-  memcpy(sim_.mbox_.tx_ring_buffer.queue, state.queue, sizeof(state.queue));
+
+  // Pull the latest state from the simulator
+  res = rb.readRingBufferIndices();
+  EXPECT_TRUE(res);
+
+  // Write header
+  wr_res = rb.write(&header, sizeof(header));
+  EXPECT_EQ(wr_res, sizeof(header));
+
+  // Write body
+  wr_res = rb.write(data.data(), data_size);
+  EXPECT_EQ(wr_res, data_size);
+
+  // Update the state of the ring buffer back in the simulator
+  res = rb.writeRingBufferHeadIndex();
+  EXPECT_TRUE(res);
 
   // Raise a host interrupt on the device, to mark the device ready
   sim_api_->raiseHostInterrupt();
   std::vector<uint16_t> res_data(elem_num, 0);
 
   // Read the mailbox message
-  auto res = rpc_.mb_read(res_data.data(), data_size);
-  EXPECT_EQ(res, data_size);
+  res = rpc_.mb_read(res_data.data(), data_size);
+  EXPECT_TRUE(res);
   EXPECT_THAT(res_data, ::testing::ElementsAreArray(data));
   rpc_.shutdown();
 }
@@ -185,8 +204,9 @@ TEST_F(MBSimAPITest, ReadMailBoxMessage) {
 TEST_F(MBSimAPITest, WriteMailBoxMessage) {
   // Prepare the mailbox status
   sim_.mbox_.master_status = et_runtime::device_fw::MBOX_STATUS_READY;
+  device::RingBuffer rb(rx_ring_buffer_off_, rpc_);
 
-  // reference data
+  // Reference data
   auto elem_num = 20;
   std::vector<uint16_t> data(elem_num, 0xbeef);
   uint16_t data_size = data.size() * sizeof(typename decltype(data)::value_type);
@@ -200,20 +220,24 @@ TEST_F(MBSimAPITest, WriteMailBoxMessage) {
 
   // Validate the writen results in the simulator
 
-  device::RingBuffer rb(device::RingBufferType::RX, rpc_);
-  device_fw::ringbuffer_s irb;
-  irb.head_index = sim_.mbox_.rx_ring_buffer.head_index;
-  irb.tail_index = sim_.mbox_.rx_ring_buffer.tail_index;
-  memcpy(irb.queue, sim_.mbox_.rx_ring_buffer.queue, sizeof(irb.queue));
+  // Pull the latest state from the simulator
+  res = rb.readRingBufferIndices();
+  EXPECT_TRUE(res);
 
-  rb.setState(irb);
+  // Read header
   device_fw::mbox_header_t header;
-
-  rb.read(&header, sizeof(header));
+  res = rb.read(&header, sizeof(header));
+  EXPECT_TRUE(res);
   EXPECT_EQ(header.length, data_size);
 
+  // Read body
   std::vector<uint16_t> res_data(elem_num, 0);
-  rb.read(res_data.data(), data_size);
+  res = rb.read(res_data.data(), data_size);
+  EXPECT_TRUE(res);
+
+  // Update the state of the ring buffer back in the simulator
+  res = rb.writeRingBufferTailIndex();
+  EXPECT_TRUE(res);
 
   EXPECT_THAT(res_data, ::testing::ElementsAreArray(data));
   rpc_.shutdown();
