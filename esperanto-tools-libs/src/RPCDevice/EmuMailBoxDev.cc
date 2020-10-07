@@ -43,24 +43,38 @@ int64_t RingBuffer::write(const void *const buffer, uint32_t length) {
   // NOTE: EXPECT THAT THE MAILBOX HAS UPDATED THE STATE FROM
   // THE SIMULATOR AND WILL WRITE IT BACK.
   const uint8_t *const data_ptr = reinterpret_cast<const uint8_t *const>(buffer);
+  bool res;
+  size_t written = 0;
 
-  if (length >= free()) {
+  if (length > free()) {
     return RINGBUFFER_ERROR_BAD_LENGTH;
   }
 
-  // TODO: Optimize this to perform at most 2 writes
-  for (uint16_t i = 0; i < length; i++) {
-    bool res = rpcDev_.mailboxWriteAccess(MailBoxTarget::MB_TARGET_MM,
-                                          offset_from_mb_ + rb_queue_offset_ + head_index_,
-                                          1, &data_ptr[i]);
+  if (head_index_ + length > RINGBUFFER_LENGTH) {
+    size_t count = RINGBUFFER_LENGTH - head_index_;
+    res = rpcDev_.mailboxWriteAccess(MailBoxTarget::MB_TARGET_MM,
+                                     offset_from_mb_ + rb_queue_offset_ + head_index_,
+                                     count, &data_ptr[0]);
     if (!res) {
-      return i;
+      return 0;
     }
 
-    head_index_ = (head_index_ + 1U) % RINGBUFFER_LENGTH;
+    head_index_ = (head_index_ + count) % RINGBUFFER_LENGTH;
+    written += count;
+    length -= count;
   }
 
-  return length;
+  res = rpcDev_.mailboxWriteAccess(MailBoxTarget::MB_TARGET_MM,
+                                   offset_from_mb_ + rb_queue_offset_ + head_index_,
+                                   length, &data_ptr[written]);
+  if (!res) {
+    return written;
+  }
+
+  head_index_ = (head_index_ + length) % RINGBUFFER_LENGTH;
+  written += length;
+
+  return written;
 }
 
 int64_t RingBuffer::read(void *const buffer, uint32_t length) {
@@ -68,6 +82,8 @@ int64_t RingBuffer::read(void *const buffer, uint32_t length) {
   // THE SIMULATOR AND WILL WRITE IT BACK.
   // Update the state form the remote target
   uint8_t *const data_ptr = reinterpret_cast<uint8_t *const>(buffer);
+  bool res;
+  size_t read = 0;
 
   if (length > used()) {
     return RINGBUFFER_ERROR_BAD_LENGTH;
@@ -79,19 +95,31 @@ int64_t RingBuffer::read(void *const buffer, uint32_t length) {
     return RINGBUFFER_ERROR_DATA_DROPPED;
   }
 
-  // TODO: Optimize this to perform at most 2 reads
-  for (uint16_t i = 0; i < length; i++) {
-    bool res = rpcDev_.mailboxReadAccess(MailBoxTarget::MB_TARGET_MM,
-                                         offset_from_mb_ + rb_queue_offset_ + tail_index_,
-                                         1, &data_ptr[i]);
+  if (tail_index_ + length > RINGBUFFER_LENGTH) {
+    size_t count = RINGBUFFER_LENGTH - tail_index_;
+    res = rpcDev_.mailboxReadAccess(MailBoxTarget::MB_TARGET_MM,
+                                    offset_from_mb_ + rb_queue_offset_ + tail_index_,
+                                    count, &data_ptr[0]);
     if (!res) {
-      return i;
+      return 0;
     }
 
-    tail_index_ = (tail_index_ + 1U) % RINGBUFFER_LENGTH;
+    tail_index_ = (tail_index_ + count) % RINGBUFFER_LENGTH;
+    read += count;
+    length -= count;
   }
 
-  return length;
+  res = rpcDev_.mailboxReadAccess(MailBoxTarget::MB_TARGET_MM,
+                                  offset_from_mb_ + rb_queue_offset_ + tail_index_,
+                                  length, &data_ptr[read]);
+  if (!res) {
+    return read;
+  }
+
+  tail_index_ = (tail_index_ + length) % RINGBUFFER_LENGTH;
+  read += length;
+
+  return read;
 }
 
 bool RingBuffer::init() {
