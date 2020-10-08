@@ -169,6 +169,8 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         rsp.trace_base = DEVICE_MRT_TRACE_BASE;
         rsp.trace_buffer_size = trace_ctrl->buffer_size;
         rsp.status = true;
+        rsp.shire_mask = trace_ctrl->shire_mask;
+        rsp.harts_mask = trace_ctrl->harts_mask;
 
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
         if (result != 0) {
@@ -283,8 +285,59 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
                 "\r\n",
                 result);
         }
-    } else if (*message_id ==
-               MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_STATE_KNOB_CMD) {
+    } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_SHIRE_MASK_KNOB_CMD) {
+        const struct configure_trace_shire_mask_knob_cmd_t *const cmd = (const void *const)buffer;
+        struct configure_trace_shire_mask_knob_rsp_t rsp;
+        struct trace_control_t *trace_ctrl = (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
+
+        rsp.response_info.message_id =
+            MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_SHIRE_MASK_KNOB_RSP;
+        prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
+
+        trace_ctrl->shire_mask = cmd->shire_mask;
+
+        // Evict control region changes
+        TRACE_update_control();
+
+        // send message to workers
+        message_t message;
+        message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
+        broadcast_message_send_master(booted_minion_shires, &message);
+
+        rsp.status = true;
+
+        int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
+        if (result != 0) {
+            log_write(LOG_LEVEL_ERROR,
+                      "DeviceAPI Configure Shire mask knob MBOX_send error " PRIi64 "\r\n", result);
+        }
+    } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_HARTS_MASK_KNOB_CMD) {
+        const struct configure_trace_harts_mask_knob_cmd_t *const cmd = (const void *const)buffer;
+        struct configure_trace_harts_mask_knob_rsp_t rsp;
+        struct trace_control_t *trace_ctrl = (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
+
+        rsp.response_info.message_id =
+            MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_HARTS_MASK_KNOB_RSP;
+        prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
+
+        trace_ctrl->harts_mask = cmd->harts_mask;
+
+        // Evict control region changes
+        TRACE_update_control();
+
+        // send message to workers
+        message_t message;
+        message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
+        broadcast_message_send_master(booted_minion_shires, &message);
+
+        rsp.status = true;
+
+        int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
+        if (result != 0) {
+            log_write(LOG_LEVEL_ERROR,
+                      "DeviceAPI Configure Harts mask knob MBOX_send error " PRIi64 "\r\n", result);
+        }
+    } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_STATE_KNOB_CMD) {
         const struct configure_trace_state_knob_cmd_t *const cmd =
             (const void *const)buffer;
         struct configure_trace_state_knob_rsp_t rsp;
@@ -347,8 +400,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
                 "\r\n",
                 result);
         }
-    } else if (*message_id ==
-               MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_LOG_LEVEL_KNOB_CMD) {
+    } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_LOG_LEVEL_KNOB_CMD) {
         const struct configure_trace_log_level_knob_cmd_t *const cmd =
             (const void *const)buffer;
         struct configure_trace_log_level_knob_rsp_t rsp;
@@ -405,8 +457,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
                       "\r\n",
                       result);
         }
-    } else if (*message_id ==
-               MBOX_DEVAPI_NON_PRIVILEGED_MID_PREPARE_TRACE_BUFFERS_CMD) {
+    } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_PREPARE_TRACE_BUFFERS_CMD) {
         const struct prepare_trace_buffers_cmd_t *const cmd =
             (const void *const)buffer;
         struct prepare_trace_buffers_rsp_t rsp;

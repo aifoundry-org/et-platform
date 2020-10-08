@@ -12,6 +12,9 @@
 #ifndef ET_TRACE_HELPERS_H
 #define ET_TRACE_HELPERS_H
 
+/// @brief Default harts mask for tracing
+#define DEVICE_MRT_DEFAULT_HARTS_MASK 0xFFFFFFFFFFFFFFFFUL
+
 /// @brief Initializes trace subsystem, sets up control region, sets all the
 /// knobs to default states, and does all the required cache maintainance
 void TRACE_init_master(void);
