@@ -25,7 +25,7 @@ namespace device {
 
 RPCTarget::RPCTarget(int index, const std::string &p)
     : DeviceTarget(index), socket_path_(p),
-      mailboxDev_(std::make_unique<EmuMailBoxDev>(*this)) {}
+      mailboxDev_(std::make_unique<EmuMailBoxDev>(*this, MailboxTarget::MAILBOX_TARGET_MM)) {}
 
 bool RPCTarget::init() {
   grpc::ChannelArguments ch_args;

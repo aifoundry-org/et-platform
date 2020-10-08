@@ -75,9 +75,8 @@ DeviceTarget::DeviceTarget(int index) : index_(index), device_alive_(false) {}
 std::unique_ptr<DeviceTarget> DeviceTarget::deviceFactory(TargetType target,
                                                           int index) {
   switch (target) {
-  case TargetType::PCIe: {
+  case TargetType::PCIe:
     return make_unique<PCIeDevice>(index);
-  }
   case TargetType::SysEmuGRPC:
     return make_unique<TargetSysEmu>(index);
     // FIXME we have no usecase yet where we instantite RPCTarget directly
@@ -85,7 +84,6 @@ std::unique_ptr<DeviceTarget> DeviceTarget::deviceFactory(TargetType target,
   //   return make_unique<RPCTarget>(index, "");
   case TargetType::FakeDevice:
     return nullptr;
-    break;
   default:
     RTERROR << "Unknwon Device type";
     assert(false);

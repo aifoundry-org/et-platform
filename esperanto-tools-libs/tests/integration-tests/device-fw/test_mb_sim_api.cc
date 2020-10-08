@@ -162,7 +162,7 @@ TEST_F(MBSimAPITest, ReadEmptyMailBoxMessage) {
 TEST_F(MBSimAPITest, ReadMailBoxMessage) {
   // Prepare the mailbox status
   sim_.mbox_.master_status = et_runtime::device_fw::MBOX_STATUS_READY;
-  device::RingBuffer rb(tx_ring_buffer_off_, rpc_);
+  device::RingBuffer rb(rpc_, MailboxTarget::MAILBOX_TARGET_MM, tx_ring_buffer_off_);
   bool res;
   int64_t wr_res;
 
@@ -204,7 +204,7 @@ TEST_F(MBSimAPITest, ReadMailBoxMessage) {
 TEST_F(MBSimAPITest, WriteMailBoxMessage) {
   // Prepare the mailbox status
   sim_.mbox_.master_status = et_runtime::device_fw::MBOX_STATUS_READY;
-  device::RingBuffer rb(rx_ring_buffer_off_, rpc_);
+  device::RingBuffer rb(rpc_, MailboxTarget::MAILBOX_TARGET_MM, rx_ring_buffer_off_);
 
   // Reference data
   auto elem_num = 20;
