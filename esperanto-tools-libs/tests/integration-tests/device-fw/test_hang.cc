@@ -46,7 +46,6 @@ ABSL_FLAG(std::string, kernels_dir, "",
 // Monitor state again, it should be unused
 // TBD: Launch beef kernel afterwards, once SW-1373 is fixed.
 TEST_F(DeviceFWTest, hang_kernel) {
-
   // Get kernel info
   auto kernels_dir = absl::GetFlag(FLAGS_kernels_dir);
   fs::path hang_kernel_loc = fs::path(kernels_dir) / fs::path("hang.elf");
@@ -61,10 +60,9 @@ TEST_F(DeviceFWTest, hang_kernel) {
 
   // First make sure that kernel is on the unused state
   KernelActions kernel_actions;
-  const TimeDuration wait_interval = std::chrono::seconds(5);
+  const TimeDuration wait_interval = std::chrono::seconds(1);
   auto kernel_state_res = kernel_actions.state(&dev_->defaultStream());
-  std::this_thread::sleep_for(wait_interval);
-  ASSERT_EQ(kernel_state_res.get(), ::device_api::DEV_API_KERNEL_STATE_UNUSED);
+  ASSERT_EQ(kernel_state_res.get(), ::device_api::non_privileged::DEV_API_KERNEL_STATE_UNUSED);
 
   // Load the kernel on the device
   auto load_res = registry.moduleLoad(kernel.moduleID(), dev_.get());
@@ -89,13 +87,13 @@ TEST_F(DeviceFWTest, hang_kernel) {
   // If it takes too long to go to the running state, fail.
   for (uint64_t poll=0; poll < 5; poll++) {
     kernel_state_res = kernel_actions.state(&dev_->defaultStream());
-    if (kernel_state_res.get() ==  ::device_api::DEV_API_KERNEL_STATE_RUNNING) {
+    if (kernel_state_res.get() ==  ::device_api::non_privileged::DEV_API_KERNEL_STATE_RUNNING) {
       break;
     }
     std::this_thread::sleep_for(wait_interval);
   }
 
-  ASSERT_EQ(kernel_state_res.get(), ::device_api::DEV_API_KERNEL_STATE_RUNNING);
+  ASSERT_EQ(kernel_state_res.get(), ::device_api::non_privileged::DEV_API_KERNEL_STATE_RUNNING);
 
   // Abort kernel and then poll until it becomes unused again.
   // If it takes too long, fail
@@ -103,22 +101,20 @@ TEST_F(DeviceFWTest, hang_kernel) {
   for (uint64_t poll=0; poll < 5; poll++) {
     kernel_state_res = kernel_actions.state(&dev_->defaultStream());
     std::this_thread::sleep_for(wait_interval);
-    if (kernel_state_res.get() ==  ::device_api::DEV_API_KERNEL_STATE_UNUSED) {
+    if (kernel_state_res.get() ==  ::device_api::non_privileged::DEV_API_KERNEL_STATE_UNUSED) {
       break;
     }
   }
 
-  ASSERT_EQ(kernel_state_res.get(), ::device_api::DEV_API_KERNEL_STATE_UNUSED);
+  ASSERT_EQ(kernel_state_res.get(), ::device_api::non_privileged::DEV_API_KERNEL_STATE_UNUSED);
 
-
-  // Fixme: SW-1373. Unloading does not free up the memory
-  // auto unload_res = registry.moduleUnload(kernel.moduleID(), dev_.get());
-  // ASSERT_EQ(unload_res, etrtSuccess);
+  auto unload_res = registry.moduleUnload(kernel.moduleID(), dev_.get());
+  ASSERT_EQ(unload_res, etrtSuccess);
 
   // Fixme:
   // If we do not unloaded the next kernel will go to the same address
   // and there will be a conflict. Once this or SW-1373 is fixed, uncomment the rest
-  /*
+#if 0
   fs::path beef_kernel_path = fs::path(kernels_dir)  / fs::path("beef.elf");
 
   register_res = registry.registerKernel("beef_main", {Kernel::ArgType::T_layer_dynamic_info},
@@ -150,7 +146,7 @@ TEST_F(DeviceFWTest, hang_kernel) {
   auto res = dev_->memcpy(data.data(), dev_ptr, size, etrtMemcpyDeviceToHost);
   ASSERT_EQ(launch_res, etrtSuccess);
   ASSERT_THAT(data, ::testing::ElementsAreArray(refdata));
-  */
+#endif
 }
 
 
