@@ -230,10 +230,10 @@ void assetTrackingProcessRequest(mbox_e mbox, uint32_t cmd_id) {
         case GET_ASIC_CHIP_REVISION: {
              ret = dmServiceAssetGetChipRev(chip_rev);
              if (!ret) {
-                printf("dmServiceAssetGetChipRev: %s \r\n", serial_number);
+                printf("dmServiceAssetGetChipRev: %s \r\n", chip_rev);
                 response_complete_time = timer_get_ticks_count();
                 latency =  (uint32_t)(response_complete_time - request_start_time);
-                dm_cmd_rsp = create_dmctrlblk(dm_cmd_rsp, cmd_id, latency, MAX_LENGTH, serial_number);
+                dm_cmd_rsp = create_dmctrlblk(dm_cmd_rsp, cmd_id, latency, MAX_LENGTH, chip_rev);
                 dm_cmd_rsp_size = (sizeof(cmd_id) + sizeof(latency) + MAX_LENGTH);
                 ret = MBOX_send(mbox, dm_cmd_rsp, dm_cmd_rsp_size);
              } else {
@@ -273,10 +273,10 @@ void assetTrackingProcessRequest(mbox_e mbox, uint32_t cmd_id) {
         case GET_MODULE_FORM_FACTOR: {
              ret = dmServiceAssetGetFormFactor(form_factor);
              if (!ret) {
-                printf("dmServiceAssetGetFormFactor: %s \r\n", module_revision);
+                printf("dmServiceAssetGetFormFactor: %s \r\n", form_factor);
                 response_complete_time = timer_get_ticks_count();
                 latency =  (uint32_t)(response_complete_time - request_start_time);
-                dm_cmd_rsp = create_dmctrlblk(dm_cmd_rsp, cmd_id, latency, MAX_LENGTH, module_revision);
+                dm_cmd_rsp = create_dmctrlblk(dm_cmd_rsp, cmd_id, latency, MAX_LENGTH, form_factor);
                 dm_cmd_rsp_size = (sizeof(cmd_id) + sizeof(latency) + MAX_LENGTH);
                 ret = MBOX_send(mbox, dm_cmd_rsp, dm_cmd_rsp_size);
              } else {
