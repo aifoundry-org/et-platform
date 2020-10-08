@@ -14,11 +14,15 @@
 #include "Core/DeviceFwTypes.h"
 #include "esperanto/runtime/Support/TimeHelpers.h"
 
+#include <esperanto/simulator-api.grpc.pb.h>
+
 #include <cassert>
 #include <cstdlib>
 #include <stdint.h>
 #include <stddef.h>
 #include <unistd.h>
+
+using simulator_api::MailboxTarget;
 
 namespace et_runtime {
 namespace device {
@@ -28,7 +32,7 @@ class RPCTarget;
 /// @brief Implementation of the ringbuffer that device-fw supports over the mailbox.
 class RingBuffer {
 public:
-  RingBuffer(size_t offset_from_mb, RPCTarget &target);
+  RingBuffer(RPCTarget &rpcDevice, MailboxTarget mailboxTarget, size_t offset_from_mb);
 
   /// @brief Initialize the ring buffer to empty
   bool init();
@@ -59,10 +63,11 @@ private:
   static constexpr size_t rb_tail_index_off_ = offsetof(device_fw::ringbuffer_t, tail_index);
   static constexpr size_t rb_queue_offset_   = offsetof(device_fw::ringbuffer_t, queue);
 
+  RPCTarget &rpcDev_;
+  MailboxTarget mailboxTarget_;
   size_t offset_from_mb_;
   uint32_t head_index_;
   uint32_t tail_index_;
-  RPCTarget &rpcDev_;
 };
 
 
@@ -76,14 +81,13 @@ private:
 class EmuMailBoxDev {
 public:
   /// @brief Construct a MailBox device passing the path to it
-  EmuMailBoxDev(RPCTarget &rpcDevice);
+  EmuMailBoxDev(RPCTarget &rpcDevice, MailboxTarget mailboxTarget);
   EmuMailBoxDev(EmuMailBoxDev &) = delete;
 
   /// @brief Query if the mailbox devie is ready
   bool ready(TimeDuration wait_time = TimeDuration::max());
 
-  /// @brief Reret the mailbox device and discard any pending mailbox messages
-  /// from the device
+  /// @brief Reret the mailbox device and discard any pending mailbox messages from the device
   bool reset(TimeDuration wait_time = TimeDuration::max());
 
   /// @brief Return the maximum size of a mailbox message
@@ -94,24 +98,22 @@ public:
 
   /// @brief Read message of size "size" in buffer data. Wait until wait_time
   /// expires otherwise return false.
-  ssize_t read(void *data, ssize_t size,
-               TimeDuration wait_time = TimeDuration::max());
+  ssize_t read(void *data, ssize_t size, TimeDuration wait_time = TimeDuration::max());
 
 protected:
-  static constexpr size_t tx_ring_buffer_off_ = offsetof(device_fw::mbox_t, tx_ring_buffer);
-  static constexpr size_t rx_ring_buffer_off_ = offsetof(device_fw::mbox_t, rx_ring_buffer);
+  static constexpr size_t mb_master_status_off_ = offsetof(device_fw::mbox_t, master_status);
+  static constexpr size_t mb_slave_status_off_  = offsetof(device_fw::mbox_t, slave_status);
+  static constexpr size_t tx_ring_buffer_off_   = offsetof(device_fw::mbox_t, tx_ring_buffer);
+  static constexpr size_t rx_ring_buffer_off_   = offsetof(device_fw::mbox_t, rx_ring_buffer);
 
+  RPCTarget &rpcDev_;
+  MailboxTarget mailboxTarget_;
   RingBuffer tx_ring_buffer_; ///<
   RingBuffer rx_ring_buffer_; ///<
-  uint32_t master_status_; ///< master status for the mailbox. WE SHOULD NEVER
-                           ///< MODIFY DIRECTLY THE MASTER STATUS
-  /// HERE WE HAVE A READ ONLY COPY
-  // The host is always the mailbox slave
-  uint32_t slave_status_; ///< slave status for the mailbox
-  RPCTarget &rpcDev_;
 
-  bool readRemoteStatus();
-  bool writeRemoteStatus();
+  bool readRemoteStatus(uint32_t &master_status, uint32_t &slave_status);
+  bool writeRemoteSlaveStatus(uint32_t slave_status);
+  bool raiseTargetMailboxInterrupt();
   bool mboxDestroy();
   bool mboxReady();
   bool mboxReset();

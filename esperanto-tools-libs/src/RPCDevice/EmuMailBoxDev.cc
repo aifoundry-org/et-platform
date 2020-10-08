@@ -21,11 +21,12 @@
 namespace et_runtime {
 namespace device {
 
-RingBuffer::RingBuffer(size_t offset_from_mb, RPCTarget &target)
-    : offset_from_mb_(offset_from_mb),
+RingBuffer::RingBuffer(RPCTarget &rpcDevice, MailboxTarget mailboxTarget, size_t offset_from_mb)
+    : rpcDev_(rpcDevice),
+      mailboxTarget_(mailboxTarget),
+      offset_from_mb_(offset_from_mb),
       head_index_(0),
-      tail_index_(0),
-      rpcDev_(target) {}
+      tail_index_(0) {}
 
 uint32_t RingBuffer::free() {
   return (head_index_ >= tail_index_)
@@ -52,7 +53,7 @@ int64_t RingBuffer::write(const void *const buffer, uint32_t length) {
 
   if (head_index_ + length > RINGBUFFER_LENGTH) {
     size_t count = RINGBUFFER_LENGTH - head_index_;
-    res = rpcDev_.rpcMailboxWrite(MailboxTarget::MAILBOX_TARGET_MM,
+    res = rpcDev_.rpcMailboxWrite(mailboxTarget_,
                                   offset_from_mb_ + rb_queue_offset_ + head_index_,
                                   count, &data_ptr[0]);
     if (!res) {
@@ -64,7 +65,7 @@ int64_t RingBuffer::write(const void *const buffer, uint32_t length) {
     length -= count;
   }
 
-  res = rpcDev_.rpcMailboxWrite(MailboxTarget::MAILBOX_TARGET_MM,
+  res = rpcDev_.rpcMailboxWrite(mailboxTarget_,
                                 offset_from_mb_ + rb_queue_offset_ + head_index_,
                                 length, &data_ptr[written]);
   if (!res) {
@@ -97,7 +98,7 @@ int64_t RingBuffer::read(void *const buffer, uint32_t length) {
 
   if (tail_index_ + length > RINGBUFFER_LENGTH) {
     size_t count = RINGBUFFER_LENGTH - tail_index_;
-    res = rpcDev_.rpcMailboxRead(MailboxTarget::MAILBOX_TARGET_MM,
+    res = rpcDev_.rpcMailboxRead(mailboxTarget_,
                                  offset_from_mb_ + rb_queue_offset_ + tail_index_,
                                  count, &data_ptr[0]);
     if (!res) {
@@ -109,7 +110,7 @@ int64_t RingBuffer::read(void *const buffer, uint32_t length) {
     length -= count;
   }
 
-  res = rpcDev_.rpcMailboxRead(MailboxTarget::MAILBOX_TARGET_MM,
+  res = rpcDev_.rpcMailboxRead(mailboxTarget_,
                                offset_from_mb_ + rb_queue_offset_ + tail_index_,
                                length, &data_ptr[read]);
   if (!res) {
@@ -138,14 +139,14 @@ bool RingBuffer::full() {
 bool RingBuffer::readRingBufferIndices() {
   bool res;
 
-  res = rpcDev_.rpcMailboxRead(MailboxTarget::MAILBOX_TARGET_MM,
+  res = rpcDev_.rpcMailboxRead(mailboxTarget_,
                                offset_from_mb_ + rb_head_index_off_,
                                sizeof(head_index_), &head_index_);
   if (!res) {
     return false;
   }
 
-  res = rpcDev_.rpcMailboxRead(MailboxTarget::MAILBOX_TARGET_MM,
+  res = rpcDev_.rpcMailboxRead(mailboxTarget_,
                                offset_from_mb_ + rb_tail_index_off_,
                                sizeof(tail_index_), &tail_index_);
   if (!res) {
@@ -156,77 +157,85 @@ bool RingBuffer::readRingBufferIndices() {
 }
 
 bool RingBuffer::writeRingBufferHeadIndex() {
-  return rpcDev_.rpcMailboxWrite(MailboxTarget::MAILBOX_TARGET_MM,
+  return rpcDev_.rpcMailboxWrite(mailboxTarget_,
                                  offset_from_mb_ + rb_head_index_off_,
                                  sizeof(head_index_), &head_index_);
 }
 
 bool RingBuffer::writeRingBufferTailIndex() {
-  return rpcDev_.rpcMailboxWrite(MailboxTarget::MAILBOX_TARGET_MM,
+  return rpcDev_.rpcMailboxWrite(mailboxTarget_,
                                  offset_from_mb_ + rb_tail_index_off_,
                                  sizeof(tail_index_), &tail_index_);
 }
 
-EmuMailBoxDev::EmuMailBoxDev(RPCTarget &dev)
-    : tx_ring_buffer_(tx_ring_buffer_off_, dev),
-      rx_ring_buffer_(rx_ring_buffer_off_, dev),
-      slave_status_(device_fw::MBOX_STATUS_NOT_READY),
-      rpcDev_(dev)
-{}
+EmuMailBoxDev::EmuMailBoxDev(RPCTarget &dev, MailboxTarget mailboxTarget)
+    : rpcDev_(dev),
+      mailboxTarget_(mailboxTarget),
+      tx_ring_buffer_(dev, mailboxTarget, tx_ring_buffer_off_),
+      rx_ring_buffer_(dev, mailboxTarget, rx_ring_buffer_off_) {}
 
-bool EmuMailBoxDev::readRemoteStatus() {
-  const size_t mb_master_status_off = offsetof(device_fw::mbox_t, master_status);
-  const size_t mb_slave_status_off = offsetof(device_fw::mbox_t, slave_status);
+bool EmuMailBoxDev::readRemoteStatus(uint32_t &master_status, uint32_t &slave_status) {
   bool res;
 
-  res = rpcDev_.rpcMailboxRead(MailboxTarget::MAILBOX_TARGET_MM, mb_master_status_off,
-                               sizeof(master_status_), &master_status_);
+  res = rpcDev_.rpcMailboxRead(mailboxTarget_, mb_master_status_off_,
+                               sizeof(master_status), &master_status);
   if (!res) {
     return false;
   }
 
-  res = rpcDev_.rpcMailboxRead(MailboxTarget::MAILBOX_TARGET_MM, mb_slave_status_off,
-                               sizeof(slave_status_), &slave_status_);
+  res = rpcDev_.rpcMailboxRead(mailboxTarget_, mb_slave_status_off_,
+                               sizeof(slave_status), &slave_status);
   if (!res) {
     return false;
   }
 
   return true;
 }
-bool EmuMailBoxDev::writeRemoteStatus() {
-  const size_t mb_slave_status_off = offsetof(device_fw::mbox_t, slave_status);
+bool EmuMailBoxDev::writeRemoteSlaveStatus(uint32_t slave_status) {
   // The host is always the mbox slave, so only write slave status
-  return rpcDev_.rpcMailboxWrite(MailboxTarget::MAILBOX_TARGET_MM, mb_slave_status_off,
-                                    sizeof(slave_status_), &slave_status_);
+  return rpcDev_.rpcMailboxWrite(mailboxTarget_, mb_slave_status_off_,
+                                 sizeof(slave_status), &slave_status);
+}
+
+bool EmuMailBoxDev::raiseTargetMailboxInterrupt() {
+  switch (mailboxTarget_) {
+  case MailboxTarget::MAILBOX_TARGET_MM:
+    return rpcDev_.rpcRaiseDevicePuPlicPcieMessageInterrupt();
+  case MailboxTarget::MAILBOX_TARGET_SP:
+    return rpcDev_.rpcRaiseDeviceSpioPlicPcieMessageInterrupt();
+  default:
+    abort();
+  }
 }
 
 bool EmuMailBoxDev::mboxDestroy() {
-  slave_status_ = device_fw::MBOX_STATUS_NOT_READY;
-  return writeRemoteStatus();
+  return writeRemoteSlaveStatus(device_fw::MBOX_STATUS_NOT_READY);
 }
 
 bool EmuMailBoxDev::mboxReady() {
+  uint32_t master_status, slave_status;
+
   // first update status the status from the remote
-  auto res = readRemoteStatus();
+  auto res = readRemoteStatus(master_status, slave_status);
   if (!res) {
     return false;
   }
   // The host is always the mbox slave
-  switch (master_status_) {
+  switch (master_status) {
   case device_fw::MBOX_STATUS_NOT_READY:
     break;
   case device_fw::MBOX_STATUS_READY:
-    if (slave_status_ != device_fw::MBOX_STATUS_READY &&
-        slave_status_ != device_fw::MBOX_STATUS_WAITING) {
+    if (slave_status != device_fw::MBOX_STATUS_READY &&
+        slave_status != device_fw::MBOX_STATUS_WAITING) {
       TRACE_RPCDevice_mbox_master_ready_slave_ready();
-      slave_status_ = device_fw::MBOX_STATUS_READY;
+      slave_status = device_fw::MBOX_STATUS_READY;
     }
     break;
   case device_fw::MBOX_STATUS_WAITING:
-    if (slave_status_ != device_fw::MBOX_STATUS_READY &&
-        slave_status_ != device_fw::MBOX_STATUS_WAITING) {
+    if (slave_status != device_fw::MBOX_STATUS_READY &&
+        slave_status != device_fw::MBOX_STATUS_WAITING) {
       TRACE_RPCDevice_mbox_master_waiting_slave_ready();
-      slave_status_ = device_fw::MBOX_STATUS_READY;
+      slave_status = device_fw::MBOX_STATUS_READY;
     }
     break;
   case device_fw::MBOX_STATUS_ERROR:
@@ -234,11 +243,11 @@ bool EmuMailBoxDev::mboxReady() {
   }
 
   // Write back the status to the remote simulator
-  res = writeRemoteStatus();
+  res = writeRemoteSlaveStatus(slave_status);
   assert(res);
 
-  return master_status_ == device_fw::MBOX_STATUS_READY &&
-         slave_status_ == device_fw::MBOX_STATUS_READY;
+  return master_status == device_fw::MBOX_STATUS_READY &&
+         slave_status == device_fw::MBOX_STATUS_READY;
 }
 
 bool EmuMailBoxDev::mboxReset() {
@@ -247,15 +256,11 @@ bool EmuMailBoxDev::mboxReset() {
   if (!rpcDev_.alive()) {
     return false;
   }
-  // first update status the status from the remote
-  auto res = readRemoteStatus();
-  assert(res);
 
   RTDEBUG << "Resetting slave, transitioning to WAITING\n";
-  slave_status_ = device_fw::MBOX_STATUS_WAITING;
 
   // Write back the status to the remote simulator
-  res = writeRemoteStatus();
+  auto res = writeRemoteSlaveStatus(device_fw::MBOX_STATUS_WAITING);
   assert(res);
 
   // Clean up the ring buffer state, consume all messages similar to reset
@@ -270,7 +275,6 @@ bool EmuMailBoxDev::mboxReset() {
 }
 
 bool EmuMailBoxDev::write(const void *data, ssize_t size) {
-
   TRACE_RPCDevice_write(size);
 
   if (!rpcDev_.alive()) {
@@ -314,8 +318,8 @@ bool EmuMailBoxDev::write(const void *data, ssize_t size) {
   res = rb.writeRingBufferHeadIndex();
   assert(res);
 
-  // Raise interrupt to M&M to consume the new mailbox message
-  res = rpcDev_.rpcRaiseDevicePuPlicPcieMessageInterrupt();
+  // Raise interrupt to the target mailbox to consume the new mailbox message
+  res = raiseTargetMailboxInterrupt();
   assert(res);
   return true;
 }
@@ -416,7 +420,7 @@ bool EmuMailBoxDev::ready(TimeDuration wait_time) {
       return false;
     }
 
-    rpcDev_.rpcRaiseDevicePuPlicPcieMessageInterrupt();
+    raiseTargetMailboxInterrupt();
     rpcDev_.rpcWaitForHostInterrupt(polling_interval);
   }
   return ready;
@@ -437,7 +441,7 @@ bool EmuMailBoxDev::reset(TimeDuration wait_time) {
       RTERROR << "Mailbox not reset in time\n";
       return false;
     }
-    rpcDev_.rpcRaiseDevicePuPlicPcieMessageInterrupt();
+    raiseTargetMailboxInterrupt();
     rpcDev_.rpcWaitForHostInterrupt(polling_interval);
   }
   return reset;
