@@ -49,7 +49,7 @@ class PrepareTraceBuffersRsp;
 } // namespace devfw_responses
 } // namespace device_api
 
-/// @class TraceHelper TraceHelper.h esperanto/runtime/Core/TraceHelper.h
+/// @class TraceHelper TraceHelper.h
 ///
 /// @brief Class holding helpers to configure trace subsystem, using the
 /// Device API and help us interact with the device

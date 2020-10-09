@@ -53,6 +53,7 @@ set(COMMON_TEST_LIBRARIES
   libgtest.a
   libgmock.a
   libbreakpad_client.a
+  stdc++fs
   )
 
 

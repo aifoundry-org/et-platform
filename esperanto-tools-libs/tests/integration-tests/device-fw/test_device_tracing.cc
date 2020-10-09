@@ -10,10 +10,12 @@
 
 #include "device-fw-fixture.h"
 
+#include "Core/TraceHelper.h"
 #include "Tracing/Tracing.h"
 #include "device-fw-testing-helpers.h"
+
 #include "esperanto/runtime/CodeManagement/CodeRegistry.h"
-#include "esperanto/runtime/Core/TraceHelper.h"
+
 #include <chrono>
 #include <ctime>
 #include <string>
