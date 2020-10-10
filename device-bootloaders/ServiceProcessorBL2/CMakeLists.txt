@@ -47,6 +47,7 @@ list(TRANSFORM BL2_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
 set(SOURCES
     ${BL2_SOURCES}
     ${FREERTOS_SRC_FILES}
+    ${SHARED_SRC_DIR}/constant_memory_compare.c
     ${SHARED_SRC_DIR}/pcie_init.c
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/sp_otp.c
