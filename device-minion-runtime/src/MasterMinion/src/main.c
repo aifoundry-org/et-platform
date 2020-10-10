@@ -5,7 +5,6 @@
 #include "device_api_non_privileged.h"
 #include "fcc.h"
 #include "hart.h"
-#include "host_message.h"
 #include "interrupt.h"
 #include "kernel.h"
 #include "layout.h"

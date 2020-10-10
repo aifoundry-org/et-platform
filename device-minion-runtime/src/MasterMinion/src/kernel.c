@@ -5,7 +5,6 @@
 #include "esr_defines.h"
 #include "fcc.h"
 #include "hart.h"
-#include "host_message.h"
 #include "kernel_config.h"
 #include "layout.h"
 #include "log.h"

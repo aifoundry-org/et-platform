@@ -40,8 +40,7 @@ endif()
 
 configure_file(device_minion_runtime_build_configuration.h.in device_minion_runtime_build_configuration.h @ONLY)
 
-install(FILES host_message.h
-              kernel_info.h
+install(FILES kernel_info.h
               kernel_params.h
               layout.h
               log_levels.h
