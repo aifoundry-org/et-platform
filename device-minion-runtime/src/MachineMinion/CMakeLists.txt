@@ -18,6 +18,7 @@ set(SOURCES
     src/main.c
     src/putchar.c
     src/pmu.c
+    src/log.c
     src/minion_cfg.c
     src/build_configuration.c
     ${SHARED_SRC_DIR}/message.c
@@ -26,7 +27,6 @@ set(SOURCES
     ${SHARED_SRC_DIR}/print_exception.c
     ${SHARED_SRC_DIR}/broadcast.c
     ${SHARED_SRC_DIR}/kernel_return.c
-    ${SHARED_SRC_DIR}/log.c
     )
 
 set(TARGET_NAME MachineMinion)

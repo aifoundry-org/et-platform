@@ -15,6 +15,7 @@
 #include <inttypes.h>
 
 #include "esr_defines.h"
+#include "fcc.h"
 
 #ifdef __cplusplus
 #define EXTERN_C extern "C"
@@ -114,7 +115,7 @@ inline __attribute__((always_inline)) void tensorerror_write(uint64_t val)
     );
 }
 
-inline __attribute__((always_inline)) uint64_t flbarrier(int barrier_num, uint8_t match)
+inline __attribute__((always_inline)) uint64_t flbarrier(uint64_t barrier_num, uint64_t match)
 {
     uint64_t ret;
     uint64_t flb_arg = (match << 5) | (barrier_num & 0x1F);
@@ -128,7 +129,7 @@ inline __attribute__((always_inline)) uint64_t flbarrier(int barrier_num, uint8_
     return ret;
 }
 
-inline __attribute__((always_inline)) uint64_t flb(int barrier_num, uint8_t match)
+inline __attribute__((always_inline)) uint64_t flb(uint64_t barrier_num, uint64_t match)
 {
     return flbarrier(barrier_num, match);
 }
@@ -139,7 +140,6 @@ inline __attribute__((always_inline)) void fcc_consume(uint64_t fcc_reg)
         "csrw   fcc, %0\n"
         : : "r"(fcc_reg)
     );
-
 }
 
 inline __attribute__((always_inline))void fcc(uint64_t fcc_reg)
@@ -159,7 +159,7 @@ inline __attribute__((always_inline)) void tensorwait(uint64_t id)
        "csrw  tensor_wait, %0\n"
        : : "r"(id)
        );
-    
+
 }
 
 inline __attribute__((always_inline)) void portctrl0(uint64_t ctrl)
@@ -215,18 +215,18 @@ inline __attribute__((always_inline))__attribute__((always_inline)) uint64_t fcc
  */
 
 // Sends an FCC credit
-inline __attribute__((always_inline)) void fcc_send(int prot, int shire, int thread, int fcc_reg, uint64_t hart_mask)
+inline __attribute__((always_inline)) void fcc_send(int shire, int thread, int fcc_reg, uint64_t hart_mask)
 {
     volatile uint64_t *fcc_credinc_addr = (uint64_t *)
-        ESR_SHIRE(prot, shire, FCC0) + ((thread << 1) | fcc_reg);
+        ESR_SHIRE(shire, FCC_CREDINC_0) + ((thread << 1) | fcc_reg);
 
     *fcc_credinc_addr = hart_mask;
 }
 
-inline __attribute__((always_inline)) void flbarrier_set(int prot, int shire, int barrier_num, uint64_t value)
+inline __attribute__((always_inline)) void flbarrier_set(int shire, int barrier_num, uint64_t value)
 {
     volatile uint64_t *flb_addr = (uint64_t *)
-        ESR_SHIRE(prot, shire, FLB0) + barrier_num;
+        ESR_SHIRE(shire, FAST_LOCAL_BARRIER0) + barrier_num;
 
     *flb_addr = value;
 }

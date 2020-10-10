@@ -40,16 +40,6 @@ endif()
 
 configure_file(device_minion_runtime_build_configuration.h.in device_minion_runtime_build_configuration.h @ONLY)
 
-install(FILES kernel_info.h
-              kernel_params.h
-              layout.h
-              log_levels.h
-              mailbox_id.h
-              mailbox_common.h
-              ringbuffer_common.h
-  DESTINATION ${INCLUDE_INSTALL_DIR}/esperanto-fw
-  COMPONENT master-minion)
-
 add_library(device_common INTERFACE)
 target_include_directories(device_common INTERFACE
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
@@ -69,12 +59,23 @@ install(
 
 install(
   FILES
+    device-common/atomic.h
+    device-common/atomic-impl.h
     device-common/barriers.h
     device-common/cacheops.h
     device-common/esr_defines.h
+    device-common/fcc.h
+    device-common/flb.h
+    device-common/hart.h
+    device-common/macros.h
     device-common/shire.h
+    device-common/tensor.h
     device-common/tensors.h
     device-common/utils.h
+    # Not device common libs. FW dependent
+    device-common/log_levels.h
+    device-common/kernel_params.h
+    device-common/syscall.h
   DESTINATION
     ${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/device_common
   COMPONENT device_common

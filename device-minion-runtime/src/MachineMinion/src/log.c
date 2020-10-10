@@ -24,7 +24,8 @@ int64_t log_write(log_level_t level, const char *const fmt, ...)
 
     va_list va;
     va_start(va, fmt);
-    return vprintf(fmt, va);
+    //return vprintf(fmt, va); // What do we do in Machine mode?
+    return 0;
 }
 
 int64_t log_write_str(log_level_t level, const char *str, size_t length)
@@ -36,7 +37,7 @@ int64_t log_write_str(log_level_t level, const char *str, size_t length)
     }
 
     for (i = 0; i < length && str[i]; i++) {
-        _putchar(str[i]);
+        // _putchar(str[i]); // What do we do in Machine mode?
     }
 
     return (int64_t)i;

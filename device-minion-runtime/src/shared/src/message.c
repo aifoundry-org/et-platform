@@ -299,7 +299,7 @@ evict_message(const volatile message_t *const message)
     // not needed if address dependencies are respected by CacheOp, being paranoid for now
     asm volatile("fence");
 
-    evict_va(0, to_L3, (uint64_t)message, 0, 0x0, 0x0, 0);
+    evict(to_L3, message, sizeof(*message));
 
     // TensorWait on CacheOp covers evicts to L3
     WAIT_CACHEOPS
