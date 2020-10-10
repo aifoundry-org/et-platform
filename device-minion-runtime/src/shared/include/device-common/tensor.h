@@ -12,6 +12,9 @@
 #ifndef TENSOR_H
 #define TENSOR_H
 
+#include <stdint.h>
+#include <stdbool.h>
+
 // Tensor instruction support
 // Still work in progress
 // I will be adding more of that as needed

@@ -14,6 +14,7 @@
 #include "minion_cfg.h"
 
 #include <stdint.h>
+#include <stdbool.h>
 
 int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3);
 
@@ -34,8 +35,10 @@ static int64_t evict_l3(void);
 
 static int64_t shire_cache_bank_op_with_params(uint64_t shire, uint64_t bank, uint64_t op);
 
-static inline void l1_shared_to_split(uint64_t scp_en, uint64_t cacheop);
-static inline void l1_split_to_shared(uint64_t scp_enabled, uint64_t cacheop);
+static inline void l1_shared_to_split(uint64_t scp_en, uint64_t cacheop_reprate,
+                                      uint64_t cacheop_max);
+static inline void l1_split_to_shared(uint64_t scp_enabled, uint64_t cacheop_reprate,
+                                      uint64_t cacheop_max);
 static int64_t set_l1_cache_control(uint64_t d1_split, uint64_t scp_en);
 
 int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3)
@@ -199,7 +202,7 @@ static int64_t init_l1(void)
             WAIT_CACHEOPS
             FENCE
 
-            mcache_control(1, 0, 0); // Enable split mode
+            mcache_control(1, 0, 0, 0); // Enable split mode
             allSetsReset =
                 true; // No need to subsequently unlock lines - enabling split mode reset all sets
         }
@@ -222,7 +225,7 @@ static int64_t init_l1(void)
                 // Unlock sets 14-15: enabling scratchpad will reset sets 0-13
                 for (uint64_t set = 14; set < 16; set++) {
                     for (uint64_t way = 0; way < 4; way++) {
-                        unlock_sw(way, set, 0);
+                        unlock_sw(way, set);
                     }
                 }
             }
@@ -233,21 +236,21 @@ static int64_t init_l1(void)
             WAIT_CACHEOPS
             FENCE
 
-            mcache_control(1, 1, 0); // Enable scratchpad
+            mcache_control(1, 1, 0, 0); // Enable scratchpad
         }
     } else {
         // Split mode with scratchpad enabled
         // Unlock sets 12-15 (12-13 for HART 0, 14-15 for HART1)
         for (uint64_t set = 12; set < 16; set++) {
             for (uint64_t way = 0; way < 4; way++) {
-                unlock_sw(way, set, 0);
+                unlock_sw(way, set);
             }
         }
     }
 
     // Reset CacheOp values (CacheOp_RepRate = 0, CacheOp_Max = 8)
     mcache_control_reg = mcache_control_get();
-    mcache_control(mcache_control_reg & 1, (mcache_control_reg >> 1) & 1, 0x200);
+    mcache_control(mcache_control_reg & 1, (mcache_control_reg >> 1) & 1, 0, 8);
 
     excl_mode(0); // release exclusive access to the processor
 
@@ -258,10 +261,10 @@ static int64_t init_l1(void)
 static inline void evict_all_l1_ways(uint64_t use_tmask, uint64_t dest_level, uint64_t set,
                                      uint64_t num_sets)
 {
-    evict_sw(use_tmask, dest_level, 0, set, num_sets, 0);
-    evict_sw(use_tmask, dest_level, 1, set, num_sets, 0);
-    evict_sw(use_tmask, dest_level, 2, set, num_sets, 0);
-    evict_sw(use_tmask, dest_level, 3, set, num_sets, 0);
+    evict_sw(use_tmask, dest_level, 0, set, num_sets);
+    evict_sw(use_tmask, dest_level, 1, set, num_sets);
+    evict_sw(use_tmask, dest_level, 2, set, num_sets);
+    evict_sw(use_tmask, dest_level, 3, set, num_sets);
 }
 
 static int64_t evict_l1_all(uint64_t use_tmask, uint64_t dest_level)
@@ -349,7 +352,8 @@ static int64_t shire_cache_bank_op_with_params(uint64_t shire, uint64_t bank, ui
 }
 
 // change L1 configuration from Shared to Split, optionally with Scratchpad enabled
-static inline void l1_shared_to_split(uint64_t scp_en, uint64_t cacheop)
+static inline void l1_shared_to_split(uint64_t scp_en, uint64_t cacheop_reprate,
+                                      uint64_t cacheop_max)
 {
     // Evict all cache lines from the L1 to L2
     evict_l1_all(0, to_L2);
@@ -358,19 +362,20 @@ static inline void l1_shared_to_split(uint64_t scp_en, uint64_t cacheop)
     WAIT_CACHEOPS
 
     // Change L1 Dcache to split mode
-    mcache_control(1, 0, cacheop);
+    mcache_control(1, 0, cacheop_reprate, cacheop_max);
 
     if (scp_en) {
         // Wait for the L1 cache to change its configuration
         FENCE;
 
         // Change L1 Dcache to split mode and SCP enabled
-        mcache_control(1, 1, cacheop);
+        mcache_control(1, 1, cacheop_reprate, cacheop_max);
     }
 }
 
 // change L1 configuration from Split to Shared
-static inline void l1_split_to_shared(uint64_t scp_enabled, uint64_t cacheop)
+static inline void l1_split_to_shared(uint64_t scp_enabled, uint64_t cacheop_reprate,
+                                      uint64_t cacheop_max)
 {
     if (scp_enabled) {
         // Evict sets 12-15
@@ -385,13 +390,13 @@ static inline void l1_split_to_shared(uint64_t scp_enabled, uint64_t cacheop)
     WAIT_CACHEOPS
 
     // Change L1 Dcache to shared mode
-    mcache_control(0, 0, cacheop);
+    mcache_control(0, 0, cacheop_reprate, cacheop_max);
 }
 
 static int64_t set_l1_cache_control(uint64_t d1_split, uint64_t scp_en)
 {
     uint64_t mcache_control_reg;
-    uint64_t cur_split, cur_scp_en, cur_cacheop;
+    uint64_t cur_split, cur_scp_en, cur_cacheop_reprate, cur_cacheop_max;
 
     // Can't enable the SCP without splitting
     if (scp_en && !d1_split) {
@@ -404,17 +409,18 @@ static int64_t set_l1_cache_control(uint64_t d1_split, uint64_t scp_en)
     mcache_control_reg = mcache_control_get();
     cur_split = mcache_control_reg & 1;
     cur_scp_en = (mcache_control_reg >> 1) & 1;
-    cur_cacheop = mcache_control_reg & 0x7DC; // CacheOp_RepRate and CacheOp_Max
+    cur_cacheop_reprate = (mcache_control_reg >> 2) & 0x7;
+    cur_cacheop_max = (mcache_control_reg >> 6) & 0x1F;
 
     if (!cur_split) {
         // It is shared and we want to split
         if (d1_split) {
-            l1_shared_to_split(scp_en, cur_cacheop);
+            l1_shared_to_split(scp_en, cur_cacheop_reprate, cur_cacheop_max);
         }
     } else {
         // It is split (maybe with SCP on) and we want shared mode
         if (!d1_split) {
-            l1_split_to_shared(cur_scp_en, cur_cacheop);
+            l1_split_to_shared(cur_scp_en, cur_cacheop_reprate, cur_cacheop_max);
         }
     }
 
