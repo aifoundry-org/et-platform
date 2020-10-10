@@ -33,12 +33,12 @@ set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
 set(LIB_INSTALL_DIR  lib/  CACHE STRING "Library install dir")
 set(SYSCONFIG_INSTALL_DIR etc/et-fw/ CACHE STRING "Config install dir")
 
-get_property(FW_TYPES_HELPERS_INCLUDE_PATH
-  TARGET EsperantoDeviceMinionRuntime::fw_helpers
+get_property(DEVICE_COMMON_INCLUDE_PATH
+  TARGET EsperantoDeviceMinionRuntime::device_common
   PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
 
-include_directories(${FW_TYPES_HELPERS_INCLUDE_PATH})
-include_directories(${FW_TYPES_HELPERS_INCLUDE_PATH}/etsoc_hal)
+include_directories(${DEVICE_COMMON_INCLUDE_PATH})
+include_directories(${DEVICE_COMMON_INCLUDE_PATH}/etsoc_hal)
 
 
 find_package(esperanto-device-api CONFIG REQUIRED)
@@ -53,6 +53,7 @@ get_filename_component(SCRIPTS_KERNEL_DIR "scripts" ABSOLUTE)
 
 list(APPEND COMMON_KERNEL_SRC_FILES
   ${SHARED_KERNEL_SRC_DIR}/crt.S
+  ${SHARED_KERNEL_SRC_DIR}/src/log.c
   )
 
 # Helper function for creating different instances of randomized tests
@@ -89,7 +90,7 @@ macro(test_kernel)
 
   set(EXPORT_NAME EsperantoTestKernelsTargets)
 
-  target_link_libraries(${TARGET_NAME}.elf EsperantoDeviceMinionRuntime::fw_helpers)
+  target_link_libraries(${TARGET_NAME}.elf EsperantoDeviceMinionRuntime::device_common)
 
   install(TARGETS ${TARGET_NAME}.elf
     EXPORT ${EXPORT_NAME}
@@ -152,7 +153,7 @@ macro(randomized_test)
     target_include_directories(${TARGET_NAME}.elf PRIVATE ${TEST_BUILD_FOLDER}/include)
     add_dependencies(${TARGET_NAME}.elf ${TEST_NAME}-gen-files)
 
-    target_link_libraries(${TARGET_NAME}.elf EsperantoDeviceMinionRuntime::fw_helpers)
+    target_link_libraries(${TARGET_NAME}.elf EsperantoDeviceMinionRuntime::device_common)
 
     set(EXPORT_NAME esperanto-fw-targets)
 

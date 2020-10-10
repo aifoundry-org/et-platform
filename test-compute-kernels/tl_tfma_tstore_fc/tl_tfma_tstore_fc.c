@@ -269,7 +269,7 @@ int64_t main(const kernel_params_t *const kernel_params_ptr) {
   __asm__ __volatile__("fence\n");
 
   // Send data out to DRAM so you have Zebu visibility
-  evict_va(0, 3, base_dst_addr + minion_id * 1024, 15, 0x40, 0, 0);
+  evict_va(0, 3, base_dst_addr + minion_id * 1024, 15, 0x40, 0);
   WAIT_CACHEOPS;
 
   unsigned long functional_error = get_tensor_error();

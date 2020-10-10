@@ -94,7 +94,7 @@ int64_t main(const kernel_params_t *const kernel_params_ptr) {
     uint64_t bank_mc_ms_offset = (minion_id / 8) * 0x40;
     uint64_t final_addr =
         base_addr + start_row_offset + minion_row_offset + bank_mc_ms_offset;
-    prefetch_va(0, to_L1, final_addr, num_columns - 1, 0x2000, 0, 0);
+    prefetch_va(0, to_L1, final_addr, num_columns - 1, 0x2000, 0);
   }
 
   WAIT_CACHEOPS;

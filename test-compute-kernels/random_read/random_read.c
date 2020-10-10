@@ -4,7 +4,6 @@
 #include "flb.h"
 #include "log.h"
 #include "lfsr.h"
-#include "printf.h"
 #include "syscall.h"
 
 #include <stdbool.h>

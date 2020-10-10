@@ -7,10 +7,11 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #define BASE_ADDR_FOR_THIS_TEST  0x8200000000ULL
 
-#define POLYNOMIAL_BIT 0x000008012ULL 
+#define POLYNOMIAL_BIT 0x000008012ULL
 #define LFSR_SHIFTS_PER_READ 5
 
 // tensor_a is for generating address offset
@@ -20,7 +21,7 @@
 
 static inline uint64_t generate_random_value(uint64_t lfsr) __attribute((always_inline));
 
-       
+
 int64_t main(const kernel_params_t* const kernel_params_ptr)
 {
 
@@ -31,8 +32,8 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
         return -1;
     }
 
-    uint64_t lsfr_init = kernel_params_ptr->tensor_a; 
-    uint64_t lsfr_init2 = kernel_params_ptr->tensor_b & 0xFFFF; 
+    uint64_t lsfr_init = kernel_params_ptr->tensor_a;
+    uint64_t lsfr_init2 = kernel_params_ptr->tensor_b & 0xFFFF;
     const uint64_t hart_id = get_hart_id();
     uint64_t lfsr = (((hart_id << 24) | (hart_id << 12) | hart_id) & 0x3FFFFFFFF) ^ lsfr_init;
     uint64_t lfsr_use;
@@ -43,7 +44,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     uint64_t lfsr_numlines;
     long unsigned int shire_addr;
 
-    uint64_t dst = kernel_params_ptr->tensor_c; // 1 or 2 
+    uint64_t dst = kernel_params_ptr->tensor_c; // 1 or 2
     for(int i=0;i<10;i++) {
        lfsr = generate_random_value(lfsr);
        lfsr_use = lfsr & 0xFFFF;
@@ -57,9 +58,9 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
        if(lfsr_stride == 3) stride = 1024;
        lfsr_stride_and_numlines = generate_random_value(lfsr);
        lfsr_numlines = lfsr_stride_and_numlines & 0x1F;
-       prefetch_va(false,     dst,   shire_addr,  lfsr_numlines,         stride,      0, 0 );
+       prefetch_va(false,     dst,   shire_addr,  lfsr_numlines,         stride,      0);
        }
- 
+
     return 0;
 
 }
@@ -106,5 +107,5 @@ uint64_t generate_random_value(uint64_t lfsr)
         lfsr ^= (polynomial & (uint64_t)mask);
 #endif
     }
-    return lfsr;  
+    return lfsr;
 }

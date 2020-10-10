@@ -11,6 +11,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 #include "hart.h"
 #include "macros.h"
 #include "common.h"

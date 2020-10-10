@@ -8,9 +8,10 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #define BASE_ADDR_FOR_THIS_TEST  0x8200000000ULL
-#define POLYNOMIAL_BIT 0x000008012ULL 
+#define POLYNOMIAL_BIT 0x000008012ULL
 #define LFSR_SHIFTS_PER_READ 5
 #define CACHE_LINE_SIZE 8             // (since hart_id is 64 bits, and line is 512 bits)
 #define HARTS_PER_SHIRE 64
@@ -21,7 +22,7 @@
 // tensor_c is used to choose b/w flush and evict
 // tensor_d is a pointer to the output data
 // One minion per shire participate in the test
-// Starting at tensor_a, the address loops through all the shires, covering each of them once  
+// Starting at tensor_a, the address loops through all the shires, covering each of them once
 
 // Description: One minion / shire prefetsches addresses (both harts) and the flushes or evicts them
 // to a randomized level in memory hierarchy.
@@ -46,54 +47,54 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     uint64_t lfsr = (((hart_id << 24) | (hart_id << 12) | hart_id) & 0x3FFFFFFFF) ^ lfsr_init;
     uint64_t lfsr_use;
     uint64_t dst = kernel_params_ptr->tensor_b; // L2 (1) or L3 (2) or L3 (MEM)
-    uint64_t op = kernel_params_ptr->tensor_c; // 1 is flush, 2 is evict 
+    uint64_t op = kernel_params_ptr->tensor_c; // 1 is flush, 2 is evict
     volatile uint64_t *out_data = (uint64_t*) kernel_params_ptr->tensor_d;
 
     // Hart 0 on every shire
     if ((hart_id % HARTS_PER_SHIRE) == 0) {
-       
+
        lfsr = generate_random_value(lfsr);
-       lfsr_use = lfsr & 0x1F; 
+       lfsr_use = lfsr & 0x1F;
        for(int i=0;i<31;i++) {
           //WAIT_FCC(0);
           long unsigned int shire_addr = BASE_ADDR_FOR_THIS_TEST | (lfsr_use << 6);
-          prefetch_va(false,     0,   shire_addr,  0,         1024,      0, 0 );
+          prefetch_va(false,     0,   shire_addr,  0,         1024,      0);
           //WAIT_PREFETCH_0;
           if(lfsr_use == 31) { lfsr_use = 0; } else { lfsr_use++; }
        }
        for(int i=0;i<31;i++) {
           //WAIT_FCC(1);
           long unsigned int shire_addr = BASE_ADDR_FOR_THIS_TEST | (lfsr_use << 6);
-          if(op == 1) flush_va(false,     dst,   shire_addr,  0,         1024,      0, 0 );
-          if(op == 2) evict_va(false,     dst,   shire_addr,  0,         1024,      0, 0 );
+          if(op == 1) flush_va(false,     dst,   shire_addr,  0,         1024,      0);
+          if(op == 2) evict_va(false,     dst,   shire_addr,  0,         1024,      0);
           //WAIT_CACHEOPS;
           if(lfsr_use == 31) { lfsr_use = 0; } else { lfsr_use++; }
        }
        out_data[hart_id * CACHE_LINE_SIZE] = hart_id;
-       return 0; 
+       return 0;
     }
 
     // Hart 1 on every shire
     else if ((hart_id % HARTS_PER_SHIRE) == 1) {
        lfsr = generate_random_value(lfsr);
-       lfsr_use = lfsr & 0x1F; 
+       lfsr_use = lfsr & 0x1F;
        for(int i=0;i<31;i++) {
-          //SEND_FCC(THIS_SHIRE, THREAD_0, FCC_0, hart_id); 
+          //SEND_FCC(THIS_SHIRE, THREAD_0, FCC_0, hart_id);
           long unsigned int shire_addr = BASE_ADDR_FOR_THIS_TEST | (lfsr_use << 6);
-          prefetch_va(false,     0,   shire_addr,  0,         1024,      0, 0 );
+          prefetch_va(false,     0,   shire_addr,  0,         1024,      0);
           //WAIT_PREFETCH_0;
           if(lfsr_use == 31) { lfsr_use = 0; } else { lfsr_use++; }
        }
        for(int i=0;i<31;i++) {
-          //SEND_FCC(THIS_SHIRE, THREAD_0, FCC_1, hart_id); 
+          //SEND_FCC(THIS_SHIRE, THREAD_0, FCC_1, hart_id);
           long unsigned int shire_addr = BASE_ADDR_FOR_THIS_TEST | (lfsr_use << 6);
-          if(op == 1) flush_va(false,     dst,   shire_addr,  0,         1024,      0, 0 );
-          if(op == 2) evict_va(false,     dst,   shire_addr,  0,         1024,      0, 0 );
+          if(op == 1) flush_va(false,     dst,   shire_addr,  0,         1024,      0);
+          if(op == 2) evict_va(false,     dst,   shire_addr,  0,         1024,      0);
           //WAIT_CACHEOPS;
           if(lfsr_use == 31) { lfsr_use = 0; } else { lfsr_use++; }
        }
        out_data[hart_id * CACHE_LINE_SIZE] = hart_id;
-       return 0; 
+       return 0;
     }
 
     // All other harts do nothing.
@@ -146,5 +147,5 @@ uint64_t generate_random_value(uint64_t lfsr)
         lfsr ^= (polynomial & (uint64_t)mask);
 #endif
     }
-    return lfsr;  
+    return lfsr;
 }

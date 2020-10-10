@@ -6,12 +6,13 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 // tensor_a is destination of the cacheop.  Should be 1, 2 or 3.
 // tensor_b indicates whether the cacheop is a flush or evict.  Should be 1 or 2.
 // This test prefetches on thread 1 of each of the minion
-// Stride is 64, and with 16 lines,  all the mem-shires will be accesssed by each minion 
-       
+// Stride is 64, and with 16 lines,  all the mem-shires will be accesssed by each minion
+
 int64_t main(const kernel_params_t* const kernel_params_ptr)
 {
 
@@ -26,8 +27,8 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     uint64_t shire_id = ((hart_id>>6) & 0x3F);
     uint64_t minion_id = ((hart_id>>1) & 0x1F);
     uint64_t N_TIMES = 1;
-    uint64_t dst = kernel_params_ptr->tensor_a; // 1 or 2 or 3 
-    uint64_t op = kernel_params_ptr->tensor_b; // 1 is flush, 2 is evict 
+    uint64_t dst = kernel_params_ptr->tensor_a; // 1 or 2 or 3
+    uint64_t op = kernel_params_ptr->tensor_b; // 1 is flush, 2 is evict
 
 if ((hart_id & 1) == 1) //Only Thread1 (or prefetch threads to do prefetch)
    {
@@ -35,7 +36,7 @@ if ((hart_id & 1) == 1) //Only Thread1 (or prefetch threads to do prefetch)
 	   {
 		   volatile uint64_t VA = (uint64_t)(((0x82ULL)<<32) + ((0xaU)<<28U) + (shire_id << 23) + (minion_id << 18) + ((0x01*i)<<10) + (0x0 << 6));
 
-		   prefetch_va(false,     0,   (uint64_t)(VA),  15,         64,      0, 0 );
+		   prefetch_va(false,     0,   (uint64_t)(VA),  15,         64,      0);
 		   //WAIT_PREFETCH_0;
 	   }
 
@@ -43,10 +44,10 @@ if ((hart_id & 1) == 1) //Only Thread1 (or prefetch threads to do prefetch)
 	   {
 		   volatile uint64_t VA = (uint64_t)(((0x82ULL)<<32) + ((0xaU)<<28U) + (shire_id << 23) + (minion_id << 18) + ((0x01*i)<<10) + (0x0 << 6));
 
-		   if(op == 1) flush_va(false,     dst,   (uint64_t)(VA),  15,         64,      0, 0 );
-                   if(op == 2) evict_va(false,     dst,   (uint64_t)(VA),  15,         64,      0, 0 );
+		   if(op == 1) flush_va(false,     dst,   (uint64_t)(VA),  15,         64,      0);
+                   if(op == 2) evict_va(false,     dst,   (uint64_t)(VA),  15,         64,      0);
 		   //WAIT_CACHEOPS;
-	   } 
+	   }
 
            return 0;
    }

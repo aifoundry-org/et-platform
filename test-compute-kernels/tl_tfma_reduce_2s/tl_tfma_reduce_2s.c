@@ -261,7 +261,7 @@ int64_t main(const kernel_params_t *const kernel_params_ptr) {
   __asm__ __volatile__("fence\n");
 
   // Need to evict ts_addr to memory with evict va.
-  evict_va(0, 3, ts_addr, 15, 0x40, 0, 0);
+  evict_va(0, 3, ts_addr, 15, 0x40, 0);
   WAIT_CACHEOPS;
 
   unsigned long functional_error = get_tensor_error();

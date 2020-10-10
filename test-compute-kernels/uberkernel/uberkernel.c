@@ -11,28 +11,6 @@
 
 #define N_CREDITS_TO_ACT_PREF 3
 
-static inline void cb_drain(uint64_t drain_shire, uint64_t drain_bank)
-{
-    // Drain the coalescing buffer of shire cache bank
-    // 1. Write the CB invalidate (assumes FSM always available)
-    volatile uint64_t *sc_idx_cop_sm_ctl_addr = (volatile uint64_t *)
-        ESR_CACHE(drain_shire, drain_bank, SC_IDX_COP_SM_CTL_USER);
-
-    // 2. Checks done
-    uint64_t state;
-    do {
-        state = (*sc_idx_cop_sm_ctl_addr >> 24) & 0xFF;
-    } while (state != 4);
-
-    *sc_idx_cop_sm_ctl_addr = (1 << 0) | // Go bit = 1
-                              (10 << 8); // Opcode = CB_Inv (Coalescing buffer invalidate)
-
-    // 2. Checks done
-    do {
-        state = (*sc_idx_cop_sm_ctl_addr >> 24) & 0xFF;
-    } while (state != 4);
-}
-
 static void send_init_credit_to_act_pref(uint32_t minion_id, uint32_t shire_id)
 {
     if (minion_id < N_CREDITS_TO_ACT_PREF)

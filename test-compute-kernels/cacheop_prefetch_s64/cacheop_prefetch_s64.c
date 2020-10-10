@@ -6,11 +6,12 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 // tensor_a indicates destination of the prefetch operation. Should be 1 or 2.
 // This test prefetches on thread 1 of each of the minion
-// Stride is 64, and with 16 lines,  all the mem-shires will be accesssed by each minion 
-       
+// Stride is 64, and with 16 lines,  all the mem-shires will be accesssed by each minion
+
 int64_t main(const kernel_params_t* const kernel_params_ptr)
 {
 
@@ -33,7 +34,7 @@ if ((hart_id & 1) == 1) //Only Thread1 (or prefetch threads to do prefetch)
 	   {
 		   volatile uint64_t VA = (uint64_t)(((0x82ULL)<<32) + ((0xaU)<<28U) + (shire_id << 23) + (minion_id << 18) + ((0x01*i)<<10) + (0x0 << 6));
 
-		   prefetch_va(false,     dst,   (uint64_t)(VA),  15,         64,      0, 0 );
+		   prefetch_va(false,     dst,   (uint64_t)(VA),  15,         64,      0);
 		   //WAIT_PREFETCH_0;
 	   }
 

@@ -103,7 +103,7 @@ int64_t main(const kernel_params_t *const kernel_params_ptr) {
   for (uint64_t i = 0; i < num_iter; i++) {
     uint64_t final_addr =
         base_addr + (i * num_minions) * 0x400 + minion_id * 0x400;
-    evict_va(0, to_Mem, final_addr, 15, 0x40, 0, 0);
+    evict_va(0, to_Mem, final_addr, 15, 0x40, 0);
   }
 
   WAIT_CACHEOPS;

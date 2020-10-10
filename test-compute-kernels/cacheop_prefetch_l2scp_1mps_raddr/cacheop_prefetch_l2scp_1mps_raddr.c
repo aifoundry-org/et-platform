@@ -6,21 +6,22 @@
 #include "macros.h"
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #define BASE_ADDR_FOR_THIS_TEST  0x0080400000ULL
-#define POLYNOMIAL_BIT 0x000200001ULL 
+#define POLYNOMIAL_BIT 0x000200001ULL
 #define LFSR_SHIFTS_PER_READ 22
-#define POLYNOMIAL_BIT_2 0x000000829ULL 
+#define POLYNOMIAL_BIT_2 0x000000829ULL
 #define LFSR_SHIFTS_PER_READ_2 12
 
 // tensor_a is for generating address offset
 // tensor_b is for generating random strides and random number of lines
 // This test prefetches random addresses, with random strides and random number number to l2 scp
-// The first minion per each shire participates in the prefetch 
+// The first minion per each shire participates in the prefetch
 
 static inline uint64_t generate_random_value(uint64_t lfsr) __attribute((always_inline));
 static inline uint64_t generate_random_value_2(uint64_t lfsr) __attribute((always_inline));
-       
+
 int64_t main(const kernel_params_t* const kernel_params_ptr)
 {
 
@@ -31,7 +32,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
         return -1;
     }
 
-    uint64_t lsfr_init = kernel_params_ptr->tensor_a & 0xFFFF; 
+    uint64_t lsfr_init = kernel_params_ptr->tensor_a & 0xFFFF;
     uint64_t lsfr_init2 = kernel_params_ptr->tensor_b & 0xFFFF;
     const uint64_t hart_id = get_hart_id();
     uint64_t lfsr = (((hart_id << 24) | (hart_id << 12) | hart_id) & 0x3FFFFFFFF) ^ lsfr_init;
@@ -59,9 +60,9 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
           if(lfsr_stride == 3) stride = 1024;
           lfsr_stride_and_numlines = generate_random_value(lfsr);
           lfsr_numlines = lfsr_stride_and_numlines & 0x1F;
-          prefetch_va(false,     1,   shire_addr,  lfsr_numlines,         stride,      0, 0 );
+          prefetch_va(false,     1,   shire_addr,  lfsr_numlines,         stride,      0);
        }
-       return 0; 
+       return 0;
     }
     else {return 0;}
 }
@@ -108,7 +109,7 @@ uint64_t generate_random_value(uint64_t lfsr)
         lfsr ^= (polynomial & (uint64_t)mask);
 #endif
     }
-    return lfsr;  
+    return lfsr;
 }
 
 uint64_t generate_random_value_2(uint64_t lfsr)
@@ -152,5 +153,5 @@ uint64_t generate_random_value_2(uint64_t lfsr)
         lfsr ^= (polynomial & (uint64_t)mask);
 #endif
     }
-    return lfsr;  
+    return lfsr;
 }

@@ -11,14 +11,14 @@
 
 #define BASE_ADDR_FOR_THIS_TEST  0x8200000000ULL
 
-#define POLYNOMIAL_BIT 0x000008012ULL 
+#define POLYNOMIAL_BIT 0x000008012ULL
 #define LFSR_SHIFTS_PER_READ 5
 
-#define POLYNOMIAL_BIT_2 0x000008012ULL 
+#define POLYNOMIAL_BIT_2 0x000008012ULL
 #define LFSR_SHIFTS_PER_READ_2 11
 
 static inline uint64_t generate_random_value(uint64_t lfsr) __attribute((always_inline));
-       
+
 static inline uint64_t generate_random_value_2(uint64_t lfsr) __attribute((always_inline));
 
 int64_t main(void)
@@ -33,7 +33,7 @@ int64_t main(void)
     uint64_t lfsr_ucache_control = (((hart_id << 24) | (hart_id << 12) | hart_id) & 0x3FFFFFFFF) ^ 0xAAAA;
     long unsigned int shire_addr = 0;
     uint64_t ucache_control_max = 0;
-    uint64_t ucache_control_reprate = 0; 
+    uint64_t ucache_control_reprate = 0;
     uint64_t lfsr_loop_count = 0;
 
     //Scheduling thread - get from parameter
@@ -42,20 +42,20 @@ int64_t main(void)
             for(int i = 0; i < 1; i++) { // shire0 only, 31
               lfsr = generate_random_value(lfsr);
               lfsr_use = lfsr & 0x1F;
-              SEND_FCC(i, THREAD_0, FCC_0, lfsr_use); 
-            } 
+              SEND_FCC(i, THREAD_0, FCC_0, lfsr_use);
+            }
        }
        return 0;
-    } else {   
+    } else {
        lfsr = generate_random_value(lfsr);
        lfsr_loop_count = lfsr & 0x1F;
-       for(uint64_t i = 0; i < lfsr_loop_count; i++) { 
+       for(uint64_t i = 0; i < lfsr_loop_count; i++) {
          uint64_t fcc_value0 = 0; read_fcc(FCC_0);
          uint64_t fcc_value1 = 0; read_fcc(FCC_1);
-         if(fcc_value0 == 0 && fcc_value1 == 0) { return 0; } 
+         if(fcc_value0 == 0 && fcc_value1 == 0) { return 0; }
          if(fcc_value0 != 0) {WAIT_FCC(0);} else if(fcc_value1 != 0) {WAIT_FCC(1);}
          lfsr = generate_random_value(lfsr);
-         lfsr_use = lfsr & 0x1F; 
+         lfsr_use = lfsr & 0x1F;
          shire_addr = BASE_ADDR_FOR_THIS_TEST | (lfsr_use << 6);
          lfsr = generate_random_value(lfsr);
          lfsr_use = lfsr & 0x7;
@@ -73,8 +73,8 @@ int64_t main(void)
          stride = 15; // Need to randomize
          lfsr_stride_and_numlines = generate_random_value(lfsr);
          lfsr_numlines = lfsr_stride_and_numlines & 0x1F;
-         if(lfsr_use == 0) prefetch_va(false,     1,   shire_addr,  lfsr_numlines,         stride,      0, 0 );
-         if(lfsr_use == 1) prefetch_va(false,     2,   shire_addr,  0,         lfsr_numlines,      stride, 0 );
+         if(lfsr_use == 0) prefetch_va(false,     1,   shire_addr,  lfsr_numlines,         stride);
+         if(lfsr_use == 1) prefetch_va(false,     2,   shire_addr,  lfsr_numlines,      stride);
          if(lfsr_use == 2) flush_va(false,     1,   shire_addr,  0,         lfsr_numlines,      stride, 0 );
          if(lfsr_use == 3) flush_va(false,     2,   shire_addr,  0,         lfsr_numlines,      stride, 0 );
          if(lfsr_use == 4) flush_va(false,     3,   shire_addr,  0,         lfsr_numlines,      stride, 0 );
@@ -82,7 +82,7 @@ int64_t main(void)
          if(lfsr_use == 6) evict_va(false,     2,   shire_addr,  0,         lfsr_numlines,      stride, 0 );
          if(lfsr_use == 7) evict_va(false,     3,   shire_addr,  0,         lfsr_numlines,      stride, 0 );
        }
-       return 0; 
+       return 0;
     }
 }
 
@@ -128,7 +128,7 @@ uint64_t generate_random_value(uint64_t lfsr)
         lfsr ^= (polynomial & (uint64_t)mask);
 #endif
     }
-    return lfsr;  
+    return lfsr;
 }
 
 
@@ -173,5 +173,5 @@ uint64_t generate_random_value_2(uint64_t lfsr)
         lfsr ^= (polynomial & (uint64_t)mask);
 #endif
     }
-    return lfsr;  
+    return lfsr;
 }

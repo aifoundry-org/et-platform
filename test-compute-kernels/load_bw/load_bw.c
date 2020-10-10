@@ -78,7 +78,7 @@ int64_t main(const kernel_params_t *const kernel_params_ptr) {
   for (uint64_t i = 0; i < num_iter; i++) {
     uint64_t offset = (minion_id * num_iter) + i;
     uint64_t offset_addr = kernel_params_ptr->tensor_a + offset * 8;
-    evict_va(0, to_Mem, offset_addr, 0, 0x40, 0, 0);
+    evict_va(0, to_Mem, offset_addr, 0, 0x40, 0);
   }
   WAIT_CACHEOPS;
 
@@ -95,7 +95,7 @@ int64_t main(const kernel_params_t *const kernel_params_ptr) {
   for (uint64_t i = 0; i < num_iter; i++) {
     uint64_t offset = (minion_id * num_iter) + i;
     uint64_t offset_addr = kernel_params_ptr->tensor_a + offset * 8;
-    prefetch_va(0, 1, offset_addr, 0, 0x40, 0, 0);
+    prefetch_va(0, 1, offset_addr, 0, 0x40, 0);
   }
 
   WAIT_CACHEOPS;

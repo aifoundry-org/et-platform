@@ -262,9 +262,9 @@ int64_t main(const kernel_params_t *const kernel_params_ptr) {
   __asm__ __volatile__("fence\n");
 
   // Need to evict ts_addr to memory with evict va.
-  evict_va(0, to_Mem, out_addr + 0xc00 * minion_id, 15, 0x40, 0, 0);
-  evict_va(0, to_Mem, out_addr + 0xc00 * minion_id + 0x400, 15, 0x40, 0, 0);
-  evict_va(0, to_Mem, out_addr + 0xc00 * minion_id + 0x800, 15, 0x40, 0, 0);
+  evict_va(0, to_Mem, out_addr + 0xc00 * minion_id, 15, 0x40, 0);
+  evict_va(0, to_Mem, out_addr + 0xc00 * minion_id + 0x400, 15, 0x40, 0);
+  evict_va(0, to_Mem, out_addr + 0xc00 * minion_id + 0x800, 15, 0x40, 0);
   WAIT_CACHEOPS;
 
   // Check for tensor error and make the CRC check

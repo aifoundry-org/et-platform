@@ -8,24 +8,25 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #define BASE_ADDR_FOR_THIS_TEST  0x0080400000ULL
 
-//#define POLYNOMIAL_BIT 0x000200001ULL 
+//#define POLYNOMIAL_BIT 0x000200001ULL
 //#define LFSR_SHIFTS_PER_READ 22
 
-#define POLYNOMIAL_BIT 0x000008012ULL 
+#define POLYNOMIAL_BIT 0x000008012ULL
 #define LFSR_SHIFTS_PER_READ 5
-#define POLYNOMIAL_BIT_2 0x000000829ULL 
+#define POLYNOMIAL_BIT_2 0x000000829ULL
 #define LFSR_SHIFTS_PER_READ_2 12
 
 static inline uint64_t generate_random_value(uint64_t lfsr) __attribute((always_inline));
 static inline uint64_t generate_random_value_2(uint64_t lfsr) __attribute((always_inline));
-       
+
 // tensor_a is address offset to start at a random shire-id
 // tensor_b is for generating random strides and random number of lines
 // First minion per shire participate in the test
-// Starting at tensor_a, the address loops through all the shires, covering each of them once  
+// Starting at tensor_a, the address loops through all the shires, covering each of them once
 
 int64_t main(const kernel_params_t* const kernel_params_ptr)
 {
@@ -37,7 +38,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
         return -1;
     }
 
-    uint64_t lsfr_init = kernel_params_ptr->tensor_a & 0xFFFF; 
+    uint64_t lsfr_init = kernel_params_ptr->tensor_a & 0xFFFF;
     uint64_t lsfr_init2 = kernel_params_ptr->tensor_b & 0xFFFF;
     const uint64_t hart_id = get_hart_id();
     uint64_t lfsr = (((hart_id << 24) | (hart_id << 12) | hart_id) & 0x3FFFFFFFF) ^ lsfr_init;
@@ -50,7 +51,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 
     if (hart_id % 64 == 0) {
        lfsr = generate_random_value(lfsr);
-       lfsr_use = lfsr & 0x1F; 
+       lfsr_use = lfsr & 0x1F;
        for(int i=0;i<31;i++) {
           long unsigned int shire_addr = BASE_ADDR_FOR_THIS_TEST | (lfsr_use << 23);
           lfsr_stride_and_numlines = generate_random_value(lfsr_stride_and_numlines);
@@ -61,10 +62,10 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
           if(lfsr_stride == 3) stride = 1024;
           lfsr_stride_and_numlines = generate_random_value(lfsr);
           lfsr_numlines = lfsr_stride_and_numlines & 0x1F;
-          prefetch_va(false,     1,   shire_addr,  lfsr_numlines,         stride,      0, 0 );
+          prefetch_va(false,     1,   shire_addr,  lfsr_numlines,         stride,      0);
           if(lfsr_use == 31) { lfsr_use = 0; } else { lfsr_use++; }
        }
-       return 0; 
+       return 0;
     }
     else {return 0;}
 }
@@ -111,7 +112,7 @@ uint64_t generate_random_value(uint64_t lfsr)
         lfsr ^= (polynomial & (uint64_t)mask);
 #endif
     }
-    return lfsr;  
+    return lfsr;
 }
 
 uint64_t generate_random_value_2(uint64_t lfsr)
@@ -155,5 +156,5 @@ uint64_t generate_random_value_2(uint64_t lfsr)
         lfsr ^= (polynomial & (uint64_t)mask);
 #endif
     }
-    return lfsr;  
+    return lfsr;
 }

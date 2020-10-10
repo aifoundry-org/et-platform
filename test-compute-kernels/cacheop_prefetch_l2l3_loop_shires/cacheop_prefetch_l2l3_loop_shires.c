@@ -8,20 +8,21 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #define BASE_ADDR_FOR_THIS_TEST  0x8200000000ULL
 
-#define POLYNOMIAL_BIT 0x000008012ULL 
+#define POLYNOMIAL_BIT 0x000008012ULL
 #define LFSR_SHIFTS_PER_READ 5
 
 // tensor_a is address offset such that it targets to a particular shire-id
 // tensor_b is destination of prefetch
 // One minion per shire participate in the test
-// Starting at tensor_a, the address loops through all the shires, covering each of them once  
- 
+// Starting at tensor_a, the address loops through all the shires, covering each of them once
+
 static inline uint64_t generate_random_value(uint64_t lfsr) __attribute((always_inline));
 
-       
+
 int64_t main(const kernel_params_t* const kernel_params_ptr)
 {
 
@@ -36,31 +37,31 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     const uint64_t hart_id = get_hart_id();
     uint64_t lfsr = (((hart_id << 24) | (hart_id << 12) | hart_id) & 0x3FFFFFFFF) ^ lsfr_init;
     uint64_t lfsr_use;
-    uint64_t dst = kernel_params_ptr->tensor_b; // 1 or 2 
+    uint64_t dst = kernel_params_ptr->tensor_b; // 1 or 2
 
 
     if ((hart_id % 64) == 0) {
        lfsr = generate_random_value(lfsr);
-       lfsr_use = lfsr & 0x1F; 
+       lfsr_use = lfsr & 0x1F;
        for(int i=0;i<31;i++) {
           long unsigned int shire_addr = BASE_ADDR_FOR_THIS_TEST | (lfsr_use << 6);
           WAIT_FCC(0);
-          prefetch_va(false,     1,   shire_addr,  0,         1024,      0, 0 );
+          prefetch_va(false,     1,   shire_addr,  0,         1024,      0);
           //WAIT_PREFETCH_0;
           if(lfsr_use == 31) { lfsr_use = 0; } else { lfsr_use++; }
        }
-       return 0; 
+       return 0;
     }
     else if(hart_id == 1 || (hart_id % 64) == 1) {
-       lfsr_use = lfsr & 0x1F; 
+       lfsr_use = lfsr & 0x1F;
        for(int i=0;i<31;i++) {
           long unsigned int shire_addr = BASE_ADDR_FOR_THIS_TEST | (lfsr_use << 6);
-          SEND_FCC(THIS_SHIRE, THREAD_0, FCC_0, hart_id); 
-          prefetch_va(false,     dst,   shire_addr,  0,         1024,      0, 0 );
+          SEND_FCC(THIS_SHIRE, THREAD_0, FCC_0, hart_id);
+          prefetch_va(false,     dst,   shire_addr,  0,         1024,      0);
           //WAIT_PREFETCH_0;
           if(lfsr_use == 31) { lfsr_use = 0; } else { lfsr_use++; }
        }
-       return 0; 
+       return 0;
     }
     else {return 0;}
 }
@@ -107,5 +108,5 @@ uint64_t generate_random_value(uint64_t lfsr)
         lfsr ^= (polynomial & (uint64_t)mask);
 #endif
     }
-    return lfsr;  
+    return lfsr;
 }

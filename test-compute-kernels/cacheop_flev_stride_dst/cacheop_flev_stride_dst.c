@@ -6,6 +6,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #define BASE_ADDR_FOR_THIS_TEST  0x8200000000ULL
 
@@ -13,7 +14,7 @@
 // tensor_b is stride value
 // tensor_c is used to choose b/w flush and evict
 // Each shire accesses the memshire that is closest to it
-       
+
 int64_t main(const kernel_params_t* const kernel_params_ptr)
 {
 
@@ -28,9 +29,9 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     uint64_t shire_id = ((hart_id>>6) & 0x3F);
     uint64_t minion_id = ((hart_id>>1) & 0x1F);
     int64_t N_TIMES = 1;
-    uint64_t dst = kernel_params_ptr->tensor_a; // 1 or 2 or 3 
-    uint64_t stride = kernel_params_ptr->tensor_b; // 1024, 512, 256, 128 
-    uint64_t op = kernel_params_ptr->tensor_c; // 1 is flush, 2 is evict 
+    uint64_t dst = kernel_params_ptr->tensor_a; // 1 or 2 or 3
+    uint64_t stride = kernel_params_ptr->tensor_b; // 1024, 512, 256, 128
+    uint64_t op = kernel_params_ptr->tensor_c; // 1 is flush, 2 is evict
 
 
 //if ((hart_id & 1) == 1) //Only Thread1 (or prefetch threads to do prefetch)
@@ -39,10 +40,10 @@ if (hart_id == 1) //Only Thread1 (or prefetch threads to do prefetch)
 	   for(int i = 0; i < N_TIMES ; i++) //N_TIMES = # of times the thread1 performs the prefetch CSR
 	   {
 
-		   volatile uint64_t VA;	
+		   volatile uint64_t VA;
 		   // VA Address to prefetch from
-		   //                                |39-32= 0x80|    |31-28= 0xa|   |27-23 |             |22-18 |            |17-13 = i factor|  |9-6= MC/MS/L2Bank|  
-		                                   
+		   //                                |39-32= 0x80|    |31-28= 0xa|   |27-23 |             |22-18 |            |17-13 = i factor|  |9-6= MC/MS/L2Bank|
+
 		   /****** Prefetches from these shires should get data always form mem-sire 0*******/
 		   if ( (shire_id == 0) || (shire_id == 1) || (shire_id == 16) || (shire_id == 8) || (shire_id == 12) || (shire_id == 24))
 		   {
@@ -88,19 +89,19 @@ if (hart_id == 1) //Only Thread1 (or prefetch threads to do prefetch)
 			   VA = (uint64_t)(((0x82ULL)<<32) + ((0xaU)<<28U) + (shire_id << 23) + (minion_id << 18) + ((0x01*(uint64_t)i)<<13) + (0x0 << 6));
 		   }
 
-                   
+
 		   // Prefetch performed by one minion from each shire based on VA formed
-		   prefetch_va(false,     0,   (uint64_t)(VA),  15,         1024,      0, 0 );
+		   prefetch_va(false,     0,   (uint64_t)(VA),  15,         1024,      0);
 		   //WAIT_PREFETCH_0;
 	   }
 
            for(int i = 0; i < N_TIMES ; i++) //N_TIMES = # of times the thread1 performs the prefetch CSR
 	   {
 
-		   volatile uint64_t VA;	
+		   volatile uint64_t VA;
 		   // VA Address to prefetch from
-		   //                                |39-32= 0x80|    |31-28= 0xa|   |27-23 |             |22-18 |            |17-13 = i factor|  |9-6= MC/MS/L2Bank|  
-		                                   
+		   //                                |39-32= 0x80|    |31-28= 0xa|   |27-23 |             |22-18 |            |17-13 = i factor|  |9-6= MC/MS/L2Bank|
+
 		   /****** Prefetches from these shires should get data always form mem-sire 0*******/
 		   if ( (shire_id == 0) || (shire_id == 1) || (shire_id == 16) || (shire_id == 8) || (shire_id == 12) || (shire_id == 24))
 		   {
@@ -146,8 +147,8 @@ if (hart_id == 1) //Only Thread1 (or prefetch threads to do prefetch)
 			   VA = (uint64_t)(((0x82ULL)<<32) + ((0xaU)<<28U) + (shire_id << 23) + (minion_id << 18) + ((0x01*(uint64_t)i)<<13) + (0x0 << 6));
 		   }
 
-		   if(op == 1) flush_va(false,     dst,   (uint64_t)(VA),  15,         stride,      0, 0 );
-                   if(op == 2) evict_va(false,     dst,   (uint64_t)(VA),  15,         stride,      0, 0 );
+		   if(op == 1) flush_va(false,     dst,   (uint64_t)(VA),  15,         stride,      0);
+                   if(op == 2) evict_va(false,     dst,   (uint64_t)(VA),  15,         stride,      0);
 		   //WAIT_CACHEOPS;
 	   }
            return 0;
