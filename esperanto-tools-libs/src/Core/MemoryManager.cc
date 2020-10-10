@@ -17,7 +17,8 @@
 #include "Tracing/Tracing.h"
 #include "esperanto/runtime/EsperantoRuntime.h"
 
-#include <esperanto-fw/fw-helpers/layout.h>
+#include <esperanto-fw/firmware_helpers/layout.h>
+
 #include <sys/mman.h>
 #include <unistd.h>
 

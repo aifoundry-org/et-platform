@@ -13,7 +13,8 @@
 #include "EmuMailBoxDev.h"
 #include "esperanto/runtime/Support/Logging.h"
 #include "esperanto/simulator-api.grpc.pb.h"
-#include <esperanto-fw/fw-helpers/layout.h>
+
+#include <esperanto-fw/firmware_helpers/layout.h>
 
 #include <inttypes.h>
 

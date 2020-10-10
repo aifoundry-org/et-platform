@@ -14,7 +14,8 @@
 #include "MemoryManagement/MemoryManagerInternals.h"
 #include "esperanto/runtime/Core/Memory.h"
 
-#include <esperanto-fw/fw-helpers/layout.h>
+#include <esperanto-fw/firmware_helpers/layout.h>
+
 #include <glog/logging.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
