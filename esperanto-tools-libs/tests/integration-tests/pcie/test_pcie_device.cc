@@ -9,7 +9,8 @@
 //------------------------------------------------------------------------------
 
 #include "PCIEDevice/PCIeDevice.h"
-#include "esperanto-fw/layout.h"
+
+#include <esperanto-fw/firmware_helpers/layout.h>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>

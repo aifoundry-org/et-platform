@@ -20,9 +20,9 @@
 // FIXME TODO: Remove this!
 #include "esperanto/runtime/Core/CommandLineOptions.h"
 
-#include <esperanto-fw/fw-helpers/layout.h>
-#include <esperanto-fw/fw-helpers/minion_esr_defines.h>
-#include <esperanto-fw/fw-helpers/minion_fw_boot_config.h>
+#include <esperanto-fw/firmware_helpers/layout.h>
+#include <esperanto-fw/firmware_helpers/minion_esr_defines.h>
+#include <esperanto-fw/firmware_helpers/minion_fw_boot_config.h>
 
 #include <absl/flags/flag.h>
 #include <memory>
