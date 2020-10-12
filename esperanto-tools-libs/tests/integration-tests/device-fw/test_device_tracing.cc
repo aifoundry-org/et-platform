@@ -331,7 +331,8 @@ TEST_F(DeviceFWTest, Trace_test) {
 }
 
 TEST_F(DeviceFWTest, Trace_FindLoggingOverhead) {
-  fs::path trace_kernel = fs::path(absl::GetFlag(FLAGS_trace_elf));
+  fs::path trace_kernel = fs::path(absl::GetFlag(FLAGS_kernels_dir)) /
+                          fs::path("trace_ring_buffer.elf");
   auto &registry = dev_->codeRegistry();
 
   auto register_res = registry.registerKernel(
@@ -344,7 +345,11 @@ TEST_F(DeviceFWTest, Trace_FindLoggingOverhead) {
   auto module_id = load_res.get();
 
   TraceHelper trace_helper(*dev_);
-  auto success = 0;
+
+  // For maximum utilization, following log level will fully fill
+  // the buffer by selected kernel.
+  auto success = trace_helper.set_level_error();
+  ASSERT_TRUE(success);
 
   ::device_api::non_privileged::discover_trace_buffer_rsp_t rsp = {0};
 
@@ -375,7 +380,7 @@ TEST_F(DeviceFWTest, Trace_FindLoggingOverhead) {
   auto args = std::vector<Kernel::LaunchArg>({arg});
   auto launch = kernel.createKernelLaunch(args);
 
-  /* Executing workload without tracing...    */
+// =================== Executing workload without tracing... ==============
 
   // Save current time before launching the kernel
   auto start1 = chrono::high_resolution_clock::now();
@@ -393,7 +398,19 @@ TEST_F(DeviceFWTest, Trace_FindLoggingOverhead) {
   auto delta1 =
       chrono::duration_cast<chrono::microseconds>(end1 - start1).count();
 
-  /* Executing workload with tracing... */
+  // =================== Executing workload with tracing... ==============
+
+  // Test case specific. For maximum utilization.
+  auto new_harts_mask = 0xFFFFFFFFFFFFFFFFUL;
+  auto enabled_harts = 64;
+
+  // Configure harts mask
+  success = trace_helper.configure_trace_harts_mask_knob(new_harts_mask);
+  ASSERT_TRUE(success);
+
+  // Discover the trace buffer properties
+  rsp = trace_helper.discover_trace_buffer();
+  ASSERT_TRUE(rsp.status);
 
   //  Enable trace logging
   success = trace_helper.configure_trace_state_knob(1);
@@ -413,14 +430,12 @@ TEST_F(DeviceFWTest, Trace_FindLoggingOverhead) {
   auto delta2 =
       chrono::duration_cast<chrono::microseconds>(end2 - start2).count();
 
-  // Calculate the overhead by finding the difference in execution time with and
-  // without trace
+  // Calculate the overhead by finding the difference in execution time with
+  // and without trace
   auto execution_overhead = delta2 - delta1;
 
   // Calculate percent overhead
   auto percent_overhead = (execution_overhead * 100) / delta1;
-
-  std::vector<uint8_t> data(rsp.trace_buffer_size * NUMBER_OF_TRACE_BUFFERS);
 
   // Get trace buffer properties
   rsp = trace_helper.discover_trace_buffer();
@@ -434,31 +449,56 @@ TEST_F(DeviceFWTest, Trace_FindLoggingOverhead) {
   success = trace_helper.prepare_trace_buffers();
   ASSERT_TRUE(success);
 
+  auto enabled_shires = 0;   // This is to be calculated yet.
+  auto shire_size = rsp.trace_buffer_size * enabled_harts;
+  auto shire_mask = rsp.shire_mask;
+  auto shire_mask_size = 64;
+
+   for (int shire_id = 0; shire_id < shire_mask_size; shire_id++)
+   {
+       enabled_shires += (1UL & (shire_mask >> shire_id));
+   }
+
+  std::vector<uint8_t> shire_data(shire_size * enabled_shires);
+  auto shire_counter = 0;
+
   // Save current time before reading the data
   auto start3 = chrono::high_resolution_clock::now();
 
-  // Read data from device memory into host buffer
-  auto res = dev_->memcpy(
-      data.data(),
-      (const void *)(rsp.trace_base +
-                     ALIGN(
-                         sizeof(::device_api::non_privileged::trace_control_t),
-                         TRACE_BUFFER_REGION_ALIGNEMNT)),
-      rsp.trace_buffer_size * NUMBER_OF_TRACE_BUFFERS, etrtMemcpyDeviceToHost);
+  // Loop through all shire ids to read data one by one. Note that we have enabled
+  // all the harts, therefore we will be reading the data one shire by one.
+  for (int shire_index = 0; shire_index < shire_mask_size; shire_index++)
+  {
+    // Check if we need to read data for this shire?
+    if ((1UL & (shire_mask >> shire_index)) == 1UL)
+    {
+      // Read data from device memory into host buffer for this time.
+      auto res = dev_->memcpy(
+          (shire_data.data() + shire_size * shire_counter),
+          (const void *)(rsp.trace_base + (shire_size * shire_index) +
+                          ALIGN(
+                              sizeof(::device_api::non_privileged::trace_control_t),
+                              TRACE_BUFFER_REGION_ALIGNEMNT)),
+          shire_size, etrtMemcpyDeviceToHost);
+
+      // Data read for following number of shires.
+      shire_counter++;
+    }
+  }
 
   // Save current time after the data is read
   auto end3 = chrono::high_resolution_clock::now();
 
   // Calculate data copy time by calculating the difference
   auto delta3 =
-      chrono::duration_cast<chrono::microseconds>(end3 - start3).count();
+    chrono::duration_cast<chrono::microseconds>(end3 - start3).count();
 
   // Save current time before parsing the data into protobuf
   auto start4 = chrono::high_resolution_clock::now();
 
   // Parse the trace data into protobuff
   auto result = et_runtime::tracing::DeviceAPI_DeviceFW_process_device_traces(
-      &data[0], rsp.trace_buffer_size, NUMBER_OF_TRACE_BUFFERS);
+      &shire_data[0], rsp.trace_buffer_size, enabled_shires * enabled_harts);
 
   ASSERT_EQ(result, ::device_api::non_privileged::TRACE_STATUS_SUCCESS);
 
@@ -467,7 +507,7 @@ TEST_F(DeviceFWTest, Trace_FindLoggingOverhead) {
 
   // Find the data parsing time
   auto delta4 =
-      chrono::duration_cast<chrono::microseconds>(end4 - start4).count();
+    chrono::duration_cast<chrono::microseconds>(end4 - start4).count();
 
   // Calculate timestamps
   microseconds ms1 = duration_cast<microseconds>(start1.time_since_epoch());
@@ -490,6 +530,10 @@ TEST_F(DeviceFWTest, Trace_FindLoggingOverhead) {
   std::time_t t4 = s4.count();
   std::size_t fractional_seconds4 = ms4.count() % 1000000;
 
+  RTINFO << "Test shire_mask: " << rsp.shire_mask << " Test harts_mask: "
+         << rsp.harts_mask;
+  RTINFO << "Enabled shires: " << enabled_shires;
+  RTINFO << "Parsed shires: " << shire_counter;
   RTINFO << "Kernel Launch without Trace\r\n";
   RTINFO << "Host Launch Timestamp: " << fractional_seconds1 << " microseconds "
          << std::ctime(&t1);
