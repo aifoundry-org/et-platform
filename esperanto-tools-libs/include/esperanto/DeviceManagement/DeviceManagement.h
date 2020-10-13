@@ -106,6 +106,13 @@ private:
   /// @return Command code table iterator
   itCmd isValidCommand(uint32_t cmd_code);
 
+  /// @brief Determine if device node is a valid node
+  ///
+  /// @param[in] device_node  Device node to check
+  ///
+  /// @return True if valid device node
+  bool isValidDeviceNode(const char *device_node);
+
   /// @brief Extract an index and whether it is a mgmt node
   ///
   /// @param[in] device_node  Char pointer to name of device node

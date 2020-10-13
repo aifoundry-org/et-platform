@@ -11,6 +11,7 @@
 #include "esperanto/DeviceManagement/DeviceManagement.h"
 #include "PCIEDevice/PCIeDevice.h"
 
+#include <errno.h>
 #include <chrono>
 #include <exception>
 #include <iostream>
@@ -49,6 +50,18 @@ itCmd DeviceManagement::isValidCommand(uint32_t cmd_code) {
   return commandCodeTable.end();
 }
 
+bool DeviceManagement::isValidDeviceNode(const char *device_node) {
+  std::string str(device_node);
+  std::regex re("^et[0-5]{1}_(?=mgmt$|ops$)");
+  std::smatch m;
+
+  if (!std::regex_search(str, m, re)) {
+    return false;
+  }
+
+  return true;
+}
+
 bool DeviceManagement::isSetCommand(itCmd &cmd) {
   if (cmd->first.find("SET") == 0) {
     return true;
@@ -59,15 +72,9 @@ bool DeviceManagement::isSetCommand(itCmd &cmd) {
 
 std::tuple<uint32_t, bool>
 DeviceManagement::tokenizeDeviceNode(const char *device_node) {
+  std::string str(device_node);
   uint32_t index = 0;
   bool mgmtNode = false;
-
-  std::string str(device_node);
-  std::regex re("^et[0-9]+_(?=mgmt$|ops$)");
-  std::smatch m;
-  if (!std::regex_search(str, m, re)) {
-    throw "Invalid device_node format!";
-  }
 
   str = str.substr(2);
   std::size_t pos = str.find("_");
@@ -96,86 +103,87 @@ int DeviceManagement::serviceRequest(
     const uint32_t input_size, char *output_buff, const uint32_t output_size,
     uint32_t *host_latency_msec, uint32_t *dev_latency_msec,
     uint32_t timeout_msec) {
-  try {
-    auto start = std::chrono::steady_clock::now();
 
-    auto cmd = isValidCommand(cmd_code);
-    if (cmd == commandCodeTable.end()) {
-      throw "Error: Invalid command code!";
-    }
+  auto start = std::chrono::steady_clock::now();
 
-    if (!device_node) {
-      throw "Error: Invalid device_node pointer!";
-    }
-
-    auto isSet = isSetCommand(cmd);
-    if (isSet && !input_buff) {
-      throw "Error: Invalid input_buff pointer!";
-    }
-
-    if (!output_buff) {
-      throw "Error: Invalid output_buff pointer!";
-    }
-
-    if (!host_latency_msec) {
-      throw "Error: Invalid host_latency_msec pointer!";
-    }
-
-    if (!dev_latency_msec) {
-      throw "Error: Invalid dev_latency_msec pointer!";
-    }
-
-    auto lockable = getDevice(tokenizeDeviceNode(device_node));
-
-    if (lockable->devGuard.try_lock_for(
-            std::chrono::milliseconds(timeout_msec))) {
-      const std::lock_guard<std::timed_mutex> lock(lockable->devGuard,
-                                                   std::adopt_lock_t());
-
-      auto dmCB = std::make_unique<dmControlBlock>();
-      dmCB->cmd_id = cmd_code;
-      std::shared_ptr<char> payload;
-
-      if (isSet && input_buff && input_size) {
-        payload =
-            std::allocate_shared<char>(std::allocator<char>(), input_size);
-        memcpy(payload.get(), input_buff, input_size);
-        memcpy(dmCB->cmd_payload, payload.get(), input_size);
-      }
-
-      if (!lockable->dev.init()) {
-        throw "Unable to initialize device";
-      }
-
-      if (!lockable->dev.mb_write(dmCB.get(), input_size)) {
-        throw "PCIeDevice did not successfully write";
-      }
-
-      if (!lockable->dev.mb_read(output_buff, output_size,
-                                 std::chrono::milliseconds(timeout_msec))) {
-        throw "PCIeDevice did not successfully read";
-      }
-
-      *dev_latency_msec = dmCB->dev_latency;
-      *host_latency_msec = std::chrono::duration_cast<std::chrono::milliseconds>(
-                            std::chrono::steady_clock::now() - start).count();
-
-      if (!lockable->dev.deinit()) {
-        throw "Unable to deinitialize device";
-      }
-
-      return 0;
-    }
-
-    throw "Unable to acquire lock on device!";
-
-  } catch (std::exception &e) {
-    std::cerr << e.what() << std::endl;
-    return 1;
-  } catch (const char *msg) {
-    std::cerr << msg << std::endl;
-    return 1;
+  if (!isValidDeviceNode(device_node)) {
+    return -EINVAL;
   }
+
+  auto cmd = isValidCommand(cmd_code);
+  if (cmd == commandCodeTable.end()) {
+    return -EINVAL;
+  }
+
+  auto isSet = isSetCommand(cmd);
+  if (isSet && !input_buff) {
+    return -EINVAL;
+  }
+
+  if (!output_buff) {
+    return -EINVAL;
+  }
+
+  if (!host_latency_msec) {
+    return -EINVAL;
+  }
+
+  if (!dev_latency_msec) {
+    return -EINVAL;
+  }
+
+  auto lockable = getDevice(tokenizeDeviceNode(device_node));
+
+  if (lockable->devGuard.try_lock_for(
+          std::chrono::milliseconds(timeout_msec))) {
+    const std::lock_guard<std::timed_mutex> lock(lockable->devGuard,
+                                                  std::adopt_lock_t());
+
+    auto wCB = std::make_unique<dmControlBlock>();
+    wCB->cmd_id = cmd_code;
+    std::shared_ptr<char> wPayload;
+
+    if (isSet && input_buff && input_size) {
+      wPayload =
+          std::allocate_shared<char>(std::allocator<char>(), input_size);
+      memcpy(wPayload.get(), input_buff, input_size);
+      memcpy(wCB->cmd_payload, wPayload.get(), input_size);
+    }
+
+    if (!lockable->dev.init()) {
+      return -EIO;
+    }
+
+    if (!lockable->dev.mb_write(wCB.get(), sizeof(*(wCB.get())) + input_size)) {
+      return -EIO;
+    }
+
+    auto rCB = std::make_unique<dmControlBlock>();
+    std::shared_ptr<char> rPayload;
+
+    rPayload =
+          std::allocate_shared<char>(std::allocator<char>(), output_size);
+    memcpy(rCB->cmd_payload, rPayload.get(), output_size);
+
+    if (!lockable->dev.mb_read(rCB.get(), sizeof(*(rCB.get())) + output_size,
+                                std::chrono::milliseconds(timeout_msec))) {
+      return -EIO;
+    }
+
+    memcpy(output_buff, rCB->cmd_payload, output_size);
+
+    *dev_latency_msec = rCB->dev_latency;
+    *host_latency_msec = std::chrono::duration_cast<std::chrono::milliseconds>(
+                          std::chrono::steady_clock::now() - start).count();
+
+    if (!lockable->dev.deinit()) {
+      return -EIO;
+    }
+
+    return 0;
+  }
+
+  return -EAGAIN;
 }
 
 extern "C" DeviceManagement &getInstance() {
