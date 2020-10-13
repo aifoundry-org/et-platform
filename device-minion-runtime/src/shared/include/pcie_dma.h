@@ -5,9 +5,6 @@
 #include <stdbool.h>
 #include <esperanto/device-api/device_api_rpc_types_privileged.h>
 
-#include "mailbox_id.h"
-#include "scatter_gather.h"
-
 /*
  * Configure a DMA engine to issue PCIe memory reads to the x86 host, pulling data to the SoC.
  *
