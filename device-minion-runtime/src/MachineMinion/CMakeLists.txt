@@ -9,7 +9,7 @@
 #------------------------------------------------------------------------------
 
 set(SOURCES
-    ${SHARED_SRC_DIR}/boot.S
+    src/boot.S
     src/trap_handler.S
     src/crt.S
     src/syscall.c
