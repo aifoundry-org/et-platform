@@ -14,6 +14,7 @@
 #include "absl/flags/marshalling.h"
 #include "absl/strings/string_view.h"
 #include <absl/flags/flag.h>
+#include <errno.h>
 #include <dlfcn.h>
 #include <iostream>
 #include <regex>
@@ -24,20 +25,17 @@ struct libdm {
   libdm() { handle_ = dlopen("libDM.so", RTLD_LAZY); }
   ~libdm() { dlclose(&handle_); }
 
-  DeviceManagement &getInstance() {
+  getDM_t getInstance() {
     const char *error;
 
-    if (!handle_) {
-      throw "Could not load library!";
+    if (handle_) {
+      getDM_t getDM = reinterpret_cast<getDM_t>(dlsym(handle_, "getInstance"));
+
+      if (!(error = dlerror())) {
+        return getDM;
+      }
     }
-
-    getDM_t getDM = reinterpret_cast<getDM_t>(dlsym(handle_, "getInstance"));
-
-    if ((error = dlerror())) {
-      throw "Could not load symbol!";
-    }
-
-    return (*getDM)();
+    return (getDM_t)0;
   }
 
   void *handle_;
@@ -126,46 +124,45 @@ int testAsset(DeviceManagement &dm, const char *device_node, uint32_t cmd_id,
 int main(int argc, char *argv[]) {
   et_runtime::ParseCommandLineOptions(argc, argv);
 
-  try {
-    libdm dml;
-    DeviceManagement &dm = dml.getInstance();
+  libdm dml;
+  getDM_t dmi = dml.getInstance();
 
-    commandString cs = absl::GetFlag(FLAGS_cmd);
-    deviceString ds = absl::GetFlag(FLAGS_dev);
-    uint32_t timeout = absl::GetFlag(FLAGS_timeout);
-
-    std::cout << "Command code: " << cs.cmd << " or " << cs.cmd_id << std::endl;
-    std::cout << "Device node: " << ds.dev << std::endl;
-    std::cout << "timeout: " << timeout << std::endl;
-
-    switch (cs.cmd_id) {
-      case 0x01:
-      case 0x04:
-      case 0x09:
-        testAsset(dm, ds.dev.c_str(), cs.cmd_id, nullptr, 0, 4, timeout);
-        break;
-      case 0x00:  // Awaiting parameter size informationf from ET. For now, using DUMMY VALUE of 8 BYTES
-      case 0x02:
-      case 0x03:  // Awaiting parameter size informationf from ET. For now, using DUMMY VALUE of 8 BYTES
-      case 0x05:
-      case 0x06:  // Awaiting parameter size informationf from ET. For now, using DUMMY VALUE of 8 BYTES
-      case 0x07:  // Awaiting parameter size informationf from ET. For now, using DUMMY VALUE of 8 BYTES
-      case 0x08:  // Awaiting parameter size informationf from ET. For now, using DUMMY VALUE of 8 BYTES
-      case 0x0A:  // Awaiting parameter size informationf from ET. For now, using DUMMY VALUE of 8 BYTES
-      case 0x0B:  // Awaiting parameter size informationf from ET. For now, using DUMMY VALUE of 8 BYTES
-      case 0x0C:  // Awaiting parameter size informationf from ET. For now, using DUMMY VALUE of 8 BYTES
-      case 0x0D:  // Awaiting parameter size informationf from ET. For now, using DUMMY VALUE of 8 BYTES
-      case 0x0E:  // Awaiting parameter size informationf from ET. For now, using DUMMY VALUE of 8 BYTES
-        testAsset(dm, ds.dev.c_str(), cs.cmd_id, nullptr, 0, 8, timeout);
-        break;
-      default:
-        throw "Unhandled cmd_id!";
-        break;
-    }
-
-    return 0;
-  } catch (const char *msg) {
-      std::cerr << msg << std::endl;
-      return 1;
+  if (!dmi) {
+    return -EAGAIN;
   }
+
+  DeviceManagement &dm = (*dmi)();
+
+  commandString cs = absl::GetFlag(FLAGS_cmd);
+  deviceString ds = absl::GetFlag(FLAGS_dev);
+  uint32_t timeout = absl::GetFlag(FLAGS_timeout);
+
+  std::cout << "Command code: " << cs.cmd << " or " << cs.cmd_id << std::endl;
+  std::cout << "Device node: " << ds.dev << std::endl;
+  std::cout << "timeout: " << timeout << std::endl;
+
+  switch (cs.cmd_id) {
+    case 0x00:
+    case 0x01:
+    case 0x02:
+    case 0x03:
+    case 0x04:
+    case 0x05:
+    case 0x06:
+    case 0x07:
+    case 0x08:
+    case 0x09:
+    case 0x0A:
+    case 0x0B:
+    case 0x0C:
+    case 0x0D:
+    case 0x0E:
+      testAsset(dm, ds.dev.c_str(), cs.cmd_id, nullptr, 0, 8, timeout);
+      break;
+    default:
+      return -EINVAL;
+      break;
+  }
+
+  return 0;
 }
