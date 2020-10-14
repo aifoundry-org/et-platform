@@ -90,15 +90,15 @@ static void write_reg(uint64_t *const reg, uint64_t rd, uint64_t val)
 static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t mstatus,
                                    uint64_t hart_id, bool user_mode)
 {
-    message_t message;
+    message_exception_t message;
 
     // The master minion needs to know if this is a recoverable kernel exception or an unrecoverable exception
-    message.id = user_mode ? MESSAGE_ID_KERNEL_EXCEPTION : MESSAGE_ID_EXCEPTION;
-    message.data[0] = hart_id;
-    message.data[1] = mcause;
-    message.data[2] = mepc;
-    message.data[3] = mtval;
-    message.data[4] = mstatus;
+    message.header.id = user_mode ? MESSAGE_ID_U_MODE_EXCEPTION : MESSAGE_ID_FW_EXCEPTION;
+    message.hart_id   = hart_id;
+    message.mcause    = mcause;
+    message.mepc      = mepc;
+    message.mtval     = mtval;
+    message.mstatus   = mstatus;
 
-    message_send_worker(get_shire_id(), hart_id, &message);
+    message_send_worker(get_shire_id(), hart_id, (message_t *)&message);
 }

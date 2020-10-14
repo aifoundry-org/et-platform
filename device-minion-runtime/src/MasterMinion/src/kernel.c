@@ -116,12 +116,10 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
             }
 
             // Send message to master minion indicating the kernel is starting
-            message_t sync_message = {
-                .id = MESSAGE_ID_KERNEL_LAUNCH_ACK,
-                .data = { 0 },
-            };
-            sync_message.data[0] = kernel_id;
-            message_send_worker(get_shire_id(), get_hart_id(), &sync_message);
+            message_kernel_launch_ack_t ack_message;
+            ack_message.header.id = MESSAGE_ID_KERNEL_LAUNCH_ACK;
+            ack_message.kernel_id = kernel_id;
+            message_send_worker(get_shire_id(), get_hart_id(), (message_t *)&ack_message);
 
             // Wait for a done FCC1 from each shire, plus sync-minions of master shire
             for (uint64_t i = 0; i < num_shires; i++) {
@@ -129,17 +127,16 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
             }
 
             // Send message to master minion indicating the kernel is complete
-            sync_message.id = MESSAGE_ID_KERNEL_COMPLETE;
-            sync_message.data[0] = kernel_id;
-            message_send_worker(get_shire_id(), get_hart_id(), &sync_message);
+            message_kernel_launch_completed_t completed_message;
+            completed_message.header.id = MESSAGE_ID_KERNEL_COMPLETE;
+            completed_message.kernel_id = kernel_id;
+            message_send_worker(get_shire_id(), get_hart_id(), (message_t *)&completed_message);
         } else {
             // Invalid config, send error message to the master minion
-            message_t sync_message = {
-                .id = MESSAGE_ID_KERNEL_LAUNCH_NACK,
-                .data = { 0 },
-            };
-            sync_message.data[0] = kernel_id;
-            message_send_worker(get_shire_id(), get_hart_id(), &sync_message);
+            message_kernel_launch_nack_t nack_message;
+            nack_message.header.id = MESSAGE_ID_KERNEL_LAUNCH_NACK;
+            nack_message.kernel_id = kernel_id;
+            message_send_worker(get_shire_id(), get_hart_id(), (message_t *)&nack_message);
         }
     }
 }
@@ -313,7 +310,7 @@ dev_api_kernel_abort_response_result_e abort_kernel(kernel_id_t kernel_id)
     if ((kernel_state == KERNEL_STATE_LAUNCHED) || (kernel_state == KERNEL_STATE_RUNNING) ||
         (kernel_state == KERNEL_STATE_ERROR)) {
         message_t message = {
-            .id = MESSAGE_ID_KERNEL_ABORT,
+            .header.id = MESSAGE_ID_KERNEL_ABORT,
             .data = { 0 },
         };
 

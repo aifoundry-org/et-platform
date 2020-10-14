@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-typedef uint64_t log_level_t;
+typedef uint8_t log_level_t;
 
 typedef enum {
     LOG_LEVEL_CRITICAL = 0,
