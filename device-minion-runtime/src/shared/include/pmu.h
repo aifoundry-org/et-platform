@@ -43,8 +43,8 @@
 // Thread in neigh that does all the PMC configuration, starting / topping and sampling
 // There is a 1-1 neigh-bank mapping. Only 1 hread needs to do that to avoid races as the CTL_STATUS register is shared
 // among counters / events
-#define NEIGH_HART_SC 13
-#define NEIGH_HART_MS 15
+#define NEIGH_HART_SC 12
+#define NEIGH_HART_MS 14
 
 // Values to reset and start counting shire cache and memshire PMCs
 // For the time we ignore overflows and disable interrupts.
