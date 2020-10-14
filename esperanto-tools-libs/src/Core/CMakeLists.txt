@@ -21,6 +21,7 @@ add_library(etrt_Core OBJECT
   KernelActions.cc
   MemoryManager.cc
   PmcConfig.cc
+  Profiler.cc
   Stream.cc
   VersionCheckers.cc
   )

@@ -8,7 +8,8 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "esperanto/runtime/Core/TraceHelper.h"
+#include "TraceHelper.h"
+
 #include "DeviceAPI/CommandsGen.h"
 #include "DeviceAPI/ResponsesGen.h"
 #include "esperanto/runtime/Common/ProjectAutogen.h"
