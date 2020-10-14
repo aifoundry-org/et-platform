@@ -104,8 +104,11 @@
                 "Description": { "type": "string"} ,
                 "Type": {
                     "type": "string",
-                    "enum": ["double", "float", "int32_t", "int64_t", "uint32_t", "uint64_t",
-                             "bool", "bytes", "struct", "enum"]
+                    "enum": ["double", "float", "int8_t", "uint8_t",
+                             "int16_t", "uint16_t",
+                             "int32_t", "uint32_t",
+                             "uint64_t", "uint64_t",
+                             "bool", "struct", "enum"]
                 },
                 "Values": {
                     "type": "array",

@@ -12,7 +12,7 @@ Name: RPC_Calls
 ## List of Enums that are used in our messages
 Enums:
   - Name: log_levels
-    Type: uint64_t
+    Type: uint8_t
     Values:
       - Name: CRITICAL
         Value: 0
