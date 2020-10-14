@@ -49,7 +49,7 @@ void __attribute__((noreturn)) main(void)
     // Last thread to join barrier sends ready message to master
     if (result) {
         const message_t message = {
-            .id = MESSAGE_ID_SHIRE_READY,
+            .header.id = MESSAGE_ID_SHIRE_READY,
             .data = { 0 },
         };
         message_send_worker(shire_id, hart_id, &message);
@@ -78,11 +78,10 @@ void __attribute__((noreturn)) main(void)
                     (uint64_t *)(KERNEL_UMODE_STACK_BASE - (hart_id * KERNEL_UMODE_STACK_SIZE));
                 const kernel_params_t *const kernel_params_ptr =
                     kernel_config_ptr->kernel_info.kernel_params_ptr;
-                const grid_config_t *const grid_config_ptr = NULL; // TODO FIXME
                 const uint64_t kernel_launch_flags = kernel_config_ptr->kernel_launch_flags;
 
                 rv = launch_kernel(kernel_entry_addr, kernel_stack_addr, kernel_params_ptr,
-                                   grid_config_ptr, kernel_launch_flags);
+                                   kernel_launch_flags);
                 break;
             }
         }

@@ -42,25 +42,36 @@ void swi_handler(void)
 
 static void handle_message(uint64_t shire, uint64_t hart, message_t *const message_ptr)
 {
-    if (message_ptr->id == MESSAGE_ID_KERNEL_ABORT) {
-        // If kernel was running, returns to firmware context
-        // If not, doesn't do anything.
+    switch (message_ptr->header.id) {
+    case MESSAGE_ID_KERNEL_ABORT:
+        // If kernel was running, returns to firmware context. If not, doesn't do anything.
         return_from_kernel(KERNEL_LAUNCH_ERROR_ABORTED);
-    } else if (message_ptr->id == MESSAGE_ID_SET_LOG_LEVEL) {
-        log_set_level(message_ptr->data[0]);
-    } else if (message_ptr->id == MESSAGE_ID_LOOPBACK) {
+        break;
+    case MESSAGE_ID_SET_LOG_LEVEL:
+        log_set_level(((message_set_log_level_t *)message_ptr)->log_level);
+        break;
+    case MESSAGE_ID_LOOPBACK:
         message_send_worker(shire, hart, message_ptr);
-    } else if (message_ptr->id == MESSAGE_ID_TRACE_UPDATE_CONTROL) {
+        break;
+    case MESSAGE_ID_TRACE_UPDATE_CONTROL:
         // Evict to invalidate control region to get new changes
         TRACE_update_control();
-    } else if (message_ptr->id == MESSAGE_ID_TRACE_BUFFER_RESET) {
+        break;
+    case MESSAGE_ID_TRACE_BUFFER_RESET:
         // Reset trace buffer for next run
         TRACE_init_buffer();
-    } else if (message_ptr->id == MESSAGE_ID_TRACE_BUFFER_EVICT) {
+        break;
+    case MESSAGE_ID_TRACE_BUFFER_EVICT:
         // Evict trace buffer for consumption
         TRACE_evict_buffer();
-    } else if (message_ptr->id == MESSAGE_ID_PMC_CONFIGURE) {
+        break;
+    case MESSAGE_ID_PMC_CONFIGURE:
         // Make a syscall to M-mode to configure PMCs
-        syscall(SYSCALL_CONFIGURE_PMCS_INT, 1, message_ptr->data[0], 0);
+        syscall(SYSCALL_CONFIGURE_PMCS_INT, 1,
+                ((message_pmc_configure_t *)message_ptr)->conf_buffer_addr, 0);
+        break;
+    default:
+        // Unknown message
+        break;
     }
 }

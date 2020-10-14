@@ -6,7 +6,7 @@
 #include <stdbool.h>
 
 typedef enum {
-    MESSAGE_ID_NONE = 0xA5A5A5A5U,
+    MESSAGE_ID_NONE = 0,
     MESSAGE_ID_SHIRE_READY,
     MESSAGE_ID_KERNEL_LAUNCH,
     MESSAGE_ID_KERNEL_LAUNCH_ACK,
@@ -15,8 +15,8 @@ typedef enum {
     MESSAGE_ID_KERNEL_ABORT_NACK,
     MESSAGE_ID_KERNEL_COMPLETE,
     MESSAGE_ID_LOOPBACK,
-    MESSAGE_ID_KERNEL_EXCEPTION,
-    MESSAGE_ID_EXCEPTION,
+    MESSAGE_ID_U_MODE_EXCEPTION,
+    MESSAGE_ID_FW_EXCEPTION,
     MESSAGE_ID_LOG_WRITE,
     MESSAGE_ID_SET_LOG_LEVEL,
     MESSAGE_ID_TRACE_UPDATE_CONTROL,
@@ -25,26 +25,34 @@ typedef enum {
     MESSAGE_ID_PMC_CONFIGURE
 } message_id_e;
 
-typedef uint32_t message_id_t;
+typedef uint8_t message_id_t;
 typedef uint8_t message_number_t;
 
 typedef struct {
     message_number_t number;
     message_id_t id;
-    uint64_t data[7];
-} __attribute__((aligned(64))) message_t; // always aligned to a cache line
+} message_header_t;
+
+#define MESSAGE_MAX_PAYLOAD_SIZE (64 - sizeof(message_header_t))
+
+#define ASSERT_CACHE_LINE_CONSTRAINTS(type)                                      \
+    static_assert(sizeof(type) == 64, "sizeof(" #type ") must be 64 bytes");     \
+    static_assert(_Alignof(type) == 64, "_Alignof(" #type ") must be 64 bytes")
+
+typedef struct {
+    message_header_t header;
+    uint8_t data[MESSAGE_MAX_PAYLOAD_SIZE];
+} __attribute__((packed, aligned(64))) message_t;
+
+ASSERT_CACHE_LINE_CONSTRAINTS(message_t);
+
+#include "message_types.h"
 
 typedef struct {
     uint32_t count;
-} __attribute__((aligned(64))) broadcast_message_ctrl_t; // always aligned to a cache line
+} __attribute__((aligned(64))) broadcast_message_ctrl_t;
 
-// Ensure message_t maps directly to a 64-byte cache line
-static_assert(sizeof(message_t) == 64, "sizeof message_t must be 64 bytes");
-static_assert(_Alignof(message_t) == 64, "_Alignof message_t must be 64 bytes");
-
-// Ensure broadcast_message_ctrl_t maps directly to a 64-byte cache line
-static_assert(sizeof(broadcast_message_ctrl_t) == 64, "sizeof broadcast_message_ctrl_t must be 64 bytes");
-static_assert(_Alignof(broadcast_message_ctrl_t) == 64, "_Alignof broadcast_message_ctrl_t must be 64 bytes");
+ASSERT_CACHE_LINE_CONSTRAINTS(broadcast_message_ctrl_t);
 
 void message_init_master(void);
 void message_init_worker(uint64_t shire, uint64_t hart);

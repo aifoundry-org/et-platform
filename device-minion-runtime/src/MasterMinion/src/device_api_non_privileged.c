@@ -34,7 +34,8 @@ log_level_t devapi_loglevel_to_fw(const enum LOG_LEVELS log_level)
 void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t* message_id,
                                                         uint8_t* buffer)
 {
-    volatile minion_fw_boot_config_t *boot_config = (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
+    volatile minion_fw_boot_config_t *boot_config =
+        (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
     uint64_t booted_minion_shires = boot_config->minion_shires & ((1ULL << NUM_SHIRES) - 1);
 
     {
@@ -142,10 +143,10 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
 
         // send message to workers
-        message_t message;
-        message.id = MESSAGE_ID_SET_LOG_LEVEL;
-        message.data[0] = devapi_loglevel_to_fw(cmd->log_level);
-        broadcast_message_send_master(booted_minion_shires, &message);
+        message_set_log_level_t message;
+        message.header.id = MESSAGE_ID_SET_LOG_LEVEL;
+        message.log_level = devapi_loglevel_to_fw(cmd->log_level);
+        broadcast_message_send_master(booted_minion_shires, (message_t *)&message);
 
         rsp.status = true;
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
@@ -154,13 +155,10 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
                       "DeviceAPI DeviceAPI Set Master Log Level MBOX_send error %" PRIi64 "\r\n",
                       result);
         }
-    } else if (*message_id ==
-               MBOX_DEVAPI_NON_PRIVILEGED_MID_DISCOVER_TRACE_BUFFER_CMD) {
-        const struct discover_trace_buffer_cmd_t *const cmd =
-            (const void *const)buffer;
+    } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_DISCOVER_TRACE_BUFFER_CMD) {
+        const struct discover_trace_buffer_cmd_t *const cmd = (const void *const)buffer;
         struct discover_trace_buffer_rsp_t rsp;
-        struct trace_control_t *trace_ctrl =
-            (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
+        struct trace_control_t *trace_ctrl = (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
 
         rsp.response_info.message_id =
             MBOX_DEVAPI_NON_PRIVILEGED_MID_DISCOVER_TRACE_BUFFER_RSP;
@@ -175,18 +173,13 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
         if (result != 0) {
             log_write(LOG_LEVEL_ERROR,
-                      "DeviceAPI Discover trace buffer MBOX_send error " PRIi64
-                      "\r\n",
-                      result);
+                      "DeviceAPI Discover trace buffer MBOX_send error " PRIi64 "\r\n", result);
         }
 
-    } else if (*message_id ==
-               MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_GROUP_KNOB_CMD) {
-        const struct configure_trace_group_knob_cmd_t *const cmd =
-            (const void *const)buffer;
+    } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_GROUP_KNOB_CMD) {
+        const struct configure_trace_group_knob_cmd_t *const cmd = (const void *const)buffer;
         struct configure_trace_group_knob_rsp_t rsp;
-        struct trace_control_t *trace_ctrl =
-            (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
+        struct trace_control_t *trace_ctrl = (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
 
         rsp.response_info.message_id =
             MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_GROUP_KNOB_RSP;
@@ -205,7 +198,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         // send message to workers
         message_t message;
-        message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
+        message.header.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
         broadcast_message_send_master(booted_minion_shires, &message);
 
         rsp.status = true;
@@ -213,17 +206,12 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
         if (result != 0) {
             log_write(LOG_LEVEL_ERROR,
-                      "DeviceAPI Configure Group knob MBOX_send error " PRIi64
-                      "\r\n",
-                      result);
+                      "DeviceAPI Configure Group knob MBOX_send error " PRIi64 "\r\n", result);
         }
-    } else if (*message_id ==
-               MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_EVENT_KNOB_CMD) {
-        const struct configure_trace_event_knob_cmd_t *const cmd =
-            (const void *const)buffer;
+    } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_EVENT_KNOB_CMD) {
+        const struct configure_trace_event_knob_cmd_t *const cmd = (const void *const)buffer;
         struct configure_trace_event_knob_rsp_t rsp;
-        struct trace_control_t *trace_ctrl =
-            (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
+        struct trace_control_t *trace_ctrl = (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
         rsp.response_info.message_id =
             MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_EVENT_KNOB_RSP;
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
@@ -241,7 +229,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         // send message to workers
         message_t message;
-        message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
+        message.header.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
         broadcast_message_send_master(booted_minion_shires, &message);
 
         rsp.status = true;
@@ -249,17 +237,12 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
         if (result != 0) {
             log_write(LOG_LEVEL_ERROR,
-                      "DeviceAPI Configure Event knob MBOX_send error " PRIi64
-                      "\r\n",
-                      result);
+                      "DeviceAPI Configure Event knob MBOX_send error " PRIi64 "\r\n", result);
         }
-    } else if (*message_id ==
-               MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_BUFFER_SIZE_KNOB_CMD) {
-        const struct configure_trace_buffer_size_knob_cmd_t *const cmd =
-            (const void *const)buffer;
+    } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_BUFFER_SIZE_KNOB_CMD) {
+        const struct configure_trace_buffer_size_knob_cmd_t *const cmd = (const void *const)buffer;
         struct configure_trace_buffer_size_knob_rsp_t rsp;
-        struct trace_control_t *trace_ctrl =
-            (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
+        struct trace_control_t *trace_ctrl = (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
 
         rsp.response_info.message_id =
             MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_BUFFER_SIZE_KNOB_RSP;
@@ -272,18 +255,16 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         // send message to workers
         message_t message;
-        message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
+        message.header.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
         broadcast_message_send_master(booted_minion_shires, &message);
 
         rsp.status = true;
 
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
         if (result != 0) {
-            log_write(
-                LOG_LEVEL_ERROR,
-                "DeviceAPI Configure Buffer size knob MBOX_send error " PRIi64
-                "\r\n",
-                result);
+            log_write(LOG_LEVEL_ERROR,
+                      "DeviceAPI Configure Buffer size knob MBOX_send error " PRIi64 "\r\n",
+                      result);
         }
     } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_SHIRE_MASK_KNOB_CMD) {
         const struct configure_trace_shire_mask_knob_cmd_t *const cmd = (const void *const)buffer;
@@ -301,7 +282,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         // send message to workers
         message_t message;
-        message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
+        message.header.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
         broadcast_message_send_master(booted_minion_shires, &message);
 
         rsp.status = true;
@@ -327,7 +308,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         // send message to workers
         message_t message;
-        message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
+        message.header.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
         broadcast_message_send_master(booted_minion_shires, &message);
 
         rsp.status = true;
@@ -338,11 +319,9 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
                       "DeviceAPI Configure Harts mask knob MBOX_send error " PRIi64 "\r\n", result);
         }
     } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_STATE_KNOB_CMD) {
-        const struct configure_trace_state_knob_cmd_t *const cmd =
-            (const void *const)buffer;
+        const struct configure_trace_state_knob_cmd_t *const cmd = (const void *const)buffer;
         struct configure_trace_state_knob_rsp_t rsp;
-        struct trace_control_t *trace_ctrl =
-            (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
+        struct trace_control_t *trace_ctrl = (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
 
         rsp.response_info.message_id =
             MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_STATE_KNOB_RSP;
@@ -355,26 +334,22 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         // send message to workers
         message_t message;
-        message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
+        message.header.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
         broadcast_message_send_master(booted_minion_shires, &message);
 
         rsp.status = true;
 
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
         if (result != 0) {
-            log_write(
-                LOG_LEVEL_ERROR,
-                "DeviceAPI Configure Trace state knob MBOX_send error " PRIi64
-                "\r\n",
-                result);
+            log_write(LOG_LEVEL_ERROR,
+                      "DeviceAPI Configure Trace state knob MBOX_send error " PRIi64 "\r\n",
+                      result);
         }
     } else if (*message_id ==
                MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_UART_LOGGING_KNOB_CMD) {
-        const struct configure_trace_uart_logging_knob_cmd_t *const cmd =
-            (const void *const)buffer;
+        const struct configure_trace_uart_logging_knob_cmd_t *const cmd = (const void *const)buffer;
         struct configure_trace_uart_logging_knob_rsp_t rsp;
-        struct trace_control_t *trace_ctrl =
-            (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
+        struct trace_control_t *trace_ctrl = (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
 
         rsp.response_info.message_id =
             MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_UART_LOGGING_KNOB_RSP;
@@ -387,25 +362,21 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         // send message to workers
         message_t message;
-        message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
+        message.header.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
         broadcast_message_send_master(booted_minion_shires, &message);
 
         rsp.status = true;
 
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
         if (result != 0) {
-            log_write(
-                LOG_LEVEL_ERROR,
-                "DeviceAPI Configure Trace UART logging knob MBOX_send error " PRIi64
-                "\r\n",
+            log_write(LOG_LEVEL_ERROR,
+                "DeviceAPI Configure Trace UART logging knob MBOX_send error " PRIi64 "\r\n",
                 result);
         }
     } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_LOG_LEVEL_KNOB_CMD) {
-        const struct configure_trace_log_level_knob_cmd_t *const cmd =
-            (const void *const)buffer;
+        const struct configure_trace_log_level_knob_cmd_t *const cmd = (const void *const)buffer;
         struct configure_trace_log_level_knob_rsp_t rsp;
-        struct trace_control_t *trace_ctrl =
-            (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
+        struct trace_control_t *trace_ctrl = (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
 
         rsp.response_info.message_id =
             MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_TRACE_LOG_LEVEL_KNOB_RSP;
@@ -418,22 +389,19 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         // send message to workers
         message_t message;
-        message.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
+        message.header.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
         broadcast_message_send_master(booted_minion_shires, &message);
 
         rsp.status = true;
 
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
         if (result != 0) {
-            log_write(
-                LOG_LEVEL_ERROR,
-                "DeviceAPI Configure Trace log level knob MBOX_send error " PRIi64
-                "\r\n",
-                result);
+            log_write(LOG_LEVEL_ERROR,
+                      "DeviceAPI Configure Trace log level knob MBOX_send error " PRIi64 "\r\n",
+                      result);
         }
     } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_RESET_TRACE_BUFFERS_CMD) {
-        const struct reset_trace_buffers_cmd_t *const cmd =
-            (const void *const)buffer;
+        const struct reset_trace_buffers_cmd_t *const cmd = (const void *const)buffer;
         struct reset_trace_buffers_rsp_t rsp;
 
         rsp.response_info.message_id =
@@ -445,7 +413,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         // send message to workers
         message_t message;
-        message.id = MESSAGE_ID_TRACE_BUFFER_RESET;
+        message.header.id = MESSAGE_ID_TRACE_BUFFER_RESET;
         broadcast_message_send_master(booted_minion_shires, &message);
 
         rsp.status = true;
@@ -453,13 +421,10 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
         if (result != 0) {
             log_write(LOG_LEVEL_ERROR,
-                      "DeviceAPI Reset Trace Buffers MBOX_send error " PRIi64
-                      "\r\n",
-                      result);
+                     "DeviceAPI Reset Trace Buffers MBOX_send error " PRIi64 "\r\n", result);
         }
     } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_PREPARE_TRACE_BUFFERS_CMD) {
-        const struct prepare_trace_buffers_cmd_t *const cmd =
-            (const void *const)buffer;
+        const struct prepare_trace_buffers_cmd_t *const cmd = (const void *const)buffer;
         struct prepare_trace_buffers_rsp_t rsp;
 
         rsp.response_info.message_id =
@@ -471,7 +436,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         // send message to workers
         message_t message;
-        message.id = MESSAGE_ID_TRACE_BUFFER_EVICT;
+        message.header.id = MESSAGE_ID_TRACE_BUFFER_EVICT;
         broadcast_message_send_master(booted_minion_shires, &message);
 
         rsp.status = true;
@@ -479,20 +444,17 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
         if (result != 0) {
             log_write(LOG_LEVEL_ERROR,
-                      "DeviceAPI Prepare Trace buffers MBOX_send error " PRIi64
-                      "\r\n",
-                      result);
+                      "DeviceAPI Prepare Trace buffers MBOX_send error " PRIi64 "\r\n", result);
         }
     } else if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_PMCS_CMD) {
-        const struct configure_pmcs_cmd_t *const cmd =
-            (const void *const)buffer;
+        const struct configure_pmcs_cmd_t *const cmd = (const void *const)buffer;
         struct configure_pmcs_rsp_t rsp;
 
         // Send message to workers to configure PMCs
-        message_t message;
-        message.id = MESSAGE_ID_PMC_CONFIGURE;
-        message.data[0] = cmd->conf_buffer_addr;
-        broadcast_message_send_master(booted_minion_shires, &message);
+        message_pmc_configure_t message;
+        message.header.id = MESSAGE_ID_PMC_CONFIGURE;
+        message.conf_buffer_addr = cmd->conf_buffer_addr;
+        broadcast_message_send_master(booted_minion_shires, (message_t *)&message);
 
         rsp.response_info.message_id = MBOX_DEVAPI_NON_PRIVILEGED_MID_CONFIGURE_PMCS_RSP;
         rsp.status = true;
@@ -500,10 +462,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
         if (result != 0) {
-            log_write(LOG_LEVEL_ERROR,
-                      "Configure PMCs MBOX_send error " PRIi64
-                      "\r\n",
-                      result);
+            log_write(LOG_LEVEL_ERROR, "Configure PMCs MBOX_send error " PRIi64 "\r\n", result);
         }
     } else {
         log_write(LOG_LEVEL_ERROR, "Invalid DeviceAPI message ID: %" PRIu64 "\r\n", *message_id);

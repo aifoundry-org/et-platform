@@ -47,7 +47,7 @@ void message_init_master(void)
         // master->worker messages use message ID to indicate if a message is valid and unread
         for (uint64_t hart = 0; hart < HARTS_PER_SHIRE; hart++) {
             volatile message_t *const msg = &(*master_to_worker_message_buffers)[shire][hart];
-            atomic_store_global_32(&msg->id, MESSAGE_ID_NONE);
+            atomic_store_global_8(&msg->header.id, MESSAGE_ID_NONE);
         }
 
         // Clear worker->master message flags (bitmask containing worker id that sent the msg)
@@ -56,8 +56,9 @@ void message_init_master(void)
     }
 
     // Master->worker broadcast message number and id
-    atomic_store_global_8(&master_to_worker_broadcast_message_buffer_ptr->number, 0);
-    atomic_store_global_32(&master_to_worker_broadcast_message_buffer_ptr->id, MESSAGE_ID_NONE);
+    atomic_store_global_8(&master_to_worker_broadcast_message_buffer_ptr->header.number, 0);
+    atomic_store_global_8(&master_to_worker_broadcast_message_buffer_ptr->header.id,
+                          MESSAGE_ID_NONE);
 }
 
 // Initializes message buffer
@@ -69,7 +70,7 @@ void message_init_worker(uint64_t shire, uint64_t hart)
     // Allow raw 0-2111 hart_id to be passed in
     msg = &(*worker_to_master_message_buffers)[shire][hart % 64];
 
-    atomic_store_global_32(&msg->id, MESSAGE_ID_NONE);
+    atomic_store_global_8(&msg->header.id, MESSAGE_ID_NONE);
 }
 
 // Atomically reads the message pending flags for a shire
@@ -88,14 +89,14 @@ message_id_t get_message_id(uint64_t shire, uint64_t hart)
     // Allow raw 0-2111 hart_id to be passed in
     msg = &(*master_to_worker_message_buffers)[shire][hart % 64];
 
-    return atomic_load_global_32(&msg->id);
+    return atomic_load_global_8(&msg->header.id);
 }
 
 // returns true if the broadcast message id != the previously received broadcast message
 bool broadcast_message_available(message_number_t previous_broadcast_message_number)
 {
     message_number_t cur_number =
-        atomic_load_global_8(&master_to_worker_broadcast_message_buffer_ptr->number);
+        atomic_load_global_8(&master_to_worker_broadcast_message_buffer_ptr->header.number);
 
     return (cur_number != previous_broadcast_message_number);
 }
@@ -150,7 +151,7 @@ int64_t broadcast_message_send_master(uint64_t dest_shire_mask, const message_t 
 
     // Copy message to shared buffer
     *master_to_worker_broadcast_message_buffer_ptr = *message;
-    master_to_worker_broadcast_message_buffer_ptr->number = number++;
+    master_to_worker_broadcast_message_buffer_ptr->header.number = number++;
     evict_message(master_to_worker_broadcast_message_buffer_ptr);
 
     // Configure broadcast message control data
@@ -194,7 +195,7 @@ message_number_t broadcast_message_receive_worker(message_t *const message)
     if (last)
         atomic_add_global_32(&master_to_worker_broadcast_message_ctrl_ptr->count, 1);
 
-    return message->number;
+    return message->header.number;
 }
 
 // Sends a message from worker minion to master minion
@@ -269,7 +270,7 @@ void message_receive_worker(uint64_t dest_shire, uint64_t dest_hart, message_t *
     asm volatile("fence");
 
     // Clear message ID to indicate the worker has received the message from the master
-    atomic_store_global_32(&source_message_ptr->id, MESSAGE_ID_NONE);
+    atomic_store_global_8(&source_message_ptr->header.id, MESSAGE_ID_NONE);
 }
 
 // Atomically sets a message pending flag for a worker minion

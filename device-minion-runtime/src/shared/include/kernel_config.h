@@ -6,7 +6,8 @@
 
 #include <stdint.h>
 
-#define KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH (1 << 0)
+#define KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH (1u << 0)
+#define KERNEL_LAUNCH_FLAGS_EVICT_L3_AFTER_LAUNCH  (1u << 1)
 
 typedef struct {
     kernel_info_t kernel_info;

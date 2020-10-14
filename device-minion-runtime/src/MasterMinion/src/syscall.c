@@ -12,7 +12,7 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
 
     switch (number) {
     case SYSCALL_LOG_WRITE:
-        ret = log_write(arg1, (char *)arg2, arg3);
+        ret = log_write((log_level_t)arg1, (char *)arg2, arg3);
         break;
     case SYSCALL_GET_LOG_LEVEL:
         ret = (int64_t)get_log_level();

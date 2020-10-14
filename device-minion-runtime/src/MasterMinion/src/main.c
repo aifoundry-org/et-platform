@@ -407,7 +407,7 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
 
     message_receive_master(shire, hart, &message);
 
-    switch (message.id) {
+    switch (message.header.id) {
     case MESSAGE_ID_NONE:
         log_write(LOG_LEVEL_DEBUG,
                   "Invalid MESSAGE_ID_NONE received from shire %" PRId64 " hart %" PRId64 "\r\n",
@@ -440,7 +440,8 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
                   "MESSAGE_ID_KERNEL_LAUNCH_ACK received from shire %" PRId64 " hart %" PRId64
                   "\r\n",
                   shire, hart);
-        update_kernel_state(message.data[0], KERNEL_STATE_RUNNING);
+        update_kernel_state(((message_kernel_launch_ack_t *)&message)->kernel_id,
+                            KERNEL_STATE_RUNNING);
         break;
 
     case MESSAGE_ID_KERNEL_LAUNCH_NACK:
@@ -449,7 +450,8 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
                   "\r\n",
                   shire, hart);
         update_shire_state(shire, SHIRE_STATE_ERROR);
-        update_kernel_state(message.data[0], KERNEL_STATE_ERROR);
+        update_kernel_state(((message_kernel_launch_nack_t *)&message)->kernel_id,
+                            KERNEL_STATE_ERROR);
         break;
 
     case MESSAGE_ID_KERNEL_ABORT_NACK:
@@ -465,7 +467,8 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
         log_write(LOG_LEVEL_DEBUG,
                   "MESSAGE_ID_KERNEL_COMPLETE received from shire %" PRId64 " hart %" PRId64 "\r\n",
                   shire, hart);
-        update_kernel_state(message.data[0], KERNEL_STATE_COMPLETE);
+        update_kernel_state(((message_kernel_launch_completed_t *)&message)->kernel_id,
+                            KERNEL_STATE_COMPLETE);
         break;
 
     case MESSAGE_ID_LOOPBACK:
@@ -474,20 +477,23 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
                   hart);
         break;
 
-    case MESSAGE_ID_EXCEPTION:
-        print_exception(message.data[1], message.data[2], message.data[3], message.data[4],
-                        message.data[0]);
-        update_shire_state(
-            shire,
-            SHIRE_STATE_ERROR); // non-kernel exceptions are unrecoverable. Put the shire in error state
+    case MESSAGE_ID_FW_EXCEPTION: {
+        message_exception_t *exception = (message_exception_t *)&message;
+        print_exception(exception->hart_id, exception->mcause, exception->mepc, exception->mtval,
+                        exception->mstatus);
+        // non-kernel exceptions are unrecoverable. Put the shire in error state
+        update_shire_state(shire, SHIRE_STATE_ERROR);
         update_kernel_state(kernel, KERNEL_STATE_ERROR); // the kernel has failed
         break;
+    }
 
-    case MESSAGE_ID_KERNEL_EXCEPTION:
-        print_exception(message.data[1], message.data[2], message.data[3], message.data[4],
-                        message.data[0]);
+    case MESSAGE_ID_U_MODE_EXCEPTION: {
+        message_exception_t *exception = (message_exception_t *)&message;
+        print_exception(exception->hart_id, exception->mcause, exception->mepc, exception->mtval,
+                        exception->mstatus);
         update_kernel_state(kernel, KERNEL_STATE_ERROR); // the kernel has failed
         break;
+    }
 
     case MESSAGE_ID_LOG_WRITE:
         if (get_log_level() > LOG_LEVEL_INFO) {
@@ -534,7 +540,7 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
         log_write(LOG_LEVEL_WARNING,
                   "Unknown message id = 0x%016" PRIx64 " received from shire %" PRId64
                   " hart %" PRId64 "\r\n",
-                  message.id, shire, hart);
+                  message.header.id, shire, hart);
         break;
     }
 }
