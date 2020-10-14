@@ -89,9 +89,8 @@ _boot:
 
 .option push
 .option norelax
-    # BL2's entry point is located @ 0x40400000
-    la ra, 0x40400000
+    la ra, fast_rom
 .option pop
 
-    # Jump to BL2
+    # Jump to Main
     jr ra
