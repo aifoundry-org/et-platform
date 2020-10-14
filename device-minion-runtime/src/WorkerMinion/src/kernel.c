@@ -27,7 +27,8 @@ static void pre_kernel_setup(const kernel_params_t *const kernel_params_ptr,
 static void kernel_return_function(int64_t return_value)
     __attribute__((used, section(".user_text"))); // must be placed in U-mode accessible section
 static void log_errors(int64_t return_value, uint64_t tensor_error);
-static void post_kernel_cleanup(const kernel_params_t *const kernel_params_ptr);
+static void post_kernel_cleanup(const kernel_params_t *const kernel_params_ptr,
+                                uint64_t kernel_launch_flags);
 
 // Saves firmware context and launches kernel in user mode with clean stack and registers
 // Note that global Supervisor interrupts are disabled after returning from this function
@@ -168,7 +169,7 @@ int64_t launch_kernel(const uint64_t *const kernel_entry_addr,
 
     log_errors(return_value, tensor_error);
 
-    post_kernel_cleanup(kernel_params_ptr);
+    post_kernel_cleanup(kernel_params_ptr, kernel_launch_flags);
 
     return return_value;
 }
@@ -302,12 +303,14 @@ static void log_errors(int64_t return_value, uint64_t tensor_error)
     }
 }
 
-static void post_kernel_cleanup(const kernel_params_t *const kernel_params_ptr)
+static void post_kernel_cleanup(const kernel_params_t *const kernel_params_ptr,
+                                uint64_t kernel_launch_flags)
 {
-    bool result;
     const uint64_t shire_id = get_shire_id();
     const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
     const uint32_t minion_mask = (get_shire_id() == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
+    uint64_t evict_l3 = 0;
+    bool result;
 
     // All accesses to kernel_params must happen before SYSCALL_POST_KERNEL_CLEANUP_INT
     // evicts all the caches to avoid pulling it back in as a valid line
@@ -331,7 +334,11 @@ static void post_kernel_cleanup(const kernel_params_t *const kernel_params_ptr)
     // Local barrier with all the participating threads of the shire
     local_fcc_barrier(&post_kernel_barrier[shire_id], thread_count, minion_mask);
 
-    syscall(SYSCALL_POST_KERNEL_CLEANUP_INT, thread_count, 0, 0);
+    // Check if we should evict the L3 to DDR after the kernel launch
+    if (kernel_launch_flags & KERNEL_LAUNCH_FLAGS_EVICT_L3_AFTER_LAUNCH)
+        evict_l3 = 1;
+
+    syscall(SYSCALL_POST_KERNEL_CLEANUP_INT, thread_count, evict_l3, 0);
 
     // FIXME: Dangerous to use FCCs/FLBs, a malicious thread running in another shire might send them...
     init_fcc(FCC_0);
