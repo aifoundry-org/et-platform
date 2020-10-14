@@ -8,7 +8,7 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "runtime/IRuntime.h"
+#include "runtime/IRuntime.h" 
 
 #include <fstream>
 #include <glog/logging.h>
@@ -37,18 +37,33 @@ public:
 
   rt::RuntimePtr runtime_;
   std::vector<std::byte> convolutionContent_;
-  std::vector<rt::Device> devices_;
+  std::vector<rt::DeviceId> devices_;
 };
 
 // Load and removal of a single kernel.
-TEST_F(TestCodeLoading, LoadKernel) {
+TEST_F(TestCodeLoading, LoadKernel) { 
 
-  rt::Kernel kernel;
-  /*EXPECT_NO_THROW(kernel =
+  rt::KernelId kernel;
+  EXPECT_NO_THROW(kernel =
                     runtime_->loadCode(devices_.front(), convolutionContent_.data(), convolutionContent_.size()));
   EXPECT_NO_THROW(runtime_->unloadCode(kernel));
   // if we unload again the same kernel we should expect to throw an exception
-  EXPECT_THROW(runtime_->unloadCode(kernel), rt::Exception);*/
+  EXPECT_THROW(runtime_->unloadCode(kernel), rt::Exception);
+}
+
+TEST_F(TestCodeLoading, MultipleLoads) {
+  std::vector<rt::KernelId> kernels;
+
+  for (int i = 0; i < 10000; ++i) {
+    EXPECT_NO_THROW(kernels.emplace_back(
+      runtime_->loadCode(devices_.front(), convolutionContent_.data(), convolutionContent_.size())));
+  }
+  for (auto it = begin(kernels) + 1; it != end(kernels); ++it) {
+    EXPECT_LT(static_cast<uint32_t>(*(it - 1)), static_cast<uint32_t>(*it));
+  }
+  for (auto kernel : kernels) {
+    EXPECT_NO_THROW(runtime_->unloadCode(kernel));
+  }
 }
 
 } // namespace

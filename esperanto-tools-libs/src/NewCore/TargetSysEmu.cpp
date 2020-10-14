@@ -28,10 +28,14 @@ TargetSysEmu::TargetSysEmu() {
 size_t TargetSysEmu::getDramSize() const { return device_->dramSize(); }
 uint64_t TargetSysEmu::getDramBaseAddr() const { return device_->dramBaseAddr(); }
 
-std::vector<Device> TargetSysEmu::getDevices() const {
-  static Device d;
+std::vector<DeviceId> TargetSysEmu::getDevices() const {
+  static DeviceId d;
   // TODO. Whenever we support multiple devices, fix this. #SW-4438
   return {d};
+}
+
+bool TargetSysEmu::writeDevMemDMA(uintptr_t dev_addr, size_t size, const void* buf) {
+  return device_->writeDevMemDMA(dev_addr, size, buf);
 }
 
 TargetSysEmu::~TargetSysEmu() {

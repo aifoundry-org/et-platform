@@ -9,4 +9,5 @@
  *-------------------------------------------------------------------------*/
 #pragma once
 #include <glog/logging.h>
-#define ET_LOG GLOG
+#define ET_LOG(severity) LOG(severity) << "ET: "
+#define ET_DLOG(severity) DLOG(severity) << "ET: "
