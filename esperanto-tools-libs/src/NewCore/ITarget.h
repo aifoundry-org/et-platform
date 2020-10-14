@@ -17,10 +17,11 @@
 namespace rt {
 class ITarget {
 public:
-  virtual std::vector<Device> getDevices() const = 0;
+  virtual std::vector<DeviceId> getDevices() const = 0;
 
   virtual uint64_t getDramBaseAddr() const = 0;
   virtual size_t getDramSize() const = 0;
+  virtual bool writeDevMemDMA(uintptr_t dev_addr, size_t size, const void* buf) = 0;
 
   virtual ~ITarget() = default;
   // TODO. there are a lot of missing stuff I will be adding when I need it

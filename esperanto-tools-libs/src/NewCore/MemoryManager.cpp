@@ -107,7 +107,7 @@ void* MemoryManager::malloc(size_t size, int alignment) {
     return elem.size_ >= countBlocks + alignmentBlocks;
   });
   if (it == end(free_)) {
-    return nullptr;
+    throw Exception("Out of memory");
   }
 
   // fix the startAddress to match alignment

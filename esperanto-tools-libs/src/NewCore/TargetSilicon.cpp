@@ -19,10 +19,14 @@ TargetSilicon::TargetSilicon() {
   device_->init();
 }
 
-std::vector<Device> TargetSilicon::getDevices() const {
-  static Device d;
+std::vector<DeviceId> TargetSilicon::getDevices() const {
+  static DeviceId d;
   // TODO. Whenever we support multiple devices, fix this. #SW-4438
   return {d};
+}
+
+bool TargetSilicon::writeDevMemDMA(uintptr_t dev_addr, size_t size, const void* buf) {
+  return device_->writeDevMemDMA(dev_addr, size, buf);
 }
 
 size_t TargetSilicon::getDramSize() const { return device_->dramSize(); }
