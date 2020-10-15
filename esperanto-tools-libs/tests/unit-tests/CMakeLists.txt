@@ -18,6 +18,7 @@ set(TEST_LIST
   test_elf_parsing.cc:""
   test_profiler.cc:""
   utest_memory_manager.cpp:""
+  utest_streams_lifecycle.cpp:""
   )
 
 create_test_targets("${TEST_LIST}" "LABELS;Generic;TIMEOUT;600")

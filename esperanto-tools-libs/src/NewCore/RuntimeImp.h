@@ -52,10 +52,24 @@ struct Kernel {
   DeviceId deviceId_;
   std::byte* deviceBuffer_;
 };
+
+struct Stream {
+  //#TODO we will add later VQs information see epic SW-4377
+  Stream(DeviceId deviceId, int vq)
+    : deviceId_(deviceId)
+    , vq_(vq) {
+  }
+  DeviceId deviceId_;
+  int vq_;
+};
   std::unique_ptr<ITarget> target_;
   std::vector<DeviceId> devices_;
   std::unordered_map<DeviceId, MemoryManager> memoryManagers_;
+  std::unordered_map<StreamId, Stream> streams_;
+
+  // using unique_ptr to not have to deal with elfio mess (the class is not friendly with modern c++)
   std::unordered_map<KernelId, std::unique_ptr<Kernel>> kernels_;
   int nextKernelId_ = 0;
+  int nextStreamId_ = 0;
 };
 } // namespace rt

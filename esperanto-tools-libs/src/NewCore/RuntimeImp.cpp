@@ -71,7 +71,11 @@ KernelId RuntimeImp::loadCode(DeviceId device, std::byte* data, size_t size) {
 
   // store the ref
   auto kernelId = static_cast<KernelId>(nextKernelId_++);
-  kernels_.insert({kernelId, std::move(kernel)});
+  auto it = kernels_.find(kernelId);
+  if (it != end(kernels_)) {
+    throw Exception("Can't create kernel");
+  }
+  kernels_.emplace(kernelId, std::move(kernel));
   return kernelId;
 }
 
@@ -97,10 +101,18 @@ void RuntimeImp::freeDevice(DeviceId device, std::byte* buffer) {
 }
 
 StreamId RuntimeImp::createStream(DeviceId device) {
-  throw Exception("Not implemented yet");
+  auto streamId = static_cast<StreamId>(nextStreamId_++);
+  auto it = streams_.find(streamId);
+  if (it != end(streams_)) {
+    throw Exception("Can't create stream");
+  }
+  streams_.emplace(streamId, Stream{device, 0});
+  return streamId;
 }
+
 void RuntimeImp::destroyStream(StreamId stream) {
-  throw Exception("Not implemented yet");
+  auto it = find(streams_, stream);
+  streams_.erase(it);
 }
 
 EventId RuntimeImp::kernelLaunch(StreamId stream, KernelId kernel, std::byte* kernel_args, size_t kernel_args_size,
