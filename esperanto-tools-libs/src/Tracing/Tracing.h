@@ -13,10 +13,9 @@
 
 #include "Tracing/TracingCommonGen.h"
 
-#if _ETRT_ENABLE_TRACING
-#define ETRT_ENABLE_TRACING 1
-#endif
+// FIXME the following defice should be coming form the project configuration
 
+#define ETRT_ENABLE_TRACING 1
 #include "Tracing/TracingGen.h"
 #include "Tracing/etrt-trace.pb.h"
 #include "Tracing/DeviceFWTrace.h"

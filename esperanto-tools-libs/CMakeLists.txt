@@ -14,18 +14,6 @@ project(EsperantoRuntime VERSION 0.1.0 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 
-option(ETRT_ENABLE_PROTOBUF_CONSOLE_LOGGING "Enable protobuf console logging" OFF)
-
-if (ETRT_ENABLE_PROTOBUF_CONSOLE_LOGGING)
-add_compile_definitions(ETRT_ENABLE_PROTOBUF_CONSOLE_LOGGING=1)
-endif(ETRT_ENABLE_PROTOBUF_CONSOLE_LOGGING)
-
-option(_ETRT_ENABLE_TRACING "Enable runtime tracing" OFF)
-
-if (_ETRT_ENABLE_TRACING)
-add_compile_definitions(_ETRT_ENABLE_TRACING=1)
-endif(_ETRT_ENABLE_TRACING)
-
 enable_testing()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")

@@ -34,23 +34,14 @@
   <% for function in functions -%>
     <% set fname = function['Name'] %>
 
-#if ETRT_ENABLE_PROTOBUF_CONSOLE_LOGGING
-#define RTDEBUG_<< mname >>_<< fname >>(<< cgh.function_get_argname_list(function) >>) { \
+#define TRACE_<< mname >>_<< fname >>(<< cgh.function_get_argname_list(function) >>)  { \
+  auto& options = et_runtime::tracing::getTracingOptions(); \
+  if (options.<< mname >>_<< fname >>_enable_text_log) { \
      RTDEBUG  <% raw %> << <% endraw %> " << mname >>::<< fname >> " \
      <% for argument in function.get("Arguments", []) -%>
               <% raw %> << <% endraw %> " << argument['Name'] >>: " <% raw %> << <% endraw %> << argument['Name'] >>   \
      <% endfor -%>
      ; \
-} while (0);
-#else
-#define RTDEBUG_<< mname >>_<< fname >>(<< cgh.function_get_argname_list(function) >>) { \
-} while(0);
-#endif
-
-#define TRACE_<< mname >>_<< fname >>(<< cgh.function_get_argname_list(function) >>)  { \
-  auto& options = et_runtime::tracing::getTracingOptions(); \
-  if (options.<< mname >>_<< fname >>_enable_text_log) { \
-     RTDEBUG_<< mname >>_<< fname >>(<< cgh.function_get_argname_list(function) >>); \
   } \
   if (options.<< mname >>_<< fname >>_enable_pb_log) { \
      <%- for arg in function.get("Arguments", []) -%>
@@ -93,6 +84,9 @@
     <% set fname = function['Name'] %>
 
 #define TRACE_<< mname >>_<< fname >>(<< cgh.function_get_argname_list(function) >>)  { \
+  <% for argument in function.get("Arguments", []) -%>
+    (void)<< argument['Name'] >>;   \
+  <% endfor -%>
 } while(0);
 
 
