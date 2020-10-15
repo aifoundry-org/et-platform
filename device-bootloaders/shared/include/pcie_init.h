@@ -13,13 +13,6 @@
 #define PCIE_INIT_H
 
 #include <stdbool.h>
-#include <stdint.h>
-
-#include "etsoc_hal/inc/rm_esr.h"
-#include "etsoc_hal/inc/hal_device.h"
-#include "pcie_device.h"
-#include "layout.h"
-#include "io.h"
 
 void PCIe_release_pshire_from_reset(void);
 void PCIe_init(bool expect_link_up);

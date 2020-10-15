@@ -8,13 +8,7 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-set(SOURCES 
-    src/boot.S
-    src/main.c
-    ${SHARED_SRC_DIR}/pcie_init.c
-)
-
-include_directories(${SHARED_INC_DIR})
+set(SOURCES src/boot.S)
 
 set(TARGET_NAME BootromTrampolineToBL2)
 set(LINKER_SCRIPT src/sections.ld)

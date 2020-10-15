@@ -138,7 +138,14 @@ static void taskMain(void *pvParameters)
     // Disable buffering on stdout
     setbuf(stdout, NULL);
 
+    // In non-fast-boot mode, the bootrom initializes PCIe link
+#if FAST_BOOT
+    PCIe_release_pshire_from_reset();
+    configure_pcie_pll();
+    PCIe_init(false /*expect_link_up*/);
+#else
     PCIe_init(true /*expect_link_up*/);
+#endif
 
     MBOX_init_pcie();
     printf("Mailbox to host initialized.\n");

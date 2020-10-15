@@ -14,6 +14,17 @@
 
 #include "pcie_init.h"
 
+#include <inttypes.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+
+#include "io.h"
+#include "etsoc_hal/inc/rm_esr.h"
+#include "etsoc_hal/inc/hal_device.h"
+#include "layout.h"
+#include "pcie_device.h"
+
 static void pcie_init_pshire(void);
 static void pcie_init_caps_list(void);
 static void pcie_init_bars(void);
@@ -49,7 +60,7 @@ void PCIe_init(bool expect_link_up)
                 tmp) == SMLH_LTSSM_STATE_LINK_UP) {
             init_link = false;
         } else {
-            //printf("Warning: PCIe link not properly inited, trying again...\r\n");
+            printf("Warning: PCIe link not properly inited, trying again...\r\n");
         }
     }
 
@@ -70,8 +81,8 @@ void PCIe_init(bool expect_link_up)
 
     tmp = ioread32(PCIE_CUST_SS +
                    DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_ADDRESS);
-    //printf("PCIe link up at Gen %ld\r\n",
-    //       DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_RATE_GET(tmp) + 1);
+    printf("PCIe link up at Gen %ld\r\n",
+           DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_RATE_GET(tmp) + 1);
 }
 
 static void pcie_init_pshire(void)
@@ -81,11 +92,11 @@ static void pcie_init_pshire(void)
 
     //Wait for PERST_N
     //TODO FIXME JIRA SW-330: Don't monopolize the HART to poll
-    //printf("Waiting for PCIe bus out of reset...");
+    printf("Waiting for PCIe bus out of reset...");
     do {
         tmp = ioread32(PCIE_ESR + PSHIRE_PSHIRE_STAT_ADDRESS);
     } while (PSHIRE_PSHIRE_STAT_PERST_N_GET(tmp) == 0);
-    //printf(" done\r\n");
+    printf(" done\r\n");
 
     // Deassert PCIe cold reset
     tmp = ioread32(PCIE_ESR + PSHIRE_PSHIRE_RESET_ADDRESS);
@@ -338,13 +349,13 @@ static void pcie_init_link(void)
 
     // Wait for link training to finish
     // TODO FIXME JIRA SW-330: Don't monopolize the HART to poll, add a 100ms timeout
-    //printf("Link training...");
+    printf("Link training...");
     do {
         tmp = ioread32(PCIE_CUST_SS +
                        DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_ADDRESS);
     } while (DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_SMLH_LTSSM_STATE_GET(
                  tmp) != SMLH_LTSSM_STATE_LINK_UP);
-    //printf(" done\r\n");
+    printf(" done\r\n");
 }
 
 static void pcie_init_noc(void)
@@ -552,14 +563,14 @@ static void pcie_init_atus(void)
 
     //TODO FIXME JIRA SW-330: Don't monopolize the HART to poll
     //This wait could be long (tens of seconds), depending on when the OS enables PCIe
-    //printf("Waiting for host to enable memory space...");
+    printf("Waiting for host to enable memory space...");
     uint32_t status_command_reg;
     do {
         status_command_reg =
             ioread32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_STATUS_COMMAND_REG_ADDRESS);
     } while (PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_STATUS_COMMAND_REG_PCI_TYPE0_MEM_SPACE_EN_GET(
                  status_command_reg) == 0);
-    //printf(" done\r\n");
+    printf(" done\r\n");
 
     //TODO: I need to ensure the host does not try and send Mem Rd / Mem Wr before the iATUs
     //are configured. The latency of a PCIe transaction (1-10s of uS) is probably long enough
@@ -632,7 +643,7 @@ static void pcie_wait_for_ints(void)
     uint32_t msi_ctrl;
     uint32_t msix_ctrl;
 
-    //printf("Waiting for host to enable MSI/MSI-X...");
+    printf("Waiting for host to enable MSI/MSI-X...");
     do {
         msi_ctrl = ioread32(
             PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_ADDRESS);
@@ -643,5 +654,5 @@ static void pcie_wait_for_ints(void)
             msi_ctrl) == 0 &&
         PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSIX_CAP_PCI_MSIX_CAP_ID_NEXT_CTRL_REG_PCI_MSIX_ENABLE_GET(
             msix_ctrl) == 0);
-    //printf(" done\r\n");
+    printf(" done\r\n");
 }
