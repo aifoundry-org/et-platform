@@ -129,8 +129,8 @@ TEST(MemoryManager, malloc_free_basic) {
 TEST(MemoryManager, malloc_free_holes) {
   auto totalRam = 1ul << 34;
   auto mm = MemoryManager(1 << 10, totalRam);
-  auto ptr = mm.malloc(totalRam + 1024, 1 << 10);
-  ASSERT_EQ(ptr, nullptr);
+
+  EXPECT_THROW({ mm.malloc(totalRam + 1024, 1 << 10); }, Exception);
 
   // alloc 100 buffers
   std::vector<void*> ptrs;
