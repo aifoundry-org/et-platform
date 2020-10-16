@@ -12,10 +12,6 @@
 #define ET_RUNTIME_TRACING_H
 
 #include "Tracing/TracingCommonGen.h"
-
-// FIXME the following defice should be coming form the project configuration
-
-#define ETRT_ENABLE_TRACING 1
 #include "Tracing/TracingGen.h"
 #include "Tracing/etrt-trace.pb.h"
 #include "Tracing/DeviceFWTrace.h"
