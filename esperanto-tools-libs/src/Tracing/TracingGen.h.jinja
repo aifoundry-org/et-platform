@@ -84,6 +84,9 @@
     <% set fname = function['Name'] %>
 
 #define TRACE_<< mname >>_<< fname >>(<< cgh.function_get_argname_list(function) >>)  { \
+  <% for argument in function.get("Arguments", []) -%>
+    (void)<< argument['Name'] >>;   \
+  <% endfor -%>
 } while(0);
 
 
