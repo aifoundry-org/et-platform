@@ -51,6 +51,7 @@ set(SOURCES
     ${SHARED_SRC_DIR}/pcie_init.c
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/sp_otp.c
+    ${SHARED_SRC_DIR}/usb2_0.c
 )
 
 set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/src/sections.ld)
