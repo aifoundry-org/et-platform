@@ -13,6 +13,9 @@ import hudson.model.*
 
 pipeline {
     parameters {
+        string(name: 'SW_PLATFORM_BRANCH',
+               defaultValue: 'origin/master',
+               description: "SW platform branch to checkout")
         string(name: 'BRANCH',
                defaultValue: '$gitlabSourceBranch',
                description: "Branch name to checkout")
