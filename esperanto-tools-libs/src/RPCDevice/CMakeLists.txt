@@ -16,8 +16,15 @@ add_library(etrt_RPCDevice OBJECT
   TargetDeviceInfo.h.in
   TargetRPC.cc
   TargetRPC.h
+  SysEmuAbslFlags.h
   TargetSysEmu.cc
   TargetSysEmu.h
+  EmuVirtQueueDev.h
+  EmuVirtQueueDev.cc
+  RPCTarget_MM.h
+  RPCTarget_MM.cc
+  SysEmuTarget_MM.h
+  SysEmuTarget_MM.cc
   )
 
 target_include_directories(etrt_RPCDevice PRIVATE

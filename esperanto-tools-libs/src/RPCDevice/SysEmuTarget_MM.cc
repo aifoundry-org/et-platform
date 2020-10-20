@@ -8,7 +8,7 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "TargetSysEmu.h"
+#include "SysEmuTarget_MM.h"
 
 #include "esperanto/simulator-api.grpc.pb.h"
 
@@ -31,32 +31,9 @@ namespace fs = std::experimental::filesystem;
 using namespace std;
 using namespace simulator_api;
 
-ABSL_FLAG(std::string, sysemu_path, et_runtime::device::SYSEMU_PATH,
-          "Path to SysEMU");
-ABSL_FLAG(std::string, sysemu_run_dir,
-          "", "Path to SysEMU run folder");
-ABSL_FLAG(std::string, sysemu_socket_dir, "",
-          "Existing folder where SysEMU sockets are going to be created, < 100 characters.");
-ABSL_FLAG(uint64_t, sysemu_max_cycles, std::numeric_limits<uint64_t>::max(),
-          "Set SysEmu maximum cycles to run before finishing simulation");
-ABSL_FLAG(uint64_t, sysemu_shires_mask, 0x1FFFFFFFFu,
-          "Set SysEmu Shire mask (enabled Shires)");
-ABSL_FLAG(bool, sysemu_boot_sp, false,
-          "Boot the SP instead of the FW Minions. It's up to the user to load BL2/OTP, etc.");
-ABSL_FLAG(std::string, sysemu_pu_uart0_tx_file, "",
-          "Set SysEmu PU UART0 TX log file");
-ABSL_FLAG(std::string, sysemu_pu_uart1_tx_file, "",
-          "Set SysEmu PU UART1 TX log file");
-ABSL_FLAG(std::string, sysemu_spio_uart0_tx_file, "",
-          "Set SysEmu SPIO UART0 TX log file");
-ABSL_FLAG(std::string, sysemu_spio_uart1_tx_file, "",
-          "Set SysEmu SPIO UART1 TX log file");
-ABSL_FLAG(std::string, sysemu_params, "",
-          "Hyperparameters to pass to SysEmu, might override default values");
-
 namespace et_runtime {
 namespace device {
-TargetSysEmu::TargetSysEmu(int index) : RPCTarget(index, "") {
+SysEmuTargetMM::SysEmuTargetMM(int index) : RPCTargetMM(index, "") {
   // Find the current directory
   // Do not use the full path as the path we provide needs to fit in 107 characters
   auto cwd = fs::current_path();
@@ -122,15 +99,15 @@ TargetSysEmu::TargetSysEmu(int index) : RPCTarget(index, "") {
                                          additional_params);
 };
 
-TargetSysEmu::~TargetSysEmu() {}
+SysEmuTargetMM::~SysEmuTargetMM() {}
 
-bool TargetSysEmu::init() {
+bool SysEmuTargetMM::init() {
 
   if (device_alive_) {
     return false;
   }
 
-  auto init_grpc = RPCTarget::init();
+  auto init_grpc = RPCTargetMM::init();
   assert(init_grpc);
 
   RTINFO << "Starting SysEmu Process";
@@ -155,13 +132,13 @@ bool TargetSysEmu::init() {
   return true;
 }
 
-bool TargetSysEmu::postFWLoadInit() {
-  auto success = RPCTarget::postFWLoadInit();
+bool SysEmuTargetMM::postFWLoadInit() {
+  auto success = RPCTargetMM::postFWLoadInit();
   assert(success);
   return true;
 }
 
-bool TargetSysEmu::deinit() {
+bool SysEmuTargetMM::deinit() {
   /// If the simulator is not alive any more return
   if (!this->alive()) {
     return false;
@@ -174,7 +151,7 @@ bool TargetSysEmu::deinit() {
   return true;
 }
 
-bool TargetSysEmu::alive() {
+bool SysEmuTargetMM::alive() {
   auto status = simulator_status_.wait_for(0ms);
 
   // check if the simulator has startedy
@@ -185,27 +162,27 @@ bool TargetSysEmu::alive() {
   return device_alive_;
 }
 
-bool TargetSysEmu::getStatus() {
+bool SysEmuTargetMM::getStatus() {
   assert(true);
   return false;
 }
 
-DeviceInformation TargetSysEmu::getStaticConfiguration() {
+DeviceInformation SysEmuTargetMM::getStaticConfiguration() {
   assert(true);
   return {};
 }
 
-bool TargetSysEmu::submitCommand() {
+bool SysEmuTargetMM::submitCommand() {
   assert(true);
   return false;
 }
 
-bool TargetSysEmu::registerResponseCallback() {
+bool SysEmuTargetMM::registerResponseCallback() {
   assert(true);
   return false;
 }
 
-bool TargetSysEmu::registerDeviceEventCallback() {
+bool SysEmuTargetMM::registerDeviceEventCallback() {
   assert(true);
   return false;
 }

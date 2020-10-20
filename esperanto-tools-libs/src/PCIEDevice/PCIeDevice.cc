@@ -229,6 +229,26 @@ bool PCIeDevice::registerDeviceEventCallback() {
   return false;
 }
 
+bool PCIeDevice::virtQueuesDiscover(TimeDuration wait_time) {
+  assert(false);
+  return false;
+}
+
+bool PCIeDevice::virtQueueWrite(const void *data, ssize_t size, uint8_t queueId) {
+  assert(false);
+  return false;
+}
+
+ssize_t PCIeDevice::virtQueueRead(void *data, ssize_t size, uint8_t queueId, TimeDuration wait_time) {
+  assert(false);
+  return false;
+}
+
+bool PCIeDevice::waitForEpollEvents(uint32_t &sq_bitmap, uint32_t &cq_bitmap) {
+  assert(false);
+  return false;
+}
+
 bool PCIeDevice::readDevMemMMIO(uintptr_t dev_addr, size_t size, void *buf) {
   enableMMIO(fd_);
   TRACE_PCIeDevice_mmio_read_start(dev_addr, (uint64_t)buf, size);

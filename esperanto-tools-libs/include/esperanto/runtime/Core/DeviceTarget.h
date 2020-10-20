@@ -63,6 +63,7 @@ public:
     None = 0,
     PCIe, ///< PCIE device type
     SysEmuGRPC, ///< Create an RPC device and connect to SysEmu
+    SysEmuGRPC_VQ_MM, ///< Create an RPC device and connect to SysEmu using the VQ implementation (a duplicate of SysEmuGRPC to keep both mailbox and virtqueue functional at a time)
     DeviceGRPC, ///< Create a RPC device and connect to any simulator that simplements the SimulatorAPI
     FakeDevice, ///< @todo this type should be deprecated
   };
@@ -156,6 +157,55 @@ public:
   /// @brief Return the maximum size of a mailbox message
   virtual ssize_t mboxMsgMaxSize() const = 0;
 
+  /// @brief Return the maximum size of message
+  virtual uint16_t virtQueueMsgMaxSize() { return maxMsgSize_; }
+
+  /// @brief Return the virtual queues count
+  virtual uint16_t virtQueueCount() { return queueCount_; }
+
+  /// @brief Return the buffer count in a queue
+  virtual uint16_t virtQueueBufCount() { return queueBufCount_; }
+
+  /// @brief Discover virtual queues info and update maxMsgSize_, queueCount_ and
+  /// queueBufCount_ from remote
+  /// @param[wait_time] wait_time. Time to wait for the discovery to complete
+  ///
+  /// @return True if discovery is successful
+  virtual bool virtQueuesDiscover(TimeDuration wait_time = TimeDuration::max()) = 0;
+
+  /// @brief Virtual Queue write message
+  ///
+  /// @param[in] data Pointer to queue message
+  /// @param[in] size Size in bytes of the queue message to write
+  /// @param[in] queueId index of the queue to write the message to
+  ///
+  /// @return True if write is successful
+  virtual bool virtQueueWrite(const void *data, ssize_t size,
+                              uint8_t queueId) = 0;
+
+  /// @Brief Virtual Queue message read
+  ///
+  /// @param[inout] data Pointer to buffer that will hold the size of the
+  /// message we want to read
+  /// @param[in] size Size of the message to read.
+  /// @param[in] queueId index of the queue to read the message from
+  /// @param[wait_time] wait_time. Time to wait for the read to complete, i.e.
+  /// to receive a message.
+  ///
+  /// @return Size of the message read. Zero if the read was not succesful.
+  virtual ssize_t virtQueueRead(void *data, ssize_t size, uint8_t queueId,
+                                TimeDuration wait_time = TimeDuration::max()) = 0;
+
+  /// @Brief Wait for Epoll Events
+  ///
+  /// @param[out] sq_bitmap Bitmap with bits indicating availability of submission
+  /// queue
+  /// @param[out] cq_bitmap Bitmap with bits indicating availability of completion
+  /// queue
+  ///
+  /// @return True if epoll event occur
+  virtual bool waitForEpollEvents(uint32_t &sq_bitmap, uint32_t &cq_bitmap) = 0;
+
   /// @brief MailBox write message
   ///
   /// @param[in] data Pointer to mailbox message
@@ -197,6 +247,9 @@ protected:
   int index_; ///< Index fo the device
   bool device_alive_ = false; ///< Flag to guard that the device has been initialize correctly and
                               ///< gate any incorrect re-initialization or de-initialization
+  uint16_t maxMsgSize_;  ///< Maximum msg size
+  uint16_t queueCount_;       ///< Count of virtual queues
+  uint16_t queueBufCount_;    ///< Count of buffers in a virtual queue
 };
 } // namespace device
 } // namespace et_runtime

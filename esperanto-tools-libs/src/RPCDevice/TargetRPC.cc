@@ -24,6 +24,10 @@ using namespace simulator_api;
 namespace et_runtime {
 namespace device {
 
+namespace {
+  const uint64_t kVirtQueueDescAddr = 0x8005100000ULL;
+}
+
 RPCTarget::RPCTarget(int index, const std::string &p)
     : DeviceTarget(index), socket_path_(p),
       mailboxDev_(std::make_unique<EmuMailBoxDev>(*this, MailboxTarget::MAILBOX_TARGET_MM)) {}
@@ -42,6 +46,16 @@ bool RPCTarget::postFWLoadInit() {
   // we are resetting the mailboxes
   auto success = rpcWaitForHostInterrupt(std::chrono::seconds(30));
   assert(success);
+
+  // TODO: Remove following temporary fix when device interface registers are
+  // available
+  // Device does not proceed further until the virtual queues are discovered. So
+  // marking the virtual queues as discovered here
+  struct device_fw::vqueue_desc vqDescMM;
+  vqDescMM.host_ready = 1; // mark as host ready i.e. virtqueues discovered
+  success = rpcMemoryWrite(kVirtQueueDescAddr +
+                                offsetof(device_fw::vqueue_desc, host_ready),
+                                sizeof(vqDescMM.host_ready), &vqDescMM.host_ready);
 
   // For DeviceFW reset the mailbox as well and wait for device-fw to be ready
   success = mailboxDev_->ready(std::chrono::seconds(20));
@@ -84,6 +98,26 @@ bool RPCTarget::registerResponseCallback() {
 
 bool RPCTarget::registerDeviceEventCallback() {
   assert(true);
+  return false;
+}
+
+bool RPCTarget::virtQueuesDiscover(TimeDuration wait_time) {
+  assert(false);
+  return false;
+}
+
+bool RPCTarget::virtQueueWrite(const void *data, ssize_t size, uint8_t queueId) {
+  assert(false);
+  return false;
+}
+
+ssize_t RPCTarget::virtQueueRead(void *data, ssize_t size, uint8_t queueId, TimeDuration wait_time) {
+  assert(false);
+  return false;
+}
+
+bool RPCTarget::waitForEpollEvents(uint32_t &sq_bitmap, uint32_t &cq_bitmap) {
+  assert(false);
   return false;
 }
 
