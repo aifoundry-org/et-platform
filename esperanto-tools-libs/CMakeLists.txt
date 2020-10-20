@@ -24,6 +24,12 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CoverageSupport.cmake)
 option(BUILD_SHARED_LIBS "Build shared libs." ON)
 option(ENABLE_PCIE "Enable pcie support by default" OFF)
 option(ENABLE_CCACHE "Enable ccahe in the builds" OFF)
+option(
+  ENABLE_ET_LOG
+  "Whether ET_LOG lines produce any code or are optimized out"
+  ON
+)
+
 # If not empty install any runtime python packages
 set(PYTHON "" CACHE PATH "Path to the python binary to install our python packages under")
 set(DOCUMENTATION_INSTALL_DIR "${CMAKE_INSTALL_DIR}/doc" CACHE PATH "Documentation installation path")
@@ -81,6 +87,9 @@ set(MINION_RUNTIME_PACKAGE_NAME EsperantoDeviceMinionRuntime)
 message("EsperantoDeviceMinionRuntime found: " ${EsperantoDeviceMinionRuntime_FOUND})
 set(MINION_RUNTIME_FOUND 1)
 set(ESPERANTO_FW_INCLUDE_DIR ${ESPERANTO_DEVICE_MINION_RUNTIME_INCLUDE_DIR})
+
+# Add definitions and compile options
+add_definitions("-DENABLE_ET_LOG=$<BOOL:${ENABLE_ET_LOG}>")
 
 # Add rules for auto-generated headers.
 add_subdirectory(include)
