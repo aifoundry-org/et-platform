@@ -590,7 +590,7 @@ static void pcie_init_atus(void)
 
     config_inbound_iatu_0(bar0, //baseAddr
                           DRAM_MEMMAP_BEGIN, //targetAddr
-                          DRAM_MEMMAP_END); //size
+                          DRAM_MEMMAP_SIZE); //size
 
     //Setup BAR2
     //Name              Host Addr       SoC Addr      Size   Notes
