@@ -37,7 +37,6 @@
 #include <string.h>
 #include "bl2_crypto.h"
 #include "bl2_asset_trk.h"
-#include <esperanto/device-api/device_management.h>
 
 #define TASK_STACK_SIZE 4096 // overkill for now
 

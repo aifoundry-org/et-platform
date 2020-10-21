@@ -15,8 +15,6 @@
 #include <esperanto/device-api/device_api.h>
 #include <esperanto/device-api/device_api_rpc_types_non_privileged.h>
 
-#include <esperanto/device-api/device_management.h>
-
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -24,9 +22,6 @@
 #define MBOX_TASK_PRIORITY 2
 #define MBOX_STACK_SIZE    256
 
-/* Device latency for Device management */
-uint64_t request_start_time;
-uint64_t response_complete_time;
 static TaskHandle_t taskHandles[MBOX_COUNT];
 static StackType_t stacks[MBOX_COUNT][MBOX_STACK_SIZE];
 static StaticTask_t staticTasks[MBOX_COUNT];
@@ -186,7 +181,7 @@ static void mbox_task(void *pvParameters)
             } break;
             case GET_MODULE_MANUFACTURE_NAME...GET_MODULE_MEMORY_TYPE: {
                 // Process asset tracking service request cmd
-                assetTrackingProcessRequest(mbox, (uint32_t)*message_id); 
+                asset_tracking_process_request(mbox, (uint32_t)*message_id); 
 	    } break;
             default:
                 printf("Invalid message id: %" PRIu64 "\r\n", *message_id);
@@ -359,7 +354,6 @@ static void mbox_pcie_isr(void)
     const uint32_t ipi_trigger = *(volatile uint32_t *)R_PU_TRG_PCIE_BASEADDR;
     volatile uint32_t *const ipi_clear_ptr = (volatile uint32_t *)(R_PU_TRG_PCIE_SP_BASEADDR);
 
-    request_start_time = timer_get_ticks_count();
     xTaskNotifyFromISR(taskHandles[MBOX_PCIE], ipi_trigger, eSetBits, &xHigherPriorityTaskWoken);
 
     *ipi_clear_ptr = ipi_trigger;
