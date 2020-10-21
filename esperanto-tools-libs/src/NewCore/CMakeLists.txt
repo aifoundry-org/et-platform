@@ -14,6 +14,7 @@ add_library(etrt_NewCore OBJECT
   TargetSilicon.cpp
   TargetSysEmu.cpp
   MemoryManager.cpp
+  EventManager.cpp
   )
 
 target_include_directories(etrt_NewCore PRIVATE

@@ -60,6 +60,7 @@ struct Stream {
     , vq_(vq) {
   }
   DeviceId deviceId_;
+  std::underlying_type_t<EventId> lastEventId_; // last submitted event to this stream
   int vq_;
 };
   std::unique_ptr<ITarget> target_;
