@@ -30,6 +30,7 @@ struct PcieApbSubsys : public MemoryRegion {
     typedef typename MemoryRegion::const_pointer  const_pointer;
 
     enum : unsigned long long {
+        PE0_GEN_CTRL_3 = 0x58,
         PE0_LINK_DBG_1 = 0xb0,
         PE0_LINK_DBG_2 = 0xb4,
     };
@@ -47,6 +48,9 @@ struct PcieApbSubsys : public MemoryRegion {
             throw memory_error(first() + pos);
 
         switch (pos) {
+        case PE0_GEN_CTRL_3:
+            *result32 = pe0_gen_ctrl_3;
+            break;
         case PE0_LINK_DBG_2:
             *result32 = (0u                       << 24) | // CDM in reset
                         (3u                       <<  8) | // Rate = 3 (PCIe Gen 4)
@@ -61,12 +65,17 @@ struct PcieApbSubsys : public MemoryRegion {
 
     void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
         const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
-        (void) source32;
 
         LOG_NOTHREAD(DEBUG, "PcieApbSubsys::write(pos=0x%llx)", pos);
 
         if (n < 4)
             throw memory_error(first() + pos);
+
+        switch (pos) {
+        case PE0_GEN_CTRL_3:
+            pe0_gen_ctrl_3 = *source32;
+            break;
+        }
     }
 
     void init(const Agent&, size_type, size_type, const_pointer) override {
@@ -77,6 +86,8 @@ struct PcieApbSubsys : public MemoryRegion {
     addr_type last() const override { return Base + N - 1; }
 
     void dump_data(std::ostream&, size_type, size_type) const override { }
+
+    uint32_t pe0_gen_ctrl_3;
 };
 
 

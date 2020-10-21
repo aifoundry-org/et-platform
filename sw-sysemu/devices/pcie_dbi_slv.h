@@ -113,8 +113,10 @@ struct PcieDbiSlvRegion : public MemoryRegion {
                 } else { // Outbound ATUs
                     *result32 = 0;
                 }
-            } else {
-                *result32 = 0;
+            // BAR subregion
+            } else if (pos >= PF0_TYPE0_HDR_BAR0_REG_ADDRESS &&
+                       pos <= PF0_TYPE0_HDR_BAR5_REG_ADDRESS) {
+                *result32 = bar_regs[(pos - PF0_TYPE0_HDR_BAR0_REG_ADDRESS) / 4];
             }
             break;
         }
@@ -169,6 +171,10 @@ struct PcieDbiSlvRegion : public MemoryRegion {
                 } else { // Outbound ATUs
                     // Not implemented
                 }
+            // BAR subregion
+            } else if (pos >= PF0_TYPE0_HDR_BAR0_REG_ADDRESS &&
+                       pos <= PF0_TYPE0_HDR_BAR5_REG_ADDRESS) {
+                bar_regs[(pos - PF0_TYPE0_HDR_BAR0_REG_ADDRESS) / 4] = *source32;
             }
             break;
         }
@@ -194,6 +200,7 @@ struct PcieDbiSlvRegion : public MemoryRegion {
         uint32_t uppr_limit_addr;
     };
 
+    std::array<uint32_t, 6> bar_regs{};
     std::array<iatu_info_t, ETSOC_CX_ATU_NUM_INBOUND_REGIONS> iatus{};
 };
 
