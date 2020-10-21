@@ -19,6 +19,7 @@ set(TEST_LIST
   test_profiler.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
   utest_memory_manager.cpp:""
   utest_streams_lifecycle.cpp:""
+  utest_event_manager.cpp:""
   )
 
 create_test_targets("${TEST_LIST}" "LABELS;Generic;TIMEOUT;600")

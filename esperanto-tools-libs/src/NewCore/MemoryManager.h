@@ -29,8 +29,10 @@ private:
   struct FreeChunk {
     uint32_t startAddress_;
     uint32_t size_;
-    bool operator<(const FreeChunk& other) const { return startAddress_ < other.startAddress_; }
-  };
+    bool operator<(const FreeChunk& other) const {
+      return startAddress_ < other.startAddress_;
+    }
+  }; 
 
   uint32_t compressPointer(void* ptr) const {
     auto tmp = reinterpret_cast<uint64_t>(ptr);

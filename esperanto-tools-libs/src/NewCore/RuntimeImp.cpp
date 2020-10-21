@@ -121,7 +121,8 @@ EventId RuntimeImp::kernelLaunch(StreamId stream, KernelId kernel, std::byte* ke
 }
 
 EventId RuntimeImp::memcpyHostToDevice(StreamId stream, std::byte* src, std::byte* dst, size_t size, bool barrier) {
-  throw Exception("Not implemented yet");
+  target_->writeDevMemDMA(reinterpret_cast<uint64_t>(dst), size, src);
+  return EventId{0};
 }
 EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, std::byte* src, std::byte* dst, size_t size, bool barrier) {
   throw Exception("Not implemented yet");
