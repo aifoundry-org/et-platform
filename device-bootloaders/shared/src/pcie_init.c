@@ -149,6 +149,7 @@ static void pcie_init_caps_list(void)
 
 static void pcie_init_bars(void)
 {
+    uint32_t bar0, bar2;
     uint32_t misc_control;
 
     //The BAR config registers are protected by a write-enable bit
@@ -195,22 +196,18 @@ static void pcie_init_bars(void)
             15));
 
     //BAR0 config (maps DRAM)
-    iowrite32(
-        PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_ADDRESS,
-        PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_BAR0_MEM_IO_SET(BAR_IN_MEM_SPACE) |
-            PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_BAR0_TYPE_SET(BAR_TYPE_64BIT) |
-            PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_BAR0_PREFETCH_SET(
-                1) //IMPORTANT: Many hosts do not tolerate > 1 gb BARs that are not prefetchable
-    );
+    bar0 = ioread32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_ADDRESS);
+    bar0 = PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_BAR0_MEM_IO_MODIFY(bar0, BAR_IN_MEM_SPACE);
+    bar0 = (uint32_t)PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_BAR0_TYPE_MODIFY(bar0, BAR_TYPE_64BIT);
+    bar0 = PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_BAR0_PREFETCH_MODIFY(bar0, 1); //IMPORTANT: Many hosts do not tolerate > 1 gb BARs that are not prefetchable
+    iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_ADDRESS, bar0);
 
     //BAR2 config (maps registers)
-    iowrite32(
-        PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR2_REG_ADDRESS,
-        PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR2_REG_BAR2_MEM_IO_SET(BAR_IN_MEM_SPACE) |
-            PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR2_REG_BAR2_TYPE_SET(BAR_TYPE_64BIT) |
-            PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR2_REG_BAR2_PREFETCH_SET(
-                0) //IMPORTANT - not prefetchable (registers with read side effects mapped here)
-    );
+    bar2 = ioread32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR2_REG_ADDRESS);
+    bar2 = PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR2_REG_BAR2_MEM_IO_MODIFY(bar2, BAR_IN_MEM_SPACE);
+    bar2 = (uint32_t)PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR2_REG_BAR2_TYPE_MODIFY(bar2, BAR_TYPE_64BIT);
+    bar2 = PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR2_REG_BAR2_PREFETCH_MODIFY(bar2, 0); //IMPORTANT - not prefetchable (registers with read side effects mapped here)
+    iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR2_REG_ADDRESS, bar2);
 
     //Wait to init iATUs until BAR addresses are assigned - see PCIe_initATUs.
 
