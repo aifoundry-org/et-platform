@@ -66,6 +66,9 @@ class sim_api_communicate final : public api_communicate
         protected:
             void shire_threads_set_pc(unsigned shire_id, uint64_t pc);
         private:
+            void print_iatus();
+            bool iatu_translate(uint64_t host_addr, uint64_t size, uint64_t &device_addr,
+                                uint64_t &access_size);
             sim_api_communicate* sim_;
         };
 
