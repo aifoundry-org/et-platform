@@ -144,7 +144,7 @@ static int64_t dm_svc_asset_getmemorytype(char *memType)
     return 0;
 }
 
-static int64_t asset_tracking_send_response(mbox_e mbox, uint32_t cmd_id, uint64_t req_start_time,
+static int64_t asset_tracking_send_response(mbox_e mbox, Command_ID_e cmd_id, uint64_t req_start_time,
                                             char asset_info[])
 {
     int64_t ret = 0;
@@ -158,7 +158,7 @@ static int64_t asset_tracking_send_response(mbox_e mbox, uint32_t cmd_id, uint64
     return ret;
 }
 
-void asset_tracking_process_request(mbox_e mbox, uint32_t cmd_id)
+void asset_tracking_process_request(mbox_e mbox, Command_ID_e cmd_id)
 {
     int64_t ret = 0;
     char req_asset_info[MAX_LENGTH] = { 0 }, mem_part[MAX_LENGTH] = { 0 };
