@@ -56,7 +56,7 @@ TEST_F(DMTestModule, test_GET_MODULE_MANUFACTURE_NAME) {
   const uint32_t output_size = 8;
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
-  auto dev_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_MANUFACTURE_NAME, nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(), 0), 0);
   printf("output_buff: %.*s\n", output_size, output_buff);
@@ -76,7 +76,7 @@ TEST_F(DMTestModule, test_GET_MODULE_PART_NUMBER) {
   const uint32_t output_size = 8;
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
-  auto dev_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_PART_NUMBER, nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(), 0), 0);
   printf("output_buff: %.*s\n", output_size, output_buff);
@@ -96,7 +96,7 @@ TEST_F(DMTestModule, test_GET_MODULE_SERIAL_NUMBER) {
   const uint32_t output_size = 8;
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
-  auto dev_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_SERIAL_NUMBER, nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(), 0), 0);
   printf("output_buff: %.*s\n", output_size, output_buff);
@@ -116,7 +116,7 @@ TEST_F(DMTestModule, test_GET_ASIC_CHIP_REVISION) {
   const uint32_t output_size = 8;
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
-  auto dev_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_ASIC_CHIP_REVISION, nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(), 0), 0);
   printf("output_buff: %.*s\n", output_size, output_buff);
@@ -136,7 +136,7 @@ TEST_F(DMTestModule, test_GET_MODULE_FIRMWARE_REVISIONS) {
   const uint32_t output_size = 8;
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
-  auto dev_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_FIRMWARE_REVISIONS, nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(), 0), 0);
   printf("output_buff: %.*s\n", output_size, output_buff);
@@ -156,7 +156,7 @@ TEST_F(DMTestModule, test_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED) {
   const uint32_t output_size = 8;
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
-  auto dev_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED, nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(), 0), 0);
   printf("output_buff: %.*s\n", output_size, output_buff);
@@ -176,7 +176,7 @@ TEST_F(DMTestModule, test_GET_MODULE_MEMORY_SIZE_MB) {
   const uint32_t output_size = 8;
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
-  auto dev_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_MEMORY_SIZE_MB, nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(), 0), 0);
   printf("output_buff: %.*s\n", output_size, output_buff);
@@ -196,7 +196,7 @@ TEST_F(DMTestModule, test_GET_MODULE_REVISION) {
   const uint32_t output_size = 8;
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
-  auto dev_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_REVISION, nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(), 0), 0);
   printf("output_buff: %.*s\n", output_size, output_buff);
@@ -216,7 +216,7 @@ TEST_F(DMTestModule, test_GET_MODULE_FORM_FACTOR) {
   const uint32_t output_size = 8;
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
-  auto dev_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_FORM_FACTOR, nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(), 0), 0);
   printf("output_buff: %.*s\n", output_size, output_buff);
@@ -236,7 +236,7 @@ TEST_F(DMTestModule, test_GET_MODULE_MEMORY_VENDOR_PART_NUMBER) {
   const uint32_t output_size = 8;
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
-  auto dev_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_MEMORY_VENDOR_PART_NUMBER, nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(), 0), 0);
   printf("output_buff: %.*s\n", output_size, output_buff);
@@ -256,7 +256,7 @@ TEST_F(DMTestModule, test_GET_MODULE_MEMORY_TYPE) {
   const uint32_t output_size = 8;
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
-  auto dev_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_MEMORY_TYPE, nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(), 0), 0);
   printf("output_buff: %.*s\n", output_size, output_buff);
@@ -276,7 +276,7 @@ TEST_F(DMTestModule, test_unsupported_service) {
   const uint32_t output_size = 8;
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
-  auto dev_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
 
   //Invalid device node
   ASSERT_EQ(dm.serviceRequest("et_mgmt", CommandCode::GET_MODULE_MEMORY_TYPE, nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(), 0), -EINVAL);
@@ -302,7 +302,7 @@ void testSerial(DeviceManagement &dm, uint32_t timeout, int *result) {
   const uint32_t output_size = 8;
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
-  auto dev_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
 
   *result = dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_MANUFACTURE_NAME, nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(), timeout);
 }

@@ -62,7 +62,7 @@ enum CommandCode {
 
 struct dmControlBlock {
   uint32_t cmd_id;
-  uint32_t dev_latency;
+  uint64_t dev_latency;
   char cmd_payload[0];
 }__packed__;
 

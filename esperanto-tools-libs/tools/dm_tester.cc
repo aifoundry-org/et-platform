@@ -109,7 +109,7 @@ int testAsset(DeviceManagement &dm, const char *device_node, uint32_t cmd_id,
               const uint32_t output_size, uint32_t timeout) {
   char output_buff[output_size];
   auto hst_latency = std::make_unique<uint32_t>();
-  auto dev_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
 
   dm.serviceRequest(device_node, cmd_id, input_buff, input_size, output_buff,
                     output_size, hst_latency.get(), dev_latency.get(), timeout);

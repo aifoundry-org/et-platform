@@ -69,19 +69,19 @@ public:
   /// @param[inout] output_buff  pointer to data received from the device after
   /// servicing the request
   /// @param[in] output_size  size in bytes of the output_buff data
-  /// @param[inout] host_latency_msec  Total time in miliseconds spent on the
-  /// host side servicing a request; inclusive of dev_latency_msec
-  /// @param[inout] dev_latency_msec  Total time in miliseconds spent on the
+  /// @param[inout] host_latency  Total time in miliseconds spent on the
+  /// host side servicing a request; inclusive of dev_latency_micros
+  /// @param[inout] dev_latency  Total time in microseconds spent on the
   /// device side servicing a request
-  /// @param[in] timeout_msec  Time to wait for the request to complete, i.e.
+  /// @param[in] timeout  Time to wait for the request to complete, i.e.
   /// to receive a message.
   ///
   /// @return Success of the request. Zero if the read was succesfull.
   int serviceRequest(const char *device_node, uint32_t cmd_code,
                      const char *input_buff, const uint32_t input_size,
                      char *output_buff, const uint32_t output_size,
-                     uint32_t *host_latency_msec, uint32_t *dev_latency_msec,
-                     uint32_t timeout_msec);
+                     uint32_t *host_latency, uint64_t *dev_latency,
+                     uint32_t timeout);
 
 private:
   /// @brief DeviceManagement constructors
