@@ -19,7 +19,7 @@ find_package(libunwind)
 
 # The following flags will apply to any sources built under cmake and not the ones that
 # we build today under make from the original sysemu
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -std=c++17")
 
 set(SYSEMU_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/bin/ CACHE STRING "SysEmu install dir")
 set(SYSEMU_LIBS_FLAGS "")
