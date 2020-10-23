@@ -830,6 +830,13 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<
         }
     }
 
+    // Perform 32 bit writes
+    for (const auto &info: cmd_options.mem_write32s) {
+        LOG_NOTHREAD(INFO, "Writing 32-bit value 0x%" PRIx32 " to 0x%" PRIx64, info.value, info.addr);
+        bemu::memory.write(bemu::Noagent{}, info.addr, sizeof(info.value),
+                           reinterpret_cast<bemu::MainMemory::const_pointer>(&info.value));
+    }
+
     // Setup PU UART0 stream
     if (!cmd_options.pu_uart0_tx_file.empty()) {
         int fd = open(cmd_options.pu_uart0_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);

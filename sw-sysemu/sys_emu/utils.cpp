@@ -33,6 +33,7 @@ bool parse_mem_file(const char * filename)
     {
         uint64_t base_addr;
         uint64_t size;
+        uint32_t value;
         char str[1024];
         if(sscanf(buffer, "New Mem Region: 40'h%" PRIX64 ", 40'h%" PRIX64 ", %s", &base_addr, &size, str) == 3)
         {
@@ -65,6 +66,11 @@ bool parse_mem_file(const char * filename)
                 LOG_NOTHREAD(FTL, "Error loading ELF \"%s\"", str);
                 return false;
             }
+        }
+        else if(sscanf(buffer, "Mem write32: 40'h%" PRIX64 ", 32'h%" PRIX32 , &base_addr, &value) == 2)
+        {
+            bemu::memory.write(bemu::Noagent{}, base_addr, sizeof(value),
+                               reinterpret_cast<bemu::MainMemory::const_pointer>(&value));
         }
     }
     // Closes the file
