@@ -26,6 +26,7 @@ public:
   size_t getDramSize() const override;
   uint64_t getDramBaseAddr() const override;
   bool writeDevMemDMA(uintptr_t dev_addr, size_t size, const void* buf) override;
+  bool readDevMemDMA(uintptr_t dev_addr, size_t size, void* buf) override;
 
 private:
   std::unique_ptr<et_runtime::device::TargetSysEmu> device_;

@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "EventManager.h"
 #include "ITarget.h"
 #include "MemoryManager.h"
 #include "runtime/IRuntime.h"
@@ -24,7 +25,7 @@ public:
 
   std::vector<DeviceId> getDevices() const override;
 
-  KernelId loadCode(DeviceId device, std::byte* elf, size_t elf_size) override;
+  KernelId loadCode(DeviceId device, const std::byte* elf, size_t elf_size) override;
   void unloadCode(KernelId kernel) override;
 
   std::byte* mallocDevice(DeviceId device, size_t size, int alignment = kCacheLineSize) override;
@@ -33,12 +34,12 @@ public:
   StreamId createStream(DeviceId device) override;
   void destroyStream(StreamId stream) override;
 
-  EventId kernelLaunch(StreamId stream, KernelId kernel, std::byte* kernel_args, size_t kernel_args_size,
+  EventId kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
                        bool barrier = true) override;
 
-  EventId memcpyHostToDevice(StreamId stream, std::byte* src, std::byte* dst, size_t size,
+  EventId memcpyHostToDevice(StreamId stream, const std::byte* src, std::byte* dst, size_t size,
                              bool barrier = false) override;
-  EventId memcpyDeviceToHost(StreamId stream, std::byte* src, std::byte* dst, size_t size,
+  EventId memcpyDeviceToHost(StreamId stream, const std::byte* src, std::byte* dst, size_t size,
                              bool barrier = true) override;
 
   void waitForEvent(EventId event) override;
@@ -46,8 +47,8 @@ public:
 
 private:
 struct Kernel {
-  Kernel(DeviceId deviceId, std::byte* elfData, size_t elfSize, std::byte* deviceBuffer);
-  
+  Kernel(DeviceId deviceId, const std::byte* elfData, size_t elfSize, std::byte* deviceBuffer);
+
   ELFIO::elfio elf_;
   DeviceId deviceId_;
   std::byte* deviceBuffer_;
@@ -60,13 +61,15 @@ struct Stream {
     , vq_(vq) {
   }
   DeviceId deviceId_;
-  std::underlying_type_t<EventId> lastEventId_; // last submitted event to this stream
+  EventId lastEventId_; // last submitted event to this stream
   int vq_;
 };
   std::unique_ptr<ITarget> target_;
   std::vector<DeviceId> devices_;
   std::unordered_map<DeviceId, MemoryManager> memoryManagers_;
   std::unordered_map<StreamId, Stream> streams_;
+
+  EventManager eventManager_;
 
   // using unique_ptr to not have to deal with elfio mess (the class is not friendly with modern c++)
   std::unordered_map<KernelId, std::unique_ptr<Kernel>> kernels_;

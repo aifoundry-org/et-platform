@@ -29,7 +29,13 @@ bool TargetSilicon::writeDevMemDMA(uintptr_t dev_addr, size_t size, const void* 
   return device_->writeDevMemDMA(dev_addr, size, buf);
 }
 
-size_t TargetSilicon::getDramSize() const { return device_->dramSize(); }
+bool TargetSilicon::readDevMemDMA(uintptr_t dev_addr, size_t size, void* buf) {
+  return device_->readDevMemDMA(dev_addr, size, buf);
+}
+
+size_t TargetSilicon::getDramSize() const {
+  return device_->dramSize();
+}
 uint64_t TargetSilicon::getDramBaseAddr() const { return device_->dramBaseAddr(); }
 
 TargetSilicon::~TargetSilicon() { device_->deinit(); }

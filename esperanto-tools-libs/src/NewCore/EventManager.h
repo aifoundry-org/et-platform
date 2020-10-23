@@ -11,6 +11,7 @@
 #pragma once
 
 #include "runtime/IRuntime.h"
+#include <atomic>
 #include <condition_variable>
 #include <deque>
 #include <unordered_map>
@@ -54,15 +55,36 @@ class EventManager {
 public:
   EventId getNextId();
   void dispatch(EventId event);
-  bool isDispatched(EventId event) const;
   void blockUntilDispatched(EventId event);
 
 private:
+  bool isDispatched(EventId event) const;
   void awakeBlockedThreads(EventId event);
 
   std::deque<EventSequence> dispatched_;
-  std::mutex condVarMutex_;
-  std::unordered_map<EventId, std::unique_ptr<std::condition_variable>> blockedThreads_;
+  std::mutex mutex_;
+
+  // need a semaphore to deal with spurious wakeups, a simple cond_variable is not enough
+  struct Semaphore {
+    void notifyAll() {
+      ready_ = true;
+      condVar_.notify_all();
+    }
+    void wait(std::unique_lock<std::mutex>& lock) {
+      count_++;
+      condVar_.wait(lock, [this]() { return ready_; });
+      count_--;
+    }
+    bool isAnyThreadBlocked() const {
+      return count_ > 0;
+    }
+
+    std::condition_variable condVar_;
+    int count_ = 0;
+    bool ready_ = false;
+  };
+
+  std::unordered_map<EventId, std::unique_ptr<Semaphore>> blockedThreads_;
   std::underlying_type_t<EventId> nextEventId_;
 };
 } // namespace rt
