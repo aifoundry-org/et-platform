@@ -74,8 +74,14 @@ struct sys_emu_cmd_options {
         uint64_t value;
     };
 
+    struct mem_write32 {
+        uint64_t addr;
+        uint32_t value;
+    };
+
     std::vector<std::string> elf_files;
     std::vector<file_load_info> file_load_files;
+    std::vector<mem_write32> mem_write32s;
     std::string mem_desc_file;
     std::string api_comm_path;
     uint64_t    minions_en                   = 1;

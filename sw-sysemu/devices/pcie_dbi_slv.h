@@ -180,8 +180,8 @@ struct PcieDbiSlvRegion : public MemoryRegion {
         }
     }
 
-    void init(const Agent&, size_type, size_type, const_pointer) override {
-        throw std::runtime_error("bemu::PcieDbiSlvRegion::init()");
+    void init(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
+        write(agent, pos, n, source);
     }
 
     addr_type first() const override { return Base; }

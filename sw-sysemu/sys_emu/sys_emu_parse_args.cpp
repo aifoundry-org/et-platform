@@ -28,6 +28,7 @@ static const char * help_msg =
      -api_comm <path>         Path to socket that feeds runtime API commands.\n\
      -elf_load <path>         Path to an ELF file to load. Can be used multiple times.\n\
      -file_load <addr>,<path> Address and path to the file to load. Can be used multiple times.\n\
+     -mem_write32 <addr>,<value> Write the 32 bit value to address at init. Can be used multiple times.\n\
      -mem_desc <path>         Path to a file describing what ELFs and files to load\n\
      -l                       Set logging verbosity to DEBUG\n\
      -lt <thread>             Log a given Thread. Can be used multiple times. (default: all)\n\
@@ -108,6 +109,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"elf",                    required_argument, nullptr, 0}, // same as '-elf', kept for backwards compatibility
         {"elf_load",               required_argument, nullptr, 0},
         {"file_load",              required_argument, nullptr, 0},
+        {"mem_write32",            required_argument, nullptr, 0},
         {"mem_desc",               required_argument, nullptr, 0},
         {"l",                      no_argument,       nullptr, 0},
         {"lt",                     required_argument, nullptr, 0},
@@ -188,6 +190,16 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
                 uint64_t addr = strtoull(tokens[0], nullptr, 0);
                 const char *path = tokens[1];
                 cmd_options.file_load_files.push_back({addr, path});
+            }
+        }
+        else if (!strcmp(name, "mem_write32"))
+        {
+            char *tokens[2];
+            int ntokens = strsplit(optarg, ",", tokens, 2);
+            if (ntokens == 2) {
+                uint64_t addr = strtoull(tokens[0], nullptr, 0);
+                uint32_t value = strtoul(tokens[1], nullptr, 0);
+                cmd_options.mem_write32s.push_back({addr, value});
             }
         }
         else if (!strcmp(name, "mem_desc"))
