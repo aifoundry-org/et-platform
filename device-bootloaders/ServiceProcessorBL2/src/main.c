@@ -54,6 +54,14 @@ SERVICE_PROCESSOR_BL2_DATA_t *get_service_processor_bl2_data(void)
     return &g_service_processor_bl2_data;
 }
 
+static SP_DEV_INTF_REG_s *g_service_processor_dev_intf_reg = (void *)DEV_INTF_BASE_ADDR;
+
+SP_DEV_INTF_REG_s *get_service_processor_dev_intf_reg(void)
+{
+
+    return g_service_processor_dev_intf_reg;
+}
+
 static const IMAGE_VERSION_INFO_t *sp_bl2_image_version_info;
 
 const IMAGE_VERSION_INFO_t *get_service_processor_bl2_image_info(void)
@@ -117,6 +125,29 @@ static uint64_t calculate_minion_shire_enable_mask(void)
     return enable_mask;
 }
 
+static void dev_interface_reg_init(void)
+{
+    g_service_processor_dev_intf_reg->version = DEV_INTF_REG_VERSION;
+    g_service_processor_dev_intf_reg->size    = sizeof(SP_DEV_INTF_REG_s);
+    g_service_processor_dev_intf_reg->sp_vq.bar =    SP_VQ_BAR;
+    g_service_processor_dev_intf_reg->sp_vq.offset = SP_VQ_OFFSET;
+    g_service_processor_dev_intf_reg->sp_vq.size =   SP_VQ_SIZE;
+    g_service_processor_dev_intf_reg->ddr_region[MAP_USER_KERNEL_SPACE].attr         = ATTR_READ_WRITE;
+    g_service_processor_dev_intf_reg->ddr_region[MAP_USER_KERNEL_SPACE].bar          = USER_KERNEL_SPACE_BAR;
+    g_service_processor_dev_intf_reg->ddr_region[MAP_USER_KERNEL_SPACE].offset       = USER_KERNEL_SPACE_OFFSET;
+    g_service_processor_dev_intf_reg->ddr_region[MAP_USER_KERNEL_SPACE].size         = USER_KERNEL_SPACE_SIZE;
+    g_service_processor_dev_intf_reg->ddr_region[MAP_FIRMWARE_UPDATE_SCRATCH].attr   = ATTR_WRITE_ONLY;
+    g_service_processor_dev_intf_reg->ddr_region[MAP_FIRMWARE_UPDATE_SCRATCH].bar    = FIRMWARE_UPDATE_SCRATCH_BAR;
+    g_service_processor_dev_intf_reg->ddr_region[MAP_FIRMWARE_UPDATE_SCRATCH].offset = FIRMWARE_UPDATE_SCRATCH_OFFSET;
+    g_service_processor_dev_intf_reg->ddr_region[MAP_FIRMWARE_UPDATE_SCRATCH].size   = FIRMWARE_UPDATE_SCRATCH_SIZE;
+    g_service_processor_dev_intf_reg->ddr_region[MAP_MSIX_TABLE].attr                = ATTR_READ_ONLY;
+    g_service_processor_dev_intf_reg->ddr_region[MAP_MSIX_TABLE].bar                 = MSIX_TABLE_BAR;
+    g_service_processor_dev_intf_reg->ddr_region[MAP_MSIX_TABLE].offset              = MSIX_TABLE_OFFSET;
+    g_service_processor_dev_intf_reg->ddr_region[MAP_MSIX_TABLE].size                = MSIX_TABLE_SIZE;
+    // Update Status to indicate SP VQ is ready to use
+    g_service_processor_dev_intf_reg->status = STAT_DEV_INTF_READY_INITIALIZED;
+}
+
 static inline void write_minion_fw_boot_config(uint64_t minion_shires)
 {
     volatile minion_fw_boot_config_t *boot_config;
@@ -145,6 +176,8 @@ static void taskMain(void *pvParameters)
 #else
     PCIe_init(true /*expect_link_up*/);
 #endif
+
+    dev_interface_reg_init();
 
     MBOX_init_pcie();
     printf("Mailbox to host initialized.\n");
