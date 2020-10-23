@@ -101,8 +101,8 @@ DeviceManagement::getDevice(const std::tuple<uint32_t, bool> &t) {
 int DeviceManagement::serviceRequest(
     const char *device_node, uint32_t cmd_code, const char *input_buff,
     const uint32_t input_size, char *output_buff, const uint32_t output_size,
-    uint32_t *host_latency_msec, uint32_t *dev_latency_msec,
-    uint32_t timeout_msec) {
+    uint32_t *host_latency, uint64_t *dev_latency,
+    uint32_t timeout) {
 
   auto start = std::chrono::steady_clock::now();
 
@@ -124,18 +124,18 @@ int DeviceManagement::serviceRequest(
     return -EINVAL;
   }
 
-  if (!host_latency_msec) {
+  if (!host_latency) {
     return -EINVAL;
   }
 
-  if (!dev_latency_msec) {
+  if (!dev_latency) {
     return -EINVAL;
   }
 
   auto lockable = getDevice(tokenizeDeviceNode(device_node));
 
   if (lockable->devGuard.try_lock_for(
-          std::chrono::milliseconds(timeout_msec))) {
+          std::chrono::milliseconds(timeout))) {
     const std::lock_guard<std::timed_mutex> lock(lockable->devGuard,
                                                   std::adopt_lock_t());
 
@@ -166,14 +166,14 @@ int DeviceManagement::serviceRequest(
     memcpy(rCB->cmd_payload, rPayload.get(), output_size);
 
     if (!lockable->dev.mb_read(rCB.get(), sizeof(*(rCB.get())) + output_size,
-                                std::chrono::milliseconds(timeout_msec))) {
+                                std::chrono::milliseconds(timeout))) {
       return -EIO;
     }
 
     memcpy(output_buff, rCB->cmd_payload, output_size);
 
-    *dev_latency_msec = rCB->dev_latency;
-    *host_latency_msec = std::chrono::duration_cast<std::chrono::milliseconds>(
+    *dev_latency = rCB->dev_latency;
+    *host_latency = std::chrono::duration_cast<std::chrono::milliseconds>(
                           std::chrono::steady_clock::now() - start).count();
 
     if (!lockable->dev.deinit()) {
