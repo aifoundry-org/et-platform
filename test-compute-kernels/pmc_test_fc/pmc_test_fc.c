@@ -100,7 +100,10 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     }
 
     // Configure PMCs
-    syscall(SYSCALL_CONFIGURE_PMCS, 1, pmc_cfg, 0);
+    syscall(SYSCALL_CONFIGURE_PMCS, 0, pmc_cfg, 0);
+
+    // Reset PMCs
+    syscall(SYSCALL_RESET_PMCS, 0, 0, 0);
 
     uint64_t hart_id = get_hart_id();
     uint64_t minion_id = hart_id >> 1;
@@ -113,7 +116,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
         if (use_trace) {
             TRACE_string(LOG_LEVELS_INFO, "Sampling PMCs");
         }
-        syscall(SYSCALL_SAMPLE_PMCS, 1, pmc_log, 0);
+        syscall(SYSCALL_SAMPLE_PMCS, 0, pmc_log, 0);
 	return 0;
     }
 
@@ -261,7 +264,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
         TRACE_string(LOG_LEVELS_INFO, "Sampling PMCs");
     }
 
-    syscall(SYSCALL_SAMPLE_PMCS, 1, pmc_log, 0);
+    syscall(SYSCALL_SAMPLE_PMCS, 0, pmc_log, 0);
 
     return 0;
 }
