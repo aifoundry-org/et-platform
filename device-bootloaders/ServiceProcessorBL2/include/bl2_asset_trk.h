@@ -6,7 +6,14 @@
 
 #define MAX_LENGTH 8  
 
-enum Command_ID_e {
+struct dm_control_block {
+  uint32_t cmd_id;
+  uint64_t dev_latency;
+  char cmd_payload[8];
+}__packed__;
+
+
+enum CommandCode {
   GET_MODULE_MANUFACTURE_NAME = 0x00,   // Asset Tracking
   GET_MODULE_PART_NUMBER,               // Asset Tracking
   GET_MODULE_SERIAL_NUMBER,             // Asset Tracking
@@ -47,14 +54,6 @@ enum Command_ID_e {
   */
 };
 
-typedef uint8_t Command_ID_e; 
-
-struct dm_control_block {
-  Command_ID_e cmd_id;
-  uint64_t dev_latency;
-  char cmd_payload[8];
-}__packed__;
-
 // PCIE gen bit rates(GT/s) definition
 #define PCIE_GEN_1   2
 #define PCIE_GEN_2   5
@@ -63,6 +62,6 @@ struct dm_control_block {
 #define PCIE_GEN_5   32
 
 // Function prototypes 
-void asset_tracking_process_request(mbox_e mbox, Command_ID_e cmd_id);
+void asset_tracking_process_request(mbox_e mbox, uint32_t cmd_id);
 
 #endif

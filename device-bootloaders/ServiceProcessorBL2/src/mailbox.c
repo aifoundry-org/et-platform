@@ -178,13 +178,15 @@ static void mbox_task(void *pvParameters)
                 if (result != 0) {
                     printf("mbox_send error %" PRId64 "\r\n", result);
                 }
-            } break;
+                break;
+            }
             case GET_MODULE_MANUFACTURE_NAME...GET_MODULE_MEMORY_TYPE: {
                 // Process asset tracking service request cmd
-                asset_tracking_process_request(mbox, (uint8_t)*message_id); 
-	    } break;
+                asset_tracking_process_request(mbox, (uint32_t)*message_id);
+                break;
+            }
             default:
-                printf("Invalid message id: %" PRIu8 "\r\n", (uint8_t)*message_id);
+                printf("Invalid message id: %" PRIu64 "\r\n", *message_id);
                 printf("message length: %" PRIi64 ", buffer:\r\n", length);
                 for (int64_t i = 0; i < length; ++i) {
                     if (i % 8 == 0 && i != 0)
