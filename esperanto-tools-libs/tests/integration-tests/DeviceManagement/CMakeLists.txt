@@ -10,8 +10,7 @@
 
 # DM only tests
 set(DM_TEST_LIST
-  #[SW-4851]
-  #test_device_management.cc:""
+  test_device_management.cc:""
   )
 
 set(COMMON_TEST_LIBRARIES
