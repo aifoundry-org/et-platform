@@ -60,10 +60,12 @@ enum CommandCode {
   */
 };
 
+#define MAX_LENGTH 8
+
 struct dmControlBlock {
   uint32_t cmd_id;
   uint64_t dev_latency;
-  char cmd_payload[0];
+  char cmd_payload[MAX_LENGTH];
 }__packed__;
 
 #endif // ET_RUNTIME_DM_H
