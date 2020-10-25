@@ -42,8 +42,9 @@
 #define OUTPUT_SIZE ONE_MB
 
 #define CACHE_LINE_SIZE 64
-#define PMC_CFG_SIZE 520     // 15 per shire plus 5 mem memshire 15x32 + 5x8  = 520: TODO: Add master shire
+#define PMC_CFG_SIZE 535     // 15 per shire plus 5 mem memshire 15x33 + 5x8 = 535
 #define PMC_LOG_SIZE (2048 * (CACHE_LINE_SIZE / 8))
+#define NUM_SHIRES 33
 
 #define MIN_CYCLES 1
 #define RETINST_HART0 2
@@ -129,7 +130,7 @@ TEST_F(DeviceFWTest, DeviceAPI_PMCTracing) {
 
   uint64_t pmc_cfg[PMC_CFG_SIZE];
 
-  for (uint64_t s=0; s < 32; s++) {
+  for (uint64_t s=0; s < NUM_SHIRES; s++) {
       for (uint64_t cnt=0; cnt < 15; cnt++) {
           pmc_cfg[s*15+cnt] = shire_pmc_cfg[cnt];
       }
