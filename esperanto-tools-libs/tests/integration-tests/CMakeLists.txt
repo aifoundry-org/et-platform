@@ -22,6 +22,7 @@ create_test_targets("${TEST_LIST}" "LABELS;Generic;TIMEOUT;600")
 set(SIM_DEVFW_TEST_LIST
   test_code_manager.cc:"${DEV_FW_ARGS}"
   test_code_loading.cpp:"${DEV_FW_ARGS}"
+  test_memcpy.cpp:"${DEV_FW_ARGS}"
   test_module_load.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
   test_module_manager.cc:"${DEV_FW_ARGS}"
   )

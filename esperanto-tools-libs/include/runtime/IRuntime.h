@@ -32,7 +32,7 @@
 /// @{
 namespace rt {
 /// \brief Event Handler
-enum class EventId : int {};
+enum class EventId : int { Invalid = 0 };
 
 /// \brief Stream Handler
 enum class StreamId : int {};
@@ -79,7 +79,7 @@ public:
   ///
   /// @returns a kernel handler which will identify the uploaded code
   ///
-  virtual KernelId loadCode(DeviceId device, std::byte* elf, size_t elf_size) = 0;
+  virtual KernelId loadCode(DeviceId device, const std::byte* elf, size_t elf_size) = 0;
   /// \brief Unloads a previously loaded elf code, identified by the kernel
   /// handler
   ///
@@ -154,7 +154,7 @@ public:
   /// @returns EventId is a handler of an event which can be waited for
   /// (waitForEventId) to syncrhonize when the kernel ends the execution
   ///
-  virtual EventId kernelLaunch(StreamId stream, KernelId kernel, std::byte* kernel_args, size_t kernel_args_size,
+  virtual EventId kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
                                bool barrier = true) = 0;
 
   /// \brief Queues a memcpy operation from host memory to device memory. The
@@ -174,7 +174,7 @@ public:
   /// @returns EventId is a handler of an event which can be waited for
   /// (waitForEventId) to synchronize when the memcpy ends
   ///
-  virtual EventId memcpyHostToDevice(StreamId stream, std::byte* src, std::byte* dst, size_t size,
+  virtual EventId memcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size,
                                      bool barrier = false) = 0;
   /// \brief Queues a memcpy operation from device memory to host memory. The
   /// device memory must be a valid region previously allocated by a
@@ -195,7 +195,7 @@ public:
   /// @returns EventId is a handler of an event which can be waited for
   /// (waitForEventId) to synchronize when the memcpy ends
   ///
-  virtual EventId memcpyDeviceToHost(StreamId stream, std::byte* src, std::byte* dst, size_t size,
+  virtual EventId memcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size,
                                      bool barrier = true) = 0;
 
   /// \brief This will block the caller thread until the given event is

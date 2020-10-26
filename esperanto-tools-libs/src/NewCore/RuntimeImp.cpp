@@ -27,17 +27,15 @@ template <typename Container, typename Key> auto find(Container&& c, Key&& k, st
 }
 }
 
-
-RuntimeImp::Kernel::Kernel(DeviceId deviceId, std::byte* elfData, size_t elfSize, std::byte* deviceBuffer)
+RuntimeImp::Kernel::Kernel(DeviceId deviceId, const std::byte* elfData, size_t elfSize, std::byte* deviceBuffer)
   : deviceId_(deviceId)
   , deviceBuffer_(deviceBuffer) {
 
-  auto memStream = std::istringstream(std::string(reinterpret_cast<char*>(elfData), elfSize), std::ios::binary);
+  auto memStream = std::istringstream(std::string(reinterpret_cast<const char*>(elfData), elfSize), std::ios::binary);
   if (!elf_.load(memStream)) {
     throw Exception("Error parsing elf");
   }
 }
-
 
 RuntimeImp::RuntimeImp(Kind kind) {
   switch (kind) {
@@ -60,7 +58,7 @@ std::vector<DeviceId> RuntimeImp::getDevices() const {
   return target_->getDevices();
 }
 
-KernelId RuntimeImp::loadCode(DeviceId device, std::byte* data, size_t size) {
+KernelId RuntimeImp::loadCode(DeviceId device, const std::byte* data, size_t size) {
 
   // allocate a buffer in the device to load the code
   auto deviceBuffer = mallocDevice(device, size);
@@ -115,22 +113,45 @@ void RuntimeImp::destroyStream(StreamId stream) {
   streams_.erase(it);
 }
 
-EventId RuntimeImp::kernelLaunch(StreamId stream, KernelId kernel, std::byte* kernel_args, size_t kernel_args_size,
-                                 bool barrier) {
+EventId RuntimeImp::kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args,
+                                 size_t kernel_args_size, bool barrier) {
   throw Exception("Not implemented yet");
 }
 
-EventId RuntimeImp::memcpyHostToDevice(StreamId stream, std::byte* src, std::byte* dst, size_t size, bool barrier) {
-  target_->writeDevMemDMA(reinterpret_cast<uint64_t>(dst), size, src);
-  return EventId{0};
+//#TODO this won't be complete nor real till VQs are implemented information see epic SW-4377
+// currently we only create an event, don't
+EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size,
+                                       [[maybe_unused]] bool barrier) {
+  auto it = find(streams_, stream);
+  auto evt = eventManager_.getNextId();
+  it->second.lastEventId_ = evt;
+  auto ret = target_->writeDevMemDMA(reinterpret_cast<uint64_t>(d_dst), size, h_src);
+  eventManager_.dispatch(evt);
+  if (!ret) {
+    throw Exception("Error DMA (reading)");
+  }
+  return evt;
 }
-EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, std::byte* src, std::byte* dst, size_t size, bool barrier) {
-  throw Exception("Not implemented yet");
+//#TODO this won't be complete nor real till VQs are implemented information see epic SW-4377
+// currently we only create an event, don't
+EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size,
+                                       [[maybe_unused]] bool barrier) {
+  auto it = find(streams_, stream);
+  auto evt = eventManager_.getNextId();
+  it->second.lastEventId_ = evt;
+  auto ret = target_->readDevMemDMA(reinterpret_cast<uint64_t>(d_src), size, h_dst);
+  eventManager_.dispatch(evt);
+  if (!ret) {
+    throw Exception("Error DMA (writing)");
+  }
+  return evt;
 }
 
 void RuntimeImp::waitForEvent(EventId event) {
-  throw Exception("Not implemented yet");
+  eventManager_.blockUntilDispatched(event);
 }
+
 void RuntimeImp::waitForStream(StreamId stream) {
-  throw Exception("Not implemented yet");
+  auto it = find(streams_, stream, "Invalid stream");
+  waitForEvent(it->second.lastEventId_);
 }

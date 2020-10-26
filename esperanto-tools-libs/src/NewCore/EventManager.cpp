@@ -21,6 +21,7 @@ EventId EventManager::getNextId() {
 
 void EventManager::dispatch(EventId event) {
   auto seq = EventSequence{event};
+  std::unique_lock<std::mutex> lock(mutex_);
   if (dispatched_.empty()) {
     dispatched_.emplace_back(seq);
   } else {
@@ -53,14 +54,14 @@ void EventManager::dispatch(EventId event) {
       dispatched_.emplace(it, seq);
     }
   }
+  lock.unlock();
   awakeBlockedThreads(event);
 }
 
 void EventManager::awakeBlockedThreads(EventId event) {
   auto it = blockedThreads_.find(event);
   if (it != end(blockedThreads_)) {
-    it->second->notify_all();
-    blockedThreads_.erase(it);
+    it->second->notifyAll();
   }
 }
 
@@ -74,16 +75,23 @@ bool EventManager::isDispatched(EventId event) const {
 }
 
 void EventManager::blockUntilDispatched(EventId event) {
-  std::unique_lock<std::mutex> lock(condVarMutex_);
+  std::unique_lock<std::mutex> lock(mutex_);
   if (isDispatched(event)) {
     return; // no block if the event is already dispatched
   }
 
   auto it = blockedThreads_.find(event);
+
+  Semaphore* sem;
   if (it == end(blockedThreads_)) {
-    blockedThreads_[event] = std::make_unique<std::condition_variable>();
-    blockedThreads_[event]->wait(lock);
+    auto tmp = std::make_unique<Semaphore>();
+    sem = tmp.get();
+    blockedThreads_[event] = std::move(tmp);
   } else {
-    it->second->wait(lock);
+    sem = it->second.get();
+  }
+  sem->wait(lock);
+  if (!sem->isAnyThreadBlocked()) {
+    blockedThreads_.erase(event);
   }
 }

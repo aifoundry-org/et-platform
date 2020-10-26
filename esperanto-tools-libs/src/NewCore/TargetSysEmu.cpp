@@ -38,6 +38,10 @@ bool TargetSysEmu::writeDevMemDMA(uintptr_t dev_addr, size_t size, const void* b
   return device_->writeDevMemDMA(dev_addr, size, buf);
 }
 
+bool TargetSysEmu::readDevMemDMA(uintptr_t dev_addr, size_t size, void* buf) {
+  return device_->readDevMemDMA(dev_addr, size, buf);
+}
+
 TargetSysEmu::~TargetSysEmu() {
   device_->deinit(); // TODO. see SW-4433; we shouldn't call anything like this explicetly
 }
