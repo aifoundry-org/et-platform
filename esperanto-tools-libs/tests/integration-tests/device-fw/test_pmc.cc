@@ -42,8 +42,9 @@
 #define OUTPUT_SIZE ONE_MB
 
 #define CACHE_LINE_SIZE 64
-#define PMC_CFG_SIZE 520     // 15 per shire plus 5 mem memshire 15x32 + 5x8  = 520: TODO: Add master shire
+#define PMC_CFG_SIZE 535     // 15 per shire plus 5 mem memshire 15x33 + 5x8 = 535
 #define PMC_LOG_SIZE (2048 * (CACHE_LINE_SIZE / 8))
+#define NUM_SHIRES 33
 
 #define MIN_CYCLES 1
 #define RETINST_HART0 2
@@ -87,20 +88,6 @@ TEST_F(DeviceFWTest, DeviceAPI_PMCTracing) {
   pmc_test_2s_kernel_loc /= fs::path("pmc_test_2s_" + std::to_string(test_num)+ ".elf");
   std::cout <<  "Running: " << test_num << pmc_test_2s_kernel_loc.string() << "\n";
 
-  std::string seed_file_name = fs::current_path().string();
-
-  seed_file_name = seed_file_name + std::string("/../../device-software/test-compute-kernels/pmc_test_2s/pmc_test_2s_")
-    + std::to_string(test_num) + std::string("/tensor_rand_seed");
-  std::ifstream seed_file;
-  seed_file.open(seed_file_name);
-  if (seed_file) {
-    uint64_t compile_seed_val;
-    seed_file >> compile_seed_val;
-    printf ("CODE SEED (header files) = %lu\n", compile_seed_val);
-  } else {
-    printf ("Error opening %s, code seed unknown\n", seed_file_name.c_str());
-  }
-
   // Random input initialization
   std::default_random_engine generator {};
 
@@ -113,8 +100,6 @@ TEST_F(DeviceFWTest, DeviceAPI_PMCTracing) {
   for (uint32_t i=0; i < TWO_MB; i++) {
       input_array[i] = distribution(generator);
   }
-
-  printf ("DATA SEED: %lu\n", seed_val);
 
   // PMC config buffer setup -- these are not used by test
   // but keep them around so that results can be interpreted.
@@ -145,7 +130,7 @@ TEST_F(DeviceFWTest, DeviceAPI_PMCTracing) {
 
   uint64_t pmc_cfg[PMC_CFG_SIZE];
 
-  for (uint64_t s=0; s < 32; s++) {
+  for (uint64_t s=0; s < NUM_SHIRES; s++) {
       for (uint64_t cnt=0; cnt < 15; cnt++) {
           pmc_cfg[s*15+cnt] = shire_pmc_cfg[cnt];
       }
