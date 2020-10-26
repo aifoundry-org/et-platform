@@ -37,7 +37,8 @@
 #define PMU_SC_COUNTERS_PER_BANK     3
 #define PMU_EVENT_SHIRE_AREA \
     (PMU_MINION_COUNTERS_PER_HART * 2 + PMU_NEIGH_COUNTERS_PER_HART * 2 + PMU_SC_COUNTERS_PER_BANK)
-#define PMU_EVENT_MEMSHIRE_OFFSET PMU_EVENT_SHIRE_AREA * 32
+#define NUM_SHIRES_PMC 33
+#define PMU_EVENT_MEMSHIRE_OFFSET (PMU_EVENT_SHIRE_AREA * NUM_SHIRES_PMC)
 #define PMU_MS_COUNTERS_PER_MS    5
 
 // Thread in neigh that does all the PMC configuration, starting / topping and sampling
@@ -51,7 +52,9 @@
 // This could be moved in the configuration buffer but we need to add support for
 // overflows, etc in the firmware in that case.
 #define PMU_SC_START_CTRL_VAL 0x00060033ULL
+#define PMU_SC_STOP_CTRL_VAL ~PMU_SC_START_CTRL_VAL
 #define PMU_MS_START_CTRL_VAL 0x00060033ULL
+#define PMU_MS_STOP_CTRL_VAL ~PMU_MS_START_CTRL_VAL
 
 // Indices of shire cache and memshire PMCs.
 #define PMU_SC_CYCLE_PMC 0
@@ -225,7 +228,7 @@ static inline void stop_sc_pmcs(uint64_t shire_id, uint64_t b)
 {
     uint64_t *sc_bank_perfctrl_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_CTL_STATUS);
     uint64_t init_val = *sc_bank_perfctrl_addr;
-    *sc_bank_perfctrl_addr = init_val ^ PMU_SC_START_CTRL_VAL;
+    *sc_bank_perfctrl_addr = init_val & PMU_SC_STOP_CTRL_VAL;
 }
 
 // Read a shire cache PMC. Return -1 on incorrect counter
@@ -289,7 +292,7 @@ static inline void stop_ms_pmcs(uint64_t ms_id)
     uint64_t *ms_pmc_ctrl_addr =
         (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_CTL_STATUS);
     uint64_t init_val = *ms_pmc_ctrl_addr;
-    *ms_pmc_ctrl_addr = init_val ^ PMU_MS_START_CTRL_VAL;
+    *ms_pmc_ctrl_addr = init_val & PMU_MS_STOP_CTRL_VAL;
 }
 
 // Read a memshire PMC. Return -1 on incorrect counter

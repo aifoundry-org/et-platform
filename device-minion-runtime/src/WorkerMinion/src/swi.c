@@ -67,7 +67,7 @@ static void handle_message(uint64_t shire, uint64_t hart, message_t *const messa
         break;
     case MESSAGE_ID_PMC_CONFIGURE:
         // Make a syscall to M-mode to configure PMCs
-        syscall(SYSCALL_CONFIGURE_PMCS_INT, 1,
+        syscall(SYSCALL_CONFIGURE_PMCS_INT, 0,
                 ((message_pmc_configure_t *)message_ptr)->conf_buffer_addr, 0);
         break;
     default:
