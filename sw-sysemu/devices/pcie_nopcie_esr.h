@@ -60,9 +60,9 @@ struct PcieNoPcieEsrRegion : public MemoryRegion {
         switch (pos) {
         case MSI_TX_VEC:
 #ifdef SYS_EMU
-            if (*source32 & 1) {
+            if (*source32 != 0) {
                 if (sys_emu::get_api_communicate())
-                    sys_emu::get_api_communicate()->raise_host_interrupt();
+                    sys_emu::get_api_communicate()->raise_host_interrupt(*source32);
                 else
                     LOG_NOTHREAD(WARN, "%s", "API Communicate is NULL!");
             }
