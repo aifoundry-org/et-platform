@@ -45,7 +45,7 @@ class sim_api_communicate final : public api_communicate
         bool is_done() override;
         void get_next_cmd(std::list<int> *enabled_threads) override;
         void set_comm_path(const std::string &comm_path) override;
-        bool raise_host_interrupt() override;
+        bool raise_host_interrupt(uint32_t bitmap) override;
     private:
         friend class SysEmuWrapper;
         class SysEmuWrapper final : public bemu::Agent, public AbstractSimulator {
