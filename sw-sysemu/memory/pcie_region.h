@@ -59,6 +59,27 @@ struct PcieRegion : public MemoryRegion {
     }
 
     void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
+        const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
+        const auto &msix_match_low = pcie0_dbi_slv.msix_match_low;
+        const auto &msix_match_high = pcie0_dbi_slv.msix_match_high;
+
+        // First check if  MSI-X Address Match feature is enabled
+        if (msix_match_low & 1) {
+            uint64_t match_addr = ((uint64_t)msix_match_high << 32) | (msix_match_low & ~3u);
+            // Check if accessed address matches MSI-X address
+            if (pos == (match_addr - Base)) {
+                if (n < 4)
+                    throw memory_error(first() + pos);
+#ifdef SYS_EMU
+                if (sys_emu::get_api_communicate())
+                    sys_emu::get_api_communicate()->raise_host_interrupt(1ul << *source32);
+                else
+                    LOG_NOTHREAD(WARN, "%s", "API Communicate is NULL!");
+#endif
+                return;
+            }
+        }
+
         const auto elem = search(pos, n);
         if (elem) {
             try {
