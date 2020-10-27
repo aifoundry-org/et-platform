@@ -41,6 +41,8 @@ struct PcieDbiSlvRegion : public MemoryRegion {
         PF0_TYPE0_HDR_BAR5_REG_ADDRESS   = 0x24,
         PF0_MSI_CAP                      = 0x50,
         PF0_MSIX_CAP                     = 0xb0,
+        PF0_PORT_LOGIC_MSIX_ADDRESS_MATCH_LOW_OFF_ADDRESS = 0x940,
+        PF0_PORT_LOGIC_MSIX_ADDRESS_MATCH_HIGH_OFF_ADDRESS = 0x944,
         PF0_ATU_CAP_ADDRESS              = 0x300000,
     };
 
@@ -68,10 +70,16 @@ struct PcieDbiSlvRegion : public MemoryRegion {
             *result32 = (1u << 1); // MEM_SPACE_EN
             break;
         case PF0_MSI_CAP:
-            *result32 = (1u << 16) | (0u << 20); /* PCI_MSI_ENABLE = 1, PCI_MSI_MULTIPLE_MSG_EN = 0 */
+            *result32 = msi_cap;
             break;
         case PF0_MSIX_CAP:
-            *result32 = (1u << 31); /* PCI_MSIX_ENABLE = 1 */
+            *result32 = msix_cap;
+            break;
+        case PF0_PORT_LOGIC_MSIX_ADDRESS_MATCH_LOW_OFF_ADDRESS:
+            *result32 = msix_match_low;
+            break;
+        case PF0_PORT_LOGIC_MSIX_ADDRESS_MATCH_HIGH_OFF_ADDRESS:
+            *result32 = msix_match_high;
             break;
         default:
             // ATU subregion
@@ -131,6 +139,18 @@ struct PcieDbiSlvRegion : public MemoryRegion {
             throw memory_error(first() + pos);
 
         switch (pos) {
+        case PF0_MSI_CAP:
+            msi_cap = *source32;
+            break;
+        case PF0_MSIX_CAP:
+            msix_cap = *source32;
+            break;
+        case PF0_PORT_LOGIC_MSIX_ADDRESS_MATCH_LOW_OFF_ADDRESS:
+            msix_match_low = *source32;
+            break;
+        case PF0_PORT_LOGIC_MSIX_ADDRESS_MATCH_HIGH_OFF_ADDRESS:
+            msix_match_high = *source32;
+            break;
         default:
             // ATU subregion
             if (pos >= PF0_ATU_CAP_ADDRESS && pos < PF0_ATU_CAP_ADDRESS + 0x80000) {
@@ -202,6 +222,10 @@ struct PcieDbiSlvRegion : public MemoryRegion {
 
     std::array<uint32_t, 6> bar_regs{};
     std::array<iatu_info_t, ETSOC_CX_ATU_NUM_INBOUND_REGIONS> iatus{};
+    uint32_t msi_cap = (1u << 16) | (0u << 20); /* PCI_MSI_ENABLE = 1, PCI_MSI_MULTIPLE_MSG_EN = 0 */
+    uint32_t msix_cap = (1u << 31); /* PCI_MSIX_ENABLE = 1 */
+    uint32_t msix_match_low = 0;
+    uint32_t msix_match_high = 0;
 };
 
 } // namespace bemu
