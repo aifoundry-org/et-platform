@@ -781,7 +781,7 @@ void tensor_store_start(Hart& cpu, uint64_t tstorereg)
         uint64_t addr     = sext<48>(tstorereg & 0x0000FFFFFFFFFFC0ULL);     // Address where to store the results
         int      src      = scpstart % L1_SCP_ENTRIES;
 
-        uint64_t stride   = X31 & 0x0000FFFFFFFFFFC0ULL;
+        uint64_t stride   = sext<48>(X31 & 0x0000FFFFFFFFFFC0ULL);
 
         LOG_REG(":", 31);
         LOG_HART(DEBUG, cpu, "\tStart TensorStoreFromScp with addr: %016" PRIx64 ", stride: %016" PRIx64 ", rows: %d, scpstart: %d, srcinc: %d", addr, stride, rows, src, srcinc);
@@ -802,7 +802,8 @@ void tensor_store_start(Hart& cpu, uint64_t tstorereg)
             assert(addr_is_size_aligned(addr, L1D_LINE_SIZE));
             LOG_SCP_32x16(":", src);
             try {
-                uint64_t paddr = mmu_translate(cpu, addr, L1D_LINE_SIZE, Mem_Access_TxStore);
+                uint64_t vaddr = sextVA(addr + row * stride);
+                uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxStore);
                 memory.write(cpu, paddr, L1D_LINE_SIZE, SCP[src].u32.data());
                 LOG_MEMWRITE512(paddr, SCP[src].u32);
                 for (int col=0; col < 16; col++) {
@@ -819,7 +820,6 @@ void tensor_store_start(Hart& cpu, uint64_t tstorereg)
                 raise_bus_error_interrupt(cpu, 0);
             }
             src = (src + srcinc) % L1_SCP_ENTRIES;
-            addr = sextVA(addr + stride);
         }
     }
     else
@@ -831,7 +831,7 @@ void tensor_store_start(Hart& cpu, uint64_t tstorereg)
         int      coop     = ((tstorereg & 0x0006000000000000ULL) >> 49) + 1; // Number of cooperative minions
         uint64_t addr     = sext<48>(tstorereg & 0x0000FFFFFFFFFFF0ULL);     // Address where to store the results
 
-        uint64_t stride   = X31 & 0x0000FFFFFFFFFFF0ULL;
+        uint64_t stride   = sext<48>(X31 & 0x0000FFFFFFFFFFF0ULL);
 
         LOG_REG(":", 31);
         LOG_HART(DEBUG, cpu, "\tStart TensorStore with addr: %016" PRIx64 ", stride: %016" PRIx64 ", regstart: %d, rows: %d, cols: %d, srcinc: %d, coop: %d",
