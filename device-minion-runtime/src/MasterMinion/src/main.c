@@ -479,8 +479,8 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
 
     case MESSAGE_ID_FW_EXCEPTION: {
         message_exception_t *exception = (message_exception_t *)&message;
-        print_exception(exception->hart_id, exception->mcause, exception->mepc, exception->mtval,
-                        exception->mstatus);
+        print_exception(exception->mcause, exception->mepc, exception->mtval, exception->mstatus,
+                        exception->hart_id);
         // non-kernel exceptions are unrecoverable. Put the shire in error state
         update_shire_state(shire, SHIRE_STATE_ERROR);
         update_kernel_state(kernel, KERNEL_STATE_ERROR); // the kernel has failed
@@ -489,8 +489,8 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
 
     case MESSAGE_ID_U_MODE_EXCEPTION: {
         message_exception_t *exception = (message_exception_t *)&message;
-        print_exception(exception->hart_id, exception->mcause, exception->mepc, exception->mtval,
-                        exception->mstatus);
+        print_exception(exception->mcause, exception->mepc, exception->mtval, exception->mstatus,
+                        exception->hart_id);
         update_kernel_state(kernel, KERNEL_STATE_ERROR); // the kernel has failed
         break;
     }
