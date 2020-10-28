@@ -140,7 +140,8 @@ TEST_F(MBSimAPITest, BlockOnDeviceInterrupt) {
   });
   // send interrupt to host
   std::this_thread::sleep_for(3s);
-  sim_api_->raiseHostInterrupt();
+  // Raise a zeroth bit host interrupt
+  sim_api_->raiseHostInterrupt(0x1);
   rpc_thread.join();
   rpc_.shutdown();
 }
@@ -149,8 +150,8 @@ TEST_F(MBSimAPITest, BlockOnDeviceInterrupt) {
 TEST_F(MBSimAPITest, ReadEmptyMailBoxMessage) {
   // Prepare the mailbox status
   sim_.mbox_.master_status = et_runtime::device_fw::MBOX_STATUS_READY;
-  // Raise a host interrupt on the device
-  sim_api_->raiseHostInterrupt();
+  // Raise a zeroth bit host interrupt on the device
+  sim_api_->raiseHostInterrupt(0x1);
   uint8_t data[MBOX_MAX_LENGTH];
   // Read the mailbox message it should be empty
   auto res = rpc_.mb_read(data, sizeof(data));
@@ -189,8 +190,8 @@ TEST_F(MBSimAPITest, ReadMailBoxMessage) {
   res = rb.writeRingBufferHeadIndex();
   EXPECT_TRUE(res);
 
-  // Raise a host interrupt on the device, to mark the device ready
-  sim_api_->raiseHostInterrupt();
+  // Raise a zeroth bit host interrupt on the device, to mark the device ready
+  sim_api_->raiseHostInterrupt(0x1);
   std::vector<uint16_t> res_data(elem_num, 0);
 
   // Read the mailbox message
@@ -211,8 +212,8 @@ TEST_F(MBSimAPITest, WriteMailBoxMessage) {
   std::vector<uint16_t> data(elem_num, 0xbeef);
   uint16_t data_size = data.size() * sizeof(typename decltype(data)::value_type);
 
-  // Raise a host interrupt on the device so that the host can proceed
-  sim_api_->raiseHostInterrupt();
+  // Raise a zeroth bit host interrupt on the device so that the host can proceed
+  sim_api_->raiseHostInterrupt(0x1);
 
   // Write the mailbox message
   auto res = rpc_.mb_write(data.data(), data_size);

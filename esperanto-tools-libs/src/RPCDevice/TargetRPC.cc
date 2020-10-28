@@ -295,6 +295,8 @@ bool RPCTarget::rpcRaiseDeviceSpioPlicPcieMessageInterrupt() {
 bool RPCTarget::rpcWaitForHostInterrupt(TimeDuration wait_time) {
   simulator_api::Request request;
   auto host_interrupt = new HostInterrupt();
+  // mailbox implementation uses only zeroth bit interrupt
+  host_interrupt->set_interrupt_bitmap(0x1);
   request.set_allocated_host_interrupt(host_interrupt);
   // Do RPC and wait for reply
   auto reply_res = doRPC(request);
