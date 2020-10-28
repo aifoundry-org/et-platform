@@ -478,6 +478,19 @@ static void pcie_init_noc(void)
         PCIE_NOC +
             PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_514G__516G__2G_11_0_ADDRESS,
         offset11);
+
+    // Enable SRAM-HI to be accessibe to PCIe - Address range: 0x0020020000 - 0x002003FFFF (total 128K)
+    // Program ADBASE for P0
+    iowrite64(
+         PCIE_NOC +
+         PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOSYS_S_SR_MAIN0_TOSYS_S_MAP_R_768G_2M__768G_4M__2M_6_0_ADDRESS,
+         0x0000000020020000);
+    // Program ADMASK for P0
+    iowrite64(
+         PCIE_NOC +
+         PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADMASK_MEM_MAIN0_TOSYS_S_SR_MAIN0_TOSYS_S_MAP_R_768G_2M__768G_4M__2M_6_0_ADDRESS,
+         0x000000FFFFFE0000);
+
 }
 
 //See DWC_pcie_ctl_dm_databook section 3.10.11
