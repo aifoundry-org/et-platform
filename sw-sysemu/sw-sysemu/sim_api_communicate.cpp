@@ -312,6 +312,6 @@ void sim_api_communicate::set_comm_path(const std::string &comm_path)
 bool sim_api_communicate::raise_host_interrupt(uint32_t bitmap)
 {
     LOG_NOTHREAD(INFO, "sim_api_communicate: Raise Host Interrupt (0x%" PRIx32 ")", bitmap);
-    sim_api_.raiseHostInterrupt();
+    sim_api_.raiseHostInterrupt(bitmap);
     return true;
 }
