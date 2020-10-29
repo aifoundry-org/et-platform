@@ -13,7 +13,7 @@
 //R_PU_MBOX_PC_SP   BAR2 + 0x1000   4k     Mailbox shared memory
 //R_PU_TRG_PCIE     BAR2 + 0x2000   8k     Mailbox interrupts
 //R_PCIE_USRESR     BAR2 + 0x4000   4k     DMA control registers
-
+//R_PU_SRAM_HI      BAR2 + 0x5000   128k   Mailbox shared memory (VQ)
 const struct et_bar_mapping BAR_MAPPINGS[] = {
 	{
 		.soc_addr =              DRAM_MEMMAP_BEGIN,
@@ -47,6 +47,13 @@ const struct et_bar_mapping BAR_MAPPINGS[] = {
 		.soc_addr =              R_PCIE_USRESR_BASEADDR,
 		.size =                  R_PCIE_USRESR_SIZE,
 		.bar_offset =            0x4000,
+		.bar =                   2,
+		.strictly_order_access = true
+	},
+	{
+		.soc_addr =              R_PU_SRAM_HI_BASEADDR,
+		.size =                  R_PU_SRAM_HI_SIZE,
+		.bar_offset =            0x5000,
 		.bar =                   2,
 		.strictly_order_access = true
 	}
