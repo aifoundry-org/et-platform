@@ -316,6 +316,8 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 	struct et_pci_dev *et_dev;
 	struct miscdevice *misc_mgmt_dev_ptr = fp->private_data;
 	size_t size;
+        uint64_t fw_update_reg_base;
+        uint32_t fw_update_reg_size;
 	int rc;
 
 	et_dev = container_of(misc_mgmt_dev_ptr,
@@ -361,6 +363,22 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 	case ETSOC1_IOCTL_POP_MBOX(0):
 		return et_mbox_read_to_user(mgmt_mbox_ptr,
 					    (char __user *)arg, size);
+
+	case ETSOC1_IOCTL_GET_FW_UPDATE_REG_BASE & ~IOCSIZE_MASK:
+		fw_update_reg_base = FW_UPDATE_REGION_BEGIN;
+		if (copy_to_user((uint64_t *)arg, &fw_update_reg_base, size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_FW_UPDATE_REG_BASE: failed to copy to user\n");
+			return -ENOMEM;
+		}
+		return 0;
+
+	case ETSOC1_IOCTL_GET_FW_UPDATE_REG_SIZE & ~IOCSIZE_MASK:
+		fw_update_reg_size = FW_UPDATE_REGION_SIZE;
+		if (copy_to_user((uint32_t *)arg, &fw_update_reg_size, size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_FW_UPDATE_REG_SIZE: failed to copy to user\n");
+			return -ENOMEM;
+		}
+		return 0;
 
 	default:
 		pr_err("%s: unknown cmd: 0x%x\n", __func__, cmd);
