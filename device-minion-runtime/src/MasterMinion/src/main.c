@@ -20,6 +20,7 @@
 #include "shire.h"
 #include "swi.h"
 #include "syscall_internal.h"
+#include "mm_dev_intf_reg.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -153,6 +154,32 @@ static void wait_sp_mm_mbox_ready(void)
     }
 }
 
+static MM_DEV_INTF_REG_s *g_master_min_dev_intf_reg = (void *)DEV_INTF_BASE_ADDR;
+
+static void dev_interface_reg_init(void)
+{
+    uint64_t next_offset_;
+    g_master_min_dev_intf_reg->version                                   = DEV_INTF_REG_VERSION;
+    g_master_min_dev_intf_reg->size                                      = sizeof(MM_DEV_INTF_REG_s);
+    g_master_min_dev_intf_reg->mm_vq_chan                                = MM_VQ_CHANNEL;
+
+    for (uint8_t i=0; i< MM_VQ_CHANNEL; i++) {
+
+       next_offset_ = MM_VQ_OFFSET + (i*MM_VQ_SIZE);
+
+       g_master_min_dev_intf_reg->mm_vq[i].bar                           = MM_VQ_BAR;
+       g_master_min_dev_intf_reg->mm_vq[i].offset                        = next_offset_;
+       g_master_min_dev_intf_reg->mm_vq[i].size                          = MM_VQ_SIZE;
+    }
+
+    g_master_min_dev_intf_reg->ddr_region[MAP_USER_KERNEL_SPACE].attr    = ATTR_READ_WRITE;
+    g_master_min_dev_intf_reg->ddr_region[MAP_USER_KERNEL_SPACE].bar     = USER_KERNEL_SPACE_BAR;
+    g_master_min_dev_intf_reg->ddr_region[MAP_USER_KERNEL_SPACE].offset  = USER_KERNEL_SPACE_OFFSET;
+    g_master_min_dev_intf_reg->ddr_region[MAP_USER_KERNEL_SPACE].size    = USER_KERNEL_SPACE_SIZE;
+    // Update Status to indicate MM VQ is ready to use
+    g_master_min_dev_intf_reg->status                                    = STAT_DEV_INTF_READY_INITIALIZED;
+}
+
 static void __attribute__((noreturn)) master_thread(void)
 {
     uint64_t temp;
@@ -164,6 +191,8 @@ static void __attribute__((noreturn)) master_thread(void)
     log_write(LOG_LEVEL_CRITICAL, "\r\nMaster minion " GIT_VERSION_STRING "\r\n");
 
     INT_init();
+
+    dev_interface_reg_init();
 
     log_write(LOG_LEVEL_CRITICAL, "Master: Initializing trace subsystem...");
     TRACE_init_master();
