@@ -1,0 +1,26 @@
+import:
+  - path: '@ci@/ci-tools/templates/template-main-top-level.yaml'
+
+parameters:
+  SW_PLATFORM_BRANCH:
+    description: SW-Platform branch to track
+    type: string
+    default_value: "origin/master"
+
+stages:
+  RUNTIME:
+    cmds:
+      - job: sw-platform/runtime-integration/pipelines/runtime-checkin-tests
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"
+    exec_after: [DSL_JOB]
+
+  GLOW_OPERATORS:
+    cmds:
+      - job: sw-platform/glow-integration/pipelines/glow-operators-top-level
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"
+    exec_after: [DSL_JOB]
+
