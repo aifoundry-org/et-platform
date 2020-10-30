@@ -1,0 +1,48 @@
+import:
+  - path: '@ci@/ci-tools/templates/template-main-top-level.yaml'
+
+parameters:
+  SW_PLATFORM_BRANCH:
+    description: SW-Platform branch to track
+    type: string
+    default_value: "origin/master"
+
+stages:
+  JOB_RUNTIME:
+    cmds:
+      - job: sw-platform/runtime-integration/pipelines/runtime-checkin-tests
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
+
+  JOB_COVERAGE:
+    cmds:
+      - job: sw-platform/runtime-integration/pipelines/runtime-coverage-tests
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
+
+  JOB_SANITIZER:
+    cmds:
+      - job: sw-platform/runtime-integration/pipelines/runtime-sanitizer-tests
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
+
+  JOB_BASE_INTEGRATION:
+    cmds:
+      - job: sw-platform/tools-and-utils/pipelines/sw-platform-basic-integration
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
+
+  JOB_GLOW_OPERATORS:
+    cmds:
+      - job: sw-platform/host-sw-integration/pipelines/dnn-lib/glow-operators-ci-etrt-devfw-sysemu
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
+          PYTEST_RETRIES: "2"
+          TIMEOUT: "3"
+
+
