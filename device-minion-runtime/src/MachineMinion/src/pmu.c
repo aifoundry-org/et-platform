@@ -158,6 +158,8 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_tensor_addr)
             ret = ret - 1;
         }
         if (log_tensor) {
+            // emizan: Given changes in hart assignment after this was first put
+            // this needs to be revised. Data out of log_tensor may be off
             *(log_tensor + hart_id * 8) = pmc_data;
         } else {
             TRACE_perfctr(LOG_LEVELS_INFO, 1, pmc_data);
@@ -173,6 +175,8 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_tensor_addr)
             if (pmc_data == PMU_INCORRECT_COUNTER) {
                ret = ret - 1;
             }
+            // emizan: Given changes in hart assignment after this was first put
+            // this needs to be revised. Data out of log_tensor may be off
             if (log_tensor) {
                 *(log_tensor + (shire_id * 64 + neigh_id * 16 + NEIGH_HART_SC + i- 1)* 8) = pmc_data;
             } else {
@@ -190,7 +194,8 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_tensor_addr)
             if (pmc_data == PMU_INCORRECT_COUNTER) {
                 ret = ret - 1;
             }
-            // Put data on location for last hart of neighs 0-2. Last hart of shire stores nothing
+            // emizan: Given changes in hart assignment after this was first put
+            // this needs to be revised. Data out of log_tensor may be off
             if (log_tensor) {
                 *(log_tensor + (shire_id * 64 + (neigh_id - 3 + i)* 16 + (hart_id & 0xF)) * 8) = pmc_data;
             } else {
