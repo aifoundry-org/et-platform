@@ -525,9 +525,8 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
     }
 
     case MESSAGE_ID_LOG_WRITE:
-        if (get_log_level() > LOG_LEVEL_INFO) {
-            print_log_message(shire, hart, &message);
-        }
+        // Always print messages coming from workers
+        print_log_message(shire, hart, &message);
         break;
 
     case MESSAGE_ID_SET_LOG_LEVEL:
