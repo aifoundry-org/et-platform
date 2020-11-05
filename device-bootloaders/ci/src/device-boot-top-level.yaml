@@ -6,21 +6,45 @@ parameters:
     description: SW-Platform branch to track
     type: string
     default_value: "origin/master"
+  REPO_SSH_URL:
+    description: Repository URL
+    type: string
+    default_value: "git@gitlab.esperanto.ai:software/device-bootloaders.git"
+  REPO_NAME:
+    description: Repository name
+    type: string
+    default_value: "device-bootloaders"
+  RUN_ZEBU:
+    description: Run Zebu Job
+    type: bool
+    default_value: true
 
 stages:
-  RUNTIME:
+  JOB_RUNTIME:
     cmds:
       - job: sw-platform/runtime-integration/pipelines/runtime-checkin-tests
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"
-    exec_after: [DSL_JOB]
 
-  GLOW_OPERATORS:
+  JOB_GLOW_OPERATORS:
     cmds:
       - job: sw-platform/glow-integration/pipelines/glow-operators-top-level
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"
-    exec_after: [DSL_JOB]
 
+  JOB_ZEBU:
+    when:
+      jenkins:
+        all:
+          - ${RUN_ZEBU}
+      default:
+        false
+    cmds:
+      - job: sw-platform/zebu/zebu-checkin-top-level
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"
+          TIMEOUT: "4"
+          RUN_ZEBU: ${RUN_ZEBU}

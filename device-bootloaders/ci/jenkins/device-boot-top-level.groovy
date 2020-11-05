@@ -3,13 +3,14 @@ import hudson.model.*
 pipeline {
   parameters {
     string(name: 'BRANCH', defaultValue: '$gitlabSourceBranch', description: 'Branch name to checkout')
-    string(name: 'REPO_SSH_URL', defaultValue: '$gitlabSourceRepoSshUrl', description: 'The ssh url of the repository to checkout')
-    string(name: 'REPO_NAME', defaultValue: '$gitlabSourceRepoName', description: 'Name of the repo that will be used')
+    string(name: 'REPO_SSH_URL', defaultValue: 'git@gitlab.esperanto.ai:software/device-bootloaders.git', description: 'Repository URL')
+    string(name: 'REPO_NAME', defaultValue: 'device-bootloaders', description: 'Repository name')
     string(name: 'COMPONENT_COMMITS', defaultValue: '', description: 'List of submodule-paths and their commits to checkout as part of the build. The formath is <SUBMODULE_PATH_1>:<COMMIT_1>,<SUBMODULE_PATH_2>:<COMMIT_2>')
     string(name: 'NODE', defaultValue: 'DISPATCHER', description: 'Node label where the job should run')
     string(name: 'TIMEOUT', defaultValue: '12', description: 'Timeout (in hours)')
     booleanParam(name: 'HARD_CLEAN', defaultValue: 'true', description: 'If set to 1, removes all the workspace at the end of the regression')
     string(name: 'SW_PLATFORM_BRANCH', defaultValue: 'origin/master', description: 'SW-Platform branch to track')
+    booleanParam(name: 'RUN_ZEBU', defaultValue: 'true', description: 'Run Zebu Job')
   }
   agent {
     label "${params.NODE}"
@@ -66,7 +67,7 @@ pipeline {
     }
     stage('PARALLEL0') {
       parallel {
-        stage('GLOW_OPERATORS') {
+        stage('JOB_GLOW_OPERATORS') {
           steps {
             build job:
               'sw-platform/glow-integration/pipelines/glow-operators-top-level',
@@ -77,7 +78,7 @@ pipeline {
               ]
           }
         }
-        stage('RUNTIME') {
+        stage('JOB_RUNTIME') {
           steps {
             build job:
               'sw-platform/runtime-integration/pipelines/runtime-checkin-tests',
@@ -85,6 +86,26 @@ pipeline {
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
                 string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}")
+              ]
+          }
+        }
+        stage('JOB_ZEBU') {
+          when {
+            allOf {
+              expression {
+                return sh(returnStatus: true, script: "${RUN_ZEBU}") == 0
+              }
+            }
+          }
+          steps {
+            build job:
+              'sw-platform/zebu/zebu-checkin-top-level',
+              propagate: true,
+              parameters: [
+                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"),
+                string(name: 'TIMEOUT', value: '4'),
+                string(name: 'RUN_ZEBU', value: "${RUN_ZEBU}")
               ]
           }
         }
