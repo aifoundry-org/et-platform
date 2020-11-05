@@ -6,6 +6,18 @@ parameters:
     description: SW-Platform branch to track
     type: string
     default_value: "origin/master"
+  REPO_SSH_URL:
+    description: Repository URL
+    type: string
+    default_value: "git@gitlab.esperanto.ai:software/esperanto-tools-libs.git"
+  REPO_NAME:
+    description: Repository name
+    type: string
+    default_value: "esperanto-tools-libs"
+  RUN_ZEBU:
+    description: Run Zebu Job
+    type: bool
+    default_value: true
 
 stages:
   JOB_RUNTIME:
@@ -44,5 +56,20 @@ stages:
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
           PYTEST_RETRIES: "2"
           TIMEOUT: "3"
+
+  JOB_ZEBU:
+    when:
+      jenkins:
+        all:
+          - ${RUN_ZEBU}
+      default:
+        false
+    cmds:
+      - job: sw-platform/zebu/zebu-checkin-top-level
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
+          TIMEOUT: "4"
+          RUN_ZEBU: ${RUN_ZEBU}
 
 
