@@ -168,7 +168,8 @@ macro(randomized_test)
 
 endmacro(randomized_test)
 
-
+add_subdirectory("add_vector") 
+add_subdirectory("memset") 
 add_subdirectory("beef")
 add_subdirectory("trace")
 add_subdirectory("trace_ring_buffer")
