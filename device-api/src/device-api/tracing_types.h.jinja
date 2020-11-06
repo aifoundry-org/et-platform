@@ -46,7 +46,8 @@ enum TRACE_EVENTS {
   TRACE_EVENT_ID_<< group["Name"] | upper >>_<< trace["Name"] | upper >>, ///< << trace["Description"] >>
   <%- endfor %>
 <%- endfor %>
-  TRACE_EVENT_ID_LAST ///< Last event marker
+  TRACE_EVENT_ID_LAST, ///< Last event marker
+  TRACE_EVENT_ID_OVERFLOW /// Event ID OVERFLOW is reserved
 };
 
 typedef uint64_t trace_groups_e;
