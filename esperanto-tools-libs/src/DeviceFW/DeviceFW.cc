@@ -12,6 +12,7 @@
 
 #include "CodeManagement/ELFSupport.h"
 #include "RPCDevice/TargetRPC.h"
+#include "RPCDevice/RPCTarget_MM.h"
 
 #include "esperanto/runtime/Common/ProjectAutogen.h"
 #include "esperanto/runtime/Core/DeviceTarget.h"
@@ -107,7 +108,8 @@ etrtError DeviceFW::loadOnDevice(device::DeviceTarget *dev) {
 
 etrtError DeviceFW::configureFirmware(device::DeviceTarget *dev) {
   // [SW-3998] TODO: For Zebu we will create a new Firmware class because we start booting BL2 there
-  if (dev->type() != device::DeviceTarget::TargetType::SysEmuGRPC) {
+  if (dev->type() != device::DeviceTarget::TargetType::SysEmuGRPC &&
+      dev->type() != device::DeviceTarget::TargetType::SysEmuGRPC_VQ_MM) {
     return etrtSuccess;
   }
 
@@ -135,7 +137,8 @@ etrtError DeviceFW::configureFirmware(device::DeviceTarget *dev) {
 etrtError DeviceFW::bootFirmware(device::DeviceTarget *dev) {
   // TODO: Not the best place to check for this
   // On Zebu the Minions are booted directly
-  if (dev->type() != device::DeviceTarget::TargetType::SysEmuGRPC) {
+  if (dev->type() != device::DeviceTarget::TargetType::SysEmuGRPC &&
+      dev->type() != device::DeviceTarget::TargetType::SysEmuGRPC_VQ_MM) {
     return etrtSuccess;
   }
 
@@ -154,10 +157,18 @@ etrtError DeviceFW::bootFirmware(device::DeviceTarget *dev) {
     thread1_enable = 0;
   }
 
-  auto *rpc_target = dynamic_cast<device::RPCTarget *>(dev);
-  auto ret = rpc_target->rpcBootShire(shire_id, thread0_enable, thread1_enable);
-  if (!ret) {
-    return etrtErrorUnknown;
+  if (dev->type() == device::DeviceTarget::TargetType::SysEmuGRPC) {
+    auto *rpc_target = dynamic_cast<device::RPCTarget *>(dev);
+    auto ret = rpc_target->rpcBootShire(shire_id, thread0_enable, thread1_enable);
+    if (!ret) {
+      return etrtErrorUnknown;
+    }
+  } else {
+    auto *rpc_target = dynamic_cast<device::RPCTargetMM *>(dev);
+    auto ret = rpc_target->boot(MM_SHIRE_ID, MM_RT_THREADS, 0);
+    if (!ret) {
+      return etrtErrorUnknown;
+    }
   }
 
   return etrtSuccess;

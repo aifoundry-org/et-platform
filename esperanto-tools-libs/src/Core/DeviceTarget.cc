@@ -11,7 +11,9 @@
 #include "esperanto/runtime/Core/DeviceTarget.h"
 #include "PCIEDevice/PCIeDevice.h"
 #include "RPCDevice/TargetRPC.h"
+#include "RPCDevice/RPCTarget_MM.h"
 #include "RPCDevice/TargetSysEmu.h"
+#include "RPCDevice/SysEmuTarget_MM.h"
 #include "esperanto/runtime/Core/CommandLineOptions.h"
 #include "esperanto/runtime/Support/Logging.h"
 
@@ -32,6 +34,7 @@ const std::map<std::string, DeviceTarget::TargetType>
     DeviceTarget::Str2TargetType = {
         {"pcie", TargetType::PCIe},
         {"sysemu_grpc", TargetType::SysEmuGRPC},
+        {"sysemu_vq_mm", TargetType::SysEmuGRPC_VQ_MM},
         {"device_grpc", TargetType::DeviceGRPC},
         {"fake_device", TargetType::FakeDevice},
 };
@@ -79,6 +82,8 @@ std::unique_ptr<DeviceTarget> DeviceTarget::deviceFactory(TargetType target,
     return make_unique<PCIeDevice>(index);
   case TargetType::SysEmuGRPC:
     return make_unique<TargetSysEmu>(index);
+  case TargetType::SysEmuGRPC_VQ_MM: // Added temporarily
+    return make_unique<SysEmuTargetMM>(index);
     // FIXME we have no usecase yet where we instantite RPCTarget directly
   // case TargetType::DeviceGRPC:
   //   return make_unique<RPCTarget>(index, "");

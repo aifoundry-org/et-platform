@@ -76,6 +76,21 @@ public:
   /// @brief READ a full mailbox message, this corresponds to the API that the PCIE device exposes
   ssize_t mb_read(void *data, ssize_t size, TimeDuration wait_time = TimeDuration::max()) final;
 
+  /// @brief Discover virtual queues info
+  /// Virtual Queue implementation, coming from abstract class
+  bool virtQueuesDiscover(TimeDuration wait_time = TimeDuration::max()) final;
+
+  /// @brief Write a full virtual queue message, this corresponds to the API that the PCIE device exposes
+  /// Virtual Queue implementation, coming from abstract class
+  bool virtQueueWrite(const void *data, ssize_t size, uint8_t queueId) final;
+
+  /// @brief READ a full virtual queue message, this corresponds to the API that the PCIE device exposes
+  /// Virtual Queue implementation, coming from abstract class
+  ssize_t virtQueueRead(void *data, ssize_t size, uint8_t queueId, TimeDuration wait_time = TimeDuration::max()) final;
+
+  /// @brief Wait until any epoll event occur, and also provide bitmaps for events on virtqueues
+  bool waitForEpollEvents(uint32_t &sq_bitmap, uint32_t &cq_bitmap) final;
+
   /// @brief Shutdown target
   bool shutdown() override;
 

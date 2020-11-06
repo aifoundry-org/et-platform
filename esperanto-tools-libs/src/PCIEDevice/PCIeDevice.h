@@ -47,6 +47,11 @@ public:
   bool mb_write(const void *data, ssize_t size) final;
   ssize_t mb_read(void *data, ssize_t size,
                   TimeDuration wait_time = TimeDuration::max()) final;
+  bool virtQueuesDiscover(TimeDuration wait_time = TimeDuration::max()) final;
+  bool virtQueueWrite(const void *data, ssize_t size, uint8_t queueId) final;
+  ssize_t virtQueueRead(void *data, ssize_t size, uint8_t queueId,
+                        TimeDuration wait_time = TimeDuration::max()) final;
+  bool waitForEpollEvents(uint32_t &sq_bitmap, uint32_t &cq_bitmap) final;
   bool shutdown() override;
 
   /// @brief Return the absolute base DRAM address we can access
