@@ -21,6 +21,8 @@
 #include "swi.h"
 #include "syscall_internal.h"
 #include "mm_dev_intf_reg.h"
+#include "sync.h"
+#include "vqueue.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -32,12 +34,22 @@
 //#define DEBUG_FAKE_MESSAGE_FROM_HOST
 //#define DEBUG_FAKE_ABORT_FROM_HOST
 
+static global_fcc_flag_t sq_worker_sync[VQUEUE_COUNT] = { 0 };
+
 #ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
 #include <esperanto/device-api/device_api.h>
 static void fake_message_from_host(void);
 #endif
 
 static void master_thread(void);
+/// \brief Thread for processing the commands sent by Host in Submission Queues.
+/// For each Submission Queue, there is a sq_worker_thread instantiated.
+/// \param[in] sq_index: Index of the Submission Queue on which the thread operates.
+static void __attribute__((noreturn)) sq_worker_thread(uint32_t sq_index);
+
+/// \brief Handle a command from the Host sent in Submission Queue
+/// \param[in] sq_index: Index of submission queue from which the message is to be read.
+static int64_t handle_messages_from_host_sq(uint32_t sq_index);
 
 static void handle_messages_from_host(void);
 
@@ -83,6 +95,10 @@ void __attribute__((noreturn)) main(void)
         master_thread();
     } else if ((hart_id >= 2050) && (hart_id < 2054)) {
         kernel_sync_thread(hart_id - 2050);
+    } else if ((hart_id >= 2054) && (hart_id % 2054 <= VQUEUE_COUNT)) {
+        // SQ Workers
+        // TODO: VQUEUE_COUNT should come from Device Interface Regs
+        sq_worker_thread((uint32_t)(hart_id % 2054));
     } else {
         while (1) {
             asm volatile("wfi");
@@ -103,6 +119,19 @@ static inline void check_and_handle_sp_and_worker_messages(void)
     }
 }
 
+// From third minion in the master shire, SQ workers are initialized
+// SQ worker ID 0 maps to minion thread 0, 1 to minion thread 1, etc.
+#define FIRST_SQ_WORKER_MINON 3
+
+// Sends a FCC_0 to the appropriate SQ worker thread (HART) for the sq_worker_id
+static inline void notify_sq_worker_thread(uint32_t sq_worker_id)
+{
+    const uint32_t minion = FIRST_SQ_WORKER_MINON + (sq_worker_id / 2);
+    const uint32_t thread = sq_worker_id % 2;
+
+    global_fcc_flag_notify(&sq_worker_sync[sq_worker_id], minion, thread);
+}
+
 static inline void check_and_handle_host_messages_and_pcie_events(void)
 {
     // External interrupts
@@ -118,6 +147,10 @@ static inline void check_and_handle_host_messages_and_pcie_events(void)
 
         handle_messages_from_host();
         handle_pcie_events();
+
+        // Send FCC_0 to SQ handler to process SQ
+        // TODO: Using SQ0 thread only for now. Will be updated in VQ WP2
+        notify_sq_worker_thread(0U);
     }
 }
 
@@ -180,12 +213,58 @@ static void dev_interface_reg_init(void)
     g_master_min_dev_intf_reg->status                                    = STAT_DEV_INTF_READY_INITIALIZED;
 }
 
+static void __attribute__((noreturn)) sq_worker_thread(uint32_t sq_index)
+{
+    // Flag for pending SQs
+    bool sq_pending;
+    int64_t temp;
+
+    // Empty all FCCs
+    init_fcc(FCC_0);
+    init_fcc(FCC_1);
+
+    while (1) {
+        // wait for notification from MM
+        global_fcc_flag_wait(&sq_worker_sync[sq_index]);
+
+        // VQUEUE_SQ_HP_ID is Higher priority Submission Queue. Remaining SQs are of normal priority.
+        // All available commands in VQUEUE_SQ_HP_ID will be processed first, then each command from 
+        // remaining SQs will be processed in Round-Robin fashion with a single command processing at a time.
+        sq_pending = true;
+        
+        while (sq_pending) {
+            uint32_t i;
+
+            // TODO: VQUEUE_COUNT should come from Device Interface Regs
+            for (i = 0, sq_pending = false; i < VQUEUE_COUNT; i++) {
+                if (i == VQUEUE_SQ_HP_ID) {
+                    // Process all commands from SQ0
+                    do {
+                        temp = handle_messages_from_host_sq(i);
+                    } while ((temp >= 0) || (temp == VQ_ERROR_CQ_FULL));
+                } else {
+                    // Process rest of the SQs with equal weights
+                    temp = handle_messages_from_host_sq(i);
+                    if ((temp >= 0) || (temp == VQ_ERROR_CQ_FULL)) {
+                        sq_pending = true;
+                    }
+                }
+            }
+        }
+    }
+}
+
 static void __attribute__((noreturn)) master_thread(void)
 {
     uint64_t temp;
     volatile minion_fw_boot_config_t *boot_config =
         (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
     uint64_t boot_minion_shires = boot_config->minion_shires & ((1ULL << NUM_SHIRES) - 1);
+
+    // Ensure that FCC global flags for SQ workers sync notifications are initialized. 
+    for (uint8_t i = 0; i < VQUEUE_COUNT; i++) {
+        global_fcc_flag_init(&sq_worker_sync[i]);
+    }
 
     SERIAL_init(UART0);
     log_write(LOG_LEVEL_CRITICAL, "\r\nMaster minion " GIT_VERSION_STRING "\r\n");
@@ -230,6 +309,10 @@ static void __attribute__((noreturn)) master_thread(void)
     // TODO: Should we block wait for this?
     wait_sp_mm_mbox_ready();
 
+    // Initialize VQs
+    VQUEUE_init();
+    log_write(LOG_LEVEL_CRITICAL, "MM queues to Host initialzed\r\n");
+    
     // Indicate to Host MM is ready to accept new commands
     MBOX_init();
     log_write(LOG_LEVEL_CRITICAL, "Mailbox to Host initialzed\r\n");
@@ -327,6 +410,45 @@ static void fake_message_from_host(void)
 #endif
 }
 #endif
+
+static int64_t handle_messages_from_host_sq(uint32_t vq_index)
+{
+    static uint8_t buffer[CIRCBUFFER_SIZE]
+        __attribute__((aligned(8))) = { 0 };
+    int64_t length;
+
+    VQUEUE_update_status(vq_index);
+
+    // Only pop from SQ when CQ has space for new respnonse handling
+    if (VQUEUE_full(CQ, vq_index)) {
+        return VQ_ERROR_CQ_FULL;
+    }
+
+    length = VQUEUE_pop(SQ, vq_index, buffer, sizeof(buffer));
+
+    if (length > 0) {
+        // TODO: MBOX references to be changed in VQ_WP2
+        const mbox_message_id_t *const message_id = (const void *const)buffer;
+
+        if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_REFLECT_TEST_CMD) {
+            const struct reflect_test_cmd_t* const cmd = (const void* const) buffer;
+            struct reflect_test_rsp_t rsp;
+            rsp.response_info.message_id = MBOX_DEVAPI_NON_PRIVILEGED_MID_REFLECT_TEST_RSP;
+            prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
+            int64_t result = VQUEUE_push(CQ, vq_index, &rsp, sizeof(rsp));
+            if (result != 0) {
+                log_write(LOG_LEVEL_ERROR, "DeviceAPI Reflect Test send error %" PRIi64 "\r\n", result);
+            }
+        } else {
+            log_write(LOG_LEVEL_ERROR, "Invalid message id: %" PRIu64 "\r\n", *message_id);
+
+#ifdef DEBUG_PRINT_HOST_MESSAGE
+            print_host_message(buffer, length);
+#endif
+        }
+    }
+    return length;
+}
 
 static void handle_messages_from_host(void)
 {
