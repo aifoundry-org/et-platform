@@ -3,13 +3,14 @@ import hudson.model.*
 pipeline {
   parameters {
     string(name: 'BRANCH', defaultValue: '$gitlabSourceBranch', description: 'Branch name to checkout')
-    string(name: 'REPO_SSH_URL', defaultValue: '$gitlabSourceRepoSshUrl', description: 'The ssh url of the repository to checkout')
-    string(name: 'REPO_NAME', defaultValue: '$gitlabSourceRepoName', description: 'Name of the repo that will be used')
+    string(name: 'REPO_SSH_URL', defaultValue: 'git@gitlab.esperanto.ai:software/esperanto-tools-libs.git', description: 'Repository URL')
+    string(name: 'REPO_NAME', defaultValue: 'esperanto-tools-libs', description: 'Repository name')
     string(name: 'COMPONENT_COMMITS', defaultValue: '', description: 'List of submodule-paths and their commits to checkout as part of the build. The formath is <SUBMODULE_PATH_1>:<COMMIT_1>,<SUBMODULE_PATH_2>:<COMMIT_2>')
     string(name: 'NODE', defaultValue: 'DISPATCHER', description: 'Node label where the job should run')
     string(name: 'TIMEOUT', defaultValue: '12', description: 'Timeout (in hours)')
     booleanParam(name: 'HARD_CLEAN', defaultValue: 'true', description: 'If set to 1, removes all the workspace at the end of the regression')
     string(name: 'SW_PLATFORM_BRANCH', defaultValue: 'origin/master', description: 'SW-Platform branch to track')
+    booleanParam(name: 'RUN_ZEBU', defaultValue: 'true', description: 'Run Zebu Job')
   }
   agent {
     label "${params.NODE}"
@@ -66,32 +67,10 @@ pipeline {
     }
     stage('PARALLEL0') {
       parallel {
-        stage('JOB_BASE_INTEGRATION') {
-          steps {
-            build job:
-              'sw-platform/tools-and-utils/pipelines/sw-platform-basic-integration',
-              propagate: true,
-              parameters: [
-                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}")
-              ]
-          }
-        }
         stage('JOB_COVERAGE') {
           steps {
             build job:
               'sw-platform/runtime-integration/pipelines/runtime-coverage-tests',
-              propagate: true,
-              parameters: [
-                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}")
-              ]
-          }
-        }
-        stage('JOB_RUNTIME') {
-          steps {
-            build job:
-              'sw-platform/runtime-integration/pipelines/runtime-checkin-tests',
               propagate: true,
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
@@ -120,6 +99,48 @@ pipeline {
                 string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
                 string(name: 'PYTEST_RETRIES', value: '2'),
                 string(name: 'TIMEOUT', value: '3')
+              ]
+          }
+        }
+        stage('JOB_RUNTIME') {
+          steps {
+            build job:
+              'sw-platform/runtime-integration/pipelines/runtime-checkin-tests',
+              propagate: true,
+              parameters: [
+                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}")
+              ]
+          }
+        }
+        stage('JOB_BASE_INTEGRATION') {
+          steps {
+            build job:
+              'sw-platform/tools-and-utils/pipelines/sw-platform-basic-integration',
+              propagate: true,
+              parameters: [
+                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}")
+              ]
+          }
+        }
+        stage('JOB_ZEBU') {
+          when {
+            allOf {
+              expression {
+                return sh(returnStatus: true, script: "${RUN_ZEBU}") == 0
+              }
+            }
+          }
+          steps {
+            build job:
+              'sw-platform/zebu/zebu-checkin-top-level',
+              propagate: true,
+              parameters: [
+                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
+                string(name: 'TIMEOUT', value: '4'),
+                string(name: 'RUN_ZEBU', value: "${RUN_ZEBU}")
               ]
           }
         }
