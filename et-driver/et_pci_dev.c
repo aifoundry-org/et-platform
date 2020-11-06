@@ -4,8 +4,8 @@
 #include "hal_device.h"
 
 //BAR0
-//Name              Host Addr       Size   Notes
-//R_L3_DRAM         BAR0 + 0x0000   ~32GB  SoC DRAM
+//Name                    Host Addr       Size   Notes
+//R_L3_DRAM               BAR0 + 0x0000   ~32GB  SoC DRAM
 
 //BAR2
 //Name              Host Addr       Size   Notes

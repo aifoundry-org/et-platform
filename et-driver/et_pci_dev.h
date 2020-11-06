@@ -9,6 +9,7 @@
 #include <linux/workqueue.h>
 #include "et_dma.h"
 #include "et_mbox.h"
+#include "et_vqueue.h"
 
 struct et_iomem {
 	void __iomem *mem;
@@ -17,13 +18,15 @@ struct et_iomem {
 };
 
 #define IOMEM_REGIONS 5
+#define SP_VQUEUE 1
+#define MM_VQUEUE 0
 
 enum et_iomem_r {
 	IOMEM_R_DRCT_DRAM = 0,
 	IOMEM_R_PU_MBOX_PC_MM,
 	IOMEM_R_PU_MBOX_PC_SP,
 	IOMEM_R_PU_TRG_PCIE,
-	IOMEM_R_PCIE_USRESR
+	IOMEM_R_PCIE_USRESR,
 };
 
 struct et_bar_mapping {
@@ -37,7 +40,12 @@ struct et_bar_mapping {
 extern const struct et_bar_mapping BAR_MAPPINGS[];
 
 struct et_pci_dev {
+	/* SP */
+	struct et_vqueue vqueue_sp;
+	/* MM */
+	struct et_vqueue **vqueue_mm_pptr;
 	struct pci_dev *pdev;
+	void __iomem *r_pu_trg_pcie;
 	struct et_mbox mbox_mm;
 	struct et_mbox mbox_sp;
 	struct et_dma_chan dma_chans[ET_DMA_NUM_CHANS];
@@ -56,6 +64,8 @@ struct et_pci_dev {
 	struct timer_list missed_irq_timer;
 	spinlock_t abort_lock;
 	bool aborting;
+	bool is_vqueue_initialized;
+	bool is_vqueue_discovered;
 	u8 index;
 };
 

@@ -33,4 +33,57 @@
 #define BULK_CFG_MMIO 1
 #define BULK_CFG_DMA 2
 
+#define u8	uint8_t
+#define u16	uint16_t
+#define u32	uint32_t
+#define u64	uint64_t
+
+struct sq_available_threshold {
+	u8 count;
+	u8 index;
+};
+
+struct cmd_info_t {
+	u64 *cmd;
+	ssize_t size;
+	u8 sq_index;
+	bool is_dma;
+};
+
+struct rsp_info_t {
+	u64 *rsp;
+	ssize_t size;
+	u8 cq_index;
+};
+
+#define ETSOC1_IOCTL_GET_DRAM_BASE		\
+_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 1, uint64_t)
+
+#define ETSOC1_IOCTL_GET_DRAM_SIZE		\
+_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 2, uint64_t)
+
+#define ETSOC1_IOCTL_GET_SQ_MAX_MSG		\
+_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 3, uint16_t)
+
+#define ETSOC1_IOCTL_QUEUE_COUNT		\
+_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 4, uint8_t)
+
+#define ETSOC1_IOCTL_QUEUE_RESET		\
+_IOW(ESPERANTO_PCIE_IOCTL_MAGIC, 5, uint32_t)
+
+#define ETSOC1_IOCTL_SQ_AVAILABLE_BITMAP	\
+_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 6, uint32_t)
+
+#define ETSOC1_IOCTL_CQ_AVAILABLE_BITMAP	\
+_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 7, uint32_t)
+
+#define ETSOC1_IOCTL_SQ_PUSH			\
+_IOW(ESPERANTO_PCIE_IOCTL_MAGIC, 8, struct cmd_info_t)
+
+#define ETSOC1_IOCTL_CQ_POP			\
+_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 9, struct rsp_info_t)
+
+#define ETSOC1_IOCTL_SQ_AVAILABLE_THRESHOLD	\
+_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 10, struct sq_available_threshold)
+
 #endif
