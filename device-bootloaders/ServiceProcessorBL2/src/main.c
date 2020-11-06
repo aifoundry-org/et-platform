@@ -16,6 +16,7 @@
 #include "bl2_certificates.h"
 #include "bl2_firmware_loader.h"
 #include "bl2_flash_fs.h"
+#include "bl2_pmic_controller.h"
 #include "bl2_build_configuration.h"
 
 #include "bl2_main.h"
@@ -168,6 +169,9 @@ static void taskMain(void *pvParameters)
     // Disable buffering on stdout
     setbuf(stdout, NULL);
 
+    // Establish connection to PMIC 
+    setup_pmic();
+    
     // In non-fast-boot mode, the bootrom initializes PCIe link
 #if FAST_BOOT
     PCIe_release_pshire_from_reset();
