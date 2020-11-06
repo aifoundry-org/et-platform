@@ -27,8 +27,7 @@
 #include "rm_esr.h"
 #include "io.h"
 
-#include "etsoc_hal/inc/et_i2c.h"
-#include "etsoc_hal/inc/DW_apb_i2c.h"
+#include "bl2_i2c_driver.h"
 
 #include "bl2_pmic_controller.h"
 
@@ -47,10 +46,10 @@ void setup_pmic(void)
 {
     set_pmic_i2c_dev();
 
-    /*if (0 != i2c_init(&g_pmic_i2c_dev_reg, ET_I2C_SPEED_400k, PMIC_SLAVE_ADDRESS)) 
+    if (0 != i2c_init(&g_pmic_i2c_dev_reg, ET_I2C_SPEED_400k, PMIC_SLAVE_ADDRESS)) 
     {
      printf("PMIC connection failed to establish link\n");
-    }*/
+    }
 
     printf("PMIC connection establish\n");
 }
