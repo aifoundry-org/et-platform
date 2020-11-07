@@ -54,7 +54,7 @@ void VQUEUE_init(void)
     // First configure the PLIC to accept PCIe interrupts (note that External Interrupts are not enabled yet)
     INT_enableInterrupt(PU_PLIC_PCIE_MESSAGE_INTR, 1, pcie_isr);
 
-    uint32_t counter = 0;
+    //uint32_t counter = 0;
 
     // Populate the VQ descriptor
     vq_desc_glob->queue_addr = VQUEUE_DATA_BASE;
@@ -72,6 +72,8 @@ void VQUEUE_init(void)
 
     log_write(LOG_LEVEL_CRITICAL, "Device ready: %" PRIu8 ". Interrupting Host! \r\n",
               vq_desc_glob->device_ready);
+
+/*  TODO: Moved towards an interrupt free handshake
     // Send interrupt to host to indicate that descriptor is initialized
     // TODO: Hardcoding vector 0 for now. This should come from Device Interface Registers
     pcie_interrupt_host(0U);
@@ -90,8 +92,8 @@ void VQUEUE_init(void)
         }
         counter++;
     }
-
-    log_write(LOG_LEVEL_CRITICAL, "Host ready. Initializing MM queues! \r\n");
+*/
+    log_write(LOG_LEVEL_CRITICAL, "Initializing MM queues! \r\n");
 
     for (uint32_t i = 0; i < vq_desc_glob->queue_count; i++) {
         init_vqueue(
@@ -304,7 +306,8 @@ static void init_vqueue(uint32_t vq_index, uint64_t vq_size)
     asm volatile("fence");
     evict(to_Mem, vq, sizeof(struct vqueue_info));
     WAIT_CACHEOPS
-
+     
     // Notify the other side that we've changed status
-    pcie_interrupt_host(vq_info[vq_index].notify_int);
+    // TODO: 2 step process to remove interrupt based handshake
+    //pcie_interrupt_host(vq_info[vq_index].notify_int);
 }
