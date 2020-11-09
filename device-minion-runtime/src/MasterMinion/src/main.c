@@ -173,18 +173,24 @@ static void wait_all_shires_booted(uint64_t expected)
     }
 }
 
-static void wait_sp_mm_mbox_ready(void)
+static int32_t set_mm_ready_wait_sp_ready(void)
 {
-    // TODO: Proper delay, or better to make this async? Does MM FW init depend on SP?
-    uint32_t timeout = 10;
+    // TODO: Proper delay, or better to make this async? Or maybe from device interface regs?
+    uint32_t timeout = 100000;
+
+    // Set MM (slave) ready, and wait for SP (master) ready.
+    MBOX_set_status(MBOX_SP, MBOX_SLAVE, MBOX_STATUS_READY);
 
     while (timeout > 0) {
-        if (MBOX_ready(MBOX_SP)) {
-            log_write(LOG_LEVEL_CRITICAL, "\n MM -> SP Mbox ready !\n");
-            break;
+        if (MBOX_get_status(MBOX_SP, MBOX_MASTER) == MBOX_STATUS_READY) {
+            log_write(LOG_LEVEL_INFO, "\nMM -> SP synced !\n");
+            return SP_MM_HANDSHAKE_POLL_SUCCESS;
         }
         --timeout;
     }
+    // If we reach this point, the SP did reach sync point
+    log_write(LOG_LEVEL_ERROR, "\nMM Ready, SP Not Ready !\n");
+    return SP_MM_HANDSHAKE_POLL_TIMEOUT;
 }
 
 static MM_DEV_INTF_REG_s *g_master_min_dev_intf_reg = (void *)DEV_INTF_BASE_ADDR;
@@ -273,9 +279,9 @@ static void __attribute__((noreturn)) master_thread(void)
 
     dev_interface_reg_init();
 
-    log_write(LOG_LEVEL_CRITICAL, "Master: Initializing trace subsystem...");
+    log_write(LOG_LEVEL_INFO, "Master: Initializing trace subsystem...");
     TRACE_init_master();
-    log_write(LOG_LEVEL_CRITICAL, "done\r\n");
+    log_write(LOG_LEVEL_INFO, "done\r\n");
     TRACE_string(LOG_LEVELS_CRITICAL, "Trace message from Master minion");
 
     log_write(LOG_LEVEL_INFO, "Initializing message buffers...");
@@ -305,13 +311,15 @@ static void __attribute__((noreturn)) master_thread(void)
     wait_all_shires_booted(boot_minion_shires);
     log_write(LOG_LEVEL_CRITICAL, "All Shires (0x%" PRIx64 ") ready!\n", boot_minion_shires);
 
-    // Wait for SP -> MM Mbox being ready
-    // TODO: Should we block wait for this?
-    wait_sp_mm_mbox_ready();
-
     // Initialize VQs
     VQUEUE_init();
-    log_write(LOG_LEVEL_CRITICAL, "MM queues to Host initialzed\r\n");
+    log_write(LOG_LEVEL_CRITICAL, "MM -> VQ Ready !\r\n");
+
+    // Set MM (Slave) Ready, and wait for SP (Master) Ready 
+    if (set_mm_ready_wait_sp_ready() != SP_MM_HANDSHAKE_POLL_SUCCESS) {
+        // Set Device Interface Register to communicate error to Host
+        g_master_min_dev_intf_reg->status = STAT_MM_SP_MB_TIMEOUT;
+    }
     
     // Indicate to Host MM is ready to accept new commands
     MBOX_init();

@@ -36,8 +36,9 @@
 
 /// \brief Master Minion status register used to indicate Boot Status of MM      
 enum MM_BOOT_STATUS_e {
-    STAT_VQ_DESC_NOT_READY = 0,
+    STAT_MM_SP_MB_TIMEOUT = -2,
     STAT_MM_FW_ERROR,
+    STAT_VQ_DESC_NOT_READY = 0,
     STAT_DEV_INTF_READY_INITIALIZED,
     STAT_VQ_DESC_READY,
     STAT_VQ_QUEUE_INITIALIZED,
@@ -46,7 +47,7 @@ enum MM_BOOT_STATUS_e {
     STAT_MM_FW_LAUNCHED,
     STAT_MM_MBOX_INITIALIZED
 };
-typedef uint8_t MM_BOOT_STATUS_e;
+typedef int32_t MM_BOOT_STATUS_e;
 
 /// \brief List of REGIONS based on Spec as defined here: https://esperantotech.atlassian.net/wiki/spaces/SW/pages/1233584203/Memory+Map 
 

@@ -23,5 +23,7 @@ int64_t MBOX_receive(mbox_e mbox, void *const buffer_ptr, size_t buffer_size);
 void MBOX_update_status(mbox_e mbox);
 bool MBOX_ready(mbox_e mbox);
 bool MBOX_empty(mbox_e mbox);
+uint32_t MBOX_get_status(mbox_e mbox, bool master_slave);
+void MBOX_set_status(mbox_e mbox, bool master_slave, uint32_t status);
 
 #endif
