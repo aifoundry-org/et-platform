@@ -37,7 +37,7 @@ class sim_api_communicate final : public api_communicate
 {
     public:
         // Constructor and destructor
-        sim_api_communicate(bool sim_api_async);
+        sim_api_communicate();
         ~sim_api_communicate();
 
         bool init() override;
@@ -74,7 +74,6 @@ class sim_api_communicate final : public api_communicate
 
         bool done_;
         std::string comm_path_;
-        bool sim_api_async_;
         SysEmuWrapper wrapper_;
         SimAPIServer<SysEmuWrapper> sim_api_;
 };
