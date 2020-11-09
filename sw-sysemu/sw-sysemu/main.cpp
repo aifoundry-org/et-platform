@@ -20,7 +20,6 @@
 static const char *sim_api_options_help =
 "\n Simulator API options:\n\
      -sim_api                 Enable the use of the Simulator API to talk to the runtime\n\
-     -sim_api_async           Enable asynchronous sim-api behavior, create separate socket thread.\n\
 ";
 
 int main(int argc, char *argv[])
@@ -33,7 +32,6 @@ int main(int argc, char *argv[])
 
     int opt;
     bool use_sim_api = false;
-    bool sim_api_async = false;
     std::vector<char *> base_options = {argv[0]};
 
     opterr = 0; // don't error on non-recognized options
@@ -44,7 +42,7 @@ int main(int argc, char *argv[])
             use_sim_api = true;
             break;
         case 'a':
-            sim_api_async = true;
+            LOG_NOTHREAD(WARN, "%s", "Ignoring deprecated option '-sim_api_async'");
             break;
         case '?': // non-recognized option
             base_options.push_back(argv[optind - 1]);
@@ -64,7 +62,7 @@ int main(int argc, char *argv[])
 
     std::unique_ptr<api_communicate> api_comm;
     if (use_sim_api)
-        api_comm = std::unique_ptr<api_communicate>(new sim_api_communicate(sim_api_async));
+        api_comm = std::unique_ptr<api_communicate>(new sim_api_communicate());
     else
         api_comm = std::unique_ptr<api_communicate>(nullptr);
 

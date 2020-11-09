@@ -229,7 +229,7 @@ bool sim_api_communicate::SysEmuWrapper::mailbox_write(simulator_api::MailboxTar
 
 bool sim_api_communicate::SysEmuWrapper::raise_device_interrupt(simulator_api::DeviceInterruptType type)
 {
-    LOG_NOTHREAD(DEBUG, "sim_api_communicate: raise_device_interrupt(type = %d)", (int)type);
+    LOG_NOTHREAD(INFO, "sim_api_communicate: raise_device_interrupt(type = %d)", (int)type);
 
     switch (type) {
     case simulator_api::DeviceInterruptType::PU_PLIC_PCIE_MESSAGE_INTERRUPT: {
@@ -264,13 +264,10 @@ void sim_api_communicate::SysEmuWrapper::shire_threads_set_pc(unsigned shire_id,
 }
 
 // Constructor
-sim_api_communicate::sim_api_communicate(bool sim_api_async) :
+sim_api_communicate::sim_api_communicate() :
     done_(false),
-    sim_api_async_(sim_api_async),
     wrapper_(this),
-    // If sim_api_async is true then we enable threading in the api-server
-    // where a separate thread is listening for simulator-api commands
-    sim_api_(&wrapper_, sim_api_async)
+    sim_api_(&wrapper_)
 {
 }
 
@@ -300,7 +297,7 @@ void sim_api_communicate::get_next_cmd(std::list<int> *enabled_threads)
     // Return immediately if there is no
     // pending message from the host. Do not block as the runtime
     // expects that the device is always executing
-    sim_api_.nextCmd(sim_api_async_);
+    sim_api_.nextCmd(true);
 }
 
 void sim_api_communicate::set_comm_path(const std::string &comm_path)
