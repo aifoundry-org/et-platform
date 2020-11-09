@@ -126,6 +126,21 @@ static uint64_t calculate_minion_shire_enable_mask(void)
     return enable_mask;
 }
 
+static void poll_for_mm_ready(void)
+{
+    // TODO: Define the timeout value in device interface regs?
+    uint32_t timeout = 100000;
+
+    while (timeout > 0) {
+        if (MBOX_get_status(MBOX_MASTER_MINION, MBOX_SLAVE) == MBOX_STATUS_READY) {
+            return;
+        }
+        --timeout;
+    }
+    // If we reach this point, the MM did reach sync point
+    printf("\nMM Not Ready !\n");
+}
+
 static void dev_interface_reg_init(void)
 {
     g_service_processor_dev_intf_reg->version = DEV_INTF_REG_VERSION;
@@ -294,16 +309,24 @@ static void taskMain(void *pvParameters)
     // TODO: Update the following to Log macro - set to INFO/DEBUG
     //printf("Master minion threads enabled.\n");
 
-    // Enable MM Mailbox task and poll for MM to reach the sync point 
-    MBOX_init_mm();
-    printf("SP -> MM Mbox initialized.\n");
+    // TODO: Initialize the SP -> Host Vqueues
 
-    // Program ATU here
+    // Enable MM Mailbox task and do not send interrupt to MM (slave)
+    MBOX_init_mm(false);
+
+    // Poll for MM (slave) ready (reach sync point)
+    poll_for_mm_ready();
+
+    // Program ATUs here
     pcie_enable_link();
 
-    // Enable Mbox access between Host/Device
-    MBOX_init_pcie();
-    printf("SP -> Host Mbox initialized.\n");
+    // Enable Mbox access between Host/Device and send interrupt to Host
+    MBOX_init_pcie(true);
+
+    // Set SP ready, SP has reached sync point
+    MBOX_set_status(MBOX_MASTER_MINION, MBOX_MASTER, MBOX_STATUS_READY);
+
+    printf("SP Device Ready!\n");
 
     goto DONE;
 

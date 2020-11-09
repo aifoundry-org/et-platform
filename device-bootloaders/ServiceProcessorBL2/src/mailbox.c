@@ -37,7 +37,7 @@ static volatile mbox_t *const mbox_hw[MBOX_COUNT] = {
 static const bool mbox_master[MBOX_COUNT] = { true, true, true };
 
 static void init_task(mbox_e mbox, const char *const mbox_task_name_ptr);
-static void init_mbox(mbox_e mbox);
+static void init_mbox(mbox_e mbox, bool send_int);
 static void mbox_task(void *pvParameters);
 static void update_mbox_status(mbox_e mbox);
 static bool mbox_ready(mbox_e mbox);
@@ -49,25 +49,40 @@ static void mbox_maxion_isr(void);
 static void mbox_pcie_isr(void);
 static inline void *mbox_ptr_to_void_ptr(volatile const mbox_t *const mbox_ptr);
 
-void MBOX_init_pcie(void)
+void MBOX_init_pcie(bool send_interrupt)
 {
     init_task(MBOX_PCIE, "mbox_pcie");
     INT_enableInterrupt(SPIO_PLIC_MBOX_HOST_INTR, 1, mbox_pcie_isr);
-    init_mbox(MBOX_PCIE);
+    init_mbox(MBOX_PCIE, send_interrupt);
 }
 
-void MBOX_init_mm(void)
+void MBOX_init_mm(bool send_interrupt)
 {
     init_task(MBOX_MASTER_MINION, "mbox_mm");
     INT_enableInterrupt(SPIO_PLIC_MBOX_MMIN_INTR, 1, mbox_master_minion_isr);
-    init_mbox(MBOX_MASTER_MINION);
+    init_mbox(MBOX_MASTER_MINION, send_interrupt);
 }
 
-void MBOX_init_max(void)
+void MBOX_init_max(bool send_interrupt)
 {
     init_task(MBOX_MAXION, "mbox_max");
     INT_enableInterrupt(SPIO_PLIC_MBOX_MXN_INTR, 1, mbox_maxion_isr);
-    init_mbox(MBOX_MAXION);
+    init_mbox(MBOX_MAXION, send_interrupt);
+}
+
+uint32_t MBOX_get_status(mbox_e mbox, bool master_slave)
+{
+    return ((master_slave == MBOX_MASTER) ? mbox_hw[mbox]->master_status : 
+                                            mbox_hw[mbox]->slave_status);
+}
+
+void MBOX_set_status(mbox_e mbox, bool master_slave, uint32_t status)
+{
+    if (master_slave == MBOX_MASTER) {
+        mbox_hw[mbox]->master_status = status;
+    } else {
+        mbox_hw[mbox]->slave_status = status;
+    }
 }
 
 int64_t MBOX_send(mbox_e mbox, const void *const buffer_ptr, uint32_t length)
@@ -109,7 +124,7 @@ static void init_task(mbox_e mbox, const char *const mbox_task_name_ptr)
     xSemaphoreGive(semaphoreHandles[mbox]);
 }
 
-static void init_mbox(mbox_e mbox)
+static void init_mbox(mbox_e mbox, bool send_int)
 {
     if (mbox_master[mbox]) {
         // MBOX_send() might be accessing the mbox, use mutex
@@ -117,8 +132,10 @@ static void init_mbox(mbox_e mbox)
 
         // We are the master, init everything
         mbox_hw[mbox]->master_status = MBOX_STATUS_NOT_READY;
-        mbox_hw[mbox]->slave_status = MBOX_STATUS_NOT_READY;
-
+        if (send_int) {
+            mbox_hw[mbox]->slave_status = MBOX_STATUS_NOT_READY;
+        }
+        
         RINGBUFFER_init(&(mbox_hw[mbox]->tx_ring_buffer));
         RINGBUFFER_init(&(mbox_hw[mbox]->rx_ring_buffer));
 
@@ -129,9 +146,11 @@ static void init_mbox(mbox_e mbox)
         // We are the slave, just set status
         mbox_hw[mbox]->slave_status = MBOX_STATUS_NOT_READY;
     }
-
-    // Notify the other side that we've changed status
-    send_interrupt(mbox);
+    
+    if (send_int) {
+        // Notify the other side that we've changed status
+        send_interrupt(mbox);
+    }
 }
 
 static void mbox_task(void *pvParameters)
@@ -267,7 +286,7 @@ static void reset_mbox(mbox_e mbox)
 {
     if (mbox_master[mbox]) {
         // We're the master, so initialize the mailbox
-        init_mbox(mbox);
+        init_mbox(mbox, true);
     } else {
         // We're the slave, so ask the master to reset the mailbox.
         mbox_hw[mbox]->slave_status = MBOX_STATUS_WAITING;
