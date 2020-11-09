@@ -16,5 +16,6 @@
 
 void PCIe_release_pshire_from_reset(void);
 void PCIe_init(bool expect_link_up);
+void pcie_enable_link(void);
 
 #endif

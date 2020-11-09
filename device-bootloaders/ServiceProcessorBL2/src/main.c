@@ -183,9 +183,6 @@ static void taskMain(void *pvParameters)
 
     dev_interface_reg_init();
 
-    MBOX_init_pcie();
-    printf("Mailbox to host initialized.\n");
-
     printf("time: %lu\n", timer_get_ticks_count());
     minion_shires_mask = calculate_minion_shire_enable_mask();
 
@@ -297,9 +294,17 @@ static void taskMain(void *pvParameters)
     // TODO: Update the following to Log macro - set to INFO/DEBUG
     //printf("Master minion threads enabled.\n");
 
+    // Enable MM Mailbox task and poll for MM to reach the sync point 
     MBOX_init_mm();
-    // TODO: Update the following to Log macro - set to INFO/DEBUG
-    printf("Mailbox to MM initialized.\n");
+    printf("SP -> MM Mbox initialized.\n");
+
+    // Program ATU here
+    pcie_enable_link();
+
+    // Enable Mbox access between Host/Device
+    MBOX_init_pcie();
+    printf("SP -> Host Mbox initialized.\n");
+
     goto DONE;
 
 FIRMWARE_LOAD_ERROR:

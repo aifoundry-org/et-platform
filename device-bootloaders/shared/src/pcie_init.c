@@ -36,6 +36,10 @@ static void pcie_wait_for_ints(void);
 
 #define SMLH_LTSSM_STATE_LINK_UP 0x11
 
+
+/// \brief This step is to release PShire out of reset,
+//  Both Cold/Warm reset are initialized
+/// \param[in] none 
 void PCIe_release_pshire_from_reset(void)
 {
     iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_PSHIRE_COLD_ADDRESS,
@@ -44,6 +48,9 @@ void PCIe_release_pshire_from_reset(void)
               RESET_MANAGER_RM_PSHIRE_WARM_RSTN_SET(1));
 }
 
+/// \brief This step is to initiate PShire, and PCIE SS, and if link is not up,
+//  kick off the link training process. Expectation Host will ink training successfully
+/// \param[in] none 
 void PCIe_init(bool expect_link_up)
 {
     uint32_t tmp;
@@ -72,9 +79,18 @@ void PCIe_init(bool expect_link_up)
         pcie_init_link();
     }
 
-    //These steps don't block the PCIe IP from responding to config space messages,
-    //so their timing does not contribute to the PERST_n requirements. Always do
-    //them as late as possible (i.e. not in pcie_boot_config()) to simplfy things.
+}
+
+
+/// \brief This is the last step to enable PCIe link so Host/Device can communicate.
+/// \param[in] none 
+/// These steps don't block the PCIe IP from responding to config space messages,
+/// so their timing does not contribute to the PERST_n requirements. Always do
+/// them as late as possible (i.e. not in pcie_boot_config()) to simplfy things.
+void pcie_enable_link(void)
+{
+    uint32_t tmp;
+
     pcie_init_noc();
     pcie_init_atus();
     pcie_wait_for_ints();
