@@ -10,6 +10,12 @@
 #define MBOX_MAGIC            0xBEEF
 #define MBOX_MAX_LENGTH       UINT16_MAX
 #define MBOX_BUFFER_ALIGNMENT 8
+#define MBOX_MASTER           1
+#define MBOX_SLAVE            0
+
+// Error Codes
+#define SP_MM_HANDSHAKE_POLL_SUCCESS  0
+#define SP_MM_HANDSHAKE_POLL_TIMEOUT  -1
 
 static_assert(MBOX_MAX_LENGTH >= RINGBUFFER_LENGTH,
               "mbox_header_t length field must be large enough to index ringbuffer");

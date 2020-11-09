@@ -26,6 +26,21 @@ void MBOX_init(void)
     init_mbox(MBOX_PCIE);
 }
 
+uint32_t MBOX_get_status(mbox_e mbox, bool master_slave)
+{
+    return ((master_slave == MBOX_MASTER) ? mbox_hw[mbox]->master_status : 
+                                            mbox_hw[mbox]->slave_status);
+}
+
+void MBOX_set_status(mbox_e mbox, bool master_slave, uint32_t status)
+{
+    if (master_slave == MBOX_MASTER) {
+        mbox_hw[mbox]->master_status = status;
+    } else {
+        mbox_hw[mbox]->slave_status = status;
+    }
+}
+
 int64_t MBOX_send(mbox_e mbox, const void *const buffer_ptr, uint32_t length)
 {
     volatile ringbuffer_t *const ringbuffer_ptr =

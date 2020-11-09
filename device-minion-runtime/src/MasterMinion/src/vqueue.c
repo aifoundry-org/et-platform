@@ -54,8 +54,6 @@ void VQUEUE_init(void)
     // First configure the PLIC to accept PCIe interrupts (note that External Interrupts are not enabled yet)
     INT_enableInterrupt(PU_PLIC_PCIE_MESSAGE_INTR, 1, pcie_isr);
 
-    //uint32_t counter = 0;
-
     // Populate the VQ descriptor
     vq_desc_glob->queue_addr = VQUEUE_DATA_BASE;
     vq_desc_glob->queue_count = VQUEUE_COUNT;
@@ -69,31 +67,6 @@ void VQUEUE_init(void)
     // TODO: Remove the cache eviction once Device Interface Registers are available in SRAM.
     evict(to_Mem, vq_desc_glob, sizeof(vq_desc_glob));
     WAIT_CACHEOPS
-
-    log_write(LOG_LEVEL_CRITICAL, "Device ready: %" PRIu8 ". Interrupting Host! \r\n",
-              vq_desc_glob->device_ready);
-
-/*  TODO: Moved towards an interrupt free handshake
-    // Send interrupt to host to indicate that descriptor is initialized
-    // TODO: Hardcoding vector 0 for now. This should come from Device Interface Registers
-    pcie_interrupt_host(0U);
-
-    // See if Host has read VQ descriptors, else send interrupt
-    while (vq_desc_glob->host_ready != 1U) {
-        if (counter >= 1000) {
-            // Send interrupt to host to indicate that descriptor is initialized
-            // TODO: Hardcoding vector 0 for now. This should come from Device Interface Registers
-            pcie_interrupt_host(0U);
-            counter = 0;
-            // Invalidate vqueue descriptor
-            asm volatile("fence");
-            evict(to_Mem, &(vq_desc_glob->host_ready), sizeof(vq_desc_glob->host_ready));
-            WAIT_CACHEOPS
-        }
-        counter++;
-    }
-*/
-    log_write(LOG_LEVEL_CRITICAL, "Initializing MM queues! \r\n");
 
     for (uint32_t i = 0; i < vq_desc_glob->queue_count; i++) {
         init_vqueue(
@@ -306,8 +279,4 @@ static void init_vqueue(uint32_t vq_index, uint64_t vq_size)
     asm volatile("fence");
     evict(to_Mem, vq, sizeof(struct vqueue_info));
     WAIT_CACHEOPS
-     
-    // Notify the other side that we've changed status
-    // TODO: 2 step process to remove interrupt based handshake
-    //pcie_interrupt_host(vq_info[vq_index].notify_int);
 }
