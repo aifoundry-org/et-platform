@@ -84,7 +84,7 @@ protected:
   MBSimAPITest() : sim_(), sim_api_{}, rpc_(0, sim_.communicationPath()) {}
 
   void SetUp() override {
-    sim_api_ = std::make_unique<SimAPIServer<DummySimulator>>(&sim_, true);
+    sim_api_ = std::make_unique<SimAPIServer<DummySimulator>>(&sim_);
     auto res = sim_api_->init();
     ASSERT_TRUE(res);
     res = rpc_.init();
@@ -97,7 +97,6 @@ protected:
   void TearDown() override {
     sim_thread_.join();
     sim_api_.reset();
-    SimAPIServer<DummySimulator>::clearCallData();
   }
 
   // Simulator Execution loop
