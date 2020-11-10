@@ -39,11 +39,7 @@ namespace {
   TimeDuration kPollingInterval = std::chrono::milliseconds(5);
   auto kWaitTime = std::chrono::seconds(5 * 60);
 
-  auto constexpr getDramSize() {
-    return HOST_MANAGED_DRAM_END - HOST_MANAGED_DRAM_START;
-  }
-
-//helper to make sure a trace is recorded when creating the object and when exiting the basic block
+  //helper to make sure a trace is recorded when creating the object and when exiting the basic block
   struct ScopedTrace {
     ScopedTrace(std::function<void()> start, std::function<void()> end)
       : end_(move(end)) {
@@ -102,12 +98,28 @@ PCIeDevice::PCIeDevice(int index, bool mgmtNode)
       //#TODO deal with errors in the same way across all the code
       std::terminate();
     }
-    auto res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_MBOX_MAX_MSG, Clock::now(), &mboxMaxMsgSize_);
+    RTINFO << "PCIe target opened: \"" << path_ << "\"\n";
+
+    auto res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_DRAM_BASE, Clock::now(), &dramBase_);
     if (!res) {
-      RTERROR << "Failed to get maximum mailbox message size \n";
+      RTERROR << "Failed to get DRAM base\n";
       std::terminate();
     }
-    RTDEBUG << "Maximum mbox message size: " << mboxMaxMsgSize_ << "\n";
+    RTINFO << "DRAM base: 0x" << std::hex << dramBase_ << "\n";
+
+    res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_DRAM_SIZE, Clock::now(), &dramSize_);
+    if (!res) {
+      RTERROR << "Failed to get DRAM size\n";
+      std::terminate();
+    }
+    RTINFO << "DRAM size: 0x" << std::hex << dramSize_ << "\n";
+
+    res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_MBOX_MAX_MSG, Clock::now(), &mboxMaxMsgSize_);
+    if (!res) {
+      RTERROR << "Failed to get maximum mailbox message size\n";
+      std::terminate();
+    }
+    RTINFO << "Maximum mbox message size: " << mboxMaxMsgSize_ << "\n";
 }
 
 PCIeDevice::~PCIeDevice() {
@@ -315,11 +327,9 @@ bool PCIeDevice::shutdown() {
   return true;
 }
 
-//FIXME: Ioannis had a comment meaning this should be fixed; I guess we should get the
-// baseAddr from the device with an ioctl
-uintptr_t PCIeDevice::dramBaseAddr() const { return HOST_MANAGED_DRAM_START; }
+uintptr_t PCIeDevice::dramBaseAddr() const { return dramBase_; }
 
-uintptr_t PCIeDevice::dramSize() const { return getDramSize(); }
+uintptr_t PCIeDevice::dramSize() const { return dramSize_; }
 
 ssize_t PCIeDevice::mboxMsgMaxSize() const { return mboxMaxMsgSize_; }
 
