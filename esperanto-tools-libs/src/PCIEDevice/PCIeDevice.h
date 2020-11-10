@@ -70,6 +70,8 @@ private:
   bool write(uintptr_t addr, const void *data, ssize_t size);
 
   ssize_t mboxMaxMsgSize_;
+  uint64_t dramBase_;
+  uint64_t dramSize_;
   std::string path_;
   int fd_;
 };
