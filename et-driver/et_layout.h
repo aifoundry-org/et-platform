@@ -40,7 +40,7 @@
 // This range is used as Scratch area as storage of new FW image whilst SP updates the 
 // correspoding Flash partition to take affect.
 // TODO: SW-4611 - these will move to BAR relative addressing once SW-4611 is resolved
-#define FW_UPDATE_REGION_BEGIN  0x8004000000ULL
+#define FW_UPDATE_REGION_BEGIN  0x8005120000ULL
 #define FW_UPDATE_REGION_SIZE   0x400000U
 
 #endif
