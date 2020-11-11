@@ -25,6 +25,7 @@ set(SIM_DEVFW_TEST_LIST
   test_memcpy.cpp:"${DEV_FW_ARGS}"
   test_module_load.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
   test_module_manager.cc:"${DEV_FW_ARGS}"
+  test_kernel_launch.cpp:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR}"
   )
 create_test_targets("${SIM_DEVFW_TEST_LIST}" "LABELS;Generic;LABELS;DeviceFW;TIMEOUT;120")
 

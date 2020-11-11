@@ -9,6 +9,7 @@
  *-------------------------------------------------------------------------*/
 
 #include "EventManager.h"
+#include "NewCore/utils.h"
 #include <algorithm>
 #include <cassert>
 #include <condition_variable>
@@ -20,6 +21,7 @@ EventId EventManager::getNextId() {
 }
 
 void EventManager::dispatch(EventId event) {
+  RT_DLOG(INFO) << "Dispatching event " << static_cast<int>(event);
   auto seq = EventSequence{event};
   std::unique_lock<std::mutex> lock(mutex_);
   if (dispatched_.empty()) {
@@ -59,8 +61,10 @@ void EventManager::dispatch(EventId event) {
 }
 
 void EventManager::awakeBlockedThreads(EventId event) {
+  std::unique_lock lock(mutex_);
   auto it = blockedThreads_.find(event);
   if (it != end(blockedThreads_)) {
+    lock.unlock();
     it->second->notifyAll();
   }
 }

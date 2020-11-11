@@ -12,8 +12,10 @@
 
 #include "EmuMailBoxDev.h"
 #include "esperanto/runtime/Support/Logging.h"
+#include "esperanto/runtime/Support/TimeHelpers.h"
 #include "esperanto/simulator-api.grpc.pb.h"
 
+#include <chrono>
 #include <esperanto-fw/firmware_helpers/layout.h>
 
 #include <inttypes.h>
@@ -121,12 +123,13 @@ bool RPCTarget::waitForEpollEvents(uint32_t &sq_bitmap, uint32_t &cq_bitmap) {
   return false;
 }
 
-std::pair<bool, simulator_api::Reply> RPCTarget::doRPC(const simulator_api::Request &request) {
+std::pair<bool, simulator_api::Reply> RPCTarget::doRPC(const simulator_api::Request& request, TimeDuration timeout) {
   simulator_api::Reply reply;
   Status status;
   grpc::ClientContext context;
   // Wait until the server is up do not fail immediately
   context.set_wait_for_ready(true);
+  context.set_deadline(Clock::now() + timeout);
   status = stub_->SimCommand(&context, request, &reply);
   return {status.ok(), reply};
 }
@@ -333,7 +336,7 @@ bool RPCTarget::rpcWaitForHostInterrupt(TimeDuration wait_time) {
   host_interrupt->set_interrupt_bitmap(0x1);
   request.set_allocated_host_interrupt(host_interrupt);
   // Do RPC and wait for reply
-  auto reply_res = doRPC(request);
+  auto reply_res = doRPC(request, wait_time);
 
   RTINFO << "Interrupt reply received";
   if (!reply_res.first) {

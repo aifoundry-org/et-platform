@@ -15,6 +15,8 @@
 #include <gtest/gtest.h>
 #include <ios>
 
+#include <esperanto/runtime/Core/CommandLineOptions.h>
+
 namespace {
 
 class TestMemcpy : public ::testing::Test {
@@ -70,5 +72,6 @@ int main(int argc, char** argv) {
   FLAGS_minloglevel = 0;
   FLAGS_logtostderr = 1;
   testing::InitGoogleTest(&argc, argv);
+  et_runtime::ParseCommandLineOptions(argc, argv, {"test_memcpy.cpp"});
   return RUN_ALL_TESTS();
 }

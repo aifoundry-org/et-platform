@@ -9,22 +9,19 @@
  *-------------------------------------------------------------------------*/
 
 #include "RuntimeImp.h"
-#include "MemoryManager.h"
+#include "KernelParametersCache.h"
+#include "MailboxReader.h"
 #include "TargetSilicon.h"
 #include "TargetSysEmu.h"
+#include "utils.h"
+#include <cstdio>
 #include <elfio/elfio.hpp>
+#include <memory>
 #include <sstream>
-
 using namespace rt;
 
-namespace {
-template <typename Container, typename Key> auto find(Container&& c, Key&& k, std::string error = "Not found") {
-  auto it = c.find(k);
-  if (it == end(c)) {
-    throw Exception(std::move(error));
-  }
-  return it;
-}
+RuntimeImp::~RuntimeImp() {
+  mailboxReader_.reset();
 }
 
 RuntimeImp::Kernel::Kernel(DeviceId deviceId, const std::byte* elfData, size_t elfSize, std::byte* deviceBuffer)
@@ -37,7 +34,7 @@ RuntimeImp::Kernel::Kernel(DeviceId deviceId, const std::byte* elfData, size_t e
   }
 }
 
-RuntimeImp::RuntimeImp(Kind kind) {
+RuntimeImp::RuntimeImp(Kind kind) { 
   switch (kind) {
   case Kind::SysEmu:
     target_ = std::make_unique<TargetSysEmu>();
@@ -50,8 +47,10 @@ RuntimeImp::RuntimeImp(Kind kind) {
   }
   devices_ = target_->getDevices();
   for (auto&& d : devices_) {
-    memoryManagers_.insert({d, MemoryManager{target_->getDramBaseAddr(), target_->getDramSize()}});
+    memoryManagers_.insert({d, MemoryManager{target_->getDramBaseAddr(), target_->getDramSize(), kMinAllocationSize}});
   }
+  kernelParametersCache_ = std::make_unique<KernelParametersCache>(this);
+  mailboxReader_ = std::make_unique<MailboxReader>(target_.get(), kernelParametersCache_.get(), &eventManager_);
 }
 
 std::vector<DeviceId> RuntimeImp::getDevices() const {
@@ -63,9 +62,13 @@ KernelId RuntimeImp::loadCode(DeviceId device, const std::byte* data, size_t siz
   // allocate a buffer in the device to load the code
   auto deviceBuffer = mallocDevice(device, size);
 
-  // copy the code into the device
-  target_->writeDevMemDMA(reinterpret_cast<uint64_t>(deviceBuffer), size, data);
   auto kernel = std::make_unique<Kernel>(device, data, size, deviceBuffer);
+  // copy the execution code into the device
+  auto text_section = kernel->elf_.sections[".text"];
+  auto offset = text_section->get_offset();
+  auto text_size = text_section->get_size();
+  RT_DLOG(INFO) << "Text section offset: " << offset << " size: " << text_size;
+  target_->writeDevMemDMA(reinterpret_cast<uint64_t>(deviceBuffer), text_size, data + offset);
 
   // store the ref
   auto kernelId = static_cast<KernelId>(nextKernelId_++);
@@ -113,18 +116,16 @@ void RuntimeImp::destroyStream(StreamId stream) {
   streams_.erase(it);
 }
 
-EventId RuntimeImp::kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args,
-                                 size_t kernel_args_size, bool barrier) {
-  throw Exception("Not implemented yet");
-}
-
 //#TODO this won't be complete nor real till VQs are implemented information see epic SW-4377
 // currently we only create an event, don't
 EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size,
                                        [[maybe_unused]] bool barrier) {
-  auto it = find(streams_, stream);
+  if (size % 256 != 0) { // #TODO fix this with SW-5098
+    throw Exception("Memcpy operations must be aligned to 256B");
+  }
+  auto it = find(streams_, stream);  
   auto evt = eventManager_.getNextId();
-  it->second.lastEventId_ = evt;
+  it->second.lastEventId_ = evt;  
   auto ret = target_->writeDevMemDMA(reinterpret_cast<uint64_t>(d_dst), size, h_src);
   eventManager_.dispatch(evt);
   if (!ret) {
@@ -136,6 +137,9 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, 
 // currently we only create an event, don't
 EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size,
                                        [[maybe_unused]] bool barrier) {
+  if (size % 256 != 0) { // #TODO fix this with SW-5098
+    throw Exception("Memcpy operations must be aligned to 256B");
+  }
   auto it = find(streams_, stream);
   auto evt = eventManager_.getNextId();
   it->second.lastEventId_ = evt;
@@ -148,7 +152,9 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, 
 }
 
 void RuntimeImp::waitForEvent(EventId event) {
+  RT_DLOG(INFO) << "Waiting for event " << static_cast<int>(event) << " to be dispatched.";
   eventManager_.blockUntilDispatched(event);
+  RT_DLOG(INFO) << "Finished wait for event " << static_cast<int>(event);
 }
 
 void RuntimeImp::waitForStream(StreamId stream) {
