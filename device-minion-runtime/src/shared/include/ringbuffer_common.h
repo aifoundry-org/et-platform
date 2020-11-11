@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define RINGBUFFER_LENGTH 2032
+#define RINGBUFFER_LENGTH 496
 
 static_assert(RINGBUFFER_LENGTH % 8 == 0, "ringbuffer length must be 8-byte aligned");
 

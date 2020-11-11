@@ -313,7 +313,7 @@ static void __attribute__((noreturn)) master_thread(void)
 
     // Initialize VQs
     VQUEUE_init();
-    log_write(LOG_LEVEL_CRITICAL, "MM -> VQ Ready !\r\n");
+    log_write(LOG_LEVEL_CRITICAL, "MM VQs Ready !\r\n");
 
     // Set MM (Slave) Ready, and wait for SP (Master) Ready 
     if (set_mm_ready_wait_sp_ready() != SP_MM_HANDSHAKE_POLL_SUCCESS) {

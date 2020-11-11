@@ -21,7 +21,7 @@
 #define VQUEUE_ELEMENT_COUNT CIRCBUFFER_COUNT
 #define VQUEUE_ELEMENT_SIZE  CIRCBUFFER_SIZE
 #define VQUEUE_CONTROL_REGION_SIZE \
-    1024ULL // Contains all VQs information structures, i.e, struct vqueue_info
+    256ULL // Contains all VQs information structures, i.e, struct vqueue_info
 #define VQUEUE_DATA_BASE (DEVICE_MM_VQUEUE_BASE + VQUEUE_CONTROL_REGION_SIZE)
 
 // Returns virtual queue control => (struct vqueue_desc + (struct vqueue_info * VQUEUE_COUNT))
