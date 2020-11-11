@@ -338,7 +338,7 @@ bool RPCTarget::rpcWaitForHostInterrupt(TimeDuration wait_time) {
   // Do RPC and wait for reply
   auto reply_res = doRPC(request, wait_time);
 
-  RTINFO << "Interrupt reply received";
+  RTINFO << "Interrupt reply received, result: " << reply_res.first;
   if (!reply_res.first) {
     return false;
   }
