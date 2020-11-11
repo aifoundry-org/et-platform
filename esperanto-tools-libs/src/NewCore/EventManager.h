@@ -85,6 +85,6 @@ private:
   };
 
   std::unordered_map<EventId, std::unique_ptr<Semaphore>> blockedThreads_;
-  std::underlying_type_t<EventId> nextEventId_;
+  std::underlying_type_t<EventId> nextEventId_ = 0;
 };
 } // namespace rt

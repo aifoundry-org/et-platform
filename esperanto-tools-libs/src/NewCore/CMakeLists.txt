@@ -15,6 +15,9 @@ add_library(etrt_NewCore OBJECT
   TargetSysEmu.cpp
   MemoryManager.cpp
   EventManager.cpp
+  KernelParametersCache.cpp
+  KernelLaunch.cpp
+  MailboxReader.cpp
   )
 
 target_include_directories(etrt_NewCore PRIVATE

@@ -8,6 +8,24 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #pragma once
-#include <glog/logging.h>
-#define ET_LOG(severity) LOG(severity) << "ET: "
-#define ET_DLOG(severity) DLOG(severity) << "ET: "
+#include "ITarget.h"
+#include "KernelParametersCache.h"
+#include "NewCore/EventManager.h"
+#include <atomic>
+#include <thread>
+
+namespace rt {
+class MailboxReader {
+public:
+  explicit MailboxReader(ITarget* target, KernelParametersCache* kernelParametersCache, EventManager* eventManager);
+
+  ~MailboxReader();
+
+private:
+  std::thread reader_;
+  std::atomic<bool> run_;
+  ITarget* target_;
+  EventManager* eventManager_;
+  KernelParametersCache* kernelParametersCache_;
+};
+} // namespace rt

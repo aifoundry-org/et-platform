@@ -146,6 +146,7 @@ public:
   /// @param[in] kernel_args buffer containing all the parameters to be copied
   /// to the device memory prior to the code execution
   /// @param[in] kernel_args_size size of the kernel_args buffer
+  /// @param[in] shire_mask indicates in what shires the kernel will be executed
   /// @param[in] barrier this parameter indicates if the kernel execution should
   /// be postponed till all previous works issued into this stream finish (a
   /// barrier). Usually the kernel launch must be postponed till some previous
@@ -155,7 +156,7 @@ public:
   /// (waitForEventId) to syncrhonize when the kernel ends the execution
   ///
   virtual EventId kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
-                               bool barrier = true) = 0;
+                               uint64_t shire_mask, bool barrier = true) = 0;
 
   /// \brief Queues a memcpy operation from host memory to device memory. The
   /// device memory must be previously allocated by a mallocDevice.

@@ -34,12 +34,24 @@ std::vector<DeviceId> TargetSysEmu::getDevices() const {
   return {d};
 }
 
+bool TargetSysEmu::writeMailbox(const void* src, size_t size) {
+  return device_->mb_write(src, size);
+}
+
+bool TargetSysEmu::readMailbox(std::byte* dst, size_t size, std::chrono::milliseconds blockingPeriod) {
+  return device_->mb_read(dst, size, blockingPeriod) > 0;
+}
+
 bool TargetSysEmu::writeDevMemDMA(uintptr_t dev_addr, size_t size, const void* buf) {
   return device_->writeDevMemDMA(dev_addr, size, buf);
 }
 
 bool TargetSysEmu::readDevMemDMA(uintptr_t dev_addr, size_t size, void* buf) {
   return device_->readDevMemDMA(dev_addr, size, buf);
+}
+
+bool TargetSysEmu::writeDevMemMMIO(uintptr_t dev_addr, size_t size, const void* buf) {
+  return device_->writeDevMemMMIO(dev_addr, size, buf);
 }
 
 TargetSysEmu::~TargetSysEmu() {

@@ -102,9 +102,8 @@ bool Module::loadOnDevice(Device *dev) {
         write_address = devPtr;
       }
 
-      RTDEBUG << "Loading segment: " << segment->get_index()
-              << " Physical Address: 0x" << std::hex << write_address
-              << " Mem Size : 0x" << mem_size << "\n";
+      RTDEBUG << "Loading segment: " << segment->get_index() << " Physical Address: 0x" << std::hex << write_address
+              << " segment offset: 0x" << std::hex << offset << " Mem Size : 0x" << mem_size << "\n";
 
       auto write_command = make_shared<device_api::pcie_commands::WriteCommand>(
           (void *)write_address, elf_info_->data().data() + offset, mem_size);

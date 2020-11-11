@@ -17,6 +17,7 @@
 
 #include "Core/DeviceFwTypes.h"
 #include "EmuMailBoxDev.h"
+#include "esperanto/runtime/Support/TimeHelpers.h"
 #include <esperanto/simulator-api.grpc.pb.h>
 #include <grpc/support/log.h>
 #include <grpcpp/grpcpp.h>
@@ -129,7 +130,8 @@ protected:
   grpc::CompletionQueue cq_;
 
   std::unique_ptr<EmuMailBoxDev> mailboxDev_;
-  std::pair<bool, simulator_api::Reply> doRPC(const simulator_api::Request &req);
+  std::pair<bool, simulator_api::Reply> doRPC(const simulator_api::Request& req,
+                                              TimeDuration timeout = TimeDuration::max());
 };
 
 } // namespace device
