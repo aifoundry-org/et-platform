@@ -67,10 +67,10 @@ pipeline {
     }
     stage('PARALLEL0') {
       parallel {
-        stage('JOB_COVERAGE') {
+        stage('JOB_BASE_INTEGRATION') {
           steps {
             build job:
-              'sw-platform/runtime-integration/pipelines/runtime-coverage-tests',
+              'sw-platform/tools-and-utils/pipelines/sw-platform-basic-integration',
               propagate: true,
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
@@ -78,14 +78,15 @@ pipeline {
               ]
           }
         }
-        stage('JOB_SANITIZER') {
+        stage('JOB_COVERAGE') {
           steps {
             build job:
-              'sw-platform/runtime-integration/pipelines/runtime-sanitizer-tests',
+              'sw-platform/runtime-integration/pipelines/runtime-coverage-tests',
               propagate: true,
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}")
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
+                string(name: 'PYTEST_RETRIES', value: '2')
               ]
           }
         }
@@ -109,18 +110,20 @@ pipeline {
               propagate: true,
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}")
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
+                string(name: 'PYTEST_RETRIES', value: '2')
               ]
           }
         }
-        stage('JOB_BASE_INTEGRATION') {
+        stage('JOB_SANITIZER') {
           steps {
             build job:
-              'sw-platform/tools-and-utils/pipelines/sw-platform-basic-integration',
+              'sw-platform/runtime-integration/pipelines/runtime-sanitizer-tests',
               propagate: true,
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}")
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
+                string(name: 'PYTEST_RETRIES', value: '2')
               ]
           }
         }
