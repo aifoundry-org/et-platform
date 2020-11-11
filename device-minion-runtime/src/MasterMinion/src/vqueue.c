@@ -220,6 +220,7 @@ void VQUEUE_update_status(uint32_t vq_index)
         log_write(LOG_LEVEL_CRITICAL, "received slave reset req\r\n");
         init_vqueue(vq_index, (uint64_t)(vq_desc_glob->queue_element_count *
                                          vq_desc_glob->queue_element_size));
+        pcie_interrupt_host(vq_info[vq_index].notify_int);
         break;
 
     case VQ_STATUS_ERROR:
