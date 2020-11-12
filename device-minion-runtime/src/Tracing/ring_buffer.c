@@ -18,17 +18,14 @@
 extern const size_t event_size_array[];
 
 // Returns the remaining space in ring buffer
-static size_t ring_buffer_avail_space(struct buffer_header_t *rbuffer,
-                                      size_t buffer_size)
+static size_t ring_buffer_avail_space(struct buffer_header_t *rbuffer, size_t buffer_size)
 {
-    return (rbuffer->head < rbuffer->tail) ?
-               rbuffer->tail - rbuffer->head - 1 :
-               buffer_size - rbuffer->head + rbuffer->tail - 1;
+    return (rbuffer->head < rbuffer->tail) ? rbuffer->tail - rbuffer->head - 1 :
+                                             buffer_size - rbuffer->head + rbuffer->tail - 1;
 }
 
 // Ring buffer utility functions
-static trace_status_e ring_buffer_check_space(struct buffer_header_t *rbuffer,
-                                              size_t buffer_size,
+static trace_status_e ring_buffer_check_space(struct buffer_header_t *rbuffer, size_t buffer_size,
                                               size_t event_size)
 {
     size_t rem = ring_buffer_avail_space(rbuffer, buffer_size);
@@ -44,10 +41,9 @@ void *ring_buffer_alloc_space(uint16_t hart_id, size_t size)
 {
     void *ret;
     struct trace_control_t *cntrl = (void *)DEVICE_MRT_TRACE_BASE;
-    struct buffer_header_t *rbuffer_header =
-        DEVICE_MRT_BUFFER_BASE(hart_id, cntrl->buffer_size);
-    trace_status_e status = ring_buffer_check_space(
-        rbuffer_header, DEVICE_MRT_BUFFER_LENGTH(cntrl->buffer_size), size);
+    struct buffer_header_t *rbuffer_header = DEVICE_MRT_BUFFER_BASE(hart_id, cntrl->buffer_size);
+    trace_status_e status =
+        ring_buffer_check_space(rbuffer_header, DEVICE_MRT_BUFFER_LENGTH(cntrl->buffer_size), size);
 
     // Check if we have space
     if (TRACE_STATUS_SUCCESS != status) {
@@ -56,15 +52,19 @@ void *ring_buffer_alloc_space(uint16_t hart_id, size_t size)
         // Start writing from start of the buffer after tail adjustments.
         size_t crnt_event_size;
         struct message_header_t *msg_hdr;
-        size_t avail_size = ring_buffer_avail_space(
-            rbuffer_header, DEVICE_MRT_BUFFER_LENGTH(cntrl->buffer_size));
+        size_t avail_size =
+            ring_buffer_avail_space(rbuffer_header, DEVICE_MRT_BUFFER_LENGTH(cntrl->buffer_size));
 
         // head needs to overflow, and available size is not enough
         if (rbuffer_header->head > rbuffer_header->tail) {
             // +1 to also include the unused byte to differentiate
             // between full and empty condition
-            memset((void *)(rbuffer_header->buffer + rbuffer_header->head),
-                   TRACE_EVENT_ID_NONE, avail_size + 1);
+            //Since the event ID is always placed at the start of an event structure, place overflow flag at the start
+            *(rbuffer_header->buffer + rbuffer_header->head) = TRACE_EVENT_ID_OVERFLOW;
+            // Mark the remaining space as invalid except start
+            memset((void *)(rbuffer_header->buffer + rbuffer_header->head +
+                            sizeof(TRACE_EVENT_ID_OVERFLOW)),
+                   0, avail_size + 1);
 
             // wrap head pointer
             rbuffer_header->head = 0;
@@ -73,14 +73,17 @@ void *ring_buffer_alloc_space(uint16_t hart_id, size_t size)
 
         // Check if maximum creatable space is enough or not?,
         // account for consecutive overflow
-        if (size > (DEVICE_MRT_BUFFER_LENGTH(cntrl->buffer_size) -
-                    rbuffer_header->tail + avail_size)) {
+        if (size >
+            (DEVICE_MRT_BUFFER_LENGTH(cntrl->buffer_size) - rbuffer_header->tail + avail_size)) {
             // Okay its not enough, head and tail both needs to overflow,
-            // Mark the remaining space as invalid
-            memset((void *)(rbuffer_header->buffer + rbuffer_header->head),
-                   TRACE_EVENT_ID_NONE,
-                   (DEVICE_MRT_BUFFER_LENGTH(cntrl->buffer_size) -
-                    rbuffer_header->tail + avail_size + 1));
+            //Since the event ID is always placed at the start of an event structure, place overflow flag at the start
+            *(rbuffer_header->buffer + rbuffer_header->head) = TRACE_EVENT_ID_OVERFLOW;
+            // Mark the remaining space as invalid except start
+            memset((void *)(rbuffer_header->buffer + rbuffer_header->head +
+                            sizeof(TRACE_EVENT_ID_OVERFLOW)),
+                   0,
+                   (DEVICE_MRT_BUFFER_LENGTH(cntrl->buffer_size) - rbuffer_header->tail +
+                    avail_size + 1));
 
             rbuffer_header->head = 0;
             rbuffer_header->tail = 0;
@@ -96,7 +99,7 @@ void *ring_buffer_alloc_space(uint16_t hart_id, size_t size)
             if (msg_hdr->event_id == TRACE_EVENT_ID_TEXT_STRING) {
                 crnt_event_size += ((struct trace_string_t *)msg_hdr)->size;
                 crnt_event_size = ALIGN(crnt_event_size, 8UL);
-            } else if (msg_hdr->event_id == TRACE_EVENT_ID_NONE) {
+            } else if (msg_hdr->event_id == TRACE_EVENT_ID_OVERFLOW) {
                 // Reached the unused space from previous overflow. As tested
                 // there is enough space creatable, just wrap tail and break
                 rbuffer_header->tail = 0;
