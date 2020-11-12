@@ -27,6 +27,7 @@
 #include "devices/plic.h"
 #include "devices/pll.h"
 #include "devices/shire_lpddr.h"
+#include "devices/spi.h"
 #include "devices/spio_rvtimer_region.h"
 #endif
 #include "sparse_region.h"
@@ -52,14 +53,20 @@ struct SvcProcRegion : public MemoryRegion {
         sp_rom_base          = 0x00000000,
         sp_sram_base         = 0x00400000,
         sp_plic_base         = 0x10000000,
+        sp_spi0_base         = 0x12021000,
         sp_uart0_base        = 0x12022000,
         sp_efuse_base        = 0x12026000,
         sp_cru_base          = 0x12028000,
         sp_rvtim_base        = 0x12100000,
+        sp_spi1_base         = 0x14051000,
         sp_uart1_base        = 0x14052000,
+        pll0_base            = 0x14053000,
+        pll1_base            = 0x14054000,
         pll2_base            = 0x14055000,
+        pll3_base            = 0x14056000,
         pll4_base            = 0x14057000,
         pcie_esr_base        = 0x18200000,
+        pcie_pllp0_base      = 0x18201000,
         pcie_apb_subsys_base = 0x18400000,
         shire_lpddr_base     = 0x20000000,
     };
@@ -105,10 +112,16 @@ struct SvcProcRegion : public MemoryRegion {
 #ifdef SYS_EMU
     Efuse         <sp_efuse_base,    8_KiB>      sp_efuse{};
     Cru           <sp_cru_base,      4_KiB>      sp_cru{};
+    Spi           <sp_spi0_base,     4_KiB, 0>   sp_spi0{};
+    Spi           <sp_spi1_base,     4_KiB, 1>   sp_spi1{};
     SpioRVTimerRegion <sp_rvtim_base,4_KiB>      sp_rvtim{};
+    PLL           <pll0_base,        4_KiB, 0>   pll0{};
+    PLL           <pll1_base,        4_KiB, 1>   pll1{};
     PLL           <pll2_base,        4_KiB, 2>   pll2{};
+    PLL           <pll3_base,        4_KiB, 3>   pll3{};
     PLL           <pll4_base,        4_KiB, 4>   pll4{};
     PcieEsr       <pcie_esr_base,    4_KiB>      pcie_esr{};
+    PLL           <pcie_pllp0_base,  4_KiB, 5>   pcie_pllp0{};
     PcieApbSubsys <pcie_apb_subsys_base, 2_MiB>  pcie_apb_subsys{};
     ShireLpddr    <shire_lpddr_base, 512_MiB>    shire_lppdr;
 #endif
@@ -129,18 +142,24 @@ protected:
 
     // These arrays must be sorted by region offset
 #ifdef SYS_EMU
-    std::array<MemoryRegion*,13> regions = {{
+    std::array<MemoryRegion*,19> regions = {{
         &sp_rom,
         &sp_sram,
         &sp_plic,
+        &sp_spi0,
         &spio_uart0,
         &sp_efuse,
         &sp_cru,
         &sp_rvtim,
+        &sp_spi1,
         &spio_uart1,
+        &pll0,
+        &pll1,
         &pll2,
+        &pll3,
         &pll4,
         &pcie_esr,
+        &pcie_pllp0,
         &pcie_apb_subsys,
         &shire_lppdr
     }};
