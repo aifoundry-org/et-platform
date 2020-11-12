@@ -71,3 +71,5 @@ install(
         ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.map
   DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/MasterMinion
   COMPONENT master-minion)
+
+add_subdirectory(include)
