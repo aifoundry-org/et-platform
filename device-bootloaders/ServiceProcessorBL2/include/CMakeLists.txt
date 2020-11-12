@@ -39,3 +39,28 @@ if (NOT DEFINED GIT_VERSION_ARRAY)
 endif()
 
 configure_file(build_configuration.h.in build_configuration.h @ONLY)
+
+add_library(sp_dev_intf INTERFACE)
+target_include_directories(sp_dev_intf INTERFACE
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+  "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/sp_dev_intf>"
+  )
+
+install(
+  TARGETS sp_dev_intf
+  EXPORT EsperantoDeviceMinionRuntimeTargets
+  LIBRARY
+    DESTINATION lib
+    COMPONENT sp_dev_intf
+  PUBLIC_HEADER
+    DESTINATION ${CMAKE_INSTALL_INCLUDE_DIR}/esperanto-fw/sp_dev_intf
+    COMPONENT sp_dev_intf
+  )
+
+install(
+  FILES
+    sp_dev_intf_reg.h
+  DESTINATION
+    ${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/sp_dev_intf
+  COMPONENT sp_dev_intf
+  )
