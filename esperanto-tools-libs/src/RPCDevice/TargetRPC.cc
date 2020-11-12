@@ -49,16 +49,6 @@ bool RPCTarget::postFWLoadInit() {
   auto success = rpcWaitForHostInterrupt(std::chrono::seconds(30));
   assert(success);
 
-  // TODO: Remove following temporary fix when device interface registers are
-  // available
-  // Device does not proceed further until the virtual queues are discovered. So
-  // marking the virtual queues as discovered here
-  struct device_fw::vqueue_desc vqDescMM;
-  vqDescMM.host_ready = 1; // mark as host ready i.e. virtqueues discovered
-  success = rpcMemoryWrite(kVirtQueueDescAddr +
-                                offsetof(device_fw::vqueue_desc, host_ready),
-                                sizeof(vqDescMM.host_ready), &vqDescMM.host_ready);
-
   // For DeviceFW reset the mailbox as well and wait for device-fw to be ready
   success = mailboxDev_->ready(std::chrono::seconds(20));
   assert(success);
