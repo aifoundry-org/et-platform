@@ -27,9 +27,15 @@ namespace et_runtime {
 namespace device {
 
 namespace {
-  TimeDuration kPollingInterval = std::chrono::milliseconds(100);
+#include <esperanto-fw/firmware_helpers/layout.h>
+
+  TimeDuration kPollingInterval = std::chrono::milliseconds(10);
   // TODO: Remove when device interface registers are available
-  const uint64_t kVirtQueueDescAddr = 0x8005100000ULL;
+  const uint64_t kVirtQueueDescAddr = DEVICE_MM_VQUEUE_BASE;
+
+  // To know if virtual queues lie in Mbox region
+  const uint64_t kMboxRegionStart = 0x0020007000;
+  const uint64_t kMboxRegionEnd = 0x0020008000;
   const uint16_t kAlignmentSize = 64;
 }
 
@@ -125,6 +131,83 @@ bool RPCGenerator::rpcMemoryWrite(uint64_t dev_addr, uint64_t size, const void *
   assert(mem_resp.size() == size);
   assert(mem_resp.status() == MemoryAccessStatus::MEMORY_ACCESS_STATUS_SUCCESS);
   return true;
+}
+
+/* Mailbox SRAM region doesn't allow rpcMemoryRead access so using Mailbox RPC
+ * request to read virtual queues from Mailbox region
+ * TODO: Either enable direct memory access to SRAM regions or add
+ * VirtualQueueAccess RPC calls
+ */
+bool RPCGenerator::rpcVirtQueueRead(uint64_t dev_addr, uint64_t size, void *buf) {
+  if (dev_addr >= kMboxRegionStart && dev_addr <= kMboxRegionEnd) {
+    uint32_t offset = (uint32_t)(dev_addr - kMboxRegionStart);
+    // Create request
+    simulator_api::Request request;
+    auto mb = new MailboxAccess();
+    mb->set_target(MailboxTarget::MAILBOX_TARGET_MM);
+    mb->set_type(MailboxAccessType::MAILBOX_READ);
+    mb->set_status(MailboxAccessStatus::MAILBOX_ACCESS_STATUS_NONE);
+    mb->set_offset(offset);
+    mb->set_size(size);
+    request.set_allocated_mailbox(mb);
+    // Do RPC and wait for reply
+    auto reply_res = doRPC(request);
+    if (!reply_res.first) {
+      return false;
+    }
+    auto reply = reply_res.second;
+    assert(reply.has_mailbox());
+
+    auto &mb_resp = reply.mailbox();
+    assert(mb_resp.target() == MailboxTarget::MAILBOX_TARGET_MM);
+    assert(mb_resp.type() == MailboxAccessType::MAILBOX_READ);
+    assert(mb_resp.status() == MailboxAccessStatus::MAILBOX_ACCESS_STATUS_SUCCESS);
+    assert(mb_resp.offset() == offset);
+    assert(mb_resp.size() == size);
+    memcpy(buf, reinterpret_cast<const void *>(mb_resp.data().c_str()), size);
+    return true;
+  }
+  else {
+    return rpcMemoryRead(dev_addr, size, buf);
+  }
+}
+
+/* Mailbox SRAM region doesn't allow rpcMemoryWrite access so using Mailbox RPC
+ * request to read virtual queues from Mailbox region
+ * TODO: Either enable direct memory access to SRAM regions or add
+ * VirtualQueueAccess RPC calls
+ */
+bool RPCGenerator::rpcVirtQueueWrite(uint64_t dev_addr, uint64_t size, const void *buf) {
+  if (dev_addr >= kMboxRegionStart && dev_addr <= kMboxRegionEnd) {
+    uint32_t offset = (uint32_t)(dev_addr- kMboxRegionStart);
+    // Create request
+    simulator_api::Request request;
+    auto mb = new MailboxAccess();
+    mb->set_target(MailboxTarget::MAILBOX_TARGET_MM);
+    mb->set_type(MailboxAccessType::MAILBOX_WRITE);
+    mb->set_status(MailboxAccessStatus::MAILBOX_ACCESS_STATUS_NONE);
+    mb->set_offset(offset);
+    mb->set_size(size);
+    mb->set_data(buf, size);
+    request.set_allocated_mailbox(mb);
+    // Do RPC and wait for reply
+    auto reply_res = doRPC(request);
+    if (!reply_res.first) {
+      return false;
+    }
+    auto reply = reply_res.second;
+    assert(reply.has_mailbox());
+    auto &mb_resp = reply.mailbox();
+    assert(mb_resp.target() == MailboxTarget::MAILBOX_TARGET_MM);
+    assert(mb_resp.type() == MailboxAccessType::MAILBOX_WRITE);
+    assert(mb_resp.status() == MailboxAccessStatus::MAILBOX_ACCESS_STATUS_SUCCESS);
+    assert(mb_resp.offset() == offset);
+    assert(mb_resp.size() == size);
+    return true;
+  }
+  else {
+    return rpcMemoryWrite(dev_addr, size, buf);
+  }
 }
 
 bool RPCGenerator::rpcRaiseDevicePuPlicPcieMessageInterrupt() {
@@ -248,16 +331,17 @@ bool RPCTargetMM::virtQueuesDiscover(TimeDuration wait_time) {
   auto end = start + wait_time;
   struct device_fw::vqueue_desc vqDescMM;
 
+  auto success = rpcGen_->rpcWaitForHostInterruptAny() > 0;
+  assert(success);
+
   uint8_t ready = 0;
   while (1) {
-    auto success = rpcGen_->rpcWaitForHostInterruptAny() > 0;
-    assert(success);
-
-    success = rpcGen_->rpcMemoryRead(kVirtQueueDescAddr, sizeof(ready), &ready);
+    success = rpcGen_->rpcVirtQueueRead(kVirtQueueDescAddr + offsetof(device_fw::vqueue_desc, device_ready),
+                                        sizeof(ready), &ready);
     assert(success);
 
     if (ready == 1) {
-      success = rpcGen_->rpcMemoryRead(kVirtQueueDescAddr, sizeof(vqDescMM), &vqDescMM);
+      success = rpcGen_->rpcVirtQueueRead(kVirtQueueDescAddr, sizeof(vqDescMM), &vqDescMM);
       assert(success);
 
       queueCount_ = vqDescMM.queue_count;
@@ -270,8 +354,8 @@ bool RPCTargetMM::virtQueuesDiscover(TimeDuration wait_time) {
 
       // Set host ready
       vqDescMM.host_ready = 1;
-      success = rpcGen_->rpcMemoryWrite(kVirtQueueDescAddr + offsetof(device_fw::vqueue_desc, host_ready),
-                                        sizeof(vqDescMM.host_ready), &vqDescMM.host_ready);
+      success = rpcGen_->rpcVirtQueueWrite(kVirtQueueDescAddr + offsetof(device_fw::vqueue_desc, host_ready),
+                                           sizeof(vqDescMM.host_ready), &vqDescMM.host_ready);
       assert(success);
       break;
     }
@@ -311,14 +395,11 @@ bool RPCTargetMM::postFWLoadInit() {
   for (uint8_t queueId = 0; queueId < queueCount_; queueId++) {
     auto virtQueueDev = getVirtQueue(queueId);
 
-    // we are resetting the virtual queues
-    success = rpcGen_->rpcWaitForHostInterrupt(queueId, std::chrono::seconds(30));
-
-    // For DeviceFW reset the virtqueue as well and wait for device-fw to be ready
+    // reset the virtqueue and wait for device-fw to be ready
     success = virtQueueDev->ready(std::chrono::seconds(20));
     assert(success);
 
-    success = virtQueueDev->reset(std::chrono::seconds(20));
+    success = virtQueueDev->reset(std::chrono::seconds(200));
     assert(success);
 
     success = virtQueueDev->ready(std::chrono::seconds(20));

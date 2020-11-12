@@ -60,6 +60,12 @@ public:
   /// @brief Memory write access to the target virtual queue
   bool rpcMemoryWrite(uint64_t devAddr, uint64_t size, const void *data);
 
+  /// @brief Memory read access to the target virtual queue (SRAM/DRAM)
+  bool rpcVirtQueueRead(uint64_t devAddr, uint64_t size, void *data);
+
+  /// @brief Memory write access to the target virtual queue (SRAM/DRAM)
+  bool rpcVirtQueueWrite(uint64_t devAddr, uint64_t size, const void *data);
+
   /// @brief Raise PU PLIC PCIe Message Interrupt to the simulator
   bool rpcRaiseDevicePuPlicPcieMessageInterrupt();
 

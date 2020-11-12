@@ -17,9 +17,14 @@
 
 #include <cassert>
 #include <unistd.h>
+#include <thread>
 
 namespace et_runtime {
 namespace device {
+
+namespace {
+  TimeDuration kPollingInterval = std::chrono::milliseconds(10);
+}
 
 CircQueue::CircQueue(const std::shared_ptr<RPCGenerator> &rpcGen, uint64_t queueBaseAddr,
                      uint64_t queueHeaderAddr, uint16_t queueBufCount, uint16_t queueBufSize)
@@ -77,8 +82,8 @@ int64_t CircQueue::write(const void *const buffer, uint32_t length, bool setHead
     return CIRCBUFFER_ERROR_BAD_LENGTH;
   }
 
-  res = rpcGen_->rpcMemoryWrite(queueBaseAddr_ + head_ * queueBufSize_ + headBufPos_,
-                                length, data_ptr);
+  res = rpcGen_->rpcVirtQueueWrite(queueBaseAddr_ + head_ * queueBufSize_ + headBufPos_,
+                                   length, data_ptr);
 
   if (!res) {
     return 0;
@@ -120,8 +125,8 @@ int64_t CircQueue::read(void *const buffer, uint32_t length, bool setTailBufRead
     return CIRCBUFFER_ERROR_DATA_DROPPED;
   }
 
-  res = rpcGen_->rpcMemoryRead(queueBaseAddr_ + tail_ * queueBufSize_ + tailBufPos_,
-                               length, data_ptr);
+  res = rpcGen_->rpcVirtQueueRead(queueBaseAddr_ + tail_ * queueBufSize_ + tailBufPos_,
+                                  length, data_ptr);
   if (!res) {
     return 0;
   }
@@ -152,12 +157,12 @@ bool CircQueue::full() {
 bool CircQueue::readCircQueueIndices() {
   bool res;
 
-  res = rpcGen_->rpcMemoryRead(queueHeadAddr_, sizeof(head_), &head_);
+  res = rpcGen_->rpcVirtQueueRead(queueHeadAddr_, sizeof(head_), &head_);
   if (!res) {
     return false;
   }
 
-  res = rpcGen_->rpcMemoryRead(queueTailAddr_, sizeof(tail_), &tail_);
+  res = rpcGen_->rpcVirtQueueRead(queueTailAddr_, sizeof(tail_), &tail_);
   if (!res) {
     return false;
   }
@@ -166,11 +171,11 @@ bool CircQueue::readCircQueueIndices() {
 }
 
 bool CircQueue::writeCircQueueHeadIndex() {
-  return rpcGen_->rpcMemoryWrite(queueHeadAddr_, sizeof(head_), &head_);
+  return rpcGen_->rpcVirtQueueWrite(queueHeadAddr_, sizeof(head_), &head_);
 }
 
 bool CircQueue::writeCircQueueTailIndex() {
-  return rpcGen_->rpcMemoryWrite(queueTailAddr_, sizeof(tail_), &tail_);
+  return rpcGen_->rpcVirtQueueWrite(queueTailAddr_, sizeof(tail_), &tail_);
 }
 
 EmuVirtQueueDev::EmuVirtQueueDev(const std::shared_ptr<RPCGenerator> &rpcGen, uint8_t queueId,
@@ -197,12 +202,12 @@ EmuVirtQueueDev::EmuVirtQueueDev(const std::shared_ptr<RPCGenerator> &rpcGen, ui
 bool EmuVirtQueueDev::readRemoteStatus(uint8_t &master_status, uint8_t &slave_status) {
   bool res;
 
-  res = rpcGen_->rpcMemoryRead(masterStatusAddr_, sizeof(master_status), &master_status);
+  res = rpcGen_->rpcVirtQueueRead(masterStatusAddr_, sizeof(master_status), &master_status);
   if (!res) {
     return false;
   }
 
-  res = rpcGen_->rpcMemoryRead(slaveStatusAddr_, sizeof(slave_status), &slave_status);
+  res = rpcGen_->rpcVirtQueueRead(slaveStatusAddr_, sizeof(slave_status), &slave_status);
   if (!res) {
     return false;
   }
@@ -211,7 +216,7 @@ bool EmuVirtQueueDev::readRemoteStatus(uint8_t &master_status, uint8_t &slave_st
 }
 bool EmuVirtQueueDev::writeRemoteSlaveStatus(uint8_t slave_status) {
   // The host is always the vqueue slave, so only write slave status
-  return rpcGen_->rpcMemoryWrite(slaveStatusAddr_, sizeof(slave_status), &slave_status);
+  return rpcGen_->rpcVirtQueueWrite(slaveStatusAddr_, sizeof(slave_status), &slave_status);
 }
 
 bool EmuVirtQueueDev::raiseTargetDeviceInterrupt() {
@@ -251,7 +256,8 @@ bool EmuVirtQueueDev::virtQueueStatusHandShake() {
       // Write back the status to the remote simulator
       res = writeRemoteSlaveStatus(slave_status);
       assert(res);
-      raiseTargetDeviceInterrupt();
+      res = raiseTargetDeviceInterrupt();
+      assert(res);
     }
     break;
   case device_fw::VQ_STATUS_WAITING:
@@ -262,7 +268,8 @@ bool EmuVirtQueueDev::virtQueueStatusHandShake() {
       // Write back the status to the remote simulator
       res = writeRemoteSlaveStatus(slave_status);
       assert(res);
-      raiseTargetDeviceInterrupt();
+      res = raiseTargetDeviceInterrupt();
+      assert(res);
     }
     break;
   case device_fw::VQ_STATUS_ERROR:
@@ -284,7 +291,8 @@ bool EmuVirtQueueDev::virtQueueReset() {
   auto res = writeRemoteSlaveStatus(device_fw::VQ_STATUS_WAITING);
   assert(res);
 
-  raiseTargetDeviceInterrupt();
+  res = raiseTargetDeviceInterrupt();
+  assert(res);
 
   // Clean up the circular queue state, discard all messages
   submissionQueue_->init();
@@ -431,7 +439,6 @@ bool EmuVirtQueueDev::ready(TimeDuration wait_time) {
   auto start = Clock::now();
   auto end = start + wait_time; // TODO: Fix wait_time (TimeDuration::max()) + some value can
                                 // cause issue
-  static const TimeDuration polling_interval = std::chrono::milliseconds(5);
 
   auto ready = virtQueueReady();
   while (!ready) {
@@ -458,7 +465,7 @@ bool EmuVirtQueueDev::ready(TimeDuration wait_time) {
       return false;
     }
 
-    rpcGen_->rpcWaitForHostInterrupt(queueId_, polling_interval);
+    rpcGen_->rpcWaitForHostInterrupt(queueId_, kPollingInterval);
   }
   return ready;
 }
@@ -466,6 +473,8 @@ bool EmuVirtQueueDev::ready(TimeDuration wait_time) {
 bool EmuVirtQueueDev::reset(TimeDuration wait_time) {
   auto reset = virtQueueReset();
   assert(reset);
+
+  rpcGen_->rpcWaitForHostInterrupt(queueId_, kPollingInterval);
 
   return ready(wait_time);
 }
