@@ -29,25 +29,45 @@ int DeviceAPI_DeviceFW_process_device_traces(uint8_t *trace_buffers,
   size_t tail;
   size_t head;
   uint8_t *trace_buffer;
+  bool overflow_flag;
+  bool exit_loop;
   ::device_api::non_privileged::buffer_header_t *buffer_hdr;
   ::device_api::non_privileged::message_header_t *msg_hdr;
 
   for (uint32_t i = 0; i < num_of_buffers; i++) {
+    overflow_flag = false;
+    exit_loop = false;
     trace_buffer = trace_buffers + buffer_size * i;
     buffer_hdr = (::device_api::non_privileged::buffer_header_t *)trace_buffer;
     tail = buffer_hdr->tail;
     head = buffer_hdr->head;
 
-    while (tail != head) {
+    while (tail != head && exit_loop == false) {
       auto trace_hdr = new DeviceAPI_trace_hdr();
       trace_hdr->set_hartid(buffer_hdr->hart_id);
       msg_hdr = (::device_api::non_privileged::message_header_t *)(&(buffer_hdr->buffer[tail]));
       trace_hdr->set_device_timestamp_mtime(msg_hdr->mtime);
 
       switch (msg_hdr->event_id) {
+      case ::device_api::non_privileged::TRACE_EVENT_ID_OVERFLOW: {
+        if (overflow_flag == false) {
+          overflow_flag = true;
+        } 
+        else {
+          // Buffer overflow condition, reset tail
+          tail = 0;
+          // Exit the loop in case of TRACE_EVENT_ID_OVERFLOW
+          exit_loop = true;
+          RTERROR  <% raw %> << <% endraw %> "Overflow event:" <% raw %> << <% endraw %> msg_hdr->event_id <% raw %> << <% endraw %> \
+                   " Hart ID:"<% raw %> << <% endraw %> buffer_hdr->hart_id <% raw %> << <% endraw %>  "\n";
+        }
+        break;
+      }
       case ::device_api::non_privileged::TRACE_EVENT_ID_NONE: {
-        // Buffer overflow condition, reset tail
-        tail = 0;
+        RTERROR  <% raw %> << <% endraw %> "Invalid event id:" <% raw %> << <% endraw %> msg_hdr->event_id <% raw %> << <% endraw %> \
+                 " Hart ID:"<% raw %> << <% endraw %> buffer_hdr->hart_id <% raw %> << <% endraw %>  "\n";
+        // Exit the loop in case of TRACE_EVENT_ID_NONE
+        exit_loop = true;
         break;
       }
 <%- for module in spec['DeviceAPI']['Modules'] -%>
