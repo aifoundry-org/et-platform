@@ -17,51 +17,18 @@
 using namespace rt;
 
 EventId EventManager::getNextId() {
-  return EventId{nextEventId_++};
+  auto res = EventId{nextEventId_++};
+  onflyEvents_.emplace(res);
+  return res;
 }
 
 void EventManager::dispatch(EventId event) {
   RT_DLOG(INFO) << "Dispatching event " << static_cast<int>(event);
-  auto seq = EventSequence{event};
   std::unique_lock<std::mutex> lock(mutex_);
-  if (dispatched_.empty()) {
-    dispatched_.emplace_back(seq);
-  } else {
-    auto it = std::upper_bound(begin(dispatched_), end(dispatched_), seq);
-    EventSequence::Merged merged;
-    if (it == begin(dispatched_)) {
-      merged = it->tryToMerge(seq);
-    } else if (it == end(dispatched_)) {
-      merged = (it - 1)->tryToMerge(seq);
-    } else {
-      merged = it->tryToMerge(seq);
-      if (merged == EventSequence::Merged::False) {
-        merged = (it - 1)->tryToMerge(seq);
-      }
-    }
-    // try to do further merges
-    if (merged == EventSequence::Merged::Begin && it != begin(dispatched_)) {
-      auto tmp = it->tryToMerge(*(it - 1));
-      if (tmp != EventSequence::Merged::False) {
-        assert(tmp == EventSequence::Merged::Begin);
-        dispatched_.erase(it - 1);
-      }
-    } else if (merged == EventSequence::Merged::End && it != end(dispatched_)) {
-      auto tmp = it->tryToMerge(*(it + 1));
-      if (tmp != EventSequence::Merged::False) {
-        assert(tmp == EventSequence::Merged::End);
-        dispatched_.erase(it + 1);
-      }
-    } else if (merged == EventSequence::Merged::False) {
-      dispatched_.emplace(it, seq);
-    }
-  }
-  lock.unlock();
-  awakeBlockedThreads(event);
-}
+  if (onflyEvents_.erase(event) != 1) {
+    throw Exception("Couldn't dispatch event, perhaps it was already dispatched?");
+  };
 
-void EventManager::awakeBlockedThreads(EventId event) {
-  std::unique_lock lock(mutex_);
   auto it = blockedThreads_.find(event);
   if (it != end(blockedThreads_)) {
     lock.unlock();
@@ -70,12 +37,7 @@ void EventManager::awakeBlockedThreads(EventId event) {
 }
 
 bool EventManager::isDispatched(EventId event) const {
-  if (dispatched_.empty()) {
-    return false;
-  }
-  auto seq = EventSequence{event};
-  auto it = std::upper_bound(begin(dispatched_), end(dispatched_), seq);
-  return it != begin(dispatched_) && (--it)->contains(event);
+  return onflyEvents_.find(event) == end(onflyEvents_);
 }
 
 void EventManager::blockUntilDispatched(EventId event) {
