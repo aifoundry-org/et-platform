@@ -17,7 +17,8 @@
 #include <stdbool.h>
 
 // Count and size must be in power of 2
-#define CIRCBUFFER_COUNT 4
+// TODO: Temporarily reduced the count of buffers
+#define CIRCBUFFER_COUNT 2
 #define CIRCBUFFER_SIZE  128
 
 static_assert((CIRCBUFFER_COUNT & (CIRCBUFFER_COUNT - 1)) == 0,

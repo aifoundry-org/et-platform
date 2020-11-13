@@ -32,7 +32,15 @@ typedef struct {
 static void init_vqueue(uint32_t vq_index, uint64_t vq_size);
 
 static struct vqueue_desc *const vq_desc_glob = (struct vqueue_desc *)DEVICE_MM_VQUEUE_BASE;
-static vqueue_info_intern_t vq_info[VQUEUE_COUNT] = { 0 };
+static volatile vqueue_info_intern_t vq_info[VQUEUE_COUNT] __attribute__((section(".data")));
+
+static inline __attribute__((always_inline)) void
+evict_data(enum cop_dest dest, const volatile void *const data_ptr, uint64_t size)
+{
+    asm volatile("fence");
+    evict(dest, data_ptr, size);
+    WAIT_CACHEOPS
+}
 
 static inline void acquire_vqueue_lock(volatile uint8_t *lock)
 {
@@ -61,12 +69,10 @@ void VQUEUE_init(void)
     vq_desc_glob->queue_element_size = VQUEUE_ELEMENT_SIZE;
     vq_desc_glob->device_ready = 1U;
 
-    // Make sure writes to mem are synced
-    asm volatile("fence");
     // Evict the dirty vqueue descriptor to memory
     // TODO: Remove the cache eviction once Device Interface Registers are available in SRAM.
-    evict(to_Mem, vq_desc_glob, sizeof(vq_desc_glob));
-    WAIT_CACHEOPS
+    // TODO: Disabled the eviction until we move back to DRAM
+    //evict_data(to_L3, vq_desc_glob, sizeof(vq_desc_glob));
 
     for (uint32_t i = 0; i < vq_desc_glob->queue_count; i++) {
         init_vqueue(
@@ -91,7 +97,8 @@ int64_t VQUEUE_push(vq_e vq, uint32_t vq_index, const void *const buffer_ptr, ui
         return VQ_ERROR_NOT_READY;
     }
 
-    acquire_vqueue_lock(&(vq_info[vq_index].producer_lock));
+    // TODO: Disabled the locking until we move back to DRAM
+    //acquire_vqueue_lock(&(vq_info[vq_index].producer_lock));
 
     uint32_t head = sq_cq_ptr->head;
     uint32_t tail = sq_cq_ptr->tail;
@@ -110,11 +117,10 @@ int64_t VQUEUE_push(vq_e vq, uint32_t vq_index, const void *const buffer_ptr, ui
             // Update head index
             sq_cq_ptr->head = (uint16_t)((head + 1) % vq_desc_glob->queue_element_count);
             // Make sure VQ data and head pointer is coherent in memory
+            // TODO: Disabled the eviction until we move back to DRAM
+            //evict_data(to_L3, vq_buf_off, vq_desc_glob->queue_element_size);
+            //evict_data(to_L3, &(sq_cq_ptr->head), sizeof(sq_cq_ptr->head));
             asm volatile("fence");
-            evict(to_Mem, vq_buf_off, vq_desc_glob->queue_element_size);
-            WAIT_CACHEOPS
-            evict(to_Mem, &(sq_cq_ptr->head), sizeof(sq_cq_ptr->head));
-            WAIT_CACHEOPS
             pcie_interrupt_host(vq_info[vq_index].notify_int);
             rv = 0;
         } else {
@@ -124,7 +130,8 @@ int64_t VQUEUE_push(vq_e vq, uint32_t vq_index, const void *const buffer_ptr, ui
         log_write(LOG_LEVEL_ERROR, "VQUEUE_push: Unable to write buffer header!\r\n");
     }
 
-    release_vqueue_lock(&(vq_info[vq_index].producer_lock));
+    // TODO: Disabled the locking until we move back to DRAM
+    //release_vqueue_lock(&(vq_info[vq_index].producer_lock));
 
     return rv;
 }
@@ -146,7 +153,8 @@ int64_t VQUEUE_pop(vq_e vq, uint32_t vq_index, void *const buffer_ptr, size_t bu
         return VQ_ERROR_NOT_READY;
     }
 
-    acquire_vqueue_lock(&(vq_info[vq_index].consumer_lock));
+    // TODO: Disabled the locking until we move back to DRAM
+    //acquire_vqueue_lock(&(vq_info[vq_index].consumer_lock));
 
     uint32_t head = sq_cq_ptr->head;
     uint32_t tail = sq_cq_ptr->tail;
@@ -157,24 +165,20 @@ int64_t VQUEUE_pop(vq_e vq, uint32_t vq_index, void *const buffer_ptr, size_t bu
         return VQ_ERROR_VQ_EMPTY;
     }
 
-    // Invalidate to read fresh data
-    asm volatile("fence");
-    evict(to_Mem, vq_buf_off, vq_desc_glob->queue_element_size);
-    WAIT_CACHEOPS
+    // TODO: Disabled the eviction until we move back to DRAM
+    // Invalidate to read fresh header data
+    //evict_data(to_L3, vq_buf_off, VQUEUE_BUFFER_HEADER_SIZE);
 
     if (VQUEUE_BUFFER_HEADER_SIZE == CIRCBUFFER_read(vq_buf_off, 0U,
                                                      vq_desc_glob->queue_element_size, &header,
                                                      VQUEUE_BUFFER_HEADER_SIZE)) {
         if ((header.length > 0) && (header.magic == VQUEUE_MAGIC)) {
             if (header.length <= buffer_size) {
+                // TODO: Disabled the eviction until we move back to DRAM
+                // Invalidate to read fresh vq data
+                //evict_data(to_L3, (void *)((uint64_t)vq_buf_off + VQUEUE_BUFFER_HEADER_SIZE), header.length);
                 rv = CIRCBUFFER_read(vq_buf_off, VQUEUE_BUFFER_HEADER_SIZE,
                                      vq_desc_glob->queue_element_size, buffer_ptr, header.length);
-                // Update tail index
-                sq_cq_ptr->tail = (uint16_t)((tail + 1) % vq_desc_glob->queue_element_count);
-                // Make sure VQ tail pointer is coherent in memory
-                asm volatile("fence");
-                evict(to_Mem, &(sq_cq_ptr->tail), sizeof(sq_cq_ptr->tail));
-                WAIT_CACHEOPS
             } else {
                 log_write(LOG_LEVEL_ERROR,
                           "VQUEUE_pop: insufficient buffer, unable to pop message\r\n");
@@ -182,9 +186,15 @@ int64_t VQUEUE_pop(vq_e vq, uint32_t vq_index, void *const buffer_ptr, size_t bu
         } else {
             log_write(LOG_LEVEL_ERROR, "VQUEUE_pop: invalid header\r\n");
         }
+        // Update tail index (will also discard invalid data)
+        sq_cq_ptr->tail = (uint16_t)((tail + 1) % vq_desc_glob->queue_element_count);
+        // Make sure VQ tail pointer is coherent in memory
+        // TODO: Disabled the eviction until we move back to DRAM
+        //evict_data(to_L3, &(sq_cq_ptr->tail), sizeof(sq_cq_ptr->tail));
     }
 
-    release_vqueue_lock(&(vq_info[vq_index].consumer_lock));
+    // TODO: Disabled the locking until we move back to DRAM
+    //release_vqueue_lock(&(vq_info[vq_index].consumer_lock));
 
     return rv;
 }
@@ -195,9 +205,8 @@ void VQUEUE_update_status(uint32_t vq_index)
     volatile struct vqueue_info *const vqueue_ptr = DEVICE_VQUEUE_BASE(vq_index);
 
     // Invalidate to read fresh slave_status
-    asm volatile("fence");
-    evict(to_Mem, &(vqueue_ptr->slave_status), sizeof(vqueue_ptr->slave_status));
-    WAIT_CACHEOPS
+    // TODO: Disabled the eviction until we move back to DRAM
+    //evict_data(to_L3, &(vqueue_ptr->slave_status), sizeof(vqueue_ptr->slave_status));
 
     switch (vqueue_ptr->slave_status) {
     case VQ_STATUS_NOT_READY:
@@ -205,19 +214,18 @@ void VQUEUE_update_status(uint32_t vq_index)
 
     case VQ_STATUS_READY:
         if (vqueue_ptr->master_status == VQ_STATUS_WAITING) {
-            log_write(LOG_LEVEL_CRITICAL, "received slave ready, going master ready\r\n");
+            log_write(LOG_LEVEL_INFO, "received slave ready, going master ready\r\n");
             vqueue_ptr->master_status = VQ_STATUS_READY;
             // Evict the dirty master_status to Memory
-            asm volatile("fence");
-            evict(to_Mem, &(vqueue_ptr->master_status), sizeof(vqueue_ptr->master_status));
-            WAIT_CACHEOPS
+            // TODO: Disabled the eviction until we move back to DRAM
+            //evict_data(to_L3, &(vqueue_ptr->master_status), sizeof(vqueue_ptr->master_status));
             pcie_interrupt_host(vq_info[vq_index].notify_int);
         }
         break;
 
     case VQ_STATUS_WAITING:
         // The slave has requested we reset the VQs.
-        log_write(LOG_LEVEL_CRITICAL, "received slave reset req\r\n");
+        log_write(LOG_LEVEL_INFO, "received slave reset req\r\n");
         init_vqueue(vq_index, (uint64_t)(vq_desc_glob->queue_element_count *
                                          vq_desc_glob->queue_element_size));
         pcie_interrupt_host(vq_info[vq_index].notify_int);
@@ -276,8 +284,13 @@ static void init_vqueue(uint32_t vq_index, uint64_t vq_size)
 
     vq->master_status = VQ_STATUS_WAITING;
 
-    // Evict the dirty vqueue_info to Mem
-    asm volatile("fence");
-    evict(to_Mem, vq, sizeof(struct vqueue_info));
-    WAIT_CACHEOPS
+    // TODO: Disabled the eviction until we move back to DRAM
+    // Evict the submission queue data region
+    //evict_data(to_L3, sbuffer_addr, vq_size);
+    // Evict the completion queue data region
+    //evict_data(to_L3, cbuffer_addr, vq_size);
+    // Evict the shared vqueue information data region
+    //evict_data(to_L3, vq, sizeof(struct vqueue_info));
+    // Evict the internal vqueue information data region
+    evict_data(to_L3, &(vq_info[vq_index]), sizeof(vqueue_info_intern_t));
 }
