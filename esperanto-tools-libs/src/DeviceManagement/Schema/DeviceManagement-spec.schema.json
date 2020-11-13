@@ -1,328 +1,550 @@
 {
-    "instance" : {
-        "revision": "vendor-1.0",
-        "name": "DM Instance",
-        "short_desc": "Gets the DM Instance",
-        "desc": "Gets the Device Management Instance",
-        "type": "DeviceManagement &",
-        "access_method": "Library call",
-        "symbol_name": "getInstance"
-    },
-	"metrics": {
-		"GET_MODULE_MANUFACTURE_NAME": {
-			"revision": "vendor-1.0",
-			"short_desc": "Gets manufacturer name",
-			"desc": "Gets the module's manufacturer's name",
-			"id": 0,
-			"type": "int",
-			"valid_range": [0, 1],
-			"access_method": "Instance call",
-			"symbol_name": "serviceRequest",
-			"parameters": {
-				"device_node": { "const char *": "et0_mgmt" },
-				"cmd_id": { "uint32_t": 0 },
-				"input_buff": { "const char *": "" },
-				"input_size": { "const uint32_t": 0 },
-				"output_buff": { "char *": "" },
-				"output_size": { "const uint32_t": 8 },
-				"host_latency_msec": { "uint32_t *": 0 },
-				"device_latency_msec": { "uint32_t *": 0 },
-				"timeout": { "uint32_t": [0, 1000] }
-			}
-        },
-        "GET_MODULE_PART_NUMBER": {
-			"revision": "vendor-1.0",
-			"short_desc": "Gets the module part number",
-			"desc": "Gets the module part number",
-			"id": 1,
-			"type": "int",
-			"valid_range": [0, 1],
-			"access_method": "Instance call",
-			"symbol_name": "serviceRequest",
-			"parameters": {
-				"device_node": { "const char *": "et0_mgmt" },
-				"cmd_id": { "uint32_t": 1 },
-				"input_buff": { "const char *": "" },
-				"input_size": { "const uint32_t": 0 },
-				"output_buff": { "char *": "" },
-				"output_size": { "const uint32_t": 4 },
-				"host_latency_msec": { "uint32_t *": 0 },
-				"device_latency_msec": { "uint32_t *": 0 },
-				"timeout": { "uint32_t": [0, 1000] }
+	"enum": {
+		"command_id": [
+
+			"======Comment:Asset tracking=====",
+
+			"GET_MODULE_MANUFACTURE_NAME",
+			"GET_MODULE_PART_NUMBER",
+			"GET_MODULE_SERIAL_NUMBER",
+			"GET_ASIC_CHIP_REVISION",
+			"GET_MODULE_FIRMWARE_REVISIONS",
+			"GET_MODULE_PCIE_ADDR",
+			"GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED",
+			"GET_MODULE_MEMORY_SIZE_MB",
+			"GET_MODULE_REVISION",
+			"GET_MODULE_FORM_FACTOR",
+			"GET_MODULE_MEMORY_VENDOR_PART_NUMBER",
+			"GET_MODULE_MEMORY_TYPE",
+			"GET_FUSED_PUBLIC_KEYS",
+
+			"======Comment:Firmware Management =====",
+
+			"SET_FIRMWARE_UPDATE",
+			"GET_FIRMWARE_BOOT_STATUS",
+			"SET_FIRMWARE_VERSION_COUNTER",
+			"SET_FIRMWARE_VALID",
+			"SET_SP_BOOT_ROOT_CERT",
+			"SET_SW_BOOT_ROOT_CERT",
+
+			"======Comment: Health Management (Thermal and Power) =====",
+
+			"GET_MODULE_TEMPERATURE_THRESHOLDS",
+			"SET_MODULE_TEMPERATURE_THRESHOLDS",
+			"GET_MODULE_POWER_STATE",
+			"SET_MODULE_POWER_STATE",
+			"GET_MODULE_STATIC_TDP_LEVEL",
+			"SET_MODULE_STATIC_TDP_LEVEL",
+			"GET_MODULE_CURRENT_TEMPERATURE",
+			"GET_MODULE_TEMPERATURE_THROTTLE_STATUS",
+			"GET_MODULE_RESIDENCY_THROTTLE_STATES",
+			"GET_MODULE_UPTIME",
+			"GET_MODULE_VOLTAGE",
+			"GET_MODULE_POWER",
+
+			"======Comment: Historical extreme values =====",
+
+			"GET_MODULE_MAX_TEMPERATURE",
+			"GET_MODULE_MAX_THROTTLE_TIME",
+			"GET_MODULE_MAX_DDR_BW",
+			"GET_MAX_MEMORY_ERROR",
+
+			"======Comment: Error Control =====",
+
+			"SET_DDR_ECC_COUNT",
+			"SET_PCIE_ECC_COUNT",
+			"SET_SRAM_ECC_COUNT",
+
+
+			"======Comment: Link Management =====",
+
+			"SET_PCIE_RESET",
+			"GET_MODULE_PCIE_ECC_UECC",
+			"GET_MODULE_DDR_BW_COUNTER",
+			"GET_MODULE_DDR_ECC_UECC",
+			"GET_MODULE_SRAM_ECC_UECC",
+			"SET_PCIE_MAX_LINK_SPEED",
+			"SET_PCIE_LANE_WIDTH",
+			"SET_PCIE_RETRAIN_PHY",
+
+
+			"======Comment: Performance =====",
+
+			"GET_ASIC_FREQUENCIES",
+			"GET_DRAM_BANDWIDTH",
+			"GET_DRAM_CAPACITY_UTILIZATION",
+			"GET_ASIC_PER_CORE_DATAPATH_UTILIZATION",
+			"GET_ASIC_UTILIZATION",
+			"GET_ASIC_STALLS",
+			"GET_ASIC_LATENCY",
+
+			"======Comment: Master Minion State =====",
+			"GET_MM_THREADS_STATE"
+		],
+
+		"firmware_status": ["PASS", "FAILED"],
+		"dm_status": ["PASS", "FAILED"],
+		"power_state": ["FULL", "REDUCED", "LOWEST"],
+		"tdp_level": ["LEVEL1", "LEVEL2", "LEVEL2", "LEVEL4"],
+		"pcie_reset": ["FLR", "HOT", "WARM"]
+	},
+
+	"cmd_param_structs": {
+
+		"command_header": {
+			"usage": {
+				"desc": "DM request and response header struct. This header is attached to each request and response"
+			},
+			"fields": {
+				"cmd_id": "enum command_id",
+				"device_laytency_usec": "uint64_t"
+
 			}
 		},
-        "GET_MODULE_SERIAL_NUMBER": {
-			"revision": "vendor-1.0",
-			"short_desc": "Gets serial number",
-			"desc": "Gets the module serial number",
-			"id": 2,
-			"type": "int",
-			"valid_range": [0, 1],
-			"access_method": "Instance call",
-			"symbol_name": "serviceRequest",
-			"parameters": {
-				"device_node": { "const char *": "et0_mgmt" },
-				"cmd_id": { "uint32_t": 2 },
-				"input_buff": { "const char *": "" },
-				"input_size": { "const uint32_t": 0 },
-				"output_buff": { "char *": "" },
-				"output_size": { "const uint32_t": 8 },
-				"host_latency_msec": { "uint32_t *": 0 },
-				"device_latency_msec": { "uint32_t *": 0 },
-				"timeout": { "uint32_t": [0, 1000] }
+
+		"asset_tracking_class": {
+
+			"asset_tracking": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": ["GET_MODULE_MANUFACTURE_NAME",
+									"GET_MODULE_PART_NUMBER",
+									"GET_MODULE_SERIAL_NUMBER",
+									"GET_ASIC_CHIP_REVISION",
+									"GET_MODULE_PCIE_ADDR",
+									"GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED",
+									"GET_MODULE_MEMORY_SIZE_MB",
+									"GET_MODULE_REVISION",
+									"GET_MODULE_FORM_FACTOR",
+									"GET_MODULE_MEMORY_VENDOR_PART_NUMBER",
+									"GET_MODULE_MEMORY_TYPE"
+									]
+				},
+
+				"fields": {
+					"asset[8]": "char "
+				}
+			},
+
+			"fused_public_key": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": ["GET_FUSED_PUBLIC_KEYS"]
+				},
+
+				"fields": {
+					"key_size_tbd[32]": "uint8_t"
+				}
+			},
+
+			"firmware_version": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "GET_MODULE_FIRMWARE_REVISIONS"
+				},
+				"fields": {
+					"bl1_v": "uint32_t",
+					"bl2_v": "uint32_t",
+					"mm_v": "uint32_t",
+					"wm_v": "uint32_t",
+					"machm_v": "uint32_t"
+				}
 			}
-        },
-        "GET_MODULE_ASSET_TAG": {
-			"revision": "vendor-1.0",
-			"short_desc": "Gets asset tag",
-			"desc": "Gets the module asset tag",
-			"id": 3,
-			"type": "int",
-			"valid_range": [0, 1],
-			"access_method": "Instance call",
-			"symbol_name": "serviceRequest",
-			"parameters": {
-				"device_node": { "const char *": "et0_mgmt" },
-				"cmd_id": { "uint32_t": 3 },
-				"input_buff": { "const char *": "" },
-				"input_size": { "const uint32_t": 0 },
-				"output_buff": { "char *": "" },
-				"output_size": { "const uint32_t": 8 },
-				"host_latency_msec": { "uint32_t *": 0 },
-				"device_latency_msec": { "uint32_t *": 0 },
-				"timeout": { "uint32_t": [0, 1000] }
+		},
+
+		"firmware_mgmt_class": {
+
+			"update_firmware": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types. Image format is TBD",
+					"input_buff": "SET_FIRMWARE_UPDATE",
+					"output_buff": null
+				},
+				"fields": {
+					"fw_image_path[64]": "char "
+				}
+			},
+
+			"certificate_hash": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": "SET_SP_BOOT_ROOT_CERT",
+					"output_buff": null
+				},
+				"fields": {
+					"hash_size_tbd[32]": "uint8_t"
+				}
 			}
-        },
-        "GET_ASIC_CHIP_REVISION": {
-			"revision": "vendor-1.0",
-			"short_desc": "Gets chip revision",
-			"desc": "Gets the ASIC chip revision",
-			"id": 4,
-			"type": "int",
-			"valid_range": [0, 1],
-			"access_method": "Instance call",
-			"symbol_name": "serviceRequest",
-			"parameters": {
-				"device_node": { "const char *": "et0_mgmt" },
-				"cmd_id": { "uint32_t": 4 },
-				"input_buff": { "const char *": "" },
-				"input_size": { "const uint32_t": 0 },
-				"output_buff": { "char *": "" },
-				"output_size": { "const uint32_t": 4 },
-				"host_latency_msec": { "uint32_t *": 0 },
-				"device_latency_msec": { "uint32_t *": 0 },
-				"timeout": { "uint32_t": [0, 1000] }
+		},
+
+		"thermal_power_mgmt_class": {
+
+			"temperature_threshold": {
+
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": "SET_MODULE_TEMPERATURE_THRESHOLDS",
+					"output_buff": "GET_MODULE_TEMPERATURE_THRESHOLDS"
+				},
+
+				"fields": {
+					"low_temperature_c": "int32_t",
+					"high_temperature_c": "int32_t"
+				}
+			},
+			"power_state": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": "SET_MODULE_POWER_STATE",
+					"output_buff": "GET_MODULE_POWER_STATE"
+				},
+
+				"fields": {
+					"state": "enum power_state"
+				}
+			},
+
+			"tdp_level": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": "SET_MODULE_STATIC_TDP_LEVEL",
+					"output_buff": "GET_MODULE_STATIC_TDP_LEVEL"
+				},
+
+				"fields": {
+					"tdp": "enum tdp_level"
+				}
+			},
+
+			"current_temperature": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "GET_MODULE_CURRENT_TEMPERATURE"
+				},
+
+				"fields": {
+					"temperature_c": "int32_t"
+				}
+			},
+
+			"throttle_time": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "GET_MODULE_RESIDENCY_THROTTLE_STATES"
+				},
+
+				"fields": {
+					"time_usec": "uint64_t"
+				}
+			},
+
+			"module_power": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "GET_MODULE_POWER"
+				},
+				"fields": {
+					"watts": "uint32_t"
+				}
+			},
+
+			"module_voltage": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "GET_MODULE_VOLTAGE"
+				},
+				"fields": {
+					"volts": "uint32_t"
+				}
+			},
+
+			"module_uptime": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "GET_MODULE_UPTIME"
+				},
+				"fields": {
+					"time_day": "uint16_t",
+					"time_hours": "uint8_t",
+					"time_seconds": "uint8_t"
+				}
 			}
-        },
-        "GET_MODULE_FIRMWARE_REVISIONS": {
-			"revision": "vendor-1.0",
-			"short_desc": "Gets firmware revision",
-			"desc": "Gets the module firmware revision",
-			"id": 5,
-			"type": "int",
-			"valid_range": [0, 1],
-			"access_method": "Instance call",
-			"symbol_name": "serviceRequest",
-			"parameters": {
-				"device_node": { "const char *": "et0_mgmt" },
-				"cmd_id": { "uint32_t": 5 },
-				"input_buff": { "const char *": "" },
-				"input_size": { "const uint32_t": 0 },
-				"output_buff": { "char *": "" },
-				"output_size": { "const uint32_t": 8 },
-				"host_latency_msec": { "uint32_t *": 0 },
-				"device_latency_msec": { "uint32_t *": 0 },
-				"timeout": { "uint32_t": [0, 1000] }
+
+		},
+
+		"max_historical_values_class": {
+
+			"max_temperature": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "GET_MODULE_MAX_TEMPERATURE"
+				},
+				"fields": {
+					"max_temperature_c": "int32_t"
+				}
+			},
+
+			"max_memory_error": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "GET_MAX_MEMORY_ERROR"
+				},
+
+				"fields": {
+					"max_ecc_count": "uint32_t"
+				}
+			},
+
+			"max_dram_bw": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "GET_MODULE_MAX_DDR_BW"
+				},
+				"fields": {
+					"max_bw_rd_req_sec": "uint32_t",
+					"max_bw_wr_req_sec": "uint32_t"
+				}
+			},
+
+			"max_throttle_time": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "GET_MODULE_MAX_THROTTLE_TIME"
+				},
+				"fields": {
+					"max_time_usec": "uint64_t"
+				}
 			}
-        },
-        "GET_MODULE_DRIVER_REVISION": {
-			"revision": "vendor-1.0",
-			"short_desc": "Gets driver revision",
-			"desc": "Gets the module driver revision",
-			"id": 6,
-			"type": "int",
-			"valid_range": [0, 1],
-			"access_method": "Instance call",
-			"symbol_name": "serviceRequest",
-			"parameters": {
-				"device_node": { "const char *": "et0_mgmt" },
-				"cmd_id": { "uint32_t": 6 },
-				"input_buff": { "const char *": "" },
-				"input_size": { "const uint32_t": 0 },
-				"output_buff": { "char *": "" },
-				"output_size": { "const uint32_t": 8 },
-				"host_latency_msec": { "uint32_t *": 0 },
-				"device_latency_msec": { "uint32_t *": 0 },
-				"timeout": { "uint32_t": [0, 1000] }
+		},
+
+		"error_control_class": {
+
+			"set_error_count": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": ["SET_DDR_ECC_COUNT", "SET_SRAM_ECC_COUNT ", "SET_PCIE_ECC_COUNT"],
+					"output_buff": null
+				},
+				"fields": {
+					"ecc_error_count": "uint32_t"
+				}
 			}
-        },
-        "GET_MODULE_PCIE_ADDR": {
-			"revision": "vendor-1.0",
-			"short_desc": "Gets PCIE address",
-			"desc": "Gets the module PCIE address",
-			"id": 7,
-			"type": "int",
-			"valid_range": [0, 1],
-			"access_method": "Instance call",
-			"symbol_name": "serviceRequest",
-			"parameters": {
-				"device_node": { "const char *": "et0_mgmt" },
-				"cmd_id": { "uint32_t": 7 },
-				"input_buff": { "const char *": "" },
-				"input_size": { "const uint32_t": 0 },
-				"output_buff": { "char *": "" },
-				"output_size": { "const uint32_t": 8 },
-				"host_latency_msec": { "uint32_t *": 0 },
-				"device_latency_msec": { "uint32_t *": 0 },
-				"timeout": { "uint32_t": [0, 1000] }
+		},
+
+
+		"link_mgmt_class": {
+
+			"pcie_reset": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": "SET_PCIE_RESET",
+					"output_buff": null
+				},
+				"fields": {
+					"reset_type": "enum pcie_reset"
+				}
+			},
+
+			"get_error_count": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": ["GET_MODULE_PCIE_ECC_UECC", "GET_MODULE_DDR_ECC_UECC", "GET_MODULE_SRAM_ECC_UECC"]
+				},
+				"fields": {
+					"ecc_count": "uint32_t",
+					"uecc_count": "uint32_t"
+				}
+			},
+
+			"dram_bw_counter": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "GET_MODULE_DDR_BW_COUNTER"
+				},
+				"fields": {
+					"read_req_per_sec": "uint32_t",
+					"write_req_per_sec": "uint32_t"
+				}
+			},
+
+			"pcie_link_speed": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": "SET_PCIE_MAX_LINK_SPEED",
+					"output_buff": null
+				},
+				"fields": {
+					"speed": "TBD"
+				}
+			},
+
+			"pcie_lane_width": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": "SET_PCIE_LANE_WIDTH",
+					"output_buff": null
+				},
+				"fields": {
+					"width": "TBD"
+				}
+			},
+
+			"pcie_retrain_phy": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": "SET_PCIE_RETRAIN_PHY",
+					"output_buff": "null"
+				},
+				"fields": {
+					"phy": "TBD"
+				}
 			}
-        },
-        "GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED": {
-			"revision": "vendor-1.0",
-			"short_desc": "Gets PCIE ports and speed",
-			"desc": "Gets the module PCIE ports and max speed",
-			"id": 8,
-			"type": "int",
-			"valid_range": [0, 1],
-			"access_method": "Instance call",
-			"symbol_name": "serviceRequest",
-			"parameters": {
-				"device_node": { "const char *": "et0_mgmt" },
-				"cmd_id": { "uint32_t": 8 },
-				"input_buff": { "const char *": "" },
-				"input_size": { "const uint32_t": 0 },
-				"output_buff": { "char *": "" },
-				"output_size": { "const uint32_t": 8 },
-				"host_latency_msec": { "uint32_t *": 0 },
-				"device_latency_msec": { "uint32_t *": 0 },
-				"timeout": { "uint32_t": [0, 1000] }
+		},
+
+		"performance_class": {
+			"asic_frequencies": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "GET_ASIC_FREQUENCIES"
+				},
+				"fields": {
+					"minion_shire_mhz": "uint32_t",
+					"noc_mhz": "uint32_t",
+					"mem_shire_mhz": "uint32_t",
+					"dram_mhz": "uint32_t",
+					"p_shire_mhz": "uint32_t",
+					"io_shire_mhz": "uint32_t"
+				}
+			},
+			"dram_bw": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "GET_DRAM_BANDWIDTH"
+				},
+				"fields": {
+					"read_req_sec": "uint32_t",
+					"write_req_sec": "uint32_t"
+				}
+			},
+
+			"dram_capacity": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "GET_DRAM_CAPACITY_UTILIZATION"
+				},
+				"fields": {
+					"percentage_cap": "uint32_t"
+				}
+			},
+
+			"asic_per_core_util": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "GET_ASIC_PER_CORE_DATAPATH_UTILIZATION"
+				},
+				"fields": {
+					"TBD": "TBD"
+				}
+			},
+
+			"asic_util": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "GET_ASIC_UTILIZATION"
+				},
+				"fields": {
+					"TBD": "TBD"
+				}
+			},
+
+			"asic_stalls": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "GET_ASIC_STALLS"
+				},
+				"fields": {
+					"TBD": "TBD"
+				}
+			},
+
+			"asic_latency": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "GET_ASIC_LATENCY"
+				},
+				"fields": {
+					"TBD": "TBD"
+				}
 			}
-        },
-        "GET_MODULE_MEMORY_SIZE_MB": {
-			"revision": "vendor-1.0",
-			"short_desc": "Gets memory size",
-			"desc": "Gets the module memory size in MB",
-			"id": 9,
-			"type": "int",
-			"valid_range": [0, 1],
-			"access_method": "Instance call",
-			"symbol_name": "serviceRequest",
-			"parameters": {
-				"device_node": { "const char *": "et0_mgmt" },
-				"cmd_id": { "uint32_t": 9 },
-				"input_buff": { "const char *": "" },
-				"input_size": { "const uint32_t": 0 },
-				"output_buff": { "char *": "" },
-				"output_size": { "const uint32_t": 4 },
-				"host_latency_msec": { "uint32_t *": 0 },
-				"device_latency_msec": { "uint32_t *": 0 },
-				"timeout": { "uint32_t": [0, 1000] }
+		},
+
+		"mm_state": {
+			"usage": {
+				"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+				"input_buff": null,
+				"output_buff": "GET_MM_THREADS_STATE"
+			},
+			"fields": {
+				"master_thread_state": "uint8_t",
+				"vq_s_thread_state": "uint8_t",
+				"vq_c_thread_state": "uint8_t",
+				"vq_w_thread_state": "uint8_t"
 			}
-        },
-        "GET_MODULE_REVISION": {
-			"revision": "vendor-1.0",
-			"short_desc": "Gets module revision",
-			"desc": "Gets the module revision",
-			"id": 10,
-			"type": "int",
-			"valid_range": [0, 1],
+		}
+	},
+
+	"APIs": {
+
+		"getInstance": {
+			"revision": "1.0.0",
+			"name": "DM Instance",
+			"short_desc": "Gets the DM Instance",
+			"desc": "Gets the Device Management Instance",
+			"return type": "DeviceManagement &",
+			"access_method": "Library call",
+			"symbol_name": "getInstance"
+		},
+
+		"serviceRequest": {
+			"revision": "1.0.0",
+			"short_desc": "Generic API for DM services",
+			"desc": "Generic API to request various DM services",
 			"access_method": "Instance call",
 			"symbol_name": "serviceRequest",
+			"return type": "int32_t",
+			"valid_range": "enum dm_status",
 			"parameters": {
-				"device_node": { "const char *": "et0_mgmt" },
-				"cmd_id": { "uint32_t": 10 },
-				"input_buff": { "const char *": "" },
-				"input_size": { "const uint32_t": 0 },
-				"output_buff": { "char *": "" },
-				"output_size": { "const uint32_t": 8 },
-				"host_latency_msec": { "uint32_t *": 0 },
-				"device_latency_msec": { "uint32_t *": 0 },
-				"timeout": { "uint32_t": [0, 1000] }
+				"device_node": "const char *",
+				"cmd_id": "const uint32_t",
+				"input_buff": "const char *",
+				"input_size": "const uint32_t",
+				"output_buff": "const char *",
+				"output_size": "const char *",
+				"host_latency_usec": "uint64_t *",
+				"device_latency_usec": "uint64_t *",
+				"timeout_msec": "const uint32_t"
 			}
-        },
-        "GET_MODULE_FORM_FACTOR": {
-			"revision": "vendor-1.0",
-			"short_desc": "Gets module form factor",
-			"desc": "Gets the module form factor",
-			"id": 11,
-			"type": "int",
-			"valid_range": [0, 1],
-			"access_method": "Instance call",
-			"symbol_name": "serviceRequest",
-			"parameters": {
-				"device_node": { "const char *": "et0_mgmt" },
-				"cmd_id": { "uint32_t": 11 },
-				"input_buff": { "const char *": "" },
-				"input_size": { "const uint32_t": 0 },
-				"output_buff": { "char *": "" },
-				"output_size": { "const uint32_t": 8 },
-				"host_latency_msec": { "uint32_t *": 0 },
-				"device_latency_msec": { "uint32_t *": 0 },
-				"timeout": { "uint32_t": [0, 1000] }
-			}
-        },
-        "GET_MODULE_MEMORY_VENDOR_PART_NUMBER": {
-			"revision": "vendor-1.0",
-			"short_desc": "Gets memory vendor part number",
-			"desc": "Gets the module's memory vendor's part number",
-			"id": 12,
-			"type": "int",
-			"valid_range": [0, 1],
-			"access_method": "Instance call",
-			"symbol_name": "serviceRequest",
-			"parameters": {
-				"device_node": { "const char *": "et0_mgmt" },
-				"cmd_id": { "uint32_t": 12 },
-				"input_buff": { "const char *": "" },
-				"input_size": { "const uint32_t": 0 },
-				"output_buff": { "char *": "" },
-				"output_size": { "const uint32_t": 8 },
-				"host_latency_msec": { "uint32_t *": 0 },
-				"device_latency_msec": { "uint32_t *": 0 },
-				"timeout": { "uint32_t": [0, 1000] }
-			}
-        },
-        "GET_MODULE_MEMORY_TYPE": {
-			"revision": "vendor-1.0",
-			"short_desc": "Gets memory type",
-			"desc": "Gets the module memory type",
-			"id": 13,
-			"type": "int",
-			"valid_range": [0, 1],
-			"access_method": "Instance call",
-			"symbol_name": "serviceRequest",
-			"parameters": {
-				"device_node": { "const char *": "et0_mgmt" },
-				"cmd_id": { "uint32_t": 13 },
-				"input_buff": { "const char *": "" },
-				"input_size": { "const uint32_t": 0 },
-				"output_buff": { "char *": "" },
-				"output_size": { "const uint32_t": 8 },
-				"host_latency_msec": { "uint32_t *": 0 },
-				"device_latency_msec": { "uint32_t *": 0 },
-				"timeout": { "uint32_t": [0, 1000] }
-			}
-        },
-        "GET_FUSED_PUBLIC_KEYS": {
-			"revision": "vendor-1.0",
-			"short_desc": "Gets fused public keys",
-			"desc": "Gets fused public keys",
-			"id": 14,
-			"type": "int",
-			"valid_range": [0, 1],
-			"access_method": "Instance call",
-			"symbol_name": "serviceRequest",
-			"parameters": {
-				"device_node": { "const char *": "et0_mgmt" },
-				"cmd_id": { "uint32_t": 14 },
-				"input_buff": { "const char *": "" },
-				"input_size": { "const uint32_t": 0 },
-				"output_buff": { "char *": "" },
-				"output_size": { "const uint32_t": 8 },
-				"host_latency_msec": { "uint32_t *": 0 },
-				"device_latency_msec": { "uint32_t *": 0 },
-				"timeout": { "uint32_t": [0, 1000] }
-            }
-        }
-    }
+		}
+	}
 }
