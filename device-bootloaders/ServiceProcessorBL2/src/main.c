@@ -55,12 +55,11 @@ SERVICE_PROCESSOR_BL2_DATA_t *get_service_processor_bl2_data(void)
     return &g_service_processor_bl2_data;
 }
 
-static SP_DEV_INTF_REG_s *g_service_processor_dev_intf_reg = (void *)DEV_INTF_BASE_ADDR;
+static volatile SP_DEV_INTF_REG_s *g_sp_dev_intf_reg = (void *)SP_DEV_INTF_BASE_ADDR;
 
-SP_DEV_INTF_REG_s *get_service_processor_dev_intf_reg(void)
+volatile SP_DEV_INTF_REG_s *get_service_processor_dev_intf_reg(void)
 {
-
-    return g_service_processor_dev_intf_reg;
+    return g_sp_dev_intf_reg;
 }
 
 static const IMAGE_VERSION_INFO_t *sp_bl2_image_version_info;
@@ -69,7 +68,6 @@ const IMAGE_VERSION_INFO_t *get_service_processor_bl2_image_info(void)
 {
     return sp_bl2_image_version_info;
 }
-
 
 bool is_vaultip_disabled(void)
 {
@@ -143,25 +141,30 @@ static void poll_for_mm_ready(void)
 
 static void dev_interface_reg_init(void)
 {
-    g_service_processor_dev_intf_reg->version = DEV_INTF_REG_VERSION;
-    g_service_processor_dev_intf_reg->size    = sizeof(SP_DEV_INTF_REG_s);
-    g_service_processor_dev_intf_reg->sp_vq.bar =    SP_VQ_BAR;
-    g_service_processor_dev_intf_reg->sp_vq.offset = SP_VQ_OFFSET;
-    g_service_processor_dev_intf_reg->sp_vq.size =   SP_VQ_SIZE;
-    g_service_processor_dev_intf_reg->ddr_region[MAP_USER_KERNEL_SPACE].attr         = ATTR_READ_WRITE;
-    g_service_processor_dev_intf_reg->ddr_region[MAP_USER_KERNEL_SPACE].bar          = USER_KERNEL_SPACE_BAR;
-    g_service_processor_dev_intf_reg->ddr_region[MAP_USER_KERNEL_SPACE].offset       = USER_KERNEL_SPACE_OFFSET;
-    g_service_processor_dev_intf_reg->ddr_region[MAP_USER_KERNEL_SPACE].size         = USER_KERNEL_SPACE_SIZE;
-    g_service_processor_dev_intf_reg->ddr_region[MAP_FIRMWARE_UPDATE_SCRATCH].attr   = ATTR_WRITE_ONLY;
-    g_service_processor_dev_intf_reg->ddr_region[MAP_FIRMWARE_UPDATE_SCRATCH].bar    = FIRMWARE_UPDATE_SCRATCH_BAR;
-    g_service_processor_dev_intf_reg->ddr_region[MAP_FIRMWARE_UPDATE_SCRATCH].offset = FIRMWARE_UPDATE_SCRATCH_OFFSET;
-    g_service_processor_dev_intf_reg->ddr_region[MAP_FIRMWARE_UPDATE_SCRATCH].size   = FIRMWARE_UPDATE_SCRATCH_SIZE;
-    g_service_processor_dev_intf_reg->ddr_region[MAP_MSIX_TABLE].attr                = ATTR_READ_ONLY;
-    g_service_processor_dev_intf_reg->ddr_region[MAP_MSIX_TABLE].bar                 = MSIX_TABLE_BAR;
-    g_service_processor_dev_intf_reg->ddr_region[MAP_MSIX_TABLE].offset              = MSIX_TABLE_OFFSET;
-    g_service_processor_dev_intf_reg->ddr_region[MAP_MSIX_TABLE].size                = MSIX_TABLE_SIZE;
+    g_sp_dev_intf_reg->version = SP_DEV_INTF_REG_VERSION;
+    g_sp_dev_intf_reg->size    = sizeof(SP_DEV_INTF_REG_s);
+
+    g_sp_dev_intf_reg->sp_vq.bar    = SP_VQ_BAR;
+    g_sp_dev_intf_reg->sp_vq.offset = SP_VQ_OFFSET;
+    g_sp_dev_intf_reg->sp_vq.size   = SP_VQ_SIZE;
+
+    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].attr         = SP_DEV_INTF_DDR_REGION_ATTR_READ_WRITE;
+    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].bar          = SP_DEV_INTF_USER_KERNEL_SPACE_BAR;
+    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].offset       = SP_DEV_INTF_USER_KERNEL_SPACE_OFFSET;
+    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].size         = SP_DEV_INTF_USER_KERNEL_SPACE_SIZE;
+
+    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_FIRMWARE_UPDATE_SCRATCH].attr   = SP_DEV_INTF_DDR_REGION_ATTR_WRITE_ONLY;
+    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_FIRMWARE_UPDATE_SCRATCH].bar    = SP_DEV_INTF_FIRMWARE_UPDATE_SCRATCH_BAR;
+    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_FIRMWARE_UPDATE_SCRATCH].offset = SP_DEV_INTF_FIRMWARE_UPDATE_SCRATCH_OFFSET;
+    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_FIRMWARE_UPDATE_SCRATCH].size   = SP_DEV_INTF_FIRMWARE_UPDATE_SCRATCH_SIZE;
+
+    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_MSIX_TABLE].attr                = SP_DEV_INTF_DDR_REGION_ATTR_READ_ONLY;
+    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_MSIX_TABLE].bar                 = SP_DEV_INTF_MSIX_TABLE_BAR;
+    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_MSIX_TABLE].offset              = SP_DEV_INTF_MSIX_TABLE_OFFSET;
+    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_MSIX_TABLE].size                = SP_DEV_INTF_MSIX_TABLE_SIZE;
+
     // Update Status to indicate SP VQ is ready to use
-    g_service_processor_dev_intf_reg->status = STAT_DEV_INTF_READY_INITIALIZED;
+    g_sp_dev_intf_reg->status = SP_DEV_INTF_SP_BOOT_STATUS_DEV_INTF_READY_INITIALIZED;
 }
 
 static inline void write_minion_fw_boot_config(uint64_t minion_shires)
@@ -184,9 +187,9 @@ static void taskMain(void *pvParameters)
     // Disable buffering on stdout
     setbuf(stdout, NULL);
 
-    // Establish connection to PMIC 
+    // Establish connection to PMIC
     setup_pmic();
-    
+
     // In non-fast-boot mode, the bootrom initializes PCIe link
 #if FAST_BOOT
     PCIe_release_pshire_from_reset();
@@ -382,7 +385,7 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     bool vaultip_disabled;
     const IMAGE_VERSION_INFO_t *image_version_info = get_image_version_info();
 
-    /* Save the BL2 image info */   
+    /* Save the BL2 image info */
     sp_bl2_image_version_info = image_version_info;
 
     // Disable buffering on stdout
