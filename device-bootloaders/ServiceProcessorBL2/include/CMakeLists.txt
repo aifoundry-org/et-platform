@@ -48,7 +48,7 @@ target_include_directories(sp_dev_intf INTERFACE
 
 install(
   TARGETS sp_dev_intf
-  EXPORT EsperantoDeviceMinionRuntimeTargets
+  EXPORT EsperantoBootLoaderTargets
   LIBRARY
     DESTINATION lib
     COMPONENT sp_dev_intf
