@@ -11,86 +11,90 @@
 #ifndef __MM_DEV_INTF_REG_H__
 #define __MM_DEV_INTF_REG_H__
 
+#ifdef __KERNEL__
+#include <linux/types.h>
+#else
 #include <stdint.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define DEV_INTF_REG_VERSION 1U
+#define MM_DEV_INTF_REG_VERSION 1U
 
 #define MM_VQ_CHANNEL 1
 
 // MM DEV Interface Register at PC_MM Mailbox + 1K
-#define DEV_INTF_BASE_ADDR (R_PU_MBOX_PC_MM_BASEADDR + 0x400UL)
+#define MM_DEV_INTF_BASE_ADDR (R_PU_MBOX_PC_MM_BASEADDR + 0x400UL)
 
 // Only expose Bar based offset,size as address to Host
 // Host Address -> SOC Address mapping will happen via ET SOC PCIe Device ATU mapping
 
-// MM Virtual Queue (BAR =2, Offset=2KB ,Size= 1 KB)
+// MM Virtual Queue (BAR=2, Offset=2KB, Size=1KB)
 #define MM_VQ_BAR     2
 #define MM_VQ_OFFSET  0x800UL
 #define MM_VQ_SIZE    0x400UL
 
-// DDR Region 0 USER_KERNEL_SPACE (BAR =0, Offset=4GB ,Size= 8 GB)
-#define USER_KERNEL_SPACE_BAR    0
-#define USER_KERNEL_SPACE_OFFSET 0x0100000000UL
-#define USER_KERNEL_SPACE_SIZE   0x0200000000UL
+// DDR Region 0 USER_KERNEL_SPACE (BAR=0, Offset=4GB, Size=8GB)
+#define MM_DEV_INTF_USER_KERNEL_SPACE_BAR    0
+#define MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET 0x0100000000UL
+#define MM_DEV_INTF_USER_KERNEL_SPACE_SIZE   0x0200000000UL
 
 /// \brief Master Minion status register used to indicate Boot Status of MM
-enum MM_BOOT_STATUS_e {
-    STAT_MM_SP_MB_TIMEOUT = -2,
-    STAT_MM_FW_ERROR,
-    STAT_VQ_DESC_NOT_READY = 0,
-    STAT_DEV_INTF_READY_INITIALIZED,
-    STAT_VQ_DESC_READY,
-    STAT_VQ_QUEUE_INITIALIZED,
-    STAT_VQ_READY,
-    STAT_DDR_INITIALIZED,
-    STAT_MM_FW_LAUNCHED,
-    STAT_MM_MBOX_INITIALIZED
+enum MM_DEV_INTF_MM_BOOT_STATUS_e {
+    MM_DEV_INTF_MM_BOOT_STATUS_MM_SP_MB_TIMEOUT = -2,
+    MM_DEV_INTF_MM_BOOT_STATUS_MM_FW_ERROR,
+    MM_DEV_INTF_MM_BOOT_STATUS_VQ_DESC_NOT_READY = 0,
+    MM_DEV_INTF_MM_BOOT_STATUS_DEV_INTF_READY_INITIALIZED,
+    MM_DEV_INTF_MM_BOOT_STATUS_VQ_DESC_READY,
+    MM_DEV_INTF_MM_BOOT_STATUS_VQ_QUEUE_INITIALIZED,
+    MM_DEV_INTF_MM_BOOT_STATUS_VQ_READY,
+    MM_DEV_INTF_MM_BOOT_STATUS_DDR_INITIALIZED,
+    MM_DEV_INTF_MM_BOOT_STATUS_MM_FW_LAUNCHED,
+    MM_DEV_INTF_MM_BOOT_STATUS_MM_MBOX_INITIALIZED
 };
 
 /// \brief List of REGIONS based on Spec as defined here: https://esperantotech.atlassian.net/wiki/spaces/SW/pages/1233584203/Memory+Map
 
-enum DDR_REGION_ATTRIBUTE_e {
-    ATTR_READ_ONLY  = 0,
-    ATTR_WRITE_ONLY,
-    ATTR_READ_WRITE
+enum MM_DEV_INTF_DDR_REGION_ATTRIBUTE_e {
+    MM_DEV_INTF_DDR_REGION_ATTR_READ_ONLY = 0,
+    MM_DEV_INTF_DDR_REGION_ATTR_WRITE_ONLY,
+    MM_DEV_INTF_DDR_REGION_ATTR_READ_WRITE
 };
 
-enum DDR_REGION_MAP_e {
-    MAP_USER_KERNEL_SPACE  = 0,
-    NUM_DDR_REGION
+enum MM_DEV_INTF_DDR_REGION_MAP_e {
+    MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE = 0,
+    MM_DEV_INTF_DDR_REGION_MAP_NUM
 };
 
-enum BAR_TYPE_e {
-    BAR_0 = 0,
-    BAR_2 = 2,
-    BAR_4 = 4
+enum MM_DEV_INTF_BAR_TYPE_e {
+    MM_DEV_INTF_BAR_0 = 0,
+    MM_DEV_INTF_BAR_2 = 2,
+    MM_DEV_INTF_BAR_4 = 4
 };
 
-typedef struct __attribute__((__packed__)) DDR_REGION {
-    uint8_t attr;    /// One of enum DDR_REGION_ATTRIBUTE_e
-    uint8_t bar;     /// One of enum BAR_TYPE_e
+typedef struct __attribute__((__packed__)) MM_DEV_INTF_DDR_REGION {
+    uint8_t attr;    /// One of enum MM_DEV_INTF_DDR_REGION_ATTRIBUTE_e
+    uint8_t bar;     /// One of enum MM_DEV_INTF_BAR_TYPE_e
     uint64_t offset;
     uint64_t size;
-} DDR_REGION_s;
+} MM_DEV_INTF_DDR_REGION_s;
 
-typedef struct __attribute__((__packed__)) MM_VQ {
-    uint8_t bar;     /// One of enum BAR_TYPE_e
+typedef struct __attribute__((__packed__)) MM_DEV_INTF_MM_VQ {
+    uint8_t bar;     /// One of enum MM_DEV_INTF_BAR_TYPE_e
     uint64_t offset;
     uint64_t size;
-} MM_VQ_s;
+} MM_DEV_INTF_MM_VQ_s;
 
 /// \brief Master Minion Device interface register will be uses to public device capability to Host
 typedef struct __attribute__((__packed__)) MM_DEV_INTF_REG {
     uint32_t version;
     uint32_t size;
     uint32_t mm_vq_chan;
-    MM_VQ_s mm_vq[MM_VQ_CHANNEL];
-    DDR_REGION_s ddr_region[NUM_DDR_REGION];
-    int32_t status;                          /// One of enum MM_BOOT_STATUS_e
+    MM_DEV_INTF_MM_VQ_s mm_vq[MM_VQ_CHANNEL];
+    MM_DEV_INTF_DDR_REGION_s ddr_region[MM_DEV_INTF_DDR_REGION_MAP_NUM];
+    int32_t status;                                                      /// One of enum MM_DEV_INTF_MM_BOOT_STATUS_e
 } MM_DEV_INTF_REG_s;
 
 #ifdef __cplusplus

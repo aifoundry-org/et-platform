@@ -193,30 +193,27 @@ static int32_t set_mm_ready_wait_sp_ready(void)
     return SP_MM_HANDSHAKE_POLL_TIMEOUT;
 }
 
-static MM_DEV_INTF_REG_s *g_master_min_dev_intf_reg = (void *)DEV_INTF_BASE_ADDR;
+static volatile MM_DEV_INTF_REG_s *g_mm_dev_intf_reg = (void *)MM_DEV_INTF_BASE_ADDR;
 
-static void dev_interface_reg_init(void)
+static void mm_dev_interface_reg_init(void)
 {
-    uint64_t next_offset_;
-    g_master_min_dev_intf_reg->version                                   = DEV_INTF_REG_VERSION;
-    g_master_min_dev_intf_reg->size                                      = sizeof(MM_DEV_INTF_REG_s);
-    g_master_min_dev_intf_reg->mm_vq_chan                                = MM_VQ_CHANNEL;
+    g_mm_dev_intf_reg->version    = MM_DEV_INTF_REG_VERSION;
+    g_mm_dev_intf_reg->size       = sizeof(MM_DEV_INTF_REG_s);
+    g_mm_dev_intf_reg->mm_vq_chan = MM_VQ_CHANNEL;
 
-    for (uint8_t i=0; i< MM_VQ_CHANNEL; i++) {
-
-       next_offset_ = MM_VQ_OFFSET + (i*MM_VQ_SIZE);
-
-       g_master_min_dev_intf_reg->mm_vq[i].bar                           = MM_VQ_BAR;
-       g_master_min_dev_intf_reg->mm_vq[i].offset                        = next_offset_;
-       g_master_min_dev_intf_reg->mm_vq[i].size                          = MM_VQ_SIZE;
+    for (uint8_t i = 0; i < MM_VQ_CHANNEL; i++) {
+       g_mm_dev_intf_reg->mm_vq[i].bar    = MM_VQ_BAR;
+       g_mm_dev_intf_reg->mm_vq[i].offset = MM_VQ_OFFSET + (i*MM_VQ_SIZE);
+       g_mm_dev_intf_reg->mm_vq[i].size   = MM_VQ_SIZE;
     }
 
-    g_master_min_dev_intf_reg->ddr_region[MAP_USER_KERNEL_SPACE].attr    = ATTR_READ_WRITE;
-    g_master_min_dev_intf_reg->ddr_region[MAP_USER_KERNEL_SPACE].bar     = USER_KERNEL_SPACE_BAR;
-    g_master_min_dev_intf_reg->ddr_region[MAP_USER_KERNEL_SPACE].offset  = USER_KERNEL_SPACE_OFFSET;
-    g_master_min_dev_intf_reg->ddr_region[MAP_USER_KERNEL_SPACE].size    = USER_KERNEL_SPACE_SIZE;
+    g_mm_dev_intf_reg->ddr_region[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].attr   = MM_DEV_INTF_DDR_REGION_ATTR_READ_WRITE;
+    g_mm_dev_intf_reg->ddr_region[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].bar    = MM_DEV_INTF_USER_KERNEL_SPACE_BAR;
+    g_mm_dev_intf_reg->ddr_region[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].offset = MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET;
+    g_mm_dev_intf_reg->ddr_region[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].size   = MM_DEV_INTF_USER_KERNEL_SPACE_SIZE;
+
     // Update Status to indicate MM VQ is ready to use
-    g_master_min_dev_intf_reg->status                                    = STAT_DEV_INTF_READY_INITIALIZED;
+    g_mm_dev_intf_reg->status = MM_DEV_INTF_MM_BOOT_STATUS_DEV_INTF_READY_INITIALIZED;
 }
 
 static void __attribute__((noreturn)) sq_worker_thread(uint32_t sq_index)
@@ -234,10 +231,10 @@ static void __attribute__((noreturn)) sq_worker_thread(uint32_t sq_index)
         global_fcc_flag_wait(&sq_worker_sync[sq_index]);
 
         // VQUEUE_SQ_HP_ID is Higher priority Submission Queue. Remaining SQs are of normal priority.
-        // All available commands in VQUEUE_SQ_HP_ID will be processed first, then each command from 
+        // All available commands in VQUEUE_SQ_HP_ID will be processed first, then each command from
         // remaining SQs will be processed in Round-Robin fashion with a single command processing at a time.
         sq_pending = true;
-        
+
         while (sq_pending) {
             uint32_t i;
 
@@ -267,7 +264,7 @@ static void __attribute__((noreturn)) master_thread(void)
         (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
     uint64_t boot_minion_shires = boot_config->minion_shires & ((1ULL << NUM_SHIRES) - 1);
 
-    // Ensure that FCC global flags for SQ workers sync notifications are initialized. 
+    // Ensure that FCC global flags for SQ workers sync notifications are initialized.
     for (uint8_t i = 0; i < VQUEUE_COUNT; i++) {
         global_fcc_flag_init(&sq_worker_sync[i]);
     }
@@ -277,7 +274,7 @@ static void __attribute__((noreturn)) master_thread(void)
 
     INT_init();
 
-    dev_interface_reg_init();
+    mm_dev_interface_reg_init();
 
     log_write(LOG_LEVEL_INFO, "Master: Initializing trace subsystem...");
     TRACE_init_master();
@@ -315,12 +312,12 @@ static void __attribute__((noreturn)) master_thread(void)
     VQUEUE_init();
     log_write(LOG_LEVEL_CRITICAL, "MM VQs Ready !\r\n");
 
-    // Set MM (Slave) Ready, and wait for SP (Master) Ready 
+    // Set MM (Slave) Ready, and wait for SP (Master) Ready
     if (set_mm_ready_wait_sp_ready() != SP_MM_HANDSHAKE_POLL_SUCCESS) {
         // Set Device Interface Register to communicate error to Host
-        g_master_min_dev_intf_reg->status = STAT_MM_SP_MB_TIMEOUT;
+        g_mm_dev_intf_reg->status = MM_DEV_INTF_MM_BOOT_STATUS_MM_SP_MB_TIMEOUT;
     }
-    
+
     // Indicate to Host MM is ready to accept new commands
     MBOX_init();
     log_write(LOG_LEVEL_CRITICAL, "Mailbox to Host initialzed\r\n");
