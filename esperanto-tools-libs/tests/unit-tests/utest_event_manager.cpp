@@ -24,8 +24,8 @@ using namespace rt;
 class EventManagerF : public ::testing::Test {
 public:
   void TearDown() override {
-    // ensure there are not missing events and there is a single sequence
-    ASSERT_EQ(em_.dispatched_.size(), 1);
+    // ensure there are not missing events
+    ASSERT_TRUE(em_.onflyEvents_.empty());
     ASSERT_TRUE(em_.blockedThreads_.empty());
   }
 
@@ -61,9 +61,17 @@ public:
 
 TEST_F(EventManagerF, simple) {
   EventId ev{81293};
+  //any event not onfly will be considered dispatched
+  EXPECT_TRUE(em_.isDispatched(ev));
+
+  ev = em_.getNextId();
+  //we just asked for the event so it shouldn't be dispatched
   EXPECT_FALSE(em_.isDispatched(ev));
   em_.dispatch(ev);
   EXPECT_TRUE(em_.isDispatched(ev));
+
+  //we can't dispatch an event that its not onfly
+  EXPECT_THROW(em_.dispatch(ev), Exception);
 }
 
 TEST_F(EventManagerF, severalEvents) {
@@ -83,7 +91,7 @@ TEST_F(EventManagerF, severalEvents) {
     EXPECT_FALSE(em_.isDispatched(events[i + 1]));
   }
 
-  EXPECT_EQ(em_.dispatched_.size(), 50);
+  EXPECT_EQ(em_.onflyEvents_.size(), 50);
 
   // also dispatch odd events
   for (int i = 1; i < 100; i += 2) {
@@ -112,7 +120,7 @@ TEST_F(EventManagerF, blockingThreads) {
     EXPECT_GE(after, prev);
   }
   
-  for (auto& t : threads_) {
+  for (auto& t : threads_) { 
     t.join();
   }
   EXPECT_EQ(unblockedThreads.load(), nThreads);

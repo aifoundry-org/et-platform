@@ -13,43 +13,9 @@
 #include "runtime/IRuntime.h"
 #include <atomic>
 #include <condition_variable>
-#include <deque>
 #include <unordered_map>
+#include <set>
 namespace rt {
-
-struct EventSequence {
-  using Type = std::underlying_type_t<EventId>;
-
-  explicit EventSequence(EventId event, Type count = 1)
-    : start_(static_cast<Type>(event))
-    , count_(count) {
-  }
-
-  bool contains(EventId event) const {
-    auto evt = static_cast<Type>(event);
-    return evt >= start_ && evt < start_ + count_;
-  }
-  enum class Merged { False, Begin, End };
-  Merged tryToMerge(const EventSequence& other) {
-    if (other.start_ + other.count_ == start_) {
-      start_ = other.start_;
-      count_ += other.count_;
-      return Merged::Begin;
-    }
-    if (start_ + count_ == other.start_) {
-      count_ += other.count_;
-      return Merged::End;
-    }
-    return Merged::False;
-  }
-
-  bool operator<(const EventSequence& other) const {
-    return start_ < other.start_;
-  }
-
-  Type start_;
-  Type count_;
-};
 
 class EventManager {
 public:
@@ -58,11 +24,6 @@ public:
   void blockUntilDispatched(EventId event);
 
 private:
-  bool isDispatched(EventId event) const;
-  void awakeBlockedThreads(EventId event);
-
-  std::deque<EventSequence> dispatched_;
-  std::mutex mutex_;
 
   // need a semaphore to deal with spurious wakeups, a simple cond_variable is not enough
   struct Semaphore {
@@ -84,6 +45,11 @@ private:
     bool ready_ = false;
   };
 
+  bool isDispatched(EventId event) const;
+
+
+  std::mutex mutex_;
+  std::set<EventId> onflyEvents_;
   std::unordered_map<EventId, std::unique_ptr<Semaphore>> blockedThreads_;
   std::underlying_type_t<EventId> nextEventId_ = 0;
 };
