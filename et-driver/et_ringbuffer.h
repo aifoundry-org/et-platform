@@ -4,7 +4,7 @@
 #include <linux/types.h>
 
 // Make length be a factor of eight to facilitate alignment (2032 bytes)
-#define ET_RINGBUFFER_LENGTH (254 * 8)
+#define ET_RINGBUFFER_LENGTH (62 * 8)
 #define ET_RINGBUFFER_MAX_LENGTH (ET_RINGBUFFER_LENGTH - 1U)
 
 struct et_ringbuffer {

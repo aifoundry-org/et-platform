@@ -88,6 +88,8 @@ struct et_vqueue {
 	struct mutex threshold_mutex;   /* serializes access to available_threshold */
 	struct mutex read_mutex;	/* serializes vqueue read */
 	struct mutex write_mutex;	/* serializes vqueue write */
+	struct mutex sq_bitmap_mutex;	/* serializes access to sq_bitmap */
+	struct mutex cq_bitmap_mutex;	/* serializes access to cq_bitmap */
 	struct work_struct isr_work;
 	volatile u32 flags;
 	bool is_ready;

@@ -70,9 +70,12 @@ static unsigned long dev_bitmap;
 #define MMM_INT_INC_OFFSET 4
 
 /* TODO: Replace defines with Device Interface Read to populate values */
-#define ALIGNMENT_SIZE		512
-#define VQUEUE_MM_OFFSET	0x8005100400
-#define VQUEUE_DESC_OFFSET	0x100000
+#define ALIGNMENT_SIZE			64
+#define VQUEUE_DESC_OFFSET		0x800
+#define VQUEUE_DESC_VQUEUE_INFO_SIZE	0x100
+#define VQUEUE_MM_OFFSET		R_PU_MBOX_PC_MM_BASEADDR + \
+					VQUEUE_DESC_OFFSET + \
+					VQUEUE_DESC_VQUEUE_INFO_SIZE
 
 static u8 get_index(void)
 {
@@ -104,7 +107,7 @@ static void read_device_status(struct et_pci_dev *et_dev)
 	u8 device_ready;
 
 	vq_desc_mm =
-		(struct et_vqueue_desc *)(et_dev->iomem[IOMEM_R_DRCT_DRAM] +
+		(struct et_vqueue_desc *)(et_dev->iomem[IOMEM_R_PU_MBOX_PC_MM] +
 					  VQUEUE_DESC_OFFSET);
 
 	device_ready = ioread8(&vq_desc_mm->device_ready);
@@ -124,7 +127,7 @@ static bool set_host_status(struct et_pci_dev *et_dev)
 	u8 host_ready;
 
 	vq_desc_mm =
-		(struct et_vqueue_desc *)(et_dev->iomem[IOMEM_R_DRCT_DRAM] +
+		(struct et_vqueue_desc *)(et_dev->iomem[IOMEM_R_PU_MBOX_PC_MM] +
 					  VQUEUE_DESC_OFFSET);
 
 	iowrite8(1, &vq_desc_mm->host_ready);
@@ -156,7 +159,7 @@ static int et_vqueues_discover(struct et_pci_dev *et_dev)
 
 	vq_desc_mm =
 		(struct et_vqueue_desc *)
-		(et_dev->iomem[IOMEM_R_DRCT_DRAM] + VQUEUE_DESC_OFFSET);
+		(et_dev->iomem[IOMEM_R_PU_MBOX_PC_MM] + VQUEUE_DESC_OFFSET);
 
 	vq_common_mm = kmalloc(sizeof(*vq_common_mm), GFP_KERNEL);
 	if (!vq_common_mm)
@@ -188,8 +191,8 @@ static int et_vqueues_discover(struct et_pci_dev *et_dev)
 	  ALIGNMENT_SIZE) + 1) * ALIGNMENT_SIZE;
 
 	/* Calculate offset of queues and add it to mapped base address */
-	vq_baseaddr = (et_dev->iomem[IOMEM_R_DRCT_DRAM] + VQUEUE_DESC_OFFSET) +
-	(vq_common_mm->queue_addr - (DRAM_MEMMAP_BEGIN + VQUEUE_DESC_OFFSET));
+	vq_baseaddr = et_dev->iomem[IOMEM_R_PU_MBOX_PC_MM] +
+		(vq_common_mm->queue_addr - R_PU_MBOX_PC_MM_BASEADDR);
 
 	vqs_mm = kmalloc_array(vq_common_mm->queue_count,
 			       sizeof(struct et_vqueue), GFP_KERNEL);
@@ -474,11 +477,6 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 	et_dev = container_of(misc_ops_dev_ptr,
 			      struct et_pci_dev, misc_ops_dev);
 
-	if (!et_dev->is_vqueue_discovered) {
-		pr_info("VQs not discovered, returning\n");
-		return mask;
-	}
-
 	vq_common = et_dev->vqueue_mm_pptr[0]->vqueue_common;
 
 	poll_wait(fp, &vq_common->vqueue_wq, wait);
@@ -486,6 +484,7 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 	for (i = 0; i < vq_common->queue_count; i++) {
 		mutex_lock(&et_dev->vqueue_mm_pptr[i]->buf_count_mutex);
 		mutex_lock(&et_dev->vqueue_mm_pptr[i]->threshold_mutex);
+		mutex_lock(&et_dev->vqueue_mm_pptr[i]->sq_bitmap_mutex);
 
 		if (et_dev->vqueue_mm_pptr[i]->available_buf_count >=
 		    et_dev->vqueue_mm_pptr[i]->available_threshold) {
@@ -498,8 +497,11 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 			vq_common->sq_bitmap &= ~((u32)1 << i);
 		}
 
+		mutex_unlock(&et_dev->vqueue_mm_pptr[i]->sq_bitmap_mutex);
 		mutex_unlock(&et_dev->vqueue_mm_pptr[i]->threshold_mutex);
 		mutex_unlock(&et_dev->vqueue_mm_pptr[i]->buf_count_mutex);
+
+		mutex_lock(&et_dev->vqueue_mm_pptr[i]->cq_bitmap_mutex);
 
 		if (usr_message_available(et_dev->vqueue_mm_pptr[i], &msg)) {
 			if (!(vq_common->cq_bitmap & (1 << i))) {
@@ -509,6 +511,8 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 		} else {
 			vq_common->cq_bitmap &= ~((u32)1 << i);
 		}
+
+		mutex_unlock(&et_dev->vqueue_mm_pptr[i]->cq_bitmap_mutex);
 	}
 
 	return mask;
@@ -799,6 +803,12 @@ static int esperanto_pcie_ops_open(struct inode *inode, struct file *filp)
 	struct et_pci_dev *et_dev;
 	struct miscdevice *misc_ops_dev_ptr = filp->private_data;
 
+	/* TODO: In order to support Edge Triggered EPOLL event distribution,
+	 * device node should be opened in non-blocking mode to avoid
+	 * starvation due to blocking read or write. But this can be done
+	 * only after MBox is retired since MBox implementation performs
+	 * blocking calls. 
+	 */
 	et_dev = container_of(misc_ops_dev_ptr,
 			      struct et_pci_dev, misc_ops_dev);
 
@@ -1000,7 +1010,8 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 				const struct pci_device_id *pci_id)
 {
 	int rc, i, irq_vec, irq_cnt_init;
-	char irq_name[16];
+	/* TODO: enable after addition of MSI-X support */
+	//char irq_name[16];
 	struct et_pci_dev *et_dev;
 	unsigned long flags;
 

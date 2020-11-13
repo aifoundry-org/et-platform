@@ -77,6 +77,8 @@ void et_vqueue_init(struct et_vqueue *vqueue)
 	mutex_init(&vqueue->write_mutex);
 	mutex_init(&vqueue->buf_count_mutex);
 	mutex_init(&vqueue->threshold_mutex);
+	mutex_init(&vqueue->cq_bitmap_mutex);
+	mutex_init(&vqueue->sq_bitmap_mutex);
 
 	INIT_LIST_HEAD(&vqueue->msg_list);
 
@@ -96,6 +98,8 @@ void et_vqueue_destroy(struct et_vqueue *vqueue)
 	vqueue->flags = VQUEUE_FLAG_ABORT;
 	mutex_unlock(&vqueue->msg_list_mutex);
 
+	mutex_destroy(&vqueue->sq_bitmap_mutex);
+	mutex_destroy(&vqueue->cq_bitmap_mutex);
 	mutex_destroy(&vqueue->threshold_mutex);
 	mutex_destroy(&vqueue->buf_count_mutex);
 	mutex_destroy(&vqueue->write_mutex);
@@ -162,7 +166,6 @@ ssize_t et_vqueue_write(struct et_vqueue *vqueue, void *buf, size_t count)
 	ssize_t offset, rc;
 	const struct et_vqueue_header header = { .length = (u16)count,
 					       .magic = ET_VQUEUE_MAGIC };
-
 	if (!et_vqueue_ready(vqueue)) {
 		et_vqueue_handshaking(vqueue);
 		return -EAGAIN;
@@ -234,11 +237,13 @@ ssize_t et_vqueue_write(struct et_vqueue *vqueue, void *buf, size_t count)
 
 	mutex_lock(&vqueue->buf_count_mutex);
 	mutex_lock(&vqueue->threshold_mutex);
+	mutex_lock(&vqueue->sq_bitmap_mutex);
 
 	vqueue->available_buf_count -= 1;
 	if (vqueue->available_buf_count < vqueue->available_threshold)
 		vqueue->vqueue_common->sq_bitmap &= ~((u32)1 << vqueue->index);
 
+	mutex_unlock(&vqueue->sq_bitmap_mutex);
 	mutex_unlock(&vqueue->threshold_mutex);
 	mutex_unlock(&vqueue->buf_count_mutex);
 
@@ -311,7 +316,9 @@ ssize_t et_vqueue_read_to_user(struct et_vqueue *vqueue, char __user *buf,
 		return -EINVAL;
 
 	if (!usr_message_available(vqueue, &msg)) {
+		mutex_lock(&vqueue->cq_bitmap_mutex);
 		vqueue->vqueue_common->cq_bitmap &= ~((u32)1 << vqueue->index);
+		mutex_unlock(&vqueue->cq_bitmap_mutex);
 		pr_err("Failed to pop a message\n");
 		return -EAGAIN;
 	}
@@ -445,7 +452,9 @@ static void et_vqueue_handshaking(struct et_vqueue *vqueue)
 	case VQUEUE_STATUS_READY:
 		if (slave_status != VQUEUE_STATUS_READY &&
 		    slave_status != VQUEUE_STATUS_WAITING) {
-			pr_info("received master ready, going slave ready");
+			pr_info
+			("vq[%d]: received master ready, going slave ready",
+			vqueue->index);
 			iowrite8(VQUEUE_STATUS_READY,
 				 &vqueue->vqueue_info->slave_status);
 
@@ -463,7 +472,9 @@ static void et_vqueue_handshaking(struct et_vqueue *vqueue)
 	case VQUEUE_STATUS_WAITING:
 		if (slave_status != VQUEUE_STATUS_READY &&
 		    slave_status != VQUEUE_STATUS_WAITING) {
-			pr_info("received master waiting, going slave ready");
+			pr_info
+			("vq[%d]: received master waiting, going slave ready",
+			vqueue->index);
 			iowrite8(VQUEUE_STATUS_READY,
 				 &vqueue->vqueue_info->slave_status);
 
@@ -484,7 +495,9 @@ static void et_vqueue_handshaking(struct et_vqueue *vqueue)
 
 	vqueue->is_ready = master_status == VQUEUE_STATUS_READY &&
 				slave_status == VQUEUE_STATUS_READY;
+
 	if (vqueue->is_ready) {
+		pr_info("vq[%d]: is ready now", vqueue->index);
 		wake_up_interruptible(&vqueue->vqueue_common->vqueue_wq);
 	}
 }
