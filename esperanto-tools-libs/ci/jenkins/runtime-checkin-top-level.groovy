@@ -78,18 +78,6 @@ pipeline {
               ]
           }
         }
-        stage('JOB_COVERAGE') {
-          steps {
-            build job:
-              'sw-platform/runtime-integration/pipelines/runtime-coverage-tests',
-              propagate: true,
-              parameters: [
-                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
-                string(name: 'PYTEST_RETRIES', value: '2')
-              ]
-          }
-        }
         stage('JOB_GLOW_OPERATORS') {
           steps {
             build job:
@@ -107,18 +95,6 @@ pipeline {
           steps {
             build job:
               'sw-platform/runtime-integration/pipelines/runtime-checkin-tests',
-              propagate: true,
-              parameters: [
-                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
-                string(name: 'PYTEST_RETRIES', value: '2')
-              ]
-          }
-        }
-        stage('JOB_SANITIZER') {
-          steps {
-            build job:
-              'sw-platform/runtime-integration/pipelines/runtime-sanitizer-tests',
               propagate: true,
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
