@@ -59,7 +59,8 @@ public:
   /// @brierf TraceHelper constructor
   ///
   /// @param[in] dev Reference to the associate device
-  TraceHelper(Device &dev) : dev_(dev){};
+  TraceHelper(Device& dev)
+    : dev_(dev){};
 
   ///
   /// @brief Sends discover command to device and to query necessary information
@@ -67,8 +68,7 @@ public:
   /// size
   ///
   /// @returns discover_trace_buffer_rsp_t
-  ::device_api::non_privileged::discover_trace_buffer_rsp_t
-  discover_trace_buffer();
+  ::device_api::non_privileged::discover_trace_buffer_rsp_t discover_trace_buffer();
 
   ///
   /// @brief Allows to enable or disable a particular Group of events
@@ -76,8 +76,7 @@ public:
   /// @param[in] group_id : Group id to enable/disable
   /// @param[in] enable  : State of the group to set
   /// @returns true, false
-  bool configure_trace_group_knob(
-      ::device_api::non_privileged::trace_groups_e group_id, uint8_t enable);
+  bool configure_trace_group_knob(::device_api::non_privileged::trace_groups_e group_id, uint8_t enable);
 
   ///
   /// @brief Allows to enable or disable a particular Event
@@ -85,8 +84,7 @@ public:
   /// @param[in] event_id : Event id to enable/disable
   /// @param[in] enable  : State of the group to set
   /// @returns true, false
-  bool configure_trace_event_knob(
-      ::device_api::non_privileged::trace_events_e event_id, uint8_t enable);
+  bool configure_trace_event_knob(::device_api::non_privileged::trace_events_e event_id, uint8_t enable);
 
   ///
   /// @brief Allows to configure trace buffer size
@@ -171,8 +169,17 @@ public:
   /// @returns true, false
   bool set_level_trace(void);
 
+  ///
+  /// @brief Copy the buffer data from shires/harts to dest_ptr
+  ///
+  /// @returns true, uint64_t
+  uint64_t extract_device_trace_buffers(struct ::device_api::non_privileged::discover_trace_buffer_rsp_t rsp,
+                                        unsigned char* dest_ptr);
+
 private:
-  Device &dev_; ///< Device object, this class interacts with
+  Device& dev_; ///< Device object, this class interacts with
+  void do_copy(struct ::device_api::non_privileged::discover_trace_buffer_rsp_t rsp, unsigned char* data_buffer,
+               auto hart_counter, uint8_t hart_index, uint8_t total_contiguous_harts, uint8_t shire_index);
 };
 
 } // namespace et_runtime
