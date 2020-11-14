@@ -12,9 +12,30 @@
 #ifndef __BL2_FIRMWARE_UPDATE_H__
 #define __BL2_FIRMWARE_UPDATE_H__
 
-//TODO: Once SW-4849 is fixed, DM Firmware update service should retrieve this
-//      address from Device Interface registers
-#define DEVICE_FW_UPDATE_REGION_SIZE 0x400000
-#define DEVICE_FW_UPDATE_REGION_BASE 0x8004000000ULL 
+#include <stdint.h>
+#include "mailbox.h"
+#include "dm.h"
+#include "bl2_build_configuration.h"
+#include "bl2_firmware_loader.h"
+#include "bl2_flash_fs.h"
+#include "bl2_main.h"
+#include "etsoc_hal/inc/hal_device.h"
+#include "bl2_pmic_controller.h"
+#include "bl2_crypto.h"
+#include "bl2_vaultip_driver.h"
 
+//TODO: This should probably auto-generated 
+enum DEVICE_FW_UPDATE_STATUS {
+  DEVICE_FW_FLASH_UPDATE_SUCCESS = 0, 
+  DEVICE_FW_FLASH_UPDATE_ERROR = 1,
+  DEVICE_FW_FLASH_PRIORITY_COUNTER_SWAP_ERROR = 2,
+  DEVICE_FW_UPDATED_IMAGE_BOOT_FAILED = 3
+};
+
+
+//Release 0.0.7 TODO: This needs to be retrieved from Device Interface registers
+#define DEVICE_FW_UPDATE_REGION_SIZE 0x0400000UL
+#define DEVICE_FW_UPDATE_REGION_BASE 0x8005120000ULL 
+
+void firmware_service_process_request(mbox_e mbox, uint32_t cmd_id, void* buffer);
 #endif

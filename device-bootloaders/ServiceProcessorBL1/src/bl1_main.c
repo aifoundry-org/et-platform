@@ -172,6 +172,10 @@ int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t *rom_data)
     g_service_processor_bl1_data.service_processor_bl1_data_size =
         sizeof(g_service_processor_bl1_data);
     g_service_processor_bl1_data.service_processor_bl1_version = SERVICE_PROCESSOR_BL1_DATA_VERSION;
+    
+    g_service_processor_bl1_data.service_processor_bl1_image_file_version_minor = image_version_info->file_version_minor;
+    g_service_processor_bl1_data.service_processor_bl1_image_file_version_major =  image_version_info->file_version_major;
+    g_service_processor_bl1_data.service_processor_bl1_image_file_version_revision = image_version_info->file_version_revision;
 
     if (0 != copy_rom_data(rom_data)) {
         printx("copy_rom_data() failed!!\n");

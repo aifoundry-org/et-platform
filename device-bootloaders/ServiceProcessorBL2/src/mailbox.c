@@ -4,7 +4,9 @@
 #include "hal_device.h"
 #include "interrupt.h"
 #include "pcie_int.h"
+#include "dm.h"
 #include "bl2_asset_trk.h"
+#include "bl2_firmware_update.h"
 #include "bl2_timer.h"
 
 #include "FreeRTOS.h"
@@ -186,6 +188,8 @@ static void mbox_task(void *pvParameters)
 
             const mbox_message_id_t *const message_id = (void *)buffer;
 
+            printf("Message ID : %ld\n", *message_id);
+
             switch (*message_id) {
             case MBOX_DEVAPI_NON_PRIVILEGED_MID_REFLECT_TEST_CMD: {
                 const struct reflect_test_cmd_t *const cmd = (const void *const)buffer;
@@ -199,9 +203,27 @@ static void mbox_task(void *pvParameters)
                 }
                 break;
             }
-            case GET_MODULE_MANUFACTURE_NAME...GET_MODULE_MEMORY_TYPE: {
+            case GET_MODULE_MANUFACTURE_NAME:
+            case GET_MODULE_PART_NUMBER:
+            case GET_MODULE_SERIAL_NUMBER:
+            case GET_ASIC_CHIP_REVISION: 
+            case GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED: 
+            case GET_MODULE_REVISION:
+            case GET_MODULE_FORM_FACTOR:
+            case GET_MODULE_MEMORY_VENDOR_PART_NUMBER:
+            case GET_MODULE_MEMORY_SIZE_MB:
+            case GET_MODULE_MEMORY_TYPE:{
                 // Process asset tracking service request cmd
                 asset_tracking_process_request(mbox, (uint32_t)*message_id);
+                break;
+            }
+            case SET_FIRMWARE_UPDATE:
+            case GET_MODULE_FIRMWARE_REVISIONS: 
+            case GET_FIRMWARE_BOOT_STATUS:
+            case SET_SP_BOOT_ROOT_CERT:
+            case SET_SW_BOOT_ROOT_CERT:{
+                // Process firmware service request cmd
+                firmware_service_process_request(mbox, (uint32_t)*message_id, (void *)buffer);
                 break;
             }
             default:

@@ -15,6 +15,7 @@
 #include "service_processor_BL2_data.h"
 #include "bl2_certificates.h"
 #include "bl2_firmware_loader.h"
+#include "bl2_firmware_update.h"
 #include "bl2_flash_fs.h"
 #include "bl2_pmic_controller.h"
 #include "bl2_build_configuration.h"
@@ -60,13 +61,6 @@ static volatile SP_DEV_INTF_REG_s *g_sp_dev_intf_reg = (void *)SP_DEV_INTF_BASE_
 volatile SP_DEV_INTF_REG_s *get_service_processor_dev_intf_reg(void)
 {
     return g_sp_dev_intf_reg;
-}
-
-static const IMAGE_VERSION_INFO_t *sp_bl2_image_version_info;
-
-const IMAGE_VERSION_INFO_t *get_service_processor_bl2_image_info(void)
-{
-    return sp_bl2_image_version_info;
 }
 
 bool is_vaultip_disabled(void)
@@ -331,6 +325,15 @@ static void taskMain(void *pvParameters)
 
     printf("SP Device Ready!\n");
 
+/* TODO: Check if this is causing timeout in test cases.
+#if !FAST_BOOT
+    // SP and minions have booted successfully. Increment the completed boot counter
+    if (0 != flashfs_drv_increment_completed_boot_count()) {
+        printf("Failed to increment the completed boot counter!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+#endif     
+*/
     goto DONE;
 
 FIRMWARE_LOAD_ERROR:
@@ -363,6 +366,14 @@ static int copy_bl1_data(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     g_service_processor_bl2_data.spi_controller_tx_baudrate_divider =
         bl1_data->spi_controller_tx_baudrate_divider;
 
+    // copy major,minor,revision info of BL1 image  
+    g_service_processor_bl2_data.service_processor_bl1_image_file_version_major =
+         bl1_data->service_processor_bl1_image_file_version_major;  
+    g_service_processor_bl2_data.service_processor_bl1_image_file_version_minor =
+         bl1_data->service_processor_bl1_image_file_version_minor;
+    g_service_processor_bl2_data.service_processor_bl1_image_file_version_revision =
+         bl1_data->service_processor_bl1_image_file_version_revision;
+
     // copy the SP ROOT/ISSUING CA certificates chain
     memcpy(&(g_service_processor_bl2_data.sp_certificates), &(bl1_data->sp_certificates),
            sizeof(bl1_data->sp_certificates));
@@ -384,9 +395,6 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 {
     bool vaultip_disabled;
     const IMAGE_VERSION_INFO_t *image_version_info = get_image_version_info();
-
-    /* Save the BL2 image info */
-    sp_bl2_image_version_info = image_version_info;
 
     // Disable buffering on stdout
     setbuf(stdout, NULL);

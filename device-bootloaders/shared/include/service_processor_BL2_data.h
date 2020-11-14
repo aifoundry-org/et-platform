@@ -80,6 +80,9 @@ typedef struct SERVICE_PROCESSOR_BL2_DATA_s {
     uint32_t vaultip_coid_set;
     uint16_t spi_controller_rx_baudrate_divider;
     uint16_t spi_controller_tx_baudrate_divider;
+    uint8_t service_processor_bl1_image_file_version_major;
+    uint8_t service_processor_bl1_image_file_version_minor;
+    uint8_t service_processor_bl1_image_file_version_revision;
 
     FLASH_FS_BL2_INFO_t flash_fs_bl2_info;
 

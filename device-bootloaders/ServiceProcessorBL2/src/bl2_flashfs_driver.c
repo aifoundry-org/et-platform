@@ -117,8 +117,11 @@ static void flashfs_driver_task(void *pvParameters)
                                                      req_msg.args.read_file.buffer_size);
             break;
 
-        case FLASHFS_DRIVER_REQUEST_RESET_BOOT_COUNTERS:
         case FLASHFS_DRIVER_REQUEST_INCREMENT_COMPLETED_BOOT_COUNT:
+            rsp_msg.status_code = flash_fs_increment_completed_boot_count();
+            break;
+
+        case FLASHFS_DRIVER_REQUEST_RESET_BOOT_COUNTERS:
         default:
             printf("flashfs_driver_task: invalid or not supported request code %u!\r\n",
                    req_msg.request);
@@ -275,7 +278,25 @@ int flashfs_drv_reset_boot_counters(void)
 
 int flashfs_drv_increment_completed_boot_count(void)
 {
-    return -1;
+    FLASHFS_DRIVER_REQUEST_MESSAGE_t req;
+    FLASHFS_DRIVER_RESPONSE_MESSAGE_t rsp;
+
+    req.id = get_next_request_id();
+    req.request = FLASHFS_DRIVER_REQUEST_INCREMENT_COMPLETED_BOOT_COUNT;
+
+    if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
+        printf(
+            "flashfs_drv_increment_completed_boot_count: queue_request_and_wait_for_response() failed!\r\n");
+        return -1;
+    }
+
+    if (0 != rsp.status_code) {
+        printf(
+            "flashfs_drv_increment_completed_boot_count: flash_fs_increment_completed_boot_count() failed!\r\n");
+        return -1;
+    }
+
+    return 0;
 }
 
 #pragma GCC pop_options

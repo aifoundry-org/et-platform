@@ -63,5 +63,6 @@ int crypto_get_machine_minion_monotonic_counter_value(uint32_t *value);
 int crypto_get_master_minion_monotonic_counter_value(uint32_t *value);
 int crypto_get_worker_minion_monotonic_counter_value(uint32_t *value);
 int crypto_get_maxion_bl1_monotonic_counter_value(uint32_t *value);
+uint32_t get_rom_identity(void);
 
 #endif

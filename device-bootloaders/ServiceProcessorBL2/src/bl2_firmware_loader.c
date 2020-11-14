@@ -18,6 +18,7 @@
 #include "bl2_crypto.h"
 #include "bl2_certificates.h"
 #include "bl2_firmware_loader.h"
+#include "bl2_vaultip_controller.h"
 #include "sp_otp.h"
 #include "constant_memory_compare.h"
 
@@ -53,17 +54,46 @@ static bool gs_aes_context_created;
 static bool gs_vaultip_disabled;
 static bool gs_ignore_signatures;
 
-static ESPERANTO_IMAGE_FILE_HEADER_t *mm_image_file_header;
-static ESPERANTO_IMAGE_FILE_HEADER_t *wm_image_file_header;
-
-ESPERANTO_IMAGE_FILE_HEADER_t *get_mm_image_file_header(void)
+static ESPERANTO_IMAGE_FILE_HEADER_t *master_minion_image_file_header;
+static ESPERANTO_IMAGE_FILE_HEADER_t *worker_minion_image_file_header;
+static ESPERANTO_IMAGE_FILE_HEADER_t *machine_minion_image_file_header;
+/*
+ESPERANTO_IMAGE_FILE_HEADER_t *get_master_minion_image_file_header(void)
 {
-    return mm_image_file_header;
+    return master_minion_image_file_header;
 }
 
-ESPERANTO_IMAGE_FILE_HEADER_t *get_wm_image_file_header(void)
+ESPERANTO_IMAGE_FILE_HEADER_t *get_worker_minion_image_file_header(void)
 {
-    return wm_image_file_header;
+    return worker_minion_image_file_header;
+}
+
+ESPERANTO_IMAGE_FILE_HEADER_t *get_machine_minion_image_file_header(void)
+{
+    return machine_minion_image_file_header;
+}
+*/
+static int get_fw_monotonic_counter_value(const ESPERANTO_IMAGE_TYPE_t image_type,
+                                          uint32_t *monotonic_counter)
+{
+    switch (image_type) {
+    case ESPERANTO_IMAGE_TYPE_MACHINE_MINION:
+        crypto_get_machine_minion_monotonic_counter_value(monotonic_counter);
+        break;
+    case ESPERANTO_IMAGE_TYPE_MASTER_MINION:
+        crypto_get_machine_minion_monotonic_counter_value(monotonic_counter);
+        break;
+    case ESPERANTO_IMAGE_TYPE_WORKER_MINION:
+        crypto_get_worker_minion_monotonic_counter_value(monotonic_counter);
+        break;
+    case ESPERANTO_IMAGE_TYPE_MAXION_BL1:
+        crypto_get_maxion_bl1_monotonic_counter_value(monotonic_counter);
+        break;
+    default:
+        return -1;
+    }
+
+    return 0;
 }
 
 static int get_kdk_derivation_data(const ESPERANTO_IMAGE_TYPE_t image_type,
@@ -113,6 +143,7 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type,
     size_t mack_derivation_data_size;
     const uint8_t *enck_derivation_data;
     size_t enck_derivation_data_size;
+    uint32_t monotonic_counter;
 
     if (NULL == image_file_header) {
         return -1;
@@ -233,6 +264,17 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type,
         } else {
             printf("firmware signature is OK!\n");
         }
+    }
+
+    // TODO: Enable this as FW update test case
+    if (0 != get_fw_monotonic_counter_value(image_type, &monotonic_counter)) {
+        printf("firmware version not available!\n");
+        return -1;
+    }
+    if (image_file_header->info.image_info_and_signaure.info.public_info.revocation_counter <
+        monotonic_counter) {
+        printf("image version below %u!\n", monotonic_counter);
+        return -1;
     }
 
     return 0;
@@ -498,18 +540,19 @@ int load_firmware(const ESPERANTO_IMAGE_TYPE_t image_type)
         region_id = ESPERANTO_FLASH_REGION_ID_MACHINE_MINION;
         image_name = "MACHINE_MINION";
         image_file_header = &(bl2_data->machine_minion_header);
-        mm_image_file_header = image_file_header;
+        machine_minion_image_file_header = image_file_header;
         break;
     case ESPERANTO_IMAGE_TYPE_MASTER_MINION:
         region_id = ESPERANTO_FLASH_REGION_ID_MASTER_MINION;
         image_name = "MASTER_MINION";
         image_file_header = &(bl2_data->master_minion_header);
-        wm_image_file_header = image_file_header;
+        master_minion_image_file_header = image_file_header;
         break;
     case ESPERANTO_IMAGE_TYPE_WORKER_MINION:
         region_id = ESPERANTO_FLASH_REGION_ID_WORKER_MINION;
         image_name = "WORKER_MINION";
         image_file_header = &(bl2_data->worker_minion_header);
+        worker_minion_image_file_header = image_file_header;
         break;
     case ESPERANTO_IMAGE_TYPE_MAXION_BL1:
         region_id = ESPERANTO_FLASH_REGION_ID_MAXION_BL1;

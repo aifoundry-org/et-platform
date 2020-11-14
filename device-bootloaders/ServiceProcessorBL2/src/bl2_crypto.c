@@ -64,7 +64,7 @@ static StaticSemaphore_t gs_mutex_buffer_crypto_get_monotonic_counter_value;
 
 static bool coid_provisioned = false;
 #define ESPERANTO_COID 0x4F435445 // 'ETCO'
-static uint32_t get_rom_identity(void)
+uint32_t get_rom_identity(void)
 {
     if (coid_provisioned) {
         return ESPERANTO_COID;

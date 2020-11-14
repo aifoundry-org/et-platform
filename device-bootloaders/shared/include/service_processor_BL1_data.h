@@ -70,6 +70,9 @@ typedef struct SERVICE_PROCESSOR_BL1_DATA_s {
     uint32_t vaultip_coid_set;
     uint16_t spi_controller_rx_baudrate_divider;
     uint16_t spi_controller_tx_baudrate_divider;
+    uint8_t service_processor_bl1_image_file_version_major;
+    uint8_t service_processor_bl1_image_file_version_minor;
+    uint8_t service_processor_bl1_image_file_version_revision;
     FLASH_FS_BL1_INFO_t flash_fs_bl1_info;
     ESPERANTO_RAW_IMAGE_FILE_HEADER_t pcie_config_header;
     ESPERANTO_CERTIFICATE_t sp_certificates[2];
