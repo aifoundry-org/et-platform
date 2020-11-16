@@ -173,16 +173,25 @@ int64_t handle_device_ops_cmd(const uint32_t sq_idx)
             break;
         }
         case DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD: {
+            struct device_ops_data_read_cmd_t *cmd = (void *)hdr;
             struct device_ops_data_read_rsp_t rsp;
 
             log_write(LOG_LEVEL_INFO, "DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD \r\n");
 
-            // Construct and transmit a spoof command response
+            // Construct and transmit command response
             rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
             rsp.response_info.rsp_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP;
+
+            // Configure the device DMA read
+            if (dma_trigger_transfer(DMA_DEVICE_TO_HOST, cmd->src_device_phy_addr,
+                                     cmd->dst_host_phy_addr, cmd->size) == DMA_OPERATION_SUCCESS) {
+                rsp.status = ETSOC_DMA_STATE_DONE;
+            } else {
+                rsp.status = ETSOC_DMA_STATE_ABORTED;
+            }
+
             rsp.cmd_wait_time = 0xdeadbeef; // TODO: Just a dummy value for now
             rsp.cmd_execution_time = 0xdeadbeef; // TODO: Just a dummy value for now
-            rsp.status = ETSOC_DMA_STATE_DONE; // TODO: Just a dummy value for now
             int64_t res = VQUEUE_push(CQ, sq_idx, &rsp, sizeof(rsp));
             if (res != 0) {
                 log_write(LOG_LEVEL_ERROR,
@@ -195,16 +204,26 @@ int64_t handle_device_ops_cmd(const uint32_t sq_idx)
             break;
         }
         case DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD: {
+            struct device_ops_data_write_cmd_t *cmd = (void *)hdr;
             struct device_ops_data_write_rsp_t rsp;
 
             log_write(LOG_LEVEL_INFO, "DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD \r\n");
 
-            // Construct and transmit a spoof command response
+            // Construct and transmit command response
             rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
             rsp.response_info.rsp_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP;
+
+            // Configure the device DMA write
+            if (dma_trigger_transfer(DMA_HOST_TO_DEVICE, cmd->src_host_phy_addr,
+                                     cmd->dst_device_phy_addr,
+                                     cmd->size) == DMA_OPERATION_SUCCESS) {
+                rsp.status = ETSOC_DMA_STATE_DONE;
+            } else {
+                rsp.status = ETSOC_DMA_STATE_ABORTED;
+            }
+
             rsp.cmd_wait_time = 0xdeadbeef; // TODO: Just a dummy value for now
             rsp.cmd_execution_time = 0xdeadbeef; // TODO: Just a dummy value for now
-            rsp.status = ETSOC_DMA_STATE_DONE; // TODO: Just a dummy value for now
             int64_t res = VQUEUE_push(CQ, sq_idx, &rsp, sizeof(rsp));
             if (res != 0) {
                 log_write(LOG_LEVEL_ERROR,
