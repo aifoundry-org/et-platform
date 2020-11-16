@@ -207,10 +207,11 @@ static void mm_dev_interface_reg_init(void)
        g_mm_dev_intf_reg->mm_vq[i].size   = MM_VQ_SIZE;
     }
 
-    g_mm_dev_intf_reg->ddr_region[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].attr   = MM_DEV_INTF_DDR_REGION_ATTR_READ_WRITE;
-    g_mm_dev_intf_reg->ddr_region[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].bar    = MM_DEV_INTF_USER_KERNEL_SPACE_BAR;
-    g_mm_dev_intf_reg->ddr_region[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].offset = MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET;
-    g_mm_dev_intf_reg->ddr_region[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].size   = MM_DEV_INTF_USER_KERNEL_SPACE_SIZE;
+    g_mm_dev_intf_reg->ddr_region[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].attr    = MM_DEV_INTF_DDR_REGION_ATTR_READ_WRITE;
+    g_mm_dev_intf_reg->ddr_region[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].bar     = MM_DEV_INTF_USER_KERNEL_SPACE_BAR;
+    g_mm_dev_intf_reg->ddr_region[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].offset  = MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET;
+    g_mm_dev_intf_reg->ddr_region[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].devaddr = HOST_MANAGED_DRAM_START;
+    g_mm_dev_intf_reg->ddr_region[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].size    = MM_DEV_INTF_USER_KERNEL_SPACE_SIZE;
 
     // Update Status to indicate MM VQ is ready to use
     g_mm_dev_intf_reg->status = MM_DEV_INTF_MM_BOOT_STATUS_DEV_INTF_READY_INITIALIZED;

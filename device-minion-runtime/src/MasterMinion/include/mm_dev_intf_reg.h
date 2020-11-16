@@ -38,8 +38,8 @@ extern "C" {
 
 // DDR Region 0 USER_KERNEL_SPACE (BAR=0, Offset=4GB, Size=8GB)
 #define MM_DEV_INTF_USER_KERNEL_SPACE_BAR    0
-#define MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET 0x0100000000UL
-#define MM_DEV_INTF_USER_KERNEL_SPACE_SIZE   0x0200000000UL
+#define MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET 0x0100000000UL // TODO: Should be HOST_MANAGED_DRAM_START
+#define MM_DEV_INTF_USER_KERNEL_SPACE_SIZE   0x0200000000UL // TODO: Should be (HOST_MANAGED_DRAM_END - HOST_MANAGED_DRAM_START)
 
 /// \brief Master Minion status register used to indicate Boot Status of MM
 enum MM_DEV_INTF_MM_BOOT_STATUS_e {
@@ -78,6 +78,7 @@ typedef struct __attribute__((__packed__)) MM_DEV_INTF_DDR_REGION {
     uint8_t attr;    /// One of enum MM_DEV_INTF_DDR_REGION_ATTRIBUTE_e
     uint8_t bar;     /// One of enum MM_DEV_INTF_BAR_TYPE_e
     uint64_t offset;
+    uint64_t devaddr;
     uint64_t size;
 } MM_DEV_INTF_DDR_REGION_s;
 
