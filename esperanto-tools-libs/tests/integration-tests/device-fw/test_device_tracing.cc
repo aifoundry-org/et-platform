@@ -251,7 +251,6 @@ TEST_F(DeviceFWTest, Trace_RingBufferTest_BufferWrapped) {
   success = trace_helper.prepare_trace_buffers();
   ASSERT_TRUE(success);
 
-/* JIRA -SW 5053 - disabling check since its failing Zebu BEMU, needs to be re-enabled once SW-5053 has been resolved
   std::vector<uint8_t> data(rsp.trace_buffer_size * NUMBER_OF_TRACE_BUFFERS);
 
   // Read data from device memory into host buffer
@@ -263,7 +262,7 @@ TEST_F(DeviceFWTest, Trace_RingBufferTest_BufferWrapped) {
   auto result2 = Test_Trace_verify_ring_buffer_data(&data[0], rsp.trace_buffer_size, NUMBER_OF_TRACE_BUFFERS, 3);
 
   ASSERT_TRUE(result2);
-*/
+
 }
 
 TEST_F(DeviceFWTest, Trace_test) {
