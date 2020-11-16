@@ -103,26 +103,6 @@ pipeline {
               ]
           }
         }
-        stage('JOB_ZEBU') {
-          when {
-            allOf {
-              expression {
-                return sh(returnStatus: true, script: "${RUN_ZEBU}") == 0
-              }
-            }
-          }
-          steps {
-            build job:
-              'sw-platform/zebu/zebu-checkin-top-level',
-              propagate: true,
-              parameters: [
-                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
-                string(name: 'TIMEOUT', value: '4'),
-                string(name: 'RUN_ZEBU', value: "${RUN_ZEBU}")
-              ]
-          }
-        }
       }
     }
   }

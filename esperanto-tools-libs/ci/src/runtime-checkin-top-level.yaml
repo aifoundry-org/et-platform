@@ -61,19 +61,20 @@ stages:
           PYTEST_RETRIES: "2"
           TIMEOUT: "3"
 
-  JOB_ZEBU:
-    when:
-      jenkins:
-        all:
-          - ${RUN_ZEBU}
-      default:
-        false
-    cmds:
-      - job: sw-platform/zebu/zebu-checkin-top-level
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
-          TIMEOUT: "4"
-          RUN_ZEBU: ${RUN_ZEBU}
+  # Disable Zebu jobs in the checkin as default run
+  # JOB_ZEBU:
+  #  when:
+  #    jenkins:
+  #      all:
+  #        - ${RUN_ZEBU}
+  #    default:
+  #      false
+  #  cmds:
+  #    - job: sw-platform/zebu/zebu-checkin-top-level
+  #      parameters:
+  #        BRANCH: "${SW_PLATFORM_BRANCH}"
+  #        COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
+  #        TIMEOUT: "4"
+  #        RUN_ZEBU: ${RUN_ZEBU}
 
 
