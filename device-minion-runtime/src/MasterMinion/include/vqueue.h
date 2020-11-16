@@ -13,21 +13,21 @@
 
 #include "vqueue_common.h"
 #include "circbuffer.h"
+#include "mm_dev_intf_reg.h"
 
-// Should always be greater than 0; (SQ0: for high priority. In case only one Q available, all commands go through SQ0)
-#define VQUEUE_COUNT         1
-#define VQUEUE_SQ_HP_ID      0
-#define VQUEUE_MM_COUNT_MAX  4 // compile-time config
-#define VQUEUE_ELEMENT_COUNT CIRCBUFFER_COUNT
-#define VQUEUE_ELEMENT_SIZE  CIRCBUFFER_SIZE
+// SQ0 for high priority. In case of only one VQ available, all commands go through SQ0
+#define VQUEUE_SQ_HP_ID          0
+#define VQUEUE_MM_COUNT_MAX      4 // compile-time config
+#define VQUEUE_ELEMENT_COUNT     CIRCBUFFER_COUNT
+#define VQUEUE_ELEMENT_SIZE      CIRCBUFFER_SIZE
+#define VQUEUE_ELEMENT_ALIGNMENT 64U // Aligned to cache line size (applicable to DRAM)
 #define VQUEUE_CONTROL_REGION_SIZE \
     256ULL // Contains all VQs information structures, i.e, struct vqueue_info
 #define VQUEUE_DATA_BASE (DEVICE_MM_VQUEUE_BASE + VQUEUE_CONTROL_REGION_SIZE)
 
-// Returns virtual queue control => (struct vqueue_desc + (struct vqueue_info * VQUEUE_COUNT))
-#define DEVICE_VQUEUE_BASE(queue_id)                               \
-    ((void *)(DEVICE_MM_VQUEUE_BASE + sizeof(struct vqueue_desc) + \
-              sizeof(struct vqueue_info) * queue_id))
+// Returns virtual queue control => (struct vqueue_info * MM_VQ_COUNT)
+#define DEVICE_VQUEUE_BASE(queue_id) \
+    ((void *)(DEVICE_MM_VQUEUE_BASE + sizeof(struct vqueue_info) * queue_id))
 
 // Returns submission queue address associated with the given virtual queue
 #define DEVICE_SQUEUE_BASE(queue_id, size) \
@@ -39,7 +39,7 @@
 
 #ifndef __ASSEMBLER__
 // Ensure the SQs + CQs size are witihn limits
-static_assert(VQUEUE_DATA_BASE + (2 * VQUEUE_COUNT * (VQUEUE_ELEMENT_COUNT * VQUEUE_ELEMENT_SIZE)) <
+static_assert(VQUEUE_DATA_BASE + (2 * MM_VQ_COUNT * (VQUEUE_ELEMENT_COUNT * VQUEUE_ELEMENT_SIZE)) <
                   (DEVICE_MM_VQUEUE_BASE + DEVICE_MM_VQUEUE_MEM_SIZE),
               "MM Virtual Queues size not within limits.");
 #endif
