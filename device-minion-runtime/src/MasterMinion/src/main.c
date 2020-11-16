@@ -34,7 +34,7 @@
 //#define DEBUG_FAKE_MESSAGE_FROM_HOST
 //#define DEBUG_FAKE_ABORT_FROM_HOST
 
-static global_fcc_flag_t sq_worker_sync[VQUEUE_COUNT] = { 0 };
+static global_fcc_flag_t sq_worker_sync[MM_VQ_COUNT] = { 0 };
 
 #ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
 #include <esperanto/device-api/device_api.h>
@@ -95,9 +95,8 @@ void __attribute__((noreturn)) main(void)
         master_thread();
     } else if ((hart_id >= 2050) && (hart_id < 2054)) {
         kernel_sync_thread(hart_id - 2050);
-    } else if ((hart_id >= 2054) && (hart_id % 2054 <= VQUEUE_COUNT)) {
+    } else if ((hart_id >= 2054) && (hart_id % 2054 <= MM_VQ_COUNT)) {
         // SQ Workers
-        // TODO: VQUEUE_COUNT should come from Device Interface Regs
         sq_worker_thread((uint32_t)(hart_id % 2054));
     } else {
         while (1) {
@@ -197,14 +196,19 @@ static volatile MM_DEV_INTF_REG_s *g_mm_dev_intf_reg = (void *)MM_DEV_INTF_BASE_
 
 static void mm_dev_interface_reg_init(void)
 {
-    g_mm_dev_intf_reg->version    = MM_DEV_INTF_REG_VERSION;
-    g_mm_dev_intf_reg->size       = sizeof(MM_DEV_INTF_REG_s);
-    g_mm_dev_intf_reg->mm_vq_chan = MM_VQ_CHANNEL;
-
-    for (uint8_t i = 0; i < MM_VQ_CHANNEL; i++) {
-       g_mm_dev_intf_reg->mm_vq[i].bar    = MM_VQ_BAR;
-       g_mm_dev_intf_reg->mm_vq[i].offset = MM_VQ_OFFSET + (i*MM_VQ_SIZE);
-       g_mm_dev_intf_reg->mm_vq[i].size   = MM_VQ_SIZE;
+    g_mm_dev_intf_reg->version     = MM_DEV_INTF_REG_VERSION;
+    g_mm_dev_intf_reg->size        = sizeof(MM_DEV_INTF_REG_s);
+    // Populate the MM VQs information
+    g_mm_dev_intf_reg->mm_vq.vq_count   = MM_VQ_COUNT;
+    g_mm_dev_intf_reg->mm_vq.bar        = MM_VQ_BAR;
+    g_mm_dev_intf_reg->mm_vq.bar_offset = MM_VQ_OFFSET;
+    g_mm_dev_intf_reg->mm_vq.bar_size   = MM_VQ_SIZE;
+    g_mm_dev_intf_reg->mm_vq.size_info.control_size      = VQUEUE_CONTROL_REGION_SIZE;
+    g_mm_dev_intf_reg->mm_vq.size_info.element_count     = VQUEUE_ELEMENT_COUNT;
+    g_mm_dev_intf_reg->mm_vq.size_info.element_size      = VQUEUE_ELEMENT_SIZE;
+    g_mm_dev_intf_reg->mm_vq.size_info.element_alignment = VQUEUE_ELEMENT_ALIGNMENT;
+    for (uint8_t i = 0; i < MM_VQ_COUNT; i++) {
+        g_mm_dev_intf_reg->mm_vq.interrupt_vector[i] = (uint16_t)(i + 1U); // Vector 0 is reserved for SP VQ
     }
 
     g_mm_dev_intf_reg->ddr_region[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].attr    = MM_DEV_INTF_DDR_REGION_ATTR_READ_WRITE;
@@ -213,7 +217,7 @@ static void mm_dev_interface_reg_init(void)
     g_mm_dev_intf_reg->ddr_region[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].devaddr = HOST_MANAGED_DRAM_START;
     g_mm_dev_intf_reg->ddr_region[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].size    = MM_DEV_INTF_USER_KERNEL_SPACE_SIZE;
 
-    // Update Status to indicate MM VQ is ready to use
+    // Update Status to indicate MM Device Interface Registers are initialized
     g_mm_dev_intf_reg->status = MM_DEV_INTF_MM_BOOT_STATUS_DEV_INTF_READY_INITIALIZED;
 }
 
@@ -239,8 +243,7 @@ static void __attribute__((noreturn)) sq_worker_thread(uint32_t sq_index)
         while (sq_pending) {
             uint32_t i;
 
-            // TODO: VQUEUE_COUNT should come from Device Interface Regs
-            for (i = 0, sq_pending = false; i < VQUEUE_COUNT; i++) {
+            for (i = 0, sq_pending = false; i < MM_VQ_COUNT; i++) {
                 if (i == VQUEUE_SQ_HP_ID) {
                     // Process all commands from SQ0
                     do {
@@ -266,7 +269,7 @@ static void __attribute__((noreturn)) master_thread(void)
     uint64_t boot_minion_shires = boot_config->minion_shires & ((1ULL << NUM_SHIRES) - 1);
 
     // Ensure that FCC global flags for SQ workers sync notifications are initialized.
-    for (uint8_t i = 0; i < VQUEUE_COUNT; i++) {
+    for (uint8_t i = 0; i < MM_VQ_COUNT; i++) {
         global_fcc_flag_init(&sq_worker_sync[i]);
     }
 
@@ -311,6 +314,8 @@ static void __attribute__((noreturn)) master_thread(void)
 
     // Initialize VQs
     VQUEUE_init();
+    // Update Status to indicate MM VQ is ready to use
+    g_mm_dev_intf_reg->status = MM_DEV_INTF_MM_BOOT_STATUS_VQ_READY;
     log_write(LOG_LEVEL_CRITICAL, "MM VQs Ready !\r\n");
 
     // Set MM (Slave) Ready, and wait for SP (Master) Ready
