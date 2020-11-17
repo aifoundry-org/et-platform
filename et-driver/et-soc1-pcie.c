@@ -101,7 +101,7 @@ static void et_isr_work(struct work_struct *work)
 #endif
 
 /* TODO: fixme SW-5067 */
-static void read_device_status(struct et_pci_dev *et_dev)
+static bool read_device_status(struct et_pci_dev *et_dev)
 {
 	struct et_vqueue_desc __iomem *vq_desc_mm;
 	u8 device_ready;
@@ -113,11 +113,10 @@ static void read_device_status(struct et_pci_dev *et_dev)
 	device_ready = ioread8(&vq_desc_mm->device_ready);
 
 	if (device_ready != 0x1) {
-		et_dev->is_vqueue_initialized = false;
-		return;
+		return false;
 	}
 
-	et_dev->is_vqueue_initialized = true;
+	return true;
 }
 
 /* TODO: fixme SW-5067 */
@@ -156,6 +155,10 @@ static int et_vqueues_discover(struct et_pci_dev *et_dev)
 	struct et_vqueue_buf *vqs_buf_mm;
 	struct et_vqueue_common *vq_common_mm;
 	struct et_vqueue_desc __iomem *vq_desc_mm;
+
+	/* TODO SW-5142: Read from DIR */
+	et_dev->hm_dram_base = DRAM_MEMMAP_BEGIN;
+	et_dev->hm_dram_size = DRAM_MEMMAP_SIZE;
 
 	vq_desc_mm =
 		(struct et_vqueue_desc *)
@@ -248,7 +251,6 @@ static int et_vqueues_discover(struct et_pci_dev *et_dev)
 		rc = -EIO;
 		goto error_free_vqueue_mm_pptr;
 	}
-	et_dev->is_vqueue_discovered = true;
 	pr_err("VQueues discovery successful\n");
 
 	return 0;
@@ -281,11 +283,6 @@ static void et_vqueue_cleanup(struct et_pci_dev *et_dev, bool is_vqueue_sp)
 		et_vqueue_destroy(&et_dev->vqueue_sp);
 
 	} else {
-		if (!et_dev->is_vqueue_discovered)
-			return;
-
-		et_dev->is_vqueue_discovered = false;
-
 		queue_count_mm =
 			et_dev->vqueue_mm_pptr[0]->vqueue_common->queue_count;
 
@@ -365,19 +362,7 @@ static void et_isr_work(struct work_struct *work)
 	et_mbox_isr_bottom(&et_dev->mbox_sp, et_dev);
 	et_mbox_isr_bottom(&et_dev->mbox_mm, et_dev);
 
-	if (et_dev->is_vqueue_initialized) {
-		if (et_dev->is_vqueue_discovered) {
-			et_vqueue_isr_bottom(et_dev->vqueue_mm_pptr[0]);
-		} else {
-			if (et_vqueues_discover(et_dev) != 0) {
-				pr_err("VQs setup failed\n");
-				return;
-			}
-		}
-	} else {
-		read_device_status(et_dev);
-		return;
-	}
+	et_vqueue_isr_bottom(et_dev->vqueue_mm_pptr[0]);
 }
 
 //TODO: tune this value
@@ -526,13 +511,15 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 	u32 bulk_cfg;
 	struct et_mbox *ops_mbox_ptr;
 	struct et_pci_dev *et_dev;
-	struct cmd_info_t cmd_info;
-	struct rsp_info_t rsp_info;
-	struct sq_available_threshold sq_threshold;
+	u32 reset_bitmap;
+	mmio_info_t mmio_info;
+	cmd_info_t cmd_info;
+	rsp_info_t rsp_info;
+	sq_availability_threshold_t sq_threshold;
 	struct miscdevice *misc_ops_dev_ptr = fp->private_data;
 	size_t size;
 	u16 max_size;
-	int rc;
+	int i, rc;
 	struct et_vqueue_common *vq_common;
 
 	et_dev = container_of(misc_ops_dev_ptr,
@@ -542,85 +529,80 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 	size = _IOC_SIZE(cmd);
 
 	switch (cmd) {
-	case ETSOC1_IOCTL_GET_SQ_MAX_MSG:
-		/* This check at start of every VQs ioclt will be placed in
-		 * common area for all VQ ioctls once MBox is removed. If we
-		 * do it now, won't be able to run MBox ioctls.
-		 */
-		if (!et_dev->is_vqueue_discovered) {
-			return -EAGAIN;
+	case ETSOC1_IOCTL_GET_USER_DRAM_BASE:
+		if (copy_to_user((u64 *)arg, &et_dev->hm_dram_base, size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_USER_DRAM_BASE: failed to copy to user\n");
+			return -ENOMEM;
 		}
+		return 0;
 
+	case ETSOC1_IOCTL_GET_USER_DRAM_SIZE:
+		if (copy_to_user((u64 *)arg, &et_dev->hm_dram_size, size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_USER_DRAM_SIZE: failed to copy to user\n");
+			return -ENOMEM;
+		}
+		return 0;
+
+	case ETSOC1_IOCTL_MMIO_WRITE:
+		if (copy_from_user(&mmio_info, (void __user *)arg,
+				   _IOC_SIZE(cmd)))
+			return -EINVAL;
+		return et_mmio_write_to_device(et_dev,
+					       (void __user *)mmio_info.ubuf,
+					       mmio_info.size,
+					       mmio_info.devaddr);
+
+	case ETSOC1_IOCTL_MMIO_READ:
+		if (copy_from_user(&mmio_info, (void __user *)arg,
+				   _IOC_SIZE(cmd)))
+			return -EINVAL;
+		return et_mmio_read_from_device(et_dev,
+						(void __user *)mmio_info.ubuf,
+						mmio_info.size,
+						mmio_info.devaddr);
+
+	case ETSOC1_IOCTL_GET_VQ_COUNT:
+		vq_common = et_dev->vqueue_mm_pptr[0]->vqueue_common;
+
+		if (copy_to_user((u64 *)arg, &vq_common->queue_count, size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_VQ_COUNT: failed to copy to user\n");
+			return -ENOMEM;
+		}
+		return 0;
+
+	case ETSOC1_IOCTL_GET_VQ_MAX_MSG_SIZE:
 		vq_common = et_dev->vqueue_mm_pptr[0]->vqueue_common;
 
 		max_size = vq_common->queue_buf_size - ET_VQUEUE_HEADER_SIZE;
-		if (copy_to_user((uint64_t *)arg, &max_size, size)) {
-			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_MAX_MSG: failed to copy to user\n");
+		if (copy_to_user((u64 *)arg, &max_size, size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_VQ_MAX_MSG_SIZE: failed to copy to user\n");
 			return -ENOMEM;
 		}
 		return 0;
 
-	case ETSOC1_IOCTL_QUEUE_COUNT:
-		if (!et_dev->is_vqueue_discovered) {
-			return -EAGAIN;
-		}
-
+	case ETSOC1_IOCTL_RESET_VQ:
 		vq_common = et_dev->vqueue_mm_pptr[0]->vqueue_common;
-
-		if (copy_to_user((uint64_t *)arg, &vq_common->queue_count,
-				 size)) {
-			pr_err("ioctl: ETSOC1_IOCTL_QUEUE_COUNT: failed to copy to user\n");
-			return -ENOMEM;
+		reset_bitmap = (u32)arg;
+		for (i = 0; i < vq_common->queue_count; i++) {
+			if (reset_bitmap & (0x1U << i))
+				et_vqueue_reset(et_dev->vqueue_mm_pptr[i]);
 		}
 		return 0;
 
-	case ETSOC1_IOCTL_SQ_AVAILABLE_BITMAP:
-		if (!et_dev->is_vqueue_discovered) {
-			return -EAGAIN;
-		}
-
-		vq_common = et_dev->vqueue_mm_pptr[0]->vqueue_common;
-
-		if (copy_to_user((uint64_t *)arg, &vq_common->sq_bitmap,
-				 size)) {
-			pr_err("ioctl: ETSOC1_IOCTL_SQ_AVAILABLE_BITMAP: failed to copy to user\n");
-			return -ENOMEM;
-		}
-		return 0;
-
-	case ETSOC1_IOCTL_CQ_AVAILABLE_BITMAP:
-		if (!et_dev->is_vqueue_discovered) {
-			return -EAGAIN;
-		}
-
-		vq_common = et_dev->vqueue_mm_pptr[0]->vqueue_common;
-
-		if (copy_to_user((uint64_t *)arg, &vq_common->cq_bitmap,
-				 size)) {
-			pr_err("ioctl: ETSOC1_IOCTL_CQ_AVAILABLE_BITMAP: failed to copy to user\n");
-			return -ENOMEM;
-		}
-		return 0;
-
-	case ETSOC1_IOCTL_SQ_PUSH:
-		if (!et_dev->is_vqueue_discovered) {
-			return -EAGAIN;
-		}
+	case ETSOC1_IOCTL_PUSH_SQ_MSG:
 		if (copy_from_user(&cmd_info, (void __user *)arg,
 				   _IOC_SIZE(cmd)))
 			return -EINVAL;
-		if (cmd_info.is_dma) {
-			/* TODO: SW-4256 */;
+		if (cmd_info.flags & CMD_INFO_FLAG_DMA) {
+			/* TODO SW-4256: Implement DMA read/write */
+			return -ENOENT;
 		} else {
 			return et_vqueue_write_from_user
 				(et_dev->vqueue_mm_pptr[cmd_info.sq_index],
 				(char *)cmd_info.cmd, cmd_info.size);
 		}
 
-	case ETSOC1_IOCTL_CQ_POP:
-		if (!et_dev->is_vqueue_discovered) {
-			return -EAGAIN;
-		}
+	case ETSOC1_IOCTL_POP_CQ_MSG:
 		if (copy_from_user(&rsp_info, (void __user *)arg,
 				   _IOC_SIZE(cmd)))
 			return -EINVAL;
@@ -628,17 +610,35 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 				(et_dev->vqueue_mm_pptr[rsp_info.cq_index],
 				(char __user *)rsp_info.rsp, rsp_info.size);
 
-	case ETSOC1_IOCTL_SQ_AVAILABLE_THRESHOLD:
-		if (!et_dev->is_vqueue_discovered) {
-			return -EAGAIN;
+	case ETSOC1_IOCTL_GET_SQ_AVAILABILITY_BITMAP:
+		vq_common = et_dev->vqueue_mm_pptr[0]->vqueue_common;
+
+		if (copy_to_user((u64 *)arg, &vq_common->sq_bitmap,
+				 size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_AVAILABILITY_BITMAP: failed to copy to user\n");
+			return -ENOMEM;
 		}
+		return 0;
+
+	case ETSOC1_IOCTL_GET_CQ_AVAILABILITY_BITMAP:
+		vq_common = et_dev->vqueue_mm_pptr[0]->vqueue_common;
+
+		if (copy_to_user((u64 *)arg, &vq_common->cq_bitmap, size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_CQ_AVAILABILITY_BITMAP: failed to copy to user\n");
+			return -ENOMEM;
+		}
+		return 0;
+
+	case ETSOC1_IOCTL_SET_SQ_AVAILABILITY_THRESHOLD:
 		if (copy_from_user(&sq_threshold, (void __user *)arg,
 				   _IOC_SIZE(cmd)))
 			return -EINVAL;
 		mutex_lock
 		(&et_dev->vqueue_mm_pptr[sq_threshold.index]->threshold_mutex);
-		et_dev->vqueue_mm_pptr[cmd_info.sq_index]->available_threshold =
-		sq_threshold.count;
+
+		et_dev->vqueue_mm_pptr[sq_threshold.index]
+		->available_threshold = sq_threshold.count;
+
 		mutex_unlock
 		(&et_dev->vqueue_mm_pptr[sq_threshold.index]->threshold_mutex);
 		return 0;
@@ -908,8 +908,6 @@ static int create_et_pci_dev(struct et_pci_dev **new_dev, struct pci_dev *pdev)
 	et_dev->is_ops_open = false;
 	et_dev->is_mgmt_open = false;
 	et_dev->aborting = false;
-	et_dev->is_vqueue_initialized = false;
-	et_dev->is_vqueue_discovered = false;
 
 	mutex_init(&et_dev->dev_mutex);
 
@@ -1096,12 +1094,13 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 
 	mod_timer(&et_dev->missed_irq_timer, jiffies + MISSED_IRQ_TIMEOUT);
 
-	read_device_status(et_dev);
-	if (et_dev->is_vqueue_initialized) {
-		if (et_vqueues_discover(et_dev) != 0) {
-			dev_err(&pdev->dev, "VQs setup failed\n");
-			goto error_disable_irq;
-		}
+	if (!read_device_status(et_dev)) {
+		dev_err(&pdev->dev, "VQs not setup on device\n");
+		goto error_disable_irq;
+	}
+	if (et_vqueues_discover(et_dev) != 0) {
+		dev_err(&pdev->dev, "VQs discovery failed\n");
+		goto error_disable_irq;
 	}
 
 	et_dev->misc_ops_dev.minor = MISC_DYNAMIC_MINOR;

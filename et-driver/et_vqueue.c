@@ -154,6 +154,8 @@ void et_vqueue_reset(struct et_vqueue *vqueue)
 	vqueue->is_ready = false;
 	vqueue->available_buf_count = vqueue->vqueue_common->queue_buf_count;
 	vqueue->available_threshold = 1;
+	vqueue->vqueue_common->sq_bitmap &= ~((u32)1 << vqueue->index);
+	vqueue->vqueue_common->cq_bitmap &= ~((u32)1 << vqueue->index);
 }
 
 static void et_vqueue_handshaking(struct et_vqueue *vqueue);

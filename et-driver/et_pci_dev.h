@@ -64,9 +64,9 @@ struct et_pci_dev {
 	struct timer_list missed_irq_timer;
 	spinlock_t abort_lock;
 	bool aborting;
-	bool is_vqueue_initialized;
-	bool is_vqueue_discovered;
 	u8 index;
+	u64 hm_dram_base;
+	u64 hm_dram_size;
 };
 
 #endif
