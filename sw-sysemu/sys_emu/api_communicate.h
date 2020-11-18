@@ -31,6 +31,8 @@ class api_communicate
         virtual void get_next_cmd(std::list<int> *enabled_threads) = 0;
         virtual void set_comm_path(const std::string &comm_path) = 0;
         virtual bool raise_host_interrupt(uint32_t bitmap) = 0;
+        virtual bool host_memory_read(uint64_t host_addr, uint64_t size, void *data) = 0;
+        virtual bool host_memory_write(uint64_t host_addr, uint64_t size, const void *data) = 0;
 
         void set_memory(bemu::MainMemory* mem) {
             this->mem = mem;

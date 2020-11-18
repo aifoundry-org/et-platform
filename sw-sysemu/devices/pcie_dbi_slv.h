@@ -13,13 +13,13 @@
 
 #include <array>
 #include <cstdint>
+#include "emu_gio.h"
 #include "memory/memory_error.h"
 #include "memory/memory_region.h"
+#include "devices/pcie_dma.h"
 #ifdef SYS_EMU
 #include "sys_emu.h"
 #endif
-
-#define ETSOC_CX_ATU_NUM_INBOUND_REGIONS 32
 
 namespace bemu {
 
@@ -44,6 +44,40 @@ struct PcieDbiSlvRegion : public MemoryRegion {
         PF0_PORT_LOGIC_MSIX_ADDRESS_MATCH_LOW_OFF_ADDRESS = 0x940,
         PF0_PORT_LOGIC_MSIX_ADDRESS_MATCH_HIGH_OFF_ADDRESS = 0x944,
         PF0_ATU_CAP_ADDRESS              = 0x300000,
+        PF0_DMA_CAP_DMA_WRITE_ENGINE_EN_OFF_ADDRESS  = 0x38000c,
+        PF0_DMA_CAP_DMA_WRITE_DOORBELL_OFF_ADDRESS   = 0x380010,
+        PF0_DMA_CAP_DMA_READ_ENGINE_EN_OFF_ADDRESS   = 0x38002c,
+        PF0_DMA_CAP_DMA_READ_DOORBELL_OFF_ADDRESS    = 0x380030,
+        PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_ADDRESS = 0x38004c,
+        PF0_DMA_CAP_DMA_WRITE_INT_MASK_OFF_ADDRESS   = 0x380054,
+        PF0_DMA_CAP_DMA_WRITE_INT_CLEAR_OFF_ADDRESS  = 0x380058,
+        PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_ADDRESS  = 0x3800a0,
+        PF0_DMA_CAP_DMA_READ_INT_MASK_OFF_ADDRESS    = 0x3800a8,
+        PF0_DMA_CAP_DMA_READ_INT_CLEAR_OFF_ADDRESS   = 0x3800ac,
+        PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_0_ADDRESS = 0x380200,
+        PF0_DMA_CAP_DMA_LLP_LOW_OFF_WRCH_0_ADDRESS     = 0x38021c,
+        PF0_DMA_CAP_DMA_LLP_HIGH_OFF_WRCH_0_ADDRESS    = 0x380220,
+        PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_ADDRESS = 0x380300,
+        PF0_DMA_CAP_DMA_LLP_LOW_OFF_RDCH_0_ADDRESS     = 0x38031c,
+        PF0_DMA_CAP_DMA_LLP_HIGH_OFF_RDCH_0_ADDRESS    = 0x380320,
+        PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_1_ADDRESS = 0x380400,
+        PF0_DMA_CAP_DMA_LLP_LOW_OFF_WRCH_1_ADDRESS     = 0x38041c,
+        PF0_DMA_CAP_DMA_LLP_HIGH_OFF_WRCH_1_ADDRESS    = 0x380420,
+        PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_1_ADDRESS = 0x380500,
+        PF0_DMA_CAP_DMA_LLP_LOW_OFF_RDCH_1_ADDRESS     = 0x38051c,
+        PF0_DMA_CAP_DMA_LLP_HIGH_OFF_RDCH_1_ADDRESS    = 0x380520,
+        PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_2_ADDRESS = 0x380600,
+        PF0_DMA_CAP_DMA_LLP_LOW_OFF_WRCH_2_ADDRESS     = 0x38061c,
+        PF0_DMA_CAP_DMA_LLP_HIGH_OFF_WRCH_2_ADDRESS    = 0x380620,
+        PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_2_ADDRESS = 0x380700,
+        PF0_DMA_CAP_DMA_LLP_LOW_OFF_RDCH_2_ADDRESS     = 0x38071c,
+        PF0_DMA_CAP_DMA_LLP_HIGH_OFF_RDCH_2_ADDRESS    = 0x380720,
+        PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_3_ADDRESS = 0x380800,
+        PF0_DMA_CAP_DMA_LLP_LOW_OFF_WRCH_3_ADDRESS     = 0x38081c,
+        PF0_DMA_CAP_DMA_LLP_HIGH_OFF_WRCH_3_ADDRESS    = 0x380820,
+        PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_3_ADDRESS = 0x380900,
+        PF0_DMA_CAP_DMA_LLP_LOW_OFF_RDCH_3_ADDRESS     = 0x38091c,
+        PF0_DMA_CAP_DMA_LLP_HIGH_OFF_RDCH_3_ADDRESS    = 0x380920,
     };
 
     enum : unsigned long long {
@@ -56,6 +90,10 @@ struct PcieDbiSlvRegion : public MemoryRegion {
         PF0_ATU_CAP_IATU_UPPER_TARGET_ADDR_OFF_INBOUND_i_OFFSET = 0x18,
         PF0_ATU_CAP_IATU_UPPR_LIMIT_ADDR_OFF_INBOUND_i_OFFSET   = 0x20,
     };
+
+    PcieDbiSlvRegion(std::array<PcieDma<true>,  ETSOC_CC_NUM_DMA_WR_CHAN> &dma_wrch,
+                     std::array<PcieDma<false>, ETSOC_CC_NUM_DMA_RD_CHAN> &dma_rdch) :
+        dma_wrch_(dma_wrch), dma_rdch_(dma_rdch) {}
 
     void read(const Agent&, size_type pos, size_type n, pointer result) override {
         uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
@@ -80,6 +118,108 @@ struct PcieDbiSlvRegion : public MemoryRegion {
             break;
         case PF0_PORT_LOGIC_MSIX_ADDRESS_MATCH_HIGH_OFF_ADDRESS:
             *result32 = msix_match_high;
+            break;
+        case PF0_DMA_CAP_DMA_WRITE_ENGINE_EN_OFF_ADDRESS:
+            *result32 = dma_write_engine_en;
+            break;
+        case PF0_DMA_CAP_DMA_WRITE_DOORBELL_OFF_ADDRESS:
+            *result32 = dma_write_doorbell;
+            break;
+        case PF0_DMA_CAP_DMA_READ_ENGINE_EN_OFF_ADDRESS:
+            *result32 = dma_read_engine_en;
+            break;
+        case PF0_DMA_CAP_DMA_READ_DOORBELL_OFF_ADDRESS:
+            *result32 = dma_read_doorbell;
+            break;
+        case PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_ADDRESS:
+            *result32 = dma_write_int_status;
+            break;
+        case PF0_DMA_CAP_DMA_WRITE_INT_MASK_OFF_ADDRESS:
+            *result32 = dma_write_int_mask;
+            break;
+        case PF0_DMA_CAP_DMA_WRITE_INT_CLEAR_OFF_ADDRESS:
+            *result32 = 0;
+            break;
+        case PF0_DMA_CAP_DMA_READ_INT_MASK_OFF_ADDRESS:
+            *result32 = dma_read_int_mask;
+            break;
+        case PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_ADDRESS:
+            *result32 = dma_read_int_status;
+            break;
+        case PF0_DMA_CAP_DMA_READ_INT_CLEAR_OFF_ADDRESS:
+            *result32 = 0;
+            break;
+        case PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_0_ADDRESS:
+            *result32 = dma_wrch_[0].ch_control1;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_LOW_OFF_WRCH_0_ADDRESS:
+            *result32 = dma_wrch_[0].llp_low;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_HIGH_OFF_WRCH_0_ADDRESS:
+            *result32 = dma_wrch_[0].llp_high;
+            break;
+        case PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_ADDRESS:
+            *result32 = dma_rdch_[0].ch_control1;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_LOW_OFF_RDCH_0_ADDRESS:
+            *result32 = dma_rdch_[0].llp_low;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_HIGH_OFF_RDCH_0_ADDRESS:
+            *result32 = dma_rdch_[0].llp_high;
+            break;
+        case PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_1_ADDRESS:
+            *result32 = dma_wrch_[1].ch_control1;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_LOW_OFF_WRCH_1_ADDRESS:
+            *result32 = dma_wrch_[1].llp_low;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_HIGH_OFF_WRCH_1_ADDRESS:
+            *result32 = dma_wrch_[1].llp_high;
+            break;
+        case PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_1_ADDRESS:
+            *result32 = dma_rdch_[1].ch_control1;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_LOW_OFF_RDCH_1_ADDRESS:
+            *result32 = dma_rdch_[1].llp_low;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_HIGH_OFF_RDCH_1_ADDRESS:
+            *result32 = dma_rdch_[1].llp_high;
+            break;
+        case PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_2_ADDRESS:
+            *result32 = dma_wrch_[2].ch_control1;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_LOW_OFF_WRCH_2_ADDRESS:
+            *result32 = dma_wrch_[2].llp_low;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_HIGH_OFF_WRCH_2_ADDRESS:
+            *result32 = dma_wrch_[2].llp_high;
+            break;
+        case PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_2_ADDRESS:
+            *result32 = dma_rdch_[2].ch_control1;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_LOW_OFF_RDCH_2_ADDRESS:
+            *result32 = dma_rdch_[2].llp_low;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_HIGH_OFF_RDCH_2_ADDRESS:
+            *result32 = dma_rdch_[2].llp_high;
+            break;
+        case PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_3_ADDRESS:
+            *result32 = dma_wrch_[3].ch_control1;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_LOW_OFF_WRCH_3_ADDRESS:
+            *result32 = dma_wrch_[3].llp_low;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_HIGH_OFF_WRCH_3_ADDRESS:
+            *result32 = dma_wrch_[3].llp_high;
+            break;
+        case PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_3_ADDRESS:
+            *result32 = dma_rdch_[3].ch_control1;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_LOW_OFF_RDCH_3_ADDRESS:
+            *result32 = dma_rdch_[3].llp_low;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_HIGH_OFF_RDCH_3_ADDRESS:
+            *result32 = dma_rdch_[3].llp_high;
             break;
         default:
             // ATU subregion
@@ -151,6 +291,108 @@ struct PcieDbiSlvRegion : public MemoryRegion {
         case PF0_PORT_LOGIC_MSIX_ADDRESS_MATCH_HIGH_OFF_ADDRESS:
             msix_match_high = *source32;
             break;
+        case PF0_DMA_CAP_DMA_WRITE_ENGINE_EN_OFF_ADDRESS:
+            dma_write_engine_en = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_WRITE_DOORBELL_OFF_ADDRESS:
+            dma_write_doorbell = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_READ_ENGINE_EN_OFF_ADDRESS:
+            dma_read_engine_en = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_READ_DOORBELL_OFF_ADDRESS:
+            dma_read_doorbell = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_ADDRESS:
+            dma_write_int_status = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_WRITE_INT_MASK_OFF_ADDRESS:
+            dma_write_int_mask = *source32 & ((1u << ETSOC_CC_NUM_DMA_WR_CHAN) - 1);
+            break;
+        case PF0_DMA_CAP_DMA_WRITE_INT_CLEAR_OFF_ADDRESS:
+            dma_write_int_status &= ~(*source32 & 0xFFu); // DONE bits
+            break;
+        case PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_ADDRESS:
+            dma_read_int_status = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_READ_INT_MASK_OFF_ADDRESS:
+            dma_read_int_mask = *source32 & ((1u << ETSOC_CC_NUM_DMA_RD_CHAN) - 1);
+            break;
+        case PF0_DMA_CAP_DMA_READ_INT_CLEAR_OFF_ADDRESS:
+            dma_read_int_status &= ~(*source32 & 0xFFu); // DONE bits
+            break;
+        case PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_0_ADDRESS:
+            dma_wrch_[0].ch_control1 = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_LOW_OFF_WRCH_0_ADDRESS:
+            dma_wrch_[0].llp_low = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_HIGH_OFF_WRCH_0_ADDRESS:
+            dma_wrch_[0].llp_high = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_ADDRESS:
+            dma_rdch_[0].ch_control1 = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_LOW_OFF_RDCH_0_ADDRESS:
+            dma_rdch_[0].llp_low = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_HIGH_OFF_RDCH_0_ADDRESS:
+            dma_rdch_[0].llp_high = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_1_ADDRESS:
+            dma_wrch_[1].ch_control1 = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_LOW_OFF_WRCH_1_ADDRESS:
+            dma_wrch_[1].llp_low = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_HIGH_OFF_WRCH_1_ADDRESS:
+            dma_wrch_[1].llp_high = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_1_ADDRESS:
+            dma_rdch_[1].ch_control1 = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_LOW_OFF_RDCH_1_ADDRESS:
+            dma_rdch_[1].llp_low = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_HIGH_OFF_RDCH_1_ADDRESS:
+            dma_rdch_[1].llp_high = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_2_ADDRESS:
+            dma_wrch_[2].ch_control1 = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_LOW_OFF_WRCH_2_ADDRESS:
+            dma_wrch_[2].llp_low = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_HIGH_OFF_WRCH_2_ADDRESS:
+            dma_wrch_[2].llp_high = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_2_ADDRESS:
+            dma_rdch_[2].ch_control1 = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_LOW_OFF_RDCH_2_ADDRESS:
+            dma_rdch_[2].llp_low = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_HIGH_OFF_RDCH_2_ADDRESS:
+            dma_rdch_[2].llp_high = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_3_ADDRESS:
+            dma_wrch_[3].ch_control1 = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_LOW_OFF_WRCH_3_ADDRESS:
+            dma_wrch_[3].llp_low = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_HIGH_OFF_WRCH_3_ADDRESS:
+            dma_wrch_[3].llp_high = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_3_ADDRESS:
+            dma_rdch_[3].ch_control1 = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_LOW_OFF_RDCH_3_ADDRESS:
+            dma_rdch_[3].llp_low = *source32;
+            break;
+        case PF0_DMA_CAP_DMA_LLP_HIGH_OFF_RDCH_3_ADDRESS:
+            dma_rdch_[3].llp_high = *source32;
+            break;
         default:
             // ATU subregion
             if (pos >= PF0_ATU_CAP_ADDRESS && pos < PF0_ATU_CAP_ADDRESS + 0x80000) {
@@ -209,6 +451,26 @@ struct PcieDbiSlvRegion : public MemoryRegion {
 
     void dump_data(std::ostream&, size_type, size_type) const override { }
 
+    void trigger_done_int(bool wrch, int chan_id) {
+        if (wrch) {
+            assert(chan_id < ETSOC_CC_NUM_DMA_WR_CHAN);
+            dma_write_int_status |= 1u << chan_id;
+            if (dma_write_int_status & dma_write_int_mask) {
+                edma_trigger();
+            }
+        } else {
+            assert(chan_id < ETSOC_CC_NUM_DMA_RD_CHAN);
+            dma_read_int_status |= 1u << chan_id;
+            if (dma_read_int_status & dma_read_int_mask) {
+                edma_trigger();
+            }
+        }
+    }
+
+    void edma_trigger() {
+        // TODO: PLIC send interrupt
+    }
+
     struct iatu_info_t {
         uint32_t ctrl_1;
         uint32_t ctrl_2;
@@ -226,6 +488,16 @@ struct PcieDbiSlvRegion : public MemoryRegion {
     uint32_t msix_cap = (1u << 31); /* PCI_MSIX_ENABLE = 1 */
     uint32_t msix_match_low = 0;
     uint32_t msix_match_high = 0;
+    uint32_t dma_write_engine_en = 0;
+    uint32_t dma_write_doorbell = 0;
+    uint32_t dma_read_engine_en = 0;
+    uint32_t dma_read_doorbell = 0;
+    uint32_t dma_write_int_status = 0;
+    uint32_t dma_write_int_mask = ETSOC_CC_NUM_DMA_WR_CHAN == 0 ? 0 : (1u << ETSOC_CC_NUM_DMA_WR_CHAN) - 1;
+    uint32_t dma_read_int_status = 0;
+    uint32_t dma_read_int_mask = ETSOC_CC_NUM_DMA_RD_CHAN == 0 ? 0 : (1u << ETSOC_CC_NUM_DMA_RD_CHAN) - 1;
+    std::array<PcieDma<true>,  ETSOC_CC_NUM_DMA_WR_CHAN> &dma_wrch_;
+    std::array<PcieDma<false>, ETSOC_CC_NUM_DMA_RD_CHAN> &dma_rdch_;
 };
 
 } // namespace bemu
