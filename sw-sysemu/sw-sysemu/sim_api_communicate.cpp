@@ -309,6 +309,19 @@ void sim_api_communicate::set_comm_path(const std::string &comm_path)
 bool sim_api_communicate::raise_host_interrupt(uint32_t bitmap)
 {
     LOG_NOTHREAD(INFO, "sim_api_communicate: Raise Host Interrupt (0x%" PRIx32 ")", bitmap);
-    sim_api_.raiseHostInterrupt(bitmap);
-    return true;
+    return sim_api_.raiseHostInterrupt(bitmap);
+}
+
+bool sim_api_communicate::host_memory_read(uint64_t host_addr, uint64_t size, void *data)
+{
+    LOG_NOTHREAD(INFO, "sim_api_communicate::host_memory_read(host_addr = 0x%" PRIx64 ", size = 0x%" PRIx64 ")",
+                 host_addr, size);
+    return sim_api_.readHostMemory(host_addr, size, data);
+}
+
+bool sim_api_communicate::host_memory_write(uint64_t host_addr, uint64_t size, const void *data)
+{
+    LOG_NOTHREAD(INFO, "sim_api_communicate::host_memory_write(host_addr = 0x%" PRIx64 ", size = 0x%" PRIx64 ")",
+                 host_addr, size);
+    return sim_api_.writeHostMemory(host_addr, size, data);
 }
