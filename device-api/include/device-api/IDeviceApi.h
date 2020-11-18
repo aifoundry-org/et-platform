@@ -34,16 +34,16 @@ class Exception : public std::runtime_error {
   using std::runtime_error::runtime_error;
 };
 
-class IDeviceOpsAsync {
+class IDeviceAsync {
 public:
   /// \brief Sends a command to the device
   ///
   /// @param[in] device indicating which device to send the command
   /// @param[in] command its a buffer which contains the command itself
-  /// @param[in] commandSize the size of the command buffer
+  /// @param[in] commandSize the size of the command + payload buffer
   ///
   ///
-  virtual void sendCommand(int device, const std::byte* command, size_t commandSize) = 0;
+  virtual void sendCommand(int device, int sq_idx, const std::byte* command, size_t commandSize) = 0;
 
   /// \brief Receives a response from the device, blocking the caller thread till the response is ready or until the
   /// timeout expires
@@ -54,14 +54,16 @@ public:
   ///
   /// @returns false if the timeout is expired, true otherwise; indicating we got a response from the device
   ///
-  virtual bool receiveResponse(int device, std::vector<std::byte>& response, std::chrono::milliseconds timeout) = 0;
+  virtual bool receiveResponse(int device, int cq_idx, std::vector<std::byte>& response, std::chrono::milliseconds timeout) = 0;
 
-  /// \brief Virtual Destructor to enable polymorphic release of the IDeviceOpsAsync
+  /// \brief Virtual Destructor to enable polymorphic release of the IDeviceAsync
   /// instances
-  virtual ~IDeviceOpsAsync() = default;
+  virtual ~IDeviceAsync() = default;
 };
 
-class IDeviceOpsSync {
+ /// This should be a command Interface class which is shared between Ops and Management, although will be different
+ 
+class IDeviceSync {
 public:
   /// \brief Returns the number of esperanto devices connected to the host
   ///
@@ -89,24 +91,24 @@ public:
 
   /// \brief Returns the DRAM base address
   ///
-  /// @returns DRAM base address
+  /// @returns DRAM Host Managed base address
   ///
   virtual uint64_t getDramBaseAddress() const = 0;
 
+  /// \brief Discover commands to discover all available devices
+  //
+  /// @returns arrays of int of indicies containing all available ET SOC devices
+  ///
+
+  virtual std::array<int, 6> devices = {0,1,2,3,4,5};
+
   /// \brief Virtual Destructor to enable polymorphic release of the IDeviceOpsSync
   /// instances
-  virtual ~IDeviceOpsSync() = default;
+  virtual ~IDeviceSync() = default;
 };
 
 
-class IDeviceMngSync {
-  public:
-  /// \brief Virtual Destructor to enable polymorphic release of the IDeviceMngSync
-  /// instances
-  virtual ~IDeviceMngSync() = default;
-}
-
-class IDeviceApi : public IDeviceOpsAsync, public IDeviceOpsSync, public IDeviceMngSync {
+class IDeviceApi : public IDeviceAsync, public IDeviceSync {
 
   /// \brief Indicates the kind of deviceAPI implementation for the factory method
   enum class Kind { SysEmu, Silicon };
@@ -117,6 +119,7 @@ class IDeviceApi : public IDeviceOpsAsync, public IDeviceOpsSync, public IDevice
   /// @returns std::unique_ptr<IDeviceApi> is the IDeviceApi implementation
   ///
   static std::unique_ptr<IDeviceApi> create(Kind);
+
 
   /// \brief Virtual Destructor to enable polymorphic release of the IDeviceApi
   /// instances
