@@ -8,8 +8,11 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-add_subdirectory(device-api)
-
-# The following directory contains device-apis for virtual queue
-# impelementation
-add_subdirectory(device-apis)
+Name: Ops
+Version_Major: 0
+Version_Minor: 1
+Version_Patch: 0
+MessageStartID: 0
+Modules:
+  - !include ops-api-calls.yaml
+  - !include tracing/device-mrt-trace.yaml

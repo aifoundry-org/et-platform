@@ -1,0 +1,308 @@
+#------------------------------------------------------------------------------
+# Copyright (C) 2019, Esperanto Technologies Inc.
+# The copyright to the computer program(s) herein is the
+# property of Esperanto Technologies, Inc. All Rights Reserved.
+# The program(s) may be used and/or copied only with
+# the written permission of Esperanto Technologies and
+# in accordance with the terms and conditions stipulated in the
+# agreement/contract under which the program(s) have been supplied.
+#------------------------------------------------------------------------------
+Name: Ops_API_Calls
+## List of Enums that are used in our messages
+Enums:
+  - Name: dev_ops_api_kernel_launch_status
+    Type: uint32_t
+    Values:
+      - Name: OK
+        Value: 0
+      - Name: SHIRES_NOT_READY
+        Value: 1
+      - Name: ERROR
+        Value: 2
+      - Name: RESULT_OK
+        Value: 3
+      - Name: RESULT_ERROR
+        Value: 4
+  - Name: dev_ops_api_kernel_abort_response
+    Type: uint32_t
+    Values:
+      - Name: NONE
+        Value: 0
+      - Name : OK
+        Value : 1
+      - Name : ERROR
+        Value : 2
+  - Name: dev_ops_api_kernel_state
+    Type: uint32_t
+    Values:
+      - Name: UNUSED
+        Value: 0
+      - Name: LAUNCHED
+        Value: 1
+      - Name: RUNNING
+        Value: 2
+      - Name: ABORTED
+        Value: 3
+      - Name: ERROR
+        Value: 4
+      - Name: COMPLETE
+        Value: 5
+  - Name: etsoc_dma_state
+    Description: State of a DMA
+    Type: uint32_t
+    Values:
+      - Name: IDLE
+        Value: 0
+      - Name: ACTIVE
+        Value: 1
+      - Name: DONE
+        Value: 2
+      - Name: ABORTING
+        Value: 3
+      - Name: ABORTED
+        Value: 4
+  - Name: dev_ops_api_error_type
+    Type: uint32_t
+    Values:
+      - Name: NONE
+        Value: 0
+      - Name: ASYNC_ERROR_0
+        Value: 1
+  - Name: dev_ops_fw_type
+    Type: uint8_t
+    Values:
+      - Name: MASTER_MINION_FW
+        Value: 0
+      - Name: MACHINE_MINION_FW
+        Value: 1
+      - Name: WORKER_MINION_FW
+        Value: 2
+
+## List of Commands, Responses, and Events
+Messages :
+#-------------------------------------------------------------------------------
+  - Name: check_device_ops_api_compatibility_cmd
+    Description:  Request the version of the device_ops_api supported
+                  by the target, advertise the one we support
+    Type: Command
+    PairedMessage: device_ops_api_compatibility_rsp
+    Fields:
+      - Name: major
+        Description: Sem Version Major
+        Type: uint8_t
+      - Name: minor
+        Description: Sem Version Minor
+        Type: uint8_t
+      - Name: patch
+        Description: Sem Version Patch
+        Type: uint8_t
+      - Name: pad
+        Description: pad
+        Type: uint8_t
+  - Name: device_ops_api_compatibility_rsp
+    Type: Response
+    Description: Return the version implemented by the target
+    PairedMessage: check_device_ops_api_compatibility_cmd
+    Fields:
+      - Name: major
+        Description: Sem Version Major
+        Type: uint8_t
+      - Name: minor
+        Description: Sem Version Minor
+        Type: uint8_t
+      - Name: patch
+        Description: Sem Version Patch
+        Type: uint8_t
+      - Name: pad
+        Description: pad
+        Type: uint8_t
+#-------------------------------------------------------------------------------
+  - Name: device_ops_device_fw_version_cmd
+    Description:  Request the version of the device firmware, advertise the one we support
+    Type: Command
+    PairedMessage: device_ops_fw_version_rsp
+    Fields:
+      - Name: firmware_type
+        Description: Identify device firmware type
+        Type: uint8_t
+  - Name: device_ops_fw_version_rsp
+    Type: Response
+    Description: Return the device fw version for the requested type
+    PairedMessage: device_ops_device_fw_version_cmd
+    Fields:
+      - Name: major
+        Description: Sem Version Major
+        Type: uint8_t
+      - Name: minor
+        Description: Sem Version Minor
+        Type: uint8_t
+      - Name: patch
+        Description: Sem Version Patch
+        Type: uint8_t
+      - Name: type
+        Description: Device firmware type
+        Type: enum
+        Enum: dev_ops_fw_type
+#-------------------------------------------------------------------------------
+  - Name: device_ops_echo_cmd
+    Description: Echo command
+    Type: Command
+    PairedMessage: device_ops_echo_rsp
+    Fields:
+      - Name: echo_payload
+        Description: Echo payload field
+        Type: int32_t
+  - Name: device_ops_echo_rsp
+    Description:  Echo response
+    Type: Response
+    PairedMessage: device_ops_echo_cmd
+    Fields:
+      - Name: echo_payload
+        Description: Echo payload field
+        Type: int32_t
+#-------------------------------------------------------------------------------
+# Kernel Execution Commands and Responses
+#-------------------------------------------------------------------------------
+  - Name: device_ops_kernel_launch_cmd
+    Description: Launch a kernel on the target
+    PairedMessage: device_ops_kernel_launch_rsp
+    Type: Command
+    Fields:
+      - Name: code_start_address
+        Description: Code start address
+        Type : uint64_t
+      - Name: pointer_to_args
+        Description: Pointer to kernel arguments
+        Type : uint64_t
+  - Name: device_ops_kernel_launch_rsp
+    Description: Response and result of a kernel launch on the device
+    Type: Response
+    PairedMessage: device_ops_kernel_launch_cmd
+    Fields:
+      - Name: cmd_wait_time
+        Description: Time transpired between command arrival and dispatch
+        Type: uint64_t
+      - Name: cmd_execution_time
+        Description: Time transpired between command dispatch and command completion
+        Type: uint64_t
+      - Name: status
+        Description: Kernel Launch status
+        Type: enum
+        Enum: dev_ops_api_kernel_launch_status
+#-------------------------------------------------------------------------------
+  - Name: device_ops_kernel_abort_cmd
+    Description: Command to abort a currently running kernel on the device
+    Type: Command
+    PairedMessage: device_ops_kernel_abort_rsp
+    Fields:
+      - Name: kernel_id
+        Description: Kernel Identifier
+        Type: uint8_t
+  - Name: device_ops_kernel_abort_rsp
+    Description: Response to an abort request
+    PairedMessage: device_ops_kernel_abort_cmd
+    Type: Response
+    Fields:
+      - Name: status
+        Description: Kernel Abort status
+        Type: enum
+        Enum: dev_ops_api_kernel_abort_response
+      - Name: kernel_id
+        Description: Kernel Identifier
+        Type: uint8_t
+#-------------------------------------------------------------------------------
+  - Name: device_ops_kernel_state_cmd
+    Description: Query the state if a currently running kernel
+    Type: Command
+    PairedMessage: device_ops_kernel_state_rsp
+    Fields:
+      - Name: kernel_id
+        Type: uint8_t
+  - Name: device_ops_kernel_state_rsp
+    Description: Kernel state reply
+    Type: Response
+    PairedMessage: device_ops_kernel_state_cmd
+    Fields:
+      - Name: status
+        Description: Kernel Abort status
+        Type: enum
+        Enum: dev_ops_api_kernel_state
+#-------------------------------------------------------------------------------
+# Data Transfer Commands and Responses
+#-------------------------------------------------------------------------------
+  - Name: device_ops_data_read_cmd
+    Description: Command to read data from device memory
+    Type: Command
+    PairedMessage: device_ops_data_read_rsp
+    Fields:
+      - Name: dst_host_virt_addr
+        Description: Host Virtual Address in userspace
+        Type: uint64_t
+      - Name: dst_host_phy_addr
+        Description: Host Physical Address in kernelspace
+        Type: uint64_t
+      - Name: src_device_phy_addr
+        Description: Device Address
+        Type: uint64_t
+      - Name: size
+        Description: Size
+        Type: uint32_t
+  - Name: device_ops_data_read_rsp
+    Description:  Data read command response
+    Type: Response
+    PairedMessage: device_ops_data_read_cmd
+    Fields:
+      - Name: cmd_wait_time
+        Description: Time transpired between command arrival and dispatch
+        Type: uint64_t
+      - Name: cmd_execution_time
+        Description: Time transpired between command dispatch and command completion
+        Type: uint64_t
+      - Name: status
+        Description: Status of the DMA operation
+        Type: enum
+        Enum: etsoc_dma_state
+#-------------------------------------------------------------------------------
+  - Name: device_ops_data_write_cmd
+    Description: Command to write data to device memory
+    Type: Command
+    PairedMessage: device_ops_data_write_rsp
+    Fields:
+      - Name: src_host_virt_addr
+        Description: Host Virtual Address in userspace
+        Type: uint64_t
+      - Name: src_host_phy_addr
+        Description: Host Physical Address in kernelspace
+        Type: uint64_t
+      - Name: dst_device_phy_addr
+        Description: Device Address
+        Type: uint64_t
+      - Name: size
+        Description: Size
+        Type: uint32_t
+  - Name: device_ops_data_write_rsp
+    Description:  Data write command response
+    Type: Response
+    PairedMessage: device_ops_data_write_cmd
+    Fields:
+      - Name: cmd_wait_time
+        Description: Time transpired between command arrival and dispatch
+        Type: uint64_t
+      - Name: cmd_execution_time
+        Description: Time transpired between command dispatch and command completion
+        Type: uint64_t
+      - Name: status
+        Description: Status of the DMA operation
+        Type: enum
+        Enum: etsoc_dma_state
+###################################################################
+## List of asynchronous events that device-fw can send to the host
+###################################################################
+  - Name: device_ops_device_fw_error
+    Description: Generic error reported by the device
+    Type: Event
+    PairedMessage: None
+    Fields:
+      - Name: error_type
+        Type: enum
+        Enum: dev_ops_api_error_type
