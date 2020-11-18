@@ -52,6 +52,7 @@ emu_hdrs := \
 	utility.h
 
 emu_cpp_srcs := \
+	devices/pcie_dma.cpp \
 	emu.cpp \
 	emu_gio.cpp \
 	esrs.cpp \

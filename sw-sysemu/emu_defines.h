@@ -300,6 +300,10 @@ enum et_core_t {
 
 #define MEM_RESET_PATTERN_SIZE 4 // mem reset pattern is 4 bytes (to allow for instance, 0xDEADBEEF)
 
+// PCIe
+#define ETSOC_CX_ATU_NUM_INBOUND_REGIONS 32
+#define ETSOC_CC_NUM_DMA_WR_CHAN 4
+#define ETSOC_CC_NUM_DMA_RD_CHAN 4
 
 } // namespace bemu
 

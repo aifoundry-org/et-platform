@@ -20,8 +20,10 @@
 #include "literals.h"
 #include "memory_error.h"
 #include "memory_region.h"
+#include "devices/pcie_dma.h"
 #include "devices/pcie_dbi_slv.h"
 #include "devices/pcie_nopcie_esr.h"
+#include "devices/pcie_usr_esr.h"
 #ifdef SYS_EMU
 #include "sys_emu.h"
 #endif
@@ -48,6 +50,18 @@ struct PcieRegion : public MemoryRegion {
         r_pcie_usresr_pos   = 0x3F80000000,
         r_pcie_nopciesr_pos = 0x3F80001000,
     };
+
+    PcieRegion() {
+        for (int i = 0; i < ETSOC_CC_NUM_DMA_WR_CHAN; i++) {
+            pcie0_dma_wrch[i].chan_id = i;
+            pcie1_dma_wrch[i].chan_id = i;
+        }
+
+        for (int i = 0; i < ETSOC_CC_NUM_DMA_RD_CHAN; i++) {
+            pcie0_dma_rdch[i].chan_id = i;
+            pcie1_dma_rdch[i].chan_id = i;
+        }
+    }
 
     void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
         const auto elem = search(pos, n);
@@ -105,9 +119,10 @@ struct PcieRegion : public MemoryRegion {
     // Members
     NullRegion          <r_pcie0_slv_pos,   128_GiB>  pcie0_slv{};
     NullRegion          <r_pcie1_slv_pos,   122_GiB>  pcie1_slv{};
-    PcieDbiSlvRegion    <r_pcie0_dbi_slv_pos, 2_GiB>  pcie0_dbi_slv{};
-    PcieDbiSlvRegion    <r_pcie1_dbi_slv_pos, 2_GiB>  pcie1_dbi_slv{};
-    NullRegion          <r_pcie_usresr_pos,   4_KiB>  pcie_usresr{};
+    PcieDbiSlvRegion    <r_pcie0_dbi_slv_pos, 2_GiB>  pcie0_dbi_slv{pcie0_dma_wrch, pcie0_dma_rdch};
+    PcieDbiSlvRegion    <r_pcie1_dbi_slv_pos, 2_GiB>  pcie1_dbi_slv{pcie1_dma_wrch, pcie1_dma_rdch};
+    PcieUsrEsrRegion    <r_pcie_usresr_pos,   4_KiB>  pcie_usresr{pcie0_dma_wrch, pcie1_dma_wrch,
+                                                                  pcie0_dma_rdch, pcie1_dma_rdch};
     PcieNoPcieEsrRegion <r_pcie_nopciesr_pos, 4_KiB>  pcie_nopciesr{};
 
 protected:
@@ -133,6 +148,9 @@ protected:
         &pcie_usresr,
         &pcie_nopciesr,
     }};
+
+    std::array<PcieDma<true>,  ETSOC_CC_NUM_DMA_WR_CHAN> pcie0_dma_wrch{}, pcie1_dma_wrch{};
+    std::array<PcieDma<false>, ETSOC_CC_NUM_DMA_RD_CHAN> pcie0_dma_rdch{}, pcie1_dma_rdch{};
 };
 
 
