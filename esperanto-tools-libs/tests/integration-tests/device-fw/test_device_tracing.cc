@@ -186,7 +186,7 @@ TEST_F(DeviceFWTest, Trace_RingBufferTest_BufferFull) {
   ASSERT_TRUE(result2);
 }
 
-TEST_F(DeviceFWTest, Trace_RingBufferTest_BufferWrapped) {
+TEST_F(DeviceFWTest, DISABLED_Trace_RingBufferTest_BufferWrapped) {
   fs::path trace_kernel = fs::path(absl::GetFlag(FLAGS_kernels_dir)) / fs::path("trace_ring_buffer.elf");
   auto& registry = dev_->codeRegistry();
 

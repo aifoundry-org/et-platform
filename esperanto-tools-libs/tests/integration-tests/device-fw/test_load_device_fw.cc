@@ -13,7 +13,7 @@
 #include <thread>
 #include <chrono>
 
-TEST_F(DeviceFWTest, loadOnSysEMU) {
+TEST_F(DeviceFWTest, DISABLED_loadOnSysEMU) {
   // Do nothing make sure that the fixture starts/stop the simulator correctly
 }
 
