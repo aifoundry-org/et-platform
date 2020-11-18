@@ -46,6 +46,8 @@ class sim_api_communicate final : public api_communicate
         void get_next_cmd(std::list<int> *enabled_threads) override;
         void set_comm_path(const std::string &comm_path) override;
         bool raise_host_interrupt(uint32_t bitmap) override;
+        bool host_memory_read(uint64_t host_addr, uint64_t size, void *data) override;
+        bool host_memory_write(uint64_t host_addr, uint64_t size, const void *data) override;
     private:
         friend class SysEmuWrapper;
         class SysEmuWrapper final : public bemu::Agent, public AbstractSimulator {
@@ -55,10 +57,10 @@ class sim_api_communicate final : public api_communicate
             bool shutdown() override;
             bool is_done() override;
             int active_threads() override;
-            bool memory_read(uint64_t ad, size_t size, void *data) override;
-            bool memory_write(uint64_t ad, size_t size, const void *data) override;
-            bool mailbox_read(simulator_api::MailboxTarget target, uint32_t offset, size_t size, void *data)  override;
-            bool mailbox_write(simulator_api::MailboxTarget target, uint32_t offset, size_t size, const void *data)  override;
+            bool memory_read(uint64_t ad, uint64_t size, void *data) override;
+            bool memory_write(uint64_t ad, uint64_t size, const void *data) override;
+            bool mailbox_read(simulator_api::MailboxTarget target, uint32_t offset, uint64_t size, void *data)  override;
+            bool mailbox_write(simulator_api::MailboxTarget target, uint32_t offset, uint64_t size, const void *data)  override;
             bool raise_device_interrupt(simulator_api::DeviceInterruptType type) override;
 
             /* For bemu::Agent */
