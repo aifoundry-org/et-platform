@@ -23,7 +23,7 @@ extern "C" {
 
 #define MM_DEV_INTF_REG_VERSION 1U
 
-#define MM_VQ_COUNT 1U
+#define MM_VQ_CHANNEL 1
 
 // MM DEV Interface Register at PC_MM Mailbox + 1K
 #define MM_DEV_INTF_BASE_ADDR (R_PU_MBOX_PC_MM_BASEADDR + 0x400UL)
@@ -82,33 +82,21 @@ typedef struct __attribute__((__packed__)) MM_DEV_INTF_DDR_REGION {
     uint64_t size;
 } MM_DEV_INTF_DDR_REGION_s;
 
-typedef struct __attribute__((__packed__)) MM_VQ_SIZE_INFO {
-    uint16_t control_size;      /// Region always placed at the start of MM VQ Bar contains vqueue_info structs
-    uint16_t element_count;     /// Number of fixed-size buffers present in a VQ
-    uint16_t element_size;      /// Size of each fixed-size buffer
-    uint16_t element_alignment; /// Alignement requirement of each fized-sized buffer
-} MM_VQ_SIZE_INFO_s;
-
 typedef struct __attribute__((__packed__)) MM_DEV_INTF_MM_VQ {
-    uint8_t vq_count;
     uint8_t bar;     /// One of enum MM_DEV_INTF_BAR_TYPE_e
-    uint64_t bar_offset;
-    uint64_t bar_size;
-    MM_VQ_SIZE_INFO_s size_info;
-    uint16_t interrupt_vector[MM_VQ_COUNT];
+    uint64_t offset;
+    uint64_t size;
 } MM_DEV_INTF_MM_VQ_s;
 
 /// \brief Master Minion Device interface register will be uses to public device capability to Host
 typedef struct __attribute__((__packed__)) MM_DEV_INTF_REG {
     uint32_t version;
     uint32_t size;
-    MM_DEV_INTF_MM_VQ_s mm_vq;
+    uint32_t mm_vq_chan;
+    MM_DEV_INTF_MM_VQ_s mm_vq[MM_VQ_CHANNEL];
     MM_DEV_INTF_DDR_REGION_s ddr_region[MM_DEV_INTF_DDR_REGION_MAP_NUM];
     int32_t status;                                                      /// One of enum MM_DEV_INTF_MM_BOOT_STATUS_e
 } MM_DEV_INTF_REG_s;
-
-// Macro to extract MM DIRs
-#define MM_DEV_INTF_GET_BASE   ((volatile MM_DEV_INTF_REG_s *)MM_DEV_INTF_BASE_ADDR)
 
 #ifdef __cplusplus
 }
