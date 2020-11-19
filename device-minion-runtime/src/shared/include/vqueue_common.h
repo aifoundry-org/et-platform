@@ -42,7 +42,6 @@ typedef enum {
     VQ_STATUS_ERROR = 3U
 } vq_status_e;
 
-// TODO: SW-5261: Remove this structure once SysEMU moves to reading device interface regs. Its just kept to pass the build.
 /// \brief Virtual Queue descriptor structure which holds the information
 /// required by the Host to initialize the Virtual Queues. This structure
 /// is shared with the Host.

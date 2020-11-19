@@ -31,7 +31,8 @@ typedef struct {
 
 static void init_vqueue(uint32_t vq_index, uint64_t vq_size);
 
-static volatile vqueue_info_intern_t vq_info[MM_VQ_COUNT] __attribute__((section(".data")));
+static struct vqueue_desc *const vq_desc_glob = (struct vqueue_desc *)DEVICE_MM_VQUEUE_BASE;
+static volatile vqueue_info_intern_t vq_info[VQUEUE_COUNT] __attribute__((section(".data")));
 
 static inline __attribute__((always_inline)) void
 evict_data(enum cop_dest dest, const volatile void *const data_ptr, uint64_t size)
@@ -61,8 +62,21 @@ void VQUEUE_init(void)
     // First configure the PLIC to accept PCIe interrupts (note that External Interrupts are not enabled yet)
     INT_enableInterrupt(PU_PLIC_PCIE_MESSAGE_INTR, 1, pcie_isr);
 
-    for (uint32_t i = 0; i < MM_VQ_COUNT; i++) {
-        init_vqueue(i, (VQUEUE_ELEMENT_COUNT * VQUEUE_ELEMENT_SIZE));
+    // Populate the VQ descriptor
+    vq_desc_glob->queue_addr = VQUEUE_DATA_BASE;
+    vq_desc_glob->queue_count = VQUEUE_COUNT;
+    vq_desc_glob->queue_element_count = VQUEUE_ELEMENT_COUNT;
+    vq_desc_glob->queue_element_size = VQUEUE_ELEMENT_SIZE;
+    vq_desc_glob->device_ready = 1U;
+
+    // Evict the dirty vqueue descriptor to memory
+    // TODO: Remove the cache eviction once Device Interface Registers are available in SRAM.
+    // TODO: Disabled the eviction until we move back to DRAM
+    //evict_data(to_L3, vq_desc_glob, sizeof(vq_desc_glob));
+
+    for (uint32_t i = 0; i < vq_desc_glob->queue_count; i++) {
+        init_vqueue(
+            i, (uint64_t)(vq_desc_glob->queue_element_count * vq_desc_glob->queue_element_size));
     }
 }
 
@@ -74,8 +88,10 @@ int64_t VQUEUE_push(vq_e vq, uint32_t vq_index, const void *const buffer_ptr, ui
     volatile struct circ_buf_header *const sq_cq_ptr = vq ? &vqueue_ptr->cq_header :
                                                             &vqueue_ptr->sq_header;
     uint8_t *const vq_buf =
-        vq ? DEVICE_CQUEUE_BASE(vq_index, (VQUEUE_ELEMENT_COUNT * VQUEUE_ELEMENT_SIZE)) :
-             DEVICE_SQUEUE_BASE(vq_index, (VQUEUE_ELEMENT_COUNT * VQUEUE_ELEMENT_SIZE));
+        vq ? DEVICE_CQUEUE_BASE(vq_index, (uint64_t)(vq_desc_glob->queue_element_count *
+                                                     vq_desc_glob->queue_element_size)) :
+             DEVICE_SQUEUE_BASE(vq_index, (uint64_t)(vq_desc_glob->queue_element_count *
+                                                     vq_desc_glob->queue_element_size));
 
     if (!vq_info[vq_index].is_ready) {
         return VQ_ERROR_NOT_READY;
@@ -86,22 +102,23 @@ int64_t VQUEUE_push(vq_e vq, uint32_t vq_index, const void *const buffer_ptr, ui
 
     uint32_t head = sq_cq_ptr->head;
     uint32_t tail = sq_cq_ptr->tail;
-    void *const vq_buf_off = (void *)(vq_buf + (head * VQUEUE_ELEMENT_SIZE));
+    void *const vq_buf_off = (void *)(vq_buf + (head * vq_desc_glob->queue_element_size));
 
     if (CIRCBUFFER_free(head, tail) == 0) {
         release_vqueue_lock(&(vq_info[vq_index].producer_lock));
         return VQ_ERROR_VQ_FULL;
     }
 
-    if (VQUEUE_BUFFER_HEADER_SIZE ==
-        CIRCBUFFER_write(vq_buf_off, 0U, VQUEUE_ELEMENT_SIZE, &header, VQUEUE_BUFFER_HEADER_SIZE)) {
-        if (length == CIRCBUFFER_write(vq_buf_off, VQUEUE_BUFFER_HEADER_SIZE, VQUEUE_ELEMENT_SIZE,
-                                       buffer_ptr, length)) {
+    if (VQUEUE_BUFFER_HEADER_SIZE == CIRCBUFFER_write(vq_buf_off, 0U,
+                                                      vq_desc_glob->queue_element_size, &header,
+                                                      VQUEUE_BUFFER_HEADER_SIZE)) {
+        if (length == CIRCBUFFER_write(vq_buf_off, VQUEUE_BUFFER_HEADER_SIZE,
+                                       vq_desc_glob->queue_element_size, buffer_ptr, length)) {
             // Update head index
-            sq_cq_ptr->head = (uint16_t)((head + 1) % VQUEUE_ELEMENT_COUNT);
+            sq_cq_ptr->head = (uint16_t)((head + 1) % vq_desc_glob->queue_element_count);
             // Make sure VQ data and head pointer is coherent in memory
             // TODO: Disabled the eviction until we move back to DRAM
-            //evict_data(to_L3, vq_buf_off, VQUEUE_ELEMENT_SIZE);
+            //evict_data(to_L3, vq_buf_off, vq_desc_glob->queue_element_size);
             //evict_data(to_L3, &(sq_cq_ptr->head), sizeof(sq_cq_ptr->head));
             asm volatile("fence");
             pcie_interrupt_host(vq_info[vq_index].notify_int);
@@ -127,8 +144,10 @@ int64_t VQUEUE_pop(vq_e vq, uint32_t vq_index, void *const buffer_ptr, size_t bu
     volatile struct circ_buf_header *const sq_cq_ptr = vq ? &vqueue_ptr->cq_header :
                                                             &vqueue_ptr->sq_header;
     uint8_t *const vq_buf =
-        vq ? DEVICE_CQUEUE_BASE(vq_index, (VQUEUE_ELEMENT_COUNT * VQUEUE_ELEMENT_SIZE)) :
-             DEVICE_SQUEUE_BASE(vq_index, (VQUEUE_ELEMENT_COUNT * VQUEUE_ELEMENT_SIZE));
+        vq ? DEVICE_CQUEUE_BASE(vq_index, (uint64_t)(vq_desc_glob->queue_element_count *
+                                                     vq_desc_glob->queue_element_size)) :
+             DEVICE_SQUEUE_BASE(vq_index, (uint64_t)(vq_desc_glob->queue_element_count *
+                                                     vq_desc_glob->queue_element_size));
 
     if (!vq_info[vq_index].is_ready) {
         return VQ_ERROR_NOT_READY;
@@ -139,7 +158,7 @@ int64_t VQUEUE_pop(vq_e vq, uint32_t vq_index, void *const buffer_ptr, size_t bu
 
     uint32_t head = sq_cq_ptr->head;
     uint32_t tail = sq_cq_ptr->tail;
-    void *const vq_buf_off = (void *)(vq_buf + (tail * VQUEUE_ELEMENT_SIZE));
+    void *const vq_buf_off = (void *)(vq_buf + (tail * vq_desc_glob->queue_element_size));
 
     if (CIRCBUFFER_used(head, tail) == 0) {
         release_vqueue_lock(&(vq_info[vq_index].consumer_lock));
@@ -150,15 +169,16 @@ int64_t VQUEUE_pop(vq_e vq, uint32_t vq_index, void *const buffer_ptr, size_t bu
     // Invalidate to read fresh header data
     //evict_data(to_L3, vq_buf_off, VQUEUE_BUFFER_HEADER_SIZE);
 
-    if (VQUEUE_BUFFER_HEADER_SIZE ==
-        CIRCBUFFER_read(vq_buf_off, 0U, VQUEUE_ELEMENT_SIZE, &header, VQUEUE_BUFFER_HEADER_SIZE)) {
+    if (VQUEUE_BUFFER_HEADER_SIZE == CIRCBUFFER_read(vq_buf_off, 0U,
+                                                     vq_desc_glob->queue_element_size, &header,
+                                                     VQUEUE_BUFFER_HEADER_SIZE)) {
         if ((header.length > 0) && (header.magic == VQUEUE_MAGIC)) {
             if (header.length <= buffer_size) {
                 // TODO: Disabled the eviction until we move back to DRAM
                 // Invalidate to read fresh vq data
                 //evict_data(to_L3, (void *)((uint64_t)vq_buf_off + VQUEUE_BUFFER_HEADER_SIZE), header.length);
-                rv = CIRCBUFFER_read(vq_buf_off, VQUEUE_BUFFER_HEADER_SIZE, VQUEUE_ELEMENT_SIZE,
-                                     buffer_ptr, header.length);
+                rv = CIRCBUFFER_read(vq_buf_off, VQUEUE_BUFFER_HEADER_SIZE,
+                                     vq_desc_glob->queue_element_size, buffer_ptr, header.length);
             } else {
                 log_write(LOG_LEVEL_ERROR,
                           "VQUEUE_pop: insufficient buffer, unable to pop message\r\n");
@@ -167,7 +187,7 @@ int64_t VQUEUE_pop(vq_e vq, uint32_t vq_index, void *const buffer_ptr, size_t bu
             log_write(LOG_LEVEL_ERROR, "VQUEUE_pop: invalid header\r\n");
         }
         // Update tail index (will also discard invalid data)
-        sq_cq_ptr->tail = (uint16_t)((tail + 1) % VQUEUE_ELEMENT_COUNT);
+        sq_cq_ptr->tail = (uint16_t)((tail + 1) % vq_desc_glob->queue_element_count);
         // Make sure VQ tail pointer is coherent in memory
         // TODO: Disabled the eviction until we move back to DRAM
         //evict_data(to_L3, &(sq_cq_ptr->tail), sizeof(sq_cq_ptr->tail));
@@ -206,7 +226,8 @@ void VQUEUE_update_status(uint32_t vq_index)
     case VQ_STATUS_WAITING:
         // The slave has requested we reset the VQs.
         log_write(LOG_LEVEL_INFO, "received slave reset req\r\n");
-        init_vqueue(vq_index, (VQUEUE_ELEMENT_COUNT * VQUEUE_ELEMENT_SIZE));
+        init_vqueue(vq_index, (uint64_t)(vq_desc_glob->queue_element_count *
+                                         vq_desc_glob->queue_element_size));
         pcie_interrupt_host(vq_info[vq_index].notify_int);
         break;
 
@@ -256,7 +277,7 @@ static void init_vqueue(uint32_t vq_index, uint64_t vq_size)
     vq_info[vq_index].consumer_lock = 0U;
 
     // Init the MSI-X vector
-    vq_info[vq_index].notify_int = MM_DEV_INTF_GET_BASE->mm_vq.interrupt_vector[vq_index];
+    vq_info[vq_index].notify_int = (uint16_t)vq_index;
 
     CIRCBUFFER_init(&(vq->sq_header), sbuffer_addr, vq_size);
     CIRCBUFFER_init(&(vq->cq_header), cbuffer_addr, vq_size);
