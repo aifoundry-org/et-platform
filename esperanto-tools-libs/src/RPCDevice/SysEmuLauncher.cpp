@@ -44,7 +44,6 @@ SysEmuLauncher::SysEmuLauncher(
       executable,             // Path to SysEMU's executable
       "-api_comm", api_connection,
       "-sim_api",
-      "-sim_api_async",       // Enable async behavior of the simulator API
       "-max_cycles", std::to_string(max_cycles),
       "-minions", "FFFFFFFF", // All minions enabled
       "-shires", fmt::format("0x{:X}", shires_mask),
