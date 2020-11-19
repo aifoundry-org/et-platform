@@ -15,6 +15,7 @@ GPROF     ?= 0
 COVERAGE  ?= 0
 PROFILING ?= 0
 BACKTRACE ?= $(DEBUG)
+SMB_SIZE  ?= 0
 
 include ../emu.mk
 include sysemu.mk
@@ -65,6 +66,18 @@ endif
 
 ifneq ($(PROFILING),0)
   CPPFLAGS += -DBEMU_PROFILING -DSYSEMU_PROFILING
+endif
+
+ifneq ($(SMB_SIZE),0)
+  ifdef SMB_ADDR
+    $(sysemu_OBJS): CPPFLAGS += -DSMB_SIZE=$(SMB_SIZE) -DSMB_ADDR=$(SMB_ADDR)
+  else
+    $(error Must define SMB_ADDR when SMB_SIZE is not 0)
+  endif
+else
+  ifdef SMB_ADDR
+    $(warning Ignoring SMB_ADDR because SMB_SIZE is 0)
+  endif
 endif
 
 # ----- phony targets ---------------------------------------------------------
