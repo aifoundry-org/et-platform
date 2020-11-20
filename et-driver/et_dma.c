@@ -11,7 +11,6 @@
 #include <asm/uaccess.h>
 
 #include "hal_device.h"
-#include "device_api_rpc_types_privileged.h"
 #include "et_layout.h"
 #include "et_pci_dev.h"
 
@@ -400,6 +399,363 @@ set_idle:
 
 	if (rv > 0)
 		*pos += rv;
+
+	return rv;
+}
+
+static inline void et_dma_free_coherent(struct et_dma_info *dma_info)
+{
+	if (dma_info)
+		dma_free_coherent(&dma_info->pdev->dev, dma_info->size,
+				  dma_info->kern_vaddr, dma_info->dma_addr);
+}
+
+static inline void *et_dma_alloc_coherent(struct et_dma_info *dma_info)
+{
+	if (dma_info)
+		return dma_alloc_coherent(&dma_info->pdev->dev, dma_info->size,
+					  &dma_info->dma_addr, GFP_KERNEL);
+	return NULL;
+}
+
+static ssize_t et_dma_pin_ubuf(struct et_dma_info *dma_info)
+{
+	size_t offs, i;
+	ssize_t rv;
+
+	if (!dma_info->usr_vaddr || dma_info->size == 0)
+		return -EINVAL;
+
+	/* determine space needed for page_list. */
+	offs = offset_in_page(dma_info->usr_vaddr);
+	dma_info->nr_pages = DIV_ROUND_UP(offs + dma_info->size, PAGE_SIZE);
+	dma_info->page_list = kcalloc(dma_info->nr_pages,
+				      sizeof(struct page *), GFP_KERNEL);
+	if (!dma_info->page_list)
+		return -ENOMEM;
+
+	/* pin user pages in memory */
+	rv = get_user_pages_fast((size_t)dma_info->usr_vaddr & PAGE_MASK,
+				 dma_info->nr_pages,
+				 dma_info->is_writable,
+				 dma_info->page_list);
+	if (rv < 0)
+		goto fail_get_user_pages;
+
+	if (rv < dma_info->nr_pages) {
+		for (i = 0; i < rv; i++) {
+			if (dma_info->page_list[i])
+				put_page(dma_info->page_list[i]);
+		}
+		rv = -EFAULT;
+		goto fail_get_user_pages;
+	}
+
+	return rv;
+
+fail_get_user_pages:
+	kfree(dma_info->page_list);
+	return rv;
+}
+
+static void et_dma_unpin_ubuf(struct et_dma_info *dma_info)
+{
+	size_t i;
+
+	if (dma_info && dma_info->page_list) {
+		for (i = 0; i < dma_info->nr_pages; i++) {
+			if (dma_info->is_writable)
+				set_page_dirty_lock(dma_info->page_list[i]);
+			if (dma_info->page_list[i])
+				put_page(dma_info->page_list[i]);
+		}
+		kfree(dma_info->page_list);
+	}
+}
+
+struct et_dma_info *et_dma_search_info(struct rb_root *root, tag_id_t tag_id)
+{
+	struct rb_node *node = root->rb_node;
+
+	while (node) {
+		struct et_dma_info *dma_info = rb_entry(node,
+							struct et_dma_info,
+							node);
+		if (tag_id < dma_info->tag_id)
+			node = node->rb_left;
+		else if (tag_id > dma_info->tag_id)
+			node = node->rb_right;
+		else
+			return dma_info;
+	}
+	return NULL;
+}
+
+bool et_dma_insert_info(struct rb_root *root, struct et_dma_info *dma_info)
+{
+	struct rb_node **new = &root->rb_node, *parent = NULL;
+
+	/* Figure out where to put new node */
+	while (*new) {
+		struct et_dma_info *this = rb_entry(*new, struct et_dma_info,
+						    node);
+		parent = *new;
+		if (dma_info->tag_id < this->tag_id)
+			new = &((*new)->rb_left);
+		else if (dma_info->tag_id > this->tag_id)
+			new = &((*new)->rb_right);
+		else
+			return false;
+	}
+
+	/* Add new node and rebalance tree. */
+	rb_link_node(&dma_info->node, parent, new);
+	rb_insert_color(&dma_info->node, root);
+
+	return true;
+}
+
+void et_dma_delete_info(struct rb_root *root, struct et_dma_info *dma_info)
+{
+	if (dma_info) {
+		et_dma_unpin_ubuf(dma_info);
+		et_dma_free_coherent(dma_info);
+
+		rb_erase(&dma_info->node, root);
+		kfree(dma_info);
+	}
+}
+
+void et_dma_delete_all_info(struct rb_root *root)
+{
+	struct et_dma_info *dma_info;
+	struct rb_node *node;
+
+	for (node = rb_first(root); node;) {
+		dma_info = rb_entry(node, struct et_dma_info, node);
+		node = rb_next(node);
+
+		et_dma_unpin_ubuf(dma_info);
+		et_dma_free_coherent(dma_info);
+
+		rb_erase(&dma_info->node, root);
+		kfree(dma_info);
+	}
+}
+
+ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev, u8 queue_index,
+			       struct device_ops_data_write_cmd_t *cmd,
+			       size_t cmd_size)
+{
+	struct et_vqueue_common *vq_common_mm =
+		et_dev->vqueue_mm_pptr[0]->vqueue_common;
+	struct et_dma_info *dma_info;
+	ssize_t rv;
+
+	if (cmd->size > S32_MAX) {
+		pr_err("Can't transfer more than 2GB at a time");
+		return -EINVAL;
+	}
+
+	dma_info = kmalloc(sizeof(*dma_info), GFP_KERNEL);
+	if (!dma_info)
+		return -ENOMEM;
+
+	dma_info->tag_id = cmd->command_info.cmd_hdr.tag_id;
+	dma_info->usr_vaddr = (void *)cmd->src_host_virt_addr;
+	dma_info->pdev = et_dev->pdev;
+	dma_info->size = cmd->size;
+	dma_info->is_writable = false; /* readonly */
+	dma_info->kern_vaddr = et_dma_alloc_coherent(dma_info);
+	if (!dma_info->kern_vaddr) {
+		pr_err("dma alloc failed\n");
+		rv = -ENOMEM;
+		goto error_free_dma_info;
+	}
+
+	// Pin the user buffer to avoid swapping out of pages during DMA
+	// operations
+	rv = et_dma_pin_ubuf(dma_info);
+	if (rv < 0) {
+		pr_err("et_dma_pin_ubuf failed\n");
+		goto error_dma_free_coherent;
+	}
+
+	mutex_lock(&vq_common_mm->dma_rbtree_mutex);
+	if (!et_dma_insert_info(&vq_common_mm->dma_rbtree, dma_info)) {
+		pr_err("err: tag_id already exists\n");
+		rv = -EINVAL;
+		mutex_unlock(&vq_common_mm->dma_rbtree_mutex);
+		goto error_dma_unpin_ubuf;
+	}
+	mutex_unlock(&vq_common_mm->dma_rbtree_mutex);
+
+	rv = copy_from_user(dma_info->kern_vaddr, dma_info->usr_vaddr,
+			    dma_info->size);
+	if (rv != 0) {
+		pr_err("Failed to copy from user\n");
+		goto error_dma_delete_info;
+	}
+
+	cmd->src_host_phy_addr = dma_info->dma_addr;
+	rv = et_vqueue_write(et_dev->vqueue_mm_pptr[queue_index], cmd,
+			     cmd_size);
+	if (rv < 0)
+		goto error_dma_delete_info;
+
+	if (rv != cmd_size) {
+		pr_err("vqueue write didn't send all bytes\n");
+		rv = -EIO;
+		goto error_dma_delete_info;
+	}
+
+	return rv;
+
+error_dma_delete_info:
+	et_dma_delete_info(&vq_common_mm->dma_rbtree, dma_info);
+	return rv;
+
+error_dma_unpin_ubuf:
+	et_dma_unpin_ubuf(dma_info);
+
+error_dma_free_coherent:
+	et_dma_free_coherent(dma_info);
+
+error_free_dma_info:
+	kfree(dma_info);
+
+	return rv;
+}
+
+ssize_t et_dma_read_from_device(struct et_pci_dev *et_dev, u8 queue_index,
+				struct device_ops_data_read_cmd_t *cmd,
+				size_t cmd_size)
+{
+	struct et_vqueue_common *vq_common_mm =
+		et_dev->vqueue_mm_pptr[0]->vqueue_common;
+	struct et_dma_info *dma_info;
+	ssize_t rv;
+
+	if (cmd->size > S32_MAX) {
+		pr_err("Can't transfer more than 2GB at a time");
+		return -EINVAL;
+	}
+
+	dma_info = kmalloc(sizeof(*dma_info), GFP_KERNEL);
+	if (!dma_info)
+		return -ENOMEM;
+
+	dma_info->tag_id = cmd->command_info.cmd_hdr.tag_id;
+	dma_info->usr_vaddr = (void *)cmd->dst_host_virt_addr;
+	dma_info->pdev = et_dev->pdev;
+	dma_info->size = cmd->size;
+	dma_info->is_writable = true; /* writable */
+	dma_info->kern_vaddr = et_dma_alloc_coherent(dma_info);
+	if (!dma_info->kern_vaddr) {
+		pr_err("dma alloc failed\n");
+		rv = -ENOMEM;
+		goto error_free_dma_info;
+	}
+
+	// Pin the user buffer to avoid swapping out of pages during DMA
+	// operations
+	rv = et_dma_pin_ubuf(dma_info);
+	if (rv < 0) {
+		pr_err("et_dma_pin_ubuf failed\n");
+		goto error_dma_free_coherent;
+	}
+
+	mutex_lock(&vq_common_mm->dma_rbtree_mutex);
+	if (!et_dma_insert_info(&vq_common_mm->dma_rbtree, dma_info)) {
+		pr_err("err: tag_id already exists\n");
+		rv = -EINVAL;
+		mutex_unlock(&vq_common_mm->dma_rbtree_mutex);
+		goto error_dma_unpin_ubuf;
+	}
+	mutex_unlock(&vq_common_mm->dma_rbtree_mutex);
+
+	cmd->dst_host_phy_addr = dma_info->dma_addr;
+	rv = et_vqueue_write(et_dev->vqueue_mm_pptr[queue_index], cmd,
+			     cmd_size);
+	if (rv < 0)
+		goto error_dma_delete_info;
+
+	if (rv != cmd_size) {
+		pr_err("vqueue write didn't send all bytes\n");
+		rv = -EIO;
+		goto error_dma_delete_info;
+	}
+
+	return rv;
+
+error_dma_delete_info:
+	et_dma_delete_info(&vq_common_mm->dma_rbtree, dma_info);
+	return rv;
+
+error_dma_unpin_ubuf:
+	et_dma_unpin_ubuf(dma_info);
+
+error_dma_free_coherent:
+	et_dma_free_coherent(dma_info);
+
+error_free_dma_info:
+	kfree(dma_info);
+
+	return rv;
+}
+
+ssize_t et_dma_move_data(struct et_pci_dev *et_dev, u8 queue_index,
+			 char __user *ucmd, size_t ucmd_size)
+{
+	void *kern_buf;
+	struct et_vqueue_common *vq_common_mm =
+		et_dev->vqueue_mm_pptr[0]->vqueue_common;
+	struct cmn_header_t *header;
+	ssize_t rv;
+
+	if (ucmd_size > vq_common_mm->queue_buf_size) {
+		pr_err("message too big (size %ld, max %d)", ucmd_size,
+		       vq_common_mm->queue_buf_size);
+		return -EINVAL;
+	}
+	if (ucmd_size < sizeof(struct cmn_header_t))
+		pr_err("message too small (size %ld)", ucmd_size);
+
+	kern_buf = kzalloc(ucmd_size, GFP_KERNEL);
+
+	if (!kern_buf)
+		return -ENOMEM;
+
+	rv = copy_from_user(kern_buf, ucmd, ucmd_size);
+	if (rv) {
+		pr_err("copy_from_user failed\n");
+		rv = -ENOMEM;
+		goto free_kern_buf;
+	}
+
+	header = (struct cmn_header_t *)kern_buf;
+
+	if (header->msg_id == DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD) {
+		if (ucmd_size < sizeof(struct device_ops_data_read_cmd_t)) {
+			pr_err("Invalid DMA read cmd (size %ld)", ucmd_size);
+			rv = -EINVAL;
+			goto free_kern_buf;
+		}
+		rv = et_dma_read_from_device(et_dev, queue_index, kern_buf,
+					     ucmd_size);
+	} else if (header->msg_id ==
+		   DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD) {
+		if (ucmd_size < sizeof(struct device_ops_data_write_cmd_t)) {
+			pr_err("Invalid DMA write cmd (size %ld)", ucmd_size);
+			rv = -EINVAL;
+			goto free_kern_buf;
+		}
+		rv = et_dma_write_to_device(et_dev, queue_index, kern_buf,
+					    ucmd_size);
+	}
+
+free_kern_buf:
+	kfree(kern_buf);
 
 	return rv;
 }

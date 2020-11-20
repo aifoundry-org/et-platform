@@ -251,11 +251,12 @@ static int et_vqueues_discover(struct et_pci_dev *et_dev)
 	snprintf(wq_name, sizeof(wq_name), "%s_mm_wq%d",
 		 dev_name(&et_dev->pdev->dev), et_dev->index);
 	vq_common_mm->workqueue = create_singlethread_workqueue(wq_name);
-
 	if (!vq_common_mm->workqueue) {
 		rc = -ENOMEM;
 		goto error_free_vq_common_mm;
 	}
+	mutex_init(&vq_common_mm->dma_rbtree_mutex);
+	vq_common_mm->dma_rbtree = RB_ROOT;
 
 	aligned_queue_size =
 	(((vq_common_mm->queue_buf_count * vq_common_mm->queue_buf_size - 1) /
@@ -341,10 +342,9 @@ static void et_vqueue_cleanup(struct et_pci_dev *et_dev, bool is_vqueue_sp)
 	struct et_vqueue_common *vq_common;
 
 	if (is_vqueue_sp) {
-		if (et_dev->vqueue_sp.vqueue_common->workqueue) {
-			destroy_workqueue
-				(et_dev->vqueue_sp.vqueue_common->workqueue);
-		}
+		vq_common = et_dev->vqueue_sp.vqueue_common;
+		if (vq_common->workqueue)
+			destroy_workqueue(vq_common->workqueue);
 
 		/* TODO: call wake_up_interruptible_all() for SP wait queue */
 
@@ -353,6 +353,12 @@ static void et_vqueue_cleanup(struct et_pci_dev *et_dev, bool is_vqueue_sp)
 	} else {
 		vq_common = et_dev->vqueue_mm_pptr[0]->vqueue_common;
 		queue_count_mm = vq_common->queue_count;
+
+		mutex_lock(&vq_common->dma_rbtree_mutex);
+		et_dma_delete_all_info(&vq_common->dma_rbtree);
+		mutex_unlock(&vq_common->dma_rbtree_mutex);
+
+		mutex_destroy(&vq_common->dma_rbtree_mutex);
 
 		wake_up_interruptible_all(&vq_common->vqueue_wq);
 
@@ -716,8 +722,9 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 				   _IOC_SIZE(cmd)))
 			return -EINVAL;
 		if (cmd_info.flags & CMD_INFO_FLAG_DMA) {
-			/* TODO SW-4256: Implement DMA read/write */
-			return -ENOENT;
+			return et_dma_move_data(et_dev, cmd_info.sq_index,
+						(void __user *)cmd_info.cmd,
+						cmd_info.size);
 		} else {
 			return et_vqueue_write_from_user
 				(et_dev->vqueue_mm_pptr[cmd_info.sq_index],

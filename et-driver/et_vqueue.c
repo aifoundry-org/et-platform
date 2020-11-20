@@ -186,7 +186,7 @@ ssize_t et_vqueue_write(struct et_vqueue *vqueue, void *buf, size_t count)
 				  vqueue->vqueue_common->queue_buf_count);
 
 	if (free_buffers < 1) {
-		pr_err("no room for message, no buffer free\n");
+		pr_err("VQ[%d]: full; no room for message\n", vqueue->index);
 		rc = -ENOMEM;
 		goto write_mutex_unlock;
 	}
@@ -311,6 +311,9 @@ ssize_t et_vqueue_read_to_user(struct et_vqueue *vqueue, char __user *buf,
 			       size_t count)
 {
 	struct et_msg_node *msg = NULL;
+	struct cmn_header_t *dev_ops_api_header = NULL;
+	struct et_dma_info *dma_info = NULL;
+	struct et_vqueue_common *vq_common = vqueue->vqueue_common;
 
 	if (vqueue->flags & VQUEUE_FLAG_ABORT)
 		return -EINTR;
@@ -320,9 +323,9 @@ ssize_t et_vqueue_read_to_user(struct et_vqueue *vqueue, char __user *buf,
 
 	if (!usr_message_available(vqueue, &msg)) {
 		mutex_lock(&vqueue->cq_bitmap_mutex);
-		vqueue->vqueue_common->cq_bitmap &= ~((u32)1 << vqueue->index);
+		vq_common->cq_bitmap &= ~((u32)1 << vqueue->index);
 		mutex_unlock(&vqueue->cq_bitmap_mutex);
-		pr_err("Failed to pop a message\n");
+		pr_err("VQ[%d]: empty; no message to pop\n", vqueue->index);
 		return -EAGAIN;
 	}
 
@@ -336,6 +339,26 @@ ssize_t et_vqueue_read_to_user(struct et_vqueue *vqueue, char __user *buf,
 
 	if (!(msg->msg))
 		return -EINVAL;
+
+	dev_ops_api_header = (struct cmn_header_t *)msg->msg;
+
+	if (dev_ops_api_header->msg_id ==
+	    DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP ||
+	    dev_ops_api_header->msg_id ==
+	    DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP) {
+		mutex_lock(&vq_common->dma_rbtree_mutex);
+		dma_info = et_dma_search_info(&vq_common->dma_rbtree,
+					      dev_ops_api_header->tag_id);
+		if (dev_ops_api_header->msg_id ==
+		    DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP) {
+			if (dma_info && copy_to_user(dma_info->usr_vaddr,
+						     dma_info->kern_vaddr,
+						     dma_info->size))
+				pr_err("failed to copy DMA buffer\n");
+		}
+		et_dma_delete_info(&vq_common->dma_rbtree, dma_info);
+		mutex_unlock(&vq_common->dma_rbtree_mutex);
+	}
 
 	if (copy_to_user(buf, msg->msg, msg->msg_size)) {
 		pr_err("failed to copy to user\n");
@@ -411,13 +434,6 @@ static int handle_msg(struct et_vqueue *vqueue, void __iomem *buf_to_read)
 	//leisure.
 	if (dev_ops_api_header.msg_id > DEV_OPS_API_MID_NONE &&
 	    dev_ops_api_header.msg_id < DEV_OPS_API_MID_LAST) {
-		if (dev_ops_api_header.msg_id ==
-		    DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP) {
-			/* TBD */
-		} else if (dev_ops_api_header.msg_id ==
-			   DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP) {
-			/* TBD */
-		}
 		//Message is for user mode. Save it off.
 		msg_node = create_msg_node(header.length);
 

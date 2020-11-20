@@ -16,6 +16,7 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <linux/circ_buf.h>
+#include <linux/rbtree.h>
 #include "device_api_spec_privileged.h"
 #include "et_mbox.h"
 #include "et_vqueue_buffer.h"
@@ -66,6 +67,8 @@ struct et_vqueue_common {
 	void __iomem *mapped_baseaddr;
 	void __iomem *interrupt_addr;
 	struct workqueue_struct *workqueue;
+	struct rb_root dma_rbtree;
+	struct mutex dma_rbtree_mutex;	/* serializes access to dma_rbtree */
 };
 
 struct et_vqueue {
