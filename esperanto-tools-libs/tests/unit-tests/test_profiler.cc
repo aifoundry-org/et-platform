@@ -112,7 +112,7 @@ public:
   std::shared_ptr<Device> dev_;
 };
 
-TEST_F(TestProfiler, profiler) {
+TEST_F(TestProfiler, DISABLED_profiler) {
   // initialize profiler for device dev_
   Profiler profiler(*dev_);
 
