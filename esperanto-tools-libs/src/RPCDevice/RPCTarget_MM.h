@@ -21,9 +21,11 @@
 #include <grpc/support/log.h>
 #include <grpcpp/grpcpp.h>
 
+#include <atomic>
 #include <cassert>
 #include <memory>
 #include <string>
+#include <thread>
 
 using grpc::Channel;
 using grpc::ClientAsyncResponseReader;
@@ -50,6 +52,9 @@ public:
 
   /// @brief RPC initializations
   bool rpcInit(const std::string &socketPath);
+
+  /// @brief Do RPC request from simulator-api
+  std::pair<bool, simulator_api::Reply> doRPC(const simulator_api::Request &req);
 
   /// @brief Boot specific Minions of a Shire
   bool rpcBootShire(uint32_t shire_id, uint32_t thread0_enable, uint32_t thread1_enable);
@@ -86,9 +91,6 @@ public:
 
 private:
   std::unique_ptr<simulator_api::SimAPI::Stub> stub_;
-
-  /// @brief Do RPC request from simulator-api
-  std::pair<bool, simulator_api::Reply> doRPC(const simulator_api::Request &req);
 };
 
 /// @class RPCTargetMM
@@ -155,6 +157,10 @@ private:
   std::shared_ptr<RPCGenerator> rpcGen_;
   std::vector<std::pair<uint8_t, std::unique_ptr<EmuVirtQueueDev>>> queueStorage_;
   uint16_t queueBufSize_;
+  std::atomic<bool> host_mem_access_finish_;
+  std::thread host_mem_access_thread_;
+
+  void hostMemoryAccessThread();
 
   /// @brief Create virtual queue emu device paired with queueId
   std::pair<uint8_t, EmuVirtQueueDev &> createVirtQueue(uint8_t queueId, uint64_t queueBaseAddr, uint64_t queueHeaderAddr);

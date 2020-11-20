@@ -320,7 +320,12 @@ RPCTargetMM::RPCTargetMM(int index, const std::string &p)
       rpcGen_(std::make_shared<RPCGenerator> ()) {}
 
 bool RPCTargetMM::init() {
-  return device_alive_ = rpcGen_->rpcInit(socket_path_);
+  bool ret = rpcGen_->rpcInit(socket_path_);
+  if (!ret)
+    return false;
+  host_mem_access_finish_.store(false);
+  host_mem_access_thread_ = std::thread(&RPCTargetMM::hostMemoryAccessThread, this);
+  return true;
 }
 
 bool RPCTargetMM::boot(uint32_t shire_id, uint32_t thread0_enable, uint32_t thread1_enable) {
@@ -344,7 +349,7 @@ bool RPCTargetMM::virtQueuesDiscover(TimeDuration wait_time) {
     assert(success);
 
     // Ensure that MM device interface registers are initialized. This also ignores the state where SP is not up.
-    if ((status >= device_fw::MM_DEV_INTF_MM_BOOT_STATUS_DEV_INTF_READY_INITIALIZED) || 
+    if ((status >= device_fw::MM_DEV_INTF_MM_BOOT_STATUS_DEV_INTF_READY_INITIALIZED) ||
         (status == device_fw::MM_DEV_INTF_MM_BOOT_STATUS_MM_SP_MB_TIMEOUT)) {
       success = rpcGen_->rpcVirtQueueRead(kMMDevIntfRegAddr, sizeof(MMDevIntf), &MMDevIntf);
       assert(success);
@@ -409,9 +414,6 @@ bool RPCTargetMM::postFWLoadInit() {
 }
 
 bool RPCTargetMM::deinit() {
-  for (uint8_t queueId = 0; queueId < queueCount_; queueId++) {
-    assert(destroyVirtQueue(queueId));
-  }
   return shutdown();
 }
 
@@ -442,6 +444,64 @@ bool RPCTargetMM::registerResponseCallback() {
 bool RPCTargetMM::registerDeviceEventCallback() {
   assert(true);
   return false;
+}
+
+void RPCTargetMM::hostMemoryAccessThread(void)
+{
+  // This thread sends "Get Host Memory Accesses" to deal with DMA requests from the simulator
+  while (!host_mem_access_finish_.load()) {
+    simulator_api::Request request;
+    auto req = new GetHostMemoryAccessReq();
+    request.set_allocated_get_host_memory_access_req(req);
+
+    // Do RPC and wait for reply
+    auto reply_res = rpcGen_->doRPC(request);
+    if (!reply_res.first) {
+      continue;
+    }
+
+    auto reply = reply_res.second;
+    assert(reply.has_get_host_memory_access_resp());
+    auto &resp = reply.get_host_memory_access_resp();
+    // Check if the response is a Host memory access Read or Write
+    if (resp.has_read_resp()) {
+      auto &read = resp.read_resp();
+      uint64_t id = read.id();
+      uint64_t host_addr = read.host_addr();
+      uint64_t size = read.size();
+      RTINFO << "Device requested host memory read: addr: " << std::hex << host_addr << ", size: " << size;
+
+      // Read data from this process' virtual memory space and reply it back
+      uint8_t *data = new uint8_t[size];
+      memcpy(reinterpret_cast<void *>(data), reinterpret_cast<const void *>(host_addr), size);
+
+      // Send a request with the data
+      simulator_api::Request simapi_req;
+      auto read_done_req = new HostMemoryAccessReadDoneReq();
+      read_done_req->set_id(id);
+      read_done_req->set_data(data, size);
+      simapi_req.set_allocated_host_memory_access_read_done_req(read_done_req);
+
+      // Do RPC and wait for reply
+      auto reply_res = rpcGen_->doRPC(simapi_req);
+      if (reply_res.first) {
+        assert(reply_res.second.has_host_memory_access_read_done_resp());
+      }
+
+      // Free data
+      delete[] data;
+    } else if (resp.has_write_resp()) {
+      auto &write = resp.write_resp();
+      uint64_t host_addr = write.host_addr();
+      uint64_t size = write.size();
+      RTINFO << "Device requested host memory write: addr: " << std::hex << host_addr << ", size: " << size;
+      const void *data = reinterpret_cast<const void *>(write.data().c_str());
+      // Write data to this process' virtual memory space
+      memcpy(reinterpret_cast<void *>(host_addr), data, size);
+    } else {
+      assert(false);
+    }
+  }
 }
 
 std::pair<uint8_t, EmuVirtQueueDev &>
@@ -556,10 +616,18 @@ bool RPCTargetMM::waitForEpollEvents(uint32_t &sq_bitmap, uint32_t &cq_bitmap) {
 }
 
 bool RPCTargetMM::shutdown() {
-  // Mark the device as not alive ahead of time so that we can
-  // do a proper teardown
+  // Mark the device as not alive ahead of time so that we can do a proper teardown
   device_alive_ = false;
-  return rpcGen_->rpcShutdown();
+  host_mem_access_finish_.store(true);
+  rpcGen_->rpcShutdown();
+
+  for (uint8_t queueId = 0; queueId < queueCount_; queueId++) {
+    assert(destroyVirtQueue(queueId));
+  }
+
+  host_mem_access_thread_.join();
+
+  return true;
 }
 
 } // namespace device
