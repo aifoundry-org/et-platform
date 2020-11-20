@@ -8,6 +8,7 @@
  */
 
 #include "et_vqueue.h"
+#include "et_dma.h"
 
 #include <linux/errno.h>
 #include <linux/io.h>
@@ -353,7 +354,7 @@ ssize_t et_vqueue_read_to_user(struct et_vqueue *vqueue, char __user *buf,
 bool et_vqueue_header_valid(struct et_vqueue *vqueue,
 			    struct et_vqueue_header *header)
 {
-	if (header->length < ET_VQUEUE_MIN_MSG_LEN)
+	if (header->length < ET_DEV_OPS_API_HEADER_SIZE)
 		return false;
 	if (header->length > vqueue->vqueue_common->queue_buf_size)
 		return false;
@@ -365,21 +366,25 @@ bool et_vqueue_header_valid(struct et_vqueue *vqueue,
 static int handle_msg(struct et_vqueue *vqueue, void __iomem *buf_to_read)
 {
 	ssize_t offset;
-	u64 msg_id;
+	struct et_vqueue_common *vq_common = vqueue->vqueue_common;
 	struct et_vqueue_header header;
+	struct cmn_header_t dev_ops_api_header;
+	struct et_msg_node *msg_node;
 
 	//Caller assures at least header and message ID are available
 
 	if (!buf_to_read) {
-		pr_err("NULL buf_to_read pointer being used in %s\n", __func__);
+		pr_err("NULL buf_to_read pointer being used in %s\n",
+		       __func__);
 		return -1;
 	}
 
+	/* TODO SW-4970: Remove the extra header */
 	//Read the message header
 	offset = 0;
 	offset = et_vqueue_buffer_read(buf_to_read, offset,
-				       vqueue->vqueue_common->queue_buf_size,
-					(u8 *)&header, ET_VQUEUE_HEADER_SIZE);
+				       vq_common->queue_buf_size,
+				       (u8 *)&header, ET_VQUEUE_HEADER_SIZE);
 	if (offset < 0)
 		return offset;
 
@@ -388,39 +393,47 @@ static int handle_msg(struct et_vqueue *vqueue, void __iomem *buf_to_read)
 	if (!et_vqueue_header_valid(vqueue, &header)) {
 		iowrite8(VQUEUE_STATUS_ERROR,
 			 &vqueue->vqueue_info->slave_status);
-		interrupt_vqueue(vqueue->vqueue_common->interrupt_addr);
+		interrupt_vqueue(vq_common->interrupt_addr);
 		panic("VQueue corrupt");
 		return -1;
 	}
 
 	//Read the message ID
 	offset = et_vqueue_buffer_read(buf_to_read, offset,
-				       vqueue->vqueue_common->queue_buf_size,
-				       (u8 *)&msg_id, ET_VQUEUE_MSG_ID_SIZE);
+				       vq_common->queue_buf_size,
+				       (u8 *)&dev_ops_api_header,
+				       ET_DEV_OPS_API_HEADER_SIZE);
 	if (offset < 0)
 		return offset;
 
 	//Dispatch based on ID. Messages for the kernel are handled right away,
 	//messages for user mode are saved off for the user to fetch at their
 	//leisure.
-	if (msg_id == MBOX_DEVAPI_PRIVILEGED_MID_DMA_RUN_TO_DONE_RSP) {
-		/* TBD */
-	} else if (msg_id == 0xDEADBEEF) {
-		/* TBD */
-	} else {
+	if (dev_ops_api_header.msg_id > DEV_OPS_API_MID_NONE &&
+	    dev_ops_api_header.msg_id < DEV_OPS_API_MID_LAST) {
+		if (dev_ops_api_header.msg_id ==
+		    DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP) {
+			/* TBD */
+		} else if (dev_ops_api_header.msg_id ==
+			   DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP) {
+			/* TBD */
+		}
 		//Message is for user mode. Save it off.
-		struct et_msg_node *msg_node = create_msg_node(header.length);
+		msg_node = create_msg_node(header.length);
 
 		if (!msg_node)
 			return -1;
-		memcpy(msg_node->msg, (u8 *)&msg_id, ET_VQUEUE_MSG_ID_SIZE);
+		memcpy(msg_node->msg, (u8 *)&dev_ops_api_header,
+		       ET_DEV_OPS_API_HEADER_SIZE);
 
 		//MMIO msg body directly into node memory
 		offset =
 		et_vqueue_buffer_read(buf_to_read, offset,
 				      vqueue->vqueue_common->queue_buf_size,
-				(u8 *)msg_node->msg + ET_VQUEUE_MSG_ID_SIZE,
-				header.length - ET_VQUEUE_MSG_ID_SIZE);
+				      (u8 *)msg_node->msg +
+				      ET_DEV_OPS_API_HEADER_SIZE,
+				      header.length -
+				      ET_DEV_OPS_API_HEADER_SIZE);
 		if (offset < 0)
 			return offset;
 
@@ -436,8 +449,6 @@ static int handle_msg(struct et_vqueue *vqueue, void __iomem *buf_to_read)
 	}
 
 	return 0;
-//TODO: white list all messages? else case is an error?
-//specific white list per vqueue?
 }
 
 static void et_vqueue_handshaking(struct et_vqueue *vqueue)

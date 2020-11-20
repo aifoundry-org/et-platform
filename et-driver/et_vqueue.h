@@ -88,12 +88,10 @@ struct et_vqueue {
 	u8 index;
 };
 
+/* TODO SW-4970: Remove extra driver header */
 #define ET_VQUEUE_HEADER_SIZE (sizeof(struct et_vqueue_header))
-#define ET_VQUEUE_MSG_ID_SIZE (sizeof(uint64_t))
 
-#define ET_VQUEUE_MIN_MSG_SIZE (ET_VQUEUE_HEADER_SIZE + ET_VQUEUE_MSG_ID_SIZE)
-
-#define ET_VQUEUE_MIN_MSG_LEN (ET_VQUEUE_HEADER_SIZE)
+#define ET_DEV_OPS_API_HEADER_SIZE (sizeof(struct cmn_header_t))
 
 struct et_pci_dev;
 
@@ -105,7 +103,7 @@ bool et_vqueue_ready(struct et_vqueue *vqueue);
 
 void et_vqueue_reset(struct et_vqueue *vqueue);
 
-ssize_t et_vqueue_write(struct et_vqueue *vqueue, void *buff, size_t count);
+ssize_t et_vqueue_write(struct et_vqueue *vqueue, void *buf, size_t count);
 
 ssize_t et_vqueue_write_from_user(struct et_vqueue *vqueue,
 				  const char __user *buf, size_t count);

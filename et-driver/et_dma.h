@@ -7,6 +7,8 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 
+#include "device_ops_api_rpc_types.h"
+#include "device_ops_api_spec.h"
 #include "device_api_rpc_types_privileged.h"
 #include "et_mbox.h"
 
