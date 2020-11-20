@@ -95,13 +95,6 @@ public:
   ///
   virtual uint64_t getDramBaseAddress() const = 0;
 
-  /// \brief Discover commands to discover all available devices
-  //
-  /// @returns arrays of int of indicies containing all available ET SOC devices
-  ///
-
-  virtual std::array<int, 6> devices = {0,1,2,3,4,5};
-
   /// \brief Virtual Destructor to enable polymorphic release of the IDeviceOpsSync
   /// instances
   virtual ~IDeviceSync() = default;
