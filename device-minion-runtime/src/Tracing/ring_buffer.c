@@ -62,11 +62,7 @@ void *ring_buffer_alloc_space(uint16_t hart_id, size_t size)
             //Since the event ID is always placed at the start of an event structure, place overflow flag at the start
             *(rbuffer_header->buffer + rbuffer_header->head) = TRACE_EVENT_ID_OVERFLOW;
             // Mark the remaining space as invalid except start
-            if (avail_size  >= sizeof(TRACE_EVENT_ID_OVERFLOW)) {
-                memset((void *)(rbuffer_header->buffer + rbuffer_header->head +
-                                sizeof(TRACE_EVENT_ID_OVERFLOW)),
-                    0, avail_size + 1 - sizeof(TRACE_EVENT_ID_OVERFLOW));
-            }
+            memset((void *)(rbuffer_header->buffer + rbuffer_header->head + 1), 0, avail_size);
 
             // wrap head pointer
             rbuffer_header->head = 0;
@@ -81,13 +77,9 @@ void *ring_buffer_alloc_space(uint16_t hart_id, size_t size)
             //Since the event ID is always placed at the start of an event structure, place overflow flag at the start
             *(rbuffer_header->buffer + rbuffer_header->head) = TRACE_EVENT_ID_OVERFLOW;
             // Mark the remaining space as invalid except start
-            if (avail_size  >= sizeof(TRACE_EVENT_ID_OVERFLOW)) {
-                memset((void *)(rbuffer_header->buffer + rbuffer_header->head +
-                                sizeof(TRACE_EVENT_ID_OVERFLOW)),
-                    0,
-                    (DEVICE_MRT_BUFFER_LENGTH(cntrl->buffer_size) - rbuffer_header->tail +
-                        avail_size + 1 - sizeof(TRACE_EVENT_ID_OVERFLOW)));
-            }
+            memset(
+                (void *)(rbuffer_header->buffer + rbuffer_header->head + 1), 0,
+                (DEVICE_MRT_BUFFER_LENGTH(cntrl->buffer_size) - rbuffer_header->tail + avail_size));
 
             rbuffer_header->head = 0;
             rbuffer_header->tail = 0;
