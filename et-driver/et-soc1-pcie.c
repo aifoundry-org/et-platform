@@ -36,6 +36,11 @@
 #include "et_pci_dev.h"
 #include "hal_device.h"
 
+/* Header file is currently not part of driver code. It will be added once
+ * implementation becomes stable
+ */
+#include "mm_dev_intf_reg.h"
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Esperanto <esperanto@gmail.com or admin@esperanto.com>");
 MODULE_DESCRIPTION("PCIe device driver for esperanto soc-1");
@@ -69,13 +74,14 @@ static unsigned long dev_bitmap;
 #define IPI_TRIGGER_OFFSET 0
 #define MMM_INT_INC_OFFSET 4
 
-/* TODO: Replace defines with Device Interface Read to populate values */
-#define ALIGNMENT_SIZE			64
-#define VQUEUE_DESC_OFFSET		0x800
-#define VQUEUE_DESC_VQUEUE_INFO_SIZE	0x100
-#define VQUEUE_MM_OFFSET		R_PU_MBOX_PC_MM_BASEADDR + \
-					VQUEUE_DESC_OFFSET + \
-					VQUEUE_DESC_VQUEUE_INFO_SIZE
+static u64 et_ioread64(void __iomem *addr)
+{
+	u64 low, high;
+
+	low = ioread32(addr);
+	high = ioread32(addr + sizeof(u32));
+	return low | (high << 32);
+}
 
 static u8 get_index(void)
 {
@@ -100,47 +106,71 @@ static void et_isr_work(struct work_struct *work)
 }
 #endif
 
-/* TODO: fixme SW-5067 */
-static bool read_device_status(struct et_pci_dev *et_dev)
+static void et_isr_work(struct work_struct *work);
+
+static void et_unmap_bar_dynamic(void *bar_map_ptr)
 {
-	struct et_vqueue_desc __iomem *vq_desc_mm;
-	u8 device_ready;
+	if (bar_map_ptr)
+		iounmap(bar_map_ptr);
+}
 
-	vq_desc_mm =
-		(struct et_vqueue_desc *)(et_dev->iomem[IOMEM_R_PU_MBOX_PC_MM] +
-					  VQUEUE_DESC_OFFSET);
+static int et_map_bar_dynamic(struct et_pci_dev *et_dev,
+			      struct et_bar_mapping *bm_info,
+			      void __iomem **bar_map_ptr)
+{
+	if (bm_info->strictly_order_access)
+		*bar_map_ptr = pci_iomap_range(et_dev->pdev, bm_info->bar,
+					       bm_info->bar_offset,
+					       bm_info->size);
+	else
+		*bar_map_ptr = pci_iomap_wc_range(et_dev->pdev, bm_info->bar,
+						  bm_info->bar_offset,
+						  bm_info->size);
 
-	device_ready = ioread8(&vq_desc_mm->device_ready);
-
-	if (device_ready != 0x1) {
-		return false;
+	if (IS_ERR(*bar_map_ptr)) {
+		dev_err(&et_dev->pdev->dev, "dynamic bar mapping failed\n");
+		return PTR_ERR(*bar_map_ptr);
 	}
 
-	return true;
+	return 0;
 }
 
-/* TODO: fixme SW-5067 */
-static bool set_host_status(struct et_pci_dev *et_dev)
+static bool is_bar_prefetchable(struct et_pci_dev *et_dev, u8 bar_no)
 {
-	struct et_vqueue_desc __iomem *vq_desc_mm;
-	u8 host_ready;
+	u32 bar;
 
-	vq_desc_mm =
-		(struct et_vqueue_desc *)(et_dev->iomem[IOMEM_R_PU_MBOX_PC_MM] +
-					  VQUEUE_DESC_OFFSET);
+	switch (bar_no) {
+	case 0:
+		pci_read_config_dword(et_dev->pdev, PCI_BASE_ADDRESS_0, &bar);
+		break;
+	case 1:
+		pci_read_config_dword(et_dev->pdev, PCI_BASE_ADDRESS_1, &bar);
+		break;
+	case 2:
+		pci_read_config_dword(et_dev->pdev, PCI_BASE_ADDRESS_2, &bar);
+		break;
+	case 3:
+		pci_read_config_dword(et_dev->pdev, PCI_BASE_ADDRESS_3, &bar);
+		break;
+	case 4:
+		pci_read_config_dword(et_dev->pdev, PCI_BASE_ADDRESS_4, &bar);
+		break;
+	case 5:
+		pci_read_config_dword(et_dev->pdev, PCI_BASE_ADDRESS_5, &bar);
+		break;
+	default:
+		pr_err("Invalid BAR number: %d\n", bar_no);
+		return -EINVAL;
+	}
 
-	iowrite8(1, &vq_desc_mm->host_ready);
-
-	host_ready = 0;
-	host_ready = ioread8(&vq_desc_mm->host_ready);
-
-	if (host_ready == 1)
+	if (bar & PCI_BASE_ADDRESS_MEM_PREFETCH) {
+		pr_info("BAR[%d]: prefetchable memory\n", bar_no);
 		return true;
-
-	return false;
+	} else {
+		pr_info("BAR[%d]: non-prefetchable memory\n", bar_no);
+		return false;
+	}
 }
-
-static void et_isr_work(struct work_struct *work);
 
 /* Static device data discovery is just a temporary stop gap solution and
  * this code will change in futurue to support proper PCI device discovery
@@ -149,35 +179,73 @@ static int et_vqueues_discover(struct et_pci_dev *et_dev)
 {
 	int i, rc;
 	char wq_name[32];
-	void __iomem *vq_baseaddr;
+	void __iomem *vq_baseaddr_mm;
+	struct et_bar_mapping bm_info;
 	size_t aligned_queue_size;
 	struct et_vqueue *vqs_mm;
 	struct et_vqueue_buf *vqs_buf_mm;
 	struct et_vqueue_common *vq_common_mm;
-	struct et_vqueue_desc __iomem *vq_desc_mm;
+	MM_DEV_INTF_REG_s *dir_mm_ptr;
+	u32 vq_info_size_mm;
 
-	/* TODO SW-5142: Read from DIR */
-	et_dev->hm_dram_base = DRAM_MEMMAP_BEGIN;
-	et_dev->hm_dram_size = DRAM_MEMMAP_SIZE;
+	dir_mm_ptr = (MM_DEV_INTF_REG_s *)et_dev->iomem[IOMEM_R_PU_DIR_PC_MM];
 
-	vq_desc_mm =
-		(struct et_vqueue_desc *)
-		(et_dev->iomem[IOMEM_R_PU_MBOX_PC_MM] + VQUEUE_DESC_OFFSET);
+	rc = ioread32(&dir_mm_ptr->status);
+	if (rc < MM_DEV_INTF_MM_BOOT_STATUS_DEV_INTF_READY_INITIALIZED) {
+		dev_err(&et_dev->pdev->dev, "Dev interface not initialized\n");
+		return -EBUSY;
+	}
+
+	bm_info.bar = ioread8(&dir_mm_ptr->ddr_region
+			[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].bar);
+	bm_info.bar_offset = et_ioread64(&dir_mm_ptr->ddr_region
+			[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].offset);
+	bm_info.size            = et_ioread64(&dir_mm_ptr->ddr_region
+			[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].size);
+	et_dev->hm_dram_base    = et_ioread64(&dir_mm_ptr->ddr_region
+			[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].devaddr);
+	et_dev->hm_dram_size    = bm_info.size;
+	bm_info.strictly_order_access =
+		is_bar_prefetchable(et_dev, bm_info.bar);
+
+	/* uncomment once MBox retires, current DRAM mapping is in use by
+	 * MBox and DMA implementation.
+	 */
+	//rc =
+	//et_map_bar_dynamic(et_dev, &bm_info, &et_dev->iomem[IOMEM_R_DRCT_DRAM]);
+	//if (rc)
+	//	return rc;
+
+	bm_info.bar             = ioread8(&dir_mm_ptr->mm_vq.bar);
+	bm_info.bar_offset      = et_ioread64(&dir_mm_ptr->mm_vq.bar_offset);
+	bm_info.size            = et_ioread64(&dir_mm_ptr->mm_vq.bar_size);
+	bm_info.strictly_order_access =
+		is_bar_prefetchable(et_dev, bm_info.bar);
+
+	rc = et_map_bar_dynamic(et_dev, &bm_info, &vq_baseaddr_mm);
+	if (rc)
+		/* uncomment once MBox retires */
+		//goto error_unmap_dram;
+		return rc;
 
 	vq_common_mm = kmalloc(sizeof(*vq_common_mm), GFP_KERNEL);
-	if (!vq_common_mm)
-		return -ENOMEM;
+	if (!vq_common_mm) {
+		rc = -ENOMEM;
+		goto error_unmap_vq_baseaddr_mm;
+	}
 
 	vq_common_mm->sq_bitmap		= 0;
 	vq_common_mm->cq_bitmap		= 0;
-	vq_common_mm->queue_addr	= VQUEUE_MM_OFFSET;
-	vq_common_mm->queue_count	= ioread8(&vq_desc_mm->queue_count);
+	vq_common_mm->queue_count	= ioread8(&dir_mm_ptr->mm_vq.vq_count);
 	vq_common_mm->queue_buf_count	=
-			ioread16(&vq_desc_mm->queue_element_count);
+		ioread16(&dir_mm_ptr->mm_vq.size_info.element_count);
 	vq_common_mm->queue_buf_size	=
-			ioread16(&vq_desc_mm->queue_element_size);
+		ioread16(&dir_mm_ptr->mm_vq.size_info.element_size);
+	vq_common_mm->queue_alignment	=
+		ioread16(&dir_mm_ptr->mm_vq.size_info.element_alignment);
+	vq_common_mm->mapped_baseaddr	= vq_baseaddr_mm;
 	vq_common_mm->interrupt_addr	=
-			et_dev->iomem[IOMEM_R_PU_TRG_PCIE] + MMM_INT_INC_OFFSET;
+		et_dev->iomem[IOMEM_R_PU_TRG_PCIE] + MMM_INT_INC_OFFSET;
 	init_waitqueue_head(&vq_common_mm->vqueue_wq);
 
 	snprintf(wq_name, sizeof(wq_name), "%s_mm_wq%d",
@@ -191,11 +259,9 @@ static int et_vqueues_discover(struct et_pci_dev *et_dev)
 
 	aligned_queue_size =
 	(((vq_common_mm->queue_buf_count * vq_common_mm->queue_buf_size - 1) /
-	  ALIGNMENT_SIZE) + 1) * ALIGNMENT_SIZE;
+	vq_common_mm->queue_alignment) + 1) * vq_common_mm->queue_alignment;
 
-	/* Calculate offset of queues and add it to mapped base address */
-	vq_baseaddr = et_dev->iomem[IOMEM_R_PU_MBOX_PC_MM] +
-		(vq_common_mm->queue_addr - R_PU_MBOX_PC_MM_BASEADDR);
+	vq_info_size_mm = ioread16(&dir_mm_ptr->mm_vq.size_info.control_size);
 
 	vqs_mm = kmalloc_array(vq_common_mm->queue_count,
 			       sizeof(struct et_vqueue), GFP_KERNEL);
@@ -224,12 +290,14 @@ static int et_vqueues_discover(struct et_pci_dev *et_dev)
 		et_dev->vqueue_mm_pptr[i]->vqueue_common = vq_common_mm;
 		et_dev->vqueue_mm_pptr[i]->vqueue_info =
 			(struct et_vqueue_info *)
-			(&vq_desc_mm[1] + (i * sizeof(struct et_vqueue_info)));
+			(vq_baseaddr_mm + (i * sizeof(struct et_vqueue_info)));
 		et_dev->vqueue_mm_pptr[i]->vqueue_buf = &vqs_buf_mm[i];
 		et_dev->vqueue_mm_pptr[i]->vqueue_buf->sq_buf =
-			(void *)(vq_baseaddr + (2 * i * aligned_queue_size));
+			(void *)((vq_baseaddr_mm + vq_info_size_mm) +
+			(2 * i * aligned_queue_size));
 		et_dev->vqueue_mm_pptr[i]->vqueue_buf->cq_buf =
-		(void *)(vq_baseaddr + (2 * i + 1) * aligned_queue_size);
+			(void *)((vq_baseaddr_mm + vq_info_size_mm) +
+			(2 * i + 1) * aligned_queue_size);
 		et_dev->vqueue_mm_pptr[i]->available_buf_count =
 			vq_common_mm->queue_buf_count;
 		et_dev->vqueue_mm_pptr[i]->index = i;
@@ -246,17 +314,10 @@ static int et_vqueues_discover(struct et_pci_dev *et_dev)
 	//INIT_WORK(&et_dev->vqueue_sp.isr_work, et_isr_work);
 	//init_waitqueue_head(&et_dev->vqueue_sp.vqueue_common->vqueue_wq);
 
-	if (!set_host_status(et_dev)) {
-		pr_err("Failed to set host status, VQueues discovery could not complete successfully\n");
-		rc = -EIO;
-		goto error_free_vqueue_mm_pptr;
-	}
 	pr_err("VQueues discovery successful\n");
 
 	return 0;
 
-error_free_vqueue_mm_pptr:
-	kfree(et_dev->vqueue_mm_pptr);
 error_free_vqs_buf_mm:
 	kfree(vqs_buf_mm);
 error_free_vqs_mm:
@@ -265,12 +326,19 @@ error_free_workqueue_mm:
 	destroy_workqueue(vq_common_mm->workqueue);
 error_free_vq_common_mm:
 	kfree(vq_common_mm);
+error_unmap_vq_baseaddr_mm:
+	et_unmap_bar_dynamic(vq_baseaddr_mm);
+/* uncomment once MBox retires */
+//error_unmap_dram:
+//	et_unmap_bar_dynamic(et_dev->iomem[IOMEM_R_DRCT_DRAM]);
+
 	return rc;
 }
 
 static void et_vqueue_cleanup(struct et_pci_dev *et_dev, bool is_vqueue_sp)
 {
 	int i, queue_count_mm;
+	struct et_vqueue_common *vq_common;
 
 	if (is_vqueue_sp) {
 		if (et_dev->vqueue_sp.vqueue_common->workqueue) {
@@ -283,20 +351,23 @@ static void et_vqueue_cleanup(struct et_pci_dev *et_dev, bool is_vqueue_sp)
 		et_vqueue_destroy(&et_dev->vqueue_sp);
 
 	} else {
-		queue_count_mm =
-			et_dev->vqueue_mm_pptr[0]->vqueue_common->queue_count;
+		vq_common = et_dev->vqueue_mm_pptr[0]->vqueue_common;
+		queue_count_mm = vq_common->queue_count;
 
-		if (et_dev->vqueue_mm_pptr[0]->vqueue_common->workqueue) {
-			destroy_workqueue
-			(et_dev->vqueue_mm_pptr[0]->vqueue_common->workqueue);
-		}
+		wake_up_interruptible_all(&vq_common->vqueue_wq);
 
-		wake_up_interruptible_all
-			(&et_dev->vqueue_mm_pptr[0]->vqueue_common->vqueue_wq);
-
+		if (vq_common->workqueue)
+			destroy_workqueue(vq_common->workqueue);
 
 		for (i = 0; i < queue_count_mm; i++)
 			et_vqueue_destroy(et_dev->vqueue_mm_pptr[i]);
+
+		/* uncomment once MBox retires */
+		//if (et_dev->iomem[IOMEM_R_DRCT_DRAM])
+		//	et_unmap_bar_dynamic(et_dev->iomem[IOMEM_R_DRCT_DRAM]);
+		if (vq_common->mapped_baseaddr)
+			et_unmap_bar_dynamic(vq_common->mapped_baseaddr);
+
 		kfree(et_dev->vqueue_mm_pptr[0]->vqueue_common);
 		kfree(et_dev->vqueue_mm_pptr[0]->vqueue_buf);
 		kfree(et_dev->vqueue_mm_pptr[0]);
@@ -361,7 +432,6 @@ static void et_isr_work(struct work_struct *work)
 	//TODO: if multi-vector setup, dispatch without broadcasting to everyone - JIRA SW-953
 	et_mbox_isr_bottom(&et_dev->mbox_sp, et_dev);
 	et_mbox_isr_bottom(&et_dev->mbox_mm, et_dev);
-
 	et_vqueue_isr_bottom(et_dev->vqueue_mm_pptr[0]);
 }
 
@@ -706,11 +776,11 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 
 	case ETSOC1_IOCTL_PUSH_MBOX(0):
 		return et_mbox_write_from_user(ops_mbox_ptr,
-                                               (char __user *)arg, size);
+					       (char __user *)arg, size);
 
 	case ETSOC1_IOCTL_POP_MBOX(0):
-                return et_mbox_read_to_user(ops_mbox_ptr,
-                                            (char __user *)arg, size);
+		return et_mbox_read_to_user(ops_mbox_ptr,
+					    (char __user *)arg, size);
 
 	default:
 		pr_err("%s: unknown cmd: 0x%x\n", __func__, cmd);
@@ -807,7 +877,7 @@ static int esperanto_pcie_ops_open(struct inode *inode, struct file *filp)
 	 * device node should be opened in non-blocking mode to avoid
 	 * starvation due to blocking read or write. But this can be done
 	 * only after MBox is retired since MBox implementation performs
-	 * blocking calls. 
+	 * blocking calls.
 	 */
 	et_dev = container_of(misc_ops_dev_ptr,
 			      struct et_pci_dev, misc_ops_dev);
@@ -1043,6 +1113,11 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 
 	et_dev->r_pu_trg_pcie = et_dev->iomem[IOMEM_R_PU_TRG_PCIE];
 
+	if (et_vqueues_discover(et_dev) != 0) {
+		dev_err(&pdev->dev, "VQs setup failed\n");
+		goto error_unmap_bars;
+	}
+
 	et_mbox_init(&et_dev->mbox_sp, et_dev->iomem[IOMEM_R_PU_MBOX_PC_SP],
 		     et_dev->iomem[IOMEM_R_PU_TRG_PCIE], interrupt_mbox_sp);
 
@@ -1055,7 +1130,7 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 	if (rc < 0) {
 		dev_err(&pdev->dev, "alloc irq vectors failed -- %d/%d\n",
 			REQ_IRQ_NUM, rc);
-		goto error_unmap_bars;
+		goto error_vqueues_cleanup;
 	}
 	else {
 		et_dev->num_irq_vecs = rc;
@@ -1093,15 +1168,6 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 	}
 
 	mod_timer(&et_dev->missed_irq_timer, jiffies + MISSED_IRQ_TIMEOUT);
-
-	if (!read_device_status(et_dev)) {
-		dev_err(&pdev->dev, "VQs not setup on device\n");
-		goto error_disable_irq;
-	}
-	if (et_vqueues_discover(et_dev) != 0) {
-		dev_err(&pdev->dev, "VQs discovery failed\n");
-		goto error_disable_irq;
-	}
 
 	et_dev->misc_ops_dev.minor = MISC_DYNAMIC_MINOR;
 	et_dev->misc_ops_dev.fops  = &et_pcie_ops_fops;
@@ -1155,6 +1221,11 @@ error_free_irq_vecs:
 
 	pci_free_irq_vectors(pdev);
 
+error_vqueues_cleanup:
+	/* TODO: enable when we switch from MBox to VQs */
+	//et_vqueue_cleanup(et_dev, VQUEUE_SP);
+	et_vqueue_cleanup(et_dev, VQUEUE_MM);
+
 error_unmap_bars:
 	et_unmap_bars(et_dev);
 
@@ -1181,10 +1252,6 @@ static void esperanto_pcie_remove(struct pci_dev *pdev)
 
 	index = et_dev->index;
 
-	/* TODO: enable when we switch from MBox to VQs */
-	//et_vqueue_cleanup(et_dev, VQUEUE_SP);
-	et_vqueue_cleanup(et_dev, VQUEUE_MM);
-
 	misc_deregister(&et_dev->misc_ops_dev);
 	misc_deregister(&et_dev->misc_mgmt_dev);
 
@@ -1210,6 +1277,10 @@ static void esperanto_pcie_remove(struct pci_dev *pdev)
 		free_irq(pci_irq_vector(pdev, i), (void *)et_dev);
 
 	pci_free_irq_vectors(pdev);
+
+	/* TODO: enable when we switch from MBox to VQs */
+	//et_vqueue_cleanup(et_dev, VQUEUE_SP);
+	et_vqueue_cleanup(et_dev, VQUEUE_MM);
 
 	et_unmap_bars(et_dev);
 

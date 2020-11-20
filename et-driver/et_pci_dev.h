@@ -17,13 +17,14 @@ struct et_iomem {
 	uint64_t size;
 };
 
-#define IOMEM_REGIONS 5
+#define IOMEM_REGIONS 6
 #define SP_VQUEUE 1
 #define MM_VQUEUE 0
 
 enum et_iomem_r {
 	IOMEM_R_DRCT_DRAM = 0,
 	IOMEM_R_PU_MBOX_PC_MM,
+	IOMEM_R_PU_DIR_PC_MM,
 	IOMEM_R_PU_MBOX_PC_SP,
 	IOMEM_R_PU_TRG_PCIE,
 	IOMEM_R_PCIE_USRESR,

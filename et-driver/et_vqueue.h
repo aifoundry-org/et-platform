@@ -20,15 +20,6 @@
 #include "et_mbox.h"
 #include "et_vqueue_buffer.h"
 
-struct et_vqueue_desc {
-	u8 device_ready;
-	u8 host_ready;
-	u8 queue_count;
-	u16 queue_element_count;
-	u16 queue_element_size;
-	u64 queue_addr;
-} __attribute__ ((__packed__));
-
 struct et_vqueue_header {
 	u16 length;
 	u16 magic;
@@ -67,11 +58,12 @@ struct et_msg_node {
 struct et_vqueue_common {
 	u32 sq_bitmap;
 	u32 cq_bitmap;
-	u64 queue_addr;
 	u8 queue_count;
 	u16 queue_buf_count;
 	u16 queue_buf_size;
+	u16 queue_alignment;
 	wait_queue_head_t vqueue_wq;
+	void __iomem *mapped_baseaddr;
 	void __iomem *interrupt_addr;
 	struct workqueue_struct *workqueue;
 };
