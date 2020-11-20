@@ -81,8 +81,7 @@ int64_t VQUEUE_push(vq_e vq, uint32_t vq_index, const void *const buffer_ptr, ui
         return VQ_ERROR_NOT_READY;
     }
 
-    // TODO: Disabled the locking until we move back to DRAM
-    //acquire_vqueue_lock(&(vq_info[vq_index].producer_lock));
+    acquire_vqueue_lock(&(vq_info[vq_index].producer_lock));
 
     uint32_t head = sq_cq_ptr->head;
     uint32_t tail = sq_cq_ptr->tail;
@@ -113,8 +112,7 @@ int64_t VQUEUE_push(vq_e vq, uint32_t vq_index, const void *const buffer_ptr, ui
         log_write(LOG_LEVEL_ERROR, "VQUEUE_push: Unable to write buffer header!\r\n");
     }
 
-    // TODO: Disabled the locking until we move back to DRAM
-    //release_vqueue_lock(&(vq_info[vq_index].producer_lock));
+    release_vqueue_lock(&(vq_info[vq_index].producer_lock));
 
     return rv;
 }
@@ -134,8 +132,7 @@ int64_t VQUEUE_pop(vq_e vq, uint32_t vq_index, void *const buffer_ptr, size_t bu
         return VQ_ERROR_NOT_READY;
     }
 
-    // TODO: Disabled the locking until we move back to DRAM
-    //acquire_vqueue_lock(&(vq_info[vq_index].consumer_lock));
+    acquire_vqueue_lock(&(vq_info[vq_index].consumer_lock));
 
     uint32_t head = sq_cq_ptr->head;
     uint32_t tail = sq_cq_ptr->tail;
@@ -173,8 +170,7 @@ int64_t VQUEUE_pop(vq_e vq, uint32_t vq_index, void *const buffer_ptr, size_t bu
         //evict_data(to_L3, &(sq_cq_ptr->tail), sizeof(sq_cq_ptr->tail));
     }
 
-    // TODO: Disabled the locking until we move back to DRAM
-    //release_vqueue_lock(&(vq_info[vq_index].consumer_lock));
+    release_vqueue_lock(&(vq_info[vq_index].consumer_lock));
 
     return rv;
 }
@@ -235,6 +231,11 @@ bool VQUEUE_full(vq_e vq, uint32_t vq_index)
                                                             &vqueue_ptr->sq_header;
 
     return (CIRCBUFFER_free(sq_cq_ptr->head, sq_cq_ptr->tail) == 0);
+}
+
+bool VQUEUE_ready(uint32_t vq_index)
+{
+    return (vq_info[vq_index].is_ready);
 }
 
 static void init_vqueue(uint32_t vq_index, uint64_t vq_size)

@@ -22,6 +22,7 @@ set(SOURCES
     src/swi.c
     src/device_api_privileged.c
     src/device_api_non_privileged.c
+    src/device_ops_api.c
     src/exception.c
     src/main.c
     src/kernel.c

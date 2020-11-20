@@ -11,6 +11,7 @@
 #ifndef VQUEUE_H
 #define VQUEUE_H
 
+#include <stddef.h>
 #include "vqueue_common.h"
 #include "circbuffer.h"
 #include "mm_dev_intf_reg.h"
@@ -82,5 +83,10 @@ bool VQUEUE_empty(vq_e vq, uint32_t vq_index);
 /// \param[in] vq_index: Index of the virtual queue (starting from zero).
 /// \returns True if virtual queue is full and false if not.
 bool VQUEUE_full(vq_e vq, uint32_t vq_index);
+
+/// \brief Used to check if a VQ is ready or not
+/// \param[in] vq_index: Index of the virtual queue (starting from zero).
+/// \returns True if virtual queue is ready and false if not.
+bool VQUEUE_ready(uint32_t vq_index);
 
 #endif

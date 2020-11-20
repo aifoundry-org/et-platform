@@ -42,28 +42,6 @@ int64_t CIRCBUFFER_write(void *restrict const dest_buffer, uint64_t dest_buffer_
                          uint64_t dest_buffer_length, const void *restrict const src_buffer,
                          uint64_t src_buffer_length);
 
-/// \brief Pushes the data from source data buffer to the destination circular buffer and increments the
-/// head pointer of circular buffer.
-/// \param[in] circbuffer_ptr: Pointer to the structure containing circular buffer header information.
-/// \param[in] dest_buffer: Pointer to the destination data buffer.
-/// \param[in] src_buffer: Pointer to the source data buffer.
-/// \param[in] length: Total length (in bytes) of the data that needs to pushed.
-/// \returns Length of the data written in destination buffer or a negative error code in case of error.
-int64_t CIRCBUFFER_push(volatile struct circ_buf_header *restrict const circbuffer_ptr,
-                        void *restrict const dest_buffer, const void *restrict const src_buffer,
-                        uint32_t length);
-
-/// \brief Pops the data from source data buffer to the destination circular buffer and increments the
-/// tail pointer of circular buffer.
-/// \param[in] circbuffer_ptr: Pointer to the structure containing circular buffer header information.
-/// \param[in] dest_buffer: Pointer to the destination data buffer.
-/// \param[in] src_buffer: Pointer to the source data buffer.
-/// \param[in] length: Total length (in bytes) of the data that needs to poped.
-/// \returns Length of the data written in destination buffer or a negative error code in case of error.
-int64_t CIRCBUFFER_pop(volatile struct circ_buf_header *restrict const circbuffer_ptr,
-                       const void *restrict const src_buffer, void *restrict const dest_buffer,
-                       uint32_t length);
-
 /// \brief Returns the number of available buffers in the given circular buffer.
 /// \param[in] head_index: Value of head index.
 /// \param[in] tail_index: Value of tail index.
