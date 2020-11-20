@@ -46,7 +46,7 @@ add_custom_target(gen-devicefw-helpers
 # List of tests that are currently running only in the simulator
 set(SIM_DEVFW_TEST_LIST
   test_mb_sim_api.cc:""
-  test_virtqueue.cc:"${DEV_FW_ARGS} --dev_target=sysemu_vq_mm"
+  test_device_ops_api.cc:"${DEV_FW_ARGS} --dev_target=sysemu_vq_mm"
   test_load_device_fw.cc:${DEV_FW_ARGS}
   test_elf_parsing_dev_fw.cc:"${DEV_FW_ARGS} --empty_elf ${EMPTY_KERNEL_ELF}"
   test_mailbox.cc:"${DEV_FW_ARGS}"
