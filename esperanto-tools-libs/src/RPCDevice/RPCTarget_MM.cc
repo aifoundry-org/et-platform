@@ -30,13 +30,14 @@ namespace {
 #include <esperanto-fw/firmware_helpers/layout.h>
 
   TimeDuration kPollingInterval = std::chrono::milliseconds(10);
-  // TODO: Remove when device interface registers are available
-  const uint64_t kVirtQueueDescAddr = DEVICE_MM_VQUEUE_BASE;
 
   // To know if virtual queues lie in Mbox region
   const uint64_t kMboxRegionStart = 0x0020007000;
   const uint64_t kMboxRegionEnd = 0x0020008000;
-  const uint16_t kAlignmentSize = 64;
+
+  const uint64_t kMMDevIntfRegAddr = kMboxRegionStart + 0x400UL;
+  // TODO: SW-4216: With BAR mappings, need to read this address from specified BAR type and BAR offset in kMMDevIntfRegAddr
+  const uint64_t kMMVqueueBase = DEVICE_MM_VQUEUE_BASE;
 }
 
 RPCGenerator::RPCGenerator() {}
@@ -329,48 +330,47 @@ bool RPCTargetMM::boot(uint32_t shire_id, uint32_t thread0_enable, uint32_t thre
 bool RPCTargetMM::virtQueuesDiscover(TimeDuration wait_time) {
   auto start = Clock::now();
   auto end = start + wait_time;
-  struct device_fw::vqueue_desc vqDescMM;
+  uint16_t queueElementAlign;
+  uint16_t queueControlSize;
+  device_fw::MM_DEV_INTF_REG_s MMDevIntf;
 
   auto success = rpcGen_->rpcWaitForHostInterruptAny() > 0;
   assert(success);
 
-  uint8_t ready = 0;
+  int32_t status = 0;
   while (1) {
-    success = rpcGen_->rpcVirtQueueRead(kVirtQueueDescAddr + offsetof(device_fw::vqueue_desc, device_ready),
-                                        sizeof(ready), &ready);
+    success = rpcGen_->rpcVirtQueueRead(kMMDevIntfRegAddr + offsetof(device_fw::MM_DEV_INTF_REG_s, status),
+                                        sizeof(status), &status);
     assert(success);
 
-    if (ready == 1) {
-      success = rpcGen_->rpcVirtQueueRead(kVirtQueueDescAddr, sizeof(vqDescMM), &vqDescMM);
+    // Ensure that MM device interface registers are initialized. This also ignores the state where SP is not up.
+    if ((status >= device_fw::MM_DEV_INTF_MM_BOOT_STATUS_DEV_INTF_READY_INITIALIZED) || 
+        (status == device_fw::MM_DEV_INTF_MM_BOOT_STATUS_MM_SP_MB_TIMEOUT)) {
+      success = rpcGen_->rpcVirtQueueRead(kMMDevIntfRegAddr, sizeof(MMDevIntf), &MMDevIntf);
       assert(success);
 
-      queueCount_ = vqDescMM.queue_count;
-      queueBufCount_ = vqDescMM.queue_element_count;
-      queueBufSize_ = vqDescMM.queue_element_size;
+      queueCount_ = MMDevIntf.mm_vq.vq_count;
+      queueBufCount_ = MMDevIntf.mm_vq.size_info.element_count;
+      queueBufSize_ = MMDevIntf.mm_vq.size_info.element_size;
+      queueElementAlign = MMDevIntf.mm_vq.size_info.element_alignment;
+      queueControlSize = MMDevIntf.mm_vq.size_info.control_size;
       maxMsgSize_ = queueBufSize_ - sizeof(device_fw::vqueue_buf_header);
-      RTINFO << "VirtQueue Desc: queueCount_: " << queueCount_
+      RTINFO << "VirtQueue Desc: queueCount_: " << (uint16_t)queueCount_
              << " queueBufCount_: " << queueBufCount_
-             << " queueBufSize_: " << queueBufSize_;
-
-      // Set host ready
-      vqDescMM.host_ready = 1;
-      success = rpcGen_->rpcVirtQueueWrite(kVirtQueueDescAddr + offsetof(device_fw::vqueue_desc, host_ready),
-                                           sizeof(vqDescMM.host_ready), &vqDescMM.host_ready);
-      assert(success);
+             << " queueBufSize_: " << queueBufSize_
+             << " queueElementAlign: " << queueElementAlign
+             << " queueControlSize: " << queueControlSize;
       break;
     }
     std::this_thread::sleep_for(kPollingInterval);
     if (end < Clock::now()) {
-      break;
+      // Discovery failed
+      return false;
     }
   }
 
-  if (ready != 1) {
-    return false;
-  }
-
-  uint64_t queueInfoAddr = kVirtQueueDescAddr + sizeof(device_fw::vqueue_desc);
-  uint64_t queueBaseAddr = vqDescMM.queue_addr;
+  uint64_t queueInfoAddr = kMMVqueueBase;
+  uint64_t queueBaseAddr = queueInfoAddr + queueControlSize;
 
   assert(queueCount_ < 32);
   for (uint8_t queueId = 0; queueId < queueCount_; queueId++) {
@@ -380,7 +380,7 @@ bool RPCTargetMM::virtQueuesDiscover(TimeDuration wait_time) {
     queueInfoAddr += sizeof(device_fw::vqueue_info);
 
     auto alignedQueueSize =
-      ((queueBufSize_ * queueBufCount_ - 1) / kAlignmentSize + 1 ) * kAlignmentSize;
+      ((queueBufSize_ * queueBufCount_ - 1) / queueElementAlign + 1 ) * queueElementAlign;
     queueBaseAddr += 2 * alignedQueueSize;
   }
   return true;

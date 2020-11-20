@@ -161,7 +161,7 @@ public:
   virtual uint16_t virtQueueMsgMaxSize() { return maxMsgSize_; }
 
   /// @brief Return the virtual queues count
-  virtual uint16_t virtQueueCount() { return queueCount_; }
+  virtual uint8_t virtQueueCount() { return queueCount_; }
 
   /// @brief Return the buffer count in a queue
   virtual uint16_t virtQueueBufCount() { return queueBufCount_; }
@@ -248,7 +248,7 @@ protected:
   bool device_alive_ = false; ///< Flag to guard that the device has been initialize correctly and
                               ///< gate any incorrect re-initialization or de-initialization
   uint16_t maxMsgSize_;  ///< Maximum msg size
-  uint16_t queueCount_;       ///< Count of virtual queues
+  uint8_t queueCount_;       ///< Count of virtual queues
   uint16_t queueBufCount_;    ///< Count of buffers in a virtual queue
 };
 } // namespace device
