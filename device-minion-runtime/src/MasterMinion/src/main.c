@@ -3,6 +3,7 @@
 #include "device-mrt-trace.h"
 #include "device_api_privileged.h"
 #include "device_api_non_privileged.h"
+#include "device_ops_api.h"
 #include "fcc.h"
 #include "hart.h"
 #include "interrupt.h"
@@ -49,7 +50,7 @@ static void __attribute__((noreturn)) sq_worker_thread(uint32_t sq_index);
 
 /// \brief Handle a command from the Host sent in Submission Queue
 /// \param[in] sq_index: Index of submission queue from which the message is to be read.
-static int64_t handle_messages_from_host_sq(uint32_t sq_index);
+static int8_t handle_message_from_host_sq(uint32_t sq_idx);
 
 static void handle_messages_from_host(void);
 
@@ -226,7 +227,7 @@ static void __attribute__((noreturn)) sq_worker_thread(uint32_t sq_index)
 {
     // Flag for pending SQs
     bool sq_pending;
-    int64_t temp;
+    int8_t status;
 
     // Empty all FCCs
     init_fcc(FCC_0);
@@ -248,12 +249,12 @@ static void __attribute__((noreturn)) sq_worker_thread(uint32_t sq_index)
                 if (i == VQUEUE_SQ_HP_ID) {
                     // Process all commands from SQ0
                     do {
-                        temp = handle_messages_from_host_sq(i);
-                    } while ((temp >= 0) || (temp == VQ_ERROR_CQ_FULL));
+                        status = handle_message_from_host_sq(i);
+                    } while ((status == 0) || (status == VQ_ERROR_CQ_FULL));
                 } else {
-                    // Process rest of the SQs with equal weights
-                    temp = handle_messages_from_host_sq(i);
-                    if ((temp >= 0) || (temp == VQ_ERROR_CQ_FULL)) {
+                    // Process rest of the SQs with equal weight
+                    status = handle_message_from_host_sq(i);
+                    if ((status == 0) || (status == VQ_ERROR_CQ_FULL)) {
                         sq_pending = true;
                     }
                 }
@@ -423,43 +424,29 @@ static void fake_message_from_host(void)
 }
 #endif
 
-static int64_t handle_messages_from_host_sq(uint32_t vq_index)
+static int8_t handle_message_from_host_sq(uint32_t sq_idx)
 {
-    static uint8_t buffer[CIRCBUFFER_SIZE]
-        __attribute__((aligned(8))) = { 0 };
     int64_t length;
+    int8_t status = VQ_ERROR_NOT_READY;
 
-    VQUEUE_update_status(vq_index);
+    // Check and update the virtual queue status
+    VQUEUE_update_status(sq_idx);
 
-    // Only pop from SQ when CQ has space for new respnonse handling
-    if (VQUEUE_full(CQ, vq_index)) {
-        return VQ_ERROR_CQ_FULL;
-    }
-
-    length = VQUEUE_pop(SQ, vq_index, buffer, sizeof(buffer));
-
-    if (length > 0) {
-        // TODO: MBOX references to be changed in VQ_WP2
-        const mbox_message_id_t *const message_id = (const void *const)buffer;
-
-        if (*message_id == MBOX_DEVAPI_NON_PRIVILEGED_MID_REFLECT_TEST_CMD) {
-            const struct reflect_test_cmd_t* const cmd = (const void* const) buffer;
-            struct reflect_test_rsp_t rsp;
-            rsp.response_info.message_id = MBOX_DEVAPI_NON_PRIVILEGED_MID_REFLECT_TEST_RSP;
-            prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
-            int64_t result = VQUEUE_push(CQ, vq_index, &rsp, sizeof(rsp));
-            if (result != 0) {
-                log_write(LOG_LEVEL_ERROR, "DeviceAPI Reflect Test send error %" PRIi64 "\r\n", result);
+    // Check if VQ is ready to use and SQ has some command available
+    if (VQUEUE_ready(sq_idx) && !VQUEUE_empty(SQ, sq_idx)) {
+        // Only pop from SQ if CQ has space for new respnonse handling
+        if (!VQUEUE_full(CQ, sq_idx)) {
+            length = handle_device_ops_cmd(sq_idx);
+            if (length > 0) {
+                // success
+                status = 0;
             }
         } else {
-            log_write(LOG_LEVEL_ERROR, "Invalid message id: %" PRIu64 "\r\n", *message_id);
-
-#ifdef DEBUG_PRINT_HOST_MESSAGE
-            print_host_message(buffer, length);
-#endif
+            status = VQ_ERROR_CQ_FULL;
         }
     }
-    return length;
+
+    return status;
 }
 
 static void handle_messages_from_host(void)
