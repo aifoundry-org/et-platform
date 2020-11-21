@@ -438,7 +438,7 @@ static void et_isr_work(struct work_struct *work)
 //TODO: tune this value
 #define DMA_THRESHOLD 1024
 
-static ssize_t esperanto_pcie_read(struct file *fp, char __user *buf,
+static ssize_t esperanto_pcie_ops_read(struct file *fp, char __user *buf,
 				   size_t count, loff_t *pos)
 {
 	struct et_pci_dev *et_dev = container_of(fp->private_data,
@@ -447,7 +447,7 @@ static ssize_t esperanto_pcie_read(struct file *fp, char __user *buf,
 	bool use_mmio = false;
 
 	//TODO: JIRA SW-948: Support Multi-Channel DMA
-	if (et_dev->bulk_cfg == BULK_CFG_AUT0) {
+	if (et_dev->bulk_cfg == BULK_CFG_AUTO) {
 		if (count < DMA_THRESHOLD)
 			use_mmio = true;
 	} else if (et_dev->bulk_cfg == BULK_CFG_MMIO) {
@@ -464,7 +464,7 @@ static ssize_t esperanto_pcie_read(struct file *fp, char __user *buf,
 	return rv;
 }
 
-static ssize_t esperanto_pcie_write(struct file *fp, const char __user *buf,
+static ssize_t esperanto_pcie_ops_write(struct file *fp, const char __user *buf,
 				    size_t count, loff_t *pos)
 {
 	struct et_pci_dev *et_dev = container_of(fp->private_data,
@@ -473,7 +473,59 @@ static ssize_t esperanto_pcie_write(struct file *fp, const char __user *buf,
 	bool use_mmio = false;
 
 	//TODO: JIRA SW-948: Support Multi-Channel DMA
-	if (et_dev->bulk_cfg == BULK_CFG_AUT0) {
+	if (et_dev->bulk_cfg == BULK_CFG_AUTO) {
+		if (count < DMA_THRESHOLD)
+			use_mmio = true;
+	} else if (et_dev->bulk_cfg == BULK_CFG_MMIO) {
+		use_mmio = true;
+	}
+
+	if (use_mmio) {
+		rv = et_mmio_write_from_user(buf, count, pos, et_dev);
+	} else {
+		rv = et_dma_pull_from_user(buf, count, pos,
+					   ET_DMA_CHAN_ID_READ_0, et_dev);
+	}
+
+	return rv;
+}
+
+static ssize_t esperanto_pcie_mgmt_read(struct file *fp, char __user *buf,
+				   size_t count, loff_t *pos)
+{
+	struct et_pci_dev *et_dev = container_of(fp->private_data,
+					struct et_pci_dev, misc_mgmt_dev);
+	ssize_t rv;
+	bool use_mmio = false;
+
+	//TODO: JIRA SW-948: Support Multi-Channel DMA
+	if (et_dev->bulk_cfg == BULK_CFG_AUTO) {
+		if (count < DMA_THRESHOLD)
+			use_mmio = true;
+	} else if (et_dev->bulk_cfg == BULK_CFG_MMIO) {
+		use_mmio = true;
+	}
+
+	if (use_mmio) {
+		rv = et_mmio_read_to_user(buf, count, pos, et_dev);
+	} else {
+		rv = et_dma_push_to_user(buf, count, pos,
+					 ET_DMA_CHAN_ID_WRITE_0, et_dev);
+	}
+
+	return rv;
+}
+
+static ssize_t esperanto_pcie_mgmt_write(struct file *fp, const char __user *buf,
+				    size_t count, loff_t *pos)
+{
+	struct et_pci_dev *et_dev = container_of(fp->private_data,
+					struct et_pci_dev, misc_mgmt_dev);
+	ssize_t rv = 0;
+	bool use_mmio = false;
+
+	//TODO: JIRA SW-948: Support Multi-Channel DMA
+	if (et_dev->bulk_cfg == BULK_CFG_AUTO) {
 		if (count < DMA_THRESHOLD)
 			use_mmio = true;
 	} else if (et_dev->bulk_cfg == BULK_CFG_MMIO) {
@@ -792,13 +844,15 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 				      unsigned long arg)
 {
+	uint64_t dram_base, dram_size;
+	uint64_t fw_update_reg_base;
+	uint32_t fw_update_reg_size;
 	u64 mbox_rdy, mbox_max_msg;
+	u32 bulk_cfg;
 	struct et_mbox *mgmt_mbox_ptr;
 	struct et_pci_dev *et_dev;
 	struct miscdevice *misc_mgmt_dev_ptr = fp->private_data;
 	size_t size;
-        uint64_t fw_update_reg_base;
-        uint32_t fw_update_reg_size;
 	int rc;
 
 	et_dev = container_of(misc_mgmt_dev_ptr,
@@ -808,6 +862,52 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 	size = _IOC_SIZE(cmd);
 
 	switch (cmd & ~IOCSIZE_MASK) {
+	case ETSOC1_IOCTL_GET_DRAM_BASE & ~IOCSIZE_MASK:
+		dram_base = DRAM_MEMMAP_BEGIN;
+		if (copy_to_user((uint64_t *)arg, &dram_base, size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_DRAM_BASE: failed to copy to user\n");
+			return -ENOMEM;
+		}
+		return 0;
+
+	case ETSOC1_IOCTL_GET_DRAM_SIZE & ~IOCSIZE_MASK:
+		dram_size = DRAM_MEMMAP_SIZE;
+		if (copy_to_user((uint64_t *)arg, &dram_size, size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_DRAM_SIZE: failed to copy to user\n");
+			return -ENOMEM;
+		}
+		return 0;
+
+	case ETSOC1_IOCTL_GET_FW_UPDATE_REG_BASE & ~IOCSIZE_MASK:
+		fw_update_reg_base = FW_UPDATE_REGION_BEGIN;
+		if (copy_to_user((uint64_t *)arg, &fw_update_reg_base, size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_FW_UPDATE_REG_BASE: failed to copy to user\n");
+			return -ENOMEM;
+		}
+		return 0;
+
+	case ETSOC1_IOCTL_GET_FW_UPDATE_REG_SIZE & ~IOCSIZE_MASK:
+		fw_update_reg_size = FW_UPDATE_REGION_SIZE;
+		if (copy_to_user((uint32_t *)arg, &fw_update_reg_size, size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_FW_UPDATE_REG_SIZE: failed to copy to user\n");
+			return -ENOMEM;
+		}
+		return 0;
+
+	case ETSOC1_IOCTL_SET_BULK_CFG & ~IOCSIZE_MASK:
+		bulk_cfg = (uint32_t)arg;
+
+		if (arg > BULK_CFG_DMA) {
+			pr_err("Invalid bulk cfg %d\n", bulk_cfg);
+			return -EINVAL;
+		}
+
+		mutex_lock(&et_dev->dev_mutex);
+		et_dev->bulk_cfg = bulk_cfg;
+		mutex_unlock(&et_dev->dev_mutex);
+
+		return 0;
+
 	case ETSOC1_IOCTL_GET_MBOX_MAX_MSG & ~IOCSIZE_MASK:
 		mbox_max_msg = ET_MBOX_MAX_MSG_LEN;
 		if (copy_to_user((uint64_t *)arg, &mbox_max_msg, size)) {
@@ -844,22 +944,6 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 	case ETSOC1_IOCTL_POP_MBOX(0):
 		return et_mbox_read_to_user(mgmt_mbox_ptr,
 					    (char __user *)arg, size);
-
-	case ETSOC1_IOCTL_GET_FW_UPDATE_REG_BASE & ~IOCSIZE_MASK:
-		fw_update_reg_base = FW_UPDATE_REGION_BEGIN;
-		if (copy_to_user((uint64_t *)arg, &fw_update_reg_base, size)) {
-			pr_err("ioctl: ETSOC1_IOCTL_GET_FW_UPDATE_REG_BASE: failed to copy to user\n");
-			return -ENOMEM;
-		}
-		return 0;
-
-	case ETSOC1_IOCTL_GET_FW_UPDATE_REG_SIZE & ~IOCSIZE_MASK:
-		fw_update_reg_size = FW_UPDATE_REGION_SIZE;
-		if (copy_to_user((uint32_t *)arg, &fw_update_reg_size, size)) {
-			pr_err("ioctl: ETSOC1_IOCTL_GET_FW_UPDATE_REG_SIZE: failed to copy to user\n");
-			return -ENOMEM;
-		}
-		return 0;
 
 	default:
 		pr_err("%s: unknown cmd: 0x%x\n", __func__, cmd);
@@ -940,8 +1024,8 @@ static int esperanto_pcie_mgmt_release(struct inode *inode, struct file *filp)
 
 static const struct file_operations et_pcie_ops_fops = {
 	.owner = THIS_MODULE,
-	.read = esperanto_pcie_read,
-	.write = esperanto_pcie_write,
+	.read = esperanto_pcie_ops_read,
+	.write = esperanto_pcie_ops_write,
 	.llseek = esperanto_pcie_llseek,
 	.poll = esperanto_pcie_ops_poll,
 	.unlocked_ioctl = esperanto_pcie_ops_ioctl,
@@ -951,6 +1035,9 @@ static const struct file_operations et_pcie_ops_fops = {
 
 static const struct file_operations et_pcie_mgmt_fops = {
 	.owner = THIS_MODULE,
+	.read = esperanto_pcie_mgmt_read,
+	.write = esperanto_pcie_mgmt_write,
+	.llseek = esperanto_pcie_llseek,
 	.unlocked_ioctl = esperanto_pcie_mgmt_ioctl,
 	.open = esperanto_pcie_mgmt_open,
 	.release = esperanto_pcie_mgmt_release,

@@ -100,7 +100,7 @@ typedef struct {
 #define ETSOC1_IOCTL_GET_FW_UPDATE_REG_SIZE			\
 	_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 22, uint32_t)
 
-#define BULK_CFG_AUT0 0
+#define BULK_CFG_AUTO 0
 #define BULK_CFG_MMIO 1
 #define BULK_CFG_DMA 2
 
