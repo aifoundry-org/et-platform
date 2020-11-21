@@ -155,4 +155,10 @@ static_assert((FW_MASTER_TO_WORKER_KERNEL_CONFIGS + FW_MASTER_TO_WORKER_KERNEL_C
 #define DRAM_MEMMAP_END   0x87FFFFFFFF
 #define DRAM_MEMMAP_SIZE  (DRAM_MEMMAP_END - DRAM_MEMMAP_BEGIN + 1)
 
+// This range is used as Scratch area as storage of new FW image whilst SP updates the
+// correspoding Flash partition to take affect.
+// TODO: SW-4611 - these will move to BAR relative addressing once SW-4611 is resolved
+#define FW_UPDATE_REGION_BEGIN  0x8005120000ULL
+#define FW_UPDATE_REGION_SIZE   0x400000U
+
 #endif
