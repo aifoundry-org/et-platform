@@ -23,7 +23,7 @@ using namespace device_management;
 
 struct libdm {
   libdm() { handle_ = dlopen("libDM.so", RTLD_LAZY); }
-  ~libdm() { dlclose(&handle_); }
+  ~libdm() { dlclose(handle_); }
 
   getDM_t getInstance() {
     const char *error;
@@ -90,7 +90,7 @@ static bool AbslParseFlag(absl::string_view text, deviceString *d,
     return false;
   }
 
-  std::regex re("^et[0-9]+_(?=mgmt$|ops$)");
+  std::regex re("^et[0-5]{1}_(?=mgmt$|ops$)");
   std::smatch m;
   if (!std::regex_search(d->dev, m, re)) {
     *error = "device node is not valid!\n";
@@ -104,6 +104,8 @@ ABSL_FLAG(deviceString, dev, deviceString("et0_mgmt"),
 
 ABSL_FLAG(uint32_t, timeout, 0, "Set timeout duration in msec: 0 = disabled");
 
+ABSL_FLAG(std::string, path, "", "Set path to load file");
+
 int testAsset(DeviceManagement &dm, const char *device_node, uint32_t cmd_id,
               const char *input_buff, const uint32_t input_size,
               const uint32_t output_size, uint32_t timeout) {
@@ -114,7 +116,7 @@ int testAsset(DeviceManagement &dm, const char *device_node, uint32_t cmd_id,
   dm.serviceRequest(device_node, cmd_id, input_buff, input_size, output_buff,
                     output_size, hst_latency.get(), dev_latency.get(), timeout);
 
-  std::printf("Output: %s\n", output_buff);
+  std::printf("Output: %.*s\n", output_size, output_buff);
   std::cout << "Host Latency: " << *hst_latency << std::endl;
   std::cout << "Device Latency: " << *dev_latency << std::endl;
 
@@ -136,28 +138,40 @@ int main(int argc, char *argv[]) {
   commandString cs = absl::GetFlag(FLAGS_cmd);
   deviceString ds = absl::GetFlag(FLAGS_dev);
   uint32_t timeout = absl::GetFlag(FLAGS_timeout);
+  std::string path = absl::GetFlag(FLAGS_path);
 
   std::cout << "Command code: " << cs.cmd << " or " << cs.cmd_id << std::endl;
   std::cout << "Device node: " << ds.dev << std::endl;
   std::cout << "timeout: " << timeout << std::endl;
 
   switch (cs.cmd_id) {
-    case 0x00:
-    case 0x01:
-    case 0x02:
-    case 0x03:
-    case 0x04:
-    case 0x05:
-    case 0x06:
-    case 0x07:
-    case 0x08:
-    case 0x09:
-    case 0x0A:
-    case 0x0B:
-    case 0x0C:
-    case 0x0D:
-    case 0x0E:
+    case CommandCode::GET_MODULE_MANUFACTURE_NAME:
+    case CommandCode::GET_MODULE_PART_NUMBER:
+    case CommandCode::GET_MODULE_SERIAL_NUMBER:
+    case CommandCode::GET_ASIC_CHIP_REVISION:
+    case CommandCode::GET_MODULE_DRIVER_REVISION:
+    case CommandCode::GET_MODULE_PCIE_ADDR:
+    case CommandCode::GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED:
+    case CommandCode::GET_MODULE_MEMORY_SIZE_MB:
+    case CommandCode::GET_MODULE_REVISION:
+    case CommandCode::GET_MODULE_FORM_FACTOR:
+    case CommandCode::GET_MODULE_MEMORY_VENDOR_PART_NUMBER:
+    case CommandCode::GET_MODULE_MEMORY_TYPE:
+    case CommandCode::GET_FUSED_PUBLIC_KEYS:
+    case CommandCode::GET_FIRMWARE_BOOT_STATUS:
       testAsset(dm, ds.dev.c_str(), cs.cmd_id, nullptr, 0, 8, timeout);
+      break;
+    case CommandCode::GET_MODULE_FIRMWARE_REVISIONS:
+      testAsset(dm, ds.dev.c_str(), cs.cmd_id, nullptr, 0, 20, timeout);
+      break;
+    case CommandCode::SET_FIRMWARE_UPDATE:
+    case CommandCode::SET_SP_BOOT_ROOT_CERT:
+    case CommandCode::SET_SW_BOOT_ROOT_CERT:
+      if (path.empty()) {
+        std::cout << "--path not provided or invalid" << std::endl;
+        return -EINVAL;
+      }
+      testAsset(dm, ds.dev.c_str(), cs.cmd_id, path.data(), 1, 8, timeout);
       break;
     default:
       return -EINVAL;

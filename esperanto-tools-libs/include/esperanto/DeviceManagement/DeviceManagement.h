@@ -19,6 +19,7 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <vector>
 #include <unordered_map>
 
 namespace et_runtime::device {
@@ -31,7 +32,6 @@ static std::unordered_map<std::string, CommandCode> const commandCodeTable = {
   {"GET_MODULE_MANUFACTURE_NAME", CommandCode::GET_MODULE_MANUFACTURE_NAME},
   {"GET_MODULE_PART_NUMBER", CommandCode::GET_MODULE_PART_NUMBER},
   {"GET_MODULE_SERIAL_NUMBER", CommandCode::GET_MODULE_SERIAL_NUMBER},
-  {"GET_MODULE_ASSET_TAG", CommandCode::GET_MODULE_ASSET_TAG},
   {"GET_ASIC_CHIP_REVISION", CommandCode::GET_ASIC_CHIP_REVISION},
   {"GET_MODULE_FIRMWARE_REVISIONS",
     CommandCode::GET_MODULE_FIRMWARE_REVISIONS},
@@ -45,7 +45,13 @@ static std::unordered_map<std::string, CommandCode> const commandCodeTable = {
   {"GET_MODULE_MEMORY_VENDOR_PART_NUMBER",
     CommandCode::GET_MODULE_MEMORY_VENDOR_PART_NUMBER},
   {"GET_MODULE_MEMORY_TYPE", CommandCode::GET_MODULE_MEMORY_TYPE},
-  {"GET_FUSED_PUBLIC_KEYS", CommandCode::GET_FUSED_PUBLIC_KEYS}};
+  {"GET_FUSED_PUBLIC_KEYS", CommandCode::GET_FUSED_PUBLIC_KEYS},
+  {"SET_FIRMWARE_UPDATE", CommandCode::SET_FIRMWARE_UPDATE},
+  {"GET_FIRMWARE_BOOT_STATUS", CommandCode::GET_FIRMWARE_BOOT_STATUS},
+  {"SET_SP_BOOT_ROOT_CERT", CommandCode::SET_SP_BOOT_ROOT_CERT},
+  {"SET_SW_BOOT_ROOT_CERT", CommandCode::SET_SW_BOOT_ROOT_CERT}};
+//  {"SET_FIRMWARE_VERSION_COUNTER", CommandCode::SET_FIRMWARE_VERSION_COUNTER},
+//  {"SET_FIRMWARE_VALID", CommandCode::SET_FIRMWARE_VALID}};
 
 struct lockable_;
 
@@ -126,6 +132,27 @@ private:
   ///
   /// @return Smart shared pointer to lockable_ struct wrapping the device
   std::shared_ptr<lockable_> getDevice(const std::tuple<uint32_t, bool> &t);
+
+  /// @brief Fetch firmware image, verify, and write to FW region via MMIO
+  ///
+  /// @param[in] lockable  Smart shared pointer to lockable_ struct wrapping
+  /// the device
+  /// @param[inout] filePath  Pointer to firmware image path on filesystem
+  int processFirmwareImage(std::shared_ptr<lockable_> lockable, const char *filePath);
+
+  /// @brief Determine if provided SHA512 is valid
+  ///
+  /// @param[in] str  Command code to check
+  ///
+  /// @return True if valid SHA512
+  bool isValidSHA512(const std::string &str);
+
+  /// @brief Read provided file and extract potential SHA512
+  ///
+  /// @param[inout] filePath  Pointer to hash file on filesystem
+  ///
+  /// @param[inout] hash  reference to unsigned char vector
+  int processHashFile(const char *filePath, std::vector<unsigned char> &hash);
 
   std::unordered_map<uint32_t, std::shared_ptr<lockable_>[2]> deviceMap_;
 };

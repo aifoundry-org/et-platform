@@ -10,15 +10,19 @@
 
 #include "esperanto/DeviceManagement/DeviceManagement.h"
 #include "PCIEDevice/PCIeDevice.h"
+#include "esperanto/runtime/Support/Logging.h"
 
 #include <errno.h>
 #include <chrono>
 #include <exception>
 #include <iostream>
+#include <fstream>
 #include <memory>
 #include <mutex>
 #include <regex>
+#include <sstream>
 #include <tuple>
+#include <vector>
 #include <unordered_map>
 
 namespace device_management {
@@ -43,6 +47,7 @@ DeviceManagement &DeviceManagement::getInstance() {
 itCmd DeviceManagement::isValidCommand(uint32_t cmd_code) {
   for (auto it = commandCodeTable.begin(); it != commandCodeTable.end(); ++it) {
     if (it->second == cmd_code) {
+      RTINFO << "Command: " << it->first << " code: " << it->second << std::endl;
       return it;
     }
   }
@@ -98,6 +103,74 @@ DeviceManagement::getDevice(const std::tuple<uint32_t, bool> &t) {
   return deviceMap_[index][mgmtNode];
 }
 
+int DeviceManagement::processFirmwareImage(std::shared_ptr<lockable_> lockable, const char *filePath) {
+  std::ifstream file(filePath, std::ios::binary);
+
+  if (!file.good()) {
+    return -EINVAL;
+  }
+
+  std::vector<unsigned char> fwImage(std::istreambuf_iterator<char>(file), {});
+
+  // TODO: Validate firmware and DM Lib compatibility
+  //       pushed out to WP3 or later
+
+  uintptr_t addr = lockable->dev.FWBaseAddr();
+  RTINFO << "Retrieved firmware memory region: " << std::hex << addr << std::endl;
+
+  auto res = lockable->dev.writeDevMemMMIO(addr, fwImage.size(), fwImage.data());
+
+  if (!res) {
+    return -EIO;
+  }
+
+  RTINFO << "Wrote firmware image of size: " << fwImage.size() << std::endl;
+
+  return 0;
+}
+
+bool DeviceManagement::isValidSHA512(const std::string &str) {
+  std::regex re("^[[:xdigit:]]{128}$");
+  std::smatch m;
+
+  if (!std::regex_search(str, m, re)) {
+    return false;
+  }
+
+  return true;
+}
+
+int DeviceManagement::processHashFile(const char *filePath, std::vector<unsigned char> &hash) {
+  std::ifstream file(filePath);
+
+  if (!file.good()) {
+    return -EINVAL;
+  }
+
+  std::string contents("");
+  std::copy_n(std::istreambuf_iterator<char>(file), 128, std::back_inserter(contents));
+
+  if (!isValidSHA512(contents)) {
+    return -EINVAL;
+  }
+
+  for (uint32_t i = 0; i < contents.size(); i+=2) {
+    std::stringstream ss("");
+    unsigned long value = 0;
+
+    ss << contents[i] << contents[i+1];
+
+    if (ss.fail()) {
+      return -EIO;
+    }
+
+    ss >> std::hex >> value;
+    hash.emplace(hash.end(), value);
+  }
+
+  return 0;
+}
+
 int DeviceManagement::serviceRequest(
     const char *device_node, uint32_t cmd_code, const char *input_buff,
     const uint32_t input_size, char *output_buff, const uint32_t output_size,
@@ -132,6 +205,7 @@ int DeviceManagement::serviceRequest(
     return -EINVAL;
   }
 
+  auto inputSize = input_size;
   auto lockable = getDevice(tokenizeDeviceNode(device_node));
 
   if (lockable->devGuard.try_lock_for(
@@ -139,24 +213,56 @@ int DeviceManagement::serviceRequest(
     const std::lock_guard<std::timed_mutex> lock(lockable->devGuard,
                                                   std::adopt_lock_t());
 
-    auto wCB = std::make_unique<dmControlBlock>();
-    wCB->cmd_id = cmd_code;
-    std::shared_ptr<char> wPayload;
-
-    if (isSet && input_buff && input_size) {
-      wPayload =
-          std::allocate_shared<char>(std::allocator<char>(), input_size);
-      memcpy(wPayload.get(), input_buff, input_size);
-      memcpy(wCB->cmd_payload, wPayload.get(), input_size);
-    }
-
     if (!lockable->dev.init()) {
       return -EIO;
     }
 
-    if (!lockable->dev.mb_write(wCB.get(), sizeof(*(wCB.get())) + input_size)) {
+    auto wCB = std::make_unique<dmControlBlock>();
+    wCB->cmd_id = cmd_code;
+    //std::shared_ptr<char> wPayload;
+
+    if (isSet && input_buff && inputSize) {
+      switch (cmd_code) {
+        case CommandCode::SET_FIRMWARE_UPDATE: {
+            int res = processFirmwareImage(lockable, input_buff);
+
+            if (res != 0) {
+                return res;
+            }
+
+            inputSize = 0;
+          }
+          break;
+        case CommandCode::SET_SP_BOOT_ROOT_CERT:
+        case CommandCode::SET_SW_BOOT_ROOT_CERT: {
+            std::vector<unsigned char> hash;
+
+            int res = processHashFile(input_buff, hash);
+
+            if (res != 0) {
+              return res;
+            }
+            inputSize = hash.size();
+            input_buff = reinterpret_cast<char*>(hash.data());
+
+            memcpy(wCB->cmd_payload, input_buff, inputSize);
+          }
+          break;
+        default:/*
+          wPayload =
+              std::allocate_shared<char>(std::allocator<char>(), inputSize);
+          memcpy(wPayload.get(), input_buff, inputSize);
+          memcpy(wCB->cmd_payload, wPayload.get(), inputSize);*/
+          memcpy(wCB->cmd_payload, input_buff, inputSize);
+          break;
+      }
+    }
+
+    if (!lockable->dev.mb_write(wCB.get(), sizeof(*(wCB.get()))/* + inputSize*/)) {
       return -EIO;
     }
+
+    RTINFO << "Wrote control block of size: " << sizeof(*(wCB.get()))/* + inputSize*/ << std::endl;
 
     auto rCB = std::make_unique<dmControlBlock>();
     std::shared_ptr<char> rPayload;
@@ -165,10 +271,12 @@ int DeviceManagement::serviceRequest(
           std::allocate_shared<char>(std::allocator<char>(), output_size);
     memcpy(rCB->cmd_payload, rPayload.get(), output_size);
 
-    if (!lockable->dev.mb_read(rCB.get(), sizeof(*(rCB.get())) + output_size,
+    if (!lockable->dev.mb_read(rCB.get(), sizeof(*(rCB.get()))/* + output_size*/,
                                 std::chrono::milliseconds(timeout))) {
       return -EIO;
     }
+
+    RTINFO << "Read control block of size: " << sizeof(*(rCB.get()))/* + output_size*/ << std::endl;
 
     memcpy(output_buff, rCB->cmd_payload, output_size);
 

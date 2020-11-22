@@ -60,6 +60,12 @@ public:
   /// @brief Return the size of DRAM we can write to in bytes.
   uintptr_t dramSize() const override;
 
+  /// @brief Return the absolute base firmware address we can access
+  uintptr_t FWBaseAddr() const;
+
+  /// @brief Return the size of firmware we can write to in bytes.
+  uintptr_t FWSize() const;
+
   ssize_t mboxMsgMaxSize() const override;
 
 private:
@@ -72,6 +78,8 @@ private:
   ssize_t mboxMaxMsgSize_;
   uint64_t dramBase_;
   uint64_t dramSize_;
+  uint64_t firmwareBase_;
+  uint64_t firmwareSize_;
   std::string path_;
   int fd_;
 };

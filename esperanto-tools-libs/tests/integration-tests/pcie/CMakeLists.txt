@@ -11,6 +11,7 @@
 # PCIE only tests
 set(QEMU_TEST_LIST
   test_pcie_device.cc:""
+  test_pcie_device_mgmt.cc:""
   test_pcie_launch_kernels.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
   )
 
