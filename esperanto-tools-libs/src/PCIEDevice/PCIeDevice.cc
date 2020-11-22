@@ -114,6 +114,22 @@ PCIeDevice::PCIeDevice(int index, bool mgmtNode)
     }
     RTINFO << "DRAM size: 0x" << std::hex << dramSize_ << "\n";
 
+    if (mgmtNode) {
+      auto res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_FW_UPDATE_REG_BASE, Clock::now(), &firmwareBase_);
+      if (!res) {
+        RTERROR << "Failed to get FIRMWARE base\n";
+        std::terminate();
+      }
+      RTINFO << "FIRMWARE base: 0x" << std::hex << firmwareBase_ << "\n";
+
+      res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_FW_UPDATE_REG_SIZE, Clock::now(), &firmwareSize_);
+      if (!res) {
+        RTERROR << "Failed to get FIRMWARE size\n";
+        std::terminate();
+      }
+      RTINFO << "FIRMWARE size: 0x" << std::hex << firmwareSize_ << "\n";
+    }
+
     res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_MBOX_MAX_MSG, Clock::now(), &mboxMaxMsgSize_);
     if (!res) {
       RTERROR << "Failed to get maximum mailbox message size\n";
@@ -261,10 +277,23 @@ bool PCIeDevice::waitForEpollEvents(uint32_t &sq_bitmap, uint32_t &cq_bitmap) {
   return false;
 }
 
+#define MMIO_LIMIT 1024
+
 bool PCIeDevice::readDevMemMMIO(uintptr_t dev_addr, size_t size, void *buf) {
   enableMMIO(fd_);
   TRACE_PCIeDevice_mmio_read_start(dev_addr, (uint64_t)buf, size);
-  auto res = read(dev_addr, buf, size);
+  size_t tcount = 0;
+  bool res = true;
+  for ( ; tcount+MMIO_LIMIT <= size; tcount += MMIO_LIMIT) {
+    res = read(dev_addr+tcount, (void*)(static_cast<char*>(buf)+tcount), MMIO_LIMIT);
+
+    if (!res) {
+      break;
+    }
+  }
+  if (res && (tcount < size)) {
+    res = read(dev_addr+tcount, (void*)(static_cast<char*>(buf)+tcount), size-tcount);
+  }
   TRACE_PCIeDevice_mmio_read_end();
   return res;
 }
@@ -272,7 +301,18 @@ bool PCIeDevice::readDevMemMMIO(uintptr_t dev_addr, size_t size, void *buf) {
 bool PCIeDevice::writeDevMemMMIO(uintptr_t dev_addr, size_t size, const void *buf) {
   enableMMIO(fd_);
   TRACE_PCIeDevice_mmio_write_start(dev_addr, (uint64_t)buf, size);
-  auto res = write(dev_addr, buf, size);
+  size_t tcount = 0;
+  bool res = true;
+  for ( ; tcount+MMIO_LIMIT <= size; tcount += MMIO_LIMIT) {
+    res = write(dev_addr+tcount, (void*)(static_cast<const char*>(buf)+tcount), MMIO_LIMIT);
+
+    if (!res) {
+      break;
+    }
+  }
+  if (res && (tcount < size)) {
+    res = write(dev_addr+tcount, (void*)(static_cast<const char*>(buf)+tcount), size-tcount);
+  }
   TRACE_PCIeDevice_mmio_write_end();
   return res;
 }
@@ -330,6 +370,10 @@ bool PCIeDevice::shutdown() {
 uintptr_t PCIeDevice::dramBaseAddr() const { return dramBase_; }
 
 uintptr_t PCIeDevice::dramSize() const { return dramSize_; }
+
+uintptr_t PCIeDevice::FWBaseAddr() const { return firmwareBase_; }
+
+uintptr_t PCIeDevice::FWSize()const { return firmwareSize_; }
 
 ssize_t PCIeDevice::mboxMsgMaxSize() const { return mboxMaxMsgSize_; }
 
