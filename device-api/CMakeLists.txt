@@ -15,7 +15,7 @@ project(EsperantoDeviceAPI
   DESCRIPTION "Esperanto DeviceAPI Project"
   LANGUAGES C CXX)
 
-list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/CMake)
+list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake)
 
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 
@@ -41,22 +41,14 @@ enable_testing()
 
 option(BUILD_DOC "Build documentation" ON)
 
-# check if Doxygen is installed
-find_package(Doxygen)
-if (DOXYGEN_FOUND)
+if (BUILD_DOC)
   add_subdirectory(doc)
-else (DOXYGEN_FOUND)
-  message("Doxygen need to be installed to generate the doxygen documentation")
-endif (DOXYGEN_FOUND)
+endif()
 
 add_subdirectory(src)
 
 ### Add package information
 include(CMakePackageConfigHelpers)
-
-# Add all targets to the build-tree export set
-#export(TARGETS gen-device-api
-#  FILE "${PROJECT_BINARY_DIR}/esperanto-device-api-targets.cmake")
 
 # Export the package for use from the build-tree
 # (this registers the build-tree with a global CMake-registry)
@@ -79,7 +71,3 @@ install(FILES
   "${CMAKE_CURRENT_BINARY_DIR}/esperanto-device-api-config-version.cmake"
   DESTINATION ${LIB_INSTALL_DIR}/cmake/esperanto-device-api
   COMPONENT device-api)
-
-# Install the export set for use with the install-tree
-#install(EXPORT esperanto-device-api-targets DESTINATION
-#  "${LIB_INSTALL_DIR}/cmake/esperanto-device-api" COMPONENT device-api)

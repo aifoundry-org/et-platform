@@ -8,7 +8,7 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
+find_package(Doxygen REQUIRED)
 find_package(Sphinx REQUIRED)
 
 if(NOT DEFINED SPHINX_THEME)

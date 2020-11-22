@@ -9,88 +9,63 @@
 #------------------------------------------------------------------------------
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/device_api.h.in
-               ${CMAKE_CURRENT_BINARY_DIR}/device_api.h)
+               ${CMAKE_CURRENT_BINARY_DIR}/esperanto/device-api/device_api.h)
 
-file(GLOB_RECURSE DEVICE_API_SCHEMA_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}} *.yaml)
+set(DEV_API_HDRS ${CMAKE_CURRENT_BINARY_DIR}/device_api.h
+                 ${CMAKE_CURRENT_SOURCE_DIR}/device_api_message_types.h)
 
-set(DEV_API_HDRS "${CMAKE_CURRENT_BINARY_DIR}/device_api.h"
-                 "${CMAKE_CURRENT_SOURCE_DIR}/device_api_message_types.h")
+include(GenerateApi)
 
-################### Privileged API Headers #########################
-# List of Jinja files to generate files for
-SET(JINJA_FILES
-  "device_api_spec.h.jinja:device_api_spec_privileged.h"
-  "device_api_rpc_types.h.jinja:device_api_rpc_types_privileged.h"
-  "device_api_cxx.h.jinja:device_api_cxx_privileged.h"
-  )
+jinja_generate_api_cpp(DEVICE_API_PRIVILEGED_SRCS DEVICE_API_PRIVILEGED_HDRS PRIVILEGED
+  TARGET device-api-gen-privileged
+  DEVICE_API_CODEGEN_DIR ${CMAKE_CURRENT_SOURCE_DIR}
+  JINJA_TEMPLATES
+    device_api_spec.h.jinja
+    device_api_rpc_types.h.jinja
+    device_api_cxx.h.jinja
+)
 
-foreach(TMPL_TUPLE ${JINJA_FILES})
-  string(REPLACE ":" ";" TMPL_LIST ${TMPL_TUPLE})
-  list(GET TMPL_LIST 0 TMPL)
-  list(GET TMPL_LIST 1 GEN_OUTPUT)
-  add_custom_command(
-     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT}
-     COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/device_api_codegen.py
-     ARGS  --spec ${CMAKE_CURRENT_SOURCE_DIR}/privileged-api/device-api-privileged.yaml
-           --schema ${CMAKE_CURRENT_SOURCE_DIR}/schema/device-api.schema.json
-           --template ${CMAKE_CURRENT_SOURCE_DIR}/${TMPL}
-           --output ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT}
-     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/device_api_codegen.py
-             ${DEVICE_API_SCHEMA_FILES}
-             ${CMAKE_CURRENT_SOURCE_DIR}/schema/device-api.schema.json
-             ${CMAKE_CURRENT_SOURCE_DIR}/${TMPL}
-     )
-   add_custom_target(${GEN_OUTPUT} ALL
-             DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT})
-  list(APPEND DEV_API_HDRS ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT})
-endforeach()
+jinja_generate_api_cpp(DEVICE_API_NON_PRIVILEGED_SRCS DEVICE_API_NON_PRIVILEGED_HDRS NON_PRIVILEGED
+  TARGET device-api-gen-non-privileged
+  DEVICE_API_CODEGEN_DIR ${CMAKE_CURRENT_SOURCE_DIR}
+  JINJA_TEMPLATES
+    device_api_spec.h.jinja
+    device_api_rpc_types.h.jinja
+    device_api_cxx.h.jinja
+    tracing_types.h.jinja
+)
 
-SET(JINJA_FILES "")
+add_custom_target(device-api-gen-devices-apis
+  DEPENDS ${DEV_API_HDRS} ${DEVICE_API_PRIVILEGED_HDRS} ${DEVICE_API_NON_PRIVILEGED_HDRS})
 
-################### Non Privileged API Headers #########################
-# List of Jinja files to generate files for
-SET(JINJA_FILES
-  "device_api_spec.h.jinja:device_api_spec_non_privileged.h"
-  "device_api_rpc_types.h.jinja:device_api_rpc_types_non_privileged.h"
-  "device_api_cxx.h.jinja:device_api_cxx_non_privileged.h"
-  "tracing_types.h.jinja:tracing_types_non_privileged.h"
-  )
+# header-only library for facilitating propagation of includes
+add_library(device-api INTERFACE)
+target_include_directories(device-api
+  INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include>
+)
+# Alias that should be consumed by all users
+add_library(device-api::device-api ALIAS device-api)
 
-foreach(TMPL_TUPLE ${JINJA_FILES})
-  string(REPLACE ":" ";" TMPL_LIST ${TMPL_TUPLE})
-  list(GET TMPL_LIST 0 TMPL)
-  list(GET TMPL_LIST 1 GEN_OUTPUT)
-  add_custom_command(
-     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT}
-     COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/device_api_codegen.py
-     ARGS  --spec ${CMAKE_CURRENT_SOURCE_DIR}/non-privileged-api/device-api-non-privileged.yaml
-           --schema ${CMAKE_CURRENT_SOURCE_DIR}/schema/device-api.schema.json
-           --template ${CMAKE_CURRENT_SOURCE_DIR}/${TMPL}
-           --output ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT}
-     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/device_api_codegen.py
-             ${DEVICE_API_SCHEMA_FILES}
-             ${CMAKE_CURRENT_SOURCE_DIR}/schema/device-api.schema.json
-             ${CMAKE_CURRENT_SOURCE_DIR}/${TMPL}
-     )
-   add_custom_target(${GEN_OUTPUT} ALL
-             DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT})
-  list(APPEND DEV_API_HDRS ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT})
-endforeach()
+install(TARGETS device-api
+  EXPORT esperanto-device-api
+  DESTINATION ${LIB_INSTALL_DIR})
 
-add_custom_target(gen-device-api
-  DEPENDS ${DEV_API_HDRS})
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/device_api_message_types.h
+  DESTINATION ${INCLUDE_INSTALL_DIR}/esperanto/device-api
+  COMPONENT device-api)
 
-
-install(FILES ${DEV_API_HDRS}
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/esperanto/device-api/
   DESTINATION ${INCLUDE_INSTALL_DIR}/esperanto/device-api
   COMPONENT device-api)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/privileged-api
-  DESTINATION ${LIB_INSTALL_DIR}/esperanto/device-api/
+  DESTINATION ${LIB_INSTALL_DIR}/esperanto/device-api
   COMPONENT device-api)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/non-privileged-api
-  DESTINATION ${LIB_INSTALL_DIR}/esperanto/device-api/
+  DESTINATION ${LIB_INSTALL_DIR}/esperanto/device-api
   COMPONENT device-api)
 
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/schema/device-api.schema.json
@@ -98,6 +73,6 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/schema/device-api.schema.json
   COMPONENT device-api)
 
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/device_api_codegen.py
-  DESTINATION ${LIB_INSTALL_DIR}/esperanto/device-api/
+  DESTINATION ${LIB_INSTALL_DIR}/esperanto/device-api
   PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
   COMPONENT device-api)

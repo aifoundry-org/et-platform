@@ -9,107 +9,63 @@
 #------------------------------------------------------------------------------
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/device_apis.h.in
-               ${CMAKE_CURRENT_BINARY_DIR}/device_apis.h)
+               ${CMAKE_CURRENT_BINARY_DIR}/esperanto/device-apis/device_apis.h)
 
-file(GLOB_RECURSE DEVICE_API_SCHEMA_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}} *.yaml)
+set(DEV_API_HDRS ${CMAKE_CURRENT_BINARY_DIR}/device_apis.h
+                 ${CMAKE_CURRENT_SOURCE_DIR}/device_apis_message_types.h)
 
-set(DEV_API_HDRS "${CMAKE_CURRENT_BINARY_DIR}/device_apis.h"
-                 "${CMAKE_CURRENT_SOURCE_DIR}/device_apis_message_types.h")
+include(GenerateApi)
 
-SET(JINJA_FILES "")
+jinja_generate_apis_cpp(DEVICE_API_OPS_SRCS DEVICE_API_OPS_HDRS OPERATIONS
+  TARGET device-api-gen-ops
+  DEVICE_API_CODEGEN_DIR ${CMAKE_CURRENT_SOURCE_DIR}
+  JINJA_TEMPLATES
+    device_apis_cxx.h.jinja
+    device_apis_spec.h.jinja
+    device_apis_rpc_types.h.jinja
+    device_apis_tracing_types.h.jinja
+)
 
-################### Device Ops API Headers #########################
-# List of Jinja files to generate files for
-SET(JINJA_FILES
-  "device_apis_spec.h.jinja:device_ops_api_spec.h"
-  "device_apis_rpc_types.h.jinja:device_ops_api_rpc_types.h"
-  "device_apis_cxx.h.jinja:device_ops_api_cxx.h"
-  "device_apis_tracing_types.h.jinja:device_ops_api_tracing_types.h"
-  )
+jinja_generate_apis_cpp(DEVICE_API_MGMT_SRCS DEVICE_API_MGMT_HDRS MANAGEMENT
+  TARGET device-api-gen-mgmt
+  DEVICE_API_CODEGEN_DIR ${CMAKE_CURRENT_SOURCE_DIR}
+  JINJA_TEMPLATES
+    device_apis_cxx.h.jinja
+    device_apis_spec.h.jinja
+    device_apis_rpc_types.h.jinja
+)
 
-foreach(TMPL_TUPLE ${JINJA_FILES})
-  string(REPLACE ":" ";" TMPL_LIST ${TMPL_TUPLE})
-  list(GET TMPL_LIST 0 TMPL)
-  list(GET TMPL_LIST 1 GEN_OUTPUT)
+add_custom_target(device-api-gen-device-apis
+  DEPENDS ${DEV_API_HDRS} ${DEVICE_API_OPS_HDRS} ${DEVICE_API_MGMT_HDRS})
 
-  add_custom_command(
-     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/operations-api/${GEN_OUTPUT}
-     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/operations-api
-     COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/device_apis_codegen.py
-     ARGS  --spec ${CMAKE_CURRENT_SOURCE_DIR}/operations-api/operations-api.yaml
-           --schema ${CMAKE_CURRENT_SOURCE_DIR}/schema/device-apis.schema.json
-           --template ${CMAKE_CURRENT_SOURCE_DIR}/${TMPL}
-           --output ${CMAKE_CURRENT_BINARY_DIR}/operations-api/${GEN_OUTPUT}
-     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/device_apis_codegen.py
-             ${DEVICE_API_SCHEMA_FILES}
-             ${CMAKE_CURRENT_SOURCE_DIR}/schema/device-apis.schema.json
-             ${CMAKE_CURRENT_SOURCE_DIR}/${TMPL}
-     )
-   add_custom_target(${GEN_OUTPUT} ALL
-             DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/operations-api/${GEN_OUTPUT})
-  list(APPEND DEV_OPS_API_HDRS ${CMAKE_CURRENT_BINARY_DIR}/operations-api/${GEN_OUTPUT})
-endforeach()
+# header-only library for facilitating propagation of includes
+add_library(device-apis INTERFACE)
+target_include_directories(device-apis
+  INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include>
+)
+# Alias that should be consumed by all users
+add_library(device-api::device-apis ALIAS device-apis)
 
-SET(JINJA_FILES "")
+install(TARGETS device-apis
+  EXPORT esperanto-device-api
+  DESTINATION ${LIB_INSTALL_DIR})
 
-################### Device Management API Headers #########################
-# List of Jinja files to generate files for
-SET(JINJA_FILES
-  "device_apis_spec.h.jinja:device_mgmt_api_spec.h"
-  "device_apis_rpc_types.h.jinja:device_mgmt_api_rpc_types.h"
-  "device_apis_cxx.h.jinja:device_mgmt_api_cxx.h"
-  )
-
-foreach(TMPL_TUPLE ${JINJA_FILES})
-  string(REPLACE ":" ";" TMPL_LIST ${TMPL_TUPLE})
-  list(GET TMPL_LIST 0 TMPL)
-  list(GET TMPL_LIST 1 GEN_OUTPUT)
-
-  add_custom_command(
-     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/management-api/${GEN_OUTPUT}
-     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/management-api
-     COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/device_apis_codegen.py
-     ARGS  --spec ${CMAKE_CURRENT_SOURCE_DIR}/management-api/management-api.yaml
-           --schema ${CMAKE_CURRENT_SOURCE_DIR}/schema/device-apis.schema.json
-           --template ${CMAKE_CURRENT_SOURCE_DIR}/${TMPL}
-           --output ${CMAKE_CURRENT_BINARY_DIR}/management-api/${GEN_OUTPUT}
-     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/device_apis_codegen.py
-             ${DEVICE_API_SCHEMA_FILES}
-             ${CMAKE_CURRENT_SOURCE_DIR}/schema/device-apis.schema.json
-             ${CMAKE_CURRENT_SOURCE_DIR}/${TMPL}
-     )
-   add_custom_target(${GEN_OUTPUT} ALL
-             DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/management-api/${GEN_OUTPUT})
-  list(APPEND DEV_MGMT_API_HDRS ${CMAKE_CURRENT_BINARY_DIR}/management-api/${GEN_OUTPUT})
-endforeach()
-
-add_custom_target(gen-device-apis
-  DEPENDS ${DEV_API_HDRS} ${DEV_OPS_API_HDRS} ${DEV_MGMT_API_HDRS})
-
-add_custom_target(gen-device-ops-api
-  DEPENDS ${DEV_API_HDRS} ${DEV_OPS_API_HDRS})
-
-add_custom_target(gen-device-mgmt-api
-  DEPENDS ${DEV_API_HDRS} ${DEV_MGMT_API_HDRS})
-
-install(FILES ${DEV_API_HDRS}
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/device_apis_message_types.h
   DESTINATION ${INCLUDE_INSTALL_DIR}/esperanto/device-apis
   COMPONENT device-api)
 
-install(FILES ${DEV_OPS_API_HDRS}
-  DESTINATION ${INCLUDE_INSTALL_DIR}/esperanto/device-apis/operations-api
-  COMPONENT device-api)
-
-install(FILES ${DEV_MGMT_API_HDRS}
-  DESTINATION ${INCLUDE_INSTALL_DIR}/esperanto/device-apis/management-api
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/esperanto/device-apis/
+  DESTINATION ${INCLUDE_INSTALL_DIR}/esperanto/device-apis
   COMPONENT device-api)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/operations-api
-  DESTINATION ${LIB_INSTALL_DIR}/esperanto/device-apis/
+  DESTINATION ${LIB_INSTALL_DIR}/esperanto/device-apis
   COMPONENT device-api)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/management-api
-  DESTINATION ${LIB_INSTALL_DIR}/esperanto/device-apis/
+  DESTINATION ${LIB_INSTALL_DIR}/esperanto/device-apis
   COMPONENT device-api)
 
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/schema/device-apis.schema.json
@@ -117,6 +73,6 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/schema/device-apis.schema.json
   COMPONENT device-api)
 
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/device_apis_codegen.py
-  DESTINATION ${LIB_INSTALL_DIR}/esperanto/device-apis/
+  DESTINATION ${LIB_INSTALL_DIR}/esperanto/device-apis
   PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
   COMPONENT device-api)

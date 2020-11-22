@@ -18,12 +18,3 @@ set_and_check(ESPERANTO_DEVICE_API_LIB_DIR "@PACKAGE_LIB_INSTALL_DIR@")
 include(CMakeFindDependencyMacro)
 
 get_filename_component(ESPERANTO_DEVICE_API_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
-
-# # Our library dependencies (contains definitions for IMPORTED targets)
-# if(NOT TARGET etrt AND NOT TARGET etrt_static)
-#   include("${ESPERANTO_DEVICE_API_CMAKE_DIR}/EsperantoRuntimeTargets.cmake")
-# endif()
-
-# # These are IMPORTED targets created by EsperantoRuntimeTargets.cmake
-# set(ESPERANTO_DEVICE_API_LIBRARIES etrt etrt_static)
-# # set(FOOBAR_EXECUTABLE bar)
