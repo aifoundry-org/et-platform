@@ -31,6 +31,10 @@
 ///
 /// @{
 namespace rt {
+
+/// \brief Forward declaration of \ref IProfiler
+class IProfiler;
+
 /// \brief Event Handler
 enum class EventId : int { Invalid = 0 };
 
@@ -68,7 +72,7 @@ public:
   ///
   /// @returns a vector containing all device handlers
   ///
-  virtual std::vector<DeviceId> getDevices() const = 0;
+  virtual std::vector<DeviceId> getDevices() = 0;
 
   /// \brief Loads an elf into the device. The caller will provide a byte code
   /// containing the elf representation and its size. Host memory.
@@ -223,6 +227,14 @@ public:
   /// \brief Indicates the kind of runtime implementation
   enum class Kind { SysEmu, Silicon };
 
+  /// \brief Returns a pointer to the profiler interface; don't delete/free this pointer since this is owned by the
+  /// runtime itself.
+  ///
+  /// @returns IProfiler an interface to the profiler. See \ref IProfiler
+  ///
+  virtual IProfiler* getProfiler() = 0;
+
+  ///
   /// \brief Factory method to instantiate a IRuntime implementation
   ///
   ///
