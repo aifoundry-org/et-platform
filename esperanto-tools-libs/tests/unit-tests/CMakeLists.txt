@@ -16,7 +16,7 @@ set(TEST_LIST
   test_device_manager.cc:""
   test_error_or.cc:""
   test_elf_parsing.cc:""
-  test_profiler.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
+  old_test_profiler.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
   utest_memory_manager.cpp:""
   utest_streams_lifecycle.cpp:""
   utest_event_manager.cpp:""

@@ -18,7 +18,9 @@
 #include <elfio/elfio.hpp>
 #include <memory>
 #include <sstream>
+#include "ScopedProfileEvent.h"
 using namespace rt;
+using namespace rt::profiling;
 
 RuntimeImp::~RuntimeImp() {
   mailboxReader_.reset();
@@ -53,11 +55,13 @@ RuntimeImp::RuntimeImp(Kind kind) {
   mailboxReader_ = std::make_unique<MailboxReader>(target_.get(), kernelParametersCache_.get(), &eventManager_);
 }
 
-std::vector<DeviceId> RuntimeImp::getDevices() const {
+std::vector<DeviceId> RuntimeImp::getDevices() {
+  ScopedProfileEvent profileEvent(Class::GetDevices, profiler_);
   return target_->getDevices();
 }
 
 KernelId RuntimeImp::loadCode(DeviceId device, const std::byte* data, size_t size) {
+  ScopedProfileEvent profileEvent(Class::LoadCode, profiler_);
 
   // allocate a buffer in the device to load the code
   auto deviceBuffer = mallocDevice(device, size);
@@ -81,6 +85,7 @@ KernelId RuntimeImp::loadCode(DeviceId device, const std::byte* data, size_t siz
 }
 
 void RuntimeImp::unloadCode(KernelId kernel) {
+  ScopedProfileEvent profileEvent(Class::UnloadCode, profiler_);
   auto it = find(kernels_, kernel);
   
   //free the buffer
@@ -91,17 +96,20 @@ void RuntimeImp::unloadCode(KernelId kernel) {
 }
 
 std::byte* RuntimeImp::mallocDevice(DeviceId device, size_t size, int alignment) {
+  ScopedProfileEvent profileEvent(Class::MallocDevice, profiler_);
   auto it = find(memoryManagers_, device);
   // enforce size is multiple of alignment
   size = alignment * ((size + alignment - 1) / alignment);
   return static_cast<std::byte*>(it->second.malloc(size, alignment));
 }
 void RuntimeImp::freeDevice(DeviceId device, std::byte* buffer) {
+  ScopedProfileEvent profileEvent(Class::FreeDevice, profiler_);
   auto it = find(memoryManagers_, device);
   it->second.free(buffer);
 }
 
 StreamId RuntimeImp::createStream(DeviceId device) {
+  ScopedProfileEvent profileEvent(Class::CreateStream, profiler_);
   auto streamId = static_cast<StreamId>(nextStreamId_++);
   auto it = streams_.find(streamId);
   if (it != end(streams_)) {
@@ -112,6 +120,7 @@ StreamId RuntimeImp::createStream(DeviceId device) {
 }
 
 void RuntimeImp::destroyStream(StreamId stream) {
+  ScopedProfileEvent profileEvent(Class::DestroyStream, profiler_);
   auto it = find(streams_, stream);
   streams_.erase(it);
 }
@@ -120,6 +129,7 @@ void RuntimeImp::destroyStream(StreamId stream) {
 // currently we only create an event, don't
 EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size,
                                        [[maybe_unused]] bool barrier) {
+  ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, profiler_);
   if (size % 256 != 0) { // #TODO fix this with SW-5098
     throw Exception("Memcpy operations must be aligned to 256B");
   }
@@ -137,6 +147,7 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, 
 // currently we only create an event, don't
 EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size,
                                        [[maybe_unused]] bool barrier) {
+  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, profiler_);
   if (size % 256 != 0) { // #TODO fix this with SW-5098
     throw Exception("Memcpy operations must be aligned to 256B");
   }
@@ -151,13 +162,15 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, 
   return evt;
 }
 
-void RuntimeImp::waitForEvent(EventId event) {
+void RuntimeImp::waitForEvent(EventId event) {  
+  ScopedProfileEvent profileEvent(Class::WaitForEvent, profiler_, event);
   RT_DLOG(INFO) << "Waiting for event " << static_cast<int>(event) << " to be dispatched.";
   eventManager_.blockUntilDispatched(event);
   RT_DLOG(INFO) << "Finished wait for event " << static_cast<int>(event);
 }
 
 void RuntimeImp::waitForStream(StreamId stream) {
+  ScopedProfileEvent profileEvent(Class::WaitForStream, profiler_, stream); 
   auto it = find(streams_, stream, "Invalid stream");
   waitForEvent(it->second.lastEventId_);
 }

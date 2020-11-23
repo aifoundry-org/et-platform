@@ -34,7 +34,7 @@ namespace fs = std::experimental::filesystem;
 ABSL_FLAG(std::string, kernels_dir, "",
           "Directory where different kernel ELF files are located");
 
-class TestProfiler : public ::testing::Test {
+class OldTestProfiler : public ::testing::Test {
 public:
   void SetUp() override {
     auto device_manager = et_runtime::getDeviceManager();
@@ -112,7 +112,7 @@ public:
   std::shared_ptr<Device> dev_;
 };
 
-TEST_F(TestProfiler, DISABLED_profiler) {
+TEST_F(OldTestProfiler, DISABLED_profiler) {
   // initialize profiler for device dev_
   Profiler profiler(*dev_);
 

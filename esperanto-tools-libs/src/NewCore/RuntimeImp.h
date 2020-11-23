@@ -10,9 +10,11 @@
 
 #pragma once
 
+#include "ProfilerImp.h"
+
 #include "EventManager.h"
-#include "runtime/IRuntime.h"
 #include "MemoryManager.h"
+#include "runtime/IRuntime.h"
 #include <elfio/elfio.hpp>
 #include <thread>
 #include <unordered_map>
@@ -23,11 +25,11 @@ class MailboxReader;
 class MemoryManager;
 class ITarget;
 class RuntimeImp : public IRuntime {
-public: 
+public:
   RuntimeImp(Kind kind);
   ~RuntimeImp();
 
-  std::vector<DeviceId> getDevices() const override;
+  std::vector<DeviceId> getDevices() override;
 
   KernelId loadCode(DeviceId device, const std::byte* elf, size_t elf_size) override;
   void unloadCode(KernelId kernel) override;
@@ -49,39 +51,45 @@ public:
   void waitForEvent(EventId event) override;
   void waitForStream(StreamId stream) override;
 
-private:
-struct Kernel {
-  Kernel(DeviceId deviceId, const std::byte* elfData, size_t elfSize, std::byte* deviceBuffer);
-
-  ELFIO::elfio elf_;
-  DeviceId deviceId_;
-  std::byte* deviceBuffer_;
-};
-
-struct Stream {
-  //#TODO we will add later VQs information see epic SW-4377
-  Stream(DeviceId deviceId, int vq)
-    : deviceId_(deviceId)
-    , vq_(vq) {
+  IProfiler* getProfiler() override {
+    return &profiler_;
   }
-  DeviceId deviceId_;
-  EventId lastEventId_; // last submitted event to this stream
-  int vq_;
-};
 
-std::unique_ptr<MailboxReader> mailboxReader_;
-std::unique_ptr<ITarget> target_;
-std::vector<DeviceId> devices_;
-std::unordered_map<DeviceId, MemoryManager> memoryManagers_;
-std::unordered_map<StreamId, Stream> streams_;
-std::unique_ptr<KernelParametersCache> kernelParametersCache_;
+private:
+  struct Kernel {
+    Kernel(DeviceId deviceId, const std::byte* elfData, size_t elfSize, std::byte* deviceBuffer);
 
-EventManager eventManager_;
+    ELFIO::elfio elf_;
+    DeviceId deviceId_;
+    std::byte* deviceBuffer_;
+  };
 
-// using unique_ptr to not have to deal with elfio mess (the class is not friendly with modern c++)
-std::unordered_map<KernelId, std::unique_ptr<Kernel>> kernels_;
+  struct Stream {
+    //#TODO we will add later VQs information see epic SW-4377
+    Stream(DeviceId deviceId, int vq)
+      : deviceId_(deviceId)
+      , vq_(vq) {
+    }
+    DeviceId deviceId_;
+    EventId lastEventId_; // last submitted event to this stream
+    int vq_;
+  };
 
-int nextKernelId_ = 0;
-int nextStreamId_ = 0;
+  std::unique_ptr<MailboxReader> mailboxReader_;
+  std::unique_ptr<ITarget> target_;
+  std::vector<DeviceId> devices_;
+  std::unordered_map<DeviceId, MemoryManager> memoryManagers_;
+  std::unordered_map<StreamId, Stream> streams_;
+  std::unique_ptr<KernelParametersCache> kernelParametersCache_;
+
+  EventManager eventManager_;
+
+  // using unique_ptr to not have to deal with elfio mess (the class is not friendly with modern c++)
+  std::unordered_map<KernelId, std::unique_ptr<Kernel>> kernels_;
+
+  int nextKernelId_ = 0;
+  int nextStreamId_ = 0;
+
+  profiling::ProfilerImp profiler_;
 };
 } // namespace rt

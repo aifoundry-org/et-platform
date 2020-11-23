@@ -25,7 +25,9 @@ target_include_directories(etrt_NewCore PRIVATE
   ${PROJECT_SOURCE_DIR}/src
   ${PROJECT_BINARY_DIR}/include
   ${PROJECT_BINARY_DIR}/src
+  ${PROJECT_SOURCE_DIR}/external/cereal/include
   )
+
 
 add_sanitizers(etrt_NewCore)
 
