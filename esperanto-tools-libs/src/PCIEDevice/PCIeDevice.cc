@@ -100,22 +100,15 @@ PCIeDevice::PCIeDevice(int index, bool mgmtNode)
     }
     RTINFO << "PCIe target opened: \"" << path_ << "\"\n";
 
-    auto res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_DRAM_BASE, Clock::now(), &dramBase_);
+    auto res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_MBOX_MAX_MSG, Clock::now(), &mboxMaxMsgSize_);
     if (!res) {
-      RTERROR << "Failed to get DRAM base\n";
+      RTERROR << "Failed to get maximum mailbox message size\n";
       std::terminate();
     }
-    RTINFO << "DRAM base: 0x" << std::hex << dramBase_ << "\n";
-
-    res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_DRAM_SIZE, Clock::now(), &dramSize_);
-    if (!res) {
-      RTERROR << "Failed to get DRAM size\n";
-      std::terminate();
-    }
-    RTINFO << "DRAM size: 0x" << std::hex << dramSize_ << "\n";
+    RTINFO << "Maximum mbox message size: " << mboxMaxMsgSize_ << "\n";
 
     if (mgmtNode) {
-      auto res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_FW_UPDATE_REG_BASE, Clock::now(), &firmwareBase_);
+      res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_FW_UPDATE_REG_BASE, Clock::now(), &firmwareBase_);
       if (!res) {
         RTERROR << "Failed to get FIRMWARE base\n";
         std::terminate();
@@ -128,14 +121,21 @@ PCIeDevice::PCIeDevice(int index, bool mgmtNode)
         std::terminate();
       }
       RTINFO << "FIRMWARE size: 0x" << std::hex << firmwareSize_ << "\n";
-    }
+    } else {
+      res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_DRAM_BASE, Clock::now(), &dramBase_);
+      if (!res) {
+        RTERROR << "Failed to get DRAM base\n";
+        std::terminate();
+      }
+      RTINFO << "DRAM base: 0x" << std::hex << dramBase_ << "\n";
 
-    res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_MBOX_MAX_MSG, Clock::now(), &mboxMaxMsgSize_);
-    if (!res) {
-      RTERROR << "Failed to get maximum mailbox message size\n";
-      std::terminate();
+      res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_DRAM_SIZE, Clock::now(), &dramSize_);
+      if (!res) {
+        RTERROR << "Failed to get DRAM size\n";
+        std::terminate();
+      }
+      RTINFO << "DRAM size: 0x" << std::hex << dramSize_ << "\n";
     }
-    RTINFO << "Maximum mbox message size: " << mboxMaxMsgSize_ << "\n";
 }
 
 PCIeDevice::~PCIeDevice() {
