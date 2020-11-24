@@ -46,10 +46,12 @@ TEST_F(PCIEDevTest, FWSize) {
   ASSERT_EQ(size, FW_UPDATE_REGION_SIZE);
 }
 
+/* Disabling since VQ is using part of the Mbox - till we migrate to DDR
 TEST_F(PCIEDevTest, FWMboxMsgMaxSize) {
   auto max_size = dev_->mboxMsgMaxSize();
   ASSERT_EQ(max_size, 2027);
 }
+*/
 
 TEST_F(PCIEDevTest, FWInit) {
   auto ready = dev_->init();
