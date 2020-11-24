@@ -348,7 +348,7 @@ TEST_F(DMTestModule, test_serial_access) {
   std::thread first(testSerial, std::ref(dm), (uint32_t)1000, res1.get());
   std::this_thread::sleep_for(std::chrono::milliseconds(2000));
   std::thread second(testSerial, std::ref(dm), (uint32_t)0, res2.get());
-  std::thread third(testSerial, std::ref(dm), (uint32_t)30000, res3.get());
+  std::thread third(testSerial, std::ref(dm), (uint32_t)70000, res3.get());
 
   first.join();
   second.join();
