@@ -129,7 +129,7 @@ TEST_F(DMTestModule, test_GET_ASIC_CHIP_REVISION) {
   ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
 }
 */
-/* TODO : Enable this test. Add ticket number.
+/* Note : This test should be run in full boot mode only.
 // Test GET_MODULE_FIRMWARE_REVISIONS
 TEST_F(DMTestModule, test_GET_MODULE_FIRMWARE_REVISIONS) {
   getDM_t dmi = getInstance();
