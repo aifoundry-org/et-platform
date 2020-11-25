@@ -57,7 +57,7 @@ static bool gs_ignore_signatures;
 static ESPERANTO_IMAGE_FILE_HEADER_t *master_minion_image_file_header;
 static ESPERANTO_IMAGE_FILE_HEADER_t *worker_minion_image_file_header;
 static ESPERANTO_IMAGE_FILE_HEADER_t *machine_minion_image_file_header;
-/*
+
 ESPERANTO_IMAGE_FILE_HEADER_t *get_master_minion_image_file_header(void)
 {
     return master_minion_image_file_header;
@@ -72,7 +72,7 @@ ESPERANTO_IMAGE_FILE_HEADER_t *get_machine_minion_image_file_header(void)
 {
     return machine_minion_image_file_header;
 }
-*/
+
 static int get_fw_monotonic_counter_value(const ESPERANTO_IMAGE_TYPE_t image_type,
                                           uint32_t *monotonic_counter)
 {

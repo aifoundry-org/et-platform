@@ -93,10 +93,9 @@ static int64_t dm_svc_get_firmware_status(void)
 static void dm_svc_get_firmware_version(mbox_e mbox, uint32_t cmd_id, uint64_t req_start_time)
 {
     char fw_vers[20];
-/*
-    //ESPERANTO_IMAGE_FILE_HEADER_t *master_image_file_header;
-    //ESPERANTO_IMAGE_FILE_HEADER_t *machine_image_file_header;
-    //ESPERANTO_IMAGE_FILE_HEADER_t *worker_image_file_header;
+    ESPERANTO_IMAGE_FILE_HEADER_t *master_image_file_header;
+    ESPERANTO_IMAGE_FILE_HEADER_t *machine_image_file_header;
+    ESPERANTO_IMAGE_FILE_HEADER_t *worker_image_file_header;
     SERVICE_PROCESSOR_BL2_DATA_t *sp_bl2_data;
     const IMAGE_VERSION_INFO_t *bl2_image_version;
 
@@ -105,17 +104,18 @@ static void dm_svc_get_firmware_version(mbox_e mbox, uint32_t cmd_id, uint64_t r
 
     //Get BL2 version
     bl2_image_version = get_image_version_info();
+    
     // Get firmware version info for master minion
-    master_image_file_header = get_mm_image_file_header();
+    master_image_file_header = get_master_minion_image_file_header();
 
     // Get firmware version info for worker minion
-    worker_image_file_header = get_wm_image_file_header();
+    worker_image_file_header = get_worker_minion_image_file_header();
 
     // Get firmware version for machine minion
-    // machine_image_file_header = get_machine_minion_image_file_header();
+    machine_image_file_header = get_machine_minion_image_file_header();
 
     sprintf(
-        fw_vers, "%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u", bl2_image_version->file_version_major,
+        fw_vers, "%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u", bl2_image_version->file_version_major,
         bl2_image_version->file_version_minor, bl2_image_version->file_version_revision, '\0',
         sp_bl2_data->service_processor_bl1_image_file_version_major,
         sp_bl2_data->service_processor_bl1_image_file_version_minor,
@@ -129,15 +129,15 @@ static void dm_svc_get_firmware_version(mbox_e mbox, uint32_t cmd_id, uint64_t r
         ((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
          0xFF),
         '\0',
-       // ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-       //  0xFF0000) >>
-       //     16,
-       // ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-       //  0xFF00) >>
-       //     8,
-       // ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-       //  0xFF),
-       // '\0',
+        ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF0000) >>
+            16,
+        ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF00) >>
+            8,
+        ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF),
+        '\0',
         ((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
          0xFF0000) >>
             16,
@@ -147,7 +147,7 @@ static void dm_svc_get_firmware_version(mbox_e mbox, uint32_t cmd_id, uint64_t r
         ((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
          0xFF),
         '\0');
-*/
+
     // Send the response containing firmware versions.
     if (0 != firmware_service_send_response(mbox, cmd_id, req_start_time, fw_vers, 20)) {
         printf("mbox send error while sending fw revisions!\n");
