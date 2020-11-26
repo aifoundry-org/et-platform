@@ -52,13 +52,13 @@ TEST(KernelLaunch, add_2_vectors) {
   auto bufResult = runtime->mallocDevice(devices[0], bufferSize);
 
   auto stream = runtime->createStream(dev);
-  runtime->memcpyHostToDevice(stream, reinterpret_cast<std::byte*>(vA.data()), bufA, bufferSize);
-  runtime->memcpyHostToDevice(stream, reinterpret_cast<std::byte*>(vB.data()), bufB, bufferSize);
+  runtime->memcpyHostToDevice(stream, vA.data(), bufA, bufferSize);
+  runtime->memcpyHostToDevice(stream, vB.data(), bufB, bufferSize);
 
   struct Parameters {
-    std::byte* vA;
-    std::byte* vB;
-    std::byte* vResult;
+    void* vA;
+    void* vB;
+    void* vResult;
     int numElements;
   } parameters{bufA, bufB, bufResult, numElems};
 
@@ -66,12 +66,12 @@ TEST(KernelLaunch, add_2_vectors) {
   for (int i = 0; i < numElems; ++i) {
     resultFromDevice[i] = 0xF;
   }
-  runtime->memcpyHostToDevice(stream, (std::byte*)resultFromDevice.data(), bufResult, bufferSize);
-  runtime->kernelLaunch(stream, kernelId, (std::byte*)&parameters, sizeof(parameters), 0x1);
+  runtime->memcpyHostToDevice(stream, resultFromDevice.data(), bufResult, bufferSize);
+  runtime->kernelLaunch(stream, kernelId, &parameters, sizeof(parameters), 0x1);
   for (int i = 0; i < numElems; ++i) {
     resultFromDevice[i] = 0x0;
   }
-  runtime->memcpyDeviceToHost(stream, bufResult, (std::byte*)resultFromDevice.data(), bufferSize);
+  runtime->memcpyDeviceToHost(stream, bufResult, resultFromDevice.data(), bufferSize);
   runtime->waitForStream(stream);
   EXPECT_EQ(resultFromDevice, vResult);
 }
@@ -103,15 +103,15 @@ TEST(KernelLaunch, memset) {
   int numShires = 16;
   int value = 0xDE;
   struct Parameters {
-    std::byte* a;
+    void* a;
     int value;
     int numElements;
     int numShires;
   } parameters{bufResult, value, numElems, numShires};
 
   auto stream = runtime->createStream(dev);
-  runtime->kernelLaunch(stream, kernelId, (std::byte*)&parameters, sizeof(parameters), (1 << numShires) - 1);
-  runtime->memcpyDeviceToHost(stream, bufResult, (std::byte*)vR.data(), bufferSize);
+  runtime->kernelLaunch(stream, kernelId, &parameters, sizeof(parameters), (1 << numShires) - 1);
+  runtime->memcpyDeviceToHost(stream, bufResult, vR.data(), bufferSize);
   runtime->waitForStream(stream);
   for (auto v : vR) {
     EXPECT_EQ(v, value);

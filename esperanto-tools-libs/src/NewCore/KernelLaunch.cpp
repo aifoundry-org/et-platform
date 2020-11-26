@@ -23,7 +23,7 @@
 
 using namespace rt;
 
-EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std::byte* kernel_args,
+EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const void* kernel_args,
                                  size_t kernel_args_size, uint64_t shire_mask, bool barrier) {
   if (kernel_args_size > kMinAllocationSize) {
     char buffer[1024];
@@ -38,7 +38,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std
     throw Exception("Can't execute stream and kernel associated to a different device");
   }
 
-  std::byte* pBuffer = nullptr;
+  void* pBuffer = nullptr;
   // auto entryAddr = kernel->elf_.get_entry();
 
   if (kernel_args_size > 0) {
@@ -74,7 +74,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std
   cmd_info_.kernel_params.kernel_id = static_cast<uint64_t>(kernelId);
 
   RT_DLOG(INFO) << "Writing execute kernel command into mailbox. Command id: " << cmdId << " parameters: " << pBuffer
-                << " PC: " << (std::byte*)cmd_info_.kernel_info.compute_pc << " shire_mask: " << (std::byte*)shire_mask;
+                << " PC: " << (void*)cmd_info_.kernel_info.compute_pc << " shire_mask: " << (void*)shire_mask;
   if (!target_->writeMailbox(&cmd_info_, sizeof(cmd_info_))) {
     throw Exception("Error writing command to mailbox");
   }

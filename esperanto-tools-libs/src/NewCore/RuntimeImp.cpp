@@ -26,7 +26,7 @@ RuntimeImp::~RuntimeImp() {
   mailboxReader_.reset();
 }
 
-RuntimeImp::Kernel::Kernel(DeviceId deviceId, const std::byte* elfData, size_t elfSize, std::byte* deviceBuffer)
+RuntimeImp::Kernel::Kernel(DeviceId deviceId, const void* elfData, size_t elfSize, void* deviceBuffer)
   : deviceId_(deviceId)
   , deviceBuffer_(deviceBuffer) {
 
@@ -60,7 +60,7 @@ std::vector<DeviceId> RuntimeImp::getDevices() {
   return target_->getDevices();
 }
 
-KernelId RuntimeImp::loadCode(DeviceId device, const std::byte* data, size_t size) {
+KernelId RuntimeImp::loadCode(DeviceId device, const void* data, size_t size) {
   ScopedProfileEvent profileEvent(Class::LoadCode, profiler_);
 
   // allocate a buffer in the device to load the code
@@ -72,7 +72,7 @@ KernelId RuntimeImp::loadCode(DeviceId device, const std::byte* data, size_t siz
   auto offset = text_section->get_offset();
   auto text_size = text_section->get_size();
   RT_DLOG(INFO) << "Text section offset: " << offset << " size: " << text_size;
-  target_->writeDevMemDMA(reinterpret_cast<uint64_t>(deviceBuffer), text_size, data + offset);
+  target_->writeDevMemDMA(reinterpret_cast<uint64_t>(deviceBuffer), text_size, reinterpret_cast<const uint8_t*>(data) + offset);
 
   // store the ref
   auto kernelId = static_cast<KernelId>(nextKernelId_++);
@@ -95,14 +95,14 @@ void RuntimeImp::unloadCode(KernelId kernel) {
   kernels_.erase(it);
 }
 
-std::byte* RuntimeImp::mallocDevice(DeviceId device, size_t size, int alignment) {
+void* RuntimeImp::mallocDevice(DeviceId device, size_t size, int alignment) {
   ScopedProfileEvent profileEvent(Class::MallocDevice, profiler_);
   auto it = find(memoryManagers_, device);
   // enforce size is multiple of alignment
   size = alignment * ((size + alignment - 1) / alignment);
-  return static_cast<std::byte*>(it->second.malloc(size, alignment));
+  return static_cast<void*>(it->second.malloc(size, alignment));
 }
-void RuntimeImp::freeDevice(DeviceId device, std::byte* buffer) {
+void RuntimeImp::freeDevice(DeviceId device, void* buffer) {
   ScopedProfileEvent profileEvent(Class::FreeDevice, profiler_);
   auto it = find(memoryManagers_, device);
   it->second.free(buffer);
@@ -127,7 +127,7 @@ void RuntimeImp::destroyStream(StreamId stream) {
 
 //#TODO this won't be complete nor real till VQs are implemented information see epic SW-4377
 // currently we only create an event, don't
-EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size,
+EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void* d_dst, size_t size,
                                        [[maybe_unused]] bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, profiler_);
   if (size % 256 != 0) { // #TODO fix this with SW-5098
@@ -145,7 +145,7 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, 
 }
 //#TODO this won't be complete nor real till VQs are implemented information see epic SW-4377
 // currently we only create an event, don't
-EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size,
+EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void* h_dst, size_t size,
                                        [[maybe_unused]] bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, profiler_);
   if (size % 256 != 0) { // #TODO fix this with SW-5098
