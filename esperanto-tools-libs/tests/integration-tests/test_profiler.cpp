@@ -59,13 +59,13 @@ TEST(Profiler, add_2_vectors_profiling) {
   auto bufResult = runtime->mallocDevice(devices[0], bufferSize);
 
   auto stream = runtime->createStream(dev);
-  runtime->memcpyHostToDevice(stream, reinterpret_cast<std::byte*>(vA.data()), bufA, bufferSize);
-  runtime->memcpyHostToDevice(stream, reinterpret_cast<std::byte*>(vB.data()), bufB, bufferSize);
+  runtime->memcpyHostToDevice(stream, vA.data(), bufA, bufferSize);
+  runtime->memcpyHostToDevice(stream, vB.data(), bufB, bufferSize);
 
   struct Parameters {
-    std::byte* vA;
-    std::byte* vB;
-    std::byte* vResult;
+    void* vA;
+    void* vB;
+    void* vResult;
     int numElements;
   } parameters{bufA, bufB, bufResult, numElems};
 
@@ -73,12 +73,12 @@ TEST(Profiler, add_2_vectors_profiling) {
   for (int i = 0; i < numElems; ++i) {
     resultFromDevice[i] = 0xF;
   }
-  runtime->memcpyHostToDevice(stream, (std::byte*)resultFromDevice.data(), bufResult, bufferSize);
-  runtime->kernelLaunch(stream, kernelId, (std::byte*)&parameters, sizeof(parameters), 0x1);
+  runtime->memcpyHostToDevice(stream, resultFromDevice.data(), bufResult, bufferSize);
+  runtime->kernelLaunch(stream, kernelId, &parameters, sizeof(parameters), 0x1);
   for (int i = 0; i < numElems; ++i) {
     resultFromDevice[i] = 0x0;
   }
-  runtime->memcpyDeviceToHost(stream, bufResult, (std::byte*)resultFromDevice.data(), bufferSize);
+  runtime->memcpyDeviceToHost(stream, bufResult, resultFromDevice.data(), bufferSize);
   runtime->waitForStream(stream);
   profiler->stop();
   runtime.reset();
@@ -88,49 +88,7 @@ TEST(Profiler, add_2_vectors_profiling) {
   auto str = ss.str();
   DLOG(INFO) << "Trace: " << str;
 }
-/*
-TEST(KernelLaunch, memset) {
-  auto kernel_file = std::ifstream(absl::GetFlag(FLAGS_kernels_dir) + "/" + "memset.elf", std::ios::binary);
-  ASSERT_TRUE(kernel_file.is_open());
 
-  auto iniF = kernel_file.tellg();
-  kernel_file.seekg(0, std::ios::end);
-  auto endF = kernel_file.tellg();
-  auto size = endF - iniF;
-  kernel_file.seekg(0, std::ios::beg);
-
-  std::vector<std::byte> kernelContent(size);
-  kernel_file.read(reinterpret_cast<char*>(kernelContent.data()), size);
-
-  //#TODO find out if there is a define or something which indicates sysemu or device in tests
-  auto runtime = rt::IRuntime::create(rt::IRuntime::Kind::SysEmu);
-  auto devices = runtime->getDevices();
-  auto dev = devices[0];
-
-  auto kernelId = runtime->loadCode(dev, kernelContent.data(), kernelContent.size());
-  int numElems = 10496;
-  std::vector<int> vR(numElems);
-  auto bufferSize = numElems * sizeof(int);
-  auto bufResult = runtime->mallocDevice(dev, bufferSize);
-
-  int numShires = 16;
-  int value = 0xDE;
-  struct Parameters {
-    std::byte* a;
-    int value;
-    int numElements;
-    int numShires;
-  } parameters{bufResult, value, numElems, numShires};
-
-  auto stream = runtime->createStream(dev);
-  runtime->kernelLaunch(stream, kernelId, (std::byte*)&parameters, sizeof(parameters), (1 << numShires) - 1);
-  runtime->memcpyDeviceToHost(stream, bufResult, (std::byte*)vR.data(), bufferSize);
-  runtime->waitForStream(stream);
-  for (auto v : vR) {
-    EXPECT_EQ(v, value);
-  }
-  DLOG(INFO) << "End test";
-}*/
 
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);

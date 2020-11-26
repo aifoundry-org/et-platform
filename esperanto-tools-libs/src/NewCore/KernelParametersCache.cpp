@@ -25,7 +25,7 @@ KernelParametersCache::KernelParametersCache(IRuntime* runtime, int initialFreeL
   , bufferSize_(bufferSize) {
   auto devices = runtime->getDevices();
   for (auto dev : devices) {
-    auto it = freeBuffers_.emplace(dev, std::vector<std::byte*>{});
+    auto it = freeBuffers_.emplace(dev, std::vector<void*>{});
     assert(it.second);
     auto&& list = it.first->second;
     for (int i = 0; i < initialFreeListSize; ++i) {
@@ -34,11 +34,11 @@ KernelParametersCache::KernelParametersCache(IRuntime* runtime, int initialFreeL
   }
 }
 
-std::byte* KernelParametersCache::allocBuffer(DeviceId deviceId) {
+void* KernelParametersCache::allocBuffer(DeviceId deviceId) {
   RT_DLOG(INFO) << "Allocating parameter buffer for device " << static_cast<int>(deviceId);
   std::lock_guard lock(mutex_);
   auto&& list = freeBuffers_[deviceId];
-  std::byte* result;
+  void* result;
   if (list.empty()) {
     result = runtime_->mallocDevice(deviceId, bufferSize_);
   } else {
@@ -50,7 +50,7 @@ std::byte* KernelParametersCache::allocBuffer(DeviceId deviceId) {
   return result;
 }
 
-void KernelParametersCache::reserveBuffer(EventId event, std::byte* buffer) {
+void KernelParametersCache::reserveBuffer(EventId event, void* buffer) {
   RT_DLOG(INFO) << "Reserving buffer " << buffer << " for event " << static_cast<int>(event);
   std::lock_guard lock(mutex_);
   auto it = find(allocBuffers_, InUseBuffer{DeviceId{}, buffer});

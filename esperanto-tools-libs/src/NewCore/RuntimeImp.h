@@ -31,21 +31,21 @@ public:
 
   std::vector<DeviceId> getDevices() override;
 
-  KernelId loadCode(DeviceId device, const std::byte* elf, size_t elf_size) override;
+  KernelId loadCode(DeviceId device, const void* elf, size_t elf_size) override;
   void unloadCode(KernelId kernel) override;
 
-  std::byte* mallocDevice(DeviceId device, size_t size, int alignment = kCacheLineSize) override;
-  void freeDevice(DeviceId device, std::byte* buffer) override;
+  void* mallocDevice(DeviceId device, size_t size, int alignment = kCacheLineSize) override;
+  void freeDevice(DeviceId device, void* buffer) override;
 
   StreamId createStream(DeviceId device) override;
   void destroyStream(StreamId stream) override;
 
-  EventId kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
+  EventId kernelLaunch(StreamId stream, KernelId kernel, const void* kernel_args, size_t kernel_args_size,
                        uint64_t shire_mask, bool barrier = true) override;
 
-  EventId memcpyHostToDevice(StreamId stream, const std::byte* src, std::byte* dst, size_t size,
+  EventId memcpyHostToDevice(StreamId stream, const void* src, void* dst, size_t size,
                              bool barrier = false) override;
-  EventId memcpyDeviceToHost(StreamId stream, const std::byte* src, std::byte* dst, size_t size,
+  EventId memcpyDeviceToHost(StreamId stream, const void* src, void* dst, size_t size,
                              bool barrier = true) override;
 
   void waitForEvent(EventId event) override;
@@ -57,11 +57,11 @@ public:
 
 private:
   struct Kernel {
-    Kernel(DeviceId deviceId, const std::byte* elfData, size_t elfSize, std::byte* deviceBuffer);
+    Kernel(DeviceId deviceId, const void* elfData, size_t elfSize, void* deviceBuffer);
 
     ELFIO::elfio elf_;
     DeviceId deviceId_;
-    std::byte* deviceBuffer_;
+    void* deviceBuffer_;
   };
 
   struct Stream {
