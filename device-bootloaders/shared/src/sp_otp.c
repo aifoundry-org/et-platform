@@ -107,6 +107,47 @@ int sp_otp_read(uint32_t index, uint32_t *result)
     return 0;
 }
 
+static bool sp_wrck_ensure_100Mhz(void)
+{
+    uint32_t timeout;
+    uint32_t wrck = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_CLK_MAIN_WRCK_ADDRESS);
+    uint32_t off = CLOCK_MANAGER_CM_CLK_MAIN_WRCK_OFF_GET(wrck);
+    uint32_t sel = CLOCK_MANAGER_CM_CLK_MAIN_WRCK_SEL_GET(wrck);
+    uint32_t stable = CLOCK_MANAGER_CM_CLK_MAIN_WRCK_STABLE_GET(wrck);
+
+    // If it's already at 100MHz and stable, we are done
+    if ((off == 0) && (sel == 1) && (stable == 1)) {
+        return true;
+    }
+
+    // If the WRCK clock is off for low power, turn it on
+    if (off) {
+        wrck = CLOCK_MANAGER_CM_CLK_MAIN_WRCK_OFF_MODIFY(wrck, 0);
+    }
+
+    // Use the fast clock (100 MHz) to drive the SP WRCK
+    if (sel == 0) {
+        wrck = CLOCK_MANAGER_CM_CLK_MAIN_WRCK_SEL_MODIFY(wrck, 1);
+    }
+
+    // Write new configuration
+    iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_CLK_MAIN_WRCK_ADDRESS, wrck);
+
+    timeout = WRCK_TIMEOUT;
+    do {
+        timeout--;
+        if (0 == timeout) {
+            // WRCK failed to lock at 100MHz, switch back to 10MHz and return failure
+            wrck = CLOCK_MANAGER_CM_CLK_MAIN_WRCK_SEL_MODIFY(wrck, 0);
+            iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_CLK_MAIN_WRCK_ADDRESS, wrck);
+            return false;
+        }
+        wrck = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_CLK_MAIN_WRCK_ADDRESS);
+    } while (0 == CLOCK_MANAGER_CM_CLK_MAIN_WRCK_STABLE_GET(wrck));
+
+    return true;
+}
+
 int sp_otp_write(uint32_t offset, uint32_t value)
 {
     volatile uint32_t *sp_otp_data = (uint32_t *)R_SP_EFUSE_BASEADDR;
@@ -122,6 +163,11 @@ int sp_otp_write(uint32_t offset, uint32_t value)
         MESSAGE_ERROR("OTP register %02x is locked!\n", offset);
 #endif
         return 0;
+    }
+
+    // SMS server (synopsys) is built with 100Mhz as target clock. Make sure SP WRCK is at 100Mhz.
+    if (!sp_wrck_ensure_100Mhz()) {
+        return ERROR_SP_OTP_SP_WRCK_NOT_100MHZ;
     }
 
     old_value = sp_otp_data[offset];
