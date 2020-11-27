@@ -115,8 +115,8 @@ static_assert((FW_MASTER_TO_WORKER_KERNEL_CONFIGS + FW_MASTER_TO_WORKER_KERNEL_C
 
 #define KERNEL_UMODE_ENTRY KERNEL_UMODE_STACK_BASE
 
-// TODO: For now hardcoding the address at the end of 16GB region
-#define DEVICE_MRT_TRACE_MEM_SIZE 0x40000000ULL
+// TODO: For now hardcoding the address at the start of 15GB region
+#define DEVICE_MRT_TRACE_MEM_SIZE 0x20000000ULL /* 512 MB */
 #define DEVICE_MRT_TRACE_BASE 0x83C0000000ULL
 
 // TODO: Temporary address until we move to OS SData region
@@ -127,21 +127,21 @@ static_assert((FW_MASTER_TO_WORKER_KERNEL_CONFIGS + FW_MASTER_TO_WORKER_KERNEL_C
 #define DEVICE_MM_VQUEUE_MEM_SIZE 0x400ULL
 
 //Storage for DMA configuration linked lists.
-//Store at end of R_L3_DRAM region, 64MB at 0x87FC800000 - 0x87FFFFFFFF
+//Store at end of R_L3_DRAM 16 GB region, 64MB at 0x83FC800000 - 0x83FFFFFFFF
 //For each DMA channel, reserve 8MB for the list. Chosen arbitrarily to balance mem
 //useage vs likely need. Each entry is 24 bytes, so 349525 entries max per list. If the
 //host system is totally fragmented (each entry tracks 4kB - VERY unlkely), can DMA
 //~1.4GB without modifying the list.
 #define DMA_LL_SIZE 0x800000
 
-#define DMA_CHAN_READ_0_LL_BASE  0x87FC000000
-#define DMA_CHAN_READ_1_LL_BASE  0x87FC800000
-#define DMA_CHAN_READ_2_LL_BASE  0x87FD000000
-#define DMA_CHAN_READ_3_LL_BASE  0x87FD800000
-#define DMA_CHAN_WRITE_0_LL_BASE 0x87FE000000
-#define DMA_CHAN_WRITE_1_LL_BASE 0x87FE800000
-#define DMA_CHAN_WRITE_2_LL_BASE 0x87FF000000
-#define DMA_CHAN_WRITE_3_LL_BASE 0x87FF800000
+#define DMA_CHAN_READ_0_LL_BASE  0x83FC000000
+#define DMA_CHAN_READ_1_LL_BASE  0x83FC800000
+#define DMA_CHAN_READ_2_LL_BASE  0x83FD000000
+#define DMA_CHAN_READ_3_LL_BASE  0x83FD800000
+#define DMA_CHAN_WRITE_0_LL_BASE 0x83FE000000
+#define DMA_CHAN_WRITE_1_LL_BASE 0x83FE800000
+#define DMA_CHAN_WRITE_2_LL_BASE 0x83FF000000
+#define DMA_CHAN_WRITE_3_LL_BASE 0x83FF800000
 
 // Define the address range in DRAM that the host runtime can explicitly manage
 // the range is the START to (END-1)
