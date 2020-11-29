@@ -273,7 +273,7 @@ TEST_F(DMTestModule, test_GET_MODULE_MEMORY_TYPE) {
   ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
 }
 
-/* TODO : Enable this test. Add ticket number.
+/* Note : This test should be run in full boot mode only.
 // Test GET_FIRMWARE_BOOT_STATUS
 TEST_F(DMTestModule, test_GET_FIRMWARE_BOOT_STATUS) {
   getDM_t dmi = getInstance();
