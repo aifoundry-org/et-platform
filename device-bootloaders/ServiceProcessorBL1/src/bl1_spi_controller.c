@@ -135,7 +135,7 @@ static int spi_controller_tx32_data(uintptr_t spi_regs, const uint8_t *spi_comma
     const uint32_t *tx_data_32;
     const uint32_t *tx_data_32_end;
     const uint32_t *spi_command_32;
-    uint32_t txflr;
+    uint32_t empty_flag;
 #if SPI_TX_VERBOSITY > 2
     uint32_t n;
 #endif
@@ -206,18 +206,17 @@ static int spi_controller_tx32_data(uintptr_t spi_regs, const uint8_t *spi_comma
     // set SLAVE ENABLE REGISTER to start the transfer
     iowrite32(spi_regs + SSI_SER_ADDRESS, slave_en_mask);
 
-    // wait for all the command/data bytes to be sent
+    // wait for all the command/data bytes to be sent by polling on FIFO Empty and Busy bit
     timeout = 0;
-    txflr = ioread32(spi_regs + SSI_TXFLR_ADDRESS);
-    while (SSI_TXFLR_TXTFL_GET(txflr) > 0) {
+    empty_flag = ioread32(spi_regs + SSI_SR_ADDRESS) & 0x5; //Bit[2]- FIFO Empty, Bit[0]- Busy  
+    while (empty_flag != 0x4) {
         timeout++;
         if (timeout > TX_TIMEOUT) {
             rv = -1;
-            MESSAGE_ERROR("TX ERR 2: SR=0x%x, TXTFL=0x%x\n", ioread32(spi_regs + SSI_SR_ADDRESS),
-                          txflr);
+            MESSAGE_INFO_DEBUG("TX ERR 2: SR=0x%x\n", ioread32(spi_regs + SSI_SR_ADDRESS));
             goto DONE;
         }
-        txflr = ioread32(spi_regs + SSI_TXFLR_ADDRESS);
+      empty_flag = ioread32(spi_regs + SSI_SR_ADDRESS) & 0x5;
     }
 
     rv = 0;
@@ -233,7 +232,7 @@ static int spi_controller_tx_data(uintptr_t spi_regs, const uint8_t *spi_command
                                   uint32_t tx_data_size, uint32_t slave_en_mask)
 {
     int rv;
-    uint32_t txflr;
+    uint32_t empty_flag;
     uint32_t timeout;
     const uint8_t *tx_data_end;
     const uint8_t *spi_command_end;
@@ -287,18 +286,17 @@ static int spi_controller_tx_data(uintptr_t spi_regs, const uint8_t *spi_command
     // set SLAVE ENABLE REGISTER to start the transfer
     iowrite32(spi_regs + SSI_SER_ADDRESS, slave_en_mask);
 
-    // wait for all the command/data bytes to be sent
+    // wait for all the command/data bytes to be sent by polling on FIFO Empty and Busy bit
     timeout = 0;
-    txflr = ioread32(spi_regs + SSI_TXFLR_ADDRESS);
-    while (SSI_TXFLR_TXTFL_GET(txflr) > 0) {
+    empty_flag = ioread32(spi_regs + SSI_SR_ADDRESS) & 0x5; //Bit[2]- FIFO Empty, Bit[0]- Busy  
+    while (empty_flag != 0x4) {
         timeout++;
         if (timeout > TX_TIMEOUT) {
             rv = -1;
-            MESSAGE_ERROR("TX ERR 2: SR=0x%x, TXTFL=0x%x\n", ioread32(spi_regs + SSI_SR_ADDRESS),
-                          txflr);
+            MESSAGE_INFO_DEBUG("TX ERR 2: SR=0x%x\n", ioread32(spi_regs + SSI_SR_ADDRESS));
             goto DONE;
         }
-        txflr = ioread32(spi_regs + SSI_TXFLR_ADDRESS);
+      empty_flag = ioread32(spi_regs + SSI_SR_ADDRESS) & 0x5;
     }
 
     rv = 0;

@@ -23,7 +23,6 @@ static int64_t firmware_service_send_response(mbox_e mbox, uint32_t cmd_id, uint
 static void send_status_response(mbox_e mbox, uint32_t cmd_id, uint64_t req_start_time, int64_t ret)
 {
     char ret_status[8];
-    printf("dm firmware svc. cmd_id :%d  status:%ld\n", cmd_id, ret);
     sprintf(ret_status, "%ld", ret);
     ret = firmware_service_send_response(mbox, cmd_id, req_start_time, ret_status, 8);
     if (ret != 0) {
@@ -76,12 +75,12 @@ static int64_t dm_svc_get_firmware_status(void)
     uint32_t completed_boot_counter;
 
     if (0 != flash_fs_get_boot_counters(&attempted_boot_counter, &completed_boot_counter)) {
-        printf("flash_partition_get_boot_counters: failed to get boot counters !\n");
+        printf("flash_fs_get_boot_counters: failed to get boot counters !\n");
     } else {
-        printf("flash_partition_get_boot_counters: Success !\n");
+        printf("flash_fs_get_boot_counters: Success !\n");
         if (attempted_boot_counter != completed_boot_counter) {
             printf(
-                "flash_partition_get_boot_counters: Attempted and completed boot counter do not match!\n");
+                "flash_fs_get_boot_counters: Attempted and completed boot counter do not match!\n");
             return DEVICE_FW_UPDATED_IMAGE_BOOT_FAILED;
         }
     }
@@ -250,7 +249,6 @@ void firmware_service_process_request(mbox_e mbox, uint32_t cmd_id, void *buffer
     int64_t ret = 0;
     uint64_t req_start_time;
     struct dm_control_block *dm_cmd_req;
-    printf("firmware_service_process_request - start\n");
     printf("cmd_id: %d\n", cmd_id);
     dm_cmd_req = (struct dm_control_block *)buffer;
     req_start_time = timer_get_ticks_count();
@@ -289,5 +287,4 @@ void firmware_service_process_request(mbox_e mbox, uint32_t cmd_id, void *buffer
         send_status_response(mbox, cmd_id, req_start_time, ret);
     } break;
     }
-    printf("firmware_service_process_request - end\n");
 }

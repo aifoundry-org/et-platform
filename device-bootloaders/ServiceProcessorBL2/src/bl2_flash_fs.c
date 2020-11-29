@@ -487,12 +487,6 @@ int flash_fs_get_boot_counters(uint32_t *attempted_boot_counter, uint32_t *compl
     partition_info =
         &(sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]);
 
-    printf("boot counters region index: %u\n", partition_info->boot_counters_region_index);
-    printf(
-        "boot counters region offset: 0x%x\n",
-        partition_address +
-            partition_info->regions_table[partition_info->boot_counters_region_index].region_offset *
-                FLASH_PAGE_SIZE);
     if (0 != spi_flash_normal_read(
                  sg_flash_fs_bl2_info->flash_id,
                  partition_address +
@@ -509,7 +503,7 @@ int flash_fs_get_boot_counters(uint32_t *attempted_boot_counter, uint32_t *compl
     *completed_boot_counter = count_zero_bits(
         partition_info->boot_counters_region_data.ull + ULL_PER_PAGE / 2, ULL_PER_PAGE / 2);
 
-    printf("attempted_boot_counter: %d  completed_boot_counter:%d\n,", *attempted_boot_counter,
+    printf("attempted_boot_counter: %d  completed_boot_counter:%d\n", *attempted_boot_counter,
            *completed_boot_counter);
 
     return 0;
@@ -524,12 +518,12 @@ int flash_fs_increment_completed_boot_count(void)
     uint32_t increment_offset, bit_offset;
     uint32_t page_address;
     uint8_t mask;
+    uint8_t spi_status;
+    uint32_t k;
 
     if (NULL == sg_flash_fs_bl2_info) {
         return -1;
     }
-
-    printf("flash_fs_increment_completed_boot_count: start\n");
 
     if (0 == sg_flash_fs_bl2_info->active_partition) {
         partition_address = 0;
@@ -588,6 +582,19 @@ int flash_fs_increment_completed_boot_count(void)
     }
     printf("\n to flash address 0x%x\n", counter_data_address + page_address + FLASH_PAGE_SIZE/2);
 
+    if (0 != spi_flash_rdsr(sg_flash_fs_bl2_info->flash_id, &spi_status)) {
+        printf("flash_fs_increment_attempted_boot_count: spi_flash_rdsr() failed!\n");
+        return -1;
+    }
+    if (0 != spi_status) {
+        printf("flash_fs_increment_attempted_boot_count: warning - SPI flash status is 0x%02x!\n", spi_status);
+    }
+
+    if (0 != spi_flash_wren(sg_flash_fs_bl2_info->flash_id)) {
+        printf("flash_fs_increment_attempted_boot_count: spi_flash_wren() failed!\n");
+        return -1;
+    }
+
     if (0 != spi_flash_program(sg_flash_fs_bl2_info->flash_id, counter_data_address + page_address + FLASH_PAGE_SIZE/2,
                                sg_flash_fs_bl2_info
                                        ->partition_info[sg_flash_fs_bl2_info->active_partition]
@@ -598,7 +605,23 @@ int flash_fs_increment_completed_boot_count(void)
         return -1;
     }
 
-    printf("flash_fs_increment_completed_boot_count: End\n");
+    if (0 != spi_flash_rdsr(sg_flash_fs_bl2_info->flash_id, &spi_status)) {
+        printf("flash_fs_increment_completed_boot_counter: spi_flash_rdsr() failed!\n");
+        return -1;
+    }
+
+    k = 0;
+    while (1 & spi_status) {
+        k++;
+        if (k > 2000) {
+            printf("timeout waiting for page program to finish!\n");
+            return -1;
+        }
+        if (0 != spi_flash_rdsr(sg_flash_fs_bl2_info->flash_id, &spi_status)) {
+            printf("spi_flash_rdsr() failed!\n");
+            return -1;
+        }
+    }
 
     return 0;
 }

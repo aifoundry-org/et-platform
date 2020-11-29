@@ -323,17 +323,17 @@ static void taskMain(void *pvParameters)
     // Set SP ready, SP has reached sync point
     MBOX_set_status(MBOX_MASTER_MINION, MBOX_MASTER, MBOX_STATUS_READY);
 
-    printf("SP Device Ready!\n");
-
-/* TODO: Check if this is causing timeout in test cases.
 #if !FAST_BOOT
     // SP and minions have booted successfully. Increment the completed boot counter
     if (0 != flashfs_drv_increment_completed_boot_count()) {
         printf("Failed to increment the completed boot counter!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
-#endif     
-*/
+    printf("Incremented the completed boot counter!\n");
+#endif  
+
+    printf("SP Device Ready!\n");
+
     goto DONE;
 
 FIRMWARE_LOAD_ERROR:
