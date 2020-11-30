@@ -13,6 +13,49 @@
 #include "pcie_dma_ll.h"
 #include "printf.h"
 
+//Control Register Bitfields:
+
+//Cycle Bit
+#define CTRL_CB 0x01
+//Toggle Cycle Bit
+#define CTRL_TCB 0x02
+//Load Link Pointer
+#define CTRL_LLP 0x04
+//Local Interrupt Enable
+#define CTRL_LIE 0x08
+//Remote Interrupt Enable
+#define CTRL_RIE 0x10
+
+#define DATA_CTRL     0
+#define DATA_SIZE     4
+#define DATA_SAR_LOW  8
+#define DATA_SAR_HIGH 12
+#define DATA_DAR_LOW  16
+#define DATA_DAR_HIGH 20
+
+#define LINK_CTRL     0
+#define LINK_PTR_LOW  8
+#define LINK_PTR_HIGH 12
+
+#define XFER_NODE_BYTES    24
+#define DMA_CHANNELS_COUNT 8
+#define DMA_MEM_REGIONS    2
+
+//Always save 1 element for terminator
+#define MAX_TRANSFER_LIST_SIZE (DMA_LL_SIZE / sizeof(transfer_list_elem_t) - 1)
+
+// TODO: Need more stuff here?
+struct dma_chan {
+    enum ET_DMA_STATE state;
+};
+
+struct dma_mem_region {
+    uint64_t begin;
+    uint64_t end;
+};
+
+static struct dma_chan dma_channel[DMA_CHANNELS_COUNT] = { 0 };
+
 volatile transfer_list_elem_t *transfer_lists[] = {
     (volatile transfer_list_elem_t *)DMA_CHAN_READ_0_LL_BASE,
     (volatile transfer_list_elem_t *)DMA_CHAN_READ_1_LL_BASE,
@@ -24,8 +67,146 @@ volatile transfer_list_elem_t *transfer_lists[] = {
     (volatile transfer_list_elem_t *)DMA_CHAN_WRITE_3_LL_BASE
 };
 
-//Always save 1 element for terminator
-#define MAX_TRANSFER_LIST_SIZE (DMA_LL_SIZE / sizeof(transfer_list_elem_t) - 1)
+static const struct dma_mem_region valid_dma_targets[DMA_MEM_REGIONS] = {
+    //L3, but beginning reserved for minion stacks, end reserved for DMA config
+    { .begin = HOST_MANAGED_DRAM_START, .end = (HOST_MANAGED_DRAM_END - 1) },
+    //Shire-cache scratch pads. Limit to first 4MB * 33 shires.
+    { .begin = 0x80000000, .end = 0x883FFFFF }
+};
+
+/*
+ * Writes one data element of a DMA tranfser list. This structure is used
+ * to configure the DMA engine.
+ */
+static inline void write_xfer_list_data(enum ET_DMA_CHAN_ID id, uint32_t i, uint64_t sar,
+                                        uint64_t dar, uint32_t size, bool lie)
+{
+    // Calculate the offset to write
+    volatile transfer_list_elem_t *transfer = &transfer_lists[id][i];
+
+    uint32_t ctrl_dword = CTRL_CB;
+    if (lie)
+        ctrl_dword |= CTRL_LIE;
+
+    transfer->data.ctrl.R = ctrl_dword;
+    transfer->data.size = size;
+    transfer->data.sar = sar;
+    transfer->data.dar = dar;
+}
+
+/*
+ * Writes one data element of a DMA tranfser list. This structure is used
+ * to configure the DMA engine.
+ */
+static inline void write_xfer_list_link(enum ET_DMA_CHAN_ID id, uint32_t i, uint64_t ptr)
+{
+    // Calculate the offset to write
+    volatile transfer_list_elem_t *transfer = &transfer_lists[id][i];
+
+    transfer->link.ctrl.R = CTRL_TCB | CTRL_LLP;
+    transfer->link.ptr = ptr;
+}
+
+static inline DMA_STATUS_e dma_config_buff(uint64_t src_addr, uint64_t dest_addr, uint32_t size,
+                                           enum ET_DMA_CHAN_ID id)
+{
+    // Write a single-data-element xfer list
+    write_xfer_list_data(id, 0, src_addr, dest_addr, size, true /* interrupt */);
+    write_xfer_list_link(id, 1, (uint64_t)(transfer_lists[id]) /* circular link */);
+
+    // TODO: Need to implement proper scatter-gather
+
+    return DMA_OPERATION_SUCCESS;
+}
+
+static inline DMA_STATUS_e dma_chan_find_idle(DMA_TYPE_e type, et_dma_chan_id_e *chan)
+{
+    et_dma_chan_id_e start, end;
+
+    if (type == DMA_HOST_TO_DEVICE) {
+        start = ET_DMA_CHAN_ID_READ_0;
+        end = ET_DMA_CHAN_ID_READ_3;
+    } else {
+        start = ET_DMA_CHAN_ID_WRITE_0;
+        end = ET_DMA_CHAN_ID_WRITE_3;
+    }
+    // Find the idle channel
+    for (; start <= end; start++) {
+        if (dma_channel[start].state == ET_DMA_STATE_IDLE) {
+            *chan = start;
+            return DMA_OPERATION_SUCCESS;
+        }
+    }
+    return DMA_ERROR_CHANNEL_NOT_AVAILABLE;
+}
+
+static inline DMA_STATUS_e dma_bounds_check(uint64_t soc_addr, uint64_t size)
+{
+    uint64_t end_addr = soc_addr + size - 1;
+
+    // Check for uint64_t overflow
+    if (end_addr > soc_addr) {
+        for (int i = 0; i < DMA_MEM_REGIONS; ++i) {
+            if (soc_addr >= valid_dma_targets[i].begin && end_addr <= valid_dma_targets[i].end) {
+                return DMA_OPERATION_SUCCESS;
+            }
+        }
+    }
+    return DMA_ERROR_INVALID_ADDRESS;
+}
+
+// TODO: Need to find a suitable place for this function
+DMA_STATUS_e dma_trigger_transfer(DMA_TYPE_e type, uint64_t src_addr, uint64_t dest_addr,
+                                  uint64_t size)
+{
+    DMA_STATUS_e status = DMA_OPERATION_NOT_SUCCESS;
+    et_dma_chan_id_e chan = 0;
+
+    // Validate the params
+    if ((src_addr == 0U) || (dest_addr == 0U) || (size == 0U)) {
+        status = DMA_ERROR_INVALID_PARAM;
+    } else {
+        // Validate the bounds
+        if (type == DMA_HOST_TO_DEVICE) {
+            /* read: source is on host, dest is on SoC */
+            status = dma_bounds_check(dest_addr, size);
+        } else if (type == DMA_DEVICE_TO_HOST) {
+            /* write: source is one SoC, dest is on host */
+            status = dma_bounds_check(src_addr, size);
+        }
+    }
+
+    // If we are able to verify address bounds
+    if (status == DMA_OPERATION_SUCCESS) {
+        status = dma_chan_find_idle(type, &chan);
+    }
+
+    if (status == DMA_OPERATION_SUCCESS) {
+        // Set the channel state to active
+        dma_channel[chan].state = ET_DMA_STATE_ACTIVE;
+
+        status = dma_config_buff(src_addr, dest_addr, (uint32_t)size, chan);
+        if (status == DMA_OPERATION_SUCCESS) {
+            if (type == DMA_HOST_TO_DEVICE) {
+                status = dma_configure_read(chan);
+            } else if (type == DMA_DEVICE_TO_HOST) {
+                status = dma_configure_write(chan);
+            }
+        }
+
+        if (status == DMA_OPERATION_SUCCESS) {
+            dma_start(chan);
+            while (!dma_check_done(chan))
+                ; //TODO: setup DMA ISR, wait using that
+            dma_clear_done(chan);
+        }
+
+        // TODO: IDLE the DMA channel in DMA ISR
+        dma_channel[chan].state = ET_DMA_STATE_IDLE;
+    }
+
+    return status;
+}
 
 int dma_configure_read(et_dma_chan_id_e chan)
 {
