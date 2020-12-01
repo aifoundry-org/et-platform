@@ -12,6 +12,7 @@
 #include "pcie_device.h"
 #include "pcie_dma_ll.h"
 #include "printf.h"
+#include "atomic.h"
 
 //Control Register Bitfields:
 
@@ -88,10 +89,10 @@ static inline void write_xfer_list_data(enum ET_DMA_CHAN_ID id, uint32_t i, uint
     if (lie)
         ctrl_dword |= CTRL_LIE;
 
-    transfer->data.ctrl.R = ctrl_dword;
-    transfer->data.size = size;
-    transfer->data.sar = sar;
-    transfer->data.dar = dar;
+    atomic_store_global_32(&transfer->data.ctrl.R, ctrl_dword);
+    atomic_store_global_32(&transfer->data.size, size);
+    atomic_store_global_64(&transfer->data.sar, sar);
+    atomic_store_global_64(&transfer->data.dar, dar);
 }
 
 /*
@@ -103,8 +104,8 @@ static inline void write_xfer_list_link(enum ET_DMA_CHAN_ID id, uint32_t i, uint
     // Calculate the offset to write
     volatile transfer_list_elem_t *transfer = &transfer_lists[id][i];
 
-    transfer->link.ctrl.R = CTRL_TCB | CTRL_LLP;
-    transfer->link.ptr = ptr;
+    atomic_store_global_32(&transfer->link.ctrl.R, CTRL_TCB | CTRL_LLP);
+    atomic_store_global_64(&transfer->link.ptr, ptr);
 }
 
 static inline DMA_STATUS_e dma_config_buff(uint64_t src_addr, uint64_t dest_addr, uint32_t size,
