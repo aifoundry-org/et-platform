@@ -268,7 +268,7 @@ static void __attribute__((noreturn)) master_thread(void)
     uint64_t temp;
     volatile minion_fw_boot_config_t *boot_config =
         (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
-    uint64_t boot_minion_shires = boot_config->minion_shires & ((1ULL << NUM_SHIRES) - 1);
+    uint64_t functional_shires = boot_config->minion_shires & ((1ULL << NUM_SHIRES) - 1);
 
     // Ensure that FCC global flags for SQ workers sync notifications are initialized.
     for (uint8_t i = 0; i < MM_VQ_COUNT; i++) {
@@ -278,26 +278,21 @@ static void __attribute__((noreturn)) master_thread(void)
     SERIAL_init(UART0);
     log_write(LOG_LEVEL_CRITICAL, "\r\nMaster minion " GIT_VERSION_STRING "\r\n");
 
-    INT_init();
-
     mm_dev_interface_reg_init();
 
-    log_write(LOG_LEVEL_INFO, "Master: Initializing trace subsystem...");
-    TRACE_init_master();
-    log_write(LOG_LEVEL_INFO, "done\r\n");
+    INT_init();
+    TRACE_init_master(functional_shires);
+    message_init_master();
+
     TRACE_string(LOG_LEVELS_CRITICAL, "Trace message from Master minion");
 
-    log_write(LOG_LEVEL_INFO, "Initializing message buffers...");
-    message_init_master();
-    log_write(LOG_LEVEL_INFO, "done\r\n");
-
-    // Empty all FCCs
     init_fcc(FCC_0);
     init_fcc(FCC_1);
 
+    set_functional_shires(functional_shires);
     kernel_init();
 
-    log_write(LOG_LEVEL_INFO, "Boot config Minion Shires: 0x%" PRIx64 "\n", boot_minion_shires);
+    log_write(LOG_LEVEL_INFO, "Boot config Minion Shires: 0x%" PRIx64 "\n", functional_shires);
 
     // Enable supervisor external and software interrupts
     asm volatile("li    %0, 0x202    \n"
@@ -306,19 +301,19 @@ static void __attribute__((noreturn)) master_thread(void)
                  : "=&r"(temp));
 
     // Bring up Compute Minions
-    syscall(SYSCALL_CONFIGURE_COMPUTE_MINION, boot_minion_shires, 0x1u, 0);
+    syscall(SYSCALL_CONFIGURE_COMPUTE_MINION, functional_shires, 0x1u, 0);
 
     log_write(LOG_LEVEL_INFO, "All Compute Minions configured!\n");
 
     // Wait until all Shires have booted before starting the main loop that handles PCIe messages
-    wait_all_shires_booted(boot_minion_shires);
-    log_write(LOG_LEVEL_CRITICAL, "All Shires (0x%" PRIx64 ") ready!\n", boot_minion_shires);
+    wait_all_shires_booted(functional_shires);
+    log_write(LOG_LEVEL_CRITICAL, "All Shires (0x%" PRIx64 ") ready!\n", functional_shires);
 
     // Initialize VQs
     VQUEUE_init();
     // Update Status to indicate MM VQ is ready to use
     g_mm_dev_intf_reg->status = MM_DEV_INTF_MM_BOOT_STATUS_VQ_READY;
-    log_write(LOG_LEVEL_CRITICAL, "MM VQs Ready !\r\n");
+    log_write(LOG_LEVEL_CRITICAL, "MM VQs Ready!\r\n");
 
     // Set MM (Slave) Ready, and wait for SP (Master) Ready
     if (set_mm_ready_wait_sp_ready() != SP_MM_HANDSHAKE_POLL_SUCCESS) {

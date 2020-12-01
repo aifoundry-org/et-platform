@@ -17,7 +17,7 @@
 
 /// @brief Initializes trace subsystem, sets up control region, sets all the
 /// knobs to default states, and does all the required cache maintainance
-void TRACE_init_master(void);
+void TRACE_init_master(uint64_t functional_shires);
 
 /// @brief Does all the required cache maintainance, and initializes worker's
 /// trace buffer

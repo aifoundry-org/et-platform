@@ -24,7 +24,7 @@ int64_t handle_device_ops_cmd(const uint32_t sq_idx)
             struct device_ops_api_compatibility_rsp_t rsp;
 
             log_write(LOG_LEVEL_INFO,
-                      "DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD \r\n");
+                      "DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD\r\n");
 
             // Construct and transmit command response
             rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
@@ -50,7 +50,7 @@ int64_t handle_device_ops_cmd(const uint32_t sq_idx)
             struct device_ops_device_fw_version_cmd_t *cmd = (void *)hdr;
             struct device_ops_fw_version_rsp_t rsp;
 
-            log_write(LOG_LEVEL_INFO, "DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD \r\n");
+            log_write(LOG_LEVEL_INFO, "DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD\r\n");
 
             // Construct and transmit command response with device firmware version
             rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
@@ -91,7 +91,7 @@ int64_t handle_device_ops_cmd(const uint32_t sq_idx)
             struct device_ops_echo_cmd_t *cmd = (void *)hdr;
             struct device_ops_echo_rsp_t rsp;
 
-            log_write(LOG_LEVEL_INFO, "DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD \r\n");
+            log_write(LOG_LEVEL_INFO, "DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD\r\n");
 
             // Construct and transmit response
             rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
@@ -111,7 +111,7 @@ int64_t handle_device_ops_cmd(const uint32_t sq_idx)
         case DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD: {
             struct device_ops_kernel_launch_rsp_t rsp;
 
-            log_write(LOG_LEVEL_INFO, "DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD \r\n");
+            log_write(LOG_LEVEL_INFO, "DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD\r\n");
 
             // Spoof a response
             rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
@@ -134,7 +134,7 @@ int64_t handle_device_ops_cmd(const uint32_t sq_idx)
             struct device_ops_kernel_abort_cmd_t *cmd = (void *)hdr;
             struct device_ops_kernel_abort_rsp_t rsp;
 
-            log_write(LOG_LEVEL_INFO, "DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD \r\n");
+            log_write(LOG_LEVEL_INFO, "DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD\r\n");
 
             // Spoof a response
             rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
@@ -155,7 +155,7 @@ int64_t handle_device_ops_cmd(const uint32_t sq_idx)
         case DEV_OPS_API_MID_DEVICE_OPS_KERNEL_STATE_CMD: {
             struct device_ops_kernel_state_rsp_t rsp;
 
-            log_write(LOG_LEVEL_INFO, "DEV_OPS_API_MID_DEVICE_OPS_KERNEL_STATE_CMD \r\n");
+            log_write(LOG_LEVEL_INFO, "DEV_OPS_API_MID_DEVICE_OPS_KERNEL_STATE_CMD\r\n");
 
             // Spoof a response
             rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
@@ -176,7 +176,7 @@ int64_t handle_device_ops_cmd(const uint32_t sq_idx)
             struct device_ops_data_read_cmd_t *cmd = (void *)hdr;
             struct device_ops_data_read_rsp_t rsp;
 
-            log_write(LOG_LEVEL_INFO, "DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD \r\n");
+            log_write(LOG_LEVEL_INFO, "DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD\r\n");
 
             // Construct and transmit command response
             rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
@@ -207,7 +207,7 @@ int64_t handle_device_ops_cmd(const uint32_t sq_idx)
             struct device_ops_data_write_cmd_t *cmd = (void *)hdr;
             struct device_ops_data_write_rsp_t rsp;
 
-            log_write(LOG_LEVEL_INFO, "DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD \r\n");
+            log_write(LOG_LEVEL_INFO, "DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD\r\n");
 
             // Construct and transmit command response
             rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
