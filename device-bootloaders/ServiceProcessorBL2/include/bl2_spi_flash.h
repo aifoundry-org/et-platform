@@ -29,5 +29,6 @@ int spi_flash_fast_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *data
                         uint32_t data_buffer_size);
 int spi_flash_program(SPI_FLASH_ID_t flash_id, uint32_t address, const uint8_t *data_buffer,
                       uint32_t data_buffer_size);
+int spi_flash_erase(SPI_FLASH_ID_t flash_id, uint32_t address, uint32_t size);
 
 #endif

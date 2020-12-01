@@ -22,6 +22,7 @@ int flash_fs_get_file_size(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t *size
 int flash_fs_read_file(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t offset, void *buffer,
                        uint32_t buffer_size);
 int flash_fs_write_partition(uint32_t partition_address, void *buffer, uint32_t buffer_size);
+int flash_fs_erase_partition(uint32_t partition_address, uint32_t partition_size);
 int flash_update_partition(void *buffer, uint64_t buffer_size);
 int flash_fs_swap_priority_counter(void);
 int flash_fs_get_boot_counters(uint32_t *attempted_boot_counter, uint32_t *completed_boot_counter);

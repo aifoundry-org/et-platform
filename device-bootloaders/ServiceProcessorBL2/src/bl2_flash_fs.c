@@ -446,6 +446,19 @@ int flash_fs_write_partition(uint32_t partition_address, void *buffer, uint32_t 
     return 0;
 }
 
+int flash_fs_erase_partition(uint32_t partition_address, uint32_t partition_size)
+{
+    // Erase partition
+    if (0 != spi_flash_erase(sg_flash_fs_bl2_info->flash_id, partition_address, partition_size))
+    {
+        printf("spi_flash_erase: failed to erase data!\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+
 int flash_update_partition(void *buffer, uint64_t buffer_size)
 {
     uint32_t passive_partition_address;

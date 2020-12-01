@@ -29,6 +29,11 @@
 #define SPI_FLASH_CMD_NORMAL_READ  0x03
 #define SPI_FLASH_CMD_FAST_READ    0x0B
 #define SPI_FLASH_CMD_PAGE_PROGRAM 0x02
+#define SPI_FLASH_CMD_BLOCK_ERASE  0xD8
+
+// Sizes:
+// Page: 64 KB
+#define FLASH_BLOCK_SIZE           0x4000U
 
 static int get_flash_controller_and_slave_ids(SPI_FLASH_ID_t id, SPI_CONTROLLER_ID_t *controller_id,
                                               uint8_t *slave_index)
@@ -275,6 +280,36 @@ int spi_flash_program(SPI_FLASH_ID_t flash_id, uint32_t address, const uint8_t *
     if (0 != spi_controller_command(controller_id, slave_index, &command)) {
         MESSAGE_ERROR("spi_controller_command(PP) failed!\n");
         return -1;
+    }
+
+    return 0;
+}
+
+
+int spi_flash_erase(SPI_FLASH_ID_t flash_id, uint32_t address, uint32_t size)
+{
+    SPI_COMMAND_t command;
+    SPI_CONTROLLER_ID_t controller_id;
+    uint8_t slave_index;
+
+    if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) {
+        return -1;
+    }
+
+    command.cmd = SPI_FLASH_CMD_BLOCK_ERASE;
+    command.include_address = true;
+    command.dummy_bytes = 0;
+    command.data_receive = false;
+    command.address = address;
+    command.data_size = 0;
+    command.data_buffer = NULL;
+
+    for (uint32_t block_addr=0; block_addr <= size; block_addr += FLASH_BLOCK_SIZE) {
+        command.address += block_addr;
+        if (0 != spi_controller_command(controller_id, slave_index, &command)) {
+            MESSAGE_ERROR("spi_controller_command(PP) failed!\n");
+            return -1;
+        }
     }
 
     return 0;
