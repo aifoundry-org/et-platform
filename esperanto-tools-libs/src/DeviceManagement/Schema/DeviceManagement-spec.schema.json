@@ -107,7 +107,7 @@
                                 "desc": "DM response header. This header is attached to each response"
                         },
                         "fields": {
-                                "status": "uint32_t",
+                                "status": "enum dm_status",
                                 "device_latency_usec": "uint64_t",
 				"size": "uint32_t"
 
