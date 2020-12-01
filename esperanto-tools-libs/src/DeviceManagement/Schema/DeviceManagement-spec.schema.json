@@ -91,16 +91,29 @@
 
 	"cmd_param_structs": {
 
-		"command_header": {
+		"command_req_header": {
 			"usage": {
-				"desc": "DM request and response header struct. This header is attached to each request and response"
+				"desc": "DM request header. This header is attached to each request"
 			},
 			"fields": {
 				"cmd_id": "enum command_id",
-				"device_laytency_usec": "uint64_t"
+				"size": "uint32_t"
 
 			}
 		},
+
+                "command_resp_header": {
+                        "usage": {
+                                "desc": "DM response header. This header is attached to each response"
+                        },
+                        "fields": {
+                                "status": "uint32_t",
+                                "device_latency_usec": "uint64_t",
+				"size": "uint32_t"
+
+                        }
+                },
+
 
 		"asset_tracking_class": {
 
