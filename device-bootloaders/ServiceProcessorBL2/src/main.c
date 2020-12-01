@@ -133,10 +133,14 @@ static void poll_for_mm_ready(void)
     printf("\nMM Not Ready !\n");
 }
 
-static void dev_interface_reg_init(void)
+static void sp_dev_interface_reg_init(uint64_t minion_shires)
 {
+    g_sp_dev_intf_reg->status = SP_DEV_INTF_SP_BOOT_STATUS_VQ_DESC_NOT_READY;
+
     g_sp_dev_intf_reg->version = SP_DEV_INTF_REG_VERSION;
     g_sp_dev_intf_reg->size    = sizeof(SP_DEV_INTF_REG_s);
+
+    g_sp_dev_intf_reg->minion_shires = minion_shires;
 
     g_sp_dev_intf_reg->sp_vq.bar    = SP_VQ_BAR;
     g_sp_dev_intf_reg->sp_vq.offset = SP_VQ_OFFSET;
@@ -193,10 +197,11 @@ static void taskMain(void *pvParameters)
     PCIe_init(true /*expect_link_up*/);
 #endif
 
-    dev_interface_reg_init();
+    minion_shires_mask = calculate_minion_shire_enable_mask();
+
+    sp_dev_interface_reg_init(minion_shires_mask);
 
     printf("time: %lu\n", timer_get_ticks_count());
-    minion_shires_mask = calculate_minion_shire_enable_mask();
 
     // TODO: Update the following to Log macro - set to INFO/DEBUG
     //printf("Minion shires to enable: 0x%" PRIx64 "\n", minion_shires_mask);
@@ -330,7 +335,7 @@ static void taskMain(void *pvParameters)
         goto FIRMWARE_LOAD_ERROR;
     }
     printf("Incremented the completed boot counter!\n");
-#endif  
+#endif
 
     printf("SP Device Ready!\n");
 
@@ -366,9 +371,9 @@ static int copy_bl1_data(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     g_service_processor_bl2_data.spi_controller_tx_baudrate_divider =
         bl1_data->spi_controller_tx_baudrate_divider;
 
-    // copy major,minor,revision info of BL1 image  
+    // copy major,minor,revision info of BL1 image
     g_service_processor_bl2_data.service_processor_bl1_image_file_version_major =
-         bl1_data->service_processor_bl1_image_file_version_major;  
+         bl1_data->service_processor_bl1_image_file_version_major;
     g_service_processor_bl2_data.service_processor_bl1_image_file_version_minor =
          bl1_data->service_processor_bl1_image_file_version_minor;
     g_service_processor_bl2_data.service_processor_bl1_image_file_version_revision =

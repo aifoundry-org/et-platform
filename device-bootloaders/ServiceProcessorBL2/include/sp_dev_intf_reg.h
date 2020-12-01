@@ -96,11 +96,12 @@ typedef struct __attribute__((__packed__)) SP_DEV_INTF_SP_VQ {
 
 /// \brief Service Processor Device interface register will be uses to public device capability to Host
 typedef struct __attribute__((__packed__)) SP_DEV_INTF_REG {
-    uint32_t version;
-    uint32_t size;
-    SP_DEV_INTF_SP_VQ_s sp_vq;
-    SP_DEV_INTF_DDR_REGION_s ddr_region[SP_DEV_INTF_DDR_REGION_MAP_NUM];
+    uint32_t version;                                                    /// Version of this structure
+    uint32_t size;                                                       /// Size (in bytes) of this structure
     int32_t status;                                                      /// One of enum SP_DEV_INTF_SP_BOOT_STATUS_e
+    uint64_t minion_shires;                                              /// Bitmask of available Minion Shires
+    SP_DEV_INTF_SP_VQ_s sp_vq;                                           /// Virtual Queues information
+    SP_DEV_INTF_DDR_REGION_s ddr_region[SP_DEV_INTF_DDR_REGION_MAP_NUM]; /// List of DDR regions
 } SP_DEV_INTF_REG_s;
 
 #ifdef __cplusplus
