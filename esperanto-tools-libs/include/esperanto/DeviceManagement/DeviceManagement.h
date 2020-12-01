@@ -49,7 +49,8 @@ static std::unordered_map<std::string, CommandCode> const commandCodeTable = {
   {"SET_FIRMWARE_UPDATE", CommandCode::SET_FIRMWARE_UPDATE},
   {"GET_FIRMWARE_BOOT_STATUS", CommandCode::GET_FIRMWARE_BOOT_STATUS},
   {"SET_SP_BOOT_ROOT_CERT", CommandCode::SET_SP_BOOT_ROOT_CERT},
-  {"SET_SW_BOOT_ROOT_CERT", CommandCode::SET_SW_BOOT_ROOT_CERT}};
+  {"SET_SW_BOOT_ROOT_CERT", CommandCode::SET_SW_BOOT_ROOT_CERT},
+  {"RESET_ETSOC", CommandCode::RESET_ETSOC}};
 //  {"SET_FIRMWARE_VERSION_COUNTER", CommandCode::SET_FIRMWARE_VERSION_COUNTER},
 //  {"SET_FIRMWARE_VALID", CommandCode::SET_FIRMWARE_VALID}};
 
