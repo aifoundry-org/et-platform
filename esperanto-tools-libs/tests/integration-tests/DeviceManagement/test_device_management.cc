@@ -47,6 +47,28 @@ public:
   void *handle_;
 };
 
+/*
+// Test SP RESEST
+TEST_F(DMTestModule, test_SP_RESET) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::RESET_ETSOC, nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(), 0), 0);
+  printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+*/
+
 // Test GET_MODULE_MANUFACTURE_NAME
 TEST_F(DMTestModule, test_GET_MODULE_MANUFACTURE_NAME) {
   getDM_t dmi = getInstance();
