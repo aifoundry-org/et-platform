@@ -19,16 +19,12 @@
 #include "ring_buffer.h"
 #include "minion_fw_boot_config.h"
 
-void TRACE_init_master(void)
+void TRACE_init_master(uint64_t functional_shires)
 {
     struct trace_control_t *cntrl =
         (struct trace_control_t *)DEVICE_MRT_TRACE_BASE;
     trace_groups_e grp_dwrd;
     trace_events_e evnt_dwrd;
-
-    volatile minion_fw_boot_config_t *boot_config =
-        (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
-    uint64_t booted_minion_shires = boot_config->minion_shires & ((1ULL << NUM_SHIRES) - 1);
 
     // Enable all groups
     for (trace_groups_e i = TRACE_GROUP_ID_NONE + 1UL; i < TRACE_GROUP_ID_LAST;
@@ -53,7 +49,7 @@ void TRACE_init_master(void)
     cntrl->trace_en = 1;
 
     // Set default masks
-    cntrl->shire_mask = booted_minion_shires;
+    cntrl->shire_mask = functional_shires;
     cntrl->harts_mask = DEVICE_MRT_DEFAULT_HARTS_MASK;
 
     // Evict control region

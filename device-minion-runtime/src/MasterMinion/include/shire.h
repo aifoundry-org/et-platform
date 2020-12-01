@@ -14,6 +14,8 @@ typedef enum {
     SHIRE_STATE_COMPLETE
 } shire_state_t;
 
+void set_functional_shires(uint64_t mask);
+uint64_t get_functional_shires(void);
 void update_shire_state(uint64_t shire, shire_state_t state);
 bool all_shires_booted(uint64_t shire_mask);
 bool all_shires_ready(uint64_t shire_mask);

@@ -9,7 +9,18 @@ typedef struct {
 
 // Local state
 static shire_status_t shire_status[NUM_SHIRES] = { 0 };
+static uint64_t g_functional_shires = 0;
 static uint64_t booted_shires = 0;
+
+void set_functional_shires(uint64_t mask)
+{
+    g_functional_shires = mask;
+}
+
+uint64_t get_functional_shires(void)
+{
+    return g_functional_shires;
+}
 
 void update_shire_state(uint64_t shire, shire_state_t shire_state)
 {
