@@ -221,7 +221,8 @@ static void mbox_task(void *pvParameters)
             case GET_MODULE_FIRMWARE_REVISIONS: 
             case GET_FIRMWARE_BOOT_STATUS:
             case SET_SP_BOOT_ROOT_CERT:
-            case SET_SW_BOOT_ROOT_CERT:{
+            case SET_SW_BOOT_ROOT_CERT:
+            case RESET_SP: {
                 // Process firmware service request cmd
                 firmware_service_process_request(mbox, (uint32_t)*message_id, (void *)buffer);
                 break;

@@ -42,7 +42,8 @@ enum CommandCode {
     SET_FIRMWARE_UPDATE, // Firmware Update Service
     GET_FIRMWARE_BOOT_STATUS, // Firmware Update Service
     SET_SP_BOOT_ROOT_CERT, // Firmware Update Service
-    SET_SW_BOOT_ROOT_CERT // Firmware Update Service
+    SET_SW_BOOT_ROOT_CERT, // Firmware Update Service
+    RESET_SP
     /*                Unsupported right now
     SET_FIRMWARE_VERSION_COUNTER, // Firmware Update Service
     SET_FIRMWARE_VALID, // Firmware Update Service

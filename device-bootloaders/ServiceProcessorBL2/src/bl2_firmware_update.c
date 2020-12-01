@@ -30,6 +30,16 @@ static void send_status_response(mbox_e mbox, uint32_t cmd_id, uint64_t req_star
     }
 }
 
+static void reset_sp(void)
+{
+
+    printf("Resetting ETSOC..!\n");
+ 
+    // Now Reset SP.
+    pmic_toggle_etsoc_reset();
+
+}
+
 static int64_t dm_svc_firmware_update(mbox_e mbox, uint32_t cmd_id, uint64_t req_start_time)
 {
     char fw_update_status[8];
@@ -286,5 +296,11 @@ void firmware_service_process_request(mbox_e mbox, uint32_t cmd_id, void *buffer
         ret = dm_svc_update_sp_boot_root_certificate_hash(dm_cmd_req);
         send_status_response(mbox, cmd_id, req_start_time, ret);
     } break;
+
+    case RESET_SP: {
+        printf("reset_sp\n");
+        reset_sp();
+    }break;
+
     }
 }
