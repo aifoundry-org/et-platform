@@ -65,6 +65,21 @@ pipeline {
           ]
       }
     }
+    stage('CLANG_CHECK') {
+      steps {
+        build job:
+          'sw-platform/runtime-integration/pipelines/runtime-clang-tests',
+          propagate: true,
+          parameters: [
+            string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+            string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
+            string(name: 'REPO_SSH_URL', value: 'git@gitlab.esperanto.ai:software/sw-platform.git'),
+            string(name: 'REPO_NAME', value: 'sw-platform'),
+            string(name: 'NODE', value: 'WORKER'),
+            string(name: 'TIMEOUT', value: '1')
+          ]
+      }
+    }
     stage('PARALLEL0') {
       parallel {
         stage('JOB_BASE_INTEGRATION') {
