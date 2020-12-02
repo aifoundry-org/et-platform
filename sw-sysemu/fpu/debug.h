@@ -15,6 +15,7 @@
 
 #include "softfloat/platform.h"
 #include "softfloat/internals.h"
+#include "softfloat/specialize.h"
 #include "softfloat/softfloat.h"
 
 
