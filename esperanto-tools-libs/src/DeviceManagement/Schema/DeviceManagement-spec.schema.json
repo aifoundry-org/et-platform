@@ -86,21 +86,36 @@
 		"dm_status": ["PASS", "FAILED"],
 		"power_state": ["FULL", "REDUCED", "LOWEST"],
 		"tdp_level": ["LEVEL1", "LEVEL2", "LEVEL2", "LEVEL4"],
-		"pcie_reset": ["FLR", "HOT", "WARM"]
+		"pcie_reset": ["FLR", "HOT", "WARM"],
+		"pcie_link_speed": ["GEN3", "GEN4"],
+		"pcie_lane_w_split": ["x1", "x4", "x8", "x16"]
 	},
 
 	"cmd_param_structs": {
 
-		"command_header": {
+		"command_req_header": {
 			"usage": {
-				"desc": "DM request and response header struct. This header is attached to each request and response"
+				"desc": "DM request header. This header is attached to each request"
 			},
 			"fields": {
 				"cmd_id": "enum command_id",
-				"device_laytency_usec": "uint64_t"
+				"size": "uint32_t"
 
 			}
 		},
+
+                "command_resp_header": {
+                        "usage": {
+                                "desc": "DM response header. This header is attached to each response"
+                        },
+                        "fields": {
+                                "status": "enum dm_status",
+                                "device_latency_usec": "uint64_t",
+				"size": "uint32_t"
+
+                        }
+                },
+
 
 		"asset_tracking_class": {
 
@@ -388,7 +403,7 @@
 					"output_buff": null
 				},
 				"fields": {
-					"speed": "TBD"
+					"speed": "enum pcie_link_speed"
 				}
 			},
 
@@ -399,18 +414,23 @@
 					"output_buff": null
 				},
 				"fields": {
-					"width": "TBD"
+					"width": "enum pcie_lane_w_split"
 				}
 			},
 
 			"pcie_retrain_phy": {
 				"usage": {
-					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
-					"input_buff": "SET_PCIE_RETRAIN_PHY",
+					"desc": "No struct is requried, request is handled based on the command id",
+					"input_buff": "null",
 					"output_buff": "null"
-				},
-				"fields": {
-					"phy": "TBD"
+				}
+			},
+
+			"etsoc_reset": {
+				"usage": {
+					"desc": "No struct is requried, request is handled based on the command id",
+					"input_buff": "null",
+					"output_buff": "null"
 				}
 			}
 		},
