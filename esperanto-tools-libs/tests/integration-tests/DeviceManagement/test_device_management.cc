@@ -48,8 +48,8 @@ public:
 };
 
 /*
-// Test SP RESEST
-TEST_F(DMTestModule, test_SP_RESET) {
+// Test ETSOC RESEST
+TEST_F(DMTestModule, test_ETSOC_RESET) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement &dm = (*dmi)();
