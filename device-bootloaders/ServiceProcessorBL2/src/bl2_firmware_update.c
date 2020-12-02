@@ -30,8 +30,15 @@ static void send_status_response(mbox_e mbox, uint32_t cmd_id, uint64_t req_star
     }
 }
 
-static void reset_sp(void)
+static void reset_etsoc(void)
 {
+    // TODO: This is Zebu specific hack to enable PCIe Xtor to reset to take effect b4 reseting the ET SOC 
+    asm volatile("slti x0,x0,0x7e0");
+    int count=100000;
+    while(0 != count) {
+	count--;	
+    }
+    // TODO: End
 
     printf("Resetting ETSOC..!\n");
  
@@ -70,12 +77,6 @@ static int64_t dm_svc_firmware_update(mbox_e mbox, uint32_t cmd_id, uint64_t req
         printf("mbox send error while sending fw valid status!\n");
     }
 
-    printf("Resetting ETSOC..!\n");
-
-    // Now Reset SP.
-    pmic_toggle_etsoc_reset();
-
-    //Note: Code will never return from here since SP is reset above.
     return 0;
 }
 
@@ -266,7 +267,6 @@ void firmware_service_process_request(mbox_e mbox, uint32_t cmd_id, void *buffer
     switch (cmd_id) {
     case SET_FIRMWARE_UPDATE: {
         ret = dm_svc_firmware_update(mbox, cmd_id, req_start_time);
-        send_status_response(mbox, cmd_id, req_start_time, ret);
     } break;
 
     case GET_MODULE_FIRMWARE_REVISIONS: {
@@ -277,7 +277,6 @@ void firmware_service_process_request(mbox_e mbox, uint32_t cmd_id, void *buffer
         ret = dm_svc_get_firmware_status();
         send_status_response(mbox, cmd_id, req_start_time, ret);
     } break;
-
 /*  TODO: These feature is to be supported in v 0.0.7 
     case SET_FIRMWARE_VERSION_COUNTER: {
         ret = dm_svc_set_firmware_version_counter();
@@ -297,9 +296,9 @@ void firmware_service_process_request(mbox_e mbox, uint32_t cmd_id, void *buffer
         send_status_response(mbox, cmd_id, req_start_time, ret);
     } break;
 
-    case RESET_SP: {
-        printf("reset_sp\n");
-        reset_sp();
+    case RESET_ETSOC: {
+        printf("reset_etsoc\n");
+        reset_etsoc();
     }break;
 
     }
