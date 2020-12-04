@@ -15,5 +15,6 @@
 int release_memshire_from_reset(void);
 int release_minions_from_cold_reset(void);
 int release_minions_from_warm_reset(void);
+void release_etsoc_reset(void);
 
 #endif

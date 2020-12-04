@@ -15,35 +15,34 @@ set(FILE_REVISION_NUMBER 1)
 set(BL2_INSTALL_DIR ${LIB_INSTALL_DIR}/esperanto-fw/ServiceProcessorBL2)
 
 set(BL2_SOURCES
-    src/bl2_entry.S
-    src/bl2_trap_handler.S
-    src/dummy_isr.c
-    src/interrupt.c
-    src/main.c
-    src/mailbox.c
-    src/stubs.c
-    src/bl2_spi_controller.c
-    src/bl2_spi_flash.c
-    src/bl2_flash_fs.c
-    src/bl2_flashfs_driver.c
-    src/bl2_vaultip_controller.c
-    src/bl2_vaultip_driver.c
-    src/bl2_crypto.c
-    src/bl2_certificates.c
-    src/bl2_firmware_loader.c
-    src/bl2_reset.c
-    src/bl2_sp_pll.c
-    src/bl2_ddr_init.c
-    src/bl2_minion_pll_and_dll.c
-    src/bl2_timer.c
-    src/bl2_asset_trk.c
-    src/bl2_i2c_driver.c
-    src/bl2_pmic_controller.c
-    src/bl2_firmware_update.c
-    src/crc32.c
-    src/memory_copy_8x32.S
-    # This file get compiled different based on the serial_device.h configuration of each target
-    src/bl2_build_configuration.c)
+    common/entry.S
+    common/trap_handler.S
+    common/main.c
+    utils/stubs.c
+    utils/crc32.c
+    utils/memory_copy_8x32.S
+    driver/io_pll.c
+    driver/minion_pll_and_dll.c
+    driver/ddr_controller.c
+    driver/i2c_controller.c
+    driver/spi_controller.c
+    driver/spi_flash.c
+    driver/vaultip_controller.c
+    driver/pmic_controller.c
+    driver/crypto_rot.c
+    driver/reset.c
+    driver/timer.c
+    driver/flashfs.c
+    driver/secure_sign.c
+    driver/firmware_loader.c
+    rtos_task/interrupt.c
+    rtos_task/mailbox.c
+    rtos_task/flash_fs.c
+    rtos_task/vaultip.c
+    dm_service/firmware_update.c
+    dm_service/asset_track.c
+    # This file get compiled different based on the configuration of each target
+    common/build_configuration.c)
 
 list(TRANSFORM BL2_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
 
@@ -57,7 +56,7 @@ set(SOURCES
     ${SHARED_SRC_DIR}/usb2_0.c
 )
 
-set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/src/sections.ld)
+set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/common/sections.ld)
 set(ZEBU_TARGET SP_RAM)
 
 # FreeRTOS definitions

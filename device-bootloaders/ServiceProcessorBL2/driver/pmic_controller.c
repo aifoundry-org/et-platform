@@ -53,10 +53,3 @@ void setup_pmic(void)
 
     printf("PMIC connection establish\n");
 }
-
-void pmic_toggle_etsoc_reset(void)
-{
-   printf("Reseting ETSOC \n");
-   iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_SYS_RESET_CTRL_ADDRESS,
-             RESET_MANAGER_RM_SYS_RESET_CTRL_ENABLE_SET(0x1));
-}

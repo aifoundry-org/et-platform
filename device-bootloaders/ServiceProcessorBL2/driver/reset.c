@@ -31,3 +31,10 @@ int release_minions_from_warm_reset(void)
               RESET_MANAGER_RM_MINION_WARM_B_RSTN_SET(0x3));
     return 0;
 }
+
+void release_etsoc_reset(void)
+{
+   printf("Reseting ETSOC \n");
+   iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_SYS_RESET_CTRL_ADDRESS,
+             RESET_MANAGER_RM_SYS_RESET_CTRL_ENABLE_SET(0x1));
+}
