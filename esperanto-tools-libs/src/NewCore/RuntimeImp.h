@@ -57,11 +57,18 @@ public:
 
 private:
   struct Kernel {
-    Kernel(DeviceId deviceId, const void* elfData, size_t elfSize, void* deviceBuffer);
+    Kernel(DeviceId deviceId, void* deviceBuffer, uint64_t entryPoint)
+      : deviceId_(deviceId)
+      , deviceBuffer_(deviceBuffer)
+      , entryPoint_(entryPoint) {
+    }
 
-    ELFIO::elfio elf_;
+    uint64_t getEntryAddress() const {
+      return reinterpret_cast<uint64_t>(deviceBuffer_) + entryPoint_;
+    }
     DeviceId deviceId_;
     void* deviceBuffer_;
+    uint64_t entryPoint_;
   };
 
   struct Stream {

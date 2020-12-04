@@ -11,6 +11,7 @@
 #include "RuntimeImp.h"
 #include "KernelParametersCache.h"
 #include "MailboxReader.h"
+#include "ScopedProfileEvent.h"
 #include "TargetSilicon.h"
 #include "TargetSysEmu.h"
 #include "utils.h"
@@ -18,7 +19,6 @@
 #include <elfio/elfio.hpp>
 #include <memory>
 #include <sstream>
-#include "ScopedProfileEvent.h"
 using namespace rt;
 using namespace rt::profiling;
 
@@ -26,17 +26,7 @@ RuntimeImp::~RuntimeImp() {
   mailboxReader_.reset();
 }
 
-RuntimeImp::Kernel::Kernel(DeviceId deviceId, const void* elfData, size_t elfSize, void* deviceBuffer)
-  : deviceId_(deviceId)
-  , deviceBuffer_(deviceBuffer) {
-
-  auto memStream = std::istringstream(std::string(reinterpret_cast<const char*>(elfData), elfSize), std::ios::binary);
-  if (!elf_.load(memStream)) {
-    throw Exception("Error parsing elf");
-  }
-}
-
-RuntimeImp::RuntimeImp(Kind kind) { 
+RuntimeImp::RuntimeImp(Kind kind) {
   switch (kind) {
   case Kind::SysEmu:
     target_ = std::make_unique<TargetSysEmu>();
@@ -66,13 +56,35 @@ KernelId RuntimeImp::loadCode(DeviceId device, const void* data, size_t size) {
   // allocate a buffer in the device to load the code
   auto deviceBuffer = mallocDevice(device, size);
 
-  auto kernel = std::make_unique<Kernel>(device, data, size, deviceBuffer);
+  auto memStream = std::istringstream(std::string(reinterpret_cast<const char*>(data), size), std::ios::binary);
+  ELFIO::elfio elf;
+  if (!elf.load(memStream)) {
+    throw Exception("Error parsing elf");
+  }
+
   // copy the execution code into the device
-  auto text_section = kernel->elf_.sections[".text"];
-  auto offset = text_section->get_offset();
-  auto text_size = text_section->get_size();
-  RT_DLOG(INFO) << "Text section offset: " << offset << " size: " << text_size;
-  target_->writeDevMemDMA(reinterpret_cast<uint64_t>(deviceBuffer), text_size, reinterpret_cast<const uint8_t*>(data) + offset);
+  // iterate over all the LOAD segments, writing them to device memory
+  uint64_t basePhysicalAddress;
+  bool basePhysicalAddressCalculated = false;
+  auto entry = elf.get_entry();
+  for (auto&& segment : elf.segments) {
+    if (segment->get_type() & PT_LOAD) {
+      auto offset = segment->get_offset();
+      auto loadAddress = segment->get_physical_address();
+      auto memSize = segment->get_memory_size();
+      auto addr = reinterpret_cast<uint64_t>(deviceBuffer) + offset;
+      if (!basePhysicalAddressCalculated) {
+        basePhysicalAddress = loadAddress - offset;
+        basePhysicalAddressCalculated = true;
+      }
+      RT_DLOG(INFO) << "Found segment: " << segment->get_index() << " Offset: 0x" << std::hex << offset
+                    << " Physical Address: 0x" << std::hex << loadAddress << " Mem Size: 0x" << memSize
+                    << " Copying to address: 0x" << addr << " Entry: 0x" << entry << "\n";
+      target_->writeDevMemDMA(addr, memSize, reinterpret_cast<const uint8_t*>(data) + offset);
+    }
+  }
+
+  auto kernel = std::make_unique<Kernel>(device, deviceBuffer, entry - basePhysicalAddress);
 
   // store the ref
   auto kernelId = static_cast<KernelId>(nextKernelId_++);
@@ -87,11 +99,11 @@ KernelId RuntimeImp::loadCode(DeviceId device, const void* data, size_t size) {
 void RuntimeImp::unloadCode(KernelId kernel) {
   ScopedProfileEvent profileEvent(Class::UnloadCode, profiler_);
   auto it = find(kernels_, kernel);
-  
-  //free the buffer
+
+  // free the buffer
   freeDevice(it->second->deviceId_, it->second->deviceBuffer_);
 
-  //and remove the kernel
+  // and remove the kernel
   kernels_.erase(it);
 }
 
@@ -133,9 +145,9 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
   if (size % 256 != 0) { // #TODO fix this with SW-5098
     throw Exception("Memcpy operations must be aligned to 256B");
   }
-  auto it = find(streams_, stream);  
+  auto it = find(streams_, stream);
   auto evt = eventManager_.getNextId();
-  it->second.lastEventId_ = evt;  
+  it->second.lastEventId_ = evt;
   auto ret = target_->writeDevMemDMA(reinterpret_cast<uint64_t>(d_dst), size, h_src);
   eventManager_.dispatch(evt);
   if (!ret) {
@@ -162,7 +174,7 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
   return evt;
 }
 
-void RuntimeImp::waitForEvent(EventId event) {  
+void RuntimeImp::waitForEvent(EventId event) {
   ScopedProfileEvent profileEvent(Class::WaitForEvent, profiler_, event);
   RT_DLOG(INFO) << "Waiting for event " << static_cast<int>(event) << " to be dispatched.";
   eventManager_.blockUntilDispatched(event);
@@ -170,7 +182,7 @@ void RuntimeImp::waitForEvent(EventId event) {
 }
 
 void RuntimeImp::waitForStream(StreamId stream) {
-  ScopedProfileEvent profileEvent(Class::WaitForStream, profiler_, stream); 
+  ScopedProfileEvent profileEvent(Class::WaitForStream, profiler_, stream);
   auto it = find(streams_, stream, "Invalid stream");
   waitForEvent(it->second.lastEventId_);
 }

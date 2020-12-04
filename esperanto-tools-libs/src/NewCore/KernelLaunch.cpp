@@ -69,7 +69,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
   cmd_info_.command_info.host_timestamp = duration_cast<milliseconds>(time.time_since_epoch()).count();
   cmd_info_.command_info.stream_id = static_cast<uint32_t>(streamId);
 
-  cmd_info_.kernel_info.compute_pc = reinterpret_cast<uint64_t>(kernel->deviceBuffer_);
+  cmd_info_.kernel_info.compute_pc = kernel->getEntryAddress();
   cmd_info_.kernel_info.shire_mask = shire_mask;
   cmd_info_.kernel_params.kernel_id = static_cast<uint64_t>(kernelId);
 
