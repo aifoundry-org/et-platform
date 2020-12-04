@@ -1,0 +1,43 @@
+import:
+  - path: '@ci@/ci-tools/templates/template-main-top-level.yaml'
+
+parameters:
+  SW_PLATFORM_BRANCH:
+    description: SW-Platform branch to track
+    type: string
+    default_value: "origin/master"
+  REPO_SSH_URL:
+    description: Repository URL
+    type: string
+    default_value: "git@gitlab.esperanto.ai:software/device-api.git"
+  REPO_NAME:
+    description: Repository name
+    type: string
+    default_value: "device-api"
+
+stages:
+  JOB_RUNTIME:
+    cmds:
+      - job: sw-platform/runtime-integration/pipelines/runtime-checkin-tests
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},common-apis/device-api:${BRANCH}"
+          PYTEST_RETRIES: "2"
+
+  JOB_BASE_INTEGRATION:
+    cmds:
+      - job: sw-platform/tools-and-utils/pipelines/sw-platform-basic-integration
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},common-apis/device-api:${BRANCH}"
+
+  JOB_GLOW_OPERATORS:
+    cmds:
+      - job: sw-platform/host-sw-integration/pipelines/dnn-lib/glow-operators-ci-etrt-devfw-sysemu
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},common-apis/device-api:${BRANCH}"
+          PYTEST_RETRIES: "2"
+          TIMEOUT: "3"
+
+
