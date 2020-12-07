@@ -156,10 +156,7 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
 // currently we only create an event, don't
 EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void* h_dst, size_t size,
                                        [[maybe_unused]] bool barrier) {
-  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, profiler_);
-  if (size % 256 != 0) { // #TODO fix this with SW-5098
-    throw Exception("Memcpy operations must be aligned to 256B");
-  }
+  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, profiler_);  
   auto it = find(streams_, stream);
   auto evt = eventManager_.getNextId();
   it->second.lastEventId_ = evt;
