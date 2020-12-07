@@ -34,3 +34,10 @@ stages:
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"
     exec_after: [CHECK_IN]
 
+  ZEBU_CHECKIN_BEMU:
+    cmds:
+      - job: sw-platform/zebu/pipelines/zebu-checkin-bemu
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"
+    exec_after: [CHECK_IN]
