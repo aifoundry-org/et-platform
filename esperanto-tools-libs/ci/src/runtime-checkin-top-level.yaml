@@ -20,19 +20,6 @@ parameters:
     default_value: true
 
 stages:
-  CLANG_CHECK:
-    cmds:
-      - job: sw-platform/runtime-integration/pipelines/runtime-clang-tests
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
-          REPO_SSH_URL: "git@gitlab.esperanto.ai:software/sw-platform.git"
-          REPO_NAME: "sw-platform"
-          NODE: WORKER
-          TIMEOUT: "1"
-    exec_before: [r"JOB_.*"]
-    exec_after: ['DSL_JOB']
-
   JOB_RUNTIME:
     cmds:
       - job: sw-platform/runtime-integration/pipelines/runtime-checkin-tests
