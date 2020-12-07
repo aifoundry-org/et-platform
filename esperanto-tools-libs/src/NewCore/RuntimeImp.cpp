@@ -142,9 +142,6 @@ void RuntimeImp::destroyStream(StreamId stream) {
 EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void* d_dst, size_t size,
                                        [[maybe_unused]] bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, profiler_);
-  if (size % 256 != 0) { // #TODO fix this with SW-5098
-    throw Exception("Memcpy operations must be aligned to 256B");
-  }
   auto it = find(streams_, stream);
   auto evt = eventManager_.getNextId();
   it->second.lastEventId_ = evt;
