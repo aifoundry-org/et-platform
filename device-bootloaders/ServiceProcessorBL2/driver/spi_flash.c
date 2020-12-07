@@ -31,8 +31,10 @@
 #define SPI_FLASH_CMD_PAGE_PROGRAM 0x02
 #define SPI_FLASH_CMD_BLOCK_ERASE  0xD8
 
-// Sizes:
-// Page: 64 KB
+// Sizes: 
+// PAGE:           : 8 KB  
+// BLOCK (8 * Page): 64 KB
+#define FLASH_PAGE_SIZE            4096
 #define FLASH_BLOCK_SIZE           0x4000U
 
 static int get_flash_controller_and_slave_ids(SPI_FLASH_ID_t id, SPI_CONTROLLER_ID_t *controller_id,
@@ -271,15 +273,19 @@ int spi_flash_program(SPI_FLASH_ID_t flash_id, uint32_t address, const uint8_t *
     command.dummy_bytes = 0;
     command.data_receive = false;
     command.address = address;
-    command.data_size = data_buffer_size;
+    command.data_size = FLASH_PAGE_SIZE;
 #pragma GCC push_options
 #pragma GCC diagnostic ignored "-Wcast-qual"
     command.data_buffer = (uint8_t *)data_buffer;
 #pragma GCC pop_options
 
-    if (0 != spi_controller_command(controller_id, slave_index, &command)) {
-        MESSAGE_ERROR("spi_controller_command(PP) failed!\n");
-        return -1;
+    for (uint32_t block_addr=0; block_addr <= data_buffer_size; block_addr += FLASH_PAGE_SIZE) {
+        command.address += block_addr;
+        command.data_buffer = (uint8_t *)(data_buffer + block_addr);
+        if (0 != spi_controller_command(controller_id, slave_index, &command)) {
+            MESSAGE_ERROR("spi_controller_command(PP) failed!\n");
+            return -1;
+        }
     }
 
     return 0;

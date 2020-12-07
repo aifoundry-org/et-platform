@@ -33,19 +33,10 @@ static void send_status_response(mbox_e mbox, uint32_t cmd_id, uint64_t req_star
 
 static void reset_etsoc(void)
 {
-    // TODO: This is Zebu specific hack to enable PCIe Xtor to reset to take effect b4 reseting the ET SOC 
-    asm volatile("slti x0,x0,0x7e0");
-    int count=100000;
-    while(0 != count) {
-	count--;	
-    }
-    // TODO: End
-
     printf("Resetting ETSOC..!\n");
  
     // Now Reset SP.
     release_etsoc_reset();
-
 }
 
 static int64_t dm_svc_firmware_update(mbox_e mbox, uint32_t cmd_id, uint64_t req_start_time)
