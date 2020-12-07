@@ -37,6 +37,7 @@ set(BL2_SOURCES
     driver/firmware_loader.c
     rtos_task/interrupt.c
     rtos_task/mailbox.c
+    rtos_task/vqueue.c
     rtos_task/flash_fs.c
     rtos_task/vaultip.c
     dm_service/firmware_update.c

@@ -142,9 +142,15 @@ static void sp_dev_interface_reg_init(uint64_t minion_shires)
 
     g_sp_dev_intf_reg->minion_shires = minion_shires;
 
-    g_sp_dev_intf_reg->sp_vq.bar    = SP_VQ_BAR;
-    g_sp_dev_intf_reg->sp_vq.offset = SP_VQ_OFFSET;
-    g_sp_dev_intf_reg->sp_vq.size   = SP_VQ_SIZE;
+    g_sp_dev_intf_reg->sp_vq.bar               = SP_VQ_BAR;
+    g_sp_dev_intf_reg->sp_vq.interrupt_vector  = SP_VQ_MSI_ID;
+    g_sp_dev_intf_reg->sp_vq.offset            = SP_VQ_OFFSET;
+    g_sp_dev_intf_reg->sp_vq.size              = SP_VQ_SIZE;
+
+    g_sp_dev_intf_reg->sp_vq.size_info.control_size       = VQ_CONTROL_SIZE; 
+    g_sp_dev_intf_reg->sp_vq.size_info.element_count      = VQ_ELEMENT_COUNT;
+    g_sp_dev_intf_reg->sp_vq.size_info.element_size       = VQ_ELEMENT_SIZE;
+    g_sp_dev_intf_reg->sp_vq.size_info.element_alignment  = VQ_ELEMENT_ALIGNMENT;
 
     g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].attr         = SP_DEV_INTF_DDR_REGION_ATTR_READ_WRITE;
     g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].bar          = SP_DEV_INTF_USER_KERNEL_SPACE_BAR;
@@ -202,6 +208,9 @@ static void taskMain(void *pvParameters)
     sp_dev_interface_reg_init(minion_shires_mask);
 
     printf("time: %lu\n", timer_get_ticks_count());
+
+    // Initial Virtual Queues
+    // VQUEUE_init();
 
     // TODO: Update the following to Log macro - set to INFO/DEBUG
     //printf("Minion shires to enable: 0x%" PRIx64 "\n", minion_shires_mask);

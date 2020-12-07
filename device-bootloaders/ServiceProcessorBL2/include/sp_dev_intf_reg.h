@@ -30,9 +30,15 @@ extern "C" {
 // Host Address -> SOC Address mapping will happen via ET SOC PCIe Device ATU mapping
 
 // SP Virtual Queue (BAR=2, Offset=2KB ,Size=1KB)
-#define SP_VQ_BAR     2
+#define SP_VQ_BAR     2U
+#define SP_VQ_MSI_ID  1U
 #define SP_VQ_OFFSET  0x800UL
 #define SP_VQ_SIZE    0x400UL
+
+#define VQ_CONTROL_SIZE       256ULL   // To be optimized as we profile
+#define VQ_ELEMENT_COUNT      4U       // # of elements to enable in VQ
+#define VQ_ELEMENT_SIZE       128U     // Size of each element within the VQ
+#define VQ_ELEMENT_ALIGNMENT  4U       // Aligned to IO Accesses from SP
 
 // DDR Region 0 USER_KERNEL_SPACE (BAR=0, Offset=4GB, Size=8GB)
 #define SP_DEV_INTF_USER_KERNEL_SPACE_BAR    0
@@ -88,10 +94,19 @@ typedef struct __attribute__((__packed__)) SP_DEV_INTF_DDR_REGION {
     uint64_t size;
 } SP_DEV_INTF_DDR_REGION_s;
 
+typedef struct __attribute__((__packed__)) SP_DEV_INTF_VQ_SIZE_INFO {
+    uint16_t control_size;      /// Region always placed at the start of SP VQ Bar contains vqueue_info structs
+    uint16_t element_count;     /// Number of fixed-size buffers present in a VQ
+    uint16_t element_size;      /// Size of each fixed-size buffer
+    uint16_t element_alignment; /// Alignment requirement of each fixed-sized buffer
+} SP_DEV_INTF_VQ_SIZE_INFO_s;
+
 typedef struct __attribute__((__packed__)) SP_DEV_INTF_SP_VQ {
-    uint8_t bar;     /// One of enum SP_DEV_INTF_BAR_TYPE_e
+    uint32_t bar;     /// One of enum SP_DEV_INTF_BAR_TYPE_e
+    uint32_t interrupt_vector;
     uint64_t offset;
     uint64_t size;
+    SP_DEV_INTF_VQ_SIZE_INFO_s size_info;
 } SP_DEV_INTF_SP_VQ_s;
 
 /// \brief Service Processor Device interface register will be uses to public device capability to Host

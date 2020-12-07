@@ -78,4 +78,21 @@ struct dm_control_block {
     char cmd_payload[MAX_LENGTH];
 } __packed__;
 
+/// TODO: The following will be available in the auto-generated device_mngt_api.h
+typedef uint16_t tag_id_t;
+typedef uint16_t msg_id_t;
+
+/// @brief Common header, common to command, response, and events
+struct cmn_header_t {
+    uint16_t size; ///< size of payload that follows the message header
+    tag_id_t tag_id; ///< unique ID to correlate commands/responses across Host-> Device
+    msg_id_t msg_id; ///< unique ID to differentiate commands/responses/events generated from host
+};
+
+/// @brief Command header for all commands host to device
+struct cmd_header_t {
+    struct cmn_header_t cmd_hdr; ///< Command header
+    uint16_t flags;   ///< flags bitmask, (1<<0) = barrier, (1<<1) = enable time stamps.
+};
+
 #endif

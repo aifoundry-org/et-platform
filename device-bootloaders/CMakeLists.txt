@@ -53,6 +53,16 @@ list(APPEND CMAKE_PREFIX_PATH ${DEVFW_EXTERNAL_INSTALL_PREFIX})
 
 option(BUILD_DOC "Build documentation" ON)
 
+########## Documentation #####################################
+
+# check if Doxygen is installed
+#find_package(Doxygen)
+#if (DOXYGEN_FOUND)
+#  add_subdirectory(doc)
+#else (DOXYGEN_FOUND)
+#  message("Doxygen need to be installed to generate the doxygen documentation")
+#endif (DOXYGEN_FOUND)
+
 ############################ FW build Rules ############### ####################
 
 # Download the ETSOC_HAL generated files
