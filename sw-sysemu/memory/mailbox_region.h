@@ -473,7 +473,9 @@ protected:
                 : search(minion_regions, pos, n);
         }
         catch (const std::bad_cast&) {
-            throw std::runtime_error("Mailbox does not support non-Hart accesses");
+            // Assume non-Hart Agent is PCIe/Host
+            // TODO: GDB stub will not be able to access all the regions...
+            return search(pcie_regions, pos, n);
         }
     }
 
@@ -502,6 +504,13 @@ protected:
         &pu_mbox_mm_sp,
         &pu_mbox_pc_mm,
         &pu_sram,
+    }};
+    std::array<MemoryRegion*,5> pcie_regions = {{
+        &pu_mbox_pc_mm,
+        &pu_sram,
+        &pu_mbox_pc_mx,
+        &pu_mbox_pc_sp,
+        &pu_trg_pcie,
     }};
 
     std::atomic<uint32_t> pcie_interrupt_counter{0};

@@ -349,6 +349,13 @@ static uint64_t pma_check_data_access(const Hart& cpu, uint64_t vaddr,
             sys_emu::get_mem_checker().access(addr, macc, cop, hart_index(cpu), size, mask);
         }
 #endif
+#ifdef SMB_SIZE
+        if (((addr + size) > uint64_t(SMB_ADDR)) && (addr < (uint64_t(SMB_ADDR) + uint64_t(SMB_SIZE)))) {
+            LOG_HART(WARN, cpu, "%s SMB-reserved addr 0x%" PRIx64,
+                     data_access_is_write(macc) ? "Writing" : "Reading",
+                     std::max(addr, uint64_t(SMB_ADDR)));
+        }
+#endif
         // NB: The memory controller truncates addresses, but since we do  not
         // model that device we need to do the truncation here.
         return truncated_dram_addr(addr);
