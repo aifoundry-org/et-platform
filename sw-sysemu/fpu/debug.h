@@ -15,6 +15,7 @@
 
 #include "softfloat/platform.h"
 #include "softfloat/internals.h"
+#include "softfloat/specialize.h"
 #include "softfloat/softfloat.h"
 
 
@@ -37,9 +38,9 @@ template<size_t N=7>
 struct Float32 {
     bool     sign;
     int16_t  exp;
-    uint32_t sig;
+    uint64_t sig;
 
-    Float32(bool s, int16_t e, uint32_t m)
+    Float32(bool s, int16_t e, uint64_t m)
         : sign(s), exp(e), sig(m)
         {}
 
@@ -86,7 +87,7 @@ static inline std::ostream& operator<<(std::ostream& os, Float32<0> x)
 {
     std::bitset<1>  sign(x.sign);
     std::bitset<8>  exp(x.exp);
-    std::bitset<8>  ovfl(x.sig >> 24);
+    std::bitset<9>  ovfl(x.sig >> 24);
     std::bitset<1>  lead(x.sig >> 23);
     std::bitset<23> frac(x.sig);
     return os << '(' << sign << ' ' << exp << ' ' << ovfl << ' ' << lead << ' ' << frac << ')';
@@ -97,7 +98,7 @@ static inline std::ostream& operator<<(std::ostream& os, Float32<1> x)
 {
     std::bitset<1>  sign(x.sign);
     std::bitset<8>  exp(x.exp);
-    std::bitset<7>  ovfl(x.sig >> 25);
+    std::bitset<8>  ovfl(x.sig >> 25);
     std::bitset<1>  lead(x.sig >> 24);
     std::bitset<23> frac(x.sig >>  1);
     std::bitset<1>  grd(x.sig);
@@ -109,11 +110,24 @@ static inline std::ostream& operator<<(std::ostream& os, Float32<2> x)
 {
     std::bitset<1>  sign(x.sign);
     std::bitset<8>  exp(x.exp);
-    std::bitset<6>  ovfl(x.sig >> 26);
+    std::bitset<7>  ovfl(x.sig >> 26);
     std::bitset<1>  lead(x.sig >> 25);
     std::bitset<23> frac(x.sig >>  2);
     std::bitset<1>  grd(x.sig >> 1);
     std::bitset<1>  rnd(x.sig);
+    return os << '(' << sign << ' ' << exp << ' ' << ovfl << ' ' << lead << ' ' << frac << ' ' << grd << ' ' << rnd << ')';
+}
+
+
+static inline std::ostream& operator<<(std::ostream& os, Float32<3> x)
+{
+    std::bitset<1>  sign(x.sign);
+    std::bitset<8>  exp(x.exp);
+    std::bitset<6>  ovfl(x.sig >> 27);
+    std::bitset<1>  lead(x.sig >> 26);
+    std::bitset<23> frac(x.sig >>  3);
+    std::bitset<1>  grd(x.sig >> 2);
+    std::bitset<2>  rnd(x.sig);
     return os << '(' << sign << ' ' << exp << ' ' << ovfl << ' ' << lead << ' ' << frac << ' ' << grd << ' ' << rnd << ')';
 }
 
@@ -123,45 +137,39 @@ static inline std::ostream& operator<<(std::ostream& os, Float32<N> x)
 {
     std::bitset<1>    sign(x.sign);
     std::bitset<8>    exp(x.exp);
-    std::bitset<8-N>  ovfl(x.sig >> (N+24));
+    std::bitset<9-N>  ovfl(x.sig >> (N+24));
     std::bitset<1>    lead(x.sig >> (N+23));
     std::bitset<23>   frac(x.sig >> N);
     std::bitset<1>    grd(x.sig >> (N-1));
-    std::bitset<1>    rnd(x.sig >> (N-2));
-    std::bitset<N-2>  stck(x.sig);
-    return os << '(' << sign << ' ' << exp << ' ' << ovfl << ' ' << lead << ' ' << frac << ' ' << grd << ' ' << rnd << " s:" << stck << ')';
+    std::bitset<N-3>  rnd(x.sig >> 2);
+    std::bitset<2>    stck(x.sig);
+    return os
+        << "0x" << std::hex << std::setw(8) << std::setfill('0') << x.sig << std::dec
+        << " (" << sign << ' ' << exp << ' ' << ovfl << ' ' << lead << ' ' << frac << ' ' << grd << ' ' << rnd << " s:" << stck << ')';
 }
 
 
 static inline std::ostream& operator<<(std::ostream& os, float16_t x)
 {
-    os << "0x"
-       << std::hex << std::setw(4) << std::setfill('0') << x.v
-       << std::dec <<  ' ' << Float16(x) << ' ';
-    if (isNaNF16UI(x.v)) {
-        return os << (softfloat_isSigNaNF16UI(x.v) ? "SNaN" : "QNaN");
-    }
-    float32_t y = f16_to_f32(x);
-    return os << u2f(y.v);
+    std::bitset<1> sign(signF16UI(x.v));
+    std::bitset<5> exp(expF16UI(x.v));
+    std::bitset<10> frac(fracF16UI(x.v));
+    return os
+        << "0x"
+        << std::hex << std::setw(4) << std::setfill('0') << x.v
+        << std::dec <<  " (" << sign << ' ' << exp << ' ' << frac << ')';
 }
 
 
 static inline std::ostream& operator<<(std::ostream& os, float32_t x)
 {
-    ui32_f32 u;
-    uint_fast32_t ui;
-    u.f = x;
-    ui = u.ui;
-    std::bitset<1> sign(signF32UI(ui));
-    std::bitset<8> exp(expF32UI(ui));
-    std::bitset<23> frac(fracF32UI(ui));
-    os << "0x"
-       << std::hex << std::setw(8) << std::setfill('0') << x.v
-       << std::dec <<  " (" << sign << ' ' << exp << ' ' << frac << ") ";
-    if (isNaNF32UI(ui)) {
-        return os << (softfloat_isSigNaNF32UI(ui) ? "SNaN" : "QNaN");
-    }
-    return os << u2f(x.v);
+    std::bitset<1> sign(signF32UI(x.v));
+    std::bitset<8> exp(expF32UI(x.v));
+    std::bitset<23> frac(fracF32UI(x.v));
+    return os
+        << "0x"
+        << std::hex << std::setw(8) << std::setfill('0') << x.v
+        << std::dec <<  " (" << sign << ' ' << exp << ' ' << frac << ')';
 }
 
 
