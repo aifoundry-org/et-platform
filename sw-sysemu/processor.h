@@ -166,6 +166,7 @@ struct Hart : public Agent {
     void fetch();
     void execute();
     void take_trap(const trap_t&);
+    void notify_pmu_minion_event(uint8_t event);
 
     // Core that this hart belongs to
     Core*  core;
@@ -256,6 +257,13 @@ struct Hart : public Agent {
     std::array<uint64_t,2> shadow_txstride;
 };
 
+
+//
+// Neighborhood status
+//
+typedef std::array<std::array<uint64_t, 6>, 2> neigh_pmu_counters_t;
+
+extern std::array<neigh_pmu_counters_t, EMU_NUM_NEIGHS> neigh_pmu_counters;
 
 
 inline long Hart::shireid() const

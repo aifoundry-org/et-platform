@@ -1125,6 +1125,8 @@ sys_emu::main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<a
 
                     bemu::cpu[thread_id].execute();
 
+                    bemu::cpu[thread_id].notify_pmu_minion_event(PMU_MINION_EVENT_RETIRED_INST0 + (thread_id & 1));
+
                     if (bemu::get_msg_port_stall(thread_id, 0))
                     {
                         thread = running_threads.erase(thread);
@@ -1213,6 +1215,8 @@ sys_emu::main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<a
                 running_threads.clear();
                 break;
             }
+
+            bemu::cpu[thread_id].notify_pmu_minion_event(PMU_MINION_EVENT_CYCLES);
         }
 
         emu_cycle++;

@@ -272,12 +272,16 @@ static uint64_t csrget(Hart& cpu, uint16_t csr)
         // unimplemented: DSCRATCH1
     case CSR_MCYCLE:
     case CSR_MINSTRET:
+        val = 0;
+        break;
     case CSR_MHPMCOUNTER3:
     case CSR_MHPMCOUNTER4:
     case CSR_MHPMCOUNTER5:
     case CSR_MHPMCOUNTER6:
     case CSR_MHPMCOUNTER7:
     case CSR_MHPMCOUNTER8:
+        val = neigh_pmu_counters[neigh_index(cpu)][cpu.mhartid & 1][csr - CSR_MHPMCOUNTER3];
+        break;
     case CSR_MHPMCOUNTER9:
     case CSR_MHPMCOUNTER10:
     case CSR_MHPMCOUNTER11:
@@ -305,6 +309,9 @@ static uint64_t csrget(Hart& cpu, uint16_t csr)
         break;
     case CSR_CYCLE:
     case CSR_INSTRET:
+        check_counter_is_enabled(cpu, csr - CSR_CYCLE);
+        val = 0;
+        break;
     case CSR_HPMCOUNTER3:
     case CSR_HPMCOUNTER4:
     case CSR_HPMCOUNTER5:
@@ -312,7 +319,7 @@ static uint64_t csrget(Hart& cpu, uint16_t csr)
     case CSR_HPMCOUNTER7:
     case CSR_HPMCOUNTER8:
         check_counter_is_enabled(cpu, csr - CSR_CYCLE);
-        val = 0;
+        val = neigh_pmu_counters[neigh_index(cpu)][cpu.mhartid & 1][csr - CSR_HPMCOUNTER3];
         break;
     case CSR_HPMCOUNTER9:
     case CSR_HPMCOUNTER10:
@@ -753,12 +760,16 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         // unimplemented: DSCRATCH1
     case CSR_MCYCLE:
     case CSR_MINSTRET:
+        val = 0;
+        break;
     case CSR_MHPMCOUNTER3:
     case CSR_MHPMCOUNTER4:
     case CSR_MHPMCOUNTER5:
     case CSR_MHPMCOUNTER6:
     case CSR_MHPMCOUNTER7:
     case CSR_MHPMCOUNTER8:
+        neigh_pmu_counters[neigh_index(cpu)][cpu.mhartid & 1][csr - CSR_MHPMCOUNTER3] = val;
+        break;
     case CSR_MHPMCOUNTER9:
     case CSR_MHPMCOUNTER10:
     case CSR_MHPMCOUNTER11:
