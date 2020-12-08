@@ -31,7 +31,9 @@
 #define SPI_FLASH_CMD_PAGE_PROGRAM 0x02
 #define SPI_FLASH_CMD_BLOCK_ERASE  0xD8
 
-// Sizes: 
+// SPI TX FIFO Depth: 256 entries x 32 bits each
+#define MAX_SPI_TX_FIFO_SIZE (256 * 4) 
+
 // PAGE:           : 8 KB  
 // BLOCK (8 * Page): 64 KB
 #define FLASH_PAGE_SIZE            4096
@@ -194,7 +196,7 @@ int spi_flash_normal_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *da
     while (data_buffer_size > 0) {
         read_size = data_buffer_size;
         if (read_size > MAXIMUM_READ_SIZE) {
-            read_size = MAXIMUM_READ_SIZE;
+             read_size = MAXIMUM_READ_SIZE;
         }
 
         command.cmd = SPI_FLASH_CMD_NORMAL_READ;
@@ -273,13 +275,20 @@ int spi_flash_program(SPI_FLASH_ID_t flash_id, uint32_t address, const uint8_t *
     command.dummy_bytes = 0;
     command.data_receive = false;
     command.address = address;
-    command.data_size = FLASH_PAGE_SIZE;
+    command.data_size = data_buffer_size;
+
+    // Max supported size will include 12 bytes of command
+    if(data_buffer_size > (MAX_SPI_TX_FIFO_SIZE - 12)) {
+       MESSAGE_ERROR("spi_controller_command(Program) failed! Max size = %d\n",(MAX_SPI_TX_FIFO_SIZE - 12));
+       return -1;
+    }
+
 #pragma GCC push_options
 #pragma GCC diagnostic ignored "-Wcast-qual"
     command.data_buffer = (uint8_t *)data_buffer;
 #pragma GCC pop_options
 
-    for (uint32_t block_addr=0; block_addr <= data_buffer_size; block_addr += FLASH_PAGE_SIZE) {
+    for (uint32_t block_addr=0; block_addr <= data_buffer_size; block_addr += MAX_SPI_TX_FIFO_SIZE) {
         command.address += block_addr;
         command.data_buffer = (uint8_t *)(data_buffer + block_addr);
         if (0 != spi_controller_command(controller_id, slave_index, &command)) {

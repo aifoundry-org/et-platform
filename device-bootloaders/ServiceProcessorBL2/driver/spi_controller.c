@@ -28,9 +28,6 @@
 #define SPI_TX_VERBOSITY 0
 
 #define DUMMY_TX_BYTE_VALUE 0xFF
-#define WRITES_USE_32_BIT_FRAMES
-#define READS_USE_32_BIT_FRAMES
-
 #define MAX_RX_TX_FIFO_SIZE 256
 
 #define RX_BAUD_RATE_DIVIDER_100_MHZ_VALUE \
@@ -116,39 +113,27 @@ int spi_controller_init(SPI_CONTROLLER_ID_t id)
     return 0;
 }
 
-#if defined(WRITES_USE_32_BIT_FRAMES) || defined(READS_USE_32_BIT_FRAMES)
 static inline uint32_t reverse_endian(const uint32_t v)
 {
     return (v << 24) | (0x00FF0000 & (v << 8)) | (0x0000FF00 & (v >> 8)) | (0xFF & (v >> 24));
 }
-#endif
 
-#ifdef WRITES_USE_32_BIT_FRAMES
 static int spi_controller_tx32_data(uintptr_t spi_regs, const uint8_t *spi_command,
                                     uint32_t spi_command_length, uint8_t *tx_data,
                                     uint32_t tx_data_size, uint32_t slave_en_mask)
 {
     int rv;
-    //Ssi_SR_t sr;
-    //Ssi_TXFLR_t txflr;
     uint32_t timeout;
     uint32_t rx32_count;
     const uint32_t *tx_data_32;
     const uint32_t *tx_data_32_end;
     const uint32_t *spi_command_32;
     uint32_t empty_flag;
-#if SPI_TX_VERBOSITY > 2
-    uint32_t n;
-#endif
 
-#if 1 == SPI_TX_VERBOSITY
-    MESSAGE_INFO_DEBUG("tx32\n");
-#elif SPI_TX_VERBOSITY >= 2
+#if SPI_TX_VERBOSITY >= 2
+    uint32_t n;
     MESSAGE_INFO_DEBUG("SPI_TX32: cmd=%02x, len=%u, tx_data=0x%x, tx_size=%u\n", spi_command[0],
                        spi_command_length, tx_data, tx_data_size);
-#endif
-
-#if SPI_TX_VERBOSITY > 2
     for (n = 1; n < spi_command_length; n++) {
         MESSAGE_INFO_DEBUG(" %02x", spi_command[n]);
     }
@@ -226,7 +211,6 @@ DONE:
     iowrite32(spi_regs + SSI_SER_ADDRESS, SSI_SER_SER_SET(0));
     return rv;
 }
-#endif
 
 static int spi_controller_tx_data(uintptr_t spi_regs, const uint8_t *spi_command,
                                   uint32_t spi_command_length, uint8_t *tx_data,
@@ -238,17 +222,11 @@ static int spi_controller_tx_data(uintptr_t spi_regs, const uint8_t *spi_command
     const uint8_t *tx_data_end;
     const uint8_t *spi_command_end;
     uint32_t total_tx_count;
+
 #if SPI_TX_VERBOSITY > 2
     uint32_t n;
-#endif
-
-#if 1 == SPI_TX_VERBOSITY
-//MESSAGE_INFO_DEBUG("tx\n");
-#elif SPI_TX_VERBOSITY >= 2
     MESSAGE_INFO_DEBUG("SPI_TX: cmd=%02x, len=%u, tx_data=0x%x, tx_size=%u\n", spi_command[0],
                        spi_command_length, tx_data, tx_data_size);
-#endif
-#if SPI_TX_VERBOSITY > 2
     for (n = 1; n < spi_command_length; n++) {
         MESSAGE_INFO_DEBUG(" %02x", spi_command[n]);
     }
@@ -307,15 +285,12 @@ DONE:
     return rv;
 }
 
-#ifdef READS_USE_32_BIT_FRAMES
 static int spi_controller_rx32_data(uintptr_t spi_regs, const uint8_t *spi_command,
                                     uint32_t spi_command_length, uint32_t read_frames,
                                     uint32_t skip_read_size, uint8_t *rx_data,
                                     uint32_t rx_data_size)
 {
     int rv;
-    //Ssi_SR_t sr;
-    //Ssi_TXFLR_t txflr;
     uint32_t rxflr;
     uint32_t timeout;
     union {
@@ -327,15 +302,11 @@ static int spi_controller_rx32_data(uintptr_t spi_regs, const uint8_t *spi_comma
     const uint8_t *data;
     uint32_t data_size;
 
-#if SPI_RX_VERBOSITY == 1
-    MESSAGE_INFO_DEBUG("rx32\n");
-#elif SPI_RX_VERBOSITY >= 2
+
+#if SPI_RX_VERBOSITY > 2
     MESSAGE_INFO_DEBUG("SPI_RX32: cmd=%02x, len=%u, rf=%u, srs=%u, rx_data=0x%x, rx_size=%u\n",
                        spi_command[0], spi_command_length, read_frames, skip_read_size, rx_data,
                        rx_data_size);
-#endif
-
-#if SPI_RX_VERBOSITY > 2
     for (n = 1; n < spi_command_length; n++) {
         MESSAGE_INFO_DEBUG(" %02x", spi_command[n]);
     }
@@ -426,12 +397,10 @@ static int spi_controller_rx32_data(uintptr_t spi_regs, const uint8_t *spi_comma
                               ioread32(spi_regs + SSI_BAUDR_ADDRESS),
                               ioread32(spi_regs + SSI_TXFTLR_ADDRESS),
                               ioread32(spi_regs + SSI_RXFTLR_ADDRESS));
-                //MESSAGE_ERROR("SR! 0x%x\n", sr.R);
                 goto DONE;
             }
         }
     }
-    //MESSAGE_ERROR("\n");
 
     rv = 0;
 DONE:
@@ -439,7 +408,6 @@ DONE:
     iowrite32(spi_regs + SSI_SER_ADDRESS, SSI_SER_SER_SET(0));
     return rv;
 }
-#endif
 
 static int spi_controller_rx_data(uintptr_t spi_regs, const uint8_t *spi_command,
                                   uint32_t spi_command_length, uint8_t *rx_data,
@@ -451,20 +419,13 @@ static int spi_controller_rx_data(uintptr_t spi_regs, const uint8_t *spi_command
     uint32_t rxflr;
     uint32_t timeout;
     uint8_t byte_value;
-#if SPI_RX_VERBOSITY > 2
-    uint32_t n;
-#endif
 
     (void)sr;
 
-#if SPI_RX_VERBOSITY == 1
-    MESSAGE_INFO_DEBUG("rx\n");
-#elif SPI_RX_VERBOSITY >= 2
+#if SPI_RX_VERBOSITY > 2
+    uint32_t n;
     MESSAGE_INFO_DEBUG("SPI_RX: cmd=%02x, len=%u, rx_data=0x%x, rx_size=%u\n", spi_command[0],
                        spi_command_length, rx_data, rx_data_size);
-#endif
-
-#if SPI_RX_VERBOSITY > 2
     for (n = 1; n < spi_command_length; n++) {
         MESSAGE_INFO_DEBUG(" %02x", spi_command[n]);
     }
@@ -528,22 +489,11 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
     uintptr_t spi_regs = get_spi_registers(id);
     uint32_t dfs32_frame_size;
     uint32_t slave_en_mask;
-
-#if defined(WRITES_USE_32_BIT_FRAMES) || defined(READS_USE_32_BIT_FRAMES)
     bool use_32bit_frames = false;
-#endif
-
-#ifdef WRITES_USE_32_BIT_FRAMES
     uint32_t true_write_size;
-#endif
-
-#ifdef READS_USE_32_BIT_FRAMES
     uint32_t true_read_size = 0;
     uint32_t skip_read_size = 0;
     uint32_t read_frames;
-#else
-    uint32_t n;
-#endif
 
     if (0 == spi_regs) {
         return -1;
@@ -571,7 +521,6 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
 
     if (0 == command->data_receive) {
         // we are transmitting data
-#ifdef WRITES_USE_32_BIT_FRAMES
         true_write_size = spi_command_length + command->data_size;
 
         if (0 != command->dummy_bytes) {
@@ -590,10 +539,8 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
                 spi_command_length, command->data_size);
             return -1;
         }
-#endif
     } else {
         // we are receiving data
-#ifdef READS_USE_32_BIT_FRAMES
         true_read_size = command->dummy_bytes + command->data_size;
         skip_read_size = command->dummy_bytes;
         if (4 == spi_command_length) {
@@ -609,24 +556,14 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
                           spi_command_length);
             return -1;
         }
-#else
-        // force all reads to use 8-bit frames
-        for (n = 0; n < command->dummy_bytes; n++) {
-            spi_command[spi_command_length] = 0;
-            spi_command_length++;
-        }
-#endif
+
     }
 
-#if defined(WRITES_USE_32_BIT_FRAMES) || defined(READS_USE_32_BIT_FRAMES)
     if (use_32bit_frames) {
         dfs32_frame_size = SSI_CTRLR0_DFS_32_DFS_32_FRAME_32BITS;
     } else {
         dfs32_frame_size = SSI_CTRLR0_DFS_32_DFS_32_FRAME_08BITS;
     }
-#else
-    dfs32_frame_size = SSI_CTRLR0_DFS_32_DFS_32_FRAME_08BITS;
-#endif
 
     iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(0));
     slave_en_mask = SSI_SER_SER_SET((1u << slave_index) & SLAVE_MASK);
@@ -644,7 +581,6 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
                       SSI_CTRLR0_SPI_FRF_SET(SSI_CTRLR0_SPI_FRF_SPI_FRF_STD_SPI_FRF) |
                       SSI_CTRLR0_SSTE_SET(0)));
 
-#ifdef READS_USE_32_BIT_FRAMES
         if (use_32bit_frames) {
             read_frames = true_read_size / 4;
             //MESSAGE_INFO_DEBUG("RX frames: %u\n", read_frames);
@@ -655,14 +591,9 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
             iowrite32(spi_regs + SSI_CTRLR1_ADDRESS,
                       SSI_CTRLR1_NDF_SET((uint16_t)(true_read_size - 1u)));
         }
-#else
-        iowrite32(spi_regs + SSI_CTRLR1_ADDRESS,
-                  SSI_CTRLR1_NDF_SET((uint16_t)(command->data_size - 1u)));
-#endif
         iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(1));
         iowrite32(spi_regs + SSI_SER_ADDRESS, slave_en_mask);
 
-#ifdef READS_USE_32_BIT_FRAMES
         if (use_32bit_frames) {
             rv = spi_controller_rx32_data(spi_regs, spi_command, spi_command_length, read_frames,
                                           skip_read_size, command->data_buffer, command->data_size);
@@ -670,10 +601,6 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
             rv = spi_controller_rx_data(spi_regs, spi_command, spi_command_length,
                                         command->data_buffer, command->data_size);
         }
-#else
-        rv = spi_controller_rx_data(spi_regs, spi_command, spi_command_length, command->data_buffer,
-                                    command->data_size);
-#endif
     } else {
         iowrite32(spi_regs + SSI_BAUDR_ADDRESS, SSI_BAUDR_SCKDV_SET(TX_BAUD_RATE_DIVIDER_VALUE));
         iowrite32(spi_regs + SSI_CTRLR0_ADDRESS,
@@ -687,7 +614,6 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
                       SSI_CTRLR0_SPI_FRF_SET(SSI_CTRLR0_SPI_FRF_SPI_FRF_STD_SPI_FRF) |
                       SSI_CTRLR0_SSTE_SET(0)));
         iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(1));
-#ifdef WRITES_USE_32_BIT_FRAMES
         if (use_32bit_frames) {
             rv = spi_controller_tx32_data(spi_regs, spi_command, spi_command_length,
                                           command->data_buffer, command->data_size, slave_en_mask);
@@ -695,10 +621,6 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
             rv = spi_controller_tx_data(spi_regs, spi_command, spi_command_length,
                                         command->data_buffer, command->data_size, slave_en_mask);
         }
-#else
-        rv = spi_controller_tx_data(spi_regs, spi_command, spi_command_length, command->data_buffer,
-                                    command->data_size);
-#endif
     }
 
     // force the CS# to go high at the end of the command
