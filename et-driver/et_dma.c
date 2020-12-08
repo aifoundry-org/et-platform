@@ -518,7 +518,9 @@ bool et_dma_insert_info(struct rb_root *root, struct et_dma_info *dma_info)
 void et_dma_delete_info(struct rb_root *root, struct et_dma_info *dma_info)
 {
 	if (dma_info) {
-		et_dma_unpin_ubuf(dma_info);
+		/* TODO JIRA SW-957: Uncomment when zero copy support is
+		   available */
+//		et_dma_unpin_ubuf(dma_info);
 		et_dma_free_coherent(dma_info);
 
 		rb_erase(&dma_info->node, root);
@@ -535,7 +537,9 @@ void et_dma_delete_all_info(struct rb_root *root)
 		dma_info = rb_entry(node, struct et_dma_info, node);
 		node = rb_next(node);
 
-		et_dma_unpin_ubuf(dma_info);
+		/* TODO JIRA SW-957: Uncomment when zero copy support is
+		   available */
+//		et_dma_unpin_ubuf(dma_info);
 		et_dma_free_coherent(dma_info);
 
 		rb_erase(&dma_info->node, root);
@@ -573,13 +577,14 @@ ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev, u8 queue_index,
 		goto error_free_dma_info;
 	}
 
-	// Pin the user buffer to avoid swapping out of pages during DMA
-	// operations
-	rv = et_dma_pin_ubuf(dma_info);
-	if (rv < 0) {
-		pr_err("et_dma_pin_ubuf failed\n");
-		goto error_dma_free_coherent;
-	}
+	/* TODO JIRA SW-957: Uncomment when zero copy support is available */
+//	// Pin the user buffer to avoid swapping out of pages during DMA
+//	// operations
+//	rv = et_dma_pin_ubuf(dma_info);
+//	if (rv < 0) {
+//		pr_err("et_dma_pin_ubuf failed\n");
+//		goto error_dma_free_coherent;
+//	}
 
 	mutex_lock(&vq_common_mm->dma_rbtree_mutex);
 	if (!et_dma_insert_info(&vq_common_mm->dma_rbtree, dma_info)) {
@@ -616,7 +621,8 @@ error_dma_delete_info:
 	return rv;
 
 error_dma_unpin_ubuf:
-	et_dma_unpin_ubuf(dma_info);
+	/* TODO JIRA SW-957: Uncomment when zero copy support is available */
+//	et_dma_unpin_ubuf(dma_info);
 
 error_dma_free_coherent:
 	et_dma_free_coherent(dma_info);
@@ -657,13 +663,14 @@ ssize_t et_dma_read_from_device(struct et_pci_dev *et_dev, u8 queue_index,
 		goto error_free_dma_info;
 	}
 
-	// Pin the user buffer to avoid swapping out of pages during DMA
-	// operations
-	rv = et_dma_pin_ubuf(dma_info);
-	if (rv < 0) {
-		pr_err("et_dma_pin_ubuf failed\n");
-		goto error_dma_free_coherent;
-	}
+	/* TODO JIRA SW-957: Uncomment when zero copy support is available */
+//	// Pin the user buffer to avoid swapping out of pages during DMA
+//	// operations
+//	rv = et_dma_pin_ubuf(dma_info);
+//	if (rv < 0) {
+//		pr_err("et_dma_pin_ubuf failed\n");
+//		goto error_dma_free_coherent;
+//	}
 
 	mutex_lock(&vq_common_mm->dma_rbtree_mutex);
 	if (!et_dma_insert_info(&vq_common_mm->dma_rbtree, dma_info)) {
@@ -693,7 +700,8 @@ error_dma_delete_info:
 	return rv;
 
 error_dma_unpin_ubuf:
-	et_dma_unpin_ubuf(dma_info);
+	/* TODO JIRA SW-957: Uncomment when zero copy support is available */
+//	et_dma_unpin_ubuf(dma_info);
 
 error_dma_free_coherent:
 	et_dma_free_coherent(dma_info);
