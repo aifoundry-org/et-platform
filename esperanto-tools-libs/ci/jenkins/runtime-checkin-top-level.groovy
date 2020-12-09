@@ -9,8 +9,10 @@ pipeline {
     string(name: 'NODE', defaultValue: 'DISPATCHER', description: 'Node label where the job should run')
     string(name: 'TIMEOUT', defaultValue: '12', description: 'Timeout (in hours)')
     booleanParam(name: 'HARD_CLEAN', defaultValue: 'true', description: 'If set to 1, removes all the workspace at the end of the regression')
+    booleanParam(name: 'CHECK_ON_TOP_OF_MASTER', defaultValue: 'true', description: 'when true this executes checks that ensures Merge Request has merged origin/master with their MR at the time the MR was submiteted')
     string(name: 'SW_PLATFORM_BRANCH', defaultValue: 'origin/master', description: 'SW-Platform branch to track')
     booleanParam(name: 'RUN_ZEBU', defaultValue: 'true', description: 'Run Zebu Job')
+    string(name: 'INPUT_TAGS', defaultValue: '', description: 'Parameter to receive tags from parent pipelines')
   }
   agent {
     label "${params.NODE}"
@@ -27,6 +29,7 @@ pipeline {
   }
   environment {
     CHECK_CHILD_JOBS = " --commit-passed ${GIT_COMMIT}  --job-params \' \\\"COMPONENT_COMMITS\\\": \\\"${COMPONENT_COMMITS}\\\"}\' "
+    PIPELINE_TAGS = "${INPUT_TAGS},"
   }
   stages {
     stage('CHECKOUT_SCM') {
@@ -53,6 +56,16 @@ pipeline {
         }
       }
     }
+    stage('CHECK_MERGE_UP_TO_DATE') {
+      when {
+        expression {
+          return sh(returnStatus: true, script: "${CHECK_ON_TOP_OF_MASTER}") == 0
+        }
+      }
+      steps {
+        sh 'git fetch ; git merge origin/master | grep Already && ( echo \"Branch is up to date with Origin/Master proceeding...\" ; exit 0 ) || ( echo \"Merge request is out of date with respect to origin/master. Please, rebase it and re-submit merge request\" ; exit 1 )'
+      }
+    }
     stage('DSL_JOB') {
       steps {
         build job:
@@ -61,22 +74,8 @@ pipeline {
           parameters: [
             string(name: 'BRANCH', value: "${BRANCH}"),
             string(name: 'REPO_SSH_URL', value: "${REPO_SSH_URL}"),
-            string(name: 'REPO_NAME', value: "${REPO_NAME}")
-          ]
-      }
-    }
-    stage('CLANG_CHECK') {
-      steps {
-        build job:
-          'sw-platform/runtime-integration/pipelines/runtime-clang-tests',
-          propagate: true,
-          parameters: [
-            string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-            string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
-            string(name: 'REPO_SSH_URL', value: 'git@gitlab.esperanto.ai:software/sw-platform.git'),
-            string(name: 'REPO_NAME', value: 'sw-platform'),
-            string(name: 'NODE', value: 'WORKER'),
-            string(name: 'TIMEOUT', value: '1')
+            string(name: 'REPO_NAME', value: "${REPO_NAME}"),
+            string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
           ]
       }
     }
@@ -89,7 +88,8 @@ pipeline {
               propagate: true,
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}")
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
+                string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
               ]
           }
         }
@@ -102,7 +102,8 @@ pipeline {
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
                 string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
                 string(name: 'PYTEST_RETRIES', value: '2'),
-                string(name: 'TIMEOUT', value: '3')
+                string(name: 'TIMEOUT', value: '3'),
+                string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
               ]
           }
         }
@@ -114,7 +115,8 @@ pipeline {
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
                 string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
-                string(name: 'PYTEST_RETRIES', value: '2')
+                string(name: 'PYTEST_RETRIES', value: '2'),
+                string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
               ]
           }
         }
