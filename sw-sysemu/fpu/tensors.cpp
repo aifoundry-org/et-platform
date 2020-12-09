@@ -378,7 +378,7 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, uint_fast32_t u
     }
     if ( expDiffC ) {
         sigC = softfloat_shiftRightJam32( sigC, expDiffC );
-        sigC = (sigC & ~2) | ((sigC & 2) >> 1);
+        sigC = (sigC & ~7) | ((sigC & 4) >> 2) | ((sigC & 2) >> 1) | (sigC & 1);
     }
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
