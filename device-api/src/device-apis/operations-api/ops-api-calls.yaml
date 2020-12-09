@@ -77,6 +77,13 @@ Enums:
         Value: 1
       - Name: WORKER_MINION_FW
         Value: 2
+  - Name: dev_ops_trace_response
+    Type: uint8_t
+    Values:
+      - Name: SUCCESS
+        Value: 0
+      - Name: ERROR
+        Value: 1
 
 ## List of Commands, Responses, and Events
 Messages :
@@ -295,6 +302,112 @@ Messages :
         Description: Status of the DMA operation
         Type: enum
         Enum: etsoc_dma_state
+#-------------------------------------------------------------------------------
+# Trace Management Commands and Responses
+#-------------------------------------------------------------------------------
+  - Name: device_ops_trace_configure_cmd
+    Description: Configure the trace configuration
+    Type: Command
+    PairedMessage: device_ops_trace_configure_rsp
+    Fields:
+      - Name: thread_mask
+        Description: |-
+                Bit Mask of Thread within a Shire to enable Trace Capture.
+                                         /// It will be the same bit mask for both Master and all Worker Shires.
+        Type: uint64_t
+      - Name: master_shire_mask
+        Description: Bit 0 indicates if master shire mask is enabled/disabled
+        Type: uint32_t
+      - Name: worker_shire_mask
+        Description: Bit Mask of Compute Shires to enable Trace Capture (0-32 shires)
+        Type: uint32_t
+      - Name: trace_buffer_size
+        Description: Size (in bytes) of bufffer per hart
+        Type: uint32_t
+      - Name: buffer_threshold_level
+        Description: |-
+                Size (in bytes) relative to trace_buffer_size which will cause an overflow event.
+                                                    /// Example, user can say when hit 70 bytes, detect event. Expectation is Size of buffer is bigger than this
+        Type: uint32_t
+      - Name: overflow_event_ctrl
+        Description: |-
+                When an overflow condition is hit, this will allow control:
+                                                 /// Bit 0 - Send Event to Host - Full event defined below
+                                                 /// Bit 1 - Stop Device from overwriting data buffer
+        Type: uint32_t
+  - Name: device_ops_trace_configure_rsp
+    Description:  Trace configure command reply
+    Type: Response
+    PairedMessage: device_ops_trace_configure_cmd
+    Fields:
+      - Name: status
+        Description: 0 - Success, 1 - Error
+        Type: enum
+        Enum: dev_ops_trace_response
+#-------------------------------------------------------------------------------
+  - Name: device_ops_trace_filter_knob_cmd
+    Description: Configure the state of a trace group
+    Type: Command
+    PairedMessage: device_ops_trace_filter_knob_rsp
+    Fields:
+      - Name: event_mask
+        Description: This is a bit mask, each bit corresponds to a event in the group
+        Type: uint64_t
+      - Name: group_index
+        Description: 'This is a unsigned group index. Shortcut: 0xFFFFFFFF enables all events and all groups'
+        Type: uint32_t
+  - Name: device_ops_trace_filter_knob_rsp
+    Description: Trace group configure command reply
+    Type: Response
+    PairedMessage: device_ops_trace_filter_knob_cmd
+    Fields:
+      - Name: status
+        Description: 0 - Success, 1 - Error
+        Type: enum
+        Enum: dev_ops_trace_response
+#------------------------------------------------------------------------------
+  - Name: device_ops_trace_state_ctrl_cmd
+    Description: Enables or disables trace component
+    Type: Command
+    PairedMessage: device_ops_trace_state_ctrl_rsp
+    Fields:
+      - Name: log_op_target
+        Description: Target could be in-memory buffer, or console
+        Type: uint8_t
+      - Name: log_level
+        Description: Determines Trace Log Level
+        Type: uint8_t
+      - Name: enable
+        Description: ENABLE or DISABLE
+        Type: uint8_t
+      - Name: pad
+        Type: uint8_t
+  - Name: device_ops_trace_state_ctrl_rsp
+    Description: Trace enable disable command reply
+    Type: Response
+    PairedMessage: device_ops_trace_state_ctrl_cmd
+    Fields:
+      - Name: status
+        Description: 0 - Success, 1 - Error
+        Type: enum
+        Enum: dev_ops_trace_response
+#------------------------------------------------------------------------------
+  - Name: device_ops_trace_flush_buffers_cmd
+    Description: Flush trace buffers for consumption
+    Type: Command
+    PairedMessage: device_ops_trace_flush_buffers_rsp
+    Fields:
+      - Name: dummy
+        Type: uint8_t
+  - Name: device_ops_trace_flush_buffers_rsp
+    Description: Flush trace buffer command reply
+    Type: Response
+    PairedMessage: device_ops_trace_flush_buffers_cmd
+    Fields:
+      - Name: status
+        Description: 0 - Success, 1 - Error
+        Type: enum
+        Enum: dev_ops_trace_response
 ###################################################################
 ## List of asynchronous events that device-fw can send to the host
 ###################################################################
@@ -306,3 +419,13 @@ Messages :
       - Name: error_type
         Type: enum
         Enum: dev_ops_api_error_type
+#------------------------------------------------------------------------------
+  - Name: device_ops_trace_buffer_full_event
+    Description: Binary trace buffer is full and the host should consume it
+    Type: Event
+    PairedMessage: None
+    Fields:
+      - Name: ring_buffer_start
+        Type: uint64_t
+      - Name: size
+        Type: uint64_t
