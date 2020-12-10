@@ -35,7 +35,7 @@ set(BL2_SOURCES
     driver/flashfs.c
     driver/secure_sign.c
     driver/firmware_loader.c
-    rtos_task/interrupt.c
+    driver/interrupt.c
     rtos_task/mailbox.c
     rtos_task/vqueue.c
     rtos_task/flash_fs.c
@@ -75,4 +75,4 @@ include_directories(${ESPERANTO_DEVICE_API_INCLUDE_DIR})
 add_subdirectory(include)
 
 # BL2 build variants
-add_subdirectory(BL2)
+add_subdirectory(build-variants)
