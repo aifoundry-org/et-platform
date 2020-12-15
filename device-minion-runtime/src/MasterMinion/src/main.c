@@ -35,6 +35,10 @@
 //#define DEBUG_FAKE_MESSAGE_FROM_HOST
 //#define DEBUG_FAKE_ABORT_FROM_HOST
 
+/* Temproary macro to route execution control
+to the new implementation of MM runtime */
+//#define IMPLEMENTATION_BYPASS
+
 static global_fcc_flag_t sq_worker_sync[MM_VQ_COUNT] = { 0 };
 
 #ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
@@ -81,8 +85,22 @@ static uint16_t lfsr(void);
 static uint16_t generate_message(uint8_t *const buffer);
 #endif
 
+extern void main2(void);
+
 void __attribute__((noreturn)) main(void)
 {
+#ifdef IMPLEMENTATION_BYPASS
+
+    main2();
+
+    (void)master_thread;
+    (void)sq_worker_thread;
+
+    while (1) {
+        asm volatile("wfi");
+    }
+
+#else
     uint64_t temp;
 
     // Configure supervisor trap vector and sscratch (supervisor stack pointer)
@@ -104,6 +122,8 @@ void __attribute__((noreturn)) main(void)
             asm volatile("wfi");
         }
     }
+    
+#endif
 }
 
 static inline void check_and_handle_sp_and_worker_messages(void)

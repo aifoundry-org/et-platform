@@ -15,6 +15,8 @@ add_library(firmware_helpers STATIC
   src/ringbuffer.c
   src/backtrace.c
   src/circbuffer.c
+  src/circbuff.c
+  src/vq.c
   )
 
 target_include_directories(firmware_helpers PUBLIC
@@ -53,6 +55,7 @@ install(
     include/circbuffer_common.h
     include/circbuffer.h
     include/vqueue_common.h
+    include/vq.h
   DESTINATION
     ${INCLUDE_INSTALL_DIR}/esperanto-fw/firmware_helpers
   COMPONENT firmware_helpers

@@ -6,6 +6,7 @@
 #include "atomic.h"
 #include "fcc.h"
 #include "macros.h"
+#include "utils.h"
 
 #define CACHE_LINE_SIZE 64
 

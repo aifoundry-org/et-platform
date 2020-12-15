@@ -24,6 +24,7 @@ set(SOURCES
     src/device_api_non_privileged.c
     src/device_ops_api.c
     src/exception.c
+    src/main2.c
     src/main.c
     src/kernel.c
     src/log.c
@@ -33,6 +34,21 @@ set(SOURCES
     src/mailbox.c
     src/pcie_isr.c
     src/vqueue.c
+    src/config/dir_regs.c
+    src/dispatcher/dispatcher.c
+    src/workers/sqw.c
+    src/workers/dmaw.c
+    src/workers/kw.c
+    src/workers/cqw.c
+    src/drivers/console.c
+    src/drivers/interrupts.c
+    src/drivers/shires.c
+    src/services/log1.c
+    src/services/host_iface.c
+    src/services/host_cmd_hdlr.c
+    src/services/sp_iface.c
+    src/services/sp_cmd_hdlr.c
+    src/services/worker_iface.c
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/printf.c
     ${SHARED_SRC_DIR}/message.c
@@ -42,6 +58,8 @@ set(SOURCES
     ${SHARED_SRC_DIR}/pcie_int.c
     ${SHARED_SRC_DIR}/broadcast.c
     ${SHARED_SRC_DIR}/circbuffer.c
+    ${SHARED_SRC_DIR}/circbuff.c
+    ${SHARED_SRC_DIR}/vq.c
     )
 
 set(TARGET_NAME MasterMinion)
