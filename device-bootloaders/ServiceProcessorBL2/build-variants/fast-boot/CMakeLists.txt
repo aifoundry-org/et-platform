@@ -16,8 +16,7 @@ add_definitions(-DFAST_BOOT=1)
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
 target_link_libraries(${TARGET_NAME}.elf
-  ${MINION_RUNTIME_PACKAGE_NAME}::firmware_helpers
-  EsperantoServiceProcessorROM::sp-rom-headers-for-bl
+  EsperantoDeviceMinionRuntime::firmware_helpers
   )
 
 install(TARGETS ${TARGET_NAME}.elf

@@ -16,11 +16,8 @@ include(ExternalProject)
 include(GNUInstallDirs)
 cmake_policy(SET CMP0076 NEW)
 
-
 find_package(esperanto-device-api CONFIG REQUIRED)
 find_package(EsperantoDeviceMinionRuntime REQUIRED)
-
-set(MINION_RUNTIME_PACKAGE_NAME EsperantoDeviceMinionRuntime)
 
 # Must set CMAKE_TOOLCHAIN_FILE before project() is called
 set(CMAKE_TOOLCHAIN_FILE Toolchain-gcc-riscv.cmake)
@@ -98,13 +95,6 @@ find_package(EsperantoCryptoAPI CONFIG REQUIRED)
 message("Crypto API Found: ${EsperantoCryptoAPI_FOUND}")
 get_target_property(CRYPTO_HEADERS_INTERFACE_PATH crypto_api INTERFACE_INCLUDE_DIRECTORIES)
 set(CRYPTO_HEADERS ${CRYPTO_HEADERS_INTERFACE_PATH})
-
-find_package(EsperantoServiceProcessorROM REQUIRED)
-
-get_property(VAULTIP_HELPERS_INCLUDE_PATH
-  TARGET EsperantoServiceProcessorROM::vaultip
-  PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
-include_directories(${VAULTIP_HELPERS_INCLUDE_PATH})
 
 add_subdirectory(BootromTrampolineToBL2)
 add_subdirectory(ServiceProcessorBL1)

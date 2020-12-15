@@ -37,11 +37,6 @@ add_subdirectory(include)
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
-target_link_libraries(${TARGET_NAME}.elf
-  ${MINION_RUNTIME_PACKAGE_NAME}::firmware_helpers
-  EsperantoServiceProcessorROM::sp-rom-headers-for-bl
-  )
-
 install(TARGETS ${TARGET_NAME}.elf
   EXPORT EsperantoBootLoaderTargets
   RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/ServiceProcessorBL1
