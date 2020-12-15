@@ -27,6 +27,10 @@ public:
   /// \brief Profiler user can choose what profiling output generate, Json format or Binary format
   enum class OutputType { Json, Binary };
 
+  /// \brief Virtual Destructor to enable polymorphic release of IProfiler
+  /// instances
+  virtual ~IProfiler() = default;
+
   /// \brief Indicates the start of the profiler. The given stream will be accessed freely from the runtime, don't make
   /// concurrent writes to this stream or data races could happen.
   ///
