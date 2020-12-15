@@ -33,7 +33,13 @@
 
 // TODO: To be migrated to PMIC interface register... 
 #define PMIC_SLAVE_ADDRESS 0x2
+#define SOC_TEMPERATURE 0x3
+#define SYSTEM_TDP 0x4
+#define SOC_POWER 0x5
 
+// ***********************************
+// Generic PMIC setup
+// ***********************************
 static ET_I2C_DEV_t g_pmic_i2c_dev_reg;
 
 static void set_pmic_i2c_dev(void) 
@@ -53,3 +59,41 @@ void setup_pmic(void)
 
     printf("PMIC connection establish\n");
 }
+
+// ***********************************
+// Generic PMIC Read/Write functions
+// ***********************************
+static uint8_t get_pmic_reg(uint8_t reg) {
+   uint8_t buf;
+   i2c_read(&g_pmic_i2c_dev_reg, reg, &buf, 1);
+   return buf;
+} 
+
+static void set_pmic_reg(uint8_t reg, uint8_t value) {
+   i2c_write(&g_pmic_i2c_dev_reg, reg, &value ,1);
+}
+
+// ***********************************
+// Specific Register Access
+// ***********************************
+
+uint8_t pmic_read_soc_power(void) {
+  return(get_pmic_reg(SOC_POWER));
+}
+
+void pmic_set_temperature_threshold(uint8_t reg, uint8_t limit) {
+   set_pmic_reg(reg,limit);
+}
+
+void pmic_set_tdp_threshold(uint8_t limit) {
+   set_pmic_reg(SYSTEM_TDP,limit);
+}
+
+uint8_t pmic_get_temperature(void) {
+   return(get_pmic_reg(SOC_TEMPERATURE));
+}
+
+uint8_t pmic_get_voltage(uint8_t shire) {
+   return(get_pmic_reg(shire));
+}
+

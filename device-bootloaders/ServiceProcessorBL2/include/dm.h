@@ -24,6 +24,9 @@
 
 extern struct dm_control_block dm_cmd_rsp;
 
+typedef uint32_t
+    cmd_id_t; // Details of each Enum is defined here: https://gitlab.esperanto.ai/software/esperanto-tools-libs/blob/master/src/DeviceManagement/Schema/DeviceManagement-spec.schema.json#L2
+
 enum CommandCode {
     GET_MODULE_MANUFACTURE_NAME = 0x00,   // Asset Tracking
     GET_MODULE_PART_NUMBER,               // Asset Tracking
@@ -83,6 +86,86 @@ enum CommandCode {
     GET_MM_THREADS_STATE                  // Master Minion State
 };
 
+typedef uint8_t power_state_t;
+enum power_state_e { 
+    FULL                = 0x0,
+    REDUCED, 
+    LOWEST,
+    INVALID_POWER_STATE
+};
+
+typedef uint8_t tdp_level_t;
+enum tdp_level_e { 
+    LEVEL_1 = 0x0, 
+    LEVEL_2, 
+    LEVEL_3, 
+    LEVEL_4, 
+    INVALID_TDP_LEVEL
+};
+
+typedef uint8_t module_t;
+enum module_e {
+    MINION = 0x0,
+    NOC,
+    PSHIRE,
+    IOSHIRE,
+    MEMSHIRE,
+    INVALID_MODULE
+};
+
+typedef uint32_t dm_status_t;
+enum dm_status_e { 
+    DM_STATUS_SUCCESS  = 0x0, 
+    DM_STATUS_ERROR 
+};
+
+typedef uint32_t firmware_status_t;
+enum firmware_status_e { 
+    FIRMWARE_STATUS_PASS  = 0x0,
+    FIRMWARE_STATUS_FAILED 
+};
+
+typedef uint32_t pcie_reset_t;
+enum pcie_reset_e { 
+      FLR = 0x0, 
+      HOT, 
+      WARM 
+};
+
+typedef uint32_t pcie_link_speed_t;
+enum pcie_link_speed_e { 
+      GEN3= 0x0, 
+      GEN4 
+};
+
+typedef uint32_t pcie_lane_w_split_t;
+enum pcie_lane_w_split_e { 
+      x4= 0x0, 
+      x8 
+};
+
+// Thresholds 
+#define L0 0x0 // Low
+#define HI 0x1 // High
+
+
+/*******************************************************
+ The SOC Power Reg is a global FW maintained register 
+ that is a shared different Tasks. 
+#*********************************************************/
+struct soc_power_reg_t {
+     power_state_t module_power_state;
+     tdp_level_t module_tdp_level;
+     uint8_t module_temp_hi_threshold;
+     uint8_t module_temp_lo_threshold;
+     uint8_t soc_temperature;
+     uint8_t soc_power;
+     uint8_t max_temp;
+     uint8_t module_uptime[3];
+     uint8_t voltage[INVALID_MODULE];
+     uint64_t throttled_states_residency;
+};
+
 #define MAX_LENGTH 256
 
 struct dm_control_block {
@@ -108,41 +191,17 @@ struct cmd_header_t {
     uint16_t flags; ///< flags bitmask, (1<<0) = barrier, (1<<1) = enable time stamps.
 };
 
-enum dm_status { DM_STATUS_PASS, DM_STATUS_FAILED };
-
-enum firmware_status { FIRMWARE_STATUS_PASS, FIRMWARE_STATUS_FAILED };
-
-enum power_state { FULL, REDUCED, LOWEST };
-
-enum tdp_level { LEVEL_1, LEVEL_2, LEVEL_3, LEVEL_4 };
-
-enum pcie_reset { FLR, HOT, WARM };
-
-enum pcie_link_speed { GEN3, GEN4 };
-
-enum pcie_lane_w_split { x1, x4, x8, x16 };
-
-typedef uint32_t
-    cmd_id_e; // Details of each Enum is defined here: https://gitlab.esperanto.ai/software/esperanto-tools-libs/blob/master/src/DeviceManagement/Schema/DeviceManagement-spec.schema.json#L2
-typedef uint32_t dm_status_e;
-typedef uint32_t firmware_status_e;
-typedef uint32_t power_state_e;
-typedef uint32_t tdp_level_e;
-typedef uint32_t pcie_reset_e;
-typedef uint32_t pcie_link_speed_e;
-typedef uint32_t pcie_lane_w_split_e;
-
 // DM request header. This header is attached to each request
 struct cmd_hdr_t {
-    cmd_id_e command_id; // Enum of the command ID as defined above
+    cmd_id_t command_id; // Enum of the command ID as defined above
     uint32_t size; // Size of the Payload
 };
 
 // DM response header. This header is attached to each response
 struct rsp_hdr_t {
-    uint32_t status; // status of the Command execution
+    dm_status_t status;           // status of the Command execution
     uint64_t device_latency_usec; // Populated by the device during response
-    uint32_t size; // Size of the response Payload
+    uint32_t size;                // Size of the response Payload
 };
 
 struct asset_tracking_cmd_t {
@@ -150,6 +209,7 @@ struct asset_tracking_cmd_t {
 };
 
 struct asset_tracking_rsp_t {
+    struct rsp_hdr_t rsp_hdr;
     char asset[8]; // Populated by the device during response
 };
 
@@ -158,6 +218,7 @@ struct fused_pub_keys_cmd_t {
 };
 
 struct fused_pub_keys_rsp_t {
+    struct rsp_hdr_t rsp_hdr; 
     uint8_t keys[32]; // Populated by the device during response
 };
 
@@ -166,6 +227,7 @@ struct firmware_versions_cmd_t {
 };
 
 struct firmware_versions_rsp_t {
+    struct rsp_hdr_t rsp_hdr; 
     uint32_t bl1_v; // BL1 Firmware version
     uint32_t bl2_v; // BL2 Firmware version
     uint32_t mm_v; // Machine Minion Firmware version
@@ -185,31 +247,34 @@ struct certificate_hash_cmd_t {
 
 struct temperature_threshold_cmd_t {
     struct cmd_hdr_t cmd_hdr; // Command header
-    int32_t low_temperature_c; // Low temperature threshold
-    int32_t high_temperature_c; // High temperature threshold
+    uint8_t lo_temperature_c; // Low temperature threshold
+    uint8_t hi_temperature_c; // High temperature threshold
 };
 
 struct temperature_threshold_rsp_t {
-    int32_t low_temperature_c; // Low temperature threshold
-    int32_t high_temperature_c; // High temperature threshold
+    struct rsp_hdr_t rsp_hdr; 
+    uint8_t lo_temperature_c; // Low temperature threshold
+    uint8_t hi_temperature_c; // High temperature threshold
 };
 
 struct power_state_cmd_t {
     struct cmd_hdr_t cmd_hdr; // Command header
-    power_state_e pwr_state; // Power State
+    power_state_t pwr_state; // Power State
 };
 
 struct power_state_rsp_t {
-    power_state_e pwr_state; // Power State
+    struct rsp_hdr_t rsp_hdr; 
+    power_state_t pwr_state; // Power State
 };
 
 struct tdp_level_cmd_t {
     struct cmd_hdr_t cmd_hdr; // Command header
-    tdp_level_e tdp_level; // Static TDP Level
+    tdp_level_t tdp_level; // Static TDP Level
 };
 
 struct tdp_level_rsp_t {
-    tdp_level_e tdp_level; // Static TDP Level
+    struct rsp_hdr_t rsp_hdr; 
+    tdp_level_t tdp_level; // Static TDP Level
 };
 
 struct current_temperature_cmd_t {
@@ -217,7 +282,8 @@ struct current_temperature_cmd_t {
 };
 
 struct current_temperature_rsp_t {
-    int32_t temperature_c; // Current temperature (in C)
+    struct rsp_hdr_t rsp_hdr; 
+    uint8_t temperature_c; // Current temperature (in C)
 };
 
 struct throttle_time_cmd_t {
@@ -225,6 +291,7 @@ struct throttle_time_cmd_t {
 };
 
 struct throttle_time_rsp_t {
+    struct rsp_hdr_t rsp_hdr; 
     uint64_t time_usec; // Throttle time in usec
 };
 
@@ -233,7 +300,8 @@ struct module_power_cmd_t {
 };
 
 struct module_power_rsp_t {
-    uint32_t watts; // Module power in watts
+    struct rsp_hdr_t rsp_hdr; 
+    uint8_t watts; // Module power in watts
 };
 
 struct module_voltage_cmd_t {
@@ -241,7 +309,8 @@ struct module_voltage_cmd_t {
 };
 
 struct module_voltage_rsp_t {
-    uint32_t volts; // Module voltage in volts
+    struct rsp_hdr_t rsp_hdr; 
+    uint8_t volts; // Module voltage in volts
 };
 
 struct module_uptime_cmd_t {
@@ -249,7 +318,8 @@ struct module_uptime_cmd_t {
 };
 
 struct module_uptime_rsp_t {
-    uint16_t time_day; // time day
+    struct rsp_hdr_t rsp_hdr; 
+    uint8_t time_day; // time day
     uint8_t time_hours; // time hour
     uint8_t time_seconds; // time seconds
 };
@@ -259,7 +329,8 @@ struct max_temperature_cmd_t {
 };
 
 struct max_temperature_rsp_t {
-    int32_t max_temperature_c; // Max Temperature(in c)
+    struct rsp_hdr_t rsp_hdr; 
+    uint8_t max_temperature_c; // Max Temperature(in c)
 };
 
 struct max_memory_error_cmd_t {
@@ -267,7 +338,8 @@ struct max_memory_error_cmd_t {
 };
 
 struct max_memory_error_rsp_t {
-    uint32_t max_ecc_count; // Max ECC Count
+    struct rsp_hdr_t rsp_hdr; 
+    uint8_t max_ecc_count; // Max ECC Count
 };
 
 struct max_dram_bw_cmd_t {
@@ -275,8 +347,9 @@ struct max_dram_bw_cmd_t {
 };
 
 struct max_dram_bw_rsp_t {
-    uint32_t max_bw_rd_req_sec; // Max BW Read Req Secs
-    uint32_t max_bw_wr_req_sec; // Max BW Write Req Secs
+    struct rsp_hdr_t rsp_hdr; 
+    uint8_t max_bw_rd_req_sec; // Max BW Read Req Secs
+    uint8_t max_bw_wr_req_sec; // Max BW Write Req Secs
 };
 
 struct max_throttle_time_cmd_t {
@@ -284,17 +357,18 @@ struct max_throttle_time_cmd_t {
 };
 
 struct max_throttle_time_rsp_t {
+    struct rsp_hdr_t rsp_hdr; 
     uint64_t max_time_usec; // Max throttle time in usecs
 };
 
 struct set_error_count_cmd_t {
     struct cmd_hdr_t cmd_hdr; // Command header
-    uint32_t ecc_error_count; // ECC Error count
+    uint8_t ecc_error_count; // ECC Error count
 };
 
 struct pcie_reset_cmd_t {
     struct cmd_hdr_t cmd_hdr; // Command header
-    pcie_reset_e reset_type; // PCIE reset type
+    pcie_reset_t reset_type; // PCIE reset type
 };
 
 struct get_error_count_cmd_t {
@@ -302,6 +376,7 @@ struct get_error_count_cmd_t {
 };
 
 struct get_error_count_rsp_t {
+    struct rsp_hdr_t rsp_hdr; 
     uint32_t ecc_count; // ECC Count
     uint32_t uecc_count; // UECC Count
 };
@@ -311,18 +386,19 @@ struct dram_bw_counter_cmd_t {
 };
 
 struct dram_bw_counter_rsp_t {
+    struct rsp_hdr_t rsp_hdr; 
     uint32_t read_req_per_sec; // Read Requests per second
     uint32_t write_req_per_sec; // Write Requests per second
 };
 
 struct pcie_link_speed_cmd_t {
     struct cmd_hdr_t cmd_hdr; // Command header
-    pcie_link_speed_e speed; // PCIE Link Speed
+    pcie_link_speed_t speed; // PCIE Link Speed
 };
 
 struct pcie_lane_width_cmd_t {
     struct cmd_hdr_t cmd_hdr; // Command header
-    pcie_lane_w_split_e width; // PCIE Lane width
+    pcie_lane_w_split_t width; // PCIE Lane width
 };
 
 struct pcie_retrain_phy_cmd_t {
@@ -338,6 +414,7 @@ struct asic_frequencies_cmd_t {
 };
 
 struct asic_frequencies_rsp_t {
+    struct rsp_hdr_t rsp_hdr; 
     uint32_t minion_shire_mhz;
     uint32_t noc_mhz;
     uint32_t mem_shire_mhz;
@@ -351,6 +428,7 @@ struct dram_bw_cmd_t {
 };
 
 struct dram_bw_rsp_t {
+    struct rsp_hdr_t rsp_hdr; 
     uint32_t read_req_sec;
     uint32_t write_req_sec;
 };
@@ -360,6 +438,7 @@ struct dram_capacity_cmd_t {
 };
 
 struct dram_capacity_rsp_t {
+    struct rsp_hdr_t rsp_hdr; 
     uint32_t percentage_cap;
 };
 
@@ -368,6 +447,7 @@ struct asic_per_core_util_cmd_t {
 };
 
 struct asic_per_core_util_rsp_t {
+    struct rsp_hdr_t rsp_hdr; 
     //TODO : Response fields to TBD
 };
 
@@ -376,6 +456,7 @@ struct asic_stalls_cmd_t {
 };
 
 struct asic_stalls_rsp_t {
+    struct rsp_hdr_t rsp_hdr; 
     //TODO : Response fields to TBD
 };
 
@@ -384,6 +465,7 @@ struct asic_latency_cmd_t {
 };
 
 struct asic_latency_rsp_t {
+    struct rsp_hdr_t rsp_hdr; 
     //TODO : Response fields to TBD
 };
 
@@ -392,6 +474,7 @@ struct mm_state_cmd_t {
 };
 
 struct mm_state_rsp_t {
+    struct rsp_hdr_t rsp_hdr; 
     uint8_t master_thread_state;
     uint8_t vq_s_thread_state;
     uint8_t vq_c_thread_state;

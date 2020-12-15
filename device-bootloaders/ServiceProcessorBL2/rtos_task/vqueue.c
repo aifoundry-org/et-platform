@@ -15,6 +15,7 @@
 #include "pcie_int.h"
 #include "bl2_asset_trk.h"
 #include "bl2_firmware_update.h"
+#include "bl2_thermal_power_monitor.h"
 #include "bl2_timer.h"
 #include "vqueue.h"
 
@@ -185,6 +186,20 @@ static void pc_vq_task(void *pvParameters)
                 // Process firmware service request cmd
                 //firmware_service_process_request(mbox, (uint32_t)*message_id, (void *)buffer);
                 break;
+            case GET_MODULE_POWER_STATE:
+            case SET_MODULE_POWER_STATE:
+            case GET_MODULE_STATIC_TDP_LEVEL:
+            case SET_MODULE_STATIC_TDP_LEVEL:
+            case GET_MODULE_TEMPERATURE_THRESHOLDS:
+            case SET_MODULE_TEMPERATURE_THRESHOLDS:
+            case GET_MODULE_CURRENT_TEMPERATURE:
+            case GET_MODULE_RESIDENCY_THROTTLE_STATES:
+            case GET_MODULE_POWER:
+            case GET_MODULE_VOLTAGE:
+            case GET_MODULE_UPTIME:
+            case GET_MODULE_MAX_TEMPERATURE:
+                 thermal_power_monitoring_process(hdr->command_id);
+                 break;
             default:
                 printf("[PC VQ] Invalid message id: %" PRIu16 "\r\n", hdr->command_id);
                 printf("message length: %" PRIi64 ", buffer:\r\n", length);

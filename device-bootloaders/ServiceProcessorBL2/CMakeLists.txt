@@ -42,6 +42,7 @@ set(BL2_SOURCES
     rtos_task/vaultip.c
     dm_service/firmware_update.c
     dm_service/asset_track.c
+    dm_service/thermal_power_monitor.c
     # This file get compiled different based on the configuration of each target
     common/build_configuration.c)
 
