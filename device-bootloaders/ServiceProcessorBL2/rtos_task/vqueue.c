@@ -159,10 +159,10 @@ static void pc_vq_task(void *pvParameters)
                 break;
             }
 
-            const struct cmd_header_t *const hdr = (void *)buffer;
+            const struct cmd_hdr_t *const hdr = (void *)buffer;
 
             // Process new message
-            switch (hdr->cmd_hdr.msg_id) {
+            switch (hdr->command_id) {
             case GET_MODULE_MANUFACTURE_NAME:
             case GET_MODULE_PART_NUMBER:
             case GET_MODULE_SERIAL_NUMBER:
@@ -186,7 +186,7 @@ static void pc_vq_task(void *pvParameters)
                 //firmware_service_process_request(mbox, (uint32_t)*message_id, (void *)buffer);
                 break;
             default:
-                printf("[PC VQ] Invalid message id: %" PRIu16 "\r\n", hdr->cmd_hdr.msg_id);
+                printf("[PC VQ] Invalid message id: %" PRIu16 "\r\n", hdr->command_id);
                 printf("message length: %" PRIi64 ", buffer:\r\n", length);
                 for (int64_t i = 0; i < length; ++i) {
                     if (i % 8 == 0 && i != 0)
