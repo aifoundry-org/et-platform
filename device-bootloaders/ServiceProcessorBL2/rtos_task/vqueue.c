@@ -16,6 +16,7 @@
 #include "bl2_asset_trk.h"
 #include "bl2_firmware_update.h"
 #include "bl2_thermal_power_monitor.h"
+#include "bl2_link_mgmt.h"
 #include "bl2_timer.h"
 #include "vqueue.h"
 
@@ -199,6 +200,16 @@ static void pc_vq_task(void *pvParameters)
             case GET_MODULE_UPTIME:
             case GET_MODULE_MAX_TEMPERATURE:
                  thermal_power_monitoring_process(hdr->command_id);
+                 break;
+            case SET_PCIE_RESET:
+            case SET_PCIE_MAX_LINK_SPEED:
+            case SET_PCIE_LANE_WIDTH:
+            case SET_PCIE_RETRAIN_PHY:
+            case GET_MODULE_PCIE_ECC_UECC:
+            case GET_MODULE_DDR_ECC_UECC:
+            case GET_MODULE_SRAM_ECC_UECC:
+            case GET_MODULE_DDR_BW_COUNTER:
+                 link_mgmt_process_request(hdr->command_id);
                  break;
             default:
                 printf("[PC VQ] Invalid message id: %" PRIu16 "\r\n", hdr->command_id);
