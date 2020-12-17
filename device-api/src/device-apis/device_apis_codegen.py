@@ -301,7 +301,7 @@ class DevAPICodeGeneratorHelper(object):
         params = []
         for field in fields:
             if field['Type'] == "bytes":
-                params += [f"const char* {field['Name']}"]
+                params += [f"char* const {field['Name']}"]
             else:
                 params += [f"const {field['Type']} {field['Name']}"]
         return ", ".join(params)

@@ -10,6 +10,21 @@
 Name: Ops_API_Calls
 ## List of Enums that are used in our messages
 Enums:
+  - Name: log_levels_temp
+    Type: uint8_t
+    Values:
+      - Name: CRITICAL
+        Value: 0
+      - Name: ERROR
+        Value: 1
+      - Name: WARNING
+        Value: 2
+      - Name: INFO
+        Value: 3
+      - Name: DEBUG
+        Value: 4
+      - Name: TRACE
+        Value: 5
   - Name: dev_ops_api_kernel_launch_status
     Type: uint32_t
     Values:
@@ -98,12 +113,14 @@ Enums:
       - Name: WORKER_MINION_FW
         Value: 2
   - Name: dev_ops_trace_response
-    Type: uint8_t
+    Type: int8_t
     Values:
       - Name: SUCCESS
         Value: 0
-      - Name: ERROR
-        Value: 1
+      - Name: BAD_GROUP_INDEX
+        Value: -1
+      - Name: BAD_MASTER_SHIRE_MASK
+        Value: -2
 
 ## List of Commands, Responses, and Events
 Messages :
@@ -339,7 +356,10 @@ Messages :
         Description: Bit 0 indicates if master shire mask is enabled/disabled
         Type: uint32_t
       - Name: worker_shire_mask
-        Description: Bit Mask of Compute Shires to enable Trace Capture (0-32 shires)
+        Description: Bit Mask of Compute Shires to enable Trace Capture (0-31 shires)
+        Type: uint32_t
+      - Name: trace_buffer_base
+        Description: Base Address of Trace Buffer
         Type: uint32_t
       - Name: trace_buffer_size
         Description: Size (in bytes) of bufffer per hart
@@ -361,7 +381,7 @@ Messages :
     PairedMessage: device_ops_trace_configure_cmd
     Fields:
       - Name: status
-        Description: 0 - Success, 1 - Error
+        Description: DEV_OPS_TRACE_RESPONSE_SUCCESS or negative error code
         Type: enum
         Enum: dev_ops_trace_response
 #-------------------------------------------------------------------------------
@@ -382,7 +402,7 @@ Messages :
     PairedMessage: device_ops_trace_filter_knob_cmd
     Fields:
       - Name: status
-        Description: 0 - Success, 1 - Error
+        Description: DEV_OPS_TRACE_RESPONSE_SUCCESS or negative error code
         Type: enum
         Enum: dev_ops_trace_response
 #------------------------------------------------------------------------------
@@ -408,7 +428,7 @@ Messages :
     PairedMessage: device_ops_trace_state_ctrl_cmd
     Fields:
       - Name: status
-        Description: 0 - Success, 1 - Error
+        Description: DEV_OPS_TRACE_RESPONSE_SUCCESS or negative error code
         Type: enum
         Enum: dev_ops_trace_response
 #------------------------------------------------------------------------------
@@ -425,7 +445,7 @@ Messages :
     PairedMessage: device_ops_trace_flush_buffers_cmd
     Fields:
       - Name: status
-        Description: 0 - Success, 1 - Error
+        Description: DEV_OPS_TRACE_RESPONSE_SUCCESS or negative error code
         Type: enum
         Enum: dev_ops_trace_response
 ###################################################################
