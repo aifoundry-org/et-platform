@@ -17,6 +17,7 @@
 #include "bl2_firmware_update.h"
 #include "bl2_thermal_power_monitor.h"
 #include "bl2_link_mgmt.h"
+#include "bl2_error_control.h"
 #include "bl2_timer.h"
 #include "vqueue.h"
 
@@ -210,6 +211,12 @@ static void pc_vq_task(void *pvParameters)
             case GET_MODULE_SRAM_ECC_UECC:
             case GET_MODULE_DDR_BW_COUNTER:
                  link_mgmt_process_request(hdr->command_id);
+                 break;
+            case SET_DDR_ECC_COUNT:
+            case SET_PCIE_ECC_COUNT:
+            case SET_SRAM_ECC_COUNT:
+                 // Process set error control cmd
+                 error_control_process_request(hdr->command_id);
                  break;
             default:
                 printf("[PC VQ] Invalid message id: %" PRIu16 "\r\n", hdr->command_id);

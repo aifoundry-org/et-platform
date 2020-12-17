@@ -44,6 +44,7 @@ set(BL2_SOURCES
     dm_service/asset_track.c
     dm_service/thermal_power_monitor.c
     dm_service/link_mgmt.c
+    dm_service/error_control.c
     # This file get compiled different based on the configuration of each target
     common/build_configuration.c)
 
