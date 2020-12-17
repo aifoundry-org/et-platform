@@ -4,6 +4,7 @@
 #include "hart.h"
 #include "layout.h"
 #include "message.h"
+#include "pmu.h"
 
 #include <stdint.h>
 
@@ -42,8 +43,9 @@ void __attribute__((noreturn)) main(void)
     // cores will accumulate the cycles from all the cores and won't give us any
     // advantage
     if (get_hart_id() % 16 == 0 || get_hart_id() % 16 == 1) {
-        // Enable mhpmevent3 for each neighborhood to count cycles
-        asm volatile("csrwi mhpmevent3, 1  \n");
+        // [SW-5576, SW-5577] Configure mhpmevent3 for each neighborhood to count cycles
+        // TODO: Remove this
+        configure_neigh_event(PMU_MINION_EVENT_CYCLES, PMU_MHPMEVENT3);
     }
 
     if (get_hart_id() % 64 == 0) { // First HART every shire, master or worker

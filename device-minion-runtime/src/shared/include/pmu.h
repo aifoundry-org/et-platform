@@ -56,6 +56,39 @@
 #define PMU_MS_START_CTRL_VAL 0x00060033ULL
 #define PMU_MS_STOP_CTRL_VAL ~PMU_MS_START_CTRL_VAL
 
+// Events
+
+// Minion events
+#define PMU_MINION_EVENT_NONE             0
+#define PMU_MINION_EVENT_CYCLES           1
+#define PMU_MINION_EVENT_RETIRED_INST0    2
+#define PMU_MINION_EVENT_RETIRED_INST1    3
+#define PMU_MINION_EVENT_BRANCHES0        4
+#define PMU_MINION_EVENT_BRANCHES1        5
+#define PMU_MINION_EVENT_DCACHE_ACCESS0   6
+#define PMU_MINION_EVENT_DCACHE_ACCESS1   7
+#define PMU_MINION_EVENT_DCACHE_MISSES0   8
+#define PMU_MINION_EVENT_DCACHE_MISSES1   9
+#define PMU_MINION_EVENT_L2_MISS_REQ      10
+#define PMU_MINION_EVENT_L2_MISS_REQ_REJ  11
+#define PMU_MINION_EVENT_L2_EVICT_REQ     12
+#define PMU_MINION_EVENT_L2_EVICT_REQ_REJ 13
+#define PMU_MINION_EVENT_TL_INST          14
+#define PMU_MINION_EVENT_TL_OPS           15
+#define PMU_MINION_EVENT_TS_INST          16
+#define PMU_MINION_EVENT_TS_OPS           17
+#define PMU_MINION_EVENT_TFMA_WAIT_TENB   18
+#define PMU_MINION_EVENT_TIMA_OPS         19
+#define PMU_MINION_EVENT_TXFMA_3216_OPS   20
+#define PMU_MINION_EVENT_TXFMA_32_OPS     21
+#define PMU_MINION_EVENT_TXFMA_INT_OPS    22
+#define PMU_MINION_EVENT_TRANS_OPS        23
+#define PMU_MINION_EVENT_SHORT_OPS        24
+#define PMU_MINION_EVENT_MASK_OPS         25
+#define PMU_MINION_EVENT_TFMA_INST        26
+#define PMU_MINION_EVENT_TREDUCE_INST     27
+#define PMU_MINION_EVENT_TQUANT_INST      28
+
 // Indices of shire cache and memshire PMCs.
 #define PMU_SC_CYCLE_PMC 0
 #define PMU_SC_PMC0      1
@@ -72,32 +105,32 @@ static inline int64_t configure_neigh_event(uint64_t evt, uint64_t evt_reg)
 {
     switch (evt_reg) {
     case PMU_MHPMEVENT3:
-        __asm__ __volatile__("csrrw zero, %[csr], %[event]\n"
+        __asm__ __volatile__("csrw %[csr], %[event]\n"
                              :
                              : [event] "r"(evt), [csr] "i"(PMU_MHPMEVENT3));
         break;
     case PMU_MHPMEVENT4:
-        __asm__ __volatile__("csrrw zero, %[csr], %[event]\n"
+        __asm__ __volatile__("csrw %[csr], %[event]\n"
                              :
                              : [event] "r"(evt), [csr] "i"(PMU_MHPMEVENT4));
         break;
     case PMU_MHPMEVENT5:
-        __asm__ __volatile__("csrrw zero, %[csr], %[event]\n"
+        __asm__ __volatile__("csrw %[csr], %[event]\n"
                              :
                              : [event] "r"(evt), [csr] "i"(PMU_MHPMEVENT5));
         break;
     case PMU_MHPMEVENT6:
-        __asm__ __volatile__("csrrw zero, %[csr], %[event]\n"
+        __asm__ __volatile__("csrw %[csr], %[event]\n"
                              :
                              : [event] "r"(evt), [csr] "i"(PMU_MHPMEVENT6));
         break;
     case PMU_MHPMEVENT7:
-        __asm__ __volatile__("csrrw zero, %[csr], %[event]\n"
+        __asm__ __volatile__("csrw %[csr], %[event]\n"
                              :
                              : [event] "r"(evt), [csr] "i"(PMU_MHPMEVENT7));
         break;
     case PMU_MHPMEVENT8:
-        __asm__ __volatile__("csrrw zero, %[csr], %[event]\n"
+        __asm__ __volatile__("csrw %[csr], %[event]\n"
                              :
                              : [event] "r"(evt), [csr] "i"(PMU_MHPMEVENT8));
         break;
