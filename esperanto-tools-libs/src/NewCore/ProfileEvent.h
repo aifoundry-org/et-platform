@@ -21,7 +21,9 @@
 #include <chrono>
 #include <mutex>
 #include <optional>
+#include <sstream>
 #include <string>
+#include <thread>
 
 namespace rt {
 namespace profiling {
@@ -156,19 +158,24 @@ struct ProfileEvent {
     ar(cereal::make_nvp("timeStamp", timeStamp_));
     std::string cls;
     ar(cereal::make_nvp("class", cls));
-    class_ = GetType(cls.c_str());
+    class_ = GetClass(cls.c_str());
     std::string type;
     ar(cereal::make_nvp("type", type));
     type_ = GetType(type);
+    ar(cereal::make_nvp("thread_id", threadId_));
     ar(cereal::make_nvp("extra", extra_));
   }
   template <class Archive> void save(Archive& ar) const {
     ar(cereal::make_nvp("timeStamp", timeStamp_));
     ar(cereal::make_nvp("class", GetName(class_)));
     ar(cereal::make_nvp("type", GetType(type_)));
+    std::stringstream ss;
+    ss << std::this_thread::get_id();
+    ar(cereal::make_nvp("thread_id", ss.str()));
     ar(cereal::make_nvp("extra", extra_));
   }
 
+  std::string threadId_;
   std::unordered_map<std::string, uint64_t> extra_;
   TimePoint timeStamp_;
   Type type_;
