@@ -71,7 +71,8 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
 
   cmd_info_.kernel_info.compute_pc = kernel->getEntryAddress();
   cmd_info_.kernel_info.shire_mask = shire_mask;
-  cmd_info_.kernel_params.kernel_id = static_cast<uint64_t>(kernelId);
+  // [SW-5589] FIXME: Until FW is fixed to use the kernel ID correctly, send 0 value
+  cmd_info_.kernel_params.kernel_id = 0x0ull;
 
   RT_DLOG(INFO) << "Writing execute kernel command into mailbox. Command id: " << cmdId << " parameters: " << pBuffer
                 << " PC: " << (void*)cmd_info_.kernel_info.compute_pc << " shire_mask: " << (void*)shire_mask;
