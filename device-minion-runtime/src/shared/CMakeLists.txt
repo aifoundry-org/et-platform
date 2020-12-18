@@ -31,7 +31,7 @@ install(
   EXPORT EsperantoDeviceMinionRuntimeTargets
   ARCHIVE
     DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw
-    COMPONENT boorom_helpers
+    COMPONENT firmware_helpers
   PUBLIC_HEADER
     DESTINATION ${INCLUDE_INSTALL_DIR}/esperanto-fw/firmware_helpers
     COMPONENT firmware_helpers
@@ -52,6 +52,7 @@ install(
     include/ringbuffer_common.h
     include/ringbuffer.h
     include/trap_handler.h
+    include/circbuff.h
     include/circbuffer_common.h
     include/circbuffer.h
     include/vqueue_common.h
