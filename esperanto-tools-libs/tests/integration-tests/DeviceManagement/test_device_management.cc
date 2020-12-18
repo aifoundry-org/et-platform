@@ -47,27 +47,7 @@ public:
   void *handle_;
 };
 
-/*
-// Test ETSOC RESEST
-TEST_F(DMTestModule, test_ETSOC_RESET) {
-  getDM_t dmi = getInstance();
-  ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)();
-
-  const uint32_t output_size = 8;
-  char output_buff[output_size] = {0};
-  auto hst_latency = std::make_unique<uint32_t>();
-  auto dev_latency = std::make_unique<uint64_t>();
-
-  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::RESET_ETSOC, nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(), 0), 0);
-  printf("output_buff: %.*s\n", output_size, output_buff);
-
-  char expected[output_size] = {0};
-  strncpy(expected, "0", output_size);
-  printf("expected: %.*s\n", output_size, expected);
-  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
-}
-*/
+// Asset Tracking
 
 // Test GET_MODULE_MANUFACTURE_NAME
 TEST_F(DMTestModule, test_GET_MODULE_MANUFACTURE_NAME) {
@@ -511,6 +491,736 @@ TEST_F(DMTestModule, test_verify_firmware_update) {
   strncpy(rev2_expected, "00200020002000200020", rev2_output_size);
   printf("rev2_expected: %.*s\n", rev2_output_size, rev2_expected);
   ASSERT_EQ(strncmp(rev2_output_buff, rev2_expected, rev2_output_size), 0);
+}
+*/
+
+/*
+// Thermal and Power
+
+// Test GET_MODULE_POWER_STATE
+TEST_F(DMTestModule, test_GET_MODULE_POWER_STATE) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 4;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_POWER_STATE, nullptr, 0, output_buff, output_size,
+hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, reinterpret_cast<char*>(power_state_e::FULL), output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test SET_MODULE_POWER_STATE
+TEST_F(DMTestModule, test_SET_MODULE_POWER_STATE) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::SET_MODULE_POWER_STATE,
+reinterpret_cast<char*>(power_state_e::FULL), 4, output_buff, output_size, hst_latency.get(), dev_latency.get(), 0), 0);
+  printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test GET_MODULE_STATIC_TDP_LEVEL
+TEST_F(DMTestModule, test_GET_MODULE_STATIC_TDP_LEVEL) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 4;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_STATIC_TDP_LEVEL, nullptr, 0, output_buff,
+output_size, hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, reinterpret_cast<char*>(tdp_level_e::LEVEL_1), output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test SET_MODULE_STATIC_TDP_LEVEL
+TEST_F(DMTestModule, test_SET_MODULE_STATIC_TDP_LEVEL) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::SET_MODULE_STATIC_TDP_LEVEL,
+reinterpret_cast<char*>(tdp_level_e::LEVEL_1), 4, output_buff, output_size, hst_latency.get(), dev_latency.get(), 0),
+0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test GET_MODULE_TEMPERATURE_THRESHOLDS
+TEST_F(DMTestModule, test_GET_MODULE_TEMPERATURE_THRESHOLDS) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_TEMPERATURE_THRESHOLDS, nullptr, 0, output_buff,
+output_size, hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "20 95", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test SET_MODULE_TEMPERATURE_THRESHOLDS
+TEST_F(DMTestModule, test_SET_MODULE_TEMPERATURE_THRESHOLDS) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  temp_thresh_t tholds{.low_TempC = 20, .high_TempC = 95};
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::SET_MODULE_TEMPERATURE_THRESHOLDS,
+reinterpret_cast<char*>(&tholds), 8, output_buff, output_size, hst_latency.get(), dev_latency.get(), 0), 0);
+  printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test GET_MODULE_CURRENT_TEMPERATURE
+TEST_F(DMTestModule, test_GET_MODULE_CURRENT_TEMPERATURE) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 4;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_CURRENT_TEMPERATURE, nullptr, 0, output_buff,
+output_size, hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "75", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test GET_MODULE_RESIDENCY_THROTTLE_STATES
+TEST_F(DMTestModule, test_GET_MODULE_RESIDENCY_THROTTLE_STATES) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_RESIDENCY_THROTTLE_STATES, nullptr, 0, output_buff,
+output_size, hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test GET_MODULE_POWER
+TEST_F(DMTestModule, test_GET_MODULE_POWER) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 4;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_POWER, nullptr, 0, output_buff, output_size,
+hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "15", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test GET_MODULE_VOLTAGE
+TEST_F(DMTestModule, test_GET_MODULE_VOLTAGE) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 4;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_VOLTAGE, nullptr, 0, output_buff, output_size,
+hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "24", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test GET_MODULE_UPTIME
+TEST_F(DMTestModule, test_GET_MODULE_UPTIME) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 4;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_UPTIME, nullptr, 0, output_buff, output_size,
+hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "5 10 20", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+
+// Max Historical
+
+// Test GET_MODULE_MAX_TEMPERATURE
+TEST_F(DMTestModule, test_GET_MODULE_MAX_TEMPERATURE) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 4;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_MAX_TEMPERATURE, nullptr, 0, output_buff, output_size,
+hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "95", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test GET_MAX_MEMORY_ERROR
+TEST_F(DMTestModule, test_GET_MAX_MEMORY_ERROR) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 4;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MAX_MEMORY_ERROR, nullptr, 0, output_buff, output_size,
+hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "5", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test GET_MODULE_MAX_DDR_BW
+TEST_F(DMTestModule, test_GET_MODULE_MAX_DDR_BW) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_MAX_DDR_BW, nullptr, 0, output_buff, output_size,
+hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "100 100", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test GET_MODULE_MAX_THROTTLE_TIME
+TEST_F(DMTestModule, test_GET_MODULE_MAX_THROTTLE_TIME) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_MAX_THROTTLE_TIME, nullptr, 0, output_buff,
+output_size, hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "1000", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+
+// Error Control
+
+// Test SET_DDR_ECC_COUNT
+TEST_F(DMTestModule, test_SET_DDR_ECC_COUNT) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::SET_DDR_ECC_COUNT, reinterpret_cast<char*>(10), 4, output_buff,
+output_size, hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test SET_SRAM_ECC_COUNT
+TEST_F(DMTestModule, test_SET_SRAM_ECC_COUNT) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::SET_SRAM_ECC_COUNT, reinterpret_cast<char*>(20), 4, output_buff,
+output_size, hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test SET_PCIE_ECC_COUNT
+TEST_F(DMTestModule, test_SET_PCIE_ECC_COUNT) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::SET_PCIE_ECC_COUNT, reinterpret_cast<char*>(30), 4, output_buff,
+output_size, hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+
+// Link Management
+
+// Test SET_PCIE_RESET
+TEST_F(DMTestModule, test_SET_PCIE_RESET) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::SET_PCIE_RESET, reinterpret_cast<char*>(pcie_reset_e::FLR), 4,
+output_buff, output_size, hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size,
+output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test GET_MODULE_PCIE_ECC_UECC
+TEST_F(DMTestModule, test_GET_MODULE_PCIE_ECC_UECC) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_PCIE_ECC_UECC, nullptr, 0, output_buff, output_size,
+hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0 0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test GET_MODULE_DDR_BW_COUNTER
+TEST_F(DMTestModule, test_GET_MODULE_DDR_BW_COUNTER) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_DDR_BW_COUNTER, nullptr, 0, output_buff, output_size,
+hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "1000 1000", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test GET_MODULE_DDR_ECC_UECC
+TEST_F(DMTestModule, test_GET_MODULE_DDR_ECC_UECC) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_DDR_ECC_UECC, nullptr, 0, output_buff, output_size,
+hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0 0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test GET_MODULE_SRAM_ECC_UECC
+TEST_F(DMTestModule, test_GET_MODULE_SRAM_ECC_UECC) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MODULE_SRAM_ECC_UECC, nullptr, 0, output_buff, output_size,
+hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0 0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+
+// Test SET_PCIE_MAX_LINK_SPEED
+TEST_F(DMTestModule, test_SET_PCIE_MAX_LINK_SPEED) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::SET_PCIE_MAX_LINK_SPEED,
+reinterpret_cast<char*>(pcie_link_speed_e::GEN3), 4, output_buff, output_size, hst_latency.get(), dev_latency.get(), 0),
+0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test SET_PCIE_LANE_WIDTH
+TEST_F(DMTestModule, test_SET_PCIE_LANE_WIDTH) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::SET_PCIE_LANE_WIDTH,
+reinterpret_cast<char*>(pcie_lane_width_e::x4), 4, output_buff, output_size, hst_latency.get(), dev_latency.get(), 0),
+0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+
+// Test SET_PCIE_RETRAIN_PHY
+TEST_F(DMTestModule, test_SET_PCIE_RETRAIN_PHY) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::SET_PCIE_RETRAIN_PHY, reinterpret_cast<char*>(0), 4, output_buff,
+output_size, hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+
+// Test RESET_ETSOC
+TEST_F(DMTestModule, test_RESET_ETSOC) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::RESET_ETSOC, reinterpret_cast<char*>(0), 4, output_buff,
+output_size, hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+
+// Performance
+
+// Test GET_ASIC_FREQUENCIES
+TEST_F(DMTestModule, test_GET_ASIC_FREQUENCIES) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 24;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_ASIC_FREQUENCIES, nullptr, 0, output_buff, output_size,
+hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0 0 0 0 0 0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test GET_DRAM_BANDWIDTH
+TEST_F(DMTestModule, test_GET_DRAM_BANDWIDTH) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_DRAM_BANDWIDTH, nullptr, 0, output_buff, output_size,
+hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0 0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test GET_DRAM_CAPACITY_UTILIZATION
+TEST_F(DMTestModule, test_GET_DRAM_CAPACITY_UTILIZATION) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 4;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_DRAM_CAPACITY_UTILIZATION, nullptr, 0, output_buff,
+output_size, hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test GET_ASIC_PER_CORE_DATAPATH_UTILIZATION
+TEST_F(DMTestModule, test_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_ASIC_PER_CORE_DATAPATH_UTILIZATION, nullptr, 0, output_buff,
+output_size, hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test GET_ASIC_UTILIZATION
+TEST_F(DMTestModule, test_GET_ASIC_UTILIZATION) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_ASIC_UTILIZATION, nullptr, 0, output_buff, output_size,
+hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test GET_ASIC_STALLS
+TEST_F(DMTestModule, test_GET_ASIC_STALLS) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_ASIC_STALLS, nullptr, 0, output_buff, output_size,
+hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+// Test GET_ASIC_LATENCY
+TEST_F(DMTestModule, test_GET_ASIC_LATENCY) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 8;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_ASIC_LATENCY, nullptr, 0, output_buff, output_size,
+hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+}
+
+
+// Master Minion State
+
+// Test GET_MM_THREADS_STATE
+TEST_F(DMTestModule, test_GET_MM_THREADS_STATE) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)();
+
+  const uint32_t output_size = 4;
+  char output_buff[output_size] = {0};
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest("et0_mgmt", CommandCode::GET_MM_THREADS_STATE, nullptr, 0, output_buff, output_size,
+hst_latency.get(), dev_latency.get(), 0), 0); printf("output_buff: %.*s\n", output_size, output_buff);
+
+  char expected[output_size] = {0};
+  strncpy(expected, "0 0 0 0", output_size);
+  printf("expected: %.*s\n", output_size, expected);
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
 }
 */
 
