@@ -57,8 +57,10 @@ class sim_api_communicate final : public api_communicate
             bool shutdown() override;
             bool is_done() override;
             int active_threads() override;
-            bool memory_read(uint64_t ad, uint64_t size, void *data) override;
-            bool memory_write(uint64_t ad, uint64_t size, const void *data) override;
+            bool memory_read(uint64_t device_addr, uint64_t size, void *data) override;
+            bool memory_write(uint64_t device_addr, uint64_t size, const void *data) override;
+            bool pci_memory_read(uint64_t pci_addr, uint64_t size, void *data) override;
+            bool pci_memory_write(uint64_t pci_addr, uint64_t size, const void *data) override;
             bool mailbox_read(simulator_api::MailboxTarget target, uint32_t offset, uint64_t size, void *data)  override;
             bool mailbox_write(simulator_api::MailboxTarget target, uint32_t offset, uint64_t size, const void *data)  override;
             bool raise_device_interrupt(simulator_api::DeviceInterruptType type) override;
@@ -69,7 +71,7 @@ class sim_api_communicate final : public api_communicate
             void shire_threads_set_pc(unsigned shire_id, uint64_t pc);
         private:
             void print_iatus();
-            bool iatu_translate(uint64_t host_addr, uint64_t size, uint64_t &device_addr,
+            bool iatu_translate(uint64_t pci_addr, uint64_t size, uint64_t &device_addr,
                                 uint64_t &access_size);
             sim_api_communicate* sim_;
         };
