@@ -18,6 +18,8 @@ set(BL2_SOURCES
     common/entry.S
     common/trap_handler.S
     common/main.c
+    interface/sp_host_iface.c
+    interface/sp_mm_iface.c
     utils/stubs.c
     utils/crc32.c
     utils/memory_copy_8x32.S
@@ -37,7 +39,7 @@ set(BL2_SOURCES
     driver/firmware_loader.c
     driver/interrupt.c
     rtos_task/mailbox.c
-    rtos_task/vqueue.c
+    rtos_task/command_dispatcher.c
     rtos_task/flash_fs.c
     rtos_task/vaultip.c
     dm_service/firmware_update.c

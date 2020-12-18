@@ -40,6 +40,8 @@
 #include "bl2_crypto.h"
 #include "bl2_asset_trk.h"
 
+#include "command_dispatcher.h"
+
 #define TASK_STACK_SIZE 4096 // overkill for now
 
 void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
@@ -209,8 +211,8 @@ static void taskMain(void *pvParameters)
 
     printf("time: %lu\n", timer_get_ticks_count());
 
-    // Initial Virtual Queues
-    // VQUEUE_init();
+    // Initialize SP-> Host + SP -> MM Interfaces
+    sp_intf_init();
 
     // TODO: Update the following to Log macro - set to INFO/DEBUG
     //printf("Minion shires to enable: 0x%" PRIx64 "\n", minion_shires_mask);
@@ -317,11 +319,7 @@ static void taskMain(void *pvParameters)
         printf("Failed to enable Master minion threads!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
-    // TODO: Update the following to Log macro - set to INFO/DEBUG
-    //printf("Master minion threads enabled.\n");
-
-    // TODO: Initialize the SP -> Host Vqueues
-
+    // TODO : Remove after SP -> MM Vqueue has been implementated
     // Enable MM Mailbox task and do not send interrupt to MM (slave)
     MBOX_init_mm(false);
 
