@@ -102,7 +102,181 @@ static bool AbslParseFlag(absl::string_view text, deviceString *d,
 ABSL_FLAG(deviceString, dev, deviceString("et0_mgmt"),
           "set device management device node");
 
+struct powerStateString {
+  explicit powerStateString(std::string s = "")
+    : state(s)
+    , state_id(0) {
+    auto it = powerStateTable.find(state);
+    if (it != powerStateTable.end()) {
+      state_id = it->second;
+    }
+  }
+
+  std::string state;
+  uint32_t state_id;
+};
+
+static std::string AbslUnparseFlag(powerStateString s) {
+  return absl::UnparseFlag(s.state);
+}
+
+static bool AbslParseFlag(absl::string_view text, powerStateString* s, std::string* error) {
+  if (!absl::ParseFlag(text, &s->state, error)) {
+    return false;
+  }
+
+  auto it = powerStateTable.find(s->state);
+  if (it == powerStateTable.end()) {
+    *error = "Module Power State mode is not valid!\n";
+    return false;
+  }
+  s->state_id = it->second;
+
+  return true;
+}
+ABSL_FLAG(powerStateString, pss, powerStateString("MAX"), "set module power state mode");
+
+struct TDPString {
+  explicit TDPString(std::string s = "")
+    : tdp(s)
+    , tdp_id(0) {
+    auto it = TDPLevelTable.find(tdp);
+    if (it != TDPLevelTable.end()) {
+      tdp_id = it->second;
+    }
+  }
+
+  std::string tdp;
+  uint32_t tdp_id;
+};
+
+static std::string AbslUnparseFlag(TDPString s) {
+  return absl::UnparseFlag(s.tdp);
+}
+
+static bool AbslParseFlag(absl::string_view text, TDPString* s, std::string* error) {
+  if (!absl::ParseFlag(text, &s->tdp, error)) {
+    return false;
+  }
+
+  auto it = TDPLevelTable.find(s->tdp);
+  if (it == TDPLevelTable.end()) {
+    *error = "Static TDP level is not valid!\n";
+    return false;
+  }
+  s->tdp_id = it->second;
+
+  return true;
+}
+ABSL_FLAG(TDPString, tdps, TDPString("LEVEL_1"), "set static TDP level");
+
+struct pcieResetString {
+  explicit pcieResetString(std::string r = "")
+    : reset(r)
+    , reset_id(0) {
+    auto it = pcieResetTable.find(reset);
+    if (it != pcieResetTable.end()) {
+      reset_id = it->second;
+    }
+  }
+
+  std::string reset;
+  uint32_t reset_id;
+};
+
+static std::string AbslUnparseFlag(pcieResetString r) {
+  return absl::UnparseFlag(r.reset);
+}
+
+static bool AbslParseFlag(absl::string_view text, pcieResetString* r, std::string* error) {
+  if (!absl::ParseFlag(text, &r->reset, error)) {
+    return false;
+  }
+
+  auto it = pcieResetTable.find(r->reset);
+  if (it == pcieResetTable.end()) {
+    *error = "PCIE reset level is not valid!\n";
+    return false;
+  }
+  r->reset_id = it->second;
+
+  return true;
+}
+ABSL_FLAG(pcieResetString, pcieReset, pcieResetString("FLR"), "Set PCIE reset level");
+
+struct pcieLinkSpeedString {
+  explicit pcieLinkSpeedString(std::string s = "")
+    : speed(s)
+    , speed_id(0) {
+    auto it = pcieLinkSpeedTable.find(speed);
+    if (it != pcieLinkSpeedTable.end()) {
+      speed_id = it->second;
+    }
+  }
+
+  std::string speed;
+  uint32_t speed_id;
+};
+
+static std::string AbslUnparseFlag(pcieLinkSpeedString s) {
+  return absl::UnparseFlag(s.speed);
+}
+
+static bool AbslParseFlag(absl::string_view text, pcieLinkSpeedString* s, std::string* error) {
+  if (!absl::ParseFlag(text, &s->speed, error)) {
+    return false;
+  }
+
+  auto it = pcieLinkSpeedTable.find(s->speed);
+  if (it == pcieLinkSpeedTable.end()) {
+    *error = "PCIE link speed is not valid!\n";
+    return false;
+  }
+  s->speed_id = it->second;
+
+  return true;
+}
+ABSL_FLAG(pcieLinkSpeedString, pcieLinkSpeed, pcieLinkSpeedString("GEN3"), "Set PCIE link speed");
+
+struct pcieLaneWidthString {
+  explicit pcieLaneWidthString(std::string w = "")
+    : width(w)
+    , width_id(0) {
+    auto it = pcieLaneWidthTable.find(width);
+    if (it != pcieLaneWidthTable.end()) {
+      width_id = it->second;
+    }
+  }
+
+  std::string width;
+  uint32_t width_id;
+};
+
+static std::string AbslUnparseFlag(pcieLaneWidthString w) {
+  return absl::UnparseFlag(w.width);
+}
+
+static bool AbslParseFlag(absl::string_view text, pcieLaneWidthString* w, std::string* error) {
+  if (!absl::ParseFlag(text, &w->width, error)) {
+    return false;
+  }
+
+  auto it = pcieLaneWidthTable.find(w->width);
+  if (it == pcieLaneWidthTable.end()) {
+    *error = "PCIE lane width is not valid!\n";
+    return false;
+  }
+  w->width_id = it->second;
+
+  return true;
+}
+ABSL_FLAG(pcieLaneWidthString, pcieLaneWidth, pcieLaneWidthString("x4"), "Set PCIE lane width");
+
 ABSL_FLAG(uint32_t, timeout, 0, "Set timeout duration in msec: 0 = disabled");
+ABSL_FLAG(uint32_t, count, 0, "Set count value");
+
+ABSL_FLAG(int32_t, tholdLow, 0, "Set module low temperature threshold in Celsius");
+ABSL_FLAG(int32_t, tholdHigh, 0, "Set module high temperature threshold in Celsius");
 
 ABSL_FLAG(std::string, path, "", "Set path to load file");
 
@@ -138,44 +312,125 @@ int main(int argc, char *argv[]) {
   commandString cs = absl::GetFlag(FLAGS_cmd);
   deviceString ds = absl::GetFlag(FLAGS_dev);
   uint32_t timeout = absl::GetFlag(FLAGS_timeout);
+  uint32_t count = absl::GetFlag(FLAGS_count);
   std::string path = absl::GetFlag(FLAGS_path);
+  powerStateString pss = absl::GetFlag(FLAGS_pss);
+  TDPString tdps = absl::GetFlag(FLAGS_tdps);
+  int32_t thLow = absl::GetFlag(FLAGS_tholdLow);
+  int32_t thHigh = absl::GetFlag(FLAGS_tholdHigh);
+  pcieResetString pcieReset = absl::GetFlag(FLAGS_pcieReset);
+  pcieLinkSpeedString pcieSpeed = absl::GetFlag(FLAGS_pcieLinkSpeed);
+  pcieLaneWidthString pcieWidth = absl::GetFlag(FLAGS_pcieLaneWidth);
 
   std::cout << "Command code: " << cs.cmd << " or " << cs.cmd_id << std::endl;
   std::cout << "Device node: " << ds.dev << std::endl;
   std::cout << "timeout: " << timeout << std::endl;
 
   switch (cs.cmd_id) {
-    case CommandCode::GET_MODULE_MANUFACTURE_NAME:
-    case CommandCode::GET_MODULE_PART_NUMBER:
-    case CommandCode::GET_MODULE_SERIAL_NUMBER:
-    case CommandCode::GET_ASIC_CHIP_REVISION:
-    case CommandCode::GET_MODULE_DRIVER_REVISION:
-    case CommandCode::GET_MODULE_PCIE_ADDR:
-    case CommandCode::GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED:
-    case CommandCode::GET_MODULE_MEMORY_SIZE_MB:
-    case CommandCode::GET_MODULE_REVISION:
-    case CommandCode::GET_MODULE_FORM_FACTOR:
-    case CommandCode::GET_MODULE_MEMORY_VENDOR_PART_NUMBER:
-    case CommandCode::GET_MODULE_MEMORY_TYPE:
-    case CommandCode::GET_FUSED_PUBLIC_KEYS:
-    case CommandCode::GET_FIRMWARE_BOOT_STATUS:
-      testAsset(dm, ds.dev.c_str(), cs.cmd_id, nullptr, 0, 8, timeout);
-      break;
-    case CommandCode::GET_MODULE_FIRMWARE_REVISIONS:
-      testAsset(dm, ds.dev.c_str(), cs.cmd_id, nullptr, 0, 20, timeout);
-      break;
-    case CommandCode::SET_FIRMWARE_UPDATE:
-    case CommandCode::SET_SP_BOOT_ROOT_CERT:
-    case CommandCode::SET_SW_BOOT_ROOT_CERT:
-      if (path.empty()) {
-        std::cout << "--path not provided or invalid" << std::endl;
-        return -EINVAL;
-      }
-      testAsset(dm, ds.dev.c_str(), cs.cmd_id, path.data(), 1, 8, timeout);
-      break;
-    default:
+  case CommandCode::GET_MODULE_POWER_STATE:
+  case CommandCode::GET_MODULE_STATIC_TDP_LEVEL:
+  case CommandCode::GET_MODULE_CURRENT_TEMPERATURE:
+  case CommandCode::GET_MODULE_POWER:
+  case CommandCode::GET_MODULE_VOLTAGE:
+  case CommandCode::GET_MODULE_UPTIME:
+  case CommandCode::GET_MODULE_MAX_TEMPERATURE:
+  case CommandCode::GET_MAX_MEMORY_ERROR:
+  case CommandCode::GET_DRAM_CAPACITY_UTILIZATION:
+  case CommandCode::GET_MM_THREADS_STATE:
+    testAsset(dm, ds.dev.c_str(), cs.cmd_id, nullptr, 0, 4, timeout);
+    break;
+  case CommandCode::GET_MODULE_MANUFACTURE_NAME:
+  case CommandCode::GET_MODULE_PART_NUMBER:
+  case CommandCode::GET_MODULE_SERIAL_NUMBER:
+  case CommandCode::GET_ASIC_CHIP_REVISION:
+  case CommandCode::GET_MODULE_DRIVER_REVISION:
+  case CommandCode::GET_MODULE_PCIE_ADDR:
+  case CommandCode::GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED:
+  case CommandCode::GET_MODULE_MEMORY_SIZE_MB:
+  case CommandCode::GET_MODULE_REVISION:
+  case CommandCode::GET_MODULE_FORM_FACTOR:
+  case CommandCode::GET_MODULE_MEMORY_VENDOR_PART_NUMBER:
+  case CommandCode::GET_MODULE_MEMORY_TYPE:
+  case CommandCode::GET_FUSED_PUBLIC_KEYS:
+  case CommandCode::GET_FIRMWARE_BOOT_STATUS:
+  case CommandCode::GET_MODULE_TEMPERATURE_THRESHOLDS:
+  case CommandCode::GET_MODULE_RESIDENCY_THROTTLE_STATES:
+  case CommandCode::GET_MODULE_MAX_DDR_BW:
+  case CommandCode::GET_MODULE_MAX_THROTTLE_TIME:
+  case CommandCode::GET_MODULE_PCIE_ECC_UECC:
+  case CommandCode::GET_MODULE_DDR_BW_COUNTER:
+  case CommandCode::GET_MODULE_DDR_ECC_UECC:
+  case CommandCode::GET_MODULE_SRAM_ECC_UECC:
+  case CommandCode::GET_DRAM_BANDWIDTH:
+  case CommandCode::GET_ASIC_PER_CORE_DATAPATH_UTILIZATION:
+  case CommandCode::GET_ASIC_UTILIZATION:
+  case CommandCode::GET_ASIC_STALLS:
+  case CommandCode::GET_ASIC_LATENCY:
+    testAsset(dm, ds.dev.c_str(), cs.cmd_id, nullptr, 0, 8, timeout);
+    break;
+  case CommandCode::GET_MODULE_FIRMWARE_REVISIONS:
+    testAsset(dm, ds.dev.c_str(), cs.cmd_id, nullptr, 0, 20, timeout);
+    break;
+  case CommandCode::GET_ASIC_FREQUENCIES:
+    testAsset(dm, ds.dev.c_str(), cs.cmd_id, nullptr, 0, 24, timeout);
+    break;
+  case CommandCode::SET_MODULE_POWER_STATE:
+    testAsset(dm, ds.dev.c_str(), cs.cmd_id, reinterpret_cast<char*>(pss.state_id), 4, 8, timeout);
+    break;
+  case CommandCode::SET_MODULE_STATIC_TDP_LEVEL:
+    testAsset(dm, ds.dev.c_str(), cs.cmd_id, reinterpret_cast<char*>(tdps.tdp_id), 4, 8, timeout);
+    break;
+  case CommandCode::SET_PCIE_RESET:
+    testAsset(dm, ds.dev.c_str(), cs.cmd_id, reinterpret_cast<char*>(pcieReset.reset_id), 4, 8, timeout);
+    break;
+  case CommandCode::SET_PCIE_MAX_LINK_SPEED:
+    testAsset(dm, ds.dev.c_str(), cs.cmd_id, reinterpret_cast<char*>(pcieSpeed.speed_id), 4, 8, timeout);
+    break;
+  case CommandCode::SET_PCIE_LANE_WIDTH:
+    testAsset(dm, ds.dev.c_str(), cs.cmd_id, reinterpret_cast<char*>(pcieWidth.width_id), 4, 8, timeout);
+    break;
+  case CommandCode::SET_PCIE_RETRAIN_PHY:
+    testAsset(dm, ds.dev.c_str(), cs.cmd_id, reinterpret_cast<char*>(0), 4, 8, timeout);
+    break;
+  case CommandCode::RESET_ETSOC:
+    testAsset(dm, ds.dev.c_str(), cs.cmd_id, reinterpret_cast<char*>(0), 4, 8, timeout);
+    break;
+  case CommandCode::SET_FIRMWARE_UPDATE:
+  case CommandCode::SET_SP_BOOT_ROOT_CERT:
+  case CommandCode::SET_SW_BOOT_ROOT_CERT:
+    if (path.empty()) {
+      std::cout << "--path not provided or invalid" << std::endl;
       return -EINVAL;
-      break;
+    }
+    testAsset(dm, ds.dev.c_str(), cs.cmd_id, path.data(), 1, 8, timeout);
+    break;
+  case CommandCode::SET_MODULE_TEMPERATURE_THRESHOLDS: {
+    if (!thLow) {
+      std::cout << "--tholdLow not provided or invalid" << std::endl;
+      return -EINVAL;
+    }
+
+    if (!thHigh) {
+      std::cout << "--tholdHigh not provided or invalid" << std::endl;
+      return -EINVAL;
+    }
+
+    temp_thresh_t tholds{.low_TempC = thLow, .high_TempC = thHigh};
+
+    testAsset(dm, ds.dev.c_str(), cs.cmd_id, reinterpret_cast<char*>(&tholds), 8, 8, timeout);
+  } break;
+  case CommandCode::SET_DDR_ECC_COUNT:
+  case CommandCode::SET_SRAM_ECC_COUNT:
+  case CommandCode::SET_PCIE_ECC_COUNT:
+    if (!count) {
+      std::cout << "--count not provided or invalid" << std::endl;
+      return -EINVAL;
+    }
+
+    testAsset(dm, ds.dev.c_str(), cs.cmd_id, reinterpret_cast<char*>(count), 4, 8, timeout);
+  default:
+    return -EINVAL;
+    break;
   }
 
   return 0;
