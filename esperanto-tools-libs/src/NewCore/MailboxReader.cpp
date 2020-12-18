@@ -26,7 +26,9 @@ MailboxReader::MailboxReader(ITarget* target, KernelParametersCache* kernelParam
   reader_ = std::thread([this]() {
     std::array<std::byte, 1 << 16> buffer;
     while (run_) {
-      auto readResult = target_->readMailbox(buffer.data());
+      // FIXME change it to defaults timeout or whatever is suitable after sysemu is fixed see
+      // https://esperantotech.atlassian.net/browse/SW-5310
+      auto readResult = target_->readMailbox(buffer.data(), 1 << 16, std::chrono::minutes(1));
       if (readResult) {
         // grab header
         // notify events (dispatch)
