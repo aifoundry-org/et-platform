@@ -153,6 +153,7 @@ protected:
     ASSERT_TRUE(success == etrtSuccess);
 
     dmaWriteCmdCnt_ = 0;
+    dmaReadCmdCnt_ = 0;
     dramBaseAddress_ = target_device->dramBaseAddr();
   }
 
@@ -443,10 +444,10 @@ protected:
     return res;
   }
 
-  std::atomic<device_ops_api::tag_id_t> tag_id_;
-  uint16_t dmaWriteCmdCnt_;
-  uint16_t dmaReadCmdCnt_;
-  uint64_t dramBaseAddress_;
+  std::atomic<device_ops_api::tag_id_t> tag_id_ = 0;
+  std::atomic<uint16_t> dmaWriteCmdCnt_ = 0;
+  std::atomic<uint16_t> dmaReadCmdCnt_ = 0;
+  std::atomic<uint64_t> dramBaseAddress_ = 0;
   std::mutex dataWriteCmdMtx_;
   std::mutex dataReadCmdMtx_;
   std::shared_ptr<Device> dev_;
