@@ -148,24 +148,6 @@ enum pcie_lane_w_split_e {
 #define L0 0x0 // Low
 #define HI 0x1 // High
 
-
-/*******************************************************
- The SOC Power Reg is a global FW maintained register 
- that is a shared different Tasks. 
-#*********************************************************/
-struct soc_power_reg_t {
-     power_state_t module_power_state;
-     tdp_level_t module_tdp_level;
-     uint8_t module_temp_hi_threshold;
-     uint8_t module_temp_lo_threshold;
-     uint8_t soc_temperature;
-     uint8_t soc_power;
-     uint8_t max_temp;
-     uint8_t module_uptime[3];
-     uint8_t voltage[INVALID_MODULE];
-     uint64_t throttled_states_residency;
-};
-
 #define MAX_LENGTH 256
 
 struct dm_control_block {
@@ -226,13 +208,17 @@ struct firmware_versions_cmd_t {
     struct cmd_hdr_t cmd_hdr; // Command header
 };
 
+struct firmware_versions_t {
+    uint32_t bl1_v;        // BL1 Firmware version
+    uint32_t bl2_v;        // BL2 Firmware version
+    uint32_t mm_v;         // Machine Minion Firmware version
+    uint32_t wm_v;         // Worker Minion Firmware version
+    uint32_t machm_v;      // Machine Minion Firmware version
+};
+
 struct firmware_versions_rsp_t {
-    struct rsp_hdr_t rsp_hdr; 
-    uint32_t bl1_v; // BL1 Firmware version
-    uint32_t bl2_v; // BL2 Firmware version
-    uint32_t mm_v; // Machine Minion Firmware version
-    uint32_t wm_v; // Worker Minion Firmware version
-    uint32_t machm_v; // Machine Minion Firmware version
+    struct rsp_hdr_t rsp_hdr;
+    struct firmware_versions_t firmware_versions;   
 };
 
 struct update_firmware_cmd_t {
@@ -245,16 +231,19 @@ struct certificate_hash_cmd_t {
     char hash[32]; // certificate hash
 };
 
-struct temperature_threshold_cmd_t {
-    struct cmd_hdr_t cmd_hdr; // Command header
+struct temperature_threshold_t {
     uint8_t lo_temperature_c; // Low temperature threshold
     uint8_t hi_temperature_c; // High temperature threshold
 };
 
+struct temperature_threshold_cmd_t {
+    struct cmd_hdr_t cmd_hdr; // Command header
+    struct temperature_threshold_t temperature_threshold; 
+};
+
 struct temperature_threshold_rsp_t {
     struct rsp_hdr_t rsp_hdr; 
-    uint8_t lo_temperature_c; // Low temperature threshold
-    uint8_t hi_temperature_c; // High temperature threshold
+    struct temperature_threshold_t temperature_threshold; 
 };
 
 struct power_state_cmd_t {
@@ -308,20 +297,33 @@ struct module_voltage_cmd_t {
     struct cmd_hdr_t cmd_hdr; // Command header
 };
 
+struct module_voltage_t {
+    uint16_t minion_shire_mV;
+    uint16_t noc_mV;
+    uint16_t mem_shire_mV;
+    uint16_t ddr_mV;
+    uint16_t pcie_shire_mV;
+    uint16_t io_shire_mV;
+}; 
+
 struct module_voltage_rsp_t {
     struct rsp_hdr_t rsp_hdr; 
-    uint8_t volts; // Module voltage in volts
+    struct module_voltage_t module_voltage; // Module voltage in volts
 };
 
 struct module_uptime_cmd_t {
     struct cmd_hdr_t cmd_hdr; // Command header
 };
 
+struct module_uptime_t {
+    uint16_t day; // time day
+    uint8_t  hours; // time hour
+    uint8_t  seconds; // time seconds
+};
+
 struct module_uptime_rsp_t {
-    struct rsp_hdr_t rsp_hdr; 
-    uint8_t time_day; // time day
-    uint8_t time_hours; // time hour
-    uint8_t time_seconds; // time seconds
+    struct rsp_hdr_t rsp_hdr;
+    struct module_uptime_t module_uptime;
 };
 
 struct max_temperature_cmd_t {
@@ -413,24 +415,32 @@ struct asic_frequencies_cmd_t {
     struct cmd_hdr_t cmd_hdr; // Command header
 };
 
-struct asic_frequencies_rsp_t {
-    struct rsp_hdr_t rsp_hdr; 
+struct asic_frequencies_t {
     uint32_t minion_shire_mhz;
     uint32_t noc_mhz;
     uint32_t mem_shire_mhz;
-    uint32_t dram_mhz;
-    uint32_t p_shire_mhz;
+    uint32_t ddr_mhz;
+    uint32_t pcie_shire_mhz;
     uint32_t io_shire_mhz;
+};
+
+struct asic_frequencies_rsp_t {
+    struct rsp_hdr_t rsp_hdr;
+    struct asic_frequencies_t asic_frequency; 
 };
 
 struct dram_bw_cmd_t {
     struct cmd_hdr_t cmd_hdr; // Command header
 };
 
-struct dram_bw_rsp_t {
-    struct rsp_hdr_t rsp_hdr; 
+struct dram_bw_t {
     uint32_t read_req_sec;
     uint32_t write_req_sec;
+};
+
+struct dram_bw_rsp_t {
+    struct rsp_hdr_t rsp_hdr; 
+    struct dram_bw_t dram_bw;
 };
 
 struct dram_capacity_cmd_t {
@@ -473,12 +483,16 @@ struct mm_state_cmd_t {
     struct cmd_hdr_t cmd_hdr; // Command header
 };
 
-struct mm_state_rsp_t {
-    struct rsp_hdr_t rsp_hdr; 
+struct mm_state_t {
     uint8_t master_thread_state;
     uint8_t vq_s_thread_state;
     uint8_t vq_c_thread_state;
     uint8_t vq_w_thread_state;
+};
+
+struct mm_state_rsp_t {
+    struct rsp_hdr_t rsp_hdr; 
+    struct mm_state_t mm_state;
 };
 
 #endif

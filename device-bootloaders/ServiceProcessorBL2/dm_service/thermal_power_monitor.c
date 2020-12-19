@@ -38,6 +38,8 @@
 #include <stdio.h>
 
 #include "dm.h"
+#include "dm_config.h"
+#include "sp_host_iface.h"
 #include "bl2_pmic_controller.h"
 
 #include "bl2_thermal_power_monitor.h"
@@ -47,13 +49,6 @@ This struct is temporary placed here - as it will move to actual Power Managemen
 function which will initialize the Global Register state
 ************************************************************************************/
 struct soc_power_reg_t *g_soc_power_reg __attribute__((section(".data")));
-
-
-static uint8_t cqueue_push(char * buf, uint32_t size) 
-{
-     printf("Pointer to buf %s with payload size: %d\n", buf, size); 
-     return 0;
-}
 
 /************************************************************************
 *
@@ -87,18 +82,14 @@ static uint8_t cqueue_push(char * buf, uint32_t size)
 static void pwr_svc_get_module_power_state(uint64_t req_start_time)
 {
     struct power_state_rsp_t dm_rsp;
-    dm_rsp.rsp_hdr.status = DM_STATUS_SUCCESS;
-    dm_rsp.rsp_hdr.size = sizeof(dm_rsp.pwr_state);
 
     dm_rsp.pwr_state = g_soc_power_reg->module_power_state;
 
-    dm_rsp.rsp_hdr.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
+                    sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer; 
-    memcpy(p, &dm_rsp, sizeof(dm_rsp)); 
-
-   if (0 != cqueue_push(p,sizeof(dm_rsp))) {
+   if (0 !=  SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct power_state_rsp_t))) {
         printf("pwr_svc_get_module_power_state: Cqueue push error !\n");
    }
 }
@@ -134,18 +125,14 @@ static void pwr_svc_get_module_power_state(uint64_t req_start_time)
 static void pwr_svc_set_module_power_state(uint64_t req_start_time, power_state_t state)
 {
     struct rsp_hdr_t dm_rsp;
-    dm_rsp.status = DM_STATUS_SUCCESS;
-    dm_rsp.size = 0;
-
+    
     g_soc_power_reg->module_power_state = state;
 
-    dm_rsp.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS,
+                    sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer; 
-    memcpy(p, &dm_rsp, sizeof(dm_rsp)); 
-
-    if (0 != cqueue_push(p,sizeof(dm_rsp))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct rsp_hdr_t))) {
         printf("pwr_svc_set_module_power_state: Cqueue push error !\n");
     }
 }
@@ -174,19 +161,15 @@ static void pwr_svc_set_module_power_state(uint64_t req_start_time, power_state_
 static void pwr_svc_get_module_power(uint64_t req_start_time)
 {
     struct module_power_rsp_t dm_rsp;
-    dm_rsp.rsp_hdr.status = DM_STATUS_SUCCESS;
-    dm_rsp.rsp_hdr.size = sizeof(dm_rsp.watts);
     
     g_soc_power_reg->soc_power = pmic_read_soc_power(); 
     dm_rsp.watts = g_soc_power_reg->soc_power;
 
-    dm_rsp.rsp_hdr.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
+                    sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer; 
-    memcpy(p, &dm_rsp, sizeof(dm_rsp)); 
-
-    if (0 != cqueue_push(p,sizeof(dm_rsp))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct module_power_rsp_t))) {
         printf("pwr_svc_get_module_power: Cqueue push error!\n");
     }
 }
@@ -217,19 +200,20 @@ static void pwr_svc_get_module_power(uint64_t req_start_time)
 static void pwr_svc_get_module_voltage(uint64_t req_start_time, module_t shire)
 {
     struct module_voltage_rsp_t dm_rsp;
-    dm_rsp.rsp_hdr.status = DM_STATUS_SUCCESS;
-    dm_rsp.rsp_hdr.size = sizeof(dm_rsp.volts);
 
-    g_soc_power_reg->voltage[shire] = pmic_get_voltage(shire);     
-    dm_rsp.volts = g_soc_power_reg->voltage[shire];
+    g_soc_power_reg->module_voltage.minion_shire_mV = pmic_get_voltage(shire);     
+    dm_rsp.module_voltage.minion_shire_mV = g_soc_power_reg->module_voltage.minion_shire_mV;
+    dm_rsp.module_voltage.noc_mV          = g_soc_power_reg->module_voltage.noc_mV;
+    dm_rsp.module_voltage.mem_shire_mV    = g_soc_power_reg->module_voltage.mem_shire_mV;
+    dm_rsp.module_voltage.ddr_mV          = g_soc_power_reg->module_voltage.ddr_mV;
+    dm_rsp.module_voltage.pcie_shire_mV   = g_soc_power_reg->module_voltage.pcie_shire_mV;
+    dm_rsp.module_voltage.io_shire_mV     = g_soc_power_reg->module_voltage.io_shire_mV;
 
-    dm_rsp.rsp_hdr.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
+                    sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer; 
-    memcpy(p, &dm_rsp, sizeof(dm_rsp)); 
-
-   if (0 != cqueue_push(p,sizeof(dm_rsp))) {
+   if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct module_voltage_rsp_t))) {
         printf("pwr_svc_get_module_voltage: Cqueue push error!\n");
    }
 }
@@ -267,18 +251,14 @@ static void pwr_svc_get_module_voltage(uint64_t req_start_time, module_t shire)
 static void pwr_svc_get_module_tdp_level(uint64_t req_start_time)
 {
     struct tdp_level_rsp_t dm_rsp;
-    dm_rsp.rsp_hdr.status = DM_STATUS_SUCCESS;
-    dm_rsp.rsp_hdr.size = sizeof(dm_rsp.tdp_level);
 
     dm_rsp.tdp_level = g_soc_power_reg->module_tdp_level;
 
-    dm_rsp.rsp_hdr.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
+                    sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer; 
-    memcpy(p, &dm_rsp, sizeof(dm_rsp)); 
-
-   if (0 != cqueue_push(p,sizeof(dm_rsp))) {
+   if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct tdp_level_rsp_t))) {
         printf("pwr_svc_get_module_tdp_level: Cqueue push error!\n");
    }
 }
@@ -308,20 +288,16 @@ static void pwr_svc_get_module_tdp_level(uint64_t req_start_time)
 static void pwr_svc_set_module_tdp_level(uint64_t req_start_time, tdp_level_t tdp)
 {
     struct rsp_hdr_t dm_rsp;
-    dm_rsp.status = DM_STATUS_SUCCESS;
-    dm_rsp.size = 0;
 
     // TODO implement response handler for PMIC Read
     pmic_set_tdp_threshold(tdp);
     g_soc_power_reg->module_tdp_level = tdp;
 
-    dm_rsp.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS,
+                    sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer; 
-    memcpy(p, &dm_rsp, sizeof(dm_rsp)); 
-
-    if (0 != cqueue_push(p,sizeof(dm_rsp))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct rsp_hdr_t))) {
         printf("pwr_svc_set_module_power_state: Cqueue push error !\n");
     }
 }
@@ -351,18 +327,14 @@ static void pwr_svc_set_module_tdp_level(uint64_t req_start_time, tdp_level_t td
 static void pwr_svc_get_module_temp_thresholds(uint64_t req_start_time)
 {
     struct temperature_threshold_rsp_t dm_rsp;
-    dm_rsp.rsp_hdr.status = DM_STATUS_SUCCESS;
-    dm_rsp.rsp_hdr.size = sizeof(dm_rsp.lo_temperature_c) + sizeof(dm_rsp.hi_temperature_c);
-    dm_rsp.lo_temperature_c = g_soc_power_reg->module_temp_lo_threshold;
-    dm_rsp.hi_temperature_c = g_soc_power_reg->module_temp_hi_threshold;
+    dm_rsp.temperature_threshold.lo_temperature_c = g_soc_power_reg->temperature_threshold.lo_temperature_c;
+    dm_rsp.temperature_threshold.hi_temperature_c = g_soc_power_reg->temperature_threshold.hi_temperature_c;
 
-    dm_rsp.rsp_hdr.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
+                    sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer; 
-    memcpy(p, &dm_rsp, sizeof(dm_rsp));  
-
-   if (0 != cqueue_push(p,sizeof(dm_rsp))) {
+   if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct temperature_threshold_rsp_t))) {
         printf("pwr_svc_get_module_temp_thresholds: Cqueue push error !\n");
    }
 }
@@ -392,21 +364,18 @@ static void pwr_svc_get_module_temp_thresholds(uint64_t req_start_time)
 static void pwr_svc_set_module_temp_thresholds(uint64_t req_start_time, uint8_t hi_threshold, uint8_t lo_threshold)
 {
     struct rsp_hdr_t dm_rsp;
-    dm_rsp.status = DM_STATUS_SUCCESS;
-    dm_rsp.size = 0;
 
     pmic_set_temperature_threshold(L0, lo_threshold);
     pmic_set_temperature_threshold(HI, hi_threshold);
-    g_soc_power_reg->module_temp_lo_threshold = lo_threshold;
-    g_soc_power_reg->module_temp_hi_threshold = hi_threshold;
+    g_soc_power_reg->temperature_threshold.lo_temperature_c = lo_threshold;
+    g_soc_power_reg->temperature_threshold.hi_temperature_c = hi_threshold;
    
-    dm_rsp.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS,
+                    sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer; 
-    memcpy(p, &dm_rsp, sizeof(dm_rsp));  
      
-    if (0 != cqueue_push(p,sizeof(dm_rsp))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct rsp_hdr_t))) {
         printf("pwr_svc_set_module_temp_thresholds: Cqueue push error !\n");
     }
 }
@@ -436,19 +405,15 @@ static void pwr_svc_set_module_temp_thresholds(uint64_t req_start_time, uint8_t 
 static void pwr_svc_get_module_current_temperature(uint64_t req_start_time)
 {
     struct current_temperature_rsp_t dm_rsp;
-    dm_rsp.rsp_hdr.status = DM_STATUS_SUCCESS;
-    dm_rsp.rsp_hdr.size = sizeof(dm_rsp.temperature_c);
 
     g_soc_power_reg->soc_temperature = pmic_get_temperature();
     dm_rsp.temperature_c = g_soc_power_reg->soc_temperature;
-    
-    dm_rsp.rsp_hdr.device_latency_usec = timer_get_ticks_count() - req_start_time;
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer; 
-    memcpy(p, &dm_rsp, sizeof(dm_rsp)); 
+    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
+                    sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
  
-   if (0 != cqueue_push(p,sizeof(dm_rsp))) {
+   if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct current_temperature_rsp_t))) {
         printf("pwr_svc_get_module_current_temperature: Cqueue push error!\n");
    }
 }
@@ -478,18 +443,14 @@ static void pwr_svc_get_module_current_temperature(uint64_t req_start_time)
 static void pwr_svc_get_module_residency_throttle_states(uint64_t req_start_time)
 {
     struct throttle_time_rsp_t dm_rsp;
-    dm_rsp.rsp_hdr.status = DM_STATUS_SUCCESS;
-    dm_rsp.rsp_hdr.size = sizeof(dm_rsp.time_usec);
 
     dm_rsp.time_usec = g_soc_power_reg->throttled_states_residency;
 
-    dm_rsp.rsp_hdr.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
+                    sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer; 
-    memcpy(p, &dm_rsp, sizeof(dm_rsp));
-
-   if (0 != cqueue_push(p,sizeof(dm_rsp))) {
+   if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct throttle_time_rsp_t))) {
         printf("pwr_svc_get_module_residency_throttle_states: Cqueue push error!\n");
    }
 }
@@ -519,18 +480,14 @@ static void pwr_svc_get_module_residency_throttle_states(uint64_t req_start_time
 static void pwr_svc_get_module_max_temperature(uint64_t req_start_time)
 {
     struct max_temperature_rsp_t dm_rsp;
-    dm_rsp.rsp_hdr.status = DM_STATUS_SUCCESS;
-    dm_rsp.rsp_hdr.size = sizeof(dm_rsp.max_temperature_c);
 
     dm_rsp.max_temperature_c = g_soc_power_reg->max_temp;
 
-    dm_rsp.rsp_hdr.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
+                    sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer; 
-    memcpy(p, &dm_rsp, sizeof(dm_rsp)); 
-
-   if (0 != cqueue_push(p,sizeof(dm_rsp))) {
+   if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct max_temperature_rsp_t))) {
         printf("pwr_svc_get_module_max_temperature: Cqueue push error!\n");
    }
 }
@@ -559,20 +516,16 @@ static void pwr_svc_get_module_max_temperature(uint64_t req_start_time)
 static void pwr_svc_get_module_uptime(uint64_t req_start_time)
 {
     struct module_uptime_rsp_t dm_rsp;
-    dm_rsp.rsp_hdr.status = DM_STATUS_SUCCESS;
-    dm_rsp.rsp_hdr.size = sizeof(dm_rsp.time_day) + sizeof(dm_rsp.time_hours) + sizeof(dm_rsp.time_seconds);
 
-    dm_rsp.time_day = g_soc_power_reg->module_uptime[0];
-    dm_rsp.time_hours = g_soc_power_reg->module_uptime[1];
-    dm_rsp.time_seconds = g_soc_power_reg->module_uptime[2];
+    dm_rsp.module_uptime.day     = g_soc_power_reg->module_uptime.day;
+    dm_rsp.module_uptime.hours   = g_soc_power_reg->module_uptime.hours;
+    dm_rsp.module_uptime.seconds = g_soc_power_reg->module_uptime.seconds;
 
-    dm_rsp.rsp_hdr.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
+                    sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer; 
-    memcpy(p, &dm_rsp, sizeof(dm_rsp));
-
-   if (0 != cqueue_push(p,sizeof(dm_rsp))) {
+   if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct module_uptime_rsp_t))) {
         printf("pwr_svc_get_module_uptime: Cqueue push error!\n");
    }
 }
