@@ -72,7 +72,7 @@ void sim_api_communicate::SysEmuWrapper::print_iatus()
     }
 }
 
-bool sim_api_communicate::SysEmuWrapper::iatu_translate(uint64_t host_addr, uint64_t size,
+bool sim_api_communicate::SysEmuWrapper::iatu_translate(uint64_t pci_addr, uint64_t size,
                                                         uint64_t &device_addr,
                                                         uint64_t &access_size)
 {
@@ -97,12 +97,12 @@ bool sim_api_communicate::SysEmuWrapper::iatu_translate(uint64_t host_addr, uint
         uint64_t iatu_size = iatu_limit_addr - iatu_base_addr + 1;
 
         // Address within iATU
-        if (host_addr >= iatu_base_addr && host_addr <= iatu_limit_addr) {
-            uint64_t host_access_end = host_addr + size - 1;
+        if (pci_addr >= iatu_base_addr && pci_addr <= iatu_limit_addr) {
+            uint64_t host_access_end = pci_addr + size - 1;
             uint64_t access_end = std::min(host_access_end, iatu_limit_addr) + 1;
-            uint64_t offset = host_addr - iatu_base_addr;
+            uint64_t offset = pci_addr - iatu_base_addr;
 
-            access_size = access_end - host_addr;
+            access_size = access_end - pci_addr;
             device_addr = iatu_target_addr + offset;
             return true;
         }
@@ -111,34 +111,42 @@ bool sim_api_communicate::SysEmuWrapper::iatu_translate(uint64_t host_addr, uint
     return false;
 }
 
-bool sim_api_communicate::SysEmuWrapper::memory_read(uint64_t ad, size_t size, void *data)
+bool sim_api_communicate::SysEmuWrapper::memory_read(uint64_t device_addr, size_t size, void *data)
 {
-    const auto &pe0_gen_ctrl_3 = sim_->mem->spio_space.pcie_apb_subsys.pe0_gen_ctrl_3;
+    LOG_NOTHREAD(DEBUG, "sim_api_communicate: memory_read(device_addr = %" PRIx64 ", size = %zu)", device_addr, size);
+
+    sim_->mem->read(*this, device_addr, size, data);
+    return true;
+}
+
+bool sim_api_communicate::SysEmuWrapper::memory_write(uint64_t device_addr, size_t size, const void *data)
+{
+    LOG_NOTHREAD(DEBUG, "sim_api_communicate: memory_write(device_addr = %" PRIx64 ", size = %zu)", device_addr, size);
+
+    sim_->mem->write(*this, device_addr, size, data);
+    return true;
+}
+
+bool sim_api_communicate::SysEmuWrapper::pci_memory_read(uint64_t pci_addr, uint64_t size, void *data)
+{
     uint64_t host_access_offset = 0;
 
-    LOG_NOTHREAD(DEBUG, "sim_api_communicate: memory_read(ad = %" PRIx64 ", size = %zu)", ad, size);
+    LOG_NOTHREAD(DEBUG, "sim_api_communicate: pci_memory_read(pci_addr = %" PRIx64 ", size = %zu)", pci_addr, size);
 
-    // [SW-4821] If PCIe is not enabled (LTSSM): direct memory access ignoring iATUs
-    if ((pe0_gen_ctrl_3 & 1) == 0) {
-        sim_->mem->read(*this, ad, size, data);
-        return true;
-    }
-
-    // PCIe is enabled, perform ATU check
     while (size > 0) {
         uint64_t device_addr, access_size;
 
-        if (!iatu_translate(ad, size, device_addr, access_size)) {
+        if (!iatu_translate(pci_addr, size, device_addr, access_size)) {
             LOG_NOTHREAD(WARN, "iATU: Could not find translation for host address: 0x%" PRIx64
                                ", size: 0x%" PRIx64,
-                         ad, size);
+                         pci_addr, size);
             print_iatus();
             break;
         }
 
         sim_->mem->read(*this, device_addr, access_size, (char *)data + host_access_offset);
 
-        ad += access_size;
+        pci_addr += access_size;
         host_access_offset += access_size;
         size -= access_size;
     }
@@ -151,34 +159,26 @@ bool sim_api_communicate::SysEmuWrapper::memory_read(uint64_t ad, size_t size, v
     return true;
 }
 
-bool sim_api_communicate::SysEmuWrapper::memory_write(uint64_t ad, size_t size, const void *data)
+bool sim_api_communicate::SysEmuWrapper::pci_memory_write(uint64_t pci_addr, uint64_t size, const void *data)
 {
-    const auto &pe0_gen_ctrl_3 = sim_->mem->spio_space.pcie_apb_subsys.pe0_gen_ctrl_3;
     uint64_t host_access_offset = 0;
 
-    LOG_NOTHREAD(DEBUG, "sim_api_communicate: memory_write(ad = %" PRIx64 ", size = %zu)", ad, size);
+    LOG_NOTHREAD(DEBUG, "sim_api_communicate: memory_write(pci_addr = %" PRIx64 ", size = %zu)", pci_addr, size);
 
-    // [SW-4821] If PCIe is not enabled (LTSSM): direct memory access ignoring iATUs
-    if ((pe0_gen_ctrl_3 & 1) == 0) {
-        sim_->mem->write(*this, ad, size, data);
-        return true;
-    }
-
-    // PCIe is enabled, perform ATU check
     while (size > 0) {
         uint64_t device_addr, access_size;
 
-        if (!iatu_translate(ad, size, device_addr, access_size)) {
+        if (!iatu_translate(pci_addr, size, device_addr, access_size)) {
             LOG_NOTHREAD(WARN, "iATU: Could not find translation for host address: 0x%" PRIx64
                                ", size: 0x%" PRIx64,
-                         ad, size);
+                         pci_addr, size);
             print_iatus();
             break;
         }
 
         sim_->mem->write(*this, device_addr, access_size, (char *)data + host_access_offset);
 
-        ad += access_size;
+        pci_addr += access_size;
         host_access_offset += access_size;
         size -= access_size;
     }
