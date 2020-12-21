@@ -18,8 +18,9 @@ namespace rt {
 class MailboxReader {
 public:
   explicit MailboxReader(ITarget* target, KernelParametersCache* kernelParametersCache, EventManager* eventManager);
-
   ~MailboxReader();
+
+  void stop();
 
 private:
   std::thread reader_;

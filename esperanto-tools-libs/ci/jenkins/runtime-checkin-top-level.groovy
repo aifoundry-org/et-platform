@@ -65,7 +65,7 @@ pipeline {
           ]
       }
     }
-    stage('CLANG_CHECK') {
+    /*stage('CLANG_CHECK') {
       steps {
         build job:
           'sw-platform/runtime-integration/pipelines/runtime-clang-tests',
@@ -79,7 +79,7 @@ pipeline {
             string(name: 'TIMEOUT', value: '1')
           ]
       }
-    }
+    }*/
     stage('PARALLEL0') {
       parallel {
         stage('JOB_BASE_INTEGRATION') {

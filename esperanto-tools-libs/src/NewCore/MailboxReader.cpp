@@ -47,8 +47,11 @@ MailboxReader::MailboxReader(ITarget* target, KernelParametersCache* kernelParam
   });
 }
 
+void MailboxReader::stop() {
+  run_ = false;
+}
+
 MailboxReader::~MailboxReader() {
   run_ = false;
   reader_.join();
 }
-
