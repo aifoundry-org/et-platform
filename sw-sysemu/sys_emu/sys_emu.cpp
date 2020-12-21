@@ -923,13 +923,18 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<
         unsigned shire_minion_count =
                 (s == EMU_IO_SHIRE_SP) ? 1 : EMU_MINIONS_PER_SHIRE;
 
-        // Enable threads
-        uint32_t minion_mask = cmd_options.minions_en & ((1ull << shire_minion_count) - 1);
-        bemu::write_thread0_disable(s, ~minion_mask);
+        // Calculate mask of which Minions of the Shire to enable
+        uint32_t enable_minion_mask = cmd_options.minions_en & ((1ull << shire_minion_count) - 1);
+        if (((s == EMU_IO_SHIRE_SP) && cmd_options.sp_dis) ||
+            ((s != EMU_IO_SHIRE_SP) && cmd_options.mins_dis)) {
+            enable_minion_mask = 0;
+        }
+
+        bemu::write_thread0_disable(s, ~enable_minion_mask);
         if (disable_multithreading) {
             bemu::write_thread1_disable(s, 0xffffffff);
         } else {
-            bemu::write_thread1_disable(s, ~minion_mask);
+            bemu::write_thread1_disable(s, ~enable_minion_mask);
         }
 
         // For all the minions
