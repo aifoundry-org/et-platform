@@ -8,7 +8,8 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-set(DEV_FW_ARGS "--master_minion_elf=${MASTER_MINION_ELF} --machine_minion_elf=${MACHINE_MINION_ELF} --worker_minion_elf=${WORKER_MINION_ELF}")
+set(DEV_FW_ARGS "--bootrom_trampoline_to_bl2_elf=${BOOTROM_TRAMPOLINE_TO_BL2_ELF} --bl2_elf=${BL2_ELF} \
+                 --master_minion_elf=${MASTER_MINION_ELF} --machine_minion_elf=${MACHINE_MINION_ELF} --worker_minion_elf=${WORKER_MINION_ELF}")
 
 set(TEST_LIST
   test_device_target_sysemu_grpc.cc:""

@@ -89,15 +89,13 @@ find_package(absl REQUIRED)
 # Esperanto dependencies
 find_package(SimulatorAPI REQUIRED)
 find_package(esperanto-device-api REQUIRED)
+find_package(EsperantoBootLoader REQUIRED)
 find_package(EsperantoDeviceMinionRuntime REQUIRED)
 find_package(EsperantoTestKernels REQUIRED)
 find_package(EsperantoPCIeDriver REQUIRED)
 
-
-set(MINION_RUNTIME_PACKAGE_NAME EsperantoDeviceMinionRuntime)
+message("EsperantoBootLoader found: " ${EsperantoBootLoader_FOUND})
 message("EsperantoDeviceMinionRuntime found: " ${EsperantoDeviceMinionRuntime_FOUND})
-set(MINION_RUNTIME_FOUND 1)
-set(ESPERANTO_FW_INCLUDE_DIR ${ESPERANTO_DEVICE_MINION_RUNTIME_INCLUDE_DIR})
 
 # Add definitions and compile options
 add_definitions("-DENABLE_ET_LOG=$<BOOL:${ENABLE_ET_LOG}>")

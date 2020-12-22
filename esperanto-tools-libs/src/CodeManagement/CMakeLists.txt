@@ -32,6 +32,4 @@ target_include_directories(etrt_CodeManagement PRIVATE
 
 add_sanitizers(etrt_CodeManagement)
 
-if(MINION_RUNTIME_FOUND)
-  target_include_directories(etrt_CodeManagement PRIVATE "${ESPERANTO_FW_INCLUDE_DIR}/")
-endif(MINION_RUNTIME_FOUND)
+target_include_directories(etrt_CodeManagement PRIVATE "${ESPERANTO_DEVICE_MINION_RUNTIME_INCLUDE_DIR}/")

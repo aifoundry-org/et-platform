@@ -35,8 +35,7 @@ target_include_directories(etrt_RPCDevice PRIVATE
   ${PROJECT_BINARY_DIR}/src
   ${EXTERNAL_INCLUDE_DIRECTORIES}
   )
-if(MINION_RUNTIME_FOUND)
-  target_include_directories(etrt_RPCDevice PRIVATE "${ESPERANTO_FW_INCLUDE_DIR}/")
-endif(MINION_RUNTIME_FOUND)
+
+target_include_directories(etrt_RPCDevice PRIVATE "${ESPERANTO_DEVICE_MINION_RUNTIME_INCLUDE_DIR}/")
 
 add_sanitizers(etrt_RPCDevice)
