@@ -38,17 +38,12 @@
 #include <stdio.h>
 
 #include "dm.h"
-#include "dm_config.h"
+#include "dm_service.h"
 #include "sp_host_iface.h"
 #include "bl2_pmic_controller.h"
+#include "dm_task.h"
 
 #include "bl2_thermal_power_monitor.h"
-
-/************************************************************************************
-This struct is temporary placed here - as it will move to actual Power Management
-function which will initialize the Global Register state
-************************************************************************************/
-struct soc_power_reg_t *g_soc_power_reg __attribute__((section(".data")));
 
 /************************************************************************
 *
@@ -83,7 +78,7 @@ static void pwr_svc_get_module_power_state(uint64_t req_start_time)
 {
     struct power_state_rsp_t dm_rsp;
 
-    dm_rsp.pwr_state = g_soc_power_reg->module_power_state;
+    dm_rsp.pwr_state = get_soc_power_reg()->module_power_state;
 
     FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
                     sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
@@ -126,7 +121,7 @@ static void pwr_svc_set_module_power_state(uint64_t req_start_time, power_state_
 {
     struct rsp_hdr_t dm_rsp;
     
-    g_soc_power_reg->module_power_state = state;
+    get_soc_power_reg()->module_power_state = state;
 
     FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS,
                     sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
@@ -162,8 +157,8 @@ static void pwr_svc_get_module_power(uint64_t req_start_time)
 {
     struct module_power_rsp_t dm_rsp;
     
-    g_soc_power_reg->soc_power = pmic_read_soc_power(); 
-    dm_rsp.watts = g_soc_power_reg->soc_power;
+    get_soc_power_reg()->soc_power = pmic_read_soc_power(); 
+    dm_rsp.watts = get_soc_power_reg()->soc_power;
 
     FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
                     sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
@@ -201,13 +196,9 @@ static void pwr_svc_get_module_voltage(uint64_t req_start_time, module_t shire)
 {
     struct module_voltage_rsp_t dm_rsp;
 
-    g_soc_power_reg->module_voltage.minion_shire_mV = pmic_get_voltage(shire);     
-    dm_rsp.module_voltage.minion_shire_mV = g_soc_power_reg->module_voltage.minion_shire_mV;
-    dm_rsp.module_voltage.noc_mV          = g_soc_power_reg->module_voltage.noc_mV;
-    dm_rsp.module_voltage.mem_shire_mV    = g_soc_power_reg->module_voltage.mem_shire_mV;
-    dm_rsp.module_voltage.ddr_mV          = g_soc_power_reg->module_voltage.ddr_mV;
-    dm_rsp.module_voltage.pcie_shire_mV   = g_soc_power_reg->module_voltage.pcie_shire_mV;
-    dm_rsp.module_voltage.io_shire_mV     = g_soc_power_reg->module_voltage.io_shire_mV;
+    get_soc_power_reg()->module_voltage.minion_shire_mV = pmic_get_voltage(shire);
+    
+    dm_rsp.module_voltage = get_soc_power_reg()->module_voltage;
 
     FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
                     sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
@@ -252,7 +243,7 @@ static void pwr_svc_get_module_tdp_level(uint64_t req_start_time)
 {
     struct tdp_level_rsp_t dm_rsp;
 
-    dm_rsp.tdp_level = g_soc_power_reg->module_tdp_level;
+    dm_rsp.tdp_level = get_soc_power_reg()->module_tdp_level;
 
     FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
                     sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
@@ -291,7 +282,7 @@ static void pwr_svc_set_module_tdp_level(uint64_t req_start_time, tdp_level_t td
 
     // TODO implement response handler for PMIC Read
     pmic_set_tdp_threshold(tdp);
-    g_soc_power_reg->module_tdp_level = tdp;
+    get_soc_power_reg()->module_tdp_level = tdp;
 
     FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS,
                     sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
@@ -327,8 +318,7 @@ static void pwr_svc_set_module_tdp_level(uint64_t req_start_time, tdp_level_t td
 static void pwr_svc_get_module_temp_thresholds(uint64_t req_start_time)
 {
     struct temperature_threshold_rsp_t dm_rsp;
-    dm_rsp.temperature_threshold.lo_temperature_c = g_soc_power_reg->temperature_threshold.lo_temperature_c;
-    dm_rsp.temperature_threshold.hi_temperature_c = g_soc_power_reg->temperature_threshold.hi_temperature_c;
+    dm_rsp.temperature_threshold = get_soc_power_reg()->temperature_threshold;
 
     FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
                     sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
@@ -367,8 +357,8 @@ static void pwr_svc_set_module_temp_thresholds(uint64_t req_start_time, uint8_t 
 
     pmic_set_temperature_threshold(L0, lo_threshold);
     pmic_set_temperature_threshold(HI, hi_threshold);
-    g_soc_power_reg->temperature_threshold.lo_temperature_c = lo_threshold;
-    g_soc_power_reg->temperature_threshold.hi_temperature_c = hi_threshold;
+    get_soc_power_reg()->temperature_threshold.lo_temperature_c = lo_threshold;
+    get_soc_power_reg()->temperature_threshold.hi_temperature_c = hi_threshold;
    
     FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS,
                     sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
@@ -406,8 +396,8 @@ static void pwr_svc_get_module_current_temperature(uint64_t req_start_time)
 {
     struct current_temperature_rsp_t dm_rsp;
 
-    g_soc_power_reg->soc_temperature = pmic_get_temperature();
-    dm_rsp.temperature_c = g_soc_power_reg->soc_temperature;
+    get_soc_power_reg()->soc_temperature = pmic_get_temperature();
+    dm_rsp.temperature_c = get_soc_power_reg()->soc_temperature;
 
     FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
                     sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
@@ -444,7 +434,7 @@ static void pwr_svc_get_module_residency_throttle_states(uint64_t req_start_time
 {
     struct throttle_time_rsp_t dm_rsp;
 
-    dm_rsp.time_usec = g_soc_power_reg->throttled_states_residency;
+    dm_rsp.time_usec = get_soc_power_reg()->throttled_states_residency;
 
     FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
                     sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
@@ -481,7 +471,7 @@ static void pwr_svc_get_module_max_temperature(uint64_t req_start_time)
 {
     struct max_temperature_rsp_t dm_rsp;
 
-    dm_rsp.max_temperature_c = g_soc_power_reg->max_temp;
+    dm_rsp.max_temperature_c = get_soc_power_reg()->max_temp;
 
     FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
                     sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
@@ -517,9 +507,7 @@ static void pwr_svc_get_module_uptime(uint64_t req_start_time)
 {
     struct module_uptime_rsp_t dm_rsp;
 
-    dm_rsp.module_uptime.day     = g_soc_power_reg->module_uptime.day;
-    dm_rsp.module_uptime.hours   = g_soc_power_reg->module_uptime.hours;
-    dm_rsp.module_uptime.seconds = g_soc_power_reg->module_uptime.seconds;
+    dm_rsp.module_uptime  = get_soc_power_reg()->module_uptime;
 
     FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
                     sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),

@@ -42,9 +42,11 @@ set(BL2_SOURCES
     rtos_task/command_dispatcher.c
     rtos_task/flash_fs.c
     rtos_task/vaultip.c
+    rtos_task/dm_task.c
     dm_service/firmware_update.c
     dm_service/asset_track.c
     dm_service/thermal_power_monitor.c
+    dm_service/performance.c
     dm_service/link_mgmt.c
     dm_service/error_control.c
     dm_service/historical_extreme.c

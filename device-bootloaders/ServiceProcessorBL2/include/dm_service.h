@@ -32,10 +32,8 @@ struct soc_power_reg_t {
      uint64_t throttled_states_residency;
 };
 
-
 /* Standard Response for all DM services */
 #define  FILL_RSP_HEADER(rsp, sts, sz, latency) (rsp).status = sts; (rsp).size = sz; \
                                                      (rsp).device_latency_usec = latency
-
 
 #endif

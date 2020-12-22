@@ -37,6 +37,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
+#include "dm_task.h"
 #include "bl2_crypto.h"
 #include "bl2_asset_trk.h"
 
@@ -334,6 +335,9 @@ static void taskMain(void *pvParameters)
 
     // Set SP ready, SP has reached sync point
     MBOX_set_status(MBOX_MASTER_MINION, MBOX_MASTER, MBOX_STATUS_READY);
+
+    // Init DM sampling task 
+    init_dm_sampling_task();
 
 #if !FAST_BOOT
     // SP and minions have booted successfully. Increment the completed boot counter

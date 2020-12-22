@@ -318,7 +318,7 @@ struct module_uptime_cmd_t {
 struct module_uptime_t {
     uint16_t day; // time day
     uint8_t  hours; // time hour
-    uint8_t  seconds; // time seconds
+    uint8_t  mins; // time minutes
 };
 
 struct module_uptime_rsp_t {
