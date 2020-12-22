@@ -59,12 +59,14 @@ SERVICE_PROCESSOR_BL2_DATA_t *get_service_processor_bl2_data(void)
     return &g_service_processor_bl2_data;
 }
 
+#ifndef IMPLEMENTATION_BYPASS
 static volatile SP_DEV_INTF_REG_s *g_sp_dev_intf_reg = (void *)SP_DEV_INTF_BASE_ADDR;
 
 volatile SP_DEV_INTF_REG_s *get_service_processor_dev_intf_reg(void)
 {
     return g_sp_dev_intf_reg;
 }
+#endif /* IMPLEMENTATION_BYPASS */
 
 bool is_vaultip_disabled(void)
 {
@@ -136,6 +138,7 @@ static void poll_for_mm_ready(void)
     printf("\nMM Not Ready !\n");
 }
 
+#ifndef IMPLEMENTATION_BYPASS
 static void sp_dev_interface_reg_init(uint64_t minion_shires)
 {
     g_sp_dev_intf_reg->status = SP_DEV_INTF_SP_BOOT_STATUS_VQ_DESC_NOT_READY;
@@ -173,6 +176,7 @@ static void sp_dev_interface_reg_init(uint64_t minion_shires)
     // Update Status to indicate SP VQ is ready to use
     g_sp_dev_intf_reg->status = SP_DEV_INTF_SP_BOOT_STATUS_DEV_INTF_READY_INITIALIZED;
 }
+#endif /* IMPLEMENTATION_BYPASS */
 
 static inline void write_minion_fw_boot_config(uint64_t minion_shires)
 {
@@ -207,8 +211,15 @@ static void taskMain(void *pvParameters)
 #endif
 
     minion_shires_mask = calculate_minion_shire_enable_mask();
+#ifdef IMPLEMENTATION_BYPASS
+    /* Initialize the DIRs */
+    DIR_Init();
 
+    /* Set the minion shires available */
+    DIR_Set_Minion_Shires(minion_shires_mask);
+#else
     sp_dev_interface_reg_init(minion_shires_mask);
+#endif /* IMPLEMENTATION_BYPASS */
 
     printf("time: %lu\n", timer_get_ticks_count());
 

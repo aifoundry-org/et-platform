@@ -12,11 +12,20 @@
 #ifndef __BL2_MAIN_H__
 #define __BL2_MAIN_H__
 
+/* Temproary macro to route execution control
+to the new implementation of SP runtime */
+//#define IMPLEMENTATION_BYPASS
+
 #include "service_processor_BL2_data.h"
-#include "sp_dev_intf_reg.h"
 
 SERVICE_PROCESSOR_BL2_DATA_t *get_service_processor_bl2_data(void);
+
+#ifdef IMPLEMENTATION_BYPASS
+#include "config/dir_regs.h"
+#else
+#include "sp_dev_intf_reg.h"
 volatile SP_DEV_INTF_REG_s *get_service_processor_dev_intf_reg(void);
+#endif /* IMPLEMENTATION_BYPASS */
 
 bool is_vaultip_disabled(void);
 

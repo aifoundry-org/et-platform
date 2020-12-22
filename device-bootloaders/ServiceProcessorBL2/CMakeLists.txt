@@ -18,6 +18,7 @@ set(BL2_SOURCES
     common/entry.S
     common/trap_handler.S
     common/main.c
+    config/dir_regs.c
     interface/sp_host_iface.c
     interface/sp_mm_iface.c
     utils/stubs.c
