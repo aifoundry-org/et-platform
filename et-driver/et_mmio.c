@@ -1,4 +1,5 @@
 #include "et_mmio.h"
+#include "et_io.h"
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -32,35 +33,15 @@ int et_mmio_iomem_idx(uint64_t soc_addr, uint64_t count)
 	return -EINVAL;
 }
 
-static void et_iowrite8_block(void __iomem *port, const void *src, u64 count)
-{
-	while (count--) {
-		iowrite8(*(u8 *)src, port);
-		++src;
-		++port;
-	}
-}
-
-static void et_iowrite32_block(void __iomem *port, const void *src, u64 count)
-{
-	while (count--) {
-		iowrite32(*(u32 *)src, port);
-		src += 4;
-		port += 4;
-	}
-}
-
 ssize_t et_mmio_write_from_user(const char __user *buf, size_t count,
 				loff_t *pos, struct et_pci_dev *et_dev)
 {
 	int iomem_idx;
-	ssize_t rv, write_count = 0;
+	ssize_t rv;
 	void __iomem *iomem;
 	uint64_t soc_addr = (uint64_t)*pos;
 	uint64_t off;
-	uint64_t iocount;
 	uint8_t *kern_buf;
-	uint8_t *buf_pos;
 
 	//Bounds check and lookup BAR mapping
 	iomem_idx = et_mmio_iomem_idx(soc_addr, count);
@@ -76,7 +57,6 @@ ssize_t et_mmio_write_from_user(const char __user *buf, size_t count,
 		pr_err("failed to kmalloc\n");
 		return -ENOMEM;
 	}
-	buf_pos = kern_buf;
 
 	rv = copy_from_user(kern_buf, buf, count);
 	if (rv) {
@@ -84,72 +64,26 @@ ssize_t et_mmio_write_from_user(const char __user *buf, size_t count,
 		goto error;
 	}
 
-	//Write initial bytes to get to u32 alignment
-	iocount = 4 - (off & 0x3);
-	if (iocount) {
-		et_iowrite8_block(iomem + off, buf_pos, iocount);
+	et_iowrite(iomem, off, kern_buf, count);
 
-		off += iocount;
-		buf_pos += iocount;
-		write_count += iocount;
-	}
+	*pos += count;
+	rv = count;
 
-	//Copy 32-bit aligned values
-	//TODO: enable/use 64-bit MMIO accesses
-	iocount = (count - write_count) / 4;
-	if (iocount) {
-		et_iowrite32_block(iomem + off, buf_pos, iocount);
-
-		off += iocount * 4;
-		buf_pos += iocount * 4;
-		write_count += iocount * 4;
-	}
-
-	//Remaining bytes smaller than a u32
-	iocount = count - write_count;
-	if (iocount) {
-		et_iowrite8_block(iomem + off, buf_pos, iocount);
-
-		write_count += iocount;
-	}
-
-	rv = write_count;
-	*pos += write_count;
 error:
 	kfree(kern_buf);
 
 	return rv;
 }
 
-static void et_ioread8_block(void __iomem *port, const void *dst, u64 count)
-{
-	while (count--) {
-		*(u8 *)dst = ioread8(port);
-		++port;
-		++dst;
-	}
-}
-
-static void et_ioread32_block(void __iomem *port, const void *dst, u64 count)
-{
-	while (count--) {
-		*(u32 *)dst = ioread32(port);
-		dst += 4;
-		port += 4;
-	}
-}
-
 ssize_t et_mmio_read_to_user(char __user *buf, size_t count, loff_t *pos,
 			     struct et_pci_dev *et_dev)
 {
 	int iomem_idx;
-	ssize_t rv, read_count = 0;
+	ssize_t rv;
 	void __iomem *iomem;
 	uint64_t soc_addr = (uint64_t)*pos;
 	uint64_t off;
-	uint64_t iocount;
 	uint8_t *kern_buf;
-	uint8_t *buf_pos;
 
 	//Bounds check and lookup BAR mapping
 	iomem_idx = et_mmio_iomem_idx(soc_addr, count);
@@ -165,44 +99,16 @@ ssize_t et_mmio_read_to_user(char __user *buf, size_t count, loff_t *pos,
 		pr_err("failed to kmalloc\n");
 		return -ENOMEM;
 	}
-	buf_pos = kern_buf;
 
-	//Go to next u32 aligned iomem 
-	iocount = 4 - (off & 0x3);
-	if (iocount) {
-		et_ioread8_block(iomem + off, buf_pos, iocount);
+	et_ioread(iomem, off, kern_buf, count);
 
-		off += iocount;
-		buf_pos += iocount;
-		read_count += iocount;
-	}
-
-	//Copy 32-bit aligned values.
-	//TODO: enable/use 64-bit MMIO accesses
-	iocount = (count - read_count) / 4;
-	if (iocount) {
-		et_ioread32_block(iomem + off, buf_pos, iocount);
-
-		off += iocount * 4;
-		buf_pos += iocount * 4;
-		read_count += iocount * 4;
-	}
-
-	//Remaining bytes smaller than a u32
-	iocount = count - read_count;
-	if (iocount) {
-		et_ioread8_block(iomem + off, buf_pos, iocount);
-
-		read_count += iocount;
-	}
-
-	rv = copy_to_user(buf, kern_buf, read_count);
+	rv = copy_to_user(buf, kern_buf, count);
 	if (rv) {
 		pr_err("failed to copy to user\n");
 		goto error;
 	}
 
-	rv = read_count;
+	rv = count;
 
 error:
 	kfree(kern_buf);
@@ -215,12 +121,10 @@ ssize_t et_mmio_write_to_device(struct et_pci_dev *et_dev,
 				u64 soc_addr)
 {
 	int iomem_idx;
-	ssize_t rv, write_count = 0;
+	ssize_t rv;
 	void __iomem *iomem;
 	u64 off;
-	u64 iocount;
 	u8 *kern_buf;
-	u8 *buf_pos;
 
 	// Bounds check and lookup BAR mapping
 	iomem_idx = et_mmio_iomem_idx(soc_addr, count);
@@ -236,7 +140,6 @@ ssize_t et_mmio_write_to_device(struct et_pci_dev *et_dev,
 		pr_err("failed to kmalloc\n");
 		return -ENOMEM;
 	}
-	buf_pos = kern_buf;
 
 	rv = copy_from_user(kern_buf, buf, count);
 	if (rv) {
@@ -244,36 +147,10 @@ ssize_t et_mmio_write_to_device(struct et_pci_dev *et_dev,
 		goto error;
 	}
 
-	//Write initial bytes to get to u32 alignment
-	iocount = 4 - (off & 0x3);
-	if (iocount) {
-		et_iowrite8_block(iomem + off, buf_pos, iocount);
+	et_iowrite(iomem, off, kern_buf, count);
 
-		off += iocount;
-		buf_pos += iocount;
-		write_count += iocount;
-	}
+	rv = count;
 
-	//Copy 32-bit aligned values
-	//TODO: enable/use 64-bit MMIO accesses
-	iocount = (count - write_count) / 4;
-	if (iocount) {
-		et_iowrite32_block(iomem + off, buf_pos, iocount);
-
-		off += iocount * 4;
-		buf_pos += iocount * 4;
-		write_count += iocount * 4;
-	}
-
-	//Remaining bytes smaller than a u32
-	iocount = count - write_count;
-	if (iocount) {
-		et_iowrite8_block(iomem + off, buf_pos, iocount);
-
-		write_count += iocount;
-	}
-
-	rv = write_count;
 error:
 	kfree(kern_buf);
 
@@ -284,12 +161,10 @@ ssize_t et_mmio_read_from_device(struct et_pci_dev *et_dev, char __user *buf,
 				 size_t count, u64 soc_addr)
 {
 	int iomem_idx;
-	ssize_t rv, read_count = 0;
+	ssize_t rv;
 	void __iomem *iomem;
 	u64 off;
-	u64 iocount;
 	u8 *kern_buf;
-	u8 *buf_pos;
 
 	//Bounds check and lookup BAR mapping
 	iomem_idx = et_mmio_iomem_idx(soc_addr, count);
@@ -305,44 +180,16 @@ ssize_t et_mmio_read_from_device(struct et_pci_dev *et_dev, char __user *buf,
 		pr_err("failed to kmalloc\n");
 		return -ENOMEM;
 	}
-	buf_pos = kern_buf;
 
-	//Go to next u32 aligned iomem
-	iocount = 4 - (off & 0x3);
-	if (iocount) {
-		et_ioread8_block(iomem + off, buf_pos, iocount);
+	et_ioread(iomem, off, kern_buf, count);
 
-		off += iocount;
-		buf_pos += iocount;
-		read_count += iocount;
-	}
-
-	//Copy 32-bit aligned values.
-	//TODO: enable/use 64-bit MMIO accesses
-	iocount = (count - read_count) / 4;
-	if (iocount) {
-		et_ioread32_block(iomem + off, buf_pos, iocount);
-
-		off += iocount * 4;
-		buf_pos += iocount * 4;
-		read_count += iocount * 4;
-	}
-
-	//Remaining bytes smaller than a u32
-	iocount = count - read_count;
-	if (iocount) {
-		et_ioread8_block(iomem + off, buf_pos, iocount);
-
-		read_count += iocount;
-	}
-
-	rv = copy_to_user(buf, kern_buf, read_count);
+	rv = copy_to_user(buf, kern_buf, count);
 	if (rv) {
 		pr_err("failed to copy to user\n");
 		goto error;
 	}
 
-	rv = read_count;
+	rv = count;
 
 error:
 	kfree(kern_buf);

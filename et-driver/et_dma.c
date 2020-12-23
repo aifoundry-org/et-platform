@@ -1,9 +1,9 @@
 #include "et_dma.h"
+#include "et_io.h"
 
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/errno.h>
-#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -138,14 +138,11 @@ int et_dma_bounds_check(uint64_t soc_addr, uint64_t count)
 
 #define DATA_CTRL 0
 #define DATA_SIZE 4
-#define DATA_SAR_LOW 8
-#define DATA_SAR_HIGH 12
-#define DATA_DAR_LOW 16
-#define DATA_DAR_HIGH 20
+#define DATA_SAR 8
+#define DATA_DAR 16
 
 #define LINK_CTRL 0
-#define LINK_PTR_LOW 8
-#define LINK_PTR_HIGH 12
+#define LINK_PTR 8
 
 #define XFER_NODE_BYTES 24
 
@@ -165,10 +162,8 @@ static void write_xfer_list_data(enum ET_DMA_CHAN_ID id, uint32_t i,
 
 	iowrite32(ctrl_dword, offset + DATA_CTRL);
 	iowrite32(size, offset + DATA_SIZE);
-	iowrite32((u32)sar, offset + DATA_SAR_LOW);
-	iowrite32((u32)(sar >> 32), offset + DATA_SAR_HIGH);
-	iowrite32((u32)dar, offset + DATA_DAR_LOW);
-	iowrite32((u32)(dar >> 32), offset + DATA_DAR_HIGH);
+	iowrite64(sar, offset + DATA_SAR);
+	iowrite64(dar, offset + DATA_DAR);
 }
 
 /*
@@ -184,8 +179,7 @@ static void write_xfer_list_link(enum ET_DMA_CHAN_ID id, uint32_t i,
 	uint32_t ctrl_dword = CTRL_TCB | CTRL_LLP;
 
 	iowrite32(ctrl_dword, offset + LINK_CTRL);
-	iowrite32((u32)ptr, offset + LINK_PTR_LOW);
-	iowrite32((u32)(ptr >> 32), offset + LINK_PTR_HIGH);
+	iowrite64(ptr, offset + LINK_PTR);
 }
 
 static ssize_t et_dma_contig_buff(dma_addr_t buff, uint64_t soc_addr,

@@ -1,6 +1,5 @@
 #include "et_ringbuffer.h"
-
-#include <linux/io.h>
+#include "et_io.h"
 
 uint32_t et_ringbuffer_used(uint32_t head_index, uint32_t tail_index)
 {
@@ -20,33 +19,20 @@ uint32_t et_ringbuffer_free(const uint32_t head_index,
 uint32_t et_ringbuffer_write(void __iomem *queue, uint8_t *buff,
 			     uint32_t head_index, size_t len)
 {
-	uint32_t dwords;
+	size_t bytes_to_write;
 
-	//Write until next u32 alignment
-	while (head_index & 0x3 && len) {
-		iowrite8(*buff, queue + head_index);
-		head_index = (head_index + 1U) % ET_RINGBUFFER_LENGTH;
-		++buff;
-		--len;
-	}
-
-	//Write u32 aligned values
-	dwords = len / 4;
-
-	while (dwords) {
-		iowrite32(*(u32 *)buff, queue + head_index);
-		head_index = (head_index + 4U) % ET_RINGBUFFER_LENGTH;
-		buff += 4;
-		len -= 4;
-		--dwords;
-	}
-
-	//Write any remaining bytes (0-3 bytes)
 	while (len) {
-		iowrite8(*buff, queue + head_index);
-		head_index = (head_index + 1U) % ET_RINGBUFFER_LENGTH;
-		++buff;
-		--len;
+		if ((head_index + len) > ET_RINGBUFFER_LENGTH)
+			bytes_to_write = ET_RINGBUFFER_LENGTH - head_index;
+		else
+			bytes_to_write = len;
+
+		et_iowrite(queue, head_index, buff, bytes_to_write);
+
+		head_index = (head_index + bytes_to_write) %
+			     ET_RINGBUFFER_LENGTH;
+		len -= bytes_to_write;
+		buff += bytes_to_write;
 	}
 
 	return head_index;
@@ -55,33 +41,20 @@ uint32_t et_ringbuffer_write(void __iomem *queue, uint8_t *buff,
 uint32_t et_ringbuffer_read(void __iomem *queue, uint8_t *buff,
 			    uint32_t tail_index, size_t len)
 {
-	uint32_t dwords;
+	size_t bytes_to_read;
 
-	//Read until next u32 alignment
-	while (tail_index & 0x3 && len) {
-		*buff = ioread8(queue + tail_index);
-		tail_index = (tail_index + 1U) % ET_RINGBUFFER_LENGTH;
-		++buff;
-		--len;
-	}
-
-	//Read u32 aligned values
-	dwords = len / 4;
-
-	while (dwords) {
-		*(u32 *)buff = ioread32(queue + tail_index);
-		tail_index = (tail_index + 4U) % ET_RINGBUFFER_LENGTH;
-		buff += 4;
-		len -= 4;
-		--dwords;
-	}
-
-	//Read any remaining bytes (0-3 bytes)
 	while (len) {
-		*buff = ioread8(queue + tail_index);
-		tail_index = (tail_index + 1U) % ET_RINGBUFFER_LENGTH;
-		++buff;
-		--len;
+		if ((tail_index + len) > ET_RINGBUFFER_LENGTH)
+			bytes_to_read = ET_RINGBUFFER_LENGTH - tail_index;
+		else
+			bytes_to_read = len;
+
+		et_ioread(queue, tail_index, buff, bytes_to_read);
+
+		tail_index = (tail_index + bytes_to_read) %
+			     ET_RINGBUFFER_LENGTH;
+		len -= bytes_to_read;
+		buff += bytes_to_read;
 	}
 
 	return tail_index;

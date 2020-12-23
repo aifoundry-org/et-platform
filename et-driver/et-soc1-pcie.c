@@ -27,6 +27,7 @@
 #include <asm/uaccess.h>
 #include <linux/poll.h>
 
+#include "et_io.h"
 #include "et_dma.h"
 #include "et_ioctl.h"
 #include "et_layout.h"
@@ -73,15 +74,6 @@ static unsigned long dev_bitmap;
  */
 #define IPI_TRIGGER_OFFSET 0
 #define MMM_INT_INC_OFFSET 4
-
-static u64 et_ioread64(void __iomem *addr)
-{
-	u64 low, high;
-
-	low = ioread32(addr);
-	high = ioread32(addr + sizeof(u32));
-	return low | (high << 32);
-}
 
 static u8 get_index(void)
 {
@@ -198,11 +190,11 @@ static int et_vqueues_discover(struct et_pci_dev *et_dev)
 
 	bm_info.bar = ioread8(&dir_mm_ptr->ddr_region
 			[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].bar);
-	bm_info.bar_offset = et_ioread64(&dir_mm_ptr->ddr_region
+	bm_info.bar_offset = ioread64(&dir_mm_ptr->ddr_region
 			[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].offset);
-	bm_info.size            = et_ioread64(&dir_mm_ptr->ddr_region
+	bm_info.size            = ioread64(&dir_mm_ptr->ddr_region
 			[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].size);
-	et_dev->hm_dram_base    = et_ioread64(&dir_mm_ptr->ddr_region
+	et_dev->hm_dram_base    = ioread64(&dir_mm_ptr->ddr_region
 			[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].devaddr);
 	et_dev->hm_dram_size    = bm_info.size;
 	bm_info.strictly_order_access =
@@ -217,8 +209,8 @@ static int et_vqueues_discover(struct et_pci_dev *et_dev)
 	//	return rc;
 
 	bm_info.bar             = ioread8(&dir_mm_ptr->mm_vq.bar);
-	bm_info.bar_offset      = et_ioread64(&dir_mm_ptr->mm_vq.bar_offset);
-	bm_info.size            = et_ioread64(&dir_mm_ptr->mm_vq.bar_size);
+	bm_info.bar_offset      = ioread64(&dir_mm_ptr->mm_vq.bar_offset);
+	bm_info.size            = ioread64(&dir_mm_ptr->mm_vq.bar_size);
 	bm_info.strictly_order_access =
 		is_bar_prefetchable(et_dev, bm_info.bar);
 
