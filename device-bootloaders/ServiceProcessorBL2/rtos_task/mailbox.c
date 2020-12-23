@@ -203,6 +203,7 @@ static void mbox_task(void *pvParameters)
                 }
                 break;
             }
+#ifdef MAILBOX_SUPPORTED            
             case GET_MODULE_MANUFACTURE_NAME:
             case GET_MODULE_PART_NUMBER:
             case GET_MODULE_SERIAL_NUMBER:
@@ -227,6 +228,7 @@ static void mbox_task(void *pvParameters)
                 firmware_service_process_request(mbox, (uint32_t)*message_id, (void *)buffer);
                 break;
             }
+#endif             
             default:
                 printf("Invalid message id: %" PRIu64 "\r\n", *message_id);
                 printf("message length: %" PRIi64 ", buffer:\r\n", length);

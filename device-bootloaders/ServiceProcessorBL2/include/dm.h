@@ -22,6 +22,10 @@
 #include "bl2_timer.h"
 #include "service_processor_BL2_data.h"
 
+//TODO: Remove below define once HOST VQ support is completed. The dependency
+//      of processing the command using mailbox should also be removed in asset_track.c and firmware_update.c.
+#define MAILBOX_SUPPORTED
+
 extern struct dm_control_block dm_cmd_rsp;
 
 typedef uint32_t
@@ -190,18 +194,27 @@ struct asset_tracking_cmd_t {
     struct cmd_hdr_t cmd_hdr; // Command header
 };
 
+struct asset_tracking_t {
+    char asset[8]; // Populated by the device during response
+};
+
 struct asset_tracking_rsp_t {
     struct rsp_hdr_t rsp_hdr;
-    char asset[8]; // Populated by the device during response
+    struct asset_tracking_t asset_info;
 };
 
 struct fused_pub_keys_cmd_t {
     struct cmd_hdr_t cmd_hdr; // Command header
 };
 
+struct fused_public_keys_t {
+  uint8_t  keys[32];
+  
+};
+
 struct fused_pub_keys_rsp_t {
     struct rsp_hdr_t rsp_hdr; 
-    uint8_t keys[32]; // Populated by the device during response
+    struct fused_public_keys_t  fused_public_keys; /// Fused public keys
 };
 
 struct firmware_versions_cmd_t {
@@ -221,14 +234,22 @@ struct firmware_versions_rsp_t {
     struct firmware_versions_t firmware_versions;   
 };
 
+struct fw_image_path_t {
+  char  path[64]; // Firmware image path
+  
+};
 struct update_firmware_cmd_t {
     struct cmd_hdr_t cmd_hdr; // Command header
-    char fw_image_path[64]; // Firmware image path
+    struct fw_image_path_t  fw_image_path; /// Firmware image path.
 };
 
+struct certificate_hash_t {
+  char  hash[32];
+  
+};
 struct certificate_hash_cmd_t {
-    struct cmd_hdr_t cmd_hdr; // Command header
-    char hash[32]; // certificate hash
+  struct cmd_header_t command_info;
+  struct certificate_hash_t  certificate_hash; /// Certificate hash. Size needs to be actually 32 bytes.
 };
 
 struct temperature_threshold_t {
@@ -270,6 +291,10 @@ struct current_temperature_cmd_t {
     struct cmd_hdr_t cmd_hdr; // Command header
 };
 
+struct current_temperature_t {
+  uint8_t  temperature_c;
+  
+};
 struct current_temperature_rsp_t {
     struct rsp_hdr_t rsp_hdr; 
     uint8_t temperature_c; // Current temperature (in C)
@@ -339,28 +364,42 @@ struct max_memory_error_cmd_t {
     struct cmd_hdr_t cmd_hdr; // Command header
 };
 
+struct max_ecc_count_t {
+    uint8_t count; // Max ECC Count
+};
+
 struct max_memory_error_rsp_t {
     struct rsp_hdr_t rsp_hdr; 
-    uint8_t max_ecc_count; // Max ECC Count
+    struct max_ecc_count_t max_ecc_count; 
 };
 
 struct max_dram_bw_cmd_t {
     struct cmd_hdr_t cmd_hdr; // Command header
 };
 
-struct max_dram_bw_rsp_t {
-    struct rsp_hdr_t rsp_hdr; 
+struct max_dram_bw_t {
     uint8_t max_bw_rd_req_sec; // Max BW Read Req Secs
     uint8_t max_bw_wr_req_sec; // Max BW Write Req Secs
+  
+};
+
+struct max_dram_bw_rsp_t {
+    struct rsp_hdr_t rsp_hdr;
+    struct max_dram_bw_t max_dram_bw;
+
 };
 
 struct max_throttle_time_cmd_t {
     struct cmd_hdr_t cmd_hdr; // Command header
 };
 
+struct max_throttle_time_t {
+   uint64_t usec; // Max throttle time in usecs
+};
+
 struct max_throttle_time_rsp_t {
     struct rsp_hdr_t rsp_hdr; 
-    uint64_t max_time_usec; // Max throttle time in usecs
+    struct max_throttle_time_t max_throttle_time;
 };
 
 struct set_error_count_cmd_t {
@@ -377,20 +416,29 @@ struct get_error_count_cmd_t {
     struct cmd_hdr_t cmd_hdr; // Command header
 };
 
+struct errors_count_t {
+    uint32_t ecc; // ECC Count
+    uint32_t uecc; // UECC Count
+};
+
 struct get_error_count_rsp_t {
-    struct rsp_hdr_t rsp_hdr; 
-    uint32_t ecc_count; // ECC Count
-    uint32_t uecc_count; // UECC Count
+    struct rsp_hdr_t rsp_hdr;
+    struct errors_count_t  errors_count;  
+
 };
 
 struct dram_bw_counter_cmd_t {
     struct cmd_hdr_t cmd_hdr; // Command header
 };
 
-struct dram_bw_counter_rsp_t {
-    struct rsp_hdr_t rsp_hdr; 
+struct dram_bw_counter_t {
     uint32_t read_req_per_sec; // Read Requests per second
     uint32_t write_req_per_sec; // Write Requests per second
+};
+
+struct dram_bw_counter_rsp_t {
+    struct rsp_hdr_t rsp_hdr; 
+    struct dram_bw_counter_t dram_bw_counter;
 };
 
 struct pcie_link_speed_cmd_t {

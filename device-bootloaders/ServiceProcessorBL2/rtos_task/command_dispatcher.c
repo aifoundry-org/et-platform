@@ -19,6 +19,7 @@
 #include "bl2_link_mgmt.h"
 #include "bl2_error_control.h"
 #include "bl2_historical_extreme.h"
+#include "bl2_minion_state.h"
 #include "bl2_timer.h"
 #include "command_dispatcher.h"
 
@@ -136,6 +137,7 @@ static void pc_vq_task(void *pvParameters)
 
             // Process new message
             switch (hdr->command_id) {
+#ifndef MAILBOX_SUPPORTED                
             case GET_MODULE_MANUFACTURE_NAME:
             case GET_MODULE_PART_NUMBER:
             case GET_MODULE_SERIAL_NUMBER:
@@ -147,7 +149,7 @@ static void pc_vq_task(void *pvParameters)
             case GET_MODULE_MEMORY_SIZE_MB:
             case GET_MODULE_MEMORY_TYPE:
                 // Process asset tracking service request cmd
-                // asset_tracking_process_request(mbox, (uint32_t)*message_id);
+                asset_tracking_process_request(hdr->command_id);
                 break;
             case SET_FIRMWARE_UPDATE:
             case GET_MODULE_FIRMWARE_REVISIONS:
@@ -156,8 +158,9 @@ static void pc_vq_task(void *pvParameters)
             case SET_SW_BOOT_ROOT_CERT:
             case RESET_ETSOC:
                 // Process firmware service request cmd
-                //firmware_service_process_request(mbox, (uint32_t)*message_id, (void *)buffer);
+                firmware_service_process_request(hdr->command_id, (void *)buffer);
                 break;
+#endif
             case GET_MODULE_POWER_STATE:
             case SET_MODULE_POWER_STATE:
             case GET_MODULE_STATIC_TDP_LEVEL:
@@ -193,6 +196,9 @@ static void pc_vq_task(void *pvParameters)
             case GET_MODULE_MAX_THROTTLE_TIME:
                  historical_extreme_value_request(hdr->command_id);
                  break;
+            case GET_MM_THREADS_STATE:
+                 mm_state_process_request();
+                 break;     
             default:
                 printf("[PC VQ] Invalid message id: %" PRIu16 "\r\n", hdr->command_id);
                 printf("message length: %" PRIi64 ", buffer:\r\n", length);

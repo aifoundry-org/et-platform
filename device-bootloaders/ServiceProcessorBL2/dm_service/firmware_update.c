@@ -1,75 +1,17 @@
+#include "dm.h"
+#include "dm_service.h"
+#include "sp_host_iface.h"
 #include "bl2_firmware_update.h"
 #include "bl2_reset.h"
 
 struct dm_control_block dm_cmd_rsp;
 
-static int64_t firmware_service_send_response(mbox_e mbox, uint32_t cmd_id, uint64_t req_start_time,
-                                              char response[], uint32_t length)
-{
-    printf("firmware_service_send_response -start\n");
-    int64_t ret = 0;
-    uint64_t rsp_complete_time;
-    rsp_complete_time = timer_get_ticks_count();
-    memset(&dm_cmd_rsp, 0, sizeof(struct dm_control_block));
-    dm_cmd_rsp.cmd_id = cmd_id;
-    dm_cmd_rsp.dev_latency = (rsp_complete_time - req_start_time);
-    strncpy(dm_cmd_rsp.cmd_payload, response, length);
-    printf("cmd_id: %d  dev_latency:%ld  rsp_payload: %s \r\n", dm_cmd_rsp.cmd_id,
-           dm_cmd_rsp.dev_latency, dm_cmd_rsp.cmd_payload);
-    ret = MBOX_send(mbox, &dm_cmd_rsp, sizeof(struct dm_control_block));
-    printf("firmware_service_send_response - end\n");
-    return ret;
-}
-
-static void send_status_response(mbox_e mbox, uint32_t cmd_id, uint64_t req_start_time, int64_t ret)
-{
-    char ret_status[8];
-    sprintf(ret_status, "%ld", ret);
-    ret = firmware_service_send_response(mbox, cmd_id, req_start_time, ret_status, 8);
-    if (ret != 0) {
-        printf("MBOX Send error: %ld, cmd_id: %d\n", ret, cmd_id);
-    }
-}
-
 static void reset_etsoc(void)
 {
     printf("Resetting ETSOC..!\n");
- 
+
     // Now Reset SP.
     release_etsoc_reset();
-}
-
-static int64_t dm_svc_firmware_update(mbox_e mbox, uint32_t cmd_id, uint64_t req_start_time)
-{
-    char fw_update_status[8];
-
-    // Firmware image is available in the memory.
-    printf("fw image available at : %lx,  size: %lx\n", (uint64_t)DEVICE_FW_UPDATE_REGION_BASE,
-           DEVICE_FW_UPDATE_REGION_SIZE);
-
-    // Program the image to flash.
-    if (0 != flash_update_partition((void *)DEVICE_FW_UPDATE_REGION_BASE,
-                                    DEVICE_FW_UPDATE_REGION_SIZE)) {
-        printf("flash_update_partition: failed to write data!\n");
-        return DEVICE_FW_FLASH_UPDATE_ERROR;
-    } else {
-        printf("flash partition has been updated with new image!\n");
-    }
-
-    // Swap the priority counter of the partitions. so bootrom will choose the partition with an updated image
-    if (0 != flash_fs_swap_priority_counter()) {
-        printf("flash_partition_update_priority_counter: Updating priority counter failed!\n");
-        return DEVICE_FW_FLASH_PRIORITY_COUNTER_SWAP_ERROR;
-    }
-
-    sprintf(fw_update_status, "%d", DEVICE_FW_FLASH_UPDATE_SUCCESS);
-
-    // Send firmware update process status
-    if (0 != firmware_service_send_response(mbox, cmd_id, req_start_time, fw_update_status, 8)) {
-        printf("mbox send error while sending fw valid status!\n");
-    }
-
-    return 0;
 }
 
 static int64_t dm_svc_get_firmware_status(void)
@@ -90,70 +32,6 @@ static int64_t dm_svc_get_firmware_status(void)
 
     // Return the firmware boot status as success
     return 0;
-}
-
-static void dm_svc_get_firmware_version(mbox_e mbox, uint32_t cmd_id, uint64_t req_start_time)
-{
-    char fw_vers[20];
-    ESPERANTO_IMAGE_FILE_HEADER_t *master_image_file_header;
-    ESPERANTO_IMAGE_FILE_HEADER_t *machine_image_file_header;
-    ESPERANTO_IMAGE_FILE_HEADER_t *worker_image_file_header;
-    SERVICE_PROCESSOR_BL2_DATA_t *sp_bl2_data;
-    const IMAGE_VERSION_INFO_t *bl2_image_version;
-
-    //Get BL1 version from BL2 data.
-    sp_bl2_data = get_service_processor_bl2_data();
-
-    //Get BL2 version
-    bl2_image_version = get_image_version_info();
-    
-    // Get firmware version info for master minion
-    master_image_file_header = get_master_minion_image_file_header();
-
-    // Get firmware version info for worker minion
-    worker_image_file_header = get_worker_minion_image_file_header();
-
-    // Get firmware version for machine minion
-    machine_image_file_header = get_machine_minion_image_file_header();
-
-    sprintf(
-        fw_vers, "%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u", bl2_image_version->file_version_major,
-        bl2_image_version->file_version_minor, bl2_image_version->file_version_revision, '\0',
-        sp_bl2_data->service_processor_bl1_image_file_version_major,
-        sp_bl2_data->service_processor_bl1_image_file_version_minor,
-        sp_bl2_data->service_processor_bl1_image_file_version_revision, '\0',
-        ((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-         0xFF0000) >>
-            16,
-        ((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-         0xFF00) >>
-            8,
-        ((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-         0xFF),
-        '\0',
-        ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-         0xFF0000) >>
-            16,
-        ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-         0xFF00) >>
-            8,
-        ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-         0xFF),
-        '\0',
-        ((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-         0xFF0000) >>
-            16,
-        ((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-         0xFF00) >>
-            8,
-        ((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-         0xFF),
-        '\0');
-
-    // Send the response containing firmware versions.
-    if (0 != firmware_service_send_response(mbox, cmd_id, req_start_time, fw_vers, 20)) {
-        printf("mbox send error while sending fw revisions!\n");
-    }
 }
 
 /*  TODO: This feature is to be supported in v 0.0.7 
@@ -229,12 +107,137 @@ static int64_t update_sp_boot_root_certificate_hash(char *certficate_hash)
     return 0;
 }
 
+#ifdef MAILBOX_SUPPORTED
+static int64_t firmware_service_send_response(mbox_e mbox, uint32_t cmd_id, uint64_t req_start_time,
+                                              char response[], uint32_t length)
+{
+    printf("firmware_service_send_response -start\n");
+    int64_t ret = 0;
+    uint64_t rsp_complete_time;
+    rsp_complete_time = timer_get_ticks_count();
+    memset(&dm_cmd_rsp, 0, sizeof(struct dm_control_block));
+    dm_cmd_rsp.cmd_id = cmd_id;
+    dm_cmd_rsp.dev_latency = (rsp_complete_time - req_start_time);
+    strncpy(dm_cmd_rsp.cmd_payload, response, length);
+    printf("cmd_id: %d  dev_latency:%ld  rsp_payload: %s \r\n", dm_cmd_rsp.cmd_id,
+           dm_cmd_rsp.dev_latency, dm_cmd_rsp.cmd_payload);
+    ret = MBOX_send(mbox, &dm_cmd_rsp, sizeof(struct dm_control_block));
+    printf("firmware_service_send_response - end\n");
+    return ret;
+}
+
+static void send_status_response(mbox_e mbox, uint32_t cmd_id, uint64_t req_start_time, int64_t ret)
+{
+    char ret_status[8];
+    sprintf(ret_status, "%ld", ret);
+    ret = firmware_service_send_response(mbox, cmd_id, req_start_time, ret_status, 8);
+    if (ret != 0) {
+        printf("MBOX Send error: %ld, cmd_id: %d\n", ret, cmd_id);
+    }
+}
+
+static int64_t dm_svc_firmware_update(mbox_e mbox, uint32_t cmd_id, uint64_t req_start_time)
+{
+    char fw_update_status[8];
+
+    // Firmware image is available in the memory.
+    printf("fw image available at : %lx,  size: %lx\n", (uint64_t)DEVICE_FW_UPDATE_REGION_BASE,
+           DEVICE_FW_UPDATE_REGION_SIZE);
+
+    // Program the image to flash.
+    if (0 != flash_update_partition((void *)DEVICE_FW_UPDATE_REGION_BASE,
+                                    DEVICE_FW_UPDATE_REGION_SIZE)) {
+        printf("flash_update_partition: failed to write data!\n");
+        return DEVICE_FW_FLASH_UPDATE_ERROR;
+    } else {
+        printf("flash partition has been updated with new image!\n");
+    }
+
+    // Swap the priority counter of the partitions. so bootrom will choose the partition with an updated image
+    if (0 != flash_fs_swap_priority_counter()) {
+        printf("flash_partition_update_priority_counter: Updating priority counter failed!\n");
+        return DEVICE_FW_FLASH_PRIORITY_COUNTER_SWAP_ERROR;
+    }
+
+    sprintf(fw_update_status, "%d", DEVICE_FW_FLASH_UPDATE_SUCCESS);
+
+    // Send firmware update process status
+    if (0 != firmware_service_send_response(mbox, cmd_id, req_start_time, fw_update_status, 8)) {
+        printf("mbox send error while sending fw valid status!\n");
+    }
+
+    return 0;
+}
+
+static void dm_svc_get_firmware_version(mbox_e mbox, uint32_t cmd_id, uint64_t req_start_time)
+{
+    char fw_vers[20];
+    ESPERANTO_IMAGE_FILE_HEADER_t *master_image_file_header;
+    ESPERANTO_IMAGE_FILE_HEADER_t *machine_image_file_header;
+    ESPERANTO_IMAGE_FILE_HEADER_t *worker_image_file_header;
+    SERVICE_PROCESSOR_BL2_DATA_t *sp_bl2_data;
+    const IMAGE_VERSION_INFO_t *bl2_image_version;
+
+    //Get BL1 version from BL2 data.
+    sp_bl2_data = get_service_processor_bl2_data();
+
+    //Get BL2 version
+    bl2_image_version = get_image_version_info();
+
+    // Get firmware version info for master minion
+    master_image_file_header = get_master_minion_image_file_header();
+
+    // Get firmware version info for worker minion
+    worker_image_file_header = get_worker_minion_image_file_header();
+
+    // Get firmware version for machine minion
+    machine_image_file_header = get_machine_minion_image_file_header();
+
+    sprintf(
+        fw_vers, "%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u%u", bl2_image_version->file_version_major,
+        bl2_image_version->file_version_minor, bl2_image_version->file_version_revision, '\0',
+        sp_bl2_data->service_processor_bl1_image_file_version_major,
+        sp_bl2_data->service_processor_bl1_image_file_version_minor,
+        sp_bl2_data->service_processor_bl1_image_file_version_revision, '\0',
+        ((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF0000) >>
+            16,
+        ((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF00) >>
+            8,
+        ((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF),
+        '\0',
+        ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF0000) >>
+            16,
+        ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF00) >>
+            8,
+        ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF),
+        '\0',
+        ((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF0000) >>
+            16,
+        ((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF00) >>
+            8,
+        ((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF),
+        '\0');
+
+    // Send the response containing firmware versions.
+    if (0 != firmware_service_send_response(mbox, cmd_id, req_start_time, fw_vers, 20)) {
+        printf("mbox send error while sending fw revisions!\n");
+    }
+}
+
 static int64_t dm_svc_update_sp_boot_root_certificate_hash(struct dm_control_block *dm_req)
 {
     printf("recieved hash:\n");
-    for (int i=0; i<64;i++)
-    {
-        printf("%02x ", *(unsigned char*)&dm_req->cmd_payload[i]);
+    for (int i = 0; i < 64; i++) {
+        printf("%02x ", *(unsigned char *)&dm_req->cmd_payload[i]);
     }
 
     //cmd_payload contains the hash for new certificate.
@@ -269,7 +272,7 @@ void firmware_service_process_request(mbox_e mbox, uint32_t cmd_id, void *buffer
         ret = dm_svc_get_firmware_status();
         send_status_response(mbox, cmd_id, req_start_time, ret);
     } break;
-/*  TODO: These feature is to be supported in v 0.0.7 
+        /*  TODO: These feature is to be supported in v 0.0.7 
     case SET_FIRMWARE_VERSION_COUNTER: {
         ret = dm_svc_set_firmware_version_counter();
     } break;
@@ -291,7 +294,187 @@ void firmware_service_process_request(mbox_e mbox, uint32_t cmd_id, void *buffer
     case RESET_ETSOC: {
         printf("reset_etsoc\n");
         reset_etsoc();
-    }break;
-
+    } break;
     }
 }
+
+#else
+
+static void send_status_response(uint64_t req_start_time, uint32_t status)
+{
+    struct rsp_hdr_t dm_rsp;
+
+    FILL_RSP_HEADER(dm_rsp, status, sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
+
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct rsp_hdr_t))) {
+        printf("send_status_response: Cqueue push error !\n");
+    }
+}
+
+static int64_t dm_svc_firmware_update(void)
+{
+    // Firmware image is available in the memory.
+    printf("fw image available at : %lx,  size: %lx\n", (uint64_t)DEVICE_FW_UPDATE_REGION_BASE,
+           DEVICE_FW_UPDATE_REGION_SIZE);
+
+    // Program the image to flash.
+    if (0 != flash_update_partition((void *)DEVICE_FW_UPDATE_REGION_BASE,
+                                    DEVICE_FW_UPDATE_REGION_SIZE)) {
+        printf("flash_update_partition: failed to write data!\n");
+        return DEVICE_FW_FLASH_UPDATE_ERROR;
+    } else {
+        printf("flash partition has been updated with new image!\n");
+    }
+
+    // Swap the priority counter of the partitions. so bootrom will choose the partition with an updated image
+    if (0 != flash_fs_swap_priority_counter()) {
+        printf("flash_partition_update_priority_counter: Updating priority counter failed!\n");
+        return DEVICE_FW_FLASH_PRIORITY_COUNTER_SWAP_ERROR;
+    }
+
+    return DEVICE_FW_FLASH_UPDATE_SUCCESS;
+}
+
+static void dm_svc_get_firmware_version(uint64_t req_start_time)
+{
+    struct firmware_versions_rsp_t dm_rsp;
+    ESPERANTO_IMAGE_FILE_HEADER_t *master_image_file_header;
+    ESPERANTO_IMAGE_FILE_HEADER_t *machine_image_file_header;
+    ESPERANTO_IMAGE_FILE_HEADER_t *worker_image_file_header;
+    SERVICE_PROCESSOR_BL2_DATA_t *sp_bl2_data;
+    const IMAGE_VERSION_INFO_t *bl2_image_version;
+
+    //Get BL1 version from BL2 data.
+    sp_bl2_data = get_service_processor_bl2_data();
+
+    //Get BL2 version
+    bl2_image_version = get_image_version_info();
+
+    // Get firmware version info for master minion
+    master_image_file_header = get_master_minion_image_file_header();
+
+    // Get firmware version info for worker minion
+    worker_image_file_header = get_worker_minion_image_file_header();
+
+    // Get firmware version for machine minion
+    machine_image_file_header = get_machine_minion_image_file_header();
+
+    memset(&dm_rsp, 0, sizeof(struct firmware_versions_rsp_t));
+
+    dm_rsp.firmware_versions.bl1_v =
+        FORMAT_VERSION((uint32_t)sp_bl2_data->service_processor_bl1_image_file_version_major,
+                       (uint32_t)sp_bl2_data->service_processor_bl1_image_file_version_minor,
+                       (uint32_t)sp_bl2_data->service_processor_bl1_image_file_version_revision);
+
+    dm_rsp.firmware_versions.bl2_v =
+        FORMAT_VERSION((uint32_t)bl2_image_version->file_version_major,
+                       (uint32_t)bl2_image_version->file_version_minor,
+                       (uint32_t)bl2_image_version->file_version_revision);
+
+    dm_rsp.firmware_versions.mm_v = FORMAT_VERSION(
+        ((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF0000) >>
+            16,
+        ((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF00) >>
+            8,
+        ((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF));
+
+    dm_rsp.firmware_versions.wm_v = FORMAT_VERSION(
+        ((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF0000) >>
+            16,
+        ((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF00) >>
+            8,
+        ((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF));
+
+    dm_rsp.firmware_versions.machm_v = FORMAT_VERSION(
+        ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF0000) >>
+            16,
+        ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF00) >>
+            8,
+        ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF));
+
+    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
+
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct firmware_versions_rsp_t))) {
+        printf("dm_svc_get_firmware_version: Cqueue push error !\n");
+    }
+}
+
+static int64_t
+dm_svc_update_sp_boot_root_certificate_hash(struct certificate_hash_cmd_t *certificate_hash_cmd)
+{
+    printf("recieved hash:\n");
+    for (int i = 0; i < 64; i++) {
+        printf("%02x ", *(unsigned char *)&certificate_hash_cmd->certificate_hash.hash[i]);
+    }
+
+    //Command payload contains the hash for new certificate.
+    if (0 != update_sp_boot_root_certificate_hash(certificate_hash_cmd->certificate_hash.hash)) {
+        printf(
+            " dm_svc_update_sp_boot_root_certificate_hash : vault_ip_update_sp_boot_root_certificate_hash failed!\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+void firmware_service_process_request(uint32_t cmd_id, void *buffer)
+{
+    int64_t ret = 0;
+    uint64_t req_start_time;
+    printf("cmd_id: %d\n", cmd_id);
+    req_start_time = timer_get_ticks_count();
+
+    switch (cmd_id) {
+    case SET_FIRMWARE_UPDATE: {
+        ret = dm_svc_firmware_update();
+        send_status_response(req_start_time, (uint32_t)ret);
+    } break;
+
+    case GET_MODULE_FIRMWARE_REVISIONS: {
+        dm_svc_get_firmware_version(req_start_time);
+    } break;
+
+    case GET_FIRMWARE_BOOT_STATUS: {
+        ret = dm_svc_get_firmware_status();
+        send_status_response(req_start_time, (uint32_t)ret);
+    } break;
+        /*  TODO: These feature is to be supported in v 0.0.7 
+    case SET_FIRMWARE_VERSION_COUNTER: {
+        ret = dm_svc_set_firmware_version_counter();
+    } break;
+
+    case SET_FIRMWARE_VALID: {
+        ret = dm_svc_set_firmware_valid_counter();
+    } break;
+
+    case SET_SW_BOOT_ROOT_CERT: {
+        ret = dm_svc_update_sw_boot_root_certificate_hash(dm_cmd_req);
+    } break;
+
+*/
+    case SET_SP_BOOT_ROOT_CERT: {
+        struct certificate_hash_cmd_t *dm_cmd_req;
+        dm_cmd_req = (struct certificate_hash_cmd_t *)buffer;
+        ret = dm_svc_update_sp_boot_root_certificate_hash(dm_cmd_req);
+        send_status_response(req_start_time, (uint32_t)ret);
+    } break;
+
+    case RESET_ETSOC: {
+        printf("reset_etsoc\n");
+        reset_etsoc();
+    } break;
+    }
+}
+
+#endif

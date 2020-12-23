@@ -31,15 +31,11 @@
 *
 ***********************************************************************/
 
+#include "dm.h"
+#include "dm_service.h"
+#include "sp_host_iface.h"
 #include "bl2_link_mgmt.h"
 #include "bl2_reset.h"
-#include "dm.h"
-
-static uint8_t cqueue_push(char *buf, uint32_t size)
-{
-    printf("Pointer to buf %s with payload size: %d\n", buf, size);
-    return 0;
-}
 
 /************************************************************************
 *
@@ -67,8 +63,6 @@ static void link_mgmt_pcie_reset(uint64_t req_start_time, pcie_reset_t pcie_rese
     // TODO: Reset SPEC work is in progress. Discuss if we need to send response
     //       to host. For now sending the response.
     struct rsp_hdr_t dm_rsp;
-    dm_rsp.status = DM_STATUS_SUCCESS;
-    dm_rsp.size = 0;
 
     switch (pcie_reset_type) {
     case FLR:
@@ -82,13 +76,10 @@ static void link_mgmt_pcie_reset(uint64_t req_start_time, pcie_reset_t pcie_rese
         break;
     }
 
-    dm_rsp.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer;
-    memcpy(p, &dm_rsp, sizeof(dm_rsp));
-
-    if (0 != cqueue_push(p, sizeof(dm_rsp))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct rsp_hdr_t))) {
         printf("link_mgmt_pcie_reset: Cqueue push error !\n");
     }
 }
@@ -118,8 +109,6 @@ static void link_mgmt_set_pcie_max_link_speed(uint64_t req_start_time,
                                               pcie_link_speed_t pcie_link_speed)
 {
     struct rsp_hdr_t dm_rsp;
-    dm_rsp.status = DM_STATUS_SUCCESS;
-    dm_rsp.size = 0;
 
     switch (pcie_link_speed) {
     case GEN3:
@@ -130,13 +119,10 @@ static void link_mgmt_set_pcie_max_link_speed(uint64_t req_start_time,
         break;
     }
 
-    dm_rsp.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer;
-    memcpy(p, &dm_rsp, sizeof(dm_rsp));
-
-    if (0 != cqueue_push(p, sizeof(dm_rsp))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct rsp_hdr_t))) {
         printf("link_mgmt_set_pcie_max_link_speed: Cqueue push error !\n");
     }
 }
@@ -166,8 +152,6 @@ static void link_mgmt_set_pcie_lane_width(uint64_t req_start_time,
                                           pcie_lane_w_split_t pcie_lane_w_split)
 {
     struct rsp_hdr_t dm_rsp;
-    dm_rsp.status = DM_STATUS_SUCCESS;
-    dm_rsp.size = 0;
 
     switch (pcie_lane_w_split) {
     case x4:
@@ -178,13 +162,10 @@ static void link_mgmt_set_pcie_lane_width(uint64_t req_start_time,
         break;
     }
 
-    dm_rsp.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer;
-    memcpy(p, &dm_rsp, sizeof(dm_rsp));
-
-    if (0 != cqueue_push(p, sizeof(dm_rsp))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct rsp_hdr_t))) {
         printf("link_mgmt_set_pcie_lane_width: Cqueue push error !\n");
     }
 }
@@ -212,19 +193,14 @@ static void link_mgmt_set_pcie_lane_width(uint64_t req_start_time,
 static void link_mgmt_pcie_retrain_phy(uint64_t req_start_time)
 {
     struct rsp_hdr_t dm_rsp;
-    dm_rsp.status = DM_STATUS_SUCCESS;
-    dm_rsp.size = 0;
 
     //TODO : Add PHY Retraining
 
-    dm_rsp.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer;
-    memcpy(p, &dm_rsp, sizeof(dm_rsp));
-
-    if (0 != cqueue_push(p, sizeof(dm_rsp))) {
-        printf("link_mgmt_set_pcie_lane_width: Cqueue push error !\n");
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct rsp_hdr_t))) {
+        printf("link_mgmt_pcie_retrain_phy: Cqueue push error !\n");
     }
 }
 
@@ -251,20 +227,15 @@ static void link_mgmt_pcie_retrain_phy(uint64_t req_start_time)
 static void link_mgmt_get_module_pcie_ecc_uecc(uint64_t req_start_time)
 {
     struct get_error_count_rsp_t dm_rsp;
-    dm_rsp.rsp_hdr.status = DM_STATUS_SUCCESS;
-    dm_rsp.rsp_hdr.size = sizeof(dm_rsp.ecc_count) + sizeof(dm_rsp.uecc_count);
 
     //TODO: Get the actual count values. SPEC work in progress.
-    dm_rsp.ecc_count = 0;
-    dm_rsp.uecc_count = 0;
+    dm_rsp.errors_count.ecc = 0;
+    dm_rsp.errors_count.uecc = 0;
 
-    dm_rsp.rsp_hdr.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer;
-    memcpy(p, &dm_rsp, sizeof(dm_rsp));
-
-    if (0 != cqueue_push(p, sizeof(dm_rsp))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct get_error_count_rsp_t))) {
         printf("link_mgmt_get_module_pcie_ecc_uecc: Cqueue push error !\n");
     }
 }
@@ -292,20 +263,15 @@ static void link_mgmt_get_module_pcie_ecc_uecc(uint64_t req_start_time)
 static void link_mgmt_get_module_pcie_dram_uecc(uint64_t req_start_time)
 {
     struct get_error_count_rsp_t dm_rsp;
-    dm_rsp.rsp_hdr.status = DM_STATUS_SUCCESS;
-    dm_rsp.rsp_hdr.size = sizeof(dm_rsp.ecc_count) + sizeof(dm_rsp.uecc_count);
 
     //TODO: Get the actual count values from BL2 Error data structure.
-    dm_rsp.ecc_count = 0;
-    dm_rsp.uecc_count = 0;
+    dm_rsp.errors_count.ecc = 0;
+    dm_rsp.errors_count.uecc = 0;
 
-    dm_rsp.rsp_hdr.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer;
-    memcpy(p, &dm_rsp, sizeof(dm_rsp));
-
-    if (0 != cqueue_push(p, sizeof(dm_rsp))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct get_error_count_rsp_t))) {
         printf("link_mgmt_get_module_pcie_dram_uecc: Cqueue push error !\n");
     }
 }
@@ -333,20 +299,15 @@ static void link_mgmt_get_module_pcie_dram_uecc(uint64_t req_start_time)
 static void link_mgmt_get_module_pcie_sram_uecc(uint64_t req_start_time)
 {
     struct get_error_count_rsp_t dm_rsp;
-    dm_rsp.rsp_hdr.status = DM_STATUS_SUCCESS;
-    dm_rsp.rsp_hdr.size = sizeof(dm_rsp.ecc_count) + sizeof(dm_rsp.uecc_count);
 
     //TODO: Get the actual count values from BL2 Error data structure.
-    dm_rsp.ecc_count = 0;
-    dm_rsp.uecc_count = 0;
+    dm_rsp.errors_count.ecc = 0;
+    dm_rsp.errors_count.uecc = 0;
 
-    dm_rsp.rsp_hdr.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer;
-    memcpy(p, &dm_rsp, sizeof(dm_rsp));
-
-    if (0 != cqueue_push(p, sizeof(dm_rsp))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct get_error_count_rsp_t))) {
         printf("link_mgmt_get_module_pcie_sram_uecc: Cqueue push error !\n");
     }
 }
@@ -374,21 +335,16 @@ static void link_mgmt_get_module_pcie_sram_uecc(uint64_t req_start_time)
 static void link_mgmt_get_module_ddr_bw_counter(uint64_t req_start_time)
 {
     struct dram_bw_counter_rsp_t dm_rsp;
-    dm_rsp.rsp_hdr.status = DM_STATUS_SUCCESS;
-    dm_rsp.rsp_hdr.size = sizeof(dm_rsp.read_req_per_sec) + sizeof(dm_rsp.write_req_per_sec);
 
     //TODO: Get the actual count values from BL2 PMC data structure.
-    dm_rsp.read_req_per_sec = 1000;
-    dm_rsp.write_req_per_sec = 1000;
+    dm_rsp.dram_bw_counter.read_req_per_sec = 1000;
+    dm_rsp.dram_bw_counter.write_req_per_sec = 1000;
 
-    dm_rsp.rsp_hdr.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer;
-    memcpy(p, &dm_rsp, sizeof(dm_rsp));
-
-    if (0 != cqueue_push(p, sizeof(dm_rsp))) {
-        printf("link_mgmt_get_module_pcie_sram_uecc: Cqueue push error !\n");
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct dram_bw_counter_rsp_t))) {
+        printf("link_mgmt_get_module_ddr_bw_counter: Cqueue push error !\n");
     }
 }
 

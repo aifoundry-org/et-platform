@@ -24,18 +24,27 @@
 #include "bl2_crypto.h"
 #include "bl2_vaultip_driver.h"
 
-//TODO: This should probably auto-generated 
+//TODO: This should probably auto-generated
 enum DEVICE_FW_UPDATE_STATUS {
-  DEVICE_FW_FLASH_UPDATE_SUCCESS = 0, 
-  DEVICE_FW_FLASH_UPDATE_ERROR = 1,
-  DEVICE_FW_FLASH_PRIORITY_COUNTER_SWAP_ERROR = 2,
-  DEVICE_FW_UPDATED_IMAGE_BOOT_FAILED = 3
+    DEVICE_FW_FLASH_UPDATE_SUCCESS = 0,
+    DEVICE_FW_FLASH_UPDATE_ERROR = 1,
+    DEVICE_FW_FLASH_PRIORITY_COUNTER_SWAP_ERROR = 2,
+    DEVICE_FW_UPDATED_IMAGE_BOOT_FAILED = 3
 };
-
 
 //Release 0.0.7 TODO: This needs to be retrieved from Device Interface registers
 #define DEVICE_FW_UPDATE_REGION_SIZE 0x0400000UL
-#define DEVICE_FW_UPDATE_REGION_BASE 0x8005120000ULL 
+#define DEVICE_FW_UPDATE_REGION_BASE 0x8005120000ULL
 
-void firmware_service_process_request(mbox_e mbox, uint32_t cmd_id, void* buffer);
+// FW version will be of the format:  Major[1 byte].[Minor 1 byte].[Revision 1 byte].[NULL]
+#define FORMAT_VERSION(major, minor, revision) ((major << 24) | (minor << 16) | (revision << 8))
+
+#ifdef MAILBOX_SUPPORTED
+void firmware_service_process_request(mbox_e mbox, uint32_t cmd_id, void *buffer);
+
+#else
+void firmware_service_process_request(uint32_t cmd_id, void *buffer);
+
+#endif
+
 #endif

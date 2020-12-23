@@ -27,14 +27,10 @@
 *
 ***********************************************************************/
 
-#include "bl2_error_control.h"
 #include "dm.h"
-
-static uint8_t cqueue_push(char * buf, uint32_t size) 
-{
-     printf("Pointer to buf %s with payload size: %d\n", buf, size); 
-     return 0;
-}
+#include "dm_service.h"
+#include "sp_host_iface.h"
+#include "bl2_error_control.h"
 
 /************************************************************************
 *
@@ -61,21 +57,16 @@ static uint8_t cqueue_push(char * buf, uint32_t size)
 static void error_ctl_set_ddr_ecc_count(uint64_t req_start_time, uint32_t ecc_count)
 {
     struct rsp_hdr_t dm_rsp;
-    dm_rsp.status = DM_STATUS_SUCCESS;
-    dm_rsp.size = 0;
 
     (void)ecc_count;
     //TODO: Set the DDR ECC Count in BL2 Error data struct
 
-    dm_rsp.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer; 
-    memcpy(p, &dm_rsp, sizeof(dm_rsp)); 
-
-   if (0 != cqueue_push(p,sizeof(dm_rsp))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct rsp_hdr_t))) {
         printf("error_ctl_set_ddr_ecc_count: Cqueue push error !\n");
-   }
+    }
 }
 
 /************************************************************************
@@ -102,22 +93,16 @@ static void error_ctl_set_ddr_ecc_count(uint64_t req_start_time, uint32_t ecc_co
 static void error_ctl_set_pcie_ecc_count(uint64_t req_start_time, uint32_t ecc_count)
 {
     struct rsp_hdr_t dm_rsp;
-    dm_rsp.status = DM_STATUS_SUCCESS;
-    dm_rsp.size = 0;
 
     (void)ecc_count;
     //TODO: Set the PCIE ECC Count.
 
-    dm_rsp.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer; 
-    memcpy(p, &dm_rsp, sizeof(dm_rsp)); 
-
-   if (0 != cqueue_push(p,sizeof(dm_rsp))) {
-        printf("error_ctl_set_ddr_ecc_count: Cqueue push error !\n");
-   }
-
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct rsp_hdr_t))) {
+        printf("error_ctl_set_pcie_ecc_count: Cqueue push error !\n");
+    }
 }
 /************************************************************************
 *
@@ -142,23 +127,17 @@ static void error_ctl_set_pcie_ecc_count(uint64_t req_start_time, uint32_t ecc_c
 ***********************************************************************/
 static void error_ctl_set_sram_ecc_count(uint64_t req_start_time, uint32_t ecc_count)
 {
-
     struct rsp_hdr_t dm_rsp;
-    dm_rsp.status = DM_STATUS_SUCCESS;
-    dm_rsp.size = 0;
 
     (void)ecc_count;
     //TODO: Set the SRAM ECC Count in BL2 Error data struct.
 
-    dm_rsp.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer; 
-    memcpy(p, &dm_rsp, sizeof(dm_rsp)); 
-
-   if (0 != cqueue_push(p,sizeof(dm_rsp))) {
-        printf("error_ctl_set_ddr_ecc_count: Cqueue push error !\n");
-   }
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct rsp_hdr_t))) {
+        printf("error_ctl_set_sram_ecc_count: Cqueue push error !\n");
+    }
 }
 
 /************************************************************************

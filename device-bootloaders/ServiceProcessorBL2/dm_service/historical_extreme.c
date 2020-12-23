@@ -27,15 +27,10 @@
 *
 ***********************************************************************/
 
-#include "bl2_link_mgmt.h"
-#include "bl2_historical_extreme.h"
 #include "dm.h"
-
-static uint8_t cqueue_push(char *buf, uint32_t size)
-{
-    printf("Pointer to buf %s with payload size: %d\n", buf, size);
-    return 0;
-}
+#include "dm_service.h"
+#include "sp_host_iface.h"
+#include "bl2_historical_extreme.h"
 
 /************************************************************************
 *
@@ -60,19 +55,14 @@ static uint8_t cqueue_push(char *buf, uint32_t size)
 static void get_max_memory_error(uint64_t req_start_time)
 {
     struct max_memory_error_rsp_t dm_rsp;
-    dm_rsp.rsp_hdr.status = DM_STATUS_SUCCESS;
-    dm_rsp.rsp_hdr.size = sizeof(dm_rsp.max_ecc_count);
 
     //TODO : This should be retrieved from BL2 Error data struct.
-    dm_rsp.max_ecc_count = 5;
+    dm_rsp.max_ecc_count.count = 5;
 
-    dm_rsp.rsp_hdr.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer;
-    memcpy(p, &dm_rsp, sizeof(dm_rsp));
-
-    if (0 != cqueue_push(p, sizeof(dm_rsp))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct max_memory_error_rsp_t))) {
         printf("get_max_memory_error: Cqueue push error !\n");
     }
 }
@@ -100,21 +90,16 @@ static void get_max_memory_error(uint64_t req_start_time)
 static void get_module_max_ddr_bw(uint64_t req_start_time)
 {
     struct max_dram_bw_rsp_t dm_rsp;
-    dm_rsp.rsp_hdr.status = DM_STATUS_SUCCESS;
-    dm_rsp.rsp_hdr.size = sizeof(dm_rsp.max_bw_rd_req_sec) + sizeof(dm_rsp.max_bw_wr_req_sec);
 
     //TODO : These should be retrieved from BL2 PMC data structure.
-    dm_rsp.max_bw_rd_req_sec = 100;
-    dm_rsp.max_bw_wr_req_sec = 100;
+    dm_rsp.max_dram_bw.max_bw_rd_req_sec = 100;
+    dm_rsp.max_dram_bw.max_bw_wr_req_sec = 100;
 
-    dm_rsp.rsp_hdr.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer;
-    memcpy(p, &dm_rsp, sizeof(dm_rsp));
-
-    if (0 != cqueue_push(p, sizeof(dm_rsp))) {
-        printf("get_module_max_ddr_bw: Cqueue push error !\n");
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct max_dram_bw_rsp_t))) {
+        printf("get_max_memory_error: Cqueue push error !\n");
     }
 }
 
@@ -142,19 +127,14 @@ static void get_module_max_ddr_bw(uint64_t req_start_time)
 static void get_module_max_throttle_time(uint64_t req_start_time)
 {
     struct max_throttle_time_rsp_t dm_rsp;
-    dm_rsp.rsp_hdr.status = DM_STATUS_SUCCESS;
-    dm_rsp.rsp_hdr.size = sizeof(dm_rsp.max_time_usec);
 
     //TODO : This should be retrieved from BL2 PMC data structure.
-    dm_rsp.max_time_usec = 1000;
+    dm_rsp.max_throttle_time.usec = 1000;
 
-    dm_rsp.rsp_hdr.device_latency_usec = timer_get_ticks_count() - req_start_time;
+    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+                    timer_get_ticks_count() - req_start_time);
 
-    char buffer[sizeof(dm_rsp)];
-    char *p = buffer;
-    memcpy(p, &dm_rsp, sizeof(dm_rsp));
-
-    if (0 != cqueue_push(p, sizeof(dm_rsp))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct max_throttle_time_rsp_t))) {
         printf("get_module_max_throttle_time: Cqueue push error !\n");
     }
 }

@@ -50,6 +50,7 @@ set(BL2_SOURCES
     dm_service/link_mgmt.c
     dm_service/error_control.c
     dm_service/historical_extreme.c
+    dm_service/minion_state.c
     # This file get compiled different based on the configuration of each target
     common/build_configuration.c)
 
