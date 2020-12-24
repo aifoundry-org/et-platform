@@ -361,7 +361,8 @@ static void send_interrupt(mbox_e mbox)
     }
 
     case MBOX_PCIE: {
-        pcie_interrupt_host(0);
+	// FIXE: This is just so that MM and SP send different interrupts
+        pcie_interrupt_host(1);
         break;
     }
     }
