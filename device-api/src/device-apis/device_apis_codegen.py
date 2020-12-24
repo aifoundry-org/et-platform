@@ -90,6 +90,8 @@ class DevAPICodeGeneratorHelper(object):
         for mod in modules:
             if mod['Name'] == "Ops_API_Calls":
                 return mod
+            if mod['Name'] == "Mgmt_API_Calls":
+                return mod     
         return None
 
     def rpc_commands(self):
@@ -266,6 +268,7 @@ class DevAPICodeGeneratorHelper(object):
             "uint32_t": 4,
             "uint64_t": 8,
             "uint64_t": 8,
+            "char": 1,
             }
         return types[type_name]
 

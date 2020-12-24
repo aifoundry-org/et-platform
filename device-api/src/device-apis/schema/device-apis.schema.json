@@ -50,7 +50,7 @@
                              "int16_t", "uint16_t",
                              "int32_t", "uint32_t",
                              "uint64_t", "uint64_t",
-                             "bool", "struct", "enum"]
+                             "bool", "struct", "enum", "char"]
                 },
                 "Struct": { "type": "string" },
                 "Enum": { "type": "string" }
@@ -108,7 +108,7 @@
                              "int16_t", "uint16_t",
                              "int32_t", "uint32_t",
                              "uint64_t", "uint64_t",
-                             "bool", "struct", "enum"]
+                             "bool", "struct", "enum", "char"]
                 },
                 "Values": {
                     "type": "array",

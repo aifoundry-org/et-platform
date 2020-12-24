@@ -49,9 +49,18 @@ struct << struct["Name"] >> {
 /// @brief << message["Description"] >>
 struct << message["Name"] >>_t {
   <%- if message['Type'] == 'Command' %>
+
+  <%- if cgh.c_api_name == 'mgmt' %>
+  struct dev_mgmt_cmd_header_t command_info;
+  <%- else %>
   struct cmd_header_t command_info;
+   <%- endif %> 
   <%- elif message['Type'] == 'Response' %>
+  <%- if cgh.c_api_name == 'mgmt' %>
+  struct dev_mgmt_rsp_header_t rsp_hdr;
+  <%- else %>
   struct rsp_header_t response_info;
+   <%- endif %>
   <%- else %>
   struct evt_header_t event_info;
   <%- endif %>

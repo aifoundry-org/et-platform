@@ -37,6 +37,18 @@ struct rsp_header_t {
     struct cmn_header_t rsp_hdr; ///< Response header
 };
 
+// DM request header. This header is attached to each request
+struct dev_mgmt_cmd_header_t {
+    uint32_t command_id; // Enum of the command ID
+    uint32_t size; // Size of the Payload
+};
+// DM response header. This header is attached to each response
+struct dev_mgmt_rsp_header_t {
+    uint32_t status; // status of the Command execution
+    uint64_t device_latency_usec; // Populated by the device during response
+    uint32_t size; // Size of the response Payload
+};
+
 /// @brief Event header for all events from device to host
 struct evt_header_t {
     struct cmn_header_t evt_hdr; ///< Event header, tag_id is dont care for events.
