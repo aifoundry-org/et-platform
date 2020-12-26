@@ -6,6 +6,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#define M_SHIRE_BASE_HART_ID               2048
+#define M_SHIRE_NUM_MINIONS                32
+#define M_SHIRE_NUM_THREADS_PER_MINION     2
+
 typedef enum {
     SHIRE_STATE_UNKNOWN = 0,
     SHIRE_STATE_READY,

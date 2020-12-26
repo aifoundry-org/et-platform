@@ -21,16 +21,20 @@
 *       SQW_Worker
 *
 ***********************************************************************/
-#include "config/mm_config.h"
 #include "workers/sqw.h"
 #include "services/log1.h"
-#include "sync.h"
+#include "services/worker_iface.h"
+#include "services/host_iface.h"
+#include "services/host_cmd_hdlr.h"
+#include <esperanto/device-apis/operations-api/device_ops_api_rpc_types.h>
+#include <esperanto/device-apis/operations-api/device_ops_api_spec.h>
+#include <esperanto/device-apis/device_apis_message_types.h>
 
-/*! \var global_fcc_flag_t SQ_Worker_Sync
-    \brief Global array of flags for SQ Worker synchronization
+/*! \var sq_cb_t SQW_CB
+    \brief Global Submission Queue Worker Control Block
     \warning Not thread safe!
 */
-static global_fcc_flag_t SQ_Worker_Sync[MM_SQ_COUNT] = { 0 };
+static sqw_cb_t SQW_CB={0};
 
 /************************************************************************
 *
@@ -53,11 +57,48 @@ static global_fcc_flag_t SQ_Worker_Sync[MM_SQ_COUNT] = { 0 };
 ***********************************************************************/
 void SQW_Init(void)
 {
+    SQW_CB.num_sqw = MM_SQ_COUNT;
+
     /* Initialize the SQ Worker sync flags */ 
-    for (uint8_t i = 0; i < MM_SQ_COUNT; i++) 
+    for (uint8_t i = 0; i < SQW_CB.num_sqw; i++) 
     {
-        global_fcc_flag_init(&SQ_Worker_Sync[i]);
+        global_fcc_flag_init(&SQW_CB.sqw_fcc_flags[i]);
+
+        SQW_CB.sq[i] = Host_Iface_Get_SQ_Base_Addr(i);
     }
+    
+    return;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       SQW_Notify
+*  
+*   DESCRIPTION
+*
+*       Notify SQ Worker
+*
+*   INPUTS
+*
+*       sqw_idx     Submission Queue Worker index
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void SQW_Notify(uint8_t sqw_idx)
+{
+    uint32_t minion = (uint32_t)SQW_WORKER_0 + (sqw_idx / 2);
+    uint32_t thread = sqw_idx % 2;
+
+    Log_Write(LOG_LEVEL_DEBUG, 
+        "%s%d %s%d%s", "SQW:Notify:minion=", minion, "thread=", 
+        thread, "\r\n");
+
+    global_fcc_flag_notify(&SQW_CB.sqw_fcc_flags[sqw_idx], minion, thread);
     
     return;
 }
@@ -81,16 +122,46 @@ void SQW_Init(void)
 *       None
 *
 ***********************************************************************/
-void SQW_Launch(uint32_t hart_id)
+void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
 {
-    (void) hart_id;
+    static uint8_t 
+        cmd_buff[MM_CMD_MAX_SIZE] __attribute__((aligned(8))) = { 0 };
+    uint16_t cmd_size;
+    int8_t status = 0;
 
-    //Log_Write(LOG_LEVEL_DEBUG, "%s = %d %s", "SQW = "
-    //            , hart_id, "launched\r\n");
+    Log_Write(LOG_LEVEL_DEBUG, "%s%d %s%d%s", 
+        "SQW:HART=", hart_id, "IDX=", sqw_idx, "\r\n");
 
     /* Empty all FCCs */
     init_fcc(FCC_0);
     init_fcc(FCC_1);
+
+    while(1)
+    {
+        /* Wait for SQ Worker notification from Dispatcher*/
+        global_fcc_flag_wait(&SQW_CB.sqw_fcc_flags[sqw_idx]);
+
+        Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
+            "SQW:HART=", hart_id, "received FCC event!\r\n");
+
+        /* Pop from Submission Queue */
+        cmd_size = (uint16_t) VQ_Pop(SQW_CB.sq[sqw_idx], cmd_buff);
+        
+        if(cmd_size > 0)
+        {
+            Log_Write(LOG_LEVEL_DEBUG, "%s%d\r\n", "SQW:Procesisng:", cmd_size);
+            
+            status = Host_Command_Handler(cmd_buff);
+            
+            if (status != STATUS_SUCCESS)
+            {
+                Log_Write(LOG_LEVEL_ERROR, "%s %d %s",
+                "SQW:ERROR:Procesisng failed. (Error code: )", 
+                status, "\r\n");
+            }
+        }
+
+    };
     
     return;
 }

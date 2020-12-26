@@ -27,13 +27,20 @@
 
 #define     HIFACE_INT_PRIORITY    1
 
-
 /*! \fn int8_t Host_Iface_SQs_Init(void)
     \brief Initialize Host Interface Submission Queues
     \param none
     \return status
 */
 int8_t Host_Iface_SQs_Init(void);
+
+/*! \fn vq_cb_t* Host_Iface_Get_VQ_Base_Addr(uint8_t sq_id)
+    \brief Obtain pointer to virtuql queue assiciated
+    with the submission queue ID
+    \param sq_id        Submission Queue ID
+    \return vq_cb_t*    Pointer to the virtual queue control block
+*/
+vq_cb_t* Host_Iface_Get_SQ_Base_Addr(uint8_t sq_id);
 
 /*! \fn int8_t Host_Iface_CQs_Init(void)
     \brief Initialize Host Interface Completion Queues
@@ -49,13 +56,13 @@ int8_t Host_Iface_CQs_Init(void);
 */
 uint32_t Host_Iface_Peek_SQ_Cmd_Size(uint8_t sq_id);
 
-/*! \fn uint16_t Host_Iface_Peek_SQ_Cmd(uint8_t sq_id, void* cmd)
+/*! \fn int8_t Host_Iface_Peek_SQ_Cmd_Hdr(uint8_t sq_id, void* cmd)
     \brief Host interface to peek SQ command
     \param [in] sq_id: Submission queue ID
     \param [in] cmd: Pointer to command buffer
-    \returns [out] Command size
+    \returns [out] Status
 */
-uint32_t Host_Iface_Peek_SQ_Cmd(uint8_t sq_id, void* cmd);
+int8_t Host_Iface_Peek_SQ_Cmd_Hdr(uint8_t sq_id, void* cmd);
 
 /*! \fn uint32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void* rx_buff)
     \brief Host interface SQ pop API

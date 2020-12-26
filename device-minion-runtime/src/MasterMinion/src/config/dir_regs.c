@@ -20,13 +20,14 @@
 *   FUNCTIONS
 *
 *       DIR_Init
+*       DIR_Set_Master_Minion_Status
 *
 ***********************************************************************/
 #include "config/dir_regs.h"
 #include "config/mm_config.h"
 #include "layout.h"
 
-/*! \var log_level_t Gbl_MM_Dev_Intf_Regs
+/*! \var Gbl_MM_Dev_Intf_Regs
     \brief Global static instance of Master Minions 
     Device Interface Registers
     \warning Not thread safe!
@@ -59,40 +60,36 @@ void DIR_Init(void)
     Gbl_MM_Dev_Intf_Regs->size        = sizeof(MM_DEV_INTF_REG_s);
     
     /* Populate the MM VQs information */
-    Gbl_MM_Dev_Intf_Regs->mm_vq.sq_count   = MM_SQ_COUNT;
-    Gbl_MM_Dev_Intf_Regs->mm_vq.cq_count   = MM_CQ_COUNT;
-    Gbl_MM_Dev_Intf_Regs->mm_vq.sq_size    = MM_SQ_SIZE;
-    Gbl_MM_Dev_Intf_Regs->mm_vq.cq_size    = MM_CQ_SIZE;
-    Gbl_MM_Dev_Intf_Regs->mm_vq.bar        = MM_VQ_BAR;
-    Gbl_MM_Dev_Intf_Regs->mm_vq.bar_offset = MM_VQ_OFFSET;
-    Gbl_MM_Dev_Intf_Regs->mm_vq.bar_size   = MM_SQ_SIZE; // TODO: DO we need this?
+    Gbl_MM_Dev_Intf_Regs->mm_vq.bar         = MM_VQ_BAR;
+    Gbl_MM_Dev_Intf_Regs->mm_vq.bar_size    = MM_VQ_SIZE;
+    Gbl_MM_Dev_Intf_Regs->mm_vq.sq_offset   = MM_SQ_OFFSET;
+    Gbl_MM_Dev_Intf_Regs->mm_vq.sq_count    = MM_SQ_COUNT;
+    Gbl_MM_Dev_Intf_Regs->mm_vq.per_sq_size = MM_SQ_SIZE;
+    Gbl_MM_Dev_Intf_Regs->mm_vq.cq_offset   = MM_CQ_OFFSET;
+    Gbl_MM_Dev_Intf_Regs->mm_vq.cq_count    = MM_CQ_COUNT;
+    Gbl_MM_Dev_Intf_Regs->mm_vq.per_cq_size = MM_CQ_SIZE;
 
-    for (uint8_t i = 0; i < MM_CQ_COUNT; i++) {
-        /* TODO: SW-4597: Start from vector one when MSI-X and 
-        SP VQ is available. Vector zero is reserved for SP CQ. */
-        Gbl_MM_Dev_Intf_Regs->mm_vq.cq_interrupt_vector[i] = MM_CQ_NOTIFY_VECTOR + i;
-    }
-
-    Gbl_MM_Dev_Intf_Regs->
-        ddr_region[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].attr = 
+    /* Populate the MM DDR regions information */
+    Gbl_MM_Dev_Intf_Regs->ddr_regions.num_regions = MM_DEV_INTF_DDR_REGION_MAP_NUM;
+    Gbl_MM_Dev_Intf_Regs->ddr_regions.
+        regions[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].attr = 
         MM_DEV_INTF_DDR_REGION_ATTR_READ_WRITE;
-    Gbl_MM_Dev_Intf_Regs->
-        ddr_region[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].bar = 
+    Gbl_MM_Dev_Intf_Regs->ddr_regions.
+        regions[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].bar = 
         MM_DEV_INTF_USER_KERNEL_SPACE_BAR;
-    Gbl_MM_Dev_Intf_Regs->
-        ddr_region[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].offset = 
+    Gbl_MM_Dev_Intf_Regs->ddr_regions.
+        regions[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].offset = 
         MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET;
-    Gbl_MM_Dev_Intf_Regs->
-        ddr_region[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].devaddr = 
+    Gbl_MM_Dev_Intf_Regs->ddr_regions.
+        regions[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].devaddr = 
         HOST_MANAGED_DRAM_START;
-    Gbl_MM_Dev_Intf_Regs->
-        ddr_region[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].size = 
+    Gbl_MM_Dev_Intf_Regs->ddr_regions.
+        regions[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].size = 
         MM_DEV_INTF_USER_KERNEL_SPACE_SIZE;
 
     /* Update Status to indicate MM Device Interface Registers 
-    are initialized */
-    Gbl_MM_Dev_Intf_Regs->status = 
-        MM_DEV_INTF_MM_BOOT_STATUS_DEV_INTF_READY_INITIALIZED;
+    are ready */
+    Gbl_MM_Dev_Intf_Regs->status = MM_DEV_INTF_MM_BOOT_STATUS_DEV_INTF_READY;
     
     return;
 }

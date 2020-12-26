@@ -19,23 +19,14 @@
 *
 ***********************************************************************/
 
-/* TODO: Cleanup formatting of this file */
+#ifndef __DIR_REGS_H__
+#define __DIR_REGS_H__
 
-#ifndef __DEV_REGS_H__
-#define __DEV_REGS_H__
-
-#ifdef __KERNEL__
-#include <linux/types.h>
-#else
 #include <stdint.h>
-#endif
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "config/mm_config.h"
 #include "hal_device.h"
+
+/*! \file List of REGIONS based on Spec as defined here: https://esperantotech.atlassian.net/wiki/spaces/SW/pages/1233584203/Memory+Map */
 
 #define MM_DEV_INTF_REG_VERSION 1U
 
@@ -51,67 +42,98 @@ extern "C" {
 #define MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET 0x0100000000UL // TODO: Should be HOST_MANAGED_DRAM_START
 #define MM_DEV_INTF_USER_KERNEL_SPACE_SIZE   0x0200000000UL // TODO: Should be (HOST_MANAGED_DRAM_END - HOST_MANAGED_DRAM_START)
 
-/// \brief Master Minion status register used to indicate Boot Status of MM
+/*! \enum MM_DEV_INTF_MM_BOOT_STATUS_e
+    \brief Values representing Master Minion Boot status.
+*/
 enum MM_DEV_INTF_MM_BOOT_STATUS_e {
     MM_DEV_INTF_MM_BOOT_STATUS_MM_SP_MB_TIMEOUT = -2,
     MM_DEV_INTF_MM_BOOT_STATUS_MM_FW_ERROR,
-    MM_DEV_INTF_MM_BOOT_STATUS_VQ_DESC_NOT_READY = 0,
-    MM_DEV_INTF_MM_BOOT_STATUS_DEV_INTF_READY_INITIALIZED,
-    MM_DEV_INTF_MM_BOOT_STATUS_VQ_DESC_READY,
-    MM_DEV_INTF_MM_BOOT_STATUS_VQ_QUEUE_INITIALIZED,
+    MM_DEV_INTF_MM_BOOT_STATUS_DEV_INTF_NOT_READY = 0,
+    MM_DEV_INTF_MM_BOOT_STATUS_DEV_INTF_READY,
     MM_DEV_INTF_MM_BOOT_STATUS_VQ_READY,
+    MM_DEV_INTF_MM_BOOT_STATUS_MM_READY,
     MM_DEV_INTF_MM_BOOT_STATUS_DDR_INITIALIZED,
     MM_DEV_INTF_MM_BOOT_STATUS_MM_FW_LAUNCHED,
     MM_DEV_INTF_MM_BOOT_STATUS_MM_MBOX_INITIALIZED
 };
 
-/// \brief List of REGIONS based on Spec as defined here: https://esperantotech.atlassian.net/wiki/spaces/SW/pages/1233584203/Memory+Map
-
+/*! \enum MM_DEV_INTF_DDR_REGION_ATTRIBUTE_e
+    \brief Values representing BAR numbers.
+*/
 enum MM_DEV_INTF_DDR_REGION_ATTRIBUTE_e {
     MM_DEV_INTF_DDR_REGION_ATTR_READ_ONLY = 0,
     MM_DEV_INTF_DDR_REGION_ATTR_WRITE_ONLY,
     MM_DEV_INTF_DDR_REGION_ATTR_READ_WRITE
 };
 
+/*! \enum MM_DEV_INTF_DDR_REGION_MAP_e
+    \brief Values representing DDR region related information.
+*/
 enum MM_DEV_INTF_DDR_REGION_MAP_e {
     MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE = 0,
     MM_DEV_INTF_DDR_REGION_MAP_NUM
 };
 
+/*! \enum MM_DEV_INTF_BAR_TYPE_e
+    \brief Values representing BAR numbers.
+*/
 enum MM_DEV_INTF_BAR_TYPE_e {
     MM_DEV_INTF_BAR_0 = 0,
     MM_DEV_INTF_BAR_2 = 2,
     MM_DEV_INTF_BAR_4 = 4
 };
 
-typedef struct __attribute__((__packed__)) MM_DEV_INTF_DDR_REGION {
-    uint8_t attr;    /// One of enum MM_DEV_INTF_DDR_REGION_ATTRIBUTE_e
-    uint8_t bar;     /// One of enum MM_DEV_INTF_BAR_TYPE_e
+/*! \struct MM_DEV_INTF_DDR_REGION_s
+    \brief Holds the information of Master Minion DDR region.
+    \warning Must be 64-bit aligned.
+*/
+typedef struct MM_DEV_INTF_DDR_REGION_ {
+    uint16_t attr;
+    uint16_t bar;
     uint64_t offset;
     uint64_t devaddr;
     uint64_t size;
+    uint32_t reserved;
 } MM_DEV_INTF_DDR_REGION_s;
 
-/* TODO: This needs to be as shown in comment below */
-/* bar, vq_offset, sq_size, sq_count, cq_offset, cq_size, cq_count */
-typedef struct __attribute__((__packed__)) MM_DEV_INTF_MM_VQ {
-    uint8_t sq_count;
-    uint8_t cq_count;
+/*! \struct MM_DEV_INTF_DDR_REGIONS_s
+    \brief Holds the information of all the available Master Minion 
+    DDR regions.
+    \warning Must be 64-bit aligned.
+*/
+typedef struct MM_DEV_INTF_DDR_REGIONS_ {
+    uint32_t reserved;
+    uint32_t num_regions;
+    MM_DEV_INTF_DDR_REGION_s regions[MM_DEV_INTF_DDR_REGION_MAP_NUM];
+} MM_DEV_INTF_DDR_REGIONS_s;
+
+/*! \struct MM_DEV_INTF_MM_VQ_s
+    \brief Holds the information of Master Minion Virtual Queues.
+    \warning Must be 64-bit aligned.
+*/
+typedef struct MM_DEV_INTF_MM_VQ_ {
+    uint8_t reserved[3];
     uint8_t bar;
-    uint16_t sq_size;
-    uint16_t cq_size;
-    uint16_t cq_interrupt_vector[MM_CQ_COUNT];
-    uint64_t bar_offset;
-    uint64_t bar_size;
+    uint32_t bar_size;
+    uint32_t sq_offset;
+    uint16_t sq_count;
+    uint16_t per_sq_size;
+    uint32_t cq_offset;
+    uint16_t cq_count;
+    uint16_t per_cq_size;
 } MM_DEV_INTF_MM_VQ_s;
 
-/// \brief Master Minion Device interface register will be uses to public device capability to Host
-typedef struct __attribute__((__packed__)) MM_DEV_INTF_REG {
+/*! \struct MM_DEV_INTF_REG_s
+    \brief Master Minion DIR which will be used to public device capability to Host.
+    \warning Must be 64-bit aligned.
+*/
+typedef struct MM_DEV_INTF_REG_ {
     uint32_t version;
     uint32_t size;
     MM_DEV_INTF_MM_VQ_s mm_vq;
-    MM_DEV_INTF_DDR_REGION_s ddr_region[MM_DEV_INTF_DDR_REGION_MAP_NUM];
-    int32_t status;                                                      /// One of enum MM_DEV_INTF_MM_BOOT_STATUS_e
+    MM_DEV_INTF_DDR_REGIONS_s ddr_regions;
+    uint32_t reserved;
+    int32_t status;
 } MM_DEV_INTF_REG_s;
 
 // Macro to extract MM DIRs
@@ -129,8 +151,4 @@ void DIR_Init(void);
 */
 void DIR_Set_Master_Minion_Status(uint8_t status);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* DEV_REGS_H */
+#endif /* DIR_REGS_H */

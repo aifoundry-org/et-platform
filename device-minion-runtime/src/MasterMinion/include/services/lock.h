@@ -22,16 +22,16 @@
 
 typedef char lock_t;
 
-/*! \fn void Lock_Acquire(lock_t lock)
+/*! \fn void Lock_Acquire(lock_t *lock)
     \brief Acquire Lock
-    \param [in] lock to acquire
+    \param [in] Pointer to lock
 */
-void Lock_Acquire(lock_t lock);
+void Lock_Acquire(lock_t *lock);
 
-/*! \fn log_level_t Log_Get_Level(void)
-    \brief Get log level
-    \param [out] Get the current global log level
+/*! \fn void Lock_Release(lock_t *lock)
+    \brief Release lock
+    \param [in] Pointer to lock
 */
-void Lock_Release(lock_t lock);
+void Lock_Release(lock_t *lock);
 
 #endif /* LOCK_DEFS_H */

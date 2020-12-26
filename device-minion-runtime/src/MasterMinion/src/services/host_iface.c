@@ -33,9 +33,12 @@
 #include "services/host_iface.h"
 #include "services/host_cmd_hdlr.h"
 #include "services/log1.h"
+#include "workers/sqw.h"
 #include "drivers/interrupts.h"
 #include "vq.h"
 #include "pcie_int.h"
+#include "hal_device.h"
+
 
 /*! \struct host_iface_sqs_cb_t;
     \brief Host interface control block that manages 
@@ -72,19 +75,36 @@ static host_iface_sqs_cb_t Host_SQs = {0};
 */
 static host_iface_cqs_cb_t Host_CQs = {0};
 
-
 /*! \var bool Host_Iface_Interrupt_Flag
     \brief Global Submission vqueues Control Block
     \warning Not thread safe!
 */
-static bool Host_Iface_Interrupt_Flag = false;
+static volatile bool Host_Iface_Interrupt_Flag = false;
+
 
 /* Local fn proptotypes */
 static void host_iface_rxisr(void);
 
 static void host_iface_rxisr(void)
 {
+    Log_Write(LOG_LEVEL_DEBUG, "%s", 
+        "Dispatcher: PCIe interrupt! \r\n");
+
     Host_Iface_Interrupt_Flag = true;
+
+    /* TODO: Move this to a interrupt ack API within
+    the driver abstraction, if ack mechanism is generic
+    across interrupts this ack API can go to interrupts.c */
+    volatile uint32_t *const pcie_int_dec_ptr = 
+        (uint32_t *)(R_PU_TRG_MMIN_BASEADDR + 0x8);
+    volatile uint32_t *const pcie_int_cnt_ptr = 
+        (uint32_t *)(R_PU_TRG_MMIN_BASEADDR + 0xC);
+
+    if (*pcie_int_cnt_ptr) 
+    {
+        *pcie_int_dec_ptr = 1;
+    }
+
 }
 
 /************************************************************************
@@ -110,6 +130,9 @@ int8_t Host_Iface_SQs_Init(void)
 {
     int8_t status = STATUS_SUCCESS;
 
+    /* TODO: Need to decide the base address for memory
+    (32-bit or 64-bit) based on memory type. */
+    
     /* Initialize the Submission vqueues control block 
     based on build configuration mm_config.h */
     Host_SQs.vqueues_base = MM_SQS_BASE_ADDRESS;
@@ -148,6 +171,30 @@ int8_t Host_Iface_SQs_Init(void)
 *
 *   FUNCTION
 *
+*       Host_Iface_Get_SQ_Base_Addr
+*  
+*   DESCRIPTION
+*
+*       Obtain the Submission Queue base address
+*
+*   INPUTS
+*
+*       sq_id       Submission Queue ID
+*
+*   OUTPUTS
+*
+*       vq_cb_t*    Pointer to Submission queue base
+*
+***********************************************************************/
+vq_cb_t* Host_Iface_Get_SQ_Base_Addr(uint8_t sq_id)
+{
+    return &Host_SQs.vqueues[sq_id];
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       Host_Iface_CQs_Init
 *  
 *   DESCRIPTION
@@ -167,20 +214,20 @@ int8_t Host_Iface_CQs_Init(void)
 {
     int8_t status = STATUS_SUCCESS;
 
-    /* Initialize the Submission vqueues control block 
+    /* Initialize the Completion vqueues control block 
     based on build configuration mm_config.h */
-    Host_CQs.vqueues_base = MM_SQS_BASE_ADDRESS;
-    Host_CQs.per_vqueue_size = MM_SQ_SIZE;
+    Host_CQs.vqueues_base = MM_CQS_BASE_ADDRESS;
+    Host_CQs.per_vqueue_size = MM_CQ_SIZE;
 
     for (uint32_t i = 0; (i < MM_CQ_COUNT) && 
         (status == STATUS_SUCCESS); i++) 
     {
         /* Initialize the SQ circular buffer */
         status = VQ_Init(&Host_CQs.vqueues[i], 
-        VQ_CIRCBUFF_BASE_ADDR(Host_CQs.vqueues_base, i, 
-        Host_CQs.per_vqueue_size),
-        Host_CQs.per_vqueue_size, 0, sizeof(cmd_size_t), 
-        MM_CQ_MEM_TYPE);
+            VQ_CIRCBUFF_BASE_ADDR(Host_CQs.vqueues_base, i, 
+            Host_CQs.per_vqueue_size),
+            Host_CQs.per_vqueue_size, 0, sizeof(cmd_size_t), 
+            MM_CQ_MEM_TYPE);
     }
 
     return status;
@@ -207,14 +254,7 @@ int8_t Host_Iface_CQs_Init(void)
 ***********************************************************************/
 bool Host_Iface_Interrupt_Status(void) 
 {
-    bool retval = false;
-
-    retval = Host_Iface_Interrupt_Flag; 
-
-    if(Host_Iface_Interrupt_Flag)
-        Host_Iface_Interrupt_Flag = false;
-
-    return retval;
+    return Host_Iface_Interrupt_Flag;
 }
 
 /************************************************************************
@@ -268,15 +308,13 @@ uint32_t Host_Iface_Peek_SQ_Cmd_Size(uint8_t sq_id)
 *       uint16_t   Returns SQ command size read or zero for error.
 *
 ***********************************************************************/
-uint32_t Host_Iface_Peek_SQ_Cmd(uint8_t sq_id, void* cmd)
+int8_t Host_Iface_Peek_SQ_Cmd_Hdr(uint8_t sq_id, void* cmd)
 {
-    cmd_size_t command_size = 0;
-
     (void) sq_id;
     (void) cmd;
 
  
-    return command_size;
+    return 0;
 }
 
 /************************************************************************
@@ -315,20 +353,15 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
         if (status != STATUS_SUCCESS) 
         {
             Log_Write(LOG_LEVEL_ERROR, "%s %d %s",
-            "CQ:ERROR: Host notification Failed. (Error code: )", status, "\r\n");
+            "CQ:ERROR: Host notification Failed. (Error code: )", 
+            status, "\r\n");
         }
     } 
     else 
     {
         Log_Write(LOG_LEVEL_ERROR, "%s %d %s",
-            "CQ:ERROR: Circbuff Push Failed. (Error code: )", status, "\r\n");
-    }
-
-
-    if (!status) 
-    {
-        Log_Write(LOG_LEVEL_ERROR, "%s",
-        "ERROR: Circbuff Pop Failed \r\n");
+            "CQ:ERROR: Circbuff Push Failed. (Error code: )", 
+            status, "\r\n");
     }
 
     return status;
@@ -395,59 +428,39 @@ uint32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void* rx_buff)
 *
 ***********************************************************************/
 void Host_Iface_Processing(void)
-{
-    /* TODO: Before processing SQs, we need to ensure that CQ is not full 
-       and we can push response to it. */
+{   
+    uint8_t sq_id;   
+    bool status;
 
-    /* MM_SQ_HP_INDEX is Higher priority Submission Queue. Remaining SQs 
-       are of normal priority. All available commands in MM_SQ_HP_INDEX 
-       will be processed first, then each command from remaining SQs will 
-       be processed in Round-Robin fashion with a single command processing 
-       at a time. */
-    bool sq_pending = true;
-    uint8_t sq_id;
-    int8_t status;
-    uint16_t cmd_length;
-    static uint8_t command_buffer[MM_CMD_MAX_SIZE] 
-        __attribute__((aligned(8))) = { 0 };
-
-    while (sq_pending) 
+    if(Host_Iface_Interrupt_Flag)
     {
-        /* Scan all SQs for available command */
-        for (sq_id = 0, sq_pending = false; sq_id < MM_SQ_COUNT; 
-            sq_id++) 
+        Host_Iface_Interrupt_Flag = false;
+        asm volatile("fence"); 
+    }
+
+    /* Scan all SQs for available command */
+    for (sq_id = 0; sq_id < MM_SQ_COUNT; sq_id++)    
+    {
+        status = VQ_Data_Avail(&Host_SQs.vqueues[sq_id]);
+
+        if(status == true)
         {
-            do {
-                /* Pop the command from current SQ */
-                cmd_length = (uint16_t) VQ_Pop(&Host_CQs.vqueues[sq_id], 
-                    command_buffer);
+            /* Dispatch work to SQ Worker associated with this SQ */
+            SQW_Notify(sq_id);
+            
+            //Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
+                //"HostIfaceProcessing:DataAvailable on SQ=", 
+                //sq_id, "\r\n");
 
-                if (cmd_length > 0)
-                {
-                    /* Handle the host command */
-                    status = Host_Command_Handler(command_buffer);
-
-                    if (status != STATUS_SUCCESS)
-                    {
-                        Log_Write(LOG_LEVEL_ERROR, "%s %d %s",
-                        "ERROR: Host command processing failed. (Error code: )", 
-                        status, "\r\n");
-                    }
-                }
-                /* Only process all commands from high priority SQ.
-                   This while loop will continue to run until there 
-                   are no more cmds in high priority SQ */
-            } while ((sq_id == MM_SQ_HP_INDEX) && (cmd_length > 0));
-
-            if (cmd_length > 0)
-            {
-                /* Goto next SQ and set the flag to indicate that we 
-                   might need to process the same normal priority SQ again */
-                sq_pending = true;
-            }
+        }
+        else
+        {
+            Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
+                "HostIfaceProcessing:NoData on SQ=", 
+                sq_id, "\r\n");
         }
     }
- 
+
     return;
 }
 

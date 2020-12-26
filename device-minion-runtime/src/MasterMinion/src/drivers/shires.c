@@ -171,7 +171,7 @@ void Shire_Update_State(uint64_t shire, shire_state_t shire_state)
 ***********************************************************************/
 bool Shire_Check_All_Are_Booted(uint64_t shire_mask)
 {
-    return (Gbl_Booted_Shires & shire_mask) == shire_mask;
+    return ((Gbl_Booted_Shires & shire_mask) == shire_mask);
 }
 
 /************************************************************************
