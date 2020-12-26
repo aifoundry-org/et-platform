@@ -55,6 +55,7 @@ install(
     include/circbuff.h
     include/circbuffer_common.h
     include/circbuffer.h
+    include/circbuff.h
     include/vqueue_common.h
     include/vq.h
   DESTINATION

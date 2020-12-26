@@ -56,6 +56,8 @@ once the shared log.h is made conformant to code convention */
 #define log_set_level   Log_Set_Level
 #define get_log_level   Log_Get_Level   
 #define log_write       Log_Write   
-#define log_write_str   Log_Write_String   
+#define log_write_str   Log_Write_String
+
+#define ASSERT_LOG(log_level,msg,expr) if (!(expr)) Log_Write(log_level,"%s || File:%s Line:%d \r\n", msg, __FILE__, __LINE__)
 
 #endif /* LOG1_DEFS_H */

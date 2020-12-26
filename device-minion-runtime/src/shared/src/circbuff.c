@@ -51,12 +51,6 @@
 int8_t Circbuffer_Init(circ_buff_cb_t *circ_buff_cb_ptr, 
         uint32_t buffer_length)
 {
-    /* Circular buffer length must be a power of 2 */
-    if ((buffer_length & (buffer_length - 1)) != 0) 
-    {
-        return CIRCBUFF_ERROR_BAD_LENGTH;
-    }
-
     /* Reset the head and tail offsets */
     circ_buff_cb_ptr->head_offset = 0;
     circ_buff_cb_ptr->tail_offset = 0;

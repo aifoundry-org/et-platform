@@ -61,7 +61,8 @@ int8_t VQ_Init(vq_cb_t *vq_cb, uint64_t vq_base, uint32_t vq_size,
     vq_cb->flags = flags;
 
     /* Initialize the SQ circular buffer */
-    status = Circbuffer_Init(vq_cb->circbuff_cb, vq_size);
+    status = Circbuffer_Init(vq_cb->circbuff_cb, 
+                 (uint32_t)(vq_size - sizeof(circ_buff_cb_t)));
 
     return status;
 }
@@ -172,6 +173,30 @@ int8_t VQ_Peek(vq_cb_t* vq_cb, void* peek_buff, uint16_t peek_offset,
                 peek_offset, peek_length, vq_cb->flags);
 
     return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       VQ_Data_Avail
+*  
+*   DESCRIPTION
+*
+*       Is data available to process in the VQ.
+*
+*   INPUTS
+*
+*       vq_cb   VQ control block
+*
+*   OUTPUTS
+*
+*       bool      Boolean indicating presence of data to process.
+*
+***********************************************************************/
+bool VQ_Data_Avail(vq_cb_t* vq_cb)
+{
+    return (Circbuffer_Get_Used_Space(vq_cb->circbuff_cb, vq_cb->flags) > 0);
 }
 
 /************************************************************************

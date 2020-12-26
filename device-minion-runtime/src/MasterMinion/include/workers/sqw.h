@@ -21,23 +21,37 @@
 #ifndef SQW_DEFS_H
 #define SQW_DEFS_H
 
+#include "config/mm_config.h"
 #include "common_defs.h"
+#include "sync.h"
+#include "vq.h"
 
-#define     SQW_BASE_HART_ID     2050
-#define     SQW_NUM              4 /* TODO: Should be driven by NUM SQs */
-#define     SQW_MAX_HART_ID      \
-                SQW_BASE_HART_ID + SQW_NUM
+#define     SQW_MAX_HART_ID      (SQW_BASE_HART_ID + SQW_NUM)
+#define     SQW_WORKER_0         ((SQW_BASE_HART_ID - MM_BASE_ID)/2)
 
+typedef struct sqw_cb_ {
+    uint8_t             num_sqw;
+    global_fcc_flag_t   sqw_fcc_flags[MM_SQ_COUNT];
+    vq_cb_t             *sq[MM_SQ_COUNT];
+} sqw_cb_t;
+                
 /*! \fn void SQW_Init(void)
     \brief Initialize resources used by the Submission Queue Worker
     \param None
 */
 void SQW_Init(void);
 
-/*! \fn void SQW_Launch(uint32_t hart_id)
+/*! \fn void SQW_Notify(uint8_t sqw_idx)
+    \brief Submission Queue Worker notify
+    \param [in] Submission Queue Worker index
+*/
+void SQW_Notify(uint8_t sqw_idx);
+
+/*! \fn void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
     \brief Launch the Submission Queue Worker
     \param [in] HART ID on which the Kernel Worker should be launched
+    \param [in] Submission Queue Worker index
 */
-void SQW_Launch(uint32_t hart_id);
+void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx);
 
 #endif /* SQW_DEFS_H */

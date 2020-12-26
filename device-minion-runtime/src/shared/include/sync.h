@@ -1,3 +1,22 @@
+/***********************************************************************
+*
+* Copyright (C) 2020 Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*
+************************************************************************
+
+************************************************************************
+*
+*   DESCRIPTION
+*
+*       Header/Interface description for sync services
+*
+***********************************************************************/
 #ifndef SYNC_H
 #define SYNC_H
 
@@ -73,5 +92,40 @@ static inline void global_fcc_flag_notify(global_fcc_flag_t *flag, uint32_t mini
         FENCE
     } while (atomic_load_global_32(&flag->flag) != 0);
 }
+
+typedef uint8_t spinlock_t;
+
+// Global spinlocks implementation
+static inline void acquire_global_spinlock(spinlock_t *lock)
+{
+    while (atomic_load_global_8(lock) != 0U) {
+        asm volatile("fence\n" ::: "memory");
+    }
+    atomic_store_global_8(lock, 1U);
+    asm volatile("fence\n" ::: "memory");
+}
+
+static inline void release_global_spinlock(spinlock_t *lock)
+{
+    atomic_store_global_8(lock, 0U);
+    asm volatile("fence\n" ::: "memory");
+}
+
+// Local spinlocks implementation
+static inline void acquire_local_spinlock(spinlock_t *lock)
+{
+    while (atomic_load_local_8(lock) != 0U) {
+        asm volatile("fence\n" ::: "memory");
+    }
+    atomic_store_local_8(lock, 1U);
+    asm volatile("fence\n" ::: "memory");
+}
+
+static inline void release_local_spinlock(spinlock_t *lock)
+{
+    atomic_store_local_8(lock, 0U);
+    asm volatile("fence\n" ::: "memory");
+}
+
 
 #endif

@@ -25,17 +25,21 @@
 #include <common_defs.h>
 #include "layout.h"
 
+/******************************************************/
+/* Definitions to locate and manage Host to MM SQs/CQ */
+/******************************************************/
+
 /*! \def MM_VQ_BAR
     \brief A macro that provides the PCI BAR region using which
     the Master Minion virtual queues can be accessed
 */
 #define MM_VQ_BAR           2
 
-/*! \def MM_VQ_OFFSET
-    \brief A macro that provides the PCI BAR region offset using
-    which the Master Minion virtual queues can be accessed
+/*! \def MM_VQ_SIZE
+    \brief A macro that provides the total size for MM VQs (SQs + CQs)
+    on PCI BAR.
 */
-#define MM_VQ_OFFSET        0x800UL
+#define MM_VQ_SIZE           0x800UL
 
 /*! \def MM_SQS_BASE_ADDR
     \brief A macro that provides the Master Minion's 32 bit base address
@@ -44,11 +48,17 @@
 */
 #define MM_SQS_BASE_ADDRESS DEVICE_MM_VQUEUE_BASE
 
+/*! \def MM_SQ_OFFSET
+    \brief A macro that provides the PCI BAR region offset using
+    which the Master Minion submission queues can be accessed
+*/
+#define MM_SQ_OFFSET        0x800UL
+
 /*! \def MM_SQ_COUNT
     \brief A macro that provides the Master Minion submission queue
     count
 */
-#define MM_SQ_COUNT         4
+#define MM_SQ_COUNT         1
 
 /*! \def MM_MAX_SUPPORTED_SQS
     \brief Maximum supported submission queues by Master Minion
@@ -82,6 +92,12 @@
 */
 #define MM_CQS_BASE_ADDRESS (MM_SQS_BASE_ADDRESS + (MM_SQ_COUNT * MM_SQ_SIZE))
 
+/*! \def MM_CQ_OFFSET
+    \brief A macro that provides the PCI BAR region offset using
+    which the Master Minion completion queues can be accessed
+*/
+#define MM_CQ_OFFSET        (MM_SQ_OFFSET + (MM_SQ_COUNT * MM_SQ_SIZE))
+
 /*! \def MM_CQ_SIZE
     \brief A macro that provides size of the Master Minion
     completion queue. 
@@ -111,7 +127,7 @@
     1 - SRAM
     2 - DRAM
 */
-#define MM_CQ_MEM_TYPE      UNCACHED
+#define MM_CQ_MEM_TYPE      L2_CACHE
 
 /*! \def MM_CMD_MAX_SIZE
     \brief A macro that provides the maximum command size on the host <> mm 
@@ -120,8 +136,72 @@
 /* TODO: Fine tune this value according to the final device-ops-api spec */
 #define MM_CMD_MAX_SIZE      64U
 
-/* TOD: Find a proper home for these definitions, we can place these SP
-specific definitions in mm_config.h */
+/*************************************************/
+/* Definitions for MM workers SQW, KW, DMAW, CQW */
+/*************************************************/
+/*! \def MM_BASE_ID
+    \brief Base HART ID for the Master Minion
+*/
+#define MM_BASE_ID            2048
+
+/*! \def SQW_BASE_HART_ID
+    \brief Base HART ID for the Submission Queue Worker
+*/
+#define SQW_BASE_HART_ID      2050U
+
+/*! \def SQW_NUM
+    \brief Number of Submission Queue Workers
+*/
+#define SQW_NUM               MM_SQ_COUNT
+
+/*! \def KW_BASE_HART_ID
+    \brief Base HART ID for the Kernel Worker
+*/
+#define KW_BASE_HART_ID       2054U
+
+/*! \def KW_NUM
+    \brief Number of Kernel Workers
+*/
+#define KW_NUM                4
+
+/*! \def DMAW_BASE_HART_ID
+    \brief Base HART ID for the DMA Worker
+*/
+#define DMAW_BASE_HART_ID     2058U
+
+/*! \def DMAW_NUM
+    \brief Number of DMA Workers
+*/
+#define DMAW_NUM              1
+
+/*! \def CQW_BASE_HART_ID
+    \brief Base HART ID for the Completion Queue Worker
+*/
+#define CQW_BASE_HART_ID      2059U
+
+/*! \def CQW_NUM
+    \brief Number of DMA Workers
+*/
+#define CQW_NUM               1
+
+/*! \def MM_CW_FIFO_SIZE
+    \brief Completion Worker's input command FIFO buffer size
+*/
+#define MM_CW_FIFO_SIZE       1024U
+
+/*! \def MM_KW_FIFO_SIZE
+    \brief Kernel Worker's input command FIFO buffer size
+*/
+#define MM_KW_FIFO_SIZE       1024U
+
+/*! \def MM_DMAW_FIFO_SIZE
+    \brief DMA Worker's input command FIFO buffer size
+*/
+#define MM_DMAW_FIFO_SIZE     1024U
+
+/***************************************************/
+/* Definitions to locate and manage MM to SP SQ/CQ */
+/***************************************************/
 
 #define     SP_SQ_BASE      0 /* TODO: Update this to actual address */
 #define     SP_SQ_SIZE      0 /* TODO: Update this to actual size */
@@ -132,5 +212,10 @@ specific definitions in mm_config.h */
 #define     SP_CQ_SIZE      0 /* TODO: Update this to actual size */
 #define     SP_CQ_COUNT     1
 #define     SP_CQ_MEM_TYPE  1
+
+/**********************/
+/* Minion Identifiers */
+/**********************/
+
 
 #endif /* __MM_CONFIG_H__ */

@@ -22,11 +22,21 @@
 #define DMAW_DEFS_H
 
 #include "common_defs.h"
+#include "sync.h"
+#include "vq.h"
 
-#define     DMAW_BASE_HART_ID     2058
-#define     DMAW_NUM              1
-#define     DMAW_MAX_HART_ID      \
-                DMAW_BASE_HART_ID + DMAW_NUM
+#define     DMAW_MAX_HART_ID      DMAW_BASE_HART_ID + DMAW_NUM
+
+typedef struct dmaw_cb_ {
+    global_fcc_flag_t   dmaw_fcc_flag;
+    vq_cb_t             *dmaw_fcc_fifo;
+} dmaw_cb_t;
+
+/*! \fn void DMAW_Init(void)
+    \brief Initialize DMA Worker
+    \param None
+*/
+void DMAW_Init(void);
 
 /*! \fn void DMAW_Launch(void)
     \brief Launch the DMA Worker

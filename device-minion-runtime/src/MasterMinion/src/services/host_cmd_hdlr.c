@@ -57,23 +57,27 @@ int8_t Host_Command_Handler(void* command_buffer)
             struct device_ops_echo_cmd_t *cmd = (void *)hdr;
             struct device_ops_echo_rsp_t rsp;
 
-            Log_Write(LOG_LEVEL_INFO, "DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD\r\n");
+            Log_Write(LOG_LEVEL_INFO, 
+                "DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD\r\n");
 
             /* Construct and transmit response */
             rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
-            rsp.response_info.rsp_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_ECHO_RSP;
+            rsp.response_info.rsp_hdr.msg_id = 
+                DEV_OPS_API_MID_DEVICE_OPS_ECHO_RSP;
             rsp.echo_payload = cmd->echo_payload;
             int8_t cq_status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
 
             if (cq_status != STATUS_SUCCESS) 
             {
                 Log_Write(LOG_LEVEL_ERROR, "%s %d %s",
-                          "CQ push: Device-ops ECHO response error: ", cq_status, "\r\n");
+                    "HostCmdHandler:Host_Iface_CQ_Push_Cmd failed (error):", 
+                    cq_status, "\r\n");
             } 
             else 
             {
-                Log_Write(LOG_LEVEL_DEBUG,
-                          "ECHO_RSP echo_payload=%d \r\n", rsp.echo_payload);
+                Log_Write(LOG_LEVEL_DEBUG, "%s%X%s",
+                "HostCmdHandler:Host_Iface_CQ_Push_Cmd: ECHO_RSP Echo_Payload = 0x", 
+                rsp.echo_payload, "\r\n");
             }
 
             break;

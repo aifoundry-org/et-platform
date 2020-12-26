@@ -25,27 +25,49 @@
 *       Worker_Iface_Deinit
 *
 ***********************************************************************/
+#include "config/mm_config.h"
 #include "services/worker_iface.h"
 #include "services/log1.h"
 #include "vq.h"
+#include "sync.h"
 
-/*! \var iface_q_cb_t KW_FIFO
-    \brief Global SQWs (multi-source) to KW FIFO (sink)
+/*! \var FCC FIFOS used by Minion Runtime
+    \brief: CW_FIFO_Buff - Completion Worker FIFO
+    \brief: KW_FIFO_Buff - Kernel Worker FIFO 
+    \brief: DMAW_FIFO_Buff - DMA Worker FIFO
     \warning Not thread safe!
 */
-static iface_cb_t KW_FIFO = {0};
+static uint8_t CW_FIFO_Buff[MM_CW_FIFO_SIZE]__attribute__((aligned(8))) 
+    = { 0 };
+static uint8_t KW_FIFO_Buff[MM_KW_FIFO_SIZE]__attribute__((aligned(8))) 
+    = { 0 };
+static uint8_t DMAW_FIFO_Buff[MM_CW_FIFO_SIZE]__attribute__((aligned(8))) 
+    = { 0 };
 
-/*! \var iface_q_cb_t DMAW_FIFO
-    \brief Global SQWs (multi-source) to DMAW FIFO (sink)
+typedef struct worker_iface_cb_ {
+    uint8_t     worker_type;
+    vq_cb_t    fifo_vq_cb;
+    void        *fifo_base_addr;
+} worker_iface_cb_t;
+
+/*! \var CQ_Worker_Iface
+    \brief: Global control block for the completion queue worker interface
     \warning Not thread safe!
 */
-static iface_cb_t DMAW_FIFO = {0};
+worker_iface_cb_t  CQ_Worker_Iface={0};
 
-/*! \var iface_q_cb_t CQW_FIFO
-    \brief Global Multiple source to CQW FIFO (sink)
+/*! \var K_Worker_Iface
+    \brief: Global control block for the kernel interface
     \warning Not thread safe!
 */
-static iface_cb_t CQW_FIFO = {0};
+worker_iface_cb_t  K_Worker_Iface={0};
+
+/*! \var DMA_Worker_Iface
+    \brief: Global control block for the DMA worker interface
+    \warning Not thread safe!
+*/
+worker_iface_cb_t  DMA_Worker_Iface={0};
+
 
 /************************************************************************
 *
@@ -69,21 +91,36 @@ static iface_cb_t CQW_FIFO = {0};
 int8_t Worker_Iface_Init(uint8_t interface_type)
 {
     int8_t status = 0;
+    uint32_t size;
+    worker_iface_cb_t *worker = 0;
 
-    if (interface_type == TO_KW_FIFO)
-    {
-        /* TODO */
-
+    /* Obtain reference to worker control block based on interface type */
+    if(interface_type == TO_KW_FIFO) {
+        worker = &K_Worker_Iface;
+        worker->worker_type = TO_KW_FIFO;
+        worker->fifo_base_addr = KW_FIFO_Buff;
+        size = MM_KW_FIFO_SIZE;
+    } else if(interface_type == TO_DMAW_FIFO) {
+        worker = &DMA_Worker_Iface;
+        worker->worker_type = TO_DMAW_FIFO;
+        worker->fifo_base_addr = DMAW_FIFO_Buff;
+        size = MM_DMAW_FIFO_SIZE;
+    } else if(interface_type == TO_CQW_FIFO) {
+        worker = &CQ_Worker_Iface;
+        worker->worker_type = TO_CQW_FIFO;
+        worker->fifo_base_addr = CW_FIFO_Buff;
+        size = MM_CW_FIFO_SIZE;
     }
-    else if (interface_type == TO_DMAW_FIFO)
-    {
-        /* TODO */
 
-    }
-    else if (interface_type == TO_CQW_FIFO)
-    {
-        /* TODO */
+    /* Initialize a virtual queue control block with 
+    the current worker's input fifo buffer */
+    if(worker != NULL)
+    {   
+        status = VQ_Init(&worker->fifo_vq_cb, (uint64_t)worker->fifo_base_addr, 
+            size, 0, sizeof(cmd_size_t), L2_CACHE);
 
+        ASSERT_LOG(LOG_LEVEL_ERROR, "WorkerIface:VQInit", 
+            (status == STATUS_SUCCESS));
     }
 
     return status;
@@ -114,26 +151,24 @@ int8_t Worker_Iface_Init(uint8_t interface_type)
 int8_t Worker_Iface_Push_Cmd(uint8_t interface_type, void* p_cmd, 
     uint32_t cmd_size)
 {
-    int8_t status;
-    vq_cb_t *p_vq_cb;
+    int8_t status = 0;
 
-    if (interface_type == TO_KW_FIFO)
-    {
-        p_vq_cb = &KW_FIFO.vqueue;
-    }
-    else if (interface_type == TO_DMAW_FIFO)
-    {
-        p_vq_cb = &DMAW_FIFO.vqueue;
-    }
-    else if (interface_type == TO_CQW_FIFO)
-    {
-        p_vq_cb = &CQW_FIFO.vqueue;
+    worker_iface_cb_t *worker = 0;
+    vq_cb_t *vq = 0;
+
+    /* Obtain reference to worker control block based on interface type */
+    if(interface_type == TO_KW_FIFO) {
+        worker = &K_Worker_Iface;
+        vq = &worker->fifo_vq_cb;
+    } else if(interface_type == TO_DMAW_FIFO) {
+        worker = &DMA_Worker_Iface;
+        vq = &worker->fifo_vq_cb;
+    } else if(interface_type == TO_CQW_FIFO) {
+        worker = &CQ_Worker_Iface;
+        vq = &worker->fifo_vq_cb;
     }
 
-    /* Pop the command from circular buffer */
-    status = VQ_Push(p_vq_cb, p_cmd, cmd_size);
-
-    /* Implement logic to post FCC event base on interface type */
+    status = VQ_Push(vq, p_cmd, cmd_size);
 
     return status;
     
@@ -162,37 +197,26 @@ int8_t Worker_Iface_Push_Cmd(uint8_t interface_type, void* p_cmd,
 ***********************************************************************/
 uint32_t Worker_Iface_Pop_Cmd(uint8_t interface_type, void* rx_buff)
 {
-    uint32_t retval;
-    vq_cb_t *p_vq_cb;
+    worker_iface_cb_t *worker = 0;
+    vq_cb_t *vq = 0;
     uint32_t command_size;
 
-    if (interface_type == TO_KW_FIFO)
-    {
-        p_vq_cb = &KW_FIFO.vqueue;
+    /* Obtain reference to worker control block based on interface type */
+    if(interface_type == TO_KW_FIFO) {
+        worker = &K_Worker_Iface;
+        vq = &worker->fifo_vq_cb;
+    } else if(interface_type == TO_DMAW_FIFO) {
+        worker = &DMA_Worker_Iface;
+        vq = &worker->fifo_vq_cb;
+    } else if(interface_type == TO_CQW_FIFO) {
+        worker = &CQ_Worker_Iface;
+        vq = &worker->fifo_vq_cb;
     }
-    else if (interface_type == TO_DMAW_FIFO)
-    {
-        p_vq_cb = &DMAW_FIFO.vqueue;
-    }
-    else if (interface_type == TO_CQW_FIFO)
-    {
-        p_vq_cb = &CQW_FIFO.vqueue;
-    }
+    
+    /* Pop available command */
+    command_size = VQ_Pop(vq, rx_buff);
 
-    /* Pop the command from circular buffer */
-    command_size = VQ_Pop(p_vq_cb, rx_buff);
-
-    if (command_size) 
-    {
-        retval = command_size;
-    } 
-    else 
-    {
-        Log_Write(LOG_LEVEL_ERROR, "%s",
-        "ERROR: Circbuff Pop Failed \r\n");
-    }
-
-    return retval;
+    return command_size;
 }
 
 /************************************************************************

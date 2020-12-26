@@ -31,7 +31,10 @@
     \brief Global Vector Table
     \warning Not thread safe!
 */
-void (*Interrupt_Vector_Table[PU_PLIC_INTR_CNT])(void) = { NULL };
+//void (*Interrupt_Vector_Table[PU_PLIC_INTR_CNT])(void) = { NULL };
+/* TODO: Using externed legacy vector table for now, use vector table above and update trap_handler.S as needed */
+extern void (*vectorTable[PU_PLIC_INTR_CNT])(void);
+
 
 static void plic_enable_interrupt(volatile uint32_t *const basePriorityReg,
     volatile uint32_t *const baseEnableReg, uint32_t intID,
@@ -78,8 +81,10 @@ static void plic_disable_interrupt(volatile uint32_t *const basePriorityReg,
 ***********************************************************************/
 void Interrupt_Init(void)
 {
+
     /*Set thresholds to not mask any interrupts*/
     iowrite32(R_PU_PLIC_BASEADDR + PU_PLIC_THRESHOLD_T11_ADDRESS, 0);
+
 }
 
 /************************************************************************
@@ -106,7 +111,7 @@ void Interrupt_Init(void)
 void Interrupt_Enable(interrupt_t interrupt, uint32_t priority, 
     void (*isr)(void))
 {
-    Interrupt_Vector_Table[interrupt] = isr;
+    vectorTable[interrupt] = isr;
     
     plic_enable_interrupt(
         (volatile uint32_t *const)
@@ -145,5 +150,5 @@ void Interrupt_Disable(interrupt_t interrupt)
         (R_PU_PLIC_BASEADDR + PU_PLIC_ENABLE_T11_R0_ADDRESS),
         (uint32_t)interrupt);
     
-    Interrupt_Vector_Table[interrupt] = NULL;
+    vectorTable[interrupt] = NULL;
 }

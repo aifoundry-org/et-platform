@@ -23,6 +23,38 @@
 ***********************************************************************/
 #include    "workers/dmaw.h"
 #include    "services/log1.h"
+#include    "vq.h"
+
+/*! \var kw_cb_t CQW_CB
+    \brief Global Kernel Worker Control Block
+    \warning Not thread safe!
+*/
+static dmaw_cb_t DMAW_CB={0};
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       DMAW_Init
+*  
+*   DESCRIPTION
+*
+*       Initialize DMA Worker
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void DMAW_Init(void)
+{
+    
+    return;
+}
 
 /************************************************************************
 *
@@ -45,10 +77,18 @@
 ***********************************************************************/
 void DMAW_Launch(uint32_t hart_id)
 {
-    (void) hart_id;
+    Log_Write(LOG_LEVEL_DEBUG, "%s = %d %s", "DMAW = ", hart_id, 
+        "launched\r\n");
 
-    //Log_Write(LOG_LEVEL_DEBUG, "%s = %d %s", "DMAW ="
-    //            , hart_id, "launched\r\n");
-    
+    /* Empty all FCCs */
+    init_fcc(FCC_0);
+    init_fcc(FCC_1);
+
+    while(1)
+    {
+        /* Wait for SQ Worker notification from Dispatcher*/
+        global_fcc_flag_wait(&DMAW_CB.dmaw_fcc_flag);
+    };
+
     return;
 }

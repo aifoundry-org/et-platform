@@ -26,6 +26,13 @@
 #include    "kernel_config.h"
 #include    "utils.h"
 #include    "cacheops.h"
+#include    "vq.h"
+
+/*! \var kw_cb_t CQW_CB
+    \brief Global Kernel Worker Control Block
+    \warning Not thread safe!
+*/
+static kw_cb_t KW_CB={0};
 
 /* Shared state - Worker minion fetch kernel parameters from these */
 static kernel_config_t *const kernel_config = 
@@ -97,10 +104,19 @@ void KW_Init(void)
 ***********************************************************************/
 void KW_Launch(uint32_t hart_id)
 {
-    (void) hart_id;
+     Log_Write(LOG_LEVEL_DEBUG, "%s = %d %s", "KW = ", hart_id, "launched\r\n");
 
-    //Log_Write(LOG_LEVEL_DEBUG, "%s = %d %s", "KW = "
-    //            , hart_id, "launched\r\n");
+    /* Empty all FCCs */
+    init_fcc(FCC_0);
+    init_fcc(FCC_1);
+
+    while(1)
+    {
+        /* Wait for SQ Worker notification from Dispatcher*/
+        global_fcc_flag_wait(&KW_CB.kw_fcc_flag);
+
+    };
     
     return;
 }
+

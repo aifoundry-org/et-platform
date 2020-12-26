@@ -29,14 +29,17 @@
 #include "workers/dmaw.h"
 #include "workers/cqw.h"
 #include "services/lock.h"
+#include "sync.h"
 #include "hart.h"
 #include "atomic.h"
 
-/*! \var lock_t System_Level_Sync_lock
-    \brief Global system levele sync spin lock
+/*! \var Launch_Lock
+    \brief Global Host to MM submission
+    queues interface. Locks initialized
+    to acquired state.
     \warning Not thread safe!
 */
-lock_t Gbl_System_level_Sync_Lock;
+spinlock_t Launch_Lock = 1;
 
 void main2(void);
 
@@ -60,21 +63,31 @@ void main2(void)
     else if ((hart_id >= SQW_BASE_HART_ID) && 
             (hart_id < SQW_MAX_HART_ID))
     {
-        SQW_Launch(hart_id - SQW_BASE_HART_ID);
+        /* Spin wait till dispatcher initialization is complete */
+        acquire_local_spinlock(&Launch_Lock);
+        SQW_Launch(hart_id, (hart_id - SQW_BASE_HART_ID));
     } 
+    #if 0
     else if ((hart_id >= KW_BASE_HART_ID) && 
             (hart_id < KW_MAX_HART_ID))
     {
+        /* Spin wait till dispatcher initialization is complete */
+        acquire_local_spinlock(&Launch_Lock);
         KW_Launch(hart_id - KW_BASE_HART_ID);
     } 
     else if ((hart_id >= DMAW_BASE_HART_ID) && 
             (hart_id < DMAW_MAX_HART_ID))
     {
+        /* Spin wait till dispatcher initialization is complete */
+        acquire_local_spinlock(&Launch_Lock);
         DMAW_Launch(hart_id);
     }
+    #endif
     else if ((hart_id >= CQW_BASE_HART_ID) && 
             (hart_id < CQW_MAX_HART_ID))
     {
+        /* Spin wait till dispatcher initialization is complete */
+        acquire_local_spinlock(&Launch_Lock);
         CQW_Launch(hart_id);
     }
     else

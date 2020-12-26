@@ -24,11 +24,15 @@
 #include "kernel_info.h"
 #include "kernel_state.h"
 #include "kernel_sync.h"
+#include "sync.h"
+#include "vq.h"
 
-#define     KW_BASE_HART_ID     2054
-#define     KW_NUM              4 /*TODO: why do we need 4 KWs ? */
-#define     KW_MAX_HART_ID      \
-                (KW_BASE_HART_ID + KW_NUM)
+#define     KW_MAX_HART_ID      (KW_BASE_HART_ID + KW_NUM)
+
+typedef struct kw_cb_ {
+    global_fcc_flag_t   kw_fcc_flag;
+    vq_cb_t             *kw_fcc_fifo;
+} kw_cb_t;
 
 /* TODO: fix up the 1 suffix once the old implementation is removed */
 typedef enum 

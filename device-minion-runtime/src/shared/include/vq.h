@@ -61,6 +61,9 @@ typedef struct iface_cb_ {
     This field is 64 bit to accomodate DDR memory space.
     \param [in] vq_base: Base address for submission queue buffers.
     \param [in] vq_size: Size of each submission queue in bytes.
+    \param [in] cmd_size_peek_offset: Base offset to be used for peek.
+    \param [in] cmd_size_peek_length: Length of command should be peeked.
+    \param [in] flags: Memory type to drive access attributes.
 */
 int8_t VQ_Init(vq_cb_t* vq_cb, uint64_t vq_base, uint32_t vq_size,
     uint16_t cmd_size_peek_offset, uint16_t cmd_size_peek_length, uint32_t flags);
@@ -92,6 +95,13 @@ uint32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff);
 */
 int8_t VQ_Peek(vq_cb_t* vq_cb, void* peek_buff, uint16_t peek_offset, 
         uint16_t peek_length);
+
+/*! \fn VQ_Data_Avail(vq_cb_t* vq_cb)
+    \brief Check if data available in VQ
+    \param [in] vq_cb: Pointer to virtual queue control block.
+    \returns [out] Boolean indicating data available to process
+*/
+bool VQ_Data_Avail(vq_cb_t* vq_cb);
 
 /*! \fn int8_t VQ_Deinit(void)
     \brief Deinitializes the virtual queues.

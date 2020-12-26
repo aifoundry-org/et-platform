@@ -28,11 +28,17 @@
 #include "drivers/console.h"
 #include <stddef.h>
 
+/* TODO: Debug code to serialize concurrent printing */
+#include "sync.h"
+
 /*! \var log_level_t Current_Log_Level
     \brief Global variable that maintains the current log level
     \warning Not thread safe!
 */
 static log_level_t Current_Log_Level = LOG_LEVEL_WARNING;
+
+/* TODO: Debug code to serialize concurrent printing */
+static spinlock_t Console_Lock = 0;
 
 /************************************************************************
 *
@@ -108,13 +114,24 @@ components I am leaving this the way it is, please ocnsider making the return
 status a int32_t */
 int64_t Log_Write(log_level_t level, const char *const fmt, ...)
 {
+    int64_t bytes_written;
+    
+    /* TODO: Debug code to serialize console printing */
+    acquire_local_spinlock(&Console_Lock);
+
     if (level > Current_Log_Level) {
         return 0;
     }
-
+    
     va_list va;
     va_start(va, fmt);
-    return vprintf(fmt, va);
+
+    bytes_written = vprintf(fmt, va);
+    
+    /* TODO: Debug code to serialize console printing */
+    release_local_spinlock(&Console_Lock);
+
+    return bytes_written;
 }
 
 /************************************************************************
@@ -145,6 +162,9 @@ int64_t Log_Write_String(log_level_t level, const char *str, size_t length)
 {
     size_t i;
 
+    /* TODO: Debug code to serialize console printing */
+    acquire_local_spinlock(&Console_Lock);
+
     if (level > Current_Log_Level) {
         return 0;
     }
@@ -152,6 +172,9 @@ int64_t Log_Write_String(log_level_t level, const char *str, size_t length)
     for (i = 0; i < length && str[i]; i++) {
         Console_Putchar(str[i]);
     }
+
+    /* TODO: Debug code to serialize console printing */
+    release_local_spinlock(&Console_Lock);
 
     return (int64_t)i;
 }
