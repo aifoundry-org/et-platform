@@ -127,43 +127,43 @@ void asset_tracking_process_request(mbox_e mbox, uint32_t cmd_id)
     req_start_time = timer_get_ticks_count();
 
     switch (cmd_id) {
-    case GET_MODULE_MANUFACTURE_NAME: {
+    case DM_CMD_GET_MODULE_MANUFACTURE_NAME: {
         ret = dm_svc_asset_getmanufacturername(req_asset_info);
     } break;
 
-    case GET_MODULE_PART_NUMBER: {
+    case DM_CMD_GET_MODULE_PART_NUMBER: {
         ret = dm_svc_asset_getpartnumber(req_asset_info);
     } break;
 
-    case GET_MODULE_SERIAL_NUMBER: {
+    case DM_CMD_GET_MODULE_SERIAL_NUMBER: {
         ret = dm_svc_asset_getserialnumber(req_asset_info);
     } break;
 
-    case GET_ASIC_CHIP_REVISION: {
+    case DM_CMD_GET_ASIC_CHIP_REVISION: {
         ret = dm_svc_asset_getchiprevision(req_asset_info);
     } break;
 
-    case GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED: {
+    case DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED: {
         ret = dm_svc_asset_getPCIEspeed(req_asset_info);
     } break;
 
-    case GET_MODULE_REVISION: {
+    case DM_CMD_GET_MODULE_REVISION: {
         ret = dm_svc_asset_getmodulerev(req_asset_info);
     } break;
 
-    case GET_MODULE_FORM_FACTOR: {
+    case DM_CMD_GET_MODULE_FORM_FACTOR: {
         ret = dm_svc_asset_getformfactor(req_asset_info);
     } break;
 
-    case GET_MODULE_MEMORY_VENDOR_PART_NUMBER: {
+    case DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER: {
         ret = dm_svc_asset_getmemorydetails(req_asset_info, mem_part);
     } break;
 
-    case GET_MODULE_MEMORY_SIZE_MB: {
+    case DM_CMD_GET_MODULE_MEMORY_SIZE_MB: {
         ret = dm_svc_asset_getmemorysize(req_asset_info);
     } break;
 
-    case GET_MODULE_MEMORY_TYPE: {
+    case DM_CMD_GET_MODULE_MEMORY_TYPE: {
         ret = dm_svc_asset_getmemorytype(req_asset_info);
     } break;
     }
@@ -183,14 +183,14 @@ void asset_tracking_process_request(mbox_e mbox, uint32_t cmd_id)
 #else
 static void asset_tracking_send_response(uint64_t req_start_time, char asset_info[])
 {
-    struct asset_tracking_rsp_t dm_rsp;
+    struct device_mgmt_asset_tracking_rsp_t dm_rsp;
 
     strncpy(dm_rsp.asset_info.asset, asset_info, 8);
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
                     timer_get_ticks_count() - req_start_time);
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct asset_tracking_rsp_t))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_asset_tracking_rsp_t))) {
         printf("asset_tracking_send_response: Cqueue push error !\n");
     }
 }

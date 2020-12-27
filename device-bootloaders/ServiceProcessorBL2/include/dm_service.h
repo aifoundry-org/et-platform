@@ -12,7 +12,8 @@
 #ifndef __DM_CONFIG_H__
 #define __DM_CONFIG_H__
 
-#include "dm.h"
+#include <stdint.h>
+#include <esperanto/device-apis/management-api/device_mgmt_api_rpc_types.h>
 
 struct soc_perf_reg_t {
     struct asic_frequencies_t asic_frequency;
@@ -21,8 +22,8 @@ struct soc_perf_reg_t {
 };
 
 struct soc_power_reg_t {
-     power_state_t module_power_state;
-     tdp_level_t module_tdp_level;
+     power_state_e module_power_state;
+     tdp_level_e module_tdp_level;
      struct temperature_threshold_t temperature_threshold;
      uint8_t soc_temperature;
      uint8_t soc_power;

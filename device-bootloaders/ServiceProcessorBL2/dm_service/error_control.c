@@ -56,15 +56,15 @@
 
 static void error_ctl_set_ddr_ecc_count(uint64_t req_start_time, uint32_t ecc_count)
 {
-    struct rsp_hdr_t dm_rsp;
+    struct dev_mgmt_rsp_header_t dm_rsp;
 
     (void)ecc_count;
     //TODO: Set the DDR ECC Count in BL2 Error data struct
 
-    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
                     timer_get_ticks_count() - req_start_time);
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct rsp_hdr_t))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct dev_mgmt_rsp_header_t))) {
         printf("error_ctl_set_ddr_ecc_count: Cqueue push error !\n");
     }
 }
@@ -92,15 +92,15 @@ static void error_ctl_set_ddr_ecc_count(uint64_t req_start_time, uint32_t ecc_co
 ***********************************************************************/
 static void error_ctl_set_pcie_ecc_count(uint64_t req_start_time, uint32_t ecc_count)
 {
-    struct rsp_hdr_t dm_rsp;
+    struct dev_mgmt_rsp_header_t dm_rsp;
 
     (void)ecc_count;
     //TODO: Set the PCIE ECC Count.
 
-    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
                     timer_get_ticks_count() - req_start_time);
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct rsp_hdr_t))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct dev_mgmt_rsp_header_t))) {
         printf("error_ctl_set_pcie_ecc_count: Cqueue push error !\n");
     }
 }
@@ -127,15 +127,15 @@ static void error_ctl_set_pcie_ecc_count(uint64_t req_start_time, uint32_t ecc_c
 ***********************************************************************/
 static void error_ctl_set_sram_ecc_count(uint64_t req_start_time, uint32_t ecc_count)
 {
-    struct rsp_hdr_t dm_rsp;
+    struct dev_mgmt_rsp_header_t dm_rsp;
 
     (void)ecc_count;
     //TODO: Set the SRAM ECC Count in BL2 Error data struct.
 
-    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
                     timer_get_ticks_count() - req_start_time);
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct rsp_hdr_t))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct dev_mgmt_rsp_header_t))) {
         printf("error_ctl_set_sram_ecc_count: Cqueue push error !\n");
     }
 }
@@ -171,13 +171,13 @@ void error_control_process_request(uint32_t cmd_id)
     // TODO : Retrieve ecc_count
 
     switch (cmd_id) {
-    case SET_DDR_ECC_COUNT: {
+    case DM_CMD_SET_DDR_ECC_COUNT: {
         error_ctl_set_ddr_ecc_count(req_start_time, ecc_count);
     } break;
-    case SET_PCIE_ECC_COUNT: {
+    case DM_CMD_SET_PCIE_ECC_COUNT: {
         error_ctl_set_pcie_ecc_count(req_start_time, ecc_count);
     } break;
-    case SET_SRAM_ECC_COUNT: {
+    case DM_CMD_SET_SRAM_ECC_COUNT: {
         error_ctl_set_sram_ecc_count(req_start_time, ecc_count);
     } break;
     }

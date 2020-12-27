@@ -133,74 +133,74 @@ static void pc_vq_task(void *pvParameters)
                 break;
             }
 
-            const struct cmd_hdr_t *const hdr = (void *)buffer;
+            const struct cmd_header_t *const hdr = (void *)buffer;
 
             // Process new message
-            switch (hdr->command_id) {
+            switch (hdr->cmd_hdr.msg_id) {
 #ifndef MAILBOX_SUPPORTED                
-            case GET_MODULE_MANUFACTURE_NAME:
-            case GET_MODULE_PART_NUMBER:
-            case GET_MODULE_SERIAL_NUMBER:
-            case GET_ASIC_CHIP_REVISION:
-            case GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED:
-            case GET_MODULE_REVISION:
-            case GET_MODULE_FORM_FACTOR:
-            case GET_MODULE_MEMORY_VENDOR_PART_NUMBER:
-            case GET_MODULE_MEMORY_SIZE_MB:
-            case GET_MODULE_MEMORY_TYPE:
+            case DM_CMD_GET_MODULE_MANUFACTURE_NAME:
+            case DM_CMD_GET_MODULE_PART_NUMBER:
+            case DM_CMD_GET_MODULE_SERIAL_NUMBER:
+            case DM_CMD_GET_ASIC_CHIP_REVISION:
+            case DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED:
+            case DM_CMD_GET_MODULE_REVISION:
+            case DM_CMD_GET_MODULE_FORM_FACTOR:
+            case DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER:
+            case DM_CMD_GET_MODULE_MEMORY_SIZE_MB:
+            case DM_CMD_GET_MODULE_MEMORY_TYPE:
                 // Process asset tracking service request cmd
-                asset_tracking_process_request(hdr->command_id);
+                asset_tracking_process_request(hdr->cmd_hdr.msg_id);
                 break;
-            case SET_FIRMWARE_UPDATE:
-            case GET_MODULE_FIRMWARE_REVISIONS:
-            case GET_FIRMWARE_BOOT_STATUS:
-            case SET_SP_BOOT_ROOT_CERT:
-            case SET_SW_BOOT_ROOT_CERT:
-            case RESET_ETSOC:
+            case DM_CMD_SET_FIRMWARE_UPDATE:
+            case DM_CMD_GET_MODULE_FIRMWARE_REVISIONS:
+            case DM_CMD_GET_FIRMWARE_BOOT_STATUS:
+            case DM_CMD_SET_SP_BOOT_ROOT_CERT:
+            case DM_CMD_SET_SW_BOOT_ROOT_CERT:
+            case DM_CMD_RESET_ETSOC:
                 // Process firmware service request cmd
-                firmware_service_process_request(hdr->command_id, (void *)buffer);
+                firmware_service_process_request(hdr->cmd_hdr.msg_id, (void *)buffer);
                 break;
 #endif
-            case GET_MODULE_POWER_STATE:
-            case SET_MODULE_POWER_STATE:
-            case GET_MODULE_STATIC_TDP_LEVEL:
-            case SET_MODULE_STATIC_TDP_LEVEL:
-            case GET_MODULE_TEMPERATURE_THRESHOLDS:
-            case SET_MODULE_TEMPERATURE_THRESHOLDS:
-            case GET_MODULE_CURRENT_TEMPERATURE:
-            case GET_MODULE_RESIDENCY_THROTTLE_STATES:
-            case GET_MODULE_POWER:
-            case GET_MODULE_VOLTAGE:
-            case GET_MODULE_UPTIME:
-            case GET_MODULE_MAX_TEMPERATURE:
-                 thermal_power_monitoring_process(hdr->command_id);
+            case DM_CMD_GET_MODULE_POWER_STATE:
+            case DM_CMD_SET_MODULE_POWER_STATE:
+            case DM_CMD_GET_MODULE_STATIC_TDP_LEVEL:
+            case DM_CMD_SET_MODULE_STATIC_TDP_LEVEL:
+            case DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS:
+            case DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS:
+            case DM_CMD_GET_MODULE_CURRENT_TEMPERATURE:
+            case DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES:
+            case DM_CMD_GET_MODULE_POWER:
+            case DM_CMD_GET_MODULE_VOLTAGE:
+            case DM_CMD_GET_MODULE_UPTIME:
+            case DM_CMD_GET_MODULE_MAX_TEMPERATURE:
+                 thermal_power_monitoring_process(hdr->cmd_hdr.msg_id);
                  break;
-            case SET_PCIE_RESET:
-            case SET_PCIE_MAX_LINK_SPEED:
-            case SET_PCIE_LANE_WIDTH:
-            case SET_PCIE_RETRAIN_PHY:
-            case GET_MODULE_PCIE_ECC_UECC:
-            case GET_MODULE_DDR_ECC_UECC:
-            case GET_MODULE_SRAM_ECC_UECC:
-            case GET_MODULE_DDR_BW_COUNTER:
-                 link_mgmt_process_request(hdr->command_id);
+            case DM_CMD_SET_PCIE_RESET:
+            case DM_CMD_SET_PCIE_MAX_LINK_SPEED:
+            case DM_CMD_SET_PCIE_LANE_WIDTH:
+            case DM_CMD_SET_PCIE_RETRAIN_PHY:
+            case DM_CMD_GET_MODULE_PCIE_ECC_UECC:
+            case DM_CMD_GET_MODULE_DDR_ECC_UECC:
+            case DM_CMD_GET_MODULE_SRAM_ECC_UECC:
+            case DM_CMD_GET_MODULE_DDR_BW_COUNTER:
+                 link_mgmt_process_request(hdr->cmd_hdr.msg_id);
                  break;
-            case SET_DDR_ECC_COUNT:
-            case SET_PCIE_ECC_COUNT:
-            case SET_SRAM_ECC_COUNT:
+            case DM_CMD_SET_DDR_ECC_COUNT:
+            case DM_CMD_SET_PCIE_ECC_COUNT:
+            case DM_CMD_SET_SRAM_ECC_COUNT:
                  // Process set error control cmd
-                 error_control_process_request(hdr->command_id);
+                 error_control_process_request(hdr->cmd_hdr.msg_id);
                  break;
-            case GET_MAX_MEMORY_ERROR:
-            case GET_MODULE_MAX_DDR_BW:
-            case GET_MODULE_MAX_THROTTLE_TIME:
-                 historical_extreme_value_request(hdr->command_id);
+            case DM_CMD_GET_MAX_MEMORY_ERROR:
+            case DM_CMD_GET_MODULE_MAX_DDR_BW:
+            case DM_CMD_GET_MODULE_MAX_THROTTLE_TIME:
+                 historical_extreme_value_request(hdr->cmd_hdr.msg_id);
                  break;
-            case GET_MM_THREADS_STATE:
+            case DM_CMD_GET_MM_THREADS_STATE:
                  mm_state_process_request();
                  break;     
             default:
-                printf("[PC VQ] Invalid message id: %" PRIu16 "\r\n", hdr->command_id);
+                printf("[PC VQ] Invalid message id: %" PRIu16 "\r\n", hdr->cmd_hdr.msg_id);
                 printf("message length: %" PRIi64 ", buffer:\r\n", length);
                 // TODO:
                 // Implement error handler

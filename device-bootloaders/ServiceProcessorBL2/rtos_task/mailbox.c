@@ -204,26 +204,26 @@ static void mbox_task(void *pvParameters)
                 break;
             }
 #ifdef MAILBOX_SUPPORTED            
-            case GET_MODULE_MANUFACTURE_NAME:
-            case GET_MODULE_PART_NUMBER:
-            case GET_MODULE_SERIAL_NUMBER:
-            case GET_ASIC_CHIP_REVISION: 
-            case GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED: 
-            case GET_MODULE_REVISION:
-            case GET_MODULE_FORM_FACTOR:
-            case GET_MODULE_MEMORY_VENDOR_PART_NUMBER:
-            case GET_MODULE_MEMORY_SIZE_MB:
-            case GET_MODULE_MEMORY_TYPE:{
+            case DM_CMD_GET_MODULE_MANUFACTURE_NAME:
+            case DM_CMD_GET_MODULE_PART_NUMBER:
+            case DM_CMD_GET_MODULE_SERIAL_NUMBER:
+            case DM_CMD_GET_ASIC_CHIP_REVISION: 
+            case DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED: 
+            case DM_CMD_GET_MODULE_REVISION:
+            case DM_CMD_GET_MODULE_FORM_FACTOR:
+            case DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER:
+            case DM_CMD_GET_MODULE_MEMORY_SIZE_MB:
+            case DM_CMD_GET_MODULE_MEMORY_TYPE:{
                 // Process asset tracking service request cmd
                 asset_tracking_process_request(mbox, (uint32_t)*message_id);
                 break;
             }
-            case SET_FIRMWARE_UPDATE:
-            case GET_MODULE_FIRMWARE_REVISIONS: 
-            case GET_FIRMWARE_BOOT_STATUS:
-            case SET_SP_BOOT_ROOT_CERT:
-            case SET_SW_BOOT_ROOT_CERT:
-            case RESET_ETSOC: {
+            case DM_CMD_SET_FIRMWARE_UPDATE:
+            case DM_CMD_GET_MODULE_FIRMWARE_REVISIONS: 
+            case DM_CMD_GET_FIRMWARE_BOOT_STATUS:
+            case DM_CMD_SET_SP_BOOT_ROOT_CERT:
+            case DM_CMD_SET_SW_BOOT_ROOT_CERT:
+            case DM_CMD_RESET_ETSOC: {
                 // Process firmware service request cmd
                 firmware_service_process_request(mbox, (uint32_t)*message_id, (void *)buffer);
                 break;

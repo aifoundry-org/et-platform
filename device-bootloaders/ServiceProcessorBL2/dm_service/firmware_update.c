@@ -260,38 +260,38 @@ void firmware_service_process_request(mbox_e mbox, uint32_t cmd_id, void *buffer
     req_start_time = timer_get_ticks_count();
 
     switch (cmd_id) {
-    case SET_FIRMWARE_UPDATE: {
+    case DM_CMD_SET_FIRMWARE_UPDATE: {
         ret = dm_svc_firmware_update(mbox, cmd_id, req_start_time);
     } break;
 
-    case GET_MODULE_FIRMWARE_REVISIONS: {
+    case DM_CMD_GET_MODULE_FIRMWARE_REVISIONS: {
         dm_svc_get_firmware_version(mbox, cmd_id, req_start_time);
     } break;
 
-    case GET_FIRMWARE_BOOT_STATUS: {
+    case DM_CMD_GET_FIRMWARE_BOOT_STATUS: {
         ret = dm_svc_get_firmware_status();
         send_status_response(mbox, cmd_id, req_start_time, ret);
     } break;
         /*  TODO: These feature is to be supported in v 0.0.7 
-    case SET_FIRMWARE_VERSION_COUNTER: {
+    case DM_CMD_SET_FIRMWARE_VERSION_COUNTER: {
         ret = dm_svc_set_firmware_version_counter();
     } break;
 
-    case SET_FIRMWARE_VALID: {
+    case DM_CMD_SET_FIRMWARE_VALID: {
         ret = dm_svc_set_firmware_valid_counter();
     } break;
 
-    case SET_SW_BOOT_ROOT_CERT: {
+    case DM_CMD_SET_SW_BOOT_ROOT_CERT: {
         ret = dm_svc_update_sw_boot_root_certificate_hash(dm_cmd_req);
     } break;
 
 */
-    case SET_SP_BOOT_ROOT_CERT: {
+    case DM_CMD_SET_SP_BOOT_ROOT_CERT: {
         ret = dm_svc_update_sp_boot_root_certificate_hash(dm_cmd_req);
         send_status_response(mbox, cmd_id, req_start_time, ret);
     } break;
 
-    case RESET_ETSOC: {
+    case DM_CMD_RESET_ETSOC: {
         printf("reset_etsoc\n");
         reset_etsoc();
     } break;
@@ -302,12 +302,12 @@ void firmware_service_process_request(mbox_e mbox, uint32_t cmd_id, void *buffer
 
 static void send_status_response(uint64_t req_start_time, uint32_t status)
 {
-    struct rsp_hdr_t dm_rsp;
+    struct dev_mgmt_rsp_header_t dm_rsp;
 
-    FILL_RSP_HEADER(dm_rsp, status, sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+    FILL_RSP_HEADER(dm_rsp, status, sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
                     timer_get_ticks_count() - req_start_time);
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct rsp_hdr_t))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct dev_mgmt_rsp_header_t))) {
         printf("send_status_response: Cqueue push error !\n");
     }
 }
@@ -402,7 +402,7 @@ static void dm_svc_get_firmware_version(uint64_t req_start_time)
         ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
          0xFF));
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct rsp_hdr_t),
+    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct rsp_header_t),
                     timer_get_ticks_count() - req_start_time);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct firmware_versions_rsp_t))) {
@@ -436,41 +436,41 @@ void firmware_service_process_request(uint32_t cmd_id, void *buffer)
     req_start_time = timer_get_ticks_count();
 
     switch (cmd_id) {
-    case SET_FIRMWARE_UPDATE: {
+    case DM_CMD_SET_FIRMWARE_UPDATE: {
         ret = dm_svc_firmware_update();
         send_status_response(req_start_time, (uint32_t)ret);
     } break;
 
-    case GET_MODULE_FIRMWARE_REVISIONS: {
+    case DM_CMD_GET_MODULE_FIRMWARE_REVISIONS: {
         dm_svc_get_firmware_version(req_start_time);
     } break;
 
-    case GET_FIRMWARE_BOOT_STATUS: {
+    case DM_CMD_GET_FIRMWARE_BOOT_STATUS: {
         ret = dm_svc_get_firmware_status();
         send_status_response(req_start_time, (uint32_t)ret);
     } break;
         /*  TODO: These feature is to be supported in v 0.0.7 
-    case SET_FIRMWARE_VERSION_COUNTER: {
+    case DM_CMD_SET_FIRMWARE_VERSION_COUNTER: {
         ret = dm_svc_set_firmware_version_counter();
     } break;
 
-    case SET_FIRMWARE_VALID: {
+    case DM_CMD_SET_FIRMWARE_VALID: {
         ret = dm_svc_set_firmware_valid_counter();
     } break;
 
-    case SET_SW_BOOT_ROOT_CERT: {
+    case DM_CMD_SET_SW_BOOT_ROOT_CERT: {
         ret = dm_svc_update_sw_boot_root_certificate_hash(dm_cmd_req);
     } break;
 
 */
-    case SET_SP_BOOT_ROOT_CERT: {
+    case DM_CMD_SET_SP_BOOT_ROOT_CERT: {
         struct certificate_hash_cmd_t *dm_cmd_req;
         dm_cmd_req = (struct certificate_hash_cmd_t *)buffer;
         ret = dm_svc_update_sp_boot_root_certificate_hash(dm_cmd_req);
         send_status_response(req_start_time, (uint32_t)ret);
     } break;
 
-    case RESET_ETSOC: {
+    case DM_CMD_RESET_ETSOC: {
         printf("reset_etsoc\n");
         reset_etsoc();
     } break;
