@@ -64,7 +64,6 @@ add_custom_target(doc-html
     DEPENDS Doxyfile.in
             conf.py.in
             ${DOC_FILES_DST}
-            gen-device-api
             )
 
 install(
