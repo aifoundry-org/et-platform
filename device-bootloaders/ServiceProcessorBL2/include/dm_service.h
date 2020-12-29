@@ -34,7 +34,9 @@ struct soc_power_reg_t {
 };
 
 /* Standard Response for all DM services */
-#define  FILL_RSP_HEADER(rsp, sts, sz, latency) (rsp).status = sts; (rsp).size = sz; \
-                                                     (rsp).device_latency_usec = latency
+#define  FILL_RSP_HEADER(rsp, sts, sz, latency) (rsp).rsp_hdr_ext.status = sts; \
+                                                (rsp).rsp_hdr_ext.device_latency_usec = latency; \
+                                                (rsp).rsp_hdr.size = sz; \
+                                                     
 
 #endif
