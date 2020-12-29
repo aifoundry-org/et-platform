@@ -27,6 +27,12 @@
 ***********************************************************************/
 #include "vq.h"
 
+#undef DEBUG_LOG
+
+#ifdef DEBUG_LOG
+#include "../../MasterMinion/include/services/log1.h"
+#endif
+
 /************************************************************************
 *
 *   FUNCTION
@@ -92,6 +98,12 @@ int8_t VQ_Push(vq_cb_t* vq_cb, void* data, uint32_t data_size)
 {
     int8_t status;
 
+    #ifdef DEBUG_LOG
+    Log_Write(LOG_LEVEL_DEBUG, "%s%p%s%p%s%d%s",
+        "VQ_Push:dst_addr:", vq_cb->circbuff_cb->buffer_ptr, ":src_addr:", 
+        data, ":data_size:", data_size, "\r\n");
+    #endif
+
     status = Circbuffer_Push(vq_cb->circbuff_cb, data, (uint16_t) data_size,
                                 vq_cb->flags);
 
@@ -132,6 +144,12 @@ uint32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
 
     if (status == STATUS_SUCCESS) 
     {
+        #ifdef DEBUG_LOG
+        Log_Write(LOG_LEVEL_DEBUG, "%s%p%s%p%s%d%s",
+            "VQ_Pop:src_addr:", vq_cb->circbuff_cb, ":dst_addr:", 
+            rx_buff, ":data_size:", command_size, "\r\n");
+        #endif
+
         /* Pop the command from circular buffer */
         status = Circbuffer_Pop(vq_cb->circbuff_cb, rx_buff, command_size,
                     vq_cb->flags);
@@ -139,7 +157,7 @@ uint32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
         if (status == STATUS_SUCCESS) 
         {
             return_val = command_size;
-        } 
+        }
     } 
 
     return return_val;

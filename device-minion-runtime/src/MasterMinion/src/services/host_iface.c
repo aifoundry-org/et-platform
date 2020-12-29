@@ -171,7 +171,7 @@ int8_t Host_Iface_SQs_Init(void)
 *
 *   FUNCTION
 *
-*       Host_Iface_Get_SQ_Base_Addr
+*       Host_Iface_Get_VQ_Base_Addr
 *  
 *   DESCRIPTION
 *
@@ -179,16 +179,33 @@ int8_t Host_Iface_SQs_Init(void)
 *
 *   INPUTS
 *
-*       sq_id       Submission Queue ID
+*       vq_type     Virtuql Queue Type
+*       vq_id       Virtual Queue ID
 *
 *   OUTPUTS
 *
-*       vq_cb_t*    Pointer to Submission queue base
+*       vq_cb_t*    Pointer to Virtual queue base
 *
 ***********************************************************************/
-vq_cb_t* Host_Iface_Get_SQ_Base_Addr(uint8_t sq_id)
+vq_cb_t* Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type, uint8_t vq_id)
 {
-    return &Host_SQs.vqueues[sq_id];
+    vq_cb_t* retval=0;
+
+    if(vq_type == SQ)
+    {
+        retval = &Host_SQs.vqueues[vq_id]; 
+    }
+    else if(vq_type == CQ)
+    {
+        retval = &Host_CQs.vqueues[vq_id];
+    }
+    else
+    {
+	 Log_Write(LOG_LEVEL_DEBUG, "%s", 
+        "HostIface:ERROR:Failed to obtain VQ base address, bad vq_id\r\n");
+    }
+    
+    return retval;
 }
 
 /************************************************************************
@@ -353,8 +370,8 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
         if (status != STATUS_SUCCESS) 
         {
             Log_Write(LOG_LEVEL_ERROR, "%s %d %s",
-            "CQ:ERROR: Host notification Failed. (Error code: )", 
-            status, "\r\n");
+                "CQ:ERROR: Host notification Failed. (Error code: )", 
+                status, "\r\n");
         }
     } 
     else 
@@ -445,19 +462,16 @@ void Host_Iface_Processing(void)
 
         if(status == true)
         {
+            Log_Write(LOG_LEVEL_DEBUG, 
+            "%s%d%s", "HostIfaceProcessing:Notifying:SQW_IDX=", sq_id, "\r\n");
+
             /* Dispatch work to SQ Worker associated with this SQ */
             SQW_Notify(sq_id);
-            
-            //Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
-                //"HostIfaceProcessing:DataAvailable on SQ=", 
-                //sq_id, "\r\n");
-
         }
         else
         {
             Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
-                "HostIfaceProcessing:NoData on SQ=", 
-                sq_id, "\r\n");
+                "HostIfaceProcessing:NoData on SQ=", sq_id, "\r\n");
         }
     }
 

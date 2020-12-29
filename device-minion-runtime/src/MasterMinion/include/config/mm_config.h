@@ -177,7 +177,7 @@
 /*! \def CQW_BASE_HART_ID
     \brief Base HART ID for the Completion Queue Worker
 */
-#define CQW_BASE_HART_ID      2059U
+#define CQW_BASE_HART_ID      2060U
 
 /*! \def CQW_NUM
     \brief Number of DMA Workers

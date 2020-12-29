@@ -28,6 +28,7 @@
 #include "workers/sqw.h"
 #include "workers/cqw.h"
 #include "workers/kw.h"
+#include "workers/dmaw.h"
 #include "services/host_iface.h"
 #include "services/host_cmd_hdlr.h"
 #include "services/sp_iface.h"
@@ -93,8 +94,8 @@ void Dispatcher_Launch(uint32_t hart_id)
     /* Initialize Workers */
     SQW_Init();
     CQW_Init();
-    /* Initialize KW */
-    /* Initialize DMAW */
+    KW_Init();
+    DMAW_Init();
     
     /* Host, and SP Interface Initializeation */
     Host_Iface_SQs_Init();
@@ -112,7 +113,6 @@ void Dispatcher_Launch(uint32_t hart_id)
     /* Initialize FIFO buffers to workers */
     Worker_Iface_Init(TO_KW_FIFO);
     Worker_Iface_Init(TO_DMAW_FIFO);
-    Worker_Iface_Init(TO_CQW_FIFO);
     
     /* Init FCCs for current minion */
     init_fcc(FCC_0);
@@ -164,7 +164,6 @@ void Dispatcher_Launch(uint32_t hart_id)
 
             /* Check for and handle SP messages */
         }
-
         /* Check for and hendle Timer events */
     }
 

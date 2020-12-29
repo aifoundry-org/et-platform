@@ -152,7 +152,6 @@ int8_t Worker_Iface_Push_Cmd(uint8_t interface_type, void* p_cmd,
     uint32_t cmd_size)
 {
     int8_t status = 0;
-
     worker_iface_cb_t *worker = 0;
     vq_cb_t *vq = 0;
 

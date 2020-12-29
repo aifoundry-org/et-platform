@@ -26,12 +26,19 @@
 #include "sync.h"
 
 #define     CQW_MAX_HART_ID      CQW_BASE_HART_ID + CQW_NUM
+#define     CQW_WORKER_0         ((CQW_BASE_HART_ID - MM_BASE_ID)/2)
 
 /*! \fn void CQW_Init(void)
     \brief Initialize resources used by the Completion Queue Worker
     \param None
 */
 void CQW_Init(void);
+
+/*! \fn void CQW_Notify(uint8_t cqw_idx)
+    \brief Notify Completion Queue Worker
+    \param None
+*/
+void CQW_Notify(void);
 
 /*! \fn void CQW_Launch(uint32_t hart_id, uint32_t cqw_idx)
     \brief Launch the Completion Queue Worker
