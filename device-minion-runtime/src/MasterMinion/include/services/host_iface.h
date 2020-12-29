@@ -27,6 +27,11 @@
 
 #define     HIFACE_INT_PRIORITY    1
 
+typedef enum {
+    SQ,
+    CQ
+} vq_type_t;
+
 /*! \fn int8_t Host_Iface_SQs_Init(void)
     \brief Initialize Host Interface Submission Queues
     \param none
@@ -37,10 +42,11 @@ int8_t Host_Iface_SQs_Init(void);
 /*! \fn vq_cb_t* Host_Iface_Get_VQ_Base_Addr(uint8_t sq_id)
     \brief Obtain pointer to virtuql queue assiciated
     with the submission queue ID
-    \param sq_id        Submission Queue ID
+    \param vq_type      Virtual Queue Type
+    \param vq_id        Virtual Queue ID
     \return vq_cb_t*    Pointer to the virtual queue control block
 */
-vq_cb_t* Host_Iface_Get_SQ_Base_Addr(uint8_t sq_id);
+vq_cb_t* Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type, uint8_t vq_id);
 
 /*! \fn int8_t Host_Iface_CQs_Init(void)
     \brief Initialize Host Interface Completion Queues

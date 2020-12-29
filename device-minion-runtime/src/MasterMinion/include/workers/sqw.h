@@ -28,12 +28,6 @@
 
 #define     SQW_MAX_HART_ID      (SQW_BASE_HART_ID + SQW_NUM)
 #define     SQW_WORKER_0         ((SQW_BASE_HART_ID - MM_BASE_ID)/2)
-
-typedef struct sqw_cb_ {
-    uint8_t             num_sqw;
-    global_fcc_flag_t   sqw_fcc_flags[MM_SQ_COUNT];
-    vq_cb_t             *sq[MM_SQ_COUNT];
-} sqw_cb_t;
                 
 /*! \fn void SQW_Init(void)
     \brief Initialize resources used by the Submission Queue Worker

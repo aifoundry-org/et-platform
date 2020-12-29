@@ -26,9 +26,13 @@
 #include "services/worker_iface.h"
 #include "services/host_iface.h"
 #include "services/host_cmd_hdlr.h"
-#include <esperanto/device-apis/operations-api/device_ops_api_rpc_types.h>
-#include <esperanto/device-apis/operations-api/device_ops_api_spec.h>
 #include <esperanto/device-apis/device_apis_message_types.h>
+
+typedef struct sqw_cb_ {
+    uint8_t             num_sqw;
+    global_fcc_flag_t   sqw_fcc_flags[MM_SQ_COUNT];
+    vq_cb_t             *sq[MM_SQ_COUNT];
+} sqw_cb_t;
 
 /*! \var sq_cb_t SQW_CB
     \brief Global Submission Queue Worker Control Block
@@ -64,7 +68,7 @@ void SQW_Init(void)
     {
         global_fcc_flag_init(&SQW_CB.sqw_fcc_flags[i]);
 
-        SQW_CB.sq[i] = Host_Iface_Get_SQ_Base_Addr(i);
+        SQW_CB.sq[i] = Host_Iface_Get_VQ_Base_Addr(SQ, i);
     }
     
     return;
@@ -95,10 +99,11 @@ void SQW_Notify(uint8_t sqw_idx)
     uint32_t thread = sqw_idx % 2;
 
     Log_Write(LOG_LEVEL_DEBUG, 
-        "%s%d %s%d%s", "SQW:Notify:minion=", minion, "thread=", 
+        "%s%d%s%d%s","Notifying:SQW:minion=", minion, ":thread=", 
         thread, "\r\n");
 
-    global_fcc_flag_notify(&SQW_CB.sqw_fcc_flags[sqw_idx], minion, thread);
+    global_fcc_flag_notify(&SQW_CB.sqw_fcc_flags[sqw_idx], 
+        minion, thread);
     
     return;
 }
@@ -129,7 +134,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
     uint16_t cmd_size;
     int8_t status = 0;
 
-    Log_Write(LOG_LEVEL_DEBUG, "%s%d %s%d%s", 
+    Log_Write(LOG_LEVEL_DEBUG, "%s%d%s%d%s", 
         "SQW:HART=", hart_id, "IDX=", sqw_idx, "\r\n");
 
     /* Empty all FCCs */
@@ -142,23 +147,31 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
         global_fcc_flag_wait(&SQW_CB.sqw_fcc_flags[sqw_idx]);
 
         Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
-            "SQW:HART=", hart_id, "received FCC event!\r\n");
+            "SQW:HART=", hart_id, ":received FCC event!\r\n");
 
         /* Pop from Submission Queue */
         cmd_size = (uint16_t) VQ_Pop(SQW_CB.sq[sqw_idx], cmd_buff);
         
         if(cmd_size > 0)
         {
-            Log_Write(LOG_LEVEL_DEBUG, "%s%d\r\n", "SQW:Procesisng:", cmd_size);
+            Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", "SQW:Processing:SQW_IDX=", 
+                sqw_idx, "\r\n");
             
             status = Host_Command_Handler(cmd_buff);
             
             if (status != STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_ERROR, "%s %d %s",
-                "SQW:ERROR:Procesisng failed. (Error code: )", 
-                status, "\r\n");
+                    "SQW:ERROR:Procesisng failed.(Error code:)", 
+                    status, "\r\n");
             }
+        }
+        else
+        {
+            Log_Write(LOG_LEVEL_ERROR, "%s%d%s",
+                "SQW:ERROR:Recived host_iface event, but VQ \
+                    pop failed.(Error code:)", 
+                    status, "\r\n");
         }
 
     };
