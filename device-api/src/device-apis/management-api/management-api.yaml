@@ -403,18 +403,18 @@ Modules:
   # Privileged DeviceAPI can exchange with the host
   Messages :
       #-------------------------------------------------------------------------------
-    - Name: device_mgmt_reflect_cmd
-      Description: Execute the reflect test cmd
+    - Name: device_mgmt_echo_cmd
+      Description: Execute the echo test cmd
       Type: Command
-      PairedMessage: device_mgmt_reflect_rsp
+      PairedMessage: device_mgmt_echo_rsp
       Fields:
         - Name: dummy
           Description: Dummy field
           Type: int32_t
-    - Name: device_mgmt_reflect_rsp
-      Description:  Response to reflect test
+    - Name: device_mgmt_echo_rsp
+      Description:  Response to echo test
       Type: Response
-      PairedMessage: device_mgmt_reflect_cmd
+      PairedMessage: device_mgmt_echo_cmd
       Fields:
         - Name: dummy
           Description: Dummy field
@@ -911,3 +911,4 @@ Modules:
           Description: MM state details.
           Type: struct
           Struct: mm_state_t
+

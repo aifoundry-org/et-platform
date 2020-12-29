@@ -21,37 +21,41 @@ typedef uint16_t msg_id_t;
 
 /// @brief Common header, common to command, response, and events
 struct cmn_header_t {
-    uint16_t size; ///< size of payload that follows the message header
-    tag_id_t tag_id; ///< unique ID to correlate commands/responses across Host-> Device
-    msg_id_t msg_id; ///< unique ID to differentiate commands/responses/events generated from host
+    uint16_t size;                   ///< size of payload that follows the message header
+    tag_id_t tag_id;                 ///< unique ID to correlate commands/responses across Host-> Device
+    msg_id_t msg_id;                 ///< unique ID to differentiate commands/responses/events generated from host
 };
 
 /// @brief Command header for all commands host to device
 struct cmd_header_t {
-    struct cmn_header_t cmd_hdr; ///< Command header
-    uint16_t flags;   ///< flags bitmask, (1<<0) = barrier, (1<<1) = enable time stamps.
+    struct cmn_header_t cmd_hdr;     ///< Command header
+    uint16_t flags;                  ///< flags bitmask, (1<<0) = barrier, (1<<1) = enable time stamps.
 };
 
 /// @brief Response header for all command responses from device to host
 struct rsp_header_t {
-    struct cmn_header_t rsp_hdr; ///< Response header
+    struct cmn_header_t rsp_hdr;     ///< Response header
 };
 
-// DM request header. This header is attached to each request
-struct dev_mgmt_cmd_header_t {
-    uint32_t command_id; // Enum of the command ID
-    uint32_t size; // Size of the Payload
+/// @brief Response header extension for all Device Management responses
+struct dev_mgmt_rsp_hdr_extn_t {
+    uint64_t device_latency_usec;    /// < Device cycle Latency to execute a command 
+    uint32_t status;                 /// < Status of the Command execution 
+    uint32_t pad;                    /// < Padding to make it alignt to 64 bits
 };
-// DM response header. This header is attached to each response
+
+/// @brief DM request header. This header is attached to each request
+typedef struct cmd_header_t dev_mgmt_cmd_header_t;
+
+/// @brief DM response header. This header is attached to each response
 struct dev_mgmt_rsp_header_t {
-    uint32_t status; // status of the Command execution
-    uint64_t device_latency_usec; // Populated by the device during response
-    uint32_t size; // Size of the response Payload
+    struct dev_mgmt_rsp_hdr_extn_t rsp_hdr_ext;
+    struct cmn_header_t rsp_hdr;
 };
 
 /// @brief Event header for all events from device to host
 struct evt_header_t {
-    struct cmn_header_t evt_hdr; ///< Event header, tag_id is dont care for events.
+    struct cmn_header_t evt_hdr;      ///< Event header, tag_id is dont care for events.
 };
 
 #endif // ET_DEVICE_APIS_MESSAGE_TYPES_H
