@@ -8,8 +8,8 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 
-#ifndef _COMMON_H_
-#define _COMMON_H_
+#ifndef _COMMON_DEFS_H_
+#define _COMMON_DEFS_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -34,4 +34,4 @@ enum ETSOC_MEM_TYPES
 // TODO: Make it a typedef in device-ops-api ?
 typedef uint16_t cmd_size_t;
 
-#endif
+#endif /* _COMMON_DEFS_H_ */
