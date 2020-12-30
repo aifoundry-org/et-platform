@@ -52,6 +52,7 @@ install(
     include/ringbuffer_common.h
     include/ringbuffer.h
     include/trap_handler.h
+    include/common_defs.h
     include/circbuff.h
     include/circbuffer_common.h
     include/circbuffer.h
