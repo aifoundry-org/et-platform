@@ -12,14 +12,12 @@
 #ifndef __BL2_MAIN_H__
 #define __BL2_MAIN_H__
 
-/* Temproary macro to route execution control
-to the new implementation of SP runtime */
-//#define IMPLEMENTATION_BYPASS
-
 #include "service_processor_BL2_data.h"
 
 SERVICE_PROCESSOR_BL2_DATA_t *get_service_processor_bl2_data(void);
 
+/* This macro to route execution control to the new implementation 
+    of BL2 runtime comes as a build-time param from cmake. */
 #ifdef IMPLEMENTATION_BYPASS
 #include "config/dir_regs.h"
 #else
