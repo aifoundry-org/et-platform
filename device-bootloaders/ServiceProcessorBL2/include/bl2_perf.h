@@ -7,6 +7,6 @@
 
 
 // Function prototypes 
-void process_performance_request(uint32_t cmd_id);
+void process_performance_request(tag_id_t tag_id, msg_id_t msg_id);
 
 #endif

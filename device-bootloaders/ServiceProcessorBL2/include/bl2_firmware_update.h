@@ -39,11 +39,11 @@ enum DEVICE_FW_UPDATE_STATUS {
 // FW version will be of the format:  Major[1 byte].[Minor 1 byte].[Revision 1 byte].[NULL]
 #define FORMAT_VERSION(major, minor, revision) ((major << 24) | (minor << 16) | (revision << 8))
 
-#ifdef MAILBOX_SUPPORTED
+#ifndef IMPLEMENTATION_BYPASS
 void firmware_service_process_request(mbox_e mbox, uint32_t cmd_id, void *buffer);
 
 #else
-void firmware_service_process_request(uint32_t cmd_id, void *buffer);
+void firmware_service_process_request(tag_id_t tag_id, msg_id_t msg_id, void *buffer);
 
 #endif
 

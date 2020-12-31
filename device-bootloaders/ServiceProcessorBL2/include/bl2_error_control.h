@@ -14,5 +14,5 @@
 
 #include <stdint.h>
 
-void error_control_process_request(uint32_t cmd_id);
+void error_control_process_request(tag_id_t tag_id, msg_id_t msg_id );
 #endif

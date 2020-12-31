@@ -15,11 +15,11 @@
 #define PCIE_GEN_4 16
 #define PCIE_GEN_5 32
 
-#ifdef MAILBOX_SUPPORTED
+#ifndef IMPLEMENTATION_BYPASS
 // Function prototypes
 void asset_tracking_process_request(mbox_e mbox, uint32_t cmd_id);
 #else
-void asset_tracking_process_request(uint32_t cmd_id);
+void asset_tracking_process_request(tag_id_t tag_id, msg_id_t msg_id);
 #endif
 
 #endif

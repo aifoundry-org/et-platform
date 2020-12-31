@@ -31,8 +31,6 @@
 #include "semphr.h"
 #include "task.h"
 
-// Pending Device Management header to be generated
-//#include "device_mngt_api.h"
 #include "dm.h"
 
 #include <inttypes.h>
@@ -106,6 +104,8 @@ static void pc_vq_task(void *pvParameters)
     (void)pvParameters;
 
     static uint8_t buffer[SP_HOST_SQ_MAX_ELEMENT_SIZE] __attribute__((aligned(8))) = { 0 };
+    tag_id_t tag_id;
+    msg_id_t msg_id;
 
     // Disable buffering on stdout
     setbuf(stdout, NULL);
@@ -133,11 +133,12 @@ static void pc_vq_task(void *pvParameters)
                 break;
             }
 
-            const struct cmd_header_t *const hdr = (void *)buffer;
-
+            const dev_mgmt_cmd_header_t *const hdr = (void *)buffer;
+            tag_id = hdr->cmd_hdr.tag_id;
+            msg_id = hdr->cmd_hdr.msg_id;
             // Process new message
-            switch (hdr->cmd_hdr.msg_id) {
-#ifndef MAILBOX_SUPPORTED                
+            switch (msg_id) {
+#ifdef IMPLEMENTATION_BYPASS
             case DM_CMD_GET_MODULE_MANUFACTURE_NAME:
             case DM_CMD_GET_MODULE_PART_NUMBER:
             case DM_CMD_GET_MODULE_SERIAL_NUMBER:
@@ -149,7 +150,7 @@ static void pc_vq_task(void *pvParameters)
             case DM_CMD_GET_MODULE_MEMORY_SIZE_MB:
             case DM_CMD_GET_MODULE_MEMORY_TYPE:
                 // Process asset tracking service request cmd
-                asset_tracking_process_request(hdr->cmd_hdr.msg_id);
+                asset_tracking_process_request(tag_id, msg_id);
                 break;
             case DM_CMD_SET_FIRMWARE_UPDATE:
             case DM_CMD_GET_MODULE_FIRMWARE_REVISIONS:
@@ -158,7 +159,7 @@ static void pc_vq_task(void *pvParameters)
             case DM_CMD_SET_SW_BOOT_ROOT_CERT:
             case DM_CMD_RESET_ETSOC:
                 // Process firmware service request cmd
-                firmware_service_process_request(hdr->cmd_hdr.msg_id, (void *)buffer);
+                firmware_service_process_request(tag_id, msg_id, (void *)buffer);
                 break;
 #endif
             case DM_CMD_GET_MODULE_POWER_STATE:
@@ -173,7 +174,7 @@ static void pc_vq_task(void *pvParameters)
             case DM_CMD_GET_MODULE_VOLTAGE:
             case DM_CMD_GET_MODULE_UPTIME:
             case DM_CMD_GET_MODULE_MAX_TEMPERATURE:
-                 thermal_power_monitoring_process(hdr->cmd_hdr.msg_id);
+                 thermal_power_monitoring_process(tag_id, msg_id);
                  break;
             case DM_CMD_SET_PCIE_RESET:
             case DM_CMD_SET_PCIE_MAX_LINK_SPEED:
@@ -183,24 +184,24 @@ static void pc_vq_task(void *pvParameters)
             case DM_CMD_GET_MODULE_DDR_ECC_UECC:
             case DM_CMD_GET_MODULE_SRAM_ECC_UECC:
             case DM_CMD_GET_MODULE_DDR_BW_COUNTER:
-                 link_mgmt_process_request(hdr->cmd_hdr.msg_id);
+                 link_mgmt_process_request(tag_id, msg_id);
                  break;
             case DM_CMD_SET_DDR_ECC_COUNT:
             case DM_CMD_SET_PCIE_ECC_COUNT:
             case DM_CMD_SET_SRAM_ECC_COUNT:
                  // Process set error control cmd
-                 error_control_process_request(hdr->cmd_hdr.msg_id);
+                 error_control_process_request(tag_id, msg_id);
                  break;
             case DM_CMD_GET_MAX_MEMORY_ERROR:
             case DM_CMD_GET_MODULE_MAX_DDR_BW:
             case DM_CMD_GET_MODULE_MAX_THROTTLE_TIME:
-                 historical_extreme_value_request(hdr->cmd_hdr.msg_id);
+                 historical_extreme_value_request(tag_id, msg_id);
                  break;
             case DM_CMD_GET_MM_THREADS_STATE:
-                 mm_state_process_request();
+                 mm_state_process_request(tag_id);
                  break;     
             default:
-                printf("[PC VQ] Invalid message id: %" PRIu16 "\r\n", hdr->cmd_hdr.msg_id);
+                printf("[PC VQ] Invalid message id: %" PRIu16 "\r\n", msg_id);
                 printf("message length: %" PRIi64 ", buffer:\r\n", length);
                 // TODO:
                 // Implement error handler

@@ -74,15 +74,17 @@
 *       None
 *
 ***********************************************************************/
-static void pwr_svc_get_module_power_state(uint64_t req_start_time)
+static void pwr_svc_get_module_power_state(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_power_state_rsp_t dm_rsp;
 
     dm_rsp.pwr_state = get_soc_power_reg()->module_power_state;
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
-                    sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_GET_MODULE_POWER_STATE,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
+
 
    if (0 !=  SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_power_state_rsp_t))) {
         printf("pwr_svc_get_module_power_state: Cqueue push error !\n");
@@ -117,15 +119,16 @@ static void pwr_svc_get_module_power_state(uint64_t req_start_time)
 *       None
 *
 ***********************************************************************/
-static void pwr_svc_set_module_power_state(uint64_t req_start_time, power_state_e state)
+static void pwr_svc_set_module_power_state(uint16_t tag, uint64_t req_start_time, power_state_e state)
 {
-    struct dev_mgmt_rsp_header_t dm_rsp;
+    struct device_mgmt_power_state_rsp_t dm_rsp;
     
     get_soc_power_reg()->module_power_state = state;
 
-    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS,
-                    sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_SET_MODULE_POWER_STATE,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct dev_mgmt_rsp_header_t))) {
         printf("pwr_svc_set_module_power_state: Cqueue push error !\n");
@@ -153,16 +156,17 @@ static void pwr_svc_set_module_power_state(uint64_t req_start_time, power_state_
 *       None
 *
 ***********************************************************************/
-static void pwr_svc_get_module_power(uint64_t req_start_time)
+static void pwr_svc_get_module_power(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_module_power_rsp_t dm_rsp;
     
     get_soc_power_reg()->soc_power = pmic_read_soc_power(); 
     dm_rsp.module_power.watts = get_soc_power_reg()->soc_power;
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
-                    sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_GET_MODULE_POWER,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_module_power_rsp_t))) {
         printf("pwr_svc_get_module_power: Cqueue push error!\n");
@@ -192,7 +196,7 @@ static void pwr_svc_get_module_power(uint64_t req_start_time)
 *       None
 *
 ***********************************************************************/
-static void pwr_svc_get_module_voltage(uint64_t req_start_time, module_e shire)
+static void pwr_svc_get_module_voltage(uint16_t tag, uint64_t req_start_time, module_e shire)
 {
     struct device_mgmt_module_voltage_rsp_t dm_rsp;
 
@@ -200,9 +204,11 @@ static void pwr_svc_get_module_voltage(uint64_t req_start_time, module_e shire)
     
     dm_rsp.module_voltage = get_soc_power_reg()->module_voltage;
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
-                    sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_GET_MODULE_VOLTAGE,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
+
 
    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_module_voltage_rsp_t))) {
         printf("pwr_svc_get_module_voltage: Cqueue push error!\n");
@@ -239,15 +245,16 @@ static void pwr_svc_get_module_voltage(uint64_t req_start_time, module_e shire)
 *       None
 *
 ***********************************************************************/
-static void pwr_svc_get_module_tdp_level(uint64_t req_start_time)
+static void pwr_svc_get_module_tdp_level(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_tdp_level_rsp_t dm_rsp;
 
     dm_rsp.tdp_level = get_soc_power_reg()->module_tdp_level;
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
-                    sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_GET_MODULE_STATIC_TDP_LEVEL,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
 
    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_tdp_level_rsp_t))) {
         printf("pwr_svc_get_module_tdp_level: Cqueue push error!\n");
@@ -276,17 +283,18 @@ static void pwr_svc_get_module_tdp_level(uint64_t req_start_time)
 *       None
 *
 ***********************************************************************/
-static void pwr_svc_set_module_tdp_level(uint64_t req_start_time, tdp_level_e tdp)
+static void pwr_svc_set_module_tdp_level(uint16_t tag, uint64_t req_start_time, tdp_level_e tdp)
 {
-    struct dev_mgmt_rsp_header_t dm_rsp;
+    struct device_mgmt_tdp_level_rsp_t dm_rsp;
 
     // TODO implement response handler for PMIC Read
     pmic_set_tdp_threshold(tdp);
     get_soc_power_reg()->module_tdp_level = tdp;
 
-    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS,
-                    sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_SET_MODULE_STATIC_TDP_LEVEL,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct dev_mgmt_rsp_header_t))) {
         printf("pwr_svc_set_module_power_state: Cqueue push error !\n");
@@ -315,14 +323,15 @@ static void pwr_svc_set_module_tdp_level(uint64_t req_start_time, tdp_level_e td
 *       None
 *
 ***********************************************************************/
-static void pwr_svc_get_module_temp_thresholds(uint64_t req_start_time)
+static void pwr_svc_get_module_temp_thresholds(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_temperature_threshold_rsp_t dm_rsp;
     dm_rsp.temperature_threshold = get_soc_power_reg()->temperature_threshold;
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
-                    sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_SET_MODULE_POWER_STATE,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
 
    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_temperature_threshold_rsp_t))) {
         printf("pwr_svc_get_module_temp_thresholds: Cqueue push error !\n");
@@ -351,19 +360,19 @@ static void pwr_svc_get_module_temp_thresholds(uint64_t req_start_time)
 *       None
 *
 ***********************************************************************/
-static void pwr_svc_set_module_temp_thresholds(uint64_t req_start_time, uint8_t hi_threshold, uint8_t lo_threshold)
+static void pwr_svc_set_module_temp_thresholds(uint16_t tag, uint64_t req_start_time, uint8_t hi_threshold, uint8_t lo_threshold)
 {
-    struct dev_mgmt_rsp_header_t dm_rsp;
+    struct device_mgmt_temperature_threshold_rsp_t dm_rsp;
 
     pmic_set_temperature_threshold(L0, lo_threshold);
     pmic_set_temperature_threshold(HI, hi_threshold);
     get_soc_power_reg()->temperature_threshold.lo_temperature_c = lo_threshold;
     get_soc_power_reg()->temperature_threshold.hi_temperature_c = hi_threshold;
    
-    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS,
-                    sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
-
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
      
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct dev_mgmt_rsp_header_t))) {
         printf("pwr_svc_set_module_temp_thresholds: Cqueue push error !\n");
@@ -392,17 +401,18 @@ static void pwr_svc_set_module_temp_thresholds(uint64_t req_start_time, uint8_t 
 *       None
 *
 ***********************************************************************/
-static void pwr_svc_get_module_current_temperature(uint64_t req_start_time)
+static void pwr_svc_get_module_current_temperature(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_current_temperature_rsp_t dm_rsp;
 
     get_soc_power_reg()->soc_temperature = pmic_get_temperature();
     dm_rsp.current_temperature.temperature_c = get_soc_power_reg()->soc_temperature;
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
-                    sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
- 
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_GET_MODULE_CURRENT_TEMPERATURE,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
+
    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_current_temperature_rsp_t))) {
         printf("pwr_svc_get_module_current_temperature: Cqueue push error!\n");
    }
@@ -430,15 +440,17 @@ static void pwr_svc_get_module_current_temperature(uint64_t req_start_time)
 *       None
 *
 ***********************************************************************/
-static void pwr_svc_get_module_residency_throttle_states(uint64_t req_start_time)
+static void pwr_svc_get_module_residency_throttle_states(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_throttle_time_rsp_t dm_rsp;
 
     dm_rsp.throttle_time.time_usec = get_soc_power_reg()->throttled_states_residency;
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
-                    sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
+
 
    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_throttle_time_rsp_t))) {
         printf("pwr_svc_get_module_residency_throttle_states: Cqueue push error!\n");
@@ -467,15 +479,17 @@ static void pwr_svc_get_module_residency_throttle_states(uint64_t req_start_time
 *       None
 *
 ***********************************************************************/
-static void pwr_svc_get_module_max_temperature(uint64_t req_start_time)
+static void pwr_svc_get_module_max_temperature(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_max_temperature_rsp_t dm_rsp;
 
     dm_rsp.max_temperature.max_temperature_c = get_soc_power_reg()->max_temp;
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
-                    sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_GET_MODULE_MAX_TEMPERATURE,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
+
 
    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_max_temperature_rsp_t))) {
         printf("pwr_svc_get_module_max_temperature: Cqueue push error!\n");
@@ -503,15 +517,16 @@ static void pwr_svc_get_module_max_temperature(uint64_t req_start_time)
 *       None
 *
 ***********************************************************************/
-static void pwr_svc_get_module_uptime(uint64_t req_start_time)
+static void pwr_svc_get_module_uptime(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_module_uptime_rsp_t dm_rsp;
 
     dm_rsp.module_uptime  = get_soc_power_reg()->module_uptime;
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
-                    sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_GET_MODULE_UPTIME,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
 
    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_module_uptime_rsp_t))) {
         printf("pwr_svc_get_module_uptime: Cqueue push error!\n");
@@ -539,48 +554,48 @@ static void pwr_svc_get_module_uptime(uint64_t req_start_time)
 *       None
 *
 ***********************************************************************/
-void thermal_power_monitoring_process(uint32_t cmd_id)
+void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id)
 {
     uint64_t req_start_time;
     
     req_start_time = timer_get_ticks_count();
 
-     switch (cmd_id) {
+     switch (msg_id) {
       case DM_CMD_GET_MODULE_POWER_STATE: {
-         pwr_svc_get_module_power_state(req_start_time);
+         pwr_svc_get_module_power_state(tag_id, req_start_time);
       } break;
       case DM_CMD_SET_MODULE_POWER_STATE: {
-         pwr_svc_set_module_power_state(req_start_time, POWER_STATE_REDUCED);
+         pwr_svc_set_module_power_state(tag_id, req_start_time, POWER_STATE_REDUCED);
       } break;
       case DM_CMD_GET_MODULE_STATIC_TDP_LEVEL: {
-         pwr_svc_get_module_tdp_level(req_start_time);
+         pwr_svc_get_module_tdp_level(tag_id, req_start_time);
       } break;
       case DM_CMD_SET_MODULE_STATIC_TDP_LEVEL: {
-         pwr_svc_set_module_tdp_level(req_start_time, TDP_LEVEL_ONE);
+         pwr_svc_set_module_tdp_level(tag_id, req_start_time, TDP_LEVEL_ONE);
       } break;
       case DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS: {
-         pwr_svc_get_module_temp_thresholds(req_start_time);
+         pwr_svc_get_module_temp_thresholds(tag_id, req_start_time);
       } break;
       case DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS: {
-         pwr_svc_set_module_temp_thresholds(req_start_time, 100, 80);
+         pwr_svc_set_module_temp_thresholds(tag_id, req_start_time, 100, 80);
       } break;
       case DM_CMD_GET_MODULE_CURRENT_TEMPERATURE: {
-         pwr_svc_get_module_current_temperature(req_start_time);
+         pwr_svc_get_module_current_temperature(tag_id, req_start_time);
       } break;
       case DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES: {
-         pwr_svc_get_module_residency_throttle_states(req_start_time);
+         pwr_svc_get_module_residency_throttle_states(tag_id, req_start_time);
       } break;
       case DM_CMD_GET_MODULE_POWER: {
-         pwr_svc_get_module_power(req_start_time);
+         pwr_svc_get_module_power(tag_id, req_start_time);
       } break;
       case DM_CMD_GET_MODULE_VOLTAGE: {
-         pwr_svc_get_module_voltage(req_start_time, MODULE_MINION);
+         pwr_svc_get_module_voltage(tag_id, req_start_time, MODULE_MINION);
       } break;
       case DM_CMD_GET_MODULE_UPTIME: {
-         pwr_svc_get_module_uptime(req_start_time);
+         pwr_svc_get_module_uptime(tag_id, req_start_time);
       } break;
       case DM_CMD_GET_MODULE_MAX_TEMPERATURE: {
-         pwr_svc_get_module_max_temperature(req_start_time);
+         pwr_svc_get_module_max_temperature(tag_id, req_start_time);
       } break;
       }
 	 

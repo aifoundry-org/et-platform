@@ -49,7 +49,7 @@
 *       None
 *
 ***********************************************************************/
-void mm_state_process_request(void)
+void mm_state_process_request(tag_id_t tag_id)
 {
     struct device_mgmt_mm_state_rsp_t dm_rsp;
     uint64_t req_start_time;
@@ -62,8 +62,10 @@ void mm_state_process_request(void)
     dm_rsp.mm_state.vq_c_thread_state = 0;
     dm_rsp.mm_state.vq_w_thread_state = 0;
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag_id,
+                    DM_CMD_GET_MM_THREADS_STATE,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_mm_state_rsp_t))) {
         printf("mm_state_process_request: Cqueue push error !\n");

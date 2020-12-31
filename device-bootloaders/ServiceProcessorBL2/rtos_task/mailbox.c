@@ -203,7 +203,7 @@ static void mbox_task(void *pvParameters)
                 }
                 break;
             }
-#ifdef MAILBOX_SUPPORTED            
+#ifndef IMPLEMENTATION_BYPASS            
             case DM_CMD_GET_MODULE_MANUFACTURE_NAME:
             case DM_CMD_GET_MODULE_PART_NUMBER:
             case DM_CMD_GET_MODULE_SERIAL_NUMBER:

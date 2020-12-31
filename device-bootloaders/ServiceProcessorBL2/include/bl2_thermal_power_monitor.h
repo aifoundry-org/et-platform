@@ -14,6 +14,6 @@
 
 #include <stdint.h>
 
-void thermal_power_monitoring_process(uint32_t cmd_id);
+void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id);
 
 #endif

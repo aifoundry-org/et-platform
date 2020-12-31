@@ -23,10 +23,6 @@
 #include "service_processor_BL2_data.h"
 #include <esperanto/device-apis/management-api/device_mgmt_api_rpc_types.h>
 
-//TODO: Remove below define once HOST VQ support is completed. The dependency
-//      of processing the command using mailbox should also be removed in asset_track.c and firmware_update.c.
-#define MAILBOX_SUPPORTED
-
 extern struct dm_control_block dm_cmd_rsp;
 
 // Thresholds 

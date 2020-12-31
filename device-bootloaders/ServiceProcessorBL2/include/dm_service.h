@@ -19,6 +19,7 @@ struct soc_perf_reg_t {
     struct asic_frequencies_t asic_frequency;
     struct dram_bw_t dram_bw;
     uint32_t dram_capacity_percent;
+    uint64_t last_ts_min;
 };
 
 struct soc_power_reg_t {
@@ -34,9 +35,12 @@ struct soc_power_reg_t {
 };
 
 /* Standard Response for all DM services */
-#define  FILL_RSP_HEADER(rsp, sts, sz, latency) (rsp).rsp_hdr_ext.status = sts; \
-                                                (rsp).rsp_hdr_ext.device_latency_usec = latency; \
-                                                (rsp).rsp_hdr.size = sz; \
+#define  FILL_RSP_HEADER(rsp, tag, msg, latency, sts) (rsp).rsp_hdr.rsp_hdr.tag_id = tag; \
+                                                      (rsp).rsp_hdr.rsp_hdr.msg_id = msg; \
+                                                      (rsp).rsp_hdr.rsp_hdr.size = sizeof(rsp); \
+                                                      (rsp).rsp_hdr.rsp_hdr_ext.device_latency_usec = latency; \
+                                                      (rsp).rsp_hdr.rsp_hdr_ext.status = sts;
+                                                     
                                                      
 
 #endif

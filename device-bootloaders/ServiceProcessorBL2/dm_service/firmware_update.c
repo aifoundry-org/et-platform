@@ -107,7 +107,7 @@ static int64_t update_sp_boot_root_certificate_hash(char *certficate_hash)
     return 0;
 }
 
-#ifdef MAILBOX_SUPPORTED
+#ifndef IMPLEMENTATION_BYPASS
 static int64_t firmware_service_send_response(mbox_e mbox, uint32_t cmd_id, uint64_t req_start_time,
                                               char response[], uint32_t length)
 {
@@ -300,12 +300,14 @@ void firmware_service_process_request(mbox_e mbox, uint32_t cmd_id, void *buffer
 
 #else
 
-static void send_status_response(uint64_t req_start_time, uint32_t status)
+static void send_status_response(tag_id_t tag_id, uint64_t req_start_time, uint32_t status)
 {
-    struct dev_mgmt_rsp_header_t dm_rsp;
+    struct device_mgmt_firmware_versions_rsp_t dm_rsp;
 
-    FILL_RSP_HEADER(dm_rsp, status, sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag_id,
+                    DM_CMD_GET_MODULE_FIRMWARE_REVISIONS,
+                    timer_get_ticks_count() - req_start_time,
+                    status);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct dev_mgmt_rsp_header_t))) {
         printf("send_status_response: Cqueue push error !\n");
@@ -336,9 +338,9 @@ static int64_t dm_svc_firmware_update(void)
     return DEVICE_FW_FLASH_UPDATE_SUCCESS;
 }
 
-static void dm_svc_get_firmware_version(uint64_t req_start_time)
+static void dm_svc_get_firmware_version(tag_id_t tag_id, uint64_t req_start_time)
 {
-    struct firmware_versions_rsp_t dm_rsp;
+    struct device_mgmt_firmware_versions_rsp_t dm_rsp;
     ESPERANTO_IMAGE_FILE_HEADER_t *master_image_file_header;
     ESPERANTO_IMAGE_FILE_HEADER_t *machine_image_file_header;
     ESPERANTO_IMAGE_FILE_HEADER_t *worker_image_file_header;
@@ -360,19 +362,19 @@ static void dm_svc_get_firmware_version(uint64_t req_start_time)
     // Get firmware version for machine minion
     machine_image_file_header = get_machine_minion_image_file_header();
 
-    memset(&dm_rsp, 0, sizeof(struct firmware_versions_rsp_t));
+    memset(&dm_rsp, 0, sizeof(struct device_mgmt_firmware_versions_rsp_t));
 
-    dm_rsp.firmware_versions.bl1_v =
+    dm_rsp.firmware_version.bl1_v =
         FORMAT_VERSION((uint32_t)sp_bl2_data->service_processor_bl1_image_file_version_major,
                        (uint32_t)sp_bl2_data->service_processor_bl1_image_file_version_minor,
                        (uint32_t)sp_bl2_data->service_processor_bl1_image_file_version_revision);
 
-    dm_rsp.firmware_versions.bl2_v =
+    dm_rsp.firmware_version.bl2_v =
         FORMAT_VERSION((uint32_t)bl2_image_version->file_version_major,
                        (uint32_t)bl2_image_version->file_version_minor,
                        (uint32_t)bl2_image_version->file_version_revision);
 
-    dm_rsp.firmware_versions.mm_v = FORMAT_VERSION(
+    dm_rsp.firmware_version.mm_v = FORMAT_VERSION(
         ((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
          0xFF0000) >>
             16,
@@ -382,7 +384,7 @@ static void dm_svc_get_firmware_version(uint64_t req_start_time)
         ((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
          0xFF));
 
-    dm_rsp.firmware_versions.wm_v = FORMAT_VERSION(
+    dm_rsp.firmware_version.wm_v = FORMAT_VERSION(
         ((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
          0xFF0000) >>
             16,
@@ -392,7 +394,7 @@ static void dm_svc_get_firmware_version(uint64_t req_start_time)
         ((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
          0xFF));
 
-    dm_rsp.firmware_versions.machm_v = FORMAT_VERSION(
+    dm_rsp.firmware_version.machm_v = FORMAT_VERSION(
         ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
          0xFF0000) >>
             16,
@@ -402,16 +404,18 @@ static void dm_svc_get_firmware_version(uint64_t req_start_time)
         ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
          0xFF));
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag_id,
+                    DM_CMD_GET_MODULE_FIRMWARE_REVISIONS,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct firmware_versions_rsp_t))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(dm_rsp))) {
         printf("dm_svc_get_firmware_version: Cqueue push error !\n");
     }
 }
 
 static int64_t
-dm_svc_update_sp_boot_root_certificate_hash(struct certificate_hash_cmd_t *certificate_hash_cmd)
+dm_svc_update_sp_boot_root_certificate_hash(struct device_mgmt_certificate_hash_cmd_t *certificate_hash_cmd)
 {
     printf("recieved hash:\n");
     for (int i = 0; i < 64; i++) {
@@ -428,26 +432,26 @@ dm_svc_update_sp_boot_root_certificate_hash(struct certificate_hash_cmd_t *certi
     return 0;
 }
 
-void firmware_service_process_request(uint32_t cmd_id, void *buffer)
+void firmware_service_process_request(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
 {
     int64_t ret = 0;
     uint64_t req_start_time;
-    printf("cmd_id: %d\n", cmd_id);
+    printf("cmd_id: %d\n", msg_id);
     req_start_time = timer_get_ticks_count();
 
-    switch (cmd_id) {
+    switch (msg_id) {
     case DM_CMD_SET_FIRMWARE_UPDATE: {
         ret = dm_svc_firmware_update();
-        send_status_response(req_start_time, (uint32_t)ret);
+        send_status_response(tag_id, req_start_time, (uint32_t)ret);
     } break;
 
     case DM_CMD_GET_MODULE_FIRMWARE_REVISIONS: {
-        dm_svc_get_firmware_version(req_start_time);
+        dm_svc_get_firmware_version(tag_id, req_start_time);
     } break;
 
     case DM_CMD_GET_FIRMWARE_BOOT_STATUS: {
         ret = dm_svc_get_firmware_status();
-        send_status_response(req_start_time, (uint32_t)ret);
+        send_status_response(tag_id, req_start_time, (uint32_t)ret);
     } break;
         /*  TODO: These feature is to be supported in v 0.0.7 
     case DM_CMD_SET_FIRMWARE_VERSION_COUNTER: {
@@ -464,10 +468,9 @@ void firmware_service_process_request(uint32_t cmd_id, void *buffer)
 
 */
     case DM_CMD_SET_SP_BOOT_ROOT_CERT: {
-        struct certificate_hash_cmd_t *dm_cmd_req;
-        dm_cmd_req = (struct certificate_hash_cmd_t *)buffer;
+        struct  device_mgmt_certificate_hash_cmd_t *dm_cmd_req = (void *)buffer;
         ret = dm_svc_update_sp_boot_root_certificate_hash(dm_cmd_req);
-        send_status_response(req_start_time, (uint32_t)ret);
+        send_status_response(tag_id, req_start_time, (uint32_t)ret);
     } break;
 
     case DM_CMD_RESET_ETSOC: {

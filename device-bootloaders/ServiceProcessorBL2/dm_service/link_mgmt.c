@@ -25,8 +25,8 @@
 *       - link_mgmt_set_pcie_lane_width
 *       - link_mgmt_pcie_retrain_phy
 *       - link_mgmt_get_module_pcie_ecc_uecc
-*       - link_mgmt_get_module_pcie_dram_uecc
-*       - link_mgmt_get_module_pcie_sram_uecc
+*       - link_mgmt_get_module_dram_uecc
+*       - link_mgmt_get_module_sram_uecc
 *       - link_mgmt_get_module_ddr_bw_counter
 *
 ***********************************************************************/
@@ -59,11 +59,11 @@
 *       None
 *
 ***********************************************************************/
-static void link_mgmt_pcie_reset(uint64_t req_start_time, pcie_reset_e pcie_reset_type)
+static void link_mgmt_pcie_reset(uint16_t tag, uint64_t req_start_time, pcie_reset_e pcie_reset_type)
 {
     // TODO: Reset SPEC work is in progress. Discuss if we need to send response
     //       to host. For now sending the response.
-    struct dev_mgmt_rsp_header_t dm_rsp;
+    struct device_mgmt_get_error_count_rsp_t dm_rsp;
 
     switch (pcie_reset_type) {
     case PCIE_RESET_FLR:
@@ -77,8 +77,10 @@ static void link_mgmt_pcie_reset(uint64_t req_start_time, pcie_reset_e pcie_rese
         break;
     }
 
-    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_SET_PCIE_RESET,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct dev_mgmt_rsp_header_t))) {
         printf("link_mgmt_pcie_reset: Cqueue push error !\n");
@@ -106,10 +108,10 @@ static void link_mgmt_pcie_reset(uint64_t req_start_time, pcie_reset_e pcie_rese
 *       None
 *
 ***********************************************************************/
-static void link_mgmt_set_pcie_max_link_speed(uint64_t req_start_time,
+static void link_mgmt_set_pcie_max_link_speed(uint16_t tag, uint64_t req_start_time,
                                               pcie_link_speed_e pcie_link_speed)
 {
-    struct dev_mgmt_rsp_header_t dm_rsp;
+    struct device_mgmt_get_error_count_rsp_t dm_rsp;
 
     switch (pcie_link_speed) {
     case PCIE_LINK_SPEED_GEN3:
@@ -120,8 +122,10 @@ static void link_mgmt_set_pcie_max_link_speed(uint64_t req_start_time,
         break;
     }
 
-    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_SET_PCIE_MAX_LINK_SPEED,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct dev_mgmt_rsp_header_t))) {
         printf("link_mgmt_set_pcie_max_link_speed: Cqueue push error !\n");
@@ -149,10 +153,10 @@ static void link_mgmt_set_pcie_max_link_speed(uint64_t req_start_time,
 *       None
 *
 ***********************************************************************/
-static void link_mgmt_set_pcie_lane_width(uint64_t req_start_time,
+static void link_mgmt_set_pcie_lane_width(uint16_t tag, uint64_t req_start_time,
                                           pcie_lane_w_split_e pcie_lane_w_split)
 {
-    struct dev_mgmt_rsp_header_t dm_rsp;
+    struct device_mgmt_get_error_count_rsp_t dm_rsp;
 
     switch (pcie_lane_w_split) {
     case PCIE_LANE_W_SPLIT_x4:
@@ -163,8 +167,10 @@ static void link_mgmt_set_pcie_lane_width(uint64_t req_start_time,
         break;
     }
 
-    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_SET_PCIE_LANE_WIDTH,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct dev_mgmt_rsp_header_t))) {
         printf("link_mgmt_set_pcie_lane_width: Cqueue push error !\n");
@@ -191,14 +197,16 @@ static void link_mgmt_set_pcie_lane_width(uint64_t req_start_time,
 *       None
 *
 ***********************************************************************/
-static void link_mgmt_pcie_retrain_phy(uint64_t req_start_time)
+static void link_mgmt_pcie_retrain_phy(uint16_t tag, uint64_t req_start_time)
 {
-    struct dev_mgmt_rsp_header_t dm_rsp;
+    struct device_mgmt_get_error_count_rsp_t dm_rsp;
 
     //TODO : Add PHY Retraining
 
-    FILL_RSP_HEADER(dm_rsp, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_SET_PCIE_RETRAIN_PHY,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct dev_mgmt_rsp_header_t))) {
         printf("link_mgmt_pcie_retrain_phy: Cqueue push error !\n");
@@ -225,7 +233,7 @@ static void link_mgmt_pcie_retrain_phy(uint64_t req_start_time)
 *       None
 *
 ***********************************************************************/
-static void link_mgmt_get_module_pcie_ecc_uecc(uint64_t req_start_time)
+static void link_mgmt_get_module_pcie_ecc_uecc(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_get_error_count_rsp_t dm_rsp;
 
@@ -233,8 +241,10 @@ static void link_mgmt_get_module_pcie_ecc_uecc(uint64_t req_start_time)
     dm_rsp.errors_count.ecc = 0;
     dm_rsp.errors_count.uecc = 0;
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_GET_MODULE_PCIE_ECC_UECC,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_get_error_count_rsp_t))) {
         printf("link_mgmt_get_module_pcie_ecc_uecc: Cqueue push error !\n");
@@ -245,7 +255,7 @@ static void link_mgmt_get_module_pcie_ecc_uecc(uint64_t req_start_time)
 *
 *   FUNCTION
 *
-*       link_mgmt_get_module_pcie_dram_uecc
+*       link_mgmt_get_module_dram_uecc
 *  
 *   DESCRIPTION
 *
@@ -261,7 +271,7 @@ static void link_mgmt_get_module_pcie_ecc_uecc(uint64_t req_start_time)
 *       None
 *
 ***********************************************************************/
-static void link_mgmt_get_module_pcie_dram_uecc(uint64_t req_start_time)
+static void link_mgmt_get_module_dram_uecc(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_get_error_count_rsp_t dm_rsp;
 
@@ -269,11 +279,13 @@ static void link_mgmt_get_module_pcie_dram_uecc(uint64_t req_start_time)
     dm_rsp.errors_count.ecc = 0;
     dm_rsp.errors_count.uecc = 0;
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_GET_MODULE_DDR_ECC_UECC,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_get_error_count_rsp_t))) {
-        printf("link_mgmt_get_module_pcie_dram_uecc: Cqueue push error !\n");
+        printf("link_mgmt_get_module_dram_uecc: Cqueue push error !\n");
     }
 }
 
@@ -281,7 +293,7 @@ static void link_mgmt_get_module_pcie_dram_uecc(uint64_t req_start_time)
 *
 *   FUNCTION
 *
-*       link_mgmt_get_module_pcie_sram_uecc
+*       link_mgmt_get_module_sram_uecc
 *  
 *   DESCRIPTION
 *
@@ -297,7 +309,7 @@ static void link_mgmt_get_module_pcie_dram_uecc(uint64_t req_start_time)
 *       None
 *
 ***********************************************************************/
-static void link_mgmt_get_module_pcie_sram_uecc(uint64_t req_start_time)
+static void link_mgmt_get_module_sram_uecc(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_get_error_count_rsp_t dm_rsp;
 
@@ -305,11 +317,13 @@ static void link_mgmt_get_module_pcie_sram_uecc(uint64_t req_start_time)
     dm_rsp.errors_count.ecc = 0;
     dm_rsp.errors_count.uecc = 0;
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_GET_MODULE_SRAM_ECC_UECC,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_get_error_count_rsp_t))) {
-        printf("link_mgmt_get_module_pcie_sram_uecc: Cqueue push error !\n");
+        printf("link_mgmt_get_module_sram_uecc: Cqueue push error !\n");
     }
 }
 
@@ -333,15 +347,17 @@ static void link_mgmt_get_module_pcie_sram_uecc(uint64_t req_start_time)
 *       None
 *
 ***********************************************************************/
-static void link_mgmt_get_module_ddr_bw_counter(uint64_t req_start_time)
+static void link_mgmt_get_module_ddr_bw_counter(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_dram_bw_counter_rsp_t dm_rsp;
 
     dm_rsp.dram_bw_counter.bw_rd_req_sec = get_soc_perf_reg()->dram_bw.read_req_sec;
     dm_rsp.dram_bw_counter.bw_wr_req_sec = get_soc_perf_reg()->dram_bw.write_req_sec;
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_GET_MODULE_DDR_BW_COUNTER,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_dram_bw_counter_rsp_t))) {
         printf("link_mgmt_get_module_ddr_bw_counter: Cqueue push error !\n");
@@ -369,39 +385,39 @@ static void link_mgmt_get_module_ddr_bw_counter(uint64_t req_start_time)
 *       None
 *
 ***********************************************************************/
-void link_mgmt_process_request(uint32_t cmd_id)
+void link_mgmt_process_request(tag_id_t tag_id, msg_id_t msg_id)
 {
     uint64_t req_start_time;
 
     req_start_time = timer_get_ticks_count();
 
-    switch (cmd_id) {
+    switch (msg_id) {
     case DM_CMD_SET_PCIE_RESET: {
         //TODO : PCIE Reset type should be used from command request payload
-        link_mgmt_pcie_reset(req_start_time, PCIE_RESET_HOT);
+        link_mgmt_pcie_reset(tag_id, req_start_time, PCIE_RESET_HOT);
     } break;
     case DM_CMD_SET_PCIE_MAX_LINK_SPEED: {
         //TODO : PCIE Link Speed should be used from command request payload
-        link_mgmt_set_pcie_max_link_speed(req_start_time, PCIE_LINK_SPEED_GEN4);
+        link_mgmt_set_pcie_max_link_speed(tag_id, req_start_time, PCIE_LINK_SPEED_GEN4);
     } break;
     case DM_CMD_SET_PCIE_LANE_WIDTH: {
         //TODO : PCIE Lane width should be used from command request payload
-        link_mgmt_set_pcie_lane_width(req_start_time, PCIE_LANE_W_SPLIT_x8);
+        link_mgmt_set_pcie_lane_width(tag_id, req_start_time, PCIE_LANE_W_SPLIT_x8);
     } break;
     case DM_CMD_SET_PCIE_RETRAIN_PHY: {
-        link_mgmt_pcie_retrain_phy(req_start_time);
+        link_mgmt_pcie_retrain_phy(tag_id, req_start_time);
     } break;
     case DM_CMD_GET_MODULE_PCIE_ECC_UECC: {
-        link_mgmt_get_module_pcie_ecc_uecc(req_start_time);
+        link_mgmt_get_module_pcie_ecc_uecc(tag_id, req_start_time);
     } break;
     case DM_CMD_GET_MODULE_DDR_ECC_UECC: {
-        link_mgmt_get_module_pcie_dram_uecc(req_start_time);
+        link_mgmt_get_module_dram_uecc(tag_id, req_start_time);
     } break;
     case DM_CMD_GET_MODULE_SRAM_ECC_UECC: {
-        link_mgmt_get_module_pcie_sram_uecc(req_start_time);
+        link_mgmt_get_module_sram_uecc(tag_id, req_start_time);
     } break;
     case DM_CMD_GET_MODULE_DDR_BW_COUNTER: {
-        link_mgmt_get_module_ddr_bw_counter(req_start_time);
+        link_mgmt_get_module_ddr_bw_counter(tag_id, req_start_time);
     } break;
     }
 }

@@ -14,6 +14,6 @@
 
 #include <stdint.h>
 
-void historical_extreme_value_request(uint32_t cmd_id);
+void historical_extreme_value_request(tag_id_t tag_id, msg_id_t msg_id);
 
 #endif

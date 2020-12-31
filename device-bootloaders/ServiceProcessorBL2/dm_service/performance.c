@@ -54,7 +54,7 @@
 *       None
 *
 ***********************************************************************/
-static void dm_svc_perf_get_asic_frequencies(uint64_t req_start_time)
+static void dm_svc_perf_get_asic_frequencies(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_asic_frequencies_rsp_t dm_rsp;
 
@@ -62,9 +62,11 @@ static void dm_svc_perf_get_asic_frequencies(uint64_t req_start_time)
         globals set by the dm sampling task */
     dm_rsp.asic_frequency  = get_soc_perf_reg()->asic_frequency;
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
-                    sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_GET_ASIC_FREQUENCIES,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
+
    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_asic_frequencies_rsp_t))) {
         printf("dm_svc_perf_get_asic_frequencies: Cqueue push error !\n");
    }
@@ -90,15 +92,17 @@ static void dm_svc_perf_get_asic_frequencies(uint64_t req_start_time)
 *       None
 *
 ***********************************************************************/
-static void dm_svc_perf_get_dram_bw(uint64_t req_start_time)
+static void dm_svc_perf_get_dram_bw(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_dram_bw_rsp_t dm_rsp;
     /* Get the BW of DRAM from the globals set by the dm sampling task */
     dm_rsp.dram_bw  = get_soc_perf_reg()->dram_bw;
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
-                    sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_GET_DRAM_BANDWIDTH,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
+
    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_dram_bw_rsp_t))) {
         printf("dm_svc_perf_get_dram_bw: Cqueue push error !\n");
 
@@ -125,15 +129,18 @@ static void dm_svc_perf_get_dram_bw(uint64_t req_start_time)
 *       None
 *
 ***********************************************************************/
-static void dm_svc_perf_get_dram_capacity_util(uint64_t req_start_time)
+static void dm_svc_perf_get_dram_capacity_util(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_dram_capacity_rsp_t dm_rsp;
     /* Get the capacity of DRAM from the globals set by the dm sampling task */
 
     dm_rsp.percentage_cap.pct_cap = get_soc_perf_reg()->dram_capacity_percent;
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
-                    sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_GET_DRAM_CAPACITY_UTILIZATION,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
+
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_dram_capacity_rsp_t))) {
         printf("dm_svc_perf_get_dram_capacity_util: Cqueue push error !\n");
 
@@ -160,14 +167,15 @@ static void dm_svc_perf_get_dram_capacity_util(uint64_t req_start_time)
 *       None
 *
 ***********************************************************************/
-static void dm_svc_perf_get_asic_per_core_util(uint64_t req_start_time)
+static void dm_svc_perf_get_asic_per_core_util(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_asic_per_core_util_rsp_t dm_rsp;
     // TODO: payload is TBD
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
-                    sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_asic_per_core_util_rsp_t))) {
         printf("dm_svc_perf_get_asic_per_core_util: Cqueue push error !\n");
 
@@ -194,13 +202,15 @@ static void dm_svc_perf_get_asic_per_core_util(uint64_t req_start_time)
 *       None
 *
 ***********************************************************************/
-static void dm_svc_perf_get_asic_utilization(uint64_t req_start_time)
+static void dm_svc_perf_get_asic_utilization(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_asic_per_core_util_rsp_t dm_rsp;
     // TODO: payload is TBD
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
-                    sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_GET_ASIC_UTILIZATION,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
+
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_asic_per_core_util_rsp_t))) {
         printf("dm_svc_perf_get_asic_utilization: Cqueue push error !\n");
 
@@ -227,13 +237,15 @@ static void dm_svc_perf_get_asic_utilization(uint64_t req_start_time)
 *       None
 *
 ***********************************************************************/
-static void dm_svc_perf_get_asic_stalls(uint64_t req_start_time)
+static void dm_svc_perf_get_asic_stalls(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_asic_stalls_rsp_t dm_rsp;
     // TODO: payload is TBD
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
-                    sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_GET_ASIC_STALLS,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
+
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_asic_stalls_rsp_t))) {
         printf("dm_svc_perf_get_asic_stalls: Cqueue push error !\n");
 
@@ -260,13 +272,15 @@ static void dm_svc_perf_get_asic_stalls(uint64_t req_start_time)
 *       None
 *
 ***********************************************************************/
-static void dm_svc_perf_get_asic_latency(uint64_t req_start_time)
+static void dm_svc_perf_get_asic_latency(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_asic_latency_rsp_t dm_rsp;
     // TODO: payload is TBD
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS,
-                    sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_GET_ASIC_LATENCY,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
+
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_asic_latency_rsp_t))) {
         printf("dm_svc_perf_perf_get_asic_latency: Cqueue push error !\n");
 
@@ -285,40 +299,40 @@ static void dm_svc_perf_get_asic_latency(uint64_t req_start_time)
 *
 *   INPUTS
 *
-*       cmd_id    ID of serivces to handle
+*       msg_id    ID of serivces to handle
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-void process_performance_request(uint32_t cmd_id)
+void process_performance_request(tag_id_t tag_id, msg_id_t msg_id)
 {
     uint64_t req_start_time;
     req_start_time = timer_get_ticks_count();
-    switch (cmd_id) {
+    switch (msg_id) {
         case DM_CMD_GET_ASIC_FREQUENCIES: {
-            dm_svc_perf_get_asic_frequencies(req_start_time);
+            dm_svc_perf_get_asic_frequencies(tag_id, req_start_time);
         } break;
         case DM_CMD_GET_DRAM_BANDWIDTH: {
-            dm_svc_perf_get_dram_bw(req_start_time);
+            dm_svc_perf_get_dram_bw(tag_id, req_start_time);
         } break;
         case DM_CMD_GET_DRAM_CAPACITY_UTILIZATION: {
-            dm_svc_perf_get_dram_capacity_util(req_start_time);
+            dm_svc_perf_get_dram_capacity_util(tag_id, req_start_time);
         } break;
         case DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION: {
-             dm_svc_perf_get_asic_per_core_util(req_start_time);
+             dm_svc_perf_get_asic_per_core_util(tag_id, req_start_time);
         } break;
         case DM_CMD_GET_ASIC_UTILIZATION: {
-            dm_svc_perf_get_asic_utilization(req_start_time);
+            dm_svc_perf_get_asic_utilization(tag_id, req_start_time);
         } break;
         case DM_CMD_GET_ASIC_STALLS: {
-            dm_svc_perf_get_asic_stalls(req_start_time);
+            dm_svc_perf_get_asic_stalls(tag_id, req_start_time);
         } break;
         case DM_CMD_GET_ASIC_LATENCY: {
-            dm_svc_perf_get_asic_latency(req_start_time);
+            dm_svc_perf_get_asic_latency(tag_id, req_start_time);
         } break;
         default:
-          printf("cmd_id : %d  is not supported \r\n", cmd_id);
+          printf("cmd_id : %d  is not supported \r\n", msg_id);
     }
 }

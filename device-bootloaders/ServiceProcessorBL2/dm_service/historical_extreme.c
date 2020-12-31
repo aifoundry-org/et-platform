@@ -52,15 +52,17 @@
 *       None
 *
 ***********************************************************************/
-static void get_max_memory_error(uint64_t req_start_time)
+static void get_max_memory_error(tag_id_t tag_id, uint64_t req_start_time)
 {
     struct device_mgmt_max_memory_error_rsp_t dm_rsp;
 
     //TODO : This should be retrieved from BL2 Error data struct.
     dm_rsp.max_ecc_count.count = 5;
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag_id,
+                    DM_CMD_GET_MAX_MEMORY_ERROR,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_max_memory_error_rsp_t))) {
         printf("get_max_memory_error: Cqueue push error !\n");
@@ -87,7 +89,7 @@ static void get_max_memory_error(uint64_t req_start_time)
 *       None
 *
 ***********************************************************************/
-static void get_module_max_ddr_bw(uint64_t req_start_time)
+static void get_module_max_ddr_bw(tag_id_t tag_id, uint64_t req_start_time)
 {
     struct device_mgmt_max_dram_bw_rsp_t dm_rsp;
 
@@ -95,8 +97,10 @@ static void get_module_max_ddr_bw(uint64_t req_start_time)
     dm_rsp.max_dram_bw.max_bw_rd_req_sec = 100;
     dm_rsp.max_dram_bw.max_bw_wr_req_sec = 100;
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag_id,
+                    DM_CMD_GET_MAX_MEMORY_ERROR,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_max_dram_bw_rsp_t))) {
         printf("get_max_memory_error: Cqueue push error !\n");
@@ -124,15 +128,18 @@ static void get_module_max_ddr_bw(uint64_t req_start_time)
 *       None
 *
 ***********************************************************************/
-static void get_module_max_throttle_time(uint64_t req_start_time)
+static void get_module_max_throttle_time(tag_id_t tag_id, uint64_t req_start_time)
 {
     struct device_mgmt_max_throttle_time_rsp_t dm_rsp;
 
     //TODO : This should be retrieved from BL2 PMC data structure.
     dm_rsp.max_throttle_time.time_usec = 1000;
 
-    FILL_RSP_HEADER(dm_rsp.rsp_hdr, DM_STATUS_SUCCESS, sizeof(dm_rsp) - sizeof(struct dev_mgmt_rsp_header_t),
-                    timer_get_ticks_count() - req_start_time);
+    FILL_RSP_HEADER(dm_rsp, tag_id,
+                    DM_CMD_GET_MODULE_MAX_THROTTLE_TIME,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
+
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_max_throttle_time_rsp_t))) {
         printf("get_module_max_throttle_time: Cqueue push error !\n");
@@ -160,21 +167,21 @@ static void get_module_max_throttle_time(uint64_t req_start_time)
 *       None
 *
 ***********************************************************************/
-void historical_extreme_value_request(uint32_t cmd_id)
+void historical_extreme_value_request(tag_id_t tag_id, msg_id_t msg_id)
 {
     uint64_t req_start_time;
 
     req_start_time = timer_get_ticks_count();
 
-    switch (cmd_id) {
+    switch (msg_id) {
     case DM_CMD_GET_MAX_MEMORY_ERROR: {
-        get_max_memory_error(req_start_time);
+        get_max_memory_error(tag_id, req_start_time);
     } break;
     case DM_CMD_GET_MODULE_MAX_DDR_BW: {
-        get_module_max_ddr_bw(req_start_time);
+        get_module_max_ddr_bw(tag_id, req_start_time);
     } break;
     case DM_CMD_GET_MODULE_MAX_THROTTLE_TIME: {
-        get_module_max_throttle_time(req_start_time);
+        get_module_max_throttle_time(tag_id, req_start_time);
     } break;
     }
 }

@@ -12,6 +12,6 @@
 #ifndef __BL2_MINION_STATE_H__
 #define __BL2_MINION_STATE_H__
 
-void mm_state_process_request(void);
+void mm_state_process_request(tag_id_t tag_id);
 
 #endif
