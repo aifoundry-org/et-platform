@@ -8,16 +8,12 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
+************************************************************************/
+/*! \file shires.h
+    \brief A C header that defines the Shire Driver's public interfaces.
+*/
+/***********************************************************************/
 
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       Header/Interface description for public interfaces to manage
-*       shires
-*
-***********************************************************************/
 #ifndef SHIRES_DEFS_H
 #define SHIRES_DEFS_H
 
@@ -35,32 +31,35 @@ typedef struct {
 
 /*! \fn void Shire_Set_Active(uint64_t mask)
     \brief Get active/functional shires
-    \param None
+    \return none
 */
 void Shire_Set_Active(uint64_t mask);
 
 /*! \fn void Shire_Get_Active(void)
     \brief Set active/functional shires
-    \param None
+    \return 64 bit active shire mask
 */
 uint64_t Shire_Get_Active(void);
 
 /*! \fn void Shire_Update_State(uint64_t shire, shire_state_t shire_state)
     \brief Set active/functional shires
-    \param Shire to update
-    \param Shire state to update to
+    \param shire Shire to update
+    \param shire_state state to update to
+    \return none
 */
 void Shire_Update_State(uint64_t shire, shire_state_t shire_state);
 
 /*! \fn void Shire_Check_All_Are_Booted(void)
     \brief Check if all shires are booted
-    \param [in] shire mask
+    \param shie_mask shire mask
+    \return Boolean indicating if shires indicated by shire_mask have completed boot
 */
 bool Shire_Check_All_Are_Booted(uint64_t shire_mask);
 
 /*! \fn void Shire_Check_All_Are_Ready(uint64_t shire_mask)
     \brief Check if all shires are in ready state
-    \param [in] shire mask
+    \param shire_mask shire mask
+    \return Boolean indicating if shires indicated by shire_mask are ready
 */
 bool Shire_Check_All_Are_Ready(uint64_t shire_mask);
 

@@ -8,20 +8,15 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
+************************************************************************/
+/*! \file host_cmd_hdlr.c
+    \brief A C module that implements the host command handler
+    responsible for handling all commands from host
 
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file consists implementation for handling of 
-*       device-ops-api commands coming from host
-*
-*   FUNCTIONS
-*
-*       Host_Command_Handler
-*
-***********************************************************************/
+    Public interfaces:
+        Host_Command_Handler
+*/
+/***********************************************************************/
 #include "services/host_cmd_hdlr.h"
 #include "services/host_iface.h"
 #include "services/worker_iface.h"

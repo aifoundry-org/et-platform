@@ -7,17 +7,11 @@
 * the written permission of Esperanto Technologies and
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
-*
-************************************************************************
-
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       Header/Interface description for the Console component's
-*       public interface
-*
-***********************************************************************/
+************************************************************************/
+/*! \file console.h
+    \brief A C header that defines the Console Driver's public interfaces
+*/
+/***********************************************************************/
 #ifndef CONSOLE_DEFS_H
 #define CONSOLE_DEFS_H
 
@@ -26,7 +20,7 @@
 
 /*! \fn void Console_Putchar(char character)
     \brief Write a character to the serial port
-    \param [in] character to write
+    \param character character to write
 */
 void Console_Putchar(char character);
 

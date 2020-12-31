@@ -8,21 +8,15 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
+************************************************************************/
+/*! \file lock.c
+    \brief A C module that implements the lock services
 
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file consists the implementation for lock services
-*
-*   FUNCTIONS
-*
-*       Lock_Acquire
-*       Lock_release
-*
-***********************************************************************/
-
+    Public interfaces:
+        Lock_Acquire
+        Lock_Release
+*/
+/***********************************************************************/
 #include "services/lock.h"
 #include "atomic.h"
 

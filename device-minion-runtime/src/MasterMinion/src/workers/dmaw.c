@@ -8,25 +8,32 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
+************************************************************************/
+/***********************************************************************/
+/*! \file dmaw.c
+    \brief A C module that implements the DMA Worker's public and private 
+    interfaces.
 
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file DMA Worker.
-*
-*   FUNCTIONS
-*
-*       DMAW_Launch
-*
-***********************************************************************/
+    Public interfaces:
+        DMAW_Init
+        DMAW_Notify
+        DMAW_Launch
+*/
+/***********************************************************************/
 #include    "workers/dmaw.h"
 #include    "services/log1.h"
 #include    "vq.h"
 
-/*! \var kw_cb_t CQW_CB
-    \brief Global Kernel Worker Control Block
+/*! \struct dmaw_cb_t
+    \brief DMA Worker Control Block structure 
+*/
+typedef struct dmaw_cb_ {
+    global_fcc_flag_t   dmaw_fcc_flag;
+    vq_cb_t             *dmaw_fcc_fifo;
+} dmaw_cb_t;
+
+/*! \var dmaw_cb_t DMAW_CB
+    \brief Global DMA Worker Control Block
     \warning Not thread safe!
 */
 static dmaw_cb_t DMAW_CB={0};

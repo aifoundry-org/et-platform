@@ -8,23 +8,17 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
+************************************************************************/
+/*! \file circbuff.c
+    \brief A C module that implements the Circular Buffer data structure
 
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file consists the implementation for circular buffer 
-*       data structure.
-*
-*   FUNCTIONS
-*
-*       Circbuffer_Init
-*       Circbuffer_Push
-*       Circbuffer_Pop
-*       Circbuffer_Peek
-*
-***********************************************************************/
+    Public interfaces:
+        Circbuffer_Init
+        Circbuffer_Push
+        Circbuffer_Pop
+        Circbuffer_Peek
+*/
+/***********************************************************************/
 #include "circbuff.h"
 
 /************************************************************************

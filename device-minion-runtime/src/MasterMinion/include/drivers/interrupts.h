@@ -8,24 +8,35 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
-
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       Header/Interface description for the Interrupts component
-*
-***********************************************************************/
+************************************************************************/
+/*! \file dir_regs.h
+    \brief A C header that defines the Interrupt Driver's public 
+    interfaces
+*/
+/***********************************************************************/
 #ifndef INTERRUPTS_DEFS_H
 #define INTERRUPTS_DEFS_H
 
 #include "common_defs.h"
 
+/*! \def WAIT_FOR_INTERRUPTS
+    \brief Macro to wait for interrupts using WFI instruction.
+*/
 #define WAIT_FOR_INTERRUPTS             asm volatile("wfi")
+
+/*! \def INTERRUPTS_DISABLE_SUPERVISOR
+    \brief Macro to disable supervisor interrupts.
+*/
 #define INTERRUPTS_DISABLE_SUPERVISOR   asm volatile("csrci sstatus, 0x2")
+
+/*! \def INTERRUPTS_ENABLE_SUPERVISOR
+    \brief Macro to enable supervisor interrupts.
+*/
 #define INTERRUPTS_ENABLE_SUPERVISOR    asm volatile("csrsi sstatus, 0x2");
 
+/**
+ * @brief Enum of supported interrupt vectors.
+ */
 typedef enum {
     PU_PLIC_NO_INTERRUPT_INTR = 0,
     PU_PLIC_I2C_INTR,
@@ -74,23 +85,24 @@ typedef enum {
 
 /*! \fn void Interrupt_Init(void)
     \brief Initialize Interrupts
-    \param None
+    \returns none
 */
 void Interrupt_Init(void);
 
 /*! \fn void Interrupt_Enable(interrupt_t interrupt, uint32_t priority, void (*isr)(void))
     \brief Enable an Interrupt
-    \param [in] Interrupt vector
-    \param [in] Interrupt priority
-    \param [in] Function pointer to interrupt service routine
+    \param interrupt Interrupt vector
+    \param priority Interrupt priority
+    \param isr function pointer to interrupt service routine
+    \return none
 */
 void Interrupt_Enable(interrupt_t interrupt, uint32_t priority, void (*isr)(void));
 
 /*! \fn void Interrupt_Disable(interrupt_t interrupt)
     \brief Disable an Interrupt
-    \param [in] Interrupt vector
+    \param interrupt Interrupt vector
+    \return none
 */
 void Interrupt_Disable(interrupt_t interrupt);
-
 
 #endif /* INTERRUPTS_DEFS_H */

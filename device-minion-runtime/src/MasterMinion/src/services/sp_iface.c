@@ -8,45 +8,28 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
+************************************************************************/
+/*! \file host_iface.c
+    \brief A C module that implements the Host Interface services
 
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file implements the Service Processor Interface Services.
-*
-*   FUNCTIONS
-*
-*       SP_Iface_SQs_Init
-*       SP_Iface_CQs_Init
-*       SP_Iface_SQ_Pop_Cmd
-*       SP_Iface_CQ_Push_Cmd
-*       SP_Iface_Interrupt_Status
-*       SP_Iface_Processing
-*       SP_Iface_SQs_Deinit
-*       SP_Iface_CQs_Deinit
-*
-***********************************************************************/
+    Public interfaces:
+        SP_Iface_SQs_Init
+        SP_Iface_CQs_Init
+        SP_Iface_SQ_Pop_Cmd
+        SP_Iface_CQ_Push_Cmd
+        SP_Iface_Interrupt_Status
+        SP_Iface_Processing
+        SP_Iface_SQs_Deinit
+        SP_Iface_CQs_Deinit
+*/
+/***********************************************************************/
+#include "config/mm_config.h"
 #include "services/sp_iface.h"
 #include "services/sp_cmd_hdlr.h"
 #include "services/log1.h"
 #include "drivers/interrupts.h"
 #include "circbuff.h"
 #include "pcie_int.h"
-
-/* TOD: Find a proper home for these definitions, we can place these SP
-specific definitions in mm_config.h */
-
-#define     SP_SQ_BASE      0 /* TODO: Update this to actual address */
-#define     SP_SQ_SIZE      0 /* TODO: Update this to actual size */
-#define     SP_SQ_COUNT     1
-#define     SP_SQ_MEM_TYPE  1
-
-#define     SP_CQ_BASE      0 /* TODO: Update this to actual address */
-#define     SP_CQ_SIZE      0 /* TODO: Update this to actual size */
-#define     SP_CQ_COUNT     1
-#define     SP_CQ_MEM_TYPE  1
 
 /*! \var iface_q_cb_t SP_SQs
     \brief Global MM to SP submission queue
@@ -60,8 +43,8 @@ static iface_cb_t SP_SQs = {0};
 */
 static iface_cb_t SP_CQs = {0};
 
-/*! \var bool SQ_Interrupt_Flag
-    \brief Global Submission Queues Control Block
+/*! \var bool SP_Iface_Interrupt_Flag
+    \brief Global SP Interface Interrupt flag
     \warning Not thread safe!
 */
 static bool SP_Iface_Interrupt_Flag = false;

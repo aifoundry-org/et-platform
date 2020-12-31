@@ -8,16 +8,13 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
+************************************************************************/
 
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       Header/Interface description for the Kernel Worker component's
-*       public interface
-*
-***********************************************************************/
+/***********************************************************************/
+/*! \file kw.h
+    \brief A C header that defines the Kernel Worker's public interfaces.
+*/
+/***********************************************************************/
 #ifndef KW_DEFS_H
 #define KW_DEFS_H
 
@@ -27,12 +24,11 @@
 #include "sync.h"
 #include "vq.h"
 
+/*! \def KW_MAX_HART_ID
+    \brief A macro that provides the maximum HART ID the KW is configued
+    to execute on.
+*/
 #define     KW_MAX_HART_ID      (KW_BASE_HART_ID + KW_NUM)
-
-typedef struct kw_cb_ {
-    global_fcc_flag_t   kw_fcc_flag;
-    vq_cb_t             *kw_fcc_fifo;
-} kw_cb_t;
 
 /* TODO: fix up the 1 suffix once the old implementation is removed */
 typedef enum 
@@ -46,13 +42,14 @@ typedef enum
 
 /*! \fn void KW_Init(void)
     \brief Initialize Kernel Worker
-    \param None
+    \return none
 */
 void KW_Init(void);
 
 /*! \fn void KW_Launch(uint32_t hart_id)
     \brief Launch the Kernel Worker thread
-    \param [in] HART ID on which the Kernel Worker should be launched
+    \param hart_id HART ID on which the Kernel Worker should be launched
+    \return none
 */
 void KW_Launch(uint32_t hart_id);
 

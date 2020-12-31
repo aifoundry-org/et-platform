@@ -8,19 +8,18 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
+************************************************************************/
+/***********************************************************************/
+/*! \file sqw.c
+    \brief A C module that implements the Submission Queue Worker's
+    public and private interfaces.
 
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file implements the Submission Queue Worker.
-*
-*   FUNCTIONS
-*
-*       SQW_Worker
-*
-***********************************************************************/
+    Public interfaces:
+        SQW_Init
+        SQW_Notify
+        SQW_Launch
+*/
+/***********************************************************************/
 #include "workers/sqw.h"
 #include "services/log1.h"
 #include "services/worker_iface.h"
@@ -28,6 +27,9 @@
 #include "services/host_cmd_hdlr.h"
 #include <esperanto/device-apis/device_apis_message_types.h>
 
+/*! \struct sq_cb_t
+    \brief Submission Queue Worker Control Block structure 
+*/
 typedef struct sqw_cb_ {
     uint8_t             num_sqw;
     global_fcc_flag_t   sqw_fcc_flags[MM_SQ_COUNT];

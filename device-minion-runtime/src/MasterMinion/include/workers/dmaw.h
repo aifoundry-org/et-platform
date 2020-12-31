@@ -8,16 +8,13 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
+************************************************************************/
 
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       Header/Interface description for the DMA Worker component's
-*       public interface
-*
-***********************************************************************/
+/***********************************************************************/
+/*! \file dmaw.h
+    \brief A C header that defines the DMA Worker's public interfaces.
+*/
+/***********************************************************************/
 #ifndef DMAW_DEFS_H
 #define DMAW_DEFS_H
 
@@ -25,22 +22,22 @@
 #include "sync.h"
 #include "vq.h"
 
-#define     DMAW_MAX_HART_ID      DMAW_BASE_HART_ID + DMAW_NUM
-
-typedef struct dmaw_cb_ {
-    global_fcc_flag_t   dmaw_fcc_flag;
-    vq_cb_t             *dmaw_fcc_fifo;
-} dmaw_cb_t;
+/*! \def DMAW_MAX_HART_ID
+    \brief A macro that provides the maximum HART ID the DMAW is configued
+    to execute on.
+*/
+#define  DMAW_MAX_HART_ID      DMAW_BASE_HART_ID + DMAW_NUM
 
 /*! \fn void DMAW_Init(void)
     \brief Initialize DMA Worker
-    \param None
+    \return none
 */
 void DMAW_Init(void);
 
 /*! \fn void DMAW_Launch(void)
     \brief Launch the DMA Worker
-    \param [in] HART ID on which the DMA Worker should be launched
+    \param hart_id HART ID on which the DMA Worker should be launched
+    \return none
 */
 void DMAW_Launch(uint32_t hart_id);
 

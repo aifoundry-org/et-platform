@@ -8,25 +8,24 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
-
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       Header/Interface to access SP command handler
-*
-***********************************************************************/
+************************************************************************/
+/***********************************************************************/
+/*! \file sp_cmd_hdlr.h
+    \brief A C header that defines the Service Processor command 
+    handler responsible for handling all commands from Service Processor
+    Interface
+*/
+/***********************************************************************/
 #ifndef SP_CMD_HDLR_H
 #define SP_CMD_HDLR_H
 
 #include <common_defs.h>
 
 /*! \fn SP_Command_Handler(void* command_buffer, uint16_t command_size)
-    \brief Interface to handle host side commands.
-    \param [in] command_buffer: pointer to command buffer
-    \param [in] command_size: command size
-    \param [out] int8_t: command handling return status
+    \brief Interface to handle host side commands
+    \param command_buffer: pointer to command buffer
+    \param command_size: command size
+    \return int8_t: Status indicating success or negative error
 */
 int8_t SP_Command_Handler(void* command_buffer, uint16_t command_size);
 

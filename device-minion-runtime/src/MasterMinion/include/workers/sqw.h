@@ -8,16 +8,13 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
-
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       Header/Interface description for the Submission Queue Worker
-*       component's public interface
-*
-***********************************************************************/
+************************************************************************/
+/***********************************************************************/
+/*! \file sqw.h
+    \brief A C header that defines the Submission Queue Worker's
+    public interfaces.
+*/
+/***********************************************************************/
 #ifndef SQW_DEFS_H
 #define SQW_DEFS_H
 
@@ -26,25 +23,36 @@
 #include "sync.h"
 #include "vq.h"
 
+/*! \def SQW_MAX_HART_ID
+    \brief A macro that provides the maximum HART ID the SQW is configued
+    to execute on.
+*/
 #define     SQW_MAX_HART_ID      (SQW_BASE_HART_ID + SQW_NUM)
+
+/*! \def SQW_WORKER_0
+    \brief A macro that provdies the minion index of the first Submission
+    Queue worker within the master shire.
+*/
 #define     SQW_WORKER_0         ((SQW_BASE_HART_ID - MM_BASE_ID)/2)
                 
 /*! \fn void SQW_Init(void)
     \brief Initialize resources used by the Submission Queue Worker
-    \param None
+    \return None 
 */
 void SQW_Init(void);
 
 /*! \fn void SQW_Notify(uint8_t sqw_idx)
-    \brief Submission Queue Worker notify
-    \param [in] Submission Queue Worker index
+    \brief Submission Queue Worker notify for given Submission Queue index
+    \param sqw_idx Submission Queue Worker index
+    \return none
 */
 void SQW_Notify(uint8_t sqw_idx);
 
 /*! \fn void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
     \brief Launch the Submission Queue Worker
-    \param [in] HART ID on which the Kernel Worker should be launched
-    \param [in] Submission Queue Worker index
+    \param hart_id HART ID on which the Kernel Worker should be launched
+    \param sqw_idx Queue Worker index
+    \return none
 */
 void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx);
 

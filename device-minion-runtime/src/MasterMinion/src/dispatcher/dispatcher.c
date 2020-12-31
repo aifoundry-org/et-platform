@@ -8,20 +8,16 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
+************************************************************************/
+/*! \file dispatcher.c
+    \brief A C module that implements the Dispatcher. The function of
+    the Dispatcher is to field all interrupts and process requests
+    from various actors.
 
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file implements the Dispatcher. The function of the 
-*       dispatcher is to field all interrupts and 
-*
-*   FUNCTIONS
-*
-*       Dispatcher_Launch
-*
-***********************************************************************/
+    Public interfaces:
+        Dispatcher_Launch
+*/
+/***********************************************************************/
 #include "minion_fw_boot_config.h"
 #include "config/dir_regs.h"
 #include "dispatcher/dispatcher.h"

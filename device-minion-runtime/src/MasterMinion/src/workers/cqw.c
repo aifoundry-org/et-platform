@@ -8,25 +8,26 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
+************************************************************************/
+/*! \file cqw.c
+    \brief A C module that implements the Completion Queue Worker's
+    public and private interfaces.
 
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file consists the Completion Queue Worker implementation.
-*
-*   FUNCTIONS
-*
-*       CQW_Launch
-*
-***********************************************************************/
+    Public interfaces:
+        CQW_Init
+        CQW_Notify
+        CQW_Launch
+*/
+/***********************************************************************/
 #include    "workers/cqw.h"
 #include    "services/host_iface.h"
 #include    "services/worker_iface.h"
 #include    "services/log1.h"
 #include    "vq.h"
 
+/*! \struct cqw_cb_t
+    \brief Completion Queue Worker Control Block structure 
+*/
 typedef struct cqw_cb_ {
     global_fcc_flag_t   cqw_fcc_flag;
     vq_cb_t             *vq_cb;
@@ -151,7 +152,8 @@ void CQW_Launch(uint32_t hart_id)
         
         if(cmd_size > 0)
         {
-            Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", "CQW:PushingToHost:cmd_size:", 
+            Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
+                "CQW:PushingToHost:cmd_size:", 
                 cmd_size, " Bytes \r\n");
             
             status = Host_Iface_CQ_Push_Cmd(0, cmd_buff, cmd_size);

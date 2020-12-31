@@ -8,28 +8,23 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
+************************************************************************/
+/*! \file host_iface.c
+    \brief A C module that implements the Host Interface services
 
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file implements the Host Interface Services.
-*
-*   FUNCTIONS
-*
-*       Host_Iface_SQs_Init
-*       Host_Iface_CQs_Init
-*       Host_Iface_Peek_SQ_Cmd_Size
-*       Host_Iface_Peek_SQ_Cmd
-*       Host_Iface_SQ_Pop_Cmd
-*       Host_Iface_CQ_Push_Cmd
-*       Host_Iface_Interrupt_Status
-*       Host_Iface_Processing
-*       Host_Iface_SQs_Deinit
-*       Host_Iface_CQs_Deinit
-*
-***********************************************************************/
+    Public interfaces:
+        Host_Iface_SQs_Init
+        Host_Iface_CQs_Init
+        Host_Iface_Peek_SQ_Cmd_Size
+        Host_Iface_Peek_SQ_Cmd
+        Host_Iface_SQ_Pop_Cmd
+        Host_Iface_CQ_Push_Cmd
+        Host_Iface_Interrupt_Status
+        Host_Iface_Processing
+        Host_Iface_SQs_Deinit
+        Host_Iface_CQs_Deinit
+*/
+/***********************************************************************/
 #include "services/host_iface.h"
 #include "services/host_cmd_hdlr.h"
 #include "services/log1.h"
@@ -38,7 +33,6 @@
 #include "vq.h"
 #include "pcie_int.h"
 #include "hal_device.h"
-
 
 /*! \struct host_iface_sqs_cb_t;
     \brief Host interface control block that manages 
