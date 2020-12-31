@@ -8,20 +8,15 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
+************************************************************************/
+/*! \file sp_cmd_hdlr.c
+    \brief A C module that implements the Service Processor Command
+    handler
 
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file consists implementation for handling of 
-*       commands coming from SP
-*
-*   FUNCTIONS
-*
-*       SP_Command_Handler
-*
-***********************************************************************/
+    Public interfaces:
+        SP_Command_Handler
+*/
+/***********************************************************************/
 #include "services/sp_iface.h"
 #include "services/sp_cmd_hdlr.h"
 #include "services/log1.h"

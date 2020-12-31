@@ -9,22 +9,17 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
+************************************************************************/
+/*! \file vq.c
+    \brief A C module that implements the Virtual Queue Driver
 
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file implements the Virtual Queue services.
-*
-*   FUNCTIONS
-*
-*       VQ_Init
-*       VQ_Push
-*       VQ_Pop
-*       VQ_Deinit
-*
-***********************************************************************/
+    Public interfaces:
+        VQ_Init
+        VQ_Push
+        VQ_Pop
+        VQ_Deinit
+*/
+/***********************************************************************/
 #include "vq.h"
 
 #undef DEBUG_LOG

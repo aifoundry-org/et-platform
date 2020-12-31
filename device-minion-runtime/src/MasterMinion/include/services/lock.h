@@ -8,15 +8,12 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
-
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       Header/Interface description for lock services
-*
-***********************************************************************/
+************************************************************************/
+/*! \file lock.h
+    \brief A C header that defines public interfaces for locking
+    services
+*/
+/***********************************************************************/
 #ifndef LOCK_DEFS_H
 #define LOCK_DEFS_H
 
@@ -24,13 +21,15 @@ typedef char lock_t;
 
 /*! \fn void Lock_Acquire(lock_t *lock)
     \brief Acquire Lock
-    \param [in] Pointer to lock
+    \param lock Pointer to lock
+    \return none
 */
 void Lock_Acquire(lock_t *lock);
 
 /*! \fn void Lock_Release(lock_t *lock)
     \brief Release lock
-    \param [in] Pointer to lock
+    \param lock Pointer to lock
+    \return none
 */
 void Lock_Release(lock_t *lock);
 

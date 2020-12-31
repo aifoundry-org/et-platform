@@ -8,25 +8,32 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
+************************************************************************/
+/***********************************************************************/
+/*! \file kw.c
+    \brief A C module that implements the Kernel Worker's
+    public and private interfaces.
 
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file implements the Kernel Worker. 
-*
-*   FUNCTIONS
-*
-*       KW_Launch
-*
-***********************************************************************/
+    Public interfaces:
+        KW_Init
+        KW_Notify
+        KW_Launch
+*/
+/***********************************************************************/
 #include    "workers/kw.h"
 #include    "services/log1.h"
 #include    "kernel_config.h"
 #include    "utils.h"
 #include    "cacheops.h"
 #include    "vq.h"
+
+/*! \struct kw_cb_t
+    \brief Kernel Worker Control Block structure 
+*/
+typedef struct kw_cb_ {
+    global_fcc_flag_t   kw_fcc_flag;
+    vq_cb_t             *kw_fcc_fifo;
+} kw_cb_t;
 
 /*! \var kw_cb_t CQW_CB
     \brief Global Kernel Worker Control Block
@@ -104,7 +111,8 @@ void KW_Init(void)
 ***********************************************************************/
 void KW_Launch(uint32_t hart_id)
 {
-     Log_Write(LOG_LEVEL_DEBUG, "%s = %d %s", "KW = ", hart_id, "launched\r\n");
+     Log_Write(LOG_LEVEL_DEBUG, "%s = %d %s", "KW = ", hart_id, 
+        "launched\r\n");
 
     /* Empty all FCCs */
     init_fcc(FCC_0);

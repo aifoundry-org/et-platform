@@ -8,21 +8,15 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
+************************************************************************/
+/*! \file dir_regs.c
+    \brief A C module that implements the DIR configuration APIs
 
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file implements services to initialize and manage
-*       Master Minion's Device Interface Registers
-*
-*   FUNCTIONS
-*
-*       DIR_Init
-*       DIR_Set_Master_Minion_Status
-*
-***********************************************************************/
+    Public interfaces:
+        DIR_Init
+        DIR_Set_Master_Minion_Status
+*/
+/***********************************************************************/
 #include "config/dir_regs.h"
 #include "config/mm_config.h"
 #include "layout.h"

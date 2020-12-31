@@ -8,19 +8,15 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
+************************************************************************/
+/*! \file console.c
+    \brief A C module that implements the Console Driver
 
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file implements the console driver services
-*
-*   FUNCTIONS
-*
-*       Console_Putchar
-*
-***********************************************************************/
+    Public interfaces:
+        Console_Putchar
+*/
+/***********************************************************************/
+
 #include "drivers/console.h"
 /************************************************************************
 *

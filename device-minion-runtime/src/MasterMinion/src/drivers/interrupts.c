@@ -8,33 +8,28 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
+************************************************************************/
+/*! \file interrupts.c
+    \brief A C module that implements the Interrupts Driver's 
 
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file consists the implementation for interrupt 
-*       registration and management services
-*
-*   FUNCTIONS
-*
-*       main2
-*
-***********************************************************************/
+    Public interfaces:
+        Interrupt_Init
+        Interrupt_Enable
+        Interrupt_Disable
+*/
+/***********************************************************************/
 #include "drivers/interrupts.h"
 #include "io.h"
 #include "etsoc_hal/inc/hal_device.h"
 #include "etsoc_hal/inc/pu_plic.h"
 
-/*! \var void (*Interrupt_Vector_Table[])(void)
+/*! \var void (*vectorTable[PU_PLIC_INTR_CNT])(void)
     \brief Global Vector Table
     \warning Not thread safe!
 */
 //void (*Interrupt_Vector_Table[PU_PLIC_INTR_CNT])(void) = { NULL };
 /* TODO: Using externed legacy vector table for now, use vector table above and update trap_handler.S as needed */
 extern void (*vectorTable[PU_PLIC_INTR_CNT])(void);
-
 
 static void plic_enable_interrupt(volatile uint32_t *const basePriorityReg,
     volatile uint32_t *const baseEnableReg, uint32_t intID,

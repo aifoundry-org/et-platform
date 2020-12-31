@@ -8,15 +8,11 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
-
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       Header/Interface description for logging services.
-*
-***********************************************************************/
+************************************************************************/
+/*! \file log1.h
+    \brief A C header that defines public interfaces log services
+*/
+/***********************************************************************/
 #ifndef LOG1_DEFS_H
 #define LOG1_DEFS_H
 
@@ -24,31 +20,34 @@
 
 /*! \fn void Log_Set_Level(log_level_t level)
     \brief Set the current global log level
-    \param [in] Log level to set
+    \param level Log level to set
+    \return none
 */
 void Log_Set_Level(log_level_t level);
 
 /*! \fn log_level_t Log_Get_Level(void)
-    \brief Get log level
-    \param [out] Get the current global log level
+    \brief Get current global log level
+    \return The current global log level
 */
 log_level_t Log_Get_Level(void);
 
-/*! \fn int64_t Log_Write(log_level_t level, const char *const fmt, ...)
+/*! \fn int32_t Log_Write(log_level_t level, const char *const fmt, ...)
     \brief Write a log with va_list style args
-    \param [in] Log level for the current log
-    \param [in] format specifier
-    \param [in] ... variable list
+    \param level Log level for the current log
+    \param fmt format specifier
+    \param ... variable list
+    \return Bytes written
 */
-int64_t Log_Write(log_level_t level, const char *const fmt, ...);
+int32_t Log_Write(log_level_t level, const char *const fmt, ...);
 
-/*! \fn int64_t Log_Write_String(log_level_t level, const char *str, size_t length)
+/*! \fn int32_t Log_Write_String(log_level_t level, const char *str, size_t length)
     \brief Write a string log
-    \param [in] Log level for the current log
-    \param [in] Pointer to a string
-    \param [in] Length of string
+    \param level Log level for the current log
+    \param str Pointer to a string
+    \param length Length of string
+    \return bytes written
 */
-int64_t Log_Write_String(log_level_t level, const char *str, size_t length);
+int32_t Log_Write_String(log_level_t level, const char *str, size_t length);
 
 /* TODO: Redefining the shared header signiture with code convention conformant
 definitions, log.h is used by many components, remove this redifinition

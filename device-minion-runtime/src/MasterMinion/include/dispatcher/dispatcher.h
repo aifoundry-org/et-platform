@@ -8,29 +8,29 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
-
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       Header/Interface description for the Master component's public
-*       interfaces
-*
-***********************************************************************/
+************************************************************************/
+/*! \file dispatcher.h
+    \brief A C header that defines the Dispatcher component's public 
+    interfaces.
+*/
+/***********************************************************************/
 #ifndef DISPATCHER_DEFS_H
 #define DISPATCHER_DEFS_H
 
 #include "common_defs.h"
+#include "config/mm_config.h"
 
-#define     DISPATCHER_BASE_HART_ID     2048
-#define     DISPATCHER_NUM              1
+/*! \def DISPATCHER_MAX_HART_ID
+    \brief A macro that provides the maximum HART ID the Dispatcher is 
+    configured to execute on.
+*/
 #define     DISPATCHER_MAX_HART_ID      \
                 DISPATCHER_BASE_HART_ID + DISPATCHER_NUM
 
 /*! \fn void Dispatcher_Launch(void)
     \brief Launch a dispatcher instance on HART ID requested
-    \param [in] HART ID to launch the dispatcher
+    \param hart_id HART ID to launch the dispatcher
+    \return none
 */
 void Dispatcher_Launch(uint32_t hart_id);
 

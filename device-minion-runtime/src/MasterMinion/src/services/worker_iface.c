@@ -8,42 +8,49 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
+************************************************************************/
+/*! \file console.c
+    \brief A C module that implements the Worker Interface services
 
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file implements the Service Processor Interface Services.
-*
-*   FUNCTIONS
-*
-*       Worker_Iface_Init
-*       Worker_Iface_Push
-*       Worker_Iface_Pop
-*       Worker_Iface_Processing
-*       Worker_Iface_Deinit
-*
-***********************************************************************/
+    Public interfaces:
+        Worker_Iface_Init
+        Worker_Iface_Push
+        Worker_Iface_Pop
+        Worker_Iface_Processing
+        Worker_Iface_Deinit
+*/
+/***********************************************************************/
 #include "config/mm_config.h"
 #include "services/worker_iface.h"
 #include "services/log1.h"
 #include "vq.h"
 #include "sync.h"
 
-/*! \var FCC FIFOS used by Minion Runtime
-    \brief: CW_FIFO_Buff - Completion Worker FIFO
-    \brief: KW_FIFO_Buff - Kernel Worker FIFO 
-    \brief: DMAW_FIFO_Buff - DMA Worker FIFO
-    \warning Not thread safe!
+/*! \var CW_FIFO_Buff[]
+    \brief: Completion Worker input FIFO to submit commands
+    to the completion worker
 */
 static uint8_t CW_FIFO_Buff[MM_CW_FIFO_SIZE]__attribute__((aligned(8))) 
     = { 0 };
+
+/*! \var KW_FIFO_Buff[]
+    \brief: Kernel Worker input FIFO to submit commands
+    to the kernel worker
+*/
 static uint8_t KW_FIFO_Buff[MM_KW_FIFO_SIZE]__attribute__((aligned(8))) 
     = { 0 };
+
+/*! \var DMAW_FIFO_Buff[]
+    \brief: DMA Worker input FIFO to submit commands
+    to the DMA worker
+*/
 static uint8_t DMAW_FIFO_Buff[MM_CW_FIFO_SIZE]__attribute__((aligned(8))) 
     = { 0 };
 
+/*! \struct worker_iface_cb_t;
+    \brief Worker interface control block that manages 
+    input FIFOs to workers
+*/
 typedef struct worker_iface_cb_ {
     uint8_t     worker_type;
     vq_cb_t    fifo_vq_cb;

@@ -8,16 +8,12 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
-
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       Header/Interface to access, initialize and manage 
-*       Master Minion's Device Interface Registers.
-*
-***********************************************************************/
+************************************************************************/
+/*! \file dir_regs.h
+    \brief A C header that defines the Device Interface Registers (DIRs)
+    related structs and bindings.
+*/
+/***********************************************************************/
 
 #ifndef __DIR_REGS_H__
 #define __DIR_REGS_H__
@@ -26,21 +22,22 @@
 #include "config/mm_config.h"
 #include "hal_device.h"
 
-/*! \file List of REGIONS based on Spec as defined here: https://esperantotech.atlassian.net/wiki/spaces/SW/pages/1233584203/Memory+Map */
+/* List of REGIONS based on Spec as defined here: 
+ * https://esperantotech.atlassian.net/wiki/spaces/SW/pages/1233584203/Memory+Map */
 
+/*! \def MM_DEV_INTF_REG_VERSION
+    \brief Device Interface Register (DIR) version number.
+*/
 #define MM_DEV_INTF_REG_VERSION 1U
 
-// MM DEV Interface Register at PC_MM Mailbox + 1K
+/*! \def MM_DEV_INTF_BASE_ADDR
+    \brief Macro that provides the base address of the DIRs
+    MM DEV Interface Register at PC_MM Mailbox + 1K
+*/
 #define MM_DEV_INTF_BASE_ADDR (R_PU_MBOX_PC_MM_BASEADDR + 0x400UL)
 
 // Only expose Bar based offset,size as address to Host
 // Host Address -> SOC Address mapping will happen via ET SOC PCIe Device ATU mapping
-
-//TODO: place these macros in their rightful home.
-// DDR Region 0 USER_KERNEL_SPACE (BAR=0, Offset=4GB, Size=8GB)
-#define MM_DEV_INTF_USER_KERNEL_SPACE_BAR    0
-#define MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET 0x0100000000UL // TODO: Should be HOST_MANAGED_DRAM_START
-#define MM_DEV_INTF_USER_KERNEL_SPACE_SIZE   0x0200000000UL // TODO: Should be (HOST_MANAGED_DRAM_END - HOST_MANAGED_DRAM_START)
 
 /*! \enum MM_DEV_INTF_MM_BOOT_STATUS_e
     \brief Values representing Master Minion Boot status.
@@ -136,18 +133,20 @@ typedef struct MM_DEV_INTF_REG_ {
     int32_t status;
 } MM_DEV_INTF_REG_s;
 
-// Macro to extract MM DIRs
+/*! \def MM_DEV_INTF_GET_BASE
+    \brief Macro that provides the base address of the DIRs
+*/
 #define MM_DEV_INTF_GET_BASE   ((volatile MM_DEV_INTF_REG_s *)MM_DEV_INTF_BASE_ADDR)
 
 /*! \fn void DIR_Init(void)
     \brief Initialize Device Interface Registers
-    \param None
+    \return none
 */
 void DIR_Init(void);
 
 /*! \fn void DIR_Set_Master_Minion_Status(uint8_t status)
     \brief Set Master Minion ready status
-    \param None
+    \return none
 */
 void DIR_Set_Master_Minion_Status(uint8_t status);
 

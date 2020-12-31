@@ -8,22 +8,17 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
+************************************************************************/
+/*! \file log1.c
+    \brief A C module that implements the logging ervices
 
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file consists the implementation for logging services
-*
-*   FUNCTIONS
-*
-*       Log_Set_Level
-*       Log_Get_Level
-*       Log_Write
-*       Log_Write_String
-*
-***********************************************************************/
+    Public interfaces:
+        Log_Set_Level
+        Log_Get_Level
+        Log_Write
+        Log_Write_String
+*/
+/***********************************************************************/
 #include "services/log1.h"
 #include "drivers/console.h"
 #include <stddef.h>
@@ -109,12 +104,9 @@ log_level_t Log_Get_Level(void)
 *       int32_t        bytes written
 *
 ***********************************************************************/
-/* TODO: @ET why should this be a int64 ? since this header is used my multiple
-components I am leaving this the way it is, please ocnsider making the return
-status a int32_t */
-int64_t Log_Write(log_level_t level, const char *const fmt, ...)
+int32_t Log_Write(log_level_t level, const char *const fmt, ...)
 {
-    int64_t bytes_written;
+    int32_t bytes_written=0;
     
     /* TODO: Debug code to serialize console printing */
     acquire_local_spinlock(&Console_Lock);
@@ -155,10 +147,7 @@ int64_t Log_Write(log_level_t level, const char *const fmt, ...)
 *       int32_t        bytes written
 *
 ***********************************************************************/
-/* TODO: @ET why should this be a int64 ? since this header is used my multiple
-components I am leaving this the way it is, please ocnsider making the return
-status a int32_t */
-int64_t Log_Write_String(log_level_t level, const char *str, size_t length)
+int32_t Log_Write_String(log_level_t level, const char *str, size_t length)
 {
     size_t i;
 
@@ -176,5 +165,5 @@ int64_t Log_Write_String(log_level_t level, const char *str, size_t length)
     /* TODO: Debug code to serialize console printing */
     release_local_spinlock(&Console_Lock);
 
-    return (int64_t)i;
+    return (int32_t)i;
 }

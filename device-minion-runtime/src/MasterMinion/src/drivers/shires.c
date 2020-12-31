@@ -8,24 +8,22 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
+************************************************************************/
+/*! \file shires.c
+    \brief A C module that implements the Shires Driver
 
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file implements the Dispatcher. The function of the 
-*       dispatcher is to field all interrupts and 
-*
-*   FUNCTIONS
-*
-*       Dispatcher_Launch
-*
-***********************************************************************/
+    Public interfaces:
+        Shire_Set_Active
+        Shire_Get_Active
+        Shire_Update_State
+        Shire_Check_All_Are_Booted
+        Shire_Check_All_Are_Ready
+*/
+/***********************************************************************/
 #include "drivers/shires.h"
 #include "services/log1.h"
 
-/*! \var shire_status1_t Shire_Status[]
+/*! \var shire_status1_t Gbl_Shire_Status[]
     \brief Global variable that maintains the shire status
     \warning Not thread safe!
 */

@@ -8,19 +8,14 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
-
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       Header/Interface to access Virtual Queue services.
-*       This abstraction is simply a wrapper for circular buffer
-*       data structure. It associates a shared memory address
-*       to the circular buffer data structure.
-*
-***********************************************************************/
-
+************************************************************************/
+/*! \file vq.h
+    \brief Header/Interface to access Virtual Queue services. This 
+    abstraction is simply a wrapper for circular buffer data structure. 
+    It associates a shared memory address to the circular buffer data 
+    structure.
+*/
+/***********************************************************************/
 #ifndef __VQ_H__
 #define __VQ_H__
 
@@ -34,7 +29,6 @@
 
 /*! \struct vq_cb_t
     \brief Virtual queues control block.
-    \field 
 */
 typedef struct vq_cb_ 
 {
@@ -57,13 +51,13 @@ typedef struct iface_cb_ {
 /*! \fn int8_t VQ_Init(vq_cb_t* vq_cb, uint64_t vq_base, uint32_t vq_size,
     uint16_t cmd_size_peek_offset, uint16_t cmd_size_peek_length)
     \brief Initialize the virtual queue instance
-    \param [in] vq base: virtual queue base, 
-    This field is 64 bit to accomodate DDR memory space.
-    \param [in] vq_base: Base address for submission queue buffers.
-    \param [in] vq_size: Size of each submission queue in bytes.
-    \param [in] cmd_size_peek_offset: Base offset to be used for peek.
-    \param [in] cmd_size_peek_length: Length of command should be peeked.
-    \param [in] flags: Memory type to drive access attributes.
+    \param vq_cb Pointer to virtual queue control block 
+    \param vq_base Base address for submission queue buffers.
+    \param vq_size Size of each submission queue in bytes.
+    \param cmd_size_peek_offset Base offset to be used for peek.
+    \param cmd_size_peek_length Length of command should be peeked.
+    \param flags Memory type to drive access attributes.
+    \return Status indicating success or negative error code
 */
 int8_t VQ_Init(vq_cb_t* vq_cb, uint64_t vq_base, uint32_t vq_size,
     uint16_t cmd_size_peek_offset, uint16_t cmd_size_peek_length, uint32_t flags);
@@ -71,41 +65,42 @@ int8_t VQ_Init(vq_cb_t* vq_cb, uint64_t vq_base, uint32_t vq_size,
 /*! \fn VQ_Push(vq_cb_t* vq_cb,void* data, uint32_t data_size)
     \brief Push the command to circular buffer associated with
     vq_cb_t.
-    \param [in] vq_cb:  pointer to virtual queue control block
-    \param [in] data: Pointer to data buffer.
-    \param [in] data_size: Size of the data tp push in bytes.
-    \returns Successful operation status or error code.
+    \param vq_cb Pointer to virtual queue control block.
+    \param data Pointer to data buffer.
+    \param data_size Size of the data tp push in bytes.
+    \return Status indicating success or negative error code.
 */
 int8_t VQ_Push(vq_cb_t* vq_cb, void* data, uint32_t data_size);
 
 /*! \fn VQ_Pop(void* rx_buff)
     \brief Pops a command from a virtual queue.
-    \param [in] rx_buff: Pointer to rx command buffer.
+    \param vq_cb Pointer to virtual queue control block.
+    \param rx_buff Pointer to rx command buffer. 
     Caller shall use MM_CMD_MAX_SIZE to allocate rx_buff
-    \returns The size of the command in bytes or zero
+    \return The size of the command in bytes or zero
 */
 uint32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff);
 
 /*! \fn VQ_Peek(vq_cb_t* vq_cb, void* peek_buff, uint16_t peek_offset, 
         uint16_t peek_length)
-    \brief Peek into a segment in the virytual queue
-    \param [in] peek_buff: Pointer to peek buffer.
-    \param [in] peek_length: Length of bytes to peek.
-    \returns [out] status
+    \brief Peek into a segment in the virtual queue
+    \param peek_buff Pointer to peek buffer.
+    \param peek_length Length of bytes to peek.
+    \return Status indicating sucess or negative error
 */
 int8_t VQ_Peek(vq_cb_t* vq_cb, void* peek_buff, uint16_t peek_offset, 
         uint16_t peek_length);
 
 /*! \fn VQ_Data_Avail(vq_cb_t* vq_cb)
     \brief Check if data available in VQ
-    \param [in] vq_cb: Pointer to virtual queue control block.
-    \returns [out] Boolean indicating data available to process
+    \param vq_cb Pointer to virtual queue control block.
+    \return Boolean indicating data available to process
 */
 bool VQ_Data_Avail(vq_cb_t* vq_cb);
 
 /*! \fn int8_t VQ_Deinit(void)
     \brief Deinitializes the virtual queues.
-    \returns Successful operation status or error code.
+    \returns Status indicating success or negative error code
 */
 int8_t VQ_Deinit(void);
 
