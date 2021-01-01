@@ -41,7 +41,7 @@
     \brief The circular buffer control block which holds the 
     information of a circular buffer.
 */
-typedef struct circ_buff_cb {
+typedef struct __attribute__((__packed__)) circ_buff_cb {
     uint32_t head_offset;   /**< Offset of the circular buffer to write data to */
     uint32_t tail_offset;   /**< Offset of the circular buffer to read data from */
     uint32_t length;        /**< Total length (in bytes) of the circular buffer */
