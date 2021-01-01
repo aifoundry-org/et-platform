@@ -40,7 +40,9 @@ typedef struct sqw_cb_ {
     \brief Global Submission Queue Worker Control Block
     \warning Not thread safe!
 */
-static sqw_cb_t SQW_CB={0};
+static sqw_cb_t SQW_CB __attribute__((aligned(8))) = {0};
+
+extern spinlock_t Launch_Lock;
 
 /************************************************************************
 *
@@ -135,6 +137,9 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
         cmd_buff[MM_CMD_MAX_SIZE] __attribute__((aligned(8))) = { 0 };
     uint16_t cmd_size;
     int8_t status = 0;
+
+    /* Release the launch lock to let other workers acquire it */
+    release_local_spinlock(&Launch_Lock);
 
     Log_Write(LOG_LEVEL_DEBUG, "%s%d%s%d%s", 
         "SQW:HART=", hart_id, "IDX=", sqw_idx, "\r\n");
