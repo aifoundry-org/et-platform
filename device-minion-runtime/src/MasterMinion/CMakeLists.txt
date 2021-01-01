@@ -57,6 +57,7 @@ set(SOURCES
     ${SHARED_SRC_DIR}/pcie_dma.c
     ${SHARED_SRC_DIR}/pcie_int.c
     ${SHARED_SRC_DIR}/broadcast.c
+    ${SHARED_SRC_DIR}/common.c
     ${SHARED_SRC_DIR}/circbuffer.c
     ${SHARED_SRC_DIR}/circbuff.c
     ${SHARED_SRC_DIR}/vq.c
