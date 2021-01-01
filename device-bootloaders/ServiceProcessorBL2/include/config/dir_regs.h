@@ -92,7 +92,7 @@ enum SP_DEV_INTF_BAR_TYPE_e {
     \brief Holds the information of Service Processor DDR region.
     \warning Must be 64-bit aligned.
 */
-typedef struct SP_DEV_INTF_DDR_REGION_ {
+typedef struct __attribute__((__packed__)) SP_DEV_INTF_DDR_REGION_ {
     uint16_t attr;
     uint16_t bar;
     uint64_t offset;
@@ -105,7 +105,7 @@ typedef struct SP_DEV_INTF_DDR_REGION_ {
     DDR regions.
     \warning Must be 64-bit aligned.
 */
-typedef struct SP_DEV_INTF_DDR_REGIONS_ {
+typedef struct __attribute__((__packed__)) SP_DEV_INTF_DDR_REGIONS_ {
     uint32_t reserved;
     uint32_t num_regions;
     SP_DEV_INTF_DDR_REGION_s regions[SP_DEV_INTF_DDR_REGION_MAP_NUM];
@@ -115,7 +115,7 @@ typedef struct SP_DEV_INTF_DDR_REGIONS_ {
     \brief Holds the information of Service Processor Virtual Queues.
     \warning Must be 64-bit aligned.
 */
-typedef struct SP_DEV_INTF_SP_VQ_ {
+typedef struct __attribute__((__packed__)) SP_DEV_INTF_SP_VQ_ {
     uint8_t reserved[3];
     uint8_t bar;
     uint32_t bar_size;
@@ -131,7 +131,7 @@ typedef struct SP_DEV_INTF_SP_VQ_ {
     \brief Service Processor DIR which will be used to public device capability to Host.
     \warning Must be 64-bit aligned.
 */
-typedef struct SP_DEV_INTF_REG_ {
+typedef struct __attribute__((__packed__)) SP_DEV_INTF_REG_ {
     uint32_t version;
     uint32_t size;
     uint64_t minion_shires; 
