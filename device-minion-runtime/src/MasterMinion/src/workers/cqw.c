@@ -39,6 +39,8 @@ typedef struct cqw_cb_ {
 */
 static cqw_cb_t CQW_CB __attribute__((aligned(8)))={0};
 
+extern spinlock_t Launch_Lock;
+
 /************************************************************************
 *
 *   FUNCTION
@@ -131,6 +133,9 @@ void CQW_Launch(uint32_t hart_id)
     int8_t status = 0;
     static uint8_t 
     cmd_buff[MM_CMD_MAX_SIZE] __attribute__((aligned(8))) = { 0 };
+
+    /* Release the launch lock to let other workers acquire it */
+    release_local_spinlock(&Launch_Lock);
 
     Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
         "CQW:Launched:HART=", hart_id, "\r\n");

@@ -93,37 +93,35 @@ static inline void global_fcc_flag_notify(global_fcc_flag_t *flag, uint32_t mini
     } while (atomic_load_global_32(&flag->flag) != 0);
 }
 
-typedef uint8_t spinlock_t;
+typedef uint32_t spinlock_t __attribute__((aligned(4)));
 
 // Global spinlocks implementation
 static inline void acquire_global_spinlock(spinlock_t *lock)
 {
-    while (atomic_load_global_8(lock) != 0U) {
+    while (atomic_or_global_32(lock, 1U) != 0U) {
         asm volatile("fence\n" ::: "memory");
     }
-    atomic_store_global_8(lock, 1U);
     asm volatile("fence\n" ::: "memory");
 }
 
 static inline void release_global_spinlock(spinlock_t *lock)
 {
-    atomic_store_global_8(lock, 0U);
+    atomic_store_global_32(lock, 0U);
     asm volatile("fence\n" ::: "memory");
 }
 
 // Local spinlocks implementation
 static inline void acquire_local_spinlock(spinlock_t *lock)
 {
-    while (atomic_load_local_8(lock) != 0U) {
+    while (atomic_or_local_32(lock, 1U) != 0U) {
         asm volatile("fence\n" ::: "memory");
     }
-    atomic_store_local_8(lock, 1U);
     asm volatile("fence\n" ::: "memory");
 }
 
 static inline void release_local_spinlock(spinlock_t *lock)
 {
-    atomic_store_local_8(lock, 0U);
+    atomic_store_local_32(lock, 0U);
     asm volatile("fence\n" ::: "memory");
 }
 
