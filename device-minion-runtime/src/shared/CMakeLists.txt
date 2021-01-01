@@ -14,6 +14,7 @@ add_library(firmware_helpers STATIC
   src/pcie_int.c
   src/ringbuffer.c
   src/backtrace.c
+  src/common.c
   src/circbuffer.c
   src/circbuff.c
   src/vq.c

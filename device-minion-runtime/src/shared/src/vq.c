@@ -63,7 +63,7 @@ int8_t VQ_Init(vq_cb_t *vq_cb, uint64_t vq_base, uint32_t vq_size,
 
     /* Initialize the SQ circular buffer */
     status = Circbuffer_Init(vq_cb->circbuff_cb, 
-                 (uint32_t)(vq_size - sizeof(circ_buff_cb_t)));
+                 (uint32_t)(vq_size - sizeof(circ_buff_cb_t)), vq_cb->flags);
 
     return status;
 }

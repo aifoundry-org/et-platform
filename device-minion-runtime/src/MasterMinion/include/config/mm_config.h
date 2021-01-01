@@ -68,7 +68,7 @@
     \brief A macro that provides the Master Minion submission queue
     count
 */
-#define MM_SQ_COUNT         1
+#define MM_SQ_COUNT         4
 
 /*! \def MM_SQ_MAX_SUPPORTED
     \brief Maximum supported submission queues by Master Minion
@@ -79,7 +79,7 @@
     \brief A macro that provides size of the Master Minion
     submission queue. All submision queues will be of same size.
 */
-#define MM_SQ_SIZE          0x200UL
+#define MM_SQ_SIZE          0x100UL
 
 /*! \def MM_SQ_HP_INDEX
     \brief A macro that provides the Master Minion high priority 
@@ -112,7 +112,7 @@
     \brief A macro that provides size of the Master Minion
     completion queue. 
 */
-#define MM_CQ_SIZE          0x200UL
+#define MM_CQ_SIZE          0x400UL
 
 /*! \def MM_CQ_COUNT
     \brief A macro that provides the Master Minion completion queue
@@ -137,7 +137,7 @@
     1 - SRAM
     2 - DRAM
 */
-#define MM_CQ_MEM_TYPE      L2_CACHE
+#define MM_CQ_MEM_TYPE      UNCACHED
 
 /*! \def MM_CMD_MAX_SIZE
     \brief A macro that provides the maximum command size on the host <> mm 
@@ -247,5 +247,15 @@
 #define MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET 0x0100000000UL // TODO: Should be HOST_MANAGED_DRAM_START
 #define MM_DEV_INTF_USER_KERNEL_SPACE_SIZE   0x0200000000UL // TODO: Should be (HOST_MANAGED_DRAM_END - HOST_MANAGED_DRAM_START)
 
+/************************/
+/* Compile-time checks  */
+/************************/
+#ifndef __ASSEMBLER__
+
+/* Ensure that MM SQs are within limits */
+static_assert(MM_SQ_COUNT <= MM_SQ_MAX_SUPPORTED, 
+    "Number of MM Submission Queues not within limits.");
+
+#endif /* __ASSEMBLER__ */
 
 #endif /* __MM_CONFIG_H__ */
