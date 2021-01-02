@@ -123,6 +123,7 @@ static uint64_t calculate_minion_shire_enable_mask(void)
     return enable_mask;
 }
 
+#ifndef IMPLEMENTATION_BYPASS
 static void poll_for_mm_ready(void)
 {
     // TODO: Define the timeout value in device interface regs?
@@ -138,7 +139,6 @@ static void poll_for_mm_ready(void)
     printf("\nMM Not Ready !\n");
 }
 
-#ifndef IMPLEMENTATION_BYPASS
 static void sp_dev_interface_reg_init(uint64_t minion_shires)
 {
     g_sp_dev_intf_reg->status = SP_DEV_INTF_SP_BOOT_STATUS_VQ_DESC_NOT_READY;
@@ -331,21 +331,26 @@ static void taskMain(void *pvParameters)
         printf("Failed to enable Master minion threads!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
+
+#ifndef IMPLEMENTATION_BYPASS
     // TODO : Remove after SP -> MM Vqueue has been implementated
     // Enable MM Mailbox task and do not send interrupt to MM (slave)
     MBOX_init_mm(false);
 
     // Poll for MM (slave) ready (reach sync point)
     poll_for_mm_ready();
+#endif /* IMPLEMENTATION_BYPASS */
 
     // Program ATUs here
     pcie_enable_link();
 
+#ifndef IMPLEMENTATION_BYPASS
     // Enable Mbox access between Host/Device and send interrupt to Host
     MBOX_init_pcie(true);
 
     // Set SP ready, SP has reached sync point
     MBOX_set_status(MBOX_MASTER_MINION, MBOX_MASTER, MBOX_STATUS_READY);
+#endif /* IMPLEMENTATION_BYPASS */
 
     // Init DM sampling task 
     init_dm_sampling_task();
