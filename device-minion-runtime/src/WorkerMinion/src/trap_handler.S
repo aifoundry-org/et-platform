@@ -88,8 +88,12 @@ handle_asynchronous:
     j     swi_handler                   /* Software interrupt */
 
 is_exception:
-    la    ra, processed_source          /* Should never get here, no other exceptions are delegated to supervisor */
-    j     exception_handler
+    mv    a0, t2                        /* 1st argument = scause */
+    mv    a1, s1                        /* 2nd argument = sepc */
+    csrr  a2, stval                     /* 3rd argument = stval */
+    mv    a3, sp                        /* 4th argument = pointer to regs on stack */
+    la    ra, processed_source
+    j     exception_handler             /* Some unhandled synchronous exception */
 
 as_yet_unhandled:
     ebreak                              /* Should never get here */

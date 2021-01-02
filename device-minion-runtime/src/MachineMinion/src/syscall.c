@@ -2,7 +2,6 @@
 #include "broadcast.h"
 #include "cacheops.h"
 #include "esr_defines.h"
-#include "exception.h"
 #include "fcc.h"
 #include "flb.h"
 #include "hal_device.h"

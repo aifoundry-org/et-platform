@@ -14,19 +14,17 @@ set(SOURCES
     src/crt.S
     src/syscall.c
     src/swi.c
-    src/exception.c
+    src/trap_routine.c
     src/main.c
     src/putchar.c
     src/pmu.c
     src/log.c
     src/minion_cfg.c
     src/build_configuration.c
-    ${SHARED_SRC_DIR}/message.c
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/printf.c
     ${SHARED_SRC_DIR}/print_exception.c
     ${SHARED_SRC_DIR}/broadcast.c
-    ${SHARED_SRC_DIR}/kernel_return.c
     )
 
 set(TARGET_NAME MachineMinion)
