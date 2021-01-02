@@ -10,16 +10,17 @@ _start:
     la gp, __global_pointer$
 .option pop
 
-    # set the stack pointer, different for each thread
-    csrr  a0, mhartid
-    li    a1, FW_MMODE_STACK_SIZE
-    mul   a0, a0, a1
+    # Initialize the stack pointer for each thread
+    csrr  t0, mhartid
+    li    t1, FW_MMODE_STACK_SIZE
+    mul   t0, t0, t1
     li    sp, FW_MMODE_STACK_BASE
-    sub   sp, sp, a0
-    addi  sp, sp, -FW_MMODE_STACK_SCRATCH_REGION_SIZE # skip scratch region for C stack
-    csrw  mscratch, sp                                # mscratch points to M-mode stack scratch region: 1st stack element reserved as scratch region for traps
+    sub   sp, sp, t0
+
+    # Set mscratch to the stack pointer
+    csrw  mscratch, sp
 
     # we compile with -fno-zero-initialized-in-bss, therefore, no BSS is present
 
-    la   a1, main
-    jalr x0, a1
+    # Jump to main()
+    j     main

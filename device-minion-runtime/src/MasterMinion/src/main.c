@@ -85,7 +85,7 @@ extern void main2(void);
 
 void __attribute__((noreturn)) main(void)
 {
-    /* This macro to route execution control to the new implementation 
+    /* This macro to route execution control to the new implementation
        of MM runtime comes as a build-time param from cmake. */
 #ifdef IMPLEMENTATION_BYPASS
 
@@ -120,7 +120,7 @@ void __attribute__((noreturn)) main(void)
             asm volatile("wfi");
         }
     }
-    
+
 #endif
 }
 

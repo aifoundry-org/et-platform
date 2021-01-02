@@ -1,6 +1,5 @@
-
 #include "print_exception.h"
-#include "exception_codes.h"
+#include "riscv_encoding.h"
 #include "printf.h"
 
 #include <inttypes.h>

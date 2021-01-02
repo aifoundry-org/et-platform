@@ -1,5 +1,17 @@
-#ifndef EXCEPTION_CODES_H
-#define EXCEPTION_CODES_H
+#ifndef RISCV_ENCODING_H
+#define RISCV_ENCODING_H
+
+#define PRV_U 0
+#define PRV_S 1
+#define PRV_M 3
+
+#define MSTATUS_SIE        0x00000002ul
+#define MSTATUS_SPIE_SHIFT 5
+#define MSTATUS_SPIE       (1ul << MSTATUS_SPIE_SHIFT)
+#define MSTATUS_SPP_SHIFT  8
+#define MSTATUS_SPP        (1ul << MSTATUS_SPP_SHIFT)
+#define MSTATUS_MPP_SHIFT  11
+#define MSTATUS_MPP        (3ul << MSTATUS_MPP_SHIFT)
 
 typedef enum {
     EXCEPTION_INSTRUCTION_ADDRESS_MISALIGNED = 0,
@@ -35,5 +47,14 @@ typedef enum {
     EXCEPTION_MCODE_INSTRUCTION,
     EXCEPTION_TXFMA_OFF,
 } exception_t;
+
+#define CAUSE_SUPERVISOR_SOFTWARE_INTERRUPT 0x8000000000000001ull
+#define CAUSE_MACHINE_SOFTWARE_INTERRUPT    0x8000000000000003ull
+
+//                                   csr       |     rs1      |    funct3   | opcode
+#define INST_CSRRx_MASK ((0xFFFULL << 20) | (0x1f << 15) | (0x7 << 12) | (0x7f))
+
+//                                 mhartid     |    rs1=0     |           csrrs
+#define INST_CSRRS_MHARTID ((0xF14ULL << 20) | (0 << 15) | (0x2 << 12) | (0x73))
 
 #endif
