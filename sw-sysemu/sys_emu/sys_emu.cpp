@@ -886,17 +886,7 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<
     }
 
     // Initialize Simulator API
-    if (api_comm) {
-        api_listener = std::move(api_comm);
-
-        api_listener->set_memory(&bemu::memory);
-        api_listener->set_comm_path(cmd_options.api_comm_path);
-
-        if(!api_listener->init())
-        {
-            throw std::runtime_error("Failed to initialize api listener");
-        }
-    }
+    api_listener = std::move(api_comm);
 
     // Reset the SoC
 
@@ -1002,11 +992,10 @@ sys_emu::main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<a
              || !port_wait_threads.empty()
              ||  bemu::memory.sysreg_space.ioshire_pu_rvtimer.is_active()
              ||  bemu::memory.spio_space.sp_rvtim.rvtimer.is_active()
-             || (api_listener && api_listener->is_enabled())
+             || (api_listener != nullptr)
              || (cmd_options.gdb && (gdbstub_get_status() != GDBSTUB_STATUS_NOT_INITIALIZED))
             )
          && (emu_cycle < cmd_options.max_cycles)
-         && !(api_listener && api_listener->is_done())
     )
     {
 #ifdef SYSEMU_DEBUG
@@ -1028,9 +1017,9 @@ sys_emu::main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<a
             }
         }
 
-        // Runtime API: check for new commands
+        // Runtime API: Process new commands
         if (api_listener) {
-            api_listener->get_next_cmd(&running_threads);
+            api_listener->process();
         }
 
         // Update devices

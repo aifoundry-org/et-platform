@@ -25,7 +25,6 @@ static const char * help_msg =
 "\n ET System Emulator\n\n\
      sys_emu [options]\n\n\
  Where options are:\n\
-     -api_comm <path>         Path to socket that feeds runtime API commands.\n\
      -elf_load <path>         Path to an ELF file to load. Can be used multiple times.\n\
      -file_load <addr>,<path> Address and path to the file to load. Can be used multiple times.\n\
      -mem_write32 <addr>,<value> Write the 32 bit value to address at init. Can be used multiple times.\n\
@@ -105,7 +104,6 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
     uint64_t dump_at_pc_pc, dump_at_pc_addr, dump_at_pc_size;
 
     static const struct option long_options[] = {
-        {"api_comm",               required_argument, nullptr, 0},
         {"elf",                    required_argument, nullptr, 0}, // same as '-elf', kept for backwards compatibility
         {"elf_load",               required_argument, nullptr, 0},
         {"file_load",              required_argument, nullptr, 0},
@@ -174,11 +172,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
 
         const char *const name = long_options[index].name;
 
-        if (!strcmp(name, "api_comm"))
-        {
-            cmd_options.api_comm_path = optarg;
-        }
-        else if (!strcmp(name, "elf_load") || !strcmp(name, "elf"))
+        if (!strcmp(name, "elf_load") || !strcmp(name, "elf"))
         {
             cmd_options.elf_files.push_back({std::string(optarg)});
         }
