@@ -11,35 +11,16 @@
 #ifndef _API_COMMUNICATE_
 #define _API_COMMUNICATE_
 
-// STD
-#include <list>
-#include <string>
-
-// Forward declarations
-namespace bemu {
-struct MainMemory;
-}
+#include <cstdint>
 
 // Class that receives commands from the runtime API and forwards it to SoC
-class api_communicate
-{
-    public:
-        virtual ~api_communicate() { }
-        virtual bool init() = 0;
-        virtual bool is_enabled() = 0;
-        virtual bool is_done() = 0;
-        virtual void get_next_cmd(std::list<int> *enabled_threads) = 0;
-        virtual void set_comm_path(const std::string &comm_path) = 0;
-        virtual bool raise_host_interrupt(uint32_t bitmap) = 0;
-        virtual bool host_memory_read(uint64_t host_addr, uint64_t size, void *data) = 0;
-        virtual bool host_memory_write(uint64_t host_addr, uint64_t size, const void *data) = 0;
-
-        void set_memory(bemu::MainMemory* mem) {
-            this->mem = mem;
-        }
-
-    protected:
-        bemu::MainMemory* mem;  // Pointer to the memory
+class api_communicate {
+public:
+    virtual ~api_communicate() = default;
+    virtual void process(void) = 0;
+    virtual bool raise_host_interrupt(uint32_t bitmap) = 0;
+    virtual bool host_memory_read(uint64_t host_addr, uint64_t size, void *data) = 0;
+    virtual bool host_memory_write(uint64_t host_addr, uint64_t size, const void *data) = 0;
 };
 
 #endif // _API_COMMUNICATE_
