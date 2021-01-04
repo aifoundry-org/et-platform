@@ -37,14 +37,11 @@ class sim_api_communicate final : public api_communicate
 {
     public:
         // Constructor and destructor
-        sim_api_communicate();
+        sim_api_communicate(const std::string &socket_path);
         ~sim_api_communicate();
 
-        bool init() override;
-        bool is_enabled() override;
-        bool is_done() override;
-        void get_next_cmd(std::list<int> *enabled_threads) override;
-        void set_comm_path(const std::string &comm_path) override;
+        // From api_communicate
+        void process(void) override;
         bool raise_host_interrupt(uint32_t bitmap) override;
         bool host_memory_read(uint64_t host_addr, uint64_t size, void *data) override;
         bool host_memory_write(uint64_t host_addr, uint64_t size, const void *data) override;
@@ -77,7 +74,8 @@ class sim_api_communicate final : public api_communicate
         };
 
         bool done_;
-        std::string comm_path_;
+        std::string socket_path_;
+        bemu::MainMemory* mem;
         SysEmuWrapper wrapper_;
         SimAPIServer<SysEmuWrapper> sim_api_;
 };

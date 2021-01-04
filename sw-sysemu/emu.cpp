@@ -45,6 +45,11 @@ bool emu_done()
    return m_emu_done;
 }
 
+void emu_set_done()
+{
+   m_emu_done = true;
+}
+
 void init_emu(system_version_t ver)
 {
     sysver = ver;

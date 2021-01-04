@@ -10,6 +10,7 @@
 
 // SysEMU
 #include "emu_gio.h"
+#include "emu.h"
 #include "sys_emu.h"
 #include "memory/mailbox_region.h"
 #include "devices/pcie_dbi_slv.h"
@@ -20,7 +21,7 @@
 using namespace std;
 
 sim_api_communicate::SysEmuWrapper::SysEmuWrapper(sim_api_communicate* sim)
-    : AbstractSimulator(sim->comm_path_),
+    : AbstractSimulator(sim->socket_path_),
       sim_(sim)
 {
 }
@@ -39,6 +40,7 @@ bool sim_api_communicate::SysEmuWrapper::shutdown()
 {
     LOG_NOTHREAD(INFO, "%s", "sim_api_communicate: shutdown");
     sim_->done_ = true;
+    bemu::emu_set_done();
     return true;
 }
 
@@ -264,46 +266,28 @@ void sim_api_communicate::SysEmuWrapper::shire_threads_set_pc(unsigned shire_id,
 }
 
 // Constructor
-sim_api_communicate::sim_api_communicate() :
+sim_api_communicate::sim_api_communicate(const std::string &socket_path) :
     done_(false),
+    socket_path_(socket_path),
+    mem(&bemu::memory),
     wrapper_(this),
     sim_api_(&wrapper_)
 {
+    LOG_NOTHREAD(INFO, "%s", "sim_api_communicate: Init");
+    sim_api_.init();
 }
 
 sim_api_communicate::~sim_api_communicate()
 {
 }
 
-bool sim_api_communicate::init()
-{
-    LOG_NOTHREAD(INFO, "%s", "sim_api_communicate: Init");
-    return sim_api_.init();
-}
-
-bool sim_api_communicate::is_enabled()
-{
-    return sim_api_.is_enabled();
-}
-
-bool sim_api_communicate::is_done()
-{
-    return done_;
-}
-
-void sim_api_communicate::get_next_cmd(std::list<int> *enabled_threads)
+void sim_api_communicate::process(void)
 {
     // pass if the sim-api call will be blocking or not
     // Return immediately if there is no
     // pending message from the host. Do not block as the runtime
     // expects that the device is always executing
     sim_api_.nextCmd(true);
-}
-
-void sim_api_communicate::set_comm_path(const std::string &comm_path)
-{
-    comm_path_ = comm_path;
-    wrapper_.setCommunicationPath(comm_path_);
 }
 
 bool sim_api_communicate::raise_host_interrupt(uint32_t bitmap)
