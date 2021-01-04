@@ -51,7 +51,7 @@ void SQW_Notify(uint8_t sqw_idx);
 
 /*! \fn void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
     \brief Launch the Submission Queue Worker
-    \param hart_id HART ID on which the Kernel Worker should be launched
+    \param hart_id HART ID on which the Submission Queue Worker should be launched
     \param sqw_idx Queue Worker index
     \return none
 */

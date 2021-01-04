@@ -27,9 +27,11 @@ void __attribute__((noreturn)) main(void)
                  "csrw  stvec, %0        \n"
                  : "=&r"(temp));
 
+#ifndef IMPLEMENTATION_BYPASS
     // Init trace for worker minion
     TRACE_init_worker();
     TRACE_string(LOG_LEVELS_CRITICAL, "Trace message from worker");
+#endif /* IMPLEMENTATION_BYPASS */
 
     const uint64_t shire_id = get_shire_id();
     const uint64_t hart_id = get_hart_id();

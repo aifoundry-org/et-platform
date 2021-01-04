@@ -138,7 +138,7 @@ void DMAW_Launch(uint32_t hart_id)
     /* Release the launch lock to let other workers acquire it */
     release_local_spinlock(&Launch_Lock);
 
-    Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", "DMAW:HART=", hart_id, "\r\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "%s%d%s", "DMAW:HART=", hart_id, "\r\n");
 
     /* Design Notes: Note a DMA write command from host will trigger 
     the implementation to configure a DMA read channel on device to move 

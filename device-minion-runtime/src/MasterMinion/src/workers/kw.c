@@ -39,7 +39,9 @@ typedef struct kw_cb_ {
     \brief Global Kernel Worker Control Block
     \warning Not thread safe!
 */
-static kw_cb_t KW_CB={0};
+static kw_cb_t KW_CB __attribute__((aligned(64))) = {0};
+
+extern spinlock_t Launch_Lock;
 
 /* Shared state - Worker minion fetch kernel parameters from these */
 static kernel_config_t *const kernel_config = 
@@ -80,12 +82,50 @@ static void clear_kernel_config(kernel_id_t1 kernel_id)
 ***********************************************************************/
 void KW_Init(void)
 {
+    /* TODO: Need to do it for all Kernel Workers: update CB accordingly. */
 
+    /* Initialize FCC sync flags */
+    global_fcc_flag_init(&KW_CB.kw_fcc_flag);
+
+    /* Clear the kernel configs. */
     for (uint8_t kernel = 0; kernel < MAX_SIMULTANEOUS_KERNELS; kernel++) 
     {
         clear_kernel_config(kernel);
     }
+    
+    return;
+}
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       KW_Notify
+*  
+*   DESCRIPTION
+*
+*       Notify KW Worker
+*
+*   INPUTS
+*
+*       kw_idx    ID of the kernel worker.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void KW_Notify(uint8_t kw_idx)
+{
+    uint32_t minion = (uint32_t)KW_WORKER_0 + (kw_idx / 2);
+    uint32_t thread = kw_idx % 2;
+
+    Log_Write(LOG_LEVEL_DEBUG, 
+        "%s%d%s%d%s", "Notifying:KW:minion=", minion, ":thread=", 
+        thread, "\r\n");
+
+    /* TODO: If multiple KWs, use appropriate kw_idx */
+    global_fcc_flag_notify(&KW_CB.kw_fcc_flag, minion, thread);
     
     return;
 }
@@ -102,17 +142,20 @@ void KW_Init(void)
 *
 *   INPUTS
 *
-*       uint32_t   HART ID to launch the dispatcher
+*       uint32_t   HART ID to launch the Kernel Worker
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-void KW_Launch(uint32_t hart_id)
+void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 {
-     Log_Write(LOG_LEVEL_DEBUG, "%s = %d %s", "KW = ", hart_id, 
-        "launched\r\n");
+    /* Release the launch lock to let other workers acquire it */
+    release_local_spinlock(&Launch_Lock);
+
+    Log_Write(LOG_LEVEL_CRITICAL, "%s%d%s%d%s", 
+        "KW:HART=", hart_id, ":IDX=", kw_idx, "\r\n");
 
     /* Empty all FCCs */
     init_fcc(FCC_0);
@@ -120,8 +163,11 @@ void KW_Launch(uint32_t hart_id)
 
     while(1)
     {
-        /* Wait for SQ Worker notification from Dispatcher*/
+        /* Wait for KQ Worker notification from Dispatcher */
         global_fcc_flag_wait(&KW_CB.kw_fcc_flag);
+
+        Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
+            "KW:HART=", hart_id, ":received FCC event!\r\n");
 
     };
     

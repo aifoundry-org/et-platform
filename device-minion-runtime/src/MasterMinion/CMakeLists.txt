@@ -78,6 +78,8 @@ endif(EsperantoCryptoAPI_FOUND)
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
+target_compile_definitions(${TARGET_NAME}.elf PUBLIC -DMASTER_MINION=1)
+
 target_link_libraries(${TARGET_NAME}.elf device-mrt-trace)
 
 install(TARGETS ${TARGET_NAME}.elf
@@ -95,6 +97,7 @@ install(
 add_riscv_executable(${TARGET_NAME}New ${SOURCES})
 
 target_compile_definitions(${TARGET_NAME}New.elf PUBLIC -DIMPLEMENTATION_BYPASS=1)
+target_compile_definitions(${TARGET_NAME}New.elf PUBLIC -DMASTER_MINION=1)
 
 target_link_libraries(${TARGET_NAME}New.elf device-mrt-trace)
 

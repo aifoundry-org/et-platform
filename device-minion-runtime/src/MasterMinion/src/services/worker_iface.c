@@ -61,19 +61,19 @@ typedef struct worker_iface_cb_ {
     \brief: Global control block for the completion queue worker interface
     \warning Not thread safe!
 */
-worker_iface_cb_t  CQ_Worker_Iface={0};
+worker_iface_cb_t  CQ_Worker_Iface __attribute__((aligned(64))) = {0};
 
 /*! \var K_Worker_Iface
     \brief: Global control block for the kernel interface
     \warning Not thread safe!
 */
-worker_iface_cb_t  K_Worker_Iface={0};
+worker_iface_cb_t  K_Worker_Iface __attribute__((aligned(64))) = {0};
 
 /*! \var DMA_Worker_Iface
     \brief: Global control block for the DMA worker interface
     \warning Not thread safe!
 */
-worker_iface_cb_t  DMA_Worker_Iface={0};
+worker_iface_cb_t  DMA_Worker_Iface __attribute__((aligned(64))) = {0};
 
 
 /************************************************************************
@@ -104,18 +104,21 @@ int8_t Worker_Iface_Init(uint8_t interface_type)
     /* Obtain reference to worker control block based on interface type */
     if(interface_type == TO_KW_FIFO) {
         worker = &K_Worker_Iface;
-        worker->worker_type = TO_KW_FIFO;
-        worker->fifo_base_addr = KW_FIFO_Buff;
+        atomic_store_local_8(&worker->worker_type, TO_KW_FIFO);
+        atomic_store_local_64((uint64_t*)&worker->fifo_base_addr, 
+            (uint64_t)KW_FIFO_Buff);
         size = MM_KW_FIFO_SIZE;
     } else if(interface_type == TO_DMAW_FIFO) {
         worker = &DMA_Worker_Iface;
-        worker->worker_type = TO_DMAW_FIFO;
-        worker->fifo_base_addr = DMAW_FIFO_Buff;
+        atomic_store_local_8(&worker->worker_type, TO_DMAW_FIFO);
+        atomic_store_local_64((uint64_t*)&worker->fifo_base_addr, 
+            (uint64_t)DMAW_FIFO_Buff);
         size = MM_DMAW_FIFO_SIZE;
     } else if(interface_type == TO_CQW_FIFO) {
         worker = &CQ_Worker_Iface;
-        worker->worker_type = TO_CQW_FIFO;
-        worker->fifo_base_addr = CW_FIFO_Buff;
+        atomic_store_local_8(&worker->worker_type, TO_CQW_FIFO);
+        atomic_store_local_64((uint64_t*)&worker->fifo_base_addr, 
+            (uint64_t)CW_FIFO_Buff);
         size = MM_CW_FIFO_SIZE;
     }
 
@@ -123,7 +126,8 @@ int8_t Worker_Iface_Init(uint8_t interface_type)
     the current worker's input fifo buffer */
     if(worker != NULL)
     {   
-        status = VQ_Init(&worker->fifo_vq_cb, (uint64_t)worker->fifo_base_addr, 
+        status = VQ_Init(&worker->fifo_vq_cb, 
+            atomic_load_local_64((uint64_t*)&worker->fifo_base_addr), 
             size, 0, sizeof(cmd_size_t), L2_CACHE);
 
         ASSERT_LOG(LOG_LEVEL_ERROR, "WorkerIface:VQInit", 
@@ -177,7 +181,6 @@ int8_t Worker_Iface_Push_Cmd(uint8_t interface_type, void* p_cmd,
     status = VQ_Push(vq, p_cmd, cmd_size);
 
     return status;
-    
 }
 
 /************************************************************************

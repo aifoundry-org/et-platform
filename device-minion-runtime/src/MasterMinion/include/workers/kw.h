@@ -18,6 +18,7 @@
 #ifndef KW_DEFS_H
 #define KW_DEFS_H
 
+#include "config/mm_config.h"
 #include "kernel_info.h"
 #include "kernel_state.h"
 #include "kernel_sync.h"
@@ -29,6 +30,12 @@
     to execute on.
 */
 #define     KW_MAX_HART_ID      (KW_BASE_HART_ID + KW_NUM)
+
+/*! \def KW_WORKER_0
+    \brief A macro that provdies the minion index of the first Kernel
+    worker within the master shire.
+*/
+#define     KW_WORKER_0         ((KW_BASE_HART_ID - MM_BASE_ID)/2)
 
 /* TODO: fix up the 1 suffix once the old implementation is removed */
 typedef enum 
@@ -42,16 +49,24 @@ typedef enum
 
 /*! \fn void KW_Init(void)
     \brief Initialize Kernel Worker
+    \param kw_idx ID of the kernel worker
     \return none
 */
 void KW_Init(void);
 
-/*! \fn void KW_Launch(uint32_t hart_id)
-    \brief Launch the Kernel Worker thread
-    \param hart_id HART ID on which the Kernel Worker should be launched
+/*! \fn void KW_Notify(uint8_t kw_idx)
+    \brief Notify Kernel Worker
     \return none
 */
-void KW_Launch(uint32_t hart_id);
+void KW_Notify(uint8_t kw_idx);
+
+/*! \fn void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
+    \brief Launch the Kernel Worker thread
+    \param hart_id HART ID on which the Kernel Worker should be launched
+    \param kw_idx Queue Worker index
+    \return none
+*/
+void KW_Launch(uint32_t hart_id, uint32_t kw_idx);
 
 #if 0
 

@@ -60,14 +60,14 @@ typedef struct host_iface_cqs_cb_ {
     queues interface
     \warning Not thread safe!
 */
-static host_iface_sqs_cb_t Host_SQs = {0};
+static host_iface_sqs_cb_t Host_SQs __attribute__((aligned(64))) = {0};
 
 /*! \var host_iface_cqs_cb_t Host_CQs
     \brief Global MM to Host Minion completion 
     queues interface
     \warning Not thread safe!
 */
-static host_iface_cqs_cb_t Host_CQs = {0};
+static host_iface_cqs_cb_t Host_CQs __attribute__((aligned(64))) = {0};
 
 /*! \var bool Host_Iface_Interrupt_Flag
     \brief Global Submission vqueues Control Block
@@ -123,24 +123,23 @@ static void host_iface_rxisr(void)
 int8_t Host_Iface_SQs_Init(void)
 {
     int8_t status = STATUS_SUCCESS;
+    uint64_t temp = 0;
 
     /* TODO: Need to decide the base address for memory
     (32-bit or 64-bit) based on memory type. */
     
     /* Initialize the Submission vqueues control block 
     based on build configuration mm_config.h */
-    Host_SQs.vqueues_base = MM_SQS_BASE_ADDRESS;
-    Host_SQs.per_vqueue_size = MM_SQ_SIZE;
+    temp = (((uint64_t)MM_SQ_SIZE << 32) | MM_SQS_BASE_ADDRESS);
+    atomic_store_local_64((uint64_t*)&Host_SQs, temp);
 
     for (uint32_t i = 0; (i < MM_SQ_COUNT) && 
         (status == STATUS_SUCCESS); i++) 
     {
         /* Initialize the SQ circular buffer */
         status = VQ_Init(&Host_SQs.vqueues[i], 
-        VQ_CIRCBUFF_BASE_ADDR(Host_SQs.vqueues_base, i, 
-        Host_SQs.per_vqueue_size),
-        Host_SQs.per_vqueue_size, 0, sizeof(cmd_size_t), 
-        MM_SQ_MEM_TYPE);
+            VQ_CIRCBUFF_BASE_ADDR(MM_SQS_BASE_ADDRESS, i, MM_SQ_SIZE),
+            MM_SQ_SIZE, 0, sizeof(cmd_size_t), MM_SQ_MEM_TYPE);
     }
 
     if (status == STATUS_SUCCESS) 
@@ -195,8 +194,8 @@ vq_cb_t* Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type, uint8_t vq_id)
     }
     else
     {
-	 Log_Write(LOG_LEVEL_DEBUG, "%s", 
-        "HostIface:ERROR:Failed to obtain VQ base address, bad vq_id\r\n");
+	    Log_Write(LOG_LEVEL_DEBUG, "%s", 
+            "HostIface:ERROR:Failed to obtain VQ base address, bad vq_id\r\n");
     }
     
     return retval;
@@ -224,21 +223,20 @@ vq_cb_t* Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type, uint8_t vq_id)
 int8_t Host_Iface_CQs_Init(void)
 {
     int8_t status = STATUS_SUCCESS;
+    uint64_t temp = 0;
 
     /* Initialize the Completion vqueues control block 
     based on build configuration mm_config.h */
-    Host_CQs.vqueues_base = MM_CQS_BASE_ADDRESS;
-    Host_CQs.per_vqueue_size = MM_CQ_SIZE;
+    temp = (((uint64_t)MM_CQ_SIZE << 32) | MM_CQS_BASE_ADDRESS);
+    atomic_store_local_64((uint64_t*)&Host_CQs, temp);
 
     for (uint32_t i = 0; (i < MM_CQ_COUNT) && 
         (status == STATUS_SUCCESS); i++) 
     {
-        /* Initialize the SQ circular buffer */
+        /* Initialize the CQ circular buffer */
         status = VQ_Init(&Host_CQs.vqueues[i], 
-            VQ_CIRCBUFF_BASE_ADDR(Host_CQs.vqueues_base, i, 
-            Host_CQs.per_vqueue_size),
-            Host_CQs.per_vqueue_size, 0, sizeof(cmd_size_t), 
-            MM_CQ_MEM_TYPE);
+            VQ_CIRCBUFF_BASE_ADDR(MM_CQS_BASE_ADDRESS, i, MM_CQ_SIZE),
+            MM_CQ_SIZE, 0, sizeof(cmd_size_t), MM_CQ_MEM_TYPE);
     }
 
     return status;

@@ -93,12 +93,22 @@ static inline void global_fcc_flag_notify(global_fcc_flag_t *flag, uint32_t mini
     } while (atomic_load_global_32(&flag->flag) != 0);
 }
 
-typedef uint32_t spinlock_t __attribute__((aligned(4)));
+typedef struct {
+    union {
+        uint32_t flag;
+        uint8_t raw[CACHE_LINE_SIZE];
+    };
+} __attribute__((aligned(CACHE_LINE_SIZE))) spinlock_t;
 
 // Global spinlocks implementation
+static inline void init_global_spinlock(spinlock_t *lock, bool state)
+{
+    atomic_store_global_32(&lock->flag, (uint32_t)state);
+}
+
 static inline void acquire_global_spinlock(spinlock_t *lock)
 {
-    while (atomic_or_global_32(lock, 1U) != 0U) {
+    while (atomic_or_global_32(&lock->flag, 1U) != 0U) {
         asm volatile("fence\n" ::: "memory");
     }
     asm volatile("fence\n" ::: "memory");
@@ -106,14 +116,19 @@ static inline void acquire_global_spinlock(spinlock_t *lock)
 
 static inline void release_global_spinlock(spinlock_t *lock)
 {
-    atomic_store_global_32(lock, 0U);
+    atomic_store_global_32(&lock->flag, 0U);
     asm volatile("fence\n" ::: "memory");
 }
 
 // Local spinlocks implementation
+static inline void init_local_spinlock(spinlock_t *lock, bool state)
+{
+    atomic_store_local_32(&lock->flag, (uint32_t)state);
+}
+
 static inline void acquire_local_spinlock(spinlock_t *lock)
 {
-    while (atomic_or_local_32(lock, 1U) != 0U) {
+    while (atomic_exchange_local_32(&lock->flag, 1U) != 0U) {
         asm volatile("fence\n" ::: "memory");
     }
     asm volatile("fence\n" ::: "memory");
@@ -121,7 +136,7 @@ static inline void acquire_local_spinlock(spinlock_t *lock)
 
 static inline void release_local_spinlock(spinlock_t *lock)
 {
-    atomic_store_local_32(lock, 0U);
+    atomic_exchange_local_32(&lock->flag, 0U);
     asm volatile("fence\n" ::: "memory");
 }
 

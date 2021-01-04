@@ -28,7 +28,7 @@
     \warning Not thread safe!
 */
 static void (*memory_read[MEM_TYPES_COUNT]) 
-    (void *src_ptr, void *dest_ptr, uint32_t length) __attribute__((aligned(8))) = 
+    (void *src_ptr, void *dest_ptr, uint32_t length) __attribute__((aligned(64))) = 
     { ETSOC_Memory_Read_Local_Atomic, ETSOC_Memory_Read_Uncacheable, 
     ETSOC_Memory_Read_Write_Cacheable };
 
@@ -37,7 +37,7 @@ static void (*memory_read[MEM_TYPES_COUNT])
     \warning Not thread safe!
 */
 static void (*memory_write[MEM_TYPES_COUNT]) 
-    (void *src_ptr, void *dest_ptr, uint32_t length) __attribute__((aligned(8))) = 
+    (void *src_ptr, void *dest_ptr, uint32_t length) __attribute__((aligned(64))) = 
     { ETSOC_Memory_Write_Local_Atomic, ETSOC_Memory_Write_Uncacheable, 
     ETSOC_Memory_Read_Write_Cacheable };
 

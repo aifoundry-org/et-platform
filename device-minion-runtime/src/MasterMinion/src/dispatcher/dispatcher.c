@@ -65,7 +65,6 @@ extern bool Host_Iface_Interrupt_Flag;
 ***********************************************************************/
 void Dispatcher_Launch(uint32_t hart_id)
 {
-    (void) hart_id;
     uint64_t temp;
     volatile minion_fw_boot_config_t *boot_config =
         (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
@@ -74,8 +73,8 @@ void Dispatcher_Launch(uint32_t hart_id)
 
     /* Initialize Serial Interface */
     SERIAL_init(UART0);
-    Log_Set_Level(LOG_LEVEL_DEBUG);
-    Log_Write(LOG_LEVEL_DEBUG, "%s = %d %s", 
+
+    Log_Write(LOG_LEVEL_CRITICAL, "%s = %d %s", 
         "Dispatcher: launched on HART:" , hart_id, "\r\n");
 
     /* Enable interrupt resources */
@@ -97,13 +96,13 @@ void Dispatcher_Launch(uint32_t hart_id)
     SP_Iface_SQs_Init();
     SP_Iface_CQs_Init();
 
+    /* Initialize FIFO buffers to workers */
+    Worker_Iface_Init(TO_KW_FIFO);
+
     /* Initialize Device Interface Registers */
     DIR_Init();
     Log_Write(LOG_LEVEL_DEBUG, "%s", 
         "Dispatcher: Device Interface Registers initialized \r\n");
-
-    /* Initialize FIFO buffers to workers */
-    Worker_Iface_Init(TO_KW_FIFO);
     
     /* Init FCCs for current minion */
     init_fcc(FCC_0);
@@ -157,8 +156,7 @@ void Dispatcher_Launch(uint32_t hart_id)
         }
         /* Check for and hendle Timer events */
     }
-
-#endif    
+#endif
     
     Log_Write(LOG_LEVEL_DEBUG, "%s", 
         "Dispatcher: Releasing workers \r\n");
