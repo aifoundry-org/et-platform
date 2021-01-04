@@ -20,24 +20,30 @@
 static const char *sim_api_options_help =
 "\n Simulator API options:\n\
      -sim_api                 Enable the use of the Simulator API to talk to the runtime\n\
+     -api_comm <path>         Path to socket that feeds runtime API commands.\n\
 ";
 
 int main(int argc, char *argv[])
 {
     static const struct option sim_api_options[] = {
-        {"sim_api",        no_argument, 0, 's'},
-        {"sim_api_async",  no_argument, 0, 'a'},
-        {nullptr,          0,           0,  0 }
+        {"sim_api",        no_argument,       0, 's'},
+        {"api_comm",       required_argument, 0, 'p'},
+        {"sim_api_async",  no_argument,       0, 'a'},
+        {nullptr,          0,                 0,  0 }
     };
 
     int opt;
     bool use_sim_api = false;
+    std::string socket_path;
     std::vector<char *> base_options = {argv[0]};
 
     opterr = 0; // don't error on non-recognized options
 
     while ((opt = getopt_long_only(argc, argv, "-", sim_api_options, nullptr)) != -1) {
         switch (opt) {
+        case 'p':
+            socket_path = std::string(optarg);
+            break;
         case 's':
             use_sim_api = true;
             break;
@@ -62,7 +68,7 @@ int main(int argc, char *argv[])
 
     std::unique_ptr<api_communicate> api_comm;
     if (use_sim_api)
-        api_comm = std::unique_ptr<api_communicate>(new sim_api_communicate());
+        api_comm = std::unique_ptr<api_communicate>(new sim_api_communicate(socket_path));
     else
         api_comm = std::unique_ptr<api_communicate>(nullptr);
 
