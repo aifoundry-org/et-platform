@@ -24,8 +24,8 @@
 *       DIR_Set_Minion_Shires
 *
 ***********************************************************************/
-#include "config/dir_regs.h"
-#include "config/bl2_config.h"
+#include "config/mgmt_dir_config.h"
+#include "config/ops_dir_config.h"
 
 /*! \var Gbl_SP_Dev_Intf_Regs
     \brief Global static instance of Service Processors 

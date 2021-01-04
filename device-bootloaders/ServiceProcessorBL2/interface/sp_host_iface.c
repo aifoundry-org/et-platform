@@ -24,8 +24,9 @@
 *       SP_Host_Iface_CQ_Push_Cmd
 *
 ***********************************************************************/
-#include "sp_vq_build_config.h"
+#include "config/mgmt_dir_config.h"
 #include "sp_host_iface.h"
+#include "pcie_int.h"
 #include "vq.h"
 
 /*! \struct host_iface_sqs_cb_t;
@@ -33,8 +34,8 @@
     submissions queues
 */
 typedef struct host_iface_sqs_cb_ {
-    uint32_t vqueues_base; /* This is a 32 bit offset from 64 dram base */
-    uint32_t per_vqueue_size;
+    uint32_t vqueue_base; /* This is a 32 bit offset from base */
+    uint32_t vqueue_size;
     vq_cb_t vqueues; 
 } sp_host_iface_sqs_cb_t;
 
@@ -43,8 +44,8 @@ typedef struct host_iface_sqs_cb_ {
     completion queues
 */
 typedef struct host_iface_cqs_cb_ {
-    uint32_t vqueues_base; 
-    uint32_t per_vqueue_size;
+    uint32_t vqueue_base; 
+    uint32_t vqueue_size;
     vq_cb_t vqueues; 
 } sp_host_iface_cqs_cb_t;
 
@@ -86,15 +87,16 @@ int8_t SP_Host_Iface_SQ_Init(void)
 
     /* Initialize the Submission vqueues control block 
     based on build configuration */
-    SP_Host_SQ.vqueues_base = SP_HOST_SQ_BASE_ADDRESS;
-    SP_Host_SQ.per_vqueue_size = SP_HOST_SQ_SIZE;
+    SP_Host_SQ.vqueue_base = SP_SQ_BASE_ADDRESS;
+    SP_Host_SQ.vqueue_size = SP_SQ_SIZE;
 
     /* Initialize the SQ circular buffer */
     status = VQ_Init(&SP_Host_SQ.vqueues, 
-                     VQ_CIRCBUFF_BASE_ADDR(SP_Host_SQ.vqueues_base, 0, 
-                     SP_Host_SQ.per_vqueue_size),
-                     SP_Host_SQ.per_vqueue_size, 0, sizeof(cmd_size_t), 
-                     SP_HOST_SQ_MEM_TYPE);
+                     SP_Host_SQ.vqueue_base,
+                     SP_Host_SQ.vqueue_size,
+                     0, 
+                     0,
+                     SP_SQ_MEM_TYPE);
 
     return status;    
 }
@@ -124,15 +126,16 @@ int8_t SP_Host_Iface_CQ_Init(void)
 
     /* Initialize the Submission vqueues control block 
     based on build configuration */
-    SP_Host_CQ.vqueues_base = SP_HOST_CQ_BASE_ADDRESS;
-    SP_Host_CQ.per_vqueue_size = SP_HOST_CQ_SIZE;
+    SP_Host_CQ.vqueue_base = SP_CQ_BASE_ADDRESS;
+    SP_Host_CQ.vqueue_size = SP_CQ_SIZE;
 
     /* Initialize the SQ circular buffer */
     status = VQ_Init(&SP_Host_CQ.vqueues, 
-                      VQ_CIRCBUFF_BASE_ADDR(SP_Host_CQ.vqueues_base, 0, 
-                      SP_Host_CQ.per_vqueue_size),
-                      SP_Host_CQ.per_vqueue_size, 0, sizeof(cmd_size_t), 
-                      SP_HOST_CQ_MEM_TYPE);
+                      SP_Host_CQ.vqueue_base,
+                      SP_Host_CQ.vqueue_size,
+                      0,
+                      0,
+                      SP_CQ_MEM_TYPE);
     return status;
 }
 
@@ -164,8 +167,7 @@ int8_t SP_Host_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
 
     if (status == STATUS_SUCCESS) 
     {
-
-     /* TODO: Notify Host using appropriate interrupt here */
+      pcie_interrupt_host(SP_CQ_NOTIFY_VECTOR);
     } 
     else 
     {

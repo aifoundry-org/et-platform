@@ -226,10 +226,6 @@ static void taskMain(void *pvParameters)
     // Initialize SP-> Host + SP -> MM Interfaces
     sp_intf_init();
 
-    // TODO: Update the following to Log macro - set to INFO/DEBUG
-    //printf("Minion shires to enable: 0x%" PRIx64 "\n", minion_shires_mask);
-    //printf("Starting Minions reset release sequence...\n");
-
     if (0 != configure_sp_pll_2()) {
         printf("configure_sp_pll_2() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
@@ -238,8 +234,6 @@ static void taskMain(void *pvParameters)
         printf("configure_sp_pll_4() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
-    // TODO: Update the following to Log macro - set to INFO/DEBUG
-    // printf("PLLs 2&4 locked.\n");
 
     if (0 != release_memshire_from_reset()) {
         printf("release_memshire_from_reset() failed!\n");
@@ -249,9 +243,6 @@ static void taskMain(void *pvParameters)
         printf("configure_memshire_plls() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
-
-    // TODO: Update the following to Log macro - set to INFO/DEBUG
-    //printf("Mem PLLs locked\n");
 
 #if !FAST_BOOT
     if (0 != ddr_config()) {
@@ -266,24 +257,16 @@ static void taskMain(void *pvParameters)
         goto FIRMWARE_LOAD_ERROR;
     }
 
-    //printf("Released Minion shires from cold reset.\n");
-
     if (0 != release_minions_from_warm_reset()) {
         printf("release_minions_from_warm_reset() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
 
-    //printf("Released Minions from warm reset.\n");
-
     if (0 != configure_minion_plls_and_dlls(minion_shires_mask)) {
         printf("configure_minion_plls_and_dlls() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
-    // TODO: Update the following to Log macro - set to INFO/DEBUG
-    // printf("Minion PLLs locked\n");
 
-    // TODO: Update the following to Log macro - set to INFO/DEBUG
-    //printf("Loading SW certificates chain...\n");
     if (0 != load_sw_certificates_chain()) {
         printf("Failed to load SW ROOT/Issuing Certificate chain!\n");
         goto FIRMWARE_LOAD_ERROR;
@@ -291,16 +274,12 @@ static void taskMain(void *pvParameters)
 
     // In fast-boot mode we skip loading from flash, and assume everything is already pre-loaded
 #if !FAST_BOOT
-    // TODO: Update the following to Log macro - set to INFO/DEBUG
-    //printf("Attempting to load Machine Minion firmware...\n");
     if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_MACHINE_MINION)) {
         printf("Failed to load Machine Minion firmware!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
     printf("MACH FW loaded.\n");
 
-    // TODO: Update the following to Log macro - set to INFO/DEBUG
-    //printf("Attempting to load Master Minion firmware...\n");
     if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_MASTER_MINION)) {
         printf("Failed to load Master Minion firmware!\n");
         goto FIRMWARE_LOAD_ERROR;
@@ -320,8 +299,6 @@ static void taskMain(void *pvParameters)
         printf("Failed to enable minion neighborhoods!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
-    // TODO: Update the following to Log macro - set to INFO/DEBUG
-    //printf("Minion neighborhoods enabled.\n");
 
     // Write Minion FW boot config before booting Minion threads up
     write_minion_fw_boot_config(minion_shires_mask);

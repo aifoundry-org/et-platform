@@ -41,7 +41,7 @@
     \brief A macro that provides the Service Processor's 32 bit base address
     for submission queues
 */
-#define SP_SQS_BASE_ADDRESS R_PU_MBOX_PC_SP_BASEADDR
+#define SP_SQ_BASE_ADDRESS R_PU_MBOX_PC_SP_BASEADDR
 
 /*! \def SP_SQ_OFFSET
     \brief A macro that provides the PCI BAR region offset using
@@ -78,7 +78,7 @@
     \brief A macro that provides the Service Processor's base address
     for completion queues
 */
-#define SP_CQS_BASE_ADDRESS (SP_SQS_BASE_ADDRESS + (SP_SQ_COUNT * SP_SQ_SIZE))
+#define SP_CQ_BASE_ADDRESS (SP_SQ_BASE_ADDRESS + (SP_SQ_COUNT * SP_SQ_SIZE))
 
 /*! \def SP_CQ_OFFSET
     \brief A macro that provides the PCI BAR region offset using

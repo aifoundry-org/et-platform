@@ -19,7 +19,8 @@ SERVICE_PROCESSOR_BL2_DATA_t *get_service_processor_bl2_data(void);
 /* This macro to route execution control to the new implementation 
     of BL2 runtime comes as a build-time param from cmake. */
 #ifdef IMPLEMENTATION_BYPASS
-#include "config/dir_regs.h"
+#include "config/ops_dir_config.h"
+#include "config/mgmt_dir_config.h"
 #else
 #include "sp_dev_intf_reg.h"
 volatile SP_DEV_INTF_REG_s *get_service_processor_dev_intf_reg(void);
