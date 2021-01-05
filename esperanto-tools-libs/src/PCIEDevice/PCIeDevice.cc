@@ -59,6 +59,11 @@ namespace {
 
   template<typename ...Types>
   IoctlResult wrap_ioctl(int fd, unsigned long int request, Timepoint retryEnd, Types... args) {
+
+    std::stringstream ss;
+    ss << "Doing IOCTL fd: " << fd << " request: " << request << " args: ";
+    ((ss << ", " << std::forward<Types>(args)), ...);
+    RTINFO << ss.str();
     auto res = ::ioctl(fd, request, args...);
     if (res < 0) {
       auto error = errno;
