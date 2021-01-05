@@ -24,7 +24,7 @@
 *       SP_Host_Iface_CQ_Push_Cmd
 *
 ***********************************************************************/
-#include "config/mgmt_dir_config.h"
+#include "config/mgmt_dir_build_config.h"
 #include "sp_host_iface.h"
 #include "pcie_int.h"
 #include "vq.h"

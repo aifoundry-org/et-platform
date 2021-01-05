@@ -264,13 +264,22 @@ void sp_intf_init(void)
     SP_Host_Iface_SQ_Init();
     SP_Host_Iface_CQ_Init();
     
-    create_pc_vq_task();
-    INT_enableInterrupt(SPIO_PLIC_MBOX_HOST_INTR, 1, vqueue_pcie_isr);
-
     /* Setup and Initialize the SP -> MM Transport layer*/
     SP_MM_Iface_SQ_Init();
     SP_MM_Iface_CQ_Init();
 
+}
+
+void launch_command_dispatcher(void)
+{
+    /* Launch the SP-HOST Command Dispatcher*/
+    create_pc_vq_task();
+    INT_enableInterrupt(SPIO_PLIC_MBOX_HOST_INTR, 1, vqueue_pcie_isr);
+
+    /* Launch the SP-MM Command Dispatcher*/
     create_mm_vq_task();
     INT_enableInterrupt(SPIO_PLIC_MBOX_MMIN_INTR, 1, vqueue_mm_isr);
 }
+
+
+

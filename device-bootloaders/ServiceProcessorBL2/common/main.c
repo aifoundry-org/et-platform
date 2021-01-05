@@ -59,15 +59,6 @@ SERVICE_PROCESSOR_BL2_DATA_t *get_service_processor_bl2_data(void)
     return &g_service_processor_bl2_data;
 }
 
-#ifndef IMPLEMENTATION_BYPASS
-static volatile SP_DEV_INTF_REG_s *g_sp_dev_intf_reg = (void *)SP_DEV_INTF_BASE_ADDR;
-
-volatile SP_DEV_INTF_REG_s *get_service_processor_dev_intf_reg(void)
-{
-    return g_sp_dev_intf_reg;
-}
-#endif /* IMPLEMENTATION_BYPASS */
-
 bool is_vaultip_disabled(void)
 {
     uint32_t rm_status2;
@@ -139,43 +130,6 @@ static void poll_for_mm_ready(void)
     printf("\nMM Not Ready !\n");
 }
 
-static void sp_dev_interface_reg_init(uint64_t minion_shires)
-{
-    g_sp_dev_intf_reg->status = SP_DEV_INTF_SP_BOOT_STATUS_VQ_DESC_NOT_READY;
-
-    g_sp_dev_intf_reg->version = SP_DEV_INTF_REG_VERSION;
-    g_sp_dev_intf_reg->size    = sizeof(SP_DEV_INTF_REG_s);
-
-    g_sp_dev_intf_reg->minion_shires = minion_shires;
-
-    g_sp_dev_intf_reg->sp_vq.bar               = SP_VQ_BAR;
-    g_sp_dev_intf_reg->sp_vq.interrupt_vector  = SP_VQ_MSI_ID;
-    g_sp_dev_intf_reg->sp_vq.offset            = SP_VQ_OFFSET;
-    g_sp_dev_intf_reg->sp_vq.size              = SP_VQ_SIZE;
-
-    g_sp_dev_intf_reg->sp_vq.size_info.control_size       = VQ_CONTROL_SIZE; 
-    g_sp_dev_intf_reg->sp_vq.size_info.element_count      = VQ_ELEMENT_COUNT;
-    g_sp_dev_intf_reg->sp_vq.size_info.element_size       = VQ_ELEMENT_SIZE;
-    g_sp_dev_intf_reg->sp_vq.size_info.element_alignment  = VQ_ELEMENT_ALIGNMENT;
-
-    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].attr         = SP_DEV_INTF_DDR_REGION_ATTR_READ_WRITE;
-    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].bar          = SP_DEV_INTF_USER_KERNEL_SPACE_BAR;
-    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].offset       = SP_DEV_INTF_USER_KERNEL_SPACE_OFFSET;
-    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].size         = SP_DEV_INTF_USER_KERNEL_SPACE_SIZE;
-
-    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_FIRMWARE_UPDATE_SCRATCH].attr   = SP_DEV_INTF_DDR_REGION_ATTR_WRITE_ONLY;
-    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_FIRMWARE_UPDATE_SCRATCH].bar    = SP_DEV_INTF_FIRMWARE_UPDATE_SCRATCH_BAR;
-    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_FIRMWARE_UPDATE_SCRATCH].offset = SP_DEV_INTF_FIRMWARE_UPDATE_SCRATCH_OFFSET;
-    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_FIRMWARE_UPDATE_SCRATCH].size   = SP_DEV_INTF_FIRMWARE_UPDATE_SCRATCH_SIZE;
-
-    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_MSIX_TABLE].attr                = SP_DEV_INTF_DDR_REGION_ATTR_READ_ONLY;
-    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_MSIX_TABLE].bar                 = SP_DEV_INTF_MSIX_TABLE_BAR;
-    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_MSIX_TABLE].offset              = SP_DEV_INTF_MSIX_TABLE_OFFSET;
-    g_sp_dev_intf_reg->ddr_region[SP_DEV_INTF_DDR_REGION_MAP_MSIX_TABLE].size                = SP_DEV_INTF_MSIX_TABLE_SIZE;
-
-    // Update Status to indicate SP VQ is ready to use
-    g_sp_dev_intf_reg->status = SP_DEV_INTF_SP_BOOT_STATUS_DEV_INTF_READY_INITIALIZED;
-}
 #endif /* IMPLEMENTATION_BYPASS */
 
 static inline void write_minion_fw_boot_config(uint64_t minion_shires)
@@ -211,29 +165,31 @@ static void taskMain(void *pvParameters)
 #endif
 
     minion_shires_mask = calculate_minion_shire_enable_mask();
-#ifdef IMPLEMENTATION_BYPASS
+
+    // Create and Initialize all VQ for SP interface
+    // SP -> Host
+    // SP -> MM 
+    sp_intf_init();
+
     /* Initialize the DIRs */
     DIR_Init();
 
     /* Set the minion shires available */
     DIR_Set_Minion_Shires(minion_shires_mask);
-#else
-    sp_dev_interface_reg_init(minion_shires_mask);
-#endif /* IMPLEMENTATION_BYPASS */
+
+    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_VQ_READY);
 
     printf("time: %lu\n", timer_get_ticks_count());
 
-    // Initialize SP-> Host + SP -> MM Interfaces
-    sp_intf_init();
+   // Setup NOC
 
     if (0 != configure_sp_pll_2()) {
         printf("configure_sp_pll_2() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
-    if (0 != configure_sp_pll_4()) {
-        printf("configure_sp_pll_4() failed!\n");
-        goto FIRMWARE_LOAD_ERROR;
-    }
+    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_NOC_INITIALIZED); 
+
+   // Setup MemShire/DDR
 
     if (0 != release_memshire_from_reset()) {
         printf("release_memshire_from_reset() failed!\n");
@@ -251,6 +207,14 @@ static void taskMain(void *pvParameters)
     }
     printf("DRAM ready.\n");
 #endif
+    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DDR_INITIALIZED); 
+
+   // Setup Minions
+
+    if (0 != configure_sp_pll_4()) {
+        printf("configure_sp_pll_4() failed!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
 
     if (0 != release_minions_from_cold_reset()) {
         printf("release_minions_from_cold_reset() failed!\n");
@@ -266,6 +230,10 @@ static void taskMain(void *pvParameters)
         printf("configure_minion_plls_and_dlls() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
+
+    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_INITIALIZED); 
+
+    // Minion FW Authenticate and load to DDR
 
     if (0 != load_sw_certificates_chain()) {
         printf("Failed to load SW ROOT/Issuing Certificate chain!\n");
@@ -295,6 +263,15 @@ static void taskMain(void *pvParameters)
     printf("WM FW loaded.\n");
 #endif
 
+    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_FW_AUTHENTICATED_INITIALIZED); 
+
+    // Launch Dispatcher
+    
+    launch_command_dispatcher();
+
+    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_COMMAND_DISPATCHER_INITIALIZED); 
+ 
+
     if (0 != enable_minion_neighborhoods(minion_shires_mask)) {
         printf("Failed to enable minion neighborhoods!\n");
         goto FIRMWARE_LOAD_ERROR;
@@ -309,6 +286,8 @@ static void taskMain(void *pvParameters)
         goto FIRMWARE_LOAD_ERROR;
     }
 
+    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MM_FW_LAUNCHED);
+
 #ifndef IMPLEMENTATION_BYPASS
     // TODO : Remove after SP -> MM Vqueue has been implementated
     // Enable MM Mailbox task and do not send interrupt to MM (slave)
@@ -321,6 +300,8 @@ static void taskMain(void *pvParameters)
     // Program ATUs here
     pcie_enable_link();
 
+    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_ATU_PROGRAMMED);
+
 #ifndef IMPLEMENTATION_BYPASS
     // Enable Mbox access between Host/Device and send interrupt to Host
     MBOX_init_pcie(true);
@@ -332,6 +313,8 @@ static void taskMain(void *pvParameters)
     // Init DM sampling task 
     init_dm_sampling_task();
 
+    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_SP_WATCHDOG_TASK_READY);
+
 #if !FAST_BOOT
     // SP and minions have booted successfully. Increment the completed boot counter
     if (0 != flashfs_drv_increment_completed_boot_count()) {
@@ -342,6 +325,7 @@ static void taskMain(void *pvParameters)
 #endif
 
     printf("SP Device Ready!\n");
+    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DEV_READY);
 
     goto DONE;
 

@@ -11,4 +11,4 @@
 ************************************************************************/
 
 void sp_intf_init(void);
-
+void launch_command_dispatcher(void);

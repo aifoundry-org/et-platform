@@ -24,8 +24,7 @@
 *       DIR_Set_Minion_Shires
 *
 ***********************************************************************/
-#include "config/mgmt_dir_config.h"
-#include "config/ops_dir_config.h"
+#include "config/mgmt_dir_regs.h"
 
 /*! \var Gbl_SP_Dev_Intf_Regs
     \brief Global static instance of Service Processors 
@@ -113,10 +112,6 @@ void DIR_Init(void)
         regions[SP_DEV_INTF_DDR_REGION_MAP_MSIX_TABLE].size = 
         SP_DEV_INTF_MSIX_TABLE_SIZE;
 
-    /* Update Status to indicate SP Device Interface Registers 
-    are ready */
-    Gbl_SP_Dev_Intf_Regs->status = SP_DEV_INTF_SP_BOOT_STATUS_DEV_INTF_READY;
-    
     return;
 }
 

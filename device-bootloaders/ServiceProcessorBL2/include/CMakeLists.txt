@@ -59,7 +59,7 @@ install(
 
 install(
   FILES
-    sp_dev_intf_reg.h
+    config/mgmt_dir_regs.h 
   DESTINATION
     ${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/sp_dev_intf
   COMPONENT sp_dev_intf
