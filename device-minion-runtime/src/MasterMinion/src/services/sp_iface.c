@@ -51,9 +51,6 @@ static bool SP_Iface_Interrupt_Flag = false;
 
 /* Interrupt Handler for Submission Queue post notification events from 
 SP, uncomment and use skeleton as needed */
-/* Local fn proptotypes */
-//static void sp_iface_rxisr(void);
-//static void sp_iface_push_notify(void);
 
 /************************************************************************
 *
@@ -64,9 +61,10 @@ SP, uncomment and use skeleton as needed */
 *   DESCRIPTION
 *
 *       This function initializes SP interface. i.e., the Submission
-*       Queues that enable SP to MM communications
+*       Queue that enable MM to SP communications
 *
 *   INPUTS
+*
 *       None
 *
 *   OUTPUTS
@@ -80,13 +78,13 @@ int8_t SP_Iface_SQs_Init(void)
 
     /* Initialize the Submission Queues control block 
     based on build configuration mm_config.h */
-    SP_SQs.vqueue_base = SP_SQ_BASE;
-    SP_SQs.vqueue_size = SP_SQ_SIZE;
+    SP_SQs.vqueue_base = MM2SP_SQ_BASE;
+    SP_SQs.vqueue_size = MM2SP_SQ_SIZE;
 
     /* Initialize the SQ circular buffer */
     status = VQ_Init(&SP_SQs.vqueue, SP_SQs.vqueue_base,
-    SP_SQs.vqueue_size, 0, sizeof(cmd_size_t),
-    SP_SQ_MEM_TYPE);
+        SP_SQs.vqueue_size, 0, sizeof(cmd_size_t),
+        MM2SP_SQ_MEM_TYPE);
 
     if (status == STATUS_SUCCESS) 
     {
@@ -94,8 +92,9 @@ int8_t SP_Iface_SQs_Init(void)
     } 
     else 
     {
-        Log_Write(LOG_LEVEL_ERROR, "%s %d %s",
-        "ERROR: Unable to initialize SQs. (Error code: )", status, "\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "%s%d%s",
+            "SP_Iface: Initialize SQs. (Error code: )", 
+            status, "\r\n");
     }
 
     return status;
@@ -127,13 +126,13 @@ int8_t SP_Iface_CQs_Init(void)
 
     /* Initialize the Completion Queues control block 
     based on build configuration mm_config.h */
-    SP_CQs.vqueue_size = SP_CQ_SIZE;
-    SP_CQs.vqueue_base = SP_CQ_BASE;
+    SP_CQs.vqueue_size = MM2SP_CQ_SIZE;
+    SP_CQs.vqueue_base = MM2SP_CQ_BASE;
 
     /* Initialize the CQ circular buffer */
     status = VQ_Init(&SP_CQs.vqueue, SP_CQs.vqueue_base,
     SP_CQs.vqueue_size, 0, sizeof(cmd_size_t),
-    SP_CQ_MEM_TYPE);
+    MM2SP_CQ_MEM_TYPE);
 
     return status;
 }
@@ -191,12 +190,14 @@ int8_t SP_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
 
     if (status == STATUS_SUCCESS) 
     {
-        /* TODO: Notify SP using appropriate interrupt here */
+        /* Notify SP using IPI */
+        Interrupt_Notify(MAILBOX_TO_SP);
     } 
     else 
     {
-        Log_Write(LOG_LEVEL_ERROR, "%s %d %s",
-            "SP interface CQ push failed. (Error code: )", status, "\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "%s%d%s",
+            "SP_Iface: CQ push failed.(Error code:)", 
+            status, "\r\n");
     }
 
     return status;
@@ -236,7 +237,7 @@ uint32_t SP_Iface_SQ_Pop_Cmd(void* rx_buff)
     else 
     {
         Log_Write(LOG_LEVEL_ERROR, "%s",
-        "SP interface SQ pop failed \r\n");
+        "SP_Iface: SQ pop failed \r\n");
     }
 
     return return_val;
@@ -264,8 +265,27 @@ uint32_t SP_Iface_SQ_Pop_Cmd(void* rx_buff)
 ***********************************************************************/
 void SP_Iface_Processing(void)
 {
-    /* TODO: Implement processing for SP > MM VQ command post
-    event here */
+    bool process_data = false;
+    static uint8_t 
+        cmd_buff[MM_SP_CMD_SIZE] __attribute__((aligned(8))) = { 0 };
+    uint16_t cmd_size;
+
+    process_data = VQ_Data_Avail(&SP_CQs.vqueue);
+
+    if(process_data)
+    {
+        cmd_size = (uint16_t) VQ_Pop(&SP_CQs.vqueue, &cmd_buff[0]);
+        
+        if(cmd_size)
+        {
+            SP_Command_Handler(cmd_buff);
+        }
+        else
+        {
+            Log_Write(LOG_LEVEL_ERROR, "%s",
+            "SP_Iface: Unexpected command size \r\n");
+        }
+    }
     
     return;
 }

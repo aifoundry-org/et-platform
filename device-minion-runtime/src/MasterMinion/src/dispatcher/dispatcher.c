@@ -71,10 +71,6 @@ void Dispatcher_Launch(uint32_t hart_id)
         (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
     uint64_t functional_shires = 
         boot_config->minion_shires & ((1ULL << NUM_SHIRES) - 1);
-    #if 0
-    bool process_host_iface, process_sp_iface, process_worker_iface;
-    process_host_iface = process_sp_iface = process_worker_iface = false;
-    #endif
 
     /* Initialize Serial Interface */
     SERIAL_init(UART0);
@@ -96,10 +92,8 @@ void Dispatcher_Launch(uint32_t hart_id)
     /* Host, and SP Interface Initializeation */
     Host_Iface_SQs_Init();
     Host_Iface_CQs_Init();
-    #if 0
     SP_Iface_SQs_Init();
     SP_Iface_CQs_Init();
-    #endif
 
     /* Initialize Device Interface Registers */
     DIR_Init();
@@ -191,6 +185,7 @@ void Dispatcher_Launch(uint32_t hart_id)
         INTERRUPTS_ENABLE_SUPERVISOR;
 
         Host_Iface_Processing();
+        SP_Iface_Processing();
     }
 
     return;

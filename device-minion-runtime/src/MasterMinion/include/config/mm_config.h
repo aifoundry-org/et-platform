@@ -34,6 +34,7 @@
 
 #include <common_defs.h>
 #include "layout.h"
+#include "hal_device.h"
 
 /******************************************************/
 /* Definitions to locate and manage Host to MM SQs/CQ */
@@ -224,15 +225,30 @@
 /***************************************************/
 /* Definitions to locate and manage MM to SP SQ/CQ */
 /***************************************************/
-#define     SP_SQ_BASE        0 /* TODO: Update this to actual address */
-#define     SP_SQ_SIZE        0 /* TODO: Update this to actual size */
-#define     SP_SQ_COUNT       1
-#define     SP_SQ_MEM_TYPE    1
+/* TODO: This data is same as data defined/used by sp_mm_iface in SP BL2 runtime,
+move this defined to a abstraction common to SP and MM runtimes*/
 
-#define     SP_CQ_BASE        0 /* TODO: Update this to actual address */
-#define     SP_CQ_SIZE        0 /* TODO: Update this to actual size */
-#define     SP_CQ_COUNT       1
-#define     SP_CQ_MEM_TYPE    1
+#define     SP2MM_SQ_BASE        R_PU_MBOX_MM_SP_BASEADDR
+#define     SP2MM_SQ_COUNT       10U
+#define     SP2MM_SQ_SIZE        256 /* 1 KB */
+#define     SP2MM_SQ_MEM_TYPE    UNCACHED
+
+#define     SP2MM_CQ_BASE        (SP2MM_SQ_BASE + SP2MM_SQ_SIZE)
+#define     SP2MM_CQ_SIZE        256U
+#define     SP2MM_CQ_COUNT       10U
+#define     SP2MM_CQ_MEM_TYPE    UNCACHED
+
+#define     MM2SP_SQ_BASE        (SP2MM_CQ_BASE + SP2MM_CQ_SIZE)
+#define     MM2SP_SQ_SIZE        256U
+#define     MM2SP_SQ_COUNT       10U
+#define     MM2SP_SQ_MEM_TYPE    UNCACHED
+
+#define     MM2SP_CQ_BASE        (MM2SP_SQ_BASE + MM2SP_SQ_SIZE)
+#define     MM2SP_CQ_SIZE        256U
+#define     MM2SP_CQ_COUNT       10U
+#define     MM2SP_CQ_MEM_TYPE    UNCACHED
+
+#define     MM_SP_CMD_SIZE       64
 
 /**********************/
 /* Minion Identifiers */

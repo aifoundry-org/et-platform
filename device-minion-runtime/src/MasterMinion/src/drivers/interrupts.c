@@ -147,3 +147,37 @@ void Interrupt_Disable(interrupt_t interrupt)
     
     vectorTable[interrupt] = NULL;
 }
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Interrupt_Notify
+*  
+*   DESCRIPTION
+*
+*       Notify requested target using an inter processor interrupt
+*
+*   INPUTS
+*
+*       uint8_t     Target to notify
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Interrupt_Notify(interrupt_target_t target)
+{
+    if(target == MAILBOX_TO_SP)
+    {
+        /* Notify using IPI to Service Processor */
+        volatile uint32_t *const ipi_trigger = 
+            (volatile uint32_t *)(R_PU_TRG_MMIN_BASEADDR);
+        *ipi_trigger = 1U;
+    }
+    else if(target == PCIE_TO_HOST)
+    {
+
+    }
+}
