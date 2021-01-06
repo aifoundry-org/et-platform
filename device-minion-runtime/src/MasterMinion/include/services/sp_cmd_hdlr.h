@@ -24,9 +24,8 @@
 /*! \fn SP_Command_Handler(void* command_buffer, uint16_t command_size)
     \brief Interface to handle host side commands
     \param command_buffer: pointer to command buffer
-    \param command_size: command size
-    \return int8_t: Status indicating success or negative error
+    \return Status indicating success or negative error
 */
-int8_t SP_Command_Handler(void* command_buffer, uint16_t command_size);
+int8_t SP_Command_Handler(void* command_buffer);
 
 #endif

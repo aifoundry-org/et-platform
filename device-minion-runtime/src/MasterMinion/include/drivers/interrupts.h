@@ -34,6 +34,11 @@
 */
 #define INTERRUPTS_ENABLE_SUPERVISOR    asm volatile("csrsi sstatus, 0x2");
 
+typedef enum {
+    MAILBOX_TO_SP = 0,
+    PCIE_TO_HOST
+} interrupt_target_t;
+
 /**
  * @brief Enum of supported interrupt vectors.
  */
@@ -104,5 +109,13 @@ void Interrupt_Enable(interrupt_t interrupt, uint32_t priority, void (*isr)(void
     \return none
 */
 void Interrupt_Disable(interrupt_t interrupt);
+
+/*! \fn void Interrupt_Notify(interrupt_target_t target)
+    \brief Notify supported target using an interrupt
+    \param target Target to notify - IPI to SP, 
+    PCIE MSI to host etc. 
+    \return none
+*/
+void Interrupt_Notify(interrupt_target_t target);
 
 #endif /* INTERRUPTS_DEFS_H */
