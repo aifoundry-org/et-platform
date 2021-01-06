@@ -15,20 +15,6 @@
 
 #include "esperanto/device-apis/device_apis_message_types.h"
 
-// Device << cgh.api_name >> API Enumerations
-<% for enum in cgh.enums() -%>
-
-typedef << enum["Type"] >> << enum.c_type_name>>;
-
-/// @brief << enum["Description"] >>
-enum << enum.Name | upper >> {
-  <% for val in enum.Values -%>
-  << enum.Name | upper >>_<< val["Name"] >> = << val["Value"] >>,
-  <% endfor %>
-};
-
-<% endfor %>
-
 // Device << cgh.api_name>> API structs
 // Structs that are being used in other tests
 
