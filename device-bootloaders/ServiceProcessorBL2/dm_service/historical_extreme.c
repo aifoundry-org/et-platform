@@ -1,31 +1,21 @@
-/*-------------------------------------------------------------------------
-* Copyright (C) 2020, Esperanto Technologies Inc.
+/***********************************************************************
+*
+* Copyright (C) 2020 Esperanto Technologies Inc.
 * The copyright to the computer program(s) herein is the
 * property of Esperanto Technologies, Inc. All Rights Reserved.
 * The program(s) may be used and/or copied only with
 * the written permission of Esperanto Technologies and
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
-*-------------------------------------------------------------------------
+*
+************************************************************************/
+/*! \file historical_extreme.c
+    \brief A C module that implements the Historical extreme value services
 
-************************************************************************
-
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file implements the following service functions.
-*
-*   FUNCTIONS
-*
-*       Host Requested Services functions:
-*       
-*       - historical_extreme_value_request
-*       - get_max_memory_error
-*       - get_module_max_ddr_bw
-*       - get_module_max_throttle_time
-*
-***********************************************************************/
+    Public interfaces:
+        historical_extreme_value_request
+*/
+/***********************************************************************/
 
 #include "dm.h"
 #include "dm_service.h"
@@ -160,7 +150,7 @@ static void get_module_max_throttle_time(tag_id_t tag_id, uint64_t req_start_tim
 *
 *   INPUTS
 *
-*       cmd_id      Unique enum representing specific command   
+*       msg_id      Unique enum representing specific command   
 *
 *   OUTPUTS
 *

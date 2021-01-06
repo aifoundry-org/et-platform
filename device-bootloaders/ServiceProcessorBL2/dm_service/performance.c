@@ -1,4 +1,4 @@
-/*-------------------------------------------------------------------------
+/*************************************************************************
 * Copyright (C) 2020, Esperanto Technologies Inc.
 * The copyright to the computer program(s) herein is the
 * property of Esperanto Technologies, Inc. All Rights Reserved.
@@ -6,28 +6,15 @@
 * the written permission of Esperanto Technologies and
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
-*-------------------------------------------------------------------------
-************************************************************************
-************************************************************************
 *
-*   DESCRIPTION
-*
-*       This file implements the following performance Management services.
-*
-*   FUNCTIONS
-*
-*       Host Requested Services functions:
-*
-*       - process_performance_request
-*       - dm_svc_perf_get_asic_frequencies
-*       - dm_svc_perf_get_dram_bw
-*       - dm_svc_perf_get_dram_capacity_util
-*       - dm_svc_perf_get_asic_per_core_util
-*       - dm_svc_perf_get_asic_utilization
-*       - dm_svc_perf_get_asic_stalls
-*       - dm_svc_perf_perf_get_asic_latency
-*
-***********************************************************************/
+*************************************************************************/
+/*! \file firmware_update.c
+    \brief A C module that implements the performance Management services
+
+    Public interfaces:
+        process_performance_request
+*/
+/***********************************************************************/
 #include <stdint.h>
 #include "dm.h"
 #include "sp_host_iface.h"

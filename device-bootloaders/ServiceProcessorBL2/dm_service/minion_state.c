@@ -1,4 +1,4 @@
-/*-------------------------------------------------------------------------
+/*************************************************************************
 * Copyright (C) 2020, Esperanto Technologies Inc.
 * The copyright to the computer program(s) herein is the
 * property of Esperanto Technologies, Inc. All Rights Reserved.
@@ -6,23 +6,15 @@
 * the written permission of Esperanto Technologies and
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
-*-------------------------------------------------------------------------
+*
+*************************************************************************/
+/*! \file firmware_update.c
+    \brief A C module that implements the master minion state service.
 
-************************************************************************
-
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file implements the Master minion thread state service.
-*
-*   FUNCTIONS
-*
-*       Host Requested Services functions:
-*       
-*       - mm_state_process_request
-*
-***********************************************************************/
+    Public interfaces:
+        mm_state_process_request
+*/
+/***********************************************************************/
 
 #include "dm.h"
 #include "dm_service.h"

@@ -1,4 +1,4 @@
-/*-------------------------------------------------------------------------
+/*************************************************************************
 * Copyright (C) 2020, Esperanto Technologies Inc.
 * The copyright to the computer program(s) herein is the
 * property of Esperanto Technologies, Inc. All Rights Reserved.
@@ -6,32 +6,15 @@
 * the written permission of Esperanto Technologies and
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
-*-------------------------------------------------------------------------
+*
+*************************************************************************/
+/*! \file thermal_power_monitor.c
+    \brief A C module that implements the Power Management services
 
-************************************************************************
-
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file implements the following Power Management services.
-*
-*   FUNCTIONS
-*
-*       Host Requested Services functions:
-*       
-*       - thermal_power_monitoring_process
-*       - pwr_svc_{get|set}_module_power_state
-*       - pwr_svc_{get|set}_module_tdp_level
-*       - pwr_svc_{get|set}_module_temp_thresholds
-*       - pwr_svc_{get|set}_module_current_temperature
-*       - pwr_svc_get_module_residency_throttle_states
-*       - pwr_svc_get_module_power
-*       - pwr_svc_get_module_uptime
-*       - pwr_svc_get_module_voltage
-*       - pwr_svc_get_module_max_temperature
-*
-***********************************************************************/
+    Public interfaces:
+        thermal_power_monitoring_process
+*/
+/***********************************************************************/
 
 #include <inttypes.h>
 #include <stdbool.h>
@@ -547,7 +530,7 @@ static void pwr_svc_get_module_uptime(uint16_t tag, uint64_t req_start_time)
 *
 *   INPUTS
 *
-*       cmd_id      Unique enum representing specific command   
+*       msg_id      Unique enum representing specific command   
 *
 *   OUTPUTS
 *

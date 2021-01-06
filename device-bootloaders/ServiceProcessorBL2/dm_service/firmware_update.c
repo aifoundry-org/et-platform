@@ -1,9 +1,29 @@
+/*************************************************************************
+* Copyright (C) 2020, Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*
+*************************************************************************/
+/*! \file firmware_update.c
+    \brief A C module that implements the Firmware update services
+
+    Public interfaces:
+        firmware_service_process_request
+*/
+/***********************************************************************/
 #include "dm.h"
 #include "dm_service.h"
 #include "sp_host_iface.h"
 #include "bl2_firmware_update.h"
 #include "bl2_reset.h"
 
+/*! \struct dm_control_block;
+    \brief Device management control block
+*/
 struct dm_control_block dm_cmd_rsp;
 
 static void reset_etsoc(void)
@@ -249,7 +269,27 @@ static int64_t dm_svc_update_sp_boot_root_certificate_hash(struct dm_control_blo
 
     return 0;
 }
-
+/************************************************************************
+*
+*   FUNCTION
+*
+*       firmware_service_process_request
+*  
+*   DESCRIPTION
+*
+*       This function takes command ID as input from Host,
+*       and accordingly calls the respective firmware update/
+*       certificate hash update/status functions
+*
+*   INPUTS
+*
+*       cmd_id      Unique enum representing specific command   
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
 void firmware_service_process_request(mbox_e mbox, uint32_t cmd_id, void *buffer)
 {
     int64_t ret = 0;
@@ -432,6 +472,28 @@ dm_svc_update_sp_boot_root_certificate_hash(struct device_mgmt_certificate_hash_
     return 0;
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       firmware_service_process_request
+*  
+*   DESCRIPTION
+*
+*       This function takes command ID as input from Host,
+*       and accordingly calls the respective firmware update/
+*       certificate hash update/status functions
+*
+*   INPUTS
+*
+*       msg_id     Unique enum representing specific command   
+*       buffer     Pointer to command buffer
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
 void firmware_service_process_request(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
 {
     int64_t ret = 0;

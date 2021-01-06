@@ -1,35 +1,21 @@
-/*-------------------------------------------------------------------------
-* Copyright (C) 2020, Esperanto Technologies Inc.
+/***********************************************************************
+*
+* Copyright (C) 2020 Esperanto Technologies Inc.
 * The copyright to the computer program(s) herein is the
 * property of Esperanto Technologies, Inc. All Rights Reserved.
 * The program(s) may be used and/or copied only with
 * the written permission of Esperanto Technologies and
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
-*-------------------------------------------------------------------------
+*
+************************************************************************/
+/*! \file link_mgmt.c
+    \brief A C module that implements the Link management services
 
-************************************************************************
-
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file implements the following Error Control services.
-*
-*   FUNCTIONS
-*
-*       Host Requested Services functions:
-*       
-*       - link_mgmt_pcie_reset
-*       - link_mgmt_set_pcie_max_link_speed
-*       - link_mgmt_set_pcie_lane_width
-*       - link_mgmt_pcie_retrain_phy
-*       - link_mgmt_get_module_pcie_ecc_uecc
-*       - link_mgmt_get_module_dram_uecc
-*       - link_mgmt_get_module_sram_uecc
-*       - link_mgmt_get_module_ddr_bw_counter
-*
-***********************************************************************/
+    Public interfaces:
+        link_mgmt_process_request
+*/
+/***********************************************************************/
 
 #include "dm.h"
 #include "dm_service.h"
@@ -378,7 +364,7 @@ static void link_mgmt_get_module_ddr_bw_counter(uint16_t tag, uint64_t req_start
 *
 *   INPUTS
 *
-*       cmd_id      Unique enum representing specific command   
+*       msg_id      Unique enum representing specific command   
 *
 *   OUTPUTS
 *

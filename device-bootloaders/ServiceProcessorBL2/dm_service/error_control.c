@@ -8,25 +8,17 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------
 
-************************************************************************
+*************************************************************************/
+/*! \file error_control.c
+    \brief A C module that implements the Error control services
 
-************************************************************************
-*
-*   DESCRIPTION
-*
-*       This file implements the following Error Control services.
-*
-*   FUNCTIONS
-*
-*       Host Requested Services functions:
-*       
-*       - error_ctl_set_ddr_ecc_count
-*       - error_ctl_set_pcie_ecc_count
-*       - error_ctl_set_sram_ecc_count
-*       - error_control_process_request
-*
-***********************************************************************/
-
+    Public interfaces:
+        error_ctl_set_ddr_ecc_count
+        error_ctl_set_pcie_ecc_count
+        error_ctl_set_sram_ecc_count
+        error_control_process_request
+*/
+/***********************************************************************/
 #include "dm.h"
 #include "dm_service.h"
 #include "sp_host_iface.h"
@@ -157,7 +149,7 @@ static void error_ctl_set_sram_ecc_count(tag_id_t tag_id, uint64_t req_start_tim
 *
 *   INPUTS
 *
-*       cmd_id      Unique enum representing specific command   
+*       msg_id      Unique enum representing specific command   
 *
 *   OUTPUTS
 *
