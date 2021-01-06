@@ -21,6 +21,7 @@
 #include <string.h>
 #include "bl2_timer.h"
 #include "service_processor_BL2_data.h"
+#include <esperanto/device-apis/management-api/device_mgmt_api_spec.h>
 #include <esperanto/device-apis/management-api/device_mgmt_api_rpc_types.h>
 
 extern struct dm_control_block dm_cmd_rsp;
