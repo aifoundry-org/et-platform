@@ -86,7 +86,7 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
         if ((num_shires > 0) && (shire_mask > 0)) {
             const bool uses_sync_minions = (shire_mask & (1ULL << MASTER_SHIRE)) != 0;
             const uint64_t sync_minions_mask = uses_sync_minions ? 0xFFFF0000U : 0;
-            const uint64_t compute_shires_mask = shire_mask & ~(1ULL << MASTER_SHIRE);
+            const uint64_t compute_shires_mask = shire_mask & 0xFFFFFFFFu;
 
             // Broadcast launch FCC0 to all HARTs in all required compute shires
             broadcast(0xFFFFFFFFU, compute_shires_mask, PRV_U, ESR_SHIRE_REGION,
