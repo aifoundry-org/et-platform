@@ -118,11 +118,13 @@ static void pc_vq_task(void *pvParameters)
 
         // Process as many new messages as possible
         while (1) {
+
             // Pop a command from SP<->PC VQueue
             int64_t length = SP_Host_Iface_SQ_Pop_Cmd(&buffer);
 
             // No new messages
             if (length <= 0) {
+                printf("[pc_vq_task]: Warning Dispatcher woken by Interrupt, but no new message available\r\n");
                 break;
             }
 

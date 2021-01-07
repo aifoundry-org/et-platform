@@ -24,6 +24,7 @@
 *       SP_Host_Iface_CQ_Push_Cmd
 *
 ***********************************************************************/
+#include <stdio.h>
 #include "config/mgmt_dir_build_config.h"
 #include "sp_host_iface.h"
 #include "pcie_int.h"
@@ -36,7 +37,7 @@
 typedef struct host_iface_sqs_cb_ {
     uint32_t vqueue_base; /* This is a 32 bit offset from base */
     uint32_t vqueue_size;
-    vq_cb_t vqueues; 
+    vq_cb_t vqueue; 
 } sp_host_iface_sqs_cb_t;
 
 /*! \struct host_iface_cqs_cb_t;
@@ -46,7 +47,7 @@ typedef struct host_iface_sqs_cb_ {
 typedef struct host_iface_cqs_cb_ {
     uint32_t vqueue_base; 
     uint32_t vqueue_size;
-    vq_cb_t vqueues; 
+    vq_cb_t vqueue; 
 } sp_host_iface_cqs_cb_t;
 
 
@@ -91,12 +92,10 @@ int8_t SP_Host_Iface_SQ_Init(void)
     SP_Host_SQ.vqueue_size = SP_SQ_SIZE;
 
     /* Initialize the SQ circular buffer */
-    status = VQ_Init(&SP_Host_SQ.vqueues, 
-                     SP_Host_SQ.vqueue_base,
-                     SP_Host_SQ.vqueue_size,
-                     0, 
-                     0,
-                     SP_SQ_MEM_TYPE);
+    status = VQ_Init(&SP_Host_SQ.vqueue, 
+                      SP_Host_SQ.vqueue_base,
+                      SP_Host_SQ.vqueue_size,
+                      0,sizeof(cmd_size_t),SP_SQ_MEM_TYPE);
 
     return status;    
 }
@@ -130,12 +129,10 @@ int8_t SP_Host_Iface_CQ_Init(void)
     SP_Host_CQ.vqueue_size = SP_CQ_SIZE;
 
     /* Initialize the SQ circular buffer */
-    status = VQ_Init(&SP_Host_CQ.vqueues, 
+    status = VQ_Init(&SP_Host_CQ.vqueue, 
                       SP_Host_CQ.vqueue_base,
                       SP_Host_CQ.vqueue_size,
-                      0,
-                      0,
-                      SP_CQ_MEM_TYPE);
+                      0,sizeof(cmd_size_t),SP_CQ_MEM_TYPE);
     return status;
 }
 
@@ -163,7 +160,7 @@ int8_t SP_Host_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
     int8_t status;
 
     /* Push the command to circular buffer */
-    status = VQ_Push(&SP_Host_CQ.vqueues, p_cmd, cmd_size);
+    status = VQ_Push(&SP_Host_CQ.vqueue, p_cmd, cmd_size);
 
     if (status == STATUS_SUCCESS) 
     {
@@ -203,7 +200,8 @@ uint32_t SP_Host_Iface_SQ_Pop_Cmd(void* rx_buff)
     uint32_t command_size;
 
     /* Pop the command from circular buffer */
-    command_size = VQ_Pop(&SP_Host_SQ.vqueues, rx_buff);
+    command_size = VQ_Pop(&SP_Host_SQ.vqueue, rx_buff);
+
 
     if (command_size) 
     {
@@ -211,7 +209,7 @@ uint32_t SP_Host_Iface_SQ_Pop_Cmd(void* rx_buff)
     } 
     else 
     {
-        //MESSAGE_ERROR("Host_Iface_SQ_Pop_Cmd: ERROR Circbuff Pop Failed \r\n");
+         printf("[SP_Host_Iface_SQ_Pop_Cmd] Error: pop count from Circ buffer is zero \r\n");
     }
 
     return return_val;

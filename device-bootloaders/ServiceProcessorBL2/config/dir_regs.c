@@ -61,10 +61,10 @@ void DIR_Init(void)
     /* Populate the SP VQs information */
     Gbl_SP_Dev_Intf_Regs->sp_vq.bar         = SP_VQ_BAR;
     Gbl_SP_Dev_Intf_Regs->sp_vq.bar_size    = SP_VQ_BAR_SIZE;
-    Gbl_SP_Dev_Intf_Regs->sp_vq.sq_offset   = SP_SQ_OFFSET;
+    Gbl_SP_Dev_Intf_Regs->sp_vq.sq_offset   = SP_PC_MAILBOX_BAR_OFFSET + SP_SQ_OFFSET;
     Gbl_SP_Dev_Intf_Regs->sp_vq.sq_count    = SP_SQ_COUNT;
     Gbl_SP_Dev_Intf_Regs->sp_vq.per_sq_size = SP_SQ_SIZE;
-    Gbl_SP_Dev_Intf_Regs->sp_vq.cq_offset   = SP_CQ_OFFSET;
+    Gbl_SP_Dev_Intf_Regs->sp_vq.cq_offset   = SP_PC_MAILBOX_BAR_OFFSET + SP_CQ_OFFSET;
     Gbl_SP_Dev_Intf_Regs->sp_vq.cq_count    = SP_CQ_COUNT;
     Gbl_SP_Dev_Intf_Regs->sp_vq.per_cq_size = SP_CQ_SIZE;
 

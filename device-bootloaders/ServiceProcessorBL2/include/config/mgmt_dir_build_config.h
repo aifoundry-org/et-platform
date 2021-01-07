@@ -25,29 +25,39 @@
 #include <common_defs.h>
 #include "etsoc_hal/inc/hal_device.h"
 
+
+/*! \def SP_PC_MAILBOX_BAR_OFFSET
+    \brief This is the offset from the BAR 2 mapping where the location 
+    of the PC_SP_Mailbox is placed
+    //R_PU_MBOX_PC_SP   BAR2 + 0x1000   4k     Mailbox shared memory
+
+*/
+#define SP_PC_MAILBOX_BAR_OFFSET  0x1000UL
+
+
 /*! \def SP_VQ_BAR
     \brief A macro that provides the PCI BAR region using which
     the Service Processor virtual queues can be accessed
 */
-#define SP_VQ_BAR           2
+#define SP_VQ_BAR         2
+
+/*! \def SP_SQ_OFFSET
+    \brief A macro that provides the PCI BAR region using which
+    the Service Processor virtual queues can be accessed
+*/
+#define SP_SQ_OFFSET       0x800UL
+
+/*! \def SP_SQS_BASE_ADDR
+    \brief A macro that provides the Service Processor's 32 bit base address
+    for submission queues relative to the PC_SP_Mailbox
+*/
+#define SP_SQ_BASE_ADDRESS  R_PU_MBOX_PC_SP_BASEADDR + SP_SQ_OFFSET
 
 /*! \def SP_VQ_BAR_SIZE
     \brief A macro that provides the total size for SP VQs (SQs + CQs)
     on PCI BAR.
 */
-#define SP_VQ_BAR_SIZE      0x400UL
-
-/*! \def SP_SQS_BASE_ADDR
-    \brief A macro that provides the Service Processor's 32 bit base address
-    for submission queues
-*/
-#define SP_SQ_BASE_ADDRESS R_PU_MBOX_PC_SP_BASEADDR
-
-/*! \def SP_SQ_OFFSET
-    \brief A macro that provides the PCI BAR region offset using
-    which the Service Processor submission queues can be accessed
-*/
-#define SP_SQ_OFFSET        0x800UL
+#define SP_VQ_BAR_SIZE     0x400UL 
 
 /*! \def SP_SQ_COUNT
     \brief A macro that provides the Service Processor submission queue
@@ -64,7 +74,7 @@
     \brief A macro that provides size of the Service Processor
     submission queue. All submision queues will be of same size.
 */
-#define SP_SQ_SIZE          0x200UL
+#define SP_SQ_SIZE          SP_VQ_BAR_SIZE/2
 
 /*! \def SP_SQ_MEM_TYPE
     \brief A macro that provides the memory type for SP submission queues
@@ -84,13 +94,13 @@
     \brief A macro that provides the PCI BAR region offset using
     which the Service Processor completion queues can be accessed
 */
-#define SP_CQ_OFFSET        (SP_SQ_OFFSET + (SP_SQ_COUNT * SP_SQ_SIZE))
+#define SP_CQ_OFFSET       (SP_SQ_OFFSET + (SP_SQ_COUNT * SP_SQ_SIZE))
 
 /*! \def SP_CQ_SIZE
     \brief A macro that provides size of the Service Processor
     completion queue. 
 */
-#define SP_CQ_SIZE          0x200UL
+#define SP_CQ_SIZE          SP_VQ_BAR_SIZE/2
 
 /*! \def SP_CQ_COUNT
     \brief A macro that provides the Service Processor completion queue
@@ -116,6 +126,8 @@
     2 - DRAM
 */
 #define SP_CQ_MEM_TYPE      UNCACHED
+
+
 
 /*! \def SP_CMD_MAX_SIZE
     \brief A macro that provides the maximum command size on the host <> mm 
