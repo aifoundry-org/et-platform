@@ -91,6 +91,10 @@ struct PcieDbiSlvRegion : public MemoryRegion {
         PF0_ATU_CAP_IATU_UPPR_LIMIT_ADDR_OFF_INBOUND_i_OFFSET   = 0x20,
     };
 
+    enum : unsigned long long {
+        SPIO_PLIC_PSHIRE_PCIE0_EDMA0_INTR_ID = 96,
+    };
+
     PcieDbiSlvRegion(std::array<PcieDma<true>,  ETSOC_CC_NUM_DMA_WR_CHAN> &dma_wrch,
                      std::array<PcieDma<false>, ETSOC_CC_NUM_DMA_RD_CHAN> &dma_rdch) :
         dma_wrch_(dma_wrch), dma_rdch_(dma_rdch) {}
@@ -305,21 +309,27 @@ struct PcieDbiSlvRegion : public MemoryRegion {
             break;
         case PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_ADDRESS:
             dma_write_int_status = *source32;
+            edma_trigger_check();
             break;
         case PF0_DMA_CAP_DMA_WRITE_INT_MASK_OFF_ADDRESS:
             dma_write_int_mask = *source32 & ((1u << ETSOC_CC_NUM_DMA_WR_CHAN) - 1);
+            edma_trigger_check();
             break;
         case PF0_DMA_CAP_DMA_WRITE_INT_CLEAR_OFF_ADDRESS:
             dma_write_int_status &= ~(*source32 & 0xFFu); // DONE bits
+            edma_trigger_check();
             break;
         case PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_ADDRESS:
             dma_read_int_status = *source32;
+            edma_trigger_check();
             break;
         case PF0_DMA_CAP_DMA_READ_INT_MASK_OFF_ADDRESS:
             dma_read_int_mask = *source32 & ((1u << ETSOC_CC_NUM_DMA_RD_CHAN) - 1);
+            edma_trigger_check();
             break;
         case PF0_DMA_CAP_DMA_READ_INT_CLEAR_OFF_ADDRESS:
             dma_read_int_status &= ~(*source32 & 0xFFu); // DONE bits
+            edma_trigger_check();
             break;
         case PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_0_ADDRESS:
             dma_wrch_[0].ch_control1 = *source32;
@@ -455,20 +465,31 @@ struct PcieDbiSlvRegion : public MemoryRegion {
         if (wrch) {
             assert(chan_id < ETSOC_CC_NUM_DMA_WR_CHAN);
             dma_write_int_status |= 1u << chan_id;
-            if (dma_write_int_status & dma_write_int_mask) {
-                edma_trigger();
-            }
         } else {
             assert(chan_id < ETSOC_CC_NUM_DMA_RD_CHAN);
             dma_read_int_status |= 1u << chan_id;
-            if (dma_read_int_status & dma_read_int_mask) {
-                edma_trigger();
-            }
         }
+        edma_trigger_check();
     }
 
-    void edma_trigger() {
-        // TODO: PLIC send interrupt
+    void edma_trigger_check(void) {
+        for (int i = 0; i < ETSOC_CC_NUM_DMA_WR_CHAN; i++) {
+            uint32_t plic_source = SPIO_PLIC_PSHIRE_PCIE0_EDMA0_INTR_ID + i;
+            if ((dma_write_int_status & dma_write_int_mask) & (1u << i)) {
+                sp_plic_interrupt_pending_set(plic_source);
+            } else {
+                sp_plic_interrupt_pending_clear(plic_source);
+            }
+        }
+
+        for (int i = 0; i < ETSOC_CC_NUM_DMA_RD_CHAN; i++) {
+            uint32_t plic_source = SPIO_PLIC_PSHIRE_PCIE0_EDMA0_INTR_ID + ETSOC_CC_NUM_DMA_WR_CHAN + i;
+            if ((dma_read_int_status & dma_read_int_mask) & (1u << i)) {
+                sp_plic_interrupt_pending_set(plic_source);
+            } else {
+                sp_plic_interrupt_pending_clear(plic_source);
+            }
+        }
     }
 
     struct iatu_info_t {
