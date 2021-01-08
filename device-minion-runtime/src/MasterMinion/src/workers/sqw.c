@@ -156,32 +156,40 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
         Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
             "SQW:HART=", hart_id, ":received FCC event!\r\n");
 
-        /* Pop from Submission Queue */
-        cmd_size = (uint16_t) VQ_Pop(SQW_CB.sq[sqw_idx], cmd_buff);
-        
-        if(cmd_size > 0)
+        /* Process SQ until there is no more data */
+        while(VQ_Data_Avail(SQW_CB.sq[sqw_idx]))
         {
-            Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", "SQW:Processing:SQW_IDX=", 
-                sqw_idx, "\r\n");
+            /* Pop from Submission Queue */
+            cmd_size = (uint16_t) VQ_Pop(SQW_CB.sq[sqw_idx], cmd_buff);
             
-            status = Host_Command_Handler(cmd_buff);
-            
-            if (status != STATUS_SUCCESS)
+            if(cmd_size > 0)
             {
-                Log_Write(LOG_LEVEL_ERROR, "%s %d %s",
-                    "SQW:ERROR:Procesisng failed.(Error code:)", 
-                    status, "\r\n");
+                Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
+                    "SQW:Processing:SQW_IDX=", sqw_idx, "\r\n");
+                
+                status = Host_Command_Handler(cmd_buff);
+                
+                if (status != STATUS_SUCCESS)
+                {
+                    Log_Write(LOG_LEVEL_ERROR, "%s %d %s",
+                        "SQW:ERROR:Procesisng failed.(Error code:)", 
+                        status, "\r\n");
+                }
+            }
+            else
+            {
+                Log_Write(LOG_LEVEL_ERROR, "%s",
+                    "SQW:ERROR:Invalid command size received. \
+                    pop failed.\r\n");
+                
+                /* Invalid data in SQ, stop processing */
+                break;
+
+                /* TODO: In case of invalid data in SQ, need to 
+                   reset SQ? */
             }
         }
-        else
-        {
-            Log_Write(LOG_LEVEL_ERROR, "%s%d%s",
-                "SQW:ERROR:Recived host_iface event, but VQ \
-                    pop failed.(Error code:)", 
-                    status, "\r\n");
-        }
-
-    };
+    }
     
     return;
 }
