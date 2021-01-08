@@ -17,10 +17,6 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(SimulatorAPI CONFIG REQUIRED)
 find_package(libunwind)
 
-# The following flags will apply to any sources built under cmake and not the ones that
-# we build today under make from the original sysemu
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -std=c++17")
-
 set(SYSEMU_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/bin/ CACHE STRING "SysEmu install dir")
 set(SYSEMU_LIBS_FLAGS "")
 
@@ -38,6 +34,11 @@ add_custom_target(build-sysemu-libsysemu ALL
 )
 
 add_library(libsysemu STATIC IMPORTED)
+
+set_target_properties(libsysemu PROPERTIES
+                                CXX_STANDARD 17
+                                CXX_EXTENSIONS OFF)
+
 add_dependencies(libsysemu build-sysemu-libsysemu)
 set_property(TARGET libsysemu
     APPEND PROPERTY IMPORTED_CONFIGURATIONS NOCONFIG
@@ -66,6 +67,18 @@ add_executable(sys_emu
     sw-sysemu/main.cpp
     sw-sysemu/sim_api_communicate.cpp
 )
+
+add_library(swsysemu 
+    sw-sysemu/SysEmuImp.cpp 
+    sw-sysemu/SysEmuImp.h
+    sw-sysemu/utils.h
+    sw-sysemu/ISysEmu.cpp)
+
+target_include_directories(swsysemu PUBLIC sw-sysemu/include)
+target_link_libraries(swsysemu PRIVATE libsysemu libfpu glog)
+set_target_properties(swsysemu PROPERTIES
+                                CXX_STANDARD 17
+                                CXX_EXTENSIONS OFF)
 
 add_definitions(-DSYS_EMU)
 
