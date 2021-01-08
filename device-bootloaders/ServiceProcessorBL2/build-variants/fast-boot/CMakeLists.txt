@@ -14,6 +14,7 @@ add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
 target_compile_definitions(${TARGET_NAME}.elf PUBLIC -DBL2_VARIANT="fast-boot")
 target_compile_definitions(${TARGET_NAME}.elf PUBLIC -DFAST_BOOT=1)
+target_compile_definitions(${TARGET_NAME}.elf PUBLIC -DSERVICE_PROCESSOR_BL2=1)
 
 target_link_libraries(${TARGET_NAME}.elf
   EsperantoDeviceMinionRuntime::firmware_helpers
@@ -41,6 +42,7 @@ add_riscv_executable(${TARGET_NAME}New ${SOURCES})
 target_compile_definitions(${TARGET_NAME}New.elf PUBLIC -DBL2_VARIANT="fast-bootNew")
 target_compile_definitions(${TARGET_NAME}New.elf PUBLIC -DFAST_BOOT=1)
 target_compile_definitions(${TARGET_NAME}New.elf PUBLIC -DIMPLEMENTATION_BYPASS=1)
+target_compile_definitions(${TARGET_NAME}New.elf PUBLIC -DSERVICE_PROCESSOR_BL2=1)
 
 target_link_libraries(${TARGET_NAME}New.elf
   EsperantoDeviceMinionRuntime::firmware_helpers
