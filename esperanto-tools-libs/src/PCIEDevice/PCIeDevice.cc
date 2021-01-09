@@ -352,6 +352,8 @@ ssize_t PCIeDevice::mb_read(void *data, ssize_t size, TimeDuration wait_time) {
     [&](){TRACE_PCIeDevice_mailbox_read_start((uint64_t)data, size);},
     [&](){TRACE_PCIeDevice_mailbox_read_end(dataRead);}
   );
+  // Max ioctl size is 14b
+  assert(size <= (ssize_t)((1ul << _IOC_SIZEBITS)-1));
   auto start = Clock::now();
   auto end = start + wait_time;
   while (auto res = wrap_ioctl(fd_, ETSOC1_IOCTL_POP_MBOX(size), Clock::now(), data)) {
