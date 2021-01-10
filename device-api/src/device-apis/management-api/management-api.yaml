@@ -419,6 +419,14 @@ Modules:
         - Name: dummy
           Description: Dummy field
           Type: int32_t
+    - Name: device_mgmt_default_rsp
+      Description:  Default response to be used if no specific response is defined for a cmd
+      Type: Response
+      PairedMessage: None
+      Fields:
+        - Name: payload
+          Description: Payload for default rsp. Will usually contain the status of command execution.
+          Type: uint32_t
     - Name: device_mgmt_asset_tracking_cmd
       Description:  Command for asset info request
       Type: Command
