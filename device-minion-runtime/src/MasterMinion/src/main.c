@@ -74,7 +74,7 @@ static void handle_timer_events(void);
 static void print_host_message(const uint8_t *const buffer, int64_t length);
 #endif
 
-static void print_log_message(uint64_t shire, uint64_t hart, const message_t *const message);
+static void print_log_message(uint64_t shire, uint64_t hart, const cm_iface_message_t *const message);
 
 #ifdef DEBUG_SEND_MESSAGES_TO_SP
 static uint16_t lfsr(void);
@@ -565,7 +565,7 @@ static void handle_messages_from_workers(void)
 
 static void handle_message_from_worker(uint64_t shire, uint64_t hart)
 {
-    static message_t message = { 0 };
+    static cm_iface_message_t message = { 0 };
     const kernel_id_t kernel = get_shire_kernel_id(shire);
 
     message_receive_master(shire, hart, &message);
@@ -729,7 +729,7 @@ static void print_host_message(const uint8_t *const buffer, int64_t length)
 }
 #endif
 
-static void print_log_message(uint64_t shire, uint64_t hart, const message_t *const message)
+static void print_log_message(uint64_t shire, uint64_t hart, const cm_iface_message_t *const message)
 {
     const char *const string_ptr = (const char *const)message->data;
 

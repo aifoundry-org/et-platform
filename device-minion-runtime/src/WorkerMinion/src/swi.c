@@ -7,16 +7,16 @@
 #include "message.h"
 #include "syscall_internal.h"
 
-static message_number_t previous_broadcast_message_number[NUM_HARTS]
+static cm_iface_message_number_t previous_broadcast_message_number[NUM_HARTS]
     __attribute__((section(".data"))) = { 0 };
 
 void swi_handler(void);
-static void handle_message(uint64_t shire, uint64_t hart, message_t *const message_ptr);
+static void handle_message(uint64_t shire, uint64_t hart, cm_iface_message_t *const message_ptr);
 
 // Must not access kernel_config - firmware assumes kernel_config addresses remain clean/invalid until reading on a FCC
 void swi_handler(void)
 {
-    message_t message;
+    cm_iface_message_t message;
 
     // We got a software interrupt (IPI) handed down from M-mode.
     // M-mode already cleared the MSIP (IPI) - check messages
@@ -29,7 +29,7 @@ void swi_handler(void)
 
     volatile uint8_t *addr = &previous_broadcast_message_number[hart];
     if (broadcast_message_available(atomic_load_global_8(addr))) {
-        message_number_t number = broadcast_message_receive_worker(&message);
+        cm_iface_message_number_t number = broadcast_message_receive_worker(&message);
         atomic_store_global_8(addr, number);
         handle_message(shire, hart, &message);
     }
@@ -40,7 +40,7 @@ void swi_handler(void)
     }
 }
 
-static void handle_message(uint64_t shire, uint64_t hart, message_t *const message_ptr)
+static void handle_message(uint64_t shire, uint64_t hart, cm_iface_message_t *const message_ptr)
 {
     switch (message_ptr->header.id) {
     case MESSAGE_ID_KERNEL_ABORT:

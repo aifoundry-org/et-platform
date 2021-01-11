@@ -23,28 +23,28 @@ typedef enum {
     MESSAGE_ID_TRACE_BUFFER_RESET,
     MESSAGE_ID_TRACE_BUFFER_EVICT,
     MESSAGE_ID_PMC_CONFIGURE
-} message_id_e;
+} cm_iface_message_id_e;
 
-typedef uint8_t message_id_t;
-typedef uint8_t message_number_t;
+typedef uint8_t cm_iface_message_id_t;
+typedef uint8_t cm_iface_message_number_t;
 
 typedef struct {
-    message_number_t number;
-    message_id_t id;
-} message_header_t;
+    cm_iface_message_number_t number;
+    cm_iface_message_id_t id;
+} cm_iface_message_header_t;
 
-#define MESSAGE_MAX_PAYLOAD_SIZE (64 - sizeof(message_header_t))
+#define MESSAGE_MAX_PAYLOAD_SIZE (64 - sizeof(cm_iface_message_header_t))
 
 #define ASSERT_CACHE_LINE_CONSTRAINTS(type)                                      \
     static_assert(sizeof(type) == 64, "sizeof(" #type ") must be 64 bytes");     \
     static_assert(_Alignof(type) == 64, "_Alignof(" #type ") must be 64 bytes")
 
 typedef struct {
-    message_header_t header;
+    cm_iface_message_header_t header;
     uint8_t data[MESSAGE_MAX_PAYLOAD_SIZE];
-} __attribute__((packed, aligned(64))) message_t;
+} __attribute__((packed, aligned(64))) cm_iface_message_t;
 
-ASSERT_CACHE_LINE_CONSTRAINTS(message_t);
+ASSERT_CACHE_LINE_CONSTRAINTS(cm_iface_message_t);
 
 #include "message_types.h"
 
@@ -58,23 +58,23 @@ void message_init_master(void);
 void message_init_worker(uint64_t shire, uint64_t hart);
 
 uint64_t get_message_flags(uint64_t shire);
-message_id_t get_message_id(uint64_t shire, uint64_t hart);
+cm_iface_message_id_t get_message_id(uint64_t shire, uint64_t hart);
 
 inline bool message_available(uint64_t shire_id, uint64_t hart_id)
 {
     return (get_message_id(shire_id, hart_id) != MESSAGE_ID_NONE);
 }
-bool broadcast_message_available(message_number_t previous_broadcast_message_number);
+bool broadcast_message_available(cm_iface_message_number_t previous_broadcast_message_number);
 
 int64_t message_send_master(uint64_t dest_shire, uint64_t dest_hart,
-                            const message_t *const message);
+                            const cm_iface_message_t *const message);
 int64_t message_send_worker(uint64_t source_shire, uint64_t source_hart,
-                            const message_t *const message);
+                            const cm_iface_message_t *const message);
 
-int64_t broadcast_message_send_master(uint64_t dest_shire_mask, const message_t *const message);
-message_number_t broadcast_message_receive_worker(message_t *const message);
+int64_t broadcast_message_send_master(uint64_t dest_shire_mask, const cm_iface_message_t *const message);
+cm_iface_message_number_t broadcast_message_receive_worker(cm_iface_message_t *const message);
 
-void message_receive_master(uint64_t source_shire, uint64_t source_hart, message_t *const message);
-void message_receive_worker(uint64_t dest_shire, uint64_t dest_hart, message_t *const message);
+void message_receive_master(uint64_t source_shire, uint64_t source_hart, cm_iface_message_t *const message);
+void message_receive_worker(uint64_t dest_shire, uint64_t dest_hart, cm_iface_message_t *const message);
 
 #endif

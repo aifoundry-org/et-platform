@@ -16,7 +16,7 @@
 // Each shire has a message flag bitfield, one bit per HART
 typedef volatile uint64_t message_flags_t[NUM_SHIRES];
 // Each shire has 64 message buffers, one per HART
-typedef volatile message_t message_buffers_t[NUM_SHIRES][HARTS_PER_SHIRE];
+typedef volatile cm_iface_message_t message_buffers_t[NUM_SHIRES][HARTS_PER_SHIRE];
 
 // worker -> master
 // workers atomically set a flag bit in a per-shire message flag dword before sending IPI to master
@@ -27,8 +27,8 @@ static message_buffers_t *const worker_to_master_message_buffers =
     (message_buffers_t *)FW_WORKER_TO_MASTER_MESSAGE_BUFFERS;
 
 // master -> worker
-static volatile message_t *const master_to_worker_broadcast_message_buffer_ptr =
-    (message_t *)FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER;
+static volatile cm_iface_message_t *const master_to_worker_broadcast_message_buffer_ptr =
+    (cm_iface_message_t *)FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER;
 static volatile broadcast_message_ctrl_t *const master_to_worker_broadcast_message_ctrl_ptr =
     (broadcast_message_ctrl_t *)FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL;
 static message_buffers_t *const master_to_worker_message_buffers =
@@ -36,8 +36,7 @@ static message_buffers_t *const master_to_worker_message_buffers =
 
 static inline __attribute__((always_inline)) void set_message_flag(uint64_t shire, uint64_t hart);
 static inline __attribute__((always_inline)) void clear_message_flag(uint64_t shire, uint64_t hart);
-static inline __attribute__((always_inline)) void
-evict_message(const volatile message_t *const message);
+static inline __attribute__((always_inline)) void evict_message(const volatile cm_iface_message_t *const message);
 
 // Initializes message buffer
 // Should only be called by master minion
@@ -46,7 +45,7 @@ void message_init_master(void)
     for (uint64_t shire = 0; shire < NUM_SHIRES; shire++) {
         // master->worker messages use message ID to indicate if a message is valid and unread
         for (uint64_t hart = 0; hart < HARTS_PER_SHIRE; hart++) {
-            volatile message_t *const msg = &(*master_to_worker_message_buffers)[shire][hart];
+            volatile cm_iface_message_t *const msg = &(*master_to_worker_message_buffers)[shire][hart];
             atomic_store_global_8(&msg->header.id, MESSAGE_ID_NONE);
         }
 
@@ -65,7 +64,7 @@ void message_init_master(void)
 // Should only be called by worker minion
 void message_init_worker(uint64_t shire, uint64_t hart)
 {
-    volatile message_t *msg;
+    volatile cm_iface_message_t *msg;
 
     // Allow raw 0-2111 hart_id to be passed in
     msg = &(*worker_to_master_message_buffers)[shire][hart % 64];
@@ -82,9 +81,9 @@ uint64_t get_message_flags(uint64_t shire)
 
 // Atomically reads the message ID from a worker minion's master->worker mailbox
 // Should only be called by worker minion
-message_id_t get_message_id(uint64_t shire, uint64_t hart)
+cm_iface_message_id_t get_message_id(uint64_t shire, uint64_t hart)
 {
-    const volatile message_t *msg;
+    const volatile cm_iface_message_t *msg;
 
     // Allow raw 0-2111 hart_id to be passed in
     msg = &(*master_to_worker_message_buffers)[shire][hart % 64];
@@ -93,9 +92,9 @@ message_id_t get_message_id(uint64_t shire, uint64_t hart)
 }
 
 // returns true if the broadcast message id != the previously received broadcast message
-bool broadcast_message_available(message_number_t previous_broadcast_message_number)
+bool broadcast_message_available(cm_iface_message_number_t previous_broadcast_message_number)
 {
-    message_number_t cur_number =
+    cm_iface_message_number_t cur_number =
         atomic_load_global_8(&master_to_worker_broadcast_message_buffer_ptr->header.number);
 
     return (cur_number != previous_broadcast_message_number);
@@ -103,9 +102,9 @@ bool broadcast_message_available(message_number_t previous_broadcast_message_num
 
 // Sends a message from master minion to worker minion
 // Should only be called by master minion
-int64_t message_send_master(uint64_t dest_shire, uint64_t dest_hart, const message_t *const message)
+int64_t message_send_master(uint64_t dest_shire, uint64_t dest_hart, const cm_iface_message_t *const message)
 {
-    volatile message_t *dest_message_ptr;
+    volatile cm_iface_message_t *dest_message_ptr;
 
     // Allow raw 0-2111 hart_id to be passed in
     dest_hart %= 64;
@@ -142,11 +141,11 @@ static inline int64_t broadcast_ipi_trigger(uint64_t dest_shire_mask, uint64_t d
 // Broadcasts a message to all worker HARTS in all Shires in dest_shire_mask
 // Should only be called by master minion
 // Blocks until all the receivers have ACK'd
-int64_t broadcast_message_send_master(uint64_t dest_shire_mask, const message_t *const message)
+int64_t broadcast_message_send_master(uint64_t dest_shire_mask, const cm_iface_message_t *const message)
 {
     // First broadcast message number is 1, so OK for worker minion
     // to init previous_broadcast_message_number to 0
-    static message_number_t number = 1;
+    static cm_iface_message_number_t number = 1;
     uint32_t shire_count;
 
     // Copy message to shared buffer
@@ -167,8 +166,7 @@ int64_t broadcast_message_send_master(uint64_t dest_shire_mask, const message_t 
     // Wait until all the receiver Shires have ACK'd, 1 per Shire.
     // Then it's safe to send another broadcast message
     // TODO: Avoid busy-polling by using FCCs
-    while (atomic_load_global_32(&master_to_worker_broadcast_message_ctrl_ptr->count) !=
-           shire_count) {
+    while (atomic_load_global_32(&master_to_worker_broadcast_message_ctrl_ptr->count) != shire_count) {
         // Relax thread
         asm volatile("fence\n" ::: "memory");
     }
@@ -176,7 +174,7 @@ int64_t broadcast_message_send_master(uint64_t dest_shire_mask, const message_t 
     return 0;
 }
 
-message_number_t broadcast_message_receive_worker(message_t *const message)
+cm_iface_message_number_t broadcast_message_receive_worker(cm_iface_message_t *const message)
 {
     bool last;
     uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
@@ -201,9 +199,9 @@ message_number_t broadcast_message_receive_worker(message_t *const message)
 // Sends a message from worker minion to master minion
 // Should only be called by worker minion
 int64_t message_send_worker(uint64_t source_shire, uint64_t source_hart,
-                            const message_t *const message)
+                            const cm_iface_message_t *const message)
 {
-    volatile message_t *dest_message_ptr;
+    volatile cm_iface_message_t *dest_message_ptr;
 
     // Allow raw 0-2111 hart_id to be passed in
     source_hart %= 64;
@@ -233,9 +231,9 @@ int64_t message_send_worker(uint64_t source_shire, uint64_t source_hart,
 
 // Receives a message from worker minion to master minion
 // Should only be called by master minion
-void message_receive_master(uint64_t source_shire, uint64_t source_hart, message_t *const message)
+void message_receive_master(uint64_t source_shire, uint64_t source_hart, cm_iface_message_t *const message)
 {
-    const volatile message_t *source_message_ptr;
+    const volatile cm_iface_message_t *source_message_ptr;
 
     // Allow raw 0-2111 hart_id to be passed in
     source_hart %= 64;
@@ -254,9 +252,9 @@ void message_receive_master(uint64_t source_shire, uint64_t source_hart, message
 
 // Receives a message from master minion to worker minion
 // Should only be called by worker minion
-void message_receive_worker(uint64_t dest_shire, uint64_t dest_hart, message_t *const message)
+void message_receive_worker(uint64_t dest_shire, uint64_t dest_hart, cm_iface_message_t *const message)
 {
-    volatile message_t *source_message_ptr;
+    volatile cm_iface_message_t *source_message_ptr;
 
     // Allow raw 0-2111 hart_id to be passed in
     dest_hart %= 64;
@@ -294,7 +292,7 @@ static inline __attribute__((always_inline)) void clear_message_flag(uint64_t sh
 // Evicts a message to L3 (point of coherency)
 // Messages must always be aligned to cache lines and <= 1 cache line in size
 static inline __attribute__((always_inline)) void
-evict_message(const volatile message_t *const message)
+evict_message(const volatile cm_iface_message_t *const message)
 {
     // Guarantee ordering of the CacheOp with previous loads/stores to the L1
     // not needed if address dependencies are respected by CacheOp, being paranoid for now

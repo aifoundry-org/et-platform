@@ -46,5 +46,5 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
     message.mtval     = mtval;
     message.mstatus   = mstatus;
 
-    message_send_worker(get_shire_id(), hart_id, (message_t *)&message);
+    message_send_worker(get_shire_id(), hart_id, (cm_iface_message_t *)&message);
 }
