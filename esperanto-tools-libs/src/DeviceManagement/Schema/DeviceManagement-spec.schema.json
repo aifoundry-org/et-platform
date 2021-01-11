@@ -93,30 +93,6 @@
 
 	"cmd_param_structs": {
 
-		"command_req_header": {
-			"usage": {
-				"desc": "DM request header. This header is attached to each request"
-			},
-			"fields": {
-				"cmd_id": "enum DM_CMD",
-				"size": "uint32_t"
-
-			}
-		},
-
-                "command_resp_header": {
-                        "usage": {
-                                "desc": "DM response header. This header is attached to each response"
-                        },
-                        "fields": {
-                                "status": "enum DM_STATUS",
-                                "device_latency_usec": "uint64_t",
-				"size": "uint32_t"
-
-                        }
-                },
-
-
 		"asset_tracking_class": {
 
 			"asset_tracking": {
