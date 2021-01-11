@@ -437,8 +437,7 @@ ssize_t EmuVirtQueueDev::read(void *data, ssize_t size, TimeDuration wait_time) 
 
 bool EmuVirtQueueDev::ready(TimeDuration wait_time) {
   auto start = Clock::now();
-  auto end = start + wait_time; // TODO: Fix wait_time (TimeDuration::max()) + some value can
-                                // cause issue
+  auto end = start + wait_time; // TODO: Fix wait_time (TimeDuration::max()) + value can cause issue
 
   auto ready = virtQueueReady();
   while (!ready) {
@@ -465,7 +464,7 @@ bool EmuVirtQueueDev::ready(TimeDuration wait_time) {
       return false;
     }
 
-    rpcGen_->rpcWaitForHostInterrupt(queueId_, kPollingInterval);
+    rpcGen_->rpcWaitForHostInterrupt(queueId_);
   }
   return ready;
 }
@@ -474,7 +473,7 @@ bool EmuVirtQueueDev::reset(TimeDuration wait_time) {
   auto reset = virtQueueReset();
   assert(reset);
 
-  rpcGen_->rpcWaitForHostInterrupt(queueId_, kPollingInterval);
+  rpcGen_->rpcWaitForHostInterrupt(queueId_);
 
   return ready(wait_time);
 }

@@ -45,12 +45,10 @@ public:
   bool readDevMemDMA(uintptr_t dev_addr, size_t size, void *buf) final;
   bool writeDevMemDMA(uintptr_t dev_addr, size_t size, const void *buf) final;
   bool mb_write(const void *data, ssize_t size) final;
-  ssize_t mb_read(void *data, ssize_t size,
-                  TimeDuration wait_time = TimeDuration::max()) final;
-  bool virtQueuesDiscover(TimeDuration wait_time = TimeDuration::max()) final;
+  ssize_t mb_read(void *data, ssize_t size) final;
+  bool virtQueuesDiscover(TimeDuration wait_time) final;
   bool virtQueueWrite(const void *data, ssize_t size, uint8_t queueId) final;
-  ssize_t virtQueueRead(void *data, ssize_t size, uint8_t queueId,
-                        TimeDuration wait_time = TimeDuration::max()) final;
+  ssize_t virtQueueRead(void *data, ssize_t size, uint8_t queueId) final;
   bool waitForEpollEvents(uint32_t &sq_bitmap, uint32_t &cq_bitmap) final;
   bool shutdown() override;
 
@@ -70,8 +68,8 @@ public:
 
 private:
 
-  void resetMbox(TimeDuration wait_time);
-  bool readyMbox(TimeDuration wait_time);
+  void resetMbox();
+  bool readyMbox();
   bool read(uintptr_t addr, void *data, ssize_t size);
   bool write(uintptr_t addr, const void *data, ssize_t size);
 

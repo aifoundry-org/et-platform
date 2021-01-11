@@ -75,11 +75,11 @@ public:
   bool mb_write(const void *data, ssize_t size) final;
 
   /// @brief READ a full mailbox message, this corresponds to the API that the PCIE device exposes
-  ssize_t mb_read(void *data, ssize_t size, TimeDuration wait_time = TimeDuration::max()) final;
+  ssize_t mb_read(void *data, ssize_t size) final;
 
   /// @brief Discover virtual queues info
   /// Virtual Queue implementation, coming from abstract class
-  bool virtQueuesDiscover(TimeDuration wait_time = TimeDuration::max()) final;
+  bool virtQueuesDiscover(TimeDuration wait_time) final;
 
   /// @brief Write a full virtual queue message, this corresponds to the API that the PCIE device exposes
   /// Virtual Queue implementation, coming from abstract class
@@ -87,7 +87,7 @@ public:
 
   /// @brief READ a full virtual queue message, this corresponds to the API that the PCIE device exposes
   /// Virtual Queue implementation, coming from abstract class
-  ssize_t virtQueueRead(void *data, ssize_t size, uint8_t queueId, TimeDuration wait_time = TimeDuration::max()) final;
+  ssize_t virtQueueRead(void *data, ssize_t size, uint8_t queueId) final;
 
   /// @brief Wait until any epoll event occur, and also provide bitmaps for events on virtqueues
   bool waitForEpollEvents(uint32_t &sq_bitmap, uint32_t &cq_bitmap) final;
@@ -120,8 +120,7 @@ public:
   bool rpcRaiseDeviceSpioPlicPcieMessageInterrupt();
 
   /// @brief Wait to receive an interrupt from the device or timeout.
-  /// @param[in] wait_time : Time to wait to receive the interrupt, but default block indefinitely.
-  bool rpcWaitForHostInterrupt(TimeDuration wait_time = TimeDuration::max());
+  bool rpcWaitForHostInterrupt();
 
 protected:
   std::string socket_path_;
@@ -130,8 +129,7 @@ protected:
   grpc::CompletionQueue cq_;
 
   std::unique_ptr<EmuMailBoxDev> mailboxDev_;
-  std::pair<bool, simulator_api::Reply> doRPC(const simulator_api::Request& req,
-                                              TimeDuration timeout = TimeDuration::max());
+  std::pair<bool, simulator_api::Reply> doRPC(const simulator_api::Request& req);
 };
 
 } // namespace device

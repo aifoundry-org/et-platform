@@ -16,6 +16,7 @@
 #include "esperanto/runtime/Support/Logging.h"
 
 #include <cassert>
+#include <thread>
 #include <unistd.h>
 
 namespace et_runtime {
@@ -324,7 +325,7 @@ bool EmuMailBoxDev::write(const void *data, ssize_t size) {
   return true;
 }
 
-ssize_t EmuMailBoxDev::read(void *data, ssize_t size, TimeDuration wait_time) {
+ssize_t EmuMailBoxDev::read(void *data, ssize_t size) {
   TRACE_RPCDevice_read(size);
 
   if (!rpcDev_.alive()) {
@@ -332,7 +333,7 @@ ssize_t EmuMailBoxDev::read(void *data, ssize_t size, TimeDuration wait_time) {
   }
 
   // Read the mailbox from the simulator currently is not blocking like in the PCIe driver
-  auto received = rpcDev_.rpcWaitForHostInterrupt(wait_time);
+  auto received = rpcDev_.rpcWaitForHostInterrupt();
   if (!received) {
     return 0;
   }
@@ -393,10 +394,19 @@ ssize_t EmuMailBoxDev::mboxMaxMsgSize() const { return MBOX_MAX_LENGTH; }
 bool EmuMailBoxDev::ready(TimeDuration wait_time) {
   auto start = Clock::now();
   auto end = start + wait_time;
-  static const TimeDuration polling_interval = std::chrono::milliseconds(100);
+  static const TimeDuration polling_interval = std::chrono::milliseconds(50);
+
+  long value_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::time_point_cast<std::chrono::milliseconds>(start).time_since_epoch()).count();
+  long end_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::time_point_cast<std::chrono::milliseconds>(end).time_since_epoch()).count();
+  long wait_time_ = std::chrono::duration_cast<std::chrono::milliseconds>(wait_time).count();
+
+  RTINFO << "wait: " << wait_time_ << "\n";
+  RTINFO << "start: " << value_ms << "\n";
+  RTINFO << "end: " << end_ms << "\n";
 
   auto ready = mboxReady();
   while (!ready) {
+    std::this_thread::sleep_for(polling_interval);
     ready = mboxReady();
     if (ready) {
       return ready;
@@ -421,7 +431,7 @@ bool EmuMailBoxDev::ready(TimeDuration wait_time) {
     }
 
     raiseTargetMailboxInterrupt();
-    rpcDev_.rpcWaitForHostInterrupt(polling_interval);
+    rpcDev_.rpcWaitForHostInterrupt();
   }
   return ready;
 }
@@ -429,10 +439,11 @@ bool EmuMailBoxDev::ready(TimeDuration wait_time) {
 bool EmuMailBoxDev::reset(TimeDuration wait_time) {
   auto start = Clock::now();
   auto end = start + wait_time;
-  static const TimeDuration polling_interval = std::chrono::milliseconds(100);
+  static const TimeDuration polling_interval = std::chrono::milliseconds(50);
 
   auto reset = mboxReset();
   while (!reset) {
+    std::this_thread::sleep_for(polling_interval);
     reset = mboxReset();
     if (reset) {
       return reset;
@@ -442,7 +453,7 @@ bool EmuMailBoxDev::reset(TimeDuration wait_time) {
       return false;
     }
     raiseTargetMailboxInterrupt();
-    rpcDev_.rpcWaitForHostInterrupt(polling_interval);
+    rpcDev_.rpcWaitForHostInterrupt();
   }
   return reset;
 }
