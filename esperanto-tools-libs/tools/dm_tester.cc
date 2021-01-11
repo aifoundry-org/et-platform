@@ -327,84 +327,84 @@ int main(int argc, char *argv[]) {
   std::cout << "timeout: " << timeout << std::endl;
 
   switch (cs.cmd_id) {
-  case DM_CMD::DM_CMD_GET_MODULE_POWER_STATE:
-  case DM_CMD::DM_CMD_GET_MODULE_STATIC_TDP_LEVEL:
-  case DM_CMD::DM_CMD_GET_MODULE_CURRENT_TEMPERATURE:
-  case DM_CMD::DM_CMD_GET_MODULE_POWER:
-  case DM_CMD::DM_CMD_GET_MODULE_VOLTAGE:
-  case DM_CMD::DM_CMD_GET_MODULE_UPTIME:
-  case DM_CMD::DM_CMD_GET_MODULE_MAX_TEMPERATURE:
-  case DM_CMD::DM_CMD_GET_MAX_MEMORY_ERROR:
-  case DM_CMD::DM_CMD_GET_DRAM_CAPACITY_UTILIZATION:
-  case DM_CMD::DM_CMD_GET_MM_THREADS_STATE:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_POWER_STATE:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_STATIC_TDP_LEVEL:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_CURRENT_TEMPERATURE:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_POWER:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_VOLTAGE:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_UPTIME:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MAX_TEMPERATURE:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MAX_MEMORY_ERROR:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_CAPACITY_UTILIZATION:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MM_THREADS_STATE:
     testAsset(dm, ds.dev.c_str(), cs.cmd_id, nullptr, 0, 4, timeout);
     break;
-  case DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME:
-  case DM_CMD::DM_CMD_GET_MODULE_PART_NUMBER:
-  case DM_CMD::DM_CMD_GET_MODULE_SERIAL_NUMBER:
-  case DM_CMD::DM_CMD_GET_ASIC_CHIP_REVISION:
-  case DM_CMD::DM_CMD_GET_MODULE_DRIVER_REVISION:
-  case DM_CMD::DM_CMD_GET_MODULE_PCIE_ADDR:
-  case DM_CMD::DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED:
-  case DM_CMD::DM_CMD_GET_MODULE_MEMORY_SIZE_MB:
-  case DM_CMD::DM_CMD_GET_MODULE_REVISION:
-  case DM_CMD::DM_CMD_GET_MODULE_FORM_FACTOR:
-  case DM_CMD::DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER:
-  case DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE:
-  case DM_CMD::DM_CMD_GET_FUSED_PUBLIC_KEYS:
-  case DM_CMD::DM_CMD_GET_FIRMWARE_BOOT_STATUS:
-  case DM_CMD::DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS:
-  case DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES:
-  case DM_CMD::DM_CMD_GET_MODULE_MAX_DDR_BW:
-  case DM_CMD::DM_CMD_GET_MODULE_MAX_THROTTLE_TIME:
-  case DM_CMD::DM_CMD_GET_MODULE_PCIE_ECC_UECC:
-  case DM_CMD::DM_CMD_GET_MODULE_DDR_BW_COUNTER:
-  case DM_CMD::DM_CMD_GET_MODULE_DDR_ECC_UECC:
-  case DM_CMD::DM_CMD_GET_MODULE_SRAM_ECC_UECC:
-  case DM_CMD::DM_CMD_GET_DRAM_BANDWIDTH:
-  case DM_CMD::DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION:
-  case DM_CMD::DM_CMD_GET_ASIC_UTILIZATION:
-  case DM_CMD::DM_CMD_GET_ASIC_STALLS:
-  case DM_CMD::DM_CMD_GET_ASIC_LATENCY:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_PART_NUMBER:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_SERIAL_NUMBER:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_CHIP_REVISION:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_DRIVER_REVISION:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_PCIE_ADDR:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_SIZE_MB:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_REVISION:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_FORM_FACTOR:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_FUSED_PUBLIC_KEYS:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_FIRMWARE_BOOT_STATUS:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MAX_DDR_BW:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MAX_THROTTLE_TIME:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_PCIE_ECC_UECC:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_DDR_BW_COUNTER:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_DDR_ECC_UECC:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_SRAM_ECC_UECC:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_BANDWIDTH:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_UTILIZATION:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_STALLS:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_LATENCY:
     testAsset(dm, ds.dev.c_str(), cs.cmd_id, nullptr, 0, 8, timeout);
     break;
-  case DM_CMD::DM_CMD_GET_MODULE_FIRMWARE_REVISIONS:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_FIRMWARE_REVISIONS:
     testAsset(dm, ds.dev.c_str(), cs.cmd_id, nullptr, 0, 20, timeout);
     break;
-  case DM_CMD::DM_CMD_GET_ASIC_FREQUENCIES:
+  case device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_FREQUENCIES:
     testAsset(dm, ds.dev.c_str(), cs.cmd_id, nullptr, 0, 24, timeout);
     break;
-  case DM_CMD::DM_CMD_SET_MODULE_POWER_STATE:
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE:
     testAsset(dm, ds.dev.c_str(), cs.cmd_id, reinterpret_cast<char*>(pss.state_id), 4, 8, timeout);
     break;
-  case DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL:
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL:
     testAsset(dm, ds.dev.c_str(), cs.cmd_id, reinterpret_cast<char*>(tdps.tdp_id), 4, 8, timeout);
     break;
-  case DM_CMD::DM_CMD_SET_PCIE_RESET:
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_RESET:
     testAsset(dm, ds.dev.c_str(), cs.cmd_id, reinterpret_cast<char*>(pcieReset.reset_id), 4, 8, timeout);
     break;
-  case DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED:
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED:
     testAsset(dm, ds.dev.c_str(), cs.cmd_id, reinterpret_cast<char*>(pcieSpeed.speed_id), 4, 8, timeout);
     break;
-  case DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH:
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH:
     testAsset(dm, ds.dev.c_str(), cs.cmd_id, reinterpret_cast<char*>(pcieWidth.width_id), 4, 8, timeout);
     break;
-  case DM_CMD::DM_CMD_SET_PCIE_RETRAIN_PHY:
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_RETRAIN_PHY:
     testAsset(dm, ds.dev.c_str(), cs.cmd_id, reinterpret_cast<char*>(0), 4, 8, timeout);
     break;
-  case DM_CMD::DM_CMD_RESET_ETSOC:
+  case device_mgmt_api::DM_CMD::DM_CMD_RESET_ETSOC:
     testAsset(dm, ds.dev.c_str(), cs.cmd_id, reinterpret_cast<char*>(0), 4, 8, timeout);
     break;
-  case DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE:
-  case DM_CMD::DM_CMD_SET_SP_BOOT_ROOT_CERT:
-  case DM_CMD::DM_CMD_SET_SW_BOOT_ROOT_CERT:
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE:
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_SP_BOOT_ROOT_CERT:
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_SW_BOOT_ROOT_CERT:
     if (path.empty()) {
       std::cout << "--path not provided or invalid" << std::endl;
       return -EINVAL;
     }
     testAsset(dm, ds.dev.c_str(), cs.cmd_id, path.data(), 1, 8, timeout);
     break;
-  case DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS: {
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS: {
     if (!thLow) {
       std::cout << "--tholdLow not provided or invalid" << std::endl;
       return -EINVAL;
@@ -415,13 +415,13 @@ int main(int argc, char *argv[]) {
       return -EINVAL;
     }
 
-    temperature_threshold_t tholds{.lo_temperature_c = thLow, .hi_temperature_c = thHigh};
+    device_mgmt_api::temperature_threshold_t tholds{.lo_temperature_c = thLow, .hi_temperature_c = thHigh};
 
     testAsset(dm, ds.dev.c_str(), cs.cmd_id, reinterpret_cast<char*>(&tholds), 8, 8, timeout);
   } break;
-  case DM_CMD::DM_CMD_SET_DDR_ECC_COUNT:
-  case DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT:
-  case DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT:
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT:
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT:
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT:
     if (!count) {
       std::cout << "--count not provided or invalid" << std::endl;
       return -EINVAL;
