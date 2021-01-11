@@ -223,7 +223,7 @@ int DeviceManagement::serviceRequest(
 
     if (isSet && input_buff && inputSize) {
       switch (cmd_code) {
-      case DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE: {
+      case device_mgmt_api::DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE: {
         int res = processFirmwareImage(lockable, input_buff);
 
         if (res != 0) {
@@ -232,8 +232,8 @@ int DeviceManagement::serviceRequest(
 
         inputSize = 0;
       } break;
-      case DM_CMD::DM_CMD_SET_SP_BOOT_ROOT_CERT:
-      case DM_CMD::DM_CMD_SET_SW_BOOT_ROOT_CERT: {
+      case device_mgmt_api::DM_CMD::DM_CMD_SET_SP_BOOT_ROOT_CERT:
+      case device_mgmt_api::DM_CMD::DM_CMD_SET_SW_BOOT_ROOT_CERT: {
         std::vector<unsigned char> hash;
 
         int res = processHashFile(input_buff, hash);

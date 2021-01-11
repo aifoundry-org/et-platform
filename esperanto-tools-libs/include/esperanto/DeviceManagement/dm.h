@@ -17,7 +17,7 @@
 #ifndef ET_RUNTIME_DM_H
 #define ET_RUNTIME_DM_H
 
-#include <esperanto/device-apis/management-api/device_mgmt_api_rpc_types.h>
+#include <esperanto/device-apis/management-api/device_mgmt_api_cxx.h>
 #include <stdint.h>
 
 extern struct dm_control_block dm_cmd_rsp;
