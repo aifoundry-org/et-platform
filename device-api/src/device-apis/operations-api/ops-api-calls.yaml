@@ -47,6 +47,26 @@ Enums:
         Value: 4
       - Name: COMPLETE
         Value: 5
+  - Name: etsoc_dma_chan_id
+    Description: DMA Chan ID
+    Type: uint32_t
+    Values:
+      - Name: READ_0
+        Value: 0
+      - Name: READ_1
+        Value: 1
+      - Name: READ_2
+        Value: 2
+      - Name: READ_3
+        Value: 3
+      - Name: WRITE_0
+        Value: 4
+      - Name: WRITE_1
+        Value: 5
+      - Name: WRITE_2
+        Value: 6
+      - Name: WRITE_3
+        Value: 7
   - Name: etsoc_dma_state
     Description: State of a DMA
     Type: uint32_t
