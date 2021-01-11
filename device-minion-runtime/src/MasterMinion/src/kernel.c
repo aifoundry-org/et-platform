@@ -86,7 +86,7 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
         if ((num_shires > 0) && (shire_mask > 0)) {
             const bool uses_sync_minions = (shire_mask & (1ULL << MASTER_SHIRE)) != 0;
             const uint64_t sync_minions_mask = uses_sync_minions ? 0xFFFF0000U : 0;
-            const uint64_t compute_shires_mask = shire_mask & ~(1ULL << MASTER_SHIRE);
+            const uint64_t compute_shires_mask = shire_mask & 0xFFFFFFFFu;
 
             // Broadcast launch FCC0 to all HARTs in all required compute shires
             broadcast(0xFFFFFFFFU, compute_shires_mask, PRV_U, ESR_SHIRE_REGION,
@@ -117,9 +117,9 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
 
             // Send message to master minion indicating the kernel is starting
             message_kernel_launch_ack_t ack_message;
-            ack_message.header.id = MESSAGE_ID_KERNEL_LAUNCH_ACK;
+            ack_message.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ACK;
             ack_message.kernel_id = kernel_id;
-            message_send_worker(get_shire_id(), get_hart_id(), (message_t *)&ack_message);
+            message_send_worker(get_shire_id(), get_hart_id(), (cm_iface_message_t *)&ack_message);
 
             // Wait for a done FCC1 from each shire, plus sync-minions of master shire
             for (uint64_t i = 0; i < num_shires; i++) {
@@ -128,15 +128,15 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
 
             // Send message to master minion indicating the kernel is complete
             message_kernel_launch_completed_t completed_message;
-            completed_message.header.id = MESSAGE_ID_KERNEL_COMPLETE;
+            completed_message.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE;
             completed_message.kernel_id = kernel_id;
-            message_send_worker(get_shire_id(), get_hart_id(), (message_t *)&completed_message);
+            message_send_worker(get_shire_id(), get_hart_id(), (cm_iface_message_t *)&completed_message);
         } else {
             // Invalid config, send error message to the master minion
             message_kernel_launch_nack_t nack_message;
-            nack_message.header.id = MESSAGE_ID_KERNEL_LAUNCH_NACK;
+            nack_message.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_NACK;
             nack_message.kernel_id = kernel_id;
-            message_send_worker(get_shire_id(), get_hart_id(), (message_t *)&nack_message);
+            message_send_worker(get_shire_id(), get_hart_id(), (cm_iface_message_t *)&nack_message);
         }
     }
 }
@@ -309,8 +309,8 @@ dev_api_kernel_abort_response_result_e abort_kernel(kernel_id_t kernel_id)
 
     if ((kernel_state == KERNEL_STATE_LAUNCHED) || (kernel_state == KERNEL_STATE_RUNNING) ||
         (kernel_state == KERNEL_STATE_ERROR)) {
-        message_t message = {
-            .header.id = MESSAGE_ID_KERNEL_ABORT,
+        cm_iface_message_t message = {
+            .header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT,
             .data = { 0 },
         };
 

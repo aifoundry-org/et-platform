@@ -39,12 +39,12 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
     message_exception_t message;
 
     // The master minion needs to know if this is a recoverable kernel exception or an unrecoverable exception
-    message.header.id = user_mode ? MESSAGE_ID_U_MODE_EXCEPTION : MESSAGE_ID_FW_EXCEPTION;
+    message.header.id = user_mode ? CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION : CM_TO_MM_MESSAGE_ID_FW_EXCEPTION;
     message.hart_id   = hart_id;
     message.mcause    = mcause;
     message.mepc      = mepc;
     message.mtval     = mtval;
     message.mstatus   = mstatus;
 
-    message_send_worker(get_shire_id(), hart_id, (message_t *)&message);
+    message_send_worker(get_shire_id(), hart_id, (cm_iface_message_t *)&message);
 }
