@@ -49,7 +49,7 @@ void __attribute__((noreturn)) main(void)
     // Last thread to join barrier sends ready message to master
     if (result) {
         const cm_iface_message_t message = {
-            .header.id = MESSAGE_ID_SHIRE_READY,
+            .header.id = CM_TO_MM_MESSAGE_ID_SHIRE_READY,
             .data = { 0 },
         };
         message_send_worker(shire_id, hart_id, &message);

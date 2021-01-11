@@ -571,34 +571,20 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
     message_receive_master(shire, hart, &message);
 
     switch (message.header.id) {
-    case MESSAGE_ID_NONE:
+    case CM_TO_MM_MESSAGE_ID_NONE:
         log_write(LOG_LEVEL_DEBUG,
                   "Invalid MESSAGE_ID_NONE received from shire %" PRId64 " hart %" PRId64 "\r\n",
                   shire, hart);
         break;
 
-    case MESSAGE_ID_SHIRE_READY:
+    case CM_TO_MM_MESSAGE_ID_SHIRE_READY:
         log_write(LOG_LEVEL_DEBUG,
                   "MESSAGE_ID_SHIRE_READY received from shire %" PRId64 " hart %" PRId64 "\r\n",
                   shire, hart);
         update_shire_state(shire, SHIRE_STATE_READY);
         break;
 
-    case MESSAGE_ID_KERNEL_LAUNCH:
-        log_write(LOG_LEVEL_WARNING,
-                  "Invalid MESSAGE_ID_KERNEL_LAUNCH received from shire %" PRId64 " hart %" PRId64
-                  "\r\n",
-                  shire, hart);
-        break;
-
-    case MESSAGE_ID_KERNEL_ABORT:
-        log_write(LOG_LEVEL_WARNING,
-                  "Invalid MESSAGE_ID_KERNEL_ABORT received from shire %" PRId64 " hart %" PRId64
-                  "\r\n",
-                  shire, hart);
-        break;
-
-    case MESSAGE_ID_KERNEL_LAUNCH_ACK:
+    case CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ACK:
         log_write(LOG_LEVEL_DEBUG,
                   "MESSAGE_ID_KERNEL_LAUNCH_ACK received from shire %" PRId64 " hart %" PRId64
                   "\r\n",
@@ -607,7 +593,7 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
                             KERNEL_STATE_RUNNING);
         break;
 
-    case MESSAGE_ID_KERNEL_LAUNCH_NACK:
+    case CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_NACK:
         log_write(LOG_LEVEL_DEBUG,
                   "MESSAGE_ID_KERNEL_LAUNCH_NACK received from shire %" PRId64 " hart %" PRId64
                   "\r\n",
@@ -617,7 +603,7 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
                             KERNEL_STATE_ERROR);
         break;
 
-    case MESSAGE_ID_KERNEL_ABORT_NACK:
+    case CM_TO_MM_MESSAGE_ID_KERNEL_ABORT_NACK:
         log_write(LOG_LEVEL_DEBUG,
                   "MESSAGE_ID_KERNEL_ABORT_NACK received from shire %" PRId64 " hart %" PRId64
                   "\r\n",
@@ -626,7 +612,7 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
         update_kernel_state(kernel, KERNEL_STATE_ERROR);
         break;
 
-    case MESSAGE_ID_KERNEL_COMPLETE:
+    case CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE:
         log_write(LOG_LEVEL_DEBUG,
                   "MESSAGE_ID_KERNEL_COMPLETE received from shire %" PRId64 " hart %" PRId64 "\r\n",
                   shire, hart);
@@ -634,13 +620,7 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
                             KERNEL_STATE_COMPLETE);
         break;
 
-    case MESSAGE_ID_LOOPBACK:
-        log_write(LOG_LEVEL_DEBUG,
-                  "MESSAGE_ID_LOOPBACK received from shire %" PRId64 " hart %" PRId64 "\r\n", shire,
-                  hart);
-        break;
-
-    case MESSAGE_ID_FW_EXCEPTION: {
+    case CM_TO_MM_MESSAGE_ID_FW_EXCEPTION: {
         message_exception_t *exception = (message_exception_t *)&message;
         print_exception(exception->mcause, exception->mepc, exception->mtval, exception->mstatus,
                         exception->hart_id);
@@ -650,7 +630,7 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
         break;
     }
 
-    case MESSAGE_ID_U_MODE_EXCEPTION: {
+    case CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION: {
         message_exception_t *exception = (message_exception_t *)&message;
         print_exception(exception->mcause, exception->mepc, exception->mtval, exception->mstatus,
                         exception->hart_id);
@@ -658,44 +638,9 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
         break;
     }
 
-    case MESSAGE_ID_LOG_WRITE:
+    case CM_TO_MM_MESSAGE_ID_LOG_WRITE:
         // Always print messages coming from workers
         print_log_message(shire, hart, &message);
-        break;
-
-    case MESSAGE_ID_SET_LOG_LEVEL:
-        log_write(LOG_LEVEL_WARNING,
-                  "Invalid MESSAGE_ID_SET_LOG_LEVEL received from shire %" PRId64 " hart %" PRId64
-                  "\r\n",
-                  shire, hart);
-        break;
-
-    case MESSAGE_ID_TRACE_UPDATE_CONTROL:
-        log_write(LOG_LEVEL_WARNING,
-                  "Invalid MESSAGE_ID_UPDATE_TRACE_CONTROL received from shire %" PRId64
-                  " hart %" PRId64 "\r\n",
-                  shire, hart);
-        break;
-
-    case MESSAGE_ID_TRACE_BUFFER_RESET:
-        log_write(LOG_LEVEL_WARNING,
-                  "Invalid MESSAGE_ID_TRACE_BUFFER_RESET received from shire %" PRId64
-                  " hart %" PRId64 "\r\n",
-                  shire, hart);
-        break;
-
-    case MESSAGE_ID_TRACE_BUFFER_EVICT:
-        log_write(LOG_LEVEL_WARNING,
-                  "Invalid MESSAGE_ID_TRACE_BUFFER_EVICT received from shire %" PRId64
-                  " hart %" PRId64 "\r\n",
-                  shire, hart);
-        break;
-
-    case MESSAGE_ID_PMC_CONFIGURE:
-        log_write(LOG_LEVEL_WARNING,
-                  "Invalid MESSAGE_ID_PMC_CONFGIURE received from shire %" PRId64
-                  " hart %" PRId64 "\r\n",
-                  shire, hart);
         break;
 
     default:

@@ -46,7 +46,7 @@ void message_init_master(void)
         // master->worker messages use message ID to indicate if a message is valid and unread
         for (uint64_t hart = 0; hart < HARTS_PER_SHIRE; hart++) {
             volatile cm_iface_message_t *const msg = &(*master_to_worker_message_buffers)[shire][hart];
-            atomic_store_global_8(&msg->header.id, MESSAGE_ID_NONE);
+            atomic_store_global_8(&msg->header.id, MM_TO_CM_MESSAGE_ID_NONE);
         }
 
         // Clear worker->master message flags (bitmask containing worker id that sent the msg)
@@ -57,7 +57,7 @@ void message_init_master(void)
     // Master->worker broadcast message number and id
     atomic_store_global_8(&master_to_worker_broadcast_message_buffer_ptr->header.number, 0);
     atomic_store_global_8(&master_to_worker_broadcast_message_buffer_ptr->header.id,
-                          MESSAGE_ID_NONE);
+                          MM_TO_CM_MESSAGE_ID_NONE);
 }
 
 // Initializes message buffer
@@ -69,7 +69,7 @@ void message_init_worker(uint64_t shire, uint64_t hart)
     // Allow raw 0-2111 hart_id to be passed in
     msg = &(*worker_to_master_message_buffers)[shire][hart % 64];
 
-    atomic_store_global_8(&msg->header.id, MESSAGE_ID_NONE);
+    atomic_store_global_8(&msg->header.id, CM_TO_MM_MESSAGE_ID_NONE);
 }
 
 // Atomically reads the message pending flags for a shire
@@ -92,7 +92,7 @@ cm_iface_message_id_t get_message_id(uint64_t shire, uint64_t hart)
 }
 
 // returns true if the broadcast message id != the previously received broadcast message
-bool broadcast_message_available(cm_iface_message_number_t previous_broadcast_message_number)
+bool broadcast_message_available_worker(cm_iface_message_number_t previous_broadcast_message_number)
 {
     cm_iface_message_number_t cur_number =
         atomic_load_global_8(&master_to_worker_broadcast_message_buffer_ptr->header.number);
@@ -110,7 +110,7 @@ int64_t message_send_master(uint64_t dest_shire, uint64_t dest_hart, const cm_if
     dest_hart %= 64;
 
     // Wait if message ID is set to avoid overwriting a pending message
-    while (get_message_id(dest_shire, dest_hart) != MESSAGE_ID_NONE) {
+    while (get_message_id(dest_shire, dest_hart) != MM_TO_CM_MESSAGE_ID_NONE) {
         // Relax thread
         asm volatile("fence\n" ::: "memory");
     }
@@ -268,7 +268,7 @@ void message_receive_worker(uint64_t dest_shire, uint64_t dest_hart, cm_iface_me
     asm volatile("fence");
 
     // Clear message ID to indicate the worker has received the message from the master
-    atomic_store_global_8(&source_message_ptr->header.id, MESSAGE_ID_NONE);
+    atomic_store_global_8(&source_message_ptr->header.id, MM_TO_CM_MESSAGE_ID_NONE);
 }
 
 // Atomically sets a message pending flag for a worker minion

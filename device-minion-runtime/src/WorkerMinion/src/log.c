@@ -28,7 +28,7 @@ int64_t log_write(log_level_t level, const char *const fmt, ...)
     }
 
     cm_iface_message_t message;
-    message.header.id = MESSAGE_ID_LOG_WRITE;
+    message.header.id = CM_TO_MM_MESSAGE_ID_LOG_WRITE;
 
     va_list va;
     va_start(va, fmt);
@@ -49,7 +49,7 @@ int64_t log_write_str(log_level_t level, const char *str, size_t length)
 
     while (length > 0 && *str) {
         cm_iface_message_t message;
-        message.header.id = MESSAGE_ID_LOG_WRITE;
+        message.header.id = CM_TO_MM_MESSAGE_ID_LOG_WRITE;
 
         char *data = (char *)message.data;
         size_t len;

@@ -6,24 +6,27 @@
 #include <stdbool.h>
 
 typedef enum {
-    MESSAGE_ID_NONE = 0,
-    MESSAGE_ID_SHIRE_READY,
-    MESSAGE_ID_KERNEL_LAUNCH,
-    MESSAGE_ID_KERNEL_LAUNCH_ACK,
-    MESSAGE_ID_KERNEL_LAUNCH_NACK,
-    MESSAGE_ID_KERNEL_ABORT,
-    MESSAGE_ID_KERNEL_ABORT_NACK,
-    MESSAGE_ID_KERNEL_COMPLETE,
-    MESSAGE_ID_LOOPBACK,
-    MESSAGE_ID_U_MODE_EXCEPTION,
-    MESSAGE_ID_FW_EXCEPTION,
-    MESSAGE_ID_LOG_WRITE,
-    MESSAGE_ID_SET_LOG_LEVEL,
-    MESSAGE_ID_TRACE_UPDATE_CONTROL,
-    MESSAGE_ID_TRACE_BUFFER_RESET,
-    MESSAGE_ID_TRACE_BUFFER_EVICT,
-    MESSAGE_ID_PMC_CONFIGURE
-} cm_iface_message_id_e;
+    MM_TO_CM_MESSAGE_ID_NONE = 0,
+    MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH,
+    MM_TO_CM_MESSAGE_ID_KERNEL_ABORT,
+    MM_TO_CM_MESSAGE_ID_SET_LOG_LEVEL,
+    MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL,
+    MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_RESET,
+    MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT,
+    MM_TO_CM_MESSAGE_ID_PMC_CONFIGURE
+} mm_to_cm_message_id_e;
+
+typedef enum {
+    CM_TO_MM_MESSAGE_ID_NONE = 0x80u,
+    CM_TO_MM_MESSAGE_ID_SHIRE_READY,
+    CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ACK,
+    CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_NACK,
+    CM_TO_MM_MESSAGE_ID_KERNEL_ABORT_NACK,
+    CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE,
+    CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION,
+    CM_TO_MM_MESSAGE_ID_FW_EXCEPTION,
+    CM_TO_MM_MESSAGE_ID_LOG_WRITE,
+} cm_to_mm_message_id_e;
 
 typedef uint8_t cm_iface_message_id_t;
 typedef uint8_t cm_iface_message_number_t;
@@ -60,11 +63,15 @@ void message_init_worker(uint64_t shire, uint64_t hart);
 uint64_t get_message_flags(uint64_t shire);
 cm_iface_message_id_t get_message_id(uint64_t shire, uint64_t hart);
 
-inline bool message_available(uint64_t shire_id, uint64_t hart_id)
+inline bool message_available_master(uint64_t shire_id, uint64_t hart_id)
 {
-    return (get_message_id(shire_id, hart_id) != MESSAGE_ID_NONE);
+    return (get_message_id(shire_id, hart_id) != CM_TO_MM_MESSAGE_ID_NONE);
 }
-bool broadcast_message_available(cm_iface_message_number_t previous_broadcast_message_number);
+inline bool message_available_worker(uint64_t shire_id, uint64_t hart_id)
+{
+    return (get_message_id(shire_id, hart_id) != MM_TO_CM_MESSAGE_ID_NONE);
+}
+bool broadcast_message_available_worker(cm_iface_message_number_t previous_broadcast_message_number);
 
 int64_t message_send_master(uint64_t dest_shire, uint64_t dest_hart,
                             const cm_iface_message_t *const message);

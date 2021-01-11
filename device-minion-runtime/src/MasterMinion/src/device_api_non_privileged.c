@@ -143,7 +143,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         // send message to workers
         message_set_log_level_t message;
-        message.header.id = MESSAGE_ID_SET_LOG_LEVEL;
+        message.header.id = MM_TO_CM_MESSAGE_ID_SET_LOG_LEVEL;
         message.log_level = devapi_loglevel_to_fw(cmd->log_level);
         broadcast_message_send_master(functional_shires, (cm_iface_message_t *)&message);
 
@@ -197,7 +197,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         // send message to workers
         cm_iface_message_t message;
-        message.header.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
+        message.header.id = MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL;
         broadcast_message_send_master(functional_shires, &message);
 
         rsp.status = true;
@@ -228,7 +228,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         // send message to workers
         cm_iface_message_t message;
-        message.header.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
+        message.header.id = MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL;
         broadcast_message_send_master(functional_shires, &message);
 
         rsp.status = true;
@@ -254,7 +254,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         // send message to workers
         cm_iface_message_t message;
-        message.header.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
+        message.header.id = MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL;
         broadcast_message_send_master(functional_shires, &message);
 
         rsp.status = true;
@@ -281,7 +281,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         // send message to workers
         cm_iface_message_t message;
-        message.header.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
+        message.header.id = MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL;
         broadcast_message_send_master(functional_shires, &message);
 
         rsp.status = true;
@@ -307,7 +307,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         // send message to workers
         cm_iface_message_t message;
-        message.header.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
+        message.header.id = MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL;
         broadcast_message_send_master(functional_shires, &message);
 
         rsp.status = true;
@@ -333,7 +333,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         // send message to workers
         cm_iface_message_t message;
-        message.header.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
+        message.header.id = MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL;
         broadcast_message_send_master(functional_shires, &message);
 
         rsp.status = true;
@@ -361,7 +361,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         // send message to workers
         cm_iface_message_t message;
-        message.header.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
+        message.header.id = MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL;
         broadcast_message_send_master(functional_shires, &message);
 
         rsp.status = true;
@@ -388,7 +388,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         // send message to workers
         cm_iface_message_t message;
-        message.header.id = MESSAGE_ID_TRACE_UPDATE_CONTROL;
+        message.header.id = MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL;
         broadcast_message_send_master(functional_shires, &message);
 
         rsp.status = true;
@@ -412,7 +412,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         // send message to workers
         cm_iface_message_t message;
-        message.header.id = MESSAGE_ID_TRACE_BUFFER_RESET;
+        message.header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_RESET;
         broadcast_message_send_master(functional_shires, &message);
 
         rsp.status = true;
@@ -435,7 +435,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         // send message to workers
         cm_iface_message_t message;
-        message.header.id = MESSAGE_ID_TRACE_BUFFER_EVICT;
+        message.header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT;
         broadcast_message_send_master(functional_shires, &message);
 
         rsp.status = true;
@@ -451,7 +451,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
 
         // Send message to workers to configure PMCs
         message_pmc_configure_t message;
-        message.header.id = MESSAGE_ID_PMC_CONFIGURE;
+        message.header.id = MM_TO_CM_MESSAGE_ID_PMC_CONFIGURE;
         message.conf_buffer_addr = cmd->conf_buffer_addr;
         broadcast_message_send_master(functional_shires, (cm_iface_message_t *)&message);
 
