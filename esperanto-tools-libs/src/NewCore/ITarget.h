@@ -25,8 +25,7 @@ public:
   virtual bool writeDevMemDMA(uintptr_t dev_addr, size_t size, const void* buf) = 0;
   virtual bool readDevMemDMA(uintptr_t dev_addr, size_t size, void* buf) = 0;
   virtual bool writeMailbox(const void* src, size_t size) = 0;
-  virtual bool readMailbox(std::byte* dst, size_t size,
-                           std::chrono::milliseconds blockingPeriod = std::chrono::milliseconds(500)) = 0;
+  virtual bool readMailbox(std::byte* dst, size_t size) = 0;
   virtual bool writeDevMemMMIO(uintptr_t dev_addr, size_t size, const void* buf) = 0;
 
   virtual ~ITarget() = default;

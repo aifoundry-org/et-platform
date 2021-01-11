@@ -249,7 +249,7 @@ bool RPCGenerator::rpcRaiseDeviceSpioPlicPcieMessageInterrupt() {
   return true;
 }
 
-uint32_t RPCGenerator::rpcWaitForHostInterruptAny(TimeDuration wait_time) {
+uint32_t RPCGenerator::rpcWaitForHostInterruptAny() {
   simulator_api::Request request;
   auto host_interrupt = new HostInterrupt();
   host_interrupt->set_interrupt_bitmap(0xffffffff);
@@ -272,7 +272,7 @@ uint32_t RPCGenerator::rpcWaitForHostInterruptAny(TimeDuration wait_time) {
   return interrupt_rsp.interrupt_bitmap();
 }
 
-bool RPCGenerator::rpcWaitForHostInterrupt(uint8_t queueId, TimeDuration wait_time) {
+bool RPCGenerator::rpcWaitForHostInterrupt(uint8_t queueId) {
   simulator_api::Request request;
   auto host_interrupt = new HostInterrupt();
   host_interrupt->set_interrupt_bitmap(0x1U << queueId);
@@ -575,7 +575,7 @@ bool RPCTargetMM::mb_write(const void *data, ssize_t size) {
   return false;
 }
 
-ssize_t RPCTargetMM::mb_read(void *data, ssize_t size, TimeDuration wait_time) {
+ssize_t RPCTargetMM::mb_read(void *data, ssize_t size) {
   assert(true);
   return 0;
 }
@@ -587,11 +587,11 @@ bool RPCTargetMM::virtQueueWrite(const void *data, ssize_t size, uint8_t queueId
   return virtQueueDev->write(data, size);
 }
 
-ssize_t RPCTargetMM::virtQueueRead(void *data, ssize_t size, uint8_t queueId, TimeDuration wait_time) {
+ssize_t RPCTargetMM::virtQueueRead(void *data, ssize_t size, uint8_t queueId) {
   assert(device_alive_);
   assert((size_t)size <= maxMsgSize_);
   auto virtQueueDev = getVirtQueue(queueId);
-  return virtQueueDev->read(data, size, wait_time);
+  return virtQueueDev->read(data, size);
 }
 
 bool RPCTargetMM::waitForEpollEvents(uint32_t &sq_bitmap, uint32_t &cq_bitmap) {

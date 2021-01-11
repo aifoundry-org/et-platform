@@ -38,8 +38,8 @@ bool TargetSysEmu::writeMailbox(const void* src, size_t size) {
   return device_->mb_write(src, size);
 }
 
-bool TargetSysEmu::readMailbox(std::byte* dst, size_t size, std::chrono::milliseconds blockingPeriod) {
-  return device_->mb_read(dst, size, blockingPeriod) > 0;
+bool TargetSysEmu::readMailbox(std::byte* dst, size_t size) {
+  return device_->mb_read(dst, size) > 0;
 }
 
 bool TargetSysEmu::writeDevMemDMA(uintptr_t dev_addr, size_t size, const void* buf) {

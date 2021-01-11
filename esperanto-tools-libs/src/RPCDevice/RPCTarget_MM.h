@@ -80,11 +80,11 @@ public:
   /// @brief Wait to receive an interrupt from the device or timeout.
   /// @param[in] queueId : Blocks until interrupt occurs on queueId
   /// @param[in] wait_time : Time to wait to receive the interrupt, but default block indefinitely.
-  bool rpcWaitForHostInterrupt(uint8_t queueId, TimeDuration wait_time = TimeDuration::max());
+  bool rpcWaitForHostInterrupt(uint8_t queueId);
 
   /// @brief Wait to receive an interrupt on any queue from the device.
   /// @param[in] wait_time : Time to wait to receive the interrupt, but default block indefinitely.
-  uint32_t rpcWaitForHostInterruptAny(TimeDuration wait_time = TimeDuration::max());
+  uint32_t rpcWaitForHostInterruptAny();
 
   /// @brief RPC request to shutdown
   bool rpcShutdown();
@@ -130,7 +130,7 @@ public:
   bool mb_write(const void *data, ssize_t size) final;
 
   /// TODO SW-4821: remove this with the mailbox implementation
-  ssize_t mb_read(void *data, ssize_t size, TimeDuration wait_time = TimeDuration::max()) final;
+  ssize_t mb_read(void *data, ssize_t size) final;
 
   /// @brief Discover virtual queues info
   bool virtQueuesDiscover(TimeDuration wait_time = TimeDuration::max()) final;
@@ -139,7 +139,7 @@ public:
   bool virtQueueWrite(const void *data, ssize_t size, uint8_t queueId) final;
 
   /// @brief READ a full virtual queue message, this corresponds to the API that the PCIE device exposes
-  ssize_t virtQueueRead(void *data, ssize_t size, uint8_t queueId, TimeDuration wait_time = TimeDuration::max()) final;
+  ssize_t virtQueueRead(void *data, ssize_t size, uint8_t queueId) final;
 
   /// @brief wait for EPOLLIN or EPOLLOUT event on any of the virtual queue
   bool waitForEpollEvents(uint32_t &sq_bitmap, uint32_t &cq_bitmap) final;

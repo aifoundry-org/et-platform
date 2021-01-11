@@ -98,7 +98,7 @@ public:
 
   /// @brief Read message of size "size" in buffer data. Wait until wait_time
   /// expires otherwise return false.
-  ssize_t read(void *data, ssize_t size, TimeDuration wait_time = TimeDuration::max());
+  ssize_t read(void *data, ssize_t size);
 
 protected:
   static constexpr size_t mb_master_status_off_ = offsetof(device_fw::mbox_t, master_status);

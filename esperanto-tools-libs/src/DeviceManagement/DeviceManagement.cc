@@ -269,8 +269,7 @@ int DeviceManagement::serviceRequest(
           std::allocate_shared<char>(std::allocator<char>(), output_size);
     memcpy(rCB->cmd_payload, rPayload.get(), output_size);
 
-    if (!lockable->dev.mb_read(rCB.get(), sizeof(*(rCB.get()))/* + output_size*/,
-                                std::chrono::milliseconds(timeout))) {
+    if (!lockable->dev.mb_read(rCB.get(), sizeof(*(rCB.get()))/* + output_size*/)) {
       return -EIO;
     }
 
