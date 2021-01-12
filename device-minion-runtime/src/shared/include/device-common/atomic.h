@@ -31,6 +31,11 @@ static inline uint64_t atomic_add_local_64(volatile uint64_t *address, uint64_t 
 static inline uint32_t atomic_add_global_32(volatile uint32_t *address, uint32_t value);
 static inline uint64_t atomic_add_global_64(volatile uint64_t *address, uint64_t value);
 
+static inline int32_t atomic_add_signed_local_32(volatile int32_t *address, int32_t value);
+static inline int64_t atomic_add_signed_local_64(volatile int64_t *address, int64_t value);
+static inline int32_t atomic_add_signed_global_32(volatile int32_t *address, int32_t value);
+static inline int64_t atomic_add_signed_global_64(volatile int64_t *address, int64_t value);
+
 static inline uint32_t atomic_and_local_32(volatile uint32_t *address, uint32_t value);
 static inline uint64_t atomic_and_local_64(volatile uint64_t *address, uint64_t value);
 static inline uint32_t atomic_and_global_32(volatile uint32_t *address, uint32_t value);
