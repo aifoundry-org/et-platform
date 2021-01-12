@@ -26,6 +26,7 @@
 #include "services/host_iface.h"
 #include "services/host_cmd_hdlr.h"
 #include <esperanto/device-apis/device_apis_message_types.h>
+#include "pmu.h"
 
 /*! \struct sq_cb_t
     \brief Submission Queue Worker Control Block structure 
@@ -137,6 +138,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
         cmd_buff[MM_CMD_MAX_SIZE] __attribute__((aligned(8))) = { 0 };
     uint16_t cmd_size;
     int8_t status = 0;
+    uint64_t start_cycle;
 
     /* Release the launch lock to let other workers acquire it */
     release_local_spinlock(&Launch_Lock);
@@ -147,14 +149,17 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
     /* Empty all FCCs */
     init_fcc(FCC_0);
     init_fcc(FCC_1);
-
+  
     while(1)
     {
         /* Wait for SQ Worker notification from Dispatcher*/
         global_fcc_flag_wait(&SQW_CB.sqw_fcc_flags[sqw_idx]);
 
-        Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
-            "SQW:HART=", hart_id, ":received FCC event!\r\n");
+        /* Get current minion cycle */
+        start_cycle = get_curr_cycle;
+          
+        Log_Write(LOG_LEVEL_DEBUG, "%s%d%s%d%s", 
+            "[",start_cycle ,"] SQW:HART=", hart_id, ":received FCC event!\r\n");
 
         /* Process SQ until there is no more data */
         while(VQ_Data_Avail(SQW_CB.sq[sqw_idx]))
@@ -167,7 +172,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
                 Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
                     "SQW:Processing:SQW_IDX=", sqw_idx, "\r\n");
                 
-                status = Host_Command_Handler(cmd_buff);
+                status = Host_Command_Handler(cmd_buff, start_cycle);
                 
                 if (status != STATUS_SUCCESS)
                 {

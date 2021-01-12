@@ -22,6 +22,7 @@
 #include "services/worker_iface.h"
 #include "workers/cqw.h"
 #include "services/log1.h"
+#include "pmu.h"
 
 /************************************************************************
 *
@@ -36,13 +37,14 @@
 *   INPUTS
 *
 *       command_buffer   Buffer containing command to process
+*       start_cycle      Cycle count to measure wait latency
 *
 *   OUTPUTS
 *
 *       int8_t           Successful status or error code.
 *
 ***********************************************************************/
-int8_t Host_Command_Handler(void* command_buffer)
+int8_t Host_Command_Handler(void* command_buffer, uint64_t start_cycle)
 {
     int8_t status = STATUS_SUCCESS;
     struct cmd_header_t *hdr = command_buffer;
@@ -174,6 +176,7 @@ int8_t Host_Command_Handler(void* command_buffer)
         case DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD:
         case DEV_OPS_API_MID_DEVICE_OPS_KERNEL_STATE_CMD:
         {
+            (void)calculate_latency(start_cycle);
             Log_Write(LOG_LEVEL_DEBUG, "%s", 
                 "HostCommandHandler: received unsupported cmd \r\n");
 
@@ -182,6 +185,7 @@ int8_t Host_Command_Handler(void* command_buffer)
         case DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD:
         case DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD:
         {
+            (void)calculate_latency(start_cycle);
             Log_Write(LOG_LEVEL_DEBUG, "%s", 
                 "HostCommandHandler: received unsupported cmd \r\n");
 
