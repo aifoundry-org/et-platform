@@ -350,4 +350,27 @@ int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_area_addr);
 int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr);
 int64_t reset_pmcs(void);
 
+/*TODO: This time(cycles) stamping infrastructure does not account for
+64 bit wrap at this time, should be improved, a proper time_stamping API
+with required wrap tracking and time scaling logic should be implemented.
+This will suffice for initial profiling needs for now, but this should
+be improved */
+
+/*! \def PMC_RESET_CYCLES_COUNTER
+    \brief A macro to reset PMC minion cycles counter
+*/
+#define PMC_RESET_CYCLES_COUNTER   (uint64_t)reset_neigh_pmc(PMU_MHPMEVENT3)
+
+/*! \def PMC_GET_CURRENT_CYCLES
+    \brief A macro to get current minion cycles based on PMC Counter 3 which 
+    setup by default to count the Minion cycles
+*/
+#define PMC_GET_CURRENT_CYCLES   (uint64_t)read_neigh_pmc(PMU_MHPMEVENT3)
+
+/*! \def PMC_GET_LATENCY 
+    \brief A macro to calculate latency. Uses PMC Counter 3 to get current cycle 
+    minus start_cycle(argument)
+*/
+#define PMC_GET_LATENCY(x) (uint32_t)(read_neigh_pmc(PMU_MHPMEVENT3) - x)
+
 #endif

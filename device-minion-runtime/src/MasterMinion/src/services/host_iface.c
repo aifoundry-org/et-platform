@@ -457,7 +457,7 @@ void Host_Iface_Processing(void)
         if(status == true)
         {
             Log_Write(LOG_LEVEL_DEBUG, 
-            "%s%d%s", "HostIfaceProcessing:Notifying:SQW_IDX=", sq_id, "\r\n");
+            "%s%d%s", "HostIfaceProcessing:Notifying:SQW_IDX:", sq_id, "\r\n");
 
             /* Dispatch work to SQ Worker associated with this SQ */
             SQW_Notify(sq_id);
@@ -465,7 +465,7 @@ void Host_Iface_Processing(void)
         else
         {
             Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
-                "HostIfaceProcessing:NoData on SQ=", sq_id, "\r\n");
+                "HostIfaceProcessing:NoData:SQ_IDX:", sq_id, "\r\n");
         }
     }
 

@@ -39,7 +39,6 @@ set(SOURCES
     src/workers/sqw.c
     src/workers/dmaw.c
     src/workers/kw.c
-    src/workers/cqw.c
     src/drivers/console.c
     src/drivers/interrupts.c
     src/drivers/shires.c

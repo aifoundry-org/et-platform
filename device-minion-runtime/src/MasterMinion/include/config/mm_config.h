@@ -69,7 +69,7 @@
     \brief A macro that provides the Master Minion submission queue
     count
 */
-#define MM_SQ_COUNT         4
+#define MM_SQ_COUNT         1
 
 /*! \def MM_SQ_MAX_SUPPORTED
     \brief Maximum supported submission queues by Master Minion

@@ -22,11 +22,7 @@
 #include <esperanto/device-apis/operations-api/device_ops_api_spec.h>
 #include <esperanto/device-apis/operations-api/device_ops_api_rpc_types.h>
 
-/*! \def calculate_latency 
-    \brief A macro to calculate latency. Uses PMC Counter 3 to get current cycle 
-    minus start_cycle(argument)
-*/
-#define calculate_latency(x) (uint32_t)(read_neigh_pmc(PMU_MHPMEVENT3) - x)
+
 
 /*! \fn int8_t Host_Command_Handler(void* command_buffer)
     \brief Interface to handle host side commands
@@ -34,6 +30,6 @@
     \param start_cycle cycle count to measure wait latency
     \return status success or negative error code
 */
-int8_t Host_Command_Handler(void* command_buffer, uint64_t start_cycle);
+int8_t Host_Command_Handler(void* command_buffer, uint64_t start_cycles);
 
 #endif /* HOST_CMD_HDLR_H */

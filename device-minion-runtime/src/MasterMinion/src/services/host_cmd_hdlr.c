@@ -19,9 +19,9 @@
 /***********************************************************************/
 #include "services/host_cmd_hdlr.h"
 #include "services/host_iface.h"
-#include "services/worker_iface.h"
-#include "workers/cqw.h"
 #include "services/log1.h"
+#include "workers/dmaw.h"
+#include "pcie_dma.h"
 #include "pmu.h"
 
 /************************************************************************
@@ -44,10 +44,16 @@
 *       int8_t           Successful status or error code.
 *
 ***********************************************************************/
-int8_t Host_Command_Handler(void* command_buffer, uint64_t start_cycle)
+int8_t Host_Command_Handler(void* command_buffer, uint64_t start_cycles)
 {
     int8_t status = STATUS_SUCCESS;
     struct cmd_header_t *hdr = command_buffer;
+    dma_channel_status_t *p_DMA_Channel_Status;
+    /* TODO: remove this once sq_idx is passed into cmd handler */
+    uint8_t sq_idx = 0; 
+
+    p_DMA_Channel_Status = 
+        (dma_channel_status_t*)DMAW_Get_DMA_Channel_Status_Addr();
 
     switch (hdr->cmd_hdr.msg_id) 
     {
@@ -56,7 +62,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint64_t start_cycle)
             struct device_ops_api_compatibility_rsp_t rsp;
             
             Log_Write(LOG_LEVEL_DEBUG, "%s", 
-                "HostCommandHandler: Processing COMPATIBILITY_CMD \r\n");
+                "HostCommandHandler:Processing:COMPATIBILITY_CMD\r\n");
 
             /* Construct and transmit response */
             rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
@@ -68,18 +74,17 @@ int8_t Host_Command_Handler(void* command_buffer, uint64_t start_cycle)
             rsp.minor = DEVICE_OPS_API_MINOR;
             rsp.patch = DEVICE_OPS_API_PATCH;
 
-            status = Worker_Iface_Push_Cmd(TO_CQW_FIFO, &rsp, sizeof(rsp));
+            status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+
             if(status == STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_DEBUG, "%s", 
-                    "HostCommandHandler: Pushed COMPATIBILITY_CMD \
-                    response to CQW \r\n");
-                CQW_Notify();
+                "HostCommandHandler:Pushed:COMPATIBILITY_CMD->Host_CQ\r\n");
             }
             else
             {
                 Log_Write(LOG_LEVEL_DEBUG, "%s", 
-                    "HostCommandHandler: WorkerIface Push Failed \r\n");
+                "HostCommandHandler:HostIface:Push:Failed\r\n");
             }
             break;
         }
@@ -89,7 +94,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint64_t start_cycle)
             struct device_ops_fw_version_rsp_t rsp;
 
             Log_Write(LOG_LEVEL_DEBUG, "%s", 
-                "HostCommandHandler: Processing FW_VERSION_CMD \r\n");
+                "HostCommandHandler:Processing:FW_VERSION_CMD\r\n");
 
             /* Construct and transmit response */
             rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
@@ -125,18 +130,17 @@ int8_t Host_Command_Handler(void* command_buffer, uint64_t start_cycle)
                 rsp.type = DEV_OPS_FW_TYPE_WORKER_MINION_FW;
             }
             
-            status = Worker_Iface_Push_Cmd(TO_CQW_FIFO, &rsp, sizeof(rsp));
+            status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+
             if(status == STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_DEBUG, "%s", 
-                    "HostCommandHandler: Pushed FW_VERSION_CMD \
-                    response to CQW \r\n");
-                CQW_Notify();
+                    "HostCommandHandler:Pushed:FW_VERSION_CMD->Host_CQ\r\n");
             }
             else
             {
                 Log_Write(LOG_LEVEL_DEBUG, "%s", 
-                    "HostCommandHandler: WorkerIface Push Failed \r\n");
+                    "HostCommandHandler:HostIface:Push:Failed\r\n");
             }
 
             break;
@@ -147,7 +151,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint64_t start_cycle)
             struct device_ops_echo_rsp_t rsp;
 
             Log_Write(LOG_LEVEL_DEBUG, "%s", 
-                "HostCommandHandler: Processing ECHO_CMD \r\n");
+                "HostCommandHandler:Processing:ECHO_CMD\r\n");
 
             /* Construct and transmit response */
             rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
@@ -157,17 +161,17 @@ int8_t Host_Command_Handler(void* command_buffer, uint64_t start_cycle)
                 sizeof(struct device_ops_echo_rsp_t);
             rsp.echo_payload = cmd->echo_payload;            
 
-            status = Worker_Iface_Push_Cmd(TO_CQW_FIFO, &rsp, sizeof(rsp));
+            status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+
             if(status == STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_DEBUG, "%s", 
-                    "HostCommandHandler: Pushed ECHO_CMD response to CQW \r\n");
-                CQW_Notify();
+                    "HostCommandHandler:Pushed:ECHO_CMD->Host_CQ \r\n");
             }
             else
             {
                 Log_Write(LOG_LEVEL_DEBUG, "%s", 
-                    "HostCommandHandler: WorkerIface Push Failed \r\n");
+                    "HostCommandHandler:HostIface:Push:Failed\r\n");
             }
 
             break;
@@ -176,26 +180,152 @@ int8_t Host_Command_Handler(void* command_buffer, uint64_t start_cycle)
         case DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD:
         case DEV_OPS_API_MID_DEVICE_OPS_KERNEL_STATE_CMD:
         {
-            (void)calculate_latency(start_cycle);
             Log_Write(LOG_LEVEL_DEBUG, "%s", 
-                "HostCommandHandler: received unsupported cmd \r\n");
+                "HostCommandHandler:UnsupportedCmd \r\n");
 
             break;
         }
         case DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD:
+        {
+            struct device_ops_data_read_cmd_t *cmd = (void *)hdr;
+            et_dma_chan_id_e chan;
+            DMA_STATUS_e dma_status = DMA_OPERATION_NOT_SUCCESS;
+            uint32_t temp;
+
+            /* Design Notes: Note a DMA write command from host will trigger 
+            the implementation to configure a DMA read channel on device to move 
+            data from host to device, similarly a read command from host will 
+            trigger the implementation to configure a DMA write channel on device
+            to move data from device to host */            
+            Log_Write(LOG_LEVEL_DEBUG, "%s", 
+                "HostCommandHandler:Processing:DATA_READ_CMD\r\n");
+
+            /* Obtain the next available DMA read channel */
+            dma_status = dma_chan_find_idle(DMA_DEVICE_TO_HOST, &chan);
+
+            if(dma_status == DMA_OPERATION_SUCCESS)
+            {
+                Log_Write(LOG_LEVEL_DEBUG, 
+                    "%s%d%s", "DMA_READ:channel_used:",chan, "\r\n");
+                Log_Write(LOG_LEVEL_DEBUG, 
+                    "%s%llx%s", "DMA_READ:src_device_phy_addr:",
+                    cmd->src_device_phy_addr, "\r\n");
+                Log_Write(LOG_LEVEL_DEBUG, 
+                    "%s%llx%s", "DMA_READ:dst_host_phy_addr:",
+                    cmd->dst_host_phy_addr, "\r\n");
+                Log_Write(LOG_LEVEL_DEBUG, 
+                    "%s%d%s", "DMA_READ:size:",cmd->size, "\r\n");
+                
+                /* Update the Global DMA Channel Status data structure
+                - Set tag ID, set channel state to active, set SQW Index */
+                temp = (uint32_t)(( sq_idx << 24)| 
+                    (DMA_CHANNEL_IN_USE << 16) | hdr->cmd_hdr.tag_id); 
+                atomic_store_local_32
+                    ((volatile uint32_t*)&p_DMA_Channel_Status->dma_wrt_chan[chan], 
+                    temp);
+                /* Update the Global Channel Status data structure 
+                - set wait latency, set cmd_dispatch_start_cycles */
+                temp = PMC_GET_LATENCY(start_cycles);
+                atomic_store_local_32
+                ((volatile uint32_t*)&p_DMA_Channel_Status->dma_wrt_chan[chan].wait_latency, 
+                temp);
+                temp =  (uint32_t)(PMC_GET_CURRENT_CYCLES & 0xFFFFFFFF);
+                atomic_store_local_32
+                ((volatile uint32_t*)&p_DMA_Channel_Status->dma_wrt_chan[chan].cmd_dispatch_start_cycles, 
+                temp);
+
+                /* Initiate DMA transfer */
+                /* TODO: BAR relative address will be received form host
+                (host_phy_addr) this needs to fixed up here to device address 
+                before DMA is triggered */
+                dma_status = dma_trigger_transfer2(DMA_DEVICE_TO_HOST, 
+                    cmd->src_device_phy_addr, cmd->dst_host_phy_addr, 
+                    cmd->size, chan);
+
+                if(dma_status == DMA_OPERATION_SUCCESS)
+                {
+                    Log_Write(LOG_LEVEL_DEBUG, "%s", 
+                        "HostCommandHandler:DMATriggerTransfer:Success! \r\n");
+                }
+            }
+
+            break;            
+        }
+
         case DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD:
         {
-            (void)calculate_latency(start_cycle);
+            struct device_ops_data_write_cmd_t  *cmd = (void *)hdr;
+            et_dma_chan_id_e chan;
+            DMA_STATUS_e dma_status = DMA_OPERATION_NOT_SUCCESS;
+            uint32_t temp;
+
+            /* Design Notes: Note a DMA write command from host will trigger 
+            the implementation to configure a DMA read channel on device to move 
+            data from host to device, similarly a read command from host will 
+            trigger the implementation to configure a DMA write channel on device
+            to move data from device to host */
             Log_Write(LOG_LEVEL_DEBUG, "%s", 
-                "HostCommandHandler: received unsupported cmd \r\n");
+                "HostCommandHandler:Processing:DATA_WRITE_CMD\r\n");
+
+            /* Obtain the next available DMA write channel */
+            dma_status = dma_chan_find_idle(DMA_HOST_TO_DEVICE, &chan);
+
+            if(dma_status == DMA_OPERATION_SUCCESS)
+            {
+                Log_Write(LOG_LEVEL_DEBUG, 
+                    "%s%d%s", "DMA_WRITE:channel_used:",chan, "\r\n");
+                Log_Write(LOG_LEVEL_DEBUG, 
+                    "%s%llx%s", "DMA_WRITE:src_host_virt_addr:",
+                    cmd->src_host_virt_addr, "\r\n");
+                Log_Write(LOG_LEVEL_DEBUG, 
+                    "%s%llx%s", "DMA_WRITE:src_host_phy_addr:",
+                    cmd->src_host_phy_addr, "\r\n");
+                Log_Write(LOG_LEVEL_DEBUG, 
+                    "%s%llx%s", "DMA_WRITE:dst_device_phy_addr:",
+                    cmd->dst_device_phy_addr, "\r\n");
+                Log_Write(LOG_LEVEL_DEBUG, 
+                    "%s%d%s", "DMA_WRITE:size:",cmd->size, "\r\n");
+
+                /* Update the Global DMA Channel Status data structure
+                - Set tag ID, set channel state to active, set SQW Index */
+                temp = (uint32_t)(( sq_idx << 24)| 
+                    (DMA_CHANNEL_IN_USE << 16) | hdr->cmd_hdr.tag_id); 
+                atomic_store_local_32
+                    ((volatile uint32_t*)&p_DMA_Channel_Status->dma_rd_chan[chan], 
+                    temp);
+
+                /* Update the Global Channel Status data structure 
+                - set wait latency, set cmd_dispatch_start_cycles */
+                temp = PMC_GET_LATENCY(start_cycles);
+                atomic_store_local_32
+                ((volatile uint32_t*)&p_DMA_Channel_Status->dma_rd_chan[chan].wait_latency, 
+                temp);
+                temp = (uint32_t)(PMC_GET_CURRENT_CYCLES & 0xFFFFFFFF);
+                atomic_store_local_32
+                ((volatile uint32_t*)&p_DMA_Channel_Status->dma_rd_chan[chan].cmd_dispatch_start_cycles, 
+                temp);
+
+                /* Initiate DMA transfer */
+                /* TODO: BAR relative address will be received form host
+                (host_phy_addr) this needs to fixed up here to device address 
+                before DMA is triggered */
+                dma_status = dma_trigger_transfer2(DMA_HOST_TO_DEVICE, 
+                    cmd->src_host_phy_addr, cmd->dst_device_phy_addr, 
+                    cmd->size, chan);
+
+                if(dma_status == DMA_OPERATION_SUCCESS)
+                {
+                    Log_Write(LOG_LEVEL_DEBUG, "%s", 
+                        "HostCommandHandler:DMATriggerTransfer:Success! \r\n");
+                }
+            }
 
             break;
         }
         default: 
         {
             Log_Write(LOG_LEVEL_DEBUG, "%s", 
-                "HostCommandHandler: received unsupported cmd \r\n");
-
+                "HostCommandHandler:UnsupportedCmd \r\n");
             status = -1;
             break;
         }

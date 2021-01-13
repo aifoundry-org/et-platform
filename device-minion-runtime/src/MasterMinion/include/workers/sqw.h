@@ -36,14 +36,6 @@
 */
 #define     SQW_WORKER_0         ((SQW_BASE_HART_ID - MM_BASE_ID)/2)
 
-
-/*! \def get_curr_cycle
-    \brief A macro to get the current cycle based on PMC Counter 3 which 
-    setup by default to count the Minion cycles
-*/
-#define  get_curr_cycle   ((uint64_t)reset_neigh_pmc(PMU_MHPMEVENT3) | \
-                                      read_neigh_pmc(PMU_MHPMEVENT3))
-
 /*! \fn void SQW_Init(void)
     \brief Initialize resources used by the Submission Queue Worker
     \return None 
