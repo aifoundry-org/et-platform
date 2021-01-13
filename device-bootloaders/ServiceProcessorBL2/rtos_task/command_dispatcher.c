@@ -32,6 +32,7 @@
 #include "task.h"
 
 #include "dm.h"
+#include "mm_sp_cmd_spec.h"
 
 #include <inttypes.h>
 #include <stdbool.h>
@@ -201,7 +202,7 @@ static void pc_vq_task(void *pvParameters)
                  break;
             case DM_CMD_GET_MM_THREADS_STATE:
                  mm_state_process_request(tag_id);
-                 break;     
+                 break;
             default:
                 printf("[PC VQ] Invalid message id: %" PRIu16 "\r\n", msg_id);
                 printf("message length: %" PRIi64 ", buffer:\r\n", length);
@@ -231,7 +232,7 @@ static void mm_vq_task(void *pvParameters)
         // Process as many new messages as possible
         while (1) {
             // Pop a command from SP<->MM VQueue
-            int64_t length = SP_MM_Iface_SQ_Pop_Cmd(&buffer); 
+            int64_t length = SP_MM_Iface_SQ_Pop_Cmd(&buffer);
 
             // No new messages
             if (length <= 0) {
@@ -245,12 +246,23 @@ static void mm_vq_task(void *pvParameters)
                 break;
             }
 
-            const struct cmd_header_t *const hdr = (void *)buffer;
+            const struct mm_sp_cmd_hdr_t *const hdr = (void *)buffer;
 
             // Process new message
-            switch (hdr->cmd_hdr.msg_id) {
+            switch (hdr->msg_id) {
+            case MM2SP_CMD_ECHO: {
+                struct mm2sp_echo_cmd_t *req = (void *)buffer;
+                struct mm2sp_echo_rsp_t rsp;
+                rsp.msg_hdr.msg_id = MM2SP_RSP_ECHO;
+                rsp.payload = req->payload;
+
+                if (0 != SP_MM_Iface_CQ_Push_Cmd((char *)&rsp, sizeof(rsp))) {
+                    printf("SP_MM_Iface_CQ_Push_Cmd: Cqueue push error !\n");
+                }
+                break;
+            }
             default:
-                printf("[MM VQ] Invalid message id: %" PRIu16 "\r\n", hdr->cmd_hdr.msg_id);
+                printf("[MM VQ] Invalid message id: %" PRIu16 "\r\n", hdr->msg_id);
                 printf("message length: %" PRIi64 ", buffer:\r\n", length);
                 // TODO:
                 // Implement error handler
@@ -265,7 +277,7 @@ void sp_intf_init(void)
     /* Setup and Initialize the SP -> Host Transport layer*/
     SP_Host_Iface_SQ_Init();
     SP_Host_Iface_CQ_Init();
-    
+
     /* Setup and Initialize the SP -> MM Transport layer*/
     SP_MM_Iface_SQ_Init();
     SP_MM_Iface_CQ_Init();
