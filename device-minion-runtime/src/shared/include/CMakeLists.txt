@@ -76,7 +76,6 @@ install(
     device-common/log_levels.h
     device-common/kernel_params.h
     device-common/syscall.h
-    device-common/mrt_cmd_spec.h
   DESTINATION
     ${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/device_common
   COMPONENT device_common
