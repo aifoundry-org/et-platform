@@ -26,6 +26,7 @@
 #include "bl2_vaultip_driver.h"
 #include "bl2_reset.h"
 #include "bl2_sp_pll.h"
+#include "minion_state.h"
 #include "sp_otp.h"
 #include "bl2_sp_memshire_pll.h"
 #include "bl2_minion_pll_and_dll.h"
@@ -166,9 +167,9 @@ static void taskMain(void *pvParameters)
 
     minion_shires_mask = calculate_minion_shire_enable_mask();
 
-    // Create and Initialize all VQ for SP interface
-    // SP -> Host
-    // SP -> MM 
+    Minion_State_Init(minion_shires_mask);
+
+    // Create and Initialize all VQ for SP interfaces (Host and MM)
     sp_intf_init();
 
     /* Initialize the DIRs */
@@ -187,7 +188,7 @@ static void taskMain(void *pvParameters)
         printf("configure_sp_pll_2() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
-    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_NOC_INITIALIZED); 
+    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_NOC_INITIALIZED);
 
    // Setup MemShire/DDR
 
@@ -207,7 +208,7 @@ static void taskMain(void *pvParameters)
     }
     printf("DRAM ready.\n");
 #endif
-    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DDR_INITIALIZED); 
+    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DDR_INITIALIZED);
 
    // Setup Minions
 
@@ -231,7 +232,7 @@ static void taskMain(void *pvParameters)
         goto FIRMWARE_LOAD_ERROR;
     }
 
-    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_INITIALIZED); 
+    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_INITIALIZED);
 
     // Minion FW Authenticate and load to DDR
 
@@ -263,14 +264,14 @@ static void taskMain(void *pvParameters)
     printf("WM FW loaded.\n");
 #endif
 
-    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_FW_AUTHENTICATED_INITIALIZED); 
+    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_FW_AUTHENTICATED_INITIALIZED);
 
     // Launch Dispatcher
-    
+
     launch_command_dispatcher();
 
-    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_COMMAND_DISPATCHER_INITIALIZED); 
- 
+    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_COMMAND_DISPATCHER_INITIALIZED);
+
 
     if (0 != enable_minion_neighborhoods(minion_shires_mask)) {
         printf("Failed to enable minion neighborhoods!\n");
@@ -310,7 +311,7 @@ static void taskMain(void *pvParameters)
     MBOX_set_status(MBOX_MASTER_MINION, MBOX_MASTER, MBOX_STATUS_READY);
 #endif /* IMPLEMENTATION_BYPASS */
 
-    // Init DM sampling task 
+    // Init DM sampling task
     init_dm_sampling_task();
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_SP_WATCHDOG_TASK_READY);

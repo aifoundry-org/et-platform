@@ -19,7 +19,7 @@
 #include "bl2_link_mgmt.h"
 #include "bl2_error_control.h"
 #include "bl2_historical_extreme.h"
-#include "bl2_minion_state.h"
+#include "minion_state.h"
 #include "bl2_timer.h"
 #include "command_dispatcher.h"
 
@@ -177,8 +177,8 @@ static void pc_vq_task(void *pvParameters)
             case DM_CMD_GET_MODULE_VOLTAGE:
             case DM_CMD_GET_MODULE_UPTIME:
             case DM_CMD_GET_MODULE_MAX_TEMPERATURE:
-                 thermal_power_monitoring_process(tag_id, msg_id);
-                 break;
+                thermal_power_monitoring_process(tag_id, msg_id);
+                break;
             case DM_CMD_SET_PCIE_RESET:
             case DM_CMD_SET_PCIE_MAX_LINK_SPEED:
             case DM_CMD_SET_PCIE_LANE_WIDTH:
@@ -187,22 +187,22 @@ static void pc_vq_task(void *pvParameters)
             case DM_CMD_GET_MODULE_DDR_ECC_UECC:
             case DM_CMD_GET_MODULE_SRAM_ECC_UECC:
             case DM_CMD_GET_MODULE_DDR_BW_COUNTER:
-                 link_mgmt_process_request(tag_id, msg_id);
-                 break;
+                link_mgmt_process_request(tag_id, msg_id);
+                break;
             case DM_CMD_SET_DDR_ECC_COUNT:
             case DM_CMD_SET_PCIE_ECC_COUNT:
             case DM_CMD_SET_SRAM_ECC_COUNT:
-                 // Process set error control cmd
-                 error_control_process_request(tag_id, msg_id);
-                 break;
+                // Process set error control cmd
+                error_control_process_request(tag_id, msg_id);
+                break;
             case DM_CMD_GET_MAX_MEMORY_ERROR:
             case DM_CMD_GET_MODULE_MAX_DDR_BW:
             case DM_CMD_GET_MODULE_MAX_THROTTLE_TIME:
-                 historical_extreme_value_request(tag_id, msg_id);
-                 break;
+                historical_extreme_value_request(tag_id, msg_id);
+                break;
             case DM_CMD_GET_MM_THREADS_STATE:
-                 mm_state_process_request(tag_id);
-                 break;
+                Minion_State_Host_Iface_Process_Request(tag_id, msg_id);
+                break;
             default:
                 printf("[PC VQ] Invalid message id: %" PRIu16 "\r\n", msg_id);
                 printf("message length: %" PRIi64 ", buffer:\r\n", length);
@@ -261,6 +261,9 @@ static void mm_vq_task(void *pvParameters)
                 }
                 break;
             }
+            case MM2SP_CMD_GET_ACTIVE_SHIRE_MASK:
+                Minion_State_MM_Iface_Process_Request(hdr->msg_id);
+                break;
             default:
                 printf("[MM VQ] Invalid message id: %" PRIu16 "\r\n", hdr->msg_id);
                 printf("message length: %" PRIi64 ", buffer:\r\n", length);
