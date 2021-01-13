@@ -48,6 +48,7 @@ install(
     include/mailbox_id.h
     include/minion_esr_defines.h
     include/minion_fw_boot_config.h
+    include/mm_sp_cmd_spec.h
     include/pcie_device.h
     include/pcie_int.h
     include/ringbuffer_common.h
