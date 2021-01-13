@@ -120,7 +120,7 @@ static inline DMA_STATUS_e dma_config_buff(uint64_t src_addr, uint64_t dest_addr
     return DMA_OPERATION_SUCCESS;
 }
 
-static inline DMA_STATUS_e dma_chan_find_idle(DMA_TYPE_e type, et_dma_chan_id_e *chan)
+DMA_STATUS_e dma_chan_find_idle(DMA_TYPE_e type, et_dma_chan_id_e *chan)
 {
     et_dma_chan_id_e start, end;
 
@@ -203,6 +203,50 @@ DMA_STATUS_e dma_trigger_transfer(DMA_TYPE_e type, uint64_t src_addr, uint64_t d
         }
 
         // TODO: IDLE the DMA channel in DMA ISR
+        dma_channel[chan].state = ET_DMA_STATE_IDLE;
+    }
+
+    return status;
+}
+
+/* TODO: Driver should be cleaned up, and old implementation should be removed */
+DMA_STATUS_e dma_trigger_transfer2(DMA_TYPE_e type, uint64_t src_addr, uint64_t dest_addr,
+                                  uint64_t size, et_dma_chan_id_e chan)
+{
+    DMA_STATUS_e status = DMA_OPERATION_NOT_SUCCESS;
+
+    // Validate the params
+    if ((src_addr == 0U) || (dest_addr == 0U) || (size == 0U)) {
+        status = DMA_ERROR_INVALID_PARAM;
+    } else {
+        // Validate the bounds
+        if (type == DMA_HOST_TO_DEVICE) {
+            /* read: source is on host, dest is on SoC */
+            status = dma_bounds_check(dest_addr, size);
+        } else if (type == DMA_DEVICE_TO_HOST) {
+            /* write: source is one SoC, dest is on host */
+            status = dma_bounds_check(src_addr, size);
+        }
+    }
+
+    if (status == DMA_OPERATION_SUCCESS) {
+        // Set the channel state to active
+        dma_channel[chan].state = ET_DMA_STATE_ACTIVE;
+
+        status = dma_config_buff(src_addr, dest_addr, (uint32_t)size, chan);
+
+        if (status == DMA_OPERATION_SUCCESS) {
+            if (type == DMA_HOST_TO_DEVICE) {
+                status = dma_configure_read(chan);
+            } else if (type == DMA_DEVICE_TO_HOST) {
+                status = dma_configure_write(chan);
+            }
+        }
+
+        if (status == DMA_OPERATION_SUCCESS) {
+            dma_start(chan);
+        }
+
         dma_channel[chan].state = ET_DMA_STATE_IDLE;
     }
 

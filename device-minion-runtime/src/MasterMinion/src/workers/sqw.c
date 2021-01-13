@@ -138,63 +138,55 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
         cmd_buff[MM_CMD_MAX_SIZE] __attribute__((aligned(8))) = { 0 };
     uint16_t cmd_size;
     int8_t status = 0;
-    uint64_t start_cycle;
+    uint64_t start_cycles;
 
     /* Release the launch lock to let other workers acquire it */
     release_local_spinlock(&Launch_Lock);
 
     Log_Write(LOG_LEVEL_DEBUG, "%s%d%s%d%s", 
-        "SQW:HART=", hart_id, "IDX=", sqw_idx, "\r\n");
+        "SQW:HART=", hart_id, ":IDX=", sqw_idx, "\r\n");
 
     /* Empty all FCCs */
     init_fcc(FCC_0);
     init_fcc(FCC_1);
-  
+
     while(1)
     {
         /* Wait for SQ Worker notification from Dispatcher*/
         global_fcc_flag_wait(&SQW_CB.sqw_fcc_flags[sqw_idx]);
 
-        /* Get current minion cycle */
-        start_cycle = get_curr_cycle;
-          
-        Log_Write(LOG_LEVEL_DEBUG, "%s%d%s%d%s", 
-            "[",start_cycle ,"] SQW:HART=", hart_id, ":received FCC event!\r\n");
+	    /* Get current minion cycle */
+        start_cycles = PMC_GET_CURRENT_CYCLES;
 
-        /* Process SQ until there is no more data */
-        while(VQ_Data_Avail(SQW_CB.sq[sqw_idx]))
+        Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
+            "SQW:HART:", hart_id, ":received FCC event!\r\n");
+
+        /* Pop from Submission Queue */
+        cmd_size = (uint16_t) VQ_Pop(SQW_CB.sq[sqw_idx], cmd_buff);
+        
+        if(cmd_size > 0)
         {
-            /* Pop from Submission Queue */
-            cmd_size = (uint16_t) VQ_Pop(SQW_CB.sq[sqw_idx], cmd_buff);
+            Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
+                "SQW:Processing:SQW_IDX=", 
+                sqw_idx, "\r\n");
             
-            if(cmd_size > 0)
+            status = Host_Command_Handler(cmd_buff, start_cycles);
+            
+            if (status != STATUS_SUCCESS)
             {
-                Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
-                    "SQW:Processing:SQW_IDX=", sqw_idx, "\r\n");
-                
-                status = Host_Command_Handler(cmd_buff, start_cycle);
-                
-                if (status != STATUS_SUCCESS)
-                {
-                    Log_Write(LOG_LEVEL_ERROR, "%s %d %s",
-                        "SQW:ERROR:Procesisng failed.(Error code:)", 
-                        status, "\r\n");
-                }
-            }
-            else
-            {
-                Log_Write(LOG_LEVEL_ERROR, "%s",
-                    "SQW:ERROR:Invalid command size received. \
-                    pop failed.\r\n");
-                
-                /* Invalid data in SQ, stop processing */
-                break;
-
-                /* TODO: In case of invalid data in SQ, need to 
-                   reset SQ? */
+                Log_Write(LOG_LEVEL_ERROR, "%s %d %s",
+                    "SQW:ERROR:Procesisng failed.(Error code:)", 
+                    status, "\r\n");
             }
         }
-    }
+        else
+        {
+            Log_Write(LOG_LEVEL_ERROR, "%s%d%s",
+                "SQW:ERROR:Recived host_iface event, but VQ \
+                    pop failed.(Error code:)", 
+                    status, "\r\n");
+        }
+    };
     
     return;
 }

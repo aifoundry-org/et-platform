@@ -22,7 +22,6 @@
 #include "config/dir_regs.h"
 #include "dispatcher/dispatcher.h"
 #include "workers/sqw.h"
-#include "workers/cqw.h"
 #include "workers/kw.h"
 #include "workers/dmaw.h"
 #include "services/host_iface.h"
@@ -38,6 +37,7 @@
 #include "message.h"
 #include "sync.h"
 #include "fcc.h"
+#include "pmu.h"
 #include "swi.h" /* TODO: Need to update swi.c to new coding conventions and abstraction */
 
 extern spinlock_t Launch_Lock;
@@ -83,9 +83,11 @@ void Dispatcher_Launch(uint32_t hart_id)
     Log_Write(LOG_LEVEL_DEBUG, "%s", 
         "Dispatcher: Interrupts initialized \r\n");
 
+    /* reset PMC cycles counter */
+    PMC_RESET_CYCLES_COUNTER;
+
     /* Initialize Workers */
     SQW_Init();
-    CQW_Init();
     KW_Init();
     DMAW_Init();
     
@@ -102,7 +104,6 @@ void Dispatcher_Launch(uint32_t hart_id)
 
     /* Initialize FIFO buffers to workers */
     Worker_Iface_Init(TO_KW_FIFO);
-    Worker_Iface_Init(TO_DMAW_FIFO);
     
     /* Init FCCs for current minion */
     init_fcc(FCC_0);

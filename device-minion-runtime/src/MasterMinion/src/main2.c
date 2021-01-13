@@ -27,7 +27,6 @@
 #include "workers/sqw.h"
 #include "workers/kw.h"
 #include "workers/dmaw.h"
-#include "workers/cqw.h"
 #include "services/lock.h"
 #include "sync.h"
 #include "hart.h"
@@ -74,21 +73,14 @@ void main2(void)
         /* Spin wait till dispatcher initialization is complete */
         acquire_local_spinlock(&Launch_Lock);
         KW_Launch(hart_id - KW_BASE_HART_ID);
-    } 
+    }
+    #endif
     else if ((hart_id >= DMAW_BASE_HART_ID) && 
             (hart_id < DMAW_MAX_HART_ID))
     {
         /* Spin wait till dispatcher initialization is complete */
         acquire_local_spinlock(&Launch_Lock);
         DMAW_Launch(hart_id);
-    }
-    #endif
-    else if ((hart_id >= CQW_BASE_HART_ID) && 
-            (hart_id < CQW_MAX_HART_ID))
-    {
-        /* Spin wait till dispatcher initialization is complete */
-        acquire_local_spinlock(&Launch_Lock);
-        CQW_Launch(hart_id);
     }
     else
     {

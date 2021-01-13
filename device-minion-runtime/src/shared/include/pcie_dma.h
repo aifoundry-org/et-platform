@@ -5,6 +5,11 @@
 #include <stdbool.h>
 #include <esperanto/device-api/device_api_rpc_types_privileged.h>
 
+#define PCIE_DMA_RD_CHANNEL_COUNT   4
+#define PCIE_DMA_WRT_CHANNEL_COUNT  4
+#define PCIE_DMA_CHANNEL_COUNT      (PCIE_DMA_RD_CHANNEL_COUNT+PCIE_DMA_WRT_CHANNEL_COUNT)
+
+
 typedef enum { DMA_HOST_TO_DEVICE = 0, DMA_DEVICE_TO_HOST } DMA_TYPE_e;
 
 typedef enum {
@@ -20,6 +25,10 @@ typedef enum {
 DMA_STATUS_e dma_trigger_transfer(DMA_TYPE_e type, uint64_t src_addr, uint64_t dest_addr,
                                   uint64_t size);
 
+DMA_STATUS_e dma_trigger_transfer2(DMA_TYPE_e type, uint64_t src_addr, uint64_t dest_addr,
+                                  uint64_t size, et_dma_chan_id_e chan);
+
+
 /// @brief Configure a DMA engine to issue PCIe memory reads to the x86 host, pulling data to the SoC.
 int dma_configure_read(et_dma_chan_id_e chan);
 
@@ -34,5 +43,7 @@ bool dma_check_done(et_dma_chan_id_e chan);
 
 /// @brief Clears the DMA transfer flag for the specified channel.
 void dma_clear_done(et_dma_chan_id_e chan);
+
+DMA_STATUS_e dma_chan_find_idle(DMA_TYPE_e type, et_dma_chan_id_e *chan);
 
 #endif

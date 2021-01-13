@@ -28,6 +28,47 @@
 */
 #define  DMAW_MAX_HART_ID      DMAW_BASE_HART_ID + DMAW_NUM
 
+/*! \def DMA_CHANNEL_AVAILABLE
+    \brief DMA channel available.
+*/
+#define DMA_CHANNEL_AVAILABLE   0 
+
+/*! \def DMA_CHANNEL_IN_USE
+    \brief DMA channel in-use.
+*/
+#define DMA_CHANNEL_IN_USE      1
+
+/*! \struct dma_chanl_status_t
+    \brief DMA read channel data structure to maintain
+    information related to given read channel's usage 
+*/
+typedef struct dma_chanl_status_ {
+    uint16_t    tag_id; /* tag_id for the transaction associated with the channel */
+    uint8_t     channel_state; /* '0' channel available, '1' channel used */
+    uint8_t     sqw_idx; /* SQW idx that submitted this command */
+    uint32_t    wait_latency; /* Measured wait latency */
+    uint32_t    cmd_dispatch_start_cycles; /* Lower 32 bits of command dispatch time stamp*/
+} dma_chanl_status_t;
+
+
+/* TODO: channel count hardcoded below should be fixed once old device
+API is removed, if we include pcie-dma.h in this file a device-api
+name space conflict occures*/ 
+/*! \struct dma_channel_status_t
+    \brief DMA channel status data structure to maintain
+    information related to given DMA channel's usage 
+*/
+typedef struct dma_channel_status_ {
+    dma_chanl_status_t dma_rd_chan[4];
+    dma_chanl_status_t dma_wrt_chan[4];
+} dma_channel_status_t;
+
+/*! \fn void* DMAW_Get_DMA_Channel_Status_Addr(void)
+    \brief Get DMA Channel Status address
+    \return Address of DMA Channel Status address
+*/
+void* DMAW_Get_DMA_Channel_Status_Addr(void);
+
 /*! \fn void DMAW_Init(void)
     \brief Initialize DMA Worker
     \return none
