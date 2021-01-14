@@ -25,6 +25,7 @@
 #include <tuple>
 
 #include "api_communicate.h"
+#include "checkers/l2_scp_checker.h"
 #include "devices/rvtimer.h"
 #include "emu.h"
 #include "emu_gio.h"
@@ -70,7 +71,7 @@ bool            sys_emu::l2_scp_check = false;
 l2_scp_checker  sys_emu::l2_scp_checker_;
 bool            sys_emu::flb_check = false;
 flb_checker     sys_emu::flb_checker_;
-std::unique_ptr<api_communicate> sys_emu::api_listener;
+api_communicate *sys_emu::api_listener;
 sys_emu_cmd_options              sys_emu::cmd_options;
 std::unordered_set<uint64_t>     sys_emu::breakpoints;
 std::bitset<EMU_NUM_THREADS>     sys_emu::single_step;
@@ -773,17 +774,39 @@ sys_emu::breakpoint_exists(uint64_t addr)
 /// to overwrite specific parts of the initialization in subclasses
 ////////////////////////////////////////////////////////////////////////////////
 
-bool
-sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<api_communicate> api_comm)
-{
-    this->cmd_options = cmd_options;
-    if (cmd_options.elf_files.empty()       &&
-        cmd_options.file_load_files.empty() &&
-        cmd_options.mem_desc_file.empty()   &&
-        cmd_options.api_comm_path.empty())
-    {
-        LOG_NOTHREAD(FTL, "%s", "Need an ELF file, a file load, a mem_desc file or runtime API!");
+bool sys_emu::init_simulator(const sys_emu_cmd_options &cmd_options,
+                             api_communicate *api_comm) {
+  this->cmd_options = cmd_options;
+    // Reset the SoC
+    emu_cycle = 0;
+    running_threads.clear();
+    wfi_stall_wait_threads.clear();
+    for (auto &item : fcc_wait_threads) {
+        item.clear();
     }
+    port_wait_threads.clear();
+    active_threads.reset();
+    bzero(pending_fcc, sizeof(pending_fcc));
+    for (auto &item : coop_tload_pending_list) {
+        item.clear();
+    }
+    mem_check = false;
+    mem_checker_ = mem_checker{};
+    l1_scp_check = false;
+    l1_scp_checker_ = l1_scp_checker{};
+    l2_scp_check = false;
+    new (&l2_scp_checker_) l2_scp_checker{};
+    flb_check = false;
+    flb_checker_ = flb_checker{};
+    breakpoints.clear();
+    single_step.reset();
+    ///
+  if (cmd_options.elf_files.empty() && cmd_options.file_load_files.empty() &&
+      cmd_options.mem_desc_file.empty() && cmd_options.api_comm_path.empty()) {
+    LOG_NOTHREAD(
+        FTL, "%s",
+        "Need an ELF file, a file load, a mem_desc file or runtime API!");
+  }
 
 #ifdef SYSEMU_DEBUG
     if (cmd_options.debug == true) {
@@ -886,16 +909,9 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<
     }
 
     // Initialize Simulator API
-    api_listener = std::move(api_comm);
+    api_listener = api_comm;
 
-    // Reset the SoC
-
-    running_threads.clear();
-    fcc_wait_threads[0].clear();
-    fcc_wait_threads[1].clear();
-    port_wait_threads.clear();
-    active_threads.reset();
-    bzero(pending_fcc, sizeof(pending_fcc));
+    
 
     for (unsigned s = 0; s < EMU_NUM_SHIRES; s++) {
         bemu::reset_esrs_for_shire(s);
@@ -963,15 +979,15 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<
 // Main function implementation
 ////////////////////////////////////////////////////////////////////////////////
 
-int
-sys_emu::main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<api_communicate> api_comm)
-{
+int sys_emu::main_internal(const sys_emu_cmd_options &cmd_options,
+                           api_communicate *api_comm) {
 #ifdef HAVE_BACKTRACE
     Crash_handler __crash_handler;
 #endif
 
-    if (!init_simulator(cmd_options, std::move(api_comm)))
-        return EXIT_FAILURE;
+    if (!init_simulator(cmd_options, api_comm)) {
+      return EXIT_FAILURE;
+    }
 
 #ifdef SYSEMU_PROFILING
     profiling_init();
