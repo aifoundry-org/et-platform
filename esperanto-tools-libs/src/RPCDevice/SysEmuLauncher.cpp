@@ -54,6 +54,7 @@ SysEmuLauncher::SysEmuLauncher(
       "-shires", fmt::format("0x{:X}", shires_mask),
       "-mins_dis",            // Start with Minions off, as booting is done by BL2
       "-sp_dis",              // Start with SP off, as booting is done through SimAPI
+      "-mem_check",           // Enable mem_check by default
   };
 
   const std::array<std::tuple<std::string, std::string, std::string>, 4> uart_tx_files = {{
