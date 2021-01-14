@@ -72,35 +72,6 @@ Enums:
         Value: 5
 
 # List of Structs used in our messages
-Structs:
-  - Name : dev_api_kernel_params_t
-    Fields:
-      - Name: tensor_a
-        Type: uint64_t
-      - Name: tensor_b
-        Type: uint64_t
-      - Name: tensor_c
-        Type: uint64_t
-      - Name: tensor_d
-        Type: uint64_t
-      - Name: tensor_e
-        Type: uint64_t
-      - Name: tensor_f
-        Type: uint64_t
-      - Name: tensor_g
-        Type: uint64_t
-      - Name: tensor_h
-        Type: uint64_t
-      - Name: kernel_id
-        Type: uint64_t
-  - Name: dev_api_kernel_info_t
-    Fields:
-      - Name: compute_pc
-        Type: uint64_t
-      - Name: uber_kernel_nodes
-        Type: uint64_t
-      - Name: shire_mask
-        Type: uint64_t
 
 # List of Commands, Responses, Events that the RPC
 # DeviceAPI can exchange with the host
@@ -174,22 +145,20 @@ Messages :
     PairedMessage: kernel_launch_rsp
     Type: Command
     Fields:
-      - Name: kernel_params
-        Type : struct
-        Struct: dev_api_kernel_params_t
-      - Name: kernel_info
-        Type: struct
-        Struct: dev_api_kernel_info_t
-      - Name: uber_kernel
-        Type: bool
-        Description: True if we are lauching an uber kernel.
+      - Name: code_start_address
+        Description: Code start address
+        Type : uint64_t
+      - Name: pointer_to_args
+        Description: Pointer to kernel arguments
+        Type : uint64_t
+      - Name: shire_mask
+        Description: Mask of Shires involved in the kernel launch
+        Type: uint64_t
   - Name: kernel_launch_rsp
     Description: Response and result of a kernel launch on the device
     Type: Response
     PairedMessage: kernel_launch_cmd
     Fields:
-      - Name: kernel_id
-        Type: uint64_t
       - Name: error
         Type: enum
         Enum: dev_api_kernel_launch_error
