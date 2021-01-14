@@ -3,7 +3,6 @@
 #include "device_minion_runtime_build_configuration.h"
 #include "device-mrt-trace.h"
 #include "kernel.h"
-#include "kernel_params.h"
 #include "log.h"
 #include "mailbox.h"
 #include "message.h"

@@ -1,11 +1,12 @@
 #ifndef KERNEL_H
 #define KERNEL_H
 
-#include "kernel_info.h"
 #include "kernel_state.h"
 #include "kernel_sync.h"
 
 #include <esperanto/device-api/device_api.h>
+#include <esperanto/device-api/device_api_message_types.h>
+#include <esperanto/device-api/device_api_rpc_types_non_privileged.h>
 
 #include <stdbool.h>
 #include <stdint.h>

@@ -28,7 +28,7 @@
 #include    "vq.h"
 
 /*! \struct kw_cb_t
-    \brief Kernel Worker Control Block structure 
+    \brief Kernel Worker Control Block structure
 */
 typedef struct kw_cb_ {
     global_fcc_flag_t   kw_fcc_flag;
@@ -44,7 +44,7 @@ static kw_cb_t KW_CB __attribute__((aligned(64))) = {0};
 extern spinlock_t Launch_Lock;
 
 /* Shared state - Worker minion fetch kernel parameters from these */
-static kernel_config_t *const kernel_config = 
+static kernel_config_t *const kernel_config =
     (kernel_config_t *)FW_MASTER_TO_WORKER_KERNEL_CONFIGS;
 
 
@@ -52,7 +52,7 @@ static kernel_config_t *const kernel_config =
 static void clear_kernel_config(kernel_id_t1 kernel_id)
 {
     volatile kernel_config_t *const kernel_config_ptr = &kernel_config[kernel_id];
-    kernel_config_ptr->kernel_info.shire_mask = 0;
+    kernel_config_ptr->shire_mask = 0;
 
     // Evict kernel config to point of coherency - sync threads and worker minion will read it
     FENCE
@@ -66,7 +66,7 @@ static void clear_kernel_config(kernel_id_t1 kernel_id)
 *   FUNCTION
 *
 *       KW_Init
-*  
+*
 *   DESCRIPTION
 *
 *       Initialize Kernel Worker
@@ -88,11 +88,11 @@ void KW_Init(void)
     global_fcc_flag_init(&KW_CB.kw_fcc_flag);
 
     /* Clear the kernel configs. */
-    for (uint8_t kernel = 0; kernel < MAX_SIMULTANEOUS_KERNELS; kernel++) 
+    for (uint8_t kernel = 0; kernel < MAX_SIMULTANEOUS_KERNELS; kernel++)
     {
         clear_kernel_config(kernel);
     }
-    
+
     return;
 }
 
@@ -101,7 +101,7 @@ void KW_Init(void)
 *   FUNCTION
 *
 *       KW_Notify
-*  
+*
 *   DESCRIPTION
 *
 *       Notify KW Worker
@@ -120,13 +120,13 @@ void KW_Notify(uint8_t kw_idx)
     uint32_t minion = (uint32_t)KW_WORKER_0 + (kw_idx / 2);
     uint32_t thread = kw_idx % 2;
 
-    Log_Write(LOG_LEVEL_DEBUG, 
-        "%s%d%s%d%s", "Notifying:KW:minion=", minion, ":thread=", 
+    Log_Write(LOG_LEVEL_DEBUG,
+        "%s%d%s%d%s", "Notifying:KW:minion=", minion, ":thread=",
         thread, "\r\n");
 
     /* TODO: If multiple KWs, use appropriate kw_idx */
     global_fcc_flag_notify(&KW_CB.kw_fcc_flag, minion, thread);
-    
+
     return;
 }
 
@@ -135,7 +135,7 @@ void KW_Notify(uint8_t kw_idx)
 *   FUNCTION
 *
 *       KW_Launch
-*  
+*
 *   DESCRIPTION
 *
 *       Launch a Kernel Worker on HART ID requested
@@ -154,7 +154,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     /* Release the launch lock to let other workers acquire it */
     release_local_spinlock(&Launch_Lock);
 
-    Log_Write(LOG_LEVEL_CRITICAL, "%s%d%s%d%s", 
+    Log_Write(LOG_LEVEL_CRITICAL, "%s%d%s%d%s",
         "KW:HART=", hart_id, ":IDX=", kw_idx, "\r\n");
 
     /* Empty all FCCs */
@@ -166,11 +166,11 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         /* Wait for KQ Worker notification from Dispatcher */
         global_fcc_flag_wait(&KW_CB.kw_fcc_flag);
 
-        Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
+        Log_Write(LOG_LEVEL_DEBUG, "%s%d%s",
             "KW:HART=", hart_id, ":received FCC event!\r\n");
 
     };
-    
+
     return;
 }
 

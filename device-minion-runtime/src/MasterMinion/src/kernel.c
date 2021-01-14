@@ -52,7 +52,6 @@ static void send_kernel_launch_response(const struct kernel_launch_cmd_t *const 
     struct kernel_launch_rsp_t rsp;
     rsp.response_info.message_id = MBOX_DEVAPI_NON_PRIVILEGED_MID_KERNEL_LAUNCH_RSP;
     prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
-    rsp.kernel_id = cmd->kernel_params.kernel_id;
     rsp.error = error;
 
     int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
@@ -79,11 +78,10 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
         evict(to_L3, kernel_config_ptr, sizeof(kernel_config_t));
         WAIT_CACHEOPS
 
-        const uint64_t num_shires =
-            kernel_config_ptr->num_shires; // Also contains Master shire if sync-minions are used
-        const uint64_t shire_mask = kernel_config_ptr->kernel_info.shire_mask;
+        const uint64_t shire_mask = kernel_config_ptr->shire_mask;
+        const uint64_t num_shires = (uint64_t)__builtin_popcountll(shire_mask);
 
-        if ((num_shires > 0) && (shire_mask > 0)) {
+        if (shire_mask != 0) {
             const bool uses_sync_minions = (shire_mask & (1ULL << MASTER_SHIRE)) != 0;
             const uint64_t sync_minions_mask = uses_sync_minions ? 0xFFFF0000U : 0;
             const uint64_t compute_shires_mask = shire_mask & 0xFFFFFFFFu;
@@ -216,8 +214,8 @@ void update_kernel_state(kernel_id_t kernel_id, kernel_state_t kernel_state)
 
 void launch_kernel(const struct kernel_launch_cmd_t *const launch_cmd)
 {
-    const kernel_id_t kernel_id = launch_cmd->kernel_params.kernel_id;
-    const uint64_t shire_mask = launch_cmd->kernel_info.shire_mask;
+    const kernel_id_t kernel_id = 0; // TODO: Find available slot
+    const uint64_t shire_mask = launch_cmd->shire_mask & 0x1FFFFFFFF;
     kernel_status_t *const kernel_status_ptr = &kernel_status[kernel_id];
     uint64_t num_shires = 0;
     bool allShiresReady = true;
@@ -249,6 +247,7 @@ void launch_kernel(const struct kernel_launch_cmd_t *const launch_cmd)
     if (allShiresReady && kernelReady) {
         // Update the kernel status cmd with the kernel-launch command we are going to use
         kernel_status_ptr->launch_cmd = *launch_cmd;
+        kernel_status_ptr->launch_cmd.shire_mask = shire_mask;
 
         volatile kernel_config_t *const kernel_config_ptr = &kernel_config[kernel_id];
 
@@ -264,17 +263,12 @@ void launch_kernel(const struct kernel_launch_cmd_t *const launch_cmd)
         // [SW-3260] Evict L3 to make sure no DMA-ed L3 lines are dirty at kernel launch
         kernel_launch_flags |= KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH;
 
-        // Copy params, info and flags into kernel config buffer
-        kernel_config_ptr->kernel_params = launch_cmd->kernel_params;
-        kernel_config_ptr->kernel_info.compute_pc = launch_cmd->kernel_info.compute_pc;
-        kernel_config_ptr->kernel_info.uber_kernel_nodes =
-            launch_cmd->kernel_info.uber_kernel_nodes;
-        kernel_config_ptr->kernel_info.shire_mask = launch_cmd->kernel_info.shire_mask;
-        kernel_config_ptr->num_shires = num_shires;
+        // Copy kernel_id, params, info and flags into kernel config buffer
+        kernel_config_ptr->kernel_id = kernel_id;
+        kernel_config_ptr->code_start_address = launch_cmd->code_start_address;
+        kernel_config_ptr->pointer_to_args = launch_cmd->pointer_to_args;
+        kernel_config_ptr->shire_mask = shire_mask;
         kernel_config_ptr->kernel_launch_flags = kernel_launch_flags;
-
-        // Fix up kernel_params_ptr for the copy in kernel_config
-        kernel_config_ptr->kernel_info.kernel_params_ptr = &kernel_config[kernel_id].kernel_params;
 
         // Evict kernel config to point of coherency - sync threads and worker minion will read it
         FENCE
@@ -338,7 +332,7 @@ kernel_state_t get_kernel_state(kernel_id_t kernel_id)
 static void clear_kernel_config(kernel_id_t kernel_id)
 {
     volatile kernel_config_t *const kernel_config_ptr = &kernel_config[kernel_id];
-    kernel_config_ptr->kernel_info.shire_mask = 0;
+    kernel_config_ptr->shire_mask = 0;
 
     // Evict kernel config to point of coherency - sync threads and worker minion will read it
     FENCE

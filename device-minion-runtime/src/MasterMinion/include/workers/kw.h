@@ -19,7 +19,6 @@
 #define KW_DEFS_H
 
 #include "config/mm_config.h"
-#include "kernel_info.h"
 #include "kernel_state.h"
 #include "kernel_sync.h"
 #include "sync.h"
@@ -38,13 +37,13 @@
 #define     KW_WORKER_0         ((KW_BASE_HART_ID - MM_BASE_ID)/2)
 
 /* TODO: fix up the 1 suffix once the old implementation is removed */
-typedef enum 
-{ 
-    KERNEL_ID1_0 = 0, 
-    KERNEL_ID1_1, 
-    KERNEL_ID1_2, 
-    KERNEL_ID1_3, 
-    KERNEL_ID1_NONE 
+typedef enum
+{
+    KERNEL_ID1_0 = 0,
+    KERNEL_ID1_1,
+    KERNEL_ID1_2,
+    KERNEL_ID1_3,
+    KERNEL_ID1_NONE
 } kernel_id_t1;
 
 /*! \fn void KW_Init(void)
@@ -82,28 +81,28 @@ void KW_Dispatch_Kernel_Launch_Command
         (struct device_ops_kernel_abort_cmd_t *kernel_abort_cmd)
     \brief Kernel Worker's interface to dispatch a kernel state command
     \param [in] Kernel State Command
-    \param [out] Kernel State Response 
+    \param [out] Kernel State Response
 */
 void KW_Dispatch_Kernel_Abort_Command
     (struct device_ops_kernel_abort_cmd_t *kernel_abort_cmd);
 
 /*! \fn void KW_Dispatch_Kernel_State_Command
-        (struct device_ops_kernel_state_cmd_t *kernel_state_cmd, 
+        (struct device_ops_kernel_state_cmd_t *kernel_state_cmd,
         struct device_ops_kernel_state_rsp_t *kernel_state_rsp);
     \brief Kernel Worker's interface to dispatch a kernel abort command
     \param [in] Kernel Abort Command
 */
 void KW_Dispatch_Kernel_State_Command
-    (struct device_ops_kernel_state_cmd_t *kernel_state_cmd, 
+    (struct device_ops_kernel_state_cmd_t *kernel_state_cmd,
     struct device_ops_kernel_state_rsp_t *kernel_state_rsp);
 
 /*! \fn void KW_Update_Kernel_State
         (kernel_id_t kernel_id, kernel_state_t kernel_state)
-    \brief Update kernel state machine for the kernel executing 
+    \brief Update kernel state machine for the kernel executing
     \param [in] kernel identifier
     \param [in] kernel state to update the kernel state machine to
 */
-void KW_Update_Kernel_State(kernel_id_t kernel_id, 
+void KW_Update_Kernel_State(kernel_id_t kernel_id,
      kernel_state_t kernel_state);
 
 #endif

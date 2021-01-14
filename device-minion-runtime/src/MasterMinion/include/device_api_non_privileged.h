@@ -2,14 +2,13 @@
 #define DEVICE_API_NON_PRIVILEGED_H
 
 #include "device_api_common.h"
-#include "kernel_params.h"
-#include "kernel_info.h"
 #include "log_levels.h"
 #include "mailbox_id.h"
 
 #include <stdint.h>
 #include <esperanto/device-api/device_api.h>
 #include <esperanto/device-api/device_api_message_types.h>
+#include <esperanto/device-api/device_api_rpc_types_non_privileged.h>
 
 /// \brief Convert the log-level enum from the one defined in the DeviceAPI to the FW internal type
 log_level_t devapi_loglevel_to_fw(const enum LOG_LEVELS log_level);
