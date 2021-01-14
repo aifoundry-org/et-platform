@@ -56,5 +56,5 @@ void MailboxReader::stop() {
 
 MailboxReader::~MailboxReader() {
   run_ = false;
-  reader_.join();
+  reader_.detach();
 }
