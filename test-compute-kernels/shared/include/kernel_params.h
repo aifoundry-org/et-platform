@@ -1,0 +1,18 @@
+#ifndef KERNEL_PARAMS_H
+#define KERNEL_PARAMS_H
+
+#include <stdio.h>
+
+// Based on the old params...
+typedef struct {
+    uint64_t tensor_a;
+    uint64_t tensor_b;
+    uint64_t tensor_c;
+    uint64_t tensor_d;
+    uint64_t tensor_e;
+    uint64_t tensor_f;
+    uint64_t tensor_g;
+    uint64_t tensor_h;
+} kernel_params_t;
+
+#endif

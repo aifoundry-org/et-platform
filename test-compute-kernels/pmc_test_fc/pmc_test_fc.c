@@ -95,7 +95,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
         TRACE_kernel_launch(LOG_LEVELS_ERROR, kernel_params_ptr->tensor_a, kernel_params_ptr->tensor_b,
                             kernel_params_ptr->tensor_c, kernel_params_ptr->tensor_d, kernel_params_ptr->tensor_e,
                             kernel_params_ptr->tensor_f, kernel_params_ptr->tensor_g, kernel_params_ptr->tensor_h,
-                            kernel_params_ptr->kernel_id);
+                            /* kernel_params_ptr->kernel_id */ 0);
         TRACE_string(LOG_LEVELS_INFO, "Configuring PMCs");
     }
 
