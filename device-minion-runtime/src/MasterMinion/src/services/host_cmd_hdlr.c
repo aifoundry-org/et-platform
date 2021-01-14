@@ -19,6 +19,7 @@
 /***********************************************************************/
 #include "services/host_cmd_hdlr.h"
 #include "services/host_iface.h"
+#include "services/worker_iface.h"
 #include "services/log1.h"
 #include "workers/dmaw.h"
 #include "pcie_dma.h"

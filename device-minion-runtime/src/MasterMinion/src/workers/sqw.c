@@ -41,7 +41,7 @@ typedef struct sqw_cb_ {
     \brief Global Submission Queue Worker Control Block
     \warning Not thread safe!
 */
-static sqw_cb_t SQW_CB __attribute__((aligned(8))) = {0};
+static sqw_cb_t SQW_CB __attribute__((aligned(64))) = {0};
 
 extern spinlock_t Launch_Lock;
 
@@ -66,14 +66,15 @@ extern spinlock_t Launch_Lock;
 ***********************************************************************/
 void SQW_Init(void)
 {
-    SQW_CB.num_sqw = MM_SQ_COUNT;
+    atomic_store_local_8(&SQW_CB.num_sqw, MM_SQ_COUNT);
 
     /* Initialize the SQ Worker sync flags */ 
     for (uint8_t i = 0; i < SQW_CB.num_sqw; i++) 
     {
         global_fcc_flag_init(&SQW_CB.sqw_fcc_flags[i]);
 
-        SQW_CB.sq[i] = Host_Iface_Get_VQ_Base_Addr(SQ, i);
+        atomic_store_local_64((uint64_t*)&SQW_CB.sq[i], 
+            (uint64_t)(void*) Host_Iface_Get_VQ_Base_Addr(SQ, i));
     }
     
     return;
@@ -143,7 +144,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
     /* Release the launch lock to let other workers acquire it */
     release_local_spinlock(&Launch_Lock);
 
-    Log_Write(LOG_LEVEL_DEBUG, "%s%d%s%d%s", 
+    Log_Write(LOG_LEVEL_CRITICAL, "%s%d%s%d%s", 
         "SQW:HART=", hart_id, ":IDX=", sqw_idx, "\r\n");
 
     /* Empty all FCCs */

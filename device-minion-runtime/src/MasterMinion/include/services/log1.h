@@ -18,6 +18,13 @@
 
 #include "log.h"
 
+/*! \fn void Log_Init(void)
+    \brief Initialize the logging component
+    \param level Log level to set
+    \return none
+*/
+void Log_Init(log_level_t level);
+
 /*! \fn void Log_Set_Level(log_level_t level)
     \brief Set the current global log level
     \param level Log level to set

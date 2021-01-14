@@ -30,18 +30,19 @@
 #include "drivers/interrupts.h"
 #include "circbuff.h"
 #include "pcie_int.h"
+#include "atomic.h"
 
 /*! \var iface_q_cb_t SP_SQs
     \brief Global MM to SP submission queue
     \warning Not thread safe!
 */
-static iface_cb_t SP_SQs = {0};
+static iface_cb_t SP_SQs __attribute__((aligned(64))) = {0};
 
 /*! \var iface_q_cb_t SP_CQs
     \brief Global SP to MM completion queue
     \warning Not thread safe!
 */
-static iface_cb_t SP_CQs = {0};
+static iface_cb_t SP_CQs __attribute__((aligned(64))) = {0};
 
 /*! \var bool SP_Iface_Interrupt_Flag
     \brief Global SP Interface Interrupt flag
@@ -75,15 +76,16 @@ SP, uncomment and use skeleton as needed */
 int8_t SP_Iface_SQs_Init(void)
 {
     int8_t status = STATUS_SUCCESS;
+    uint64_t temp = 0;
 
     /* Initialize the Submission Queues control block 
     based on build configuration mm_config.h */
-    SP_SQs.vqueue_base = MM2SP_SQ_BASE;
-    SP_SQs.vqueue_size = MM2SP_SQ_SIZE;
+    temp = (((uint64_t)MM2SP_SQ_SIZE << 32) | MM2SP_SQ_BASE);
+    atomic_store_local_64((uint64_t*)&SP_SQs, temp);
 
     /* Initialize the SQ circular buffer */
-    status = VQ_Init(&SP_SQs.vqueue, SP_SQs.vqueue_base,
-        SP_SQs.vqueue_size, 0, sizeof(cmd_size_t),
+    status = VQ_Init(&SP_SQs.vqueue, MM2SP_SQ_BASE,
+        MM2SP_SQ_SIZE, 0, sizeof(cmd_size_t),
         MM2SP_SQ_MEM_TYPE);
 
     if (status == STATUS_SUCCESS) 
@@ -123,15 +125,16 @@ int8_t SP_Iface_SQs_Init(void)
 int8_t SP_Iface_CQs_Init(void)
 {
     int8_t status = STATUS_SUCCESS;
+    uint64_t temp = 0;
 
     /* Initialize the Completion Queues control block 
     based on build configuration mm_config.h */
-    SP_CQs.vqueue_size = MM2SP_CQ_SIZE;
-    SP_CQs.vqueue_base = MM2SP_CQ_BASE;
+    temp = (((uint64_t)MM2SP_CQ_SIZE << 32) | MM2SP_CQ_BASE);
+    atomic_store_local_64((uint64_t*)&SP_CQs, temp);
 
     /* Initialize the CQ circular buffer */
-    status = VQ_Init(&SP_CQs.vqueue, SP_CQs.vqueue_base,
-    SP_CQs.vqueue_size, 0, sizeof(cmd_size_t),
+    status = VQ_Init(&SP_CQs.vqueue, MM2SP_CQ_BASE,
+    MM2SP_CQ_SIZE, 0, sizeof(cmd_size_t),
     MM2SP_CQ_MEM_TYPE);
 
     return status;

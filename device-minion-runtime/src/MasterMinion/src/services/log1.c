@@ -13,6 +13,7 @@
     \brief A C module that implements the logging ervices
 
     Public interfaces:
+        Log_Init
         Log_Set_Level
         Log_Get_Level
         Log_Write
@@ -21,9 +22,9 @@
 /***********************************************************************/
 #include "services/log1.h"
 #include "drivers/console.h"
+#include "atomic.h"
 #include <stddef.h>
 
-/* TODO: Debug code to serialize concurrent printing */
 #include "sync.h"
 
 /*! \var log_level_t Current_Log_Level
@@ -32,8 +33,39 @@
 */
 static log_level_t Current_Log_Level = LOG_LEVEL_WARNING;
 
-/* TODO: Debug code to serialize concurrent printing */
-static spinlock_t Console_Lock = 0;
+/*! \var spinlock_t Console_Lock
+    \brief Local lock for serializing the console prints.
+    \warning Not thread safe!
+*/
+static spinlock_t Console_Lock = {0};
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Log_Init
+*  
+*   DESCRIPTION
+*
+*       Initialize the logging
+*
+*   INPUTS
+*
+*       log_level_t   log level to set
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Log_Init(log_level_t level)
+{
+    /* Init console lock to released state */
+    init_local_spinlock(&Console_Lock, 0);
+
+    /* Initialize the log level */
+    Log_Set_Level(level);
+}
 
 /************************************************************************
 *
@@ -56,7 +88,7 @@ static spinlock_t Console_Lock = 0;
 ***********************************************************************/
 void Log_Set_Level(log_level_t level)
 {
-    Current_Log_Level = level;
+    atomic_store_local_8(&Current_Log_Level, level);
 }
 
 /************************************************************************
@@ -80,7 +112,7 @@ void Log_Set_Level(log_level_t level)
 ***********************************************************************/
 log_level_t Log_Get_Level(void)
 {
-    return Current_Log_Level;
+    return atomic_load_local_8(&Current_Log_Level);
 }
 
 /************************************************************************
@@ -108,10 +140,10 @@ int32_t Log_Write(log_level_t level, const char *const fmt, ...)
 {
     int32_t bytes_written=0;
     
-    /* TODO: Debug code to serialize console printing */
     acquire_local_spinlock(&Console_Lock);
 
-    if (level > Current_Log_Level) {
+    if (level > atomic_load_local_8(&Current_Log_Level)) {
+        release_local_spinlock(&Console_Lock);
         return 0;
     }
     
@@ -120,7 +152,6 @@ int32_t Log_Write(log_level_t level, const char *const fmt, ...)
 
     bytes_written = vprintf(fmt, va);
     
-    /* TODO: Debug code to serialize console printing */
     release_local_spinlock(&Console_Lock);
 
     return bytes_written;
@@ -151,10 +182,10 @@ int32_t Log_Write_String(log_level_t level, const char *str, size_t length)
 {
     size_t i;
 
-    /* TODO: Debug code to serialize console printing */
     acquire_local_spinlock(&Console_Lock);
 
-    if (level > Current_Log_Level) {
+    if (level > atomic_load_local_8(&Current_Log_Level)) {
+        release_local_spinlock(&Console_Lock);
         return 0;
     }
 
@@ -162,7 +193,6 @@ int32_t Log_Write_String(log_level_t level, const char *str, size_t length)
         Console_Putchar(str[i]);
     }
 
-    /* TODO: Debug code to serialize console printing */
     release_local_spinlock(&Console_Lock);
 
     return (int32_t)i;
