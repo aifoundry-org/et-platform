@@ -57,4 +57,18 @@ void SQW_Notify(uint8_t sqw_idx);
 */
 void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx);
 
+/*! \fn SQW_Decrement_Command_Count(uint8_t sqw_idx)
+    \brief Decrement command count for the given Submission Queue Worker
+    \param sqw_idx Submission Queue Worker index
+    \return none
+*/
+void SQW_Decrement_Command_Count(uint8_t sqw_idx);
+
+/*! \fn SQW_Increment_Command_Count(uint8_t sqw_idx)
+    \brief Increment command count for the given Submission Queue Worker
+    \param sqw_idx Submission Queue Worker index
+    \return none
+*/
+void SQW_Increment_Command_Count(uint8_t sqw_idx);
+
 #endif /* SQW_DEFS_H */

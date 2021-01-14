@@ -24,12 +24,15 @@
 
 
 
-/*! \fn int8_t Host_Command_Handler(void* command_buffer)
+/*! \fn int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx, 
+        uint64_t start_cycles)
     \brief Interface to handle host side commands
     \param command_buffer pointer to command buffer
+    \param sqw_idx index of submission queue worker
     \param start_cycle cycle count to measure wait latency
     \return status success or negative error code
 */
-int8_t Host_Command_Handler(void* command_buffer, uint64_t start_cycles);
+int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx, 
+    uint64_t start_cycles);
 
 #endif /* HOST_CMD_HDLR_H */
