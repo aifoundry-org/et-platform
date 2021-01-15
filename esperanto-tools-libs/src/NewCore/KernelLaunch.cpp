@@ -41,31 +41,14 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
     throw Exception("Can't execute stream and kernel associated to a different device");
   }
 
-  struct old_kernel_args_t {
-    uint64_t tensor_a;  // Pointer to tensor A
-    uint64_t tensor_b;  // Pointer to tensor B
-    uint64_t tensor_c;  // Pointer to tensor C
-    uint64_t tensor_d;  // Pointer to tensor D
-    uint64_t tensor_e;  // Pointer to tensor E
-    uint64_t tensor_f;  // Pointer to tensor F
-    uint64_t tensor_g;  // Pointer to tensor G
-    uint64_t tensor_h;  // Pointer to tensor H
-  };
-
   void* pBuffer = nullptr;
   if (kernel_args_size > 0) {
     barrier = true; // we must wait for parameters, so barrier is true if parameters
     pBuffer = kernelParametersCache_->allocBuffer(kernel->deviceId_);
     // TODO fix this properly once SW-5098 is done  !
     std::byte stageParams[1024];
-    //////////// REMOVE THIS, THIS HAS TO BE A USER-PROVIDED STRUCT: [SW-5830]
-    // Copy user-provided args after the old_args
-    old_kernel_args_t old_args{};
-    old_args.tensor_a = reinterpret_cast<uint64_t>(pBuffer) + sizeof old_args;
-    assert((sizeof(old_args) + kernel_args_size) <= sizeof stageParams);
-    memcpy(stageParams, &old_args, sizeof old_args);
-    ////////////
-    memcpy(stageParams + sizeof old_args, kernel_args, kernel_args_size);
+    assert(kernel_args_size <= sizeof stageParams);
+    memcpy(stageParams, kernel_args, kernel_args_size);
     auto memcpyEvt = memcpyHostToDevice(streamId, stageParams, pBuffer, sizeof stageParams);
     stream.lastEventId_ = memcpyEvt;
   }
