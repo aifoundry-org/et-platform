@@ -70,35 +70,41 @@ void DIR_Init(void)
 
     /* Populate the SP DDR regions information */
     Gbl_SP_Dev_Intf_Regs->ddr_regions.num_regions = SP_DEV_INTF_DDR_REGION_MAP_NUM;
-    /* User kernel space reion */
     Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].attr = 
+        regions[SP_DEV_INTF_DDR_REGION_MAP_TRACE_BUFFER].attr = 
         SP_DEV_INTF_DDR_REGION_ATTR_READ_WRITE;
     Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].bar = 
-        SP_DEV_INTF_USER_KERNEL_SPACE_BAR;
+        regions[SP_DEV_INTF_DDR_REGION_MAP_TRACE_BUFFER].bar = 
+        SP_DEV_INTF_TRACE_BUFFER_BAR;
     Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].offset = 
-        SP_DEV_INTF_USER_KERNEL_SPACE_OFFSET;
+        regions[SP_DEV_INTF_DDR_REGION_MAP_TRACE_BUFFER].offset = 
+        SP_DEV_INTF_TRACE_BUFFER_OFFSET;
     Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].size = 
-        SP_DEV_INTF_USER_KERNEL_SPACE_SIZE;
+        regions[SP_DEV_INTF_DDR_REGION_MAP_TRACE_BUFFER].devaddr = 
+        SP_FW_MAP_TRACE_BUFFER_REGION_ADDRESS;
+    Gbl_SP_Dev_Intf_Regs->ddr_regions.
+        regions[SP_DEV_INTF_DDR_REGION_MAP_TRACE_BUFFER].size = 
+        SP_DEV_INTF_TRACE_BUFFER_SIZE;
 
-    /* Firmware update region */
+    /* Device Management Scratch region */
     Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_FIRMWARE_UPDATE_SCRATCH].attr = 
+        regions[SP_DEV_INTF_DDR_REGION_MAP_DEV_MANAGEMENT_SCRATCH].attr = 
         SP_DEV_INTF_DDR_REGION_ATTR_WRITE_ONLY;
     Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_FIRMWARE_UPDATE_SCRATCH].bar = 
-        SP_DEV_INTF_FIRMWARE_UPDATE_SCRATCH_BAR;
+        regions[SP_DEV_INTF_DDR_REGION_MAP_DEV_MANAGEMENT_SCRATCH].bar = 
+        SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_BAR;
     Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_FIRMWARE_UPDATE_SCRATCH].offset = 
-        SP_DEV_INTF_FIRMWARE_UPDATE_SCRATCH_OFFSET;
+        regions[SP_DEV_INTF_DDR_REGION_MAP_DEV_MANAGEMENT_SCRATCH].offset = 
+        SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_OFFSET;
     Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_FIRMWARE_UPDATE_SCRATCH].size = 
-        SP_DEV_INTF_FIRMWARE_UPDATE_SCRATCH_SIZE;
+        regions[SP_DEV_INTF_DDR_REGION_MAP_DEV_MANAGEMENT_SCRATCH].devaddr = 
+        SP_FW_MAP_DEV_MANAGEMENT_SCRATCH_REGION_ADDRESS;
+    Gbl_SP_Dev_Intf_Regs->ddr_regions.
+        regions[SP_DEV_INTF_DDR_REGION_MAP_DEV_MANAGEMENT_SCRATCH].size = 
+        SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_SIZE;
 
-    /* MSIX table region */
+   /* TODO: Potentially its this space is in dedicated PCIe memory space
+      -- MSIX table region --
     Gbl_SP_Dev_Intf_Regs->ddr_regions.
         regions[SP_DEV_INTF_DDR_REGION_MAP_MSIX_TABLE].attr = 
         SP_DEV_INTF_DDR_REGION_ATTR_READ_ONLY;
@@ -109,9 +115,12 @@ void DIR_Init(void)
         regions[SP_DEV_INTF_DDR_REGION_MAP_MSIX_TABLE].offset = 
         SP_DEV_INTF_MSIX_TABLE_OFFSET;
     Gbl_SP_Dev_Intf_Regs->ddr_regions.
+        regions[SP_DEV_INTF_DDR_REGION_MAP_MSIX_TABLE].devaddr = 
+        ;
+    Gbl_SP_Dev_Intf_Regs->ddr_regions.
         regions[SP_DEV_INTF_DDR_REGION_MAP_MSIX_TABLE].size = 
         SP_DEV_INTF_MSIX_TABLE_SIZE;
-
+    */
     return;
 }
 

@@ -24,6 +24,7 @@
 
 #include <stdint.h>
 #include "config/mgmt_dir_build_config.h"
+#include "sp_fw_memory_layout.h"
 
 /*! \file List of REGIONS based on Spec as defined here: https://esperantotech.atlassian.net/wiki/spaces/SW/pages/1233584203/Memory+Map */
 
@@ -35,18 +36,24 @@
 // Only expose Bar based offset,size as address to Host
 // Host Address -> SOC Address mapping will happen via ET SOC PCIe Device ATU mapping
 
-// DDR Region 0 USER_KERNEL_SPACE (BAR=0, Offset=4GB, Size=8GB)
-#define SP_DEV_INTF_USER_KERNEL_SPACE_BAR    0
-#define SP_DEV_INTF_USER_KERNEL_SPACE_OFFSET 0x0100000000UL
-#define SP_DEV_INTF_USER_KERNEL_SPACE_SIZE   0x0200000000UL
-// DDR Region 1 FIRMWARE_UPDATE_SCRATCH (BAR=0, Offset=8MB, Size=4MB)
-#define SP_DEV_INTF_FIRMWARE_UPDATE_SCRATCH_BAR    0
-#define SP_DEV_INTF_FIRMWARE_UPDATE_SCRATCH_OFFSET 0x0800000UL
-#define SP_DEV_INTF_FIRMWARE_UPDATE_SCRATCH_SIZE   0x0400000UL
+// DDR Region 0 DEV_MANAGEMENT_SCRATCH (BAR=0, Offset=8MB, Size=4MB)
+#define SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_BAR    0
+#define SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_OFFSET 0x0800000UL
+#define SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_SIZE   SP_FW_MAP_DEV_MANAGEMENT_SCRATCH_REGION_SIZE
+
+// DDR Region 1 TRACE_BUFFER (BAR=0, Offset=0, Size=4KB)
+#define SP_DEV_INTF_TRACE_BUFFER_BAR    0
+#define SP_DEV_INTF_TRACE_BUFFER_OFFSET 0x0000000000UL
+#define SP_DEV_INTF_TRACE_BUFFER_SIZE   SP_FW_MAP_TRACE_BUFFER_REGION_SIZE 
+
+
 // DDR Region 2 MAP_MSIX_TABLE (BAR=0, Offset=12MB, Size=256K)
+/*
 #define SP_DEV_INTF_MSIX_TABLE_BAR    0
 #define SP_DEV_INTF_MSIX_TABLE_OFFSET 0x0C00000UL
 #define SP_DEV_INTF_MSIX_TABLE_SIZE   0x0040000UL
+*/
+
 
 /*! \enum SP_DEV_INTF_SP_BOOT_STATUS_e
     \brief Values representing Master Minion Boot status.
@@ -79,9 +86,8 @@ enum SP_DEV_INTF_DDR_REGION_ATTRIBUTE_e {
     \brief Values representing DDR region related information.
 */
 enum SP_DEV_INTF_DDR_REGION_MAP_e {
-    SP_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE = 0,
-    SP_DEV_INTF_DDR_REGION_MAP_FIRMWARE_UPDATE_SCRATCH,
-    SP_DEV_INTF_DDR_REGION_MAP_MSIX_TABLE,
+    SP_DEV_INTF_DDR_REGION_MAP_TRACE_BUFFER = 0,
+    SP_DEV_INTF_DDR_REGION_MAP_DEV_MANAGEMENT_SCRATCH,
     SP_DEV_INTF_DDR_REGION_MAP_NUM
 };
 
@@ -102,6 +108,7 @@ typedef struct __attribute__((__packed__)) SP_DEV_INTF_DDR_REGION_ {
     uint16_t attr;
     uint16_t bar;
     uint64_t offset;
+    uint64_t devaddr;
     uint64_t size;
     uint32_t reserved;
 } SP_DEV_INTF_DDR_REGION_s;
