@@ -11,6 +11,7 @@
 #include "KernelParametersCache.h"
 #include "MemoryManager.h"
 #include "RuntimeImp.h"
+#include "ScopedProfileEvent.h"
 #include "TargetSilicon.h"
 #include "TargetSysEmu.h"
 #include "utils.h"
@@ -22,9 +23,11 @@
 #include <sstream>
 
 using namespace rt;
+using namespace rt::profiling;
 
 EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const void* kernel_args,
                                  size_t kernel_args_size, uint64_t shire_mask, bool barrier) {
+  ScopedProfileEvent profileEvent(Class::KernelLaunch, profiler_, streamId);
   if (kernel_args_size > kMinAllocationSize) {
     char buffer[1024];
     std::snprintf(buffer, sizeof buffer, "Maximum kernel arg size is %d", kMinAllocationSize);
