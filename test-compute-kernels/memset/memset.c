@@ -10,8 +10,7 @@ typedef struct {
 
 inline int min(int a, int b) { return a < b ? a : b; }
 
-int main(const kernel_params_t* const kernel_params_ptr) {
-  Parameters* params = (Parameters*)kernel_params_ptr->tensor_a;
+int main(const Parameters* const params) {
   int hart = (int)get_hart_id();
   int numWorkers = params->numShires * SOC_MINIONS_PER_SHIRE * 2;
 

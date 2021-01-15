@@ -11,9 +11,7 @@ typedef struct {
 } MyVectors;
 
 // use only one shire to exec this simple test
-int main(const kernel_params_t* const kernel_params_ptr) {
-  // the real params are inside tensor_a until we change the ABI
-  MyVectors* vectors = (MyVectors*)kernel_params_ptr->tensor_a;
+int main(const MyVectors* const vectors) {
   int tid = (int)get_thread_id();
   if (tid == 0) return 0;
   int mid = (int)get_minion_id();

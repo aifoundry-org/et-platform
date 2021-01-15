@@ -9,22 +9,16 @@ typedef struct {
   uint64_t numElements;
 } MyVectors;
 
-
 // Writes BEEF
-// tensor_a = address
-// tensor_b = length
-int64_t main(const kernel_params_t* const kernel_params_ptr)
+int64_t main(const MyVectors* const vectors)
 {
-
-    MyVectors* vectors = (MyVectors*)kernel_params_ptr->tensor_a;
-
     // Only run on one minion
     if (get_hart_id() != 0)
     {
         return 0;
     }
 
-    if ((kernel_params_ptr == NULL) ||
+    if ((vectors == NULL) ||
         ((uint64_t*)vectors->buffer == NULL) ||
         (vectors->numElements == 0))
     {
