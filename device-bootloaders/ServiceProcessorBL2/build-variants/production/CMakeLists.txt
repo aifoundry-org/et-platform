@@ -16,7 +16,7 @@ add_definitions(-DFAST_BOOT=0)
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
 target_link_libraries(${TARGET_NAME}.elf
-  EsperantoDeviceMinionRuntime::firmware_helpers
+  EsperantoDeviceMinionRuntime::sp_firmware_helpers
   )
 
 install(TARGETS ${TARGET_NAME}.elf
