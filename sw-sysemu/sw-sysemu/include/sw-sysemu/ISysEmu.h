@@ -9,8 +9,9 @@
 //------------------------------------------------------------------------------
 
 #pragma once
-#include "sys_emu.h"
+#include "SysEmuOptions.h"
 #include <cstddef>
+#include <memory>
 #include <stdexcept>
 #include <stdint.h>
 
@@ -22,7 +23,6 @@ class ISysEmu {
 public:
   class IHostListener {
   public:
-    virtual void raiseHostInterrupt(uint32_t bitmap) = 0;
     virtual void pcieReady() = 0;
 
     // we provide a simple implementation of read and write functions
@@ -31,14 +31,14 @@ public:
     virtual ~IHostListener() = default;
   };
 
-  virtual void waitForInterrupt(uint32_t bitmask) = 0;
-  virtual void setHostListener(IHostListener* hostListener) = 0;
+  virtual uint32_t waitForInterrupt(uint32_t bitmask) = 0;
   virtual void mmioRead(uint64_t address, size_t size, std::byte* dst) = 0;
   virtual void mmioWrite(uint64_t address, size_t size, const std::byte* src) = 0;
   virtual void raiseDevicePuPlicPcieMessageInterrupt() = 0;
   virtual void raiseDeviceSpioPlicPcieMessageInterrupt() = 0;
   virtual ~ISysEmu() = default;
 
-  std::unique_ptr<ISysEmu> create(const sys_emu_cmd_options& cmdOptions);
+  static std::unique_ptr<ISysEmu> create(const SysEmuOptions& options, const std::array<uint64_t, 8>& barAddresses,
+                                         IHostListener* hostListener);
 };
 }  // namespace emu

@@ -13,6 +13,7 @@ void ISysEmu::IHostListener::memoryWriteFromHost(uint64_t address, size_t size, 
   std::copy(src, src + size, dst);
 }
 
-std::unique_ptr<ISysEmu> ISysEmu::create(const sys_emu_cmd_options& cmdOptions) {
-  return std::make_unique<SysEmuImp>(cmdOptions);
+std::unique_ptr<ISysEmu> ISysEmu::create(const SysEmuOptions& options, const std::array<uint64_t, 8>& barAddresses,
+                                         IHostListener* hostListener) {
+  return std::make_unique<SysEmuImp>(options, barAddresses, hostListener);
 }

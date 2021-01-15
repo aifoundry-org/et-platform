@@ -352,12 +352,12 @@ static uint64_t pma_check_data_access(const Hart& cpu, uint64_t vaddr,
 #ifdef SMB_SIZE
         if (((addr + size) > uint64_t(SMB_ADDR)) && (addr < (uint64_t(SMB_ADDR) + uint64_t(SMB_SIZE)))) {
             LOG_HART(WARN, cpu, "%s SMB-reserved addr 0x%" PRIx64,
-                     data_access_is_write(macc) ? "Writing" : "Reading",
+                     data_access_is_write(macc) ? "Writing to" : "Reading from",
                      std::max(addr, uint64_t(SMB_ADDR)));
         }
 #endif
-        // NB: The memory controller truncates addresses, but since we do  not
-        // model that device we need to do the truncation here.
+        // NB: The memory controller truncates addresses, but since we do not
+        // model it we need to do the truncation here.
         return truncated_dram_addr(addr);
     }
 
@@ -430,8 +430,10 @@ static uint64_t pma_check_data_access(const Hart& cpu, uint64_t vaddr,
 }
 
 
-static uint64_t pma_check_fetch_access(const Hart& cpu, uint64_t vaddr, uint64_t addr)
+static uint64_t pma_check_fetch_access(const Hart& cpu, uint64_t vaddr,
+                                       uint64_t addr, size_t size)
 {
+    (void) size;
     bool spio = (cpu.mhartid == IO_SHIRE_SP_HARTID);
 
     if (paddr_is_dram(addr)) {
@@ -486,6 +488,14 @@ static uint64_t pma_check_fetch_access(const Hart& cpu, uint64_t vaddr, uint64_t
             sys_emu::get_mem_checker().access(addr, Mem_Access_Fetch, CacheOp_None, hart_index(cpu), 64, mreg_t(-1));
         }
 #endif
+#ifdef SMB_SIZE
+        if (((addr + size) > uint64_t(SMB_ADDR)) && (addr < (uint64_t(SMB_ADDR) + uint64_t(SMB_SIZE)))) {
+            LOG_HART(WARN, cpu, "Fetching from SMB-reserved addr 0x%" PRIx64,
+                     std::max(addr, uint64_t(SMB_ADDR)));
+        }
+#endif
+        // NB: The memory controller truncates addresses, but since we do not
+        // model it we need to do the truncation here.
         return truncated_dram_addr(addr);
     }
 
@@ -791,7 +801,7 @@ uint32_t mmu_fetch(const Hart& cpu, uint64_t vaddr)
             // 2B-aligned fetch
             uint16_t low, high;
             uint64_t paddr = vmemtranslate(cpu, vaddr, 2, Mem_Access_Fetch);
-            uint64_t addr = pma_check_fetch_access(cpu, vaddr, paddr);
+            uint64_t addr = pma_check_fetch_access(cpu, vaddr, paddr, 2);
             memory.read(cpu, addr, 2, &low);
             if ((low & 3) != 3) {
                 LOG_HART(DEBUG, cpu, "Fetched compressed instruction from PC 0x%" PRIx64 ": 0x%04x", vaddr, low);
@@ -800,7 +810,7 @@ uint32_t mmu_fetch(const Hart& cpu, uint64_t vaddr)
             paddr = ((paddr & 4095) <= 4092)
                     ? (paddr + 2)
                     : vmemtranslate(cpu, vaddr + 2, 2, Mem_Access_Fetch);
-            addr = pma_check_fetch_access(cpu, vaddr + 2, paddr);
+            addr = pma_check_fetch_access(cpu, vaddr + 2, paddr, 2);
             memory.read(cpu, addr, 2, &high);
             uint32_t bits = uint32_t(low) + (uint32_t(high) << 16);
             LOG_HART(DEBUG, cpu, "Fetched instruction from PC 0x%" PRIx64 ": 0x%08x", vaddr, bits);
@@ -809,7 +819,7 @@ uint32_t mmu_fetch(const Hart& cpu, uint64_t vaddr)
         // 4B-aligned fetch
         uint32_t bits;
         uint64_t paddr = vmemtranslate(cpu, vaddr, 4, Mem_Access_Fetch);
-        uint64_t addr = pma_check_fetch_access(cpu, vaddr, paddr);
+        uint64_t addr = pma_check_fetch_access(cpu, vaddr, paddr, 4);
         memory.read(cpu, addr, 4, &bits);
         if ((bits & 3) != 3) {
             uint16_t low = uint16_t(bits);

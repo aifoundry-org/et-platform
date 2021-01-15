@@ -11,21 +11,22 @@
 #pragma once
 #include "api_communicate.h"
 #include "sw-sysemu/ISysEmu.h"
+#include "sys_emu.h"
 #include <condition_variable>
 #include <functional>
 #include <mutex>
 #include <queue>
+#include <thread>
 
 namespace emu {
 class SysEmuImp : public ISysEmu, public api_communicate {
 public:
   // ISysEmu interface
-  void setHostListener(IHostListener* hostListener) override;
   void mmioRead(uint64_t address, size_t size, std::byte* dst) override;
   void mmioWrite(uint64_t address, size_t size, const std::byte* src) override;
   void raiseDevicePuPlicPcieMessageInterrupt() override;
   void raiseDeviceSpioPlicPcieMessageInterrupt() override;
-  void waitForInterrupt(uint32_t bitmask) override;
+  uint32_t waitForInterrupt(uint32_t bitmask) override;
 
   // api_communicate interface
   void process() override;
@@ -35,10 +36,10 @@ public:
 
   ~SysEmuImp();
 
-  SysEmuImp(const sys_emu_cmd_options& cmdOptions);
+  SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>& barAddresses, IHostListener* hostListener);
 
 private:
-  sys_emu emu;
+  std::thread sysEmuThread_;
 
   std::mutex mutex_;
   bool running_ = true;

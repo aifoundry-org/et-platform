@@ -11,12 +11,20 @@
 #include "agent.h"
 #include "emu.h"
 #include "memory/main_memory.h"
+#include "sys_emu.h"
 #include "utils.h"
+#include <future>
 #include <mutex>
+#include <thread>
 using namespace emu;
 
 namespace {
 auto g_mem = &bemu::memory;
+
+#define BAR0_ADDR 0x7E80000010
+#define BAR1_ADDR 0x7E80000014
+#define BAR2_ADDR 0x7E80000018
+#define BAR3_ADDR 0x7E8000001C
 
 struct Agent : bemu::Agent {
   std::string name() const override {
@@ -73,13 +81,10 @@ bool iatuTranslate(uint64_t pci_addr, uint64_t size, uint64_t& device_addr, uint
 }
 } // namespace
 
-void SysEmuImp::setHostListener(IHostListener* hostListener) {
-  hostListener_ = hostListener;
-}
-
-void SysEmuImp::process() {
+void SysEmuImp::process() {  
   std::lock_guard<std::mutex> lock(mutex_);
   if (!requests_.empty()) {
+    SE_LOG(INFO) << "Processing request...";
     auto&& req = requests_.front();
     req();
     requests_.pop();
@@ -88,7 +93,8 @@ void SysEmuImp::process() {
 
 void SysEmuImp::mmioRead(uint64_t address, size_t size, std::byte* dst) {
 
-  auto request = [=]() {
+  std::promise<void> p;
+  auto request = [=, &p]() {
     SE_LOG(INFO) << "Device memory read at: " << std::hex << address << " size: " << size << " host dst: " << dst;
     auto pci_addr = address;
     uint64_t host_access_offset = 0;
@@ -111,18 +117,22 @@ void SysEmuImp::mmioRead(uint64_t address, size_t size, std::byte* dst) {
       readSize -= access_size;
     }
 
-    if (readSize > 0) {
+    if (readSize > 0) {      
       throw Exception(
         "Invalid IATU translation. Size too big to be covered fully by iATUs / translation failure. Address: " +
         std::to_string(address) + " size: " + std::to_string(readSize));
     }
+    p.set_value();
   };
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::unique_lock<std::mutex> lock(mutex_);
   requests_.emplace(std::move(request));
+  lock.unlock();
+  p.get_future().get();
 }
 
 void SysEmuImp::mmioWrite(uint64_t address, size_t size, const std::byte* src) {
-  auto request = [=]() {
+  std::promise<void> p;
+  auto request = [=, &p]() {
     SE_LOG(INFO) << "Device memory write at: " << std::hex << address << " size: " << size << " host src: " << src;
     auto pci_addr = address;
     uint64_t host_access_offset = 0;
@@ -146,9 +156,12 @@ void SysEmuImp::mmioWrite(uint64_t address, size_t size, const std::byte* src) {
         "Invalid IATU translation. Size too big to be covered fully by iATUs / translation failure. Address: " +
         std::to_string(address) + " size: " + std::to_string(readSize));
     }
+    p.set_value();
   };
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::unique_lock<std::mutex> lock(mutex_);
   requests_.emplace(std::move(request));
+  lock.unlock();
+  p.get_future().get();
 }
 
 void SysEmuImp::raiseDevicePuPlicPcieMessageInterrupt() {
@@ -163,20 +176,23 @@ void SysEmuImp::raiseDevicePuPlicPcieMessageInterrupt() {
   requests_.emplace(std::move(request));
 }
 
-void SysEmuImp::waitForInterrupt(uint32_t bitmap) {
+uint32_t SysEmuImp::waitForInterrupt(uint32_t bitmap) {
   std::unique_lock<std::mutex> lock(mutex_);
   if (!(pendingInterruptsBitmask_ & bitmap)) {
     condVar_.wait(lock, [this, bitmap]() { return !running_ || (bitmap & pendingInterruptsBitmask_); });
   }
   if (running_) {
+    bitmap &= pendingInterruptsBitmask_;
     pendingInterruptsBitmask_ &= ~bitmap;
   }
+  return bitmap;
 }
 bool SysEmuImp::raise_host_interrupt(uint32_t bitmap) {
   LOG_NOTHREAD(INFO, "SysEmuImp: Raise Host Interrupt (0x%" PRIx32 ")", bitmap);
   std::lock_guard<std::mutex> lock(mutex_);
   pendingInterruptsBitmask_ |= bitmap;
   condVar_.notify_all();
+  return true;
 }
 
 void SysEmuImp::raiseDeviceSpioPlicPcieMessageInterrupt() {
@@ -216,11 +232,70 @@ SysEmuImp::~SysEmuImp() {
   while (!requests_.empty()) {
     requests_.pop();
   }
+  bemu::emu_set_done();
   pendingInterruptsBitmask_ = 0;
   lock.unlock();
   condVar_.notify_all();
+  SE_LOG(INFO) << "Waiting for sysemu thread to finish.";
+  sysEmuThread_.join();
+  SE_LOG(INFO) << "Sysemu thread finished.";
 }
 
-SysEmuImp::SysEmuImp(const sys_emu_cmd_options& cmdOptions) {
-  emu.main_internal(cmdOptions);
+SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>& barAddresses,
+                     IHostListener* hostListener)
+  : hostListener_(hostListener) {
+  // Preload BootromTrampolineToBL2 and BL2 SP ELFs
+  const std::vector<std::string> preloadElfs = {options.bootromTrampolineToBL2ElfPath, options.spBL2ElfPath,
+                                                options.masterMinionElfPath, options.machineMinionElfPath,
+                                                options.workerMinionElfPath};
+
+  sys_emu_cmd_options opts;
+
+  if (!options.additionalOptions.empty()) {
+    std::vector<const char*> extraOptions;
+    extraOptions.emplace_back("dummyExecName");
+    for (auto&& opt : options.additionalOptions) {
+      extraOptions.emplace_back(opt.c_str());
+    }
+    auto parsed = sys_emu::parse_command_line_arguments(extraOptions.size(), const_cast<char**>(extraOptions.data()));
+    if (!std::get<0>(parsed)) {
+      throw Exception("Error parsing SysEmu arguments");
+    }
+    opts = std::get<1>(parsed);
+  }
+  if (opts.mem_write32s.empty()) {
+    opts.mem_write32s.emplace_back(
+      sys_emu_cmd_options::mem_write32{BAR0_ADDR, static_cast<uint32_t>(barAddresses[0] & 0xFFFFFFFFu)});
+    opts.mem_write32s.emplace_back(
+      sys_emu_cmd_options::mem_write32{BAR1_ADDR, static_cast<uint32_t>(barAddresses[0] >> 32)});
+    opts.mem_write32s.emplace_back(
+      sys_emu_cmd_options::mem_write32{BAR2_ADDR, static_cast<uint32_t>(barAddresses[2] & 0xFFFFFFFFu)});
+    opts.mem_write32s.emplace_back(
+      sys_emu_cmd_options::mem_write32{BAR3_ADDR, static_cast<uint32_t>(barAddresses[2] >> 32)});
+  }
+
+  opts.mins_dis = true;
+  opts.minions_en = 0xFFFFFFFF;
+  opts.shires_en = options.minionShiresMask | (1ull << 34); // always enable Service Processor
+  opts.max_cycles = options.maxCycles;
+  opts.gdb = options.startGdb;
+
+  opts.pu_uart0_tx_file = options.puUart0Path.empty() ? options.runDir + "/" + "pu_uart0_tx.log" : options.puUart0Path;
+  opts.pu_uart1_tx_file = options.puUart1Path.empty() ? options.runDir + "/" + "pu_uart1_tx.log" : options.puUart1Path;
+  opts.spio_uart0_tx_file =
+    options.spUart0Path.empty() ? options.runDir + "/" + "spio_uart0_tx.log" : options.spUart0Path;
+  opts.spio_uart1_tx_file =
+    options.spUart1Path.empty() ? options.runDir + "/" + "spio_uart1_tx.log" : options.spUart1Path;
+  opts.elf_files = preloadElfs;
+  sysEmuThread_ = std::thread([opts, this]() {
+    SE_LOG(INFO) << "Starting sysemu thread " << std::this_thread::get_id();
+    sys_emu emu;
+    emu.main_internal(opts, this);
+    SE_LOG(INFO) << "Ending sysemu thread " << std::this_thread::get_id();
+  });
+  
+  // #TODO FIX-ME https://esperantotech.atlassian.net/browse/SW-5740
+  std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+  SE_LOG(INFO) << "Calling pcieReady";
+  hostListener_->pcieReady();
 }
