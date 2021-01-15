@@ -16,6 +16,8 @@
 // WARNING: The following data-structures are part of the device-api data exchanged between
 // host and device. The requirement is that fields are naturally aligned. To easily enforce this
 // make sure that member fields are ordered by decreasing size.
+// cmn_header_t structure is common to command and response and should always be kept in the 
+// start of command/response header.
 typedef uint16_t tag_id_t;
 typedef uint16_t msg_id_t;
 
@@ -49,8 +51,8 @@ typedef struct cmd_header_t dev_mgmt_cmd_header_t;
 
 /// @brief DM response header. This header is attached to each response
 struct dev_mgmt_rsp_header_t {
-    struct dev_mgmt_rsp_hdr_extn_t rsp_hdr_ext;
     struct cmn_header_t rsp_hdr;
+    struct dev_mgmt_rsp_hdr_extn_t rsp_hdr_ext;
 };
 
 /// @brief Event header for all events from device to host
