@@ -1,7 +1,6 @@
 #include "cacheops.h"
 #include "kernel.h"
 #include "kernel_config.h"
-#include "kernel_info.h"
 #include "kernel_sync.h"
 #include "fcc.h"
 #include "flb.h"
@@ -21,19 +20,18 @@ static const uint8_t tensor_zeros[64] __attribute__((aligned(64))) = { 0 };
 
 static local_fcc_barrier_t post_kernel_barrier[NUM_SHIRES] = { 0 };
 
-static void pre_kernel_setup(const kernel_params_t *const kernel_params_ptr,
-                             uint64_t kernel_launch_flags);
+static void pre_kernel_setup(uint64_t kernel_id, uint64_t kernel_launch_flags);
 static void kernel_return_function(int64_t return_value)
     __attribute__((used, section(".user_text"))); // must be placed in U-mode accessible section
 static void log_errors(int64_t return_value, uint64_t tensor_error);
-static void post_kernel_cleanup(const kernel_params_t *const kernel_params_ptr,
-                                uint64_t kernel_launch_flags);
+static void post_kernel_cleanup(uint64_t kernel_id, uint64_t kernel_launch_flags);
 
 // Saves firmware context and launches kernel in user mode with clean stack and registers
 // Note that global Supervisor interrupts are disabled after returning from this function
-int64_t launch_kernel(const uint64_t *const kernel_entry_addr,
+int64_t launch_kernel(uint64_t kernel_id,
+                      const uint64_t *const kernel_entry_addr,
                       const uint64_t *const kernel_stack_addr,
-                      const kernel_params_t *const kernel_params_ptr,
+                      const uint64_t *const kernel_params_ptr,
                       uint64_t kernel_launch_flags)
 {
     uint64_t *firmware_sp;
@@ -44,7 +42,7 @@ int64_t launch_kernel(const uint64_t *const kernel_entry_addr,
                  "addi  %0, %0, 8    \n"
                  : "=r"(firmware_sp));
 
-    pre_kernel_setup(kernel_params_ptr, kernel_launch_flags);
+    pre_kernel_setup(kernel_id, kernel_launch_flags);
 
     // -Save firmware context on supervisor stack and sp to supervisor stack SP region
     // -Switch sp to kernel_stack_addr
@@ -168,13 +166,12 @@ int64_t launch_kernel(const uint64_t *const kernel_entry_addr,
 
     log_errors(return_value, tensor_error);
 
-    post_kernel_cleanup(kernel_params_ptr, kernel_launch_flags);
+    post_kernel_cleanup(kernel_id, kernel_launch_flags);
 
     return return_value;
 }
 
-static void pre_kernel_setup(const kernel_params_t *const kernel_params_ptr,
-                             uint64_t kernel_launch_flags)
+static void pre_kernel_setup(uint64_t kernel_id, uint64_t kernel_launch_flags)
 {
     const uint64_t shire_id = get_shire_id();
     const uint32_t minion_mask = (shire_id == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
@@ -278,7 +275,7 @@ static void pre_kernel_setup(const kernel_params_t *const kernel_params_ptr,
 
     // Last thread to join barrier sends ready FCC1 to master shire sync thread
     if (result) {
-        notify_kernel_sync_thread(kernel_params_ptr->kernel_id, FCC_1);
+        notify_kernel_sync_thread(kernel_id, FCC_1);
     }
 
     // Wait for go FCC1 from master shire sync thread
@@ -301,18 +298,13 @@ static void log_errors(int64_t return_value, uint64_t tensor_error)
     }
 }
 
-static void post_kernel_cleanup(const kernel_params_t *const kernel_params_ptr,
-                                uint64_t kernel_launch_flags)
+static void post_kernel_cleanup(uint64_t kernel_id, uint64_t kernel_launch_flags)
 {
     const uint64_t shire_id = get_shire_id();
     const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
     const uint32_t minion_mask = (get_shire_id() == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
     uint64_t evict_l3 = 0;
     bool result;
-
-    // All accesses to kernel_params must happen before SYSCALL_POST_KERNEL_CLEANUP_INT
-    // evicts all the caches to avoid pulling it back in as a valid line
-    const uint64_t kernel_id = kernel_params_ptr->kernel_id;
 
     // Wait for all memory accesses to complete
     FENCE

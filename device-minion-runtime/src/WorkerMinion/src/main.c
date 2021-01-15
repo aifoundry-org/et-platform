@@ -6,7 +6,6 @@
 #include "hart.h"
 #include "kernel.h"
 #include "kernel_config.h"
-#include "kernel_info.h"
 #include "layout.h"
 #include "message.h"
 #include "syscall_internal.h"
@@ -70,19 +69,20 @@ void __attribute__((noreturn)) main(void)
         // or SWI (message passing slow path)
         WAIT_FCC(FCC_0);
 
-        for (uint64_t kernel_id = 0; kernel_id < MAX_SIMULTANEOUS_KERNELS; kernel_id++) {
-            volatile const kernel_config_t *const kernel_config_ptr = &kernel_config[kernel_id];
+        for (uint64_t i = 0; i < MAX_SIMULTANEOUS_KERNELS; i++) {
+            volatile const kernel_config_t *const kernel_config_ptr = &kernel_config[i];
 
-            if (kernel_config_ptr->kernel_info.shire_mask & shire_mask) {
-                const uint64_t *const kernel_entry_addr =
-                    (uint64_t *)kernel_config_ptr->kernel_info.compute_pc;
+            if (kernel_config_ptr->shire_mask & shire_mask) {
+                uint64_t kernel_id = kernel_config_ptr->kernel_id;
+                const uint64_t *const code_start_address =
+                    (uint64_t *)kernel_config_ptr->code_start_address;
                 const uint64_t *const kernel_stack_addr =
                     (uint64_t *)(KERNEL_UMODE_STACK_BASE - (hart_id * KERNEL_UMODE_STACK_SIZE));
-                const kernel_params_t *const kernel_params_ptr =
-                    kernel_config_ptr->kernel_info.kernel_params_ptr;
+                const uint64_t *const pointer_to_args =
+                    (uint64_t *)kernel_config_ptr->pointer_to_args;
                 const uint64_t kernel_launch_flags = kernel_config_ptr->kernel_launch_flags;
 
-                rv = launch_kernel(kernel_entry_addr, kernel_stack_addr, kernel_params_ptr,
+                rv = launch_kernel(kernel_id, code_start_address, kernel_stack_addr, pointer_to_args,
                                    kernel_launch_flags);
                 break;
             }
@@ -91,8 +91,8 @@ void __attribute__((noreturn)) main(void)
         if (rv != 0) {
             // Something went wrong launching the kernel.
             // Can't rely on post_kernel_cleanup(), so evict to invalidate.
-            for (uint64_t kernel_id = 0; kernel_id < MAX_SIMULTANEOUS_KERNELS; kernel_id++) {
-                evict(to_L3, &kernel_config[kernel_id], sizeof(kernel_config_t));
+            for (uint64_t i = 0; i < MAX_SIMULTANEOUS_KERNELS; i++) {
+                evict(to_L3, &kernel_config[i], sizeof(kernel_config_t));
             }
         }
     }

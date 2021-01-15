@@ -2,7 +2,7 @@
 
 void swi_handler(void);
 
-volatile bool swi_flag = false;
+volatile bool swi_flag __attribute__((aligned(64))) = false;
 
 void swi_handler(void)
 {

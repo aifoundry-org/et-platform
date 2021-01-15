@@ -8,9 +8,9 @@ typedef struct {
 } shire_status_t;
 
 // Local state
-static shire_status_t shire_status[NUM_SHIRES] = { 0 };
-static uint64_t g_functional_shires = 0;
-static uint64_t booted_shires = 0;
+static shire_status_t shire_status[NUM_SHIRES] __attribute__((aligned(64))) = { 0 };
+static uint64_t g_functional_shires __attribute__((aligned(64))) = 0;
+static uint64_t booted_shires __attribute__((aligned(64))) = 0;
 
 void set_functional_shires(uint64_t mask)
 {

@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-volatile bool pcie_interrupt_flag = false;
+volatile bool pcie_interrupt_flag __attribute__((aligned(64))) = false;
 
 void pcie_isr(void)
 {

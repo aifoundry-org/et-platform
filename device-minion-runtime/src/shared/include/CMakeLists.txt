@@ -74,7 +74,6 @@ install(
     device-common/utils.h
     # Not device common libs. FW dependent
     device-common/log_levels.h
-    device-common/kernel_params.h
     device-common/syscall.h
   DESTINATION
     ${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/device_common

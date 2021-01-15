@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 
-static log_level_t current_log_level = LOG_LEVEL_WARNING;
+static log_level_t current_log_level __attribute__((aligned(64))) = LOG_LEVEL_WARNING;
 
 void log_set_level(log_level_t level)
 {
