@@ -10,7 +10,7 @@
 
 add_subdirectory("include")
 
-add_library(firmware_helpers STATIC
+set(FIRMWARE_HELPERS_SOURCES 
   src/pcie_int.c
   src/ringbuffer.c
   src/backtrace.c
@@ -20,15 +20,41 @@ add_library(firmware_helpers STATIC
   src/vq.c
   )
 
-target_include_directories(firmware_helpers PUBLIC
+# create a static library with MasterMinion compile time definition
+add_library(mm_firmware_helpers STATIC ${FIRMWARE_HELPERS_SOURCES})
+target_compile_definitions(mm_firmware_helpers PUBLIC -DMASTER_MINION=1)
+
+target_include_directories(mm_firmware_helpers PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${INCLUDE_INSTALL_DIR}/esperanto-fw/firmware_helpers>)
 
-target_include_directories(firmware_helpers PRIVATE
+target_include_directories(mm_firmware_helpers PRIVATE
   ${SHARED_INC_DIRS})
 
 install(
-  TARGETS firmware_helpers
+  TARGETS mm_firmware_helpers
+  EXPORT EsperantoDeviceMinionRuntimeTargets
+  ARCHIVE
+    DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw
+    COMPONENT firmware_helpers
+  PUBLIC_HEADER
+    DESTINATION ${INCLUDE_INSTALL_DIR}/esperanto-fw/firmware_helpers
+    COMPONENT firmware_helpers
+)
+
+# create a static library with ServiceProcessorBL2 compile time definition
+add_library(sp_firmware_helpers STATIC ${FIRMWARE_HELPERS_SOURCES})
+target_compile_definitions(sp_firmware_helpers PUBLIC -DSERVICE_PROCESSOR_BL2=1)
+
+target_include_directories(sp_firmware_helpers PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:${INCLUDE_INSTALL_DIR}/esperanto-fw/firmware_helpers>)
+
+target_include_directories(sp_firmware_helpers PRIVATE
+  ${SHARED_INC_DIRS})
+
+install(
+  TARGETS sp_firmware_helpers
   EXPORT EsperantoDeviceMinionRuntimeTargets
   ARCHIVE
     DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw
