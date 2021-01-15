@@ -80,5 +80,5 @@ int main(int argc, char *argv[])
     }
 
     sys_emu emu;
-    return emu.main_internal(cmd_options, std::move(api_comm));
+    return emu.main_internal(cmd_options, api_comm.get());
 }

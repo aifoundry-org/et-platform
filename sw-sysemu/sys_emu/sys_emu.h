@@ -135,10 +135,12 @@ public:
     sys_emu() = default;
     virtual ~sys_emu() = default;
 
-    bool init_simulator(const sys_emu_cmd_options& cmd_options, std::unique_ptr<api_communicate> api_comm);
+    bool init_simulator(const sys_emu_cmd_options& cmd_options,
+                        api_communicate* api_comm);
 
     /// Function used for parsing the command line arguments
-    static std::tuple<bool, struct sys_emu_cmd_options> parse_command_line_arguments(int argc, char* argv[]);
+    static std::tuple<bool, struct sys_emu_cmd_options>
+    parse_command_line_arguments(int argc, char* argv[]);
     static void get_command_line_help(std::ostream& stream);
 
     static uint64_t thread_get_pc(unsigned thread_id) { return bemu::get_cpu(thread_id).pc; }
@@ -165,7 +167,8 @@ public:
     static void evl_dv_handle_irq_inj(bool raise, uint64_t subopcode, uint64_t shire_mask);
     static void shire_enable_threads(unsigned shire_id, uint32_t thread0_disable, uint32_t thread1_disable);
     static void recalculate_thread_disable(unsigned shire_id);
-    int main_internal(const sys_emu_cmd_options& cmd_options, std::unique_ptr<api_communicate> api_comm = nullptr);
+    int main_internal(const sys_emu_cmd_options& cmd_options,
+                      api_communicate* api_comm = nullptr);
 
     static uint64_t get_emu_cycle()  { return emu_cycle; }
 
@@ -208,9 +211,9 @@ public:
     static void breakpoint_remove(uint64_t addr);
     static bool breakpoint_exists(uint64_t addr);
 
-    static api_communicate *get_api_communicate() { return api_listener.get(); }
+    static api_communicate* get_api_communicate() { return api_listener; }
 
-protected:
+   protected:
 
     // Returns whether a container contains an element
     template<class _container, class _Ty>
@@ -265,7 +268,7 @@ private:
     static std::unordered_set<uint64_t> breakpoints;
     static std::bitset<EMU_NUM_THREADS> single_step;
 
-    static std::unique_ptr<api_communicate> api_listener;
+    static api_communicate* api_listener;
     static sys_emu_cmd_options cmd_options;
 };
 

@@ -10,4 +10,5 @@
 
 @PACKAGE_INIT@
 
-set_and_check(SYSEMU_INSTALL_DIR "@SYSEMU_INSTALL_DIR@")
+include(${CMAKE_CURRENT_LIST_DIR}/sw-sysemuTargets.cmake) 
+check_required_components(sw-sysemuTargets)

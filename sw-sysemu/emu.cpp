@@ -12,6 +12,7 @@
 #include <array>
 #include <cassert>
 #include <cfenv>        // FIXME: remove this when we purge std::fesetround() from the code!
+#include <cstring>
 
 //#include "decode.h"
 #include "emu.h"
@@ -52,13 +53,16 @@ void emu_set_done()
 
 void init_emu(system_version_t ver)
 {
-    sysver = ver;
-   // FIXME: remove '#include <cfenv>' when we purge this function from the code
-   std::fesetround(FE_TONEAREST); // set rne for host
+  m_emu_done = false;
+  memset(&memory, 0, sizeof(memory));
+  new (&memory) MainMemory{};
+  sysver = ver;
+  // FIXME: remove '#include <cfenv>' when we purge this function from the code
+  std::fesetround(FE_TONEAREST);  // set rne for host
 
-   for (unsigned tid = 0; tid < EMU_NUM_THREADS; ++tid) {
-       unsigned cid = tid / EMU_THREADS_PER_MINION;
-       cpu[tid].core = &core[cid];
+  for (unsigned tid = 0; tid < EMU_NUM_THREADS; ++tid) {
+    unsigned cid = tid / EMU_THREADS_PER_MINION;
+    cpu[tid].core = &core[cid];
    }
 }
 
