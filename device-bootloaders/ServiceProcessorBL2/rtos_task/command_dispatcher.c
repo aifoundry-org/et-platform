@@ -20,6 +20,7 @@
 #include "bl2_error_control.h"
 #include "bl2_historical_extreme.h"
 #include "minion_state.h"
+#include "bl2_perf.h"
 #include "bl2_timer.h"
 #include "command_dispatcher.h"
 
@@ -203,6 +204,15 @@ static void pc_vq_task(void *pvParameters)
             case DM_CMD_GET_MM_THREADS_STATE:
                 Minion_State_Host_Iface_Process_Request(tag_id, msg_id);
                 break;
+            case DM_CMD_GET_ASIC_FREQUENCIES:
+            case DM_CMD_GET_DRAM_BANDWIDTH:
+            case DM_CMD_GET_DRAM_CAPACITY_UTILIZATION:
+            case DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION:
+            case DM_CMD_GET_ASIC_UTILIZATION:
+            case DM_CMD_GET_ASIC_STALLS:
+            case DM_CMD_GET_ASIC_LATENCY:
+		         process_performance_request(tag_id, msg_id);
+                 break;
             default:
                 printf("[PC VQ] Invalid message id: %" PRIu16 "\r\n", msg_id);
                 printf("message length: %" PRIi64 ", buffer:\r\n", length);

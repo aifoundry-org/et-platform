@@ -88,7 +88,7 @@ static void get_module_max_ddr_bw(tag_id_t tag_id, uint64_t req_start_time)
     dm_rsp.max_dram_bw.max_bw_wr_req_sec = 100;
 
     FILL_RSP_HEADER(dm_rsp, tag_id,
-                    DM_CMD_GET_MAX_MEMORY_ERROR,
+                    DM_CMD_GET_MODULE_MAX_DDR_BW,
                     timer_get_ticks_count() - req_start_time,
                     DM_STATUS_SUCCESS);
 

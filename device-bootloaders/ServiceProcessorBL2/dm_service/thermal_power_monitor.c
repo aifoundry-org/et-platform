@@ -104,7 +104,7 @@ static void pwr_svc_get_module_power_state(uint16_t tag, uint64_t req_start_time
 ***********************************************************************/
 static void pwr_svc_set_module_power_state(uint16_t tag, uint64_t req_start_time, power_state_e state)
 {
-    struct device_mgmt_power_state_rsp_t dm_rsp;
+    struct device_mgmt_default_rsp_t dm_rsp;
     
     get_soc_power_reg()->module_power_state = state;
 
@@ -113,7 +113,9 @@ static void pwr_svc_set_module_power_state(uint16_t tag, uint64_t req_start_time
                     timer_get_ticks_count() - req_start_time,
                     DM_STATUS_SUCCESS);
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct dev_mgmt_rsp_header_t))) {
+    dm_rsp.payload = DM_STATUS_SUCCESS;
+
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
         printf("pwr_svc_set_module_power_state: Cqueue push error !\n");
     }
 }
@@ -268,7 +270,7 @@ static void pwr_svc_get_module_tdp_level(uint16_t tag, uint64_t req_start_time)
 ***********************************************************************/
 static void pwr_svc_set_module_tdp_level(uint16_t tag, uint64_t req_start_time, tdp_level_e tdp)
 {
-    struct device_mgmt_tdp_level_rsp_t dm_rsp;
+    struct device_mgmt_default_rsp_t dm_rsp;
 
     // TODO implement response handler for PMIC Read
     pmic_set_tdp_threshold(tdp);
@@ -279,7 +281,9 @@ static void pwr_svc_set_module_tdp_level(uint16_t tag, uint64_t req_start_time, 
                     timer_get_ticks_count() - req_start_time,
                     DM_STATUS_SUCCESS);
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct dev_mgmt_rsp_header_t))) {
+    dm_rsp.payload = DM_STATUS_SUCCESS;
+
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
         printf("pwr_svc_set_module_power_state: Cqueue push error !\n");
     }
 }
@@ -345,7 +349,7 @@ static void pwr_svc_get_module_temp_thresholds(uint16_t tag, uint64_t req_start_
 ***********************************************************************/
 static void pwr_svc_set_module_temp_thresholds(uint16_t tag, uint64_t req_start_time, uint8_t hi_threshold, uint8_t lo_threshold)
 {
-    struct device_mgmt_temperature_threshold_rsp_t dm_rsp;
+    struct device_mgmt_default_rsp_t dm_rsp;
 
     pmic_set_temperature_threshold(L0, lo_threshold);
     pmic_set_temperature_threshold(HI, hi_threshold);
@@ -356,8 +360,10 @@ static void pwr_svc_set_module_temp_thresholds(uint16_t tag, uint64_t req_start_
                     DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS,
                     timer_get_ticks_count() - req_start_time,
                     DM_STATUS_SUCCESS);
+
+    dm_rsp.payload = DM_STATUS_SUCCESS;
      
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct dev_mgmt_rsp_header_t))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
         printf("pwr_svc_set_module_temp_thresholds: Cqueue push error !\n");
     }
 }

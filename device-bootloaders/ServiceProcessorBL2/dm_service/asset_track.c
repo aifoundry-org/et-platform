@@ -223,14 +223,16 @@ void asset_tracking_process_request(mbox_e mbox, uint32_t cmd_id)
 }
 
 #else
-static void asset_tracking_send_response(tag_id_t tag_id, uint64_t req_start_time, char asset_info[])
+static void asset_tracking_send_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, char asset_info[])
 {
     struct device_mgmt_asset_tracking_rsp_t dm_rsp;
 
     strncpy(dm_rsp.asset_info.asset, asset_info, 8);
 
-    FILL_RSP_HEADER(dm_rsp, tag_id,
-                    DM_CMD_GET_MM_THREADS_STATE,
+    printf("asset_info: %.*s\n", 8, asset_info);
+    printf("dm_rsp.asset_info.asset: %.*s\n", 8, dm_rsp.asset_info.asset);
+
+    FILL_RSP_HEADER(dm_rsp, tag_id, msg_id,
                     timer_get_ticks_count() - req_start_time,
                     DM_STATUS_SUCCESS);
 
@@ -312,7 +314,7 @@ void asset_tracking_process_request(tag_id_t tag_id, msg_id_t msg_id)
 
     if (!ret) {
         printf("cmd_id : %d   response: %s\n", msg_id, req_asset_info);
-        asset_tracking_send_response(tag_id, req_start_time, req_asset_info);
+        asset_tracking_send_response(tag_id, msg_id, req_start_time, req_asset_info);
     } else {
         printf("cmd_id : %d   error %ld\r\n", msg_id, ret);
     }

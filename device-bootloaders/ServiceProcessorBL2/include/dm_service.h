@@ -34,7 +34,7 @@ struct soc_power_reg_t {
      uint64_t throttled_states_residency;
 };
 
-/* Standard Response for all DM services */
+/* Response Header of different response structs in DM services */
 #define  FILL_RSP_HEADER(rsp, tag, msg, latency, sts) (rsp).rsp_hdr.rsp_hdr.tag_id = tag; \
                                                       (rsp).rsp_hdr.rsp_hdr.msg_id = msg; \
                                                       (rsp).rsp_hdr.rsp_hdr.size = sizeof(rsp); \

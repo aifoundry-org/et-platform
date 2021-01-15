@@ -49,7 +49,7 @@ static void link_mgmt_pcie_reset(uint16_t tag, uint64_t req_start_time, pcie_res
 {
     // TODO: Reset SPEC work is in progress. Discuss if we need to send response
     //       to host. For now sending the response.
-    struct device_mgmt_get_error_count_rsp_t dm_rsp;
+    struct device_mgmt_default_rsp_t dm_rsp;
 
     switch (pcie_reset_type) {
     case PCIE_RESET_FLR:
@@ -68,7 +68,9 @@ static void link_mgmt_pcie_reset(uint16_t tag, uint64_t req_start_time, pcie_res
                     timer_get_ticks_count() - req_start_time,
                     DM_STATUS_SUCCESS);
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct dev_mgmt_rsp_header_t))) {
+    dm_rsp.payload = DM_STATUS_SUCCESS;
+
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
         printf("link_mgmt_pcie_reset: Cqueue push error !\n");
     }
 }
@@ -97,7 +99,7 @@ static void link_mgmt_pcie_reset(uint16_t tag, uint64_t req_start_time, pcie_res
 static void link_mgmt_set_pcie_max_link_speed(uint16_t tag, uint64_t req_start_time,
                                               pcie_link_speed_e pcie_link_speed)
 {
-    struct device_mgmt_get_error_count_rsp_t dm_rsp;
+    struct device_mgmt_default_rsp_t dm_rsp;
 
     switch (pcie_link_speed) {
     case PCIE_LINK_SPEED_GEN3:
@@ -113,7 +115,9 @@ static void link_mgmt_set_pcie_max_link_speed(uint16_t tag, uint64_t req_start_t
                     timer_get_ticks_count() - req_start_time,
                     DM_STATUS_SUCCESS);
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct dev_mgmt_rsp_header_t))) {
+    dm_rsp.payload = DM_STATUS_SUCCESS;
+
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
         printf("link_mgmt_set_pcie_max_link_speed: Cqueue push error !\n");
     }
 }
@@ -142,7 +146,7 @@ static void link_mgmt_set_pcie_max_link_speed(uint16_t tag, uint64_t req_start_t
 static void link_mgmt_set_pcie_lane_width(uint16_t tag, uint64_t req_start_time,
                                           pcie_lane_w_split_e pcie_lane_w_split)
 {
-    struct device_mgmt_get_error_count_rsp_t dm_rsp;
+    struct device_mgmt_default_rsp_t dm_rsp;
 
     switch (pcie_lane_w_split) {
     case PCIE_LANE_W_SPLIT_x4:
@@ -158,7 +162,9 @@ static void link_mgmt_set_pcie_lane_width(uint16_t tag, uint64_t req_start_time,
                     timer_get_ticks_count() - req_start_time,
                     DM_STATUS_SUCCESS);
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct dev_mgmt_rsp_header_t))) {
+    dm_rsp.payload = DM_STATUS_SUCCESS;
+
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
         printf("link_mgmt_set_pcie_lane_width: Cqueue push error !\n");
     }
 }
@@ -185,7 +191,7 @@ static void link_mgmt_set_pcie_lane_width(uint16_t tag, uint64_t req_start_time,
 ***********************************************************************/
 static void link_mgmt_pcie_retrain_phy(uint16_t tag, uint64_t req_start_time)
 {
-    struct device_mgmt_get_error_count_rsp_t dm_rsp;
+    struct device_mgmt_default_rsp_t dm_rsp;
 
     //TODO : Add PHY Retraining
 
@@ -194,7 +200,9 @@ static void link_mgmt_pcie_retrain_phy(uint16_t tag, uint64_t req_start_time)
                     timer_get_ticks_count() - req_start_time,
                     DM_STATUS_SUCCESS);
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct dev_mgmt_rsp_header_t))) {
+    dm_rsp.payload = DM_STATUS_SUCCESS;
+
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
         printf("link_mgmt_pcie_retrain_phy: Cqueue push error !\n");
     }
 }

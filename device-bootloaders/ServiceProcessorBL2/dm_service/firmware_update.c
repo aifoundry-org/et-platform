@@ -340,16 +340,17 @@ void firmware_service_process_request(mbox_e mbox, uint32_t cmd_id, void *buffer
 
 #else
 
-static void send_status_response(tag_id_t tag_id, uint64_t req_start_time, uint32_t status)
+static void send_status_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, uint32_t status)
 {
-    struct device_mgmt_firmware_versions_rsp_t dm_rsp;
+    struct device_mgmt_default_rsp_t dm_rsp;
 
-    FILL_RSP_HEADER(dm_rsp, tag_id,
-                    DM_CMD_GET_MODULE_FIRMWARE_REVISIONS,
+    FILL_RSP_HEADER(dm_rsp, tag_id, msg_id,
                     timer_get_ticks_count() - req_start_time,
                     status);
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct dev_mgmt_rsp_header_t))) {
+    dm_rsp.payload = status;
+
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
         printf("send_status_response: Cqueue push error !\n");
     }
 }
@@ -504,7 +505,7 @@ void firmware_service_process_request(tag_id_t tag_id, msg_id_t msg_id, void *bu
     switch (msg_id) {
     case DM_CMD_SET_FIRMWARE_UPDATE: {
         ret = dm_svc_firmware_update();
-        send_status_response(tag_id, req_start_time, (uint32_t)ret);
+        send_status_response(tag_id, msg_id, req_start_time, (uint32_t)ret);
     } break;
 
     case DM_CMD_GET_MODULE_FIRMWARE_REVISIONS: {
@@ -513,7 +514,7 @@ void firmware_service_process_request(tag_id_t tag_id, msg_id_t msg_id, void *bu
 
     case DM_CMD_GET_FIRMWARE_BOOT_STATUS: {
         ret = dm_svc_get_firmware_status();
-        send_status_response(tag_id, req_start_time, (uint32_t)ret);
+        send_status_response(tag_id, msg_id, req_start_time, (uint32_t)ret);
     } break;
         /*  TODO: These feature is to be supported in v 0.0.7 
     case DM_CMD_SET_FIRMWARE_VERSION_COUNTER: {
@@ -532,7 +533,7 @@ void firmware_service_process_request(tag_id_t tag_id, msg_id_t msg_id, void *bu
     case DM_CMD_SET_SP_BOOT_ROOT_CERT: {
         struct  device_mgmt_certificate_hash_cmd_t *dm_cmd_req = (void *)buffer;
         ret = dm_svc_update_sp_boot_root_certificate_hash(dm_cmd_req);
-        send_status_response(tag_id, req_start_time, (uint32_t)ret);
+        send_status_response(tag_id, msg_id, req_start_time, (uint32_t)ret);
     } break;
 
     case DM_CMD_RESET_ETSOC: {
