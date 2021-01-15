@@ -8,11 +8,21 @@ typedef struct {
   int numShires;
 } Parameters;
 
+inline int min(int a, int b) { return a < b ? a : b; }
+
 int main(const kernel_params_t* const kernel_params_ptr) {
   Parameters* params = (Parameters*)kernel_params_ptr->tensor_a;
   int hart = (int)get_hart_id();
   int numWorkers = params->numShires * SOC_MINIONS_PER_SHIRE * 2;
-  for (int i = hart; i < params->numElements; i += numWorkers) {
+
+  int elemsPerWorker = (params->numElements + numWorkers - 1) / numWorkers;
+  if (elemsPerWorker % 16) {
+    elemsPerWorker += 16 - (elemsPerWorker % 16);
+  }
+  int init = elemsPerWorker * hart;
+  int end = min(elemsPerWorker * (hart + 1), params->numElements);
+
+  for (int i = init; i < end; ++i) {
     params->a[i] = params->value;
   }
   return 0;

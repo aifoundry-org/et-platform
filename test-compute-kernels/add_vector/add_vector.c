@@ -19,6 +19,9 @@ int main(const kernel_params_t* const kernel_params_ptr) {
   int mid = (int)get_minion_id();
   int numWorkers = SOC_MINIONS_PER_SHIRE;
   int elemsPerWorker = (vectors->numElements + numWorkers - 1) / numWorkers;
+  if (elemsPerWorker % 16) {
+    elemsPerWorker += 16 - (elemsPerWorker % 16);
+  }
   int init = elemsPerWorker * mid;
   int end = min(elemsPerWorker * (mid + 1), vectors->numElements);
 
