@@ -202,15 +202,10 @@ uint32_t SP_Host_Iface_SQ_Pop_Cmd(void* rx_buff)
     /* Pop the command from circular buffer */
     command_size = VQ_Pop(&SP_Host_SQ.vqueue, rx_buff);
 
-
     if (command_size) 
     {
         return_val = command_size;
     } 
-    else 
-    {
-         printf("[SP_Host_Iface_SQ_Pop_Cmd] Error: pop count from Circ buffer is zero \r\n");
-    }
 
     return return_val;
 }

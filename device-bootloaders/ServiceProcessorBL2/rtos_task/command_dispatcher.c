@@ -108,6 +108,7 @@ static void pc_vq_task(void *pvParameters)
     static uint8_t buffer[SP_HOST_SQ_MAX_ELEMENT_SIZE] __attribute__((aligned(8))) = { 0 };
     tag_id_t tag_id;
     msg_id_t msg_id;
+    bool notification_received;
 
     // Disable buffering on stdout
     setbuf(stdout, NULL);
@@ -118,6 +119,9 @@ static void pc_vq_task(void *pvParameters)
         // ISRs set notification bits per ipi_trigger in case we want them - not currently using them
         xTaskNotifyWait(0, 0xFFFFFFFFU, &notificationValue, portMAX_DELAY);
 
+        // Set the flag to indicate that processing is being done in case of notification
+        notification_received = true;
+
         // Process as many new messages as possible
         while (1) {
 
@@ -126,7 +130,10 @@ static void pc_vq_task(void *pvParameters)
 
             // No new messages
             if (length <= 0) {
-                printf("[pc_vq_task]: Warning Dispatcher woken by Interrupt, but no new message available\r\n");
+                if (notification_received) {
+                    printf("[pc_vq_task]: Error: Dispatcher woken by Interrupt, \
+                        but no new message available.\r\n");
+                }
                 break;
             }
 
@@ -220,6 +227,8 @@ static void pc_vq_task(void *pvParameters)
                 // Implement error handler
                 break;
             }
+            // Reset the notification flag
+            notification_received = false;
         }
     }
 }
