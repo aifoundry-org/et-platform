@@ -67,53 +67,58 @@ UberKernel::UberKernelLaunch::UberKernelLaunch(const UberKernel &kernel,
 
 ErrorOr<std::shared_ptr<device_api::devfw_commands::KernelLaunchCmd>>
 UberKernel::UberKernelLaunch::launchHelper(Stream *stream) {
-
   auto entry_res = kernel_.kernelEntryPoint(&stream->dev());
   if (entry_res.getError() != etrtSuccess) {
     return entry_res.getError();
   }
 
-  uintptr_t kernel_entry_point = entry_res.get();
-
-  // Allocate tensor on the device that will hold the arguments of the uber
-  // kernel
+  // Allocate tensor on the device that will hold the arguments of the uber kernel
   void *uber_kernel_args = nullptr;
-  // Allocate the buffer on the device and get a pointer to that buffer
-  auto alloc_status =
-      stream->dev().mem_manager().malloc(&uber_kernel_args, arg_vals_.size());
-
+  auto alloc_status = stream->dev().mem_manager().malloc(&uber_kernel_args, arg_vals_.size());
   if (alloc_status != etrtSuccess) {
     return alloc_status;
   }
 
   // Copy the UberKernel arguments to the device
-  auto memcpy_res =
-      stream->dev().memcpy(uber_kernel_args, arg_vals_.data(), arg_vals_.size(),
-                           etrtMemcpyHostToDevice);
+  auto memcpy_res = stream->dev().memcpy(uber_kernel_args, arg_vals_.data(), arg_vals_.size(), etrtMemcpyHostToDevice);
   if (memcpy_res != etrtSuccess) {
     return memcpy_res;
   }
 
-  ::device_api::non_privileged::dev_api_kernel_params_t params = {0};
+  layer_dynamic_info_t params = {0};
   params.tensor_a = reinterpret_cast<uint64_t>(uber_kernel_args);
+
+  // Allocate buffer on the device that will hold the arguments of the kernel launch
+  void *kernel_args = nullptr;
+  alloc_status = stream->dev().mem_manager().malloc(&kernel_args, sizeof(params));
+  if (alloc_status != etrtSuccess) {
+    return alloc_status;
+  }
+
+  // Copy the kernel launch arguments to the device
+  memcpy_res = stream->dev().memcpy(kernel_args, &params, sizeof(params), etrtMemcpyHostToDevice);
+  if (memcpy_res != etrtSuccess) {
+    return memcpy_res;
+  }
 
   // FIXME we should be querying the device-fw for that information first
   auto active_shires_opt = absl::GetFlag(FLAGS_shires);
   int active_shires = std::stoi(active_shires_opt);
 
-  ::device_api::non_privileged::dev_api_kernel_info_t info = {
-      .compute_pc = kernel_entry_point,
-      .uber_kernel_nodes = 0,
-      .shire_mask = (1ULL << active_shires) - 1,
-  };
+  uint64_t code_start_address = entry_res.get();
+  uint64_t pointer_to_args = reinterpret_cast<uint64_t>(kernel_args);
+  uint64_t shire_mask = (1ULL << active_shires) - 1;
   // FIXME the following is a hack that should be eventually be cleaned with
   // proper support in the DeviceAPI When launching an uberkernel set the
   // specific bit of the shire mask
-  info.shire_mask |= (1ULL << MASTER_SHIRE_NUM);
+  shire_mask |= (1ULL << MASTER_SHIRE_NUM);
+
+  RTINFO << "Kernel Launch: Stream ID: " << std::hex << stream->id() << " parameters: " << pointer_to_args
+        <<  " uber_kernel_args: " << uber_kernel_args << " PC: " << code_start_address << " shire_mask: " << shire_mask;
 
   auto launch_cmd =
       std::make_shared<device_api::devfw_commands::KernelLaunchCmd>(
-          stream->id(), params, info, true);
+          stream->id(), code_start_address, pointer_to_args, shire_mask);
   return launch_cmd;
 }
 
@@ -131,8 +136,8 @@ etrtError UberKernel::UberKernelLaunch::launchBlocking(Stream *stream) {
   assert(response.response_info.message_id ==
          ::device_api::MBOX_DEVAPI_NON_PRIVILEGED_MID_KERNEL_LAUNCH_RSP);
 
-  auto &cmd_info = launch_cmd->cmd_info();
-  assert(response.kernel_id == cmd_info.kernel_params.kernel_id);
+  //auto &cmd_info = launch_cmd->cmd_info();
+  //assert(response.kernel_id == cmd_info.kernel_params.kernel_id);
 
   if (response.error ==
           ::device_api::non_privileged::DEV_API_KERNEL_LAUNCH_ERROR::

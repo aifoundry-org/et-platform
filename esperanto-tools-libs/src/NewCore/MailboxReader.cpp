@@ -24,9 +24,14 @@ MailboxReader::MailboxReader(ITarget* target, KernelParametersCache* kernelParam
   , kernelParametersCache_(kernelParametersCache) {
 
   reader_ = std::thread([this]() {
-    std::array<std::byte, 1 << 16> buffer;
+    // Max ioctl size is 14b
+    constexpr uint32_t kMaxMsgSize = (1ul<<14)-1;
+
+    std::array<std::byte, kMaxMsgSize> buffer;
     while (run_) {
-      auto readResult = target_->readMailbox(buffer.data());
+      // FIXME change it to defaults timeout or whatever is suitable after sysemu is fixed see
+      // https://esperantotech.atlassian.net/browse/SW-5310
+      auto readResult = target_->readMailbox(buffer.data(), buffer.size());
       if (readResult) {
         // grab header
         // notify events (dispatch)
@@ -45,8 +50,11 @@ MailboxReader::MailboxReader(ITarget* target, KernelParametersCache* kernelParam
   });
 }
 
-MailboxReader::~MailboxReader() {
+void MailboxReader::stop() {
   run_ = false;
-  reader_.join();
 }
 
+MailboxReader::~MailboxReader() {
+  run_ = false;
+  reader_.detach();
+}

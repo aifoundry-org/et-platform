@@ -29,11 +29,12 @@ public:
       const std::string &run_dir,
       const std::string &api_connection,
       uint64_t max_cycles,
-      uint64_t shires_mask,
+      uint64_t minion_shires_mask,
       const std::string &pu_uart0_tx_file,
       const std::string &pu_uart1_tx_file,
       const std::string &spio_uart0_tx_file,
       const std::string &spio_uart1_tx_file,
+      const std::vector<std::string> &preload_elfs,
       const std::vector<std::string> &additional_options);
   ~SysEmuLauncher();
 

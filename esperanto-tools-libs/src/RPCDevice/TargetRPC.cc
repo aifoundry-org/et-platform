@@ -15,7 +15,6 @@
 #include "esperanto/runtime/Support/TimeHelpers.h"
 #include "esperanto/simulator-api.grpc.pb.h"
 
-#include <chrono>
 #include <esperanto-fw/firmware_helpers/layout.h>
 
 #include <inttypes.h>
@@ -46,7 +45,7 @@ bool RPCTarget::init() {
 bool RPCTarget::postFWLoadInit() {
   // We expect that the device-cw is already loaded and "booted" at this point
   // we are resetting the mailboxes
-  auto success = rpcWaitForHostInterrupt(std::chrono::seconds(30));
+  auto success = rpcWaitForHostInterrupt();
   assert(success);
 
   // For DeviceFW reset the mailbox as well and wait for device-fw to be ready
@@ -103,7 +102,7 @@ bool RPCTarget::virtQueueWrite(const void *data, ssize_t size, uint8_t queueId) 
   return false;
 }
 
-ssize_t RPCTarget::virtQueueRead(void *data, ssize_t size, uint8_t queueId, TimeDuration wait_time) {
+ssize_t RPCTarget::virtQueueRead(void *data, ssize_t size, uint8_t queueId) {
   assert(false);
   return false;
 }
@@ -113,13 +112,12 @@ bool RPCTarget::waitForEpollEvents(uint32_t &sq_bitmap, uint32_t &cq_bitmap) {
   return false;
 }
 
-std::pair<bool, simulator_api::Reply> RPCTarget::doRPC(const simulator_api::Request& request, TimeDuration timeout) {
+std::pair<bool, simulator_api::Reply> RPCTarget::doRPC(const simulator_api::Request& request) {
   simulator_api::Reply reply;
   Status status;
   grpc::ClientContext context;
   // Wait until the server is up do not fail immediately
   context.set_wait_for_ready(true);
-  context.set_deadline(Clock::now() + timeout);
   status = stub_->SimCommand(&context, request, &reply);
   return {status.ok(), reply};
 }
@@ -148,8 +146,8 @@ bool RPCTarget::mb_write(const void *data, ssize_t size) {
   return mailboxDev_->write(data, size);
 }
 
-ssize_t RPCTarget::mb_read(void *data, ssize_t size, TimeDuration wait_time) {
-  return mailboxDev_->read(data, size, wait_time);
+ssize_t RPCTarget::mb_read(void *data, ssize_t size) {
+  return mailboxDev_->read(data, size);
 }
 
 /* RPC */
@@ -319,14 +317,14 @@ bool RPCTarget::rpcRaiseDeviceSpioPlicPcieMessageInterrupt() {
   return true;
 }
 
-bool RPCTarget::rpcWaitForHostInterrupt(TimeDuration wait_time) {
+bool RPCTarget::rpcWaitForHostInterrupt() {
   simulator_api::Request request;
   auto host_interrupt = new HostInterrupt();
   // mailbox implementation uses only zeroth bit interrupt
   host_interrupt->set_interrupt_bitmap(0x1);
   request.set_allocated_host_interrupt(host_interrupt);
   // Do RPC and wait for reply
-  auto reply_res = doRPC(request, wait_time);
+  auto reply_res = doRPC(request);
 
   RTINFO << "Interrupt reply received, result: " << reply_res.first;
   if (!reply_res.first) {

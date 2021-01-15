@@ -41,8 +41,8 @@ bool TargetSilicon::writeDevMemMMIO(uintptr_t dev_addr, size_t size, const void*
   return device_->writeDevMemMMIO(dev_addr, size, buf);
 }
 
-bool TargetSilicon::readMailbox(std::byte* dst, size_t size, std::chrono::milliseconds blockingPeriod) {
-  return device_->mb_read(dst, size, blockingPeriod) > 0;
+bool TargetSilicon::readMailbox(std::byte* dst, size_t size) {
+  return device_->mb_read(dst, size) > 0;
 }
 
 size_t TargetSilicon::getDramSize() const {

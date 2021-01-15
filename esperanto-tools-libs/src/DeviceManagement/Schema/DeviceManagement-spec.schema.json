@@ -1,121 +1,97 @@
 {
 	"enum": {
-		"command_id": [
+		"DM_CMD": [
 
 			"======Comment:Asset tracking=====",
 
-			"GET_MODULE_MANUFACTURE_NAME",
-			"GET_MODULE_PART_NUMBER",
-			"GET_MODULE_SERIAL_NUMBER",
-			"GET_ASIC_CHIP_REVISION",
-			"GET_MODULE_FIRMWARE_REVISIONS",
-			"GET_MODULE_PCIE_ADDR",
-			"GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED",
-			"GET_MODULE_MEMORY_SIZE_MB",
-			"GET_MODULE_REVISION",
-			"GET_MODULE_FORM_FACTOR",
-			"GET_MODULE_MEMORY_VENDOR_PART_NUMBER",
-			"GET_MODULE_MEMORY_TYPE",
-			"GET_FUSED_PUBLIC_KEYS",
+			"DM_CMD_GET_MODULE_MANUFACTURE_NAME",
+			"DM_CMD_GET_MODULE_PART_NUMBER",
+			"DM_CMD_GET_MODULE_SERIAL_NUMBER",
+			"DM_CMD_GET_ASIC_CHIP_REVISION",
+			"DM_CMD_GET_MODULE_FIRMWARE_REVISIONS",
+			"DM_CMD_GET_MODULE_PCIE_ADDR",
+			"DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED",
+			"DM_CMD_GET_MODULE_MEMORY_SIZE_MB",
+			"DM_CMD_GET_MODULE_REVISION",
+			"DM_CMD_GET_MODULE_FORM_FACTOR",
+			"DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER",
+			"DM_CMD_GET_MODULE_MEMORY_TYPE",
+			"DM_CMD_GET_FUSED_PUBLIC_KEYS",
 
 			"======Comment:Firmware Management =====",
 
-			"SET_FIRMWARE_UPDATE",
-			"GET_FIRMWARE_BOOT_STATUS",
-			"SET_FIRMWARE_VERSION_COUNTER",
-			"SET_FIRMWARE_VALID",
-			"SET_SP_BOOT_ROOT_CERT",
-			"SET_SW_BOOT_ROOT_CERT",
+			"DM_CMD_SET_FIRMWARE_UPDATE",
+			"DM_CMD_GET_FIRMWARE_BOOT_STATUS",
+			"DM_CMD_SET_FIRMWARE_VERSION_COUNTER",
+			"DM_CMD_SET_FIRMWARE_VALID",
+			"DM_CMD_SET_SP_BOOT_ROOT_CERT",
+			"DM_CMD_SET_SW_BOOT_ROOT_CERT",
 
 			"======Comment: Health Management (Thermal and Power) =====",
 
-			"GET_MODULE_TEMPERATURE_THRESHOLDS",
-			"SET_MODULE_TEMPERATURE_THRESHOLDS",
-			"GET_MODULE_POWER_STATE",
-			"SET_MODULE_POWER_STATE",
-			"GET_MODULE_STATIC_TDP_LEVEL",
-			"SET_MODULE_STATIC_TDP_LEVEL",
-			"GET_MODULE_CURRENT_TEMPERATURE",
-			"GET_MODULE_TEMPERATURE_THROTTLE_STATUS",
-			"GET_MODULE_RESIDENCY_THROTTLE_STATES",
-			"GET_MODULE_UPTIME",
-			"GET_MODULE_VOLTAGE",
-			"GET_MODULE_POWER",
+			"DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS",
+			"DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS",
+			"DM_CMD_GET_MODULE_POWER_STATE",
+			"DM_CMD_SET_MODULE_POWER_STATE",
+			"DM_CMD_GET_MODULE_STATIC_TDP_LEVEL",
+			"DM_CMD_SET_MODULE_STATIC_TDP_LEVEL",
+			"DM_CMD_GET_MODULE_CURRENT_TEMPERATURE",
+			"DM_CMD_GET_MODULE_TEMPERATURE_THROTTLE_STATUS",
+			"DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES",
+			"DM_CMD_GET_MODULE_UPTIME",
+			"DM_CMD_GET_MODULE_VOLTAGE",
+			"DM_CMD_GET_MODULE_POWER",
 
 			"======Comment: Historical extreme values =====",
 
-			"GET_MODULE_MAX_TEMPERATURE",
-			"GET_MODULE_MAX_THROTTLE_TIME",
-			"GET_MODULE_MAX_DDR_BW",
-			"GET_MAX_MEMORY_ERROR",
+			"DM_CMD_GET_MODULE_MAX_TEMPERATURE",
+			"DM_CMD_GET_MODULE_MAX_THROTTLE_TIME",
+			"DM_CMD_GET_MODULE_MAX_DDR_BW",
+			"DM_CMD_GET_MAX_MEMORY_ERROR",
 
 			"======Comment: Error Control =====",
 
-			"SET_DDR_ECC_COUNT",
-			"SET_PCIE_ECC_COUNT",
-			"SET_SRAM_ECC_COUNT",
+			"DM_CMD_SET_DDR_ECC_COUNT",
+			"DM_CMD_SET_PCIE_ECC_COUNT",
+			"DM_CMD_SET_SRAM_ECC_COUNT",
 
 
 			"======Comment: Link Management =====",
 
-			"SET_PCIE_RESET",
-			"GET_MODULE_PCIE_ECC_UECC",
-			"GET_MODULE_DDR_BW_COUNTER",
-			"GET_MODULE_DDR_ECC_UECC",
-			"GET_MODULE_SRAM_ECC_UECC",
-			"SET_PCIE_MAX_LINK_SPEED",
-			"SET_PCIE_LANE_WIDTH",
-			"SET_PCIE_RETRAIN_PHY",
+			"DM_CMD_SET_PCIE_RESET",
+			"DM_CMD_GET_MODULE_PCIE_ECC_UECC",
+			"DM_CMD_GET_MODULE_DDR_BW_COUNTER",
+			"DM_CMD_GET_MODULE_DDR_ECC_UECC",
+			"DM_CMD_GET_MODULE_SRAM_ECC_UECC",
+			"DM_CMD_SET_PCIE_MAX_LINK_SPEED",
+			"DM_CMD_SET_PCIE_LANE_WIDTH",
+			"DM_CMD_SET_PCIE_RETRAIN_PHY",
 
 
 			"======Comment: Performance =====",
 
-			"GET_ASIC_FREQUENCIES",
-			"GET_DRAM_BANDWIDTH",
-			"GET_DRAM_CAPACITY_UTILIZATION",
-			"GET_ASIC_PER_CORE_DATAPATH_UTILIZATION",
-			"GET_ASIC_UTILIZATION",
-			"GET_ASIC_STALLS",
-			"GET_ASIC_LATENCY",
+			"DM_CMD_GET_ASIC_FREQUENCIES",
+			"DM_CMD_GET_DRAM_BANDWIDTH",
+			"DM_CMD_GET_DRAM_CAPACITY_UTILIZATION",
+			"DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION",
+			"DM_CMD_GET_ASIC_UTILIZATION",
+			"DM_CMD_GET_ASIC_STALLS",
+			"DM_CMD_GET_ASIC_LATENCY",
 
 			"======Comment: Master Minion State =====",
-			"GET_MM_THREADS_STATE"
+			"DM_CMD_GET_MM_THREADS_STATE"
 		],
 
-		"firmware_status": ["PASS", "FAILED"],
-		"dm_status": ["PASS", "FAILED"],
-		"power_state": ["FULL", "REDUCED", "LOWEST"],
-		"tdp_level": ["LEVEL1", "LEVEL2", "LEVEL2", "LEVEL4"],
-		"pcie_reset": ["FLR", "HOT", "WARM"],
-		"pcie_link_speed": ["GEN3", "GEN4"],
-		"pcie_lane_w_split": ["x1", "x4", "x8", "x16"]
+		"FIRMWARE_STATUS": ["FIRMWARE_STATUS_PASS", "FIRMWARE_STATUS_FAILED"],
+		"DM_STATUS": ["DM_STATUS_SUCCESS", "DM_STATUS_ERROR"],
+		"POWER_STATE": ["POWER_STATE_FULL", "POWER_STATE_REDUCED", "POWER_STATE_LOWEST", "POWER_STATE_INVALID"],
+		"TDP_LEVEL": ["TDP_LEVEL_ONE", "TDP_LEVEL_TWO", "TDP_LEVEL_THREE", "TDP_LEVEL_FOUR", "TDP_LEVEL_INVALID"],
+		"PCIE_RESET": ["PCIE_RESET_FLR", "PCIE_RESET_HOT", "PCIE_RESET_WARM"],
+		"PCIE_LINK_SPEED": ["PCIE_LINK_SPEED_GEN3", "PCIE_LINK_SPEED_GEN4"],
+		"PCIE_LANE_W_SPLIT": ["PCIE_LANE_W_SPLIT_x4", "PCIE_LANE_W_SPLIT_x8"]
 	},
 
 	"cmd_param_structs": {
-
-		"command_req_header": {
-			"usage": {
-				"desc": "DM request header. This header is attached to each request"
-			},
-			"fields": {
-				"cmd_id": "enum command_id",
-				"size": "uint32_t"
-
-			}
-		},
-
-                "command_resp_header": {
-                        "usage": {
-                                "desc": "DM response header. This header is attached to each response"
-                        },
-                        "fields": {
-                                "status": "enum dm_status",
-                                "device_latency_usec": "uint64_t",
-				"size": "uint32_t"
-
-                        }
-                },
-
 
 		"asset_tracking_class": {
 
@@ -123,17 +99,17 @@
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 					"input_buff": null,
-					"output_buff": ["GET_MODULE_MANUFACTURE_NAME",
-									"GET_MODULE_PART_NUMBER",
-									"GET_MODULE_SERIAL_NUMBER",
-									"GET_ASIC_CHIP_REVISION",
-									"GET_MODULE_PCIE_ADDR",
-									"GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED",
-									"GET_MODULE_MEMORY_SIZE_MB",
-									"GET_MODULE_REVISION",
-									"GET_MODULE_FORM_FACTOR",
-									"GET_MODULE_MEMORY_VENDOR_PART_NUMBER",
-									"GET_MODULE_MEMORY_TYPE"
+					"output_buff": ["DM_CMD_GET_MODULE_MANUFACTURE_NAME",
+									"DM_CMD_GET_MODULE_PART_NUMBER",
+									"DM_CMD_GET_MODULE_SERIAL_NUMBER",
+									"DM_CMD_GET_ASIC_CHIP_REVISION",
+									"DM_CMD_GET_MODULE_PCIE_ADDR",
+									"DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED",
+									"DM_CMD_GET_MODULE_MEMORY_SIZE_MB",
+									"DM_CMD_GET_MODULE_REVISION",
+									"DM_CMD_GET_MODULE_FORM_FACTOR",
+									"DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER",
+									"DM_CMD_GET_MODULE_MEMORY_TYPE"
 									]
 				},
 
@@ -146,7 +122,7 @@
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 					"input_buff": null,
-					"output_buff": ["GET_FUSED_PUBLIC_KEYS"]
+					"output_buff": ["DM_CMD_GET_FUSED_PUBLIC_KEYS"]
 				},
 
 				"fields": {
@@ -158,7 +134,7 @@
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 					"input_buff": null,
-					"output_buff": "GET_MODULE_FIRMWARE_REVISIONS"
+					"output_buff": "DM_CMD_GET_MODULE_FIRMWARE_REVISIONS"
 				},
 				"fields": {
 					"bl1_v": "uint32_t",
@@ -175,7 +151,7 @@
 			"update_firmware": {
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types. Image format is TBD",
-					"input_buff": "SET_FIRMWARE_UPDATE",
+					"input_buff": "DM_CMD_SET_FIRMWARE_UPDATE",
 					"output_buff": null
 				},
 				"fields": {
@@ -186,7 +162,7 @@
 			"certificate_hash": {
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
-					"input_buff": "SET_SP_BOOT_ROOT_CERT",
+					"input_buff": "DM_CMD_SET_SP_BOOT_ROOT_CERT",
 					"output_buff": null
 				},
 				"fields": {
@@ -201,8 +177,8 @@
 
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
-					"input_buff": "SET_MODULE_TEMPERATURE_THRESHOLDS",
-					"output_buff": "GET_MODULE_TEMPERATURE_THRESHOLDS"
+					"input_buff": "DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS",
+					"output_buff": "DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS"
 				},
 
 				"fields": {
@@ -213,24 +189,24 @@
 			"power_state": {
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
-					"input_buff": "SET_MODULE_POWER_STATE",
-					"output_buff": "GET_MODULE_POWER_STATE"
+					"input_buff": "DM_CMD_SET_MODULE_POWER_STATE",
+					"output_buff": "DM_CMD_GET_MODULE_POWER_STATE"
 				},
 
 				"fields": {
-					"state": "enum power_state"
+					"state": "enum POWER_STATE"
 				}
 			},
 
 			"tdp_level": {
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
-					"input_buff": "SET_MODULE_STATIC_TDP_LEVEL",
-					"output_buff": "GET_MODULE_STATIC_TDP_LEVEL"
+					"input_buff": "DM_CMD_SET_MODULE_STATIC_TDP_LEVEL",
+					"output_buff": "DM_CMD_GET_MODULE_STATIC_TDP_LEVEL"
 				},
 
 				"fields": {
-					"tdp": "enum tdp_level"
+					"tdp": "enum TDP_LEVEL"
 				}
 			},
 
@@ -238,7 +214,7 @@
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 					"input_buff": null,
-					"output_buff": "GET_MODULE_CURRENT_TEMPERATURE"
+					"output_buff": "DM_CMD_GET_MODULE_CURRENT_TEMPERATURE"
 				},
 
 				"fields": {
@@ -250,7 +226,7 @@
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 					"input_buff": null,
-					"output_buff": "GET_MODULE_RESIDENCY_THROTTLE_STATES"
+					"output_buff": "DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES"
 				},
 
 				"fields": {
@@ -262,7 +238,7 @@
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 					"input_buff": null,
-					"output_buff": "GET_MODULE_POWER"
+					"output_buff": "DM_CMD_GET_MODULE_POWER"
 				},
 				"fields": {
 					"watts": "uint32_t"
@@ -273,7 +249,7 @@
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 					"input_buff": null,
-					"output_buff": "GET_MODULE_VOLTAGE"
+					"output_buff": "DM_CMD_GET_MODULE_VOLTAGE"
 				},
 				"fields": {
 					"volts": "uint32_t"
@@ -284,7 +260,7 @@
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 					"input_buff": null,
-					"output_buff": "GET_MODULE_UPTIME"
+					"output_buff": "DM_CMD_GET_MODULE_UPTIME"
 				},
 				"fields": {
 					"time_day": "uint16_t",
@@ -301,7 +277,7 @@
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 					"input_buff": null,
-					"output_buff": "GET_MODULE_MAX_TEMPERATURE"
+					"output_buff": "DM_CMD_GET_MODULE_MAX_TEMPERATURE"
 				},
 				"fields": {
 					"max_temperature_c": "int32_t"
@@ -312,7 +288,7 @@
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 					"input_buff": null,
-					"output_buff": "GET_MAX_MEMORY_ERROR"
+					"output_buff": "DM_CMD_GET_MAX_MEMORY_ERROR"
 				},
 
 				"fields": {
@@ -324,7 +300,7 @@
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 					"input_buff": null,
-					"output_buff": "GET_MODULE_MAX_DDR_BW"
+					"output_buff": "DM_CMD_GET_MODULE_MAX_DDR_BW"
 				},
 				"fields": {
 					"max_bw_rd_req_sec": "uint32_t",
@@ -336,7 +312,7 @@
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 					"input_buff": null,
-					"output_buff": "GET_MODULE_MAX_THROTTLE_TIME"
+					"output_buff": "DM_CMD_GET_MODULE_MAX_THROTTLE_TIME"
 				},
 				"fields": {
 					"max_time_usec": "uint64_t"
@@ -349,7 +325,7 @@
 			"set_error_count": {
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
-					"input_buff": ["SET_DDR_ECC_COUNT", "SET_SRAM_ECC_COUNT ", "SET_PCIE_ECC_COUNT"],
+					"input_buff": ["DM_CMD_SET_DDR_ECC_COUNT", "DM_CMD_SET_SRAM_ECC_COUNT ", "DM_CMD_SET_PCIE_ECC_COUNT"],
 					"output_buff": null
 				},
 				"fields": {
@@ -364,11 +340,11 @@
 			"pcie_reset": {
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
-					"input_buff": "SET_PCIE_RESET",
+					"input_buff": "DM_CMD_SET_PCIE_RESET",
 					"output_buff": null
 				},
 				"fields": {
-					"reset_type": "enum pcie_reset"
+					"reset_type": "enum PCIE_RESET"
 				}
 			},
 
@@ -376,7 +352,7 @@
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 					"input_buff": null,
-					"output_buff": ["GET_MODULE_PCIE_ECC_UECC", "GET_MODULE_DDR_ECC_UECC", "GET_MODULE_SRAM_ECC_UECC"]
+					"output_buff": ["DM_CMD_GET_MODULE_PCIE_ECC_UECC", "DM_CMD_GET_MODULE_DDR_ECC_UECC", "DM_CMD_GET_MODULE_SRAM_ECC_UECC"]
 				},
 				"fields": {
 					"ecc_count": "uint32_t",
@@ -388,7 +364,7 @@
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 					"input_buff": null,
-					"output_buff": "GET_MODULE_DDR_BW_COUNTER"
+					"output_buff": "DM_CMD_GET_MODULE_DDR_BW_COUNTER"
 				},
 				"fields": {
 					"read_req_per_sec": "uint32_t",
@@ -399,22 +375,22 @@
 			"pcie_link_speed": {
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
-					"input_buff": "SET_PCIE_MAX_LINK_SPEED",
+					"input_buff": "DM_CMD_SET_PCIE_MAX_LINK_SPEED",
 					"output_buff": null
 				},
 				"fields": {
-					"speed": "enum pcie_link_speed"
+					"speed": "enum PCIE_LINK_SPEED"
 				}
 			},
 
 			"pcie_lane_width": {
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
-					"input_buff": "SET_PCIE_LANE_WIDTH",
+					"input_buff": "DM_CMD_SET_PCIE_LANE_WIDTH",
 					"output_buff": null
 				},
 				"fields": {
-					"width": "enum pcie_lane_w_split"
+					"width": "enum PCIE_LANE_W_SPLIT"
 				}
 			},
 
@@ -440,7 +416,7 @@
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 					"input_buff": null,
-					"output_buff": "GET_ASIC_FREQUENCIES"
+					"output_buff": "DM_CMD_GET_ASIC_FREQUENCIES"
 				},
 				"fields": {
 					"minion_shire_mhz": "uint32_t",
@@ -455,7 +431,7 @@
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 					"input_buff": null,
-					"output_buff": "GET_DRAM_BANDWIDTH"
+					"output_buff": "DM_CMD_GET_DRAM_BANDWIDTH"
 				},
 				"fields": {
 					"read_req_sec": "uint32_t",
@@ -467,7 +443,7 @@
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 					"input_buff": null,
-					"output_buff": "GET_DRAM_CAPACITY_UTILIZATION"
+					"output_buff": "DM_CMD_GET_DRAM_CAPACITY_UTILIZATION"
 				},
 				"fields": {
 					"percentage_cap": "uint32_t"
@@ -478,7 +454,7 @@
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 					"input_buff": null,
-					"output_buff": "GET_ASIC_PER_CORE_DATAPATH_UTILIZATION"
+					"output_buff": "DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION"
 				},
 				"fields": {
 					"TBD": "TBD"
@@ -489,7 +465,7 @@
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 					"input_buff": null,
-					"output_buff": "GET_ASIC_UTILIZATION"
+					"output_buff": "DM_CMD_GET_ASIC_UTILIZATION"
 				},
 				"fields": {
 					"TBD": "TBD"
@@ -500,7 +476,7 @@
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 					"input_buff": null,
-					"output_buff": "GET_ASIC_STALLS"
+					"output_buff": "DM_CMD_GET_ASIC_STALLS"
 				},
 				"fields": {
 					"TBD": "TBD"
@@ -511,7 +487,7 @@
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 					"input_buff": null,
-					"output_buff": "GET_ASIC_LATENCY"
+					"output_buff": "DM_CMD_GET_ASIC_LATENCY"
 				},
 				"fields": {
 					"TBD": "TBD"
@@ -523,7 +499,7 @@
 			"usage": {
 				"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 				"input_buff": null,
-				"output_buff": "GET_MM_THREADS_STATE"
+				"output_buff": "DM_CMD_GET_MM_THREADS_STATE"
 			},
 			"fields": {
 				"master_thread_state": "uint8_t",
@@ -553,7 +529,7 @@
 			"access_method": "Instance call",
 			"symbol_name": "serviceRequest",
 			"return type": "int32_t",
-			"valid_range": "enum dm_status",
+			"valid_range": "enum DM_STATUS",
 			"parameters": {
 				"device_node": "const char *",
 				"cmd_id": "const uint32_t",

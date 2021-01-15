@@ -29,5 +29,7 @@ ABSL_DECLARE_FLAG(std::string, sysemu_pu_uart1_tx_file);
 ABSL_DECLARE_FLAG(std::string, sysemu_spio_uart0_tx_file);
 ABSL_DECLARE_FLAG(std::string, sysemu_spio_uart1_tx_file);
 ABSL_DECLARE_FLAG(std::string, sysemu_params);
+ABSL_DECLARE_FLAG(std::string, bootrom_trampoline_to_bl2_elf);
+ABSL_DECLARE_FLAG(std::string, bl2_elf);
 
 #endif // ET_RUNTIME_COMMON_ABSL_H

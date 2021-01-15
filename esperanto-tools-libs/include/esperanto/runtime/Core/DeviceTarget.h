@@ -171,7 +171,7 @@ public:
   /// @param[wait_time] wait_time. Time to wait for the discovery to complete
   ///
   /// @return True if discovery is successful
-  virtual bool virtQueuesDiscover(TimeDuration wait_time = TimeDuration::max()) = 0;
+  virtual bool virtQueuesDiscover(TimeDuration wait_time) = 0;
 
   /// @brief Virtual Queue write message
   ///
@@ -189,12 +189,9 @@ public:
   /// message we want to read
   /// @param[in] size Size of the message to read.
   /// @param[in] queueId index of the queue to read the message from
-  /// @param[wait_time] wait_time. Time to wait for the read to complete, i.e.
-  /// to receive a message.
   ///
   /// @return Size of the message read. Zero if the read was not succesful.
-  virtual ssize_t virtQueueRead(void *data, ssize_t size, uint8_t queueId,
-                                TimeDuration wait_time = TimeDuration::max()) = 0;
+  virtual ssize_t virtQueueRead(void *data, ssize_t size, uint8_t queueId) = 0;
 
   /// @Brief Wait for Epoll Events
   ///
@@ -219,12 +216,9 @@ public:
   /// @param[inout] data  Pointer to buffer that will hold the size of the
   /// message we want to read
   /// @param[in] size  Size of the mailbox message to read.
-  /// @param[wait_time] wait_time. Time to wait for the read to complete, i.e.
-  /// to receive a message.
   ///
   /// @return Size of the message read. Zero iff the read was not succesfull.
-  virtual ssize_t mb_read(void *data, ssize_t size,
-                          TimeDuration wait_time = TimeDuration::max()) = 0;
+  virtual ssize_t mb_read(void *data, ssize_t size) = 0;
 
   /// @brief Shutdown the device
   virtual bool shutdown() = 0;

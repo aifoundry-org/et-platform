@@ -23,7 +23,7 @@ using namespace rt;
 using namespace rt::profiling;
 
 RuntimeImp::~RuntimeImp() {
-  mailboxReader_.reset();
+  mailboxReader_->stop();
 }
 
 RuntimeImp::RuntimeImp(Kind kind) {
@@ -156,7 +156,7 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
 // currently we only create an event, don't
 EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void* h_dst, size_t size,
                                        [[maybe_unused]] bool barrier) {
-  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, profiler_);  
+  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, profiler_);
   auto it = find(streams_, stream);
   auto evt = eventManager_.getNextId();
   it->second.lastEventId_ = evt;

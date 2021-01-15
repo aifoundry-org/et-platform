@@ -54,10 +54,16 @@ public:
   int active_threads() override {
     return 0;
   }
-  bool memory_read(uint64_t ad, size_t size, void *data) override {
+  bool memory_read(uint64_t device_addr, size_t size, void *data) override {
     return true;
   }
-  bool memory_write(uint64_t ad, size_t size, const void *data) override {
+  bool memory_write(uint64_t device_addr, size_t size, const void *data) override {
+    return true;
+  }
+  bool pci_memory_read(uint64_t pci_addr, size_t size, void *data) override {
+    return true;
+  }
+  bool pci_memory_write(uint64_t pci_addr, size_t size, const void *data) override {
     return true;
   }
   bool mailbox_read(simulator_api::MailboxTarget target, uint32_t offset, size_t size, void *data) override {

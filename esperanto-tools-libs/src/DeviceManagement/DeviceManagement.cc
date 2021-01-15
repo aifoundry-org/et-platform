@@ -68,7 +68,7 @@ bool DeviceManagement::isValidDeviceNode(const char *device_node) {
 }
 
 bool DeviceManagement::isSetCommand(itCmd &cmd) {
-  if (cmd->first.find("SET") == 0) {
+  if (cmd->first.find("DM_CMD_SET") == 0) {
     return true;
   }
 
@@ -217,37 +217,35 @@ int DeviceManagement::serviceRequest(
       return -EIO;
     }
 
-    auto wCB = std::make_unique<dmControlBlock>();
+    auto wCB = std::make_unique<dm_control_block>();
     wCB->cmd_id = cmd_code;
     //std::shared_ptr<char> wPayload;
 
     if (isSet && input_buff && inputSize) {
       switch (cmd_code) {
-        case CommandCode::SET_FIRMWARE_UPDATE: {
-            int res = processFirmwareImage(lockable, input_buff);
+      case device_mgmt_api::DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE: {
+        int res = processFirmwareImage(lockable, input_buff);
 
-            if (res != 0) {
-                return res;
-            }
+        if (res != 0) {
+          return res;
+        }
 
-            inputSize = 0;
-          }
-          break;
-        case CommandCode::SET_SP_BOOT_ROOT_CERT:
-        case CommandCode::SET_SW_BOOT_ROOT_CERT: {
-            std::vector<unsigned char> hash;
+        inputSize = 0;
+      } break;
+      case device_mgmt_api::DM_CMD::DM_CMD_SET_SP_BOOT_ROOT_CERT:
+      case device_mgmt_api::DM_CMD::DM_CMD_SET_SW_BOOT_ROOT_CERT: {
+        std::vector<unsigned char> hash;
 
-            int res = processHashFile(input_buff, hash);
+        int res = processHashFile(input_buff, hash);
 
-            if (res != 0) {
-              return res;
-            }
-            inputSize = hash.size();
-            input_buff = reinterpret_cast<char*>(hash.data());
+        if (res != 0) {
+          return res;
+        }
+        inputSize = hash.size();
+        input_buff = reinterpret_cast<char*>(hash.data());
 
-            memcpy(wCB->cmd_payload, input_buff, inputSize);
-          }
-          break;
+        memcpy(wCB->cmd_payload, input_buff, inputSize);
+      } break;
         default:/*
           wPayload =
               std::allocate_shared<char>(std::allocator<char>(), inputSize);
@@ -264,15 +262,14 @@ int DeviceManagement::serviceRequest(
 
     RTINFO << "Wrote control block of size: " << sizeof(*(wCB.get()))/* + inputSize*/ << std::endl;
 
-    auto rCB = std::make_unique<dmControlBlock>();
+    auto rCB = std::make_unique<dm_control_block>();
     std::shared_ptr<char> rPayload;
 
     rPayload =
           std::allocate_shared<char>(std::allocator<char>(), output_size);
     memcpy(rCB->cmd_payload, rPayload.get(), output_size);
 
-    if (!lockable->dev.mb_read(rCB.get(), sizeof(*(rCB.get()))/* + output_size*/,
-                                std::chrono::milliseconds(timeout))) {
+    if (!lockable->dev.mb_read(rCB.get(), sizeof(*(rCB.get()))/* + output_size*/)) {
       return -EIO;
     }
 

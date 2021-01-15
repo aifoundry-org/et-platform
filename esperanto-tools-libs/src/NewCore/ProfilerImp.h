@@ -15,6 +15,7 @@
 #include "runtime/IRuntime.h"
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/portable_binary.hpp>
+#include <mutex>
 #include <variant>
 namespace rt {
 namespace profiling {
@@ -34,6 +35,7 @@ public:
     }
   }
   void stop() override {
+    // emplacing monostate makes the profiler stop recording (see record function)
     archive_.emplace<std::monostate>();
   }
 
@@ -42,6 +44,7 @@ public:
       [&](auto&& archive) {
         using T = std::decay_t<decltype(archive)>;
         if constexpr (!std::is_same_v<T, std::monostate>) {
+          std::lock_guard<std::mutex> lock(mutex_);
           archive(event);
         }
       },
@@ -50,6 +53,7 @@ public:
 
 private:
   std::variant<std::monostate, cereal::JSONOutputArchive, cereal::PortableBinaryOutputArchive> archive_;
+  std::mutex mutex_;
 };
 
 } // namespace profiling

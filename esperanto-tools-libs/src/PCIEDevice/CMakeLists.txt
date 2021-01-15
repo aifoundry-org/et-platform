@@ -28,8 +28,6 @@ target_include_directories(etrt_PCIEDevice PRIVATE
   ${PROJECT_BINARY_DIR}/src
   )
 
-if(MINION_RUNTIME_FOUND)
-  target_include_directories(etrt_PCIEDevice PRIVATE "${ESPERANTO_FW_INCLUDE_DIR}/")
-endif(MINION_RUNTIME_FOUND)
+target_include_directories(etrt_PCIEDevice PRIVATE "${ESPERANTO_DEVICE_MINION_RUNTIME_INCLUDE_DIR}/")
 
 add_sanitizers(etrt_PCIEDevice)

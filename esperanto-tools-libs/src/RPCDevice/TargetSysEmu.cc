@@ -40,9 +40,7 @@ ABSL_FLAG(std::string, sysemu_socket_dir, "",
 ABSL_FLAG(uint64_t, sysemu_max_cycles, std::numeric_limits<uint64_t>::max(),
           "Set SysEmu maximum cycles to run before finishing simulation");
 ABSL_FLAG(uint64_t, sysemu_shires_mask, 0x1FFFFFFFFu,
-          "Set SysEmu Shire mask (enabled Shires)");
-ABSL_FLAG(bool, sysemu_boot_sp, false,
-          "Boot the SP instead of the FW Minions. It's up to the user to load BL2/OTP, etc.");
+          "Set SysEmu Minion Shire mask (enabled Minion Shires)");
 ABSL_FLAG(std::string, sysemu_pu_uart0_tx_file, "",
           "Set SysEmu PU UART0 TX log file");
 ABSL_FLAG(std::string, sysemu_pu_uart1_tx_file, "",
@@ -53,6 +51,11 @@ ABSL_FLAG(std::string, sysemu_spio_uart1_tx_file, "",
           "Set SysEmu SPIO UART1 TX log file");
 ABSL_FLAG(std::string, sysemu_params, "",
           "Hyperparameters to pass to SysEmu, might override default values");
+
+ABSL_FLAG(std::string, bootrom_trampoline_to_bl2_elf, BOOTROM_TRAMPOLINE_TO_BL2_ELF,
+          "Path to the BootromTrampolineToBL2 ELF file");
+ABSL_FLAG(std::string, bl2_elf, BL2_ELF,
+          "Path to the BL2 ELF file");
 
 namespace et_runtime {
 namespace device {
@@ -110,6 +113,12 @@ TargetSysEmu::TargetSysEmu(int index) : RPCTarget(index, "") {
   std::vector<std::string> additional_params(std::istream_iterator<std::string>{iss},
                                              std::istream_iterator<std::string>());
 
+  // Preload BootromTrampolineToBL2 and BL2 SP ELFs
+  static const std::vector<std::string> sp_elfs = {
+    absl::GetFlag(FLAGS_bootrom_trampoline_to_bl2_elf),
+    absl::GetFlag(FLAGS_bl2_elf)
+  };
+
   sys_emu_ = make_unique<SysEmuLauncher>(absl::GetFlag(FLAGS_sysemu_path),
                                          run_folder,
                                          socket_path_,
@@ -119,6 +128,7 @@ TargetSysEmu::TargetSysEmu(int index) : RPCTarget(index, "") {
                                          absl::GetFlag(FLAGS_sysemu_pu_uart1_tx_file),
                                          absl::GetFlag(FLAGS_sysemu_spio_uart0_tx_file),
                                          absl::GetFlag(FLAGS_sysemu_spio_uart1_tx_file),
+                                         sp_elfs,
                                          additional_params);
 };
 

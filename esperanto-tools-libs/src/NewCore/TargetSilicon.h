@@ -25,7 +25,7 @@ public:
   bool writeDevMemDMA(uintptr_t dev_addr, size_t size, const void* buf) override;
   bool readDevMemDMA(uintptr_t dev_addr, size_t size, void* buf) override;
   bool writeMailbox(const void* src, size_t size) override;
-  bool readMailbox(std::byte* dst, size_t size = 1 << 16, std::chrono::milliseconds blockingPeriod = std::chrono::milliseconds(500)) override;
+  bool readMailbox(std::byte* dst, size_t size) override;
   bool writeDevMemMMIO(uintptr_t dev_addr, size_t size, const void* buf) override;
 
 private:

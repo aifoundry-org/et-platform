@@ -163,37 +163,37 @@ Kernel::KernelLaunch::launchHelper(Stream *stream) {
     return entry_res.getError();
   }
 
-  uintptr_t kernel_entry_point = entry_res.get();
-
   assert(args_.size() == 1);
   assert(args_[0].type == ArgType::T_layer_dynamic_info);
   auto layer_info = args_[0].value.layer_dynamic_info;
 
-  ::device_api::non_privileged::dev_api_kernel_params_t dev_api_params = {
-      .tensor_a = layer_info.tensor_a,
-      .tensor_b = layer_info.tensor_b,
-      .tensor_c = layer_info.tensor_c,
-      .tensor_d = layer_info.tensor_d,
-      .tensor_e = layer_info.tensor_e,
-      .tensor_f = layer_info.tensor_f,
-      .tensor_g = layer_info.tensor_g,
-      .tensor_h = layer_info.tensor_h,
-      .kernel_id = layer_info.kernel_id,
-  };
+  // Allocate buffer on the device that will hold the arguments of the kernel launch
+  void *kernel_args = nullptr;
+  auto alloc_status = stream->dev().mem_manager().malloc(&kernel_args, sizeof(layer_info));
+  if (alloc_status != etrtSuccess) {
+    return alloc_status;
+  }
+
+  // Copy the kernel launch arguments to the device
+  auto memcpy_res = stream->dev().memcpy(kernel_args, &layer_info, sizeof(layer_info), etrtMemcpyHostToDevice);
+  if (memcpy_res != etrtSuccess) {
+    return memcpy_res;
+  }
 
   // FIXME we should be querying the device-fw for that information first
   auto active_shires_opt = absl::GetFlag(FLAGS_shires);
   int active_shires = std::stoi(active_shires_opt);
 
-  ::device_api::non_privileged::dev_api_kernel_info_t info = {
-      .compute_pc = kernel_entry_point,
-      .uber_kernel_nodes = 0,
-      .shire_mask = (1ULL << active_shires) - 1,
-  };
+  uint64_t code_start_address = entry_res.get();
+  uint64_t pointer_to_args = reinterpret_cast<uint64_t>(kernel_args);
+  uint64_t shire_mask = (1ULL << active_shires) - 1;
+
+  RTINFO << "Kernel Launch: Stream ID: " << std::hex << stream->id() << " parameters: "
+         << pointer_to_args << " PC: " << code_start_address << " shire_mask: " << shire_mask;
 
   auto launch_cmd =
       std::make_shared<device_api::devfw_commands::KernelLaunchCmd>(
-          stream->id(), dev_api_params, info, false);
+          stream->id(), code_start_address, pointer_to_args, shire_mask);
   return launch_cmd;
 }
 
@@ -213,8 +213,8 @@ etrtError Kernel::KernelLaunch::launchBlocking(Stream *stream) {
   assert(response.response_info.message_id ==
          ::device_api::MBOX_DEVAPI_NON_PRIVILEGED_MID_KERNEL_LAUNCH_RSP);
 
-  auto &cmd_info = launch_cmd->cmd_info();
-  assert(response.kernel_id == cmd_info.kernel_params.kernel_id);
+  //auto &cmd_info = launch_cmd->cmd_info();
+  //assert(response.kernel_id == cmd_info.kernel_params.kernel_id);
 
   if (response.error ==
           ::device_api::non_privileged::DEV_API_KERNEL_LAUNCH_ERROR::

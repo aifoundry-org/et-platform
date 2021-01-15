@@ -21,10 +21,6 @@
 // FIXME TODO: Remove this!
 #include "esperanto/runtime/Core/CommandLineOptions.h"
 
-#include <esperanto-fw/firmware_helpers/layout.h>
-#include <esperanto-fw/firmware_helpers/minion_esr_defines.h>
-#include <esperanto-fw/firmware_helpers/minion_fw_boot_config.h>
-
 #include <absl/flags/flag.h>
 #include <memory>
 #include <string>
@@ -80,7 +76,7 @@ etrtError DeviceFW::loadOnDevice(device::DeviceTarget *dev) {
   std::vector<decltype(master_minion_) *> elfs = {
       &master_minion_, &machine_minion_, &worker_minion_};
   for (auto &elf : elfs) {
-    // Copy over the all LOAD segments specified in the EL0F
+    // Copy over the all LOAD segments specified in the ELF
     for (auto &segment : (*elf)->reader_.segments) {
       auto type = segment->get_type();
       if (type & PT_LOAD) {
@@ -97,8 +93,7 @@ etrtError DeviceFW::loadOnDevice(device::DeviceTarget *dev) {
 
         auto &elf_data = (*elf)->data();
         const void* data_ptr = reinterpret_cast<const void *>(elf_data.data() + offset);
-        dev->writeDevMemMMIO(load_address, mem_size,
-                         data_ptr);
+        dev->writeDevMemMMIO(load_address, mem_size, data_ptr);
       }
     }
   }
@@ -107,30 +102,6 @@ etrtError DeviceFW::loadOnDevice(device::DeviceTarget *dev) {
 };
 
 etrtError DeviceFW::configureFirmware(device::DeviceTarget *dev) {
-  // [SW-3998] TODO: For Zebu we will create a new Firmware class because we start booting BL2 there
-  if (dev->type() != device::DeviceTarget::TargetType::SysEmuGRPC &&
-      dev->type() != device::DeviceTarget::TargetType::SysEmuGRPC_VQ_MM) {
-    return etrtSuccess;
-  }
-
-  // [SW-3998] TODO: This is not the proper place to put this. Create a new "BL2" Firmware sub-class
-  // BL2 will write the fw_boot_config from the OTP data, so do nothing here.
-  auto boot_sp = absl::GetFlag(FLAGS_sysemu_boot_sp);
-  if (boot_sp) {
-    return etrtSuccess;
-  }
-
-  minion_fw_boot_config_t boot_config;
-  memset(&boot_config, 0, sizeof(boot_config));
-  // TODO FIXME: Pass properly the shire mask instead of reading it from command line options!!!!
-  boot_config.minion_shires = absl::GetFlag(FLAGS_sysemu_shires_mask);
-
-  auto ret = dev->writeDevMemMMIO(FW_MINION_FW_BOOT_CONFIG, sizeof(boot_config),
-                                  reinterpret_cast<const void *>(&boot_config));
-  if (!ret) {
-    return etrtErrorUnknown;
-  }
-
   return etrtSuccess;
 };
 
@@ -142,20 +113,10 @@ etrtError DeviceFW::bootFirmware(device::DeviceTarget *dev) {
     return etrtSuccess;
   }
 
-  uint32_t shire_id, thread0_enable, thread1_enable;
-  auto boot_sp = absl::GetFlag(FLAGS_sysemu_boot_sp);
-
-  if (boot_sp) {
-    // Service Processor
-    shire_id = 254; // IOShire ID
-    thread0_enable = 1;
-    thread1_enable = 0;
-  } else {
-    // Device Minion Runtime FW Minions
-    shire_id = MM_SHIRE_ID;
-    thread0_enable = MM_RT_THREADS;
-    thread1_enable = 0;
-  }
+  // Service Processor
+  uint32_t shire_id = 254; // IOShire ID
+  uint32_t thread0_enable = 1;
+  uint32_t thread1_enable = 0;
 
   if (dev->type() == device::DeviceTarget::TargetType::SysEmuGRPC) {
     auto *rpc_target = dynamic_cast<device::RPCTarget *>(dev);
@@ -165,7 +126,7 @@ etrtError DeviceFW::bootFirmware(device::DeviceTarget *dev) {
     }
   } else {
     auto *rpc_target = dynamic_cast<device::RPCTargetMM *>(dev);
-    auto ret = rpc_target->boot(MM_SHIRE_ID, MM_RT_THREADS, 0);
+    auto ret = rpc_target->boot(shire_id, thread0_enable, thread1_enable);
     if (!ret) {
       return etrtErrorUnknown;
     }

@@ -22,6 +22,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <tuple>
 
 using namespace std;
 
@@ -33,13 +34,17 @@ SysEmuLauncher::SysEmuLauncher(
   const std::string &run_dir,
   const std::string &api_connection,
   uint64_t max_cycles,
-  uint64_t shires_mask,
+  uint64_t minion_shires_mask,
   const std::string &pu_uart0_tx_file,
   const std::string &pu_uart1_tx_file,
   const std::string &spio_uart0_tx_file,
   const std::string &spio_uart1_tx_file,
+  const std::vector<std::string> &preload_elfs,
   const std::vector<std::string> &additional_options)
     : sysemu_run_(run_dir), device_alive_(false) {
+
+  uint64_t shires_mask = minion_shires_mask | (1ull << 34); // Always enable Service Processor
+
   execute_args_ = {
       executable,             // Path to SysEMU's executable
       "-api_comm", api_connection,
@@ -47,40 +52,30 @@ SysEmuLauncher::SysEmuLauncher(
       "-max_cycles", std::to_string(max_cycles),
       "-minions", "FFFFFFFF", // All minions enabled
       "-shires", fmt::format("0x{:X}", shires_mask),
-      "-mins_dis",            // Disable minions by default as booting is done through Sim API
-      "-sp_dis",              // In case we are doing a SP boot, also start with SP not running
+      "-mins_dis",            // Start with Minions off, as booting is done by BL2
+      "-sp_dis",              // Start with SP off, as booting is done through SimAPI
   };
 
-  if (!pu_uart0_tx_file.empty()) {
-    execute_args_.push_back("-pu_uart0_tx_file");
-    execute_args_.push_back(pu_uart0_tx_file);
-  } else {
-    execute_args_.push_back("-pu_uart0_tx_file");
-    execute_args_.push_back(sysemu_run_ + "/pu_uart0_tx.log");
+  const std::array<std::tuple<std::string, std::string, std::string>, 4> uart_tx_files = {{
+      {pu_uart0_tx_file,   "-pu_uart0_tx_file",   "pu_uart0_tx.log"},
+      {pu_uart1_tx_file,   "-pu_uart1_tx_file",   "pu_uart1_tx.log"},
+      {spio_uart0_tx_file, "-spio_uart0_tx_file", "spio_uart0_tx.log"},
+      {spio_uart1_tx_file, "-spio_uart1_tx_file", "spio_uart1_tx.log"}
+  }};
+
+  for (const auto& uart_tx: uart_tx_files) {
+    auto [file, flag, def] = uart_tx;
+    execute_args_.push_back(flag);
+    if (!file.empty()) {
+      execute_args_.push_back(file);
+    } else {
+      execute_args_.push_back(sysemu_run_ + "/" + def);
+    }
   }
 
-  if (!pu_uart1_tx_file.empty()) {
-    execute_args_.push_back("-pu_uart1_tx_file");
-    execute_args_.push_back(pu_uart1_tx_file);
-  } else {
-    execute_args_.push_back("-pu_uart1_tx_file");
-    execute_args_.push_back(sysemu_run_ + "/pu_uart1_tx.log");
-  }
-
-  if (!spio_uart0_tx_file.empty()) {
-    execute_args_.push_back("-spio_uart0_tx_file");
-    execute_args_.push_back(spio_uart0_tx_file);
-  } else {
-    execute_args_.push_back("-spio_uart0_tx_file");
-    execute_args_.push_back(sysemu_run_ + "/spio_uart0_tx.log");
-  }
-
-  if (!spio_uart1_tx_file.empty()) {
-    execute_args_.push_back("-spio_uart1_tx_file");
-    execute_args_.push_back(spio_uart1_tx_file);
-  } else {
-    execute_args_.push_back("-spio_uart1_tx_file");
-    execute_args_.push_back(sysemu_run_ + "/spio_uart1_tx.log");
+  for (const auto& elf: preload_elfs) {
+    execute_args_.push_back("-elf");
+    execute_args_.push_back(elf);
   }
 
   // Additional SysEMU options

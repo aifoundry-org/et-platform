@@ -16,7 +16,6 @@
 
 #include <absl/strings/str_format.h>
 #include <asm-generic/errno.h>
-#include <chrono>
 #include <cstdint>
 #include <iostream>
 #include <regex>
@@ -34,10 +33,6 @@ namespace fs = std::experimental::filesystem;
 namespace et_runtime {
 namespace device {
 namespace {
-
-  //FIX magic numbers
-  TimeDuration kPollingInterval = std::chrono::milliseconds(5);
-  auto kWaitTime = std::chrono::seconds(5 * 60);
 
   //helper to make sure a trace is recorded when creating the object and when exiting the basic block
   struct ScopedTrace {
@@ -58,30 +53,27 @@ namespace {
 
 
   template<typename ...Types>
-  IoctlResult wrap_ioctl(int fd, unsigned long int request, Timepoint retryEnd, Types... args) {
+  IoctlResult wrap_ioctl(int fd, unsigned long int request, Types... args) {
+    std::stringstream ss;
+    ss << "Doing IOCTL fd: " << fd << " request: " << request << " args: ";
+    ((ss << ", " << std::forward<Types>(args)), ...);
+    RTINFO << ss.str();
     auto res = ::ioctl(fd, request, args...);
     if (res < 0) {
-      auto error = errno;
-      RTERROR << "Failed to execute IOCTL: " << std::strerror(error) << "\n";
-      //check if ioctl failed due to timeout, check the retryEnd time limit and retry after a while
-      if (errno == ETIMEDOUT && Clock::now() < retryEnd) {
-        RTERROR << "IOCTL not ready in time, retrying after " << std::chrono::duration_cast<std::chrono::milliseconds>(kPollingInterval).count() << "ms \n";
-        std::this_thread::sleep_for(kPollingInterval);
-        return wrap_ioctl(fd, request, retryEnd, args...);
-      }
+      RTERROR << "Failed to execute IOCTL: " << std::strerror(errno) << "\n";
     }
     return {res};
   }
 
   void enableMMIO(int fd) {
-    if (!wrap_ioctl(fd, ETSOC1_IOCTL_SET_BULK_CFG, Clock::now(), static_cast<uint32_t>(BULK_CFG_MMIO))) {
+    if (!wrap_ioctl(fd, ETSOC1_IOCTL_SET_BULK_CFG, static_cast<uint32_t>(BULK_CFG_MMIO))) {
       RTERROR << "Failed to enable MMIO\n";
       std::terminate();
     }
     TRACE_PCIeDevice_enable_mmio();
   }
   void enableDMA(int fd) {
-    if (!wrap_ioctl(fd, ETSOC1_IOCTL_SET_BULK_CFG, Clock::now(), static_cast<uint32_t>(BULK_CFG_DMA))) {
+    if (!wrap_ioctl(fd, ETSOC1_IOCTL_SET_BULK_CFG, static_cast<uint32_t>(BULK_CFG_DMA))) {
       RTERROR << "Failed to enable DMA\n";
       std::terminate();
     }
@@ -100,14 +92,14 @@ PCIeDevice::PCIeDevice(int index, bool mgmtNode)
     }
     RTINFO << "PCIe target opened: \"" << path_ << "\"\n";
 
-    auto res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_DRAM_BASE, Clock::now(), &dramBase_);
+    auto res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_DRAM_BASE, &dramBase_);
     if (!res) {
       RTERROR << "Failed to get DRAM base\n";
       std::terminate();
     }
     RTINFO << "DRAM base: 0x" << std::hex << dramBase_ << "\n";
 
-    res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_DRAM_SIZE, Clock::now(), &dramSize_);
+    res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_DRAM_SIZE, &dramSize_);
     if (!res) {
       RTERROR << "Failed to get DRAM size\n";
       std::terminate();
@@ -115,14 +107,14 @@ PCIeDevice::PCIeDevice(int index, bool mgmtNode)
     RTINFO << "DRAM size: 0x" << std::hex << dramSize_ << "\n";
 
     if (mgmtNode) {
-      auto res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_FW_UPDATE_REG_BASE, Clock::now(), &firmwareBase_);
+      auto res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_FW_UPDATE_REG_BASE, &firmwareBase_);
       if (!res) {
         RTERROR << "Failed to get FIRMWARE base\n";
         std::terminate();
       }
       RTINFO << "FIRMWARE base: 0x" << std::hex << firmwareBase_ << "\n";
 
-      res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_FW_UPDATE_REG_SIZE, Clock::now(), &firmwareSize_);
+      res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_FW_UPDATE_REG_SIZE, &firmwareSize_);
       if (!res) {
         RTERROR << "Failed to get FIRMWARE size\n";
         std::terminate();
@@ -130,7 +122,7 @@ PCIeDevice::PCIeDevice(int index, bool mgmtNode)
       RTINFO << "FIRMWARE size: 0x" << std::hex << firmwareSize_ << "\n";
     }
 
-    res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_MBOX_MAX_MSG, Clock::now(), &mboxMaxMsgSize_);
+    res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_MBOX_MAX_MSG, &mboxMaxMsgSize_);
     if (!res) {
       RTERROR << "Failed to get maximum mailbox message size\n";
       std::terminate();
@@ -192,18 +184,18 @@ bool PCIeDevice::write(uintptr_t addr, const void* data, ssize_t size) {
 
 }
 
-void PCIeDevice::resetMbox(TimeDuration wait_time) {
-  auto valid = wrap_ioctl(fd_, ETSOC1_IOCTL_RESET_MBOX, Clock::now() + wait_time);
+void PCIeDevice::resetMbox() {
+  auto valid = wrap_ioctl(fd_, ETSOC1_IOCTL_RESET_MBOX);
   if (!valid) {
-    RTERROR << "Failed to g \n";
+    RTERROR << "Failed to reset the mailbox\n";
     std::terminate();
   }
   TRACE_PCIeDevice_mailbox_reset();
 }
 
-bool PCIeDevice::readyMbox(TimeDuration wait_time) {
+bool PCIeDevice::readyMbox() {
   uint64_t ready = 0;
-  auto res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_MBOX_READY, Clock::now() + wait_time, &ready);
+  auto res = wrap_ioctl(fd_, ETSOC1_IOCTL_GET_MBOX_READY, &ready);
 
   TRACE_PCIeDevice_mailbox_ready(static_cast<bool>(ready));
   if (!res) {
@@ -218,13 +210,12 @@ bool PCIeDevice::readyMbox(TimeDuration wait_time) {
 }
 
 bool PCIeDevice::init() {
-  // FIXME current we perform no initialization action that will not apply in
-  // the future.
+  // FIXME current we perform no initialization action that will not apply in the future.
   RTINFO << "PCIeDevice: Initialization \n";
-  resetMbox(kWaitTime);
+  resetMbox();
   RTINFO << "PCIEDevice: Reset MM mailbox \n";
   // Wait for the device to be ready
-  auto mb_ready = readyMbox(kWaitTime);
+  auto mb_ready = readyMbox();
   RTINFO << "PCIEDevice: MM mailbox ready " << mb_ready << "\n";
   device_alive_ = mb_ready;
   return device_alive_;
@@ -267,7 +258,7 @@ bool PCIeDevice::virtQueueWrite(const void *data, ssize_t size, uint8_t queueId)
   return false;
 }
 
-ssize_t PCIeDevice::virtQueueRead(void *data, ssize_t size, uint8_t queueId, TimeDuration wait_time) {
+ssize_t PCIeDevice::virtQueueRead(void *data, ssize_t size, uint8_t queueId) {
   assert(false);
   return false;
 }
@@ -336,29 +327,21 @@ bool PCIeDevice::writeDevMemDMA(uintptr_t dev_addr, size_t size,
 
 bool PCIeDevice::mb_write(const void *data, ssize_t size) {
   TRACE_PCIeDevice_mailbox_write_start((uint64_t)data, size);
-  auto res = wrap_ioctl(fd_, ETSOC1_IOCTL_PUSH_MBOX(size), Clock::now(), data);
+  auto res = wrap_ioctl(fd_, ETSOC1_IOCTL_PUSH_MBOX(size), data);
   TRACE_PCIeDevice_mailbox_write_end();
   return res.rc_ == size;
 }
 
-ssize_t PCIeDevice::mb_read(void *data, ssize_t size, TimeDuration wait_time) {
+ssize_t PCIeDevice::mb_read(void *data, ssize_t size) {
   int dataRead = 0;
   auto trace = ScopedTrace(
     [&](){TRACE_PCIeDevice_mailbox_read_start((uint64_t)data, size);},
     [&](){TRACE_PCIeDevice_mailbox_read_end(dataRead);}
   );
-  auto start = Clock::now();
-  auto end = start + wait_time;
-  while (auto res = wrap_ioctl(fd_, ETSOC1_IOCTL_POP_MBOX(size), Clock::now(), data)) {
-    if (res.rc_ > 0) {
-      dataRead = res.rc_;
-      break;
-    }
-    std::this_thread::sleep_for(kPollingInterval);
-    if (end < Clock::now()) {
-      break;
-    }
-  }
+  // Max ioctl size is 14b
+  assert(size <= (ssize_t)((1ul << _IOC_SIZEBITS)-1));
+  auto res = wrap_ioctl(fd_, ETSOC1_IOCTL_POP_MBOX(size), data);
+  dataRead = res.rc_;
   return dataRead;
 }
 
