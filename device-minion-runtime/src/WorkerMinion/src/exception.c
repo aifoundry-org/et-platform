@@ -12,7 +12,6 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
 static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t mstatus,
                                    uint64_t hart_id, bool user_mode);
 
-
 void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const reg)
 {
     /* ecalls are handled elsewhere, and some U-mode exceptions are delegated to S-mode from M-mode */

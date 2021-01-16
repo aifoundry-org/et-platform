@@ -11,7 +11,13 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-typedef enum { KERNEL_ID_0 = 0, KERNEL_ID_1, KERNEL_ID_2, KERNEL_ID_3, KERNEL_ID_NONE } kernel_id_t;
+typedef enum {
+    KERNEL_ID_0 = 0,
+    KERNEL_ID_1,
+    KERNEL_ID_2,
+    KERNEL_ID_3,
+    KERNEL_ID_NONE
+} kernel_id_t;
 
 void kernel_init(void);
 void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id);

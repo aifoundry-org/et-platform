@@ -2,28 +2,29 @@
 #include "hart.h"
 #include "message.h"
 #include "printf.h"
+#include "atomic.h"
 
 #include <stdarg.h>
 #include <stddef.h>
 #include <string.h>
 
 // TODO All worker harts currently crudely share the same log level
-static log_level_t current_log_level = LOG_LEVEL_WARNING;
+static log_level_t current_log_level __attribute__((aligned(64))) = LOG_LEVEL_WARNING;
 
 void log_set_level(log_level_t level)
 {
-    current_log_level = level;
+    atomic_store_global_8(&current_log_level, level);
 }
 
 log_level_t get_log_level(void)
 {
-    return current_log_level;
+    return atomic_load_global_8(&current_log_level);
 }
 
 // sends a log message from a worker minion to the master minion for display
 int64_t log_write(log_level_t level, const char *const fmt, ...)
 {
-    if (level > current_log_level) {
+    if (level > atomic_load_global_8(&current_log_level)) {
         return 0;
     }
 
@@ -43,7 +44,7 @@ int64_t log_write(log_level_t level, const char *const fmt, ...)
 
 int64_t log_write_str(log_level_t level, const char *str, size_t length)
 {
-    if (level > current_log_level) {
+    if (level > atomic_load_global_8(&current_log_level)) {
         return 0;
     }
 

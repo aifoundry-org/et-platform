@@ -80,21 +80,10 @@ static_assert((FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL + FW_MASTER_TO_WORKER_
               "S-stack / message buffer region collision");
 #endif
 
-// Place kernel configs in DRAM so U-mode kernel can read them
-#define FW_MASTER_TO_WORKER_KERNEL_CONFIGS      (U_CODE_REGION_BASE + U_CODE_REGION_SIZE)
-#define FW_MASTER_TO_WORKER_KERNEL_CONFIGS_SIZE 0x1000
-
 // Give 4K for VM stack pages
 // Bits[8:6] of an address specify memshire number, and bit[9] the controller within memshire. Offset by 1<<6 = 64 to distribute stack bases across different memory controllers
 #define KERNEL_UMODE_STACK_BASE 0x8005000000ULL
 #define KERNEL_UMODE_STACK_SIZE (4096 + 64)
-
-#ifndef __ASSEMBLER__
-// Ensure the shared kernel configs don't overlap with the U-stacks
-static_assert((FW_MASTER_TO_WORKER_KERNEL_CONFIGS + FW_MASTER_TO_WORKER_KERNEL_CONFIGS_SIZE) <
-                  (KERNEL_UMODE_STACK_BASE - (NUM_HARTS * KERNEL_UMODE_STACK_SIZE)),
-              "U-stack / kenrel config region collision");
-#endif
 
 #define KERNEL_UMODE_ENTRY KERNEL_UMODE_STACK_BASE
 

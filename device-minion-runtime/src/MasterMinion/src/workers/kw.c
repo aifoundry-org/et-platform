@@ -22,7 +22,6 @@
 /***********************************************************************/
 #include    "workers/kw.h"
 #include    "services/log1.h"
-#include    "kernel_config.h"
 #include    "utils.h"
 #include    "cacheops.h"
 #include    "vq.h"
@@ -44,20 +43,21 @@ static kw_cb_t KW_CB __attribute__((aligned(64))) = {0};
 extern spinlock_t Launch_Lock;
 
 /* Shared state - Worker minion fetch kernel parameters from these */
-static kernel_config_t *const kernel_config =
-    (kernel_config_t *)FW_MASTER_TO_WORKER_KERNEL_CONFIGS;
+//static kernel_config_t *const kernel_config =
+//    (kernel_config_t *)FW_MASTER_TO_WORKER_KERNEL_CONFIGS;
 
 
 // Clear fields of kernel config so worker minion recognize it's inactive
 static void clear_kernel_config(kernel_id_t1 kernel_id)
 {
-    volatile kernel_config_t *const kernel_config_ptr = &kernel_config[kernel_id];
-    kernel_config_ptr->shire_mask = 0;
+    (void) kernel_id;
+    //volatile kernel_config_t *const kernel_config_ptr = &kernel_config[kernel_id];
+    //kernel_config_ptr->shire_mask = 0;
 
     // Evict kernel config to point of coherency - sync threads and worker minion will read it
-    FENCE
-    evict(to_L3, kernel_config_ptr, sizeof(kernel_config_t));
-    WAIT_CACHEOPS
+    //FENCE
+    //evict(to_L3, kernel_config_ptr, sizeof(kernel_config_t));
+    //WAIT_CACHEOPS
 }
 
 

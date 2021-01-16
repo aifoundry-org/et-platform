@@ -1,6 +1,5 @@
 #include "cacheops.h"
 #include "kernel.h"
-#include "kernel_config.h"
 #include "kernel_sync.h"
 #include "fcc.h"
 #include "flb.h"
@@ -19,8 +18,48 @@
 static const uint8_t tensor_zeros[64] __attribute__((aligned(64))) = { 0 };
 
 static local_fcc_barrier_t post_kernel_barrier[NUM_SHIRES] = { 0 };
+static spinlock_t pre_launch_local_barrier[NUM_SHIRES] = { 0 };
+static spinlock_t pre_launch_global_barrier = { 0 };
 
-static void pre_kernel_setup(uint64_t kernel_id, uint64_t kernel_launch_flags);
+// This is a temporary hack. Should be properly done.
+static inline bool spinlock_barrier_local(spinlock_t *lock, uint32_t num_threads)
+{
+    if (atomic_add_local_32(&lock->flag, 1U) == (num_threads - 1)) {
+        return true;
+    } else {
+        do {
+            asm volatile("fence\n" ::: "memory");
+        } while (atomic_load_local_32(&lock->flag) != num_threads);
+        return false;
+    }
+}
+
+// This is a temporary hack. Should be properly done.
+static void spinlock_barrier_global(spinlock_t *lock, uint32_t num_shires)
+{
+    const uint64_t shire_id = get_shire_id();
+    const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
+    bool last;
+
+    last = spinlock_barrier_local(&pre_launch_local_barrier[shire_id], thread_count);
+
+    // One thread per shire increments
+    if (last)
+        atomic_add_global_32(&lock->flag, 1U);
+
+    do {
+        asm volatile("fence\n" ::: "memory");
+    } while (atomic_load_global_32(&lock->flag) != num_shires);
+
+    // Reset primitives
+    if (last) {
+        init_local_spinlock(&pre_launch_local_barrier[shire_id], 0);
+        if (shire_id == 0)
+            init_global_spinlock(&pre_launch_global_barrier, 0);
+    }
+}
+
+static void pre_kernel_setup(uint64_t kernel_launch_flags);
 static void kernel_return_function(int64_t return_value)
     __attribute__((used, section(".user_text"))); // must be placed in U-mode accessible section
 static void log_errors(int64_t return_value, uint64_t tensor_error);
@@ -29,10 +68,11 @@ static void post_kernel_cleanup(uint64_t kernel_id, uint64_t kernel_launch_flags
 // Saves firmware context and launches kernel in user mode with clean stack and registers
 // Note that global Supervisor interrupts are disabled after returning from this function
 int64_t launch_kernel(uint64_t kernel_id,
-                      const uint64_t *const kernel_entry_addr,
-                      const uint64_t *const kernel_stack_addr,
-                      const uint64_t *const kernel_params_ptr,
-                      uint64_t kernel_launch_flags)
+                      uint64_t kernel_entry_addr,
+                      uint64_t kernel_stack_addr,
+                      uint64_t kernel_params_ptr,
+                      uint64_t kernel_launch_flags,
+                      uint64_t kernel_shire_mask)
 {
     uint64_t *firmware_sp;
     int64_t return_value;
@@ -42,7 +82,9 @@ int64_t launch_kernel(uint64_t kernel_id,
                  "addi  %0, %0, 8    \n"
                  : "=r"(firmware_sp));
 
-    pre_kernel_setup(kernel_id, kernel_launch_flags);
+    pre_kernel_setup(kernel_launch_flags);
+
+    spinlock_barrier_global(&pre_launch_global_barrier, (uint32_t)__builtin_popcountll(kernel_shire_mask));
 
     // -Save firmware context on supervisor stack and sp to supervisor stack SP region
     // -Switch sp to kernel_stack_addr
@@ -171,11 +213,10 @@ int64_t launch_kernel(uint64_t kernel_id,
     return return_value;
 }
 
-static void pre_kernel_setup(uint64_t kernel_id, uint64_t kernel_launch_flags)
+static void pre_kernel_setup(uint64_t kernel_launch_flags)
 {
     const uint64_t shire_id = get_shire_id();
     const uint32_t minion_mask = (shire_id == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
-    const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
     const uint64_t first_worker = (shire_id == MASTER_SHIRE) ? 32 : 0;
 
     // Enable Thread 1, init L1, invalidate I-cache
@@ -268,18 +309,6 @@ static void pre_kernel_setup(uint64_t kernel_id, uint64_t kernel_launch_flags)
 
     // Ensure all FLB and FCC init is complete
     asm volatile("fence");
-
-    bool result;
-
-    WAIT_FLB(thread_count, 28, result);
-
-    // Last thread to join barrier sends ready FCC1 to master shire sync thread
-    if (result) {
-        notify_kernel_sync_thread(kernel_id, FCC_1);
-    }
-
-    // Wait for go FCC1 from master shire sync thread
-    WAIT_FCC(1);
 }
 
 static void kernel_return_function(int64_t return_value)

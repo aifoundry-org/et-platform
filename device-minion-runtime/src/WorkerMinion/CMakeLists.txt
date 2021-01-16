@@ -15,6 +15,7 @@ set(SOURCES
     src/swi.c
     src/exception.c
     src/main.c
+    src/mm_iface.c
     src/kernel.c
     src/kernel_return.c
     src/build_configuration.c
