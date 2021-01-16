@@ -36,7 +36,7 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
 static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t mstatus,
                                    uint64_t hart_id, bool user_mode)
 {
-    message_exception_t message;
+    cm_to_mm_message_exception_t message;
 
     // The master minion needs to know if this is a recoverable kernel exception or an unrecoverable exception
     message.header.id = user_mode ? CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION : CM_TO_MM_MESSAGE_ID_FW_EXCEPTION;

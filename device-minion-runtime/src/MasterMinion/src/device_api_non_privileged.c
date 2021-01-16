@@ -141,7 +141,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
 
         // send message to workers
-        message_set_log_level_t message;
+        mm_to_cm_message_set_log_level_t message;
         message.header.id = MM_TO_CM_MESSAGE_ID_SET_LOG_LEVEL;
         message.log_level = devapi_loglevel_to_fw(cmd->log_level);
         broadcast_message_send_master(functional_shires, (cm_iface_message_t *)&message);
@@ -449,7 +449,7 @@ void handle_device_api_non_privileged_message_from_host(const mbox_message_id_t*
         struct configure_pmcs_rsp_t rsp;
 
         // Send message to workers to configure PMCs
-        message_pmc_configure_t message;
+        mm_to_cm_message_pmc_configure_t message;
         message.header.id = MM_TO_CM_MESSAGE_ID_PMC_CONFIGURE;
         message.conf_buffer_addr = cmd->conf_buffer_addr;
         broadcast_message_send_master(functional_shires, (cm_iface_message_t *)&message);

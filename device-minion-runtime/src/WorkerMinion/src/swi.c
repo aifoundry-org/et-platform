@@ -51,7 +51,7 @@ static void handle_message(uint64_t shire, uint64_t hart, cm_iface_message_t *co
         return_from_kernel(KERNEL_LAUNCH_ERROR_ABORTED);
         break;
     case MM_TO_CM_MESSAGE_ID_SET_LOG_LEVEL:
-        log_set_level(((message_set_log_level_t *)message_ptr)->log_level);
+        log_set_level(((mm_to_cm_message_set_log_level_t *)message_ptr)->log_level);
         break;
     case MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL:
         // Evict to invalidate control region to get new changes
@@ -68,7 +68,7 @@ static void handle_message(uint64_t shire, uint64_t hart, cm_iface_message_t *co
     case MM_TO_CM_MESSAGE_ID_PMC_CONFIGURE:
         // Make a syscall to M-mode to configure PMCs
         syscall(SYSCALL_CONFIGURE_PMCS_INT, 0,
-                ((message_pmc_configure_t *)message_ptr)->conf_buffer_addr, 0);
+                ((mm_to_cm_message_pmc_configure_t *)message_ptr)->conf_buffer_addr, 0);
         break;
     default:
         // Unknown message

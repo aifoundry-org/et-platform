@@ -114,7 +114,7 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
             }
 
             // Send message to master minion indicating the kernel is starting
-            message_kernel_launch_ack_t ack_message;
+            cm_to_mm_message_kernel_launch_ack_t ack_message;
             ack_message.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ACK;
             ack_message.kernel_id = kernel_id;
             message_send_worker(get_shire_id(), get_hart_id(), (cm_iface_message_t *)&ack_message);
@@ -125,13 +125,13 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
             }
 
             // Send message to master minion indicating the kernel is complete
-            message_kernel_launch_completed_t completed_message;
+            cm_to_mm_message_kernel_launch_completed_t completed_message;
             completed_message.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE;
             completed_message.kernel_id = kernel_id;
             message_send_worker(get_shire_id(), get_hart_id(), (cm_iface_message_t *)&completed_message);
         } else {
             // Invalid config, send error message to the master minion
-            message_kernel_launch_nack_t nack_message;
+            cm_to_mm_message_kernel_launch_nack_t nack_message;
             nack_message.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_NACK;
             nack_message.kernel_id = kernel_id;
             message_send_worker(get_shire_id(), get_hart_id(), (cm_iface_message_t *)&nack_message);
