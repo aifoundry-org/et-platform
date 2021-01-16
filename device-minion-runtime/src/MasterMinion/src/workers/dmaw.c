@@ -21,6 +21,7 @@
 */
 /***********************************************************************/
 #include    "workers/dmaw.h"
+#include    "workers/sqw.h"
 #include    "services/log1.h"
 #include    "services/host_iface.h"
 #include    <esperanto/device-apis/operations-api/device_ops_api_spec.h>
@@ -33,7 +34,7 @@
     \warning Not thread safe!, used by minions in
     master shire, use local atomics for access.
 */
-dma_channel_status_t DMA_Channel_Status __attribute__((aligned(8))) = {0};
+dma_channel_status_t DMA_Channel_Status __attribute__((aligned(64))) = {0};
 
 extern spinlock_t Launch_Lock;
 
@@ -169,6 +170,10 @@ void DMAW_Launch(uint32_t hart_id)
                     /* DMA transfer complete, clear interrupt status */    
                     dma_clear_done(dma_chan_id);
 
+                    /* Decrement the commands count being processed by the given SQW */
+                    SQW_Decrement_Command_Count(
+                        atomic_load_local_8(&DMA_Channel_Status.dma_rd_chan[dma_chan_id].sqw_idx));
+
                     /* Update global  DMA channel status */
                     atomic_store_local_8
                         (&DMA_Channel_Status.dma_rd_chan[dma_chan_id].channel_state, 
@@ -195,8 +200,6 @@ void DMAW_Launch(uint32_t hart_id)
 
                     status = Host_Iface_CQ_Push_Cmd
                         (0, &write_rsp, sizeof(write_rsp));
-
-                    /* if success, code to decrement sqw_cmd_count */
 
                     if(status == STATUS_SUCCESS)
                     {
@@ -235,6 +238,10 @@ void DMAW_Launch(uint32_t hart_id)
                     DMA_WRITE_INT_STATUS bits 16:25 */    
                     dma_clear_done(dma_chan_id);
 
+                    /* Decrement the commands count being processed by the given SQW */
+                    SQW_Decrement_Command_Count(
+                        atomic_load_local_8(&DMA_Channel_Status.dma_wrt_chan[dma_chan_id].sqw_idx));
+
                     /* Update global  DMA channel status */
                     atomic_store_local_8
                         (&DMA_Channel_Status.dma_wrt_chan[dma_chan_id].channel_state, 
@@ -262,8 +269,6 @@ void DMAW_Launch(uint32_t hart_id)
 
                     status = Host_Iface_CQ_Push_Cmd
                         (0, &read_rsp, sizeof(read_rsp));
-
-                    /* if sucess, code to decrement sqw_cmd_count */
 
                     if(status == STATUS_SUCCESS)
                     {

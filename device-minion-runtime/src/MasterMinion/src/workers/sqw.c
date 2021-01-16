@@ -18,6 +18,8 @@
         SQW_Init
         SQW_Notify
         SQW_Launch
+        SQW_Decrement_Command_Count
+        SQW_Increment_Command_Count
 */
 /***********************************************************************/
 #include "workers/sqw.h"
@@ -32,7 +34,7 @@
     \brief Submission Queue Worker Control Block structure 
 */
 typedef struct sqw_cb_ {
-    uint8_t             num_sqw;
+    int32_t             sqw_cmd_count[MM_SQ_COUNT];
     global_fcc_flag_t   sqw_fcc_flags[MM_SQ_COUNT];
     vq_cb_t             *sq[MM_SQ_COUNT];
 } sqw_cb_t;
@@ -44,6 +46,22 @@ typedef struct sqw_cb_ {
 static sqw_cb_t SQW_CB __attribute__((aligned(64))) = {0};
 
 extern spinlock_t Launch_Lock;
+
+static inline void sqw_command_barrier(uint8_t sqw_idx)
+{
+    Log_Write(LOG_LEVEL_DEBUG, "%s", "SQW:Command Barrier\r\n");
+
+    /* Spin-wait until the commands count is zero */
+    while (atomic_load_local_32(
+        (uint32_t*)&SQW_CB.sqw_cmd_count[sqw_idx]) != 0U) {
+        asm volatile("fence\n" ::: "memory");
+    }
+    asm volatile("fence\n" ::: "memory");
+
+    /* TODO: Add timeout and send asynchronous event back to host to 
+       indicate barrier timeout. Should we drop the barrier command 
+       from SQ? */
+}
 
 /************************************************************************
 *
@@ -66,13 +84,13 @@ extern spinlock_t Launch_Lock;
 ***********************************************************************/
 void SQW_Init(void)
 {
-    atomic_store_local_8(&SQW_CB.num_sqw, MM_SQ_COUNT);
-
     /* Initialize the SQ Worker sync flags */ 
-    for (uint8_t i = 0; i < SQW_CB.num_sqw; i++) 
+    for (uint8_t i = 0; i < MM_SQ_COUNT; i++) 
     {
         global_fcc_flag_init(&SQW_CB.sqw_fcc_flags[i]);
 
+        atomic_store_local_32((uint32_t*)&SQW_CB.sqw_cmd_count[i], 0U);
+        
         atomic_store_local_64((uint64_t*)&SQW_CB.sq[i], 
             (uint64_t)(void*) Host_Iface_Get_VQ_Base_Addr(SQ, i));
     }
@@ -137,6 +155,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
 {
     static uint8_t 
         cmd_buff[MM_CMD_MAX_SIZE] __attribute__((aligned(8))) = { 0 };
+    struct cmd_header_t *cmd_hdr = (void*)cmd_buff;
     uint16_t cmd_size;
     int8_t status = 0;
     uint64_t start_cycles;
@@ -170,8 +189,19 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
             Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
                 "SQW:Processing:SQW_IDX=", 
                 sqw_idx, "\r\n");
+
+            /* If barrier flag is set, wait until all cmds are 
+               processed in the current SQ */
+            if(cmd_hdr->flags & (1 << 0U))
+            {
+                sqw_command_barrier((uint8_t)sqw_idx);
+            }
+
+            /* Increment the SQW command count */
+            SQW_Increment_Command_Count((uint8_t)sqw_idx);
             
-            status = Host_Command_Handler(cmd_buff, start_cycles);
+            status = Host_Command_Handler(cmd_buff, (uint8_t)sqw_idx, 
+                start_cycles);
             
             if (status != STATUS_SUCCESS)
             {
@@ -190,4 +220,70 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
     };
     
     return;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       SQW_Decrement_Command_Count
+*  
+*   DESCRIPTION
+*
+*       Decrement outstanding command count for the given Submission 
+*       Queue Worker
+*
+*   INPUTS
+*
+*       sqw_idx     Submission Queue Worker index
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void SQW_Decrement_Command_Count(uint8_t sqw_idx)
+{
+    /* Decrement commands count being processed by current SQW */
+    atomic_add_signed_local_32(&SQW_CB.sqw_cmd_count[sqw_idx], -1);
+
+    /* sqw_cmd_count value being shown here is not garanteed to be 
+       thread safe. */
+    Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
+        "SQW:Decrement:Command Count:", 
+        atomic_load_local_32((uint32_t*)&SQW_CB.sqw_cmd_count[sqw_idx]), 
+        "\r\n");
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       SQW_Increment_Command_Count
+*  
+*   DESCRIPTION
+*
+*       Increment outstanding command count for the given Submission 
+*       Queue Worker
+*
+*   INPUTS
+*
+*       sqw_idx     Submission Queue Worker index
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void SQW_Increment_Command_Count(uint8_t sqw_idx)
+{
+    /* Increment commands count being processed by current SQW */
+    atomic_add_signed_local_32(&SQW_CB.sqw_cmd_count[sqw_idx], 1);
+
+    /* sqw_cmd_count value being shown here is not garanteed to be 
+       thread safe. */
+    Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
+        "SQW:Increment:Command Count:", 
+        atomic_load_local_32((uint32_t*)&SQW_CB.sqw_cmd_count[sqw_idx]), 
+        "\r\n");
 }

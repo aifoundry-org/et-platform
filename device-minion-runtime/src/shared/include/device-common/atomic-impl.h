@@ -60,6 +60,20 @@ static inline uint##size##_t atomic_##name##_##cscope##_##size(volatile uint##si
     return result;                                                                               \
 }
 
+#define atomic_signed_op_template(name, op, scope, type, cscope, size)                                  \
+static inline int##size##_t atomic_##name##_signed_##cscope##_##size(volatile int##size##_t *address,   \
+                                                               int##size##_t value)                     \
+{                                                                                                       \
+    int##size##_t result;                                                                               \
+    asm volatile(                                                                                       \
+        "amo" #op "" #scope "." #type " %[res], %[val], %[addr]"                                        \
+        : [res]  "=r" (result),                                                                         \
+          [addr] "+A" (*address)                                                                        \
+        : [val]   "r" (value)                                                                           \
+    );                                                                                                  \
+    return result;                                                                                      \
+}
+
 #define atomic_define_variants(func)           \
     atomic_##func##_template(l, w, local,  32) \
     atomic_##func##_template(l, d, local,  64) \
@@ -71,6 +85,12 @@ static inline uint##size##_t atomic_##name##_##cscope##_##size(volatile uint##si
     atomic_op_template(name, op, l, d, local,  64) \
     atomic_op_template(name, op, g, w, global, 32) \
     atomic_op_template(name, op, g, d, global, 64)
+
+#define atomic_define_signed_op_variants(name, op)        \
+    atomic_signed_op_template(name, op, l, w, local,  32) \
+    atomic_signed_op_template(name, op, l, d, local,  64) \
+    atomic_signed_op_template(name, op, g, w, global, 32) \
+    atomic_signed_op_template(name, op, g, d, global, 64)
 
 atomic_load_small_template(local, 8)
 atomic_load_small_template(local, 16)
@@ -88,11 +108,14 @@ atomic_define_op_variants(exchange, swap)
 atomic_define_op_variants(add, add)
 atomic_define_op_variants(and, and)
 atomic_define_op_variants(or, or)
+atomic_define_signed_op_variants(add, add)
 
 #undef atomic_store_small_template
 #undef atomic_load_small_template
 #undef atomic_load_template
 #undef atomic_store_template
 #undef atomic_op_template
+#undef atomic_signed_op_template
 #undef atomic_define_variants
 #undef atomic_define_op_variants
+#undef atomic_define_signed_op_variants

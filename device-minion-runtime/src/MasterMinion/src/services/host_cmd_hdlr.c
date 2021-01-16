@@ -22,6 +22,7 @@
 #include "services/worker_iface.h"
 #include "services/log1.h"
 #include "workers/dmaw.h"
+#include "workers/sqw.h"
 #include "pcie_dma.h"
 #include "pmu.h"
 
@@ -45,13 +46,12 @@
 *       int8_t           Successful status or error code.
 *
 ***********************************************************************/
-int8_t Host_Command_Handler(void* command_buffer, uint64_t start_cycles)
+int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx, 
+    uint64_t start_cycles)
 {
     int8_t status = STATUS_SUCCESS;
     struct cmd_header_t *hdr = command_buffer;
     dma_channel_status_t *p_DMA_Channel_Status;
-    /* TODO: remove this once sq_idx is passed into cmd handler */
-    uint8_t sq_idx = 0; 
 
     p_DMA_Channel_Status = 
         (dma_channel_status_t*)DMAW_Get_DMA_Channel_Status_Addr();
@@ -87,6 +87,10 @@ int8_t Host_Command_Handler(void* command_buffer, uint64_t start_cycles)
                 Log_Write(LOG_LEVEL_DEBUG, "%s", 
                 "HostCommandHandler:HostIface:Push:Failed\r\n");
             }
+
+            /* Decrement commands count being processed by given SQW */
+            SQW_Decrement_Command_Count(sqw_idx);
+
             break;
         }
         case DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD:
@@ -144,6 +148,9 @@ int8_t Host_Command_Handler(void* command_buffer, uint64_t start_cycles)
                     "HostCommandHandler:HostIface:Push:Failed\r\n");
             }
 
+            /* Decrement commands count being processed by given SQW */
+            SQW_Decrement_Command_Count(sqw_idx);
+
             break;
         }
         case DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD:
@@ -174,6 +181,9 @@ int8_t Host_Command_Handler(void* command_buffer, uint64_t start_cycles)
                 Log_Write(LOG_LEVEL_DEBUG, "%s", 
                     "HostCommandHandler:HostIface:Push:Failed\r\n");
             }
+
+            /* Decrement commands count being processed by given SQW */
+            SQW_Decrement_Command_Count(sqw_idx);
 
             break;
         }
@@ -219,7 +229,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint64_t start_cycles)
                 
                 /* Update the Global DMA Channel Status data structure
                 - Set tag ID, set channel state to active, set SQW Index */
-                temp = (uint32_t)(( sq_idx << 24)| 
+                temp = (uint32_t)((sqw_idx << 24)| 
                     (DMA_CHANNEL_IN_USE << 16) | hdr->cmd_hdr.tag_id); 
                 atomic_store_local_32
                     ((volatile uint32_t*)&p_DMA_Channel_Status->dma_wrt_chan[chan], 
@@ -289,7 +299,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint64_t start_cycles)
 
                 /* Update the Global DMA Channel Status data structure
                 - Set tag ID, set channel state to active, set SQW Index */
-                temp = (uint32_t)(( sq_idx << 24)| 
+                temp = (uint32_t)((sqw_idx << 24)| 
                     (DMA_CHANNEL_IN_USE << 16) | hdr->cmd_hdr.tag_id); 
                 atomic_store_local_32
                     ((volatile uint32_t*)&p_DMA_Channel_Status->dma_rd_chan[chan], 
