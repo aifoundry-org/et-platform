@@ -7,6 +7,7 @@
 #include "flb.h"
 #include "hart.h"
 #include "layout.h"
+#include "sync.h"
 #include "syscall_internal.h"
 
 #include <stdbool.h>
@@ -34,6 +35,11 @@ static volatile broadcast_message_ctrl_t *const master_to_worker_broadcast_messa
 static message_buffers_t *const master_to_worker_message_buffers =
     (message_buffers_t *)FW_MASTER_TO_WORKER_MESSAGE_BUFFERS;
 
+static spinlock_t master_to_worker_broadcast_lock = { 0 };
+// First broadcast message number is 1, so OK for worker minion
+// to init previous_broadcast_message_number to 0
+static uint32_t master_to_worker_broadcast_last_number __attribute__((aligned(64))) = 1;
+
 static inline __attribute__((always_inline)) void set_message_flag(uint64_t shire, uint64_t hart);
 static inline __attribute__((always_inline)) void clear_message_flag(uint64_t shire, uint64_t hart);
 static inline __attribute__((always_inline)) void evict_message(const volatile cm_iface_message_t *const message);
@@ -55,6 +61,7 @@ void message_init_master(void)
     }
 
     // Master->worker broadcast message number and id
+    init_local_spinlock(&master_to_worker_broadcast_lock, 0);
     atomic_store_global_8(&master_to_worker_broadcast_message_buffer_ptr->header.number, 0);
     atomic_store_global_8(&master_to_worker_broadcast_message_buffer_ptr->header.id,
                           MM_TO_CM_MESSAGE_ID_NONE);
@@ -139,18 +146,20 @@ static inline int64_t broadcast_ipi_trigger(uint64_t dest_shire_mask, uint64_t d
 }
 
 // Broadcasts a message to all worker HARTS in all Shires in dest_shire_mask
-// Should only be called by master minion
+// Can be called from multiple threads from Master Shire
 // Blocks until all the receivers have ACK'd
 int64_t broadcast_message_send_master(uint64_t dest_shire_mask, const cm_iface_message_t *const message)
 {
-    // First broadcast message number is 1, so OK for worker minion
-    // to init previous_broadcast_message_number to 0
-    static cm_iface_message_number_t number = 1;
     uint32_t shire_count;
+    uint32_t next_number;
+
+    acquire_local_spinlock(&master_to_worker_broadcast_lock);
+
+    next_number = atomic_add_local_32(&master_to_worker_broadcast_last_number, 1);
 
     // Copy message to shared buffer
     *master_to_worker_broadcast_message_buffer_ptr = *message;
-    master_to_worker_broadcast_message_buffer_ptr->header.number = number++;
+    master_to_worker_broadcast_message_buffer_ptr->header.number = (cm_iface_message_number_t)next_number;
     evict_message(master_to_worker_broadcast_message_buffer_ptr);
 
     // Configure broadcast message control data
@@ -170,6 +179,8 @@ int64_t broadcast_message_send_master(uint64_t dest_shire_mask, const cm_iface_m
         // Relax thread
         asm volatile("fence\n" ::: "memory");
     }
+
+    release_local_spinlock(&master_to_worker_broadcast_lock);
 
     return 0;
 }
