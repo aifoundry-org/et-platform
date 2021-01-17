@@ -29,7 +29,7 @@ set(CMAKE_OBJDUMP    ${GCC_SYSROOT_PATH}/bin/riscv64-unknown-elf-objdump CACHE P
 # FreeRTOS is not compatible with -Wduplicated-cond and -Wduplicated-branches at -Og or higher
 set(CMAKE_C_FLAGS "-Og -g3 -std=gnu11 --specs=nano.specs -mcmodel=medany -march=rv64imf -mabi=lp64f \
 -fno-zero-initialized-in-bss -ffunction-sections -fdata-sections -fstack-usage -Wall -Wextra -Werror \
--Wdouble-promotion -Wformat -Wnull-dereference -Wswitch-enum -Wshadow -Wstack-usage=256 \
+-Wdouble-promotion -Wformat -Wnull-dereference -Wswitch-enum -Wshadow -Wstack-usage=1024 \
 -Wpointer-arith -Wundef -Wbad-function-cast -Wcast-qual -Wcast-align -Wconversion -Wlogical-op \
 -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wno-main" CACHE STRING "c flags" FORCE)
 

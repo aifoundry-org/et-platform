@@ -589,7 +589,7 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
                   "MESSAGE_ID_KERNEL_LAUNCH_ACK received from shire %" PRId64 " hart %" PRId64
                   "\r\n",
                   shire, hart);
-        update_kernel_state(((message_kernel_launch_ack_t *)&message)->kernel_id,
+        update_kernel_state(((cm_to_mm_message_kernel_launch_ack_t *)&message)->kernel_id,
                             KERNEL_STATE_RUNNING);
         break;
 
@@ -599,7 +599,7 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
                   "\r\n",
                   shire, hart);
         update_shire_state(shire, SHIRE_STATE_ERROR);
-        update_kernel_state(((message_kernel_launch_nack_t *)&message)->kernel_id,
+        update_kernel_state(((cm_to_mm_message_kernel_launch_nack_t *)&message)->kernel_id,
                             KERNEL_STATE_ERROR);
         break;
 
@@ -616,12 +616,12 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
         log_write(LOG_LEVEL_DEBUG,
                   "MESSAGE_ID_KERNEL_COMPLETE received from shire %" PRId64 " hart %" PRId64 "\r\n",
                   shire, hart);
-        update_kernel_state(((message_kernel_launch_completed_t *)&message)->kernel_id,
+        update_kernel_state(((cm_to_mm_message_kernel_launch_completed_t *)&message)->kernel_id,
                             KERNEL_STATE_COMPLETE);
         break;
 
     case CM_TO_MM_MESSAGE_ID_FW_EXCEPTION: {
-        message_exception_t *exception = (message_exception_t *)&message;
+        cm_to_mm_message_exception_t *exception = (cm_to_mm_message_exception_t *)&message;
         print_exception(exception->mcause, exception->mepc, exception->mtval, exception->mstatus,
                         exception->hart_id);
         // non-kernel exceptions are unrecoverable. Put the shire in error state
@@ -631,7 +631,7 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
     }
 
     case CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION: {
-        message_exception_t *exception = (message_exception_t *)&message;
+        cm_to_mm_message_exception_t *exception = (cm_to_mm_message_exception_t *)&message;
         print_exception(exception->mcause, exception->mepc, exception->mtval, exception->mstatus,
                         exception->hart_id);
         update_kernel_state(kernel, KERNEL_STATE_ERROR); // the kernel has failed
