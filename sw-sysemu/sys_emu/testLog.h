@@ -29,14 +29,19 @@ bool simEnded();
 class testLog
 {
 public:
+ 
  testLog(const std::string &name = "", logLevel logLvl = LOG_INFO):
-  name_(name)
+  name_(name), outputStream_(&std::cout)
   {
     msgStarted_ = false;
     msgInLogLevel_ = false;
     fatal_ = false;
     if (!logLevelsSet_) setLogLevels();
     setLogLevel(logLvl);
+  }
+  void setOutputStream(std::ostream* output) 
+  {
+    outputStream_ = output;  
   }
 
   testLog(const testLog&) = delete;
@@ -58,7 +63,7 @@ public:
     return *this;
   }
   testLog &operator<<(logLevel l) {
-    if(msgStarted_) std::cout<<"previous msg did not finish => ["<<name_.c_str()<<"]"<<os_.str()<<std::endl;
+    if(msgStarted_) *outputStream_<<"previous msg did not finish => ["<<name_.c_str()<<"]"<<os_.str()<<std::endl;
 
     msgStarted_=true;
 
@@ -85,15 +90,15 @@ public:
     if (msgStarted_) os_ << std::endl;
   }
   void endm(){
-    if (!msgStarted_) std::cout<<"endm without msg start (string="<<os_.str()<<")"<<std::endl;
+    if (!msgStarted_) *outputStream_<<"endm without msg start (string="<<os_.str()<<")"<<std::endl;
     else if (msgInLogLevel_)
-      std::cout<<""<<os_.str()<<std::endl;
+      *outputStream_<<""<<os_.str()<<std::endl;
     os_.str("");
     os_.clear();
     if (fatal_) endSim();
     if ( errors_ >= maxErrors_) {
       if ( !simEnded() )  {
-        std::cout<<"Stopping simulation because max number of errors reached ("<<maxErrors_<<")"<<std::endl;
+        *outputStream_<<"Stopping simulation because max number of errors reached ("<<maxErrors_<<")"<<std::endl;
         endSim();
       }
     }
@@ -104,6 +109,7 @@ public:
 private:
   std::string name_;
   std::ostringstream os_;
+  std::ostream* outputStream_;
   bool msgStarted_;
   bool msgInLogLevel_;
   bool fatal_;
