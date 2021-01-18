@@ -43,18 +43,18 @@ static StaticTask_t g_staticTask_ptr;
 /* Task entry function */
 static void dm_task_entry(void *pvParameters);
 
-struct soc_perf_reg_t  *g_soc_perf_reg __attribute__((section(".data")));
+struct soc_perf_reg_t  g_soc_perf_reg __attribute__((section(".data")));
 
 volatile struct soc_perf_reg_t *get_soc_perf_reg(void)
 {
-    return g_soc_perf_reg;
+    return &g_soc_perf_reg;
 }
 
-struct soc_power_reg_t *g_soc_power_reg __attribute__((section(".data")));
+struct soc_power_reg_t g_soc_power_reg __attribute__((section(".data")));
 
 volatile struct soc_power_reg_t *get_soc_power_reg(void)
 {
-    return g_soc_power_reg;
+    return &g_soc_power_reg;
 }
 
 /************************************************************************
