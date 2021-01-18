@@ -107,35 +107,6 @@ bool broadcast_message_available_worker(cm_iface_message_number_t previous_broad
     return (cur_number != previous_broadcast_message_number);
 }
 
-// Sends a message from master minion to worker minion
-// Should only be called by master minion
-int64_t message_send_master(uint64_t dest_shire, uint64_t dest_hart, const cm_iface_message_t *const message)
-{
-    volatile cm_iface_message_t *dest_message_ptr;
-
-    // Allow raw 0-2111 hart_id to be passed in
-    dest_hart %= 64;
-
-    // Wait if message ID is set to avoid overwriting a pending message
-    while (get_message_id(dest_shire, dest_hart) != MM_TO_CM_MESSAGE_ID_NONE) {
-        // Relax thread
-        asm volatile("fence\n" ::: "memory");
-    }
-
-    // Copy message to shared buffer
-    dest_message_ptr = &(*master_to_worker_message_buffers)[dest_shire][dest_hart];
-    *dest_message_ptr = *message;
-    evict_message(dest_message_ptr);
-
-    // Ensure the evict to L3 has completed before sending the IPI
-    asm volatile("fence");
-
-    // Send an IPI
-    syscall(SYSCALL_IPI_TRIGGER_INT, (1ULL << dest_hart), dest_shire, 0);
-
-    return 0;
-}
-
 static inline int64_t broadcast_ipi_trigger(uint64_t dest_shire_mask, uint64_t dest_hart_mask)
 {
     const uint64_t broadcast_parameters = broadcast_encode_parameters(
@@ -207,10 +178,38 @@ cm_iface_message_number_t broadcast_message_receive_worker(cm_iface_message_t *c
     return message->header.number;
 }
 
+// Sends a message from master minion to worker minion
+// Should only be called by master minion
+int64_t message_send_master(uint64_t dest_shire, uint64_t dest_hart, const cm_iface_message_t *const message)
+{
+    volatile cm_iface_message_t *dest_message_ptr;
+
+    // Allow raw 0-2111 hart_id to be passed in
+    dest_hart %= 64;
+
+    // Wait if message ID is set to avoid overwriting a pending message
+    while (get_message_id(dest_shire, dest_hart) != MM_TO_CM_MESSAGE_ID_NONE) {
+        // Relax thread
+        asm volatile("fence\n" ::: "memory");
+    }
+
+    // Copy message to shared buffer
+    dest_message_ptr = &(*master_to_worker_message_buffers)[dest_shire][dest_hart];
+    *dest_message_ptr = *message;
+    evict_message(dest_message_ptr);
+
+    // Ensure the evict to L3 has completed before sending the IPI
+    asm volatile("fence");
+
+    // Send an IPI
+    syscall(SYSCALL_IPI_TRIGGER_INT, (1ULL << dest_hart), dest_shire, 0);
+
+    return 0;
+}
+
 // Sends a message from worker minion to master minion
 // Should only be called by worker minion
-int64_t message_send_worker(uint64_t source_shire, uint64_t source_hart,
-                            const cm_iface_message_t *const message)
+int64_t message_send_worker(uint64_t source_shire, uint64_t source_hart, const cm_iface_message_t *const message)
 {
     volatile cm_iface_message_t *dest_message_ptr;
 

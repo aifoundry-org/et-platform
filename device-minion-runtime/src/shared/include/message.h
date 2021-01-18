@@ -63,6 +63,12 @@ void message_init_worker(uint64_t shire, uint64_t hart);
 uint64_t get_message_flags(uint64_t shire);
 cm_iface_message_id_t get_message_id(uint64_t shire, uint64_t hart);
 
+int64_t broadcast_message_send_master(uint64_t dest_shire_mask, const cm_iface_message_t *const message);
+bool broadcast_message_available_worker(cm_iface_message_number_t previous_broadcast_message_number);
+cm_iface_message_number_t broadcast_message_receive_worker(cm_iface_message_t *const message);
+
+/*** TO BE REMOVED ***/
+
 inline bool message_available_master(uint64_t shire_id, uint64_t hart_id)
 {
     return (get_message_id(shire_id, hart_id) != CM_TO_MM_MESSAGE_ID_NONE);
@@ -71,17 +77,12 @@ inline bool message_available_worker(uint64_t shire_id, uint64_t hart_id)
 {
     return (get_message_id(shire_id, hart_id) != MM_TO_CM_MESSAGE_ID_NONE);
 }
-bool broadcast_message_available_worker(cm_iface_message_number_t previous_broadcast_message_number);
 
-int64_t message_send_master(uint64_t dest_shire, uint64_t dest_hart,
-                            const cm_iface_message_t *const message);
-int64_t message_send_worker(uint64_t source_shire, uint64_t source_hart,
-                            const cm_iface_message_t *const message);
-
-int64_t broadcast_message_send_master(uint64_t dest_shire_mask, const cm_iface_message_t *const message);
-cm_iface_message_number_t broadcast_message_receive_worker(cm_iface_message_t *const message);
-
+int64_t message_send_master(uint64_t dest_shire, uint64_t dest_hart, const cm_iface_message_t *const message);
+int64_t message_send_worker(uint64_t source_shire, uint64_t source_hart, const cm_iface_message_t *const message);
 void message_receive_master(uint64_t source_shire, uint64_t source_hart, cm_iface_message_t *const message);
 void message_receive_worker(uint64_t dest_shire, uint64_t dest_hart, cm_iface_message_t *const message);
+
+/*********************/
 
 #endif
