@@ -13,6 +13,7 @@
 #include "memory/main_memory.h"
 #include "sys_emu.h"
 #include "utils.h"
+#include <fstream>
 #include <future>
 #include <mutex>
 #include <thread>
@@ -31,6 +32,80 @@ struct Agent : bemu::Agent {
     return "SysEmuImp";
   }
 } g_Agent;
+
+void logSysEmuOptions(std::ostream& out, const sys_emu_cmd_options& options) {
+  out << std::hex;
+  out << "************************************************************************************\n";
+  out << "* SysEmu command options                                                           *\n";
+  out << "************************************************************************************\n";
+  out << " * Elf files: \n";
+  for (auto& f : options.elf_files) {
+    out << "\t" << f << "\n";
+  }
+  out << " * File load files: \n";
+  for (auto& f : options.file_load_files) {
+    out << "\t Addr: 0x" << f.addr << " File: " << f.file << "\n";
+  }
+  out << " * MemWrite32: \n";
+  for (auto& f : options.mem_write32s) {
+    out << "\t Addr: 0x" << f.addr << " Value: 0x" << f.value << "\n";
+  }
+  out << " * Mem desc file: " << options.mem_desc_file << "\n";
+  out << " * Api comm path: " << options.api_comm_path << "\n";
+  out << " * Minions en: 0x" << options.minions_en << "\n";
+  out << " * Shires en: 0x" << options.shires_en << "\n";
+  out << " * Master min: " << options.master_min << "\n";
+  out << " * Second thread: " << options.second_thread << "\n";
+  out << " * Log en: " << options.log_en << "\n";
+  out << " * Log thread: \n\t";
+  int num_logged_threads = 0;
+  for (int i = 0; i < EMU_NUM_THREADS; ++i) {
+    if (options.log_thread[i]) {
+      ++num_logged_threads;
+      out << " " << i;
+    }
+  }
+  if (num_logged_threads > 0) {
+    out << "\n";
+  } else {
+    out << "None\n";
+  }
+  out << " * Dump at end: \n";
+  for (auto& f : options.dump_at_end) {
+    out << "\t Addr: 0x" << f.addr << " Size: 0x" << f.size << " File: " << f.file << "\n";
+  }
+  out << " * Dump at pc: \n";
+  for (auto& [k, f] : options.dump_at_pc) {
+    out << "\t PC: 0x" << k << " Addr: 0x" << f.addr << " Size: 0x" << f.size << " File: " << f.file << "\n";
+  }
+  out << " * Dump mem: " << options.dump_mem << "\n";
+  out << " * Reset pc: 0x" << options.reset_pc << "\n";
+  out << " * SP reset pc: 0x" << options.sp_reset_pc << "\n";
+  out << " * Set xreg: \n";
+  for (auto& f : options.set_xreg) {
+    out << "\t Thread: " << f.thread << " Xreg: " << f.xreg << " Value: 0x" << f.value << "\n";
+  }
+  out << " * Coherence check: " << options.coherency_check << "\n";
+  out << " * Max cycles: 0x" << options.max_cycles << "\n";
+  out << " * Mins dis: " << options.mins_dis << "\n";
+  out << " * SP dis: " << options.sp_dis << "\n";
+  out << " * Mem reset: " << options.mem_reset << "\n";
+  out << " * pu_uart0_tx_file: " << options.pu_uart0_tx_file << "\n";
+  out << " * pu_uart1_tx_file: " << options.pu_uart1_tx_file << "\n";
+  out << " * spio_uart0_tx_file: " << options.spio_uart0_tx_file << "\n";
+  out << " * spio_uart1_tx_file: " << options.spio_uart1_tx_file << "\n";
+  out << " * Log at pc: 0x" << options.log_at_pc << "\n";
+  out << " * Stop log at pc: 0x" << options.stop_log_at_pc << "\n";
+  out << " * Display trap info: " << options.display_trap_info << "\n";
+  out << " * Gdb: " << options.gdb << "\n";
+#ifdef SYSEMU_PROFILING
+  out << " * Dump prof file: " << options.dump_prof_file << "\n";
+#endif
+#ifdef SYSEMU_DEBUG
+  out << " * Debug: " << options.debug << "\n";
+#endif
+  out << "************************************************************************************\n";
+}
 
 void iatusPrint() {
   const auto& iatus = g_mem->pcie_space.pcie0_dbi_slv.iatus;
@@ -287,13 +362,17 @@ SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>
   opts.spio_uart1_tx_file =
     options.spUart1Path.empty() ? options.runDir + "/" + "spio_uart1_tx.log" : options.spUart1Path;
   opts.elf_files = preloadElfs;
-  sysEmuThread_ = std::thread([opts, this]() {
+
+  sysEmuThread_ = std::thread([opts, this, logfile = options.logFile]() {
     SE_LOG(INFO) << "Starting sysemu thread " << std::this_thread::get_id();
+    std::ofstream log{logfile};
     sys_emu emu;
+    bemu::log.setOutputStream(&log);
+    logSysEmuOptions(log, opts);
     emu.main_internal(opts, this);
     SE_LOG(INFO) << "Ending sysemu thread " << std::this_thread::get_id();
   });
-  
+
   // #TODO FIX-ME https://esperantotech.atlassian.net/browse/SW-5740
   std::this_thread::sleep_for(std::chrono::milliseconds(3000));
   SE_LOG(INFO) << "Calling pcieReady";
