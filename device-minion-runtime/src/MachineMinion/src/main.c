@@ -5,6 +5,7 @@
 #include "layout.h"
 #include "message.h"
 #include "pmu.h"
+#include "sync.h"
 
 #include <stdint.h>
 
@@ -39,6 +40,11 @@ void __attribute__((noreturn)) main(void)
     asm volatile("csrsi mcounteren, 8  \n"
                  "csrsi scounteren, 8  \n");
 
+    // Init global console lock
+    if (get_hart_id() == 2048) {
+        init_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR, 0);
+    }
+
     // Enable counter in 1st core of the neighbourhood only. Enabling it for all
     // cores will accumulate the cycles from all the cores and won't give us any
     // advantage
@@ -68,18 +74,15 @@ void __attribute__((noreturn)) main(void)
             volatile uint64_t *const mprot_ptr =
                 (volatile uint64_t *)ESR_NEIGH(THIS_SHIRE, neighborhood_id, MPROT);
             uint64_t mprot = *mprot_ptr;
-
-            if (neighborhood_id == 0) {
-                // Set MPROT for neighborhood 0 in master shire to allow acess to OS, PCI-E and IO regions
-                mprot &= ~0x7ULL; // clear disable_pcie_access and set io_access_mode = b00 (user)
-                mprot |= 0x40; // set enable_secure_memory to use M/S RX/RW regions
-                *mprot_ptr = mprot;
-            } else {
-                // Set MPROT for neighborhoods 1-3 in master shire to disable access to OS, PCI-E and IO regions and enable secure memory permissions
-                // Set enable_secure_memory, disable_osbox_access, disable_pcie_access and io_access_mode = b10 (disabled)
-                mprot |= 0x4E;
-                *mprot_ptr = mprot;
+            // Clear io_access_mode, disable_pcie_access, disable_osbox_access
+            mprot &= ~0x4Fu;
+            // Set secure memory permissions (M/S RX/RW regions), and allow I/O accesses at S-mode
+            mprot |= 0x41;
+            if (neighborhood_id != 0) {
+                // For Neighborhoods 1-3 in master shire: disable access to PCI-E region
+                mprot |= 0x04;
             }
+            *mprot_ptr = mprot;
 
             // Wait for MPROT config on all 2 non-sync neighborhoods to complete before any thread can continue.
             WAIT_FLB(2, 31, result);
@@ -110,12 +113,13 @@ void __attribute__((noreturn)) main(void)
         if (get_hart_id() % 16 == 0) {
             const uint64_t neighborhood_id = get_neighborhood_id();
 
-            // Set MPROT for all neighborhoods in worker shire to disable access to OS, PCI-E and IO regions and enable secure memory permissions
             volatile uint64_t *const mprot_ptr =
                 (volatile uint64_t *)ESR_NEIGH(THIS_SHIRE, neighborhood_id, MPROT);
             uint64_t mprot = *mprot_ptr;
-            // Set enable_secure_memory, disable_pcie_access and io_access_mode = b10 (disabled)
-            mprot |= 0x46;
+            // Clear io_access_mode, disable_pcie_access, disable_osbox_access
+            mprot &= ~0x4Fu;
+            // Set enable_secure_memory, disable_pcie_access and io_access_mode = b01 (S-mode)
+            mprot |= 0x45;
             *mprot_ptr = mprot;
 
             // minion thread1s aren't enabled yet, so send FCC0 to all thread0s

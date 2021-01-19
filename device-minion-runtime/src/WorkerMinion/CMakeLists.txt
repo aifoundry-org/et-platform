@@ -24,6 +24,7 @@ set(SOURCES
     ${SHARED_SRC_DIR}/common.c
     ${SHARED_SRC_DIR}/message.c
     ${SHARED_SRC_DIR}/printf.c
+    ${SHARED_SRC_DIR}/serial.c
     )
 
 set(TARGET_NAME WorkerMinion)
