@@ -44,6 +44,8 @@ struct SysEmuOptions {
   bool startGdb;
   /// \brief Log file name
   std::string logFile = "sysemu.log";
+  /// \brief Enable coherence memory checks in sysemu
+  bool memcheck = true;
   /// \brief Hyperparameters to pass to SysEmu, might override default values
   std::vector<std::string> additionalOptions;
 };
