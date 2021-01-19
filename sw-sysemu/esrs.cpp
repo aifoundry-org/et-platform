@@ -43,7 +43,6 @@ static inline void clear_software_interrupt(unsigned, uint64_t) {}
 namespace bemu {
 
 
-extern unsigned current_thread;
 extern std::array<Hart,EMU_NUM_THREADS>  cpu;
 
 
