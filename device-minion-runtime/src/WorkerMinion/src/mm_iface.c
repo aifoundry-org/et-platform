@@ -12,12 +12,15 @@
 
 #include <stdint.h>
 
-static cm_iface_message_number_t previous_broadcast_message_number[NUM_HARTS]
-    __attribute__((aligned(64))) = { 0 };
+/* MM to CM interface */
+static cm_iface_message_number_t previous_broadcast_message_number[NUM_HARTS] __attribute__((aligned(64))) = { 0 };
 
-static void handle_message_from_mm(uint64_t shire, uint64_t hart, cm_iface_message_t *const message_ptr);
+/* CM to MM interface */
+static spinlock_t cm_mm_iface_unicast_cbs_lock[MAX_SIMULTANEOUS_KERNELS] = { 0 };
 
-void mm_iface_process(void)
+static void MM_To_CM_Iface_Handle_Message(uint64_t shire, uint64_t hart, cm_iface_message_t *const message_ptr);
+
+void MM_To_CM_Iface_Process(void)
 {
     cm_iface_message_t message;
     const uint64_t shire_id = get_shire_id();
@@ -27,16 +30,16 @@ void mm_iface_process(void)
     if (broadcast_message_available_worker(atomic_load_global_8(addr))) {
         cm_iface_message_number_t number = broadcast_message_receive_worker(&message);
         atomic_store_global_8(addr, number);
-        handle_message_from_mm(shire_id, hart_id, &message);
+        MM_To_CM_Iface_Handle_Message(shire_id, hart_id, &message);
     }
 
     if (message_available_worker(shire_id, hart_id)) {
         message_receive_worker(shire_id, hart_id, &message);
-        handle_message_from_mm(shire_id, hart_id, &message);
+        MM_To_CM_Iface_Handle_Message(shire_id, hart_id, &message);
     }
 }
 
-static void handle_message_from_mm(uint64_t shire, uint64_t hart, cm_iface_message_t *const message_ptr)
+static void MM_To_CM_Iface_Handle_Message(uint64_t shire, uint64_t hart, cm_iface_message_t *const message_ptr)
 {
     switch (message_ptr->header.id) {
     case MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH: {
@@ -86,4 +89,21 @@ static void handle_message_from_mm(uint64_t shire, uint64_t hart, cm_iface_messa
         // Unknown message
         break;
     }
+}
+
+int8_t CM_To_MM_Iface_Unicast_Send(uint64_t kw_id, cm_iface_message_t *const message)
+{
+    int8_t status;
+    circ_buff_cb_t *cb = (circ_buff_cb_t *)(CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR +
+                                            kw_id * CM_MM_IFACE_CIRCBUFFER_SIZE);
+
+    do {
+        acquire_global_spinlock(&cm_mm_iface_unicast_cbs_lock[kw_id]);
+        status = Circbuffer_Push(cb, (void *const)message, sizeof(*message), L3_CACHE);
+        release_global_spinlock(&cm_mm_iface_unicast_cbs_lock[kw_id]);
+    } while (status != CIRCBUFF_OPERATION_SUCCESS);
+
+    syscall(SYSCALL_IPI_TRIGGER_INT, 1ull << (2 + kw_id), MASTER_SHIRE, 0);
+
+    return status;
 }

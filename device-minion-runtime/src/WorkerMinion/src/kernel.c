@@ -8,6 +8,7 @@
 #include "log.h"
 #include "macros.h"
 #include "message.h"
+#include "mm_iface.h"
 #include "printf.h"
 #include "sync.h"
 #include "syscall_internal.h"
@@ -17,7 +18,8 @@
 
 static const uint8_t tensor_zeros[64] __attribute__((aligned(64))) = { 0 };
 
-static local_fcc_barrier_t post_kernel_barrier[NUM_SHIRES] = { 0 };
+static local_fcc_barrier_t post_launch_barrier[NUM_SHIRES] = { 0 };
+static spinlock_t post_launch_thread_count[NUM_SHIRES]= { 0 };
 static spinlock_t pre_launch_local_barrier[NUM_SHIRES] = { 0 };
 static spinlock_t pre_launch_global_barrier = { 0 };
 
@@ -62,7 +64,6 @@ static void spinlock_barrier_global(spinlock_t *lock, uint32_t num_shires)
 static void pre_kernel_setup(uint64_t kernel_launch_flags);
 static void kernel_return_function(int64_t return_value)
     __attribute__((used, section(".user_text"))); // must be placed in U-mode accessible section
-static void log_errors(int64_t return_value, uint64_t tensor_error);
 static void post_kernel_cleanup(uint64_t kernel_id, uint64_t kernel_launch_flags);
 
 // Saves firmware context and launches kernel in user mode with clean stack and registers
@@ -84,6 +85,7 @@ int64_t launch_kernel(uint64_t kernel_id,
 
     pre_kernel_setup(kernel_launch_flags);
 
+    /* Wait until all the threads involved in the kernel launch are here */
     spinlock_barrier_global(&pre_launch_global_barrier, (uint32_t)__builtin_popcountll(kernel_shire_mask));
 
     // -Save firmware context on supervisor stack and sp to supervisor stack SP region
@@ -206,7 +208,13 @@ int64_t launch_kernel(uint64_t kernel_id,
         : "ra" // SYSCALL_RETURN_FROM_KERNEL rets back to 1: so ra is clobbered. Rest of context is preserved.
     );
 
-    log_errors(return_value, tensor_error);
+    // Log errors. TODO: Not the best place to have this...
+    /*if ((return_value < 0) && (return_value != KERNEL_LAUNCH_ERROR_ABORTED)) {
+        log_write(LOG_LEVEL_ERROR, "return_value %" PRId64, return_value);
+    }
+    if (tensor_error != 0) {
+        log_write(LOG_LEVEL_ERROR, "tensor_error 0x%" PRIx64, tensor_error);
+    }*/
 
     post_kernel_cleanup(kernel_id, kernel_launch_flags);
 
@@ -238,7 +246,7 @@ static void pre_kernel_setup(uint64_t kernel_launch_flags)
         *shire_coop_mode_ptr = 1;
 
         // Init post-kernel launch barrier
-        local_fcc_barrier_init(&post_kernel_barrier[shire_id]);
+        local_fcc_barrier_init(&post_launch_barrier[shire_id]);
     }
 
     // [SW-3260] Force L3 evict in the firmware before starting a kernel - for performance analysis
@@ -316,24 +324,12 @@ static void kernel_return_function(int64_t return_value)
     syscall(SYSCALL_RETURN_FROM_KERNEL, (uint64_t)return_value, 0, 0);
 }
 
-static void log_errors(int64_t return_value, uint64_t tensor_error)
-{
-    if ((return_value < 0) && (return_value != KERNEL_LAUNCH_ERROR_ABORTED)) {
-        log_write(LOG_LEVEL_ERROR, "return_value %" PRId64, return_value);
-    }
-
-    if (tensor_error != 0) {
-        log_write(LOG_LEVEL_ERROR, "tensor_error 0x%" PRIx64, tensor_error);
-    }
-}
-
 static void post_kernel_cleanup(uint64_t kernel_id, uint64_t kernel_launch_flags)
 {
     const uint64_t shire_id = get_shire_id();
     const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
     const uint32_t minion_mask = (get_shire_id() == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
     uint64_t evict_l3 = 0;
-    bool result;
 
     // Wait for all memory accesses to complete
     FENCE
@@ -350,8 +346,9 @@ static void post_kernel_cleanup(uint64_t kernel_id, uint64_t kernel_launch_flags
     WAIT_TENSOR_STORE
     WAIT_TENSOR_REDUCE
 
-    // Local barrier with all the participating threads of the shire
-    local_fcc_barrier(&post_kernel_barrier[shire_id], thread_count, minion_mask);
+    // Blocking barrier with all the participating threads of the shire
+    // We have to make sure all threads have finished before evicting caches
+    local_fcc_barrier(&post_launch_barrier[shire_id], thread_count, minion_mask);
 
     // Check if we should evict the L3 to DDR after the kernel launch
     if (kernel_launch_flags & KERNEL_LAUNCH_FLAGS_EVICT_L3_AFTER_LAUNCH)
@@ -359,12 +356,14 @@ static void post_kernel_cleanup(uint64_t kernel_id, uint64_t kernel_launch_flags
 
     syscall(SYSCALL_POST_KERNEL_CLEANUP_INT, thread_count, evict_l3, 0);
 
-    // FIXME: Dangerous to use FCCs/FLBs, a malicious thread running in another shire might send them...
-    init_fcc(FCC_0);
-    WAIT_FLB(thread_count, 31, result);
+    // Last thread to reach here sends done message to Kernel Worker thread of Master shire
+    if (atomic_add_local_32(&post_launch_thread_count[shire_id].flag, 1) == (thread_count - 1)) {
+        // Reset counter
+        atomic_store_local_32(&post_launch_thread_count[shire_id].flag, 0);
 
-    // Last thread to join barrier sends done FCC1 to master shire sync thread
-    if (result) {
-        notify_kernel_sync_thread(kernel_id, FCC_1);
+        cm_iface_message_t msg;
+        msg.header.number = 0; // Not used. TODO: Remove
+        msg.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE;
+        CM_To_MM_Iface_Unicast_Send(kernel_id, &msg);
     }
 }

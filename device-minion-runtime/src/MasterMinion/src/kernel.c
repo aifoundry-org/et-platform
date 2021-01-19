@@ -58,7 +58,7 @@ void kernel_init(void)
 static void send_kernel_launch_response(const struct kernel_launch_cmd_t *const cmd,
                                         const dev_api_kernel_launch_error_e error)
 {
-    log_write(LOG_LEVEL_CRITICAL, "Sending Kernel Launch Response %" PRIi64 "\r\n", error);
+    log_write(LOG_LEVEL_CRITICAL, "Kernel Launch Response %" PRIi64 "\r\n", error);
     struct kernel_launch_rsp_t rsp;
     rsp.response_info.message_id = MBOX_DEVAPI_NON_PRIVILEGED_MID_KERNEL_LAUNCH_RSP;
     prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
@@ -79,6 +79,14 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
 
     init_fcc(FCC_0);
     init_fcc(FCC_1);
+
+    // Disable global interrupts (sstatus.SIE = 0) to not trap to trap handler.
+    // But enable Supervisor Software Interrupts so that IPIs trap when in U-mode
+    // RISC-V spec:
+    //   "An interrupt i will be taken if bit i is set in both mip and mie,
+    //    and if interrupts are globally enabled."
+    asm volatile("csrci sstatus, 0x2\n");
+    asm volatile("csrsi sie, 0x2\n");
 
     while (1) {
         // wait for a kernel launch sync request from master_thread
@@ -115,14 +123,55 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
             ack_message.kernel_id = kernel_id;
             message_send_worker(get_shire_id(), get_hart_id(), (cm_iface_message_t *)&ack_message);
 
-            // Wait for a done FCC1 from each shire, plus sync-minions of master shire
-            for (uint64_t i = 0; i < launch_num_shires; i++) {
-                WAIT_FCC(1);
+            /* Wait for a KERNEL_DONE message from each Shire involved in the launch.
+             * Even if there was an exception, that Shire will still send a KERNEL_DONE */
+            circ_buff_cb_t *cb = (circ_buff_cb_t *)(CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR +
+                                                    kernel_id * CM_MM_IFACE_CIRCBUFFER_SIZE);
+            uint32_t done_cnt = 0;
+            bool had_exception = false;
+            while (done_cnt < launch_num_shires) {
+                /* Wait for an IPI */
+                asm volatile("wfi\n");
+                asm volatile("csrci sip, 0x2");
+
+                /* Process as many requests as available */
+                while (1) {
+                    cm_iface_message_t message;
+
+                    /* Peek the command size to pop */
+                    int8_t status = Circbuffer_Peek(cb, (void *)&message.header, 0, sizeof(message.header), L3_CACHE);
+                    if (status != STATUS_SUCCESS)
+                        break;
+
+                    /* Pop the command from circular buffer */
+                    status = Circbuffer_Pop(cb, &message, sizeof(message), L3_CACHE);
+                    if (status != STATUS_SUCCESS)
+                        break;
+
+                    /* Handle message from Compute Threads */
+                    switch (message.header.id) {
+                    case CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE:
+                        log_write(LOG_LEVEL_DEBUG, "CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE\n");
+                        /* Increase count of completed Shires */
+                        done_cnt++;
+                        break;
+                    case CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION:
+                        log_write(LOG_LEVEL_DEBUG, "CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION\n");
+                        had_exception = true;
+                        break;
+                    default:
+                        break;
+                    }
+                }
             }
 
-            // Send message to master minion indicating the kernel is complete
+            // Send message to master minion indicating the kernel is complete (maybe with excp.)
             cm_to_mm_message_kernel_launch_completed_t completed_message;
-            completed_message.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE;
+            if (had_exception) {
+                completed_message.header.id = CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION;
+            } else {
+                completed_message.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE;
+            }
             completed_message.kernel_id = kernel_id;
             message_send_worker(get_shire_id(), get_hart_id(), (cm_iface_message_t *)&completed_message);
         } else {
@@ -290,7 +339,7 @@ void launch_kernel(const struct kernel_launch_cmd_t *const launch_cmd)
             }
         }
 
-        log_write(LOG_LEVEL_CRITICAL, "launching kernel %d\r\n", kernel_id);
+        log_write(LOG_LEVEL_CRITICAL, "Launching kernel %d (0x%" PRIx64 ")\r\n", kernel_id, shire_mask);
     } else {
         send_kernel_launch_response(&kernel_status[kernel_id].launch_cmd,
                                     DEV_API_KERNEL_LAUNCH_ERROR_SHIRES_NOT_READY);

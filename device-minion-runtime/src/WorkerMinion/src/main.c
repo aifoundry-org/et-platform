@@ -66,6 +66,6 @@ void __attribute__((noreturn)) main(void)
         asm volatile("csrci sip, 0x2");
 
         // Handle messages from MM
-        mm_iface_process();
+        MM_To_CM_Iface_Process();
     }
 }

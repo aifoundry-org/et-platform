@@ -325,7 +325,7 @@ static void __attribute__((noreturn)) master_thread(void)
 
     // Wait until all Shires have booted before starting the main loop that handles PCIe messages
     wait_all_shires_booted(functional_shires);
-    log_write(LOG_LEVEL_CRITICAL, "All Shires (0x%" PRIx64 ") ready!\n", functional_shires);
+    log_write(LOG_LEVEL_CRITICAL, "Shires (0x%" PRIx64 ") ready!\n", functional_shires);
 
     // Initialize VQs
     VQUEUE_init();
@@ -341,7 +341,7 @@ static void __attribute__((noreturn)) master_thread(void)
 
     // Indicate to Host MM is ready to accept new commands
     MBOX_init();
-    log_write(LOG_LEVEL_CRITICAL, "Mailbox to Host initialzed\r\n");
+    log_write(LOG_LEVEL_CRITICAL, "MB initialized\r\n");
 
 #ifdef DEBUG_SEND_MESSAGES_TO_SP
     static uint8_t buffer[MBOX_MAX_MESSAGE_LENGTH]
@@ -631,9 +631,9 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
     }
 
     case CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION: {
-        cm_to_mm_message_exception_t *exception = (cm_to_mm_message_exception_t *)&message;
-        print_exception(exception->mcause, exception->mepc, exception->mtval, exception->mstatus,
-                        exception->hart_id);
+        //cm_to_mm_message_exception_t *exception = (cm_to_mm_message_exception_t *)&message;
+        //print_exception(exception->mcause, exception->mepc, exception->mtval, exception->mstatus,
+        //                exception->hart_id);
         update_kernel_state(kernel, KERNEL_STATE_ERROR); // the kernel has failed
         break;
     }
