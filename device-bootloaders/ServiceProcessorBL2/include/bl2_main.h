@@ -12,6 +12,7 @@
 #ifndef __BL2_MAIN_H__
 #define __BL2_MAIN_H__
 
+#include "config/sp_bl2_return_code.h"
 #include "service_processor_BL2_data.h"
 
 SERVICE_PROCESSOR_BL2_DATA_t *get_service_processor_bl2_data(void);

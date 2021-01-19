@@ -80,6 +80,100 @@ bool is_vaultip_disabled(void)
     return vaultip_disabled;
 }
 
+static int32_t configure_noc(void)
+{
+    if (0 != configure_sp_pll_2()) {
+        printf("configure_sp_pll_2() failed!\n");
+        return NOC_MAIN_CLOCK_CONFIGURE_ERROR;
+    }
+
+   // TBD: Configure Main NOC Registers via Regbus 
+   // Remap NOC ID based on MM OTP value
+   // Other potential NOC workarounds
+
+   return SUCCESS;
+}
+
+static int32_t configure_memshire(void)
+{
+    if (0 != release_memshire_from_reset()) {
+        printf("release_memshire_from_reset() failed!\n");
+        return MEMSHIRE_COLD_RESET_CONFIG_ERROR;
+    }
+    if (0 != configure_memshire_plls()) {
+        printf("configure_memshire_plls() failed!\n");
+        return MEMSHIRE_PLL_CONFIG_ERROR;
+    }
+#if !FAST_BOOT
+    if (0 != ddr_config()) {
+        printf("ddr_config() failed!\n");
+        return MEMSHIRE_DDR_CONFIG_ERROR;
+    }
+    printf("DRAM ready.\n");
+#endif
+   return SUCCESS;
+}
+
+static int32_t configure_minion(uint64_t minion_shires_mask)
+{
+
+    if (0 != configure_sp_pll_4()) {
+        printf("configure_sp_pll_4() failed!\n");
+        return MINION_STEP_CLOCK_CONFIGURE_ERROR;
+    }
+
+    if (0 != release_minions_from_cold_reset()) {
+        printf("release_minions_from_cold_reset() failed!\n");
+        return MINION_COLD_RESET_CONFIG_ERROR;
+    }
+
+    if (0 != release_minions_from_warm_reset()) {
+        printf("release_minions_from_warm_reset() failed!\n");
+        return MINION_WARM_RESET_CONFIG_ERROR ;
+    }
+
+    if (0 != configure_minion_plls_and_dlls(minion_shires_mask)) {
+        printf("configure_minion_plls_and_dlls() failed!\n");
+        return MINION_PLL_DLL_CONFIG_ERROR;
+    }
+
+   return SUCCESS;
+}
+
+static int32_t load_autheticate_minion_firmware(void)
+{
+    if (0 != load_sw_certificates_chain()) {
+        printf("Failed to load SW ROOT/Issuing Certificate chain!\n");
+        return FW_SW_CERTS_LOAD_ERROR;
+    }
+
+    // In fast-boot mode we skip loading from flash, and assume everything is already pre-loaded
+#if !FAST_BOOT
+    if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_MACHINE_MINION)) {
+        printf("Failed to load Machine Minion firmware!\n");
+        return FW_MACH_LOAD_ERROR;
+    }
+    printf("MACH FW loaded.\n");
+
+    if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_MASTER_MINION)) {
+        printf("Failed to load Master Minion firmware!\n");
+        return FW_MM_LOAD_ERROR;
+    }
+    printf("MM FW loaded.\n");
+
+    // TODO: Update the following to Log macro - set to INFO/DEBUG
+    //printf("Attempting to load Worker Minion firmware...\n");
+    if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_WORKER_MINION)) {
+        printf("Failed to load Worker Minion firmware!\n");
+        return FW_CM_LOAD_ERROR;
+    }
+    printf("WM FW loaded.\n");
+#endif
+
+   return SUCCESS;
+}
+
+
 static uint64_t calculate_minion_shire_enable_mask(void)
 {
     int ret;
@@ -184,85 +278,35 @@ static void taskMain(void *pvParameters)
 
    // Setup NOC
 
-    if (0 != configure_sp_pll_2()) {
-        printf("configure_sp_pll_2() failed!\n");
+    if (0 != configure_noc()) {
+        printf("configure_noc() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_NOC_INITIALIZED);
 
    // Setup MemShire/DDR
 
-    if (0 != release_memshire_from_reset()) {
-        printf("release_memshire_from_reset() failed!\n");
-        goto FIRMWARE_LOAD_ERROR;
-    }
-    if (0 != configure_memshire_plls()) {
-        printf("configure_memshire_plls() failed!\n");
+    if (0 != configure_memshire()) {
+        printf("configure_memshire() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
 
-#if !FAST_BOOT
-    if (0 != ddr_config()) {
-        printf("ddr_config() failed!\n");
-        goto FIRMWARE_LOAD_ERROR;
-    }
-    printf("DRAM ready.\n");
-#endif
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DDR_INITIALIZED);
 
    // Setup Minions
 
-    if (0 != configure_sp_pll_4()) {
-        printf("configure_sp_pll_4() failed!\n");
-        goto FIRMWARE_LOAD_ERROR;
-    }
-
-    if (0 != release_minions_from_cold_reset()) {
-        printf("release_minions_from_cold_reset() failed!\n");
-        goto FIRMWARE_LOAD_ERROR;
-    }
-
-    if (0 != release_minions_from_warm_reset()) {
-        printf("release_minions_from_warm_reset() failed!\n");
-        goto FIRMWARE_LOAD_ERROR;
-    }
-
-    if (0 != configure_minion_plls_and_dlls(minion_shires_mask)) {
-        printf("configure_minion_plls_and_dlls() failed!\n");
+    if (0 != configure_minion(minion_shires_mask)) {
+        printf("Configure Minion failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_INITIALIZED);
 
     // Minion FW Authenticate and load to DDR
-
-    if (0 != load_sw_certificates_chain()) {
-        printf("Failed to load SW ROOT/Issuing Certificate chain!\n");
+    if (0 != load_autheticate_minion_firmware()) {
+        printf("Failed to load Minion Firmware!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
-
-    // In fast-boot mode we skip loading from flash, and assume everything is already pre-loaded
-#if !FAST_BOOT
-    if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_MACHINE_MINION)) {
-        printf("Failed to load Machine Minion firmware!\n");
-        goto FIRMWARE_LOAD_ERROR;
-    }
-    printf("MACH FW loaded.\n");
-
-    if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_MASTER_MINION)) {
-        printf("Failed to load Master Minion firmware!\n");
-        goto FIRMWARE_LOAD_ERROR;
-    }
-    printf("MM FW loaded.\n");
-
-    // TODO: Update the following to Log macro - set to INFO/DEBUG
-    //printf("Attempting to load Worker Minion firmware...\n");
-    if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_WORKER_MINION)) {
-        printf("Failed to load Worker Minion firmware!\n");
-        goto FIRMWARE_LOAD_ERROR;
-    }
-    printf("WM FW loaded.\n");
-#endif
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_FW_AUTHENTICATED_INITIALIZED);
 
@@ -271,7 +315,6 @@ static void taskMain(void *pvParameters)
     launch_command_dispatcher();
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_COMMAND_DISPATCHER_INITIALIZED);
-
 
     if (0 != enable_minion_neighborhoods(minion_shires_mask)) {
         printf("Failed to enable minion neighborhoods!\n");
