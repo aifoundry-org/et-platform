@@ -42,6 +42,8 @@ struct SysEmuOptions {
   std::string spUart1Path;
   /// \brief Start GDB stub
   bool startGdb;
+  /// \brief Log file name
+  std::string logFile = "sysemu.log";
   /// \brief Hyperparameters to pass to SysEmu, might override default values
   std::vector<std::string> additionalOptions;
 };
