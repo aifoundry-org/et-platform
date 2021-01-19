@@ -16,9 +16,11 @@ namespace rt {
 namespace profiling {
 class ScopedProfileEvent {
 public:
-  explicit ScopedProfileEvent(Class cls, ProfilerImp& profiler, StreamId streamId)
+  explicit ScopedProfileEvent(Class cls, ProfilerImp& profiler, StreamId streamId,
+                              std::unordered_map<std::string, uint64_t> extra = {})
     : profiler_(profiler)
     , event_{Type::Start, cls} {
+    event_.extra_ = std::move(extra);
     event_.setStream(streamId);
     profiler_.record(event_);
   }

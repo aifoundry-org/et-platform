@@ -27,7 +27,11 @@ using namespace rt::profiling;
 
 EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const void* kernel_args,
                                  size_t kernel_args_size, uint64_t shire_mask, bool barrier) {
-  ScopedProfileEvent profileEvent(Class::KernelLaunch, profiler_, streamId);
+  auto&& kernel = find(kernels_, kernelId)->second;
+
+  ScopedProfileEvent profileEvent(Class::KernelLaunch, profiler_, streamId,
+                                  {{"load address", kernel->getEntryAddress()}});
+
   if (kernel_args_size > kMinAllocationSize) {
     char buffer[1024];
     std::snprintf(buffer, sizeof buffer, "Maximum kernel arg size is %d", kMinAllocationSize);
@@ -35,7 +39,6 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
   }
 
   auto&& stream = find(streams_, streamId)->second;
-  auto&& kernel = find(kernels_, kernelId)->second;
 
   if (stream.deviceId_ != kernel->deviceId_) {
     throw Exception("Can't execute stream and kernel associated to a different device");
