@@ -468,7 +468,7 @@ TEST_F(TestDeviceOpsAPI, postFWLoadInit) {
   ASSERT_TRUE(res);
 }
 
-TEST_F(TestDeviceOpsAPI, ApiCompatibiltyCmd) {
+TEST_F(TestDeviceOpsAPI, DISABLED_ApiCompatibiltyCmd) {
   // Do nothing the test fixture should do the above
   auto* target_device_ptr = &dev_->getTargetDevice();
   auto* target_device = dynamic_cast<device::RPCTargetMM*>(target_device_ptr);
@@ -497,7 +497,7 @@ TEST_F(TestDeviceOpsAPI, ApiCompatibiltyCmd) {
   }
 }
 
-TEST_F(TestDeviceOpsAPI, FwVersionCmd) {
+TEST_F(TestDeviceOpsAPI, DISABLED_FwVersionCmd) {
   // Do nothing the test fixture should do the above
   auto* target_device_ptr = &dev_->getTargetDevice();
   auto* target_device = dynamic_cast<device::RPCTargetMM*>(target_device_ptr);
@@ -526,7 +526,7 @@ TEST_F(TestDeviceOpsAPI, FwVersionCmd) {
   }
 }
 
-TEST_F(TestDeviceOpsAPI, EchoCmd) {
+TEST_F(TestDeviceOpsAPI, DISABLED_EchoCmd) {
   // Do nothing the test fixture should do the above
   auto* target_device_ptr = &dev_->getTargetDevice();
   auto* target_device = dynamic_cast<device::RPCTargetMM*>(target_device_ptr);
@@ -555,7 +555,7 @@ TEST_F(TestDeviceOpsAPI, EchoCmd) {
   }
 }
 
-TEST_F(TestDeviceOpsAPI, DmaWriteAndReadCmds) {
+TEST_F(TestDeviceOpsAPI, DISABLED_DmaWriteAndReadCmds) {
   // Do nothing the test fixture should do the above
   auto* target_device_ptr = &dev_->getTargetDevice();
   auto* target_device = dynamic_cast<device::RPCTargetMM*>(target_device_ptr);

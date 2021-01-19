@@ -866,7 +866,7 @@ TEST_F(DeviceFWTest, Trace_TestTraceUartLoggingKnob) {
   ASSERT_EQ(result, ::device_api::non_privileged::TRACE_STATUS_SUCCESS);
 }
 
-TEST_F(DeviceFWTest, Trace_TestTraceBufferSizeKnob) {
+TEST_F(DeviceFWTest, DISABLED_Trace_TestTraceBufferSizeKnob) {
   fs::path trace_kernel = fs::path(absl::GetFlag(FLAGS_trace_elf));
   auto& registry = dev_->codeRegistry();
 
