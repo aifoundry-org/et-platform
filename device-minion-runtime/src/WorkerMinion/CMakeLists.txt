@@ -20,6 +20,8 @@ set(SOURCES
     src/kernel_return.c
     src/build_configuration.c
     src/log.c
+    ${SHARED_SRC_DIR}/circbuff.c
+    ${SHARED_SRC_DIR}/common.c
     ${SHARED_SRC_DIR}/message.c
     ${SHARED_SRC_DIR}/printf.c
     )

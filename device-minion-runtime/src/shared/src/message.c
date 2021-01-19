@@ -65,6 +65,13 @@ void message_init_master(void)
     atomic_store_global_8(&master_to_worker_broadcast_message_buffer_ptr->header.number, 0);
     atomic_store_global_8(&master_to_worker_broadcast_message_buffer_ptr->header.id,
                           MM_TO_CM_MESSAGE_ID_NONE);
+
+    // CM to MM Unicast Circularbuffer control blocks
+    for (uint32_t i = 0; i < MAX_SIMULTANEOUS_KERNELS; i++) {
+        circ_buff_cb_t *cb = (circ_buff_cb_t *)(CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR +
+                                                i * CM_MM_IFACE_CIRCBUFFER_SIZE);
+        Circbuffer_Init(cb, (uint32_t)(CM_MM_IFACE_CIRCBUFFER_SIZE - sizeof(circ_buff_cb_t)), L3_CACHE);
+    }
 }
 
 // Initializes message buffer

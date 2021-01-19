@@ -5,6 +5,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "layout.h"
+#include "circbuff.h"
+
 typedef enum {
     MM_TO_CM_MESSAGE_ID_NONE = 0,
     MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH,
