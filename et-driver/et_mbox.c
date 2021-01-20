@@ -290,7 +290,7 @@ ssize_t et_mbox_read_to_user(struct et_mbox *mbox, char __user *buf,
 	}
 
 	if (count < msg->msg_size) {
-		pr_err("User buffer not large enough: msg_size %ld, count %ld\n",
+		pr_err("User buffer not large enough: msg_size %d, count %ld\n",
 			msg->msg_size, count);
 		rc = -ENOMEM;
 		goto error;  //TODO: maybe don't delete message in this case...

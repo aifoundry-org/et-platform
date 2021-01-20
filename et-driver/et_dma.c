@@ -412,6 +412,8 @@ static inline void *et_dma_alloc_coherent(struct et_dma_info *dma_info)
 	return NULL;
 }
 
+/* TODO JIRA SW-957: Uncomment when zero copy support is available */
+#if 0
 static ssize_t et_dma_pin_ubuf(struct et_dma_info *dma_info)
 {
 	size_t offs, i;
@@ -466,6 +468,7 @@ static void et_dma_unpin_ubuf(struct et_dma_info *dma_info)
 		kfree(dma_info->page_list);
 	}
 }
+#endif
 
 struct et_dma_info *et_dma_search_info(struct rb_root *root, tag_id_t tag_id)
 {
@@ -585,7 +588,11 @@ ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev, u8 queue_index,
 		pr_err("err: tag_id already exists\n");
 		rv = -EINVAL;
 		mutex_unlock(&vq_common_mm->dma_rbtree_mutex);
-		goto error_dma_unpin_ubuf;
+		goto error_dma_free_coherent;
+		/* TODO JIRA SW-957: Uncomment when zero copy support is
+		 * available
+		 */
+//		goto error_dma_unpin_ubuf;
 	}
 	mutex_unlock(&vq_common_mm->dma_rbtree_mutex);
 
@@ -614,8 +621,8 @@ error_dma_delete_info:
 	et_dma_delete_info(&vq_common_mm->dma_rbtree, dma_info);
 	return rv;
 
-error_dma_unpin_ubuf:
-	/* TODO JIRA SW-957: Uncomment when zero copy support is available */
+/* TODO JIRA SW-957: Uncomment when zero copy support is available */
+//error_dma_unpin_ubuf:
 //	et_dma_unpin_ubuf(dma_info);
 
 error_dma_free_coherent:
@@ -671,7 +678,11 @@ ssize_t et_dma_read_from_device(struct et_pci_dev *et_dev, u8 queue_index,
 		pr_err("err: tag_id already exists\n");
 		rv = -EINVAL;
 		mutex_unlock(&vq_common_mm->dma_rbtree_mutex);
-		goto error_dma_unpin_ubuf;
+		goto error_dma_free_coherent;
+		/* TODO JIRA SW-957: Uncomment when zero copy support is
+		 * available
+		 */
+//		goto error_dma_unpin_ubuf;
 	}
 	mutex_unlock(&vq_common_mm->dma_rbtree_mutex);
 
@@ -693,8 +704,8 @@ error_dma_delete_info:
 	et_dma_delete_info(&vq_common_mm->dma_rbtree, dma_info);
 	return rv;
 
-error_dma_unpin_ubuf:
-	/* TODO JIRA SW-957: Uncomment when zero copy support is available */
+/* TODO JIRA SW-957: Uncomment when zero copy support is available */
+//error_dma_unpin_ubuf:
 //	et_dma_unpin_ubuf(dma_info);
 
 error_dma_free_coherent:
