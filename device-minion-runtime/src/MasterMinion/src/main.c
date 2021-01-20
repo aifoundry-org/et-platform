@@ -74,8 +74,6 @@ static void handle_timer_events(void);
 static void print_host_message(const uint8_t *const buffer, int64_t length);
 #endif
 
-static void print_log_message(uint64_t shire, uint64_t hart, const cm_iface_message_t *const message);
-
 #ifdef DEBUG_SEND_MESSAGES_TO_SP
 static uint16_t lfsr(void);
 static uint16_t generate_message(uint8_t *const buffer);
@@ -638,11 +636,6 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
         break;
     }
 
-    case CM_TO_MM_MESSAGE_ID_LOG_WRITE:
-        // Always print messages coming from workers
-        print_log_message(shire, hart, &message);
-        break;
-
     default:
         log_write(LOG_LEVEL_WARNING,
                   "Unknown message id = 0x%016" PRIx64 " received from shire %" PRId64
@@ -673,19 +666,6 @@ static void print_host_message(const uint8_t *const buffer, int64_t length)
     }
 }
 #endif
-
-static void print_log_message(uint64_t shire, uint64_t hart, const cm_iface_message_t *const message)
-{
-    const char *const string_ptr = (const char *const)message->data;
-
-    // messages are passed with shire and 0-63 intra-shire hart index - convert back to global 0-2112 hart index
-    uint64_t hart_id = (shire * HARTS_PER_SHIRE) + hart;
-
-    // Print all messages receives - worker minion have their own warning level threshold.
-    // Limit length of displayed string in case we receive garbage
-    log_write(LOG_LEVEL_CRITICAL, "H%04" PRId64 ": %.*s\r\n", hart_id, sizeof(message->data) - 1,
-              string_ptr);
-}
 
 #ifdef DEBUG_SEND_MESSAGES_TO_SP
 static uint16_t lfsr(void)

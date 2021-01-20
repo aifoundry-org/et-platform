@@ -7,6 +7,7 @@
 
 #include "cacheops.h"
 #include "io.h"
+#include "log.h"
 #include "etsoc_hal/inc/DWC_pcie_dbi_cpcie_usp_4x8.h"
 #include "layout.h"
 #include "pcie_device.h"
@@ -256,7 +257,7 @@ DMA_STATUS_e dma_trigger_transfer2(DMA_TYPE_e type, uint64_t src_addr, uint64_t 
 int dma_configure_read(et_dma_chan_id_e chan)
 {
     if (chan > ET_DMA_CHAN_ID_READ_3) {
-        printf("Invalid DMA read channel %d\r\n", chan);
+        log_write(LOG_LEVEL_CRITICAL, "Invalid DMA read channel %d\r\n", chan);
         return -EINVAL;
     }
     uint32_t chan_mask = 1U << (uint32_t)chan;
@@ -334,7 +335,7 @@ int dma_configure_read(et_dma_chan_id_e chan)
         iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_LLP_HIGH_OFF_RDCH_3_ADDRESS,
                   transfer_list_high_addr);
     } else {
-        printf("Invalid DMA read channel %d\r\n", chan);
+        log_write(LOG_LEVEL_CRITICAL, "Invalid DMA read channel %d\r\n", chan);
         return -EINVAL;
     }
 
@@ -349,7 +350,7 @@ int dma_configure_read(et_dma_chan_id_e chan)
 int dma_configure_write(et_dma_chan_id_e chan)
 {
     if (chan < ET_DMA_CHAN_ID_WRITE_0 || chan > ET_DMA_CHAN_ID_WRITE_3) {
-        printf("Invalid DMA write channel %d\r\n", chan);
+        log_write(LOG_LEVEL_CRITICAL, "Invalid DMA write channel %d\r\n", chan);
         return -EINVAL;
     }
     uint32_t wr_chan_num = chan - ET_DMA_CHAN_ID_WRITE_0;
@@ -428,7 +429,7 @@ int dma_configure_write(et_dma_chan_id_e chan)
         iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_LLP_HIGH_OFF_WRCH_3_ADDRESS,
                   transfer_list_high_addr);
     } else {
-        printf("Invalid DMA write channel %d\r\n", chan);
+        log_write(LOG_LEVEL_CRITICAL, "Invalid DMA write channel %d\r\n", chan);
         return -EINVAL;
     }
 
@@ -449,7 +450,7 @@ int dma_start(et_dma_chan_id_e chan)
         iowrite32(PCIE_USRESR + PSHIRE_USR0_DMA_WR_XFER_ADDRESS,
                   PSHIRE_USR0_DMA_WR_XFER_CHNL_GO_SET(1U << (chan - ET_DMA_CHAN_ID_WRITE_0)));
     } else {
-        printf("Invalid DMA channel %d\r\n", chan);
+        log_write(LOG_LEVEL_CRITICAL, "Invalid DMA channel %d\r\n", chan);
         return -EINVAL;
     }
 
@@ -478,7 +479,7 @@ bool dma_check_done(et_dma_chan_id_e chan)
 
         return (done_status & (1U << (chan - ET_DMA_CHAN_ID_WRITE_0))) != 0;
     } else {
-        printf("Invalid DMA channel %d\r\n", chan);
+        log_write(LOG_LEVEL_CRITICAL, "Invalid DMA channel %d\r\n", chan);
         return false;
     }
     return true;
@@ -499,6 +500,6 @@ void dma_clear_done(et_dma_chan_id_e chan)
             PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_CLEAR_OFF_WR_DONE_INT_CLEAR_SET(
                 (1U << (chan - ET_DMA_CHAN_ID_WRITE_0)) & 0xF));
     } else {
-        printf("Invalid DMA channel %d\r\n", chanU32);
+        log_write(LOG_LEVEL_CRITICAL, "Invalid DMA channel %d\r\n", chanU32);
     }
 }

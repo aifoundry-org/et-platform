@@ -1,5 +1,9 @@
+#include "atomic.h"
+#include "layout.h"
 #include "log.h"
 #include "printf.h"
+#include "serial.h"
+#include "sync.h"
 
 #include <stddef.h>
 
@@ -7,37 +11,46 @@ static log_level_t current_log_level __attribute__((aligned(64))) = LOG_LEVEL_WA
 
 void log_set_level(log_level_t level)
 {
-    current_log_level = level;
+    atomic_store_local_8(&current_log_level, level);
 }
 
 log_level_t get_log_level(void)
 {
-    return current_log_level;
+    return atomic_load_local_8(&current_log_level);
 }
 
 // print a log message to the UART for display
 int64_t log_write(log_level_t level, const char *const fmt, ...)
 {
-    if (level > current_log_level) {
+    int ret;
+    va_list va;
+    char buff[128];
+
+    if (level > atomic_load_local_8(&current_log_level)) {
         return 0;
     }
 
-    va_list va;
     va_start(va, fmt);
-    return vprintf(fmt, va);
+    vsnprintf(buff, sizeof(buff), fmt, va);
+
+    acquire_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
+    ret = SERIAL_puts(UART0, buff);
+    release_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
+
+    return ret;
 }
 
 int64_t log_write_str(log_level_t level, const char *str, size_t length)
 {
-    size_t i;
+    int ret;
 
-    if (level > current_log_level) {
+    if (level > atomic_load_local_8(&current_log_level)) {
         return 0;
     }
 
-    for (i = 0; i < length && str[i]; i++) {
-        _putchar(str[i]);
-    }
+    acquire_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
+    ret = SERIAL_write(UART0, str, (int)length);
+    release_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
 
-    return (int64_t)i;
+    return ret;
 }

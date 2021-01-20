@@ -28,7 +28,6 @@ typedef enum {
     CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE,
     CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION,
     CM_TO_MM_MESSAGE_ID_FW_EXCEPTION,
-    CM_TO_MM_MESSAGE_ID_LOG_WRITE,
 } cm_to_mm_message_id_e;
 
 typedef uint8_t cm_iface_message_id_t;

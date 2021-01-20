@@ -1,13 +1,14 @@
 #ifndef SERIAL_H
 #define SERIAL_H
 
-#include "serial_device.h"
-
 #include <stdint.h>
+#include "etsoc_hal/inc/hal_device.h"
 
-#define DEBUG_WRITE(x) SERIAL_write(UART0, x, sizeof(x) - 1)
+#define UART0 R_PU_UART_BASEADDR
+#define UART1 R_PU_UART1_BASEADDR
 
 int SERIAL_init(uintptr_t uartRegs);
-void SERIAL_write(uintptr_t uartRegs, const char *const string, int length);
+int SERIAL_write(uintptr_t uartRegs, const char *const string, int length);
+int SERIAL_puts(uintptr_t uartRegs, const char *const string);
 
 #endif // SERIAL_H

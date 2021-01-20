@@ -16,7 +16,8 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
 void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const reg)
 {
     /* ecalls are handled elsewhere, and some U-mode exceptions are delegated to S-mode from M-mode */
-    log_write(LOG_LEVEL_CRITICAL, "WorkerMinon exception: scause=0x%" PRIx64 " @ 0x%" PRIx64, scause, sepc);
+
+    log_write(LOG_LEVEL_CRITICAL, "H%04" PRId64 ": WorkerMinon exception: scause=0x%" PRIx64 " @ 0x%" PRIx64 "\n", get_hart_id(), scause, sepc);
 
     const uint64_t hart_id = get_hart_id();
     uint64_t sstatus;

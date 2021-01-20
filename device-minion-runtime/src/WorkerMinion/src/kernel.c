@@ -210,10 +210,10 @@ int64_t launch_kernel(uint64_t kernel_id,
 
     // Log errors. TODO: Not the best place to have this...
     /*if ((return_value < 0) && (return_value != KERNEL_LAUNCH_ERROR_ABORTED)) {
-        log_write(LOG_LEVEL_ERROR, "return_value %" PRId64, return_value);
+        log_write(LOG_LEVEL_ERROR, "H%04" PRId64 ": return_value %" PRId64 "\n", get_hart_id(), return_value);
     }
     if (tensor_error != 0) {
-        log_write(LOG_LEVEL_ERROR, "tensor_error 0x%" PRIx64, tensor_error);
+        log_write(LOG_LEVEL_ERROR, "H%04" PRId64 ": tensor_error 0x%" PRIx64 "\n", get_hart_id(), tensor_error);
     }*/
 
     post_kernel_cleanup(kernel_id, kernel_launch_flags);

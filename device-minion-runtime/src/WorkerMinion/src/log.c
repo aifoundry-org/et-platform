@@ -1,8 +1,9 @@
-#include "log.h"
-#include "hart.h"
-#include "message.h"
-#include "printf.h"
 #include "atomic.h"
+#include "layout.h"
+#include "log.h"
+#include "printf.h"
+#include "serial.h"
+#include "sync.h"
 
 #include <stdarg.h>
 #include <stddef.h>
@@ -21,50 +22,38 @@ log_level_t get_log_level(void)
     return atomic_load_global_8(&current_log_level);
 }
 
-// sends a log message from a worker minion to the master minion for display
+// print a log message to the UART for display
 int64_t log_write(log_level_t level, const char *const fmt, ...)
 {
+    int ret;
+    va_list va;
+    char buff[128];
+
     if (level > atomic_load_global_8(&current_log_level)) {
         return 0;
     }
 
-    cm_iface_message_t message;
-    message.header.id = CM_TO_MM_MESSAGE_ID_LOG_WRITE;
-
-    va_list va;
     va_start(va, fmt);
-    char *string_ptr = (char *)message.data;
+    vsnprintf(buff, sizeof(buff), fmt, va);
 
-    if (vsnprintf(string_ptr, sizeof(message.data), fmt, va) < 0) {
-        return -1;
-    }
+    acquire_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
+    ret = SERIAL_puts(UART0, buff);
+    release_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
 
-    return message_send_worker(get_shire_id(), get_hart_id(), &message);
+    return ret;
 }
 
 int64_t log_write_str(log_level_t level, const char *str, size_t length)
 {
+    int ret;
+
     if (level > atomic_load_global_8(&current_log_level)) {
         return 0;
     }
 
-    while (length > 0 && *str) {
-        cm_iface_message_t message;
-        message.header.id = CM_TO_MM_MESSAGE_ID_LOG_WRITE;
+    acquire_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
+    ret = SERIAL_write(UART0, str, (int)length);
+    release_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
 
-        char *data = (char *)message.data;
-        size_t len;
-        for (len = 0; len < length && len < sizeof(message.data) - 1 && str[len]; len++)
-            data[len] = str[len];
-        data[len] = '\0';
-
-        length -= len;
-        str += len;
-
-        int64_t ret = message_send_worker(get_shire_id(), get_hart_id(), &message);
-        if (ret < 0)
-            return ret;
-    }
-
-    return 0;
+    return ret;
 }
