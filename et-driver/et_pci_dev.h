@@ -7,67 +7,91 @@
 #include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
-#include "et_dma.h"
-#include "et_mbox.h"
 #include "et_vqueue.h"
+#include "et_dma.h"
 
-struct et_iomem {
-	void __iomem *mem;
-	uint64_t soc_addr;
-	uint64_t size;
-};
-
-#define IOMEM_REGIONS 6
-#define SP_VQUEUE 1
-#define MM_VQUEUE 0
+// MAP 3/5 Regions for now
+#define IOMEM_REGIONS 3
 
 enum et_iomem_r {
-	IOMEM_R_DRCT_DRAM = 0,
-	IOMEM_R_PU_MBOX_PC_MM,
-	IOMEM_R_PU_DIR_PC_MM,
-	IOMEM_R_PU_MBOX_PC_SP,
+	IOMEM_R_PU_DIR_PC_MM = 0,
+	IOMEM_R_PU_DIR_PC_SP,
 	IOMEM_R_PU_TRG_PCIE,
 	IOMEM_R_PCIE_USRESR,
+	IOMEM_R_PU_SRAM_HI
 };
 
 struct et_bar_mapping {
-	uint64_t soc_addr;
-	uint64_t size;
-	uint64_t bar_offset;
-	uint32_t bar;
+	u64 soc_addr;
+	u64 size;
+	u64 bar_offset;
+	u32 bar;
 	bool strictly_order_access;
 };
 
 extern const struct et_bar_mapping BAR_MAPPINGS[];
 
-struct et_pci_dev {
-	/* SP */
-	struct et_vqueue vqueue_sp;
-	/* MM */
-	struct et_vqueue **vqueue_mm_pptr;
-	struct pci_dev *pdev;
-	void __iomem *r_pu_trg_pcie;
-	struct et_mbox mbox_mm;
-	struct et_mbox mbox_sp;
-	struct et_dma_chan dma_chans[ET_DMA_NUM_CHANS];
-	struct mutex dev_mutex;
+struct et_ddr_region {
+	void __iomem *mapped_baseaddr;
+	u64 soc_addr;
+	u64 size;
+	u16 attr;
+};
+
+struct et_ops_dev {
 	struct miscdevice misc_ops_dev;
-	spinlock_t ops_open_lock; /* for serializing access to is_ops_open */
 	bool is_ops_open;
+	spinlock_t ops_open_lock;	/* serializes access to is_ops_open */
+
+	struct et_squeue **sq_pptr;
+	struct et_cqueue **cq_pptr;
+	struct et_vq_common vq_common;
+
+	struct et_ddr_region **ddr_regions;
+	u32 num_regions;
+
+	struct rb_root dma_rbtree;
+	struct mutex dma_rbtree_mutex;	/* serializes access to dma_rbtree */
+};
+
+struct et_mgmt_dev {
 	struct miscdevice misc_mgmt_dev;
-	spinlock_t mgmt_open_lock; /* for serializing access to is_mgmt_open */
 	bool is_mgmt_open;
+	spinlock_t mgmt_open_lock;	/* serializes access to is_mgmt_open */
+
+	struct et_squeue **sq_pptr;
+	struct et_cqueue **cq_pptr;
+	struct et_vq_common vq_common;
+
+	struct et_ddr_region **ddr_regions;
+	u32 num_regions;
+
+	u64 minion_shires;
+};
+
+struct et_pci_dev {
+	u8 dev_index;
+	struct pci_dev *pdev;
+
 	void __iomem *iomem[IOMEM_REGIONS];
-	uint32_t bulk_cfg;
-	int num_irq_vecs;
+
+	struct et_ops_dev ops;
+	struct et_mgmt_dev mgmt;
+
+	u32 num_irq_vecs;
+	u32 used_irq_vecs;
+
+	// TODO SW-4210: Remove when MSIx is enabled
 	struct workqueue_struct *workqueue;
 	struct work_struct isr_work;
 	struct timer_list missed_irq_timer;
-	spinlock_t abort_lock;
 	bool aborting;
-	u8 index;
-	u64 hm_dram_base;
-	u64 hm_dram_size;
+	spinlock_t abort_lock;		/* serializes access to aborting */
 };
+
+bool is_bar_prefetchable(struct et_pci_dev *et_dev, u8 bar_no);
+int et_map_bar(struct et_pci_dev *et_dev, const struct et_bar_mapping *bm_info,
+	       void __iomem **bar_map_ptr);
+void et_unmap_bar(void __iomem *bar_map_ptr);
 
 #endif

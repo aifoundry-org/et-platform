@@ -1,11 +1,12 @@
-#include "et_mmio.h"
-#include "et_io.h"
-
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <asm/uaccess.h>
+
+#include "et_io.h"
+#include "et_mmio.h"
+#include "et_pci_dev.h"
 
 int et_mmio_iomem_idx(uint64_t soc_addr, uint64_t count)
 {

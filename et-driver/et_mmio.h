@@ -1,7 +1,7 @@
 #ifndef __ET_MMIO_H
 #define __ET_MMIO_H
 
-#include "et_pci_dev.h"
+struct et_pci_dev;
 
 int et_mmio_iomem_idx(uint64_t soc_addr, uint64_t count);
 

@@ -15,109 +15,78 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
-#include <linux/circ_buf.h>
+#include <linux/timer.h>
 #include <linux/rbtree.h>
-#include "device_api_spec_privileged.h"
-#include "et_mbox.h"
-#include "et_vqueue_buffer.h"
+#include <linux/atomic.h>
 
-struct et_vqueue_header {
-	u16 length;
-	u16 magic;
-};
+#include "et_circbuffer.h"
+#include "et_device_api.h"
 
-struct et_vqueue_info {
-	u8 master_status;
-	u8 slave_status;
-	u16 sq_head;
-	u16 sq_tail;
-	u16 cq_head;
-	u16 cq_tail;
-} __attribute__ ((__packed__));
+/*
+ * Register offsets, per hardware implementation.
+ */
+#define IPI_TRIGGER_OFFSET 0
+#define MMM_INT_INC_OFFSET 4
 
-struct et_vqueue_buf {
-	void __iomem *sq_buf;
-	void __iomem *cq_buf;
-} __attribute__ ((__packed__));
+struct et_pci_dev;
 
-#if 0
-// temporarily being used from et_mbox.h till mbox is present
 struct et_msg_node {
 	struct list_head list;
 	u8 *msg;
 	u32 msg_size;
-}
-#endif
+};
 
-#define VQUEUE_FLAG_ABORT	1
-#define VQUEUE_SP		1
-#define VQUEUE_MM		0
-
-/* Common among VQs of one type e.g All MM VQs
- * will have its shared instance
- */
-struct et_vqueue_common {
-	u32 sq_bitmap;
-	u32 cq_bitmap;
-	u8 queue_count;
-	u16 queue_buf_count;
-	u16 queue_buf_size;
-	u16 queue_alignment;
-	wait_queue_head_t vqueue_wq;
+struct et_vq_common {
+	u32 sq_count;
+	u64 sq_bitmap;
+	u32 sq_size;			/* sizeof(struct et_circbuffer) +
+					 * SQ buffer bytes
+					 */
+	u32 cq_count;
+	u64 cq_bitmap;
+	u32 cq_size;			/* sizeof(struct et_circbuffer) +
+					 * CQ buffer bytes
+					 */
 	void __iomem *mapped_baseaddr;
 	void __iomem *interrupt_addr;
+	u32 vec_idx_offset;
 	struct workqueue_struct *workqueue;
-	struct rb_root dma_rbtree;
-	struct mutex dma_rbtree_mutex;	/* serializes access to dma_rbtree */
+	wait_queue_head_t waitqueue;
+	bool aborting;
+	spinlock_t abort_lock;		/* serializes access to aborting */
 };
 
-struct et_vqueue {
-	struct et_vqueue_common *vqueue_common;
-	struct et_vqueue_info *vqueue_info;
-	struct et_vqueue_buf *vqueue_buf;
+struct et_squeue {
+	u16 index;
+	struct et_circbuffer *cb;
+	struct mutex push_mutex;	/* serializes access to cb */
+	atomic_t sq_threshold;
+	struct et_vq_common *vq_common;
+};
+
+ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count);
+ssize_t et_squeue_copy_from_user(struct et_pci_dev *et_dev, bool is_mgmt,
+				 u16 sq_index, const char __user *ubuf,
+				 size_t count);
+
+struct et_cqueue {
+	u16 index;
+	struct et_circbuffer *cb;
+	struct mutex pop_mutex;		/* serializes access to cb */
+	struct et_vq_common *vq_common;
 	struct list_head msg_list;
 	struct mutex msg_list_mutex;	/* serializes access to msg_list */
-	u16 available_buf_count;
-	struct mutex buf_count_mutex;   /* serializes access to available_buf_count */
-	u16 available_threshold;
-	struct mutex threshold_mutex;   /* serializes access to available_threshold */
-	struct mutex read_mutex;	/* serializes vqueue read */
-	struct mutex write_mutex;	/* serializes vqueue write */
-	struct mutex sq_bitmap_mutex;	/* serializes access to sq_bitmap */
-	struct mutex cq_bitmap_mutex;	/* serializes access to cq_bitmap */
 	struct work_struct isr_work;
-	volatile u32 flags;
-	bool is_ready;
-	u8 index;
+	struct timer_list missed_irq_timer;
 };
 
-/* TODO SW-4970: Remove extra driver header */
-#define ET_VQUEUE_HEADER_SIZE (sizeof(struct et_vqueue_header))
+ssize_t et_cqueue_pop(struct et_cqueue *cq);
+ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev, bool is_mgmt,
+			       u16 cq_index, char __user *ubuf, size_t count);
+bool et_cqueue_msg_available(struct et_cqueue *cq);
+void et_cqueue_isr_bottom(struct et_cqueue *cq);
 
-#define ET_DEV_OPS_API_HEADER_SIZE (sizeof(struct cmn_header_t))
-
-struct et_pci_dev;
-
-void et_vqueue_init(struct et_vqueue *vqueue);
-
-void et_vqueue_destroy(struct et_vqueue *vqueue);
-
-bool et_vqueue_ready(struct et_vqueue *vqueue);
-
-void et_vqueue_reset(struct et_vqueue *vqueue);
-
-ssize_t et_vqueue_write(struct et_vqueue *vqueue, void *buf, size_t count);
-
-ssize_t et_vqueue_write_from_user(struct et_vqueue *vqueue,
-				  const char __user *buf, size_t count);
-
-ssize_t et_vqueue_read(struct et_vqueue *vqueue, void *buff, size_t count);
-
-bool usr_message_available(struct et_vqueue *vqueue, struct et_msg_node **msg);
-
-ssize_t et_vqueue_read_to_user(struct et_vqueue *vqueue, char __user *buf,
-			       size_t count);
-
-void et_vqueue_isr_bottom(struct et_vqueue *vqueue);
+ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt);
+void et_vqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt);
 
 #endif

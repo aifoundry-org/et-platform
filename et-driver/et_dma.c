@@ -1,6 +1,3 @@
-#include "et_dma.h"
-#include "et_io.h"
-
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/errno.h>
@@ -10,10 +7,16 @@
 #include <linux/uaccess.h>
 #include <asm/uaccess.h>
 
+#include "et_io.h"
+#include "et_dma.h"
+#include "et_vqueue.h"
 #include "hal_device.h"
 #include "et_layout.h"
 #include "et_pci_dev.h"
 
+// TODO: Enable/Remove while implementing DMA Scatter/Gather
+// We might need old DMA transfer list based approach for DMA Scatter/Gather
+#if 0
 //TODO: define all of these structures / constants shared between the Linux driver
 //and SoC firmware somewhere common. Note the Linux driver needs to be self-contained
 //(no dependencies) if we are going to mainline it.
@@ -396,6 +399,7 @@ set_idle:
 
 	return rv;
 }
+#endif
 
 static inline void et_dma_free_coherent(struct et_dma_info *dma_info)
 {
@@ -412,7 +416,7 @@ static inline void *et_dma_alloc_coherent(struct et_dma_info *dma_info)
 	return NULL;
 }
 
-/* TODO JIRA SW-957: Uncomment when zero copy support is available */
+// TODO: Enable with DMA scatter/gather and zero-copy implementation
 #if 0
 static ssize_t et_dma_pin_ubuf(struct et_dma_info *dma_info)
 {
@@ -470,7 +474,7 @@ static void et_dma_unpin_ubuf(struct et_dma_info *dma_info)
 }
 #endif
 
-struct et_dma_info *et_dma_search_info(struct rb_root *root, tag_id_t tag_id)
+struct et_dma_info *et_dma_search_info(struct rb_root *root, u16 tag_id)
 {
 	struct rb_node *node = root->rb_node;
 
@@ -544,12 +548,10 @@ void et_dma_delete_all_info(struct rb_root *root)
 	}
 }
 
-ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev, u8 queue_index,
+ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev, u16 queue_index,
 			       struct device_ops_data_write_cmd_t *cmd,
 			       size_t cmd_size)
 {
-	struct et_vqueue_common *vq_common_mm =
-		et_dev->vqueue_mm_pptr[0]->vqueue_common;
 	struct et_dma_info *dma_info;
 	ssize_t rv;
 
@@ -583,18 +585,15 @@ ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev, u8 queue_index,
 //		goto error_dma_free_coherent;
 //	}
 
-	mutex_lock(&vq_common_mm->dma_rbtree_mutex);
-	if (!et_dma_insert_info(&vq_common_mm->dma_rbtree, dma_info)) {
+	mutex_lock(&et_dev->ops.dma_rbtree_mutex);
+	if (!et_dma_insert_info(&et_dev->ops.dma_rbtree, dma_info)) {
 		pr_err("err: tag_id already exists\n");
 		rv = -EINVAL;
-		mutex_unlock(&vq_common_mm->dma_rbtree_mutex);
-		goto error_dma_free_coherent;
-		/* TODO JIRA SW-957: Uncomment when zero copy support is
-		 * available
-		 */
+		mutex_unlock(&et_dev->ops.dma_rbtree_mutex);
 //		goto error_dma_unpin_ubuf;
+		goto error_dma_free_coherent;
 	}
-	mutex_unlock(&vq_common_mm->dma_rbtree_mutex);
+	mutex_unlock(&et_dev->ops.dma_rbtree_mutex);
 
 	rv = copy_from_user(dma_info->kern_vaddr, dma_info->usr_vaddr,
 			    dma_info->size);
@@ -604,8 +603,7 @@ ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev, u8 queue_index,
 	}
 
 	cmd->src_host_phy_addr = dma_info->dma_addr;
-	rv = et_vqueue_write(et_dev->vqueue_mm_pptr[queue_index], cmd,
-			     cmd_size);
+	rv = et_squeue_push(et_dev->ops.sq_pptr[queue_index], cmd, cmd_size);
 	if (rv < 0)
 		goto error_dma_delete_info;
 
@@ -618,7 +616,7 @@ ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev, u8 queue_index,
 	return rv;
 
 error_dma_delete_info:
-	et_dma_delete_info(&vq_common_mm->dma_rbtree, dma_info);
+	et_dma_delete_info(&et_dev->ops.dma_rbtree, dma_info);
 	return rv;
 
 /* TODO JIRA SW-957: Uncomment when zero copy support is available */
@@ -634,12 +632,10 @@ error_free_dma_info:
 	return rv;
 }
 
-ssize_t et_dma_read_from_device(struct et_pci_dev *et_dev, u8 queue_index,
+ssize_t et_dma_read_from_device(struct et_pci_dev *et_dev, u16 queue_index,
 				struct device_ops_data_read_cmd_t *cmd,
 				size_t cmd_size)
 {
-	struct et_vqueue_common *vq_common_mm =
-		et_dev->vqueue_mm_pptr[0]->vqueue_common;
 	struct et_dma_info *dma_info;
 	ssize_t rv;
 
@@ -673,22 +669,18 @@ ssize_t et_dma_read_from_device(struct et_pci_dev *et_dev, u8 queue_index,
 //		goto error_dma_free_coherent;
 //	}
 
-	mutex_lock(&vq_common_mm->dma_rbtree_mutex);
-	if (!et_dma_insert_info(&vq_common_mm->dma_rbtree, dma_info)) {
+	mutex_lock(&et_dev->ops.dma_rbtree_mutex);
+	if (!et_dma_insert_info(&et_dev->ops.dma_rbtree, dma_info)) {
 		pr_err("err: tag_id already exists\n");
 		rv = -EINVAL;
-		mutex_unlock(&vq_common_mm->dma_rbtree_mutex);
-		goto error_dma_free_coherent;
-		/* TODO JIRA SW-957: Uncomment when zero copy support is
-		 * available
-		 */
+		mutex_unlock(&et_dev->ops.dma_rbtree_mutex);
 //		goto error_dma_unpin_ubuf;
+		goto error_dma_free_coherent;
 	}
-	mutex_unlock(&vq_common_mm->dma_rbtree_mutex);
+	mutex_unlock(&et_dev->ops.dma_rbtree_mutex);
 
 	cmd->dst_host_phy_addr = dma_info->dma_addr;
-	rv = et_vqueue_write(et_dev->vqueue_mm_pptr[queue_index], cmd,
-			     cmd_size);
+	rv = et_squeue_push(et_dev->ops.sq_pptr[queue_index], cmd, cmd_size);
 	if (rv < 0)
 		goto error_dma_delete_info;
 
@@ -701,7 +693,7 @@ ssize_t et_dma_read_from_device(struct et_pci_dev *et_dev, u8 queue_index,
 	return rv;
 
 error_dma_delete_info:
-	et_dma_delete_info(&vq_common_mm->dma_rbtree, dma_info);
+	et_dma_delete_info(&et_dev->ops.dma_rbtree, dma_info);
 	return rv;
 
 /* TODO JIRA SW-957: Uncomment when zero copy support is available */
@@ -717,22 +709,17 @@ error_free_dma_info:
 	return rv;
 }
 
-ssize_t et_dma_move_data(struct et_pci_dev *et_dev, u8 queue_index,
+ssize_t et_dma_move_data(struct et_pci_dev *et_dev, u16 queue_index,
 			 char __user *ucmd, size_t ucmd_size)
 {
 	void *kern_buf;
-	struct et_vqueue_common *vq_common_mm =
-		et_dev->vqueue_mm_pptr[0]->vqueue_common;
 	struct cmn_header_t *header;
 	ssize_t rv;
 
-	if (ucmd_size > vq_common_mm->queue_buf_size) {
-		pr_err("message too big (size %ld, max %d)", ucmd_size,
-		       vq_common_mm->queue_buf_size);
-		return -EINVAL;
-	}
-	if (ucmd_size < sizeof(struct cmn_header_t))
-		pr_err("message too small (size %ld)", ucmd_size);
+	if (ucmd_size < sizeof(struct cmn_header_t) || ucmd_size > U16_MAX) {
+                pr_err("invalid cmd size: %ld", ucmd_size);
+                return -EINVAL;
+        }
 
 	kern_buf = kzalloc(ucmd_size, GFP_KERNEL);
 
