@@ -21,6 +21,7 @@
 #include <esperanto/device-api/device_api_rpc_types_non_privileged.h>
 #include <esperanto/device-api/device_api_spec_non_privileged.h>
 #include <sstream>
+#include <type_traits>
 
 using namespace rt;
 using namespace rt::profiling;
@@ -30,7 +31,8 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
   auto&& kernel = find(kernels_, kernelId)->second;
 
   ScopedProfileEvent profileEvent(Class::KernelLaunch, profiler_, streamId,
-                                  {{"load address", kernel->getEntryAddress()}});
+                                  {{"load_address", kernel->getEntryAddress()},
+                                   {"kernel_id", static_cast<std::underlying_type<KernelId>::type>(kernelId)}});
 
   if (kernel_args_size > kMinAllocationSize) {
     char buffer[1024];
