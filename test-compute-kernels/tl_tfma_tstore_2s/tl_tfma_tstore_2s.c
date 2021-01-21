@@ -146,6 +146,8 @@ int64_t main(const kernel_params_t *const kernel_params_ptr) {
 
   tensor_wait(TENSOR_STORE_WAIT);
 
+  drain_scb(shire_id, minion_id, TSTORE_FLB);
+
   for (uint64_t iter = 0; iter < NUM_ITER; iter++) {
 
     // === Actual kernel body:
@@ -233,30 +235,21 @@ int64_t main(const kernel_params_t *const kernel_params_ptr) {
         1); // tfma_clear_rf);
 
     // Tensor Store
-    if (tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_USE_SCP] ==
-        0) {
-      tensor_store(
-          tstore_configs
-              [tstore_iter_idx + tstore_minion_idx + TSTORE_REG_LINE_STRIDE],
-          tstore_configs
-              [tstore_iter_idx + tstore_minion_idx + TSTORE_START_REG],
+    if (tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_USE_SCP] == 0) {
+      tensor_store(tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_REG_LINE_STRIDE],
+          tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_START_REG],
           tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_ROW_SIZE],
           tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_NUM_ROWS],
-          base_dst_addr +
-              tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_ADDR],
-          tstore_configs
-              [tstore_iter_idx + tstore_minion_idx + TSTORE_COOP_MASK],
+          base_dst_addr + tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_ADDR],
+          tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_COOP_MASK],
           tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_STRIDE]);
     } else {
       tensor_wait(TENSOR_FMA_WAIT);
       tensor_store_scp(
-          tstore_configs
-              [tstore_iter_idx + tstore_minion_idx + TSTORE_REG_LINE_STRIDE],
-          tstore_configs
-              [tstore_iter_idx + tstore_minion_idx + TSTORE_START_LINE],
+          tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_REG_LINE_STRIDE],
+          tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_START_LINE],
           tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_NUM_ROWS],
-          base_dst_addr +
-              tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_ADDR],
+          base_dst_addr + tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_ADDR],
           tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_STRIDE]);
     }
     tensor_wait(TENSOR_STORE_WAIT);
@@ -264,6 +257,8 @@ int64_t main(const kernel_params_t *const kernel_params_ptr) {
     // Drain SCB so data move to L3. We put it here so
     // cooperating minions sync up too.
     drain_scb(shire_id, minion_id, TSTORE_FLB);
+    uint64_t crc_barrier_result;
+    WAIT_FLB(32, CRC_FLB, crc_barrier_result);
   }
 
   __asm__ __volatile__("fence\n");
