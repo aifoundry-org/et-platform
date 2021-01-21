@@ -218,6 +218,9 @@ Messages :
       - Name: pointer_to_args
         Description: Pointer to kernel arguments
         Type : uint64_t
+      - Name: shire_mask
+        Description: Mask of Shires involved in the kernel launch
+        Type : uint64_t
   - Name: device_ops_kernel_launch_rsp
     Description: Response and result of a kernel launch on the device
     Type: Response
