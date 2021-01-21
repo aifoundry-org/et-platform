@@ -10,7 +10,7 @@
 *
 ************************************************************************/
 /*! \file circbuff.h
-    \brief A C header that defines the Circular Buffer related data 
+    \brief A C header that defines the Circular Buffer related data
     structures and defines.
 */
 /***********************************************************************/
@@ -38,18 +38,18 @@
 #define CIRCBUFF_FLAG_NO_WRITE         (1U << 30)
 
 /*! \struct circ_buff_cb_t
-    \brief The circular buffer control block which holds the 
+    \brief The circular buffer control block which holds the
     information of a circular buffer.
 */
 typedef struct __attribute__((__packed__)) circ_buff_cb {
     uint32_t head_offset;   /**< Offset of the circular buffer to write data to */
     uint32_t tail_offset;   /**< Offset of the circular buffer to read data from */
     uint32_t length;        /**< Total length (in bytes) of the circular buffer */
-    uint8_t buffer_ptr[];   /**< Flexible array to access circular buffer memory 
+    uint8_t buffer_ptr[];   /**< Flexible array to access circular buffer memory
                             located just after circ_buff_cb_t */
 } circ_buff_cb_t;
 
-/*! \fn int8_t Circbuffer_Init(circ_buff_cb_t *circ_buff_cb_ptr, uint32_t buffer_length, 
+/*! \fn int8_t Circbuffer_Init(circ_buff_cb_t *circ_buff_cb_ptr, uint32_t buffer_length,
         uint32_t flags)
     \brief Initializes circular buffer instance.
     \param [in] circ_buff_cb_ptr: Pointer to circular buffer control block.
@@ -59,7 +59,7 @@ typedef struct __attribute__((__packed__)) circ_buff_cb {
 */
 int8_t Circbuffer_Init(circ_buff_cb_t *circ_buff_cb_ptr, uint32_t buffer_length, uint32_t flags);
 
-/*! \fn int8_t Circbuffer_Push(volatile circ_buff_cb_t *restrict const circ_buff_cb_ptr, 
+/*! \fn int8_t Circbuffer_Push(volatile circ_buff_cb_t *restrict const circ_buff_cb_ptr,
         const void *restrict const src_buffer, uint32_t src_length, uint32_t flags)
     \brief Pushes the data from source data buffer to the circular buffer.
     \param [in] circ_buff_cb_ptr: Pointer to circular buffer control block.
@@ -68,10 +68,10 @@ int8_t Circbuffer_Init(circ_buff_cb_t *circ_buff_cb_ptr, uint32_t buffer_length,
     \param [in] flags: Indicates memory access type
     \returns Success status if the data is pushed or a negative error code in case of error.
 */
-int8_t Circbuffer_Push(circ_buff_cb_t *restrict const circ_buff_cb_ptr, 
-            void *restrict const src_buffer, uint32_t src_length, uint32_t flags);
+int8_t Circbuffer_Push(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
+            const void *restrict const src_buffer, uint32_t src_length, uint32_t flags);
 
-/*! \fn int8_t Circbuffer_Pop(volatile circ_buff_cb_t *restrict const circ_buff_cb_ptr, 
+/*! \fn int8_t Circbuffer_Pop(volatile circ_buff_cb_t *restrict const circ_buff_cb_ptr,
         void *restrict const dest_buffer, uint32_t dest_length , uint32_t flags)
     \brief Pops the data from circular buffer to the destination buffer.
     \param [in] circ_buff_cb_ptr: Pointer to circular buffer control block.
@@ -80,11 +80,11 @@ int8_t Circbuffer_Push(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
     \param [in] flags: Indicates memory access type
     \returns Success status if the data is poped or a negative error code in case of error.
 */
-int8_t Circbuffer_Pop(circ_buff_cb_t *restrict const circ_buff_cb_ptr, 
+int8_t Circbuffer_Pop(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
             void *restrict const dest_buffer, uint32_t dest_length, uint32_t flags);
 
-/*! \fn int8_t Circbuffer_Peek(volatile circ_buff_cb_t *restrict const circbuffer_ptr, 
-        void *restrict const dest_buffer, uint16_t peek_offset, uint16_t peek_length,
+/*! \fn int8_t Circbuffer_Peek(volatile circ_buff_cb_t *restrict const circbuffer_ptr,
+        void *restrict const dest_buffer, uint32_t peek_offset, uint32_t peek_length,
         uint32_t flags)
     \brief Peeks the circular buffer and returns the required data.
     \param [in] circ_buff_cb_ptr: Pointer to circular buffer control block.
@@ -93,11 +93,11 @@ int8_t Circbuffer_Pop(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
     \param [in] flags: Indicates memory access type
     \returns Success status if the data is read or a negative error code in case of error.
 */
-int8_t Circbuffer_Peek(circ_buff_cb_t *restrict const circbuffer_ptr, 
-            void *restrict const dest_buffer, uint16_t peek_offset, uint16_t peek_length, 
+int8_t Circbuffer_Peek(circ_buff_cb_t *restrict const circbuffer_ptr,
+            void *restrict const dest_buffer, uint32_t peek_offset, uint32_t peek_length,
             uint32_t flags);
 
-/*! \fn uint32_t Circbuffer_Get_Avail_Space(volatile circ_buff_cb_t *restrict const circ_buff_cb_ptr, 
+/*! \fn uint32_t Circbuffer_Get_Avail_Space(volatile circ_buff_cb_t *restrict const circ_buff_cb_ptr,
         uint32_t flags)
     \brief Returns the number of available bytes in the circular buffer.
     \param [in] circ_buff_cb_ptr: Pointer to circular buffer control block.
@@ -106,7 +106,7 @@ int8_t Circbuffer_Peek(circ_buff_cb_t *restrict const circbuffer_ptr,
 */
 uint32_t Circbuffer_Get_Avail_Space(circ_buff_cb_t *restrict const circ_buff_cb_ptr, uint32_t flags);
 
-/*! \fn uint32_t Circbuffer_Get_Used_Space(volatile circ_buff_cb_t *restrict const circ_buff_cb_ptr, 
+/*! \fn uint32_t Circbuffer_Get_Used_Space(volatile circ_buff_cb_t *restrict const circ_buff_cb_ptr,
         uint32_t flags)
     \brief Returns the number of used bytes in the circular buffer.
     \param [in] circ_buff_cb_ptr: Pointer to circular buffer control block.
