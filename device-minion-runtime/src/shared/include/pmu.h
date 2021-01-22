@@ -13,9 +13,21 @@
 #ifndef __PMU_H__
 #define __PMU_H__
 
+#include "esr_defines.h"
 // PMU support: Defines and basic API
 
-// PMU Minions and Neigh event register addresses
+// User-Level CSRs :: Counters/Timers
+#define PMU_USER_CYCLE   0xC00ULL
+#define PMU_USER_TIME    0xC01ULL
+#define PMU_USER_INSTRET 0xC02ULL
+#define PMU_HPMCOUNTER3  0xC03ULL
+#define PMU_HPMCOUNTER4  0xC04ULL
+#define PMU_HPMCOUNTER5  0xC05ULL
+#define PMU_HPMCOUNTER6  0xC06ULL
+#define PMU_HPMCOUNTER7  0xC07ULL
+#define PMU_HPMCOUNTER8  0xC08ULL
+
+// Machine-Level CSRs :: Counters Setup 
 #define PMU_MHPMEVENT3 0x323ULL
 #define PMU_MHPMEVENT4 0x324ULL
 #define PMU_MHPMEVENT5 0x325ULL
@@ -23,7 +35,7 @@
 #define PMU_MHPMEVENT7 0x327ULL
 #define PMU_MHPMEVENT8 0x328ULL
 
-// PMU Minions and Neigh event counter addresses
+// Machine-Level CSRs :: Counters/Timers
 #define PMU_MHPMCOUNTER3 0xB03
 #define PMU_MHPMCOUNTER4 0xB04
 #define PMU_MHPMCOUNTER5 0xB05
@@ -361,16 +373,22 @@ be improved */
 */
 #define PMC_RESET_CYCLES_COUNTER   (uint64_t)reset_neigh_pmc(PMU_MHPMEVENT3)
 
-/*! \def PMC_GET_CURRENT_CYCLES
-    \brief A macro to get current minion cycles based on PMC Counter 3 which 
+/*! \fn PMC_Get_Current_Cycles 
+    \brief A function to get current minion cycles based on PMC Counter 3 which 
     setup by default to count the Minion cycles
 */
-#define PMC_GET_CURRENT_CYCLES   (uint64_t)read_neigh_pmc(PMU_MHPMEVENT3)
+static inline  uint64_t PMC_Get_Current_Cycles(void)  {
+    uint64_t val;
+    __asm__ __volatile__("csrr %[res], %[csr]\n" \
+                          : [res] "=r"(val)      \
+                          : [csr] "i"(PMU_HPMCOUNTER3)); \
+    return val;
+}
 
 /*! \def PMC_GET_LATENCY 
     \brief A macro to calculate latency. Uses PMC Counter 3 to get current cycle 
     minus start_cycle(argument)
 */
-#define PMC_GET_LATENCY(x) (uint32_t)(read_neigh_pmc(PMU_MHPMEVENT3) - x)
+#define PMC_GET_LATENCY(x) (uint32_t)(PMC_Get_Current_Cycles() - x)
 
 #endif
