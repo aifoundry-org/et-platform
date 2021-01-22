@@ -519,7 +519,7 @@ static uint64_t csrget(Hart& cpu, uint16_t csr)
 
 static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
 {
-    uint64_t msk;
+    uint64_t msk = 0;
 #ifdef SYS_EMU
     int orig_mcache_control;
 #endif

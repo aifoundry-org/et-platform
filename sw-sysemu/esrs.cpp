@@ -1257,9 +1257,9 @@ void write_icache_prefetch(int /*privilege*/, unsigned shire, uint64_t value)
 
 uint64_t read_icache_prefetch(int /*privilege*/, unsigned shire)
 {
+    (void) shire;
     assert(shire <= EMU_MASTER_SHIRE);
 #ifdef SYS_EMU
-    (void)(shire);
     // NB: Prefetches finish instantaneously in sys_emu
     return 1;
 #else
@@ -1270,6 +1270,7 @@ uint64_t read_icache_prefetch(int /*privilege*/, unsigned shire)
 
 void finish_icache_prefetch(unsigned shire)
 {
+    (void) shire;
     assert(shire <= EMU_MASTER_SHIRE);
 #ifndef SYS_EMU
     shire_other_esrs[shire].icache_prefetch_active = 0;

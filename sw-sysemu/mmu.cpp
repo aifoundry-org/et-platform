@@ -614,9 +614,9 @@ static uint64_t vmemtranslate(const Hart& cpu, uint64_t vaddr, size_t size,
         return vaddr & PA_M;
     }
 
-    int64_t sign;
-    int Num_Levels;
-    int PTE_top_Idx_Size;
+    int64_t sign = 0;
+    int Num_Levels = 0;
+    int PTE_top_Idx_Size = 0;
     const int PTE_Size     = 8;
     const int PTE_Idx_Size = 9;
     switch (atp_mode)

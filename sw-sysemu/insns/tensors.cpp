@@ -591,7 +591,8 @@ void tensor_quant_start(Hart& cpu, uint64_t value)
         cpu.core->shadow_txquant = value;
     } else {
         cpu.core->txquant = value;
-        assert(cpu.core->enqueue_tensor_op(Core::Tensor::Quant));
+        auto enq_ret = cpu.core->enqueue_tensor_op(Core::Tensor::Quant);
+        assert(enq_ret);
     }
 #else
     cpu.core->txquant = value;
@@ -758,10 +759,12 @@ void tensor_quant_execute(Hart& cpu)
     }
     cpu.core->txquant = 0xFFFFFFFFFFFFFFFFULL;
 #ifdef ZSIM
-    assert(cpu.core->dequeue_tensor_op() == Core::Tensor::Quant);
+    auto deq_ret = cpu.core->dequeue_tensor_op();
+    assert(deq_ret == Core::Tensor::Quant);
     if (cpu.core->shadow_txquant != 0xFFFFFFFFFFFFFFFFULL) {
         std::swap(cpu.core->txquant, cpu.core->shadow_txquant);
-        assert(cpu.core->enqueue_tensor_op(Core::Tensor::Quant));
+        auto enq_ret = cpu.core->enqueue_tensor_op(Core::Tensor::Quant);
+        assert(enq_ret);
     }
 #endif
 }
@@ -1092,7 +1095,8 @@ void tensor_fma32_start(Hart& cpu, uint64_t tfmareg)
         cpu.core->shadow_txfma = tfmareg;
     } else {
         cpu.core->txfma = tfmareg;
-        assert(cpu.core->enqueue_tensor_op(Core::Tensor::FMA));
+        auto enq_ret = cpu.core->enqueue_tensor_op(Core::Tensor::FMA);
+        assert(enq_ret);
     }
 #elif SYS_EMU
     cpu.core->txfma = tfmareg;
@@ -1299,7 +1303,8 @@ void tensor_fma16a32_start(Hart& cpu, uint64_t tfmareg)
         cpu.core->shadow_txfma = tfmareg;
     } else {
         cpu.core->txfma = tfmareg;
-        assert(cpu.core->enqueue_tensor_op(Core::Tensor::FMA));
+        auto enq_ret = cpu.core->enqueue_tensor_op(Core::Tensor::FMA);
+        assert(enq_ret);
     }
 #elif SYS_EMU
     cpu.core->txfma = tfmareg;
@@ -1559,7 +1564,8 @@ void tensor_ima8a32_start(Hart& cpu, uint64_t tfmareg)
         cpu.core->shadow_txfma = tfmareg;
     } else {
         cpu.core->txfma = tfmareg;
-        assert(cpu.core->enqueue_tensor_op(Core::Tensor::FMA));
+        auto enq_ret = cpu.core->enqueue_tensor_op(Core::Tensor::FMA);
+        assert(enq_ret);
     }
 #elif SYS_EMU
     cpu.core->txfma = tfmareg;
@@ -1596,10 +1602,12 @@ void tensor_fma_execute(Hart& cpu)
         cpu.core->txfma = 0xFFFFFFFFFFFFFFFFULL;
     }
 #ifdef ZSIM
-    assert(cpu.core->dequeue_tensor_op() == Core::Tensor::FMA);
+    auto deq_ret = cpu.core->dequeue_tensor_op();
+    assert(deq_ret == Core::Tensor::FMA);
     if (cpu.core->shadow_txfma != 0xFFFFFFFFFFFFFFFFULL) {
         std::swap(cpu.core->txfma, cpu.core->shadow_txfma);
-        assert(cpu.core->enqueue_tensor_op(Core::Tensor::FMA));
+        auto enq_ret = cpu.core->enqueue_tensor_op(Core::Tensor::FMA);
+        assert(enq_ret);
     }
 #endif
 }
@@ -1702,7 +1710,9 @@ void tensor_reduce_start(Hart& cpu, uint64_t value)
         return;
     }
 
-    assert(cpu.core->enqueue_tensor_op(Core::Tensor::Reduce));
+    auto enq_ret = cpu.core->enqueue_tensor_op(Core::Tensor::Reduce);
+    assert(enq_ret);
+    (void) enq_ret;
 
     notify_tensor_reduce(cpu, cpu.core->reduce.state == Core::Reduce::State::Recv,
                       cpu.core->reduce.regid, cpu.core->reduce.count);
@@ -1729,7 +1739,9 @@ void tensor_reduce_step(Hart& rcv_cpu, Hart& snd_cpu)
         throw std::runtime_error("Tensor reduce sender register count is 0");
     }
     if (!send.count) {
-        assert(snd_cpu.core->dequeue_tensor_op() == Core::Tensor::Reduce);
+        auto deq_ret = snd_cpu.core->dequeue_tensor_op();
+        assert(deq_ret == Core::Tensor::Reduce);
+        (void) deq_ret;
         snd_cpu.core->reduce.state = Core::Reduce::State::Idle;
     }
     if (recv.count-- == 0) {
@@ -1739,7 +1751,9 @@ void tensor_reduce_step(Hart& rcv_cpu, Hart& snd_cpu)
         return;
     }
     if (!recv.count) {
-        assert(rcv_cpu.core->dequeue_tensor_op() == Core::Tensor::Reduce);
+        auto deq_ret = rcv_cpu.core->dequeue_tensor_op();
+        assert(deq_ret == Core::Tensor::Reduce);
+        (void) deq_ret;
         rcv_cpu.core->reduce.state = Core::Reduce::State::Idle;
     }
 

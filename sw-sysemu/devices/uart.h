@@ -38,6 +38,7 @@ struct Uart : public MemoryRegion
     };
 
     void read(const Agent&, size_type pos, size_type n, pointer result) override {
+        (void) n;
         switch (pos) {
         case DW_APB_UART_LSR:
             assert(n == 4);
@@ -50,6 +51,7 @@ struct Uart : public MemoryRegion
     }
 
     void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
+        (void) n;
         switch (pos) {
         case DW_APB_UART_RBR:
             assert(n == 4);
