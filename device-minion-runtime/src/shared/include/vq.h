@@ -22,6 +22,11 @@
 #include "common_defs.h"
 #include "circbuff.h"
 
+/**
+ * @brief Macros for Virtual Queues related error codes.
+ */
+#define VQ_ERROR_INVLD_CMD_SIZE       (CIRCBUFF_ERROR_END - 1)
+
 /*! \def VQ_CIRCBUFF_BASE_ADDR(base, idx, size)
     \brief Macro to return circbuff's base address.
 */
@@ -62,7 +67,7 @@ typedef struct iface_cb_ {
 int8_t VQ_Init(vq_cb_t* vq_cb, uint64_t vq_base, uint32_t vq_size,
     uint16_t cmd_size_peek_offset, uint16_t cmd_size_peek_length, uint32_t flags);
 
-/*! \fn VQ_Push(vq_cb_t* vq_cb,void* data, uint32_t data_size)
+/*! \fn int8_t VQ_Push(vq_cb_t* vq_cb, void* data, uint32_t data_size)
     \brief Push the command to circular buffer associated with
     vq_cb_t.
     \param vq_cb Pointer to virtual queue control block.
@@ -72,17 +77,18 @@ int8_t VQ_Init(vq_cb_t* vq_cb, uint64_t vq_base, uint32_t vq_size,
 */
 int8_t VQ_Push(vq_cb_t* vq_cb, void* data, uint32_t data_size);
 
-/*! \fn VQ_Pop(void* rx_buff)
+/*! \fn int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
     \brief Pops a command from a virtual queue.
     \param vq_cb Pointer to virtual queue control block.
     \param rx_buff Pointer to rx command buffer. 
     Caller shall use MM_CMD_MAX_SIZE to allocate rx_buff
-    \return The size of the command in bytes or zero
+    \return The size of the command in bytes, zero for no data 
+    or negative error code.
 */
-uint32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff);
+int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff);
 
-/*! \fn VQ_Peek(vq_cb_t* vq_cb, void* peek_buff, uint16_t peek_offset, 
-        uint16_t peek_length)
+/*! \fn int8_t VQ_Peek(vq_cb_t* vq_cb, void* peek_buff,
+        uint16_t peek_offset, uint16_t peek_length)
     \brief Peek into a segment in the virtual queue
     \param peek_buff Pointer to peek buffer.
     \param peek_length Length of bytes to peek.
@@ -91,7 +97,7 @@ uint32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff);
 int8_t VQ_Peek(vq_cb_t* vq_cb, void* peek_buff, uint16_t peek_offset, 
         uint16_t peek_length);
 
-/*! \fn VQ_Data_Avail(vq_cb_t* vq_cb)
+/*! \fn bool VQ_Data_Avail(vq_cb_t* vq_cb)
     \brief Check if data available in VQ
     \param vq_cb Pointer to virtual queue control block.
     \return Boolean indicating data available to process

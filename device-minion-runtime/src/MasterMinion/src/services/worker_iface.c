@@ -208,7 +208,8 @@ uint32_t Worker_Iface_Pop_Cmd(uint8_t interface_type, void* rx_buff)
 {
     worker_iface_cb_t *worker = 0;
     vq_cb_t *vq = 0;
-    uint32_t command_size;
+    uint32_t command_size = 0;
+    int32_t pop_ret_val;
 
     /* Obtain reference to worker control block based on interface type */
     if(interface_type == TO_KW_FIFO) {
@@ -223,7 +224,18 @@ uint32_t Worker_Iface_Pop_Cmd(uint8_t interface_type, void* rx_buff)
     }
     
     /* Pop available command */
-    command_size = VQ_Pop(vq, rx_buff);
+    pop_ret_val = VQ_Pop(vq, rx_buff);
+
+    if (pop_ret_val > 0)
+    {
+        command_size = (uint32_t)pop_ret_val;
+    }
+    else if (pop_ret_val < 0)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "%s%d%s",
+            "WorkerIface:pop_cmd:ERROR:VQ pop failed.(Error code:)",
+            pop_ret_val, "\r\n");
+    }
 
     return command_size;
 }
