@@ -1,7 +1,6 @@
 #include "syscall_internal.h"
 #include "kernel.h"
 #include "log.h"
-#include "message.h"
 
 #include <stdint.h>
 
@@ -32,9 +31,6 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
         break;
     case SYSCALL_GET_LOG_LEVEL:
         ret = (int64_t)get_log_level();
-        break;
-    case SYSCALL_MESSAGE_SEND:
-        ret = message_send_worker(arg1, arg2, (cm_iface_message_t *)arg3);
         break;
     case SYSCALL_GET_MTIME:
         ret = syscall(SYSCALL_GET_MTIME_INT, arg1, arg2, arg3);
