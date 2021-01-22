@@ -108,7 +108,6 @@ static void pc_vq_task(void *pvParameters)
     static uint8_t buffer[SP_HOST_SQ_MAX_ELEMENT_SIZE] __attribute__((aligned(8))) = { 0 };
     tag_id_t tag_id;
     msg_id_t msg_id;
-    bool notification_received;
 
     // Disable buffering on stdout
     setbuf(stdout, NULL);
@@ -119,27 +118,20 @@ static void pc_vq_task(void *pvParameters)
         // ISRs set notification bits per ipi_trigger in case we want them - not currently using them
         xTaskNotifyWait(0, 0xFFFFFFFFU, &notificationValue, portMAX_DELAY);
 
-        // Set the flag to indicate that processing is being done in case of notification
-        notification_received = true;
-
         // Process as many new messages as possible
         while (1) {
 
             // Pop a command from SP<->PC VQueue
-            int64_t length = SP_Host_Iface_SQ_Pop_Cmd(&buffer);
+            uint32_t length = SP_Host_Iface_SQ_Pop_Cmd(&buffer);
 
             // No new messages
-            if (length <= 0) {
-                if (notification_received) {
-                    printf("[pc_vq_task]: Error: Dispatcher woken by Interrupt, \
-                        but no new message available.\r\n");
-                }
+            if (length == 0) {
                 break;
             }
 
             // Message with an invalid size
             if ((size_t)length < sizeof(struct cmd_header_t)) {
-                printf("Invalid message: length = %" PRId64 ", min length %" PRIu64 "\r\n", length,
+                printf("Invalid message: length = %d, min length %ld\r\n", length,
                        sizeof(struct cmd_header_t));
                 break;
             }
@@ -221,14 +213,12 @@ static void pc_vq_task(void *pvParameters)
 		         process_performance_request(tag_id, msg_id);
                  break;
             default:
-                printf("[PC VQ] Invalid message id: %" PRIu16 "\r\n", msg_id);
-                printf("message length: %" PRIi64 ", buffer:\r\n", length);
+                printf("[PC VQ] Invalid message id: %d\r\n", msg_id);
+                printf("message length: %d, buffer:\r\n", length);
                 // TODO:
                 // Implement error handler
                 break;
             }
-            // Reset the notification flag
-            notification_received = false;
         }
     }
 }

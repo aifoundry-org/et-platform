@@ -173,16 +173,16 @@ int8_t SP_MM_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
 uint32_t SP_MM_Iface_SQ_Pop_Cmd(void* rx_buff)
 {
     uint32_t return_val = 0;
-    uint32_t command_size;
+    int32_t pop_ret_val;
 
     /* Pop the command from circular buffer */
-    command_size = VQ_Pop(&SP_MM_CQ.vqueue, rx_buff);
+    pop_ret_val = VQ_Pop(&SP_MM_CQ.vqueue, rx_buff);
 
-    if (command_size) 
+    if (pop_ret_val > 0)
     {
-        return_val = command_size;
-    } 
-    else 
+        return_val = (uint32_t)pop_ret_val;
+    }
+    else if (pop_ret_val < 0)
     {
         // Common logging TODO: MESSAGE_ERROR("SP interface SQ pop failed \r\n");
     }

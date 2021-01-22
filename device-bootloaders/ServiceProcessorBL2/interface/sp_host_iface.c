@@ -191,21 +191,25 @@ int8_t SP_Host_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
 *
 *   OUTPUTS
 *
-*       uint16_t    Returns SQ command size read or zero for error.
+*       uint32_t    Returns SQ command size read or zero for error.
 *
 ***********************************************************************/
 uint32_t SP_Host_Iface_SQ_Pop_Cmd(void* rx_buff)
 {
     uint32_t return_val = 0;
-    uint32_t command_size;
+    int32_t pop_ret_val;
 
     /* Pop the command from circular buffer */
-    command_size = VQ_Pop(&SP_Host_SQ.vqueue, rx_buff);
+    pop_ret_val = VQ_Pop(&SP_Host_SQ.vqueue, rx_buff);
 
-    if (command_size) 
+    if (pop_ret_val > 0)
     {
-        return_val = command_size;
-    } 
+        return_val = (uint32_t)pop_ret_val;
+    }
+    else if (pop_ret_val < 0)
+    {
+        printf("SP_Host_Iface:VQ pop failed.(Error code: %d)\r\n", pop_ret_val);
+    }
 
     return return_val;
 }
