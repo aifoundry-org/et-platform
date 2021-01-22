@@ -399,19 +399,20 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
 uint32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void* rx_buff)
 {
     uint32_t return_val = 0;
-    uint32_t command_size;
+    int32_t pop_ret_val;
 
     /* Pop the command from circular buffer */
-    command_size = VQ_Pop(&Host_SQs.vqueues[sq_id], rx_buff);
+    pop_ret_val = VQ_Pop(&Host_SQs.vqueues[sq_id], rx_buff);
 
-    if (command_size) 
+    if (pop_ret_val > 0)
     {
-        return_val = command_size;
-    } 
-    else 
+        return_val = (uint32_t)pop_ret_val;
+    }
+    else if (pop_ret_val < 0)
     {
-        Log_Write(LOG_LEVEL_ERROR, "%s",
-        "ERROR: Circbuff Pop Failed \r\n");
+        Log_Write(LOG_LEVEL_ERROR, "%s%d%s",
+            "HostIface:SQ_Pop:ERROR:VQ pop failed.(Error code:)",
+            pop_ret_val, "\r\n");
     }
 
     return return_val;

@@ -156,8 +156,8 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
     static uint8_t 
         cmd_buff[MM_CMD_MAX_SIZE] __attribute__((aligned(8))) = { 0 };
     struct cmd_header_t *cmd_hdr = (void*)cmd_buff;
-    uint16_t cmd_size;
     int8_t status = 0;
+    int32_t pop_ret_val;
     uint64_t start_cycles;
 
     /* Release the launch lock to let other workers acquire it */
@@ -181,43 +181,50 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
         Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
             "SQW:HART:", hart_id, ":received FCC event!\r\n");
 
-        /* Pop from Submission Queue */
-        cmd_size = (uint16_t) VQ_Pop(SQW_CB.sq[sqw_idx], cmd_buff);
-        
-        if(cmd_size > 0)
+        /* Process commands until there is no more data */
+        do
         {
-            Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
-                "SQW:Processing:SQW_IDX=", 
-                sqw_idx, "\r\n");
-
-            /* If barrier flag is set, wait until all cmds are 
-               processed in the current SQ */
-            if(cmd_hdr->flags & (1 << 0U))
-            {
-                sqw_command_barrier((uint8_t)sqw_idx);
-            }
-
-            /* Increment the SQW command count */
-            SQW_Increment_Command_Count((uint8_t)sqw_idx);
+            /* Pop from Submission Queue */
+            pop_ret_val = VQ_Pop(SQW_CB.sq[sqw_idx], cmd_buff);
             
-            status = Host_Command_Handler(cmd_buff, (uint8_t)sqw_idx, 
-                start_cycles);
-            
-            if (status != STATUS_SUCCESS)
+            if(pop_ret_val > 0)
             {
-                Log_Write(LOG_LEVEL_ERROR, "%s %d %s",
-                    "SQW:ERROR:Procesisng failed.(Error code:)", 
-                    status, "\r\n");
+                Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
+                    "SQW:Processing:SQW_IDX=", 
+                    sqw_idx, "\r\n");
+
+                /* If barrier flag is set, wait until all cmds are 
+                processed in the current SQ */
+                if(cmd_hdr->flags & (1 << 0U))
+                {
+                    sqw_command_barrier((uint8_t)sqw_idx);
+                }
+
+                /* Increment the SQW command count.
+                   NOTE: Its Host_Command_Handler's job to ensure this count 
+                   is decremented on the basis of the path it takes to process
+                   a command. */
+                SQW_Increment_Command_Count((uint8_t)sqw_idx);
+                
+                status = Host_Command_Handler(cmd_buff,
+                    (uint8_t)sqw_idx, start_cycles);
+                
+                if (status != STATUS_SUCCESS)
+                {
+                    Log_Write(LOG_LEVEL_ERROR, "%s %d %s",
+                        "SQW:ERROR:Procesisng failed.(Error code:)", 
+                        status, "\r\n");
+                }
             }
-        }
-        else
-        {
-            Log_Write(LOG_LEVEL_ERROR, "%s%d%s",
-                "SQW:ERROR:Recived host_iface event, but VQ \
-                    pop failed.(Error code:)", 
-                    status, "\r\n");
-        }
-    };
+            else if (pop_ret_val < 0)
+            {
+                Log_Write(LOG_LEVEL_ERROR, "%s%d%s",
+                    "SQW:ERROR:Recived host_iface event, but VQ \
+                        pop failed.(Error code:)", 
+                        pop_ret_val, "\r\n");
+            }
+        } while (pop_ret_val > 0);
+    }
     
     return;
 }

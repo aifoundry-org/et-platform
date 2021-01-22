@@ -335,6 +335,9 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
         }
         default: 
         {
+            /* Decrement commands count being processed by given SQW */
+            SQW_Decrement_Command_Count(sqw_idx);
+            
             Log_Write(LOG_LEVEL_DEBUG, "%s", 
                 "HostCommandHandler:UnsupportedCmd \r\n");
             status = -1;

@@ -170,13 +170,14 @@ int8_t VQ_Push(vq_cb_t* vq_cb, void* data, uint32_t data_size)
 *
 *   OUTPUTS
 *
-*       uint32_t   Number of bytes popped or zero
+*       int32_t    Negative value - error
+*                  zero - No Data
+*                  Positive value - Number of bytes popped
 *
 ***********************************************************************/
-uint32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
+int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
 {
-    int8_t status = -1;
-    uint16_t return_val = 0;
+    int32_t return_val;
     cmd_size_t command_size;
 
     /* Use local atomic load/stores for Master Minion */
@@ -191,14 +192,14 @@ uint32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
         atomic_load_local_64((uint64_t*)(void*)&vq_cb->cmd_size_peek_offset);
 
     /* Peek the command size to pop from SQ */
-    status = Circbuffer_Peek((circ_buff_cb_t*)(uintptr_t)temp_addr, 
+    return_val = Circbuffer_Peek((circ_buff_cb_t*)(uintptr_t)temp_addr, 
         (void *)&command_size, (uint16_t)(temp_vals & 0xFFFF), 
         (uint16_t)((temp_vals >> 16) & 0xFFFF), 
         (uint32_t)(temp_vals >> 32));
 
 #elif defined(SERVICE_PROCESSOR_BL2)
     /* Peek the command size to pop from SQ */
-    status = Circbuffer_Peek(vq_cb->circbuff_cb, (void *)&command_size, 
+    return_val = Circbuffer_Peek(vq_cb->circbuff_cb, (void *)&command_size, 
         vq_cb->cmd_size_peek_offset, vq_cb->cmd_size_peek_length,
         vq_cb->flags);
 
@@ -208,31 +209,41 @@ uint32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
     (void)rx_buff;
 #endif
 
-    if (status == STATUS_SUCCESS) 
+    if (return_val == STATUS_SUCCESS)
     {
         #ifdef DEBUG_LOG
         Log_Write(LOG_LEVEL_DEBUG, "%s%p%s%p%s%d%s",
             "VQ_Pop:src_addr:", vq_cb->circbuff_cb, ":dst_addr:", 
             rx_buff, ":data_size:", command_size, "\r\n");
         #endif
-
-        /* Use local atomic load/stores for Master Minion */
+        if (command_size > 0)
+        {
+            /* Use local atomic load/stores for Master Minion */
 #if defined(MASTER_MINION)
-        /* Pop the command from circular buffer */
-        status = Circbuffer_Pop((circ_buff_cb_t*)(uintptr_t)temp_addr, 
-            rx_buff, command_size, (uint32_t)(temp_vals >> 32));
+            /* Pop the command from circular buffer */
+            return_val = Circbuffer_Pop((circ_buff_cb_t*)(uintptr_t)temp_addr, 
+                rx_buff, command_size, (uint32_t)(temp_vals >> 32));
 
 #elif defined(SERVICE_PROCESSOR_BL2)
-        /* Pop the command from circular buffer */
-        status = Circbuffer_Pop(vq_cb->circbuff_cb, rx_buff, command_size,
-                    vq_cb->flags);
+            /* Pop the command from circular buffer */
+            return_val = Circbuffer_Pop(vq_cb->circbuff_cb, rx_buff,
+                command_size, vq_cb->flags);
 #endif
-
-        if (status == STATUS_SUCCESS) 
-        {
-            return_val = command_size;
+            if (return_val == STATUS_SUCCESS)
+            {
+                return_val = command_size;
+            }
         }
-    } 
+        else
+        {
+            return_val = VQ_ERROR_INVLD_CMD_SIZE;
+        }
+    }
+    else if (return_val == CIRCBUFF_ERROR_EMPTY)
+    {
+        /* No more data */
+        return_val = 0;
+    }
 
     return return_val;
 }
