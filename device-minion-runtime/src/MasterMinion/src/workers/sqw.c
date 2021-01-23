@@ -158,7 +158,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
     struct cmd_header_t *cmd_hdr = (void*)cmd_buff;
     int8_t status = 0;
     int32_t pop_ret_val;
-    uint64_t start_cycles;
+    uint64_t start_cycles=0;
 
     /* Release the launch lock to let other workers acquire it */
     release_local_spinlock(&Launch_Lock);
@@ -176,7 +176,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
         global_fcc_flag_wait(&SQW_CB.sqw_fcc_flags[sqw_idx]);
 
 	    /* Get current minion cycle */
-        start_cycles = PMC_GET_CURRENT_CYCLES;
+        start_cycles = PMC_Get_Current_Cycles();
 
         Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
             "SQW:HART:", hart_id, ":received FCC event!\r\n");

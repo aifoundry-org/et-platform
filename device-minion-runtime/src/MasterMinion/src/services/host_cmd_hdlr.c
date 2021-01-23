@@ -240,7 +240,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 atomic_store_local_32
                 ((volatile uint32_t*)&p_DMA_Channel_Status->dma_wrt_chan[chan].wait_latency, 
                 temp);
-                temp =  (uint32_t)(PMC_GET_CURRENT_CYCLES & 0xFFFFFFFF);
+                temp =  (uint32_t)(PMC_Get_Current_Cycles() & 0xFFFFFFFF);
                 atomic_store_local_32
                 ((volatile uint32_t*)&p_DMA_Channel_Status->dma_wrt_chan[chan].cmd_dispatch_start_cycles, 
                 temp);
@@ -311,7 +311,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 atomic_store_local_32
                 ((volatile uint32_t*)&p_DMA_Channel_Status->dma_rd_chan[chan].wait_latency, 
                 temp);
-                temp = (uint32_t)(PMC_GET_CURRENT_CYCLES & 0xFFFFFFFF);
+                temp = (uint32_t)(PMC_Get_Current_Cycles() & 0xFFFFFFFF);
                 atomic_store_local_32
                 ((volatile uint32_t*)&p_DMA_Channel_Status->dma_rd_chan[chan].cmd_dispatch_start_cycles, 
                 temp);
