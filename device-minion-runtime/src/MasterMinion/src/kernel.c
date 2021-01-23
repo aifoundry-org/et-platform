@@ -130,7 +130,7 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
             /* Wait for a KERNEL_DONE message from each Shire involved in the launch.
              * Even if there was an exception, that Shire will still send a KERNEL_DONE */
             circ_buff_cb_t *cb = (circ_buff_cb_t *)(CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR +
-                                                    kernel_id * CM_MM_IFACE_CIRCBUFFER_SIZE);
+                                                    (1 + kernel_id) * CM_MM_IFACE_CIRCBUFFER_SIZE);
             uint32_t done_cnt = 0;
             bool had_exception = false;
             while (done_cnt < launch_num_shires) {

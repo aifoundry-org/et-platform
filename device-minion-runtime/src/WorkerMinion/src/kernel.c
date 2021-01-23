@@ -365,6 +365,6 @@ static void post_kernel_cleanup(uint64_t kw_base_id, uint64_t kernel_id, uint64_
         cm_iface_message_t msg;
         msg.header.number = 0; // Not used. TODO: Remove
         msg.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE;
-        CM_To_MM_Iface_Unicast_Send(kw_base_id + kernel_id, kernel_id, &msg);
+        CM_To_MM_Iface_Unicast_Send(kw_base_id + kernel_id, 1 + kernel_id, &msg);
     }
 }

@@ -52,6 +52,6 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
     message.mstatus   = mstatus;
 
     // TODO: Retrieve kernel_id/kw_id...
-    CM_To_MM_Iface_Unicast_Send(_KW_BASE, 0, (cm_iface_message_t *)&message);
+    CM_To_MM_Iface_Unicast_Send(_KW_BASE, 1, (cm_iface_message_t *)&message);
 }
 

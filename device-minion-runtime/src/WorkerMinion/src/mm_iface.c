@@ -16,7 +16,7 @@
 static cm_iface_message_number_t previous_broadcast_message_number[NUM_HARTS] __attribute__((aligned(64))) = { 0 };
 
 /* CM to MM interface */
-static spinlock_t cm_mm_iface_unicast_cbs_lock[MAX_SIMULTANEOUS_KERNELS] = { 0 };
+static spinlock_t cm_mm_iface_unicast_cbs_lock[1 + MAX_SIMULTANEOUS_KERNELS] = { 0 };
 
 static void MM_To_CM_Iface_Handle_Message(uint64_t shire, uint64_t hart, cm_iface_message_t *const message_ptr);
 

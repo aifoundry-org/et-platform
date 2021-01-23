@@ -41,11 +41,13 @@ void __attribute__((noreturn)) main(void)
 
     // Last thread to join barrier sends ready message to master
     if (result) {
-        const cm_iface_message_t message = {
+        const mm_to_cm_message_shire_ready_t message = {
             .header.id = CM_TO_MM_MESSAGE_ID_SHIRE_READY,
-            .data = { 0 },
+            .shire_id = get_shire_id()
         };
-        message_send_worker(shire_id, hart_id, &message);
+
+        // To Master Shire thread 0 aka Dispatcher (circbuff queue index is 0)
+        CM_To_MM_Iface_Unicast_Send(0, 0, (const cm_iface_message_t *)&message);
     }
 
     // Disable global interrupts (sstatus.SIE = 0) to not trap to trap handler.

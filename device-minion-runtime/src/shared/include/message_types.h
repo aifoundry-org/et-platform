@@ -42,6 +42,13 @@ ASSERT_CACHE_LINE_CONSTRAINTS(mm_to_cm_message_pmc_configure_t);
 
 typedef struct {
     cm_iface_message_header_t header;
+    uint32_t shire_id;
+} __attribute__((packed, aligned(64))) mm_to_cm_message_shire_ready_t;
+
+ASSERT_CACHE_LINE_CONSTRAINTS(mm_to_cm_message_shire_ready_t);
+
+typedef struct {
+    cm_iface_message_header_t header;
     uint64_t hart_id;
     uint64_t mcause;
     uint64_t mepc;
