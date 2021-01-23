@@ -49,7 +49,7 @@ static void MM_To_CM_Iface_Handle_Message(uint64_t shire, uint64_t hart, cm_ifac
             if (launch->shire_mask & (1ULL << shire)) {
                 uint64_t kernel_stack_addr = KERNEL_UMODE_STACK_BASE - (hart * KERNEL_UMODE_STACK_SIZE);
 
-                rv = launch_kernel(launch->kw_id, launch->code_start_address, kernel_stack_addr,
+                rv = launch_kernel(launch->kw_base_id, launch->kernel_id, launch->code_start_address, kernel_stack_addr,
                                    launch->pointer_to_args, launch->flags, launch->shire_mask);
                 break;
             }
@@ -91,19 +91,20 @@ static void MM_To_CM_Iface_Handle_Message(uint64_t shire, uint64_t hart, cm_ifac
     }
 }
 
-int8_t CM_To_MM_Iface_Unicast_Send(uint64_t kw_id, cm_iface_message_t *const message)
+int8_t CM_To_MM_Iface_Unicast_Send(uint64_t ms_thread_id, uint64_t cb_idx, const cm_iface_message_t *const message)
 {
     int8_t status;
     circ_buff_cb_t *cb = (circ_buff_cb_t *)(CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR +
-                                            kw_id * CM_MM_IFACE_CIRCBUFFER_SIZE);
+                                            cb_idx * CM_MM_IFACE_CIRCBUFFER_SIZE);
 
     do {
-        acquire_global_spinlock(&cm_mm_iface_unicast_cbs_lock[kw_id]);
-        status = Circbuffer_Push(cb, (void *const)message, sizeof(*message), L3_CACHE);
-        release_global_spinlock(&cm_mm_iface_unicast_cbs_lock[kw_id]);
+        acquire_global_spinlock(&cm_mm_iface_unicast_cbs_lock[cb_idx]);
+        status = Circbuffer_Push(cb, (const void *const)message, sizeof(*message), L3_CACHE);
+        release_global_spinlock(&cm_mm_iface_unicast_cbs_lock[cb_idx]);
     } while (status != CIRCBUFF_OPERATION_SUCCESS);
 
-    syscall(SYSCALL_IPI_TRIGGER_INT, 1ull << (2 + kw_id), MASTER_SHIRE, 0);
+    // Send IPI to the required hart in Master Shire
+    syscall(SYSCALL_IPI_TRIGGER_INT, 1ull << ms_thread_id, MASTER_SHIRE, 0);
 
     return status;
 }

@@ -12,7 +12,8 @@
 
 typedef struct {
     cm_iface_message_header_t header;
-    uint8_t kw_id;
+    uint8_t kw_base_id;
+    uint8_t kernel_id;
     uint8_t flags;
     uint64_t code_start_address;
     uint64_t pointer_to_args;

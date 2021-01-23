@@ -64,11 +64,12 @@ static void spinlock_barrier_global(spinlock_t *lock, uint32_t num_shires)
 static void pre_kernel_setup(uint64_t kernel_launch_flags);
 static void kernel_return_function(int64_t return_value)
     __attribute__((used, section(".user_text"))); // must be placed in U-mode accessible section
-static void post_kernel_cleanup(uint64_t kernel_id, uint64_t kernel_launch_flags);
+static void post_kernel_cleanup(uint64_t kw_base_id, uint64_t kernel_id, uint64_t kernel_launch_flags);
 
 // Saves firmware context and launches kernel in user mode with clean stack and registers
 // Note that global Supervisor interrupts are disabled after returning from this function
-int64_t launch_kernel(uint64_t kernel_id,
+int64_t launch_kernel(uint64_t kw_base_id,
+                      uint64_t kernel_id,
                       uint64_t kernel_entry_addr,
                       uint64_t kernel_stack_addr,
                       uint64_t kernel_params_ptr,
@@ -216,7 +217,7 @@ int64_t launch_kernel(uint64_t kernel_id,
         log_write(LOG_LEVEL_ERROR, "H%04" PRId64 ": tensor_error 0x%" PRIx64 "\n", get_hart_id(), tensor_error);
     }*/
 
-    post_kernel_cleanup(kernel_id, kernel_launch_flags);
+    post_kernel_cleanup(kw_base_id, kernel_id, kernel_launch_flags);
 
     return return_value;
 }
@@ -324,7 +325,7 @@ static void kernel_return_function(int64_t return_value)
     syscall(SYSCALL_RETURN_FROM_KERNEL, (uint64_t)return_value, 0, 0);
 }
 
-static void post_kernel_cleanup(uint64_t kernel_id, uint64_t kernel_launch_flags)
+static void post_kernel_cleanup(uint64_t kw_base_id, uint64_t kernel_id, uint64_t kernel_launch_flags)
 {
     const uint64_t shire_id = get_shire_id();
     const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
@@ -364,6 +365,6 @@ static void post_kernel_cleanup(uint64_t kernel_id, uint64_t kernel_launch_flags
         cm_iface_message_t msg;
         msg.header.number = 0; // Not used. TODO: Remove
         msg.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE;
-        CM_To_MM_Iface_Unicast_Send(kernel_id, &msg);
+        CM_To_MM_Iface_Unicast_Send(kw_base_id + kernel_id, kernel_id, &msg);
     }
 }

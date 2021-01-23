@@ -17,6 +17,9 @@
 
 //#define DEBUG_PRINT_KERNEL_INSTRUCTIONS
 
+// Base Hart ID for Kernel Sync threads relative to Master Shire
+#define KERNEL_SYNC_MS_HART_BASE    2U
+
 typedef struct {
     struct kernel_launch_cmd_t launch_cmd;
     kernel_state_t kernel_state;
@@ -103,7 +106,8 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
             mm_to_cm_message_kernel_launch_t launch;
             launch.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH;
             launch.header.number = 0; // Filled by broadcast_message_send_master
-            launch.kw_id = (uint8_t)kernel_id;
+            launch.kw_base_id = KERNEL_SYNC_MS_HART_BASE;
+            launch.kernel_id = (uint8_t)kernel_id;
             launch.flags = (uint8_t)kernel_config_ptr->kernel_launch_flags;
             launch.code_start_address = kernel_config_ptr->code_start_address;
             launch.pointer_to_args = kernel_config_ptr->pointer_to_args;
