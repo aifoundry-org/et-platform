@@ -3,7 +3,6 @@
 #include "flb.h"
 #include "hart.h"
 #include "layout.h"
-#include "message.h"
 #include "pmu.h"
 #include "sync.h"
 

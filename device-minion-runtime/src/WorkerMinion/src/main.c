@@ -4,10 +4,13 @@
 #include "flb.h"
 #include "hart.h"
 #include "layout.h"
-#include "message.h"
-#include "mm_iface.h"
+#include "message_types.h"
+#include "cm_to_mm_iface.h"
+#include "mm_to_cm_iface.h"
 
 #include <stdint.h>
+
+extern void MM_To_CM_Iface_Process(void);
 
 void __attribute__((noreturn)) main(void)
 {
@@ -26,10 +29,7 @@ void __attribute__((noreturn)) main(void)
 #endif /* IMPLEMENTATION_BYPASS */
 
     const uint64_t shire_id = get_shire_id();
-    const uint64_t hart_id = get_hart_id();
     const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
-
-    message_init_worker(shire_id, hart_id);
 
     // Empty all FCCs
     init_fcc(FCC_0);

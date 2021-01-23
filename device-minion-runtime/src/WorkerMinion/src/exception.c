@@ -3,9 +3,8 @@
 #include "kernel_error.h"
 #include "kernel_return.h"
 #include "hart.h"
-#include "message.h"
 #include "message_types.h"
-#include "mm_iface.h"
+#include "cm_to_mm_iface.h"
 #include <stdbool.h>
 #include <inttypes.h>
 

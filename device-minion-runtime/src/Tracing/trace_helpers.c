@@ -15,7 +15,6 @@
 #include "fcc.h"
 #include "hart.h"
 #include "layout.h"
-#include "message.h"
 #include "ring_buffer.h"
 #include "minion_fw_boot_config.h"
 

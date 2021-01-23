@@ -26,6 +26,7 @@ set(SOURCES
     src/exception.c
     src/main2.c
     src/main.c
+    src/mm_to_cm_iface.c
     src/kernel.c
     src/log.c
     src/shire.c
@@ -50,7 +51,7 @@ set(SOURCES
     src/services/worker_iface.c
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/printf.c
-    ${SHARED_SRC_DIR}/message.c
+    ${SHARED_SRC_DIR}/cm_to_mm_iface.c
     ${SHARED_SRC_DIR}/print_exception.c
     ${SHARED_SRC_DIR}/ringbuffer.c
     ${SHARED_SRC_DIR}/pcie_dma.c

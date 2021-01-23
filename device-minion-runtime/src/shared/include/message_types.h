@@ -1,11 +1,61 @@
 #ifndef MESSAGE_TYPES_H
 #define MESSAGE_TYPES_H
 
+#include <assert.h>
+#include <stdint.h>
+#include <stdbool.h>
+
 #include "log.h"
+
+/*
+ * Common definitions
+ */
+
+typedef uint8_t cm_iface_message_id_t;
+typedef uint8_t cm_iface_message_number_t;
+
+typedef struct {
+    cm_iface_message_number_t number;
+    cm_iface_message_id_t id;
+} cm_iface_message_header_t;
+
+#define MESSAGE_MAX_PAYLOAD_SIZE (64 - sizeof(cm_iface_message_header_t))
+
+#define ASSERT_CACHE_LINE_CONSTRAINTS(type)                                      \
+    static_assert(sizeof(type) == 64, "sizeof(" #type ") must be 64 bytes");     \
+    static_assert(_Alignof(type) == 64, "_Alignof(" #type ") must be 64 bytes")
+
+typedef struct {
+    cm_iface_message_header_t header;
+    uint8_t data[MESSAGE_MAX_PAYLOAD_SIZE];
+} __attribute__((packed, aligned(64))) cm_iface_message_t;
+
+ASSERT_CACHE_LINE_CONSTRAINTS(cm_iface_message_t);
+
+/*
+ * Broadcast/Multicast message
+ */
+
+typedef struct {
+    uint32_t count;
+} __attribute__((aligned(64))) broadcast_message_ctrl_t;
+
+ASSERT_CACHE_LINE_CONSTRAINTS(broadcast_message_ctrl_t);
 
 /*
  * MM to CM messages
  */
+
+typedef enum {
+    MM_TO_CM_MESSAGE_ID_NONE = 0,
+    MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH,
+    MM_TO_CM_MESSAGE_ID_KERNEL_ABORT,
+    MM_TO_CM_MESSAGE_ID_SET_LOG_LEVEL,
+    MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL,
+    MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_RESET,
+    MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT,
+    MM_TO_CM_MESSAGE_ID_PMC_CONFIGURE
+} mm_to_cm_message_id_e;
 
 #define KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH (1u << 0)
 #define KERNEL_LAUNCH_FLAGS_EVICT_L3_AFTER_LAUNCH  (1u << 1)
@@ -40,6 +90,17 @@ ASSERT_CACHE_LINE_CONSTRAINTS(mm_to_cm_message_pmc_configure_t);
  * CM to MM messages
  */
 
+typedef enum {
+    CM_TO_MM_MESSAGE_ID_NONE = 0x80u,
+    CM_TO_MM_MESSAGE_ID_SHIRE_READY,
+    CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ACK,
+    CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_NACK,
+    CM_TO_MM_MESSAGE_ID_KERNEL_ABORT_NACK,
+    CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE,
+    CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION,
+    CM_TO_MM_MESSAGE_ID_FW_EXCEPTION,
+} cm_to_mm_message_id_e;
+
 typedef struct {
     cm_iface_message_header_t header;
     uint32_t shire_id;
@@ -60,6 +121,7 @@ ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_exception_t);
 
 typedef struct {
     cm_iface_message_header_t header;
+    uint32_t shire_id;
     uint64_t kernel_id;
 } __attribute__((packed, aligned(64))) cm_to_mm_message_kernel_launch_ack_t;
 
@@ -67,13 +129,15 @@ ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_kernel_launch_ack_t);
 
 typedef struct {
     cm_iface_message_header_t header;
-    uint64_t kernel_id;
+    uint32_t shire_id;
+    uint32_t kernel_id;
 } __attribute__((packed, aligned(64))) cm_to_mm_message_kernel_launch_nack_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_kernel_launch_nack_t);
 
 typedef struct {
     cm_iface_message_header_t header;
+    uint32_t shire_id;
     uint64_t kernel_id;
 } __attribute__((packed, aligned(64))) cm_to_mm_message_kernel_launch_completed_t;
 

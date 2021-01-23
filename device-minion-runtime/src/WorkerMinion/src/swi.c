@@ -1,4 +1,6 @@
-#include "mm_iface.h"
+#include "mm_to_cm_iface.h"
+
+extern void MM_To_CM_Iface_Process(void);
 
 void swi_handler(void);
 
