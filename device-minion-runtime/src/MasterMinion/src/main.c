@@ -64,6 +64,7 @@ static void handle_message_from_host(int64_t length, uint8_t *buffer);
 static void handle_messages_from_sp(void);
 static void handle_message_from_sp(int64_t length, const uint8_t *const buffer);
 
+static void dispatcher_handle_messages_on_unicast(void);
 static void handle_messages_from_workers(void);
 static void handle_message_from_worker(uint64_t shire, uint64_t hart);
 
@@ -131,6 +132,7 @@ static inline void check_and_handle_sp_and_worker_messages(void)
         asm volatile("fence");
 
         handle_messages_from_sp();
+        dispatcher_handle_messages_on_unicast();
         handle_messages_from_workers();
     }
 }
@@ -545,6 +547,46 @@ static void handle_message_from_sp(int64_t length, const uint8_t *const buffer)
 #endif
 }
 
+static void dispatcher_handle_messages_on_unicast(void)
+{
+    // Unicats to dispatcher is slot 0 of unicast circular-buffers
+    circ_buff_cb_t *cb = (circ_buff_cb_t *)(CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR +
+                                            (0) * CM_MM_IFACE_CIRCBUFFER_SIZE);
+
+    /* Process as many requests as available */
+    while (1) {
+        cm_iface_message_t message;
+
+        /* Peek the command size to pop */
+        int8_t status = Circbuffer_Peek(cb, (void *)&message.header, 0, sizeof(message.header), L3_CACHE);
+        if (status != STATUS_SUCCESS)
+            break;
+
+        /* Pop the command from circular buffer */
+        status = Circbuffer_Pop(cb, &message, sizeof(message), L3_CACHE);
+        if (status != STATUS_SUCCESS)
+            break;
+
+        switch (message.header.id) {
+        // For old FW: this is the only kind of message received to the unicats to thread 0 (dispatcher)
+        case CM_TO_MM_MESSAGE_ID_SHIRE_READY: {
+            const mm_to_cm_message_shire_ready_t *shire_ready =
+                (const mm_to_cm_message_shire_ready_t *)&message;
+            log_write(LOG_LEVEL_DEBUG,
+                      "MESSAGE_ID_SHIRE_READY received from shire %" PRId64 "\r\n",
+                      shire_ready->shire_id);
+            update_shire_state(shire_ready->shire_id, SHIRE_STATE_READY);
+            break;
+        }
+        default:
+            log_write(LOG_LEVEL_CRITICAL,
+                      "Unknown message id = 0x%016" PRIx64 " received (unicast dispatcher)\r\n",
+                      message.header.id);
+            break;
+        }
+    }
+}
+
 static void handle_messages_from_workers(void)
 {
     // Check for messages from every hart in every shire
@@ -637,7 +679,7 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
     }
 
     default:
-        log_write(LOG_LEVEL_WARNING,
+        log_write(LOG_LEVEL_CRITICAL,
                   "Unknown message id = 0x%016" PRIx64 " received from shire %" PRId64
                   " hart %" PRId64 "\r\n",
                   message.header.id, shire, hart);

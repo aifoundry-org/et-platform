@@ -9,6 +9,12 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
+#ifdef IMPLEMENTATION_BYPASS
+#define _KW_BASE (2054U - 2048U)
+#else
+#define _KW_BASE 2
+#endif
+
 void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const reg);
 static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t mstatus,
                                    uint64_t hart_id, bool user_mode);
@@ -46,6 +52,6 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
     message.mstatus   = mstatus;
 
     // TODO: Retrieve kernel_id/kw_id...
-    CM_To_MM_Iface_Unicast_Send(0, (cm_iface_message_t *)&message);
+    CM_To_MM_Iface_Unicast_Send(_KW_BASE, 1, (cm_iface_message_t *)&message);
 }
 

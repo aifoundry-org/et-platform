@@ -12,7 +12,8 @@
 
 typedef struct {
     cm_iface_message_header_t header;
-    uint8_t kw_id;
+    uint8_t kw_base_id;
+    uint8_t kernel_id;
     uint8_t flags;
     uint64_t code_start_address;
     uint64_t pointer_to_args;
@@ -38,6 +39,13 @@ ASSERT_CACHE_LINE_CONSTRAINTS(mm_to_cm_message_pmc_configure_t);
 /*
  * CM to MM messages
  */
+
+typedef struct {
+    cm_iface_message_header_t header;
+    uint32_t shire_id;
+} __attribute__((packed, aligned(64))) mm_to_cm_message_shire_ready_t;
+
+ASSERT_CACHE_LINE_CONSTRAINTS(mm_to_cm_message_shire_ready_t);
 
 typedef struct {
     cm_iface_message_header_t header;
