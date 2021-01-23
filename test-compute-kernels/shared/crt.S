@@ -1,3 +1,5 @@
+#include <syscall.h>
+
 .section .text.init, "ax", @progbits
 .global _start
 
@@ -9,5 +11,8 @@ _start:
 .option pop
     # Firmware sets stack pointer before launch
     # bss not allowed, no init
-    la   t1, main
-    jalr x0, t1
+    call  main
+
+    mv    a1, a0
+    li    a0, SYSCALL_RETURN_FROM_KERNEL
+    ecall
