@@ -1,24 +1,24 @@
 #ifndef SYSCALL_H
 #define SYSCALL_H
 
+// From U-mode to S-mode for compute firmware [300-399]
+#define SYSCALL_RETURN_FROM_KERNEL   300
+#define SYSCALL_CACHE_CONTROL        301
+#define SYSCALL_FLUSH_L3             302
+#define SYSCALL_SHIRE_CACHE_BANK_OP  303
+#define SYSCALL_EVICT_L1             304
+
+// From U-mode to S-mode for both master and compute firmwares [400-499]
+#define SYSCALL_LOG_WRITE            400
+#define SYSCALL_GET_LOG_LEVEL        401
+#define SYSCALL_GET_MTIME            402
+#define SYSCALL_CONFIGURE_PMCS       403 // emizan: This should not be used but I am adding it for testing with hardcoded values.
+#define SYSCALL_SAMPLE_PMCS          404
+#define SYSCALL_RESET_PMCS           405
+
+#ifndef __ASSEMBLER__
+
 #include <stdint.h>
-
-enum {
-    // From U-mode to S-mode for compute firmware [300-399]
-    SYSCALL_RETURN_FROM_KERNEL = 300,
-    SYSCALL_CACHE_CONTROL = 301,
-    SYSCALL_FLUSH_L3 = 302,
-    SYSCALL_SHIRE_CACHE_BANK_OP = 303,
-    SYSCALL_EVICT_L1 = 304,
-
-    // From U-mode to S-mode for both master and compute firmwares [400-499]
-    SYSCALL_LOG_WRITE = 400,
-    SYSCALL_GET_LOG_LEVEL = 401,
-    SYSCALL_GET_MTIME = 402,
-    SYSCALL_CONFIGURE_PMCS = 403, // emizan: This should not be used but I am adding it for testing with hardcoded values.
-    SYSCALL_SAMPLE_PMCS = 404,
-    SYSCALL_RESET_PMCS = 405
-};
 
 static inline __attribute__((always_inline)) int64_t syscall(uint64_t syscall, uint64_t arg1,
                                                              uint64_t arg2, uint64_t arg3)
@@ -32,5 +32,7 @@ static inline __attribute__((always_inline)) int64_t syscall(uint64_t syscall, u
 
     return (int64_t)a0;
 }
+
+#endif
 
 #endif // SYSCALL_H
