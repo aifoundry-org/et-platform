@@ -1,5 +1,6 @@
 #include "device_minion_runtime_build_configuration.h"
 #include "cacheops.h"
+#include "cm_to_mm_iface.h"
 #include "device-mrt-trace.h"
 #include "device_api_privileged.h"
 #include "device_api_non_privileged.h"
@@ -12,7 +13,7 @@
 #include "log.h"
 #include "mailbox.h"
 #include "mailbox_id.h"
-#include "message.h"
+#include "message_types.h"
 #include "minion_fw_boot_config.h"
 #include "pcie_device.h"
 #include "pcie_isr.h"
@@ -42,6 +43,7 @@ static global_fcc_flag_t sq_worker_sync[MM_VQ_COUNT] = { 0 };
 static void fake_message_from_host(void);
 #endif
 
+extern void message_init_master(void);
 static void master_thread(void);
 /// \brief Thread for processing the commands sent by Host in Submission Queues.
 /// For each Submission Queue, there is a sq_worker_thread instantiated.
@@ -65,8 +67,6 @@ static void handle_messages_from_sp(void);
 static void handle_message_from_sp(int64_t length, const uint8_t *const buffer);
 
 static void dispatcher_handle_messages_on_unicast(void);
-static void handle_messages_from_workers(void);
-static void handle_message_from_worker(uint64_t shire, uint64_t hart);
 
 static void handle_pcie_events(void);
 static void handle_timer_events(void);
@@ -132,8 +132,7 @@ static inline void check_and_handle_sp_and_worker_messages(void)
         asm volatile("fence");
 
         handle_messages_from_sp();
-        dispatcher_handle_messages_on_unicast();
-        handle_messages_from_workers();
+        dispatcher_handle_messages_on_unicast(); // Coming from Compute FW and KW
     }
 }
 
@@ -549,26 +548,21 @@ static void handle_message_from_sp(int64_t length, const uint8_t *const buffer)
 
 static void dispatcher_handle_messages_on_unicast(void)
 {
-    // Unicats to dispatcher is slot 0 of unicast circular-buffers
-    circ_buff_cb_t *cb = (circ_buff_cb_t *)(CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR +
-                                            (0) * CM_MM_IFACE_CIRCBUFFER_SIZE);
-
     /* Process as many requests as available */
     while (1) {
         cm_iface_message_t message;
+        int8_t status;
 
-        /* Peek the command size to pop */
-        int8_t status = Circbuffer_Peek(cb, (void *)&message.header, 0, sizeof(message.header), L3_CACHE);
-        if (status != STATUS_SUCCESS)
-            break;
-
-        /* Pop the command from circular buffer */
-        status = Circbuffer_Pop(cb, &message, sizeof(message), L3_CACHE);
+        // Unicast to dispatcher is slot 0 of unicast circular-buffers
+        status = CM_To_MM_Iface_Unicast_Receive(0, &message);
         if (status != STATUS_SUCCESS)
             break;
 
         switch (message.header.id) {
-        // For old FW: this is the only kind of message received to the unicats to thread 0 (dispatcher)
+        case CM_TO_MM_MESSAGE_ID_NONE:
+            log_write(LOG_LEVEL_DEBUG, "Invalid MESSAGE_ID_NONE received\r\n");
+            break;
+
         case CM_TO_MM_MESSAGE_ID_SHIRE_READY: {
             const mm_to_cm_message_shire_ready_t *shire_ready =
                 (const mm_to_cm_message_shire_ready_t *)&message;
@@ -578,112 +572,72 @@ static void dispatcher_handle_messages_on_unicast(void)
             update_shire_state(shire_ready->shire_id, SHIRE_STATE_READY);
             break;
         }
+
+        case CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ACK: {
+            const cm_to_mm_message_kernel_launch_ack_t *msg =
+                (const cm_to_mm_message_kernel_launch_ack_t *)&message;
+            log_write(LOG_LEVEL_DEBUG,
+                      "MESSAGE_ID_KERNEL_LAUNCH_ACK received from shire %" PRId64 "\r\n",
+                      msg->shire_id);
+            update_kernel_state(msg->kernel_id, KERNEL_STATE_RUNNING);
+            break;
+        }
+
+        case CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_NACK: {
+            const cm_to_mm_message_kernel_launch_nack_t *msg =
+                (const cm_to_mm_message_kernel_launch_nack_t *)&message;
+            log_write(LOG_LEVEL_DEBUG,
+                      "MESSAGE_ID_KERNEL_LAUNCH_NACK received from shire %" PRId64 "\r\n",
+                      msg->shire_id);
+            update_shire_state(msg->shire_id, SHIRE_STATE_ERROR);
+            update_kernel_state(msg->kernel_id, KERNEL_STATE_ERROR);
+            break;
+        }
+
+        case CM_TO_MM_MESSAGE_ID_KERNEL_ABORT_NACK: {
+            const cm_to_mm_message_kernel_launch_nack_t *msg =
+                (const cm_to_mm_message_kernel_launch_nack_t *)&message;
+            log_write(LOG_LEVEL_DEBUG,
+                      "MESSAGE_ID_KERNEL_ABORT_NACK received from shire %" PRId64 "\r\n",
+                      msg->shire_id);
+            update_shire_state(msg->shire_id, SHIRE_STATE_ERROR);
+            update_kernel_state(msg->kernel_id, KERNEL_STATE_ERROR);
+            break;
+        }
+
+        case CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE:
+            log_write(LOG_LEVEL_DEBUG,
+                      "MESSAGE_ID_KERNEL_COMPLETE received\r\n");
+            update_kernel_state(((cm_to_mm_message_kernel_launch_completed_t *)&message)->kernel_id,
+                                KERNEL_STATE_COMPLETE);
+            break;
+
+        case CM_TO_MM_MESSAGE_ID_FW_EXCEPTION: {
+            cm_to_mm_message_exception_t *exception = (cm_to_mm_message_exception_t *)&message;
+            print_exception(exception->mcause, exception->mepc, exception->mtval, exception->mstatus,
+                            exception->hart_id);
+            // non-kernel exceptions are unrecoverable. Put the shire in error state
+            update_shire_state((exception->hart_id) / 64u, SHIRE_STATE_ERROR);
+            const int kernel = 0; // TODO: Properly get kernel_id....
+            update_kernel_state(kernel, KERNEL_STATE_ERROR); // the kernel has failed
+            break;
+        }
+
+        case CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION: {
+            //cm_to_mm_message_exception_t *exception = (cm_to_mm_message_exception_t *)&message;
+            //print_exception(exception->mcause, exception->mepc, exception->mtval, exception->mstatus,
+            //                exception->hart_id);
+            const int kernel = 0; // TODO: Properly get kernel_id....
+            update_kernel_state(kernel, KERNEL_STATE_ERROR); // the kernel has failed
+            break;
+        }
+
         default:
             log_write(LOG_LEVEL_CRITICAL,
                       "Unknown message id = 0x%016" PRIx64 " received (unicast dispatcher)\r\n",
                       message.header.id);
             break;
         }
-    }
-}
-
-static void handle_messages_from_workers(void)
-{
-    // Check for messages from every hart in every shire
-    for (uint64_t shire = 0; shire < NUM_SHIRES; shire++) {
-        const uint64_t flags = get_message_flags(shire);
-
-        if (flags) {
-            for (uint64_t hart = 0; hart < 64; hart++) {
-                if (flags & (1ULL << hart)) {
-                    handle_message_from_worker(shire, hart);
-                }
-            }
-        }
-    }
-}
-
-static void handle_message_from_worker(uint64_t shire, uint64_t hart)
-{
-    static cm_iface_message_t message = { 0 };
-    const kernel_id_t kernel = get_shire_kernel_id(shire);
-
-    message_receive_master(shire, hart, &message);
-
-    switch (message.header.id) {
-    case CM_TO_MM_MESSAGE_ID_NONE:
-        log_write(LOG_LEVEL_DEBUG,
-                  "Invalid MESSAGE_ID_NONE received from shire %" PRId64 " hart %" PRId64 "\r\n",
-                  shire, hart);
-        break;
-
-    case CM_TO_MM_MESSAGE_ID_SHIRE_READY:
-        log_write(LOG_LEVEL_DEBUG,
-                  "MESSAGE_ID_SHIRE_READY received from shire %" PRId64 " hart %" PRId64 "\r\n",
-                  shire, hart);
-        update_shire_state(shire, SHIRE_STATE_READY);
-        break;
-
-    case CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ACK:
-        log_write(LOG_LEVEL_DEBUG,
-                  "MESSAGE_ID_KERNEL_LAUNCH_ACK received from shire %" PRId64 " hart %" PRId64
-                  "\r\n",
-                  shire, hart);
-        update_kernel_state(((cm_to_mm_message_kernel_launch_ack_t *)&message)->kernel_id,
-                            KERNEL_STATE_RUNNING);
-        break;
-
-    case CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_NACK:
-        log_write(LOG_LEVEL_DEBUG,
-                  "MESSAGE_ID_KERNEL_LAUNCH_NACK received from shire %" PRId64 " hart %" PRId64
-                  "\r\n",
-                  shire, hart);
-        update_shire_state(shire, SHIRE_STATE_ERROR);
-        update_kernel_state(((cm_to_mm_message_kernel_launch_nack_t *)&message)->kernel_id,
-                            KERNEL_STATE_ERROR);
-        break;
-
-    case CM_TO_MM_MESSAGE_ID_KERNEL_ABORT_NACK:
-        log_write(LOG_LEVEL_DEBUG,
-                  "MESSAGE_ID_KERNEL_ABORT_NACK received from shire %" PRId64 " hart %" PRId64
-                  "\r\n",
-                  shire, hart);
-        update_shire_state(shire, SHIRE_STATE_ERROR);
-        update_kernel_state(kernel, KERNEL_STATE_ERROR);
-        break;
-
-    case CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE:
-        log_write(LOG_LEVEL_DEBUG,
-                  "MESSAGE_ID_KERNEL_COMPLETE received from shire %" PRId64 " hart %" PRId64 "\r\n",
-                  shire, hart);
-        update_kernel_state(((cm_to_mm_message_kernel_launch_completed_t *)&message)->kernel_id,
-                            KERNEL_STATE_COMPLETE);
-        break;
-
-    case CM_TO_MM_MESSAGE_ID_FW_EXCEPTION: {
-        cm_to_mm_message_exception_t *exception = (cm_to_mm_message_exception_t *)&message;
-        print_exception(exception->mcause, exception->mepc, exception->mtval, exception->mstatus,
-                        exception->hart_id);
-        // non-kernel exceptions are unrecoverable. Put the shire in error state
-        update_shire_state(shire, SHIRE_STATE_ERROR);
-        update_kernel_state(kernel, KERNEL_STATE_ERROR); // the kernel has failed
-        break;
-    }
-
-    case CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION: {
-        //cm_to_mm_message_exception_t *exception = (cm_to_mm_message_exception_t *)&message;
-        //print_exception(exception->mcause, exception->mepc, exception->mtval, exception->mstatus,
-        //                exception->hart_id);
-        update_kernel_state(kernel, KERNEL_STATE_ERROR); // the kernel has failed
-        break;
-    }
-
-    default:
-        log_write(LOG_LEVEL_CRITICAL,
-                  "Unknown message id = 0x%016" PRIx64 " received from shire %" PRId64
-                  " hart %" PRId64 "\r\n",
-                  message.header.id, shire, hart);
-        break;
     }
 }
 

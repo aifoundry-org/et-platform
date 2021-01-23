@@ -1,6 +1,7 @@
 #include "kernel.h"
 #include "broadcast.h"
 #include "cacheops.h"
+#include "circbuff.h"
 #include "device_api_non_privileged.h"
 #include "esr_defines.h"
 #include "fcc.h"
@@ -9,7 +10,8 @@
 #include "log.h"
 #include "mailbox.h"
 #include "mailbox_id.h"
-#include "message.h"
+#include "mm_to_cm_iface.h"
+#include "cm_to_mm_iface.h"
 #include "shire.h"
 #include "syscall_internal.h"
 
@@ -105,7 +107,7 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
         if (launch_shire_mask != 0) {
             mm_to_cm_message_kernel_launch_t launch;
             launch.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH;
-            launch.header.number = 0; // Filled by broadcast_message_send_master
+            launch.header.number = 0; // Filled by MM_To_CM_Iface_Multicast_Send
             launch.kw_base_id = KERNEL_SYNC_MS_HART_BASE;
             launch.kernel_id = (uint8_t)kernel_id;
             launch.flags = (uint8_t)kernel_config_ptr->kernel_launch_flags;
@@ -113,24 +115,25 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
             launch.pointer_to_args = kernel_config_ptr->pointer_to_args;
             launch.shire_mask = launch_shire_mask;
 
-            if (0 != broadcast_message_send_master(launch_shire_mask, (cm_iface_message_t *)&launch)) {
+            if (0 != MM_To_CM_Iface_Multicast_Send(launch_shire_mask, (cm_iface_message_t *)&launch)) {
                 // Problem sending broadcast message, send error message to the master minion
                 cm_to_mm_message_kernel_launch_nack_t nack_message;
                 nack_message.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_NACK;
-                nack_message.kernel_id = kernel_id;
-                message_send_worker(get_shire_id(), get_hart_id(), (cm_iface_message_t *)&nack_message);
+                nack_message.shire_id = get_shire_id();
+                nack_message.kernel_id = (uint32_t)kernel_id;
+                // To Master Shire thread 0 aka Dispatcher (circbuff queue index is 0)
+                CM_To_MM_Iface_Unicast_Send(0, 0, (const cm_iface_message_t *)&nack_message);
             }
 
             // Send message to master minion indicating the kernel is starting
             cm_to_mm_message_kernel_launch_ack_t ack_message;
             ack_message.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ACK;
             ack_message.kernel_id = kernel_id;
-            message_send_worker(get_shire_id(), get_hart_id(), (cm_iface_message_t *)&ack_message);
+            // To Master Shire thread 0 aka Dispatcher (circbuff queue index is 0)
+            CM_To_MM_Iface_Unicast_Send(0, 0, (const cm_iface_message_t *)&ack_message);
 
             /* Wait for a KERNEL_DONE message from each Shire involved in the launch.
              * Even if there was an exception, that Shire will still send a KERNEL_DONE */
-            circ_buff_cb_t *cb = (circ_buff_cb_t *)(CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR +
-                                                    (1 + kernel_id) * CM_MM_IFACE_CIRCBUFFER_SIZE);
             uint32_t done_cnt = 0;
             bool had_exception = false;
             while (done_cnt < launch_num_shires) {
@@ -141,14 +144,9 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
                 /* Process as many requests as available */
                 while (1) {
                     cm_iface_message_t message;
+                    int8_t status;
 
-                    /* Peek the command size to pop */
-                    int8_t status = Circbuffer_Peek(cb, (void *)&message.header, 0, sizeof(message.header), L3_CACHE);
-                    if (status != STATUS_SUCCESS)
-                        break;
-
-                    /* Pop the command from circular buffer */
-                    status = Circbuffer_Pop(cb, &message, sizeof(message), L3_CACHE);
+                    status = CM_To_MM_Iface_Unicast_Receive(1 + kernel_id, &message);
                     if (status != STATUS_SUCCESS)
                         break;
 
@@ -176,14 +174,18 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
             } else {
                 completed_message.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE;
             }
+            completed_message.shire_id = get_shire_id();
             completed_message.kernel_id = kernel_id;
-            message_send_worker(get_shire_id(), get_hart_id(), (cm_iface_message_t *)&completed_message);
+            // To Master Shire thread 0 aka Dispatcher (circbuff queue index is 0)
+            CM_To_MM_Iface_Unicast_Send(0, 0, (const cm_iface_message_t *)&completed_message);
         } else {
             // Invalid config, send error message to the master minion
             cm_to_mm_message_kernel_launch_nack_t nack_message;
             nack_message.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_NACK;
-            nack_message.kernel_id = kernel_id;
-            message_send_worker(get_shire_id(), get_hart_id(), (cm_iface_message_t *)&nack_message);
+            nack_message.shire_id = get_shire_id();
+            nack_message.kernel_id = (uint32_t)kernel_id;
+            // To Master Shire thread 0 aka Dispatcher (circbuff queue index is 0)
+            CM_To_MM_Iface_Unicast_Send(0, 0, (const cm_iface_message_t *)&nack_message);
         }
     }
 }
@@ -363,7 +365,7 @@ dev_api_kernel_abort_response_result_e abort_kernel(kernel_id_t kernel_id)
             .data = { 0 },
         };
 
-        if (0 == broadcast_message_send_master(kernel_status[kernel_id].shire_mask, &message)) {
+        if (0 == MM_To_CM_Iface_Multicast_Send(kernel_status[kernel_id].shire_mask, &message)) {
             log_write(LOG_LEVEL_CRITICAL, "abort_kernel: aborted kernel %d\r\n", kernel_id);
             update_kernel_state(kernel_id, KERNEL_STATE_ABORTED);
 
