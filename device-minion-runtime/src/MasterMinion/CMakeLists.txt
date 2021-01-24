@@ -30,7 +30,6 @@ set(SOURCES
     src/kernel.c
     src/log.c
     src/shire.c
-    src/putchar.c
     src/build_configuration.c
     src/mailbox.c
     src/pcie_isr.c
@@ -51,6 +50,7 @@ set(SOURCES
     src/services/worker_iface.c
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/printf.c
+    ${SHARED_SRC_DIR}/putchar.c
     ${SHARED_SRC_DIR}/cm_to_mm_iface.c
     ${SHARED_SRC_DIR}/print_exception.c
     ${SHARED_SRC_DIR}/ringbuffer.c

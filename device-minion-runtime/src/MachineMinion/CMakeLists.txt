@@ -16,13 +16,10 @@ set(SOURCES
     src/swi.c
     src/trap_routine.c
     src/main.c
-    src/putchar.c
     src/pmu.c
-    src/log.c
     src/minion_cfg.c
     src/build_configuration.c
     ${SHARED_SRC_DIR}/serial.c
-    ${SHARED_SRC_DIR}/printf.c
     ${SHARED_SRC_DIR}/print_exception.c
     ${SHARED_SRC_DIR}/broadcast.c
     )
@@ -33,7 +30,6 @@ set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
 
 include_directories(include)
 include_directories(${SHARED_INC_DIRS})
-include_directories(${ESPERANTO_DEVICE_API_INCLUDE_DIR})
 
 if(EsperantoCryptoAPI_FOUND)
   include_directories(${CRYPTO_HEADERS})
@@ -42,8 +38,6 @@ else()
 endif(EsperantoCryptoAPI_FOUND)
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
-
-target_link_libraries(${TARGET_NAME}.elf device-mrt-trace)
 
 install(TARGETS ${TARGET_NAME}.elf
   EXPORT EsperantoDeviceMinionRuntimeTargets
