@@ -96,7 +96,7 @@ int64_t launch_kernel(uint64_t kw_base_id,
     // -sret to kernel_entry_addr in user mode
     asm volatile(
         "addi  sp, sp, -( 29 * 8 ) \n" // save context on stack (except ra, which is in clobber list)
-        "la    ra,  1f             \n" // set return address to instruction after sret
+        "la    ra,  fw_resume      \n" // set return address to instruction after sret
         "sd    x1,  0  * 8( sp )   \n"
         "sd    x3,  1  * 8( sp )   \n"
         "sd    x5,  2  * 8( sp )   \n"
@@ -126,18 +126,20 @@ int64_t launch_kernel(uint64_t kw_base_id,
         "sd    x29, 26 * 8( sp )   \n"
         "sd    x30, 27 * 8( sp )   \n"
         "sd    x31, 28 * 8( sp )   \n"
-        "mv    x10, %6             \n" // a0 = kernel_params_ptr
-        "mv    x11, %7             \n" // a1 = UNUSED
-        "sd    sp, %0              \n" // save sp to supervisor stack SP region
-        "mv    ra, %3              \n" // set return address to kernel_return_function
-        "mv    s0, %4              \n" // switch to kernel stack: set s0 (frame pointer) to kernel_stack_addr
+        "mv    x10, %[k_param_a0]  \n" // a0 = kernel_params_ptr
+        "mv    x11, %[k_param_a1]  \n" // a1 = UNUSED
+        "mv    x12, %[k_param_a2]  \n" // a2 = UNUSED
+        "mv    x13, %[k_param_a3]  \n" // a3 = UNUSED
+        "sd    sp, %[firmware_sp]  \n" // save sp to supervisor stack SP region (sscratch + 8)
+        "mv    ra, %[k_ret_addr]   \n" // set return address to kernel_return_function
+        "mv    s0, %[k_stack_addr] \n" // switch to kernel stack: set s0 (frame pointer) to kernel_stack_addr
         "addi  sp, s0, -32         \n" // switch to kernel stack: set sp to kernel stack after stack frame
         "sd    ra, 24(sp)          \n" // push ra
         "sd    s0, 16(sp)          \n" // push s0
         "li    x5, 0x100           \n" // bitmask to clear sstatus SPP=user
         "csrc  sstatus, x5         \n" // clear sstatus SPP
         "csrsi sstatus, 0x10       \n" // set sstatus UPIE
-        "csrw  sepc, %5            \n" // kernel address to jump to in user mode
+        "csrw  sepc, %[k_entry]    \n" // kernel address to jump to in user mode
         "mv    x3, zero            \n" // kernel must set its own gp if it uses it
         "mv    x4, zero            \n" // Wipe registers: don't leak state from S to U
         "mv    x5, zero            \n"
@@ -145,8 +147,6 @@ int64_t launch_kernel(uint64_t kw_base_id,
         "mv    x7, zero            \n"
         "mv    x8, zero            \n"
         "mv    x9, zero            \n"
-        "mv    x12, zero           \n"
-        "mv    x13, zero           \n"
         "mv    x14, zero           \n"
         "mv    x15, zero           \n"
         "mv    x16, zero           \n"
@@ -200,12 +200,19 @@ int64_t launch_kernel(uint64_t kw_base_id,
         "fcvt.s.w f31, x0          \n"
 #endif
         "sret                      \n" // ret to kernel_entry_addr in user mode
-        "1:                        \n" // firmware context resumes from here via return_from_kernel()
-        "mv    %1, a0              \n" // collect kernel return value
-        "csrr  %2, tensor_error    \n" // collect tensor_error
-        : "=m"(*firmware_sp), "=r"(return_value), "=r"(tensor_error)
-        : "r"(kernel_return_function), "r"(kernel_stack_addr), "r"(kernel_entry_addr),
-          "r"(kernel_params_ptr), "r"(0) /* UNUSED */
+        "fw_resume:                \n" // firmware context resumes from here via return_from_kernel()
+        "mv    %[return_value], a0 \n" // collect kernel return value
+        "csrr  %[tensor_error], tensor_error \n" // collect tensor_error
+        : [firmware_sp]  "=m"(*firmware_sp),
+          [return_value] "=r"(return_value),
+          [tensor_error] "=r"(tensor_error)
+        : [k_ret_addr]    "r"(kernel_return_function),
+          [k_stack_addr]  "r"(kernel_stack_addr),
+          [k_entry]       "r"(kernel_entry_addr),
+          [k_param_a0]    "r"(kernel_params_ptr),
+          [k_param_a1]    "r"(0), /* Unused for now */
+          [k_param_a2]    "r"(0), /* Unused for now */
+          [k_param_a3]    "r"(0)  /* Unused for now */
         : "ra" // SYSCALL_RETURN_FROM_KERNEL rets back to 1: so ra is clobbered. Rest of context is preserved.
     );
 
