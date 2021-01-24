@@ -31,17 +31,13 @@
 #include <string.h>
 #include <inttypes.h>
 
-//#define DEBUG_PRINT_HOST_MESSAGE
-//#define DEBUG_SEND_MESSAGES_TO_SP
-//#define DEBUG_FAKE_MESSAGE_FROM_HOST
-//#define DEBUG_FAKE_ABORT_FROM_HOST
+#define DEBUG_PRINT_HOST_MESSAGE
+
+// From third minion in the master shire, SQ workers are initialized
+// SQ worker ID 0 maps to minion thread 0, 1 to minion thread 1, etc.
+#define FIRST_SQ_WORKER_MINON 3
 
 static global_fcc_flag_t sq_worker_sync[MM_VQ_COUNT] = { 0 };
-
-#ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
-#include <esperanto/device-api/device_api.h>
-static void fake_message_from_host(void);
-#endif
 
 extern void message_init_master(void);
 static void master_thread(void);
@@ -73,11 +69,6 @@ static void handle_timer_events(void);
 
 #ifdef DEBUG_PRINT_HOST_MESSAGE
 static void print_host_message(const uint8_t *const buffer, int64_t length);
-#endif
-
-#ifdef DEBUG_SEND_MESSAGES_TO_SP
-static uint16_t lfsr(void);
-static uint16_t generate_message(uint8_t *const buffer);
 #endif
 
 extern void main2(void);
@@ -123,6 +114,15 @@ void __attribute__((noreturn)) main(void)
 #endif
 }
 
+// Sends a FCC_0 to the appropriate SQ worker thread (HART) for the sq_worker_id
+static inline void notify_sq_worker_thread(uint32_t sq_worker_id)
+{
+    const uint32_t minion = FIRST_SQ_WORKER_MINON + (sq_worker_id / 2);
+    const uint32_t thread = sq_worker_id % 2;
+
+    global_fcc_flag_notify(&sq_worker_sync[sq_worker_id], minion, thread);
+}
+
 static inline void check_and_handle_sp_and_worker_messages(void)
 {
     if (swi_flag) {
@@ -136,19 +136,6 @@ static inline void check_and_handle_sp_and_worker_messages(void)
     }
 }
 
-// From third minion in the master shire, SQ workers are initialized
-// SQ worker ID 0 maps to minion thread 0, 1 to minion thread 1, etc.
-#define FIRST_SQ_WORKER_MINON 3
-
-// Sends a FCC_0 to the appropriate SQ worker thread (HART) for the sq_worker_id
-static inline void notify_sq_worker_thread(uint32_t sq_worker_id)
-{
-    const uint32_t minion = FIRST_SQ_WORKER_MINON + (sq_worker_id / 2);
-    const uint32_t thread = sq_worker_id % 2;
-
-    global_fcc_flag_notify(&sq_worker_sync[sq_worker_id], minion, thread);
-}
-
 static inline void check_and_handle_host_messages_and_pcie_events(void)
 {
     // External interrupts
@@ -157,10 +144,6 @@ static inline void check_and_handle_host_messages_and_pcie_events(void)
 
         // Ensure flag clears before messages are handled
         asm volatile("fence");
-
-#ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
-        fake_message_from_host();
-#endif
 
         handle_messages_from_host();
         handle_pcie_events();
@@ -190,23 +173,20 @@ static void wait_all_shires_booted(uint64_t expected)
     }
 }
 
-static int32_t set_mm_ready_wait_sp_ready(void)
+static int32_t wait_sp_ready(void)
 {
     // TODO: Proper delay, or better to make this async? Or maybe from device interface regs?
     uint32_t timeout = 100000;
 
-    // Set MM (slave) ready, and wait for SP (master) ready.
-    MBOX_set_status(MBOX_SP, MBOX_SLAVE, MBOX_STATUS_READY);
-
     while (timeout > 0) {
         if (MBOX_get_status(MBOX_SP, MBOX_MASTER) == MBOX_STATUS_READY) {
-            log_write(LOG_LEVEL_INFO, "\nMM -> SP synced !\n");
+            log_write(LOG_LEVEL_INFO, "\nSP synced!\n");
             return SP_MM_HANDSHAKE_POLL_SUCCESS;
         }
         --timeout;
     }
     // If we reach this point, the SP did reach sync point
-    log_write(LOG_LEVEL_ERROR, "\nMM Ready, SP Not Ready !\n");
+    log_write(LOG_LEVEL_ERROR, "\nSP not ready!\n");
     return SP_MM_HANDSHAKE_POLL_TIMEOUT;
 }
 
@@ -333,7 +313,8 @@ static void __attribute__((noreturn)) master_thread(void)
     log_write(LOG_LEVEL_CRITICAL, "MM VQs Ready!\r\n");
 
     // Set MM (Slave) Ready, and wait for SP (Master) Ready
-    if (set_mm_ready_wait_sp_ready() != SP_MM_HANDSHAKE_POLL_SUCCESS) {
+    MBOX_set_status(MBOX_SP, MBOX_SLAVE, MBOX_STATUS_READY);
+    if (wait_sp_ready() != SP_MM_HANDSHAKE_POLL_SUCCESS) {
         // Set Device Interface Register to communicate error to Host
         g_mm_dev_intf_reg->status = MM_DEV_INTF_MM_BOOT_STATUS_MM_SP_MB_TIMEOUT;
     }
@@ -342,32 +323,8 @@ static void __attribute__((noreturn)) master_thread(void)
     MBOX_init();
     log_write(LOG_LEVEL_CRITICAL, "MB initialized\r\n");
 
-#ifdef DEBUG_SEND_MESSAGES_TO_SP
-    static uint8_t buffer[MBOX_MAX_MESSAGE_LENGTH]
-        __attribute__((aligned(MBOX_BUFFER_ALIGNMENT))) = { 0 };
-    uint16_t length = generate_message(buffer);
-#endif
-
     // Wait for a message from the host, worker minion, PCI-E, etc.
     while (1) {
-#ifdef DEBUG_SEND_MESSAGES_TO_SP
-        MBOX_update_status(MBOX_SP);
-
-        log_write(LOG_LEVEL_DEBUG, "Sending message to SP, length = %" PRId16 "\r\n", length);
-
-        int64_t result = MBOX_send(MBOX_SP, buffer, length);
-
-        if (result == 0) {
-            length = generate_message(buffer);
-        } else {
-            log_write(LOG_LEVEL_DEBUG, "MBOX_send error %d\r\n, result");
-        }
-#endif
-
-#ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
-        pcie_interrupt_flag = true;
-#endif
-
         asm volatile("csrci sstatus, 0x2"); // Disable supervisor interrupts
 
         bool event_pending = swi_flag || pcie_interrupt_flag;
@@ -383,58 +340,6 @@ static void __attribute__((noreturn)) master_thread(void)
         handle_timer_events();
     }
 }
-
-#ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
-static void fake_message_from_host(void)
-{
-    const kernel_id_t kernel_id = KERNEL_ID_1;
-
-    const kernel_state_t kernel_state = get_kernel_state(kernel_id);
-
-    // For now, fake host launches kernel 0 any time it's unused.
-    if (kernel_state == KERNEL_STATE_UNUSED) {
-        const struct kernel_launch_cmd_t launch_cmd = {
-            .command_info = {
-                .message_id = MESSAGE_ID_KERNEL_LAUNCH,
-                .command_id = 0,
-                .host_timestamp = 0,
-                .device_timestamp_mtime = 0,
-                .stream_id = 0
-            },
-            .kernel_params = {
-                .tensor_a = 0,
-                .tensor_b = 0,
-                .tensor_c = 0,
-                .tensor_d = 0,
-                .tensor_e = 0,
-                .tensor_f = 0,
-                .tensor_g = 0,
-                .tensor_h = 0,
-                .kernel_id = kernel_id
-            },
-            .kernel_info = {
-                .compute_pc = KERNEL_UMODE_ENTRY,
-                .uber_kernel_nodes = 0, // unused
-                .shire_mask = 0x1, //0xFFFFFFFF
-            },
-            .uber_kernel = 0 // Don't care, unused
-        };
-
-        log_write(LOG_LEVEL_DEBUG, "faking kernel launch message fom host\r\n");
-
-        launch_kernel(&launch_cmd);
-    }
-
-#ifdef DEBUG_FAKE_ABORT_FROM_HOST
-    if ((kernel_state == KERNEL_STATE_LAUNCHED)) || (kernel_state == KERNEL_STATE_RUNNING))
-        {
-            log_write(LOG_LEVEL_CRITICAL, "faking kernel abort message fom host\r\n");
-
-            abort_kernel(kernel_id);
-        }
-#endif
-}
-#endif
 
 static int8_t handle_message_from_host_sq(uint32_t sq_idx)
 {
@@ -500,7 +405,6 @@ static void handle_message_from_host(int64_t length, uint8_t *buffer)
         handle_device_api_non_privileged_message_from_host(message_id, buffer);
     } else {
         log_write(LOG_LEVEL_ERROR, "Invalid message id: %" PRIu64 "\r\n", *message_id);
-
 #ifdef DEBUG_PRINT_HOST_MESSAGE
         print_host_message(buffer, length);
 #endif
@@ -528,22 +432,8 @@ static void handle_messages_from_sp(void)
 static void handle_message_from_sp(int64_t length, const uint8_t *const buffer)
 {
     log_write(LOG_LEVEL_INFO, "Received message from SP, length = %" PRId64 "\r\n", length);
-
-#ifdef DEBUG_SEND_MESSAGES_TO_SP
-    static uint8_t receive_data = 0;
-
-    for (int64_t i = 0; i < length; i++) {
-        uint8_t expected = receive_data++;
-
-        if (buffer[i] != expected) {
-            log_write(LOG_LEVEL_INFO,
-                      "message[%" PRId64 "] = 0x%02" PRIx8 " expected 0x%02" PRIx8 "\r\n", i,
-                      buffer[i], expected);
-        }
-    }
-#else
     (void)buffer;
-#endif
+    // TODO: Handle messages
 }
 
 static void dispatcher_handle_messages_on_unicast(void)
@@ -660,37 +550,5 @@ static void print_host_message(const uint8_t *const buffer, int64_t length)
         log_write(LOG_LEVEL_INFO, "message[%" PRId64 "] = 0x%016" PRIx64 "\r\n", i,
                   ((const uint64_t *const)(const void *const)buffer)[i]);
     }
-}
-#endif
-
-#ifdef DEBUG_SEND_MESSAGES_TO_SP
-static uint16_t lfsr(void)
-{
-    static uint16_t lfsr = 0xACE1u; /* Any nonzero start state will work. */
-
-    for (uint64_t i = 0; i < 16; i++) {
-        lfsr ^= (uint16_t)(lfsr >> 7U);
-        lfsr ^= (uint16_t)(lfsr << 9U);
-        lfsr ^= (uint16_t)(lfsr >> 13U);
-    }
-
-    return lfsr;
-}
-
-// Generates a random length message with a predictable pattern
-uint16_t generate_message(uint8_t *const buffer)
-{
-    static uint8_t transmit_data = 0;
-    uint16_t length;
-
-    do {
-        length = lfsr() & 0xFF;
-    } while ((length == 0) || (length > MBOX_MAX_MESSAGE_LENGTH));
-
-    for (uint64_t i = 0; i < length; i++) {
-        buffer[i] = transmit_data++;
-    }
-
-    return length;
 }
 #endif
