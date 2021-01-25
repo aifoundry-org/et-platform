@@ -28,6 +28,18 @@
 */
 #define  DMAW_MAX_HART_ID      DMAW_BASE_HART_ID + DMAW_NUM
 
+/*! \def DMAW_FOR_READ
+    \brief A macro that provides HART ID for the DMAW that processes
+    DMA read commands
+*/
+#define  DMAW_FOR_READ         DMAW_BASE_HART_ID
+
+/*! \def DMAW_FOR_WRITE
+    \brief A macro that provides HART ID for the DMAW that processes
+    DMA write commands
+*/
+#define  DMAW_FOR_WRITE        DMAW_FOR_READ+1
+
 /*! \def DMA_CHANNEL_AVAILABLE
     \brief DMA channel available.
 */

@@ -24,7 +24,6 @@
 /***********************************************************************/
 #include "workers/sqw.h"
 #include "services/log1.h"
-#include "services/worker_iface.h"
 #include "services/host_iface.h"
 #include "services/host_cmd_hdlr.h"
 #include <esperanto/device-apis/device_apis_message_types.h>

@@ -24,10 +24,10 @@
 #include "workers/sqw.h"
 #include "workers/kw.h"
 #include "workers/dmaw.h"
+#include "workers/cw.h"
 #include "services/host_iface.h"
 #include "services/host_cmd_hdlr.h"
 #include "services/sp_iface.h"
-#include "services/worker_iface.h"
 #include "services/log1.h"
 #include "services/lock.h"
 #include "drivers/interrupts.h"
@@ -43,6 +43,9 @@
 extern spinlock_t Launch_Lock;
 
 extern bool Host_Iface_Interrupt_Flag;
+
+/* TODO: This shoul dbe included using a proper header during clean up */
+extern void message_init_master(void);
 
 /************************************************************************
 *
@@ -65,12 +68,6 @@ extern bool Host_Iface_Interrupt_Flag;
 ***********************************************************************/
 void Dispatcher_Launch(uint32_t hart_id)
 {
-    uint64_t temp;
-    volatile minion_fw_boot_config_t *boot_config =
-        (volatile minion_fw_boot_config_t *)FW_MINION_FW_BOOT_CONFIG;
-    uint64_t functional_shires =
-        boot_config->minion_shires & ((1ULL << NUM_SHIRES) - 1);
-
     /* Initialize Serial Interface */
     SERIAL_init(UART0);
 
@@ -82,88 +79,44 @@ void Dispatcher_Launch(uint32_t hart_id)
     Log_Write(LOG_LEVEL_DEBUG, "%s",
         "Dispatcher: Interrupts initialized \r\n");
 
-    /* reset PMC cycles counter */
+    /* Reset PMC cycles counter */
     PMC_RESET_CYCLES_COUNTER;
 
-    /* Initialize Workers */
+    /* TODO: Needs to be updated to proper coding standard and abstractions */
+    message_init_master();
+
+    /* Init FCCs for current minion */
+    init_fcc(FCC_0);
+    init_fcc(FCC_1);
+
+    /* Initialize Computer Workers */
+    CW_Init();
+
+    /* Initialize Master Shire Workers */
     SQW_Init();
     KW_Init();
     DMAW_Init();
 
-    /* Host, and SP Interface Initializeation */
+    /* Initialize Host Submission Queue and Completion Queue Interface */
     Host_Iface_SQs_Init();
     Host_Iface_CQs_Init();
+
+    /* Initialize Service Processor Submission Queue and Completion Queue Interface */
     SP_Iface_SQs_Init();
     SP_Iface_CQs_Init();
-
-    /* Initialize FIFO buffers to workers */
-    Worker_Iface_Init(TO_KW_FIFO);
 
     /* Initialize Device Interface Registers */
     DIR_Init();
     Log_Write(LOG_LEVEL_DEBUG, "%s",
         "Dispatcher: Device Interface Registers initialized \r\n");
 
-    /* Init FCCs for current minion */
-    init_fcc(FCC_0);
-    init_fcc(FCC_1);
-
-    /* Set currently active/functional shires */
-    Shire_Set_Active(functional_shires);
-
-    /* TODO: This should be a service provided by interrupts.h */
-    /* Enable supervisor external and software interrupts */
-    asm volatile("li    %0, 0x202    \n"
-                 "csrs  sie, %0      \n"
-                 "csrsi sstatus, 0x2 \n"
-                 : "=&r"(temp));
-
-#if 0 /* Please do not review code inside this #if, this is WIP */
-    /* Bring up Compute Minions */
-    syscall(SYSCALL_CONFIGURE_COMPUTE_MINION, functional_shires,
-        0x1u, 0);
-    Log_Write(LOG_LEVEL_DEBUG, "%s",
-        "Dispatcher: Compute Minions configured \r\n");
-
-
-    /* Block here till all shires are booted */
-    while(1)
-    {
-        if(Shire_Check_All_Are_Booted(functional_shires))
-            break;
-
-        INTERRUPTS_DISABLE_SUPERVISOR;
-
-        if (!swi_flag)
-        {
-            WAIT_FOR_INTERRUPTS;
-        }
-
-        INTERRUPTS_ENABLE_SUPERVISOR;
-
-        /* TODO: This should be a service provided by SWI component */
-        if (swi_flag)
-        {
-            swi_flag = false;
-
-            // Ensure flag clears before messages are handled
-            asm volatile("fence");
-
-            /* Check for and handle Compute Minion messages */
-            CW_Message_Processing();
-
-            /* Check for and handle SP messages */
-        }
-        /* Check for and hendle Timer events */
-    }
-#endif
-
+    /* Release Master Shire Workers */
     Log_Write(LOG_LEVEL_DEBUG, "%s",
         "Dispatcher: Releasing workers \r\n");
-
     release_local_spinlock(&Launch_Lock);
 
-    /* Update status to indicate MM is ready to use */
+    /* Mark Master Minion Status as Ready */
+    /* Now able to receive and process commands from host .. */
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_READY);
 
     Log_Write(LOG_LEVEL_DEBUG, "%s",
