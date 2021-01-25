@@ -194,33 +194,7 @@
 /*! \def DMAW_NUM
     \brief Number of DMA Workers
 */
-#define DMAW_NUM              1
-
-/*! \def CQW_BASE_HART_ID
-    \brief Base HART ID for the Completion Queue Worker
-*/
-#define CQW_BASE_HART_ID      2060U
-
-/*! \def CQW_NUM
-    \brief Number of DMA Workers
-    \warning DO NOT MODIFY!
-*/
-#define CQW_NUM               1
-
-/*! \def MM_CW_FIFO_SIZE
-    \brief Completion Worker's input command FIFO buffer size
-*/
-#define MM_CW_FIFO_SIZE       1024U
-
-/*! \def MM_KW_FIFO_SIZE
-    \brief Kernel Worker's input command FIFO buffer size
-*/
-#define MM_KW_FIFO_SIZE       1024U
-
-/*! \def MM_DMAW_FIFO_SIZE
-    \brief DMA Worker's input command FIFO buffer size
-*/
-#define MM_DMAW_FIFO_SIZE     1024U
+#define DMAW_NUM              2
 
 /***************************************************/
 /* Definitions to locate and manage MM to SP SQ/CQ */

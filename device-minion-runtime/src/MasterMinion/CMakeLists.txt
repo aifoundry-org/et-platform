@@ -39,6 +39,7 @@ set(SOURCES
     src/workers/sqw.c
     src/workers/dmaw.c
     src/workers/kw.c
+    src/workers/cw.c
     src/drivers/console.c
     src/drivers/interrupts.c
     src/drivers/shires.c
@@ -47,7 +48,6 @@ set(SOURCES
     src/services/host_cmd_hdlr.c
     src/services/sp_iface.c
     src/services/sp_cmd_hdlr.c
-    src/services/worker_iface.c
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/printf.c
     ${SHARED_SRC_DIR}/putchar.c

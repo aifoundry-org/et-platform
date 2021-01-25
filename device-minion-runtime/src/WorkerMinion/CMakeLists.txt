@@ -59,7 +59,7 @@ install(
 # Refactored code: IMPLEMENTATION_BYPASS switch
 add_riscv_executable(${TARGET_NAME}New ${SOURCES})
 
-target_compile_definitions(${TARGET_NAME}New.elf PUBLIC -DMASTER_MINION=1)
+target_compile_definitions(${TARGET_NAME}New.elf PUBLIC -DIMPLEMENTATION_BYPASS=1)
 
 target_link_libraries(${TARGET_NAME}New.elf device-mrt-trace)
 
