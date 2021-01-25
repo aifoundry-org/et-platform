@@ -10,8 +10,6 @@
 #include "et_io.h"
 #include "et_dma.h"
 #include "et_vqueue.h"
-#include "hal_device.h"
-#include "et_layout.h"
 #include "et_pci_dev.h"
 
 // TODO: Enable/Remove while implementing DMA Scatter/Gather

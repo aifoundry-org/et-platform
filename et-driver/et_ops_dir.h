@@ -58,12 +58,12 @@ enum et_ops_ddr_region_map {
  * Holds the information of Master Minion DDR region.
  */
 struct et_ops_ddr_region {
+	u32 reserved;
 	u16 attr;
 	u16 bar;
 	u64 offset;
 	u64 devaddr;
 	u64 size;
-	u32 reserved;
 } __attribute__((__packed__));
 
 /*
@@ -98,7 +98,7 @@ struct et_ops_dir {
 	u32 size;
 	struct et_ops_vqueue vq_ops;
 	struct et_ops_ddr_regions ddr_regions;
-	u32 reserved;
+	u32 intrpt_trg_offset;
 	s32 status;
 } __attribute__((__packed__));
 

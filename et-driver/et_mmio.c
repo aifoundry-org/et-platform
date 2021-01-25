@@ -8,147 +8,78 @@
 #include "et_mmio.h"
 #include "et_pci_dev.h"
 
-int et_mmio_iomem_idx(uint64_t soc_addr, uint64_t count)
+static struct et_ddr_region *lookup_ddr_region(struct et_pci_dev *et_dev,
+					       bool is_mgmt, u64 soc_addr,
+					       size_t count)
 {
 	int i;
-	uint64_t reg_begin, reg_end;
-	uint64_t soc_end = soc_addr + count;
+	u64 reg_begin, reg_end;
+	u64 soc_end = soc_addr + count;
+	struct et_ddr_region **ddr_regions;
+	u32 num_regions;
 
-	//integer overflow check
+	// Integer overflow check
 	if (soc_end < soc_addr) {
-		pr_err("Invalid soc_addr + size (0x%010llx + 0x%llx)\n",
+		pr_err("Invalid soc_addr + size (0x%010llx + 0x%lx)\n",
 		       soc_addr, count);
-		return -EINVAL;
+		return NULL;
 	}
 
-	for (i = 0; i < IOMEM_REGIONS; ++i) {
-		reg_begin = BAR_MAPPINGS[i].soc_addr;
-		reg_end = reg_begin + BAR_MAPPINGS[i].size;
-
-		if (soc_addr >= reg_begin && soc_end <= reg_end) {
-			return i;
-		}
+	if (is_mgmt) {
+		ddr_regions = et_dev->mgmt.ddr_regions;
+		num_regions = et_dev->mgmt.num_regions;
+	} else {
+		ddr_regions = et_dev->ops.ddr_regions;
+		num_regions = et_dev->ops.num_regions;
 	}
 
-	//Didn't find any regions matching parameters
-	return -EINVAL;
+	if (!ddr_regions)
+		return NULL;
+
+	for (i = 0; i < num_regions; ++i) {
+		reg_begin = ddr_regions[i]->soc_addr;
+		reg_end = reg_begin + ddr_regions[i]->size;
+
+		if (soc_addr >= reg_begin && soc_end <= reg_end)
+			return ddr_regions[i];
+	}
+
+	// Didn't find any region matching parameters
+	return NULL;
 }
 
-ssize_t et_mmio_write_from_user(const char __user *buf, size_t count,
-				loff_t *pos, struct et_pci_dev *et_dev)
-{
-	int iomem_idx;
-	ssize_t rv;
-	void __iomem *iomem;
-	uint64_t soc_addr = (uint64_t)*pos;
-	uint64_t off;
-	uint8_t *kern_buf;
-
-	//Bounds check and lookup BAR mapping
-	iomem_idx = et_mmio_iomem_idx(soc_addr, count);
-	if (iomem_idx < 0) {
-		return iomem_idx;
-	}
-	iomem = et_dev->iomem[iomem_idx];
-	off = soc_addr - BAR_MAPPINGS[iomem_idx].soc_addr;
-
-	//Pull user's buffer to kernel
-	kern_buf = kmalloc(count, GFP_KERNEL);
-	if (!kern_buf) {
-		pr_err("failed to kmalloc\n");
-		return -ENOMEM;
-	}
-
-	rv = copy_from_user(kern_buf, buf, count);
-	if (rv) {
-		pr_err("failed to copy from user\n");
-		goto error;
-	}
-
-	et_iowrite(iomem, off, kern_buf, count);
-
-	*pos += count;
-	rv = count;
-
-error:
-	kfree(kern_buf);
-
-	return rv;
-}
-
-ssize_t et_mmio_read_to_user(char __user *buf, size_t count, loff_t *pos,
-			     struct et_pci_dev *et_dev)
-{
-	int iomem_idx;
-	ssize_t rv;
-	void __iomem *iomem;
-	uint64_t soc_addr = (uint64_t)*pos;
-	uint64_t off;
-	uint8_t *kern_buf;
-
-	//Bounds check and lookup BAR mapping
-	iomem_idx = et_mmio_iomem_idx(soc_addr, count);
-	if (iomem_idx < 0) {
-		return iomem_idx;
-	}
-	iomem = et_dev->iomem[iomem_idx];
-	off = soc_addr - BAR_MAPPINGS[iomem_idx].soc_addr;
-
-	//Buffer incoming data
-	kern_buf = kmalloc(count, GFP_KERNEL);
-	if (!kern_buf) {
-		pr_err("failed to kmalloc\n");
-		return -ENOMEM;
-	}
-
-	et_ioread(iomem, off, kern_buf, count);
-
-	rv = copy_to_user(buf, kern_buf, count);
-	if (rv) {
-		pr_err("failed to copy to user\n");
-		goto error;
-	}
-
-	rv = count;
-
-error:
-	kfree(kern_buf);
-
-	return rv;
-}
-
-ssize_t et_mmio_write_to_device(struct et_pci_dev *et_dev,
+ssize_t et_mmio_write_to_device(struct et_pci_dev *et_dev, bool is_mgmt,
 				const char __user *buf, size_t count,
 				u64 soc_addr)
 {
-	int iomem_idx;
 	ssize_t rv;
-	void __iomem *iomem;
-	u64 off;
+	loff_t offset;
 	u8 *kern_buf;
+	struct et_ddr_region *ddr_region;
 
-	// Bounds check and lookup BAR mapping
-	iomem_idx = et_mmio_iomem_idx(soc_addr, count);
-	if (iomem_idx < 0) {
-		return iomem_idx;
+	// Lookup DDR region that matches parameters
+	ddr_region = lookup_ddr_region(et_dev, is_mgmt, soc_addr, count);
+	if (!ddr_region) {
+		pr_err("lookup_ddr_region failed, out of bound soc_addr: 0x%010llx",
+		       soc_addr);
+		return -EINVAL;
 	}
-	iomem = et_dev->iomem[iomem_idx];
-	off = soc_addr - BAR_MAPPINGS[iomem_idx].soc_addr;
+	offset = soc_addr - ddr_region->soc_addr;
 
-	//Pull user's buffer to kernel
 	kern_buf = kmalloc(count, GFP_KERNEL);
 	if (!kern_buf) {
 		pr_err("failed to kmalloc\n");
 		return -ENOMEM;
 	}
 
+	// Copy user's buffer to kernel
 	rv = copy_from_user(kern_buf, buf, count);
 	if (rv) {
 		pr_err("failed to copy from user\n");
 		goto error;
 	}
 
-	et_iowrite(iomem, off, kern_buf, count);
+	et_iowrite(ddr_region->mapped_baseaddr, offset, kern_buf, count);
 
 	rv = count;
 
@@ -158,31 +89,31 @@ error:
 	return rv;
 }
 
-ssize_t et_mmio_read_from_device(struct et_pci_dev *et_dev, char __user *buf,
-				 size_t count, u64 soc_addr)
+ssize_t et_mmio_read_from_device(struct et_pci_dev *et_dev, bool is_mgmt,
+				 char __user *buf, size_t count, u64 soc_addr)
 {
-	int iomem_idx;
 	ssize_t rv;
-	void __iomem *iomem;
-	u64 off;
+	loff_t offset;
 	u8 *kern_buf;
+	struct et_ddr_region *ddr_region;
 
-	//Bounds check and lookup BAR mapping
-	iomem_idx = et_mmio_iomem_idx(soc_addr, count);
-	if (iomem_idx < 0) {
-		return iomem_idx;
+	// Lookup DDR region that matches parameters
+	ddr_region = lookup_ddr_region(et_dev, is_mgmt, soc_addr, count);
+	if (!ddr_region) {
+		pr_err("lookup_ddr_region failed, out of bound soc_addr: 0x%010llx",
+		       soc_addr);
+		return -EINVAL;
 	}
-	iomem = et_dev->iomem[iomem_idx];
-	off = soc_addr - BAR_MAPPINGS[iomem_idx].soc_addr;
+	offset = soc_addr - ddr_region->soc_addr;
 
-	//Buffer incoming data
+	// Buffer incoming data
 	kern_buf = kmalloc(count, GFP_KERNEL);
 	if (!kern_buf) {
 		pr_err("failed to kmalloc\n");
 		return -ENOMEM;
 	}
 
-	et_ioread(iomem, off, kern_buf, count);
+	et_ioread(ddr_region->mapped_baseaddr, offset, kern_buf, count);
 
 	rv = copy_to_user(buf, kern_buf, count);
 	if (rv) {

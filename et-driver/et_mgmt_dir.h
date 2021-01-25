@@ -64,12 +64,12 @@ enum et_mgmt_ddr_region_map {
  * Holds the information of Management Device DDR region.
  */
 struct et_mgmt_ddr_region {
+	u32 reserved;
 	u16 attr;
 	u16 bar;
 	u64 offset;
 	u64 devaddr;
 	u64 size;
-	u32 reserved;
 } __attribute__((__packed__));
 
 /*
@@ -79,6 +79,16 @@ struct et_mgmt_ddr_regions {
 	u32 reserved;
 	u32 num_regions;
 	struct et_mgmt_ddr_region regions[MGMT_DDR_REGION_MAP_NUM];
+} __attribute__((__packed__));
+
+/*
+ * Holds the information of Device's interrupt trigger region.
+ */
+struct et_mgmt_intrpt_region {
+	u8 reserved[6];
+	u16 bar;
+	u64 offset;
+	u64 size;
 } __attribute__((__packed__));
 
 /*
@@ -106,7 +116,8 @@ struct et_mgmt_dir {
 	u64 minion_shires;
 	struct et_mgmt_vqueue vq_mgmt;
 	struct et_mgmt_ddr_regions ddr_regions;
-	u32 reserved;
+	struct et_mgmt_intrpt_region intrpt_region;
+	u32 intrpt_trg_offset;
 	s32 status;
 } __attribute__((__packed__));
 

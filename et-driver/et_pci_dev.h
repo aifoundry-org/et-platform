@@ -4,32 +4,25 @@
 #include <linux/miscdevice.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
+#include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include "et_vqueue.h"
-#include "et_dma.h"
-
-// MAP 3/5 Regions for now
-#define IOMEM_REGIONS 3
 
 enum et_iomem_r {
 	IOMEM_R_PU_DIR_PC_MM = 0,
 	IOMEM_R_PU_DIR_PC_SP,
-	IOMEM_R_PU_TRG_PCIE,
-	IOMEM_R_PCIE_USRESR,
-	IOMEM_R_PU_SRAM_HI
+	IOMEM_REGIONS
 };
 
 struct et_bar_mapping {
-	u64 soc_addr;
-	u64 size;
-	u64 bar_offset;
 	u32 bar;
-	bool strictly_order_access;
+	u64 bar_offset;
+	u64 size;
 };
 
-extern const struct et_bar_mapping BAR_MAPPINGS[];
+extern const struct et_bar_mapping DIR_MAPPINGS[];
 
 struct et_ddr_region {
 	void __iomem *mapped_baseaddr;
@@ -42,6 +35,7 @@ struct et_ops_dev {
 	struct miscdevice misc_ops_dev;
 	bool is_ops_open;
 	spinlock_t ops_open_lock;	/* serializes access to is_ops_open */
+	void __iomem *dir;
 
 	struct et_squeue **sq_pptr;
 	struct et_cqueue **cq_pptr;
@@ -58,6 +52,7 @@ struct et_mgmt_dev {
 	struct miscdevice misc_mgmt_dev;
 	bool is_mgmt_open;
 	spinlock_t mgmt_open_lock;	/* serializes access to is_mgmt_open */
+	void __iomem *dir;
 
 	struct et_squeue **sq_pptr;
 	struct et_cqueue **cq_pptr;
@@ -73,11 +68,10 @@ struct et_pci_dev {
 	u8 dev_index;
 	struct pci_dev *pdev;
 
-	void __iomem *iomem[IOMEM_REGIONS];
-
 	struct et_ops_dev ops;
 	struct et_mgmt_dev mgmt;
 
+	void __iomem *r_pu_trg_pcie;
 	u32 num_irq_vecs;
 	u32 used_irq_vecs;
 
@@ -89,9 +83,8 @@ struct et_pci_dev {
 	spinlock_t abort_lock;		/* serializes access to aborting */
 };
 
-bool is_bar_prefetchable(struct et_pci_dev *et_dev, u8 bar_no);
 int et_map_bar(struct et_pci_dev *et_dev, const struct et_bar_mapping *bm_info,
-	       void __iomem **bar_map_ptr);
-void et_unmap_bar(void __iomem *bar_map_ptr);
+	       void __iomem **mapped_addr_ptr);
+void et_unmap_bar(void __iomem *mapped_addr);
 
 #endif

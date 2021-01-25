@@ -22,12 +22,6 @@
 #include "et_circbuffer.h"
 #include "et_device_api.h"
 
-/*
- * Register offsets, per hardware implementation.
- */
-#define IPI_TRIGGER_OFFSET 0
-#define MMM_INT_INC_OFFSET 4
-
 struct et_pci_dev;
 
 struct et_msg_node {

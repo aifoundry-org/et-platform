@@ -13,6 +13,7 @@
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 
+#include "et_dma.h"
 #include "et_io.h"
 #include "et_vqueue.h"
 #include "et_pci_dev.h"
@@ -280,8 +281,7 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 
 	if (is_mgmt) {
 		vq_common = &et_dev->mgmt.vq_common;
-		dir_mgmt = (struct et_mgmt_dir *)et_dev->
-			   iomem[IOMEM_R_PU_DIR_PC_SP];
+		dir_mgmt = (struct et_mgmt_dir *)et_dev->mgmt.dir;
 
 		rv = (s32)ioread32(&dir_mgmt->status);
 		if (rv < MGMT_BOOT_STATUS_DEV_READY) {
@@ -290,6 +290,12 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 				rv);
 			return -EBUSY;
 		}
+
+		// Set Mgmt device interrupt address
+		if (!et_dev->r_pu_trg_pcie)
+			return -EINVAL;
+		vq_common->interrupt_addr = et_dev->r_pu_trg_pcie
+			+ ioread32(&dir_mgmt->intrpt_trg_offset);
 
 		// Perform optimized read of VQ fields from DIRs
 		et_ioread(dir_mgmt, offsetof(struct et_mgmt_dir, vq_mgmt),
@@ -303,10 +309,6 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		vq_common->sq_size = vq_mgmt.per_sq_size;
 		vq_common->cq_size = vq_mgmt.per_cq_size;
 
-		// Set Mgmt device interrupt address
-		vq_common->interrupt_addr = et_dev->iomem[IOMEM_R_PU_TRG_PCIE]
-					    + IPI_TRIGGER_OFFSET;
-
 		// Initialize Mgmt device workqueue
 		snprintf(wq_name, sizeof(wq_name), "%s_mgmt_wq%d",
 			 dev_name(&et_dev->pdev->dev), et_dev->dev_index);
@@ -318,12 +320,9 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		bm_info.bar			= vq_mgmt.bar;
 		bm_info.bar_offset		= vq_mgmt.sq_offset;
 		bm_info.size			= vq_mgmt.bar_size;
-		bm_info.strictly_order_access	=
-			is_bar_prefetchable(et_dev, bm_info.bar);
 	} else {
 		vq_common = &et_dev->ops.vq_common;
-		dir_ops = (struct et_ops_dir *)et_dev->
-			  iomem[IOMEM_R_PU_DIR_PC_MM];
+		dir_ops = (struct et_ops_dir *)et_dev->ops.dir;
 
 		rv = (s32)ioread32(&dir_ops->status);
 		if (rv < OPS_BOOT_STATUS_VQ_READY) {
@@ -332,6 +331,12 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 				rv);
 			return -EBUSY;
 		}
+
+		// Set Mgmt device interrupt address
+		if (!et_dev->r_pu_trg_pcie)
+			return -EINVAL;
+		vq_common->interrupt_addr = et_dev->r_pu_trg_pcie
+			+ ioread32(&dir_ops->intrpt_trg_offset);
 
 		// Perform optimized read of VQ fields from DIRs
 		et_ioread(dir_ops, offsetof(struct et_ops_dir, vq_ops),
@@ -345,10 +350,6 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		vq_common->sq_size = vq_ops.per_sq_size;
 		vq_common->cq_size = vq_ops.per_cq_size;
 
-		// Set Ops device interrupt address
-		vq_common->interrupt_addr = et_dev->iomem[IOMEM_R_PU_TRG_PCIE]
-					    + MMM_INT_INC_OFFSET;
-
 		// Initialize Ops device workqueue
 		snprintf(wq_name, sizeof(wq_name), "%s_ops_wq%d",
 			 dev_name(&et_dev->pdev->dev), et_dev->dev_index);
@@ -360,8 +361,6 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		bm_info.bar			= vq_ops.bar;
 		bm_info.bar_offset		= vq_ops.sq_offset;
 		bm_info.size			= vq_ops.bar_size;
-		bm_info.strictly_order_access	=
-			is_bar_prefetchable(et_dev, bm_info.bar);
 	}
 
 	// Map virtual queues region

@@ -30,11 +30,9 @@
 #include "et_io.h"
 #include "et_dma.h"
 #include "et_ioctl.h"
-#include "et_layout.h"
 #include "et_vqueue.h"
 #include "et_mmio.h"
 #include "et_pci_dev.h"
-#include "hal_device.h"
 #include "et_mgmt_dir.h"
 #include "et_ops_dir.h"
 
@@ -207,7 +205,7 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 		if (copy_from_user(&mmio_info, (void __user *)arg,
 				   _IOC_SIZE(cmd)))
 			return -EINVAL;
-		return et_mmio_write_to_device(et_dev,
+		return et_mmio_write_to_device(et_dev, false /* ops_dev */,
 					       (void __user *)mmio_info.ubuf,
 					       mmio_info.size,
 					       mmio_info.devaddr);
@@ -216,7 +214,7 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 		if (copy_from_user(&mmio_info, (void __user *)arg,
 				   _IOC_SIZE(cmd)))
 			return -EINVAL;
-		return et_mmio_read_from_device(et_dev,
+		return et_mmio_read_from_device(et_dev, false /* ops_dev */,
 						(void __user *)mmio_info.ubuf,
 						mmio_info.size,
 						mmio_info.devaddr);
@@ -401,7 +399,7 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 		if (copy_from_user(&mmio_info, (void __user *)arg,
 				   _IOC_SIZE(cmd)))
 			return -EINVAL;
-		return et_mmio_write_to_device(et_dev,
+		return et_mmio_write_to_device(et_dev, true /* mgmt_dev */,
 					       (void __user *)mmio_info.ubuf,
 					       mmio_info.size,
 					       mmio_info.devaddr);
@@ -410,7 +408,7 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 		if (copy_from_user(&mmio_info, (void __user *)arg,
 				   _IOC_SIZE(cmd)))
 			return -EINVAL;
-		return et_mmio_read_from_device(et_dev,
+		return et_mmio_read_from_device(et_dev, true /* mgmt_dev */,
 						(void __user *)mmio_info.ubuf,
 						mmio_info.size,
 						mmio_info.devaddr);
@@ -623,6 +621,7 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	int rv, i, ddr_cnt_map;
 	struct et_mgmt_dir *dir_mgmt;
 	struct et_mgmt_ddr_regions ddr_mgmt;
+	struct et_mgmt_intrpt_region intrpt_mgmt;
 	struct et_bar_mapping bm_info;
 	bool ddr_ready = false;
 	u8 *mem;
@@ -630,7 +629,13 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	et_dev->mgmt.is_mgmt_open = false;
 	spin_lock_init(&et_dev->mgmt.mgmt_open_lock);
 
-	dir_mgmt = (struct et_mgmt_dir *)et_dev->iomem[IOMEM_R_PU_DIR_PC_SP];
+	// Map DIR region
+	rv = et_map_bar(et_dev, &DIR_MAPPINGS[IOMEM_R_PU_DIR_PC_SP],
+			&et_dev->mgmt.dir);
+	if (rv)
+		return rv;
+
+	dir_mgmt = (struct et_mgmt_dir *)et_dev->mgmt.dir;
 
 	// TODO: Improve device discovery
 	// Waiting for device to be ready, wait for 100 secs
@@ -649,12 +654,14 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	if (!ddr_ready) {
 		dev_err(&et_dev->pdev->dev,
 			"Mgmt DIRs not ready; discovery timeout\n");
-		return -EBUSY;
+		rv = -EBUSY;
+		goto error_unmap_dir_region;
 	}
 
 	if (ioread32(&dir_mgmt->size) != sizeof(*dir_mgmt)) {
 		dev_err(&et_dev->pdev->dev, "Mgmt device DIRs size mismatch!");
-		return -EINVAL;
+		rv = -EINVAL;
+		goto error_unmap_dir_region;
 	}
 
 	// Perform optimized read of DDR fields from DIRs
@@ -665,8 +672,10 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	mem = kmalloc_array(et_dev->mgmt.num_regions,
 			    sizeof(*et_dev->mgmt.ddr_regions) +
 			    sizeof(**et_dev->mgmt.ddr_regions), GFP_KERNEL);
-	if (!mem)
-		return -ENOMEM;
+	if (!mem) {
+		rv = -ENOMEM;
+		goto error_unmap_dir_region;
+	}
 
 	et_dev->mgmt.ddr_regions = (struct et_ddr_region **)mem;
 	mem += et_dev->mgmt.num_regions * sizeof(*et_dev->mgmt.ddr_regions);
@@ -676,12 +685,9 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 		et_dev->mgmt.ddr_regions[i] = (struct et_ddr_region *)mem;
 		mem += sizeof(**et_dev->mgmt.ddr_regions);
 
-		bm_info.bar			= ddr_mgmt.regions[i].bar;
-		bm_info.bar_offset		= ddr_mgmt.regions[i].offset;
-		bm_info.size			= ddr_mgmt.regions[i].size;
-		bm_info.strictly_order_access	=
-			is_bar_prefetchable(et_dev, bm_info.bar);
-
+		bm_info.bar		= ddr_mgmt.regions[i].bar;
+		bm_info.bar_offset	= ddr_mgmt.regions[i].offset;
+		bm_info.size		= ddr_mgmt.regions[i].size;
 		rv = et_map_bar(et_dev, &bm_info,
 				&et_dev->mgmt.ddr_regions[i]->mapped_baseaddr);
 		if (rv) {
@@ -698,11 +704,25 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 
 	et_dev->mgmt.minion_shires = ioread64(&dir_mgmt->minion_shires);
 
+	// Read PU_TRG_PCIE region mapping details and map the region
+	et_ioread(dir_mgmt, offsetof(struct et_mgmt_dir, intrpt_region),
+		  (u8 *)&intrpt_mgmt, sizeof(intrpt_mgmt));
+
+	bm_info.bar		= intrpt_mgmt.bar;
+	bm_info.bar_offset	= intrpt_mgmt.offset;
+	bm_info.size		= intrpt_mgmt.size;
+	rv = et_map_bar(et_dev, &bm_info, &et_dev->r_pu_trg_pcie);
+	if (rv) {
+		dev_err(&et_dev->pdev->dev,
+			"pu_trg_pcie region mapping failed!");
+		goto error_unmap_ddr_regions;
+	}
+
 	rv = et_vqueue_init_all(et_dev, true /* mgmt_dev */);
 	if (rv) {
 		dev_err(&et_dev->pdev->dev,
 			"Mgmt device VQs initialization failed\n");
-		goto error_unmap_ddr_regions;
+		goto error_unmap_trg_pcie_region;
 	}
 
 	et_dev->mgmt.misc_mgmt_dev.minor = MISC_DYNAMIC_MINOR;
@@ -722,10 +742,16 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 error_vqueue_destroy_all:
 	et_vqueue_destroy_all(et_dev, true /* mgmt_dev */);
 
+error_unmap_trg_pcie_region:
+	et_unmap_bar(et_dev->r_pu_trg_pcie);
+
 error_unmap_ddr_regions:
 	for (i = 0; i < ddr_cnt_map; i++)
 		et_unmap_bar(et_dev->mgmt.ddr_regions[i]->mapped_baseaddr);
 	kfree(et_dev->mgmt.ddr_regions);
+
+error_unmap_dir_region:
+	et_unmap_bar(et_dev->mgmt.dir);
 
 	return rv;
 }
@@ -738,9 +764,13 @@ static void et_mgmt_dev_destroy(struct et_pci_dev *et_dev)
 
 	et_vqueue_destroy_all(et_dev, true /* mgmt_dev */);
 
+	et_unmap_bar(et_dev->r_pu_trg_pcie);
+
 	for (i = 0; i < et_dev->mgmt.num_regions; i++)
 		et_unmap_bar(et_dev->mgmt.ddr_regions[i]->mapped_baseaddr);
 	kfree(et_dev->mgmt.ddr_regions);
+
+	et_unmap_bar(et_dev->mgmt.dir);
 }
 
 static int et_ops_dev_init(struct et_pci_dev *et_dev)
@@ -759,7 +789,13 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	mutex_init(&et_dev->ops.dma_rbtree_mutex);
 	et_dev->ops.dma_rbtree = RB_ROOT;
 
-	dir_ops = (struct et_ops_dir *)et_dev->iomem[IOMEM_R_PU_DIR_PC_MM];
+	// Map DIR region
+	rv = et_map_bar(et_dev, &DIR_MAPPINGS[IOMEM_R_PU_DIR_PC_MM],
+			&et_dev->ops.dir);
+	if (rv)
+		return rv;
+
+	dir_ops = (struct et_ops_dir *)et_dev->ops.dir;
 
 	// TODO: Improve device discovery
 	// Waiting for device to be ready, wait for 100 secs
@@ -778,12 +814,14 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	if (!ddr_ready) {
 		dev_err(&et_dev->pdev->dev,
 			"Ops device DIRs not ready; discovery timeout\n");
-		return -EBUSY;
+		rv = -EBUSY;
+		goto error_unmap_dir_region;
 	}
 
 	if (ioread32(&dir_ops->size) != sizeof(*dir_ops)) {
 		dev_err(&et_dev->pdev->dev, "Ops device DIRs size mismatch!");
-		return -EINVAL;
+		rv = -EINVAL;
+		goto error_unmap_dir_region;
 	}
 
 	// Perform optimized read of DDR fields from DIRs
@@ -795,8 +833,10 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	mem = kmalloc_array(et_dev->ops.num_regions,
 			    sizeof(*et_dev->ops.ddr_regions) +
 			    sizeof(**et_dev->ops.ddr_regions), GFP_KERNEL);
-	if (!mem)
-		return -ENOMEM;
+	if (!mem) {
+		rv = -ENOMEM;
+		goto error_unmap_dir_region;
+	}
 
 	et_dev->ops.ddr_regions = (struct et_ddr_region **)mem;
 	mem += et_dev->ops.num_regions * sizeof(*et_dev->ops.ddr_regions);
@@ -806,12 +846,9 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 		et_dev->ops.ddr_regions[i] = (struct et_ddr_region *)mem;
 		mem += sizeof(**et_dev->ops.ddr_regions);
 
-		bm_info.bar			= ddr_ops.regions[i].bar;
-		bm_info.bar_offset		= ddr_ops.regions[i].offset;
-		bm_info.size			= ddr_ops.regions[i].size;
-		bm_info.strictly_order_access	=
-			is_bar_prefetchable(et_dev, bm_info.bar);
-
+		bm_info.bar		= ddr_ops.regions[i].bar;
+		bm_info.bar_offset	= ddr_ops.regions[i].offset;
+		bm_info.size		= ddr_ops.regions[i].size;
 		rv = et_map_bar(et_dev, &bm_info,
 				&et_dev->ops.ddr_regions[i]->mapped_baseaddr);
 		if (rv) {
@@ -854,6 +891,9 @@ error_unmap_ddr_regions:
 		et_unmap_bar(et_dev->ops.ddr_regions[i]->mapped_baseaddr);
 	kfree(et_dev->ops.ddr_regions);
 
+error_unmap_dir_region:
+	et_unmap_bar(et_dev->ops.dir);
+
 	return rv;
 }
 
@@ -868,6 +908,8 @@ static void et_ops_dev_destroy(struct et_pci_dev *et_dev)
 	for (i = 0; i < et_dev->ops.num_regions; i++)
 		et_unmap_bar(et_dev->ops.ddr_regions[i]->mapped_baseaddr);
 	kfree(et_dev->ops.ddr_regions);
+
+	et_unmap_bar(et_dev->ops.dir);
 
 	mutex_lock(&et_dev->ops.dma_rbtree_mutex);
 	et_dma_delete_all_info(&et_dev->ops.dma_rbtree);
@@ -889,39 +931,6 @@ static void destroy_et_pci_dev(struct et_pci_dev *et_dev)
 	// TODO SW-4210: Remove when MSIx is enabled
 	if (et_dev->workqueue)
 		destroy_workqueue(et_dev->workqueue);
-}
-
-static void et_unmap_bars(struct et_pci_dev *et_dev)
-{
-	int i;
-
-	for (i = 0; i < IOMEM_REGIONS; i++)
-		et_unmap_bar(et_dev->iomem[i]);
-
-	pci_release_regions(et_dev->pdev);
-}
-
-static int et_map_bars(struct et_pci_dev *et_dev)
-{
-	int i, rv;
-
-	rv = pci_request_regions(et_dev->pdev, DRIVER_NAME);
-        if (rv) {
-                dev_err(&et_dev->pdev->dev, "request regions failed\n");
-                return rv;
-        }
-
-	for (i = 0; i < IOMEM_REGIONS; i++) {
-		rv = et_map_bar(et_dev, &BAR_MAPPINGS[i], &et_dev->iomem[i]);
-		if (rv)
-			goto error_unmap_bars;
-	}
-
-	return 0;
-
-error_unmap_bars:
-	et_unmap_bars(et_dev);
-	return rv;
 }
 
 static int esperanto_pcie_probe(struct pci_dev *pdev,
@@ -964,9 +973,9 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		goto error_clear_master;
 	}
 
-	rv = et_map_bars(et_dev);
+	rv = pci_request_regions(pdev, DRIVER_NAME);
 	if (rv) {
-		dev_err(&pdev->dev, "mapping BAR regions failed\n");
+		dev_err(&pdev->dev, "request regions failed\n");
 		goto error_free_irq_vectors;
 	}
 
@@ -974,7 +983,7 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 	if (rv) {
 		dev_err(&pdev->dev,
 			"Mgmt device initialization failed\n");
-		goto error_unmap_bars;
+		goto error_pci_release_regions;
 	}
 
 	rv = et_ops_dev_init(et_dev);
@@ -1012,8 +1021,8 @@ error_master_minion_destroy:
 error_mgmt_dev_destroy:
 	et_mgmt_dev_destroy(et_dev);
 
-error_unmap_bars:
-	et_unmap_bars(et_dev);
+error_pci_release_regions:
+	pci_release_regions(pdev);
 
 error_free_irq_vectors:
 	pci_free_irq_vectors(pdev);
@@ -1055,10 +1064,8 @@ static void esperanto_pcie_remove(struct pci_dev *pdev)
 	et_ops_dev_destroy(et_dev);
 	et_mgmt_dev_destroy(et_dev);
 
-	et_unmap_bars(et_dev);
-
+	pci_release_regions(pdev);
 	pci_free_irq_vectors(pdev);
-
 	pci_clear_master(pdev);
 	pci_disable_device(pdev);
 
