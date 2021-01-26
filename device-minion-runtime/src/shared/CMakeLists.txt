@@ -80,3 +80,5 @@ install(
     ${INCLUDE_INSTALL_DIR}/esperanto-fw/firmware_helpers
   COMPONENT firmware_helpers
   )
+
+add_subdirectory(device_trace)
