@@ -14,7 +14,7 @@
 *
 *   DESCRIPTION
 *
-*       Header/Interface to access, initialize and manage 
+*       Header/Interface to access, initialize and manage
 *       Service Processor's Device Interface Registers.
 *
 ***********************************************************************/
@@ -44,8 +44,12 @@
 // DDR Region 1 TRACE_BUFFER (BAR=0, Offset=0, Size=4KB)
 #define SP_DEV_INTF_TRACE_BUFFER_BAR    0
 #define SP_DEV_INTF_TRACE_BUFFER_OFFSET 0x0000000000UL
-#define SP_DEV_INTF_TRACE_BUFFER_SIZE   SP_FW_MAP_TRACE_BUFFER_REGION_SIZE 
+#define SP_DEV_INTF_TRACE_BUFFER_SIZE   SP_FW_MAP_TRACE_BUFFER_REGION_SIZE
 
+// Interrupt Trigger Region (BAR=2, Offset=0x2000, Size=8KB)
+#define SP_DEV_INTF_INTERRUPT_TRG_BAR    2
+#define SP_DEV_INTF_INTERRUPT_TRG_OFFSET 0x2000UL
+#define SP_DEV_INTF_INTERRUPT_TRG_SIZE   SP_FW_MAP_DEV_INTERRUPT_TRG_SIZE
 
 // DDR Region 2 MAP_MSIX_TABLE (BAR=0, Offset=12MB, Size=256K)
 /*
@@ -100,21 +104,32 @@ enum SP_DEV_INTF_BAR_TYPE_e {
     SP_DEV_INTF_BAR_4 = 4
 };
 
+/*! \struct SP_DEV_INTF_INTERRUPT_TRG_REGION_s
+    \brief Holds the information of Device's interrupt trigger region.
+    \warning Must be 64-bit aligned.
+*/
+typedef struct __attribute__((__packed__)) SP_DEV_INTF_INTERRUPT_TRG_REGION_ {
+    uint8_t reserved[6];
+    uint16_t bar;
+    uint64_t offset;
+    uint64_t size;
+} SP_DEV_INTF_INTERRUPT_TRG_REGION_s;
+
 /*! \struct SP_DEV_INTF_DDR_REGION_s
     \brief Holds the information of Service Processor DDR region.
     \warning Must be 64-bit aligned.
 */
 typedef struct __attribute__((__packed__)) SP_DEV_INTF_DDR_REGION_ {
+    uint32_t reserved;
     uint16_t attr;
     uint16_t bar;
     uint64_t offset;
     uint64_t devaddr;
     uint64_t size;
-    uint32_t reserved;
 } SP_DEV_INTF_DDR_REGION_s;
 
 /*! \struct SP_DEV_INTF_DDR_REGIONS_s
-    \brief Holds the information of all the available Service Processor 
+    \brief Holds the information of all the available Service Processor
     DDR regions.
     \warning Must be 64-bit aligned.
 */
@@ -147,10 +162,11 @@ typedef struct __attribute__((__packed__)) SP_DEV_INTF_SP_VQ_ {
 typedef struct __attribute__((__packed__)) SP_DEV_INTF_REG_ {
     uint32_t version;
     uint32_t size;
-    uint64_t minion_shires; 
+    uint64_t minion_shires;
     SP_DEV_INTF_SP_VQ_s sp_vq;
     SP_DEV_INTF_DDR_REGIONS_s ddr_regions;
-    uint32_t reserved;
+    SP_DEV_INTF_INTERRUPT_TRG_REGION_s interrupt_region;
+    uint32_t int_trg_offset;
     int32_t status;
 } SP_DEV_INTF_REG_s;
 

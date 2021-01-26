@@ -14,7 +14,7 @@
 *
 *   DESCRIPTION
 *
-*       Header/Interface to access all Service Processor global build 
+*       Header/Interface to access all Service Processor global build
 *       time configuration parameters
 *
 ***********************************************************************/
@@ -27,7 +27,7 @@
 
 
 /*! \def SP_PC_MAILBOX_BAR_OFFSET
-    \brief This is the offset from the BAR 2 mapping where the location 
+    \brief This is the offset from the BAR 2 mapping where the location
     of the PC_SP_Mailbox is placed
     //R_PU_MBOX_PC_SP   BAR2 + 0x1000   4k     Mailbox shared memory
 
@@ -57,7 +57,7 @@
     \brief A macro that provides the total size for SP VQs (SQs + CQs)
     on PCI BAR.
 */
-#define SP_VQ_BAR_SIZE     0x400UL 
+#define SP_VQ_BAR_SIZE     0x400UL
 
 /*! \def SP_SQ_COUNT
     \brief A macro that provides the Service Processor submission queue
@@ -98,7 +98,7 @@
 
 /*! \def SP_CQ_SIZE
     \brief A macro that provides size of the Service Processor
-    completion queue. 
+    completion queue.
 */
 #define SP_CQ_SIZE          SP_VQ_BAR_SIZE/2
 
@@ -114,7 +114,7 @@
 #define SP_CQ_MAX_SUPPORTED 1
 
 /*! \def SP_CQ_NOTIFY_VECTOR
-    \brief A macro that provides the starting PCIe interrupt vector for 
+    \brief A macro that provides the starting PCIe interrupt vector for
     CQ notifications
 */
 #define SP_CQ_NOTIFY_VECTOR 0
@@ -130,10 +130,16 @@
 
 
 /*! \def SP_CMD_MAX_SIZE
-    \brief A macro that provides the maximum command size on the host <> mm 
+    \brief A macro that provides the maximum command size on the host <> mm
     communication interface in bytes
 */
 /* TODO: Fine tune this value according to the final device-ops-api spec */
 #define SP_CMD_MAX_SIZE      64U
+
+/*! \def SP_INTERRUPT_TRG_OFFSET
+    \brief A macro that provides the offset for triggering the interrupt for SP
+    in Interrupt Trigger Region.
+*/
+#define SP_INTERRUPT_TRG_OFFSET 0U
 
 #endif /* __SP_CONFIG_H__ */
