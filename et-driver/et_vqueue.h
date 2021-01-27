@@ -22,6 +22,8 @@
 #include "et_circbuffer.h"
 #include "et_device_api.h"
 
+#define ET_MAX_QUEUES	64
+
 struct et_pci_dev;
 
 struct et_msg_node {
@@ -32,12 +34,12 @@ struct et_msg_node {
 
 struct et_vq_common {
 	u32 sq_count;
-	u64 sq_bitmap;
+	DECLARE_BITMAP(sq_bitmap, ET_MAX_QUEUES);
 	u32 sq_size;			/* sizeof(struct et_circbuffer) +
 					 * SQ buffer bytes
 					 */
 	u32 cq_count;
-	u64 cq_bitmap;
+	DECLARE_BITMAP(cq_bitmap, ET_MAX_QUEUES);
 	u32 cq_size;			/* sizeof(struct et_circbuffer) +
 					 * CQ buffer bytes
 					 */

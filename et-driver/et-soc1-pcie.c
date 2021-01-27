@@ -53,7 +53,8 @@ static const struct pci_device_id esperanto_pcie_tbl[] = {
 	{}
 };
 
-static unsigned long dev_bitmap;
+#define ET_MAX_DEVS	64
+DECLARE_BITMAP(dev_bitmap, ET_MAX_DEVS);
 
 // TODO SW-4210: Remove when MSIx is enabled
 /*
@@ -66,10 +67,10 @@ static u8 get_index(void)
 {
 	u8 index;
 
-	if (dev_bitmap == ~0UL)
+	if (bitmap_full(dev_bitmap, ET_MAX_DEVS))
 		return -EBUSY;
-	index = ffz(dev_bitmap);
-	set_bit(index, &dev_bitmap);
+	index = find_first_zero_bit(dev_bitmap, ET_MAX_DEVS);
+	set_bit(index, dev_bitmap);
 	return index;
 }
 
@@ -143,21 +144,17 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 
 		if (et_circbuffer_free(&cb) >=
 		    atomic_read(&ops->sq_pptr[i]->sq_threshold)) {
-			if (!test_and_set_bit
-			    (i, (unsigned long *)&ops->vq_common.sq_bitmap))
-				mask |= EPOLLOUT;
+			set_bit(i, ops->vq_common.sq_bitmap);
+			mask |= EPOLLOUT;
 		} else {
-			clear_bit(i,
-				  (unsigned long *)&ops->vq_common.sq_bitmap);
+			clear_bit(i, ops->vq_common.sq_bitmap);
 		}
 
 		if (et_cqueue_msg_available(ops->cq_pptr[i])) {
-			if (!test_and_set_bit
-			    (i, (unsigned long *)&ops->vq_common.cq_bitmap))
-				mask |= EPOLLIN;
+			set_bit(i, ops->vq_common.cq_bitmap);
+			mask |= EPOLLIN;
 		} else {
-			clear_bit(i,
-				  (unsigned long *)&ops->vq_common.cq_bitmap);
+			clear_bit(i, ops->vq_common.cq_bitmap);
 		}
 	}
 
@@ -262,7 +259,7 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 				 rsp_info.size);
 
 	case ETSOC1_IOCTL_GET_SQ_AVAIL_BITMAP:
-		if (copy_to_user((u64 *)arg, &ops->vq_common.sq_bitmap,
+		if (copy_to_user((u64 *)arg, ops->vq_common.sq_bitmap,
 				 size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_AVAIL_BITMAP: failed to copy to user\n");
 			return -ENOMEM;
@@ -270,7 +267,7 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 		return 0;
 
 	case ETSOC1_IOCTL_GET_CQ_AVAIL_BITMAP:
-		if (copy_to_user((u64 *)arg, &ops->vq_common.cq_bitmap,
+		if (copy_to_user((u64 *)arg, ops->vq_common.cq_bitmap,
 				 size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_CQ_AVAIL_BITMAP: failed to copy to user\n");
 			return -ENOMEM;
@@ -319,21 +316,17 @@ static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 
 		if (et_circbuffer_free(&cb) >=
 		    atomic_read(&mgmt->sq_pptr[i]->sq_threshold)) {
-			if (!test_and_set_bit
-			    (i, (unsigned long *)&mgmt->vq_common.sq_bitmap))
-				mask |= EPOLLOUT;
+			set_bit(i, mgmt->vq_common.sq_bitmap);
+			mask |= EPOLLOUT;
 		} else {
-			clear_bit(i,
-				  (unsigned long *)&mgmt->vq_common.sq_bitmap);
+			clear_bit(i, mgmt->vq_common.sq_bitmap);
 		}
 
 		if (et_cqueue_msg_available(mgmt->cq_pptr[i])) {
-			if (!test_and_set_bit
-			    (i, (unsigned long *)&mgmt->vq_common.cq_bitmap))
-				mask |= EPOLLIN;
+			set_bit(i, mgmt->vq_common.cq_bitmap);
+			mask |= EPOLLIN;
 		} else {
-			clear_bit(i,
-				  (unsigned long *)&mgmt->vq_common.cq_bitmap);
+			clear_bit(i, mgmt->vq_common.cq_bitmap);
 		}
 	}
 
@@ -458,7 +451,7 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 				rsp_info.size);
 
 	case ETSOC1_IOCTL_GET_SQ_AVAIL_BITMAP:
-		if (copy_to_user((u64 *)arg, &mgmt->vq_common.sq_bitmap,
+		if (copy_to_user((u64 *)arg, mgmt->vq_common.sq_bitmap,
 				 size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_AVAIL_BITMAP: failed to copy to user\n");
 			return -ENOMEM;
@@ -466,7 +459,7 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 		return 0;
 
 	case ETSOC1_IOCTL_GET_CQ_AVAIL_BITMAP:
-		if (copy_to_user((u64 *)arg, &mgmt->vq_common.cq_bitmap,
+		if (copy_to_user((u64 *)arg, mgmt->vq_common.cq_bitmap,
 				 size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_CQ_AVAIL_BITMAP: failed to copy to user\n");
 			return -ENOMEM;
@@ -500,12 +493,6 @@ static int esperanto_pcie_ops_open(struct inode *inode, struct file *fp)
 {
 	struct et_ops_dev *ops;
 
-	/* TODO: In order to support Edge Triggered EPOLL event distribution,
-	 * device node should be opened in non-blocking mode to avoid
-	 * starvation due to blocking read or write. But this can be done
-	 * only after MBox is retired since MBox implementation performs
-	 * blocking calls.
-	 */
 	ops = container_of(fp->private_data, struct et_ops_dev, misc_ops_dev);
 
 	spin_lock(&ops->ops_open_lock);
@@ -926,7 +913,7 @@ static void destroy_et_pci_dev(struct et_pci_dev *et_dev)
 		return;
 
 	dev_index = et_dev->dev_index;
-	clear_bit(dev_index, &dev_bitmap);
+	clear_bit(dev_index, dev_bitmap);
 
 	// TODO SW-4210: Remove when MSIx is enabled
 	if (et_dev->workqueue)

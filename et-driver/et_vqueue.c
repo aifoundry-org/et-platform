@@ -380,8 +380,8 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 //	}
 //	vq_common->vec_idx_offset = et_dev->used_irq_vecs;
 
-	vq_common->sq_bitmap = 0;
-	vq_common->cq_bitmap = 0;
+	bitmap_zero(vq_common->sq_bitmap, ET_MAX_QUEUES);
+	bitmap_zero(vq_common->cq_bitmap, ET_MAX_QUEUES);
 	init_waitqueue_head(&vq_common->waitqueue);
 	vq_common->aborting = false;
 	spin_lock_init(&vq_common->abort_lock);
@@ -516,6 +516,7 @@ ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count)
 
 	//Write message
 	if (!et_circbuffer_push(sq->cb, buf, header->size)) {
+		clear_bit(sq->index, sq->vq_common->sq_bitmap);
 		pr_err("VQ[%d]: full; no room for message\n", sq->index);
 		rv = -EAGAIN;
 		goto push_mutex_unlock;
@@ -588,6 +589,7 @@ ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev, bool is_mgmt,
 
 	msg = dequeue_msg_node(cq);
 	if (!msg) {
+		clear_bit(cq->index, cq->vq_common->cq_bitmap);
 		pr_err("VQ[%d]: empty; no message to pop\n", cq->index);
 		return -EAGAIN;
 	}
