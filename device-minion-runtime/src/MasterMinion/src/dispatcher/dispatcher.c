@@ -11,11 +11,25 @@
 ************************************************************************/
 /*! \file dispatcher.c
     \brief A C module that implements the Dispatcher. The function of
-    the Dispatcher is to field all interrupts and process requests
-    from various actors.
-
-    Public interfaces:
-        Dispatcher_Launch
+    the Dispatcher is to; 
+    1. Initialize system components
+        Serial
+        Trace
+        Interrupts
+    2. Initialize interfaces; 
+        Host Interface
+        SP Interface
+        CW Interface
+    2. Initialize Workers;
+        Submission Queue Workers
+        Kernel Worker
+        DMA Worker
+        Compute Workers
+    3. Initialize Device Interface Registers
+    4. Infinite loop - that fields interrupts and dispatches appropriate 
+    processing;
+        Field Host PCIe interrupts and dispatch command processing
+        Field SP IPIs and dispatch command processing
 */
 /***********************************************************************/
 #include "minion_fw_boot_config.h"
@@ -31,7 +45,6 @@
 #include "services/log1.h"
 #include "services/lock.h"
 #include "drivers/interrupts.h"
-#include "drivers/shires.h"
 #include "syscall_internal.h"
 #include "serial.h"
 #include "message_types.h"
@@ -82,7 +95,8 @@ void Dispatcher_Launch(uint32_t hart_id)
     /* Reset PMC cycles counter */
     PMC_RESET_CYCLES_COUNTER;
 
-    /* TODO: Needs to be updated to proper coding standard and abstractions */
+    /* TODO: Needs to be updated to proper coding standard and 
+    abstractions */
     message_init_master();
 
     /* Init FCCs for current minion */
@@ -101,7 +115,8 @@ void Dispatcher_Launch(uint32_t hart_id)
     Host_Iface_SQs_Init();
     Host_Iface_CQs_Init();
 
-    /* Initialize Service Processor Submission Queue and Completion Queue Interface */
+    /* Initialize Service Processor Submission Queue and Completion 
+    Queue Interface */
     SP_Iface_SQs_Init();
     SP_Iface_CQs_Init();
 

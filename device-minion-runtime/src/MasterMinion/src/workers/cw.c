@@ -11,13 +11,20 @@
 ************************************************************************/
 /***********************************************************************/
 /*! \file cw.c
-    \brief A C module that implements the compute worker related APIs.
+    \brief A C module that implements the compute worker related
+    public and private interfaces. The Compute Worker provides interfaces
+    to other components present in the Master Minion runtime that
+    facilitate management of compute workers and shires associated
+    with them. It implements the interfaces listed below;
 
     Public interfaces:
         CW_Init
-        CW_Deinit
+        CW_Update_Shire_State
+        CW_Check_Shire_Available_And_Ready
+        CW_Get_Physically_Enabled_Shires
 */
 /***********************************************************************/
+#include "atomic.h"
 #include "common_defs.h"
 #include "minion_fw_boot_config.h"
 #include "layout.h"
@@ -30,14 +37,13 @@
 #include "message_types.h"
 #include "cm_to_mm_iface.h"
 
-
-/*! \struct cw_cb_t;
+/*! \struct cw_cb_t
     \brief Compute Worker control block.
     Consists data structures to manage shire state of shires that play
-    the role of compute workers 
+    the role of compute workers
 */
 typedef struct cw_cb_t_{
-    uint64_t shire_mask;
+    uint64_t physically_avail_shires_mask;
     uint64_t booted_shires_mask;
     cw_shire_state_t shire_status[NUM_SHIRES];
 } cw_cb_t;
@@ -48,24 +54,15 @@ typedef struct cw_cb_t_{
 */
 static cw_cb_t CW_CB __attribute__((aligned(64))) = {0};
 
-
-int8_t CW_Update_Shire_State(uint64_t shire, cw_shire_state_t shire_state)
-{
-    (void)shire;
-    (void)shire_state;
-
-    return 0;
-}
-
 /************************************************************************
 *
 *   FUNCTION
 *
 *       CW_Init
-*  
+*
 *   DESCRIPTION
 *
-*       Initialize Minions thats serve as compute workers
+*       Initialize Shires/Minions that serve as compute workers
 *
 *   INPUTS
 *
@@ -79,50 +76,57 @@ int8_t CW_Update_Shire_State(uint64_t shire, cw_shire_state_t shire_state)
 int8_t CW_Init(void)
 {
     uint64_t temp;
+    uint64_t shire_mask;
     int8_t status = STATUS_SUCCESS;
 
     minion_fw_boot_config_t *minion_fw_boot_config;
 
     /* Obtain the number of shires to be used from the boot
     configuration and initialize the CW control block */
-    minion_fw_boot_config = 
+    minion_fw_boot_config =
         (minion_fw_boot_config_t*)FW_MINION_FW_BOOT_CONFIG;
-    CW_CB.shire_mask =  
+    shire_mask =
         minion_fw_boot_config->minion_shires & ((1ULL << NUM_SHIRES)-1);
 
-    /* TODO: Shall be updated to use nee shires API */
-    set_functional_shires(CW_CB.shire_mask);
-    Log_Write(LOG_LEVEL_DEBUG, "Dispatcher:Set functional shires\r\n");
+    /* Initialize Global CW_CB */
+    atomic_store_local_64(&CW_CB.physically_avail_shires_mask, shire_mask);
+    atomic_store_local_64(&CW_CB.booted_shires_mask, 0U);
+
+    for(uint8_t shire = 0; shire < NUM_SHIRES; shire++)
+    {
+        atomic_store_local_8(&CW_CB.shire_status[shire],
+            CW_SHIRE_STATE_UNKNOWN);
+    }
 
     /* Enable supervisor external and software interrupts, then enable
     interrupts */
     /* TODO: create and use proper macros from interrupts.h */
     asm volatile("li    %0, 0x202    \n"
-                 "csrs  sie, %0      \n" 
+                 "csrs  sie, %0      \n"
                  "csrsi sstatus, 0x2 \n"
                  : "=&r"(temp));
 
     /* Bring up Compute Workers */
-    syscall(SYSCALL_CONFIGURE_COMPUTE_MINION, CW_CB.shire_mask, 0x1u, 0);
+    syscall(SYSCALL_CONFIGURE_COMPUTE_MINION, shire_mask, 0x1u, 0);
 
     /* Wait for al workers to be initialize */
-    while(1) 
+    while(1)
     {
         /* Break loop if all compute minions are booted and ready */
-        /* TODO: Shall be updated to use nee shires API */
-        if(all_shires_booted(CW_CB.shire_mask))
+        if((atomic_load_local_64
+            (&CW_CB.booted_shires_mask) & shire_mask) == shire_mask)
             break;
 
         /* Disable supervisor interrupts */
-        asm volatile("csrci sstatus, 0x2"); 
+        asm volatile("csrci sstatus, 0x2");
 
-        if (!swi_flag) 
+        if (!swi_flag)
         {
             asm volatile("wfi");
         }
 
         /* Enable supervisor interrupts */
-        asm volatile("csrsi sstatus, 0x2"); 
+        asm volatile("csrsi sstatus, 0x2");
 
         if(swi_flag)
         {
@@ -132,44 +136,49 @@ int8_t CW_Init(void)
             asm volatile("fence");
 
             /* Processess messages from CM from CM > MM unicast circbuff */
-            while(1) 
+            while(1)
             {
                 cm_iface_message_t message;
 
-                /* Unicast to dispatcher is slot 0 of unicast circular-buffers */
-                /* TODO: This should be brought into proper abstraction in cw_iface.h */
-                status = CM_To_MM_Iface_Unicast_Receive(0, &message);
+                /* Unicast to dispatcher is slot 0 of unicast
+                circular-buffers */
+                /* TODO: This should be brought into proper abstraction
+                in cw_iface.h */
+                status = CM_To_MM_Iface_Unicast_Receive
+                    (CM_MM_MASTER_HART_UNICAST_BUFF_IDX, &message);
 
                 if (status != STATUS_SUCCESS)
                     break;
 
-                switch (message.header.id) 
+                switch (message.header.id)
                 {
                     case CM_TO_MM_MESSAGE_ID_NONE:
                     {
-                        Log_Write(LOG_LEVEL_DEBUG, 
-                            "Dispatcher:from CW:Invalid MESSAGE_ID_NONE received\r\n");
+                        Log_Write(LOG_LEVEL_DEBUG,
+                            "Dispatcher:from CW:MESSAGE_ID_NONE\r\n");
                         break;
                     }
 
-                    case CM_TO_MM_MESSAGE_ID_SHIRE_READY: 
+                    case CM_TO_MM_MESSAGE_ID_SHIRE_READY:
                     {
                         const mm_to_cm_message_shire_ready_t *shire_ready =
                             (const mm_to_cm_message_shire_ready_t *)&message;
+
                         Log_Write(LOG_LEVEL_DEBUG, "%s%llx%s",
-                            "Dispatcher:from CW:MESSAGE_ID_SHIRE_READY received from shire 0x", 
+                            "Dispatcher:from CW:MESSAGE_ID_SHIRE_READY 0x",
                             shire_ready->shire_id, "\r\n");
-                        /* TODO: Shall be updated to use nee shires API */
-                        update_shire_state(shire_ready->shire_id, 
-                            SHIRE_STATE_READY);
+
+                        /* Update the shire state in CW CB */
+                        CW_Update_Shire_State(shire_ready->shire_id,
+                            CW_SHIRE_STATE_READY);
                         break;
                     }
 
                     default:
                     {
                         Log_Write(LOG_LEVEL_CRITICAL, "%s%llx%s",
-                            "Dispatcher:from CW:Unknown message id = 0x", message.header.id, 
-                            " received (unicast dispatcher)\r\n");
+                            "Dispatcher:from CW:Unknown message id = 0x",
+                            message.header.id, "\r\n");
                         break;
                     }
                 }
@@ -177,10 +186,136 @@ int8_t CW_Init(void)
         }
         else
         {
-            Log_Write(LOG_LEVEL_DEBUG, 
-                "Dispatcher:Unexpected condition, broke wfi without a SWI during CW boot...\r\n");
+            Log_Write(LOG_LEVEL_DEBUG,
+                "Dispatcher:Unexpected condition, \
+                broke wfi without a SWI during CW boot...\r\n");
         }
     };
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       CW_Get_Physically_Enabled_Shires
+*
+*   DESCRIPTION
+*
+*       Get the actual physically available shires
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       uint64_t    Get available shires
+*
+***********************************************************************/
+uint64_t CW_Get_Physically_Enabled_Shires(void)
+{
+    return atomic_load_local_64(&CW_CB.physically_avail_shires_mask);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       CW_Update_Shire_State
+*
+*   DESCRIPTION
+*
+*       Set the state of a shire
+*
+*   INPUTS
+*
+*       shire         Shire number
+*       shire_state   Shire state
+*
+*   OUTPUTS
+*
+*       int8_t        status success or failure
+*
+***********************************************************************/
+int8_t CW_Update_Shire_State(uint64_t shire, cw_shire_state_t shire_state)
+{
+    int8_t status = STATUS_SUCCESS;
+
+    if (atomic_load_local_8(&CW_CB.shire_status[shire]) !=
+        CW_SHIRE_STATE_ERROR)
+    {
+        atomic_store_local_8(&CW_CB.shire_status[shire], shire_state);
+
+        /* Update mask of booted shires */
+        atomic_or_local_64(&CW_CB.booted_shires_mask, 1ULL << shire);
+    }
+    else
+    {
+        /* The only legal transition from ERROR state is to READY state */
+        if (shire_state == CW_SHIRE_STATE_READY)
+        {
+            atomic_store_local_8(&CW_CB.shire_status[shire], shire_state);
+        }
+        else
+        {
+            Log_Write(LOG_LEVEL_DEBUG, "%s%d%s"
+                "CW:Error:Illegal transition from error:Shire:",
+                shire, "\r\n");
+
+            status = GENERAL_ERROR;
+        }
+    }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       CW_Check_Shire_Available_And_Ready
+*
+*   DESCRIPTION
+*
+*       Check all shires specified by mask are available and ready.
+*
+*   INPUTS
+*
+*       uint64_t   Shire mask to check
+*
+*   OUTPUTS
+*
+*       int8t_t    Success status or error code
+*
+***********************************************************************/
+int8_t CW_Check_Shire_Available_And_Ready(uint64_t shire_mask)
+{
+    int8_t status = STATUS_SUCCESS;
+
+    /* Verify if all the given shires are physically available */
+    if ((atomic_load_local_64(&CW_CB.physically_avail_shires_mask) &
+        shire_mask) == shire_mask)
+    {
+        /* Check the provided the shire_mask for ready state */
+        for (uint64_t shire = 0; shire < NUM_SHIRES; shire++)
+        {
+            if (shire_mask & (1ULL << shire))
+            {
+                if (atomic_load_local_8(&CW_CB.shire_status[shire]) !=
+                    CW_SHIRE_STATE_READY)
+                {
+                    status = CW_SHIRE_NOT_READY;
+                    break;
+                }
+            }
+        }
+    }
+    else
+    {
+        status = CW_SHIRE_UNAVAILABLE;
+    }
 
     return status;
 }

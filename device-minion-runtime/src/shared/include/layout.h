@@ -14,6 +14,8 @@
 // Architectural parameters
 #define MASTER_SHIRE             32
 #define NUM_SHIRES               33
+#define NUM_MASTER_SHIRES        1
+#define NUM_COMPUTE_SHIRES       (NUM_SHIRES - NUM_MASTER_SHIRES)
 #define HARTS_PER_SHIRE          64
 #define NUM_HARTS                (NUM_SHIRES * HARTS_PER_SHIRE)
 #define MAX_SIMULTANEOUS_KERNELS 4

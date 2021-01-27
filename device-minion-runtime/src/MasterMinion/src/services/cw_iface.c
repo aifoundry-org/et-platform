@@ -10,7 +10,7 @@
 *
 ************************************************************************/
 /*! \file console.c
-    \brief A C module that implements the Compute Worker Interface 
+    \brief A C module that implements the Compute Worker Interface
     services
 
     Public interfaces:
@@ -21,23 +21,6 @@
 #include "services/log1.h"
 
 /* TODO: Move mm_to_cm_iface.c contents here */
-
-
-int8_t CW_Iface_Get_Msg(circ_buff_cb_t* cw_cbuff_inst, cm_iface_message_t *msg)
-{
-    int8_t status = STATUS_GENERAL_ERROR;
-
-    /* Peek the command size to pop */
-    status = Circbuffer_Peek(cw_cbuff_inst, (void *)&msg->header, 0, 
-        sizeof(msg->header), L3_CACHE);
-
-    /* Pop the command from circular buffer */
-    if(status != CIRCBUFF_OPERATION_SUCCESS)
-    {
-        status = Circbuffer_Pop(cw_cbuff_inst, msg, sizeof(msg), 
-            L3_CACHE);
-    }
-}
 
 int8_t CW_Iface_Processing(cm_iface_message_t *msg)
 {
@@ -141,14 +124,14 @@ int8_t CW_Iface_Processing(cm_iface_message_t *msg)
 *   FUNCTION
 *
 *       CW_Iface_Deinit
-*  
+*
 *   DESCRIPTION
 *
 *       Deinitialize compute worker interface
 *
 *   INPUTS
 *
-*       None   
+*       None
 *
 *   OUTPUTS
 *

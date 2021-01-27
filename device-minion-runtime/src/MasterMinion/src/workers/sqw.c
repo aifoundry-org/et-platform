@@ -11,8 +11,21 @@
 ************************************************************************/
 /***********************************************************************/
 /*! \file sqw.c
-    \brief A C module that implements the Submission Queue Worker's
-    public and private interfaces.
+    \brief A C module that implements the Submission Queue Worker's (SQW)
+    public and private interfaces. The Master Minion runtime SW 
+    architecture enables parallel processing of commands submitted to 
+    Submission Queueus by dedicating one SQW per Host to Device 
+    Submission Queue. 
+    This module implements;
+    1. SQW_Launch - An infinite loop that unblocks on FCC notification
+    from dispatcher, pops available commands from the associated
+    submission queue, decodes commands, and processes commands. 
+    Depending on the command, commands are either processed by the 
+    SQW itself, or processed by offloading some of command processing
+    to other workers (i.e., KW, DMAW) in the master shire. 
+    2. It implements, and exposes the below listed public interfaces to 
+    other master shire runtime components present in the system 
+    to facilitate SQW management 
 
     Public interfaces:
         SQW_Init
@@ -46,6 +59,25 @@ static sqw_cb_t SQW_CB __attribute__((aligned(64))) = {0};
 
 extern spinlock_t Launch_Lock;
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       sqw_command_barrier
+*  
+*   DESCRIPTION
+*
+*       Local fn helper that servers as a SQW command barrier
+*
+*   INPUTS
+*
+*       sqw_idx     Submission Queue Index
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
 static inline void sqw_command_barrier(uint8_t sqw_idx)
 {
     Log_Write(LOG_LEVEL_DEBUG, "%s", "SQW:Command Barrier\r\n");
@@ -200,9 +232,9 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
                 }
 
                 /* Increment the SQW command count.
-                   NOTE: Its Host_Command_Handler's job to ensure this count 
-                   is decremented on the basis of the path it takes to process
-                   a command. */
+                NOTE: Its Host_Command_Handler's job to ensure this 
+                count is decremented on the basis of the path it 
+                takes to process a command. */
                 SQW_Increment_Command_Count((uint8_t)sqw_idx);
                 
                 status = Host_Command_Handler(cmd_buff,
@@ -218,9 +250,8 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
             else if (pop_ret_val < 0)
             {
                 Log_Write(LOG_LEVEL_ERROR, "%s%d%s",
-                    "SQW:ERROR:Recived host_iface event, but VQ \
-                        pop failed.(Error code:)", 
-                        pop_ret_val, "\r\n");
+                    "SQW:ERROR:VQ pop failed.(Error code:)", 
+                    pop_ret_val, "\r\n");
             }
         } while (pop_ret_val > 0);
     }

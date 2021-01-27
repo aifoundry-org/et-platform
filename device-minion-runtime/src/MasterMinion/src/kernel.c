@@ -109,7 +109,7 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
             launch.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH;
             launch.header.number = 0; // Filled by MM_To_CM_Iface_Multicast_Send
             launch.kw_base_id = KERNEL_SYNC_MS_HART_BASE;
-            launch.kernel_id = (uint8_t)kernel_id;
+            launch.slot_index = (uint8_t)kernel_id;
             launch.flags = (uint8_t)kernel_config_ptr->kernel_launch_flags;
             launch.code_start_address = kernel_config_ptr->code_start_address;
             launch.pointer_to_args = kernel_config_ptr->pointer_to_args;

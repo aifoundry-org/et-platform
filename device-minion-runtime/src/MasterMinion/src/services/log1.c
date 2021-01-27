@@ -23,8 +23,8 @@
 #include "services/log1.h"
 #include "drivers/console.h"
 #include "atomic.h"
+#include "layout.h"
 #include <stddef.h>
-
 #include "sync.h"
 
 /*! \var log_level_t Current_Log_Level
@@ -33,18 +33,12 @@
 */
 static log_level_t Current_Log_Level = LOG_LEVEL_WARNING;
 
-/*! \var spinlock_t Console_Lock
-    \brief Local lock for serializing the console prints.
-    \warning Not thread safe!
-*/
-static spinlock_t Console_Lock = {0};
-
 /************************************************************************
 *
 *   FUNCTION
 *
 *       Log_Init
-*  
+*
 *   DESCRIPTION
 *
 *       Initialize the logging
@@ -61,7 +55,7 @@ static spinlock_t Console_Lock = {0};
 void Log_Init(log_level_t level)
 {
     /* Init console lock to released state */
-    init_local_spinlock(&Console_Lock, 0);
+    init_global_spinlock((spinlock_t*)FW_GLOBAL_UART_LOCK_ADDR, 0);
 
     /* Initialize the log level */
     Log_Set_Level(level);
@@ -72,7 +66,7 @@ void Log_Init(log_level_t level)
 *   FUNCTION
 *
 *       Log_Set_Level
-*  
+*
 *   DESCRIPTION
 *
 *       Set logging level
@@ -96,7 +90,7 @@ void Log_Set_Level(log_level_t level)
 *   FUNCTION
 *
 *       Log_Get_Level
-*  
+*
 *   DESCRIPTION
 *
 *       Get logging level
@@ -120,7 +114,7 @@ log_level_t Log_Get_Level(void)
 *   FUNCTION
 *
 *       Log_Write
-*  
+*
 *   DESCRIPTION
 *
 *       Write a va_list style payload to serial port
@@ -138,21 +132,20 @@ log_level_t Log_Get_Level(void)
 ***********************************************************************/
 int32_t Log_Write(log_level_t level, const char *const fmt, ...)
 {
-    int32_t bytes_written=0;
-    
-    acquire_local_spinlock(&Console_Lock);
+    int32_t bytes_written = 0;
+    va_list va;
+    char buff[128];
 
     if (level > atomic_load_local_8(&Current_Log_Level)) {
-        release_local_spinlock(&Console_Lock);
         return 0;
     }
-    
-    va_list va;
-    va_start(va, fmt);
 
-    bytes_written = vprintf(fmt, va);
-    
-    release_local_spinlock(&Console_Lock);
+    va_start(va, fmt);
+    vsnprintf(buff, sizeof(buff), fmt, va);
+
+    acquire_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
+    bytes_written = SERIAL_puts(UART0, buff);
+    release_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
 
     return bytes_written;
 }
@@ -162,7 +155,7 @@ int32_t Log_Write(log_level_t level, const char *const fmt, ...)
 *   FUNCTION
 *
 *       Log_Write_String
-*  
+*
 *   DESCRIPTION
 *
 *       Write a string of
@@ -180,20 +173,15 @@ int32_t Log_Write(log_level_t level, const char *const fmt, ...)
 ***********************************************************************/
 int32_t Log_Write_String(log_level_t level, const char *str, size_t length)
 {
-    size_t i;
-
-    acquire_local_spinlock(&Console_Lock);
+    int32_t bytes_written = 0;
 
     if (level > atomic_load_local_8(&Current_Log_Level)) {
-        release_local_spinlock(&Console_Lock);
         return 0;
     }
 
-    for (i = 0; i < length && str[i]; i++) {
-        Console_Putchar(str[i]);
-    }
+    acquire_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
+    bytes_written = SERIAL_write(UART0, str, (int)length);
+    release_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
 
-    release_local_spinlock(&Console_Lock);
-
-    return (int32_t)i;
+    return bytes_written;
 }
