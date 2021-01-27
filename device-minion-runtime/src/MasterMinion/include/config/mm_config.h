@@ -11,7 +11,7 @@
 ************************************************************************/
 /*! \file mm_config.h
     \brief This is the only build configuration file for the MasterMinion.
-    
+
     Allows for configuration of all key attributes of MM runtime incl;
     1. Location and configuration of Virtual Queues, incl,
         Host Interface Virtual Queues
@@ -83,7 +83,7 @@
 #define MM_SQ_SIZE          0x100UL
 
 /*! \def MM_SQ_HP_INDEX
-    \brief A macro that provides the Master Minion high priority 
+    \brief A macro that provides the Master Minion high priority
     submission queue index
 */
 #define MM_SQ_HP_INDEX      0
@@ -111,7 +111,7 @@
 
 /*! \def MM_CQ_SIZE
     \brief A macro that provides size of the Master Minion
-    completion queue. 
+    completion queue.
 */
 #define MM_CQ_SIZE          0x400UL
 
@@ -127,7 +127,7 @@
 #define MM_CQ_MAX_SUPPORTED 1
 
 /*! \def MM_CQ_NOTIFY_VECTOR
-    \brief A macro that provides the starting PCIe interrupt vector for 
+    \brief A macro that provides the starting PCIe interrupt vector for
     CQ notifications
 */
 #define MM_CQ_NOTIFY_VECTOR 0
@@ -141,7 +141,7 @@
 #define MM_CQ_MEM_TYPE      UNCACHED
 
 /*! \def MM_CMD_MAX_SIZE
-    \brief A macro that provides the maximum command size on the host <> mm 
+    \brief A macro that provides the maximum command size on the host <> mm
     communication interface in bytes
 */
 /* TODO: Fine tune this value according to the final device-ops-api spec */
@@ -237,13 +237,19 @@ move this defined to a abstraction common to SP and MM runtimes*/
 #define MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET 0x0100000000UL // TODO: Should be HOST_MANAGED_DRAM_START
 #define MM_DEV_INTF_USER_KERNEL_SPACE_SIZE   0x0200000000UL // TODO: Should be (HOST_MANAGED_DRAM_END - HOST_MANAGED_DRAM_START)
 
+/*! \def MM_INTERRUPT_TRG_OFFSET
+    \brief A macro that provides the offset for triggering the interrupt for MM
+    in Interrupt Trigger Region.
+*/
+#define MM_INTERRUPT_TRG_OFFSET 4U
+
 /************************/
 /* Compile-time checks  */
 /************************/
 #ifndef __ASSEMBLER__
 
 /* Ensure that MM SQs are within limits */
-static_assert(MM_SQ_COUNT <= MM_SQ_MAX_SUPPORTED, 
+static_assert(MM_SQ_COUNT <= MM_SQ_MAX_SUPPORTED,
     "Number of MM Submission Queues not within limits.");
 
 #endif /* __ASSEMBLER__ */

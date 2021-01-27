@@ -22,11 +22,11 @@
 #include "layout.h"
 
 /*! \var Gbl_MM_Dev_Intf_Regs
-    \brief Global static instance of Master Minions 
+    \brief Global static instance of Master Minions
     Device Interface Registers
     \warning Not thread safe!
 */
-static volatile MM_DEV_INTF_REG_s *Gbl_MM_Dev_Intf_Regs = 
+static volatile MM_DEV_INTF_REG_s *Gbl_MM_Dev_Intf_Regs =
                     (void *)MM_DEV_INTF_BASE_ADDR;
 
 /************************************************************************
@@ -34,7 +34,7 @@ static volatile MM_DEV_INTF_REG_s *Gbl_MM_Dev_Intf_Regs =
 *   FUNCTION
 *
 *       DIR_Init
-*  
+*
 *   DESCRIPTION
 *
 *       Initialize Device Interface Registers
@@ -52,7 +52,10 @@ void DIR_Init(void)
 {
     Gbl_MM_Dev_Intf_Regs->version     = MM_DEV_INTF_REG_VERSION;
     Gbl_MM_Dev_Intf_Regs->size        = sizeof(MM_DEV_INTF_REG_s);
-    
+
+    /* Populate the interrupt trigger offset for MM in Interrupt Trigger Region */
+    Gbl_MM_Dev_Intf_Regs->int_trg_offset = MM_INTERRUPT_TRG_OFFSET;
+
     /* Populate the MM VQs information */
     Gbl_MM_Dev_Intf_Regs->mm_vq.bar         = MM_VQ_BAR;
     Gbl_MM_Dev_Intf_Regs->mm_vq.bar_size    = MM_VQ_SIZE;
@@ -66,25 +69,25 @@ void DIR_Init(void)
     /* Populate the MM DDR regions information */
     Gbl_MM_Dev_Intf_Regs->ddr_regions.num_regions = MM_DEV_INTF_DDR_REGION_MAP_NUM;
     Gbl_MM_Dev_Intf_Regs->ddr_regions.
-        regions[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].attr = 
+        regions[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].attr =
         MM_DEV_INTF_DDR_REGION_ATTR_READ_WRITE;
     Gbl_MM_Dev_Intf_Regs->ddr_regions.
-        regions[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].bar = 
+        regions[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].bar =
         MM_DEV_INTF_USER_KERNEL_SPACE_BAR;
     Gbl_MM_Dev_Intf_Regs->ddr_regions.
-        regions[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].offset = 
+        regions[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].offset =
         MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET;
     Gbl_MM_Dev_Intf_Regs->ddr_regions.
-        regions[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].devaddr = 
+        regions[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].devaddr =
         HOST_MANAGED_DRAM_START;
     Gbl_MM_Dev_Intf_Regs->ddr_regions.
-        regions[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].size = 
+        regions[MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE].size =
         MM_DEV_INTF_USER_KERNEL_SPACE_SIZE;
 
-    /* Update Status to indicate MM Device Interface Registers 
+    /* Update Status to indicate MM Device Interface Registers
     are ready */
     Gbl_MM_Dev_Intf_Regs->status = MM_DEV_INTF_MM_BOOT_STATUS_DEV_INTF_READY;
-    
+
     return;
 }
 
@@ -93,7 +96,7 @@ void DIR_Init(void)
 *   FUNCTION
 *
 *       DIR_Set_Master_Minion_Status
-*  
+*
 *   DESCRIPTION
 *
 *       Set Master Minion ready status

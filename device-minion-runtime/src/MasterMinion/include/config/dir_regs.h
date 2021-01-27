@@ -22,7 +22,7 @@
 #include "config/mm_config.h"
 #include "hal_device.h"
 
-/* List of REGIONS based on Spec as defined here: 
+/* List of REGIONS based on Spec as defined here:
  * https://esperantotech.atlassian.net/wiki/spaces/SW/pages/1233584203/Memory+Map */
 
 /*! \def MM_DEV_INTF_REG_VERSION
@@ -87,16 +87,16 @@ enum MM_DEV_INTF_BAR_TYPE_e {
     \warning Must be 64-bit aligned.
 */
 typedef struct __attribute__((__packed__)) MM_DEV_INTF_DDR_REGION_ {
+    uint32_t reserved;
     uint16_t attr;
     uint16_t bar;
     uint64_t offset;
     uint64_t devaddr;
     uint64_t size;
-    uint32_t reserved;
 } MM_DEV_INTF_DDR_REGION_s;
 
 /*! \struct MM_DEV_INTF_DDR_REGIONS_s
-    \brief Holds the information of all the available Master Minion 
+    \brief Holds the information of all the available Master Minion
     DDR regions.
     \warning Must be 64-bit aligned.
 */
@@ -131,7 +131,7 @@ typedef struct __attribute__((__packed__)) MM_DEV_INTF_REG_ {
     uint32_t size;
     MM_DEV_INTF_MM_VQ_s mm_vq;
     MM_DEV_INTF_DDR_REGIONS_s ddr_regions;
-    uint32_t reserved;
+    uint32_t int_trg_offset;
     int32_t status;
 } MM_DEV_INTF_REG_s;
 
