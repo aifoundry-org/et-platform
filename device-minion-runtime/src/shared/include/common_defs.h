@@ -42,6 +42,8 @@ enum ETSOC_MEM_TYPES
     \brief A macro that provides the status code on a successful operation.
 */
 #define STATUS_SUCCESS         0
+#define GENERAL_ERROR          -1
+
 
 /*! \typedef cmd_size_t
     \brief A typedef for command size field for SQ command.

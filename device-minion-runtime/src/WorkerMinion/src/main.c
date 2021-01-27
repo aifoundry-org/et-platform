@@ -47,7 +47,8 @@ void __attribute__((noreturn)) main(void)
         };
 
         // To Master Shire thread 0 aka Dispatcher (circbuff queue index is 0)
-        CM_To_MM_Iface_Unicast_Send(0, 0, (const cm_iface_message_t *)&message);
+        CM_To_MM_Iface_Unicast_Send(CM_MM_MASTER_HART_UNICAST_BUFF_IDX, 0,
+            (const cm_iface_message_t *)&message);
     }
 
     // Disable global interrupts (sstatus.SIE = 0) to not trap to trap handler.

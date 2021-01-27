@@ -4,6 +4,18 @@
 #include "circbuff.h"
 #include "message_types.h"
 
+/*! \def CM_MM_MASTER_HART_UNICAST_BUFF_IDX
+    \brief A macro that provides the index of the unicast buffer associated
+    with Master HART within the master shire.
+*/
+#define CM_MM_MASTER_HART_UNICAST_BUFF_IDX  0U
+
+/*! \def CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX
+    \brief A macro that provides the base index of the unicast buffer
+    associated with Kernel Workers.
+*/
+#define CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX  1U
+
 // Thread safe. Can be called by multiple threads (takes a lock)
 int8_t CM_To_MM_Iface_Unicast_Send(uint64_t ms_thread_id, uint64_t cb_idx, const cm_iface_message_t *const message);
 

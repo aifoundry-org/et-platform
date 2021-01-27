@@ -68,6 +68,48 @@ typedef struct {
     uint32_t flag;
 } __attribute__((aligned(CACHE_LINE_SIZE))) global_fcc_flag_t;
 
+/*! \struct fcc_sync_cb_t
+    \brief FCC based synchronization control block associates
+    a FCC identifier and an FCC flag.
+*/
+typedef struct fcc_sync_cb_ {
+    uint8_t   fcc_id;
+    global_fcc_flag_t   fcc_flag;
+} fcc_sync_cb_t;
+
+
+static inline void global_fcc_init(global_fcc_flag_t *flag)
+{
+    atomic_store_global_32(&flag->flag, 0);
+}
+
+static inline void global_fcc_wait(fcc_t fcc_id, global_fcc_flag_t *flag)
+{
+    do {
+        if(fcc_id == FCC_0)
+        {
+            WAIT_FCC(FCC_0);
+        } else if (fcc_id == FCC_1){
+            WAIT_FCC(FCC_1);
+        }
+    } while (atomic_load_global_32(&flag->flag) != 1);
+
+    atomic_store_global_32(&flag->flag, 0);
+}
+
+
+static inline void global_fcc_notify(fcc_t fcc_id, global_fcc_flag_t *flag, uint32_t minion, uint32_t thread)
+{
+    atomic_store_global_32(&flag->flag, 1);
+    FENCE
+
+    do {
+        SEND_FCC(THIS_SHIRE, thread, fcc_id, 1U << minion);
+        FENCE
+    } while (atomic_load_global_32(&flag->flag) != 0);
+}
+
+
 static inline void global_fcc_flag_init(global_fcc_flag_t *flag)
 {
     atomic_store_global_32(&flag->flag, 0);

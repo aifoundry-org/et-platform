@@ -23,6 +23,10 @@
 #include "kernel_sync.h"
 #include "sync.h"
 #include "vq.h"
+#include "layout.h"
+
+#include <esperanto/device-apis/operations-api/device_ops_api_spec.h>
+#include <esperanto/device-apis/operations-api/device_ops_api_rpc_types.h>
 
 /*! \def KW_MAX_HART_ID
     \brief A macro that provides the maximum HART ID the KW is configued
@@ -36,15 +40,23 @@
 */
 #define     KW_WORKER_0         ((KW_BASE_HART_ID - MM_BASE_ID)/2)
 
-/* TODO: fix up the 1 suffix once the old implementation is removed */
-typedef enum
-{
-    KERNEL_ID1_0 = 0,
-    KERNEL_ID1_1,
-    KERNEL_ID1_2,
-    KERNEL_ID1_3,
-    KERNEL_ID1_NONE
-} kernel_id_t1;
+/*! \def KW_ERROR_GENERAL
+    \brief Kernel Worker - General error
+*/
+#define KW_ERROR_GENERAL                 -1
+
+/*! \def KW_ERROR_KERNEL_SLOT_UNAVAILABLE
+    \brief Kernel Worker - Kernel slot not available error
+*/
+#define KW_ERROR_KERNEL_SLOT_UNAVAILABLE -2
+
+/*! \enum kernel_state_e
+    \brief Enum that provides the state of a kernel
+*/
+typedef enum {
+    KERNEL_STATE_UN_USED = 0,
+    KERNEL_STATE_IN_USE,
+} kernel_state_e;
 
 /*! \fn void KW_Init(void)
     \brief Initialize Kernel Worker
@@ -67,44 +79,28 @@ void KW_Notify(uint8_t kw_idx);
 */
 void KW_Launch(uint32_t hart_id, uint32_t kw_idx);
 
-#if 0
-
-/*! \fn void KW_Dispatch_Kernel_Launch_Command
-        (struct device_ops_kernel_launch_cmd_t *kernel_launch_cmd)
+/*! \fn int8_t KW_Dispatch_Kernel_Launch_Cmd
+        (struct device_ops_kernel_launch_cmd_t *cmd)
     \brief Kernel Worker's interface to dispatch a kernel launch command
-    \param [in] Kernel Launch Command
+    \param cmd Kernel Launch Command
+    \param sqw_idx Index of the submission queue worker
 */
-void KW_Dispatch_Kernel_Launch_Command
-    (struct device_ops_kernel_launch_cmd_t *kernel_launch_cmd);
+int8_t KW_Dispatch_Kernel_Launch_Cmd
+    (struct device_ops_kernel_launch_cmd_t *cmd, uint8_t sqw_idx);
 
-/*! \fn void KW_Dispatch_Kernel_Abort_Command
-        (struct device_ops_kernel_abort_cmd_t *kernel_abort_cmd)
-    \brief Kernel Worker's interface to dispatch a kernel state command
-    \param [in] Kernel State Command
-    \param [out] Kernel State Response
-*/
-void KW_Dispatch_Kernel_Abort_Command
-    (struct device_ops_kernel_abort_cmd_t *kernel_abort_cmd);
-
-/*! \fn void KW_Dispatch_Kernel_State_Command
-        (struct device_ops_kernel_state_cmd_t *kernel_state_cmd,
-        struct device_ops_kernel_state_rsp_t *kernel_state_rsp);
+/*! \fn int8_t KW_Dispatch_Kernel_Abort_Cmd
+        (struct device_ops_kernel_abort_cmd_t *cmd)
     \brief Kernel Worker's interface to dispatch a kernel abort command
-    \param [in] Kernel Abort Command
+    \param cmd Kernel Abort Command
+    \param sqw_idx Submission Queue index of command origination
 */
-void KW_Dispatch_Kernel_State_Command
-    (struct device_ops_kernel_state_cmd_t *kernel_state_cmd,
-    struct device_ops_kernel_state_rsp_t *kernel_state_rsp);
+int8_t KW_Dispatch_Kernel_Abort_Cmd
+    (struct device_ops_kernel_abort_cmd_t *cmd, uint8_t sqw_idx);
 
-/*! \fn void KW_Update_Kernel_State
-        (kernel_id_t kernel_id, kernel_state_t kernel_state)
-    \brief Update kernel state machine for the kernel executing
-    \param [in] kernel identifier
-    \param [in] kernel state to update the kernel state machine to
+/*! \fn int8_t KW_Fetch_Kernel_State(uint8_t kernel_id);
+    \brief Fetch kernel state
+    \param kernel_id Kernel ID
 */
-void KW_Update_Kernel_State(kernel_id_t kernel_id,
-     kernel_state_t kernel_state);
-
-#endif
+uint8_t KW_Fetch_Kernel_State(uint8_t kernel_id);
 
 #endif /* KW_DEFS_H */

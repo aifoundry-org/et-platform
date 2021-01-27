@@ -95,7 +95,6 @@ void main2(void)
         acquire_local_spinlock(&Launch_Lock);
         SQW_Launch(hart_id, (hart_id - SQW_BASE_HART_ID));
     }
-    #if 0
     else if ((hart_id >= KW_BASE_HART_ID) && 
             (hart_id < KW_MAX_HART_ID))
     {
@@ -103,7 +102,6 @@ void main2(void)
         acquire_local_spinlock(&Launch_Lock);
         KW_Launch(hart_id, hart_id - KW_BASE_HART_ID);
     }
-    #endif
     else if ((hart_id >= DMAW_BASE_HART_ID) && 
             (hart_id < DMAW_MAX_HART_ID))
     {

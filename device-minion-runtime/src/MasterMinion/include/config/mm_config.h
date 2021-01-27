@@ -184,7 +184,7 @@
 /*! \def KW_NUM
     \brief Number of Kernel Workers
 */
-#define KW_NUM                4
+#define KW_NUM                1
 
 /*! \def DMAW_BASE_HART_ID
     \brief Base HART ID for the DMA Worker
@@ -225,9 +225,9 @@ move this defined to a abstraction common to SP and MM runtimes*/
 #define     MM_SP_CMD_SIZE       64
 
 /**********************/
-/* Minion Identifiers */
+/* Kernel processing  */
 /**********************/
-
+#define     MM_MAX_PARALLEL_KERNELS     1
 
 /**********************/
 /* DIR Configuration  */

@@ -81,7 +81,7 @@ static void MM_To_CM_Iface_Handle_Message(uint64_t shire, uint64_t hart, cm_ifac
             if (launch->shire_mask & (1ULL << shire)) {
                 uint64_t kernel_stack_addr = KERNEL_UMODE_STACK_BASE - (hart * KERNEL_UMODE_STACK_SIZE);
 
-                rv = launch_kernel(launch->kw_base_id, launch->kernel_id, launch->code_start_address, kernel_stack_addr,
+                rv = launch_kernel(launch->kw_base_id, launch->slot_index, launch->code_start_address, kernel_stack_addr,
                                    launch->pointer_to_args, launch->flags, launch->shire_mask);
                 break;
             }

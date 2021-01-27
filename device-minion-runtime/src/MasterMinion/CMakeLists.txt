@@ -42,7 +42,6 @@ set(SOURCES
     src/workers/cw.c
     src/drivers/console.c
     src/drivers/interrupts.c
-    src/drivers/shires.c
     src/services/log1.c
     src/services/host_iface.c
     src/services/host_cmd_hdlr.c
