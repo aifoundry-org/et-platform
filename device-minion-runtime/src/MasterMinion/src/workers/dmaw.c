@@ -157,15 +157,14 @@ void DMAW_Launch(uint32_t hart_id)
     data from host to device, similarly a read command from host will 
     trigger the implementation to configure a DMA write channel on device
     to move data from device to host */
-    while(1)
+    if(hart_id == DMAW_FOR_READ)
     {
-        if(hart_id == DMAW_FOR_READ)
-        {
-            for(dma_chan_id = ETSOC_DMA_CHAN_ID_READ_0; 
-                dma_chan_id <  (ETSOC_DMA_CHAN_ID_READ_0 + 
-                PCIE_DMA_RD_CHANNEL_COUNT); 
-                dma_chan_id++)
-            {
+      while(1)
+      {
+         for(dma_chan_id = ETSOC_DMA_CHAN_ID_READ_0; 
+             dma_chan_id <  (ETSOC_DMA_CHAN_ID_READ_0 + PCIE_DMA_RD_CHANNEL_COUNT); 
+             dma_chan_id++)
+         {
                 channel_state = atomic_load_local_8
                 (&DMA_Channel_Status.dma_rd_chan[dma_chan_id].channel_state); 
 
@@ -239,7 +238,10 @@ void DMAW_Launch(uint32_t hart_id)
             }
         }
 
-        if(hart_id == DMAW_FOR_WRITE)
+    } 
+     else if(hart_id == DMAW_FOR_WRITE)
+    {
+        while(1)
         {
             for(dma_chan_id = ETSOC_DMA_CHAN_ID_WRITE_0; 
                 dma_chan_id <  
@@ -321,7 +323,11 @@ void DMAW_Launch(uint32_t hart_id)
                 }
             }
         }
-    };
+    } 
+     else {
+            Log_Write(LOG_LEVEL_ERROR,"%s%d",  
+                   "DMAW:Launch Invalid DMA Hart ID ", hart_id,"\r\n"); 
+    }
 
     return;
 }
