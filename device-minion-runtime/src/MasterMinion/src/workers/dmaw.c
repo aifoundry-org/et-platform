@@ -145,7 +145,6 @@ void DMAW_Launch(uint32_t hart_id)
     uint16_t tag_id; 
     uint16_t channel_state;
     int8_t status = STATUS_SUCCESS;
-    uint32_t start_cycles=0;
 
     /* Release the launch lock to let other workers acquire it */
     release_local_spinlock(&Launch_Lock);
@@ -208,14 +207,13 @@ void DMAW_Launch(uint32_t hart_id)
                         for the command */ 
                         write_rsp.cmd_wait_time = atomic_load_local_32
                             (&DMA_Channel_Status.dma_rd_chan[dma_chan_id].
-                            wait_latency);
-                        start_cycles = atomic_load_local_32
-                            (&DMA_Channel_Status.dma_rd_chan[dma_chan_id].
-                            cmd_dispatch_start_cycles);
+                             dmaw_cycles.wait_cycles);
                         /* Obtain current cycles, and compute command execution
                         latency */
                         write_rsp.cmd_execution_time = 
-                            PMC_GET_LATENCY(start_cycles);
+                            PMC_GET_LATENCY(atomic_load_local_32
+                            (&DMA_Channel_Status.dma_rd_chan[dma_chan_id].
+                            dmaw_cycles.start_cycles));
                         /* TODO: We should be able to capture other DMA states 
                         as well */
                         write_rsp.status = ETSOC_DMA_STATE_DONE;
@@ -294,14 +292,13 @@ void DMAW_Launch(uint32_t hart_id)
                         command */ 
                         read_rsp.cmd_wait_time = atomic_load_local_32
                             (&DMA_Channel_Status.dma_wrt_chan[dma_chan_id].
-                            wait_latency);
-                        start_cycles = atomic_load_local_32
-                            (&DMA_Channel_Status.dma_wrt_chan[dma_chan_id].
-                            cmd_dispatch_start_cycles);
+                             dmaw_cycles.wait_cycles);
                         /* Obtain current cycles, and compute command execution
                         latency */
                         read_rsp.cmd_execution_time = 
-                            PMC_GET_LATENCY(start_cycles);
+                            PMC_GET_LATENCY(atomic_load_local_32
+                            (&DMA_Channel_Status.dma_wrt_chan[dma_chan_id].
+                            dmaw_cycles.start_cycles));
                         /* TODO: We should be able to capture other DMA states 
                         as well */
                         read_rsp.status = ETSOC_DMA_STATE_DONE; 

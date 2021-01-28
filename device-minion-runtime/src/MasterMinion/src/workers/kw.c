@@ -55,9 +55,8 @@ typedef struct kernel_instance_ {
     uint16_t tag_id;
     uint16_t sqw_idx;
     uint16_t kernel_state;
+    exec_cycles_t kw_cycles;
     uint64_t kernel_shire_mask;
-    uint64_t start_time;
-    uint64_t end_time;
 } kernel_instance_t;
 
 /*! \struct kw_cb_t
@@ -459,8 +458,8 @@ void KW_Init(void)
         /* Initialize id, tag_id, sqw_idx, kernel_state */
         atomic_store_local_64((uint64_t*)&KW_CB.kernels[i], 0U);
         atomic_store_local_64(&KW_CB.kernels[i].kernel_shire_mask, 0U);
-        atomic_store_local_64(&KW_CB.kernels[i].start_time, 0U);
-        atomic_store_local_64(&KW_CB.kernels[i].end_time, 0U);
+        atomic_store_local_32(&KW_CB.kernels[i].kw_cycles.wait_cycles, 0U);
+        atomic_store_local_32(&KW_CB.kernels[i].kw_cycles.start_cycles, 0U);
     }
 
     return;
@@ -478,14 +477,19 @@ void KW_Init(void)
 *
 *   INPUTS
 *
-*       kw_idx    ID of the kernel worker.
+*       kw_idx    ID of the kernel worker
+*       cycles    Pointer containing 2 elements:
+*                 -Wait Latency(time the command sits in Submission 
+*                   Queue)
+*                 -Start cycles when Kernels are Launched on the 
+*                 Compute Minions
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-void KW_Notify(uint8_t kw_idx)
+void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle )
 {
     uint32_t minion = (uint32_t)KW_WORKER_0 + (kw_idx / 2);
     uint32_t thread = kw_idx % 2;
@@ -494,6 +498,12 @@ void KW_Notify(uint8_t kw_idx)
         "%s%d%s%d%s", "Notifying:KW:minion=", minion, ":thread=",
         thread, "\r\n");
 
+    /* Extract Wait cycles and start cycles */
+    atomic_store_local_32(&KW_CB.kernels[kw_idx].kw_cycles.wait_cycles,
+                          cycle->wait_cycles);
+    atomic_store_local_32(&KW_CB.kernels[kw_idx].kw_cycles.start_cycles,
+                          cycle->start_cycles);
+ 
     global_fcc_notify(atomic_load_local_8(&KW_CB.host2kw.fcc_id),
         &KW_CB.host2kw.fcc_flag, minion, thread);
 
@@ -642,6 +652,9 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         rsp.response_info.rsp_hdr.msg_id =
             DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
         rsp.response_info.rsp_hdr.size = sizeof(rsp);
+        rsp.cmd_wait_time = atomic_load_local_32(&kernel->kw_cycles.wait_cycles);
+        rsp.cmd_execution_time = (uint32_t)PMC_GET_LATENCY(atomic_load_local_32(
+                                           &kernel->kw_cycles.start_cycles)) & 0xFFFFFFFF;
 
         /* If an exception was detected */
         if(cw_exception)

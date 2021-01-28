@@ -35,6 +35,16 @@ enum ETSOC_MEM_TYPES
 };
 /* TODO: find a good home for macros below */
 
+/*! \struct exec_cycle_t
+     \brief Struct containing 2 elements:
+            - Wait Latency(amount of Minion cycles that the command took sitting in the Submission Queue)
+            - Start cycles(Snapshot cycle when a command gets launched on a specific HW component: DMA, Compute Minion)
+*/
+typedef struct exec_cycles_ {
+    uint32_t wait_cycles;
+    uint32_t start_cycles;
+} exec_cycles_t;
+
 /***********************/
 /* Common Status Codes */
 /***********************/
