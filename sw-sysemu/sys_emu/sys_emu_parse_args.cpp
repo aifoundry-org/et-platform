@@ -384,7 +384,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "mem_check"))
         {
-            mem_check = true;
+            cmd_options.mem_check = true;
         }
         else if (!strcmp(name, "mem_check_minion"))
         {
@@ -396,7 +396,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "l1_scp_check"))
         {
-            l1_scp_check = true;
+            cmd_options.l1_scp_check = true;
         }
         else if (!strcmp(name, "l1_scp_check_minion"))
         {
@@ -404,7 +404,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "l2_scp_check"))
         {
-            l2_scp_check = true;
+            cmd_options.l2_scp_check = true;
         }
         else if (!strcmp(name, "l2_scp_check_shire"))
         {
@@ -420,7 +420,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "flb_check"))
         {
-            flb_check = true;
+            cmd_options.flb_check = true;
         }
         else if (!strcmp(name, "flb_check_shire"))
         {
