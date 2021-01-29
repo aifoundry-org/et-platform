@@ -625,8 +625,8 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	dir_mgmt = (struct et_mgmt_dir *)et_dev->mgmt.dir;
 
 	// TODO: Improve device discovery
-	// Waiting for device to be ready, wait for 1000 secs
-	for (i = 0; !ddr_ready && i < 100; i++) {
+	// Waiting for device to be ready, wait for 300 secs
+	for (i = 0; !ddr_ready && i < 30; i++) {
 		rv = ioread32(&dir_mgmt->status);
 		if (rv >= MGMT_BOOT_STATUS_DEV_READY) {
 			pr_debug("Mgmt device DIRs ready, status: %d", rv);
@@ -785,10 +785,10 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	dir_ops = (struct et_ops_dir *)et_dev->ops.dir;
 
 	// TODO: Improve device discovery
-	// Waiting for device to be ready, wait for 100 secs
-	for (i = 0; !ddr_ready && i < 10; i++) {
+	// Waiting for device to be ready, wait for 300 secs
+	for (i = 0; !ddr_ready && i < 30; i++) {
 		rv = ioread32(&dir_ops->status);
-		if (rv >= OPS_BOOT_STATUS_VQ_READY) {
+		if (rv >= OPS_BOOT_STATUS_MM_READY) {
 			pr_debug("Ops device DIRs ready, status: %d", rv);
 			ddr_ready = true;
 		} else {

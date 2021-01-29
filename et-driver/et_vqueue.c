@@ -325,7 +325,7 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		dir_ops = (struct et_ops_dir *)et_dev->ops.dir;
 
 		rv = (s32)ioread32(&dir_ops->status);
-		if (rv < OPS_BOOT_STATUS_VQ_READY) {
+		if (rv < OPS_BOOT_STATUS_MM_READY) {
 			dev_err(&et_dev->pdev->dev,
 				"Ops device DIR not ready, status: %ld\n",
 				rv);
