@@ -446,7 +446,7 @@ void KW_Init(void)
 {
     /* Initialize FCC flags used by
     the kernel worker */
-    KW_CB.host2kw.fcc_id = FCC_0;
+    atomic_store_local_8(&KW_CB.host2kw.fcc_id, FCC_0);
     global_fcc_init(&KW_CB.host2kw.fcc_flag);
 
     /* Initialize the spinlock */
@@ -479,9 +479,9 @@ void KW_Init(void)
 *
 *       kw_idx    ID of the kernel worker
 *       cycles    Pointer containing 2 elements:
-*                 -Wait Latency(time the command sits in Submission 
+*                 -Wait Latency(time the command sits in Submission
 *                   Queue)
-*                 -Start cycles when Kernels are Launched on the 
+*                 -Start cycles when Kernels are Launched on the
 *                 Compute Minions
 *
 *   OUTPUTS
@@ -503,7 +503,7 @@ void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle )
                           cycle->wait_cycles);
     atomic_store_local_32(&KW_CB.kernels[kw_idx].kw_cycles.start_cycles,
                           cycle->start_cycles);
- 
+
     global_fcc_notify(atomic_load_local_8(&KW_CB.host2kw.fcc_id),
         &KW_CB.host2kw.fcc_flag, minion, thread);
 
@@ -691,4 +691,3 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 
     return;
 }
-
