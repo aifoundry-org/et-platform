@@ -65,11 +65,11 @@ typedef enum {
 */
 void KW_Init(void);
 
-/*! \fn void KW_Notify(uint8_t kw_idx)
+/*! \fn void KW_Notify(uint8_t kw_idx, struct exec_cycles_t *cycle)
     \brief Notify Kernel Worker
     \return none
 */
-void KW_Notify(uint8_t kw_idx);
+void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle);
 
 /*! \fn void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     \brief Launch the Kernel Worker thread

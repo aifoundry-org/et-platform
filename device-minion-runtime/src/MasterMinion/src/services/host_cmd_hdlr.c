@@ -53,6 +53,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
     int8_t status = STATUS_SUCCESS;
     struct cmd_header_t *hdr = command_buffer;
     dma_channel_status_t *p_DMA_Channel_Status;
+    exec_cycles_t cycles;
 
     p_DMA_Channel_Status =
         (dma_channel_status_t*)DMAW_Get_DMA_Channel_Status_Addr();
@@ -196,6 +197,12 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             Log_Write(LOG_LEVEL_DEBUG, "%s",
                 "HostCommandHandler:Processing:KERNEL_LAUNCH_CMD\r\n");
 
+            /* Compute Wait Cycles (cycles the command was sitting in SQ prior to launch)
+               Snapshot current cycle 
+            */
+              cycles.wait_cycles = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
+              cycles.start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
+
             /* Blocking call to launch kernel */
             status = KW_Dispatch_Kernel_Launch_Cmd(cmd, sqw_idx);
 
@@ -205,7 +212,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 kernel completion responses, and construct
                 and transmit command response to host
                 completion queue */
-                KW_Notify(0);
+                KW_Notify(0, &cycles);
             }
             else
             {
@@ -220,6 +227,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 rsp.status = DEV_OPS_API_KERNEL_LAUNCH_STATUS_ERROR;
                 rsp.response_info.rsp_hdr.size =
                     sizeof(struct device_ops_kernel_launch_rsp_t);
+                rsp.cmd_wait_time = cycles.wait_cycles;
+                rsp.cmd_execution_time = 0U;
 
                 status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
 
@@ -320,7 +329,6 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             struct device_ops_data_read_cmd_t *cmd = (void *)hdr;
             et_dma_chan_id_e chan;
             DMA_STATUS_e dma_status = DMA_OPERATION_NOT_SUCCESS;
-            uint32_t temp;
 
             /* Design Notes: Note a DMA write command from host will 
             trigger the implementation to configure a DMA read channel 
@@ -348,30 +356,30 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
                 /* Update the Global DMA Channel Status data structure
                 - Set tag ID, set channel state to active, set SQW Index */
-                temp = (uint32_t)((sqw_idx << 24)|
-                    (DMA_CHANNEL_IN_USE << 16) | hdr->cmd_hdr.tag_id);
                 atomic_store_local_32
                     ((volatile uint32_t*)&p_DMA_Channel_Status->dma_wrt_chan[chan],
-                    temp);
-                /* Update the Global Channel Status data structure
-                - set wait latency, set cmd_dispatch_start_cycles */
-                temp = PMC_GET_LATENCY(start_cycles);
-                atomic_store_local_32
-                ((volatile uint32_t*)&p_DMA_Channel_Status->dma_wrt_chan[chan].wait_latency,
-                temp);
-                temp =  (uint32_t)(PMC_Get_Current_Cycles() & 0xFFFFFFFF);
-                atomic_store_local_32
-                ((volatile uint32_t*)&p_DMA_Channel_Status->dma_wrt_chan[chan].cmd_dispatch_start_cycles,
-                temp);
+                     ((uint32_t)((sqw_idx << 24) |
+                      (DMA_CHANNEL_IN_USE << 16) | hdr->cmd_hdr.tag_id)));
+               
+                /* Compute Wait Cycles (cycles the command was sitting in SQ prior to launch)
+                   Snapshot current cycle */ 
+                cycles.wait_cycles = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
+                cycles.start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
 
-                /* TODO: BAR relative address will be received form host
-                (host_phy_addr) this needs to fixed up here to device address
-                before DMA is triggered */
                 /* Initiate DMA transfer */
                 dma_status = dma_trigger_transfer2(DMA_DEVICE_TO_HOST,
                     cmd->src_device_phy_addr, cmd->dst_host_phy_addr,
                     cmd->size, chan);
 
+                /* Update cycles value into the Global Channel Status data structure*/
+                atomic_store_local_32
+                ((volatile uint32_t *)&p_DMA_Channel_Status->dma_wrt_chan[chan].
+                       dmaw_cycles.wait_cycles,cycles.wait_cycles);
+                atomic_store_local_32
+                ((volatile uint32_t *)&p_DMA_Channel_Status->dma_wrt_chan[chan].
+                       dmaw_cycles.start_cycles,cycles.start_cycles);
+
+    
                 if(dma_status == DMA_OPERATION_SUCCESS)
                 {
                     Log_Write(LOG_LEVEL_DEBUG, "%s",
@@ -387,7 +395,6 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             struct device_ops_data_write_cmd_t  *cmd = (void *)hdr;
             et_dma_chan_id_e chan;
             DMA_STATUS_e dma_status = DMA_OPERATION_NOT_SUCCESS;
-            uint32_t temp;
 
             /* Design Notes: Note a DMA write command from host will trigger
             the implementation to configure a DMA read channel on device to move
@@ -418,30 +425,28 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
                 /* Update the Global DMA Channel Status data structure
                 - Set tag ID, set channel state to active, set SQW Index */
-                temp = (uint32_t)((sqw_idx << 24)|
-                    (DMA_CHANNEL_IN_USE << 16) | hdr->cmd_hdr.tag_id);
                 atomic_store_local_32
                     ((volatile uint32_t*)&p_DMA_Channel_Status->dma_rd_chan[chan],
-                    temp);
+                     ((uint32_t)((sqw_idx << 24) |
+                      (DMA_CHANNEL_IN_USE << 16) | hdr->cmd_hdr.tag_id)));
 
-                /* Update the Global Channel Status data structure
-                - set wait latency, set cmd_dispatch_start_cycles */
-                temp = PMC_GET_LATENCY(start_cycles);
-                atomic_store_local_32
-                ((volatile uint32_t*)&p_DMA_Channel_Status->dma_rd_chan[chan].wait_latency,
-                temp);
-                temp = (uint32_t)(PMC_Get_Current_Cycles() & 0xFFFFFFFF);
-                atomic_store_local_32
-                ((volatile uint32_t*)&p_DMA_Channel_Status->dma_rd_chan[chan].cmd_dispatch_start_cycles,
-                temp);
+                /* Compute Wait Cycles (cycles the command was sitting in SQ prior to launch)
+                   Snapshot current cycle */ 
+                cycles.wait_cycles = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
+                cycles.start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
 
                 /* Initiate DMA transfer */
-                /* TODO: BAR relative address will be received form host
-                (host_phy_addr) this needs to fixed up here to device address
-                before DMA is triggered */
                 dma_status = dma_trigger_transfer2(DMA_HOST_TO_DEVICE,
                     cmd->src_host_phy_addr, cmd->dst_device_phy_addr,
                     cmd->size, chan);
+
+                /* Update cycles value into the Global Channel Status data structure*/
+                atomic_store_local_32
+                ((volatile uint32_t *)&p_DMA_Channel_Status->dma_rd_chan[chan].
+                       dmaw_cycles.wait_cycles,cycles.wait_cycles);
+                atomic_store_local_32
+                ((volatile uint32_t *)&p_DMA_Channel_Status->dma_rd_chan[chan].
+                       dmaw_cycles.start_cycles,cycles.start_cycles);
 
                 if(dma_status == DMA_OPERATION_SUCCESS)
                 {

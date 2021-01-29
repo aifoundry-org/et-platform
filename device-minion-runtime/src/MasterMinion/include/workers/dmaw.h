@@ -58,8 +58,7 @@ typedef struct dma_chanl_status_ {
     uint16_t    tag_id; /* tag_id for the transaction associated with the channel */
     uint8_t     channel_state; /* '0' channel available, '1' channel used */
     uint8_t     sqw_idx; /* SQW idx that submitted this command */
-    uint32_t    wait_latency; /* Measured wait latency */
-    uint32_t    cmd_dispatch_start_cycles; /* Lower 32 bits of command dispatch time stamp*/
+    exec_cycles_t dmaw_cycles; /* Cycles associated with the transaction*/ 
 } dma_chanl_status_t;
 
 
