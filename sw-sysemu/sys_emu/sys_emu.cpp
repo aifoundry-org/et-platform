@@ -790,13 +790,13 @@ bool sys_emu::init_simulator(const sys_emu_cmd_options &cmd_options,
     for (auto &item : coop_tload_pending_list) {
         item.clear();
     }
-    mem_check = false;
+    mem_check = cmd_options.mem_check;
     mem_checker_ = mem_checker{};
-    l1_scp_check = false;
+    l1_scp_check = cmd_options.l1_scp_check;
     l1_scp_checker_ = l1_scp_checker{};
-    l2_scp_check = false;
+    l2_scp_check = cmd_options.l2_scp_check;
     new (&l2_scp_checker_) l2_scp_checker{};
-    flb_check = false;
+    flb_check = cmd_options.flb_check;
     flb_checker_ = flb_checker{};
     breakpoints.clear();
     single_step.reset();

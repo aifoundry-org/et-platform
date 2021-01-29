@@ -109,6 +109,10 @@ struct sys_emu_cmd_options {
     uint64_t    stop_log_at_pc               = ~0ull;
     bool        display_trap_info            = false;
     bool        gdb                          = false;
+    bool        mem_check                    = false;
+    bool        l1_scp_check                 = false;
+    bool        l2_scp_check                 = false;
+    bool        flb_check                    = false;
 #ifdef SYSEMU_PROFILING
     std::string dump_prof_file;
 #endif
