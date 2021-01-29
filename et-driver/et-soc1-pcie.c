@@ -625,8 +625,8 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	dir_mgmt = (struct et_mgmt_dir *)et_dev->mgmt.dir;
 
 	// TODO: Improve device discovery
-	// Waiting for device to be ready, wait for 100 secs
-	for (i = 0; !ddr_ready && i < 10; i++) {
+	// Waiting for device to be ready, wait for 1000 secs
+	for (i = 0; !ddr_ready && i < 100; i++) {
 		rv = ioread32(&dir_mgmt->status);
 		if (rv >= MGMT_BOOT_STATUS_DEV_READY) {
 			pr_debug("Mgmt device DIRs ready, status: %d", rv);
