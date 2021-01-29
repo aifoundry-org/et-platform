@@ -316,7 +316,7 @@ static void pwr_svc_get_module_temp_thresholds(uint16_t tag, uint64_t req_start_
     dm_rsp.temperature_threshold = get_soc_power_reg()->temperature_threshold;
 
     FILL_RSP_HEADER(dm_rsp, tag,
-                    DM_CMD_SET_MODULE_POWER_STATE,
+                    DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS,
                     timer_get_ticks_count() - req_start_time,
                     DM_STATUS_SUCCESS);
 
