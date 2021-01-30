@@ -53,7 +53,7 @@
 #include "pmu.h"
 #include "swi.h" /* TODO: Need to update swi.c to new coding conventions and abstraction */
 
-extern spinlock_t Launch_Lock;
+extern spinlock_t Launch_Wait;
 
 extern bool Host_Iface_Interrupt_Flag;
 
@@ -134,8 +134,7 @@ void Dispatcher_Launch(uint32_t hart_id)
     /* Release Master Shire Workers */
     Log_Write(LOG_LEVEL_DEBUG, "%s",
         "Dispatcher: Releasing workers\r\n");
-    atomic_store_local_32(&Launch_Lock.flag, 1);
-    asm volatile("fence\n" ::: "memory");
+    local_spinwait_set(&Launch_Wait, 1);
 
     /* Mark Master Minion Status as Ready */
     /* Now able to receive and process commands from host .. */

@@ -182,5 +182,18 @@ static inline void release_local_spinlock(spinlock_t *lock)
     asm volatile("fence\n" ::: "memory");
 }
 
+// Local spinwait
+static inline void local_spinwait_set(spinlock_t *lock, uint32_t value)
+{
+    atomic_store_local_32(&lock->flag, value);
+    asm volatile("fence\n" ::: "memory");
+}
+
+static inline void local_spinwait_wait(const spinlock_t *lock, uint32_t value)
+{
+    while (atomic_load_local_32(&lock->flag) != value) {
+        asm volatile("fence\n" ::: "memory");
+    }
+}
 
 #endif

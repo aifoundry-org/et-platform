@@ -47,8 +47,6 @@
 */
 dma_channel_status_t DMA_Channel_Status[PCIE_DMA_CHANNEL_COUNT] __attribute__((aligned(64))) = {0};
 
-extern spinlock_t Launch_Lock;
-
 /************************************************************************
 *
 *   FUNCTION
@@ -131,9 +129,6 @@ void DMAW_Launch(uint32_t hart_id)
     uint16_t tag_id;
     uint16_t channel_state;
     int8_t status = STATUS_SUCCESS;
-
-    /* Release the launch lock to let other workers acquire it */
-    release_local_spinlock(&Launch_Lock);
 
     Log_Write(LOG_LEVEL_CRITICAL, "%s%d%s", "DMAW:HART=", hart_id, "\r\n");
 

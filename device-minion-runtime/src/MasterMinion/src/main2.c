@@ -33,38 +33,18 @@
 #include "hart.h"
 #include "atomic.h"
 
-/*! \var spinlock_t Launch_Lock
-    \brief Global Host to MM submission
-    queues interface. Locks initialized
-    to acquired state.
+/*! \var spinlock_t Launch_Wait
+    \brief Spinlock used to let the FW workers continue.
+    Released by the Dispatcher.
     \warning Not thread safe!
 */
-spinlock_t Launch_Lock = {0};
-
-/*! \var uint32_t Early_Init_Done
-    \brief Global variable to do early initialization.
-*/
-static uint32_t Early_Init_Done __attribute__((aligned(64))) = 0;
+spinlock_t Launch_Wait = {0};
 
 /*! \fn static inline void main2_early_init(void)
-    \brief Function to do early initialization 
-    (once) of components before any Minion is 
+    \brief Function to do early initialization
+    (once) of components before any Minion is
     launched.
 */
-static inline void main2_early_init(void)
-{
-    if (atomic_or_global_32(&Early_Init_Done, 1U) == 0U)
-    {
-        asm volatile("fence\n" ::: "memory");
-
-        /* Init launch lock to acquired state */
-        init_local_spinlock(&Launch_Lock, 1);
-
-        /* Initialize UART logging params */
-        Log_Init(LOG_LEVEL_DEBUG);
-    }
-    asm volatile("fence\n" ::: "memory");
-}
 
 void main2(void);
 
@@ -72,41 +52,41 @@ void main2(void)
 {
     uint64_t temp;
 
-    /* Configure supervisor trap vector and scratch 
+    /* Configure supervisor trap vector and scratch
     (supervisor stack pointer) */
     asm volatile("la    %0, trap_handler \n"
                  "csrw  stvec, %0        \n"
                  : "=&r"(temp));
-
-    /* Call the early initialization function. */
-    main2_early_init();
 
     const uint32_t hart_id = get_hart_id();
 
     /* Launch Dispatcher and Workers */
     if (hart_id == DISPATCHER_BASE_HART_ID)
     {
+        /* Initialize UART logging params */
+        Log_Init(LOG_LEVEL_DEBUG);
+
         Dispatcher_Launch(hart_id);
-    } 
-    else if ((hart_id >= SQW_BASE_HART_ID) && 
+    }
+    else if ((hart_id >= SQW_BASE_HART_ID) &&
             (hart_id < SQW_MAX_HART_ID))
     {
         /* Spin wait till dispatcher initialization is complete */
-        acquire_local_spinlock(&Launch_Lock);
+        local_spinwait_wait(&Launch_Wait, 1);
         SQW_Launch(hart_id, (hart_id - SQW_BASE_HART_ID));
     }
-    else if ((hart_id >= KW_BASE_HART_ID) && 
+    else if ((hart_id >= KW_BASE_HART_ID) &&
             (hart_id < KW_MAX_HART_ID))
     {
         /* Spin wait till dispatcher initialization is complete */
-        acquire_local_spinlock(&Launch_Lock);
+        local_spinwait_wait(&Launch_Wait, 1);
         KW_Launch(hart_id, hart_id - KW_BASE_HART_ID);
     }
-    else if ((hart_id >= DMAW_BASE_HART_ID) && 
+    else if ((hart_id >= DMAW_BASE_HART_ID) &&
             (hart_id < DMAW_MAX_HART_ID))
     {
         /* Spin wait till dispatcher initialization is complete */
-        acquire_local_spinlock(&Launch_Lock);
+        local_spinwait_wait(&Launch_Wait, 1);
         DMAW_Launch(hart_id);
     }
     else
