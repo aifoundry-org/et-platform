@@ -12,10 +12,8 @@ Welcome to Esperanto Minion Device Runtime's documentation!
    :maxdepth: 3
    :caption: Contents:
 
-   about
-
    SystemArchitecture
-   sw-hw-interaction/SW-HW-Interactions
+   sw-hw-interactions/SW-HW-Interactions
    hight-level-flows/KernelExecution
    master-minion/MasterMinion
    worker-minion/WorkerMinion

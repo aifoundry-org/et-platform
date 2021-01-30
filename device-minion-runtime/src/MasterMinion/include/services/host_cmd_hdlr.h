@@ -12,7 +12,7 @@
 /*! \file host_cmd_hdlr.h
     \brief A C header that defines the Host Command Handler component's
     public interfaces. This interface privides services to handle all
-    commands received from the Host over PCIe. 
+    commands received from the Host over PCIe.
 */
 /***********************************************************************/
 #ifndef HOST_CMD_HDLR_H
@@ -24,15 +24,15 @@
 
 
 
-/*! \fn int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx, 
+/*! \fn int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
         uint64_t start_cycles)
     \brief Interface to handle host side commands
     \param command_buffer pointer to command buffer
     \param sqw_idx index of submission queue worker
-    \param start_cycle cycle count to measure wait latency
+    \param start_cycles cycle count to measure wait latency
     \return status success or negative error code
 */
-int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx, 
+int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
     uint64_t start_cycles);
 
 #endif /* HOST_CMD_HDLR_H */

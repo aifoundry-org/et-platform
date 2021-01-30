@@ -1,3 +1,5 @@
+:orphan:
+
 Welcome to Esperanto Minion Device Runtime's documentation!
 ===========================================================
 .. toctree::

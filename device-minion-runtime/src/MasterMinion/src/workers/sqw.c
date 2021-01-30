@@ -12,20 +12,20 @@
 /***********************************************************************/
 /*! \file sqw.c
     \brief A C module that implements the Submission Queue Worker's (SQW)
-    public and private interfaces. The Master Minion runtime SW 
-    architecture enables parallel processing of commands submitted to 
-    Submission Queueus by dedicating one SQW per Host to Device 
-    Submission Queue. 
+    public and private interfaces. The Master Minion runtime SW
+    architecture enables parallel processing of commands submitted to
+    Submission Queueus by dedicating one SQW per Host to Device
+    Submission Queue.
     This module implements;
     1. SQW_Launch - An infinite loop that unblocks on FCC notification
     from dispatcher, pops available commands from the associated
-    submission queue, decodes commands, and processes commands. 
-    Depending on the command, commands are either processed by the 
+    submission queue, decodes commands, and processes commands.
+    Depending on the command, commands are either processed by the
     SQW itself, or processed by offloading some of command processing
-    to other workers (i.e., KW, DMAW) in the master shire. 
-    2. It implements, and exposes the below listed public interfaces to 
-    other master shire runtime components present in the system 
-    to facilitate SQW management 
+    to other workers (i.e., KW, DMAW) in the master shire.
+    2. It implements, and exposes the below listed public interfaces to
+    other master shire runtime components present in the system
+    to facilitate SQW management
 
     Public interfaces:
         SQW_Init
@@ -42,8 +42,8 @@
 #include <esperanto/device-apis/device_apis_message_types.h>
 #include "pmu.h"
 
-/*! \struct sq_cb_t
-    \brief Submission Queue Worker Control Block structure 
+/*! \typedef sqw_cb_t
+    \brief Submission Queue Worker Control Block structure
 */
 typedef struct sqw_cb_ {
     int32_t             sqw_cmd_count[MM_SQ_COUNT];
@@ -51,7 +51,7 @@ typedef struct sqw_cb_ {
     vq_cb_t             *sq[MM_SQ_COUNT];
 } sqw_cb_t;
 
-/*! \var sq_cb_t SQW_CB
+/*! \var sqw_cb_t SQW_CB
     \brief Global Submission Queue Worker Control Block
     \warning Not thread safe!
 */
@@ -64,7 +64,7 @@ extern spinlock_t Launch_Lock;
 *   FUNCTION
 *
 *       sqw_command_barrier
-*  
+*
 *   DESCRIPTION
 *
 *       Local fn helper that servers as a SQW command barrier
@@ -89,8 +89,8 @@ static inline void sqw_command_barrier(uint8_t sqw_idx)
     }
     asm volatile("fence\n" ::: "memory");
 
-    /* TODO: Add timeout and send asynchronous event back to host to 
-       indicate barrier timeout. Should we drop the barrier command 
+    /* TODO: Add timeout and send asynchronous event back to host to
+       indicate barrier timeout. Should we drop the barrier command
        from SQ? */
 }
 
@@ -99,7 +99,7 @@ static inline void sqw_command_barrier(uint8_t sqw_idx)
 *   FUNCTION
 *
 *       SQW_Init
-*  
+*
 *   DESCRIPTION
 *
 *       Initialize resources needed by SQ Workers
@@ -115,17 +115,17 @@ static inline void sqw_command_barrier(uint8_t sqw_idx)
 ***********************************************************************/
 void SQW_Init(void)
 {
-    /* Initialize the SQ Worker sync flags */ 
-    for (uint8_t i = 0; i < MM_SQ_COUNT; i++) 
+    /* Initialize the SQ Worker sync flags */
+    for (uint8_t i = 0; i < MM_SQ_COUNT; i++)
     {
         global_fcc_flag_init(&SQW_CB.sqw_fcc_flags[i]);
 
         atomic_store_local_32((uint32_t*)&SQW_CB.sqw_cmd_count[i], 0U);
-        
-        atomic_store_local_64((uint64_t*)&SQW_CB.sq[i], 
+
+        atomic_store_local_64((uint64_t*)&SQW_CB.sq[i],
             (uint64_t)(void*) Host_Iface_Get_VQ_Base_Addr(SQ, i));
     }
-    
+
     return;
 }
 
@@ -134,7 +134,7 @@ void SQW_Init(void)
 *   FUNCTION
 *
 *       SQW_Notify
-*  
+*
 *   DESCRIPTION
 *
 *       Notify SQ Worker
@@ -153,13 +153,13 @@ void SQW_Notify(uint8_t sqw_idx)
     uint32_t minion = (uint32_t)SQW_WORKER_0 + (sqw_idx / 2);
     uint32_t thread = sqw_idx % 2;
 
-    Log_Write(LOG_LEVEL_DEBUG, 
-        "%s%d%s%d%s","Notifying:SQW:minion=", minion, ":thread=", 
+    Log_Write(LOG_LEVEL_DEBUG,
+        "%s%d%s%d%s","Notifying:SQW:minion=", minion, ":thread=",
         thread, "\r\n");
 
-    global_fcc_flag_notify(&SQW_CB.sqw_fcc_flags[sqw_idx], 
+    global_fcc_flag_notify(&SQW_CB.sqw_fcc_flags[sqw_idx],
         minion, thread);
-    
+
     return;
 }
 
@@ -168,7 +168,7 @@ void SQW_Notify(uint8_t sqw_idx)
 *   FUNCTION
 *
 *       SQW_Launch
-*  
+*
 *   DESCRIPTION
 *
 *       Launch a Submission Queue Worker on HART ID requested
@@ -184,7 +184,7 @@ void SQW_Notify(uint8_t sqw_idx)
 ***********************************************************************/
 void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
 {
-    static uint8_t 
+    static uint8_t
         cmd_buff[MM_CMD_MAX_SIZE] __attribute__((aligned(8))) = { 0 };
     struct cmd_header_t *cmd_hdr = (void*)cmd_buff;
     int8_t status = 0;
@@ -194,7 +194,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
     /* Release the launch lock to let other workers acquire it */
     release_local_spinlock(&Launch_Lock);
 
-    Log_Write(LOG_LEVEL_CRITICAL, "%s%d%s%d%s", 
+    Log_Write(LOG_LEVEL_CRITICAL, "%s%d%s%d%s",
         "SQW:HART=", hart_id, ":IDX=", sqw_idx, "\r\n");
 
     /* Empty all FCCs */
@@ -209,7 +209,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
 	    /* Get current minion cycle */
         start_cycles = PMC_Get_Current_Cycles();
 
-        Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
+        Log_Write(LOG_LEVEL_DEBUG, "%s%d%s",
             "SQW:HART:", hart_id, ":received FCC event!\r\n");
 
         /* Process commands until there is no more data */
@@ -217,14 +217,14 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
         {
             /* Pop from Submission Queue */
             pop_ret_val = VQ_Pop(SQW_CB.sq[sqw_idx], cmd_buff);
-            
+
             if(pop_ret_val > 0)
             {
-                Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
-                    "SQW:Processing:SQW_IDX=", 
+                Log_Write(LOG_LEVEL_DEBUG, "%s%d%s",
+                    "SQW:Processing:SQW_IDX=",
                     sqw_idx, "\r\n");
 
-                /* If barrier flag is set, wait until all cmds are 
+                /* If barrier flag is set, wait until all cmds are
                 processed in the current SQ */
                 if(cmd_hdr->flags & (1 << 0U))
                 {
@@ -232,30 +232,30 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
                 }
 
                 /* Increment the SQW command count.
-                NOTE: Its Host_Command_Handler's job to ensure this 
-                count is decremented on the basis of the path it 
+                NOTE: Its Host_Command_Handler's job to ensure this
+                count is decremented on the basis of the path it
                 takes to process a command. */
                 SQW_Increment_Command_Count((uint8_t)sqw_idx);
-                
+
                 status = Host_Command_Handler(cmd_buff,
                     (uint8_t)sqw_idx, start_cycles);
-                
+
                 if (status != STATUS_SUCCESS)
                 {
                     Log_Write(LOG_LEVEL_ERROR, "%s %d %s",
-                        "SQW:ERROR:Procesisng failed.(Error code:)", 
+                        "SQW:ERROR:Procesisng failed.(Error code:)",
                         status, "\r\n");
                 }
             }
             else if (pop_ret_val < 0)
             {
                 Log_Write(LOG_LEVEL_ERROR, "%s%d%s",
-                    "SQW:ERROR:VQ pop failed.(Error code:)", 
+                    "SQW:ERROR:VQ pop failed.(Error code:)",
                     pop_ret_val, "\r\n");
             }
         } while (pop_ret_val > 0);
     }
-    
+
     return;
 }
 
@@ -264,10 +264,10 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
 *   FUNCTION
 *
 *       SQW_Decrement_Command_Count
-*  
+*
 *   DESCRIPTION
 *
-*       Decrement outstanding command count for the given Submission 
+*       Decrement outstanding command count for the given Submission
 *       Queue Worker
 *
 *   INPUTS
@@ -284,11 +284,11 @@ void SQW_Decrement_Command_Count(uint8_t sqw_idx)
     /* Decrement commands count being processed by current SQW */
     atomic_add_signed_local_32(&SQW_CB.sqw_cmd_count[sqw_idx], -1);
 
-    /* sqw_cmd_count value being shown here is not garanteed to be 
+    /* sqw_cmd_count value being shown here is not garanteed to be
        thread safe. */
-    Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
-        "SQW:Decrement:Command Count:", 
-        atomic_load_local_32((uint32_t*)&SQW_CB.sqw_cmd_count[sqw_idx]), 
+    Log_Write(LOG_LEVEL_DEBUG, "%s%d%s",
+        "SQW:Decrement:Command Count:",
+        atomic_load_local_32((uint32_t*)&SQW_CB.sqw_cmd_count[sqw_idx]),
         "\r\n");
 }
 
@@ -297,10 +297,10 @@ void SQW_Decrement_Command_Count(uint8_t sqw_idx)
 *   FUNCTION
 *
 *       SQW_Increment_Command_Count
-*  
+*
 *   DESCRIPTION
 *
-*       Increment outstanding command count for the given Submission 
+*       Increment outstanding command count for the given Submission
 *       Queue Worker
 *
 *   INPUTS
@@ -317,10 +317,10 @@ void SQW_Increment_Command_Count(uint8_t sqw_idx)
     /* Increment commands count being processed by current SQW */
     atomic_add_signed_local_32(&SQW_CB.sqw_cmd_count[sqw_idx], 1);
 
-    /* sqw_cmd_count value being shown here is not garanteed to be 
+    /* sqw_cmd_count value being shown here is not garanteed to be
        thread safe. */
-    Log_Write(LOG_LEVEL_DEBUG, "%s%d%s", 
-        "SQW:Increment:Command Count:", 
-        atomic_load_local_32((uint32_t*)&SQW_CB.sqw_cmd_count[sqw_idx]), 
+    Log_Write(LOG_LEVEL_DEBUG, "%s%d%s",
+        "SQW:Increment:Command Count:",
+        atomic_load_local_32((uint32_t*)&SQW_CB.sqw_cmd_count[sqw_idx]),
         "\r\n");
 }

@@ -29,7 +29,14 @@ enum cw_shire_state_t {
     CW_SHIRE_STATE_RESERVED
 };
 
+/*! \cond
+    \brief Start of section which is ignored by Doxygen
+*/
 typedef uint8_t cw_shire_state_t;
+
+/*! \endcond
+    \brief End of section which is ignored by Doxygen
+*/
 
 /*! \def CW_ERROR_GENERAL
     \brief Compute Worker - General error
@@ -48,7 +55,6 @@ typedef uint8_t cw_shire_state_t;
 
 /*! \fn int8_t CW_Init(void)
     \brief Initialize Compute Workers
-    \param none
     \return none
 */
 int8_t CW_Init(void);
@@ -73,7 +79,6 @@ int8_t CW_Check_Shire_Available_And_Ready(uint64_t shire_mask);
 /*! \fn uint64_t CW_Get_Physically_Enabled_Shires(void)
     \brief Get mask for physically available shires of the chip
     obtained from OTP (eFuses).
-    \param none
     \return Physically available shire mask
 */
 uint64_t CW_Get_Physically_Enabled_Shires(void);

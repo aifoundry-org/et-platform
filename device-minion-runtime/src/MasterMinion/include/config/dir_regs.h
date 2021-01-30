@@ -82,11 +82,11 @@ enum MM_DEV_INTF_BAR_TYPE_e {
     MM_DEV_INTF_BAR_4 = 4
 };
 
-/*! \struct MM_DEV_INTF_DDR_REGION_s
+/*! \struct MM_DEV_INTF_DDR_REGION
     \brief Holds the information of Master Minion DDR region.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) MM_DEV_INTF_DDR_REGION_ {
+typedef struct __attribute__((__packed__)) MM_DEV_INTF_DDR_REGION {
     uint32_t reserved;
     uint16_t attr;
     uint16_t bar;
@@ -95,22 +95,22 @@ typedef struct __attribute__((__packed__)) MM_DEV_INTF_DDR_REGION_ {
     uint64_t size;
 } MM_DEV_INTF_DDR_REGION_s;
 
-/*! \struct MM_DEV_INTF_DDR_REGIONS_s
+/*! \struct MM_DEV_INTF_DDR_REGIONS
     \brief Holds the information of all the available Master Minion
     DDR regions.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) MM_DEV_INTF_DDR_REGIONS_ {
+typedef struct __attribute__((__packed__)) MM_DEV_INTF_DDR_REGIONS {
     uint32_t reserved;
     uint32_t num_regions;
     MM_DEV_INTF_DDR_REGION_s regions[MM_DEV_INTF_DDR_REGION_MAP_NUM];
 } MM_DEV_INTF_DDR_REGIONS_s;
 
-/*! \struct MM_DEV_INTF_MM_VQ_s
+/*! \struct MM_DEV_INTF_MM_VQ
     \brief Holds the information of Master Minion Virtual Queues.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) MM_DEV_INTF_MM_VQ_ {
+typedef struct __attribute__((__packed__)) MM_DEV_INTF_MM_VQ {
     uint8_t reserved[3];
     uint8_t bar;
     uint32_t bar_size;
@@ -122,11 +122,11 @@ typedef struct __attribute__((__packed__)) MM_DEV_INTF_MM_VQ_ {
     uint16_t per_cq_size;
 } MM_DEV_INTF_MM_VQ_s;
 
-/*! \struct MM_DEV_INTF_REG_s
+/*! \struct MM_DEV_INTF_REG
     \brief Master Minion DIR which will be used to public device capability to Host.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) MM_DEV_INTF_REG_ {
+typedef struct __attribute__((__packed__)) MM_DEV_INTF_REG {
     uint32_t version;
     uint32_t size;
     MM_DEV_INTF_MM_VQ_s mm_vq;

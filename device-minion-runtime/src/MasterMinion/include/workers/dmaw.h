@@ -43,18 +43,18 @@
 /*! \def DMA_CHANNEL_AVAILABLE
     \brief DMA channel available.
 */
-#define DMA_CHANNEL_AVAILABLE   0 
+#define DMA_CHANNEL_AVAILABLE   0
 
 /*! \def DMA_CHANNEL_IN_USE
     \brief DMA channel in-use.
 */
 #define DMA_CHANNEL_IN_USE      1
 
-/*! \struct dma_chanl_status_t
+/*! \struct dma_chanl_status
     \brief DMA read channel data structure to maintain
-    information related to given read channel's usage 
+    information related to given read channel's usage
 */
-typedef struct dma_chanl_status_ {
+typedef struct dma_chanl_status {
     uint16_t    tag_id; /* tag_id for the transaction associated with the channel */
     uint8_t     channel_state; /* '0' channel available, '1' channel used */
     uint8_t     sqw_idx; /* SQW idx that submitted this command */
@@ -64,12 +64,12 @@ typedef struct dma_chanl_status_ {
 
 /* TODO: channel count hardcoded below should be fixed once old device
 API is removed, if we include pcie-dma.h in this file a device-api
-name space conflict occures*/ 
-/*! \struct dma_channel_status_t
+name space conflict occures*/
+/*! \struct dma_channel_status
     \brief DMA channel status data structure to maintain
-    information related to given DMA channel's usage 
+    information related to given DMA channel's usage
 */
-typedef struct dma_channel_status_ {
+typedef struct dma_channel_status {
     dma_chanl_status_t dma_rd_chan[4];
     dma_chanl_status_t dma_wrt_chan[4];
 } dma_channel_status_t;
