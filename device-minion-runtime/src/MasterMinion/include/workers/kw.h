@@ -60,13 +60,16 @@ typedef enum {
 
 /*! \fn void KW_Init(void)
     \brief Initialize Kernel Worker
-    \param kw_idx ID of the kernel worker
     \return none
 */
 void KW_Init(void);
 
-/*! \fn void KW_Notify(uint8_t kw_idx, struct exec_cycles_t *cycle)
+/*! \fn void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle)
     \brief Notify Kernel Worker
+    \param kw_idx Kernel worker ID
+    \param cycle Pointer containing 2 elements:
+    -Wait Latency(time the command sits in Submission Queue)
+    -Start cycles when Kernels are Launched on the Compute Minions
     \return none
 */
 void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle);

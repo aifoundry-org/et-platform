@@ -44,7 +44,7 @@
 #include    "utils.h"
 #include    "vq.h"
 
-/*! \struct kernel_instance_t
+/*! \typedef kernel_instance_t
     \brief Kernel Instance Control Block structure.
     Kernel instance maintains information related to
     a given kernel launch for the life time of kernel
@@ -59,7 +59,7 @@ typedef struct kernel_instance_ {
     uint64_t kernel_shire_mask;
 } kernel_instance_t;
 
-/*! \struct kw_cb_t
+/*! \typedef kw_cb_t
     \brief Kernel Worker Control Block structure.
     Used to maintain kernel instance and related resources
     for the life time of MM runtime.
@@ -70,7 +70,7 @@ typedef struct kw_cb_ {
     kernel_instance_t   kernels[MM_MAX_PARALLEL_KERNELS];
 } kw_cb_t;
 
-/*! \var kw_cb_t CQW_CB
+/*! \var kw_cb_t KW_CB
     \brief Global Kernel Worker Control Block
     \warning Not thread safe!
 */
@@ -478,7 +478,7 @@ void KW_Init(void)
 *   INPUTS
 *
 *       kw_idx    ID of the kernel worker
-*       cycles    Pointer containing 2 elements:
+*       cycle     Pointer containing 2 elements:
 *                 -Wait Latency(time the command sits in Submission
 *                   Queue)
 *                 -Start cycles when Kernels are Launched on the
@@ -489,7 +489,7 @@ void KW_Init(void)
 *       None
 *
 ***********************************************************************/
-void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle )
+void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle)
 {
     uint32_t minion = (uint32_t)KW_WORKER_0 + (kw_idx / 2);
     uint32_t thread = kw_idx % 2;

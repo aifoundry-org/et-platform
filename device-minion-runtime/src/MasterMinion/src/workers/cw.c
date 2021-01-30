@@ -37,7 +37,7 @@
 #include "message_types.h"
 #include "cm_to_mm_iface.h"
 
-/*! \struct cw_cb_t
+/*! \typedef cw_cb_t
     \brief Compute Worker control block.
     Consists data structures to manage shire state of shires that play
     the role of compute workers

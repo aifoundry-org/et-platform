@@ -21,7 +21,7 @@
 #include "config/mm_config.h"
 #include "layout.h"
 
-/*! \var Gbl_MM_Dev_Intf_Regs
+/*! \var MM_DEV_INTF_REG_s *Gbl_MM_Dev_Intf_Regs
     \brief Global static instance of Master Minions
     Device Interface Registers
     \warning Not thread safe!

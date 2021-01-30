@@ -33,7 +33,7 @@
 #include "hart.h"
 #include "atomic.h"
 
-/*! \var Launch_Lock
+/*! \var spinlock_t Launch_Lock
     \brief Global Host to MM submission
     queues interface. Locks initialized
     to acquired state.
@@ -41,7 +41,7 @@
 */
 spinlock_t Launch_Lock = {0};
 
-/*! \var Early_Init_Done
+/*! \var uint32_t Early_Init_Done
     \brief Global variable to do early initialization.
 */
 static uint32_t Early_Init_Done __attribute__((aligned(64))) = 0;
