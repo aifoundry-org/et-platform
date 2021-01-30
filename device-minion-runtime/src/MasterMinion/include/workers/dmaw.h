@@ -51,34 +51,21 @@
 #define DMA_CHANNEL_IN_USE      1
 
 /*! \struct dma_chanl_status
-    \brief DMA read channel data structure to maintain
-    information related to given read channel's usage
+    \brief DMA channel data structure to maintain
+    information related to given channel's usage
 */
-typedef struct dma_chanl_status {
+typedef struct dma_channel_status {
     uint16_t    tag_id; /* tag_id for the transaction associated with the channel */
     uint8_t     channel_state; /* '0' channel available, '1' channel used */
     uint8_t     sqw_idx; /* SQW idx that submitted this command */
-    exec_cycles_t dmaw_cycles; /* Cycles associated with the transaction*/ 
-} dma_chanl_status_t;
-
-
-/* TODO: channel count hardcoded below should be fixed once old device
-API is removed, if we include pcie-dma.h in this file a device-api
-name space conflict occures*/
-/*! \struct dma_channel_status
-    \brief DMA channel status data structure to maintain
-    information related to given DMA channel's usage
-*/
-typedef struct dma_channel_status {
-    dma_chanl_status_t dma_rd_chan[4];
-    dma_chanl_status_t dma_wrt_chan[4];
+    exec_cycles_t dmaw_cycles; /* Cycles associated with the transaction*/
 } dma_channel_status_t;
 
 /*! \fn void* DMAW_Get_DMA_Channel_Status_Addr(void)
     \brief Get DMA Channel Status address
     \return Address of DMA Channel Status address
 */
-void* DMAW_Get_DMA_Channel_Status_Addr(void);
+dma_channel_status_t* DMAW_Get_DMA_Channel_Status_Addr(void);
 
 /*! \fn void DMAW_Init(void)
     \brief Initialize DMA Worker
