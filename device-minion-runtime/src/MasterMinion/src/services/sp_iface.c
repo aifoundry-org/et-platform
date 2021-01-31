@@ -48,7 +48,7 @@ static iface_cb_t SP_CQs __attribute__((aligned(64))) = {0};
     \brief Global SP Interface Interrupt flag
     \warning Not thread safe!
 */
-static bool SP_Iface_Interrupt_Flag = false;
+static bool SP_Iface_Interrupt_Flag __attribute__((aligned(64))) = false;
 
 /* Interrupt Handler for Submission Queue post notification events from
 SP, uncomment and use skeleton as needed */
@@ -270,8 +270,7 @@ uint32_t SP_Iface_SQ_Pop_Cmd(void* rx_buff)
 void SP_Iface_Processing(void)
 {
     bool process_data = false;
-    static uint8_t
-        cmd_buff[MM_SP_CMD_SIZE] __attribute__((aligned(8))) = { 0 };
+    static uint8_t cmd_buff[MM_SP_CMD_SIZE] __attribute__((aligned(64))) = { 0 };
     uint16_t cmd_size;
 
     process_data = VQ_Data_Avail(&SP_CQs.vqueue);

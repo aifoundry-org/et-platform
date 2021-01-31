@@ -73,7 +73,7 @@ static host_iface_cqs_cb_t Host_CQs __attribute__((aligned(64))) = {0};
     \brief Global Submission vqueues Control Block
     \warning Not thread safe!
 */
-static volatile bool Host_Iface_Interrupt_Flag = false;
+static volatile bool Host_Iface_Interrupt_Flag __attribute__((aligned(64))) = false;
 
 
 /* Local fn proptotypes */

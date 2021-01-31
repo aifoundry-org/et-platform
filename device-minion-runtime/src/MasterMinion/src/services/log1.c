@@ -31,7 +31,7 @@
     \brief Global variable that maintains the current log level
     \warning Not thread safe!
 */
-static log_level_t Current_Log_Level = LOG_LEVEL_WARNING;
+static log_level_t Current_Log_Level __attribute__((aligned(64))) = LOG_LEVEL_WARNING;
 
 /************************************************************************
 *
