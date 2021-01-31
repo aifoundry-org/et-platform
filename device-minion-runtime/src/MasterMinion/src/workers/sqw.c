@@ -57,8 +57,6 @@ typedef struct sqw_cb_ {
 */
 static sqw_cb_t SQW_CB __attribute__((aligned(64))) = {0};
 
-extern spinlock_t Launch_Lock;
-
 /************************************************************************
 *
 *   FUNCTION
@@ -190,9 +188,6 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
     int8_t status = 0;
     int32_t pop_ret_val;
     uint64_t start_cycles=0;
-
-    /* Release the launch lock to let other workers acquire it */
-    release_local_spinlock(&Launch_Lock);
 
     Log_Write(LOG_LEVEL_CRITICAL, "%s%d%s%d%s",
         "SQW:HART=", hart_id, ":IDX=", sqw_idx, "\r\n");

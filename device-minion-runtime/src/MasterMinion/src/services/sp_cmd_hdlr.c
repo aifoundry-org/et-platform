@@ -59,7 +59,7 @@ int8_t SP_Command_Handler(void* command_buffer)
             SP_Iface_CQ_Push_Cmd(&echo_rsp, sizeof(echo_rsp));
 
             Log_Write(LOG_LEVEL_DEBUG, "%s",
-                "SPCommandHandler: received Echo cmd \r\n");
+                "SPCommandHandler: received Echo cmd\r\n");
             break;
         }
         case SP2MM_CMD_UPDATE_FREQ:
@@ -74,7 +74,7 @@ int8_t SP_Command_Handler(void* command_buffer)
             SP_Iface_CQ_Push_Cmd(&update_freq_rsp, sizeof(update_freq_rsp));
 
             Log_Write(LOG_LEVEL_DEBUG, "%s",
-                "SPCommandHandler: received Update Frequency cmd \r\n");
+                "SPCommandHandler: received Update Frequency cmd\r\n");
             break;
         }
         case SP2MM_CMD_TEARDOWN_MM:
@@ -89,7 +89,7 @@ int8_t SP_Command_Handler(void* command_buffer)
             SP_Iface_CQ_Push_Cmd(&teardown_rsp, sizeof(teardown_rsp));
 
             Log_Write(LOG_LEVEL_DEBUG, "%s",
-                "SPCommandHandler: received Teardown MM cmd \r\n");
+                "SPCommandHandler: received Teardown MM cmd\r\n");
             break;
         }
         case SP2MM_CMD_QUIESCE_TRAFFIC:
@@ -104,19 +104,19 @@ int8_t SP_Command_Handler(void* command_buffer)
             SP_Iface_CQ_Push_Cmd(&quiesce_rsp, sizeof(quiesce_rsp));
 
             Log_Write(LOG_LEVEL_DEBUG, "%s",
-                "SPCommandHandler: received Quiesce cmd \r\n");
+                "SPCommandHandler: received Quiesce cmd\r\n");
             break;
         }
         case SP2MM_CMD_GET_TRACE_BUFF_CONTROL_STRUCT:
         {
             Log_Write(LOG_LEVEL_DEBUG, "%s",
-                "SPCommandHandler: received Get Trace Buff Struct cmd \r\n");
+                "SPCommandHandler: received Get Trace Buff Struct cmd\r\n");
             break;
         }
         default:
         {
             Log_Write(LOG_LEVEL_ERROR, "%s",
-                "SPCommandHandler:ERROR:received unsupported cmd \r\n");
+                "SPCommandHandler:ERROR:received unsupported cmd\r\n");
             status = -1;
 
             break;

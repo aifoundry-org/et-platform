@@ -76,8 +76,6 @@ typedef struct kw_cb_ {
 */
 static kw_cb_t KW_CB __attribute__((aligned(64))) = {0};
 
-extern spinlock_t Launch_Lock;
-
 /************************************************************************
 *
 *   FUNCTION
@@ -538,9 +536,6 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     bool cw_exception = false;
     kernel_instance_t *kernel;
 
-    /* Release the launch lock to let other workers acquire it */
-    release_local_spinlock(&Launch_Lock);
-
     Log_Write(LOG_LEVEL_DEBUG, "%s%d%s%d%s",
         "KW:HART=", hart_id, ":IDX=", kw_idx, "\r\n");
 
@@ -676,7 +671,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         if(status == STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_DEBUG, "%s",
-                "KW:Pushed:KERNEL_LAUNCH_CMD_RSP->Host_CQ \r\n");
+                "KW:Pushed:KERNEL_LAUNCH_CMD_RSP->Host_CQ\r\n");
         }
         else
         {
