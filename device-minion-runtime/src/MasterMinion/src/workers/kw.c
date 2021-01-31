@@ -676,7 +676,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         if(status == STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_DEBUG, "%s",
-                "KW:Pushed:KERNEL_LAUNCH_CMD_RSP->Host_CQ \r\n");
+                "KW:Pushed:KERNEL_LAUNCH_CMD_RSP->Host_CQ\r\n");
         }
         else
         {

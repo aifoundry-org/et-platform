@@ -202,7 +202,7 @@ void DMAW_Launch(uint32_t hart_id)
                         if(status == STATUS_SUCCESS)
                         {
                             Log_Write(LOG_LEVEL_DEBUG, "%s",
-                            "DMAW:Pushed:DATA_WRITE_CMD_RSP->Host_CQ \r\n");
+                            "DMAW:Pushed:DATA_WRITE_CMD_RSP->Host_CQ\r\n");
                         }
                         else
                         {
@@ -277,7 +277,7 @@ void DMAW_Launch(uint32_t hart_id)
                         if(status == STATUS_SUCCESS)
                         {
                             Log_Write(LOG_LEVEL_DEBUG, "%s",
-                                "DMAW:Pushed:DATA_READ_CMD_RSP->Host_CQ \r\n");
+                                "DMAW:Pushed:DATA_READ_CMD_RSP->Host_CQ\r\n");
                         }
                         else
                         {

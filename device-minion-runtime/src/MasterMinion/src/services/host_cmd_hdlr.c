@@ -175,7 +175,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             if(status == STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_DEBUG, "%s",
-                    "HostCommandHandler:Pushed:RSP->Host_CQ \r\n");
+                    "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
             }
             else
             {
@@ -234,7 +234,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 if(status == STATUS_SUCCESS)
                 {
                     Log_Write(LOG_LEVEL_DEBUG, "%s",
-                        "HostCommandHandler:Pushed:RSP->Host_CQ \r\n");
+                        "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
                 }
                 else
                 {
@@ -272,7 +272,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             if(status == STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_DEBUG, "%s",
-                    "HostCommandHandler:Pushed:RSP->Host_CQ \r\n");
+                    "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
             }
             else
             {
@@ -310,7 +310,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             if(status == STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_DEBUG, "%s",
-                    "HostCommandHandler:Pushed:RSP->Host_CQ \r\n");
+                    "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
             }
             else
             {
@@ -382,7 +382,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 if(dma_status == DMA_OPERATION_SUCCESS)
                 {
                     Log_Write(LOG_LEVEL_DEBUG, "%s",
-                        "HostCommandHandler:DMATriggerTransfer:Success! \r\n");
+                        "HostCommandHandler:DMATriggerTransfer:Success!\r\n");
                 }
             }
 
@@ -450,7 +450,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 if(dma_status == DMA_OPERATION_SUCCESS)
                 {
                     Log_Write(LOG_LEVEL_DEBUG, "%s",
-                        "HostCommandHandler:DMATriggerTransfer:Success! \r\n");
+                        "HostCommandHandler:DMATriggerTransfer:Success!\r\n");
                 }
             }
 
@@ -462,7 +462,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             SQW_Decrement_Command_Count(sqw_idx);
 
             Log_Write(LOG_LEVEL_DEBUG, "%s",
-                "HostCommandHandler:UnsupportedCmd \r\n");
+                "HostCommandHandler:UnsupportedCmd\r\n");
             status = -1;
             break;
         }

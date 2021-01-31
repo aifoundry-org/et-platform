@@ -11,12 +11,12 @@
 ************************************************************************/
 /*! \file dispatcher.c
     \brief A C module that implements the Dispatcher. The function of
-    the Dispatcher is to; 
+    the Dispatcher is to;
     1. Initialize system components
         Serial
         Trace
         Interrupts
-    2. Initialize interfaces; 
+    2. Initialize interfaces;
         Host Interface
         SP Interface
         CW Interface
@@ -26,7 +26,7 @@
         DMA Worker
         Compute Workers
     3. Initialize Device Interface Registers
-    4. Infinite loop - that fields interrupts and dispatches appropriate 
+    4. Infinite loop - that fields interrupts and dispatches appropriate
     processing;
         Field Host PCIe interrupts and dispatch command processing
         Field SP IPIs and dispatch command processing
@@ -90,18 +90,18 @@ void Dispatcher_Launch(uint32_t hart_id)
     /* Initialize Device Interface Registers */
     DIR_Init();
     Log_Write(LOG_LEVEL_DEBUG, "%s",
-        "Dispatcher: Device Interface Registers initialized \r\n");
+        "Dispatcher: Device Interface Registers initialized\r\n");
 
     /* Enable interrupt resources */
     Interrupt_Init();
     Log_Write(LOG_LEVEL_DEBUG, "%s",
-        "Dispatcher: Interrupts initialized \r\n");
+        "Dispatcher: Interrupts initialized\r\n");
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_INTERRUPT_INITIALIZED);
 
     /* Reset PMC cycles counter */
     PMC_RESET_CYCLES_COUNTER;
 
-    /* TODO: Needs to be updated to proper coding standard and 
+    /* TODO: Needs to be updated to proper coding standard and
     abstractions */
     message_init_master();
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_CM_INTERFACE_READY);
@@ -125,7 +125,7 @@ void Dispatcher_Launch(uint32_t hart_id)
     Host_Iface_CQs_Init();
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_HOST_VQ_READY);
 
-    /* Initialize Service Processor Submission Queue and Completion 
+    /* Initialize Service Processor Submission Queue and Completion
     Queue Interface */
     SP_Iface_SQs_Init();
     SP_Iface_CQs_Init();
@@ -133,15 +133,16 @@ void Dispatcher_Launch(uint32_t hart_id)
 
     /* Release Master Shire Workers */
     Log_Write(LOG_LEVEL_DEBUG, "%s",
-        "Dispatcher: Releasing workers \r\n");
-    release_local_spinlock(&Launch_Lock);
+        "Dispatcher: Releasing workers\r\n");
+    atomic_store_local_32(&Launch_Lock.flag, 1);
+    asm volatile("fence\n" ::: "memory");
 
     /* Mark Master Minion Status as Ready */
     /* Now able to receive and process commands from host .. */
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_READY);
 
     Log_Write(LOG_LEVEL_DEBUG, "%s",
-        "Dispatcher: Master Minion READY! \r\n");
+        "Dispatcher: Master Minion READY!\r\n");
 
     /* Wait for a message from the host, SP, worker minions etc. */
     while(1)
@@ -152,7 +153,7 @@ void Dispatcher_Launch(uint32_t hart_id)
         {
             WAIT_FOR_INTERRUPTS;
             Log_Write(LOG_LEVEL_DEBUG, "%s",
-                "Dispatcher: Exiting WFI! \r\n");
+                "Dispatcher: Exiting WFI!\r\n");
         }
 
         INTERRUPTS_ENABLE_SUPERVISOR;

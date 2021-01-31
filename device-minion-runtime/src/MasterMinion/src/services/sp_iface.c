@@ -50,7 +50,7 @@ static iface_cb_t SP_CQs __attribute__((aligned(64))) = {0};
 */
 static bool SP_Iface_Interrupt_Flag = false;
 
-/* Interrupt Handler for Submission Queue post notification events from 
+/* Interrupt Handler for Submission Queue post notification events from
 SP, uncomment and use skeleton as needed */
 
 /************************************************************************
@@ -58,7 +58,7 @@ SP, uncomment and use skeleton as needed */
 *   FUNCTION
 *
 *       SP_Iface_SQs_Init
-*  
+*
 *   DESCRIPTION
 *
 *       This function initializes SP interface. i.e., the Submission
@@ -78,7 +78,7 @@ int8_t SP_Iface_SQs_Init(void)
     int8_t status = STATUS_SUCCESS;
     uint64_t temp = 0;
 
-    /* Initialize the Submission Queues control block 
+    /* Initialize the Submission Queues control block
     based on build configuration mm_config.h */
     temp = (((uint64_t)MM2SP_SQ_SIZE << 32) | MM2SP_SQ_BASE);
     atomic_store_local_64((uint64_t*)&SP_SQs, temp);
@@ -88,14 +88,14 @@ int8_t SP_Iface_SQs_Init(void)
         MM2SP_SQ_SIZE, 0, sizeof(cmd_size_t),
         MM2SP_SQ_MEM_TYPE);
 
-    if (status == STATUS_SUCCESS) 
+    if (status == STATUS_SUCCESS)
     {
         /* TODO: Register SP ISR here */
-    } 
-    else 
+    }
+    else
     {
         Log_Write(LOG_LEVEL_ERROR, "%s%d%s",
-            "SP_Iface: Initialize SQs. (Error code: )", 
+            "SP_Iface: Initialize SQs. (Error code: )",
             status, "\r\n");
     }
 
@@ -107,7 +107,7 @@ int8_t SP_Iface_SQs_Init(void)
 *   FUNCTION
 *
 *       SP_Iface_CQs_Init
-*  
+*
 *   DESCRIPTION
 *
 *       This function initializes SP interface. i.e., the completion
@@ -127,7 +127,7 @@ int8_t SP_Iface_CQs_Init(void)
     int8_t status = STATUS_SUCCESS;
     uint64_t temp = 0;
 
-    /* Initialize the Completion Queues control block 
+    /* Initialize the Completion Queues control block
     based on build configuration mm_config.h */
     temp = (((uint64_t)MM2SP_CQ_SIZE << 32) | MM2SP_CQ_BASE);
     atomic_store_local_64((uint64_t*)&SP_CQs, temp);
@@ -145,10 +145,10 @@ int8_t SP_Iface_CQs_Init(void)
 *   FUNCTION
 *
 *       SP_Iface_Interrupt_Status
-*  
+*
 *   DESCRIPTION
 *
-*       Returns the status of SP to master minion notifiy interrupt 
+*       Returns the status of SP to master minion notifiy interrupt
 *
 *   INPUTS
 *
@@ -159,7 +159,7 @@ int8_t SP_Iface_CQs_Init(void)
 *       bool            True is interrupt is active, else false
 *
 ***********************************************************************/
-bool SP_Iface_Interrupt_Status(void) 
+bool SP_Iface_Interrupt_Status(void)
 {
     return SP_Iface_Interrupt_Flag;
 }
@@ -169,7 +169,7 @@ bool SP_Iface_Interrupt_Status(void)
 *   FUNCTION
 *
 *       SP_Iface_CQ_Push_Command
-*  
+*
 *   DESCRIPTION
 *
 *       This function is used to push a command to SP completion queue.
@@ -191,15 +191,15 @@ int8_t SP_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
     /* Pop the command from circular buffer */
     status = VQ_Push(&SP_CQs.vqueue, p_cmd, cmd_size);
 
-    if (status == STATUS_SUCCESS) 
+    if (status == STATUS_SUCCESS)
     {
         /* Notify SP using IPI */
         Interrupt_Notify(MAILBOX_TO_SP);
-    } 
-    else 
+    }
+    else
     {
         Log_Write(LOG_LEVEL_ERROR, "%s%d%s",
-            "SP_Iface: CQ push failed.(Error code:)", 
+            "SP_Iface: CQ push failed.(Error code:)",
             status, "\r\n");
     }
 
@@ -211,7 +211,7 @@ int8_t SP_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
 *   FUNCTION
 *
 *       SP_Iface_SQ_Pop_Cmd
-*  
+*
 *   DESCRIPTION
 *
 *       This function is used to pop a command from SP submission queue.
@@ -253,7 +253,7 @@ uint32_t SP_Iface_SQ_Pop_Cmd(void* rx_buff)
 *   FUNCTION
 *
 *       SP_Iface_Processing
-*  
+*
 *   DESCRIPTION
 *
 *       Processes commands in SP <-> MM  submission queues
@@ -270,7 +270,7 @@ uint32_t SP_Iface_SQ_Pop_Cmd(void* rx_buff)
 void SP_Iface_Processing(void)
 {
     bool process_data = false;
-    static uint8_t 
+    static uint8_t
         cmd_buff[MM_SP_CMD_SIZE] __attribute__((aligned(8))) = { 0 };
     uint16_t cmd_size;
 
@@ -279,7 +279,7 @@ void SP_Iface_Processing(void)
     if(process_data)
     {
         cmd_size = (uint16_t) VQ_Pop(&SP_CQs.vqueue, &cmd_buff[0]);
-        
+
         if(cmd_size)
         {
             SP_Command_Handler(cmd_buff);
@@ -287,10 +287,10 @@ void SP_Iface_Processing(void)
         else
         {
             Log_Write(LOG_LEVEL_ERROR, "%s",
-            "SP_Iface: Unexpected command size \r\n");
+            "SP_Iface: Unexpected command size\r\n");
         }
     }
-    
+
     return;
 }
 
@@ -299,7 +299,7 @@ void SP_Iface_Processing(void)
 *   FUNCTION
 *
 *       SP_Iface_SQs_Deinit
-*  
+*
 *   DESCRIPTION
 *
 *       This function deinitializes the SP Interface SQs.
@@ -313,10 +313,10 @@ void SP_Iface_Processing(void)
 *       int8_t            Returns successful status or error code.
 *
 ***********************************************************************/
-int8_t SP_Iface_SQs_Deinit(void) 
+int8_t SP_Iface_SQs_Deinit(void)
 {
     /* TODO: Perform deinit activities for the SQs */
-    
+
     return 0;
 }
 
@@ -325,7 +325,7 @@ int8_t SP_Iface_SQs_Deinit(void)
 *   FUNCTION
 *
 *       SP_Iface_CQs_Deinit
-*  
+*
 *   DESCRIPTION
 *
 *       This function deinitializes the SP Interface SQs.
@@ -339,9 +339,9 @@ int8_t SP_Iface_SQs_Deinit(void)
 *       int8_t            Returns successful status or error code.
 *
 ***********************************************************************/
-int8_t SP_Iface_CQs_Deinit(void) 
+int8_t SP_Iface_CQs_Deinit(void)
 {
     /* TODO: Perform deinit activities for the CQs */
-    
+
     return 0;
 }
