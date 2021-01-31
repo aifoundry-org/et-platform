@@ -48,7 +48,7 @@
 
 // TODO: Need more stuff here?
 struct dma_chan {
-    enum ET_DMA_STATE state;
+    uint32_t state; // One of enum ET_DMA_STATE
 };
 
 struct dma_mem_region {
@@ -56,7 +56,7 @@ struct dma_mem_region {
     uint64_t end;
 };
 
-static struct dma_chan dma_channel[DMA_CHANNELS_COUNT] = { 0 };
+static struct dma_chan dma_channel[DMA_CHANNELS_COUNT] __attribute__((aligned(64))) = { 0 };
 
 volatile transfer_list_elem_t *transfer_lists[] = {
     (volatile transfer_list_elem_t *)DMA_CHAN_READ_0_LL_BASE,
@@ -134,7 +134,7 @@ DMA_STATUS_e dma_chan_find_idle(DMA_TYPE_e type, et_dma_chan_id_e *chan)
     }
     // Find the idle channel
     for (; start <= end; start++) {
-        if (dma_channel[start].state == ET_DMA_STATE_IDLE) {
+        if (atomic_load_local_32(&dma_channel[start].state) == ET_DMA_STATE_IDLE) {
             *chan = start;
             return DMA_OPERATION_SUCCESS;
         }
@@ -185,7 +185,7 @@ DMA_STATUS_e dma_trigger_transfer(DMA_TYPE_e type, uint64_t src_addr, uint64_t d
 
     if (status == DMA_OPERATION_SUCCESS) {
         // Set the channel state to active
-        dma_channel[chan].state = ET_DMA_STATE_ACTIVE;
+        atomic_store_local_32(&dma_channel[chan].state, ET_DMA_STATE_ACTIVE);
 
         status = dma_config_buff(src_addr, dest_addr, (uint32_t)size, chan);
         if (status == DMA_OPERATION_SUCCESS) {
@@ -204,7 +204,7 @@ DMA_STATUS_e dma_trigger_transfer(DMA_TYPE_e type, uint64_t src_addr, uint64_t d
         }
 
         // TODO: IDLE the DMA channel in DMA ISR
-        dma_channel[chan].state = ET_DMA_STATE_IDLE;
+        atomic_store_local_32(&dma_channel[chan].state, ET_DMA_STATE_IDLE);
     }
 
     return status;
@@ -232,7 +232,7 @@ DMA_STATUS_e dma_trigger_transfer2(DMA_TYPE_e type, uint64_t src_addr, uint64_t 
 
     if (status == DMA_OPERATION_SUCCESS) {
         // Set the channel state to active
-        dma_channel[chan].state = ET_DMA_STATE_ACTIVE;
+        atomic_store_local_32(&dma_channel[chan].state, ET_DMA_STATE_ACTIVE);
 
         status = dma_config_buff(src_addr, dest_addr, (uint32_t)size, chan);
 
@@ -248,7 +248,7 @@ DMA_STATUS_e dma_trigger_transfer2(DMA_TYPE_e type, uint64_t src_addr, uint64_t 
             dma_start(chan);
         }
 
-        dma_channel[chan].state = ET_DMA_STATE_IDLE;
+        atomic_store_local_32(&dma_channel[chan].state, ET_DMA_STATE_IDLE);
     }
 
     return status;

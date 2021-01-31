@@ -17,7 +17,7 @@ static void plicDisableInterrupt(volatile uint32_t *const basePriorityReg,
 
 void (*vectorTable[PU_PLIC_INTR_CNT])(void) __attribute__((aligned(64))) = { NULL };
 
-void *pullVectorTable = vectorTable;
+void *pullVectorTable __attribute__((aligned(64))) = vectorTable;
 
 void INT_init(void)
 {
