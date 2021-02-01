@@ -17,7 +17,7 @@
 #include "utils.h"
 #include <chrono>
 #include <cstdio>
-#include <elfio/elfio.hpp>
+#include <elfio/elfio.hpp> 
 #include <esperanto/device-api/device_api_rpc_types_non_privileged.h>
 #include <esperanto/device-api/device_api_spec_non_privileged.h>
 #include <sstream>
@@ -28,6 +28,7 @@ using namespace rt::profiling;
 
 EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const void* kernel_args,
                                  size_t kernel_args_size, uint64_t shire_mask, bool barrier) {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   auto&& kernel = find(kernels_, kernelId)->second;
 
   ScopedProfileEvent profileEvent(Class::KernelLaunch, profiler_, streamId,

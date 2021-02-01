@@ -36,7 +36,7 @@ namespace rt {
 class IProfiler;
 
 /// \brief Event Handler
-enum class EventId : int { Invalid = 0 };
+enum class EventId : int {};
 
 /// \brief Stream Handler
 enum class StreamId : int {};
