@@ -100,7 +100,7 @@ pipeline {
         stage('JOB_GLOW_OPERATORS') {
           steps {
             build job:
-              'sw-platform/host-sw-integration/pipelines/dnn-lib/glow-operators-ci-etrt-devfw-sysemu',
+              'sw-platform/host-sw-integration/pipelines/dnn-lib/glow-operators-ci-1-etrt-devfw-sysemu',
               propagate: true,
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),

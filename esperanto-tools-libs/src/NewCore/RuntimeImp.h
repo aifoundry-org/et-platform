@@ -15,7 +15,7 @@
 #include "EventManager.h"
 #include "MemoryManager.h"
 #include "runtime/IRuntime.h"
-#include <elfio/elfio.hpp>
+#include <mutex>
 #include <thread>
 #include <unordered_map>
 
@@ -97,6 +97,8 @@ private:
   int nextKernelId_ = 0;
   int nextStreamId_ = 0;
 
-  profiling::ProfilerImp profiler_;
+  std::recursive_mutex mutex_;
+
+  profiling::ProfilerImp profiler_;  
 };
 } // namespace rt

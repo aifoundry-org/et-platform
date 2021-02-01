@@ -16,7 +16,7 @@
 #include "TargetSysEmu.h"
 #include "utils.h"
 #include <cstdio>
-#include <elfio/elfio.hpp>
+#include <elfio/elfio.hpp> 
 #include <memory>
 #include <sstream>
 using namespace rt;
@@ -52,6 +52,7 @@ std::vector<DeviceId> RuntimeImp::getDevices() {
 
 KernelId RuntimeImp::loadCode(DeviceId device, const void* data, size_t size) {
   ScopedProfileEvent profileEvent(Class::LoadCode, profiler_);
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
 
   // allocate a buffer in the device to load the code
   auto deviceBuffer = mallocDevice(device, size);
@@ -98,6 +99,7 @@ KernelId RuntimeImp::loadCode(DeviceId device, const void* data, size_t size) {
 
 void RuntimeImp::unloadCode(KernelId kernel) {
   ScopedProfileEvent profileEvent(Class::UnloadCode, profiler_);
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   auto it = find(kernels_, kernel);
 
   // free the buffer
@@ -109,6 +111,7 @@ void RuntimeImp::unloadCode(KernelId kernel) {
 
 void* RuntimeImp::mallocDevice(DeviceId device, size_t size, int alignment) {
   ScopedProfileEvent profileEvent(Class::MallocDevice, profiler_);
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   auto it = find(memoryManagers_, device);
   // enforce size is multiple of alignment
   size = alignment * ((size + alignment - 1) / alignment);
@@ -116,12 +119,14 @@ void* RuntimeImp::mallocDevice(DeviceId device, size_t size, int alignment) {
 }
 void RuntimeImp::freeDevice(DeviceId device, void* buffer) {
   ScopedProfileEvent profileEvent(Class::FreeDevice, profiler_);
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   auto it = find(memoryManagers_, device);
   it->second.free(buffer);
 }
 
 StreamId RuntimeImp::createStream(DeviceId device) {
   ScopedProfileEvent profileEvent(Class::CreateStream, profiler_);
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   auto streamId = static_cast<StreamId>(nextStreamId_++);
   auto it = streams_.find(streamId);
   if (it != end(streams_)) {
@@ -133,6 +138,7 @@ StreamId RuntimeImp::createStream(DeviceId device) {
 
 void RuntimeImp::destroyStream(StreamId stream) {
   ScopedProfileEvent profileEvent(Class::DestroyStream, profiler_);
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   auto it = find(streams_, stream);
   streams_.erase(it);
 }
@@ -142,6 +148,7 @@ void RuntimeImp::destroyStream(StreamId stream) {
 EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void* d_dst, size_t size,
                                        [[maybe_unused]] bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, profiler_);
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   auto it = find(streams_, stream);
   auto evt = eventManager_.getNextId();
   it->second.lastEventId_ = evt;
@@ -157,6 +164,7 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
 EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void* h_dst, size_t size,
                                        [[maybe_unused]] bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, profiler_);
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   auto it = find(streams_, stream);
   auto evt = eventManager_.getNextId();
   it->second.lastEventId_ = evt;
@@ -177,6 +185,9 @@ void RuntimeImp::waitForEvent(EventId event) {
 
 void RuntimeImp::waitForStream(StreamId stream) {
   ScopedProfileEvent profileEvent(Class::WaitForStream, profiler_, stream);
+  std::unique_lock<std::recursive_mutex> lock(mutex_);
   auto it = find(streams_, stream, "Invalid stream");
-  waitForEvent(it->second.lastEventId_);
+  auto evt = it->second.lastEventId_;
+  lock.unlock();
+  waitForEvent(evt);
 }
