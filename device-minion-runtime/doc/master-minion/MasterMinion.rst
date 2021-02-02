@@ -1,142 +1,171 @@
-Master Minion Firmware
+======================
+Minion Firmware
 ======================
 
-The Master Shire consists of 32 minions. The Master Minion software stack, also known as Master Minion Runtime, is a baremetal software environment that runs across the minions in the master shire to support the functionality required of the Master Minion. 
+The ETSoC device consists 32 Compute Shires, and 1 special shire called the Master Shire.
+Each Shire consist 32 Minions, and each Minion consists 2 hardware threads. Each hardware
+thread is identified by a unique HART ID.
 
-The Master Minion runtime implements a software architecture that attempts to maximize parallelization of command processing on the ETSoC Device. 
+As shown in Figure 1 below, the device firmware running on Minions implement a control domain,
+and a compute domain.
 
-.. image:: mm-runtime.png
-  :width: 400
+**Control Domain:** The control domain executes the **Master Minion Runtime** firmware whose
+role is to; initialize the system, receive commands from host, decode and process commands.
+Processing of commands could occur on the control domain or dispatched to compute domain.
+The Master Minion runtime implements a software architecture that attempts to maximize
+parallelization of command processing on the ETSoC Device. The **Master Minion Runtime** ,
+is a baremetal software environment that runs across the first 16 Minions (i.e., the first
+32 hardware threads) in the Master Shire to support the functionality required of the control
+domain. Figure 1 shows the control domain in green.
 
-The key software threads that enable this architecture are as follows:
-  - Dispatcher - Responsible for initializing the system and launching other worker threads.
-  - Submission Queue Worker (SQW) - Responsible for servicing commands in the associated Host to MM Submission Queue. For n Host to MM Submission Queues there are n SQWs. 
-  - Kernel Worker (KW) - Responsible for servicing kernel related commands. SQWs offload kernel command related processing to KW. 
-  - DMA Worker (DMAW) - Responsible for monitoring and updating DMA hardware channel status to support usage of DMA resources by SQW.  
+**Compute Domain:** The compute domain executes the **Compute Runtime** firmware whose role is
+to field and process commands from **Master Minion Runtime**, and to properly transfer control
+and execute/manage compute kernels offloaded from host for compute acceleration. The compute
+kernels execute in U-Mode. The **Compute Runtime** is baremetal software that runs on the second
+16 Minions in the Master Shire, and the 32 Compute Shires dedicated for compute to support the
+functionality required of the compute domain. Figure 1 shows the compute domain in purple.
 
-The key interface that enable this architecture are as follows:
-  - Host Interface 
-  	- Submission Queues, for Host to submit commands to Dispatcher/Submission Queue Worker.
-	- Completion Queue, for SQW, KW, and DMAW to submit command responses and events to Host.  
-  - Worker Interface 
-  		- KW FIFO, for SQWs to submit kernel commands to Kernel Worker
-  
-Each of these software threads execute on an independent hardware context (i.e., a minion hardware thread) in a fully concurrent model. 
-  
-MM runtime early boot: 
-	On release from reset each minion in the master shire executs early C runtime setup which sets up an per minion stack (exclusive to each minion) and jumps to main function. 
+.. figure:: mm-runtime.png
 
-Main function: 
-	The main function executes on each Master Minon. It fetches the HART ID of the minion it is executing on and launches the corresponding software thread. The software thread to HART ID mapping is defined as a build time configuration in mm_config.h.
+**Figure 1: Master Minion Runtime - Architecture, Components, Data Flow**
 
-Dispatcher: 
-	The Dispatcher is the master software thread. Its role is to initialize the necessary system level components and the other resources used by the other worker threads. Post initialization, the Dispatcher blocks waiting on a interrupt from host. On receiving an interrupt from host the Dispatcher identifies the Submission Queues with commands to be processed and notifies the corresponding Submission Queue Workers using an FCC event.   
+**Master Minion Runtime - Interfaces and Theory of Operations**
 
-Submission Queue Worker(SQW): 
-	This thread is launched by main. Post initialization it blocks waiting on a FCC event from the Dispatcher thread. On receiving a FCC event from Dispatcher, the SQW pops available commands from the corresponding Submission Queue, decodes the command, and routes the command for further processing. 
+**Interfaces:**
 
-	Compatibility, FW version, echo commands, and trace related commands are processed by the submission queue worker. Command response is constructed and transmitted to host by pushing command responses to host completion queue, and the host is notified using a MSI interrupt. 
+Figure 1 shows the key components in the system architecture. The key interfaces used by the
+**Master Minion Runtime** are listed as follows. Except the Master Minion to Compute Minion
+interface all other interfaces are implemented using a circular buffer data structure.
 
-	DMA commands are processed by SQW as follows - A shared software data structure called the Global DMA Channel Status located in L2 cache enables the SQW and DMAW to synchronize DMA command processing. On receiving a DMA command, the SQW obtains lock on the next available DMA channel by updating the Global DMA Channel Status, and programs the DMA controller to initiate the DMA transaction requested.
+**Host Interface:**
 
-	Kernel commands are processed by simply routing them to the kernel worker. i.e., all kernel commands are pushed to the KW FIFO, and KW is notified using a FCC event.
+Host submits commands to device using the Host to Device Submission Queue
+interface using [device-ops-api] specification conformant commands. The number of Submission
+Queus in the System is a build time defined parameter in the *Master Minion Runtime* configuration
+header. Host uses PCIe interrupt to notify Device of commands posted to Submission Queue.
 
-Kernel Worker:
-	This thread is launched by main. Post initialization, it blocks waiting on a FCC event from SQWs. On receiving a FCC event from a SQW, the KW pops the next available kernel command from the KW FIFO, and processes it.
+Device response to commands from Host using the Device to Host Completion Queue interface using
+[device-ops-api] specification conformant commands. A single completion queue is used in the
+system for all Device to Host communications. Device uses MSIx interrupts to notify Host of
+Command responses posted to Completion Queue.
 
-	Processing of kernel launch command - details to come
-	Processing of kernel abort command - details to come
-	Processing of kernel state command - details to come
+**Service Processor (SP) to Master Minion (MM) Interface**
 
-	Completion of kernel command processing, and Kernel command completion interrupt events are fielded by the kernel worker, and command responses are constructed. Command responses are pushed to the host completion queue, and host is notified using an MSI interrupt.    
+Service processor submits commands to *Master Minion Runtime* using the SP to MM Submission Queue
+using [sp-mm-commands] specification conformant bindings. A single queue is used for SP to MM
+communications and Interprocessor Interrupts (IPIs) are used for SP to MM command-post
+notifications.
 
-DMA Worker:
-	This thread is launched by main. Post initialization, this thread infinitely polls the the PCIe DMA HW status registers to detect completion of DMA activity on each supported DMA channel, and updates DMA Channel Status software data structure. When completion of DMA activity on a given channel is detected by the polling loop, DMA channel status isupdates and a corresponding DMA command response is created by the DMA worker. The command response is pushed into the host completion queue, and host is notified using an MSI interrupt. 
+**Master Minion Runtime** submits commands to the Service Processor using the MM to SP Completion
+Queue interface using [sp-mm-commands] specification conformant bindings. A single queue is used
+for SP to MM communications and Interprocessor Interrupts (IPIs) are used for SP to MM command-post
+notifications.
 
+**Master Minion (MM) to Compute Minion (CM) Interface**
 
+**MM to CM Interface:** **Master Minion Runtime** Submission Queue Worker (SQW) submits multicast
+commands to Compute Minions (CM) using [MM-CM-commands] specification conformant bindings. Based on
+shire mask specified by Kernel Launch or Kernel Abort command the Submission Queue Worker (SQW) uses
+the MM to CM interface to manage compute minions executing user kernels. A special single slot buffer
+serves as the transport mechanism for this interface and IPIs are used for notification.
 
+**CM to MM Interface:** **Compute Minion Runtime** transmit Kernel Command responses to the Kernel
+Worker (KW) using [MM-CM-commands] specification conformant bindings. A unicast circular buffer is
+used as transport and IPIs are used as notification mechanism. On completion of user kernel execution
+or in case of a error or exception scenario the last minion in each CM shire transmits command response
+to the KW using this interface.
 
+**Operations**
 
+On boot, **Master Minion Runtime** firmware's C runtime entry point launches all software threads
+in the system. In this implementation, a software thread is an independent baremetal execution
+context with a dedicated stack that executes on one or both hardware threads on any given minion.
+The software threads present in the **Master Minion Runtime** are listed below. The master minion
+build configuration defines the HART ID to software thread assignments. A system spinlock synchronizes
+the start of software threads in the system. The Dispatcher thread acquires the system lock and starts
+execution, while the rest of the threads halt progress waiting to acquire the system lock.
 
+	- **Dispatcher**
+	- **Submission Queue Worker (SQW)**
+	- **Kernel Worker (KW)**
+	- **DMA Worker (DMAW)**
 
-Legacy content below .. 
+**Dispatcher**
 
+.. figure:: dispatcher.png
+	:align: center
 
+**Figure 2: Dispatcher Flow**
 
+This thread is responsible for initializing the device resources (serial, trace, etc), other
+software threads (workers), interfaces, Device Interface Registers (DIR). Post initialization,
+the Dispatcher sets the MMRDY bit in the DIR to indicate to host that **Master Minion Runtime**
+is ready to accept commands from host and spins in an inifinite loop blocked waiting on a WFI
+to receive and process following interrupts; PCIe interrupts from host to notify device of
+commands available to process in Submission Queues, Software Interrupt (SWI) from machine mode
+used to convey Inter Processor Interrupts (IPIs) from Service processor (SP).
 
+**Submission Queue Worker**
 
+Responsible for servicing commands in the associated Host to MM Submission Queue. For ''n''
+Host to MM Submission Queues there are ''n'' SQWs. This thread is launched by main(). Post
+initialization, it blocks waiting on a FCC event from the Dispatcher thread.
 
+On receiving a FCC event from Dispatcher; the SQW pops available commands from the corresponding
+Submission Queue, decodes the command, and routes the command for further processing.
 
+Compatibility, FW version, echo commands, and trace related commands are processed by the
+submission queue worker. Command response is constructed and transmitted to host by pushing
+command responses to host completion queue, and the host is notified using a MSI (Message-signalled
+Interrupt).
 
+DMA commands are processed by SQW as follows; A shared software data structure called the
+Global DMA Channel Status, located in L2 cache, enables the SQW and DMAW to synchronize DMA
+command processing. On receiving a DMA command, the SQW obtains lock on the next available DMA
+channel by updating the Global DMA Channel Status, and programs the DMA controller to initiate
+the DMA transaction requested.
 
-Software Stack
---------------
-The Master and Sync Minions software stack looks like follows:
+Kernel commands are processed by translating the host kernel command to the corresponding Compute
+Minion command. Kernel Launch Command is handled by posting a kernel Launch MM to CM command, and
+a multicast notification is sent to compute minions identified from the shire mask specified in
+Kernel Launch command. Kernel Abort Command is handled by looking up the Kernel Slot for the tag ID
+specified in the Kernel Abort Command. Based on the shire mask associated with the identified Kernel
+Slot, an Abort MM to CM command is posted, and a multicast notification is sent to compute minions.
 
-.. image:: Master-Minion-Software-Stack.png
-  :width: 400
+.. figure:: sq-worker-flow.png
+	:align: center
 
+**Figure 3: Submission Worker execution flow**
 
-Execution Sequence (Master Minion Execution Thread)
-  - Initialization Sequence
-	- Serial Port (PU UART 0)
-	- Interupt controller
-	- Mailbox (Hand shake message with SP, Worker Minion and Host)
-	- Message buffers
-	- FCC 0 and 1 counters cleared
-	- Kernel Init
-	- Enable Interrupts (External, Supervisor, Software)
-  - Main Execution Loop
-	- if (Debug) Send SP Mbox
-	- if (SW Flags set - SP or Worker Minion)
- 		- Handle messages from SP and then Worker Minion
-	- if (PCI Ex Interrupt flag set)
-		- Handle messages from Host
-	- Handler Timer Events
-	- If no messages - go to sleep
+**DMA Worker**
 
-As master/runtime minions are not visible to user kernels,
-they should never execute in user mode privilege. In the S-mode there
-will be an RTos device runtime software. The RTos can only be
-run in the master and runtime minions (minions 0..15 of the
-shire 32). On m-mode there will be a thin m-code that will provide
-low level services that are not supported directly by hardware (setting SATP, …).
+Two DMA workers are launched at startup. Each DMA worker thread is responsible for monitoring the
+assigned DMA controller status registers, and updates the "DMA Hardware Channel Status" to support
+usage of DMA resources by the Submission Queue Worker Threads. As illustrated in Figure 1. A DMA
+worker thread is allocated to monitor completion of transaction on all DMA read channels, and a DMA
+worker is allocated to monitor completion of transaction on write channels.
 
-\todo Guillem, From Ioannis: The above sentence is confusing to me.
+.. figure:: dma-worker-flow.png
+	:align: center
 
-S-mode calls to M-mode
-^^^^^^^^^^^^^^^^^^^^^^
+**Figure 4: DMA Read and Write Worker execution flow**
 
-Fill what are the explicit services that the RTos device runtime software will request to m-code.
+**Kernel Worker**
 
+The Kernel Worker thread is launched at startup. Kernel Worker is responsible for monitoring completion
+events from Compute Shires. Based on shire mask specified in the Kernel Launch Command, one to many
+compute shires may be operational executing the user kernel. On completion of user kernel execution the
+last minion in each shire pushes a completion message to an unicast circular buffer and notifies the
+kernel Worker. Kernel Worker waits till all shires associated with the Kernel Launch report completion.
+On completion of user kernel execution, the kernel worker creates and transmits a Kernel completion
+response to the host. If any of the Compute Shires report error during execution, the Kernel Worker
+initiates an Abort sequence of the Compute Shires associated with that kernel Launch and frees up
+resources.
 
-M-mode “transparent” traps
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. figure:: kernel-worker-flow.png
+	:align: center
 
-Same as compute minion
+**Figure 5: Kernel Worker execution flow**
 
-
-Communication Mechanisms Between Sync and Compute Minions
----------------------------------------------------------
-
-\todo Guillem we need to clarify the following paragraph:
-
-Compute and sync minions can communicate only with the runtime minions (assuming that master minion delegates the execution handling to one or several runtime minions). APIs
-
-* Kernel done: when a kernel yields a minion, the minion goes to S-mode. After the minion state cleanup done by the bare-metal software, it should notify the runtime minion in charge that the minion is available. One option is first checking that all the minions in a shire are done and the last one notifies the runtime minion. Implementation options:
-
-  * Doing an interrupt is likely too slow: there would be a total of 32 interrupts to notify that each shire is done
-  *  Using ports is not safe because u-mode code can write to them (with 1GByte pages there’s no shire_id granularity through the page table)
-  * Doing an atomic increment and add in a position of the L3 of the master shire and having the runtime minion doing an active poll seems the most reasonable option
-
-* Kernel error: same as before, but need to set a variable to 1 to let the runtime minion that there was a problem in the clean up process (Tensor* not in idle state)
-
-Communication Mechanisms Between Master and Runtime Minions
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-
-\todo Guillem's Questions
-* Master to Runtime: spawn a new thread. Done through IPI? Dependent on RTos?
-* Runtime to Runtime: can a runtime spawn a new thread?
-* Runtime to Compute/Sync: start a new kernel. Done through IPI.
-* Runtime to Master: notify that something finished: kernel, mem transfer, ...
+**Compute Runtime - Theory of operations**
+@Sergi to fill this part
