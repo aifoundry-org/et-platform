@@ -11,7 +11,7 @@
 ************************************************************************/
 /***********************************************************************/
 /*! \file cw_iface.h
-    \brief A C header that defines the Compute Worker Interface 
+    \brief A C header that defines the Compute Worker Interface
     component's public interfaces
 */
 /***********************************************************************/
@@ -22,9 +22,18 @@
 #include "cm_to_mm_iface.h"
 
 /*TODO: This mapping can go away once cleanup is odne */
-#define CW_To_MM_Iface_Unicast_Receive(cb_idx, message) CM_To_MM_Iface_Unicast_Receive(cb_idx, const message)
+/*! \def CW_To_MM_Iface_Unicast_Receive(cb_idx, message)
+    \brief A define that maps CM_To_MM_Iface_Unicast_Receive()
+    to this definition.
+*/
+#define CW_To_MM_Iface_Unicast_Receive(cb_idx, message) \
+    CM_To_MM_Iface_Unicast_Receive(cb_idx, const message)
 
-
+/*! \fn int8_t CW_Iface_Processing(cm_iface_message_t *msg)
+    \brief Interface to handle messages from Compute Workers.
+    \param msg pointer to message buffer
+    \return Status indicating success or negative error
+*/
 int8_t CW_Iface_Processing(cm_iface_message_t *msg);
 
 /* TODO: Move mm_to_cm_iface.h contents here */

@@ -50,7 +50,7 @@
 */
 #define DMA_CHANNEL_IN_USE      1
 
-/*! \struct dma_chanl_status
+/*! \struct dma_channel_status
     \brief DMA channel data structure to maintain
     information related to given channel's usage
 */
