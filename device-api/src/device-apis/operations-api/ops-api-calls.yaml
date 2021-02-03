@@ -45,8 +45,10 @@ Enums:
         Value: 0
       - Name : OK
         Value : 1
-      - Name : ERROR
+      - Name : INVALID_TAG_ID
         Value : 2
+      - Name : ERROR
+        Value : 3
   - Name: dev_ops_api_kernel_state
     Type: uint32_t
     Values:
@@ -96,6 +98,17 @@ Enums:
         Value: 3
       - Name: ABORTED
         Value: 4
+  - Name: dev_ops_api_dma_response
+    Type: uint32_t
+    Values:
+      - Name: CHANNEL_NOT_AVAILABLE
+        Value: 0
+      - Name: ERROR
+        Value: 1
+      - Name: COMPLETE
+        Value: 2
+      - Name: ABORTED
+        Value: 3
   - Name: dev_ops_api_error_type
     Type: uint32_t
     Values:
@@ -243,8 +256,10 @@ Messages :
     PairedMessage: device_ops_kernel_abort_rsp
     Fields:
       - Name: kernel_id
-        Description: Kernel Identifier
+        Description: Kernel Identifier (TODO to be removed)
         Type: uint8_t
+      - Name: dummy
+        Type: bool
   - Name: device_ops_kernel_abort_rsp
     Description: Response to an abort request
     PairedMessage: device_ops_kernel_abort_cmd
@@ -274,6 +289,7 @@ Messages :
         Description: Kernel Abort status
         Type: enum
         Enum: dev_ops_api_kernel_state
+
 #-------------------------------------------------------------------------------
 # Data Transfer Commands and Responses
 #-------------------------------------------------------------------------------

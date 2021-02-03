@@ -27,12 +27,6 @@
 /// API Patch
 #define DEVICE_<<cgh.c_api_name | upper>>_API_PATCH <<cgh.spec_data['Version_Patch']>>
 
-//ToDo: Remove commented content
-/// Device <<cgh.api_name >> API enum storage type
-//typedef uint16_t device_<<cgh.c_api_name | lower>>_api_tag_id_t;
-/// Device <<cgh.api_name >> API enum storage type
-//typedef uint8_t device_<<cgh.c_api_name | lower>>_api_cmd_id_t;
-
 
 // Device << cgh.api_name >> API Enumerations
 <% for enum in cgh.enums() -%>
@@ -50,7 +44,7 @@ enum << enum.Name | upper >> {
 
 
 <%- if cgh.c_api_name == 'ops' %>
-///  Currently MM Firmware needs both cmd/rsp IDs. So this enum is retained for OPS node 
+///  Currently MM Firmware needs both cmd/rsp IDs. So this enum is retained for OPS node
 /// @enum Enumeration of all the RPC messages that the Device <<cgh.api_name >> API
 /// send/receive
 enum device_<<cgh.c_api_name | lower>>_api_msg_e {
