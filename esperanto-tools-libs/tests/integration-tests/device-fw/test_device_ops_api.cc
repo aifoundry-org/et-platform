@@ -275,16 +275,6 @@ protected:
       // Sending dummay data for kernel launch
       cmd.command_info.cmd_hdr.tag_id = getNextTagId();
       cmd.command_info.cmd_hdr.msg_id = msg_id;
-      // Sending dummay data for kernel launch
-      cmd.kernel_id = 0xA5;
-      return target_device->virtQueueWrite(&cmd, sizeof(cmd), queueId);
-    }
-    case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_STATE_CMD: {
-      device_ops_api::device_ops_kernel_state_cmd_t cmd = {0};
-      cmd.command_info.cmd_hdr.tag_id = getNextTagId();
-      cmd.command_info.cmd_hdr.msg_id = msg_id;
-      // Sending dummay data for kernel launch
-      cmd.kernel_id = 0xA5;
       return target_device->virtQueueWrite(&cmd, sizeof(cmd), queueId);
     }
     case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD: {
@@ -399,20 +389,14 @@ protected:
     } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP) {
       auto response = reinterpret_cast<device_ops_api::device_ops_kernel_abort_rsp_t*>(message.data());
 
-      EXPECT_TRUE(response->kernel_id == 0xA5);
       EXPECT_TRUE(response->status == device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_OK);
-
-    } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_STATE_RSP) {
-      auto response = reinterpret_cast<device_ops_api::device_ops_kernel_state_rsp_t*>(message.data());
-
-      EXPECT_TRUE(response->status == device_ops_api::DEV_OPS_API_KERNEL_STATE_COMPLETE);
 
     } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP) {
       auto response = reinterpret_cast<device_ops_api::device_ops_data_read_rsp_t*>(message.data());
 
       EXPECT_TRUE(response->cmd_wait_time == 0xdeadbeef);
       EXPECT_TRUE(response->cmd_execution_time == 0xdeadbeef);
-      EXPECT_TRUE(response->status == device_ops_api::ETSOC_DMA_STATE_DONE);
+      EXPECT_TRUE(response->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE);
 
       void *dmaBufPtr;
       uint64_t dmaBufSize;
@@ -429,7 +413,7 @@ protected:
 
       EXPECT_TRUE(response->cmd_wait_time == 0xdeadbeef);
       EXPECT_TRUE(response->cmd_execution_time == 0xdeadbeef);
-      EXPECT_TRUE(response->status == device_ops_api::ETSOC_DMA_STATE_DONE);
+      EXPECT_TRUE(response->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE);
 
       void *dmaBufPtr;
       uint64_t dmaBufSize;
