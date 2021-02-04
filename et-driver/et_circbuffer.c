@@ -63,7 +63,9 @@ bool et_circbuffer_push(struct et_circbuffer __iomem *cb_mem, u8 *buf,
 
 	iowrite32(cb.head, &cb_mem->head);
 
-	return true;
+	// Make sure head is updated by performing this read so that any PCIe
+        // writes still in flight are forced to complete.
+        return cb.head == ioread32(&cb_mem->head);
 }
 
 bool et_circbuffer_peek(struct et_circbuffer __iomem *cb_mem, u8 *buf,
