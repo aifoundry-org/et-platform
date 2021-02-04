@@ -64,7 +64,7 @@ void main2(void)
     if (hart_id == DISPATCHER_BASE_HART_ID)
     {
         /* Initialize UART logging params */
-        Log_Init(LOG_LEVEL_DEBUG);
+        Log_Init(LOG_LEVEL_CRITICAL);
 
         Dispatcher_Launch(hart_id);
     }
