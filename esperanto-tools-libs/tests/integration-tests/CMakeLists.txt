@@ -33,5 +33,4 @@ create_test_targets("${SIM_DEVFW_TEST_LIST}" "LABELS;Generic;LABELS;DeviceFW;TIM
 
 
 add_subdirectory(device-fw)
-add_subdirectory(DeviceManagement)
 add_subdirectory(pcie)
