@@ -17,7 +17,6 @@ MEMORY
 {
     SCODE (rx)  : org = FW_WORKER_SCODE_BASE, l = FW_WORKER_SCODE_SIZE
     SDATA (!rx) : org = FW_WORKER_SDATA_BASE, l = FW_WORKER_SDATA_SIZE
-    UCODE (rx)  : org = FW_WORKER_UCODE_BASE, l = FW_WORKER_UCODE_SIZE
 }
 
 SECTIONS
@@ -81,12 +80,6 @@ SECTIONS
     {
         *(.sbss .sbss.* .gnu.linkonce.sb.*)
     } > SDATA
-
-    .user_text :
-    {
-        *(SORT_BY_ALIGNMENT(.user_text) SORT_BY_ALIGNMENT(.user_text.*))
-    }
-    > UCODE
 }
 
 ASSERT(SIZEOF(.bss) == 0,  "Error, image is shared so .bss section must be empty");
