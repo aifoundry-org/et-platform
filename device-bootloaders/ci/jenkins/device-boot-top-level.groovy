@@ -69,7 +69,7 @@ pipeline {
         }
       }
       steps {
-        sh 'git fetch ; git merge origin/master | grep Already && ( echo \"Branch is up to date with Origin/Master proceeding...\" ; exit 0 ) || ( echo \"Merge request is out of date with respect to origin/master. Please, rebase it and re-submit merge request\" ; exit 1 )'
+        sh 'if [ ! -z \"${gitlabTargetBranch}\" ] ; then git fetch && git merge origin/$gitlabTargetBranch | grep Already && ( echo \"Branch is up to date with target branch proceeding...\" && exit 0 ) || ( echo \"Merge request is out of date with respect to target branch. Please, rebase it and re-submit merge request\" && exit 1 ); else echo \"Skipping branch up to date check as environment variable gitlabTargetBranch is not defined!\" ; fi'
       }
     }
     stage('DSL_JOB') {
@@ -169,7 +169,7 @@ pipeline {
           if (env.EMAIL_NIGHTLY_TEAM == 'true') {
             if (env.BRANCH == env.EMAIL_NIGHTLY_BRANCH) {
               emailext(subject: "PASSING NIGHTLY Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
-                  body: '''<p><font size="6" color="green"> NIGHTLY PIPELINE SUCCEEDED :-(</font></p>
+                  body: '''<p><font size="6" color="green"> NIGHTLY PIPELINE SUCCEEDED :-)</font></p>
                       <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>
                       <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>''',
                   mimeType: 'text/html',
