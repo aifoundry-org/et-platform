@@ -33,7 +33,7 @@ stages:
 
   JOB_GLOW_OPERATORS:
     cmds:
-      - job: sw-platform/host-sw-integration/pipelines/dnn-lib/glow-operators-ci-etrt-devfw-sysemu
+      - job: sw-platform/host-sw-integration/pipelines/dnn-lib/glow-operators-ci-minimal-etrt-devfw-sysemu
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},common-apis/device-api:${BRANCH}"
