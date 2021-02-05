@@ -62,8 +62,6 @@ static void spinlock_barrier_global(spinlock_t *lock, uint32_t num_shires)
 }
 
 static void pre_kernel_setup(uint64_t kernel_launch_flags);
-static void kernel_return_function(int64_t return_value)
-    __attribute__((used, section(".user_text"))); // must be placed in U-mode accessible section
 static void post_kernel_cleanup(uint64_t kw_base_id, uint64_t kernel_id, uint64_t kernel_launch_flags);
 
 // Saves firmware context and launches kernel in user mode with clean stack and registers
@@ -131,7 +129,7 @@ int64_t launch_kernel(uint64_t kw_base_id,
         "mv    x12, %[k_param_a2]  \n" // a2 = UNUSED
         "mv    x13, %[k_param_a3]  \n" // a3 = UNUSED
         "sd    sp, %[firmware_sp]  \n" // save sp to supervisor stack SP region (sscratch + 8)
-        "mv    ra, %[k_ret_addr]   \n" // set return address to kernel_return_function
+        "mv    ra, %[k_ret_addr]   \n" // set return address to 0 to catch kernels that don't end properly
         "mv    s0, %[k_stack_addr] \n" // switch to kernel stack: set s0 (frame pointer) to kernel_stack_addr
         "addi  sp, s0, -32         \n" // switch to kernel stack: set sp to kernel stack after stack frame
         "sd    ra, 24(sp)          \n" // push ra
@@ -206,7 +204,7 @@ int64_t launch_kernel(uint64_t kw_base_id,
         : [firmware_sp]  "=m"(*firmware_sp),
           [return_value] "=r"(return_value),
           [tensor_error] "=r"(tensor_error)
-        : [k_ret_addr]    "r"(kernel_return_function),
+        : [k_ret_addr]    "r"(0),
           [k_stack_addr]  "r"(kernel_stack_addr),
           [k_entry]       "r"(kernel_entry_addr),
           [k_param_a0]    "r"(kernel_params_ptr),
@@ -325,11 +323,6 @@ static void pre_kernel_setup(uint64_t kernel_launch_flags)
 
     // Ensure all FLB and FCC init is complete
     asm volatile("fence");
-}
-
-static void kernel_return_function(int64_t return_value)
-{
-    syscall(SYSCALL_RETURN_FROM_KERNEL, (uint64_t)return_value, 0, 0);
 }
 
 static void post_kernel_cleanup(uint64_t kw_base_id, uint64_t kernel_id, uint64_t kernel_launch_flags)
