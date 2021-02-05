@@ -30,24 +30,6 @@ set(COMMON_LIBRARIES
    etrt
   )
 
-add_executable(dm-tester dm_tester.cc)
-message("External dependencies: " ${external_project_dependencies})
-if (${external_project_dependencies})
-  add_dependencies(dm-tester ${external_project_dependencies})
-endif()
-target_link_libraries(dm-tester ${CMAKE_DL_LIBS} ${COMMON_LIBRARIES})
-
-add_sanitizers(dm-tester)
-
-## Build static library
-install(TARGETS dm-tester
-  EXPORT EsperantoRuntimeTargets
-  RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
-  LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
-  COMPONENT et-runtime
-  )
-
 add_executable(runtime-tester runtime_tester.cc)
 message("External dependencies: " ${external_project_dependencies})
 if (${external_project_dependencies})
