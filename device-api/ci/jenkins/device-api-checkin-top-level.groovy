@@ -9,8 +9,12 @@ pipeline {
     string(name: 'NODE', defaultValue: 'DISPATCHER', description: 'Node label where the job should run')
     string(name: 'TIMEOUT', defaultValue: '12', description: 'Timeout (in hours)')
     booleanParam(name: 'HARD_CLEAN', defaultValue: 'true', description: 'If set to 1, removes all the workspace at the end of the regression')
+    booleanParam(name: 'EMAIL_CI_AUTHORS', defaultValue: 'true', description: 'This will enable email notifications on CI jobs back to the Authors of the Change.  This will include all authors of a given change set.')
+    booleanParam(name: 'EMAIL_NIGHTLY_TEAM', defaultValue: 'false', description: 'Generates an email notification when a pipeline completes for Nightlies and regressions run against the branch specified by parameter EMAIL_NIGHTLY_BRANCH.')
+    string(name: 'EMAIL_NIGHTLY_BRANCH', defaultValue: 'master', description: 'This specifies the branch that runs regressions and if EMAIL_NIGHTLY_TEAM is enabled emails will be sent to EMAIL_NIGHTLY_RECIPIENTS when the branch name matches this parameter.')
+    string(name: 'EMAIL_NIGHTLY_RECIPIENTS', defaultValue: 'et-sw-infra@esperantotech.com', description: 'Comma seperated list of email recipients for a given project')
     booleanParam(name: 'CHECK_ON_TOP_OF_MASTER', defaultValue: 'true', description: 'when true this executes checks that ensures Merge Request has merged origin/master with their MR at the time the MR was submiteted')
-    string(name: 'SW_PLATFORM_BRANCH', defaultValue: 'origin/master', description: 'SW-Platform branch to track')
+    string(name: 'SW_PLATFORM_BRANCH', defaultValue: 'origin/develop/system-sw', description: 'SW-Platform branch to track')
     string(name: 'INPUT_TAGS', defaultValue: '', description: 'Parameter to receive tags from parent pipelines')
   }
   agent {
@@ -80,28 +84,28 @@ pipeline {
     }
     stage('PARALLEL0') {
       parallel {
-        stage('JOB_BASE_INTEGRATION') {
+        stage('JOB_DEVICE_LAYER') {
           steps {
             build job:
-              'sw-platform/tools-and-utils/pipelines/sw-platform-basic-integration',
+              'sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests/',
               propagate: true,
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},common-apis/device-api:${BRANCH}"),
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
+                string(name: 'PYTEST_RETRIES', value: '2'),
                 string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
               ]
           }
         }
-        stage('JOB_GLOW_OPERATORS') {
+        stage('JOB_DEVICE_MANAGEMENT') {
           steps {
             build job:
-              'sw-platform/host-sw-integration/pipelines/dnn-lib/glow-operators-ci-minimal-etrt-devfw-sysemu',
+              'sw-platform/system-sw-integration/pipelines/device-management-checkin-tests/',
               propagate: true,
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},common-apis/device-api:${BRANCH}"),
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
                 string(name: 'PYTEST_RETRIES', value: '2'),
-                string(name: 'TIMEOUT', value: '3'),
                 string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
               ]
           }
@@ -125,12 +129,81 @@ pipeline {
   post {
     success {
       updateGitlabCommitStatus name: JOB_NAME, state: 'success'
+      script {
+          if (env.EMAIL_CI_AUTHORS == 'true') {
+              emailext(subject: "SUCCESS CI Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
+                  body: '''<p><font size="6" color="green"> CI PIPELINE SUCCESS :-)</font></p>
+                      <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>
+                      <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>''',
+                  mimeType: 'text/html',
+                  recipientProviders: [[$class:'CulpritsRecipientProvider']],
+                  to: env.gitlabUserEmail
+              )
+          }
+          if (env.EMAIL_NIGHTLY_TEAM == 'true') {
+            if (env.BRANCH == env.EMAIL_NIGHTLY_BRANCH) {
+              emailext(subject: "SUCCESS NIGHTLY Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
+                  body: '''<p><font size="6" color="red"> NIGHTLY PIPELINE SUCCESS :-(</font></p>
+                      <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>
+                      <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>''',
+                  mimeType: 'text/html',
+                  to: env.EMAIL_NIGHTLY_RECIPIENTS
+              )
+            }
+          }
+      }
     }
     failure {
       updateGitlabCommitStatus name: JOB_NAME, state: 'failed'
+      script {
+          if (env.EMAIL_CI_AUTHORS == 'true') {
+              emailext(subject: "FAILING CI Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
+                  body: '''<p><font size="6" color="red"> CI PIPELINE FAIL :-(</font></p>
+                      <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>
+                      <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>''',
+                  mimeType: 'text/html',
+                  recipientProviders: [[$class:'CulpritsRecipientProvider']],
+                  to: env.gitlabUserEmail
+              )
+          }
+          if (env.EMAIL_NIGHTLY_TEAM == 'true') {
+            if (env.BRANCH == env.EMAIL_NIGHTLY_BRANCH) {
+              emailext(subject: "FAILING NIGHTLY Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
+                  body: '''<p><font size="6" color="red"> NIGHTLY PIPELINE FAIL :-(</font></p>
+                      <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>
+                      <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>''',
+                  mimeType: 'text/html',
+                  to: env.EMAIL_NIGHTLY_RECIPIENTS
+              )
+            }
+          }
+      }
     }
     aborted {
       updateGitlabCommitStatus name: JOB_NAME, state: 'canceled'
+      script {
+          if (env.EMAIL_CI_AUTHORS == 'true') {
+              emailext(subject: "ABORTED CI Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
+                  body: '''<p><font size="6" color="red"> CI PIPELINE ABORTED :-(</font></p>
+                      <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>
+                      <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>''',
+                  mimeType: 'text/html',
+                  recipientProviders: [[$class:'CulpritsRecipientProvider']],
+                  to: env.gitlabUserEmail
+              )
+          }
+          if (env.EMAIL_NIGHTLY_TEAM == 'true') {
+            if (env.BRANCH == env.EMAIL_NIGHTLY_BRANCH) {
+              emailext(subject: "ABORTED NIGHTLY Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
+                  body: '''<p><font size="6" color="red"> NIGHTLY PIPELINE ABORTED :-(</font></p>
+                      <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>
+                      <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>''',
+                  mimeType: 'text/html',
+                  to: env.EMAIL_NIGHTLY_RECIPIENTS
+              )
+            }
+          }
+      }
     }
     cleanup {
       sh 'for pid in $(lsof +D . 2> /dev/null | grep .nfs | awk \"{print $2}\" ); do kill -9 $pid; done'
