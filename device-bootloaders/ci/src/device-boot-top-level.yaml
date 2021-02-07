@@ -5,7 +5,7 @@ parameters:
   SW_PLATFORM_BRANCH:
     description: SW-Platform branch to track
     type: string
-    default_value: "origin/master"
+    default_value: "origin/develop/system-sw"
   REPO_SSH_URL:
     description: Repository URL
     type: string
@@ -27,24 +27,11 @@ stages:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"
 
-  JOB_GLOW_OPERATORS:
+  SW_PLATFORM:
     cmds:
-      - job: sw-platform/glow-integration/pipelines/glow-operators-top-level
+      - job: sw-platform/sw-platform-checkin-system-sw-top-level
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"
-
-  JOB_ZEBU:
-    when:
-      jenkins:
-        all:
-          - ${RUN_ZEBU}
-      default:
-        false
-    cmds:
-      - job: sw-platform/zebu/zebu-checkin-top-level
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"
-          TIMEOUT: "4"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"
           RUN_ZEBU: ${RUN_ZEBU}
+    exec_after: [JOB_RUNTIME]
