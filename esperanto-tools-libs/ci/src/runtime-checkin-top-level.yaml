@@ -5,7 +5,7 @@ parameters:
   SW_PLATFORM_BRANCH:
     description: SW-Platform branch to track
     type: string
-    default_value: "origin/master"
+    default_value: "origin/develop/system-sw"
   REPO_SSH_URL:
     description: Repository URL
     type: string
@@ -45,21 +45,21 @@ stages:
   #         COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
   #         PYTEST_RETRIES: "2"
 
-  JOB_BASE_INTEGRATION:
+  JOB_DEVICE_MANAGEMENT:
     cmds:
-      - job: sw-platform/tools-and-utils/pipelines/sw-platform-basic-integration
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
-
-  JOB_GLOW_OPERATORS:
-    cmds:
-      - job: sw-platform/host-sw-integration/pipelines/dnn-lib/glow-operators-ci-1-etrt-devfw-sysemu
+      - job: sw-platform/system-sw-integration/pipelines/device-management-checkin-tests/
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
           PYTEST_RETRIES: "2"
-          TIMEOUT: "3"
+
+  JOB_DEVICE_LAYER:
+    cmds:
+      - job: sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests/
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
+          PYTEST_RETRIES: "2"
 
   # Disable Zebu jobs in the checkin as default run
   # JOB_ZEBU:
