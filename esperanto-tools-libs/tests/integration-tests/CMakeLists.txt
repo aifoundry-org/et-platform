@@ -13,7 +13,6 @@ set(DEV_FW_ARGS "--bootrom_trampoline_to_bl2_elf=${BOOTROM_TRAMPOLINE_TO_BL2_ELF
 
 set(TEST_LIST
   test_device_target_sysemu_grpc.cc:""
-  test_tracing.cc:""
   )
 
 create_test_targets("${TEST_LIST}" "LABELS;Generic;TIMEOUT;600")
@@ -30,7 +29,3 @@ set(SIM_DEVFW_TEST_LIST
   test_profiler.cpp:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR}"
   )
 create_test_targets("${SIM_DEVFW_TEST_LIST}" "LABELS;Generic;LABELS;DeviceFW;TIMEOUT;120")
-
-
-add_subdirectory(device-fw)
-add_subdirectory(pcie)
