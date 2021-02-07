@@ -16,7 +16,7 @@ pipeline {
     string(name: 'EMAIL_NIGHTLY_RECIPIENTS', defaultValue: 'et-sw-infra@esperantotech.com', description: 'Comma seperated list of email recipients for a given project')
     string(name: 'CRON_STRING', defaultValue: '0 * * * *', description: 'Cron string to cause a job to execute automatically')
     booleanParam(name: 'CHECK_ON_TOP_OF_MASTER', defaultValue: 'true', description: 'when true this executes checks that ensures Merge Request has merged origin/master with their MR at the time the MR was submiteted')
-    string(name: 'SW_PLATFORM_BRANCH', defaultValue: 'origin/master', description: 'SW-Platform branch to track')
+    string(name: 'SW_PLATFORM_BRANCH', defaultValue: 'origin/develop/system-sw', description: 'SW-Platform branch to track')
     booleanParam(name: 'RUN_ZEBU', defaultValue: 'true', description: 'Run Zebu Job')
     string(name: 'INPUT_TAGS', defaultValue: '', description: 'Parameter to receive tags from parent pipelines')
   }
@@ -69,7 +69,7 @@ pipeline {
         }
       }
       steps {
-        sh 'git fetch ; git merge origin/master | grep Already && ( echo \"Branch is up to date with Origin/Master proceeding...\" ; exit 0 ) || ( echo \"Merge request is out of date with respect to origin/master. Please, rebase it and re-submit merge request\" ; exit 1 )'
+        sh 'if [ ! -z \"${gitlabTargetBranch}\" ] ; then git fetch && git merge origin/$gitlabTargetBranch | grep Already && ( echo \"Branch is up to date with target branch proceeding...\" && exit 0 ) || ( echo \"Merge request is out of date with respect to target branch. Please, rebase it and re-submit merge request\" && exit 1 ); else echo \"Skipping branch up to date check as environment variable gitlabTargetBranch is not defined!\" ; fi'
       }
     }
     stage('DSL_JOB') {
@@ -87,28 +87,28 @@ pipeline {
     }
     stage('PARALLEL0') {
       parallel {
-        stage('JOB_BASE_INTEGRATION') {
+        stage('JOB_DEVICE_LAYER') {
           steps {
             build job:
-              'sw-platform/tools-and-utils/pipelines/sw-platform-basic-integration',
-              propagate: true,
-              parameters: [
-                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
-                string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-              ]
-          }
-        }
-        stage('JOB_GLOW_OPERATORS') {
-          steps {
-            build job:
-              'sw-platform/host-sw-integration/pipelines/dnn-lib/glow-operators-ci-1-etrt-devfw-sysemu',
+              'sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests/',
               propagate: true,
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
                 string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
                 string(name: 'PYTEST_RETRIES', value: '2'),
-                string(name: 'TIMEOUT', value: '3'),
+                string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+              ]
+          }
+        }
+        stage('JOB_DEVICE_MANAGEMENT') {
+          steps {
+            build job:
+              'sw-platform/system-sw-integration/pipelines/device-management-checkin-tests/',
+              propagate: true,
+              parameters: [
+                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
+                string(name: 'PYTEST_RETRIES', value: '2'),
                 string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
               ]
           }
@@ -163,7 +163,7 @@ pipeline {
           if (env.EMAIL_NIGHTLY_TEAM == 'true') {
             if (env.BRANCH == env.EMAIL_NIGHTLY_BRANCH) {
               emailext(subject: "PASSING NIGHTLY Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
-                  body: '''<p><font size="6" color="green"> NIGHTLY PIPELINE SUCCEEDED :-(</font></p>
+                  body: '''<p><font size="6" color="green"> NIGHTLY PIPELINE SUCCEEDED :-)</font></p>
                       <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>
                       <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>''',
                   mimeType: 'text/html',
