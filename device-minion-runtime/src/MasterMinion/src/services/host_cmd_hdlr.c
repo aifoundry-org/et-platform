@@ -192,6 +192,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
         {
             struct device_ops_kernel_launch_cmd_t *cmd = (void *)hdr;
             struct device_ops_kernel_launch_rsp_t rsp;
+            uint8_t kw_idx;
 
             Log_Write(LOG_LEVEL_DEBUG, "%s",
                 "HostCommandHandler:Processing:KERNEL_LAUNCH_CMD\r\n");
@@ -203,7 +204,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
               cycles.start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
 
             /* Blocking call to launch kernel */
-            status = KW_Dispatch_Kernel_Launch_Cmd(cmd, sqw_idx);
+            status = KW_Dispatch_Kernel_Launch_Cmd(cmd, sqw_idx, &kw_idx);
 
             if(status == STATUS_SUCCESS)
             {
@@ -211,7 +212,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 kernel completion responses, and construct
                 and transmit command response to host
                 completion queue */
-                KW_Notify(0, &cycles);
+                KW_Notify(kw_idx, &cycles);
             }
             else
             {

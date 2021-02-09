@@ -181,10 +181,15 @@
 */
 #define KW_BASE_HART_ID       2054U
 
+/*! \def MM_MAX_PARALLEL_KERNELS
+    \brief Maximum number of kerenls in parallel
+*/
+#define MM_MAX_PARALLEL_KERNELS     1
+
 /*! \def KW_NUM
     \brief Number of Kernel Workers
 */
-#define KW_NUM                1
+#define KW_NUM                MM_MAX_PARALLEL_KERNELS
 
 /*! \def DMAW_BASE_HART_ID
     \brief Base HART ID for the DMA Worker
@@ -223,11 +228,6 @@ move this defined to a abstraction common to SP and MM runtimes*/
 #define     MM2SP_CQ_MEM_TYPE    UNCACHED
 
 #define     MM_SP_CMD_SIZE       64
-
-/**********************/
-/* Kernel processing  */
-/**********************/
-#define     MM_MAX_PARALLEL_KERNELS     1
 
 /**********************/
 /* DIR Configuration  */

@@ -26,7 +26,6 @@
         KW_Launch
         KW_Dispatch_Kernel_Launch_Cmd
         KW_Dispatch_Kernel_Abort_Cmd
-        KW_Fetch_Kernel_State
 */
 /***********************************************************************/
 #include    "atomic.h"
@@ -65,7 +64,7 @@ typedef struct kernel_instance_ {
     for the life time of MM runtime.
 */
 typedef struct kw_cb_ {
-    fcc_sync_cb_t       host2kw;
+    fcc_sync_cb_t       host2kw[MM_MAX_PARALLEL_KERNELS];
     spinlock_t          resource_lock;
     kernel_instance_t   kernels[MM_MAX_PARALLEL_KERNELS];
 } kw_cb_t;
@@ -108,7 +107,6 @@ static kernel_instance_t* kw_reserve_kernel_slot(void)
             (&KW_CB.kernels[i].kernel_state) == KERNEL_STATE_UN_USED)
         {
             kernel = &KW_CB.kernels[i];
-            atomic_store_local_16(&kernel->slot_index, (uint16_t)i);
             atomic_store_local_16(&kernel->kernel_state,
                 KERNEL_STATE_IN_USE);
             break;
@@ -251,6 +249,7 @@ static void kw_unreserve_kernel_shires(uint64_t shire_mask)
 *
 *       cmd         Kernel launch command
 *       sqw_idx     Submission queue index
+*       kw_idx      Pointer to get kernel work index (slot number)
 *
 *   OUTPUTS
 *
@@ -258,7 +257,7 @@ static void kw_unreserve_kernel_shires(uint64_t shire_mask)
 *
 ***********************************************************************/
 int8_t KW_Dispatch_Kernel_Launch_Cmd
-    (struct device_ops_kernel_launch_cmd_t *cmd, uint8_t sqw_idx)
+    (struct device_ops_kernel_launch_cmd_t *cmd, uint8_t sqw_idx, uint8_t* kw_idx)
 {
     kernel_instance_t *kernel = 0;
     int8_t status;
@@ -304,9 +303,7 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
         mm_to_cm_message_kernel_launch_t launch_args;
         launch_args.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH;
         launch_args.kw_base_id = (uint8_t)KW_BASE_HART_ID;
-        /* TODO: This is used by the CMs to notify KW.
-        Only base KW for now. */
-        launch_args.slot_index = 0;
+        launch_args.slot_index = (uint8_t)kernel->slot_index;
         launch_args.flags = KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH;
         launch_args.code_start_address = cmd->code_start_address;
         launch_args.pointer_to_args = cmd->pointer_to_args;
@@ -330,6 +327,7 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
                     CW_Update_Shire_State(shire, CW_SHIRE_STATE_RUNNING);
                 }
             }
+            *kw_idx = (uint8_t)kernel->slot_index;
         }
         else
         {
@@ -348,40 +346,6 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
     }
 
     return status;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       KW_Fetch_Kernel_State
-*
-*   DESCRIPTION
-*
-*       Fetch kernel state for the kernel ID requested
-*
-*   INPUTS
-*
-*       kernel_id   Kernel ID
-*
-*   OUTPUTS
-*
-*       uint8_t     status success or error
-*
-***********************************************************************/
-uint8_t KW_Fetch_Kernel_State(uint8_t kernel_id)
-{
-    (void)kernel_id;
-
-    /* TODO: Implement logic here to  fetch kernel state, the
-    assumption is kernel id used will be the kernel slot id.
-    CUrrently returning 0 since we support a single kernel only */
-
-    /* TODO: The kernel launch response binding should be update
-    to return to host a kernel ID, which will be used by host to
-    query for kernel state */
-
-    return 0;
 }
 
 /************************************************************************
@@ -442,22 +406,23 @@ int8_t KW_Dispatch_Kernel_Abort_Cmd
 ***********************************************************************/
 void KW_Init(void)
 {
-    /* Initialize FCC flags used by
-    the kernel worker */
-    atomic_store_local_8(&KW_CB.host2kw.fcc_id, FCC_0);
-    global_fcc_init(&KW_CB.host2kw.fcc_flag);
-
     /* Initialize the spinlock */
     init_local_spinlock(&KW_CB.resource_lock, 0);
 
     /* Mark all kernel slots - unused */
     for(int i = 0; i < MM_MAX_PARALLEL_KERNELS; i++)
     {
-        /* Initialize id, tag_id, sqw_idx, kernel_state */
+        /* Initialize FCC flags used by the kernel worker */
+        atomic_store_local_8(&KW_CB.host2kw[i].fcc_id, FCC_0);
+        global_fcc_init(&KW_CB.host2kw[i].fcc_flag);
+
+        /* Initialize shire_mask, wait and start cycle count,
+        and slot_index */
         atomic_store_local_64((uint64_t*)&KW_CB.kernels[i], 0U);
         atomic_store_local_64(&KW_CB.kernels[i].kernel_shire_mask, 0U);
         atomic_store_local_32(&KW_CB.kernels[i].kw_cycles.wait_cycles, 0U);
         atomic_store_local_32(&KW_CB.kernels[i].kw_cycles.start_cycles, 0U);
+        atomic_store_local_16(&KW_CB.kernels[i].slot_index, (uint16_t)i);
     }
 
     return;
@@ -502,8 +467,8 @@ void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle)
     atomic_store_local_32(&KW_CB.kernels[kw_idx].kw_cycles.start_cycles,
                           cycle->start_cycles);
 
-    global_fcc_notify(atomic_load_local_8(&KW_CB.host2kw.fcc_id),
-        &KW_CB.host2kw.fcc_flag, minion, thread);
+    global_fcc_notify(atomic_load_local_8(&KW_CB.host2kw[kw_idx].fcc_id),
+        &KW_CB.host2kw[kw_idx].fcc_flag, minion, thread);
 
     return;
 }
@@ -534,7 +499,8 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     uint32_t done_cnt = 0;
     uint32_t kernel_shires_count;
     bool cw_exception = false;
-    kernel_instance_t *kernel;
+    /* Get the kernel instance */
+    kernel_instance_t *kernel = &KW_CB.kernels[kw_idx];
 
     Log_Write(LOG_LEVEL_DEBUG, "%s%d%s%d%s",
         "KW:HART=", hart_id, ":IDX=", kw_idx, "\r\n");
@@ -554,17 +520,13 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     while(1)
     {
         /* Wait on FCC notification from SQW Host Command Handler */
-        global_fcc_wait(atomic_load_local_8(&KW_CB.host2kw.fcc_id),
-            &KW_CB.host2kw.fcc_flag);
+        global_fcc_wait(atomic_load_local_8(&KW_CB.host2kw[kw_idx].fcc_id),
+            &KW_CB.host2kw[kw_idx].fcc_flag);
 
         Log_Write(LOG_LEVEL_DEBUG, "%s",
             "KW:Received:FCCEvent\r\n");
 
         /* TODO: Set up watchdog to detect command timeout */
-
-        /* Get the kernel instance */
-        /* TODO: single kernel support for now */
-        kernel = &KW_CB.kernels[0];
 
         /* Calculate the number of shires involved in kernel launch */
         kernel_shires_count = (uint32_t)
@@ -578,13 +540,6 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             /* Wait for an IPI */
             asm volatile("wfi\n");
             asm volatile("csrci sip, 0x2");
-
-            /* TODO: We are currently assuming single kernel support.
-            We need to enable a comms interface between Host Command
-            Handler and KW so kernel slot ID for the current
-            FCC notification can be coveyed from Host Command handler
-            to KW, this will be used to determine the CW unicast
-            completion buffer offset, and other purposes */
 
             status = CM_To_MM_Iface_Unicast_Receive(
                 CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX +
