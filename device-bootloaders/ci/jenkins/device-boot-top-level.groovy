@@ -104,7 +104,7 @@ pipeline {
           propagate: true,
           parameters: [
             string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-            string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"),
+            string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"),
             string(name: 'RUN_ZEBU', value: "${RUN_ZEBU}"),
             string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
           ]

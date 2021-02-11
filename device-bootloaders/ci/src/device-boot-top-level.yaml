@@ -32,6 +32,6 @@ stages:
       - job: sw-platform/sw-platform-checkin-system-sw-top-level
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"
           RUN_ZEBU: ${RUN_ZEBU}
     exec_after: [JOB_RUNTIME]
