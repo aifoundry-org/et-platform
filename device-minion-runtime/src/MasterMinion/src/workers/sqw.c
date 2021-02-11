@@ -276,14 +276,11 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
 void SQW_Decrement_Command_Count(uint8_t sqw_idx)
 {
     /* Decrement commands count being processed by current SQW */
-    atomic_add_signed_local_32(&SQW_CB.sqw_cmd_count[sqw_idx], -1);
+    int32_t original_val =
+        atomic_add_signed_local_32(&SQW_CB.sqw_cmd_count[sqw_idx], -1);
 
-    /* sqw_cmd_count value being shown here is not garanteed to be
-       thread safe. */
     Log_Write(LOG_LEVEL_DEBUG, "%s%d%s",
-        "SQW:Decrement:Command Count:",
-        atomic_load_local_32((uint32_t*)&SQW_CB.sqw_cmd_count[sqw_idx]),
-        "\r\n");
+        "SQW:Decrement:Command Count:", original_val - 1, "\r\n");
 }
 
 /************************************************************************
@@ -309,12 +306,9 @@ void SQW_Decrement_Command_Count(uint8_t sqw_idx)
 void SQW_Increment_Command_Count(uint8_t sqw_idx)
 {
     /* Increment commands count being processed by current SQW */
-    atomic_add_signed_local_32(&SQW_CB.sqw_cmd_count[sqw_idx], 1);
+    int32_t original_val =
+        atomic_add_signed_local_32(&SQW_CB.sqw_cmd_count[sqw_idx], 1);
 
-    /* sqw_cmd_count value being shown here is not garanteed to be
-       thread safe. */
     Log_Write(LOG_LEVEL_DEBUG, "%s%d%s",
-        "SQW:Increment:Command Count:",
-        atomic_load_local_32((uint32_t*)&SQW_CB.sqw_cmd_count[sqw_idx]),
-        "\r\n");
+        "SQW:Increment:Command Count:", original_val + 1, "\r\n");
 }

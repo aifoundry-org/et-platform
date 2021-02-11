@@ -23,7 +23,6 @@
 #include "workers/kw.h"
 #include "workers/dmaw.h"
 #include "workers/sqw.h"
-#include "pcie_dma.h"
 #include "pmu.h"
 
 /************************************************************************
@@ -52,10 +51,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 {
     int8_t status = STATUS_SUCCESS;
     struct cmd_header_t *hdr = command_buffer;
-    dma_channel_status_t *p_DMA_Channel_Status;
     exec_cycles_t cycles;
-
-    p_DMA_Channel_Status = DMAW_Get_DMA_Channel_Status_Addr();
 
     switch (hdr->cmd_hdr.msg_id)
     {
@@ -285,49 +281,11 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
             break;
         }
-        case DEV_OPS_API_MID_DEVICE_OPS_KERNEL_STATE_CMD:
-        {
-            struct device_ops_kernel_state_cmd_t *cmd = (void *)hdr;
-            struct device_ops_kernel_state_rsp_t rsp;
-
-            (void)cmd;
-
-            Log_Write(LOG_LEVEL_DEBUG, "%s",
-                "HostCommandHandler:Processing:KERNEL_STATE_CMD\r\n");
-
-            /* TODO: Obtain kernel state for kernel ID */
-
-            /* Construct and transit command response */
-            rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
-            rsp.response_info.rsp_hdr.msg_id =
-                DEV_OPS_API_MID_DEVICE_OPS_KERNEL_STATE_RSP;
-            rsp.status = DEV_OPS_API_KERNEL_LAUNCH_STATUS_ERROR;
-            rsp.response_info.rsp_hdr.size =
-                sizeof(struct device_ops_kernel_launch_rsp_t);
-
-            status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
-
-            if(status == STATUS_SUCCESS)
-            {
-                Log_Write(LOG_LEVEL_DEBUG, "%s",
-                    "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
-            }
-            else
-            {
-                Log_Write(LOG_LEVEL_DEBUG, "%s",
-                    "HostCommandHandler:HostIface:Push:Failed\r\n");
-            }
-
-            /* Decrement commands count being processed by given SQW */
-            SQW_Decrement_Command_Count(sqw_idx);
-
-            break;
-        }
         case DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD:
         {
             struct device_ops_data_read_cmd_t *cmd = (void *)hdr;
-            et_dma_chan_id_e chan;
-            DMA_STATUS_e dma_status = DMA_OPERATION_NOT_SUCCESS;
+            struct device_ops_data_read_rsp_t rsp;
+            dma_chan_id_e chan;
 
             /* Design Notes: Note a DMA write command from host will
             trigger the implementation to configure a DMA read channel
@@ -337,10 +295,10 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             Log_Write(LOG_LEVEL_DEBUG, "%s",
                 "HostCommandHandler:Processing:DATA_READ_CMD\r\n");
 
-            /* Obtain the next available DMA read channel */
-            dma_status = dma_chan_find_idle(DMA_DEVICE_TO_HOST, &chan);
+            /* Obtain the next available DMA write channel */
+            status = DMAW_Write_Find_Idle_Chan_And_Reserve(&chan);
 
-            if(dma_status == DMA_OPERATION_SUCCESS)
+            if(status == STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_DEBUG,
                     "%s%d%s", "DMA_READ:channel_used:",chan, "\r\n");
@@ -353,37 +311,59 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 Log_Write(LOG_LEVEL_DEBUG,
                     "%s%d%s", "DMA_READ:size:",cmd->size, "\r\n");
 
-                /* Update the Global DMA Channel Status data structure
-                - Set tag ID, set channel state to active, set SQW Index */
-                atomic_store_local_32
-                    ((volatile uint32_t*)&p_DMA_Channel_Status[chan],
-                     ((uint32_t)((sqw_idx << 24) |
-                      (DMA_CHANNEL_IN_USE << 16) | hdr->cmd_hdr.tag_id)));
-
                 /* Compute Wait Cycles (cycles the command was sitting in SQ prior to launch)
                    Snapshot current cycle */
                 cycles.wait_cycles = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
                 cycles.start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
 
-                /* Initiate DMA transfer */
-                dma_status = dma_trigger_transfer2(DMA_DEVICE_TO_HOST,
-                    cmd->src_device_phy_addr, cmd->dst_host_phy_addr,
-                    cmd->size, chan);
+                /* Initiate DMA write transfer */
+                status = DMAW_Write_Trigger_Transfer(chan, cmd->src_device_phy_addr,
+                    cmd->dst_host_phy_addr, cmd->size,
+                    sqw_idx, hdr->cmd_hdr.tag_id, &cycles);
+            }
 
-                /* Update cycles value into the Global Channel Status data structure*/
-                atomic_store_local_32
-                ((volatile uint32_t *)&p_DMA_Channel_Status[chan].
-                       dmaw_cycles.wait_cycles, cycles.wait_cycles);
-                atomic_store_local_32
-                ((volatile uint32_t *)&p_DMA_Channel_Status[chan].
-                       dmaw_cycles.start_cycles, cycles.start_cycles);
+            if(status != STATUS_SUCCESS)
+            {
+                Log_Write(LOG_LEVEL_DEBUG, "%s%d%s",
+                    "HostCommandHandler:DATA_READ_CMD:Failed:Status:",
+                    status, "\r\n");
 
+                /* Construct and transmit command response */
+                rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
+                rsp.response_info.rsp_hdr.msg_id =
+                    DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP;
+                rsp.response_info.rsp_hdr.size = sizeof(rsp);
+                /* Compute Wait Cycles (cycles the command was sitting
+                in SQ prior to launch) Snapshot current cycle */
+                rsp.cmd_wait_time = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
+                rsp.cmd_execution_time = 0U;
 
-                if(dma_status == DMA_OPERATION_SUCCESS)
+                /* Populate the eror type response */
+                if (status == DMAW_ERROR_CHANNEL_NOT_AVAILABLE)
+                {
+                    rsp.status =
+                        DEV_OPS_API_DMA_RESPONSE_CHANNEL_NOT_AVAILABLE;
+                }
+                else
+                {
+                    rsp.status = DEV_OPS_API_DMA_RESPONSE_ERROR;
+                }
+
+                status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+
+                if(status == STATUS_SUCCESS)
                 {
                     Log_Write(LOG_LEVEL_DEBUG, "%s",
-                        "HostCommandHandler:DMATriggerTransfer:Success!\r\n");
+                        "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
                 }
+                else
+                {
+                    Log_Write(LOG_LEVEL_DEBUG, "%s",
+                        "HostCommandHandler:HostIface:Push:Failed\r\n");
+                }
+
+                /* Decrement commands count being processed by given SQW */
+                SQW_Decrement_Command_Count(sqw_idx);
             }
 
             break;
@@ -391,9 +371,9 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
         case DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD:
         {
-            struct device_ops_data_write_cmd_t  *cmd = (void *)hdr;
-            et_dma_chan_id_e chan;
-            DMA_STATUS_e dma_status = DMA_OPERATION_NOT_SUCCESS;
+            struct device_ops_data_write_cmd_t *cmd = (void *)hdr;
+            struct device_ops_data_write_rsp_t rsp;
+            dma_chan_id_e chan;
 
             /* Design Notes: Note a DMA write command from host will trigger
             the implementation to configure a DMA read channel on device to move
@@ -403,10 +383,10 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             Log_Write(LOG_LEVEL_DEBUG, "%s",
                 "HostCommandHandler:Processing:DATA_WRITE_CMD\r\n");
 
-            /* Obtain the next available DMA write channel */
-            dma_status = dma_chan_find_idle(DMA_HOST_TO_DEVICE, &chan);
+            /* Obtain the next available DMA read channel */
+            status = DMAW_Read_Find_Idle_Chan_And_Reserve(&chan);
 
-            if(dma_status == DMA_OPERATION_SUCCESS)
+            if(status == STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_DEBUG,
                     "%s%d%s", "DMA_WRITE:channel_used:",chan, "\r\n");
@@ -422,36 +402,59 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 Log_Write(LOG_LEVEL_DEBUG,
                     "%s%d%s", "DMA_WRITE:size:",cmd->size, "\r\n");
 
-                /* Update the Global DMA Channel Status data structure
-                - Set tag ID, set channel state to active, set SQW Index */
-                atomic_store_local_32
-                    ((volatile uint32_t*)&p_DMA_Channel_Status[chan],
-                     ((uint32_t)((sqw_idx << 24) |
-                      (DMA_CHANNEL_IN_USE << 16) | hdr->cmd_hdr.tag_id)));
-
                 /* Compute Wait Cycles (cycles the command was sitting in SQ prior to launch)
                    Snapshot current cycle */
                 cycles.wait_cycles = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
                 cycles.start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
 
-                /* Initiate DMA transfer */
-                dma_status = dma_trigger_transfer2(DMA_HOST_TO_DEVICE,
-                    cmd->src_host_phy_addr, cmd->dst_device_phy_addr,
-                    cmd->size, chan);
+                /* Initiate DMA read transfer */
+                status = DMAW_Read_Trigger_Transfer(chan, cmd->src_host_phy_addr,
+                    cmd->dst_device_phy_addr, cmd->size,
+                    sqw_idx, hdr->cmd_hdr.tag_id, &cycles);
+            }
 
-                /* Update cycles value into the Global Channel Status data structure*/
-                atomic_store_local_32
-                ((volatile uint32_t *)&p_DMA_Channel_Status[chan].
-                       dmaw_cycles.wait_cycles, cycles.wait_cycles);
-                atomic_store_local_32
-                ((volatile uint32_t *)&p_DMA_Channel_Status[chan].
-                       dmaw_cycles.start_cycles, cycles.start_cycles);
+            if(status != STATUS_SUCCESS)
+            {
+                Log_Write(LOG_LEVEL_DEBUG, "%s%d%s",
+                    "HostCommandHandler:DATA_WRITE_CMD:Failed:Status:",
+                    status, "\r\n");
 
-                if(dma_status == DMA_OPERATION_SUCCESS)
+                /* Construct and transit command response */
+                rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
+                rsp.response_info.rsp_hdr.msg_id =
+                    DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP;
+                rsp.response_info.rsp_hdr.size = sizeof(rsp);
+                /* Compute Wait Cycles (cycles the command was sitting
+                in SQ prior to launch) Snapshot current cycle */
+                rsp.cmd_wait_time = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
+                rsp.cmd_execution_time = 0U;
+
+                /* Populate the eror type response */
+                if (status == DMAW_ERROR_CHANNEL_NOT_AVAILABLE)
+                {
+                    rsp.status =
+                        DEV_OPS_API_DMA_RESPONSE_CHANNEL_NOT_AVAILABLE;
+                }
+                else
+                {
+                    rsp.status = DEV_OPS_API_DMA_RESPONSE_ERROR;
+                }
+
+                status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+
+                if(status == STATUS_SUCCESS)
                 {
                     Log_Write(LOG_LEVEL_DEBUG, "%s",
-                        "HostCommandHandler:DMATriggerTransfer:Success!\r\n");
+                        "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
                 }
+                else
+                {
+                    Log_Write(LOG_LEVEL_DEBUG, "%s",
+                        "HostCommandHandler:HostIface:Push:Failed\r\n");
+                }
+
+                /* Decrement commands count being processed by given SQW */
+                SQW_Decrement_Command_Count(sqw_idx);
             }
 
             break;

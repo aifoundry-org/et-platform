@@ -21,6 +21,7 @@
 #include "common_defs.h"
 #include "sync.h"
 #include "vq.h"
+#include "pcie_dma.h"
 
 /*! \def DMAW_MAX_HART_ID
     \brief A macro that provides the maximum HART ID the DMAW is configued
@@ -40,32 +41,49 @@
 */
 #define  DMAW_FOR_WRITE        DMAW_FOR_READ+1
 
-/*! \def DMA_CHANNEL_AVAILABLE
-    \brief DMA channel available.
+/*! \def DMAW_ERROR_GENERAL
+    \brief DMA Worker - General error
 */
-#define DMA_CHANNEL_AVAILABLE   0
+#define DMAW_ERROR_GENERAL               -1
 
-/*! \def DMA_CHANNEL_IN_USE
-    \brief DMA channel in-use.
+/*! \def DMAW_ERROR_CHANNEL_NOT_AVAILABLE
+    \brief DMA Worker - DMA channel not available error
 */
-#define DMA_CHANNEL_IN_USE      1
+#define DMAW_ERROR_CHANNEL_NOT_AVAILABLE -2
+
+/*! \enum dma_chan_state_e
+    \brief Enum that provides the state of a DMA channel
+*/
+typedef enum {
+    DMA_CHAN_STATE_IDLE = 0,
+    DMA_CHAN_STATE_RESERVED = 1,
+    DMA_CHAN_STATE_IN_USE = 2,
+    DMA_CHAN_STATE_ERROR = 3
+} dma_chan_state_e;
 
 /*! \struct dma_channel_status
     \brief DMA channel data structure to maintain
-    information related to given channel's usage
+    information related to given channel's status
 */
 typedef struct dma_channel_status {
-    uint16_t    tag_id; /* tag_id for the transaction associated with the channel */
-    uint8_t     channel_state; /* '0' channel available, '1' channel used */
-    uint8_t     sqw_idx; /* SQW idx that submitted this command */
-    exec_cycles_t dmaw_cycles; /* Cycles associated with the transaction*/
+    union {
+        struct {
+            uint16_t tag_id; /* tag_id for the transaction associated with the channel */
+            uint8_t  channel_state; /* channel state indicated by dma_chan_state_e */
+            uint8_t  sqw_idx; /* SQW idx that submitted this command */
+        };
+        uint32_t raw_u32;
+    };
 } dma_channel_status_t;
 
-/*! \fn void* DMAW_Get_DMA_Channel_Status_Addr(void)
-    \brief Get DMA Channel Status address
-    \return Address of DMA Channel Status address
+/*! \struct dma_channel_status_cb
+    \brief DMA channel data structure to maintain
+    information related to given channel's usage
 */
-dma_channel_status_t* DMAW_Get_DMA_Channel_Status_Addr(void);
+typedef struct dma_channel_status_cb {
+    dma_channel_status_t status; /* Holds the attributes related to a channel's status */
+    exec_cycles_t        dmaw_cycles; /* Cycles associated with the transaction*/
+} dma_channel_status_cb_t;
 
 /*! \fn void DMAW_Init(void)
     \brief Initialize DMA Worker
@@ -79,5 +97,55 @@ void DMAW_Init(void);
     \return none
 */
 void DMAW_Launch(uint32_t hart_id);
+
+/*! \fn int8_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id)
+    \brief Finds an idle DMA read channel and reserves it
+    \param chan_id Pointer to DMA channel ID
+    \return Status success or error
+*/
+int8_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id);
+
+/*! \fn int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id)
+    \brief Finds an idle DMA write channel and reserves it
+    \param chan_id Pointer to DMA channel ID
+    \return Status success or error
+*/
+int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id);
+
+/*! \fn int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
+    uint64_t src_addr, uint64_t dest_addr, uint64_t size, uint8_t sqw_idx,
+    uint16_t tag_id, exec_cycles_t *cycles)
+    \brief This function is used to trigger a DMA read transaction by calling the
+    PCIe device driver routine
+    \param chan_id DMA channel ID
+    \param src_addr Source address
+    \param dest_addr Destination address
+    \param size Size of DMA transaction
+    \param sqw_idx SQW ID
+    \param tag_id Tag ID of the command
+    \param cycles Pointer to latency cycles struct
+    \return Status success or error
+*/
+int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
+    uint64_t src_addr, uint64_t dest_addr, uint64_t size, uint8_t sqw_idx,
+    uint16_t tag_id, exec_cycles_t *cycles);
+
+/*! \fn int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id,
+    uint64_t src_addr, uint64_t dest_addr, uint64_t size, uint8_t sqw_idx,
+    uint16_t tag_id, exec_cycles_t *cycles)
+    \brief This function is used to trigger a DMA write transaction by calling the
+    PCIe device driver routine
+    \param chan_id DMA channel ID
+    \param src_addr Source address
+    \param dest_addr Destination address
+    \param size Size of DMA transaction
+    \param sqw_idx SQW ID
+    \param tag_id Tag ID of the command
+    \param cycles Pointer to latency cycles struct
+    \return Status success or error
+*/
+int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id,
+    uint64_t src_addr, uint64_t dest_addr, uint64_t size, uint8_t sqw_idx,
+    uint16_t tag_id, exec_cycles_t *cycles);
 
 #endif /* DMAW_DEFS_H */
