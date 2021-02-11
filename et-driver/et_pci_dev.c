@@ -62,14 +62,14 @@ int et_map_bar(struct et_pci_dev *et_dev, const struct et_bar_mapping *bm_info,
 	}
 
 	if (bar_cfg & PCI_BASE_ADDRESS_MEM_PREFETCH)
-		*mapped_addr_ptr = pci_iomap_range(et_dev->pdev, bm_info->bar,
-						   bm_info->bar_offset,
-						   bm_info->size);
-	else
 		*mapped_addr_ptr = pci_iomap_wc_range(et_dev->pdev,
 						      bm_info->bar,
 						      bm_info->bar_offset,
 						      bm_info->size);
+	else
+		*mapped_addr_ptr = pci_iomap_range(et_dev->pdev, bm_info->bar,
+						   bm_info->bar_offset,
+						   bm_info->size);
 
 	if (IS_ERR(*mapped_addr_ptr)) {
 		dev_err(&et_dev->pdev->dev, "bar mapping failed\n");
