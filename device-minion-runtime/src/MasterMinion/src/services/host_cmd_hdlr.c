@@ -254,31 +254,46 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 "HostCommandHandler:Processing:KERNEL_ABORT_CMD\r\n");
 
             /* Dispatch kernel abort command */
-            KW_Dispatch_Kernel_Abort_Cmd(cmd, sqw_idx);
+            status = KW_Dispatch_Kernel_Abort_Cmd(cmd);
 
-            /* Construct and transit command response */
-            rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
-            rsp.response_info.rsp_hdr.msg_id =
-                DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP;
-            /* rsp.status = abort status comes here; */
-            rsp.response_info.rsp_hdr.size =
-                sizeof(struct device_ops_kernel_abort_rsp_t);
-
-            status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
-
-            if(status == STATUS_SUCCESS)
+            if(status != STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_DEBUG,
-                    "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
-            }
-            else
-            {
-                Log_Write(LOG_LEVEL_DEBUG,
-                    "HostCommandHandler:HostIface:Push:Failed\r\n");
-            }
+                    "HostCommandHandler:KERNEL_ABBORT_CMD:Failed:Status:%d\r\n", status);
 
-            /* Decrement commands count being processed by given SQW */
-            SQW_Decrement_Command_Count(sqw_idx);
+                /* Construct and transit command response */
+                rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
+                rsp.response_info.rsp_hdr.msg_id =
+                    DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP;
+                rsp.response_info.rsp_hdr.size =
+                    sizeof(struct device_ops_kernel_abort_rsp_t);
+
+                /* Populate the error type response */
+                if ((status == KW_ERROR_KERNEL_SLOT_NOT_FOUND) ||
+                    (status == KW_ERROR_KERNEL_SLOT_NOT_USED))
+                {
+                    rsp.status =
+                        DEV_OPS_API_KERNEL_ABORT_RESPONSE_INVALID_TAG_ID;
+                }
+                else
+                {
+                    rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_ERROR;
+                }
+
+                status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+
+                if(status == STATUS_SUCCESS)
+                {
+                    Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
+                }
+                else
+                {
+                    Log_Write(LOG_LEVEL_ERROR, "HostCommandHandler:HostIface:Push:Failed\r\n");
+                }
+
+                /* Decrement commands count being processed by given SQW */
+                SQW_Decrement_Command_Count(sqw_idx);
+            }
 
             break;
         }

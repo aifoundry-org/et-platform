@@ -40,6 +40,7 @@
 #include    "circbuff.h"
 #include    "cm_to_mm_iface.h"
 #include    "mm_to_cm_iface.h"
+#include    "sync.h"
 #include    "utils.h"
 #include    "vq.h"
 
@@ -73,6 +74,59 @@ typedef struct kw_cb_ {
     \warning Not thread safe!
 */
 static kw_cb_t KW_CB __attribute__((aligned(64))) = {0};
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       kw_find_used_kernel_slot
+*
+*   DESCRIPTION
+*
+*       Local fn helper to find used kernel slot
+*
+*   INPUTS
+*
+*       tag_id    Tag ID of the kernel to find
+*       slot      Pointer to return the found kernel slot
+*
+*   OUTPUTS
+*
+*       int8_t    status success or error
+*
+***********************************************************************/
+static int8_t kw_find_used_kernel_slot(uint16_t tag_id, uint8_t *slot)
+{
+    int8_t status = KW_ERROR_KERNEL_SLOT_NOT_FOUND;
+
+    /* Acquire the lock */
+    acquire_local_spinlock(&KW_CB.resource_lock);
+
+    for(uint8_t i = 0; i < MM_MAX_PARALLEL_KERNELS; i++)
+    {
+        /* Find the kernel with the given tag ID */
+        if(atomic_load_local_16(&KW_CB.kernels[i].tag_id) == tag_id)
+        {
+            /* Check if the slot is in use */
+            if(atomic_load_local_16
+                (&KW_CB.kernels[i].kernel_state) == KERNEL_STATE_IN_USE)
+            {
+                *slot = i;
+                status = STATUS_SUCCESS;
+            }
+            else
+            {
+                status = KW_ERROR_KERNEL_SLOT_NOT_USED;
+            }
+            break;
+        }
+    }
+
+    /* Release the lock */
+    release_local_spinlock(&KW_CB.resource_lock);
+
+    return status;
+}
 
 /************************************************************************
 *
@@ -166,7 +220,7 @@ static void kw_unreserve_kernel_slot(kernel_instance_t* kernel)
 *
 *   OUTPUTS
 *
-*       None
+*       int8_t          status success or error
 *
 ***********************************************************************/
 static int8_t kw_reserve_kernel_shires(uint64_t req_shire_mask)
@@ -253,7 +307,7 @@ static void kw_unreserve_kernel_shires(uint64_t shire_mask)
 *
 *   OUTPUTS
 *
-*       uint8_t     status success or error
+*       int8_t      status success or error
 *
 ***********************************************************************/
 int8_t KW_Dispatch_Kernel_Launch_Cmd
@@ -299,7 +353,7 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
         /* Populate the kernel launch params */
         mm_to_cm_message_kernel_launch_t launch_args;
         launch_args.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH;
-        launch_args.kw_base_id = (uint8_t)KW_BASE_HART_ID;
+        launch_args.kw_base_id = (uint8_t)KW_MS_BASE_HART;
         launch_args.slot_index = slot_index;
         launch_args.flags = KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH;
         launch_args.code_start_address = cmd->code_start_address;
@@ -359,22 +413,36 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
 *
 *   OUTPUTS
 *
-*       uint8_t     status success or error
+*       int8_t      status success or error
 *
 ***********************************************************************/
-int8_t KW_Dispatch_Kernel_Abort_Cmd
-    (struct device_ops_kernel_abort_cmd_t *cmd, uint8_t sqw_idx)
+int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd)
 {
-    (void)cmd;
-    (void)sqw_idx;
-    int8_t status = 0;
+    int8_t status;
+    uint8_t slot_index;
+    cm_iface_message_t message = { 0 };
 
-    /* TODO: Implement logic here to  abort kernels running
-    on shires associated with kernel ID identified by the command */
+    /* Find the kernel associated with the given tag_id */
+    status = kw_find_used_kernel_slot(cmd->command_info.cmd_hdr.tag_id,
+        &slot_index);
 
-    /* TODO: The kernel launch response binding should be update
-    to return to host a kernel ID, which will be used by host to
-    query for kernel state */
+    if(status == STATUS_SUCCESS)
+    {
+        /* Set the kernel abort message */
+        message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
+
+        /* Blocking call that blocks till all shires ack */
+        status = (int8_t)MM_To_CM_Iface_Multicast_Send(
+            atomic_load_local_64(&KW_CB.kernels[slot_index].kernel_shire_mask),
+            &message);
+
+        if(status == STATUS_SUCCESS)
+        {
+            /* Update the kernel state to aborted */
+            atomic_store_local_16(&KW_CB.kernels[slot_index].kernel_state,
+                KERNEL_STATE_ABORTED);
+        }
+    }
 
     return status;
 }
@@ -448,15 +516,12 @@ void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle)
 {
     uint32_t minion = (uint32_t)KW_WORKER_0 + (kw_idx / 2);
     uint32_t thread = kw_idx % 2;
-    uint64_t exec_cycles;
 
-    Log_Write(LOG_LEVEL_DEBUG, "Notifying:KW:minion=%d:thread=%d\r\n", minion, thread);
-
-    /* Extract Wait cycles and start cycles */
-    exec_cycles = ((((uint64_t)cycle->start_cycles) << 32) | ((uint64_t)cycle->wait_cycles));
+    Log_Write(LOG_LEVEL_DEBUG, "Notifying:KW:minion=%d:thread=%d\r\n",
+        minion, thread);
 
     atomic_store_local_64((void*)&KW_CB.kernels[kw_idx].kw_cycles,
-                          exec_cycles);
+                          cycle->raw_u64);
 
     global_fcc_notify(atomic_load_local_8(&KW_CB.host2kw[kw_idx].fcc_id),
         &KW_CB.host2kw[kw_idx].fcc_flag, minion, thread);
@@ -489,6 +554,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     int8_t status;
     uint32_t done_cnt;
     uint32_t kernel_shires_count;
+    uint64_t kernel_shire_mask;
     bool cw_exception;
     /* Get the kernel instance */
     kernel_instance_t *const kernel = &KW_CB.kernels[kw_idx];
@@ -521,10 +587,11 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 
         /* TODO: Set up watchdog to detect command timeout */
 
+        /* Read the shire mask for the current kernel */
+        kernel_shire_mask = atomic_load_local_64(&kernel->kernel_shire_mask);
+
         /* Calculate the number of shires involved in kernel launch */
-        kernel_shires_count = (uint32_t)
-            __builtin_popcountll(atomic_load_local_64
-            (&kernel->kernel_shire_mask));
+        kernel_shires_count = (uint32_t)__builtin_popcountll(kernel_shire_mask);
 
         /* Process kernel command responses from CM, for all shires
         associated with the kernel launch */
@@ -577,12 +644,21 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                             "KW:from CW:CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION from H%" PRId64 "\r\n",
                             exception->hart_id);
 
-                        /* TODO - Multicast abort to shires associated with
-                        current kernel slot, see kernel.c */
+                        /* Note: Even if there was an exception, that Shire will
+                        still send KERNEL_COMPLETE */
 
-                        /* Even if there was an exception, that Shire will
-                        still send a KERNEL_COMPLETE */
-                        cw_exception = true;
+                        /* First time we get an exception: abort kernel */
+                        if(!cw_exception)
+                        {
+                            /* Multicast abort to shires associated with current kernel slot */
+                            /* Set the kernel abort message */
+                            message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
+
+                            /* Blocking call that blocks till all shires ack */
+                            (void)MM_To_CM_Iface_Multicast_Send(kernel_shire_mask, &message);
+
+                            cw_exception = true;
+                        }
                         break;
                     }
                     default:
@@ -597,46 +673,83 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         and reclaim resources */
 
         /* Give back the reserved compute shires. */
-        kw_unreserve_kernel_shires(kernel->kernel_shire_mask);
+        kw_unreserve_kernel_shires(kernel_shire_mask);
 
-        /* Make reserved kernel slot available again */
-        kw_unreserve_kernel_slot(kernel);
-
-        /* Construct and transmit kernel launch response to host */
-        struct device_ops_kernel_launch_rsp_t rsp;
-        rsp.response_info.rsp_hdr.tag_id =
-            atomic_load_local_16(&kernel->tag_id);
-        rsp.response_info.rsp_hdr.msg_id =
-            DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
-        rsp.response_info.rsp_hdr.size = sizeof(rsp);
-        rsp.cmd_wait_time = atomic_load_local_32(&kernel->kw_cycles.wait_cycles);
-        rsp.cmd_execution_time = (uint32_t)PMC_GET_LATENCY(atomic_load_local_32(
-                                           &kernel->kw_cycles.start_cycles)) & 0xFFFFFFFF;
-
-        /* If an exception was detected */
-        if(cw_exception)
+        /* Read the kernel state to detect abort */
+        if(atomic_load_local_16(&kernel->kernel_state) == KERNEL_STATE_ABORTED)
         {
-            rsp.status = DEV_OPS_API_KERNEL_LAUNCH_STATUS_RESULT_ERROR;
+            /* Construct and transmit kernel abort response to host */
+            struct device_ops_kernel_abort_rsp_t rsp;
+            rsp.response_info.rsp_hdr.tag_id =
+                atomic_load_local_16(&kernel->tag_id);
+            rsp.response_info.rsp_hdr.msg_id =
+                DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP;
+            rsp.response_info.rsp_hdr.size = sizeof(rsp);
+
+            /* If an exception was detected */
+            if(cw_exception)
+            {
+                rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_ERROR;
+            }
+            else
+            {
+                rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_OK;
+            }
+
+            /* Send response to host */
+            status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+
+            if(status == STATUS_SUCCESS)
+            {
+                Log_Write(LOG_LEVEL_DEBUG, "KW:Pushed:KERNEL_ABORT_CMD_RSP->Host_CQ\r\n");
+            }
+            else
+            {
+                Log_Write(LOG_LEVEL_DEBUG, "KW:Push:Failed\r\n");
+            }
         }
         else
         {
-            rsp.status = DEV_OPS_API_KERNEL_LAUNCH_STATUS_RESULT_OK;
-        }
+            /* Construct and transmit kernel launch response to host */
+            struct device_ops_kernel_launch_rsp_t rsp;
+            rsp.response_info.rsp_hdr.tag_id =
+                atomic_load_local_16(&kernel->tag_id);
+            rsp.response_info.rsp_hdr.msg_id =
+                DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
+            rsp.response_info.rsp_hdr.size = sizeof(rsp);
+            rsp.cmd_wait_time = atomic_load_local_32(&kernel->kw_cycles.wait_cycles);
+            rsp.cmd_execution_time = (uint32_t)PMC_GET_LATENCY(atomic_load_local_32(
+                                            &kernel->kw_cycles.start_cycles)) & 0xFFFFFFFF;
 
-        status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+            /* If an exception was detected */
+            if(cw_exception)
+            {
+                rsp.status = DEV_OPS_API_KERNEL_LAUNCH_STATUS_RESULT_ERROR;
+            }
+            else
+            {
+                rsp.status = DEV_OPS_API_KERNEL_LAUNCH_STATUS_RESULT_OK;
+            }
 
-        if(status == STATUS_SUCCESS)
-        {
-            Log_Write(LOG_LEVEL_DEBUG, "KW:Pushed:KERNEL_LAUNCH_CMD_RSP->Host_CQ\r\n");
-        }
-        else
-        {
-            Log_Write(LOG_LEVEL_DEBUG, "KW:Push:Failed\r\n");
+            /* Send response to host */
+            status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+
+            if(status == STATUS_SUCCESS)
+            {
+                Log_Write(LOG_LEVEL_DEBUG, "KW:Pushed:KERNEL_LAUNCH_CMD_RSP->Host_CQ\r\n");
+            }
+            else
+            {
+                Log_Write(LOG_LEVEL_DEBUG, "KW:Push:Failed\r\n");
+            }
         }
 
         /* Decrement commands count being processed by given SQW */
         SQW_Decrement_Command_Count(
             (uint8_t)atomic_load_local_16(&kernel->sqw_idx));
+
+        /* Make reserved kernel slot available again */
+        kw_unreserve_kernel_slot(kernel);
     }
 
     return;
