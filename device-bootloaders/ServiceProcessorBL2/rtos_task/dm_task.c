@@ -35,6 +35,10 @@ static const TickType_t xDelay_msec = 100;
 #define DM_TASK_STACK      1024
 #define DM_TASK_PRIORITY   1
 
+#define HOURS_IN_DAY       24
+#define SECONDS_IN_HOUR    3600
+#define SECONDS_IN_MINUTE  60 
+
 /* GLobals */
 static TaskHandle_t g_dm_task_handle;
 static StackType_t g_dm_stack[DM_TASK_STACK];
@@ -119,6 +123,12 @@ void init_dm_sampling_task(void)
 static void dm_task_entry(void *pvParameters)
 {
     (void)pvParameters;
+    uint64_t module_uptime;
+    uint64_t seconds;
+    uint16_t day;
+    uint8_t hours;
+    uint8_t minutes;
+
     //Will need to cleanly yield this thread to avoid this Thread from hoging the SP
     while(1)  
     {
@@ -130,10 +140,20 @@ static void dm_task_entry(void *pvParameters)
         get_soc_power_reg()->soc_power = pmic_read_soc_power();
         
         // Module Uptime //
-        // Subtract from the current     
-        get_soc_power_reg()->module_uptime.day = 170; //days
-        get_soc_power_reg()->module_uptime.hours = 10; //hours
-        get_soc_power_reg()->module_uptime.mins = 20; //mins;
+        module_uptime = timer_get_ticks_count();
+
+        seconds = (module_uptime/ 1000000);
+        day = (uint16_t) (seconds / (HOURS_IN_DAY * SECONDS_IN_HOUR)); 
+        seconds = (seconds % (HOURS_IN_DAY * SECONDS_IN_HOUR)); 
+        hours = (uint8_t)(seconds / SECONDS_IN_HOUR); 
+
+        seconds %= SECONDS_IN_HOUR; 
+        minutes = (uint8_t)(seconds / SECONDS_IN_MINUTE); 
+
+        get_soc_power_reg()->module_uptime.day = day; //days
+        get_soc_power_reg()->module_uptime.hours = hours; //hours
+        get_soc_power_reg()->module_uptime.mins = minutes; //mins;
+        
         // DRAM BW //
         get_soc_perf_reg()->dram_bw.read_req_sec = 100;
         get_soc_perf_reg()->dram_bw.write_req_sec = 100;
