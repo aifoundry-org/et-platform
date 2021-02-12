@@ -37,7 +37,7 @@ include(CMakePackageConfigHelpers)
 # set_property(CACHE devicefw_CODE_SIGNING_TOOLS_PROVIDER PROPERTY STRINGS "module" "package")
 # set(devicefw_FLASH_TOOL_PROVIDER "module" CACHE STRING "Provider of the flash tools library")
 # set_property(CACHE devicefw_FLASH_TOOL_PROVIDER PROPERTY STRINGS "module" "package")
-
+set(DOCUMENTATION_INSTALL_DIR  "${CMAKE_INSTALL_PREFIX}" CACHE STRING "Documentation installation path")
 set(BIN_INSTALL_DIR bin CACHE STRING "Bin install dir")
 set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
 set(LIB_INSTALL_DIR  lib/  CACHE STRING "Library install dir")
@@ -55,15 +55,18 @@ if(VQ_NEW_FW)
   add_definitions(-DIMPLEMENTATION_BYPASS=1)
 endif(VQ_NEW_FW)
 
+# Make sure that custom modules are loaded
+list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake)
+
 ########## Documentation #####################################
 
 # check if Doxygen is installed
-#find_package(Doxygen)
-#if (DOXYGEN_FOUND)
-#  add_subdirectory(doc)
-#else (DOXYGEN_FOUND)
-#  message("Doxygen need to be installed to generate the doxygen documentation")
-#endif (DOXYGEN_FOUND)
+find_package(Doxygen)
+if (DOXYGEN_FOUND)
+  add_subdirectory(doc)
+else (DOXYGEN_FOUND)
+  message("Doxygen need to be installed to generate the doxygen documentation")
+endif (DOXYGEN_FOUND)
 
 ############################ FW build Rules ############### ####################
 
