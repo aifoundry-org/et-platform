@@ -65,7 +65,19 @@ void handle_device_api_privileged_message_from_host(const mbox_message_id_t* mes
         }
 
         dma_start(message->chan);
-        while (!dma_check_done(message->chan)); //TODO: setup DMA ISR, wait using that and MBOX_send from there instead
+        uint32_t dma_status;
+        bool dma_done;
+        do{
+           if(message->chan <= ET_DMA_CHAN_ID_READ_3) {
+               dma_status = dma_get_read_int_status();
+               dma_done = dma_check_read_done(message->chan, dma_status);
+
+           } else {
+               dma_status = dma_get_write_int_status();
+               dma_done = dma_check_write_done((message->chan - DMA_CHAN_ID_WRITE_0), dma_status);
+           }
+        } while(!dma_done);
+
         dma_clear_done(message->chan);
 
         //TODO: does not deal with error conditions that could abort DMA transfer at all.

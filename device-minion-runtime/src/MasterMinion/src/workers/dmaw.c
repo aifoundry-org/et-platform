@@ -400,7 +400,11 @@ void DMAW_Launch(uint32_t hart_id)
     exec_cycles_t dma_cycles;
     uint16_t channel_state;
     uint8_t ch_index;
+    uint32_t dma_status;
+    bool dma_done = false;
+    bool dma_aborted = false;
     int8_t status = STATUS_SUCCESS;
+
 
     Log_Write(LOG_LEVEL_CRITICAL, "DMAW:H%d\r\n", hart_id);
 
@@ -429,13 +433,27 @@ void DMAW_Launch(uint32_t hart_id)
                     /* Populate the DMA channel index */
                     dma_chan_id = ch_index + DMA_CHAN_ID_READ_0;
 
-                    /* TODO: This needs to be improved to detect error
-                    conditions, check DMA_READ_INT_STATUS bits 16:25, to
-                    detect and check ABORT status */
-                    if(dma_check_done(dma_chan_id))
+                    dma_status = dma_get_read_int_status();
+                    dma_done = dma_check_read_done(ch_index, dma_status);
+                    if(!dma_done)
                     {
-                        /* DMA transfer complete, clear interrupt status */
-                        dma_clear_done(dma_chan_id);
+                        dma_aborted = dma_check_read_abort(ch_index, dma_status);
+                    }
+
+                    if (dma_done || dma_aborted)
+                    {
+                        if(dma_done)
+                        {
+                            /* DMA transfer complete, clear interrupt status */
+                            dma_clear_done(dma_chan_id);
+                            write_rsp.status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
+                        }
+                        else
+                        {
+                            /* DMA transfer aborted, clear interrupt status */
+                            dma_clear_read_abort(dma_chan_id);
+                            write_rsp.status = DEV_OPS_API_DMA_RESPONSE_ABORTED;
+                        }
 
                         /* Read the channel status from CB */
                         chan_status.raw_u32 = atomic_load_local_32(
@@ -465,10 +483,6 @@ void DMAW_Launch(uint32_t hart_id)
                         write_rsp.cmd_wait_time = dma_cycles.wait_cycles;
                         /* Compute command execution latency */
                         write_rsp.cmd_execution_time = PMC_GET_LATENCY(dma_cycles.start_cycles);
-
-                        /* TODO: We should be able to capture other DMA states
-                        as well */
-                        write_rsp.status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
 
                         status = Host_Iface_CQ_Push_Cmd(0, &write_rsp, sizeof(write_rsp));
 
@@ -505,15 +519,27 @@ void DMAW_Launch(uint32_t hart_id)
                     /* Populate the DMA channel index */
                     dma_chan_id = ch_index + DMA_CHAN_ID_WRITE_0;
 
-                    /* TODO: This needs to be improved to detect error
-                    conditions, check DMA_WRITED_INT_STATUS bits 16:25,
-                    to detect and check ABORT status */
-                    if(dma_check_done(dma_chan_id))
+                    dma_status = dma_get_write_int_status();
+                    dma_done = dma_check_write_done(ch_index, dma_status);
+                    if(!dma_done)
                     {
-                        /* TODO: using the old implementation available in
-                        driver for now, this needs to be improved to detect
-                        error conditions DMA_WRITE_INT_STATUS bits 16:25 */
-                        dma_clear_done(dma_chan_id);
+                        dma_aborted = dma_check_write_abort(ch_index, dma_status);
+                    }
+
+                    if (dma_done || dma_aborted)
+                    {
+                        if(dma_done)
+                        {
+                            /* DMA transfer complete, clear interrupt status */
+                            dma_clear_done(dma_chan_id);
+                            write_rsp.status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
+                        }
+                        else
+                        {
+                            /* DMA transfer aborted, clear interrupt status */
+                            dma_clear_write_abort(dma_chan_id);
+                            write_rsp.status = DEV_OPS_API_DMA_RESPONSE_ABORTED;
+                        }
 
                         /* Read the channel status from CB */
                         chan_status.raw_u32 = atomic_load_local_32(
@@ -542,10 +568,6 @@ void DMAW_Launch(uint32_t hart_id)
                         read_rsp.cmd_wait_time = dma_cycles.wait_cycles;
                         /* Compute command execution latency */
                         read_rsp.cmd_execution_time = PMC_GET_LATENCY(dma_cycles.start_cycles);
-
-                        /* TODO: We should be able to capture other DMA states
-                        as well */
-                        read_rsp.status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
 
                         status = Host_Iface_CQ_Push_Cmd(0, &read_rsp, sizeof(read_rsp));
 

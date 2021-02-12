@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "io.h"
+#include "etsoc_hal/inc/DWC_pcie_dbi_cpcie_usp_4x8.h"
+#include "pcie_device.h"
 
 #define PCIE_DMA_RD_CHANNEL_COUNT   4
 #define PCIE_DMA_WRT_CHANNEL_COUNT  4
@@ -26,6 +29,7 @@ typedef enum {
     \brief Enum that provides the status of DMA APIs
 */
 typedef enum {
+    DMA_ERROR_CHANNEL_NOT_RUNNING = -6,
     DMA_ERROR_INVALID_PARAM = -5,
     DMA_ERROR_CHANNEL_NOT_AVAILABLE = -4,
     DMA_ERROR_INVALID_ADDRESS = -3,
@@ -47,10 +51,61 @@ int dma_configure_write(dma_chan_id_e chan);
 /// @brief Starts a DMA transfer for the specified channel.
 int dma_start(dma_chan_id_e chan);
 
-/// @brief Checks if channel is done with a DMA transfer.
-bool dma_check_done(dma_chan_id_e chan);
-
 /// @brief Clears the DMA transfer flag for the specified channel.
 void dma_clear_done(dma_chan_id_e chan);
+
+/// @brief Clears the DMA abort flag for the specified read channel.
+DMA_STATUS_e dma_clear_read_abort(dma_chan_id_e chan);
+
+/// @brief Clears the DMA abort flag for the specified write channel.
+DMA_STATUS_e dma_clear_write_abort(dma_chan_id_e chan);
+
+/// @brief Abort DMA for the specified read channel.
+DMA_STATUS_e dma_abort_read(dma_chan_id_e chan);
+
+/// @brief Abort DMA for the specified write channel.
+DMA_STATUS_e dma_abort_write(dma_chan_id_e chan);
+
+static inline uint32_t dma_get_read_int_status(void)
+{
+    return ioread32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_ADDRESS);
+}
+
+static inline uint32_t dma_get_write_int_status(void)
+{
+    return ioread32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_ADDRESS);
+}
+
+static inline bool dma_check_read_done(dma_chan_id_e chan, uint32_t read_int_status)
+{
+    uint32_t done_status =
+            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_RD_DONE_INT_STATUS_GET(
+                read_int_status);
+    return (done_status & (1U << chan)) != 0;
+}
+
+static inline bool dma_check_write_done(dma_chan_id_e chan, uint32_t write_int_status)
+{
+    uint32_t done_status =
+            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_WR_DONE_INT_STATUS_GET(
+                write_int_status);
+    return (done_status & (1U << chan)) != 0;
+}
+
+static inline bool dma_check_read_abort(dma_chan_id_e chan, uint32_t read_int_status)
+{
+    uint32_t abort_status =
+            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_RD_ABORT_INT_STATUS_GET(
+                read_int_status);
+    return (abort_status & (1U << chan)) != 0;
+}
+
+static inline bool dma_check_write_abort(dma_chan_id_e chan, uint32_t write_int_status)
+{
+    uint32_t abort_status =
+            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_WR_ABORT_INT_STATUS_GET(
+                write_int_status);
+    return (abort_status & (1U << chan )) != 0;
+}
 
 #endif
