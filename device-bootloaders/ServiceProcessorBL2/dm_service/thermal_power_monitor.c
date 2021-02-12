@@ -523,7 +523,8 @@ void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id, void *bu
          pwr_svc_get_module_tdp_level(tag_id, req_start_time);
       } break;
       case DM_CMD_SET_MODULE_STATIC_TDP_LEVEL: {
-         pwr_svc_set_module_tdp_level(tag_id, req_start_time, TDP_LEVEL_ONE);
+         tdp_level_e tdp_level = *payload_ptr;
+         pwr_svc_set_module_tdp_level(tag_id, req_start_time, tdp_level);
       } break;
       case DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS: {
          pwr_svc_get_module_temp_thresholds(tag_id, req_start_time);
