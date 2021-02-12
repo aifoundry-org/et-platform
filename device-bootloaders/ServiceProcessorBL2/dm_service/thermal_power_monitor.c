@@ -543,10 +543,11 @@ static void pwr_svc_get_module_uptime(uint16_t tag, uint64_t req_start_time)
 *       None
 *
 ***********************************************************************/
-void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id)
+void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
 {
     uint64_t req_start_time;
-    
+    uint8_t *payload_ptr = (uint8_t *)buffer;
+    payload_ptr = payload_ptr + (sizeof(dev_mgmt_cmd_header_t));
     req_start_time = timer_get_ticks_count();
 
      switch (msg_id) {
@@ -554,7 +555,8 @@ void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id)
          pwr_svc_get_module_power_state(tag_id, req_start_time);
       } break;
       case DM_CMD_SET_MODULE_POWER_STATE: {
-         pwr_svc_set_module_power_state(tag_id, req_start_time, POWER_STATE_REDUCED);
+         power_state_e power_state = *payload_ptr;
+         pwr_svc_set_module_power_state(tag_id, req_start_time, power_state);
       } break;
       case DM_CMD_GET_MODULE_STATIC_TDP_LEVEL: {
          pwr_svc_get_module_tdp_level(tag_id, req_start_time);

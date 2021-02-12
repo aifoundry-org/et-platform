@@ -177,7 +177,7 @@ static void pc_vq_task(void *pvParameters)
             case DM_CMD_GET_MODULE_VOLTAGE:
             case DM_CMD_GET_MODULE_UPTIME:
             case DM_CMD_GET_MODULE_MAX_TEMPERATURE:
-                thermal_power_monitoring_process(tag_id, msg_id);
+                thermal_power_monitoring_process(tag_id, msg_id, (void *)buffer);
                 break;
             case DM_CMD_SET_PCIE_RESET:
             case DM_CMD_SET_PCIE_MAX_LINK_SPEED:

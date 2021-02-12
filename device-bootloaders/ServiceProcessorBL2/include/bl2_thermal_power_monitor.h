@@ -27,6 +27,6 @@
     \param msg_id ID of the command received
     \returns none
 */
-void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id);
+void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id, void *buffer);
 
 #endif
