@@ -51,9 +51,9 @@ typedef struct host_iface_sqs_cb_ {
 typedef struct host_iface_cqs_cb_ {
     uint32_t vqueues_base; /* This is a 32 bit offset from 64 dram base */
     uint32_t per_vqueue_size;
+    spinlock_t vqueue_locks[MM_CQ_COUNT];
     vq_cb_t vqueues[MM_CQ_COUNT];
 } host_iface_cqs_cb_t;
-
 
 /*! \var host_iface_sqs_cb_t Host_SQs
     \brief Global Host to MM submission
@@ -233,6 +233,9 @@ int8_t Host_Iface_CQs_Init(void)
     for (uint32_t i = 0; (i < MM_CQ_COUNT) &&
         (status == STATUS_SUCCESS); i++)
     {
+        /* Initialize the spinlock */
+        init_local_spinlock(&Host_CQs.vqueue_locks[i], 0);
+
         /* Initialize the CQ circular buffer */
         status = VQ_Init(&Host_CQs.vqueues[i],
             VQ_CIRCBUFF_BASE_ADDR(MM_CQS_BASE_ADDRESS, i, MM_CQ_SIZE),
@@ -350,6 +353,9 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
 {
     int8_t status;
 
+    /* Acquire the lock */
+    acquire_local_spinlock(&Host_CQs.vqueue_locks[cq_id]);
+
     /* Pop the command from circular buffer */
     status = VQ_Push(&Host_CQs.vqueues[cq_id], p_cmd, cmd_size);
 
@@ -372,6 +378,9 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
             "CQ:ERROR: Circbuff Push Failed. (Error code: )",
             status, "\r\n");
     }
+
+    /* Release the lock */
+    release_local_spinlock(&Host_CQs.vqueue_locks[cq_id]);
 
     return status;
 }
