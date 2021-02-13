@@ -30,7 +30,7 @@
 #include "dm_task.h"
 
 // TODO: will be configurable by the host
-static const TickType_t xDelay_msec = 100;
+static const TickType_t xDelay_msec = 5;
 
 #define DM_TASK_STACK      1024
 #define DM_TASK_PRIORITY   1
@@ -133,11 +133,11 @@ static void dm_task_entry(void *pvParameters)
     while(1)  
     {
         // simulate the values fetched from the PMIC Interface
-        // TODO: Replace eventually with the actual values obtained from the hardware
+        // TODO: Uncomment after SW-6032 is fixed.
         // Module Temperature in C
-        get_soc_power_reg()->soc_temperature = pmic_get_temperature();
-        // Module Power in watts//
-        get_soc_power_reg()->soc_power = pmic_read_soc_power();
+        //get_soc_power_reg()->soc_temperature = pmic_get_temperature();
+        // Module Power in watts
+        //get_soc_power_reg()->soc_power = pmic_read_soc_power();
         
         // Module Uptime //
         module_uptime = timer_get_ticks_count();
@@ -153,7 +153,7 @@ static void dm_task_entry(void *pvParameters)
         get_soc_power_reg()->module_uptime.day = day; //days
         get_soc_power_reg()->module_uptime.hours = hours; //hours
         get_soc_power_reg()->module_uptime.mins = minutes; //mins;
-        
+
         // DRAM BW //
         get_soc_perf_reg()->dram_bw.read_req_sec = 100;
         get_soc_perf_reg()->dram_bw.write_req_sec = 100;
