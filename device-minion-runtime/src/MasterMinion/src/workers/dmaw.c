@@ -283,8 +283,7 @@ int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
         atomic_store_local_64(
             &DMAW_Read_CB.chan_status_cb[rd_ch_idx].dmaw_cycles.raw_u64, cycles->raw_u64);
 
-        Log_Write(LOG_LEVEL_DEBUG, "%s",
-            "DMAW:DMAW_Trigger_Transfer:Success!\r\n");
+        Log_Write(LOG_LEVEL_DEBUG, "DMAW:DMAW_Trigger_Transfer:Success!\r\n");
 
         status = STATUS_SUCCESS;
     }
@@ -354,8 +353,7 @@ int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id,
         atomic_store_local_64(
             &DMAW_Write_CB.chan_status_cb[wrt_ch_idx].dmaw_cycles.raw_u64, cycles->raw_u64);
 
-        Log_Write(LOG_LEVEL_DEBUG, "%s",
-            "DMAW:DMAW_Trigger_Transfer:Success!\r\n");
+        Log_Write(LOG_LEVEL_DEBUG, "DMAW:DMAW_Trigger_Transfer:Success!\r\n");
 
         status = STATUS_SUCCESS;
     }
@@ -404,7 +402,7 @@ void DMAW_Launch(uint32_t hart_id)
     uint8_t ch_index;
     int8_t status = STATUS_SUCCESS;
 
-    Log_Write(LOG_LEVEL_CRITICAL, "%s%d%s", "DMAW:HART=", hart_id, "\r\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "DMAW:HART=%d\r\n", hart_id);
 
     /* Design Notes: Note a DMA write command from host will trigger
     the implementation to configure a DMA read channel on device to move
@@ -426,9 +424,7 @@ void DMAW_Launch(uint32_t hart_id)
                 global DMA channel status for read channels */
                 if(channel_state == DMA_CHAN_STATE_IN_USE)
                 {
-                    Log_Write(LOG_LEVEL_DEBUG, "%s%d%s%d%s",
-                        "DMAW:",hart_id,":read_chan_active:",
-                        ch_index, "\r\n");
+                    Log_Write(LOG_LEVEL_DEBUG, "DMAW:%d:read_chan_active:%d\r\n", hart_id, ch_index);
 
                     /* Populate the DMA channel index */
                     dma_chan_id = ch_index + DMA_CHAN_ID_READ_0;
@@ -478,13 +474,12 @@ void DMAW_Launch(uint32_t hart_id)
 
                         if(status == STATUS_SUCCESS)
                         {
-                            Log_Write(LOG_LEVEL_DEBUG, "%s",
-                            "DMAW:Pushed:DATA_WRITE_CMD_RSP->Host_CQ\r\n");
+                            Log_Write(LOG_LEVEL_DEBUG,
+                                "DMAW:Pushed:DATA_WRITE_CMD_RSP->Host_CQ\r\n");
                         }
                         else
                         {
-                            Log_Write(LOG_LEVEL_DEBUG, "%s",
-                            "DMAW:HostIface:Push:Failed\r\n");
+                            Log_Write(LOG_LEVEL_DEBUG, "DMAW:HostIface:Push:Failed\r\n");
                         }
                     }
                 }
@@ -504,9 +499,8 @@ void DMAW_Launch(uint32_t hart_id)
 
                 if(channel_state == DMA_CHAN_STATE_IN_USE)
                 {
-                    Log_Write(LOG_LEVEL_DEBUG, "%s%d%s%d%s",
-                        "DMAW:",hart_id,":write_chan_active:",
-                        ch_index, "\r\n");
+                    Log_Write(LOG_LEVEL_DEBUG, "DMAW:%d:write_chan_active:%d\r\n",
+                        hart_id, ch_index);
 
                     /* Populate the DMA channel index */
                     dma_chan_id = ch_index + DMA_CHAN_ID_WRITE_0;
@@ -557,13 +551,11 @@ void DMAW_Launch(uint32_t hart_id)
 
                         if(status == STATUS_SUCCESS)
                         {
-                            Log_Write(LOG_LEVEL_DEBUG, "%s",
-                                "DMAW:Pushed:DATA_READ_CMD_RSP->Host_CQ\r\n");
+                            Log_Write(LOG_LEVEL_DEBUG, "DMAW:Pushed:DATA_READ_CMD_RSP->Host_CQ\r\n");
                         }
                         else
                         {
-                            Log_Write(LOG_LEVEL_DEBUG, "%s",
-                                "DMAW:HostIface:Push:Failed\r\n");
+                            Log_Write(LOG_LEVEL_DEBUG, "DMAW:HostIface:Push:Failed\r\n");
                         }
                     }
                 }
@@ -572,8 +564,7 @@ void DMAW_Launch(uint32_t hart_id)
     }
     else
     {
-        Log_Write(LOG_LEVEL_ERROR,"%s%d",
-            "DMAW:Launch Invalid DMA Hart ID ", hart_id,"\r\n");
+        Log_Write(LOG_LEVEL_ERROR,"DMAW:Launch Invalid DMA Hart ID %d\r\n", hart_id);
     }
 
     return;

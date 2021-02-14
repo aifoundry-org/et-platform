@@ -45,7 +45,7 @@ log_level_t Log_Get_Level(void);
     \param ... variable list
     \return Bytes written
 */
-int32_t Log_Write(log_level_t level, const char *const fmt, ...);
+int32_t Log_Write(log_level_t level, const char *const fmt, ...) __attribute__((format(printf, 2, 3)));
 
 /*! \fn int32_t Log_Write_String(log_level_t level, const char *str, size_t length)
     \brief Write a string log

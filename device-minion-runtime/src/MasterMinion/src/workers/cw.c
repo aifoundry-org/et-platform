@@ -154,8 +154,7 @@ int8_t CW_Init(void)
                 {
                     case CM_TO_MM_MESSAGE_ID_NONE:
                     {
-                        Log_Write(LOG_LEVEL_DEBUG,
-                            "Dispatcher:from CW:MESSAGE_ID_NONE\r\n");
+                        Log_Write(LOG_LEVEL_DEBUG, "Dispatcher:from CW:MESSAGE_ID_NONE\r\n");
                         break;
                     }
 
@@ -164,9 +163,9 @@ int8_t CW_Init(void)
                         const mm_to_cm_message_shire_ready_t *shire_ready =
                             (const mm_to_cm_message_shire_ready_t *)&message;
 
-                        Log_Write(LOG_LEVEL_DEBUG, "%s%llx%s",
-                            "Dispatcher:from CW:MESSAGE_ID_SHIRE_READY 0x",
-                            shire_ready->shire_id, "\r\n");
+                        Log_Write(LOG_LEVEL_DEBUG,
+                            "Dispatcher:from CW:MESSAGE_ID_SHIRE_READY 0x%" PRIx32 "\r\n",
+                            shire_ready->shire_id);
 
                         /* Update the shire state in CW CB */
                         CW_Update_Shire_State(shire_ready->shire_id,
@@ -176,9 +175,8 @@ int8_t CW_Init(void)
 
                     default:
                     {
-                        Log_Write(LOG_LEVEL_CRITICAL, "%s%llx%s",
-                            "Dispatcher:from CW:Unknown message id = 0x",
-                            message.header.id, "\r\n");
+                        Log_Write(LOG_LEVEL_CRITICAL,
+                            "Dispatcher:from CW:Unknown message id = 0x%d\r\n", message.header.id);
                         break;
                     }
                 }
@@ -187,8 +185,7 @@ int8_t CW_Init(void)
         else
         {
             Log_Write(LOG_LEVEL_DEBUG,
-                "Dispatcher:Unexpected condition, \
-                broke wfi without a SWI during CW boot...\r\n");
+                "Dispatcher:Unexpected condition, broke wfi without a SWI during CW boot...\r\n");
         }
     };
 
@@ -260,9 +257,8 @@ int8_t CW_Update_Shire_State(uint64_t shire, cw_shire_state_t shire_state)
         }
         else
         {
-            Log_Write(LOG_LEVEL_DEBUG, "%s%d%s"
-                "CW:Error:Illegal transition from error:Shire:",
-                shire, "\r\n");
+            Log_Write(LOG_LEVEL_DEBUG,
+                "CW:Error:Illegal transition from error:Shire:%" PRId64 "\r\n", shire);
 
             status = GENERAL_ERROR;
         }
