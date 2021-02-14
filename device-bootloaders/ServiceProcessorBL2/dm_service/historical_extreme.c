@@ -21,6 +21,7 @@
 #include "dm_service.h"
 #include "sp_host_iface.h"
 #include "bl2_historical_extreme.h"
+#include "dm_task.h"
 
 /************************************************************************
 *
@@ -140,6 +141,45 @@ static void get_module_max_throttle_time(tag_id_t tag_id, uint64_t req_start_tim
 *
 *   FUNCTION
 *
+*       get_module_max_temperature
+*  
+*   DESCRIPTION
+*
+*       This function returns the historical_extreme Maximum Device temperature
+*       as sample periodically from the PMIC
+*       Note the value doesnt hold over a consequtitve Device Reset
+*
+*   INPUTS
+*
+*       req_start_time    Time stamp when the request was received by the Command
+*                         Dispatcher   
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void get_module_max_temperature(uint16_t tag, uint64_t req_start_time)
+{
+    struct device_mgmt_max_temperature_rsp_t dm_rsp;
+
+    dm_rsp.max_temperature.max_temperature_c = get_soc_power_reg()->max_temp;
+
+    FILL_RSP_HEADER(dm_rsp, tag,
+                    DM_CMD_GET_MODULE_MAX_TEMPERATURE,
+                    timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS);
+
+
+   if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_max_temperature_rsp_t))) {
+        printf("get_module_max_temperature: Cqueue push error!\n");
+   }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       historical_extreme_value_request
 *  
 *   DESCRIPTION
@@ -172,6 +212,9 @@ void historical_extreme_value_request(tag_id_t tag_id, msg_id_t msg_id)
     } break;
     case DM_CMD_GET_MODULE_MAX_THROTTLE_TIME: {
         get_module_max_throttle_time(tag_id, req_start_time);
+    } break;
+    case DM_CMD_GET_MODULE_MAX_TEMPERATURE: {
+        get_module_max_temperature(tag_id, req_start_time);
     } break;
     }
 }

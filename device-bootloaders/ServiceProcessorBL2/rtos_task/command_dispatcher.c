@@ -176,7 +176,6 @@ static void pc_vq_task(void *pvParameters)
             case DM_CMD_GET_MODULE_POWER:
             case DM_CMD_GET_MODULE_VOLTAGE:
             case DM_CMD_GET_MODULE_UPTIME:
-            case DM_CMD_GET_MODULE_MAX_TEMPERATURE:
                 thermal_power_monitoring_process(tag_id, msg_id, (void *)buffer);
                 break;
             case DM_CMD_SET_PCIE_RESET:
@@ -198,6 +197,7 @@ static void pc_vq_task(void *pvParameters)
             case DM_CMD_GET_MAX_MEMORY_ERROR:
             case DM_CMD_GET_MODULE_MAX_DDR_BW:
             case DM_CMD_GET_MODULE_MAX_THROTTLE_TIME:
+            case DM_CMD_GET_MODULE_MAX_TEMPERATURE:
                 historical_extreme_value_request(tag_id, msg_id);
                 break;
             case DM_CMD_GET_MM_THREADS_STATE:
