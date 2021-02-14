@@ -49,63 +49,14 @@ Enums:
         Value : 2
       - Name : ERROR
         Value : 3
-  - Name: dev_ops_api_kernel_state
-    Type: uint32_t
-    Values:
-      - Name: UNUSED
-        Value: 0
-      - Name: LAUNCHED
-        Value: 1
-      - Name: RUNNING
-        Value: 2
-      - Name: ABORTED
-        Value: 3
-      - Name: ERROR
-        Value: 4
-      - Name: COMPLETE
-        Value: 5
-  - Name: etsoc_dma_chan_id
-    Description: DMA Chan ID
-    Type: uint32_t
-    Values:
-      - Name: READ_0
-        Value: 0
-      - Name: READ_1
-        Value: 1
-      - Name: READ_2
-        Value: 2
-      - Name: READ_3
-        Value: 3
-      - Name: WRITE_0
-        Value: 4
-      - Name: WRITE_1
-        Value: 5
-      - Name: WRITE_2
-        Value: 6
-      - Name: WRITE_3
-        Value: 7
-  - Name: etsoc_dma_state
-    Description: State of a DMA
-    Type: uint32_t
-    Values:
-      - Name: IDLE
-        Value: 0
-      - Name: ACTIVE
-        Value: 1
-      - Name: DONE
-        Value: 2
-      - Name: ABORTING
-        Value: 3
-      - Name: ABORTED
-        Value: 4
   - Name: dev_ops_api_dma_response
     Type: uint32_t
     Values:
-      - Name: CHANNEL_NOT_AVAILABLE
+      - Name: COMPLETE
         Value: 0
       - Name: ERROR
         Value: 1
-      - Name: COMPLETE
+      - Name: CHANNEL_NOT_AVAILABLE
         Value: 2
       - Name: ABORTED
         Value: 3
@@ -255,9 +206,6 @@ Messages :
     Type: Command
     PairedMessage: device_ops_kernel_abort_rsp
     Fields:
-      - Name: kernel_id
-        Description: Kernel Identifier (TODO to be removed)
-        Type: uint8_t
       - Name: dummy
         Type: bool
   - Name: device_ops_kernel_abort_rsp
@@ -269,27 +217,6 @@ Messages :
         Description: Kernel Abort status
         Type: enum
         Enum: dev_ops_api_kernel_abort_response
-      - Name: kernel_id
-        Description: Kernel Identifier
-        Type: uint8_t
-#-------------------------------------------------------------------------------
-  - Name: device_ops_kernel_state_cmd
-    Description: Query the state if a currently running kernel
-    Type: Command
-    PairedMessage: device_ops_kernel_state_rsp
-    Fields:
-      - Name: kernel_id
-        Type: uint8_t
-  - Name: device_ops_kernel_state_rsp
-    Description: Kernel state reply
-    Type: Response
-    PairedMessage: device_ops_kernel_state_cmd
-    Fields:
-      - Name: status
-        Description: Kernel Abort status
-        Type: enum
-        Enum: dev_ops_api_kernel_state
-
 #-------------------------------------------------------------------------------
 # Data Transfer Commands and Responses
 #-------------------------------------------------------------------------------
@@ -324,7 +251,7 @@ Messages :
       - Name: status
         Description: Status of the DMA operation
         Type: enum
-        Enum: etsoc_dma_state
+        Enum: dev_ops_api_dma_response
 #-------------------------------------------------------------------------------
   - Name: device_ops_data_write_cmd
     Description: Command to write data to device memory
@@ -357,7 +284,7 @@ Messages :
       - Name: status
         Description: Status of the DMA operation
         Type: enum
-        Enum: etsoc_dma_state
+        Enum: dev_ops_api_dma_response
 #-------------------------------------------------------------------------------
 # Trace Management Commands and Responses
 #-------------------------------------------------------------------------------
