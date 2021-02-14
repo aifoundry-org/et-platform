@@ -530,43 +530,53 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             asm volatile("wfi\n");
             asm volatile("csrci sip, 0x2");
 
-            status = CM_To_MM_Iface_Unicast_Receive(
-                CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx, &message);
-
-            if (status != STATUS_SUCCESS)
+            /* Process all the available messages */
+            while (done_cnt < kernel_shires_count)
             {
-                Log_Write(LOG_LEVEL_DEBUG, "KW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n",
-                    status);
-                break;
-            }
+                status = CM_To_MM_Iface_Unicast_Receive(
+                    CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx, &message);
 
-            /* Handle message from Compute Worker */
-            /* TODO: We should send shire ID as part of
-            message payload so we can improve the way we
-            aggregate and detect completion notifications
-            from all shires for given kernel launch */
-            switch (message.header.id)
-            {
-                case CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE:
+                if (status != STATUS_SUCCESS)
                 {
-                    log_write(LOG_LEVEL_DEBUG, "CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE\n");
-
-                    /* Increase count of completed Shires */
-                    done_cnt++;
+                    /* CIRCBUFF_ERROR_BAD_LENGTH means no more messages left */
+                    if (status != CIRCBUFF_ERROR_BAD_LENGTH)
+                    {
+                        Log_Write(LOG_LEVEL_DEBUG,
+                            "KW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n", status);
+                    }
                     break;
                 }
-                case CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION:
-                {
-                    log_write(LOG_LEVEL_DEBUG, "CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION\n");
 
-                    /* Even if there was an exception, that Shire will
-                    still send a KERNEL_COMPLETE */
-                    cw_exception = true;
-                    break;
-                }
-                default:
+                /* Handle message from Compute Worker */
+                switch (message.header.id)
                 {
-                    break;
+                    case CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE:
+                    {
+                        cm_to_mm_message_kernel_launch_completed_t *completed =
+                            (cm_to_mm_message_kernel_launch_completed_t *)&message;
+
+                        log_write(LOG_LEVEL_DEBUG,
+                            "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE from Shire %d\n",
+                            completed->shire_id);
+
+                        /* Increase count of completed Shires */
+                        done_cnt++;
+                        break;
+                    }
+                    case CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION:
+                    {
+                        log_write(LOG_LEVEL_DEBUG,
+                            "KW:from CW:CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION\n");
+
+                        /* Even if there was an exception, that Shire will
+                        still send a KERNEL_COMPLETE */
+                        cw_exception = true;
+                        break;
+                    }
+                    default:
+                    {
+                        break;
+                    }
                 }
             }
         }
