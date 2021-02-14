@@ -362,9 +362,11 @@ static void post_kernel_cleanup(uint64_t kw_base_id, uint64_t kernel_id, uint64_
         // Reset counter
         atomic_store_local_32(&post_launch_thread_count[shire_id].flag, 0);
 
-        cm_iface_message_t msg;
+        cm_to_mm_message_kernel_launch_completed_t msg;
         msg.header.number = 0; // Not used. TODO: Remove
         msg.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE;
-        CM_To_MM_Iface_Unicast_Send(kw_base_id + kernel_id, 1 + kernel_id, &msg);
+        msg.shire_id = (uint32_t)shire_id;
+        msg.kernel_id = kernel_id;
+        CM_To_MM_Iface_Unicast_Send(kw_base_id + kernel_id, 1 + kernel_id, (cm_iface_message_t *)&msg);
     }
 }

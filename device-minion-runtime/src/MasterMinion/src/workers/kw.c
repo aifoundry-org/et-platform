@@ -275,29 +275,25 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
 
         if(status == STATUS_SUCCESS)
         {
-            atomic_or_local_64
-                (&kernel->kernel_shire_mask, cmd->shire_mask);
+            atomic_store_local_64(&kernel->kernel_shire_mask, cmd->shire_mask);
         }
         else
         {
             /* Make reserved kernel slot available again */
             kw_unreserve_kernel_slot(kernel);
-            Log_Write(LOG_LEVEL_DEBUG, "%s%s%d",
-                "KW:ERROR:kernel shires unavailable\r\n");
+            Log_Write(LOG_LEVEL_DEBUG, "KW:ERROR:kernel shires unavailable\r\n");
         }
     }
     else
     {
         status = KW_ERROR_KERNEL_SLOT_UNAVAILABLE;
-        Log_Write(LOG_LEVEL_DEBUG, "%s%s%d",
-            "KW:ERROR:kernel slot unavailable\r\n");
+        Log_Write(LOG_LEVEL_DEBUG, "KW:ERROR:kernel slot unavailable\r\n");
     }
 
     if(status == STATUS_SUCCESS)
     {
         /* Populate the tag_id and sqw_idx for KW */
-        atomic_store_local_16(&kernel->tag_id,
-            cmd->command_info.cmd_hdr.tag_id);
+        atomic_store_local_16(&kernel->tag_id, cmd->command_info.cmd_hdr.tag_id);
         atomic_store_local_16(&kernel->sqw_idx, sqw_idx);
 
         /* Populate the kernel launch params */
@@ -322,8 +318,7 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
             /* Update the each shire status to running*/
             for (uint64_t shire = 0; shire < NUM_SHIRES; shire++)
             {
-                if (atomic_load_local_64
-                    (&kernel->kernel_shire_mask) & (1ULL << shire))
+                if (cmd->shire_mask & (1ULL << shire))
                 {
                     CW_Update_Shire_State(shire, CW_SHIRE_STATE_RUNNING);
                 }
@@ -332,18 +327,16 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
         }
         else
         {
-            Log_Write(LOG_LEVEL_DEBUG, "%s%s%d",
-                "KW:ERROR:MM2CMLaunch:CommandMulticast:Failed\r\n");
+            Log_Write(LOG_LEVEL_DEBUG, "KW:ERROR:MM2CMLaunch:CommandMulticast:Failed\r\n");
             /* Broadcast message failed. Reclaim resources */
-            kw_unreserve_kernel_shires(kernel->kernel_shire_mask);
+            kw_unreserve_kernel_shires(cmd->shire_mask);
             kw_unreserve_kernel_slot(kernel);
         }
     }
     else
     {
-        Log_Write(LOG_LEVEL_DEBUG, "%s%d%s",
-            "KW:ERROR:MM2CMLaunch:ResourcesUnavailable:Failed:status:",
-            status, "\r\n");
+        Log_Write(LOG_LEVEL_DEBUG, "KW:ERROR:MM2CMLaunch:ResourcesUnavailable:Failed:status:%d\r\n",
+            status);
     }
 
     return status;
@@ -457,9 +450,7 @@ void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle)
     uint32_t thread = kw_idx % 2;
     uint64_t exec_cycles;
 
-    Log_Write(LOG_LEVEL_DEBUG,
-        "%s%d%s%d%s", "Notifying:KW:minion=", minion, ":thread=",
-        thread, "\r\n");
+    Log_Write(LOG_LEVEL_DEBUG, "Notifying:KW:minion=%d:thread=%d\r\n", minion, thread);
 
     /* Extract Wait cycles and start cycles */
     exec_cycles = ((((uint64_t)cycle->start_cycles) << 32) | ((uint64_t)cycle->wait_cycles));
@@ -502,8 +493,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     /* Get the kernel instance */
     kernel_instance_t *kernel = &KW_CB.kernels[kw_idx];
 
-    Log_Write(LOG_LEVEL_DEBUG, "%s%d%s%d%s",
-        "KW:HART=", hart_id, ":IDX=", kw_idx, "\r\n");
+    Log_Write(LOG_LEVEL_DEBUG, "KW:HART=%d:IDX=%d\r\n", hart_id, kw_idx);
 
     /* Empty all FCCs */
     init_fcc(FCC_0);
@@ -523,8 +513,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         global_fcc_wait(atomic_load_local_8(&KW_CB.host2kw[kw_idx].fcc_id),
             &KW_CB.host2kw[kw_idx].fcc_flag);
 
-        Log_Write(LOG_LEVEL_DEBUG, "%s",
-            "KW:Received:FCCEvent\r\n");
+        Log_Write(LOG_LEVEL_DEBUG, "KW:Received:FCCEvent\r\n");
 
         /* TODO: Set up watchdog to detect command timeout */
 
@@ -541,46 +530,53 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             asm volatile("wfi\n");
             asm volatile("csrci sip, 0x2");
 
-            status = CM_To_MM_Iface_Unicast_Receive(
-                CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx, &message);
-
-            if (status != STATUS_SUCCESS)
+            /* Process all the available messages */
+            while (done_cnt < kernel_shires_count)
             {
-                Log_Write(LOG_LEVEL_DEBUG, "%s%s%d",
-                    "KW:ERROR:CM_To_MM Receive failed. Status code: ",
-                    status, "\r\n");
-                break;
-            }
+                status = CM_To_MM_Iface_Unicast_Receive(
+                    CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx, &message);
 
-            /* Handle message from Compute Worker */
-            /* TODO: We should send shire ID as part of
-            message payload so we can improve the way we
-            aggregate and detect completion notifications
-            from all shires for given kernel launch */
-            switch (message.header.id)
-            {
-                case CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE:
+                if (status != STATUS_SUCCESS)
                 {
-                    log_write(LOG_LEVEL_DEBUG,
-                        "CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE\n");
-
-                    /* Increase count of completed Shires */
-                    done_cnt++;
+                    /* CIRCBUFF_ERROR_BAD_LENGTH means no more messages left */
+                    if (status != CIRCBUFF_ERROR_BAD_LENGTH)
+                    {
+                        Log_Write(LOG_LEVEL_DEBUG,
+                            "KW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n", status);
+                    }
                     break;
                 }
-                case CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION:
-                {
-                    log_write(LOG_LEVEL_DEBUG,
-                        "CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION\n");
 
-                    /* Even if there was an exception, that Shire will
-                    still send a KERNEL_COMPLETE */
-                    cw_exception = true;
-                    break;
-                }
-                default:
+                /* Handle message from Compute Worker */
+                switch (message.header.id)
                 {
-                    break;
+                    case CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE:
+                    {
+                        cm_to_mm_message_kernel_launch_completed_t *completed =
+                            (cm_to_mm_message_kernel_launch_completed_t *)&message;
+
+                        log_write(LOG_LEVEL_DEBUG,
+                            "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE from Shire %d\n",
+                            completed->shire_id);
+
+                        /* Increase count of completed Shires */
+                        done_cnt++;
+                        break;
+                    }
+                    case CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION:
+                    {
+                        log_write(LOG_LEVEL_DEBUG,
+                            "KW:from CW:CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION\n");
+
+                        /* Even if there was an exception, that Shire will
+                        still send a KERNEL_COMPLETE */
+                        cw_exception = true;
+                        break;
+                    }
+                    default:
+                    {
+                        break;
+                    }
                 }
             }
         }
@@ -624,13 +620,11 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 
         if(status == STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_DEBUG, "%s",
-                "KW:Pushed:KERNEL_LAUNCH_CMD_RSP->Host_CQ\r\n");
+            Log_Write(LOG_LEVEL_DEBUG, "KW:Pushed:KERNEL_LAUNCH_CMD_RSP->Host_CQ\r\n");
         }
         else
         {
-            Log_Write(LOG_LEVEL_DEBUG, "%s",
-                "KW:Push:Failed\r\n");
+            Log_Write(LOG_LEVEL_DEBUG, "KW:Push:Failed\r\n");
         }
 
         /* Decrement commands count being processed by given SQW */
