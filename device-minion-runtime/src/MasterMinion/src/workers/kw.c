@@ -275,8 +275,7 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
 
         if(status == STATUS_SUCCESS)
         {
-            atomic_or_local_64
-                (&kernel->kernel_shire_mask, cmd->shire_mask);
+            atomic_store_local_64(&kernel->kernel_shire_mask, cmd->shire_mask);
         }
         else
         {
@@ -294,8 +293,7 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
     if(status == STATUS_SUCCESS)
     {
         /* Populate the tag_id and sqw_idx for KW */
-        atomic_store_local_16(&kernel->tag_id,
-            cmd->command_info.cmd_hdr.tag_id);
+        atomic_store_local_16(&kernel->tag_id, cmd->command_info.cmd_hdr.tag_id);
         atomic_store_local_16(&kernel->sqw_idx, sqw_idx);
 
         /* Populate the kernel launch params */
@@ -320,8 +318,7 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
             /* Update the each shire status to running*/
             for (uint64_t shire = 0; shire < NUM_SHIRES; shire++)
             {
-                if (atomic_load_local_64
-                    (&kernel->kernel_shire_mask) & (1ULL << shire))
+                if (cmd->shire_mask & (1ULL << shire))
                 {
                     CW_Update_Shire_State(shire, CW_SHIRE_STATE_RUNNING);
                 }
@@ -332,7 +329,7 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
         {
             Log_Write(LOG_LEVEL_DEBUG, "KW:ERROR:MM2CMLaunch:CommandMulticast:Failed\r\n");
             /* Broadcast message failed. Reclaim resources */
-            kw_unreserve_kernel_shires(kernel->kernel_shire_mask);
+            kw_unreserve_kernel_shires(cmd->shire_mask);
             kw_unreserve_kernel_slot(kernel);
         }
     }
