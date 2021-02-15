@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2001-2020 by Serge Lamikhov-Center
+Copyright (C) 2001-present by Serge Lamikhov-Center
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -42,8 +42,8 @@ template <class S> class note_section_accessor_template
 {
   public:
     //------------------------------------------------------------------------------
-    note_section_accessor_template( const elfio& elf_file_, S* section_ )
-        : elf_file( elf_file_ ), note_section( section_ )
+    note_section_accessor_template( const elfio& elf_file, S* section )
+        : elf_file( elf_file ), note_section( section )
     {
         process_section();
     }
