@@ -186,7 +186,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
     int32_t pop_ret_val;
     uint64_t start_cycles=0;
 
-    Log_Write(LOG_LEVEL_CRITICAL, "SQW:HART=%d:IDX=%d\r\n", hart_id, sqw_idx);
+    Log_Write(LOG_LEVEL_CRITICAL, "SQW:H%d:IDX=%d\r\n", hart_id, sqw_idx);
 
     /* Empty all FCCs */
     init_fcc(FCC_0);
@@ -200,7 +200,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
         /* Get current minion cycle */
         start_cycles = PMC_Get_Current_Cycles();
 
-        Log_Write(LOG_LEVEL_DEBUG, "SQW:HART:%d:received FCC event!\r\n", hart_id);
+        Log_Write(LOG_LEVEL_DEBUG, "SQW:H%d:received FCC event!\r\n", hart_id);
 
         /* Process commands until there is no more data */
         do

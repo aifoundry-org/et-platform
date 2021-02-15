@@ -493,7 +493,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     /* Get the kernel instance */
     kernel_instance_t *const kernel = &KW_CB.kernels[kw_idx];
 
-    Log_Write(LOG_LEVEL_DEBUG, "KW:HART=%d:IDX=%d\r\n", hart_id, kw_idx);
+    Log_Write(LOG_LEVEL_DEBUG, "KW:H%d:IDX=%d\r\n", hart_id, kw_idx);
 
     /* Empty all FCCs */
     init_fcc(FCC_0);

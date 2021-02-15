@@ -82,7 +82,7 @@ static void host_iface_rxisr(void);
 static void host_iface_rxisr(void)
 {
     Log_Write(LOG_LEVEL_DEBUG,
-        "Dispatcher: PCIe interrupt!\r\n");
+        "Dispatcher:PCIe interrupt!\r\n");
 
     Host_Iface_Interrupt_Flag = true;
 

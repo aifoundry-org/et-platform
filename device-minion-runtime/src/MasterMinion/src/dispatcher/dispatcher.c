@@ -85,17 +85,17 @@ void Dispatcher_Launch(uint32_t hart_id)
     SERIAL_init(UART0);
 
     Log_Write(LOG_LEVEL_CRITICAL,
-        "Dispatcher: launched on HART: %d\r\n", hart_id);
+        "Dispatcher:launched on H%d\r\n", hart_id);
 
     /* Initialize Device Interface Registers */
     DIR_Init();
     Log_Write(LOG_LEVEL_DEBUG,
-        "Dispatcher: Device Interface Registers initialized\r\n");
+        "Dispatcher:Device Interface Registers initialized\r\n");
 
     /* Enable interrupt resources */
     Interrupt_Init();
     Log_Write(LOG_LEVEL_DEBUG,
-        "Dispatcher: Interrupts initialized\r\n");
+        "Dispatcher:Interrupts initialized\r\n");
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_INTERRUPT_INITIALIZED);
 
     /* Reset PMC cycles counter */
@@ -133,7 +133,7 @@ void Dispatcher_Launch(uint32_t hart_id)
 
     /* Release Master Shire Workers */
     Log_Write(LOG_LEVEL_DEBUG,
-        "Dispatcher: Releasing workers\r\n");
+        "Dispatcher:Releasing workers\r\n");
     local_spinwait_set(&Launch_Wait, 1);
 
     /* Mark Master Minion Status as Ready */
@@ -141,7 +141,7 @@ void Dispatcher_Launch(uint32_t hart_id)
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_READY);
 
     Log_Write(LOG_LEVEL_DEBUG,
-        "Dispatcher: Master Minion READY!\r\n");
+        "Dispatcher:Master Minion READY!\r\n");
 
     /* Wait for a message from the host, SP, worker minions etc. */
     while(1)
@@ -152,7 +152,7 @@ void Dispatcher_Launch(uint32_t hart_id)
         {
             WAIT_FOR_INTERRUPTS;
             Log_Write(LOG_LEVEL_DEBUG,
-                "Dispatcher: Exiting WFI!\r\n");
+                "Dispatcher:Exiting WFI!\r\n");
         }
 
         INTERRUPTS_ENABLE_SUPERVISOR;
