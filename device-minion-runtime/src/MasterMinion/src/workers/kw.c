@@ -487,11 +487,11 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 {
     cm_iface_message_t message;
     int8_t status;
-    uint32_t done_cnt = 0;
+    uint32_t done_cnt;
     uint32_t kernel_shires_count;
-    bool cw_exception = false;
+    bool cw_exception;
     /* Get the kernel instance */
-    kernel_instance_t *kernel = &KW_CB.kernels[kw_idx];
+    kernel_instance_t *const kernel = &KW_CB.kernels[kw_idx];
 
     Log_Write(LOG_LEVEL_DEBUG, "KW:HART=%d:IDX=%d\r\n", hart_id, kw_idx);
 
@@ -514,6 +514,10 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             &KW_CB.host2kw[kw_idx].fcc_flag);
 
         Log_Write(LOG_LEVEL_DEBUG, "KW:Received:FCCEvent\r\n");
+
+        /* Reset state */
+        done_cnt = 0;
+        cw_exception = false;
 
         /* TODO: Set up watchdog to detect command timeout */
 
