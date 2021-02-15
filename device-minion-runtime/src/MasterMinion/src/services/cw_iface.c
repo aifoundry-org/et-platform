@@ -55,7 +55,7 @@ int8_t CW_Iface_Processing(cm_iface_message_t *msg)
             log_write(LOG_LEVEL_DEBUG,
                       "MESSAGE_ID_KERNEL_LAUNCH_ACK received from shire %" PRId64 "\r\n",
                       msg->shire_id);
-            update_kernel_state(msg->kernel_id, KERNEL_STATE_RUNNING);
+            update_kernel_state(msg->slot_index, KERNEL_STATE_RUNNING);
             break;
         }
 
@@ -66,7 +66,7 @@ int8_t CW_Iface_Processing(cm_iface_message_t *msg)
                       "MESSAGE_ID_KERNEL_LAUNCH_NACK received from shire %" PRId64 "\r\n",
                       msg->shire_id);
             update_shire_state(msg->shire_id, SHIRE_STATE_ERROR);
-            update_kernel_state(msg->kernel_id, KERNEL_STATE_ERROR);
+            update_kernel_state(msg->slot_index, KERNEL_STATE_ERROR);
             break;
         }
 
@@ -77,14 +77,14 @@ int8_t CW_Iface_Processing(cm_iface_message_t *msg)
                       "MESSAGE_ID_KERNEL_ABORT_NACK received from shire %" PRId64 "\r\n",
                       msg->shire_id);
             update_shire_state(msg->shire_id, SHIRE_STATE_ERROR);
-            update_kernel_state(msg->kernel_id, KERNEL_STATE_ERROR);
+            update_kernel_state(msg->slot_index, KERNEL_STATE_ERROR);
             break;
         }
 
         case CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE:
             log_write(LOG_LEVEL_DEBUG,
                       "MESSAGE_ID_KERNEL_COMPLETE received\r\n");
-            update_kernel_state(((cm_to_mm_message_kernel_launch_completed_t *)&message)->kernel_id,
+            update_kernel_state(((cm_to_mm_message_kernel_launch_completed_t *)&message)->slot_index,
                                 KERNEL_STATE_COMPLETE);
             break;
 

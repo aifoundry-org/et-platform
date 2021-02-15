@@ -122,7 +122,7 @@ ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_exception_t);
 typedef struct {
     cm_iface_message_header_t header;
     uint32_t shire_id;
-    uint64_t kernel_id;
+    uint64_t slot_index;
 } __attribute__((packed, aligned(64))) cm_to_mm_message_kernel_launch_ack_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_kernel_launch_ack_t);
@@ -130,7 +130,7 @@ ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_kernel_launch_ack_t);
 typedef struct {
     cm_iface_message_header_t header;
     uint32_t shire_id;
-    uint32_t kernel_id;
+    uint32_t slot_index;
 } __attribute__((packed, aligned(64))) cm_to_mm_message_kernel_launch_nack_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_kernel_launch_nack_t);
@@ -138,7 +138,7 @@ ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_kernel_launch_nack_t);
 typedef struct {
     cm_iface_message_header_t header;
     uint32_t shire_id;
-    uint64_t kernel_id;
+    uint64_t slot_index;
 } __attribute__((packed, aligned(64))) cm_to_mm_message_kernel_launch_completed_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_kernel_launch_completed_t);

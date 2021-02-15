@@ -62,12 +62,12 @@ static void spinlock_barrier_global(spinlock_t *lock, uint32_t num_shires)
 }
 
 static void pre_kernel_setup(uint64_t kernel_launch_flags);
-static void post_kernel_cleanup(uint64_t kw_base_id, uint64_t kernel_id, uint64_t kernel_launch_flags);
+static void post_kernel_cleanup(uint64_t kw_base_id, uint64_t slot_index, uint64_t kernel_launch_flags);
 
 // Saves firmware context and launches kernel in user mode with clean stack and registers
 // Note that global Supervisor interrupts are disabled after returning from this function
 int64_t launch_kernel(uint64_t kw_base_id,
-                      uint64_t kernel_id,
+                      uint64_t slot_index,
                       uint64_t kernel_entry_addr,
                       uint64_t kernel_stack_addr,
                       uint64_t kernel_params_ptr,
@@ -222,7 +222,7 @@ int64_t launch_kernel(uint64_t kw_base_id,
         log_write(LOG_LEVEL_ERROR, "H%04" PRId64 ": tensor_error 0x%" PRIx64 "\n", get_hart_id(), tensor_error);
     }*/
 
-    post_kernel_cleanup(kw_base_id, kernel_id, kernel_launch_flags);
+    post_kernel_cleanup(kw_base_id, slot_index, kernel_launch_flags);
 
     return return_value;
 }
@@ -325,7 +325,7 @@ static void pre_kernel_setup(uint64_t kernel_launch_flags)
     asm volatile("fence");
 }
 
-static void post_kernel_cleanup(uint64_t kw_base_id, uint64_t kernel_id, uint64_t kernel_launch_flags)
+static void post_kernel_cleanup(uint64_t kw_base_id, uint64_t slot_index, uint64_t kernel_launch_flags)
 {
     const uint64_t shire_id = get_shire_id();
     const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
@@ -366,7 +366,7 @@ static void post_kernel_cleanup(uint64_t kw_base_id, uint64_t kernel_id, uint64_
         msg.header.number = 0; // Not used. TODO: Remove
         msg.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE;
         msg.shire_id = (uint32_t)shire_id;
-        msg.kernel_id = kernel_id;
-        CM_To_MM_Iface_Unicast_Send(kw_base_id + kernel_id, 1 + kernel_id, (cm_iface_message_t *)&msg);
+        msg.slot_index = slot_index;
+        CM_To_MM_Iface_Unicast_Send(kw_base_id + slot_index, 1 + slot_index, (cm_iface_message_t *)&msg);
     }
 }
