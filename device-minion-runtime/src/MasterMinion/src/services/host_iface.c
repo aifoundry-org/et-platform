@@ -81,7 +81,7 @@ static void host_iface_rxisr(void);
 
 static void host_iface_rxisr(void)
 {
-    Log_Write(LOG_LEVEL_DEBUG, "%s",
+    Log_Write(LOG_LEVEL_DEBUG,
         "Dispatcher: PCIe interrupt!\r\n");
 
     Host_Iface_Interrupt_Flag = true;
@@ -152,9 +152,9 @@ int8_t Host_Iface_SQs_Init(void)
     }
     else
     {
-        Log_Write(LOG_LEVEL_ERROR, "%s %d %s",
-        "ERROR: Unable to initialize Host to MM SQs. (Error code: )",
-        status, "\r\n");
+        Log_Write(LOG_LEVEL_ERROR,
+            "ERROR: Unable to initialize Host to MM SQs. (Error code: %d)\r\n",
+            status);
     }
 
     return status;
@@ -194,8 +194,9 @@ vq_cb_t* Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type, uint8_t vq_id)
     }
     else
     {
-	    Log_Write(LOG_LEVEL_DEBUG, "%s",
-            "HostIface:ERROR:Failed to obtain VQ base address, bad vq_id\r\n");
+        Log_Write(LOG_LEVEL_DEBUG,
+            "HostIface:ERROR:Failed to obtain VQ base address, bad vq_id: %d\r\n",
+            vq_id);
     }
 
     return retval;
@@ -367,16 +368,16 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
 
         if (status != STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_ERROR, "%s %d %s",
-                "CQ:ERROR: Host notification Failed. (Error code: )",
-                status, "\r\n");
+            Log_Write(LOG_LEVEL_ERROR,
+                "CQ:ERROR: Host notification Failed. (Error code: %d)\r\n",
+                status);
         }
     }
     else
     {
-        Log_Write(LOG_LEVEL_ERROR, "%s %d %s",
-            "CQ:ERROR: Circbuff Push Failed. (Error code: )",
-            status, "\r\n");
+        Log_Write(LOG_LEVEL_ERROR,
+            "CQ:ERROR: Circbuff Push Failed. (Error code: %d)\r\n",
+            status);
     }
 
     /* Release the lock */
@@ -419,9 +420,9 @@ uint32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void* rx_buff)
     }
     else if (pop_ret_val < 0)
     {
-        Log_Write(LOG_LEVEL_ERROR, "%s%d%s",
-            "HostIface:SQ_Pop:ERROR:VQ pop failed.(Error code:)",
-            pop_ret_val, "\r\n");
+        Log_Write(LOG_LEVEL_ERROR,
+            "HostIface:SQ_Pop:ERROR:VQ pop failed.(Error code: %d)\r\n",
+            pop_ret_val);
     }
 
     return return_val;
@@ -465,15 +466,15 @@ void Host_Iface_Processing(void)
         if(status == true)
         {
             Log_Write(LOG_LEVEL_DEBUG,
-            "%s%d%s", "HostIfaceProcessing:Notifying:SQW_IDX:", sq_id, "\r\n");
+                "HostIfaceProcessing:Notifying:SQW_IDX:%d\r\n", sq_id);
 
             /* Dispatch work to SQ Worker associated with this SQ */
             SQW_Notify(sq_id);
         }
         else
         {
-            Log_Write(LOG_LEVEL_DEBUG, "%s%d%s",
-                "HostIfaceProcessing:NoData:SQ_IDX:", sq_id, "\r\n");
+            Log_Write(LOG_LEVEL_DEBUG,
+                "HostIfaceProcessing:NoData:SQ_IDX:%d\r\n", sq_id);
         }
     }
 

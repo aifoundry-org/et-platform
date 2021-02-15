@@ -94,9 +94,8 @@ int8_t SP_Iface_SQs_Init(void)
     }
     else
     {
-        Log_Write(LOG_LEVEL_ERROR, "%s%d%s",
-            "SP_Iface: Initialize SQs. (Error code: )",
-            status, "\r\n");
+        Log_Write(LOG_LEVEL_ERROR,
+            "SP_Iface: Initialize SQs. (Error code: %d)\r\n", status);
     }
 
     return status;
@@ -198,9 +197,8 @@ int8_t SP_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
     }
     else
     {
-        Log_Write(LOG_LEVEL_ERROR, "%s%d%s",
-            "SP_Iface: CQ push failed.(Error code:)",
-            status, "\r\n");
+        Log_Write(LOG_LEVEL_ERROR,
+            "SP_Iface: CQ push failed.(Error code: %d)\r\n", status);
     }
 
     return status;
@@ -239,9 +237,9 @@ uint32_t SP_Iface_SQ_Pop_Cmd(void* rx_buff)
     }
     else if (pop_ret_val < 0)
     {
-        Log_Write(LOG_LEVEL_ERROR, "%s%d%s",
-            "SP_Iface:SQ_Pop:ERROR:VQ pop failed.(Error code:)",
-            pop_ret_val, "\r\n");
+        Log_Write(LOG_LEVEL_ERROR,
+            "SP_Iface:SQ_Pop:ERROR:VQ pop failed.(Error code: %d)\r\n",
+            pop_ret_val);
     }
 
     return return_val;
@@ -285,8 +283,8 @@ void SP_Iface_Processing(void)
         }
         else
         {
-            Log_Write(LOG_LEVEL_ERROR, "%s",
-            "SP_Iface: Unexpected command size\r\n");
+            Log_Write(LOG_LEVEL_ERROR,
+                "SP_Iface: Unexpected command size\r\n");
         }
     }
 
