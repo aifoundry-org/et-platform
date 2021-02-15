@@ -72,7 +72,7 @@ struct Uart : public MemoryRegion
     addr_type first() const override { return Base; }
     addr_type last() const override { return Base + N - 1; }
 
-    void dump_data(std::ostream&, size_type, size_type) const override { }
+    void dump_data(const Agent&, std::ostream&, size_type, size_type) const override { }
 
     // For exposition only
     int fd = -1;

@@ -13,13 +13,14 @@
 
 #include <array>
 #include <cstdint>
+#include "agent.h"
 #include "emu_defines.h"
 
 namespace bemu {
 
 template<bool wrch>
 struct PcieDma {
-    void go();
+    void go(const Agent& agent);
 
     int chan_id;
     uint32_t ch_control1 = 0;
@@ -28,7 +29,7 @@ struct PcieDma {
     uint32_t engine_en = 0;
 
 private:
-    void trigger_done_int();
+    void trigger_done_int(const Agent& agent);
 
     bool liep = false;
 };

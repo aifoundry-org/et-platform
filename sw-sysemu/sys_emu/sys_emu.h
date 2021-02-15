@@ -23,25 +23,12 @@
 #include <vector>
 
 #include "api_communicate.h"
-#include "emu_defines.h"
-#include "processor.h"
+#include "system.h"
 #include "checkers/flb_checker.h"
 #include "checkers/l1_scp_checker.h"
 #include "checkers/l2_scp_checker.h"
 #include "checkers/mem_checker.h"
 
-namespace bemu {
-
-extern uint64_t get_csr(unsigned thread, uint16_t cnum);
-extern void set_csr(unsigned thread, uint16_t cnum, uint64_t data);
-
-// NB: Do this to hide bemu::cpu[]
-inline Hart& get_cpu(unsigned thread) {
-    extern std::array<Hart,EMU_NUM_THREADS> cpu;
-    return cpu[thread];
-}
-
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Defines
@@ -147,14 +134,14 @@ public:
     parse_command_line_arguments(int argc, char* argv[]);
     static void get_command_line_help(std::ostream& stream);
 
-    static uint64_t thread_get_pc(unsigned thread_id) { return bemu::get_cpu(thread_id).pc; }
-    static void thread_set_pc(unsigned thread_id, uint64_t pc) { bemu::get_cpu(thread_id).pc = pc; }
-    static uint64_t thread_get_reg(int thread_id, int reg) { return bemu::get_cpu(thread_id).xregs[reg]; }
-    static void thread_set_reg(int thread_id, int reg, uint64_t data) { bemu::get_cpu(thread_id).xregs[reg] = data; }
-    static bemu::freg_t thread_get_freg(int thread_id, int reg) { return bemu::get_cpu(thread_id).fregs[reg]; }
-    static void thread_set_freg(int thread_id, int reg, bemu::freg_t data) { bemu::get_cpu(thread_id).fregs[reg] = data; }
-    static uint64_t thread_get_csr(int thread_id, int csr) { return bemu::get_csr(thread_id, csr); }
-    static void thread_set_csr(int thread_id, int csr, uint32_t data) { bemu::set_csr(thread_id, csr, data); }
+    static uint64_t thread_get_pc(unsigned thread_id) { return chip.cpu[thread_id].pc; }
+    static void thread_set_pc(unsigned thread_id, uint64_t pc) { chip.cpu[thread_id].pc = pc; }
+    static uint64_t thread_get_reg(int thread_id, int reg) { return chip.cpu[thread_id].xregs[reg]; }
+    static void thread_set_reg(int thread_id, int reg, uint64_t data) { chip.cpu[thread_id].xregs[reg] = data; }
+    static bemu::freg_t thread_get_freg(int thread_id, int reg) { return chip.cpu[thread_id].fregs[reg]; }
+    static void thread_set_freg(int thread_id, int reg, bemu::freg_t data) { chip.cpu[thread_id].fregs[reg] = data; }
+    static uint64_t thread_get_csr(int thread_id, int csr) { return chip.get_csr(thread_id, csr); }
+    static void thread_set_csr(int thread_id, int csr, uint32_t data) { chip.set_csr(thread_id, csr, data); }
 
     static void fcc_to_threads(unsigned shire_id, unsigned thread_dest,
                                uint64_t thread_mask, unsigned cnt_dest);
@@ -176,11 +163,22 @@ public:
 
     static uint64_t get_emu_cycle()  { return emu_cycle; }
 
-    static bool thread_is_disabled(unsigned thread) { return !bemu::get_cpu(thread).enabled; }
+    static bool thread_is_disabled(unsigned thread) { return !chip.cpu[thread].enabled; }
 
     static void activate_thread(int thread_id) { active_threads[thread_id] = true; }
     static void deactivate_thread(int thread_id) { active_threads[thread_id] = false; }
     static bool thread_is_active(int thread_id) { return active_threads[thread_id]; }
+
+    // gdbstub needs these
+    static void thread_read_memory(int thread, uint64_t addr, uint64_t size, uint8_t* buffer) {
+        chip.memory.read(chip.cpu[thread], addr, size, buffer);
+    }
+    static void thread_write_memory(int thread, uint64_t addr, uint64_t size, const uint8_t* buffer) {
+        chip.memory.write(chip.cpu[thread], addr, size, buffer);
+    }
+
+    // PCIe DMA needs this
+    static bemu::MainMemory& get_memory() { return chip.memory; }
 
     // Returns whether a thread is running (not sleeping/waiting)
     static bool thread_is_running(int thread_id) { return contains(running_threads, thread_id); }
@@ -214,6 +212,8 @@ public:
     static void breakpoint_insert(uint64_t addr);
     static void breakpoint_remove(uint64_t addr);
     static bool breakpoint_exists(uint64_t addr);
+
+    static bool parse_mem_file(const char* filename);
 
     static api_communicate* get_api_communicate() { return api_listener; }
 
@@ -252,6 +252,8 @@ private:
     static void debug_init(void);
     static void debug_check(void);
 #endif
+
+    static bemu::System    chip;
 
     static uint64_t        emu_cycle;
     static std::list<int>  running_threads; // List of running threads

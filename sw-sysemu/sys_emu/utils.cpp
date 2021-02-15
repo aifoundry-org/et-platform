@@ -8,15 +8,16 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 
-#include "emu.h"
-#include "memory/load.h"
+#include "emu_gio.h"
+#include "sys_emu.h"
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Parses a file that defines the memory regions plus contents to be
 // loaded in the different regions
 ////////////////////////////////////////////////////////////////////////////////
 
-bool parse_mem_file(const char * filename)
+bool sys_emu::parse_mem_file(const char* filename)
 {
     FILE * file = fopen(filename, "r");
     if (file == NULL)
@@ -44,7 +45,7 @@ bool parse_mem_file(const char * filename)
             LOG_NOTHREAD(INFO, "New File Load found: %s @ 0x%" PRIx64, str, base_addr);
             try
             {
-                bemu::load_raw(bemu::memory, str, base_addr);
+                chip.load_raw(str, base_addr);
             }
             catch (...)
             {
@@ -58,7 +59,7 @@ bool parse_mem_file(const char * filename)
             LOG_NOTHREAD(INFO, "New ELF Load found: %s", str);
             try
             {
-                bemu::load_elf(bemu::memory, str);
+                chip.load_elf(str);
             }
             catch (...)
             {
@@ -69,8 +70,8 @@ bool parse_mem_file(const char * filename)
         }
         else if(sscanf(buffer, "Mem write32: 40'h%" PRIX64 ", 32'h%" PRIX32 , &base_addr, &value) == 2)
         {
-            bemu::memory.write(bemu::Noagent{}, base_addr, sizeof(value),
-                               reinterpret_cast<bemu::MainMemory::const_pointer>(&value));
+            chip.memory.write(bemu::Noagent{&chip}, base_addr, sizeof(value),
+                              reinterpret_cast<bemu::MainMemory::const_pointer>(&value));
         }
     }
     // Closes the file

@@ -16,21 +16,19 @@ emu_hdrs := \
 	devices/plic.h \
 	devices/pu_uart.h \
 	devices/rvtimer.h \
-	emu.h \
 	emu_defines.h \
 	emu_gio.h \
 	esrs.h \
 	gold.h \
 	insn.h \
 	insn_func.h \
+	insn_util.h \
 	insns/tensor_error.h \
 	lazy_array.h \
 	literals.h \
 	memmap.h \
-	memop.h \
 	memory/dense_region.h \
 	memory/dump_data.h \
-	memory/load.h \
 	memory/main_memory.h \
 	memory/memory_error.h \
 	memory/memory_region.h \
@@ -38,22 +36,16 @@ emu_hdrs := \
 	memory/sparse_region.h \
 	memory/sysreg_region.h \
 	mmu.h \
-	msgport.h \
 	processor.h \
-	rbox.h \
-	rbox_pi.h \
 	state.h \
 	sysreg_error.h \
-	tbox_emu.h \
-	tbox_pi.h \
+	system.h \
 	tensor.h \
 	traps.h \
-	txs.h \
 	utility.h
 
 emu_cpp_srcs := \
 	devices/pcie_dma.cpp \
-	emu.cpp \
 	emu_gio.cpp \
 	esrs.cpp \
 	flb.cpp \
@@ -83,11 +75,9 @@ emu_cpp_srcs := \
 	insns/tensors.cpp \
 	insns/zicsr.cpp \
 	insns/zifencei.cpp \
-	memory/load.cpp \
+	memory/main_memory.cpp \
 	mmu.cpp \
 	msgport.cpp \
 	processor.cpp \
-	rbox.cpp \
-	tbox_emu.cpp \
-	traps.cpp \
-	txs.cpp
+	system.cpp \
+	traps.cpp

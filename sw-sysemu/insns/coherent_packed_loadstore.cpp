@@ -8,21 +8,18 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 
-#include "decode.h"
 #include "emu_defines.h"
 #include "emu_gio.h"
 #include "fpu/fpu_casts.h"
 #include "insn.h"
 #include "insn_func.h"
+#include "insn_util.h"
 #include "log.h"
 #include "mmu.h"
-#include "processor.h"
+#include "system.h"
 #include "utility.h"
 
 namespace bemu {
-
-
-extern system_version_t sysver;
 
 
 void insn_fgbg_ps(Hart& cpu)
@@ -149,7 +146,7 @@ void insn_fswg_ps(Hart& cpu)
     DISASM_STORE_FD_RS1("fswg.ps");
     LOG_MREG(":", 0);
     mreg_t msk;
-    if (sysver == system_version_t::ETSOC1_A0) {
+    if (cpu.chip->sysver == system_version_t::ETSOC1_A0) {
         msk = mreg_t(-1);
         if (msk != M0) {
             LOG_HART(WARN, cpu, "%s", "fswg.ps with m0 not all 1s is UNDEFINED behavior");
@@ -167,7 +164,7 @@ void insn_fswl_ps(Hart& cpu)
     DISASM_STORE_FD_RS1("fswl.ps");
     LOG_MREG(":", 0);
     mreg_t msk;
-    if (sysver == system_version_t::ETSOC1_A0) {
+    if (cpu.chip->sysver == system_version_t::ETSOC1_A0) {
         msk = mreg_t(-1);
         if (msk != M0) {
             LOG_HART(WARN, cpu, "%s", "fswl.ps with m0 not all 1s is UNDEFINED behavior");

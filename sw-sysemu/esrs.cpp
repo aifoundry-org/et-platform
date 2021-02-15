@@ -10,52 +10,24 @@
 
 #include <array>
 #include <cassert>
-#include <queue>
 #include <stdexcept>
 
-#include "emu.h"
 #include "emu_defines.h"
 #include "emu_gio.h"
 #include "esrs.h"
-#include "insns/tensor_error.h"
-#include "msgport.h"
-#include "processor.h"
-#include "rbox.h"
 #include "sysreg_error.h"
-#include "tbox_emu.h"
-#include "txs.h"
+#include "system.h"
+#include "memory/memory_error.h"
 #ifdef SYS_EMU
 #include "checkers/mem_checker.h"
-#endif
-
-// FIXME: the following needs to be cleaned up
-#ifdef SYS_EMU
 #include "sys_emu.h"
-#else
-namespace sys_emu {
-static inline void fcc_to_threads(unsigned, unsigned, uint64_t, unsigned) {}
-static inline void send_ipi_redirect_to_threads(unsigned, uint64_t) {}
-static inline void raise_software_interrupt(unsigned, uint64_t) {}
-static inline void clear_software_interrupt(unsigned, uint64_t) {}
-}
 #endif
 
 namespace bemu {
 
 
-extern std::array<Hart,EMU_NUM_THREADS>  cpu;
-
-
-#ifndef SYS_EMU
-// only for checker, list of minions to awake (e.g. waiting for FCC that has
-// just been written)
-std::queue<uint32_t> minions_to_awake;
-
-std::queue<uint32_t>& get_minions_to_awake()
-{
-    return minions_to_awake;
-}
-#endif
+// Message ports
+unsigned get_msg_port_write_width(const Hart&, unsigned);
 
 
 #define ESR_NEIGH_MINION_BOOT_RESET_VAL   0x8000001000
@@ -80,12 +52,6 @@ std::queue<uint32_t>& get_minions_to_awake()
 #define ESR_SHIRE_CLK_GATE_CTRL_RESET_VAL       0x0
 
 
-std::array<neigh_esrs_t, EMU_NUM_NEIGHS>       neigh_esrs;
-std::array<shire_cache_esrs_t, EMU_NUM_SHIRES> shire_cache_esrs;
-std::array<shire_other_esrs_t, EMU_NUM_SHIRES> shire_other_esrs;
-std::array<broadcast_esrs_t, EMU_NUM_SHIRES>   broadcast_esrs;
-
-
 // Broadcast ESR fields
 // - ESR privilege (bits [31:30]) is in bits [60:59] in broadcast_data.
 // - ESR region (bits [21:17]) is in bits [58:45] in {usm}broadcast
@@ -108,62 +74,6 @@ std::array<broadcast_esrs_t, EMU_NUM_SHIRES>   broadcast_esrs;
 #define NEIGHID(pos)    ((pos) % EMU_NEIGH_PER_SHIRE)
 #define MINION(hart)    ((hart) / EMU_THREADS_PER_MINION)
 #define THREAD(hart)    ((hart) % EMU_THREADS_PER_MINION)
-
-
-static void write_fcc_credinc(int index, uint64_t shire, uint64_t minion_mask)
-{
-    if (shire == EMU_IO_SHIRE_SP)
-        throw std::runtime_error("write_fcc_credinc_N for IOShire");
-
-    const unsigned thread0 = (index / 2) + shire * EMU_THREADS_PER_SHIRE;
-    const unsigned cnt = index % 2;
-
-    for (int minion = 0; minion < EMU_MINIONS_PER_SHIRE; ++minion) {
-        if (~minion_mask & (1ull << minion))
-            continue;
-
-        unsigned thread = thread0 + minion * EMU_THREADS_PER_MINION;
-        cpu[thread].fcc[cnt]++;
-        LOG_HART(DEBUG, cpu[thread], "\tfcc = 0x%" PRIx64,
-                 (uint64_t(cpu[thread].fcc[1]) << 16) + uint64_t(cpu[thread].fcc[0]));
-#ifndef SYS_EMU
-        // wake up waiting threads (only for checker, not sysemu)
-        if (cpu[thread].fcc_wait) {
-            cpu[thread].fcc_wait = false;
-            minions_to_awake.push(thread / EMU_THREADS_PER_MINION);
-        }
-#endif
-        //check for overflow
-        if (cpu[thread].fcc[cnt] == 0)
-            update_tensor_error(cpu[thread], 1 << 3);
-    }
-}
-
-
-static void recalculate_thread0_enable(unsigned shire)
-{
-    uint32_t value = shire_other_esrs[shire].thread0_disable;
-    unsigned mcount = (shire == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
-    for (unsigned m = 0; m < mcount; ++m) {
-        unsigned thread = shire * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION;
-        cpu[thread].enabled = !((value >> m) & 1);
-    }
-}
-
-
-static void recalculate_thread1_enable(unsigned shire)
-{
-    if (shire == EMU_IO_SHIRE_SP)
-        return;
-
-    uint32_t value = (shire_other_esrs[shire].minion_feature & 0x10)
-            ? 0xffffffff
-            : shire_other_esrs[shire].thread1_disable;
-    for (unsigned m = 0; m < EMU_MINIONS_PER_SHIRE; ++m) {
-        unsigned thread = shire * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + 1;
-        cpu[thread].enabled = !((value >> m) & 1);
-    }
-}
 
 
 static uint64_t legalize_esr_address(const Agent& agent, uint64_t addr)
@@ -259,15 +169,11 @@ void shire_other_esrs_t::reset(unsigned shire)
     clk_gate_ctrl = ESR_SHIRE_CLK_GATE_CTRL_RESET_VAL;
     shire_channel_eco_ctl = 0;
 
-    if (shire == IO_SHIRE_ID) shire = EMU_IO_SHIRE_SP;
-    recalculate_thread0_enable(shire);
-    recalculate_thread1_enable(shire);
-
     icache_prefetch_active = 0;
 }
 
 
-uint64_t esr_read(const Agent& agent, uint64_t addr)
+uint64_t System::esr_read(const Agent& agent, uint64_t addr)
 {
     // Redirect local shire requests to the corresponding shire
     uint64_t addr2 = legalize_esr_address(agent, addr);
@@ -290,9 +196,9 @@ uint64_t esr_read(const Agent& agent, uint64_t addr)
 #ifdef SYS_EMU
         switch (esr) {
         case ESR_PU_RVTIM_MTIME:
-            return bemu::memory.sysreg_space.ioshire_pu_rvtimer.read_mtime();
+            return memory.pu_rvtimer_read_mtime();
         case ESR_PU_RVTIM_MTIMECMP:
-            return bemu::memory.sysreg_space.ioshire_pu_rvtimer.read_mtimecmp();
+            return memory.pu_rvtimer_read_mtimecmp();
         }
 #else
         switch (esr) {
@@ -451,7 +357,7 @@ uint64_t esr_read(const Agent& agent, uint64_t addr)
         case ESR_RBOX_START:
         case ESR_RBOX_CONSUME:
         case ESR_RBOX_STATUS:
-            return GET_RBOX(shire, 0).read_esr((esr >> 3) & 0x3FFF);
+            return 0; //GET_RBOX(shire, 0).read_esr((esr >> 3) & 0x3FFF);
         }
         LOG_AGENT(WARN, agent, "Read unknown rbox ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
         throw memory_error(addr);
@@ -582,7 +488,7 @@ uint64_t esr_read(const Agent& agent, uint64_t addr)
 }
 
 
-void esr_write(const Agent& agent, uint64_t addr, uint64_t value)
+void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
 {
     // Redirect local shire requests to the corresponding shire
     uint64_t addr2 = legalize_esr_address(agent, addr);
@@ -624,10 +530,10 @@ void esr_write(const Agent& agent, uint64_t addr, uint64_t value)
 #ifdef SYS_EMU
         switch (esr) {
         case ESR_PU_RVTIM_MTIME:
-            bemu::memory.sysreg_space.ioshire_pu_rvtimer.write_mtime(value);
+            memory.pu_rvtimer_write_mtime(agent, value);
             return;
         case ESR_PU_RVTIM_MTIMECMP:
-            bemu::memory.sysreg_space.ioshire_pu_rvtimer.write_mtimecmp(value);
+            memory.pu_rvtimer_write_mtimecmp(agent, value);
             return;
         }
 #else
@@ -654,7 +560,7 @@ void esr_write(const Agent& agent, uint64_t addr, uint64_t value)
         if ((shire != EMU_IO_SHIRE_SP) && (esr >= ESR_PORT0) && (esr <= ESR_PORT3)) {
             unsigned hartid = hart + shire * EMU_THREADS_PER_SHIRE;
             unsigned port = (esr - ESR_PORT0) >> 6;
-            if (get_msg_port_write_width(hartid, port) > 8)
+            if (get_msg_port_write_width(cpu[hartid], port) > 8)
                 throw std::runtime_error("Write to port with incompatible size");
             uint64_t tmp = value;
             try {
@@ -688,7 +594,6 @@ void esr_write(const Agent& agent, uint64_t addr, uint64_t value)
             throw memory_error(addr);
         }
         for (unsigned pos = frst; pos < last; ++pos) {
-            unsigned tbox_id;
             switch (esr) {
             case ESR_DUMMY0:
                 neigh_esrs[pos].dummy0 = uint32_t(value & 0xffffffff);
@@ -755,14 +660,14 @@ void esr_write(const Agent& agent, uint64_t addr, uint64_t value)
                 neigh_esrs[pos].texture_image_table_ptr = value;
                 LOG_AGENT(DEBUG, agent, "S%u:N%u:texture_image_table_ptr = 0x%" PRIx64,
                           SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].texture_image_table_ptr);
-                try {
-                    const Hart& cpu = dynamic_cast<const Hart&>(agent);
-                    tbox_id = tbox_id_from_thread(hart_index(cpu));
-                    GET_TBOX(shire, tbox_id).set_image_table_address(value);
-                }
-                catch (const std::bad_cast&) {
-                    throw memory_error(addr);
-                }
+                // try {
+                //     const Hart& cpu = dynamic_cast<const Hart&>(agent);
+                //     unsigned tbox_id = tbox_id_from_thread(hart_index(cpu));
+                //     GET_TBOX(shire, tbox_id).set_image_table_address(value);
+                // }
+                // catch (const std::bad_cast&) {
+                //     throw memory_error(addr);
+                // }
                 break;
             default:
                 LOG_AGENT(WARN, agent, "Write unknown neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), NEIGHID(pos), esr);
@@ -946,31 +851,31 @@ void esr_write(const Agent& agent, uint64_t addr, uint64_t value)
         switch (esr) {
         case ESR_RBOX_CONFIG:
             LOG_AGENT(DEBUG, agent, "S%u:rbox_config = 0x%" PRIx64, SHIREID(shire), value);
-            GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
+            //GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
             return;
         case ESR_RBOX_IN_BUF_PG:
             LOG_AGENT(DEBUG, agent, "S%u:rbox_in_buf_pg = 0x%" PRIx64, SHIREID(shire), value);
-            GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
+            //GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
             return;
         case ESR_RBOX_IN_BUF_CFG:
             LOG_AGENT(DEBUG, agent, "S%u:rbox_in_buf_cfg = 0x%" PRIx64, SHIREID(shire), value);
-            GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
+            //GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
             return;
         case ESR_RBOX_OUT_BUF_PG:
             LOG_AGENT(DEBUG, agent, "S%u:rbox_out_buf_pg = 0x%" PRIx64, SHIREID(shire), value);
-            GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
+            //GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
             return;
         case ESR_RBOX_OUT_BUF_CFG:
             LOG_AGENT(DEBUG, agent, "S%u:rbox_out_buf_cfg = 0x%" PRIx64, SHIREID(shire), value);
-            GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
+            //GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
             return;
         case ESR_RBOX_START:
             LOG_AGENT(DEBUG, agent, "S%u:rbox_start = 0x%" PRIx64, SHIREID(shire), value);
-            GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
+            //GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
             return;
         case ESR_RBOX_CONSUME:
             LOG_AGENT(DEBUG, agent, "S%u:rbox_consume = 0x%" PRIx64, SHIREID(shire), value);
-            GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
+            //GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
             return;
         }
         LOG_AGENT(WARN, agent, "Write unknown rbox ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
@@ -997,8 +902,9 @@ void esr_write(const Agent& agent, uint64_t addr, uint64_t value)
             return;
         case ESR_IPI_REDIRECT_TRIGGER:
             LOG_AGENT(DEBUG, agent, "S%u:ipi_redirect_trigger = 0x%" PRIx64, SHIREID(shire), value);
-            if (shire != EMU_IO_SHIRE_SP)
-                sys_emu::send_ipi_redirect_to_threads(shire, value);
+            if (shire != EMU_IO_SHIRE_SP) {
+                send_ipi_redirect_to_threads(shire, value);
+            }
             return;
         case ESR_IPI_REDIRECT_FILTER:
             shire_other_esrs[shire].ipi_redirect_filter = value;
@@ -1009,39 +915,36 @@ void esr_write(const Agent& agent, uint64_t addr, uint64_t value)
             shire_other_esrs[shire].ipi_trigger = value;
             LOG_AGENT(DEBUG, agent, "S%u:ipi_trigger = 0x%" PRIx64,
                       SHIREID(shire), shire_other_esrs[shire].ipi_trigger);
-            if (shire != EMU_IO_SHIRE_SP)
-                sys_emu::raise_software_interrupt(shire, value);
+            if (shire != EMU_IO_SHIRE_SP) {
+                raise_software_interrupt(shire, value);
+            }
             return;
         case ESR_IPI_TRIGGER_CLEAR:
             LOG_AGENT(DEBUG, agent, "S%u:ipi_trigger_clear = 0x%" PRIx64, SHIREID(shire), value);
-            sys_emu::clear_software_interrupt(shire, value);
+            clear_software_interrupt(shire, value);
             return;
         case ESR_FCC_CREDINC_0:
             LOG_AGENT(DEBUG, agent, "S%u:fcc_credinc_0 = 0x%" PRIx64, SHIREID(shire), value);
             if (shire != EMU_IO_SHIRE_SP) {
                 write_fcc_credinc(0, shire, value);
-                sys_emu::fcc_to_threads(shire, 0, value, 0);
             }
             return;
         case ESR_FCC_CREDINC_1:
             LOG_AGENT(DEBUG, agent, "S%u:fcc_credinc_1 = 0x%" PRIx64, SHIREID(shire), value);
             if (shire != EMU_IO_SHIRE_SP) {
                 write_fcc_credinc(1, shire, value);
-                sys_emu::fcc_to_threads(shire, 0, value, 1);
             }
             return;
         case ESR_FCC_CREDINC_2:
             LOG_AGENT(DEBUG, agent, "S%u:fcc_credinc_2 = 0x%" PRIx64, SHIREID(shire), value);
             if (shire != EMU_IO_SHIRE_SP) {
                 write_fcc_credinc(2, shire, value);
-                sys_emu::fcc_to_threads(shire, 1, value, 0);
             }
             return;
         case ESR_FCC_CREDINC_3:
             LOG_AGENT(DEBUG, agent, "S%u:fcc_credinc_3 = 0x%" PRIx64, SHIREID(shire), value);
             if (shire != EMU_IO_SHIRE_SP) {
                 write_fcc_credinc(3, shire, value);
-                sys_emu::fcc_to_threads(shire, 1, value, 1);
             }
             return;
         case ESR_FAST_LOCAL_BARRIER0:
@@ -1201,7 +1104,7 @@ void esr_write(const Agent& agent, uint64_t addr, uint64_t value)
 }
 
 
-void write_shire_coop_mode(unsigned shire, uint64_t value)
+void System::write_shire_coop_mode(unsigned shire, uint64_t value)
 {
     assert(shire < EMU_NUM_SHIRES);
     value &= 1;
@@ -1211,34 +1114,28 @@ void write_shire_coop_mode(unsigned shire, uint64_t value)
 }
 
 
-void write_thread0_disable(unsigned shire, uint32_t value)
+void System::write_thread0_disable(unsigned shire, uint32_t value)
 {
     shire_other_esrs[shire].thread0_disable = value;
     recalculate_thread0_enable(shire);
-#ifdef SYS_EMU
-    sys_emu::recalculate_thread_disable(shire);
-#endif
 }
 
 
-void write_thread1_disable(unsigned shire, uint32_t value)
+void System::write_thread1_disable(unsigned shire, uint32_t value)
 {
     shire_other_esrs[shire].thread1_disable = value;
     recalculate_thread1_enable(shire);
-#ifdef SYS_EMU
-    sys_emu::recalculate_thread_disable(shire);
-#endif
 }
 
 
-void write_minion_feature(unsigned shire, uint8_t value)
+void System::write_minion_feature(unsigned shire, uint8_t value)
 {
     shire_other_esrs[shire].minion_feature = value;
     recalculate_thread1_enable(shire);
 }
 
 
-void write_icache_prefetch(int /*privilege*/, unsigned shire, uint64_t value)
+void System::write_icache_prefetch(int /*privilege*/, unsigned shire, uint64_t value)
 {
     assert(shire <= EMU_MASTER_SHIRE);
 #ifdef SYS_EMU
@@ -1254,7 +1151,7 @@ void write_icache_prefetch(int /*privilege*/, unsigned shire, uint64_t value)
 }
 
 
-uint64_t read_icache_prefetch(int /*privilege*/, unsigned shire)
+uint64_t System::read_icache_prefetch(int /*privilege*/, unsigned shire) const
 {
     (void) shire;
     assert(shire <= EMU_MASTER_SHIRE);
@@ -1267,7 +1164,7 @@ uint64_t read_icache_prefetch(int /*privilege*/, unsigned shire)
 }
 
 
-void finish_icache_prefetch(unsigned shire)
+void System::finish_icache_prefetch(unsigned shire)
 {
     (void) shire;
     assert(shire <= EMU_MASTER_SHIRE);

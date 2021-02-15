@@ -16,18 +16,26 @@
 namespace bemu {
 
 
+// forward declaration
+class System;
+
+
 //
 // A system agent abstract class
 //
 struct Agent {
     virtual std::string name() const = 0;
+
+    System* chip = nullptr;
 };
 
 
 //
 // An external agent
 //
-struct Noagent: public Agent {
+struct Noagent final: public Agent {
+    Noagent(System* system) { this->chip = system; }
+
     std::string name() const override { return std::string(""); }
 };
 

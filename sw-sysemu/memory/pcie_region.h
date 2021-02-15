@@ -11,27 +11,23 @@
 #ifndef BEMU_PCIE_REGION_H
 #define BEMU_PCIE_REGION_H
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
-#include <functional>
-#include <vector>
 #include <cstring>
 #include "emu_gio.h"
 #include "literals.h"
-#include "memory_error.h"
-#include "memory_region.h"
+#include "system.h"
 #include "devices/pcie_dma.h"
 #include "devices/pcie_dbi_slv.h"
 #include "devices/pcie_nopcie_esr.h"
 #include "devices/pcie_usr_esr.h"
-#ifdef SYS_EMU
-#include "sys_emu.h"
-#endif
+#include "memory/memory_error.h"
+#include "memory/memory_region.h"
+#include "memory/null_region.h"
 
 namespace bemu {
 
-
-extern typename MemoryRegion::reset_value_type memory_reset_value;
 
 template<unsigned long long Base, unsigned long long N>
 struct PcieRegion : public MemoryRegion {
@@ -66,7 +62,7 @@ struct PcieRegion : public MemoryRegion {
     void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
         const auto elem = search(pos, n);
         if (!elem) {
-            default_value(result, n, memory_reset_value, pos);
+            default_value(result, n, agent.chip->memory_reset_value, pos);
             return;
         }
         elem->read(agent, pos - elem->first(), n, result);
@@ -82,14 +78,10 @@ struct PcieRegion : public MemoryRegion {
             uint64_t match_addr = ((uint64_t)msix_match_high << 32) | (msix_match_low & ~3u);
             // Check if accessed address matches MSI-X address
             if (pos == (match_addr - Base)) {
-                if (n < 4)
+                if (n < 4) {
                     throw memory_error(first() + pos);
-#ifdef SYS_EMU
-                if (sys_emu::get_api_communicate())
-                    sys_emu::get_api_communicate()->raise_host_interrupt(1ul << *source32);
-                else
-                    LOG_NOTHREAD(WARN, "%s", "API Communicate is NULL!");
-#endif
+                }
+                agent.chip->raise_host_interrupt(1ul << *source32);
                 return;
             }
         }
@@ -114,7 +106,7 @@ struct PcieRegion : public MemoryRegion {
     addr_type first() const override { return Base; }
     addr_type last() const override { return Base + N - 1; }
 
-    void dump_data(std::ostream&, size_type, size_type) const override { }
+    void dump_data(const Agent&, std::ostream&, size_type, size_type) const override { }
 
     // Members
     NullRegion          <r_pcie0_slv_pos,   128_GiB>  pcie0_slv{};
@@ -149,8 +141,10 @@ protected:
         &pcie_nopciesr,
     }};
 
-    std::array<PcieDma<true>,  ETSOC_CC_NUM_DMA_WR_CHAN> pcie0_dma_wrch{}, pcie1_dma_wrch{};
-    std::array<PcieDma<false>, ETSOC_CC_NUM_DMA_RD_CHAN> pcie0_dma_rdch{}, pcie1_dma_rdch{};
+    std::array<PcieDma<true>,  ETSOC_CC_NUM_DMA_WR_CHAN> pcie0_dma_wrch{{},};
+    std::array<PcieDma<true>,  ETSOC_CC_NUM_DMA_WR_CHAN> pcie1_dma_wrch{{},};
+    std::array<PcieDma<false>, ETSOC_CC_NUM_DMA_RD_CHAN> pcie0_dma_rdch{{},};
+    std::array<PcieDma<false>, ETSOC_CC_NUM_DMA_RD_CHAN> pcie1_dma_rdch{{},};
 };
 
 

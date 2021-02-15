@@ -14,8 +14,9 @@
 #include <cassert>
 #include <cstdint>
 #include "esrs.h"
-#include "memory_region.h"
+#include "system.h"
 #include "devices/rvtimer.h"
+#include "memory/memory_region.h"
 
 namespace bemu {
 
@@ -36,13 +37,13 @@ struct SysregRegion : public MemoryRegion {
     void read(const Agent& agent, size_type pos, size_type count, pointer result) override {
         (void) count;
         assert(count == 8);
-        *reinterpret_cast<uint64_t*>(result) = esr_read(agent, first() + pos);
+        *reinterpret_cast<uint64_t*>(result) = agent.chip->esr_read(agent, first() + pos);
     }
 
     void write(const Agent& agent, size_type pos, size_type count, const_pointer source) override {
         (void) count;
         assert(count == 8);
-        esr_write(agent, first() + pos, *reinterpret_cast<const uint64_t*>(source));
+        agent.chip->esr_write(agent, first() + pos, *reinterpret_cast<const uint64_t*>(source));
     }
 
     void init(const Agent&, size_type, size_type, const_pointer) override {
@@ -52,7 +53,7 @@ struct SysregRegion : public MemoryRegion {
     addr_type first() const override { return Base; }
     addr_type last() const override { return Base + N - 1; }
 
-    void dump_data(std::ostream&, size_type, size_type) const override { }
+    void dump_data(const Agent&, std::ostream&, size_type, size_type) const override { }
 
     RVTimer<(1ull << EMU_NUM_MINION_SHIRES) - 1> ioshire_pu_rvtimer;
 };

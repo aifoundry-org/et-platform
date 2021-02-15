@@ -17,9 +17,6 @@
 #include "memory/memory_error.h"
 #include "memory/memory_region.h"
 #include "devices/pcie_dma.h"
-#ifdef SYS_EMU
-#include "sys_emu.h"
-#endif
 
 namespace bemu {
 
@@ -274,7 +271,7 @@ struct PcieDbiSlvRegion : public MemoryRegion {
         }
     }
 
-    void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
+    void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
 
         LOG_NOTHREAD(DEBUG, "PcieDbiSlvRegion::write(pos=0x%llx)", pos);
@@ -309,27 +306,27 @@ struct PcieDbiSlvRegion : public MemoryRegion {
             break;
         case PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_ADDRESS:
             dma_write_int_status = *source32;
-            edma_trigger_check();
+            edma_trigger_check(agent);
             break;
         case PF0_DMA_CAP_DMA_WRITE_INT_MASK_OFF_ADDRESS:
             dma_write_int_mask = *source32 & ((1u << ETSOC_CC_NUM_DMA_WR_CHAN) - 1);
-            edma_trigger_check();
+            edma_trigger_check(agent);
             break;
         case PF0_DMA_CAP_DMA_WRITE_INT_CLEAR_OFF_ADDRESS:
             dma_write_int_status &= ~(*source32 & 0xFFu); // DONE bits
-            edma_trigger_check();
+            edma_trigger_check(agent);
             break;
         case PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_ADDRESS:
             dma_read_int_status = *source32;
-            edma_trigger_check();
+            edma_trigger_check(agent);
             break;
         case PF0_DMA_CAP_DMA_READ_INT_MASK_OFF_ADDRESS:
             dma_read_int_mask = *source32 & ((1u << ETSOC_CC_NUM_DMA_RD_CHAN) - 1);
-            edma_trigger_check();
+            edma_trigger_check(agent);
             break;
         case PF0_DMA_CAP_DMA_READ_INT_CLEAR_OFF_ADDRESS:
             dma_read_int_status &= ~(*source32 & 0xFFu); // DONE bits
-            edma_trigger_check();
+            edma_trigger_check(agent);
             break;
         case PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_0_ADDRESS:
             dma_wrch_[0].ch_control1 = *source32;
@@ -459,9 +456,9 @@ struct PcieDbiSlvRegion : public MemoryRegion {
     addr_type first() const override { return Base; }
     addr_type last() const override { return Base + N - 1; }
 
-    void dump_data(std::ostream&, size_type, size_type) const override { }
+    void dump_data(const Agent&, std::ostream&, size_type, size_type) const override { }
 
-    void trigger_done_int(bool wrch, int chan_id) {
+    void trigger_done_int(const Agent& agent, bool wrch, int chan_id) {
         if (wrch) {
             assert(chan_id < ETSOC_CC_NUM_DMA_WR_CHAN);
             dma_write_int_status |= 1u << chan_id;
@@ -469,25 +466,25 @@ struct PcieDbiSlvRegion : public MemoryRegion {
             assert(chan_id < ETSOC_CC_NUM_DMA_RD_CHAN);
             dma_read_int_status |= 1u << chan_id;
         }
-        edma_trigger_check();
+        edma_trigger_check(agent);
     }
 
-    void edma_trigger_check(void) {
+    void edma_trigger_check(const Agent& agent) {
         for (int i = 0; i < ETSOC_CC_NUM_DMA_WR_CHAN; i++) {
             uint32_t plic_source = SPIO_PLIC_PSHIRE_PCIE0_EDMA0_INTR_ID + i;
             if ((dma_write_int_status & dma_write_int_mask) & (1u << i)) {
-                sp_plic_interrupt_pending_set(plic_source);
+                agent.chip->sp_plic_interrupt_pending_set(plic_source);
             } else {
-                sp_plic_interrupt_pending_clear(plic_source);
+                agent.chip->sp_plic_interrupt_pending_clear(plic_source);
             }
         }
 
         for (int i = 0; i < ETSOC_CC_NUM_DMA_RD_CHAN; i++) {
             uint32_t plic_source = SPIO_PLIC_PSHIRE_PCIE0_EDMA0_INTR_ID + ETSOC_CC_NUM_DMA_WR_CHAN + i;
             if ((dma_read_int_status & dma_read_int_mask) & (1u << i)) {
-                sp_plic_interrupt_pending_set(plic_source);
+                agent.chip->sp_plic_interrupt_pending_set(plic_source);
             } else {
-                sp_plic_interrupt_pending_clear(plic_source);
+                agent.chip->sp_plic_interrupt_pending_clear(plic_source);
             }
         }
     }
