@@ -561,7 +561,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                             (cm_to_mm_message_kernel_launch_completed_t *)&message;
 
                         Log_Write(LOG_LEVEL_DEBUG,
-                            "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE from Shire %d\n",
+                            "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE from S%d\r\n",
                             completed->shire_id);
 
                         /* Increase count of completed Shires */
@@ -570,8 +570,12 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                     }
                     case CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION:
                     {
+                        cm_to_mm_message_exception_t *exception =
+                            (cm_to_mm_message_exception_t *)&message;
+
                         Log_Write(LOG_LEVEL_DEBUG,
-                            "KW:from CW:CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION\n");
+                            "KW:from CW:CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION from H%" PRId64 "\r\n",
+                            exception->hart_id);
 
                         /* TODO - Multicast abort to shires associated with
                         current kernel slot, see kernel.c */
