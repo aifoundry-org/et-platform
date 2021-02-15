@@ -487,13 +487,13 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 {
     cm_iface_message_t message;
     int8_t status;
-    uint32_t done_cnt = 0;
+    uint32_t done_cnt;
     uint32_t kernel_shires_count;
-    bool cw_exception = false;
+    bool cw_exception;
     /* Get the kernel instance */
-    kernel_instance_t *kernel = &KW_CB.kernels[kw_idx];
+    kernel_instance_t *const kernel = &KW_CB.kernels[kw_idx];
 
-    Log_Write(LOG_LEVEL_DEBUG, "KW:HART=%d:IDX=%d\r\n", hart_id, kw_idx);
+    Log_Write(LOG_LEVEL_DEBUG, "KW:H%d:IDX=%d\r\n", hart_id, kw_idx);
 
     /* Empty all FCCs */
     init_fcc(FCC_0);
@@ -515,6 +515,10 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 
         Log_Write(LOG_LEVEL_DEBUG, "KW:Received:FCCEvent\r\n");
 
+        /* Reset state */
+        done_cnt = 0;
+        cw_exception = false;
+
         /* TODO: Set up watchdog to detect command timeout */
 
         /* Calculate the number of shires involved in kernel launch */
@@ -531,15 +535,16 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             asm volatile("csrci sip, 0x2");
 
             /* Process all the available messages */
-            while (done_cnt < kernel_shires_count)
+            while(done_cnt < kernel_shires_count)
             {
                 status = CM_To_MM_Iface_Unicast_Receive(
                     CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx, &message);
 
                 if (status != STATUS_SUCCESS)
                 {
-                    /* CIRCBUFF_ERROR_BAD_LENGTH means no more messages left */
-                    if (status != CIRCBUFF_ERROR_BAD_LENGTH)
+                    /* No more pending messages left */
+                    if ((status != CIRCBUFF_ERROR_BAD_LENGTH) &&
+                        (status != CIRCBUFF_ERROR_EMPTY))
                     {
                         Log_Write(LOG_LEVEL_DEBUG,
                             "KW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n", status);
@@ -555,8 +560,8 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                         cm_to_mm_message_kernel_launch_completed_t *completed =
                             (cm_to_mm_message_kernel_launch_completed_t *)&message;
 
-                        log_write(LOG_LEVEL_DEBUG,
-                            "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE from Shire %d\n",
+                        Log_Write(LOG_LEVEL_DEBUG,
+                            "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE from S%d\r\n",
                             completed->shire_id);
 
                         /* Increase count of completed Shires */
@@ -565,8 +570,15 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                     }
                     case CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION:
                     {
-                        log_write(LOG_LEVEL_DEBUG,
-                            "KW:from CW:CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION\n");
+                        cm_to_mm_message_exception_t *exception =
+                            (cm_to_mm_message_exception_t *)&message;
+
+                        Log_Write(LOG_LEVEL_DEBUG,
+                            "KW:from CW:CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION from H%" PRId64 "\r\n",
+                            exception->hart_id);
+
+                        /* TODO - Multicast abort to shires associated with
+                        current kernel slot, see kernel.c */
 
                         /* Even if there was an exception, that Shire will
                         still send a KERNEL_COMPLETE */
@@ -604,15 +616,10 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         /* If an exception was detected */
         if(cw_exception)
         {
-            /* TODO - Multicast abort to shires associated with
-            current kernel slot,, see kernel.c */
-
-            /* Set error status */
             rsp.status = DEV_OPS_API_KERNEL_LAUNCH_STATUS_RESULT_ERROR;
         }
         else
         {
-            /* Set result OK response */
             rsp.status = DEV_OPS_API_KERNEL_LAUNCH_STATUS_RESULT_OK;
         }
 

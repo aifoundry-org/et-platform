@@ -24,12 +24,11 @@
  */
 #define CIRCBUFF_OPERATION_SUCCESS     0
 #define CIRCBUFF_ERROR_BAD_LENGTH     -1
-#define CIRCBUFF_ERROR_DATA_DROPPED   -2
-#define CIRCBUFF_ERROR_BAD_HEAD_INDEX -3
-#define CIRCBUFF_ERROR_BAD_TAIL_INDEX -4
-#define CIRCBUFF_ERROR_FULL           -5
-#define CIRCBUFF_ERROR_EMPTY          -6
-#define CIRCBUFF_ERROR_END            -7 /* Indicates end of status codes for circbuff */
+#define CIRCBUFF_ERROR_BAD_HEAD_INDEX -2
+#define CIRCBUFF_ERROR_BAD_TAIL_INDEX -3
+#define CIRCBUFF_ERROR_FULL           -4
+#define CIRCBUFF_ERROR_EMPTY          -5
+#define CIRCBUFF_ERROR_END            -6 /* Indicates end of status codes for circbuff */
 
 /**
  * @brief Reserved defines for Circular Buffer flags field.

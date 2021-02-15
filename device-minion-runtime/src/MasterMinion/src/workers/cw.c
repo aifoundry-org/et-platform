@@ -164,7 +164,7 @@ int8_t CW_Init(void)
                             (const mm_to_cm_message_shire_ready_t *)&message;
 
                         Log_Write(LOG_LEVEL_DEBUG,
-                            "Dispatcher:from CW:MESSAGE_ID_SHIRE_READY 0x%" PRIx32 "\r\n",
+                            "Dispatcher:from CW:MESSAGE_ID_SHIRE_READY S%d\r\n",
                             shire_ready->shire_id);
 
                         /* Update the shire state in CW CB */
@@ -176,7 +176,8 @@ int8_t CW_Init(void)
                     default:
                     {
                         Log_Write(LOG_LEVEL_CRITICAL,
-                            "Dispatcher:from CW:Unknown message id = 0x%d\r\n", message.header.id);
+                            "Dispatcher:from CW:Unknown message id = 0x%x\r\n",
+                            message.header.id);
                         break;
                     }
                 }

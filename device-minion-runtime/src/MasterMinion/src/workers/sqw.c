@@ -78,7 +78,7 @@ static sqw_cb_t SQW_CB __attribute__((aligned(64))) = {0};
 ***********************************************************************/
 static inline void sqw_command_barrier(uint8_t sqw_idx)
 {
-    Log_Write(LOG_LEVEL_DEBUG, "%s", "SQW:Command Barrier\r\n");
+    Log_Write(LOG_LEVEL_DEBUG, "SQW:Command Barrier\r\n");
 
     /* Spin-wait until the commands count is zero */
     while (atomic_load_local_32(
@@ -151,9 +151,7 @@ void SQW_Notify(uint8_t sqw_idx)
     uint32_t minion = (uint32_t)SQW_WORKER_0 + (sqw_idx / 2);
     uint32_t thread = sqw_idx % 2;
 
-    Log_Write(LOG_LEVEL_DEBUG,
-        "%s%d%s%d%s","Notifying:SQW:minion=", minion, ":thread=",
-        thread, "\r\n");
+    Log_Write(LOG_LEVEL_DEBUG, "Notifying:SQW:minion=%d:thread=%d\r\n", minion, thread);
 
     global_fcc_flag_notify(&SQW_CB.sqw_fcc_flags[sqw_idx],
         minion, thread);
@@ -188,8 +186,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
     int32_t pop_ret_val;
     uint64_t start_cycles=0;
 
-    Log_Write(LOG_LEVEL_CRITICAL, "%s%d%s%d%s",
-        "SQW:HART=", hart_id, ":IDX=", sqw_idx, "\r\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "SQW:H%d:IDX=%d\r\n", hart_id, sqw_idx);
 
     /* Empty all FCCs */
     init_fcc(FCC_0);
@@ -203,8 +200,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
         /* Get current minion cycle */
         start_cycles = PMC_Get_Current_Cycles();
 
-        Log_Write(LOG_LEVEL_DEBUG, "%s%d%s",
-            "SQW:HART:", hart_id, ":received FCC event!\r\n");
+        Log_Write(LOG_LEVEL_DEBUG, "SQW:H%d:received FCC event!\r\n", hart_id);
 
         /* Process commands until there is no more data */
         do
@@ -214,9 +210,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
 
             if(pop_ret_val > 0)
             {
-                Log_Write(LOG_LEVEL_DEBUG, "%s%d%s",
-                    "SQW:Processing:SQW_IDX=",
-                    sqw_idx, "\r\n");
+                Log_Write(LOG_LEVEL_DEBUG, "SQW:Processing:SQW_IDX=%d\r\n", sqw_idx);
 
                 /* If barrier flag is set, wait until all cmds are
                 processed in the current SQ */
@@ -234,20 +228,18 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
                 status = Host_Command_Handler(cmd_buff,
                     (uint8_t)sqw_idx, start_cycles);
 
-                if (status != STATUS_SUCCESS)
+                if(status != STATUS_SUCCESS)
                 {
-                    Log_Write(LOG_LEVEL_ERROR, "%s %d %s",
-                        "SQW:ERROR:Procesisng failed.(Error code:)",
-                        status, "\r\n");
+                    Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:Procesisng failed.(Error code: %d)\r\n",
+                        status);
                 }
             }
-            else if (pop_ret_val < 0)
+            else if(pop_ret_val < 0)
             {
-                Log_Write(LOG_LEVEL_ERROR, "%s%d%s",
-                    "SQW:ERROR:VQ pop failed.(Error code:)",
-                    pop_ret_val, "\r\n");
+                Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:VQ pop failed.(Error code: %d)\r\n",
+                    pop_ret_val);
             }
-        } while (pop_ret_val > 0);
+        } while(pop_ret_val > 0);
     }
 
     return;
@@ -279,8 +271,7 @@ void SQW_Decrement_Command_Count(uint8_t sqw_idx)
     int32_t original_val =
         atomic_add_signed_local_32(&SQW_CB.sqw_cmd_count[sqw_idx], -1);
 
-    Log_Write(LOG_LEVEL_DEBUG, "%s%d%s",
-        "SQW:Decrement:Command Count:", original_val - 1, "\r\n");
+    Log_Write(LOG_LEVEL_DEBUG, "SQW:Decrement:Command Count: %d\r\n", original_val - 1);
 }
 
 /************************************************************************
@@ -309,6 +300,5 @@ void SQW_Increment_Command_Count(uint8_t sqw_idx)
     int32_t original_val =
         atomic_add_signed_local_32(&SQW_CB.sqw_cmd_count[sqw_idx], 1);
 
-    Log_Write(LOG_LEVEL_DEBUG, "%s%d%s",
-        "SQW:Increment:Command Count:", original_val + 1, "\r\n");
+    Log_Write(LOG_LEVEL_DEBUG, "SQW:Increment:Command Count: %d\r\n", original_val + 1);
 }

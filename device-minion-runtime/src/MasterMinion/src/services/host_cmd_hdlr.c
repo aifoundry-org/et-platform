@@ -59,7 +59,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
         {
             struct device_ops_api_compatibility_rsp_t rsp;
 
-            Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:Processing:COMPATIBILITY_CMD\r\n");
+            Log_Write(LOG_LEVEL_DEBUG,
+                "HostCommandHandler:Processing:COMPATIBILITY_CMD\r\n");
 
             /* Construct and transmit response */
             rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
@@ -75,11 +76,13 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
             if(status == STATUS_SUCCESS)
             {
-                Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
             }
             else
             {
-                Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:HostIface:Push:Failed\r\n");
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "HostCommandHandler:HostIface:Push:Failed\r\n");
             }
 
             /* Decrement commands count being processed by given SQW */
@@ -92,7 +95,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             struct device_ops_device_fw_version_cmd_t *cmd = (void *)hdr;
             struct device_ops_fw_version_rsp_t rsp;
 
-            Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:Processing:FW_VERSION_CMD\r\n");
+            Log_Write(LOG_LEVEL_DEBUG,
+                "HostCommandHandler:Processing:FW_VERSION_CMD\r\n");
 
             /* Construct and transmit response */
             rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
@@ -132,11 +136,13 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
             if(status == STATUS_SUCCESS)
             {
-                Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
             }
             else
             {
-                Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:HostIface:Push:Failed\r\n");
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "HostCommandHandler:HostIface:Push:Failed\r\n");
             }
 
             /* Decrement commands count being processed by given SQW */
@@ -149,7 +155,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             struct device_ops_echo_cmd_t *cmd = (void *)hdr;
             struct device_ops_echo_rsp_t rsp;
 
-            Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:Processing:ECHO_CMD\r\n");
+            Log_Write(LOG_LEVEL_DEBUG,
+                "HostCommandHandler:Processing:ECHO_CMD\r\n");
 
             /* Construct and transmit response */
             rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
@@ -163,11 +170,13 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
             if(status == STATUS_SUCCESS)
             {
-                Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
             }
             else
             {
-                Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:HostIface:Push:Failed\r\n");
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "HostCommandHandler:HostIface:Push:Failed\r\n");
             }
 
             /* Decrement commands count being processed by given SQW */
@@ -181,7 +190,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             struct device_ops_kernel_launch_rsp_t rsp;
             uint8_t kw_idx;
 
-            Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:Processing:KERNEL_LAUNCH_CMD\r\n");
+            Log_Write(LOG_LEVEL_DEBUG,
+                "HostCommandHandler:Processing:KERNEL_LAUNCH_CMD\r\n");
 
             /* Compute Wait Cycles (cycles the command was sitting in SQ prior to launch)
                Snapshot current cycle
@@ -202,7 +212,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             }
             else
             {
-                Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:KernelLaunch:Failed:Status:%d\r\n",
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "HostCommandHandler:KernelLaunch:Failed:Status:%d\r\n",
                     status);
 
                 /* Construct and transit command response */
@@ -219,11 +230,13 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
                 if(status == STATUS_SUCCESS)
                 {
-                    Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
+                    Log_Write(LOG_LEVEL_DEBUG,
+                        "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
                 }
                 else
                 {
-                    Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:HostIface:Push:Failed\r\n");
+                    Log_Write(LOG_LEVEL_DEBUG,
+                        "HostCommandHandler:HostIface:Push:Failed\r\n");
                 }
 
                 /* Decrement commands count being processed by given SQW */
@@ -237,7 +250,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             struct device_ops_kernel_abort_cmd_t *cmd = (void *)hdr;
             struct device_ops_kernel_abort_rsp_t rsp;
 
-            Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:Processing:KERNEL_ABORT_CMD\r\n");
+            Log_Write(LOG_LEVEL_DEBUG,
+                "HostCommandHandler:Processing:KERNEL_ABORT_CMD\r\n");
 
             /* Dispatch kernel abort command */
             KW_Dispatch_Kernel_Abort_Cmd(cmd, sqw_idx);
@@ -254,11 +268,13 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
             if(status == STATUS_SUCCESS)
             {
-                Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
             }
             else
             {
-                Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:HostIface:Push:Failed\r\n");
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "HostCommandHandler:HostIface:Push:Failed\r\n");
             }
 
             /* Decrement commands count being processed by given SQW */
@@ -277,7 +293,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             on device to move data from host to device, similarly a read
             command from host will trigger the implementation to configure
             a DMA write channel on device to move data from device to host */
-            Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:Processing:DATA_READ_CMD\r\n");
+            Log_Write(LOG_LEVEL_DEBUG,
+                "HostCommandHandler:Processing:DATA_READ_CMD\r\n");
 
             /* Obtain the next available DMA write channel */
             status = DMAW_Write_Find_Idle_Chan_And_Reserve(&chan);
@@ -304,7 +321,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
             if(status != STATUS_SUCCESS)
             {
-                Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:DATA_READ_CMD:Failed:Status:%d\r\n",
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "HostCommandHandler:DATA_READ_CMD:Failed:Status:%d\r\n",
                     status);
 
                 /* Construct and transmit command response */
@@ -332,11 +350,13 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
                 if(status == STATUS_SUCCESS)
                 {
-                    Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
+                    Log_Write(LOG_LEVEL_DEBUG,
+                        "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
                 }
                 else
                 {
-                    Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:HostIface:Push:Failed\r\n");
+                    Log_Write(LOG_LEVEL_DEBUG,
+                        "HostCommandHandler:HostIface:Push:Failed\r\n");
                 }
 
                 /* Decrement commands count being processed by given SQW */
@@ -357,7 +377,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             data from host to device, similarly a read command from host will
             trigger the implementation to configure a DMA write channel on device
             to move data from device to host */
-            Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:Processing:DATA_WRITE_CMD\r\n");
+            Log_Write(LOG_LEVEL_DEBUG,
+                "HostCommandHandler:Processing:DATA_WRITE_CMD\r\n");
 
             /* Obtain the next available DMA read channel */
             status = DMAW_Read_Find_Idle_Chan_And_Reserve(&chan);
@@ -414,11 +435,13 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
                 if(status == STATUS_SUCCESS)
                 {
-                    Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
+                    Log_Write(LOG_LEVEL_DEBUG,
+                        "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
                 }
                 else
                 {
-                    Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:HostIface:Push:Failed\r\n");
+                    Log_Write(LOG_LEVEL_DEBUG,
+                        "HostCommandHandler:HostIface:Push:Failed\r\n");
                 }
 
                 /* Decrement commands count being processed by given SQW */
@@ -432,7 +455,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             /* Decrement commands count being processed by given SQW */
             SQW_Decrement_Command_Count(sqw_idx);
 
-            Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:UnsupportedCmd\r\n");
+            Log_Write(LOG_LEVEL_DEBUG,
+                "HostCommandHandler:UnsupportedCmd\r\n");
             status = -1;
             break;
         }
