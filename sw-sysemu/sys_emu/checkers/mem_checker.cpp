@@ -320,9 +320,9 @@ bool mem_checker::read(uint64_t address, op_location_t location, uint32_t shire_
     // Get timestamps
     uint64_t access_time_stamp = 0;
     
-    if(global_found)                             access_time_stamp = it_global->second.time_stamp;
-    if(shire_found  && (location != COH_GLOBAL)) access_time_stamp = it_shire->second.time_stamp;
-    if(minion_found && (location == COH_MINION)) access_time_stamp = it_minion->second.time_stamp;
+    if(global_found)                                                    access_time_stamp = it_global->second.time_stamp;
+    if(shire_found  && it_shire->second.l2 && (location != COH_GLOBAL)) access_time_stamp = it_shire->second.time_stamp;
+    if(minion_found                        && (location == COH_MINION)) access_time_stamp = it_minion->second.time_stamp;
 
     // Checks if access is coherent
     bool coherent = true;
@@ -833,7 +833,7 @@ void mem_checker::dump_shire(shire_mem_info_t * shire_info, std::string func, st
 // Dumps the contents of a global entry
 void mem_checker::dump_global(global_mem_info_t * global_info, std::string func, std::string op, uint64_t addr, uint32_t minion)
 {
-    MD_LOG(addr, minion, printf("mem_checker::%s %s global directory => addr %016llX, l2_dirty_shire_id: %i, shire_mask: 0x%llX, cb_dirty: %i, cb_quarter: 0x%X, time_stamp: %llu, latest_time_stap: %llu\n",
+    MD_LOG(addr, minion, printf("mem_checker::%s %s global directory => addr %016llX, l2_dirty_shire_id: %i, shire_mask: 0x%llX, cb_dirty: %i, cb_quarter: 0x%X, time_stamp: %llu, latest_time_stamp: %llu\n",
           func.c_str(), op.c_str(), (long long unsigned int) addr, global_info->l2_dirty_shire_id, (long long unsigned int) bool_array_to_int(global_info->shire_mask, EMU_NUM_SHIRES),
           global_info->cb_dirty, (uint32_t) bool_array_to_int(global_info->cb_dirty_quarter, 4), (long long unsigned int) global_info->time_stamp, (long long unsigned int) global_info->latest_time_stamp));
 }
