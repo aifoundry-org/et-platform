@@ -92,10 +92,11 @@ find_package(esperanto-device-api REQUIRED)
 find_package(EsperantoBootLoader REQUIRED)
 find_package(EsperantoDeviceMinionRuntime REQUIRED)
 find_package(EsperantoTestKernels REQUIRED)
-find_package(EsperantoPCIeDriver REQUIRED)
+find_package(linuxDriver REQUIRED)
 
 message("EsperantoBootLoader found: " ${EsperantoBootLoader_FOUND})
 message("EsperantoDeviceMinionRuntime found: " ${EsperantoDeviceMinionRuntime_FOUND})
+message("linuxDriver found: " ${linuxDriver_FOUND})
 
 # Add definitions and compile options
 add_definitions("-DENABLE_ET_LOG=$<BOOL:${ENABLE_ET_LOG}>")
