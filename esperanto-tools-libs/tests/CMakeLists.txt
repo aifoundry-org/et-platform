@@ -13,6 +13,8 @@ include(GoogleTest)
 
 find_package(sentry REQUIRED)
 find_package(breakpad REQUIRED)
+find_package(DeviceLayer REQUIRED)
+find_package(sw-sysemu REQUIRED)
 
 include_directories(${GTEST_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
@@ -48,7 +50,6 @@ add_custom_target(ci-dependencies
 add_compile_options(-g3 -O0 -std=c++17)
 
 set(COMMON_TEST_LIBRARIES
-
    -Wl,--whole-archive etrt_static -Wl,--no-whole-archive
   libgtest_main.a
   libgtest.a

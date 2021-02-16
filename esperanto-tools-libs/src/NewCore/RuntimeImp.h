@@ -10,10 +10,10 @@
 
 #pragma once
 
-#include "ProfilerImp.h"
-
 #include "EventManager.h"
 #include "MemoryManager.h"
+#include "ProfilerImp.h"
+#include "ResponseReceiver.h"
 #include "runtime/IRuntime.h"
 #include <mutex>
 #include <thread>
@@ -24,9 +24,9 @@ class KernelParametersCache;
 class MailboxReader;
 class MemoryManager;
 class ITarget;
-class RuntimeImp : public IRuntime {
+class RuntimeImp : public IRuntime, public ResponseReceiver::IReceiverServices {
 public:
-  RuntimeImp(Kind kind);
+  RuntimeImp(dev::IDeviceLayer* deviceLayer);
   ~RuntimeImp();
 
   std::vector<DeviceId> getDevices() override;
@@ -54,6 +54,9 @@ public:
   IProfiler* getProfiler() override {
     return &profiler_;
   }
+  // IResponseServices
+  std::vector<int> getDevicesWithEventsOnFly() const override;
+  void onResponseReceived(const std::vector<std::byte>& response) override;
 
 private:
   struct Kernel {
@@ -72,7 +75,6 @@ private:
   };
 
   struct Stream {
-    //#TODO we will add later VQs information see epic SW-4377
     Stream(DeviceId deviceId, int vq)
       : deviceId_(deviceId)
       , vq_(vq) {
@@ -82,9 +84,22 @@ private:
     int vq_;
   };
 
-  std::unique_ptr<MailboxReader> mailboxReader_;
-  std::unique_ptr<ITarget> target_;
+  struct QueueHelper {
+    explicit QueueHelper(int count)
+      : queueCount_(count) {
+    }
+    int nextQueue() {
+      auto res = nextQueue_;
+      nextQueue_ = (nextQueue_ + 1) % queueCount_;
+      return res;
+    }
+    int nextQueue_ = 0;
+    int queueCount_;
+  };
+
+  dev::IDeviceLayer* deviceLayer_;
   std::vector<DeviceId> devices_;
+  std::vector<QueueHelper> queueHelpers_;
   std::unordered_map<DeviceId, MemoryManager> memoryManagers_;
   std::unordered_map<StreamId, Stream> streams_;
   std::unique_ptr<KernelParametersCache> kernelParametersCache_;
@@ -93,12 +108,13 @@ private:
 
   // using unique_ptr to not have to deal with elfio mess (the class is not friendly with modern c++)
   std::unordered_map<KernelId, std::unique_ptr<Kernel>> kernels_;
+  std::unique_ptr<ResponseReceiver> responseReceiver_;
 
   int nextKernelId_ = 0;
   int nextStreamId_ = 0;
 
   std::recursive_mutex mutex_;
 
-  profiling::ProfilerImp profiler_;  
+  profiling::ProfilerImp profiler_;
 };
 } // namespace rt

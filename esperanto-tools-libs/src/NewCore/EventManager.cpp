@@ -10,9 +10,11 @@
 
 #include "EventManager.h"
 #include "NewCore/utils.h"
+#include "runtime/IRuntime.h"
 #include <algorithm>
 #include <cassert>
 #include <condition_variable>
+#include <mutex>
 
 using namespace rt;
 
@@ -20,6 +22,10 @@ EventId EventManager::getNextId() {
   auto res = EventId{nextEventId_++};
   onflyEvents_.emplace(res);
   return res;
+}
+std::set<EventId> EventManager::getOnflyEvents() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return onflyEvents_;
 }
 
 void EventManager::dispatch(EventId event) {

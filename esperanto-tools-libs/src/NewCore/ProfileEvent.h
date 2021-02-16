@@ -43,6 +43,7 @@ enum class Class {
   WaitForEvent,
   WaitForStream,
   DeviceCommand,
+  KernelTimestamps,
   Pmc,
   First = GetDevices,
   Last = Pmc
@@ -79,6 +80,8 @@ inline std::string GetName(Class cls) {
     return "WaitForStream";
   case event::DeviceCommand:
     return "DeviceCommand";
+  case event::KernelTimestamps:
+    return "KernelTimestamps";
   case event::Pmc:
     return "Pmc";
   default:
@@ -121,6 +124,7 @@ inline auto GetType(const std::string& str) {
       s_map[GetType(type)] = type;
     }
   });
+  return s_map[str];
 }
 
 struct ProfileEvent {

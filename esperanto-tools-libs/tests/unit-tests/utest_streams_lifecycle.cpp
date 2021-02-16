@@ -14,15 +14,39 @@
 #define private public
 #include "NewCore/MemoryManager.h"
 #include "NewCore/RuntimeImp.h"
+#include "esperanto/runtime/Common/ProjectAutogen.h"
 #include <chrono>
 #include <cstdio>
+#include <experimental/filesystem>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
 using namespace rt;
 
+namespace {
+constexpr uint64_t kSysEmuMaxCycles = std::numeric_limits<uint64_t>::max();
+constexpr uint64_t kSysEmuMinionShiresMask = 0x1FFFFFFFFu;
+} // namespace
+
 TEST(StreamsLifeCycle, simple) {
-  auto runtime = IRuntime::create(IRuntime::Kind::SysEmu);
+  emu::SysEmuOptions sysEmuOptions;
+  sysEmuOptions.bootromTrampolineToBL2ElfPath = BOOTROM_TRAMPOLINE_TO_BL2_ELF;
+  sysEmuOptions.spBL2ElfPath = BL2_NEW_ELF;
+  sysEmuOptions.machineMinionElfPath = MACHINE_MINION_ELF;
+  sysEmuOptions.masterMinionElfPath = MASTER_MINION_NEW_ELF;
+  sysEmuOptions.workerMinionElfPath = WORKER_MINION_NEW_ELF;
+  sysEmuOptions.executablePath = std::string(SYSEMU_INSTALL_DIR) + "sys_emu";
+  sysEmuOptions.runDir = std::experimental::filesystem::current_path();
+  sysEmuOptions.maxCycles = kSysEmuMaxCycles;
+  sysEmuOptions.minionShiresMask = kSysEmuMinionShiresMask;
+  sysEmuOptions.puUart0Path = sysEmuOptions.runDir + "/pu_uart0_tx.log";
+  sysEmuOptions.puUart1Path = sysEmuOptions.runDir + "/pu_uart1_tx.log";
+  sysEmuOptions.spUart0Path = sysEmuOptions.runDir + "/spio_uart0_tx.log";
+  sysEmuOptions.spUart1Path = sysEmuOptions.runDir + "/spio_uart1_tx.log";
+  sysEmuOptions.startGdb = false;
+
+  auto deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(sysEmuOptions);
+  auto runtime = rt::IRuntime::create(deviceLayer.get());
   auto devices = runtime->getDevices();
   ASSERT_GE(devices.size(), 0);
   EXPECT_NO_THROW({
@@ -32,7 +56,24 @@ TEST(StreamsLifeCycle, simple) {
 }
 
 TEST(StreamsLifeCycle, create_and_destroy_10k_streams) {
-  auto runtime = IRuntime::create(IRuntime::Kind::SysEmu);
+  emu::SysEmuOptions sysEmuOptions;
+  sysEmuOptions.bootromTrampolineToBL2ElfPath = BOOTROM_TRAMPOLINE_TO_BL2_ELF;
+  sysEmuOptions.spBL2ElfPath = BL2_NEW_ELF;
+  sysEmuOptions.machineMinionElfPath = MACHINE_MINION_ELF;
+  sysEmuOptions.masterMinionElfPath = MASTER_MINION_NEW_ELF;
+  sysEmuOptions.workerMinionElfPath = WORKER_MINION_NEW_ELF;
+  sysEmuOptions.executablePath = std::string(SYSEMU_INSTALL_DIR) + "sys_emu";
+  sysEmuOptions.runDir = std::experimental::filesystem::current_path();
+  sysEmuOptions.maxCycles = kSysEmuMaxCycles;
+  sysEmuOptions.minionShiresMask = kSysEmuMinionShiresMask;
+  sysEmuOptions.puUart0Path = sysEmuOptions.runDir + "/pu_uart0_tx.log";
+  sysEmuOptions.puUart1Path = sysEmuOptions.runDir + "/pu_uart1_tx.log";
+  sysEmuOptions.spUart0Path = sysEmuOptions.runDir + "/spio_uart0_tx.log";
+  sysEmuOptions.spUart1Path = sysEmuOptions.runDir + "/spio_uart1_tx.log";
+  sysEmuOptions.startGdb = false;
+
+  auto deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(sysEmuOptions);
+  auto runtime = rt::IRuntime::create(deviceLayer.get());
   auto devices = runtime->getDevices();
   ASSERT_GE(devices.size(), 0);
   std::vector<StreamId> streams_;

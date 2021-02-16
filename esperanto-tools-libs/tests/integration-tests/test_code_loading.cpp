@@ -8,19 +8,42 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "runtime/IRuntime.h" 
+
+#include "device-layer/IDeviceLayer.h"
+#include "runtime/IRuntime.h"
+#include "sw-sysemu/SysEmuOptions.h"
+#include "esperanto/runtime/Common/ProjectAutogen.h"
 
 #include <fstream>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <ios>
+#include <experimental/filesystem>
 
 namespace {
-
+constexpr uint64_t kSysEmuMaxCycles = std::numeric_limits<uint64_t>::max();
+constexpr uint64_t kSysEmuMinionShiresMask = 0x1FFFFFFFFu;
 class TestCodeLoading : public ::testing::Test {
 public:
   void SetUp() override {
-    runtime_ = rt::IRuntime::create(rt::IRuntime::Kind::SysEmu);
+    emu::SysEmuOptions sysEmuOptions;
+    sysEmuOptions.bootromTrampolineToBL2ElfPath = BOOTROM_TRAMPOLINE_TO_BL2_ELF;
+    sysEmuOptions.spBL2ElfPath = BL2_NEW_ELF;
+    sysEmuOptions.machineMinionElfPath = MACHINE_MINION_ELF;
+    sysEmuOptions.masterMinionElfPath = MASTER_MINION_NEW_ELF;
+    sysEmuOptions.workerMinionElfPath = WORKER_MINION_NEW_ELF;
+    sysEmuOptions.executablePath = std::string(SYSEMU_INSTALL_DIR) + "sys_emu";
+    sysEmuOptions.runDir = std::experimental::filesystem::current_path(); 
+    sysEmuOptions.maxCycles = kSysEmuMaxCycles;
+    sysEmuOptions.minionShiresMask = kSysEmuMinionShiresMask;
+    sysEmuOptions.puUart0Path = sysEmuOptions.runDir + "/pu_uart0_tx.log";
+    sysEmuOptions.puUart1Path = sysEmuOptions.runDir + "/pu_uart1_tx.log";
+    sysEmuOptions.spUart0Path = sysEmuOptions.runDir + "/spio_uart0_tx.log";
+    sysEmuOptions.spUart1Path = sysEmuOptions.runDir + "/spio_uart1_tx.log";
+    sysEmuOptions.startGdb = false;
+
+    deviceLayer_ = dev::IDeviceLayer::createSysEmuDeviceLayer(sysEmuOptions);
+    runtime_ = rt::IRuntime::create(deviceLayer_.get());
     devices_ = runtime_->getDevices();
     ASSERT_GE(devices_.size(), 1);
     auto elf_file = std::ifstream("../convolution.elf", std::ios::in | std::ios::binary);
@@ -36,6 +59,7 @@ public:
   void TearDown() override { runtime_.reset(); }
 
   rt::RuntimePtr runtime_;
+  std::unique_ptr<dev::IDeviceLayer> deviceLayer_;
   std::vector<std::byte> convolutionContent_;
   std::vector<rt::DeviceId> devices_;
 };
@@ -54,7 +78,7 @@ TEST_F(TestCodeLoading, LoadKernel) {
 TEST_F(TestCodeLoading, MultipleLoads) {
   std::vector<rt::KernelId> kernels;
 
-  for (int i = 0; i < 10000; ++i) {
+  for (int i = 0; i < 100; ++i) {
     EXPECT_NO_THROW(kernels.emplace_back(
       runtime_->loadCode(devices_.front(), convolutionContent_.data(), convolutionContent_.size())));
   }

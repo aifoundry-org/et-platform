@@ -15,6 +15,11 @@
 #include <stdexcept>
 #include <vector>
 
+// forward declarations
+namespace dev {
+class IDeviceLayer;
+}
+
 /// \defgroup runtime_api Runtime API
 ///
 /// The runtime API provides different services to the et-soc devices, allowing
@@ -36,7 +41,7 @@ namespace rt {
 class IProfiler;
 
 /// \brief Event Handler
-enum class EventId : int {};
+enum class EventId : uint16_t {};
 
 /// \brief Stream Handler
 enum class StreamId : int {};
@@ -240,7 +245,7 @@ public:
   ///
   /// @returns RuntimePtr an IRuntime instance
   ///
-  static RuntimePtr create(Kind kind);
+  static RuntimePtr create(dev::IDeviceLayer* deviceLayer);
 };
 
 } // namespace rt

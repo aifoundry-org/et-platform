@@ -93,6 +93,8 @@ find_package(EsperantoBootLoader REQUIRED)
 find_package(EsperantoDeviceMinionRuntime REQUIRED)
 find_package(EsperantoTestKernels REQUIRED)
 find_package(linuxDriver REQUIRED)
+find_package(DeviceLayer REQUIRED)
+find_package(sw-sysemu REQUIRED)
 
 message("EsperantoBootLoader found: " ${EsperantoBootLoader_FOUND})
 message("EsperantoDeviceMinionRuntime found: " ${EsperantoDeviceMinionRuntime_FOUND})
