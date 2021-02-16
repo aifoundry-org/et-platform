@@ -31,11 +31,7 @@
 
 #include "bl2_pmic_controller.h"
 
-// TODO: To be migrated to PMIC interface register... 
 #define PMIC_SLAVE_ADDRESS 0x2
-#define SOC_TEMPERATURE 0x3
-#define SYSTEM_TDP 0x4
-#define SOC_POWER 0x5
 
 // ***********************************
 // Generic PMIC setup
@@ -78,22 +74,52 @@ static void set_pmic_reg(uint8_t reg, uint8_t value) {
 // ***********************************
 
 uint8_t pmic_read_soc_power(void) {
-  return(get_pmic_reg(SOC_POWER));
+  return(get_pmic_reg(INPUT_POWER));
 }
 
-void pmic_set_temperature_threshold(uint8_t reg, uint8_t limit) {
-   set_pmic_reg(reg,limit);
+void pmic_set_temperature_threshold(_Bool reg, int limit) {
+
+   if ((limit < 55) || (limit > 85)) {
+     printf ("Error unsupported Temperature limits\n");
+   } 
+   else {
+     set_pmic_reg((reg ? TEMP_ALARM_CONFIG_LO:TEMP_ALARM_CONFIG_HI) ,(uint8_t)(limit-55));
+   }
 }
 
-void pmic_set_tdp_threshold(uint8_t limit) {
-   set_pmic_reg(SYSTEM_TDP,limit);
+void pmic_set_tdp_threshold(int limit) {
+   if ((limit < 0) || (limit > 64)) {
+     printf ("Error unsupported TDP limits\n");
+   } 
+   else {
+    set_pmic_reg(POWER_ALARM_SET_POINT,(uint8_t)(limit << 2));
+   }
 }
 
 uint8_t pmic_get_temperature(void) {
-   return(get_pmic_reg(SOC_TEMPERATURE));
+   return(get_pmic_reg(SYSTEM_TEMP));
 }
 
-uint8_t pmic_get_voltage(uint8_t shire) {
-   return(get_pmic_reg(shire));
+uint8_t pmic_get_voltage(enum shire_type_t shire) {
+
+   switch(shire) { 
+   case DDR: 
+      return(get_pmic_reg(DDR_VOLTAGE));
+   case L2CACHE:
+      return(get_pmic_reg(L2_CACHE_VOLTAGE));
+   case MAXION:
+      return(get_pmic_reg(MAXION_VOLTAGE));
+   case MINION:
+      return(get_pmic_reg(MINION_SHIRE_ALL_VOLTAGE));
+   case PCIE:
+      return(get_pmic_reg(PCIE_VOLTAGE));
+   case NOC:
+      return(get_pmic_reg(NOC_VOLTAGE));
+   default:
+    {
+      printf("Error invalid Shire ID to extract Voltage");
+      return 0;
+    }
+   }
 }
 
