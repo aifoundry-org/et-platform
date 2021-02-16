@@ -9,7 +9,7 @@
 #------------------------------------------------------------------------------
 
 get_property(PCIE_DRIVER_INC_DIR
-  TARGET et-pcie-driver
+  TARGET linuxDriver::etsoc1-pcie-driver
   PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
 
 include_directories(${PCIE_DRIVER_INC_DIR})
