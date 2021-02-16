@@ -93,7 +93,7 @@ pipeline {
               propagate: true,
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},tools/sw-sysemu:${BRANCH}"),
                 string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
               ]
           }
@@ -105,7 +105,7 @@ pipeline {
               propagate: true,
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},tools/sw-sysemu:${BRANCH}"),
                 string(name: 'PYTEST_RETRIES', value: '2'),
                 string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
               ]
@@ -155,7 +155,7 @@ pipeline {
                   recipientProviders: [[$class:'UpstreamComitterRecipientProvider']],
                   to: env.EMAIL_CI_EXTRAS
               )
-            }  
+            }
           }
           if (env.EMAIL_NIGHTLY_TEAM == 'true') {
             if (env.BRANCH == env.EMAIL_NIGHTLY_BRANCH) {
@@ -198,7 +198,7 @@ pipeline {
                   recipientProviders: [[$class:'UpstreamComitterRecipientProvider']],
                   to: env.EMAIL_CI_EXTRAS
               )
-            }  
+            }
           }
           if (env.EMAIL_NIGHTLY_TEAM == 'true') {
             if (env.BRANCH == env.EMAIL_NIGHTLY_BRANCH) {
@@ -241,7 +241,7 @@ pipeline {
                   recipientProviders: [[$class:'UpstreamComitterRecipientProvider']],
                   to: env.EMAIL_CI_EXTRAS
               )
-            }  
+            }
           }
           if (env.EMAIL_NIGHTLY_TEAM == 'true') {
             if (env.BRANCH == env.EMAIL_NIGHTLY_BRANCH) {
