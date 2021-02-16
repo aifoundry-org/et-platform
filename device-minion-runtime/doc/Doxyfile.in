@@ -803,7 +803,12 @@ INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/ \
                          @PROJECT_SOURCE_DIR@/src/MasterMinion/src/drivers/ \
                          @PROJECT_SOURCE_DIR@/src/MasterMinion/src/services/ \
                          @PROJECT_SOURCE_DIR@/src/MasterMinion/src/workers/ \
+                         @PROJECT_SOURCE_DIR@/src/MasterMinion/src/ \
                          @PROJECT_SOURCE_DIR@/src/WorkerMinion/ \
+                         @PROJECT_SOURCE_DIR@/src/WorkerMinion/include/ \
+                         @PROJECT_SOURCE_DIR@/src/WorkerMinion/src/ \
+                         @PROJECT_SOURCE_DIR@/src/shared/include/ \
+                         @PROJECT_SOURCE_DIR@/src/shared/src/ \
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses
@@ -866,7 +871,8 @@ FILE_PATTERNS          = *.java \
                          *.vhd \
                          *.vhdl \
                          *.ucf \
-                         *.qsf
+                         *.qsf \
+                         *.c
 
 # The RECURSIVE tag can be used to specify whether or not subdirectories should
 # be searched for input files as well.
@@ -2200,7 +2206,7 @@ HIDE_UNDOC_RELATIONS   = YES
 # set to NO
 # The default value is: NO.
 
-HAVE_DOT               = NO
+HAVE_DOT               = YES
 
 # The DOT_NUM_THREADS specifies the number of dot invocations doxygen is allowed
 # to run in parallel. When set to 0 doxygen will base this on the number of
@@ -2317,7 +2323,7 @@ INCLUDED_BY_GRAPH      = YES
 # The default value is: NO.
 # This tag requires that the tag HAVE_DOT is set to YES.
 
-CALL_GRAPH             = NO
+CALL_GRAPH             = YES
 
 # If the CALLER_GRAPH tag is set to YES then doxygen will generate a caller
 # dependency graph for every global function or class method.
@@ -2329,7 +2335,7 @@ CALL_GRAPH             = NO
 # The default value is: NO.
 # This tag requires that the tag HAVE_DOT is set to YES.
 
-CALLER_GRAPH           = NO
+CALLER_GRAPH           = YES
 
 # If the GRAPHICAL_HIERARCHY tag is set to YES then doxygen will graphical
 # hierarchy of all classes instead of a textual one.
