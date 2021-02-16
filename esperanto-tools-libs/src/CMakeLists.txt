@@ -133,6 +133,8 @@ set(COMMON_LIBRARY_DEPENDENCIES
   etsim_api
   stdc++fs
   fmt::fmt
+  deviceLayer::deviceLayer
+  sw-sysemu::sw-sysemu
  )
 
 if(SANITIZE_ADDRESS)

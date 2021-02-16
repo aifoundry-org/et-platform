@@ -60,7 +60,7 @@ public:
 };
 
 TEST_F(EventManagerF, simple) {
-  EventId ev{81293};
+  EventId ev{8193};
   //any event not onfly will be considered dispatched
   EXPECT_TRUE(em_.isDispatched(ev));
 

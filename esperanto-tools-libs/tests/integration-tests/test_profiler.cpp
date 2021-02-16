@@ -8,8 +8,10 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
+#include "esperanto/runtime/Common/ProjectAutogen.h"
 #include "runtime/IProfiler.h"
 #include "runtime/IRuntime.h"
+#include <device-layer/IDeviceLayer.h>
 #include <esperanto/runtime/Core/CommandLineOptions.h>
 #include <experimental/filesystem>
 #include <fstream>
@@ -18,6 +20,11 @@
 #include <ios>
 #include <sstream>
 #include <thread>
+
+namespace {
+constexpr uint64_t kSysEmuMaxCycles = std::numeric_limits<uint64_t>::max();
+constexpr uint64_t kSysEmuMinionShiresMask = 0x1FFFFFFFFu;
+} // namespace
 ABSL_FLAG(std::string, kernels_dir, "", "Directory where different kernel ELF files are located");
 
 namespace fs = std::experimental::filesystem;
@@ -34,7 +41,24 @@ TEST(Profiler, add_2_vectors_profiling) {
   std::vector<std::byte> kernelContent(size);
   kernel_file.read(reinterpret_cast<char*>(kernelContent.data()), size);
 
-  auto runtime = rt::IRuntime::create(rt::IRuntime::Kind::SysEmu);
+  emu::SysEmuOptions sysEmuOptions;
+  sysEmuOptions.bootromTrampolineToBL2ElfPath = BOOTROM_TRAMPOLINE_TO_BL2_ELF;
+  sysEmuOptions.spBL2ElfPath = BL2_NEW_ELF;
+  sysEmuOptions.machineMinionElfPath = MACHINE_MINION_ELF;
+  sysEmuOptions.masterMinionElfPath = MASTER_MINION_NEW_ELF;
+  sysEmuOptions.workerMinionElfPath = WORKER_MINION_NEW_ELF;
+  sysEmuOptions.executablePath = std::string(SYSEMU_INSTALL_DIR) + "sys_emu";
+  sysEmuOptions.runDir = std::experimental::filesystem::current_path();
+  sysEmuOptions.maxCycles = kSysEmuMaxCycles;
+  sysEmuOptions.minionShiresMask = kSysEmuMinionShiresMask;
+  sysEmuOptions.puUart0Path = sysEmuOptions.runDir + "/pu_uart0_tx.log";
+  sysEmuOptions.puUart1Path = sysEmuOptions.runDir + "/pu_uart1_tx.log";
+  sysEmuOptions.spUart0Path = sysEmuOptions.runDir + "/spio_uart0_tx.log";
+  sysEmuOptions.spUart1Path = sysEmuOptions.runDir + "/spio_uart1_tx.log";
+  sysEmuOptions.startGdb = false;
+
+  auto deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(sysEmuOptions);
+  auto runtime = rt::IRuntime::create(deviceLayer.get());
 
   // setup the profiler
   auto profiler = runtime->getProfiler();

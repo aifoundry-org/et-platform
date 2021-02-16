@@ -17,9 +17,9 @@
 #include "utils.h"
 #include <chrono>
 #include <cstdio>
-#include <elfio/elfio.hpp> 
-#include <esperanto/device-api/device_api_rpc_types_non_privileged.h>
-#include <esperanto/device-api/device_api_spec_non_privileged.h>
+#include <device-layer/IDeviceLayer.h>
+#include <elfio/elfio.hpp>
+#include <esperanto/device-apis/operations-api/device_ops_api_cxx.h>
 #include <sstream>
 #include <type_traits>
 
@@ -28,7 +28,7 @@ using namespace rt::profiling;
 
 EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const void* kernel_args,
                                  size_t kernel_args_size, uint64_t shire_mask, bool barrier) {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  std::unique_lock<std::recursive_mutex> lock(mutex_);
   auto&& kernel = find(kernels_, kernelId)->second;
 
   ScopedProfileEvent profileEvent(Class::KernelLaunch, profiler_, streamId,
@@ -51,11 +51,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
   if (kernel_args_size > 0) {
     barrier = true; // we must wait for parameters, so barrier is true if parameters
     pBuffer = kernelParametersCache_->allocBuffer(kernel->deviceId_);
-    // TODO fix this properly once SW-5098 is done  !
-    std::byte stageParams[1024];
-    assert(kernel_args_size <= sizeof stageParams);
-    memcpy(stageParams, kernel_args, kernel_args_size);
-    auto memcpyEvt = memcpyHostToDevice(streamId, stageParams, pBuffer, sizeof stageParams);
+    auto memcpyEvt = memcpyHostToDevice(streamId, kernel_args, pBuffer, kernel_args_size);
     stream.lastEventId_ = memcpyEvt;
   }
   auto event = eventManager_.getNextId();
@@ -64,29 +60,36 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
     kernelParametersCache_->reserveBuffer(event, pBuffer);
   }
 
-  // all old stuff from commandsGen here, except tracing
-  using namespace std::chrono;
-  auto time = steady_clock::now();
-  auto cmdId = static_cast<uint64_t>(event);
+  device_ops_api::device_ops_kernel_launch_cmd_t cmd;
+  cmd.command_info.cmd_hdr.tag_id = static_cast<uint16_t>(event);
+  cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD;
+  cmd.command_info.cmd_hdr.size = sizeof(cmd);
+  cmd.command_info.flags = barrier ? 1 : 0;
+  cmd.code_start_address = kernel->getEntryAddress();
+  cmd.pointer_to_args = reinterpret_cast<uint64_t>(pBuffer);
+  cmd.shire_mask = shire_mask;
 
-  kernel_launch_cmd_t cmd_info_;
-  cmd_info_.command_info.message_id = MBOX_DEVAPI_NON_PRIVILEGED_MID_KERNEL_LAUNCH_CMD;
-  cmd_info_.command_info.command_id = cmdId;
-  cmd_info_.command_info.host_timestamp = duration_cast<milliseconds>(time.time_since_epoch()).count();
-  cmd_info_.command_info.stream_id = static_cast<uint32_t>(streamId);
-  cmd_info_.code_start_address = kernel->getEntryAddress();
-  cmd_info_.pointer_to_args = reinterpret_cast<uint64_t>(pBuffer);
-  cmd_info_.shire_mask = shire_mask;
 
-  RT_DLOG(INFO) << "Writing execute kernel command into mailbox. Command id: " << std::hex << cmdId
-                << ", parameters: " <<  cmd_info_.pointer_to_args
-                << ", PC: "<< cmd_info_.code_start_address << ", shire_mask: " << shire_mask;
-  if (!target_->writeMailbox(&cmd_info_, sizeof(cmd_info_))) {
-    throw Exception("Error writing command to mailbox");
+  auto dev = static_cast<int>(stream.deviceId_);
+
+  RT_DLOG(INFO) << "Pushing kernel Launch Command on SQ: " << stream.vq_ << " Tag id: " << std::hex
+                << cmd.command_info.cmd_hdr.tag_id << ", parameters: " << cmd.pointer_to_args
+                << ", PC: " << cmd.code_start_address << ", shire_mask: " << shire_mask;
+
+  bool done = false;
+  while (!done) {
+    done = deviceLayer_->sendCommandMasterMinion(dev, stream.vq_,
+                                                reinterpret_cast<std::byte*>(&cmd), sizeof(cmd));
+    if (!done) {
+      lock.unlock();
+      RT_LOG(INFO) << "Submission queue " << stream.vq_
+                  << " is full. Can't send command now, blocking the thread till there is available space.";
+      uint64_t sq_bitmap;
+      bool cq_available;
+      deviceLayer_->waitForEpollEventsMasterMinion(dev, sq_bitmap, cq_available);
+      lock.lock();
+    }
   }
   stream.lastEventId_ = event;
-  // TODO we need support for VQs, so we must explictly wait till the kernel has been already executed and the event
-  // dispatched
-  waitForEvent(event);
   return event;
 }

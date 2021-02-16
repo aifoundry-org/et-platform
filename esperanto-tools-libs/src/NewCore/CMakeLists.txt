@@ -11,13 +11,11 @@
 add_library(etrt_NewCore OBJECT
   Runtime.cpp
   RuntimeImp.cpp
-  TargetSilicon.cpp
-  TargetSysEmu.cpp
   MemoryManager.cpp
   EventManager.cpp
   KernelParametersCache.cpp
+  ResponseReceiver.cpp
   KernelLaunch.cpp
-  MailboxReader.cpp
   )
 
 target_include_directories(etrt_NewCore PRIVATE

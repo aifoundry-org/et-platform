@@ -22,6 +22,7 @@ public:
   EventId getNextId();
   void dispatch(EventId event);
   void blockUntilDispatched(EventId event);
+  std::set<EventId> getOnflyEvents() const;
 
 private:
 
@@ -47,8 +48,7 @@ private:
 
   bool isDispatched(EventId event) const;
 
-
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
   std::set<EventId> onflyEvents_;
   std::unordered_map<EventId, std::unique_ptr<Semaphore>> blockedThreads_;
   std::underlying_type_t<EventId> nextEventId_ = 0;

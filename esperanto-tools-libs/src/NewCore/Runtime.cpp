@@ -12,5 +12,7 @@
 #include "runtime/IRuntime.h"
 
 namespace rt {
-RuntimePtr IRuntime::create(Kind kind) { return std::make_unique<RuntimeImp>(kind); }
+RuntimePtr IRuntime::create(dev::IDeviceLayer* deviceLayer) {
+  return std::make_unique<RuntimeImp>(deviceLayer);
+}
 }

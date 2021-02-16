@@ -8,25 +8,29 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #pragma once
-#include "ITarget.h"
 #include "KernelParametersCache.h"
 #include "NewCore/EventManager.h"
+#include "device-layer/IDeviceLayer.h"
 #include <atomic>
+#include <functional>
 #include <thread>
 
 namespace rt {
-class MailboxReader {
+class ResponseReceiver {
 public:
-  explicit MailboxReader(ITarget* target, KernelParametersCache* kernelParametersCache, EventManager* eventManager);
-  ~MailboxReader();
+  struct IReceiverServices {
+    virtual std::vector<int> getDevicesWithEventsOnFly() const = 0;
+    virtual void onResponseReceived(const std::vector<std::byte>& response) = 0;
+  };
+  explicit ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServices* receiverServices);
+  ~ResponseReceiver();
 
   void stop();
 
 private:
-  std::thread reader_;
+  std::thread receiver_;
   std::atomic<bool> run_;
-  ITarget* target_;
-  EventManager* eventManager_;
-  KernelParametersCache* kernelParametersCache_;
+  dev::IDeviceLayer* deviceLayer_;
+  IReceiverServices* receiverServices_;
 };
 } // namespace rt
