@@ -181,6 +181,11 @@
 */
 #define KW_BASE_HART_ID       2054U
 
+/*! \def KW_MS_BASE_HART
+    \brief Base HART number in Master Shire for the kernel workers
+*/
+#define KW_MS_BASE_HART       (KW_BASE_HART_ID - MM_BASE_ID)
+
 /*! \def MM_MAX_PARALLEL_KERNELS
     \brief Maximum number of kerenls in parallel
 */

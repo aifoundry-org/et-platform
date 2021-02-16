@@ -19,11 +19,6 @@
 #define KW_DEFS_H
 
 #include "config/mm_config.h"
-#include "kernel_state.h"
-#include "kernel_sync.h"
-#include "sync.h"
-#include "vq.h"
-#include "layout.h"
 
 #include <esperanto/device-apis/operations-api/device_ops_api_spec.h>
 #include <esperanto/device-apis/operations-api/device_ops_api_rpc_types.h>
@@ -50,12 +45,23 @@
 */
 #define KW_ERROR_KERNEL_SLOT_UNAVAILABLE -2
 
+/*! \def KW_ERROR_KERNEL_SLOT_NOT_USED
+    \brief Kernel Worker - Kernel used slot not found error
+*/
+#define KW_ERROR_KERNEL_SLOT_NOT_USED    -3
+
+/*! \def KW_ERROR_KERNEL_SLOT_NOT_FOUND
+    \brief Kernel Worker - Kernel slot not found error
+*/
+#define KW_ERROR_KERNEL_SLOT_NOT_FOUND   -4
+
 /*! \enum kernel_state_e
     \brief Enum that provides the state of a kernel
 */
 typedef enum {
     KERNEL_STATE_UN_USED = 0,
     KERNEL_STATE_IN_USE,
+    KERNEL_STATE_ABORTED
 } kernel_state_e;
 
 /*! \fn void KW_Init(void)
@@ -93,19 +99,10 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
     (struct device_ops_kernel_launch_cmd_t *cmd, uint8_t sqw_idx,
     uint8_t* kw_idx);
 
-/*! \fn int8_t KW_Dispatch_Kernel_Abort_Cmd
-        (struct device_ops_kernel_abort_cmd_t *cmd)
+/*! \fn int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd)
     \brief Kernel Worker's interface to dispatch a kernel abort command
     \param cmd Kernel Abort Command
-    \param sqw_idx Submission Queue index of command origination
 */
-int8_t KW_Dispatch_Kernel_Abort_Cmd
-    (struct device_ops_kernel_abort_cmd_t *cmd, uint8_t sqw_idx);
-
-/*! \fn int8_t KW_Fetch_Kernel_State(uint8_t kernel_id);
-    \brief Fetch kernel state
-    \param kernel_id Kernel ID
-*/
-uint8_t KW_Fetch_Kernel_State(uint8_t kernel_id);
+int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd);
 
 #endif /* KW_DEFS_H */
