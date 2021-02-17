@@ -565,8 +565,6 @@ CONFIG_INBOUND_IATU(0)
 CONFIG_INBOUND_IATU(1)
 CONFIG_INBOUND_IATU(2)
 CONFIG_INBOUND_IATU(3)
-CONFIG_INBOUND_IATU(4)
-CONFIG_INBOUND_IATU(5)
 
 static void pcie_init_atus(void)
 {
@@ -623,8 +621,6 @@ static void pcie_init_atus(void)
     //R_PU_MBOX_PC_MM   BAR2 + 0x0000   0x0020007000  4k     Mailbox shared memory
     //R_PU_MBOX_PC_SP   BAR2 + 0x1000   0x0030003000  4k     Mailbox shared memory
     //R_PU_TRG_PCIE     BAR2 + 0x2000   0x0030008000  8k     Mailbox interrupts
-    //R_PCIE_USRESR     BAR2 + 0x4000   0x7f80000000  4k     DMA control registers
-    //R_PU_SRAM_HI      BAR2 + 0x5000   0x0020020000  128k   Mailbox shared memory (VQ)
 
     //start on BAR2
     uint32_t baseAddr_lo =
@@ -650,17 +646,6 @@ static void pcie_init_atus(void)
                           R_PU_TRG_PCIE_SIZE); //size
 
     baseAddr += R_PU_TRG_PCIE_SIZE;
-
-    config_inbound_iatu_4(baseAddr,
-                          R_PCIE_USRESR_BASEADDR, //targetAddr
-                          R_PCIE_USRESR_SIZE);    //size
-
-    baseAddr += R_PCIE_USRESR_SIZE;
-
-    config_inbound_iatu_5(baseAddr,
-                          R_PU_SRAM_HI_BASEADDR, //targetAddr
-                          R_PU_SRAM_HI_SIZE);    //size
-
 
     miscControl1 = PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
         miscControl1, 0);
