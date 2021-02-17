@@ -135,9 +135,9 @@ static void dm_task_entry(void *pvParameters)
         // simulate the values fetched from the PMIC Interface
         // TODO: Uncomment after SW-6032 is fixed.
         // Module Temperature in C
-        //get_soc_power_reg()->soc_temperature = pmic_get_temperature();
+        get_soc_power_reg()->soc_temperature = pmic_get_temperature();
         // Module Power in watts
-        //get_soc_power_reg()->soc_power = pmic_read_soc_power();
+        get_soc_power_reg()->soc_power = pmic_read_soc_power();
         
         // Module Uptime //
         module_uptime = timer_get_ticks_count();
