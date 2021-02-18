@@ -120,7 +120,7 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
                 cm_to_mm_message_kernel_launch_nack_t nack_message;
                 nack_message.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_NACK;
                 nack_message.shire_id = get_shire_id();
-                nack_message.slot_index = (uint32_t)kernel_id;
+                nack_message.slot_index = (uint8_t)kernel_id;
                 // To Master Shire thread 0 aka Dispatcher (circbuff queue index is 0)
                 CM_To_MM_Iface_Unicast_Send(0, 0, (const cm_iface_message_t *)&nack_message);
             }
@@ -128,7 +128,7 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
             // Send message to master minion indicating the kernel is starting
             cm_to_mm_message_kernel_launch_ack_t ack_message;
             ack_message.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ACK;
-            ack_message.slot_index = kernel_id;
+            ack_message.slot_index = (uint8_t)kernel_id;
             // To Master Shire thread 0 aka Dispatcher (circbuff queue index is 0)
             CM_To_MM_Iface_Unicast_Send(0, 0, (const cm_iface_message_t *)&ack_message);
 
@@ -175,7 +175,7 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
                 completed_message.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE;
             }
             completed_message.shire_id = get_shire_id();
-            completed_message.slot_index = kernel_id;
+            completed_message.slot_index = (uint8_t)kernel_id;
             // To Master Shire thread 0 aka Dispatcher (circbuff queue index is 0)
             CM_To_MM_Iface_Unicast_Send(0, 0, (const cm_iface_message_t *)&completed_message);
         } else {
@@ -183,7 +183,7 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
             cm_to_mm_message_kernel_launch_nack_t nack_message;
             nack_message.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_NACK;
             nack_message.shire_id = get_shire_id();
-            nack_message.slot_index = (uint32_t)kernel_id;
+            nack_message.slot_index = (uint8_t)kernel_id;
             // To Master Shire thread 0 aka Dispatcher (circbuff queue index is 0)
             CM_To_MM_Iface_Unicast_Send(0, 0, (const cm_iface_message_t *)&nack_message);
         }

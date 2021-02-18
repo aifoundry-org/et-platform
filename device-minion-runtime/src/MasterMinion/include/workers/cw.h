@@ -48,10 +48,10 @@ typedef uint8_t cw_shire_state_t;
 */
 #define CW_SHIRE_UNAVAILABLE -2
 
-/*! \def CW_SHIRE_NOT_READY
-    \brief Compute Worker - Shire not ready
+/*! \def CW_SHIRES_NOT_READY
+    \brief Compute Worker - Shires not ready
 */
-#define CW_SHIRE_NOT_READY   -3
+#define CW_SHIRES_NOT_READY   -3
 
 /*! \fn int8_t CW_Init(void)
     \brief Initialize Compute Workers
@@ -68,13 +68,13 @@ int8_t CW_Init(void);
 */
 int8_t CW_Update_Shire_State(uint64_t shire, cw_shire_state_t shire_state);
 
-/*! \fn int8_t CW_Check_Shire_Available_And_Ready(uint64_t shire_mask)
+/*! \fn int8_t CW_Check_Shires_Available_And_Ready(uint64_t shire_mask)
     \brief Check if shire associated with compute workers is available
     and ready
     \param shire_mask Shire mask to check
     \return Status success or error
 */
-int8_t CW_Check_Shire_Available_And_Ready(uint64_t shire_mask);
+int8_t CW_Check_Shires_Available_And_Ready(uint64_t shire_mask);
 
 /*! \fn uint64_t CW_Get_Physically_Enabled_Shires(void)
     \brief Get mask for physically available shires of the chip

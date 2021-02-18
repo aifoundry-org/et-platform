@@ -20,7 +20,7 @@
     Public interfaces:
         CW_Init
         CW_Update_Shire_State
-        CW_Check_Shire_Available_And_Ready
+        CW_Check_Shires_Available_And_Ready
         CW_Get_Physically_Enabled_Shires
 */
 /***********************************************************************/
@@ -272,7 +272,7 @@ int8_t CW_Update_Shire_State(uint64_t shire, cw_shire_state_t shire_state)
 *
 *   FUNCTION
 *
-*       CW_Check_Shire_Available_And_Ready
+*       CW_Check_Shires_Available_And_Ready
 *
 *   DESCRIPTION
 *
@@ -287,7 +287,7 @@ int8_t CW_Update_Shire_State(uint64_t shire, cw_shire_state_t shire_state)
 *       int8t_t    Success status or error code
 *
 ***********************************************************************/
-int8_t CW_Check_Shire_Available_And_Ready(uint64_t shire_mask)
+int8_t CW_Check_Shires_Available_And_Ready(uint64_t shire_mask)
 {
     int8_t status = STATUS_SUCCESS;
 
@@ -303,7 +303,7 @@ int8_t CW_Check_Shire_Available_And_Ready(uint64_t shire_mask)
                 if (atomic_load_local_8(&CW_CB.shire_status[shire]) !=
                     CW_SHIRE_STATE_READY)
                 {
-                    status = CW_SHIRE_NOT_READY;
+                    status = CW_SHIRES_NOT_READY;
                     break;
                 }
             }
