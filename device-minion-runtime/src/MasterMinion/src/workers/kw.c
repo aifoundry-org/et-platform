@@ -231,7 +231,7 @@ static int8_t kw_reserve_kernel_shires(uint64_t req_shire_mask)
     acquire_local_spinlock(&KW_CB.resource_lock);
 
     /* Check the required shires are available and ready */
-    status = CW_Check_Shire_Available_And_Ready(req_shire_mask);
+    status = CW_Check_Shires_Available_And_Ready(req_shire_mask);
 
     if(status == STATUS_SUCCESS)
     {
@@ -244,7 +244,7 @@ static int8_t kw_reserve_kernel_shires(uint64_t req_shire_mask)
             }
         }
     }
-    else if (status == CW_SHIRE_NOT_READY)
+    else if (status == CW_SHIRES_NOT_READY)
     {
         status = KW_ERROR_KERNEL_SHIRES_NOT_READY;
     }
