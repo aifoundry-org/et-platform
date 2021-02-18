@@ -21,6 +21,8 @@
 #include "dm_service.h"
 #include "sp_host_iface.h"
 #include "bl2_historical_extreme.h"
+#include "bl2_ddr_init.h"
+#include "dm_event_control.h"
 #include "dm_task.h"
 
 /************************************************************************
@@ -46,14 +48,28 @@
 static void get_max_memory_error(tag_id_t tag_id, uint64_t req_start_time)
 {
     struct device_mgmt_max_memory_error_rsp_t dm_rsp;
+    int32_t status;
+    uint32_t ddr_ce_count;
+    volatile struct max_error_count_t *error_count = get_soc_max_control_block();
 
-    //TODO : This should be retrieved from BL2 Error data struct.
-    dm_rsp.max_ecc_count.count = 5;
+    status = ddr_get_ce_count(&ddr_ce_count);
+    if (!status) {
+        if (error_count->ddr_ce_max_count < ddr_ce_count) {
+            error_count-> ddr_ce_max_count = ddr_ce_count;
+        }
+        // TODO: Change this to uint32_t in rsp control block. same value is present in the json schema as well sw-6467
+        dm_rsp.max_ecc_count.count = (uint8_t)error_count->ddr_ce_max_count; 
+    }
+
+    if (status) {
+        printf("get_max_memory_error : driver error !\n");
+    }
 
     FILL_RSP_HEADER(dm_rsp, tag_id,
                     DM_CMD_GET_MAX_MEMORY_ERROR,
                     timer_get_ticks_count() - req_start_time,
-                    DM_STATUS_SUCCESS);
+                    (uint32_t)status); // TODO update the status type - SW-6467
+ 
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_max_memory_error_rsp_t))) {
         printf("get_max_memory_error: Cqueue push error!\n");

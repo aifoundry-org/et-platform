@@ -56,6 +56,18 @@ void setup_pmic(void)
     printf("PMIC connection establish\n");
 }
 
+
+int32_t pmic_error_control_init(dm_event_isr_callback event_cb)
+{
+   (void)event_cb;
+   return 0;
+}
+
+void pmic_error_isr(void)
+{
+
+}
+
 // ***********************************
 // Generic PMIC Read/Write functions
 // ***********************************

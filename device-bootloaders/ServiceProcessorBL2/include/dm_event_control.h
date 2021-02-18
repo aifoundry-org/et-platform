@@ -1,0 +1,54 @@
+#ifndef __DM_EVENT_CONTROL_H__
+#define __DM_EVENT_CONTROL_H__
+
+/***********************************************************************
+*
+* Copyright (C) 2020 Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*
+************************************************************************/
+
+/*! \file dm_events.h
+    \brief A C header that defines the the DM events interface, control
+            blocks and functions.
+*/
+/***********************************************************************/
+
+#include "dm_event_def.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+
+/*!
+ * @struct struct event_control_block_t
+ * @brief structure defining the max error fields and OS objects for
+ *      error handling.
+ */
+struct max_error_count_t
+{
+    uint32_t pcie_ce_max_count;
+    uint32_t pcie_uce_max_count;
+    uint32_t ddr_ce_max_count;
+    uint32_t ddr_uce_max_count;
+    uint32_t sram_ce_max_count;
+    uint32_t sram_uce_max_count;
+};
+
+/* function prototype to get global max error control block */
+volatile struct max_error_count_t  *get_soc_max_control_block(void);
+
+/* event control init function */
+int32_t dm_event_control_init(void);
+
+#define DM_EVENT_TASK_STACK             1024
+#define DM_EVENT_TASK_PRIORITY          1
+#define DM_EVENT_QUEUE_LENGTH           8
+#define DM_EVENT_QUEUE_ITEM_SIZE sizeof (struct event_message_t)
+#define DM_EVENT_QUEUE_SIZE             DM_EVENT_QUEUE_LENGTH * DM_EVENT_QUEUE_ITEM_SIZE
+
+#endif

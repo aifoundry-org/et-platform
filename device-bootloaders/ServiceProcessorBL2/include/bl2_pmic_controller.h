@@ -1,6 +1,9 @@
 #ifndef __BL2_PMIC_CONTROLLER_H__
 #define __BL2_PMIC_CONTROLLER_H__
 
+
+#include "dm_event_def.h"
+
 // Should come from the PMIC HAL 
 #define PMIC_FIMRWARE_VERSION 0x1
 #define GPIO_CONTROL 0x2
@@ -54,6 +57,9 @@ void pmic_set_temperature_threshold(_Bool reg, int limit);
 void pmic_set_tdp_threshold(int limit);
 uint8_t pmic_get_temperature(void);
 uint8_t pmic_get_voltage(enum shire_type_t shire);
+int32_t pmic_error_control_init(dm_event_isr_callback event_cb);
+void pmic_error_isr(void);
+
 
 #endif
 

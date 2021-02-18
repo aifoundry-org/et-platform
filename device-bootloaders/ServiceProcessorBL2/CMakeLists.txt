@@ -39,10 +39,13 @@ set(BL2_SOURCES
     driver/secure_sign.c
     driver/firmware_loader.c
     driver/interrupt.c
+    driver/bl2_pcie.c
+    driver/bl2_sram.c
     rtos_task/command_dispatcher.c
     rtos_task/flash_fs.c
     rtos_task/vaultip.c
     rtos_task/dm_task.c
+    rtos_task/event_handler.c
     dm_service/firmware_update.c
     dm_service/asset_track.c
     dm_service/thermal_power_monitor.c
@@ -51,6 +54,7 @@ set(BL2_SOURCES
     dm_service/error_control.c
     dm_service/historical_extreme.c
     dm_service/minion_state.c
+    dm_service/dm_events.c
     # This file get compiled different based on the configuration of each target
     common/build_configuration.c)
 

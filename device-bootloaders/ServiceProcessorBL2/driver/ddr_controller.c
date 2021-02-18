@@ -1,5 +1,5 @@
 #include "bl2_ddr_init.h"
-
+#include "dm_event_control.h"
 //
 // get_ms_reg_addr: This procedure is used to generate a memshire register address based on the
 // memshire ID and register name.
@@ -1090,4 +1090,54 @@ int ddr_config(void)
         ddr_init(memshire_id);
 
     return 0;
+}
+
+static struct ddr_event_control_block  event_control_block __attribute__((section(".data")));
+
+int32_t ddr_error_control_init(dm_event_isr_callback event_cb)
+{
+    event_control_block.event_cb = event_cb;
+    return  0;
+}
+int32_t ddr_error_control_deinit(void)
+{
+    return  0;
+}
+
+int32_t ddr_enable_uce_interrupt(void)
+{
+    return  0;
+}
+
+int32_t ddr_disable_ce_interrupt(void)
+{
+    return  0;
+}
+
+int32_t ddr_disable_uce_interrupt(void)
+{
+    return  0;
+}
+
+int32_t ddr_set_ce_threshold(uint32_t ce_threshold)
+{
+    (void)ce_threshold;
+    return  0;
+}
+
+int32_t ddr_get_ce_count(uint32_t *ce_count)
+{
+    *ce_count = 0;
+    return  0;
+}
+
+int32_t ddr_get_uce_count(uint32_t *uce_count)
+{
+    *uce_count = 0;
+    return  0;
+}
+
+void ddr_error_threshold_isr(void)
+{
+
 }
