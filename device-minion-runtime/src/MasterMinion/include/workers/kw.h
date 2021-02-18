@@ -66,7 +66,7 @@
 typedef enum {
     KERNEL_STATE_UN_USED = 0,
     KERNEL_STATE_IN_USE,
-    KERNEL_STATE_ABORTED
+    KERNEL_STATE_ABORTED_BY_HOST
 } kernel_state_e;
 
 /*! \fn void KW_Init(void)
