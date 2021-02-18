@@ -94,7 +94,7 @@ pipeline {
               propagate: true,
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},common-apis/device-api:${BRANCH}"),
                 string(name: 'PYTEST_RETRIES', value: '2'),
                 string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
               ]
@@ -107,7 +107,7 @@ pipeline {
               propagate: true,
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},common-apis/device-api:${BRANCH}"),
                 string(name: 'PYTEST_RETRIES', value: '2'),
                 string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
               ]

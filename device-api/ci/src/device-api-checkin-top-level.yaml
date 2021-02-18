@@ -29,7 +29,7 @@ stages:
       - job: sw-platform/system-sw-integration/pipelines/device-management-checkin-tests/
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},common-apis/device-api:${BRANCH}"
           PYTEST_RETRIES: "2"
 
   JOB_DEVICE_LAYER:
@@ -37,6 +37,5 @@ stages:
       - job: sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests/
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},common-apis/device-api:${BRANCH}"
           PYTEST_RETRIES: "2"
-
