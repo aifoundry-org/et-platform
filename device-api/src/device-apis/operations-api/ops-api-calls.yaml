@@ -38,6 +38,19 @@ Enums:
         Value: 3
       - Name: RESULT_ERROR
         Value: 4
+  - Name: dev_ops_api_kernel_launch_response
+    Type: uint32_t
+    Values:
+      - Name: HOST_ABORTED
+        Value: 0
+      - Name: SHIRES_NOT_READY
+        Value: 1
+      - Name: ERROR
+        Value: 2
+      - Name: SUCCESS
+        Value: 3
+      - Name: EXCEPTION
+        Value: 4
   - Name: dev_ops_api_kernel_abort_response
     Type: uint32_t
     Values:
@@ -206,8 +219,9 @@ Messages :
     Type: Command
     PairedMessage: device_ops_kernel_abort_rsp
     Fields:
-      - Name: dummy
-        Type: bool
+      - Name: kernel_launch_tag_id
+        Description: Tag ID of the kernel_launch command the we want to abort
+        Type: uint16_t
   - Name: device_ops_kernel_abort_rsp
     Description: Response to an abort request
     PairedMessage: device_ops_kernel_abort_cmd
