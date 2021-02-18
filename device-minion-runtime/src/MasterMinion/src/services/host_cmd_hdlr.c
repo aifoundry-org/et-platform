@@ -194,10 +194,9 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 "HostCommandHandler:Processing:KERNEL_LAUNCH_CMD\r\n");
 
             /* Compute Wait Cycles (cycles the command was sitting in SQ prior to launch)
-               Snapshot current cycle
-            */
-              cycles.wait_cycles = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
-              cycles.start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
+               Snapshot current cycle */
+            cycles.wait_cycles = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
+            cycles.start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
 
             /* Blocking call to launch kernel */
             status = KW_Dispatch_Kernel_Launch_Cmd(cmd, sqw_idx, &kw_idx);
@@ -220,11 +219,21 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
                 rsp.response_info.rsp_hdr.msg_id =
                     DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
-                rsp.status = DEV_OPS_API_KERNEL_LAUNCH_STATUS_ERROR;
                 rsp.response_info.rsp_hdr.size =
                     sizeof(struct device_ops_kernel_launch_rsp_t);
                 rsp.cmd_wait_time = cycles.wait_cycles;
                 rsp.cmd_execution_time = 0U;
+
+                /* Populate the error type response */
+                if (status == KW_ERROR_KERNEL_SHIRES_NOT_READY)
+                {
+                    rsp.status =
+                        DEV_OPS_API_KERNEL_LAUNCH_STATUS_SHIRES_NOT_READY;
+                }
+                else
+                {
+                    rsp.status = DEV_OPS_API_KERNEL_LAUNCH_STATUS_ERROR;
+                }
 
                 status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
 

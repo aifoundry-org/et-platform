@@ -225,7 +225,7 @@ static void kw_unreserve_kernel_slot(kernel_instance_t* kernel)
 ***********************************************************************/
 static int8_t kw_reserve_kernel_shires(uint64_t req_shire_mask)
 {
-    int8_t status = STATUS_SUCCESS;
+    int8_t status;
 
     /* Acquire the lock */
     acquire_local_spinlock(&KW_CB.resource_lock);
@@ -243,6 +243,10 @@ static int8_t kw_reserve_kernel_shires(uint64_t req_shire_mask)
                 CW_Update_Shire_State(shire, CW_SHIRE_STATE_RESERVED);
             }
         }
+    }
+    else if (status == CW_SHIRE_NOT_READY)
+    {
+        status = KW_ERROR_KERNEL_SHIRES_NOT_READY;
     }
 
     /* Release the lock */

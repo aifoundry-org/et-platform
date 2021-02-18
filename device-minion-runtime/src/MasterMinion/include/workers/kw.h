@@ -55,6 +55,11 @@
 */
 #define KW_ERROR_KERNEL_SLOT_NOT_FOUND   -4
 
+/*! \def KW_ERROR_KERNEL_SHIRES_NOT_READY
+    \brief Kernel Worker - Kernel shires not ready
+*/
+#define KW_ERROR_KERNEL_SHIRES_NOT_READY -5
+
 /*! \enum kernel_state_e
     \brief Enum that provides the state of a kernel
 */
