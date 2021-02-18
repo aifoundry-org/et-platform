@@ -16,12 +16,24 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
+// Align the struct to cache line so that we can use local atomics on the array created below
+typedef struct kernel_launch_info {
+    union {
+        struct {
+            uint8_t kw_base_id;
+            uint8_t slot_index;
+        };
+        uint16_t raw_u16;
+    };
+} __attribute__((aligned(CACHE_LINE_SIZE))) kernel_launch_info_t;
+
 static const uint8_t tensor_zeros[64] __attribute__((aligned(64))) = { 0 };
 
 static local_fcc_barrier_t post_launch_barrier[NUM_SHIRES] = { 0 };
 static spinlock_t post_launch_thread_count[NUM_SHIRES]= { 0 };
 static spinlock_t pre_launch_local_barrier[NUM_SHIRES] = { 0 };
 static spinlock_t pre_launch_global_barrier = { 0 };
+static kernel_launch_info_t kernel_launch_info[NUM_SHIRES] = { 0 };
 
 // This is a temporary hack. Should be properly done.
 static inline bool spinlock_barrier_local(spinlock_t *lock, uint32_t num_threads)
@@ -61,13 +73,35 @@ static void spinlock_barrier_global(spinlock_t *lock, uint32_t num_shires)
     }
 }
 
-static void pre_kernel_setup(uint64_t kernel_launch_flags);
-static void post_kernel_cleanup(uint64_t kw_base_id, uint64_t slot_index, uint64_t kernel_launch_flags);
+void kernel_info_get_attributes(uint32_t shire_id, uint8_t *kw_base_id, uint8_t *slot_index)
+{
+    kernel_launch_info_t kernel_info;
+
+    /* Load the kernel info */
+    kernel_info.raw_u16 = atomic_load_local_16(&kernel_launch_info[shire_id].raw_u16);
+
+    /* Return the required attributes */
+    *kw_base_id = kernel_info.kw_base_id;
+    *slot_index = kernel_info.slot_index;
+}
+
+static inline void kernel_info_set_attributes(uint32_t shire_id, uint8_t kw_base_id, uint8_t slot_index)
+{
+    kernel_launch_info_t kernel_info;
+
+    /* Save the attributes */
+    kernel_info.kw_base_id = kw_base_id;
+    kernel_info.slot_index = slot_index;
+    atomic_store_local_16(&kernel_launch_info[shire_id].raw_u16, kernel_info.raw_u16);
+}
+
+static void pre_kernel_setup(uint64_t kernel_launch_flags, uint8_t kw_base_id, uint8_t slot_index);
+static void post_kernel_cleanup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_launch_flags);
 
 // Saves firmware context and launches kernel in user mode with clean stack and registers
 // Note that global Supervisor interrupts are disabled after returning from this function
-int64_t launch_kernel(uint64_t kw_base_id,
-                      uint64_t slot_index,
+int64_t launch_kernel(uint8_t kw_base_id,
+                      uint8_t slot_index,
                       uint64_t kernel_entry_addr,
                       uint64_t kernel_stack_addr,
                       uint64_t kernel_params_ptr,
@@ -82,7 +116,7 @@ int64_t launch_kernel(uint64_t kw_base_id,
                  "addi  %0, %0, 8    \n"
                  : "=r"(firmware_sp));
 
-    pre_kernel_setup(kernel_launch_flags);
+    pre_kernel_setup(kernel_launch_flags, kw_base_id, slot_index);
 
     /* Wait until all the threads involved in the kernel launch are here */
     spinlock_barrier_global(&pre_launch_global_barrier, (uint32_t)__builtin_popcountll(kernel_shire_mask));
@@ -227,9 +261,9 @@ int64_t launch_kernel(uint64_t kw_base_id,
     return return_value;
 }
 
-static void pre_kernel_setup(uint64_t kernel_launch_flags)
+static void pre_kernel_setup(uint64_t kernel_launch_flags, uint8_t kw_base_id, uint8_t slot_index)
 {
-    const uint64_t shire_id = get_shire_id();
+    const uint32_t shire_id = get_shire_id();
     const uint32_t minion_mask = (shire_id == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
     const uint64_t first_worker = (shire_id == MASTER_SHIRE) ? 32 : 0;
 
@@ -241,6 +275,10 @@ static void pre_kernel_setup(uint64_t kernel_launch_flags)
     // Second worker HART (first minion thread 1) in the shire
     // Thread 0s have more init to do than thread 1s, so use a thread 1 for per-shire init
     if ((get_hart_id() % 64U) == (first_worker + 1)) {
+
+        // Save kernel info for each shire
+        kernel_info_set_attributes(shire_id, kw_base_id, slot_index);
+
         // Init all FLBs except reserved FLBs 28-31
         for (uint64_t barrier = 0; barrier < 28; barrier++) {
             INIT_FLB(THIS_SHIRE, barrier);
@@ -325,7 +363,7 @@ static void pre_kernel_setup(uint64_t kernel_launch_flags)
     asm volatile("fence");
 }
 
-static void post_kernel_cleanup(uint64_t kw_base_id, uint64_t slot_index, uint64_t kernel_launch_flags)
+static void post_kernel_cleanup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_launch_flags)
 {
     const uint64_t shire_id = get_shire_id();
     const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
@@ -366,7 +404,8 @@ static void post_kernel_cleanup(uint64_t kw_base_id, uint64_t slot_index, uint64
         msg.header.number = 0; // Not used. TODO: Remove
         msg.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE;
         msg.shire_id = (uint32_t)shire_id;
-        msg.slot_index = slot_index;
-        CM_To_MM_Iface_Unicast_Send(kw_base_id + slot_index, 1 + slot_index, (cm_iface_message_t *)&msg);
+        msg.slot_index = (uint64_t)slot_index;
+        CM_To_MM_Iface_Unicast_Send((uint64_t)(kw_base_id + slot_index),
+            (uint64_t)(1 + slot_index), (cm_iface_message_t *)&msg);
     }
 }
