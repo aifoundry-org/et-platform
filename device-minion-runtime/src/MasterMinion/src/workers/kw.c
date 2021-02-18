@@ -51,7 +51,8 @@
     launch command.
 */
 typedef struct kernel_instance_ {
-    uint16_t tag_id;
+    uint8_t reserved[2];
+    tag_id_t launch_tag_id;
     uint16_t sqw_idx;
     uint16_t kernel_state;
     exec_cycles_t kw_cycles;
@@ -87,15 +88,15 @@ static kw_cb_t KW_CB __attribute__((aligned(64))) = {0};
 *
 *   INPUTS
 *
-*       tag_id    Tag ID of the kernel to find
-*       slot      Pointer to return the found kernel slot
+*       launch_tag_id  Tag ID of the launched kernel to find
+*       slot           Pointer to return the found kernel slot
 *
 *   OUTPUTS
 *
-*       int8_t    status success or error
+*       int8_t         status success or error
 *
 ***********************************************************************/
-static int8_t kw_find_used_kernel_slot(uint16_t tag_id, uint8_t *slot)
+static int8_t kw_find_used_kernel_slot(uint16_t launch_tag_id, uint8_t *slot)
 {
     int8_t status = KW_ERROR_KERNEL_SLOT_NOT_FOUND;
 
@@ -105,7 +106,8 @@ static int8_t kw_find_used_kernel_slot(uint16_t tag_id, uint8_t *slot)
     for(uint8_t i = 0; i < MM_MAX_PARALLEL_KERNELS; i++)
     {
         /* Find the kernel with the given tag ID */
-        if(atomic_load_local_16(&KW_CB.kernels[i].tag_id) == tag_id)
+        if(atomic_load_local_16(&KW_CB.kernels[i].launch_tag_id) ==
+            launch_tag_id)
         {
             /* Check if the slot is in use */
             if(atomic_load_local_16
@@ -351,7 +353,7 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
     if(status == STATUS_SUCCESS)
     {
         /* Populate the tag_id and sqw_idx for KW */
-        atomic_store_local_16(&kernel->tag_id, cmd->command_info.cmd_hdr.tag_id);
+        atomic_store_local_16(&kernel->launch_tag_id, cmd->command_info.cmd_hdr.tag_id);
         atomic_store_local_16(&kernel->sqw_idx, sqw_idx);
 
         /* Populate the kernel launch params */
@@ -425,26 +427,45 @@ int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd)
     int8_t status;
     uint8_t slot_index;
     cm_iface_message_t message = { 0 };
+    struct device_ops_kernel_abort_rsp_t abort_rsp;
 
     /* Find the kernel associated with the given tag_id */
-    status = kw_find_used_kernel_slot(cmd->command_info.cmd_hdr.tag_id,
+    status = kw_find_used_kernel_slot(cmd->kernel_launch_tag_id,
         &slot_index);
 
     if(status == STATUS_SUCCESS)
     {
+        /* Update the kernel state to aborted */
+        atomic_store_local_16(&KW_CB.kernels[slot_index].kernel_state,
+            KERNEL_STATE_ABORTED_BY_HOST);
+
         /* Set the kernel abort message */
         message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
 
         /* Blocking call that blocks till all shires ack */
-        status = (int8_t)MM_To_CM_Iface_Multicast_Send(
+        /* TODO: Update the MM_To_CM_Iface_Multicast_Send return value to be void;
+        we are just multicasting the msg and don't care for status */
+        (void)MM_To_CM_Iface_Multicast_Send(
             atomic_load_local_64(&KW_CB.kernels[slot_index].kernel_shire_mask),
             &message);
 
+        /* Construct and transmit kernel abort response to host */
+        abort_rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
+        abort_rsp.response_info.rsp_hdr.msg_id =
+            DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP;
+        abort_rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS;
+        abort_rsp.response_info.rsp_hdr.size = sizeof(abort_rsp);
+
+        /* Send kernel abort response to host */
+        status = Host_Iface_CQ_Push_Cmd(0, &abort_rsp, sizeof(abort_rsp));
+
         if(status == STATUS_SUCCESS)
         {
-            /* Update the kernel state to aborted */
-            atomic_store_local_16(&KW_CB.kernels[slot_index].kernel_state,
-                KERNEL_STATE_ABORTED);
+            Log_Write(LOG_LEVEL_DEBUG, "KW:Pushed:KERNEL_ABORT_CMD_RSP->Host_CQ\r\n");
+        }
+        else
+        {
+            Log_Write(LOG_LEVEL_DEBUG, "KW:Push:KERNEL_ABORT_CMD_RSP:Failed\r\n");
         }
     }
 
@@ -482,11 +503,12 @@ void KW_Init(void)
         atomic_store_local_8(&KW_CB.host2kw[i].fcc_id, FCC_0);
         global_fcc_init(&KW_CB.host2kw[i].fcc_flag);
 
-        /* Initialize shire_mask, wait and start cycle count */
+        /* Initialize the tag IDs, sqw_idx and kernel state */
         atomic_store_local_64((uint64_t*)&KW_CB.kernels[i], 0U);
+
+        /* Initialize shire_mask, wait and start cycle count */
         atomic_store_local_64(&KW_CB.kernels[i].kernel_shire_mask, 0U);
-        atomic_store_local_32(&KW_CB.kernels[i].kw_cycles.wait_cycles, 0U);
-        atomic_store_local_32(&KW_CB.kernels[i].kw_cycles.start_cycles, 0U);
+        atomic_store_local_64(&KW_CB.kernels[i].kw_cycles.raw_u64, 0U);
     }
 
     return;
@@ -654,12 +676,18 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                         /* First time we get an exception: abort kernel */
                         if(!cw_exception)
                         {
-                            /* Multicast abort to shires associated with current kernel slot */
-                            /* Set the kernel abort message */
-                            message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
+                            /* Only update the kernel state to exception and send abort
+                            if it was not previously aborted by host */
+                            if(atomic_load_local_16(&kernel->kernel_state) !=
+                                KERNEL_STATE_ABORTED_BY_HOST)
+                            {
+                                /* Multicast abort to shires associated with current kernel slot */
+                                /* Set the kernel abort message */
+                                message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
 
-                            /* Blocking call that blocks till all shires ack */
-                            (void)MM_To_CM_Iface_Multicast_Send(kernel_shire_mask, &message);
+                                /* Blocking call that blocks till all shires ack */
+                                (void)MM_To_CM_Iface_Multicast_Send(kernel_shire_mask, &message);
+                            }
 
                             cw_exception = true;
                         }
@@ -673,84 +701,56 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             }
         }
 
-        /* Kernel run complete with exception or success. Prepare response
-        and reclaim resources */
+        /* Kernel run complete with host abort, exception or success.
+        Prepare response and reclaim resources */
 
-        /* Give back the reserved compute shires. */
-        kw_unreserve_kernel_shires(kernel_shire_mask);
+        struct device_ops_kernel_launch_rsp_t launch_rsp;
 
-        /* Read the kernel state to detect abort */
-        if(atomic_load_local_16(&kernel->kernel_state) == KERNEL_STATE_ABORTED)
+        /* Read the kernel state to detect abort by host */
+        if(atomic_load_local_16(&kernel->kernel_state) == KERNEL_STATE_ABORTED_BY_HOST)
         {
-            /* Construct and transmit kernel abort response to host */
-            struct device_ops_kernel_abort_rsp_t rsp;
-            rsp.response_info.rsp_hdr.tag_id =
-                atomic_load_local_16(&kernel->tag_id);
-            rsp.response_info.rsp_hdr.msg_id =
-                DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP;
-            rsp.response_info.rsp_hdr.size = sizeof(rsp);
-
-            /* If an exception was detected */
-            if(cw_exception)
-            {
-                rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_ERROR;
-            }
-            else
-            {
-                rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_OK;
-            }
-
-            /* Send response to host */
-            status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
-
-            if(status == STATUS_SUCCESS)
-            {
-                Log_Write(LOG_LEVEL_DEBUG, "KW:Pushed:KERNEL_ABORT_CMD_RSP->Host_CQ\r\n");
-            }
-            else
-            {
-                Log_Write(LOG_LEVEL_DEBUG, "KW:Push:Failed\r\n");
-            }
+            /* Update the kernel launch response to indicate that it was aborted by host */
+            launch_rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED;
+        }
+        else if(cw_exception)
+        {
+            /* Exception was detected in kernel run, update response */
+            launch_rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_EXCEPTION;
         }
         else
         {
-            /* Construct and transmit kernel launch response to host */
-            struct device_ops_kernel_launch_rsp_t rsp;
-            rsp.response_info.rsp_hdr.tag_id =
-                atomic_load_local_16(&kernel->tag_id);
-            rsp.response_info.rsp_hdr.msg_id =
-                DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
-            rsp.response_info.rsp_hdr.size = sizeof(rsp);
-            rsp.cmd_wait_time = atomic_load_local_32(&kernel->kw_cycles.wait_cycles);
-            rsp.cmd_execution_time = (uint32_t)PMC_GET_LATENCY(atomic_load_local_32(
-                                            &kernel->kw_cycles.start_cycles)) & 0xFFFFFFFF;
+            /* Everything went normal, update response to kernel completed */
+            launch_rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED;
+        }
 
-            /* If an exception was detected */
-            if(cw_exception)
-            {
-                rsp.status = DEV_OPS_API_KERNEL_LAUNCH_STATUS_RESULT_ERROR;
-            }
-            else
-            {
-                rsp.status = DEV_OPS_API_KERNEL_LAUNCH_STATUS_RESULT_OK;
-            }
+        /* Construct and transmit kernel launch response to host */
+        launch_rsp.response_info.rsp_hdr.tag_id =
+            atomic_load_local_16(&kernel->launch_tag_id);
+        launch_rsp.response_info.rsp_hdr.msg_id =
+            DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
+        launch_rsp.response_info.rsp_hdr.size = sizeof(launch_rsp);
+        launch_rsp.cmd_wait_time = atomic_load_local_32(&kernel->kw_cycles.wait_cycles);
+        launch_rsp.cmd_execution_time = (uint32_t)PMC_GET_LATENCY(atomic_load_local_32(
+                                        &kernel->kw_cycles.start_cycles)) & 0xFFFFFFFF;
 
-            /* Send response to host */
-            status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+        /* Send kernel launch response to host */
+        status = Host_Iface_CQ_Push_Cmd(0, &launch_rsp, sizeof(launch_rsp));
 
-            if(status == STATUS_SUCCESS)
-            {
-                Log_Write(LOG_LEVEL_DEBUG, "KW:Pushed:KERNEL_LAUNCH_CMD_RSP->Host_CQ\r\n");
-            }
-            else
-            {
-                Log_Write(LOG_LEVEL_DEBUG, "KW:Push:Failed\r\n");
-            }
+        if(status == STATUS_SUCCESS)
+        {
+            Log_Write(LOG_LEVEL_DEBUG, "KW:Pushed:KERNEL_LAUNCH_CMD_RSP->Host_CQ\r\n");
+        }
+        else
+        {
+            Log_Write(LOG_LEVEL_DEBUG, "KW:Push:Failed\r\n");
         }
 
         /* Decrement commands count being processed by given SQW */
         SQW_Decrement_Command_Count(
             (uint8_t)atomic_load_local_16(&kernel->sqw_idx));
+
+        /* Give back the reserved compute shires. */
+        kw_unreserve_kernel_shires(kernel_shire_mask);
 
         /* Make reserved kernel slot available again */
         kw_unreserve_kernel_slot(kernel);

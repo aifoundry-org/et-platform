@@ -117,7 +117,7 @@ int64_t handle_device_ops_cmd(const uint32_t sq_idx)
             rsp.response_info.rsp_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
             rsp.cmd_wait_time = 0xdeadbeef;
             rsp.cmd_execution_time = 0xdeadbeef;
-            rsp.status = DEV_OPS_API_KERNEL_LAUNCH_STATUS_RESULT_OK;
+            rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_SUCCESS;
             int64_t res = VQUEUE_push(CQ, sq_idx, &rsp, sizeof(rsp));
             if (res != 0) {
                 log_write(LOG_LEVEL_ERROR,

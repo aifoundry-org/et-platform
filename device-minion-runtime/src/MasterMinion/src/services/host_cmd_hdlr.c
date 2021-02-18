@@ -228,11 +228,11 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 if (status == KW_ERROR_KERNEL_SHIRES_NOT_READY)
                 {
                     rsp.status =
-                        DEV_OPS_API_KERNEL_LAUNCH_STATUS_SHIRES_NOT_READY;
+                        DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_SHIRES_NOT_READY;
                 }
                 else
                 {
-                    rsp.status = DEV_OPS_API_KERNEL_LAUNCH_STATUS_ERROR;
+                    rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
                 }
 
                 status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
