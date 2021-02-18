@@ -404,7 +404,7 @@ static void post_kernel_cleanup(uint8_t kw_base_id, uint8_t slot_index, uint64_t
         msg.header.number = 0; // Not used. TODO: Remove
         msg.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE;
         msg.shire_id = (uint32_t)shire_id;
-        msg.slot_index = (uint64_t)slot_index;
+        msg.slot_index = slot_index;
         CM_To_MM_Iface_Unicast_Send((uint64_t)(kw_base_id + slot_index),
             (uint64_t)(1 + slot_index), (cm_iface_message_t *)&msg);
     }
