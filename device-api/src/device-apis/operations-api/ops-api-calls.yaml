@@ -49,6 +49,8 @@ Enums:
         Value: 2
       - Name: SUCCESS
         Value: 3
+      - Name: KERNEL_COMPLETED
+        Value: 3
       - Name: EXCEPTION
         Value: 4
   - Name: dev_ops_api_kernel_abort_response
@@ -57,6 +59,8 @@ Enums:
       - Name: NONE
         Value: 0
       - Name : OK
+        Value : 1
+      - Name : SUCCESS
         Value : 1
       - Name : INVALID_TAG_ID
         Value : 2
