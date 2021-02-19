@@ -507,46 +507,61 @@ static void pwr_svc_get_module_uptime(uint16_t tag, uint64_t req_start_time)
 void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
 {
     uint64_t req_start_time;
-    uint8_t *payload_ptr = (uint8_t *)buffer;
-    payload_ptr = payload_ptr + (sizeof(dev_mgmt_cmd_header_t));
     req_start_time = timer_get_ticks_count();
 
      switch (msg_id) {
       case DM_CMD_GET_MODULE_POWER_STATE: {
          pwr_svc_get_module_power_state(tag_id, req_start_time);
-      } break;
+         break;
+      }
       case DM_CMD_SET_MODULE_POWER_STATE: {
-         power_state_e power_state = *payload_ptr;
-         pwr_svc_set_module_power_state(tag_id, req_start_time, power_state);
-      } break;
+         struct device_mgmt_power_state_cmd_t *power_state_cmd =
+             (struct device_mgmt_power_state_cmd_t *)buffer;
+         pwr_svc_set_module_power_state(tag_id, req_start_time, power_state_cmd->pwr_state);
+         break;
+      }
       case DM_CMD_GET_MODULE_STATIC_TDP_LEVEL: {
          pwr_svc_get_module_tdp_level(tag_id, req_start_time);
-      } break;
+         break;
+      }
       case DM_CMD_SET_MODULE_STATIC_TDP_LEVEL: {
-         tdp_level_e tdp_level = *payload_ptr;
-         pwr_svc_set_module_tdp_level(tag_id, req_start_time, tdp_level);
-      } break;
+         struct device_mgmt_tdp_level_cmd_t *tdp_level_cmd =
+             (struct device_mgmt_tdp_level_cmd_t *)buffer;
+         pwr_svc_set_module_tdp_level(tag_id, req_start_time, tdp_level_cmd->tdp_level);
+         break;
+      }
       case DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS: {
          pwr_svc_get_module_temp_thresholds(tag_id, req_start_time);
-      } break;
+         break;
+      }
       case DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS: {
-         pwr_svc_set_module_temp_thresholds(tag_id, req_start_time, 100, 80);
-      } break;
+         struct device_mgmt_temperature_threshold_cmd_t *threshold_cmd =
+            buffer;
+         pwr_svc_set_module_temp_thresholds(tag_id, req_start_time,
+            threshold_cmd->temperature_threshold.hi_temperature_c,
+            threshold_cmd->temperature_threshold.lo_temperature_c);
+         break;
+      }
       case DM_CMD_GET_MODULE_CURRENT_TEMPERATURE: {
          pwr_svc_get_module_current_temperature(tag_id, req_start_time);
-      } break;
+         break;
+      }
       case DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES: {
          pwr_svc_get_module_residency_throttle_states(tag_id, req_start_time);
-      } break;
+         break;
+      }
       case DM_CMD_GET_MODULE_POWER: {
          pwr_svc_get_module_power(tag_id, req_start_time);
-      } break;
+         break;
+      }
       case DM_CMD_GET_MODULE_VOLTAGE: {
          pwr_svc_get_module_voltage(tag_id, req_start_time, MODULE_MINION);
-      } break;
+         break;
+      }
       case DM_CMD_GET_MODULE_UPTIME: {
          pwr_svc_get_module_uptime(tag_id, req_start_time);
-      } break;
+         break;
+      }
       }
 	 
 }
