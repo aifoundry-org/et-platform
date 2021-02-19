@@ -6,11 +6,8 @@
 #include <stdio.h>
 
 #include "cacheops.h"
-#include "io.h"
 #include "log.h"
-#include "etsoc_hal/inc/DWC_pcie_dbi_cpcie_usp_4x8.h"
 #include "layout.h"
-#include "pcie_device.h"
 #include "pcie_dma_ll.h"
 #include "printf.h"
 #include "atomic.h"
@@ -385,34 +382,6 @@ int dma_start(dma_chan_id_e chan)
     return 0;
 }
 
-bool dma_check_done(dma_chan_id_e chan)
-{
-    if (chan <= DMA_CHAN_ID_READ_3) {
-        uint32_t dma_read_int_status = ioread32(
-            PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_ADDRESS);
-        uint32_t done_status =
-            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_RD_DONE_INT_STATUS_GET(
-                dma_read_int_status);
-
-        //TODO: this relies on int bit being set. Use the following instead?
-        //PCIE0->PF0_DMA_CAP.DMA_CH_CONTROL1_OFF_RDCH_0.B.CS;
-
-        return (done_status & (1U << chan)) != 0;
-    } else if (chan >= DMA_CHAN_ID_WRITE_0 && chan <= DMA_CHAN_ID_WRITE_3) {
-        uint32_t dma_write_int_status = ioread32(
-            PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_ADDRESS);
-        uint32_t done_status =
-            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_WR_DONE_INT_STATUS_GET(
-                dma_write_int_status);
-
-        return (done_status & (1U << (chan - DMA_CHAN_ID_WRITE_0))) != 0;
-    } else {
-        log_write(LOG_LEVEL_CRITICAL, "Invalid DMA channel %d\r\n", chan);
-        return false;
-    }
-    return true;
-}
-
 void dma_clear_done(dma_chan_id_e chan)
 {
     uint32_t chanU32 = (uint32_t)chan;
@@ -430,4 +399,106 @@ void dma_clear_done(dma_chan_id_e chan)
     } else {
         log_write(LOG_LEVEL_CRITICAL, "Invalid DMA channel %d\r\n", chanU32);
     }
+}
+
+DMA_STATUS_e dma_clear_read_abort(dma_chan_id_e chan)
+{
+    if (chan <= DMA_CHAN_ID_READ_3) {
+        iowrite32(
+            PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_CLEAR_OFF_ADDRESS,
+            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_CLEAR_OFF_RD_ABORT_INT_CLEAR_SET(
+                (1U << chan) & 0xF));
+    } else {
+        log_write(LOG_LEVEL_CRITICAL, "Invalid DMA read channel %d\r\n", chan);
+        return DMA_ERROR_CHANNEL_NOT_AVAILABLE;
+    }
+
+    return DMA_OPERATION_SUCCESS;
+}
+
+DMA_STATUS_e dma_clear_write_abort(dma_chan_id_e chan)
+{
+    if (chan >= DMA_CHAN_ID_WRITE_0 && chan <= DMA_CHAN_ID_WRITE_3) {
+        iowrite32(
+            PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_CLEAR_OFF_ADDRESS,
+            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_CLEAR_OFF_WR_ABORT_INT_CLEAR_SET(
+                (1U << (chan - DMA_CHAN_ID_WRITE_0)) & 0xF));
+    } else {
+        log_write(LOG_LEVEL_CRITICAL, "Invalid DMA write channel %d\r\n", chan);
+        return DMA_ERROR_CHANNEL_NOT_AVAILABLE;
+    }
+
+    return DMA_OPERATION_SUCCESS;
+}
+
+DMA_STATUS_e dma_abort_read(dma_chan_id_e chan)
+{
+    uint32_t control1;
+
+    /* Get the control1 register of the respective channel */
+    if (chan == DMA_CHAN_ID_READ_0) {
+        control1 =
+            ioread32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_ADDRESS);
+    } else if (chan == DMA_CHAN_ID_READ_1) {
+        control1 =
+            ioread32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_1_ADDRESS);
+    } else if (chan == DMA_CHAN_ID_READ_2) {
+        control1 =
+            ioread32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_2_ADDRESS);
+    } else if (chan == DMA_CHAN_ID_READ_3) {
+        control1 =
+            ioread32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_3_ADDRESS);
+    } else {
+        log_write(LOG_LEVEL_CRITICAL, "Invalid DMA read channel %d\r\n", chan);
+        return DMA_ERROR_CHANNEL_NOT_AVAILABLE;
+    }
+
+    // If the respective channel is running, abort it
+    if (1 == PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_CS_GET(control1)) {
+        uint32_t dma_abort = (uint32_t)chan |
+            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_DOORBELL_OFF_RD_STOP_FIELD_MASK;
+        iowrite32(
+            PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_DOORBELL_OFF_ADDRESS, dma_abort);
+    } else {
+        log_write(LOG_LEVEL_DEBUG, "Channel %d is not running\r\n", chan);
+        return DMA_ERROR_CHANNEL_NOT_RUNNING;
+    }
+
+    return DMA_OPERATION_SUCCESS;
+}
+
+DMA_STATUS_e dma_abort_write(dma_chan_id_e chan)
+{
+    uint32_t control1;
+
+    /* Get the control1 register of the respective channel */
+    if (chan == DMA_CHAN_ID_WRITE_0) {
+        control1 =
+            ioread32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_0_ADDRESS);
+    } else if (chan == DMA_CHAN_ID_WRITE_1) {
+        control1 =
+            ioread32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_1_ADDRESS);
+    } else if (chan == DMA_CHAN_ID_WRITE_2) {
+        control1 =
+            ioread32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_2_ADDRESS);
+    } else if (chan == DMA_CHAN_ID_WRITE_3) {
+        control1 =
+            ioread32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_3_ADDRESS);
+    } else {
+        log_write(LOG_LEVEL_CRITICAL, "Invalid DMA write channel %d\r\n", chan);
+        return DMA_ERROR_CHANNEL_NOT_AVAILABLE;
+    }
+
+    // If the respective channel is running, abort it
+    if (1 == PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_CS_GET(control1)) {
+        uint32_t dma_abort = (uint32_t)(chan - DMA_CHAN_ID_WRITE_0) |
+            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_DOORBELL_OFF_WR_STOP_FIELD_MASK;
+        iowrite32(
+            PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_DOORBELL_OFF_ADDRESS, dma_abort);
+    } else {
+        log_write(LOG_LEVEL_DEBUG, "Channel %d is not running\r\n", chan);
+        return DMA_ERROR_CHANNEL_NOT_RUNNING;
+    }
+
+    return DMA_OPERATION_SUCCESS;
 }
