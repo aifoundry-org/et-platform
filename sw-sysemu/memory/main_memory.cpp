@@ -67,59 +67,59 @@ void MainMemory::sp_plic_interrupt_pending_clear(const Agent& agent, uint32_t so
 }
 
 
-void MainMemory::pu_uart0_set_fd(int fd)
+void MainMemory::pu_uart0_set_tx_fd(int fd)
 {
     auto ptr = dynamic_cast<PeripheralRegion<pu_io_base, 256_MiB>*>(regions[1].get());
-    ptr->pu_uart0.fd = fd;
+    ptr->pu_uart0.tx_fd = fd;
 }
 
 
-void MainMemory::pu_uart1_set_fd(int fd)
+void MainMemory::pu_uart1_set_tx_fd(int fd)
 {
     auto ptr = dynamic_cast<PeripheralRegion<pu_io_base, 256_MiB>*>(regions[1].get());
-    ptr->pu_uart1.fd = fd;
+    ptr->pu_uart1.tx_fd = fd;
 }
 
 
-int MainMemory::pu_uart0_get_fd() const
+int MainMemory::pu_uart0_get_tx_fd() const
 {
     auto ptr = dynamic_cast<PeripheralRegion<pu_io_base, 256_MiB>*>(regions[1].get());
-    return ptr->pu_uart0.fd;
+    return ptr->pu_uart0.tx_fd;
 }
 
 
-int MainMemory::pu_uart1_get_fd() const
+int MainMemory::pu_uart1_get_tx_fd() const
 {
     auto ptr = dynamic_cast<PeripheralRegion<pu_io_base, 256_MiB>*>(regions[1].get());
-    return ptr->pu_uart1.fd;
+    return ptr->pu_uart1.tx_fd;
 }
 
 
-void MainMemory::spio_uart0_set_fd(int fd)
+void MainMemory::spio_uart0_set_tx_fd(int fd)
 {
     auto ptr = dynamic_cast<SvcProcRegion<spio_base, 1_GiB>*>(regions[3].get());
-    ptr->spio_uart0.fd = fd;
+    ptr->spio_uart0.tx_fd = fd;
 }
 
 
-void MainMemory::spio_uart1_set_fd(int fd)
+void MainMemory::spio_uart1_set_tx_fd(int fd)
 {
     auto ptr = dynamic_cast<SvcProcRegion<spio_base, 1_GiB>*>(regions[3].get());
-    ptr->spio_uart1.fd = fd;
+    ptr->spio_uart1.tx_fd = fd;
 }
 
 
-int MainMemory::spio_uart0_get_fd() const
+int MainMemory::spio_uart0_get_tx_fd() const
 {
     auto ptr = dynamic_cast<SvcProcRegion<spio_base, 1_GiB>*>(regions[3].get());
-    return ptr->spio_uart0.fd;
+    return ptr->spio_uart0.tx_fd;
 }
 
 
-int MainMemory::spio_uart1_get_fd() const
+int MainMemory::spio_uart1_get_tx_fd() const
 {
     auto ptr = dynamic_cast<SvcProcRegion<spio_base, 1_GiB>*>(regions[3].get());
-    return ptr->spio_uart1.fd;
+    return ptr->spio_uart1.tx_fd;
 }
 
 

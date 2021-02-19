@@ -55,7 +55,7 @@ struct Uart : public MemoryRegion
         switch (pos) {
         case DW_APB_UART_RBR:
             assert(n == 4);
-            if ((fd != -1) && (::write(fd, source, 1) < 0)) {
+            if ((tx_fd != -1) && (::write(tx_fd, source, 1) < 0)) {
                 auto error = std::error_code(errno, std::system_category());
                 throw std::system_error(error, "bemu::Uart::write()");
             }
@@ -75,7 +75,7 @@ struct Uart : public MemoryRegion
     void dump_data(const Agent&, std::ostream&, size_type, size_type) const override { }
 
     // For exposition only
-    int fd = -1;
+    int tx_fd = -1;
 };
 
 
