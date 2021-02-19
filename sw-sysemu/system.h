@@ -88,6 +88,14 @@ public:
     void copy_memory_from_device_to_host(uint64_t from_addr, uint64_t to_addr, uint32_t size);
 
     // UARTs
+    void pu_uart0_set_rx_fd(int fd);
+    void pu_uart1_set_rx_fd(int fd);
+    int pu_uart0_get_rx_fd() const;
+    int pu_uart1_get_rx_fd() const;
+    void spio_uart0_set_rx_fd(int fd);
+    void spio_uart1_set_rx_fd(int fd);
+    int spio_uart0_get_rx_fd() const;
+    int spio_uart1_get_rx_fd() const;
     void pu_uart0_set_tx_fd(int fd);
     void pu_uart1_set_tx_fd(int fd);
     int pu_uart0_get_tx_fd() const;
@@ -219,6 +227,53 @@ inline void System::sp_plic_interrupt_pending_set(uint32_t source_id)
 inline void System::sp_plic_interrupt_pending_clear(uint32_t source_id)
 {
     memory.sp_plic_interrupt_pending_clear(Noagent{this}, source_id);
+}
+
+inline void System::pu_uart0_set_rx_fd(int fd)
+{
+    memory.pu_uart0_set_rx_fd(fd);
+}
+
+
+inline void System::pu_uart1_set_rx_fd(int fd)
+{
+    memory.pu_uart1_set_rx_fd(fd);
+}
+
+
+inline int System::pu_uart0_get_rx_fd() const
+{
+    return memory.pu_uart0_get_rx_fd();
+}
+
+
+inline int System::pu_uart1_get_rx_fd() const
+{
+    return memory.pu_uart1_get_rx_fd();
+}
+
+
+inline void System::spio_uart0_set_rx_fd(int fd)
+{
+    memory.spio_uart0_set_rx_fd(fd);
+}
+
+
+inline void System::spio_uart1_set_rx_fd(int fd)
+{
+    memory.spio_uart1_set_rx_fd(fd);
+}
+
+
+inline int System::spio_uart0_get_rx_fd() const
+{
+    return memory.spio_uart0_get_rx_fd();
+}
+
+
+inline int System::spio_uart1_get_rx_fd() const
+{
+    return memory.spio_uart1_get_rx_fd();
 }
 
 

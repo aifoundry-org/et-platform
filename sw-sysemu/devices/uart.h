@@ -33,17 +33,39 @@ struct Uart : public MemoryRegion
 
     // Registers from DW_apb_uart.csr
     enum : size_type {
-        DW_APB_UART_RBR = 0x00,
+        DW_APB_UART_RBR_THR = 0x00,
         DW_APB_UART_LSR = 0x14,
+    };
+
+    // LSR register fields
+    enum : size_type {
+        DW_APB_UART_LSR_DR_SHIFT = 0,
+        DW_APB_UART_LSR_THRE_SHIFT = 5,
     };
 
     void read(const Agent&, size_type pos, size_type n, pointer result) override {
         (void) n;
+        assert(n == 4);
+
         switch (pos) {
-        case DW_APB_UART_LSR:
-            assert(n == 4);
-            *reinterpret_cast<uint32_t*>(result) = 0;
+        case DW_APB_UART_RBR_THR: {
+            char data = 0;
+            if (rx_fd != -1 && fd_read_data_available(rx_fd)) {
+                ::read(rx_fd, &data, 1);
+            }
+           *reinterpret_cast<uint32_t*>(result) = data;
             break;
+        }
+        case DW_APB_UART_LSR: {
+            uint32_t dr = 0;
+            if (rx_fd != -1 && fd_read_data_available(rx_fd)) {
+                dr = 1;
+            }
+            *reinterpret_cast<uint32_t*>(result) =
+                (dr << DW_APB_UART_LSR_DR_SHIFT) |  // Data Ready in the RBR or the receiver FIFO
+                (0  << DW_APB_UART_LSR_THRE_SHIFT); // Transmit FIFO always empty
+            break;
+        }
         default:
             *reinterpret_cast<uint32_t*>(result) = 0;
             break;
@@ -52,9 +74,10 @@ struct Uart : public MemoryRegion
 
     void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
         (void) n;
+        assert(n == 4);
+
         switch (pos) {
-        case DW_APB_UART_RBR:
-            assert(n == 4);
+        case DW_APB_UART_RBR_THR:
             if ((tx_fd != -1) && (::write(tx_fd, source, 1) < 0)) {
                 auto error = std::error_code(errno, std::system_category());
                 throw std::system_error(error, "bemu::Uart::write()");
@@ -76,6 +99,21 @@ struct Uart : public MemoryRegion
 
     // For exposition only
     int tx_fd = -1;
+    int rx_fd = -1;
+
+private:
+    static bool fd_read_data_available(int fd) {
+        fd_set rfds;
+        struct timeval tv;
+        tv.tv_sec = 0; //  If both fields of tv are zero, returns immediately
+        tv.tv_usec = 0;
+        FD_ZERO(&rfds);
+        FD_SET(fd, &rfds);
+        if (select(fd + 1, &rfds, nullptr, nullptr, &tv) < 0) {
+            return false;
+        }
+        return FD_ISSET(fd, &rfds);
+    }
 };
 
 

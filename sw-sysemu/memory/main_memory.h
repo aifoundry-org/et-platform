@@ -136,6 +136,14 @@ struct MainMemory {
     void sp_plic_interrupt_pending_clear(const Agent&, uint32_t source);
 
     // Access the UARTs
+    void pu_uart0_set_rx_fd(int fd);
+    void pu_uart1_set_rx_fd(int fd);
+    int pu_uart0_get_rx_fd() const;
+    int pu_uart1_get_rx_fd() const;
+    void spio_uart0_set_rx_fd(int fd);
+    void spio_uart1_set_rx_fd(int fd);
+    int spio_uart0_get_rx_fd() const;
+    int spio_uart1_get_rx_fd() const;
     void pu_uart0_set_tx_fd(int fd);
     void pu_uart1_set_tx_fd(int fd);
     int pu_uart0_get_tx_fd() const;

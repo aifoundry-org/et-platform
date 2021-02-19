@@ -67,6 +67,61 @@ void MainMemory::sp_plic_interrupt_pending_clear(const Agent& agent, uint32_t so
 }
 
 
+void MainMemory::pu_uart0_set_rx_fd(int fd)
+{
+    auto ptr = dynamic_cast<PeripheralRegion<pu_io_base, 256_MiB>*>(regions[1].get());
+    ptr->pu_uart0.rx_fd = fd;
+}
+
+
+void MainMemory::pu_uart1_set_rx_fd(int fd)
+{
+    auto ptr = dynamic_cast<PeripheralRegion<pu_io_base, 256_MiB>*>(regions[1].get());
+    ptr->pu_uart1.rx_fd = fd;
+}
+
+
+int MainMemory::pu_uart0_get_rx_fd() const
+{
+    auto ptr = dynamic_cast<PeripheralRegion<pu_io_base, 256_MiB>*>(regions[1].get());
+    return ptr->pu_uart0.rx_fd;
+}
+
+
+int MainMemory::pu_uart1_get_rx_fd() const
+{
+    auto ptr = dynamic_cast<PeripheralRegion<pu_io_base, 256_MiB>*>(regions[1].get());
+    return ptr->pu_uart1.rx_fd;
+}
+
+
+void MainMemory::spio_uart0_set_rx_fd(int fd)
+{
+    auto ptr = dynamic_cast<SvcProcRegion<spio_base, 1_GiB>*>(regions[3].get());
+    ptr->spio_uart0.rx_fd = fd;
+}
+
+
+void MainMemory::spio_uart1_set_rx_fd(int fd)
+{
+    auto ptr = dynamic_cast<SvcProcRegion<spio_base, 1_GiB>*>(regions[3].get());
+    ptr->spio_uart1.rx_fd = fd;
+}
+
+
+int MainMemory::spio_uart0_get_rx_fd() const
+{
+    auto ptr = dynamic_cast<SvcProcRegion<spio_base, 1_GiB>*>(regions[3].get());
+    return ptr->spio_uart0.rx_fd;
+}
+
+
+int MainMemory::spio_uart1_get_rx_fd() const
+{
+    auto ptr = dynamic_cast<SvcProcRegion<spio_base, 1_GiB>*>(regions[3].get());
+    return ptr->spio_uart1.rx_fd;
+}
+
 void MainMemory::pu_uart0_set_tx_fd(int fd)
 {
     auto ptr = dynamic_cast<PeripheralRegion<pu_io_base, 256_MiB>*>(regions[1].get());

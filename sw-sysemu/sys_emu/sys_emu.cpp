@@ -854,7 +854,55 @@ bool sys_emu::init_simulator(const sys_emu_cmd_options &cmd_options,
                           reinterpret_cast<bemu::MainMemory::const_pointer>(&info.value));
     }
 
-    // Setup PU UART0 stream
+    // Setup PU UART0 RX stream
+    if (!cmd_options.pu_uart0_rx_file.empty()) {
+        int fd = open(cmd_options.pu_uart0_rx_file.c_str(), O_RDONLY, 0666);
+        if (fd < 0) {
+            LOG_NOTHREAD(FTL, "Error opening \"%s\"", cmd_options.pu_uart0_rx_file.c_str());
+            return false;
+        }
+        chip.pu_uart0_set_rx_fd(fd);
+    } else {
+        chip.pu_uart0_set_rx_fd(STDIN_FILENO);
+    }
+
+    // Setup PU UART1 RX stream
+    if (!cmd_options.pu_uart1_rx_file.empty()) {
+        int fd = open(cmd_options.pu_uart1_rx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        if (fd < 0) {
+            LOG_NOTHREAD(FTL, "Error opening \"%s\"", cmd_options.pu_uart1_rx_file.c_str());
+            return false;
+        }
+        chip.pu_uart1_set_rx_fd(fd);
+    } else {
+        chip.pu_uart1_set_rx_fd(STDIN_FILENO);
+    }
+
+    // Setup SPIO UART0 RX stream
+    if (!cmd_options.spio_uart0_rx_file.empty()) {
+        int fd = open(cmd_options.spio_uart0_rx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        if (fd < 0) {
+            LOG_NOTHREAD(FTL, "Error opening \"%s\"", cmd_options.spio_uart0_rx_file.c_str());
+            return false;
+        }
+        chip.spio_uart0_set_rx_fd(fd);
+    } else {
+        chip.spio_uart0_set_rx_fd(STDIN_FILENO);
+    }
+
+    // Setup SPIO UART1 RX stream
+    if (!cmd_options.spio_uart1_rx_file.empty()) {
+        int fd = open(cmd_options.spio_uart1_rx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        if (fd < 0) {
+            LOG_NOTHREAD(FTL, "Error opening \"%s\"", cmd_options.spio_uart1_rx_file.c_str());
+            return false;
+        }
+        chip.spio_uart1_set_rx_fd(fd);
+    } else {
+        chip.spio_uart1_set_rx_fd(STDIN_FILENO);
+    }
+
+    // Setup PU UART0 TX stream
     if (!cmd_options.pu_uart0_tx_file.empty()) {
         int fd = open(cmd_options.pu_uart0_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
@@ -866,7 +914,7 @@ bool sys_emu::init_simulator(const sys_emu_cmd_options &cmd_options,
         chip.pu_uart0_set_tx_fd(STDOUT_FILENO);
     }
 
-    // Setup PU UART1 stream
+    // Setup PU UART1 TX stream
     if (!cmd_options.pu_uart1_tx_file.empty()) {
         int fd = open(cmd_options.pu_uart1_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
@@ -878,7 +926,7 @@ bool sys_emu::init_simulator(const sys_emu_cmd_options &cmd_options,
         chip.pu_uart1_set_tx_fd(STDOUT_FILENO);
     }
 
-    // Setup SPIO UART0 stream
+    // Setup SPIO UART0 TX stream
     if (!cmd_options.spio_uart0_tx_file.empty()) {
         int fd = open(cmd_options.spio_uart0_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
@@ -890,7 +938,7 @@ bool sys_emu::init_simulator(const sys_emu_cmd_options &cmd_options,
         chip.spio_uart0_set_tx_fd(STDOUT_FILENO);
     }
 
-    // Setup SPIO UART1 stream
+    // Setup SPIO UART1 TX stream
     if (!cmd_options.spio_uart1_tx_file.empty()) {
         int fd = open(cmd_options.spio_uart1_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
@@ -1272,6 +1320,18 @@ int sys_emu::main_internal(const sys_emu_cmd_options &cmd_options,
 
     if(!cmd_options.dump_mem.empty())
         bemu::dump_data(chip.memory, bemu::Noagent{&chip}, cmd_options.dump_mem.c_str(), chip.memory.first(), (chip.memory.last() - chip.memory.first()) + 1);
+
+    if(!cmd_options.pu_uart0_rx_file.empty())
+        close(chip.pu_uart0_get_rx_fd());
+
+    if(!cmd_options.pu_uart1_rx_file.empty())
+        close(chip.pu_uart1_get_rx_fd());
+
+    if(!cmd_options.spio_uart0_rx_file.empty())
+        close(chip.spio_uart0_get_rx_fd());
+
+    if(!cmd_options.spio_uart1_rx_file.empty())
+        close(chip.spio_uart1_get_rx_fd());
 
     if(!cmd_options.pu_uart0_tx_file.empty())
         close(chip.pu_uart0_get_tx_fd());

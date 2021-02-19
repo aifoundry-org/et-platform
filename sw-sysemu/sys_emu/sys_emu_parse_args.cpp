@@ -44,10 +44,14 @@ static const char * help_msg =
      -max_cycles <cycles>     Stops execution after provided number of cycles (default: 10M)\n\
      -mem_reset <byte>        Reset value of main memory (default: 0)\n\
      -mem_reset32 <uint32>    Reset value of main memory (default: 0)\n\
-     -pu_uart0_tx_file <path> Path to the file in which to dump the contents of PU UART0 TX\n\
-     -pu_uart1_tx_file <path> Path to the file in which to dump the contents of PU UART1 TX\n\
-     -spio_uart0_tx_file <path> Path to the file in which to dump the contents of SPIO UART0 TX\n\
-     -spio_uart1_tx_file <path> Path to the file in which to dump the contents of SPIO UART1 TX\n\
+     -pu_uart0_rx_file <path> Path to the file in which to read the contents of PU UART0 RX (default is stdin)\n\
+     -pu_uart1_rx_file <path> Path to the file in which to read the contents of PU UART1 RX (default is stdin)\n\
+     -spio_uart0_rx_file <path> Path to the file in which to read the contents of SPIO UART0 RX (default is stdin)\n\
+     -spio_uart1_rx_file <path> Path to the file in which to read the contents of SPIO UART1 RX (default is stdin)\n\
+     -pu_uart0_tx_file <path> Path to the file in which to dump the contents of PU UART0 TX (default is stdout)\n\
+     -pu_uart1_tx_file <path> Path to the file in which to dump the contents of PU UART1 TX (default is stdout)\n\
+     -spio_uart0_tx_file <path> Path to the file in which to dump the contents of SPIO UART0 TX (default is stdout)\n\
+     -spio_uart1_tx_file <path> Path to the file in which to dump the contents of SPIO UART1 TX (default is stdout)\n\
      -log_at_pc <PC>          Enables logging when minion reaches a given PC\n\
      -stop_log_at_pc <PC>     Disables logging when minion reaches a given PC\n\
      -display_trap_info       Displays trap logging in the INFO channel instead of DEBUG\n\
@@ -125,6 +129,10 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"max_cycles",             required_argument, nullptr, 0},
         {"mem_reset",              required_argument, nullptr, 0},
         {"mem_reset32",            required_argument, nullptr, 0},
+        {"pu_uart0_rx_file",       required_argument, nullptr, 0},
+        {"pu_uart1_rx_file",       required_argument, nullptr, 0},
+        {"spio_uart0_rx_file",     required_argument, nullptr, 0},
+        {"spio_uart1_rx_file",     required_argument, nullptr, 0},
         {"pu_uart_tx_file",        required_argument, nullptr, 0}, // same as '-pu_uart0_tx_file', kept for backwards compatibility
         {"pu_uart0_tx_file",       required_argument, nullptr, 0},
         {"pu_uart1_tx_file",       required_argument, nullptr, 0},
@@ -315,6 +323,22 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         else if (!strcmp(name, "mem_reset32"))
         {
           cmd_options.mem_reset = strtol(optarg, NULL, 0);
+        }
+        else if (!strcmp(name, "pu_uart0_rx_file"))
+        {
+            cmd_options.pu_uart0_rx_file = optarg;
+        }
+        else if (!strcmp(name, "pu_uart1_rx_file"))
+        {
+            cmd_options.pu_uart1_rx_file = optarg;
+        }
+        else if (!strcmp(name, "spio_uart0_rx_file"))
+        {
+            cmd_options.spio_uart0_rx_file = optarg;
+        }
+        else if (!strcmp(name, "spio_uart1_rx_file"))
+        {
+            cmd_options.spio_uart1_rx_file = optarg;
         }
         else if (!strcmp(name, "pu_uart0_tx_file") || !strcmp(name, "pu_uart_tx_file"))
         {
