@@ -25,47 +25,28 @@ Enums:
         Value: 4
       - Name: TRACE
         Value: 5
-  - Name: dev_ops_api_kernel_launch_status
-    Type: uint32_t
-    Values:
-      - Name: OK
-        Value: 0
-      - Name: SHIRES_NOT_READY
-        Value: 1
-      - Name: ERROR
-        Value: 2
-      - Name: RESULT_OK
-        Value: 3
-      - Name: RESULT_ERROR
-        Value: 4
   - Name: dev_ops_api_kernel_launch_response
     Type: uint32_t
     Values:
-      - Name: HOST_ABORTED
-        Value: 0
-      - Name: SHIRES_NOT_READY
-        Value: 1
-      - Name: ERROR
-        Value: 2
-      - Name: SUCCESS
-        Value: 3
       - Name: KERNEL_COMPLETED
-        Value: 3
+        Value: 0
+      - Name: ERROR
+        Value: 1
       - Name: EXCEPTION
+        Value: 2
+      - Name: SHIRES_NOT_READY
+        Value: 3
+      - Name: HOST_ABORTED
         Value: 4
   - Name: dev_ops_api_kernel_abort_response
     Type: uint32_t
     Values:
-      - Name: NONE
+      - Name: SUCCESS
         Value: 0
-      - Name : OK
-        Value : 1
-      - Name : SUCCESS
+      - Name : ERROR
         Value : 1
       - Name : INVALID_TAG_ID
         Value : 2
-      - Name : ERROR
-        Value : 3
   - Name: dev_ops_api_dma_response
     Type: uint32_t
     Values:
@@ -216,7 +197,7 @@ Messages :
       - Name: status
         Description: Kernel Launch status
         Type: enum
-        Enum: dev_ops_api_kernel_launch_status
+        Enum: dev_ops_api_kernel_launch_response
 #-------------------------------------------------------------------------------
   - Name: device_ops_kernel_abort_cmd
     Description: Command to abort a currently running kernel on the device
