@@ -306,16 +306,26 @@ bool SysEmuImp::host_memory_write(uint64_t host_addr, uint64_t size, const void*
 }
 
 SysEmuImp::~SysEmuImp() {
+  std::promise<void> p;
+  auto request = [=, &p]() {
+    chip_->set_emu_done(true);
+    p.set_value();
+  };
   std::unique_lock<std::mutex> lock(mutex_);
+  requests_.emplace(std::move(request));
   running_ = false;
-  hostListener_ = nullptr;
+  lock.unlock();
+  // Wait until set_emu_done is called
+  p.get_future().get();
+  // Wake host interrupt waiters
+  condVar_.notify_all();
+  // Empty request queue
+  lock.lock();
   while (!requests_.empty()) {
     requests_.pop();
   }
-  chip_->set_emu_done(true);
-  pendingInterruptsBitmask_ = 0;
   lock.unlock();
-  condVar_.notify_all();
+
   SE_LOG(INFO) << "Waiting for sysemu thread to finish.";
   sysEmuThread_.join();
   SE_LOG(INFO) << "Sysemu thread finished.";
@@ -324,7 +334,6 @@ SysEmuImp::~SysEmuImp() {
 SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>& barAddresses,
                      IHostListener* hostListener)
   : hostListener_(hostListener) {
-  // Preload BootromTrampolineToBL2 and BL2 SP ELFs
   const std::vector<std::string> preloadElfs = {options.bootromTrampolineToBL2ElfPath, options.spBL2ElfPath,
                                                 options.masterMinionElfPath, options.machineMinionElfPath,
                                                 options.workerMinionElfPath};
