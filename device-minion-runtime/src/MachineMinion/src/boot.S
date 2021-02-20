@@ -9,6 +9,8 @@
 *-------------------------------------------------------------------------
 */
 
+#include "layout.h"
+
 /*
  * Initially written by emmanuel.marie@esperantotech.com
  * Moved from esperanto-soc to device-firmware repo by doug.crowder@esperantotech.com
@@ -19,37 +21,19 @@
 #=========================================================================
 
 .section .text.init, "ax", @progbits
-.global _boot
+.global _start
 
-_boot:
+_start:
     csrwi matp, 0       # disable machine VM
     csrwi satp, 0       # disable supervisor VM
     li    t0, 0x6000
     csrs  mstatus, t0   # set floating point status fs=11 (dirty)
     csrwi fcsr, 0       # clear floating point status
-    #csrwi mip, 0        # clear all pending interrupts
-
-###################################################################\\
-#  * FIXME *                                                        #
-#####################################################################
-# Uncomment mtime/mtimecmp initialization when soc_tb, shiretop_tb  #
-# support ESR accesses without notifying BAD accesses to mem region #
-#####################################################################
-## set mtime to 0, different for each thread
-#  csrr  t0, mhartid
-#  andi  t0, t0, ~63
-#  slli  t0, t0, 16
-#  li    a1, 0x01C03001D8  # mtime address
-#  or    a1, a1, t0
-#  sd    x0, 0(a1)
-## set mtimecmp to "infinity"
-#  li    t0, -1
-#  sd    t0, 8(a1)
-###################################################################//
+    #csrwi mip, 0       # clear all pending interrupts
 
     addi x1,  x0, 0
-    # sp set later by loader
-    # gp set later by crt.S
+    # sp set later
+    # gp set later
     addi x4,  x0, 0
     addi x5,  x0, 0
     addi x6,  x0, 0
@@ -114,8 +98,23 @@ _boot:
     fcvt.s.w f31, x0
 #endif
 
+    # Initialize the global pointer
 .option push
 .option norelax
-    la a1, _start
+    la gp, __global_pointer$
 .option pop
-    jalr x0, a1
+
+    # Initialize the stack pointer for each thread
+    csrr  t0, mhartid
+    li    t1, FW_MMODE_STACK_SIZE
+    mul   t0, t0, t1
+    li    sp, FW_MMODE_STACK_BASE
+    sub   sp, sp, t0
+
+    # Set mscratch to the stack pointer. Used by the trap handler
+    csrw  mscratch, sp
+
+    # we compile with -fno-zero-initialized-in-bss, therefore, no BSS is present
+
+    # Jump to main()
+    j     main
