@@ -12,10 +12,9 @@
 #ifndef _ESR_DEFINES_H_
 #define _ESR_DEFINES_H_
 
-#include <inttypes.h>
+#ifndef __ASSEMBLER__
 
-// Type definitions
-typedef enum { PRV_U = 0, PRV_S = 1, PRV_D = 2, PRV_M = 3, PRV_INVALID } esr_prot_t;
+#include <inttypes.h>
 
 typedef enum {
     esr_region_HART,
@@ -29,6 +28,13 @@ typedef enum {
 typedef enum { esr_access_RO, esr_access_RW, esr_access_INVALID } esr_access_t;
 
 typedef uint64_t esr_address_t;
+
+#endif
+
+#define PRV_U 0ull
+#define PRV_S 1ull
+#define PRV_D 2ull
+#define PRV_M 3ull
 
 // ESR region 'base address' field in bits [39:32]
 #define ESR_REGION 0x0100000000ULL // ESR Region bit [32] == 1
@@ -125,45 +131,45 @@ typedef uint64_t esr_address_t;
 
 // Helper macros to construct ESR addresses in the various subregions
 
-#define ESR_HART(prot, shire, hart, name)                                                   \
-    (((uint64_t)ESR_HART_REGION) | (((uint64_t)prot) << ESR_REGION_PROT_SHIFT) |            \
-     (((uint64_t)shire) << ESR_REGION_SHIRE_SHIFT) | (((uint64_t)hart) << ESR_HART_SHIFT) | \
-     ((uint64_t)ESR_HART_##name))
+#define ESR_HART(prot, shire, hart, name)                               \
+    ((ESR_HART_REGION) | ((prot) << ESR_REGION_PROT_SHIFT) |            \
+     ((shire) << ESR_REGION_SHIRE_SHIFT) | ((hart) << ESR_HART_SHIFT) | \
+     (ESR_HART_##name))
 
-#define ESR_NEIGH(shire, neigh, name)                                                         \
-    (((uint64_t)ESR_NEIGH_REGION) |                                                           \
-     (((uint64_t)ESR_NEIGH_##name##_PROT) << ESR_REGION_PROT_SHIFT) |                         \
-     (((uint64_t)shire) << ESR_REGION_SHIRE_SHIFT) | (((uint64_t)neigh) << ESR_NEIGH_SHIFT) | \
-     (((uint64_t)ESR_NEIGH_##name##_REGNO) << 3))
+#define ESR_NEIGH(shire, neigh, name)                                     \
+    ((ESR_NEIGH_REGION) |                                                 \
+     ((ESR_NEIGH_##name##_PROT) << ESR_REGION_PROT_SHIFT) |               \
+     ((shire) << ESR_REGION_SHIRE_SHIFT) | ((neigh) << ESR_NEIGH_SHIFT) | \
+     ((ESR_NEIGH_##name##_REGNO) << 3))
 
-#define ESR_CACHE(shire, bank, name)                                                        \
-    (((uint64_t)ESR_CACHE_REGION) |                                                         \
-     (((uint64_t)ESR_CACHE_##name##_PROT) << ESR_REGION_PROT_SHIFT) |                       \
-     (((uint64_t)shire) << ESR_REGION_SHIRE_SHIFT) | (((uint64_t)bank) << ESR_BANK_SHIFT) | \
-     (((uint64_t)ESR_CACHE_##name##_REGNO) << 3))
+#define ESR_CACHE(shire, bank, name)                                      \
+    ((ESR_CACHE_REGION) |                                                 \
+     ((ESR_CACHE_##name##_PROT) << ESR_REGION_PROT_SHIFT) |               \
+     ((shire) << ESR_REGION_SHIRE_SHIFT) | ((bank) << ESR_BANK_SHIFT) |   \
+     ((ESR_CACHE_##name##_REGNO) << 3))
 
-#define ESR_RBOX(shire, name)                                                                      \
-    (((uint64_t)ESR_RBOX_REGION) | (((uint64_t)ESR_RBOX_##name##_PROT) << ESR_REGION_PROT_SHIFT) | \
-     (((uint64_t)shire) << ESR_REGION_SHIRE_SHIFT) | (((uint64_t)ESR_RBOX_##name##_REGNO) << 3))
+#define ESR_RBOX(shire, name)                                                  \
+    ((ESR_RBOX_REGION) | ((ESR_RBOX_##name##_PROT) << ESR_REGION_PROT_SHIFT) | \
+     ((shire) << ESR_REGION_SHIRE_SHIFT) | ((ESR_RBOX_##name##_REGNO) << 3))
 
-#define ESR_SHIRE(shire, name)                                        \
-    (((uint64_t)ESR_SHIRE_REGION) |                                   \
-     (((uint64_t)ESR_SHIRE_##name##_PROT) << ESR_REGION_PROT_SHIFT) | \
-     (((uint64_t)shire) << ESR_REGION_SHIRE_SHIFT) | (((uint64_t)ESR_SHIRE_##name##_REGNO) << 3))
+#define ESR_SHIRE(shire, name)                              \
+    ((ESR_SHIRE_REGION) |                                   \
+     ((ESR_SHIRE_##name##_PROT) << ESR_REGION_PROT_SHIFT) | \
+     ((shire) << ESR_REGION_SHIRE_SHIFT) | ((ESR_SHIRE_##name##_REGNO) << 3))
 
-#define ESR_SHIRE_PROT_ADDR(prot, shire, addr)                                    \
-    (((uint64_t)ESR_SHIRE_REGION) | (((uint64_t)prot) << ESR_REGION_PROT_SHIFT) | \
-     (((uint64_t)shire) << ESR_REGION_SHIRE_SHIFT) | ((uint64_t)addr))
+#define ESR_SHIRE_PROT_ADDR(prot, shire, addr)                \
+    ((ESR_SHIRE_REGION) | ((prot) << ESR_REGION_PROT_SHIFT) | \
+     ((shire) << ESR_REGION_SHIRE_SHIFT) | (addr))
 
-#define ESR_MEMSHIRE(shire, name)                                        \
-    (((uint64_t)ESR_MEMSHIRE_REGION) |                                  \
-     (((uint64_t)ESR_MEMSHIRE_##name##_PROT) << ESR_REGION_PROT_SHIFT) | \
-     (((uint64_t)shire) << ESR_REGION_SHIRE_SHIFT) | (((uint64_t)ESR_DDRC_##name##_REGNO) << 3)
+#define ESR_MEMSHIRE(shire, name)                              \
+    ((ESR_MEMSHIRE_REGION) |                                   \
+     ((ESR_MEMSHIRE_##name##_PROT) << ESR_REGION_PROT_SHIFT) | \
+     ((shire) << ESR_REGION_SHIRE_SHIFT) | ((ESR_DDRC_##name##_REGNO) << 3)
 
-#define ESR_DDRC(shire, name)                                        \
-    (((uint64_t)ESR_DDRC_REGION) |                                  \
-     (((uint64_t)ESR_DDRC_##name##_PROT) << ESR_REGION_PROT_SHIFT) | \
-     (((uint64_t)shire) << ESR_REGION_SHIRE_SHIFT) | (((uint64_t)ESR_DDRC_##name##_REGNO) << 3))
+#define ESR_DDRC(shire, name)                              \
+    ((ESR_DDRC_REGION) |                                   \
+     ((ESR_DDRC_##name##_PROT) << ESR_REGION_PROT_SHIFT) | \
+     ((shire) << ESR_REGION_SHIRE_SHIFT) | ((ESR_DDRC_##name##_REGNO) << 3))
 
 // Hart ESRs
 #define ESR_HART_0     0x000 /* PP = 0b00 */

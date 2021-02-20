@@ -11,7 +11,7 @@
 
 INCLUDE layout.ld
 
-ENTRY(_boot)
+ENTRY(_start)
 
 STACK_SIZE = 1024 + 64;
 HART_COUNT = 2112;

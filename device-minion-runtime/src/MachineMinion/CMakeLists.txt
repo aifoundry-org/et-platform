@@ -11,9 +11,7 @@
 set(SOURCES
     src/boot.S
     src/trap_handler.S
-    src/crt.S
     src/syscall.c
-    src/swi.c
     src/trap_routine.c
     src/main.c
     src/pmu.c
