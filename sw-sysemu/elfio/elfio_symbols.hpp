@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2001-2020 by Serge Lamikhov-Center
+Copyright (C) 2001-present by Serge Lamikhov-Center
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -30,9 +30,9 @@ template <class S> class symbol_section_accessor_template
 {
   public:
     //------------------------------------------------------------------------------
-    symbol_section_accessor_template( const elfio& elf_file_,
-                                      S*           symbol_section_ )
-        : elf_file( elf_file_ ), symbol_section( symbol_section_ )
+    symbol_section_accessor_template( const elfio& elf_file,
+                                      S*           symbol_section )
+        : elf_file( elf_file ), symbol_section( symbol_section )
     {
         find_hash_section();
     }

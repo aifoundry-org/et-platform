@@ -37,7 +37,7 @@ typedef Packed<L1D_LINE_SIZE*8> cache_line_t;
 // Map logical scratchpad lines (0->47) to L1 cache lines (0->64).
 inline unsigned scp_index_to_cache_index(unsigned entry)
 {
-    const static unsigned scp_to_l1[48] = {
+    static const unsigned scp_to_l1[48] = {
         0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
         16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
         32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,

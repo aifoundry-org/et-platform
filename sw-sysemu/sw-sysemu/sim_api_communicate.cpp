@@ -10,10 +10,8 @@
 
 // SysEMU
 #include "emu_gio.h"
-#include "emu.h"
+#include "system.h"
 #include "sys_emu.h"
-#include "memory/mailbox_region.h"
-#include "devices/pcie_dbi_slv.h"
 
 // sw-sysemu
 #include "sim_api_communicate.h"
@@ -40,7 +38,7 @@ bool sim_api_communicate::SysEmuWrapper::shutdown()
 {
     LOG_NOTHREAD(INFO, "%s", "sim_api_communicate: shutdown");
     sim_->done_ = true;
-    bemu::emu_set_done();
+    sim_->chip_->set_emu_done(true);
     return true;
 }
 
@@ -56,7 +54,7 @@ int sim_api_communicate::SysEmuWrapper::active_threads()
 
 void sim_api_communicate::SysEmuWrapper::print_iatus()
 {
-    const auto &iatus = sim_->mem->pcie_space.pcie0_dbi_slv.iatus;
+    const auto& iatus = sim_->chip_->memory.pcie0_get_iatus();
 
     for (int i = 0; i < iatus.size(); i++) {
         uint64_t iatu_base_addr = (uint64_t)iatus[i].upper_base_addr << 32 |
@@ -78,7 +76,7 @@ bool sim_api_communicate::SysEmuWrapper::iatu_translate(uint64_t pci_addr, uint6
                                                         uint64_t &device_addr,
                                                         uint64_t &access_size)
 {
-    const auto &iatus = sim_->mem->pcie_space.pcie0_dbi_slv.iatus;
+    const auto& iatus = sim_->chip_->memory.pcie0_get_iatus();
 
     for (int i = 0; i < iatus.size(); i++) {
         // Check REGION_EN (bit[31])
@@ -117,7 +115,7 @@ bool sim_api_communicate::SysEmuWrapper::memory_read(uint64_t device_addr, size_
 {
     LOG_NOTHREAD(DEBUG, "sim_api_communicate: memory_read(device_addr = %" PRIx64 ", size = %zu)", device_addr, size);
 
-    sim_->mem->read(*this, device_addr, size, data);
+    sim_->chip_->memory.read(*this, device_addr, size, data);
     return true;
 }
 
@@ -125,7 +123,7 @@ bool sim_api_communicate::SysEmuWrapper::memory_write(uint64_t device_addr, size
 {
     LOG_NOTHREAD(DEBUG, "sim_api_communicate: memory_write(device_addr = %" PRIx64 ", size = %zu)", device_addr, size);
 
-    sim_->mem->write(*this, device_addr, size, data);
+    sim_->chip_->memory.write(*this, device_addr, size, data);
     return true;
 }
 
@@ -146,7 +144,7 @@ bool sim_api_communicate::SysEmuWrapper::pci_memory_read(uint64_t pci_addr, uint
             break;
         }
 
-        sim_->mem->read(*this, device_addr, access_size, (char *)data + host_access_offset);
+        sim_->chip_->memory.read(*this, device_addr, access_size, (char *)data + host_access_offset);
 
         pci_addr += access_size;
         host_access_offset += access_size;
@@ -178,7 +176,7 @@ bool sim_api_communicate::SysEmuWrapper::pci_memory_write(uint64_t pci_addr, uin
             break;
         }
 
-        sim_->mem->write(*this, device_addr, access_size, (char *)data + host_access_offset);
+        sim_->chip_->memory.write(*this, device_addr, access_size, (char *)data + host_access_offset);
 
         pci_addr += access_size;
         host_access_offset += access_size;
@@ -199,12 +197,10 @@ bool sim_api_communicate::SysEmuWrapper::mailbox_read(simulator_api::MailboxTarg
 
     switch (target) {
     case simulator_api::MailboxTarget::MAILBOX_TARGET_MM:
-        sim_->mem->pu_mbox_space.pu_mbox_pc_mm.read(*this, offset, size,
-            reinterpret_cast<bemu::MemoryRegion::pointer>(data));
+        sim_->chip_->memory.pc_mm_mailbox_read(*this, offset, size, reinterpret_cast<bemu::MemoryRegion::pointer>(data));
         return true;
     case simulator_api::MailboxTarget::MAILBOX_TARGET_SP:
-        sim_->mem->pu_mbox_space.pu_mbox_pc_sp.read(*this, offset, size,
-            reinterpret_cast<bemu::MemoryRegion::pointer>(data));
+        sim_->chip_->memory.pc_sp_mailbox_read(*this, offset, size, reinterpret_cast<bemu::MemoryRegion::pointer>(data));
         return true;
     }
 
@@ -217,12 +213,10 @@ bool sim_api_communicate::SysEmuWrapper::mailbox_write(simulator_api::MailboxTar
 
     switch (target) {
     case simulator_api::MailboxTarget::MAILBOX_TARGET_MM:
-        sim_->mem->pu_mbox_space.pu_mbox_pc_mm.write(*this, offset, size,
-            reinterpret_cast<bemu::MemoryRegion::const_pointer>(data));
+        sim_->chip_->memory.pc_mm_mailbox_write(*this, offset, size, reinterpret_cast<bemu::MemoryRegion::const_pointer>(data));
         return true;
     case simulator_api::MailboxTarget::MAILBOX_TARGET_SP:
-        sim_->mem->pu_mbox_space.pu_mbox_pc_sp.write(*this, offset, size,
-            reinterpret_cast<bemu::MemoryRegion::const_pointer>(data));
+        sim_->chip_->memory.pc_sp_mailbox_write(*this, offset, size, reinterpret_cast<bemu::MemoryRegion::const_pointer>(data));
         return true;
     }
 
@@ -234,18 +228,12 @@ bool sim_api_communicate::SysEmuWrapper::raise_device_interrupt(simulator_api::D
     LOG_NOTHREAD(INFO, "sim_api_communicate: raise_device_interrupt(type = %d)", (int)type);
 
     switch (type) {
-    case simulator_api::DeviceInterruptType::PU_PLIC_PCIE_MESSAGE_INTERRUPT: {
-        uint32_t trigger = 1;
-        sim_->mem->pu_mbox_space.pu_trg_pcie.write(*this, bemu::MMM_INT_INC, sizeof(trigger),
-            reinterpret_cast<bemu::MemoryRegion::const_pointer>(&trigger));
+    case simulator_api::DeviceInterruptType::PU_PLIC_PCIE_MESSAGE_INTERRUPT:
+        sim_->chip_->memory.pu_trg_pcie_mmm_int_inc(*this);
         break;
-    }
-    case simulator_api::DeviceInterruptType::SPIO_PLIC_MBOX_HOST_INTERRUPT: {
-        uint32_t trigger = 1;
-        sim_->mem->pu_mbox_space.pu_trg_pcie.write(*this, bemu::IPI_TRIGGER, sizeof(trigger),
-            reinterpret_cast<bemu::MemoryRegion::const_pointer>(&trigger));
+    case simulator_api::DeviceInterruptType::SPIO_PLIC_MBOX_HOST_INTERRUPT:
+        sim_->chip_->memory.pu_trg_pcie_ipi_trigger(*this);
         break;
-    }
     default:
         return false;
     }
@@ -269,7 +257,6 @@ void sim_api_communicate::SysEmuWrapper::shire_threads_set_pc(unsigned shire_id,
 sim_api_communicate::sim_api_communicate(const std::string &socket_path) :
     done_(false),
     socket_path_(socket_path),
-    mem(&bemu::memory),
     wrapper_(this),
     sim_api_(&wrapper_)
 {
@@ -279,6 +266,12 @@ sim_api_communicate::sim_api_communicate(const std::string &socket_path) :
 
 sim_api_communicate::~sim_api_communicate()
 {
+}
+
+void sim_api_communicate::set_system(bemu::System* system)
+{
+    chip_ = system;
+    wrapper_.Agent::chip = system;
 }
 
 void sim_api_communicate::process(void)

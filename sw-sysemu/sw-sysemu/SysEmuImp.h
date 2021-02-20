@@ -12,6 +12,7 @@
 #include "api_communicate.h"
 #include "sw-sysemu/ISysEmu.h"
 #include "sys_emu.h"
+#include "system.h"
 #include <condition_variable>
 #include <functional>
 #include <mutex>
@@ -29,6 +30,7 @@ public:
   uint32_t waitForInterrupt(uint32_t bitmask) override;
 
   // api_communicate interface
+  void set_system(bemu::System* system);
   void process() override;
   bool raise_host_interrupt(uint32_t bitmap) override;
   bool host_memory_read(uint64_t host_addr, uint64_t size, void* data) override;
@@ -39,6 +41,7 @@ public:
   SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>& barAddresses, IHostListener* hostListener);
 
 private:
+  bemu::System* chip_;
   std::thread sysEmuThread_;
 
   std::mutex mutex_;

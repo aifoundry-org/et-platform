@@ -36,44 +36,41 @@ add_library(sysemu
     sys_emu/testLog.cpp
     sys_emu/utils.cpp
     devices/pcie_dma.cpp
-		emu.cpp
-		emu_gio.cpp
-		esrs.cpp
-		flb.cpp
-		gold.cpp
-		insns/arith.cpp
-		insns/arith_atomic.cpp
-		insns/arith_graphics.cpp
-		insns/arith_loadstore.cpp
-		insns/branch.cpp
-		insns/c_arith.cpp
-		insns/c_branch.cpp
-		insns/c_loadstore.cpp
-		insns/cache_control.cpp
-		insns/coherent_arith_loadstore.cpp
-		insns/coherent_packed_loadstore.cpp
-		insns/float.cpp
-		insns/float_loadstore.cpp
-		insns/muldiv.cpp
-		insns/packed_arith.cpp
-		insns/packed_atomic.cpp
-		insns/packed_float.cpp
-		insns/packed_graphics.cpp
-		insns/packed_loadstore.cpp
-		insns/packed_mask.cpp
-		insns/packed_trans.cpp
-		insns/system.cpp
-		insns/tensors.cpp
-		insns/zicsr.cpp
-		insns/zifencei.cpp
-		memory/load.cpp
-		mmu.cpp
-		msgport.cpp
-		processor.cpp
-		rbox.cpp
-		tbox_emu.cpp
-		traps.cpp
-    txs.cpp
+    emu_gio.cpp
+    esrs.cpp
+    flb.cpp
+    gold.cpp
+    insns/arith.cpp
+    insns/arith_atomic.cpp
+    insns/arith_graphics.cpp
+    insns/arith_loadstore.cpp
+    insns/branch.cpp
+    insns/c_arith.cpp
+    insns/c_branch.cpp
+    insns/c_loadstore.cpp
+    insns/cache_control.cpp
+    insns/coherent_arith_loadstore.cpp
+    insns/coherent_packed_loadstore.cpp
+    insns/float.cpp
+    insns/float_loadstore.cpp
+    insns/muldiv.cpp
+    insns/packed_arith.cpp
+    insns/packed_atomic.cpp
+    insns/packed_float.cpp
+    insns/packed_graphics.cpp
+    insns/packed_loadstore.cpp
+    insns/packed_mask.cpp
+    insns/packed_trans.cpp
+    insns/system.cpp
+    insns/tensors.cpp
+    insns/zicsr.cpp
+    insns/zifencei.cpp
+    memory/main_memory.cpp
+    mmu.cpp
+    msgport.cpp
+    processor.cpp
+    system.cpp
+    traps.cpp
     $<$<BOOL:${PROFILING}>:sys_emu/profiling.cpp>
     $<$<BOOL:${BACKTRACE}>:sys_emu/crash_handler.cpp>
 )
@@ -100,7 +97,7 @@ install(TARGETS sysemu
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/sw-sysemu
 )
 
-add_library(fpu 
+add_library(fpu
     fpu/cvt.cpp
     fpu/f10_to_f32.cpp
     fpu/f11_to_f32.cpp
@@ -367,7 +364,7 @@ install(TARGETS sys_emu
 
 target_include_directories(sys_emu PRIVATE ${SIMULATOR_API_INCLUDE_DIR})
 target_link_libraries(sys_emu
-    PRIVATE 
+    PRIVATE
         sysemu
         fpu
         etsim_api_static
@@ -375,8 +372,8 @@ target_link_libraries(sys_emu
 )
 
 # sw-sysemu
-add_library(sw-sysemu 
-    sw-sysemu/SysEmuImp.cpp 
+add_library(sw-sysemu
+    sw-sysemu/SysEmuImp.cpp
     sw-sysemu/SysEmuImp.h
     sw-sysemu/utils.h
     sw-sysemu/ISysEmu.cpp
@@ -416,7 +413,7 @@ include(CMakePackageConfigHelpers)
 
 # Create sw-sysemuConfig.cmake
 configure_package_config_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/sw-sysemuConfig.cmake.in 
+    ${CMAKE_CURRENT_SOURCE_DIR}/sw-sysemuConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/sw-sysemuConfig.cmake
     INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/sw-sysemu
 )

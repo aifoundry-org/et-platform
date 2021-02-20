@@ -15,14 +15,11 @@
 #include <stdexcept>
 #include "emu_defines.h"
 #include "literals.h"
-#include "memory_error.h"
-#include "memory_region.h"
 #include "processor.h"
+#include "memory/memory_error.h"
+#include "memory/memory_region.h"
 
 namespace bemu {
-
-
-extern typename MemoryRegion::reset_value_type memory_reset_value;
 
 
 template<unsigned long long Base, unsigned long long N>
@@ -44,7 +41,7 @@ struct MaxionRegion : public MemoryRegion {
         catch (const std::bad_cast&) {
             throw memory_error(first() + pos);
         }
-        default_value(result, n, memory_reset_value, pos);
+        default_value(result, n, agent.chip->memory_reset_value, pos);
     }
 
     void write(const Agent& agent, size_type pos, size_type, const_pointer) override {
@@ -65,7 +62,7 @@ struct MaxionRegion : public MemoryRegion {
     addr_type first() const override { return Base; }
     addr_type last() const override { return Base + N - 1; }
 
-    void dump_data(std::ostream&, size_type, size_type) const override { }
+    void dump_data(const Agent&, std::ostream&, size_type, size_type) const override { }
 };
 
 

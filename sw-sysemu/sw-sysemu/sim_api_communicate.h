@@ -13,6 +13,7 @@
 #include "api_communicate.h"
 #include "emu_gio.h"
 #include "memory/main_memory.h"
+#include "system.h"
 
 #define ENABLE_LOGGING 0
 
@@ -32,6 +33,8 @@
 
 #include "esperanto/simulator_server.h"
 
+using namespace bemu::literals;
+
 // Class that receives commands from the runtime API and forwards it to SoC
 class sim_api_communicate final : public api_communicate
 {
@@ -41,6 +44,7 @@ class sim_api_communicate final : public api_communicate
         ~sim_api_communicate();
 
         // From api_communicate
+        void set_system(bemu::System* system);
         void process(void) override;
         bool raise_host_interrupt(uint32_t bitmap) override;
         bool host_memory_read(uint64_t host_addr, uint64_t size, void *data) override;
@@ -75,7 +79,7 @@ class sim_api_communicate final : public api_communicate
 
         bool done_;
         std::string socket_path_;
-        bemu::MainMemory* mem;
+        bemu::System* chip_;
         SysEmuWrapper wrapper_;
         SimAPIServer<SysEmuWrapper> sim_api_;
 };

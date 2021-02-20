@@ -54,7 +54,10 @@ inline long shireid(long shire)
 }
 
 
-#define NR_MSG_PORTS    4
+// Message ports
+#define NR_MSG_PORTS         4
+#define PORT_LOG2_MIN_SIZE   2
+#define PORT_LOG2_MAX_SIZE   5
 
 // Some TensorFMA defines
 #define TFMA_MAX_AROWS    16

@@ -11,12 +11,13 @@
 #ifndef BEMU_RVTIMER_H
 #define BEMU_RVTIMER_H
 
-#include <cinttypes>
+#include <cstdint>
 #include <limits>
-#include "emu_defines.h"
-#ifdef SYS_EMU
-#include "sys_emu.h"
-#endif
+#include "agent.h"
+#include "system.h"
+
+namespace bemu {
+
 
 template <uint64_t interrupt_shire_mask>
 struct RVTimer
@@ -43,7 +44,7 @@ struct RVTimer
         return mtime;
     }
 
-    void write_mtime(uint64_t val) {
+    void write_mtime(const Agent&, uint64_t val) {
         mtime = val;
     }
 
@@ -51,28 +52,24 @@ struct RVTimer
         return mtimecmp;
     }
 
-    void write_mtimecmp(uint64_t val)
+    void write_mtimecmp(const Agent& agent, uint64_t val)
     {
         bool had_interrupt = interrupt;
         mtimecmp = val;
         interrupt = (mtime >= mtimecmp);
         if (had_interrupt && !interrupt) {
-#ifdef SYS_EMU
-            sys_emu::clear_timer_interrupt(interrupt_shire_mask);
-#endif
+            agent.chip->clear_timer_interrupt(interrupt_shire_mask);
         }
     }
 
-    void update(uint64_t cycle)
+    void update(const Agent& agent, uint64_t cycle)
     {
         if ((cycle % tick_freq) != 0)
             return;
 
         if (++mtime >= mtimecmp) {
             if (!interrupt) {
-#ifdef SYS_EMU
-                sys_emu::raise_timer_interrupt(interrupt_shire_mask);
-#endif
+                agent.chip->raise_timer_interrupt(interrupt_shire_mask);
                 interrupt = true;
             }
         }
@@ -83,5 +80,8 @@ private:
     uint64_t mtimecmp;
     bool interrupt;
 };
+
+
+} // namespace bemu
 
 #endif

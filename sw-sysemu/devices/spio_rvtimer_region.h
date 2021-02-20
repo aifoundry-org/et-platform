@@ -11,11 +11,10 @@
 #ifndef BEMU_SPIO_RVTIMER_REGION_H
 #define BEMU_SPIO_RVTIMER_REGION_H
 
-#include <cinttypes>
-#include <limits>
+#include <cstdint>
 #include "emu_defines.h"
-#include "memory/memory_region.h"
 #include "devices/rvtimer.h"
+#include "memory/memory_region.h"
 
 namespace bemu {
 
@@ -48,7 +47,7 @@ struct SpioRVTimerRegion : public MemoryRegion {
         }
     }
 
-    void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
+    void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         const uint64_t *source64 = reinterpret_cast<const uint64_t *>(source);
 
         if (n < 8)
@@ -56,10 +55,10 @@ struct SpioRVTimerRegion : public MemoryRegion {
 
         switch (pos) {
         case RVTIMER_REG_MTIME:
-            rvtimer.write_mtime(*source64);
+            rvtimer.write_mtime(agent, *source64);
             break;
         case RVTIMER_REG_MTIMECMP:
-            rvtimer.write_mtimecmp(*source64);
+            rvtimer.write_mtimecmp(agent, *source64);
             break;
         }
     }
@@ -71,7 +70,7 @@ struct SpioRVTimerRegion : public MemoryRegion {
     addr_type first() const override { return Base; }
     addr_type last() const override { return Base + N - 1; }
 
-    void dump_data(std::ostream&, size_type, size_type) const override { }
+    void dump_data(const Agent&, std::ostream&, size_type, size_type) const override { }
 
     RVTimer<1ull << EMU_IO_SHIRE_SP> rvtimer;
 };

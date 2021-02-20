@@ -16,9 +16,6 @@
 #include "memory/memory_error.h"
 #include "memory/memory_region.h"
 #include "devices/pcie_dma.h"
-#ifdef SYS_EMU
-#include "sys_emu.h"
-#endif
 
 namespace bemu {
 
@@ -57,7 +54,7 @@ struct PcieUsrEsrRegion : public MemoryRegion {
         }
     }
 
-    void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
+    void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
 
         LOG_NOTHREAD(DEBUG, "PcieUsrEsrRegion::write(pos=0x%llx)", pos);
@@ -69,13 +66,13 @@ struct PcieUsrEsrRegion : public MemoryRegion {
         case PSHIRE_USR0_DMA_RD_XFER_ADDRESS:
             for (int i = 0; i < ETSOC_CC_NUM_DMA_RD_CHAN; i++) {
                 if (*source32 & (1u << i))
-                    pcie0_dma_rdch_[i].go();
+                    pcie0_dma_rdch_[i].go(agent);
             }
             break;
         case PSHIRE_USR0_DMA_WR_XFER_ADDRESS:
             for (int i = 0; i < ETSOC_CC_NUM_DMA_WR_CHAN; i++) {
                 if (*source32 & (1u << i))
-                    pcie0_dma_wrch_[i].go();
+                    pcie0_dma_wrch_[i].go(agent);
             }
             break;
         }
@@ -88,7 +85,7 @@ struct PcieUsrEsrRegion : public MemoryRegion {
     addr_type first() const override { return Base; }
     addr_type last() const override { return Base + N - 1; }
 
-    void dump_data(std::ostream&, size_type, size_type) const override { }
+    void dump_data(const Agent&, std::ostream&, size_type, size_type) const override { }
 
     std::array<PcieDma<true>,  ETSOC_CC_NUM_DMA_WR_CHAN> &pcie0_dma_wrch_, &pcie1_dma_wrch_;
     std::array<PcieDma<false>, ETSOC_CC_NUM_DMA_RD_CHAN> &pcie0_dma_rdch_, &pcie1_dma_rdch_;

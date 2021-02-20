@@ -76,7 +76,7 @@ struct Efuse : public MemoryRegion {
     addr_type first() const override { return Base; }
     addr_type last() const override { return Base + N - 1; }
 
-    void dump_data(std::ostream&, size_type, size_type) const override { }
+    void dump_data(const Agent&, std::ostream&, size_type, size_type) const override { }
 
 protected:
     std::array<uint32_t, EFUSE_SIZE_BYTES / sizeof(uint32_t)> storage{};

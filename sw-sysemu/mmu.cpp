@@ -15,26 +15,22 @@
 #include <climits>
 
 #include "cache.h"
-#include "decode.h"
 #include "emu_gio.h"
 #include "esrs.h"
+#include "insn_util.h"
 #include "literals.h"
 #include "log.h"
 #include "memmap.h"
-#include "memory/main_memory.h"
 #include "mmu.h"
-#include "processor.h"
+#include "system.h"
 #include "traps.h"
 #include "utility.h"
 #ifdef SYS_EMU
+#include "sys_emu.h"
 #include "checkers/mem_checker.h"
 #endif
 
 namespace bemu {
-
-
-extern MainMemory memory;
-extern system_version_t sysver;
 
 
 //------------------------------------------------------------------------------
@@ -277,7 +273,7 @@ static uint64_t pma_check_data_access(const Hart& cpu, uint64_t vaddr,
                 throw memory_error(addr);
             }
             if (ts_tl_co) {
-                if (sysver == system_version_t::ETSOC1_A0) {
+                if (cpu.chip->sysver == system_version_t::ETSOC1_A0) {
                     // NB: On ET-SoC-1 A0 the PMA does not catch this case
                     // which leads to undefined behavior.
                     LOG_HART(WARN, cpu, "CacheOp to uncacheable addr 0x%016"
@@ -293,12 +289,12 @@ static uint64_t pma_check_data_access(const Hart& cpu, uint64_t vaddr,
 
         if (!spio && !addr_is_size_aligned(addr, size)) {
             // when data cache is in bypass mode all accesses should be aligned
-            uint8_t ctrl = neigh_esrs[neigh_index(cpu)].neigh_chicken;
+            uint8_t ctrl = cpu.chip->neigh_esrs[neigh_index(cpu)].neigh_chicken;
             if (ctrl & 0x2)
                 throw_access_fault(vaddr, macc);
         }
 
-        uint8_t mprot = neigh_esrs[neigh_index(cpu)].mprot;
+        uint8_t mprot = cpu.chip->neigh_esrs[neigh_index(cpu)].mprot;
 
         if (mprot & MPROT_ENABLE_SECURE_MEMORY) {
             if (paddr_is_dram_mcode(addr)) {
@@ -406,7 +402,7 @@ static uint64_t pma_check_data_access(const Hart& cpu, uint64_t vaddr,
     }
 
     if (paddr_is_io_space(addr)) {
-        uint8_t mprot = neigh_esrs[neigh_index(cpu)].mprot;
+        uint8_t mprot = cpu.chip->neigh_esrs[neigh_index(cpu)].mprot;
         if (amo
             || ts_tl_co
             || !addr_is_size_aligned(addr, size)
@@ -417,7 +413,7 @@ static uint64_t pma_check_data_access(const Hart& cpu, uint64_t vaddr,
     }
 
     if (paddr_is_pcie_space(addr)) {
-        uint8_t mprot = neigh_esrs[neigh_index(cpu)].mprot;
+        uint8_t mprot = cpu.chip->neigh_esrs[neigh_index(cpu)].mprot;
         if (amo
             || ts_tl_co
             || !addr_is_size_aligned(addr, size)
@@ -440,7 +436,7 @@ static uint64_t pma_check_fetch_access(const Hart& cpu, uint64_t vaddr,
         if (spio || paddr_is_dram_uncacheable(addr))
             throw_access_fault(vaddr, Mem_Access_Fetch);
 
-        uint8_t mprot = neigh_esrs[neigh_index(cpu)].mprot;
+        uint8_t mprot = cpu.chip->neigh_esrs[neigh_index(cpu)].mprot;
 
         if (mprot & MPROT_ENABLE_SECURE_MEMORY) {
             if (paddr_is_dram_mcode(addr)) {
@@ -527,7 +523,7 @@ static uint64_t pma_check_ptw_access(const Hart& cpu, uint64_t vaddr,
     bool spio = (cpu.mhartid == IO_SHIRE_SP_HARTID);
 
     if (paddr_is_dram(addr)) {
-        uint8_t mprot = neigh_esrs[neigh_index(cpu)].mprot;
+        uint8_t mprot = cpu.chip->neigh_esrs[neigh_index(cpu)].mprot;
 
         if (spio)
             addr &= ~0x4000000000ULL;
@@ -662,7 +658,7 @@ static uint64_t vmemtranslate(const Hart& cpu, uint64_t vaddr, size_t size,
         // Read PTE
         pte_addr = (ppn << PG_OFFSET_SIZE) + vpn*PTE_Size;
         try {
-            memory.read(cpu, pma_check_ptw_access(cpu, vaddr, pte_addr, macc), 8, &pte);
+            cpu.chip->memory.read(cpu, pma_check_ptw_access(cpu, vaddr, pte_addr, macc), 8, &pte);
             LOG_MEMREAD(64, pte_addr, pte);
         }
         catch (const memory_error&) {
@@ -802,7 +798,7 @@ uint32_t mmu_fetch(const Hart& cpu, uint64_t vaddr)
             uint16_t low, high;
             uint64_t paddr = vmemtranslate(cpu, vaddr, 2, Mem_Access_Fetch);
             uint64_t addr = pma_check_fetch_access(cpu, vaddr, paddr, 2);
-            memory.read(cpu, addr, 2, &low);
+            cpu.chip->memory.read(cpu, addr, 2, &low);
             if ((low & 3) != 3) {
                 LOG_HART(DEBUG, cpu, "Fetched compressed instruction from PC 0x%" PRIx64 ": 0x%04x", vaddr, low);
                 return low;
@@ -811,7 +807,7 @@ uint32_t mmu_fetch(const Hart& cpu, uint64_t vaddr)
                     ? (paddr + 2)
                     : vmemtranslate(cpu, vaddr + 2, 2, Mem_Access_Fetch);
             addr = pma_check_fetch_access(cpu, vaddr + 2, paddr, 2);
-            memory.read(cpu, addr, 2, &high);
+            cpu.chip->memory.read(cpu, addr, 2, &high);
             uint32_t bits = uint32_t(low) + (uint32_t(high) << 16);
             LOG_HART(DEBUG, cpu, "Fetched instruction from PC 0x%" PRIx64 ": 0x%08x", vaddr, bits);
             return bits;
@@ -820,7 +816,7 @@ uint32_t mmu_fetch(const Hart& cpu, uint64_t vaddr)
         uint32_t bits;
         uint64_t paddr = vmemtranslate(cpu, vaddr, 4, Mem_Access_Fetch);
         uint64_t addr = pma_check_fetch_access(cpu, vaddr, paddr, 4);
-        memory.read(cpu, addr, 4, &bits);
+        cpu.chip->memory.read(cpu, addr, 4, &bits);
         if ((bits & 3) != 3) {
             uint16_t low = uint16_t(bits);
             LOG_HART(DEBUG, cpu, "Fetched compressed instruction from PC 0x%" PRIx64 ": 0x%04x", vaddr, low);
@@ -846,13 +842,13 @@ T mmu_load_impl(const Hart& cpu, uint64_t eaddr, mem_access_type macc)
     if (len >= sizeof(T)) {
         // Access does not cross cache line boundary
         uint64_t addr = pma_check_data_access(cpu, vaddr, paddr, sizeof(T), macc);
-        memory.read(cpu, addr, sizeof(T), &value);
+        cpu.chip->memory.read(cpu, addr, sizeof(T), &value);
     } else {
         // Access crosses cache line boundary
         uint64_t addr1 = pma_check_data_access(cpu, vaddr, paddr, len, macc);
         uint64_t addr2 = pma_check_data_access(cpu, vaddr + len, paddr + len, sizeof(T) - len, macc);
-        memory.read(cpu, addr1, len, &value);
-        memory.read(cpu, addr2, sizeof(T) - len, reinterpret_cast<char*>(&value) + len);
+        cpu.chip->memory.read(cpu, addr1, len, &value);
+        cpu.chip->memory.read(cpu, addr2, sizeof(T) - len, reinterpret_cast<char*>(&value) + len);
     }
     LOG_MEMREAD(CHAR_BIT*sizeof(T), paddr, value);
     notify_mem_read(cpu, true, sizeof(T), vaddr, paddr);
@@ -871,7 +867,7 @@ T mmu_aligned_load_impl(const Hart& cpu, uint64_t eaddr, mem_access_type macc)
     uint64_t paddr = vmemtranslate(cpu, vaddr, sizeof(T), macc);
     uint64_t addr = pma_check_data_access(cpu, vaddr, paddr, sizeof(T), macc);
     T value {};
-    memory.read(cpu, addr, sizeof(T), &value);
+    cpu.chip->memory.read(cpu, addr, sizeof(T), &value);
     LOG_MEMREAD(CHAR_BIT*sizeof(T), paddr, value);
     notify_mem_read(cpu, true, sizeof(T), vaddr, paddr);
     return value;
@@ -933,7 +929,7 @@ void mmu_loadVLEN(const Hart& cpu, uint64_t eaddr, freg_t& data, mreg_t mask, me
         uint64_t addr = pma_check_data_access(cpu, vaddr, paddr, VLENB, macc, mask);
         for (size_t e = 0; e < MLEN; ++e) {
             if (mask[e]) {
-                memory.read(cpu, addr + 4*e, 4, &data.u32[e]);
+                cpu.chip->memory.read(cpu, addr + 4*e, 4, &data.u32[e]);
                 LOG_MEMREAD(32, paddr + 4*e, data.u32[e]);
             }
             notify_mem_read(cpu, mask[e], 4, vaddr + 4*e, paddr + 4*e);
@@ -943,7 +939,7 @@ void mmu_loadVLEN(const Hart& cpu, uint64_t eaddr, freg_t& data, mreg_t mask, me
         for (size_t e = 0; e < MLEN; ++e) {
             if (mask[e]) {
                 uint64_t addr = pma_check_data_access(cpu, vaddr + 4*e, paddr + 4*e, 4, macc);
-                memory.read(cpu, addr, 4, &data.u32[e]);
+                cpu.chip->memory.read(cpu, addr, 4, &data.u32[e]);
                 LOG_MEMREAD(32, paddr + 4*e, data.u32[e]);
             }
             notify_mem_read(cpu, mask[e], 4, vaddr + 4*e, paddr + 4*e);
@@ -955,8 +951,8 @@ void mmu_loadVLEN(const Hart& cpu, uint64_t eaddr, freg_t& data, mreg_t mask, me
             if (mask[e]) {
                 uint64_t addr1 = pma_check_data_access(cpu, vaddr + 4*e, paddr + 4*e, len, macc);
                 uint64_t addr2 = pma_check_data_access(cpu, vaddr + 4*e + len, paddr + 4*e + len, 4 - len, macc);
-                memory.read(cpu, addr1, len, &data.u8[4*e]);
-                memory.read(cpu, addr2, 4 - len, &data.u8[4*e + len]);
+                cpu.chip->memory.read(cpu, addr1, len, &data.u8[4*e]);
+                cpu.chip->memory.read(cpu, addr2, 4 - len, &data.u8[4*e + len]);
                 LOG_MEMREAD(32, paddr + 4*e, data.u32[e]);
             }
             notify_mem_read(cpu, mask[e], 4, vaddr + 4*e, paddr + 4*e);
@@ -979,7 +975,7 @@ void mmu_aligned_loadVLEN(const Hart& cpu, uint64_t eaddr, freg_t& data, mreg_t 
     uint64_t addr = pma_check_data_access(cpu, vaddr, paddr, VLENB, macc, mask);
     for (size_t e = 0; e < MLEN; ++e) {
         if (mask[e]) {
-            memory.read(cpu, addr + 4*e, 4, &data.u32[e]);
+            cpu.chip->memory.read(cpu, addr + 4*e, 4, &data.u32[e]);
             LOG_MEMREAD(32, paddr + 4*e, data.u32[e]);
         }
         notify_mem_read(cpu, mask[e], 4, vaddr + 4*e, paddr + 4*e);
@@ -997,13 +993,13 @@ void mmu_store_impl(const Hart& cpu, uint64_t eaddr, T data, mem_access_type mac
     if (len >= sizeof(T)) {
         // Access does not cross cache line boundary
         uint64_t addr = pma_check_data_access(cpu, vaddr, paddr, sizeof(T), macc);
-        memory.write(cpu, addr, sizeof(T), &data);
+        cpu.chip->memory.write(cpu, addr, sizeof(T), &data);
     } else {
         // Access crosses cache line boundary
         uint64_t addr1 = pma_check_data_access(cpu, vaddr, paddr, len, macc);
         uint64_t addr2 = pma_check_data_access(cpu, vaddr + len, paddr + len, sizeof(T) - len, macc);
-        memory.write(cpu, addr1, len, &data);
-        memory.write(cpu, addr2, sizeof(T) - len, reinterpret_cast<char*>(&data) + len);
+        cpu.chip->memory.write(cpu, addr1, len, &data);
+        cpu.chip->memory.write(cpu, addr2, sizeof(T) - len, reinterpret_cast<char*>(&data) + len);
     }
     LOG_MEMWRITE(CHAR_BIT*sizeof(T), paddr, data);
     notify_mem_write(cpu, true, sizeof(T), vaddr, paddr, data);
@@ -1020,7 +1016,7 @@ void mmu_aligned_store_impl(const Hart& cpu, uint64_t eaddr, T data, mem_access_
     }
     uint64_t paddr = vmemtranslate(cpu, vaddr, sizeof(T), macc);
     uint64_t addr = pma_check_data_access(cpu, vaddr, paddr, sizeof(T), macc);
-    memory.write(cpu, addr, sizeof(T), &data);
+    cpu.chip->memory.write(cpu, addr, sizeof(T), &data);
     LOG_MEMWRITE(CHAR_BIT*sizeof(T), paddr, data);
     notify_mem_write(cpu, true, sizeof(T), vaddr, paddr, data);
 }
@@ -1081,7 +1077,7 @@ void mmu_storeVLEN(const Hart& cpu, uint64_t eaddr, const freg_t& data, mreg_t m
         uint64_t addr = pma_check_data_access(cpu, vaddr, paddr, VLENB, macc, mask);
         for (size_t e = 0; e < MLEN; ++e) {
             if (mask[e]) {
-                memory.write(cpu, addr + 4*e, 4, &data.u32[e]);
+                cpu.chip->memory.write(cpu, addr + 4*e, 4, &data.u32[e]);
                 LOG_MEMWRITE(32, paddr + 4*e, data.u32[e]);
             }
             notify_mem_write(cpu, mask[e], 4, vaddr + 4*e, paddr + 4*e, data.u32[e]);
@@ -1091,7 +1087,7 @@ void mmu_storeVLEN(const Hart& cpu, uint64_t eaddr, const freg_t& data, mreg_t m
         for (size_t e = 0; e < MLEN; ++e) {
             if (mask[e]) {
                 uint64_t addr = pma_check_data_access(cpu, vaddr + 4*e, paddr + 4*e, 4, macc);
-                memory.write(cpu, addr, 4, &data.u32[e]);
+                cpu.chip->memory.write(cpu, addr, 4, &data.u32[e]);
                 LOG_MEMWRITE(32, paddr + 4*e, data.u32[e]);
             }
             notify_mem_write(cpu, mask[e], 4, vaddr + 4*e, paddr + 4*e, data.u32[e]);
@@ -1103,8 +1099,8 @@ void mmu_storeVLEN(const Hart& cpu, uint64_t eaddr, const freg_t& data, mreg_t m
             if (mask[e]) {
                 uint64_t addr1 = pma_check_data_access(cpu, vaddr + 4*e, paddr + 4*e, len, macc);
                 uint64_t addr2 = pma_check_data_access(cpu, vaddr + 4*e + len, paddr + 4*e + len, 4 - len, macc);
-                memory.write(cpu, addr1, len, &data.u8[4*e]);
-                memory.write(cpu, addr2, 4 - len, &data.u8[4*e + len]);
+                cpu.chip->memory.write(cpu, addr1, len, &data.u8[4*e]);
+                cpu.chip->memory.write(cpu, addr2, 4 - len, &data.u8[4*e + len]);
                 LOG_MEMWRITE(32, paddr + 4*e, data.u32[e]);
             }
             notify_mem_write(cpu, mask[e], 4, vaddr + 4*e, paddr + 4*e, data.u32[e]);
@@ -1127,7 +1123,7 @@ void mmu_aligned_storeVLEN(const Hart& cpu, uint64_t eaddr, const freg_t& data, 
     uint64_t addr = pma_check_data_access(cpu, vaddr, paddr, VLENB, macc, mask);
     for (size_t e = 0; e < MLEN; ++e) {
         if (mask[e]) {
-            memory.write(cpu, addr + 4*e, 4, &data.u32[e]);
+            cpu.chip->memory.write(cpu, addr + 4*e, 4, &data.u32[e]);
             LOG_MEMWRITE(32, paddr + 4*e, data.u32[e]);
         }
         notify_mem_write(cpu, mask[e], 4, vaddr + 4*e, paddr + 4*e, data.u32[e]);
@@ -1146,10 +1142,10 @@ T mmu_atomic_impl(const Hart& cpu, uint64_t eaddr, T data, std::function<T(T, T)
     uint64_t paddr = vmemtranslate(cpu, vaddr, sizeof(T), M);
     uint64_t addr = pma_check_data_access(cpu, vaddr, paddr, sizeof(T), M);
     T oldval {};
-    memory.read(cpu, addr, sizeof(T), &oldval);
+    cpu.chip->memory.read(cpu, addr, sizeof(T), &oldval);
     LOG_MEMREAD(CHAR_BIT*sizeof(T), paddr, oldval);
     T newval = fn(oldval, data);
-    memory.write(cpu, addr, sizeof(T), &newval);
+    cpu.chip->memory.write(cpu, addr, sizeof(T), &newval);
     LOG_MEMWRITE(CHAR_BIT*sizeof(T), paddr, newval);
     notify_mem_read_write(cpu, true, sizeof(T), vaddr, paddr, data);
     return oldval;
@@ -1195,10 +1191,10 @@ T mmu_compare_exchange_impl(const Hart& cpu, uint64_t eaddr, T expected, T desir
     }
     uint64_t paddr = vmemtranslate(cpu, vaddr, sizeof(T), M);
     uint64_t addr = pma_check_data_access(cpu, vaddr, paddr, sizeof(T), M);
-    memory.read(cpu, addr, sizeof(T), &oldval);
+    cpu.chip->memory.read(cpu, addr, sizeof(T), &oldval);
     LOG_MEMREAD(CHAR_BIT*sizeof(T), paddr, oldval);
     if (oldval == expected) {
-        memory.write(cpu, addr, sizeof(T), &desired);
+        cpu.chip->memory.write(cpu, addr, sizeof(T), &desired);
         LOG_MEMWRITE(CHAR_BIT*sizeof(T), paddr, desired);
     }
     notify_mem_read_write(cpu, true, sizeof(T), vaddr, paddr, desired);

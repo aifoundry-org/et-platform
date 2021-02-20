@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <fstream>
 #include <ostream>
+#include "agent.h"
 
 namespace bemu {
 
@@ -38,13 +39,13 @@ void dump_data(std::ostream& os, const Container& cont, std::size_t pos, std::si
 
 
 template<typename Container>
-void dump_data(const Container& cont, const char* filename,
+void dump_data(const Container& cont, const Agent& agent, const char* filename,
                unsigned long long addr, std::size_t n)
 {
     std::ofstream file;
     file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
     file.open(filename, std::ios::out);
-    cont.dump_data(file, addr, n);
+    cont.dump_data(agent, file, addr, n);
 }
 
 

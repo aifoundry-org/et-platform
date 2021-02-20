@@ -9,12 +9,12 @@
 *-------------------------------------------------------------------------*/
 
 #include "atomics.h"
-#include "decode.h"
 #include "emu_defines.h"
 #include "emu_gio.h"
 #include "fpu/fpu_casts.h"
 #include "insn.h"
 #include "insn_func.h"
+#include "insn_util.h"
 #include "log.h"
 #include "mmu.h"
 #include "processor.h"

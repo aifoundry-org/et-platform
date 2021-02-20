@@ -8,11 +8,11 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 
-#include "decode.h"
 #include "emu_defines.h"
 #include "emu_gio.h"
 #include "insn.h"
 #include "insn_func.h"
+#include "insn_util.h"
 #include "log.h"
 #include "processor.h"
 #include "utility.h"

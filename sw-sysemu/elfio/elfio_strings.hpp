@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2001-2020 by Serge Lamikhov-Center
+Copyright (C) 2001-present by Serge Lamikhov-Center
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -34,7 +34,7 @@ template <class S> class string_section_accessor_template
 {
   public:
     //------------------------------------------------------------------------------
-    string_section_accessor_template( S* section_ ) : string_section( section_ )
+    string_section_accessor_template( S* section ) : string_section( section )
     {
     }
 

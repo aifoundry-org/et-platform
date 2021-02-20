@@ -8,7 +8,8 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 
-#include "memop.h"
+#include <cinttypes>
+#include <iostream>
 #include "mmu.h"
 #include "sys_emu.h"
 
@@ -136,7 +137,7 @@ void sys_emu::memdump(uint64_t addr, uint64_t size)
     char ascii[17] = {0};
     for (uint64_t i = 0; i < size; i++) {
         uint8_t data;
-        bemu::pmemread(addr + i, &data);
+        chip.memory.read(bemu::Noagent{&chip}, addr + i, 1, &data);
         printf("%02X ", data);
         ascii[i % 16] = std::isprint(data) ? data : '.';
         if ((i + 1) % 8 == 0 || (i + 1) == size) {

@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2001-2020 by Serge Lamikhov-Center
+Copyright (C) 2001-present by Serge Lamikhov-Center
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -171,6 +171,21 @@ inline uint32_t elf_hash( const unsigned char* name )
     }
     return h;
 }
+
+inline std::string to_hex_string( Elf64_Addr t )
+{
+    std::string s;
+    while( t ) {
+        auto d = t & 0xf;
+        if ( d < 0xa )
+            s = char('0' + d) + s;
+        else
+            s = char('A' + d - 0xa) + s;
+        t >>= 4;
+    }
+    return "0x" + s;
+}
+
 
 } // namespace ELFIO
 

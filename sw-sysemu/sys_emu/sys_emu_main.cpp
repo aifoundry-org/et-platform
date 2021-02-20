@@ -21,8 +21,6 @@
 
 int main(int argc, char * argv[])
 {
-    sys_emu emu;
-
     auto result = sys_emu::parse_command_line_arguments(argc, argv);
     bool status = std::get<0>(result);
     sys_emu_cmd_options cmd_options = std::get<1>(result);
@@ -32,5 +30,6 @@ int main(int argc, char * argv[])
         return EXIT_FAILURE;
     }
 
-    return emu.main_internal(cmd_options);
+    sys_emu emu(cmd_options);
+    return emu.main_internal();
 }

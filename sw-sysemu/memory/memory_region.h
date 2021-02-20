@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <iosfwd>
 #include "agent.h"
+#include "emu_defines.h"
 
 namespace bemu {
 
@@ -45,10 +46,10 @@ struct MemoryRegion
     virtual addr_type last() const = 0;
 
     // Outputs region data to a stream
-    virtual void dump_data(std::ostream& os, size_type pos, size_type n) const = 0;
+    virtual void dump_data(const Agent& agent, std::ostream& os, size_type pos, size_type n) const = 0;
 
     static void default_value(pointer result, size_type n,
-                              reset_value_type pattern, size_type offset)
+                              const reset_value_type& pattern, size_type offset)
     {
         for (unsigned i = 0 ; i < n; ++i) {
             result[i] = pattern[(i + offset) % MEM_RESET_PATTERN_SIZE];
