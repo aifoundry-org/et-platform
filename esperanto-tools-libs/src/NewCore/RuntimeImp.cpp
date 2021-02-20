@@ -25,10 +25,6 @@
 using namespace rt;
 using namespace rt::profiling;
 
-RuntimeImp::~RuntimeImp() {
-  responseReceiver_->stop();
-}
-
 RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
   : deviceLayer_(deviceLayer) {
   for (int i = 0; i < deviceLayer_->getDevicesCount(); ++i) {
@@ -215,7 +211,7 @@ void RuntimeImp::waitForStream(StreamId stream) {
 }
 
 std::vector<int> RuntimeImp::getDevicesWithEventsOnFly() const {
-  auto events = eventManager_.getOnflyEvents(); 
+  auto events = eventManager_.getOnflyEvents();
   std::vector<int> busyDevices;
   for (auto& [key, s] : streams_) {
     (void)(key);

@@ -27,7 +27,7 @@ class ITarget;
 class RuntimeImp : public IRuntime, public ResponseReceiver::IReceiverServices {
 public:
   RuntimeImp(dev::IDeviceLayer* deviceLayer);
-  ~RuntimeImp();
+  ~RuntimeImp() = default;
 
   std::vector<DeviceId> getDevices() override;
 
