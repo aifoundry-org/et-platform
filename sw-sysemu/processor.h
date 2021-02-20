@@ -12,11 +12,12 @@
 #define BEMU_PROCESSOR_H
 
 #include <algorithm>
+#include <array>
+#include <bitset>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <array>
-#include <bitset>
+#include <sstream>
 
 #include "agent.h"
 #include "cache.h"
@@ -168,6 +169,9 @@ struct Hart : public Agent {
     void take_trap(const trap_t&);
     void notify_pmu_minion_event(uint8_t event);
 
+    // Message ports
+    bool get_msg_port_stall(unsigned port) const;
+
     // Core that this hart belongs to
     Core*  core;
 
@@ -255,15 +259,10 @@ struct Hart : public Agent {
     // last one finishes, but this case manifests only in ZSIM.
     std::array<uint64_t,2> shadow_txload;
     std::array<uint64_t,2> shadow_txstride;
+
+    // validation1 CSR emulation needs this
+    std::ostringstream uart_stream;
 };
-
-
-//
-// Neighborhood status
-//
-typedef std::array<std::array<uint64_t, 6>, 2> neigh_pmu_counters_t;
-
-extern std::array<neigh_pmu_counters_t, EMU_NUM_NEIGHS> neigh_pmu_counters;
 
 
 inline long Hart::shireid() const
@@ -386,6 +385,12 @@ inline void Hart::fetch()
 {
     inst.bits = mmu_fetch(*this, pc);
     inst.flags = 0;
+}
+
+
+inline bool Hart::get_msg_port_stall(unsigned id) const
+{
+    return portctrl[id].stall;
 }
 
 

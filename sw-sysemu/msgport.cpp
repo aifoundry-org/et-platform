@@ -8,66 +8,26 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 
-#include <array>
 #include <cstring>
-#include <deque>
-#include <vector>
 
 #include "cache.h"
 #include "emu_defines.h"
 #include "emu_gio.h"
 #include "log.h"
-#include "memory/main_memory.h"
 #include "processor.h"
+#include "system.h"
 #include "traps.h"
 
 namespace bemu {
 
 
-extern MainMemory memory;
+// -----------------------------------------------------------------------------
+//
+// System methods
+//
+// -----------------------------------------------------------------------------
 
-
-extern std::array<Hart,EMU_NUM_THREADS> cpu;
-
-// MsgPort defines
-#define PORT_LOG2_MIN_SIZE   2
-#define PORT_LOG2_MAX_SIZE   5
-
-
-enum msg_port_conf_action {
-    MSG_ENABLE = 7,
-    MSG_DISABLE = 3,
-    MSG_PGET = 0,
-    MSG_PGETNB = 1,
-};
-
-
-struct msg_port_write_t {
-    uint32_t source_thread;
-    uint32_t target_thread;
-    uint32_t target_port;
-    bool     is_remote;
-    bool     is_tbox;
-    bool     is_rbox;
-    uint8_t  oob;
-    uint32_t data[(1 << PORT_LOG2_MAX_SIZE)/4];
-};
-
-
-static std::array<std::vector<msg_port_write_t>,EMU_NUM_SHIRES> msg_port_pending_writes;
-static std::array<std::vector<msg_port_write_t>,EMU_NUM_SHIRES> msg_port_pending_writes_tbox;
-static std::array<std::vector<msg_port_write_t>,EMU_NUM_SHIRES> msg_port_pending_writes_rbox;
-
-static bool msg_port_delayed_write = false;
-
-
-void none_msg_to_thread(unsigned /*thread_id*/) { }
-
-
-void (*msg_to_thread)(unsigned) = none_msg_to_thread;
-
-
-static void write_msg_port_data_to_scp(Hart& cpu, unsigned id, uint32_t *data, uint8_t oob)
+void System::write_msg_port_data_to_scp(Hart& cpu, unsigned id, uint32_t *data, uint8_t oob)
 {
     // Drop the write if port not configured
     if (!cpu.portctrl[id].enabled)
@@ -98,43 +58,19 @@ static void write_msg_port_data_to_scp(Hart& cpu, unsigned id, uint32_t *data, u
     ++cpu.portctrl[id].size;
     cpu.portctrl[id].wr_ptr = (cpu.portctrl[id].wr_ptr + 1) % (cpu.portctrl[id].max_msgs + 1);
 
-    msg_to_thread(cpu.mhartid);
+    if (msg_to_thread) {
+        msg_to_thread(cpu.mhartid);
+    }
 }
 
 
-void set_msg_funcs(void (*func_msg_to_thread)(unsigned))
+void System::set_msg_funcs(void (*func_msg_to_thread)(unsigned))
 {
     msg_to_thread = func_msg_to_thread;
 }
 
 
-bool get_msg_port_stall(unsigned thread, unsigned id)
-{
-    return cpu[thread].portctrl[id].stall;
-}
-
-
-uint64_t read_port_base_address(unsigned thread, unsigned id)
-{
-    auto scp_set = cpu[thread].portctrl[id].scp_set;
-    auto scp_way = cpu[thread].portctrl[id].scp_way;
-    return cpu[thread].core->scp_addr[scp_set][scp_way];
-}
-
-
-void set_delayed_msg_port_write(bool f)
-{
-    msg_port_delayed_write = f;
-}
-
-
-unsigned get_msg_port_write_width(unsigned thread, unsigned port)
-{
-    return 1ULL << cpu[thread].portctrl[port].logsize;
-}
-
-
-void write_msg_port_data(unsigned target_thread, unsigned id, unsigned source_thread, uint32_t *data)
+void System::write_msg_port_data(unsigned target_thread, unsigned id, unsigned source_thread, uint32_t *data)
 {
     if (msg_port_delayed_write)
     {
@@ -164,6 +100,7 @@ void write_msg_port_data(unsigned target_thread, unsigned id, unsigned source_th
 }
 
 
+#if 0
 void write_msg_port_data_from_tbox(unsigned target_thread, unsigned id, unsigned tbox_id, uint32_t *data, uint8_t oob)
 {
     if (msg_port_delayed_write)
@@ -216,9 +153,10 @@ void write_msg_port_data_from_rbox(unsigned target_thread, unsigned id, unsigned
         write_msg_port_data_to_scp(cpu[target_thread], id, data, oob);
     }
 }
+#endif
 
 
-void commit_msg_port_data(unsigned target_thread, unsigned port_id, unsigned source_thread)
+void System::commit_msg_port_data(unsigned target_thread, unsigned port_id, unsigned source_thread)
 {
     unsigned shire = target_thread / EMU_THREADS_PER_SHIRE;
     if (!msg_port_pending_writes[shire].empty())
@@ -259,6 +197,7 @@ void commit_msg_port_data(unsigned target_thread, unsigned port_id, unsigned sou
 }
 
 
+#if 0
 void commit_msg_port_data_from_tbox(unsigned target_thread, unsigned port_id, unsigned tbox_id)
 {
     unsigned shire = target_thread / EMU_THREADS_PER_SHIRE;
@@ -339,6 +278,27 @@ void commit_msg_port_data_from_rbox(unsigned target_thread, unsigned port_id, un
         LOG_NOTHREAD(DEBUG, "ERROR Commit write on MSG_PORT (m%u p%u) from rbox%u not found!!", target_thread, port_id, rbox_id);
     }
 }
+#endif
+
+
+// -----------------------------------------------------------------------------
+//
+// Hart methods
+//
+// -----------------------------------------------------------------------------
+
+unsigned get_msg_port_write_width(const Hart& cpu, unsigned port)
+{
+    return 1ULL << cpu.portctrl[port].logsize;
+}
+
+
+uint64_t read_port_base_address(const Hart& cpu, unsigned id)
+{
+    auto scp_set = cpu.portctrl[id].scp_set;
+    auto scp_way = cpu.portctrl[id].scp_way;
+    return cpu.core->scp_addr[scp_set][scp_way];
+}
 
 
 int64_t read_port_head(Hart& cpu, unsigned id, bool block)
@@ -379,24 +339,6 @@ int64_t read_port_head(Hart& cpu, unsigned id, bool block)
 }
 
 
-uint32_t legalize_portctrl(uint32_t wdata)
-{
-    int logsize = (wdata >> 5)  & 0x07;
-    int scp_set = (wdata >> 16) & 0xFF;
-    int scp_way = (wdata >> 24) & 0xFF;
-
-    logsize = std::max(PORT_LOG2_MIN_SIZE, std::min(PORT_LOG2_MAX_SIZE, logsize));
-    scp_set = scp_set % L1D_NUM_SETS;
-    scp_way = scp_way % L1D_NUM_WAYS;
-
-    return (wdata & 0x00000F13)
-         | (logsize << 5)
-         | (scp_set << 16)
-         | (scp_way << 24)
-         | 0x00008000;
-}
-
-
 void configure_port(Hart& cpu, unsigned id, uint32_t wdata)
 {
     cpu.portctrl[id].enabled    = (wdata >>  0) & 0x1;
@@ -426,6 +368,30 @@ uint32_t read_port_control(const Hart& cpu, unsigned id)
          | ((cpu.portctrl[id].scp_set     & 0xFF) << 16)
          | ((cpu.portctrl[id].scp_way     & 0xFF) << 24)
          | 0x8000;
+}
+
+
+// -----------------------------------------------------------------------------
+//
+// Free-standing methods
+//
+// -----------------------------------------------------------------------------
+
+uint32_t legalize_portctrl(uint32_t wdata)
+{
+    int logsize = (wdata >> 5)  & 0x07;
+    int scp_set = (wdata >> 16) & 0xFF;
+    int scp_way = (wdata >> 24) & 0xFF;
+
+    logsize = std::max(PORT_LOG2_MIN_SIZE, std::min(PORT_LOG2_MAX_SIZE, logsize));
+    scp_set = scp_set % L1D_NUM_SETS;
+    scp_way = scp_way % L1D_NUM_WAYS;
+
+    return (wdata & 0x00000F13)
+         | (logsize << 5)
+         | (scp_set << 16)
+         | (scp_way << 24)
+         | 0x00008000;
 }
 
 

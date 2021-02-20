@@ -9,10 +9,12 @@
 *-------------------------------------------------------------------------*/
 
 #include "agent.h"
-#include "emu.h"
 #include "emu_gio.h"
 #include "pcie_dma.h"
-#include "memory/main_memory.h"
+#include "system.h"
+#ifdef SYS_EMU
+#include "sys_emu.h"
+#endif
 
 #define CH_CONTROL1_OFF_CB_GET(x)  ((x) & 0x00000001ul)
 #define CH_CONTROL1_OFF_TCB_GET(x) (((x) & 0x00000002ul) >> 1)
@@ -22,18 +24,16 @@
 #define CH_CONTROL1_OFF_TCB_MODIFY(r, x) ((((x) << 1) & 0x00000002ul) | ((r) & 0xfffffffdul))
 #define CH_CONTROL1_OFF_CCS_MODIFY(r, x) ((((x) << 8) & 0x00000100ul) | ((r) & 0xfffffefful))
 
-typedef struct {
-    union {
-        struct {
-            uint32_t CB : 1; /* bit 0; R/W; 0x0 */
-            uint32_t TCB : 1; /* bit 1; R/W; 0x0 */
-            uint32_t LLP : 1; /* bit 2; R/W; 0x0 */
-            uint32_t LIE : 1; /* bit 3; R/W; 0x0 */
-            uint32_t RIE : 1; /* bit 4; R/W; 0x0 */
-            uint32_t reserved : 27;
-        } B;
-        uint32_t R;
-    };
+typedef union {
+    struct fields_t {
+        uint32_t CB : 1; /* bit 0; R/W; 0x0 */
+        uint32_t TCB : 1; /* bit 1; R/W; 0x0 */
+        uint32_t LLP : 1; /* bit 2; R/W; 0x0 */
+        uint32_t LIE : 1; /* bit 3; R/W; 0x0 */
+        uint32_t RIE : 1; /* bit 4; R/W; 0x0 */
+        uint32_t reserved : 27;
+    } B;
+    uint32_t R;
 } __attribute__((__packed__)) transfer_list_ctrl_t;
 
 static_assert(sizeof(transfer_list_ctrl_t) == 4, "invalid size");
@@ -66,9 +66,9 @@ static_assert(sizeof(transfer_list_elem_t) == 24, "invalid size");
 namespace bemu {
 
 template<bool wrch>
-void PcieDma<wrch>::go()
+void PcieDma<wrch>::go(const Agent& agent)
 {
-    LOG_NOTHREAD(DEBUG, "PcieDma%d<%s>::go()", chan_id, wrch ? "Write" : "Read");
+    LOG_NOTHREAD(DEBUG, "PcieDma%d<%s>::go(%s)", chan_id, wrch ? "Write" : "Read", agent.name().c_str());
 
     // Element pointer
     uint64_t elem_ptr = (uint64_t)llp_high << 32 | llp_low;
@@ -79,7 +79,7 @@ void PcieDma<wrch>::go()
         transfer_list_elem_t elem;
 
         // Read element
-        bemu::memory.read(Noagent{}, elem_ptr, sizeof(elem), &elem);
+        agent.chip->memory.read(Noagent{agent.chip}, elem_ptr, sizeof(elem), &elem);
 
         LOG_NOTHREAD(DEBUG, "Elem ptr: 0x%" PRIx64 "\n", elem_ptr);
         LOG_NOTHREAD(DEBUG, "elem.ctrl: 0x%" PRIx32 "\n", elem.link.ctrl.R);
@@ -117,25 +117,15 @@ void PcieDma<wrch>::go()
             // Trigger interrupt if it was pending
             if (liep) {
                 liep = false; // Clear LIEP
-                trigger_done_int();
+                trigger_done_int(agent);
             }
 
             // Transfer block of data
-#ifdef SYS_EMU
-            api_communicate *api_comm = sys_emu::get_api_communicate();
-            if (api_comm) {
-                void *buff = new uint8_t[de.size];
-                if (wrch) {
-                    bemu::memory.read(Noagent{}, de.sar, de.size, buff);
-                    api_comm->host_memory_write(de.dar, de.size, buff);
-                } else {
-                    api_comm->host_memory_read(de.sar, de.size, buff);
-                    bemu::memory.write(Noagent{}, de.dar, de.size, buff);
-                }
+            if (wrch) {
+                agent.chip->copy_memory_from_device_to_host(de.sar, de.dar, de.size);
             } else {
-                LOG_NOTHREAD(WARN, "%s", "API Communicate is NULL!");
+                agent.chip->copy_memory_from_host_to_device(de.sar, de.dar, de.size);
             }
-#endif
 
             // Local interrupt
             if (de.ctrl.B.LIE) {
@@ -152,7 +142,7 @@ dma_done:
         // Trigger interrupt if it was pending
         if (liep) {
             liep = false; // Clear LIEP
-            trigger_done_int();
+            trigger_done_int(agent);
         }
         // Terminate the complete DMA process
         break;
@@ -162,13 +152,10 @@ dma_done:
 }
 
 template<bool wrch>
-void PcieDma<wrch>::trigger_done_int()
+void PcieDma<wrch>::trigger_done_int(const Agent& agent)
 {
-    LOG_NOTHREAD(DEBUG, "PcieDma%d<%s>::trigger_done_int()", chan_id, wrch ? "Write" : "Read");
-
-#ifdef SYS_EMU
-    bemu::memory.pcie_space.pcie0_dbi_slv.trigger_done_int(wrch, chan_id);
-#endif
+    LOG_NOTHREAD(DEBUG, "PcieDma%d<%s>::trigger_done_int(%s)", chan_id, wrch ? "Write" : "Read", agent.name().c_str());
+    agent.chip->memory.pcie0_dbi_slv_trigger_done_int(agent, wrch, chan_id);
 }
 
 template struct PcieDma<true>;

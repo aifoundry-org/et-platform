@@ -11,28 +11,15 @@
 #ifndef BEMU_MAIN_MEMORY_H
 #define BEMU_MAIN_MEMORY_H
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
-#include <functional>
+#include <memory>
 #include <stdexcept>
-
 #include "agent.h"
-#include "emu_defines.h"
 #include "literals.h"
-#include "mailbox_region.h"
-#include "maxion_region.h"
-#include "memory_error.h"
-#include "memory_region.h"
-#include "null_region.h"
-#ifdef SYS_EMU
-#include "pcie_region.h"
-#endif
-#include "peripheral_region.h"
-#include "scratch_region.h"
-#include "sparse_region.h"
-#include "svcproc_region.h"
-#include "sysreg_region.h"
-
+#include "memory/memory_error.h"
+#include "memory/memory_region.h"
 
 namespace bemu {
 
@@ -92,6 +79,19 @@ struct MainMemory {
     typedef typename MemoryRegion::pointer        pointer;
     typedef typename MemoryRegion::const_pointer  const_pointer;
 
+    // ----- Types -----
+
+    struct pcie_iatu_info_t {
+        uint32_t ctrl_1;
+        uint32_t ctrl_2;
+        uint32_t lwr_base_addr;
+        uint32_t upper_base_addr;
+        uint32_t limit_addr;
+        uint32_t lwr_target_addr;
+        uint32_t upper_target_addr;
+        uint32_t uppr_limit_addr;
+    };
+
     enum : unsigned long long {
         // base addresses for the various regions of the address space
         pu_maxion_base      = 0x0000000000ULL,
@@ -105,6 +105,10 @@ struct MainMemory {
 #endif
         dram_base           = 0x8000000000ULL,
     };
+
+    // ----- Public methods -----
+
+    void reset();
 
     void read(const Agent& agent, addr_type addr, size_type n, void* result) {
         const auto elem = search(addr, n);
@@ -121,10 +125,10 @@ struct MainMemory {
         elem->init(agent, addr - elem->first(), n, reinterpret_cast<const_pointer>(source));
     }
 
-    addr_type first() const { return pu_maxion_space.first(); }
-    addr_type last() const { return dram_space.last(); }
+    addr_type first() const { return regions.front()->first(); }
+    addr_type last() const { return regions.back()->last(); }
 
-    void dump_data(std::ostream& os, addr_type addr, size_type n) const {
+    void dump_data(const Agent& agent, std::ostream& os, addr_type addr, size_type n) const {
         auto lo = std::lower_bound(regions.cbegin(), regions.cend(), addr, above);
         if ((lo == regions.cend()) || ((*lo)->first() > addr))
             throw std::out_of_range("bemu::MainMemory::dump_data()");
@@ -133,27 +137,63 @@ struct MainMemory {
             throw std::out_of_range("bemu::MainMemory::dump_data()");
         size_type pos = addr - (*lo)->first();
         while (lo != hi) {
-            (*lo)->dump_data(os, pos, (*lo)->last() - (*lo)->first() - pos + 1);
+            (*lo)->dump_data(agent, os, pos, (*lo)->last() - (*lo)->first() - pos + 1);
             ++lo;
             pos = 0;
         }
-        (*lo)->dump_data(os, pos, addr + n - (*lo)->first() - pos);
+        (*lo)->dump_data(agent, os, pos, addr + n - (*lo)->first() - pos);
     }
 
-    // Members
-    MaxionRegion     <pu_maxion_base, 256_MiB>          pu_maxion_space{};
-    PeripheralRegion <pu_io_base, 256_MiB>              pu_io_space{};
-    MailboxRegion    <pu_mbox_base, 512_MiB>            pu_mbox_space{};
-    SvcProcRegion    <spio_base, 1_GiB>                 spio_space{};
-    ScratchRegion    <scp_base, 4_MiB, EMU_NUM_SHIRES>  scp_space{};
-    SysregRegion     <sysreg_base, 4_GiB>               sysreg_space{};
+    // Access the PLICs
+    void pu_plic_interrupt_pending_set(const Agent&, uint32_t source);
+    void pu_plic_interrupt_pending_clear(const Agent&, uint32_t source);
+    void sp_plic_interrupt_pending_set(const Agent&, uint32_t source);
+    void sp_plic_interrupt_pending_clear(const Agent&, uint32_t source);
+
+    // Access the UARTs
+    void pu_uart0_set_rx_fd(int fd);
+    void pu_uart1_set_rx_fd(int fd);
+    int pu_uart0_get_rx_fd() const;
+    int pu_uart1_get_rx_fd() const;
+    void spio_uart0_set_rx_fd(int fd);
+    void spio_uart1_set_rx_fd(int fd);
+    int spio_uart0_get_rx_fd() const;
+    int spio_uart1_get_rx_fd() const;
+    void pu_uart0_set_tx_fd(int fd);
+    void pu_uart1_set_tx_fd(int fd);
+    int pu_uart0_get_tx_fd() const;
+    int pu_uart1_get_tx_fd() const;
+    void spio_uart0_set_tx_fd(int fd);
+    void spio_uart1_set_tx_fd(int fd);
+    int spio_uart0_get_tx_fd() const;
+    int spio_uart1_get_tx_fd() const;
+
+    // Access the RISC-V timers
+    bool pu_rvtimer_is_active() const;
+    uint64_t pu_rvtimer_read_mtime() const;
+    uint64_t pu_rvtimer_read_mtimecmp() const;
+    void pu_rvtimer_update(const Agent&, uint64_t cycle);
+    void pu_rvtimer_write_mtime(const Agent&, uint64_t cycle);
+    void pu_rvtimer_write_mtimecmp(const Agent&, uint64_t cycle);
+    bool spio_rvtimer_is_active() const;
+    void spio_rvtimer_update(const Agent&, uint64_t cycle);
+
+    // Access the Mailboxes
+    void pc_mm_mailbox_read(const Agent& agent, addr_type offset, size_type n, void* result);
+    void pc_mm_mailbox_write(const Agent& agent, addr_type addr, size_type n, const void* source);
+    void pc_sp_mailbox_read(const Agent& agent, addr_type offset, size_type n, void* result);
+    void pc_sp_mailbox_write(const Agent& agent, addr_type addr, size_type n, const void* source);
+
+    // Access PCIe
+    void pu_trg_pcie_mmm_int_inc(const Agent& agent);
+    void pu_trg_pcie_ipi_trigger(const Agent& agent);
+    void pcie0_dbi_slv_trigger_done_int(const Agent&, bool wrch, int channel);
 #ifdef SYS_EMU
-    PcieRegion       <pcie_base, 256_GiB>               pcie_space{};
+    std::array<pcie_iatu_info_t, ETSOC_CX_ATU_NUM_INBOUND_REGIONS>& pcie0_get_iatus();
 #endif
-    SparseRegion     <dram_base, EMU_DRAM_SIZE, 16_MiB> dram_space{};
 
 protected:
-    static inline bool above(const MemoryRegion* lhs, addr_type rhs) {
+    static inline bool above(const std::unique_ptr<MemoryRegion>& lhs, addr_type rhs) {
         return lhs->last() < rhs;
     }
 
@@ -163,31 +203,14 @@ protected:
             throw memory_error(addr);
         if (addr+n-1 > (*lo)->last())
             throw std::out_of_range("bemu::MainMemory::search()");
-        return *lo;
+        return lo->get();
     }
 
     // This array must be sorted by region base address
 #ifdef SYS_EMU
-    std::array<MemoryRegion*,8> regions = {{
-        &pu_maxion_space,
-        &pu_io_space,
-        &pu_mbox_space,
-        &spio_space,
-        &scp_space,
-        &sysreg_space,
-        &pcie_space,
-        &dram_space
-    }};
+    std::array<std::unique_ptr<MemoryRegion>, 8> regions{};
 #else
-    std::array<MemoryRegion*,7> regions = {{
-        &pu_maxion_space,
-        &pu_io_space,
-        &pu_mbox_space,
-        &spio_space,
-        &scp_space,
-        &sysreg_space,
-        &dram_space
-    }};
+    std::array<std::unique_ptr<MemoryRegion>, 7> regions{};
 #endif
 };
 

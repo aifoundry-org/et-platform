@@ -331,8 +331,6 @@ struct neigh_esrs_t {
     void reset();
 };
 
-extern std::array<neigh_esrs_t, EMU_NUM_NEIGHS> neigh_esrs;
-
 
 // -----------------------------------------------------------------------------
 // shire_cache ESRs
@@ -369,8 +367,6 @@ struct shire_cache_esrs_t {
 
     void reset();
 };
-
-extern std::array<shire_cache_esrs_t, EMU_NUM_SHIRES> shire_cache_esrs;
 
 
 // -----------------------------------------------------------------------------
@@ -413,8 +409,6 @@ struct shire_other_esrs_t {
     void reset(unsigned shireid);
 };
 
-extern std::array<shire_other_esrs_t, EMU_NUM_SHIRES> shire_other_esrs;
-
 
 // -----------------------------------------------------------------------------
 // Broadcast ESRs
@@ -424,24 +418,6 @@ struct broadcast_esrs_t {
 
     void reset() {}
 };
-
-extern std::array<broadcast_esrs_t, EMU_NUM_SHIRES> broadcast_esrs;
-
-
-// -----------------------------------------------------------------------------
-// Access ESRs by address
-
-uint64_t esr_read(const Agent& agent, uint64_t addr);
-void esr_write(const Agent& agent, uint64_t addr, uint64_t value);
-
-void write_shire_coop_mode(unsigned shire, uint64_t value);
-void write_thread0_disable(unsigned shire, uint32_t value);
-void write_thread1_disable(unsigned shire, uint32_t value);
-void write_minion_feature(unsigned shire, uint8_t value);
-
-void write_icache_prefetch(int privilege, unsigned shire, uint64_t val);
-uint64_t read_icache_prefetch(int privilege, unsigned shire);
-void finish_icache_prefetch(unsigned shire);
 
 
 } // namespace bemu

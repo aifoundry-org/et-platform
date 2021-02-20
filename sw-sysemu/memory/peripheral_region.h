@@ -11,20 +11,16 @@
 #ifndef BEMU_PERIPHERAL_REGION_H
 #define BEMU_PERIPHERAL_REGION_H
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
-#include <functional>
-#include <vector>
+#include "literals.h"
 #include "devices/plic.h"
 #include "devices/uart.h"
-#include "literals.h"
-#include "memory_error.h"
-#include "memory_region.h"
+#include "memory/memory_error.h"
+#include "memory/memory_region.h"
 
 namespace bemu {
-
-
-extern typename MemoryRegion::reset_value_type memory_reset_value;
 
 
 template<unsigned long long Base, unsigned long long N>
@@ -47,7 +43,7 @@ struct PeripheralRegion : public MemoryRegion {
     void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
         const auto elem = search(pos, n);
         if (!elem) {
-            default_value(result, n, memory_reset_value, pos);
+            default_value(result, n, agent.chip->memory_reset_value, pos);
             return;
         }
         elem->read(agent, pos - elem->first(), n, result);
@@ -74,7 +70,7 @@ struct PeripheralRegion : public MemoryRegion {
     addr_type first() const override { return Base; }
     addr_type last() const override { return Base + N - 1; }
 
-    void dump_data(std::ostream&, size_type, size_type) const override { }
+    void dump_data(const Agent&, std::ostream&, size_type, size_type) const override { }
 
     // Members
     PU_PLIC <pu_plic_base,  32_MiB>  pu_plic{};

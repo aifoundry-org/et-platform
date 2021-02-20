@@ -9,9 +9,10 @@
 //------------------------------------------------------------------------------
 #include "SysEmuImp.h"
 #include "agent.h"
-#include "emu.h"
+#include "emu_gio.h"
 #include "memory/main_memory.h"
 #include "sys_emu.h"
+#include "system.h"
 #include "utils.h"
 #include <fstream>
 #include <future>
@@ -20,7 +21,6 @@
 using namespace emu;
 
 namespace {
-auto g_mem = &bemu::memory;
 
 #define BAR0_ADDR 0x7E80000010
 #define BAR1_ADDR 0x7E80000014
@@ -90,6 +90,10 @@ void logSysEmuOptions(std::ostream& out, const sys_emu_cmd_options& options) {
   out << " * Mins dis: " << options.mins_dis << "\n";
   out << " * SP dis: " << options.sp_dis << "\n";
   out << " * Mem reset: " << options.mem_reset << "\n";
+  out << " * pu_uart0_rx_file: " << options.pu_uart0_rx_file << "\n";
+  out << " * pu_uart1_rx_file: " << options.pu_uart1_rx_file << "\n";
+  out << " * spio_uart0_rx_file: " << options.spio_uart0_rx_file << "\n";
+  out << " * spio_uart1_rx_file: " << options.spio_uart1_rx_file << "\n";
   out << " * pu_uart0_tx_file: " << options.pu_uart0_tx_file << "\n";
   out << " * pu_uart1_tx_file: " << options.pu_uart1_tx_file << "\n";
   out << " * spio_uart0_tx_file: " << options.spio_uart0_tx_file << "\n";
@@ -107,8 +111,8 @@ void logSysEmuOptions(std::ostream& out, const sys_emu_cmd_options& options) {
   out << "************************************************************************************\n";
 }
 
-void iatusPrint() {
-  const auto& iatus = g_mem->pcie_space.pcie0_dbi_slv.iatus;
+void iatusPrint(bemu::System* chip) {
+  const auto& iatus = chip->memory.pcie0_get_iatus();
 
   for (int i = 0, count = iatus.size(); i < count; ++i) {
     auto& iatu = iatus[i];
@@ -123,8 +127,8 @@ void iatusPrint() {
     LOG_NOTHREAD(INFO, "iATU[%d].target_addr: 0x%" PRIx64, i, target_addr);
   }
 }
-bool iatuTranslate(uint64_t pci_addr, uint64_t size, uint64_t& device_addr, uint64_t& access_size) {
-  const auto& iatus = g_mem->pcie_space.pcie0_dbi_slv.iatus;
+bool iatuTranslate(bemu::System* chip, uint64_t pci_addr, uint64_t size, uint64_t& device_addr, uint64_t& access_size) {
+  const auto& iatus = chip->memory.pcie0_get_iatus();
 
   for (int i = 0; i < iatus.size(); i++) {
     // Check REGION_EN (bit[31])
@@ -156,7 +160,12 @@ bool iatuTranslate(uint64_t pci_addr, uint64_t size, uint64_t& device_addr, uint
 }
 } // namespace
 
-void SysEmuImp::process() {  
+void SysEmuImp::set_system(bemu::System* system) {
+  chip_ = system;
+  g_Agent.chip = system;
+}
+
+void SysEmuImp::process() {
   std::lock_guard<std::mutex> lock(mutex_);
   if (!requests_.empty()) {
     SE_LOG(INFO) << "Processing request...";
@@ -178,21 +187,21 @@ void SysEmuImp::mmioRead(uint64_t address, size_t size, std::byte* dst) {
 
       uint64_t device_addr, access_size;
 
-      if (!iatuTranslate(pci_addr, readSize, device_addr, access_size)) {
+      if (!iatuTranslate(chip_, pci_addr, readSize, device_addr, access_size)) {
         LOG_NOTHREAD(WARN, "iATU: Could not find translation for host address: 0x%" PRIx64 ", size: 0x%" PRIx64,
                      pci_addr, readSize);
-        iatusPrint();
+        iatusPrint(chip_);
         break;
       }
 
-      g_mem->read(g_Agent, device_addr, access_size, dst + host_access_offset);
+      chip_->memory.read(g_Agent, device_addr, access_size, dst + host_access_offset);
 
       pci_addr += access_size;
       host_access_offset += access_size;
       readSize -= access_size;
     }
 
-    if (readSize > 0) {      
+    if (readSize > 0) {
       throw Exception(
         "Invalid IATU translation. Size too big to be covered fully by iATUs / translation failure. Address: " +
         std::to_string(address) + " size: " + std::to_string(readSize));
@@ -214,13 +223,13 @@ void SysEmuImp::mmioWrite(uint64_t address, size_t size, const std::byte* src) {
     int64_t readSize = size;
     while (readSize > 0) {
       uint64_t device_addr, access_size;
-      if (!iatuTranslate(pci_addr, size, device_addr, access_size)) {
+      if (!iatuTranslate(chip_, pci_addr, size, device_addr, access_size)) {
         LOG_NOTHREAD(WARN, "iATU: Could not find translation for host address: 0x%" PRIx64 ", size: 0x%" PRIx64,
                      pci_addr, size);
-        iatusPrint();
+        iatusPrint(chip_);
         break;
       }
-      g_mem->write(g_Agent, device_addr, access_size, src + host_access_offset);
+      chip_->memory.write(g_Agent, device_addr, access_size, src + host_access_offset);
 
       pci_addr += access_size;
       host_access_offset += access_size;
@@ -243,9 +252,7 @@ void SysEmuImp::raiseDevicePuPlicPcieMessageInterrupt() {
   auto request = [=]() {
     SE_LOG(INFO) << "raiseDevicePuPlicPcieMessageInterrupt";
     LOG_NOTHREAD(INFO, "SysEmuImp: raise_device_interrupt(type = %s)", "PU");
-    uint32_t trigger = 1;
-    g_mem->pu_mbox_space.pu_trg_pcie.write(g_Agent, bemu::MMM_INT_INC, sizeof(trigger),
-                                           reinterpret_cast<bemu::MemoryRegion::const_pointer>(&trigger));
+    chip_->memory.pu_trg_pcie_mmm_int_inc(g_Agent);
   };
   std::lock_guard<std::mutex> lock(mutex_);
   requests_.emplace(std::move(request));
@@ -274,9 +281,7 @@ void SysEmuImp::raiseDeviceSpioPlicPcieMessageInterrupt() {
   auto request = [=]() {
     SE_LOG(INFO) << "raiseDeviceSpioPlicPcieMessageInterrupt";
     LOG_NOTHREAD(INFO, "SysEmuImp: raise_device_interrupt(type = %s)", "SP");
-    uint32_t trigger = 1;
-    g_mem->pu_mbox_space.pu_trg_pcie.write(g_Agent, bemu::IPI_TRIGGER, sizeof(trigger),
-                                           reinterpret_cast<bemu::MemoryRegion::const_pointer>(&trigger));
+    chip_->memory.pu_trg_pcie_ipi_trigger(g_Agent);
   };
   std::lock_guard<std::mutex> lock(mutex_);
   requests_.emplace(std::move(request));
@@ -307,7 +312,7 @@ SysEmuImp::~SysEmuImp() {
   while (!requests_.empty()) {
     requests_.pop();
   }
-  bemu::emu_set_done();
+  chip_->set_emu_done(true);
   pendingInterruptsBitmask_ = 0;
   lock.unlock();
   condVar_.notify_all();
@@ -367,10 +372,10 @@ SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>
   sysEmuThread_ = std::thread([opts, this, logfile = options.logFile]() {
     SE_LOG(INFO) << "Starting sysemu thread " << std::this_thread::get_id();
     std::ofstream log{logfile};
-    sys_emu emu;
     bemu::log.setOutputStream(&log);
     logSysEmuOptions(log, opts);
-    emu.main_internal(opts, this);
+    sys_emu emu(opts, this);
+    emu.main_internal();
     SE_LOG(INFO) << "Ending sysemu thread " << std::this_thread::get_id();
   });
 

@@ -11,20 +11,20 @@
 #include <cstdio>       // for snprintf()
 #include <unordered_map>
 
-#include "decode.h"
 #include "emu_defines.h"
 #include "emu_gio.h"
 #include "insn.h"
 #include "insn_func.h"
+#include "insn_util.h"
 #include "log.h"
 #include "processor.h"
+#include "system.h"
+#include "tensor.h"
+#include "traps.h"
+#include "utility.h"
 #ifdef SYS_EMU
 #include "sys_emu.h"
 #endif
-#include "tensor.h"
-#include "traps.h"
-#include "txs.h"
-#include "utility.h"
 
 
 // vendor, arch, imp, ISA values
@@ -45,18 +45,15 @@
 namespace bemu {
 
 
-extern bool m_emu_done;
-
-
 // Fast local barrier
 uint64_t write_flb(const Hart&, uint64_t);
 
-// Messaging
+// Message ports
 uint32_t read_port_control(const Hart&, unsigned);
 int64_t read_port_head(Hart&, unsigned, bool);
 uint32_t legalize_portctrl(uint32_t);
 void configure_port(Hart&, unsigned, uint32_t);
-uint64_t read_port_base_address(unsigned , unsigned);
+uint64_t read_port_base_address(const Hart&, unsigned);
 
 // Cache management
 void dcache_change_mode(Hart&, uint8_t);
@@ -79,10 +76,6 @@ void tensor_mask_update(Hart&);
 void tensor_quant_start(Hart&, uint64_t);
 void tensor_reduce_start(Hart&, uint64_t);
 void tensor_store_start(Hart&, uint64_t);
-
-
-// UART -- for VALIDATION1
-static std::ostringstream uart_stream[EMU_NUM_THREADS];
 
 
 static const char* csr_name(uint16_t num)
@@ -280,7 +273,7 @@ static uint64_t csrget(Hart& cpu, uint16_t csr)
     case CSR_MHPMCOUNTER6:
     case CSR_MHPMCOUNTER7:
     case CSR_MHPMCOUNTER8:
-        val = neigh_pmu_counters[neigh_index(cpu)][cpu.mhartid & 1][csr - CSR_MHPMCOUNTER3];
+        val = cpu.chip->neigh_pmu_counters[neigh_index(cpu)][cpu.mhartid & 1][csr - CSR_MHPMCOUNTER3];
         break;
     case CSR_MHPMCOUNTER9:
     case CSR_MHPMCOUNTER10:
@@ -319,7 +312,7 @@ static uint64_t csrget(Hart& cpu, uint16_t csr)
     case CSR_HPMCOUNTER7:
     case CSR_HPMCOUNTER8:
         check_counter_is_enabled(cpu, csr - CSR_CYCLE);
-        val = neigh_pmu_counters[neigh_index(cpu)][cpu.mhartid & 1][csr - CSR_HPMCOUNTER3];
+        val = cpu.chip->neigh_pmu_counters[neigh_index(cpu)][cpu.mhartid & 1][csr - CSR_HPMCOUNTER3];
         break;
     case CSR_HPMCOUNTER9:
     case CSR_HPMCOUNTER10:
@@ -768,7 +761,7 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
     case CSR_MHPMCOUNTER6:
     case CSR_MHPMCOUNTER7:
     case CSR_MHPMCOUNTER8:
-        neigh_pmu_counters[neigh_index(cpu)][cpu.mhartid & 1][csr - CSR_MHPMCOUNTER3] = val;
+        cpu.chip->neigh_pmu_counters[neigh_index(cpu)][cpu.mhartid & 1][csr - CSR_MHPMCOUNTER3] = val;
         break;
     case CSR_MHPMCOUNTER9:
     case CSR_MHPMCOUNTER10:
@@ -962,11 +955,10 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         require_feature_gfx();
         //val &= 0xff;
         // Notify to TBOX that a Sample Request is ready
-        // Thanks for making the code unreadable
-        new_sample_request(hart_index(cpu),
-                           val & 0xf,           // port_id
-                           (val >> 4) & 0xf,    // num_packets
-                           read_port_base_address(hart_index(cpu), val & 0xf /* port id */));
+        // new_sample_request(hart_index(cpu),
+        //                    val & 0xf,           // port_id
+        //                    (val >> 4) & 0xf,    // num_packets
+        //                    read_port_base_address(cpu, val & 0xf /* port id */));
         break;
     case CSR_TENSOR_ERROR:
         val &= 0x3ff;
@@ -1057,7 +1049,7 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
             break;
         case 0x50BAD000:
             LOG_AGENT(INFO, cpu, "%s", "Signal end test with FAIL");
-            m_emu_done = true;
+            cpu.chip->set_emu_done(true);
             break;
         }
 #endif
@@ -1069,18 +1061,15 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
             // EOT signals end of test
             if (val == 4) {
                 LOG_HART(INFO, cpu, "%s", "Validation1 CSR received End Of Transmission.");
-                m_emu_done = true;
+                cpu.chip->set_emu_done(true);
                 break;
             }
             if (char(val) != '\n') {
-                uint32_t thread = hart_index(cpu);
-                uart_stream[thread] << char(val);
+                cpu.uart_stream << char(val);
             } else {
-                uint32_t thread = hart_index(cpu);
-                // If line feed, flush to stdout
-                std::cout << uart_stream[thread].str() << std::endl;
-                uart_stream[thread].str("");
-                uart_stream[thread].clear();
+                std::cout << cpu.uart_stream.str() << std::endl;
+                cpu.uart_stream.str("");
+                cpu.uart_stream.clear();
             }
             break;
 #ifdef SYS_EMU
@@ -1308,10 +1297,8 @@ void insn_csrrwi(Hart& cpu)
 }
 
 
-uint64_t get_csr(unsigned thread, uint16_t csr)
+uint64_t System::get_csr(unsigned thread, uint16_t csr)
 {
-    extern std::array<Hart,EMU_NUM_THREADS>  cpu;
-
     uint64_t retval = 0;
     try {
         retval = csrget(cpu[thread], csr);
@@ -1322,10 +1309,8 @@ uint64_t get_csr(unsigned thread, uint16_t csr)
 }
 
 
-void set_csr(unsigned thread, uint16_t csr, uint64_t value)
+void System::set_csr(unsigned thread, uint16_t csr, uint64_t value)
 {
-    extern std::array<Hart,EMU_NUM_THREADS>  cpu;
-
     try {
         csrset(cpu[thread], csr, value);
     } catch (const trap_t&) {

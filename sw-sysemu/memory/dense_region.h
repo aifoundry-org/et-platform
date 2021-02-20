@@ -13,15 +13,12 @@
 
 #include <algorithm>
 #include <array>
-#include "dump_data.h"
 #include "lazy_array.h"
-#include "memory_error.h"
-#include "memory_region.h"
+#include "memory/dump_data.h"
+#include "memory/memory_error.h"
+#include "memory/memory_region.h"
 
 namespace bemu {
-
-
-extern typename MemoryRegion::reset_value_type memory_reset_value;
 
 
 template<unsigned long long Base, unsigned long long N, bool Writeable=true>
@@ -38,9 +35,9 @@ struct DenseRegion : public MemoryRegion {
     static_assert((N > 0) && !(N % 64),
                   "bemu::DenseRegion size must be a multiple of 64");
 
-    void read(const Agent&, size_type pos, size_type n, pointer result) override {
+    void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
         if (storage.empty()) {
-            default_value(result, n, memory_reset_value, pos);
+            default_value(result, n, agent.chip->memory_reset_value, pos);
         } else {
             std::copy_n(storage.cbegin() + pos, n, result);
         }
@@ -52,10 +49,10 @@ struct DenseRegion : public MemoryRegion {
         init(agent, pos, n, source);
     }
 
-    void init(const Agent&, size_type pos, size_type n, const_pointer source) override {
+    void init(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         if (storage.empty()) {
             storage.allocate();
-            storage.fill_pattern(memory_reset_value, MEM_RESET_PATTERN_SIZE);
+            storage.fill_pattern(agent.chip->memory_reset_value, MEM_RESET_PATTERN_SIZE);
         }
         std::copy_n(source, n, storage.begin() + pos);
     }
@@ -63,8 +60,8 @@ struct DenseRegion : public MemoryRegion {
     addr_type first() const override { return Base; }
     addr_type last() const override { return Base + N - 1; }
 
-    void dump_data(std::ostream& os, size_type pos, size_type n) const override {
-        bemu::dump_data(os, storage, pos, n, memory_reset_value[0]);
+    void dump_data(const Agent& agent, std::ostream& os, size_type pos, size_type n) const override {
+        bemu::dump_data(os, storage, pos, n, agent.chip->memory_reset_value[0]);
     }
 
     // For exposition only

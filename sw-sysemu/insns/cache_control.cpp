@@ -9,27 +9,22 @@
 *-------------------------------------------------------------------------*/
 
 #include "cache.h"
-#include "decode.h"
-#include "emu.h"
 #include "emu_defines.h"
 #include "emu_gio.h"
 #include "esrs.h"
+#include "insn_util.h"
 #include "log.h"
 #include "memmap.h"
-#include "memory/main_memory.h"
 #include "mmu.h"
-#include "processor.h"
-#ifdef SYS_EMU
-#include "sys_emu.h"
-#endif
+#include "system.h"
 #include "tensor_error.h"
 #include "traps.h"
 #include "utility.h"
+#ifdef SYS_EMU
+#include "sys_emu.h"
+#endif
 
 namespace bemu {
-
-
-extern MainMemory memory;
 
 
 // Tensor extension
@@ -203,7 +198,7 @@ void dcache_prefetch_vaddr(Hart& cpu, uint64_t value)
             try {
                 cache_line_t tmp;
                 uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_Prefetch, cop);
-                memory.read(cpu, paddr, L1D_LINE_SIZE, tmp.u32.data());
+                cpu.chip->memory.read(cpu, paddr, L1D_LINE_SIZE, tmp.u32.data());
                 LOG_MEMREAD512(paddr, tmp.u32);
             }
             catch (const sync_trap_t&) {
@@ -257,7 +252,7 @@ void dcache_lock_paddr(Hart& cpu, uint64_t value)
     try {
         cache_line_t tmp;
         std::fill_n(tmp.u64.data(), tmp.u64.size(), 0);
-        memory.write(cpu, paddr, L1D_LINE_SIZE, tmp.u32.data());
+        cpu.chip->memory.write(cpu, paddr, L1D_LINE_SIZE, tmp.u32.data());
         LOG_MEMWRITE512(paddr, tmp.u32);
     }
     catch (const sync_trap_t&) {
@@ -304,7 +299,7 @@ void dcache_lock_vaddr(Hart& cpu, uint64_t value)
                 // LockVA is a hint, so no need to model soft-locking of the cache.
                 // We just need to make sure we zero the cache line.
                 uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, CacheOp_Lock);
-                memory.write(cpu, paddr, L1D_LINE_SIZE, tmp.u32.data());
+                cpu.chip->memory.write(cpu, paddr, L1D_LINE_SIZE, tmp.u32.data());
                 LOG_MEMWRITE512(paddr, tmp.u32);
                 LOG_HART(DEBUG, cpu, "\tDoing LockVA: 0x%016" PRIx64 " (0x%016" PRIx64 ")", vaddr, paddr);
             }

@@ -15,9 +15,7 @@
 #include <cstdint>
 #include "memory/memory_error.h"
 #include "memory/memory_region.h"
-#ifdef SYS_EMU
-#include "sys_emu.h"
-#endif
+#include "system.h"
 
 namespace bemu {
 
@@ -48,9 +46,8 @@ struct PcieNoPcieEsrRegion : public MemoryRegion {
         }
     }
 
-    void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
+    void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
-        (void) source32;
 
         LOG_NOTHREAD(DEBUG, "PcieNoPcieEsrRegion::write(pos=0x%llx)", pos);
 
@@ -59,14 +56,7 @@ struct PcieNoPcieEsrRegion : public MemoryRegion {
 
         switch (pos) {
         case MSI_TX_VEC:
-#ifdef SYS_EMU
-            if (*source32 != 0) {
-                if (sys_emu::get_api_communicate())
-                    sys_emu::get_api_communicate()->raise_host_interrupt(*source32);
-                else
-                    LOG_NOTHREAD(WARN, "%s", "API Communicate is NULL!");
-            }
-#endif
+            agent.chip->raise_host_interrupt(*source32);
             break;
         }
     }
@@ -78,7 +68,7 @@ struct PcieNoPcieEsrRegion : public MemoryRegion {
     addr_type first() const override { return Base; }
     addr_type last() const override { return Base + N - 1; }
 
-    void dump_data(std::ostream&, size_type, size_type) const override { }
+    void dump_data(const Agent&, std::ostream&, size_type, size_type) const override { }
 };
 
 } // namespace bemu

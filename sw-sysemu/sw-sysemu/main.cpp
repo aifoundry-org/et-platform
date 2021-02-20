@@ -79,6 +79,6 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    sys_emu emu;
-    return emu.main_internal(cmd_options, api_comm.get());
+    sys_emu emu(cmd_options, api_comm.get());
+    return emu.main_internal();
 }

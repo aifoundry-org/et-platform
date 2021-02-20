@@ -71,7 +71,7 @@ float128_t
     int_fast32_t shiftDist, expDiff;
     struct uint128 x128;
     uint64_t sig256C[4];
-    static uint64_t zero256[4] = INIT_UINTM4( 0, 0, 0, 0 );
+    static THREAD_LOCAL uint64_t zero256[4] = INIT_UINTM4( 0, 0, 0, 0 );
     uint_fast64_t sigZExtra, sig256Z0;
     union ui128_f128 uZ;
 

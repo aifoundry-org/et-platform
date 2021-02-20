@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2001-2020 by Serge Lamikhov-Center
+Copyright (C) 2001-present by Serge Lamikhov-Center
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -74,9 +74,9 @@ template <class T> class elf_header_impl : public elf_header
 {
   public:
     //------------------------------------------------------------------------------
-    elf_header_impl( endianess_convertor* convertor_, unsigned char encoding )
+    elf_header_impl( endianess_convertor* convertor, unsigned char encoding )
     {
-        convertor = convertor_;
+        this->convertor = convertor;
 
         std::fill_n( reinterpret_cast<char*>( &header ), sizeof( header ),
                      '\0' );

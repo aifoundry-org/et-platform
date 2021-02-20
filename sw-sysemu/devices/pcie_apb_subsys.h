@@ -15,9 +15,6 @@
 #include <cstdint>
 #include "memory/memory_error.h"
 #include "memory/memory_region.h"
-#ifdef SYS_EMU
-#include "sys_emu.h"
-#endif
 
 namespace bemu {
 
@@ -85,7 +82,7 @@ struct PcieApbSubsys : public MemoryRegion {
     addr_type first() const override { return Base; }
     addr_type last() const override { return Base + N - 1; }
 
-    void dump_data(std::ostream&, size_type, size_type) const override { }
+    void dump_data(const Agent&, std::ostream&, size_type, size_type) const override { }
 
     uint32_t pe0_gen_ctrl_3;
 };

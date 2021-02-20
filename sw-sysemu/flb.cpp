@@ -10,7 +10,7 @@
 
 #include "emu_gio.h"
 #include "esrs.h"
-#include "processor.h"
+#include "system.h"
 #ifdef SYS_EMU
 #include "sys_emu.h"
 #endif
@@ -26,7 +26,7 @@ uint64_t write_flb(const Hart& cpu, uint64_t value)
     unsigned limit   = (value >> 5) & 0xFF;
 
     unsigned shire  = shire_index(cpu);
-    unsigned oldval = shire_other_esrs[shire].fast_local_barrier[barrier];
+    unsigned oldval = cpu.chip->shire_other_esrs[shire].fast_local_barrier[barrier];
 
     LOG_AGENT(DEBUG, cpu, "S%u:fast_local_barrier%u : 0x%x", unsigned(cpu.shireid()), barrier, oldval);
 
@@ -37,7 +37,7 @@ uint64_t write_flb(const Hart& cpu, uint64_t value)
 
     unsigned newval = (oldval == limit) ? 0 : (oldval + 1);
     LOG_AGENT(DEBUG, cpu, "S%u:fast_local_barrier%u = 0x%x", unsigned(cpu.shireid()), barrier, newval);
-    shire_other_esrs[shire].fast_local_barrier[barrier] = newval;
+    cpu.chip->shire_other_esrs[shire].fast_local_barrier[barrier] = newval;
     return (newval == 0);
 }
 

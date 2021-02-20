@@ -8,21 +8,20 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 
-#include "decode.h"
 #include "emu_gio.h"
 #include "insn.h"
 #include "insn_func.h"
+#include "insn_util.h"
 #include "log.h"
 #include "mmu.h"
 #include "processor.h"
+#include "system.h"
 #include "utility.h"
 #ifdef SYS_EMU
 #include "sys_emu.h"
 #endif
 
 namespace bemu {
-
-std::array<neigh_pmu_counters_t, EMU_NUM_NEIGHS> neigh_pmu_counters;
 
 // Instruction execution function
 typedef void (*insn_exec_funct_t)(Hart&);
@@ -1339,7 +1338,7 @@ void Hart::notify_pmu_minion_event(uint8_t event)
     // The first four counters count Minion-related events
     for (int i = 0; i < 4; i++) {
         if (mhpmevent[i] == event) {
-            neigh_pmu_counters[neigh_index(*this)][mhartid & 1][i]++;
+            chip->neigh_pmu_counters[neigh_index(*this)][mhartid & 1][i]++;
         }
     }
 }

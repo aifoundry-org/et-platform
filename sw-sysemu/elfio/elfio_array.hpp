@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2001-2020 by Serge Lamikhov-Center
+Copyright (C) 2001-present by Serge Lamikhov-Center
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -32,8 +32,8 @@ template <class S> class array_section_accessor_template
 {
   public:
     //------------------------------------------------------------------------------
-    array_section_accessor_template( const elfio& elf_file_, S* section_ )
-        : elf_file( elf_file_ ), array_section( section_ )
+    array_section_accessor_template( const elfio& elf_file, S* section )
+        : elf_file( elf_file ), array_section( section )
     {
     }
 
@@ -91,7 +91,7 @@ template <class S> class array_section_accessor_template
     {
         const endianess_convertor& convertor = elf_file.get_convertor();
 
-        T temp = (T)address;
+        T temp = convertor( (T)address );
         array_section->append_data( reinterpret_cast<char*>( &temp ),
                                     sizeof( temp ) );
     }

@@ -13,12 +13,9 @@
 
 #include <algorithm>
 #include <stdexcept>
-#include "memory_region.h"
+#include "memory/memory_region.h"
 
 namespace bemu {
-
-
-extern typename MemoryRegion::reset_value_type memory_reset_value;
 
 
 template<unsigned long long Base, unsigned long long N>
@@ -34,8 +31,8 @@ struct NullRegion : public MemoryRegion {
     static_assert((N > 0) && !(N % 64),
                   "bemu::NullRegion size must be a multiple of 64");
 
-    void read(const Agent&, size_type pos, size_type n, pointer result) override {
-        default_value(result, n, memory_reset_value, pos);
+    void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
+        default_value(result, n, agent.chip->memory_reset_value, pos);
     }
 
     void write(const Agent&, size_type, size_type, const_pointer) override { }
@@ -47,7 +44,7 @@ struct NullRegion : public MemoryRegion {
     addr_type first() const override { return Base; }
     addr_type last() const override { return Base + N - 1; }
 
-    void dump_data(std::ostream&, size_type, size_type) const override { }
+    void dump_data(const Agent&, std::ostream&, size_type, size_type) const override { }
 };
 
 

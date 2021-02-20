@@ -15,7 +15,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include "emu.h"
+#include "emu_defines.h"
 #include "emu_gio.h"
 #include "gdb_target_xml.h"
 #include "gdbstub.h"
@@ -230,7 +230,7 @@ static inline bool target_thread_is_alive(int thread)
 static bool target_read_memory(int thread, uint64_t addr, uint8_t *buffer, uint64_t size)
 {
     try {
-        bemu::memory.read(bemu::get_cpu(to_target_thread(thread)), addr, size, buffer);
+        sys_emu::thread_read_memory(to_target_thread(thread), addr, size, buffer);
         return true;
     } catch (...) {
         LOG_NOTHREAD(INFO, "%s", "GDB stub: read memory exception");
@@ -241,7 +241,7 @@ static bool target_read_memory(int thread, uint64_t addr, uint8_t *buffer, uint6
 static bool target_write_memory(int thread, uint64_t addr, const uint8_t *buffer, uint64_t size)
 {
     try {
-        bemu::memory.write(bemu::get_cpu(to_target_thread(thread)), addr, size, buffer);
+        sys_emu::thread_write_memory(to_target_thread(thread), addr, size, buffer);
         return true;
     } catch (...) {
         LOG_NOTHREAD(INFO, "%s", "GDB stub: write memory exception");

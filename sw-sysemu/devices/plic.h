@@ -18,17 +18,17 @@
 #include <cinttypes>
 #include <cstdint>
 #include <system_error>
+#include <vector>
 #include <unistd.h>
-#ifdef SYS_EMU
-#include "sys_emu.h"
-#endif
+
 #include "memory/memory_error.h"
 #include "memory/memory_region.h"
+#include "system.h"
 
 
 namespace bemu {
 
-using PLIC_Target_Notify = void (*)(bool raise);
+using PLIC_Target_Notify = void (*)(System* system, bool raise);
 
 struct PLIC_Interrupt_Target {
     uint32_t           name_id;
@@ -58,7 +58,7 @@ struct PLIC : public MemoryRegion
     };
 
     // MemoryRegion methods
-    void read(const Agent&, size_type pos, size_type n, pointer result) override {
+    void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
         uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
 
         if (n != 4)
@@ -71,11 +71,11 @@ struct PLIC : public MemoryRegion
         } else if (pos >= PLIC_REG_ENABLE && pos < PLIC_REG_THRESHOLD_MAXID) {
             reg_enable_read(pos - PLIC_REG_ENABLE, result32);
         } else {
-            reg_threshold_maxid_read(pos - PLIC_REG_THRESHOLD_MAXID, result32);
+            reg_threshold_maxid_read(agent.chip, pos - PLIC_REG_THRESHOLD_MAXID, result32);
         }
     }
 
-    void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
+    void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
 
         if (n != 4)
@@ -89,7 +89,7 @@ struct PLIC : public MemoryRegion
         } else if (pos >= PLIC_REG_ENABLE && pos < PLIC_REG_THRESHOLD_MAXID) {
             reg_enable_write(pos - PLIC_REG_ENABLE, source32);
         } else {
-            reg_threshold_maxid_write(pos - PLIC_REG_THRESHOLD_MAXID, source32);
+            reg_threshold_maxid_write(agent.chip, pos - PLIC_REG_THRESHOLD_MAXID, source32);
         }
     }
 
@@ -100,21 +100,21 @@ struct PLIC : public MemoryRegion
     addr_type first() const override { return Base; }
     addr_type last() const override { return Base + N - 1; }
 
-    void dump_data(std::ostream&, size_type, size_type) const override { }
+    void dump_data(const Agent&, std::ostream&, size_type, size_type) const override { }
 
     // PLIC methods
 
-    void interrupt_pending_set(uint32_t source_id) {
+    void interrupt_pending_set(const Agent& agent, uint32_t source_id) {
         if (source_id < S) {
             ip[source_id] = true;
-            update_logic();
+            update_logic(agent.chip);
         }
     }
 
-    void interrupt_pending_clear(uint32_t source_id) {
+    void interrupt_pending_clear(const Agent& agent, uint32_t source_id) {
         if (source_id < S) {
             ip[source_id] = false;
-            update_logic();
+            update_logic(agent.chip);
         }
     }
 
@@ -135,7 +135,7 @@ private:
     }
 
     // Run PLIC logic when there is a potential change
-    void update_logic() {
+    void update_logic(System* system) {
         // For each interrupt target
         for (const auto &t : get_target_list()) {
             uint32_t max_prio = 0;
@@ -166,11 +166,11 @@ private:
             if (trigger && !eip[t.name_id]) {
                 eip[t.name_id] = true;
                 // Send interrupt to target
-                t.notify(true);
+                t.notify(system, true);
             } else if (!trigger && eip[t.name_id]) {
                 eip[t.name_id] = false;
                 // Clear interrupt to target
-                t.notify(false);
+                t.notify(system, false);
             }
         }
     }
@@ -201,7 +201,7 @@ private:
             *result32 = bitset_read_u32(ie[name_id], sources);
     }
 
-    void reg_threshold_maxid_read(size_type pos, uint32_t *result32) {
+    void reg_threshold_maxid_read(System* system, size_type pos, uint32_t *result32) {
         uint32_t name_id = 0;
         size_type target_addr = pos / 0x1000;
 
@@ -218,7 +218,7 @@ private:
                 in_flight[max_id[name_id]] = true;
                 // Save the ID of the Target that claimed the source interrupt
                 in_flight_by[max_id[name_id]] = name_id;
-                update_logic();
+                update_logic(system);
             }
         }
     }
@@ -241,7 +241,7 @@ private:
             bitset_write_u32(ie[name_id], 32 * (enable_offset / 4), *source32);
     }
 
-    void reg_threshold_maxid_write(size_type pos, const uint32_t *source32) {
+    void reg_threshold_maxid_write(System* system, size_type pos, const uint32_t *source32) {
         uint32_t name_id = 0;
         size_type target_addr = pos / 0x1000;
 
@@ -254,7 +254,7 @@ private:
             // Complete an interrupt: target writes to MaxID the ID of the interrupt
             if (in_flight[*source32] && (in_flight_by[*source32] == name_id)) {
                 in_flight[*source32] = false;
-                update_logic();
+                update_logic(system);
             }
         }
     }
@@ -287,28 +287,22 @@ private:
 template <unsigned long long Base, size_t N>
 struct PU_PLIC : public PLIC<Base, N, 41, 12>
 {
-    static void Target_Minion_Machine_external_interrupt(bool raise) {
-        (void) raise;
-#ifdef SYS_EMU
+    static void Target_Minion_Machine_external_interrupt(System* system, bool raise) {
         for (int i = 0; i < EMU_NUM_MINION_SHIRES; i++) {
             if (raise)
-                sys_emu::raise_external_interrupt(i);
+                system->raise_external_interrupt(i);
             else
-                sys_emu::clear_external_interrupt(i);
+                system->clear_external_interrupt(i);
         }
-#endif
     }
 
-    static void Target_Minion_Supervisor_external_interrupt(bool raise) {
-        (void) raise;
-#ifdef SYS_EMU
+    static void Target_Minion_Supervisor_external_interrupt(System* system, bool raise) {
         for (int i = 0; i < EMU_NUM_MINION_SHIRES; i++) {
             if (raise)
-                sys_emu::raise_external_supervisor_interrupt(i);
+                system->raise_external_supervisor_interrupt(i);
             else
-                sys_emu::clear_external_supervisor_interrupt(i);
+                system->clear_external_supervisor_interrupt(i);
         }
-#endif
     }
 
     const std::vector<PLIC_Interrupt_Target> &get_target_list() const {
@@ -323,24 +317,18 @@ struct PU_PLIC : public PLIC<Base, N, 41, 12>
 template <unsigned long long Base, size_t N>
 struct SP_PLIC : public PLIC<Base, N, 148, 2>
 {
-    static void Target_SP_Machine_external_interrupt(bool raise) {
-        (void) raise;
-#ifdef SYS_EMU
+    static void Target_SP_Machine_external_interrupt(System* system, bool raise) {
         if (raise)
-            sys_emu::raise_external_interrupt(IO_SHIRE_ID);
+            system->raise_external_interrupt(IO_SHIRE_ID);
         else
-            sys_emu::clear_external_interrupt(IO_SHIRE_ID);
-#endif
+            system->clear_external_interrupt(IO_SHIRE_ID);
     }
 
-    static void Target_SP_Supervisor_external_interrupt(bool raise) {
-        (void) raise;
-#ifdef SYS_EMU
+    static void Target_SP_Supervisor_external_interrupt(System* system, bool raise) {
         if (raise)
-            sys_emu::raise_external_supervisor_interrupt(IO_SHIRE_ID);
+            system->raise_external_supervisor_interrupt(IO_SHIRE_ID);
         else
-            sys_emu::clear_external_supervisor_interrupt(IO_SHIRE_ID);
-#endif
+            system->clear_external_supervisor_interrupt(IO_SHIRE_ID);
     }
 
     const std::vector<PLIC_Interrupt_Target> &get_target_list() const {

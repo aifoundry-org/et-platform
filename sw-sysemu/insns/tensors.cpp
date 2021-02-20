@@ -13,23 +13,21 @@
 #include <stdexcept>
 
 #include "cache.h"
-#include "decode.h"
-#include "emu.h"
 #include "emu_defines.h"
 #include "emu_gio.h"
 #include "fpu/fpu.h"
 #include "fpu/fpu_casts.h"
+#include "insn_util.h"
 #include "log.h"
-#include "memory/main_memory.h"
 #include "mmu.h"
-#include "processor.h"
-#ifdef SYS_EMU
-#include "sys_emu.h"
-#endif
+#include "system.h"
 #include "tensor.h"
 #include "tensor_error.h"
 #include "traps.h"
 #include "utility.h"
+#ifdef SYS_EMU
+#include "sys_emu.h"
+#endif
 
 
 #define FREGS cpu.fregs
@@ -62,9 +60,6 @@
 
 
 namespace bemu {
-
-
-extern MainMemory memory;
 
 
 static const char* get_rounding_mode(const Hart& cpu, int mode)
@@ -212,7 +207,7 @@ void tensor_load_start(Hart& cpu, uint64_t control)
     // Cooperative tensor loads require the shire to be in cooperative mode
     if (use_coop) {
         uint64_t shire = shire_index(cpu);
-        if (!shire_other_esrs[shire].shire_coop_mode)
+        if (!cpu.chip->shire_other_esrs[shire].shire_coop_mode)
             throw trap_illegal_instruction(cpu.inst.bits);
     }
 
@@ -321,7 +316,7 @@ void tensor_load_execute(Hart& cpu, bool tenb)
                     uint64_t vaddr = sextVA(addr + i*stride);
                     assert(addr_is_size_aligned(vaddr, L1D_LINE_SIZE));
                     uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxLoad);
-                    memory.read(cpu, paddr, L1D_LINE_SIZE, SCP[idx].u32.data());
+                    cpu.chip->memory.read(cpu, paddr, L1D_LINE_SIZE, SCP[idx].u32.data());
                     LOG_MEMREAD512(paddr, SCP[idx].u32.data());
                     LOG_SCP_32x16("=", idx);
                     L1_SCP_CHECK_FILL(cpu, idx, id);
@@ -358,7 +353,7 @@ void tensor_load_execute(Hart& cpu, bool tenb)
                         uint64_t vaddr = sextVA(addr + boffset + (4*i+r)*stride);
                         assert(addr_is_size_aligned(vaddr, 16));
                         uint64_t paddr = mmu_translate(cpu, vaddr, 16, Mem_Access_TxLoad);
-                        memory.read(cpu, paddr, 16, tmp.u32.data());
+                        cpu.chip->memory.read(cpu, paddr, 16, tmp.u32.data());
                         LOG_MEMREAD128(paddr, tmp.u32);
                         for (int c = 0; c < 16; ++c)
                             SCP[idx].u8[c*4 + r] = tmp.u8[c];
@@ -401,7 +396,7 @@ void tensor_load_execute(Hart& cpu, bool tenb)
                         uint64_t vaddr = sextVA(addr + boffset + (2*i+r)*stride);
                         assert(addr_is_size_aligned(vaddr, 32));
                         uint64_t paddr = mmu_translate(cpu, vaddr, 32, Mem_Access_TxLoad);
-                        memory.read(cpu, paddr, 32, tmp.u32.data());
+                        cpu.chip->memory.read(cpu, paddr, 32, tmp.u32.data());
                         LOG_MEMREAD256(paddr, tmp.u32);
                         for (int c = 0; c < 16; ++c)
                             SCP[idx].u16[c*2 + r] = tmp.u16[c];
@@ -440,7 +435,7 @@ void tensor_load_execute(Hart& cpu, bool tenb)
             assert(addr_is_size_aligned(vaddr, L1D_LINE_SIZE));
             try {
                 uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxLoad);
-                memory.read(cpu, paddr, L1D_LINE_SIZE, tmp[j].u32.data());
+                cpu.chip->memory.read(cpu, paddr, L1D_LINE_SIZE, tmp[j].u32.data());
                 LOG_MEMREAD512(paddr, tmp[j].u32);
             }
             catch (const sync_trap_t&) {
@@ -512,9 +507,9 @@ void tensor_load_l2_start(Hart& cpu, uint64_t control)
             try {
                 cache_line_t tmp;
                 uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxLoadL2Scp);
-                memory.read(cpu, paddr, L1D_LINE_SIZE, tmp.u32.data());
+                cpu.chip->memory.read(cpu, paddr, L1D_LINE_SIZE, tmp.u32.data());
                 LOG_MEMREAD512(paddr, tmp.u32);
-                memory.write(cpu, l2scp_addr, L1D_LINE_SIZE, tmp.u32.data());
+                cpu.chip->memory.write(cpu, l2scp_addr, L1D_LINE_SIZE, tmp.u32.data());
                 LOG_MEMWRITE512(l2scp_addr, tmp.u32);
                 L2_SCP_CHECK_FILL(cpu, dst + i, id, addr);
             }
@@ -807,7 +802,7 @@ void tensor_store_start(Hart& cpu, uint64_t tstorereg)
             try {
                 uint64_t vaddr = sextVA(addr + row * stride);
                 uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxStore);
-                memory.write(cpu, paddr, L1D_LINE_SIZE, SCP[src].u32.data());
+                cpu.chip->memory.write(cpu, paddr, L1D_LINE_SIZE, SCP[src].u32.data());
                 LOG_MEMWRITE512(paddr, SCP[src].u32);
                 for (int col=0; col < 16; col++) {
                     notify_tensor_store_write(cpu, paddr + col*4, SCP[src].u32[col]);
@@ -862,7 +857,7 @@ void tensor_store_start(Hart& cpu, uint64_t tstorereg)
         if (coop > 1)
         {
             uint64_t shire = shire_index(cpu);
-            if (!shire_other_esrs[shire].shire_coop_mode)
+            if (!cpu.chip->shire_other_esrs[shire].shire_coop_mode)
                 throw trap_illegal_instruction(cpu.inst.bits);
         }
 
@@ -879,7 +874,7 @@ void tensor_store_start(Hart& cpu, uint64_t tstorereg)
                     uint64_t paddr = mmu_translate(cpu, vaddr + col*16, 16, Mem_Access_TxStore);
                     if (!(col & 1)) LOG_FREG(":", src);
                     const uint32_t* ptr = &FREGS[src].u32[(col & 1) * 4];
-                    memory.write(cpu, paddr, 16, ptr);
+                    cpu.chip->memory.write(cpu, paddr, 16, ptr);
                     LOG_MEMWRITE128(paddr, ptr);
                     for (int w=0; w < 4; w++) {
                         notify_tensor_store_write(cpu, paddr + w*4, *(ptr+w));
@@ -1841,8 +1836,6 @@ void tensor_reduce_step(Hart& rcv_cpu, Hart& snd_cpu)
 
 void tensor_reduce_execute(Hart& this_cpu)
 {
-    extern std::array<Hart,EMU_NUM_THREADS>  cpu;
-
     static const char* reducecmd[4] = {
         "TensorSend", "TensorRecv",
         "TensorBroadcast", "TensorReduce"
@@ -1854,7 +1847,7 @@ void tensor_reduce_execute(Hart& this_cpu)
     unsigned this_num_reg   = this_cpu.core->reduce.count;
     unsigned type           = this_cpu.core->reduce.optype >> 4;
 
-    Hart& other_cpu = cpu[other_thread];
+    Hart& other_cpu = this_cpu.chip->cpu[other_thread];
 
     if (this_cpu.core->reduce.state == Core::Reduce::State::Skip) {
         return;

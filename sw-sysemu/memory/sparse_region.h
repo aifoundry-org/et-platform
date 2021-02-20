@@ -13,15 +13,12 @@
 
 #include <algorithm>
 #include <array>
-#include "dump_data.h"
 #include "lazy_array.h"
-#include "memory_error.h"
-#include "memory_region.h"
+#include "memory/dump_data.h"
+#include "memory/memory_error.h"
+#include "memory/memory_region.h"
 
 namespace bemu {
-
-
-extern typename MemoryRegion::reset_value_type memory_reset_value;
 
 
 template <unsigned long long Base, unsigned long long N, unsigned long long M,
@@ -45,15 +42,15 @@ struct SparseRegion : public MemoryRegion
     static_assert((N > 0) && !(N % M),
                   "bemu::SparseRegion size must be a multiple of bucket size");
 
-    void read(const Agent&, size_type pos, size_type n, pointer result) override {
+    void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
         size_type bucket = pos / M;
         size_type offset = pos % M;
         size_type count = std::min(n, M - offset);
-        n -= read_bucket(bucket, offset, count, result);
+        n -= read_bucket(agent.chip, bucket, offset, count, result);
         while (n > 0) {
             result += count;
             count = std::min(n, M);
-            n -= read_bucket(++bucket, 0, count, result);
+            n -= read_bucket(agent.chip, ++bucket, 0, count, result);
         }
     }
 
@@ -63,56 +60,56 @@ struct SparseRegion : public MemoryRegion
         init(agent, pos, n, source);
     }
 
-    void init(const Agent&, size_type pos, size_type n, const_pointer source) override {
+    void init(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         size_type bucket = pos / M;
         size_type offset = pos % M;
         size_type count = std::min(n, M - offset);
-        n -= write_bucket(bucket, offset, count, source);
+        n -= write_bucket(agent.chip, bucket, offset, count, source);
         while (n > 0) {
             source += count;
             count = std::min(n, M);
-            n -= write_bucket(++bucket, 0, count, source);
+            n -= write_bucket(agent.chip, ++bucket, 0, count, source);
         }
     }
 
     addr_type first() const override { return Base; }
     addr_type last() const override { return Base + N - 1; }
 
-    void dump_data(std::ostream& os, size_type pos, size_type n) const override {
+    void dump_data(const Agent& agent, std::ostream& os, size_type pos, size_type n) const override {
         size_type lo = pos / M;
         size_type hi = (pos + n - 1) / M;
         size_type offset = pos % M;
         while (lo != hi) {
             bemu::dump_data(os, storage[lo], offset,
-                            M - offset, memory_reset_value[0]);
+                            M - offset, agent.chip->memory_reset_value[0]);
             ++lo;
             offset = 0;
         }
         bemu::dump_data(os, storage[lo], offset,
-                        1 + ((pos + n - 1) % M) - offset, memory_reset_value[0]);
+                        1 + ((pos + n - 1) % M) - offset, agent.chip->memory_reset_value[0]);
     }
 
     // For exposition only
     storage_type  storage;
 
 protected:
-    size_type read_bucket(size_type bucket, size_type pos,
+    size_type read_bucket(System* system, size_type bucket, size_type pos,
                           size_type count, pointer result) const
     {
         if (storage[bucket].empty()) {
-          default_value(result, count, memory_reset_value, pos);
+          default_value(result, count, system->memory_reset_value, pos);
         } else {
             std::copy_n(storage[bucket].cbegin() + pos, count, result);
         }
         return count;
     }
 
-    size_type write_bucket(size_type bucket, size_type pos,
+    size_type write_bucket(System* system, size_type bucket, size_type pos,
                            size_type count, const_pointer source)
     {
         if (storage[bucket].empty()) {
             storage[bucket].allocate();
-            storage[bucket].fill_pattern(memory_reset_value, MEM_RESET_PATTERN_SIZE);
+            storage[bucket].fill_pattern(system->memory_reset_value, MEM_RESET_PATTERN_SIZE);
         }
         std::copy_n(source, count, storage[bucket].begin() + pos);
         return count;
