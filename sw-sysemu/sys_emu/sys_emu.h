@@ -127,11 +127,8 @@ class api_communicate;
 class sys_emu
 {
 public:
-    sys_emu() = default;
+    sys_emu(const sys_emu_cmd_options& cmd_options, api_communicate* api_comm = nullptr);
     virtual ~sys_emu() = default;
-
-    bool init_simulator(const sys_emu_cmd_options& cmd_options,
-                        api_communicate* api_comm);
 
     /// Function used for parsing the command line arguments
     static std::tuple<bool, struct sys_emu_cmd_options>
@@ -162,8 +159,7 @@ public:
     static void evl_dv_handle_irq_inj(bool raise, uint64_t subopcode, uint64_t shire_mask);
     static void shire_enable_threads(unsigned shire_id, uint32_t thread0_disable, uint32_t thread1_disable);
     static void recalculate_thread_disable(unsigned shire_id);
-    int main_internal(const sys_emu_cmd_options& cmd_options,
-                      api_communicate* api_comm = nullptr);
+    int main_internal();
 
     static uint64_t get_emu_cycle()  { return emu_cycle; }
 

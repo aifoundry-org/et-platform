@@ -489,19 +489,8 @@ struct PcieDbiSlvRegion : public MemoryRegion {
         }
     }
 
-    struct iatu_info_t {
-        uint32_t ctrl_1;
-        uint32_t ctrl_2;
-        uint32_t lwr_base_addr;
-        uint32_t upper_base_addr;
-        uint32_t limit_addr;
-        uint32_t lwr_target_addr;
-        uint32_t upper_target_addr;
-        uint32_t uppr_limit_addr;
-    };
-
     std::array<uint32_t, 6> bar_regs{};
-    std::array<iatu_info_t, ETSOC_CX_ATU_NUM_INBOUND_REGIONS> iatus{};
+    std::array<MainMemory::pcie_iatu_info_t, ETSOC_CX_ATU_NUM_INBOUND_REGIONS> iatus{};
     uint32_t msi_cap = (1u << 16) | (0u << 20); /* PCI_MSI_ENABLE = 1, PCI_MSI_MULTIPLE_MSG_EN = 0 */
     uint32_t msix_cap = (1u << 31); /* PCI_MSIX_ENABLE = 1 */
     uint32_t msix_match_low = 0;

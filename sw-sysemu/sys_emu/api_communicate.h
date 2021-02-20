@@ -13,10 +13,16 @@
 
 #include <cstdint>
 
+// Forward declaration
+namespace bemu {
+class System;
+}
+
 // Class that receives commands from the runtime API and forwards it to SoC
 class api_communicate {
 public:
     virtual ~api_communicate() = default;
+    virtual void set_system(bemu::System*) = 0;
     virtual void process(void) = 0;
     virtual bool raise_host_interrupt(uint32_t bitmap) = 0;
     virtual bool host_memory_read(uint64_t host_addr, uint64_t size, void *data) = 0;

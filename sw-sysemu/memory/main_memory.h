@@ -79,6 +79,19 @@ struct MainMemory {
     typedef typename MemoryRegion::pointer        pointer;
     typedef typename MemoryRegion::const_pointer  const_pointer;
 
+    // ----- Types -----
+
+    struct pcie_iatu_info_t {
+        uint32_t ctrl_1;
+        uint32_t ctrl_2;
+        uint32_t lwr_base_addr;
+        uint32_t upper_base_addr;
+        uint32_t limit_addr;
+        uint32_t lwr_target_addr;
+        uint32_t upper_target_addr;
+        uint32_t uppr_limit_addr;
+    };
+
     enum : unsigned long long {
         // base addresses for the various regions of the address space
         pu_maxion_base      = 0x0000000000ULL,
@@ -92,6 +105,8 @@ struct MainMemory {
 #endif
         dram_base           = 0x8000000000ULL,
     };
+
+    // ----- Public methods -----
 
     void reset();
 
@@ -163,8 +178,19 @@ struct MainMemory {
     bool spio_rvtimer_is_active() const;
     void spio_rvtimer_update(const Agent&, uint64_t cycle);
 
-    // Access the PCIe doorbell
+    // Access the Mailboxes
+    void pc_mm_mailbox_read(const Agent& agent, addr_type offset, size_type n, void* result);
+    void pc_mm_mailbox_write(const Agent& agent, addr_type addr, size_type n, const void* source);
+    void pc_sp_mailbox_read(const Agent& agent, addr_type offset, size_type n, void* result);
+    void pc_sp_mailbox_write(const Agent& agent, addr_type addr, size_type n, const void* source);
+
+    // Access PCIe
+    void pu_trg_pcie_mmm_int_inc(const Agent& agent);
+    void pu_trg_pcie_ipi_trigger(const Agent& agent);
     void pcie0_dbi_slv_trigger_done_int(const Agent&, bool wrch, int channel);
+#ifdef SYS_EMU
+    std::array<pcie_iatu_info_t, ETSOC_CX_ATU_NUM_INBOUND_REGIONS>& pcie0_get_iatus();
+#endif
 
 protected:
     static inline bool above(const std::unique_ptr<MemoryRegion>& lhs, addr_type rhs) {

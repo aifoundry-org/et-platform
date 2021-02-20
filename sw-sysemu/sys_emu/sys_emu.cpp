@@ -761,17 +761,10 @@ sys_emu::breakpoint_exists(uint64_t addr)
     return contains(breakpoints, addr);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-/// Main initialization function.
-///
-/// The initialization function is separate by the constructor because we need
-/// to overwrite specific parts of the initialization in subclasses
-////////////////////////////////////////////////////////////////////////////////
-
-bool sys_emu::init_simulator(const sys_emu_cmd_options &cmd_options,
-                             api_communicate *api_comm)
+sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_comm)
 {
     this->cmd_options = cmd_options;
+    this->api_listener = api_comm;
 
     // Reset the SoC
     emu_cycle = 0;
@@ -827,12 +820,10 @@ bool sys_emu::init_simulator(const sys_emu_cmd_options &cmd_options,
         }
         catch (...) {
             LOG_NOTHREAD(FTL, "Error loading ELF \"%s\"", elf.c_str());
-            return false;
         }
     }
     if (!cmd_options.mem_desc_file.empty()) {
-        if (!parse_mem_file(cmd_options.mem_desc_file.c_str()))
-            return false;
+        parse_mem_file(cmd_options.mem_desc_file.c_str());
     }
 
     // Load files
@@ -843,7 +834,6 @@ bool sys_emu::init_simulator(const sys_emu_cmd_options &cmd_options,
         }
         catch (...) {
             LOG_NOTHREAD(FTL, "Error loading file \"%s\"", info.file.c_str());
-            return false;
         }
     }
 
@@ -859,7 +849,6 @@ bool sys_emu::init_simulator(const sys_emu_cmd_options &cmd_options,
         int fd = open(cmd_options.pu_uart0_rx_file.c_str(), O_RDONLY, 0666);
         if (fd < 0) {
             LOG_NOTHREAD(FTL, "Error opening \"%s\"", cmd_options.pu_uart0_rx_file.c_str());
-            return false;
         }
         chip.pu_uart0_set_rx_fd(fd);
     } else {
@@ -871,7 +860,6 @@ bool sys_emu::init_simulator(const sys_emu_cmd_options &cmd_options,
         int fd = open(cmd_options.pu_uart1_rx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
             LOG_NOTHREAD(FTL, "Error opening \"%s\"", cmd_options.pu_uart1_rx_file.c_str());
-            return false;
         }
         chip.pu_uart1_set_rx_fd(fd);
     } else {
@@ -883,7 +871,6 @@ bool sys_emu::init_simulator(const sys_emu_cmd_options &cmd_options,
         int fd = open(cmd_options.spio_uart0_rx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
             LOG_NOTHREAD(FTL, "Error opening \"%s\"", cmd_options.spio_uart0_rx_file.c_str());
-            return false;
         }
         chip.spio_uart0_set_rx_fd(fd);
     } else {
@@ -895,7 +882,6 @@ bool sys_emu::init_simulator(const sys_emu_cmd_options &cmd_options,
         int fd = open(cmd_options.spio_uart1_rx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
             LOG_NOTHREAD(FTL, "Error opening \"%s\"", cmd_options.spio_uart1_rx_file.c_str());
-            return false;
         }
         chip.spio_uart1_set_rx_fd(fd);
     } else {
@@ -907,7 +893,6 @@ bool sys_emu::init_simulator(const sys_emu_cmd_options &cmd_options,
         int fd = open(cmd_options.pu_uart0_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
             LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.pu_uart0_tx_file.c_str());
-            return false;
         }
         chip.pu_uart0_set_tx_fd(fd);
     } else {
@@ -919,7 +904,6 @@ bool sys_emu::init_simulator(const sys_emu_cmd_options &cmd_options,
         int fd = open(cmd_options.pu_uart1_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
             LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.pu_uart1_tx_file.c_str());
-            return false;
         }
         chip.pu_uart1_set_tx_fd(fd);
     } else {
@@ -931,7 +915,6 @@ bool sys_emu::init_simulator(const sys_emu_cmd_options &cmd_options,
         int fd = open(cmd_options.spio_uart0_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
             LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.spio_uart0_tx_file.c_str());
-            return false;
         }
         chip.spio_uart0_set_tx_fd(fd);
     } else {
@@ -943,7 +926,6 @@ bool sys_emu::init_simulator(const sys_emu_cmd_options &cmd_options,
         int fd = open(cmd_options.spio_uart1_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
             LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.spio_uart1_tx_file.c_str());
-            return false;
         }
         chip.spio_uart1_set_tx_fd(fd);
     } else {
@@ -951,7 +933,9 @@ bool sys_emu::init_simulator(const sys_emu_cmd_options &cmd_options,
     }
 
     // Initialize Simulator API
-    api_listener = api_comm;
+    if (api_listener) {
+        api_listener->set_system(&chip);
+    }
 
     for (unsigned s = 0; s < EMU_NUM_SHIRES; s++) {
         chip.reset_esrs_for_shire(s);
@@ -1012,23 +996,16 @@ bool sys_emu::init_simulator(const sys_emu_cmd_options &cmd_options,
     for (auto &info: cmd_options.set_xreg) {
         chip.cpu[info.thread].xregs[info.xreg] = info.value;
     }
-
-    return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Main function implementation
 ////////////////////////////////////////////////////////////////////////////////
 
-int sys_emu::main_internal(const sys_emu_cmd_options &cmd_options,
-                           api_communicate *api_comm) {
+int sys_emu::main_internal() {
 #ifdef HAVE_BACKTRACE
     Crash_handler __crash_handler;
 #endif
-
-    if (!init_simulator(cmd_options, api_comm)) {
-      return EXIT_FAILURE;
-    }
 
 #ifdef SYSEMU_PROFILING
     profiling_init();

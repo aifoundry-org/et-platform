@@ -243,6 +243,46 @@ void MainMemory::spio_rvtimer_update(const Agent& agent, uint64_t cycle)
 }
 
 
+void MainMemory::pc_mm_mailbox_read(const Agent& agent, addr_type offset, size_type n, void* result)
+{
+    read(agent, pu_mbox_base + MailboxRegion<pu_mbox_base, 512_MiB>::pu_mbox_pc_mm_pos + offset, n, result);
+}
+
+
+void MainMemory::pc_mm_mailbox_write(const Agent& agent, addr_type offset, size_type n, const void* source)
+{
+    write(agent, pu_mbox_base + MailboxRegion<pu_mbox_base, 512_MiB>::pu_mbox_pc_mm_pos + offset, n, source);
+}
+
+
+void MainMemory::pc_sp_mailbox_read(const Agent& agent, addr_type offset, size_type n, void* result)
+{
+    read(agent, pu_mbox_base + MailboxRegion<pu_mbox_base, 512_MiB>::pu_mbox_pc_sp_pos + offset, n, result);
+}
+
+
+void MainMemory::pc_sp_mailbox_write(const Agent& agent, addr_type offset, size_type n, const void* source)
+{
+    write(agent, pu_mbox_base + MailboxRegion<pu_mbox_base, 512_MiB>::pu_mbox_pc_sp_pos + offset, n, source);
+}
+
+
+void MainMemory::pu_trg_pcie_mmm_int_inc(const Agent& agent)
+{
+    uint32_t trigger = 1;
+    write(agent, pu_mbox_base + bemu::MailboxRegion<pu_mbox_base, 512_MiB>::pu_trg_pcie_pos + bemu::MMM_INT_INC,
+          sizeof(trigger), reinterpret_cast<bemu::MemoryRegion::const_pointer>(&trigger));
+}
+
+
+void MainMemory::pu_trg_pcie_ipi_trigger(const Agent& agent)
+{
+    uint32_t trigger = 1;
+    write(agent, pu_mbox_base + bemu::MailboxRegion<pu_mbox_base, 512_MiB>::pu_trg_pcie_pos + bemu::IPI_TRIGGER,
+         sizeof(trigger), reinterpret_cast<bemu::MemoryRegion::const_pointer>(&trigger));
+}
+
+
 void MainMemory::pcie0_dbi_slv_trigger_done_int(const Agent& agent, bool wrch, int channel)
 {
 #ifdef SYS_EMU
@@ -255,5 +295,13 @@ void MainMemory::pcie0_dbi_slv_trigger_done_int(const Agent& agent, bool wrch, i
 #endif
 }
 
+
+#ifdef SYS_EMU
+std::array<MainMemory::pcie_iatu_info_t, ETSOC_CX_ATU_NUM_INBOUND_REGIONS>& MainMemory::pcie0_get_iatus()
+{
+    auto ptr = dynamic_cast<PcieRegion<pcie_base, 256_GiB>*>(regions[6].get());
+    return ptr->pcie0_dbi_slv.iatus;
+}
+#endif
 
 }
