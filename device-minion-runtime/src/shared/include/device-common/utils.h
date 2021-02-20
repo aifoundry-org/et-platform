@@ -215,7 +215,7 @@ inline __attribute__((always_inline))__attribute__((always_inline)) uint64_t fcc
  */
 
 // Sends an FCC credit
-inline __attribute__((always_inline)) void fcc_send(int shire, int thread, int fcc_reg, uint64_t hart_mask)
+inline __attribute__((always_inline)) void fcc_send(uint32_t shire, uint32_t thread, uint32_t fcc_reg, uint64_t hart_mask)
 {
     volatile uint64_t *fcc_credinc_addr = (uint64_t *)
         ESR_SHIRE(shire, FCC_CREDINC_0) + ((thread << 1) | fcc_reg);
@@ -223,7 +223,7 @@ inline __attribute__((always_inline)) void fcc_send(int shire, int thread, int f
     *fcc_credinc_addr = hart_mask;
 }
 
-inline __attribute__((always_inline)) void flbarrier_set(int shire, int barrier_num, uint64_t value)
+inline __attribute__((always_inline)) void flbarrier_set(uint32_t shire, uint32_t barrier_num, uint64_t value)
 {
     volatile uint64_t *flb_addr = (uint64_t *)
         ESR_SHIRE(shire, FAST_LOCAL_BARRIER0) + barrier_num;

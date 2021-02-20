@@ -5,7 +5,6 @@
 #include "hart.h"
 
 extern int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3);
-extern void swi_handler(void);
 
 static void write_reg(uint64_t *const reg, uint64_t rd, uint64_t val);
 
@@ -34,9 +33,6 @@ uint64_t trap_routine(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64
             /* Unhandled illegal instruction: delegate to S-mode */
             delegate = true;
         }
-    } else if (mcause == CAUSE_MACHINE_SOFTWARE_INTERRUPT) {
-        swi_handler();
-        return mepc;
     } else { /* Unhandled exception */
         /* For now, delegate all of them to S-mode */
         delegate = true;
