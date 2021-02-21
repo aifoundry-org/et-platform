@@ -17,7 +17,6 @@
 
 int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3);
 
-static int64_t ipi_trigger(uint64_t hart_mask, uint64_t shire_id);
 static int64_t enable_thread1(uint64_t disable_mask, uint64_t enable_mask);
 
 static int64_t pre_kernel_setup(uint64_t hart_enable_mask, uint64_t first_worker);
@@ -46,12 +45,13 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
     volatile const uint64_t *const mtime_reg =
         (volatile const uint64_t *const)(R_PU_RVTIM_BASEADDR);
 
+    /* List of syscalls handled in fast-path (assembly):
+     *   SYSCALL_IPI_TRIGGER_INT
+     */
+
     switch (number) {
     case SYSCALL_BROADCAST_INT:
         ret = broadcast_with_parameters(arg1, arg2, arg3);
-        break;
-    case SYSCALL_IPI_TRIGGER_INT:
-        ret = ipi_trigger(arg1, arg2);
         break;
     case SYSCALL_ENABLE_THREAD1_INT:
         ret = enable_thread1(arg1, arg2);
@@ -98,17 +98,6 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
     }
 
     return ret;
-}
-
-// hart_mask = bit 0 in the mask corresponds to hart 0 in the shire (minion 0, thread 0), bit 1 to hart 1 (minion 0, thread 1) and bit 63 corresponds to hart 63 (minion 31, thread 1).
-// shire_id = shire to send the credit to, 0-32 or 0xFF for "this shire"
-static int64_t ipi_trigger(uint64_t hart_mask, uint64_t shire_id)
-{
-    volatile uint64_t *const ipi_trigger_ptr =
-        (volatile uint64_t *)ESR_SHIRE(shire_id, IPI_TRIGGER);
-    *ipi_trigger_ptr = hart_mask;
-
-    return 0;
 }
 
 // disable_mask is a bitmask to DISABLE a thread1: bit 0 = minion 0, bit 31 = minion 31
