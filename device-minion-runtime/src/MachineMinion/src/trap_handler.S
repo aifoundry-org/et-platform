@@ -1,4 +1,5 @@
 #include "esr_defines.h"
+#include "riscv_encoding.h"
 
 .section .text, "ax", @progbits /* TODO FIXME move to M +RX page sections */
 .global trap_handler
@@ -25,7 +26,7 @@ trap_handler:
 
     /* In slow-path we can only use x1 and x3 */
     andi  x1, x1, 0xFF
-    li    x3, 3            /* Machine software interrupt */
+    li    x3, MACHINE_SOFTWARE_INTERRUPT
     /* For now we only handle Machine software interrupts (IPI) in fast-path */
     bne   x1, x3, slow_path
 
@@ -38,9 +39,9 @@ trap_handler:
     sd    x3, 0(x1)
     fence
     /* Clear Machine software interrupt pending */
-    csrci mip, 1 << 3
+    csrci mip, 1 << MACHINE_SOFTWARE_INTERRUPT
     /* Set Supervisor software interrupt pending */
-    csrsi mip, 1 << 1
+    csrsi mip, 1 << SUPERVISOR_SOFTWARE_INTERRUPT
 
     /* We are done, return */
     j     done_fast_path

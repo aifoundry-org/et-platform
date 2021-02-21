@@ -11,7 +11,7 @@ void print_exception(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t ms
 {
     log_write(LOG_LEVEL_CRITICAL, "H%04" PRIu64 ": ", hart_id);
 
-    switch ((exception_t)mcause) {
+    switch (mcause) {
     case EXCEPTION_INSTRUCTION_ADDRESS_MISALIGNED:
         log_write(LOG_LEVEL_CRITICAL, "Instruction address misaligned exception ");
         break;
