@@ -1,4 +1,3 @@
-#include "kernel_params.h"
 #include "hart.h"
 #include "cacheops.h"
 #include "common.h"
@@ -28,46 +27,57 @@ static inline uint64_t generate_random_value_2(uint64_t lfsr) __attribute((alway
 // First minion per shire participate in the test
 // Starting at tensor_a, the address loops through all the shires, covering each of them once
 
-int64_t main(const kernel_params_t* const kernel_params_ptr)
-{
+typedef struct {
+  uint64_t lfsr_init;
+  uint64_t lfsr_init2;
+}  Parameters;
 
-    if ((kernel_params_ptr == NULL))
-    {
-        // Bad arguments
-        log_write(LOG_LEVEL_CRITICAL, "Programming returing due to error\n");
-        return -1;
+int64_t main(const Parameters* const kernel_params_ptr) {
+  if ((kernel_params_ptr == NULL)) {
+    // Bad arguments
+    log_write(LOG_LEVEL_CRITICAL, "Programming returing due to error\n");
+    return -1;
+  }
+
+  uint64_t lfsr_init = kernel_params_ptr->lfsr_init & 0xFFFF;
+  uint64_t lfsr_init2 = kernel_params_ptr->lfsr_init2 & 0xFFFF;
+  const uint64_t hart_id = get_hart_id();
+  uint64_t lfsr =
+      (((hart_id << 24) | (hart_id << 12) | hart_id) & 0x3FFFFFFFF) ^ lfsr_init;
+  uint64_t lfsr_use;
+
+  uint64_t lfsr_stride_and_numlines =
+      (((hart_id << 24) | (hart_id << 12) | hart_id) & 0x3FFFFFFFF) ^
+      lfsr_init2;
+  uint64_t lfsr_stride;
+  uint64_t stride = 0;
+  uint64_t lfsr_numlines;
+
+  if (hart_id % 64 == 0) {
+    lfsr = generate_random_value(lfsr);
+    lfsr_use = lfsr & 0x1F;
+    for (int i = 0; i < 31; i++) {
+      long unsigned int shire_addr = BASE_ADDR_FOR_THIS_TEST | (lfsr_use << 23);
+      lfsr_stride_and_numlines =
+          generate_random_value(lfsr_stride_and_numlines);
+      lfsr_stride = lfsr_stride_and_numlines & 0x3;
+      if (lfsr_stride == 0) stride = 64;
+      if (lfsr_stride == 1) stride = 128;
+      if (lfsr_stride == 2) stride = 512;
+      if (lfsr_stride == 3) stride = 1024;
+      lfsr_stride_and_numlines = generate_random_value(lfsr);
+      lfsr_numlines = lfsr_stride_and_numlines & 0x1F;
+      prefetch_va(false, 1, shire_addr, lfsr_numlines, stride, 0);
+      if (lfsr_use == 31) {
+        lfsr_use = 0;
+      } else {
+        lfsr_use++;
+      }
     }
-
-    uint64_t lsfr_init = kernel_params_ptr->tensor_a & 0xFFFF;
-    uint64_t lsfr_init2 = kernel_params_ptr->tensor_b & 0xFFFF;
-    const uint64_t hart_id = get_hart_id();
-    uint64_t lfsr = (((hart_id << 24) | (hart_id << 12) | hart_id) & 0x3FFFFFFFF) ^ lsfr_init;
-    uint64_t lfsr_use;
-
-    uint64_t lfsr_stride_and_numlines = (((hart_id << 24) | (hart_id << 12) | hart_id) & 0x3FFFFFFFF) ^ lsfr_init2;
-    uint64_t lfsr_stride;
-    uint64_t stride = 0;
-    uint64_t lfsr_numlines;
-
-    if (hart_id % 64 == 0) {
-       lfsr = generate_random_value(lfsr);
-       lfsr_use = lfsr & 0x1F;
-       for(int i=0;i<31;i++) {
-          long unsigned int shire_addr = BASE_ADDR_FOR_THIS_TEST | (lfsr_use << 23);
-          lfsr_stride_and_numlines = generate_random_value(lfsr_stride_and_numlines);
-          lfsr_stride = lfsr_stride_and_numlines & 0x3;
-          if(lfsr_stride == 0) stride = 64;
-          if(lfsr_stride == 1) stride = 128;
-          if(lfsr_stride == 2) stride = 512;
-          if(lfsr_stride == 3) stride = 1024;
-          lfsr_stride_and_numlines = generate_random_value(lfsr);
-          lfsr_numlines = lfsr_stride_and_numlines & 0x1F;
-          prefetch_va(false,     1,   shire_addr,  lfsr_numlines,         stride,      0);
-          if(lfsr_use == 31) { lfsr_use = 0; } else { lfsr_use++; }
-       }
-       return 0;
-    }
-    else {return 0;}
+    return 0;
+  } else {
+    return 0;
+  }
 }
 
 // The following function is flicked from random_read

@@ -1,4 +1,4 @@
-#include "kernel_params.h"
+
 #include "hart.h"
 #include "cacheops.h"
 #include "common.h"
@@ -30,14 +30,14 @@
 
 static inline uint64_t generate_random_value(uint64_t lfsr) __attribute((always_inline));
 
-struct Parameters {
+typedef struct {
   uint64_t lfsr_init;
   uint64_t dst;
   uint64_t op;
   uint64_t* out_data;
-};
+} Parameters;
 
-int64_t main(const struct Parameters* const kernel_params_ptr) {
+int64_t main(const Parameters* const kernel_params_ptr) {
   if (kernel_params_ptr == NULL || kernel_params_ptr->out_data == NULL) {
     // Bad arguments
     log_write(LOG_LEVEL_CRITICAL, "Bad input arguments to kernel\n");

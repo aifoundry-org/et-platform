@@ -14,7 +14,7 @@
 #include "hart.h"
 #include "macros.h"
 #include "common.h"
-#include "kernel_params.h"
+
 #include "log.h"
 #include "cacheops.h"
 #include "fcc.h"
@@ -34,13 +34,18 @@
 // Tensor B holds the size of Tensor A
 // Tensor C holds the number of minions
 // The number of iterations is Tensor B / Tensor C
-int64_t main(const kernel_params_t *const kernel_params_ptr) {
 
-  if ((kernel_params_ptr == NULL) ||
-      ((uint64_t *)kernel_params_ptr->tensor_a == NULL) ||
-      (kernel_params_ptr->tensor_b == 0) ||
-      (kernel_params_ptr->tensor_c == 0) ||
-      (uint64_t *)kernel_params_ptr->tensor_d == NULL) {
+typedef struct {
+  uint64_t offset_addr;
+  uint64_t array_size;
+  uint64_t num_minions;
+  uint64_t* out_data;
+} Parameters;
+int64_t main(const Parameters *const kernel_params_ptr) {
+  if (kernel_params_ptr == NULL || kernel_params_ptr->offset_addr == 0 ||
+      kernel_params_ptr->array_size == 0 ||
+      kernel_params_ptr->num_minions == 0 ||
+      kernel_params_ptr->out_data == NULL) {
     // Bad arguments
     return -1;
   }
@@ -54,10 +59,10 @@ int64_t main(const kernel_params_t *const kernel_params_ptr) {
   // Set marker for waveforms
   START_WAVES_MARKER;
 
-  uint64_t array_size = (uint64_t)kernel_params_ptr->tensor_b;
-  uint64_t num_minions = (uint64_t)kernel_params_ptr->tensor_c;
+  uint64_t array_size = kernel_params_ptr->array_size;
+  uint64_t num_minions = kernel_params_ptr->num_minions;
   uint64_t num_iter = array_size / num_minions;
-  volatile uint64_t *out_data = (uint64_t *)(kernel_params_ptr->tensor_d);
+  volatile uint64_t *out_data = kernel_params_ptr->out_data;
 
   if (num_minions > 1024) {
     log_write(LOG_LEVEL_CRITICAL, "Number of minions should be <= 1024");
@@ -77,7 +82,7 @@ int64_t main(const kernel_params_t *const kernel_params_ptr) {
   // Evict input tensor
   for (uint64_t i = 0; i < num_iter; i++) {
     uint64_t offset = (minion_id * num_iter) + i;
-    uint64_t offset_addr = kernel_params_ptr->tensor_a + offset * 8;
+    uint64_t offset_addr = kernel_params_ptr->offset_addr + offset * 8;
     evict_va(0, to_Mem, offset_addr, 0, 0x40, 0);
   }
   WAIT_CACHEOPS;
@@ -94,7 +99,7 @@ int64_t main(const kernel_params_t *const kernel_params_ptr) {
   // Prefetch tensor into L2
   for (uint64_t i = 0; i < num_iter; i++) {
     uint64_t offset = (minion_id * num_iter) + i;
-    uint64_t offset_addr = kernel_params_ptr->tensor_a + offset * 8;
+    uint64_t offset_addr = kernel_params_ptr->offset_addr + offset * 8;
     prefetch_va(0, 1, offset_addr, 0, 0x40, 0);
   }
 
@@ -114,7 +119,7 @@ int64_t main(const kernel_params_t *const kernel_params_ptr) {
     uint64_t offset = (minion_id * num_iter) + i;
 
     uint64_t *offset_addr =
-        (uint64_t *)(kernel_params_ptr->tensor_a + offset * 8);
+        (uint64_t *)(kernel_params_ptr->offset_addr + offset * 8);
     uint64_t *final_addr = (uint64_t *)*offset_addr;
     uint64_t val = *final_addr;
     sum = sum + val;

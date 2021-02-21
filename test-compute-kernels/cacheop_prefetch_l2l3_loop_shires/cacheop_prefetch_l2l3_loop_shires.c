@@ -1,4 +1,3 @@
-#include "kernel_params.h"
 #include "hart.h"
 #include "cacheops.h"
 #include "common.h"
@@ -22,8 +21,12 @@
 
 static inline uint64_t generate_random_value(uint64_t lfsr) __attribute((always_inline));
 
+typedef struct {
+  uint64_t lfsr_init;
+  uint64_t dst;
+} Parameters;
 
-int64_t main(const kernel_params_t* const kernel_params_ptr)
+int64_t main(const Parameters* const kernel_params_ptr)
 {
 
     if ((kernel_params_ptr == NULL))
@@ -33,11 +36,11 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
         return -1;
     }
 
-    uint64_t lsfr_init = kernel_params_ptr->tensor_a & 0xFFFF;
+    uint64_t lsfr_init = kernel_params_ptr->lfsr_init & 0xFFFF;
     const uint64_t hart_id = get_hart_id();
     uint64_t lfsr = (((hart_id << 24) | (hart_id << 12) | hart_id) & 0x3FFFFFFFF) ^ lsfr_init;
     uint64_t lfsr_use;
-    uint64_t dst = kernel_params_ptr->tensor_b; // 1 or 2
+    uint64_t dst = kernel_params_ptr->dst; // 1 or 2
 
 
     if ((hart_id % 64) == 0) {

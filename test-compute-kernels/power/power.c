@@ -1,7 +1,7 @@
 #include "fcc.h"
 #include "flb.h"
 #include "hart.h"
-#include "kernel_params.h"
+
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -10,26 +10,22 @@
 static void prefetch_thread(uint64_t cycles);
 static void compute_thread(uint64_t cycles);
 
-int64_t main(const kernel_params_t* const kernel_params_ptr)
-{
-    if ((kernel_params_ptr == NULL) || (kernel_params_ptr->tensor_a == 0) || ((kernel_params_ptr->tensor_a) % 2 != 0))
-    {
-        // Bad arguments
-        return -1;
-    }
+int64_t main(uint64_t* tensor_a) {
+  if (tensor_a == NULL || *tensor_a == 0 || *tensor_a % 2 != 0) {
+    // Bad arguments
+    return -1;
+  }
 
-    // thread 0s run compute kernel
-    if (get_thread_id() == 0)
-    {
-        compute_thread(kernel_params_ptr->tensor_a);
-    }
-    // thread 1s run prefetch kernel
-    else
-    {
-        prefetch_thread(kernel_params_ptr->tensor_a);
-    }
+  // thread 0s run compute kernel
+  if (get_thread_id() == 0) {
+    compute_thread(*tensor_a);
+  }
+  // thread 1s run prefetch kernel
+  else {
+    prefetch_thread(*tensor_a);
+  }
 
-    return 0;
+  return 0;
 }
 
 static void prefetch_thread(uint64_t cycles)

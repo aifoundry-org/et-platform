@@ -1,5 +1,5 @@
 #include "hart.h"
-#include "kernel_params.h"
+
 #include "fcc.h"
 #include "flb.h"
 #include "log.h"
@@ -25,19 +25,16 @@ void fast_scsp_tensor_loads(uint64_t cycles);
 
 static inline uint64_t generate_l2_address(uint64_t minion_id, uint64_t tensor_load_id) __attribute((always_inline));
 
-int64_t main(const kernel_params_t* const kernel_params_ptr)
-{
-    if ((kernel_params_ptr == NULL) || (kernel_params_ptr->tensor_a == 0) || (kernel_params_ptr->tensor_a % 2 != 0))
-    {
-        // Bad arguments
-        return -1;
-    }
+int64_t main(uint64_t* cycles) {
+  if (cycles == NULL || *cycles == 0 || *cycles % 2 != 0) {
+    // Bad arguments
+    return -1;
+  }
 
-    if (get_thread_id() == 1)
-    {
-        // Nothing to do
-        return 0;
-    }
+  if (get_thread_id() == 1) {
+    // Nothing to do
+    return 0;
+  }
 
 #ifdef FIRST_MINION_ONLY
     if (get_hart_id() != 0)
@@ -47,12 +44,12 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     }
 #endif
 
-    uint64_t cycles = kernel_params_ptr->tensor_a;
-    const uint64_t bytes = cycles * 16 * 64; // 16 64-byte cache lines per cycle
+    const uint64_t bytes =
+        *cycles * 16 * 64;  // 16 64-byte cache lines per cycle
 
     uint64_t start_timestamp = (uint64_t)syscall(SYSCALL_GET_MTIME, 0, 0, 0);
 
-    random_dram_tensor_loads(cycles);
+    random_dram_tensor_loads(*cycles);
     //fast_scsp_tensor_loads(cycles);
 
     uint64_t elapsed_time_us = ((uint64_t)syscall(SYSCALL_GET_MTIME, 0, 0, 0) - start_timestamp) / 40;

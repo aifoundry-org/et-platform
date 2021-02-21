@@ -14,7 +14,6 @@
 #include "hart.h"
 #include "macros.h"
 #include "common.h"
-#include "kernel_params.h"
 #include "log.h"
 #include "cacheops.h"
 #include "fcc.h"
@@ -25,16 +24,21 @@
 #define CACHE_LINE_SIZE 8
 #define FCC_FLB 2
 
+typedef struct {
+  uint64_t base_addr;
+  uint64_t array_size;
+  uint64_t num_minions;
+  uint64_t num_columns;
+  uint64_t* out_data;
+} Parameters;
 // Prefetch test
 // Tries to reach max BW in the memshire
-int64_t main(const kernel_params_t *const kernel_params_ptr) {
-
-  if ((kernel_params_ptr == NULL) ||
-      ((uint64_t *)kernel_params_ptr->tensor_a == NULL) ||
-      (kernel_params_ptr->tensor_b == 0) ||
-      (kernel_params_ptr->tensor_c == 0) ||
-      (kernel_params_ptr->tensor_d == 0) ||
-      (uint64_t *)kernel_params_ptr->tensor_d == NULL) {
+int64_t main(const Parameters *const kernel_params_ptr) {
+  if (kernel_params_ptr == NULL || kernel_params_ptr->base_addr == 0 ||
+      kernel_params_ptr->array_size == 0 ||
+      kernel_params_ptr->num_minions == 0 ||
+      kernel_params_ptr->num_columns == 0 ||
+      kernel_params_ptr->out_data == NULL) {
     // Bad arguments
     return -1;
   }
@@ -48,13 +52,13 @@ int64_t main(const kernel_params_t *const kernel_params_ptr) {
   // Set marker for waveforms
   START_WAVES_MARKER;
 
-  uint64_t base_addr = (uint64_t)kernel_params_ptr->tensor_a;
-  uint64_t array_size = (uint64_t)kernel_params_ptr->tensor_b;
-  uint64_t num_minions = (uint64_t)kernel_params_ptr->tensor_c;
-  uint64_t num_columns = (uint64_t)kernel_params_ptr->tensor_d;
+  uint64_t base_addr = kernel_params_ptr->base_addr;
+  uint64_t array_size = kernel_params_ptr->array_size;
+  uint64_t num_minions = kernel_params_ptr->num_minions;
+  uint64_t num_columns = kernel_params_ptr->num_columns;
   uint64_t num_iter =
       array_size / (num_columns * CACHE_LINE_SIZE * 8 * num_minions);
-  volatile uint64_t *out_data = (uint64_t *)(kernel_params_ptr->tensor_e);
+  volatile uint64_t *out_data = kernel_params_ptr->out_data;
 
   if (num_minions > 1024) {
     log_write(LOG_LEVEL_CRITICAL, "Number of minions should be <= 1024");

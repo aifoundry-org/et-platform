@@ -15,7 +15,7 @@
 #include "hart.h"
 #include "macros.h"
 #include "common.h"
-#include "kernel_params.h"
+
 #include "log.h"
 #include "cacheops.h"
 #include "markers.h"
@@ -38,11 +38,17 @@
 // For closed page we go through all MS/MC/banks first, and the open pages close
 // based on a timer.
 // Tensor E holds the output which should be the minion id that sent the loads
-int64_t main(const kernel_params_t *const kernel_params_ptr) {
 
-  if ((kernel_params_ptr == NULL) || (kernel_params_ptr->tensor_a == 0) ||
-      (kernel_params_ptr->tensor_b == 0) ||
-      (uint64_t *)kernel_params_ptr->tensor_e == NULL) {
+typedef struct {
+  uint64_t base_addr;
+  uint64_t num_iter;
+  uint64_t active_minion_id;
+  uint64_t open_page;
+  uint64_t* out_data;
+} Parameters;
+int64_t main(const Parameters *const kernel_params_ptr) {
+  if (kernel_params_ptr == NULL || kernel_params_ptr->base_addr == 0 ||
+      kernel_params_ptr->num_iter == 0 || kernel_params_ptr->out_data == NULL) {
     // Bad arguments
     return -1;
   }
@@ -56,11 +62,11 @@ int64_t main(const kernel_params_t *const kernel_params_ptr) {
   // Set marker for waveforms
   START_WAVES_MARKER;
 
-  uint64_t base_addr = (uint64_t)kernel_params_ptr->tensor_a;
-  uint64_t num_iter = (uint64_t)kernel_params_ptr->tensor_b;
-  uint64_t active_minion_id = (uint64_t)kernel_params_ptr->tensor_c;
-  bool open_page = ((uint64_t)kernel_params_ptr->tensor_d) == 1;
-  volatile uint64_t *out_data = (uint64_t *)(kernel_params_ptr->tensor_e);
+  uint64_t base_addr = kernel_params_ptr->base_addr;
+  uint64_t num_iter = kernel_params_ptr->num_iter;
+  uint64_t active_minion_id = kernel_params_ptr->active_minion_id;
+  bool open_page = ((uint64_t)kernel_params_ptr->open_page) == 1;
+  volatile uint64_t *out_data = kernel_params_ptr->out_data;
 
   if (active_minion_id > 1023) {
     log_write(LOG_LEVEL_CRITICAL, "Active minion id should be  < 1024");

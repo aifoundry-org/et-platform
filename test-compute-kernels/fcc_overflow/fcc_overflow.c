@@ -1,4 +1,4 @@
-#include "kernel_params.h"
+
 #include "fcc.h"
 #include "common.h"
 #include "log.h"

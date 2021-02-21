@@ -18,7 +18,7 @@
 #include "common.h"
 #include "fcc.h"
 #include "flb.h"
-#include "kernel_params.h"
+
 #include "esr_defines.h"
 #include "crc32.h"
 #include "log.h"
@@ -45,15 +45,15 @@ static inline uint64_t swizzle(uint64_t val) {
   val = (((uint64_t)val_16) << 6) & 0x00FFC0ULL;
   return val;
 }
-
-int64_t main(const kernel_params_t *const kernel_params_ptr) {
-
-  if ((kernel_params_ptr == NULL) ||
-      ((uint64_t *)kernel_params_ptr->tensor_a == NULL) ||
-      (kernel_params_ptr->tensor_b == 0) ||
-      ((uint64_t *)kernel_params_ptr->tensor_c == NULL) ||
-      (kernel_params_ptr->tensor_d == 0)) {
-    // Bad arguments
+typedef struct {
+  uint64_t *in_data;
+  uint64_t not_used1;
+  uint64_t *out_data;
+} Parameters;
+int64_t main(const Parameters *const kernel_params_ptr) {
+  if (kernel_params_ptr == NULL || kernel_params_ptr->in_data == NULL ||
+      kernel_params_ptr->not_used1 == 0 ||
+      kernel_params_ptr->out_data == NULL) {
     return -1;
   }
 
@@ -83,8 +83,8 @@ int64_t main(const kernel_params_t *const kernel_params_ptr) {
 #include "tl1_configs.h"
 #include "tfma_configs.h"
 
-  volatile uint64_t *in_data = (uint64_t *)kernel_params_ptr->tensor_a;
-  volatile uint64_t *out_data = (uint64_t *)kernel_params_ptr->tensor_c;
+  volatile uint64_t *in_data = kernel_params_ptr->in_data;
+  volatile uint64_t *out_data = kernel_params_ptr->out_data;
 
   volatile uint64_t base_src_addr = (uint64_t)in_data;
 
@@ -183,7 +183,8 @@ int64_t main(const kernel_params_t *const kernel_params_ptr) {
   WAIT_FLB(32, CRC_FLB, crc_barrier_result);
 
   if (crc_barrier_result == 1) {
-    generate_crc(kernel_params_ptr->tensor_c, shire_id, _32KB, _1MB, 1);
+    generate_crc((uint64_t)kernel_params_ptr->out_data, shire_id, _32KB, _1MB,
+                 1);
   }
 
   return 0;

@@ -1,4 +1,3 @@
-#include "kernel_params.h"
 #include "hart.h"
 #include "cacheops.h"
 #include "common.h"
@@ -13,7 +12,12 @@
 // This test prefetches on thread 1 of each of the minion
 // Stride is 64, and with 16 lines,  all the mem-shires will be accesssed by each minion
 
-int64_t main(const kernel_params_t* const kernel_params_ptr)
+typedef struct {
+  uint64_t dst;
+  uint64_t op;
+} Parameters;
+
+int64_t main(const Parameters* const kernel_params_ptr)
 {
 
     if ((kernel_params_ptr == NULL))
@@ -27,8 +31,8 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     uint64_t shire_id = ((hart_id>>6) & 0x3F);
     uint64_t minion_id = ((hart_id>>1) & 0x1F);
     uint64_t N_TIMES = 1;
-    uint64_t dst = kernel_params_ptr->tensor_a; // 1 or 2 or 3
-    uint64_t op = kernel_params_ptr->tensor_b; // 1 is flush, 2 is evict
+    uint64_t dst = kernel_params_ptr->dst; // 1 or 2 or 3
+    uint64_t op = kernel_params_ptr->op; // 1 is flush, 2 is evict
 
 if ((hart_id & 1) == 1) //Only Thread1 (or prefetch threads to do prefetch)
    {

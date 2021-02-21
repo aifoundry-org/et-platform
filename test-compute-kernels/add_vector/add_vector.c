@@ -1,4 +1,3 @@
-#include "kernel_params.h"
 #include "shire.h"
 
 inline int min(int a, int b) { return a < b ? a : b; }

@@ -5,7 +5,7 @@
 #include "cacheops.h"
 #include "common_code.h"
 #include "hart.h"
-#include "kernel_params.h"
+
 #include "macros.h"
 #include "tensor.h"
 
@@ -25,8 +25,7 @@ static void send_init_credit_to_act_pref(uint32_t minion_id, uint32_t shire_id)
     }
 }
 
-static int64_t start_uberkernel_prefetch(uint64_t shire_id, uint32_t minion_id,
-                                         const kernel_params_t* kernel_params_ptr)
+static int64_t start_uberkernel_prefetch(uint64_t shire_id, uint32_t minion_id)
 {
     // First prefetch code
     if (minion_id == 0)
@@ -35,48 +34,43 @@ static int64_t start_uberkernel_prefetch(uint64_t shire_id, uint32_t minion_id,
     }
 
     // Sync prefetch minions
-#if 0
-    kernel_params_ptr++;
-#endif
     fcc(FCC_1);
 
     // Second prefetch code
-    kernel_params_ptr++;
     if (minion_id == 0)
     {   //Activation prefetch must sync credit
         fcc_send(PRV_U, shire_id, THREAD_0, FCC_0, 0xffffffff);
     }
 
     // Sync prefetch minions
-#if 0
-    kernel_params_ptr++;
-#endif
     fcc(FCC_1);
-
     return 0;
 }
 
 // Writes BEEF
 // tensor_a = address
 // tensor_b = length
-static int64_t compute_beef(const kernel_params_t* const kernel_params_ptr)
+
+typedef struct {
+  uint64_t* data_ptr;
+  uint64_t length;
+} Parameters;
+static int64_t compute_beef(const Parameters* const kernel_params_ptr)
 {
     // Only run on one minion
-    if (get_hart_id() != 0)
-    {
+    if (get_hart_id() != 0) {
         return 0;
     }
 
-    if ((kernel_params_ptr == NULL) ||
-        ((uint64_t*)kernel_params_ptr->tensor_a == NULL) ||
-        (kernel_params_ptr->tensor_b == 0))
-    {
+    if (kernel_params_ptr == NULL ||
+        kernel_params_ptr->data_ptr == NULL ||
+        kernel_params_ptr->length == 0) {
         // Bad arguments
         return -1;
     }
 
-    volatile uint64_t* data_ptr = (uint64_t*)kernel_params_ptr->tensor_a;
-    const uint64_t length = kernel_params_ptr->tensor_b;
+    volatile uint64_t* data_ptr = kernel_params_ptr->data_ptr;
+    const uint64_t length = kernel_params_ptr->length;
 
     if ((uint64_t)data_ptr % 8)
     {
@@ -86,15 +80,13 @@ static int64_t compute_beef(const kernel_params_t* const kernel_params_ptr)
 
     for (uint64_t i = 0; i < (length / 8); i++)
     {
-        *data_ptr++ = 0xBEEFBEEFBEEFBEEFULL;
+        data_ptr[i] = 0xBEEFBEEFBEEFBEEFULL;
     }
-
-    data_ptr = (uint64_t*)kernel_params_ptr->tensor_a;
-
+    
     // Read back data and return comparison pass/fail
     for (uint64_t i = 0; i < (length / 8); i++)
     {
-        if (*data_ptr++ != 0xBEEFBEEFBEEFBEEFULL)
+        if (data_ptr[i] != 0xBEEFBEEFBEEFBEEFULL)
         {
             // Miscompare
             return -3;
@@ -130,7 +122,7 @@ static void sync_master_code(uint32_t minion_id, uint32_t thread_id,
     }
 }
 
-static int64_t compute_kernel(const kernel_params_t* const kernel_params_ptr)
+static int64_t compute_kernel(const Parameters* const kernel_params_ptr)
 {
     int64_t result;
 
@@ -194,37 +186,28 @@ static void sync_compute_code(uint32_t minion_id, uint64_t shire_id, bool flushC
 }
 
 static int64_t start_uberkernel_compute(uint64_t shire_id, uint32_t minion_id,
-                                        const kernel_params_t* kernel_params_ptr)
+                                        const Parameters* kernel_params_ptr)
 {
     // First beef kernel
-    int64_t kernel_res_1 = compute_kernel(kernel_params_ptr);
+    int64_t kernel_res_1 = compute_kernel(kernel_params_ptr++);
     if (kernel_res_1 < 0) {
         return kernel_res_1;
     }
 
-    // Sync compute minions
-#if 0
-    kernel_params_ptr++;
-#endif
     sync_compute_code(minion_id, shire_id, false, true, true);
 
     // Second beef kernel
-    kernel_params_ptr++;
     int64_t kernel_res_2 = compute_kernel(kernel_params_ptr);
     if (kernel_res_2 < 0) {
         return kernel_res_2;
     }
 
-    // Sync compute minions
-#if 0
-    kernel_params_ptr++;
-#endif
     sync_compute_code(minion_id, shire_id, false, false, false);
 
     return 0;
 }
 
-int64_t main(const kernel_params_t** kernel_params_ptr)
+int64_t main(const Parameters** kernel_params_ptr)
 {
     uint32_t hart_id = get_hart_id();
     uint32_t shire_id = hart_id >> 6;
@@ -252,11 +235,11 @@ int64_t main(const kernel_params_t** kernel_params_ptr)
             result = start_uberkernel_compute(shire_id, minion_id, *kernel_params_ptr);
         } else {
             if (minion_id == 30) {
-                result = start_uberkernel_prefetch(shire_id, minion_id, *kernel_params_ptr);
+                result = start_uberkernel_prefetch(shire_id, minion_id);
             } else if (minion_id < 16) {
-                result = start_uberkernel_prefetch(shire_id, minion_id, *kernel_params_ptr);
+                result = start_uberkernel_prefetch(shire_id, minion_id);
             } else if ((minion_id < 20) || ((minion_id >= 24) && minion_id < 28)) {
-                result = start_uberkernel_prefetch(shire_id, minion_id, *kernel_params_ptr);
+                result = start_uberkernel_prefetch(shire_id, minion_id);
             } else {
                 // Do nothing
                 result = 0;

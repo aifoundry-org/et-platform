@@ -1,4 +1,3 @@
-#include "kernel_params.h"
 #include "hart.h"
 #include "cacheops.h"
 #include "common.h"
@@ -29,85 +28,109 @@ static inline uint64_t generate_random_value(uint64_t lfsr) __attribute((always_
 
 static inline uint64_t generate_random_value_2(uint64_t lfsr) __attribute((always_inline));
 
-int64_t main(const kernel_params_t* const kernel_params_ptr)
-{
+typedef struct {
+  uint64_t lfsr_init;
+  uint64_t lsfr_init2;
+  uint64_t lsfr_init3;
+} Parameters;
+int64_t main(const Parameters* const kernel_params_ptr) {
+  if ((kernel_params_ptr == NULL)) {
+    // Bad arguments
+    log_write(LOG_LEVEL_CRITICAL, "Programming returing due to error\n");
+    return -1;
+  }
 
-    if ((kernel_params_ptr == NULL))
-    {
-        // Bad arguments
-        log_write(LOG_LEVEL_CRITICAL, "Programming returing due to error\n");
-        return -1;
+  const uint64_t hart_id = get_hart_id();
+  uint64_t lsfr_init = kernel_params_ptr->lfsr_init & 0xFFF0;
+  uint64_t lfsr =
+      (((hart_id << 24) | (hart_id << 12) | hart_id) & 0x3FFFFFFFF) ^ lsfr_init;
+  uint64_t lfsr_use = 0;
+  uint64_t lsfr_init2 = kernel_params_ptr->lsfr_init2 & 0xFFFF;
+  uint64_t lfsr_stride_and_numlines =
+      (((hart_id << 24) | (hart_id << 12) | hart_id) & 0x3FFFFFFFF) ^
+      lsfr_init2;
+  uint64_t lfsr_stride = 0;
+  uint64_t stride = 0;
+  uint64_t lfsr_numlines = 0;
+  uint64_t lsfr_init3 = kernel_params_ptr->lsfr_init3 & 0xFFFF;
+  uint64_t lfsr_ucache_control =
+      (((hart_id << 24) | (hart_id << 12) | hart_id) & 0x3FFFFFFFF) ^
+      lsfr_init3;
+  long unsigned int shire_addr = 0;
+  uint64_t ucache_control_max = 0;
+  uint64_t ucache_control_reprate = 0;
+  uint64_t lfsr_loop_count = 0;
+  bool result;
+
+  WAIT_FLB(32, 0, result);
+  if (result) {
+    for (int k = 0; k < 10; k++) {
+      for (int i = 0; i < 10; i++) {
+        lfsr = generate_random_value(lfsr);
+        lfsr_use = lfsr & 0x1F;
+        SEND_FCC(THIS_SHIRE, THREAD_0, FCC_0, lfsr_use);
+      }
+      for (int i = 0; i < 10; i++) {
+        lfsr = generate_random_value(lfsr);
+        lfsr_use = lfsr & 0x1F;
+        SEND_FCC(THIS_SHIRE, THREAD_0, FCC_1, lfsr_use);
+      }
     }
-
-    const uint64_t hart_id = get_hart_id();
-    uint64_t lsfr_init = kernel_params_ptr->tensor_a & 0xFFF0;
-    uint64_t lfsr = (((hart_id << 24) | (hart_id << 12) | hart_id) & 0x3FFFFFFFF) ^ lsfr_init;
-    uint64_t lfsr_use = 0;
-    uint64_t lsfr_init2 = kernel_params_ptr->tensor_b & 0xFFFF;
-    uint64_t lfsr_stride_and_numlines = (((hart_id << 24) | (hart_id << 12) | hart_id) & 0x3FFFFFFFF) ^ lsfr_init2;
-    uint64_t lfsr_stride = 0;
-    uint64_t stride = 0;
-    uint64_t lfsr_numlines = 0;
-    uint64_t lsfr_init3 = kernel_params_ptr->tensor_c & 0xFFFF;
-    uint64_t lfsr_ucache_control = (((hart_id << 24) | (hart_id << 12) | hart_id) & 0x3FFFFFFFF) ^ lsfr_init3;
-    long unsigned int shire_addr = 0;
-    uint64_t ucache_control_max = 0;
-    uint64_t ucache_control_reprate = 0;
-    uint64_t lfsr_loop_count = 0;
-    bool result;
-
-    WAIT_FLB(32, 0, result);
-    if(result) {
-       for(int k=0;k<10;k++) {
-            for(int i = 0; i < 10; i++) {
-              lfsr = generate_random_value(lfsr);
-              lfsr_use = lfsr & 0x1F;
-              SEND_FCC(THIS_SHIRE, THREAD_0, FCC_0, lfsr_use);
-            }
-            for(int i = 0; i < 10; i++) {
-              lfsr = generate_random_value(lfsr);
-              lfsr_use = lfsr & 0x1F;
-              SEND_FCC(THIS_SHIRE, THREAD_0, FCC_1, lfsr_use);
-            }
-       }
-       return 0;
-    } else {
-       lfsr = generate_random_value(lfsr);
-       lfsr_loop_count = lfsr & 0x1F;
-       for(uint64_t i = 0; i < lfsr_loop_count; i++) {
-         uint64_t fcc_value0 = 0; read_fcc(FCC_0);
-         uint64_t fcc_value1 = 0; read_fcc(FCC_1);
-         if(fcc_value0 == 0 && fcc_value1 == 0) {return 0;}
-         if(fcc_value0 != 0) {WAIT_FCC(0);} else if (fcc_value1 != 0) {WAIT_FCC(1);}
-         lfsr = generate_random_value(lfsr);
-         lfsr_use = lfsr & 0x1F;
-         shire_addr = BASE_ADDR_FOR_THIS_TEST | (lfsr_use << 6);
-         lfsr = generate_random_value(lfsr);
-         lfsr_use = lfsr & 0x7;
-         lfsr_ucache_control = generate_random_value(lfsr_ucache_control);
-         ucache_control_max = lfsr_ucache_control & 0x1F;
-         lfsr_ucache_control = generate_random_value(lfsr_ucache_control);
-         ucache_control_reprate = lfsr_ucache_control & 0x3;
-         ucache_control(0,ucache_control_reprate,ucache_control_max);
-         lfsr_stride_and_numlines = generate_random_value(lfsr_stride_and_numlines);
-         lfsr_stride = lfsr_stride_and_numlines & 0x3;
-         if(lfsr_stride == 0) stride = 64;
-         if(lfsr_stride == 1) stride = 128;
-         if(lfsr_stride == 2) stride = 512;
-         if(lfsr_stride == 3) stride = 1024;
-         lfsr_stride_and_numlines = generate_random_value(lfsr);
-         lfsr_numlines = lfsr_stride_and_numlines & 0x1F;
-         if(lfsr_use == 0) prefetch_va(false,  1,   shire_addr,  lfsr_numlines,      stride, 0);
-         if(lfsr_use == 1) prefetch_va(false,  2,   shire_addr,  lfsr_numlines,      stride, 0);
-         if(lfsr_use == 2) flush_va(false,     1,   shire_addr,  lfsr_numlines,      stride, 0);
-         if(lfsr_use == 3) flush_va(false,     2,   shire_addr,  lfsr_numlines,      stride, 0);
-         if(lfsr_use == 4) flush_va(false,     3,   shire_addr,  lfsr_numlines,      stride, 0);
-         if(lfsr_use == 5) evict_va(false,     1,   shire_addr,  lfsr_numlines,      stride, 0);
-         if(lfsr_use == 6) evict_va(false,     2,   shire_addr,  lfsr_numlines,      stride, 0);
-         if(lfsr_use == 7) evict_va(false,     3,   shire_addr,  lfsr_numlines,      stride, 0);
-       }
-       return 0;
+    return 0;
+  } else {
+    lfsr = generate_random_value(lfsr);
+    lfsr_loop_count = lfsr & 0x1F;
+    for (uint64_t i = 0; i < lfsr_loop_count; i++) {
+      uint64_t fcc_value0 = 0;
+      read_fcc(FCC_0);
+      uint64_t fcc_value1 = 0;
+      read_fcc(FCC_1);
+      if (fcc_value0 == 0 && fcc_value1 == 0) {
+        return 0;
+      }
+      if (fcc_value0 != 0) {
+        WAIT_FCC(0);
+      } else if (fcc_value1 != 0) {
+        WAIT_FCC(1);
+      }
+      lfsr = generate_random_value(lfsr);
+      lfsr_use = lfsr & 0x1F;
+      shire_addr = BASE_ADDR_FOR_THIS_TEST | (lfsr_use << 6);
+      lfsr = generate_random_value(lfsr);
+      lfsr_use = lfsr & 0x7;
+      lfsr_ucache_control = generate_random_value(lfsr_ucache_control);
+      ucache_control_max = lfsr_ucache_control & 0x1F;
+      lfsr_ucache_control = generate_random_value(lfsr_ucache_control);
+      ucache_control_reprate = lfsr_ucache_control & 0x3;
+      ucache_control(0, ucache_control_reprate, ucache_control_max);
+      lfsr_stride_and_numlines =
+          generate_random_value(lfsr_stride_and_numlines);
+      lfsr_stride = lfsr_stride_and_numlines & 0x3;
+      if (lfsr_stride == 0) stride = 64;
+      if (lfsr_stride == 1) stride = 128;
+      if (lfsr_stride == 2) stride = 512;
+      if (lfsr_stride == 3) stride = 1024;
+      lfsr_stride_and_numlines = generate_random_value(lfsr);
+      lfsr_numlines = lfsr_stride_and_numlines & 0x1F;
+      if (lfsr_use == 0)
+        prefetch_va(false, 1, shire_addr, lfsr_numlines, stride, 0);
+      if (lfsr_use == 1)
+        prefetch_va(false, 2, shire_addr, lfsr_numlines, stride, 0);
+      if (lfsr_use == 2)
+        flush_va(false, 1, shire_addr, lfsr_numlines, stride, 0);
+      if (lfsr_use == 3)
+        flush_va(false, 2, shire_addr, lfsr_numlines, stride, 0);
+      if (lfsr_use == 4)
+        flush_va(false, 3, shire_addr, lfsr_numlines, stride, 0);
+      if (lfsr_use == 5)
+        evict_va(false, 1, shire_addr, lfsr_numlines, stride, 0);
+      if (lfsr_use == 6)
+        evict_va(false, 2, shire_addr, lfsr_numlines, stride, 0);
+      if (lfsr_use == 7)
+        evict_va(false, 3, shire_addr, lfsr_numlines, stride, 0);
     }
+    return 0;
+  }
 }
 
 // The following function is flicked from random_read

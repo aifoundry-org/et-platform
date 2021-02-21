@@ -1,4 +1,4 @@
-#include "kernel_params.h"
+
 #include "hart.h"
 #include "atomic.h"
 #include "common.h"

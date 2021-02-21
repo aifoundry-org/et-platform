@@ -18,7 +18,7 @@
 #include "common.h"
 #include "fcc.h"
 #include "flb.h"
-#include "kernel_params.h"
+
 #include "esr_defines.h"
 #include "crc32.h"
 #include "log.h"
@@ -82,13 +82,15 @@
 #include "tfma_configs.h"
 #include "tstore_configs.h"
 
-int64_t main(const kernel_params_t *const kernel_params_ptr) {
-  if ((kernel_params_ptr == NULL) ||
-      ((uint64_t *)kernel_params_ptr->tensor_a == NULL) ||
-      (kernel_params_ptr->tensor_b == 0) ||
-      ((uint64_t *)kernel_params_ptr->tensor_c == NULL) ||
-      (kernel_params_ptr->tensor_d == 0)) {
-    // Bad arguments
+typedef struct {
+  uint64_t *in_data;
+  uint64_t not_used1;
+  uint64_t *out_data;
+} Parameters;
+int64_t main(const Parameters *const kernel_params_ptr) {
+  if (kernel_params_ptr == NULL || kernel_params_ptr->in_data == NULL ||
+      kernel_params_ptr->not_used1 == 0 ||
+      kernel_params_ptr->out_data == NULL) {
     return -1;
   }
 
@@ -117,8 +119,8 @@ int64_t main(const kernel_params_t *const kernel_params_ptr) {
   uint64_t tl0_stride = tl0_configs[tl_minion_idx + TL_STRIDE_IDX];
 
   // Set out_data far from in_data so that no overwriting happens
-  volatile uint64_t *in_data = (uint64_t *)kernel_params_ptr->tensor_a;
-  volatile uint64_t *out_data = (uint64_t *)kernel_params_ptr->tensor_c;
+  volatile uint64_t *in_data = kernel_params_ptr->in_data;
+  volatile uint64_t *out_data = kernel_params_ptr->out_data;
 
   volatile uint64_t base_src_addr = (uint64_t)in_data;
   volatile uint64_t base_dst_addr = (uint64_t)out_data;
@@ -285,7 +287,8 @@ int64_t main(const kernel_params_t *const kernel_params_ptr) {
   WAIT_FLB(32, CRC_FLB, crc_barrier_result);
 
   if (crc_barrier_result == 1) {
-    generate_crc(kernel_params_ptr->tensor_c, shire_id, _32KB, _1MB, 0);
+    generate_crc((uint64_t)kernel_params_ptr->out_data, shire_id, _32KB, _1MB,
+                 0);
   }
 
   return 0;

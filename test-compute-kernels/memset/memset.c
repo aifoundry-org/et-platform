@@ -1,4 +1,4 @@
-#include "kernel_params.h"
+
 #include "shire.h"
 
 typedef struct {

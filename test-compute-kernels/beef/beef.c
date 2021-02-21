@@ -1,30 +1,30 @@
-#include "kernel_params.h"
 #include "hart.h"
 
 #include <stdint.h>
 #include <stddef.h>
 
+typedef struct {
+  uint64_t* buffer;
+  uint64_t numElements;
+} MyVectors;
+
 // Writes BEEF
-// tensor_a = address
-// tensor_b = length
-int64_t main(const kernel_params_t* const kernel_params_ptr)
-{
+int64_t main(const MyVectors* const vectors) {
     // Only run on one minion
-    if (get_hart_id() != 0)
-    {
+    if (get_hart_id() != 0) {
         return 0;
     }
 
-    if ((kernel_params_ptr == NULL) ||
-        ((uint64_t*)kernel_params_ptr->tensor_a == NULL) ||
-        (kernel_params_ptr->tensor_b == 0))
+    if ((vectors == NULL) ||
+        ((uint64_t*)vectors->buffer == NULL) ||
+        (vectors->numElements == 0))
     {
         // Bad arguments
         return -1;
     }
 
-    volatile uint64_t* data_ptr = (uint64_t*)kernel_params_ptr->tensor_a;
-    const uint64_t length = kernel_params_ptr->tensor_b;
+    volatile uint64_t* data_ptr = (uint64_t*)vectors->buffer;
+    const uint64_t length = vectors->numElements;
 
     if ((uint64_t)data_ptr % 8)
     {
@@ -37,7 +37,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
         *data_ptr++ = 0xBEEFBEEFBEEFBEEFULL;
     }
 
-    data_ptr = (uint64_t*)kernel_params_ptr->tensor_a;
+    data_ptr = (uint64_t*)vectors->buffer;
 
     // Read back data and return comparison pass/fail
     for (uint64_t i = 0; i < (length / 8); i++)

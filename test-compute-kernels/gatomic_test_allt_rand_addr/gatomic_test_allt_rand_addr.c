@@ -1,4 +1,3 @@
-#include "kernel_params.h"
 #include "hart.h"
 #include "atomic.h"
 #include "common.h"
@@ -15,35 +14,35 @@
 // each thread accesses a random address in a loop
 
 static inline uint64_t generate_random_address(uint64_t lfsr) __attribute((always_inline));
+typedef struct {
+  uint64_t lfsr_init;
+} Parameters;
+int64_t main(const Parameters* const kernel_params_ptr) {
+  if ((kernel_params_ptr == NULL)) {
+    // Bad arguments
+    log_write(LOG_LEVEL_CRITICAL, "Programming returing due to error\n");
+    return -1;
+  }
 
-int64_t main(const kernel_params_t* const kernel_params_ptr)
-{
+  uint64_t lfsr_init = kernel_params_ptr->lfsr_init & 0xFFFF;
+  const uint64_t hart_id = get_hart_id();
+  uint64_t lfsr =
+      (((hart_id << 24) | (hart_id << 12) | hart_id) & 0x3FFFFFFFF) ^ lfsr_init;
+  uint64_t lfsr_use;
+  // uint64_t result = 0;
+  int N = 10;
 
-    if ((kernel_params_ptr == NULL))
-    {
-        // Bad arguments
-        log_write(LOG_LEVEL_CRITICAL, "Programming returing due to error\n");
-        return -1;
-    }
+  for (int i = 0; i < N; i++) {
+    lfsr = generate_random_address(lfsr);
+    lfsr_use = lfsr & 0xFFF8;  // log_write(LOG_LEVEL_CRITICAL, "Minion 0 a:
+                               // lfsr_use is %x\n",lfsr_use);
+    long unsigned int shire_addr = BASE_ADDR_FOR_THIS_TEST | lfsr_use;
+    volatile uint64_t* atomic_addr = (uint64_t*)shire_addr;
+    atomic_add_global_64(atomic_addr, 0x1);
+    // result = atomic_read(atomic_addr);
+  }
 
-    uint64_t lfsr_init = kernel_params_ptr->tensor_a & 0xFFFF;
-    const uint64_t hart_id = get_hart_id();
-    uint64_t lfsr = (((hart_id << 24) | (hart_id << 12) | hart_id) & 0x3FFFFFFFF) ^ lfsr_init;
-    uint64_t lfsr_use;
-    //uint64_t result = 0;
-    int N = 10;
-
-    for(int i=0;i<N;i++) {
-       lfsr = generate_random_address(lfsr);
-       lfsr_use = lfsr & 0xFFF8; //log_write(LOG_LEVEL_CRITICAL, "Minion 0 a: lfsr_use is %x\n",lfsr_use);
-       long unsigned int shire_addr = BASE_ADDR_FOR_THIS_TEST | lfsr_use;
-       volatile uint64_t* atomic_addr = (uint64_t*)shire_addr;
-       atomic_add_global_64(atomic_addr,0x1);
-       //result = atomic_read(atomic_addr);
-     }
-
-    return 0;
-
+  return 0;
 }
 
 // The following function is flicked from random_read
