@@ -61,11 +61,7 @@ ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServ
   });
 }
 
-void ResponseReceiver::stop() {
-  run_ = false;
-}
-
 ResponseReceiver::~ResponseReceiver() {
   run_ = false;
-  receiver_.detach();
+  receiver_.join();
 }

@@ -25,8 +25,6 @@ public:
   explicit ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServices* receiverServices);
   ~ResponseReceiver();
 
-  void stop();
-
 private:
   std::thread receiver_;
   std::atomic<bool> run_;
