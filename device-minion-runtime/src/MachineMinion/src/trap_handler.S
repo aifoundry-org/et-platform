@@ -1,13 +1,22 @@
 #include "esr_defines.h"
+#include "syscall_internal.h"
 #include "riscv_encoding.h"
 
 .section .text, "ax", @progbits /* TODO FIXME move to M +RX page sections */
-.global trap_handler
+
+.macro esr_shire_ipi_trigger_addr dst, tmp, shire
+    li    \dst, ESR_SHIRE_REGION | \
+               (ESR_SHIRE_IPI_TRIGGER_PROT << ESR_REGION_PROT_SHIFT) | \
+               (ESR_SHIRE_IPI_TRIGGER_REGNO << 3)
+    sll   \tmp, \shire, ESR_REGION_SHIRE_SHIFT
+    or    \dst, \dst, \tmp
+.endm
 
 .align 12 /* Minion requires machine trap vector to be 4K aligned, mtvec[11:0] = 0 */
 .func
 .option push
 .option norelax
+.global trap_handler
 trap_handler:
     /* Get M-mode stack pointer */
     csrrw sp, mscratch, sp
@@ -22,7 +31,7 @@ trap_handler:
 
     /* Read exception cause. Interrupts have highest bit = 1 */
     csrr  x1, mcause
-    bge   x1, x0, slow_path
+    bge   x1, x0, handle_exception
 
     /* In slow-path we can only use x1 and x3 */
     andi  x1, x1, 0xFF
@@ -46,7 +55,29 @@ trap_handler:
     /* We are done, return */
     j     done_fast_path
 
-    /* Slow-path: save test of the context and jump to C handler */
+handle_exception:
+    /* Check for Environment call from S-mode (syscall) */
+    li    x3, EXCEPTION_ENVIRONMENT_CALL_FROM_S_MODE
+    bne   x1, x3, slow_path
+
+    /* For now we only handle some syscalls in fast-path */
+    li    x1, SYSCALL_IPI_TRIGGER_INT
+    bne   a0, x1, slow_path
+
+    /* Handle SYSCALL_IPI_TRIGGER_INT */
+    esr_shire_ipi_trigger_addr x1, x3, a2
+    sd    a1, 0(x1)
+
+    /* Return to the following instruction that caused the trap */
+    csrr  x1, mepc
+    /* TODO: Support compressed instructions? */
+    addi  x1, x1, 4
+    csrw  mepc, x1
+
+    /* We are done, return */
+    j     done_fast_path
+
+    /* Slow-path: save rest of the context and jump to C handler */
 slow_path:
     sd    x4,   4 * 8(sp)
     sd    x5,   5 * 8(sp)
