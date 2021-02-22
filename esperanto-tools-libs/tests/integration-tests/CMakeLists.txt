@@ -8,24 +8,9 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-set(DEV_FW_ARGS "--bootrom_trampoline_to_bl2_elf=${BOOTROM_TRAMPOLINE_TO_BL2_ELF} --bl2_elf=${BL2_ELF} \
-                 --master_minion_elf=${MASTER_MINION_ELF} --machine_minion_elf=${MACHINE_MINION_ELF} --worker_minion_elf=${WORKER_MINION_ELF}")
-
-set(TEST_LIST
-  test_device_target_sysemu_grpc.cc:""
-  )
-
-create_test_targets("${TEST_LIST}" "LABELS;Generic;TIMEOUT;600")
-
-# List of tests to be compiled if we have support for device-fw
-# List of tests that are currently running only in the simulator
 set(SIM_DEVFW_TEST_LIST
-  test_code_manager.cc:"${DEV_FW_ARGS}"
   test_code_loading.cpp:"${DEV_FW_ARGS}"
   test_memcpy.cpp:"${DEV_FW_ARGS}"
-  test_module_load.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
-  test_module_manager.cc:"${DEV_FW_ARGS}"
-  test_kernel_launch.cpp:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR}"
   test_profiler.cpp:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR}"
   )
 create_test_targets("${SIM_DEVFW_TEST_LIST}" "LABELS;Generic;LABELS;DeviceFW;TIMEOUT;120")
