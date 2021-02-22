@@ -36,6 +36,7 @@
 #include "shire.h"
 #include "message_types.h"
 #include "cm_to_mm_iface.h"
+#include "riscv_encoding.h"
 
 /*! \typedef cw_cb_t
     \brief Compute Worker control block.
@@ -75,7 +76,7 @@ static cw_cb_t CW_CB __attribute__((aligned(64))) = {0};
 ***********************************************************************/
 int8_t CW_Init(void)
 {
-    uint64_t temp;
+    uint64_t sip;
     uint64_t shire_mask;
     int8_t status = STATUS_SUCCESS;
 
@@ -98,42 +99,22 @@ int8_t CW_Init(void)
             CW_SHIRE_STATE_UNKNOWN);
     }
 
-    /* Enable supervisor external and software interrupts, then enable
-    interrupts */
-    /* TODO: create and use proper macros from interrupts.h */
-    asm volatile("li    %0, 0x202    \n"
-                 "csrs  sie, %0      \n"
-                 "csrsi sstatus, 0x2 \n"
-                 : "=&r"(temp));
-
     /* Bring up Compute Workers */
     syscall(SYSCALL_CONFIGURE_COMPUTE_MINION, shire_mask, 0x1u, 0);
 
-    /* Wait for al workers to be initialize */
+    /* Wait for all workers to be initialized */
     while(1)
     {
-        /* Break loop if all compute minions are booted and ready */
-        if((atomic_load_local_64
-            (&CW_CB.booted_shires_mask) & shire_mask) == shire_mask)
-            break;
+        /* Wait for an interrupt */
+        asm volatile("wfi");
 
-        /* Disable supervisor interrupts */
-        asm volatile("csrci sstatus, 0x2");
+        /* Read pending interrupts */
+        asm volatile("csrr %0, sip" : "=r"(sip));
 
-        if (!swi_flag)
+        if(sip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT))
         {
-            asm volatile("wfi");
-        }
-
-        /* Enable supervisor interrupts */
-        asm volatile("csrsi sstatus, 0x2");
-
-        if(swi_flag)
-        {
-            swi_flag = false;
-
-            /* Ensure flag clears before messages are handled */
-            asm volatile("fence");
+            /* Clear IPI pending interrupt */
+            asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
 
             /* Processess messages from CM from CM > MM unicast circbuff */
             while(1)
@@ -181,7 +162,12 @@ int8_t CW_Init(void)
                         break;
                     }
                 }
-            };
+            }
+
+            /* Break loop if all compute minions are booted and ready */
+            if((atomic_load_local_64
+                (&CW_CB.booted_shires_mask) & shire_mask) == shire_mask)
+                break;
         }
         else
         {

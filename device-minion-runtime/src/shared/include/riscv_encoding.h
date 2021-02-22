@@ -55,6 +55,10 @@
 /* Interrupts have highest bit (MXLEN-1) set to 1 */
 #define SUPERVISOR_SOFTWARE_INTERRUPT            1
 #define MACHINE_SOFTWARE_INTERRUPT               3
+#define SUPERVISOR_TIMER_INTERRUPT               5
+#define MACHINE_TIMER_INTERRUPT                  7
+#define SUPERVISOR_EXTERNAL_INTERRUPT            9
+#define MACHINE_EXTERNAL_INTERRUPT               11
 
 //                                   csr       |     rs1      |    funct3   | opcode
 #define INST_CSRRx_MASK ((0xFFFULL << 20) | (0x1f << 15) | (0x7 << 12) | (0x7f))

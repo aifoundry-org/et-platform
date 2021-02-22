@@ -29,7 +29,7 @@
 #include "services/host_cmd_hdlr.h"
 #include "services/log1.h"
 #include "workers/sqw.h"
-#include "drivers/interrupts.h"
+#include "drivers/plic.h"
 #include "vq.h"
 #include "pcie_int.h"
 #include "hal_device.h"
@@ -77,10 +77,12 @@ static volatile bool Host_Iface_Interrupt_Flag __attribute__((aligned(64))) = fa
 
 
 /* Local fn proptotypes */
-static void host_iface_rxisr(void);
+static void host_iface_rxisr(uint32_t intID);
 
-static void host_iface_rxisr(void)
+static void host_iface_rxisr(uint32_t intID)
 {
+    (void) intID;
+
     Log_Write(LOG_LEVEL_DEBUG,
         "Dispatcher:PCIe interrupt!\r\n");
 
@@ -147,7 +149,7 @@ int8_t Host_Iface_SQs_Init(void)
         /* Register host interface interrupt service routine to the host
         PCIe interrupt that is used to notify MM runtime of host's push
         to any oft the submission vqueues */
-        Interrupt_Enable(PU_PLIC_PCIE_MESSAGE_INTR, HIFACE_INT_PRIORITY,
+        PLIC_RegisterHandler(PU_PLIC_PCIE_MESSAGE_INTR_ID, HIFACE_INT_PRIORITY,
             host_iface_rxisr);
     }
     else
@@ -503,7 +505,7 @@ void Host_Iface_Processing(void)
 int8_t Host_Iface_SQs_Deinit(void)
 {
     /* TODO: Perform deinit activities for the SQs */
-    Interrupt_Disable(PU_PLIC_PCIE_MESSAGE_INTR);
+    PLIC_UnregisterHandler(PU_PLIC_PCIE_MESSAGE_INTR_ID);
 
     return 0;
 }
@@ -530,7 +532,7 @@ int8_t Host_Iface_SQs_Deinit(void)
 int8_t Host_Iface_CQs_Deinit(void)
 {
     /* TODO: Perform deinit activities for the CQs */
-    Interrupt_Disable(PU_PLIC_PCIE_MESSAGE_INTR);
+    PLIC_UnregisterHandler(PU_PLIC_PCIE_MESSAGE_INTR_ID);
 
     return 0;
 }

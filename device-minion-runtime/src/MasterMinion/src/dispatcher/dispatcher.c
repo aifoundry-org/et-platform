@@ -44,14 +44,14 @@
 #include "services/sp_iface.h"
 #include "services/log1.h"
 #include "services/lock.h"
-#include "drivers/interrupts.h"
+#include "drivers/plic.h"
 #include "syscall_internal.h"
 #include "serial.h"
 #include "message_types.h"
 #include "sync.h"
 #include "fcc.h"
 #include "pmu.h"
-#include "swi.h" /* TODO: Need to update swi.c to new coding conventions and abstraction */
+#include "riscv_encoding.h"
 
 extern spinlock_t Launch_Wait;
 
@@ -81,6 +81,8 @@ extern void message_init_master(void);
 ***********************************************************************/
 void Dispatcher_Launch(uint32_t hart_id)
 {
+    uint64_t sip;
+
     /* Initialize Serial Interface */
     SERIAL_init(UART0);
 
@@ -92,10 +94,10 @@ void Dispatcher_Launch(uint32_t hart_id)
     Log_Write(LOG_LEVEL_DEBUG,
         "Dispatcher:Device Interface Registers initialized\r\n");
 
-    /* Enable interrupt resources */
-    Interrupt_Init();
+    /* Initialize PLIC driver */
+    PLIC_Init();
     Log_Write(LOG_LEVEL_DEBUG,
-        "Dispatcher:Interrupts initialized\r\n");
+        "Dispatcher:PLIC initialized\r\n");
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_INTERRUPT_INITIALIZED);
 
     /* Reset PMC cycles counter */
@@ -105,10 +107,6 @@ void Dispatcher_Launch(uint32_t hart_id)
     abstractions */
     message_init_master();
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_CM_INTERFACE_READY);
-
-    /* Init FCCs for current minion */
-    init_fcc(FCC_0);
-    init_fcc(FCC_1);
 
     /* Initialize Computer Workers */
     CW_Init();
@@ -143,22 +141,46 @@ void Dispatcher_Launch(uint32_t hart_id)
     Log_Write(LOG_LEVEL_DEBUG,
         "Dispatcher:Master Minion READY!\r\n");
 
+    /* Also enable waking from WFI on supervisor external and timer interrupts (IPIs),
+    Host interrupts go to the PLIC, which are received as external interrupts. */
+    asm volatile("csrs  sie, %0\n"
+                 : : "r" ((1 << SUPERVISOR_EXTERNAL_INTERRUPT) |
+                          (1 << SUPERVISOR_TIMER_INTERRUPT)));
+
     /* Wait for a message from the host, SP, worker minions etc. */
     while(1)
     {
-        INTERRUPTS_DISABLE_SUPERVISOR;
+        /* Wait for an interrupt */
+        asm volatile("wfi");
 
-        if(!Host_Iface_Interrupt_Status())
+        /* Read pending interrupts */
+        asm volatile("csrr %0, sip" : "=r"(sip));
+
+        Log_Write(LOG_LEVEL_DEBUG,
+            "Dispatcher:Exiting WFI! SIP: 0x%" PRIx64 "\r\n", sip);
+
+        if(sip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT))
         {
-            WAIT_FOR_INTERRUPTS;
-            Log_Write(LOG_LEVEL_DEBUG,
-                "Dispatcher:Exiting WFI!\r\n");
+            /* Clear IPI pending interrupt */
+            asm volatile("csrc sip, %0" : : "r"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
+
+            SP_Iface_Processing();
         }
 
-        INTERRUPTS_ENABLE_SUPERVISOR;
+        if(sip & (1 << SUPERVISOR_EXTERNAL_INTERRUPT))
+        {
+            PLIC_Dispatch();
 
-        Host_Iface_Processing();
-        SP_Iface_Processing();
+            if(Host_Iface_Interrupt_Status())
+            {
+                Host_Iface_Processing();
+            }
+        }
+
+        if(sip & (1 << SUPERVISOR_TIMER_INTERRUPT))
+        {
+            /* TODO: set new mtimecp, timer_tick()*/
+        }
     }
 
     return;

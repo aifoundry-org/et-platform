@@ -1,14 +1,19 @@
 #include "log.h"
 #include "macros.h"
 
-void exception_handler(void);
+uint64_t exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const regs);
 
-void exception_handler(void)
+uint64_t exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const regs)
 {
+    (void) stval;
+    (void) regs;
+
     // TODO exception decoding
-    uint64_t scause;
-    asm volatile("csrr %0, scause\n" : "=r"(scause));
 
     log_write(LOG_LEVEL_CRITICAL, "MasterMinon exception: unhandled exception: %lx\n", scause);
+
     C_TEST_FAIL
+
+    // TODO: return +2 if compressed instruction ...
+    return sepc + 4;
 }

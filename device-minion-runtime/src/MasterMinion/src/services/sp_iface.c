@@ -27,7 +27,6 @@
 #include "services/sp_iface.h"
 #include "services/sp_cmd_hdlr.h"
 #include "services/log1.h"
-#include "drivers/interrupts.h"
 #include "circbuff.h"
 #include "pcie_int.h"
 #include "atomic.h"
@@ -193,7 +192,9 @@ int8_t SP_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
     if (status == STATUS_SUCCESS)
     {
         /* Notify SP using IPI */
-        Interrupt_Notify(MAILBOX_TO_SP);
+        volatile uint32_t *const ipi_trigger =
+            (volatile uint32_t *)(R_PU_TRG_MMIN_BASEADDR);
+        *ipi_trigger = 1U;
     }
     else
     {

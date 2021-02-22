@@ -188,10 +188,6 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
 
     Log_Write(LOG_LEVEL_CRITICAL, "SQW:H%d:IDX=%d\r\n", hart_id, sqw_idx);
 
-    /* Empty all FCCs */
-    init_fcc(FCC_0);
-    init_fcc(FCC_1);
-
     while(1)
     {
         /* Wait for SQ Worker notification from Dispatcher*/

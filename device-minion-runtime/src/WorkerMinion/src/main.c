@@ -7,6 +7,7 @@
 #include "message_types.h"
 #include "cm_to_mm_iface.h"
 #include "mm_to_cm_iface.h"
+#include "riscv_encoding.h"
 
 #include <stdint.h>
 
@@ -31,10 +32,6 @@ void __attribute__((noreturn)) main(void)
     const uint64_t shire_id = get_shire_id();
     const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
 
-    // Empty all FCCs
-    init_fcc(FCC_0);
-    init_fcc(FCC_1);
-
     // TODO run BIST
 
     WAIT_FLB(thread_count, 31, result);
@@ -57,7 +54,7 @@ void __attribute__((noreturn)) main(void)
     //   "An interrupt i will be taken if bit i is set in both mip and mie,
     //    and if interrupts are globally enabled."
     asm volatile("csrci sstatus, 0x2\n");
-    asm volatile("csrsi sie, 0x2\n");
+    asm volatile("csrsi sie, %0\n" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
 
     for (;;) {
         // Wait for an IPI (Software Interrupt)
@@ -66,7 +63,7 @@ void __attribute__((noreturn)) main(void)
         // We got a software interrupt (IPI) handed down from M-mode.
         // M-mode already cleared the MSIP (Machine Software Interrupt Pending)
         // Clear Supervisor Software Interrupt Pending (SSIP)
-        asm volatile("csrci sip, 0x2");
+        asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
 
         // Handle messages from MM
         MM_To_CM_Iface_Process();
