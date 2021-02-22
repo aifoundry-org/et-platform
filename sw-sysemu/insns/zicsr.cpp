@@ -1166,10 +1166,10 @@ void insn_csrrc(Hart& cpu)
         csrswap(cpu, csr, oldval, newval);
         LOG_CSR(":", csr, oldval);
         LOG_CSR("=", csr, newval);
-        oldval |= external_supervisor_software_interrupt(cpu, csr);
     } else {
         LOG_CSR(":", csr, oldval);
     }
+    oldval |= external_supervisor_software_interrupt(cpu, csr);
     WRITE_REG(rd, oldval, csr == CSR_FLB);
 }
 
@@ -1191,10 +1191,10 @@ void insn_csrrci(Hart& cpu)
         csrswap(cpu, csr, oldval, newval);
         LOG_CSR(":", csr, oldval);
         LOG_CSR("=", csr, newval);
-        oldval |= external_supervisor_software_interrupt(cpu, csr);
     } else {
         LOG_CSR(":", csr, oldval);
     }
+    oldval |= external_supervisor_software_interrupt(cpu, csr);
     WRITE_REG(rd, oldval, csr == CSR_FLB);
 }
 
@@ -1215,10 +1215,10 @@ void insn_csrrs(Hart& cpu)
         csrswap(cpu, csr, oldval, newval);
         LOG_CSR(":", csr, oldval);
         LOG_CSR("=", csr, newval);
-        oldval |= external_supervisor_software_interrupt(cpu, csr);
     } else {
         LOG_CSR(":", csr, oldval);
     }
+    oldval |= external_supervisor_software_interrupt(cpu, csr);
     WRITE_REG(rd, oldval, csr == CSR_FLB);
 }
 
@@ -1239,10 +1239,10 @@ void insn_csrrsi(Hart& cpu)
         csrswap(cpu, csr, oldval, newval);
         LOG_CSR(":", csr, oldval);
         LOG_CSR("=", csr, newval);
-        oldval |= external_supervisor_software_interrupt(cpu, csr);
     } else {
         LOG_CSR(":", csr, oldval);
     }
+    oldval |= external_supervisor_software_interrupt(cpu, csr);
     WRITE_REG(rd, oldval, csr == CSR_FLB);
 }
 
