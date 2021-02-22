@@ -1,17 +1,17 @@
 #include "et_pci_dev.h"
 
 #define R_PU_DIR_PC_SP_BAR		2
-#define R_PU_DIR_PC_SP_BAR_OFFSET	0x1400
-#define R_PU_DIR_PC_SP_SIZE		0x0000000400
+#define R_PU_DIR_PC_SP_BAR_OFFSET	0x1000
+#define R_PU_DIR_PC_SP_SIZE		0x0000000200
 
 #define R_PU_DIR_PC_MM_BAR		2
-#define R_PU_DIR_PC_MM_BAR_OFFSET	0x400
-#define R_PU_DIR_PC_MM_SIZE		0x0000000400
+#define R_PU_DIR_PC_MM_BAR_OFFSET	0x0
+#define R_PU_DIR_PC_MM_SIZE		0x0000000200
 
 //BAR2
-//Name              Host Addr       Size   Notes
-//R_PU_DIR_PC_MM    BAR2 + 0x0400   1k     MM DIR shared memory
-//R_PU_DIR_PC_SP    BAR2 + 0x1400   1k     SP DIR shared memory
+//Name              Host Addr       Size     Notes
+//R_PU_DIR_PC_MM    BAR2 + 0x0000   512B     MM DIR shared memory
+//R_PU_DIR_PC_SP    BAR2 + 0x1000   512B     SP DIR shared memory
 const struct et_bar_mapping DIR_MAPPINGS[] = {
 	{
 		.bar		= R_PU_DIR_PC_MM_BAR,

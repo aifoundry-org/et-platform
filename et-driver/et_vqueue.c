@@ -17,8 +17,6 @@
 #include "et_io.h"
 #include "et_vqueue.h"
 #include "et_pci_dev.h"
-#include "et_mgmt_dir.h"
-#include "et_ops_dir.h"
 
 /*
  * Timeout is 250ms. Picked because it's unlikley the driver will miss an IRQ,
@@ -131,23 +129,38 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	ssize_t i;
 	struct et_vq_common *vq_common;
 	struct et_squeue **sq_pptr;
+	struct et_mapped_region *vq_region;
 	u8 *mem, *sq_baseaddr;
 
-	if (is_mgmt)
+	if (is_mgmt) {
 		vq_common = &et_dev->mgmt.vq_common;
-	else
+		if (!et_dev->mgmt.regions
+		    [MGMT_MEM_REGION_TYPE_VQ_BUFFER].is_valid) {
+			return -EINVAL;
+		}
+		vq_region = &et_dev->mgmt.regions
+			    [MGMT_MEM_REGION_TYPE_VQ_BUFFER];
+	} else {
 		vq_common = &et_dev->ops.vq_common;
+		if (!et_dev->ops.regions
+		    [OPS_MEM_REGION_TYPE_VQ_BUFFER].is_valid) {
+			return -EINVAL;
+		}
+		vq_region = &et_dev->ops.regions
+			    [OPS_MEM_REGION_TYPE_VQ_BUFFER];
+	}
 
-	mem = kmalloc_array(vq_common->sq_count,
+	mem = kmalloc_array(vq_common->dir_vq.sq_count,
 			    sizeof(*sq_pptr) + sizeof(**sq_pptr), GFP_KERNEL);
 	if (!mem)
 		return -ENOMEM;
 
 	sq_pptr = (struct et_squeue **)mem;
-	mem += vq_common->sq_count * sizeof(*sq_pptr);
+	mem += vq_common->dir_vq.sq_count * sizeof(*sq_pptr);
 
-	sq_baseaddr = vq_common->mapped_baseaddr;
-	for (i = 0; i < vq_common->sq_count; i++) {
+	sq_baseaddr = (u8 *)vq_region->mapped_baseaddr +
+		      vq_common->dir_vq.sq_offset;
+	for (i = 0; i < vq_common->dir_vq.sq_count; i++) {
 		sq_pptr[i] = (struct et_squeue *)mem;
 		mem += sizeof(**sq_pptr);
 
@@ -155,11 +168,12 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		sq_pptr[i]->cb_mem = (struct et_circbuffer *)sq_baseaddr;
 		et_ioread(sq_pptr[i]->cb_mem, 0, (u8 *)&sq_pptr[i]->cb,
 			  sizeof(sq_pptr[i]->cb));
-		sq_baseaddr += vq_common->sq_size;
+		sq_baseaddr += vq_common->dir_vq.per_sq_size;
 
 		mutex_init(&sq_pptr[i]->push_mutex);
-		atomic_set(&sq_pptr[i]->sq_threshold, (vq_common->sq_size -
-			   sizeof(struct et_circbuffer)) / 4);
+		atomic_set(&sq_pptr[i]->sq_threshold,
+			   (vq_common->dir_vq.per_sq_size -
+			    sizeof(struct et_circbuffer)) / 4);
 		sq_pptr[i]->vq_common = vq_common;
 	}
 
@@ -180,28 +194,42 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	u32 i;
 	struct et_vq_common *vq_common;
 	struct et_cqueue **cq_pptr;
+	struct et_mapped_region *vq_region;
 	u8 *mem, *cq_baseaddr;
 
-	if (is_mgmt)
+	if (is_mgmt) {
 		vq_common = &et_dev->mgmt.vq_common;
-	else
+		if (!et_dev->mgmt.regions
+		    [MGMT_MEM_REGION_TYPE_VQ_BUFFER].is_valid) {
+			return -EINVAL;
+		}
+		vq_region = &et_dev->mgmt.regions
+			    [MGMT_MEM_REGION_TYPE_VQ_BUFFER];
+	} else {
 		vq_common = &et_dev->ops.vq_common;
+		if (!et_dev->ops.regions
+		    [OPS_MEM_REGION_TYPE_VQ_BUFFER].is_valid) {
+			return -EINVAL;
+		}
+		vq_region = &et_dev->ops.regions
+			    [OPS_MEM_REGION_TYPE_VQ_BUFFER];
+	}
 
-	mem = kmalloc_array(vq_common->cq_count,
+	mem = kmalloc_array(vq_common->dir_vq.cq_count,
 			    sizeof(*cq_pptr) + sizeof(**cq_pptr), GFP_KERNEL);
 	if (!mem)
 		return -ENOMEM;
 
 	cq_pptr = (struct et_cqueue **)mem;
-	mem += vq_common->cq_count * sizeof(*cq_pptr);
+	mem += vq_common->dir_vq.cq_count * sizeof(*cq_pptr);
 
-	cq_baseaddr = (u8 *)vq_common->mapped_baseaddr +
-		vq_common->sq_count * vq_common->sq_size;
+	cq_baseaddr = (u8 *)vq_region->mapped_baseaddr +
+		      vq_common->dir_vq.cq_offset;
 
 	// TODO SW-4210: Uncomment when MSIx is enabled
-//	for (i = 0, irq_cnt_init = 0; i < vq_common->cq_count; i++,
+//	for (i = 0, irq_cnt_init = 0; i < vq_common->dir_vq.cq_count; i++,
 //	     irq_cnt_init++) {
-	for (i = 0; i < vq_common->cq_count; i++) {
+	for (i = 0; i < vq_common->dir_vq.cq_count; i++) {
 		cq_pptr[i] = (struct et_cqueue *)mem;
 		mem += sizeof(**cq_pptr);
 
@@ -209,7 +237,7 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		cq_pptr[i]->cb_mem = (struct et_circbuffer *)cq_baseaddr;
 		et_ioread(cq_pptr[i]->cb_mem, 0, (u8 *)&cq_pptr[i]->cb,
 			  sizeof(cq_pptr[i]->cb));
-		cq_baseaddr += vq_common->cq_size;
+		cq_baseaddr += vq_common->dir_vq.per_cq_size;
 
 		mutex_init(&cq_pptr[i]->pop_mutex);
 		INIT_LIST_HEAD(&cq_pptr[i]->msg_list);
@@ -252,43 +280,11 @@ static void et_squeue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt);
 ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 {
 	ssize_t rv;
-	struct et_bar_mapping bm_info;
-	struct et_mgmt_dir *dir_mgmt;
-	struct et_mgmt_vqueue vq_mgmt;
-	struct et_ops_dir *dir_ops;
-	struct et_ops_vqueue vq_ops;
 	struct et_vq_common *vq_common;
 	char wq_name[32];
 
 	if (is_mgmt) {
 		vq_common = &et_dev->mgmt.vq_common;
-		dir_mgmt = (struct et_mgmt_dir *)et_dev->mgmt.dir;
-
-		rv = (s32)ioread32(&dir_mgmt->status);
-		if (rv < MGMT_BOOT_STATUS_DEV_READY) {
-			dev_err(&et_dev->pdev->dev,
-				"Mgmt device DIRs not ready, status: %ld\n",
-				rv);
-			return -EBUSY;
-		}
-
-		// Set Mgmt device interrupt address
-		if (!et_dev->r_pu_trg_pcie)
-			return -EINVAL;
-		vq_common->interrupt_addr = et_dev->r_pu_trg_pcie
-			+ ioread32(&dir_mgmt->intrpt_trg_offset);
-
-		// Perform optimized read of VQ fields from DIRs
-		et_ioread(dir_mgmt, offsetof(struct et_mgmt_dir, vq_mgmt),
-			  (u8 *)&vq_mgmt, sizeof(vq_mgmt));
-
-		// Get Mgmt device SQ and CQ count from DIR
-		vq_common->sq_count = vq_mgmt.sq_count;
-		vq_common->cq_count = vq_mgmt.cq_count;
-
-		// Get Mgmt device SQ and CQ size from DIR
-		vq_common->sq_size = vq_mgmt.per_sq_size;
-		vq_common->cq_size = vq_mgmt.per_cq_size;
 
 		// Initialize Mgmt device workqueue
 		snprintf(wq_name, sizeof(wq_name), "%s_mgmt_wq%d",
@@ -296,40 +292,8 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		vq_common->workqueue = create_singlethread_workqueue(wq_name);
 		if (!vq_common->workqueue)
 			return -ENOMEM;
-
-		// Discover bar mapping information for Mgmt device VQs
-		bm_info.bar			= vq_mgmt.bar;
-		bm_info.bar_offset		= vq_mgmt.sq_offset;
-		bm_info.size			= vq_mgmt.bar_size;
 	} else {
 		vq_common = &et_dev->ops.vq_common;
-		dir_ops = (struct et_ops_dir *)et_dev->ops.dir;
-
-		rv = (s32)ioread32(&dir_ops->status);
-		if (rv < OPS_BOOT_STATUS_MM_READY) {
-			dev_err(&et_dev->pdev->dev,
-				"Ops device DIR not ready, status: %ld\n",
-				rv);
-			return -EBUSY;
-		}
-
-		// Set Mgmt device interrupt address
-		if (!et_dev->r_pu_trg_pcie)
-			return -EINVAL;
-		vq_common->interrupt_addr = et_dev->r_pu_trg_pcie
-			+ ioread32(&dir_ops->intrpt_trg_offset);
-
-		// Perform optimized read of VQ fields from DIRs
-		et_ioread(dir_ops, offsetof(struct et_ops_dir, vq_ops),
-			  (u8 *)&vq_ops, sizeof(vq_ops));
-
-		// Get Ops device SQ and CQ count from DIR
-		vq_common->sq_count = vq_ops.sq_count;
-		vq_common->cq_count = vq_ops.cq_count;
-
-		// Get Ops device SQ and CQ size from DIR
-		vq_common->sq_size = vq_ops.per_sq_size;
-		vq_common->cq_size = vq_ops.per_cq_size;
 
 		// Initialize Ops device workqueue
 		snprintf(wq_name, sizeof(wq_name), "%s_ops_wq%d",
@@ -337,19 +301,19 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		vq_common->workqueue = create_singlethread_workqueue(wq_name);
 		if (!vq_common->workqueue)
 			return -ENOMEM;
-
-		// Discover bar mapping information for Ops device VQs
-		bm_info.bar			= vq_ops.bar;
-		bm_info.bar_offset		= vq_ops.sq_offset;
-		bm_info.size			= vq_ops.bar_size;
 	}
 
-	// Map virtual queues region
-	rv = et_map_bar(et_dev, &bm_info, &vq_common->mapped_baseaddr);
-	if (rv) {
-		dev_err(&et_dev->pdev->dev, "VQ region mapping failed\n");
+	// Set interrupt address
+	if (!et_dev->mgmt.regions
+	    [MGMT_MEM_REGION_TYPE_VQ_INTRPT_TRG].is_valid) {
+		rv = -EINVAL;
 		goto error_destroy_workqueue;
 	}
+
+	vq_common->intrpt_addr =
+		(u8 *)et_dev->mgmt.regions
+		[MGMT_MEM_REGION_TYPE_VQ_INTRPT_TRG].mapped_baseaddr +
+		vq_common->dir_vq.intrpt_trg_offset;
 
 	// TODO SW-4210: Uncomment when MSIx is enabled
 //	if (et_dev->used_irq_vecs + vq_common->cq_count >
@@ -357,7 +321,7 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 //		dev_err(&et_dev->pdev->dev,
 //			"VQ: not enough vecs allocated\n");
 //		rv = -EINVAL;
-//		goto error_unmap_vq_bar_region;
+//		goto error_destroy_workqueue;
 //	}
 //	vq_common->vec_idx_offset = et_dev->used_irq_vecs;
 
@@ -369,7 +333,7 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 
 	rv = et_squeue_init_all(et_dev, is_mgmt);
 	if (rv)
-		goto error_unmap_vq_bar_region;
+		goto error_destroy_workqueue;
 
 	rv = et_cqueue_init_all(et_dev, is_mgmt);
 	if (rv)
@@ -382,9 +346,6 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 
 error_squeue_destroy_all:
 	et_squeue_destroy_all(et_dev, is_mgmt);
-
-error_unmap_vq_bar_region:
-	et_unmap_bar(vq_common->mapped_baseaddr);
 
 error_destroy_workqueue:
 	destroy_workqueue(vq_common->workqueue);
@@ -405,7 +366,7 @@ static void et_squeue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		sq_pptr = et_dev->ops.sq_pptr;
 	}
 
-	for (i = 0; i < vq_common->sq_count; i++) {
+	for (i = 0; i < vq_common->dir_vq.sq_count; i++) {
 		mutex_destroy(&sq_pptr[i]->push_mutex);
 		sq_pptr[i]->cb_mem = NULL;
 		sq_pptr[i]->vq_common = NULL;
@@ -429,7 +390,7 @@ static void et_cqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		cq_pptr = et_dev->ops.cq_pptr;
 	}
 
-	for (i = 0; i < vq_common->cq_count; i++) {
+	for (i = 0; i < vq_common->dir_vq.cq_count; i++) {
 		// TODO SW-4210: Uncomment when MSIx is enabled
 //		cancel_work_sync(&cq_pptr[i]->isr_work);
 //		free_irq(pci_irq_vector(et_dev->pdev,
@@ -467,13 +428,27 @@ void et_vqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 //	et_dev->used_irq_vecs -= vq_common->cq_count;
 	wake_up_interruptible_all(&vq_common->waitqueue);
 	destroy_workqueue(vq_common->workqueue);
-
-	et_unmap_bar(vq_common->mapped_baseaddr);
 }
 
 static inline void interrupt_device(struct et_squeue *sq)
 {
-	iowrite32(1, sq->vq_common->interrupt_addr);
+	switch (sq->vq_common->dir_vq.intrpt_trg_size) {
+	case 1:
+		iowrite8(sq->vq_common->dir_vq.intrpt_id,
+			 sq->vq_common->intrpt_addr);
+		break;
+	case 2:
+		iowrite16(sq->vq_common->dir_vq.intrpt_id,
+			  sq->vq_common->intrpt_addr);
+		break;
+	case 4:
+		iowrite32(sq->vq_common->dir_vq.intrpt_id,
+			  sq->vq_common->intrpt_addr);
+		break;
+	case 8:
+		iowrite64(sq->vq_common->dir_vq.intrpt_id,
+			  sq->vq_common->intrpt_addr);
+	}
 }
 
 ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count)

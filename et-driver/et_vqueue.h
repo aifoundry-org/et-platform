@@ -20,6 +20,7 @@
 
 #include "et_circbuffer.h"
 #include "et_device_api.h"
+#include "et_dev_iface_regs.h"
 
 #define ET_MAX_QUEUES	64
 
@@ -32,19 +33,12 @@ struct et_msg_node {
 };
 
 struct et_vq_common {
-	u32 sq_count;
+	struct et_dir_vqueue dir_vq;
+
 	DECLARE_BITMAP(sq_bitmap, ET_MAX_QUEUES);
-	u32 sq_size;			/* sizeof(struct et_circbuffer) +
-					 * SQ buffer bytes
-					 */
-	u32 cq_count;
 	DECLARE_BITMAP(cq_bitmap, ET_MAX_QUEUES);
-	u32 cq_size;			/* sizeof(struct et_circbuffer) +
-					 * CQ buffer bytes
-					 */
-	void __iomem *mapped_baseaddr;
-	void __iomem *interrupt_addr;
-	u32 vec_idx_offset;
+
+	void __iomem *intrpt_addr;
 	struct workqueue_struct *workqueue;
 	wait_queue_head_t waitqueue;
 	bool aborting;

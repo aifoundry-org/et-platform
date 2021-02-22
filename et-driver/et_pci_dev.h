@@ -24,11 +24,16 @@ struct et_bar_mapping {
 
 extern const struct et_bar_mapping DIR_MAPPINGS[];
 
-struct et_ddr_region {
+struct et_mapped_region {
+	bool is_valid;			/*
+					 * compulsory regions must be valid,
+					 * non-compulsory regions may or may
+					 * not be valid
+					 */
+	struct et_dir_reg_access access;
 	void __iomem *mapped_baseaddr;
 	u64 soc_addr;
 	u64 size;
-	u16 attr;
 };
 
 struct et_ops_dev {
@@ -36,13 +41,11 @@ struct et_ops_dev {
 	bool is_ops_open;
 	spinlock_t ops_open_lock;	/* serializes access to is_ops_open */
 	void __iomem *dir;
+	struct et_mapped_region regions[MGMT_MEM_REGION_TYPE_NUM];
 
 	struct et_squeue **sq_pptr;
 	struct et_cqueue **cq_pptr;
 	struct et_vq_common vq_common;
-
-	struct et_ddr_region **ddr_regions;
-	u32 num_regions;
 
 	struct rb_root dma_rbtree;
 	struct mutex dma_rbtree_mutex;	/* serializes access to dma_rbtree */
@@ -53,13 +56,11 @@ struct et_mgmt_dev {
 	bool is_mgmt_open;
 	spinlock_t mgmt_open_lock;	/* serializes access to is_mgmt_open */
 	void __iomem *dir;
+	struct et_mapped_region regions[OPS_MEM_REGION_TYPE_NUM];
 
 	struct et_squeue **sq_pptr;
 	struct et_cqueue **cq_pptr;
 	struct et_vq_common vq_common;
-
-	struct et_ddr_region **ddr_regions;
-	u32 num_regions;
 
 	u64 minion_shires;
 };
@@ -71,7 +72,6 @@ struct et_pci_dev {
 	struct et_ops_dev ops;
 	struct et_mgmt_dev mgmt;
 
-	void __iomem *r_pu_trg_pcie;
 	u32 num_irq_vecs;
 	u32 used_irq_vecs;
 

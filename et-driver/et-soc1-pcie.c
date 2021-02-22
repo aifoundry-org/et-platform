@@ -26,6 +26,7 @@
 #include <uapi/linux/pci_regs.h>
 #include <asm/uaccess.h>
 #include <linux/poll.h>
+#include <linux/crc32.h>
 
 #include "et_io.h"
 #include "et_dma.h"
@@ -33,8 +34,6 @@
 #include "et_vqueue.h"
 #include "et_mmio.h"
 #include "et_pci_dev.h"
-#include "et_mgmt_dir.h"
-#include "et_ops_dir.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Esperanto <esperanto@gmail.com or admin@esperanto.com>");
@@ -115,7 +114,7 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 
 	// Update sq_bitmap for all SQs, set corresponding bit when space
 	// available is more than threshold
-	for (i = 0; i < ops->vq_common.sq_count; i++) {
+	for (i = 0; i < ops->vq_common.dir_vq.sq_count; i++) {
 		if (test_bit(i, ops->vq_common.sq_bitmap))
 			continue;
 
@@ -128,12 +127,13 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 	}
 
 	// Generate EPOLLOUT event if any SQ has space more than its threshold
-	if (!bitmap_empty(ops->vq_common.sq_bitmap, ops->vq_common.sq_count))
+	if (!bitmap_empty(ops->vq_common.sq_bitmap,
+			  ops->vq_common.dir_vq.sq_count))
 		mask |= EPOLLOUT;
 
 	// Update cq_bitmap for all CQs, set corresponding bit when msg is
 	// available for userspace
-	for (i = 0; i < ops->vq_common.cq_count; i++) {
+	for (i = 0; i < ops->vq_common.dir_vq.cq_count; i++) {
 		if (test_bit(i, ops->vq_common.cq_bitmap))
 			continue;
 
@@ -145,7 +145,8 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 	}
 
 	// Generate EPOLLIN event if any CQ msg list has message for userspace
-	if (!bitmap_empty(ops->vq_common.cq_bitmap, ops->vq_common.cq_count))
+	if (!bitmap_empty(ops->vq_common.cq_bitmap,
+			  ops->vq_common.dir_vq.cq_count))
 		mask |= EPOLLIN;
 
 	return mask;
@@ -170,20 +171,22 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 
 	switch (cmd) {
 	case ETSOC1_IOCTL_GET_USER_DRAM_BASE:
-		if (copy_to_user
-		    ((u64 *)arg, &ops->ddr_regions
-		     [OPS_DDR_REGION_MAP_USER_KERNEL_SPACE]->soc_addr,
-		     size)) {
+		if (!ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED].is_valid)
+			return -EINVAL;
+
+		if (copy_to_user((u64 *)arg, &ops->regions
+		    [OPS_MEM_REGION_TYPE_HOST_MANAGED].soc_addr, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_USER_DRAM_BASE: failed to copy to user\n");
 			return -ENOMEM;
 		}
 		return 0;
 
 	case ETSOC1_IOCTL_GET_USER_DRAM_SIZE:
-		if (copy_to_user
-		    ((u64 *)arg, &ops->ddr_regions
-		     [OPS_DDR_REGION_MAP_USER_KERNEL_SPACE]->size,
-		     size)) {
+		if (!ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED].is_valid)
+			return -EINVAL;
+
+		if (copy_to_user((u64 *)arg, &ops->regions
+		    [OPS_MEM_REGION_TYPE_HOST_MANAGED].size, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_USER_DRAM_SIZE: failed to copy to user\n");
 			return -ENOMEM;
 		}
@@ -208,14 +211,15 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 						mmio_info.devaddr);
 
 	case ETSOC1_IOCTL_GET_SQ_COUNT:
-		if (copy_to_user((u64 *)arg, &ops->vq_common.sq_count, size)) {
+		if (copy_to_user((u64 *)arg, &ops->vq_common.dir_vq.sq_count,
+				 size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_COUNT: failed to copy to user\n");
 			return -ENOMEM;
 		}
 		return 0;
 
 	case ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE:
-		max_size = ops->vq_common.sq_size -
+		max_size = ops->vq_common.dir_vq.per_sq_size -
 			   sizeof(struct et_circbuffer);
 		if (copy_to_user((u64 *)arg, &max_size, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE: failed to copy to user\n");
@@ -272,7 +276,8 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 
 		if (!sq_threshold_info.bytes_needed ||
 		    sq_threshold_info.bytes_needed >
-		    (ops->vq_common.sq_size - sizeof(struct et_circbuffer)))
+		    (ops->vq_common.dir_vq.per_sq_size -
+		     sizeof(struct et_circbuffer)))
 			return -EINVAL;
 
 		sq_idx = sq_threshold_info.sq_index;
@@ -313,7 +318,7 @@ static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 
 	// Update sq_bitmap for all SQs, set corresponding bit when space
 	// available is more than threshold
-	for (i = 0; i < mgmt->vq_common.sq_count; i++) {
+	for (i = 0; i < mgmt->vq_common.dir_vq.sq_count; i++) {
 		if (test_bit(i, mgmt->vq_common.sq_bitmap))
 			continue;
 
@@ -326,12 +331,13 @@ static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 	}
 
 	// Generate EPOLLOUT event if any SQ has space more than its threshold
-	if (!bitmap_empty(mgmt->vq_common.sq_bitmap, mgmt->vq_common.sq_count))
+	if (!bitmap_empty(mgmt->vq_common.sq_bitmap,
+			  mgmt->vq_common.dir_vq.sq_count))
 		mask |= EPOLLOUT;
 
 	// Update cq_bitmap for all CQs, set corresponding bit when msg is
 	// available for userspace
-	for (i = 0; i < mgmt->vq_common.cq_count; i++) {
+	for (i = 0; i < mgmt->vq_common.dir_vq.cq_count; i++) {
 		if (test_bit(i, mgmt->vq_common.cq_bitmap))
 			continue;
 
@@ -343,7 +349,8 @@ static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 	}
 
 	// Generate EPOLLIN event if any CQ msg list has message for userspace
-	if (!bitmap_empty(mgmt->vq_common.cq_bitmap, mgmt->vq_common.cq_count))
+	if (!bitmap_empty(mgmt->vq_common.cq_bitmap,
+			  mgmt->vq_common.dir_vq.cq_count))
 		mask |= EPOLLIN;
 
 	return mask;
@@ -356,7 +363,6 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 	struct et_pci_dev *et_dev;
 	struct cmd_desc cmd_info;
 	struct rsp_desc rsp_info;
-	struct mmio_desc mmio_info;
 	struct sq_threshold sq_threshold_info;
 	u16 sq_idx;
 	size_t size;
@@ -369,69 +375,17 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 	size = _IOC_SIZE(cmd);
 
 	switch (cmd) {
-	case ETSOC1_IOCTL_GET_USER_DRAM_BASE:
-		if (copy_to_user
-		    ((u64 *)arg, &mgmt->ddr_regions
-		     [MGMT_DDR_REGION_MAP_TRACE_BUFFER]->soc_addr, size)) {
-			pr_err("ioctl: ETSOC1_IOCTL_GET_USER_DRAM_BASE: failed to copy to user\n");
-			return -ENOMEM;
-		}
-		return 0;
-
-	case ETSOC1_IOCTL_GET_USER_DRAM_SIZE:
-		if (copy_to_user
-		    ((u64 *)arg, &mgmt->ddr_regions
-		     [MGMT_DDR_REGION_MAP_TRACE_BUFFER]->size, size)) {
-			pr_err("ioctl: ETSOC1_IOCTL_GET_USER_DRAM_SIZE: failed to copy to user\n");
-			return -ENOMEM;
-		}
-		return 0;
-
-	case ETSOC1_IOCTL_GET_DEV_MGMT_SCRATCH_DRAM_BASE:
-		if (copy_to_user((uint64_t *)arg, &mgmt->ddr_regions
-		    [MGMT_DDR_REGION_MAP_DEV_MANAGEMENT_SCRATCH]->soc_addr,
-		    size)) {
-			pr_err("ioctl: ETSOC1_IOCTL_GET_DEV_MGMT_SCRATCH_DRAM_BASE: failed to copy to user\n");
-			return -ENOMEM;
-		}
-		return 0;
-
-	case ETSOC1_IOCTL_GET_DEV_MGMT_SCRATCH_DRAM_SIZE:
-		if (copy_to_user((uint64_t *)arg, &mgmt->ddr_regions
-		    [MGMT_DDR_REGION_MAP_DEV_MANAGEMENT_SCRATCH]->size,
-		    size)) {
-			pr_err("ioctl: ETSOC1_IOCTL_GET_DEV_MGMT_SCRATCH_DRAM_SIZE: failed to copy to user\n");
-			return -ENOMEM;
-		}
-		return 0;
-
-	case ETSOC1_IOCTL_MMIO_WRITE:
-		if (copy_from_user(&mmio_info, (void __user *)arg,
-				   _IOC_SIZE(cmd)))
-			return -EINVAL;
-		return et_mmio_write_to_device(et_dev, true /* mgmt_dev */,
-					       (void __user *)mmio_info.ubuf,
-					       mmio_info.size,
-					       mmio_info.devaddr);
-
-	case ETSOC1_IOCTL_MMIO_READ:
-		if (copy_from_user(&mmio_info, (void __user *)arg,
-				   _IOC_SIZE(cmd)))
-			return -EINVAL;
-		return et_mmio_read_from_device(et_dev, true /* mgmt_dev */,
-						(void __user *)mmio_info.ubuf,
-						mmio_info.size,
-						mmio_info.devaddr);
-
 	case ETSOC1_IOCTL_GET_SQ_COUNT:
-		if (copy_to_user((u64 *)arg, &mgmt->vq_common.sq_count, size)) {
+		if (copy_to_user((u64 *)arg, &mgmt->vq_common.dir_vq.sq_count,
+				 size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_COUNT: failed to copy to user\n");
 			return -ENOMEM;
 		}
 		return 0;
 
 	case ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE:
-		max_size = mgmt->vq_common.sq_size - sizeof(struct et_circbuffer);
+		max_size = mgmt->vq_common.dir_vq.per_sq_size -
+			   sizeof(struct et_circbuffer);
 		if (copy_to_user((u64 *)arg, &max_size, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE: failed to copy to user\n");
 			return -ENOMEM;
@@ -490,7 +444,8 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 
 		if (!sq_threshold_info.bytes_needed ||
 		    sq_threshold_info.bytes_needed >
-		    (mgmt->vq_common.sq_size - sizeof(struct et_circbuffer)))
+		    (mgmt->vq_common.dir_vq.per_sq_size -
+		     sizeof(struct et_circbuffer)))
 			return -EINVAL;
 
 		sq_idx = sq_threshold_info.sq_index;
@@ -625,15 +580,161 @@ static int create_et_pci_dev(struct et_pci_dev **new_dev, struct pci_dev *pdev)
 	return 0;
 }
 
+static void et_unmap_discovered_regions(struct et_pci_dev *et_dev,
+					bool is_mgmt)
+{
+	struct et_mapped_region *regions;
+	int num_reg_types, i;
+
+	if (is_mgmt) {
+		regions = et_dev->mgmt.regions;
+		num_reg_types = sizeof(et_dev->mgmt.regions) /
+				sizeof(et_dev->mgmt.regions[0]);
+	} else {
+		regions = et_dev->ops.regions;
+		num_reg_types = sizeof(et_dev->ops.regions) /
+				sizeof(et_dev->ops.regions[0]);
+	}
+
+	for (i = 0; i < num_reg_types; i++) {
+		if (regions[i].is_valid) {
+			et_unmap_bar(regions[i].mapped_baseaddr);
+			regions[i].is_valid = false;
+		}
+	}
+}
+
+static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
+					 bool is_mgmt, u8 *regs_data,
+					 size_t regs_size,
+					 int num_discovered_regions)
+{
+	u8 *reg_pos = regs_data;
+	size_t section_size;
+	struct et_dir_mem_region *dir_mem_region;
+	struct et_mapped_region *regions;
+	struct et_bar_mapping bm_info;
+	int num_reg_types, i;
+	ssize_t rv;
+
+	if (is_mgmt) {
+		regions = et_dev->mgmt.regions;
+		num_reg_types = sizeof(et_dev->mgmt.regions) /
+				sizeof(et_dev->mgmt.regions[0]);
+	} else {
+		regions = et_dev->ops.regions;
+		num_reg_types = sizeof(et_dev->ops.regions) /
+				sizeof(et_dev->ops.regions[0]);
+	}
+
+	memset(regions, 0, num_reg_types * sizeof(*regions));
+	for (i = 0; i < num_discovered_regions; i++, reg_pos += section_size) {
+		dir_mem_region = (struct et_dir_mem_region *)reg_pos;
+		section_size = dir_mem_region->attributes_size;
+
+		// End of region check
+		if (reg_pos + section_size > regs_data + regs_size) {
+			dev_err(&et_dev->pdev->dev,
+				"DIR memory region[%d] size out of range!",
+				i);
+			rv = -EINVAL;
+			goto error_unmap_discovered_regions;
+		}
+
+		// Region type check
+		if (dir_mem_region->type >= num_reg_types) {
+			dev_warn(&et_dev->pdev->dev,
+				 "Region type %d is unknown to driver, skipping this region",
+				 dir_mem_region->type);
+			continue;
+		}
+
+		// Attributes size check
+		if (section_size > sizeof(*dir_mem_region)) {
+			dev_warn(&et_dev->pdev->dev,
+				 "Region type: %d has extra attributes, skipping extra attributes",
+				 dir_mem_region->type);
+		} else if (section_size < sizeof(*dir_mem_region)) {
+			dev_err(&et_dev->pdev->dev,
+				"Region type: %d does not have enough attributes!",
+				dir_mem_region->type);
+			rv = -EINVAL;
+			goto error_unmap_discovered_regions;
+		}
+
+		// Region attributes validity check
+		if (!valid_mem_region(dir_mem_region, is_mgmt)) {
+			dev_warn(&et_dev->pdev->dev,
+				 "Region type: %d has invalid attributes, skipping this region",
+				 dir_mem_region->type);
+			continue;
+		}
+
+		// Region type uniqueness check
+		if (regions[dir_mem_region->type].is_valid) {
+			// if valid means already mapped
+			dev_err(&et_dev->pdev->dev,
+				"Region type: %d found again; types must be unique\n",
+				dir_mem_region->type);
+			rv = -EINVAL;
+			goto error_unmap_discovered_regions;
+		}
+
+		// BAR mapping for the discovered region
+		bm_info.bar             = dir_mem_region->bar;
+		bm_info.bar_offset      = dir_mem_region->bar_offset;
+		bm_info.size            = dir_mem_region->bar_size;
+		rv = et_map_bar(et_dev, &bm_info, &regions
+				[dir_mem_region->type].mapped_baseaddr);
+		if (rv) {
+			dev_err(&et_dev->pdev->dev,
+				"Region type: %d mapping failed\n",
+				dir_mem_region->type);
+			goto error_unmap_discovered_regions;
+		}
+
+		// Save other region information
+		regions[dir_mem_region->type].size =
+			dir_mem_region->bar_size;
+		regions[dir_mem_region->type].soc_addr =
+			dir_mem_region->dev_address;
+		memcpy(&regions[dir_mem_region->type].access,
+		       (u8 *)&dir_mem_region->access,
+		       sizeof(dir_mem_region->access));
+
+		regions[dir_mem_region->type].is_valid = true;
+	}
+
+	// Check if all compulsory region types have been discovered and mapped
+	for (i = 0; i < num_reg_types; i++) {
+		if (!compulsory_region_type(i, is_mgmt))
+			continue;
+
+		if (!regions[i].is_valid) {
+			dev_err(&et_dev->pdev->dev,
+				"Compulsory region type: %d, not found!\n",
+				i);
+			rv = -EINVAL;
+			goto error_unmap_discovered_regions;
+		}
+	}
+
+	return (ssize_t)((u64)reg_pos - (u64)regs_data);
+
+error_unmap_discovered_regions:
+	et_unmap_discovered_regions(et_dev, is_mgmt);
+
+	return rv;
+}
+
 static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 {
-	int rv, i, ddr_cnt_map;
-	struct et_mgmt_dir *dir_mgmt;
-	struct et_mgmt_ddr_regions ddr_mgmt;
-	struct et_mgmt_intrpt_region intrpt_mgmt;
-	struct et_bar_mapping bm_info;
-	bool ddr_ready = false;
-	u8 *mem;
+	bool dir_ready = false;
+	u8 *dir_data, *dir_pos;
+	size_t section_size, dir_size, regs_size;
+	struct et_mgmt_dir_header *dir_mgmt;
+	struct et_dir_vqueue *dir_vq;
+	int rv, i;
 
 	et_dev->mgmt.is_mgmt_open = false;
 	spin_lock_init(&et_dev->mgmt.mgmt_open_lock);
@@ -641,99 +742,150 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	// Map DIR region
 	rv = et_map_bar(et_dev, &DIR_MAPPINGS[IOMEM_R_PU_DIR_PC_SP],
 			&et_dev->mgmt.dir);
-	if (rv)
+	if (rv) {
+		dev_err(&et_dev->pdev->dev, "Mgmt: DIR mapping failed\n");
 		return rv;
+	}
 
-	dir_mgmt = (struct et_mgmt_dir *)et_dev->mgmt.dir;
+	dir_mgmt = (struct et_mgmt_dir_header *)et_dev->mgmt.dir;
 
 	// TODO: Improve device discovery
 	// Waiting for device to be ready, wait for 300 secs
-	for (i = 0; !ddr_ready && i < 30; i++) {
-		rv = ioread32(&dir_mgmt->status);
+	for (i = 0; !dir_ready && i < 30; i++) {
+		rv = (int)ioread16(&dir_mgmt->status);
 		if (rv >= MGMT_BOOT_STATUS_DEV_READY) {
-			pr_debug("Mgmt device DIRs ready, status: %d", rv);
-			ddr_ready = true;
+			pr_debug("Mgmt: DIRs ready, status: %d", rv);
+			dir_ready = true;
 		} else {
-			pr_debug("Mgmt device DIRs not ready, status: %d, waiting...",
+			pr_debug("Mgmt: DIRs not ready, status: %d, waiting...",
 				 rv);
 			msleep(10000);
 		}
 	}
 
-	if (!ddr_ready) {
+	if (!dir_ready) {
 		dev_err(&et_dev->pdev->dev,
-			"Mgmt DIRs not ready; discovery timeout\n");
+			"Mgmt: DIRs not ready; discovery timed out\n");
 		rv = -EBUSY;
 		goto error_unmap_dir_region;
 	}
 
-	if (ioread32(&dir_mgmt->size) != sizeof(*dir_mgmt)) {
-		dev_err(&et_dev->pdev->dev, "Mgmt device DIRs size mismatch!");
+	// DIR size sanity check
+	dir_size = ioread16(&dir_mgmt->total_size);
+	if (dir_size > DIR_MAPPINGS[IOMEM_R_PU_DIR_PC_SP].size) {
+		dev_err(&et_dev->pdev->dev,
+			"Mgmt: DIRs size out of range!");
 		rv = -EINVAL;
 		goto error_unmap_dir_region;
 	}
 
-	// Perform optimized read of DDR fields from DIRs
-	et_ioread(dir_mgmt, offsetof(struct et_mgmt_dir, ddr_regions),
-		  (u8 *)&ddr_mgmt, sizeof(ddr_mgmt));
-
-	et_dev->mgmt.num_regions = ddr_mgmt.num_regions;
-	mem = kmalloc_array(et_dev->mgmt.num_regions,
-			    sizeof(*et_dev->mgmt.ddr_regions) +
-			    sizeof(**et_dev->mgmt.ddr_regions), GFP_KERNEL);
-	if (!mem) {
+	// Allocate memory for reading DIRs
+	dir_data = kmalloc(dir_size, GFP_KERNEL);
+	if (!dir_data) {
 		rv = -ENOMEM;
 		goto error_unmap_dir_region;
 	}
 
-	et_dev->mgmt.ddr_regions = (struct et_ddr_region **)mem;
-	mem += et_dev->mgmt.num_regions * sizeof(*et_dev->mgmt.ddr_regions);
+	// Read complete DIRs from device memory
+	et_ioread(et_dev->mgmt.dir, 0, dir_data, dir_size);
+	dir_pos = dir_data;
 
-	for (i = 0, ddr_cnt_map = 0; i < et_dev->mgmt.num_regions; i++,
-	     ddr_cnt_map++) {
-		et_dev->mgmt.ddr_regions[i] = (struct et_ddr_region *)mem;
-		mem += sizeof(**et_dev->mgmt.ddr_regions);
+	/*
+	 * Parse and save DIR general attributes from DIR header
+	 */
+	dir_mgmt = (struct et_mgmt_dir_header *)dir_pos;
+	section_size = dir_mgmt->attributes_size;
 
-		bm_info.bar		= ddr_mgmt.regions[i].bar;
-		bm_info.bar_offset	= ddr_mgmt.regions[i].offset;
-		bm_info.size		= ddr_mgmt.regions[i].size;
-		rv = et_map_bar(et_dev, &bm_info,
-				&et_dev->mgmt.ddr_regions[i]->mapped_baseaddr);
-		if (rv) {
-			dev_err(&et_dev->pdev->dev,
-				"Mgmt device DDR region mapping failed\n");
-			goto error_unmap_ddr_regions;
-		}
-
-		et_dev->mgmt.ddr_regions[i]->size =
-			ddr_mgmt.regions[i].size;
-		et_dev->mgmt.ddr_regions[i]->soc_addr =
-			ddr_mgmt.regions[i].devaddr;
-	}
-
-	et_dev->mgmt.minion_shires = ioread64(&dir_mgmt->minion_shires);
-
-	// Read PU_TRG_PCIE region mapping details and map the region
-	et_ioread(dir_mgmt, offsetof(struct et_mgmt_dir, intrpt_region),
-		  (u8 *)&intrpt_mgmt, sizeof(intrpt_mgmt));
-
-	bm_info.bar		= intrpt_mgmt.bar;
-	bm_info.bar_offset	= intrpt_mgmt.offset;
-	bm_info.size		= intrpt_mgmt.size;
-	rv = et_map_bar(et_dev, &bm_info, &et_dev->r_pu_trg_pcie);
-	if (rv) {
+	// End of region check
+	if (dir_pos + section_size > dir_data + dir_size) {
 		dev_err(&et_dev->pdev->dev,
-			"pu_trg_pcie region mapping failed!");
-		goto error_unmap_ddr_regions;
+			"Mgmt: DIR header size out of range!");
+		rv = -EINVAL;
+		goto error_free_dir_data;
 	}
 
+	// Attributes size check
+	if (section_size > sizeof(*dir_mgmt)) {
+		dev_warn(&et_dev->pdev->dev,
+			 "Mgmt: DIR header has extra attributes, skipping extra attributes");
+	} else if (section_size < sizeof(*dir_mgmt)) {
+		dev_err(&et_dev->pdev->dev,
+			"Mgmt: DIR header does not have enough attributes!");
+		rv = -EINVAL;
+		goto error_free_dir_data;
+	}
+
+	// Calculate crc32 checksum starting after DIRs header to the end
+	if (~crc32(~0, dir_pos + section_size, dir_size - section_size) !=
+	    dir_mgmt->crc32) {
+		dev_err(&et_dev->pdev->dev,
+			"Mgmt: DIRs checksum mismatch!");
+		rv = -EINVAL;
+		goto error_free_dir_data;
+	}
+
+	et_dev->mgmt.minion_shires = dir_mgmt->minion_shire_mask;
+
+	dir_pos += section_size;
+
+	/*
+	 * Save vqueue information from DIRs
+	 */
+	dir_vq = (struct et_dir_vqueue *)dir_pos;
+	section_size = dir_vq->attributes_size;
+
+	// End of region check
+	if (dir_pos + section_size > dir_data + dir_size) {
+		dev_err(&et_dev->pdev->dev,
+			"Mgmt: DIR vqueue size out of range!");
+		rv = -EINVAL;
+		goto error_free_dir_data;
+	}
+
+	// Attributes size check
+	if (section_size > sizeof(*dir_vq)) {
+		dev_warn(&et_dev->pdev->dev,
+			 "Mgmt: DIR vqueue has extra attributes, skipping extra attributes");
+	} else if (section_size < sizeof(*dir_vq)) {
+		dev_err(&et_dev->pdev->dev,
+			"Mgmt: DIR vqueue does not have enough attributes!");
+		rv = -EINVAL;
+		goto error_free_dir_data;
+	}
+
+	memcpy(&et_dev->mgmt.vq_common.dir_vq, (u8 *)dir_vq, sizeof(*dir_vq));
+
+	dir_pos += section_size;
+
+	/*
+	 * Map all memory regions and save attributes
+	 */
+	regs_size = dir_size - ((u64)dir_pos - (u64)dir_data);
+	rv = et_map_discovered_regions(et_dev, true /* mgmt_dev */, dir_pos,
+				       regs_size, dir_mgmt->num_regions);
+	if (rv < 0) {
+		dev_err(&et_dev->pdev->dev,
+			"Mgmt: DIR Memory regions mapping failed!");
+		goto error_free_dir_data;
+	}
+
+	dir_pos += rv;
+	if (dir_pos != dir_data + dir_size) {
+		dev_warn(&et_dev->pdev->dev,
+			 "Mgmt: DIR total_size != sum of all region sizes!");
+	}
+
+	kfree(dir_data);
+
+	// VQs initialization
 	rv = et_vqueue_init_all(et_dev, true /* mgmt_dev */);
 	if (rv) {
 		dev_err(&et_dev->pdev->dev,
-			"Mgmt device VQs initialization failed\n");
-		goto error_unmap_trg_pcie_region;
+			"Mgmt: VQs initialization failed\n");
+		goto error_unmap_discovered_regions;
 	}
 
+	// Create Mgmt device node
 	et_dev->mgmt.misc_mgmt_dev.minor = MISC_DYNAMIC_MINOR;
 	et_dev->mgmt.misc_mgmt_dev.fops  = &et_pcie_mgmt_fops;
 	et_dev->mgmt.misc_mgmt_dev.name  = devm_kasprintf(&et_dev->pdev->dev,
@@ -742,22 +894,20 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 							et_dev->dev_index);
 	rv = misc_register(&et_dev->mgmt.misc_mgmt_dev);
 	if (rv) {
-		dev_err(&et_dev->pdev->dev, "misc mgmt register failed\n");
+		dev_err(&et_dev->pdev->dev, "Mgmt: misc register failed\n");
 		goto error_vqueue_destroy_all;
 	}
 
-	return 0;
+	return rv;
 
 error_vqueue_destroy_all:
 	et_vqueue_destroy_all(et_dev, true /* mgmt_dev */);
 
-error_unmap_trg_pcie_region:
-	et_unmap_bar(et_dev->r_pu_trg_pcie);
+error_unmap_discovered_regions:
+	et_unmap_discovered_regions(et_dev, true /* mgmt_dev */);
 
-error_unmap_ddr_regions:
-	for (i = 0; i < ddr_cnt_map; i++)
-		et_unmap_bar(et_dev->mgmt.ddr_regions[i]->mapped_baseaddr);
-	kfree(et_dev->mgmt.ddr_regions);
+error_free_dir_data:
+	kfree(dir_data);
 
 error_unmap_dir_region:
 	et_unmap_bar(et_dev->mgmt.dir);
@@ -767,29 +917,20 @@ error_unmap_dir_region:
 
 static void et_mgmt_dev_destroy(struct et_pci_dev *et_dev)
 {
-	int i;
-
 	misc_deregister(&et_dev->mgmt.misc_mgmt_dev);
-
 	et_vqueue_destroy_all(et_dev, true /* mgmt_dev */);
-
-	et_unmap_bar(et_dev->r_pu_trg_pcie);
-
-	for (i = 0; i < et_dev->mgmt.num_regions; i++)
-		et_unmap_bar(et_dev->mgmt.ddr_regions[i]->mapped_baseaddr);
-	kfree(et_dev->mgmt.ddr_regions);
-
+	et_unmap_discovered_regions(et_dev, true /* mgmt_dev */);
 	et_unmap_bar(et_dev->mgmt.dir);
 }
 
 static int et_ops_dev_init(struct et_pci_dev *et_dev)
 {
-	int rv, i, ddr_cnt_map;
-	struct et_ops_dir *dir_ops;
-	struct et_ops_ddr_regions ddr_ops;
-	struct et_bar_mapping bm_info;
-	bool ddr_ready = false;
-	u8 *mem;
+	bool dir_ready = false;
+	u8 *dir_data, *dir_pos;
+	size_t section_size, dir_size, regs_size;
+	struct et_ops_dir_header *dir_ops;
+	struct et_dir_vqueue *dir_vq;
+	int rv, i;
 
 	et_dev->ops.is_ops_open = false;
 	spin_lock_init(&et_dev->ops.ops_open_lock);
@@ -801,84 +942,148 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	// Map DIR region
 	rv = et_map_bar(et_dev, &DIR_MAPPINGS[IOMEM_R_PU_DIR_PC_MM],
 			&et_dev->ops.dir);
-	if (rv)
+	if (rv) {
+		dev_err(&et_dev->pdev->dev, "Ops: DIR mapping failed\n");
 		return rv;
+	}
 
-	dir_ops = (struct et_ops_dir *)et_dev->ops.dir;
+	dir_ops = (struct et_ops_dir_header *)et_dev->ops.dir;
 
 	// TODO: Improve device discovery
 	// Waiting for device to be ready, wait for 300 secs
-	for (i = 0; !ddr_ready && i < 30; i++) {
-		rv = ioread32(&dir_ops->status);
+	for (i = 0; !dir_ready && i < 30; i++) {
+		rv = (int)ioread16(&dir_ops->status);
 		if (rv >= OPS_BOOT_STATUS_MM_READY) {
-			pr_debug("Ops device DIRs ready, status: %d", rv);
-			ddr_ready = true;
+			pr_debug("Ops: DIRs ready, status: %d", rv);
+			dir_ready = true;
 		} else {
-			pr_debug("Ops device not ready, status: %d, waiting...",
+			pr_debug("Ops: DIRs not ready, status: %d, waiting...",
 				 rv);
 			msleep(10000);
 		}
 	}
 
-	if (!ddr_ready) {
+	if (!dir_ready) {
 		dev_err(&et_dev->pdev->dev,
-			"Ops device DIRs not ready; discovery timeout\n");
+			"Ops: DIRs not ready; discovery timed out\n");
 		rv = -EBUSY;
 		goto error_unmap_dir_region;
 	}
 
-	if (ioread32(&dir_ops->size) != sizeof(*dir_ops)) {
-		dev_err(&et_dev->pdev->dev, "Ops device DIRs size mismatch!");
+	// DIR size sanity check
+	dir_size = ioread16(&dir_ops->total_size);
+	if (dir_size > DIR_MAPPINGS[IOMEM_R_PU_DIR_PC_MM].size) {
+		dev_err(&et_dev->pdev->dev,
+			"Ops: DIRs size out of range!");
 		rv = -EINVAL;
 		goto error_unmap_dir_region;
 	}
 
-	// Perform optimized read of DDR fields from DIRs
-	et_ioread(dir_ops, offsetof(struct et_ops_dir, ddr_regions),
-		  (u8 *)&ddr_ops, sizeof(ddr_ops));
-
-	et_dev->ops.num_regions = ddr_ops.num_regions;
-
-	mem = kmalloc_array(et_dev->ops.num_regions,
-			    sizeof(*et_dev->ops.ddr_regions) +
-			    sizeof(**et_dev->ops.ddr_regions), GFP_KERNEL);
-	if (!mem) {
+	// Allocate memory for reading DIRs
+	dir_data = kmalloc(dir_size, GFP_KERNEL);
+	if (!dir_data) {
 		rv = -ENOMEM;
 		goto error_unmap_dir_region;
 	}
 
-	et_dev->ops.ddr_regions = (struct et_ddr_region **)mem;
-	mem += et_dev->ops.num_regions * sizeof(*et_dev->ops.ddr_regions);
+	// Read complete DIRs from device memory
+	et_ioread(et_dev->ops.dir, 0, dir_data, dir_size);
+	dir_pos = dir_data;
 
-	for (i = 0, ddr_cnt_map = 0; i < et_dev->ops.num_regions; i++,
-	     ddr_cnt_map++) {
-		et_dev->ops.ddr_regions[i] = (struct et_ddr_region *)mem;
-		mem += sizeof(**et_dev->ops.ddr_regions);
+	/*
+	 * Parse and save DIR general attributes from DIR header
+	 */
+	dir_ops = (struct et_ops_dir_header *)dir_pos;
+	section_size = dir_ops->attributes_size;
 
-		bm_info.bar		= ddr_ops.regions[i].bar;
-		bm_info.bar_offset	= ddr_ops.regions[i].offset;
-		bm_info.size		= ddr_ops.regions[i].size;
-		rv = et_map_bar(et_dev, &bm_info,
-				&et_dev->ops.ddr_regions[i]->mapped_baseaddr);
-		if (rv) {
-			dev_err(&et_dev->pdev->dev,
-				"Ops device DDR region mapping failed\n");
-			goto error_unmap_ddr_regions;
-		}
-
-		et_dev->ops.ddr_regions[i]->size =
-			ddr_ops.regions[i].size;
-		et_dev->ops.ddr_regions[i]->soc_addr =
-			ddr_ops.regions[i].devaddr;
+	// End of region check
+	if (dir_pos + section_size > dir_data + dir_size) {
+		dev_err(&et_dev->pdev->dev,
+			"Ops: DIR header size out of range!");
+		rv = -EINVAL;
+		goto error_free_dir_data;
 	}
 
+	// Attributes size check
+	if (section_size > sizeof(*dir_ops)) {
+		dev_warn(&et_dev->pdev->dev,
+			 "Ops: DIR header has extra attributes, skipping extra attributes");
+	} else if (section_size < sizeof(*dir_ops)) {
+		dev_err(&et_dev->pdev->dev,
+			"Ops: DIR header does not have enough attributes!");
+		rv = -EINVAL;
+		goto error_free_dir_data;
+	}
+
+	// Calculate crc32 checksum starting after DIRs header to the end
+	if (~crc32(~0, dir_pos + section_size, dir_size - section_size) !=
+	    dir_ops->crc32) {
+		dev_err(&et_dev->pdev->dev,
+			"Ops: DIRs checksum mismatch!");
+		rv = -EINVAL;
+		goto error_free_dir_data;
+	}
+
+	dir_pos += section_size;
+
+	/*
+	 * Save vqueue information from DIRs
+	 */
+	dir_vq = (struct et_dir_vqueue *)dir_pos;
+	section_size = dir_vq->attributes_size;
+
+	// End of region check
+	if (dir_pos + section_size > dir_data + dir_size) {
+		dev_err(&et_dev->pdev->dev,
+			"Ops: DIR vqueue size out of range!");
+		rv = -EINVAL;
+		goto error_free_dir_data;
+	}
+
+	// Attributes size check
+	if (section_size > sizeof(*dir_vq)) {
+		dev_warn(&et_dev->pdev->dev,
+			 "Ops: DIR vqueue has extra attributes, skipping extra attributes");
+	} else if (section_size < sizeof(*dir_vq)) {
+		dev_err(&et_dev->pdev->dev,
+			"Ops: DIR vqueue does not have enough attributes!");
+		rv = -EINVAL;
+		goto error_free_dir_data;
+	}
+
+	memcpy(&et_dev->ops.vq_common.dir_vq, (u8 *)dir_vq, sizeof(*dir_vq));
+
+	dir_pos += section_size;
+
+	/*
+	 * Map all memory regions and save attributes
+	 */
+	regs_size = dir_size - ((u64)dir_pos - (u64)dir_data);
+	rv = et_map_discovered_regions(et_dev, false /* ops_dev */, dir_pos,
+				       regs_size, dir_ops->num_regions);
+	if (rv < 0) {
+		dev_err(&et_dev->pdev->dev,
+			"Ops: DIR Memory regions mapping failed!");
+		goto error_free_dir_data;
+	}
+
+	dir_pos += rv;
+	if (dir_pos != dir_data + dir_size) {
+		dev_warn(&et_dev->pdev->dev,
+			 "Ops: DIR total_size != sum of all region sizes!");
+	}
+
+	kfree(dir_data);
+
+	// VQs initialization
 	rv = et_vqueue_init_all(et_dev, false /* ops_dev */);
 	if (rv) {
 		dev_err(&et_dev->pdev->dev,
 			"Ops device VQs initialization failed\n");
-		goto error_unmap_ddr_regions;
+		goto error_unmap_discovered_regions;
 	}
 
+	// Create Ops device node
 	et_dev->ops.misc_ops_dev.minor = MISC_DYNAMIC_MINOR;
 	et_dev->ops.misc_ops_dev.fops  = &et_pcie_ops_fops;
 	et_dev->ops.misc_ops_dev.name  = devm_kasprintf(&et_dev->pdev->dev,
@@ -890,15 +1095,16 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 		goto error_vqueue_destroy_all;
 	}
 
-	return 0;
+	return rv;
 
 error_vqueue_destroy_all:
 	et_vqueue_destroy_all(et_dev, false /* ops_dev */);
 
-error_unmap_ddr_regions:
-	for (i = 0; i < ddr_cnt_map; i++)
-		et_unmap_bar(et_dev->ops.ddr_regions[i]->mapped_baseaddr);
-	kfree(et_dev->ops.ddr_regions);
+error_unmap_discovered_regions:
+	et_unmap_discovered_regions(et_dev, false /* ops_dev */);
+
+error_free_dir_data:
+	kfree(dir_data);
 
 error_unmap_dir_region:
 	et_unmap_bar(et_dev->ops.dir);
@@ -908,16 +1114,9 @@ error_unmap_dir_region:
 
 static void et_ops_dev_destroy(struct et_pci_dev *et_dev)
 {
-	int i;
-
 	misc_deregister(&et_dev->ops.misc_ops_dev);
-
 	et_vqueue_destroy_all(et_dev, false /* ops_dev */);
-
-	for (i = 0; i < et_dev->ops.num_regions; i++)
-		et_unmap_bar(et_dev->ops.ddr_regions[i]->mapped_baseaddr);
-	kfree(et_dev->ops.ddr_regions);
-
+	et_unmap_discovered_regions(et_dev, false /* ops_dev */);
 	et_unmap_bar(et_dev->ops.dir);
 
 	mutex_lock(&et_dev->ops.dma_rbtree_mutex);
