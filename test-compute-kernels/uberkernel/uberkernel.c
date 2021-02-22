@@ -11,6 +11,11 @@
 
 #define N_CREDITS_TO_ACT_PREF 3
 
+typedef struct {
+  uint64_t* data_ptr;
+  uint64_t length;
+} layer_parameters_t;
+
 static void send_init_credit_to_act_pref(uint32_t minion_id, uint32_t shire_id)
 {
     if (minion_id < N_CREDITS_TO_ACT_PREF)
@@ -48,14 +53,7 @@ static int64_t start_uberkernel_prefetch(uint64_t shire_id, uint32_t minion_id)
 }
 
 // Writes BEEF
-// tensor_a = address
-// tensor_b = length
-
-typedef struct {
-  uint64_t* data_ptr;
-  uint64_t length;
-} Parameters;
-static int64_t compute_beef(const Parameters* const kernel_params_ptr)
+static int64_t compute_beef(const layer_parameters_t* const kernel_params_ptr)
 {
     // Only run on one minion
     if (get_hart_id() != 0) {
@@ -82,7 +80,7 @@ static int64_t compute_beef(const Parameters* const kernel_params_ptr)
     {
         data_ptr[i] = 0xBEEFBEEFBEEFBEEFULL;
     }
-    
+
     // Read back data and return comparison pass/fail
     for (uint64_t i = 0; i < (length / 8); i++)
     {
@@ -122,7 +120,7 @@ static void sync_master_code(uint32_t minion_id, uint32_t thread_id,
     }
 }
 
-static int64_t compute_kernel(const Parameters* const kernel_params_ptr)
+static int64_t compute_kernel(const layer_parameters_t* const kernel_params_ptr)
 {
     int64_t result;
 
@@ -186,7 +184,7 @@ static void sync_compute_code(uint32_t minion_id, uint64_t shire_id, bool flushC
 }
 
 static int64_t start_uberkernel_compute(uint64_t shire_id, uint32_t minion_id,
-                                        const Parameters* kernel_params_ptr)
+                                        const layer_parameters_t* kernel_params_ptr)
 {
     // First beef kernel
     int64_t kernel_res_1 = compute_kernel(kernel_params_ptr++);
@@ -207,7 +205,7 @@ static int64_t start_uberkernel_compute(uint64_t shire_id, uint32_t minion_id,
     return 0;
 }
 
-int64_t main(const Parameters** kernel_params_ptr)
+int64_t main(const layer_parameters_t* kernel_params_ptr)
 {
     uint32_t hart_id = get_hart_id();
     uint32_t shire_id = hart_id >> 6;
@@ -232,7 +230,7 @@ int64_t main(const Parameters** kernel_params_ptr)
         else if (thread_id == 0)
         {   // Compute minions initialize prefetch and start uberkernel
             send_init_credit_to_act_pref(minion_id, shire_id);
-            result = start_uberkernel_compute(shire_id, minion_id, *kernel_params_ptr);
+            result = start_uberkernel_compute(shire_id, minion_id, kernel_params_ptr);
         } else {
             if (minion_id == 30) {
                 result = start_uberkernel_prefetch(shire_id, minion_id);
@@ -249,5 +247,3 @@ int64_t main(const Parameters** kernel_params_ptr)
 
     return result;
 }
-
-
