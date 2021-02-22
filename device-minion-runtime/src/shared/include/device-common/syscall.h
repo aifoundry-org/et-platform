@@ -7,14 +7,12 @@
 #define SYSCALL_FLUSH_L3             302
 #define SYSCALL_SHIRE_CACHE_BANK_OP  303
 #define SYSCALL_EVICT_L1             304
-
-// From U-mode to S-mode for both master and compute firmwares [400-499]
-#define SYSCALL_LOG_WRITE            400
-#define SYSCALL_GET_LOG_LEVEL        401
-#define SYSCALL_GET_MTIME            402
-#define SYSCALL_CONFIGURE_PMCS       403 // emizan: This should not be used but I am adding it for testing with hardcoded values.
-#define SYSCALL_SAMPLE_PMCS          404
-#define SYSCALL_RESET_PMCS           405
+#define SYSCALL_LOG_WRITE            305
+#define SYSCALL_GET_LOG_LEVEL        306
+#define SYSCALL_GET_MTIME            307
+#define SYSCALL_CONFIGURE_PMCS       308 // emizan: This should not be used but I am adding it for testing with hardcoded values.
+#define SYSCALL_SAMPLE_PMCS          309
+#define SYSCALL_RESET_PMCS           310
 
 #ifndef __ASSEMBLER__
 

@@ -16,8 +16,6 @@ include(ExternalProject)
 
 set(SOURCES
     src/crt.S
-    src/trap_handler.S
-    src/syscall.c
     src/interrupt.c
     src/swi.c
     src/device_api_privileged.c
@@ -41,7 +39,7 @@ set(SOURCES
     src/workers/kw.c
     src/workers/cw.c
     src/drivers/console.c
-    src/drivers/interrupts.c
+    src/drivers/plic.c
     src/services/log1.c
     src/services/host_iface.c
     src/services/host_cmd_hdlr.c
@@ -61,6 +59,12 @@ set(SOURCES
     ${SHARED_SRC_DIR}/circbuff.c
     ${SHARED_SRC_DIR}/vq.c
     )
+
+if(IMPLEMENTATION_BYPASS)
+    set(SOURCES ${SOURCES} src/trap_handler.S)
+else()
+    set(SOURCES ${SOURCES} src/trap_handler_old_fw.S)
+endif()
 
 set(TARGET_NAME MasterMinion)
 set(LINKER_SCRIPT src/sections.ld)

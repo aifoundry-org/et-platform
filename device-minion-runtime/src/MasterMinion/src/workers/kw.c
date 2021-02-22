@@ -40,6 +40,7 @@
 #include    "circbuff.h"
 #include    "cm_to_mm_iface.h"
 #include    "mm_to_cm_iface.h"
+#include    "riscv_encoding.h"
 #include    "sync.h"
 #include    "utils.h"
 #include    "vq.h"
@@ -576,6 +577,7 @@ void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle)
 ***********************************************************************/
 void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 {
+    uint64_t sip;
     cm_iface_message_t message;
     int8_t status;
     uint32_t done_cnt;
@@ -586,18 +588,6 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     kernel_instance_t *const kernel = &KW_CB.kernels[kw_idx];
 
     Log_Write(LOG_LEVEL_DEBUG, "KW:H%d:IDX=%d\r\n", hart_id, kw_idx);
-
-    /* Empty all FCCs */
-    init_fcc(FCC_0);
-    init_fcc(FCC_1);
-
-    /* Disable global interrupts (sstatus.SIE = 0) to not trap to trap handler.
-    But enable Supervisor Software Interrupts so that IPIs trap when in U-mode.
-    RISC-V spec:
-    "An interrupt i will be taken if bit i is set in both mip and mie,
-    and if interrupts are globally enabled."*/
-    asm volatile("csrci sstatus, 0x2\n");
-    asm volatile("csrsi sie, 0x2\n");
 
     while(1)
     {
@@ -623,9 +613,20 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         associated with the kernel launch */
         while(done_cnt < kernel_shires_count)
         {
-            /* Wait for an IPI */
-            asm volatile("wfi\n");
-            asm volatile("csrci sip, 0x2");
+            /* Wait for an interrupt */
+            asm volatile("wfi");
+
+            /* Read pending interrupts */
+            asm volatile("csrr %0, sip" : "=r"(sip));
+
+            /* We are only interesed in IPIs */
+            if(!(sip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT)))
+            {
+                continue;
+            }
+
+            /* Clear IPI pending interrupt */
+            asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
 
             /* Process all the available messages */
             while(done_cnt < kernel_shires_count)

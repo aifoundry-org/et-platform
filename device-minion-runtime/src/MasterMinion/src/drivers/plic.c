@@ -10,26 +10,27 @@
 *
 ************************************************************************/
 /*! \file interrupts.c
-    \brief A C module that implements the Interrupts Driver's 
+    \brief A C module that implements the Interrupts Driver's
 
     Public interfaces:
-        Interrupt_Init
-        Interrupt_Enable
-        Interrupt_Disable
+        PLIC_Init
+        PLIC_RegisterHandler
+        PLIC_UnregisterHandler
+        PLIC_Dispatch
 */
 /***********************************************************************/
-#include "drivers/interrupts.h"
+#include "drivers/plic.h"
 #include "io.h"
 #include "etsoc_hal/inc/hal_device.h"
 #include "etsoc_hal/inc/pu_plic.h"
 
-/*! \var void (*vectorTable[PU_PLIC_INTR_CNT])(void)
-    \brief Global Vector Table
+#include <stddef.h>
+
+/*! \var void (*handlerTable[PU_PLIC_INTR_SRC_CNT])(uint32_t intID)
+    \brief Global PLIC Handler Table
     \warning Not thread safe!
 */
-//void (*Interrupt_Vector_Table[PU_PLIC_INTR_CNT])(void) = { NULL };
-/* TODO: Using externed legacy vector table for now, use vector table above and update trap_handler.S as needed */
-extern void (*vectorTable[PU_PLIC_INTR_CNT])(void);
+static void (*handlerTable[PU_PLIC_INTR_SRC_CNT])(uint32_t intID) = { NULL };
 
 static void plic_enable_interrupt(volatile uint32_t *const basePriorityReg,
     volatile uint32_t *const baseEnableReg, uint32_t intID,
@@ -59,11 +60,11 @@ static void plic_disable_interrupt(volatile uint32_t *const basePriorityReg,
 *
 *   FUNCTION
 *
-*       Interrupt_Init
-*  
+*       PLIC_Init
+*
 *   DESCRIPTION
 *
-*       Initialize interrupt resources
+*       Initialize PLIC driver
 *
 *   INPUTS
 *
@@ -74,27 +75,25 @@ static void plic_disable_interrupt(volatile uint32_t *const basePriorityReg,
 *       None
 *
 ***********************************************************************/
-void Interrupt_Init(void)
+void PLIC_Init(void)
 {
-
     /*Set thresholds to not mask any interrupts*/
     iowrite32(R_PU_PLIC_BASEADDR + PU_PLIC_THRESHOLD_T11_ADDRESS, 0);
-
 }
 
 /************************************************************************
 *
 *   FUNCTION
 *
-*       Interrupt_Enable
-*  
+*       PLIC_RegisterHandler
+*
 *   DESCRIPTION
 *
-*       Enable Interrupt resource
+*       Registers a handler for a given interrupt source
 *
 *   INPUTS
 *
-*       interrupt_t     interrupt vector
+*       uint32_t        interrupt ID
 *       uint32_t        priority
 *       void (*isr)     function pointer to interrupt handler
 *
@@ -103,39 +102,39 @@ void Interrupt_Init(void)
 *       None
 *
 ***********************************************************************/
-void Interrupt_Enable(interrupt_t interrupt, uint32_t priority, 
-    void (*isr)(void))
+void PLIC_RegisterHandler(uint32_t intID, uint32_t priority,
+    void (*handler)(uint32_t intID))
 {
-    vectorTable[interrupt] = isr;
-    
+    handlerTable[intID] = handler;
+
     plic_enable_interrupt(
         (volatile uint32_t *const)
-        (R_PU_PLIC_BASEADDR + PU_PLIC_PRIORITY_0_ADDRESS), 
+        (R_PU_PLIC_BASEADDR + PU_PLIC_PRIORITY_0_ADDRESS),
         (volatile uint32_t *const)
-        (R_PU_PLIC_BASEADDR + PU_PLIC_ENABLE_T11_R0_ADDRESS), 
-        (uint32_t)interrupt, priority);
+        (R_PU_PLIC_BASEADDR + PU_PLIC_ENABLE_T11_R0_ADDRESS),
+        intID, priority);
 }
 
 /************************************************************************
 *
 *   FUNCTION
 *
-*       Interrupt_Disable
-*  
+*       PLIC_UnregisterHandler
+*
 *   DESCRIPTION
 *
-*       Disable Interrupt resource
+*       Unregisters a handler for a given interrupt source
 *
 *   INPUTS
 *
-*       interrupt_t     interrupt vector
+*       uint32_t        interrupt ID
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-void Interrupt_Disable(interrupt_t interrupt)
+void PLIC_UnregisterHandler(uint32_t intID)
 {
     // TODO FIXME target enumeration is a mystery, t0 is wrong
     plic_disable_interrupt(
@@ -143,41 +142,51 @@ void Interrupt_Disable(interrupt_t interrupt)
         (R_PU_PLIC_BASEADDR + PU_PLIC_PRIORITY_0_ADDRESS),
         (volatile uint32_t *const)
         (R_PU_PLIC_BASEADDR + PU_PLIC_ENABLE_T11_R0_ADDRESS),
-        (uint32_t)interrupt);
-    
-    vectorTable[interrupt] = NULL;
+        intID);
+
+    handlerTable[intID] = NULL;
 }
 
 /************************************************************************
 *
 *   FUNCTION
 *
-*       Interrupt_Notify
-*  
+*       PLIC_Dispatch
+*
 *   DESCRIPTION
 *
-*       Notify requested target using an inter processor interrupt
+*       Dispatches all pending interrupts
 *
 *   INPUTS
 *
-*       uint8_t     Target to notify
+*       None
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-void Interrupt_Notify(interrupt_target_t target)
+void PLIC_Dispatch(void)
 {
-    if(target == MAILBOX_TO_SP)
-    {
-        /* Notify using IPI to Service Processor */
-        volatile uint32_t *const ipi_trigger = 
-            (volatile uint32_t *)(R_PU_TRG_MMIN_BASEADDR);
-        *ipi_trigger = 1U;
-    }
-    else if(target == PCIE_TO_HOST)
-    {
+    uint32_t maxID;
 
+    while (1) {
+        /* Load MaxID of Target 11 (Minion supervisor level interrupt) to claim the interrupt */
+        maxID = ioread32(R_PU_PLIC_BASEADDR + PU_PLIC_MAXID_T11_ADDRESS);
+
+        /* If MaxID is zero, there are no further interrupts */
+        if(maxID == 0)
+        {
+            break;
+        }
+
+        /* If we have a registered handler, call it */
+        if (handlerTable[maxID])
+        {
+            handlerTable[maxID](maxID);
+        }
+
+        /* Write MaxID to indicate the interrupt has been serviced */
+        iowrite32(R_PU_PLIC_BASEADDR + PU_PLIC_MAXID_T11_ADDRESS, maxID);
     }
 }
