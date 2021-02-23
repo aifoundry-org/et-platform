@@ -10,7 +10,7 @@
 *
 ************************************************************************/
 /*! \file interrupts.c
-    \brief A C module that implements the Interrupts Driver's
+    \brief A C module that implements the PLIC Driver
 
     Public interfaces:
         PLIC_Init
@@ -93,9 +93,9 @@ void PLIC_Init(void)
 *
 *   INPUTS
 *
-*       uint32_t        interrupt ID
-*       uint32_t        priority
-*       void (*isr)     function pointer to interrupt handler
+*       uint32_t                        interrupt ID
+*       uint32_t                        priority
+*       void (*handler)(uint32_t intID) function pointer to handler routine
 *
 *   OUTPUTS
 *
