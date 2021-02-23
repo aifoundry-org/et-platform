@@ -20,10 +20,10 @@
 namespace et_runtime {
 namespace device_fw {
 
-#include <esperanto-fw/firmware_helpers/layout.h>
-#include <esperanto-fw/firmware_helpers/mailbox_common.h>
-#include <esperanto-fw/firmware_helpers/ringbuffer_common.h>
-#include <esperanto-fw/firmware_helpers/vqueue_common.h>
+#include "esperanto/runtime/Common/layout.h"
+#include "esperanto/runtime/Common/mailbox_common.h"
+#include "esperanto/runtime/Common/ringbuffer_common.h"
+#include "esperanto/runtime/Common/vqueue_common.h"
 #include "esperanto/runtime/Common/mm_dev_intf_reg.h"
 
 } // namespace device_fw

@@ -14,7 +14,7 @@
 #include "esperanto/runtime/Support/Logging.h"
 #include "esperanto/simulator-api.grpc.pb.h"
 
-#include <esperanto-fw/firmware_helpers/layout.h>
+#include "esperanto/runtime/Common/layout.h"
 
 #include <inttypes.h>
 #include <thread>
@@ -27,7 +27,7 @@ namespace et_runtime {
 namespace device {
 
 namespace {
-#include <esperanto-fw/firmware_helpers/layout.h>
+#include "esperanto/runtime/Common/layout.h"
 
   TimeDuration kPollingInterval = std::chrono::milliseconds(10);
 

@@ -15,7 +15,7 @@
 #include "esperanto/runtime/Support/TimeHelpers.h"
 #include "esperanto/simulator-api.grpc.pb.h"
 
-#include <esperanto-fw/firmware_helpers/layout.h>
+#include "esperanto/runtime/Common/layout.h"
 
 #include <inttypes.h>
 
