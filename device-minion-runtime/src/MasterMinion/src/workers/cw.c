@@ -174,7 +174,7 @@ int8_t CW_Init(void)
             Log_Write(LOG_LEVEL_DEBUG,
                 "Dispatcher:Unexpected condition, broke wfi without a SWI during CW boot...\r\n");
         }
-    };
+    }
 
     return status;
 }
