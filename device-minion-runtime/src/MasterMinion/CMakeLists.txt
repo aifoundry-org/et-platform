@@ -17,12 +17,9 @@ include(ExternalProject)
 set(SOURCES
     src/crt.S
     src/trap_handler.S
-    src/interrupt.c
     src/exception.c
     src/main.c
-    src/mm_to_cm_iface.c
     src/build_configuration.c
-    src/pcie_isr.c
     src/config/dir_regs.c
     src/dispatcher/dispatcher.c
     src/workers/sqw.c
@@ -35,6 +32,7 @@ set(SOURCES
     src/services/log.c
     src/services/host_iface.c
     src/services/host_cmd_hdlr.c
+    src/services/mm_to_cm_iface.c
     src/services/sp_iface.c
     src/services/sp_cmd_hdlr.c
     ${SHARED_SRC_DIR}/serial.c

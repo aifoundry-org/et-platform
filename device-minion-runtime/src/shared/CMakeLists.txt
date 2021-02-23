@@ -12,7 +12,6 @@ add_subdirectory("include")
 
 set(FIRMWARE_HELPERS_SOURCES
   src/pcie_int.c
-  src/backtrace.c
   src/common.c
   src/circbuff.c
   src/vq.c
@@ -73,7 +72,6 @@ install(
     include/mm_sp_cmd_spec.h
     include/pcie_device.h
     include/pcie_int.h
-    include/trap_handler.h
     include/common_defs.h
     include/circbuff.h
     include/vq.h

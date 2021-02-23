@@ -1,4 +1,5 @@
 #include "drivers/pcie_dma.h"
+#include "drivers/pcie_dma_ll.h"
 
 #include <errno.h>
 #include <inttypes.h>
@@ -8,7 +9,6 @@
 #include "cacheops.h"
 #include "services/log.h"
 #include "layout.h"
-#include "pcie_dma_ll.h"
 #include "printf.h"
 #include "atomic.h"
 

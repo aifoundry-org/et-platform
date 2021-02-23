@@ -1,6 +1,5 @@
 #include "cacheops.h"
 #include "kernel.h"
-#include "kernel_sync.h"
 #include "fcc.h"
 #include "flb.h"
 #include "hart.h"
