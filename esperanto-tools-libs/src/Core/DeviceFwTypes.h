@@ -24,7 +24,7 @@ namespace device_fw {
 #include <esperanto-fw/firmware_helpers/mailbox_common.h>
 #include <esperanto-fw/firmware_helpers/ringbuffer_common.h>
 #include <esperanto-fw/firmware_helpers/vqueue_common.h>
-#include <esperanto-fw/mm_dev_intf/mm_dev_intf_reg.h>
+#include "esperanto/runtime/Common/mm_dev_intf_reg.h"
 
 } // namespace device_fw
 } // namespace et_runtime
