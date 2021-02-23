@@ -141,7 +141,6 @@ static void pc_vq_task(void *pvParameters)
             msg_id = hdr->cmd_hdr.msg_id;
             // Process new message
             switch (msg_id) {
-#ifdef IMPLEMENTATION_BYPASS
             case DM_CMD_GET_MODULE_MANUFACTURE_NAME:
             case DM_CMD_GET_MODULE_PART_NUMBER:
             case DM_CMD_GET_MODULE_SERIAL_NUMBER:
@@ -164,7 +163,6 @@ static void pc_vq_task(void *pvParameters)
                 // Process firmware service request cmd
                 firmware_service_process_request(tag_id, msg_id, (void *)buffer);
                 break;
-#endif
             case DM_CMD_GET_MODULE_POWER_STATE:
             case DM_CMD_SET_MODULE_POWER_STATE:
             case DM_CMD_GET_MODULE_STATIC_TDP_LEVEL:
@@ -210,8 +208,8 @@ static void pc_vq_task(void *pvParameters)
             case DM_CMD_GET_ASIC_UTILIZATION:
             case DM_CMD_GET_ASIC_STALLS:
             case DM_CMD_GET_ASIC_LATENCY:
-		         process_performance_request(tag_id, msg_id);
-                 break;
+                process_performance_request(tag_id, msg_id);
+                break;
             default:
                 printf("[PC VQ] Invalid message id: %d\r\n", msg_id);
                 printf("message length: %d, buffer:\r\n", length);

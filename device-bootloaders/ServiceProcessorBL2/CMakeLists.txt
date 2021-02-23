@@ -39,7 +39,6 @@ set(BL2_SOURCES
     driver/secure_sign.c
     driver/firmware_loader.c
     driver/interrupt.c
-    rtos_task/mailbox.c
     rtos_task/command_dispatcher.c
     rtos_task/flash_fs.c
     rtos_task/vaultip.c

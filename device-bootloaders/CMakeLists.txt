@@ -50,8 +50,6 @@ list(APPEND CMAKE_PREFIX_PATH ${DEVFW_EXTERNAL_INSTALL_PREFIX})
 
 option(BUILD_DOC "Build documentation" ON)
 
-add_definitions(-DIMPLEMENTATION_BYPASS=1)
-
 # Make sure that custom modules are loaded
 list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake)
 

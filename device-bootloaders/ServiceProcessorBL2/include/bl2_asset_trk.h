@@ -12,14 +12,13 @@
 /*! \file bl2_asset_trk.h
     \brief A C header that defines the Asset tracking service's
     public interfaces. These interfaces provide services using which
-    the host can query device for asset details. 
+    the host can query device for asset details.
 */
 /***********************************************************************/
 #ifndef ASSET_TRACKING_SERVICE_H
 #define ASSET_TRACKING_SERVICE_H
 
 #include "dm.h"
-#include "mailbox.h"
 #include "esr_defines.h"
 #include "sp_otp.h"
 #include "io.h"
@@ -50,16 +49,6 @@
 */
 #define PCIE_GEN_5 32
 
-#ifndef IMPLEMENTATION_BYPASS
-/*! \fn void asset_tracking_process_request(mbox_e mbox, uint32_t cmd_id)
-    \brief Interface to process the asset tracking command
-    by the cmd_id
-    \param mbox Mailbox Type
-    \param cmd_id Command ID
-    \returns none
-*/
-void asset_tracking_process_request(mbox_e mbox, uint32_t cmd_id);
-#else
 /*! \fn void asset_tracking_process_request(tag_id_t tag_id, msg_id_t msg_id)
     \brief Interface to process the asset tracking command
     by the msg_id
@@ -68,6 +57,5 @@ void asset_tracking_process_request(mbox_e mbox, uint32_t cmd_id);
     \returns none
 */
 void asset_tracking_process_request(tag_id_t tag_id, msg_id_t msg_id);
-#endif
 
 #endif

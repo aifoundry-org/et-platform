@@ -120,109 +120,6 @@ static int64_t dm_svc_asset_getmemorytype(char *memType)
     return 0;
 }
 
-#ifndef IMPLEMENTATION_BYPASS 
-static int64_t asset_tracking_send_response(mbox_e mbox, uint32_t cmd_id, uint64_t req_start_time,
-                                            char asset_info[])
-{
-    int64_t ret = 0;
-    uint64_t rsp_complete_time;
-    printf("asset_tracking_send_response -start\n");
-    rsp_complete_time = timer_get_ticks_count();
-    memset(&dm_cmd_rsp, 0, sizeof(struct dm_control_block));
-    dm_cmd_rsp.cmd_id = cmd_id;
-    dm_cmd_rsp.dev_latency = (rsp_complete_time - req_start_time);
-    strncpy(dm_cmd_rsp.cmd_payload, asset_info, 8);
-    printf("cmd_id: %d  dev_latency:%ld  rsp_payload: %s \r\n", dm_cmd_rsp.cmd_id,
-           dm_cmd_rsp.dev_latency, dm_cmd_rsp.cmd_payload);
-    ret = MBOX_send(mbox, &dm_cmd_rsp, sizeof(struct dm_control_block));
-    printf("asset_tracking_send_response -end\n");
-    return ret;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       asset_tracking_process_request
-*  
-*   DESCRIPTION
-*
-*       This function takes command ID as input from Host,
-*       and accordingly calls the respective asset tracking 
-*       functions
-*
-*   INPUTS
-*
-*       cmd_id      Unique enum representing specific command   
-*
-*   OUTPUTS
-*
-*       None
-*
-***********************************************************************/
-void asset_tracking_process_request(mbox_e mbox, uint32_t cmd_id)
-{
-    int64_t ret = 0;
-    char req_asset_info[8] = { 0 }, mem_part[8] = { 0 };
-    uint64_t req_start_time;
-
-    req_start_time = timer_get_ticks_count();
-
-    switch (cmd_id) {
-    case DM_CMD_GET_MODULE_MANUFACTURE_NAME: {
-        ret = dm_svc_asset_getmanufacturername(req_asset_info);
-    } break;
-
-    case DM_CMD_GET_MODULE_PART_NUMBER: {
-        ret = dm_svc_asset_getpartnumber(req_asset_info);
-    } break;
-
-    case DM_CMD_GET_MODULE_SERIAL_NUMBER: {
-        ret = dm_svc_asset_getserialnumber(req_asset_info);
-    } break;
-
-    case DM_CMD_GET_ASIC_CHIP_REVISION: {
-        ret = dm_svc_asset_getchiprevision(req_asset_info);
-    } break;
-
-    case DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED: {
-        ret = dm_svc_asset_getPCIEspeed(req_asset_info);
-    } break;
-
-    case DM_CMD_GET_MODULE_REVISION: {
-        ret = dm_svc_asset_getmodulerev(req_asset_info);
-    } break;
-
-    case DM_CMD_GET_MODULE_FORM_FACTOR: {
-        ret = dm_svc_asset_getformfactor(req_asset_info);
-    } break;
-
-    case DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER: {
-        ret = dm_svc_asset_getmemorydetails(req_asset_info, mem_part);
-    } break;
-
-    case DM_CMD_GET_MODULE_MEMORY_SIZE_MB: {
-        ret = dm_svc_asset_getmemorysize(req_asset_info);
-    } break;
-
-    case DM_CMD_GET_MODULE_MEMORY_TYPE: {
-        ret = dm_svc_asset_getmemorytype(req_asset_info);
-    } break;
-    }
-
-    if (!ret) {
-        printf("cmd_id : %d   response: %s\n", cmd_id, req_asset_info);
-        ret = asset_tracking_send_response(mbox, cmd_id, req_start_time, req_asset_info);
-    } else {
-        printf("cmd_id : %d   error %ld\r\n", cmd_id, ret);
-    }
-
-    if (ret != 0) {
-        printf("MBOX Send error %ld\r\n", ret);
-    }
-}
-
-#else
 static void asset_tracking_send_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, char asset_info[])
 {
     struct device_mgmt_asset_tracking_rsp_t dm_rsp;
@@ -246,16 +143,16 @@ static void asset_tracking_send_response(tag_id_t tag_id, msg_id_t msg_id, uint6
 *   FUNCTION
 *
 *       asset_tracking_process_request
-*  
+*
 *   DESCRIPTION
 *
 *       This function takes command ID as input from Host,
-*       and accordingly calls the respective asset tracking 
+*       and accordingly calls the respective asset tracking
 *       functions
 *
 *   INPUTS
 *
-*       msg_id      Unique enum representing specific command   
+*       msg_id      Unique enum representing specific command
 *
 *   OUTPUTS
 *
@@ -319,5 +216,3 @@ void asset_tracking_process_request(tag_id_t tag_id, msg_id_t msg_id)
         printf("cmd_id : %d   error %ld\r\n", msg_id, ret);
     }
 }
-
-#endif

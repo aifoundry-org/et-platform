@@ -1,7 +1,6 @@
 #include "serial.h"
 #include "interrupt.h"
 #include "dummy_isr.h"
-#include "mailbox.h"
 #include "minion_fw_boot_config.h"
 #include "pcie_init.h"
 
@@ -87,7 +86,7 @@ static int32_t configure_noc(void)
         return NOC_MAIN_CLOCK_CONFIGURE_ERROR;
     }
 
-   // TBD: Configure Main NOC Registers via Regbus 
+   // TBD: Configure Main NOC Registers via Regbus
    // Remap NOC ID based on MM OTP value
    // Other potential NOC workarounds
 
@@ -209,24 +208,6 @@ static uint64_t calculate_minion_shire_enable_mask(void)
     return enable_mask;
 }
 
-#ifndef IMPLEMENTATION_BYPASS
-static void poll_for_mm_ready(void)
-{
-    // TODO: Define the timeout value in device interface regs?
-    uint32_t timeout = 100000;
-
-    while (timeout > 0) {
-        if (MBOX_get_status(MBOX_MASTER_MINION, MBOX_SLAVE) == MBOX_STATUS_READY) {
-            return;
-        }
-        --timeout;
-    }
-    // If we reach this point, the MM did reach sync point
-    printf("\nMM Not Ready !\n");
-}
-
-#endif /* IMPLEMENTATION_BYPASS */
-
 static inline void write_minion_fw_boot_config(uint64_t minion_shires)
 {
     volatile minion_fw_boot_config_t *boot_config;
@@ -332,27 +313,10 @@ static void taskMain(void *pvParameters)
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MM_FW_LAUNCHED);
 
-#ifndef IMPLEMENTATION_BYPASS
-    // TODO : Remove after SP -> MM Vqueue has been implementated
-    // Enable MM Mailbox task and do not send interrupt to MM (slave)
-    MBOX_init_mm(false);
-
-    // Poll for MM (slave) ready (reach sync point)
-    poll_for_mm_ready();
-#endif /* IMPLEMENTATION_BYPASS */
-
     // Program ATUs here
     pcie_enable_link();
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_ATU_PROGRAMMED);
-
-#ifndef IMPLEMENTATION_BYPASS
-    // Enable Mbox access between Host/Device and send interrupt to Host
-    MBOX_init_pcie(true);
-
-    // Set SP ready, SP has reached sync point
-    MBOX_set_status(MBOX_MASTER_MINION, MBOX_MASTER, MBOX_STATUS_READY);
-#endif /* IMPLEMENTATION_BYPASS */
 
     // Init DM sampling task
     init_dm_sampling_task();

@@ -33,30 +33,3 @@ install(
     ${BL2_INSTALL_DIR}/fast-boot
   COMPONENT service-processor
   )
-
-# Refactored code: IMPLEMENTATION_BYPASS switch
-
-add_riscv_executable(${TARGET_NAME}New ${SOURCES})
-
-target_compile_definitions(${TARGET_NAME}New.elf PUBLIC -DBL2_VARIANT="fast-bootNew")
-target_compile_definitions(${TARGET_NAME}New.elf PUBLIC -DFAST_BOOT=1)
-target_compile_definitions(${TARGET_NAME}New.elf PUBLIC -DIMPLEMENTATION_BYPASS=1)
-
-target_link_libraries(${TARGET_NAME}New.elf
-  EsperantoDeviceMinionRuntime::sp_firmware_helpers
-  )
-
-install(TARGETS ${TARGET_NAME}New.elf
-  EXPORT EsperantoBootLoaderTargets
-  RUNTIME DESTINATION ${BL2_INSTALL_DIR}/fast-boot
-  COMPONENT bootloader)
-
-install(
-  FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}New.lst
-    ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}New.map
-    ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}New.bin
-  DESTINATION
-    ${BL2_INSTALL_DIR}/fast-boot
-  COMPONENT service-processor
-  )

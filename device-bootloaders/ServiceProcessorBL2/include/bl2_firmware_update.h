@@ -13,7 +13,7 @@
 #define __BL2_FIRMWARE_UPDATE_H__
 
 #include <stdint.h>
-#include "mailbox.h"
+
 /***********************************************************************
 *
 * Copyright (C) 2020 Esperanto Technologies Inc.
@@ -63,24 +63,12 @@ enum DEVICE_FW_UPDATE_STATUS {
 */
 #define DEVICE_FW_UPDATE_REGION_BASE 0x8005120000ULL
 
-// 
+//
 /*! \def FORMAT_VERSION
     \brief Macro for formatting FW version. It will be of the format:  Major[1 byte].[Minor 1 byte].[Revision 1 byte].[NULL].
 */
 #define FORMAT_VERSION(major, minor, revision) ((major << 24) | (minor << 16) | (revision << 8))
 
-#ifndef IMPLEMENTATION_BYPASS
-/*! \fn void firmware_service_process_request(mbox_e mbox, uint32_t cmd_id, void *buffer)
-    \brief Interface to process the firmware service command
-    by the cmd_id
-    \param mbox Mailbox Type
-    \param cmd_id Command ID
-    \param buffer Pointer to Command Payload buffer
-    \returns none
-*/
-void firmware_service_process_request(mbox_e mbox, uint32_t cmd_id, void *buffer);
-
-#else
 /*! \fn void firmware_service_process_request(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
     \brief Interface to process the firmware service command
     by the msg_id
@@ -90,7 +78,5 @@ void firmware_service_process_request(mbox_e mbox, uint32_t cmd_id, void *buffer
     \returns none
 */
 void firmware_service_process_request(tag_id_t tag_id, msg_id_t msg_id, void *buffer);
-
-#endif
 
 #endif
