@@ -12,8 +12,6 @@
 #include "MemoryManager.h"
 #include "RuntimeImp.h"
 #include "ScopedProfileEvent.h"
-#include "TargetSilicon.h"
-#include "TargetSysEmu.h"
 #include "utils.h"
 #include <chrono>
 #include <cstdio>

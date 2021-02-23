@@ -8,28 +8,29 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "esperanto/runtime/Common/ProjectAutogen.h"
+#include "common/ProjectAutogen.h"
 #include "runtime/IProfiler.h"
 #include "runtime/IRuntime.h"
 #include <device-layer/IDeviceLayer.h>
-#include <esperanto/runtime/Core/CommandLineOptions.h>
 #include <experimental/filesystem>
 #include <fstream>
 #include <glog/logging.h>
+#include <gflags/gflags.h>
 #include <gtest/gtest.h>
 #include <ios>
 #include <sstream>
 #include <thread>
 
+DEFINE_string(kernels_dir, "", "Directory where different kernel ELF files are located");
+
 namespace {
 constexpr uint64_t kSysEmuMaxCycles = std::numeric_limits<uint64_t>::max();
 constexpr uint64_t kSysEmuMinionShiresMask = 0x1FFFFFFFFu;
 } // namespace
-ABSL_FLAG(std::string, kernels_dir, "", "Directory where different kernel ELF files are located");
 
 namespace fs = std::experimental::filesystem;
 TEST(Profiler, add_2_vectors_profiling) {
-  auto kernel_file = std::ifstream(absl::GetFlag(FLAGS_kernels_dir) + "/" + "add_vector.elf", std::ios::binary);
+  auto kernel_file = std::ifstream((fs::path(FLAGS_kernels_dir) / fs::path("add_vector.elf")).string(), std::ios::binary);
   ASSERT_TRUE(kernel_file.is_open());
 
   auto iniF = kernel_file.tellg();
@@ -122,6 +123,6 @@ int main(int argc, char** argv) {
   FLAGS_minloglevel = 0;
   FLAGS_logtostderr = 1;
   testing::InitGoogleTest(&argc, argv);
-  et_runtime::ParseCommandLineOptions(argc, argv, {"test_profiler.cpp"});
+  google::ParseCommandLineFlags(&argc, &argv, true);
   return RUN_ALL_TESTS();
 }

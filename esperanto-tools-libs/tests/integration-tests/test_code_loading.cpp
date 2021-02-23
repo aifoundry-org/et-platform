@@ -12,7 +12,7 @@
 #include "device-layer/IDeviceLayer.h"
 #include "runtime/IRuntime.h"
 #include "sw-sysemu/SysEmuOptions.h"
-#include "esperanto/runtime/Common/ProjectAutogen.h"
+#include "common/ProjectAutogen.h"
 
 #include <fstream>
 #include <glog/logging.h>

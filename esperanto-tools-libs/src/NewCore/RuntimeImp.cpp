@@ -12,8 +12,6 @@
 #include "KernelParametersCache.h"
 #include "NewCore/ProfileEvent.h"
 #include "ScopedProfileEvent.h"
-#include "TargetSilicon.h"
-#include "TargetSysEmu.h"
 #include "runtime/IRuntime.h"
 #include "utils.h"
 #include <cstdio>
