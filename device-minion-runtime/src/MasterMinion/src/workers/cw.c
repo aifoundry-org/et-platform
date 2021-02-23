@@ -139,7 +139,7 @@ int8_t CW_Init(void)
                         break;
                     }
 
-                    case CM_TO_MM_MESSAGE_ID_SHIRE_READY:
+                    case CM_TO_MM_MESSAGE_ID_FW_SHIRE_READY:
                     {
                         const mm_to_cm_message_shire_ready_t *shire_ready =
                             (const mm_to_cm_message_shire_ready_t *)&message;

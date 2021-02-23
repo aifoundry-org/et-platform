@@ -39,7 +39,7 @@ void __attribute__((noreturn)) main(void)
     // Last thread to join barrier sends ready message to master
     if (result) {
         const mm_to_cm_message_shire_ready_t message = {
-            .header.id = CM_TO_MM_MESSAGE_ID_SHIRE_READY,
+            .header.id = CM_TO_MM_MESSAGE_ID_FW_SHIRE_READY,
             .shire_id = get_shire_id()
         };
 

@@ -39,7 +39,7 @@ int8_t CW_Iface_Processing(cm_iface_message_t *msg)
             log_write(LOG_LEVEL_DEBUG, "Invalid MESSAGE_ID_NONE received\r\n");
             break;
 
-        case CM_TO_MM_MESSAGE_ID_SHIRE_READY: {
+        case CM_TO_MM_MESSAGE_ID_FW_SHIRE_READY: {
             const mm_to_cm_message_shire_ready_t *shire_ready =
                 (const mm_to_cm_message_shire_ready_t *)&message;
             log_write(LOG_LEVEL_DEBUG,
@@ -99,7 +99,7 @@ int8_t CW_Iface_Processing(cm_iface_message_t *msg)
             break;
         }
 
-        case CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION: {
+        case CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION: {
             //cm_to_mm_message_exception_t *exception = (cm_to_mm_message_exception_t *)&message;
             //print_exception(exception->mcause, exception->mepc, exception->mtval, exception->mstatus,
             //                exception->hart_id);

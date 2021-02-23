@@ -92,14 +92,22 @@ ASSERT_CACHE_LINE_CONSTRAINTS(mm_to_cm_message_pmc_configure_t);
 
 typedef enum {
     CM_TO_MM_MESSAGE_ID_NONE = 0x80u,
-    CM_TO_MM_MESSAGE_ID_SHIRE_READY,
+    /* Kernel specific messages start from here */
     CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ACK,
     CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_NACK,
     CM_TO_MM_MESSAGE_ID_KERNEL_ABORT_NACK,
     CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE,
-    CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION,
+    CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION,
+    /* Compute FW specific messages start from here */
+    CM_TO_MM_MESSAGE_ID_FW_SHIRE_READY,
     CM_TO_MM_MESSAGE_ID_FW_EXCEPTION,
 } cm_to_mm_message_id_e;
+
+/* Status values for kernel completion message */
+typedef enum {
+    KERNEL_COMPLETE_STATUS_ERROR = -1,
+    KERNEL_COMPLETE_STATUS_SUCCESS = 0
+} kernel_complete_status_e;
 
 typedef struct {
     cm_iface_message_header_t header;
@@ -139,6 +147,7 @@ typedef struct {
     cm_iface_message_header_t header;
     uint32_t shire_id;
     uint8_t slot_index;
+    int8_t status;
 } __attribute__((packed, aligned(64))) cm_to_mm_message_kernel_launch_completed_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_kernel_launch_completed_t);

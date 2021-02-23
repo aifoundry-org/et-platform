@@ -25,6 +25,7 @@ typedef struct kernel_launch_info {
         };
         uint16_t raw_u16;
     };
+    int8_t execution_status;
 } __attribute__((aligned(CACHE_LINE_SIZE))) kernel_launch_info_t;
 
 static const uint8_t tensor_zeros[64] __attribute__((aligned(64))) = { 0 };
@@ -95,8 +96,8 @@ static inline void kernel_info_set_attributes(uint32_t shire_id, uint8_t kw_base
     atomic_store_local_16(&kernel_launch_info[shire_id].raw_u16, kernel_info.raw_u16);
 }
 
-static void pre_kernel_setup(uint64_t kernel_launch_flags, uint8_t kw_base_id, uint8_t slot_index);
-static void post_kernel_cleanup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_launch_flags);
+static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_launch_flags);
+static void post_kernel_cleanup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_launch_flags, int64_t kernel_ret_val);
 
 // Saves firmware context and launches kernel in user mode with clean stack and registers
 // Note that global Supervisor interrupts are disabled after returning from this function
@@ -116,7 +117,7 @@ int64_t launch_kernel(uint8_t kw_base_id,
                  "addi  %0, %0, 8    \n"
                  : "=r"(firmware_sp));
 
-    pre_kernel_setup(kernel_launch_flags, kw_base_id, slot_index);
+    pre_kernel_setup(kw_base_id, slot_index, kernel_launch_flags);
 
     /* Wait until all the threads involved in the kernel launch are here */
     spinlock_barrier_global(&pre_launch_global_barrier, (uint32_t)__builtin_popcountll(kernel_shire_mask));
@@ -248,20 +249,14 @@ int64_t launch_kernel(uint8_t kw_base_id,
         : "ra" // SYSCALL_RETURN_FROM_KERNEL rets back to 1: so ra is clobbered. Rest of context is preserved.
     );
 
-    // Log errors. TODO: Not the best place to have this...
-    /*if ((return_value < 0) && (return_value != KERNEL_LAUNCH_ERROR_ABORTED)) {
-        log_write(LOG_LEVEL_ERROR, "H%04" PRId64 ": return_value %" PRId64 "\n", get_hart_id(), return_value);
-    }
-    if (tensor_error != 0) {
-        log_write(LOG_LEVEL_ERROR, "H%04" PRId64 ": tensor_error 0x%" PRIx64 "\n", get_hart_id(), tensor_error);
-    }*/
+    /* TODO: save the return_value and tensor_error in kernel exception/error buffer (if available) */
 
-    post_kernel_cleanup(kw_base_id, slot_index, kernel_launch_flags);
+    post_kernel_cleanup(kw_base_id, slot_index, kernel_launch_flags, return_value);
 
     return return_value;
 }
 
-static void pre_kernel_setup(uint64_t kernel_launch_flags, uint8_t kw_base_id, uint8_t slot_index)
+static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_launch_flags)
 {
     const uint32_t shire_id = get_shire_id();
     const uint32_t minion_mask = (shire_id == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
@@ -278,6 +273,10 @@ static void pre_kernel_setup(uint64_t kernel_launch_flags, uint8_t kw_base_id, u
 
         // Save kernel info for each shire
         kernel_info_set_attributes(shire_id, kw_base_id, slot_index);
+
+        // Initialize the kernel execution status
+        atomic_store_signed_local_8(&kernel_launch_info[shire_id].execution_status,
+            KERNEL_COMPLETE_STATUS_SUCCESS);
 
         // Init all FLBs except reserved FLBs 28-31
         for (uint64_t barrier = 0; barrier < 28; barrier++) {
@@ -363,9 +362,9 @@ static void pre_kernel_setup(uint64_t kernel_launch_flags, uint8_t kw_base_id, u
     asm volatile("fence");
 }
 
-static void post_kernel_cleanup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_launch_flags)
+static void post_kernel_cleanup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_launch_flags, int64_t kernel_ret_val)
 {
-    const uint64_t shire_id = get_shire_id();
+    const uint32_t shire_id = get_shire_id();
     const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
     const uint32_t minion_mask = (get_shire_id() == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
     uint64_t evict_l3 = 0;
@@ -395,6 +394,13 @@ static void post_kernel_cleanup(uint8_t kw_base_id, uint8_t slot_index, uint64_t
 
     syscall(SYSCALL_POST_KERNEL_CLEANUP_INT, thread_count, evict_l3, 0);
 
+    // Check for kernel execution error
+    if (kernel_ret_val < KERNEL_COMPLETE_STATUS_SUCCESS)
+    {
+        atomic_store_signed_local_8(&kernel_launch_info[shire_id].execution_status,
+            KERNEL_COMPLETE_STATUS_ERROR);
+    }
+
     // Last thread to reach here sends done message to Kernel Worker thread of Master shire
     if (atomic_add_local_32(&post_launch_thread_count[shire_id].flag, 1) == (thread_count - 1)) {
         // Reset counter
@@ -403,8 +409,9 @@ static void post_kernel_cleanup(uint8_t kw_base_id, uint8_t slot_index, uint64_t
         cm_to_mm_message_kernel_launch_completed_t msg;
         msg.header.number = 0; // Not used. TODO: Remove
         msg.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE;
-        msg.shire_id = (uint32_t)shire_id;
+        msg.shire_id = shire_id;
         msg.slot_index = slot_index;
+        msg.status = atomic_load_signed_local_8(&kernel_launch_info[shire_id].execution_status);
         CM_To_MM_Iface_Unicast_Send((uint64_t)(kw_base_id + slot_index),
             (uint64_t)(1 + slot_index), (cm_iface_message_t *)&msg);
     }
