@@ -251,7 +251,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
     auto r = reinterpret_cast<const device_ops_api::device_ops_kernel_launch_rsp_t*>(response.data());
     fillEvent(event, *r);
     kernelParametersCache_->releaseBuffer(eventId);
-    if (r->status != device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_STATUS::DEV_OPS_API_KERNEL_LAUNCH_STATUS_RESULT_OK) {
+    if (r->status != device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED) {
     }
     break;
   }
