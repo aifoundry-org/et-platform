@@ -17,6 +17,7 @@
 #define LOG_DEFS_H
 
 #include <stddef.h>
+#include <inttypes.h>
 #include "log_levels.h"
 
 /*! \fn void Log_Init(void)

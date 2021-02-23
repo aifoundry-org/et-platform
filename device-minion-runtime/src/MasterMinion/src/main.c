@@ -27,9 +27,7 @@
 #include "workers/sqw.h"
 #include "workers/kw.h"
 #include "workers/dmaw.h"
-#include "services/lock.h"
 #include "services/log.h"
-#include "sync.h"
 #include "hart.h"
 #include "atomic.h"
 #include "riscv_encoding.h"
@@ -40,12 +38,6 @@
     \warning Not thread safe!
 */
 spinlock_t Launch_Wait = {0};
-
-/*! \fn static inline void main_early_init(void)
-    \brief Function to do early initialization
-    (once) of components before any Minion is
-    launched.
-*/
 
 void main(void);
 

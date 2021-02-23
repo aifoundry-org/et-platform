@@ -21,5 +21,4 @@ _start:
 
     # we compile with -fno-zero-initialized-in-bss, therefore, no BSS is present
 
-    la   a1, main
-    jalr x0, a1
+    call  main

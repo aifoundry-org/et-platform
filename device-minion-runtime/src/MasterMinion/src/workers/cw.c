@@ -32,8 +32,6 @@
 #include "services/log.h"
 #include "syscall.h"
 #include "syscall_internal.h"
-#include "swi.h"
-#include "shire.h"
 #include "message_types.h"
 #include "cm_to_mm_iface.h"
 #include "riscv_encoding.h"
