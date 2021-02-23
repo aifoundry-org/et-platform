@@ -14,10 +14,6 @@ get_property(MASTER_MINION_ELF TARGET EsperantoDeviceMinionRuntime::MasterMinion
 get_property(MACHINE_MINION_ELF TARGET EsperantoDeviceMinionRuntime::MachineMinion.elf PROPERTY LOCATION)
 get_property(WORKER_MINION_ELF TARGET EsperantoDeviceMinionRuntime::WorkerMinion.elf PROPERTY LOCATION)
 
-get_property(BL2_NEW_ELF TARGET EsperantoBootLoader::ServiceProcessorBL2_fast-bootNew.elf PROPERTY LOCATION)
-get_property(MASTER_MINION_NEW_ELF TARGET EsperantoDeviceMinionRuntime::MasterMinionNew.elf PROPERTY LOCATION)
-get_property(WORKER_MINION_NEW_ELF TARGET EsperantoDeviceMinionRuntime::WorkerMinionNew.elf PROPERTY LOCATION)
-
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/esperanto/runtime/Common/ProjectAutogen.h.in"
   "${CMAKE_CURRENT_BINARY_DIR}/esperanto/runtime/Common/ProjectAutogen.h"

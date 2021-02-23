@@ -31,10 +31,10 @@ constexpr uint64_t kSysEmuMinionShiresMask = 0x1FFFFFFFFu;
 TEST(StreamsLifeCycle, simple) {
   emu::SysEmuOptions sysEmuOptions;
   sysEmuOptions.bootromTrampolineToBL2ElfPath = BOOTROM_TRAMPOLINE_TO_BL2_ELF;
-  sysEmuOptions.spBL2ElfPath = BL2_NEW_ELF;
+  sysEmuOptions.spBL2ElfPath = BL2_ELF;
   sysEmuOptions.machineMinionElfPath = MACHINE_MINION_ELF;
-  sysEmuOptions.masterMinionElfPath = MASTER_MINION_NEW_ELF;
-  sysEmuOptions.workerMinionElfPath = WORKER_MINION_NEW_ELF;
+  sysEmuOptions.masterMinionElfPath = MASTER_MINION_ELF;
+  sysEmuOptions.workerMinionElfPath = WORKER_MINION_ELF;
   sysEmuOptions.executablePath = std::string(SYSEMU_INSTALL_DIR) + "sys_emu";
   sysEmuOptions.runDir = std::experimental::filesystem::current_path();
   sysEmuOptions.maxCycles = kSysEmuMaxCycles;
@@ -58,10 +58,10 @@ TEST(StreamsLifeCycle, simple) {
 TEST(StreamsLifeCycle, create_and_destroy_10k_streams) {
   emu::SysEmuOptions sysEmuOptions;
   sysEmuOptions.bootromTrampolineToBL2ElfPath = BOOTROM_TRAMPOLINE_TO_BL2_ELF;
-  sysEmuOptions.spBL2ElfPath = BL2_NEW_ELF;
+  sysEmuOptions.spBL2ElfPath = BL2_ELF;
   sysEmuOptions.machineMinionElfPath = MACHINE_MINION_ELF;
-  sysEmuOptions.masterMinionElfPath = MASTER_MINION_NEW_ELF;
-  sysEmuOptions.workerMinionElfPath = WORKER_MINION_NEW_ELF;
+  sysEmuOptions.masterMinionElfPath = MASTER_MINION_ELF;
+  sysEmuOptions.workerMinionElfPath = WORKER_MINION_ELF;
   sysEmuOptions.executablePath = std::string(SYSEMU_INSTALL_DIR) + "sys_emu";
   sysEmuOptions.runDir = std::experimental::filesystem::current_path();
   sysEmuOptions.maxCycles = kSysEmuMaxCycles;
