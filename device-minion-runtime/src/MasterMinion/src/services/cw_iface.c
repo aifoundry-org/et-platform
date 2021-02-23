@@ -18,7 +18,7 @@
 */
 /***********************************************************************/
 #include "services/cw_iface.h"
-#include "services/log1.h"
+#include "services/log.h"
 
 /* TODO: Move mm_to_cm_iface.c contents here */
 
@@ -36,13 +36,13 @@ int8_t CW_Iface_Processing(cm_iface_message_t *msg)
 
         switch (message.header.id) {
         case CM_TO_MM_MESSAGE_ID_NONE:
-            log_write(LOG_LEVEL_DEBUG, "Invalid MESSAGE_ID_NONE received\r\n");
+            Log_Write(LOG_LEVEL_DEBUG, "Invalid MESSAGE_ID_NONE received\r\n");
             break;
 
         case CM_TO_MM_MESSAGE_ID_FW_SHIRE_READY: {
             const mm_to_cm_message_shire_ready_t *shire_ready =
                 (const mm_to_cm_message_shire_ready_t *)&message;
-            log_write(LOG_LEVEL_DEBUG,
+            Log_Write(LOG_LEVEL_DEBUG,
                       "MESSAGE_ID_SHIRE_READY received from shire %" PRId64 "\r\n",
                       shire_ready->shire_id);
             update_shire_state(shire_ready->shire_id, SHIRE_STATE_READY);
@@ -52,7 +52,7 @@ int8_t CW_Iface_Processing(cm_iface_message_t *msg)
         case CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ACK: {
             const cm_to_mm_message_kernel_launch_ack_t *msg =
                 (const cm_to_mm_message_kernel_launch_ack_t *)&message;
-            log_write(LOG_LEVEL_DEBUG,
+            Log_Write(LOG_LEVEL_DEBUG,
                       "MESSAGE_ID_KERNEL_LAUNCH_ACK received from shire %" PRId64 "\r\n",
                       msg->shire_id);
             update_kernel_state(msg->slot_index, KERNEL_STATE_RUNNING);
@@ -62,7 +62,7 @@ int8_t CW_Iface_Processing(cm_iface_message_t *msg)
         case CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_NACK: {
             const cm_to_mm_message_kernel_launch_nack_t *msg =
                 (const cm_to_mm_message_kernel_launch_nack_t *)&message;
-            log_write(LOG_LEVEL_DEBUG,
+            Log_Write(LOG_LEVEL_DEBUG,
                       "MESSAGE_ID_KERNEL_LAUNCH_NACK received from shire %" PRId64 "\r\n",
                       msg->shire_id);
             update_shire_state(msg->shire_id, SHIRE_STATE_ERROR);
@@ -73,7 +73,7 @@ int8_t CW_Iface_Processing(cm_iface_message_t *msg)
         case CM_TO_MM_MESSAGE_ID_KERNEL_ABORT_NACK: {
             const cm_to_mm_message_kernel_launch_nack_t *msg =
                 (const cm_to_mm_message_kernel_launch_nack_t *)&message;
-            log_write(LOG_LEVEL_DEBUG,
+            Log_Write(LOG_LEVEL_DEBUG,
                       "MESSAGE_ID_KERNEL_ABORT_NACK received from shire %" PRId64 "\r\n",
                       msg->shire_id);
             update_shire_state(msg->shire_id, SHIRE_STATE_ERROR);
@@ -82,7 +82,7 @@ int8_t CW_Iface_Processing(cm_iface_message_t *msg)
         }
 
         case CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE:
-            log_write(LOG_LEVEL_DEBUG,
+            Log_Write(LOG_LEVEL_DEBUG,
                       "MESSAGE_ID_KERNEL_COMPLETE received\r\n");
             update_kernel_state(((cm_to_mm_message_kernel_launch_completed_t *)&message)->slot_index,
                                 KERNEL_STATE_COMPLETE);
@@ -109,7 +109,7 @@ int8_t CW_Iface_Processing(cm_iface_message_t *msg)
         }
 
         default:
-            log_write(LOG_LEVEL_CRITICAL,
+            Log_Write(LOG_LEVEL_CRITICAL,
                       "Unknown message id = 0x%016" PRIx64 " received (unicast dispatcher)\r\n",
                       message.header.id);
             break;

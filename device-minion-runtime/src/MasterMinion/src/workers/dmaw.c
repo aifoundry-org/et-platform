@@ -36,7 +36,7 @@
 /***********************************************************************/
 #include    "workers/dmaw.h"
 #include    "workers/sqw.h"
-#include    "services/log1.h"
+#include    "services/log.h"
 #include    "services/host_iface.h"
 #include    <esperanto/device-apis/operations-api/device_ops_api_spec.h>
 #include    <esperanto/device-apis/operations-api/device_ops_api_rpc_types.h>

@@ -42,7 +42,7 @@
 #include "services/host_iface.h"
 #include "services/host_cmd_hdlr.h"
 #include "services/sp_iface.h"
-#include "services/log1.h"
+#include "services/log.h"
 #include "services/lock.h"
 #include "drivers/plic.h"
 #include "syscall_internal.h"

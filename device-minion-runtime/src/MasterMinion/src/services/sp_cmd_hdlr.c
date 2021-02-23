@@ -19,7 +19,7 @@
 /***********************************************************************/
 #include "services/sp_iface.h"
 #include "services/sp_cmd_hdlr.h"
-#include "services/log1.h"
+#include "services/log.h"
 #include "mm_sp_cmd_spec.h"
 
 /************************************************************************

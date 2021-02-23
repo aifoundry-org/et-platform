@@ -1,4 +1,4 @@
-#include "log.h"
+#include "services/log.h"
 #include "macros.h"
 
 uint64_t exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const regs);
@@ -10,7 +10,7 @@ uint64_t exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint6
 
     // TODO exception decoding
 
-    log_write(LOG_LEVEL_CRITICAL, "MasterMinon exception: unhandled exception: %lx\n", scause);
+    Log_Write(LOG_LEVEL_CRITICAL, "MasterMinon exception: unhandled exception: %lx\n", scause);
 
     C_TEST_FAIL
 

@@ -32,7 +32,7 @@
 #include    "common_defs.h"
 #include    "config/mm_config.h"
 #include    "services/host_iface.h"
-#include    "services/log1.h"
+#include    "services/log.h"
 #include    "workers/cw.h"
 #include    "workers/kw.h"
 #include    "workers/sqw.h"

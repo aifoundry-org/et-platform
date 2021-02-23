@@ -5,6 +5,7 @@
 #include "hart.h"
 #include "kernel.h"
 #include "layout.h"
+#include "log.h"
 #include "message_types.h"
 #include "mm_to_cm_iface.h"
 #include "sync.h"

@@ -1,4 +1,4 @@
-#include "pcie_dma.h"
+#include "drivers/pcie_dma.h"
 
 #include <errno.h>
 #include <inttypes.h>
@@ -6,7 +6,7 @@
 #include <stdio.h>
 
 #include "cacheops.h"
-#include "log.h"
+#include "services/log.h"
 #include "layout.h"
 #include "pcie_dma_ll.h"
 #include "printf.h"
@@ -182,7 +182,7 @@ int dma_trigger_transfer(uint64_t src_addr, uint64_t dest_addr,
 int dma_configure_read(dma_chan_id_e chan)
 {
     if (chan > DMA_CHAN_ID_READ_3) {
-        log_write(LOG_LEVEL_CRITICAL, "Invalid DMA read channel %d\r\n", chan);
+        Log_Write(LOG_LEVEL_CRITICAL, "Invalid DMA read channel %d\r\n", chan);
         return -EINVAL;
     }
     uint32_t chan_mask = 1U << (uint32_t)chan;
@@ -260,7 +260,7 @@ int dma_configure_read(dma_chan_id_e chan)
         iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_LLP_HIGH_OFF_RDCH_3_ADDRESS,
                   transfer_list_high_addr);
     } else {
-        log_write(LOG_LEVEL_CRITICAL, "Invalid DMA read channel %d\r\n", chan);
+        Log_Write(LOG_LEVEL_CRITICAL, "Invalid DMA read channel %d\r\n", chan);
         return -EINVAL;
     }
 
@@ -275,7 +275,7 @@ int dma_configure_read(dma_chan_id_e chan)
 int dma_configure_write(dma_chan_id_e chan)
 {
     if (chan < DMA_CHAN_ID_WRITE_0 || chan > DMA_CHAN_ID_WRITE_3) {
-        log_write(LOG_LEVEL_CRITICAL, "Invalid DMA write channel %d\r\n", chan);
+        Log_Write(LOG_LEVEL_CRITICAL, "Invalid DMA write channel %d\r\n", chan);
         return -EINVAL;
     }
     uint32_t wr_chan_num = chan - DMA_CHAN_ID_WRITE_0;
@@ -354,7 +354,7 @@ int dma_configure_write(dma_chan_id_e chan)
         iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_LLP_HIGH_OFF_WRCH_3_ADDRESS,
                   transfer_list_high_addr);
     } else {
-        log_write(LOG_LEVEL_CRITICAL, "Invalid DMA write channel %d\r\n", chan);
+        Log_Write(LOG_LEVEL_CRITICAL, "Invalid DMA write channel %d\r\n", chan);
         return -EINVAL;
     }
 
@@ -375,7 +375,7 @@ int dma_start(dma_chan_id_e chan)
         iowrite32(PCIE_USRESR + PSHIRE_USR0_DMA_WR_XFER_ADDRESS,
                   PSHIRE_USR0_DMA_WR_XFER_CHNL_GO_SET(1U << (chan - DMA_CHAN_ID_WRITE_0)));
     } else {
-        log_write(LOG_LEVEL_CRITICAL, "Invalid DMA channel %d\r\n", chan);
+        Log_Write(LOG_LEVEL_CRITICAL, "Invalid DMA channel %d\r\n", chan);
         return -EINVAL;
     }
 
@@ -397,7 +397,7 @@ void dma_clear_done(dma_chan_id_e chan)
             PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_CLEAR_OFF_WR_DONE_INT_CLEAR_SET(
                 (1U << (chan - DMA_CHAN_ID_WRITE_0)) & 0xF));
     } else {
-        log_write(LOG_LEVEL_CRITICAL, "Invalid DMA channel %d\r\n", chanU32);
+        Log_Write(LOG_LEVEL_CRITICAL, "Invalid DMA channel %d\r\n", chanU32);
     }
 }
 
@@ -409,7 +409,7 @@ DMA_STATUS_e dma_clear_read_abort(dma_chan_id_e chan)
             PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_CLEAR_OFF_RD_ABORT_INT_CLEAR_SET(
                 (1U << chan) & 0xF));
     } else {
-        log_write(LOG_LEVEL_CRITICAL, "Invalid DMA read channel %d\r\n", chan);
+        Log_Write(LOG_LEVEL_CRITICAL, "Invalid DMA read channel %d\r\n", chan);
         return DMA_ERROR_CHANNEL_NOT_AVAILABLE;
     }
 
@@ -424,7 +424,7 @@ DMA_STATUS_e dma_clear_write_abort(dma_chan_id_e chan)
             PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_CLEAR_OFF_WR_ABORT_INT_CLEAR_SET(
                 (1U << (chan - DMA_CHAN_ID_WRITE_0)) & 0xF));
     } else {
-        log_write(LOG_LEVEL_CRITICAL, "Invalid DMA write channel %d\r\n", chan);
+        Log_Write(LOG_LEVEL_CRITICAL, "Invalid DMA write channel %d\r\n", chan);
         return DMA_ERROR_CHANNEL_NOT_AVAILABLE;
     }
 
@@ -449,7 +449,7 @@ DMA_STATUS_e dma_abort_read(dma_chan_id_e chan)
         control1 =
             ioread32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_3_ADDRESS);
     } else {
-        log_write(LOG_LEVEL_CRITICAL, "Invalid DMA read channel %d\r\n", chan);
+        Log_Write(LOG_LEVEL_CRITICAL, "Invalid DMA read channel %d\r\n", chan);
         return DMA_ERROR_CHANNEL_NOT_AVAILABLE;
     }
 
@@ -460,7 +460,7 @@ DMA_STATUS_e dma_abort_read(dma_chan_id_e chan)
         iowrite32(
             PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_DOORBELL_OFF_ADDRESS, dma_abort);
     } else {
-        log_write(LOG_LEVEL_DEBUG, "Channel %d is not running\r\n", chan);
+        Log_Write(LOG_LEVEL_DEBUG, "Channel %d is not running\r\n", chan);
         return DMA_ERROR_CHANNEL_NOT_RUNNING;
     }
 
@@ -485,7 +485,7 @@ DMA_STATUS_e dma_abort_write(dma_chan_id_e chan)
         control1 =
             ioread32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_3_ADDRESS);
     } else {
-        log_write(LOG_LEVEL_CRITICAL, "Invalid DMA write channel %d\r\n", chan);
+        Log_Write(LOG_LEVEL_CRITICAL, "Invalid DMA write channel %d\r\n", chan);
         return DMA_ERROR_CHANNEL_NOT_AVAILABLE;
     }
 
@@ -496,7 +496,7 @@ DMA_STATUS_e dma_abort_write(dma_chan_id_e chan)
         iowrite32(
             PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_DOORBELL_OFF_ADDRESS, dma_abort);
     } else {
-        log_write(LOG_LEVEL_DEBUG, "Channel %d is not running\r\n", chan);
+        Log_Write(LOG_LEVEL_DEBUG, "Channel %d is not running\r\n", chan);
         return DMA_ERROR_CHANNEL_NOT_RUNNING;
     }
 

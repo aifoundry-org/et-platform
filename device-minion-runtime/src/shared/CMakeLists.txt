@@ -10,12 +10,10 @@
 
 add_subdirectory("include")
 
-set(FIRMWARE_HELPERS_SOURCES 
+set(FIRMWARE_HELPERS_SOURCES
   src/pcie_int.c
-  src/ringbuffer.c
   src/backtrace.c
   src/common.c
-  src/circbuffer.c
   src/circbuff.c
   src/vq.c
   )
@@ -70,22 +68,14 @@ install(
     include/device-common/atomic-impl.h
     include/device-common/esr_defines.h
     include/layout.h
-    include/mailbox_common.h
-    include/mailbox_id.h
     include/minion_esr_defines.h
     include/minion_fw_boot_config.h
     include/mm_sp_cmd_spec.h
     include/pcie_device.h
     include/pcie_int.h
-    include/ringbuffer_common.h
-    include/ringbuffer.h
     include/trap_handler.h
     include/common_defs.h
     include/circbuff.h
-    include/circbuffer_common.h
-    include/circbuffer.h
-    include/circbuff.h
-    include/vqueue_common.h
     include/vq.h
   DESTINATION
     ${INCLUDE_INSTALL_DIR}/esperanto-fw/firmware_helpers

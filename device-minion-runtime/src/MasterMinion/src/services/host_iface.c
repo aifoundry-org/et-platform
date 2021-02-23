@@ -27,7 +27,7 @@
 /***********************************************************************/
 #include "services/host_iface.h"
 #include "services/host_cmd_hdlr.h"
-#include "services/log1.h"
+#include "services/log.h"
 #include "workers/sqw.h"
 #include "drivers/plic.h"
 #include "vq.h"

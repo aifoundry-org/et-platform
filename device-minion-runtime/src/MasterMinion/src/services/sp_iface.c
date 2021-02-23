@@ -26,7 +26,7 @@
 #include "config/mm_config.h"
 #include "services/sp_iface.h"
 #include "services/sp_cmd_hdlr.h"
-#include "services/log1.h"
+#include "services/log.h"
 #include "circbuff.h"
 #include "pcie_int.h"
 #include "atomic.h"

@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "log.h"
+#include "log_levels.h"
 
 /*
  * Common definitions
