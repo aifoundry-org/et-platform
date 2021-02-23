@@ -42,7 +42,7 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
     kernel_info_get_attributes(shire_id, &kw_base_id, &slot_index);
 
     /* The master minion needs to know if this is a recoverable kernel exception or an unrecoverable exception */
-    message.header.id = user_mode ? CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION : CM_TO_MM_MESSAGE_ID_FW_EXCEPTION;
+    message.header.id = user_mode ? CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION : CM_TO_MM_MESSAGE_ID_FW_EXCEPTION;
     message.hart_id   = hart_id;
     message.mcause    = mcause;
     message.mepc      = mepc;

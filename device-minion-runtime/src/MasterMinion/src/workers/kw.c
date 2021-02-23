@@ -584,6 +584,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     uint32_t kernel_shires_count;
     uint64_t kernel_shire_mask;
     bool cw_exception;
+    bool cw_error;
     /* Get the kernel instance */
     kernel_instance_t *const kernel = &KW_CB.kernels[kw_idx];
 
@@ -600,6 +601,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         /* Reset state */
         done_cnt = 0;
         cw_exception = false;
+        cw_error = false;
 
         /* TODO: Set up watchdog to detect command timeout */
 
@@ -655,20 +657,27 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                             (cm_to_mm_message_kernel_launch_completed_t *)&message;
 
                         Log_Write(LOG_LEVEL_DEBUG,
-                            "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE from S%d\r\n",
-                            completed->shire_id);
+                            "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE from S%d:Status:%d\r\n",
+                            completed->shire_id, completed->status);
+
+                        /* Check the completion status for any error
+                        First time we get an error, set the error flag */
+                        if((!cw_error) && (completed->status < KERNEL_COMPLETE_STATUS_SUCCESS))
+                        {
+                            cw_error = true;
+                        }
 
                         /* Increase count of completed Shires */
                         done_cnt++;
                         break;
                     }
-                    case CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION:
+                    case CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION:
                     {
                         cm_to_mm_message_exception_t *exception =
                             (cm_to_mm_message_exception_t *)&message;
 
                         Log_Write(LOG_LEVEL_DEBUG,
-                            "KW:from CW:CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION from H%" PRId64 "\r\n",
+                            "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION from H%" PRId64 "\r\n",
                             exception->hart_id);
 
                         /* Note: Even if there was an exception, that Shire will
@@ -707,7 +716,8 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 
         struct device_ops_kernel_launch_rsp_t launch_rsp;
 
-        /* Read the kernel state to detect abort by host */
+        /* Read the kernel state to detect abort by host
+        NOTE: These checks below are in order of priority */
         if(atomic_load_local_16(&kernel->kernel_state) == KERNEL_STATE_ABORTED_BY_HOST)
         {
             /* Update the kernel launch response to indicate that it was aborted by host */
@@ -717,6 +727,11 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         {
             /* Exception was detected in kernel run, update response */
             launch_rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_EXCEPTION;
+        }
+        else if(cw_error)
+        {
+            /* Error was detected in kernel run, update response */
+            launch_rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
         }
         else
         {

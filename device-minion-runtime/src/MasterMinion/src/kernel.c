@@ -157,8 +157,8 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
                         /* Increase count of completed Shires */
                         done_cnt++;
                         break;
-                    case CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION:
-                        log_write(LOG_LEVEL_DEBUG, "CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION\n");
+                    case CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION:
+                        log_write(LOG_LEVEL_DEBUG, "CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION\n");
                         had_exception = true;
                         break;
                     default:
@@ -170,7 +170,7 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
             // Send message to master minion indicating the kernel is complete (maybe with excp.)
             cm_to_mm_message_kernel_launch_completed_t completed_message;
             if (had_exception) {
-                completed_message.header.id = CM_TO_MM_MESSAGE_ID_U_MODE_EXCEPTION;
+                completed_message.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION;
             } else {
                 completed_message.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE;
             }
