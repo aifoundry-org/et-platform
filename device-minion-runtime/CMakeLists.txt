@@ -51,8 +51,6 @@ list(APPEND CMAKE_PREFIX_PATH ${DEVFW_EXTERNAL_INSTALL_PREFIX})
 
 option(BUILD_DOC "Build documentation" ON)
 
-add_definitions(-DIMPLEMENTATION_BYPASS=1)
-
 # Git configuration options to pass when building projects we clone
 # when building an external project
 set(GIT_CONFIG_OPTIONS "http.sslVerify=false http.proxy=http://sc-squid-sw.esperanto.ai:3128")

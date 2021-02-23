@@ -10,7 +10,7 @@ static _Unwind_Reason_Code trace_func(struct _Unwind_Context *ctx, void *d);
 static _Unwind_Reason_Code trace_func(struct _Unwind_Context *ctx, void *d)
 {
     int *depth = (int *)d;
-    //log_write(LOG_LEVEL_CRITICAL, "\t#%d: program counter at %08x\n", *depth, _Unwind_GetIP(ctx));
+    //Log_Write(LOG_LEVEL_CRITICAL, "\t#%d: program counter at %08x\n", *depth, _Unwind_GetIP(ctx));
     (*depth)++;
     return _URC_NO_REASON;
 }

@@ -21,7 +21,7 @@
 #include "common_defs.h"
 #include "sync.h"
 #include "vq.h"
-#include "pcie_dma.h"
+#include "drivers/pcie_dma.h"
 
 /*! \def DMAW_MAX_HART_ID
     \brief A macro that provides the maximum HART ID the DMAW is configued

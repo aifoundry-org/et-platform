@@ -9,8 +9,8 @@
 * agreement/contract under which the program(s) have been supplied.
 *
 ************************************************************************/
-/*! \file log1.c
-    \brief A C module that implements the logging ervices
+/*! \file log.c
+    \brief A C module that implements the logging services
 
     Public interfaces:
         Log_Init
@@ -20,7 +20,7 @@
         Log_Write_String
 */
 /***********************************************************************/
-#include "services/log1.h"
+#include "services/log.h"
 #include "drivers/console.h"
 #include "atomic.h"
 #include "layout.h"
@@ -132,9 +132,9 @@ log_level_t Log_Get_Level(void)
 ***********************************************************************/
 int32_t Log_Write(log_level_t level, const char *const fmt, ...)
 {
-    int32_t bytes_written = 0;
-    va_list va;
     char buff[128];
+    va_list va;
+    int32_t bytes_written;
 
     if (level > atomic_load_local_8(&Current_Log_Level)) {
         return 0;

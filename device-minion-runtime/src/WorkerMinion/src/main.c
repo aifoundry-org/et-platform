@@ -23,16 +23,8 @@ void __attribute__((noreturn)) main(void)
                  "csrw  stvec, %0        \n"
                  : "=&r"(temp));
 
-#ifndef IMPLEMENTATION_BYPASS
-    // Init trace for worker minion
-    TRACE_init_worker();
-    TRACE_string(LOG_LEVELS_CRITICAL, "Trace message from worker");
-#endif /* IMPLEMENTATION_BYPASS */
-
     const uint64_t shire_id = get_shire_id();
     const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
-
-    // TODO run BIST
 
     WAIT_FLB(thread_count, 31, result);
 

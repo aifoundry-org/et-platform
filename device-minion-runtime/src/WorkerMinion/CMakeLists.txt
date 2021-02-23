@@ -55,21 +55,3 @@ install(
         ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.map
   DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/WorkerMinion
   COMPONENT worker-minion)
-
-# Refactored code: IMPLEMENTATION_BYPASS switch
-add_riscv_executable(${TARGET_NAME}New ${SOURCES})
-
-target_compile_definitions(${TARGET_NAME}New.elf PUBLIC -DIMPLEMENTATION_BYPASS=1)
-
-target_link_libraries(${TARGET_NAME}New.elf device-mrt-trace)
-
-install(TARGETS ${TARGET_NAME}New.elf
-  EXPORT EsperantoDeviceMinionRuntimeTargets
-  RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/WorkerMinion
-  COMPONENT worker-minion)
-
-install(
-  FILES ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}New.lst
-        ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}New.map
-  DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/WorkerMinion
-  COMPONENT worker-minion)

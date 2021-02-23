@@ -9,14 +9,15 @@
 * agreement/contract under which the program(s) have been supplied.
 *
 ************************************************************************/
-/*! \file log1.h
+/*! \file log.h
     \brief A C header that defines public interfaces log services
 */
 /***********************************************************************/
-#ifndef LOG1_DEFS_H
-#define LOG1_DEFS_H
+#ifndef LOG_DEFS_H
+#define LOG_DEFS_H
 
-#include "log.h"
+#include <stddef.h>
+#include "log_levels.h"
 
 /*! \fn void Log_Init(void)
     \brief Initialize the logging component

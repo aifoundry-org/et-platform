@@ -1,6 +1,6 @@
+#include "log.h"
 #include "print_exception.h"
 #include "riscv_encoding.h"
-#include "log.h"
 
 #include <inttypes.h>
 

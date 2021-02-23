@@ -29,7 +29,7 @@
 #include "minion_fw_boot_config.h"
 #include "layout.h"
 #include "workers/cw.h"
-#include "services/log1.h"
+#include "services/log.h"
 #include "syscall.h"
 #include "syscall_internal.h"
 #include "swi.h"
