@@ -40,6 +40,8 @@ Enums:
         Value: 4
       - Name: INVALID_ADDRESS
         Value: 5
+      - Name: TIMEOUT_HANG
+        Value: 6
   - Name: dev_ops_api_kernel_abort_response
     Type: uint32_t
     Values:
@@ -49,6 +51,8 @@ Enums:
         Value : 1
       - Name : INVALID_TAG_ID
         Value : 2
+      - Name : TIMEOUT_HANG
+        Value: 3
   - Name: dev_ops_api_dma_response
     Type: uint32_t
     Values:
@@ -57,11 +61,13 @@ Enums:
       - Name: ERROR
         Value: 1
       - Name: TIMEOUT_IDLE_CHANNEL_UNAVAILABLE
-        Value: 2
-      - Name: ABORTED
         Value: 3
-      - Name: INVALID_ADDRESS
+      - Name: ABORTED
         Value: 4
+      - Name: TIMEOUT_HANG
+        Value: 5
+      - Name: INVALID_ADDRESS
+        Value: 6
   - Name: dev_ops_api_error_type
     Type: uint32_t
     Values:
