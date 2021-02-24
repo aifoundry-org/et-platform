@@ -113,16 +113,20 @@ static inline DMA_STATUS_e dma_config_buff(uint64_t src_addr, uint64_t dest_addr
 
 static inline DMA_STATUS_e dma_bounds_check(uint64_t soc_addr, uint64_t size)
 {
-    uint64_t end_addr = soc_addr + size - 1;
+    uint64_t end_addr = soc_addr + size - 1U;
 
-    // Check for uint64_t overflow
-    if (end_addr > soc_addr) {
-        for (int i = 0; i < DMA_MEM_REGIONS; ++i) {
-            if (soc_addr >= valid_dma_targets[i].begin && end_addr <= valid_dma_targets[i].end) {
+    /* Check for uint64_t overflow */
+    if (end_addr >= soc_addr)
+    {
+        for (uint16_t i = 0; i < DMA_MEM_REGIONS; ++i)
+        {
+            if ((soc_addr >= valid_dma_targets[i].begin) && (end_addr <= valid_dma_targets[i].end))
+            {
                 return DMA_OPERATION_SUCCESS;
             }
         }
     }
+
     return DMA_ERROR_INVALID_ADDRESS;
 }
 
