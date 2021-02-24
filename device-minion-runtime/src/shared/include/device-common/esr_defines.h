@@ -31,7 +31,7 @@ typedef uint64_t esr_address_t;
 
 #endif
 
-#define PRV_U 0ull
+#define PRV_U 0
 #define PRV_S 1ull
 #define PRV_D 2ull
 #define PRV_M 3ull
