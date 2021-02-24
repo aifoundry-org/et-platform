@@ -29,6 +29,7 @@ set(SOURCES
     src/drivers/console.c
     src/drivers/pcie_dma.c
     src/drivers/plic.c
+    src/drivers/pu_timers.c
     src/services/log.c
     src/services/cm_to_mm_iface.c
     src/services/host_iface.c
@@ -36,6 +37,7 @@ set(SOURCES
     src/services/mm_to_cm_iface.c
     src/services/sp_iface.c
     src/services/sp_cmd_hdlr.c
+    src/services/sw_timer.c
     ${SHARED_SRC_DIR}/etsoc_memory.c
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/printf.c

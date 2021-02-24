@@ -35,6 +35,7 @@
 #include    "services/host_iface.h"
 #include    "services/mm_to_cm_iface.h"
 #include    "services/log.h"
+#include    "services/sw_timer.h"
 #include    "workers/cw.h"
 #include    "workers/kw.h"
 #include    "workers/sqw.h"
@@ -44,6 +45,7 @@
 #include    "sync.h"
 #include    "utils.h"
 #include    "vq.h"
+#include    "syscall_internal.h"
 
 /*! \typedef kernel_instance_t
     \brief Kernel Instance Control Block structure.
@@ -52,10 +54,11 @@
     launch command.
 */
 typedef struct kernel_instance_ {
-    uint8_t reserved[2];
     tag_id_t launch_tag_id;
     uint16_t sqw_idx;
     uint16_t kernel_state;
+    uint8_t  sw_timer_idx;
+    uint8_t  reserved;
     exec_cycles_t kw_cycles;
     uint64_t kernel_shire_mask;
 } kernel_instance_t;
@@ -556,19 +559,20 @@ void KW_Init(void)
 *
 *   INPUTS
 *
-*       kw_idx    ID of the kernel worker
-*       cycle     Pointer containing 2 elements:
-*                 -Wait Latency(time the command sits in Submission
-*                   Queue)
-*                 -Start cycles when Kernels are Launched on the
-*                 Compute Minions
+*       kw_idx          ID of the kernel worker
+*       cycle           Pointer containing 2 elements:
+*                       -Wait Latency(time the command sits in Submission
+*                         Queue)
+*                       -Start cycles when Kernels are Launched on the
+*                       Compute Minions
+*       sw_timer_idx    Index of SW Timer used for timeout
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle)
+void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle, uint8_t sw_timer_idx)
 {
     uint32_t minion = (uint32_t)KW_WORKER_0 + (kw_idx / 2);
     uint32_t thread = kw_idx % 2;
@@ -578,6 +582,7 @@ void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle)
 
     atomic_store_local_64((void*)&KW_CB.kernels[kw_idx].kw_cycles,
                           cycle->raw_u64);
+    atomic_store_local_8(&KW_CB.kernels[kw_idx].sw_timer_idx, sw_timer_idx);
 
     global_fcc_notify(atomic_load_local_8(&KW_CB.host2kw[kw_idx].fcc_id),
         &KW_CB.host2kw[kw_idx].fcc_flag, minion, thread);
@@ -658,6 +663,13 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 
             /* Clear IPI pending interrupt */
             asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
+
+            /* Check the kernel_state is set to abort after timeout*/
+            if(atomic_load_local_16(&kernel->kernel_state) == KERNEL_STATE_ABORTING)
+            {
+                /* Break the loop waiting to complete the kernel as it is timeout */
+                break;
+            }
 
             /* Process all the available messages */
             while(done_cnt < kernel_shires_count)
@@ -752,6 +764,11 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             /* Update the kernel launch response to indicate that it was aborted by host */
             launch_rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED;
         }
+        else if(atomic_load_local_16(&kernel->kernel_state) == KERNEL_STATE_ABORTING)
+        {
+            /* Update the kernel launch response to indicate that it was aborted by host */
+            launch_rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG;
+        }
         else if(cw_exception)
         {
             /* Exception was detected in kernel run, update response */
@@ -767,6 +784,9 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             /* Everything went normal, update response to kernel completed */
             launch_rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED;
         }
+
+        /* Free the registered SW Timeout slot */
+        SW_Timer_Cancel_Timeout(atomic_load_local_8(&kernel->sw_timer_idx));
 
         /* Construct and transmit kernel launch response to host */
         launch_rsp.response_info.rsp_hdr.tag_id =
@@ -803,4 +823,35 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     }
 
     return;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       KW_Set_Abort_Status
+*
+*   DESCRIPTION
+*
+*       Sets the status of a kernel to abort and notifies the KW
+*
+*   INPUTS
+*
+*       kw_idx    ID of the kernel worker
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void KW_Set_Abort_Status(uint8_t kw_idx)
+{
+    Log_Write(LOG_LEVEL_ERROR, "Aborting:KW:kw_idx=%d\r\n",kw_idx);
+
+    atomic_store_local_16(&KW_CB.kernels[kw_idx].kernel_state,
+                          KERNEL_STATE_ABORTING);
+
+    /* Trigger IPI to KW */
+    syscall(SYSCALL_IPI_TRIGGER_INT,
+        1ull << ((KW_BASE_HART_ID + kw_idx) % 64), MASTER_SHIRE, 0);
 }

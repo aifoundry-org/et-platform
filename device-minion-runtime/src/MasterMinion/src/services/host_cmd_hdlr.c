@@ -20,9 +20,11 @@
 #include "services/host_cmd_hdlr.h"
 #include "services/host_iface.h"
 #include "services/log.h"
+#include "services/sw_timer.h"
 #include "workers/kw.h"
 #include "workers/dmaw.h"
 #include "workers/sqw.h"
+#include "config/mm_config.h"
 #include "pmu.h"
 
 /************************************************************************
@@ -50,6 +52,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
     uint64_t start_cycles)
 {
     int8_t status = STATUS_SUCCESS;
+    int8_t sw_timer_idx = -1;
     struct cmd_header_t *hdr = command_buffer;
     exec_cycles_t cycles;
 
@@ -206,23 +209,33 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
             if(status == STATUS_SUCCESS)
             {
-                /* Notify kernel worker to aggregate
-                kernel completion responses, and construct
-                and transmit command response to host
-                completion queue */
-                KW_Notify(kw_idx, &cycles);
+                /* Create timeout for kernel_launch command to complete */
+                sw_timer_idx = SW_Timer_Create_Timeout(&KW_Set_Abort_Status, kw_idx, 20);
+                if(sw_timer_idx >= 0)
+                {
+                    /* Notify kernel worker to aggregate
+                    kernel completion responses, and construct
+                    and transmit command response to host
+                    completion queue */
+                    KW_Notify(kw_idx, &cycles, (uint8_t)sw_timer_idx);
+                }
+                else
+                {
+                    Log_Write(LOG_LEVEL_ERROR,
+                        "HostCommandHandler:CreateTimeot:Failed\r\n");
+                }
             }
             else
             {
                 Log_Write(LOG_LEVEL_ERROR,
-                    "HostCmdHdlr:KernelLaunch:Failed:Status:%d\r\n", status);
+                    "HostCmdHdlr:KernelLaunch:Failed Status:%d\r\n", status);
 
                 Log_Write(LOG_LEVEL_ERROR,
-                    "HostCmdHdlr:KernelLaunch:Failed:CmdParam:code_start_address:%lx\r\n",
+                    "HostCmdHdlr:KernelLaunch:Failed CmdParam:code_start_address:%lx\r\n",
                     cmd->code_start_address);
 
                 Log_Write(LOG_LEVEL_DEBUG,
-                    "HostCmdHdlr:KernelLaunch:Failed:CmdParam:pointer_to_args:%lx shire_mask:%lx\r\n",
+                    "HostCmdHdlr:KernelLaunch:Failed CmdParam:pointer_to_args:%lx shire_mask:%lx\r\n",
                     cmd->pointer_to_args, cmd->shire_mask);
 
                 /* Construct and transit command response */
@@ -354,10 +367,21 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 cycles.wait_cycles = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
                 cycles.start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
 
-                /* Initiate DMA write transfer */
-                status = DMAW_Write_Trigger_Transfer(chan, cmd->src_device_phy_addr,
-                    cmd->dst_host_phy_addr, cmd->size,
-                    sqw_idx, hdr->cmd_hdr.tag_id, &cycles);
+                /* Create timeout for DMA_Write command to complete */
+                sw_timer_idx = SW_Timer_Create_Timeout(&DMAW_Write_Set_Abort_Status, chan, 20);
+
+                if(sw_timer_idx >= 0)
+                {
+                    /* Initiate DMA write transfer */
+                    status = DMAW_Write_Trigger_Transfer(chan, cmd->src_device_phy_addr,
+                        cmd->dst_host_phy_addr, cmd->size,
+                        sqw_idx, hdr->cmd_hdr.tag_id, &cycles, (uint8_t)sw_timer_idx);
+                }
+                else
+                {
+                    Log_Write(LOG_LEVEL_ERROR,
+                        "HostCommandHandler:CreateTimeot:Failed\r\n");
+                }
             }
 
             if(status != STATUS_SUCCESS)
@@ -372,6 +396,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 Log_Write(LOG_LEVEL_DEBUG,
                     "HostCmdHdlr:DataReadCmd:Failed:CmdParams:dst_host_virt_addr:%lx:dst_host_phy_addr:%lx\r\n",
                     cmd->dst_host_virt_addr, cmd->dst_host_phy_addr);
+                /* Free the registered SW Timeout */
+                SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
 
                 /* Construct and transmit command response */
                 rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
@@ -451,10 +477,21 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 cycles.wait_cycles = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
                 cycles.start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
 
-                /* Initiate DMA read transfer */
-                status = DMAW_Read_Trigger_Transfer(chan, cmd->src_host_phy_addr,
-                    cmd->dst_device_phy_addr, cmd->size,
-                    sqw_idx, hdr->cmd_hdr.tag_id, &cycles);
+                /* Create timeout for DMA_Read command to complete */
+                sw_timer_idx = SW_Timer_Create_Timeout(&DMAW_Read_Set_Abort_Status, chan, 20);
+
+                if(sw_timer_idx >=0 )
+                {
+                    /* Initiate DMA read transfer */
+                    status = DMAW_Read_Trigger_Transfer(chan, cmd->src_host_phy_addr,
+                        cmd->dst_device_phy_addr, cmd->size,
+                        sqw_idx, hdr->cmd_hdr.tag_id, &cycles, (uint8_t)sw_timer_idx);
+                }
+                else
+                {
+                    Log_Write(LOG_LEVEL_ERROR,
+                        "HostCommandHandler:CreateTimeot:Failed\r\n");
+                }
             }
 
             if(status != STATUS_SUCCESS)
@@ -469,6 +506,9 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 Log_Write(LOG_LEVEL_DEBUG,
                     "HostCmdHdlr:DataWriteCmd:Failed:CmdParams:src_host_virt_addr:%lx:src_host_phy_addr:%lx\r\n",
                     cmd->src_host_virt_addr, cmd->src_host_phy_addr);
+
+                /* Free the registered SW Timeout */
+                SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
 
                 /* Construct and transit command response */
                 rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;

@@ -58,7 +58,8 @@ typedef enum {
     DMA_CHAN_STATE_IDLE = 0,
     DMA_CHAN_STATE_RESERVED = 1,
     DMA_CHAN_STATE_IN_USE = 2,
-    DMA_CHAN_STATE_ERROR = 3
+    DMA_CHAN_STATE_ERROR = 3,
+    DMA_CHAN_STATE_ABORTING = 4
 } dma_chan_state_e;
 
 /*! \struct dma_channel_status
@@ -71,7 +72,7 @@ typedef struct dma_channel_status {
             uint32_t channel_state; /* channel state indicated by dma_chan_state_e */
             uint16_t tag_id; /* tag_id for the transaction associated with the channel */
             uint8_t  sqw_idx; /* SQW idx that submitted this command */
-            uint8_t  reserved; /* For future use */
+            uint8_t  sw_timer_idx; /* Index of SW Timer used for timeout */
         };
         uint64_t raw_u64;
     };
@@ -127,11 +128,12 @@ int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id, uint8_t sqw
     \param sqw_idx SQW ID
     \param tag_id Tag ID of the command
     \param cycles Pointer to latency cycles struct
+    \param sw_timer_idx Index of SW Timer used for timeout
     \return Status success or error
 */
 int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
     uint64_t src_addr, uint64_t dest_addr, uint64_t size, uint8_t sqw_idx,
-    uint16_t tag_id, exec_cycles_t *cycles);
+    uint16_t tag_id, exec_cycles_t *cycles, uint8_t sw_timer_idx);
 
 /*! \fn int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id,
     uint64_t src_addr, uint64_t dest_addr, uint64_t size, uint8_t sqw_idx,
@@ -145,11 +147,12 @@ int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
     \param sqw_idx SQW ID
     \param tag_id Tag ID of the command
     \param cycles Pointer to latency cycles struct
+    \param sw_timer_idx Index of SW Timer used for timeout
     \return Status success or error
 */
 int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id,
     uint64_t src_addr, uint64_t dest_addr, uint64_t size, uint8_t sqw_idx,
-    uint16_t tag_id, exec_cycles_t *cycles);
+    uint16_t tag_id, exec_cycles_t *cycles, uint8_t sw_timer_idx);
 
 /*! \fn void DMAW_Read_Ch_Search_Timeout_Callback(uint8_t sqw_idx)
     \brief Callback for read channel search timeout
@@ -162,5 +165,18 @@ void DMAW_Read_Ch_Search_Timeout_Callback(uint8_t sqw_idx);
     \param sqw_idx Index of the submission queue worker
 */
 void DMAW_Write_Ch_Search_Timeout_Callback(uint8_t sqw_idx);
+/*! \fn void DMAW_Read_Set_Abort_Status(uint8_t read_chan)
+    \brief Sets the status of DMA's read channel to abort it
+    \param read_chan DMA read channel index
+    \return none
+*/
+void DMAW_Read_Set_Abort_Status(uint8_t read_chan);
+
+/*! \fn DMAW_Write_Set_Abort_Status(uint8_t write_chan)
+    \brief Sets the status of DMA's write channel to abort it
+    \param read_chan DMA write channel index
+    \return none
+*/
+void DMAW_Write_Set_Abort_Status(uint8_t write_chan);
 
 #endif /* DMAW_DEFS_H */

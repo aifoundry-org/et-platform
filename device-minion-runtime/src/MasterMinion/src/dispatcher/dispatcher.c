@@ -44,6 +44,7 @@
 #include "services/host_cmd_hdlr.h"
 #include "services/sp_iface.h"
 #include "services/log.h"
+#include "services/sw_timer.h"
 #include "drivers/plic.h"
 #include "syscall_internal.h"
 #include "serial.h"
@@ -56,6 +57,8 @@
 extern spinlock_t Launch_Wait;
 
 extern bool Host_Iface_Interrupt_Flag;
+
+extern bool SW_Timer_Interrupt_Flag;
 
 /* TODO: This shoul dbe included using a proper header during clean up */
 extern void message_init_master(void);
@@ -181,6 +184,9 @@ void Dispatcher_Launch(uint32_t hart_id)
 
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_CM_WORKERS_INITIALIZED);
 
+    /* Initialize SW Timer to register timeouts for commands */
+    SW_Timer_Init();
+
     /* Initialize Master Shire Workers */
     SQW_Init();
     KW_Init();
@@ -254,6 +260,11 @@ void Dispatcher_Launch(uint32_t hart_id)
             if(Host_Iface_Interrupt_Status())
             {
                 Host_Iface_Processing();
+            }
+
+            if(SW_Timer_Interrupt_Status())
+            {
+                SW_Timer_Processing();  
             }
         }
 

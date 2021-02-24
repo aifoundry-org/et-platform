@@ -71,7 +71,8 @@
 typedef enum {
     KERNEL_STATE_UN_USED = 0,
     KERNEL_STATE_IN_USE,
-    KERNEL_STATE_ABORTED_BY_HOST
+    KERNEL_STATE_ABORTED_BY_HOST,
+    KERNEL_STATE_ABORTING
 } kernel_state_e;
 
 /*! \fn void KW_Init(void)
@@ -84,11 +85,12 @@ void KW_Init(void);
     \brief Notify Kernel Worker
     \param kw_idx Kernel worker ID
     \param cycle Pointer containing 2 elements:
+    \param sw_timer_idx Index of SW Timer used for timeout
     -Wait Latency(time the command sits in Submission Queue)
     -Start cycles when Kernels are Launched on the Compute Minions
     \return none
 */
-void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle);
+void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle, uint8_t sw_timer_idx);
 
 /*! \fn void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     \brief Launch the Kernel Worker thread
@@ -119,5 +121,12 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
 */
 int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
     uint8_t sqw_idx);
+
+/*! \fn void KW_Set_Abort_Status(uint8_t kw_idx)
+    \brief Sets the status of a kernel to abort and notifies the KW
+    \param kw_idx Kernel Worker index
+    \return none
+*/
+void KW_Set_Abort_Status(uint8_t kw_idx);
 
 #endif /* KW_DEFS_H */

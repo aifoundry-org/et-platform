@@ -350,7 +350,7 @@ DMA_STATUS_e dma_abort_read(dma_chan_id_e chan)
         iowrite32(
             PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_DOORBELL_OFF_ADDRESS, dma_abort);
     } else {
-        Log_Write(LOG_LEVEL_DEBUG, "Channel %d is not running\r\n", chan);
+        Log_Write(LOG_LEVEL_ERROR, "Channel %d is not running\r\n", chan);
         return DMA_ERROR_CHANNEL_NOT_RUNNING;
     }
 
@@ -373,7 +373,7 @@ DMA_STATUS_e dma_abort_write(dma_chan_id_e chan)
         iowrite32(
             PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_DOORBELL_OFF_ADDRESS, dma_abort);
     } else {
-        Log_Write(LOG_LEVEL_DEBUG, "Channel %d is not running\r\n", chan);
+        Log_Write(LOG_LEVEL_ERROR, "Channel %d is not running\r\n", chan);
         return DMA_ERROR_CHANNEL_NOT_RUNNING;
     }
 
