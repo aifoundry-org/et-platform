@@ -10,9 +10,8 @@
 
 #include "runtime/IRuntime.h"
 
-#include "esperanto/runtime/Common/ProjectAutogen.h"
+#include "common/ProjectAutogen.h"
 #include <device-layer/IDeviceLayer.h>
-#include <esperanto/runtime/Core/CommandLineOptions.h>
 #include <experimental/filesystem>
 #include <fstream>
 #include <glog/logging.h>
@@ -93,6 +92,5 @@ int main(int argc, char** argv) {
   FLAGS_minloglevel = 0;
   FLAGS_logtostderr = 1;
   testing::InitGoogleTest(&argc, argv);
-  et_runtime::ParseCommandLineOptions(argc, argv, {"test_memcpy.cpp"});
   return RUN_ALL_TESTS();
 }

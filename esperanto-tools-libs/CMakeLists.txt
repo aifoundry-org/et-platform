@@ -18,11 +18,11 @@ option(ETRT_ENABLE_PROTOBUF_CONSOLE_LOGGING "Enable protobuf console logging" OF
 option(ETRT_ENABLE_TRACING "Enable runtime tracing" OFF)
 
 if (ETRT_ENABLE_PROTOBUF_CONSOLE_LOGGING)
-add_compile_definitions(ETRT_ENABLE_PROTOBUF_CONSOLE_LOGGING=1)
+    add_compile_definitions(ETRT_ENABLE_PROTOBUF_CONSOLE_LOGGING=1)
 endif(ETRT_ENABLE_PROTOBUF_CONSOLE_LOGGING)
 
 if (ETRT_ENABLE_TRACING)
-add_compile_definitions(ETRT_ENABLE_TRACING=1)
+    add_compile_definitions(ETRT_ENABLE_TRACING=1)
 endif(ETRT_ENABLE_TRACING)
 
 enable_testing()
@@ -35,11 +35,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CoverageSupport.cmake)
 option(BUILD_SHARED_LIBS "Build shared libs." ON)
 option(ENABLE_PCIE "Enable pcie support by default" OFF)
 option(ENABLE_CCACHE "Enable ccahe in the builds" OFF)
-option(
-  ENABLE_ET_LOG
-  "Whether ET_LOG lines produce any code or are optimized out"
-  ON
-)
+option(ENABLE_ET_LOG "Whether ET_LOG lines produce any code or are optimized out" ON)
 
 # If not empty install any runtime python packages
 set(PYTHON "" CACHE PATH "Path to the python binary to install our python packages under")
@@ -78,16 +74,14 @@ foreach(p LIB BIN INCLUDE CMAKE)
 endforeach()
 
 # System dependencies
-find_package(Sanitizers REQUIRED)
+find_package(elfio REQUIRED)
+find_package(fmt REQUIRED)
 find_package(gflags REQUIRED)
 find_package(Glog REQUIRED)
-find_package(fmt REQUIRED)
 find_package(GTest REQUIRED)
-find_package(elfio REQUIRED)
-find_package(absl REQUIRED)
+find_package(Sanitizers REQUIRED)
 
 # Esperanto dependencies
-find_package(SimulatorAPI REQUIRED)
 find_package(esperanto-device-api REQUIRED)
 find_package(EsperantoBootLoader REQUIRED)
 find_package(EsperantoDeviceMinionRuntime REQUIRED)
@@ -95,10 +89,6 @@ find_package(EsperantoTestKernels REQUIRED)
 find_package(linuxDriver REQUIRED)
 find_package(DeviceLayer REQUIRED)
 find_package(sw-sysemu REQUIRED)
-
-message("EsperantoBootLoader found: " ${EsperantoBootLoader_FOUND})
-message("EsperantoDeviceMinionRuntime found: " ${EsperantoDeviceMinionRuntime_FOUND})
-message("linuxDriver found: " ${linuxDriver_FOUND})
 
 # Add definitions and compile options
 add_definitions("-DENABLE_ET_LOG=$<BOOL:${ENABLE_ET_LOG}>")
@@ -108,7 +98,6 @@ add_subdirectory(include)
 add_subdirectory(docs)
 add_subdirectory(src)
 add_subdirectory(tests)
-add_subdirectory(tools)
 
 ### Add package information
 include(CMakePackageConfigHelpers)

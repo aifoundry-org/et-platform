@@ -16,27 +16,15 @@ find_package(breakpad REQUIRED)
 find_package(DeviceLayer REQUIRED)
 find_package(sw-sysemu REQUIRED)
 
-include_directories(${GTEST_DIR}/include)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../kernels)
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/../include)
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/../src)
-include_directories(${EXTERNAL_INCLUDE_DIRECTORIES})
-include_directories(${ESPERANTO_DEVICE_MINION_RUNTIME_INCLUDE_DIR})
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${BREAKPAD_INCLUDE_DIR}/breakpad)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../external/cereal/include)
 
-link_directories(${GTEST_DIR}/lib64
-  ${EXTERNAL_LINK_DIRECTORIES}
-  )
-
 ### External dependencies
-
 set(CI_DEPENDENCIES convolution.elf
                     gpu_0_softmax_110.elf
                     etsocmaxsplat.elf
-  )
+)
 
 ## Download the external depednencies from Artifactory
 foreach(CI_DEPENDENCY ${CI_DEPENDENCIES})
@@ -50,15 +38,13 @@ add_custom_target(ci-dependencies
 add_compile_options(-g3 -O0 -std=c++17)
 
 set(COMMON_TEST_LIBRARIES
-   -Wl,--whole-archive etrt_static -Wl,--no-whole-archive
+  etrt_static
   libgtest_main.a
   libgtest.a
   libgmock.a
   libbreakpad_client.a
   stdc++fs
   )
-
-
 
 # Helper function to build a test binary
 #
@@ -88,7 +74,6 @@ macro(build_test_binary)
   target_include_directories(${TEST_TARGET} PUBLIC ${GLOG_INCLUDE_DIRS})
 
   add_sanitizers(${TEST_TARGET})
-
 endmacro()
 
 ## Helper function for creating the different test binary targets
@@ -120,7 +105,7 @@ function(create_test_targets TEST_LIST TEST_PROPERTIES)
       )
 
     gtest_discover_tests(${TEST_PREFIX} ${TEST_TARGET}
-      EXTRA_ARGS ${TEST_ARGS} --etrt_trace ${CMAKE_CURRENT_BINARY_DIR}/${TEST_TARGET}.etrt_trace
+      EXTRA_ARGS ${TEST_ARGS}
       TEST_PREFIX runtime:
       PROPERTIES ${TEST_PROPERTIES}
       TEST_LIST DISCOVERED_TESTS
@@ -139,6 +124,7 @@ get_property(TRACE_KERNEL_ELF TARGET esperanto-test-kernels::trace.elf PROPERTY 
 
 get_filename_component(KERNELS_DIR ${EMPTY_KERNEL_ELF} DIRECTORY)
 
+add_subdirectory(common)
 add_subdirectory(unit-tests)
 add_subdirectory(integration-tests)
 add_subdirectory(tools)

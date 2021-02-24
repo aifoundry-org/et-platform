@@ -14,7 +14,7 @@
 #define private public
 #include "NewCore/MemoryManager.h"
 #include "NewCore/RuntimeImp.h"
-#include "esperanto/runtime/Common/ProjectAutogen.h"
+#include "common/ProjectAutogen.h"
 #include <chrono>
 #include <cstdio>
 #include <experimental/filesystem>
