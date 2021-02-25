@@ -4,12 +4,20 @@
 
 .section .text, "ax", @progbits /* TODO FIXME move to M +RX page sections */
 
-.macro esr_shire_ipi_trigger_addr dst, tmp, shire
-    li    \dst, ESR_SHIRE_REGION | \
-               (ESR_SHIRE_IPI_TRIGGER_PROT << ESR_REGION_PROT_SHIFT) | \
-               (ESR_SHIRE_IPI_TRIGGER_REGNO << 3)
+.macro esr_shire_addr dst, tmp, shire, prot, regno
+    li    \dst, ESR_SHIRE_REGION | ((\prot) << ESR_REGION_PROT_SHIFT) | ((\regno) << 3)
     sll   \tmp, \shire, ESR_REGION_SHIRE_SHIFT
     or    \dst, \dst, \tmp
+.endm
+
+.macro esr_shire_this_prot_addr dst, prot, regno
+    li    \dst, ESR_SHIRE_REGION | (SHIRE_OWN << ESR_REGION_SHIRE_SHIFT) | ((\regno) << 3)
+    slli  \prot, \prot, ESR_REGION_PROT_SHIFT
+    or    \dst, \dst, \prot
+.endm
+
+.macro esr_shire_ipi_trigger_addr dst, tmp, shire
+    esr_shire_addr \dst, \tmp, \shire, ESR_SHIRE_IPI_TRIGGER_PROT, ESR_SHIRE_IPI_TRIGGER_REGNO
 .endm
 
 .align 12 /* Minion requires machine trap vector to be 4K aligned, mtvec[11:0] = 0 */
@@ -60,14 +68,33 @@ handle_exception:
     li    x3, EXCEPTION_ENVIRONMENT_CALL_FROM_S_MODE
     bne   x1, x3, slow_path
 
-    /* For now we only handle some syscalls in fast-path */
+    /* Register a0 carries syscall ID, a1-a3 args. Return value to a0 */
+    /* For now we only handle some syscalls in fast-path. Regs a0, x1, x3 can be modified */
     li    x1, SYSCALL_IPI_TRIGGER_INT
+    beq   a0, x1, syscall_ipi_trigger
+    li    x1, SYSCALL_BROADCAST_INT
     bne   a0, x1, slow_path
 
+    /* Handle SYSCALL_BROADCAST_INT */
+    li    x1, ESR_SHIRE_PROT_ADDR(PRV_U, SHIRE_OWN, ESR_SHIRE_BROADCAST0)
+    sd    a1, 0(x1)
+    fence
+    srli  x1, a3, ESR_BROADCAST_PROT_SHIFT
+    andi  x1, x1, (ESR_BROADCAST_PROT_MASK >> ESR_BROADCAST_PROT_SHIFT)
+    esr_shire_this_prot_addr x3, x1, (ESR_SHIRE_BROADCAST1 >> 3)
+    li    x1, ESR_BROADCAST_ESR_SHIRE_MASK
+    and   x1, a2, x1
+    or    x1, x1, a3
+    sd    x1, (x3)
+    fence
+    j     done_syscall_fast_path
+
+syscall_ipi_trigger:
     /* Handle SYSCALL_IPI_TRIGGER_INT */
     esr_shire_ipi_trigger_addr x1, x3, a2
     sd    a1, 0(x1)
 
+done_syscall_fast_path:
     /* Return to the following instruction that caused the trap */
     csrr  x1, mepc
     /* TODO: Support compressed instructions? */

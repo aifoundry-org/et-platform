@@ -46,13 +46,11 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
         (volatile const uint64_t *const)(R_PU_RVTIM_BASEADDR);
 
     /* List of syscalls handled in fast-path (assembly):
-     *   SYSCALL_IPI_TRIGGER_INT
+     *   SYSCALL_IPI_TRIGGER_INT(uint64_t hart_mask, uint64_t shire_id)
+     *   SYSCALL_BROADCAST_INT(uint64_t value, uint64_t shire_mask, uint64_t parameters)
      */
 
     switch (number) {
-    case SYSCALL_BROADCAST_INT:
-        ret = broadcast_with_parameters(arg1, arg2, arg3);
-        break;
     case SYSCALL_ENABLE_THREAD1_INT:
         ret = enable_thread1(arg1, arg2);
         break;
