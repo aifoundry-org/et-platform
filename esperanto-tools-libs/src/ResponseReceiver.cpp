@@ -10,8 +10,6 @@
 
 #include "ResponseReceiver.h"
 #include "RuntimeImp.h"
-#include "esperanto/device-api/device_api_message_types.h"
-#include "esperanto/device-api/device_api_spec_non_privileged.h"
 #include "utils.h"
 #include <algorithm>
 #include <array>
