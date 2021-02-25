@@ -28,16 +28,16 @@
 *   FUNCTION
 *
 *       get_max_memory_error
-*  
+*
 *   DESCRIPTION
 *
 *       This function gets the maximum count of memory error.
 *
 *   INPUTS
 *
-*       req_start_time    Time stamp when the request was received by the 
+*       req_start_time    Time stamp when the request was received by the
 *                         Command Dispatcher
-*                         
+*
 *   OUTPUTS
 *
 *       None
@@ -56,7 +56,7 @@ static void get_max_memory_error(tag_id_t tag_id, uint64_t req_start_time)
                     DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_max_memory_error_rsp_t))) {
-        printf("get_max_memory_error: Cqueue push error !\n");
+        printf("get_max_memory_error: Cqueue push error!\n");
     }
 }
 
@@ -65,16 +65,16 @@ static void get_max_memory_error(tag_id_t tag_id, uint64_t req_start_time)
 *   FUNCTION
 *
 *       get_module_max_ddr_bw
-*  
+*
 *   DESCRIPTION
 *
 *       This function gets the maximum DDR BW.
 *
 *   INPUTS
 *
-*       req_start_time    Time stamp when the request was received by the 
+*       req_start_time    Time stamp when the request was received by the
 *                         Command Dispatcher
-*                         
+*
 *   OUTPUTS
 *
 *       None
@@ -94,7 +94,7 @@ static void get_module_max_ddr_bw(tag_id_t tag_id, uint64_t req_start_time)
                     DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_max_dram_bw_rsp_t))) {
-        printf("get_max_memory_error: Cqueue push error !\n");
+        printf("get_max_memory_error: Cqueue push error!\n");
     }
 }
 
@@ -103,17 +103,17 @@ static void get_module_max_ddr_bw(tag_id_t tag_id, uint64_t req_start_time)
 *   FUNCTION
 *
 *       get_module_max_throttle_time
-*  
+*
 *   DESCRIPTION
 *
-*       This function returns the maximum total time the device has been 
+*       This function returns the maximum total time the device has been
 *       resident in the throttles state i.e. non-full power mode from Device Reset.
 *
 *   INPUTS
 *
-*       req_start_time    Time stamp when the request was received by the 
+*       req_start_time    Time stamp when the request was received by the
 *                         Command Dispatcher
-*                         
+*
 *   OUTPUTS
 *
 *       None
@@ -133,7 +133,7 @@ static void get_module_max_throttle_time(tag_id_t tag_id, uint64_t req_start_tim
 
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_max_throttle_time_rsp_t))) {
-        printf("get_module_max_throttle_time: Cqueue push error !\n");
+        printf("get_module_max_throttle_time: Cqueue push error!\n");
     }
 }
 
@@ -142,7 +142,7 @@ static void get_module_max_throttle_time(tag_id_t tag_id, uint64_t req_start_tim
 *   FUNCTION
 *
 *       get_module_max_temperature
-*  
+*
 *   DESCRIPTION
 *
 *       This function returns the historical_extreme Maximum Device temperature
@@ -152,7 +152,7 @@ static void get_module_max_throttle_time(tag_id_t tag_id, uint64_t req_start_tim
 *   INPUTS
 *
 *       req_start_time    Time stamp when the request was received by the Command
-*                         Dispatcher   
+*                         Dispatcher
 *
 *   OUTPUTS
 *
@@ -181,16 +181,16 @@ static void get_module_max_temperature(uint16_t tag, uint64_t req_start_time)
 *   FUNCTION
 *
 *       historical_extreme_value_request
-*  
+*
 *   DESCRIPTION
 *
 *       This function takes as input the command ID from Host,
-*       and accordingly either calls the respective error control info 
+*       and accordingly either calls the respective error control info
 *       functions
 *
 *   INPUTS
 *
-*       msg_id      Unique enum representing specific command   
+*       msg_id      Unique enum representing specific command
 *
 *   OUTPUTS
 *

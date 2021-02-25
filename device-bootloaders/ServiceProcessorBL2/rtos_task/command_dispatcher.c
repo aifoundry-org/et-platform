@@ -264,7 +264,7 @@ static void mm_vq_task(void *pvParameters)
                 rsp.payload = req->payload;
 
                 if (0 != SP_MM_Iface_CQ_Push_Cmd((char *)&rsp, sizeof(rsp))) {
-                    printf("SP_MM_Iface_CQ_Push_Cmd: Cqueue push error !\n");
+                    printf("SP_MM_Iface_CQ_Push_Cmd: Cqueue push error!\n");
                 }
                 break;
             }

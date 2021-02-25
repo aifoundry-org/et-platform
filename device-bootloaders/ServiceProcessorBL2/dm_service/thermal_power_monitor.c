@@ -33,15 +33,15 @@
 *   FUNCTION
 *
 *       pwr_svc_get_module_power_state
-*  
+*
 *   DESCRIPTION
 *
 *       This function returns the Power state of the System functioning at. The
 *       table depicts the different Power states.
 *       *******************************
-*       | Type    | Level | Perf      | 
+*       | Type    | Level | Perf      |
 *       *******************************
-*       | Full    | D0    | Max       | 
+*       | Full    | D0    | Max       |
 *       | Reduced | D1,D2 | Minion    |
 *       |         |       | Managed   |
 *       | Lowest  | D3    | Ref Clock |
@@ -50,7 +50,7 @@
 *   INPUTS
 *
 *       req_start_time    Time stamp when the request was received by the Command
-*                         Dispatcher   
+*                         Dispatcher
 *
 *   OUTPUTS
 *
@@ -70,7 +70,7 @@ static void pwr_svc_get_module_power_state(uint16_t tag, uint64_t req_start_time
 
 
    if (0 !=  SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_power_state_rsp_t))) {
-        printf("pwr_svc_get_module_power_state: Cqueue push error !\n");
+        printf("pwr_svc_get_module_power_state: Cqueue push error!\n");
    }
 }
 
@@ -79,15 +79,15 @@ static void pwr_svc_get_module_power_state(uint16_t tag, uint64_t req_start_time
 *   FUNCTION
 *
 *       pwr_svc_set_module_power_state
-*  
+*
 *   DESCRIPTION
 *
 *       This function set the Power state of the System to function at. The
 *       table depicts the different Power states.
 *       *******************************
-*       | Type    | Level | Perf      | 
+*       | Type    | Level | Perf      |
 *       *******************************
-*       | Full    | D0    |  Max      | 
+*       | Full    | D0    |  Max      |
 *       | Reduced | D1    | Managed   |
 *       | Lowest  | D3    | Ref Clock |
 *       *******************************
@@ -95,7 +95,7 @@ static void pwr_svc_get_module_power_state(uint16_t tag, uint64_t req_start_time
 *   INPUTS
 *
 *       req_start_time    Time stamp when the request was received by the Command
-*                         Dispatcher   
+*                         Dispatcher
 *
 *   OUTPUTS
 *
@@ -105,7 +105,7 @@ static void pwr_svc_get_module_power_state(uint16_t tag, uint64_t req_start_time
 static void pwr_svc_set_module_power_state(uint16_t tag, uint64_t req_start_time, power_state_e state)
 {
     struct device_mgmt_default_rsp_t dm_rsp;
-    
+
     get_soc_power_reg()->module_power_state = state;
 
     FILL_RSP_HEADER(dm_rsp, tag,
@@ -116,7 +116,7 @@ static void pwr_svc_set_module_power_state(uint16_t tag, uint64_t req_start_time
     dm_rsp.payload = DM_STATUS_SUCCESS;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
-        printf("pwr_svc_set_module_power_state: Cqueue push error !\n");
+        printf("pwr_svc_set_module_power_state: Cqueue push error!\n");
     }
 }
 
@@ -125,7 +125,7 @@ static void pwr_svc_set_module_power_state(uint16_t tag, uint64_t req_start_time
 *   FUNCTION
 *
 *       pwr_svc_get_module_power
-*  
+*
 *   DESCRIPTION
 *
 *       This function returns the current Power consumed by the whole Device.
@@ -134,7 +134,7 @@ static void pwr_svc_set_module_power_state(uint16_t tag, uint64_t req_start_time
 *   INPUTS
 *
 *       req_start_time    Time stamp when the request was received by the Command
-*                         Dispatcher   
+*                         Dispatcher
 *
 *   OUTPUTS
 *
@@ -144,8 +144,8 @@ static void pwr_svc_set_module_power_state(uint16_t tag, uint64_t req_start_time
 static void pwr_svc_get_module_power(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_module_power_rsp_t dm_rsp;
-    
-    get_soc_power_reg()->soc_power = pmic_read_soc_power(); 
+
+    get_soc_power_reg()->soc_power = pmic_read_soc_power();
     dm_rsp.module_power.watts = get_soc_power_reg()->soc_power;
 
     FILL_RSP_HEADER(dm_rsp, tag,
@@ -163,17 +163,17 @@ static void pwr_svc_get_module_power(uint16_t tag, uint64_t req_start_time)
 *   FUNCTION
 *
 *       pwr_svc_get_module_voltage
-*  
+*
 *   DESCRIPTION
 *
-*       This function returns the value of voltage for a given voltage domain. 
+*       This function returns the value of voltage for a given voltage domain.
 *       Note there are many voltage domains in the device, hence this will take
 *       as an argument the domain of interest
 *
 *   INPUTS
 *
 *       req_start_time    Time stamp when the request was received by the Command
-*                         Dispatcher   
+*                         Dispatcher
 *
 *       shire             The shire specific voltage domain
 *   OUTPUTS
@@ -186,7 +186,7 @@ static void pwr_svc_get_module_voltage(uint16_t tag, uint64_t req_start_time, mo
     struct device_mgmt_module_voltage_rsp_t dm_rsp;
 
     get_soc_power_reg()->module_voltage.minion_shire_mV = pmic_get_voltage(shire);
-    
+
     dm_rsp.module_voltage = get_soc_power_reg()->module_voltage;
 
     FILL_RSP_HEADER(dm_rsp, tag,
@@ -205,7 +205,7 @@ static void pwr_svc_get_module_voltage(uint16_t tag, uint64_t req_start_time, mo
 *   FUNCTION
 *
 *       pwr_svc_get_module_tdp_level
-*  
+*
 *   DESCRIPTION
 *
 *       This function return the Thermal Design Power(TDP) of the System. This
@@ -223,7 +223,7 @@ static void pwr_svc_get_module_voltage(uint16_t tag, uint64_t req_start_time, mo
 *   INPUTS
 *
 *       req_start_time    Time stamp when the request was received by the Command
-*                         Dispatcher   
+*                         Dispatcher
 *
 *   OUTPUTS
 *
@@ -251,17 +251,17 @@ static void pwr_svc_get_module_tdp_level(uint16_t tag, uint64_t req_start_time)
 *   FUNCTION
 *
 *       pwr_svc_set_module_tdp_level
-*  
+*
 *   DESCRIPTION
 *
 *       This function set the Thermal Design Power(TDP) - power consumption under
-*       the maximum theoretical load level. The TDP is set in PMIC to take action 
-*       by itself to reduce the power consumption 
+*       the maximum theoretical load level. The TDP is set in PMIC to take action
+*       by itself to reduce the power consumption
 *
 *   INPUTS
 *
 *       req_start_time    Time stamp when the request was received by the Command
-*                         Dispatcher   
+*                         Dispatcher
 *
 *   OUTPUTS
 *
@@ -284,7 +284,7 @@ static void pwr_svc_set_module_tdp_level(uint16_t tag, uint64_t req_start_time, 
     dm_rsp.payload = DM_STATUS_SUCCESS;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
-        printf("pwr_svc_set_module_power_state: Cqueue push error !\n");
+        printf("pwr_svc_set_module_power_state: Cqueue push error!\n");
     }
 }
 
@@ -293,17 +293,17 @@ static void pwr_svc_set_module_tdp_level(uint16_t tag, uint64_t req_start_time, 
 *   FUNCTION
 *
 *       pwr_svc_get_module_temp_thresholds
-*  
+*
 *   DESCRIPTION
 *
-*       This function returns the temperature thresholds which is set within the PMIC: 
+*       This function returns the temperature thresholds which is set within the PMIC:
 *        - Inform_threshold -  triggers an interrupt back to SP to take action
-*        - Warning_threshold - takes action by itself to reduce the power consumption 
+*        - Warning_threshold - takes action by itself to reduce the power consumption
 *
 *   INPUTS
 *
 *       req_start_time    Time stamp when the request was received by the Command
-*                         Dispatcher   
+*                         Dispatcher
 *
 *   OUTPUTS
 *
@@ -321,7 +321,7 @@ static void pwr_svc_get_module_temp_thresholds(uint16_t tag, uint64_t req_start_
                     DM_STATUS_SUCCESS);
 
    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_temperature_threshold_rsp_t))) {
-        printf("pwr_svc_get_module_temp_thresholds: Cqueue push error !\n");
+        printf("pwr_svc_get_module_temp_thresholds: Cqueue push error!\n");
    }
 }
 
@@ -330,17 +330,17 @@ static void pwr_svc_get_module_temp_thresholds(uint16_t tag, uint64_t req_start_
 *   FUNCTION
 *
 *       pwr_svc_set_module_temp_thresholds
-*  
+*
 *   DESCRIPTION
 *
-*       This function sets the temperature thresholds within the PMIC to: 
+*       This function sets the temperature thresholds within the PMIC to:
 *        - Inform_threshold -  trigger an interrupt back to SP to take action
-*        - Warning_threshold - take action by itself to reduce the power consumption 
+*        - Warning_threshold - take action by itself to reduce the power consumption
 *
 *   INPUTS
 *
 *       req_start_time    Time stamp when the request was received by the Command
-*                         Dispatcher   
+*                         Dispatcher
 *
 *   OUTPUTS
 *
@@ -355,16 +355,16 @@ static void pwr_svc_set_module_temp_thresholds(uint16_t tag, uint64_t req_start_
     pmic_set_temperature_threshold(HI, hi_threshold);
     get_soc_power_reg()->temperature_threshold.lo_temperature_c = lo_threshold;
     get_soc_power_reg()->temperature_threshold.hi_temperature_c = hi_threshold;
-   
+
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS,
                     timer_get_ticks_count() - req_start_time,
                     DM_STATUS_SUCCESS);
 
     dm_rsp.payload = DM_STATUS_SUCCESS;
-     
+
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
-        printf("pwr_svc_set_module_temp_thresholds: Cqueue push error !\n");
+        printf("pwr_svc_set_module_temp_thresholds: Cqueue push error!\n");
     }
 }
 
@@ -373,7 +373,7 @@ static void pwr_svc_set_module_temp_thresholds(uint16_t tag, uint64_t req_start_
 *   FUNCTION
 *
 *       pwr_svc_get_module_current_temperature
-*  
+*
 *   DESCRIPTION
 *
 *       This function returns the current Device temperature
@@ -383,7 +383,7 @@ static void pwr_svc_set_module_temp_thresholds(uint16_t tag, uint64_t req_start_
 *   INPUTS
 *
 *       req_start_time    Time stamp when the request was received by the Command
-*                         Dispatcher   
+*                         Dispatcher
 *
 *   OUTPUTS
 *
@@ -412,17 +412,17 @@ static void pwr_svc_get_module_current_temperature(uint16_t tag, uint64_t req_st
 *   FUNCTION
 *
 *       pwr_svc_get_module_residency_throttle_states
-*  
+*
 *   DESCRIPTION
 *
-*       This function returns the total time the device has been resident in the 
+*       This function returns the total time the device has been resident in the
 *       throttles state i.e. non-full power mode from Device Reset
 *       Note the value doesnt hold over a consequtitve Device Reset
 *
 *   INPUTS
 *
 *       req_start_time    Time stamp when the request was received by the Command
-*                         Dispatcher   
+*                         Dispatcher
 *
 *   OUTPUTS
 *
@@ -451,7 +451,7 @@ static void pwr_svc_get_module_residency_throttle_states(uint16_t tag, uint64_t 
 *   FUNCTION
 *
 *       pwr_svc_get_module_uptime
-*  
+*
 *   DESCRIPTION
 *
 *       This function returns the cumulative time starting from Device Reset.
@@ -460,7 +460,7 @@ static void pwr_svc_get_module_residency_throttle_states(uint16_t tag, uint64_t 
 *   INPUTS
 *
 *       req_start_time    Time stamp when the request was received by the Command
-*                         Dispatcher   
+*                         Dispatcher
 *
 *   OUTPUTS
 *
@@ -488,16 +488,16 @@ static void pwr_svc_get_module_uptime(uint16_t tag, uint64_t req_start_time)
 *   FUNCTION
 *
 *       thermal_power_monitoring_process
-*  
+*
 *   DESCRIPTION
 *
 *       This function takes as input the command ID from Host,
-*       and accordingly either calls the respective power state 
+*       and accordingly either calls the respective power state
 *       functions
 *
 *   INPUTS
 *
-*       msg_id      Unique enum representing specific command   
+*       msg_id      Unique enum representing specific command
 *
 *   OUTPUTS
 *
@@ -563,5 +563,5 @@ void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id, void *bu
          break;
       }
       }
-	 
+
 }

@@ -29,7 +29,7 @@
 *   FUNCTION
 *
 *       error_ctl_set_ddr_ecc_count
-*  
+*
 *   DESCRIPTION
 *
 *       This function sets the DDR ECC count.
@@ -38,7 +38,7 @@
 *
 *       req_start_time    Time stamp when the request was received by the Command
 *                         Dispatcher
-*       ecc_count         ECC error count   
+*       ecc_count         ECC error count
 *
 *   OUTPUTS
 *
@@ -60,7 +60,7 @@ static void error_ctl_set_ddr_ecc_count(tag_id_t tag_id, uint64_t req_start_time
     dm_rsp.payload = DM_STATUS_SUCCESS;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
-        printf("error_ctl_set_ddr_ecc_count: Cqueue push error !\n");
+        printf("error_ctl_set_ddr_ecc_count: Cqueue push error!\n");
     }
 }
 
@@ -69,7 +69,7 @@ static void error_ctl_set_ddr_ecc_count(tag_id_t tag_id, uint64_t req_start_time
 *   FUNCTION
 *
 *       error_ctl_set_pcie_ecc_count
-*  
+*
 *   DESCRIPTION
 *
 *       This function sets the PCIE ECC count.
@@ -77,8 +77,8 @@ static void error_ctl_set_ddr_ecc_count(tag_id_t tag_id, uint64_t req_start_time
 *   INPUTS
 *
 *       req_start_time    Time stamp when the request was received by the Command
-*                         Dispatcher 
-*       ecc_count         ECC error count 
+*                         Dispatcher
+*       ecc_count         ECC error count
 *
 *   OUTPUTS
 *
@@ -99,7 +99,7 @@ static void error_ctl_set_pcie_ecc_count(tag_id_t tag_id, uint64_t req_start_tim
     dm_rsp.payload = DM_STATUS_SUCCESS;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
-        printf("error_ctl_set_pcie_ecc_count: Cqueue push error !\n");
+        printf("error_ctl_set_pcie_ecc_count: Cqueue push error!\n");
     }
 }
 /************************************************************************
@@ -107,7 +107,7 @@ static void error_ctl_set_pcie_ecc_count(tag_id_t tag_id, uint64_t req_start_tim
 *   FUNCTION
 *
 *       error_ctl_set_sram_ecc_count
-*  
+*
 *   DESCRIPTION
 *
 *       This function sets the DDR ECC count.
@@ -115,8 +115,8 @@ static void error_ctl_set_pcie_ecc_count(tag_id_t tag_id, uint64_t req_start_tim
 *   INPUTS
 *
 *       req_start_time    Time stamp when the request was received by the Command
-*                         Dispatcher 
-*       ecc_count         ECC error count   
+*                         Dispatcher
+*       ecc_count         ECC error count
 *
 *   OUTPUTS
 *
@@ -137,7 +137,7 @@ static void error_ctl_set_sram_ecc_count(tag_id_t tag_id, uint64_t req_start_tim
     dm_rsp.payload = DM_STATUS_SUCCESS;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
-        printf("error_ctl_set_sram_ecc_count: Cqueue push error !\n");
+        printf("error_ctl_set_sram_ecc_count: Cqueue push error!\n");
     }
 }
 
@@ -146,16 +146,16 @@ static void error_ctl_set_sram_ecc_count(tag_id_t tag_id, uint64_t req_start_tim
 *   FUNCTION
 *
 *       error_control_process_request
-*  
+*
 *   DESCRIPTION
 *
 *       This function takes as input the command ID from Host,
-*       and accordingly either calls the respective error control info 
+*       and accordingly either calls the respective error control info
 *       functions
 *
 *   INPUTS
 *
-*       msg_id      Unique enum representing specific command   
+*       msg_id      Unique enum representing specific command
 *
 *   OUTPUTS
 *

@@ -40,9 +40,9 @@ static int64_t dm_svc_get_firmware_status(void)
     uint32_t completed_boot_counter;
 
     if (0 != flash_fs_get_boot_counters(&attempted_boot_counter, &completed_boot_counter)) {
-        printf("flash_fs_get_boot_counters: failed to get boot counters !\n");
+        printf("flash_fs_get_boot_counters: failed to get boot counters!\n");
     } else {
-        printf("flash_fs_get_boot_counters: Success !\n");
+        printf("flash_fs_get_boot_counters: Success!\n");
         if (attempted_boot_counter != completed_boot_counter) {
             printf(
                 "flash_fs_get_boot_counters: Attempted and completed boot counter do not match!\n");
@@ -138,7 +138,7 @@ static void send_status_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_
     dm_rsp.payload = status;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
-        printf("send_status_response: Cqueue push error !\n");
+        printf("send_status_response: Cqueue push error!\n");
     }
 }
 
@@ -238,7 +238,7 @@ static void dm_svc_get_firmware_version(tag_id_t tag_id, uint64_t req_start_time
                     DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(dm_rsp))) {
-        printf("dm_svc_get_firmware_version: Cqueue push error !\n");
+        printf("dm_svc_get_firmware_version: Cqueue push error!\n");
     }
 }
 
@@ -285,47 +285,41 @@ dm_svc_update_sp_boot_root_certificate_hash(struct device_mgmt_certificate_hash_
 void firmware_service_process_request(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
 {
     int64_t ret = 0;
-    uint64_t req_start_time;
-    printf("cmd_id: %d\n", msg_id);
-    req_start_time = timer_get_ticks_count();
+    uint64_t req_start_time = timer_get_ticks_count();
 
     switch (msg_id) {
-    case DM_CMD_SET_FIRMWARE_UPDATE: {
+    case DM_CMD_SET_FIRMWARE_UPDATE:
         ret = dm_svc_firmware_update();
         send_status_response(tag_id, msg_id, req_start_time, (uint32_t)ret);
-    } break;
-
-    case DM_CMD_GET_MODULE_FIRMWARE_REVISIONS: {
+        break;
+    case DM_CMD_GET_MODULE_FIRMWARE_REVISIONS:
         dm_svc_get_firmware_version(tag_id, req_start_time);
-    } break;
-
-    case DM_CMD_GET_FIRMWARE_BOOT_STATUS: {
+        break;
+    case DM_CMD_GET_FIRMWARE_BOOT_STATUS:
         ret = dm_svc_get_firmware_status();
         send_status_response(tag_id, msg_id, req_start_time, (uint32_t)ret);
-    } break;
-        /*  TODO: These feature is to be supported in v 0.0.7
-    case DM_CMD_SET_FIRMWARE_VERSION_COUNTER: {
+        break;
+    /*  TODO: These feature is to be supported in v 0.0.7
+    case DM_CMD_SET_FIRMWARE_VERSION_COUNTER:
         ret = dm_svc_set_firmware_version_counter();
-    } break;
+        break;
 
-    case DM_CMD_SET_FIRMWARE_VALID: {
+    case DM_CMD_SET_FIRMWARE_VALID:
         ret = dm_svc_set_firmware_valid_counter();
-    } break;
+        break;
 
-    case DM_CMD_SET_SW_BOOT_ROOT_CERT: {
+    case DM_CMD_SET_SW_BOOT_ROOT_CERT:
         ret = dm_svc_update_sw_boot_root_certificate_hash(dm_cmd_req);
-    } break;
-
+        break;
 */
     case DM_CMD_SET_SP_BOOT_ROOT_CERT: {
-        struct  device_mgmt_certificate_hash_cmd_t *dm_cmd_req = (void *)buffer;
+        struct device_mgmt_certificate_hash_cmd_t *dm_cmd_req = (void *)buffer;
         ret = dm_svc_update_sp_boot_root_certificate_hash(dm_cmd_req);
         send_status_response(tag_id, msg_id, req_start_time, (uint32_t)ret);
-    } break;
-
-    case DM_CMD_RESET_ETSOC: {
-        printf("reset_etsoc\n");
+        break;
+    }
+    case DM_CMD_RESET_ETSOC:
         reset_etsoc();
-    } break;
+        break;
     }
 }

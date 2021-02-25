@@ -51,7 +51,7 @@ void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
                         DM_STATUS_SUCCESS);
 
         if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_mm_state_rsp_t))) {
-            printf("Minion_State_Host_Iface_Process_Request: Cqueue push error !\n");
+            printf("Minion_State_Host_Iface_Process_Request: Cqueue push error!\n");
         }
         break;
     }
@@ -67,7 +67,7 @@ void Minion_State_MM_Iface_Process_Request(uint8_t msg_id)
         rsp.active_shire_mask = (uint32_t)(g_active_shire_mask & 0xFFFFFFFF); // Compute shires
 
         if (0 != SP_MM_Iface_CQ_Push_Cmd((char *)&rsp, sizeof(rsp))) {
-            printf("SP_MM_Iface_CQ_Push_Cmd: Cqueue push error !\n");
+            printf("SP_MM_Iface_CQ_Push_Cmd: Cqueue push error!\n");
         }
         break;
     }

@@ -50,8 +50,8 @@ static int64_t dm_svc_asset_getserialnumber(char *serNumber)
 static int64_t dm_svc_asset_getchiprevision(char *chipRev)
 {
     uint64_t chipRevision;
-    printf("Silicon Revision Info...\n");
     OTP_SILICON_REVISION_t silicon_revision;
+
     if (0 != sp_otp_get_silicon_revision(&silicon_revision)) {
         printf("sp_otp_get_silicon_revision() failed!\n");
         return -1;
@@ -126,15 +126,12 @@ static void asset_tracking_send_response(tag_id_t tag_id, msg_id_t msg_id, uint6
 
     strncpy(dm_rsp.asset_info.asset, asset_info, 8);
 
-    printf("asset_info: %.*s\n", 8, asset_info);
-    printf("dm_rsp.asset_info.asset: %.*s\n", 8, dm_rsp.asset_info.asset);
-
     FILL_RSP_HEADER(dm_rsp, tag_id, msg_id,
                     timer_get_ticks_count() - req_start_time,
                     DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_asset_tracking_rsp_t))) {
-        printf("asset_tracking_send_response: Cqueue push error !\n");
+        printf("asset_tracking_send_response: Cqueue push error!\n");
     }
 }
 
@@ -168,51 +165,41 @@ void asset_tracking_process_request(tag_id_t tag_id, msg_id_t msg_id)
     req_start_time = timer_get_ticks_count();
 
     switch (msg_id) {
-    case DM_CMD_GET_MODULE_MANUFACTURE_NAME: {
+    case DM_CMD_GET_MODULE_MANUFACTURE_NAME:
         ret = dm_svc_asset_getmanufacturername(req_asset_info);
-    } break;
-
-    case DM_CMD_GET_MODULE_PART_NUMBER: {
+        break;
+    case DM_CMD_GET_MODULE_PART_NUMBER:
         ret = dm_svc_asset_getpartnumber(req_asset_info);
-    } break;
-
-    case DM_CMD_GET_MODULE_SERIAL_NUMBER: {
+        break;
+    case DM_CMD_GET_MODULE_SERIAL_NUMBER:
         ret = dm_svc_asset_getserialnumber(req_asset_info);
-    } break;
-
-    case DM_CMD_GET_ASIC_CHIP_REVISION: {
+        break;
+    case DM_CMD_GET_ASIC_CHIP_REVISION:
         ret = dm_svc_asset_getchiprevision(req_asset_info);
-    } break;
-
-    case DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED: {
+        break;
+    case DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED:
         ret = dm_svc_asset_getPCIEspeed(req_asset_info);
-    } break;
-
-    case DM_CMD_GET_MODULE_REVISION: {
+        break;
+    case DM_CMD_GET_MODULE_REVISION:
         ret = dm_svc_asset_getmodulerev(req_asset_info);
-    } break;
-
-    case DM_CMD_GET_MODULE_FORM_FACTOR: {
+        break;
+    case DM_CMD_GET_MODULE_FORM_FACTOR:
         ret = dm_svc_asset_getformfactor(req_asset_info);
-    } break;
-
-    case DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER: {
+        break;
+    case DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER:
         ret = dm_svc_asset_getmemorydetails(req_asset_info, mem_part);
-    } break;
-
-    case DM_CMD_GET_MODULE_MEMORY_SIZE_MB: {
+        break;
+    case DM_CMD_GET_MODULE_MEMORY_SIZE_MB:
         ret = dm_svc_asset_getmemorysize(req_asset_info);
-    } break;
-
-    case DM_CMD_GET_MODULE_MEMORY_TYPE: {
+        break;
+    case DM_CMD_GET_MODULE_MEMORY_TYPE:
         ret = dm_svc_asset_getmemorytype(req_asset_info);
-    } break;
+        break;
     }
 
     if (!ret) {
-        printf("cmd_id : %d   response: %s\n", msg_id, req_asset_info);
         asset_tracking_send_response(tag_id, msg_id, req_start_time, req_asset_info);
     } else {
-        printf("cmd_id : %d   error %ld\r\n", msg_id, ret);
+        printf("cmd_id: %d error %ld\r\n", msg_id, ret);
     }
 }

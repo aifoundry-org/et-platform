@@ -472,11 +472,11 @@ int flash_update_partition(void *buffer, uint64_t buffer_size)
         return -1;
     }
 
-    printf("passive partition address:%x  buffer:%lx  buffer_size:%x !\n",
+    printf("passive partition address:%x  buffer:%lx  buffer_size:%x!\n",
             passive_partition_address, (uint64_t)buffer, (uint32_t)buffer_size);
     if (0 != flash_fs_write_partition(passive_partition_address, buffer, (uint32_t)buffer_size)) {
         printf(
-            "flash_fs_write_file: failed to write data  passive partition address:%x  buffer:%lx  buffer_size:%x !\n",
+            "flash_fs_write_file: failed to write data  passive partition address:%x  buffer:%lx  buffer_size:%x!\n",
             passive_partition_address, (uint64_t)buffer, (uint32_t)buffer_size);
         return -1;
     }
@@ -507,7 +507,7 @@ int flash_fs_get_boot_counters(uint32_t *attempted_boot_counter, uint32_t *compl
                              .region_offset *
                          FLASH_PAGE_SIZE,
                  partition_info->boot_counters_region_data.b, FLASH_PAGE_SIZE)) {
-        printf("flash_fs_scan_regions: error reading boot counter region !\n");
+        printf("flash_fs_scan_regions: error reading boot counter region!\n");
         return -1;
     }
 

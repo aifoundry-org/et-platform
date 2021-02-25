@@ -29,7 +29,7 @@
 *   FUNCTION
 *
 *       link_mgmt_pcie_reset
-*  
+*
 *   DESCRIPTION
 *
 *       This function resets the PCIE.
@@ -38,7 +38,7 @@
 *
 *       req_start_time    Time stamp when the request was received by the Command
 *                         Dispatcher
-*       pcie_reset_type   PCIE Reset Type Enum value   
+*       pcie_reset_type   PCIE Reset Type Enum value
 *
 *   OUTPUTS
 *
@@ -71,7 +71,7 @@ static void link_mgmt_pcie_reset(uint16_t tag, uint64_t req_start_time, pcie_res
     dm_rsp.payload = DM_STATUS_SUCCESS;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
-        printf("link_mgmt_pcie_reset: Cqueue push error !\n");
+        printf("link_mgmt_pcie_reset: Cqueue push error!\n");
     }
 }
 
@@ -80,7 +80,7 @@ static void link_mgmt_pcie_reset(uint16_t tag, uint64_t req_start_time, pcie_res
 *   FUNCTION
 *
 *       link_mgmt_set_pcie_max_link_speed
-*  
+*
 *   DESCRIPTION
 *
 *       This function sets the PCIE maximum link speed.
@@ -118,7 +118,7 @@ static void link_mgmt_set_pcie_max_link_speed(uint16_t tag, uint64_t req_start_t
     dm_rsp.payload = DM_STATUS_SUCCESS;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
-        printf("link_mgmt_set_pcie_max_link_speed: Cqueue push error !\n");
+        printf("link_mgmt_set_pcie_max_link_speed: Cqueue push error!\n");
     }
 }
 
@@ -127,7 +127,7 @@ static void link_mgmt_set_pcie_max_link_speed(uint16_t tag, uint64_t req_start_t
 *   FUNCTION
 *
 *       link_mgmt_set_pcie_lane_width
-*  
+*
 *   DESCRIPTION
 *
 *       This function set the PCIE Lane width.
@@ -165,7 +165,7 @@ static void link_mgmt_set_pcie_lane_width(uint16_t tag, uint64_t req_start_time,
     dm_rsp.payload = DM_STATUS_SUCCESS;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
-        printf("link_mgmt_set_pcie_lane_width: Cqueue push error !\n");
+        printf("link_mgmt_set_pcie_lane_width: Cqueue push error!\n");
     }
 }
 
@@ -174,7 +174,7 @@ static void link_mgmt_set_pcie_lane_width(uint16_t tag, uint64_t req_start_time,
 *   FUNCTION
 *
 *       link_mgmt_pcie_retrain_phy
-*  
+*
 *   DESCRIPTION
 *
 *       This function starts the PCIE PHY re-training.
@@ -182,7 +182,7 @@ static void link_mgmt_set_pcie_lane_width(uint16_t tag, uint64_t req_start_time,
 *   INPUTS
 *
 *       req_start_time    Time stamp when the request was received by the Command
-*                         Dispatcher   
+*                         Dispatcher
 *
 *   OUTPUTS
 *
@@ -203,7 +203,7 @@ static void link_mgmt_pcie_retrain_phy(uint16_t tag, uint64_t req_start_time)
     dm_rsp.payload = DM_STATUS_SUCCESS;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
-        printf("link_mgmt_pcie_retrain_phy: Cqueue push error !\n");
+        printf("link_mgmt_pcie_retrain_phy: Cqueue push error!\n");
     }
 }
 
@@ -212,7 +212,7 @@ static void link_mgmt_pcie_retrain_phy(uint16_t tag, uint64_t req_start_time)
 *   FUNCTION
 *
 *       link_mgmt_get_module_pcie_ecc_uecc
-*  
+*
 *   DESCRIPTION
 *
 *       This function gets the PCIE UECC count.
@@ -220,7 +220,7 @@ static void link_mgmt_pcie_retrain_phy(uint16_t tag, uint64_t req_start_time)
 *   INPUTS
 *
 *       req_start_time    Time stamp when the request was received by the Command
-*                         Dispatcher   
+*                         Dispatcher
 *
 *   OUTPUTS
 *
@@ -241,7 +241,7 @@ static void link_mgmt_get_module_pcie_ecc_uecc(uint16_t tag, uint64_t req_start_
                     DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_get_error_count_rsp_t))) {
-        printf("link_mgmt_get_module_pcie_ecc_uecc: Cqueue push error !\n");
+        printf("link_mgmt_get_module_pcie_ecc_uecc: Cqueue push error!\n");
     }
 }
 
@@ -250,7 +250,7 @@ static void link_mgmt_get_module_pcie_ecc_uecc(uint16_t tag, uint64_t req_start_
 *   FUNCTION
 *
 *       link_mgmt_get_module_dram_uecc
-*  
+*
 *   DESCRIPTION
 *
 *       This function gets the PCIE DRAM UECC count.
@@ -258,7 +258,7 @@ static void link_mgmt_get_module_pcie_ecc_uecc(uint16_t tag, uint64_t req_start_
 *   INPUTS
 *
 *       req_start_time    Time stamp when the request was received by the Command
-*                         Dispatcher   
+*                         Dispatcher
 *
 *   OUTPUTS
 *
@@ -279,7 +279,7 @@ static void link_mgmt_get_module_dram_uecc(uint16_t tag, uint64_t req_start_time
                     DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_get_error_count_rsp_t))) {
-        printf("link_mgmt_get_module_dram_uecc: Cqueue push error !\n");
+        printf("link_mgmt_get_module_dram_uecc: Cqueue push error!\n");
     }
 }
 
@@ -288,7 +288,7 @@ static void link_mgmt_get_module_dram_uecc(uint16_t tag, uint64_t req_start_time
 *   FUNCTION
 *
 *       link_mgmt_get_module_sram_uecc
-*  
+*
 *   DESCRIPTION
 *
 *       This function gets the PCIE SRAM UECC count.
@@ -296,7 +296,7 @@ static void link_mgmt_get_module_dram_uecc(uint16_t tag, uint64_t req_start_time
 *   INPUTS
 *
 *       req_start_time    Time stamp when the request was received by the Command
-*                         Dispatcher   
+*                         Dispatcher
 *
 *   OUTPUTS
 *
@@ -317,7 +317,7 @@ static void link_mgmt_get_module_sram_uecc(uint16_t tag, uint64_t req_start_time
                     DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_get_error_count_rsp_t))) {
-        printf("link_mgmt_get_module_sram_uecc: Cqueue push error !\n");
+        printf("link_mgmt_get_module_sram_uecc: Cqueue push error!\n");
     }
 }
 
@@ -326,7 +326,7 @@ static void link_mgmt_get_module_sram_uecc(uint16_t tag, uint64_t req_start_time
 *   FUNCTION
 *
 *       link_mgmt_get_module_ddr_bw_counter
-*  
+*
 *   DESCRIPTION
 *
 *       This function gets the PCIE module DDR BW counter.
@@ -334,7 +334,7 @@ static void link_mgmt_get_module_sram_uecc(uint16_t tag, uint64_t req_start_time
 *   INPUTS
 *
 *       req_start_time    Time stamp when the request was received by the Command
-*                         Dispatcher   
+*                         Dispatcher
 *
 *   OUTPUTS
 *
@@ -354,7 +354,7 @@ static void link_mgmt_get_module_ddr_bw_counter(uint16_t tag, uint64_t req_start
                     DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_dram_bw_counter_rsp_t))) {
-        printf("link_mgmt_get_module_ddr_bw_counter: Cqueue push error !\n");
+        printf("link_mgmt_get_module_ddr_bw_counter: Cqueue push error!\n");
     }
 }
 
@@ -363,16 +363,16 @@ static void link_mgmt_get_module_ddr_bw_counter(uint16_t tag, uint64_t req_start
 *   FUNCTION
 *
 *       link_mgmt_process_request
-*  
+*
 *   DESCRIPTION
 *
 *       This function takes as input the command ID from Host,
-*       and accordingly either calls the respective error control info 
+*       and accordingly either calls the respective error control info
 *       functions
 *
 *   INPUTS
 *
-*       msg_id      Unique enum representing specific command   
+*       msg_id      Unique enum representing specific command
 *
 *   OUTPUTS
 *
