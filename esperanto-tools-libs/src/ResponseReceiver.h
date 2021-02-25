@@ -9,7 +9,7 @@
  *-------------------------------------------------------------------------*/
 #pragma once
 #include "KernelParametersCache.h"
-#include "NewCore/EventManager.h"
+#include "EventManager.h"
 #include "device-layer/IDeviceLayer.h"
 #include <atomic>
 #include <functional>

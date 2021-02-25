@@ -1,6 +1,3 @@
-[submodule "external/sanitizer-cmake"]
-	path = external/sanitizer-cmake
-	url = https://github.com/arsenm/sanitizers-cmake.git
 [submodule "ci/ci-tools"]
 	path = ci/ci-tools
 	url = git@gitlab.esperanto.ai:software/ci-tools.git

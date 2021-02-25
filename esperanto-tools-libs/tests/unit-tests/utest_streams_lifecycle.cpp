@@ -12,8 +12,8 @@
 #include <gtest/gtest-death-test.h>
 #include <ios>
 #define private public
-#include "NewCore/MemoryManager.h"
-#include "NewCore/RuntimeImp.h"
+#include "MemoryManager.h"
+#include "RuntimeImp.h"
 #include "common/ProjectAutogen.h"
 #include <chrono>
 #include <cstdio>

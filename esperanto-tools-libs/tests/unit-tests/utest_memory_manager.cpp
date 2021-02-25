@@ -12,7 +12,7 @@
 #include <gtest/gtest-death-test.h>
 #include <ios>
 #define private public
-#include "NewCore/MemoryManager.h"
+#include "MemoryManager.h"
 #include <chrono>
 #include <cstdio>
 #include <glog/logging.h>

@@ -8,4 +8,15 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
+set(EsperantoRuntime_VERSION_MAJOR ${CMAKE_MAJOR_VERSION})
+set(EsperantoRuntime_VERSION_MINOR ${CMAKE_MINOR_VERSION})
+set(EsperantoRuntime_VERSION_PATCH ${CMAKE_PATCH_VERSION})
+
+execute_process(
+    COMMAND git rev-parse --verify HEAD
+    OUTPUT_VARIABLE ET_RUNTIME_GIT_HASH
+    TIMEOUT 20
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
 configure_file(ProjectAutogen.h.in ProjectAutogen.h)

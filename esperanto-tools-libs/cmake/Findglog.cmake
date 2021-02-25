@@ -3,11 +3,9 @@
 # The following variables are optionally searched for defaults
 #  GLOG_ROOT_DIR:            Base directory where all GLOG components are found
 #
-# The following are set after configuration is done:
-#  GLOG_FOUND
-#  GLOG_INCLUDE_DIRS
-#  GLOG_LIBRARIES
-#  GLOG_LIBRARYRARY_DIRS
+# The following targets are available after glog is found:
+#  glog
+#  glog::glog
 
 include(FindPackageHandleStandardArgs)
 
@@ -37,12 +35,17 @@ else()
         PATH_SUFFIXES lib lib64)
 endif()
 
-find_package_handle_standard_args(Glog DEFAULT_MSG GLOG_INCLUDE_DIR GLOG_LIBRARY)
+find_package_handle_standard_args(glog DEFAULT_MSG GLOG_INCLUDE_DIR GLOG_LIBRARY)
 
-if(GLOG_FOUND)
-  set(GLOG_INCLUDE_DIRS ${GLOG_INCLUDE_DIR})
-  set(GLOG_LIBRARIES ${GLOG_LIBRARY})
-  message(STATUS "Found glog    (include: ${GLOG_INCLUDE_DIR}, library: ${GLOG_LIBRARY})")
-  mark_as_advanced(GLOG_ROOT_DIR GLOG_LIBRARY_RELEASE GLOG_LIBRARY_DEBUG
-                                 GLOG_LIBRARY GLOG_INCLUDE_DIR)
+if (GLOG_FOUND)
+    add_library(glog UNKNOWN IMPORTED GLOBAL)
+    add_library(glog::glog ALIAS glog)
+    target_include_directories(glog INTERFACE ${GLOG_INCLUDE_DIR})
+    set_target_properties(glog PROPERTIES IMPORTED_LOCATION ${GLOG_LIBRARY})
+
+    set(GLOG_INCLUDE_DIRS ${GLOG_INCLUDE_DIR})
+    set(GLOG_LIBRARIES ${GLOG_LIBRARY})
+    message(STATUS "Found glog    (include: ${GLOG_INCLUDE_DIR}, library: ${GLOG_LIBRARY})")
+    mark_as_advanced(GLOG_ROOT_DIR GLOG_LIBRARY_RELEASE GLOG_LIBRARY_DEBUG
+                                   GLOG_LIBRARY GLOG_INCLUDE_DIR)
 endif()
