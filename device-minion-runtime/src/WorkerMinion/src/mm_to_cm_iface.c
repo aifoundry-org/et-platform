@@ -1,4 +1,4 @@
-#include "common_defs.h"
+#include "etsoc_memory.h"
 #include "device-mrt-trace.h"
 #include "flb.h"
 #include "hart.h"

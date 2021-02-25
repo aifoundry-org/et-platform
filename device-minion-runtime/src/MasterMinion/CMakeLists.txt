@@ -36,13 +36,13 @@ set(SOURCES
     src/services/mm_to_cm_iface.c
     src/services/sp_iface.c
     src/services/sp_cmd_hdlr.c
+    ${SHARED_SRC_DIR}/etsoc_memory.c
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/printf.c
     ${SHARED_SRC_DIR}/putchar.c
     ${SHARED_SRC_DIR}/print_exception.c
     ${SHARED_SRC_DIR}/pcie_int.c
     ${SHARED_SRC_DIR}/broadcast.c
-    ${SHARED_SRC_DIR}/common.c
     ${SHARED_SRC_DIR}/circbuff.c
     ${SHARED_SRC_DIR}/vq.c
     )

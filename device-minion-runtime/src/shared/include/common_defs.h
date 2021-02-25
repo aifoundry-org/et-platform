@@ -21,20 +21,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/*! \enum ETSOC_MEM_TYPES
-    \brief Enum that specifies the types of memory accesses available
-    in ETSOC.
-*/
-enum ETSOC_MEM_TYPES
-{
-    L2_CACHE = 0, /**< L2 cache, use local atomics to access */
-    L3_CACHE, /**< L3 cache, use global atomics to access */
-    UNCACHED, /**< Uncached memory like SRAM, use io r/w to access */
-    CACHED, /**< Cached memory like DRAM, use io r/w to access */
-    MEM_TYPES_COUNT /**< Specifies the count for memory types available */
-};
-/* TODO: find a good home for macros below */
-
 /*! \struct exec_cycle_t
      \brief Struct containing 2 elements:
             - Wait Latency(amount of Minion cycles that the command took sitting in the Submission Queue)
@@ -66,70 +52,6 @@ typedef struct exec_cycles_ {
 // TODO: Make it a typedef in device-ops-api ?
 typedef uint16_t cmd_size_t;
 
-/*********************/
-/* Utility functions */
-/*********************/
-/*! \fn void ETSOC_Memory_Read_Uncacheable(void *src_ptr, void *dest_ptr, uint32_t length)
-    \brief Reads data from ETSOC uncacheable memory.
-    \param [in] src_ptr: Pointer to source data buffer.
-    \param [in] dest_ptr: Pointer to destination data buffer.
-    \param [in] length: Total length (in bytes) of the data that needs to be read.
-    \returns None.
-*/
-void ETSOC_Memory_Read_Uncacheable(const void *src_ptr, void *dest_ptr, uint32_t length);
-
-/*! \fn void ETSOC_Memory_Write_Uncacheable(void *src_ptr, void *dest_ptr, uint32_t length)
-    \brief Writes data to ETSOC uncacheable memory.
-    \param [in] src_ptr: Pointer to source data buffer.
-    \param [in] dest_ptr: Pointer to destination data buffer.
-    \param [in] length: Total length (in bytes) of the data that needs to be written.
-    \returns None.
-*/
-void ETSOC_Memory_Write_Uncacheable(const void *src_ptr, void *dest_ptr, uint32_t length);
-
-/*! \fn void ETSOC_Memory_Read_Local_Atomic(void *src_ptr, void *dest_ptr, uint32_t length)
-    \brief Reads data from ETSOC L2 cacheable memory.
-    \param [in] src_ptr: Pointer to source data buffer.
-    \param [in] dest_ptr: Pointer to destination data buffer.
-    \param [in] length: Total length (in bytes) of the data that needs to be read.
-    \returns None.
-*/
-void ETSOC_Memory_Read_Local_Atomic(const void *src_ptr, void *dest_ptr, uint32_t length);
-
-/*! \fn void ETSOC_Memory_Write_Local_Atomic(void *src_ptr, void *dest_ptr, uint32_t length)
-    \brief Writes data to ETSOC L2 cacheable memory.
-    \param [in] src_ptr: Pointer to source data buffer.
-    \param [in] dest_ptr: Pointer to destination data buffer.
-    \param [in] length: Total length (in bytes) of the data that needs to be written.
-    \returns None.
-*/
-void ETSOC_Memory_Write_Local_Atomic(const void *src_ptr, void *dest_ptr, uint32_t length);
-
-/*! \fn void ETSOC_Memory_Read_Global_Atomic(void *src_ptr, void *dest_ptr, uint32_t length)
-    \brief Reads data from ETSOC L3 cacheable memory.
-    \param [in] src_ptr: Pointer to source data buffer.
-    \param [in] dest_ptr: Pointer to destination data buffer.
-    \param [in] length: Total length (in bytes) of the data that needs to be read.
-    \returns None.
-*/
-void ETSOC_Memory_Read_Global_Atomic(const void *src_ptr, void *dest_ptr, uint32_t length);
-
-/*! \fn void ETSOC_Memory_Write_Global_Atomic(void *src_ptr, void *dest_ptr, uint32_t length)
-    \brief Writes data to ETSOC L3 cacheable memory.
-    \param [in] src_ptr: Pointer to source data buffer.
-    \param [in] dest_ptr: Pointer to destination data buffer.
-    \param [in] length: Total length (in bytes) of the data that needs to be written.
-    \returns None.
-*/
-void ETSOC_Memory_Write_Global_Atomic(const void *src_ptr, void *dest_ptr, uint32_t length);
-
-/*! \fn void ETSOC_Memory_Read_Write_Cacheable(void *src_ptr, void *dest_ptr, uint32_t length)
-    \brief Reads/Writes data from/to ETSOC cacheable memory.
-    \param [in] src_ptr: Pointer to source data buffer.
-    \param [in] dest_ptr: Pointer to destination data buffer.
-    \param [in] length: Total length (in bytes) of the data that needs to be read/written.
-    \returns None.
-*/
-void ETSOC_Memory_Read_Write_Cacheable(const void *src_ptr, void *dest_ptr, uint32_t length);
+#include "etsoc_memory.h"
 
 #endif /* _COMMON_DEFS_H_ */
