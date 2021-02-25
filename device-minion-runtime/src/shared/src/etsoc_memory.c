@@ -1,6 +1,6 @@
 /***********************************************************************
 *
-* Copyright (C) 2020 Esperanto Technologies Inc.
+* Copyright (C) 2021 Esperanto Technologies Inc.
 * The copyright to the computer program(s) herein is the
 * property of Esperanto Technologies, Inc. All Rights Reserved.
 * The program(s) may be used and/or copied only with
@@ -9,9 +9,8 @@
 * agreement/contract under which the program(s) have been supplied.
 *
 ************************************************************************/
-/*! \file common_defs.h
-    \brief A C module having the implementation for common routines/methods
-    for device-fw.
+/*! \file etsoc_memory.c
+    \brief A C module that implements ETSOC memory access helper functions
 
     Public interfaces:
         ETSOC_Memory_Read_Uncacheable
@@ -23,7 +22,7 @@
         ETSOC_Memory_Read_Write_Cacheable
 */
 /***********************************************************************/
-#include "common_defs.h"
+#include "etsoc_memory.h"
 #include "io.h"
 #include "atomic.h"
 #include <string.h>

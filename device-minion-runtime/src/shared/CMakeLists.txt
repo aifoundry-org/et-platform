@@ -12,7 +12,7 @@ add_subdirectory("include")
 
 set(FIRMWARE_HELPERS_SOURCES
   src/pcie_int.c
-  src/common.c
+  src/etsoc_memory.c
   src/circbuff.c
   src/vq.c
   )
@@ -74,6 +74,7 @@ install(
     include/pcie_int.h
     include/common_defs.h
     include/circbuff.h
+    include/etsoc_memory.h
     include/vq.h
   DESTINATION
     ${INCLUDE_INSTALL_DIR}/esperanto-fw/firmware_helpers

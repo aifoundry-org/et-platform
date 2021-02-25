@@ -29,11 +29,11 @@
 #include "minion_fw_boot_config.h"
 #include "layout.h"
 #include "workers/cw.h"
+#include "services/cm_to_mm_iface.h"
 #include "services/log.h"
 #include "syscall.h"
 #include "syscall_internal.h"
 #include "message_types.h"
-#include "cm_to_mm_iface.h"
 #include "riscv_encoding.h"
 
 /*! \typedef cw_cb_t
