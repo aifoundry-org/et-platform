@@ -25,7 +25,7 @@ MemoryManager::MemoryManager(uint64_t dramBaseAddr, size_t totalMemoryBytes, int
   }
   if (dramBaseAddr_ % (1 << minAlignmentLog2_)) {
     throw Exception("DramBaseAddr must be multiple of minAllocationSize");
-  } 
+  }
   if (totalMemoryBytes_ % (1 << minAlignmentLog2_)) {
     throw Exception("TotalMemoryBytes must be multiple of minAllocationSize");
   }

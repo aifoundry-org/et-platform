@@ -11,40 +11,14 @@
 include(ExternalProject)
 include(GoogleTest)
 
-find_package(sentry REQUIRED)
-find_package(breakpad REQUIRED)
+# System dependencies
 find_package(DeviceLayer REQUIRED)
 find_package(sw-sysemu REQUIRED)
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
-include_directories(${BREAKPAD_INCLUDE_DIR}/breakpad)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../external/cereal/include)
-
-### External dependencies
-set(CI_DEPENDENCIES convolution.elf
-                    gpu_0_softmax_110.elf
-                    etsocmaxsplat.elf
-)
-
-## Download the external depednencies from Artifactory
-foreach(CI_DEPENDENCY ${CI_DEPENDENCIES})
-  configure_file(inputs/${CI_DEPENDENCY} ${CMAKE_CURRENT_BINARY_DIR}/${CI_DEPENDENCY} COPYONLY)
-endforeach(CI_DEPENDENCY)
-
-add_custom_target(ci-dependencies
-  DEPENDS ${CI_DEPENDENCIES}
-  )
-
-add_compile_options(-g3 -O0 -std=c++17)
-
-set(COMMON_TEST_LIBRARIES
-  etrt_static
-  libgtest_main.a
-  libgtest.a
-  libgmock.a
-  libbreakpad_client.a
-  stdc++fs
-  )
+# Esperanto dependencies
+find_package(EsperantoBootLoader REQUIRED)
+find_package(EsperantoDeviceMinionRuntime REQUIRED)
+find_package(EsperantoTestKernels REQUIRED)
 
 # Helper function to build a test binary
 #
@@ -52,28 +26,37 @@ set(COMMON_TEST_LIBRARIES
 # NAME : binary name of the test
 # SOURCES : list of source files
 macro(build_test_binary)
-  cmake_parse_arguments(TEST
-    ""
-    "TARGET;"
-    "SOURCES;"
-    ${ARGN})
+    cmake_parse_arguments(TEST
+        ""
+        "TARGET;"
+        "SOURCES;"
+        ${ARGN}
+    )
 
-  add_executable(${TEST_TARGET} ${TEST_SOURCES})
+    add_executable(${TEST_TARGET} ${TEST_SOURCES})
 
-  # Externa dependencies
-  if(${external_test_dependencies})
-    add_dependencies(${TEST_TARGET} ${external_test_dependencies})
-  endif()
-  if (${external_project_dependencies})
-    add_dependencies(${TEST_TARGET} ${external_project_dependencies})
-  endif()
-  add_dependencies(${TEST_TARGET} ci-dependencies)
+    # We need PRIVATE include dirs
+    get_target_property(ETRT_OBJ_INCLUDE_DIRS etrt_obj INCLUDE_DIRECTORIES)
 
-  target_link_libraries(${TEST_TARGET} ${COMMON_TEST_LIBRARIES})
-  target_include_directories(${TEST_TARGET} PUBLIC ${GFLAGS_INCLUDE_DIRS})
-  target_include_directories(${TEST_TARGET} PUBLIC ${GLOG_INCLUDE_DIRS})
+    target_include_directories(${TEST_TARGET}
+        PUBLIC
+            ${ETRT_OBJ_INCLUDE_DIRS}
+    )
 
-  add_sanitizers(${TEST_TARGET})
+    target_link_libraries(${TEST_TARGET}
+        PRIVATE
+            runtime::etrt_static
+            cereal::cereal
+            glog::glog
+            gflags
+            deviceLayer::deviceLayer
+            sw-sysemu::sw-sysemu
+            GTest::GTest
+            GTest::Main
+            stdc++fs
+    )
+
+    target_add_sanitizers(${TEST_TARGET})
 endmacro()
 
 ## Helper function for creating the different test binary targets
@@ -119,12 +102,11 @@ get_property(MASTER_MINION_ELF TARGET EsperantoDeviceMinionRuntime::MasterMinion
 get_property(MACHINE_MINION_ELF TARGET EsperantoDeviceMinionRuntime::MachineMinion.elf PROPERTY LOCATION)
 get_property(WORKER_MINION_ELF TARGET EsperantoDeviceMinionRuntime::WorkerMinion.elf PROPERTY LOCATION)
 
-get_property(EMPTY_KERNEL_ELF TARGET esperanto-test-kernels::empty.elf PROPERTY LOCATION)
-get_property(TRACE_KERNEL_ELF TARGET esperanto-test-kernels::trace.elf PROPERTY LOCATION)
+set(KERNELS_DIR "${ESPERANTO_TEST_KERNELS_LIB_DIR}/esperanto-fw/kernels")
 
-get_filename_component(KERNELS_DIR ${EMPTY_KERNEL_ELF} DIRECTORY)
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories(${BREAKPAD_INCLUDE_DIR}/breakpad)
 
 add_subdirectory(common)
 add_subdirectory(unit-tests)
 add_subdirectory(integration-tests)
-add_subdirectory(tools)

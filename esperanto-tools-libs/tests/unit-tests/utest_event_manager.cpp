@@ -17,7 +17,7 @@
 #include <functional>
 #include <atomic>
 #define private public
-#include "NewCore/EventManager.h"
+#include "EventManager.h"
 
 using namespace rt;
 
@@ -112,15 +112,15 @@ TEST_F(EventManagerF, blockingThreads) {
   createBlockedThreadsAndEvents(nEvents, nThreads, false, [&](){
     unblockedThreads.fetch_add(1);
   });
-  
+
   for (auto evt : events_) {
     int prev = unblockedThreads.load();
     em_.dispatch(evt);
     int after = unblockedThreads.load();
     EXPECT_GE(after, prev);
   }
-  
-  for (auto& t : threads_) { 
+
+  for (auto& t : threads_) {
     t.join();
   }
   EXPECT_EQ(unblockedThreads.load(), nThreads);

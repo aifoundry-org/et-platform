@@ -9,10 +9,10 @@
  *-------------------------------------------------------------------------*/
 
 #pragma once
-#include "NewCore/MemoryManager.h"
+#include "runtime/IRuntime.h"
+#include "MemoryManager.h"
 #include <cstddef>
 #include <mutex>
-#include <runtime/IRuntime.h>
 #include <set>
 #include <unordered_map>
 #include <vector>

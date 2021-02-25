@@ -21,6 +21,8 @@
 #include <sstream>
 #include <thread>
 
+namespace fs = std::experimental::filesystem;
+
 DEFINE_string(kernels_dir, "", "Directory where different kernel ELF files are located");
 
 namespace {
@@ -28,7 +30,7 @@ constexpr uint64_t kSysEmuMaxCycles = std::numeric_limits<uint64_t>::max();
 constexpr uint64_t kSysEmuMinionShiresMask = 0x1FFFFFFFFu;
 } // namespace
 
-namespace fs = std::experimental::filesystem;
+
 TEST(Profiler, add_2_vectors_profiling) {
   auto kernel_file = std::ifstream((fs::path(FLAGS_kernels_dir) / fs::path("add_vector.elf")).string(), std::ios::binary);
   ASSERT_TRUE(kernel_file.is_open());

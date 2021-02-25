@@ -157,7 +157,7 @@ struct ProfileEvent {
     , class_(cls) {
       setTimeStamp();
   }
-  
+
   template <class Archive> void load(Archive& ar) {
     ar(cereal::make_nvp("timeStamp", timeStamp_));
     std::string cls;

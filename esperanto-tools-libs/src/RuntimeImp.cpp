@@ -10,7 +10,7 @@
 
 #include "RuntimeImp.h"
 #include "KernelParametersCache.h"
-#include "NewCore/ProfileEvent.h"
+#include "ProfileEvent.h"
 #include "ScopedProfileEvent.h"
 #include "runtime/IRuntime.h"
 #include "utils.h"

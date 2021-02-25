@@ -9,7 +9,7 @@
  *-------------------------------------------------------------------------*/
 
 #include "KernelParametersCache.h"
-#include "NewCore/MemoryManager.h"
+#include "MemoryManager.h"
 #include "utils.h"
 #include <cassert>
 #include <type_traits>

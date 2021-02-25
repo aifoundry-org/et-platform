@@ -9,8 +9,8 @@
 #------------------------------------------------------------------------------
 
 set(SIM_DEVFW_TEST_LIST
-  test_code_loading.cpp:"${DEV_FW_ARGS}"
-  test_memcpy.cpp:"${DEV_FW_ARGS}"
-  test_profiler.cpp:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR}"
+  test_code_loading.cpp:"--kernels_dir ${KERNELS_DIR}"
+  test_memcpy.cpp:""
+  test_profiler.cpp:"--kernels_dir ${KERNELS_DIR}"
   )
 create_test_targets("${SIM_DEVFW_TEST_LIST}" "LABELS;Generic;LABELS;DeviceFW;TIMEOUT;120")

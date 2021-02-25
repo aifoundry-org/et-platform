@@ -9,44 +9,28 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.5)
-
-project(EsperantoRuntime VERSION 0.1.0 LANGUAGES CXX C)
+project(runtime VERSION 0.1.0 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 
-option(ETRT_ENABLE_PROTOBUF_CONSOLE_LOGGING "Enable protobuf console logging" OFF)
-option(ETRT_ENABLE_TRACING "Enable runtime tracing" OFF)
 
-if (ETRT_ENABLE_PROTOBUF_CONSOLE_LOGGING)
-    add_compile_definitions(ETRT_ENABLE_PROTOBUF_CONSOLE_LOGGING=1)
-endif(ETRT_ENABLE_PROTOBUF_CONSOLE_LOGGING)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/external/sanitizer-cmake/cmake)
 
-if (ETRT_ENABLE_TRACING)
-    add_compile_definitions(ETRT_ENABLE_TRACING=1)
-endif(ETRT_ENABLE_TRACING)
+include(GNUInstallDirs)
+include(CompilerSanitizers)
+include(CoverageSupport)
 
-enable_testing()
-
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/external/sanitizer-cmake/cmake")
-
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CoverageSupport.cmake)
-
-option(BUILD_SHARED_LIBS "Build shared libs." ON)
-option(ENABLE_PCIE "Enable pcie support by default" OFF)
+option(BUILD_TESTS "Enable/disable building tests" ON)
 option(ENABLE_CCACHE "Enable ccahe in the builds" OFF)
-option(ENABLE_ET_LOG "Whether ET_LOG lines produce any code or are optimized out" ON)
+option(ENABLE_SANITIZER_ADDRESS "" ON)
+option(ENABLE_SANITIZER_LEAK "" ON)
+option(ENABLE_SANITIZER_UNDEFINED_BEHAVIOR "" ON)
+option(ENABLE_SANITIZER_THREAD "" OFF)
+option(ENABLE_SANITIZER_MEMORY "" OFF)
 
 # If not empty install any runtime python packages
-set(PYTHON "" CACHE PATH "Path to the python binary to install our python packages under")
 set(DOCUMENTATION_INSTALL_DIR "${CMAKE_INSTALL_DIR}/doc" CACHE PATH "Documentation installation path")
-
-execute_process(
-  COMMAND git rev-parse --verify HEAD
-  OUTPUT_VARIABLE ET_RUNTIME_GIT_HASH
-  TIMEOUT 20
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
 
 if(ENABLE_CCACHE)
   find_program(CCACHE_PROGRAM ccache)
@@ -58,76 +42,119 @@ if(ENABLE_CCACHE)
   endif(CCACHE_PROGRAM)
 endif(ENABLE_CCACHE)
 
-set(DEPENDENCIES_PATH "/usr" CACHE PATH "Path where runtime dependencies are installed")
-set(SYSEMU_PATH  ${DEPENDENCIES_PATH}/bin/sys_emu)
-
 set(INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/include/ CACHE STRING "Include install dir")
 set(LIB_INSTALL_DIR  ${CMAKE_INSTALL_PREFIX}/lib/  CACHE STRING "Library install dir")
-set(SYSCONFIG_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/etc/et-runtime/ CACHE STRING "Config install dir")
-
-# Make relative paths absolute (needed later on)
-foreach(p LIB BIN INCLUDE CMAKE)
-  set(var INSTALL_${p}_DIR)
-  if(NOT IS_ABSOLUTE "${${var}}")
-    set(${var} "${CMAKE_INSTALL_PREFIX}/${${var}}")
-  endif()
-endforeach()
 
 # System dependencies
+find_package(cereal REQUIRED)
 find_package(elfio REQUIRED)
 find_package(fmt REQUIRED)
 find_package(gflags REQUIRED)
-find_package(Glog REQUIRED)
+find_package(glog REQUIRED)
 find_package(GTest REQUIRED)
-find_package(Sanitizers REQUIRED)
 
 # Esperanto dependencies
 find_package(esperanto-device-api REQUIRED)
-find_package(EsperantoBootLoader REQUIRED)
-find_package(EsperantoDeviceMinionRuntime REQUIRED)
-find_package(EsperantoTestKernels REQUIRED)
 find_package(linuxDriver REQUIRED)
 find_package(DeviceLayer REQUIRED)
 find_package(sw-sysemu REQUIRED)
 
-# Add definitions and compile options
-add_definitions("-DENABLE_ET_LOG=$<BOOL:${ENABLE_ET_LOG}>")
+# Runtime base object library
+add_library(etrt_obj OBJECT
+    src/Runtime.cpp
+    src/RuntimeImp.cpp
+    src/MemoryManager.cpp
+    src/EventManager.cpp
+    src/KernelParametersCache.cpp
+    src/ResponseReceiver.cpp
+    src/KernelLaunch.cpp
+)
 
-# Add rules for auto-generated headers.
-add_subdirectory(include)
+set_target_properties(etrt_obj PROPERTIES
+    PUBLIC_HEADER "include/runtime/IProfiler.h;include/runtime/IRuntime.h"
+    POSITION_INDEPENDENT_CODE ON
+)
+
+target_include_directories(etrt_obj
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_add_sanitizers(etrt_obj)
+
+target_link_libraries(etrt_obj
+    PRIVATE
+        cereal::cereal
+        glog::glog
+        deviceLayer::deviceLayer
+)
+
+## Build shared library
+add_library(etrt SHARED)
+add_library(runtime::etrt ALIAS etrt)
+target_link_libraries(etrt PUBLIC etrt_obj)
+
+## Build static library
+add_library(etrt_static STATIC)
+add_library(runtime::etrt_static ALIAS etrt)
+target_link_libraries(etrt_static PUBLIC etrt_obj)
+
+## Install library targets (new)
+install(TARGETS etrt_obj etrt etrt_static
+    EXPORT runtimeTargets
+    RUNTIME       DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY       DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE       DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/runtime
+)
+
+# Install the export set for use with the install-tree
+install(EXPORT runtimeTargets
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/runtime
+    NAMESPACE runtime::
+)
+
+## project documentation
 add_subdirectory(docs)
-add_subdirectory(src)
-add_subdirectory(tests)
+
+## tests
+if (BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
+
+
+##### Package
 
 ### Add package information
 include(CMakePackageConfigHelpers)
 
-# Add all targets to the build-tree export set
-export(TARGETS etrt etrt_static
-  FILE "${PROJECT_BINARY_DIR}/EsperantoRuntimeTargets.cmake")
+configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/runtimeConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/runtimeConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/runtime
+)
 
-# Export the package for use from the build-tree
-# (this registers the build-tree with a global CMake-registry)
-export(PACKAGE EsperantoRuntime)
-
-# Create the EsperantoRuntimeConfig.cmake and EsperantoRuntimeConfigVersion files
-configure_package_config_file(EsperantoRuntimeConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/EsperantoRuntimeConfig.cmake
-  INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}
-  INSTALL_DESTINATION ${LIB_INSTALL_DIR}/EsperantoRuntime/cmake
-  PATH_VARS INCLUDE_INSTALL_DIR LIB_INSTALL_DIR)
 write_basic_package_version_file(
-  ${CMAKE_CURRENT_BINARY_DIR}/EsperantoRuntimeConfigVersion.cmake
-  VERSION ${VERSION}
-  COMPATIBILITY SameMajorVersion )
+    ${CMAKE_CURRENT_BINARY_DIR}/runtimeConfigVersion.cmake
+    VERSION ${VERSION}
+    COMPATIBILITY SameMajorVersion
+)
 
-# Install the EsperantoRuntimeConfig.cmake and EsperantoRuntimeConfigVersion.cmake
+# Install the runtimeConfig.cmake and runtimeConfigVersion.cmake
 install(FILES
-  "${CMAKE_CURRENT_BINARY_DIR}/EsperantoRuntimeConfig.cmake"
-  "${CMAKE_CURRENT_BINARY_DIR}/EsperantoRuntimeConfigVersion.cmake"
-  DESTINATION ${LIB_INSTALL_DIR}/cmake/EsperantoRuntime
-  COMPONENT runtime)
+    ${CMAKE_CURRENT_BINARY_DIR}/runtimeConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/runtimeConfigVersion.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/runtime
+)
 
-# Install the export set for use with the install-tree
-install(EXPORT EsperantoRuntimeTargets DESTINATION
-  "${LIB_INSTALL_DIR}/cmake/EsperantoRuntime" COMPONENT runtime)
+# export targets from the build tree (this allows consuming generated runtimeTargets.cmake without having to install first - not relocatable)
+export(TARGETS etrt_obj etrt etrt_static
+    FILE ${CMAKE_CURRENT_BINARY_DIR}/runtimeTargets.cmake
+    NAMESPACE runtime::
+)
+
