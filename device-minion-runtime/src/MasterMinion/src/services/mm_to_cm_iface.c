@@ -14,17 +14,15 @@
 #include <stdbool.h>
 
 // master -> worker
-static volatile cm_iface_message_t *const master_to_worker_broadcast_message_buffer_ptr =
-    (cm_iface_message_t *)FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER;
-static volatile broadcast_message_ctrl_t *const master_to_worker_broadcast_message_ctrl_ptr =
-    (broadcast_message_ctrl_t *)FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL;
+#define mm_to_cm_broadcast_message_buffer_ptr \
+    ((cm_iface_message_t *)FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER)
+#define mm_to_cm_broadcast_message_ctrl_ptr \
+    ((broadcast_message_ctrl_t *)FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL)
 
-static spinlock_t master_to_worker_broadcast_lock = { 0 };
+static spinlock_t mm_to_cm_broadcast_lock = { 0 };
 // First broadcast message number is 1, so OK for worker minion
 // to init previous_broadcast_message_number to 0
-static uint32_t master_to_worker_broadcast_last_number __attribute__((aligned(64))) = 1;
-
-static inline __attribute__((always_inline)) void evict_message(const volatile cm_iface_message_t *const message);
+static uint32_t mm_to_cm_broadcast_last_number __attribute__((aligned(64))) = 1;
 
 void message_init_master(void);
 
@@ -33,9 +31,9 @@ void message_init_master(void);
 void message_init_master(void)
 {
     // Master->worker broadcast message number and id
-    init_local_spinlock(&master_to_worker_broadcast_lock, 0);
-    atomic_store_global_8(&master_to_worker_broadcast_message_buffer_ptr->header.number, 0);
-    atomic_store_global_8(&master_to_worker_broadcast_message_buffer_ptr->header.id,
+    init_local_spinlock(&mm_to_cm_broadcast_lock, 0);
+    atomic_store_global_8(&mm_to_cm_broadcast_message_buffer_ptr->header.number, 0);
+    atomic_store_global_8(&mm_to_cm_broadcast_message_buffer_ptr->header.id,
                           MM_TO_CM_MESSAGE_ID_NONE);
 
     // CM to MM Unicast Circularbuffer control blocks
@@ -60,24 +58,22 @@ static inline int64_t broadcast_ipi_trigger(uint64_t dest_shire_mask, uint64_t d
 // Broadcasts a message to all worker HARTS in all Shires in dest_shire_mask
 // Can be called from multiple threads from Master Shire
 // Blocks until all the receivers have ACK'd
-int64_t MM_To_CM_Iface_Multicast_Send(uint64_t dest_shire_mask, const cm_iface_message_t *const message)
+int64_t MM_To_CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *const message)
 {
     uint32_t shire_count;
-    uint32_t next_number;
 
-    acquire_local_spinlock(&master_to_worker_broadcast_lock);
+    acquire_local_spinlock(&mm_to_cm_broadcast_lock);
 
-    next_number = atomic_add_local_32(&master_to_worker_broadcast_last_number, 1);
+    message->header.number = (uint8_t)atomic_add_local_32(&mm_to_cm_broadcast_last_number, 1);
 
-    // Copy message to shared buffer
-    *master_to_worker_broadcast_message_buffer_ptr = *message;
-    master_to_worker_broadcast_message_buffer_ptr->header.number = (cm_iface_message_number_t)next_number;
-    evict_message(master_to_worker_broadcast_message_buffer_ptr);
+    /* Copy message to shared global buffer */
+    ETSOC_Memory_Write_Global_Atomic(message, mm_to_cm_broadcast_message_buffer_ptr,
+                                     sizeof(*message));
 
-    // Configure broadcast message control data
-    atomic_store_global_32(&master_to_worker_broadcast_message_ctrl_ptr->count, 0);
+    /* Configure broadcast message control data */
+    atomic_store_global_32(&mm_to_cm_broadcast_message_ctrl_ptr->count, 0);
 
-    // Send IPI to receivers. Upper 32 Threads of Shire 32 also run Worker FW
+    /* Send IPI to receivers. Upper 32 Threads of Shire 32 also run Worker FW */
     broadcast_ipi_trigger(dest_shire_mask & 0xFFFFFFFFu, 0xFFFFFFFFFFFFFFFFu);
     if (dest_shire_mask & (1ULL << MASTER_SHIRE))
         syscall(SYSCALL_IPI_TRIGGER_INT, 0xFFFFFFFF00000000u, MASTER_SHIRE, 0);
@@ -87,27 +83,12 @@ int64_t MM_To_CM_Iface_Multicast_Send(uint64_t dest_shire_mask, const cm_iface_m
     // Wait until all the receiver Shires have ACK'd, 1 per Shire.
     // Then it's safe to send another broadcast message
     // TODO: Avoid busy-polling by using FCCs
-    while (atomic_load_global_32(&master_to_worker_broadcast_message_ctrl_ptr->count) != shire_count) {
+    while (atomic_load_global_32(&mm_to_cm_broadcast_message_ctrl_ptr->count) != shire_count) {
         // Relax thread
         asm volatile("fence\n" ::: "memory");
     }
 
-    release_local_spinlock(&master_to_worker_broadcast_lock);
+    release_local_spinlock(&mm_to_cm_broadcast_lock);
 
     return 0;
-}
-
-// Evicts a message to L3 (point of coherency)
-// Messages must always be aligned to cache lines and <= 1 cache line in size
-static inline __attribute__((always_inline)) void
-evict_message(const volatile cm_iface_message_t *const message)
-{
-    // Guarantee ordering of the CacheOp with previous loads/stores to the L1
-    // not needed if address dependencies are respected by CacheOp, being paranoid for now
-    asm volatile("fence");
-
-    evict(to_L3, message, sizeof(*message));
-
-    // TensorWait on CacheOp covers evicts to L3
-    WAIT_CACHEOPS
 }
