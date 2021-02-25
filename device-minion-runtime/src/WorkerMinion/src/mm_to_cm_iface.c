@@ -1,7 +1,5 @@
-#include "cacheops.h"
 #include "common_defs.h"
 #include "device-mrt-trace.h"
-#include "fcc.h"
 #include "flb.h"
 #include "hart.h"
 #include "kernel.h"
@@ -9,10 +7,9 @@
 #include "log.h"
 #include "message_types.h"
 #include "mm_to_cm_iface.h"
+#include "riscv_encoding.h"
 #include "sync.h"
 #include "syscall_internal.h"
-
-#include <stdint.h>
 
 /* MM to CM interface */
 static cm_iface_message_number_t g_previous_broadcast_message_number[NUM_HARTS] __attribute__((aligned(64))) = { 0 };
@@ -23,8 +20,25 @@ static cm_iface_message_number_t g_previous_broadcast_message_number[NUM_HARTS] 
 #define master_to_worker_broadcast_message_ctrl_ptr \
     ((broadcast_message_ctrl_t *)FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL)
 
-void MM_To_CM_Iface_Process(void);
 static void MM_To_CM_Iface_Handle_Message(uint64_t shire, uint64_t hart, cm_iface_message_t *const message_ptr);
+static bool MM_To_CM_Iface_Multicast_Receive_Message_Available(cm_iface_message_number_t previous_broadcast_message_number);
+static cm_iface_message_number_t MM_To_CM_Iface_Multicast_Receive(cm_iface_message_t *const message);
+
+void __attribute__((noreturn)) MM_To_CM_Iface_Main_Loop(void)
+{
+    for (;;) {
+        // Wait for an IPI (Software Interrupt)
+        asm volatile("wfi\n");
+
+        // We got a software interrupt (IPI) handed down from M-mode.
+        // M-mode already cleared the MSIP (Machine Software Interrupt Pending)
+        // Clear Supervisor Software Interrupt Pending (SSIP)
+        asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
+
+        // Handle messages from MM
+        MM_To_CM_Iface_Process();
+    }
+}
 
 void MM_To_CM_Iface_Process(void)
 {

@@ -5,13 +5,12 @@
 #include "hart.h"
 #include "layout.h"
 #include "message_types.h"
+#include "cm_mm_defines.h"
 #include "cm_to_mm_iface.h"
 #include "mm_to_cm_iface.h"
 #include "riscv_encoding.h"
 
 #include <stdint.h>
-
-extern void MM_To_CM_Iface_Process(void);
 
 void __attribute__((noreturn)) main(void)
 {
@@ -48,16 +47,5 @@ void __attribute__((noreturn)) main(void)
     asm volatile("csrci sstatus, 0x2\n");
     asm volatile("csrsi sie, %0\n" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
 
-    for (;;) {
-        // Wait for an IPI (Software Interrupt)
-        asm volatile("wfi\n");
-
-        // We got a software interrupt (IPI) handed down from M-mode.
-        // M-mode already cleared the MSIP (Machine Software Interrupt Pending)
-        // Clear Supervisor Software Interrupt Pending (SSIP)
-        asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
-
-        // Handle messages from MM
-        MM_To_CM_Iface_Process();
-    }
+    MM_To_CM_Iface_Main_Loop();
 }

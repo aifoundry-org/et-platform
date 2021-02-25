@@ -15,6 +15,7 @@ set(SOURCES
     src/swi.c
     src/exception.c
     src/main.c
+    src/cm_to_mm_iface.c
     src/mm_to_cm_iface.c
     src/kernel.c
     src/kernel_return.c
@@ -22,7 +23,6 @@ set(SOURCES
     src/log.c
     ${SHARED_SRC_DIR}/circbuff.c
     ${SHARED_SRC_DIR}/common.c
-    ${SHARED_SRC_DIR}/cm_to_mm_iface.c
     ${SHARED_SRC_DIR}/printf.c
     ${SHARED_SRC_DIR}/serial.c
     )

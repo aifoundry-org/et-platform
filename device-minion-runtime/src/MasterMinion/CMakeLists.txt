@@ -30,6 +30,7 @@ set(SOURCES
     src/drivers/pcie_dma.c
     src/drivers/plic.c
     src/services/log.c
+    src/services/cm_to_mm_iface.c
     src/services/host_iface.c
     src/services/host_cmd_hdlr.c
     src/services/mm_to_cm_iface.c
@@ -38,7 +39,6 @@ set(SOURCES
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/printf.c
     ${SHARED_SRC_DIR}/putchar.c
-    ${SHARED_SRC_DIR}/cm_to_mm_iface.c
     ${SHARED_SRC_DIR}/print_exception.c
     ${SHARED_SRC_DIR}/pcie_int.c
     ${SHARED_SRC_DIR}/broadcast.c
