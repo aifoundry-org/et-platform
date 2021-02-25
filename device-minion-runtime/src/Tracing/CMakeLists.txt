@@ -8,8 +8,8 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-set(DEVAPI_LIB ${ESPERANTO_DEVICE_API_LIB_DIR}/esperanto/device-api)
-set(DEVAPI_CODE_GEN ${DEVAPI_LIB}/device_api_codegen.py)
+set(DEVAPI_LIB ${ESPERANTO_DEVICE_API_LIB_DIR}/esperanto/device-apis)
+set(DEVAPI_CODE_GEN ${DEVAPI_LIB}/device_apis_codegen.py)
 
 # List of Jinja files to generate files for
 SET(JINJA_FILES
@@ -27,14 +27,14 @@ foreach(TMPL_TUPLE ${JINJA_FILES})
   add_custom_command(
      OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT}
      COMMAND ${DEVAPI_CODE_GEN}
-     ARGS  --spec ${DEVAPI_LIB}/non-privileged-api/device-api-non-privileged.yaml
-           --schema ${DEVAPI_LIB}/schema/device-api.schema.json
+     ARGS  --spec ${DEVAPI_LIB}/operations-api/operations-api.yaml
+           --schema ${DEVAPI_LIB}/schema/device-apis.schema.json
            --template ${CMAKE_CURRENT_SOURCE_DIR}/${TMPL}
            --output ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT}
      DEPENDS ${DEVAPI_CODE_GEN}
              ${CMAKE_CURRENT_SOURCE_DIR}/${TMPL}
-             ${DEVAPI_LIB}/non-privileged-api/tracing/device-mrt-trace.yaml
-             ${DEVAPI_LIB}/schema/device-api.schema.json
+             ${DEVAPI_LIB}/operations-api/tracing/device-mrt-trace.yaml
+             ${DEVAPI_LIB}/schema/device-apis.schema.json
      )
    add_custom_target(${GEN_OUTPUT} ALL
              DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT})
