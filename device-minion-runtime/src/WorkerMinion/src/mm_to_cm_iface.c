@@ -1,4 +1,5 @@
 #include "cacheops.h"
+#include "common_defs.h"
 #include "device-mrt-trace.h"
 #include "fcc.h"
 #include "flb.h"
@@ -17,14 +18,13 @@
 static cm_iface_message_number_t g_previous_broadcast_message_number[NUM_HARTS] __attribute__((aligned(64))) = { 0 };
 
 // master -> worker
-static volatile cm_iface_message_t *const master_to_worker_broadcast_message_buffer_ptr =
-    (cm_iface_message_t *)FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER;
-static volatile broadcast_message_ctrl_t *const master_to_worker_broadcast_message_ctrl_ptr =
-    (broadcast_message_ctrl_t *)FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL;
+#define master_to_worker_broadcast_message_buffer_ptr \
+    ((cm_iface_message_t *)FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER)
+#define master_to_worker_broadcast_message_ctrl_ptr \
+    ((broadcast_message_ctrl_t *)FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL)
 
 void MM_To_CM_Iface_Process(void);
 static void MM_To_CM_Iface_Handle_Message(uint64_t shire, uint64_t hart, cm_iface_message_t *const message_ptr);
-static inline __attribute__((always_inline)) void evict_message(const volatile cm_iface_message_t *const message);
 
 void MM_To_CM_Iface_Process(void)
 {
@@ -54,12 +54,9 @@ cm_iface_message_number_t MM_To_CM_Iface_Multicast_Receive(cm_iface_message_t *c
     bool last;
     uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
 
-    // TODO: SWITCH TO GLOBAL ATOMICS
-    // Evict to invalidate, must not be dirty
-    evict_message(master_to_worker_broadcast_message_buffer_ptr);
-
-    // Copy message from shared to local buffer
-    *message = *master_to_worker_broadcast_message_buffer_ptr;
+    /* Copy message from shared global memory to local buffer */
+    ETSOC_Memory_Read_Global_Atomic(master_to_worker_broadcast_message_buffer_ptr,
+                                    message, sizeof(*message));
 
     // Check if we are the last receiver of the Shire
     // TODO: FLBs are not safe and FLB 31 might be used by the caller. Use *local* atomics instead
@@ -67,7 +64,9 @@ cm_iface_message_number_t MM_To_CM_Iface_Multicast_Receive(cm_iface_message_t *c
 
     // If we are the last receiver of the Shire, notify MT we have received the message
     if (last)
+    {
         atomic_add_global_32(&master_to_worker_broadcast_message_ctrl_ptr->count, 1);
+    }
 
     return message->header.number;
 }
@@ -122,19 +121,4 @@ static void MM_To_CM_Iface_Handle_Message(uint64_t shire, uint64_t hart, cm_ifac
         // Unknown message
         break;
     }
-}
-
-// Evicts a message to L3 (point of coherency)
-// Messages must always be aligned to cache lines and <= 1 cache line in size
-static inline __attribute__((always_inline)) void
-evict_message(const volatile cm_iface_message_t *const message)
-{
-    // Guarantee ordering of the CacheOp with previous loads/stores to the L1
-    // not needed if address dependencies are respected by CacheOp, being paranoid for now
-    asm volatile("fence");
-
-    evict(to_L3, message, sizeof(*message));
-
-    // TensorWait on CacheOp covers evicts to L3
-    WAIT_CACHEOPS
 }

@@ -6,7 +6,7 @@
 /*
  * Called by Master Firmware
  */
-int64_t MM_To_CM_Iface_Multicast_Send(uint64_t dest_shire_mask, const cm_iface_message_t *const message);
+int64_t MM_To_CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *const message);
 
 /*
  * Called by Compute Firmware
