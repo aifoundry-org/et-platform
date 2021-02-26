@@ -334,7 +334,11 @@ bool mem_checker::read(uint64_t address, op_location_t location, uint32_t shire_
              || (!it_minion->second.thread_mask_write[0] && !it_minion->second.thread_mask_write[1]); // Data is not dirty and accessing beyond minion
 
     // Time stamp is coherent
-    coherent &= !global_found || (access_time_stamp == it_global->second.latest_time_stamp);
+    if (shire_found && it_shire->second.l2) {
+        coherent &=
+            !global_found
+            || access_time_stamp == it_global->second.latest_time_stamp;
+    }
 
     if(!coherent) dump_state(it_global, it_shire, it_minion, shire_id, minion);
 
