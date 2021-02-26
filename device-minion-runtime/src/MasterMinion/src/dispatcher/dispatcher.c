@@ -39,6 +39,7 @@
 #include "workers/kw.h"
 #include "workers/dmaw.h"
 #include "workers/cw.h"
+#include "services/cm_to_mm_iface.h"
 #include "services/host_iface.h"
 #include "services/host_cmd_hdlr.h"
 #include "services/sp_iface.h"
@@ -58,6 +59,52 @@ extern bool Host_Iface_Interrupt_Flag;
 
 /* TODO: This shoul dbe included using a proper header during clean up */
 extern void message_init_master(void);
+
+static inline void dispatcher_process_cm_messages(void)
+{
+    /* Processes messages from CM from CM > MM unicast circbuff */
+    while(1)
+    {
+        cm_iface_message_t message;
+
+        /* Get the message from unicast buffer */
+        if (CM_To_MM_Iface_Unicast_Receive(CM_MM_MASTER_HART_UNICAST_BUFF_IDX, &message) !=
+            STATUS_SUCCESS)
+        {
+            break;
+        }
+
+        switch (message.header.id)
+        {
+            case CM_TO_MM_MESSAGE_ID_NONE:
+            {
+                Log_Write(LOG_LEVEL_DEBUG, "Dispatcher:CM_TO_MM:MESSAGE_ID_NONE\r\n");
+                break;
+            }
+
+            case CM_TO_MM_MESSAGE_ID_FW_EXCEPTION:
+            {
+                cm_to_mm_message_exception_t *exception =
+                    (cm_to_mm_message_exception_t *)&message;
+
+                Log_Write(LOG_LEVEL_CRITICAL,
+                    "Dispatcher:CM_TO_MM:MESSAGE_ID_FW_EXCEPTION from H%ld\r\n",
+                    exception->hart_id);
+
+                /* TODO: SW-6569: CW FW exception received. Decode exception and reset the FW */
+
+                break;
+            }
+            default:
+            {
+                Log_Write(LOG_LEVEL_CRITICAL,
+                    "Dispatcher:CM_TO_MM:Unknown message id = 0x%x\r\n",
+                    message.header.id);
+                break;
+            }
+        }
+    }
+}
 
 /************************************************************************
 *
@@ -164,6 +211,9 @@ void Dispatcher_Launch(uint32_t hart_id)
             asm volatile("csrc sip, %0" : : "r"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
 
             SP_Iface_Processing();
+
+            /* Process the messages from Compute Minions */
+            dispatcher_process_cm_messages();
         }
 
         if(sip & (1 << SUPERVISOR_EXTERNAL_INTERRUPT))
