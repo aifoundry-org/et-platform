@@ -10,7 +10,7 @@
 *
 ************************************************************************/
 /*! \file dispatcher.h
-    \brief A C header that defines the Dispatcher component's public 
+    \brief A C header that defines the Dispatcher component's public
     interfaces.
 */
 /***********************************************************************/
@@ -21,11 +21,11 @@
 #include "config/mm_config.h"
 
 /*! \def DISPATCHER_MAX_HART_ID
-    \brief A macro that provides the maximum HART ID the Dispatcher is 
+    \brief A macro that provides the maximum HART ID the Dispatcher is
     configured to execute on.
 */
 #define     DISPATCHER_MAX_HART_ID      \
-                DISPATCHER_BASE_HART_ID + DISPATCHER_NUM
+                DISPATCHER_BASE_HART_ID + (DISPATCHER_NUM * HARTS_PER_MINION)
 
 /*! \fn void Dispatcher_Launch(void)
     \brief Launch a dispatcher instance on HART ID requested

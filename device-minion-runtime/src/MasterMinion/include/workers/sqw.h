@@ -28,17 +28,17 @@
     \brief A macro that provides the maximum HART ID the SQW is configued
     to execute on.
 */
-#define     SQW_MAX_HART_ID      (SQW_BASE_HART_ID + SQW_NUM)
+#define     SQW_MAX_HART_ID      (SQW_BASE_HART_ID + (SQW_NUM * HARTS_PER_MINION))
 
 /*! \def SQW_WORKER_0
     \brief A macro that provdies the minion index of the first Submission
     Queue worker within the master shire.
 */
-#define     SQW_WORKER_0         ((SQW_BASE_HART_ID - MM_BASE_ID)/2)
+#define     SQW_WORKER_0         ((SQW_BASE_HART_ID - MM_BASE_ID) / HARTS_PER_MINION)
 
 /*! \fn void SQW_Init(void)
     \brief Initialize resources used by the Submission Queue Worker
-    \return None 
+    \return None
 */
 void SQW_Init(void);
 

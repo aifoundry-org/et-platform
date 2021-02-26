@@ -27,13 +27,13 @@
     \brief A macro that provides the maximum HART ID the KW is configued
     to execute on.
 */
-#define     KW_MAX_HART_ID      (KW_BASE_HART_ID + KW_NUM)
+#define     KW_MAX_HART_ID      (KW_BASE_HART_ID + (KW_NUM * HARTS_PER_MINION))
 
 /*! \def KW_WORKER_0
     \brief A macro that provdies the minion index of the first Kernel
     worker within the master shire.
 */
-#define     KW_WORKER_0         ((KW_BASE_HART_ID - MM_BASE_ID)/2)
+#define     KW_WORKER_0         ((KW_BASE_HART_ID - MM_BASE_ID) / HARTS_PER_MINION)
 
 /*! \def KW_ERROR_GENERAL
     \brief Kernel Worker - General error

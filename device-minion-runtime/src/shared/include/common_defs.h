@@ -21,6 +21,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+/*! \def HARTS_PER_MINION
+    \brief A macro that provides number of Harts per Minion
+*/
+#define HARTS_PER_MINION  2U
+
 /*! \struct exec_cycle_t
      \brief Struct containing 2 elements:
             - Wait Latency(amount of Minion cycles that the command took sitting in the Submission Queue)

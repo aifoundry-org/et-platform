@@ -27,7 +27,7 @@
     \brief A macro that provides the maximum HART ID the DMAW is configued
     to execute on.
 */
-#define  DMAW_MAX_HART_ID      DMAW_BASE_HART_ID + DMAW_NUM
+#define  DMAW_MAX_HART_ID      DMAW_BASE_HART_ID + (DMAW_NUM * HARTS_PER_MINION)
 
 /*! \def DMAW_FOR_READ
     \brief A macro that provides HART ID for the DMAW that processes
@@ -39,7 +39,7 @@
     \brief A macro that provides HART ID for the DMAW that processes
     DMA write commands
 */
-#define  DMAW_FOR_WRITE        DMAW_FOR_READ+1
+#define  DMAW_FOR_WRITE        DMAW_FOR_READ + HARTS_PER_MINION
 
 /*! \def DMAW_ERROR_GENERAL
     \brief DMA Worker - General error
