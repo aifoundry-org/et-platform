@@ -263,7 +263,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 "HostCommandHandler:Processing:KERNEL_ABORT_CMD\r\n");
 
             /* Dispatch kernel abort command */
-            status = KW_Dispatch_Kernel_Abort_Cmd(cmd);
+            status = KW_Dispatch_Kernel_Abort_Cmd(cmd, sqw_idx);
 
             if(status != STATUS_SUCCESS)
             {
