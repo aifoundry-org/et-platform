@@ -99,15 +99,20 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx);
     \param cmd Kernel Launch Command
     \param sqw_idx Index of the submission queue worker
     \param kw_idx Pointer to get kernel work index (slot number)
+    \return Status success or error
 */
 int8_t KW_Dispatch_Kernel_Launch_Cmd
     (struct device_ops_kernel_launch_cmd_t *cmd, uint8_t sqw_idx,
     uint8_t* kw_idx);
 
-/*! \fn int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd)
+/*! \fn int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
+    uint8_t sqw_idx)
     \brief Kernel Worker's interface to dispatch a kernel abort command
     \param cmd Kernel Abort Command
+    \param sqw_idx Submission worker queue index
+    \return Status success or error
 */
-int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd);
+int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
+    uint8_t sqw_idx);
 
 #endif /* KW_DEFS_H */

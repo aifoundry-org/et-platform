@@ -417,13 +417,15 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
 *   INPUTS
 *
 *       cmd         Kernel abort command
+*       sqw_idx     Submission queue index
 *
 *   OUTPUTS
 *
 *       int8_t      status success or error
 *
 ***********************************************************************/
-int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd)
+int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
+    uint8_t sqw_idx)
 {
     int8_t status;
     uint8_t slot_index;
@@ -468,6 +470,9 @@ int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd)
         {
             Log_Write(LOG_LEVEL_DEBUG, "KW:Push:KERNEL_ABORT_CMD_RSP:Failed\r\n");
         }
+
+        /* Decrement commands count being processed by given SQW */
+        SQW_Decrement_Command_Count(sqw_idx);
     }
 
     return status;
