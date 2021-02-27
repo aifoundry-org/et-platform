@@ -9,34 +9,17 @@
 * agreement/contract under which the program(s) have been supplied.
 *
 ************************************************************************/
-/*! \file bl2_historical_extreme.h
-    \brief A C header that defines the Historical extreme value service's
+/*! \file perf_mgmt.h
+    \brief A C header that defines the Performance manangement service's
     public interfaces. These interfaces provide services using which
-    the host can query device for historical extreme values for certain
-    device parameters.
+    the host can query device for performance related details.
 */
 /***********************************************************************/
-
-#ifndef __BL2_HISTORICAL_EXTREME_H__
-#define __BL2_HISTORICAL_EXTREME_H__
-
-#include <stdint.h>
 #include "dm.h"
 #include "dm_service.h"
 #include "dm_task.h"
-#include "perf_mgmt.h"
-#include "thermal_pwr_mgmt.h"
-#include "sp_host_iface.h"
-#include "bl2_ddr_init.h"
-#include "dm_event_control.h"
 
-/*! \fn void historical_extreme_value_request(tag_id_t tag_id, msg_id_t msg_id)
-    \brief Interface to process the firmware service command
-    by the msg_id
-    \param tag_id Tag ID
-    \param msg_id ID of the command received
-    \returns none
-*/
-void historical_extreme_value_request(tag_id_t tag_id, msg_id_t msg_id);
-
-#endif
+int get_dram_bw(struct dram_bw_t *dram_bw);
+int get_max_dram_bw(struct max_dram_bw_t *max_dram_bw);
+struct max_dram_bw_t get_module_max_dram_bw_gbl(void);
+struct dram_bw_t get_module_dram_bw_gbl(void);

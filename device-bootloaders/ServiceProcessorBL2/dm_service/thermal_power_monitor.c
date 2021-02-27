@@ -16,16 +16,6 @@
 */
 /***********************************************************************/
 
-#include <inttypes.h>
-#include <stdbool.h>
-#include <stdio.h>
-
-#include "dm.h"
-#include "dm_service.h"
-#include "sp_host_iface.h"
-#include "bl2_pmic_controller.h"
-#include "dm_task.h"
-
 #include "bl2_thermal_power_monitor.h"
 
 /************************************************************************

@@ -9,34 +9,17 @@
 * agreement/contract under which the program(s) have been supplied.
 *
 ************************************************************************/
-/*! \file bl2_historical_extreme.h
-    \brief A C header that defines the Historical extreme value service's
+/*! \file thermal_pwr_mgmt.h
+    \brief A C header that defines the Thermal and power manangement service's
     public interfaces. These interfaces provide services using which
-    the host can query device for historical extreme values for certain
-    device parameters.
+    the host can query device for thermal and power related details.
 */
 /***********************************************************************/
-
-#ifndef __BL2_HISTORICAL_EXTREME_H__
-#define __BL2_HISTORICAL_EXTREME_H__
-
-#include <stdint.h>
 #include "dm.h"
 #include "dm_service.h"
 #include "dm_task.h"
-#include "perf_mgmt.h"
-#include "thermal_pwr_mgmt.h"
-#include "sp_host_iface.h"
-#include "bl2_ddr_init.h"
-#include "dm_event_control.h"
 
-/*! \fn void historical_extreme_value_request(tag_id_t tag_id, msg_id_t msg_id)
-    \brief Interface to process the firmware service command
-    by the msg_id
-    \param tag_id Tag ID
-    \param msg_id ID of the command received
-    \returns none
-*/
-void historical_extreme_value_request(tag_id_t tag_id, msg_id_t msg_id);
-
-#endif
+void update_module_max_throttle_time(void);
+uint64_t get_module_max_throttle_time_gbl(void);
+void update_gbl_module_max_temp(uint8_t);
+uint8_t get_module_max_temperature_gbl(void);

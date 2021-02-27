@@ -28,6 +28,8 @@
 #include "dm.h"
 #include "dm_service.h"
 #include "dm_task.h"
+#include "perf_mgmt.h"
+#include "thermal_pwr_mgmt.h"
 
 // TODO: will be configurable by the host
 #define DM_TASK_DELAY_MS   5
@@ -59,6 +61,16 @@ struct soc_power_reg_t g_soc_power_reg __attribute__((section(".data")));
 volatile struct soc_power_reg_t *get_soc_power_reg(void)
 {
     return &g_soc_power_reg;
+}
+
+static void get_max_temperature(void) {
+   uint8_t curr_temp;
+
+   curr_temp = pmic_get_temperature();
+
+   if (get_module_max_temperature_gbl() < curr_temp) {
+        update_gbl_module_max_temp(curr_temp);
+   }
 }
 
 /************************************************************************
@@ -128,6 +140,9 @@ static void dm_task_entry(void *pvParameters)
     uint16_t day;
     uint8_t hours;
     uint8_t minutes;
+    struct max_dram_bw_t max_dram_bw;
+    struct dram_bw_t dram_bw;
+    int ret;
 
     //Will need to cleanly yield this thread to avoid this Thread from hoging the SP
     while(1)  
@@ -137,6 +152,9 @@ static void dm_task_entry(void *pvParameters)
         get_soc_power_reg()->soc_temperature = pmic_get_temperature();
         // Module Power in watts
         get_soc_power_reg()->soc_power = pmic_read_soc_power();
+
+        // Get module max temperature
+        get_max_temperature();
         
         // Module Uptime //
         module_uptime = timer_get_ticks_count();
@@ -153,11 +171,29 @@ static void dm_task_entry(void *pvParameters)
         get_soc_power_reg()->module_uptime.hours = hours; //hours
         get_soc_power_reg()->module_uptime.mins = minutes; //mins;
 
-        // DRAM BW //
-        get_soc_perf_reg()->dram_bw.read_req_sec = 100;
-        get_soc_perf_reg()->dram_bw.write_req_sec = 100;
+        ret = get_dram_bw(&dram_bw);
+
+        if(!ret)
+        {
+            // DRAM BW
+            get_soc_perf_reg()->dram_bw.read_req_sec = dram_bw.read_req_sec;
+            get_soc_perf_reg()->dram_bw.write_req_sec = dram_bw.write_req_sec;
+        }
+
+        ret = get_max_dram_bw(&max_dram_bw);
+
+        if(!ret)
+        {
+            // MAX DRAM BW
+            get_soc_perf_reg()->max_dram_bw.max_bw_rd_req_sec = max_dram_bw.max_bw_rd_req_sec;
+            get_soc_perf_reg()->max_dram_bw.max_bw_wr_req_sec =  max_dram_bw.max_bw_wr_req_sec;
+        }
+
+        update_module_max_throttle_time();
+        
         // DRAM capacity //
         get_soc_perf_reg()->dram_capacity_percent = 80;
+
         // Wait for the sampling period //
         // Need to implement Timer Watchdog based interrupt
         vTaskDelay(DM_TASK_DELAY_MS);

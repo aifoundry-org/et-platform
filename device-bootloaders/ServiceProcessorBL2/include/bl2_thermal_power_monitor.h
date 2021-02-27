@@ -19,6 +19,15 @@
 #define __BL2_THERMAL_POWER_MONITOR_H__
 
 #include <stdint.h>
+#include <inttypes.h>
+#include <stdbool.h>
+#include <stdio.h>
+
+#include "dm.h"
+#include "dm_task.h"
+#include "dm_service.h"
+#include "sp_host_iface.h"
+#include "bl2_pmic_controller.h"
 
 /*! \fn void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id)
     \brief Interface to process the performance request command

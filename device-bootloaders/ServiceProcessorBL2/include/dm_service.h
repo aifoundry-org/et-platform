@@ -18,6 +18,7 @@
 struct soc_perf_reg_t {
     struct asic_frequencies_t asic_frequency;
     struct dram_bw_t dram_bw;
+    struct max_dram_bw_t  max_dram_bw;
     uint32_t dram_capacity_percent;
     uint64_t last_ts_min;
 };
@@ -32,6 +33,7 @@ struct soc_power_reg_t {
      struct module_uptime_t module_uptime;
      struct module_voltage_t module_voltage;
      uint64_t throttled_states_residency;
+     uint64_t max_throttled_states_residency;
 };
 
 /* Response Header of different response structs in DM services */

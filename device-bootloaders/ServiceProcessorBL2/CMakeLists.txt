@@ -55,6 +55,8 @@ set(BL2_SOURCES
     dm_service/historical_extreme.c
     dm_service/minion_state.c
     dm_service/dm_events.c
+    dm_service/perf_mgmt.c
+    dm_service/thermal_pwr_mgmt.c 
     # This file get compiled different based on the configuration of each target
     common/build_configuration.c)
 

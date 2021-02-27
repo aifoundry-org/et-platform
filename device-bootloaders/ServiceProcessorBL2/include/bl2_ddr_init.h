@@ -19,6 +19,8 @@ uint8_t ms_init_seq_phase3(uint8_t memshire);
 uint8_t ms_init_seq_phase4(uint8_t memshire);
 
 
+
+
 /*!
  * @struct struct ddr_event_control_block
  * @brief DDR driver error mgmt control block
@@ -102,3 +104,4 @@ void ddr_error_threshold_isr(void);  //TODO: WILL BE MADE STATIC FUNCION WITH AC
 
 
 #endif
+

@@ -17,13 +17,7 @@
 */
 /***********************************************************************/
 
-#include "dm.h"
-#include "dm_service.h"
-#include "sp_host_iface.h"
 #include "bl2_historical_extreme.h"
-#include "bl2_ddr_init.h"
-#include "dm_event_control.h"
-#include "dm_task.h"
 
 /************************************************************************
 *
@@ -99,10 +93,12 @@ static void get_max_memory_error(tag_id_t tag_id, uint64_t req_start_time)
 static void get_module_max_ddr_bw(tag_id_t tag_id, uint64_t req_start_time)
 {
     struct device_mgmt_max_dram_bw_rsp_t dm_rsp;
+    struct max_dram_bw_t max_dram_bw;
 
-    //TODO : These should be retrieved from BL2 PMC data structure.
-    dm_rsp.max_dram_bw.max_bw_rd_req_sec = 100;
-    dm_rsp.max_dram_bw.max_bw_wr_req_sec = 100;
+    max_dram_bw = get_module_max_dram_bw_gbl();
+
+    dm_rsp.max_dram_bw.max_bw_rd_req_sec = max_dram_bw.max_bw_rd_req_sec;
+    dm_rsp.max_dram_bw.max_bw_wr_req_sec = max_dram_bw.max_bw_wr_req_sec;
 
     FILL_RSP_HEADER(dm_rsp, tag_id,
                     DM_CMD_GET_MODULE_MAX_DDR_BW,
@@ -139,8 +135,7 @@ static void get_module_max_throttle_time(tag_id_t tag_id, uint64_t req_start_tim
 {
     struct device_mgmt_max_throttle_time_rsp_t dm_rsp;
 
-    //TODO : This should be retrieved from BL2 PMC data structure.
-    dm_rsp.max_throttle_time.time_usec = 1000;
+    dm_rsp.max_throttle_time.time_usec = get_module_max_throttle_time_gbl();
 
     FILL_RSP_HEADER(dm_rsp, tag_id,
                     DM_CMD_GET_MODULE_MAX_THROTTLE_TIME,
@@ -163,7 +158,7 @@ static void get_module_max_throttle_time(tag_id_t tag_id, uint64_t req_start_tim
 *
 *       This function returns the historical_extreme Maximum Device temperature
 *       as sample periodically from the PMIC
-*       Note the value doesnt hold over a consequtitve Device Reset
+*       Note the value doesnt hold over a consecutive Device Reset
 *
 *   INPUTS
 *
@@ -179,7 +174,7 @@ static void get_module_max_temperature(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_max_temperature_rsp_t dm_rsp;
 
-    dm_rsp.max_temperature.max_temperature_c = get_soc_power_reg()->max_temp;
+    dm_rsp.max_temperature.max_temperature_c = get_module_max_temperature_gbl();
 
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_GET_MODULE_MAX_TEMPERATURE,
