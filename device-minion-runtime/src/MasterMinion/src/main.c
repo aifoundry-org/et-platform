@@ -97,8 +97,15 @@ void main(void)
     }
     else
     {
-        while (1) {
+        while (1)
+        {
             asm volatile("wfi");
         }
+    }
+
+    /* Warning: Should never reach this point */
+    while (1)
+    {
+        asm volatile("wfi");
     }
 }
