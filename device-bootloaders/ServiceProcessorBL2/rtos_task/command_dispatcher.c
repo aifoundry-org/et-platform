@@ -184,7 +184,7 @@ static void pc_vq_task(void *pvParameters)
             case DM_CMD_GET_MODULE_DDR_ECC_UECC:
             case DM_CMD_GET_MODULE_SRAM_ECC_UECC:
             case DM_CMD_GET_MODULE_DDR_BW_COUNTER:
-                link_mgmt_process_request(tag_id, msg_id);
+                link_mgmt_process_request(tag_id, msg_id, (void *)buffer);
                 break;
             case DM_CMD_SET_DDR_ECC_COUNT:
             case DM_CMD_SET_PCIE_ECC_COUNT:

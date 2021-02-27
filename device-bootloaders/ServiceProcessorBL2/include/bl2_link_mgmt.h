@@ -20,6 +20,15 @@
 #define __BL2_LINK_MGMT_H__
 
 #include <stdint.h>
+#include "dm.h"
+#include "dm_service.h"
+#include "dm_task.h"
+#include "sp_host_iface.h"
+#include "bl2_reset.h"
+#include "bl2_pcie.h"
+#include "bl2_ddr_init.h"
+#include "bl2_sram.h"
+
 /*! \fn void link_mgmt_process_request(tag_id_t tag_id, msg_id_t msg_id)
     \brief Interface to process the link management command
     by the msg_id
@@ -27,6 +36,6 @@
     \param msg_id ID of the command received
     \returns none
 */
-void link_mgmt_process_request(tag_id_t tag_id, msg_id_t msg_id);
+void link_mgmt_process_request(tag_id_t tag_id, msg_id_t msg_id, void *buffer);
 
 #endif

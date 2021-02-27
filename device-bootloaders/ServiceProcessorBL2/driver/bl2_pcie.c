@@ -74,3 +74,33 @@ void pcie_error_threshold_isr(void)
             event_control_block.event_cb(CORRECTABLE, &message);
     }
 }
+
+int32_t setup_pcie_gen3_link_speed(void)
+{
+    //TODO: https://esperantotech.atlassian.net/browse/SW-6607
+    return 0;
+}
+
+int32_t setup_pcie_gen4_link_speed(void)
+{
+    //TODO: https://esperantotech.atlassian.net/browse/SW-6607
+    return 0;
+}
+
+int32_t setup_pcie_lane_width_x4(void)
+{
+    //TODO: https://esperantotech.atlassian.net/browse/SW-6607
+    return 0;
+}
+
+int32_t setup_pcie_lane_width_x8(void)
+{
+    //TODO: https://esperantotech.atlassian.net/browse/SW-6607
+    return 0;
+}
+
+int32_t pcie_retrain_phy(void)
+{
+    //TODO: https://esperantotech.atlassian.net/browse/SW-6607
+    return 0;
+}

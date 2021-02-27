@@ -38,3 +38,13 @@ void release_etsoc_reset(void)
    iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_SYS_RESET_CTRL_ADDRESS,
              RESET_MANAGER_RM_SYS_RESET_CTRL_ENABLE_SET(0x1));
 }
+
+void pcie_reset_flr(void)
+{
+  // TODO: https://esperantotech.atlassian.net/browse/SW-6606
+}
+
+void  pcie_reset_warm(void)
+{
+  // TODO: https://esperantotech.atlassian.net/browse/SW-6606
+}

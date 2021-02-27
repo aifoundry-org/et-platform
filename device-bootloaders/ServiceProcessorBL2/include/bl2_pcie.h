@@ -86,4 +86,10 @@ int32_t pcie_get_uce_count(uint32_t *uce_count);
 
 void pcie_error_threshold_isr(void);  //TODO: WILL BE MADE STATIC FUNCION WITH ACTUAL ISR IMPLEMENTATION
 
+int32_t setup_pcie_gen3_link_speed(void);
+int32_t setup_pcie_gen4_link_speed(void);
+int32_t setup_pcie_lane_width_x4(void);
+int32_t setup_pcie_lane_width_x8(void);
+int32_t pcie_retrain_phy(void);
+
 #endif
