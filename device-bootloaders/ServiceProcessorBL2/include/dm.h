@@ -24,19 +24,4 @@
 #include <esperanto/device-apis/management-api/device_mgmt_api_spec.h>
 #include <esperanto/device-apis/management-api/device_mgmt_api_rpc_types.h>
 
-extern struct dm_control_block dm_cmd_rsp;
-
-// Thresholds 
-#define L0 0x0 // Low
-#define HI 0x1 // High
-
-#define MAX_LENGTH 256
-
-struct dm_control_block {
-    uint32_t cmd_id;
-    uint64_t dev_latency;
-    char cmd_payload[MAX_LENGTH];
-} __packed__;
-
-
 #endif

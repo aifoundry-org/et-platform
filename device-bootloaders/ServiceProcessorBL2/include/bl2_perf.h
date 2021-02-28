@@ -19,8 +19,8 @@
 #define __BL2_PERF_H__
 
 #include <stdint.h>
-#include "dm.h"
-#include "dm_service.h"
+#include "sp_host_iface.h"
+#include "perf_mgmt.h"
 
 /*! \fn void process_performance_request(tag_id_t tag_id, msg_id_t msg_id)
     \brief Interface to process the performance request command

@@ -8,18 +8,15 @@
 * agreement/contract under which the program(s) have been supplied.
 *
 *************************************************************************/
-/*! \file firmware_update.c
+/*! \file performance.c
     \brief A C module that implements the performance Management services
 
     Public interfaces:
         process_performance_request
 */
 /***********************************************************************/
-#include <stdint.h>
-#include "dm.h"
-#include "sp_host_iface.h"
+
 #include "bl2_perf.h"
-#include "dm_task.h"
 
 /************************************************************************
 *
@@ -45,9 +42,7 @@ static void dm_svc_perf_get_asic_frequencies(uint16_t tag, uint64_t req_start_ti
 {
     struct device_mgmt_asic_frequencies_rsp_t dm_rsp;
 
-    /*  Get the frequencies of various domains from the
-        globals set by the dm sampling task */
-    dm_rsp.asic_frequency  = get_soc_perf_reg()->asic_frequency;
+    dm_rsp.asic_frequency  = get_module_asic_frequencies_gbl();
 
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_GET_ASIC_FREQUENCIES,
@@ -82,8 +77,8 @@ static void dm_svc_perf_get_asic_frequencies(uint16_t tag, uint64_t req_start_ti
 static void dm_svc_perf_get_dram_bw(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_dram_bw_rsp_t dm_rsp;
-    /* Get the BW of DRAM from the globals set by the dm sampling task */
-    dm_rsp.dram_bw  = get_soc_perf_reg()->dram_bw;
+
+    dm_rsp.dram_bw  = get_module_dram_bw_gbl();
 
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_GET_DRAM_BANDWIDTH,
@@ -119,9 +114,8 @@ static void dm_svc_perf_get_dram_bw(uint16_t tag, uint64_t req_start_time)
 static void dm_svc_perf_get_dram_capacity_util(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_dram_capacity_rsp_t dm_rsp;
-    /* Get the capacity of DRAM from the globals set by the dm sampling task */
 
-    dm_rsp.percentage_cap.pct_cap = get_soc_perf_reg()->dram_capacity_percent;
+    dm_rsp.percentage_cap.pct_cap = get_dram_capacity_percent_gbl();
 
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_GET_DRAM_CAPACITY_UTILIZATION,
@@ -157,13 +151,13 @@ static void dm_svc_perf_get_dram_capacity_util(uint16_t tag, uint64_t req_start_
 static void dm_svc_perf_get_asic_per_core_util(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_asic_per_core_util_rsp_t dm_rsp;
-    // TODO: payload is TBD
+
+    dm_rsp.dummy = get_asic_per_core_util();
+    
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION,
                     timer_get_ticks_count() - req_start_time,
                     DM_STATUS_SUCCESS);
-
-    dm_rsp.dummy = DM_STATUS_SUCCESS;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_asic_per_core_util_rsp_t))) {
         printf("dm_svc_perf_get_asic_per_core_util: Cqueue push error!\n");
@@ -194,13 +188,13 @@ static void dm_svc_perf_get_asic_per_core_util(uint16_t tag, uint64_t req_start_
 static void dm_svc_perf_get_asic_utilization(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_asic_per_core_util_rsp_t dm_rsp;
-    // TODO: payload is TBD
+
+    dm_rsp.dummy = get_asic_utilization();
+
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_GET_ASIC_UTILIZATION,
                     timer_get_ticks_count() - req_start_time,
                     DM_STATUS_SUCCESS);
-
-    dm_rsp.dummy = DM_STATUS_SUCCESS;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_asic_per_core_util_rsp_t))) {
         printf("dm_svc_perf_get_asic_utilization: Cqueue push error!\n");
@@ -231,13 +225,13 @@ static void dm_svc_perf_get_asic_utilization(uint16_t tag, uint64_t req_start_ti
 static void dm_svc_perf_get_asic_stalls(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_asic_stalls_rsp_t dm_rsp;
-    // TODO: payload is TBD
+
+    dm_rsp.dummy = get_asic_stalls();
+    
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_GET_ASIC_STALLS,
                     timer_get_ticks_count() - req_start_time,
                     DM_STATUS_SUCCESS);
-
-    dm_rsp.dummy = DM_STATUS_SUCCESS;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_asic_stalls_rsp_t))) {
         printf("dm_svc_perf_get_asic_stalls: Cqueue push error!\n");
@@ -268,7 +262,9 @@ static void dm_svc_perf_get_asic_stalls(uint16_t tag, uint64_t req_start_time)
 static void dm_svc_perf_get_asic_latency(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_asic_latency_rsp_t dm_rsp;
-    // TODO: payload is TBD
+
+    dm_rsp.dummy = get_asic_latency();
+
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_GET_ASIC_LATENCY,
                     timer_get_ticks_count() - req_start_time,

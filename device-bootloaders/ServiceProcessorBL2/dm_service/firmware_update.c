@@ -21,11 +21,6 @@
 #include "bl2_firmware_update.h"
 #include "bl2_reset.h"
 
-/*! \struct dm_control_block;
-    \brief Device management control block
-*/
-struct dm_control_block dm_cmd_rsp;
-
 static void reset_etsoc(void)
 {
     printf("Resetting ETSOC..!\n");

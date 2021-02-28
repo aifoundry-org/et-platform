@@ -19,7 +19,30 @@
 #include "dm_service.h"
 #include "dm_task.h"
 
-void update_module_max_throttle_time(void);
+/*! \fn void update_module_max_throttle_time_gbl(void)
+    \brief Interface to read the module max throttle time from hw and update the global variable
+    \param none
+    \returns none
+*/
+void update_module_max_throttle_time_gbl(void);
+
+/*! \fn uint64_t get_module_max_throttle_time_gbl(void)
+    \brief Interface to get the module max throttle time from the global variable
+    \param none
+    \returns uint64_t 
+*/
 uint64_t get_module_max_throttle_time_gbl(void);
-void update_gbl_module_max_temp(uint8_t);
+
+/*! \fn void update_module_max_temp_gbl(uint8_t)
+    \brief Interface to update module max temperature in global variable
+    \param uint8_t max temperature value
+    \returns none 
+*/
+void update_module_max_temp_gbl(uint8_t);
+
+/*! \fn uint8_t get_module_max_temperature_gbl(void)
+    \brief Interface to get module max temperature from global variable
+    \param none
+    \returns uint8_t
+*/
 uint8_t get_module_max_temperature_gbl(void);

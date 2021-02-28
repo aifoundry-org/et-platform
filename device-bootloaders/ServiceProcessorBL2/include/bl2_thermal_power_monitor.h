@@ -29,6 +29,10 @@
 #include "sp_host_iface.h"
 #include "bl2_pmic_controller.h"
 
+// Thresholds 
+#define L0 0x0 // Low
+#define HI 0x1 // High
+
 /*! \fn void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id)
     \brief Interface to process the performance request command
     by the msg_id

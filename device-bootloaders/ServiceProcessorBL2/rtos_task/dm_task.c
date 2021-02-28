@@ -69,7 +69,7 @@ static void get_max_temperature(void) {
    curr_temp = pmic_get_temperature();
 
    if (get_module_max_temperature_gbl() < curr_temp) {
-        update_gbl_module_max_temp(curr_temp);
+        update_module_max_temp_gbl(curr_temp);
    }
 }
 
@@ -189,7 +189,7 @@ static void dm_task_entry(void *pvParameters)
             get_soc_perf_reg()->max_dram_bw.max_bw_wr_req_sec =  max_dram_bw.max_bw_wr_req_sec;
         }
 
-        update_module_max_throttle_time();
+        update_module_max_throttle_time_gbl();
         
         // DRAM capacity //
         get_soc_perf_reg()->dram_capacity_percent = 80;
