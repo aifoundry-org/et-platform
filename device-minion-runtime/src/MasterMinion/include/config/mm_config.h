@@ -237,10 +237,26 @@ move this defined to a abstraction common to SP and MM runtimes*/
 /**********************/
 /* DIR Configuration  */
 /**********************/
-// DDR Region 0 USER_KERNEL_SPACE (BAR=0, Offset=4GB, Size=8GB)
+
+/* DDR Region 0 USER_KERNEL_SPACE (BAR=0, Offset=0, Size~=16GB) */
+
+/*! \def MM_DEV_INTF_USER_KERNEL_SPACE_BAR
+    \brief A macro that provides the PCI BAR region using which
+    the Master Minion DDR User Kernel space can be accessed
+*/
 #define MM_DEV_INTF_USER_KERNEL_SPACE_BAR    0
-#define MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET 0x0100000000UL // TODO: Should be HOST_MANAGED_DRAM_START
-#define MM_DEV_INTF_USER_KERNEL_SPACE_SIZE   0x0200000000UL // TODO: Should be (HOST_MANAGED_DRAM_END - HOST_MANAGED_DRAM_START)
+
+/*! \def MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET
+    \brief A macro that provides the offset of User Kernel space
+    on PCI BAR
+*/
+#define MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET HOST_MANAGED_DRAM_START
+
+/*! \def MM_DEV_INTF_USER_KERNEL_SPACE_SIZE
+    \brief A macro that provides the total size of User Kernel space
+    on PCI BAR.
+*/
+#define MM_DEV_INTF_USER_KERNEL_SPACE_SIZE   HOST_MANAGED_DRAM_SIZE
 
 /*! \def MM_INTERRUPT_TRG_OFFSET
     \brief A macro that provides the offset for triggering the interrupt for MM
