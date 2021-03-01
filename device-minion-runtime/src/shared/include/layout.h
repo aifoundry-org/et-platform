@@ -119,6 +119,7 @@ static_assert((CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR + CM_MM_IFACE_UNICAST_LOCKS_S
 // the range is the START to (END-1)
 #define HOST_MANAGED_DRAM_START KERNEL_UMODE_ENTRY
 #define HOST_MANAGED_DRAM_END   DMA_CHAN_READ_0_LL_BASE
+#define HOST_MANAGED_DRAM_SIZE  (HOST_MANAGED_DRAM_END - HOST_MANAGED_DRAM_START)
 
 // This range is mapped to the host via BAR0. The host can write the DMA configuration
 // linked list, but should never touch the stacks for the SoC processors in the first
