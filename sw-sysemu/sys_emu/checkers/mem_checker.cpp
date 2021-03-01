@@ -44,7 +44,7 @@ uint64_t bool_array_to_int(bool * array, uint64_t size)
  *  return true if coherent, false in cc
  */
 
-bool mem_checker::write(uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id, size_t size, uint32_t cb_quarter)
+bool mem_checker::write(uint64_t pc, uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id, size_t size, uint32_t cb_quarter)
 {
     uint32_t minion = shire_id * EMU_MINIONS_PER_SHIRE + minion_id;
 
@@ -75,9 +75,9 @@ bool mem_checker::write(uint64_t address, op_location_t location, uint32_t shire
     }
 
     // Info
-    MD_LOG(address, minion, printf("mem_checker::write => addr %016llX, location %i, shire id %i, minion_id %i, thread_id %i, size %i, cb quarter %i, found (%i, %i, %i)\n",
-        (long long unsigned int) address, location, shire_id, minion_id, thread_id, (int) size, cb_quarter,
-        global_found, shire_found, minion_found));
+    MD_LOG(address, minion, printf("mem_checker::write => pc %016llX, addr %016llX, location %i, shire_id %i, minion_id %i, thread_id %i, size %i, cb quarter %i, found (%i, %i, %i)\n",
+        (long long unsigned int) pc, (long long unsigned int) address, location, shire_id, minion_id, thread_id,
+        (int) size, cb_quarter, global_found, shire_found, minion_found));
 
     uint32_t l1_set = bemu::dcache_index(address, l1_minion_control[minion], thread_id);
     // Marks the L1 accessed sets
@@ -274,7 +274,7 @@ bool mem_checker::write(uint64_t address, op_location_t location, uint32_t shire
  *  This function lookups the memory line in the directory and then predicts if there may have been incoherency
  *  return true if coherent, false in cc
  */
-bool mem_checker::read(uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id)
+bool mem_checker::read(uint64_t pc, uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id)
 {
     uint32_t minion = shire_id * EMU_MINIONS_PER_SHIRE + minion_id;
 
@@ -302,8 +302,8 @@ bool mem_checker::read(uint64_t address, op_location_t location, uint32_t shire_
     }
 
     // Info
-    MD_LOG(address, minion, printf("mem_checker::read => addr %016llX, location %i, shire id %i, minion_id %i, thread_id %i, found (%i, %i, %i)\n",
-        (long long unsigned int) address, location, shire_id, minion_id, thread_id,
+    MD_LOG(address, minion, printf("mem_checker::read => pc %016llX, addr %016llX, location %i, shire_id %i, minion_id %i, thread_id %i, found (%i, %i, %i)\n",
+        (long long unsigned int) pc, (long long unsigned int) address, location, shire_id, minion_id, thread_id,
         global_found, shire_found, minion_found));
 
     uint32_t l1_set = bemu::dcache_index(address, l1_minion_control[minion], thread_id);
@@ -463,7 +463,7 @@ bool mem_checker::read(uint64_t address, op_location_t location, uint32_t shire_
  *  return true if coherent, false in cc
  */
 
-bool mem_checker::evict_va(uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id, bool * dirty_evict)
+bool mem_checker::evict_va(uint64_t pc, uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id, bool * dirty_evict)
 {
     uint32_t minion = shire_id * EMU_MINIONS_PER_SHIRE + minion_id;
 
@@ -489,8 +489,8 @@ bool mem_checker::evict_va(uint64_t address, op_location_t location, uint32_t sh
        LOG_NOTHREAD(FTL, "mem_checker::evict_va shire entry found and global entry not found for addr %llX when doing write\n", (long long unsigned int) address);
     }
 
-    MD_LOG(address, minion, printf("mem_checker::evict_va => addr %016llX, location %i, shire id %i, minion_id %i, thread_id %i, found (%i, %i, %i)\n",
-        (long long unsigned int) address, location, shire_id, minion_id, thread_id,
+    MD_LOG(address, minion, printf("mem_checker::evict_va => pc %016llX addr %016llX, location %i, shire_id %i, minion_id %i, thread_id %i, found (%i, %i, %i)\n",
+        (long long unsigned int) pc, (long long unsigned int) address, location, shire_id, minion_id, thread_id,
         global_found, shire_found, minion_found));
 
     // Always coherent, simply moving up in the hierarchy contents
@@ -903,7 +903,7 @@ mem_checker::mem_checker()
 }
 
 // Public function to access a memory position
-bool mem_checker::access(uint64_t addr, bemu::mem_access_type macc, bemu::cacheop_type cop, uint32_t thread, size_t size, bemu::mreg_t mask)
+bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc, bemu::cacheop_type cop, uint32_t thread, size_t size, bemu::mreg_t mask)
 {
 
     op_location_t location = COH_MINION;
@@ -1000,7 +1000,7 @@ bool mem_checker::access(uint64_t addr, bemu::mem_access_type macc, bemu::cacheo
     bool coherent;
     if(operation & 1)
     {
-        coherent = read(addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
+        coherent = read(pc, addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
 
         if(!coherent)
         {
@@ -1010,7 +1010,7 @@ bool mem_checker::access(uint64_t addr, bemu::mem_access_type macc, bemu::cacheo
 
         if(((addr & 0x3FULL) + size) > 64)
         {
-            coherent = read((addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id);
+            coherent = read(pc, (addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id);
 
             if(!coherent)
             {
@@ -1026,7 +1026,7 @@ bool mem_checker::access(uint64_t addr, bemu::mem_access_type macc, bemu::cacheo
     bool dirty_evict_va = true;
     if(operation & 4)
     {
-        coherent = evict_va(addr & ~0x3FULL, location, shire_id, minion_id, thread_id, &dirty_evict_va);
+        coherent = evict_va(pc, addr & ~0x3FULL, location, shire_id, minion_id, thread_id, &dirty_evict_va);
 
         if(!coherent)
         {
@@ -1038,7 +1038,7 @@ bool mem_checker::access(uint64_t addr, bemu::mem_access_type macc, bemu::cacheo
     // For evict VA only do writes if it is a dirty evict
     if((operation & 2) && dirty_evict_va)
     {
-        coherent = write(addr & ~0x3FULL, location, shire_id, minion_id, thread_id, size, (addr & 0x30ULL) >> 4);
+        coherent = write(pc, addr & ~0x3FULL, location, shire_id, minion_id, thread_id, size, (addr & 0x30ULL) >> 4);
         
         if(!coherent)
         {
@@ -1048,7 +1048,7 @@ bool mem_checker::access(uint64_t addr, bemu::mem_access_type macc, bemu::cacheo
 
         if(((addr & 0x3FULL) + size) > 64)
         {
-            coherent = write((addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id, size, (addr & 0x30ULL) >> 4);
+            coherent = write(pc, (addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id, size, (addr & 0x30ULL) >> 4);
 
             if(!coherent)
             {
