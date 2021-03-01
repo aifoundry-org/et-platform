@@ -77,6 +77,14 @@ struct PcieDbiSlvRegion : public MemoryRegion {
         PF0_DMA_CAP_DMA_LLP_HIGH_OFF_RDCH_3_ADDRESS    = 0x380920,
     };
 
+    enum : uint32_t {
+        PF0_DMA_CAP_DMA_WRITE_ENGINE_EN_OFF_DMA_WRITE_ENGINE_EN_HSHAKE_CH0_LSB = 16,
+    };
+
+    enum : uint32_t {
+        PF0_DMA_CAP_DMA_READ_ENGINE_EN_OFF_DMA_READ_ENGINE_EN_HSHAKE_CH0_LSB = 16,
+    };
+
     enum : unsigned long long {
         PF0_ATU_CAP_IATU_REGION_CTRL_1_OFF_INBOUND_i_OFFSET     = 0x00,
         PF0_ATU_CAP_IATU_REGION_CTRL_2_OFF_INBOUND_i_OFFSET     = 0x04,
@@ -295,15 +303,31 @@ struct PcieDbiSlvRegion : public MemoryRegion {
         case PF0_DMA_CAP_DMA_WRITE_ENGINE_EN_OFF_ADDRESS:
             dma_write_engine_en = *source32;
             break;
-        case PF0_DMA_CAP_DMA_WRITE_DOORBELL_OFF_ADDRESS:
+        case PF0_DMA_CAP_DMA_WRITE_DOORBELL_OFF_ADDRESS: {
             dma_write_doorbell = *source32;
+            uint32_t wr_doorbell_num = dma_write_doorbell & ((1u << ETSOC_CC_NUM_DMA_WR_CHAN) - 1);
+            uint32_t hshake_bit = PF0_DMA_CAP_DMA_WRITE_ENGINE_EN_OFF_DMA_WRITE_ENGINE_EN_HSHAKE_CH0_LSB
+                                  + wr_doorbell_num;
+            /* In non-Handshake mode, we can start the DMA */
+            if (!(dma_write_engine_en & (1u << hshake_bit))) {
+                dma_wrch_[wr_doorbell_num].go(agent);
+            }
             break;
+        }
         case PF0_DMA_CAP_DMA_READ_ENGINE_EN_OFF_ADDRESS:
             dma_read_engine_en = *source32;
             break;
-        case PF0_DMA_CAP_DMA_READ_DOORBELL_OFF_ADDRESS:
+        case PF0_DMA_CAP_DMA_READ_DOORBELL_OFF_ADDRESS: {
             dma_read_doorbell = *source32;
+            uint32_t rd_doorbell_num = dma_read_doorbell & ((1u << ETSOC_CC_NUM_DMA_RD_CHAN) - 1);
+            uint32_t hshake_bit = PF0_DMA_CAP_DMA_READ_ENGINE_EN_OFF_DMA_READ_ENGINE_EN_HSHAKE_CH0_LSB
+                                  + rd_doorbell_num;
+            /* In non-Handshake mode, we can start the DMA */
+            if (!(dma_read_engine_en & (1u << hshake_bit))) {
+                dma_rdch_[rd_doorbell_num].go(agent);
+            }
             break;
+        }
         case PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_ADDRESS:
             dma_write_int_status = *source32;
             edma_trigger_check(agent);
