@@ -66,9 +66,9 @@ private:
     uint32_t l1_minion_control[EMU_NUM_MINIONS];
 
     // Write and read functions
-    bool write   (uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id, size_t size, uint32_t cb_quarter);
-    bool read    (uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id);
-    bool evict_va(uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id, bool * dirty_evict);
+    bool write   (uint64_t pc, uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id, size_t size, uint32_t cb_quarter);
+    bool read    (uint64_t pc, uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id);
+    bool evict_va(uint64_t pc, uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id, bool * dirty_evict);
 
     void l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t set, bool evict);
 
@@ -88,7 +88,7 @@ public:
 
     mem_checker();
 
-    bool access(uint64_t addr, bemu::mem_access_type macc, bemu::cacheop_type cop, uint32_t thread, size_t size, bemu::mreg_t mask);
+    bool access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc, bemu::cacheop_type cop, uint32_t thread, size_t size, bemu::mreg_t mask);
     void cb_drain(uint32_t shire_id, uint32_t cache_bank);
     void l2_flush(uint32_t shire_id, uint32_t cache_bank);
     void l2_evict(uint32_t shire_id, uint32_t cache_bank);
