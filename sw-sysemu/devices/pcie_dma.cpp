@@ -81,8 +81,8 @@ void PcieDma<wrch>::go(const Agent& agent)
         // Read element
         agent.chip->memory.read(Noagent{agent.chip}, elem_ptr, sizeof(elem), &elem);
 
-        LOG_NOTHREAD(DEBUG, "Elem ptr: 0x%" PRIx64 "\n", elem_ptr);
-        LOG_NOTHREAD(DEBUG, "elem.ctrl: 0x%" PRIx32 "\n", elem.link.ctrl.R);
+        LOG_NOTHREAD(DEBUG, "Elem ptr: 0x%" PRIx64, elem_ptr);
+        LOG_NOTHREAD(DEBUG, "elem.ctrl: 0x%" PRIx32, elem.link.ctrl.R);
 
         uint32_t llp = elem.link.ctrl.B.LLP;                 // Link element
         uint32_t cb = elem.link.ctrl.B.CB;                   // Cycle Bit
@@ -99,7 +99,7 @@ void PcieDma<wrch>::go(const Agent& agent)
 
         if (elem.link.ctrl.B.LLP) { // Link element. Also completes DMA process
             link_elem_t le = elem.link;
-            LOG_NOTHREAD(DEBUG, "LE: {ptr: 0x%" PRIx64 "}\n", le.ptr);
+            LOG_NOTHREAD(DEBUG, "LE: {ptr: 0x%" PRIx64 "}", le.ptr);
 
             // Toggle Cycle Bit
             if (tcb == 1) {
@@ -112,7 +112,7 @@ void PcieDma<wrch>::go(const Agent& agent)
             }
         } else { // Data element
             data_elem_t de = elem.data;
-            LOG_NOTHREAD(DEBUG, "DE: {size: 0x%" PRIx32 ", sar: 0x%" PRIx64 ", dar: 0x%" PRIx64 "}\n", de.size, de.sar, de.dar);
+            LOG_NOTHREAD(DEBUG, "DE: {size: 0x%" PRIx32 ", sar: 0x%" PRIx64 ", dar: 0x%" PRIx64 "}", de.size, de.sar, de.dar);
 
             // Trigger interrupt if it was pending
             if (liep) {
