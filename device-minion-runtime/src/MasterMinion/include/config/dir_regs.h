@@ -20,31 +20,96 @@
 
 #include <stdint.h>
 #include "config/mm_config.h"
-#include "hal_device.h"
 
 /* List of REGIONS based on Spec as defined here:
  * https://esperantotech.atlassian.net/wiki/spaces/SW/pages/1233584203/Memory+Map */
+
+/* General Note: Only expose Bar based offset,size as address to Host.
+   Host Address -> SOC Address mapping will happen via ET SOC PCIe Device ATU mapping */
 
 /*! \def MM_DEV_INTF_REG_VERSION
     \brief Device Interface Register (DIR) version number.
 */
 #define MM_DEV_INTF_REG_VERSION 1U
 
-/*! \def MM_DEV_INTF_BASE_ADDR
-    \brief Macro that provides the base address of the DIRs
-    MM DEV Interface Register at PC_MM Mailbox + 1K
-*/
-#define MM_DEV_INTF_BASE_ADDR (R_PU_MBOX_PC_MM_BASEADDR + 0x400UL)
+/***************************************/
+/* Memory Region accessibility options */
+/***************************************/
 
-// Only expose Bar based offset,size as address to Host
-// Host Address -> SOC Address mapping will happen via ET SOC PCIe Device ATU mapping
+/*! \def MEM_REGION_PRIVILEDGE_MODE_SET(x)
+    \brief Macro that sets the priviledge mode for a memory region
+*/
+#define MEM_REGION_PRIVILEDGE_MODE_SET(x)  (x & 0x00000001u)
+
+/*! \def MEM_REGION_PRIVILEDGE_MODE_KERNEL
+    \brief Macro representing the kernel privileged mode value
+*/
+#define MEM_REGION_PRIVILEDGE_MODE_KERNEL  0x0
+
+/*! \def MEM_REGION_PRIVILEDGE_MODE_USER
+    \brief MAcro representing the user privileged mode value
+*/
+#define MEM_REGION_PRIVILEDGE_MODE_USER    0x1
+
+/*! \def MEM_REGION_NODE_ACCESSIBLE_SET(x)
+    \brief Macro that sets the node accessibility for a memory region
+*/
+#define MEM_REGION_NODE_ACCESSIBLE_SET(x)          (((x) << 1) & 0x00000006u)
+
+/*! \def MEM_REGION_NODE_ACCESSIBLE_NONE
+    \brief Macro representing the not accessible node value
+*/
+#define MEM_REGION_NODE_ACCESSIBLE_NONE            0x0
+
+/*! \def MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT
+    \brief Macro representing the management node value
+*/
+#define MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT      0x1
+
+/*! \def MEM_REGION_NODE_ACCESSIBLE_OPS
+    \brief Macro representing the OPS node value
+*/
+#define MEM_REGION_NODE_ACCESSIBLE_OPS             0x2
+
+/*! \def MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT_OPS
+    \brief Macro representing the management and OPS node value
+*/
+#define MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT_OPS  0x3
+
+/*! \def MEM_REGION_DMA_ALIGNMENT_SET(x)
+    \brief Macro that sets the DMA alignment for a memory region
+*/
+#define MEM_REGION_DMA_ALIGNMENT_SET(x)  (((x) << 3) & 0x00000018u)
+
+/*! \def MEM_REGION_DMA_ALIGNMENT_NONE
+    \brief Macro representing the none DMA alignment value
+*/
+#define MEM_REGION_DMA_ALIGNMENT_NONE    0x0
+
+/*! \def MEM_REGION_DMA_ALIGNMENT_8_BIT
+    \brief Macro representing the 8-bit DMA alignment value
+*/
+#define MEM_REGION_DMA_ALIGNMENT_8_BIT   0x1
+
+/*! \def MEM_REGION_DMA_ALIGNMENT_32_BIT
+    \brief Macro representing the 32-bit DMA alignment value
+*/
+#define MEM_REGION_DMA_ALIGNMENT_32_BIT  0x2
+
+/*! \def MEM_REGION_DMA_ALIGNMENT_64_BIT
+    \brief Macro representing the 64-bit DMA alignment value
+*/
+#define MEM_REGION_DMA_ALIGNMENT_64_BIT  0x3
+
+/***************************/
+/* MM DIRs data structures */
+/***************************/
 
 /*! \enum MM_DEV_INTF_MM_BOOT_STATUS_e
     \brief Values representing Master Minion Boot status.
 */
 enum MM_DEV_INTF_MM_BOOT_STATUS_e {
-    MM_DEV_INTF_MM_BOOT_STATUS_MM_SP_MB_TIMEOUT = -2,
-    MM_DEV_INTF_MM_BOOT_STATUS_MM_FW_ERROR,
+    MM_DEV_INTF_MM_BOOT_STATUS_MM_FW_ERROR = -1,
     MM_DEV_INTF_MM_BOOT_STATUS_DEV_INTF_NOT_READY = 0,
     MM_DEV_INTF_MM_BOOT_STATUS_DEV_INTF_READY,
     MM_DEV_INTF_MM_BOOT_STATUS_INTERRUPT_INITIALIZED,
@@ -53,92 +118,93 @@ enum MM_DEV_INTF_MM_BOOT_STATUS_e {
     MM_DEV_INTF_MM_BOOT_STATUS_MM_WORKERS_INITIALIZED,
     MM_DEV_INTF_MM_BOOT_STATUS_MM_HOST_VQ_READY,
     MM_DEV_INTF_MM_BOOT_STATUS_MM_SP_INTERFACE_READY,
-    MM_DEV_INTF_MM_BOOT_STATUS_MM_READY,
+    MM_DEV_INTF_MM_BOOT_STATUS_MM_READY
 };
 
-/*! \enum MM_DEV_INTF_DDR_REGION_ATTRIBUTE_e
-    \brief Values representing BAR numbers.
+/*! \enum MM_DEV_INTF_MEM_REGION_TYPE_e
+    \brief Values representing the available types of
+    memory regions supported by the Master Minion.
 */
-enum MM_DEV_INTF_DDR_REGION_ATTRIBUTE_e {
-    MM_DEV_INTF_DDR_REGION_ATTR_READ_ONLY = 0,
-    MM_DEV_INTF_DDR_REGION_ATTR_WRITE_ONLY,
-    MM_DEV_INTF_DDR_REGION_ATTR_READ_WRITE
+enum MM_DEV_INTF_MEM_REGION_TYPE_e {
+    MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER = 0 ,
+    MM_DEV_INTF_MEM_REGION_TYPE_OPS_MMFW_TRACE,
+    MM_DEV_INTF_MEM_REGION_TYPE_OPS_CMFW_TRACE,
+    MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED,
+    MM_DEV_INTF_MEM_REGION_TYPE_NUM
 };
 
-/*! \enum MM_DEV_INTF_DDR_REGION_MAP_e
-    \brief Values representing DDR region related information.
-*/
-enum MM_DEV_INTF_DDR_REGION_MAP_e {
-    MM_DEV_INTF_DDR_REGION_MAP_USER_KERNEL_SPACE = 0,
-    MM_DEV_INTF_DDR_REGION_MAP_NUM
-};
-
-/*! \enum MM_DEV_INTF_BAR_TYPE_e
-    \brief Values representing BAR numbers.
-*/
-enum MM_DEV_INTF_BAR_TYPE_e {
-    MM_DEV_INTF_BAR_0 = 0,
-    MM_DEV_INTF_BAR_2 = 2,
-    MM_DEV_INTF_BAR_4 = 4
-};
-
-/*! \struct MM_DEV_INTF_DDR_REGION
-    \brief Holds the information of Master Minion DDR region.
+/*! \struct MM_DEV_INTF_MEM_REGION_ATTR
+    \brief Holds the information of Master Minion interface memory region.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) MM_DEV_INTF_DDR_REGION {
-    uint32_t reserved;
-    uint16_t attr;
-    uint16_t bar;
-    uint64_t offset;
-    uint64_t devaddr;
-    uint64_t size;
-} MM_DEV_INTF_DDR_REGION_s;
+typedef struct __attribute__((__packed__)) MM_DEV_INTF_MEM_REGION_ATTR {
+    uint8_t type;
+    uint8_t bar;
+    uint16_t attributes_size;
+    uint32_t access_attr;
+    uint64_t bar_offset;
+    uint64_t bar_size;
+    uint64_t dev_address;
+} MM_DEV_INTF_MEM_REGION_ATTR_s;
 
-/*! \struct MM_DEV_INTF_DDR_REGIONS
-    \brief Holds the information of all the available Master Minion
-    DDR regions.
-    \warning Must be 64-bit aligned.
-*/
-typedef struct __attribute__((__packed__)) MM_DEV_INTF_DDR_REGIONS {
-    uint32_t reserved;
-    uint32_t num_regions;
-    MM_DEV_INTF_DDR_REGION_s regions[MM_DEV_INTF_DDR_REGION_MAP_NUM];
-} MM_DEV_INTF_DDR_REGIONS_s;
-
-/*! \struct MM_DEV_INTF_MM_VQ
+/*! \struct MM_DEV_INTF_VQ_ATTR
     \brief Holds the information of Master Minion Virtual Queues.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) MM_DEV_INTF_MM_VQ {
-    uint8_t reserved[3];
-    uint8_t bar;
-    uint32_t bar_size;
+typedef struct __attribute__((__packed__)) MM_DEV_INTF_VQ_ATTR {
     uint32_t sq_offset;
     uint16_t sq_count;
     uint16_t per_sq_size;
     uint32_t cq_offset;
     uint16_t cq_count;
     uint16_t per_cq_size;
-} MM_DEV_INTF_MM_VQ_s;
+    uint32_t int_trg_offset;
+    uint8_t int_trg_size;
+    uint8_t int_id;
+    uint16_t attributes_size;
+} MM_DEV_INTF_VQ_ATTR_s;
+
+/*! \struct MM_DEV_INTF_GENERIC_ATTR
+    \brief Holds the general information of Master Minion.
+    \warning Must be 64-bit aligned.
+*/
+typedef struct __attribute__((__packed__)) MM_DEV_INTF_GENERIC_ATTR {
+    uint16_t version;
+    uint16_t total_size;
+    uint16_t attributes_size;
+    uint16_t num_mem_regions;
+    uint8_t reserved[2];
+    int16_t status;
+    uint32_t crc32;
+} MM_DEV_INTF_GENERIC_ATTR_s;
 
 /*! \struct MM_DEV_INTF_REG
     \brief Master Minion DIR which will be used to public device capability to Host.
     \warning Must be 64-bit aligned.
 */
 typedef struct __attribute__((__packed__)) MM_DEV_INTF_REG {
-    uint32_t version;
-    uint32_t size;
-    MM_DEV_INTF_MM_VQ_s mm_vq;
-    MM_DEV_INTF_DDR_REGIONS_s ddr_regions;
-    uint32_t int_trg_offset;
-    int32_t status;
+    MM_DEV_INTF_GENERIC_ATTR_s generic_attr;
+    MM_DEV_INTF_VQ_ATTR_s vq_attr;
+    /* Memory regions can be extended by the FW. The host will read it as
+    flexible array. Hence, always place this array at the end of structure.
+    The count of this array is dictated by num_mem_regions */
+    MM_DEV_INTF_MEM_REGION_ATTR_s mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_NUM];
 } MM_DEV_INTF_REG_s;
 
-/*! \def MM_DEV_INTF_GET_BASE
-    \brief Macro that provides the base address of the DIRs
-*/
-#define MM_DEV_INTF_GET_BASE   ((volatile MM_DEV_INTF_REG_s *)MM_DEV_INTF_BASE_ADDR)
+/************************/
+/* Compile-time checks  */
+/************************/
+#ifndef __ASSEMBLER__
+
+/* Ensure that MM SQs are within limits */
+static_assert(sizeof(MM_DEV_INTF_REG_s) <= MM_DEV_INTF_SIZE,
+    "DIRs size is not within allowed limits.");
+
+#endif /* __ASSEMBLER__ */
+
+/***********************/
+/* Function prototypes */
+/***********************/
 
 /*! \fn void DIR_Init(void)
     \brief Initialize Device Interface Registers
@@ -150,6 +216,6 @@ void DIR_Init(void);
     \brief Set Master Minion ready status
     \return none
 */
-void DIR_Set_Master_Minion_Status(uint8_t status);
+void DIR_Set_Master_Minion_Status(int16_t status);
 
 #endif /* DIR_REGS_H */

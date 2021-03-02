@@ -103,14 +103,6 @@
 (Fixed address - should sync kernels linker script if this is changed) */
 #define KERNEL_UMODE_ENTRY        0x8100600000ULL
 
-// TODO: To be removed with DIRs update
-// TODO: Temporary address until we move to OS SData region
-//#define DEVICE_MM_VQUEUE_BASE 0x8005100000ULL
-//#define DEVICE_MM_VQUEUE_MEM_SIZE 0x20000ULL /* 128K */
-// TODO: Temporary address at (R_PU_MBOX_PC_MM_BASEADDR + 2K) in SRAM
-#define DEVICE_MM_VQUEUE_BASE (0x0020007000 + 0x800UL)
-#define DEVICE_MM_VQUEUE_MEM_SIZE 0x400ULL
-
 //Storage for DMA configuration linked lists.
 //Store at end of R_L3_DRAM 16 GB region, 64MB at 0x83FC800000 - 0x83FFFFFFFF
 //For each DMA channel, reserve 8MB for the list. Chosen arbitrarily to balance mem
