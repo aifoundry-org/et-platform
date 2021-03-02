@@ -25,29 +25,29 @@
 *
 ***********************************************************************/
 #include <stdio.h>
-#include "config/mgmt_dir_build_config.h"
+#include "config/mgmt_build_config.h"
 #include "sp_host_iface.h"
 #include "pcie_int.h"
 #include "vq.h"
 
 /*! \struct host_iface_sqs_cb_t;
-    \brief Host interface control block that manages 
+    \brief Host interface control block that manages
     submissions queues
 */
 typedef struct host_iface_sqs_cb_ {
     uint32_t vqueue_base; /* This is a 32 bit offset from base */
     uint32_t vqueue_size;
-    vq_cb_t vqueue; 
+    vq_cb_t vqueue;
 } sp_host_iface_sqs_cb_t;
 
 /*! \struct host_iface_cqs_cb_t;
-    \brief Host interface control block that manages 
+    \brief Host interface control block that manages
     completion queues
 */
 typedef struct host_iface_cqs_cb_ {
-    uint32_t vqueue_base; 
+    uint32_t vqueue_base;
     uint32_t vqueue_size;
-    vq_cb_t vqueue; 
+    vq_cb_t vqueue;
 } sp_host_iface_cqs_cb_t;
 
 
@@ -58,7 +58,7 @@ typedef struct host_iface_cqs_cb_ {
 static sp_host_iface_sqs_cb_t SP_Host_SQ = {0};
 
 /*! \var host_iface_cqs_cb_t Host_CQs
-    \brief Global SP to Host Minion completion 
+    \brief Global SP to Host Minion completion
     queues interface
 */
 static sp_host_iface_cqs_cb_t SP_Host_CQ = {0};
@@ -68,7 +68,7 @@ static sp_host_iface_cqs_cb_t SP_Host_CQ = {0};
 *   FUNCTION
 *
 *       SP_Host_Iface_SQs_Init
-*  
+*
 *   DESCRIPTION
 *
 *       Initiliaze SQs used by Host to post commands to SP
@@ -86,18 +86,18 @@ int8_t SP_Host_Iface_SQ_Init(void)
 {
     int8_t status = STATUS_SUCCESS;
 
-    /* Initialize the Submission vqueues control block 
+    /* Initialize the Submission vqueues control block
     based on build configuration */
     SP_Host_SQ.vqueue_base = SP_SQ_BASE_ADDRESS;
     SP_Host_SQ.vqueue_size = SP_SQ_SIZE;
 
     /* Initialize the SQ circular buffer */
-    status = VQ_Init(&SP_Host_SQ.vqueue, 
+    status = VQ_Init(&SP_Host_SQ.vqueue,
                       SP_Host_SQ.vqueue_base,
                       SP_Host_SQ.vqueue_size,
                       0,sizeof(cmd_size_t),SP_SQ_MEM_TYPE);
 
-    return status;    
+    return status;
 }
 
 /************************************************************************
@@ -105,7 +105,7 @@ int8_t SP_Host_Iface_SQ_Init(void)
 *   FUNCTION
 *
 *       SP_Host_Iface_CQ_Init
-*  
+*
 *   DESCRIPTION
 *
 *       Initiliaze CQs used by SP to post command responses to host
@@ -123,13 +123,13 @@ int8_t SP_Host_Iface_CQ_Init(void)
 {
     int8_t status = STATUS_SUCCESS;
 
-    /* Initialize the Submission vqueues control block 
+    /* Initialize the Submission vqueues control block
     based on build configuration */
     SP_Host_CQ.vqueue_base = SP_CQ_BASE_ADDRESS;
     SP_Host_CQ.vqueue_size = SP_CQ_SIZE;
 
     /* Initialize the SQ circular buffer */
-    status = VQ_Init(&SP_Host_CQ.vqueue, 
+    status = VQ_Init(&SP_Host_CQ.vqueue,
                       SP_Host_CQ.vqueue_base,
                       SP_Host_CQ.vqueue_size,
                       0,sizeof(cmd_size_t),SP_CQ_MEM_TYPE);
@@ -141,7 +141,7 @@ int8_t SP_Host_Iface_CQ_Init(void)
 *   FUNCTION
 *
 *       SP_Host_Iface_CQ_Push_Command
-*  
+*
 *   DESCRIPTION
 *
 *       This function is used to push a command to host completion queue.
@@ -162,11 +162,11 @@ int8_t SP_Host_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
     /* Push the command to circular buffer */
     status = VQ_Push(&SP_Host_CQ.vqueue, p_cmd, cmd_size);
 
-    if (status == STATUS_SUCCESS) 
+    if (status == STATUS_SUCCESS)
     {
       pcie_interrupt_host(SP_CQ_NOTIFY_VECTOR);
-    } 
-    else 
+    }
+    else
     {
        //MESSAGE_ERROR("SP_Host_Iface_CQ_Push_Cmd: ERROR: Circbuff Push Failed. (Error code: )", status, "\r\n");
     }
@@ -180,7 +180,7 @@ int8_t SP_Host_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
 *   FUNCTION
 *
 *       SP_Host_Iface_SQ_Pop_Cmd
-*  
+*
 *   DESCRIPTION
 *
 *       This function is used to pop a command from host submission queue.

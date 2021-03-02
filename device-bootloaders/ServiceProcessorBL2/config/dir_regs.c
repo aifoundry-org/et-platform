@@ -25,14 +25,14 @@
 *
 ***********************************************************************/
 #include "config/mgmt_dir_regs.h"
+#include "crc32.h"
 
-/*! \var Gbl_SP_Dev_Intf_Regs
+/*! \var Gbl_SP_DIRs
     \brief Global static instance of Service Processors
     Device Interface Registers
     \warning Not thread safe!
 */
-static volatile SP_DEV_INTF_REG_s *Gbl_SP_Dev_Intf_Regs =
-                    (void *)SP_DEV_INTF_BASE_ADDR;
+static SP_DEV_INTF_REG_s *Gbl_SP_DIRs = (void *)SP_DEV_INTF_BASE_ADDR;
 
 /************************************************************************
 *
@@ -55,80 +55,106 @@ static volatile SP_DEV_INTF_REG_s *Gbl_SP_Dev_Intf_Regs =
 ***********************************************************************/
 void DIR_Init(void)
 {
-    Gbl_SP_Dev_Intf_Regs->version     = SP_DEV_INTF_REG_VERSION;
-    Gbl_SP_Dev_Intf_Regs->size        = sizeof(SP_DEV_INTF_REG_s);
+    uint32_t dir_crc32 = 0U; /* Initial value should be zero */
 
-    /* Populate the interrupt trigger offset for SP in Interrupt Trigger region */
-    Gbl_SP_Dev_Intf_Regs->int_trg_offset = SP_INTERRUPT_TRG_OFFSET;
+    /* Populate the device generic attributes */
+    Gbl_SP_DIRs->generic_attr.version = SP_DEV_INTF_REG_VERSION;
+    Gbl_SP_DIRs->generic_attr.total_size = sizeof(SP_DEV_INTF_REG_s);
+    Gbl_SP_DIRs->generic_attr.attributes_size = sizeof(SP_DEV_INTF_GENERIC_ATTR_s);
+    Gbl_SP_DIRs->generic_attr.num_mem_regions = SP_DEV_INTF_MEM_REGION_TYPE_NUM;
 
-    /* Populate the SP VQs information */
-    Gbl_SP_Dev_Intf_Regs->sp_vq.bar         = SP_VQ_BAR;
-    Gbl_SP_Dev_Intf_Regs->sp_vq.bar_size    = SP_VQ_BAR_SIZE;
-    Gbl_SP_Dev_Intf_Regs->sp_vq.sq_offset   = SP_PC_MAILBOX_BAR_OFFSET + SP_SQ_OFFSET;
-    Gbl_SP_Dev_Intf_Regs->sp_vq.sq_count    = SP_SQ_COUNT;
-    Gbl_SP_Dev_Intf_Regs->sp_vq.per_sq_size = SP_SQ_SIZE;
-    Gbl_SP_Dev_Intf_Regs->sp_vq.cq_offset   = SP_PC_MAILBOX_BAR_OFFSET + SP_CQ_OFFSET;
-    Gbl_SP_Dev_Intf_Regs->sp_vq.cq_count    = SP_CQ_COUNT;
-    Gbl_SP_Dev_Intf_Regs->sp_vq.per_cq_size = SP_CQ_SIZE;
+    /* Populate the SP VQs attributes */
+    Gbl_SP_DIRs->vq_attr.sq_offset = SP_SQ_OFFSET;
+    Gbl_SP_DIRs->vq_attr.sq_count = SP_SQ_COUNT;
+    Gbl_SP_DIRs->vq_attr.per_sq_size = SP_SQ_SIZE;
+    Gbl_SP_DIRs->vq_attr.cq_offset = SP_CQ_OFFSET;
+    Gbl_SP_DIRs->vq_attr.cq_count = SP_CQ_COUNT;
+    Gbl_SP_DIRs->vq_attr.per_cq_size = SP_CQ_SIZE;
+    Gbl_SP_DIRs->vq_attr.int_trg_offset = SP_INTERRUPT_TRG_OFFSET;
+    Gbl_SP_DIRs->vq_attr.int_trg_size = SP_INTERRUPT_TRG_SIZE;
+    Gbl_SP_DIRs->vq_attr.int_id = SP_INTERRUPT_TRG_ID;
+    Gbl_SP_DIRs->vq_attr.attributes_size = sizeof(SP_DEV_INTF_VQ_ATTR_s);
 
-    /* Populate the SP DDR regions information */
-    Gbl_SP_Dev_Intf_Regs->ddr_regions.num_regions = SP_DEV_INTF_DDR_REGION_MAP_NUM;
-    Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_TRACE_BUFFER].attr =
-        SP_DEV_INTF_DDR_REGION_ATTR_READ_WRITE;
-    Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_TRACE_BUFFER].bar =
-        SP_DEV_INTF_TRACE_BUFFER_BAR;
-    Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_TRACE_BUFFER].offset =
-        SP_DEV_INTF_TRACE_BUFFER_OFFSET;
-    Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_TRACE_BUFFER].devaddr =
-        SP_FW_MAP_TRACE_BUFFER_REGION_ADDRESS;
-    Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_TRACE_BUFFER].size =
-        SP_DEV_INTF_TRACE_BUFFER_SIZE;
+    /* Populate the SP VQ Buffer memory region attributes */
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
+        .type = SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
+        .bar = SP_VQ_BAR;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
+        .bar_offset = SP_PC_MAILBOX_BAR_OFFSET + SP_VQ_OFFSET;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
+        .bar_size = SP_VQ_BAR_SIZE;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
+        .dev_address = 0U;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
+        .attributes_size = sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
+        .access_attr = MEM_REGION_PRIVILEDGE_MODE_SET(MEM_REGION_PRIVILEDGE_MODE_KERNEL) |
+        MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_NONE) |
+        MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE);
 
-    /* Device Management Scratch region */
-    Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_DEV_MANAGEMENT_SCRATCH].attr =
-        SP_DEV_INTF_DDR_REGION_ATTR_WRITE_ONLY;
-    Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_DEV_MANAGEMENT_SCRATCH].bar =
-        SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_BAR;
-    Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_DEV_MANAGEMENT_SCRATCH].offset =
-        SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_OFFSET;
-    Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_DEV_MANAGEMENT_SCRATCH].devaddr =
-        SP_FW_MAP_DEV_MANAGEMENT_SCRATCH_REGION_ADDRESS;
-    Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_DEV_MANAGEMENT_SCRATCH].size =
-        SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_SIZE;
+    /* Populate the VQ interrupt trigger memory region attributes */
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER]
+        .type = SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER]
+        .bar = SP_DEV_INTF_INTERRUPT_TRG_REGION_BAR;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER]
+        .bar_offset = SP_DEV_INTF_INTERRUPT_TRG_REGION_OFFSET;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER]
+        .bar_size = SP_DEV_INTF_INTERRUPT_TRG_REGION_SIZE;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER]
+        .dev_address = 0U;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER]
+        .attributes_size = sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER]
+        .access_attr = MEM_REGION_PRIVILEDGE_MODE_SET(MEM_REGION_PRIVILEDGE_MODE_KERNEL) |
+        MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_NONE) |
+        MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE);
 
-    /* Device's interrupt trigger region */
-    Gbl_SP_Dev_Intf_Regs->interrupt_region.bar = SP_DEV_INTF_INTERRUPT_TRG_BAR;
-    Gbl_SP_Dev_Intf_Regs->interrupt_region.offset = SP_DEV_INTF_INTERRUPT_TRG_OFFSET;
-    Gbl_SP_Dev_Intf_Regs->interrupt_region.size = SP_DEV_INTF_INTERRUPT_TRG_SIZE;
+    /* Populate the Device Management scratch memory region attributes */
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH]
+        .type = SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH]
+        .bar = SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_BAR;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH]
+        .bar_offset = SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_OFFSET;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH]
+        .bar_size = SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_SIZE;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH]
+        .dev_address = 0U;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH]
+        .attributes_size = sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH]
+        .access_attr = MEM_REGION_PRIVILEDGE_MODE_SET(MEM_REGION_PRIVILEDGE_MODE_KERNEL) |
+        MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT) |
+        MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE);
 
-   /* TODO: Potentially its this space is in dedicated PCIe memory space
-      -- MSIX table region --
-    Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_MSIX_TABLE].attr =
-        SP_DEV_INTF_DDR_REGION_ATTR_READ_ONLY;
-    Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_MSIX_TABLE].bar =
-        SP_DEV_INTF_MSIX_TABLE_BAR;
-    Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_MSIX_TABLE].offset =
-        SP_DEV_INTF_MSIX_TABLE_OFFSET;
-    Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_MSIX_TABLE].devaddr =
-        ;
-    Gbl_SP_Dev_Intf_Regs->ddr_regions.
-        regions[SP_DEV_INTF_DDR_REGION_MAP_MSIX_TABLE].size =
-        SP_DEV_INTF_MSIX_TABLE_SIZE;
-    */
+    /* Populate the SP FW Trace buffer memory region attributes */
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE]
+        .type = SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE]
+        .bar = SP_DEV_INTF_TRACE_BUFFER_BAR;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE]
+        .bar_offset = SP_DEV_INTF_TRACE_BUFFER_OFFSET;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE]
+        .bar_size = SP_DEV_INTF_TRACE_BUFFER_SIZE;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE]
+        .dev_address = 0U;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE]
+        .attributes_size = sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE]
+        .access_attr = MEM_REGION_PRIVILEDGE_MODE_SET(MEM_REGION_PRIVILEDGE_MODE_KERNEL) |
+        MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_NONE) |
+        MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE);
+
+    /* Calculate CRC32 of the DIRs excluding generic attributes
+    NOTE: CRC32 checksum should be calculated at the end */
+    crc32((void*)&Gbl_SP_DIRs->vq_attr,
+        (uint32_t)(Gbl_SP_DIRs->generic_attr.total_size - Gbl_SP_DIRs->generic_attr.attributes_size),
+        &dir_crc32);
+
+    Gbl_SP_DIRs->generic_attr.crc32 = dir_crc32;
+
     return;
 }
 
@@ -144,16 +170,16 @@ void DIR_Init(void)
 *
 *   INPUTS
 *
-*       uint8_t     status
+*       int16_t     status
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-void DIR_Set_Service_Processor_Status(uint8_t status)
+void DIR_Set_Service_Processor_Status(int16_t status)
 {
-    Gbl_SP_Dev_Intf_Regs->status = status;
+    Gbl_SP_DIRs->generic_attr.status = status;
 }
 
 /************************************************************************
@@ -177,5 +203,5 @@ void DIR_Set_Service_Processor_Status(uint8_t status)
 ***********************************************************************/
 void DIR_Set_Minion_Shires(uint64_t minion_shires)
 {
-    Gbl_SP_Dev_Intf_Regs->minion_shires = minion_shires;
+    Gbl_SP_DIRs->generic_attr.minion_shires_mask = minion_shires;
 }

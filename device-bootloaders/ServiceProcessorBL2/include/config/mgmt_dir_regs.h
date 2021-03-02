@@ -19,51 +19,101 @@
 *
 ***********************************************************************/
 
-#ifndef __DIR_REGS_H__
-#define __DIR_REGS_H__
+#ifndef __MGMT_DIR_REGS_H__
+#define __MGMT_DIR_REGS_H__
 
 #include <stdint.h>
-#include "config/mgmt_dir_build_config.h"
-#include "sp_fw_memory_layout.h"
+#include "config/mgmt_build_config.h"
 
-/*! \file List of REGIONS based on Spec as defined here: https://esperantotech.atlassian.net/wiki/spaces/SW/pages/1233584203/Memory+Map */
+/*! \file List of REGIONS based on Spec as defined here:
+    https://esperantotech.atlassian.net/wiki/spaces/SW/pages/1233584203/Memory+Map */
 
-#define SP_DEV_INTF_REG_VERSION 1U
+/* General Note: Only expose Bar based offset,size as address to Host.
+   Host Address -> SOC Address mapping will happen via ET SOC PCIe Device ATU mapping */
 
-// SP Dev Interface Register at PC_SP Mailbox + 1K
-#define SP_DEV_INTF_BASE_ADDR (R_PU_MBOX_PC_SP_BASEADDR + 0x400UL)
-
-// Only expose Bar based offset,size as address to Host
-// Host Address -> SOC Address mapping will happen via ET SOC PCIe Device ATU mapping
-
-// DDR Region 0 DEV_MANAGEMENT_SCRATCH (BAR=0, Offset=8MB, Size=4MB)
-#define SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_BAR    0
-#define SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_OFFSET 0x0800000UL
-#define SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_SIZE   SP_FW_MAP_DEV_MANAGEMENT_SCRATCH_REGION_SIZE
-
-// DDR Region 1 TRACE_BUFFER (BAR=0, Offset=0, Size=4KB)
-#define SP_DEV_INTF_TRACE_BUFFER_BAR    0
-#define SP_DEV_INTF_TRACE_BUFFER_OFFSET 0x0000000000UL
-#define SP_DEV_INTF_TRACE_BUFFER_SIZE   SP_FW_MAP_TRACE_BUFFER_REGION_SIZE
-
-// Interrupt Trigger Region (BAR=2, Offset=0x2000, Size=8KB)
-#define SP_DEV_INTF_INTERRUPT_TRG_BAR    2
-#define SP_DEV_INTF_INTERRUPT_TRG_OFFSET 0x2000UL
-#define SP_DEV_INTF_INTERRUPT_TRG_SIZE   SP_FW_MAP_DEV_INTERRUPT_TRG_SIZE
-
-// DDR Region 2 MAP_MSIX_TABLE (BAR=0, Offset=12MB, Size=256K)
-/*
-#define SP_DEV_INTF_MSIX_TABLE_BAR    0
-#define SP_DEV_INTF_MSIX_TABLE_OFFSET 0x0C00000UL
-#define SP_DEV_INTF_MSIX_TABLE_SIZE   0x0040000UL
+/*! \def SP_DEV_INTF_REG_VERSION
+    \brief Device Interface Register (DIR) version number.
 */
+#define SP_DEV_INTF_REG_VERSION            1U
 
+/***************************************/
+/* Memory Region accessibility options */
+/***************************************/
+
+/*! \def MEM_REGION_PRIVILEDGE_MODE_SET(x)
+    \brief Macro that sets the priviledge mode for a memory region
+*/
+#define MEM_REGION_PRIVILEDGE_MODE_SET(x)  (x & 0x00000001u)
+
+/*! \def MEM_REGION_PRIVILEDGE_MODE_KERNEL
+    \brief Macro representing the kernel privileged mode value
+*/
+#define MEM_REGION_PRIVILEDGE_MODE_KERNEL  0x0
+
+/*! \def MEM_REGION_PRIVILEDGE_MODE_USER
+    \brief MAcro representing the user privileged mode value
+*/
+#define MEM_REGION_PRIVILEDGE_MODE_USER    0x1
+
+/*! \def MEM_REGION_NODE_ACCESSIBLE_SET(x)
+    \brief Macro that sets the priviledge mode for a memory region
+*/
+#define MEM_REGION_NODE_ACCESSIBLE_SET(x)          (((x) << 1) & 0x00000006u)
+
+/*! \def MEM_REGION_NODE_ACCESSIBLE_NONE
+    \brief Macro representing the not accessible node value
+*/
+#define MEM_REGION_NODE_ACCESSIBLE_NONE            0x0
+
+/*! \def MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT
+    \brief Macro representing the management node value
+*/
+#define MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT      0x1
+
+/*! \def MEM_REGION_NODE_ACCESSIBLE_OPS
+    \brief Macro representing the OPS node value
+*/
+#define MEM_REGION_NODE_ACCESSIBLE_OPS             0x2
+
+/*! \def MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT_OPS
+    \brief Macro representing the management and OPS node value
+*/
+#define MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT_OPS  0x3
+
+/*! \def MEM_REGION_DMA_ALIGNMENT_SET(x)
+    \brief Macro that sets the priviledge mode for a memory region
+*/
+#define MEM_REGION_DMA_ALIGNMENT_SET(x)  (((x) << 3) & 0x00000018u)
+
+/*! \def MEM_REGION_DMA_ALIGNMENT_NONE
+    \brief Macro representing the none DMA alignment value
+*/
+#define MEM_REGION_DMA_ALIGNMENT_NONE    0x0
+
+/*! \def MEM_REGION_DMA_ALIGNMENT_8_BIT
+    \brief Macro representing the 8-bit DMA alignment value
+*/
+#define MEM_REGION_DMA_ALIGNMENT_8_BIT   0x1
+
+/*! \def MEM_REGION_DMA_ALIGNMENT_32_BIT
+    \brief Macro representing the 32-bit DMA alignment value
+*/
+#define MEM_REGION_DMA_ALIGNMENT_32_BIT  0x2
+
+/*! \def MEM_REGION_DMA_ALIGNMENT_64_BIT
+    \brief Macro representing the 64-bit DMA alignment value
+*/
+#define MEM_REGION_DMA_ALIGNMENT_64_BIT  0x3
+
+/***************************/
+/* SP DIRs data structures */
+/***************************/
 
 /*! \enum SP_DEV_INTF_SP_BOOT_STATUS_e
-    \brief Values representing Master Minion Boot status.
+    \brief Values representing Service Processor Boot status
 */
 enum SP_DEV_INTF_SP_BOOT_STATUS_e {
-    SP_DEV_INTF_SP_BOOT_STATUS_BOOT_ERROR=-1,
+    SP_DEV_INTF_SP_BOOT_STATUS_BOOT_ERROR = -1,
     SP_DEV_INTF_SP_BOOT_STATUS_DEV_NOT_READY = 0,
     SP_DEV_INTF_SP_BOOT_STATUS_VQ_READY,
     SP_DEV_INTF_SP_BOOT_STATUS_NOC_INITIALIZED,
@@ -77,98 +127,91 @@ enum SP_DEV_INTF_SP_BOOT_STATUS_e {
     SP_DEV_INTF_SP_BOOT_STATUS_DEV_READY
 };
 
-/*! \enum SP_DEV_INTF_DDR_REGION_ATTRIBUTE_e
-    \brief Values representing BAR numbers.
+/*! \enum SP_DEV_INTF_MEM_REGION_TYPE_e
+    \brief Values representing the available types of
+    memory regions supported by the Service Processor
 */
-enum SP_DEV_INTF_DDR_REGION_ATTRIBUTE_e {
-    SP_DEV_INTF_DDR_REGION_ATTR_READ_ONLY = 0,
-    SP_DEV_INTF_DDR_REGION_ATTR_WRITE_ONLY,
-    SP_DEV_INTF_DDR_REGION_ATTR_READ_WRITE
+enum SP_DEV_INTF_MEM_REGION_TYPE_e {
+    SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER = 0 ,
+    SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER,
+    SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH,
+    SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE,
+    SP_DEV_INTF_MEM_REGION_TYPE_NUM
 };
 
-/*! \enum SP_DEV_INTF_DDR_REGION_MAP_e
-    \brief Values representing DDR region related information.
-*/
-enum SP_DEV_INTF_DDR_REGION_MAP_e {
-    SP_DEV_INTF_DDR_REGION_MAP_TRACE_BUFFER = 0,
-    SP_DEV_INTF_DDR_REGION_MAP_DEV_MANAGEMENT_SCRATCH,
-    SP_DEV_INTF_DDR_REGION_MAP_NUM
-};
-
-/*! \enum SP_DEV_INTF_BAR_TYPE_e
-    \brief Values representing BAR numbers.
-*/
-enum SP_DEV_INTF_BAR_TYPE_e {
-    SP_DEV_INTF_BAR_0 = 0,
-    SP_DEV_INTF_BAR_2 = 2,
-    SP_DEV_INTF_BAR_4 = 4
-};
-
-/*! \struct SP_DEV_INTF_INTERRUPT_TRG_REGION_s
-    \brief Holds the information of Device's interrupt trigger region.
+/*! \struct SP_DEV_INTF_MEM_REGION_ATTR
+    \brief Holds the information of Service Processor interface memory region.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) SP_DEV_INTF_INTERRUPT_TRG_REGION_ {
-    uint8_t reserved[6];
-    uint16_t bar;
-    uint64_t offset;
-    uint64_t size;
-} SP_DEV_INTF_INTERRUPT_TRG_REGION_s;
+typedef struct __attribute__((__packed__)) SP_DEV_INTF_MEM_REGION_ATTR {
+    uint8_t type;
+    uint8_t bar;
+    uint16_t attributes_size;
+    uint32_t access_attr;
+    uint64_t bar_offset;
+    uint64_t bar_size;
+    uint64_t dev_address;
+} SP_DEV_INTF_MEM_REGION_ATTR_s;
 
-/*! \struct SP_DEV_INTF_DDR_REGION_s
-    \brief Holds the information of Service Processor DDR region.
-    \warning Must be 64-bit aligned.
-*/
-typedef struct __attribute__((__packed__)) SP_DEV_INTF_DDR_REGION_ {
-    uint32_t reserved;
-    uint16_t attr;
-    uint16_t bar;
-    uint64_t offset;
-    uint64_t devaddr;
-    uint64_t size;
-} SP_DEV_INTF_DDR_REGION_s;
-
-/*! \struct SP_DEV_INTF_DDR_REGIONS_s
-    \brief Holds the information of all the available Service Processor
-    DDR regions.
-    \warning Must be 64-bit aligned.
-*/
-typedef struct __attribute__((__packed__)) SP_DEV_INTF_DDR_REGIONS_ {
-    uint32_t reserved;
-    uint32_t num_regions;
-    SP_DEV_INTF_DDR_REGION_s regions[SP_DEV_INTF_DDR_REGION_MAP_NUM];
-} SP_DEV_INTF_DDR_REGIONS_s;
-
-/*! \struct SP_DEV_INTF_SP_VQ_s
+/*! \struct SP_DEV_INTF_VQ_ATTR
     \brief Holds the information of Service Processor Virtual Queues.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) SP_DEV_INTF_SP_VQ_ {
-    uint8_t reserved[3];
-    uint8_t bar;
-    uint32_t bar_size;
+typedef struct __attribute__((__packed__)) SP_DEV_INTF_VQ_ATTR {
     uint32_t sq_offset;
     uint16_t sq_count;
     uint16_t per_sq_size;
     uint32_t cq_offset;
     uint16_t cq_count;
     uint16_t per_cq_size;
-} SP_DEV_INTF_SP_VQ_s;
+    uint32_t int_trg_offset;
+    uint8_t int_trg_size;
+    uint8_t int_id;
+    uint16_t attributes_size;
+} SP_DEV_INTF_VQ_ATTR_s;
 
-/*! \struct SP_DEV_INTF_REG_s
-    \brief Service Processor DIR which will be used to public device capability to Host.
+/*! \struct SP_DEV_INTF_GENERIC_ATTR
+    \brief Holds the general information of Service Processor.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) SP_DEV_INTF_REG_ {
-    uint32_t version;
-    uint32_t size;
-    uint64_t minion_shires;
-    SP_DEV_INTF_SP_VQ_s sp_vq;
-    SP_DEV_INTF_DDR_REGIONS_s ddr_regions;
-    SP_DEV_INTF_INTERRUPT_TRG_REGION_s interrupt_region;
-    uint32_t int_trg_offset;
-    int32_t status;
+typedef struct __attribute__((__packed__)) SP_DEV_INTF_GENERIC_ATTR {
+    uint16_t version;
+    uint16_t total_size;
+    uint16_t attributes_size;
+    uint16_t num_mem_regions;
+    uint64_t minion_shires_mask;
+    uint8_t reserved[2];
+    int16_t status;
+    uint32_t crc32;
+} SP_DEV_INTF_GENERIC_ATTR_s;
+
+/*! \struct SP_DEV_INTF_REG
+    \brief Service Processor DIRs which will be used to public device capability to Host.
+    \warning Must be 64-bit aligned.
+*/
+typedef struct __attribute__((__packed__)) SP_DEV_INTF_REG {
+    SP_DEV_INTF_GENERIC_ATTR_s generic_attr;
+    SP_DEV_INTF_VQ_ATTR_s vq_attr;
+    /* Memory regions can be extended by the FW. The host will read it as
+    flexible array. Hence, always place this array at the end of structure.
+    The count of this array is dictated by num_mem_regions */
+    SP_DEV_INTF_MEM_REGION_ATTR_s mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_NUM];
 } SP_DEV_INTF_REG_s;
+
+/************************/
+/* Compile-time checks  */
+/************************/
+#ifndef __ASSEMBLER__
+
+/* Ensure that SP SQs are within limits */
+static_assert(sizeof(SP_DEV_INTF_REG_s) <= SP_DEV_INTF_SIZE,
+    "DIRs size is not within allowed limits.");
+
+#endif /* __ASSEMBLER__ */
+
+/***********************/
+/* Function prototypes */
+/***********************/
 
 /*! \fn void DIR_Init(void)
     \brief Initialize Device Interface Registers
@@ -178,14 +221,14 @@ void DIR_Init(void);
 
 /*! \fn void DIR_Set_Service_Processor_Status(uint8_t status)
     \brief Set Service Processor ready status
-    \param None
+    \param status Value of DIRs status field
 */
-void DIR_Set_Service_Processor_Status(uint8_t status);
+void DIR_Set_Service_Processor_Status(int16_t status);
 
 /*! \fn void DIR_Set_Minion_Shires(uint64_t minion_shires)
     \brief Set the available minion shires in system
-    \param None
+    \param minion_shires Available minion shires mask value
 */
 void DIR_Set_Minion_Shires(uint64_t minion_shires);
 
-#endif /* DIR_REGS_H */
+#endif /* MGMT_DIR_REGS_H */
