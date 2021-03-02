@@ -30,7 +30,7 @@ public:
   uint32_t waitForInterrupt(uint32_t bitmask) override;
 
   // api_communicate interface
-  void set_system(bemu::System* system);
+  void set_system(bemu::System* system) override;
   void process() override;
   bool raise_host_interrupt(uint32_t bitmap) override;
   bool host_memory_read(uint64_t host_addr, uint64_t size, void* data) override;

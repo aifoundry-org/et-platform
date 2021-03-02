@@ -365,6 +365,7 @@ SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>
 
   opts.mins_dis = true;
   opts.minions_en = 0xFFFFFFFF;
+  opts.mem_reset = options.mem_reset32;
   opts.shires_en = options.minionShiresMask | (1ull << 34); // always enable Service Processor
   opts.max_cycles = options.maxCycles;
   opts.gdb = options.startGdb;
