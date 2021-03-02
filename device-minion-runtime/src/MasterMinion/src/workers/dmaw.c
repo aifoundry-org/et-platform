@@ -415,6 +415,13 @@ void DMAW_Launch(uint32_t hart_id)
     to move data from device to host */
     if(hart_id == DMAW_FOR_READ)
     {
+        for(dma_chan_id = DMA_CHAN_ID_READ_0;
+            dma_chan_id <= DMA_CHAN_ID_READ_3;
+            dma_chan_id++)
+        {
+            dma_configure_read(dma_chan_id);
+        }
+
         while(1)
         {
             for(ch_index = 0;
@@ -452,6 +459,7 @@ void DMAW_Launch(uint32_t hart_id)
                         {
                             /* DMA transfer aborted, clear interrupt status */
                             dma_clear_read_abort(dma_chan_id);
+                            dma_configure_read(dma_chan_id);
                             write_rsp.status = DEV_OPS_API_DMA_RESPONSE_ABORTED;
                         }
 
@@ -502,6 +510,13 @@ void DMAW_Launch(uint32_t hart_id)
     }
     else if(hart_id == DMAW_FOR_WRITE)
     {
+        for(dma_chan_id = DMA_CHAN_ID_WRITE_0;
+            dma_chan_id <= DMA_CHAN_ID_WRITE_3;
+            dma_chan_id++)
+        {
+            dma_configure_write(dma_chan_id);
+        }
+
         while(1)
         {
             for(ch_index = 0;
@@ -538,6 +553,7 @@ void DMAW_Launch(uint32_t hart_id)
                         {
                             /* DMA transfer aborted, clear interrupt status */
                             dma_clear_write_abort(dma_chan_id);
+                            dma_configure_write(dma_chan_id);
                             write_rsp.status = DEV_OPS_API_DMA_RESPONSE_ABORTED;
                         }
 
