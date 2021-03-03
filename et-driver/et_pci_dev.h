@@ -78,7 +78,6 @@ struct et_pci_dev {
 	// TODO SW-4210: Remove when MSIx is enabled
 	struct workqueue_struct *workqueue;
 	struct work_struct isr_work;
-	struct timer_list missed_irq_timer;
 	bool aborting;
 	spinlock_t abort_lock;		/* serializes access to aborting */
 };

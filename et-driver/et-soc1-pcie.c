@@ -82,36 +82,9 @@ static irqreturn_t et_pcie_isr(int irq, void *dev_id)
 {
 	struct et_pci_dev *et_dev = (struct et_pci_dev *)dev_id;
 
-	//Push off next missed IRQ check since we just got one
-	//TODO: be careful about this with mutlivector. Don't let one IRQ
-	//keep firing mean we fail to check for missed IRQs on the other
-	//one. JIRA SW-953.
-	mod_timer(&et_dev->missed_irq_timer, jiffies + MISSED_IRQ_TIMEOUT);
-
 	queue_work(et_dev->workqueue, &et_dev->isr_work);
 
 	return IRQ_HANDLED;
-}
-
-// TODO SW-4210: Remove when MSIx is enabled
-static void et_missed_irq_timeout(struct timer_list *timer)
-{
-	unsigned long flags;
-	struct et_pci_dev *et_dev = from_timer(et_dev, timer, missed_irq_timer);
-
-	//The isr_work method and et_mbox_isr methods are tolerant of spurrious
-	//interrupts; call them unconditionally in case of missed IRQs.
-	queue_work(et_dev->workqueue, &et_dev->isr_work);
-
-	spin_lock_irqsave(&et_dev->abort_lock, flags);
-
-	//Rescheudle timer; run timer as long as module is active
-	if (!et_dev->aborting) {
-		mod_timer(&et_dev->missed_irq_timer,
-			  jiffies + MISSED_IRQ_TIMEOUT);
-	}
-
-	spin_unlock_irqrestore(&et_dev->abort_lock, flags);
 }
 
 // TODO SW-4210: Remove when MSIx is enabled
@@ -597,9 +570,6 @@ static int create_et_pci_dev(struct et_pci_dev **new_dev, struct pci_dev *pdev)
 	// TODO SW-4210: Remove when MSIx is enabled
 	INIT_WORK(&et_dev->isr_work, et_isr_work);
 
-	// TODO SW-4210: Remove when MSIx is enabled
-	timer_setup(&et_dev->missed_irq_timer, et_missed_irq_timeout, 0);
-
 	return 0;
 }
 
@@ -987,9 +957,6 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		goto error_master_minion_destroy;
 	}
 
-	// TODO SW-4210: Remove when MSIx is enabled
-	mod_timer(&et_dev->missed_irq_timer, jiffies + MISSED_IRQ_TIMEOUT);
-
 	return 0;
 
 error_master_minion_destroy:
@@ -1044,7 +1011,6 @@ static void esperanto_pcie_remove(struct pci_dev *pdev)
 	// TODO SW-4210: Remove when MSIx is enabled
 	// Disable anything that could trigger additional calls to isr_work
 	// in another core before canceling it
-	del_timer_sync(&et_dev->missed_irq_timer);
 	cancel_work_sync(&et_dev->isr_work);
 	free_irq(pci_irq_vector(pdev, 0), (void *)et_dev);
 

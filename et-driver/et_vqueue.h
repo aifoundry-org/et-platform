@@ -15,7 +15,6 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
-#include <linux/timer.h>
 #include <linux/rbtree.h>
 #include <linux/atomic.h>
 
@@ -73,7 +72,6 @@ struct et_cqueue {
 	struct list_head msg_list;
 	struct mutex msg_list_mutex;	/* serializes access to msg_list */
 	struct work_struct isr_work;
-	struct timer_list missed_irq_timer;
 };
 
 ssize_t et_cqueue_pop(struct et_cqueue *cq);

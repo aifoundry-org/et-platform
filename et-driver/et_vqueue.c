@@ -109,28 +109,9 @@ bool et_cqueue_msg_available(struct et_cqueue *cq)
 
 // TODO SW-4210: Uncomment when MSIx is enabled
 #if 0
-static void et_missed_irq_timeout(struct timer_list *timer)
-{
-	unsigned long flags;
-	struct et_cqueue *cq = from_timer(cq, timer, missed_irq_timer);
-
-	queue_work(cq->vq_common->workqueue, &cq->isr_work);
-
-	spin_lock_irqsave(&cq->vq_common->abort_lock, flags);
-
-	// Rescheudle timer; run timer as long as module is active
-	if (!cq->vq_common->aborting)
-		mod_timer(&cq->missed_irq_timer, jiffies + MISSED_IRQ_TIMEOUT);
-
-	spin_unlock_irqrestore(&cq->vq_common->abort_lock, flags);
-}
-
 static irqreturn_t et_pcie_isr(int irq, void *cq_id)
 {
 	struct et_cqueue *cq = (struct et_cqueue *)cq_id;
-
-	// Push off next missed IRQ check since we just got one
-	mod_timer(&cq->missed_irq_timer, jiffies + MISSED_IRQ_TIMEOUT);
 
 	queue_work(cq->vq_common->workqueue, &cq->isr_work);
 
@@ -241,10 +222,6 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 //			goto error_free_irq;
 //		}
 //		INIT_WORK(&cq_pptr[i]->isr_work, et_isr_work);
-//		timer_setup(&cq_pptr[i]->missed_irq_timer,
-//			    et_missed_irq_timeout, 0);
-//		mod_timer(&cq_pptr[i]->missed_irq_timer,
-//			  jiffies + MISSED_IRQ_TIMEOUT);
 		cq_pptr[i]->vq_common = vq_common;
 	}
 
@@ -450,7 +427,6 @@ static void et_cqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 
 	for (i = 0; i < vq_common->cq_count; i++) {
 		// TODO SW-4210: Uncomment when MSIx is enabled
-//		del_timer_sync(&cq_pptr[i]->missed_irq_timer);
 //		cancel_work_sync(&cq_pptr[i]->isr_work);
 //		free_irq(pci_irq_vector(et_dev->pdev,
 //					vq_common->vec_idx_offset + i),
