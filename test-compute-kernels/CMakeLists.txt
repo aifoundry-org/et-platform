@@ -123,7 +123,8 @@ macro(randomized_test)
 
     set(TEST_NAME "${RANDOMIZED_TEST_NAME}_${TEST_ID}")
     set(TEST_BUILD_FOLDER ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME})
-    set(TRACE_ENABLED TRUE)
+    # Trace tests disabled for now until we have the new Tracing lib
+    set(TRACE_ENABLED FALSE)
 
     execute_process(COMMAND mkdir -p ${TEST_BUILD_FOLDER})
 
@@ -171,8 +172,9 @@ endmacro(randomized_test)
 add_subdirectory("add_vector")
 add_subdirectory("memset")
 add_subdirectory("beef")
-add_subdirectory("trace")
-add_subdirectory("trace_ring_buffer")
+# Trace tests disabled for now until we have the new Tracing lib
+#add_subdirectory("trace")
+#add_subdirectory("trace_ring_buffer")
 add_subdirectory("crc32")
 add_subdirectory("empty")
 add_subdirectory("exception")
@@ -210,8 +212,9 @@ add_subdirectory("load_bw")
 add_subdirectory("load_lat")
 add_subdirectory("write_bw")
 add_subdirectory("prefetch_bw")
-add_subdirectory("pmc_test_2s")
-add_subdirectory("pmc_test_fc")
+# Trace tests disabled for now until we have the new Tracing lib
+#add_subdirectory("pmc_test_2s")
+#add_subdirectory("pmc_test_fc")
 
 # Export the package for use from the build-tree
 # (this registers the build-tree with a global CMake-registry)
