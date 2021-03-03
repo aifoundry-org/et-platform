@@ -1,5 +1,4 @@
 #include "etsoc_memory.h"
-#include "device-mrt-trace.h"
 #include "flb.h"
 #include "hart.h"
 #include "kernel.h"
@@ -116,15 +115,18 @@ static void MM_To_CM_Iface_Handle_Message(uint64_t shire, uint64_t hart, cm_ifac
         break;
     case MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL:
         // Evict to invalidate control region to get new changes
-        TRACE_update_control();
+        // TODO: Implement new Tracing
+        // TRACE_update_control();
         break;
     case MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_RESET:
         // Reset trace buffer for next run
-        TRACE_init_buffer();
+        // TODO: Implement new Tracing
+        // TRACE_init_buffer();
         break;
     case MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT:
         // Evict trace buffer for consumption
-        TRACE_evict_buffer();
+        // TODO: Implement new Tracing
+        // TRACE_evict_buffer();
         break;
     case MM_TO_CM_MESSAGE_ID_PMC_CONFIGURE:
         // Make a syscall to M-mode to configure PMCs
