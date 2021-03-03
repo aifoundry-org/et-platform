@@ -152,7 +152,9 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		mem += sizeof(**sq_pptr);
 
 		sq_pptr[i]->index = i;
-		sq_pptr[i]->cb = (struct et_circbuffer *)sq_baseaddr;
+		sq_pptr[i]->cb_mem = (struct et_circbuffer *)sq_baseaddr;
+		et_ioread(sq_pptr[i]->cb_mem, 0, (u8 *)&sq_pptr[i]->cb,
+			  sizeof(sq_pptr[i]->cb));
 		sq_baseaddr += vq_common->sq_size;
 
 		mutex_init(&sq_pptr[i]->push_mutex);
@@ -204,7 +206,9 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		mem += sizeof(**cq_pptr);
 
 		cq_pptr[i]->index = i;
-		cq_pptr[i]->cb = (struct et_circbuffer *)cq_baseaddr;
+		cq_pptr[i]->cb_mem = (struct et_circbuffer *)cq_baseaddr;
+		et_ioread(cq_pptr[i]->cb_mem, 0, (u8 *)&cq_pptr[i]->cb,
+			  sizeof(cq_pptr[i]->cb));
 		cq_baseaddr += vq_common->cq_size;
 
 		mutex_init(&cq_pptr[i]->pop_mutex);
@@ -403,7 +407,7 @@ static void et_squeue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 
 	for (i = 0; i < vq_common->sq_count; i++) {
 		mutex_destroy(&sq_pptr[i]->push_mutex);
-		sq_pptr[i]->cb = NULL;
+		sq_pptr[i]->cb_mem = NULL;
 		sq_pptr[i]->vq_common = NULL;
 		sq_pptr[i] = NULL;
 	}
@@ -434,7 +438,7 @@ static void et_cqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		mutex_destroy(&cq_pptr[i]->pop_mutex);
 		destroy_msg_list(cq_pptr[i]);
 		mutex_destroy(&cq_pptr[i]->msg_list_mutex);
-		cq_pptr[i]->cb = NULL;
+		cq_pptr[i]->cb_mem = NULL;
 		cq_pptr[i]->vq_common = NULL;
 		cq_pptr[i] = NULL;
 	}
@@ -475,7 +479,7 @@ static inline void interrupt_device(struct et_squeue *sq)
 ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count)
 {
 	struct cmn_header_t *header = buf;
-	ssize_t rv;
+	ssize_t rv = count;
 
 	if (count < sizeof(*header)) {
 		pr_err("VQ[%d]: size too small: %ld", sq->index, count);
@@ -490,19 +494,25 @@ ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count)
 
 	mutex_lock(&sq->push_mutex);
 
-	//Write message
-	if (!et_circbuffer_push(sq->cb, buf, header->size)) {
-		clear_bit(sq->index, sq->vq_common->sq_bitmap);
-		pr_err("VQ[%d]: full; no room for message\n", sq->index);
+	if (!et_circbuffer_push(&sq->cb, sq->cb_mem, buf, header->size,
+				ET_CB_SYNC_FOR_HOST | ET_CB_SYNC_FOR_DEVICE)) {
+		// Full; no room for message, returning EAGAIN
 		rv = -EAGAIN;
-		goto push_mutex_unlock;
+		goto update_sq_bitmap;
 	}
 
+	// Inform device that message has been pushed to SQ
 	interrupt_device(sq);
-	rv = count;
 
-push_mutex_unlock:
+update_sq_bitmap:
 	mutex_unlock(&sq->push_mutex);
+
+	// Update sq_bitmap
+	if (et_circbuffer_free(&sq->cb) >= atomic_read(&sq->sq_threshold))
+		set_bit(sq->index, sq->vq_common->sq_bitmap);
+	else
+		clear_bit(sq->index, sq->vq_common->sq_bitmap);
+
 	return rv;
 }
 
@@ -544,6 +554,13 @@ error:
 	return rv;
 }
 
+void et_squeue_sync_cb_for_host(struct et_squeue *sq)
+{
+	mutex_lock(&sq->push_mutex);
+	et_ioread(sq->cb_mem, 0, (u8 *)&sq->cb, sizeof(sq->cb));
+	mutex_unlock(&sq->push_mutex);
+}
+
 ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev, bool is_mgmt,
 			       u16 cq_index, char __user *ubuf, size_t count)
 {
@@ -551,6 +568,7 @@ ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev, bool is_mgmt,
 	struct et_msg_node *msg = NULL;
 	struct cmn_header_t *header = NULL;
 	struct et_dma_info *dma_info = NULL;
+	ssize_t rv;
 
 	if (et_dev->aborting)
 		return -EINTR;
@@ -564,18 +582,16 @@ ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev, bool is_mgmt,
 		return -EINVAL;
 
 	msg = dequeue_msg_node(cq);
-	if (!msg) {
-		clear_bit(cq->index, cq->vq_common->cq_bitmap);
-		pr_err("VQ[%d]: empty; no message to pop\n", cq->index);
-		return -EAGAIN;
+	if (!msg || !(msg->msg)) {
+		// Empty; no message to POP, returning EAGAIN
+		rv = -EAGAIN;
+		goto update_cq_bitmap;
 	}
-
-	if (!(msg->msg))
-		return -EINVAL;
 
 	if (count < msg->msg_size) {
 		pr_err("User buffer not large enough\n");
-		return -ENOMEM;
+		rv = -ENOMEM;
+		goto update_cq_bitmap;
 	}
 
 	header = (struct cmn_header_t *)msg->msg;
@@ -599,13 +615,23 @@ ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev, bool is_mgmt,
 
 	if (copy_to_user(ubuf, msg->msg, msg->msg_size)) {
 		pr_err("failed to copy to user\n");
-		return -ENOMEM;
+		rv = -ENOMEM;
+		goto update_cq_bitmap;
 	}
 
-	return msg->msg_size;
+	rv = msg->msg_size;
+
+update_cq_bitmap:
+	// Update cq_bitmap
+	if (et_cqueue_msg_available(cq))
+		set_bit(cq->index, cq->vq_common->cq_bitmap);
+	else
+		clear_bit(cq->index, cq->vq_common->cq_bitmap);
+
+	return rv;
 }
 
-ssize_t et_cqueue_pop(struct et_cqueue *cq)
+ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 {
 	struct cmn_header_t header;
 	struct et_msg_node *msg_node;
@@ -614,9 +640,9 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq)
 	mutex_lock(&cq->pop_mutex);
 
 	// Read the message header
-	if (!et_circbuffer_peek(cq->cb, (u8 *)&header.size,
-				sizeof(header.size),
-				offsetof(struct cmn_header_t, size))) {
+	if (!et_circbuffer_pop(&cq->cb, cq->cb_mem, (u8 *)&header,
+			       sizeof(header),
+			       (sync_for_host) ? ET_CB_SYNC_FOR_HOST : 0)) {
 		rv = -EAGAIN;
 		goto error_unlock_mutex;
 	}
@@ -634,8 +660,13 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq)
 		goto error_unlock_mutex;
 	}
 
-	// MMIO msg into node memory
-	if (!et_circbuffer_pop(cq->cb, (u8 *)msg_node->msg, header.size)) {
+	memcpy(msg_node->msg, (u8 *)&header, sizeof(header));
+
+	// MMIO msg payload into node memory
+	if (!et_circbuffer_pop(&cq->cb, cq->cb_mem,
+			       (u8 *)msg_node->msg + sizeof(header),
+			       header.size - sizeof(header),
+			       ET_CB_SYNC_FOR_DEVICE)) {
 		rv = -EAGAIN;
 		goto error_unlock_mutex;
 	}
@@ -653,6 +684,13 @@ error_unlock_mutex:
 	mutex_unlock(&cq->pop_mutex);
 
 	return rv;
+}
+
+void et_cqueue_sync_cb_for_host(struct et_cqueue *cq)
+{
+        mutex_lock(&cq->pop_mutex);
+        et_ioread(cq->cb_mem, 0, (u8 *)&cq->cb, sizeof(cq->cb));
+        mutex_unlock(&cq->pop_mutex);
 }
 
 /*
@@ -689,10 +727,12 @@ error_unlock_mutex:
  */
 void et_cqueue_isr_bottom(struct et_cqueue *cq)
 {
-	ssize_t rv;
+	bool sync_for_host = true;
 
 	// Handle all pending messages in the cqueue
-	do {
-		rv = et_cqueue_pop(cq);
-	} while (rv > 0);
+	while (et_cqueue_pop(cq, sync_for_host) > 0) {
+		// Only sync `circbuffer` the first time
+		if (sync_for_host)
+			sync_for_host = false;
+	}
 }

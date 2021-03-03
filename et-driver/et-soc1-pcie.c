@@ -103,33 +103,50 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 {
 	__poll_t mask = 0;
 	struct et_ops_dev *ops;
-	struct et_circbuffer cb;
 	int i;
 
 	ops = container_of(fp->private_data, struct et_ops_dev, misc_ops_dev);
 
+	// waitqueue is wake up whenever a message is received on CQ which
+	// indicates that either CQ msg list has got message for userspace
+	// (EPOLLIN event) or SQ is freed up to be used by userspace
+	// (EPOLLOUT event)
 	poll_wait(fp, &ops->vq_common.waitqueue, wait);
 
+	// Update sq_bitmap for all SQs, set corresponding bit when space
+	// available is more than threshold
 	for (i = 0; i < ops->vq_common.sq_count; i++) {
-		mutex_lock(&ops->sq_pptr[i]->push_mutex);
-		et_ioread(&ops->sq_pptr[i]->cb, 0, (u8 *)&cb, sizeof(cb));
-		mutex_unlock(&ops->sq_pptr[i]->push_mutex);
+		if (test_bit(i, ops->vq_common.sq_bitmap))
+			continue;
 
-		if (et_circbuffer_free(&cb) >=
-		    atomic_read(&ops->sq_pptr[i]->sq_threshold)) {
+		// Sync SQ circbuffer
+		et_squeue_sync_cb_for_host(ops->sq_pptr[i]);
+
+		if (et_circbuffer_free(&ops->sq_pptr[i]->cb) >=
+		    atomic_read(&ops->sq_pptr[i]->sq_threshold))
 			set_bit(i, ops->vq_common.sq_bitmap);
-			mask |= EPOLLOUT;
-		} else {
-			clear_bit(i, ops->vq_common.sq_bitmap);
-		}
-
-		if (et_cqueue_msg_available(ops->cq_pptr[i])) {
-			set_bit(i, ops->vq_common.cq_bitmap);
-			mask |= EPOLLIN;
-		} else {
-			clear_bit(i, ops->vq_common.cq_bitmap);
-		}
 	}
+
+	// Generate EPOLLOUT event if any SQ has space more than its threshold
+	if (!bitmap_empty(ops->vq_common.sq_bitmap, ops->vq_common.sq_count))
+		mask |= EPOLLOUT;
+
+	// Update cq_bitmap for all CQs, set corresponding bit when msg is
+	// available for userspace
+	for (i = 0; i < ops->vq_common.cq_count; i++) {
+		if (test_bit(i, ops->vq_common.cq_bitmap))
+			continue;
+
+		// Sync CQ circbuffer
+		et_cqueue_sync_cb_for_host(ops->cq_pptr[i]);
+
+		if (et_cqueue_msg_available(ops->cq_pptr[i]))
+			set_bit(i, ops->vq_common.cq_bitmap);
+	}
+
+	// Generate EPOLLIN event if any CQ msg list has message for userspace
+	if (!bitmap_empty(ops->vq_common.cq_bitmap, ops->vq_common.cq_count))
+		mask |= EPOLLIN;
 
 	return mask;
 }
@@ -143,6 +160,7 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 	struct cmd_desc cmd_info;
 	struct rsp_desc rsp_info;
 	struct sq_threshold sq_threshold_info;
+	u16 sq_idx;
 	size_t size;
 	u16 max_size;
 
@@ -257,9 +275,17 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 		    (ops->vq_common.sq_size - sizeof(struct et_circbuffer)))
 			return -EINVAL;
 
-		atomic_set
-		(&ops->sq_pptr[sq_threshold_info.sq_index]->sq_threshold,
-		 sq_threshold_info.bytes_needed);
+		sq_idx = sq_threshold_info.sq_index;
+
+		atomic_set(&ops->sq_pptr[sq_idx]->sq_threshold,
+			   sq_threshold_info.bytes_needed);
+
+		// Update sq_bitmap w.r.t new threshold
+		et_squeue_sync_cb_for_host(ops->sq_pptr[sq_idx]);
+
+		if (et_circbuffer_free(&ops->sq_pptr[sq_idx]->cb) >=
+		    atomic_read(&ops->sq_pptr[sq_idx]->sq_threshold))
+			set_bit(sq_idx, ops->vq_common.sq_bitmap);
 
 		return 0;
 
@@ -274,34 +300,51 @@ static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 {
 	__poll_t mask = 0;
 	struct et_mgmt_dev *mgmt;
-	struct et_circbuffer cb;
 	int i;
 
 	mgmt = container_of(fp->private_data, struct et_mgmt_dev,
 			    misc_mgmt_dev);
 
+	// waitqueue is wake up whenever a message is received on CQ which
+	// indicates that either CQ msg list has got message for userspace
+	// (EPOLLIN event) or SQ is freed up to be used by userspace
+	// (EPOLLOUT event)
 	poll_wait(fp, &mgmt->vq_common.waitqueue, wait);
 
+	// Update sq_bitmap for all SQs, set corresponding bit when space
+	// available is more than threshold
 	for (i = 0; i < mgmt->vq_common.sq_count; i++) {
-		mutex_lock(&mgmt->sq_pptr[i]->push_mutex);
-		et_ioread(&mgmt->sq_pptr[i]->cb, 0, (u8 *)&cb, sizeof(cb));
-		mutex_unlock(&mgmt->sq_pptr[i]->push_mutex);
+		if (test_bit(i, mgmt->vq_common.sq_bitmap))
+			continue;
 
-		if (et_circbuffer_free(&cb) >=
-		    atomic_read(&mgmt->sq_pptr[i]->sq_threshold)) {
+		// Sync SQ circbuffer
+		et_squeue_sync_cb_for_host(mgmt->sq_pptr[i]);
+
+		if (et_circbuffer_free(&mgmt->sq_pptr[i]->cb) >=
+		    atomic_read(&mgmt->sq_pptr[i]->sq_threshold))
 			set_bit(i, mgmt->vq_common.sq_bitmap);
-			mask |= EPOLLOUT;
-		} else {
-			clear_bit(i, mgmt->vq_common.sq_bitmap);
-		}
-
-		if (et_cqueue_msg_available(mgmt->cq_pptr[i])) {
-			set_bit(i, mgmt->vq_common.cq_bitmap);
-			mask |= EPOLLIN;
-		} else {
-			clear_bit(i, mgmt->vq_common.cq_bitmap);
-		}
 	}
+
+	// Generate EPOLLOUT event if any SQ has space more than its threshold
+	if (!bitmap_empty(mgmt->vq_common.sq_bitmap, mgmt->vq_common.sq_count))
+		mask |= EPOLLOUT;
+
+	// Update cq_bitmap for all CQs, set corresponding bit when msg is
+	// available for userspace
+	for (i = 0; i < mgmt->vq_common.cq_count; i++) {
+		if (test_bit(i, mgmt->vq_common.cq_bitmap))
+			continue;
+
+		// Sync CQ circbuffer
+		et_cqueue_sync_cb_for_host(mgmt->cq_pptr[i]);
+
+		if (et_cqueue_msg_available(mgmt->cq_pptr[i]))
+			set_bit(i, mgmt->vq_common.cq_bitmap);
+	}
+
+	// Generate EPOLLIN event if any CQ msg list has message for userspace
+	if (!bitmap_empty(mgmt->vq_common.cq_bitmap, mgmt->vq_common.cq_count))
+		mask |= EPOLLIN;
 
 	return mask;
 }
@@ -315,6 +358,7 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 	struct rsp_desc rsp_info;
 	struct mmio_desc mmio_info;
 	struct sq_threshold sq_threshold_info;
+	u16 sq_idx;
 	size_t size;
 	u16 max_size;
 
@@ -449,9 +493,17 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 		    (mgmt->vq_common.sq_size - sizeof(struct et_circbuffer)))
 			return -EINVAL;
 
-		atomic_set
-		(&mgmt->sq_pptr[sq_threshold_info.sq_index]->sq_threshold,
-		 sq_threshold_info.bytes_needed);
+		sq_idx = sq_threshold_info.sq_index;
+
+		atomic_set(&mgmt->sq_pptr[sq_idx]->sq_threshold,
+			   sq_threshold_info.bytes_needed);
+
+		// Update sq_bitmap w.r.t new threshold
+		et_squeue_sync_cb_for_host(mgmt->sq_pptr[sq_idx]);
+
+		if (et_circbuffer_free(&mgmt->sq_pptr[sq_idx]->cb) >=
+		    atomic_read(&mgmt->sq_pptr[sq_idx]->sq_threshold))
+			set_bit(sq_idx, mgmt->vq_common.sq_bitmap);
 
 		return 0;
 
