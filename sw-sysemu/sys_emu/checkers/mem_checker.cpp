@@ -334,11 +334,7 @@ bool mem_checker::read(uint64_t pc, uint64_t address, op_location_t location, ui
              || (!it_minion->second.thread_mask_write[0] && !it_minion->second.thread_mask_write[1]); // Data is not dirty and accessing beyond minion
 
     // Time stamp is coherent
-    if (shire_found && it_shire->second.l2) {
-        coherent &=
-            !global_found
-            || access_time_stamp == it_global->second.latest_time_stamp;
-    }
+    coherent &= !global_found || (access_time_stamp == it_global->second.latest_time_stamp);
 
     if(!coherent) dump_state(it_global, it_shire, it_minion, shire_id, minion);
 
@@ -363,9 +359,9 @@ bool mem_checker::read(uint64_t pc, uint64_t address, op_location_t location, ui
             }
             new_entry.thread_mask_read[adjusted_thread_id] = true;
             new_entry.thread_set      [adjusted_thread_id] = l1_set;
-            new_entry.time_stamp                           = shire_found  ? it_shire->second.time_stamp
-                                                           : global_found ? it_global->second.time_stamp
-                                                           :                global_time_stamp;
+            new_entry.time_stamp                           = shire_found && it_shire->second.l2 ? it_shire->second.time_stamp
+                                                           : global_found                       ? it_global->second.time_stamp
+                                                           :                                      global_time_stamp;
 
             minion_directory_map[minion].insert(minion_directory_map_t::value_type(address, new_entry));
             dump_minion(&new_entry, "read", "insert", address, shire_id, minion_id, thread_id);
