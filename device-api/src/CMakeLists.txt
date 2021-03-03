@@ -8,8 +8,4 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-add_subdirectory(device-api)
-
-# The following directory contains device-apis for virtual queue
-# impelementation
 add_subdirectory(device-apis)

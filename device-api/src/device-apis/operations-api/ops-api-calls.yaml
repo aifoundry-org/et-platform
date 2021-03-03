@@ -10,7 +10,7 @@
 Name: Ops_API_Calls
 ## List of Enums that are used in our messages
 Enums:
-  - Name: log_levels_temp
+  - Name: log_levels
     Type: uint8_t
     Values:
       - Name: CRITICAL
