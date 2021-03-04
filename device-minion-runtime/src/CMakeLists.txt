@@ -13,7 +13,6 @@ get_filename_component(SHARED_INC_DIR "shared/include" ABSOLUTE)
 get_filename_component(SHARED_HAL_DIR "shared/include/etsoc_hal" ABSOLUTE)
 set(SHARED_INC_DIRS ${SHARED_INC_DIR} ${SHARED_INC_DIR}/device-common ${SHARED_HAL_DIR})
 
-add_subdirectory("Tracing")
 add_subdirectory("shared/")
 add_subdirectory("MachineMinion")
 add_subdirectory("MasterMinion")

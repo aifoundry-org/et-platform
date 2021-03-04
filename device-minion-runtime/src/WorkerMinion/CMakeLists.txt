@@ -43,8 +43,6 @@ endif(EsperantoCryptoAPI_FOUND)
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
-target_link_libraries(${TARGET_NAME}.elf device-mrt-trace)
-
 install(TARGETS ${TARGET_NAME}.elf
   EXPORT EsperantoDeviceMinionRuntimeTargets
   RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/WorkerMinion

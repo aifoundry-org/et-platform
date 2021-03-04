@@ -1,5 +1,4 @@
 #include "device_minion_runtime_build_configuration.h"
-#include "device-mrt-trace.h"
 #include "fcc.h"
 #include "flb.h"
 #include "hart.h"

@@ -65,8 +65,6 @@ add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
 target_compile_definitions(${TARGET_NAME}.elf PUBLIC -DMASTER_MINION=1)
 
-target_link_libraries(${TARGET_NAME}.elf device-mrt-trace)
-
 install(TARGETS ${TARGET_NAME}.elf
   EXPORT EsperantoDeviceMinionRuntimeTargets
   RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/MasterMinion
