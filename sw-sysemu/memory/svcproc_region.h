@@ -23,6 +23,7 @@
 #ifdef SYS_EMU
 #include "devices/cru.h"
 #include "devices/efuse.h"
+#include "devices/i2c.h"
 #include "devices/pcie_apb_subsys.h"
 #include "devices/pcie_esr.h"
 #include "devices/plic.h"
@@ -50,11 +51,13 @@ struct SvcProcRegion : public MemoryRegion {
         sp_rom_base          = 0x00000000,
         sp_sram_base         = 0x00400000,
         sp_plic_base         = 0x10000000,
+        sp_i2c0_base         = 0x12020000,
         sp_spi0_base         = 0x12021000,
         sp_uart0_base        = 0x12022000,
         sp_efuse_base        = 0x12026000,
         sp_cru_base          = 0x12028000,
         sp_rvtim_base        = 0x12100000,
+        sp_i2c1_base         = 0x14050000,
         sp_spi1_base         = 0x14051000,
         sp_uart1_base        = 0x14052000,
         pll0_base            = 0x14053000,
@@ -109,7 +112,9 @@ struct SvcProcRegion : public MemoryRegion {
 #ifdef SYS_EMU
     Efuse         <sp_efuse_base,    8_KiB>      sp_efuse{};
     Cru           <sp_cru_base,      4_KiB>      sp_cru{};
+    I2c           <sp_i2c0_base,     4_KiB, 0>   sp_i2c0{};
     Spi           <sp_spi0_base,     4_KiB, 0>   sp_spi0{};
+    I2c           <sp_i2c1_base,     4_KiB, 1>   sp_i2c1{};
     Spi           <sp_spi1_base,     4_KiB, 1>   sp_spi1{};
     SpioRVTimerRegion <sp_rvtim_base,4_KiB>      sp_rvtim{};
     PLL           <pll0_base,        4_KiB, 0>   pll0{};
@@ -139,15 +144,17 @@ protected:
 
     // These arrays must be sorted by region offset
 #ifdef SYS_EMU
-    std::array<MemoryRegion*,19> regions = {{
+    std::array<MemoryRegion*,21> regions = {{
         &sp_rom,
         &sp_sram,
         &sp_plic,
+        &sp_i2c0,
         &sp_spi0,
         &spio_uart0,
         &sp_efuse,
         &sp_cru,
         &sp_rvtim,
+        &sp_i2c1,
         &sp_spi1,
         &spio_uart1,
         &pll0,
