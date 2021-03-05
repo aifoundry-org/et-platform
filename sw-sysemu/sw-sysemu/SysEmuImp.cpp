@@ -26,6 +26,7 @@ namespace {
 #define BAR1_ADDR 0x7E80000014
 #define BAR2_ADDR 0x7E80000018
 #define BAR3_ADDR 0x7E8000001C
+#define PF0_ATU_CAP_IATU_REGION_CTRL_2_OFF_OUTBOUND_x_REGION_EN_FIELD_MASK 0x80000000ul
 
 struct Agent : bemu::Agent {
   std::string name() const override {
@@ -176,7 +177,6 @@ void SysEmuImp::process() {
 }
 
 void SysEmuImp::mmioRead(uint64_t address, size_t size, std::byte* dst) {
-
   std::promise<void> p;
   auto request = [=, &p]() {
     SE_LOG(INFO) << "Device memory read at: " << std::hex << address << " size: " << size << " host dst: " << dst;
@@ -305,6 +305,16 @@ bool SysEmuImp::host_memory_write(uint64_t host_addr, uint64_t size, const void*
   return true;
 }
 
+void SysEmuImp::notify_iatu_ctrl_2_reg_write(int pcie_id, uint32_t iatu, uint32_t value) {
+  LOG_NOTHREAD(DEBUG, "SysEmuImp::notify_iatu_ctrl_2_reg_write: %d, 0x%x, 0x%x", pcie_id, iatu, value);
+  // We only care about PCIE0
+  // This expects the latest iATU to be configured by BL2 to be iATU 3:
+  //   https://gitlab.esperanto.ai/software/device-bootloaders/-/blob/master/shared/src/pcie_init.c#L644
+  if ((pcie_id == 0) && (iatu == 3) && (value & PF0_ATU_CAP_IATU_REGION_CTRL_2_OFF_OUTBOUND_x_REGION_EN_FIELD_MASK)) {
+    iatusReady_.set_value();
+  }
+}
+
 SysEmuImp::~SysEmuImp() {
   std::promise<void> p;
   auto request = [=, &p]() {
@@ -389,8 +399,10 @@ SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>
     SE_LOG(INFO) << "Ending sysemu thread " << std::this_thread::get_id();
   });
 
-  // #TODO FIX-ME https://esperantotech.atlassian.net/browse/SW-5740
-  std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+  // Wait until all the iATUs configured by BL2 have been enabled
+  auto future = iatusReady_.get_future();
+  future.get();
+
   SE_LOG(INFO) << "Calling pcieReady";
   hostListener_->pcieReady();
 }

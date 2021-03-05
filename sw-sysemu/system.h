@@ -86,6 +86,7 @@ public:
     bool raise_host_interrupt(uint32_t bitmap);
     void copy_memory_from_host_to_device(uint64_t from_addr, uint64_t to_addr, uint32_t size);
     void copy_memory_from_device_to_host(uint64_t from_addr, uint64_t to_addr, uint32_t size);
+    void notify_iatu_ctrl_2_reg_write(int pcie_id, uint32_t iatu, uint32_t value);
 
     // UARTs
     void pu_uart0_set_rx_fd(int fd);

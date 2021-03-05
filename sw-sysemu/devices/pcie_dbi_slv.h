@@ -20,7 +20,7 @@
 
 namespace bemu {
 
-template<unsigned long long Base, unsigned long long N>
+template<unsigned long long Base, unsigned long long N, int ID>
 struct PcieDbiSlvRegion : public MemoryRegion {
     typedef typename MemoryRegion::addr_type      addr_type;
     typedef typename MemoryRegion::size_type      size_type;
@@ -107,7 +107,7 @@ struct PcieDbiSlvRegion : public MemoryRegion {
     void read(const Agent&, size_type pos, size_type n, pointer result) override {
         uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
 
-        LOG_NOTHREAD(DEBUG, "PcieDbiSlvRegion::read(pos=0x%llx)", pos);
+        LOG_NOTHREAD(DEBUG, "PcieDbiSlvRegion<%d>::read(pos=0x%llx)", ID, pos);
 
         if (n != 4)
             throw memory_error(first() + pos);
@@ -282,7 +282,7 @@ struct PcieDbiSlvRegion : public MemoryRegion {
     void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
 
-        LOG_NOTHREAD(DEBUG, "PcieDbiSlvRegion::write(pos=0x%llx)", pos);
+        LOG_NOTHREAD(DEBUG, "PcieDbiSlvRegion<%d>::write(pos=0x%llx)", ID, pos);
 
         if (n != 4)
             throw memory_error(first() + pos);
@@ -439,6 +439,7 @@ struct PcieDbiSlvRegion : public MemoryRegion {
                         break;
                     case PF0_ATU_CAP_IATU_REGION_CTRL_2_OFF_INBOUND_i_OFFSET:
                         iatus[idx].ctrl_2 = *source32;
+                        agent.chip->notify_iatu_ctrl_2_reg_write(ID, idx, *source32);
                         break;
                     case PF0_ATU_CAP_IATU_LWR_BASE_ADDR_OFF_INBOUND_i_OFFSET:
                         iatus[idx].lwr_base_addr = *source32;
