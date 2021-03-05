@@ -547,14 +547,14 @@ void DMAW_Launch(uint32_t hart_id)
                         {
                             /* DMA transfer complete, clear interrupt status */
                             dma_clear_done(dma_chan_id);
-                            write_rsp.status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
+                            read_rsp.status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
                         }
                         else
                         {
                             /* DMA transfer aborted, clear interrupt status */
                             dma_clear_write_abort(dma_chan_id);
                             dma_configure_write(dma_chan_id);
-                            write_rsp.status = DEV_OPS_API_DMA_RESPONSE_ABORTED;
+                            read_rsp.status = DEV_OPS_API_DMA_RESPONSE_ABORTED;
                         }
 
                         /* Read the channel status from CB */
