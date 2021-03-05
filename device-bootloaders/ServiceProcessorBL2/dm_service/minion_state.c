@@ -20,6 +20,19 @@
 
 static uint64_t g_active_shire_mask = 0;
 
+static int get_mm_thread_state(struct mm_state_t *mm_state)
+{
+    // TODO : Get the thread state from MM. 
+    // https://esperantotech.atlassian.net/browse/SW-6744
+    // Currently providing dummy response.
+    mm_state->master_thread_state = 0; 
+    mm_state->vq_s_thread_state = 0;
+    mm_state->vq_c_thread_state = 0;
+    mm_state->vq_w_thread_state = 0;
+
+    return 0;
+}
+
 void Minion_State_Init(uint64_t active_shire_mask)
 {
     g_active_shire_mask = active_shire_mask;
@@ -28,22 +41,23 @@ void Minion_State_Init(uint64_t active_shire_mask)
 void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
 {
     uint64_t req_start_time;
-
+    int status;
     req_start_time = timer_get_ticks_count();
 
     switch (msg_id) {
     case DM_CMD_GET_MM_THREADS_STATE: {
         struct device_mgmt_mm_state_rsp_t dm_rsp;
-        //TODO : SP needs to get the thread states from MM. Currently providing dummy response.
-        dm_rsp.mm_state.master_thread_state = 0;
-        dm_rsp.mm_state.vq_s_thread_state = 0;
-        dm_rsp.mm_state.vq_c_thread_state = 0;
-        dm_rsp.mm_state.vq_w_thread_state = 0;
+
+        status = get_mm_thread_state(&dm_rsp.mm_state);
+       
+        if(0 != status) {
+            printf(" mm state svc error: get_mm_thread_state()\r\n");
+        } 
 
         FILL_RSP_HEADER(dm_rsp, tag_id,
                         DM_CMD_GET_MM_THREADS_STATE,
                         timer_get_ticks_count() - req_start_time,
-                        DM_STATUS_SUCCESS);
+                        (uint32_t)status);
 
         if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_mm_state_rsp_t))) {
             printf("Minion_State_Host_Iface_Process_Request: Cqueue push error!\n");
