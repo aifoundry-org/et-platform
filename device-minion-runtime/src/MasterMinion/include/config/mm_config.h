@@ -238,7 +238,7 @@ move this defined to a abstraction common to SP and MM runtimes*/
 /* DIR Configuration  */
 /**********************/
 
-/* DDR Region 0 USER_KERNEL_SPACE (BAR=0, Offset=0, Size~=16GB) */
+/* DDR Region 0 USER_KERNEL_SPACE (BAR=0, Offset=0x600000, Size~=12GB) */
 
 /*! \def MM_DEV_INTF_USER_KERNEL_SPACE_BAR
     \brief A macro that provides the PCI BAR region using which
@@ -250,7 +250,7 @@ move this defined to a abstraction common to SP and MM runtimes*/
     \brief A macro that provides the offset of User Kernel space
     on PCI BAR
 */
-#define MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET HOST_MANAGED_DRAM_START
+#define MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET 0x600000
 
 /*! \def MM_DEV_INTF_USER_KERNEL_SPACE_SIZE
     \brief A macro that provides the total size of User Kernel space
