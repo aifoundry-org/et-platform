@@ -47,16 +47,14 @@ static void get_max_memory_error(tag_id_t tag_id, uint64_t req_start_time)
     volatile struct max_error_count_t *error_count = get_soc_max_control_block();
 
     status = ddr_get_ce_count(&ddr_ce_count);
-    if (!status) {
+    if (0 != status) {
+        printf("get_max_memory_error : driver error !\n");
+    } else {
         if (error_count->ddr_ce_max_count < ddr_ce_count) {
             error_count-> ddr_ce_max_count = ddr_ce_count;
         }
         // TODO: Change this to uint32_t in rsp control block. same value is present in the json schema as well sw-6467
         dm_rsp.max_ecc_count.count = (uint8_t)error_count->ddr_ce_max_count; 
-    }
-
-    if (status) {
-        printf("get_max_memory_error : driver error !\n");
     }
 
     FILL_RSP_HEADER(dm_rsp, tag_id,
@@ -94,16 +92,21 @@ static void get_module_max_ddr_bw(tag_id_t tag_id, uint64_t req_start_time)
 {
     struct device_mgmt_max_dram_bw_rsp_t dm_rsp;
     struct max_dram_bw_t max_dram_bw;
+    int status;
 
-    max_dram_bw = get_module_max_dram_bw_gbl();
+    status = get_module_max_dram_bw(&max_dram_bw);
 
-    dm_rsp.max_dram_bw.max_bw_rd_req_sec = max_dram_bw.max_bw_rd_req_sec;
-    dm_rsp.max_dram_bw.max_bw_wr_req_sec = max_dram_bw.max_bw_wr_req_sec;
+    if (0 != status) {
+       printf(" perf mgmt svc error: get_module_max_dram_bw()\r\n");
+    } else {
+       dm_rsp.max_dram_bw.max_bw_rd_req_sec = max_dram_bw.max_bw_rd_req_sec;
+       dm_rsp.max_dram_bw.max_bw_wr_req_sec = max_dram_bw.max_bw_wr_req_sec;
+    }
 
     FILL_RSP_HEADER(dm_rsp, tag_id,
                     DM_CMD_GET_MODULE_MAX_DDR_BW,
                     timer_get_ticks_count() - req_start_time,
-                    DM_STATUS_SUCCESS);
+                    (uint32_t)status);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_max_dram_bw_rsp_t))) {
         printf("get_max_memory_error: Cqueue push error!\n");
@@ -134,14 +137,21 @@ static void get_module_max_ddr_bw(tag_id_t tag_id, uint64_t req_start_time)
 static void get_module_max_throttle_time(tag_id_t tag_id, uint64_t req_start_time)
 {
     struct device_mgmt_max_throttle_time_rsp_t dm_rsp;
+    uint64_t max_throttle_time;
+    int status;
 
-    dm_rsp.max_throttle_time.time_usec = get_module_max_throttle_time_gbl();
+    status = get_max_throttle_time(&max_throttle_time);
+
+    if (0 != status) {
+       printf(" thermal pwr mgmt svc error: get_module_max_throttle_time()\r\n");
+    } else {
+       dm_rsp.max_throttle_time.time_usec = max_throttle_time;
+    }
 
     FILL_RSP_HEADER(dm_rsp, tag_id,
                     DM_CMD_GET_MODULE_MAX_THROTTLE_TIME,
                     timer_get_ticks_count() - req_start_time,
-                    DM_STATUS_SUCCESS);
-
+                    (uint32_t)status);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_max_throttle_time_rsp_t))) {
         printf("get_module_max_throttle_time: Cqueue push error!\n");
@@ -173,13 +183,21 @@ static void get_module_max_throttle_time(tag_id_t tag_id, uint64_t req_start_tim
 static void get_module_max_temperature(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_max_temperature_rsp_t dm_rsp;
+    uint8_t max_temp;
+    int status;
 
-    dm_rsp.max_temperature.max_temperature_c = get_module_max_temperature_gbl();
+    status = get_soc_max_temperature(&max_temp);
+
+    if (0 != status) {
+       printf(" thermal pwr mgmt svc error: get_soc_max_temperature()\r\n");
+    } else {
+       dm_rsp.max_temperature.max_temperature_c = max_temp;
+    }
 
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_GET_MODULE_MAX_TEMPERATURE,
                     timer_get_ticks_count() - req_start_time,
-                    DM_STATUS_SUCCESS);
+                    (uint32_t)status);
 
 
    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_max_temperature_rsp_t))) {

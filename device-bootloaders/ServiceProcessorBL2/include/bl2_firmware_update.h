@@ -40,6 +40,8 @@
 #include "bl2_pmic_controller.h"
 #include "bl2_crypto.h"
 #include "bl2_vaultip_driver.h"
+#include "sp_host_iface.h"
+#include "bl2_reset.h"
 
 /**
  * @brief Enum of Firmware update status

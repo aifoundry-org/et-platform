@@ -20,6 +20,9 @@
 
 #include "dm.h"
 #include "mm_sp_cmd_spec.h"
+#include "sp_host_iface.h"
+#include "sp_mm_iface.h"
+#include "mm_sp_cmd_spec.h"
 
 /*! \brief Initialize Minion state service
     \param active_shire_mask Mask of active Shires

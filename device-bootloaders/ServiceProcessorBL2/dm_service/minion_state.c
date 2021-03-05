@@ -16,11 +16,6 @@
 */
 /***********************************************************************/
 
-#include "dm.h"
-#include "dm_service.h"
-#include "sp_host_iface.h"
-#include "sp_mm_iface.h"
-#include "mm_sp_cmd_spec.h"
 #include "minion_state.h"
 
 static uint64_t g_active_shire_mask = 0;

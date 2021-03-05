@@ -19,6 +19,7 @@
 #define __BL2_ERROR_CONTROL_H__
 
 #include <stdint.h>
+#include "dm.h"
 
 /*! \fn void error_control_process_request(tag_id_t tag_id, msg_id_t msg_id)
     \brief Interface to process the error control command request

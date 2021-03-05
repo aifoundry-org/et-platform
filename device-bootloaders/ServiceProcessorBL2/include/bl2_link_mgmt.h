@@ -21,8 +21,7 @@
 
 #include <stdint.h>
 #include "dm.h"
-#include "dm_service.h"
-#include "dm_task.h"
+#include "perf_mgmt.h"
 #include "sp_host_iface.h"
 #include "bl2_reset.h"
 #include "bl2_pcie.h"

@@ -95,7 +95,7 @@ static void link_mgmt_set_pcie_max_link_speed(uint16_t tag, uint64_t req_start_t
                                               pcie_link_speed_e pcie_link_speed)
 {
     struct device_mgmt_default_rsp_t dm_rsp;
-    int32_t status = DM_STATUS_SUCCESS;
+    int status = DM_STATUS_SUCCESS;
 
     switch (pcie_link_speed) {
     case PCIE_LINK_SPEED_GEN3:
@@ -143,7 +143,7 @@ static void link_mgmt_set_pcie_lane_width(uint16_t tag, uint64_t req_start_time,
                                           pcie_lane_w_split_e pcie_lane_w_split)
 {
     struct device_mgmt_default_rsp_t dm_rsp;
-    int32_t status = DM_STATUS_SUCCESS;
+    int status = DM_STATUS_SUCCESS;
 
     switch (pcie_lane_w_split) {
     case PCIE_LANE_W_SPLIT_x4:
@@ -189,7 +189,7 @@ static void link_mgmt_set_pcie_lane_width(uint16_t tag, uint64_t req_start_time,
 static void link_mgmt_pcie_retrain_phy(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_default_rsp_t dm_rsp;
-    int32_t status;
+    int status;
 
     status = pcie_retrain_phy();
 
@@ -230,26 +230,22 @@ static void link_mgmt_get_module_pcie_ecc_uecc(uint16_t tag, uint64_t req_start_
     struct device_mgmt_get_error_count_rsp_t dm_rsp;
     uint32_t ce_count;
     uint32_t uce_count;
-    int32_t status;
+    int status;
 
     status = pcie_get_ce_count(&ce_count);
-   
-    if (!status) {
-        dm_rsp.errors_count.ecc = ce_count;
-    }
 
-    if (status) {
+    if (0 != status) {
         printf("pcie_get_ce_count : driver error !\n");
+    } else {
+        dm_rsp.errors_count.ecc = ce_count;
     }
 
     status = pcie_get_uce_count(&uce_count);
 
-    if (!status) {
-        dm_rsp.errors_count.uecc  = uce_count;
-    }
-
-    if (status) {
+    if (0 != status) {
         printf("pcie_get_uce_count : driver error !\n");
+    } else {
+        dm_rsp.errors_count.uecc  = uce_count;
     }
 
     FILL_RSP_HEADER(dm_rsp, tag,
@@ -287,26 +283,22 @@ static void link_mgmt_get_module_dram_uecc(uint16_t tag, uint64_t req_start_time
     struct device_mgmt_get_error_count_rsp_t dm_rsp;
     uint32_t ce_count;
     uint32_t uce_count;
-    int32_t status;
+    int status;
 
     status = ddr_get_ce_count(&ce_count);
    
-    if (!status) {
-        dm_rsp.errors_count.ecc = ce_count;
-    }
-
-    if (status) {
+    if (0 != status) {
         printf("ddr_get_ce_count : driver error !\n");
+    } else {
+         dm_rsp.errors_count.ecc = ce_count;
     }
 
     status = ddr_get_uce_count(&uce_count);
 
-    if (!status) {
-        dm_rsp.errors_count.uecc  = uce_count;
-    }
-
-    if (status) {
+    if (0 != status) {
         printf("ddr_get_ce_count : driver error !\n");
+    } else {
+        dm_rsp.errors_count.uecc  = uce_count;
     }
 
     FILL_RSP_HEADER(dm_rsp, tag,
@@ -344,26 +336,22 @@ static void link_mgmt_get_module_sram_uecc(uint16_t tag, uint64_t req_start_time
     struct device_mgmt_get_error_count_rsp_t dm_rsp;
     uint32_t ce_count;
     uint32_t uce_count;
-    int32_t status;
+    int status;
 
     status = sram_get_ce_count(&ce_count);
    
-    if (!status) {
-        dm_rsp.errors_count.ecc = ce_count;
-    }
-
-    if (status) {
+    if (0 != status) {
         printf("sram_get_ce_count : driver error !\n");
+    } else {
+        dm_rsp.errors_count.ecc = ce_count;
     }
 
     status = sram_get_uce_count(&uce_count);
 
-    if (!status) {
-        dm_rsp.errors_count.uecc  = uce_count;
-    }
-
-    if (status) {
+    if (0 != status) {
         printf("sram_get_uce_count : driver error !\n");
+    } else {
+        dm_rsp.errors_count.uecc  = uce_count;
     }
 
     FILL_RSP_HEADER(dm_rsp, tag,
@@ -399,14 +387,22 @@ static void link_mgmt_get_module_sram_uecc(uint16_t tag, uint64_t req_start_time
 static void link_mgmt_get_module_ddr_bw_counter(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_dram_bw_counter_rsp_t dm_rsp;
+    struct dram_bw_t dram_bw;
+    int status;
 
-    dm_rsp.dram_bw_counter.bw_rd_req_sec = get_soc_perf_reg()->dram_bw.read_req_sec;
-    dm_rsp.dram_bw_counter.bw_wr_req_sec = get_soc_perf_reg()->dram_bw.write_req_sec;
+    status = get_module_dram_bw(&dram_bw);
+
+    if (0 != status) {
+       printf(" perf mgmt error: get_module_dram_bw()\r\n");
+    } else {
+       dm_rsp.dram_bw_counter.bw_rd_req_sec = dram_bw.read_req_sec;
+       dm_rsp.dram_bw_counter.bw_wr_req_sec = dram_bw.write_req_sec;
+    }
 
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_GET_MODULE_DDR_BW_COUNTER,
                     timer_get_ticks_count() - req_start_time,
-                    DM_STATUS_SUCCESS);
+                    (uint32_t)status);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_dram_bw_counter_rsp_t))) {
         printf("link_mgmt_get_module_ddr_bw_counter: Cqueue push error!\n");

@@ -26,7 +26,6 @@
 #include "task.h"
 #include "bl2_pmic_controller.h"
 #include "dm.h"
-#include "dm_service.h"
 #include "dm_task.h"
 #include "perf_mgmt.h"
 #include "thermal_pwr_mgmt.h"
@@ -37,10 +36,6 @@
 #define DM_TASK_STACK      1024
 #define DM_TASK_PRIORITY   1
 
-#define HOURS_IN_DAY       24
-#define SECONDS_IN_HOUR    3600
-#define SECONDS_IN_MINUTE  60 
-
 /* GLobals */
 static TaskHandle_t g_dm_task_handle;
 static StackType_t g_dm_stack[DM_TASK_STACK];
@@ -48,30 +43,6 @@ static StaticTask_t g_staticTask_ptr;
 
 /* Task entry function */
 static void dm_task_entry(void *pvParameters);
-
-struct soc_perf_reg_t  g_soc_perf_reg __attribute__((section(".data")));
-
-volatile struct soc_perf_reg_t *get_soc_perf_reg(void)
-{
-    return &g_soc_perf_reg;
-}
-
-struct soc_power_reg_t g_soc_power_reg __attribute__((section(".data")));
-
-volatile struct soc_power_reg_t *get_soc_power_reg(void)
-{
-    return &g_soc_power_reg;
-}
-
-static void get_max_temperature(void) {
-   uint8_t curr_temp;
-
-   curr_temp = pmic_get_temperature();
-
-   if (get_module_max_temperature_gbl() < curr_temp) {
-        update_module_max_temp_gbl(curr_temp);
-   }
-}
 
 /************************************************************************
 *
@@ -135,13 +106,6 @@ void init_dm_sampling_task(void)
 static void dm_task_entry(void *pvParameters)
 {
     (void)pvParameters;
-    uint64_t module_uptime;
-    uint64_t seconds;
-    uint16_t day;
-    uint8_t hours;
-    uint8_t minutes;
-    struct max_dram_bw_t max_dram_bw;
-    struct dram_bw_t dram_bw;
     int ret;
 
     //Will need to cleanly yield this thread to avoid this Thread from hoging the SP
@@ -149,52 +113,42 @@ static void dm_task_entry(void *pvParameters)
     {
         // simulate the values fetched from the PMIC Interface
         // Module Temperature in C
-        get_soc_power_reg()->soc_temperature = pmic_get_temperature();
+        ret = update_module_current_temperature();
+
+        if (0 != ret) {
+            printf("thermal pwr mgmt svc error : update_module_current_temperature()\r\n");
+        }
+
         // Module Power in watts
-        get_soc_power_reg()->soc_power = pmic_read_soc_power();
+        ret = update_module_soc_power();
 
-        // Get module max temperature
-        get_max_temperature();
-        
-        // Module Uptime //
-        module_uptime = timer_get_ticks_count();
-
-        seconds = (module_uptime / 1000000);
-        day = (uint16_t) (seconds / (HOURS_IN_DAY * SECONDS_IN_HOUR)); 
-        seconds = (seconds % (HOURS_IN_DAY * SECONDS_IN_HOUR)); 
-        hours = (uint8_t)(seconds / SECONDS_IN_HOUR); 
-
-        seconds %= SECONDS_IN_HOUR; 
-        minutes = (uint8_t)(seconds / SECONDS_IN_MINUTE); 
-
-        get_soc_power_reg()->module_uptime.day = day; //days
-        get_soc_power_reg()->module_uptime.hours = hours; //hours
-        get_soc_power_reg()->module_uptime.mins = minutes; //mins;
-
-        ret = get_dram_bw(&dram_bw);
-
-        if(!ret)
-        {
-            // DRAM BW
-            get_soc_perf_reg()->dram_bw.read_req_sec = dram_bw.read_req_sec;
-            get_soc_perf_reg()->dram_bw.write_req_sec = dram_bw.write_req_sec;
+        if (0 != ret) {
+            printf("thermal pwr mgmt svc error : get_module_soc_power()\r\n");
         }
 
-        ret = get_max_dram_bw(&max_dram_bw);
+        // Update module max temperature
+        update_module_max_temp();
+        
+        // Update the module uptime
+        update_module_uptime();
 
-        if(!ret)
-        {
-            // MAX DRAM BW
-            get_soc_perf_reg()->max_dram_bw.max_bw_rd_req_sec = max_dram_bw.max_bw_rd_req_sec;
-            get_soc_perf_reg()->max_dram_bw.max_bw_wr_req_sec =  max_dram_bw.max_bw_wr_req_sec;
+        // Update the DRAM BW(Read/Write request) details
+        ret = update_dram_bw();
+
+        if(0 != ret) {
+            printf("perf mgmt svc error : update_dram_bw()\r\n");
         }
 
-        update_module_max_throttle_time_gbl();
+        // Update the throttle time 
+        update_module_throttle_time();
         
-        // DRAM capacity //
-        get_soc_perf_reg()->dram_capacity_percent = 80;
+        // DRAM capacity 
+        ret = update_dram_capacity_percent();
+        if (0 != ret) {
+            printf("perf mgmt svc error : update_dram_capacity_percent()\r\n");
+        }
 
-        // Wait for the sampling period //
+        // Wait for the sampling period
         // Need to implement Timer Watchdog based interrupt
         vTaskDelay(DM_TASK_DELAY_MS);
     }

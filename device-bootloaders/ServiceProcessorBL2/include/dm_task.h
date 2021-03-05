@@ -11,10 +11,9 @@
 #ifndef __DM_TASK_H__
 #define __DM_TASK_H__
 
-#include "bl2_perf.h"
+#include "perf_mgmt.h"
+#include "thermal_pwr_mgmt.h"
 
-volatile struct soc_power_reg_t *get_soc_power_reg(void);
-volatile struct soc_perf_reg_t *get_soc_perf_reg(void);
 void init_dm_sampling_task(void);
 
 #endif

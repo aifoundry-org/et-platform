@@ -23,6 +23,7 @@
 #include "sp_otp.h"
 #include "io.h"
 #include "pcie_device.h"
+#include "sp_host_iface.h"
 
 /*! \def PCIE_GEN_1
     \brief PCIE gen 1 bit rates(GT/s) definition.

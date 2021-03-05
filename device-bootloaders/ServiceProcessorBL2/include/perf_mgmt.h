@@ -16,75 +16,80 @@
 */
 /***********************************************************************/
 #include "dm.h"
-#include "dm_service.h"
-#include "dm_task.h"
 
-/*! \fn int get_dram_bw(struct dram_bw_t *dram_bw)
-    \brief Interface to get the DRAM BW details
+/*! \fn volatile struct soc_perf_reg_t *get_soc_perf_reg(void)
+    \brief Interface to get the SOC perf register
+    \param none
+    \returns struct soc_perf_reg_t *
+*/
+volatile struct soc_perf_reg_t *get_soc_perf_reg(void);
+
+/*! \fn int update_dram_bw()
+    \brief Interface to update the DRAM BW details
+    \param none
+    \returns int
+*/
+int update_dram_bw(void);
+
+/*! \fn struct dram_bw_t get_module_dram_bw(void)
+    \brief Interface to get module's DRAM BW details from global variable
     \param struct dram_bw_t *dram_bw
     \returns int
 */
-int get_dram_bw(struct dram_bw_t *dram_bw);
+int get_module_dram_bw(struct dram_bw_t *dram_bw);
 
-/*! \fn int get_max_dram_bw(struct max_dram_bw_t *max_dram_bw)
-    \brief Interface to get the max DRAM BW details
-    \param struct max_dram_bw_t *max_dram_bw
-    \returns none
-*/
-int get_max_dram_bw(struct max_dram_bw_t *max_dram_bw);
-
-/*! \fn struct max_dram_bw_t get_module_max_dram_bw_gbl(void)
+/*! \fn int get_module_max_dram_bw(struct max_dram_bw_t *max_dram_bw)
     \brief Interface to get module's max DRAM BW details from global variable
-    \param none
-    \returns struct max_dram_bw_t
+    \param struct max_dram_bw_t *max_dram_bw
+    \returns int
 */
-struct max_dram_bw_t get_module_max_dram_bw_gbl(void);
+int get_module_max_dram_bw(struct max_dram_bw_t *max_dram_bw);
 
-/*! \fn struct dram_bw_t get_module_dram_bw_gbl(void)
-    \brief Interface to get module's DRAM BW details from global variable
-    \param none
-    \returns struct dram_bw_t
-*/
-struct dram_bw_t get_module_dram_bw_gbl(void);
-
-/*! \fn struct asic_frequencies_t get_module_asic_frequencies_gbl(void)
+/*! \fn int get_module_asic_frequencies(struct asic_frequencies_t *asic_frequencies)
     \brief Interface to get module's ASIC frequencies from global variable
-    \param none
-    \returns struct dram_bw_t
+    \param struct asic_frequencies_t *asic_frequencies
+    \returns int
 */
-struct asic_frequencies_t get_module_asic_frequencies_gbl(void);
+int get_module_asic_frequencies(struct asic_frequencies_t *asic_frequencies);
 
-/*! \fn uint32_t get_dram_capacity_percent_gbl(void)
+/*! \fn int update_dram_capacity_percent()
+    \brief Interface to update DRAM capacity percentage(utilization)
+    \param none
+    \returns int
+*/
+int update_dram_capacity_percent(void);
+
+/*! \fn int get_dram_capacity_percent(uint32_t *dram_capacity)
     \brief Interface to get module's DRAM Capacity percentage from global variable
-    \param none
-    \returns uint32_t
+    \param uint32_t *dram_capacity
+    \returns int
 */
-uint32_t get_dram_capacity_percent_gbl(void);
+int get_dram_capacity_percent(uint32_t *dram_capacity);
 
-/*! \fn uint8_t get_asic_per_core_util(void)
+/*! \fn int get_asic_per_core_util(uint8_t *core_util)
     \brief Interface to get ASIC's per core utilization details
-    \param none
-    \returns uint8_t
+    \param uint8_t *core_util
+    \returns int
 */
-uint8_t get_asic_per_core_util(void);
+int get_asic_per_core_util(uint8_t *core_util);
 
-/*! \fn uint8_t get_asic_utilization(void)
+/*! \fn int get_asic_utilization(uint8_t *asic_util)
     \brief Interface to get ASIC's complete utilization details
-    \param none
-    \returns uint8_t
+    \param uint8_t *asic_util
+    \returns int
 */
-uint8_t get_asic_utilization(void);
+int get_asic_utilization(uint8_t *asic_util);
 
 /*! \fn uint8_t get_asic_stalls(void
     \brief Interface to get ASIC's stall details
-    \param none
-    \returns uint8_t
+    \param uint8_t *asic_stalls
+    \returns int
 */
-uint8_t get_asic_stalls(void);
+int get_asic_stalls(uint8_t *asic_stalls);
 
 /*! \fn uint8_t get_asic_latency(void)
     \brief Interface to get ASIC's latency details
-    \param none
-    \returns uint8_t
+    \param uint8_t *asic_latency
+    \returns int
 */
-uint8_t get_asic_latency(void);
+int get_asic_latency(uint8_t *asic_latency);

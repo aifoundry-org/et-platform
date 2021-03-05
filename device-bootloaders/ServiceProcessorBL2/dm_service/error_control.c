@@ -19,10 +19,9 @@
         error_control_process_request
 */
 /***********************************************************************/
-#include "dm.h"
-#include "dm_service.h"
-#include "sp_host_iface.h"
+
 #include "bl2_error_control.h"
+#include "sp_host_iface.h"
 #include "bl2_pcie.h"
 #include "bl2_sram.h"
 #include "bl2_ddr_init.h"

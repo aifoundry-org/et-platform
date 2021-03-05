@@ -15,11 +15,8 @@
         firmware_service_process_request
 */
 /***********************************************************************/
-#include "dm.h"
-#include "dm_service.h"
-#include "sp_host_iface.h"
+
 #include "bl2_firmware_update.h"
-#include "bl2_reset.h"
 
 static void reset_etsoc(void)
 {

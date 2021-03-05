@@ -16,9 +16,6 @@
         asset_tracking_process_request
 */
 /***********************************************************************/
-#include "dm.h"
-#include "dm_service.h"
-#include "sp_host_iface.h"
 #include "bl2_asset_trk.h"
 
 /*! \var static uint32_t PCIE_SPEED[5]

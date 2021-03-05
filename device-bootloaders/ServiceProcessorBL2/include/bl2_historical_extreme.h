@@ -22,8 +22,6 @@
 
 #include <stdint.h>
 #include "dm.h"
-#include "dm_service.h"
-#include "dm_task.h"
 #include "perf_mgmt.h"
 #include "thermal_pwr_mgmt.h"
 #include "sp_host_iface.h"
