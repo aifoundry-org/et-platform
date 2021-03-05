@@ -46,17 +46,17 @@ set(BL2_SOURCES
     rtos_task/vaultip.c
     rtos_task/dm_task.c
     rtos_task/event_handler.c
-    dm_service/firmware_update.c
-    dm_service/asset_track.c
-    dm_service/thermal_power_monitor.c
-    dm_service/performance.c
-    dm_service/link_mgmt.c
-    dm_service/error_control.c
-    dm_service/historical_extreme.c
-    dm_service/minion_state.c
-    dm_service/dm_events.c
-    dm_service/perf_mgmt.c
-    dm_service/thermal_pwr_mgmt.c 
+    services/firmware_update.c
+    services/asset_track.c
+    services/thermal_power_monitor.c
+    services/performance.c
+    services/link_mgmt.c
+    services/error_control.c
+    services/historical_extreme.c
+    services/minion_state.c
+    services/dm_events.c
+    services/perf_mgmt.c
+    services/thermal_pwr_mgmt.c 
     # This file get compiled different based on the configuration of each target
     common/build_configuration.c)
 
