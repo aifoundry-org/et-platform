@@ -305,6 +305,23 @@ void System::copy_memory_from_device_to_host(uint64_t from_addr, uint64_t to_add
 }
 
 
+void System::notify_iatu_ctrl_2_reg_write(int pcie_id, uint32_t iatu, uint32_t value)
+{
+#ifdef SYS_EMU
+    api_communicate *api_comm = sys_emu::get_api_communicate();
+    if (api_comm) {
+        api_comm->notify_iatu_ctrl_2_reg_write(pcie_id, iatu, value);
+    } else {
+        LOG_NOTHREAD(WARN, "%s", "API Communicate is NULL!");
+    }
+#else
+    (void) pcie_id;
+    (void) iatu;
+    (void) value;
+#endif
+}
+
+
 void System::write_fcc_credinc(int index, uint64_t shire, uint64_t minion_mask)
 {
     if (shire == EMU_IO_SHIRE_SP)

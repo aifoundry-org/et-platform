@@ -111,8 +111,8 @@ struct PcieRegion : public MemoryRegion {
     // Members
     NullRegion          <r_pcie0_slv_pos,   128_GiB>  pcie0_slv{};
     NullRegion          <r_pcie1_slv_pos,   122_GiB>  pcie1_slv{};
-    PcieDbiSlvRegion    <r_pcie0_dbi_slv_pos, 2_GiB>  pcie0_dbi_slv{pcie0_dma_wrch, pcie0_dma_rdch};
-    PcieDbiSlvRegion    <r_pcie1_dbi_slv_pos, 2_GiB>  pcie1_dbi_slv{pcie1_dma_wrch, pcie1_dma_rdch};
+    PcieDbiSlvRegion    <r_pcie0_dbi_slv_pos, 2_GiB, 0> pcie0_dbi_slv{pcie0_dma_wrch, pcie0_dma_rdch};
+    PcieDbiSlvRegion    <r_pcie1_dbi_slv_pos, 2_GiB, 1> pcie1_dbi_slv{pcie1_dma_wrch, pcie1_dma_rdch};
     PcieUsrEsrRegion    <r_pcie_usresr_pos,   4_KiB>  pcie_usresr{pcie0_dma_wrch, pcie1_dma_wrch,
                                                                   pcie0_dma_rdch, pcie1_dma_rdch};
     PcieNoPcieEsrRegion <r_pcie_nopciesr_pos, 4_KiB>  pcie_nopciesr{};

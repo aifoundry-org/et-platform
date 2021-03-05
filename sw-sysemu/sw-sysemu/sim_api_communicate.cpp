@@ -302,3 +302,8 @@ bool sim_api_communicate::host_memory_write(uint64_t host_addr, uint64_t size, c
                  host_addr, size);
     return sim_api_.writeHostMemory(host_addr, size, data);
 }
+
+void sim_api_communicate::notify_iatu_ctrl_2_reg_write(int, uint32_t, uint32_t)
+{
+    /* Do nothing, we don't care about this notification */
+}
