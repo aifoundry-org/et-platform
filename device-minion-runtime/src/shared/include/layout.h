@@ -38,6 +38,12 @@
 #define S_DATA_REGION_BASE 0x8001000000ULL /* SDATA region is 48M from 0x8001000000 to 0x8003FFFFFF */
 #define S_DATA_REGION_SIZE 0x0003000000ULL
 
+#define LOW_OS_REGION_BASE 0x8004000000ULL /* LOW OS region is 4032M from 0x8004000000 to 0x80FFFFFFFF */
+#define LOW_OS_REGION_SIZE 0x00FC000000ULL
+
+#define LOW_MEM_REGION_BASE 0x8100000000ULL /* LOW MEM region is 28G from 0x8100000000 to 0x87FFFFFFFF */
+#define LOW_MEM_REGION_SIZE 0x0700000000ULL
+
 // Software layout
 #define FW_MACHINE_MMODE_ENTRY (M_CODE_REGION_BASE + 0x1000ULL) // Default reset vector
 #define FW_MMODE_STACK_BASE    (M_DATA_REGION_BASE + M_DATA_REGION_SIZE)
@@ -87,6 +93,22 @@ static_assert((CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR + CM_MM_IFACE_UNICAST_LOCKS_S
 
 #define KERNEL_UMODE_ENTRY KERNEL_UMODE_STACK_BASE
 
+/*****************************************************************/
+/*              - Low Memory Region Layout (28G) -               */
+/*                (Base Address: 0x8100000000)                   */
+/*     - user            - base-offset   - size                  */
+/*     Sub-regions       0x0             0x600000 (6M)           */
+/*     Host-managed      0x600000        0x2FBA00000 (12218M)    */
+/*     Reserved          0x2FC000000     0x4000000 (64M)         */
+/*     Not-used          0x300000000     0x400000000 (16G)       */
+/* NOTE: "Not-used" region is accessible but not used currently. */
+/*****************************************************************/
+
+// Reverved area for DDR low memory sub regions
+#define LOW_MEM_SUB_REGIONS_BASE  LOW_MEM_REGION_BASE
+#define LOW_MEM_SUB_REGIONS_SIZE  0x0000600000ULL
+
+// TODO: to be remove with DIRs update
 // TODO: For now hardcoding the address at the start of 15GB region
 #define DEVICE_MRT_TRACE_MEM_SIZE 0x20000000ULL /* 512 MB */
 #define DEVICE_MRT_TRACE_BASE 0x83C0000000ULL
@@ -117,14 +139,14 @@ static_assert((CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR + CM_MM_IFACE_UNICAST_LOCKS_S
 
 // Define the address range in DRAM that the host runtime can explicitly manage
 // the range is the START to (END-1)
-#define HOST_MANAGED_DRAM_START KERNEL_UMODE_ENTRY
+#define HOST_MANAGED_DRAM_START (LOW_MEM_REGION_BASE + LOW_MEM_SUB_REGIONS_SIZE)
 #define HOST_MANAGED_DRAM_END   DMA_CHAN_READ_0_LL_BASE
 #define HOST_MANAGED_DRAM_SIZE  (HOST_MANAGED_DRAM_END - HOST_MANAGED_DRAM_START)
 
 // This range is mapped to the host via BAR0. The host can write the DMA configuration
 // linked list, but should never touch the stacks for the SoC processors in the first
 // part of DRAM.
-#define DRAM_MEMMAP_BEGIN KERNEL_UMODE_STACK_BASE
+#define DRAM_MEMMAP_BEGIN LOW_MEM_REGION_BASE
 #define DRAM_MEMMAP_END   0x87FFFFFFFF
 #define DRAM_MEMMAP_SIZE  (DRAM_MEMMAP_END - DRAM_MEMMAP_BEGIN + 1)
 
