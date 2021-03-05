@@ -172,8 +172,8 @@ public:
   ///
   /// @param[in] stream handler indicating in which stream to queue the memcpy
   /// operation
-  /// @param[in] src host memory buffer to copy from
-  /// @param[in] dst device memory buffer to copy to
+  /// @param[in] h_src host memory buffer to copy from
+  /// @param[in] d_dst device memory buffer to copy to
   /// @param[in] size indicates the size of the memcpy
   /// @param[in] barrier this parameter indicates if the memcpy operation should
   /// be postponed till all previous works issued into this stream finish (a
@@ -193,8 +193,8 @@ public:
   ///
   /// @param[in] stream handler indicating in which stream to queue the memcpy
   /// operation
-  /// @param[in] src device memory buffer to copy from
-  /// @param[in] dst host memory buffer to copy to
+  /// @param[in] d_src device memory buffer to copy from
+  /// @param[in] h_dst host memory buffer to copy to
   /// @param[in] size indicates the size of the memcpy
   /// @param[in] barrier this parameter indicates if the memcpy operation should
   /// be postponed till all previous works issued into this stream finish (a
@@ -212,7 +212,7 @@ public:
   /// dispatched. This primitive allows to synchronize with the device
   /// execution.
   ///
-  /// @param[in] EventId event to wait for, result of a memcpy operation or a
+  /// @param[in] event is the event to wait for, result of a memcpy operation or a
   /// kernel launch.
   ///
   virtual void waitForEvent(EventId event) = 0;
@@ -229,9 +229,6 @@ public:
   /// instances
   virtual ~IRuntime() = default;
 
-  /// \brief Indicates the kind of runtime implementation
-  enum class Kind { SysEmu, Silicon };
-
   /// \brief Returns a pointer to the profiler interface; don't delete/free this pointer since this is owned by the
   /// runtime itself.
   ///
@@ -243,7 +240,7 @@ public:
   /// \brief Factory method to instantiate a IRuntime implementation
   ///
   ///
-  /// @returns RuntimePtr an IRuntime instance
+  /// @returns RuntimePtr an IRuntime instance. See \ref dev::IDeviceLayer
   ///
   static RuntimePtr create(dev::IDeviceLayer* deviceLayer);
 };
