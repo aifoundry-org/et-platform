@@ -27,6 +27,7 @@ public:
     virtual bool raise_host_interrupt(uint32_t bitmap) = 0;
     virtual bool host_memory_read(uint64_t host_addr, uint64_t size, void *data) = 0;
     virtual bool host_memory_write(uint64_t host_addr, uint64_t size, const void *data) = 0;
+    virtual void notify_iatu_ctrl_2_reg_write(int pcie_id, uint32_t iatu, uint32_t value) = 0;
 };
 
 #endif // _API_COMMUNICATE_
