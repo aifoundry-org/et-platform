@@ -62,9 +62,9 @@ static void error_ctl_set_ddr_ecc_count(tag_id_t tag_id, uint64_t req_start_time
     FILL_RSP_HEADER(dm_rsp, tag_id,
                     DM_CMD_SET_DDR_ECC_COUNT,
                     timer_get_ticks_count() - req_start_time,
-                    (uint32_t)status);
+                    status);
 
-    dm_rsp.payload = (uint32_t)status; // TODO: update the type of status to int32_t SW-6467
+    dm_rsp.payload = status;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
         printf("error_ctl_set_ddr_ecc_count: Cqueue push error!\n");
@@ -106,9 +106,9 @@ static void error_ctl_set_pcie_ecc_count(tag_id_t tag_id, uint64_t req_start_tim
     FILL_RSP_HEADER(dm_rsp, tag_id,
                     DM_CMD_SET_PCIE_ECC_COUNT,
                     timer_get_ticks_count() - req_start_time,
-                    (uint32_t)status);
+                    status);
 
-    dm_rsp.payload = (uint32_t)status; //TODO : Change this to int32_t SW-6467
+    dm_rsp.payload = status;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
         printf("error_ctl_set_pcie_ecc_count: Cqueue push error!\n");
@@ -150,9 +150,9 @@ static void error_ctl_set_sram_ecc_count(tag_id_t tag_id, uint64_t req_start_tim
     FILL_RSP_HEADER(dm_rsp, tag_id,
                     DM_CMD_SET_SRAM_ECC_COUNT,
                     timer_get_ticks_count() - req_start_time,
-                    (uint32_t)status); // TODO : SW-6467
+                    status);
 
-    dm_rsp.payload = (uint32_t)status;
+    dm_rsp.payload = status;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
         printf("error_ctl_set_sram_ecc_count: Cqueue push error!\n");

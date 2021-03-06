@@ -41,7 +41,7 @@ void Minion_State_Init(uint64_t active_shire_mask)
 void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
 {
     uint64_t req_start_time;
-    int status;
+    int32_t status;
     req_start_time = timer_get_ticks_count();
 
     switch (msg_id) {
@@ -57,7 +57,7 @@ void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
         FILL_RSP_HEADER(dm_rsp, tag_id,
                         DM_CMD_GET_MM_THREADS_STATE,
                         timer_get_ticks_count() - req_start_time,
-                        (uint32_t)status);
+                        status);
 
         if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_mm_state_rsp_t))) {
             printf("Minion_State_Host_Iface_Process_Request: Cqueue push error!\n");

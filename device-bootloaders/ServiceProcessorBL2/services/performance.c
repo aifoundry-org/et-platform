@@ -42,7 +42,7 @@ static void dm_svc_perf_get_asic_frequencies(uint16_t tag, uint64_t req_start_ti
 {
     struct device_mgmt_asic_frequencies_rsp_t dm_rsp;
     struct asic_frequencies_t asic_frequencies;
-    int status;
+    int32_t status;
 
     status  = get_module_asic_frequencies(&asic_frequencies);
 
@@ -55,7 +55,7 @@ static void dm_svc_perf_get_asic_frequencies(uint16_t tag, uint64_t req_start_ti
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_GET_ASIC_FREQUENCIES,
                     timer_get_ticks_count() - req_start_time,
-                    (uint32_t)status);
+                    status);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_asic_frequencies_rsp_t))) {
         printf("dm_svc_perf_get_asic_frequencies: Cqueue push error!\n");
@@ -86,7 +86,7 @@ static void dm_svc_perf_get_dram_bw(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_dram_bw_rsp_t dm_rsp;
     struct dram_bw_t dram_bw;
-    int status;
+    int32_t status;
 
     status = get_module_dram_bw(&dram_bw);
 
@@ -99,7 +99,7 @@ static void dm_svc_perf_get_dram_bw(uint16_t tag, uint64_t req_start_time)
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_GET_DRAM_BANDWIDTH,
                     timer_get_ticks_count() - req_start_time,
-                    (uint32_t)status);
+                    status);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_dram_bw_rsp_t))) {
         printf("dm_svc_perf_get_dram_bw: Cqueue push error!\n");
@@ -130,7 +130,7 @@ static void dm_svc_perf_get_dram_capacity_util(uint16_t tag, uint64_t req_start_
 {
     struct device_mgmt_dram_capacity_rsp_t dm_rsp;
     uint32_t pct_cap;
-    int status;
+    int32_t status;
 
     status = get_dram_capacity_percent(&pct_cap);
 
@@ -143,7 +143,7 @@ static void dm_svc_perf_get_dram_capacity_util(uint16_t tag, uint64_t req_start_
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_GET_DRAM_CAPACITY_UTILIZATION,
                     timer_get_ticks_count() - req_start_time,
-                    (uint32_t)status);
+                    status);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_dram_capacity_rsp_t))) {
         printf("dm_svc_perf_get_dram_capacity_util: Cqueue push error!\n");
@@ -174,7 +174,7 @@ static void dm_svc_perf_get_asic_per_core_util(uint16_t tag, uint64_t req_start_
 {
     struct device_mgmt_asic_per_core_util_rsp_t dm_rsp;
     uint8_t core_util=0;
-    int status;
+    int32_t status;
  
     status = get_asic_per_core_util(&core_util);
  
@@ -187,7 +187,7 @@ static void dm_svc_perf_get_asic_per_core_util(uint16_t tag, uint64_t req_start_
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION,
                     timer_get_ticks_count() - req_start_time,
-                    (uint32_t)status);
+                    status);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_asic_per_core_util_rsp_t))) {
         printf("dm_svc_perf_get_asic_per_core_util: Cqueue push error!\n");
@@ -218,7 +218,7 @@ static void dm_svc_perf_get_asic_utilization(uint16_t tag, uint64_t req_start_ti
 {
     struct device_mgmt_asic_per_core_util_rsp_t dm_rsp;
     uint8_t asic_util=0;
-    int status;
+    int32_t status;
  
     status = get_asic_utilization(&asic_util);
  
@@ -231,7 +231,7 @@ static void dm_svc_perf_get_asic_utilization(uint16_t tag, uint64_t req_start_ti
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_GET_ASIC_UTILIZATION,
                     timer_get_ticks_count() - req_start_time,
-                    (uint32_t)status);
+                    status);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_asic_per_core_util_rsp_t))) {
         printf("dm_svc_perf_get_asic_utilization: Cqueue push error!\n");
@@ -262,7 +262,7 @@ static void dm_svc_perf_get_asic_stalls(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_asic_stalls_rsp_t dm_rsp;
     uint8_t asic_stall=0;
-    int status;
+    int32_t status;
  
     status = get_asic_stalls(&asic_stall);
  
@@ -275,7 +275,7 @@ static void dm_svc_perf_get_asic_stalls(uint16_t tag, uint64_t req_start_time)
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_GET_ASIC_STALLS,
                     timer_get_ticks_count() - req_start_time,
-                    (uint32_t)status);
+                    status);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_asic_stalls_rsp_t))) {
         printf("dm_svc_perf_get_asic_stalls: Cqueue push error!\n");
@@ -306,7 +306,7 @@ static void dm_svc_perf_get_asic_latency(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_asic_latency_rsp_t dm_rsp;
     uint8_t asic_latency=0;
-    int status;
+    int32_t status;
  
     status = get_asic_latency(&asic_latency);
  
@@ -319,7 +319,7 @@ static void dm_svc_perf_get_asic_latency(uint16_t tag, uint64_t req_start_time)
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_GET_ASIC_LATENCY,
                     timer_get_ticks_count() - req_start_time,
-                    (uint32_t)status);
+                    status);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_asic_latency_rsp_t))) {
         printf("dm_svc_perf_perf_get_asic_latency: Cqueue push error!\n");

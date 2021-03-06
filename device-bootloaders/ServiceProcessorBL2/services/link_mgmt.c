@@ -109,9 +109,9 @@ static void link_mgmt_set_pcie_max_link_speed(uint16_t tag, uint64_t req_start_t
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_SET_PCIE_MAX_LINK_SPEED,
                     timer_get_ticks_count() - req_start_time,
-                    (uint32_t)status);
+                    status);
 
-    dm_rsp.payload = (uint32_t)status;
+    dm_rsp.payload = status;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
         printf("link_mgmt_set_pcie_max_link_speed: Cqueue push error!\n");
@@ -143,7 +143,7 @@ static void link_mgmt_set_pcie_lane_width(uint16_t tag, uint64_t req_start_time,
                                           pcie_lane_w_split_e pcie_lane_w_split)
 {
     struct device_mgmt_default_rsp_t dm_rsp;
-    int status = DM_STATUS_SUCCESS;
+    int32_t status = DM_STATUS_SUCCESS;
 
     switch (pcie_lane_w_split) {
     case PCIE_LANE_W_SPLIT_x4:
@@ -157,9 +157,9 @@ static void link_mgmt_set_pcie_lane_width(uint16_t tag, uint64_t req_start_time,
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_SET_PCIE_LANE_WIDTH,
                     timer_get_ticks_count() - req_start_time,
-                    (uint32_t)status);
+                    status);
 
-    dm_rsp.payload = (uint32_t)status;
+    dm_rsp.payload = status;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
         printf("link_mgmt_set_pcie_lane_width: Cqueue push error!\n");
@@ -189,16 +189,16 @@ static void link_mgmt_set_pcie_lane_width(uint16_t tag, uint64_t req_start_time,
 static void link_mgmt_pcie_retrain_phy(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_default_rsp_t dm_rsp;
-    int status;
+    int32_t status;
 
     status = pcie_retrain_phy();
 
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_SET_PCIE_RETRAIN_PHY,
                     timer_get_ticks_count() - req_start_time,
-                    (uint32_t)status);
+                    status);
 
-    dm_rsp.payload = (uint32_t)status;
+    dm_rsp.payload = status;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
         printf("link_mgmt_pcie_retrain_phy: Cqueue push error!\n");
@@ -230,7 +230,7 @@ static void link_mgmt_get_module_pcie_ecc_uecc(uint16_t tag, uint64_t req_start_
     struct device_mgmt_get_error_count_rsp_t dm_rsp;
     uint32_t ce_count;
     uint32_t uce_count;
-    int status;
+    int32_t status;
 
     status = pcie_get_ce_count(&ce_count);
 
@@ -251,7 +251,7 @@ static void link_mgmt_get_module_pcie_ecc_uecc(uint16_t tag, uint64_t req_start_
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_GET_MODULE_PCIE_ECC_UECC,
                     timer_get_ticks_count() - req_start_time,
-                    (uint32_t)status);
+                    status);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_get_error_count_rsp_t))) {
         printf("link_mgmt_get_module_pcie_ecc_uecc: Cqueue push error!\n");
@@ -283,7 +283,7 @@ static void link_mgmt_get_module_dram_uecc(uint16_t tag, uint64_t req_start_time
     struct device_mgmt_get_error_count_rsp_t dm_rsp;
     uint32_t ce_count;
     uint32_t uce_count;
-    int status;
+    int32_t status;
 
     status = ddr_get_ce_count(&ce_count);
    
@@ -304,7 +304,7 @@ static void link_mgmt_get_module_dram_uecc(uint16_t tag, uint64_t req_start_time
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_GET_MODULE_DDR_ECC_UECC,
                     timer_get_ticks_count() - req_start_time,
-                    (uint32_t)status);
+                    status);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_get_error_count_rsp_t))) {
         printf("link_mgmt_get_module_dram_uecc: Cqueue push error!\n");
@@ -336,7 +336,7 @@ static void link_mgmt_get_module_sram_uecc(uint16_t tag, uint64_t req_start_time
     struct device_mgmt_get_error_count_rsp_t dm_rsp;
     uint32_t ce_count;
     uint32_t uce_count;
-    int status;
+    int32_t status;
 
     status = sram_get_ce_count(&ce_count);
    
@@ -357,7 +357,7 @@ static void link_mgmt_get_module_sram_uecc(uint16_t tag, uint64_t req_start_time
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_GET_MODULE_SRAM_ECC_UECC,
                     timer_get_ticks_count() - req_start_time,
-                    (uint32_t)status);
+                    status);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_get_error_count_rsp_t))) {
         printf("link_mgmt_get_module_sram_uecc: Cqueue push error!\n");
@@ -388,7 +388,7 @@ static void link_mgmt_get_module_ddr_bw_counter(uint16_t tag, uint64_t req_start
 {
     struct device_mgmt_dram_bw_counter_rsp_t dm_rsp;
     struct dram_bw_t dram_bw;
-    int status;
+    int32_t status;
 
     status = get_module_dram_bw(&dram_bw);
 
@@ -402,7 +402,7 @@ static void link_mgmt_get_module_ddr_bw_counter(uint16_t tag, uint64_t req_start
     FILL_RSP_HEADER(dm_rsp, tag,
                     DM_CMD_GET_MODULE_DDR_BW_COUNTER,
                     timer_get_ticks_count() - req_start_time,
-                    (uint32_t)status);
+                    status);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_dram_bw_counter_rsp_t))) {
         printf("link_mgmt_get_module_ddr_bw_counter: Cqueue push error!\n");
@@ -452,8 +452,7 @@ void link_mgmt_process_request(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
     case DM_CMD_SET_PCIE_LANE_WIDTH: {
         struct device_mgmt_pcie_lane_width_cmd_t *pcie_lane_width_cmd =
             (struct device_mgmt_pcie_lane_width_cmd_t *)buffer;
-        //TODO : Update command payload name. https://esperantotech.atlassian.net/browse/SW-6467 
-        link_mgmt_set_pcie_lane_width(tag_id, req_start_time, pcie_lane_width_cmd->speed);
+        link_mgmt_set_pcie_lane_width(tag_id, req_start_time, pcie_lane_width_cmd->lane_width);
         break;
     }
     case DM_CMD_SET_PCIE_RETRAIN_PHY: {

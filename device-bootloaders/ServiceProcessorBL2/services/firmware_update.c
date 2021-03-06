@@ -26,7 +26,7 @@ static void reset_etsoc(void)
     release_etsoc_reset();
 }
 
-static int64_t dm_svc_get_firmware_status(void)
+static int32_t dm_svc_get_firmware_status(void)
 {
     uint32_t attempted_boot_counter;
     uint32_t completed_boot_counter;
@@ -47,9 +47,9 @@ static int64_t dm_svc_get_firmware_status(void)
 }
 
 /*  TODO: This feature is to be supported in v 0.0.7
-static int64_t dm_svc_set_firmware_version_counter(void)
+static int32_t dm_svc_set_firmware_version_counter(void)
 {
-    int64_t ret = 0;
+    int32_t ret = 0;
 
     // Release 0.0.7
     // SW-4553 implements this and is blocked by
@@ -60,9 +60,9 @@ static int64_t dm_svc_set_firmware_version_counter(void)
 */
 
 /* TODO: This feature is to be supported in v 0.0.7
-static int64_t dm_svc_set_firmware_valid_counter(void)
+static int32_t dm_svc_set_firmware_valid_counter(void)
 {
-    int64_t ret = 0;
+    int32_t ret = 0;
     // Release 0.0.7
     // SW-4546 FW Update Dev: Implement device side runtime firmware validation
 
@@ -71,7 +71,7 @@ static int64_t dm_svc_set_firmware_valid_counter(void)
 */
 
 /* TODO: This feature is to be supported in v 0.0.7
-static int64_t update_sw_boot_root_certificate_hash(char *hash)
+static int32_t update_sw_boot_root_certificate_hash(char *hash)
 {
     (void)hash;
 
@@ -80,7 +80,7 @@ static int64_t update_sw_boot_root_certificate_hash(char *hash)
     return 0;
 }
 
-static int64_t dm_svc_update_sw_boot_root_certificate_hash(struct dm_control_block *dm_req)
+static int32_t dm_svc_update_sw_boot_root_certificate_hash(struct dm_control_block *dm_req)
 {
    printf("hash :%s\n", dm_req->cmd_payload);
 
@@ -94,7 +94,7 @@ static int64_t dm_svc_update_sw_boot_root_certificate_hash(struct dm_control_blo
 }
 */
 
-static int64_t update_sp_boot_root_certificate_hash(char *certficate_hash)
+static int32_t update_sp_boot_root_certificate_hash(char *certficate_hash)
 {
     static const uint32_t asset_policy = 26;
     static uint32_t asset_size;
@@ -119,7 +119,7 @@ static int64_t update_sp_boot_root_certificate_hash(char *certficate_hash)
     return 0;
 }
 
-static void send_status_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, uint32_t status)
+static void send_status_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, int32_t status)
 {
     struct device_mgmt_default_rsp_t dm_rsp;
 
@@ -134,7 +134,7 @@ static void send_status_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_
     }
 }
 
-static int64_t dm_svc_firmware_update(void)
+static int32_t dm_svc_firmware_update(void)
 {
     // Firmware image is available in the memory.
     printf("fw image available at : %lx,  size: %lx\n", (uint64_t)DEVICE_FW_UPDATE_REGION_BASE,
@@ -234,7 +234,7 @@ static void dm_svc_get_firmware_version(tag_id_t tag_id, uint64_t req_start_time
     }
 }
 
-static int64_t
+static int32_t
 dm_svc_update_sp_boot_root_certificate_hash(struct device_mgmt_certificate_hash_cmd_t *certificate_hash_cmd)
 {
     printf("recieved hash:\n");
@@ -276,20 +276,20 @@ dm_svc_update_sp_boot_root_certificate_hash(struct device_mgmt_certificate_hash_
 ***********************************************************************/
 void firmware_service_process_request(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
 {
-    int64_t ret = 0;
+    int32_t ret = 0;
     uint64_t req_start_time = timer_get_ticks_count();
 
     switch (msg_id) {
     case DM_CMD_SET_FIRMWARE_UPDATE:
         ret = dm_svc_firmware_update();
-        send_status_response(tag_id, msg_id, req_start_time, (uint32_t)ret);
+        send_status_response(tag_id, msg_id, req_start_time, ret);
         break;
     case DM_CMD_GET_MODULE_FIRMWARE_REVISIONS:
         dm_svc_get_firmware_version(tag_id, req_start_time);
         break;
     case DM_CMD_GET_FIRMWARE_BOOT_STATUS:
         ret = dm_svc_get_firmware_status();
-        send_status_response(tag_id, msg_id, req_start_time, (uint32_t)ret);
+        send_status_response(tag_id, msg_id, req_start_time, ret);
         break;
     /*  TODO: These feature is to be supported in v 0.0.7
     case DM_CMD_SET_FIRMWARE_VERSION_COUNTER:
@@ -307,7 +307,7 @@ void firmware_service_process_request(tag_id_t tag_id, msg_id_t msg_id, void *bu
     case DM_CMD_SET_SP_BOOT_ROOT_CERT: {
         struct device_mgmt_certificate_hash_cmd_t *dm_cmd_req = (void *)buffer;
         ret = dm_svc_update_sp_boot_root_certificate_hash(dm_cmd_req);
-        send_status_response(tag_id, msg_id, req_start_time, (uint32_t)ret);
+        send_status_response(tag_id, msg_id, req_start_time, ret);
         break;
     }
     case DM_CMD_RESET_ETSOC:
