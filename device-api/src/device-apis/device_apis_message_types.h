@@ -42,7 +42,7 @@ struct rsp_header_t {
 /// @brief Response header extension for all Device Management responses
 struct dev_mgmt_rsp_hdr_extn_t {
     uint64_t device_latency_usec;    /// < Device cycle Latency to execute a command 
-    uint32_t status;                 /// < Status of the Command execution 
+    int32_t status;                  /// < Status of the Command execution
     uint32_t pad;                    /// < Padding to make it alignt to 64 bits
 };
 
@@ -55,9 +55,10 @@ struct dev_mgmt_rsp_header_t {
     struct dev_mgmt_rsp_hdr_extn_t rsp_hdr_ext;
 };
 
-/// @brief Event header for all events from device to host
+/// @brief Event header for all events from the device to the host
 struct evt_header_t {
-    struct cmn_header_t evt_hdr;      ///< Event header, tag_id is dont care for events.
+    uint16_t size;        /// size of the event message
+    uint16_t event_id;    /// unique ID to differentiate event class(enum) from host
 };
 
 #endif // ET_DEVICE_APIS_MESSAGE_TYPES_H

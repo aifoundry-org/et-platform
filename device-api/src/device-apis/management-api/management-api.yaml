@@ -314,7 +314,7 @@ Modules:
       Fields:
         - Name: count
           Description: Max ECC count
-          Type: uint8_t          
+          Type: uint32_t
     - Name: max_dram_bw_t
       Fields:
         - Name: max_bw_rd_req_sec
@@ -426,7 +426,7 @@ Modules:
       Fields:
         - Name: payload
           Description: Payload for default rsp. Will usually contain the status of command execution.
-          Type: uint32_t
+          Type: int32_t
     - Name: device_mgmt_asset_tracking_cmd
       Description:  Command for asset info request
       Type: Command
@@ -785,7 +785,7 @@ Modules:
       PairedMessage: None
       Type: Command
       Fields:
-        - Name: speed
+        - Name: lane_width
           Description: PCIE Lane Width
           Type: enum
           Enum: pcie_lane_w_split
