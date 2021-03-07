@@ -73,21 +73,6 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
   RT_DLOG(INFO) << "Pushing kernel Launch Command on SQ: " << stream.vq_ << " Tag id: " << std::hex
                 << cmd.command_info.cmd_hdr.tag_id << ", parameters: " << cmd.pointer_to_args
                 << ", PC: " << cmd.code_start_address << ", shire_mask: " << shire_mask;
-
-  bool done = false;
-  while (!done) {
-    done = deviceLayer_->sendCommandMasterMinion(dev, stream.vq_,
-                                                reinterpret_cast<std::byte*>(&cmd), sizeof(cmd));
-    if (!done) {
-      lock.unlock();
-      RT_LOG(INFO) << "Submission queue " << stream.vq_
-                  << " is full. Can't send command now, blocking the thread till there is available space.";
-      uint64_t sq_bitmap;
-      bool cq_available;
-      deviceLayer_->waitForEpollEventsMasterMinion(dev, sq_bitmap, cq_available);
-      lock.lock();
-    }
-  }
-  stream.lastEventId_ = event;
+  sendCommandMasterMinion(stream, event, cmd, lock);  
   return event;
 }

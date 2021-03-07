@@ -13,7 +13,6 @@
 #include "ProfileEvent.h"
 #include "ScopedProfileEvent.h"
 #include "runtime/IRuntime.h"
-#include "utils.h"
 #include <cstdio>
 #include <device-layer/IDeviceLayer.h>
 #include <elfio/elfio.hpp>
@@ -143,7 +142,7 @@ void RuntimeImp::destroyStream(StreamId stream) {
 EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void* d_dst, size_t size,
                                        [[maybe_unused]] bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, profiler_);
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  std::unique_lock<std::recursive_mutex> lock(mutex_);
   auto it = find(streams_, stream);
 
   auto evt = eventManager_.getNextId();
@@ -162,14 +161,14 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
   cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD;
   cmd.command_info.cmd_hdr.size = sizeof(cmd);
   cmd.command_info.flags = barrier ? 1 : 0;
-  deviceLayer_->sendCommandMasterMinion(static_cast<int>(device), vq, reinterpret_cast<std::byte*>(&cmd), sizeof(cmd));
+  sendCommandMasterMinion(it->second, evt, cmd, lock);
   return evt;
 }
 
 EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void* h_dst, size_t size,
                                        [[maybe_unused]] bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, profiler_);
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  std::unique_lock<std::recursive_mutex> lock(mutex_);
   auto it = find(streams_, stream);
 
   auto evt = eventManager_.getNextId();
@@ -188,7 +187,7 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
   cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD;
   cmd.command_info.cmd_hdr.size = sizeof(cmd);
   cmd.command_info.flags = barrier ? 1 : 0;
-  deviceLayer_->sendCommandMasterMinion(static_cast<int>(device), vq, reinterpret_cast<std::byte*>(&cmd), sizeof(cmd));
+  sendCommandMasterMinion(it->second, evt, cmd, lock);
   return evt;
 }
 
