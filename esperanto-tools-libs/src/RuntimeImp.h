@@ -15,6 +15,7 @@
 #include "ProfilerImp.h"
 #include "ResponseReceiver.h"
 #include "runtime/IRuntime.h"
+#include "utils.h"
 #include <mutex>
 #include <thread>
 #include <unordered_map>
@@ -96,6 +97,28 @@ private:
     int nextQueue_ = 0;
     int queueCount_;
   };
+
+
+  template<typename Command, typename Lock>
+  void sendCommandMasterMinion(Stream& stream, EventId event, Command&& command, Lock& lock) {
+    auto sqIdx = stream.vq_;
+    auto device = static_cast<int>(stream.deviceId_);
+    bool done = false;
+    while (!done) {
+      done = deviceLayer_->sendCommandMasterMinion(device, sqIdx,
+                                                  reinterpret_cast<std::byte*>(&command), sizeof(command));
+      if (!done) {
+        lock.unlock();
+        RT_LOG(INFO) << "Submission queue " << sqIdx
+                    << " is full. Can't send command now, blocking the thread till there is available space.";
+        uint64_t sq_bitmap;
+        bool cq_available;
+        deviceLayer_->waitForEpollEventsMasterMinion(device, sq_bitmap, cq_available);
+        lock.lock();
+      }
+    }
+    stream.lastEventId_ = event;
+  }
 
   dev::IDeviceLayer* deviceLayer_;
   std::vector<DeviceId> devices_;
