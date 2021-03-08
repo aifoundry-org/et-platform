@@ -35,9 +35,9 @@ void __attribute__((noreturn)) main(void)
         "csrs  mstatus, %0 \n" // set mstatus MPP[0] = supervisor mode
         : "=&r"(temp));
 
-    // Enable counter number 3 for trace logging
-    asm volatile("csrsi mcounteren, 8  \n"
-                 "csrsi scounteren, 8  \n");
+    // Enable all available PMU counters to be sampled in S-mode
+    asm volatile("csrw mcounteren, %0\n"
+        : : "r"(((1u << PMU_NR_HPM) - 1) << PMU_FIRST_HPM));
 
     // Init global console lock
     if (get_hart_id() == 2048) {
@@ -50,7 +50,7 @@ void __attribute__((noreturn)) main(void)
     if (get_hart_id() % 16 == 0 || get_hart_id() % 16 == 1) {
         // [SW-5576, SW-5577] Configure mhpmevent3 for each neighborhood to count cycles
         // TODO: Remove this
-        configure_neigh_event(PMU_MINION_EVENT_CYCLES, PMU_MHPMEVENT3);
+        pmu_core_event_configure(PMU_MHPMEVENT3, PMU_MINION_EVENT_CYCLES);
     }
 
     if (get_hart_id() % 64 == 0) { // First HART every shire, master or worker
