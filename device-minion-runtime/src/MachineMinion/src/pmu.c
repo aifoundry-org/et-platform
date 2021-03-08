@@ -39,7 +39,7 @@ int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_buffer_addr)
     for (uint64_t i = 1; i < PMU_MINION_COUNTERS_PER_HART; i++) {
         uint64_t *hart_minion_cfg_data =
             conf_buffer + PMU_EVENT_SHIRE_AREA * shire_id + PMU_MINION_COUNTERS_PER_HART * odd_hart + i;
-        ret = ret + configure_neigh_event(*hart_minion_cfg_data, PMU_MHPMEVENT3 + i);
+        ret = ret + pmu_core_event_configure(PMU_MHPMEVENT3 + i, *hart_minion_cfg_data);
     }
 
     // neigh counters: Only one minion per neigh needs to configure the counters (8 or 9)
@@ -48,7 +48,7 @@ int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_buffer_addr)
             uint64_t *hart_neigh_cfg_data = conf_buffer + PMU_EVENT_SHIRE_AREA * shire_id +
                                             PMU_MINION_COUNTERS_PER_HART * 2 +
                                             PMU_NEIGH_COUNTERS_PER_HART * odd_hart + i;
-            ret = ret + configure_neigh_event(*hart_neigh_cfg_data, PMU_MHPMEVENT7+i);
+            ret = ret + pmu_core_event_configure(PMU_MHPMEVENT7+i, *hart_neigh_cfg_data);
         }
     }
 
@@ -65,10 +65,10 @@ int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_buffer_addr)
         uint64_t ctl_status_cfg = *hart_sc_cfg_data;
         uint64_t pmc0_cfg = *(hart_sc_cfg_data+1);
         uint64_t pmc1_cfg = *(hart_sc_cfg_data+2);
-        ret = ret + configure_sc_event(shire_id, neigh_id, 0, pmc0_cfg);
-        ret = ret + configure_sc_event(shire_id, neigh_id, 1, pmc1_cfg);
+        ret = ret + pmu_shire_cache_event_configure(shire_id, neigh_id, 0, pmc0_cfg);
+        ret = ret + pmu_shire_cache_event_configure(shire_id, neigh_id, 1, pmc1_cfg);
         // Set bits in ctl_status register that show whether we monitor events or resources.
-        set_sc_pmcs(shire_id, neigh_id, ctl_status_cfg);
+        pmu_shire_cache_counter_set(shire_id, neigh_id, ctl_status_cfg);
     }
 
     // Shire id's 0-7 just to simplify code initialize ms-id's 0-7.
@@ -79,12 +79,12 @@ int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_buffer_addr)
 
         // First program the ctl_status register to the events you are going to measure
         uint64_t *hart_ms_cfg_data = conf_buffer + PMU_EVENT_MEMSHIRE_OFFSET + shire_id * PMU_MS_COUNTERS_PER_MS;
-        set_ms_pmcs(shire_id, *hart_ms_cfg_data);
+        pmu_memshire_event_set(shire_id, *hart_ms_cfg_data);
 
         // Now set the PMC qual registers -- we can probably save 2 of the 4 writes in most cases
         for (uint64_t i=0; i < 4; i++) {
             hart_ms_cfg_data = conf_buffer + PMU_EVENT_MEMSHIRE_OFFSET + shire_id * PMU_MS_COUNTERS_PER_MS + i + 1;
-            ret = ret + configure_ms_event(shire_id, i, *hart_ms_cfg_data);
+            ret = ret + pmu_memshire_event_configure(shire_id, i, *hart_ms_cfg_data);
         }
     }
 
@@ -112,15 +112,15 @@ int64_t reset_pmcs(void)
     // To avoid reseting PMC3 that is used for timestamp, neigh_minion_id should be > 0
     if (neigh_minion_id < PMU_MINION_COUNTERS_PER_HART + PMU_NEIGH_COUNTERS_PER_HART &&
         neigh_minion_id > 0) {
-        ret = ret + reset_neigh_pmc(PMU_MHPMCOUNTER3 + neigh_minion_id);
+        ret = ret + pmu_core_counter_reset(PMU_MHPMCOUNTER3 + neigh_minion_id);
     }
 
     if (reset_sc_harts) {
-        reset_sc_pmcs(shire_id, neigh_id);
+        pmu_shire_cache_counter_reset(shire_id, neigh_id);
     }
 
     if (reset_ms_harts) {
-        reset_ms_pmcs(shire_id);
+        pmu_memshire_event_reset(shire_id);
     }
 
     return ret;
@@ -150,7 +150,7 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_tensor_addr)
     // TBD: To avoid reseting PMC3 that is used for timestamp, neigh_minion_id should be > 0
     // Right now we keep on reading these PMCs, but we do not have to
     if (neigh_minion_id < PMU_MINION_COUNTERS_PER_HART + PMU_NEIGH_COUNTERS_PER_HART) {
-        uint64_t pmc_data = read_neigh_pmc(PMU_MHPMCOUNTER3 + neigh_minion_id);
+        uint64_t pmc_data = pmu_core_counter_read(PMU_MHPMCOUNTER3 + neigh_minion_id);
         if (pmc_data == PMU_INCORRECT_COUNTER) {
             ret = ret - 1;
         }
@@ -165,10 +165,10 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_tensor_addr)
 
     // SC PMCs
     if (read_sc_harts) {
-        stop_sc_pmcs(shire_id, neigh_id);
+        pmu_shire_cache_counter_stop(shire_id, neigh_id);
         // Read 3 SC bank counters, probably we can save the clock counter.
         for (uint64_t i=0; i < 3; i++) {
-            uint64_t pmc_data = sample_sc_pmcs(shire_id, neigh_id, i);
+            uint64_t pmc_data = pmu_shire_cache_counter_sample(shire_id, neigh_id, i);
             if (pmc_data == PMU_INCORRECT_COUNTER) {
                ret = ret - 1;
             }
@@ -184,10 +184,10 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_tensor_addr)
 
     // MS PMCs
     if (read_ms_harts) {
-        stop_ms_pmcs(shire_id);
+        pmu_memshire_event_stop(shire_id);
         // Read the 3 MS pef counters -- probably we can save the clock counter read
         for (uint64_t i=0; i < 3; i++) {
-            uint64_t pmc_data = sample_ms_pmcs(shire_id, i);
+            uint64_t pmc_data = pmu_memshire_event_sample(shire_id, i);
             if (pmc_data == PMU_INCORRECT_COUNTER) {
                 ret = ret - 1;
             }

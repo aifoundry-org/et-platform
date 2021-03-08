@@ -50,7 +50,7 @@ void __attribute__((noreturn)) main(void)
     if (get_hart_id() % 16 == 0 || get_hart_id() % 16 == 1) {
         // [SW-5576, SW-5577] Configure mhpmevent3 for each neighborhood to count cycles
         // TODO: Remove this
-        configure_neigh_event(PMU_MINION_EVENT_CYCLES, PMU_MHPMEVENT3);
+        pmu_core_event_configure(PMU_MHPMEVENT3, PMU_MINION_EVENT_CYCLES);
     }
 
     if (get_hart_id() % 64 == 0) { // First HART every shire, master or worker

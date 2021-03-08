@@ -50,6 +50,7 @@
 #define PMU_MHPMCOUNTER8 0xB08
 
 // Constants used to index inside PMC configuration buffer
+// NOTE: THIS IS DEPRECATED. IMPLEMENTATION DETAILS OF THE OLD PMC TRACING CODE
 #define PMU_MINION_COUNTERS_PER_HART 4
 #define PMU_NEIGH_COUNTERS_PER_HART  2
 #define PMU_SC_COUNTERS_PER_BANK     3
@@ -118,8 +119,8 @@
 
 #define PMU_INCORRECT_COUNTER 0xFFFFFFFFFFFFFFFFULL
 
-// Configure a neighborhood event counter (both minion and neigh events are handled here)
-static inline int64_t configure_neigh_event(uint64_t evt, uint64_t evt_reg)
+// Configure a core (minion and neighborhood) event counter
+static inline int64_t pmu_core_event_configure(uint64_t evt_reg, uint64_t evt)
 {
     switch (evt_reg) {
     case PMU_MHPMEVENT3:
@@ -158,8 +159,8 @@ static inline int64_t configure_neigh_event(uint64_t evt, uint64_t evt_reg)
     return 0;
 }
 
-// Write a neighborhood event counter (both minion and neigh events are handled here)
-static inline int64_t write_neigh_pmc(uint64_t pmc, uint64_t val)
+// Write to core (minion and neighborhood) event counter
+static inline int64_t pmu_core_counter_write(uint64_t pmc, uint64_t val)
 {
     switch (pmc) {
     case PMU_MHPMCOUNTER3:
@@ -198,11 +199,11 @@ static inline int64_t write_neigh_pmc(uint64_t pmc, uint64_t val)
     return 0;
 }
 
-#define reset_neigh_pmc(pmc) write_neigh_pmc(pmc, 0)
+#define pmu_core_counter_reset(pmc) pmu_core_counter_write(pmc, 0)
 
-// Read a neighborhood event counter (both minion and neigh events are handled here)
+// Read a core (minion and neighborhood) event counter
 // Return -1 on incorrect counter
-static inline uint64_t read_neigh_pmc(uint64_t pmc)
+static inline uint64_t pmu_core_counter_read(uint64_t pmc)
 {
     uint64_t val = 0;
     switch (pmc) {
@@ -243,7 +244,7 @@ static inline uint64_t read_neigh_pmc(uint64_t pmc)
 }
 
 // Configure an event for a shire cache perf counter
-static inline int64_t configure_sc_event(uint64_t shire_id, uint64_t b, uint64_t evt_reg,
+static inline int64_t pmu_shire_cache_event_configure(uint64_t shire_id, uint64_t b, uint64_t evt_reg,
                                          uint64_t val)
 {
     uint64_t *sc_bank_qualevt_addr = 0;
@@ -260,14 +261,14 @@ static inline int64_t configure_sc_event(uint64_t shire_id, uint64_t b, uint64_t
 }
 
 // Set a shire cache PMC to a value
-static inline void set_sc_pmcs(uint64_t shire_id, uint64_t b, uint64_t val)
+static inline void pmu_shire_cache_counter_set(uint64_t shire_id, uint64_t b, uint64_t val)
 {
     uint64_t *sc_bank_perfctrl_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_CTL_STATUS);
     *sc_bank_perfctrl_addr = val;
 }
 
 // Reset and start a shire cache PMC
-static inline void reset_sc_pmcs(uint64_t shire_id, uint64_t b)
+static inline void pmu_shire_cache_counter_reset(uint64_t shire_id, uint64_t b)
 {
     uint64_t *sc_bank_perfctrl_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_CTL_STATUS);
     uint64_t init_val = *sc_bank_perfctrl_addr;
@@ -275,7 +276,7 @@ static inline void reset_sc_pmcs(uint64_t shire_id, uint64_t b)
 }
 
 // Stop a shire cache PMC
-static inline void stop_sc_pmcs(uint64_t shire_id, uint64_t b)
+static inline void pmu_shire_cache_counter_stop(uint64_t shire_id, uint64_t b)
 {
     uint64_t *sc_bank_perfctrl_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_CTL_STATUS);
     uint64_t init_val = *sc_bank_perfctrl_addr;
@@ -283,7 +284,7 @@ static inline void stop_sc_pmcs(uint64_t shire_id, uint64_t b)
 }
 
 // Read a shire cache PMC. Return -1 on incorrect counter
-static inline uint64_t sample_sc_pmcs(uint64_t shire_id, uint64_t b, uint64_t pmc)
+static inline uint64_t pmu_shire_cache_counter_sample(uint64_t shire_id, uint64_t b, uint64_t pmc)
 {
     uint64_t val = 0;
     uint64_t *sc_bank_pmc_addr = 0;
@@ -301,7 +302,7 @@ static inline uint64_t sample_sc_pmcs(uint64_t shire_id, uint64_t b, uint64_t pm
 }
 
 // Configure an event for memshire counters
-static inline int64_t configure_ms_event(uint64_t ms_id, uint64_t evt_reg, uint64_t val)
+static inline int64_t pmu_memshire_event_configure(uint64_t ms_id, uint64_t evt_reg, uint64_t val)
 {
     uint64_t *ms_pmc_ctrl_addr = 0;
     int64_t ret = 0;
@@ -321,7 +322,7 @@ static inline int64_t configure_ms_event(uint64_t ms_id, uint64_t evt_reg, uint6
 }
 
 // Set a memshire PMC to a value
-static inline void set_ms_pmcs(uint64_t ms_id, uint64_t val)
+static inline void pmu_memshire_event_set(uint64_t ms_id, uint64_t val)
 {
     uint64_t *ms_perfctrl_addr =
         (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_CTL_STATUS);
@@ -329,7 +330,7 @@ static inline void set_ms_pmcs(uint64_t ms_id, uint64_t val)
 }
 
 // Reset and start a memshire PMC
-static inline void reset_ms_pmcs(uint64_t ms_id)
+static inline void pmu_memshire_event_reset(uint64_t ms_id)
 {
     uint64_t *ms_pmc_ctrl_addr =
         (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_CTL_STATUS);
@@ -338,7 +339,7 @@ static inline void reset_ms_pmcs(uint64_t ms_id)
 }
 
 // Stop a memshire PMC
-static inline void stop_ms_pmcs(uint64_t ms_id)
+static inline void pmu_memshire_event_stop(uint64_t ms_id)
 {
     uint64_t *ms_pmc_ctrl_addr =
         (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_CTL_STATUS);
@@ -347,7 +348,7 @@ static inline void stop_ms_pmcs(uint64_t ms_id)
 }
 
 // Read a memshire PMC. Return -1 on incorrect counter
-static inline uint64_t sample_ms_pmcs(uint64_t ms_id, uint64_t pmc)
+static inline uint64_t pmu_memshire_event_sample(uint64_t ms_id, uint64_t pmc)
 {
     uint64_t val = 0;
     uint64_t *ms_pmc_addr = 0;
@@ -364,6 +365,7 @@ static inline uint64_t sample_ms_pmcs(uint64_t ms_id, uint64_t pmc)
     return val;
 }
 
+// NOTE: THIS IS DEPRECATED
 int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_area_addr);
 int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr);
 int64_t reset_pmcs(void);
@@ -377,13 +379,13 @@ be improved */
 /*! \def PMC_RESET_CYCLES_COUNTER
     \brief A macro to reset PMC minion cycles counter
 */
-#define PMC_RESET_CYCLES_COUNTER   (uint64_t)reset_neigh_pmc(PMU_MHPMEVENT3)
+#define PMC_RESET_CYCLES_COUNTER   (uint64_t)pmu_core_counter_reset(PMU_MHPMEVENT3)
 
 /*! \fn PMC_Get_Current_Cycles
     \brief A function to get current minion cycles based on PMC Counter 3 which
     setup by default to count the Minion cycles
 */
-static inline  uint64_t PMC_Get_Current_Cycles(void)  {
+static inline uint64_t PMC_Get_Current_Cycles(void)  {
     uint64_t val;
     __asm__ __volatile__("csrr %[res], %[csr]\n" \
                           : [res] "=r"(val)      \
