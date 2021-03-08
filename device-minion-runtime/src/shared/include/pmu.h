@@ -16,6 +16,12 @@
 #include "esr_defines.h"
 // PMU support: Defines and basic API
 
+// ETSoC-1 PMU hardware
+#define PMU_FIRST_HPM      3
+#define PMU_LAST_CORE_HPM  6
+#define PMU_LAST_HPM       8
+#define PMU_NR_HPM         (PMU_LAST_HPM - PMU_FIRST_HPM + 1)
+
 // User-Level CSRs :: Counters/Timers
 #define PMU_USER_CYCLE   0xC00ULL
 #define PMU_USER_TIME    0xC01ULL
@@ -27,7 +33,7 @@
 #define PMU_HPMCOUNTER7  0xC07ULL
 #define PMU_HPMCOUNTER8  0xC08ULL
 
-// Machine-Level CSRs :: Counters Setup 
+// Machine-Level CSRs :: Counters Setup
 #define PMU_MHPMEVENT3 0x323ULL
 #define PMU_MHPMEVENT4 0x324ULL
 #define PMU_MHPMEVENT5 0x325ULL
@@ -373,8 +379,8 @@ be improved */
 */
 #define PMC_RESET_CYCLES_COUNTER   (uint64_t)reset_neigh_pmc(PMU_MHPMEVENT3)
 
-/*! \fn PMC_Get_Current_Cycles 
-    \brief A function to get current minion cycles based on PMC Counter 3 which 
+/*! \fn PMC_Get_Current_Cycles
+    \brief A function to get current minion cycles based on PMC Counter 3 which
     setup by default to count the Minion cycles
 */
 static inline  uint64_t PMC_Get_Current_Cycles(void)  {
@@ -385,8 +391,8 @@ static inline  uint64_t PMC_Get_Current_Cycles(void)  {
     return val;
 }
 
-/*! \def PMC_GET_LATENCY 
-    \brief A macro to calculate latency. Uses PMC Counter 3 to get current cycle 
+/*! \def PMC_GET_LATENCY
+    \brief A macro to calculate latency. Uses PMC Counter 3 to get current cycle
     minus start_cycle(argument)
 */
 #define PMC_GET_LATENCY(x) (uint32_t)(PMC_Get_Current_Cycles() - x)

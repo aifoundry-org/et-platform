@@ -35,9 +35,9 @@ void __attribute__((noreturn)) main(void)
         "csrs  mstatus, %0 \n" // set mstatus MPP[0] = supervisor mode
         : "=&r"(temp));
 
-    // Enable counter number 3 for trace logging
-    asm volatile("csrsi mcounteren, 8  \n"
-                 "csrsi scounteren, 8  \n");
+    // Enable all available PMU counters to be sampled in S-mode
+    asm volatile("csrw mcounteren, %0\n"
+        : : "r"(((1u << PMU_NR_HPM) - 1) << PMU_FIRST_HPM));
 
     // Init global console lock
     if (get_hart_id() == 2048) {

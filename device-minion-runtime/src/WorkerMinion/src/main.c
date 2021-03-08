@@ -7,6 +7,7 @@
 #include "cm_mm_defines.h"
 #include "cm_to_mm_iface.h"
 #include "mm_to_cm_iface.h"
+#include "pmu.h"
 #include "riscv_encoding.h"
 
 #include <stdint.h>
@@ -20,6 +21,10 @@ void __attribute__((noreturn)) main(void)
     asm volatile("la    %0, trap_handler \n"
                  "csrw  stvec, %0        \n"
                  : "=&r"(temp));
+
+    // Enable all available PMU counters to be sampled in U-mode
+    asm volatile("csrw scounteren, %0\n"
+        : : "r"(((1u << PMU_NR_HPM) - 1) << PMU_FIRST_HPM));
 
     const uint64_t shire_id = get_shire_id();
     const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
