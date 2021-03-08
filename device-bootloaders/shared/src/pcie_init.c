@@ -106,11 +106,11 @@ static void pcie_init_pshire(void)
 
     //Wait for PERST_N
     //TODO FIXME JIRA SW-330: Don't monopolize the HART to poll
-    printf("Waiting for PCIe bus out of reset...");
+    //printf("Waiting for PCIe bus out of reset...");
     do {
         tmp = ioread32(PCIE_ESR + PSHIRE_PSHIRE_STAT_ADDRESS);
     } while (PSHIRE_PSHIRE_STAT_PERST_N_GET(tmp) == 0);
-    printf(" done\r\n");
+    //printf(" done\r\n");
 
     // Deassert PCIe cold reset
     tmp = ioread32(PCIE_ESR + PSHIRE_PSHIRE_RESET_ADDRESS);
@@ -238,7 +238,7 @@ static void pcie_init_ints(void)
     uint32_t misc_control;
     uint32_t msi_ctrl;
 
-    //The config registers are protected by a write-enable bit
+    //Open access to MSI Capability Register
     misc_control =
         ioread32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
     misc_control = PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
@@ -247,31 +247,22 @@ static void pcie_init_ints(void)
               misc_control);
 
     //Configure MSI
-
-    //Request 2 interrupt vectors (1 per pcie mailbox)
     msi_ctrl = ioread32(
         PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_ADDRESS);
+    // Enable MSI (PCIE CFG 0x50)
+    msi_ctrl = (uint32_t)
+        PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_PCI_MSI_ENABLE_MODIFY(
+            msi_ctrl, MSI_TWO_VECTORS);
+    //Request 2 interrupt vectors (1 for Management and Ops node)
     msi_ctrl = (uint32_t)
         PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_PCI_MSI_MULTIPLE_MSG_CAP_MODIFY(
             msi_ctrl, MSI_TWO_VECTORS);
+     msi_ctrl = (uint32_t)
+        PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_PCI_MSI_MULTIPLE_MSG_EN_MODIFY(
+            msi_ctrl, MSI_TWO_VECTORS);
     iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_ADDRESS,
               msi_ctrl);
-
-    //Configure MSI-X
-
-    iowrite32(
-        PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSIX_CAP_PCI_MSIX_CAP_ID_NEXT_CTRL_REG_ADDRESS,
-        PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSIX_CAP_PCI_MSIX_CAP_ID_NEXT_CTRL_REG_PCI_MSIX_TABLE_SIZE_SET(
-            MSI_TWO_VECTORS));
-
-    //The PCIe IP will look for AXI writes to a special address you specify, and turn them into
-    //MSI-X writes (by walking the MSI-X table, and figuring out the host address to write). It also
-    //handles queuing ints if the vector is masked.
-    iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MSIX_ADDRESS_MATCH_HIGH_OFF_ADDRESS,
-              (uint32_t)((uint64_t)MSIX_TRIG_REG >> 32));
-    iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MSIX_ADDRESS_MATCH_LOW_OFF_ADDRESS,
-              (uint32_t)(uint64_t)MSIX_TRIG_REG | 1U);
-
+    //Close access to MSI Capability Register
     misc_control = PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
         misc_control, 0);
     iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
@@ -366,7 +357,7 @@ static void pcie_init_link(void)
                        DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_ADDRESS);
     } while (DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_SMLH_LTSSM_STATE_GET(
                  tmp) != SMLH_LTSSM_STATE_LINK_UP);
-    printf(" done\r\n");
+    printf("done\r\n");
 }
 
 //See DWC_pcie_ctl_dm_databook section 3.10.11
@@ -513,26 +504,20 @@ static void pcie_init_atus(void)
               miscControl1);
 }
 
+#define MSI_ENABLED 0x1U
 static void pcie_wait_for_ints(void)
 {
     // Wait until the x86 host driver comes up and enables MSI
     // See pci_alloc_irq_vectors on the host driver.
-    // TODO FIXME JIRA SW-330: Don't monopolize the HART to poll
-    // Intentionally not supporting legacy ints.
 
     uint32_t msi_ctrl;
-    uint32_t msix_ctrl;
 
-    printf("Waiting for host to enable MSI/MSI-X...");
+    printf("Waiting for host to enable MSI...");
     do {
         msi_ctrl = ioread32(
             PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_ADDRESS);
-        msix_ctrl = ioread32(
-            PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSIX_CAP_PCI_MSIX_CAP_ID_NEXT_CTRL_REG_ADDRESS);
     } while (
         PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_PCI_MSI_ENABLE_GET(
-            msi_ctrl) == 0 &&
-        PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSIX_CAP_PCI_MSIX_CAP_ID_NEXT_CTRL_REG_PCI_MSIX_ENABLE_GET(
-            msix_ctrl) == 0);
+            msi_ctrl) != MSI_ENABLED);
     printf(" done\r\n");
 }
