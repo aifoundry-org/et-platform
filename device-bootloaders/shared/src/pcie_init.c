@@ -30,7 +30,6 @@ static void pcie_init_caps_list(void);
 static void pcie_init_bars(void);
 static void pcie_init_ints(void);
 static void pcie_init_link(void);
-static void pcie_init_noc(void);
 static void pcie_init_atus(void);
 static void pcie_wait_for_ints(void);
 
@@ -91,7 +90,6 @@ void pcie_enable_link(void)
 {
     uint32_t tmp;
 
-    pcie_init_noc();
     pcie_init_atus();
     pcie_wait_for_ints();
 
@@ -369,144 +367,6 @@ static void pcie_init_link(void)
     } while (DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_SMLH_LTSSM_STATE_GET(
                  tmp) != SMLH_LTSSM_STATE_LINK_UP);
     printf(" done\r\n");
-}
-
-static void pcie_init_noc(void)
-{
-    //Configure the PShire NoC to allow access to the OS region of DRAM, since
-    //we're not using maxion.
-
-    //This programing sequence is from Miquel Izquierdo, as of Dec 11, 2019.
-
-    //Offset 0x1C0C0
-    uint64_t offset3;
-    offset3 = ioread64(
-        PCIE_NOC +
-        PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_512G_8M__512G_16M__8M_3_0_ADDRESS);
-    offset3 =
-        PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_512G_8M__512G_16M__8M_3_0_DI_MODIFY(
-            offset3, 0);
-    iowrite64(
-        PCIE_NOC +
-            PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_512G_8M__512G_16M__8M_3_0_ADDRESS,
-        offset3);
-
-    //Offset 0x1C0E0
-    uint64_t offset4;
-    offset4 = ioread64(
-        PCIE_NOC +
-        PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_512G_16M__512G_32M__16M_4_0_ADDRESS);
-    offset4 =
-        PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_512G_16M__512G_32M__16M_4_0_DI_MODIFY(
-            offset4, 0);
-    iowrite64(
-        PCIE_NOC +
-            PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_512G_16M__512G_32M__16M_4_0_ADDRESS,
-        offset4);
-
-    //0ffset 0x1C100
-    uint64_t offset5;
-    offset5 = ioread64(
-        PCIE_NOC +
-        PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_512G_32M__512G_64M__32M_5_0_ADDRESS);
-    offset5 =
-        PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_512G_32M__512G_64M__32M_5_0_DI_MODIFY(
-            offset5, 0);
-    iowrite64(
-        PCIE_NOC +
-            PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_512G_32M__512G_64M__32M_5_0_ADDRESS,
-        offset5);
-
-    //0ffset 0x1C120
-    uint64_t offset6;
-    offset6 = ioread64(
-        PCIE_NOC +
-        PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_512G_64M__512G_128M__64M_6_0_ADDRESS);
-    offset6 =
-        PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_512G_64M__512G_128M__64M_6_0_DI_MODIFY(
-            offset6, 0);
-    iowrite64(
-        PCIE_NOC +
-            PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_512G_64M__512G_128M__64M_6_0_ADDRESS,
-        offset6);
-
-    //0ffset 0x1C140
-    uint64_t offset7;
-    offset7 = ioread64(
-        PCIE_NOC +
-        PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_512G_128M__512G_256M__128M_7_0_ADDRESS);
-    offset7 =
-        PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_512G_128M__512G_256M__128M_7_0_DI_MODIFY(
-            offset7, 0);
-    iowrite64(
-        PCIE_NOC +
-            PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_512G_128M__512G_256M__128M_7_0_ADDRESS,
-        offset7);
-
-    //0ffset 0x1C160
-    uint64_t offset8;
-    offset8 = ioread64(
-        PCIE_NOC +
-        PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_512G_256M__512G_512M__256M_8_0_ADDRESS);
-    offset8 =
-        PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_512G_256M__512G_512M__256M_8_0_DI_MODIFY(
-            offset8, 0);
-    iowrite64(
-        PCIE_NOC +
-            PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_512G_256M__512G_512M__256M_8_0_ADDRESS,
-        offset8);
-
-    //0ffset 0x1C180
-    uint64_t offset9;
-    offset9 = ioread64(
-        PCIE_NOC +
-        PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_512G_512M__513G__512M_9_0_ADDRESS);
-    offset9 =
-        PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_512G_512M__513G__512M_9_0_DI_MODIFY(
-            offset9, 0);
-    iowrite64(
-        PCIE_NOC +
-            PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_512G_512M__513G__512M_9_0_ADDRESS,
-        offset9);
-
-    //0ffset 0x1C1A0
-    uint64_t offset10;
-    offset10 = ioread64(
-        PCIE_NOC +
-        PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_513G__514G__1G_10_0_ADDRESS);
-    offset10 =
-        PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_513G__514G__1G_10_0_DI_MODIFY(
-            offset10, 0);
-    iowrite64(
-        PCIE_NOC +
-            PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_513G__514G__1G_10_0_ADDRESS,
-        offset10);
-
-    //0ffset 0x1C1C0
-    uint64_t offset11;
-    offset11 = ioread64(
-        PCIE_NOC +
-        PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_514G__516G__2G_11_0_ADDRESS);
-    offset11 =
-        PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_514G__516G__2G_11_0_DI_MODIFY(
-            offset11, 0);
-    iowrite64(
-        PCIE_NOC +
-            PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOL3_S_SR_MAIN0_TOL3_S_MAP_R_514G__516G__2G_11_0_ADDRESS,
-        offset11);
-
-    // Enable SRAM-HI to be accessibe to PCIe - Address range: 0x0020020000 - 0x002003FFFF (total 128K)
-    // Program ADBASE for P0
-    iowrite64(
-         PCIE_NOC +
-         PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADBASE_MEM_MAIN0_TOSYS_S_SR_MAIN0_TOSYS_S_MAP_R_768G_2M__768G_4M__2M_6_0_ADDRESS,
-         0x0000000020020000);
-    // Program ADMASK for P0
-    iowrite64(
-         PCIE_NOC +
-         PCIE_NOC_BRIDGE_P0_P0_M_3_6_AM_ADMASK_MEM_MAIN0_TOSYS_S_SR_MAIN0_TOSYS_S_MAP_R_768G_2M__768G_4M__2M_6_0_ADDRESS,
-         0x000000FFFFFE0000);
-
 }
 
 //See DWC_pcie_ctl_dm_databook section 3.10.11
