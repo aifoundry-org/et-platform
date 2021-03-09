@@ -77,7 +77,6 @@ macro(test_kernel)
 
   set(TARGET_NAME ${TEST_KERNEL_NAME})
   set(LINKER_SCRIPT ${SHARED_KERNEL_SRC_DIR}/sections.ld)
-  set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
   set(ZEBU_TARGET DDR_NEW)
   set(ZEBU_FILENAME memImage)
 

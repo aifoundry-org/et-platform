@@ -9,7 +9,11 @@
 *-------------------------------------------------------------------------
 */
 
-INCLUDE layout.ld
+/* Prefix of the kernel buffer meta-data (in bytes). Align to a page boundary. */
+ELF_BUFFER_MD_SIZE = 4096;
+
+/* Entry point of a user kernel (must be synced with device's memory layout) */
+KERNEL_UMODE_ENTRY = 0x8100600000 + ELF_BUFFER_MD_SIZE;
 
 ENTRY(_start)
 
