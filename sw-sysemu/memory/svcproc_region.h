@@ -22,6 +22,7 @@
 #include "devices/uart.h"
 #ifdef SYS_EMU
 #include "devices/cru.h"
+#include "devices/DW_apb_timers.h"
 #include "devices/efuse.h"
 #include "devices/i2c.h"
 #include "devices/pcie_apb_subsys.h"
@@ -54,6 +55,7 @@ struct SvcProcRegion : public MemoryRegion {
         sp_i2c0_base         = 0x12020000,
         sp_spi0_base         = 0x12021000,
         sp_uart0_base        = 0x12022000,
+        sp_timer_base        = 0x12025000,
         sp_efuse_base        = 0x12026000,
         sp_cru_base          = 0x12028000,
         sp_rvtim_base        = 0x12100000,
@@ -110,6 +112,7 @@ struct SvcProcRegion : public MemoryRegion {
     Uart          <sp_uart0_base,  4_KiB>        spio_uart0{};
     Uart          <sp_uart1_base,  4_KiB>        spio_uart1{};
 #ifdef SYS_EMU
+    DW_apb_timers <sp_timer_base,    4_KiB>      sp_timer{};
     Efuse         <sp_efuse_base,    8_KiB>      sp_efuse{};
     Cru           <sp_cru_base,      4_KiB>      sp_cru{};
     I2c           <sp_i2c0_base,     4_KiB, 0>   sp_i2c0{};
@@ -144,13 +147,14 @@ protected:
 
     // These arrays must be sorted by region offset
 #ifdef SYS_EMU
-    std::array<MemoryRegion*,21> regions = {{
+    std::array<MemoryRegion*,22> regions = {{
         &sp_rom,
         &sp_sram,
         &sp_plic,
         &sp_i2c0,
         &sp_spi0,
         &spio_uart0,
+        &sp_timer,
         &sp_efuse,
         &sp_cru,
         &sp_rvtim,

@@ -300,8 +300,16 @@ enum et_core_t {
 #define ET_DIAG_IRQ_INJ_TI      (1)
 #define ET_DIAG_IRQ_INJ_SEI     (2)
 
-
 #define MEM_RESET_PATTERN_SIZE 4 // mem reset pattern is 4 bytes (to allow for instance, 0xDEADBEEF)
+
+// PU PLIC
+#define PU_PLIC_TIMER0_INTR_ID       6
+#define PU_PLIC_PCIE_MESSAGE_INTR_ID 33
+
+// SPIO PLIC
+#define SPIO_PLIC_PSHIRE_PCIE0_EDMA0_INTR_ID 96
+#define SPIO_PLIC_MBOX_MMIN_INTR_ID          114
+#define SPIO_PLIC_MBOX_HOST_INTR_ID          115
 
 // PCIe
 #define ETSOC_CX_ATU_NUM_INBOUND_REGIONS 32

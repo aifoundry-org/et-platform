@@ -413,29 +413,26 @@ struct MailboxRegion : public MemoryRegion, public IMailboxInterrupts
 protected:
 
     void pcie_interrupt_check_trigger(System* system) {
-        // PU_PLIC_PCIE_MESSAGE_INTR_ID = 33
         if (pcie_interrupt_counter > 0) {
-            system->pu_plic_interrupt_pending_set(33);
+            system->pu_plic_interrupt_pending_set(PU_PLIC_PCIE_MESSAGE_INTR_ID);
         } else {
-            system->pu_plic_interrupt_pending_clear(33);
+            system->pu_plic_interrupt_pending_clear(PU_PLIC_PCIE_MESSAGE_INTR_ID);
         }
     }
 
     void mm_to_sp_interrupt_check_trigger(System* system) {
-        // SPIO_PLIC_MBOX_MMIN_INTR_ID = 114
         if (mm_to_sp_interrupt_reg != 0) {
-            system->sp_plic_interrupt_pending_set(114);
+            system->sp_plic_interrupt_pending_set(SPIO_PLIC_MBOX_MMIN_INTR_ID);
         } else {
-            system->sp_plic_interrupt_pending_clear(114);
+            system->sp_plic_interrupt_pending_clear(SPIO_PLIC_MBOX_MMIN_INTR_ID);
         }
     }
 
     void host_to_sp_interrupt_check_trigger(System* system) {
-        // SPIO_PLIC_MBOX_HOST_INTR_ID = 115
         if (host_to_sp_interrupt_reg != 0) {
-            system->sp_plic_interrupt_pending_set(115);
+            system->sp_plic_interrupt_pending_set(SPIO_PLIC_MBOX_HOST_INTR_ID);
         } else {
-            system->sp_plic_interrupt_pending_clear(115);
+            system->sp_plic_interrupt_pending_clear(SPIO_PLIC_MBOX_HOST_INTR_ID);
         }
     }
 

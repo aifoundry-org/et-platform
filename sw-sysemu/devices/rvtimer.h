@@ -22,10 +22,6 @@ namespace bemu {
 template <uint64_t interrupt_shire_mask>
 struct RVTimer
 {
-    enum {
-        tick_freq = 100,
-    };
-
     RVTimer() {
         reset();
     }
@@ -62,11 +58,8 @@ struct RVTimer
         }
     }
 
-    void update(const Agent& agent, uint64_t cycle)
+    void clock_tick(const Agent& agent)
     {
-        if ((cycle % tick_freq) != 0)
-            return;
-
         if (++mtime >= mtimecmp) {
             if (!interrupt) {
                 agent.chip->raise_timer_interrupt(interrupt_shire_mask);

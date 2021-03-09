@@ -15,6 +15,7 @@
 #include <array>
 #include <cstdint>
 #include "literals.h"
+#include "devices/DW_apb_timers.h"
 #include "devices/plic.h"
 #include "devices/uart.h"
 #include "memory/memory_error.h"
@@ -37,6 +38,7 @@ struct PeripheralRegion : public MemoryRegion {
         // base addresses for the various regions of the address space
         pu_plic_base    = 0x00000000,
         pu_uart0_base   = 0x02002000,
+        pu_timer_base   = 0x02005000,
         pu_uart1_base   = 0x02007000,
     };
 
@@ -73,9 +75,10 @@ struct PeripheralRegion : public MemoryRegion {
     void dump_data(const Agent&, std::ostream&, size_type, size_type) const override { }
 
     // Members
-    PU_PLIC <pu_plic_base,  32_MiB>  pu_plic{};
-    Uart    <pu_uart0_base,  4_KiB>  pu_uart0{};
-    Uart    <pu_uart1_base,  4_KiB>  pu_uart1{};
+    PU_PLIC       <pu_plic_base,  32_MiB>  pu_plic{};
+    Uart          <pu_uart0_base,  4_KiB>  pu_uart0{};
+    DW_apb_timers <pu_timer_base,  4_KiB>  pu_timer{};
+    Uart          <pu_uart1_base,  4_KiB>  pu_uart1{};
 
 protected:
     static inline bool above(const MemoryRegion* lhs, size_type rhs) {
@@ -92,9 +95,10 @@ protected:
     }
 
     // These arrays must be sorted by region offset
-    std::array<MemoryRegion*,3> regions = {{
+    std::array<MemoryRegion*,4> regions = {{
         &pu_plic,
         &pu_uart0,
+        &pu_timer,
         &pu_uart1,
     }};
 };
