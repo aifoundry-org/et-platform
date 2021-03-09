@@ -79,19 +79,10 @@
 #define FW_SMODE_STACK_SCRATCH_REGION_SIZE                64 /* Used by trap handler. 64B is the offset to distribute stack bases across memory controllers. */
 #define FW_SMODE_STACK_SIZE                               (4096 + FW_SMODE_STACK_SCRATCH_REGION_SIZE) /* (4K + 64B) stack * 2112 stacks = 8580KB */
 
-#ifndef __ASSEMBLER__
-// Ensure the shared message buffers don't overlap with the S-stacks
-static_assert((CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR + CM_MM_IFACE_UNICAST_LOCKS_SIZE) <
-              (FW_SMODE_STACK_BASE - (NUM_HARTS * FW_SMODE_STACK_SIZE)),
-              "S-stack / message buffer region collision");
-#endif
-
 // Give 4K for VM stack pages
 // Bits[8:6] of an address specify memshire number, and bit[9] the controller within memshire. Offset by 1<<6 = 64 to distribute stack bases across different memory controllers
 #define KERNEL_UMODE_STACK_BASE 0x8005000000ULL
 #define KERNEL_UMODE_STACK_SIZE (4096 + 64)
-
-#define KERNEL_UMODE_ENTRY KERNEL_UMODE_STACK_BASE
 
 /*****************************************************************/
 /*              - Low Memory Region Layout (28G) -               */
@@ -104,15 +95,15 @@ static_assert((CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR + CM_MM_IFACE_UNICAST_LOCKS_S
 /* NOTE: "Not-used" region is accessible but not used currently. */
 /*****************************************************************/
 
-// Reverved area for DDR low memory sub regions
+/* Reserved area for DDR low memory sub regions */
 #define LOW_MEM_SUB_REGIONS_BASE  LOW_MEM_REGION_BASE
 #define LOW_MEM_SUB_REGIONS_SIZE  0x0000600000ULL
 
-// TODO: to be remove with DIRs update
-// TODO: For now hardcoding the address at the start of 15GB region
-#define DEVICE_MRT_TRACE_MEM_SIZE 0x20000000ULL /* 512 MB */
-#define DEVICE_MRT_TRACE_BASE 0x83C0000000ULL
+/* U-mode user kernels entry point
+(Fixed address - should sync kernels linker script if this is changed) */
+#define KERNEL_UMODE_ENTRY        0x8100600000ULL
 
+// TODO: To be removed with DIRs update
 // TODO: Temporary address until we move to OS SData region
 //#define DEVICE_MM_VQUEUE_BASE 0x8005100000ULL
 //#define DEVICE_MM_VQUEUE_MEM_SIZE 0x20000ULL /* 128K */
@@ -139,7 +130,7 @@ static_assert((CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR + CM_MM_IFACE_UNICAST_LOCKS_S
 
 // Define the address range in DRAM that the host runtime can explicitly manage
 // the range is the START to (END-1)
-#define HOST_MANAGED_DRAM_START (LOW_MEM_REGION_BASE + LOW_MEM_SUB_REGIONS_SIZE)
+#define HOST_MANAGED_DRAM_START KERNEL_UMODE_ENTRY
 #define HOST_MANAGED_DRAM_END   DMA_CHAN_READ_0_LL_BASE
 #define HOST_MANAGED_DRAM_SIZE  (HOST_MANAGED_DRAM_END - HOST_MANAGED_DRAM_START)
 
@@ -155,5 +146,21 @@ static_assert((CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR + CM_MM_IFACE_UNICAST_LOCKS_S
 // TODO: SW-4611 - these will move to BAR relative addressing once SW-4611 is resolved
 #define FW_UPDATE_REGION_BEGIN  0x8005120000ULL
 #define FW_UPDATE_REGION_SIZE   0x400000U
+
+/************************/
+/* Compile-time checks  */
+/************************/
+#ifndef __ASSEMBLER__
+
+/* Ensure the shared message buffers don't overlap with the S-stacks */
+static_assert((CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR + CM_MM_IFACE_UNICAST_LOCKS_SIZE) <
+              (FW_SMODE_STACK_BASE - (NUM_HARTS * FW_SMODE_STACK_SIZE)),
+              "S-stack / message buffer region collision");
+
+/* Ensure that DDR low memory regions dont overlap U-mode kernels entry */
+static_assert(((LOW_MEM_SUB_REGIONS_BASE + LOW_MEM_SUB_REGIONS_SIZE) - 1) < KERNEL_UMODE_ENTRY,
+              "DDR low memory / Kernel U-mode entry region collision");
+
+#endif /* __ASSEMBLER__ */
 
 #endif
