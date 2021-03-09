@@ -1056,9 +1056,8 @@ int sys_emu::main_internal() {
             api_listener->process();
         }
 
-        // Update devices
-        chip.pu_rvtimer_update(emu_cycle);
-        chip.spio_rvtimer_update(emu_cycle);
+        // Update peripherals/devices
+        chip.tick_peripherals(emu_cycle);
 
         auto thread = running_threads.begin();
 
