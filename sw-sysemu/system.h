@@ -106,11 +106,12 @@ public:
     int spio_uart0_get_tx_fd() const;
     int spio_uart1_get_tx_fd() const;
 
+    // Peripherals/devices
+    void tick_peripherals(uint64_t cycle);
+
     // Timers
     bool pu_rvtimer_is_active() const;
     bool spio_rvtimer_is_active() const;
-    void pu_rvtimer_update(uint64_t cycle);
-    void spio_rvtimer_update(uint64_t cycle);
 
     // System registers
     uint64_t esr_read(const Agent& agent, uint64_t addr);
@@ -338,15 +339,12 @@ inline bool System::spio_rvtimer_is_active() const
 }
 
 
-inline void System::pu_rvtimer_update(uint64_t cycle)
+inline void System::tick_peripherals(uint64_t cycle)
 {
     memory.pu_rvtimer_update(Noagent{this}, cycle);
-}
-
-
-inline void System::spio_rvtimer_update(uint64_t cycle)
-{
     memory.spio_rvtimer_update(Noagent{this}, cycle);
+    memory.pu_apb_timers_update(*this, cycle);
+    memory.spio_apb_timers_update(*this, cycle);
 }
 
 

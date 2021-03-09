@@ -96,10 +96,6 @@ struct PcieDbiSlvRegion : public MemoryRegion {
         PF0_ATU_CAP_IATU_UPPR_LIMIT_ADDR_OFF_INBOUND_i_OFFSET   = 0x20,
     };
 
-    enum : unsigned long long {
-        SPIO_PLIC_PSHIRE_PCIE0_EDMA0_INTR_ID = 96,
-    };
-
     PcieDbiSlvRegion(std::array<PcieDma<true>,  ETSOC_CC_NUM_DMA_WR_CHAN> &dma_wrch,
                      std::array<PcieDma<false>, ETSOC_CC_NUM_DMA_RD_CHAN> &dma_rdch) :
         dma_wrch_(dma_wrch), dma_rdch_(dma_rdch) {}

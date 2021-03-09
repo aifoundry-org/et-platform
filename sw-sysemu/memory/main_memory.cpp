@@ -243,6 +243,30 @@ void MainMemory::spio_rvtimer_update(const Agent& agent, uint64_t cycle)
 }
 
 
+void MainMemory::pu_apb_timers_update(System& chip, uint64_t cycle)
+{
+#ifdef SYS_EMU
+    auto ptr = dynamic_cast<PeripheralRegion<pu_io_base, 256_MiB>*>(regions[1].get());
+    ptr->pu_timer.update(chip, cycle);
+#else
+    (void) chip;
+    (void) cycle;
+#endif
+}
+
+
+void MainMemory::spio_apb_timers_update(System& chip, uint64_t cycle)
+{
+#ifdef SYS_EMU
+    auto ptr = dynamic_cast<SvcProcRegion<spio_base, 1_GiB>*>(regions[3].get());
+    ptr->sp_timer.update(chip, cycle);
+#else
+    (void) chip;
+    (void) cycle;
+#endif
+}
+
+
 void MainMemory::pc_mm_mailbox_read(const Agent& agent, addr_type offset, size_type n, void* result)
 {
     read(agent, pu_mbox_base + MailboxRegion<pu_mbox_base, 512_MiB>::pu_mbox_pc_mm_pos + offset, n, result);

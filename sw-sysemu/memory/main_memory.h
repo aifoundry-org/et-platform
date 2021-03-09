@@ -178,6 +178,10 @@ struct MainMemory {
     bool spio_rvtimer_is_active() const;
     void spio_rvtimer_update(const Agent&, uint64_t cycle);
 
+    // Access the DW APB timers
+    void pu_apb_timers_update(System& chip, uint64_t cycle);
+    void spio_apb_timers_update(System& chip, uint64_t cycle);
+
     // Access the Mailboxes
     void pc_mm_mailbox_read(const Agent& agent, addr_type offset, size_type n, void* result);
     void pc_mm_mailbox_write(const Agent& agent, addr_type addr, size_type n, const void* source);
