@@ -172,15 +172,15 @@ struct MainMemory {
     bool pu_rvtimer_is_active() const;
     uint64_t pu_rvtimer_read_mtime() const;
     uint64_t pu_rvtimer_read_mtimecmp() const;
-    void pu_rvtimer_update(const Agent&, uint64_t cycle);
-    void pu_rvtimer_write_mtime(const Agent&, uint64_t cycle);
-    void pu_rvtimer_write_mtimecmp(const Agent&, uint64_t cycle);
+    void pu_rvtimer_clock_tick(const Agent&);
+    void pu_rvtimer_write_mtime(const Agent&, uint64_t value);
+    void pu_rvtimer_write_mtimecmp(const Agent&, uint64_t value);
     bool spio_rvtimer_is_active() const;
-    void spio_rvtimer_update(const Agent&, uint64_t cycle);
+    void spio_rvtimer_clock_tick(const Agent&);
 
     // Access the DW APB timers
-    void pu_apb_timers_update(System& chip, uint64_t cycle);
-    void spio_apb_timers_update(System& chip, uint64_t cycle);
+    void pu_apb_timers_clock_tick(System& chip);
+    void spio_apb_timers_clock_tick(System& chip);
 
     // Access the Mailboxes
     void pc_mm_mailbox_read(const Agent& agent, addr_type offset, size_type n, void* result);

@@ -341,10 +341,13 @@ inline bool System::spio_rvtimer_is_active() const
 
 inline void System::tick_peripherals(uint64_t cycle)
 {
-    memory.pu_rvtimer_update(Noagent{this}, cycle);
-    memory.spio_rvtimer_update(Noagent{this}, cycle);
-    memory.pu_apb_timers_update(*this, cycle);
-    memory.spio_apb_timers_update(*this, cycle);
+    // cycle at 1GHz, timer clock at 10MHz
+    if ((cycle % 100) == 0) {
+        memory.pu_rvtimer_clock_tick(Noagent{this});
+        memory.spio_rvtimer_clock_tick(Noagent{this});
+        memory.pu_apb_timers_clock_tick(*this);
+        memory.spio_apb_timers_clock_tick(*this);
+    }
 }
 
 

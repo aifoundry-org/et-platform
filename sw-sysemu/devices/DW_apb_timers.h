@@ -174,16 +174,14 @@ struct DW_apb_timers : public MemoryRegion {
         }
     }
 
-    // Clock tick
-    void update(System& chip, int64_t) {
+    void clock_tick(System& chip) {
         for (size_type i = 0; i < NUM_TIMERS; i++) {
-            if (!CONTROLREG_TIMER_ENABLE_GET(controlreg[i]))
+            if (!CONTROLREG_TIMER_ENABLE_GET(controlreg[i])) {
                 continue;
-            if (currentvalue[i] == 0)
-                continue;
+            }
+            assert(currentvalue[i] > 0);
             // Timer counted down to 0
             if (--currentvalue[i] == 0) {
-
                 if (CONTROLREG_TIMER_MODE_GET(controlreg[i]) == 1) {
                     // User-defined count mode: loads the current value of the TimerNLoadCount
                     currentvalue[i] = loadcount[i];

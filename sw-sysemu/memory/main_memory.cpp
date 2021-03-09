@@ -199,24 +199,24 @@ uint64_t MainMemory::pu_rvtimer_read_mtimecmp() const
 }
 
 
-void MainMemory::pu_rvtimer_update(const Agent& agent, uint64_t cycle)
+void MainMemory::pu_rvtimer_clock_tick(const Agent& agent)
 {
     auto ptr = dynamic_cast<SysregRegion<sysreg_base, 4_GiB>*>(regions[5].get());
-    ptr->ioshire_pu_rvtimer.update(agent, cycle);
+    ptr->ioshire_pu_rvtimer.clock_tick(agent);
 }
 
 
-void MainMemory::pu_rvtimer_write_mtime(const Agent& agent, uint64_t cycle)
+void MainMemory::pu_rvtimer_write_mtime(const Agent& agent, uint64_t value)
 {
     auto ptr = dynamic_cast<SysregRegion<sysreg_base, 4_GiB>*>(regions[5].get());
-    ptr->ioshire_pu_rvtimer.write_mtime(agent, cycle);
+    ptr->ioshire_pu_rvtimer.write_mtime(agent, value);
 }
 
 
-void MainMemory::pu_rvtimer_write_mtimecmp(const Agent& agent, uint64_t cycle)
+void MainMemory::pu_rvtimer_write_mtimecmp(const Agent& agent, uint64_t value)
 {
     auto ptr = dynamic_cast<SysregRegion<sysreg_base, 4_GiB>*>(regions[5].get());
-    ptr->ioshire_pu_rvtimer.write_mtimecmp(agent, cycle);
+    ptr->ioshire_pu_rvtimer.write_mtimecmp(agent, value);
 }
 
 
@@ -231,38 +231,35 @@ bool MainMemory::spio_rvtimer_is_active() const
 }
 
 
-void MainMemory::spio_rvtimer_update(const Agent& agent, uint64_t cycle)
+void MainMemory::spio_rvtimer_clock_tick(const Agent& agent)
 {
 #ifdef SYS_EMU
     auto ptr = dynamic_cast<SvcProcRegion<spio_base, 1_GiB>*>(regions[3].get());
-    ptr->sp_rvtim.rvtimer.update(agent, cycle);
+    ptr->sp_rvtim.rvtimer.clock_tick(agent);
 #else
     (void) agent;
-    (void) cycle;
 #endif
 }
 
 
-void MainMemory::pu_apb_timers_update(System& chip, uint64_t cycle)
+void MainMemory::pu_apb_timers_clock_tick(System& chip)
 {
 #ifdef SYS_EMU
     auto ptr = dynamic_cast<PeripheralRegion<pu_io_base, 256_MiB>*>(regions[1].get());
-    ptr->pu_timer.update(chip, cycle);
+    ptr->pu_timer.clock_tick(chip);
 #else
     (void) chip;
-    (void) cycle;
 #endif
 }
 
 
-void MainMemory::spio_apb_timers_update(System& chip, uint64_t cycle)
+void MainMemory::spio_apb_timers_clock_tick(System& chip)
 {
 #ifdef SYS_EMU
     auto ptr = dynamic_cast<SvcProcRegion<spio_base, 1_GiB>*>(regions[3].get());
-    ptr->sp_timer.update(chip, cycle);
+    ptr->sp_timer.clock_tick(chip);
 #else
     (void) chip;
-    (void) cycle;
 #endif
 }
 
