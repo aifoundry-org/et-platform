@@ -67,7 +67,7 @@ trap_handler:
     jal   exception_handler
 
     /* Return value of exception handler is return address */
-    csrw  mepc, a0
+    csrw  sepc, a0
 
     /* Restore context */
     ld    x1,   1 * 8(sp)

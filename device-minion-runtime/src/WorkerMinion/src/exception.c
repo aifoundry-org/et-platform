@@ -23,7 +23,7 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
     uint64_t sstatus;
     asm volatile("csrr %0, sstatus" : "=r"(sstatus));
 
-    const bool user_mode = ((sstatus & 0x1800U) >> 11U) == 0;
+    const bool user_mode = ((sstatus & 0x100U) >> 8U) == 0;
     send_exception_message(scause, sepc, stval, sstatus, hart_id, shire_id, user_mode);
 
     // TODO: Save context to Exception Buffer (if present)
