@@ -20,7 +20,7 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
 static int64_t enable_thread1(uint64_t disable_mask, uint64_t enable_mask);
 
 static int64_t pre_kernel_setup(uint64_t hart_enable_mask, uint64_t first_worker);
-static int64_t post_kernel_cleanup(uint64_t thread_count, uint64_t do_evict_l3);
+static int64_t post_kernel_cleanup(uint64_t thread_count);
 
 static int64_t init_l1(void);
 static inline void evict_all_l1_ways(uint64_t use_tmask, uint64_t dest_level, uint64_t set,
@@ -58,7 +58,7 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
         ret = pre_kernel_setup(arg1, arg2);
         break;
     case SYSCALL_POST_KERNEL_CLEANUP_INT:
-        ret = post_kernel_cleanup(arg1, arg2);
+        ret = post_kernel_cleanup(arg1);
         break;
     case SYSCALL_GET_MTIME_INT:
         ret = (int64_t)*mtime_reg;
@@ -136,7 +136,7 @@ static int64_t pre_kernel_setup(uint64_t thread1_enable_mask, uint64_t first_wor
 
 // All the M-mode only work that needs to be done after a kernel returns
 // to avoid the overhead of making multiple syscalls
-static int64_t post_kernel_cleanup(uint64_t thread_count, uint64_t do_evict_l3)
+static int64_t post_kernel_cleanup(uint64_t thread_count)
 {
     bool result;
 
@@ -152,8 +152,6 @@ static int64_t post_kernel_cleanup(uint64_t thread_count, uint64_t do_evict_l3)
     // A full L2 evict includes flushing the coalescing buffer
     if (result) {
         evict_l2();
-        if (do_evict_l3)
-            evict_l3();
     }
 
     return 0;

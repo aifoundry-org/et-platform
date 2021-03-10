@@ -58,7 +58,6 @@ typedef enum {
 } mm_to_cm_message_id_e;
 
 #define KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH (1u << 0)
-#define KERNEL_LAUNCH_FLAGS_EVICT_L3_AFTER_LAUNCH  (1u << 1)
 
 typedef struct {
     cm_iface_message_header_t header;
