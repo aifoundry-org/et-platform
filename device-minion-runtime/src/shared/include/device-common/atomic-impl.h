@@ -76,7 +76,7 @@ static inline uint##size##_t atomic_##name##_##cscope##_##size(volatile uint##si
 
 #define atomic_signed_op_template(name, op, scope, type, cscope, size)                                  \
 static inline int##size##_t atomic_##name##_signed_##cscope##_##size(volatile int##size##_t *address,   \
-                                                               int##size##_t value)                     \
+                                                                     int##size##_t value)               \
 {                                                                                                       \
     int##size##_t result;                                                                               \
     asm volatile(                                                                                       \
@@ -86,6 +86,23 @@ static inline int##size##_t atomic_##name##_signed_##cscope##_##size(volatile in
         : [val]   "r" (value)                                                                           \
     );                                                                                                  \
     return result;                                                                                      \
+}
+
+#define atomic_compare_and_exchange_template(scope, type, cscope, size)                                      \
+static inline uint##size##_t atomic_compare_and_exchange_##cscope##_##size(volatile uint##size##_t *address, \
+                                                                           uint##size##_t expected,          \
+                                                                           uint##size##_t desired)           \
+{                                                                                                            \
+    uint##size##_t previous;                                                                                 \
+    register uint##size##_t x31 asm("x31") = expected;                                                       \
+    asm volatile(                                                                                            \
+        "amocmpswap" #scope "." #type " %[prev], %[desired], %[addr]"                                        \
+        : [prev]   "=r" (previous),                                                                          \
+          [addr]   "+A" (*address)                                                                           \
+        : [desired] "r" (desired),                                                                           \
+                    "r" (x31)                                                                                \
+    );                                                                                                       \
+    return previous;                                                                                         \
 }
 
 #define atomic_define_variants(func)           \
@@ -136,6 +153,11 @@ atomic_define_op_variants(and, and)
 atomic_define_op_variants(or, or)
 atomic_define_signed_op_variants(add, add)
 
+atomic_compare_and_exchange_template(l, w, local,  32)
+atomic_compare_and_exchange_template(l, d, local,  64)
+atomic_compare_and_exchange_template(g, w, global, 32)
+atomic_compare_and_exchange_template(g, d, global, 64)
+
 #undef atomic_store_small_template
 #undef atomic_load_small_template
 #undef atomic_load_template
@@ -148,3 +170,4 @@ atomic_define_signed_op_variants(add, add)
 #undef atomic_define_signed_variants
 #undef atomic_define_op_variants
 #undef atomic_define_signed_op_variants
+#undef atomic_compare_and_exchange_template
