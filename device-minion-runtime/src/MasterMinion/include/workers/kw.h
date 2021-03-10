@@ -60,6 +60,11 @@
 */
 #define KW_ERROR_KERNEL_SHIRES_NOT_READY -5
 
+/*! \def KW_ERROR_KERNEL_INVALID_ADDRESS
+    \brief Kernel Worker - Kernel invalid device address
+*/
+#define KW_ERROR_KERNEL_INVALID_ADDRESS  -6
+
 /*! \enum kernel_state_e
     \brief Enum that provides the state of a kernel
 */

@@ -227,8 +227,11 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 /* Populate the error type response */
                 if (status == KW_ERROR_KERNEL_SHIRES_NOT_READY)
                 {
-                    rsp.status =
-                        DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_SHIRES_NOT_READY;
+                    rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_SHIRES_NOT_READY;
+                }
+                else if (status == KW_ERROR_KERNEL_INVALID_ADDRESS)
+                {
+                    rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ADDRESS;
                 }
                 else
                 {
@@ -321,7 +324,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 "HostCommandHandler:Processing:DATA_READ_CMD\r\n");
 
             /* Obtain the next available DMA write channel */
-            status = DMAW_Write_Find_Idle_Chan_And_Reserve(&chan);
+            status = DMAW_Write_Find_Idle_Chan_And_Reserve(&chan, sqw_idx);
 
             if(status == STATUS_SUCCESS)
             {
@@ -359,13 +362,14 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 rsp.cmd_wait_time = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
                 rsp.cmd_execution_time = 0U;
 
-                /* Populate the eror type response */
+                /* Populate the error type response */
                 if (status == DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL)
                 {
-                    /* TODO: SW-4450: Rename device-ops-api response to
-                    DEV_OPS_API_DMA_RESPONSE_TIMEOUT_FIND_IDLE_CHANNEL */
-                    rsp.status =
-                        DEV_OPS_API_DMA_RESPONSE_CHANNEL_NOT_AVAILABLE;
+                    rsp.status = DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE;
+                }
+                else if(status == DMA_ERROR_INVALID_ADDRESS)
+                {
+                    rsp.status = DEV_OPS_API_DMA_RESPONSE_INVALID_ADDRESS;
                 }
                 else
                 {
@@ -407,7 +411,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 "HostCommandHandler:Processing:DATA_WRITE_CMD\r\n");
 
             /* Obtain the next available DMA read channel */
-            status = DMAW_Read_Find_Idle_Chan_And_Reserve(&chan);
+            status = DMAW_Read_Find_Idle_Chan_And_Reserve(&chan, sqw_idx);
 
             if(status == STATUS_SUCCESS)
             {
@@ -446,13 +450,14 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 rsp.cmd_wait_time = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
                 rsp.cmd_execution_time = 0U;
 
-                /* Populate the eror type response */
+                /* Populate the error type response */
                 if (status == DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL)
                 {
-                    /* TODO: SW-4450: Rename device-ops-api response to
-                    DEV_OPS_API_DMA_RESPONSE_TIMEOUT_FIND_IDLE_CHANNEL */
-                    rsp.status =
-                        DEV_OPS_API_DMA_RESPONSE_CHANNEL_NOT_AVAILABLE;
+                    rsp.status = DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE;
+                }
+                else if(status == DMA_ERROR_INVALID_ADDRESS)
+                {
+                    rsp.status = DEV_OPS_API_DMA_RESPONSE_INVALID_ADDRESS;
                 }
                 else
                 {

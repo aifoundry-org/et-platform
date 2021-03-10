@@ -68,11 +68,12 @@ typedef enum {
 typedef struct dma_channel_status {
     union {
         struct {
+            uint32_t channel_state; /* channel state indicated by dma_chan_state_e */
             uint16_t tag_id; /* tag_id for the transaction associated with the channel */
-            uint8_t  channel_state; /* channel state indicated by dma_chan_state_e */
             uint8_t  sqw_idx; /* SQW idx that submitted this command */
+            uint8_t  reserved; /* For future use */
         };
-        uint32_t raw_u32;
+        uint64_t raw_u64;
     };
 } dma_channel_status_t;
 
@@ -101,16 +102,18 @@ void DMAW_Launch(uint32_t hart_id);
 /*! \fn int8_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id)
     \brief Finds an idle DMA read channel and reserves it
     \param chan_id Pointer to DMA channel ID
+    \param sqw_idx Index of the submission queue worker
     \return Status success or error
 */
-int8_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id);
+int8_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id, uint8_t sqw_idx);
 
 /*! \fn int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id)
     \brief Finds an idle DMA write channel and reserves it
     \param chan_id Pointer to DMA channel ID
+    \param sqw_idx Index of the submission queue worker
     \return Status success or error
 */
-int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id);
+int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id, uint8_t sqw_idx);
 
 /*! \fn int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
     uint64_t src_addr, uint64_t dest_addr, uint64_t size, uint8_t sqw_idx,
@@ -148,10 +151,16 @@ int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id,
     uint64_t src_addr, uint64_t dest_addr, uint64_t size, uint8_t sqw_idx,
     uint16_t tag_id, exec_cycles_t *cycles);
 
-/*! \fn void DMAW_Timeout_Channel_Search_Callback(uint8_t read_write)
-    \brief Callback for read/write channel search timeout
-    \param read_write 0 for read channel, 1 for write channel
+/*! \fn void DMAW_Read_Ch_Search_Timeout_Callback(uint8_t sqw_idx)
+    \brief Callback for read channel search timeout
+    \param sqw_idx Index of the submission queue worker
 */
-void DMAW_Timeout_Channel_Search_Callback(uint8_t read_write);
+void DMAW_Read_Ch_Search_Timeout_Callback(uint8_t sqw_idx);
+
+/*! \fn void DMAW_Write_Ch_Search_Timeout_Callback(uint8_t sqw_idx)
+    \brief Callback for write channel search timeout
+    \param sqw_idx Index of the submission queue worker
+*/
+void DMAW_Write_Ch_Search_Timeout_Callback(uint8_t sqw_idx);
 
 #endif /* DMAW_DEFS_H */

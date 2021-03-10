@@ -77,6 +77,14 @@ typedef struct kw_cb_ {
 */
 static kw_cb_t KW_CB __attribute__((aligned(64))) = {0};
 
+/* Local function prototypes */
+
+static inline bool kw_check_address_bounds(uint64_t dev_address)
+{
+    return ((dev_address >= HOST_MANAGED_DRAM_START) &&
+            (dev_address < HOST_MANAGED_DRAM_END));
+}
+
 /************************************************************************
 *
 *   FUNCTION
@@ -321,34 +329,52 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
     (struct device_ops_kernel_launch_cmd_t *cmd, uint8_t sqw_idx, uint8_t* kw_idx)
 {
     kernel_instance_t *kernel = 0;
-    int8_t status;
+    int8_t status = KW_ERROR_KERNEL_INVALID_ADDRESS;
     uint8_t slot_index;
 
-    /* First we allocate resources needed for the kernel launch */
-    /* Reserve a slot for the kernel */
-    kernel = kw_reserve_kernel_slot(&slot_index);
-
-    if(kernel)
+    /* Verify kernel start address */
+    if(kw_check_address_bounds(cmd->code_start_address))
     {
-        /* Reserve compute shires needed for the requested
-        kernel launch */
-        status = kw_reserve_kernel_shires(cmd->shire_mask);
-
-        if(status == STATUS_SUCCESS)
+        /* Kernel args are optional */
+        if(cmd->pointer_to_args == 0)
         {
-            atomic_store_local_64(&kernel->kernel_shire_mask, cmd->shire_mask);
+            status = STATUS_SUCCESS;
+        }
+        /* Verify kernel args address if provided */
+        else if (kw_check_address_bounds(cmd->pointer_to_args))
+        {
+            status = STATUS_SUCCESS;
+        }
+    }
+
+    if(status == STATUS_SUCCESS)
+    {
+        /* First we allocate resources needed for the kernel launch */
+        /* Reserve a slot for the kernel */
+        kernel = kw_reserve_kernel_slot(&slot_index);
+
+        if(kernel)
+        {
+            /* Reserve compute shires needed for the requested
+            kernel launch */
+            status = kw_reserve_kernel_shires(cmd->shire_mask);
+
+            if(status == STATUS_SUCCESS)
+            {
+                atomic_store_local_64(&kernel->kernel_shire_mask, cmd->shire_mask);
+            }
+            else
+            {
+                /* Make reserved kernel slot available again */
+                kw_unreserve_kernel_slot(kernel);
+                Log_Write(LOG_LEVEL_DEBUG, "KW:ERROR:kernel shires unavailable\r\n");
+            }
         }
         else
         {
-            /* Make reserved kernel slot available again */
-            kw_unreserve_kernel_slot(kernel);
-            Log_Write(LOG_LEVEL_DEBUG, "KW:ERROR:kernel shires unavailable\r\n");
+            status = KW_ERROR_KERNEL_SLOT_UNAVAILABLE;
+            Log_Write(LOG_LEVEL_DEBUG, "KW:ERROR:kernel slot unavailable\r\n");
         }
-    }
-    else
-    {
-        status = KW_ERROR_KERNEL_SLOT_UNAVAILABLE;
-        Log_Write(LOG_LEVEL_DEBUG, "KW:ERROR:kernel slot unavailable\r\n");
     }
 
     if(status == STATUS_SUCCESS)
@@ -393,11 +419,6 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
             kw_unreserve_kernel_shires(cmd->shire_mask);
             kw_unreserve_kernel_slot(kernel);
         }
-    }
-    else
-    {
-        Log_Write(LOG_LEVEL_DEBUG, "KW:ERROR:MM2CMLaunch:ResourcesUnavailable:Failed:status:%d\r\n",
-            status);
     }
 
     return status;
