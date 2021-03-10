@@ -64,6 +64,11 @@ static inline uint64_t atomic_or_local_64(volatile uint64_t *address, uint64_t v
 static inline uint32_t atomic_or_global_32(volatile uint32_t *address, uint32_t value);
 static inline uint64_t atomic_or_global_64(volatile uint64_t *address, uint64_t value);
 
+static inline uint32_t atomic_compare_and_exchange_local_32(volatile uint32_t *address, uint32_t expected, uint32_t desired);
+static inline uint64_t atomic_compare_and_exchange_local_64(volatile uint64_t *address, uint64_t expected, uint64_t desired);
+static inline uint32_t atomic_compare_and_exchange_global_32(volatile uint32_t *address, uint32_t expected, uint32_t desired);
+static inline uint64_t atomic_compare_and_exchange_global_64(volatile uint64_t *address, uint64_t expected, uint64_t desired);
+
 #include "atomic-impl.h"
 
 #endif
