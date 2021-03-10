@@ -38,6 +38,8 @@ Enums:
         Value: 3
       - Name: HOST_ABORTED
         Value: 4
+      - Name: INVALID_ADDRESS
+        Value: 5
   - Name: dev_ops_api_kernel_abort_response
     Type: uint32_t
     Values:
@@ -56,8 +58,12 @@ Enums:
         Value: 1
       - Name: CHANNEL_NOT_AVAILABLE
         Value: 2
+      - Name: TIMEOUT_IDLE_CHANNEL_UNAVAILABLE
+        Value: 2
       - Name: ABORTED
         Value: 3
+      - Name: INVALID_ADDRESS
+        Value: 4
   - Name: dev_ops_api_error_type
     Type: uint32_t
     Values:
