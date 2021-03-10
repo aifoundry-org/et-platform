@@ -110,10 +110,14 @@ private:
       if (!done) {
         lock.unlock();
         RT_LOG(INFO) << "Submission queue " << sqIdx
-                    << " is full. Can't send command now, blocking the thread till there is available space.";
+                     << " is full. Can't send command now, blocking the thread till an event has been dispatched.";
         uint64_t sq_bitmap;
         bool cq_available;
-        deviceLayer_->waitForEpollEventsMasterMinion(device, sq_bitmap, cq_available);
+        auto events = eventManager_.getOnflyEvents();
+        if (events.empty()) {
+          throw Exception("Submission queue is full but there are not on-fly events. There could be a firmware bug.");
+        }
+        waitForEvent(*events.begin());
         lock.lock();
       }
     }
