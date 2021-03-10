@@ -96,7 +96,7 @@ static inline void kernel_info_set_attributes(uint32_t shire_id, uint8_t kw_base
 }
 
 static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_launch_flags);
-static void post_kernel_cleanup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_launch_flags, int64_t kernel_ret_val);
+static void post_kernel_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t kernel_ret_val);
 
 // Saves firmware context and launches kernel in user mode with clean stack and registers
 // Note that global Supervisor interrupts are disabled after returning from this function
@@ -250,7 +250,7 @@ int64_t launch_kernel(uint8_t kw_base_id,
 
     /* TODO: save the return_value and tensor_error in kernel exception/error buffer (if available) */
 
-    post_kernel_cleanup(kw_base_id, slot_index, kernel_launch_flags, return_value);
+    post_kernel_cleanup(kw_base_id, slot_index, return_value);
 
     return return_value;
 }
@@ -361,12 +361,11 @@ static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t ke
     asm volatile("fence");
 }
 
-static void post_kernel_cleanup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_launch_flags, int64_t kernel_ret_val)
+static void post_kernel_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t kernel_ret_val)
 {
     const uint32_t shire_id = get_shire_id();
     const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
     const uint32_t minion_mask = (get_shire_id() == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
-    uint64_t evict_l3 = 0;
 
     // Wait for all memory accesses to complete
     FENCE
@@ -387,11 +386,7 @@ static void post_kernel_cleanup(uint8_t kw_base_id, uint8_t slot_index, uint64_t
     // We have to make sure all threads have finished before evicting caches
     local_fcc_barrier(&post_launch_barrier[shire_id], thread_count, minion_mask);
 
-    // Check if we should evict the L3 to DDR after the kernel launch
-    if (kernel_launch_flags & KERNEL_LAUNCH_FLAGS_EVICT_L3_AFTER_LAUNCH)
-        evict_l3 = 1;
-
-    syscall(SYSCALL_POST_KERNEL_CLEANUP_INT, thread_count, evict_l3, 0);
+    syscall(SYSCALL_POST_KERNEL_CLEANUP_INT, thread_count, 0, 0);
 
     // Check for kernel execution error
     if (kernel_ret_val < KERNEL_COMPLETE_STATUS_SUCCESS)
