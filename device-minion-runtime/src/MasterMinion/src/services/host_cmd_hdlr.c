@@ -227,8 +227,11 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 /* Populate the error type response */
                 if (status == KW_ERROR_KERNEL_SHIRES_NOT_READY)
                 {
-                    rsp.status =
-                        DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_SHIRES_NOT_READY;
+                    rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_SHIRES_NOT_READY;
+                }
+                else if (status == KW_ERROR_KERNEL_INVALID_ADDRESS)
+                {
+                    rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ADDRESS;
                 }
                 else
                 {
