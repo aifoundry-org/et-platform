@@ -153,58 +153,63 @@
 /*! \def MM_BASE_ID
     \brief Base HART ID for the Master Minion
 */
-#define MM_BASE_ID            2048
+#define MM_BASE_ID               2048
+
+/*! \def MM_MAX_PARALLEL_KERNELS
+    \brief Maximum number of kerenls in parallel supported by MM runtime
+*/
+#define MM_MAX_PARALLEL_KERNELS  1
 
 /*! \def DISPATCHER_BASE_HART_ID
     \brief Base HART ID for the Dispatcher
 */
-#define     DISPATCHER_BASE_HART_ID     MM_BASE_ID
+#define DISPATCHER_BASE_HART_ID  MM_BASE_ID
 
 /*! \def DISPATCHER_NUM
     \brief Number of Dispatchers
     \warning DO NOT MODIFY!
 */
-#define     DISPATCHER_NUM              1
+#define DISPATCHER_NUM           1
 
 /*! \def SQW_BASE_HART_ID
     \brief Base HART ID for the Submission Queue Worker
 */
-#define SQW_BASE_HART_ID      2050U
+#define SQW_BASE_HART_ID         2050U
 
 /*! \def SQW_NUM
     \brief Number of Submission Queue Workers
 */
-#define SQW_NUM               MM_SQ_COUNT
+#define SQW_NUM                  MM_SQ_COUNT
 
 /*! \def KW_BASE_HART_ID
     \brief Base HART ID for the Kernel Worker
 */
-#define KW_BASE_HART_ID       2054U
+#define KW_BASE_HART_ID          2054U
 
 /*! \def KW_MS_BASE_HART
     \brief Base HART number in Master Shire for the kernel workers
 */
-#define KW_MS_BASE_HART       (KW_BASE_HART_ID - MM_BASE_ID)
-
-/*! \def MM_MAX_PARALLEL_KERNELS
-    \brief Maximum number of kerenls in parallel
-*/
-#define MM_MAX_PARALLEL_KERNELS     1
+#define KW_MS_BASE_HART          (KW_BASE_HART_ID - MM_BASE_ID)
 
 /*! \def KW_NUM
     \brief Number of Kernel Workers
 */
-#define KW_NUM                MM_MAX_PARALLEL_KERNELS
+#define KW_NUM                   MM_MAX_PARALLEL_KERNELS
 
 /*! \def DMAW_BASE_HART_ID
     \brief Base HART ID for the DMA Worker
 */
-#define DMAW_BASE_HART_ID     2058U
+#define DMAW_BASE_HART_ID        2058U
 
 /*! \def DMAW_NUM
     \brief Number of DMA Workers
 */
-#define DMAW_NUM              2
+#define DMAW_NUM                  2
+
+/*! \def DMAW_FIND_IDLE_CH_TIMEOUT
+    \brief Timout value (in milliseconds) for finding DMA idle channel
+*/
+#define DMAW_FIND_IDLE_CH_TIMEOUT 5000
 
 /***************************************************/
 /* Definitions to locate and manage MM to SP SQ/CQ */

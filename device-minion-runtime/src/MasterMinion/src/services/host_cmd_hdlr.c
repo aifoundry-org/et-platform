@@ -360,8 +360,10 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 rsp.cmd_execution_time = 0U;
 
                 /* Populate the eror type response */
-                if (status == DMAW_ERROR_CHANNEL_NOT_AVAILABLE)
+                if (status == DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL)
                 {
+                    /* TODO: SW-4450: Rename device-ops-api response to
+                    DEV_OPS_API_DMA_RESPONSE_TIMEOUT_FIND_IDLE_CHANNEL */
                     rsp.status =
                         DEV_OPS_API_DMA_RESPONSE_CHANNEL_NOT_AVAILABLE;
                 }
@@ -445,8 +447,10 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 rsp.cmd_execution_time = 0U;
 
                 /* Populate the eror type response */
-                if (status == DMAW_ERROR_CHANNEL_NOT_AVAILABLE)
+                if (status == DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL)
                 {
+                    /* TODO: SW-4450: Rename device-ops-api response to
+                    DEV_OPS_API_DMA_RESPONSE_TIMEOUT_FIND_IDLE_CHANNEL */
                     rsp.status =
                         DEV_OPS_API_DMA_RESPONSE_CHANNEL_NOT_AVAILABLE;
                 }
