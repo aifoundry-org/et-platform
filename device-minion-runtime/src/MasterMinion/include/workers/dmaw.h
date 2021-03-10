@@ -44,12 +44,12 @@
 /*! \def DMAW_ERROR_GENERAL
     \brief DMA Worker - General error
 */
-#define DMAW_ERROR_GENERAL               -1
+#define DMAW_ERROR_GENERAL                  -1
 
-/*! \def DMAW_ERROR_CHANNEL_NOT_AVAILABLE
-    \brief DMA Worker - DMA channel not available error
+/*! \def DMAW_ERROR_FIND_IDLE_CHANNEL_TIMEOUT
+    \brief DMA Worker - Find DMA idle channel timeoeut error
 */
-#define DMAW_ERROR_CHANNEL_NOT_AVAILABLE -2
+#define DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL -2
 
 /*! \enum dma_chan_state_e
     \brief Enum that provides the state of a DMA channel
@@ -147,5 +147,11 @@ int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
 int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id,
     uint64_t src_addr, uint64_t dest_addr, uint64_t size, uint8_t sqw_idx,
     uint16_t tag_id, exec_cycles_t *cycles);
+
+/*! \fn void DMAW_Timeout_Channel_Search_Callback(uint8_t read_write)
+    \brief Callback for read/write channel search timeout
+    \param read_write 0 for read channel, 1 for write channel
+*/
+void DMAW_Timeout_Channel_Search_Callback(uint8_t read_write);
 
 #endif /* DMAW_DEFS_H */

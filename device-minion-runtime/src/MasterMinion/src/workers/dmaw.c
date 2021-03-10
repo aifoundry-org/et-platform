@@ -49,6 +49,7 @@
 */
 typedef struct dmaw_read_cb {
     spinlock_t              resource_lock;
+    uint8_t                 chan_search_timeout_flag;
     dma_channel_status_cb_t chan_status_cb[PCIE_DMA_RD_CHANNEL_COUNT];
 } dmaw_read_cb_t;
 
@@ -58,6 +59,7 @@ typedef struct dmaw_read_cb {
 */
 typedef struct dmaw_write_cb {
     spinlock_t              resource_lock;
+    uint8_t                 chan_search_timeout_flag;
     dma_channel_status_cb_t chan_status_cb[PCIE_DMA_WRT_CHANNEL_COUNT];
 } dmaw_write_cb_t;
 
@@ -109,6 +111,12 @@ void DMAW_Init(void)
     /* Initialize the DMA Write resource lock */
     init_local_spinlock(&DMAW_Write_CB.resource_lock, 0);
 
+    /* Reset the read channel timeout flag */
+    atomic_store_local_8(&DMAW_Read_CB.chan_search_timeout_flag, 0U);
+
+    /* Reset the write channel timeout flag */
+    atomic_store_local_8(&DMAW_Write_CB.chan_search_timeout_flag, 0U);
+
     /* Initialize DMA Read channel status */
     for(int i = 0; i < PCIE_DMA_RD_CHANNEL_COUNT; i++)
     {
@@ -150,29 +158,41 @@ void DMAW_Init(void)
 ***********************************************************************/
 int8_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id)
 {
-    int8_t status = DMAW_ERROR_CHANNEL_NOT_AVAILABLE;
+    int8_t status = DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL;
+    bool channel_reserved = false;
 
     /* Acquire the lock */
     acquire_local_spinlock(&DMAW_Read_CB.resource_lock);
 
-    /* Find the idle channel and reserve it */
-    for (uint8_t ch = 0; ch < PCIE_DMA_RD_CHANNEL_COUNT; ch++)
-    {
-        if (atomic_load_local_8(
-            &DMAW_Read_CB.chan_status_cb[ch].status.channel_state) ==
-            DMA_CHAN_STATE_IDLE)
-        {
-            /* Reserve the channel */
-            atomic_store_local_8(
-                &DMAW_Read_CB.chan_status_cb[ch].status.channel_state,
-                DMA_CHAN_STATE_RESERVED);
+    /* TODO: SW-4450: Setup timer here with DMAW_FIND_IDLE_CH_TIMEOUT value.
+    Register DMAW_Timeout_Channel_Search_Callback with payload as 0U */
 
-            /* Return the DMA channel ID */
-            *chan_id = ch;
-            status = STATUS_SUCCESS;
-            break;
+    /* Try to find idle channel until timeout occurs */
+    do
+    {
+        /* Find the idle channel and reserve it */
+        for (uint8_t ch = 0; (ch < PCIE_DMA_RD_CHANNEL_COUNT) && (!channel_reserved); ch++)
+        {
+            if (atomic_load_local_8(
+                &DMAW_Read_CB.chan_status_cb[ch].status.channel_state) ==
+                DMA_CHAN_STATE_IDLE)
+            {
+                /* Reserve the channel */
+                atomic_store_local_8(
+                    &DMAW_Read_CB.chan_status_cb[ch].status.channel_state,
+                    DMA_CHAN_STATE_RESERVED);
+
+                /* Return the DMA channel ID */
+                *chan_id = ch;
+                status = STATUS_SUCCESS;
+                channel_reserved = true;
+                /* TODO: SW-4450: Cancel timer */
+            }
         }
-    }
+    } while(!channel_reserved && (atomic_load_local_8(&DMAW_Read_CB.chan_search_timeout_flag) == 0U));
+
+    /* Reset the timeout flag */
+    atomic_store_local_8(&DMAW_Read_CB.chan_search_timeout_flag, 0U);
 
     /* Release the lock */
     release_local_spinlock(&DMAW_Read_CB.resource_lock);
@@ -202,29 +222,41 @@ int8_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id)
 ***********************************************************************/
 int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id)
 {
-    int8_t status = DMAW_ERROR_CHANNEL_NOT_AVAILABLE;
+    int8_t status = DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL;
+    bool channel_reserved = false;
 
     /* Acquire the lock */
     acquire_local_spinlock(&DMAW_Write_CB.resource_lock);
 
-    /* Find the idle channel and reserve it */
-    for (uint8_t ch = 0; ch < PCIE_DMA_WRT_CHANNEL_COUNT; ch++)
-    {
-        if (atomic_load_local_8(
-            &DMAW_Write_CB.chan_status_cb[ch].status.channel_state) ==
-            DMA_CHAN_STATE_IDLE)
-        {
-            /* Reserve the channel */
-            atomic_store_local_8(
-                &DMAW_Write_CB.chan_status_cb[ch].status.channel_state,
-                DMA_CHAN_STATE_RESERVED);
+    /* TODO: SW-4450: Setup timer here with DMAW_FIND_IDLE_CH_TIMEOUT value.
+    Register DMAW_Timeout_Channel_Search_Callback with payload as 1U */
 
-            /* Return the DMA channel ID */
-            *chan_id = ch + DMA_CHAN_ID_WRITE_0;
-            status = STATUS_SUCCESS;
-            break;
+    /* Try to find idle channel until timeout occurs */
+    do
+    {
+        /* Find the idle channel and reserve it */
+        for (uint8_t ch = 0; (ch < PCIE_DMA_WRT_CHANNEL_COUNT) && (!channel_reserved); ch++)
+        {
+            if (atomic_load_local_8(
+                &DMAW_Write_CB.chan_status_cb[ch].status.channel_state) ==
+                DMA_CHAN_STATE_IDLE)
+            {
+                /* Reserve the channel */
+                atomic_store_local_8(
+                    &DMAW_Write_CB.chan_status_cb[ch].status.channel_state,
+                    DMA_CHAN_STATE_RESERVED);
+
+                /* Return the DMA channel ID */
+                *chan_id = ch + DMA_CHAN_ID_WRITE_0;
+                status = STATUS_SUCCESS;
+                channel_reserved = true;
+                /* TODO: SW-4450: Cancel timer */
+            }
         }
-    }
+    } while(!channel_reserved && (atomic_load_local_8(&DMAW_Write_CB.chan_search_timeout_flag) == 0U));
+
+    /* Reset the timeout flag */
+    atomic_store_local_8(&DMAW_Write_CB.chan_search_timeout_flag, 0U);
 
     /* Release the lock */
     release_local_spinlock(&DMAW_Write_CB.resource_lock);
@@ -370,6 +402,40 @@ int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id,
     }
 
     return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       DMAW_Timeout_Channel_Search_Callback
+*
+*   DESCRIPTION
+*
+*       Callback for read/write channel search timeout
+*
+*   INPUTS
+*
+*       uint8_t   Read or write channel search to timeout
+*                 0 - Read channel; 1 - Write channel
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void DMAW_Timeout_Channel_Search_Callback(uint8_t read_write)
+{
+    if(read_write == 0)
+    {
+        /* Set the read channel timeout flag */
+        atomic_store_local_8(&DMAW_Read_CB.chan_search_timeout_flag, 1U);
+    }
+    else if(read_write == 1)
+    {
+        /* Set the write channel timeout flag */
+        atomic_store_local_8(&DMAW_Write_CB.chan_search_timeout_flag, 1U);
+    }
 }
 
 /************************************************************************
