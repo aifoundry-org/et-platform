@@ -53,14 +53,7 @@ static const struct pci_device_id esperanto_pcie_tbl[] = {
 };
 
 #define ET_MAX_DEVS	64
-DECLARE_BITMAP(dev_bitmap, ET_MAX_DEVS);
-
-// TODO SW-4210: Remove when MSIx is enabled
-/*
- * Timeout is 250ms. Picked because it's unlikley the driver will miss an IRQ,
- * so this is a contigency and does not need to be checked often.
- */
-#define MISSED_IRQ_TIMEOUT (HZ / 4)
+static DECLARE_BITMAP(dev_bitmap, ET_MAX_DEVS);
 
 static u8 get_index(void)
 {
@@ -71,31 +64,6 @@ static u8 get_index(void)
 	index = find_first_zero_bit(dev_bitmap, ET_MAX_DEVS);
 	set_bit(index, dev_bitmap);
 	return index;
-}
-
-// TODO SW-4210: Remove when MSIx is enabled
-static void et_isr_work(struct work_struct *work);
-
-// TODO SW-4210: Remove when MSIx is enabled
-static irqreturn_t et_pcie_isr(int irq, void *dev_id)
-{
-	struct et_pci_dev *et_dev = (struct et_pci_dev *)dev_id;
-
-	queue_work(et_dev->workqueue, &et_dev->isr_work);
-
-	return IRQ_HANDLED;
-}
-
-// TODO SW-4210: Remove when MSIx is enabled
-static void et_isr_work(struct work_struct *work)
-{
-	struct et_pci_dev *et_dev =
-		container_of(work, struct et_pci_dev, isr_work);
-
-	// TODO: if multi-vector setup, dispatch without broadcasting to
-	// everyone - JIRA SW-953
-	et_cqueue_isr_bottom(et_dev->mgmt.cq_pptr[0]);
-	et_cqueue_isr_bottom(et_dev->ops.cq_pptr[0]);
 }
 
 static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
@@ -546,7 +514,6 @@ static const struct file_operations et_pcie_mgmt_fops = {
 static int create_et_pci_dev(struct et_pci_dev **new_dev, struct pci_dev *pdev)
 {
 	struct et_pci_dev *et_dev;
-	char wq_name[32];
 
 	et_dev = devm_kzalloc(&pdev->dev, sizeof(*et_dev), GFP_KERNEL);
 	*new_dev = et_dev;
@@ -564,18 +531,6 @@ static int create_et_pci_dev(struct et_pci_dev **new_dev, struct pci_dev *pdev)
 
 	et_dev->num_irq_vecs = 0;
 	et_dev->used_irq_vecs = 0;
-	et_dev->aborting = false;
-	spin_lock_init(&et_dev->abort_lock);
-
-	// TODO SW-4210: Remove when MSIx is enabled
-	snprintf(wq_name, sizeof(wq_name), "%s_wq%d",
-		 dev_name(&et_dev->pdev->dev), et_dev->dev_index);
-	et_dev->workqueue = create_singlethread_workqueue(wq_name);
-	if (!et_dev->workqueue)
-		return -ENOMEM;
-
-	// TODO SW-4210: Remove when MSIx is enabled
-	INIT_WORK(&et_dev->isr_work, et_isr_work);
 
 	return 0;
 }
@@ -1135,10 +1090,6 @@ static void destroy_et_pci_dev(struct et_pci_dev *et_dev)
 
 	dev_index = et_dev->dev_index;
 	clear_bit(dev_index, dev_bitmap);
-
-	// TODO SW-4210: Remove when MSIx is enabled
-	if (et_dev->workqueue)
-		destroy_workqueue(et_dev->workqueue);
 }
 
 static int esperanto_pcie_probe(struct pci_dev *pdev,
@@ -1146,7 +1097,6 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 {
 	int rv;
 	struct et_pci_dev *et_dev;
-	unsigned long flags;
 
 	// Create instance data for this device, save it to drvdata
 	rv = create_et_pci_dev(&et_dev, pdev);
@@ -1170,13 +1120,12 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-        //SW-953-Increase this to 2 vectors, we need to increase to 4 vectors
+	// TODO: Split MSI for SQ and CQ, currently following MSIs are
+	// supported
         // Device Management:
-        //  - Vector[0] - Mgnt CQ completion
-        //  - Vector[1] - Error Signalling
-        // Device Ops:
-        //  - Vector[2] - Opts CQ completion
-        //  - Vector[3] - SQ Free indication
+        //  - Vector[0] - Mgmt VQ (both SQ & CQ)
+        // Device Operations:
+        //  - Vector[1] - Ops VQ (both SQ & CQ)
 	et_dev->num_irq_vecs = 2;
 	rv = pci_alloc_irq_vectors(pdev, et_dev->num_irq_vecs,
 				   et_dev->num_irq_vecs, PCI_IRQ_MSI);
@@ -1205,28 +1154,7 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		goto error_mgmt_dev_destroy;
 	}
 
-	// TODO SW-4210: Remove when MSIx is enabled
-	rv = request_irq(pci_irq_vector(pdev, 0), et_pcie_isr, 0, "common_irq",
-			 (void *)et_dev);
-	if (rv) {
-		dev_err(&pdev->dev, "request irq failed\n");
-		goto error_master_minion_destroy;
-	}
-
 	return 0;
-
-error_master_minion_destroy:
-	// TODO SW-4210: Remove when MSIx is enabled
-	spin_lock_irqsave(&et_dev->abort_lock, flags);
-	et_dev->aborting = true;
-	spin_unlock_irqrestore(&et_dev->abort_lock, flags);
-
-	// TODO SW-4210: Remove when MSIx is enabled
-	// Disable anything that could trigger additional calls to isr_work
-	// in another core before canceling it
-	cancel_work_sync(&et_dev->isr_work);
-
-	et_ops_dev_destroy(et_dev);
 
 error_mgmt_dev_destroy:
 	et_mgmt_dev_destroy(et_dev);
@@ -1253,22 +1181,10 @@ error_free_dev:
 static void esperanto_pcie_remove(struct pci_dev *pdev)
 {
 	struct et_pci_dev *et_dev;
-	unsigned long flags;
 
 	et_dev = pci_get_drvdata(pdev);
 	if (!et_dev)
 		return;
-
-	// TODO SW-4210: Remove when MSIx is enabled
-	spin_lock_irqsave(&et_dev->abort_lock, flags);
-	et_dev->aborting = true;
-	spin_unlock_irqrestore(&et_dev->abort_lock, flags);
-
-	// TODO SW-4210: Remove when MSIx is enabled
-	// Disable anything that could trigger additional calls to isr_work
-	// in another core before canceling it
-	cancel_work_sync(&et_dev->isr_work);
-	free_irq(pci_irq_vector(pdev, 0), (void *)et_dev);
 
 	et_ops_dev_destroy(et_dev);
 	et_mgmt_dev_destroy(et_dev);

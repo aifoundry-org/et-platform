@@ -72,14 +72,8 @@ struct et_pci_dev {
 	struct et_ops_dev ops;
 	struct et_mgmt_dev mgmt;
 
-	u32 num_irq_vecs;
-	u32 used_irq_vecs;
-
-	// TODO SW-4210: Remove when MSIx is enabled
-	struct workqueue_struct *workqueue;
-	struct work_struct isr_work;
-	bool aborting;
-	spinlock_t abort_lock;		/* serializes access to aborting */
+	u8 num_irq_vecs;
+	u8 used_irq_vecs;
 };
 
 int et_map_bar(struct et_pci_dev *et_dev, const struct et_bar_mapping *bm_info,

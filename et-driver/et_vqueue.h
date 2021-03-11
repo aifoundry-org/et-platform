@@ -44,6 +44,7 @@ struct et_vq_common {
 	bool aborting;
 	spinlock_t abort_lock;		/* serializes access to aborting */
 	struct pci_dev *pdev;
+	u8 vec_idx_offset;
 };
 
 struct et_squeue {

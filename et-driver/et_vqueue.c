@@ -18,12 +18,6 @@
 #include "et_vqueue.h"
 #include "et_pci_dev.h"
 
-/*
- * Timeout is 250ms. Picked because it's unlikley the driver will miss an IRQ,
- * so this is a contigency and does not need to be checked often.
- */
-#define MISSED_IRQ_TIMEOUT (HZ / 4)
-
 static struct et_msg_node *create_msg_node(u32 msg_size)
 {
 	struct et_msg_node *new_node;
@@ -110,8 +104,6 @@ bool et_cqueue_msg_available(struct et_cqueue *cq)
 	return !!(msg);
 }
 
-// TODO SW-4210: Uncomment when MSIx is enabled
-#if 0
 static irqreturn_t et_pcie_isr(int irq, void *cq_id)
 {
 	struct et_cqueue *cq = (struct et_cqueue *)cq_id;
@@ -127,7 +119,6 @@ static void et_isr_work(struct work_struct *work)
 
 	et_cqueue_isr_bottom(cq);
 }
-#endif
 
 static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 {
@@ -192,11 +183,9 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 
 static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 {
-	// TODO SW-4210: Uncomment when MSIx is enabled
-//	char irq_name[16];
-//	ssize_t rv;
-//	u32 i, irq_cnt_init;
-	u32 i;
+	char irq_name[16];
+	ssize_t rv;
+	u32 i, irq_cnt_init;
 	struct et_vq_common *vq_common;
 	struct et_cqueue **cq_pptr;
 	struct et_mapped_region *vq_region;
@@ -231,10 +220,8 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	cq_baseaddr = (u8 *)vq_region->mapped_baseaddr +
 		      vq_common->dir_vq.cq_offset;
 
-	// TODO SW-4210: Uncomment when MSIx is enabled
-//	for (i = 0, irq_cnt_init = 0; i < vq_common->dir_vq.cq_count; i++,
-//	     irq_cnt_init++) {
-	for (i = 0; i < vq_common->dir_vq.cq_count; i++) {
+	for (i = 0, irq_cnt_init = 0; i < vq_common->dir_vq.cq_count; i++,
+	     irq_cnt_init++) {
 		cq_pptr[i] = (struct et_cqueue *)mem;
 		mem += sizeof(**cq_pptr);
 
@@ -248,17 +235,16 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		INIT_LIST_HEAD(&cq_pptr[i]->msg_list);
 		mutex_init(&cq_pptr[i]->msg_list_mutex);
 
-		// TODO SW-4210: Uncomment when MSIx is enabled
-//		snprintf(irq_name, sizeof(irq_name), "irq_%s_cq_%d",
-//			 (is_mgmt) ? "mgmt" : "ops", i);
-//		rv = request_irq(pci_irq_vector(et_dev->pdev,
-//						vq_common->vec_idx_offset + i),
-//				 et_pcie_isr, 0, irq_name, (void *)cq_pptr[i]);
-//		if (rv) {
-//			dev_err(&et_dev->pdev->dev, "request irq failed\n");
-//			goto error_free_irq;
-//		}
-//		INIT_WORK(&cq_pptr[i]->isr_work, et_isr_work);
+		snprintf(irq_name, sizeof(irq_name), "irq_%s_cq_%d",
+			 (is_mgmt) ? "mgmt" : "ops", i);
+		rv = request_irq(pci_irq_vector(et_dev->pdev,
+						vq_common->vec_idx_offset + i),
+				 et_pcie_isr, 0, irq_name, (void *)cq_pptr[i]);
+		if (rv) {
+			dev_err(&et_dev->pdev->dev, "request irq failed\n");
+			goto error_free_irq;
+		}
+		INIT_WORK(&cq_pptr[i]->isr_work, et_isr_work);
 		cq_pptr[i]->vq_common = vq_common;
 	}
 
@@ -269,15 +255,14 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 
 	return 0;
 
-// TODO SW-4210: Uncomment when MSIx is enabled
-//error_free_irq:
-//	for (i = 0; i < irq_cnt_init; i++)
-//		free_irq(pci_irq_vector(et_dev->pdev,
-//			 vq_common->vec_idx_offset + i), (void *)cq_pptr[i]);
-//
-//	kfree(cq_pptr);
-//
-//	return rv;
+error_free_irq:
+	for (i = 0; i < irq_cnt_init; i++)
+		free_irq(pci_irq_vector(et_dev->pdev,
+			 vq_common->vec_idx_offset + i), (void *)cq_pptr[i]);
+
+	kfree(cq_pptr);
+
+	return rv;
 }
 
 static void et_squeue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt);
@@ -320,15 +305,14 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		[MGMT_MEM_REGION_TYPE_VQ_INTRPT_TRG].mapped_baseaddr +
 		vq_common->dir_vq.intrpt_trg_offset;
 
-	// TODO SW-4210: Uncomment when MSIx is enabled
-//	if (et_dev->used_irq_vecs + vq_common->cq_count >
-//	    et_dev->num_irq_vecs) {
-//		dev_err(&et_dev->pdev->dev,
-//			"VQ: not enough vecs allocated\n");
-//		rv = -EINVAL;
-//		goto error_destroy_workqueue;
-//	}
-//	vq_common->vec_idx_offset = et_dev->used_irq_vecs;
+	if (et_dev->used_irq_vecs + vq_common->dir_vq.cq_count >
+	    et_dev->num_irq_vecs) {
+		dev_err(&et_dev->pdev->dev,
+			"VQ: not enough vecs allocated\n");
+		rv = -EINVAL;
+		goto error_destroy_workqueue;
+	}
+	vq_common->vec_idx_offset = et_dev->used_irq_vecs;
 
 	bitmap_zero(vq_common->sq_bitmap, ET_MAX_QUEUES);
 	bitmap_zero(vq_common->cq_bitmap, ET_MAX_QUEUES);
@@ -345,8 +329,7 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	if (rv)
 		goto error_squeue_destroy_all;
 
-	// TODO SW-4210: Uncomment when MSIx is enabled
-//	et_dev->used_irq_vecs += vq_common->cq_count;
+	et_dev->used_irq_vecs += vq_common->dir_vq.cq_count;
 
 	return rv;
 
@@ -397,11 +380,10 @@ static void et_cqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	}
 
 	for (i = 0; i < vq_common->dir_vq.cq_count; i++) {
-		// TODO SW-4210: Uncomment when MSIx is enabled
-//		cancel_work_sync(&cq_pptr[i]->isr_work);
-//		free_irq(pci_irq_vector(et_dev->pdev,
-//					vq_common->vec_idx_offset + i),
-//			 (void *)cq_pptr[i]);
+		cancel_work_sync(&cq_pptr[i]->isr_work);
+		free_irq(pci_irq_vector(et_dev->pdev,
+					vq_common->vec_idx_offset + i),
+			 (void *)cq_pptr[i]);
 		mutex_destroy(&cq_pptr[i]->pop_mutex);
 		destroy_msg_list(cq_pptr[i]);
 		mutex_destroy(&cq_pptr[i]->msg_list_mutex);
@@ -430,8 +412,7 @@ void et_vqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	et_squeue_destroy_all(et_dev, is_mgmt);
 	et_cqueue_destroy_all(et_dev, is_mgmt);
 
-	// TODO SW-4210: Uncomment when MSIx is enabled
-//	et_dev->used_irq_vecs -= vq_common->cq_count;
+	et_dev->used_irq_vecs -= vq_common->dir_vq.cq_count;
 	wake_up_interruptible_all(&vq_common->waitqueue);
 	destroy_workqueue(vq_common->workqueue);
 }
@@ -566,13 +547,13 @@ ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev, bool is_mgmt,
 	struct et_dma_info *dma_info = NULL;
 	ssize_t rv;
 
-	if (et_dev->aborting)
-		return -EINTR;
-
 	if (is_mgmt)
 		cq = et_dev->mgmt.cq_pptr[cq_index];
 	else
 		cq = et_dev->ops.cq_pptr[cq_index];
+
+	if (cq->vq_common->aborting)
+		return -EINTR;
 
 	if (!ubuf || !count)
 		return -EINVAL;
