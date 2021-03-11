@@ -60,6 +60,22 @@ extern bool Host_Iface_Interrupt_Flag;
 /* TODO: This shoul dbe included using a proper header during clean up */
 extern void message_init_master(void);
 
+/* Local functions */
+
+static inline void dispatcher_assert(bool condition, const char* error_log)
+{
+    if (!condition)
+    {
+        /* Report error in DIRs */
+        DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_FW_ERROR);
+
+        /* TODO: Report error to SP */
+
+        /* Assert with failure */
+        ASSERT(false, error_log);
+    }
+}
+
 static inline void dispatcher_process_cm_messages(void)
 {
     /* Processes messages from CM from CM > MM unicast circbuff */
@@ -127,10 +143,15 @@ static inline void dispatcher_process_cm_messages(void)
 ***********************************************************************/
 void Dispatcher_Launch(uint32_t hart_id)
 {
+    int8_t status;
     uint64_t sip;
 
+    /* Initially set DIRs status to not ready */
+    DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_DEV_INTF_NOT_READY);
+
     /* Initialize Serial Interface */
-    SERIAL_init(UART0);
+    status = (int8_t)SERIAL_init(UART0);
+    dispatcher_assert(status == STATUS_SUCCESS, "Serial init failure.");
 
     Log_Write(LOG_LEVEL_CRITICAL,
         "Dispatcher:launched on H%d\r\n", hart_id);
@@ -155,7 +176,9 @@ void Dispatcher_Launch(uint32_t hart_id)
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_CM_INTERFACE_READY);
 
     /* Initialize Computer Workers */
-    CW_Init();
+    status = CW_Init();
+    dispatcher_assert(status == STATUS_SUCCESS, "Compute Workers init failure.");
+
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_CM_WORKERS_INITIALIZED);
 
     /* Initialize Master Shire Workers */
@@ -165,14 +188,22 @@ void Dispatcher_Launch(uint32_t hart_id)
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_WORKERS_INITIALIZED);
 
     /* Initialize Host Submission Queue and Completion Queue Interface */
-    Host_Iface_SQs_Init();
-    Host_Iface_CQs_Init();
+    status = Host_Iface_SQs_Init();
+    dispatcher_assert(status == STATUS_SUCCESS, "Host SQs init failure.");
+
+    status = Host_Iface_CQs_Init();
+    dispatcher_assert(status == STATUS_SUCCESS, "Host CQs init failure.");
+
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_HOST_VQ_READY);
 
     /* Initialize Service Processor Submission Queue and Completion
     Queue Interface */
-    SP_Iface_SQs_Init();
-    SP_Iface_CQs_Init();
+    status = SP_Iface_SQs_Init();
+    dispatcher_assert(status == STATUS_SUCCESS, "SP SQs init failure.");
+
+    status = SP_Iface_CQs_Init();
+    dispatcher_assert(status == STATUS_SUCCESS, "SP CQs init failure.");
+
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_SP_INTERFACE_READY);
 
     /* Release Master Shire Workers */

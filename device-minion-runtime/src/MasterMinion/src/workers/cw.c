@@ -118,15 +118,16 @@ int8_t CW_Init(void)
             while(1)
             {
                 cm_iface_message_t message;
+                int8_t internal_status;
 
                 /* Unicast to dispatcher is slot 0 of unicast
                 circular-buffers */
                 /* TODO: This should be brought into proper abstraction
                 in cw_iface.h */
-                status = CM_To_MM_Iface_Unicast_Receive
+                internal_status = CM_To_MM_Iface_Unicast_Receive
                     (CM_MM_MASTER_HART_UNICAST_BUFF_IDX, &message);
 
-                if (status != STATUS_SUCCESS)
+                if (internal_status != STATUS_SUCCESS)
                     break;
 
                 switch (message.header.id)

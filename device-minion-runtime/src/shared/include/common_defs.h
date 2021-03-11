@@ -21,6 +21,19 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#if defined(MASTER_MINION)
+/*! \def ASSERT(cond, log)
+    \brief A blocking assertion macro with serial log for Master Minion runtime
+*/
+#define ASSERT(cond, log)                                                          \
+    if (!(cond))                                                                   \
+    {                                                                              \
+        Log_Write(LOG_LEVEL_CRITICAL,                                              \
+        "Assertion failed on line %d in %s: %s\r\n", __LINE__, __FUNCTION__, log); \
+        while(1);                                                                  \
+    }
+#endif
+
 /*! \def HARTS_PER_MINION
     \brief A macro that provides number of Harts per Minion
 */
