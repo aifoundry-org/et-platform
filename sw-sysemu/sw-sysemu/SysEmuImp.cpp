@@ -323,12 +323,10 @@ SysEmuImp::~SysEmuImp() {
   };
   std::unique_lock<std::mutex> lock(mutex_);
   requests_.emplace(std::move(request));
-  running_ = false;
+  stop();
   lock.unlock();
   // Wait until set_emu_done is called
   p.get_future().get();
-  // Wake host interrupt waiters
-  condVar_.notify_all();
   // Empty request queue
   lock.lock();
   while (!requests_.empty()) {
@@ -405,4 +403,10 @@ SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>
 
   SE_LOG(INFO) << "Calling pcieReady";
   hostListener_->pcieReady();
+}
+
+void SysEmuImp::stop() {
+  running_ = false;
+  // Wake host interrupt waiters
+  condVar_.notify_all();
 }
