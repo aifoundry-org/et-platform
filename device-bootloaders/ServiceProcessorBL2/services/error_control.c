@@ -48,7 +48,8 @@
 *
 ***********************************************************************/
 
-static void error_ctl_set_ddr_ecc_count(tag_id_t tag_id, uint64_t req_start_time, uint32_t ecc_count)
+static void error_ctl_set_ddr_ecc_count(tag_id_t tag_id, uint64_t req_start_time,
+                                        uint32_t ecc_count)
 {
     struct device_mgmt_default_rsp_t dm_rsp;
     int32_t status;
@@ -59,10 +60,8 @@ static void error_ctl_set_ddr_ecc_count(tag_id_t tag_id, uint64_t req_start_time
         printf("error_ctl_set_ddr_ecc_count: driver error !\n");
     }
 
-    FILL_RSP_HEADER(dm_rsp, tag_id,
-                    DM_CMD_SET_DDR_ECC_COUNT,
-                    timer_get_ticks_count() - req_start_time,
-                    status);
+    FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_SET_DDR_ECC_COUNT,
+                    timer_get_ticks_count() - req_start_time, status);
 
     dm_rsp.payload = status;
 
@@ -92,7 +91,8 @@ static void error_ctl_set_ddr_ecc_count(tag_id_t tag_id, uint64_t req_start_time
 *       None
 *
 ***********************************************************************/
-static void error_ctl_set_pcie_ecc_count(tag_id_t tag_id, uint64_t req_start_time, uint32_t ecc_count)
+static void error_ctl_set_pcie_ecc_count(tag_id_t tag_id, uint64_t req_start_time,
+                                         uint32_t ecc_count)
 {
     struct device_mgmt_default_rsp_t dm_rsp;
     int32_t status;
@@ -103,10 +103,8 @@ static void error_ctl_set_pcie_ecc_count(tag_id_t tag_id, uint64_t req_start_tim
         printf("error_ctl_set_pcie_ecc_count: driver error !\n");
     }
 
-    FILL_RSP_HEADER(dm_rsp, tag_id,
-                    DM_CMD_SET_PCIE_ECC_COUNT,
-                    timer_get_ticks_count() - req_start_time,
-                    status);
+    FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_SET_PCIE_ECC_COUNT,
+                    timer_get_ticks_count() - req_start_time, status);
 
     dm_rsp.payload = status;
 
@@ -136,7 +134,8 @@ static void error_ctl_set_pcie_ecc_count(tag_id_t tag_id, uint64_t req_start_tim
 *       None
 *
 ***********************************************************************/
-static void error_ctl_set_sram_ecc_count(tag_id_t tag_id, uint64_t req_start_time, uint32_t ecc_count)
+static void error_ctl_set_sram_ecc_count(tag_id_t tag_id, uint64_t req_start_time,
+                                         uint32_t ecc_count)
 {
     struct device_mgmt_default_rsp_t dm_rsp;
     int32_t status;
@@ -147,10 +146,8 @@ static void error_ctl_set_sram_ecc_count(tag_id_t tag_id, uint64_t req_start_tim
         printf("error_ctl_set_sram_ecc_count: driver error !\n");
     }
 
-    FILL_RSP_HEADER(dm_rsp, tag_id,
-                    DM_CMD_SET_SRAM_ECC_COUNT,
-                    timer_get_ticks_count() - req_start_time,
-                    status);
+    FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_SET_SRAM_ECC_COUNT,
+                    timer_get_ticks_count() - req_start_time, status);
 
     dm_rsp.payload = status;
 

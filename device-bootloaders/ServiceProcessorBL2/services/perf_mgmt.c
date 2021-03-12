@@ -31,12 +31,12 @@
 struct soc_perf_reg_t {
     struct asic_frequencies_t asic_frequency;
     struct dram_bw_t dram_bw;
-    struct max_dram_bw_t  max_dram_bw;
+    struct max_dram_bw_t max_dram_bw;
     uint32_t dram_capacity_percent;
     uint64_t last_ts_min;
 };
 
-struct soc_perf_reg_t  g_soc_perf_reg __attribute__((section(".data")));
+struct soc_perf_reg_t g_soc_perf_reg __attribute__((section(".data")));
 
 volatile struct soc_perf_reg_t *get_soc_perf_reg(void)
 {
@@ -72,16 +72,18 @@ int update_dram_bw(void)
     get_soc_perf_reg()->dram_bw.read_req_sec = 100;
     get_soc_perf_reg()->dram_bw.write_req_sec = 100;
 
-    // Update the max DRAM BW values if condition met 
-    if (get_soc_perf_reg()->max_dram_bw.max_bw_rd_req_sec < get_soc_perf_reg()->dram_bw.read_req_sec)
-    {
-        //TODO : Make the size of both members same. 
-        get_soc_perf_reg()->max_dram_bw.max_bw_rd_req_sec = (uint8_t)get_soc_perf_reg()->dram_bw.read_req_sec;
+    // Update the max DRAM BW values if condition met
+    if (get_soc_perf_reg()->max_dram_bw.max_bw_rd_req_sec <
+        get_soc_perf_reg()->dram_bw.read_req_sec) {
+        //TODO : Make the size of both members same.
+        get_soc_perf_reg()->max_dram_bw.max_bw_rd_req_sec =
+            (uint8_t)get_soc_perf_reg()->dram_bw.read_req_sec;
     }
 
-    if (get_soc_perf_reg()->max_dram_bw.max_bw_wr_req_sec < get_soc_perf_reg()->dram_bw.write_req_sec)
-    {
-        get_soc_perf_reg()->max_dram_bw.max_bw_wr_req_sec = (uint8_t)get_soc_perf_reg()->dram_bw.write_req_sec;
+    if (get_soc_perf_reg()->max_dram_bw.max_bw_wr_req_sec <
+        get_soc_perf_reg()->dram_bw.write_req_sec) {
+        get_soc_perf_reg()->max_dram_bw.max_bw_wr_req_sec =
+            (uint8_t)get_soc_perf_reg()->dram_bw.write_req_sec;
     }
 
     return 0;

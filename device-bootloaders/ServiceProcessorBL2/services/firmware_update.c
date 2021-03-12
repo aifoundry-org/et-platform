@@ -119,13 +119,12 @@ static int32_t update_sp_boot_root_certificate_hash(char *certficate_hash)
     return 0;
 }
 
-static void send_status_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, int32_t status)
+static void send_status_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time,
+                                 int32_t status)
 {
     struct device_mgmt_default_rsp_t dm_rsp;
 
-    FILL_RSP_HEADER(dm_rsp, tag_id, msg_id,
-                    timer_get_ticks_count() - req_start_time,
-                    status);
+    FILL_RSP_HEADER(dm_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, status);
 
     dm_rsp.payload = status;
 
@@ -224,18 +223,16 @@ static void dm_svc_get_firmware_version(tag_id_t tag_id, uint64_t req_start_time
         ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
          0xFF));
 
-    FILL_RSP_HEADER(dm_rsp, tag_id,
-                    DM_CMD_GET_MODULE_FIRMWARE_REVISIONS,
-                    timer_get_ticks_count() - req_start_time,
-                    DM_STATUS_SUCCESS);
+    FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_GET_MODULE_FIRMWARE_REVISIONS,
+                    timer_get_ticks_count() - req_start_time, DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(dm_rsp))) {
         printf("dm_svc_get_firmware_version: Cqueue push error!\n");
     }
 }
 
-static int32_t
-dm_svc_update_sp_boot_root_certificate_hash(struct device_mgmt_certificate_hash_cmd_t *certificate_hash_cmd)
+static int32_t dm_svc_update_sp_boot_root_certificate_hash(
+    struct device_mgmt_certificate_hash_cmd_t *certificate_hash_cmd)
 {
     printf("recieved hash:\n");
     for (int i = 0; i < 64; i++) {

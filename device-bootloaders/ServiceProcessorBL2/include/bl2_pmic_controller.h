@@ -53,7 +53,7 @@ enum shire_type_t {
 
 void setup_pmic(void);
 uint8_t pmic_read_soc_power(void);
-void pmic_set_temperature_threshold(_Bool reg, int limit);
+int pmic_set_temperature_threshold(_Bool reg, int limit);
 void pmic_set_tdp_threshold(int limit);
 uint8_t pmic_get_temperature(void);
 uint8_t pmic_get_voltage(enum shire_type_t shire);

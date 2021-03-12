@@ -17,20 +17,19 @@
 /***********************************************************************/
 #include "thermal_pwr_mgmt.h"
 
-
 struct soc_power_reg_t g_soc_power_reg __attribute__((section(".data")));
 
 struct soc_power_reg_t {
-     power_state_e module_power_state;
-     tdp_level_e module_tdp_level;
-     struct temperature_threshold_t temperature_threshold;
-     uint8_t soc_temperature;
-     uint8_t soc_power;
-     uint8_t max_temp;
-     struct module_uptime_t module_uptime;
-     struct module_voltage_t module_voltage;
-     uint64_t throttled_states_residency;
-     uint64_t max_throttled_states_residency;
+    power_state_e module_power_state;
+    tdp_level_e module_tdp_level;
+    struct temperature_threshold_t temperature_threshold;
+    uint8_t soc_temperature;
+    uint8_t soc_power;
+    uint8_t max_temp;
+    struct module_uptime_t module_uptime;
+    struct module_voltage_t module_voltage;
+    uint64_t throttled_states_residency;
+    uint64_t max_throttled_states_residency;
 };
 
 volatile struct soc_power_reg_t *get_soc_power_reg(void)
@@ -85,8 +84,8 @@ int update_module_power_state(power_state_e state)
 ***********************************************************************/
 int get_module_power_state(power_state_e *power_state)
 {
-     *power_state = get_soc_power_reg()->module_power_state;
-     return 0;
+    *power_state = get_soc_power_reg()->module_power_state;
+    return 0;
 }
 
 /************************************************************************
@@ -136,8 +135,8 @@ int update_module_tdp_level(tdp_level_e tdp)
 ***********************************************************************/
 int get_module_tdp_level(tdp_level_e *tdp_level)
 {
-     *tdp_level = get_soc_power_reg()->module_tdp_level;
-     return 0;
+    *tdp_level = get_soc_power_reg()->module_tdp_level;
+    return 0;
 }
 
 /************************************************************************
@@ -162,11 +161,25 @@ int get_module_tdp_level(tdp_level_e *tdp_level)
 ***********************************************************************/
 int update_module_temperature_threshold(uint8_t hi_threshold, uint8_t lo_threshold)
 {
-    pmic_set_temperature_threshold(L0, lo_threshold);
-    pmic_set_temperature_threshold(HI, hi_threshold);
-    get_soc_power_reg()->temperature_threshold.lo_temperature_c = lo_threshold;
-    get_soc_power_reg()->temperature_threshold.hi_temperature_c = hi_threshold;
-    return 0;
+    int status;
+
+    status = pmic_set_temperature_threshold(L0, lo_threshold);
+
+    if (0 != status) {
+        printf("thermal pwr mgmt svc: set low temperature threshold error\r\n");
+    } else {
+        get_soc_power_reg()->temperature_threshold.lo_temperature_c = lo_threshold;
+
+        status = pmic_set_temperature_threshold(HI, hi_threshold);
+
+        if (0 != status) {
+            printf("thermal pwr mgmt svc: set high temperature threshold error\r\n");
+        } else {
+            get_soc_power_reg()->temperature_threshold.hi_temperature_c = hi_threshold;
+        }
+    }
+
+    return status;
 }
 
 /************************************************************************
@@ -189,10 +202,10 @@ int update_module_temperature_threshold(uint8_t hi_threshold, uint8_t lo_thresho
 *       int                            Return status
 *
 ***********************************************************************/
-int get_module_temperature_threshold(struct temperature_threshold_t  *temperature_threshold)
+int get_module_temperature_threshold(struct temperature_threshold_t *temperature_threshold)
 {
-     *temperature_threshold = get_soc_power_reg()->temperature_threshold;
-     return 0;
+    *temperature_threshold = get_soc_power_reg()->temperature_threshold;
+    return 0;
 }
 
 /************************************************************************
@@ -350,13 +363,13 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
 ***********************************************************************/
 void update_module_max_temp(void)
 {
-     uint8_t curr_temp;
+    uint8_t curr_temp;
 
-     curr_temp = pmic_get_temperature();
+    curr_temp = pmic_get_temperature();
 
-     if (get_soc_power_reg()->max_temp  < curr_temp) {
-          get_soc_power_reg()->max_temp = curr_temp;
-     }
+    if (get_soc_power_reg()->max_temp < curr_temp) {
+        get_soc_power_reg()->max_temp = curr_temp;
+    }
 }
 
 /************************************************************************
@@ -380,8 +393,8 @@ void update_module_max_temp(void)
 ***********************************************************************/
 int get_soc_max_temperature(uint8_t *max_temp)
 {
-     *max_temp = get_soc_power_reg()->max_temp;
-     return 0;
+    *max_temp = get_soc_power_reg()->max_temp;
+    return 0;
 }
 
 /************************************************************************
@@ -416,7 +429,7 @@ void update_module_uptime()
     module_uptime = timer_get_ticks_count();
 
     seconds = (module_uptime / 1000000);
-    day = (uint16_t) (seconds / (HOURS_IN_DAY * SECONDS_IN_HOUR));
+    day = (uint16_t)(seconds / (HOURS_IN_DAY * SECONDS_IN_HOUR));
     seconds = (seconds % (HOURS_IN_DAY * SECONDS_IN_HOUR));
     hours = (uint8_t)(seconds / SECONDS_IN_HOUR);
 
@@ -476,16 +489,17 @@ int get_module_uptime(struct module_uptime_t *module_uptime)
 ***********************************************************************/
 void update_module_throttle_time(void)
 {
-     // TODO : Set it to throttle time to valid value. Compute/Read from HW.
-     // https://esperantotech.atlassian.net/browse/SW-6559
-     // Update the value in get_soc_power_reg()->throttled_states_residency.
-     get_soc_power_reg()->throttled_states_residency = 1000;
+    // TODO : Set it to throttle time to valid value. Compute/Read from HW.
+    // https://esperantotech.atlassian.net/browse/SW-6559
+    // Update the value in get_soc_power_reg()->throttled_states_residency.
+    get_soc_power_reg()->throttled_states_residency = 1000;
 
-     // Update the MAX throttle time
-     if (get_soc_power_reg()->max_throttled_states_residency < get_soc_power_reg()->throttled_states_residency)
-     {
-          get_soc_power_reg()->max_throttled_states_residency = get_soc_power_reg()->throttled_states_residency;
-     }
+    // Update the MAX throttle time
+    if (get_soc_power_reg()->max_throttled_states_residency <
+        get_soc_power_reg()->throttled_states_residency) {
+        get_soc_power_reg()->max_throttled_states_residency =
+            get_soc_power_reg()->throttled_states_residency;
+    }
 }
 
 /************************************************************************
@@ -509,8 +523,8 @@ void update_module_throttle_time(void)
 ***********************************************************************/
 int get_throttle_time(uint64_t *throttle_time)
 {
-     *throttle_time = get_soc_power_reg()->throttled_states_residency;
-     return 0;
+    *throttle_time = get_soc_power_reg()->throttled_states_residency;
+    return 0;
 }
 
 /************************************************************************
@@ -534,6 +548,6 @@ int get_throttle_time(uint64_t *throttle_time)
 ***********************************************************************/
 int get_max_throttle_time(uint64_t *max_throttle_time)
 {
-     *max_throttle_time = get_soc_power_reg()->max_throttled_states_residency;
-     return 0;
+    *max_throttle_time = get_soc_power_reg()->max_throttled_states_residency;
+    return 0;
 }

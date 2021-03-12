@@ -117,17 +117,18 @@ static int64_t dm_svc_asset_getmemorytype(char *memType)
     return 0;
 }
 
-static void asset_tracking_send_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, char asset_info[])
+static void asset_tracking_send_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time,
+                                         char asset_info[])
 {
     struct device_mgmt_asset_tracking_rsp_t dm_rsp;
 
     strncpy(dm_rsp.asset_info.asset, asset_info, 8);
 
-    FILL_RSP_HEADER(dm_rsp, tag_id, msg_id,
-                    timer_get_ticks_count() - req_start_time,
+    FILL_RSP_HEADER(dm_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time,
                     DM_STATUS_SUCCESS);
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_asset_tracking_rsp_t))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
+                                       sizeof(struct device_mgmt_asset_tracking_rsp_t))) {
         printf("asset_tracking_send_response: Cqueue push error!\n");
     }
 }
