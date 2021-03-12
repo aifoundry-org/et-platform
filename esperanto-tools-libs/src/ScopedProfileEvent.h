@@ -11,6 +11,7 @@
 #include "ProfilerImp.h"
 #include <optional>
 #include <tuple>
+#include <atomic>
 
 namespace rt {
 namespace profiling {
@@ -22,23 +23,30 @@ public:
     , event_{Type::Start, cls} {
     event_.extra_ = std::move(extra);
     event_.setStream(streamId);
-    profiler_.record(event_);
+    init();
   }
   explicit ScopedProfileEvent(Class cls, ProfilerImp& profiler, EventId eventId)
     : profiler_(profiler)
     , event_{Type::Start, cls} {
     event_.setEvent(eventId);
-    profiler_.record(event_);
+    init();
   }
   explicit ScopedProfileEvent(Class cls, ProfilerImp& profiler, StreamId streamId, EventId eventId)
     : profiler_(profiler)
     , event_{Type::Start, cls, streamId, eventId} {
-    profiler_.record(event_);
   }
   explicit ScopedProfileEvent(Class cls, ProfilerImp& profiler)
     : profiler_(profiler)
     , event_{Type::Start, cls} {
+      init();
+  }
+  void init() {
+    event_.addExtra("pair_id", nextPairId_++);
     profiler_.record(event_);
+  }
+
+  void setEventId(EventId event) {
+    event_.setEvent(event);
   }
 
   ~ScopedProfileEvent() {
@@ -48,6 +56,7 @@ public:
   }
 
 private:
+  inline static std::atomic<int> nextPairId_ = 0;
   ProfilerImp& profiler_;
   ProfileEvent event_;
 };

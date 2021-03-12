@@ -162,6 +162,7 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
   cmd.command_info.cmd_hdr.size = sizeof(cmd);
   cmd.command_info.flags = barrier ? 1 : 0;
   sendCommandMasterMinion(it->second, evt, cmd, lock);
+  profileEvent.setEventId(evt);
   return evt;
 }
 
@@ -188,6 +189,7 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
   cmd.command_info.cmd_hdr.size = sizeof(cmd);
   cmd.command_info.flags = barrier ? 1 : 0;
   sendCommandMasterMinion(it->second, evt, cmd, lock);
+  profileEvent.setEventId(evt);
   return evt;
 }
 

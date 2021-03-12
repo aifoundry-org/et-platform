@@ -74,5 +74,6 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
                 << cmd.command_info.cmd_hdr.tag_id << ", parameters: " << cmd.pointer_to_args
                 << ", PC: " << cmd.code_start_address << ", shire_mask: " << shire_mask;
   sendCommandMasterMinion(stream, event, cmd, lock);  
+  profileEvent.setEventId(event);
   return event;
 }
