@@ -22,6 +22,9 @@ import yaml
 
 sys.dont_write_bytecode = True
 
+# Minimum alignment requirement for all messages
+MSG_BYTE_ALIGN_REQ = 8
+
 _LOG_LEVEL_STRINGS = ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG']
 
 # Inspired by https://stackoverflow.com/questions/528281/how-can-i-include-a-yaml-file-inside-another
@@ -91,7 +94,7 @@ class DevAPICodeGeneratorHelper(object):
             if mod['Name'] == "Ops_API_Calls":
                 return mod
             if mod['Name'] == "Mgmt_API_Calls":
-                return mod     
+                return mod
         return None
 
     def rpc_commands(self):
@@ -370,9 +373,20 @@ class DevAPICodeGeneratorHelper(object):
                         ftype_size = DevAPICodeGeneratorHelper.get_type_size(ftype)
                     if ftype_size > last_size:
                         raise RuntimeError(f"{message['Name']}: Field types are expected "
-                                           f"to be placed in creasing size, {field} is not")
+                                           f"to be placed in increasing size, {field} is not")
                     else:
                         last_size = ftype_size
+            # Verify the Ops_API_Calls for alignment requirement only
+            # TODO: Need to verify other messages too?
+            if module['Name'] == 'Ops_API_Calls':
+                # Verify that the structs meet minimum alignment requirement
+                for message in module.get("Messages", []):
+                    msg_size = 0
+                    for field in message["Fields"]:
+                        ftype = DevAPICodeGeneratorHelper.message_field_storage_type(self, field)
+                        msg_size += DevAPICodeGeneratorHelper.get_type_size(ftype)
+                    if not (msg_size % MSG_BYTE_ALIGN_REQ == 0):
+                        raise RuntimeError(f"{message['Name']}: Must be {MSG_BYTE_ALIGN_REQ}-byte aligned")
         # Check that the values of PairedMessage are valid message names
         for module in self.spec_data.get("Modules", []):
             messages = module.get("Messages", [])

@@ -38,7 +38,7 @@ struct << message["Name"] >>_t {
   dev_mgmt_cmd_header_t command_info;
   <%- else %>
   struct cmd_header_t command_info;
-   <%- endif %> 
+   <%- endif %>
   <%- elif message['Type'] == 'Response' %>
   <%- if cgh.c_api_name == 'mgmt' %>
   struct dev_mgmt_rsp_header_t rsp_hdr;
@@ -52,7 +52,7 @@ struct << message["Name"] >>_t {
   <% if field['Type'] == 'struct' -%> struct <% endif -%>
   << cgh.message_field_type(field) >>  << field["Name"] >>; /// << field["Description"] >>
   <%- endfor %>
-};
+} __attribute__((packed, aligned(8)));
 <% endfor %>
 
 #endif // ET_DEVICE_<< cgh.c_api_name | upper >>_API_RPC_TYPES_H

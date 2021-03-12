@@ -56,8 +56,6 @@ Enums:
         Value: 0
       - Name: ERROR
         Value: 1
-      - Name: CHANNEL_NOT_AVAILABLE
-        Value: 2
       - Name: TIMEOUT_IDLE_CHANNEL_UNAVAILABLE
         Value: 2
       - Name: ABORTED
@@ -101,16 +99,16 @@ Messages :
     Fields:
       - Name: major
         Description: Sem Version Major
-        Type: uint8_t
+        Type: uint16_t
       - Name: minor
         Description: Sem Version Minor
-        Type: uint8_t
+        Type: uint16_t
       - Name: patch
         Description: Sem Version Patch
-        Type: uint8_t
+        Type: uint16_t
       - Name: pad
-        Description: pad
-        Type: uint8_t
+        Description: Padding for alignment
+        Type: uint16_t
   - Name: device_ops_api_compatibility_rsp
     Type: Response
     Description: Return the version implemented by the target
@@ -118,16 +116,16 @@ Messages :
     Fields:
       - Name: major
         Description: Sem Version Major
-        Type: uint8_t
+        Type: uint16_t
       - Name: minor
         Description: Sem Version Minor
-        Type: uint8_t
+        Type: uint16_t
       - Name: patch
         Description: Sem Version Patch
-        Type: uint8_t
+        Type: uint16_t
       - Name: pad
-        Description: pad
-        Type: uint8_t
+        Description: Padding for alignment
+        Type: uint16_t
 #-------------------------------------------------------------------------------
   - Name: device_ops_device_fw_version_cmd
     Description:  Request the version of the device firmware, advertise the one we support
@@ -136,6 +134,28 @@ Messages :
     Fields:
       - Name: firmware_type
         Description: Identify device firmware type
+        Type: enum
+        Enum: dev_ops_fw_type
+      - Name: pad1
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad2
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad3
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad4
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad5
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad6
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad7
+        Description: Padding for alignment
         Type: uint8_t
   - Name: device_ops_fw_version_rsp
     Type: Response
@@ -144,17 +164,20 @@ Messages :
     Fields:
       - Name: major
         Description: Sem Version Major
-        Type: uint8_t
+        Type: uint16_t
       - Name: minor
         Description: Sem Version Minor
-        Type: uint8_t
+        Type: uint16_t
       - Name: patch
         Description: Sem Version Patch
-        Type: uint8_t
+        Type: uint16_t
       - Name: type
         Description: Device firmware type
         Type: enum
         Enum: dev_ops_fw_type
+      - Name: pad
+        Description: Padding for alignment
+        Type: uint8_t
 #-------------------------------------------------------------------------------
   - Name: device_ops_echo_cmd
     Description: Echo command
@@ -164,6 +187,9 @@ Messages :
       - Name: echo_payload
         Description: Echo payload field
         Type: int32_t
+      - Name: pad
+        Description: Padding for alignment
+        Type: uint32_t
   - Name: device_ops_echo_rsp
     Description:  Echo response
     Type: Response
@@ -172,6 +198,9 @@ Messages :
       - Name: echo_payload
         Description: Echo payload field
         Type: int32_t
+      - Name: pad
+        Description: Padding for alignment
+        Type: uint32_t
 #-------------------------------------------------------------------------------
 # Kernel Execution Commands and Responses
 #-------------------------------------------------------------------------------
@@ -204,6 +233,9 @@ Messages :
         Description: Kernel Launch status
         Type: enum
         Enum: dev_ops_api_kernel_launch_response
+      - Name: pad
+        Description: Padding for alignment
+        Type: uint32_t
 #-------------------------------------------------------------------------------
   - Name: device_ops_kernel_abort_cmd
     Description: Command to abort a currently running kernel on the device
@@ -212,6 +244,15 @@ Messages :
     Fields:
       - Name: kernel_launch_tag_id
         Description: Tag ID of the kernel_launch command the we want to abort
+        Type: uint16_t
+      - Name: pad1
+        Description: Padding for alignment
+        Type: uint16_t
+      - Name: pad2
+        Description: Padding for alignment
+        Type: uint16_t
+      - Name: pad3
+        Description: Padding for alignment
         Type: uint16_t
   - Name: device_ops_kernel_abort_rsp
     Description: Response to an abort request
@@ -222,6 +263,9 @@ Messages :
         Description: Kernel Abort status
         Type: enum
         Enum: dev_ops_api_kernel_abort_response
+      - Name: pad
+        Description: Padding for alignment
+        Type: uint32_t
 #-------------------------------------------------------------------------------
 # Data Transfer Commands and Responses
 #-------------------------------------------------------------------------------
@@ -242,6 +286,9 @@ Messages :
       - Name: size
         Description: Size
         Type: uint32_t
+      - Name: pad
+        Description: Padding for alignment
+        Type: uint32_t
   - Name: device_ops_data_read_rsp
     Description:  Data read command response
     Type: Response
@@ -257,6 +304,9 @@ Messages :
         Description: Status of the DMA operation
         Type: enum
         Enum: dev_ops_api_dma_response
+      - Name: pad
+        Description: Padding for alignment
+        Type: uint32_t
 #-------------------------------------------------------------------------------
   - Name: device_ops_data_write_cmd
     Description: Command to write data to device memory
@@ -275,6 +325,9 @@ Messages :
       - Name: size
         Description: Size
         Type: uint32_t
+      - Name: pad
+        Description: Padding for alignment
+        Type: uint32_t
   - Name: device_ops_data_write_rsp
     Description:  Data write command response
     Type: Response
@@ -290,6 +343,9 @@ Messages :
         Description: Status of the DMA operation
         Type: enum
         Enum: dev_ops_api_dma_response
+      - Name: pad
+        Description: Padding for alignment
+        Type: uint32_t
 #-------------------------------------------------------------------------------
 # Trace Management Commands and Responses
 #-------------------------------------------------------------------------------
@@ -335,6 +391,27 @@ Messages :
         Description: DEV_OPS_TRACE_RESPONSE_SUCCESS or negative error code
         Type: enum
         Enum: dev_ops_trace_response
+      - Name: pad1
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad2
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad3
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad4
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad5
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad6
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad7
+        Description: Padding for alignment
+        Type: uint8_t
 #-------------------------------------------------------------------------------
   - Name: device_ops_trace_filter_knob_cmd
     Description: Configure the state of a trace group
@@ -347,6 +424,9 @@ Messages :
       - Name: group_index
         Description: 'This is a unsigned group index. Shortcut: 0xFFFFFFFF enables all events and all groups'
         Type: uint32_t
+      - Name: pad
+        Description: Padding for alignment
+        Type: uint32_t
   - Name: device_ops_trace_filter_knob_rsp
     Description: Trace group configure command reply
     Type: Response
@@ -356,6 +436,27 @@ Messages :
         Description: DEV_OPS_TRACE_RESPONSE_SUCCESS or negative error code
         Type: enum
         Enum: dev_ops_trace_response
+      - Name: pad1
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad2
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad3
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad4
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad5
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad6
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad7
+        Description: Padding for alignment
+        Type: uint8_t
 #------------------------------------------------------------------------------
   - Name: device_ops_trace_state_ctrl_cmd
     Description: Enables or disables trace component
@@ -371,7 +472,20 @@ Messages :
       - Name: enable
         Description: ENABLE or DISABLE
         Type: uint8_t
-      - Name: pad
+      - Name: pad1
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad2
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad3
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad4
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad5
+        Description: Padding for alignment
         Type: uint8_t
   - Name: device_ops_trace_state_ctrl_rsp
     Description: Trace enable disable command reply
@@ -382,6 +496,27 @@ Messages :
         Description: DEV_OPS_TRACE_RESPONSE_SUCCESS or negative error code
         Type: enum
         Enum: dev_ops_trace_response
+      - Name: pad1
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad2
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad3
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad4
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad5
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad6
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad7
+        Description: Padding for alignment
+        Type: uint8_t
 #------------------------------------------------------------------------------
   - Name: device_ops_trace_flush_buffers_cmd
     Description: Flush trace buffers for consumption
@@ -389,7 +524,7 @@ Messages :
     PairedMessage: device_ops_trace_flush_buffers_rsp
     Fields:
       - Name: dummy
-        Type: uint8_t
+        Type: uint64_t
   - Name: device_ops_trace_flush_buffers_rsp
     Description: Flush trace buffer command reply
     Type: Response
@@ -399,6 +534,27 @@ Messages :
         Description: DEV_OPS_TRACE_RESPONSE_SUCCESS or negative error code
         Type: enum
         Enum: dev_ops_trace_response
+      - Name: pad1
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad2
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad3
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad4
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad5
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad6
+        Description: Padding for alignment
+        Type: uint8_t
+      - Name: pad7
+        Description: Padding for alignment
+        Type: uint8_t
 ###################################################################
 ## List of asynchronous events that device-fw can send to the host
 ###################################################################
@@ -410,6 +566,9 @@ Messages :
       - Name: error_type
         Type: enum
         Enum: dev_ops_api_error_type
+      - Name: pad
+        Description: Padding for alignment
+        Type: uint32_t
 #------------------------------------------------------------------------------
   - Name: device_ops_trace_buffer_full_event
     Description: Binary trace buffer is full and the host should consume it
