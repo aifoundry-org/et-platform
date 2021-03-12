@@ -278,7 +278,7 @@ uint32_t Host_Iface_Peek_SQ_Cmd_Size(uint8_t sq_id)
 *
 *   OUTPUTS
 *
-*       uint16_t   Status indicating success or negative error
+*       int8_t     Status indicating success or negative error
 *
 ***********************************************************************/
 int8_t Host_Iface_Peek_SQ_Cmd_Hdr(uint8_t sq_id, void* cmd)

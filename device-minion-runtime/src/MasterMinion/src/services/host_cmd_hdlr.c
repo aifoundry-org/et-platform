@@ -60,7 +60,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             struct device_ops_api_compatibility_rsp_t rsp;
 
             Log_Write(LOG_LEVEL_DEBUG,
-                "HostCommandHandler:Processing:COMPATIBILITY_CMD\r\n");
+                "HostCommandHandler:Processing:API_COMPATIBILITY_CMD\r\n");
 
             /* Construct and transmit response */
             rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
@@ -77,7 +77,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             if(status == STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_DEBUG,
-                    "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
+                    "HostCommandHandler:Pushed:API_COMPATIBILITY_CMD_RSP:tag_id=%x->Host_CQ\r\n",
+                    rsp.response_info.rsp_hdr.tag_id);
             }
             else
             {
@@ -137,7 +138,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             if(status == STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_DEBUG,
-                    "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
+                    "HostCommandHandler:Pushed:FW_VERSION_CMD_RSP:tag_id=%x->Host_CQ\r\n",
+                    rsp.response_info.rsp_hdr.tag_id);
             }
             else
             {
@@ -171,7 +173,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             if(status == STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_DEBUG,
-                    "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
+                    "HostCommandHandler:Pushed:ECHO_CMD_RSP:tag_id=%x->Host_CQ\r\n",
+                    rsp.response_info.rsp_hdr.tag_id);
             }
             else
             {
@@ -243,7 +246,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 if(status == STATUS_SUCCESS)
                 {
                     Log_Write(LOG_LEVEL_DEBUG,
-                        "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
+                        "HostCommandHandler:Pushed:KERNEL_LAUNCH_CMD_RSP:tag_id=%x->Host_CQ\r\n",
+                        rsp.response_info.rsp_hdr.tag_id);
                 }
                 else
                 {
@@ -296,7 +300,9 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
                 if(status == STATUS_SUCCESS)
                 {
-                    Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
+                    Log_Write(LOG_LEVEL_DEBUG,
+                        "HostCommandHandler:Pushed:KERNEL_ABORT_CMD_RSP:tag_id=%x->Host_CQ\r\n",
+                        rsp.response_info.rsp_hdr.tag_id);
                 }
                 else
                 {
@@ -381,7 +387,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 if(status == STATUS_SUCCESS)
                 {
                     Log_Write(LOG_LEVEL_DEBUG,
-                        "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
+                        "HostCommandHandler:Pushed:DATA_READ_CMD_RSP:tag_id=%x->Host_CQ\r\n",
+                        rsp.response_info.rsp_hdr.tag_id);
                 }
                 else
                 {
@@ -469,7 +476,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 if(status == STATUS_SUCCESS)
                 {
                     Log_Write(LOG_LEVEL_DEBUG,
-                        "HostCommandHandler:Pushed:RSP->Host_CQ\r\n");
+                        "HostCommandHandler:Pushed:DATA_WRITE_CMD_RSP:tag_id=%x->Host_CQ\r\n",
+                        rsp.response_info.rsp_hdr.tag_id);
                 }
                 else
                 {

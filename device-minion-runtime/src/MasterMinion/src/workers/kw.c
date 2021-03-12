@@ -485,7 +485,8 @@ int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
 
         if(status == STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_DEBUG, "KW:Pushed:KERNEL_ABORT_CMD_RSP->Host_CQ\r\n");
+            Log_Write(LOG_LEVEL_DEBUG, "KW:Pushed:KERNEL_ABORT_CMD_RSP:tag_id=%x->Host_CQ\r\n",
+                abort_rsp.response_info.rsp_hdr.tag_id);
         }
         else
         {
@@ -780,7 +781,8 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 
         if(status == STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_DEBUG, "KW:Pushed:KERNEL_LAUNCH_CMD_RSP->Host_CQ\r\n");
+            Log_Write(LOG_LEVEL_DEBUG, "KW:Pushed:KERNEL_LAUNCH_CMD_RSP:tag_id=%x->Host_CQ\r\n",
+                launch_rsp.response_info.rsp_hdr.tag_id);
         }
         else
         {

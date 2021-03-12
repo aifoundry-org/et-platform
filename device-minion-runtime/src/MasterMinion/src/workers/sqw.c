@@ -202,7 +202,8 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
 
             if(pop_ret_val > 0)
             {
-                Log_Write(LOG_LEVEL_DEBUG, "SQW:Processing:SQW_IDX=%d\r\n", sqw_idx);
+                Log_Write(LOG_LEVEL_DEBUG, "SQW:Processing:SQW_IDX=%d:tag_id=%x\r\n",
+                    sqw_idx, cmd_hdr->cmd_hdr.tag_id);
 
                 /* If barrier flag is set, wait until all cmds are
                 processed in the current SQ */
