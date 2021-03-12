@@ -3,6 +3,6 @@
 
 #include <stdint.h>
 
-int64_t return_from_kernel(int64_t return_value);
+void __attribute__((noreturn)) return_from_kernel(int64_t return_value);
 
 #endif

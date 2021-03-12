@@ -88,21 +88,15 @@ static void MM_To_CM_Iface_Handle_Message(uint64_t shire, uint64_t hart, cm_ifac
 {
     switch (message_ptr->header.id) {
     case MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH: {
-        int64_t rv = -1;
         mm_to_cm_message_kernel_launch_t *launch = (mm_to_cm_message_kernel_launch_t *)message_ptr;
         for (uint64_t i = 0; i < MAX_SIMULTANEOUS_KERNELS; i++) {
             if (launch->shire_mask & (1ULL << shire)) {
                 uint64_t kernel_stack_addr = KERNEL_UMODE_STACK_BASE - (hart * KERNEL_UMODE_STACK_SIZE);
-
-                rv = launch_kernel(launch->kw_base_id, launch->slot_index, launch->code_start_address, kernel_stack_addr,
-                                   launch->pointer_to_args, launch->flags, launch->shire_mask);
+                /* Does not return here */
+                launch_kernel(launch->kw_base_id, launch->slot_index, launch->code_start_address, kernel_stack_addr,
+                              launch->pointer_to_args, launch->flags, launch->shire_mask);
                 break;
             }
-        }
-
-        if (rv != 0) {
-            // Something went wrong launching the kernel.
-            // TODO: Do something
         }
         break;
     }

@@ -96,11 +96,10 @@ static inline void kernel_info_set_attributes(uint32_t shire_id, uint8_t kw_base
 }
 
 static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_launch_flags);
-static void post_kernel_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t kernel_ret_val);
 
 // Saves firmware context and launches kernel in user mode with clean stack and registers
 // Note that global Supervisor interrupts are disabled after returning from this function
-int64_t launch_kernel(uint8_t kw_base_id,
+void __attribute__((noreturn)) launch_kernel(uint8_t kw_base_id,
                       uint8_t slot_index,
                       uint64_t kernel_entry_addr,
                       uint64_t kernel_stack_addr,
@@ -108,66 +107,22 @@ int64_t launch_kernel(uint8_t kw_base_id,
                       uint64_t kernel_launch_flags,
                       uint64_t kernel_shire_mask)
 {
-    uint64_t *firmware_sp;
-    int64_t return_value;
-    uint64_t tensor_error;
-
-    asm volatile("csrr  %0, sscratch \n"
-                 "addi  %0, %0, 8    \n"
-                 : "=r"(firmware_sp));
-
     pre_kernel_setup(kw_base_id, slot_index, kernel_launch_flags);
 
     /* Wait until all the threads involved in the kernel launch are here */
     spinlock_barrier_global(&pre_launch_global_barrier, (uint32_t)__builtin_popcountll(kernel_shire_mask));
 
-    // -Save firmware context on supervisor stack and sp to supervisor stack SP region
     // -Switch sp to kernel_stack_addr
-    // -Setup ra and user stack frame so the kernel can ret to kernel_return_function
+    // -Set kernel arguments
     // -Wipe register state (no leakage from S to U mode)
     // -sret to kernel_entry_addr in user mode
     asm volatile(
-        "addi  sp, sp, -( 29 * 8 ) \n" // save context on stack (except ra, which is in clobber list)
-        "la    ra,  fw_resume      \n" // set return address to instruction after sret
-        "sd    x1,  0  * 8( sp )   \n"
-        "sd    x3,  1  * 8( sp )   \n"
-        "sd    x5,  2  * 8( sp )   \n"
-        "sd    x6,  3  * 8( sp )   \n"
-        "sd    x7,  4  * 8( sp )   \n"
-        "sd    x8,  5  * 8( sp )   \n"
-        "sd    x9,  6  * 8( sp )   \n"
-        "sd    x10, 7  * 8( sp )   \n"
-        "sd    x11, 8  * 8( sp )   \n"
-        "sd    x12, 9  * 8( sp )   \n"
-        "sd    x13, 10 * 8( sp )   \n"
-        "sd    x14, 11 * 8( sp )   \n"
-        "sd    x15, 12 * 8( sp )   \n"
-        "sd    x16, 13 * 8( sp )   \n"
-        "sd    x17, 14 * 8( sp )   \n"
-        "sd    x18, 15 * 8( sp )   \n"
-        "sd    x19, 16 * 8( sp )   \n"
-        "sd    x20, 17 * 8( sp )   \n"
-        "sd    x21, 18 * 8( sp )   \n"
-        "sd    x22, 19 * 8( sp )   \n"
-        "sd    x23, 20 * 8( sp )   \n"
-        "sd    x24, 21 * 8( sp )   \n"
-        "sd    x25, 22 * 8( sp )   \n"
-        "sd    x26, 23 * 8( sp )   \n"
-        "sd    x27, 24 * 8( sp )   \n"
-        "sd    x28, 25 * 8( sp )   \n"
-        "sd    x29, 26 * 8( sp )   \n"
-        "sd    x30, 27 * 8( sp )   \n"
-        "sd    x31, 28 * 8( sp )   \n"
+        "mv    sp,  %[k_stack_addr]\n" // set stack pointer to kernel_stack_addr
         "mv    x10, %[k_param_a0]  \n" // a0 = kernel_params_ptr
         "mv    x11, %[k_param_a1]  \n" // a1 = UNUSED
         "mv    x12, %[k_param_a2]  \n" // a2 = UNUSED
         "mv    x13, %[k_param_a3]  \n" // a3 = UNUSED
-        "sd    sp, %[firmware_sp]  \n" // save sp to supervisor stack SP region (sscratch + 8)
-        "mv    ra, %[k_ret_addr]   \n" // set return address to 0 to catch kernels that don't end properly
-        "mv    s0, %[k_stack_addr] \n" // switch to kernel stack: set s0 (frame pointer) to kernel_stack_addr
-        "addi  sp, s0, -32         \n" // switch to kernel stack: set sp to kernel stack after stack frame
-        "sd    ra, 24(sp)          \n" // push ra
-        "sd    s0, 16(sp)          \n" // push s0
+        "mv    x1,  %[k_ret_addr]  \n" // set return address to 0 to catch kernels that don't end properly
         "li    x5, 0x100           \n" // bitmask to clear sstatus SPP=user
         "csrc  sstatus, x5         \n" // clear sstatus SPP
         "csrsi sstatus, 0x10       \n" // set sstatus UPIE
@@ -232,12 +187,7 @@ int64_t launch_kernel(uint8_t kw_base_id,
         "fcvt.s.w f31, x0          \n"
 #endif
         "sret                      \n" // ret to kernel_entry_addr in user mode
-        "fw_resume:                \n" // firmware context resumes from here via return_from_kernel()
-        "mv    %[return_value], a0 \n" // collect kernel return value
-        "csrr  %[tensor_error], tensor_error \n" // collect tensor_error
-        : [firmware_sp]  "=m"(*firmware_sp),
-          [return_value] "=r"(return_value),
-          [tensor_error] "=r"(tensor_error)
+        :
         : [k_ret_addr]    "r"(0),
           [k_stack_addr]  "r"(kernel_stack_addr),
           [k_entry]       "r"(kernel_entry_addr),
@@ -248,11 +198,11 @@ int64_t launch_kernel(uint8_t kw_base_id,
         : "ra" // SYSCALL_RETURN_FROM_KERNEL rets back to 1: so ra is clobbered. Rest of context is preserved.
     );
 
-    /* TODO: save the return_value and tensor_error in kernel exception/error buffer (if available) */
+    /* Should never get here! */
+    while (1)
+    {
 
-    post_kernel_cleanup(kw_base_id, slot_index, return_value);
-
-    return return_value;
+    }
 }
 
 static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_launch_flags)
@@ -361,7 +311,7 @@ static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t ke
     asm volatile("fence");
 }
 
-static void post_kernel_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t kernel_ret_val)
+void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t kernel_ret_val)
 {
     const uint32_t shire_id = get_shire_id();
     const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
