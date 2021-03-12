@@ -10,9 +10,9 @@
 *
 ************************************************************************/
 /*! \file vq.h
-    \brief Header/Interface to access Virtual Queue services. This 
-    abstraction is simply a wrapper for circular buffer data structure. 
-    It associates a shared memory address to the circular buffer data 
+    \brief Header/Interface to access Virtual Queue services. This
+    abstraction is simply a wrapper for circular buffer data structure.
+    It associates a shared memory address to the circular buffer data
     structure.
 */
 /***********************************************************************/
@@ -30,14 +30,14 @@
 /*! \def VQ_CIRCBUFF_BASE_ADDR(base, idx, size)
     \brief Macro to return circbuff's base address.
 */
-#define VQ_CIRCBUFF_BASE_ADDR(base,idx,size)   (base + (idx * size))  
+#define VQ_CIRCBUFF_BASE_ADDR(base,idx,size)   (base + (idx * size))
 
 /*! \struct vq_cb_t
     \brief Virtual queues control block.
 */
-typedef struct vq_cb_ 
+typedef struct vq_cb_
 {
-    circ_buff_cb_t *circbuff_cb; /**< Pointer to circular buffer control block */ 
+    circ_buff_cb_t *circbuff_cb; /**< Pointer to circular buffer control block */
     uint16_t cmd_size_peek_offset; /**< Offset to peek */
     uint16_t cmd_size_peek_length; /**< Length starting from offset to peek */
     uint32_t flags; /**< Memory type attr to access circular buffer
@@ -50,13 +50,13 @@ typedef struct vq_cb_
 typedef struct iface_cb_ {
     uint32_t vqueue_base; /* This is a 32 bit offset from 64 dram base */
     uint32_t vqueue_size;
-    vq_cb_t vqueue; 
+    vq_cb_t vqueue;
 } iface_cb_t;
 
 /*! \fn int8_t VQ_Init(vq_cb_t* vq_cb, uint64_t vq_base, uint32_t vq_size,
     uint16_t cmd_size_peek_offset, uint16_t cmd_size_peek_length)
     \brief Initialize the virtual queue instance
-    \param vq_cb Pointer to virtual queue control block 
+    \param vq_cb Pointer to virtual queue control block
     \param vq_base Base address for submission queue buffers.
     \param vq_size Size of each submission queue in bytes.
     \param cmd_size_peek_offset Base offset to be used for peek.
@@ -80,9 +80,9 @@ int8_t VQ_Push(vq_cb_t* vq_cb, void* data, uint32_t data_size);
 /*! \fn int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
     \brief Pops a command from a virtual queue.
     \param vq_cb Pointer to virtual queue control block.
-    \param rx_buff Pointer to rx command buffer. 
+    \param rx_buff Pointer to rx command buffer.
     Caller shall use MM_CMD_MAX_SIZE to allocate rx_buff
-    \return The size of the command in bytes, zero for no data 
+    \return The size of the command in bytes, zero for no data
     or negative error code.
 */
 int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff);
@@ -94,7 +94,7 @@ int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff);
     \param peek_length Length of bytes to peek.
     \return Status indicating sucess or negative error
 */
-int8_t VQ_Peek(vq_cb_t* vq_cb, void* peek_buff, uint16_t peek_offset, 
+int8_t VQ_Peek(vq_cb_t* vq_cb, void* peek_buff, uint16_t peek_offset,
         uint16_t peek_length);
 
 /*! \fn bool VQ_Data_Avail(vq_cb_t* vq_cb)

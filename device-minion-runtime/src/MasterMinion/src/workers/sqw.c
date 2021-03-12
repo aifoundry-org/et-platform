@@ -48,7 +48,6 @@
 typedef struct sqw_cb_ {
     int32_t             sqw_cmd_count[MM_SQ_COUNT];
     global_fcc_flag_t   sqw_fcc_flags[MM_SQ_COUNT];
-    vq_cb_t             *sq[MM_SQ_COUNT];
 } sqw_cb_t;
 
 /*! \var sqw_cb_t SQW_CB
@@ -119,9 +118,6 @@ void SQW_Init(void)
         global_fcc_flag_init(&SQW_CB.sqw_fcc_flags[i]);
 
         atomic_store_local_32((uint32_t*)&SQW_CB.sqw_cmd_count[i], 0U);
-
-        atomic_store_local_64((uint64_t*)&SQW_CB.sq[i],
-            (uint64_t)(void*) Host_Iface_Get_VQ_Base_Addr(SQ, i));
     }
 
     return;
@@ -202,7 +198,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
         do
         {
             /* Pop from Submission Queue */
-            pop_ret_val = VQ_Pop(SQW_CB.sq[sqw_idx], cmd_buff);
+            pop_ret_val = Host_Iface_SQ_Pop_Cmd((uint8_t)sqw_idx, cmd_buff);
 
             if(pop_ret_val > 0)
             {

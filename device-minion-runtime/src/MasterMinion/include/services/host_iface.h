@@ -13,8 +13,8 @@
     \brief A C header that defines the Host Interface component's
     public interfaces. These interfaces provide services using which
     the master minion runtime can communicate with host over the virtual
-    queue interface. The virtual queue interface comprises of submission 
-    queues using which host submits commands to the device and completion 
+    queue interface. The virtual queue interface comprises of submission
+    queues using which host submits commands to the device and completion
     using which device responds to host commands, and sends asynchronous
     events to host.
 */
@@ -45,15 +45,6 @@ typedef enum {
 */
 int8_t Host_Iface_SQs_Init(void);
 
-/*! \fn vq_cb_t* Host_Iface_Get_VQ_Base_Addr(uint8_t sq_id)
-    \brief Obtain pointer to virtual queue assiciated
-    with the queue type and identifier
-    \param vq_type Virtual Queue Type
-    \param vq_id Virtual Queue ID
-    \return vq_cb_t* Pointer to the virtual queue control block
-*/
-vq_cb_t* Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type, uint8_t vq_id);
-
 /*! \fn int8_t Host_Iface_CQs_Init(void)
     \brief Initialize Host Interface Completion Queues
     \return Status indicating success or a negative error code
@@ -78,15 +69,15 @@ uint32_t Host_Iface_Peek_SQ_Cmd_Size(uint8_t sq_id);
 */
 int8_t Host_Iface_Peek_SQ_Cmd_Hdr(uint8_t sq_id, void* cmd);
 
-/*! \fn uint32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void* rx_buff)
+/*! \fn int32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void* rx_buff)
     \brief Interface to pop a command from submission queue
     identified by submission queue identifier. The popped command
     is copied into the rx_buff provided by the caller
     \param sq_id Submission queue ID
     \param rx_buff Pointer to command rx buffer
-    \return Command size
+    \return Number of bytes popped if > 0, no data if 0, and error code if < 0
 */
-uint32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void* rx_buff);
+int32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void* rx_buff);
 
 /*! \fn int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
     \brief Interface to push a command to the completion queue identified by
@@ -103,10 +94,10 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size);
     processing is needed
     \return Boolean indicating host interface interrupt status
 */
-bool Host_Iface_Interrupt_Status(void); 
+bool Host_Iface_Interrupt_Status(void);
 
 /*! \fn void Host_Iface_Processing(void)
-    \brief Interface to process a host command fetched 
+    \brief Interface to process a host command fetched
     \return none
 */
 void Host_Iface_Processing(void);

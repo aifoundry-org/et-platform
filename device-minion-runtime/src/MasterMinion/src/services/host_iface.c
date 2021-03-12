@@ -148,7 +148,7 @@ int8_t Host_Iface_SQs_Init(void)
     {
         /* Register host interface interrupt service routine to the host
         PCIe interrupt that is used to notify MM runtime of host's push
-        to any oft the submission vqueues */
+        to any of the submission vqueues */
         PLIC_RegisterHandler(PU_PLIC_PCIE_MESSAGE_INTR_ID, HIFACE_INT_PRIORITY,
             host_iface_rxisr);
     }
@@ -160,48 +160,6 @@ int8_t Host_Iface_SQs_Init(void)
     }
 
     return status;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       Host_Iface_Get_VQ_Base_Addr
-*
-*   DESCRIPTION
-*
-*       Obtain the Submission Queue base address
-*
-*   INPUTS
-*
-*       vq_type     Virtuql Queue Type
-*       vq_id       Virtual Queue ID
-*
-*   OUTPUTS
-*
-*       vq_cb_t*    Pointer to Virtual queue base
-*
-***********************************************************************/
-vq_cb_t* Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type, uint8_t vq_id)
-{
-    vq_cb_t* retval=0;
-
-    if(vq_type == SQ)
-    {
-        retval = &Host_SQs.vqueues[vq_id];
-    }
-    else if(vq_type == CQ)
-    {
-        retval = &Host_CQs.vqueues[vq_id];
-    }
-    else
-    {
-        Log_Write(LOG_LEVEL_DEBUG,
-            "HostIface:ERROR:Failed to obtain VQ base address, bad vq_id: %d\r\n",
-            vq_id);
-    }
-
-    return retval;
 }
 
 /************************************************************************
@@ -320,7 +278,7 @@ uint32_t Host_Iface_Peek_SQ_Cmd_Size(uint8_t sq_id)
 *
 *   OUTPUTS
 *
-*       uint16_t   Returns SQ command size read or zero for error.
+*       uint16_t   Status indicating success or negative error
 *
 ***********************************************************************/
 int8_t Host_Iface_Peek_SQ_Cmd_Hdr(uint8_t sq_id, void* cmd)
@@ -346,44 +304,45 @@ int8_t Host_Iface_Peek_SQ_Cmd_Hdr(uint8_t sq_id, void* cmd)
 *
 *       sq_id      ID of the SQ to pop command from.
 *       rx_buff    Pointer to the RX buffer.
+*       cmd_size   Command size
 *
 *   OUTPUTS
 *
-*       uint16_t    Returns SQ command size read or zero for error.
+*       int8_t     Status indicating success or negative error
 *
 ***********************************************************************/
 int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
 {
     int8_t status;
 
-    /* Acquire the lock */
+    /* Acquire the lock. Multiple threads can call this function. */
     acquire_local_spinlock(&Host_CQs.vqueue_locks[cq_id]);
 
     /* Pop the command from circular buffer */
     status = VQ_Push(&Host_CQs.vqueues[cq_id], p_cmd, cmd_size);
+    asm volatile("fence");
+
+    /* Release the lock */
+    release_local_spinlock(&Host_CQs.vqueue_locks[cq_id]);
 
     if (status == STATUS_SUCCESS)
     {
         /* TODO: Using MSI idx 0 for single CQ model */
-        asm volatile("fence");
         status = (int8_t)pcie_interrupt_host(0);
 
         if (status != STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_ERROR,
-                "CQ:ERROR: Host notification Failed. (Error code: %d)\r\n",
+                "HostIface:CQ_Push:ERROR: Host notification Failed. (Error code: %d)\r\n",
                 status);
         }
     }
     else
     {
         Log_Write(LOG_LEVEL_ERROR,
-            "CQ:ERROR: Circbuff Push Failed. (Error code: %d)\r\n",
+            "HostIface:CQ_Push:ERROR: VQ push failed. (Error code: %d)\r\n",
             status);
     }
-
-    /* Release the lock */
-    release_local_spinlock(&Host_CQs.vqueue_locks[cq_id]);
 
     return status;
 }
@@ -405,29 +364,24 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
 *
 *   OUTPUTS
 *
-*       uint16_t    Returns SQ command size read or zero for error.
+*       int32_t   Status indicating success or negative error
 *
 ***********************************************************************/
-uint32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void* rx_buff)
+int32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void* rx_buff)
 {
-    uint32_t return_val = 0;
     int32_t pop_ret_val;
 
     /* Pop the command from circular buffer */
     pop_ret_val = VQ_Pop(&Host_SQs.vqueues[sq_id], rx_buff);
 
-    if (pop_ret_val > 0)
-    {
-        return_val = (uint32_t)pop_ret_val;
-    }
-    else if (pop_ret_val < 0)
+    if (pop_ret_val < 0)
     {
         Log_Write(LOG_LEVEL_ERROR,
             "HostIface:SQ_Pop:ERROR:VQ pop failed.(Error code: %d)\r\n",
             pop_ret_val);
     }
 
-    return return_val;
+    return pop_ret_val;
 }
 
 /************************************************************************
