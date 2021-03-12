@@ -29,6 +29,8 @@ public:
   void raiseDevicePuPlicPcieMessageInterrupt() override;
   void raiseDeviceSpioPlicPcieMessageInterrupt() override;
   uint32_t waitForInterrupt(uint32_t bitmask) override;
+  void stop() override;
+
 
   // api_communicate interface
   void set_system(bemu::System* system) override;
