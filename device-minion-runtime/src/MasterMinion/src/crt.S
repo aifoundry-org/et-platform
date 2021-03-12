@@ -17,7 +17,7 @@ _start:
     li    sp, FW_SMODE_STACK_BASE
     sub   sp, sp, a0
     addi  sp, sp, -FW_SMODE_STACK_SCRATCH_REGION_SIZE # skip scratch region for C stack
-    csrw  sscratch, sp                                # sscratch points to S-mode stack scratch region: 1st stack element reserved as scratch region for traps
+    csrw  sscratch, sp                                # sscratch points to S-mode stack scratch region
 
     # we compile with -fno-zero-initialized-in-bss, therefore, no BSS is present
 

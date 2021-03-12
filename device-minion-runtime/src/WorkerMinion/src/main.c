@@ -12,15 +12,15 @@
 
 #include <stdint.h>
 
+extern void trap_handler(void);
+
 void __attribute__((noreturn)) main(void)
 {
-    uint64_t temp;
     bool result;
 
-    // Setup supervisor trap vector and sscratch
-    asm volatile("la    %0, trap_handler \n"
-                 "csrw  stvec, %0        \n"
-                 : "=&r"(temp));
+    // Setup supervisor trap vector
+    asm volatile("csrw  stvec, %0\n"
+                 : : "r"(&trap_handler));
 
     // Enable all available PMU counters to be sampled in U-mode
     asm volatile("csrw scounteren, %0\n"

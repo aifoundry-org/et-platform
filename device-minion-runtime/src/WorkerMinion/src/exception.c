@@ -12,18 +12,24 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
 static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t mstatus,
                                    uint64_t hart_id, uint32_t shire_id, bool user_mode);
 
+/* Note: ecalls are handled in syscall_handler, and some U-mode exceptions are delegated to S-mode from M-mode */
 void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const reg)
 {
-    /* ecalls are handled elsewhere, and some U-mode exceptions are delegated to S-mode from M-mode */
-
-    log_write(LOG_LEVEL_CRITICAL, "H%04" PRId64 ": WorkerMinon exception: scause=0x%" PRIx64 " @ 0x%" PRIx64 "\n", get_hart_id(), scause, sepc);
-
     const uint64_t hart_id = get_hart_id();
     const uint32_t shire_id = get_shire_id();
     uint64_t sstatus;
-    asm volatile("csrr %0, sstatus" : "=r"(sstatus));
+    bool user_mode;
 
-    const bool user_mode = ((sstatus & 0x100U) >> 8U) == 0;
+    asm volatile("csrr %0, sstatus" : "=r"(sstatus));
+    user_mode = ((sstatus & 0x100U) >> 8U) == 0;
+
+    if (!user_mode)
+    {
+        log_write(LOG_LEVEL_CRITICAL,
+            "H%04" PRId64 ": Worker S-mode exception: scause=0x%" PRIx64 ", sepc=0x%" PRIx64 ", stval=0x%" PRIx64 "\n",
+            hart_id, scause, sepc, stval);
+    }
+
     send_exception_message(scause, sepc, stval, sstatus, hart_id, shire_id, user_mode);
 
     // TODO: Save context to Exception Buffer (if present)

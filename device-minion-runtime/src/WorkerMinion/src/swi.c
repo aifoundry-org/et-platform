@@ -1,6 +1,5 @@
 #include "mm_to_cm_iface.h"
-
-extern void MM_To_CM_Iface_Process(void);
+#include "riscv_encoding.h"
 
 void swi_handler(void);
 
@@ -10,7 +9,7 @@ void swi_handler(void)
     // We got a software interrupt (IPI) handed down from M-mode.
     // M-mode already cleared the MSIP (Machine Software Interrupt Pending)
     // Clear Supervisor Software Interrupt Pending (SSIP)
-    asm volatile("csrci sip, 0x2");
+    asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
 
     // Handle messages from MM
     MM_To_CM_Iface_Process();

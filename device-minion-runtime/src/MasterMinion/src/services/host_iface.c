@@ -320,15 +320,15 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
 
     /* Pop the command from circular buffer */
     status = VQ_Push(&Host_CQs.vqueues[cq_id], p_cmd, cmd_size);
-    asm volatile("fence");
-
-    /* Release the lock */
-    release_local_spinlock(&Host_CQs.vqueue_locks[cq_id]);
 
     if (status == STATUS_SUCCESS)
     {
+        asm volatile("fence");
         /* TODO: Using MSI idx 0 for single CQ model */
         status = (int8_t)pcie_interrupt_host(0);
+
+        /* Release the lock */
+        release_local_spinlock(&Host_CQs.vqueue_locks[cq_id]);
 
         if (status != STATUS_SUCCESS)
         {
@@ -339,6 +339,9 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
     }
     else
     {
+        /* Release the lock */
+        release_local_spinlock(&Host_CQs.vqueue_locks[cq_id]);
+
         Log_Write(LOG_LEVEL_ERROR,
             "HostIface:CQ_Push:ERROR: VQ push failed. (Error code: %d)\r\n",
             status);

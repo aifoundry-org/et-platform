@@ -89,20 +89,21 @@ static void MM_To_CM_Iface_Handle_Message(uint64_t shire, uint64_t hart, cm_ifac
     switch (message_ptr->header.id) {
     case MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH: {
         mm_to_cm_message_kernel_launch_t *launch = (mm_to_cm_message_kernel_launch_t *)message_ptr;
-        for (uint64_t i = 0; i < MAX_SIMULTANEOUS_KERNELS; i++) {
-            if (launch->shire_mask & (1ULL << shire)) {
-                uint64_t kernel_stack_addr = KERNEL_UMODE_STACK_BASE - (hart * KERNEL_UMODE_STACK_SIZE);
-                /* Does not return here */
-                launch_kernel(launch->kw_base_id, launch->slot_index, launch->code_start_address, kernel_stack_addr,
-                              launch->pointer_to_args, launch->flags, launch->shire_mask);
-                break;
-            }
+        /* Check if this Shire is involved in the kernel launch */
+        if (launch->shire_mask & (1ULL << shire)) {
+            uint64_t kernel_stack_addr = KERNEL_UMODE_STACK_BASE - (hart * KERNEL_UMODE_STACK_SIZE);
+            /* Does not return */
+            launch_kernel(launch->kw_base_id, launch->slot_index, launch->code_start_address, kernel_stack_addr,
+                          launch->pointer_to_args, launch->flags, launch->shire_mask);
         }
         break;
     }
     case MM_TO_CM_MESSAGE_ID_KERNEL_ABORT:
-        // If kernel was running, returns to firmware context. If not, doesn't do anything.
-        return_from_kernel(KERNEL_LAUNCH_ERROR_ABORTED);
+        /* If the thread has not completed yet, handle post-launch cleanup, if it has completed, ignore the abort. */
+        if (!kernel_info_has_thread_completed((uint32_t)shire, hart & 63))
+        {
+            return_from_kernel(KERNEL_LAUNCH_ERROR_ABORTED);
+        }
         break;
     case MM_TO_CM_MESSAGE_ID_SET_LOG_LEVEL:
         log_set_level(((mm_to_cm_message_set_log_level_t *)message_ptr)->log_level);

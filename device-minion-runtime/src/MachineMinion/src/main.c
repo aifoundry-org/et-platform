@@ -16,6 +16,11 @@ void __attribute__((noreturn)) main(void)
     // The pc is set to an implementation-defined reset vector. The mcause register is set to a value
     // indicating the cause of the reset. All other hart state is undefined."
 
+    /* TODO: Use medeleg to delegate U-mode exceptions directly to S-mode such as illegal instruction, etc)
+     *       this way if a kernel has an exception it will be processed faster. Right now U-mode
+     *       exceptions trap to M-mode, so M-mode is manually delegating them to S-mode, which
+     *       introduces a latency/performance hit... (check trap_routine) */
+
     asm volatile(
         "la    %0, trap_handler     \n" // Setup machine mode trap handler
         "csrw  mtvec, %0            \n"
