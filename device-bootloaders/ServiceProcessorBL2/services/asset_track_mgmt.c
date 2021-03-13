@@ -65,10 +65,7 @@ int get_form_factor(char *form_factor)
 
 int get_memory_details(char *mem_vendor, char *mem_part)
 {
-    // TODO: https://esperantotech.atlassian.net/browse/SW-6869
-    strcpy(mem_vendor, "Micron");
-    strcpy(mem_part, "ETDDR4");
-    return 0;
+    return ddr_get_memory_details(mem_vendor, mem_part);
 }
 
 int get_memory_size(char *mem_size)
@@ -78,7 +75,5 @@ int get_memory_size(char *mem_size)
 
 int get_memory_type(char *mem_type)
 {
-    // TODO: https://esperantotech.atlassian.net/browse/SW-6869
-    strcpy(mem_type, "ETLPDDR4");
-    return 0;
+    return ddr_get_memory_type(mem_type);
 }
