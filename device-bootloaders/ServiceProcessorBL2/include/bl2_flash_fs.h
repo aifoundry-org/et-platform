@@ -28,5 +28,11 @@ int flash_fs_swap_priority_counter(void);
 int flash_fs_get_boot_counters(uint32_t *attempted_boot_counter, uint32_t *completed_boot_counter);
 int flash_fs_increment_completed_boot_count(void);
 int flash_fs_increment_attempted_boot_count(void);
+int flash_fs_get_manufacturer_name(char *mfg_name);
+int flash_fs_get_part_number(char *part_number);
+int flash_fs_get_serial_number(char *ser_number);
+int flash_fs_get_module_rev(char *module_rev);
+int flash_fs_get_memory_size(char *mem_size);
+int flash_fs_get_form_factor(char *form_factor);
 
 #endif

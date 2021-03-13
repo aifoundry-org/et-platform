@@ -3,19 +3,34 @@
 
 #include <stdint.h>
 #include "dm_event_def.h"
+#include "esr_defines.h"
+#include "pcie_device.h"
+#include "io.h"
 
-/*!
- * @struct struct pcie_event_control_block
- * @brief PCIE driver error mgmt control block
- */
-struct pcie_event_control_block
-{
-    uint32_t ce_count;              /**< Correctable error count. */
-    uint32_t uce_count;             /**< Un-Correctable error count. */
-    uint32_t ce_threshold;          /**< Correctable error threshold. */
-    dm_event_isr_callback event_cb; /**< Event callback handler. */
-};
+/*! \def PCIE_GEN_1
+    \brief PCIE gen 1 bit rates(GT/s) definition.
+*/
+#define PCIE_GEN_1 2
 
+/*! \def PCIE_GEN_2
+    \brief PCIE gen 2 bit rates(GT/s) definition.
+*/
+#define PCIE_GEN_2 5
+
+/*! \def PCIE_GEN_3
+    \brief PCIE gen 3 bit rates(GT/s) definition.
+*/
+#define PCIE_GEN_3 8
+
+/*! \def PCIE_GEN_4
+    \brief PCIE gen 4 bit rates(GT/s) definition.
+*/
+#define PCIE_GEN_4 16
+
+/*! \def PCIE_GEN_5
+    \brief PCIE gen 5 bit rates(GT/s) definition.
+*/
+#define PCIE_GEN_5 32
 
 /*! \fn int32_t pcie_error_control_init(dm_event_isr_callback event_cb)
     \brief This function initializes the PCIe error control subsystem, including
@@ -24,7 +39,6 @@ struct pcie_event_control_block
     \param event_cb pointer to the error call back function
     \return Status indicating success or negative error
 */
-
 
 int32_t pcie_error_control_init(dm_event_isr_callback event_cb);
 
@@ -84,12 +98,49 @@ int32_t pcie_get_ce_count(uint32_t *ce_count);
 
 int32_t pcie_get_uce_count(uint32_t *uce_count);
 
-void pcie_error_threshold_isr(void);  //TODO: WILL BE MADE STATIC FUNCION WITH ACTUAL ISR IMPLEMENTATION
+void pcie_error_threshold_isr(
+    void); //TODO: WILL BE MADE STATIC FUNCION WITH ACTUAL ISR IMPLEMENTATION
 
+/*! \fn int32_t setup_pcie_gen3_link_speed(void)
+    \brief Interface to set up PCIE Gen3 Link speed
+    \param None
+    \returns Status indicating success or negative error
+*/
 int32_t setup_pcie_gen3_link_speed(void);
+
+/*! \fn int32_t setup_pcie_gen4_link_speed(void)
+    \brief Interface to set up PCIE Gen4 Link speed
+    \param None
+    \returns Status indicating success or negative error
+*/
 int32_t setup_pcie_gen4_link_speed(void);
+
+/*! \fn int32_t setup_pcie_lane_width_x4(void)
+    \brief Interface to set up PCIE lane width(x4)
+    \param None
+    \returns Status indicating success or negative error
+*/
 int32_t setup_pcie_lane_width_x4(void);
+
+/*! \fn int32_t setup_pcie_lane_width_x8(void)
+    \brief Interface to set up PCIE lane width(x4)
+    \param None
+    \returns Status indicating success or negative error
+*/
 int32_t setup_pcie_lane_width_x8(void);
+
+/*! \fn int32_t pcie_retrain_phy(void)
+    \brief Interface to start phy retraining
+    \param None
+    \returns Status indicating success or negative error
+*/
 int32_t pcie_retrain_phy(void);
+
+/*! \fn int pcie_get_speed(char *pcie_speed)
+    \brief Interface to get the PCIE speed
+    \param *pcie_speed  Pointer to pcie speed variable
+    \returns Status indicating success or negative error
+*/
+int pcie_get_speed(char *pcie_speed);
 
 #endif

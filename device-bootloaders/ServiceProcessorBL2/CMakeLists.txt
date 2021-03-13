@@ -41,6 +41,7 @@ set(BL2_SOURCES
     driver/interrupt.c
     driver/bl2_pcie.c
     driver/bl2_sram.c
+    driver/bl2_otp.c
     rtos_task/command_dispatcher.c
     rtos_task/flash_fs.c
     rtos_task/vaultip.c
@@ -48,6 +49,7 @@ set(BL2_SOURCES
     rtos_task/event_handler.c
     services/firmware_update.c
     services/asset_track.c
+    services/asset_track_mgmt.c
     services/thermal_power_monitor.c
     services/performance.c
     services/link_mgmt.c

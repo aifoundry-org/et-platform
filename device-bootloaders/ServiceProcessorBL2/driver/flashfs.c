@@ -449,15 +449,13 @@ int flash_fs_write_partition(uint32_t partition_address, void *buffer, uint32_t 
 int flash_fs_erase_partition(uint32_t partition_address, uint32_t partition_size)
 {
     // Erase partition
-    if (0 != spi_flash_erase(sg_flash_fs_bl2_info->flash_id, partition_address, partition_size))
-    {
+    if (0 != spi_flash_erase(sg_flash_fs_bl2_info->flash_id, partition_address, partition_size)) {
         printf("spi_flash_erase: failed to erase data!\n");
         return -1;
     }
 
     return 0;
 }
-
 
 int flash_update_partition(void *buffer, uint64_t buffer_size)
 {
@@ -472,8 +470,8 @@ int flash_update_partition(void *buffer, uint64_t buffer_size)
         return -1;
     }
 
-    printf("passive partition address:%x  buffer:%lx  buffer_size:%x!\n",
-            passive_partition_address, (uint64_t)buffer, (uint32_t)buffer_size);
+    printf("passive partition address:%x  buffer:%lx  buffer_size:%x!\n", passive_partition_address,
+           (uint64_t)buffer, (uint32_t)buffer_size);
     if (0 != flash_fs_write_partition(passive_partition_address, buffer, (uint32_t)buffer_size)) {
         printf(
             "flash_fs_write_file: failed to write data  passive partition address:%x  buffer:%lx  buffer_size:%x!\n",
@@ -593,14 +591,15 @@ int flash_fs_increment_completed_boot_count(void)
         printf(" %02x", sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]
                             .boot_counters_region_data.b[page_address + n]);
     }
-    printf("\n to flash address 0x%x\n", counter_data_address + page_address + FLASH_PAGE_SIZE/2);
+    printf("\n to flash address 0x%x\n", counter_data_address + page_address + FLASH_PAGE_SIZE / 2);
 
     if (0 != spi_flash_rdsr(sg_flash_fs_bl2_info->flash_id, &spi_status)) {
         printf("flash_fs_increment_attempted_boot_count: spi_flash_rdsr() failed!\n");
         return -1;
     }
     if (0 != spi_status) {
-        printf("flash_fs_increment_attempted_boot_count: warning - SPI flash status is 0x%02x!\n", spi_status);
+        printf("flash_fs_increment_attempted_boot_count: warning - SPI flash status is 0x%02x!\n",
+               spi_status);
     }
 
     if (0 != spi_flash_wren(sg_flash_fs_bl2_info->flash_id)) {
@@ -608,7 +607,8 @@ int flash_fs_increment_completed_boot_count(void)
         return -1;
     }
 
-    if (0 != spi_flash_program(sg_flash_fs_bl2_info->flash_id, counter_data_address + page_address + FLASH_PAGE_SIZE/2,
+    if (0 != spi_flash_program(sg_flash_fs_bl2_info->flash_id,
+                               counter_data_address + page_address + FLASH_PAGE_SIZE / 2,
                                sg_flash_fs_bl2_info
                                        ->partition_info[sg_flash_fs_bl2_info->active_partition]
                                        .boot_counters_region_data.b +
@@ -743,6 +743,49 @@ int flash_fs_swap_priority_counter(void)
         return -1;
     }
 
+    return 0;
+}
+
+int flash_fs_get_manufacturer_name(char *mfg_name)
+{
+    // TODO: https://esperantotech.atlassian.net/browse/SW-4327
+    strcpy(mfg_name, "Esperant");
+    return 0;
+}
+
+int flash_fs_get_part_number(char *part_number)
+{
+    // TODO: https://esperantotech.atlassian.net/browse/SW-4327
+    strcpy(part_number, "ETPART01");
+    return 0;
+}
+
+int flash_fs_get_serial_number(char *ser_number)
+{
+    // TODO: https://esperantotech.atlassian.net/browse/SW-4327
+    strcpy(ser_number, "ETSERNO1");
+    return 0;
+}
+
+int flash_fs_get_module_rev(char *module_rev)
+{
+    // TODO: https://esperantotech.atlassian.net/browse/SW-4327
+    uint64_t revision = 1;
+    sprintf(module_rev, "%ld", revision);
+    return 0;
+}
+
+int flash_fs_get_memory_size(char *mem_size)
+{
+    // TODO: https://esperantotech.atlassian.net/browse/SW-4327
+    sprintf(mem_size, "%ld", (uint64_t)16);
+    return 0;
+}
+
+int flash_fs_get_form_factor(char *form_factor)
+{
+    // TODO: https://esperantotech.atlassian.net/browse/SW-4327
+    strcpy(form_factor, "Dual_M2");
     return 0;
 }
 

@@ -18,37 +18,8 @@
 #ifndef ASSET_TRACKING_SERVICE_H
 #define ASSET_TRACKING_SERVICE_H
 
-#include "dm.h"
-#include "esr_defines.h"
-#include "sp_otp.h"
-#include "io.h"
-#include "pcie_device.h"
+#include "bl2_asset_trk_mgmt.h"
 #include "sp_host_iface.h"
-
-/*! \def PCIE_GEN_1
-    \brief PCIE gen 1 bit rates(GT/s) definition.
-*/
-#define PCIE_GEN_1 2
-
-/*! \def PCIE_GEN_2
-    \brief PCIE gen 2 bit rates(GT/s) definition.
-*/
-#define PCIE_GEN_2 5
-
-/*! \def PCIE_GEN_3
-    \brief PCIE gen 3 bit rates(GT/s) definition.
-*/
-#define PCIE_GEN_3 8
-
-/*! \def PCIE_GEN_4
-    \brief PCIE gen 4 bit rates(GT/s) definition.
-*/
-#define PCIE_GEN_4 16
-
-/*! \def PCIE_GEN_5
-    \brief PCIE gen 5 bit rates(GT/s) definition.
-*/
-#define PCIE_GEN_5 32
 
 /*! \fn void asset_tracking_process_request(tag_id_t tag_id, msg_id_t msg_id)
     \brief Interface to process the asset tracking command
