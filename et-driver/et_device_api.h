@@ -21,7 +21,7 @@ struct cmn_header_t {
 	u16 size;
 	u16 tag_id;
 	u16 msg_id;
-};
+} __attribute__ ((packed));
 
 /*
  * Command header for all commands host to device
@@ -29,21 +29,24 @@ struct cmn_header_t {
 struct cmd_header_t {
 	struct cmn_header_t cmd_hdr;
 	u16 flags;
-};
+} __attribute__ ((packed, aligned(8)));
 
 /*
  * Response header for all command responses from device to host
  */
 struct rsp_header_t {
 	struct cmn_header_t rsp_hdr;
-};
+	u8 pad[2];
+} __attribute__ ((packed, aligned(8)));
 
 /*
  * Event header for all events from device to host
  */
 struct evt_header_t {
-	struct cmn_header_t evt_hdr;
-};
+	u16 size;
+	u16 evt_id;
+	u8 pad[4];
+} __attribute__ ((packed, aligned(8)));
 
 /*
  * Enumeration of all the RPC messages that the Device Ops API send/receive
@@ -77,7 +80,8 @@ struct device_ops_data_read_cmd_t {
 	u64 dst_host_phy_addr;
 	u64 src_device_phy_addr;
 	u32 size;
-};
+	u32 pad;
+} __attribute__ ((packed, aligned(8)));
 
 /*
  * Data read command response
@@ -87,7 +91,8 @@ struct device_ops_data_read_rsp_t {
 	u64 cmd_wait_time;
 	u64 cmd_execution_time;
 	u32 status;
-};
+	u32 pad;
+} __attribute__ ((packed, aligned(8)));
 
 /*
  * Command to write data to device memory
@@ -98,7 +103,8 @@ struct device_ops_data_write_cmd_t {
 	u64 src_host_phy_addr;
 	u64 dst_device_phy_addr;
 	u32 size;
-};
+	u32 pad;
+} __attribute__ ((packed, aligned(8)));
 
 /*
  * Data write command response
@@ -108,6 +114,7 @@ struct device_ops_data_write_rsp_t {
 	u64 cmd_wait_time;
 	u64 cmd_execution_time;
 	u32 status;
-};
+	u32 pad;
+} __attribute__ ((packed, aligned(8)));
 
 #endif // ET_DEVICE_API_H

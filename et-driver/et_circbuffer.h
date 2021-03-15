@@ -21,11 +21,11 @@
 #define ET_CB_SYNC_FOR_HOST	BIT(0)
 #define ET_CB_SYNC_FOR_DEVICE	BIT(1)
 
-// TODO: buf should be at 64-bit aligned offset
 struct et_circbuffer {
 	u32 head;
 	u32 tail;
 	u32 len;
+	u32 pad;
 	u8 __iomem buf[];
 } __attribute__ ((__packed__));
 
