@@ -28,11 +28,18 @@ stages:
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"
     exec_after: [DSL_JOB]
 
-  SW_PLATFORM:
+  JOB_DEVICE_LAYER_ZEBU:
     cmds:
-      - job: sw-platform/sw-platform-checkin-system-sw-top-level
+      - job: sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"
-          RUN_ZEBU: ${RUN_ZEBU}
+    exec_after: [CHECK_IN]
+
+  JOB_DEVICE_LAYER_SYSEMU:
+    cmds:
+      - job: sw-platform/system-sw-integration/pipelines/device-ops-zebu-tests
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"
     exec_after: [CHECK_IN]
