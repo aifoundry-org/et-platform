@@ -136,25 +136,7 @@ Messages :
         Description: Identify device firmware type
         Type: enum
         Enum: dev_ops_fw_type
-      - Name: pad1
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad2
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad3
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad4
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad5
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad6
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad7
+      - Name: pad[7]
         Description: Padding for alignment
         Type: uint8_t
   - Name: device_ops_fw_version_rsp
@@ -245,15 +227,9 @@ Messages :
       - Name: kernel_launch_tag_id
         Description: Tag ID of the kernel_launch command the we want to abort
         Type: uint16_t
-      - Name: pad1
+      - Name: pad[6]
         Description: Padding for alignment
-        Type: uint16_t
-      - Name: pad2
-        Description: Padding for alignment
-        Type: uint16_t
-      - Name: pad3
-        Description: Padding for alignment
-        Type: uint16_t
+        Type: uint8_t
   - Name: device_ops_kernel_abort_rsp
     Description: Response to an abort request
     PairedMessage: device_ops_kernel_abort_cmd
@@ -391,25 +367,7 @@ Messages :
         Description: DEV_OPS_TRACE_RESPONSE_SUCCESS or negative error code
         Type: enum
         Enum: dev_ops_trace_response
-      - Name: pad1
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad2
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad3
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad4
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad5
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad6
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad7
+      - Name: pad[7]
         Description: Padding for alignment
         Type: uint8_t
 #-------------------------------------------------------------------------------
@@ -436,25 +394,7 @@ Messages :
         Description: DEV_OPS_TRACE_RESPONSE_SUCCESS or negative error code
         Type: enum
         Enum: dev_ops_trace_response
-      - Name: pad1
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad2
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad3
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad4
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad5
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad6
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad7
+      - Name: pad[7]
         Description: Padding for alignment
         Type: uint8_t
 #------------------------------------------------------------------------------
@@ -472,19 +412,7 @@ Messages :
       - Name: enable
         Description: ENABLE or DISABLE
         Type: uint8_t
-      - Name: pad1
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad2
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad3
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad4
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad5
+      - Name: pad[5]
         Description: Padding for alignment
         Type: uint8_t
   - Name: device_ops_trace_state_ctrl_rsp
@@ -496,25 +424,7 @@ Messages :
         Description: DEV_OPS_TRACE_RESPONSE_SUCCESS or negative error code
         Type: enum
         Enum: dev_ops_trace_response
-      - Name: pad1
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad2
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad3
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad4
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad5
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad6
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad7
+      - Name: pad[7]
         Description: Padding for alignment
         Type: uint8_t
 #------------------------------------------------------------------------------
@@ -534,25 +444,7 @@ Messages :
         Description: DEV_OPS_TRACE_RESPONSE_SUCCESS or negative error code
         Type: enum
         Enum: dev_ops_trace_response
-      - Name: pad1
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad2
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad3
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad4
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad5
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad6
-        Description: Padding for alignment
-        Type: uint8_t
-      - Name: pad7
+      - Name: pad[7]
         Description: Padding for alignment
         Type: uint8_t
 ###################################################################

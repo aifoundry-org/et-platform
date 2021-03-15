@@ -24,7 +24,7 @@ struct << struct["Name"] >> {
   <% for field in struct.get("Fields", []) -%>
   << cgh.message_field_type(field) >>  << field["Name"] >>;
   <% endfor %>
-};
+} __attribute__((packed));
 
 <% endfor %>
 

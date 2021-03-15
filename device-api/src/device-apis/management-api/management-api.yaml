@@ -17,20 +17,6 @@ Modules:
 - Name: Mgmt_API_Calls
   ## List of Enums that are used in our messages
   Enums:
-    - Name: et_dma_state
-      Description: State of a DMA
-      Type: uint32_t
-      Values:
-        - Name: IDLE
-          Value: 0
-        - Name: ACTIVE
-          Value: 1
-        - Name: DONE
-          Value: 2
-        - Name: ABORTING
-          Value: 3
-        - Name: ABORTED
-          Value: 4
     - Name: dm_cmd
       Description: Device Management command IDs
       Type: uint32_t
@@ -122,7 +108,7 @@ Modules:
         - Name: GET_MODULE_DDR_ECC_UECC
           Value: 42
         - Name: GET_MODULE_SRAM_ECC_UECC
-          Value: 43  
+          Value: 43
         - Name: SET_PCIE_MAX_LINK_SPEED
           Value: 44
         - Name: SET_PCIE_LANE_WIDTH
@@ -161,7 +147,7 @@ Modules:
         - Name: INVALID
           Value: 3
     - Name: tdp_level
-      Description: Thermal Design power level     
+      Description: Thermal Design power level
       Type: uint8_t
       Values:
         - Name: ONE
@@ -231,7 +217,7 @@ Modules:
         - Name: x4
           Value: 0
         - Name: x8
-          Value: 1          
+          Value: 1
   Structs:
     - Name: asset_info_t
       Description: Asset Information
@@ -242,7 +228,7 @@ Modules:
       Description: Fused Public Keys
       Fields:
         - Name: keys[32]
-          Type: uint8_t             
+          Type: uint8_t
     - Name: firmware_version_t
       Description: Firmware versions of different minions
       Fields:
@@ -261,16 +247,19 @@ Modules:
         - Name: machm_v
           Description: Machine Minion Firmware version
           Type: uint32_t
+        - Name: pad
+          Description: Padding for alignment
+          Type: uint32_t
     - Name: fw_image_path_t
       Description: Firmware image path
       Fields:
         - Name: path[64]
-          Type: char            
+          Type: char
     - Name: certificate_hash_t
       Description: Fused Public Keys
       Fields:
         - Name: hash[32]
-          Type: char        
+          Type: char
     - Name: temperature_threshold_t
       Fields:
         - Name: lo_temperature_c
@@ -279,20 +268,29 @@ Modules:
         - Name: hi_temperature_c
           Description: High temperature threshold
           Type: uint8_t
+        - Name: pad[6]
+          Description: Padding for alignment
+          Type: uint8_t
     - Name: current_temperature_t
       Fields:
         - Name: temperature_c
           Description: Current temperature (in C)
           Type: uint8_t
+        - Name: pad[7]
+          Description: Padding for alignment
+          Type: uint8_t
     - Name: throttle_time_t
       Fields:
         - Name: time_usec
           Description: Time(in usecs)
-          Type: uint64_t 
+          Type: uint64_t
     - Name: module_power_t
       Fields:
         - Name: watts
           Description: Time(in usecs)
+          Type: uint8_t
+        - Name: pad[7]
+          Description: Padding for alignment
           Type: uint8_t
     - Name: module_uptime_t
       Fields:
@@ -301,19 +299,28 @@ Modules:
           Type: uint16_t
         - Name: hours
           Description: time hour
-          Type: uint8_t  
+          Type: uint8_t
         - Name: mins
           Description: time minutes
-          Type: uint8_t 
+          Type: uint8_t
+        - Name: pad[4]
+          Description: Padding for alignment
+          Type: uint8_t
     - Name: max_temperature_t
       Fields:
         - Name: max_temperature_c
           Description: Max temperature (in C)
-          Type: uint8_t          
+          Type: uint8_t
+        - Name: pad[7]
+          Description: Padding for alignment
+          Type: uint8_t
     - Name: max_ecc_count_t
       Fields:
         - Name: count
           Description: Max ECC count
+          Type: uint32_t
+        - Name: pad
+          Description: Padding for alignment
           Type: uint32_t
     - Name: max_dram_bw_t
       Fields:
@@ -322,7 +329,10 @@ Modules:
           Type: uint8_t
         - Name: max_bw_wr_req_sec
           Description: Max BW Write Req Secs
-          Type: uint8_t                       
+          Type: uint8_t
+        - Name: pad[6]
+          Description: Padding for alignment
+          Type: uint8_t
     - Name: max_throttle_time_t
       Fields:
         - Name: time_usec
@@ -332,7 +342,10 @@ Modules:
       Fields:
         - Name: count
           Description: ECC Error count
-          Type: uint8_t          
+          Type: uint8_t
+        - Name: pad[7]
+          Description: Padding for alignment
+          Type: uint8_t
     - Name: errors_count_t
       Fields:
         - Name: ecc
@@ -340,7 +353,7 @@ Modules:
           Type: uint32_t
         - Name: uecc
           Description: UECC Count
-          Type: uint32_t 
+          Type: uint32_t
     - Name: dram_bw_counter_t
       Fields:
         - Name: bw_rd_req_sec
@@ -348,17 +361,17 @@ Modules:
           Type: uint32_t
         - Name: bw_wr_req_sec
           Description: BW Write Req Secs
-          Type: uint32_t              
+          Type: uint32_t
     - Name: asic_frequencies_t
       Fields:
         - Name: minion_shire_mhz
           Type: uint32_t
         - Name: noc_mhz
-          Type: uint32_t  
+          Type: uint32_t
         - Name: mem_shire_mhz
           Type: uint32_t
         - Name: ddr_mhz
-          Type: uint32_t  
+          Type: uint32_t
         - Name: pcie_shire_mhz
           Type: uint32_t
         - Name: io_shire_mhz
@@ -375,15 +388,21 @@ Modules:
       Fields:
         - Name: pct_cap
           Type: uint32_t
+        - Name: pad
+          Description: Padding for alignment
+          Type: uint32_t
     - Name: mm_state_t
       Fields:
         - Name: master_thread_state
           Type: uint8_t
         - Name: vq_s_thread_state
-          Type: uint8_t  
+          Type: uint8_t
         - Name: vq_c_thread_state
           Type: uint8_t
         - Name: vq_w_thread_state
+          Type: uint8_t
+        - Name: pad[4]
+          Description: Padding for alignment
           Type: uint8_t
     - Name: module_voltage_t
       Fields:
@@ -399,8 +418,10 @@ Modules:
           Type: uint16_t
         - Name: io_shire_mV
           Type: uint16_t
-  # List of Commands, Responses, Events that the RPC
-  # Privileged DeviceAPI can exchange with the host
+        - Name: pad[4]
+          Description: Padding for alignment
+          Type: uint8_t
+  # List of Commands, Responses, Events
   Messages :
       #-------------------------------------------------------------------------------
     - Name: device_mgmt_echo_cmd
@@ -410,7 +431,7 @@ Modules:
       Fields:
         - Name: dummy
           Description: Dummy field
-          Type: int32_t
+          Type: uint64_t
     - Name: device_mgmt_echo_rsp
       Description:  Response to echo test
       Type: Response
@@ -418,7 +439,7 @@ Modules:
       Fields:
         - Name: dummy
           Description: Dummy field
-          Type: int32_t
+          Type: uint64_t
     - Name: device_mgmt_default_rsp
       Description:  Default response to be used if no specific response is defined for a cmd
       Type: Response
@@ -427,6 +448,9 @@ Modules:
         - Name: payload
           Description: Payload for default rsp. Will usually contain the status of command execution.
           Type: int32_t
+        - Name: pad
+          Description: Padding for alignment
+          Type: uint32_t
     - Name: device_mgmt_asset_tracking_cmd
       Description:  Command for asset info request
       Type: Command
@@ -434,7 +458,7 @@ Modules:
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t
+          Type: uint64_t
     - Name: device_mgmt_asset_tracking_rsp
       Type: Response
       Description: Response for the asset info command
@@ -451,7 +475,7 @@ Modules:
       Fields:
         - Name: dummy
           Description: Dummy field
-          Type: uint8_t
+          Type: uint64_t
     - Name: device_mgmt_fused_pub_keys_rsp
       Type: Response
       Description: Response to fused public keys command
@@ -460,15 +484,15 @@ Modules:
         - Name: fused_public_keys
           Description: Fused public keys
           Type: struct
-          Struct: fused_public_keys_t          
+          Struct: fused_public_keys_t
     - Name: device_mgmt_firmware_versions_cmd
-      Description:  Command to request the firmware version 
+      Description:  Command to request the firmware version
       Type: Command
       PairedMessage: device_mgmt_firmware_versions_rsp
       Fields:
         - Name: dummy
           Description: Dummy field
-          Type: uint8_t
+          Type: uint64_t
     - Name: device_mgmt_firmware_versions_rsp
       Type: Response
       Description: Response for firmware version command
@@ -494,9 +518,9 @@ Modules:
       Fields:
         - Name: dummy
           Description: Dummy Field
-          Type: int8_t
+          Type: uint64_t
     - Name: device_mgmt_certificate_hash_cmd
-      Description:  Command to update the certificates hash in OTP 
+      Description:  Command to update the certificates hash in OTP
       Type: Command
       PairedMessage: device_mgmt_certificate_hash_rsp
       Fields:
@@ -511,9 +535,9 @@ Modules:
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t          
+          Type: uint64_t
     - Name: device_mgmt_temperature_threshold_cmd
-      Description:  Command to update the temperature threshold 
+      Description:  Command to update the temperature threshold
       Type: Command
       PairedMessage: device_mgmt_temperature_threshold_rsp
       Fields:
@@ -531,7 +555,7 @@ Modules:
           Type: struct
           Struct: temperature_threshold_t
     - Name: device_mgmt_power_state_cmd
-      Description:  Command to request power state 
+      Description:  Command to request power state
       Type: Command
       PairedMessage: device_mgmt_power_state_rsp
       Fields:
@@ -539,6 +563,9 @@ Modules:
           Description: Power State
           Type: enum
           Enum: power_state
+        - Name: pad[7]
+          Description: Padding for alignment
+          Type: uint8_t
     - Name: device_mgmt_power_state_rsp
       Type: Response
       Description: Response for power state command
@@ -546,10 +573,13 @@ Modules:
       Fields:
         - Name: pwr_state
           Description: Power State
-          Type: enum 
+          Type: enum
           Enum: power_state
+        - Name: pad[7]
+          Description: Padding for alignment
+          Type: uint8_t
     - Name: device_mgmt_tdp_level_cmd
-      Description:  Command to request TDL Level 
+      Description:  Command to request TDL Level
       Type: Command
       PairedMessage: device_mgmt_tdp_level_rsp
       Fields:
@@ -557,6 +587,9 @@ Modules:
           Description: TDP Level
           Type: enum
           Enum: tdp_level
+        - Name: pad[7]
+          Description: Padding for alignment
+          Type: uint8_t
     - Name: device_mgmt_tdp_level_rsp
       Type: Response
       Description: Response for TDL Level command
@@ -564,16 +597,19 @@ Modules:
       Fields:
         - Name: tdp_level
           Description: TDP Level
-          Type: enum 
+          Type: enum
           Enum: tdp_level
+        - Name: pad[7]
+          Description: Padding for alignment
+          Type: uint8_t
     - Name: device_mgmt_current_temperature_cmd
-      Description:  Command to get the current temperature 
+      Description:  Command to get the current temperature
       Type: Command
       PairedMessage: device_mgmt_current_temperature_rsp
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t
+          Type: uint64_t
     - Name: device_mgmt_current_temperature_rsp
       Type: Response
       Description: Response for current temperature command
@@ -584,13 +620,13 @@ Modules:
           Type: struct
           Struct: current_temperature_t
     - Name: device_mgmt_throttle_time_cmd
-      Description:  Command to get the throttle time 
+      Description:  Command to get the throttle time
       Type: Command
       PairedMessage: device_mgmt_throttle_time_rsp
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t
+          Type: uint64_t
     - Name: device_mgmt_throttle_time_rsp
       Type: Response
       Description: Response for throttle time command
@@ -601,13 +637,13 @@ Modules:
           Type: struct
           Struct: throttle_time_t
     - Name: device_mgmt_module_power_cmd
-      Description:  Command to get the module power info 
+      Description:  Command to get the module power info
       Type: Command
       PairedMessage: device_mgmt_module_power_rsp
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t
+          Type: uint64_t
     - Name: device_mgmt_module_power_rsp
       Type: Response
       Description: Response for module power command
@@ -624,7 +660,7 @@ Modules:
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t
+          Type: uint64_t
     - Name: device_mgmt_module_voltage_rsp
       Type: Response
       Description: Response for module voltage command
@@ -635,13 +671,13 @@ Modules:
           Type: struct
           Struct: module_voltage_t
     - Name: device_mgmt_module_uptime_cmd
-      Description:  Command to get the module uptime info 
+      Description:  Command to get the module uptime info
       Type: Command
       PairedMessage: device_mgmt_module_uptime_rsp
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t
+          Type: uint64_t
     - Name: device_mgmt_module_uptime_rsp
       Type: Response
       Description: Response for module uptime command
@@ -650,15 +686,15 @@ Modules:
         - Name: module_uptime
           Description: Module uptime
           Type: struct
-          Struct: module_uptime_t              
+          Struct: module_uptime_t
     - Name: device_mgmt_max_temperature_cmd
-      Description:  Command to get the max temperature 
+      Description:  Command to get the max temperature
       Type: Command
       PairedMessage: device_mgmt_max_temperature_rsp
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t
+          Type: uint64_t
     - Name: device_mgmt_max_temperature_rsp
       Type: Response
       Description: Response for max temperature command
@@ -669,13 +705,13 @@ Modules:
           Type: struct
           Struct: max_temperature_t
     - Name: device_mgmt_max_memory_error_cmd
-      Description:  Command to get the max memory error count 
+      Description:  Command to get the max memory error count
       Type: Command
       PairedMessage: device_mgmt_max_memory_error_rsp
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t
+          Type: uint64_t
     - Name: device_mgmt_max_memory_error_rsp
       Type: Response
       Description: Response for max memory error count command
@@ -692,7 +728,7 @@ Modules:
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t
+          Type: uint64_t
     - Name: device_mgmt_max_dram_bw_rsp
       Type: Response
       Description: Response for Max DRAM BW info command
@@ -701,15 +737,15 @@ Modules:
         - Name: max_dram_bw
           Description: Max DRAM BW info
           Type: struct
-          Struct: max_dram_bw_t  
+          Struct: max_dram_bw_t
     - Name: device_mgmt_max_throttle_time_cmd
-      Description:  Command to get the max throttle time 
+      Description:  Command to get the max throttle time
       Type: Command
       PairedMessage: device_mgmt_max_throttle_time_rsp
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t
+          Type: uint64_t
     - Name: device_mgmt_max_throttle_time_rsp
       Type: Response
       Description: Response for max throttle time command
@@ -720,23 +756,26 @@ Modules:
           Type: struct
           Struct: max_throttle_time_t
     - Name: device_mgmt_set_error_count_cmd
-      Description:  Command to set the error count 
+      Description:  Command to set the error count
       PairedMessage: None
       Type: Command
       Fields:
         - Name: ecc_error_count
           Description: ECC Error count
           Type: struct
-          Struct: ecc_error_count_t 
+          Struct: ecc_error_count_t
     - Name: device_mgmt_pcie_reset_cmd
-      Description:  Command for PCIE Reset 
+      Description:  Command for PCIE Reset
       PairedMessage: None
       Type: Command
       Fields:
         - Name: reset_type
           Description: Reset Type
           Type: enum
-          Enum: pcie_reset 
+          Enum: pcie_reset
+        - Name: pad
+          Description: Padding for alignment
+          Type: uint32_t
     - Name: device_mgmt_get_error_count_cmd
       Description:  Command to get ECC and UECC count
       Type: Command
@@ -744,7 +783,7 @@ Modules:
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t
+          Type: uint64_t
     - Name: device_mgmt_get_error_count_rsp
       Type: Response
       Description: Response for ECC and UECC count command
@@ -761,7 +800,7 @@ Modules:
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t
+          Type: uint64_t
     - Name: device_mgmt_dram_bw_counter_rsp
       Type: Response
       Description: Response for DRAM BW info command
@@ -772,16 +811,19 @@ Modules:
           Type: struct
           Struct: dram_bw_counter_t
     - Name: device_mgmt_pcie_link_speed_cmd
-      Description:  Command for setting PCIE Link Speed 
+      Description:  Command for setting PCIE Link Speed
       PairedMessage: None
       Type: Command
       Fields:
         - Name: speed
           Description: PCIE Link Speed
           Type: enum
-          Enum: pcie_link_speed  
+          Enum: pcie_link_speed
+        - Name: pad
+          Description: Padding for alignment
+          Type: uint32_t
     - Name: device_mgmt_pcie_lane_width_cmd
-      Description:  Command for PCIE Lane width 
+      Description:  Command for PCIE Lane width
       PairedMessage: None
       Type: Command
       Fields:
@@ -789,6 +831,9 @@ Modules:
           Description: PCIE Lane Width
           Type: enum
           Enum: pcie_lane_w_split
+        - Name: pad
+          Description: Padding for alignment
+          Type: uint32_t
     - Name: device_mgmt_pcie_retrain_phy_cmd
       Description:  Command for PCIE Phy Retraining
       Type: Command
@@ -796,7 +841,7 @@ Modules:
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t 
+          Type: uint64_t
     - Name: device_mgmt_etsoc_reset_cmd
       Description:  Command for ETSOC Reset
       Type: Command
@@ -804,7 +849,7 @@ Modules:
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t
+          Type: uint64_t
     - Name: device_mgmt_asic_frequencies_cmd
       Description:  Command to get frequencies of different components of ETSOC
       Type: Command
@@ -812,7 +857,7 @@ Modules:
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t 
+          Type: uint64_t
     - Name: device_mgmt_asic_frequencies_rsp
       Type: Response
       Description: Response for asic_frequencies_cmd command
@@ -829,7 +874,7 @@ Modules:
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t 
+          Type: uint64_t
     - Name: device_mgmt_dram_bw_rsp
       Type: Response
       Description: Response for DRAM BW command
@@ -845,7 +890,7 @@ Modules:
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t 
+          Type: uint64_t
     - Name: device_mgmt_dram_capacity_rsp
       Type: Response
       Description: Response for DRAM Capacity command
@@ -861,7 +906,7 @@ Modules:
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t 
+          Type: uint64_t
     - Name: device_mgmt_asic_per_core_util_rsp
       Type: Response
       Description: Response for ASIC utilization command
@@ -869,7 +914,7 @@ Modules:
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t                    
+          Type: uint64_t
     - Name: device_mgmt_asic_stalls_cmd
       Description:  Command to get ASIC stalls Info
       Type: Command
@@ -877,7 +922,7 @@ Modules:
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t 
+          Type: uint64_t
     - Name: device_mgmt_asic_stalls_rsp
       Type: Response
       Description: Response for ASIC stalls command
@@ -885,7 +930,7 @@ Modules:
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t
+          Type: uint64_t
     - Name: device_mgmt_asic_latency_cmd
       Description:  Command to get ASIC Latency Info
       Type: Command
@@ -893,7 +938,7 @@ Modules:
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t 
+          Type: uint64_t
     - Name: device_mgmt_asic_latency_rsp
       Type: Response
       Description: Response for ASIC Latency command
@@ -901,7 +946,7 @@ Modules:
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t
+          Type: uint64_t
     - Name: device_mgmt_mm_state_cmd
       Description:  Command to get MM state Info
       Type: Command
@@ -909,7 +954,7 @@ Modules:
       Fields:
         - Name: dummy
           Description: Dummy field.
-          Type: uint8_t 
+          Type: uint64_t
     - Name: device_mgmt_mm_state_rsp
       Type: Response
       Description: Response for MM state command

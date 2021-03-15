@@ -269,7 +269,7 @@ class DevAPICodeGeneratorHelper(object):
             "uint16_t": 2,
             "int32_t": 4,
             "uint32_t": 4,
-            "uint64_t": 8,
+            "int64_t": 8,
             "uint64_t": 8,
             "char": 1,
             }
@@ -338,6 +338,26 @@ class DevAPICodeGeneratorHelper(object):
                 return field["Name"]
         return []
 
+    @staticmethod
+    def get_array_size(string_name):
+        """Return the size specified array field; if the string is not array, returns -1
+
+        Args:
+          string_name (string): string to search for array size
+        """
+
+        str_len = len(string_name)
+        index = string_name.find('[')
+        if index != -1:
+            val = ''
+            j = index + 1
+            while (j < str_len) and (string_name[j] != ']'):
+                val += string_name[j]
+                j += 1
+            return int(val)
+        else:
+            return -1
+
     def validate_api(self):
         """Run a couple of checks on the schema to avoid common mistakes"""
         # Check that unsigned enums hold positive values
@@ -349,9 +369,11 @@ class DevAPICodeGeneratorHelper(object):
                     if unsigned and val["Value"] < 0:
                         raise RuntimeError(f"Unsigned enum cannot hold negative value: {val}")
         # Check that member fields of structs or messages are ordered in decreasing size
+        # Also check that member fields of structs or messages are meeting minimum allignment requirement
         for module in self.spec_data.get("Modules", []):
             for struct in module.get("Structs", []):
                 last_size = 32 # some big value
+                struct_size = 0
                 for field in struct["Fields"]:
                     ftype = field["Type"]
                     ftype_size = DevAPICodeGeneratorHelper.get_type_size(ftype)
@@ -360,6 +382,15 @@ class DevAPICodeGeneratorHelper(object):
                                            f"expected to be placed in creasing size, {field} is not")
                     else:
                         last_size = ftype_size
+                    # Check if array and calculate the size
+                    array_size = DevAPICodeGeneratorHelper.get_array_size(field["Name"])
+                    if array_size != -1:
+                        ftype_size *= array_size
+                    # Increment size of structure
+                    struct_size += ftype_size
+                if not (struct_size % MSG_BYTE_ALIGN_REQ == 0):
+                    raise RuntimeError(f"{struct['Name']}: Must be {MSG_BYTE_ALIGN_REQ}-byte aligned")
+
             # Do the same for messages
             for message in module.get("Messages", []):
                 last_size = 1000 # some big value
@@ -376,17 +407,25 @@ class DevAPICodeGeneratorHelper(object):
                                            f"to be placed in increasing size, {field} is not")
                     else:
                         last_size = ftype_size
-            # Verify the Ops_API_Calls for alignment requirement only
-            # TODO: Need to verify other messages too?
-            if module['Name'] == 'Ops_API_Calls':
-                # Verify that the structs meet minimum alignment requirement
-                for message in module.get("Messages", []):
-                    msg_size = 0
-                    for field in message["Fields"]:
+
+            # Verify that the structs of messages meet minimum alignment requirement
+            for message in module.get("Messages", []):
+                msg_size = 0
+                for field in message["Fields"]:
+                    # If the type is struct, fake the field size.
+                    # Struct sizes are verified previously.
+                    if field["Type"] == "struct":
+                        msg_size += MSG_BYTE_ALIGN_REQ
+                    else:
                         ftype = DevAPICodeGeneratorHelper.message_field_storage_type(self, field)
-                        msg_size += DevAPICodeGeneratorHelper.get_type_size(ftype)
-                    if not (msg_size % MSG_BYTE_ALIGN_REQ == 0):
-                        raise RuntimeError(f"{message['Name']}: Must be {MSG_BYTE_ALIGN_REQ}-byte aligned")
+                        ftype_size = DevAPICodeGeneratorHelper.get_type_size(ftype)
+                        # Check if array and calculate the size
+                        array_size = DevAPICodeGeneratorHelper.get_array_size(field["Name"])
+                        if array_size != -1:
+                            ftype_size *= array_size
+                        msg_size += ftype_size
+                if not (msg_size % MSG_BYTE_ALIGN_REQ == 0):
+                    raise RuntimeError(f"{message['Name']}: Must be {MSG_BYTE_ALIGN_REQ}-byte aligned")
         # Check that the values of PairedMessage are valid message names
         for module in self.spec_data.get("Modules", []):
             messages = module.get("Messages", [])
