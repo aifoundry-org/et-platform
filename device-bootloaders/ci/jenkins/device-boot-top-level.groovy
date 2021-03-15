@@ -86,29 +86,44 @@ pipeline {
           ]
       }
     }
-    stage('JOB_RUNTIME') {
-      steps {
-        build job:
-          'sw-platform/runtime-integration/pipelines/runtime-checkin-tests',
-          propagate: true,
-          parameters: [
-            string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-            string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"),
-            string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-          ]
-      }
-    }
-    stage('SW_PLATFORM') {
-      steps {
-        build job:
-          'sw-platform/sw-platform-checkin-system-sw-top-level',
-          propagate: true,
-          parameters: [
-            string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-            string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"),
-            string(name: 'RUN_ZEBU', value: "${RUN_ZEBU}"),
-            string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-          ]
+    stage('PARALLEL0') {
+      parallel {
+        stage('JOB_DEVICE_MANAGEMENT_SYSEMU') {
+          steps {
+            build job:
+              'sw-platform/system-sw-integration/pipelines/device-management-checkin-tests',
+              propagate: true,
+              parameters: [
+                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"),
+                string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+              ]
+          }
+        }
+        stage('JOB_DEVICE_MANAGEMENT_ZEBU') {
+          steps {
+            build job:
+              'sw-platform/system-sw-integration/pipelines/device-management-zebu-tests',
+              propagate: true,
+              parameters: [
+                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"),
+                string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+              ]
+          }
+        }
+        stage('JOB_RUNTIME') {
+          steps {
+            build job:
+              'sw-platform/runtime-integration/pipelines/runtime-checkin-tests',
+              propagate: true,
+              parameters: [
+                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"),
+                string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+              ]
+          }
+        }
       }
     }
   }
