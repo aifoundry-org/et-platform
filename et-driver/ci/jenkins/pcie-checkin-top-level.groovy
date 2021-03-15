@@ -14,7 +14,7 @@ pipeline {
     booleanParam(name: 'EMAIL_NIGHTLY_TEAM', defaultValue: 'false', description: 'Generates an email notification when a pipeline completes for Nightlies and regressions run against the branch specified by parameter EMAIL_NIGHTLY_BRANCH.')
     string(name: 'EMAIL_NIGHTLY_BRANCH', defaultValue: 'master', description: 'This specifies the branch that runs regressions and if EMAIL_NIGHTLY_TEAM is enabled emails will be sent to EMAIL_NIGHTLY_RECIPIENTS when the branch name matches this parameter.')
     string(name: 'EMAIL_NIGHTLY_RECIPIENTS', defaultValue: 'et-sw-infra@esperantotech.com', description: 'Comma seperated list of email recipients for a given project')
-    string(name: 'CRON_STRING', defaultValue: '0 * * * *', description: 'Cron string to cause a job to execute automatically')
+    string(name: 'CRON_STRING', defaultValue: '', description: 'Cron string to cause a job to execute automatically, Syntax is normal cron with %param_name=value at the end.  Additional details can be found at: https://plugins.jenkins.io/parameterized-scheduler/')
     booleanParam(name: 'CHECK_ON_TOP_OF_MASTER', defaultValue: 'true', description: 'when true this executes checks that ensures Merge Request has merged origin/master with their MR at the time the MR was submiteted')
     string(name: 'SW_PLATFORM_BRANCH', defaultValue: 'origin/develop/system-sw', description: 'SW-Platform branch to track')
     booleanParam(name: 'RUN_ZEBU', defaultValue: 'true', description: 'Run Zebu Job')
@@ -32,6 +32,7 @@ pipeline {
   }
   triggers {
     gitlab(triggerOnMergeRequest: true, branchFilterType: 'All')
+    parameterizedCron( env.CRON_STRING )
   }
   environment {
     CHECK_CHILD_JOBS = " --commit-passed ${GIT_COMMIT}  --job-params \' \\\"COMPONENT_COMMITS\\\": \\\"${COMPONENT_COMMITS}\\\"}\' "
@@ -85,16 +86,32 @@ pipeline {
           ]
       }
     }
-    stage('JOB_PCIE_ZEBU') {
-      steps {
-        build job:
-          'sw-platform/system-sw-integration/pipelines/pcie-driver-zebu-tests',
-          propagate: true,
-          parameters: [
-            string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-            string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"),
-            string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-          ]
+    stage('PARALLEL0') {
+      parallel {
+        stage('JOB_PCIE_SYSEMU') {
+          steps {
+            build job:
+              'sw-platform/system-sw-integration/pipelines/device-ops-zebu-tests',
+              propagate: true,
+              parameters: [
+                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"),
+                string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+              ]
+          }
+        }
+        stage('JOB_PCIE_ZEBU') {
+          steps {
+            build job:
+              'sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests',
+              propagate: true,
+              parameters: [
+                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"),
+                string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+              ]
+          }
+        }
       }
     }
   }
@@ -127,7 +144,7 @@ pipeline {
                   recipientProviders: [[$class:'UpstreamComitterRecipientProvider']],
                   to: env.EMAIL_CI_EXTRAS
               )
-            }  
+            }
           }
           if (env.EMAIL_NIGHTLY_TEAM == 'true') {
             if (env.BRANCH == env.EMAIL_NIGHTLY_BRANCH) {
@@ -170,7 +187,7 @@ pipeline {
                   recipientProviders: [[$class:'UpstreamComitterRecipientProvider']],
                   to: env.EMAIL_CI_EXTRAS
               )
-            }  
+            }
           }
           if (env.EMAIL_NIGHTLY_TEAM == 'true') {
             if (env.BRANCH == env.EMAIL_NIGHTLY_BRANCH) {
@@ -213,7 +230,7 @@ pipeline {
                   recipientProviders: [[$class:'UpstreamComitterRecipientProvider']],
                   to: env.EMAIL_CI_EXTRAS
               )
-            }  
+            }
           }
           if (env.EMAIL_NIGHTLY_TEAM == 'true') {
             if (env.BRANCH == env.EMAIL_NIGHTLY_BRANCH) {

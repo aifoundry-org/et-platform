@@ -22,7 +22,14 @@ parameters:
 stages:
   JOB_PCIE_ZEBU:
     cmds:
-      - job: sw-platform/system-sw-integration/pipelines/pcie-driver-zebu-tests
+      - job: sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"
+
+  JOB_PCIE_SYSEMU:
+    cmds:
+      - job: sw-platform/system-sw-integration/pipelines/device-ops-zebu-tests
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"
