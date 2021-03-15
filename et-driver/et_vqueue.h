@@ -43,6 +43,7 @@ struct et_vq_common {
 	wait_queue_head_t waitqueue;
 	bool aborting;
 	spinlock_t abort_lock;		/* serializes access to aborting */
+	struct pci_dev *pdev;
 };
 
 struct et_squeue {

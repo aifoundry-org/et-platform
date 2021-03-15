@@ -330,6 +330,7 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	init_waitqueue_head(&vq_common->waitqueue);
 	vq_common->aborting = false;
 	spin_lock_init(&vq_common->abort_lock);
+	vq_common->pdev = et_dev->pdev;
 
 	rv = et_squeue_init_all(et_dev, is_mgmt);
 	if (rv)
@@ -606,6 +607,249 @@ update_cq_bitmap:
 	return rv;
 }
 
+static void parse_pcie_syndrome(struct device_mgmt_event_msg_t *event_msg,
+				struct event_dbg_msg *dbg_msg)
+{
+	if (event_msg->event_info.msg_id == DEV_MGMT_EID_PCIE_CE) {
+		if (event_msg->event_syndrome[0] &
+		    PCIE_CE_RECEIVER_ERR_STATUS_MASK)
+			strcat(dbg_msg->syndrome, "Receiver Error Status\n");
+		if (event_msg->event_syndrome[0] &
+		    PCIE_CE_BAD_TLP_ERR_STATUS_MASK)
+			strcat(dbg_msg->syndrome, "Bad TLP Status\n");
+		if (event_msg->event_syndrome[0] &
+		    PCIE_CE_BAD_DLLP_ERR_STATUS_MASK)
+			strcat(dbg_msg->syndrome, "Bad DLLP Status\n");
+		if (event_msg->event_syndrome[0] &
+		    PCIE_CE_REPLAY_NUM_ROLLOVER_ERR_STATUS_MASK)
+			strcat(dbg_msg->syndrome,
+			       "Replay No Rollover Status\n");
+		if (event_msg->event_syndrome[0] &
+		    PCIE_CE_REPLAY_TIMER_TIMEOUT_ERR_STATUS_MASK)
+			strcat(dbg_msg->syndrome,
+			       "Replay Timer Timeout Status\n");
+		if (event_msg->event_syndrome[0] &
+		    PCIE_CE_ADVISORY_NONFATAL_ERR_STATUS_MASK)
+			strcat(dbg_msg->syndrome,
+			       "Advisory Non-fatal Error Status\n");
+		if (event_msg->event_syndrome[0] &
+		    PCIE_CE_CORRECTED_INTERNAL_ERR_STATUS_MASK)
+			strcat(dbg_msg->syndrome,
+			       "Corrected Internal Error Status\n");
+		if (event_msg->event_syndrome[0] &
+		    PCIE_CE_HEADER_LOG_OVERFLOW_ERR_STATUS_MASK)
+			strcat(dbg_msg->syndrome,
+			       "Header Log Overflow Error Status\n");
+	} else {
+		if (event_msg->event_syndrome[0] &
+		    PCIE_UCE_RESERVED_MASK)
+			strcat(dbg_msg->syndrome, "Reserved Bits\n");
+		if (event_msg->event_syndrome[0] &
+		    PCIE_UCE_DATA_LINK_PROTOCOL_ERR_STATUS_MASK)
+			strcat(dbg_msg->syndrome, "Data Link Protocol Error\n");
+		if (event_msg->event_syndrome[0] &
+		    PCIE_UCE_SURPRISE_DOWN_ERR_STATUS_MASK)
+			strcat(dbg_msg->syndrome, "Surprise Down Error\n");
+		if (event_msg->event_syndrome[0] &
+		    PCIE_UCE_POISONED_TLP_ERR_STATUS_MASK)
+			strcat(dbg_msg->syndrome, "Poisoned TLP Error\n");
+		if (event_msg->event_syndrome[0] &
+		    PCIE_UCE_FLOW_CONTROL_PROTOCOL_ERR_STATUS_MASK)
+			strcat(dbg_msg->syndrome, "Flow Ctrl Protocol Error\n");
+		if (event_msg->event_syndrome[0] &
+		    PCIE_UCE_COMPLETION_TIMEOUT_ERR_STATUS_MASK)
+			strcat(dbg_msg->syndrome, "Completion Timeout Error\n");
+		if (event_msg->event_syndrome[0] &
+		    PCIE_UCE_COMPLETION_ABORT_ERR_STATUS_MASK)
+			strcat(dbg_msg->syndrome, "Completion Abort Error\n");
+		if (event_msg->event_syndrome[0] &
+		    PCIE_UCE_UNEXPECTED_COMPLETION_ERR_STATUS_MASK)
+			strcat(dbg_msg->syndrome,
+			       "Unexpected Completion Error\n");
+		if (event_msg->event_syndrome[0] &
+		    PCIE_UCE_RECEIVER_OVERFLOW_ERR_STATUS_MASK)
+			strcat(dbg_msg->syndrome, "Receiver Overflow Error\n");
+		if (event_msg->event_syndrome[0] &
+		    PCIE_UCE_MALFORMED_TLP_ERR_STATUS_MASK)
+			strcat(dbg_msg->syndrome, "Malformed TLP Error\n");
+		if (event_msg->event_syndrome[0] &
+		    PCIE_UCE_ECRC_ERR_STATUS_MASK)
+			strcat(dbg_msg->syndrome, "ECRC Error\n");
+		if (event_msg->event_syndrome[0] &
+		    PCIE_UCE_UNSUPPORTED_REQ_ERR_STATUS_MASK)
+			strcat(dbg_msg->syndrome,
+			       "Unsupported Request Error\n");
+		if (event_msg->event_syndrome[0] &
+		    PCIE_UCE_INTERNAL_ERR_STATUS_MASK)
+			strcat(dbg_msg->syndrome, "Internal Error\n");
+	}
+}
+
+static void parse_dram_syndrome(struct device_mgmt_event_msg_t *event_msg,
+				struct event_dbg_msg *dbg_msg)
+{
+	/* Release 0.9.0 */
+}
+
+static void parse_sram_syndrome(struct device_mgmt_event_msg_t *event_msg,
+				struct event_dbg_msg *dbg_msg)
+{
+	sprintf(dbg_msg->syndrome,
+		"ESR_SC_ERR_LOG_INFO\nValid: %d\nMultiple: %d\nEnabled: %d\nImprecise: %d\nCode: %d\nIndex: %d\nError_bits: %d\nRam: %d",
+	(int)GET_ESR_SC_ERR_LOG_INFO_V_BIT(event_msg->event_syndrome[0]),
+	(int)GET_ESR_SC_ERR_LOG_INFO_M_BIT(event_msg->event_syndrome[0]),
+	(int)GET_ESR_SC_ERR_LOG_INFO_E_BIT(event_msg->event_syndrome[0]),
+	(int)GET_ESR_SC_ERR_LOG_INFO_I_BIT(event_msg->event_syndrome[0]),
+	(int)GET_ESR_SC_ERR_LOG_INFO_CODE_BITS(event_msg->event_syndrome[0]),
+	(int)GET_ESR_SC_ERR_LOG_INFO_INDEX_BITS(event_msg->event_syndrome[0]),
+	(int)GET_ESR_SC_ERR_LOG_INFO_ERR_BITS(event_msg->event_syndrome[0]),
+	(int)GET_ESR_SC_ERR_LOG_INFO_RAM_BITS(event_msg->event_syndrome[0])
+	);
+}
+
+static void parse_thermal_syndrome(struct device_mgmt_event_msg_t *event_msg,
+				   struct event_dbg_msg *dbg_msg)
+{
+	int temp_whole;
+	int temp_fract;
+
+	temp_fract = 25 *
+		(event_msg->event_syndrome[0] & SYNDROME_TEMP_FRACTION_MASK);
+	temp_whole = (event_msg->event_syndrome[0] >> 2) & SYNDROME_TEMP_MASK;
+
+	sprintf(dbg_msg->syndrome, "%d.%2d", temp_whole, temp_fract);
+}
+
+static void parse_wdog_syndrome(struct device_mgmt_event_msg_t *event_msg,
+				struct event_dbg_msg *dbg_msg)
+{
+	/* To be finalized */
+}
+
+static void parse_cm_err_syndrome(struct device_mgmt_event_msg_t *event_msg,
+				  struct event_dbg_msg *dbg_msg)
+{
+	if (event_msg->event_syndrome[0] & CM_KERNEL_MASK)
+		strcat(dbg_msg->syndrome, "CM Kernel Error\n");
+	if (event_msg->event_syndrome[0] & CM_RUNTIME_MASK)
+		strcat(dbg_msg->syndrome, "CM Runtime Error\n");
+	if (event_msg->event_syndrome[0] & MM_DISPATCHER_MASK)
+		strcat(dbg_msg->syndrome, "MM Dispatcher Error\n");
+	if (event_msg->event_syndrome[0] & MM_SQW_MASK)
+		strcat(dbg_msg->syndrome, "MM SQW Error\n");
+	if (event_msg->event_syndrome[0] & MM_DMW_MASK)
+		strcat(dbg_msg->syndrome, "MM DMW Error\n");
+	if (event_msg->event_syndrome[0] & MM_KW_MASK)
+		strcat(dbg_msg->syndrome, "MM KW Error\n");
+}
+
+static int handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
+{
+	char syndrome_str[320];
+	struct pci_dev *pdev;
+	struct event_dbg_msg dbg_msg;
+	struct device_mgmt_event_msg_t event_msg;
+	int rv;
+
+	if (!cq || !hdr)
+		return -EINVAL;
+
+	memcpy((u8 *)&event_msg.event_info, (u8 *)hdr, sizeof(*hdr));
+
+	if (!et_circbuffer_pop(&cq->cb, cq->cb_mem,
+			       (u8 *)&event_msg + sizeof(*hdr),
+				hdr->size - sizeof(*hdr),
+				ET_CB_SYNC_FOR_DEVICE))
+		return -EAGAIN;
+
+	rv = hdr->size;
+	pdev = cq->vq_common->pdev;
+
+	switch (event_msg.class_count & EVENT_CLASS_MASK) {
+	case ECLASS_INFO:
+		dbg_msg.level = LEVEL_INFO;
+		break;
+	case ECLASS_WARNING:
+		dbg_msg.level = LEVEL_WARN;
+		break;
+	case ECLASS_CRITICAL:
+		dbg_msg.level = LEVEL_CRITICAL;
+		break;
+	case ECLASS_FATAL:
+		dbg_msg.level = LEVEL_FATAL;
+		break;
+	default:
+		dev_err(&pdev->dev, "Event class is invalid\n");
+		rv = -EINVAL;
+		break;
+	}
+
+	dbg_msg.count = (event_msg.class_count >> 2) & EVENT_COUNT_MASK;
+	syndrome_str[0] = '\0';
+	dbg_msg.syndrome = syndrome_str;
+
+	switch (event_msg.event_info.msg_id) {
+	case DEV_MGMT_EID_PCIE_CE:
+		dbg_msg.desc = "PCIe Correctable Error";
+		parse_pcie_syndrome(&event_msg, &dbg_msg);
+		break;
+	case DEV_MGMT_EID_PCIE_UCE:
+		dbg_msg.desc = "PCIe Un-Correctable Error";
+		parse_pcie_syndrome(&event_msg, &dbg_msg);
+		break;
+	case DEV_MGMT_EID_DRAM_CE:
+		dbg_msg.desc = "DRAM Correctable Error";
+		parse_dram_syndrome(&event_msg, &dbg_msg);
+		break;
+	case DEV_MGMT_EID_DRAM_UCE:
+		dbg_msg.desc = "DRAM Un-Correctable Error";
+		parse_dram_syndrome(&event_msg, &dbg_msg);
+		break;
+	case DEV_MGMT_EID_SRAM_CE:
+		dbg_msg.desc = "SRAM Correctable Error";
+		parse_sram_syndrome(&event_msg, &dbg_msg);
+		break;
+	case DEV_MGMT_EID_SRAM_UCE:
+		dbg_msg.desc = "SRAM Un-Correctable Error";
+		parse_sram_syndrome(&event_msg, &dbg_msg);
+		break;
+	case DEV_MGMT_EID_THERMAL_LOW:
+		dbg_msg.desc = "Temperature Overshoot-1";
+		parse_thermal_syndrome(&event_msg, &dbg_msg);
+		break;
+	case DEV_MGMT_EID_THERMAL_HIGH:
+		dbg_msg.desc = "Temperature Overshoot-2";
+		parse_thermal_syndrome(&event_msg, &dbg_msg);
+		break;
+	case DEV_MGMT_EID_WDOG_TIMEOUT:
+		dbg_msg.desc = "WatchDog Timeout";
+		parse_wdog_syndrome(&event_msg, &dbg_msg);
+		break;
+	case DEV_MGMT_EID_CM_ETH:
+		dbg_msg.desc = "Compute Minion Exception";
+		parse_cm_err_syndrome(&event_msg, &dbg_msg);
+		break;
+	case DEV_MGMT_EID_CM_HTH:
+		dbg_msg.desc = "Compute Minion Hang";
+		parse_cm_err_syndrome(&event_msg, &dbg_msg);
+		break;
+	default:
+		dev_err(&pdev->dev, "Event MSG ID is invalid\n");
+		rv = -EINVAL;
+		break;
+	}
+
+	snprintf(dbg_msg.bdf, sizeof(dbg_msg.bdf),
+		 "%02x:%02x.%d", pdev->bus->number,
+		 PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
+
+	dev_info(&pdev->dev, "\nBDF: %s\nLevel: %s\nDesc: %s\nCount: %d\nSyndrome: %s",
+		 dbg_msg.bdf, dbg_msg.level, dbg_msg.desc, dbg_msg.count,
+		 dbg_msg.syndrome);
+
+	return rv;
+}
+
 ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 {
 	struct cmn_header_t header;
@@ -627,6 +871,13 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	// TODO: Add some recovery mechanism
 	if (!header.size)
 		panic("CQ corrupt: invalid size");
+
+	if (header.msg_id >= DEV_MGMT_EID_BEGIN &&
+	    header.msg_id <= DEV_MGMT_EID_END) {
+		rv = handle_device_event(cq, &header);
+		mutex_unlock(&cq->pop_mutex);
+		return rv;
+	}
 
 	// Message is for user mode. Save it off.
 	msg_node = create_msg_node(header.size);
