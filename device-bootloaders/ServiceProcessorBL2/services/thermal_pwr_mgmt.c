@@ -109,9 +109,17 @@ int get_module_power_state(power_state_e *power_state)
 ***********************************************************************/
 int update_module_tdp_level(tdp_level_e tdp)
 {
-    pmic_set_tdp_threshold(tdp);
-    get_soc_power_reg()->module_tdp_level = tdp;
-    return 0;
+    int status;
+
+    status = pmic_set_tdp_threshold(tdp);
+
+    if (0 != status) {
+        printf("thermal pwr mgmt svc: update module tdp level error\r\n");
+    } else {
+        get_soc_power_reg()->module_tdp_level = tdp;
+    }
+
+    return status;
 }
 
 /************************************************************************
@@ -331,11 +339,11 @@ int get_module_soc_power(uint8_t *soc_power)
 ***********************************************************************/
 int get_module_voltage(struct module_voltage_t *module_voltage)
 {
-    get_soc_power_reg()->module_voltage.minion_shire_mV = pmic_get_voltage(MODULE_MINION);
-    get_soc_power_reg()->module_voltage.noc_mV = pmic_get_voltage(MODULE_NOC);
-    get_soc_power_reg()->module_voltage.pcie_shire_mV = pmic_get_voltage(MODULE_PSHIRE);
-    get_soc_power_reg()->module_voltage.io_shire_mV = pmic_get_voltage(MODULE_IOSHIRE);
-    get_soc_power_reg()->module_voltage.mem_shire_mV = pmic_get_voltage(MODULE_MEMSHIRE);
+    get_soc_power_reg()->module_voltage.minion_shire_mV = (uint16_t)pmic_get_voltage(MODULE_MINION);
+    get_soc_power_reg()->module_voltage.noc_mV = (uint16_t)pmic_get_voltage(MODULE_NOC);
+    get_soc_power_reg()->module_voltage.pcie_shire_mV = (uint16_t)pmic_get_voltage(MODULE_PSHIRE);
+    get_soc_power_reg()->module_voltage.io_shire_mV = (uint16_t)pmic_get_voltage(MODULE_IOSHIRE);
+    get_soc_power_reg()->module_voltage.mem_shire_mV = (uint16_t)pmic_get_voltage(MODULE_MEMSHIRE);
 
     *module_voltage = get_soc_power_reg()->module_voltage;
 

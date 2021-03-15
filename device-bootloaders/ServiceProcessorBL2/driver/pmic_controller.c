@@ -75,9 +75,9 @@ static uint8_t get_pmic_reg(uint8_t reg)
     return buf;
 }
 
-static void set_pmic_reg(uint8_t reg, uint8_t value)
+static int set_pmic_reg(uint8_t reg, uint8_t value)
 {
-    i2c_write(&g_pmic_i2c_dev_reg, reg, &value, 1);
+    return i2c_write(&g_pmic_i2c_dev_reg, reg, &value, 1);
 }
 
 // ***********************************
@@ -91,22 +91,27 @@ uint8_t pmic_read_soc_power(void)
 
 int pmic_set_temperature_threshold(_Bool reg, int limit)
 {
+    int status;
     if ((limit < 55) || (limit > 85)) {
         printf("Error unsupported Temperature limits\n");
-        return -1;
+        status = -1;
     } else {
-        set_pmic_reg((reg ? TEMP_ALARM_CONFIG_LO : TEMP_ALARM_CONFIG_HI), (uint8_t)(limit - 55));
-        return 0;
+        status = set_pmic_reg((reg ? TEMP_ALARM_CONFIG_LO : TEMP_ALARM_CONFIG_HI),
+                              (uint8_t)(limit - 55));
     }
+    return status;
 }
 
-void pmic_set_tdp_threshold(int limit)
+int pmic_set_tdp_threshold(int limit)
 {
+    int status;
     if ((limit < 0) || (limit > 64)) {
         printf("Error unsupported TDP limits\n");
+        status = -1;
     } else {
-        set_pmic_reg(POWER_ALARM_SET_POINT, (uint8_t)(limit << 2));
+        status = set_pmic_reg(POWER_ALARM_SET_POINT, (uint8_t)(limit << 2));
     }
+    return status;
 }
 
 uint8_t pmic_get_temperature(void)
@@ -114,7 +119,7 @@ uint8_t pmic_get_temperature(void)
     return (get_pmic_reg(SYSTEM_TEMP));
 }
 
-uint8_t pmic_get_voltage(enum shire_type_t shire)
+int pmic_get_voltage(enum shire_type_t shire)
 {
     switch (shire) {
     case DDR:
@@ -131,7 +136,7 @@ uint8_t pmic_get_voltage(enum shire_type_t shire)
         return (get_pmic_reg(NOC_VOLTAGE));
     default: {
         printf("Error invalid Shire ID to extract Voltage");
-        return 0;
+        return -1;
     }
     }
 }
