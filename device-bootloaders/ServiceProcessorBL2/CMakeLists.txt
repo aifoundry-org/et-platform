@@ -41,12 +41,14 @@ set(BL2_SOURCES
     driver/interrupt.c
     driver/bl2_pcie.c
     driver/bl2_sram.c
+    driver/bl2_watchdog.c
     driver/bl2_otp.c
     rtos_task/command_dispatcher.c
     rtos_task/flash_fs.c
     rtos_task/vaultip.c
     rtos_task/dm_task.c
     rtos_task/event_handler.c
+    rtos_task/watchdog_task.c
     services/firmware_update.c
     services/asset_track.c
     services/asset_track_mgmt.c
