@@ -117,6 +117,7 @@ private:
         if (events.empty()) {
           throw Exception("Submission queue is full but there are not on-fly events. There could be a firmware bug.");
         }
+        RT_DLOG(INFO) << "SendCommandMasterMinion: Waiting for event " << static_cast<int>(*events.begin());
         waitForEvent(*events.begin());
         lock.lock();
       }

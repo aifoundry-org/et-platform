@@ -206,6 +206,7 @@ void RuntimeImp::waitForStream(StreamId stream) {
   auto it = find(streams_, stream, "Invalid stream");
   auto evt = it->second.lastEventId_;
   lock.unlock();
+  RT_DLOG(INFO) << "WaitForStream: Waiting for event " << static_cast<int>(evt);
   waitForEvent(evt);
 }
 

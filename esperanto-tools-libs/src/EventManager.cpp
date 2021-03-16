@@ -19,6 +19,7 @@
 using namespace rt;
 
 EventId EventManager::getNextId() {
+  std::lock_guard<std::mutex> lock(mutex_);
   auto res = EventId{nextEventId_++};
   onflyEvents_.emplace(res);
   return res;
@@ -32,6 +33,13 @@ void EventManager::dispatch(EventId event) {
   RT_DLOG(INFO) << "Dispatching event " << static_cast<int>(event);
   std::unique_lock<std::mutex> lock(mutex_);
   if (onflyEvents_.erase(event) != 1) {
+
+    std::stringstream ss;
+    for (auto& e : onflyEvents_) {
+      ss << static_cast<int>(e) << " ";
+    }
+    RT_DLOG(INFO) << "Events on-fly: " << ss.str();
+
     throw Exception("Couldn't dispatch event, perhaps it was already dispatched?");
   };
 
