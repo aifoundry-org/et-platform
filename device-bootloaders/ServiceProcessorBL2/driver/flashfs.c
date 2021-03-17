@@ -551,8 +551,9 @@ int flash_fs_increment_completed_boot_count(void)
                          .region_offset *
                      FLASH_PAGE_SIZE;
 
-    printf("partition address: %x, region_index: %x, region_address: %x\n", partition_address,
-           region_index, region_address);
+    /*printf("partition address: %x, region_index: %x, region_address: %x\n", partition_address,
+           region_index, region_address); */
+
 
     counter_data_address = (uint32_t)(partition_address + region_address);
 
@@ -565,25 +566,26 @@ int flash_fs_increment_completed_boot_count(void)
         printf("flash_fs_increment_completed_boot_counter: attempted counter region is full!\n");
         return -1;
     }
-    printf("First unset increment offset: 0x%x, bit offset: 0x%x\n", increment_offset, bit_offset);
+    // To be added once we have Trace integrated
+    // //printf("First unset increment offset: 0x%x, bit offset: 0x%x\n", increment_offset, bit_offset);
 
     page_address = increment_offset & 0xFFFFFFF0u;
-    printf("page_address: 0x%x\n", page_address);
+    //printf("page_address: 0x%x\n", page_address);
 
     mask = (uint8_t) ~(1u << bit_offset);
 
-    printf("Original data: %02x\n",
+    /*printf("Original data: %02x\n",
            sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]
-               .boot_counters_region_data.b[increment_offset]);
+               .boot_counters_region_data.b[increment_offset]);*/
 
     sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]
         .boot_counters_region_data.b[increment_offset] &= mask;
 
-    printf("Updated data: %02x\n",
+    /*printf("Updated data: %02x\n",
            sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]
-               .boot_counters_region_data.b[increment_offset]);
+               .boot_counters_region_data.b[increment_offset]);*/
 
-    printf("Writing 16 bytes @ %lx\n",
+    /*printf("Writing 16 bytes @ %lx\n",
            (uintptr_t)(sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]
                            .boot_counters_region_data.b +
                        page_address));
@@ -591,7 +593,7 @@ int flash_fs_increment_completed_boot_count(void)
         printf(" %02x", sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]
                             .boot_counters_region_data.b[page_address + n]);
     }
-    printf("\n to flash address 0x%x\n", counter_data_address + page_address + FLASH_PAGE_SIZE / 2);
+    printf("\n to flash address 0x%x\n", counter_data_address + page_address + FLASH_PAGE_SIZE / 2); */
 
     if (0 != spi_flash_rdsr(sg_flash_fs_bl2_info->flash_id, &spi_status)) {
         printf("flash_fs_increment_attempted_boot_count: spi_flash_rdsr() failed!\n");

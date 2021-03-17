@@ -384,9 +384,9 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
                    image_info->secret_info.load_regions[region_no].memory_size);
             goto CLEANUP_ON_ERROR;
         }
-        printf("Region %u: load=0x%x, addr=0x%lx, fsize=0x%x, msize=0x%x\n", region_no, load_offset,
+        /*printf("Region %u: load=0x%x, addr=0x%lx, fsize=0x%x, msize=0x%x\n", region_no, load_offset,
                load_address.u64, image_info->secret_info.load_regions[region_no].load_size,
-               image_info->secret_info.load_regions[region_no].memory_size);
+               image_info->secret_info.load_regions[region_no].memory_size);*/
 
         if (image_info->secret_info.load_regions[region_no].load_size > 0) {
             if (0 !=
@@ -395,8 +395,8 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
                 printf("load_image_code_and_data: flashfs_drv_read_file(code) failed!\n");
                 goto CLEANUP_ON_ERROR;
             }
-            printf("loaded 0x%x bytes at 0x%08lx\n",
-                   image_info->secret_info.load_regions[region_no].load_size, load_address.u64);
+            /*printf("loaded 0x%x bytes at 0x%08lx\n",
+                   image_info->secret_info.load_regions[region_no].load_size, load_address.u64);*/
 
             if (!gs_vaultip_disabled) {
                 if (0 != (image_file_header->info.file_header_flags &
@@ -437,9 +437,9 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
                    0,
                    image_info->secret_info.load_regions[region_no].memory_size -
                        image_info->secret_info.load_regions[region_no].load_size);
-            printf("erased 0x%x bytes\n",
+            /*printf("erased 0x%x bytes\n",
                    image_info->secret_info.load_regions[region_no].memory_size -
-                       image_info->secret_info.load_regions[region_no].load_size);
+                       image_info->secret_info.load_regions[region_no].load_size);*/
         }
     }
 
