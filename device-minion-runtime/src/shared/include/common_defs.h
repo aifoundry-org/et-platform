@@ -37,7 +37,19 @@
 /*! \def HARTS_PER_MINION
     \brief A macro that provides number of Harts per Minion
 */
-#define HARTS_PER_MINION  2U
+#define HARTS_PER_MINION        2U
+
+/*! \def DEVICE_CMD_HEADER_SIZE
+    \brief A macro that provides size of the command header (in bytes)
+    exchanged between host & device
+*/
+#define DEVICE_CMD_HEADER_SIZE  8U
+
+/*! \def DEVICE_GET_CMD_SIZE(header_ptr)
+    \brief A macro that provides the total size (in bytes) of command
+    stored in command header
+*/
+#define DEVICE_GET_CMD_SIZE(header_ptr)  *((uint16_t*)header_ptr)
 
 /*! \struct exec_cycle_t
      \brief Struct containing 2 elements:

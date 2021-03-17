@@ -45,6 +45,15 @@ typedef enum {
 */
 int8_t Host_Iface_SQs_Init(void);
 
+/*! \fn vq_cb_t* Host_Iface_Get_VQ_Base_Addr(uint8_t sq_id)
+    \brief Obtain pointer to virtual queue assiciated
+    with the queue type and identifier
+    \param vq_type Virtual Queue Type
+    \param vq_id Virtual Queue ID
+    \return vq_cb_t* Pointer to the virtual queue control block
+*/
+vq_cb_t* Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type, uint8_t vq_id);
+
 /*! \fn int8_t Host_Iface_CQs_Init(void)
     \brief Initialize Host Interface Completion Queues
     \return Status indicating success or a negative error code
@@ -113,5 +122,17 @@ int8_t Host_Iface_SQs_Deinit(void);
     \returns Status indicating success or negative error
 */
 int8_t Host_Iface_CQs_Deinit(void);
+
+/******************************/
+/* Special Optimized routines */
+/******************************/
+
+/*! \fn void Host_Iface_Optimized_SQ_Update_Tail(vq_cb_t *sq_shared, vq_cb_t *sq_cached)
+    \brief This function is used to update the value of tail
+    from cached VQ CB to shared VQ CB
+    \param sq_shared Pointer to shared VQ CB
+    \param sq_cached Pointer to cached VQ CB
+*/
+void Host_Iface_Optimized_SQ_Update_Tail(vq_cb_t *sq_shared, vq_cb_t *sq_cached);
 
 #endif /* HOST_IFACE_DEFS_H */

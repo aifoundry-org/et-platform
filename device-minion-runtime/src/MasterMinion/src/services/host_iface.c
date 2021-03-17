@@ -18,6 +18,7 @@
         Host_Iface_Peek_SQ_Cmd_Size
         Host_Iface_Peek_SQ_Cmd
         Host_Iface_SQ_Pop_Cmd
+        Host_Iface_Optimized_SQ_Update_Tail
         Host_Iface_CQ_Push_Cmd
         Host_Iface_Interrupt_Status
         Host_Iface_Processing
@@ -160,6 +161,48 @@ int8_t Host_Iface_SQs_Init(void)
     }
 
     return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Host_Iface_Get_VQ_Base_Addr
+*
+*   DESCRIPTION
+*
+*       Obtain the Submission Queue base address
+*
+*   INPUTS
+*
+*       vq_type     Virtuql Queue Type
+*       vq_id       Virtual Queue ID
+*
+*   OUTPUTS
+*
+*       vq_cb_t*    Pointer to Virtual queue base
+*
+***********************************************************************/
+vq_cb_t* Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type, uint8_t vq_id)
+{
+    vq_cb_t* retval=0;
+
+    if(vq_type == SQ)
+    {
+        retval = &Host_SQs.vqueues[vq_id];
+    }
+    else if(vq_type == CQ)
+    {
+        retval = &Host_CQs.vqueues[vq_id];
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_DEBUG,
+            "HostIface:ERROR:Failed to obtain VQ base address, bad vq_id: %d\r\n",
+            vq_id);
+    }
+
+    return retval;
 }
 
 /************************************************************************
@@ -385,6 +428,38 @@ int32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void* rx_buff)
     }
 
     return pop_ret_val;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Host_Iface_Optimized_SQ_Update_Tail
+*
+*   DESCRIPTION
+*
+*       This function is used to update the value of tail from cached VQ CB
+*       to shared VQ CB.
+*
+*   INPUTS
+*
+*       sq_shared  Pointer to shared VQ CB.
+*       sq_cached  Pointer to cached VQ CB.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Host_Iface_Optimized_SQ_Update_Tail(vq_cb_t *sq_shared, vq_cb_t *sq_cached)
+{
+    /* Update tail value in VQ memory */
+    VQ_Set_Tail_Offset(sq_shared, VQ_Get_Tail_Offset(sq_cached));
+
+    /* TODO: We need to send event to the host when 25% of space is avialable is SQ.
+    Should be build time macro */
+    /* TODO: Use seperate MSI for notifiying host that SQ has freed up space */
+    (void)pcie_interrupt_host(0);
 }
 
 /************************************************************************

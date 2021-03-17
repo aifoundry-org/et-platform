@@ -17,8 +17,7 @@
         Circbuffer_Push
         Circbuffer_Pop
         Circbuffer_Peek
-        Circbuffer_Get_Used_Space
-        Circbuffer_Get_Avail_Space
+        Circbuffer_Read
 */
 /***********************************************************************/
 #include "circbuff.h"
@@ -27,7 +26,7 @@
     \brief An array containing function pointers to ETSOC memory read functions.
     \warning Not thread safe!
 */
-static void (*memory_read[MEM_TYPES_COUNT])
+void (*memory_read[MEM_TYPES_COUNT])
     (const void *src_ptr, void *dest_ptr, uint32_t length) __attribute__((aligned(64))) =
     { ETSOC_Memory_Read_Local_Atomic, ETSOC_Memory_Read_Global_Atomic,
       ETSOC_Memory_Read_Uncacheable, ETSOC_Memory_Read_Write_Cacheable };
@@ -36,7 +35,7 @@ static void (*memory_read[MEM_TYPES_COUNT])
     \brief An array containing function pointers to ETSOC memory write functions.
     \warning Not thread safe!
 */
-static void (*memory_write[MEM_TYPES_COUNT])
+void (*memory_write[MEM_TYPES_COUNT])
     (const void *src_ptr, void *dest_ptr, uint32_t length) __attribute__((aligned(64))) =
     { ETSOC_Memory_Write_Local_Atomic, ETSOC_Memory_Write_Global_Atomic,
       ETSOC_Memory_Write_Uncacheable, ETSOC_Memory_Read_Write_Cacheable };
@@ -245,6 +244,71 @@ int8_t Circbuffer_Pop(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
 *
 *   FUNCTION
 *
+*       Circbuffer_Read
+*
+*   DESCRIPTION
+*
+*       This function reads the given number of bytes from circular buffer
+*       to the given destination data buffer and increments the tail
+*       offset.
+*
+*   INPUTS
+*
+*       circ_buff_cb_ptr  Pointer to circular buffer control block.
+*       src_circ_buffer   Pointer to source circular buffer data pointer.
+*       dest_buffer       Pointer to destination data buffer.
+*       dest_length       Length of the destination data buffer in bytes.
+*       flags             Additional flags to determine memory type
+*
+*   OUTPUTS
+*
+*       int8_t            Returns successful status or error code.
+*
+***********************************************************************/
+int8_t Circbuffer_Read(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
+    void *restrict const src_circ_buffer, void *restrict const dest_buffer,
+    uint32_t dest_length, uint32_t flags)
+{
+    int8_t status = CIRCBUFF_OPERATION_SUCCESS;
+    uint8_t *src_u8 = (uint8_t *)src_circ_buffer;
+    uint8_t *dest_u8 = (uint8_t *)dest_buffer;
+
+    /* Verify the circular buffer tail offset */
+    if (circ_buff_cb_ptr->tail_offset >= circ_buff_cb_ptr->length)
+    {
+        status = CIRCBUFF_ERROR_BAD_TAIL_INDEX;
+    }
+
+    /* If previous operations are successful */
+    if (status == CIRCBUFF_OPERATION_SUCCESS)
+    {
+        /* Check if buffer wrap is required */
+        if (circ_buff_cb_ptr->tail_offset + dest_length > circ_buff_cb_ptr->length)
+        {
+            uint32_t bytes_till_end = circ_buff_cb_ptr->length - circ_buff_cb_ptr->tail_offset;
+
+            (*memory_read[flags]) (src_u8 + circ_buff_cb_ptr->tail_offset,
+                dest_u8, bytes_till_end);
+            circ_buff_cb_ptr->tail_offset = 0;
+            dest_length -= bytes_till_end;
+            dest_u8 += bytes_till_end;
+        }
+
+        (*memory_read[flags]) (src_u8 + circ_buff_cb_ptr->tail_offset,
+            dest_u8, dest_length);
+
+        /* Update tail offset value */
+        circ_buff_cb_ptr->tail_offset =
+            (circ_buff_cb_ptr->tail_offset + dest_length) % circ_buff_cb_ptr->length;
+    }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       Circbuffer_Peek
 *
 *   DESCRIPTION
@@ -325,80 +389,4 @@ int8_t Circbuffer_Peek(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
     }
 
     return status;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       Circbuffer_Get_Used_Space
-*
-*   DESCRIPTION
-*
-*       This function is used to get the number of used bytes in circular
-*       buffer.
-*
-*   INPUTS
-*
-*       circ_buff_cb_ptr  Pointer to circular buffer control block.
-*       flags             Indicates memory access type.
-*
-*   OUTPUTS
-*
-*       uint32_t          Returns number of used bytes.
-*
-***********************************************************************/
-uint32_t Circbuffer_Get_Used_Space(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
-            uint32_t flags)
-{
-    circ_buff_cb_t *circ_buff = circ_buff_cb_ptr;
-
-    /* Read from memory if no read flag is not set */
-    if (flags != CIRCBUFF_FLAG_NO_READ)
-    {
-        /* Read the circular buffer CB from memory */
-        (*memory_read[flags]) (circ_buff_cb_ptr, circ_buff, sizeof(*circ_buff));
-    }
-
-    return (uint32_t)((circ_buff->head_offset >= circ_buff->tail_offset) ?
-                      circ_buff->head_offset - circ_buff->tail_offset :
-                      (circ_buff->length + circ_buff->head_offset - circ_buff->tail_offset));
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       Circbuffer_Get_Avail_Space
-*
-*   DESCRIPTION
-*
-*       This function is used to get the free space (in bytes) in a
-*       circular buffer.
-*
-*   INPUTS
-*
-*       circ_buff_cb_ptr  Pointer to circular buffer control block.
-*       flags             Indicates memory access type.
-*
-*   OUTPUTS
-*
-*       uint32_t          Returns the free space.
-*
-***********************************************************************/
-uint32_t Circbuffer_Get_Avail_Space(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
-            uint32_t flags)
-{
-    circ_buff_cb_t *circ_buff = circ_buff_cb_ptr;
-
-    /* Read from memory if no read flag is not set */
-    if (flags != CIRCBUFF_FLAG_NO_READ)
-    {
-        /* Read the circular buffer CB from memory */
-        (*memory_read[flags]) (circ_buff_cb_ptr, circ_buff, sizeof(*circ_buff));
-    }
-
-    return (uint32_t)((circ_buff->head_offset >= circ_buff->tail_offset) ?
-                      (circ_buff->length - 1) - (circ_buff->head_offset - circ_buff->tail_offset) :
-                       circ_buff->tail_offset - circ_buff->head_offset - 1);
 }

@@ -17,14 +17,12 @@
         VQ_Init
         VQ_Push
         VQ_Pop
+        VQ_Pop_Optimized
+        VQ_Data_Avail
         VQ_Deinit
 */
 /***********************************************************************/
 #include "vq.h"
-
-#if defined(MASTER_MINION)
-#include "atomic.h"
-#endif
 
 #undef DEBUG_LOG
 
@@ -73,7 +71,7 @@ int8_t VQ_Init(vq_cb_t *vq_cb, uint64_t vq_base, uint32_t vq_size,
     atomic_store_local_64((uint64_t*)(void*)&vq_cb->cmd_size_peek_offset,
         temp);
 
-    /* Initialize the SQ circular buffer */
+    /* Initialize the circular buffer in shared memory */
     status = Circbuffer_Init((circ_buff_cb_t*)vq_base,
         (uint32_t)(vq_size - sizeof(circ_buff_cb_t)),
         atomic_load_local_32(&vq_cb->flags));
@@ -243,6 +241,89 @@ int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
     {
         /* No more data */
         return_val = 0;
+    }
+
+    return return_val;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       VQ_Pop_Optimized
+*
+*   DESCRIPTION
+*
+*       This function is used to pop a command from virtual queue. Note that
+*       this is an optimized version of VQ pop which operates on cached VQ
+*       pointers.
+*
+*   INPUTS
+*
+*       vq_cb          Pointer to virtual queue control block
+*       vq_used_space  Number of bytes available to pop
+*       shared_mem_ptr Pointer to shared circular buffer pointer
+*       rx_buff        Pointer to rx buffer to copy popped data
+*
+*   OUTPUTS
+*
+*       int32_t        Negative value - error
+*                      Positive value - Number of bytes popped
+*
+***********************************************************************/
+int32_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint32_t vq_used_space,
+    void *restrict const shared_mem_ptr,  void* rx_buff)
+{
+    int32_t return_val;
+    uint16_t cmd_size;
+    uint32_t payload_size;
+
+    /* Pop the header from circular buffer */
+    return_val = Circbuffer_Read(vq_cb->circbuff_cb, shared_mem_ptr,
+        rx_buff, DEVICE_CMD_HEADER_SIZE, vq_cb->flags);
+
+    if (return_val == STATUS_SUCCESS)
+    {
+        /* Get the size of the command header + payload */
+        cmd_size = DEVICE_GET_CMD_SIZE(rx_buff);
+
+        /* Command size should be at least equal to command header */
+        if (cmd_size >= DEVICE_CMD_HEADER_SIZE)
+        {
+            payload_size = (cmd_size - DEVICE_CMD_HEADER_SIZE);
+
+            /* If payload is available */
+            if(payload_size > 0)
+            {
+                /* Verify the payload size */
+                if (payload_size <= vq_used_space)
+                {
+                    /* Pop the command payload from circular buffer */
+                    return_val = Circbuffer_Read(vq_cb->circbuff_cb, shared_mem_ptr,
+                        ((uint8_t*)rx_buff) + DEVICE_CMD_HEADER_SIZE, payload_size, vq_cb->flags);
+
+                    /* Populate the popped size */
+                    if (return_val == STATUS_SUCCESS)
+                    {
+                        return_val = cmd_size;
+                    }
+                }
+                else
+                {
+                    /* Bad length of payload in command */
+                    return_val = VQ_ERROR_BAD_PAYLOAD_LENGTH;
+                }
+            }
+            else
+            {
+                /* Populate the popped size */
+                return_val = cmd_size;
+            }
+        }
+        else
+        {
+            return_val = VQ_ERROR_INVLD_CMD_SIZE;
+        }
     }
 
     return return_val;

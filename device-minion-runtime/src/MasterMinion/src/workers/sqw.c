@@ -41,13 +41,14 @@
 #include "services/host_cmd_hdlr.h"
 #include <esperanto/device-apis/device_apis_message_types.h>
 #include "pmu.h"
+#include "etsoc_memory.h"
 
 /*! \typedef sqw_cb_t
     \brief Submission Queue Worker Control Block structure
 */
 typedef struct sqw_cb_ {
     int32_t             sqw_cmd_count[MM_SQ_COUNT];
-    global_fcc_flag_t   sqw_fcc_flags[MM_SQ_COUNT];
+    local_fcc_flag_t    sqw_fcc_flags[MM_SQ_COUNT];
 } sqw_cb_t;
 
 /*! \var sqw_cb_t SQW_CB
@@ -115,7 +116,7 @@ void SQW_Init(void)
     /* Initialize the SQ Worker sync flags */
     for (uint8_t i = 0; i < MM_SQ_COUNT; i++)
     {
-        global_fcc_flag_init(&SQW_CB.sqw_fcc_flags[i]);
+        local_fcc_flag_init(&SQW_CB.sqw_fcc_flags[i]);
 
         atomic_store_local_32((uint32_t*)&SQW_CB.sqw_cmd_count[i], 0U);
     }
@@ -149,7 +150,11 @@ void SQW_Notify(uint8_t sqw_idx)
 
     Log_Write(LOG_LEVEL_DEBUG, "Notifying:SQW:minion=%d:thread=%d\r\n", minion, thread);
 
-    global_fcc_flag_notify(&SQW_CB.sqw_fcc_flags[sqw_idx],
+    /* TODO: Today we are stuck here due to the reason that this primitive
+    expects an ACK from the receiver end. Hence, it blocks the caller.
+    There are two options in future: 1. To use IPIs.
+    2. Improve FCC to address security concerns. */
+    local_fcc_flag_notify_no_ack(&SQW_CB.sqw_fcc_flags[sqw_idx],
         minion, thread);
 
     return;
@@ -178,61 +183,118 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
 {
     static uint8_t cmd_buff[MM_CMD_MAX_SIZE] __attribute__((aligned(64))) = { 0 };
     struct cmd_header_t *cmd_hdr = (void*)cmd_buff;
+    bool update_sq_tail;
     int8_t status = 0;
     int32_t pop_ret_val;
-    uint64_t start_cycles=0;
+    uint32_t tail_prev;
+    uint32_t vq_used_space;
+    uint64_t start_cycles = 0;
+    void* shared_mem_ptr;
+    circ_buff_cb_t circ_buff_cached;
+    vq_cb_t vq_cached;
+    vq_cb_t *vq_shared = Host_Iface_Get_VQ_Base_Addr(SQ, (uint8_t)sqw_idx);
+
+    /* TODO: This could also be achieved by using VQ CB as always cached,
+    by locking the global variable in cache - VQ CB could be kept in SCP */
+    /* Make a copy of the VQ CB in cached DRAM to cached L1 stack variable */
+    ETSOC_Memory_Read_Local_Atomic((void*)vq_shared, (void*)&vq_cached, sizeof(vq_cached));
+
+    /* Make a copy of the Circular Buffer CB in shared SRAM to cached L1 stack variable */
+    ETSOC_Memory_Read_Uncacheable((void*)vq_cached.circbuff_cb, (void*)&circ_buff_cached,
+        sizeof(circ_buff_cached));
+
+    /* Save the shared memory pointer */
+    shared_mem_ptr = (void*)vq_cached.circbuff_cb->buffer_ptr;
+
+    /* Update the local VQ CB to point to the cached L1 stack variable */
+    vq_cached.circbuff_cb = &circ_buff_cached;
 
     Log_Write(LOG_LEVEL_CRITICAL, "SQW:H%d:IDX=%d\r\n", hart_id, sqw_idx);
 
     while(1)
     {
-        /* Wait for SQ Worker notification from Dispatcher*/
-        global_fcc_flag_wait(&SQW_CB.sqw_fcc_flags[sqw_idx]);
+        /* Wait for SQ Worker notification from Dispatcher */
+        local_fcc_flag_wait(&SQW_CB.sqw_fcc_flags[sqw_idx]);
 
         /* Get current minion cycle */
         start_cycles = PMC_Get_Current_Cycles();
 
         Log_Write(LOG_LEVEL_DEBUG, "SQW:H%d:received FCC event!\r\n", hart_id);
 
-        /* Process commands until there is no more data */
-        do
+        /* Reset the flag for updating the SQ tail offset in shared SRAM */
+        update_sq_tail = false;
+
+        /* Get the cached tail pointer */
+        tail_prev = VQ_Get_Tail_Offset(&vq_cached);
+
+        /* Refresh the cached VQ CB - Get updated head and tail values */
+        VQ_Get_Head_And_Tail(vq_shared, &vq_cached);
+
+        /* Verify that the tail value read from memory is equal to previous tail value */
+        if(tail_prev == VQ_Get_Tail_Offset(&vq_cached))
         {
-            /* Pop from Submission Queue */
-            pop_ret_val = Host_Iface_SQ_Pop_Cmd((uint8_t)sqw_idx, cmd_buff);
+            /* Get the total number of bytes available in the VQ */
+            vq_used_space = VQ_Get_Used_Space(&vq_cached, UNCACHED);
 
-            if(pop_ret_val > 0)
+            /* Process commands until there is no more data in VQ */
+            while(vq_used_space)
             {
-                Log_Write(LOG_LEVEL_DEBUG, "SQW:Processing:SQW_IDX=%d:tag_id=%x\r\n",
-                    sqw_idx, cmd_hdr->cmd_hdr.tag_id);
+                /* Pop from Submission Queue */
+                pop_ret_val = VQ_Pop_Optimized(&vq_cached, vq_used_space, shared_mem_ptr, cmd_buff);
 
-                /* If barrier flag is set, wait until all cmds are
-                processed in the current SQ */
-                if(cmd_hdr->flags & (1 << 0U))
+                if(pop_ret_val > 0)
                 {
-                    sqw_command_barrier((uint8_t)sqw_idx);
+                    Log_Write(LOG_LEVEL_DEBUG, "SQW:Processing:SQW_IDX=%d:tag_id=%x\r\n",
+                        sqw_idx, cmd_hdr->cmd_hdr.tag_id);
+
+                    /* If barrier flag is set, wait until all cmds are
+                    processed in the current SQ */
+                    if(cmd_hdr->flags & (1 << 0U))
+                    {
+                        sqw_command_barrier((uint8_t)sqw_idx);
+                    }
+
+                    /* Increment the SQW command count.
+                    NOTE: Its Host_Command_Handler's job to ensure this
+                    count is decremented on the basis of the path it
+                    takes to process a command. */
+                    SQW_Increment_Command_Count((uint8_t)sqw_idx);
+
+                    status = Host_Command_Handler(cmd_buff,
+                        (uint8_t)sqw_idx, start_cycles);
+
+                    if(status != STATUS_SUCCESS)
+                    {
+                        Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:Procesisng failed.(Error code: %d)\r\n",
+                            status);
+                    }
+                }
+                else if(pop_ret_val < 0)
+                {
+                    Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:VQ pop failed.(Error code: %d)\r\n",
+                        pop_ret_val);
                 }
 
-                /* Increment the SQW command count.
-                NOTE: Its Host_Command_Handler's job to ensure this
-                count is decremented on the basis of the path it
-                takes to process a command. */
-                SQW_Increment_Command_Count((uint8_t)sqw_idx);
+                /* Set the SQ tail update flag so that we can updated shared
+                memory circular buffer CB with new tail offset */
+                update_sq_tail = true;
 
-                status = Host_Command_Handler(cmd_buff,
-                    (uint8_t)sqw_idx, start_cycles);
-
-                if(status != STATUS_SUCCESS)
-                {
-                    Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:Procesisng failed.(Error code: %d)\r\n",
-                        status);
-                }
+                /* Re-calculate the total number of bytes available in the VQ */
+                vq_used_space = VQ_Get_Used_Space(&vq_cached, UNCACHED);
             }
-            else if(pop_ret_val < 0)
+
+            if(update_sq_tail)
             {
-                Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:VQ pop failed.(Error code: %d)\r\n",
-                    pop_ret_val);
+                /* Update the tail offset in VQ shared memory so that host is able to push new commands */
+                Host_Iface_Optimized_SQ_Update_Tail(vq_shared, &vq_cached);
             }
-        } while(pop_ret_val > 0);
+        }
+        else
+        {
+            /* TODO: Send an async event to host to inform about this fatal error */
+            Log_Write(LOG_LEVEL_CRITICAL, "SQW:FATAL ERROR:Tail Mismatch:Cached: %d, Shared Memory: %d\r\n",
+                tail_prev, VQ_Get_Tail_Offset(&vq_cached));
+        }
     }
 
     return;
