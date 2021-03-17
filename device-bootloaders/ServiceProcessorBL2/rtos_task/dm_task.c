@@ -31,10 +31,10 @@
 #include "thermal_pwr_mgmt.h"
 
 // TODO: will be configurable by the host
-#define DM_TASK_DELAY_MS   5
+#define DM_TASK_DELAY_MS 5
 
-#define DM_TASK_STACK      1024
-#define DM_TASK_PRIORITY   1
+#define DM_TASK_STACK    1024
+#define DM_TASK_PRIORITY 1
 
 /* GLobals */
 static TaskHandle_t g_dm_task_handle;
@@ -65,17 +65,15 @@ static void dm_task_entry(void *pvParameters);
 ***********************************************************************/
 void init_dm_sampling_task(void)
 {
-    g_dm_task_handle = xTaskCreateStatic(dm_task_entry, "DM_TASK", DM_TASK_STACK,
-                                         NULL, DM_TASK_PRIORITY , g_dm_stack,
-                                         &g_staticTask_ptr);
+    g_dm_task_handle = xTaskCreateStatic(dm_task_entry, "DM_TASK", DM_TASK_STACK, NULL,
+                                         DM_TASK_PRIORITY, g_dm_stack, &g_staticTask_ptr);
 
     // Initialize the globals
 
     //g_soc_perf_reg.xyz  = <value>;
     //g_soc_power_reg.xyz = <value>;
 
-    if(!g_dm_task_handle)
-    {
+    if (!g_dm_task_handle) {
         printf("Task creation error: Failed to create DM sampling task.\n");
     }
 }
@@ -109,8 +107,7 @@ static void dm_task_entry(void *pvParameters)
     int ret;
 
     //Will need to cleanly yield this thread to avoid this Thread from hoging the SP
-    while(1)  
-    {
+    while (1) {
         // simulate the values fetched from the PMIC Interface
         // Module Temperature in C
         ret = update_module_current_temperature();
@@ -128,21 +125,21 @@ static void dm_task_entry(void *pvParameters)
 
         // Update module max temperature
         update_module_max_temp();
-        
+
         // Update the module uptime
         update_module_uptime();
 
         // Update the DRAM BW(Read/Write request) details
         ret = update_dram_bw();
 
-        if(0 != ret) {
+        if (0 != ret) {
             printf("perf mgmt svc error : update_dram_bw()\r\n");
         }
 
-        // Update the throttle time 
+        // Update the throttle time
         update_module_throttle_time();
-        
-        // DRAM capacity 
+
+        // DRAM capacity
         ret = update_dram_capacity_percent();
         if (0 != ret) {
             printf("perf mgmt svc error : update_dram_capacity_percent()\r\n");

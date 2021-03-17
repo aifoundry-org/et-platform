@@ -13,6 +13,7 @@
 
 #include "perf_mgmt.h"
 #include "thermal_pwr_mgmt.h"
+#include "dm_event_def.h"
 
 void init_dm_sampling_task(void);
 

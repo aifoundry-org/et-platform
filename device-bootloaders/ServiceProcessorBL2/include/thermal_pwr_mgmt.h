@@ -17,15 +17,16 @@
 /***********************************************************************/
 #include "dm.h"
 #include "bl2_pmic_controller.h"
+#include "dm_event_def.h"
 
 // Thresholds
 #define L0 0x0 // Low
 #define HI 0x1 // High
 
 // Defines for uptime calc
-#define HOURS_IN_DAY       24
-#define SECONDS_IN_HOUR    3600
-#define SECONDS_IN_MINUTE  60
+#define HOURS_IN_DAY      24
+#define SECONDS_IN_HOUR   3600
+#define SECONDS_IN_MINUTE 60
 
 /*! \fn volatile struct soc_power_reg_t *get_soc_power_reg(void)
     \brief Interface to get the SOC power register
@@ -131,7 +132,7 @@ void update_module_uptime(void);
     \param *module_uptime  Pointer to module uptime struct
     \returns Status indicating success or negative error
 */
-int get_module_uptime(struct module_uptime_t  *module_uptime);
+int get_module_uptime(struct module_uptime_t *module_uptime);
 
 /*! \fn void update_module_throttle_time(void);
     \brief Interface to update the module's throttle time.
@@ -160,3 +161,10 @@ int get_max_throttle_time(uint64_t *max_throttle_time);
     \returns Status indicating success or negative error
 */
 int get_soc_max_temperature(uint8_t *max_temp);
+
+/*! \fn int set_power_reg_temperature_event_cb(dm_event_isr_callback event_cb)
+    \brief Interface to set temperature event callback variable
+    \param event_cb  Temperature event callback function ptr
+    \returns Status indicating success or negative error
+*/
+int set_power_reg_temperature_event_cb(dm_event_isr_callback event_cb);

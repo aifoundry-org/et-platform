@@ -51,6 +51,7 @@ static void sram_event_callback(enum error_type type, struct event_message_t *ms
 static void ddr_event_callback(enum error_type type, struct event_message_t *msg);
 static void pmic_event_callback(enum error_type type, struct event_message_t *msg);
 static void wdog_timeout_callback(enum error_type type, struct event_message_t *msg);
+static void temperature_threshold_event_callback(enum error_type type, struct event_message_t *msg);
 
 volatile struct max_error_count_t *get_soc_max_control_block(void)
 {
@@ -96,6 +97,14 @@ int32_t dm_event_control_init(void)
     if (status) {
         printf("Error Control Init Failed: Failed to init error control\n");
         return status;
+    }
+
+    if (!status) {
+        status = set_power_reg_temperature_event_cb(temperature_threshold_event_callback);
+        if (status) {
+            printf("Event Control Init Failed: set_power_reg_temperature_event_cb()\n");
+            return -1;
+        }
     }
 
     return status;
@@ -178,4 +187,11 @@ static void wdog_timeout_callback(enum error_type type, struct event_message_t *
     (void)type;
     /* Post message to the queue */
     xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
+}
+
+static void temperature_threshold_event_callback(enum error_type type, struct event_message_t *msg)
+{
+    (void)type;
+    /* Post message to the queue */
+    xQueueSend(q_handle, msg, portMAX_DELAY);
 }

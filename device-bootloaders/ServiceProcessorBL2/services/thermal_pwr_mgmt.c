@@ -30,6 +30,7 @@ struct soc_power_reg_t {
     struct module_voltage_t module_voltage;
     uint64_t throttled_states_residency;
     uint64_t max_throttled_states_residency;
+    dm_event_isr_callback temperature_event_cb;
 };
 
 volatile struct soc_power_reg_t *get_soc_power_reg(void)
@@ -237,8 +238,31 @@ int get_module_temperature_threshold(struct temperature_threshold_t *temperature
 ***********************************************************************/
 int update_module_current_temperature(void)
 {
+    int status=0;
+    struct event_message_t message;
+    struct temperature_threshold_t temperature_threshold;
+
     get_soc_power_reg()->soc_temperature = pmic_get_temperature();
-    return 0;
+
+    get_module_temperature_threshold(&temperature_threshold);
+
+    if ((get_soc_power_reg()->soc_temperature) < (temperature_threshold.lo_temperature_c)) {
+        /* add details in message header and fill payload */
+        FILL_EVENT_HEADER(&message.header, THERMAL_LOW,
+                          sizeof(struct event_message_t) - sizeof(struct cmn_header_t));
+
+        FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 1024, 1, 0);
+
+        if (0 != get_soc_power_reg()->temperature_event_cb) {
+            /* call the callback function and post message */
+            get_soc_power_reg()->temperature_event_cb(UNCORRETABLE, &message);
+        } else {
+            printf("thermal pwr mgmt svc error: temperature_event_cb is not initialized\r\n");
+            status = -1;
+        }
+    }
+
+    return status;
 }
 
 /************************************************************************
@@ -557,5 +581,30 @@ int get_throttle_time(uint64_t *throttle_time)
 int get_max_throttle_time(uint64_t *max_throttle_time)
 {
     *max_throttle_time = get_soc_power_reg()->max_throttled_states_residency;
+    return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       set_power_reg_temperature_event_cb
+*
+*   DESCRIPTION
+*
+*       This function sets temperature event callback variable.
+*
+*   INPUTS
+*
+*       event_cb                  TEmperature event callback function ptr
+*
+*   OUTPUTS
+*
+*       int                       Return status
+*
+***********************************************************************/
+int set_power_reg_temperature_event_cb(dm_event_isr_callback event_cb)
+{
+    get_soc_power_reg()->temperature_event_cb = event_cb;
     return 0;
 }
