@@ -1,0 +1,12 @@
+[
+    {"name":"Master Minion Shire","id":32,"threads":[
+        {"name":"Dispatcher","id":@DISPATCHER_BASE_HART_ID@},
+        {"name":"Submission Queue Worker","id":@SQW_BASE_HART_ID@},
+        {"name":"Kernel Worker","id":@KW_BASE_HART_ID@},
+        {"name":"DMA RX Worker","id":@DMAW_RX_HART_ID@}
+        {"name":"DMA TX Worker","id":@DMAW_TX_HART_ID@}
+    ]},
+    {"name":"Compute Minion Shire","id":0,"threads":[
+        {"name":"Compute Runtime","id":0}
+    ]}
+]
