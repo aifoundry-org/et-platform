@@ -180,6 +180,11 @@ void DIR_Init(void)
 void DIR_Set_Service_Processor_Status(int16_t status)
 {
     Gbl_SP_DIRs->generic_attr.status = status;
+    if(status == SP_DEV_INTF_SP_BOOT_STATUS_MM_FW_LAUNCHED)
+    {
+      // Add Magic marker to know when to load PCIE Driver
+      ISSUE_MAGIC_MARKER();
+    }
 }
 
 /************************************************************************
