@@ -31,8 +31,8 @@ static StaticTask_t g_staticTask_ptr;
 /* Watchdog task entry function */
 static void watchdog_task_entry(void *pvParameter);
 
-int32_t init_watchdog_service(uint32_t timeout_msec) {
-
+int32_t init_watchdog_service(uint32_t timeout_msec)
+{
     int32_t status = -1;
 
     if (!timeout_msec) {
@@ -44,7 +44,8 @@ int32_t init_watchdog_service(uint32_t timeout_msec) {
     if (!status) {
         /* Create the watchdog feeding task */
         t_handle = xTaskCreateStatic(watchdog_task_entry, "WDOG_TASK", WDOG_TASK_STACK_SIZE,
-                        &timeout_msec, WDOG_TASK_PRIORITY, g_dm_stack, &g_staticTask_ptr);
+                                     &timeout_msec, WDOG_TASK_PRIORITY, g_dm_stack,
+                                     &g_staticTask_ptr);
         if (!t_handle) {
             printf("Task Creation Failed: Failed to create Watchdog Handler Task.\n");
             status = -1;
@@ -54,18 +55,21 @@ int32_t init_watchdog_service(uint32_t timeout_msec) {
     return status;
 }
 
-static void watchdog_task_entry(void *pvParameter) {
+static void watchdog_task_entry(void *pvParameter)
+{
+    uint32_t delay = *((uint32_t *)pvParameter);
 
-    uint32_t delay = *((uint32_t*) pvParameter);
+    /* Use 80% of the given time for the task delay
+       to account for scheduling delays. Its a guess,
+       might need to change*/
+    const TickType_t frequency = pdMS_TO_TICKS((delay * 80) / 100);
+
+    /* Initialise the xLastWakeTime variable with the current time. */
+    TickType_t last_wake_time = xTaskGetTickCount();
 
     while (1) {
+        vTaskDelayUntil(&last_wake_time, frequency);
         /* Feed the watch dog */
         watchdog_kick();
-
-        /* Use 80% of the given time for the task delay
-         to account for scheduling delays. Purely a guess
-         might need to change*/
-
-        vTaskDelay((delay * 80) / 100);
     }
 }
