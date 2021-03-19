@@ -385,7 +385,7 @@ SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>
   opts.spio_uart1_tx_file =
     options.spUart1Path.empty() ? options.runDir + "/" + "spio_uart1_tx.log" : options.spUart1Path;
   opts.elf_files = preloadElfs;
-  opts.coherency_check = options.memcheck;
+  opts.mem_check = options.memcheck;
 
   sysEmuThread_ = std::thread([opts, this, logfile = options.logFile]() {
     SE_LOG(INFO) << "Starting sysemu thread " << std::this_thread::get_id();
