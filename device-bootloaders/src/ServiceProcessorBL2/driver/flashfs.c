@@ -1196,6 +1196,17 @@ int flash_fs_increment_completed_boot_count(void)
     return 0;
 }
 
+#define CONFIG_DATA_PART_NUMBER_OFFSET    16
+#define CONFIG_DATA_PART_NUMBER_SIZE      4
+#define CONFIG_DATA_SERIAL_NUMBER_OFFSET  (CONFIG_DATA_PART_NUMBER_OFFSET + CONFIG_DATA_PART_NUMBER_SIZE)
+#define CONFIG_DATA_SERIAL_NUMBER_SIZE    8
+#define CONFIG_DATA_MEMORY_SIZE_OFFSET    (CONFIG_DATA_SERIAL_NUMBER_OFFSET + CONFIG_DATA_SERIAL_NUMBER_SIZE)
+#define CONFIG_DATA_MEMORY_SIZE_SIZE      1
+#define CONFIG_DATA_MODULE_REV_OFFSET     (CONFIG_DATA_MEMORY_SIZE_OFFSET + CONFIG_DATA_MEMORY_SIZE_SIZE)
+#define CONFIG_DATA_MODULE_REV_SIZE       4
+#define CONFIG_DATA_FORM_FACTOR_OFFSET    (CONFIG_DATA_MODULE_REV_OFFSET + CONFIG_DATA_MODULE_REV_SIZE)
+#define CONFIG_DATA_FORM_FACTOR_SIZE      1
+
 /************************************************************************
 *
 *   FUNCTION
@@ -1352,11 +1363,17 @@ int flash_fs_get_manufacturer_name(char *mfg_name, size_t size)
 
 int flash_fs_get_part_number(char *part_number, size_t size)
 {
-    /* TODO: https://esperantotech.atlassian.net/browse/SW-4327 */
-    char name[] = "ETPART1";
-    snprintf(part_number, size, "%s", name);
-
-    return 0;
+    uint32_t read_address = sg_flash_fs_bl2_info->configuration_region_address
+        + CONFIG_DATA_PART_NUMBER_OFFSET;
+    int ret = spi_flash_normal_read(
+            sg_flash_fs_bl2_info->flash_id,
+            read_address,
+            (uint8_t*)part_number,
+            CONFIG_DATA_PART_NUMBER_SIZE);
+    if (ret != 0) {
+        printf("flash_fs_get_part_number: failed to read from configuration_data!\n");
+    }
+    return ret;
 }
 
 /************************************************************************
@@ -1381,11 +1398,17 @@ int flash_fs_get_part_number(char *part_number, size_t size)
 
 int flash_fs_get_serial_number(char *ser_number, size_t size)
 {
-    /* TODO: https://esperantotech.atlassian.net/browse/SW-4327 */
-    char name[] = "ETSER_1";
-    snprintf(ser_number, size, "%s", name);
-
-    return 0;
+    uint32_t read_address = sg_flash_fs_bl2_info->configuration_region_address
+        + CONFIG_DATA_SERIAL_NUMBER_OFFSET;
+    int ret = spi_flash_normal_read(
+            sg_flash_fs_bl2_info->flash_id,
+            read_address,
+            (uint8_t*)ser_number,
+            CONFIG_DATA_SERIAL_NUMBER_SIZE);
+    if (ret != 0) {
+        printf("flash_fs_get_serial_number: failed to read from configuration_data!\n");
+    }
+    return ret;
 }
 
 /************************************************************************
@@ -1410,10 +1433,17 @@ int flash_fs_get_serial_number(char *ser_number, size_t size)
 
 int flash_fs_get_module_rev(char *module_rev, size_t size)
 {
-    /* TODO: https://esperantotech.atlassian.net/browse/SW-4327 */
-    uint64_t revision = 1;
-    snprintf(module_rev, size, "%ld", revision);
-    return 0;
+    uint32_t read_address = sg_flash_fs_bl2_info->configuration_region_address
+        + CONFIG_DATA_MODULE_REV_OFFSET;
+    int ret = spi_flash_normal_read(
+            sg_flash_fs_bl2_info->flash_id,
+            read_address,
+            (uint8_t*)module_rev,
+            CONFIG_DATA_MODULE_REV_SIZE);
+    if (ret != 0) {
+        printf("flash_fs_get_module_rev: failed to read from configuration_data!\n");
+    }
+    return ret;
 }
 
 /************************************************************************
@@ -1438,10 +1468,17 @@ int flash_fs_get_module_rev(char *module_rev, size_t size)
 
 int flash_fs_get_memory_size(char *mem_size, size_t size)
 {
-    /* TODO: https://esperantotech.atlassian.net/browse/SW-4327 */
-    uint64_t m_size = 16 * 1024;
-    snprintf(mem_size, size, "%ld", m_size);
-    return 0;
+    uint32_t read_address = sg_flash_fs_bl2_info->configuration_region_address
+        + CONFIG_DATA_MEMORY_SIZE_OFFSET;
+    int ret = spi_flash_normal_read(
+            sg_flash_fs_bl2_info->flash_id,
+            read_address,
+            (uint8_t*)mem_size,
+            CONFIG_DATA_MEMORY_SIZE_SIZE);
+    if (ret != 0) {
+        printf("flash_fs_get_memory_size: failed to read from configuration_data!\n");
+    }
+    return ret;
 }
 
 /************************************************************************
@@ -1466,10 +1503,17 @@ int flash_fs_get_memory_size(char *mem_size, size_t size)
 
 int flash_fs_get_form_factor(char *form_factor, size_t size)
 {
-    /* TODO: https://esperantotech.atlassian.net/browse/SW-4327 */
-    char form_factor_l[] = "Dual_M2";
-    snprintf(form_factor, size, "%s", form_factor_l);
-    return 0;
+    uint32_t read_address = sg_flash_fs_bl2_info->configuration_region_address
+        + CONFIG_DATA_FORM_FACTOR_OFFSET;
+    int ret = spi_flash_normal_read(
+            sg_flash_fs_bl2_info->flash_id,
+            read_address,
+            (uint8_t*)form_factor,
+            CONFIG_DATA_FORM_FACTOR_SIZE);
+    if (ret != 0) {
+        printf("flash_fs_get_form_factor: failed to read from configuration_data!\n");
+    }
+    return ret;
 }
 
 #pragma GCC pop_options
