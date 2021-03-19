@@ -46,14 +46,6 @@ static StaticTask_t g_staticTask_ptr;
 /* Global control block for max error count */
 struct max_error_count_t g_max_error_count __attribute__((section(".data")));
 
-/* Callback prototypes */
-static void pcie_event_callback(enum error_type type, struct event_message_t *msg);
-static void sram_event_callback(enum error_type type, struct event_message_t *msg);
-static void ddr_event_callback(enum error_type type, struct event_message_t *msg);
-static void power_event_callback(enum error_type type, struct event_message_t *msg);
-static void wdog_timeout_callback(enum error_type type, struct event_message_t *msg);
-static void minion_event_callback(enum error_type type, struct event_message_t *msg);
-
 volatile struct max_error_count_t *get_soc_max_control_block(void)
 {
     return &g_max_error_count;
@@ -123,7 +115,7 @@ static void dm_event_task_entry(void *pvParameters)
     }
 }
 
-static void pcie_event_callback(enum error_type type, struct event_message_t *msg)
+void pcie_event_callback(enum error_type type, struct event_message_t *msg)
 {
     uint32_t error_count = EVENT_PAYLOAD_GET_ERROR_COUNT(&msg->payload);
     if (type == CORRECTABLE) {
@@ -138,7 +130,7 @@ static void pcie_event_callback(enum error_type type, struct event_message_t *ms
     xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
 }
 
-static void sram_event_callback(enum error_type type, struct event_message_t *msg)
+void sram_event_callback(enum error_type type, struct event_message_t *msg)
 {
     uint32_t error_count = EVENT_PAYLOAD_GET_ERROR_COUNT(&msg->payload);
 
@@ -154,7 +146,7 @@ static void sram_event_callback(enum error_type type, struct event_message_t *ms
     xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
 }
 
-static void ddr_event_callback(enum error_type type, struct event_message_t *msg)
+void ddr_event_callback(enum error_type type, struct event_message_t *msg)
 {
     uint32_t error_count = EVENT_PAYLOAD_GET_ERROR_COUNT(&msg->payload);
 
@@ -170,7 +162,7 @@ static void ddr_event_callback(enum error_type type, struct event_message_t *msg
     xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
 }
 
-static void power_event_callback(enum error_type type, struct event_message_t *msg)
+void power_event_callback(enum error_type type, struct event_message_t *msg)
 {
     (void)type;
 
@@ -178,14 +170,14 @@ static void power_event_callback(enum error_type type, struct event_message_t *m
     xQueueSend(q_handle, msg, portMAX_DELAY);
 }
 
-static void wdog_timeout_callback(enum error_type type, struct event_message_t *msg)
+void wdog_timeout_callback(enum error_type type, struct event_message_t *msg)
 {
     (void)type;
     /* Post message to the queue */
     xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
 }
 
-static void minion_event_callback(enum error_type type, struct event_message_t *msg)
+void minion_event_callback(enum error_type type, struct event_message_t *msg)
 {
     (void)type;
     /* Post message to the queue */

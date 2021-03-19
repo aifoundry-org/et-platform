@@ -210,6 +210,12 @@ static void pc_vq_task(void *pvParameters)
             case DM_CMD_GET_ASIC_LATENCY:
                 process_performance_request(tag_id, msg_id);
                 break;
+            case DM_CMD_GET_DEVICE_ERROR_EVENTS:
+#ifdef TEST_EVENT_GEN
+                start_test_events(tag_id, msg_id);
+#endif                
+                break;
+
             default:
                 printf("[PC VQ] Invalid message id: %d\r\n", msg_id);
                 printf("message length: %d, buffer:\r\n", length);

@@ -49,6 +49,7 @@ set(BL2_SOURCES
     rtos_task/dm_task.c
     rtos_task/event_handler.c
     rtos_task/watchdog_task.c
+    services/test_events.c
     services/firmware_update.c
     services/asset_track.c
     services/asset_track_mgmt.c
