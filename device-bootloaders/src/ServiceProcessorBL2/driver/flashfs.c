@@ -47,6 +47,7 @@
 #include "jedec_sfdp.h"
 #include "bl2_main.h"
 #include "bl_error_code.h"
+#include "asset_track_layout.h"
 
 #pragma GCC push_options
 /* #pragma GCC optimize ("O2") */
@@ -1196,17 +1197,6 @@ int flash_fs_increment_completed_boot_count(void)
     return 0;
 }
 
-#define CONFIG_DATA_PART_NUMBER_OFFSET    16
-#define CONFIG_DATA_PART_NUMBER_SIZE      4
-#define CONFIG_DATA_SERIAL_NUMBER_OFFSET  (CONFIG_DATA_PART_NUMBER_OFFSET + CONFIG_DATA_PART_NUMBER_SIZE)
-#define CONFIG_DATA_SERIAL_NUMBER_SIZE    8
-#define CONFIG_DATA_MEMORY_SIZE_OFFSET    (CONFIG_DATA_SERIAL_NUMBER_OFFSET + CONFIG_DATA_SERIAL_NUMBER_SIZE)
-#define CONFIG_DATA_MEMORY_SIZE_SIZE      1
-#define CONFIG_DATA_MODULE_REV_OFFSET     (CONFIG_DATA_MEMORY_SIZE_OFFSET + CONFIG_DATA_MEMORY_SIZE_SIZE)
-#define CONFIG_DATA_MODULE_REV_SIZE       4
-#define CONFIG_DATA_FORM_FACTOR_OFFSET    (CONFIG_DATA_MODULE_REV_OFFSET + CONFIG_DATA_MODULE_REV_SIZE)
-#define CONFIG_DATA_FORM_FACTOR_SIZE      1
-
 /************************************************************************
 *
 *   FUNCTION
@@ -1364,12 +1354,12 @@ int flash_fs_get_manufacturer_name(char *mfg_name, size_t size)
 int flash_fs_get_part_number(char *part_number, size_t size)
 {
     uint32_t read_address = sg_flash_fs_bl2_info->configuration_region_address
-        + CONFIG_DATA_PART_NUMBER_OFFSET;
+        + ASSET_TRACK_PART_NUMBER_OFFSET;
     int ret = spi_flash_normal_read(
             sg_flash_fs_bl2_info->flash_id,
             read_address,
             (uint8_t*)part_number,
-            CONFIG_DATA_PART_NUMBER_SIZE);
+            ASSET_TRACK_PART_NUMBER_SIZE);
     if (ret != 0) {
         printf("flash_fs_get_part_number: failed to read from configuration_data!\n");
     }
@@ -1399,12 +1389,12 @@ int flash_fs_get_part_number(char *part_number, size_t size)
 int flash_fs_get_serial_number(char *ser_number, size_t size)
 {
     uint32_t read_address = sg_flash_fs_bl2_info->configuration_region_address
-        + CONFIG_DATA_SERIAL_NUMBER_OFFSET;
+        + ASSET_TRACK_SERIAL_NUMBER_OFFSET;
     int ret = spi_flash_normal_read(
             sg_flash_fs_bl2_info->flash_id,
             read_address,
-            (uint8_t*)ser_number,
-            CONFIG_DATA_SERIAL_NUMBER_SIZE);
+            (uint8_t*)serial_number,
+            ASSET_TRACK_SERIAL_NUMBER_SIZE);
     if (ret != 0) {
         printf("flash_fs_get_serial_number: failed to read from configuration_data!\n");
     }
@@ -1434,12 +1424,12 @@ int flash_fs_get_serial_number(char *ser_number, size_t size)
 int flash_fs_get_module_rev(char *module_rev, size_t size)
 {
     uint32_t read_address = sg_flash_fs_bl2_info->configuration_region_address
-        + CONFIG_DATA_MODULE_REV_OFFSET;
+        + ASSET_TRACK_MODULE_REV_OFFSET;
     int ret = spi_flash_normal_read(
             sg_flash_fs_bl2_info->flash_id,
             read_address,
             (uint8_t*)module_rev,
-            CONFIG_DATA_MODULE_REV_SIZE);
+            ASSET_TRACK_MODULE_REV_SIZE);
     if (ret != 0) {
         printf("flash_fs_get_module_rev: failed to read from configuration_data!\n");
     }
@@ -1469,12 +1459,12 @@ int flash_fs_get_module_rev(char *module_rev, size_t size)
 int flash_fs_get_memory_size(char *mem_size, size_t size)
 {
     uint32_t read_address = sg_flash_fs_bl2_info->configuration_region_address
-        + CONFIG_DATA_MEMORY_SIZE_OFFSET;
+        + ASSET_TRACK_MEMORY_SIZE_OFFSET;
     int ret = spi_flash_normal_read(
             sg_flash_fs_bl2_info->flash_id,
             read_address,
-            (uint8_t*)mem_size,
-            CONFIG_DATA_MEMORY_SIZE_SIZE);
+            (uint8_t*)memory_size,
+            ASSET_TRACK_MEMORY_SIZE_SIZE);
     if (ret != 0) {
         printf("flash_fs_get_memory_size: failed to read from configuration_data!\n");
     }
@@ -1504,12 +1494,12 @@ int flash_fs_get_memory_size(char *mem_size, size_t size)
 int flash_fs_get_form_factor(char *form_factor, size_t size)
 {
     uint32_t read_address = sg_flash_fs_bl2_info->configuration_region_address
-        + CONFIG_DATA_FORM_FACTOR_OFFSET;
+        + ASSET_TRACK_FORM_FACTOR_OFFSET;
     int ret = spi_flash_normal_read(
             sg_flash_fs_bl2_info->flash_id,
             read_address,
             (uint8_t*)form_factor,
-            CONFIG_DATA_FORM_FACTOR_SIZE);
+            ASSET_TRACK_FORM_FACTOR_SIZE);
     if (ret != 0) {
         printf("flash_fs_get_form_factor: failed to read from configuration_data!\n");
     }
