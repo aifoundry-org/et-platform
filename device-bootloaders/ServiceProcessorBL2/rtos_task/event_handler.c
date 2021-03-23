@@ -20,6 +20,7 @@
 #include "bl2_pmic_controller.h"
 #include "bl2_ddr_init.h"
 #include "bl2_watchdog.h"
+#include "minion_state.h"
 
 /* The variable used to hold the queue's data structure. */
 static StaticQueue_t g_staticQueue;
@@ -51,6 +52,7 @@ static void sram_event_callback(enum error_type type, struct event_message_t *ms
 static void ddr_event_callback(enum error_type type, struct event_message_t *msg);
 static void power_event_callback(enum error_type type, struct event_message_t *msg);
 static void wdog_timeout_callback(enum error_type type, struct event_message_t *msg);
+static void minion_event_callback(enum error_type type, struct event_message_t *msg);
 
 volatile struct max_error_count_t *get_soc_max_control_block(void)
 {
@@ -88,6 +90,9 @@ int32_t dm_event_control_init(void)
                 status = set_power_event_cb(power_event_callback);
                 if (!status) {
                     status = watchdog_error_init(wdog_timeout_callback);
+                    if (!status) {
+                        status = minion_error_control_init(minion_event_callback);
+                    }
                 }
             }
         }
@@ -178,4 +183,11 @@ static void wdog_timeout_callback(enum error_type type, struct event_message_t *
     (void)type;
     /* Post message to the queue */
     xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
+}
+
+static void minion_event_callback(enum error_type type, struct event_message_t *msg)
+{
+    (void)type;
+    /* Post message to the queue */
+    xQueueSend(q_handle, msg, portMAX_DELAY);
 }
