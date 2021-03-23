@@ -16,8 +16,30 @@
 */
 /***********************************************************************/
 #include "thermal_pwr_mgmt.h"
+#include "bl2_pmic_controller.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 struct soc_power_reg_t g_soc_power_reg __attribute__((section(".data")));
+
+
+#define TT_TASK_STACK_SIZE 1024
+#define TT_TASK_PRIORITY    1
+
+/* The variable used to hold task's handle */
+static TaskHandle_t t_handle;
+
+/* Task entry function */
+static void thermal_power_task_entry(void *pvParameters);
+
+/* Task stack memory */
+static StackType_t g_pm_task[TT_TASK_STACK_SIZE];
+
+/* The variable used to hold the task's data structure. */
+static StaticTask_t g_staticTask_ptr;
+
+static void pmic_isr_callback(enum error_type type, struct event_message_t *msg);
+
 
 struct soc_power_reg_t {
     power_state_e module_power_state;
@@ -30,7 +52,7 @@ struct soc_power_reg_t {
     struct module_voltage_t module_voltage;
     uint64_t throttled_states_residency;
     uint64_t max_throttled_states_residency;
-    dm_event_isr_callback temperature_event_cb;
+    dm_event_isr_callback event_cb;
 };
 
 volatile struct soc_power_reg_t *get_soc_power_reg(void)
@@ -251,13 +273,13 @@ int update_module_current_temperature(void)
         FILL_EVENT_HEADER(&message.header, THERMAL_LOW,
                           sizeof(struct event_message_t) - sizeof(struct cmn_header_t));
 
-        FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 1024, 1, 0);
+        FILL_EVENT_PAYLOAD(&message.payload, WARNING, 0, get_soc_power_reg()->soc_temperature, 0);
 
-        if (0 != get_soc_power_reg()->temperature_event_cb) {
+        if (0 != get_soc_power_reg()->event_cb) {
             /* call the callback function and post message */
-            get_soc_power_reg()->temperature_event_cb(UNCORRETABLE, &message);
+            get_soc_power_reg()->event_cb(UNCORRETABLE, &message);
         } else {
-            printf("thermal pwr mgmt svc error: temperature_event_cb is not initialized\r\n");
+            printf("thermal pwr mgmt svc error: event_cb is not initialized\r\n");
             status = -1;
         }
     }
@@ -519,12 +541,12 @@ int get_module_uptime(struct module_uptime_t *module_uptime)
 *       None
 *
 ***********************************************************************/
-void update_module_throttle_time(void)
+void update_module_throttle_time(uint64_t time_usec)
 {
     // TODO : Set it to throttle time to valid value. Compute/Read from HW.
     // https://esperantotech.atlassian.net/browse/SW-6559
     // Update the value in get_soc_power_reg()->throttled_states_residency.
-    get_soc_power_reg()->throttled_states_residency = 1000;
+    get_soc_power_reg()->throttled_states_residency = time_usec;
 
     // Update the MAX throttle time
     if (get_soc_power_reg()->max_throttled_states_residency <
@@ -588,23 +610,221 @@ int get_max_throttle_time(uint64_t *max_throttle_time)
 *
 *   FUNCTION
 *
-*       set_power_reg_temperature_event_cb
+*       set_power_event_cb
 *
 *   DESCRIPTION
 *
-*       This function sets temperature event callback variable.
+*       This function sets power event callback variable.
 *
 *   INPUTS
 *
-*       event_cb                  TEmperature event callback function ptr
+*       event_cb                  event callback function ptr
 *
 *   OUTPUTS
 *
 *       int                       Return status
 *
 ***********************************************************************/
-int set_power_reg_temperature_event_cb(dm_event_isr_callback event_cb)
+int set_power_event_cb(dm_event_isr_callback event_cb)
 {
-    get_soc_power_reg()->temperature_event_cb = event_cb;
+    get_soc_power_reg()->event_cb = event_cb;
     return 0;
 }
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       init_thermal_pwr_mgmt_service
+*
+*   DESCRIPTION
+*
+*       This function initializes thermal and power management service
+*
+*   INPUTS
+*
+*       event_cb                  none
+*
+*   OUTPUTS
+*
+*       int                       Return status
+*
+***********************************************************************/
+int init_thermal_pwr_mgmt_service(void)
+{
+    int status = 0;
+
+    /* Create the power management task - use for throttling and DVFS */
+    t_handle = xTaskCreateStatic(thermal_power_task_entry, "TT_TASK", TT_TASK_STACK_SIZE,
+                                    NULL, TT_TASK_PRIORITY, g_pm_task,
+                                    &g_staticTask_ptr);
+    if (!t_handle) {
+        printf("Task Creation Failed: Failed to create power management task.\n");
+        status = -1;
+    }
+
+    if (!status)
+    {
+        status = pmic_error_control_init(pmic_isr_callback);
+    }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       set_operating_point
+*
+*   DESCRIPTION
+*
+*       This function sets the new operating point based on the
+*       given power value.
+*
+*   INPUTS
+*
+*       event_cb                  Power value to set
+*
+*   OUTPUTS
+*
+*       int                       Return status
+*
+***********************************************************************/
+static int set_operating_point(uint8_t power)
+{
+
+    (void)power;
+    /* Map the power to voltage frequency pair */
+    /* Update the SP shire power (VFS) */
+    /* update the Minions power (VFS) */
+    return 0;
+
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       thermal_power_task_entry
+*
+*   DESCRIPTION
+*
+*       Entry function for power mgmt task
+*
+*   INPUTS
+*
+*       pvParameter                Task parameter
+*
+*   OUTPUTS
+*
+*       void                       none
+*
+***********************************************************************/
+void thermal_power_task_entry(void *pvParameter)
+{
+    uint64_t start_time;
+    uint64_t end_time;
+    uint32_t current_temperature;
+    struct event_message_t message;
+    uint32_t notificationValue;
+    uint32_t current_power; 
+
+    (void)pvParameter;
+
+    while(1)
+    {
+        xTaskNotifyWait(0, 0xFFFFFFFFU, &notificationValue, portMAX_DELAY);
+        if (notificationValue == THERMAL_HIGH)
+        {
+            current_temperature = pmic_get_temperature();
+
+            if (current_temperature < get_soc_power_reg()->temperature_threshold.hi_temperature_c)
+                continue;
+
+            if (get_soc_power_reg()->event_cb)
+            {
+                /* Send the event to host for exceeding the high temperature threshold */
+                FILL_EVENT_HEADER(&message.header, THERMAL_HIGH,
+                            sizeof(struct event_message_t) - sizeof(struct cmn_header_t));
+
+                FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, current_temperature, 0);
+
+                /* Invoke the callback function and post message */
+                get_soc_power_reg()->event_cb(0, &message);
+            }
+            else
+            {
+                printf("thermal pwr mgmt svc error: event_cb is not initialized\n");
+            }
+
+            /* We need to throttle the voltage and frequency, lets keep track of throttling time */
+            start_time = timer_get_ticks_count();
+
+            do
+            {
+                /* Get the current power */
+                current_power = (uint32_t)pmic_read_soc_power();
+
+                /* FIXME: Scale it down by 10 % of current value and change the frequency accordingly */
+                current_power = (current_power * 10) / 100;
+
+                /* Program the new operating point  */
+                set_operating_point((uint8_t)current_power);
+
+                /* FIXME: What should be this delay? */
+                vTaskDelay(pdMS_TO_TICKS(500));
+
+                /* Sample the temperature again */
+            } while(pmic_get_temperature() > get_soc_power_reg()->temperature_threshold.hi_temperature_c);
+
+            end_time = timer_get_ticks_count();
+
+            if (get_soc_power_reg()->event_cb)
+            {
+                /* Send the event to the device reporting the time spend in throttling state */
+                FILL_EVENT_HEADER(&message.header, THROTTLE_TIME, sizeof(struct event_message_t) - sizeof(struct cmn_header_t));
+
+                FILL_EVENT_PAYLOAD(&message.payload, INFO, 0, end_time - start_time, 0);
+            
+                /* call the callback function and post message */
+                get_soc_power_reg()->event_cb(0, &message);
+            }
+            else
+            {
+                printf("thermal pwr mgmt svc error: event_cb is not initialized\r\n");
+            }
+
+            /* Update the throttle time here */
+            update_module_throttle_time(end_time - start_time);
+        }
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       pmic_isr_callback
+*
+*   DESCRIPTION
+*
+*       Callback function invoked from PMIC ISR
+*
+*   INPUTS
+*
+*       type                  Error type
+*       msg                   Error/Event message
+*
+*   OUTPUTS
+*
+*       void                       none
+*
+***********************************************************************/
+static void pmic_isr_callback(enum error_type type, struct event_message_t *msg)
+{
+    (void)type;
+
+    xTaskNotifyFromISR(t_handle, (uint32_t) msg->header.msg_id, eSetValueWithOverwrite, (BaseType_t *)pdTRUE);
+}
+

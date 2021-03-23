@@ -134,12 +134,12 @@ void update_module_uptime(void);
 */
 int get_module_uptime(struct module_uptime_t *module_uptime);
 
-/*! \fn void update_module_throttle_time(void);
+/*! \fn void update_module_throttle_time(uint64_t time_usec);
     \brief Interface to update the module's throttle time.
-    \param none
+    \param time_usec throttle time in usec
     \returns none
 */
-void update_module_throttle_time(void);
+void update_module_throttle_time(uint64_t time_msec);
 
 /*! \fn int get_throttle_time(uint64_t *throttle_time)
     \brief Interface to get the module's throttle time.
@@ -162,9 +162,16 @@ int get_max_throttle_time(uint64_t *max_throttle_time);
 */
 int get_soc_max_temperature(uint8_t *max_temp);
 
-/*! \fn int set_power_reg_temperature_event_cb(dm_event_isr_callback event_cb)
+/*! \fn int set_power_event_cb(dm_event_isr_callback event_cb)
     \brief Interface to set temperature event callback variable
     \param event_cb  Temperature event callback function ptr
     \returns Status indicating success or negative error
 */
-int set_power_reg_temperature_event_cb(dm_event_isr_callback event_cb);
+int set_power_event_cb(dm_event_isr_callback event_cb);
+
+/*! \fn int init_thermal_pwr_mgmt_service(void)
+    \brief Initialization function
+    \param none
+    \returns Status indicating success or negative error
+*/
+int init_thermal_pwr_mgmt_service(void);

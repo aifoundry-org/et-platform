@@ -49,9 +49,8 @@ struct max_error_count_t g_max_error_count __attribute__((section(".data")));
 static void pcie_event_callback(enum error_type type, struct event_message_t *msg);
 static void sram_event_callback(enum error_type type, struct event_message_t *msg);
 static void ddr_event_callback(enum error_type type, struct event_message_t *msg);
-static void pmic_event_callback(enum error_type type, struct event_message_t *msg);
+static void power_event_callback(enum error_type type, struct event_message_t *msg);
 static void wdog_timeout_callback(enum error_type type, struct event_message_t *msg);
-static void temperature_threshold_event_callback(enum error_type type, struct event_message_t *msg);
 
 volatile struct max_error_count_t *get_soc_max_control_block(void)
 {
@@ -86,7 +85,7 @@ int32_t dm_event_control_init(void)
         if (!status) {
             status = sram_error_control_init(sram_event_callback);
             if (!status) {
-                status = pmic_error_control_init(pmic_event_callback);
+                status = set_power_event_cb(power_event_callback);
                 if (!status) {
                     status = watchdog_error_init(wdog_timeout_callback);
                 }
@@ -96,15 +95,6 @@ int32_t dm_event_control_init(void)
 
     if (status) {
         printf("Error Control Init Failed: Failed to init error control\n");
-        return status;
-    }
-
-    if (!status) {
-        status = set_power_reg_temperature_event_cb(temperature_threshold_event_callback);
-        if (status) {
-            printf("Event Control Init Failed: set_power_reg_temperature_event_cb()\n");
-            return -1;
-        }
     }
 
     return status;
@@ -149,10 +139,10 @@ static void sram_event_callback(enum error_type type, struct event_message_t *ms
 
     if (type == CORRECTABLE) {
         if (error_count > g_max_error_count.sram_ce_max_count)
-            g_max_error_count.pcie_ce_max_count = error_count;
+            g_max_error_count.sram_ce_max_count = error_count;
     } else {
         if (error_count > g_max_error_count.sram_uce_max_count)
-            g_max_error_count.pcie_uce_max_count = error_count;
+            g_max_error_count.sram_uce_max_count = error_count;
     }
 
     /* Post message to the queue */
@@ -165,21 +155,22 @@ static void ddr_event_callback(enum error_type type, struct event_message_t *msg
 
     if (type == CORRECTABLE) {
         if (error_count > g_max_error_count.ddr_ce_max_count)
-            g_max_error_count.pcie_ce_max_count = error_count;
+            g_max_error_count.ddr_ce_max_count = error_count;
     } else {
         if (error_count > g_max_error_count.ddr_uce_max_count)
-            g_max_error_count.pcie_uce_max_count = error_count;
+            g_max_error_count.ddr_uce_max_count = error_count;
     }
 
     /* Post message to the queue */
     xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
 }
 
-static void pmic_event_callback(enum error_type type, struct event_message_t *msg)
+static void power_event_callback(enum error_type type, struct event_message_t *msg)
 {
     (void)type;
+
     /* Post message to the queue */
-    xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
+    xQueueSend(q_handle, msg, portMAX_DELAY);
 }
 
 static void wdog_timeout_callback(enum error_type type, struct event_message_t *msg)
@@ -187,11 +178,4 @@ static void wdog_timeout_callback(enum error_type type, struct event_message_t *
     (void)type;
     /* Post message to the queue */
     xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
-}
-
-static void temperature_threshold_event_callback(enum error_type type, struct event_message_t *msg)
-{
-    (void)type;
-    /* Post message to the queue */
-    xQueueSend(q_handle, msg, portMAX_DELAY);
 }

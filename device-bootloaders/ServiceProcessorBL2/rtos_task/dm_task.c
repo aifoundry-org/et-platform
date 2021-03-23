@@ -136,9 +136,6 @@ static void dm_task_entry(void *pvParameters)
             printf("perf mgmt svc error : update_dram_bw()\r\n");
         }
 
-        // Update the throttle time
-        update_module_throttle_time();
-
         // DRAM capacity
         ret = update_dram_capacity_percent();
         if (0 != ret) {

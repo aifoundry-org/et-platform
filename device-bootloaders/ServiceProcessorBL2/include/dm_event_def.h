@@ -41,16 +41,17 @@ enum event_class {
  */
 enum event_ids {
     PCIE_CE = 256,        /**< Correctable PCIE error. */
-    PCIE_UCE,           /**< Uncorrectable PCIE error. */
-    DRAM_CE,            /**< Correctable DRAM error. */
-    DRAM_UCE,           /**< Uncorrectable DRAM error. */
-    SRAM_CE,            /**< Correctable SRAM error. */
-    SRAM_UCE,           /**< Uncorrectable SRAM error. */
-    THERMAL_LOW,        /**< Lower thermal threshold exceeded. */
-    THERMAL_HIGH,       /**< Higher thermal threshold exceeded. */
-    WDOG_TIMEOUT,       /**< Watchdog timeout error. */
-    FW_BOOT,            /**< FW boot error. */
-    MAX_ERROR_EVENT = 512, /**< Max limit for error IDs. */ 
+    PCIE_UCE,             /**< Uncorrectable PCIE error. */
+    DRAM_CE,              /**< Correctable DRAM error. */
+    DRAM_UCE,             /**< Uncorrectable DRAM error. */
+    SRAM_CE,              /**< Correctable SRAM error. */
+    SRAM_UCE,             /**< Uncorrectable SRAM error. */
+    THERMAL_LOW,          /**< Lower thermal threshold exceeded. */
+    THERMAL_HIGH,         /**< Higher thermal threshold exceeded. */
+    WDOG_TIMEOUT,         /**< Watchdog timeout error. */
+    FW_BOOT,              /**< FW boot error. */
+    THROTTLE_TIME,        /** < Event for time in throttling state */
+    MAX_ERROR_EVENT = 512, /**< Max limit for error IDs. */
 };
 
 /*!
