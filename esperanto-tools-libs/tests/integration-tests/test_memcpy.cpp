@@ -10,7 +10,7 @@
 
 #include "runtime/IRuntime.h"
 
-#include "common/ProjectAutogen.h"
+#include "common/Constants.h"
 #include <device-layer/IDeviceLayer.h>
 #include <experimental/filesystem>
 #include <fstream>
@@ -87,10 +87,6 @@ TEST_F(TestMemcpy, SimpleMemcpy) {
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
   google::InstallFailureSignalHandler();
-  google::SetCommandLineOption("GLOG_minloglevel", "0");
-  // Force logging in stderr and set min logging level
-  FLAGS_minloglevel = 0;
-  FLAGS_logtostderr = 1;
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

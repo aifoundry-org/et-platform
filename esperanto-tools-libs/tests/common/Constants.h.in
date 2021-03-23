@@ -36,6 +36,7 @@ static constexpr const char* MASTER_MINION_ELF="@MASTER_MINION_ELF@";
 static constexpr const char* MACHINE_MINION_ELF="@MACHINE_MINION_ELF@";
 static constexpr const char* WORKER_MINION_ELF="@WORKER_MINION_ELF@";
 static constexpr const char* SYSEMU_INSTALL_DIR = "@SYSEMU_INSTALL_DIR@";
+static constexpr const char* KERNELS_DIR = "@KERNELS_DIR@";
 
 #define ET_RUNTIME_GIT_HASH "@ET_RUNTIME_GIT_HASH@"
 

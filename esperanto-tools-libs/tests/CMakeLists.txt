@@ -20,6 +20,7 @@ find_package(EsperantoBootLoader REQUIRED)
 find_package(EsperantoDeviceMinionRuntime REQUIRED)
 find_package(EsperantoTestKernels REQUIRED)
 
+set(COMMON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/common)
 # Helper function to build a test binary
 #
 # Args
@@ -41,6 +42,8 @@ macro(build_test_binary)
     target_include_directories(${TEST_TARGET}
         PUBLIC
             ${ETRT_OBJ_INCLUDE_DIRS}
+        PRIVATE
+            ${COMMON_DIR}
     )
 
     target_link_libraries(${TEST_TARGET}
@@ -48,11 +51,10 @@ macro(build_test_binary)
             runtime::etrt_static
             cereal::cereal
             glog::glog
-            gflags
             deviceLayer::deviceLayer
             sw-sysemu::sw-sysemu
-            GTest::GTest
-            GTest::Main
+            GTest::gtest            
+            GTest::gmock
             stdc++fs
     )
 
@@ -110,3 +112,4 @@ include_directories(${BREAKPAD_INCLUDE_DIR}/breakpad)
 add_subdirectory(common)
 add_subdirectory(unit-tests)
 add_subdirectory(integration-tests)
+add_subdirectory(stress-tests)

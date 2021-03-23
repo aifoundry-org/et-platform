@@ -8,13 +8,13 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "runtime/IRuntime.h"
-#include <gtest/gtest-death-test.h>
 #include <ios>
+#include <sstream>
 #define private public
+#include "runtime/IRuntime.h"
 #include "MemoryManager.h"
 #include "RuntimeImp.h"
-#include "common/ProjectAutogen.h"
+#include "common/Constants.h"
 #include <chrono>
 #include <cstdio>
 #include <experimental/filesystem>
@@ -99,10 +99,6 @@ TEST(StreamsLifeCycle, create_and_destroy_10k_streams) {
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
   google::InstallFailureSignalHandler();
-  google::SetCommandLineOption("GLOG_minloglevel", "0");
-  google::SetCommandLineOption("GLOG_logtostderr", "1");
-  FLAGS_minloglevel = 0;
-  FLAGS_logtostderr = 1;
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

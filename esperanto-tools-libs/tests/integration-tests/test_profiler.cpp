@@ -8,22 +8,19 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "common/ProjectAutogen.h"
+#include "common/Constants.h"
 #include "runtime/IProfiler.h"
 #include "runtime/IRuntime.h"
 #include <device-layer/IDeviceLayer.h>
 #include <experimental/filesystem>
 #include <fstream>
 #include <glog/logging.h>
-#include <gflags/gflags.h>
 #include <gtest/gtest.h>
 #include <ios>
 #include <sstream>
 #include <thread>
 
 namespace fs = std::experimental::filesystem;
-
-DEFINE_string(kernels_dir, "", "Directory where different kernel ELF files are located");
 
 namespace {
 constexpr uint64_t kSysEmuMaxCycles = std::numeric_limits<uint64_t>::max();
@@ -32,7 +29,7 @@ constexpr uint64_t kSysEmuMinionShiresMask = 0x1FFFFFFFFu;
 
 
 TEST(Profiler, add_2_vectors_profiling) {
-  auto kernel_file = std::ifstream((fs::path(FLAGS_kernels_dir) / fs::path("add_vector.elf")).string(), std::ios::binary);
+  auto kernel_file = std::ifstream((fs::path(KERNELS_DIR) / fs::path("add_vector.elf")).string(), std::ios::binary);
   ASSERT_TRUE(kernel_file.is_open());
 
   auto iniF = kernel_file.tellg();
@@ -120,11 +117,6 @@ TEST(Profiler, add_2_vectors_profiling) {
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
   google::InstallFailureSignalHandler();
-  google::SetCommandLineOption("GLOG_minloglevel", "0");
-  // Force logging in stderr and set min logging level
-  FLAGS_minloglevel = 0;
-  FLAGS_logtostderr = 1;
   testing::InitGoogleTest(&argc, argv);
-  google::ParseCommandLineFlags(&argc, &argv, true);
   return RUN_ALL_TESTS();
 }

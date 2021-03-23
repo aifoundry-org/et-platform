@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# Copyright (C) 2021, Esperanto Technologies Inc.
+# Copyright (C) 2019, Esperanto Technologies Inc.
 # The copyright to the computer program(s) herein is the
 # property of Esperanto Technologies, Inc. All Rights Reserved.
 # The program(s) may be used and/or copied only with
@@ -8,15 +8,8 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-set(EsperantoRuntime_VERSION_MAJOR ${CMAKE_MAJOR_VERSION})
-set(EsperantoRuntime_VERSION_MINOR ${CMAKE_MINOR_VERSION})
-set(EsperantoRuntime_VERSION_PATCH ${CMAKE_PATCH_VERSION})
+set(TEST_LIST
+  stress_mem.cpp:""
+  )
 
-execute_process(
-    COMMAND git rev-parse --verify HEAD
-    OUTPUT_VARIABLE ET_RUNTIME_GIT_HASH
-    TIMEOUT 20
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-
-configure_file(Constants.h.in Constants.h)
+create_test_targets("${TEST_LIST}" "LABELS;STRESS;LABELS;SYSEMU;TIMEOUT;600")

@@ -51,7 +51,7 @@ find_package(elfio REQUIRED)
 find_package(fmt REQUIRED)
 find_package(gflags REQUIRED)
 find_package(glog REQUIRED)
-find_package(GTest REQUIRED)
+find_package(GTest CONFIG REQUIRED)
 
 # Esperanto dependencies
 find_package(esperanto-device-api REQUIRED)
