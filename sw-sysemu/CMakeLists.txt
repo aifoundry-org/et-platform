@@ -20,8 +20,6 @@ set(CMAKE_VERBOSE_MAKEFILE TRUE)
 include(GNUInstallDirs)
 
 # dependencies
-
-find_package(SimulatorAPI CONFIG REQUIRED)
 find_package(libunwind)
 
 add_library(sysemu
@@ -353,7 +351,6 @@ install(TARGETS fpu
 # sys_emu
 add_executable(sys_emu
     sw-sysemu/main.cpp
-    sw-sysemu/sim_api_communicate.cpp
 )
 
 install(TARGETS sys_emu
@@ -361,13 +358,10 @@ install(TARGETS sys_emu
     COMPONENT tools
 )
 
-
-target_include_directories(sys_emu PRIVATE ${SIMULATOR_API_INCLUDE_DIR})
 target_link_libraries(sys_emu
     PRIVATE
         sysemu
         fpu
-        etsim_api_static
         $<$<BOOL:LIBUNWIND_FOUND>:${LIBUNWIND_LIBRARIES}>
 )
 

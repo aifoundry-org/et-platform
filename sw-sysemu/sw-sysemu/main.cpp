@@ -15,13 +15,6 @@
 #include <vector>
 
 #include "sys_emu.h"
-#include "sim_api_communicate.h"
-
-static const char *sim_api_options_help =
-"\n Simulator API options:\n\
-     -sim_api                 Enable the use of the Simulator API to talk to the runtime\n\
-     -api_comm <path>         Path to socket that feeds runtime API commands.\n\
-";
 
 int main(int argc, char *argv[])
 {
@@ -47,9 +40,6 @@ int main(int argc, char *argv[])
         case 's':
             use_sim_api = true;
             break;
-        case 'a':
-            LOG_NOTHREAD(WARN, "%s", "Ignoring deprecated option '-sim_api_async'");
-            break;
         case '?': // non-recognized option
             base_options.push_back(argv[optind - 1]);
             break;
@@ -67,15 +57,12 @@ int main(int argc, char *argv[])
     sys_emu_cmd_options cmd_options = std::get<1>(result);
 
     std::unique_ptr<api_communicate> api_comm;
-    if (use_sim_api)
-        api_comm = std::unique_ptr<api_communicate>(new sim_api_communicate(socket_path));
-    else
-        api_comm = std::unique_ptr<api_communicate>(nullptr);
+    api_comm = std::unique_ptr<api_communicate>(nullptr);
 
     if (!status) {
         std::ostringstream stream;
         sys_emu::get_command_line_help(stream);
-        std::cout << stream.str() << sim_api_options_help;
+        std::cout << stream.str();
         return EXIT_FAILURE;
     }
 
