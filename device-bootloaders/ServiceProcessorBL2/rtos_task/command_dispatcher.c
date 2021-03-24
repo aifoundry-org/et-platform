@@ -198,7 +198,7 @@ static void pc_vq_task(void *pvParameters)
             case DM_CMD_GET_MODULE_MAX_TEMPERATURE:
                 historical_extreme_value_request(tag_id, msg_id);
                 break;
-            case DM_CMD_GET_MM_THREADS_STATE:
+            case DM_CMD_GET_MM_ERROR_COUNT:
                 Minion_State_Host_Iface_Process_Request(tag_id, msg_id);
                 break;
             case DM_CMD_GET_ASIC_FREQUENCIES:
