@@ -83,14 +83,19 @@ static void destroy_msg_list(struct et_cqueue *cq)
 {
 	struct list_head *pos, *next;
 	struct et_msg_node *node;
+	int count = 0;
 
 	mutex_lock(&cq->msg_list_mutex);
 	list_for_each_safe(pos, next, &cq->msg_list) {
 		node = list_entry(pos, struct et_msg_node, list);
 		list_del(pos);
 		destroy_msg_node(node);
+		count++;
 	}
 	mutex_unlock(&cq->msg_list_mutex);
+
+	if (count)
+		pr_warn("Discarded (%d) CQ user messages", count);
 }
 
 bool et_cqueue_msg_available(struct et_cqueue *cq)
@@ -532,8 +537,23 @@ error:
 
 void et_squeue_sync_cb_for_host(struct et_squeue *sq)
 {
+	u32 head_local;
+
 	mutex_lock(&sq->push_mutex);
+	head_local = sq->cb.head;
 	et_ioread(sq->cb_mem, 0, (u8 *)&sq->cb, sizeof(sq->cb));
+
+	if (head_local != sq->cb.head) {
+		pr_err("SQ sync: head mismatched, head_local: %d, head_remote: %d",
+		       head_local, sq->cb.head);
+
+		// TODO: Sync here, currently not actually syncing head, using
+		// local copy instead. Device should be the source of truth but
+		// local copy seems to work accurately than reading back from
+		// device at these sync points.
+		sq->cb.head = head_local;
+	}
+
 	mutex_unlock(&sq->push_mutex);
 }
 
@@ -914,9 +934,24 @@ error_unlock_mutex:
 
 void et_cqueue_sync_cb_for_host(struct et_cqueue *cq)
 {
-        mutex_lock(&cq->pop_mutex);
-        et_ioread(cq->cb_mem, 0, (u8 *)&cq->cb, sizeof(cq->cb));
-        mutex_unlock(&cq->pop_mutex);
+	u32 tail_local;
+
+	mutex_lock(&cq->pop_mutex);
+	tail_local = cq->cb.tail;
+	et_ioread(cq->cb_mem, 0, (u8 *)&cq->cb, sizeof(cq->cb));
+
+	if (tail_local != cq->cb.tail) {
+		pr_err("CQ sync: tail mismatched, tail_local: %d, tail_remote: %d",
+		       tail_local, cq->cb.tail);
+
+		// TODO: Sync here, currently not actually syncing head, using
+		// local copy instead. Device should be the source of truth but
+		// local copy seems to work accurately than reading back from
+		// device at these sync points.
+		cq->cb.tail = tail_local;
+	}
+
+	mutex_unlock(&cq->pop_mutex);
 }
 
 /*
