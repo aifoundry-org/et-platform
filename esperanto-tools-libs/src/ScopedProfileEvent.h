@@ -31,15 +31,10 @@ public:
     event_.setEvent(eventId);
     init();
   }
-  explicit ScopedProfileEvent(Class cls, ProfilerImp& profiler, StreamId streamId, EventId eventId)
-    : profiler_(profiler)
-    , event_{Type::Start, cls, streamId, eventId} {
-      init();
-  }
   explicit ScopedProfileEvent(Class cls, ProfilerImp& profiler)
     : profiler_(profiler)
     , event_{Type::Start, cls} {
-      init();
+    init();
   }
   void init() {
     event_.addExtra("pair_id", nextPairId_++);

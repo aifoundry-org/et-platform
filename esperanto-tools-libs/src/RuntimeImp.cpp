@@ -133,7 +133,7 @@ StreamId RuntimeImp::createStream(DeviceId device) {
 }
 
 void RuntimeImp::destroyStream(StreamId stream) {
-  ScopedProfileEvent profileEvent(Class::DestroyStream, profiler_);
+  ScopedProfileEvent profileEvent(Class::DestroyStream, profiler_, stream);
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   auto it = find(streams_, stream);
   streams_.erase(it);
@@ -141,7 +141,7 @@ void RuntimeImp::destroyStream(StreamId stream) {
 
 EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void* d_dst, size_t size,
                                        [[maybe_unused]] bool barrier) {
-  ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, profiler_);
+  ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, profiler_, stream);
   std::unique_lock<std::recursive_mutex> lock(mutex_);
   auto it = find(streams_, stream);
 
@@ -168,7 +168,7 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
 
 EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void* h_dst, size_t size,
                                        [[maybe_unused]] bool barrier) {
-  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, profiler_);
+  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, profiler_, stream);
   std::unique_lock<std::recursive_mutex> lock(mutex_);
   auto it = find(streams_, stream);
 
