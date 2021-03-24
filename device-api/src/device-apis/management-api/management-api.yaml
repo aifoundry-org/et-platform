@@ -131,7 +131,7 @@ Modules:
           Value: 53
         - Name: GET_ASIC_LATENCY
           Value: 54
-        - Name: GET_MM_THREADS_STATE
+        - Name: GET_MM_ERROR_COUNT
           Value: 55
   ## List of Enums that are used in our messages
     - Name: power_state
@@ -391,19 +391,12 @@ Modules:
         - Name: pad
           Description: Padding for alignment
           Type: uint32_t
-    - Name: mm_state_t
+    - Name: mm_error_count_t
       Fields:
-        - Name: master_thread_state
-          Type: uint8_t
-        - Name: vq_s_thread_state
-          Type: uint8_t
-        - Name: vq_c_thread_state
-          Type: uint8_t
-        - Name: vq_w_thread_state
-          Type: uint8_t
-        - Name: pad[4]
-          Description: Padding for alignment
-          Type: uint8_t
+        - Name: hang_count
+          Type: uint32_t
+        - Name: exception_count
+          Type: uint32_t
     - Name: module_voltage_t
       Fields:
         - Name: minion_shire_mV
@@ -960,8 +953,8 @@ Modules:
       Description: Response for MM state command
       PairedMessage: device_mgmt_mm_state_cmd
       Fields:
-        - Name: mm_state
-          Description: MM state details.
+        - Name: mm_error_count
+          Description: MM error count details.
           Type: struct
-          Struct: mm_state_t
+          Struct: mm_error_count_t
 
