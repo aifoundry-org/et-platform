@@ -93,7 +93,7 @@ static inline void local_fcc_flag_wait(local_fcc_flag_t *flag)
     do
     {
         WAIT_FCC(FCC_0);
-    } while (atomic_load_local_32(&flag->flag) != 1);
+    } while (atomic_exchange_local_32(&flag->flag, 0) != 1);
 }
 
 static inline void local_fcc_flag_notify(local_fcc_flag_t *flag, uint32_t minion, uint32_t thread)
@@ -130,9 +130,7 @@ static inline void global_fcc_wait(fcc_t fcc_id, global_fcc_flag_t *flag)
         } else if (fcc_id == FCC_1){
             WAIT_FCC(FCC_1);
         }
-    } while (atomic_load_global_32(&flag->flag) != 1);
-
-    atomic_store_global_32(&flag->flag, 0);
+    } while (atomic_exchange_global_32(&flag->flag, 0) != 1);
 }
 
 
@@ -157,9 +155,7 @@ static inline void global_fcc_flag_wait(global_fcc_flag_t *flag)
 {
     do {
         WAIT_FCC(FCC_0);
-    } while (atomic_load_global_32(&flag->flag) != 1);
-
-    atomic_store_global_32(&flag->flag, 0);
+    } while (atomic_exchange_global_32(&flag->flag, 0) != 1);
 }
 
 static inline void global_fcc_flag_notify(global_fcc_flag_t *flag, uint32_t minion, uint32_t thread)

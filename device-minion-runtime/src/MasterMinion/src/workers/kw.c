@@ -789,15 +789,15 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             Log_Write(LOG_LEVEL_DEBUG, "KW:Push:Failed\r\n");
         }
 
-        /* Decrement commands count being processed by given SQW */
-        SQW_Decrement_Command_Count(
-            (uint8_t)atomic_load_local_16(&kernel->sqw_idx));
-
         /* Give back the reserved compute shires. */
         kw_unreserve_kernel_shires(kernel_shire_mask);
 
         /* Make reserved kernel slot available again */
         kw_unreserve_kernel_slot(kernel);
+
+        /* Decrement commands count being processed by given SQW */
+        SQW_Decrement_Command_Count(
+            (uint8_t)atomic_load_local_16(&kernel->sqw_idx));
     }
 
     return;
