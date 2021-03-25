@@ -215,8 +215,14 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             else
             {
                 Log_Write(LOG_LEVEL_ERROR,
-                    "HostCmdHdlr:KernelLaunch:Failed:Status:%d:CmdParams:code_start_address:%ld \
-                    pointer_to_args:%ld shire_mask:%ld\r\n", status, cmd->code_start_address,
+                    "HostCmdHdlr:KernelLaunch:Failed:Status:%d\r\n", status);
+
+                Log_Write(LOG_LEVEL_ERROR,
+                    "HostCmdHdlr:KernelLaunch:Failed:CmdParam:code_start_address:%lx\r\n",
+                    cmd->code_start_address);
+
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "HostCmdHdlr:KernelLaunch:Failed:CmdParam:pointer_to_args:%lx shire_mask:%lx\r\n",
                     cmd->pointer_to_args, cmd->shire_mask);
 
                 /* Construct and transit command response */
@@ -276,7 +282,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             if(status != STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_ERROR,
-                    "HostCmdHdlr:KernelAbort:Failed:Status:%d:CmdParams:kernel_launch_tag_id:%d\r\n",
+                    "HostCmdHdlr:KernelAbort:Failed:Status:%d:CmdParams:kernel_launch_tag_id:%x\r\n",
                     status, cmd->kernel_launch_tag_id);
 
                 /* Construct and transit command response */
@@ -357,10 +363,15 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             if(status != STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_ERROR,
-                    "HostCmdHdlr:DataReadCmd:Failed:Status:%d:CmdParams:dst_host_virt_addr:%ld\
-                    :dst_host_phy_addr:%ld:src_device_phy_addr:%ld:size:%d\r\n",
-                    status, cmd->dst_host_virt_addr, cmd->dst_host_phy_addr,
+                    "HostCmdHdlr:DataReadCmd:Failed:Status:%d\r\n", status);
+
+                Log_Write(LOG_LEVEL_ERROR,
+                    "HostCmdHdlr:DataReadCmd:Failed:CmdParams:src_device_phy_addr:%lx:size:%x\r\n",
                     cmd->src_device_phy_addr, cmd->size);
+
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "HostCmdHdlr:DataReadCmd:Failed:CmdParams:dst_host_virt_addr:%lx:dst_host_phy_addr:%lx\r\n",
+                    cmd->dst_host_virt_addr, cmd->dst_host_phy_addr);
 
                 /* Construct and transmit command response */
                 rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
@@ -449,10 +460,15 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             if(status != STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_ERROR,
-                    "HostCmdHdlr:DataWriteCmd:Failed:Status:%d:CmdParams:src_host_virt_addr:%ld\
-                    :src_host_phy_addr:%ld:dst_device_phy_addr:%ld:size:%d\r\n",
-                    status, cmd->src_host_virt_addr, cmd->src_host_phy_addr,
+                    "HostCmdHdlr:DataWriteCmd:Failed:Status:%d\r\n", status);
+
+                Log_Write(LOG_LEVEL_ERROR,
+                    "HostCmdHdlr:DataWriteCmd:Failed:CmdParams:dst_device_phy_addr:%lx:size:%x\r\n",
                     cmd->dst_device_phy_addr, cmd->size);
+
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "HostCmdHdlr:DataWriteCmd:Failed:CmdParams:src_host_virt_addr:%lx:src_host_phy_addr:%lx\r\n",
+                    cmd->src_host_virt_addr, cmd->src_host_phy_addr);
 
                 /* Construct and transit command response */
                 rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
@@ -503,8 +519,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             /* Decrement commands count being processed by given SQW */
             SQW_Decrement_Command_Count(sqw_idx);
 
-            Log_Write(LOG_LEVEL_ERROR,
-                "HostCommandHandler:UnsupportedCmd\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "HostCmdHdlr:UnsupportedCmd\r\n");
             status = -1;
             break;
         }

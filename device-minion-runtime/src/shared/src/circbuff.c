@@ -27,7 +27,7 @@
     \warning Not thread safe!
 */
 void (*memory_read[MEM_TYPES_COUNT])
-    (const void *src_ptr, void *dest_ptr, uint32_t length) __attribute__((aligned(64))) =
+    (const void *src_ptr, void *dest_ptr, uint64_t length) __attribute__((aligned(64))) =
     { ETSOC_Memory_Read_Local_Atomic, ETSOC_Memory_Read_Global_Atomic,
       ETSOC_Memory_Read_Uncacheable, ETSOC_Memory_Read_Write_Cacheable };
 
@@ -36,7 +36,7 @@ void (*memory_read[MEM_TYPES_COUNT])
     \warning Not thread safe!
 */
 void (*memory_write[MEM_TYPES_COUNT])
-    (const void *src_ptr, void *dest_ptr, uint32_t length) __attribute__((aligned(64))) =
+    (const void *src_ptr, void *dest_ptr, uint64_t length) __attribute__((aligned(64))) =
     { ETSOC_Memory_Write_Local_Atomic, ETSOC_Memory_Write_Global_Atomic,
       ETSOC_Memory_Write_Uncacheable, ETSOC_Memory_Read_Write_Cacheable };
 
@@ -61,10 +61,9 @@ void (*memory_write[MEM_TYPES_COUNT])
 *       int8_t            Returns successful status or error code.
 *
 ***********************************************************************/
-int8_t Circbuffer_Init(circ_buff_cb_t *circ_buff_cb_ptr,
-            uint32_t buffer_length, uint32_t flags)
+int8_t Circbuffer_Init(circ_buff_cb_t *circ_buff_cb_ptr, uint64_t buffer_length, uint32_t flags)
 {
-    circ_buff_cb_t circ_buff;
+    circ_buff_cb_t circ_buff __attribute__((aligned(8)));
 
     /* Reset the head and tail offsets */
     circ_buff.head_offset = 0;
@@ -104,11 +103,11 @@ int8_t Circbuffer_Init(circ_buff_cb_t *circ_buff_cb_ptr,
 *
 ***********************************************************************/
 int8_t Circbuffer_Push(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
-            const void *restrict src_buffer, uint32_t src_length, uint32_t flags)
+    const void *restrict src_buffer, uint64_t src_length, uint32_t flags)
 {
     int8_t status = CIRCBUFF_OPERATION_SUCCESS;
     const uint8_t *src_u8 = (const uint8_t *)src_buffer;
-    circ_buff_cb_t circ_buff;
+    circ_buff_cb_t circ_buff __attribute__((aligned(8)));
 
     /* Read the circular buffer CB from memory */
     (*memory_read[flags]) (circ_buff_cb_ptr, &circ_buff, sizeof(circ_buff));
@@ -133,7 +132,7 @@ int8_t Circbuffer_Push(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
         /* Check if buffer wrap is required */
         if (circ_buff.head_offset + src_length > circ_buff.length)
         {
-            uint32_t bytes_till_end = circ_buff.length - circ_buff.head_offset;
+            uint64_t bytes_till_end = circ_buff.length - circ_buff.head_offset;
 
             (*memory_write[flags]) (src_u8,
                 (void*)&circ_buff_cb_ptr->buffer_ptr[circ_buff.head_offset], bytes_till_end);
@@ -179,12 +178,12 @@ int8_t Circbuffer_Push(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
 *
 ***********************************************************************/
 int8_t Circbuffer_Pop(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
-            void *restrict const dest_buffer, uint32_t dest_length, uint32_t flags)
+    void *restrict const dest_buffer, uint64_t dest_length, uint32_t flags)
 {
     int8_t status = CIRCBUFF_OPERATION_SUCCESS;
     uint8_t *dest_u8 = (uint8_t *)dest_buffer;
-    circ_buff_cb_t circ_buff;
-    uint32_t used_space;
+    circ_buff_cb_t circ_buff __attribute__((aligned(8)));
+    uint64_t used_space;
 
     /* Read the circular buffer CB from memory */
     (*memory_read[flags]) (circ_buff_cb_ptr, &circ_buff, sizeof(circ_buff));
@@ -219,7 +218,7 @@ int8_t Circbuffer_Pop(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
         /* Check if buffer wrap is required */
         if (circ_buff.tail_offset + dest_length > circ_buff.length)
         {
-            uint32_t bytes_till_end = circ_buff.length - circ_buff.tail_offset;
+            uint64_t bytes_till_end = circ_buff.length - circ_buff.tail_offset;
 
             (*memory_read[flags]) ((void*)&circ_buff_cb_ptr->buffer_ptr[circ_buff.tail_offset],
                 dest_u8, bytes_till_end);
@@ -267,7 +266,7 @@ int8_t Circbuffer_Pop(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
 ***********************************************************************/
 int8_t Circbuffer_Read(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
     void *restrict const src_circ_buffer, void *restrict const dest_buffer,
-    uint32_t dest_length, uint32_t flags)
+    uint64_t dest_length, uint32_t flags)
 {
     int8_t status = CIRCBUFF_OPERATION_SUCCESS;
     uint8_t *src_u8 = (uint8_t *)src_circ_buffer;
@@ -285,7 +284,7 @@ int8_t Circbuffer_Read(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
         /* Check if buffer wrap is required */
         if (circ_buff_cb_ptr->tail_offset + dest_length > circ_buff_cb_ptr->length)
         {
-            uint32_t bytes_till_end = circ_buff_cb_ptr->length - circ_buff_cb_ptr->tail_offset;
+            uint64_t bytes_till_end = circ_buff_cb_ptr->length - circ_buff_cb_ptr->tail_offset;
 
             (*memory_read[flags]) (src_u8 + circ_buff_cb_ptr->tail_offset,
                 dest_u8, bytes_till_end);
@@ -331,13 +330,12 @@ int8_t Circbuffer_Read(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
 *
 ***********************************************************************/
 int8_t Circbuffer_Peek(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
-        void *restrict const dest_buffer, uint32_t peek_offset,
-        uint32_t peek_length, uint32_t flags)
+    void *restrict const dest_buffer, uint64_t peek_offset, uint64_t peek_length, uint32_t flags)
 {
     int8_t status = CIRCBUFF_OPERATION_SUCCESS;
     uint8_t *dest_u8 = (uint8_t *)dest_buffer;
-    circ_buff_cb_t circ_buff;
-    uint32_t used_space;
+    circ_buff_cb_t circ_buff __attribute__((aligned(8)));
+    uint64_t used_space;
 
     /* Read the circular buffer CB from memory */
     (*memory_read[flags]) (circ_buff_cb_ptr, &circ_buff, sizeof(circ_buff));
@@ -372,7 +370,7 @@ int8_t Circbuffer_Peek(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
         /* Check if buffer wrap is required */
         if (circ_buff.tail_offset + (peek_length + peek_offset) > circ_buff.length)
         {
-            uint32_t bytes_till_end = circ_buff.length - (circ_buff.tail_offset + peek_offset);
+            uint64_t bytes_till_end = circ_buff.length - (circ_buff.tail_offset + peek_offset);
 
             (*memory_read[flags]) (
                 (void*)&circ_buff_cb_ptr->buffer_ptr[circ_buff.tail_offset + peek_offset],

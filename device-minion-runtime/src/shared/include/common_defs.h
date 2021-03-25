@@ -34,6 +34,12 @@
     }
 #endif
 
+/*! \def IS_ALIGNED(address, alignment)
+    \brief A macro that checks the given address for the required alignment (in bytes) and
+    returns true is address is aligned, else false
+*/
+#define IS_ALIGNED(address, alignment)   (!((uintptr_t)address & (alignment - 1U)))
+
 /*! \def HARTS_PER_MINION
     \brief A macro that provides number of Harts per Minion
 */

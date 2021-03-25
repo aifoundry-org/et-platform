@@ -100,7 +100,7 @@ int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff);
     Caller shall use MM_CMD_MAX_SIZE to allocate rx_buff
     \return The size of the command in bytes or negative error code.
 */
-int32_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint32_t vq_used_space,
+int32_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint64_t vq_used_space,
     void *restrict const shared_mem_ptr, void* rx_buff);
 
 /*! \fn int8_t VQ_Peek(vq_cb_t* vq_cb, void* peek_buff,
@@ -126,21 +126,21 @@ bool VQ_Data_Avail(vq_cb_t* vq_cb);
 */
 int8_t VQ_Deinit(void);
 
-/*! \fn static inline uint32_t VQ_Get_Tail_Offset(vq_cb_t* vq_cb)
+/*! \fn static inline uint64_t VQ_Get_Tail_Offset(vq_cb_t* vq_cb)
     \brief Get the tail offset of the VQ
     \param vq_cb Pointer to virtual queue control block.
     \return Value of tail offset
 */
-static inline uint32_t VQ_Get_Tail_Offset(vq_cb_t* vq_cb)
+static inline uint64_t VQ_Get_Tail_Offset(vq_cb_t* vq_cb)
 {
     return (vq_cb->circbuff_cb->tail_offset);
 }
 
-/*! \fn static inline void VQ_Set_Tail_Offset(vq_cb_t* dest_vq_cb, uint32_t tail_val)
+/*! \fn static inline void VQ_Set_Tail_Offset(vq_cb_t* dest_vq_cb, uint64_t tail_val)
     \brief Set the tail offset of the VQ
     \param vq_cb Pointer to destination virtual queue control block.
 */
-static inline void VQ_Set_Tail_Offset(vq_cb_t* dest_vq_cb, uint32_t tail_val)
+static inline void VQ_Set_Tail_Offset(vq_cb_t* dest_vq_cb, uint64_t tail_val)
 {
     Circbuffer_Set_Tail((circ_buff_cb_t*)(uintptr_t)
         atomic_load_local_64((uint64_t*)(void*)&dest_vq_cb->circbuff_cb), tail_val,
@@ -159,13 +159,13 @@ static inline void VQ_Get_Head_And_Tail(vq_cb_t* src_vq_cb, vq_cb_t* dest_vq_cb)
         dest_vq_cb->circbuff_cb, dest_vq_cb->flags);
 }
 
-/*! \fn static inline uint32_t VQ_Get_Used_Space(vq_cb_t* vq_cb, uint32_t flags)
+/*! \fn static inline uint64_t VQ_Get_Used_Space(vq_cb_t* vq_cb, uint32_t flags)
     \brief Get the used space (in bytes) in the VQ
     \param vq_cb Pointer to virtual queue control block.
     \param flags Extra flags passed to determine memory operations
     \return Number of bytes available in VQ
 */
-static inline uint32_t VQ_Get_Used_Space(vq_cb_t* vq_cb, uint32_t flags)
+static inline uint64_t VQ_Get_Used_Space(vq_cb_t* vq_cb, uint32_t flags)
 {
     return Circbuffer_Get_Used_Space(vq_cb->circbuff_cb, flags);
 }

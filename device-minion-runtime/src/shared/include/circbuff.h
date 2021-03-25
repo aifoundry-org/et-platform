@@ -24,14 +24,14 @@
     \warning Not thread safe!
 */
 extern void (*memory_read[MEM_TYPES_COUNT])
-    (const void *src_ptr, void *dest_ptr, uint32_t length);
+    (const void *src_ptr, void *dest_ptr, uint64_t length);
 
 /*! \var extern void memory_write
     \brief An array containing function pointers to ETSOC memory write functions.
     \warning Not thread safe!
 */
 extern void (*memory_write[MEM_TYPES_COUNT])
-    (const void *src_ptr, void *dest_ptr, uint32_t length);
+    (const void *src_ptr, void *dest_ptr, uint64_t length);
 
 /**
  * @brief Defines for Circular Buffer status codes.
@@ -55,26 +55,25 @@ extern void (*memory_write[MEM_TYPES_COUNT])
     information of a circular buffer.
 */
 typedef struct __attribute__((__packed__)) circ_buff_cb {
-    uint32_t head_offset;   /**< Offset of the circular buffer to write data to */
-    uint32_t tail_offset;   /**< Offset of the circular buffer to read data from */
-    uint32_t length;        /**< Total length (in bytes) of the circular buffer */
-    uint32_t pad;           /**< Padding to make 64-bit aligned */
+    uint64_t head_offset;   /**< Offset of the circular buffer to write data to */
+    uint64_t tail_offset;   /**< Offset of the circular buffer to read data from */
+    uint64_t length;        /**< Total length (in bytes) of the circular buffer */
     uint8_t buffer_ptr[];   /**< Flexible array to access circular buffer memory
                             located just after circ_buff_cb_t */
 } circ_buff_cb_t;
 
-/*! \fn int8_t Circbuffer_Init(circ_buff_cb_t *circ_buff_cb_ptr, uint32_t buffer_length,
-        uint32_t flags)
+/*! \fn int8_t Circbuffer_Init(circ_buff_cb_t *circ_buff_cb_ptr, uint64_t buffer_length,
+    uint32_t flags)
     \brief Initializes circular buffer instance.
     \param [in] circ_buff_cb_ptr: Pointer to circular buffer control block.
     \param [in] buffer_length: Length of the circular data buffer in bytes.
     \param [in] flags: Indicates memory access type
     \returns Status of the initialization process.
 */
-int8_t Circbuffer_Init(circ_buff_cb_t *circ_buff_cb_ptr, uint32_t buffer_length, uint32_t flags);
+int8_t Circbuffer_Init(circ_buff_cb_t *circ_buff_cb_ptr, uint64_t buffer_length, uint32_t flags);
 
 /*! \fn int8_t Circbuffer_Push(volatile circ_buff_cb_t *restrict const circ_buff_cb_ptr,
-        const void *restrict const src_buffer, uint32_t src_length, uint32_t flags)
+    const void *restrict const src_buffer, uint64_t src_length, uint32_t flags)
     \brief Pushes the data from source data buffer to the circular buffer.
     \param [in] circ_buff_cb_ptr: Pointer to circular buffer control block.
     \param [in] src_buffer: Pointer to the source data buffer.
@@ -83,10 +82,10 @@ int8_t Circbuffer_Init(circ_buff_cb_t *circ_buff_cb_ptr, uint32_t buffer_length,
     \returns Success status if the data is pushed or a negative error code in case of error.
 */
 int8_t Circbuffer_Push(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
-            const void *restrict const src_buffer, uint32_t src_length, uint32_t flags);
+    const void *restrict const src_buffer, uint64_t src_length, uint32_t flags);
 
 /*! \fn int8_t Circbuffer_Pop(volatile circ_buff_cb_t *restrict const circ_buff_cb_ptr,
-        void *restrict const dest_buffer, uint32_t dest_length , uint32_t flags)
+    void *restrict const dest_buffer, uint64_t dest_length , uint32_t flags)
     \brief Pops the data from circular buffer to the destination buffer.
     \param [in] circ_buff_cb_ptr: Pointer to circular buffer control block.
     \param [in] dest_buffer: Pointer to the destination data buffer.
@@ -95,11 +94,11 @@ int8_t Circbuffer_Push(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
     \returns Success status if the data is poped or a negative error code in case of error.
 */
 int8_t Circbuffer_Pop(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
-            void *restrict const dest_buffer, uint32_t dest_length, uint32_t flags);
+    void *restrict const dest_buffer, uint64_t dest_length, uint32_t flags);
 
 /*! \fn int8_t Circbuffer_Read(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
     void *restrict const src_circ_buffer, void *restrict const dest_buffer,
-    uint32_t dest_length, uint32_t flags)
+    uint64_t dest_length, uint32_t flags)
     \brief Reads the data from circular buffer to the destination buffer.
     \param [in] circ_buff_cb_ptr: Pointer to circular buffer control block.
     \param [in] src_circ_buffer: Pointer to source circular buffer data pointer.
@@ -110,11 +109,10 @@ int8_t Circbuffer_Pop(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
 */
 int8_t Circbuffer_Read(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
     void *restrict const src_circ_buffer, void *restrict const dest_buffer,
-    uint32_t dest_length, uint32_t flags);
+    uint64_t dest_length, uint32_t flags);
 
 /*! \fn int8_t Circbuffer_Peek(volatile circ_buff_cb_t *restrict const circbuffer_ptr,
-        void *restrict const dest_buffer, uint32_t peek_offset, uint32_t peek_length,
-        uint32_t flags)
+    void *restrict const dest_buffer, uint64_t peek_offset, uint64_t peek_length, uint32_t flags)
     \brief Peeks the circular buffer and returns the required data.
     \param [in] circ_buff_cb_ptr: Pointer to circular buffer control block.
     \param [in] dest_buffer: Pointer to the destination data buffer.
@@ -123,17 +121,16 @@ int8_t Circbuffer_Read(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
     \returns Success status if the data is read or a negative error code in case of error.
 */
 int8_t Circbuffer_Peek(circ_buff_cb_t *restrict const circbuffer_ptr,
-            void *restrict const dest_buffer, uint32_t peek_offset, uint32_t peek_length,
-            uint32_t flags);
+    void *restrict const dest_buffer, uint64_t peek_offset, uint64_t peek_length, uint32_t flags);
 
-/*! \fn static inline uint32_t Circbuffer_Get_Avail_Space(volatile circ_buff_cb_t *restrict const circ_buff_cb_ptr,
-        uint32_t flags)
+/*! \fn static inline uint64_t Circbuffer_Get_Avail_Space(volatile circ_buff_cb_t *restrict const circ_buff_cb_ptr,
+    uint32_t flags)
     \brief Returns the number of available bytes in the circular buffer.
     \param [in] circ_buff_cb_ptr: Pointer to circular buffer control block.
     \param [in] flags: Indicates memory access type
     \returns Free space in bytes.
 */
-static inline uint32_t Circbuffer_Get_Avail_Space(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
+static inline uint64_t Circbuffer_Get_Avail_Space(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
     uint32_t flags)
 {
     circ_buff_cb_t *circ_buff = circ_buff_cb_ptr;
@@ -145,19 +142,19 @@ static inline uint32_t Circbuffer_Get_Avail_Space(circ_buff_cb_t *restrict const
         (*memory_read[flags]) (circ_buff_cb_ptr, circ_buff, sizeof(*circ_buff));
     }
 
-    return (uint32_t)((circ_buff->head_offset >= circ_buff->tail_offset) ?
+    return (uint64_t)((circ_buff->head_offset >= circ_buff->tail_offset) ?
                       (circ_buff->length - 1) - (circ_buff->head_offset - circ_buff->tail_offset) :
                        circ_buff->tail_offset - circ_buff->head_offset - 1);
 }
 
-/*! \fn static inline uint32_t Circbuffer_Get_Used_Space(volatile circ_buff_cb_t *restrict const circ_buff_cb_ptr,
-        uint32_t flags)
+/*! \fn static inline uint64_t Circbuffer_Get_Used_Space(volatile circ_buff_cb_t *restrict const circ_buff_cb_ptr,
+    uint32_t flags)
     \brief Returns the number of used bytes in the circular buffer.
     \param [in] circ_buff_cb_ptr: Pointer to circular buffer control block.
     \param [in] flags: Indicates memory access type
     \returns Used space in bytes.
 */
-static inline uint32_t Circbuffer_Get_Used_Space(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
+static inline uint64_t Circbuffer_Get_Used_Space(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
     uint32_t flags)
 {
     circ_buff_cb_t *circ_buff = circ_buff_cb_ptr;
@@ -169,12 +166,12 @@ static inline uint32_t Circbuffer_Get_Used_Space(circ_buff_cb_t *restrict const 
         (*memory_read[flags]) (circ_buff_cb_ptr, circ_buff, sizeof(*circ_buff));
     }
 
-    return (uint32_t)((circ_buff->head_offset >= circ_buff->tail_offset) ?
+    return (uint64_t)((circ_buff->head_offset >= circ_buff->tail_offset) ?
                       circ_buff->head_offset - circ_buff->tail_offset :
                       (circ_buff->length + circ_buff->head_offset - circ_buff->tail_offset));
 }
 
-/*! \fn static inline uint32_t Circbuffer_Get_Head_Tail(circ_buff_cb_t *restrict const src_circ_buff_cb_ptr,
+/*! \fn static inline void Circbuffer_Get_Head_Tail(circ_buff_cb_t *restrict const src_circ_buff_cb_ptr,
     circ_buff_cb_t *restrict dest_circ_buff_cb_ptr, uint32_t flags)
     \brief Returns the head and tail offsets in destination circular buffer CB.
     \param [in] src_circ_buff_cb_ptr: Pointer to source circular buffer control block.
@@ -189,15 +186,15 @@ static inline void Circbuffer_Get_Head_Tail(circ_buff_cb_t *restrict const src_c
         sizeof(((circ_buff_cb_t*)0)->head_offset) + sizeof(((circ_buff_cb_t*)0)->tail_offset));
 }
 
-/*! \fn static inline uint32_t Circbuffer_Get_Head_Tail(circ_buff_cb_t *restrict const src_circ_buff_cb_ptr,
-    circ_buff_cb_t *restrict dest_circ_buff_cb_ptr, uint32_t flags)
+/*! \fn static inline void Circbuffer_Set_Tail(circ_buff_cb_t *restrict dest_circ_buff_cb_ptr,
+    uint64_t tail_val, uint32_t flags)
     \brief Sets the tail offset value in provided destination circular buffer CB.
     \param [in] dest_circ_buff_cb_ptr: Pointer to destination circular buffer control block.
     \param [in] tail_val: Value of tail offset to write.
     \param [in] flags: Indicates memory access type
 */
 static inline void Circbuffer_Set_Tail(circ_buff_cb_t *restrict dest_circ_buff_cb_ptr,
-    uint32_t tail_val, uint32_t flags)
+    uint64_t tail_val, uint32_t flags)
 {
     /* Write the circular buffer CB from memory */
     (*memory_write[flags]) ((void*)&tail_val, (void*)&dest_circ_buff_cb_ptr->tail_offset,
@@ -205,14 +202,14 @@ static inline void Circbuffer_Set_Tail(circ_buff_cb_t *restrict dest_circ_buff_c
 }
 
 /*! \fn static inline void Circbuffer_Set_Head(circ_buff_cb_t *restrict dest_circ_buff_cb_ptr,
-    uint32_t head_val, uint32_t flags)
+    uint64_t head_val, uint32_t flags)
     \brief Sets the head offset value in provided destination circular buffer CB.
     \param [in] dest_circ_buff_cb_ptr: Pointer to destination circular buffer control block.
     \param [in] head_val: Value of head offset to write.
     \param [in] flags: Indicates memory access type
 */
 static inline void Circbuffer_Set_Head(circ_buff_cb_t *restrict dest_circ_buff_cb_ptr,
-    uint32_t head_val, uint32_t flags)
+    uint64_t head_val, uint32_t flags)
 {
     /* Write the circular buffer CB from memory */
     (*memory_write[flags]) (&head_val, &dest_circ_buff_cb_ptr->head_offset,

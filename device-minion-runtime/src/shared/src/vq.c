@@ -135,11 +135,11 @@ int8_t VQ_Push(vq_cb_t* vq_cb, void* data, uint32_t data_size)
 #if defined(MASTER_MINION)
     status = Circbuffer_Push((circ_buff_cb_t*)(uintptr_t)
         atomic_load_local_64((uint64_t*)(void*)&vq_cb->circbuff_cb), data,
-        (uint16_t) data_size, atomic_load_local_32(&vq_cb->flags));
+        data_size, atomic_load_local_32(&vq_cb->flags));
 
 #elif defined(SERVICE_PROCESSOR_BL2)
     status = Circbuffer_Push(vq_cb->circbuff_cb, data,
-        (uint16_t) data_size, vq_cb->flags);
+        data_size, vq_cb->flags);
 
 #else
     /* Unused variables */
@@ -271,7 +271,7 @@ int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
 *                      Positive value - Number of bytes popped
 *
 ***********************************************************************/
-int32_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint32_t vq_used_space,
+int32_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint64_t vq_used_space,
     void *restrict const shared_mem_ptr,  void* rx_buff)
 {
     int32_t return_val;

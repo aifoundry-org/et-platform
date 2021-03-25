@@ -150,9 +150,7 @@ void SQW_Notify(uint8_t sqw_idx)
 
     Log_Write(LOG_LEVEL_DEBUG, "Notifying:SQW:minion=%d:thread=%d\r\n", minion, thread);
 
-    /* TODO: Today we are stuck here due to the reason that this primitive
-    expects an ACK from the receiver end. Hence, it blocks the caller.
-    There are two options in future: 1. To use IPIs.
+    /* TODO: Future improvements: 1. To use IPIs.
     2. Improve FCC to address security concerns. */
     local_fcc_flag_notify_no_ack(&SQW_CB.sqw_fcc_flags[sqw_idx],
         minion, thread);
@@ -186,12 +184,15 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
     bool update_sq_tail;
     int8_t status = 0;
     int32_t pop_ret_val;
-    uint32_t tail_prev;
-    uint32_t vq_used_space;
+    uint64_t tail_prev;
+    uint64_t vq_used_space;
     uint64_t start_cycles = 0;
     void* shared_mem_ptr;
-    circ_buff_cb_t circ_buff_cached;
+    circ_buff_cb_t circ_buff_cached __attribute__((aligned(8)));
     vq_cb_t vq_cached;
+
+    /* Declare a pointer to the VQ control block that is pointing to the VQ attributes in
+    global memory and the actual Circular Buffer CB in SRAM (which is shared with host) */
     vq_cb_t *vq_shared = Host_Iface_Get_VQ_Base_Addr(SQ, (uint8_t)sqw_idx);
 
     /* TODO: This could also be achieved by using VQ CB as always cached,
@@ -205,6 +206,18 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
 
     /* Save the shared memory pointer */
     shared_mem_ptr = (void*)vq_cached.circbuff_cb->buffer_ptr;
+
+    /* Verify that the head pointer in cached variable and shared SRAM are 8-byte aligned addresses */
+    if (!(IS_ALIGNED(&circ_buff_cached.head_offset, 8) && IS_ALIGNED(&vq_cached.circbuff_cb->head_offset, 8)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "SQW:SQ HEAD not 64-bit aligned\r\n");
+    }
+
+    /* Verify that the tail pointer in cached variable and shared SRAM are 8-byte aligned addresses */
+    if (!(IS_ALIGNED(&circ_buff_cached.tail_offset, 8) && IS_ALIGNED(&vq_cached.circbuff_cb->tail_offset, 8)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "SQW:SQ tail not 64-bit aligned\r\n");
+    }
 
     /* Update the local VQ CB to point to the cached L1 stack variable */
     vq_cached.circbuff_cb = &circ_buff_cached;
@@ -231,69 +244,71 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
         VQ_Get_Head_And_Tail(vq_shared, &vq_cached);
 
         /* Verify that the tail value read from memory is equal to previous tail value */
-        if(tail_prev == VQ_Get_Tail_Offset(&vq_cached))
-        {
-            /* Get the total number of bytes available in the VQ */
-            vq_used_space = VQ_Get_Used_Space(&vq_cached, UNCACHED);
-
-            /* Process commands until there is no more data in VQ */
-            while(vq_used_space)
-            {
-                /* Pop from Submission Queue */
-                pop_ret_val = VQ_Pop_Optimized(&vq_cached, vq_used_space, shared_mem_ptr, cmd_buff);
-
-                if(pop_ret_val > 0)
-                {
-                    Log_Write(LOG_LEVEL_DEBUG, "SQW:Processing:SQW_IDX=%d:tag_id=%x\r\n",
-                        sqw_idx, cmd_hdr->cmd_hdr.tag_id);
-
-                    /* If barrier flag is set, wait until all cmds are
-                    processed in the current SQ */
-                    if(cmd_hdr->flags & (1 << 0U))
-                    {
-                        sqw_command_barrier((uint8_t)sqw_idx);
-                    }
-
-                    /* Increment the SQW command count.
-                    NOTE: Its Host_Command_Handler's job to ensure this
-                    count is decremented on the basis of the path it
-                    takes to process a command. */
-                    SQW_Increment_Command_Count((uint8_t)sqw_idx);
-
-                    status = Host_Command_Handler(cmd_buff,
-                        (uint8_t)sqw_idx, start_cycles);
-
-                    if(status != STATUS_SUCCESS)
-                    {
-                        Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:Procesisng failed.(Error code: %d)\r\n",
-                            status);
-                    }
-                }
-                else if(pop_ret_val < 0)
-                {
-                    Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:VQ pop failed.(Error code: %d)\r\n",
-                        pop_ret_val);
-                }
-
-                /* Set the SQ tail update flag so that we can updated shared
-                memory circular buffer CB with new tail offset */
-                update_sq_tail = true;
-
-                /* Re-calculate the total number of bytes available in the VQ */
-                vq_used_space = VQ_Get_Used_Space(&vq_cached, UNCACHED);
-            }
-
-            if(update_sq_tail)
-            {
-                /* Update the tail offset in VQ shared memory so that host is able to push new commands */
-                Host_Iface_Optimized_SQ_Update_Tail(vq_shared, &vq_cached);
-            }
-        }
-        else
+        if(tail_prev != VQ_Get_Tail_Offset(&vq_cached))
         {
             /* TODO: Send an async event to host to inform about this fatal error */
-            Log_Write(LOG_LEVEL_ERROR, "SQW:FATAL ERROR:Tail Mismatch:Cached: %d, Shared Memory: %d\r\n",
-                tail_prev, VQ_Get_Tail_Offset(&vq_cached));
+            Log_Write(LOG_LEVEL_ERROR,
+            "SQW:FATAL_ERROR:Tail Mismatch:Cached: %ld, Shared Memory: %ld Using cached value as fallback mechanism\r\n",
+            tail_prev, VQ_Get_Tail_Offset(&vq_cached));
+
+            /* TODO: Fallback mechanism: use the cached copy of SQ tail */
+            vq_cached.circbuff_cb->tail_offset = tail_prev;
+        }
+
+        /* Get the total number of bytes available in the VQ */
+        vq_used_space = VQ_Get_Used_Space(&vq_cached, CACHED);
+
+        /* Process commands until there is no more data in VQ */
+        while(vq_used_space)
+        {
+            /* Pop from Submission Queue */
+            pop_ret_val = VQ_Pop_Optimized(&vq_cached, vq_used_space, shared_mem_ptr, cmd_buff);
+
+            if(pop_ret_val > 0)
+            {
+                Log_Write(LOG_LEVEL_DEBUG, "SQW:Processing:SQW_IDX=%d:tag_id=%x\r\n",
+                    sqw_idx, cmd_hdr->cmd_hdr.tag_id);
+
+                /* If barrier flag is set, wait until all cmds are
+                processed in the current SQ */
+                if(cmd_hdr->flags & (1 << 0U))
+                {
+                    sqw_command_barrier((uint8_t)sqw_idx);
+                }
+
+                /* Increment the SQW command count.
+                NOTE: Its Host_Command_Handler's job to ensure this
+                count is decremented on the basis of the path it
+                takes to process a command. */
+                SQW_Increment_Command_Count((uint8_t)sqw_idx);
+
+                status = Host_Command_Handler(cmd_buff,
+                    (uint8_t)sqw_idx, start_cycles);
+
+                if(status != STATUS_SUCCESS)
+                {
+                    Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:Procesisng failed.(Error code: %d)\r\n",
+                        status);
+                }
+            }
+            else if(pop_ret_val < 0)
+            {
+                Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:VQ pop failed.(Error code: %d)\r\n",
+                    pop_ret_val);
+            }
+
+            /* Set the SQ tail update flag so that we can updated shared
+            memory circular buffer CB with new tail offset */
+            update_sq_tail = true;
+
+            /* Re-calculate the total number of bytes available in the VQ */
+            vq_used_space = VQ_Get_Used_Space(&vq_cached, CACHED);
+        }
+
+        if(update_sq_tail)
+        {
+            /* Update the tail offset in VQ shared memory so that host is able to push new commands */
+            Host_Iface_Optimized_SQ_Update_Tail(vq_shared, &vq_cached);
         }
     }
 

@@ -193,8 +193,7 @@ static inline void io_write_64(volatile uint64_t *addr, uint64_t val)
 *       None.
 *
 ***********************************************************************/
-void ETSOC_Memory_Read_Uncacheable(const void *src_ptr, void *dest_ptr,
-    uint32_t length)
+void ETSOC_Memory_Read_Uncacheable(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
     optimized_memory_read_body(io_read_8, io_read_16, io_read_32, \
         io_read_64, src_ptr, dest_ptr, length);
@@ -222,8 +221,7 @@ void ETSOC_Memory_Read_Uncacheable(const void *src_ptr, void *dest_ptr,
 *       None.
 *
 ***********************************************************************/
-void ETSOC_Memory_Write_Uncacheable(const void *src_ptr, void *dest_ptr,
-    uint32_t length)
+void ETSOC_Memory_Write_Uncacheable(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
     optimized_memory_write_body(io_write_8, io_write_16, io_write_32, \
         io_write_64, src_ptr, dest_ptr, length);
@@ -251,8 +249,7 @@ void ETSOC_Memory_Write_Uncacheable(const void *src_ptr, void *dest_ptr,
 *       None.
 *
 ***********************************************************************/
-void ETSOC_Memory_Read_Local_Atomic(const void *src_ptr, void *dest_ptr,
-    uint32_t length)
+void ETSOC_Memory_Read_Local_Atomic(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
     optimized_memory_read_body(atomic_load_local_8,      \
         atomic_load_local_16, atomic_load_local_32,      \
@@ -281,8 +278,7 @@ void ETSOC_Memory_Read_Local_Atomic(const void *src_ptr, void *dest_ptr,
 *       None.
 *
 ***********************************************************************/
-void ETSOC_Memory_Write_Local_Atomic(const void *src_ptr, void *dest_ptr,
-    uint32_t length)
+void ETSOC_Memory_Write_Local_Atomic(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
     optimized_memory_write_body(atomic_store_local_8,     \
         atomic_store_local_16, atomic_store_local_32,     \
@@ -311,8 +307,7 @@ void ETSOC_Memory_Write_Local_Atomic(const void *src_ptr, void *dest_ptr,
 *       None.
 *
 ***********************************************************************/
-void ETSOC_Memory_Read_Global_Atomic(const void *src_ptr, void *dest_ptr,
-    uint32_t length)
+void ETSOC_Memory_Read_Global_Atomic(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
     optimized_memory_read_body(atomic_load_global_8,      \
         atomic_load_global_16, atomic_load_global_32,     \
@@ -341,8 +336,7 @@ void ETSOC_Memory_Read_Global_Atomic(const void *src_ptr, void *dest_ptr,
 *       None.
 *
 ***********************************************************************/
-void ETSOC_Memory_Write_Global_Atomic(const void *src_ptr, void *dest_ptr,
-    uint32_t length)
+void ETSOC_Memory_Write_Global_Atomic(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
     optimized_memory_write_body(atomic_store_global_8,     \
         atomic_store_global_16, atomic_store_global_32,    \
@@ -372,8 +366,7 @@ void ETSOC_Memory_Write_Global_Atomic(const void *src_ptr, void *dest_ptr,
 *       None.
 *
 ***********************************************************************/
-void ETSOC_Memory_Read_Write_Cacheable(const void *src_ptr,
-    void *dest_ptr, uint32_t length)
+void ETSOC_Memory_Read_Write_Cacheable(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
     memcpy(dest_ptr, src_ptr, length);
 }
