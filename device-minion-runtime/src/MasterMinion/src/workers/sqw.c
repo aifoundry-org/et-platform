@@ -292,7 +292,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
         else
         {
             /* TODO: Send an async event to host to inform about this fatal error */
-            Log_Write(LOG_LEVEL_CRITICAL, "SQW:FATAL ERROR:Tail Mismatch:Cached: %d, Shared Memory: %d\r\n",
+            Log_Write(LOG_LEVEL_ERROR, "SQW:FATAL ERROR:Tail Mismatch:Cached: %d, Shared Memory: %d\r\n",
                 tail_prev, VQ_Get_Tail_Offset(&vq_cached));
         }
     }

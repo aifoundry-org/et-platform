@@ -367,13 +367,13 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
             {
                 /* Make reserved kernel slot available again */
                 kw_unreserve_kernel_slot(kernel);
-                Log_Write(LOG_LEVEL_DEBUG, "KW:ERROR:kernel shires unavailable\r\n");
+                Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:kernel shires unavailable\r\n");
             }
         }
         else
         {
             status = KW_ERROR_KERNEL_SLOT_UNAVAILABLE;
-            Log_Write(LOG_LEVEL_DEBUG, "KW:ERROR:kernel slot unavailable\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:kernel slot unavailable\r\n");
         }
     }
 
@@ -414,7 +414,7 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
         }
         else
         {
-            Log_Write(LOG_LEVEL_DEBUG, "KW:ERROR:MM2CMLaunch:CommandMulticast:Failed\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:MM2CMLaunch:CommandMulticast:Failed\r\n");
             /* Broadcast message failed. Reclaim resources */
             kw_unreserve_kernel_shires(cmd->shire_mask);
             kw_unreserve_kernel_slot(kernel);
@@ -490,7 +490,7 @@ int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
         }
         else
         {
-            Log_Write(LOG_LEVEL_DEBUG, "KW:Push:KERNEL_ABORT_CMD_RSP:Failed\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "KW:Push:KERNEL_ABORT_CMD_RSP:Failed\r\n");
         }
 
         /* Decrement commands count being processed by given SQW */
@@ -669,7 +669,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                     if ((status != CIRCBUFF_ERROR_BAD_LENGTH) &&
                         (status != CIRCBUFF_ERROR_EMPTY))
                     {
-                        Log_Write(LOG_LEVEL_DEBUG,
+                        Log_Write(LOG_LEVEL_ERROR,
                             "KW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n", status);
                     }
                     break;
@@ -703,7 +703,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                         cm_to_mm_message_exception_t *exception =
                             (cm_to_mm_message_exception_t *)&message;
 
-                        Log_Write(LOG_LEVEL_DEBUG,
+                        Log_Write(LOG_LEVEL_ERROR,
                             "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION from H%" PRId64 "\r\n",
                             exception->hart_id);
 
@@ -786,7 +786,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         }
         else
         {
-            Log_Write(LOG_LEVEL_DEBUG, "KW:Push:Failed\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "KW:Push:Failed\r\n");
         }
 
         /* Give back the reserved compute shires. */

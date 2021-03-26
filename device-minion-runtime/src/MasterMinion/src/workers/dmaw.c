@@ -560,7 +560,7 @@ void DMAW_Launch(uint32_t hart_id)
                         }
                         else
                         {
-                            Log_Write(LOG_LEVEL_DEBUG, "DMAW:HostIface:Push:Failed\r\n");
+                            Log_Write(LOG_LEVEL_ERROR, "DMAW:HostIface:Push:Failed\r\n");
                         }
                     }
                 }
@@ -654,7 +654,7 @@ void DMAW_Launch(uint32_t hart_id)
                         }
                         else
                         {
-                            Log_Write(LOG_LEVEL_DEBUG, "DMAW:HostIface:Push:Failed\r\n");
+                            Log_Write(LOG_LEVEL_ERROR, "DMAW:HostIface:Push:Failed\r\n");
                         }
                     }
                 }

@@ -70,7 +70,7 @@ void main(void)
         (hart_id < DISPATCHER_MAX_HART_ID) && HART_EVEN(hart_id))
     {
         /* Initialize UART logging params */
-        Log_Init(LOG_LEVEL_CRITICAL);
+        Log_Init(LOG_LEVEL_WARNING);
 
         Dispatcher_Launch(hart_id);
     }

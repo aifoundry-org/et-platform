@@ -82,7 +82,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             }
             else
             {
-                Log_Write(LOG_LEVEL_DEBUG,
+                Log_Write(LOG_LEVEL_ERROR,
                     "HostCommandHandler:HostIface:Push:Failed\r\n");
             }
 
@@ -143,7 +143,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             }
             else
             {
-                Log_Write(LOG_LEVEL_DEBUG,
+                Log_Write(LOG_LEVEL_ERROR,
                     "HostCommandHandler:HostIface:Push:Failed\r\n");
             }
 
@@ -178,7 +178,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             }
             else
             {
-                Log_Write(LOG_LEVEL_DEBUG,
+                Log_Write(LOG_LEVEL_ERROR,
                     "HostCommandHandler:HostIface:Push:Failed\r\n");
             }
 
@@ -214,7 +214,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             }
             else
             {
-                Log_Write(LOG_LEVEL_DEBUG,
+                Log_Write(LOG_LEVEL_ERROR,
                     "HostCommandHandler:KernelLaunch:Failed:Status:%d\r\n",
                     status);
 
@@ -251,7 +251,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 }
                 else
                 {
-                    Log_Write(LOG_LEVEL_DEBUG,
+                    Log_Write(LOG_LEVEL_ERROR,
                         "HostCommandHandler:HostIface:Push:Failed\r\n");
                 }
 
@@ -274,7 +274,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
             if(status != STATUS_SUCCESS)
             {
-                Log_Write(LOG_LEVEL_DEBUG,
+                Log_Write(LOG_LEVEL_ERROR,
                     "HostCommandHandler:KERNEL_ABBORT_CMD:Failed:Status:%d\r\n", status);
 
                 /* Construct and transit command response */
@@ -354,7 +354,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
             if(status != STATUS_SUCCESS)
             {
-                Log_Write(LOG_LEVEL_DEBUG,
+                Log_Write(LOG_LEVEL_ERROR,
                     "HostCommandHandler:DATA_READ_CMD:Failed:Status:%d\r\n",
                     status);
 
@@ -392,7 +392,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 }
                 else
                 {
-                    Log_Write(LOG_LEVEL_DEBUG,
+                    Log_Write(LOG_LEVEL_ERROR,
                         "HostCommandHandler:HostIface:Push:Failed\r\n");
                 }
 
@@ -444,7 +444,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
             if(status != STATUS_SUCCESS)
             {
-                Log_Write(LOG_LEVEL_DEBUG,
+                Log_Write(LOG_LEVEL_ERROR,
                     "HostCommandHandler:DATA_WRITE_CMD:Failed:Status:%d\r\n", status);
 
                 /* Construct and transit command response */
@@ -481,7 +481,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 }
                 else
                 {
-                    Log_Write(LOG_LEVEL_DEBUG,
+                    Log_Write(LOG_LEVEL_ERROR,
                         "HostCommandHandler:HostIface:Push:Failed\r\n");
                 }
 
@@ -496,7 +496,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             /* Decrement commands count being processed by given SQW */
             SQW_Decrement_Command_Count(sqw_idx);
 
-            Log_Write(LOG_LEVEL_DEBUG,
+            Log_Write(LOG_LEVEL_ERROR,
                 "HostCommandHandler:UnsupportedCmd\r\n");
             status = -1;
             break;

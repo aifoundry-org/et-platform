@@ -155,7 +155,7 @@ int8_t CW_Init(void)
 
                     default:
                     {
-                        Log_Write(LOG_LEVEL_CRITICAL,
+                        Log_Write(LOG_LEVEL_ERROR,
                             "Dispatcher:from CW:Unknown message id = 0x%x\r\n",
                             message.header.id);
                         break;
@@ -170,7 +170,7 @@ int8_t CW_Init(void)
         }
         else
         {
-            Log_Write(LOG_LEVEL_DEBUG,
+            Log_Write(LOG_LEVEL_ERROR,
                 "Dispatcher:Unexpected condition, broke wfi without a SWI during CW boot...\r\n");
         }
     }
@@ -243,7 +243,7 @@ int8_t CW_Update_Shire_State(uint64_t shire, cw_shire_state_t shire_state)
         }
         else
         {
-            Log_Write(LOG_LEVEL_DEBUG,
+            Log_Write(LOG_LEVEL_ERROR,
                 "CW:Error:Illegal transition from error:Shire:%" PRId64 "\r\n", shire);
 
             status = GENERAL_ERROR;
