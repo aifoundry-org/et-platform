@@ -90,6 +90,18 @@ enum device_msg_e {
 };
 
 /*
+ * DMA response status enum
+ */
+enum dev_ops_api_dma_response_e {
+	DEV_OPS_API_DMA_RESPONSE_COMPLETE = 0,
+	DEV_OPS_API_DMA_RESPONSE_ERROR = 1,
+	DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE = 3,
+	DEV_OPS_API_DMA_RESPONSE_ABORTED = 4,
+	DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG = 5,
+	DEV_OPS_API_DMA_RESPONSE_INVALID_ADDRESS = 6,
+};
+
+/*
  * Command to read data from device memory
  */
 struct device_ops_data_read_cmd_t {

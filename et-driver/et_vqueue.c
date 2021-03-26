@@ -538,13 +538,77 @@ void et_squeue_sync_cb_for_host(struct et_squeue *sq)
 	mutex_unlock(&sq->push_mutex);
 }
 
+static ssize_t free_dma_kernel_entry(struct et_pci_dev *et_dev, bool is_mgmt,
+				     struct et_msg_node *msg)
+{
+	struct cmn_header_t *header = NULL;
+	struct device_ops_data_read_rsp_t *read_rsp = NULL;
+	struct et_dma_info *dma_info = NULL;
+	ssize_t rv = 0;
+
+	// No DMA kernel entry for mgmt_dev
+	if (is_mgmt)
+		return 0;
+
+	if (!msg || !msg->msg)
+		// empty msg node, try again
+		return -EAGAIN;
+
+	if (msg->msg_size < sizeof(*header))
+		return -EINVAL;
+
+	header = (struct cmn_header_t *)msg->msg;
+	if (header->msg_id != DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP &&
+	    header->msg_id != DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP)
+		return 0;
+
+	mutex_lock(&et_dev->ops.dma_rbtree_mutex);
+	dma_info = et_dma_search_info(&et_dev->ops.dma_rbtree, header->tag_id);
+	if (!dma_info) {
+		pr_err("DMA response kernel entry not found!");
+		rv = -EINVAL;
+		goto unlock_rbtree_mutex;
+	}
+
+	// Copy the DMA data to user buffer if it is data read response with
+	// complete status otherwise only remove the kernel entry
+	if (header->msg_id == DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP) {
+		if (header->size < sizeof(*read_rsp)) {
+			pr_err("Corrupted DATA read response received!");
+			rv = -EINVAL;
+			goto dma_delete_info;
+		}
+
+		read_rsp = (struct device_ops_data_read_rsp_t *)header;
+		if (read_rsp->status != DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
+			// No DMA data to copy to user
+			rv = 0;
+			goto dma_delete_info;
+		}
+
+		if (copy_to_user(dma_info->usr_vaddr, dma_info->kern_vaddr,
+				 dma_info->size)) {
+			pr_err("failed to copy DMA buffer\n");
+			rv = -EINVAL;
+			goto dma_delete_info;
+		}
+		rv = dma_info->size;
+	}
+
+dma_delete_info:
+	et_dma_delete_info(&et_dev->ops.dma_rbtree, dma_info);
+
+unlock_rbtree_mutex:
+	mutex_unlock(&et_dev->ops.dma_rbtree_mutex);
+
+	return rv;
+}
+
 ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev, bool is_mgmt,
 			       u16 cq_index, char __user *ubuf, size_t count)
 {
 	struct et_cqueue *cq;
 	struct et_msg_node *msg = NULL;
-	struct cmn_header_t *header = NULL;
-	struct et_dma_info *dma_info = NULL;
 	ssize_t rv;
 
 	if (is_mgmt)
@@ -571,24 +635,9 @@ ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev, bool is_mgmt,
 		goto update_cq_bitmap;
 	}
 
-	header = (struct cmn_header_t *)msg->msg;
-
-	if (!is_mgmt &&
-	    (header->msg_id == DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP ||
-	    header->msg_id == DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP)) {
-		mutex_lock(&et_dev->ops.dma_rbtree_mutex);
-		dma_info = et_dma_search_info(&et_dev->ops.dma_rbtree,
-					      header->tag_id);
-		if (header->msg_id ==
-		    DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP) {
-			if (dma_info && copy_to_user(dma_info->usr_vaddr,
-						     dma_info->kern_vaddr,
-						     dma_info->size))
-				pr_err("failed to copy DMA buffer\n");
-		}
-		et_dma_delete_info(&et_dev->ops.dma_rbtree, dma_info);
-		mutex_unlock(&et_dev->ops.dma_rbtree_mutex);
-	}
+	rv = free_dma_kernel_entry(et_dev, is_mgmt, msg);
+	if (rv < 0)
+		goto update_cq_bitmap;
 
 	if (copy_to_user(ubuf, msg->msg, msg->msg_size)) {
 		pr_err("failed to copy to user\n");
