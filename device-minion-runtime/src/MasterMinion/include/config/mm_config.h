@@ -188,7 +188,7 @@
     \brief A macro that provides size of the Master Minion
     submission queue. All submision queues will be of same size.
 */
-#define MM_SQ_SIZE          0x200UL
+#define MM_SQ_SIZE          (MM_VQ_SIZE - (MM_CQ_SIZE*MM_CQ_COUNT))/MM_SQ_COUNT
 
 /*! \def MM_SQ_HP_INDEX
     \brief A macro that provides the Master Minion high priority
