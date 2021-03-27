@@ -45,11 +45,14 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
     throw Exception("Can't execute stream and kernel associated to a different device");
   }
 
-  void* pBuffer = nullptr;
+  KernelParametersCache::Buffer* pBuffer = nullptr;
   if (kernel_args_size > 0) {
     barrier = true; // we must wait for parameters, so barrier is true if parameters
     pBuffer = kernelParametersCache_->allocBuffer(kernel->deviceId_);
-    auto memcpyEvt = memcpyHostToDevice(streamId, kernel_args, pBuffer, kernel_args_size);
+    //stage parameters in host buffer
+    auto args = reinterpret_cast<const std::byte*>(kernel_args);
+    std::copy(args, args + kernel_args_size, begin(pBuffer->hostBuffer_));
+    auto memcpyEvt = memcpyHostToDevice(streamId, pBuffer->hostBuffer_.data(), pBuffer->deviceBuffer_, kernel_args_size);
     stream.lastEventId_ = memcpyEvt;
   }
   auto event = eventManager_.getNextId();
@@ -64,7 +67,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
   cmd.command_info.cmd_hdr.size = sizeof(cmd);
   cmd.command_info.flags = barrier ? 1 : 0;
   cmd.code_start_address = kernel->getEntryAddress();
-  cmd.pointer_to_args = reinterpret_cast<uint64_t>(pBuffer);
+  cmd.pointer_to_args = reinterpret_cast<uint64_t>(pBuffer->deviceBuffer_);
   cmd.shire_mask = shire_mask;
 
 
