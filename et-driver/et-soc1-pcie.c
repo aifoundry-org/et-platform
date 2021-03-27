@@ -1170,9 +1170,14 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	// TODO SW-4210: Uncomment when MSIx is enabled
-//	et_dev->num_irq_vecs = pci_msix_vec_count(pdev);
-	et_dev->num_irq_vecs = 1;
+        //SW-953-Increase this to 2 vectors, we need to increase to 4 vectors
+        // Device Management:
+        //  - Vector[0] - Mgnt CQ completion
+        //  - Vector[1] - Error Signalling
+        // Device Ops:
+        //  - Vector[2] - Opts CQ completion
+        //  - Vector[3] - SQ Free indication
+	et_dev->num_irq_vecs = 2;
 	rv = pci_alloc_irq_vectors(pdev, et_dev->num_irq_vecs,
 				   et_dev->num_irq_vecs, PCI_IRQ_MSI);
 	if (rv != et_dev->num_irq_vecs) {
