@@ -10,6 +10,7 @@
 
 set(TEST_LIST
   stress_mem.cpp:""
+  stress_kernel.cpp:""
   )
 
 create_test_targets("${TEST_LIST}" "LABELS;STRESS;LABELS;SYSEMU;TIMEOUT;600")

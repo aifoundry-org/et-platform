@@ -20,15 +20,24 @@
 namespace rt {
 class KernelParametersCache {
 public:
+  struct Buffer {
+    explicit Buffer(DeviceId device, IRuntime* runtime, size_t size);
+    ~Buffer();
+    void* deviceBuffer_;
+    std::vector<std::byte> hostBuffer_;
+    DeviceId device_;
+    IRuntime* runtime_;
+  };
+
   explicit KernelParametersCache(IRuntime* runtime, int initialFreeListSize = 10, int bufferSize = kMinAllocationSize);
 
   // returns a buffer from the free list, if there are no free list then it will allocate a buffer and use that
-  void* allocBuffer(DeviceId deviceId);
+  Buffer* allocBuffer(DeviceId deviceId);
 
   // associates a previously allocated buffer through allocBuffer with the given kernelId.
   // The alloc + reserve is split in two steps since sometimes we don't know yet what will be the event to associate to
   // the buffer
-  void reserveBuffer(EventId eventId, void* buffer);
+  void reserveBuffer(EventId eventId, Buffer* buffer);
 
   // release the buffer associated to given eventId and returns it to the freeBuffers list, should be done whenever
   // the kernel completes execution
@@ -37,18 +46,14 @@ public:
   ~KernelParametersCache();
 
 private:
-  struct InUseBuffer {
-    DeviceId device_;
-    void* buffer_;
-    bool operator<(const InUseBuffer& other) const {
-      return buffer_ < other.buffer_;
-    }
-  };
   std::mutex mutex_;
-  std::unordered_map<DeviceId, std::vector<void*>> freeBuffers_;
-  std::unordered_map<EventId, InUseBuffer> reservedBuffers_;
+  std::unordered_map<DeviceId, std::vector<Buffer*>> freeBuffers_;
+  std::unordered_map<EventId, Buffer*> reservedBuffers_;
   // these are the buffers which are currently allocated but yet not reserved.
-  std::set<InUseBuffer> allocBuffers_;
+  std::set<Buffer*> allocBuffers_;
+
+  // these are all the allocated buffers; (freeBuffers_ + reservedBuffers_ + allocBuffers_)
+  std::vector<std::unique_ptr<Buffer>> buffers_;
   IRuntime* runtime_;
   int bufferSize_;
 };

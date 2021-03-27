@@ -60,6 +60,30 @@ public:
 };
 
 
+TEST_F(SysEmu, 1KB_1_memcpys_1stream_20thread) {
+  run_stress_mem(runtime_.get(), 1<<10, 1, 1, 20);
+}
+
+TEST_F(SysEmu, 1KB_1_memcpys_1stream_30thread) {
+  run_stress_mem(runtime_.get(), 1<<10, 1, 1, 30);
+}
+
+TEST_F(SysEmu, 1KB_1_memcpys_1stream_50thread) {
+  run_stress_mem(runtime_.get(), 1<<10, 1, 1, 50);
+}
+
+/*TEST_F(SysEmu, 1KB_1_memcpys_1stream_75thread) {
+  run_stress_mem(runtime_.get(), 1<<10, 1, 1, 75);
+}
+
+TEST_F(SysEmu, 1KB_1_memcpys_1stream_100thread) {
+  run_stress_mem(runtime_.get(), 1<<10, 1, 1, 100);
+}*/
+
+TEST_F(SysEmu, 1KB_100_memcpys_100stream_1thread) {
+  run_stress_mem(runtime_.get(), 1<<10, 100, 100, 1);
+}
+
 TEST_F(SysEmu, 1KB_10000_memcpys_1stream_1thread) {
   run_stress_mem(runtime_.get(), 1<<10, 1e4, 1, 1);
 }
@@ -72,7 +96,7 @@ TEST_F(SysEmu, 1M_20_memcpys_2stream_2thread) {
   run_stress_mem(runtime_.get(), 1<<20, 20, 2, 2);
 }
 
-TEST_F(SysEmu, 1KB_1000_memcpys_1stream_1000thread) {
+TEST_F(SysEmu, 1KB_1000_memcpys_2stream_2thread) {
   run_stress_mem(runtime_.get(), 1<<10, 1e3, 2, 2);
 }
 
@@ -111,6 +135,10 @@ TEST_F(SysEmu, 1KB_2_memcpys_2stream_1thread) {
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
   google::InstallFailureSignalHandler();
+  google::SetCommandLineOption("GLOG_minloglevel", "0");
+  // Force logging in stderr and set min logging level
+  FLAGS_minloglevel = 0;
+  FLAGS_logtostderr = 1;
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

@@ -11,9 +11,22 @@
 #include "KernelParametersCache.h"
 #include "MemoryManager.h"
 #include "utils.h"
+#include <algorithm>
 #include <cassert>
 #include <type_traits>
 using namespace rt;
+using Buffer = KernelParametersCache::Buffer;
+
+Buffer::Buffer(DeviceId device, IRuntime* runtime, size_t size)
+  : hostBuffer_(size)
+  , device_(device)
+  , runtime_(runtime) {
+  deviceBuffer_ = runtime->mallocDevice(device, size);
+}
+
+Buffer::~Buffer() {
+  runtime_->freeDevice(device_, deviceBuffer_);
+}
 
 KernelParametersCache::~KernelParametersCache() {
   assert(reservedBuffers_.empty());
@@ -25,35 +38,35 @@ KernelParametersCache::KernelParametersCache(IRuntime* runtime, int initialFreeL
   , bufferSize_(bufferSize) {
   auto devices = runtime->getDevices();
   for (auto dev : devices) {
-    auto it = freeBuffers_.emplace(dev, std::vector<void*>{});
+    auto it = freeBuffers_.emplace(dev, std::vector<Buffer*>{});
     assert(it.second);
     auto&& list = it.first->second;
     for (int i = 0; i < initialFreeListSize; ++i) {
-      list.emplace_back(runtime->mallocDevice(dev, bufferSize_));
+      buffers_.emplace_back(std::make_unique<Buffer>(dev, runtime_, bufferSize_));
+      list.emplace_back(buffers_.back().get());
     }
   }
 }
 
-void* KernelParametersCache::allocBuffer(DeviceId deviceId) {
+Buffer* KernelParametersCache::allocBuffer(DeviceId deviceId) {
   RT_DLOG(INFO) << "Allocating parameter buffer for device " << static_cast<int>(deviceId);
   std::lock_guard lock(mutex_);
   auto&& list = freeBuffers_[deviceId];
-  void* result;
   if (list.empty()) {
-    result = runtime_->mallocDevice(deviceId, bufferSize_);
-  } else {
-    result = list.back();
-    list.pop_back();
+    buffers_.emplace_back(std::make_unique<Buffer>(deviceId, runtime_, bufferSize_));
+    list.emplace_back(buffers_.back().get());
   }
-  auto res = allocBuffers_.emplace(InUseBuffer{deviceId, result});
-  assert(res.second);
+  auto result = list.back();
+  auto r = allocBuffers_.insert(result);
+  assert(r.second);
+  list.pop_back();
   return result;
 }
 
-void KernelParametersCache::reserveBuffer(EventId event, void* buffer) {
+void KernelParametersCache::reserveBuffer(EventId event, Buffer* buffer) {
   RT_DLOG(INFO) << "Reserving buffer " << buffer << " for event " << static_cast<int>(event);
   std::lock_guard lock(mutex_);
-  auto it = find(allocBuffers_, InUseBuffer{DeviceId{}, buffer});
+  auto it = find(allocBuffers_, buffer, "Trying to reserve a buffer which wasn't allocated previously");
   auto res = reservedBuffers_.emplace(event, *it);
   assert(res.second);
   allocBuffers_.erase(it);
@@ -63,7 +76,7 @@ void KernelParametersCache::releaseBuffer(EventId id) {
   RT_DLOG(INFO) << "Releasing buffer for event " << static_cast<int>(id);
   std::lock_guard lock(mutex_);
   auto it = find(reservedBuffers_, id);
-  freeBuffers_[it->second.device_].emplace_back(it->second.buffer_);
+  freeBuffers_[it->second->device_].emplace_back(it->second);
   reservedBuffers_.erase(it);
   RT_DLOG(INFO) << "Buffer erased. In use buffers count: " << reservedBuffers_.size();
 }

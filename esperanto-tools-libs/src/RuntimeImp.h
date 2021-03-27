@@ -130,7 +130,6 @@ private:
   std::vector<QueueHelper> queueHelpers_;
   std::unordered_map<DeviceId, MemoryManager> memoryManagers_;
   std::unordered_map<StreamId, Stream> streams_;
-  std::unique_ptr<KernelParametersCache> kernelParametersCache_;
 
   EventManager eventManager_;
 
@@ -144,5 +143,6 @@ private:
   std::recursive_mutex mutex_;
 
   profiling::ProfilerImp profiler_;
+  std::unique_ptr<KernelParametersCache> kernelParametersCache_;
 };
 } // namespace rt
