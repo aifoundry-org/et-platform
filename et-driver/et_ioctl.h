@@ -68,6 +68,9 @@ struct sq_threshold {
 #define ETSOC1_IOCTL_SET_SQ_THRESHOLD				\
 	_IOW(ESPERANTO_PCIE_IOCTL_MAGIC, 12, struct sq_threshold)
 
+#define ETSOC1_IOCTL_TEST_VQ					\
+	_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 13, __u16)
+
 #define BULK_CFG_AUTO 0
 #define BULK_CFG_MMIO 1
 #define BULK_CFG_DMA 2

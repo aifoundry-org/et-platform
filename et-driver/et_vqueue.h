@@ -83,4 +83,7 @@ void et_cqueue_isr_bottom(struct et_cqueue *cq);
 ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt);
 void et_vqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt);
 
+struct et_msg_node *et_dequeue_msg_node(struct et_cqueue *cq);
+void et_destroy_msg_list(struct et_cqueue *cq);
+
 #endif

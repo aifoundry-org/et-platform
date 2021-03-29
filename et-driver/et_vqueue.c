@@ -50,7 +50,7 @@ static void enqueue_msg_node(struct et_cqueue *cq, struct et_msg_node *msg)
 	mutex_unlock(&cq->msg_list_mutex);
 }
 
-static struct et_msg_node *dequeue_msg_node(struct et_cqueue *cq)
+struct et_msg_node *et_dequeue_msg_node(struct et_cqueue *cq)
 {
 	struct et_msg_node *msg;
 
@@ -73,7 +73,7 @@ static void destroy_msg_node(struct et_msg_node *node)
 	}
 }
 
-static void destroy_msg_list(struct et_cqueue *cq)
+void et_destroy_msg_list(struct et_cqueue *cq)
 {
 	struct list_head *pos, *next;
 	struct et_msg_node *node;
@@ -385,7 +385,7 @@ static void et_cqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 					vq_common->vec_idx_offset + i),
 			 (void *)cq_pptr[i]);
 		mutex_destroy(&cq_pptr[i]->pop_mutex);
-		destroy_msg_list(cq_pptr[i]);
+		et_destroy_msg_list(cq_pptr[i]);
 		mutex_destroy(&cq_pptr[i]->msg_list_mutex);
 		cq_pptr[i]->cb_mem = NULL;
 		cq_pptr[i]->vq_common = NULL;
@@ -622,7 +622,7 @@ ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev, bool is_mgmt,
 	if (!ubuf || !count)
 		return -EINVAL;
 
-	msg = dequeue_msg_node(cq);
+	msg = et_dequeue_msg_node(cq);
 	if (!msg || !(msg->msg)) {
 		// Empty; no message to POP, returning EAGAIN
 		rv = -EAGAIN;

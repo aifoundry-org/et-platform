@@ -14,6 +14,8 @@
 #ifndef ET_DEVICE_API_H
 #define ET_DEVICE_API_H
 
+#include <linux/types.h>
+
 /*
  * Common header, common to command, response, and events
  */
