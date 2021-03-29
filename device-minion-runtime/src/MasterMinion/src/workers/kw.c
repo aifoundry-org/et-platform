@@ -703,7 +703,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                         cm_to_mm_message_exception_t *exception =
                             (cm_to_mm_message_exception_t *)&message;
 
-                        Log_Write(LOG_LEVEL_ERROR,
+                        Log_Write(LOG_LEVEL_DEBUG,
                             "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION from H%" PRId64 "\r\n",
                             exception->hart_id);
 
