@@ -133,6 +133,8 @@ Modules:
           Value: 54
         - Name: GET_MM_ERROR_COUNT
           Value: 55
+        - Name: GET_DEVICE_ERROR_EVENTS
+          Value: 56
   ## List of Enums that are used in our messages
     - Name: power_state
       Description: Power State of the ETSOC
