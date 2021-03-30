@@ -518,14 +518,14 @@ error:
 
 void et_squeue_sync_cb_for_host(struct et_squeue *sq)
 {
-	u32 head_local;
+	u64 head_local;
 
 	mutex_lock(&sq->push_mutex);
 	head_local = sq->cb.head;
 	et_ioread(sq->cb_mem, 0, (u8 *)&sq->cb, sizeof(sq->cb));
 
 	if (head_local != sq->cb.head) {
-		pr_err("SQ sync: head mismatched, head_local: %d, head_remote: %d",
+		pr_err("SQ sync: head mismatched, head_local: %lld, head_remote: %lld",
 		       head_local, sq->cb.head);
 
 		// TODO: Sync here, currently not actually syncing head, using
@@ -964,14 +964,14 @@ error_unlock_mutex:
 
 void et_cqueue_sync_cb_for_host(struct et_cqueue *cq)
 {
-	u32 tail_local;
+	u64 tail_local;
 
 	mutex_lock(&cq->pop_mutex);
 	tail_local = cq->cb.tail;
 	et_ioread(cq->cb_mem, 0, (u8 *)&cq->cb, sizeof(cq->cb));
 
 	if (tail_local != cq->cb.tail) {
-		pr_err("CQ sync: tail mismatched, tail_local: %d, tail_remote: %d",
+		pr_err("CQ sync: tail mismatched, tail_local: %lld, tail_remote: %lld",
 		       tail_local, cq->cb.tail);
 
 		// TODO: Sync here, currently not actually syncing head, using

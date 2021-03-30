@@ -25,13 +25,13 @@ bool et_circbuffer_push(struct et_circbuffer *cb,
 		return false;
 
 	if (sync & ET_CB_SYNC_FOR_HOST)
-		cb->tail = ioread32(&cb_mem->tail);
+		cb->tail = ioread64(&cb_mem->tail);
 		// TODO SW-6388: Sync whole circbuffer instead when
 		// requested
 		// et_ioread(cb_mem, 0, (u8 *)cb, sizeof(*cb));
 
 	if (len > cb->len) {
-		pr_err("message too big (len %ld, max %d)", len, cb->len);
+		pr_err("message too big (len %ld, max %lld)", len, cb->len);
 		return false;
 	}
 
@@ -52,7 +52,7 @@ bool et_circbuffer_push(struct et_circbuffer *cb,
 	}
 
 	if (sync & ET_CB_SYNC_FOR_DEVICE)
-		iowrite32(cb->head, &cb_mem->head);
+		iowrite64(cb->head, &cb_mem->head);
 
 	return true;
 }
@@ -67,7 +67,7 @@ bool et_circbuffer_pop(struct et_circbuffer *cb,
 		return false;
 
 	if (sync & ET_CB_SYNC_FOR_HOST)
-		cb->head = ioread32(&cb_mem->head);
+		cb->head = ioread64(&cb_mem->head);
 		// TODO SW-6388: Sync whole circbuffer instead when
 		// requested
 		// et_ioread(cb_mem, 0, (u8 *)cb, sizeof(*cb));
@@ -89,7 +89,7 @@ bool et_circbuffer_pop(struct et_circbuffer *cb,
 	}
 
 	if (sync & ET_CB_SYNC_FOR_DEVICE)
-		iowrite32(cb->tail, &cb_mem->tail);
+		iowrite64(cb->tail, &cb_mem->tail);
 
 	return true;
 }

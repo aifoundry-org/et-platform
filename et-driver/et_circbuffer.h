@@ -22,21 +22,20 @@
 #define ET_CB_SYNC_FOR_DEVICE	BIT(1)
 
 struct et_circbuffer {
-	u32 head;
-	u32 tail;
-	u32 len;
-	u32 pad;
+	u64 head;
+	u64 tail;
+	u64 len;
 	u8 __iomem buf[];
 } __attribute__ ((__packed__));
 
-static inline u32 et_circbuffer_used(struct et_circbuffer *cb)
+static inline u64 et_circbuffer_used(struct et_circbuffer *cb)
 {
 	if (cb->head >= cb->tail)
 		return cb->head - cb->tail;
 	return cb->len + cb->head - cb->tail;
 }
 
-static inline u32 et_circbuffer_free(struct et_circbuffer *cb)
+static inline u64 et_circbuffer_free(struct et_circbuffer *cb)
 {
 	if (cb->head >= cb->tail)
 		return (cb->len - 1U) - (cb->head - cb->tail);
