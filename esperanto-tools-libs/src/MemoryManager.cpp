@@ -134,7 +134,7 @@ void* MemoryManager::malloc(size_t size, int alignment) {
 
   // bookkeep the allocation and return pointer
   allocated_.insert({addr, countBlocks});
-  RT_DLOG(INFO) << "Malloc at device address: 0x" << std::hex << uncompressPointer(addr)
-                << " compressed pointer (not address): 0x" << addr;
+  RT_DLOG(INFO) << "Malloc at device address: " << std::hex << uncompressPointer(addr)
+                << " compressed pointer (not address): " << addr;
   return uncompressPointer(addr);
 }
