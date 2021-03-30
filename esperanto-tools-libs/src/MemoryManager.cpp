@@ -8,11 +8,13 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 
+#include "utils.h"
 #include "MemoryManager.h"
 #include "runtime/IRuntime.h"
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <ios>
 using namespace rt;
 
 MemoryManager::MemoryManager(uint64_t dramBaseAddr, size_t totalMemoryBytes, int minAllocationSize)
@@ -132,5 +134,7 @@ void* MemoryManager::malloc(size_t size, int alignment) {
 
   // bookkeep the allocation and return pointer
   allocated_.insert({addr, countBlocks});
+  RT_DLOG(INFO) << "Malloc at device address: 0x" << std::hex << uncompressPointer(addr)
+                << " compressed pointer (not address): 0x" << addr;
   return uncompressPointer(addr);
 }

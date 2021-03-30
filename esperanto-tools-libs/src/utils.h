@@ -28,9 +28,13 @@ inline auto getTime() {
   auto t_c = std::chrono::system_clock::to_time_t(now);
   return std::put_time(std::localtime(&t_c), "%F %T");
 }
+enum VERBOSITY { LOW = 0, MID = 5, HIGH = 10 };
+} // namespace rt
+
 #define ET_LOG(channel, severity) LOG(severity) << "ET [" << #channel << "]: "
 #define ET_DLOG(channel, severity) DLOG(severity) << "ET [" << #channel << "]: "
+#define ET_VLOG(channel, severity) VLOG(severity) << "ET [" << #channel << "]: "
 
 #define RT_LOG(severity) ET_DLOG(RUNTIME, severity)
 #define RT_DLOG(severity) ET_DLOG(RUNTIME, severity)
-} // namespace rt
+#define RT_VLOG(severity) ET_VLOG(RUNTIME, severity)
