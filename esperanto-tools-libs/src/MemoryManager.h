@@ -44,6 +44,7 @@ private:
   void* uncompressPointer(uint32_t ptr) const {
     auto tmp = static_cast<uint64_t>(ptr);
     tmp <<= minAlignmentLog2_;
+    assert(tmp < totalMemoryBytes_);
     tmp += dramBaseAddr_;
     return reinterpret_cast<void*>(tmp);
   }

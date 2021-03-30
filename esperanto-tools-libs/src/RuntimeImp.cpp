@@ -30,8 +30,8 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
   }
   auto dramBaseAddress = deviceLayer_->getDramBaseAddress();
   auto dramSize = deviceLayer_->getDramSize();
-  RT_LOG(INFO) << std::hex << "Runtime initialization. Dram base addr: 0x" << dramBaseAddress << " Dram size: 0x"
-               << dramSize;
+  RT_LOG(INFO) << std::hex << "Runtime initialization. Dram base addr: " << dramBaseAddress
+               << " Dram size: " << dramSize;
   for (auto&& d : devices_) {
     memoryManagers_.insert({d, MemoryManager{dramBaseAddress, dramSize, kMinAllocationSize}});
   }
@@ -74,7 +74,7 @@ KernelId RuntimeImp::loadCode(DeviceId device, const void* data, size_t size) {
         basePhysicalAddress = loadAddress - offset;
         basePhysicalAddressCalculated = true;
       }
-      RT_DLOG(INFO) << "Found segment: " << segment->get_index() << " Offset: 0x" << std::hex << offset
+      RT_DLOG(INFO) << "Found segment: " << segment->get_index() << std::hex << " Offset: 0x" << offset
                     << " Physical Address: 0x" << loadAddress << " Mem Size: 0x" << memSize << " Copying to address: 0x"
                     << addr << " Entry: 0x" << entry << "\n";
       memcpyHostToDevice(sstream, reinterpret_cast<const uint8_t*>(data) + offset, reinterpret_cast<void*>(addr),
@@ -110,8 +110,8 @@ void RuntimeImp::unloadCode(KernelId kernel) {
 
 void* RuntimeImp::mallocDevice(DeviceId device, size_t size, int alignment) {
   ScopedProfileEvent profileEvent(Class::MallocDevice, profiler_);
-  RT_DLOG(INFO) << "Malloc requested device " << static_cast<std::underlying_type_t<DeviceId>>(device) << " size: 0x"
-                << std::hex << size << " alignment: 0x" << alignment;
+  RT_DLOG(INFO) << "Malloc requested device " << std::hex << static_cast<std::underlying_type_t<DeviceId>>(device)
+                << " size: " << size << " alignment: " << alignment;
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   auto it = find(memoryManagers_, device);
   // enforce size is multiple of alignment
@@ -120,8 +120,8 @@ void* RuntimeImp::mallocDevice(DeviceId device, size_t size, int alignment) {
 }
 void RuntimeImp::freeDevice(DeviceId device, void* buffer) {
   ScopedProfileEvent profileEvent(Class::FreeDevice, profiler_);
-  RT_DLOG(INFO) << "Free at device: " << static_cast<std::underlying_type_t<DeviceId>>(device) << " buffer address: 0x"
-                << std::hex << buffer;
+  RT_DLOG(INFO) << "Free at device: " << static_cast<std::underlying_type_t<DeviceId>>(device)
+                << " buffer address: " << std::hex << buffer;
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   auto it = find(memoryManagers_, device);
   it->second.free(buffer);
@@ -152,7 +152,7 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
                                        [[maybe_unused]] bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, profiler_, stream);
   RT_VLOG(LOW) << "MemcpyHostToDevice stream: " << static_cast<std::underlying_type_t<StreamId>>(stream) << std::hex
-               << " Host address: 0x" << h_src << " Device address: 0x" << d_dst << " Size: 0x" << size;
+               << " Host address: " << h_src << " Device address: " << d_dst << " Size: " << size;
   std::unique_lock<std::recursive_mutex> lock(mutex_);
   auto it = find(streams_, stream);
 
@@ -181,7 +181,7 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
                                        [[maybe_unused]] bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, profiler_, stream);
   RT_VLOG(LOW) << "MemcpyDeviceToHost stream: " << static_cast<std::underlying_type_t<StreamId>>(stream) << std::hex
-               << " Host address: 0x" << d_src << " Device address: 0x" << h_dst << " Size: 0x" << size;
+               << " Host address: " << h_dst << " Device address: " << d_src << " Size: " << size;
   std::unique_lock<std::recursive_mutex> lock(mutex_);
   auto it = find(streams_, stream);
 
@@ -245,13 +245,13 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
   ProfileEvent event(Type::Single, Class::KernelTimestamps);
   event.setEvent(eventId);
   auto fillEvent = [](ProfileEvent& evt, const auto& response) {
-    RT_VLOG(HIGH) << std::hex << " Wait time: 0x" << response.cmd_wait_time << " Execution time: 0x"
-                  << response.cmd_execution_time;
+    RT_VLOG(HIGH) << std::hex << " Wait time: " << response.cmd_wait_time
+                  << " Execution time: " << response.cmd_execution_time;
     evt.addExtra("cmd_wait_time", response.cmd_wait_time);
     evt.addExtra("cmd_execution_time", response.cmd_execution_time);
   };
 
-  RT_VLOG(MID) << "Response received eventId: 0x" << std::hex << static_cast<int>(eventId)
+  RT_VLOG(MID) << "Response received eventId: " << std::hex << static_cast<int>(eventId)
                << " Message Id: " << header->rsp_hdr.msg_id;
   switch (header->rsp_hdr.msg_id) {
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP: {
