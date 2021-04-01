@@ -151,8 +151,6 @@ void RuntimeImp::destroyStream(StreamId stream) {
 EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void* d_dst, size_t size,
                                        [[maybe_unused]] bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, profiler_, stream);
-  RT_VLOG(LOW) << "MemcpyHostToDevice stream: " << static_cast<std::underlying_type_t<StreamId>>(stream) << std::hex
-               << " Host address: " << h_src << " Device address: " << d_dst << " Size: " << size;
   std::unique_lock<std::recursive_mutex> lock(mutex_);
   auto it = find(streams_, stream);
 
@@ -163,6 +161,8 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
 
   device_ops_api::device_ops_data_write_cmd_t cmd;
   cmd.dst_device_phy_addr = reinterpret_cast<uint64_t>(d_dst);
+  RT_VLOG(LOW) << "MemcpyHostToDevice stream: " << static_cast<std::underlying_type_t<StreamId>>(stream) << std::hex
+               << " Host address: " << h_src << " Device address: " << cmd.dst_device_phy_addr << " Size: " << size;
   // TODO this could/should change with this ticket SW-6256. At the moment I fill both fields even if we only use
   // virtual address, because I'm not sure what value the firmware uses
   cmd.src_host_phy_addr = cmd.src_host_virt_addr = reinterpret_cast<uint64_t>(h_src);
@@ -192,7 +192,7 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
 
   device_ops_api::device_ops_data_read_cmd_t cmd;
   cmd.src_device_phy_addr = reinterpret_cast<uint64_t>(d_src);
-  // TODO this could/should change with this ticket SW-6256. At the moment I fill both fields even if we only use
+  // TODO this could/should change with this ticket SW-6256.At the moment I fill both fields even if we only use
   // virtual address, because I'm not sure what value the firmware uses
   cmd.dst_host_virt_addr = cmd.dst_host_phy_addr = reinterpret_cast<uint64_t>(h_dst);
   cmd.size = size;
@@ -256,11 +256,21 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
   switch (header->rsp_hdr.msg_id) {
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP: {
     auto r = reinterpret_cast<const device_ops_api::device_ops_data_read_rsp_t*>(response.data());
+    if (r->status != device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
+      char msg[128];
+      snprintf(msg, sizeof msg, "Error on DMA read: %d. Tag id: %d", r->status, static_cast<int>(eventId));
+      throw Exception(msg);
+    }
     fillEvent(event, *r);
     break;
   }
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP: {
     auto r = reinterpret_cast<const device_ops_api::device_ops_data_write_rsp_t*>(response.data());
+    if (r->status != device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
+      char msg[128];
+      snprintf(msg, sizeof msg, "Error on DMA write: %d. Tag id: %d", r->status, static_cast<int>(eventId));
+      throw Exception(msg);
+    }
     fillEvent(event, *r);
     break;
   }
@@ -269,6 +279,9 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
     fillEvent(event, *r);
     kernelParametersCache_->releaseBuffer(eventId);
     if (r->status != device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED) {
+      char msg[128];
+      snprintf(msg, sizeof msg, "Error on kernel launch: %d. Tag id: %d", r->status, static_cast<int>(eventId));
+      throw Exception(msg);
     }
     break;
   }
