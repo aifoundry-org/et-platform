@@ -15,44 +15,6 @@
 #include "et_test.h"
 #include "et_vqueue.h"
 
-static inline bool et_squeue_available(struct et_squeue *sq)
-{
-	if (!sq)
-		return false;
-
-	// Sync SQ circbuffer
-	if (test_bit(sq->index, sq->vq_common->sq_bitmap))
-		return true;
-
-	et_squeue_sync_cb_for_host(sq);
-
-	if (et_circbuffer_free(&sq->cb) >= atomic_read(&sq->sq_threshold)) {
-		set_bit(sq->index, sq->vq_common->sq_bitmap);
-		return true;
-	}
-
-	return false;
-}
-
-static inline bool et_cqueue_available(struct et_cqueue *cq)
-{
-	if (!cq)
-		return false;
-
-	// Sync CQ circbuffer
-	if (test_bit(cq->index, cq->vq_common->cq_bitmap))
-		return true;
-
-	et_cqueue_sync_cb_for_host(cq);
-
-	if (et_cqueue_msg_available(cq)) {
-		set_bit(cq->index, cq->vq_common->cq_bitmap);
-		return true;
-	}
-
-	return false;
-}
-
 static ssize_t et_cqueue_copy_to_kbuf(struct et_pci_dev *et_dev, bool is_mgmt,
 				      u16 cq_index, char *kbuf, size_t count)
 {
@@ -129,8 +91,10 @@ long test_virtqueue(struct et_pci_dev *et_dev, u16 cmd_count)
 		// If no event occurred for 10secs, exit the test
 		rv = wait_event_interruptible_timeout
 			(et_dev->ops.vq_common.waitqueue,
-			 et_squeue_available(et_dev->ops.sq_pptr[sq_idx]) ||
-			 et_cqueue_available(et_dev->ops.cq_pptr[cq_idx]),
+			 et_squeue_event_available
+				(et_dev->ops.sq_pptr[sq_idx]) ||
+			 et_cqueue_event_available
+				(et_dev->ops.cq_pptr[cq_idx]),
 			 msecs_to_jiffies(10000));
 		if (rv == -ERESTARTSYS) {
 			goto error_destroy_msg_list;

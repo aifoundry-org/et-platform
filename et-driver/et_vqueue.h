@@ -60,7 +60,7 @@ ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count);
 ssize_t et_squeue_copy_from_user(struct et_pci_dev *et_dev, bool is_mgmt,
 				 u16 sq_index, const char __user *ubuf,
 				 size_t count);
-void et_squeue_sync_cb_for_host(struct et_squeue *sq);
+bool et_squeue_event_available(struct et_squeue *sq);
 
 struct et_cqueue {
 	u16 index;
@@ -76,8 +76,8 @@ struct et_cqueue {
 ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host);
 ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev, bool is_mgmt,
 			       u16 cq_index, char __user *ubuf, size_t count);
-void et_cqueue_sync_cb_for_host(struct et_cqueue *cq);
 bool et_cqueue_msg_available(struct et_cqueue *cq);
+bool et_cqueue_event_available(struct et_cqueue *cq);
 void et_cqueue_isr_bottom(struct et_cqueue *cq);
 
 ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt);

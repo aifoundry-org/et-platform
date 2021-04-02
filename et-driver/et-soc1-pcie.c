@@ -79,45 +79,26 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 
 	ops = container_of(fp->private_data, struct et_ops_dev, misc_ops_dev);
 
-	// waitqueue is wake up whenever a message is received on CQ which
-	// indicates that either CQ msg list has got message for userspace
-	// (EPOLLIN event) or SQ is freed up to be used by userspace
-	// (EPOLLOUT event)
+	// TODO: Separate ISRs for SQ and CQ. waitqueue is wake up whenever an
+	// interrupt is received. Currently same interrupt is being used for SQ
+	// and CQ. Move `et_squeue_event_available()` to SQ ISR. waitqueue
+	// should be wake up from different ISRs after the bitmaps are updated.
 	poll_wait(fp, &ops->vq_common.waitqueue, wait);
+
+	if (ops->vq_common.aborting)
+		return -EINTR;
 
 	// Update sq_bitmap for all SQs, set corresponding bit when space
 	// available is more than threshold
-	for (i = 0; i < ops->vq_common.dir_vq.sq_count; i++) {
-		if (test_bit(i, ops->vq_common.sq_bitmap))
-			continue;
-
-		// Sync SQ circbuffer
-		et_squeue_sync_cb_for_host(ops->sq_pptr[i]);
-
-		if (et_circbuffer_free(&ops->sq_pptr[i]->cb) >=
-		    atomic_read(&ops->sq_pptr[i]->sq_threshold))
-			set_bit(i, ops->vq_common.sq_bitmap);
-	}
+	for (i = 0; i < ops->vq_common.dir_vq.sq_count; i++)
+		et_squeue_event_available(ops->sq_pptr[i]);
 
 	// Generate EPOLLOUT event if any SQ has space more than its threshold
 	if (!bitmap_empty(ops->vq_common.sq_bitmap,
 			  ops->vq_common.dir_vq.sq_count))
 		mask |= EPOLLOUT;
 
-	// Update cq_bitmap for all CQs, set corresponding bit when msg is
-	// available for userspace
-	for (i = 0; i < ops->vq_common.dir_vq.cq_count; i++) {
-		if (test_bit(i, ops->vq_common.cq_bitmap))
-			continue;
-
-		// Sync CQ circbuffer
-		et_cqueue_sync_cb_for_host(ops->cq_pptr[i]);
-
-		if (et_cqueue_msg_available(ops->cq_pptr[i]))
-			set_bit(i, ops->vq_common.cq_bitmap);
-	}
-
-	// Generate EPOLLIN event if any CQ msg list has message for userspace
+	// Generate EPOLLIN event if any CQ msg is saved for userspace
 	if (!bitmap_empty(ops->vq_common.cq_bitmap,
 			  ops->vq_common.dir_vq.cq_count))
 		mask |= EPOLLIN;
@@ -260,11 +241,10 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 			   sq_threshold_info.bytes_needed);
 
 		// Update sq_bitmap w.r.t new threshold
-		et_squeue_sync_cb_for_host(ops->sq_pptr[sq_idx]);
-
-		if (et_circbuffer_free(&ops->sq_pptr[sq_idx]->cb) >=
-		    atomic_read(&ops->sq_pptr[sq_idx]->sq_threshold))
-			set_bit(sq_idx, ops->vq_common.sq_bitmap);
+		clear_bit(sq_idx, ops->vq_common.sq_bitmap);
+		if (et_squeue_event_available(ops->sq_pptr[sq_idx]))
+			wake_up_interruptible
+				(&ops->sq_pptr[sq_idx]->vq_common->waitqueue);
 
 		return 0;
 
@@ -289,43 +269,24 @@ static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 	mgmt = container_of(fp->private_data, struct et_mgmt_dev,
 			    misc_mgmt_dev);
 
-	// waitqueue is wake up whenever a message is received on CQ which
-	// indicates that either CQ msg list has got message for userspace
-	// (EPOLLIN event) or SQ is freed up to be used by userspace
-	// (EPOLLOUT event)
+	// TODO: Separate ISRs for SQ and CQ. waitqueue is wake up whenever an
+	// interrupt is received. Currently same interrupt is being used for SQ
+	// and CQ. Move `et_squeue_event_available()` to SQ ISR. waitqueue
+	// should be wake up from different ISRs after the bitmaps are updated.
 	poll_wait(fp, &mgmt->vq_common.waitqueue, wait);
+
+	if (mgmt->vq_common.aborting)
+		return -EINTR;
 
 	// Update sq_bitmap for all SQs, set corresponding bit when space
 	// available is more than threshold
-	for (i = 0; i < mgmt->vq_common.dir_vq.sq_count; i++) {
-		if (test_bit(i, mgmt->vq_common.sq_bitmap))
-			continue;
-
-		// Sync SQ circbuffer
-		et_squeue_sync_cb_for_host(mgmt->sq_pptr[i]);
-
-		if (et_circbuffer_free(&mgmt->sq_pptr[i]->cb) >=
-		    atomic_read(&mgmt->sq_pptr[i]->sq_threshold))
-			set_bit(i, mgmt->vq_common.sq_bitmap);
-	}
+	for (i = 0; i < mgmt->vq_common.dir_vq.sq_count; i++)
+		et_squeue_event_available(mgmt->sq_pptr[i]);
 
 	// Generate EPOLLOUT event if any SQ has space more than its threshold
 	if (!bitmap_empty(mgmt->vq_common.sq_bitmap,
 			  mgmt->vq_common.dir_vq.sq_count))
 		mask |= EPOLLOUT;
-
-	// Update cq_bitmap for all CQs, set corresponding bit when msg is
-	// available for userspace
-	for (i = 0; i < mgmt->vq_common.dir_vq.cq_count; i++) {
-		if (test_bit(i, mgmt->vq_common.cq_bitmap))
-			continue;
-
-		// Sync CQ circbuffer
-		et_cqueue_sync_cb_for_host(mgmt->cq_pptr[i]);
-
-		if (et_cqueue_msg_available(mgmt->cq_pptr[i]))
-			set_bit(i, mgmt->vq_common.cq_bitmap);
-	}
 
 	// Generate EPOLLIN event if any CQ msg list has message for userspace
 	if (!bitmap_empty(mgmt->vq_common.cq_bitmap,
@@ -433,11 +394,10 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 			   sq_threshold_info.bytes_needed);
 
 		// Update sq_bitmap w.r.t new threshold
-		et_squeue_sync_cb_for_host(mgmt->sq_pptr[sq_idx]);
-
-		if (et_circbuffer_free(&mgmt->sq_pptr[sq_idx]->cb) >=
-		    atomic_read(&mgmt->sq_pptr[sq_idx]->sq_threshold))
-			set_bit(sq_idx, mgmt->vq_common.sq_bitmap);
+		clear_bit(sq_idx, mgmt->vq_common.sq_bitmap);
+		if (et_squeue_event_available(mgmt->sq_pptr[sq_idx]))
+			wake_up_interruptible
+				(&mgmt->sq_pptr[sq_idx]->vq_common->waitqueue);
 
 		return 0;
 

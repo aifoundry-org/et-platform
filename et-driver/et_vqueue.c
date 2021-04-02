@@ -117,6 +117,9 @@ static void et_isr_work(struct work_struct *work)
 {
 	struct et_cqueue *cq = container_of(work, struct et_cqueue, isr_work);
 
+	// TODO: Move following to separate ISR for SQ
+	wake_up_interruptible(&cq->vq_common->waitqueue);
+
 	et_cqueue_isr_bottom(cq);
 }
 
@@ -161,6 +164,7 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		mem += sizeof(**sq_pptr);
 
 		sq_pptr[i]->index = i;
+		sq_pptr[i]->vq_common = vq_common;
 		sq_pptr[i]->cb_mem = (struct et_circbuffer *)sq_baseaddr;
 		et_ioread(sq_pptr[i]->cb_mem, 0, (u8 *)&sq_pptr[i]->cb,
 			  sizeof(sq_pptr[i]->cb));
@@ -170,7 +174,6 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		atomic_set(&sq_pptr[i]->sq_threshold,
 			   (vq_common->dir_vq.per_sq_size -
 			    sizeof(struct et_circbuffer)) / 4);
-		sq_pptr[i]->vq_common = vq_common;
 	}
 
 	if (is_mgmt)
@@ -226,6 +229,7 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		mem += sizeof(**cq_pptr);
 
 		cq_pptr[i]->index = i;
+		cq_pptr[i]->vq_common = vq_common;
 		cq_pptr[i]->cb_mem = (struct et_circbuffer *)cq_baseaddr;
 		et_ioread(cq_pptr[i]->cb_mem, 0, (u8 *)&cq_pptr[i]->cb,
 			  sizeof(cq_pptr[i]->cb));
@@ -234,6 +238,8 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		mutex_init(&cq_pptr[i]->pop_mutex);
 		INIT_LIST_HEAD(&cq_pptr[i]->msg_list);
 		mutex_init(&cq_pptr[i]->msg_list_mutex);
+
+		INIT_WORK(&cq_pptr[i]->isr_work, et_isr_work);
 
 		snprintf(irq_name, sizeof(irq_name), "irq_%s_cq_%d",
 			 (is_mgmt) ? "mgmt" : "ops", i);
@@ -244,8 +250,6 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 			dev_err(&et_dev->pdev->dev, "request irq failed\n");
 			goto error_free_irq;
 		}
-		INIT_WORK(&cq_pptr[i]->isr_work, et_isr_work);
-		cq_pptr[i]->vq_common = vq_common;
 	}
 
 	if (is_mgmt)
@@ -380,10 +384,10 @@ static void et_cqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	}
 
 	for (i = 0; i < vq_common->dir_vq.cq_count; i++) {
-		cancel_work_sync(&cq_pptr[i]->isr_work);
 		free_irq(pci_irq_vector(et_dev->pdev,
 					vq_common->vec_idx_offset + i),
 			 (void *)cq_pptr[i]);
+		cancel_work_sync(&cq_pptr[i]->isr_work);
 		mutex_destroy(&cq_pptr[i]->pop_mutex);
 		et_destroy_msg_list(cq_pptr[i]);
 		mutex_destroy(&cq_pptr[i]->msg_list_mutex);
@@ -409,11 +413,12 @@ void et_vqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	vq_common->aborting = true;
 	spin_unlock_irqrestore(&vq_common->abort_lock, flags);
 
-	et_squeue_destroy_all(et_dev, is_mgmt);
+	wake_up_interruptible_all(&vq_common->waitqueue);
+
 	et_cqueue_destroy_all(et_dev, is_mgmt);
+	et_squeue_destroy_all(et_dev, is_mgmt);
 
 	et_dev->used_irq_vecs -= vq_common->dir_vq.cq_count;
-	wake_up_interruptible_all(&vq_common->waitqueue);
 	destroy_workqueue(vq_common->workqueue);
 }
 
@@ -516,7 +521,7 @@ error:
 	return rv;
 }
 
-void et_squeue_sync_cb_for_host(struct et_squeue *sq)
+static inline void et_squeue_sync_cb_for_host(struct et_squeue *sq)
 {
 	u64 head_local;
 
@@ -533,9 +538,29 @@ void et_squeue_sync_cb_for_host(struct et_squeue *sq)
 		// local copy seems to work accurately than reading back from
 		// device at these sync points.
 		sq->cb.head = head_local;
+		iowrite64(sq->cb.head, &sq->cb_mem->head);
 	}
 
 	mutex_unlock(&sq->push_mutex);
+}
+
+bool et_squeue_event_available(struct et_squeue *sq)
+{
+	if (!sq)
+		return false;
+
+	// Sync SQ circbuffer
+	if (test_bit(sq->index, sq->vq_common->sq_bitmap))
+		return true;
+
+	et_squeue_sync_cb_for_host(sq);
+
+	if (et_circbuffer_free(&sq->cb) >= atomic_read(&sq->sq_threshold)) {
+		set_bit(sq->index, sq->vq_common->sq_bitmap);
+		return true;
+	}
+
+	return false;
 }
 
 static ssize_t free_dma_kernel_entry(struct et_pci_dev *et_dev, bool is_mgmt,
@@ -952,6 +977,7 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	// Enqueue msg node to user msg_list of CQ
 	enqueue_msg_node(cq, msg_node);
 
+	set_bit(cq->index, cq->vq_common->cq_bitmap);
 	wake_up_interruptible(&cq->vq_common->waitqueue);
 
 	return header.size;
@@ -962,7 +988,7 @@ error_unlock_mutex:
 	return rv;
 }
 
-void et_cqueue_sync_cb_for_host(struct et_cqueue *cq)
+static inline void et_cqueue_sync_cb_for_host(struct et_cqueue *cq)
 {
 	u64 tail_local;
 
@@ -979,9 +1005,29 @@ void et_cqueue_sync_cb_for_host(struct et_cqueue *cq)
 		// local copy seems to work accurately than reading back from
 		// device at these sync points.
 		cq->cb.tail = tail_local;
+		iowrite64(cq->cb.tail, &cq->cb_mem->tail);
 	}
 
 	mutex_unlock(&cq->pop_mutex);
+}
+
+bool et_cqueue_event_available(struct et_cqueue *cq)
+{
+	if (!cq)
+		return false;
+
+	// Sync CQ circbuffer
+	if (test_bit(cq->index, cq->vq_common->cq_bitmap))
+		return true;
+
+	et_cqueue_sync_cb_for_host(cq);
+
+	if (et_cqueue_msg_available(cq)) {
+		set_bit(cq->index, cq->vq_common->cq_bitmap);
+		return true;
+	}
+
+	return false;
 }
 
 /*
