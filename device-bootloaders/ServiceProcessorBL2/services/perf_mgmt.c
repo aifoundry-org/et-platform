@@ -69,8 +69,8 @@ int update_dram_bw(void)
     // https://esperantotech.atlassian.net/browse/SW-6560
 
     // Update the global variable. DRAM BW
-    get_soc_perf_reg()->dram_bw.read_req_sec = 100;
-    get_soc_perf_reg()->dram_bw.write_req_sec = 100;
+    get_soc_perf_reg()->dram_bw.read_req_sec = 16;
+    get_soc_perf_reg()->dram_bw.write_req_sec = 16;
 
     // Update the max DRAM BW values if condition met
     if (get_soc_perf_reg()->max_dram_bw.max_bw_rd_req_sec <
@@ -163,7 +163,18 @@ int get_module_max_dram_bw(struct max_dram_bw_t *max_dram_bw)
 ***********************************************************************/
 int get_module_asic_frequencies(struct asic_frequencies_t *asic_frequencies)
 {
+    // TODO : Populate the valid frequncies values. Read it from HW
+    // https://esperantotech.atlassian.net/browse/SW-6560
+
+    get_soc_perf_reg()->asic_frequency.minion_shire_mhz = 800;
+    get_soc_perf_reg()->asic_frequency.noc_mhz = 400;
+    get_soc_perf_reg()->asic_frequency.mem_shire_mhz = 1067;
+    get_soc_perf_reg()->asic_frequency.ddr_mhz = 1067;
+    get_soc_perf_reg()->asic_frequency.pcie_shire_mhz = 1010;
+    get_soc_perf_reg()->asic_frequency.io_shire_mhz = 500;
+
     *asic_frequencies = get_soc_perf_reg()->asic_frequency;
+
     return 0;
 }
 

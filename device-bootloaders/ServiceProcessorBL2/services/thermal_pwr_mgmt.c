@@ -12,6 +12,7 @@
     \brief A C module that abstracts the Power Management services
 
     Public interfaces:
+    TODO
 
 */
 /***********************************************************************/
@@ -268,7 +269,7 @@ int update_module_current_temperature(void)
 
     get_module_temperature_threshold(&temperature_threshold);
 
-    if ((get_soc_power_reg()->soc_temperature) < (temperature_threshold.lo_temperature_c)) {
+    if ((get_soc_power_reg()->soc_temperature) > (temperature_threshold.lo_temperature_c)) {
         /* add details in message header and fill payload */
         FILL_EVENT_HEADER(&message.header, THERMAL_LOW,
                           sizeof(struct event_message_t) - sizeof(struct cmn_header_t));
@@ -277,7 +278,7 @@ int update_module_current_temperature(void)
 
         if (0 != get_soc_power_reg()->event_cb) {
             /* call the callback function and post message */
-            get_soc_power_reg()->event_cb(UNCORRETABLE, &message);
+            get_soc_power_reg()->event_cb(UNCORRECTABLE, &message);
         } else {
             printf("thermal pwr mgmt svc error: event_cb is not initialized\r\n");
             status = -1;
@@ -666,6 +667,19 @@ int init_thermal_pwr_mgmt_service(void)
     if (!status)
     {
         status = pmic_error_control_init(pmic_isr_callback);
+    }
+
+    /* Set default parameters */
+    status = update_module_temperature_threshold(80, 70);
+
+    if (!status)
+    {
+        status = update_module_power_state(POWER_STATE_LOWEST);
+    }
+
+    if (!status)
+    {
+        status = update_module_tdp_level(TDP_LEVEL_ONE);
     }
 
     return status;

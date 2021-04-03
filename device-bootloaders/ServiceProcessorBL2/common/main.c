@@ -38,6 +38,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "dm_task.h"
+#include "watchdog_task.h"
 #include "bl2_crypto.h"
 #include "bl2_asset_trk.h"
 
@@ -320,6 +321,24 @@ static void taskMain(void *pvParameters)
 
     // Init DM sampling task
     init_dm_sampling_task();
+
+    // TODO:SW-6865 init DM event handler task
+
+    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_EVENT_HANDLER_READY);
+
+    // init thermal power management service
+    if (0 != init_thermal_pwr_mgmt_service()) {
+        printf("Failed to init thermal power management!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+
+    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_PM_READY);
+
+    // init watchdog service
+    if (0 != init_watchdog_service(WDOG_DEFAULT_TIMEOUT)) {
+        printf("Failed to init watchdog service!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_SP_WATCHDOG_TASK_READY);
 

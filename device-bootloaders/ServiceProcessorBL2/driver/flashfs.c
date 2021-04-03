@@ -780,7 +780,7 @@ int flash_fs_get_module_rev(char *module_rev)
 int flash_fs_get_memory_size(char *mem_size)
 {
     // TODO: https://esperantotech.atlassian.net/browse/SW-4327
-    sprintf(mem_size, "%ld", (uint64_t)16);
+    sprintf(mem_size, "%ld", (uint64_t)16 * 1024);
     return 0;
 }
 

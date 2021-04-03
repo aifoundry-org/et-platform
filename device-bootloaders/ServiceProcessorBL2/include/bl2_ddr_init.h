@@ -53,7 +53,7 @@ int32_t ddr_error_control_init(dm_event_isr_callback event_cb);
 int32_t ddr_error_control_deinit(void);
 
 /*! \fn int32_t ddr_enable_uce_interrupt(void)
-    \brief This function enables ddr uncorretable error interrupts.
+    \brief This function enables ddr uncorrectable error interrupts.
     \param none
     \return Status indicating success or negative error
 */

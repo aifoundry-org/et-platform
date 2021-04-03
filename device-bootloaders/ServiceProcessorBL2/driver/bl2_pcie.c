@@ -76,7 +76,7 @@ void pcie_error_threshold_isr(void)
     // hardware, create a message and invoke call back with message and error type as parameters.
     uint8_t error_type = CORRECTABLE;
 
-    if ((error_type == UNCORRETABLE) ||
+    if ((error_type == UNCORRECTABLE) ||
         (++event_control_block.ce_count > event_control_block.ce_threshold)) {
         struct event_message_t message;
 
