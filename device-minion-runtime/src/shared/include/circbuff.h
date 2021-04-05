@@ -123,52 +123,64 @@ int8_t Circbuffer_Read(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
 int8_t Circbuffer_Peek(circ_buff_cb_t *restrict const circbuffer_ptr,
     void *restrict const dest_buffer, uint64_t peek_offset, uint64_t peek_length, uint32_t flags);
 
-/*! \fn static inline uint64_t Circbuffer_Get_Avail_Space(volatile circ_buff_cb_t *restrict const circ_buff_cb_ptr,
+/*! \fn static inline uint64_t Circbuffer_Get_Avail_Space(volatile circ_buff_cb_t *restrict const circ_buff_ptr,
     uint32_t flags)
     \brief Returns the number of available bytes in the circular buffer.
-    \param [in] circ_buff_cb_ptr: Pointer to circular buffer control block.
+    \param [in] circ_buff_ptr: Pointer to circular buffer control block.
     \param [in] flags: Indicates memory access type
     \returns Free space in bytes.
 */
-static inline uint64_t Circbuffer_Get_Avail_Space(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
+static inline uint64_t Circbuffer_Get_Avail_Space(circ_buff_cb_t *restrict const circ_buff_ptr,
     uint32_t flags)
 {
-    circ_buff_cb_t *circ_buff = circ_buff_cb_ptr;
-
     /* Read from memory if no read flag is not set */
     if (flags != CIRCBUFF_FLAG_NO_READ)
     {
-        /* Read the circular buffer CB from memory */
-        (*memory_read[flags]) (circ_buff_cb_ptr, circ_buff, sizeof(*circ_buff));
-    }
+        circ_buff_cb_t circ_buff __attribute__((aligned(8)));
 
-    return (uint64_t)((circ_buff->head_offset >= circ_buff->tail_offset) ?
-                      (circ_buff->length - 1) - (circ_buff->head_offset - circ_buff->tail_offset) :
-                       circ_buff->tail_offset - circ_buff->head_offset - 1);
+        /* Read the circular buffer CB from memory */
+        (*memory_read[flags]) (circ_buff_ptr, &circ_buff, sizeof(circ_buff));
+
+        return (uint64_t)((circ_buff.head_offset >= circ_buff.tail_offset) ?
+                        (circ_buff.length - 1) - (circ_buff.head_offset - circ_buff.tail_offset) :
+                        circ_buff.tail_offset - circ_buff.head_offset - 1);
+    }
+    else
+    {
+        return (uint64_t)((circ_buff_ptr->head_offset >= circ_buff_ptr->tail_offset) ?
+                (circ_buff_ptr->length - 1) - (circ_buff_ptr->head_offset - circ_buff_ptr->tail_offset) :
+                circ_buff_ptr->tail_offset - circ_buff_ptr->head_offset - 1);
+    }
 }
 
-/*! \fn static inline uint64_t Circbuffer_Get_Used_Space(volatile circ_buff_cb_t *restrict const circ_buff_cb_ptr,
+/*! \fn static inline uint64_t Circbuffer_Get_Used_Space(volatile circ_buff_cb_t *restrict const circ_buff_ptr,
     uint32_t flags)
     \brief Returns the number of used bytes in the circular buffer.
-    \param [in] circ_buff_cb_ptr: Pointer to circular buffer control block.
+    \param [in] circ_buff_ptr: Pointer to circular buffer control block.
     \param [in] flags: Indicates memory access type
     \returns Used space in bytes.
 */
-static inline uint64_t Circbuffer_Get_Used_Space(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
+static inline uint64_t Circbuffer_Get_Used_Space(circ_buff_cb_t *restrict const circ_buff_ptr,
     uint32_t flags)
 {
-    circ_buff_cb_t *circ_buff = circ_buff_cb_ptr;
-
     /* Read from memory if no read flag is not set */
     if (flags != CIRCBUFF_FLAG_NO_READ)
     {
-        /* Read the circular buffer CB from memory */
-        (*memory_read[flags]) (circ_buff_cb_ptr, circ_buff, sizeof(*circ_buff));
-    }
+        circ_buff_cb_t circ_buff __attribute__((aligned(8)));
 
-    return (uint64_t)((circ_buff->head_offset >= circ_buff->tail_offset) ?
-                      circ_buff->head_offset - circ_buff->tail_offset :
-                      (circ_buff->length + circ_buff->head_offset - circ_buff->tail_offset));
+        /* Read the circular buffer CB from memory */
+        (*memory_read[flags]) (circ_buff_ptr, &circ_buff, sizeof(circ_buff));
+
+        return (uint64_t)((circ_buff.head_offset >= circ_buff.tail_offset) ?
+                circ_buff.head_offset - circ_buff.tail_offset :
+                (circ_buff.length + circ_buff.head_offset - circ_buff.tail_offset));
+    }
+    else
+    {
+        return (uint64_t)((circ_buff_ptr->head_offset >= circ_buff_ptr->tail_offset) ?
+                circ_buff_ptr->head_offset - circ_buff_ptr->tail_offset :
+                (circ_buff_ptr->length + circ_buff_ptr->head_offset - circ_buff_ptr->tail_offset));
+    }
 }
 
 /*! \fn static inline void Circbuffer_Get_Head_Tail(circ_buff_cb_t *restrict const src_circ_buff_cb_ptr,

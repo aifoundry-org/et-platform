@@ -256,7 +256,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
         }
 
         /* Get the total number of bytes available in the VQ */
-        vq_used_space = VQ_Get_Used_Space(&vq_cached, CACHED);
+        vq_used_space = VQ_Get_Used_Space(&vq_cached, CIRCBUFF_FLAG_NO_READ);
 
         /* Process commands until there is no more data in VQ */
         while(vq_used_space)
@@ -302,7 +302,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
             update_sq_tail = true;
 
             /* Re-calculate the total number of bytes available in the VQ */
-            vq_used_space = VQ_Get_Used_Space(&vq_cached, CACHED);
+            vq_used_space = VQ_Get_Used_Space(&vq_cached, CIRCBUFF_FLAG_NO_READ);
         }
 
         if(update_sq_tail)
