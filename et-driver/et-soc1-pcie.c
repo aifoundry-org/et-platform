@@ -151,6 +151,10 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 		if (copy_from_user(&mmio_info, (void __user *)arg,
 				   _IOC_SIZE(cmd)))
 			return -EINVAL;
+
+		if (!mmio_info.ubuf || !mmio_info.size || !mmio_info.devaddr)
+			return -EINVAL;
+
 		return et_mmio_write_to_device(et_dev, false /* ops_dev */,
 					       (void __user *)mmio_info.ubuf,
 					       mmio_info.size,
@@ -160,6 +164,10 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 		if (copy_from_user(&mmio_info, (void __user *)arg,
 				   _IOC_SIZE(cmd)))
 			return -EINVAL;
+
+		if (!mmio_info.ubuf || !mmio_info.size || !mmio_info.devaddr)
+			return -EINVAL;
+
 		return et_mmio_read_from_device(et_dev, false /* ops_dev */,
 						(void __user *)mmio_info.ubuf,
 						mmio_info.size,
@@ -186,6 +194,12 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 		if (copy_from_user(&cmd_info, (void __user *)arg,
 				   _IOC_SIZE(cmd)))
 			return -EINVAL;
+
+		if (cmd_info.sq_index >=
+		    et_dev->ops.vq_common.dir_vq.sq_count ||
+		    !cmd_info.cmd || !cmd_info.size)
+			return -EINVAL;
+
 		if (cmd_info.flags & CMD_DESC_FLAG_DMA) {
 			return et_dma_move_data(et_dev, cmd_info.sq_index,
 						(void __user *)cmd_info.cmd,
@@ -202,6 +216,12 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 		if (copy_from_user(&rsp_info, (void __user *)arg,
 				   _IOC_SIZE(cmd)))
 			return -EINVAL;
+
+		if (rsp_info.cq_index >=
+		    et_dev->ops.vq_common.dir_vq.cq_count ||
+		    !rsp_info.rsp || !rsp_info.size)
+			return -EINVAL;
+
 		return et_cqueue_copy_to_user
 				(et_dev, false /* ops_dev */,
 				 rsp_info.cq_index,
@@ -229,7 +249,9 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 				   _IOC_SIZE(cmd)))
 			return -EINVAL;
 
-		if (!sq_threshold_info.bytes_needed ||
+		if (sq_threshold_info.sq_index >=
+		    et_dev->ops.vq_common.dir_vq.sq_count ||
+		    !sq_threshold_info.bytes_needed ||
 		    sq_threshold_info.bytes_needed >
 		    (ops->vq_common.dir_vq.per_sq_size -
 		     sizeof(struct et_circbuffer)))
@@ -343,6 +365,12 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 		if (copy_from_user(&cmd_info, (void __user *)arg,
 				   _IOC_SIZE(cmd)))
 			return -EINVAL;
+
+		if (cmd_info.sq_index >=
+		    et_dev->mgmt.vq_common.dir_vq.sq_count ||
+		    !cmd_info.cmd || !cmd_info.size)
+			return -EINVAL;
+
 		if (cmd_info.flags & CMD_DESC_FLAG_DMA) {
 			return -EINVAL;
 		} else {
@@ -357,6 +385,12 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 		if (copy_from_user(&rsp_info, (void __user *)arg,
 				   _IOC_SIZE(cmd)))
 			return -EINVAL;
+
+		if (rsp_info.cq_index >=
+		    et_dev->mgmt.vq_common.dir_vq.cq_count ||
+		    !rsp_info.rsp || !rsp_info.size)
+			return -EINVAL;
+
 		return et_cqueue_copy_to_user(et_dev, true /* mgmt_dev */,
 				rsp_info.cq_index, (char __user *)rsp_info.rsp,
 				rsp_info.size);
@@ -382,7 +416,9 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 				   _IOC_SIZE(cmd)))
 			return -EINVAL;
 
-		if (!sq_threshold_info.bytes_needed ||
+		if (sq_threshold_info.sq_index >=
+		    et_dev->mgmt.vq_common.dir_vq.sq_count ||
+		    !sq_threshold_info.bytes_needed ||
 		    sq_threshold_info.bytes_needed >
 		    (mgmt->vq_common.dir_vq.per_sq_size -
 		     sizeof(struct et_circbuffer)))
