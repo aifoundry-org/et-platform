@@ -18,6 +18,10 @@
 
 #include "bl2_firmware_update.h"
 
+#define SPI_FLASH_WRITES_256B_CHUNK_SIZE 256
+#define SPI_FLASH_WRITES_128B_CHUNK_SIZE 128
+#define SPI_FLASH_WRITES_64B_CHUNK_SIZE  64
+
 static void reset_etsoc(void)
 {
     printf("Resetting ETSOC..!\n");
@@ -140,17 +144,19 @@ static int32_t dm_svc_firmware_update(void)
            DEVICE_FW_UPDATE_REGION_SIZE);
 
     // Program the image to flash.
-    if (0 != flash_update_partition((void *)DEVICE_FW_UPDATE_REGION_BASE,
-                                    DEVICE_FW_UPDATE_REGION_SIZE)) {
-        printf("flash_update_partition: failed to write data!\n");
+    if (0 != flash_fs_update_partition((void *)DEVICE_FW_UPDATE_REGION_BASE,
+                                       DEVICE_FW_UPDATE_REGION_SIZE,
+                                       SPI_FLASH_WRITES_256B_CHUNK_SIZE)) {
+        MESSAGE_ERROR("flash_fs_update_partition: failed to write data!\n");
         return DEVICE_FW_FLASH_UPDATE_ERROR;
     } else {
         printf("flash partition has been updated with new image!\n");
     }
 
-    // Swap the priority counter of the partitions. so bootrom will choose the partition with an updated image
-    if (0 != flash_fs_swap_priority_counter()) {
-        printf("flash_partition_update_priority_counter: Updating priority counter failed!\n");
+    // Swap the priority counter of the partitions. so bootrom will choose
+    // the partition with an updated image
+    if (0 != flash_fs_swap_primary_boot_partition()) {
+        MESSAGE_ERROR("flash_fs_swap_primary_boot_partition: Update priority counter failed!\n");
         return DEVICE_FW_FLASH_PRIORITY_COUNTER_SWAP_ERROR;
     }
 
