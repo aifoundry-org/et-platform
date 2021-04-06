@@ -28,7 +28,7 @@ class ITarget;
 class RuntimeImp : public IRuntime, public ResponseReceiver::IReceiverServices {
 public:
   RuntimeImp(dev::IDeviceLayer* deviceLayer);
-  ~RuntimeImp() = default;
+  ~RuntimeImp();
 
   std::vector<DeviceId> getDevices() override;
 
@@ -117,8 +117,11 @@ private:
         if (events.empty()) {
           throw Exception("Submission queue is full but there are not on-fly events. There could be a firmware bug.");
         }
-        RT_DLOG(INFO) << "SendCommandMasterMinion: Waiting for event " << static_cast<int>(*events.begin());
-        waitForEvent(*events.begin());
+        /*RT_DLOG(INFO) << "SendCommandMasterMinion: Waiting for event " << static_cast<int>(*events.begin())
+                      << " for 1 second";*/
+        RT_DLOG(INFO) << "Waiting for 100ms";
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        // waitForEvent(*events.begin());
         lock.lock();
       }
     }
