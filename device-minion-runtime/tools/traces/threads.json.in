@@ -8,5 +8,8 @@
     ]},
     {"name":"Compute Minion Shire","id":0,"threads":[
         {"name":"Compute Runtime","id":0}
+    ]},
+    {"name":"IO Shire","id":34,"threads":[
+        {"name":"Service Processor Runtime","id":0}
     ]}
 ]
