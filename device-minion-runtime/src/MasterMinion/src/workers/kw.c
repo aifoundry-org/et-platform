@@ -388,7 +388,9 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
         launch_args.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH;
         launch_args.kw_base_id = (uint8_t)KW_MS_BASE_HART;
         launch_args.slot_index = slot_index;
-        launch_args.flags = KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH;
+        // SW-6502 - Pre launch flush are very expensive 
+        //launch_args.flags = KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH;
+        launch_args.flags = 0x0;
         launch_args.code_start_address = cmd->code_start_address;
         launch_args.pointer_to_args = cmd->pointer_to_args;
         launch_args.shire_mask = cmd->shire_mask;
