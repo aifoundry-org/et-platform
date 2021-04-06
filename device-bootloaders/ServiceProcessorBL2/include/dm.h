@@ -27,7 +27,7 @@
 /* Response Header of different response structs in DM services */
 #define  FILL_RSP_HEADER(rsp, tag, msg, latency, sts) (rsp).rsp_hdr.rsp_hdr.tag_id = tag; \
                                                       (rsp).rsp_hdr.rsp_hdr.msg_id = msg; \
-                                                      (rsp).rsp_hdr.rsp_hdr.size = sizeof(rsp); \
+                                                      (rsp).rsp_hdr.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t); \
                                                       (rsp).rsp_hdr.rsp_hdr_ext.device_latency_usec = latency; \
                                                       (rsp).rsp_hdr.rsp_hdr_ext.status = sts;
                                                      

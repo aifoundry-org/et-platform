@@ -82,7 +82,7 @@ struct event_payload {
 struct event_message_t {
     struct cmn_header_t header; /**< See struct cmn_header_t. */
     struct event_payload payload; /**< See struct event_payload */
-} __attribute__((__packed__));
+} __attribute__((packed, aligned(8)));
 
 
 #define EVENT_CLASS_MASK       0x3
