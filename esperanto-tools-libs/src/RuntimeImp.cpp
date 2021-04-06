@@ -22,6 +22,10 @@
 using namespace rt;
 using namespace rt::profiling;
 
+RuntimeImp::~RuntimeImp() {
+  responseReceiver_.reset();
+}
+
 RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
   : deviceLayer_(deviceLayer) {
   for (int i = 0; i < deviceLayer_->getDevicesCount(); ++i) {
