@@ -31,7 +31,7 @@
 #include "thermal_pwr_mgmt.h"
 
 // TODO: will be configurable by the host
-#define DM_TASK_DELAY_MS 5
+#define DM_TASK_DELAY_MS 100
 
 #define DM_TASK_STACK    1024
 #define DM_TASK_PRIORITY 1

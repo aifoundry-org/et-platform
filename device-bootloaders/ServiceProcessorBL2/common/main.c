@@ -333,18 +333,13 @@ static void taskMain(void *pvParameters)
         printf("Failed to init watchdog service!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
-    
-    // Init DM sampling task
-    init_dm_sampling_task();
 
     // init DM event handler task
     if (0 != dm_event_control_init()) {
         printf("Failed to create dm event handler task!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
-
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_EVENT_HANDLER_READY);
-    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_SP_WATCHDOG_TASK_READY);
 
 #if !FAST_BOOT
     // SP and minions have booted successfully. Increment the completed boot counter
@@ -355,8 +350,11 @@ static void taskMain(void *pvParameters)
     printf("Incremented the completed boot counter!\n");
 #endif
 
-    printf("SP Device Ready!\n");
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DEV_READY);
+    printf("SP Device Ready!\n");
+
+    // Init DM sampling task
+    init_dm_sampling_task();
 
     goto DONE;
 
