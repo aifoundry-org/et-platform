@@ -260,6 +260,25 @@
 /*******************************************************************/
 /* Definitions for MM dispatcher, and workers - SQW, KW, DMAW, CQW */
 /*******************************************************************/
+
+/*! \def WORKER_HARTS_EVEN
+    \brief Macro to switch between even or odd Harts for MM Workers.
+    If this macro is defined, MM will use even Harts for its workers and vice versa.
+*/
+#define WORKER_HARTS_EVEN
+
+#ifdef WORKER_HARTS_EVEN
+/*! \def WORKER_HART_FACTOR
+    \brief Divider for the caclulations performed on even Harts
+*/
+#define WORKER_HART_FACTOR 2
+#else
+/*! \def WORKER_HART_FACTOR
+    \brief Divider for the caclulations performed on odd Harts
+*/
+#define WORKER_HART_FACTOR 1
+#endif
+
 /*! \def MM_BASE_ID
     \brief Base HART ID for the Master Minion
 */

@@ -28,7 +28,7 @@
     \brief A macro that provides the maximum HART ID the SQW is configued
     to execute on.
 */
-#define     SQW_MAX_HART_ID      (SQW_BASE_HART_ID + (SQW_NUM * HARTS_PER_MINION))
+#define     SQW_MAX_HART_ID      (SQW_BASE_HART_ID + (SQW_NUM * WORKER_HART_FACTOR))
 
 /*! \def SQW_WORKER_0
     \brief A macro that provdies the minion index of the first Submission

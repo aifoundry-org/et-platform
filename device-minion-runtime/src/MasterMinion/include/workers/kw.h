@@ -27,7 +27,7 @@
     \brief A macro that provides the maximum HART ID the KW is configued
     to execute on.
 */
-#define     KW_MAX_HART_ID      (KW_BASE_HART_ID + (KW_NUM * HARTS_PER_MINION))
+#define     KW_MAX_HART_ID      (KW_BASE_HART_ID + (KW_NUM * WORKER_HART_FACTOR))
 
 /*! \def KW_WORKER_0
     \brief A macro that provdies the minion index of the first Kernel

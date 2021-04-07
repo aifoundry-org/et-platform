@@ -25,7 +25,7 @@
     configured to execute on.
 */
 #define     DISPATCHER_MAX_HART_ID      \
-                DISPATCHER_BASE_HART_ID + (DISPATCHER_NUM * HARTS_PER_MINION)
+                DISPATCHER_BASE_HART_ID + (DISPATCHER_NUM * WORKER_HART_FACTOR)
 
 /*! \fn void Dispatcher_Launch(void)
     \brief Launch a dispatcher instance on HART ID requested

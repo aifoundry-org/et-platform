@@ -145,8 +145,8 @@ void SQW_Init(void)
 ***********************************************************************/
 void SQW_Notify(uint8_t sqw_idx)
 {
-    uint32_t minion = (uint32_t)SQW_WORKER_0 + (sqw_idx / 2);
-    uint32_t thread = sqw_idx % 2;
+    uint32_t minion = (uint32_t)SQW_WORKER_0 + (sqw_idx / (2 / WORKER_HART_FACTOR));
+    uint32_t thread = sqw_idx % (2 / WORKER_HART_FACTOR);
 
     Log_Write(LOG_LEVEL_DEBUG, "Notifying:SQW:minion=%d:thread=%d\r\n", minion, thread);
 
@@ -179,7 +179,7 @@ void SQW_Notify(uint8_t sqw_idx)
 ***********************************************************************/
 void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
 {
-    static uint8_t cmd_buff[MM_CMD_MAX_SIZE] __attribute__((aligned(64))) = { 0 };
+    uint8_t cmd_buff[MM_CMD_MAX_SIZE] __attribute__((aligned(64))) = { 0 };
     struct cmd_header_t *cmd_hdr = (void*)cmd_buff;
     bool update_sq_tail;
     int8_t status = 0;

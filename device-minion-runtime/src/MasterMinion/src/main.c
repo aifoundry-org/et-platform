@@ -32,10 +32,10 @@
 #include "atomic.h"
 #include "riscv_encoding.h"
 
-/*! \def HART_EVEN(x)
-    \brief Macro to check if the Hart is even or odd
+/*! \def HART_PARITY(x)
+    \brief Macro to check the even or odd parity of the hart
 */
-#define HART_EVEN(x)  (x % 2 == 0)
+#define HART_PARITY(x)  (x % WORKER_HART_FACTOR == 0)
 
 /*! \var spinlock_t Launch_Wait
     \brief Spinlock used to let the FW workers continue.
@@ -67,7 +67,7 @@ void main(void)
 
     /* Launch Dispatcher and Workers */
     if ((hart_id >= DISPATCHER_BASE_HART_ID) &&
-        (hart_id < DISPATCHER_MAX_HART_ID) && HART_EVEN(hart_id))
+        (hart_id < DISPATCHER_MAX_HART_ID) && HART_PARITY(hart_id))
     {
         /* Initialize UART logging params */
         Log_Init(LOG_LEVEL_WARNING);
@@ -75,21 +75,21 @@ void main(void)
         Dispatcher_Launch(hart_id);
     }
     else if ((hart_id >= SQW_BASE_HART_ID) &&
-            (hart_id < SQW_MAX_HART_ID) && HART_EVEN(hart_id))
+            (hart_id < SQW_MAX_HART_ID) && HART_PARITY(hart_id))
     {
         /* Spin wait till dispatcher initialization is complete */
         local_spinwait_wait(&Launch_Wait, 1);
-        SQW_Launch(hart_id, (hart_id - SQW_BASE_HART_ID));
+        SQW_Launch(hart_id, (hart_id - SQW_BASE_HART_ID) / WORKER_HART_FACTOR);
     }
     else if ((hart_id >= KW_BASE_HART_ID) &&
-            (hart_id < KW_MAX_HART_ID) && HART_EVEN(hart_id))
+            (hart_id < KW_MAX_HART_ID) && HART_PARITY(hart_id))
     {
         /* Spin wait till dispatcher initialization is complete */
         local_spinwait_wait(&Launch_Wait, 1);
-        KW_Launch(hart_id, hart_id - KW_BASE_HART_ID);
+        KW_Launch(hart_id, (hart_id - KW_BASE_HART_ID) / WORKER_HART_FACTOR);
     }
     else if ((hart_id >= DMAW_BASE_HART_ID) &&
-            (hart_id < DMAW_MAX_HART_ID) && HART_EVEN(hart_id))
+            (hart_id < DMAW_MAX_HART_ID) && HART_PARITY(hart_id))
     {
         /* Spin wait till dispatcher initialization is complete */
         local_spinwait_wait(&Launch_Wait, 1);

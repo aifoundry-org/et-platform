@@ -574,8 +574,8 @@ void KW_Init(void)
 ***********************************************************************/
 void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle, uint8_t sw_timer_idx)
 {
-    uint32_t minion = (uint32_t)KW_WORKER_0 + (kw_idx / 2);
-    uint32_t thread = kw_idx % 2;
+    uint32_t minion = (uint32_t)KW_WORKER_0 + (kw_idx / (2 / WORKER_HART_FACTOR));
+    uint32_t thread = kw_idx % (2 / WORKER_HART_FACTOR);
 
     Log_Write(LOG_LEVEL_DEBUG, "Notifying:KW:minion=%d:thread=%d\r\n",
         minion, thread);
