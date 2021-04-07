@@ -1,5 +1,6 @@
 #include "etsoc_memory.h"
 #include "flb.h"
+#include "cacheops.h"
 #include "hart.h"
 #include "kernel.h"
 #include "layout.h"
@@ -9,6 +10,7 @@
 #include "riscv_encoding.h"
 #include "sync.h"
 #include "syscall_internal.h"
+
 
 /* MM to CM interface */
 static cm_iface_message_number_t g_previous_broadcast_message_number[NUM_HARTS] __attribute__((aligned(64))) = { 0 };
@@ -67,8 +69,12 @@ cm_iface_message_number_t MM_To_CM_Iface_Multicast_Receive(cm_iface_message_t *c
     bool last;
     uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
 
+    asm volatile("fence");
+    evict(to_L3,master_to_worker_broadcast_message_buffer_ptr,sizeof(*message));
+    WAIT_CACHEOPS; 
+
     /* Copy message from shared global memory to local buffer */
-    ETSOC_Memory_Read_Global_Atomic(master_to_worker_broadcast_message_buffer_ptr,
+    ETSOC_Memory_Read_Write_Cacheable(master_to_worker_broadcast_message_buffer_ptr,
                                     message, sizeof(*message));
 
     // Check if we are the last receiver of the Shire
