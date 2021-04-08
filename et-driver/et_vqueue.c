@@ -792,7 +792,7 @@ static void parse_thermal_syndrome(struct device_mgmt_event_msg_t *event_msg,
 		(event_msg->event_syndrome[0] & SYNDROME_TEMP_FRACTION_MASK);
 	temp_whole = (event_msg->event_syndrome[0] >> 2) & SYNDROME_TEMP_MASK;
 
-	sprintf(dbg_msg->syndrome, "%d.%2d", temp_whole, temp_fract);
+	sprintf(dbg_msg->syndrome, "%d.%d C", temp_whole, temp_fract);
 }
 
 static void parse_wdog_syndrome(struct device_mgmt_event_msg_t *event_msg,
@@ -816,6 +816,12 @@ static void parse_cm_err_syndrome(struct device_mgmt_event_msg_t *event_msg,
 		strcat(dbg_msg->syndrome, "MM DMW Error\n");
 	if (event_msg->event_syndrome[0] & MM_KW_MASK)
 		strcat(dbg_msg->syndrome, "MM KW Error\n");
+}
+
+static void parse_throttling_syndrome(struct device_mgmt_event_msg_t *event_msg,
+				      struct event_dbg_msg *dbg_msg)
+{
+	/* To be finalized */
 }
 
 static int handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
@@ -908,8 +914,14 @@ static int handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
 		dbg_msg.desc = "Compute Minion Hang";
 		parse_cm_err_syndrome(&event_msg, &dbg_msg);
 		break;
+	case DEV_MGMT_EID_THROTTLE_TIME:
+		dbg_msg.desc = "Thermal Throttling Error";
+		parse_throttling_syndrome(&event_msg, &dbg_msg);
+		break;
 	default:
-		dev_err(&pdev->dev, "Event MSG ID is invalid\n");
+		dbg_msg.desc = "Un-Supported Event MSG ID";
+		dev_err(&pdev->dev, "Event MSG ID [%d] is invalid\n",
+			event_msg.event_info.msg_id);
 		rv = -EINVAL;
 		break;
 	}
