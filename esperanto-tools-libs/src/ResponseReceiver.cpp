@@ -44,6 +44,7 @@ ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServ
             RT_LOG(INFO) << "Got response from deviceId: " << dev;
             responsesCount++;
             receiverServices_->onResponseReceived(buffer);
+            RT_LOG(INFO) << "Response processed";
           }
         }
 
@@ -51,7 +52,9 @@ ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServ
           for (auto dev : devicesToCheck) {
             uint64_t sq_bitmap;
             bool cq_available;
+            RT_DLOG(INFO) << "No responses, waiting for epoll";
             deviceLayer_->waitForEpollEventsMasterMinion(dev, sq_bitmap, cq_available);
+            RT_DLOG(INFO) << "Finished waiting for epoll";
           }
         }
       }

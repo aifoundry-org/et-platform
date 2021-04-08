@@ -50,7 +50,9 @@ public:
                              bool barrier = true) override;
 
   void waitForEvent(EventId event) override;
+  bool waitForEvent(EventId event, std::chrono::seconds timeout) override;
   void waitForStream(StreamId stream) override;
+  bool waitForStream(StreamId stream, std::chrono::seconds timeout) override;
 
   IProfiler* getProfiler() override {
     return &profiler_;

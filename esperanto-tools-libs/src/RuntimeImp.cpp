@@ -211,20 +211,29 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
 }
 
 void RuntimeImp::waitForEvent(EventId event) {
-  ScopedProfileEvent profileEvent(Class::WaitForEvent, profiler_, event);
-  RT_DLOG(INFO) << "Waiting for event " << static_cast<int>(event) << " to be dispatched.";
-  eventManager_.blockUntilDispatched(event);
-  RT_DLOG(INFO) << "Finished wait for event " << static_cast<int>(event);
+  waitForEvent(event, std::chrono::hours(24)); // we can't use seconds::max
 }
 
 void RuntimeImp::waitForStream(StreamId stream) {
+  waitForStream(stream, std::chrono::hours(24));
+}
+
+bool RuntimeImp::waitForEvent(EventId event, std::chrono::seconds timeout) {
+  ScopedProfileEvent profileEvent(Class::WaitForEvent, profiler_, event);
+  RT_DLOG(INFO) << "Waiting for event " << static_cast<int>(event) << " to be dispatched.";
+  auto res = eventManager_.blockUntilDispatched(event, timeout);
+  RT_DLOG(INFO) << "Finished wait for event " << static_cast<int>(event) << " timed out? " << (res ? "false" : "true");
+  return res;
+}
+
+bool RuntimeImp::waitForStream(StreamId stream, std::chrono::seconds timeout) {
   ScopedProfileEvent profileEvent(Class::WaitForStream, profiler_, stream);
   std::unique_lock<std::recursive_mutex> lock(mutex_);
   auto it = find(streams_, stream, "Invalid stream");
   auto evt = it->second.lastEventId_;
   lock.unlock();
   RT_DLOG(INFO) << "WaitForStream: Waiting for event " << static_cast<int>(evt);
-  waitForEvent(evt);
+  return waitForEvent(evt, timeout);
 }
 
 std::vector<int> RuntimeImp::getDevicesWithEventsOnFly() const {
