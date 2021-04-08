@@ -33,7 +33,7 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
     /* Generate PCIE Un-Correctable Error */
     FILL_EVENT_HEADER(&message.header, PCIE_UCE,
             sizeof(struct event_message_t) );
-    FILL_EVENT_PAYLOAD(&message.payload, FATAL, 100, 1, 0);
+    FILL_EVENT_PAYLOAD(&message.payload, FATAL, 100, 16, 0);
     pcie_event_callback(UNCORRECTABLE, &message);
     vTaskDelay(pdMS_TO_TICKS(10));
 
@@ -68,14 +68,14 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
     /* Generate Low Temperature Error */
     FILL_EVENT_HEADER(&message.header, THERMAL_LOW,
             sizeof(struct event_message_t));
-    FILL_EVENT_PAYLOAD(&message.payload, FATAL, 1, 1, 0);
+    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 1, 50, 0);
     power_event_callback(UNCORRECTABLE, &message);
     vTaskDelay(pdMS_TO_TICKS(10));
 
     /* Generate High Temperature Error */
     FILL_EVENT_HEADER(&message.header, THERMAL_HIGH,
             sizeof(struct event_message_t));
-    FILL_EVENT_PAYLOAD(&message.payload, FATAL, 65, 1, 0);
+    FILL_EVENT_PAYLOAD(&message.payload, FATAL, 65, 100, 0);
     power_event_callback(UNCORRECTABLE, &message);
     vTaskDelay(pdMS_TO_TICKS(10));
 

@@ -72,7 +72,7 @@ enum error_type {
 struct event_payload {
     uint16_t class_count; /**< payload containing the event class[1:0], event count[15:2] */
     uint64_t syndrome[2]; /**< Hardware defined syndrome info */
-};
+} __attribute__((__packed__));
 
 /*!
  * @struct struct event_message_t
@@ -81,7 +81,7 @@ struct event_payload {
 struct event_message_t {
     struct cmn_header_t header; /**< See struct cmn_header_t. */
     struct event_payload payload; /**< See struct event_payload */
-};
+} __attribute__((__packed__));
 
 
 #define EVENT_CLASS_MASK       0x3
