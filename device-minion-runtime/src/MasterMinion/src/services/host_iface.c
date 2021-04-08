@@ -361,8 +361,12 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
     /* Acquire the lock. Multiple threads can call this function. */
     acquire_local_spinlock(&Host_CQs.vqueue_locks[cq_id]);
 
-    /* Pop the command from circular buffer */
-    status = VQ_Push(&Host_CQs.vqueues[cq_id], p_cmd, cmd_size);
+    /* TODO: SW-5781 Polling here until we are able to push response */
+    do
+    {
+        /* Push the response to circular buffer */
+        status = VQ_Push(&Host_CQs.vqueues[cq_id], p_cmd, cmd_size);
+    } while(status == CIRCBUFF_ERROR_FULL);
 
     if (status == STATUS_SUCCESS)
     {
