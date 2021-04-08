@@ -54,10 +54,10 @@ bool EventManager::isDispatched(EventId event) const {
   return onflyEvents_.find(event) == end(onflyEvents_);
 }
 
-void EventManager::blockUntilDispatched(EventId event) {
+bool EventManager::blockUntilDispatched(EventId event, std::chrono::seconds timeout) {
   std::unique_lock<std::mutex> lock(mutex_);
   if (isDispatched(event)) {
-    return; // no block if the event is already dispatched
+    return true; // no block if the event is already dispatched
   }
 
   auto it = blockedThreads_.find(event);
@@ -70,8 +70,9 @@ void EventManager::blockUntilDispatched(EventId event) {
   } else {
     sem = it->second.get();
   }
-  sem->wait(lock);
+  auto res = sem->wait(lock, timeout);
   if (!sem->isAnyThreadBlocked()) {
     blockedThreads_.erase(event);
   }
+  return res;
 }

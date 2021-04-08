@@ -9,6 +9,7 @@
  *-------------------------------------------------------------------------*/
 
 #pragma once
+#include <chrono>
 #include <cstddef>
 #include <exception>
 #include <memory>
@@ -210,20 +211,45 @@ public:
 
   /// \brief This will block the caller thread until the given event is
   /// dispatched. This primitive allows to synchronize with the device
-  /// execution.
+  /// execution. This method is deprecated and will be removed in a future releaes. Please use
+  /// bool waitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::seconds::max)
   ///
   /// @param[in] event is the event to wait for, result of a memcpy operation or a
   /// kernel launch.
   ///
-  virtual void waitForEvent(EventId event) = 0;
+  [[deprecated]] virtual void waitForEvent(EventId event) = 0;
+
+  /// \brief This will block the caller thread until the given event is
+  /// dispatched or the timeout is reached. This primitive allows to synchronize with the device
+  /// execution.
+  ///
+  /// @param[in] event is the event to wait for, result of a memcpy operation or a
+  /// kernel launch.
+  /// @param[in] timeout is the number of seconds to wait till aborting the wait.
+  ///
+  /// @returns false if the timeout was reached, true otherwise.
+  ///
+  virtual bool waitForEvent(EventId event, std::chrono::seconds timeout) = 0;
 
   /// \brief This will block the caller thread until all commands issued to the
   /// given stream finish. This primitive allows to synchronize with the device
-  /// execution.
+  /// execution. This method is deprecated and will be removed in a future releaes. Please use
+  /// bool waitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::seconds::max)
   ///
   /// @param[in] stream this is the stream to synchronize with.
   ///
-  virtual void waitForStream(StreamId stream) = 0;
+  [[deprecated]] virtual void waitForStream(StreamId stream) = 0;
+
+  /// \brief This will block the caller thread until all commands issued to the
+  /// given stream finish or if the timeout is reached. This primitive allows to synchronize with the device
+  /// execution. 
+  ///
+  /// @param[in] stream this is the stream to synchronize with.
+  /// @param[in] timeout is the number of seconds to wait till aborting the wait.
+  ///
+  /// @returns false if the timeout was reached, true otherwise.
+  ///
+  virtual bool waitForStream(StreamId stream, std::chrono::seconds timeout) = 0;
 
   /// \brief Virtual Destructor to enable polymorphic release of the runtime
   /// instances

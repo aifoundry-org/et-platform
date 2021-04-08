@@ -11,17 +11,19 @@
 #pragma once
 
 #include "runtime/IRuntime.h"
+#include "utils.h"
 #include <atomic>
 #include <condition_variable>
-#include <unordered_map>
 #include <set>
+#include <unordered_map>
 namespace rt {
 
 class EventManager {
 public:
   EventId getNextId();
   void dispatch(EventId event);
-  void blockUntilDispatched(EventId event);
+  // returns false if the timeout is reached; true otherwise
+  bool blockUntilDispatched(EventId event, std::chrono::seconds timeout);
   std::set<EventId> getOnflyEvents() const;
 
 private:
@@ -32,10 +34,14 @@ private:
       ready_ = true;
       condVar_.notify_all();
     }
-    void wait(std::unique_lock<std::mutex>& lock) {
+    // returns false if the timeout is reached; true otherwise
+    bool wait(std::unique_lock<std::mutex>& lock, std::chrono::seconds timeout) {
       count_++;
-      condVar_.wait(lock, [this]() { return ready_; });
+      RT_DLOG(INFO) << "Blocking thread for a max of " << timeout.count() << " seconds.";
+      auto res = condVar_.wait_for(lock, timeout, [this]() { return ready_; });
+      RT_DLOG(INFO) << "Thread unblocked ready value: " << ready_ << " wait_for result: " << res;
       count_--;
+      return res;
     }
     bool isAnyThreadBlocked() const {
       return count_ > 0;

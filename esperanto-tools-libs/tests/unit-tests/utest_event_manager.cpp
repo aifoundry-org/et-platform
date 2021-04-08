@@ -33,7 +33,7 @@ public:
     EventId evt, bool detach, std::function<void()> functor) {
     auto t = std::thread([=]() {
       VLOG(5) << "Thread " << std::this_thread::get_id() << " blocking.";
-      em_.blockUntilDispatched(evt);
+      em_.blockUntilDispatched(evt, std::chrono::hours(5));
       functor();
       VLOG(5) << "Thread " << std::this_thread::get_id() << " after block.";
     });
