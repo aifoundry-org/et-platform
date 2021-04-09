@@ -217,7 +217,7 @@ public:
   /// @param[in] event is the event to wait for, result of a memcpy operation or a
   /// kernel launch.
   ///
-  [[deprecated]] virtual void waitForEvent(EventId event) = 0;
+  virtual void waitForEvent(EventId event) = 0;
 
   /// \brief This will block the caller thread until the given event is
   /// dispatched or the timeout is reached. This primitive allows to synchronize with the device
@@ -238,7 +238,7 @@ public:
   ///
   /// @param[in] stream this is the stream to synchronize with.
   ///
-  [[deprecated]] virtual void waitForStream(StreamId stream) = 0;
+  virtual void waitForStream(StreamId stream) = 0;
 
   /// \brief This will block the caller thread until all commands issued to the
   /// given stream finish or if the timeout is reached. This primitive allows to synchronize with the device

@@ -16,15 +16,10 @@
 #include <thread>
 using namespace rt;
 
-namespace {
-using namespace std::chrono_literals;
-auto kPollingInterval = 100ms;
-} // namespace
-
-ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServices* receiverServices)
+ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, Callback responseCallback)
   : run_(true)
   , deviceLayer_(deviceLayer)
-  , receiverServices_(receiverServices) {
+  , responseCallback_(responseCallback) {
 
   receiver_ = std::thread([this]() {
     // Max ioctl size is 14b
@@ -32,30 +27,25 @@ ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServ
 
     std::vector<std::byte> buffer(kMaxMsgSize);
 
+    auto devicesToCheck = std::vector<int>(deviceLayer_->getDevicesCount());
     while (run_) {
-      auto devicesToCheck = receiverServices_->getDevicesWithEventsOnFly();
-      if (devicesToCheck.empty()) {
-        std::this_thread::sleep_for(kPollingInterval);
-      } else {
-        std::random_shuffle(begin(devicesToCheck), end(devicesToCheck));
-        int responsesCount = 0;
-        for (auto dev : devicesToCheck) {
-          if (deviceLayer_->receiveResponseMasterMinion(dev, buffer)) {
-            RT_LOG(INFO) << "Got response from deviceId: " << dev;
-            responsesCount++;
-            receiverServices_->onResponseReceived(buffer);
-            RT_LOG(INFO) << "Response processed";
-          }
+      std::random_shuffle(begin(devicesToCheck), end(devicesToCheck));
+      int responsesCount = 0;
+      for (auto dev : devicesToCheck) {
+        if (deviceLayer_->receiveResponseMasterMinion(dev, buffer)) {
+          RT_LOG(INFO) << "Got response from deviceId: " << dev;
+          responsesCount++;
+          responseCallback_(buffer);
+          RT_LOG(INFO) << "Response processed";
         }
-
-        if (responsesCount == 0) {
-          for (auto dev : devicesToCheck) {
-            uint64_t sq_bitmap;
-            bool cq_available;
-            RT_DLOG(INFO) << "No responses, waiting for epoll";
-            deviceLayer_->waitForEpollEventsMasterMinion(dev, sq_bitmap, cq_available);
-            RT_DLOG(INFO) << "Finished waiting for epoll";
-          }
+      }
+      if (responsesCount == 0) {
+        for (auto dev : devicesToCheck) {
+          uint64_t sq_bitmap;
+          bool cq_available;
+          RT_DLOG(INFO) << "No responses, waiting for epoll";
+          deviceLayer_->waitForEpollEventsMasterMinion(dev, sq_bitmap, cq_available);
+          RT_DLOG(INFO) << "Finished waiting for epoll. SQ_BITMAP: " << std::hex << sq_bitmap  << "CQ_AVAILABLE: " << (cq_available ? "Yes" : "No");
         }
       }
     }
