@@ -25,7 +25,7 @@ class KernelParametersCache;
 class MailboxReader;
 class MemoryManager;
 class ITarget;
-class RuntimeImp : public IRuntime, public ResponseReceiver::IReceiverServices {
+class RuntimeImp : public IRuntime {
 public:
   RuntimeImp(dev::IDeviceLayer* deviceLayer);
   ~RuntimeImp();
@@ -57,11 +57,9 @@ public:
   IProfiler* getProfiler() override {
     return &profiler_;
   }
-  // IResponseServices
-  std::vector<int> getDevicesWithEventsOnFly() const override;
-  void onResponseReceived(const std::vector<std::byte>& response) override;
 
 private:
+  void onResponseReceived(const std::vector<std::byte>& response);
   struct Kernel {
     Kernel(DeviceId deviceId, void* deviceBuffer, uint64_t entryPoint)
       : deviceId_(deviceId)
