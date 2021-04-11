@@ -44,7 +44,7 @@ MODULE_AUTHOR("Esperanto <esperanto@gmail.com or admin@esperanto.com>");
 MODULE_DESCRIPTION("PCIe device driver for esperanto soc-1");
 MODULE_VERSION("1.0");
 
-#define DRIVER_NAME "esperanto"
+#define DRIVER_NAME "Esperanto"
 
 #define ET_PCIE_VENDOR_ID 0x1e0a
 #define ET_PCIE_TEST_DEVICE_ID 0x9038

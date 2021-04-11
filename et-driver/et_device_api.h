@@ -200,12 +200,12 @@ enum error_type {
 #define SYNDROME_TEMP_MASK		0x3FULL
 #define SYNDROME_TEMP_FRACTION_MASK	0x03ULL
 
-#define CM_KERNEL_MASK			BIT(0)
-#define CM_RUNTIME_MASK			BIT(1)
-#define MM_DISPATCHER_MASK		BIT(2)
-#define MM_SQW_MASK			BIT(3)
-#define MM_DMW_MASK			BIT(4)
-#define MM_KW_MASK			BIT(5)
+#define CM_USER_KERNEL_ERROR		0
+#define CM_RUNTIME_ERROR		1
+#define MM_DISPATCHER_ERROR		2
+#define MM_SQW_ERROR			3
+#define MM_DMW_ERROR			4
+#define MM_KW_ERROR			5
 
 #define GET_ESR_SC_ERR_LOG_INFO_V_BIT(reg)		\
 	((reg)  & 0x0000000000000001ULL)
@@ -224,6 +224,9 @@ enum error_type {
 #define GET_ESR_SC_ERR_LOG_INFO_RAM_BITS(reg)		\
 	(((reg) & 0x000F000000000000ULL) >> 48)
 
+#define GET_OVER_THROTTLE_DURATION_BITS(reg)		\
+	((reg) & 0x00000000FFFFFFFFULL)
+
 /*
  * Device to host event message
  */
@@ -239,14 +242,12 @@ struct device_mgmt_event_msg_t {
  * @desc:	Text describing the event
  * @count:	No. of times an event occurred
  * @syndrome:	Info to debug or identify the event source
- * @bdf:	Bus, device and function in format bb:dd.f
  */
 struct event_dbg_msg {
 	char *level;
 	char *desc;
 	u16 count;
 	char *syndrome;
-	char bdf[8];
 };
 
 #endif // ET_DEVICE_API_H

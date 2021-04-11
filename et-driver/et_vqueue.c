@@ -770,7 +770,7 @@ static void parse_sram_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				struct event_dbg_msg *dbg_msg)
 {
 	sprintf(dbg_msg->syndrome,
-		"ESR_SC_ERR_LOG_INFO\nValid: %d\nMultiple: %d\nEnabled: %d\nImprecise: %d\nCode: %d\nIndex: %d\nError_bits: %d\nRam: %d",
+		"ESR_SC_ERR_LOG_INFO\nValid     : %d\nMultiple  : %d\nEnabled   : %d\nImprecise : %d\nCode      : %d\nIndex     : %d\nError_bits: %d\nRam       : %d",
 	(int)GET_ESR_SC_ERR_LOG_INFO_V_BIT(event_msg->event_syndrome[0]),
 	(int)GET_ESR_SC_ERR_LOG_INFO_M_BIT(event_msg->event_syndrome[0]),
 	(int)GET_ESR_SC_ERR_LOG_INFO_E_BIT(event_msg->event_syndrome[0]),
@@ -804,24 +804,34 @@ static void parse_wdog_syndrome(struct device_mgmt_event_msg_t *event_msg,
 static void parse_cm_err_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				  struct event_dbg_msg *dbg_msg)
 {
-	if (event_msg->event_syndrome[0] & CM_KERNEL_MASK)
-		strcat(dbg_msg->syndrome, "CM Kernel Error\n");
-	if (event_msg->event_syndrome[0] & CM_RUNTIME_MASK)
+	switch (event_msg->event_syndrome[0]) {
+        case CM_USER_KERNEL_ERROR:
+		strcat(dbg_msg->syndrome, "CM User Kernel Error\n");
+                break;
+        case CM_RUNTIME_ERROR:
 		strcat(dbg_msg->syndrome, "CM Runtime Error\n");
-	if (event_msg->event_syndrome[0] & MM_DISPATCHER_MASK)
+                break;
+        case MM_DISPATCHER_ERROR:
 		strcat(dbg_msg->syndrome, "MM Dispatcher Error\n");
-	if (event_msg->event_syndrome[0] & MM_SQW_MASK)
+                break;
+        case MM_SQW_ERROR:
 		strcat(dbg_msg->syndrome, "MM SQW Error\n");
-	if (event_msg->event_syndrome[0] & MM_DMW_MASK)
+                break;
+        case MM_DMW_ERROR:
 		strcat(dbg_msg->syndrome, "MM DMW Error\n");
-	if (event_msg->event_syndrome[0] & MM_KW_MASK)
+                break;
+        case MM_KW_ERROR:
 		strcat(dbg_msg->syndrome, "MM KW Error\n");
+                break;
+	}
 }
 
 static void parse_throttling_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				      struct event_dbg_msg *dbg_msg)
 {
-	/* To be finalized */
+	sprintf(dbg_msg->syndrome,
+		"Thermal Throttling Duration Beyond Threshold: %u msec\n",
+	(u32)GET_OVER_THROTTLE_DURATION_BITS(event_msg->event_syndrome[0]));
 }
 
 static int handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
@@ -926,13 +936,8 @@ static int handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
 		break;
 	}
 
-	snprintf(dbg_msg.bdf, sizeof(dbg_msg.bdf),
-		 "%02x:%02x.%d", pdev->bus->number,
-		 PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
-
-	dev_info(&pdev->dev, "\nBDF: %s\nLevel: %s\nDesc: %s\nCount: %d\nSyndrome: %s",
-		 dbg_msg.bdf, dbg_msg.level, dbg_msg.desc, dbg_msg.count,
-		 dbg_msg.syndrome);
+	dev_info(&pdev->dev, "Error Event Detected\nLevel     : %s\nDesc      : %s\nCount     : %d\nSyndrome  : %s",
+		 dbg_msg.level, dbg_msg.desc, dbg_msg.count, dbg_msg.syndrome);
 
 	return rv;
 }
