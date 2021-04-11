@@ -13,9 +13,10 @@
 #include "utils.h"
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <thread>
 using namespace rt;
-
+using namespace std::chrono_literals;
 ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, Callback responseCallback)
   : run_(true)
   , deviceLayer_(deviceLayer)
@@ -44,8 +45,10 @@ ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, Callback resp
           uint64_t sq_bitmap;
           bool cq_available;
           RT_DLOG(INFO) << "No responses, waiting for epoll";
-          deviceLayer_->waitForEpollEventsMasterMinion(dev, sq_bitmap, cq_available);
-          RT_DLOG(INFO) << "Finished waiting for epoll. SQ_BITMAP: " << std::hex << sq_bitmap  << "CQ_AVAILABLE: " << (cq_available ? "Yes" : "No");
+          deviceLayer_->waitForEpollEventsMasterMinion(dev, sq_bitmap, cq_available,
+                                                       std::chrono::duration_cast<std::chrono::seconds>(100ms));
+          RT_DLOG(INFO) << "Finished waiting for epoll. SQ_BITMAP: " << std::hex << sq_bitmap
+                        << " CQ_AVAILABLE: " << (cq_available ? "Yes" : "No");
         }
       }
     }
@@ -53,6 +56,8 @@ ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, Callback resp
 }
 
 ResponseReceiver::~ResponseReceiver() {
+  RT_DLOG(INFO) << "Destroying response receiver";
   run_ = false;
   receiver_.join();
+  RT_DLOG(INFO) << "Receiver thread joined";
 }
