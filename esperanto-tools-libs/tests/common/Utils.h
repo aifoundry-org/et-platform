@@ -41,8 +41,8 @@ public:
   }
 
 protected:
-  rt::RuntimePtr runtime_;
   std::unique_ptr<dev::IDeviceLayer> deviceLayer_;
+  rt::RuntimePtr runtime_;
   std::vector<rt::DeviceId> devices_;
 };
 

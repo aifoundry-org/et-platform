@@ -24,6 +24,7 @@ using namespace rt::profiling;
 
 RuntimeImp::~RuntimeImp() {
   responseReceiver_.reset();
+  RT_DLOG(INFO) << "Response receiver destroyed.";
 }
 
 RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
