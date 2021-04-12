@@ -26,7 +26,7 @@ stages:
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
-          PYTEST_RETRIES: "2"
+          PYTEST_RETRIES: "0"
 
   # to be enabled again with SW-4451; when the old runtime is wiped out
   # JOB_COVERAGE:
@@ -44,22 +44,6 @@ stages:
   #         BRANCH: "${SW_PLATFORM_BRANCH}"
   #         COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
   #         PYTEST_RETRIES: "2"
-
-  JOB_DEVICE_MANAGEMENT:
-    cmds:
-      - job: sw-platform/system-sw-integration/pipelines/device-management-checkin-tests/
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
-          PYTEST_RETRIES: "2"
-
-  JOB_DEVICE_LAYER:
-    cmds:
-      - job: sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests/
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
-          PYTEST_RETRIES: "2"
 
   # Disable Zebu jobs in the checkin as default run
   # JOB_ZEBU:
