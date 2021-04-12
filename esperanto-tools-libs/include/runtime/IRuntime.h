@@ -229,7 +229,7 @@ public:
   ///
   /// @returns false if the timeout was reached, true otherwise.
   ///
-  virtual bool waitForEvent(EventId event, std::chrono::seconds timeout) = 0;
+  virtual bool waitForEvent(EventId event, std::chrono::milliseconds timeout) = 0;
 
   /// \brief This will block the caller thread until all commands issued to the
   /// given stream finish. This primitive allows to synchronize with the device
@@ -249,7 +249,7 @@ public:
   ///
   /// @returns false if the timeout was reached, true otherwise.
   ///
-  virtual bool waitForStream(StreamId stream, std::chrono::seconds timeout) = 0;
+  virtual bool waitForStream(StreamId stream, std::chrono::milliseconds timeout) = 0;
 
   /// \brief Virtual Destructor to enable polymorphic release of the runtime
   /// instances

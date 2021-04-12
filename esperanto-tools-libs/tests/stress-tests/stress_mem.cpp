@@ -72,11 +72,11 @@ TEST_F(SysEmu, 1KB_1_memcpys_1stream_50thread) {
   run_stress_mem(runtime_.get(), 1<<10, 1, 1, 50);
 }
 
-/*TEST_F(SysEmu, 1KB_1_memcpys_1stream_75thread) {
+TEST_F(SysEmu, 1KB_1_memcpys_1stream_75thread) {
   run_stress_mem(runtime_.get(), 1<<10, 1, 1, 75);
 }
 
-TEST_F(SysEmu, 1KB_1_memcpys_1stream_100thread) {
+/*TEST_F(SysEmu, 1KB_1_memcpys_1stream_100thread) {
   run_stress_mem(runtime_.get(), 1<<10, 1, 1, 100);
 }*/
 

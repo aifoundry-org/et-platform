@@ -51,9 +51,9 @@ public:
                              bool barrier = true) override;
 
   void waitForEvent(EventId event) override;
-  bool waitForEvent(EventId event, std::chrono::seconds timeout) override;
+  bool waitForEvent(EventId event, std::chrono::milliseconds timeout) override;
   void waitForStream(StreamId stream) override;
-  bool waitForStream(StreamId stream, std::chrono::seconds timeout) override;
+  bool waitForStream(StreamId stream, std::chrono::milliseconds timeout) override;
 
   IProfiler* getProfiler() override {
     return &profiler_;
@@ -120,7 +120,7 @@ private:
         if (events.empty()) {
           throw Exception("Submission queue is full but there are not on-fly events. There could be a firmware bug.");
         }        
-        waitForEvent(*events.begin(), std::chrono::duration_cast<std::chrono::seconds>(100ms));
+        waitForEvent(*events.begin(), 100ms);
         lock.lock();
       }
     }

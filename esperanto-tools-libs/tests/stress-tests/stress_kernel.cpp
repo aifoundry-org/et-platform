@@ -122,13 +122,13 @@ TEST_F(SysEmu, 64_ele_1_exe_1_st_25_th) {
   run_stress_kernel(1 << 6, 1, 1, 25);
 }
 
-/*TEST_F(SysEmu, 64_ele_1_exe_1_st_35_th) {
+TEST_F(SysEmu, 64_ele_1_exe_1_st_35_th) {
   run_stress_kernel(1 << 6, 1, 1, 35);
 }
 
 TEST_F(SysEmu, 64_ele_1_exe_1_st_45_th) {
   run_stress_kernel(1 << 6, 1, 1, 45);
-}*/
+}
 
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);

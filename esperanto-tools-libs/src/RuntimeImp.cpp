@@ -13,6 +13,7 @@
 #include "ProfileEvent.h"
 #include "ScopedProfileEvent.h"
 #include "runtime/IRuntime.h"
+#include <chrono>
 #include <cstdio>
 #include <device-layer/IDeviceLayer.h>
 #include <elfio/elfio.hpp>
@@ -218,7 +219,7 @@ void RuntimeImp::waitForStream(StreamId stream) {
   waitForStream(stream, std::chrono::hours(24));
 }
 
-bool RuntimeImp::waitForEvent(EventId event, std::chrono::seconds timeout) {
+bool RuntimeImp::waitForEvent(EventId event, std::chrono::milliseconds timeout) {
   ScopedProfileEvent profileEvent(Class::WaitForEvent, profiler_, event);
   RT_DLOG(INFO) << "Waiting for event " << static_cast<int>(event) << " to be dispatched.";
   auto res = eventManager_.blockUntilDispatched(event, timeout);
@@ -226,7 +227,7 @@ bool RuntimeImp::waitForEvent(EventId event, std::chrono::seconds timeout) {
   return res;
 }
 
-bool RuntimeImp::waitForStream(StreamId stream, std::chrono::seconds timeout) {
+bool RuntimeImp::waitForStream(StreamId stream, std::chrono::milliseconds timeout) {
   ScopedProfileEvent profileEvent(Class::WaitForStream, profiler_, stream);
   std::unique_lock<std::recursive_mutex> lock(mutex_);
   auto it = find(streams_, stream, "Invalid stream");
