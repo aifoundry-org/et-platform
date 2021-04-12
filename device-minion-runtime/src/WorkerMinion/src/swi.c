@@ -12,7 +12,7 @@ void swi_handler(void)
     asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
 
     // Handle messages from MM
-    MM_To_CM_Iface_Process();
+    MM_To_CM_Iface_Multicast_Receive();
 }
 
 
