@@ -54,7 +54,7 @@ bool EventManager::isDispatched(EventId event) const {
   return onflyEvents_.find(event) == end(onflyEvents_);
 }
 
-bool EventManager::blockUntilDispatched(EventId event, std::chrono::seconds timeout) {
+bool EventManager::blockUntilDispatched(EventId event, std::chrono::milliseconds timeout) {
   std::unique_lock<std::mutex> lock(mutex_);
   if (isDispatched(event)) {
     return true; // no block if the event is already dispatched

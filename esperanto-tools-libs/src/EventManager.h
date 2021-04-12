@@ -23,7 +23,7 @@ public:
   EventId getNextId();
   void dispatch(EventId event);
   // returns false if the timeout is reached; true otherwise
-  bool blockUntilDispatched(EventId event, std::chrono::seconds timeout);
+  bool blockUntilDispatched(EventId event, std::chrono::milliseconds timeout);
   std::set<EventId> getOnflyEvents() const;
 
 private:
@@ -35,9 +35,10 @@ private:
       condVar_.notify_all();
     }
     // returns false if the timeout is reached; true otherwise
-    bool wait(std::unique_lock<std::mutex>& lock, std::chrono::seconds timeout) {
+    bool wait(std::unique_lock<std::mutex>& lock, std::chrono::milliseconds timeout) {
       count_++;
-      RT_DLOG(INFO) << "Blocking thread for a max of " << timeout.count() << " seconds.";
+      LOG_IF(FATAL, timeout.count() == 0) << "Count can't be zero!";
+      RT_DLOG(INFO) << "Blocking thread for a max of " << timeout.count() << " milliseconds.";
       auto res = condVar_.wait_for(lock, timeout, [this]() { return ready_; });
       RT_DLOG(INFO) << "Thread unblocked ready value: " << ready_ << " wait_for result: " << res;
       count_--;
