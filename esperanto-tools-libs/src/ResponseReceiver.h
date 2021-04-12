@@ -18,14 +18,17 @@
 namespace rt {
 class ResponseReceiver {
 public:
-  using Callback = std::function<void(const std::vector<std::byte>& response)>;  
-  explicit ResponseReceiver(dev::IDeviceLayer* deviceLayer, Callback responseCallback);
+  struct IReceiverServices {
+    virtual std::vector<int> getDevicesWithEventsOnFly() const = 0;
+    virtual void onResponseReceived(const std::vector<std::byte>& response) = 0;
+  };
+  explicit ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServices* receiverServices);
   ~ResponseReceiver();
 
 private:
   std::thread receiver_;
   std::atomic<bool> run_;
   dev::IDeviceLayer* deviceLayer_;
-  Callback responseCallback_;
+  IReceiverServices* receiverServices_;
 };
 } // namespace rt

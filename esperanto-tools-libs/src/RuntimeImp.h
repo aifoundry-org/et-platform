@@ -20,12 +20,13 @@
 #include <thread>
 #include <unordered_map>
 
+using namespace std::chrono_literals;
 namespace rt {
 class KernelParametersCache;
 class MailboxReader;
 class MemoryManager;
 class ITarget;
-class RuntimeImp : public IRuntime {
+class RuntimeImp : public IRuntime, public ResponseReceiver::IReceiverServices {
 public:
   RuntimeImp(dev::IDeviceLayer* deviceLayer);
   ~RuntimeImp();
@@ -57,9 +58,11 @@ public:
   IProfiler* getProfiler() override {
     return &profiler_;
   }
+  // IResponseServices
+  std::vector<int> getDevicesWithEventsOnFly() const override;
+  void onResponseReceived(const std::vector<std::byte>& response) override;
 
 private:
-  void onResponseReceived(const std::vector<std::byte>& response);
   struct Kernel {
     Kernel(DeviceId deviceId, void* deviceBuffer, uint64_t entryPoint)
       : deviceId_(deviceId)
@@ -116,12 +119,8 @@ private:
         auto events = eventManager_.getOnflyEvents();
         if (events.empty()) {
           throw Exception("Submission queue is full but there are not on-fly events. There could be a firmware bug.");
-        }
-        /*RT_DLOG(INFO) << "SendCommandMasterMinion: Waiting for event " << static_cast<int>(*events.begin())
-                      << " for 1 second";*/
-        RT_DLOG(INFO) << "Waiting for 100ms";
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        // waitForEvent(*events.begin());
+        }        
+        waitForEvent(*events.begin(), std::chrono::duration_cast<std::chrono::seconds>(100ms));
         lock.lock();
       }
     }
