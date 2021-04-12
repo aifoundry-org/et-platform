@@ -20,9 +20,6 @@
     ((broadcast_message_ctrl_t *)FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL)
 
 static spinlock_t mm_to_cm_broadcast_lock = { 0 };
-// First broadcast message number is 1, so OK for worker minion
-// to init previous_broadcast_message_number to 0
-static uint32_t mm_to_cm_broadcast_last_number __attribute__((aligned(64))) = 1;
 
 void message_init_master(void);
 
@@ -63,8 +60,6 @@ int64_t MM_To_CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message
     uint32_t shire_count;
 
     acquire_local_spinlock(&mm_to_cm_broadcast_lock);
-
-    message->header.number = (uint8_t)atomic_add_local_32(&mm_to_cm_broadcast_last_number, 1);
 
     /* Copy message to shared global buffer */
     ETSOC_Memory_Write_Global_Atomic(message, mm_to_cm_broadcast_message_buffer_ptr,
