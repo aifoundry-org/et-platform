@@ -36,7 +36,6 @@ typedef struct mm_cm_iface_cb {
 */
 static mm_cm_iface_cb_t MM_CM_CB __attribute__((aligned(64))) = { 0 };
 
-static uint32_t mm_to_cm_broadcast_last_number __attribute__((aligned(64))) = 1;
 
 void message_init_master(void);
 
@@ -92,8 +91,6 @@ int8_t MM_To_CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_
     }
     else
     {
-        message->header.number = (uint8_t)atomic_add_local_32(&mm_to_cm_broadcast_last_number, 1);
-
         /* Copy message to shared global buffer */
         ETSOC_Memory_Read_Write_Cacheable(message, mm_to_cm_broadcast_message_buffer_ptr,
                                         sizeof(*message));

@@ -2,7 +2,9 @@
 #include "kernel.h"
 #include "kernel_return.h"
 #include "kernel_error.h"
+#include "log.h"
 #include "mm_to_cm_iface.h"
+#include <inttypes.h>
 
 /* Restores firmware context and resumes execution in launch_kernel()
 Called from machine context by M-mode trap handler (e.g. if the kernel takes an exception)

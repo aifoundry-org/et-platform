@@ -12,7 +12,7 @@
 #ifndef MM_TO_CM_IFACE_DEFS_H
 #define MM_TO_CM_IFACE_DEFS_H
 
-void MM_To_CM_Iface_Process(void);
+void MM_To_CM_Iface_Multicast_Receive(void);
 void __attribute__((noreturn)) MM_To_CM_Iface_Main_Loop(void);
 
 #endif /* MM_TO_CM_IFACE_DEFS_H */

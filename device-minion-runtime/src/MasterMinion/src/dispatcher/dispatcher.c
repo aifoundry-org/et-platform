@@ -268,7 +268,7 @@ void Dispatcher_Launch(uint32_t hart_id)
 
             if(SW_Timer_Interrupt_Status())
             {
-                SW_Timer_Processing();  
+                SW_Timer_Processing();
             }
         }
 
