@@ -89,9 +89,23 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
     /* Generate Thermal Throttling Error */
      FILL_EVENT_HEADER(&message.header, THROTTLE_TIME,
              sizeof(struct event_message_t));
-    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 65, 1, 0);
+    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 65, 5000, 0);
     power_event_callback(UNCORRECTABLE, &message);
     vTaskDelay(pdMS_TO_TICKS(10));     
+
+    /* Generate Minion Exception threshold Error */
+     FILL_EVENT_HEADER(&message.header, MINION_EXCEPT_TH,
+             sizeof(struct event_message_t));
+    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 20, 3, 0);
+    minion_event_callback(UNCORRECTABLE, &message);
+    vTaskDelay(pdMS_TO_TICKS(10)); 
+
+    /* Generate Minion hang threshold Error */
+     FILL_EVENT_HEADER(&message.header, MINION_HANG_TH,
+             sizeof(struct event_message_t));
+    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 80, 2, 0);
+    minion_event_callback(UNCORRECTABLE, &message);
+    vTaskDelay(pdMS_TO_TICKS(10)); 
 
     struct device_mgmt_default_rsp_t dm_rsp;
 
