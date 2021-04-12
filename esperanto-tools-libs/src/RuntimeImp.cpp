@@ -24,7 +24,6 @@ using namespace rt::profiling;
 
 RuntimeImp::~RuntimeImp() {
   responseReceiver_.reset();
-  RT_DLOG(INFO) << "Response receiver destroyed.";
 }
 
 RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
@@ -41,7 +40,7 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
     memoryManagers_.insert({d, MemoryManager{dramBaseAddress, dramSize, kMinAllocationSize}});
   }
   kernelParametersCache_ = std::make_unique<KernelParametersCache>(this);
-  responseReceiver_ = std::make_unique<ResponseReceiver>(deviceLayer_, [this](const std::vector<std::byte> &response){onResponseReceived(response);});
+  responseReceiver_ = std::make_unique<ResponseReceiver>(deviceLayer_, this);
 }
 
 std::vector<DeviceId> RuntimeImp::getDevices() {
@@ -235,6 +234,19 @@ bool RuntimeImp::waitForStream(StreamId stream, std::chrono::seconds timeout) {
   lock.unlock();
   RT_DLOG(INFO) << "WaitForStream: Waiting for event " << static_cast<int>(evt);
   return waitForEvent(evt, timeout);
+}
+
+std::vector<int> RuntimeImp::getDevicesWithEventsOnFly() const {
+  auto events = eventManager_.getOnflyEvents();
+  std::vector<int> busyDevices;
+  for (auto& [key, s] : streams_) {
+    (void)(key);
+    if (std::find(begin(busyDevices), end(busyDevices), static_cast<int>(s.deviceId_)) == end(busyDevices) &&
+        events.find(s.lastEventId_) != end(events)) {
+      busyDevices.emplace_back(static_cast<int>(s.deviceId_));
+    }
+  }
+  return busyDevices;
 }
 
 void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
