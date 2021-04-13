@@ -2,9 +2,7 @@
 #include "kernel.h"
 #include "kernel_return.h"
 #include "kernel_error.h"
-#include "log.h"
 #include "mm_to_cm_iface.h"
-#include <inttypes.h>
 
 void __attribute__((noreturn)) return_from_kernel(int64_t return_value)
 {
@@ -26,6 +24,6 @@ void __attribute__((noreturn)) return_from_kernel(int64_t return_value)
     /* Should never get here! */
     while (1)
     {
-        log_write(LOG_LEVEL_ERROR,"H%04" PRId64 ": Worker Hart should not get here.\n", get_hart_id());
+
     }
 }
