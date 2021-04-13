@@ -153,7 +153,7 @@ bool mem_checker::write(uint64_t pc, uint64_t address, op_location_t location, u
             new_entry.thread_mask_read [adjusted_thread_id] = true;
             new_entry.thread_mask_write[adjusted_thread_id] = true;
             new_entry.thread_set       [adjusted_thread_id] = l1_set;
-            new_entry.time_stamp                            = global_time_stamp;
+            new_entry.time_stamp       [adjusted_thread_id] = global_time_stamp;
 
             minion_directory_map[minion].insert(minion_directory_map_t::value_type(address, new_entry));
             dump_minion(&new_entry, "write", "insert", address, shire_id, minion_id, thread_id);
@@ -164,7 +164,7 @@ bool mem_checker::write(uint64_t pc, uint64_t address, op_location_t location, u
             it_minion->second.thread_mask_read [adjusted_thread_id] = true;
             it_minion->second.thread_mask_write[adjusted_thread_id] = true;
             it_minion->second.thread_set       [adjusted_thread_id] = l1_set;
-            it_minion->second.time_stamp                            = global_time_stamp;
+            it_minion->second.time_stamp       [adjusted_thread_id] = global_time_stamp;
             dump_minion(&it_minion->second, "write", "update", address, shire_id, minion_id, thread_id);
         }
     }
@@ -317,12 +317,22 @@ bool mem_checker::read(uint64_t pc, uint64_t address, op_location_t location, ui
         }
     }
 
+    // Computes to which section of the L1 the minion will access
+    uint32_t adjusted_thread_id = (l1_minion_control[minion] == 0) ? 0 : thread_id;
+
     // Get timestamps
     uint64_t access_time_stamp = 0;
     
     if(global_found)                                                    access_time_stamp = it_global->second.time_stamp;
     if(shire_found  && it_shire->second.l2 && (location != COH_GLOBAL)) access_time_stamp = it_shire->second.time_stamp;
-    if(minion_found                        && (location == COH_MINION)) access_time_stamp = it_minion->second.time_stamp;
+    if(minion_found && (location == COH_MINION)) {
+      // Minion case is more complicated. When the access is done at L1 level and an entry is found we need to check if the
+      // data is in the section of the cache the minion is accessing
+      if(it_minion->second.thread_mask_write[adjusted_thread_id] || it_minion->second.thread_mask_read[adjusted_thread_id])
+      {
+        access_time_stamp = it_minion->second.time_stamp[adjusted_thread_id];
+      }
+    }
 
     // Checks if access is coherent
     bool coherent = true;
@@ -346,8 +356,10 @@ bool mem_checker::read(uint64_t pc, uint64_t address, op_location_t location, ui
     if(update_minion)
     {
         minion_mem_info_t new_entry;
-        uint32_t adjusted_thread_id = (l1_minion_control[minion] == 0) ? 0 : thread_id;
 
+        uint64_t new_time_stamp = shire_found && it_shire->second.l2 ? it_shire->second.time_stamp
+                                : global_found                       ? it_global->second.time_stamp
+                                :                                      global_time_stamp;
         // Not present, insert
         if(!minion_found)
         {
@@ -359,9 +371,7 @@ bool mem_checker::read(uint64_t pc, uint64_t address, op_location_t location, ui
             }
             new_entry.thread_mask_read[adjusted_thread_id] = true;
             new_entry.thread_set      [adjusted_thread_id] = l1_set;
-            new_entry.time_stamp                           = shire_found && it_shire->second.l2 ? it_shire->second.time_stamp
-                                                           : global_found                       ? it_global->second.time_stamp
-                                                           :                                      global_time_stamp;
+            new_entry.time_stamp      [adjusted_thread_id] = new_time_stamp;
 
             minion_directory_map[minion].insert(minion_directory_map_t::value_type(address, new_entry));
             dump_minion(&new_entry, "read", "insert", address, shire_id, minion_id, thread_id);
@@ -369,6 +379,11 @@ bool mem_checker::read(uint64_t pc, uint64_t address, op_location_t location, ui
         // Update
         else
         {
+            // In case that this section of the L1 didn't have data, get the time stamp as well
+            if(!it_minion->second.thread_mask_read[adjusted_thread_id])
+            {
+                it_minion->second.time_stamp[adjusted_thread_id] = new_time_stamp;
+            }
             it_minion->second.thread_mask_read[adjusted_thread_id] = true;
             it_minion->second.thread_set      [adjusted_thread_id] = l1_set;
             dump_minion(&it_minion->second, "read", "update", address, shire_id, minion_id, thread_id);
@@ -415,6 +430,11 @@ bool mem_checker::read(uint64_t pc, uint64_t address, op_location_t location, ui
         // Update
         else
         {
+            // If data was not previously in L2, need to update the time_stamp (can have a shire entry without data in L2)
+            if(!it_shire->second.l2)
+            {
+              it_shire->second.time_stamp = new_value.time_stamp;
+            }
             it_shire->second.l2                     |= new_value.l2;
             it_shire->second.minion_mask[minion_id] |= new_value.minion_mask[minion_id];
             dump_shire(&it_shire->second, "read", "update", address, shire_id, minion);
@@ -513,7 +533,7 @@ bool mem_checker::evict_va(uint64_t pc, uint64_t address, op_location_t location
             bool is_l2_scp              = bemu::paddr_is_scratchpad(address);
             it_shire->second.l2         = !is_l2_scp;
             it_shire->second.l2_dirty   = !is_l2_scp;
-            it_shire->second.time_stamp = it_minion->second.time_stamp;
+            it_shire->second.time_stamp = it_minion->second.time_stamp[adjusted_thread_id];
             dump_shire(&it_shire->second, "evict_va", "update", address, shire_id, minion);
         }
 
@@ -535,7 +555,7 @@ bool mem_checker::evict_va(uint64_t pc, uint64_t address, op_location_t location
             it_shire->second.l2_dirty_minion_id     = 255;
             if(* dirty_evict)
             {
-                it_shire->second.time_stamp = it_minion->second.time_stamp;
+                it_shire->second.time_stamp = it_minion->second.time_stamp[adjusted_thread_id];
             }
             dump_shire(&it_shire->second, "evict_va", "update", address, shire_id, minion);
         }
@@ -635,8 +655,9 @@ void mem_checker::l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t s
 
     while(it_minion != minion_directory_map[minion].end())
     {
-        uint64_t addr = it_minion->first; // Address of current entry
-        bool     dirty_evict = false;     // Tracks if entry is doing a dirty evict (can be true for both flushes and evicts)
+        uint64_t addr = it_minion->first;       // Address of current entry
+        bool     dirty_evict = false;           // Tracks if entry is doing a dirty evict (can be true for both flushes and evicts)
+        uint64_t minion_evict_time_stamp = -1;  // Timestamp of the minion data being evicted
         MD_LOG(addr, minion, printf("mem_checker::l1_clear_set => addr %016llX belongs to minion\n", (long long unsigned int) addr));
 
         // Clears the valids if set match
@@ -644,7 +665,11 @@ void mem_checker::l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t s
         {
             if(it_minion->second.thread_set[thread] == set)
             {
-                dirty_evict |= it_minion->second.thread_mask_write[thread];
+                if (it_minion->second.thread_mask_write[thread])
+                {
+                    minion_evict_time_stamp = it_minion->second.time_stamp[thread];
+                    dirty_evict = true;
+                }
                 it_minion->second.thread_mask_write[thread] = false;
                 it_minion->second.thread_mask_read [thread] &= !evict; // Read only cleared for evicts
                 dump_minion(&it_minion->second, "l1_clear_set", "update", addr, shire_id, minion_id, thread);
@@ -665,7 +690,7 @@ void mem_checker::l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t s
             bool is_l2_scp              = bemu::paddr_is_scratchpad(addr);
             it_shire->second.l2         = !is_l2_scp;
             it_shire->second.l2_dirty   = !is_l2_scp;
-            it_shire->second.time_stamp = it_minion->second.time_stamp;
+            it_shire->second.time_stamp = minion_evict_time_stamp;
             dump_shire(&it_shire->second, "l1_clear_set", "update", addr, shire_id, minion);
         }
 
@@ -817,9 +842,10 @@ void mem_checker::dump_minion(minion_mem_info_t * minion_info, std::string func,
     uint32_t minion = shire_id * EMU_MINIONS_PER_SHIRE + minion_id;
     uint32_t adjusted_thread_id = (l1_minion_control[minion] == 0) ? 0 : thread_id;
 
-    MD_LOG(addr, minion, printf("mem_checker::%s %s minion directory => addr %016llX, shire_id %i, minion_id %i, thread_id: %i, mask_write: 0x%X, mask_read: 0x%X, set: 0x%X, time_stamp: %llu\n",
+    MD_LOG(addr, minion, printf("mem_checker::%s %s minion directory => addr %016llX, shire_id %i, minion_id %i, thread_id %i, mask_write: 0x%X, mask_read: 0x%X, set: 0x%X, time_stamp: [ %llu, %llu ]\n",
           func.c_str(), op.c_str(), (long long unsigned int) addr, shire_id, minion_id, thread_id, (int32_t) bool_array_to_int(minion_info->thread_mask_write, EMU_THREADS_PER_MINION),
-          (int32_t) bool_array_to_int(minion_info->thread_mask_read, EMU_THREADS_PER_MINION), minion_info->thread_set[adjusted_thread_id], (long long unsigned int) minion_info->time_stamp));
+          (int32_t) bool_array_to_int(minion_info->thread_mask_read, EMU_THREADS_PER_MINION), minion_info->thread_set[adjusted_thread_id], (long long unsigned int) minion_info->time_stamp[0],
+          (long long unsigned int) minion_info->time_stamp[1]));
 }
 
 // Dumps the contents of a shire entry
@@ -871,7 +897,8 @@ void mem_checker::dump_state(global_directory_map_t::iterator it_global, shire_d
     if(it_minion != minion_directory_map[minion].end())
     {
         MD_LOG(0, minion, printf("Dumping minion state\n"));
-        MD_LOG(0, minion, printf("  time_stamp: %llu\n", (long long unsigned int) it_minion->second.time_stamp));
+        MD_LOG(0, minion, printf("  time_stamp: [ %llu, %llu ]\n", (long long unsigned int) it_minion->second.time_stamp[0],
+              (long long unsigned int) it_minion->second.time_stamp[1]));
         for(uint32_t thread = 0; thread < EMU_THREADS_PER_MINION; thread++)
         {
               MD_LOG(0, minion, printf("  thread_mask_write[%i] = %i\n", thread, it_minion->second.thread_mask_write[thread]));
