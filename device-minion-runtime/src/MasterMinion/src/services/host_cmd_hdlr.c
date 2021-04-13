@@ -70,7 +70,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             rsp.response_info.rsp_hdr.msg_id =
                 DEV_OPS_API_MID_DEVICE_OPS_API_COMPATIBILITY_RSP;
             rsp.response_info.rsp_hdr.size =
-                sizeof(struct device_ops_api_compatibility_rsp_t);
+                sizeof(struct device_ops_api_compatibility_rsp_t) - sizeof(struct cmn_header_t);
             rsp.major = DEVICE_OPS_API_MAJOR;
             rsp.minor = DEVICE_OPS_API_MINOR;
             rsp.patch = DEVICE_OPS_API_PATCH;
@@ -107,7 +107,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             rsp.response_info.rsp_hdr.msg_id =
                 DEV_OPS_API_MID_DEVICE_OPS_FW_VERSION_RSP;
             rsp.response_info.rsp_hdr.size =
-                sizeof(struct device_ops_fw_version_rsp_t);
+                sizeof(struct device_ops_fw_version_rsp_t) - sizeof(struct cmn_header_t);
             if (cmd->firmware_type == DEV_OPS_FW_TYPE_MASTER_MINION_FW)
             {
                 /* TODO: implement proper logic to fetch and
@@ -168,7 +168,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             rsp.response_info.rsp_hdr.msg_id =
                 DEV_OPS_API_MID_DEVICE_OPS_ECHO_RSP;
             rsp.response_info.rsp_hdr.size =
-                sizeof(struct device_ops_echo_rsp_t);
+                sizeof(struct device_ops_echo_rsp_t) - sizeof(struct cmn_header_t);
             rsp.echo_payload = cmd->echo_payload;
 
             status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
@@ -245,7 +245,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 rsp.response_info.rsp_hdr.msg_id =
                     DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
                 rsp.response_info.rsp_hdr.size =
-                    sizeof(struct device_ops_kernel_launch_rsp_t);
+                    sizeof(struct device_ops_kernel_launch_rsp_t) - sizeof(struct cmn_header_t);
                 rsp.cmd_wait_time = cycles.wait_cycles;
                 rsp.cmd_execution_time = 0U;
 
@@ -305,7 +305,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 rsp.response_info.rsp_hdr.msg_id =
                     DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP;
                 rsp.response_info.rsp_hdr.size =
-                    sizeof(struct device_ops_kernel_abort_rsp_t);
+                    sizeof(struct device_ops_kernel_abort_rsp_t) - sizeof(struct cmn_header_t);
 
                 /* Populate the error type response */
                 if ((status == KW_ERROR_KERNEL_SLOT_NOT_FOUND) ||
@@ -405,7 +405,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
                 rsp.response_info.rsp_hdr.msg_id =
                     DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP;
-                rsp.response_info.rsp_hdr.size = sizeof(rsp);
+                rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);
                 /* Compute Wait Cycles (cycles the command was sitting
                 in SQ prior to launch) Snapshot current cycle */
                 rsp.cmd_wait_time = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
@@ -516,7 +516,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
                 rsp.response_info.rsp_hdr.msg_id =
                     DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP;
-                rsp.response_info.rsp_hdr.size = sizeof(rsp);
+                rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);
                 /* Compute Wait Cycles (cycles the command was sitting
                 in SQ prior to launch) Snapshot current cycle */
                 rsp.cmd_wait_time = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);

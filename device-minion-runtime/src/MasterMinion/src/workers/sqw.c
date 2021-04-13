@@ -312,7 +312,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
 
                 /* If barrier flag is set, wait until all cmds are
                 processed in the current SQ */
-                if(cmd_hdr->flags & (1 << 0U))
+                if(cmd_hdr->cmd_hdr.flags & (1 << 0U))
                 {
                     sqw_command_barrier((uint8_t)sqw_idx);
                 }

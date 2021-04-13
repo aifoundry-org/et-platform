@@ -557,7 +557,7 @@ void DMAW_Launch(uint32_t hart_id)
 
                         /* Create and transmit DMA command response */
                         write_rsp.response_info.rsp_hdr.size =
-                            sizeof(write_rsp);
+                            sizeof(write_rsp) - sizeof(struct cmn_header_t);
                         write_rsp.response_info.rsp_hdr.tag_id = chan_status.tag_id;
                         write_rsp.response_info.rsp_hdr.msg_id =
                             DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP;
@@ -616,7 +616,7 @@ void DMAW_Launch(uint32_t hart_id)
                         /* Create and transmit DMA command response */
                         write_rsp.status = DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG;
                         write_rsp.response_info.rsp_hdr.size =
-                            sizeof(write_rsp);
+                            sizeof(write_rsp) - sizeof(struct cmn_header_t);
                         write_rsp.response_info.rsp_hdr.tag_id = chan_status.tag_id;
                         write_rsp.response_info.rsp_hdr.msg_id =
                             DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP;
@@ -712,7 +712,8 @@ void DMAW_Launch(uint32_t hart_id)
                         SQW_Decrement_Command_Count(chan_status.sqw_idx);
 
                         /* Create and transmit DMA command response */
-                        read_rsp.response_info.rsp_hdr.size = sizeof(read_rsp);
+                        read_rsp.response_info.rsp_hdr.size = 
+                            sizeof(read_rsp) - sizeof(struct cmn_header_t);
                         read_rsp.response_info.rsp_hdr.tag_id = chan_status.tag_id;
                         read_rsp.response_info.rsp_hdr.msg_id =
                             DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP;
@@ -771,7 +772,7 @@ void DMAW_Launch(uint32_t hart_id)
                         /* Create and transmit DMA command response */
                         read_rsp.status = DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG;
                         read_rsp.response_info.rsp_hdr.size =
-                            sizeof(read_rsp);
+                            sizeof(read_rsp) - sizeof(struct cmn_header_t);
                         read_rsp.response_info.rsp_hdr.tag_id = chan_status.tag_id;
                         read_rsp.response_info.rsp_hdr.msg_id =
                             DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP;

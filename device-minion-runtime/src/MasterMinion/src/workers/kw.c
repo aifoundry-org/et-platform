@@ -478,7 +478,8 @@ int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
         abort_rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
         abort_rsp.response_info.rsp_hdr.msg_id =
             DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP;
-        abort_rsp.response_info.rsp_hdr.size = sizeof(abort_rsp);
+        abort_rsp.response_info.rsp_hdr.size = 
+            sizeof(abort_rsp) - sizeof(struct cmn_header_t);
 
         /* Check the multicast send for errors */
         if(status == STATUS_SUCCESS)
@@ -812,7 +813,8 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             atomic_load_local_16(&kernel->launch_tag_id);
         launch_rsp.response_info.rsp_hdr.msg_id =
             DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
-        launch_rsp.response_info.rsp_hdr.size = sizeof(launch_rsp);
+        launch_rsp.response_info.rsp_hdr.size = 
+            sizeof(launch_rsp) - sizeof(struct cmn_header_t);
         launch_rsp.cmd_wait_time = atomic_load_local_32(&kernel->kw_cycles.wait_cycles);
         launch_rsp.cmd_execution_time = (uint32_t)PMC_GET_LATENCY(atomic_load_local_32(
                                         &kernel->kw_cycles.start_cycles)) & 0xFFFFFFFF;
