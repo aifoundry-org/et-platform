@@ -599,7 +599,7 @@ static ssize_t free_dma_kernel_entry(struct et_pci_dev *et_dev, bool is_mgmt,
 	// Copy the DMA data to user buffer if it is data read response with
 	// complete status otherwise only remove the kernel entry
 	if (header->msg_id == DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP) {
-		if (header->size < sizeof(*read_rsp)) {
+		if (header->size < (sizeof(*read_rsp) - sizeof(*header))) {
 			pr_err("Corrupted DATA read response received!");
 			rv = -EINVAL;
 			goto dma_delete_info;
@@ -713,7 +713,7 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	}
 
 	// Message is for user mode. Save it off.
-	msg_node = create_msg_node(header.size);
+	msg_node = create_msg_node(header.size + sizeof(header));
 	if (!msg_node) {
 		rv = -ENOMEM;
 		goto error_unlock_mutex;
@@ -724,7 +724,7 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	// MMIO msg payload into node memory
 	if (!et_circbuffer_pop(&cq->cb, cq->cb_mem,
 			       (u8 *)msg_node->msg + sizeof(header),
-			       header.size - sizeof(header),
+			       header.size,
 			       ET_CB_SYNC_FOR_DEVICE)) {
 		rv = -EAGAIN;
 		goto error_unlock_mutex;

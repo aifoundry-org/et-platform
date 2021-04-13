@@ -23,14 +23,14 @@ struct cmn_header_t {
 	u16 size;
 	u16 tag_id;
 	u16 msg_id;
-} __attribute__ ((packed));
+	u16 flags;
+} __attribute__ ((packed, aligned(8)));
 
 /*
  * Command header for all commands host to device
  */
 struct cmd_header_t {
 	struct cmn_header_t cmd_hdr;
-	u16 flags;
 } __attribute__ ((packed, aligned(8)));
 
 /*
@@ -38,7 +38,6 @@ struct cmd_header_t {
  */
 struct rsp_header_t {
 	struct cmn_header_t rsp_hdr;
-	u8 pad[2];
 } __attribute__ ((packed, aligned(8)));
 
 /*
