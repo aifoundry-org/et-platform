@@ -391,7 +391,7 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
         launch_args.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH;
         launch_args.kw_base_id = (uint8_t)KW_MS_BASE_HART;
         launch_args.slot_index = slot_index;
-        // SW-6502 - Pre launch flush are very expensive 
+        // SW-6502 - Pre launch flush are very expensive
         //launch_args.flags = KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH;
         launch_args.flags = 0x0;
         launch_args.code_start_address = cmd->code_start_address;
@@ -614,6 +614,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     uint64_t sip;
     cm_iface_message_t message;
     int8_t status;
+    uint16_t kernel_state;
     uint32_t done_cnt;
     uint32_t kernel_shires_count;
     uint64_t kernel_shire_mask;
@@ -757,14 +758,23 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 
         struct device_ops_kernel_launch_rsp_t launch_rsp;
 
-        /* Read the kernel state to detect abort by host
-        NOTE: These checks below are in order of priority */
-        if(atomic_load_local_16(&kernel->kernel_state) == KERNEL_STATE_ABORTED_BY_HOST)
+        /* Read the kernel state to detect abort by host */
+        kernel_state = atomic_load_local_16(&kernel->kernel_state);
+
+        /* Cancel the command timeout (if needed) */
+        if(kernel_state != KERNEL_STATE_ABORTING)
+        {
+            /* Free the registered SW Timeout slot */
+            SW_Timer_Cancel_Timeout(atomic_load_local_8(&kernel->sw_timer_idx));
+        }
+
+        /* NOTE: These checks below are in order of priority */
+        if(kernel_state == KERNEL_STATE_ABORTED_BY_HOST)
         {
             /* Update the kernel launch response to indicate that it was aborted by host */
             launch_rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED;
         }
-        else if(atomic_load_local_16(&kernel->kernel_state) == KERNEL_STATE_ABORTING)
+        else if(kernel_state == KERNEL_STATE_ABORTING)
         {
             /* Update the kernel launch response to indicate that it was aborted by host */
             launch_rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG;
@@ -784,9 +794,6 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             /* Everything went normal, update response to kernel completed */
             launch_rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED;
         }
-
-        /* Free the registered SW Timeout slot */
-        SW_Timer_Cancel_Timeout(atomic_load_local_8(&kernel->sw_timer_idx));
 
         /* Construct and transmit kernel launch response to host */
         launch_rsp.response_info.rsp_hdr.tag_id =
@@ -846,6 +853,9 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 ***********************************************************************/
 void KW_Set_Abort_Status(uint8_t kw_idx)
 {
+    /* Free the registered SW Timeout slot */
+    SW_Timer_Cancel_Timeout(atomic_load_local_8(&KW_CB.kernels[kw_idx].sw_timer_idx));
+
     Log_Write(LOG_LEVEL_ERROR, "Aborting:KW:kw_idx=%d\r\n",kw_idx);
 
     atomic_store_local_16(&KW_CB.kernels[kw_idx].kernel_state,
