@@ -21,12 +21,12 @@ The messages are currently divided in two categories:
 
 ## The Device API Infrastructure
 
-We need to be able to serialize and deserialize the messages of the Device-API from both
+We need to be able to serialize and deserialize the messages of the deviceApi from both
 the host and the device. The host run-time SW stack is written in C++ while the device-firmware
 is written in C. Also we need to have support for python tools that will be able to parse
 or generate traces of messages to support testing, debugging, and performance analysis tools.
 
-For this reason we have selected that we are going to describe the schema of the Device-API
+For this reason we have selected that we are going to describe the schema of the deviceApi
 messages using a high level description language and auto-generate tools and other collateral
 from there.
 
