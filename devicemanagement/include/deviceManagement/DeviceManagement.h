@@ -115,7 +115,7 @@ struct lockable_;
 
 struct dm_cmd {
   device_mgmt_api::dev_mgmt_cmd_header_t info;
-  char payload[1];
+  char payload[128];
 };
 
 struct dm_rsp {

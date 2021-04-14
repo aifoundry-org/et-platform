@@ -222,17 +222,24 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
     case device_mgmt_api::DM_CMD::DM_CMD_SET_SP_BOOT_ROOT_CERT:
     case device_mgmt_api::DM_CMD::DM_CMD_SET_SW_BOOT_ROOT_CERT: {
       std::vector<unsigned char> hash;
-
+      
       int res = processHashFile(input_buff, hash);
 
       if (res != 0) {
+        DV_LOG(INFO) << "process hash file error ";
         return res;
       }
       inputSize = hash.size();
-      input_buff = reinterpret_cast<char*>(hash.data());
-
-      memcpy(wCB->payload, input_buff, inputSize);
+      if(sizeof(wCB->payload) < inputSize) {
+        DV_LOG(INFO) << "not enough space in cmd payload ";
+        return -EAGAIN;
+      }
+      auto tmp = reinterpret_cast<char*>(hash.data());
+      DV_LOG(INFO) << "Mem copy ";
+      memcpy(wCB->payload, tmp, inputSize);
+      DV_LOG(INFO) << "Size: " << inputSize;
       wCB->info.cmd_hdr.size = (sizeof(*(wCB.get()))-1) + inputSize;
+      DV_LOG(INFO) << "input_buff: " << tmp;
     } break;
     default: {
         if (isSet && input_buff && inputSize) {
