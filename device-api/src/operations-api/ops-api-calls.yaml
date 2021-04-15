@@ -84,15 +84,28 @@ Enums:
         Value: 1
       - Name: WORKER_MINION_FW
         Value: 2
-  - Name: dev_ops_trace_response
-    Type: int8_t
+  - Name: dev_ops_trace_rt_config_response
+    Type: uint32_t
     Values:
       - Name: SUCCESS
         Value: 0
-      - Name: BAD_GROUP_INDEX
-        Value: -1
-      - Name: BAD_MASTER_SHIRE_MASK
-        Value: -2
+      - Name: BAD_SHIRE_MASK
+        Value: 1
+      - Name: BAD_THREAD_MASK
+        Value: 2
+      - Name: BAD_EVENT_MASK
+        Value: 3
+      - Name: BAD_FILTER_MASK
+        Value: 4
+  - Name: dev_ops_trace_rt_control_response
+    Type: uint32_t
+    Values:
+      - Name: SUCCESS
+        Value: 0
+      - Name: BAD_RT_TYPE
+        Value: 1
+      - Name: BAD_CONTROL_MASK
+        Value: 2
 
 ## List of Commands, Responses, and Events
 Messages :
@@ -331,128 +344,69 @@ Messages :
 #-------------------------------------------------------------------------------
 # Trace Management Commands and Responses
 #-------------------------------------------------------------------------------
-  - Name: device_ops_trace_configure_cmd
+  - Name: device_ops_trace_rt_config_cmd
     Description: Configure the trace configuration
     Type: Command
-    PairedMessage: device_ops_trace_configure_rsp
+    PairedMessage: device_ops_trace_rt_config_rsp
     Fields:
+      - Name: shire_mask
+        Description: Bit Mask of Shire to enable Trace Capture
+        Type: uint32_t
       - Name: thread_mask
-        Description: |-
-                Bit Mask of Thread within a Shire to enable Trace Capture.
-                                         /// It will be the same bit mask for both Master and all Worker Shires.
-        Type: uint64_t
-      - Name: master_shire_mask
-        Description: Bit 0 indicates if master shire mask is enabled/disabled
+        Description: Bit Mask of Thread within a Shire to enable Trace Capture
         Type: uint32_t
-      - Name: worker_shire_mask
-        Description: Bit Mask of Compute Shires to enable Trace Capture (0-31 shires)
+      - Name: event_mask
+        Description: This is a bit mask, each bit corresponds to a specific Event to trace
         Type: uint32_t
-      - Name: trace_buffer_base
-        Description: Base Address of Trace Buffer
+      - Name: filter_mask
+        Description: This is a bit mask representing a list of filters for a given event to trace
         Type: uint32_t
-      - Name: trace_buffer_size
-        Description: Size (in bytes) of bufffer per hart
-        Type: uint32_t
-      - Name: buffer_threshold_level
-        Description: |-
-                Size (in bytes) relative to trace_buffer_size which will cause an overflow event.
-                                                    /// Example, user can say when hit 70 bytes, detect event. Expectation is Size of buffer is bigger than this
-        Type: uint32_t
-      - Name: overflow_event_ctrl
-        Description: |-
-                When an overflow condition is hit, this will allow control:
-                                                 /// Bit 0 - Send Event to Host - Full event defined below
-                                                 /// Bit 1 - Stop Device from overwriting data buffer
-        Type: uint32_t
-  - Name: device_ops_trace_configure_rsp
+  - Name: device_ops_trace_rt_config_rsp
     Description:  Trace configure command reply
     Type: Response
-    PairedMessage: device_ops_trace_configure_cmd
+    PairedMessage: device_ops_trace_rt_config_cmd
     Fields:
       - Name: status
-        Description: DEV_OPS_TRACE_RESPONSE_SUCCESS or negative error code
+        Description: DEV_OPS_TRACE_RT_CONFIG_RESPONSE_SUCCESS or non-zero error code
         Type: enum
-        Enum: dev_ops_trace_response
-      - Name: pad[7]
+        Enum: dev_ops_trace_rt_config_response
+      - Name: pad[4]
         Description: Padding for alignment
         Type: uint8_t
 #-------------------------------------------------------------------------------
-  - Name: device_ops_trace_filter_knob_cmd
-    Description: Configure the state of a trace group
+  - Name: device_ops_trace_rt_control_cmd
+    Description: Contains options to start OR stop trace collection
     Type: Command
-    PairedMessage: device_ops_trace_filter_knob_rsp
+    PairedMessage: device_ops_trace_rt_control_rsp
     Fields:
-      - Name: event_mask
-        Description: This is a bit mask, each bit corresponds to a event in the group
-        Type: uint64_t
-      - Name: group_index
-        Description: 'This is a unsigned group index. Shortcut: 0xFFFFFFFF enables all events and all groups'
+      - Name: rt_type
+        Description: Trace runtime buffer type
         Type: uint32_t
-      - Name: pad
-        Description: Padding for alignment
+      - Name: control
+        Description: |-
+                This is a bit mask that controls functionality
+                                     /// bit-0: 0 - instructs devive runtime to stop tracing
+                                     ///        1 - instructs device runtime to start tracing
+                                     /// bit-1: 0 - Dump to Trace Buffer (Default)
+                                     ///        1 - Dump to UART
+                                     /// bit-2: 0 - Dont evict
+                                     ///        1 - Evict memory
+                                     /// bit-3: 0 - Evict cache to L3
+                                     ///        1 - Evict cache to MEM
         Type: uint32_t
-  - Name: device_ops_trace_filter_knob_rsp
-    Description: Trace group configure command reply
+  - Name: device_ops_trace_rt_control_rsp
+    Description: Trace runtime control command reply
     Type: Response
-    PairedMessage: device_ops_trace_filter_knob_cmd
+    PairedMessage: device_ops_trace_rt_control_cmd
     Fields:
       - Name: status
-        Description: DEV_OPS_TRACE_RESPONSE_SUCCESS or negative error code
+        Description: DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS or non-zero error code
         Type: enum
-        Enum: dev_ops_trace_response
-      - Name: pad[7]
+        Enum: dev_ops_trace_rt_control_response
+      - Name: pad[4]
         Description: Padding for alignment
         Type: uint8_t
 #------------------------------------------------------------------------------
-  - Name: device_ops_trace_state_ctrl_cmd
-    Description: Enables or disables trace component
-    Type: Command
-    PairedMessage: device_ops_trace_state_ctrl_rsp
-    Fields:
-      - Name: log_op_target
-        Description: Target could be in-memory buffer, or console
-        Type: uint8_t
-      - Name: log_level
-        Description: Determines Trace Log Level
-        Type: uint8_t
-      - Name: enable
-        Description: ENABLE or DISABLE
-        Type: uint8_t
-      - Name: pad[5]
-        Description: Padding for alignment
-        Type: uint8_t
-  - Name: device_ops_trace_state_ctrl_rsp
-    Description: Trace enable disable command reply
-    Type: Response
-    PairedMessage: device_ops_trace_state_ctrl_cmd
-    Fields:
-      - Name: status
-        Description: DEV_OPS_TRACE_RESPONSE_SUCCESS or negative error code
-        Type: enum
-        Enum: dev_ops_trace_response
-      - Name: pad[7]
-        Description: Padding for alignment
-        Type: uint8_t
-#------------------------------------------------------------------------------
-  - Name: device_ops_trace_flush_buffers_cmd
-    Description: Flush trace buffers for consumption
-    Type: Command
-    PairedMessage: device_ops_trace_flush_buffers_rsp
-    Fields:
-      - Name: dummy
-        Type: uint64_t
-  - Name: device_ops_trace_flush_buffers_rsp
-    Description: Flush trace buffer command reply
-    Type: Response
-    PairedMessage: device_ops_trace_flush_buffers_cmd
-    Fields:
-      - Name: status
-        Description: DEV_OPS_TRACE_RESPONSE_SUCCESS or negative error code
-        Type: enum
-        Enum: dev_ops_trace_response
-      - Name: pad[7]
-        Description: Padding for alignment
-        Type: uint8_t
 ###################################################################
 ## List of asynchronous events that device-fw can send to the host
 ###################################################################
