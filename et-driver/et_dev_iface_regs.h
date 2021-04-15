@@ -261,6 +261,16 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 	} else {
 		switch (region->type) {
 		case OPS_MEM_REGION_TYPE_VQ_BUFFER:
+			// Attributes compatibility check
+			if (region->access.priv_mode !=
+			    MEM_REGION_PRIVILEGE_MODE_KERNEL ||
+			    region->access.node_access !=
+			    MEM_REGION_NODE_ACCESSIBLE_NONE ||
+			    region->access.dma_align !=
+			    MEM_REGION_DMA_ALIGNMENT_NONE)
+				return false;
+			break;
+
 		case OPS_MEM_REGION_TYPE_MMFW_TRACE:
 		case OPS_MEM_REGION_TYPE_CMFW_TRACE:
 			// Attributes compatibility check
@@ -270,6 +280,9 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 			    MEM_REGION_NODE_ACCESSIBLE_NONE ||
 			    region->access.dma_align !=
 			    MEM_REGION_DMA_ALIGNMENT_NONE)
+				return false;
+			// Check dev_address compulsory field
+			if (!region->dev_address)
 				return false;
 			break;
 

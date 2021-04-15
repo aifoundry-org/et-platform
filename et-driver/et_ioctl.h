@@ -7,6 +7,9 @@
 #define ESPERANTO_PCIE_IOCTL_MAGIC	0xE7
 
 #define CMD_DESC_FLAG_DMA		(0x1U)
+#define CMD_DESC_FLAG_DMA_UBUF		(0x00U << 1)
+#define CMD_DESC_FLAG_DMA_MMFW_TRACEBUF	(0x01U << 1)
+#define CMD_DESC_FLAG_DMA_CMFW_TRACEBUF	(0x10U << 1)
 
 struct mmio_desc {
 	void *ubuf;
