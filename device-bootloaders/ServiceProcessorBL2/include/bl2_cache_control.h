@@ -1,5 +1,5 @@
-#ifndef __BL2_SRAM__
-#define __BL2_SRAM__
+#ifndef __BL2_CACHE_CONTROL__
+#define __BL2_CACHE_CONTROL__
 
 #include <stdint.h>
 #include "dm_event_def.h"
@@ -16,15 +16,6 @@ struct sram_event_control_block
     uint32_t ce_threshold;          /**< Correctable error threshold. */
     dm_event_isr_callback event_cb; /**< Event callback handler. */
 };
-
-/*! \fn int32_t sram_error_control_init(dm_event_isr_callback event_cb)
-    \brief This function initializes the sram error control subsystem, including
-           programming the default error thresholds, enabling the error interrupts
-           and setting up globals.
-    \param event_cb pointer to the error call back function
-    \return Status indicating success or negative error
-*/
-
 
 int32_t sram_error_control_init(dm_event_isr_callback event_cb);
 

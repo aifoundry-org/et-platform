@@ -16,7 +16,7 @@
 #include "dm_event_control.h"
 #include "sp_host_iface.h"
 #include "bl2_pcie.h"
-#include "bl2_sram.h"
+#include "bl2_cache_control.h"
 #include "bl2_pmic_controller.h"
 #include "bl2_ddr_init.h"
 #include "bl2_watchdog.h"

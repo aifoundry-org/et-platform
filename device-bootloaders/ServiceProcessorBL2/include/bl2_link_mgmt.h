@@ -26,7 +26,7 @@
 #include "bl2_reset.h"
 #include "bl2_pcie.h"
 #include "bl2_ddr_init.h"
-#include "bl2_sram.h"
+#include "bl2_cache_control.h"
 
 /*! \fn void link_mgmt_process_request(tag_id_t tag_id, msg_id_t msg_id)
     \brief Interface to process the link management command

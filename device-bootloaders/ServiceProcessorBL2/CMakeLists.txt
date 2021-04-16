@@ -40,9 +40,10 @@ set(BL2_SOURCES
     driver/firmware_loader.c
     driver/interrupt.c
     driver/bl2_pcie.c
-    driver/bl2_sram.c
+    driver/bl2_cache_control.c
     driver/bl2_watchdog.c
     driver/bl2_otp.c
+    driver/spio_sram.c
     rtos_task/command_dispatcher.c
     rtos_task/flash_fs.c
     rtos_task/vaultip.c

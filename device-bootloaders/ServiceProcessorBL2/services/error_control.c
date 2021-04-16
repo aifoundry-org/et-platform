@@ -23,7 +23,7 @@
 #include "bl2_error_control.h"
 #include "sp_host_iface.h"
 #include "bl2_pcie.h"
-#include "bl2_sram.h"
+#include "bl2_cache_control.h"
 #include "bl2_ddr_init.h"
 
 /************************************************************************
