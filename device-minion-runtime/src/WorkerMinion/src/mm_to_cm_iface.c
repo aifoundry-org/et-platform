@@ -112,11 +112,7 @@ static void mm_to_cm_iface_handle_message(uint64_t shire, uint64_t hart, cm_ifac
                 ((mm_to_cm_message_pmc_configure_t *)message_ptr)->conf_buffer_addr, 0);
         break;
     default:
-        /* Unsupported message */
-        log_write(LOG_LEVEL_ERROR,
-            "H%04" PRId64 ": MM->CM: Received unsupported message.\r\n", hart);
-
-        /* TODO: SW-7108: Send a message back to MM to recover */
+        // Unknown message
         break;
     }
 }

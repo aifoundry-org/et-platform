@@ -5,7 +5,6 @@
 #include "message_types.h"
 #include "cm_to_mm_iface.h"
 #include "cm_mm_defines.h"
-#include "riscv_encoding.h"
 #include <stdbool.h>
 #include <inttypes.h>
 
@@ -36,12 +35,7 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
     // TODO: Save context to Exception Buffer (if present)
     (void) reg;
 
-    log_write(LOG_LEVEL_DEBUG,
-            "H%04" PRId64 ": Worker waiting for MM to send abort\r\n", hart_id);
-
-    /* Only MM will be able to recover the Hart from exception
-    This Hart will simply wait for abort message via IPI from MM */
-    asm volatile("wfi");
+    return_from_kernel(KERNEL_ERROR_EXCEPTION);
 }
 
 static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t mstatus,
