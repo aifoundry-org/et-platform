@@ -329,11 +329,11 @@ static void taskMain(void *pvParameters)
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_PM_READY);
 
     // init watchdog service
-    /*TODO: Pending: SW-6751 
-     if (0 != init_watchdog_service(WDOG_DEFAULT_TIMEOUT)) {
+     if (0 != init_watchdog_service()) {
         printf("Failed to init watchdog service!\n");
         goto FIRMWARE_LOAD_ERROR;
-    }*/
+    }
+
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_SP_WATCHDOG_TASK_READY);
 
     // init DM event handler task
