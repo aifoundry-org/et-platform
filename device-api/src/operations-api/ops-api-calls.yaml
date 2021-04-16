@@ -107,6 +107,44 @@ Enums:
       - Name: BAD_CONTROL_MASK
         Value: 2
 
+Structs:
+  - Name: dma_read_node
+    Description: Node containing one DMA read transfer information
+    Fields:
+      - Name: dst_host_virt_addr
+        Description: Host Virtual Address
+        Type: uint64_t
+      - Name: dst_host_phy_addr
+        Description: Host Physical Address
+        Type: uint64_t
+      - Name: src_device_phy_addr
+        Description: Device Address
+        Type: uint64_t
+      - Name: size
+        Description: Size
+        Type: uint32_t
+      - Name: pad[4]
+        Description: Padding for alignment
+        Type: uint8_t
+  - Name: dma_write_node
+    Description: Node containing one DMA write transfer information
+    Fields:
+      - Name: src_host_virt_addr
+        Description: Host Virtual Address
+        Type: uint64_t
+      - Name: src_host_phy_addr
+        Description: Host Physical Address
+        Type: uint64_t
+      - Name: dst_device_phy_addr
+        Description: Device Address
+        Type: uint64_t
+      - Name: size
+        Description: Size
+        Type: uint32_t
+      - Name: pad[4]
+        Description: Padding for alignment
+        Type: uint8_t
+
 ## List of Commands, Responses, and Events
 Messages :
 #-------------------------------------------------------------------------------
@@ -341,6 +379,68 @@ Messages :
       - Name: pad
         Description: Padding for alignment
         Type: uint32_t
+#-------------------------------------------------------------------------------
+# DMA Transfer list Commands and Responses
+#-------------------------------------------------------------------------------
+  - Name: device_ops_dma_readlist_cmd
+    Description: Single list Command to perform multiple DMA reads from device memory
+    Type: Command
+    PairedMessage: device_ops_dma_readlist_rsp
+    Fields:
+      - Name: list[]
+        Description: |-
+                Arrays of Structs containing Src/Dst/Size of numerous data transfers to be performed in a single command.
+                            /// Each entry is 1 Data transfer with its own Src/Dst/Size
+        Type: struct
+        Struct: dma_read_node
+  - Name: device_ops_dma_readlist_rsp
+    Description:  DMA readlist command response
+    Type: Response
+    PairedMessage: device_ops_dma_readlist_cmd
+    Fields:
+      - Name: cmd_wait_time
+        Description: Time transpired between command arrival and dispatch
+        Type: uint64_t
+      - Name: cmd_execution_time
+        Description: Time transpired between command dispatch and command completion
+        Type: uint64_t
+      - Name: status
+        Description: Status of the DMA operation
+        Type: enum
+        Enum: dev_ops_api_dma_response
+      - Name: pad[4]
+        Description: Padding for alignment
+        Type: uint8_t
+#-------------------------------------------------------------------------------
+  - Name: device_ops_dma_writelist_cmd
+    Description: Single list Command to perform multiple DMA writes on device memory
+    Type: Command
+    PairedMessage: device_ops_dma_writelist_rsp
+    Fields:
+      - Name: list[]
+        Description: |-
+                Arrays of Structs containing Src/Dst/Size of numerous data transfers to be performed in a single command.
+                            /// Each entry is 1 Data transfer with its own Src/Dst/Size
+        Type: struct
+        Struct: dma_write_node
+  - Name: device_ops_dma_writelist_rsp
+    Description:  DMA writelist command response
+    Type: Response
+    PairedMessage: device_ops_dma_writelist_cmd
+    Fields:
+      - Name: cmd_wait_time
+        Description: Time transpired between command arrival and dispatch
+        Type: uint64_t
+      - Name: cmd_execution_time
+        Description: Time transpired between command dispatch and command completion
+        Type: uint64_t
+      - Name: status
+        Description: Status of the DMA operation
+        Type: enum
+        Enum: dev_ops_api_dma_response
+      - Name: pad[4]
+        Description: Padding for alignment
+        Type: uint8_t
 #-------------------------------------------------------------------------------
 # Trace Management Commands and Responses
 #-------------------------------------------------------------------------------
