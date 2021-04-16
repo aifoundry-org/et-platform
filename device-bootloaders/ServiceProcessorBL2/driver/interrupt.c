@@ -7,7 +7,17 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------
+************************************************************************/
+/*! \file interrupt.c
+    \brief A C module that implements the interrupt controller services. It 
+    provides functionality interrupt enable/disable.
+
+    Public interfaces:
+        INT_init
+        INT_enableInterrupt
+        INT_disableInterrupt
 */
+/***********************************************************************/
 
 #include "interrupt.h"
 #include "io.h"
@@ -23,9 +33,17 @@
 #include <stdio.h>
 #include <inttypes.h>
 
+/*! \def SPIO_PLIC
+*/
 #define SPIO_PLIC R_SP_PLIC_BASEADDR
+
+/*! \def PU_PLIC
+*/
 #define PU_PLIC   R_PU_PLIC_BASEADDR
 
+/*! \def PRIORITY_MASK
+    \brief Interrupt priority mask
+*/
 #define PRIORITY_MASK 0x7U
 
 static void (*vectorTable[SPIO_PLIC_INTR_SRC_CNT])(void);

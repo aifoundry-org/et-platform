@@ -1,3 +1,21 @@
+/***********************************************************************
+*
+* Copyright (C) 2020 Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*
+************************************************************************/
+/*! \file bl2_ddr_init.h
+    \brief A C header that defines the DDR memory subsystem's
+    public interfaces. These interfaces provide services using which
+    DDR can be initialized and report error events.
+*/
+/***********************************************************************/
+
 #ifndef __BL2_DDR_INIT_H__
 #define __BL2_DDR_INIT_H__
 
@@ -9,25 +27,20 @@
 #include "bl2_pmic_controller.h"
 #include "error.h"
 
+/*! \def MODE_NUMBER
+*/
 #define MODE_NUMBER 6
 
-/* Frequency enum defines for memshire */
+/**
+ * @enum ms_config_frequeny
+ * @brief Frequency enum defines for memshire
+ */
+
 typedef enum {
     MEMSHIRE_FREQUENCY_800,
     MEMSHIRE_FREQUENCY_933,
     MEMSHIRE_FREQUENCY_1067,
 } ms_config_frequeny;
-
-void ddr_init(uint8_t memshire_id);
-int ddr_config(void);
-
-uint8_t ms_init_ddr_phy_1067(uint8_t memshire);
-uint8_t ms_init_seq_phase1(uint8_t memshire, uint8_t config_ecc, uint8_t config_real_pll);
-uint8_t ms_init_seq_phase2(uint8_t memshire, uint8_t config_real_pll);
-uint8_t ms_init_seq_phase3(uint8_t memshire);
-uint8_t ms_init_seq_phase4(uint8_t memshire);
-
-
 
 
 /*!
@@ -41,6 +54,58 @@ struct ddr_event_control_block
     uint32_t ce_threshold;          /**< Correctable error threshold. */
     dm_event_isr_callback event_cb; /**< Event callback handler. */
 };
+
+/*! \fn void ddr_init(uint8_t memshire_id)
+    \brief This function initializes the ddr memshire 
+    \param memshire_id memshire id to initialize
+*/
+void ddr_init(uint8_t memshire_id);
+
+/*! \fn int ddr_config(void)
+    \brief This function initializes every memshire present in system. It internally
+           calls ddr_init with memshire id
+    \param None
+    \return Status indicating success or negative error
+*/
+int ddr_config(void);
+
+/*! \fn uint8_t ms_init_ddr_phy_1067(uint8_t memshire)
+    \brief This function initializes DDR Phy for 1067 Mhz clock
+    \param memshire_id memshire id to initialize
+    \return Status indicating success or negative error
+*/
+uint8_t ms_init_ddr_phy_1067(uint8_t memshire);
+
+/*! \fn uint8_t ms_init_seq_phase1(uint8_t memshire, uint8_t config_ecc, uint8_t config_real_pll)
+    \brief This function initiates sequence 1 of ddr system initialization
+    \param memshire_id memshire id to initialize
+    \param config_ecc ecc configuration
+    \param config_real_pll PLL configuration
+    \return Status indicating success or negative error
+*/
+uint8_t ms_init_seq_phase1(uint8_t memshire, uint8_t config_ecc, uint8_t config_real_pll);
+
+/*! \fn uint8_t ms_init_seq_phase2(uint8_t memshire, uint8_t config_real_pll)
+    \brief This function initiates sequence 2 of ddr system initialization
+    \param memshire_id memshire id to initialize
+    \param config_ecc ecc configuration
+    \return Status indicating success or negative error
+*/
+uint8_t ms_init_seq_phase2(uint8_t memshire, uint8_t config_real_pll);
+
+/*! \fn uint8_t ms_init_seq_phase3(uint8_t memshire)
+    \brief This function initiates sequence 3 of ddr system initialization
+    \param memshire_id memshire id to initialize
+    \return Status indicating success or negative error
+*/
+uint8_t ms_init_seq_phase3(uint8_t memshire);
+
+/*! \fn uint8_t ms_init_seq_phase4(uint8_t memshire)
+    \brief This function initiates sequence 4 of ddr system initialization
+    \param memshire_id memshire id to initialize
+    \return Status indicating success or negative error
+*/
+uint8_t ms_init_seq_phase4(uint8_t memshire);
 
 /*! \fn int32_t ddr_error_control_init(dm_event_isr_callback event_cb)
     \brief This function initializes the ddr error control subsystem, including
@@ -99,6 +164,11 @@ int32_t ddr_get_ce_count(uint32_t *ce_count);
     \return Status indicating success or negative error
 */
 int32_t ddr_get_uce_count(uint32_t *uce_count);
+
+/*! \fn void ddr_error_threshold_isr(void)
+    \brief This is error threshold isr
+    \param None
+*/
 
 void ddr_error_threshold_isr(void);  //TODO: WILL BE MADE STATIC FUNCION WITH ACTUAL ISR IMPLEMENTATION
 

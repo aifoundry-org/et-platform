@@ -1,3 +1,21 @@
+/*-------------------------------------------------------------------------
+* Copyright (C) 2020, Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies or
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*-------------------------------------------------------------------------
+************************************************************************/
+/*! \file timer.c
+    \brief A C module that implements timer sub system.
+
+    Public interfaces:
+        timer_init
+        timer_get_ticks_count
+*/
+/***********************************************************************/
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -21,11 +39,30 @@
  * SP assumes a timer tick frequency of 1 MHz, so the raw tick count will be divided by a constant
  * depending on the PLL frequency
  */
+
+/*! \def DIVIDER_100
+    \brief timer frequency divider define for 100% value
+*/
 #define DIVIDER_100 10ULL // PLLs @ 100%
+
+/*! \def DIVIDER_75
+    \brief timer frequency divider define for 75% value
+*/
 #define DIVIDER_75  8ULL // PLLs @ 75%
+
+/*! \def DIVIDER_50
+    \brief timer frequency divider define for 50% value
+*/
 #define DIVIDER_50  5ULL // PLLs @ 50%
+
+/*! \def DIVIDER_OFF
+    \brief timer divider off
+*/
 #define DIVIDER_OFF 4ULL // PLLs off
 
+/*! \def RVTimer_INTERVAL
+    \brief timer interval value
+*/
 #define RVTimer_INTERVAL 0x3FFFFFFULL
 
 static uint32_t gs_timer_divider = DIVIDER_OFF;

@@ -44,6 +44,7 @@
 #include "bl2_reset.h"
 
 /**
+ * @enum DEVICE_FW_UPDATE_STATUS
  * @brief Enum of Firmware update status
  */
 enum DEVICE_FW_UPDATE_STATUS {

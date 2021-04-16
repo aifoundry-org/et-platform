@@ -7,7 +7,13 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------
+************************************************************************/
+/*! \file interrupt.h
+    \brief A C header that defines the interrupt controller's
+    public interfaces. These interfaces provide services using which
+    the host can enable/disable interrupts.
 */
+/***********************************************************************/
 
 #pragma once
 
@@ -17,6 +23,10 @@
 //See esperanto-soc/dv/tests/ioshire/sw/inc/pu_plic_intr_device.h
 //and esperanto-soc/dv/tests/ioshire/sw/inc/spio_plic_intr_device.h
 
+/**
+ * @enum interrupt_t
+ * @brief Enum defining interrupts
+ */
 typedef enum {
     SPIO_PLIC_NO_INTERRUPT_INTR = 0,
     SPIO_PLIC_MINSHIRE_ERR0_INTR,
@@ -218,6 +228,25 @@ typedef enum {
     PU_PLIC_RESERVED7_INTR,
 } interrupt_t;
 
+/*! \fn void INT_init(void)
+    \brief This function initialized interrupt controller driver
+    \param None flash device id
+    \return none
+*/
 void INT_init(void);
+
+/*! \fn void INT_enableInterrupt(interrupt_t interrupt, uint32_t priority, void (*isr)(void))
+    \brief This function enables interrupt
+    \param interrupt interrupt id
+    \param priority - interrupt priority
+    \param isr - interrupt service routine
+    \return The function call status, pass/fail.
+*/
 void INT_enableInterrupt(interrupt_t interrupt, uint32_t priority, void (*isr)(void));
+
+/*! \fn void INT_disableInterrupt(interrupt_t interrupt)
+    \brief This function disables interrupt
+    \param interrupt interrupt id
+    \return The function call status, pass/fail.
+*/
 void INT_disableInterrupt(interrupt_t interrupt);

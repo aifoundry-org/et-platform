@@ -7,7 +7,16 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------
+************************************************************************/
+/*! \file spi_controller.c
+    \brief A C module that implements SPI controller's functionality.
+    It provides functions to read/write data to SPI controller
+
+    Public interfaces:
+        spi_controller_init
+        spi_controller_command
 */
+/***********************************************************************/
 
 #include "serial.h"
 

@@ -1,3 +1,29 @@
+/*-------------------------------------------------------------------------
+* Copyright (C) 2020, Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*-------------------------------------------------------------------------
+************************************************************************/
+/*! \file pmic_controller.c
+    \brief A C module that implements the PMIC controller's functionality. It 
+    provides functions to set/get voltage of different components and set/clear 
+    gpio bits. It also configures different error thresholds and report error 
+    events to host.
+
+    Public interfaces:
+        release_memshire_from_reset
+        release_minions_from_cold_reset
+        release_minions_from_warm_reset
+        release_etsoc_reset
+        pcie_reset_flr
+        pcie_reset_warm
+
+*/
+/***********************************************************************/
 #include <stdio.h>
 
 #include "io.h"

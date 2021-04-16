@@ -1,3 +1,23 @@
+/*-------------------------------------------------------------------------
+* Copyright (C) 2020, Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies or
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*-------------------------------------------------------------------------
+************************************************************************/
+/*! \file minion_pll_dll.c.c
+    \brief A C module that implements the minion PLL configuration services. It 
+    provides functionality to enable/disbale minion PLLs.
+
+    Public interfaces:
+        configure_minion_plls_and_dlls
+        enable_minion_neighborhoods
+        enable_master_shire_threads
+*/
+/***********************************************************************/
 #include <stdio.h>
 
 #include <etsoc_hal/inc/etsoc_shire_other_esr.h>
@@ -7,7 +27,15 @@
 #include "minion_esr_defines.h"
 
 /*==================== Function Separator =============================*/
+
+/*! \def TIMEOUT_PLL_CONFIG
+    \brief PLL timeout configuration
+*/
 #define TIMEOUT_PLL_CONFIG 100000
+
+/*! \def TIMEOUT_PLL_LOCK
+    \brief lock timeout for PLL
+*/
 #define TIMEOUT_PLL_LOCK   100000
 
 /*==================== Function Separator =============================*/

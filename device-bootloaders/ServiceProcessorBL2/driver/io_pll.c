@@ -1,3 +1,27 @@
+/*-------------------------------------------------------------------------
+* Copyright (C) 2020, Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies or
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*-------------------------------------------------------------------------
+************************************************************************/
+/*! \file io_pll.c
+    \brief A C module that implements the I/O PLL configuration services. It 
+    provides functionality of configuring I/O PLLs.
+
+    Public interfaces:
+        get_input_clock_index
+        configure_sp_pll_2
+        configure_pcie_pll
+        configure_pshire_pll
+        configure_minion_plls
+        get_pll_frequency
+        pll_init
+*/
+/***********************************************************************/
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -15,16 +39,49 @@
 
 #include "etsoc_hal/inc/movellus_hpdpll_modes_config.h"
 
+/*! \def PLL_LOCK_TIMEOUT
+    \brief lock timeout for PLL
+*/
 #define PLL_LOCK_TIMEOUT 10000
 
+/*! \def INPUT_CLK_CONFIG_COUNT
+    \brief clock configurations
+*/
 #define INPUT_CLK_CONFIG_COUNT 3
+
+/*! \def PLL_COUNT
+    \brief count of PLLs
+*/
 #define PLL_COUNT              3
+
+/*! \def PLL_CONFIG_COUNT
+    \brief PLL configuration count
+*/
 #define PLL_CONFIG_COUNT       4
 
+/*! \def PLL_REG_INDEX_REG_0
+    \brief index register number
+*/
 #define PLL_REG_INDEX_REG_0                  0
+
+/*! \def PLL_REG_INDEX_REG_UPDATE_STROBE
+    \brief update strobe register index 
+*/
 #define PLL_REG_INDEX_REG_UPDATE_STROBE      0x38
+
+/*! \def PLL_REG_INDEX_REG_LOCK_DETECT_STATUS
+    \brief PLL lock detect status
+*/
 #define PLL_REG_INDEX_REG_LOCK_DETECT_STATUS 0x39
+
+/*! \def DCO_NORMALIZATION_ENABLE__SHIFT
+    \brief DCO normalization enable shift
+*/
 #define DCO_NORMALIZATION_ENABLE__SHIFT      7u
+
+/*! \def DCO_NORMALIZATION_ENABLE__MASK
+    \brief DCO normalization enable mask
+*/
 #define DCO_NORMALIZATION_ENABLE__MASK       (1u << DCO_NORMALIZATION_ENABLE__SHIFT)
 
 static uint32_t gs_sp_pll_0_frequency;

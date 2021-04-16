@@ -1,3 +1,45 @@
+
+/***********************************************************************
+*
+* Copyright (C) 2020 Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*
+************************************************************************/
+/*! \file ddr_controller.c
+    \brief A C module that implements the DDR memory subsystem.
+
+    Public interfaces:
+        ddr_init
+        ddr_config
+        ms_init_ddr_phy_1067
+        ms_init_seq_phase1
+        ms_init_seq_phase2
+        ms_init_seq_phase3
+        ms_init_seq_phase4
+        ddr_error_control_init
+        ddr_error_control_deinit
+        ddr_enable_uce_interrupt
+        ddr_disable_ce_interrupt
+        ddr_disable_uce_interrupt
+        ddr_set_ce_threshold
+        ddr_get_ce_count
+        ddr_get_uce_count
+        ddr_error_threshold_isr
+        ddr_get_memory_details
+        ddr_get_memory_type
+        MemShire_Initialize
+        DDR_Controller_Initialize
+        MemShire_PLL_Program
+        MemShire_Voltage_Update
+        Memory_read
+        Memory_write
+*/
+/***********************************************************************/
 #include "bl2_ddr_init.h"
 #include "dm_event_control.h"
 #include "layout.h"

@@ -7,7 +7,32 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------
+************************************************************************/
+/*! \file flashfs.c
+    \brief A C module that implements the flash filesystem service. This 
+    service provides fs initialization and file read/write functionality.
+
+    Public interfaces:
+        flash_fs_init
+        flash_fs_get_config_data
+        flash_fs_get_config_data
+        flash_fs_get_file_size
+        flash_fs_read_file
+        flash_fs_write_partition
+        flash_fs_erase_partition
+        flash_fs_update_partition
+        flash_fs_swap_primary_boot_partition
+        flash_fs_get_boot_counters
+        flash_fs_increment_completed_boot_count
+        flash_fs_increment_attempted_boot_count
+        flash_fs_get_manufacturer_name
+        flash_fs_get_part_number
+        flash_fs_get_serial_number
+        flash_fs_get_module_rev
+        flash_fs_get_memory_size
+        flash_fs_get_form_factor
 */
+/***********************************************************************/
 
 #include <string.h>
 #include <stddef.h>
@@ -26,9 +51,24 @@
 //#pragma GCC optimize ("O2")
 #pragma GCC diagnostic ignored "-Wswitch-enum"
 
+/*! \def INVALID_REGION_INDEX
+    \brief invalid region index value.
+*/
 #define INVALID_REGION_INDEX         0xFFFFFFFF
+
+/*! \def MAXIMUM_FAILED_BOOT_ATTEMPTS
+    \brief maximum attempts on boot failure
+*/
 #define MAXIMUM_FAILED_BOOT_ATTEMPTS 3
+
+/*! \def USE_SFDP
+    \brief enable use of SFDP
+*/
 #define USE_SFDP
+
+/*! \def PAGE_PROGRAM_TIMEOUT
+    \brief maximum timeout value for page program
+*/
 #define PAGE_PROGRAM_TIMEOUT 2000
 
 static FLASH_FS_BL2_INFO_t *sg_flash_fs_bl2_info = NULL;

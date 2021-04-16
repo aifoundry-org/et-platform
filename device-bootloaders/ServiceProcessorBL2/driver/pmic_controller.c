@@ -7,7 +7,54 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------
+************************************************************************/
+/*! \file pmic_controller.c
+    \brief A C module that implements the PMIC controller's functionality. It 
+    provides functions to set/get voltage of different components and set/clear 
+    gpio bits. It also configures different error thresholds and report error 
+    events to host.
+
+    Public interfaces:
+        setup_pmic
+        pmic_error_control_init
+        pmic_error_isr
+        pmic_get_fw_version
+        pmic_get_gpo_bit
+        pmic_set_gpo_bit
+        pmic_clear_gpo_bit
+        pmic_get_input_voltage
+        pmic_get_temperature_threshold
+        pmic_set_temperature_threshold
+        pmic_get_temperature
+        pmic_read_soc_power
+        pmic_enable_etsoc_reset_after_perst
+        pmic_disable_etsoc_reset_after_perst
+        pmic_enable_wdog_reset
+        pmic_disable_wdog_reset
+        pmic_get_reset_cause
+        pmic_get_voltage
+        pmic_set_voltage
+        pmic_get_minion_group_voltage
+        pmic_set_minion_group_voltage
+        pmic_enable_wdog_timer
+        pmic_disable_wdog_timer
+        pmic_enable_wdog_timeout_reset
+        pmic_disable_wdog_timeout_reset
+        pmic_get_wdog_timeout_time
+        pmic_set_wdog_timeout_time
+        pmic_get_tdp_threshold
+        pmic_set_tdp_threshold
+        pmic_force_shutdown
+        pmic_force_power_off_on
+        pmic_force_reset
+        pmic_force_perst
+        pmic_reset_wdog_timer
+        pmic_get_average_soc_power
+        I2C_PMIC_Initialize
+        I2C_PMIC_Read
+        I2C_PMIC_Write
 */
+/***********************************************************************/
 
 /**
 * @file $Id$

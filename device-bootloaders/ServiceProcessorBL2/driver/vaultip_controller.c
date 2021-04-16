@@ -7,7 +7,15 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------
+************************************************************************/
+/*! \file vaultip_controller.c
+    \brief A C module that implements vaultip controller's sub system.
+
+    Public interfaces:
+        timer_init
+        timer_get_ticks_count
 */
+/***********************************************************************/
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -41,23 +49,54 @@
 //#define VERBOSE_FW_LOAD
 //#define TRACK_ASSETS_COUNT
 
-// timeout used by the FW CHECK START
+/*! \def DEFAULT_FIRMWARE_CHECK_START_TIMEOUT
+    \brief timeout used by the FW CHECK START
+*/
 #define DEFAULT_FIRMWARE_CHECK_START_TIMEOUT 0x10000 // 64K loop iterations
-// timeout used by the FW ACCEPTED
+
+/*! \def DEFAULT_FIRMWARE_ACCEPTED_TIMEOUT
+    \brief timeout used by the FW ACCEPTED
+*/
 #define DEFAULT_FIRMWARE_ACCEPTED_TIMEOUT 50000 // 50 ms
-// timeout used by the SYSTEM_INFO command
+
+/*! \def DEFAULT_READ_TOKEN_TIMEOUT_1
+    \brief timeout used by the SYSTEM_INFO command
+*/
 #define DEFAULT_READ_TOKEN_TIMEOUT_1 150000 // 150 ms
-// timeout used by the FIPS-SELF-TEST command
+
+/*! \def DEFAULT_READ_TOKEN_TIMEOUT_2
+    \brief timeout used by the FIPS-SELF-TEST command
+*/ 
 #define DEFAULT_READ_TOKEN_TIMEOUT_2 200000 // 200 ms
-// timeout used by the regular commands
+
+/*! \def DEFAULT_READ_TOKEN_TIMEOUT_3
+    \brief timeout used by the regular commands
+*/
 #define DEFAULT_READ_TOKEN_TIMEOUT_3 10000 // 10 ms
-// timeout used by the signature verify commands
+
+/*! \def DEFAULT_READ_TOKEN_TIMEOUT_4
+    \brief timeout used by the signature verify commands
+*/
 #define DEFAULT_READ_TOKEN_TIMEOUT_4 20000 // 20 ms
-// timeout used by the hash, decrypt and MAC commands
+
+/*! \def DEFAULT_READ_TOKEN_TIMEOUT_5
+    \brief timeout used by the hash, decrypt and MAC commands
+*/
 #define DEFAULT_READ_TOKEN_TIMEOUT_5 50000 // 50ms
 
+/*! \def DEFAULT_READ_TOKEN_TIMEOUT_HUK
+    \brief timeout used to read token
+*/
 #define DEFAULT_READ_TOKEN_TIMEOUT_HUK       1000000 // 1000ms
+
+/*! \def DIVIDER_100
+    \brief timeout used for token on OTP write
+*/
 #define DEFAULT_READ_TOKEN_TIMEOUT_OTP_WRITE 1000000 // 1000ms
+
+/*! \def DEFAULT_READ_TOKEN_TIMEOUT_MC_INC
+    \brief timeout for token while reading from OTP
+*/
 #define DEFAULT_READ_TOKEN_TIMEOUT_MC_INC    40000 // 40ms
 
 #define PTR232LO(x) ((uint32_t)(((size_t)x) & 0xFFFFFFFFu))

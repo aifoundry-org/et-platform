@@ -7,8 +7,15 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------
-*/
 
+************************************************************************/
+/*! \file firmware_loader.c
+    \brief A C module that implements the firmware loading services
+
+    Public interfaces:
+        load_firmware
+*/
+/***********************************************************************/
 #include "serial.h"
 #include <string.h>
 #include <stdio.h>

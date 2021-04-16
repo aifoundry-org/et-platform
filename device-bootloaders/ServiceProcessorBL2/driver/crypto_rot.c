@@ -7,7 +7,21 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------
+
+*************************************************************************/
+/*! \file crypto_rot.c
+    \brief A C module that implements the crypto functions
+
+    Public interfaces:
+        watchdog_init
+        watchdog_error_init
+        watchdog_start
+        watchdog_stop
+        watchdog_kick
+        get_watchdog_timeout
+        get_watchdog_max_timeout
 */
+/***********************************************************************/
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -29,13 +43,41 @@
 
 #pragma GCC diagnostic ignored "-Wswitch-enum"
 
+/*! \def SUPPORT_RSA_2048
+    \brief RSA 2048 support definition.
+*/
 #define SUPPORT_RSA_2048
+
+/*! \def SUPPORT_RSA_3072
+    \brief RSA 3072 support definition.
+*/
 #define SUPPORT_RSA_3072
+
+/*! \def SUPPORT_RSA_4096
+    \brief RSA 4096 support definition.
+*/
 #define SUPPORT_RSA_4096
+
+/*! \def SUPPORT_EC_P256
+    \brief EC P256 support definition.
+*/
 #define SUPPORT_EC_P256
+
+/*! \def SUPPORT_EC_P384
+    \brief EC P384 support definition.
+*/
 #define SUPPORT_EC_P384
+
+/*! \def SUPPORT_EC_P521
+    \brief EC P521 support definition.
+*/
 #define SUPPORT_EC_P521
+
 //#define SUPPORT_EC_CURVE25519
+
+/*! \def SUPPORT_EC_EDWARDS25519
+    \brief EC EDWARDS25519 support definition.
+*/
 #define SUPPORT_EC_EDWARDS25519
 
 #include "ec_domain_parameters.h"

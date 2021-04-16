@@ -7,7 +7,18 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------
+************************************************************************/
+/*! \file i2c_controller.c
+    \brief A C module that implements the I2C controller services. It 
+    provides functionality of I2C read/write.
+
+    Public interfaces:
+        i2c_init
+        i2c_write
+        i2c_read
+        i2c_disable
 */
+/***********************************************************************/
 /***
  *
  * @author nikola.rajovic@esperantotech.com

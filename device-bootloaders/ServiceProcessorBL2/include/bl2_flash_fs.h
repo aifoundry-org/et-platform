@@ -7,7 +7,13 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------
+************************************************************************/
+/*! \file bl2_flash_fs.h
+    \brief A C header that defines the flash file system's
+    public interfaces. These interfaces provide services using which
+    the host can issue file read/write commands.
 */
+/***********************************************************************/
 
 #ifndef __BL2_SPI_FLASH_FS_H__
 #define __BL2_SPI_FLASH_FS_H__

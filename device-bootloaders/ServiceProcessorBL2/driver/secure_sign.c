@@ -7,7 +7,16 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------
+************************************************************************/
+/*! \file pmic_controller.c
+    \brief A C module that implements the secure sign in functionality. It 
+    loads and compares the image certificates.
+
+    Public interfaces:
+        verify_esperanto_image_certificate
+        load_sw_certificates_chain
 */
+/***********************************************************************/
 
 #include "serial.h"
 #include <stdint.h>

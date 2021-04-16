@@ -7,20 +7,31 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------
+************************************************************************/
+/*! \file bl2_spi_controller.h
+    \brief A C header that defines the interfaces for SPI controller.
 */
-
+/***********************************************************************/
 #ifndef __BL2_SPI_CONTROLLER_H__
 #define __BL2_SPI_CONTROLLER_H__
 
 #include <stdint.h>
 #include <stdbool.h>
 
+/**
+ * @enum SPI_CONTROLLER_ID
+ * @brief Enum defining SPI controller IDs
+ */
 typedef enum SPI_CONTROLLER_ID {
     SPI_CONTROLLER_ID_INVALID = 0,
     SPI_CONTROLLER_ID_SPI_0,
     SPI_CONTROLLER_ID_SPI_1
 } SPI_CONTROLLER_ID_t;
 
+/**
+ * @struct SPI_COMMAND
+ * @brief control block of SPI command
+ */
 typedef struct SPI_COMMAND {
     uint8_t cmd;
     bool include_address;
@@ -31,7 +42,20 @@ typedef struct SPI_COMMAND {
     uint8_t *data_buffer;
 } SPI_COMMAND_t;
 
+/*! \fn int spi_controller_init(SPI_CONTROLLER_ID_t id)
+    \brief This function initializes SPI controller driver.
+    \param id id of SPI controller
+    \return Status indicating success or negative error
+*/
 int spi_controller_init(SPI_CONTROLLER_ID_t id);
+
+/*! \fn int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMMAND_t *command)
+    \brief This function sends command to SPI controller.
+    \param id id of SPI controller
+    \param slave_index index of slave
+    \param command command sent to controller
+    \return Status indicating success or negative error
+*/
 int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMMAND_t *command);
 
 #endif
