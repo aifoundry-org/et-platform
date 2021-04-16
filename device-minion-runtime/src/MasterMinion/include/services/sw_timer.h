@@ -22,7 +22,7 @@
 /*! \def SW_TIMER_MAX_SLOTS
     \brief Maximum SW Timer slots allowed to register the timeouts
 */
-#define SW_TIMER_MAX_SLOTS     8
+#define SW_TIMER_MAX_SLOTS     16
 
 #define SW_TIME_FREE_SLOT_FLAG 0xFFFFFFFFFFFFFFFFull
 

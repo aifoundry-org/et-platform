@@ -82,7 +82,7 @@ static inline int8_t get_free_slot(void)
 
 /*! \fn bool SW_Timer_Interrupt_Status(void)
     \brief Get the status of the SW Timer Flag
-    \returns status of the SW Timer Int Flag 
+    \returns status of the SW Timer Int Flag
 */
 _Bool SW_Timer_Interrupt_Status(void)
 {
@@ -93,7 +93,7 @@ _Bool SW_Timer_Interrupt_Status(void)
 *
 *   FUNCTION
 *
-*      SW_Timer_Processing 
+*      SW_Timer_Processing
 *
 *   DESCRIPTION
 *
@@ -148,7 +148,7 @@ void SW_Timer_Processing(void)
 *
 *   DESCRIPTION
 *
-*       Interrupt handler PU Timers expiration 
+*       Interrupt handler PU Timers expiration
 *
 *   INPUTS
 *
@@ -190,15 +190,15 @@ static void SW_Timer_isr(void)
 ***********************************************************************/
 SW_TIMER_STATUS_e SW_Timer_Init(void)
 {
-
-    PU_Timer_Init(SW_Timer_isr, SW_TIMER_HW_COUNT_PER_SEC);
-
     for(uint8_t i = 0; i < SW_TIMER_MAX_SLOTS; i++)
     {
         /* Use max uint64_t value as flag to mark this slot of time as free */
         atomic_store_local_64(&SW_TIMER_CB.cmd_timeout_cb[i].expiration_time,
             SW_TIME_FREE_SLOT_FLAG);
     }
+
+    /* Init the HW timer */
+    PU_Timer_Init(SW_Timer_isr, SW_TIMER_HW_COUNT_PER_SEC);
 
     return SW_TIMER_OPERATION_SUCCESS;
 }
@@ -275,10 +275,13 @@ int8_t SW_Timer_Create_Timeout(void (*timeout_callback_fn)(uint8_t),
 ***********************************************************************/
 void SW_Timer_Cancel_Timeout(uint8_t sw_timer_idx)
 {
-    /* Use max uint64_t value as falg to mark this slot of timer as free */
+    /* Use max uint64_t value as flag to mark this slot of timer as free */
     atomic_store_local_64(
         &SW_TIMER_CB.cmd_timeout_cb[sw_timer_idx].expiration_time,
         SW_TIME_FREE_SLOT_FLAG);
+
+    /* Clear the callback */
+    atomic_store_local_64((void*)&SW_TIMER_CB.cmd_timeout_cb[sw_timer_idx].timeout_callback_fn, 0U);
 }
 
 /************************************************************************

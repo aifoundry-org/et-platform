@@ -399,8 +399,7 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
         launch_args.shire_mask = cmd->shire_mask;
 
         /* Blocking call that blocks till all shires ack command */
-        status = (int8_t)MM_To_CM_Iface_Multicast_Send
-                    (launch_args.shire_mask,
+        status = MM_To_CM_Iface_Multicast_Send(launch_args.shire_mask,
                     (cm_iface_message_t*)&launch_args);
 
         if (status == STATUS_SUCCESS)
@@ -472,9 +471,7 @@ int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
         message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
 
         /* Blocking call that blocks till all shires ack */
-        /* TODO: Update the MM_To_CM_Iface_Multicast_Send return value to be void;
-        we are just multicasting the msg and don't care for status */
-        (void)MM_To_CM_Iface_Multicast_Send(
+        status = MM_To_CM_Iface_Multicast_Send(
             atomic_load_local_64(&KW_CB.kernels[slot_index].kernel_shire_mask),
             &message);
 
@@ -482,8 +479,18 @@ int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
         abort_rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
         abort_rsp.response_info.rsp_hdr.msg_id =
             DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP;
-        abort_rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS;
         abort_rsp.response_info.rsp_hdr.size = sizeof(abort_rsp);
+
+        /* Check the multicast send for errors */
+        if(status == STATUS_SUCCESS)
+        {
+            abort_rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS;
+        }
+        else
+        {
+            Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:MM2CMAbort:CommandMulticast:Failed\r\n");
+            abort_rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_ERROR;
+        }
 
         /* Send kernel abort response to host */
         status = Host_Iface_CQ_Push_Cmd(0, &abort_rsp, sizeof(abort_rsp));
