@@ -15,7 +15,7 @@ find_package(g3log CONFIG REQUIRED)
 
 add_library(logging INTERFACE)
 
-add_library(common::logging ALIAS logging)
+add_library(logging::logging ALIAS logging)
 target_compile_features(logging INTERFACE cxx_std_17)
 
 include(GNUInstallDirs)
@@ -26,7 +26,7 @@ target_include_directories(logging
   ${G3LOG_INCLUDE_DIRS}
 )
 
-target_link_libraries(logging INTERFACE stdc++fs ${G3LOG_LIBRARIES})
+target_link_libraries(logging INTERFACE ${G3LOG_LIBRARIES})
 
 
 set_target_properties(logging PROPERTIES
