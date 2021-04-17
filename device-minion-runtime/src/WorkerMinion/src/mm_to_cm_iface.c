@@ -71,7 +71,7 @@ cm_iface_message_number_t MM_To_CM_Iface_Multicast_Receive(cm_iface_message_t *c
 
     asm volatile("fence");
     evict(to_L3,master_to_worker_broadcast_message_buffer_ptr,sizeof(*message));
-    WAIT_CACHEOPS; 
+    WAIT_CACHEOPS;
 
     /* Copy message from shared global memory to local buffer */
     ETSOC_Memory_Read_Write_Cacheable(master_to_worker_broadcast_message_buffer_ptr,
@@ -94,13 +94,19 @@ static void MM_To_CM_Iface_Handle_Message(uint64_t shire, uint64_t hart, cm_ifac
 {
     switch (message_ptr->header.id) {
     case MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH: {
+        int64_t rv = -1;
         mm_to_cm_message_kernel_launch_t *launch = (mm_to_cm_message_kernel_launch_t *)message_ptr;
         /* Check if this Shire is involved in the kernel launch */
         if (launch->shire_mask & (1ULL << shire)) {
             uint64_t kernel_stack_addr = KERNEL_UMODE_STACK_BASE - (hart * KERNEL_UMODE_STACK_SIZE);
-            /* Does not return */
-            launch_kernel(launch->kw_base_id, launch->slot_index, launch->code_start_address, kernel_stack_addr,
-                          launch->pointer_to_args, launch->flags, launch->shire_mask);
+            rv = launch_kernel(launch->kw_base_id, launch->slot_index, launch->code_start_address, kernel_stack_addr,
+                               launch->pointer_to_args, launch->flags, launch->shire_mask);
+        }
+
+        if (rv != 0)
+        {
+            // Something went wrong launching the kernel.
+            // TODO: Do something
         }
         break;
     }

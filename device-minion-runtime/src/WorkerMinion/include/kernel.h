@@ -12,7 +12,7 @@ void kernel_info_get_attributes(uint32_t shire_id, uint8_t *kw_base_id, uint8_t 
 
 void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t kernel_ret_val);
 
-void __attribute__((noreturn)) launch_kernel(uint8_t kw_base_id,
+int64_t launch_kernel(uint8_t kw_base_id,
                       uint8_t slot_index,
                       uint64_t kernel_entry_addr,
                       uint64_t kernel_stack_addr,
