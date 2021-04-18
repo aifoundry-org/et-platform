@@ -35,8 +35,8 @@ static spinlock_t pre_launch_local_barrier[NUM_SHIRES] = { 0 };
 static spinlock_t pre_launch_global_barrier = { 0 };
 static kernel_launch_info_t kernel_launch_info[NUM_SHIRES] = { 0 };
 
-// This is a temporary hack. Should be properly done.
-static inline bool spinlock_barrier_local(spinlock_t *lock, uint32_t num_threads)
+// Identify the last thread in pool
+static inline bool find_last_thread(spinlock_t *lock, uint32_t num_threads)
 {
     if (atomic_add_local_32(&lock->flag, 1U) == (num_threads - 1)) {
         return true;
@@ -48,29 +48,32 @@ static inline bool spinlock_barrier_local(spinlock_t *lock, uint32_t num_threads
     }
 }
 
-// This is a temporary hack. Should be properly done.
-static void spinlock_barrier_global(spinlock_t *lock, uint32_t num_shires)
+// This barrier is required to synchronize all Shires before launching the Kernels 
+static void synchronize_shires(spinlock_t *lock, uint32_t num_shires)
 {
     const uint64_t shire_id = get_shire_id();
     const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
     bool last;
 
-    last = spinlock_barrier_local(&pre_launch_local_barrier[shire_id], thread_count);
+    last = find_last_thread(&pre_launch_local_barrier[shire_id], thread_count);
 
-    // One thread per shire increments
-    if (last)
+    // Last thread per shire increments global counter and waits for all Shires to reach sync point
+    if (last) {
         atomic_add_global_32(&lock->flag, 1U);
 
-    do {
-        asm volatile("fence\n" ::: "memory");
-    } while (atomic_load_global_32(&lock->flag) != num_shires);
+        do {
+           asm volatile("fence\n" ::: "memory");
+        } while (atomic_load_global_32(&lock->flag) != num_shires);
 
-    // Reset primitives
-    if (last) {
-        init_local_spinlock(&pre_launch_local_barrier[shire_id], 0);
-        if (shire_id == 0)
+        if (shire_id == 0) {
             init_global_spinlock(&pre_launch_global_barrier, 0);
+        }
+        // Reset the local barrier flag
+        init_local_spinlock(&pre_launch_local_barrier[shire_id], 0);
     }
+
+    // All threads in Shire wait for Last Thread to clear flag
+    local_spinwait_wait(&pre_launch_local_barrier[shire_id],0);
 }
 
 static inline void kernel_info_set_execution_status(uint32_t shire_id, kernel_complete_status_e status)
@@ -142,8 +145,8 @@ int64_t launch_kernel(uint8_t kw_base_id,
 
     pre_kernel_setup(kw_base_id, slot_index, kernel_launch_flags);
 
-    /* Wait until all the threads involved in the kernel launch are here */
-    spinlock_barrier_global(&pre_launch_global_barrier, (uint32_t)__builtin_popcountll(kernel_shire_mask));
+    /* Wait until all the Shires involved in the kernel launch reach this sync point */
+    synchronize_shires(&pre_launch_global_barrier, (uint32_t)__builtin_popcountll(kernel_shire_mask));
 
     // -Save firmware context on supervisor stack and sp to supervisor stack SP region
     // -Switch sp to kernel_stack_addr
