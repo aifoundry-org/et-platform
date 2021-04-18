@@ -38,17 +38,17 @@ static kernel_launch_info_t kernel_launch_info[NUM_SHIRES] = { 0 };
 // Identify the last thread in pool
 static inline bool find_last_thread(spinlock_t *lock, uint32_t num_threads)
 {
-    if (atomic_add_local_32(&lock->flag, 1U) == (num_threads - 1)) {
+    if (atomic_add_local_32(&lock->flag, 1U) == (num_threads - 1))
+    {
         return true;
-    } else {
-        do {
-            asm volatile("fence\n" ::: "memory");
-        } while (atomic_load_local_32(&lock->flag) != num_threads);
+    }
+    else
+    {
         return false;
     }
 }
 
-// This barrier is required to synchronize all Shires before launching the Kernels 
+// This barrier is required to synchronize all Shires before launching the Kernels
 static void synchronize_shires(spinlock_t *lock, uint32_t num_shires)
 {
     const uint64_t shire_id = get_shire_id();
