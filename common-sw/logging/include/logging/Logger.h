@@ -57,6 +57,9 @@ public:
     g3::only_change_at_initialization::addLogLevel(VLOG_HIGH, activate_vlogh);
     g3::only_change_at_initialization::addLogLevel(VLOG_MID, activate_vlogm);
     g3::only_change_at_initialization::addLogLevel(VLOG_LOW, activate_vlogl);
+#ifdef NDEBUG
+    g3::log_levels::disable(DEBUG);
+#endif
     if (initialize) {
       init();
     }
