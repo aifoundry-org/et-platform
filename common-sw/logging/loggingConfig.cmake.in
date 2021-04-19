@@ -10,5 +10,7 @@
 
 @PACKAGE_INIT@
 
-include(${CMAKE_CURRENT_LIST_DIR}/LoggingTargets.cmake)
+include(CMakeFindDependencyMacro)
+find_dependency(g3log REQUIRED)
+include(${CMAKE_CURRENT_LIST_DIR}/loggingTargets.cmake)
 check_required_components(Logging)

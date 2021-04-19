@@ -39,7 +39,7 @@ include(CMakePackageConfigHelpers)
 
 # Add all targets to the build-tree export set
 export(TARGETS logging
-  FILE "${PROJECT_BINARY_DIR}/Logging.cmake"
+  FILE "${PROJECT_BINARY_DIR}/logging.cmake"
 )
 
 # Export the package for use from the build-tree
@@ -47,7 +47,7 @@ export(TARGETS logging
 export(PACKAGE logging)
 
 install(TARGETS logging
-  EXPORT LoggingTargets
+  EXPORT loggingTargets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -55,7 +55,7 @@ install(TARGETS logging
 )
 
 # Install the export set for use with the install-tree
-install(EXPORT LoggingTargets
+install(EXPORT loggingTargets
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/logging
   NAMESPACE logging::
 )
@@ -64,19 +64,19 @@ install(EXPORT LoggingTargets
 ##### Package
 
 configure_package_config_file(
-  ${CMAKE_CURRENT_SOURCE_DIR}/LoggingConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/LoggingConfig.cmake
+  ${CMAKE_CURRENT_SOURCE_DIR}/loggingConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/loggingConfig.cmake
   INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/logging
 )
 
 write_basic_package_version_file(
-  ${CMAKE_CURRENT_BINARY_DIR}/LoggingConfigVersion.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/loggingConfigVersion.cmake
   VERSION ${CMAKE_PROJECT_VERSION}
   COMPATIBILITY SameMajorVersion
 )
 
 install(FILES
-  ${CMAKE_CURRENT_BINARY_DIR}/LoggingConfig.cmake
-  ${CMAKE_CURRENT_BINARY_DIR}/LoggingConfigVersion.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/loggingConfig.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/loggingConfigVersion.cmake
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/logging
 )
