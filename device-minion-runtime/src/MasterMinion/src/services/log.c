@@ -21,17 +21,33 @@
 */
 /***********************************************************************/
 #include "services/log.h"
+#include "services/trace.h"
+#include "device-common/hart.h"
 #include "drivers/console.h"
 #include "atomic.h"
 #include "layout.h"
 #include <stddef.h>
 #include "sync.h"
 
-/*! \var log_level_t Current_Log_Level
-    \brief Global variable that maintains the current log level
+/*
+ * Log control block for current logging information. 
+ */
+typedef struct log_cb {
+    union {
+        struct {
+            uint8_t  current_log_level;
+            uint8_t  current_log_interface;
+        };
+        uint16_t raw_log_info;
+    };
+} log_cb_t;
+
+/*! \var log_level_t Log_CB
+    \brief Global variable that maintains the current log information
     \warning Not thread safe!
 */
-static log_level_t Current_Log_Level __attribute__((aligned(64))) = LOG_LEVEL_WARNING;
+static log_cb_t Log_CB __attribute__((aligned(64))) = 
+        {.current_log_level = LOG_LEVEL_WARNING, .current_log_interface = LOG_DUMP_TO_UART};
 
 /************************************************************************
 *
@@ -82,7 +98,7 @@ void Log_Init(log_level_t level)
 ***********************************************************************/
 void Log_Set_Level(log_level_t level)
 {
-    atomic_store_local_8(&Current_Log_Level, level);
+    atomic_store_local_8(&Log_CB.current_log_level, level);
 }
 
 /************************************************************************
@@ -106,7 +122,55 @@ void Log_Set_Level(log_level_t level)
 ***********************************************************************/
 log_level_t Log_Get_Level(void)
 {
-    return atomic_load_local_8(&Current_Log_Level);
+    return atomic_load_local_8(&Log_CB.current_log_level);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Log_Set_Interface
+*
+*   DESCRIPTION
+*
+*       Set interface to dump log messages.
+*
+*   INPUTS
+*
+*       log_interface_t   Interface to dump log messages.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Log_Set_Interface(log_interface_t interface)
+{
+    atomic_store_local_8(&Log_CB.current_log_interface, interface);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Log_Get_Interface
+*
+*   DESCRIPTION
+*
+*       Get current log interface.
+*
+*   INPUTS
+*
+*       none
+*
+*   OUTPUTS
+*
+*       log_interface_t    returns the current log interface.
+*
+***********************************************************************/
+log_interface_t Log_Get_Interface(void)
+{
+    return atomic_load_local_8(&Log_CB.current_log_interface);
 }
 
 /************************************************************************
@@ -134,18 +198,42 @@ int32_t Log_Write(log_level_t level, const char *const fmt, ...)
 {
     char buff[128];
     va_list va;
-    int32_t bytes_written;
+    int32_t bytes_written=0;
+    log_cb_t log_cb;
+    log_cb.raw_log_info = atomic_load_local_16(&Log_CB.raw_log_info);
 
-    if (level > atomic_load_local_8(&Current_Log_Level)) {
-        return 0;
+    /* Dump the log message over current log interface. */
+    if (log_cb.current_log_interface == LOG_DUMP_TO_TRACE)
+    {
+        /* TODO: Use Trace_Format_String() when Trace common library has support/alternative
+           of libc_nano to process va_list string formatting. Also, remove log_level check 
+           from here, as trace library does that internally .*/
+        if(CHECK_STRING_FILTER(Trace_Get_MM_CB(), level))
+        {
+            va_start(va, fmt);
+            vsnprintf(buff, sizeof(buff), fmt, va);
+
+            Trace_String(level, Trace_Get_MM_CB(), buff);
+
+            /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string 
+            type message. */
+            bytes_written = TRACE_STRING_MAX_SIZE;
+        }
     }
+    else
+    {
+        if (level > log_cb.current_log_level) 
+        {
+            return 0;
+        }
 
-    va_start(va, fmt);
-    vsnprintf(buff, sizeof(buff), fmt, va);
+        va_start(va, fmt);
+        vsnprintf(buff, sizeof(buff), fmt, va);
 
-    acquire_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
-    bytes_written = SERIAL_puts(UART0, buff);
-    release_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
+        acquire_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
+        bytes_written = SERIAL_puts(UART0, buff);
+        release_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
+    }
 
     return bytes_written;
 }
@@ -174,14 +262,29 @@ int32_t Log_Write(log_level_t level, const char *const fmt, ...)
 int32_t Log_Write_String(log_level_t level, const char *str, size_t length)
 {
     int32_t bytes_written = 0;
+    log_cb_t log_cb;
+    log_cb.raw_log_info = atomic_load_local_16(&Log_CB.raw_log_info);
 
-    if (level > atomic_load_local_8(&Current_Log_Level)) {
-        return 0;
+    /* Dump the log message over current log interface. */
+    if (log_cb.current_log_interface == LOG_DUMP_TO_TRACE)
+    {
+        Trace_String(level, Trace_Get_MM_CB(), str);
+
+        /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string 
+           type message. */
+        bytes_written = TRACE_STRING_MAX_SIZE;
     }
+    else
+    {
+        if (level > log_cb.current_log_level) 
+        {
+            return 0;
+        }
 
-    acquire_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
-    bytes_written = SERIAL_write(UART0, str, (int)length);
-    release_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
+        acquire_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
+        bytes_written = SERIAL_write(UART0, str, (int)length);
+        release_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
+    }
 
     return bytes_written;
 }

@@ -20,6 +20,19 @@
 #include <inttypes.h>
 #include "log_levels.h"
 
+/*
+ * Log Interface.
+ */
+typedef uint8_t log_interface_t;
+
+/*
+ * Available Log Interfaces.
+ */
+enum log_interface_t {
+    LOG_DUMP_TO_TRACE = 0,
+    LOG_DUMP_TO_UART = 1,
+};
+
 /*! \fn void Log_Init(void)
     \brief Initialize the logging component
     \param level Log level to set
@@ -39,6 +52,18 @@ void Log_Set_Level(log_level_t level);
     \return The current global log level
 */
 log_level_t Log_Get_Level(void);
+
+/*! \fn void Log_Set_Interface(log_interface_t interface)
+    \brief Set current log interface
+    \return none
+*/
+void Log_Set_Interface(log_interface_t interface);
+
+/*! \fn log_interface_t Log_Get_Interface(void)
+    \brief Get current log interface
+    \return The current log interface
+*/
+log_interface_t Log_Get_Interface(void);
 
 /*! \fn int32_t Log_Write(log_level_t level, const char *const fmt, ...)
     \brief Write a log with va_list style args

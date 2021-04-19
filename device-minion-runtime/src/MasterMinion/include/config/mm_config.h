@@ -96,7 +96,7 @@
     \brief A macro that provides the total size of MMFW trace region
     on PCI BAR.
 */
-#define MM_DEV_INTF_MMFW_TRACE_REGION_SIZE   0x200
+#define MM_DEV_INTF_MMFW_TRACE_REGION_SIZE   MM_TRACE_BUFFER_SIZE
 
 /* DDR Region 1 CMFW_TRACE_REGION (BAR=0, Offset=0x481000, Size=512K) */
 
@@ -116,7 +116,7 @@
     \brief A macro that provides the total size of CMFW trace region
     on PCI BAR.
 */
-#define MM_DEV_INTF_CMFW_TRACE_REGION_SIZE   0x200
+#define MM_DEV_INTF_CMFW_TRACE_REGION_SIZE   CM_TRACE_BUFFER_SIZE
 
 /* DDR Region 2 USER_KERNEL_SPACE (BAR=0, Offset=0x600000, Size~=12GB) */
 
@@ -258,6 +258,24 @@
 #define MM_CMD_MAX_SIZE      64U
 
 /*******************************************************************/
+/* Definitions for MM Shire and its Harts                          */
+/*******************************************************************/
+/*! \def MM_SHIRE_MASK
+    \brief Master Minion Shire mask
+*/
+#define MM_SHIRE_MASK            (1UL << 32)
+
+/*! \def MM_HART_MASK
+    \brief Master Minion Hart mask
+*/
+#define MM_HART_MASK             (0xFFFFFFFFUL)
+
+/*! \def MM_HARTS_COUNT
+    \brief Number of Harts running MMFW.
+*/
+#define MM_HART_COUNT           32U
+
+/*******************************************************************/
 /* Definitions for MM dispatcher, and workers - SQW, KW, DMAW, CQW */
 /*******************************************************************/
 
@@ -282,7 +300,7 @@
 /*! \def MM_BASE_ID
     \brief Base HART ID for the Master Minion
 */
-#define MM_BASE_ID               2048
+#define MM_BASE_ID               2048U
 
 /*! \def MM_MAX_PARALLEL_KERNELS
     \brief Maximum number of kerenls in parallel supported by MM runtime

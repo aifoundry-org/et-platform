@@ -45,6 +45,7 @@
 #include "services/sp_iface.h"
 #include "services/log.h"
 #include "services/sw_timer.h"
+#include "services/trace.h"
 #include "drivers/plic.h"
 #include "syscall_internal.h"
 #include "serial.h"
@@ -151,6 +152,9 @@ void Dispatcher_Launch(uint32_t hart_id)
 
     /* Initially set DIRs status to not ready */
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_DEV_INTF_NOT_READY);
+
+    /* Initialize Trace for Master Minions in default configuration. */
+    Trace_Init_MM(NULL);
 
     /* Initialize Serial Interface */
     status = (int8_t)SERIAL_init(UART0);

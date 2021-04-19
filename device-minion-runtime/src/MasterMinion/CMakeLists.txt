@@ -38,6 +38,7 @@ set(SOURCES
     src/services/sp_iface.c
     src/services/sp_cmd_hdlr.c
     src/services/sw_timer.c
+    src/services/trace.c
     ${SHARED_SRC_DIR}/etsoc_memory.c
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/printf.c
@@ -66,6 +67,8 @@ endif(EsperantoCryptoAPI_FOUND)
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
 target_compile_definitions(${TARGET_NAME}.elf PUBLIC -DMASTER_MINION=1)
+
+target_link_libraries(${TARGET_NAME}.elf PUBLIC deviceFirmware::device_trace)
 
 install(TARGETS ${TARGET_NAME}.elf
   EXPORT EsperantoDeviceMinionRuntimeTargets

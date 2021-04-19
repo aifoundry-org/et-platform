@@ -83,7 +83,7 @@ macro(add_riscv_executable TARGET_NAME)
 
     # Must use target_link_libraries() to add libraries to get correct symbol resolution -
     # putting libraries in CMAKE_EXE_LINKER_FLAGS is too early
-    target_link_libraries(${ELF_FILE} c m gcc)
+    target_link_libraries(${ELF_FILE} PRIVATE c m gcc)
 
     # Pass -L{$SHARED_INC_DIR} to linker so linker scripts can INCLUDE shared defines
     target_link_directories(${ELF_FILE} PRIVATE ${SHARED_INC_DIR})

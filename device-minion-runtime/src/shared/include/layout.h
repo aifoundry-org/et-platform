@@ -139,6 +139,21 @@
 #define FW_UPDATE_REGION_BEGIN  0x8005120000ULL
 #define FW_UPDATE_REGION_SIZE   0x400000U
 
+/* Trace buffers for Service Processor, Master Minion, and Compute Minion are consecutive 
+   memory regions in DDR User Memory Sub Region, starting from (BAR0 + 0x400000) with sizes
+   4KB, 512KB, and 512KB respectively. */
+/* SP DM services Trace Buffer */
+#define SP_TRACE_BUFFER_BASE              (LOW_MEM_SUB_REGIONS_BASE + 0x400000)
+#define SP_TRACE_BUFFER_SIZE              0x1000 /* 4KB for SP DM services Trace Buffer */
+
+/* Master Minion FW Trace Buffer */
+#define MM_TRACE_BUFFER_BASE              (SP_TRACE_BUFFER_BASE + SP_TRACE_BUFFER_SIZE)
+#define MM_TRACE_BUFFER_SIZE              0x80000 /* 512KB (16K per Hart x 32 HARTS) */
+
+/* Compute Minion FW Trace Buffer */
+#define CM_TRACE_BUFFER_BASE              (MM_TRACE_BUFFER_BASE + MM_TRACE_BUFFER_SIZE)
+#define CM_TRACE_BUFFER_SIZE              0x80000 /* 512KB (16K per 1st Hart of Shire x 32 Compute Shire) */
+
 /************************/
 /* Compile-time checks  */
 /************************/

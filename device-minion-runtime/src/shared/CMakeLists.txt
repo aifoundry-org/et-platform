@@ -8,7 +8,8 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-add_subdirectory("include")
+add_subdirectory(include)
+add_subdirectory(device_trace)
 
 set(FIRMWARE_HELPERS_SOURCES
   src/pcie_int.c
@@ -80,5 +81,3 @@ install(
     ${INCLUDE_INSTALL_DIR}/esperanto-fw/firmware_helpers
   COMPONENT firmware_helpers
   )
-
-add_subdirectory(device_trace)
