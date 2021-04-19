@@ -21,7 +21,6 @@ find_package(fmt REQUIRED)
 find_package(sw-sysemu REQUIRED)
 find_package(GTest REQUIRED)
 find_package(gflags REQUIRED)
-find_package(Logging REQUIRED)
 find_package(Threads REQUIRED)
 
 include_directories(${PROJECT_SOURCE_DIR}/../deviceLayer/include)

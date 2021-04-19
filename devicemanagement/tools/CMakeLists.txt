@@ -14,7 +14,6 @@ find_package(esperanto-device-api REQUIRED)
 find_package(DeviceLayer REQUIRED)
 find_package(fmt REQUIRED)
 find_package(sw-sysemu REQUIRED)
-find_package(Logging REQUIRED)
 find_package(Threads REQUIRED)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
