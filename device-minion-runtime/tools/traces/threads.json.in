@@ -6,7 +6,7 @@
         {"name":"DMA RX Worker","id":@DMAW_RX_HART_ID@},
         {"name":"DMA TX Worker","id":@DMAW_TX_HART_ID@}
     ]},
-    {"name":"Compute Minion Shire","id":0,"threads":[
+    {"name":"Compute Minion Shire","id":5,"threads":[
         {"name":"Compute Runtime","id":0}
     ]},
     {"name":"IO Shire","id":34,"threads":[
