@@ -548,18 +548,13 @@ void et_dma_delete_all_info(struct rb_root *root)
 
 ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev, u16 queue_index,
 			       struct device_ops_data_write_cmd_t *cmd,
-			       size_t cmd_size, enum et_dma_buf_type type)
+			       size_t cmd_size)
 {
 	struct et_dma_info *dma_info;
 	ssize_t rv;
 
 	if (cmd->size > S32_MAX) {
 		pr_err("Can't transfer more than 2GB at a time");
-		return -EINVAL;
-	}
-
-	if (type == ET_DMA_TRACEBUF_MMFW || type == ET_DMA_TRACEBUF_CMFW) {
-		pr_err("Data write is not supported for trace buffers!");
 		return -EINVAL;
 	}
 
@@ -637,7 +632,7 @@ error_free_dma_info:
 
 ssize_t et_dma_read_from_device(struct et_pci_dev *et_dev, u16 queue_index,
 				struct device_ops_data_read_cmd_t *cmd,
-				size_t cmd_size, enum et_dma_buf_type type)
+				size_t cmd_size)
 {
 	struct et_dma_info *dma_info;
 	ssize_t rv;
@@ -683,29 +678,6 @@ ssize_t et_dma_read_from_device(struct et_pci_dev *et_dev, u16 queue_index,
 	mutex_unlock(&et_dev->ops.dma_rbtree_mutex);
 
 	cmd->dst_host_phy_addr = dma_info->dma_addr;
-	if (type == ET_DMA_TRACEBUF_MMFW) {
-		if (!et_dev->ops.regions
-		    [OPS_MEM_REGION_TYPE_MMFW_TRACE].is_valid ||
-		    cmd->size != et_dev->ops.regions
-		    [OPS_MEM_REGION_TYPE_MMFW_TRACE].size) {
-			rv = -EINVAL;
-			goto error_dma_delete_info;
-		}
-
-		cmd->src_device_phy_addr = et_dev->ops.regions
-			[OPS_MEM_REGION_TYPE_MMFW_TRACE].soc_addr;
-	} else if (type == ET_DMA_TRACEBUF_CMFW) {
-		if (!et_dev->ops.regions
-		    [OPS_MEM_REGION_TYPE_CMFW_TRACE].is_valid ||
-		    cmd->size != et_dev->ops.regions
-		    [OPS_MEM_REGION_TYPE_CMFW_TRACE].size) {
-			rv = -EINVAL;
-			goto error_dma_delete_info;
-		}
-
-		cmd->src_device_phy_addr = et_dev->ops.regions
-			[OPS_MEM_REGION_TYPE_CMFW_TRACE].soc_addr;
-	}
 	rv = et_squeue_push(et_dev->ops.sq_pptr[queue_index], cmd, cmd_size);
 	if (rv < 0)
 		goto error_dma_delete_info;
@@ -736,8 +708,7 @@ error_free_dma_info:
 }
 
 ssize_t et_dma_move_data(struct et_pci_dev *et_dev, u16 queue_index,
-			 char __user *ucmd, size_t ucmd_size,
-			 enum et_dma_buf_type type)
+			 char __user *ucmd, size_t ucmd_size)
 {
 	void *kern_buf;
 	struct cmn_header_t *header;
@@ -769,7 +740,7 @@ ssize_t et_dma_move_data(struct et_pci_dev *et_dev, u16 queue_index,
 			goto free_kern_buf;
 		}
 		rv = et_dma_read_from_device(et_dev, queue_index, kern_buf,
-					     ucmd_size, type);
+					     ucmd_size);
 	} else if (header->msg_id ==
 		   DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD) {
 		if (ucmd_size < sizeof(struct device_ops_data_write_cmd_t)) {
@@ -778,7 +749,7 @@ ssize_t et_dma_move_data(struct et_pci_dev *et_dev, u16 queue_index,
 			goto free_kern_buf;
 		}
 		rv = et_dma_write_to_device(et_dev, queue_index, kern_buf,
-					    ucmd_size, type);
+					    ucmd_size);
 	}
 
 free_kern_buf:

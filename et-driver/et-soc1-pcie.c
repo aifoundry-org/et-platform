@@ -116,7 +116,6 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 	struct cmd_desc cmd_info;
 	struct rsp_desc rsp_info;
 	struct sq_threshold sq_threshold_info;
-	enum et_dma_buf_type type = 0;
 	u16 sq_idx;
 	size_t size;
 	u16 max_size;
@@ -202,17 +201,9 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 			return -EINVAL;
 
 		if (cmd_info.flags & CMD_DESC_FLAG_DMA) {
-			if (cmd_info.flags & CMD_DESC_FLAG_DMA_MMFW_TRACEBUF)
-				type = ET_DMA_TRACEBUF_MMFW;
-			else if (cmd_info.flags &
-				 CMD_DESC_FLAG_DMA_CMFW_TRACEBUF)
-				type = ET_DMA_TRACEBUF_CMFW;
-			else
-				type = ET_DMA_UBUF;
-
 			return et_dma_move_data(et_dev, cmd_info.sq_index,
 						(void __user *)cmd_info.cmd,
-						cmd_info.size, type);
+						cmd_info.size);
 		} else {
 			return et_squeue_copy_from_user
 				(et_dev, false /* ops_dev */,

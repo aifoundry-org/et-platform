@@ -30,12 +30,6 @@ struct et_dma_info {
 	bool is_writable;
 };
 
-enum et_dma_buf_type {
-	ET_DMA_UBUF = 0,
-	ET_DMA_TRACEBUF_MMFW,
-	ET_DMA_TRACEBUF_CMFW
-};
-
 // TODO: Enable/Remove while implementing DMA Scatter/Gather
 // We might need old DMA transfer list based approach for DMA Scatter/Gather
 #if 0
@@ -96,8 +90,7 @@ void et_dma_delete_all_info(struct rb_root *root);
  * on failure.
  */
 ssize_t et_dma_move_data(struct et_pci_dev *et_dev, u16 queue_index,
-			 char __user *ucmd, size_t ucmd_size,
-			 enum et_dma_buf_type type);
+			 char __user *ucmd, size_t ucmd_size);
 
 /*
  * Allocates DMA coherent memory for data write command and pushes vqueue
@@ -108,7 +101,7 @@ ssize_t et_dma_move_data(struct et_pci_dev *et_dev, u16 queue_index,
  */
 ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev, u16 queue_index,
 			       struct device_ops_data_write_cmd_t *cmd,
-			       size_t cmd_size, enum et_dma_buf_type type);
+			       size_t cmd_size);
 
 /*
  * Allocates DMA coherent memory for data read command and pushes vqueue
@@ -119,6 +112,6 @@ ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev, u16 queue_index,
  */
 ssize_t et_dma_read_from_device(struct et_pci_dev *et_dev, u16 queue_index,
 				struct device_ops_data_read_cmd_t *cmd,
-				size_t cmd_size, enum et_dma_buf_type type);
+				size_t cmd_size);
 
 #endif
