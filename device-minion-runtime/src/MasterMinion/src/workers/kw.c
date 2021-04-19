@@ -621,6 +621,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     uint64_t sip;
     cm_iface_message_t message;
     int8_t status;
+    int8_t status_internal;
     uint16_t kernel_state;
     uint32_t done_cnt;
     uint32_t kernel_shires_count;
@@ -644,8 +645,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         done_cnt = 0;
         cw_exception = false;
         cw_error = false;
-
-        /* TODO: Set up watchdog to detect command timeout */
+        status_internal = STATUS_SUCCESS;
 
         /* Read the shire mask for the current kernel */
         kernel_shire_mask = atomic_load_local_64(&kernel->kernel_shire_mask);
@@ -675,12 +675,14 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             /* Check the kernel_state is set to abort after timeout*/
             if(atomic_load_local_16(&kernel->kernel_state) == KERNEL_STATE_ABORTING)
             {
+                Log_Write(LOG_LEVEL_ERROR, "Aborting:KW:kw_idx=%d\r\n", kw_idx);
+
                 /* Break the loop waiting to complete the kernel as it is timeout */
                 break;
             }
 
             /* Process all the available messages */
-            while(done_cnt < kernel_shires_count)
+            while((done_cnt < kernel_shires_count) && (status_internal == STATUS_SUCCESS))
             {
                 status = CM_To_MM_Iface_Unicast_Receive(
                     CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx, &message);
@@ -744,8 +746,9 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                                 /* Set the kernel abort message */
                                 message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
 
-                                /* Blocking call that blocks till all shires ack */
-                                (void)MM_To_CM_Iface_Multicast_Send(kernel_shire_mask, &message);
+                                /* Blocking call (with timeout) that blocks till all shires ack */
+                                status_internal =
+                                    MM_To_CM_Iface_Multicast_Send(kernel_shire_mask, &message);
                             }
 
                             cw_exception = true;
@@ -863,12 +866,9 @@ void KW_Set_Abort_Status(uint8_t kw_idx)
     /* Free the registered SW Timeout slot */
     SW_Timer_Cancel_Timeout(atomic_load_local_8(&KW_CB.kernels[kw_idx].sw_timer_idx));
 
-    Log_Write(LOG_LEVEL_ERROR, "Aborting:KW:kw_idx=%d\r\n",kw_idx);
-
-    atomic_store_local_16(&KW_CB.kernels[kw_idx].kernel_state,
-                          KERNEL_STATE_ABORTING);
+    atomic_store_local_16(&KW_CB.kernels[kw_idx].kernel_state, KERNEL_STATE_ABORTING);
 
     /* Trigger IPI to KW */
     syscall(SYSCALL_IPI_TRIGGER_INT,
-        1ull << ((KW_BASE_HART_ID + kw_idx) % 64), MASTER_SHIRE, 0);
+        1ull << ((KW_BASE_HART_ID + (kw_idx * WORKER_HART_FACTOR)) % 64), MASTER_SHIRE, 0);
 }

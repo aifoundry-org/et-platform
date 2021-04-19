@@ -71,4 +71,11 @@ void SQW_Decrement_Command_Count(uint8_t sqw_idx);
 */
 void SQW_Increment_Command_Count(uint8_t sqw_idx);
 
+/*! \fn void SQW_Command_Barrier_Timeout_Cb(uint8_t sqw_idx)
+    \brief Callback for SQW command barrier timeout
+    \param sqw_idx Submission Queue Worker index
+    \return none
+*/
+void SQW_Command_Barrier_Timeout_Cb(uint8_t sqw_idx);
+
 #endif /* SQW_DEFS_H */

@@ -289,12 +289,12 @@
 /*! \def WORKER_HART_FACTOR
     \brief Divider for the caclulations performed on even Harts
 */
-#define WORKER_HART_FACTOR 2
+#define WORKER_HART_FACTOR 2U
 #else
 /*! \def WORKER_HART_FACTOR
     \brief Divider for the caclulations performed on odd Harts
 */
-#define WORKER_HART_FACTOR 1
+#define WORKER_HART_FACTOR 1U
 #endif
 
 /*! \def MM_BASE_ID
@@ -353,10 +353,41 @@
 */
 #define DMAW_NUM                  2
 
-/*! \def DMAW_FIND_IDLE_CH_TIMEOUT
-    \brief Timout value (in milliseconds) for finding DMA idle channel
+/*****************************************************/
+/* Definitions for timeouts of various MM components */
+/*****************************************************/
+
+/*! \def TIMEOUT_DMAW_FIND_IDLE_CH
+    \brief Timeout value (in SW ticks) for finding DMA idle channel
 */
-#define DMAW_FIND_IDLE_CH_TIMEOUT 5000
+#define TIMEOUT_DMAW_FIND_IDLE_CH  40
+
+/*! \def TIMEOUT_DMA_READ
+    \brief Timeout value (in SW ticks) for DMA read
+*/
+#define TIMEOUT_DMA_READ           20
+
+/*! \def TIMEOUT_DMA_WRITE
+    \brief Timeout value (in SW ticks) for DMA write
+*/
+#define TIMEOUT_DMA_WRITE          20
+
+/*! \def TIMEOUT_KERNEL_LAUNCH
+    \brief Timeout value (in SW ticks) for kernel launch
+*/
+#define TIMEOUT_KERNEL_LAUNCH      20
+
+/*! \def TIMEOUT_MM_CM_MSG
+    \brief Timeout value (in SW ticks) for MM->CM messages
+*/
+#define TIMEOUT_MM_CM_MSG          20
+
+/*! \def TIMEOUT_SQW_BARRIER
+    \brief Timeout value (in SW ticks) for SQW commands barrier.
+    Keep the barrier timeout a higher value since the barrier is
+    supposed to block and if it blocks indefinitely, timeout will occur.
+*/
+#define TIMEOUT_SQW_BARRIER        100
 
 /***************************************************/
 /* Definitions to locate and manage MM to SP SQ/CQ */

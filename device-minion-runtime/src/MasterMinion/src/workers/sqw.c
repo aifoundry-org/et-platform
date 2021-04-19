@@ -39,15 +39,30 @@
 #include "services/log.h"
 #include "services/host_iface.h"
 #include "services/host_cmd_hdlr.h"
+#include "services/sw_timer.h"
 #include <esperanto/device-apis/device_apis_message_types.h>
 #include "pmu.h"
 #include "etsoc_memory.h"
+
+/*! \typedef sqw_cmds_barrier_t
+    \brief Submission Queue Worker Commands Barrier Control Block structure
+*/
+typedef struct sqw_cmds_barrier_ {
+    union {
+        struct {
+            int32_t cmds_count;
+            uint8_t timeout_flag;
+            uint8_t reserved[3];
+        };
+        uint64_t raw_u64;
+    };
+} sqw_cmds_barrier_t;
 
 /*! \typedef sqw_cb_t
     \brief Submission Queue Worker Control Block structure
 */
 typedef struct sqw_cb_ {
-    int32_t             sqw_cmd_count[MM_SQ_COUNT];
+    sqw_cmds_barrier_t  sqw_barrier[MM_SQ_COUNT];
     local_fcc_flag_t    sqw_fcc_flags[MM_SQ_COUNT];
 } sqw_cb_t;
 
@@ -78,18 +93,44 @@ static sqw_cb_t SQW_CB __attribute__((aligned(64))) = {0};
 ***********************************************************************/
 static inline void sqw_command_barrier(uint8_t sqw_idx)
 {
+    int8_t sw_timer_idx;
+    sqw_cmds_barrier_t cmds_barrier;
+
     Log_Write(LOG_LEVEL_DEBUG, "SQW:Command Barrier\r\n");
 
-    /* Spin-wait until the commands count is zero */
-    while (atomic_load_local_32(
-        (uint32_t*)&SQW_CB.sqw_cmd_count[sqw_idx]) != 0U) {
-        asm volatile("fence\n" ::: "memory");
-    }
-    asm volatile("fence\n" ::: "memory");
+    /* Create timeout for kernel_launch command to complete */
+    sw_timer_idx = SW_Timer_Create_Timeout(&SQW_Command_Barrier_Timeout_Cb,
+        sqw_idx, TIMEOUT_SQW_BARRIER);
 
-    /* TODO: Add timeout and send asynchronous event back to host to
-       indicate barrier timeout. Should we drop the barrier command
-       from SQ? */
+    /* If there is no timeout slot, we will skip the timeout registeration */
+    if(sw_timer_idx < 0)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "SQW: Unable to register SQW barrier timeout!\r\n");
+    }
+
+    /* Spin-wait until the commands count is zero or timeout has occured */
+    do
+    {
+        cmds_barrier.raw_u64 = atomic_load_local_64(&SQW_CB.sqw_barrier[sqw_idx].raw_u64);
+        asm volatile("fence\n" ::: "memory");
+    } while (((uint32_t)cmds_barrier.cmds_count != 0U) && (cmds_barrier.timeout_flag == 0));
+
+    if(sw_timer_idx >= 0)
+    {
+        /* Free the registered SW Timeout slot */
+        SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
+
+        /* Check for timeout status */
+        if(cmds_barrier.timeout_flag != 0)
+        {
+            /* Reset the timeout flag */
+            atomic_store_local_8(&SQW_CB.sqw_barrier[sqw_idx].timeout_flag, 0);
+            Log_Write(LOG_LEVEL_ERROR,
+                "SQW: Command Barrier timeout abort! Unpredictable behaviour of next command.\r\n");
+
+            /* TODO: Send asynchronous event back to host to indicate barrier timeout. */
+        }
+    }
 }
 
 /************************************************************************
@@ -118,7 +159,7 @@ void SQW_Init(void)
     {
         local_fcc_flag_init(&SQW_CB.sqw_fcc_flags[i]);
 
-        atomic_store_local_32((uint32_t*)&SQW_CB.sqw_cmd_count[i], 0U);
+        atomic_store_local_64(&SQW_CB.sqw_barrier[i].raw_u64, 0U);
     }
 
     return;
@@ -339,7 +380,7 @@ void SQW_Decrement_Command_Count(uint8_t sqw_idx)
 {
     /* Decrement commands count being processed by current SQW */
     int32_t original_val =
-        atomic_add_signed_local_32(&SQW_CB.sqw_cmd_count[sqw_idx], -1);
+        atomic_add_signed_local_32(&SQW_CB.sqw_barrier[sqw_idx].cmds_count, -1);
 
     Log_Write(LOG_LEVEL_DEBUG, "SQW:Decrement:Command Count: %d\r\n", original_val - 1);
 }
@@ -368,7 +409,32 @@ void SQW_Increment_Command_Count(uint8_t sqw_idx)
 {
     /* Increment commands count being processed by current SQW */
     int32_t original_val =
-        atomic_add_signed_local_32(&SQW_CB.sqw_cmd_count[sqw_idx], 1);
+        atomic_add_signed_local_32(&SQW_CB.sqw_barrier[sqw_idx].cmds_count, 1);
 
     Log_Write(LOG_LEVEL_DEBUG, "SQW:Increment:Command Count: %d\r\n", original_val + 1);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       SQW_Command_Barrier_Timeout_Cb
+*
+*   DESCRIPTION
+*
+*       SQW Commands barrier timeout callback.
+*
+*   INPUTS
+*
+*       sqw_idx     Submission Queue Worker index
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void SQW_Command_Barrier_Timeout_Cb(uint8_t sqw_idx)
+{
+    /* Set the timeout flag */
+    atomic_store_local_8(&SQW_CB.sqw_barrier[sqw_idx].timeout_flag, 1);
 }

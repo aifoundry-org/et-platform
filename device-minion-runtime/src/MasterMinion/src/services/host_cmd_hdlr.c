@@ -210,7 +210,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             if(status == STATUS_SUCCESS)
             {
                 /* Create timeout for kernel_launch command to complete */
-                sw_timer_idx = SW_Timer_Create_Timeout(&KW_Set_Abort_Status, kw_idx, 20);
+                sw_timer_idx = SW_Timer_Create_Timeout(&KW_Set_Abort_Status, kw_idx, TIMEOUT_KERNEL_LAUNCH);
                 if(sw_timer_idx >= 0)
                 {
                     /* Notify kernel worker to aggregate
@@ -368,7 +368,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 cycles.start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
 
                 /* Create timeout for DMA_Write command to complete */
-                sw_timer_idx = SW_Timer_Create_Timeout(&DMAW_Write_Set_Abort_Status, chan, 20);
+                sw_timer_idx = SW_Timer_Create_Timeout(&DMAW_Write_Set_Abort_Status, chan, TIMEOUT_DMA_WRITE);
 
                 if(sw_timer_idx >= 0)
                 {
@@ -478,7 +478,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 cycles.start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
 
                 /* Create timeout for DMA_Read command to complete */
-                sw_timer_idx = SW_Timer_Create_Timeout(&DMAW_Read_Set_Abort_Status, chan, 20);
+                sw_timer_idx = SW_Timer_Create_Timeout(&DMAW_Read_Set_Abort_Status, chan, TIMEOUT_DMA_READ);
 
                 if(sw_timer_idx >=0 )
                 {
