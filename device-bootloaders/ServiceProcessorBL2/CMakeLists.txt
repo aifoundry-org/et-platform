@@ -62,6 +62,15 @@ set(BL2_SOURCES
     services/dm_events.c
     services/perf_mgmt.c
     services/thermal_pwr_mgmt.c 
+    tests/tf/tf.c
+    tests/test_commands.c
+    tests/tf_generic_tests.c
+    tests/tf_mem_tests.c
+    tests/tf_minion_tests.c
+    tests/tf_noc_tests.c
+    tests/tf_pcie_tests.c
+    tests/tf_pu_tests.c
+    tests/tf_spio_tests.c
     # This file get compiled different based on the configuration of each target
     common/build_configuration.c)
 

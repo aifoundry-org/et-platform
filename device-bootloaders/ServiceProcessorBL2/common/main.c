@@ -45,6 +45,13 @@
 
 #include "command_dispatcher.h"
 
+/* Uncomment define below to enable build for
+silicon bring up testing */
+/*#define BRINGUP_TEST*/
+#ifdef BRINGUP_TEST
+#include "tests/tf/tf.h"
+#endif
+
 #define TASK_STACK_SIZE 4096 // overkill for now
 
 void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
@@ -420,7 +427,9 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data);
 void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 {
     bool vaultip_disabled;
+#ifndef BRINGUP_TEST 
     const IMAGE_VERSION_INFO_t *image_version_info = get_image_version_info();
+#endif
 
     // Disable buffering on stdout
     setbuf(stdout, NULL);
@@ -452,16 +461,30 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     SERIAL_init(UART0);
 #endif
 
+    SERIAL_init(UART1);
+    SERIAL_init(PU_UART0);
+    SERIAL_init(PU_UART1);
+
+/* Dont use serial port for info messages if bringup test is enabled
+the port usage is reserved for TF communications */
+/* TODO: SW-7517 dedicate usage ofr UART1 for TF and UART0 for STDOUT */
+#ifndef BRINGUP_TEST 
     printf("\n** SP BL2 STARTED **\r\n");
     printf("BL2 version: %u.%u.%u:" GIT_VERSION_STRING " (" BL2_VARIANT ")\n",
            image_version_info->file_version_major, image_version_info->file_version_minor,
            image_version_info->file_version_revision);
     // printf("GIT hash: " GIT_HASH_STRING "\n");
+#endif
 
     memset(&g_service_processor_bl2_data, 0, sizeof(g_service_processor_bl2_data));
     g_service_processor_bl2_data.service_processor_bl2_data_size =
         sizeof(g_service_processor_bl2_data);
     g_service_processor_bl2_data.service_processor_bl2_version = SERVICE_PROCESSOR_BL2_DATA_VERSION;
+
+#ifdef BRINGUP_TEST
+    /* control does not return from call below for now .. */
+    TF_Wait_And_Process_TF_Cmds();
+#endif
 
     if (0 != copy_bl1_data(bl1_data)) {
         printf("copy_bl1_data() failed!!\n");
@@ -477,17 +500,13 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 
     vaultip_disabled = is_vaultip_disabled();
 
-    SERIAL_init(UART1);
-    SERIAL_init(PU_UART0);
-    SERIAL_init(PU_UART1);
-
-    INT_init();
-
     if (0 != pll_init(bl1_data->sp_pll0_frequency, bl1_data->sp_pll1_frequency,
                       bl1_data->pcie_pll0_frequency)) {
         printf("pll_init() failed!\n");
         goto FATAL_ERROR;
     }
+
+    INT_init();
 
     if (vaultip_disabled) {
         printf("VaultIP is disabled!\n");
