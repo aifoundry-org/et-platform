@@ -1197,6 +1197,18 @@ int flash_fs_increment_completed_boot_count(void)
     return 0;
 }
 
+int flash_fs_get_config_data(void* buffer)
+{
+    int rv;
+    ESPERANTO_FLASH_REGION_ID_t region_id = ESPERANTO_FLASH_REGION_ID_CONFIGURATION_DATA;
+    size_t bufsize = 0; // TBD
+
+    if (0 != flashfs_drv_read_file(region_id, 0, buffer, bufsize)) {
+        printf("flash_fs_get_config_data: flashfs_drv_read_file(CONFIG_DATA) failed!\n");
+        return -1;
+    }
+}
+
 /************************************************************************
 *
 *   FUNCTION
