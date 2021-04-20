@@ -4,8 +4,22 @@
 #include "bl2_crypto.h"
 #include "vaultip_static_assets.h"
 #include "vaultip_sw.h"
+#include "error.h"
 
-int vaultip_drv_init(void);
+/*! \fn uint8_t* Vault_Initialize(void)
+    \brief Interface to initialize ValutIP
+    \param None
+    \returns Status indicating success or negative error
+*/
+int Vault_Initialize(void);
+
+/*! \fn uint8_t* Vault_Command_Issue (uint32_t command, uint32_t payload)
+    \brief Interface to issue command to ValutIP
+    \param req request with required parameters 
+    \returns Status indicating success or negative error
+*/
+int Vault_Command_Issue(void *req);
+int Vault_Initialize(void);
 int vaultip_drv_self_test(void);
 int vaultip_drv_get_system_information(uint32_t identity,
                                        VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t *system_info);

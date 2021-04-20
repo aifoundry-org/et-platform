@@ -557,7 +557,7 @@ static void vaultip_driver_task(void *pvParameters)
     }
 }
 
-int vaultip_drv_init(void)
+int Vault_Initialize(void)
 {
     gs_next_request_id = 0;
 
@@ -565,7 +565,7 @@ int vaultip_drv_init(void)
         VAULTIP_DRIVER_REQUEST_QUEUE_SIZE, sizeof(VAULTIP_DRIVER_REQUEST_MESSAGE_t),
         gs_vaultip_driver_reqeust_queue_storage_buffer, &gs_vaultip_driver_reqeust_queue_buffer);
     if (NULL == gs_vaultip_driver_reqeust_queue) {
-        printf("vaultip_drv_init:  xQueueCreateStatic(request_queue) failed!\r\n");
+        printf("Vault_Initialize:  xQueueCreateStatic(request_queue) failed!\r\n");
         return -1;
     }
 
@@ -573,7 +573,7 @@ int vaultip_drv_init(void)
         VAULTIP_DRIVER_RESPONSE_QUEUE_SIZE, sizeof(VAULTIP_DRIVER_RESPONSE_MESSAGE_t),
         gs_vaultip_driver_response_queue_storage_buffer, &gs_vaultip_driver_response_queue_buffer);
     if (NULL == gs_vaultip_driver_response_queue) {
-        printf("vaultip_drv_init:  xQueueCreateStatic(response_queue) failed!\r\n");
+        printf("Vault_Initialize:  xQueueCreateStatic(response_queue) failed!\r\n");
         return -1;
     }
 
@@ -1440,6 +1440,24 @@ int vaultip_drv_clock_switch(uint32_t identity, uint32_t token)
     if (0 != rsp.status_code) {
         printf("vaultip_drv_clock_switch: vaultip_public_key_rsa_pss_verify() failed!\r\n");
         return -1;
+    }
+
+    return 0;
+}
+
+int Vault_Command_Issue(void *req)
+{
+    VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
+
+    /* send command to driver and wait for response*/
+    if (0 != queue_request_and_wait_for_response((VAULTIP_DRIVER_REQUEST_MESSAGE_t *)req, &rsp)) {
+        printf("vaultip_drv_clock_switch: queue_request_and_wait_for_response() failed!\r\n");
+        return ERROR_VAULTIP_COMMAND_FAILED;
+    }
+
+    if (0 != rsp.status_code) {
+        printf("Vault_Command_Issue: invalid response!\r\n");
+        return rsp.status_code;
     }
 
     return 0;

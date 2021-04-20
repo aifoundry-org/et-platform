@@ -508,8 +508,8 @@ the port usage is reserved for TF communications */
     if (vaultip_disabled) {
         printf("VaultIP is disabled!\n");
     } else {
-        if (0 != vaultip_drv_init()) {
-            printf("vaultip_drv_init() failed!\n");
+        if (0 != Vault_Initialize()) {
+            printf("Vault_Initialize() failed!\n");
             goto FATAL_ERROR;
         }
         if (0 != crypto_init(bl1_data->vaultip_coid_set)) {

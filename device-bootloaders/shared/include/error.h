@@ -49,4 +49,7 @@
 #define ERROR_PMIC_I2C_INVALID_MINION_GROUP          -5004
 #define ERROR_PMIC_INIT_FAILED                       -5005
 
+// VaultIP  error codes
+#define ERROR_VAULTIP_COMMAND_FAILED                 -6000
+
 #endif
