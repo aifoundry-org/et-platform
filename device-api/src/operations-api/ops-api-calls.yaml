@@ -10,6 +10,23 @@
 Name: Ops_API_Calls
 ## List of Enums that are used in our messages
 Enums:
+  - Name: cmd_flags
+    Type: uint16_t
+    Values:
+      - Name: BARRIER_DISABLE
+        Value: 0
+      - Name: BARRIER_ENABLE
+        Value: 1
+      - Name: COMPUTE_KERNEL_TRACE_DISABLE
+        Value: 0
+      - Name: COMPUTE_KERNEL_TRACE_ENABLE
+        Value: 2
+      - Name: HOST_MANAGED_UBUF
+        Value: 0
+      - Name: MMFW_TRACEBUF
+        Value: 4
+      - Name: CMFW_TRACEBUF
+        Value: 8
   - Name: log_levels
     Type: uint8_t
     Values:
@@ -68,6 +85,8 @@ Enums:
         Value: 5
       - Name: INVALID_ADDRESS
         Value: 6
+      - Name: INVALID_SIZE
+        Value: 7
   - Name: dev_ops_api_error_type
     Type: uint32_t
     Values:
