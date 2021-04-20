@@ -111,11 +111,7 @@ static void MM_To_CM_Iface_Handle_Message(uint64_t shire, uint64_t hart, cm_ifac
         break;
     }
     case MM_TO_CM_MESSAGE_ID_KERNEL_ABORT:
-        /* If the thread has not completed yet, handle post-launch cleanup, if it has completed, ignore the abort. */
-        if (!kernel_info_has_thread_completed((uint32_t)shire, hart & 63))
-        {
             return_from_kernel(KERNEL_LAUNCH_ERROR_ABORTED);
-        }
         break;
     case MM_TO_CM_MESSAGE_ID_SET_LOG_LEVEL:
         log_set_level(((mm_to_cm_message_set_log_level_t *)message_ptr)->log_level);

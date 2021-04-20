@@ -18,6 +18,7 @@
 // Align the struct to cache line so that we can use local atomics on the array created below
 typedef struct kernel_launch_info {
     uint64_t completed_threads; /* Bitmask of threads that have already completed the launch */
+    uint64_t returned_threads;
     union {
         struct {
             uint8_t kw_base_id;
@@ -84,6 +85,17 @@ static inline void kernel_info_set_execution_status(uint32_t shire_id, kernel_co
 static inline kernel_complete_status_e kernel_info_get_execution_status(uint32_t shire_id)
 {
     return atomic_load_signed_local_8(&kernel_launch_info[shire_id].execution_status);
+}
+
+static inline void kernel_info_reset_thread_returned(uint32_t shire_id)
+{
+    atomic_store_local_64(&kernel_launch_info[shire_id].returned_threads, 0);
+}
+
+uint64_t kernel_info_set_thread_returned(uint32_t shire_id, uint64_t thread_id)
+{
+    return atomic_or_local_64(&kernel_launch_info[shire_id].returned_threads,
+        1ull << thread_id);
 }
 
 static inline void kernel_info_reset_completed_threads(uint32_t shire_id)
@@ -302,6 +314,7 @@ static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t ke
         kernel_info_set_attributes(shire_id, kw_base_id, slot_index);
         kernel_info_set_execution_status(shire_id, KERNEL_COMPLETE_STATUS_SUCCESS);
         kernel_info_reset_completed_threads(shire_id);
+        kernel_info_reset_thread_returned(shire_id);
 
         // Init all FLBs except reserved FLBs 28-31
         for (uint64_t barrier = 0; barrier < 28; barrier++) {

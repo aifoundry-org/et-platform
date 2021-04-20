@@ -9,6 +9,7 @@
 
 bool kernel_info_has_thread_completed(uint32_t shire_id, uint64_t thread_id);
 void kernel_info_get_attributes(uint32_t shire_id, uint8_t *kw_base_id, uint8_t *slot_index);
+uint64_t kernel_info_set_thread_returned(uint32_t shire_id, uint64_t thread_id);
 
 void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t kernel_ret_val);
 
