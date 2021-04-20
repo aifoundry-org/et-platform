@@ -51,7 +51,8 @@ struct evt_header_t {
 } __attribute__ ((packed, aligned(8)));
 
 /*
- * Enumeration of all the RPC messages that the Device Ops API send/receive
+ * Enumeration of all the RPC messages that the Device Mgmt/Ops API
+ * send/receive
  */
 enum device_msg_e {
 	DEV_OPS_API_MID_BEGIN = 0,
@@ -150,83 +151,6 @@ struct device_ops_data_write_rsp_t {
 	u32 pad;
 } __attribute__ ((packed, aligned(8)));
 
-enum event_class {
-	ECLASS_INFO,           /* Informational */
-	ECLASS_WARNING,        /* Warning */
-	ECLASS_CRITICAL,       /* Critical */
-	ECLASS_FATAL,          /* Fatal */
-};
-
-/*!
- * @enum error_type
- * @brief Enum defining event/error type
- */
-enum error_type {
-	CORRECTABLE,
-	UNCORRETABLE,
-};
-
-#define EVENT_CLASS_MASK	0x0003
-#define EVENT_COUNT_MASK	0x3FFF
-
-#define LEVEL_INFO		"Info"
-#define LEVEL_WARN		"Warning"
-#define LEVEL_CRITICAL		"Critical"
-#define LEVEL_FATAL		"Fatal"
-
-#define PCIE_UCE_RESERVED_MASK		(BIT(0) | BIT(1) | BIT(2) | BIT(3))
-#define PCIE_UCE_DATA_LINK_PROTOCOL_ERR_STATUS_MASK		BIT(4)
-#define PCIE_UCE_SURPRISE_DOWN_ERR_STATUS_MASK			BIT(5)
-#define PCIE_UCE_POISONED_TLP_ERR_STATUS_MASK			BIT(12)
-#define PCIE_UCE_FLOW_CONTROL_PROTOCOL_ERR_STATUS_MASK		BIT(13)
-#define PCIE_UCE_COMPLETION_TIMEOUT_ERR_STATUS_MASK		BIT(14)
-#define PCIE_UCE_COMPLETION_ABORT_ERR_STATUS_MASK		BIT(15)
-#define PCIE_UCE_UNEXPECTED_COMPLETION_ERR_STATUS_MASK		BIT(16)
-#define PCIE_UCE_RECEIVER_OVERFLOW_ERR_STATUS_MASK		BIT(17)
-#define PCIE_UCE_MALFORMED_TLP_ERR_STATUS_MASK			BIT(18)
-#define PCIE_UCE_ECRC_ERR_STATUS_MASK				BIT(19)
-#define PCIE_UCE_UNSUPPORTED_REQ_ERR_STATUS_MASK		BIT(20)
-#define PCIE_UCE_INTERNAL_ERR_STATUS_MASK			BIT(22)
-
-#define PCIE_CE_RECEIVER_ERR_STATUS_MASK			BIT(0)
-#define PCIE_CE_BAD_TLP_ERR_STATUS_MASK				BIT(6)
-#define PCIE_CE_BAD_DLLP_ERR_STATUS_MASK			BIT(7)
-#define PCIE_CE_REPLAY_NUM_ROLLOVER_ERR_STATUS_MASK		BIT(8)
-#define PCIE_CE_REPLAY_TIMER_TIMEOUT_ERR_STATUS_MASK		BIT(12)
-#define PCIE_CE_ADVISORY_NONFATAL_ERR_STATUS_MASK		BIT(13)
-#define PCIE_CE_CORRECTED_INTERNAL_ERR_STATUS_MASK		BIT(14)
-#define PCIE_CE_HEADER_LOG_OVERFLOW_ERR_STATUS_MASK		BIT(15)
-
-#define SYNDROME_TEMP_MASK		0x3FULL
-#define SYNDROME_TEMP_FRACTION_MASK	0x03ULL
-
-#define CM_USER_KERNEL_ERROR		0
-#define CM_RUNTIME_ERROR		1
-#define MM_DISPATCHER_ERROR		2
-#define MM_SQW_ERROR			3
-#define MM_DMW_ERROR			4
-#define MM_KW_ERROR			5
-
-#define GET_ESR_SC_ERR_LOG_INFO_V_BIT(reg)		\
-	((reg)  & 0x0000000000000001ULL)
-#define GET_ESR_SC_ERR_LOG_INFO_M_BIT(reg)		\
-	(((reg) & 0x0000000000000002ULL) >> 1)
-#define GET_ESR_SC_ERR_LOG_INFO_E_BIT(reg)		\
-	(((reg) & 0x0000000000000004ULL) >> 2)
-#define GET_ESR_SC_ERR_LOG_INFO_I_BIT(reg)		\
-	(((reg) & 0x00000000000000008LL) >> 3)
-#define GET_ESR_SC_ERR_LOG_INFO_CODE_BITS(reg)		\
-	(((reg) & 0x00000000000000F0ULL) >> 4)
-#define GET_ESR_SC_ERR_LOG_INFO_INDEX_BITS(reg)		\
-	(((reg) & 0x000000FFFFFFFF00ULL) >> 8)
-#define GET_ESR_SC_ERR_LOG_INFO_ERR_BITS(reg)		\
-	(((reg) & 0x0000FF0000000000ULL) >> 40)
-#define GET_ESR_SC_ERR_LOG_INFO_RAM_BITS(reg)		\
-	(((reg) & 0x000F000000000000ULL) >> 48)
-
-#define GET_OVER_THROTTLE_DURATION_BITS(reg)		\
-	((reg) & 0x00000000FFFFFFFFULL)
-
 /*
  * Device to host event message
  */
@@ -235,19 +159,5 @@ struct device_mgmt_event_msg_t {
 	u16 class_count; // event class[1:0] and error count[15:2]
 	u64 event_syndrome[2]; // hardware defined event syndrome
 } __attribute__((__packed__));
-
-/**
- * struct event_dbg_msg - Debug info based on event message
- * @level:	Severity level: warning, critical or fatal
- * @desc:	Text describing the event
- * @count:	No. of times an event occurred
- * @syndrome:	Info to debug or identify the event source
- */
-struct event_dbg_msg {
-	char *level;
-	char *desc;
-	u16 count;
-	char *syndrome;
-};
 
 #endif // ET_DEVICE_API_H
