@@ -40,6 +40,10 @@ struct SysEmuOptions {
   std::string spUart0Path;
   /// \brief SysEmu SPIO UART1 TX log file
   std::string spUart1Path;
+  /// \brief SysEmu SPIO UART0 TX 
+  std::string spUart0FifoOutPath; // To support for bring-up test framework
+  /// \brief SysEmu SPIO UART0 RX
+  std::string spUart0FifoInPath; // To support bring-up test framework
   /// \brief Start GDB stub
   bool startGdb;
   /// \brief Log file name
