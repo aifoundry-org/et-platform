@@ -380,10 +380,29 @@ SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>
 
   opts.pu_uart0_tx_file = options.puUart0Path.empty() ? options.runDir + "/" + "pu_uart0_tx.log" : options.puUart0Path;
   opts.pu_uart1_tx_file = options.puUart1Path.empty() ? options.runDir + "/" + "pu_uart1_tx.log" : options.puUart1Path;
-  opts.spio_uart0_tx_file =
-    options.spUart0Path.empty() ? options.runDir + "/" + "spio_uart0_tx.log" : options.spUart0Path;
+
+  /* Initialize SP UART0 port based on FIFO retargeting selection from caller*/
+  if(!options.spUart0FifoOutPath.empty())
+  {
+    opts.spio_uart0_tx_file = options.spUart0FifoOutPath;
+  }
+  else
+  {
+    opts.spio_uart0_tx_file =
+      options.spUart0Path.empty() ? options.runDir + "/" + "spio_uart0_tx.log" : options.spUart0Path;
+  }
+
+  if(!options.spUart0FifoInPath.empty())
+  {
+    opts.spio_uart0_rx_file = options.spUart0FifoInPath;
+  }
+
+  SE_LOG(INFO) << "SP TX FIFO path " << opts.spio_uart0_tx_file;
+  SE_LOG(INFO) << "SP RX FIFO path " << opts.spio_uart0_rx_file;
+
   opts.spio_uart1_tx_file =
     options.spUart1Path.empty() ? options.runDir + "/" + "spio_uart1_tx.log" : options.spUart1Path;
+
   opts.elf_files = preloadElfs;
   opts.mem_check = options.memcheck;
 
