@@ -30,18 +30,24 @@ struct cmn_header_t {
     msg_size_t size;                 ///< size of payload that follows the message header
     tag_id_t tag_id;                 ///< unique ID to correlate commands/responses across Host-> Device
     msg_id_t msg_id;                 ///< unique ID to differentiate commands/responses/events generated from host
-} __attribute__((packed));
+    uint16_t flags;                  ///< This bit mask with the following fields
+                                     ///   Bit [0] - Command barrier - allows all command prior to it to complete 
+                                     ///   Bit [1] - Kernel Launch will include a pointer to a Compute Kernel trace buffer
+                                     ///   Bit [2:3] - DMA buffer type : Encoding:
+                                     ///       - 00 Host Managed (Default) 
+                                     ///       - 01 MEM_OPS_MMFW_TRACE
+                                     ///       - 10 MEM_OPS_CMFW_TRACE
+                                     ///       - 11 MEM_OPS_{MM+CM}_TRACE
+} __attribute__((packed, aligned(8)));
 
 /// @brief Command header for all commands host to device
 struct cmd_header_t {
     struct cmn_header_t cmd_hdr;     ///< Command header
-    uint16_t flags;                  ///< flags bitmask, (1<<0) = barrier, (1<<1) = enable time stamps.
 } __attribute__((packed, aligned(8)));
 
 /// @brief Response header for all command responses from device to host
 struct rsp_header_t {
     struct cmn_header_t rsp_hdr;     ///< Response header
-    uint8_t pad[2];                  ///< Padding to make it align to 64-bits
 } __attribute__((packed, aligned(8)));
 
 /// @brief Response header extension for all Device Management responses
@@ -57,7 +63,6 @@ typedef struct cmd_header_t dev_mgmt_cmd_header_t;
 /// @brief DM response header. This header is attached to each response
 struct dev_mgmt_rsp_header_t {
     struct cmn_header_t rsp_hdr;                 ///< Response header
-    uint8_t pad[2];                              ///< Padding to make it align to 64-bits
     struct dev_mgmt_rsp_hdr_extn_t rsp_hdr_ext;  ///< Response header extension
 } __attribute__((packed, aligned(8)));
 
