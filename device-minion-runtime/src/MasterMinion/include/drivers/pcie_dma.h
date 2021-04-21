@@ -11,6 +11,15 @@
 #define PCIE_DMA_WRT_CHANNEL_COUNT  4
 #define PCIE_DMA_CHANNEL_COUNT      (PCIE_DMA_RD_CHANNEL_COUNT + PCIE_DMA_WRT_CHANNEL_COUNT)
 
+
+/*! \enum dma_read_flag_e
+    \brief Enum that provides DMA flag to set a specific DMA action.
+*/
+typedef enum {
+    DMA_NORMAL = 0,
+    DMA_SOC_NO_BOUNDS_CHECK = 1,
+} dma_flags_e;
+
 /*! \enum dma_chan_id_e
     \brief Enum that provides the ID for a DMA channel
 */
@@ -40,7 +49,7 @@ typedef enum {
 
 /// @brief Triggers a DMA read/write transaction based on channel ID.
 int dma_trigger_transfer(uint64_t src_addr, uint64_t dest_addr,
-    uint64_t size, dma_chan_id_e chan);
+    uint64_t size, dma_chan_id_e chan, dma_flags_e dma_flags);
 
 /// @brief Configure a DMA engine to issue PCIe memory reads to the x86 host, pulling data to the SoC.
 int dma_configure_read(dma_chan_id_e chan);

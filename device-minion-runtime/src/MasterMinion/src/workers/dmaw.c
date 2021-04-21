@@ -287,7 +287,7 @@ int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
         chan_status.raw_u64);
 
     /* Call the DMA device driver function */
-    status = (int8_t)dma_trigger_transfer(src_addr, dest_addr, size, chan_id);
+    status = (int8_t)dma_trigger_transfer(src_addr, dest_addr, size, chan_id, DMA_NORMAL);
 
     if(status == DMA_OPERATION_SUCCESS)
     {
@@ -338,6 +338,7 @@ int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
 *       tag_id          Tag ID of the command
 *       cycles          Pointer to latency cycles struct
 *       sw_timer_idx    Index of SW Timer used for timeout
+*       flags           DMA flag to set a specific DMA action.
 *
 *   OUTPUTS
 *
@@ -346,7 +347,7 @@ int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
 ***********************************************************************/
 int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id,
     uint64_t src_addr, uint64_t dest_addr, uint64_t size, uint8_t sqw_idx,
-    uint16_t tag_id, exec_cycles_t *cycles, uint8_t sw_timer_idx)
+    uint16_t tag_id, exec_cycles_t *cycles, uint8_t sw_timer_idx, dma_flags_e flags)
 {
     int8_t status;
     uint8_t wrt_ch_idx = (uint8_t)(chan_id - DMA_CHAN_ID_WRITE_0);
@@ -362,7 +363,7 @@ int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id,
         chan_status.raw_u64);
 
     /* Call the DMA device driver function */
-    status = (int8_t)dma_trigger_transfer(src_addr, dest_addr, size, chan_id);
+    status = (int8_t)dma_trigger_transfer(src_addr, dest_addr, size, chan_id, flags);
 
     if(status == DMA_OPERATION_SUCCESS)
     {

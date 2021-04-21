@@ -26,6 +26,26 @@
 #include "config/mm_config.h"
 #include "vq.h"
 
+/*! \def CMD_HEADER_FLAG_BARRIER
+    \brief Host Command flag for Barrier.
+*/
+#define CMD_HEADER_FLAG_BARRIER             (1 << 0)
+
+/*! \def CMD_HEADER_FLAG_KERNEL_LAUNCH
+    \brief Host Command flag for Kernel Launch.
+*/
+#define CMD_HEADER_FLAG_KERNEL_LAUNCH       (1 << 1)
+
+/*! \def CMD_HEADER_FLAG_MM_TRACE_BUF
+    \brief Host Command flag for MM Trace Buffer.
+*/
+#define CMD_HEADER_FLAG_MM_TRACE_BUF        (1 << 2)
+
+/*! \def CMD_HEADER_FLAG_CM_TRACE_BUF
+    \brief Host Command flag for CM Trace Buffer.
+*/
+#define CMD_HEADER_FLAG_CM_TRACE_BUF        (1 << 3)
+
 /*! \def HIFACE_INT_PRIORITY
     \brief Macro that provides the Host Interface interrupt priority.
 */

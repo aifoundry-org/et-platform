@@ -148,11 +148,11 @@
 
 /* Master Minion FW Trace Buffer */
 #define MM_TRACE_BUFFER_BASE              (SP_TRACE_BUFFER_BASE + SP_TRACE_BUFFER_SIZE)
-#define MM_TRACE_BUFFER_SIZE              0x80000 /* 512KB (16K per Hart x 32 HARTS) */
+#define MM_TRACE_BUFFER_SIZE              0x100000 /* 1MB for Master Minion Trace Buffer */
 
 /* Compute Minion FW Trace Buffer */
 #define CM_TRACE_BUFFER_BASE              (MM_TRACE_BUFFER_BASE + MM_TRACE_BUFFER_SIZE)
-#define CM_TRACE_BUFFER_SIZE              0x80000 /* 512KB (16K per 1st Hart of Shire x 32 Compute Shire) */
+#define CM_TRACE_BUFFER_SIZE              0x400000 /* 4MB for Compute Minion Trace Buffer */
 
 /************************/
 /* Compile-time checks  */

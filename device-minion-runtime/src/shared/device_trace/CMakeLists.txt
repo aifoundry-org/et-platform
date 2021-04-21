@@ -12,7 +12,7 @@ add_library(device_trace STATIC
     device_trace.c
 )
 add_library(deviceFirmware::device_trace ALIAS device_trace)
-
+target_compile_definitions(device_trace PUBLIC -DMASTER_MINION=1)
 
 target_include_directories(device_trace
     PUBLIC
@@ -20,6 +20,8 @@ target_include_directories(device_trace
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<INSTALL_INTERFACE:${INCLUDE_INSTALL_DIR}/esperanto-fw/device_trace>
 )
+
+include_directories(${SHARED_INC_DIRS})
 
 set_target_properties(device_trace PROPERTIES
     PUBLIC_HEADER "device_trace.h;device_trace_types.h"

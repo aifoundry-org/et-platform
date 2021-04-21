@@ -30,6 +30,95 @@
 #include <stdio.h>
 #include <string.h>
 #include "device_trace.h"
+#include "hart.h"
+#if defined(MASTER_MINION)
+#include "atomic.h"
+#include "etsoc_memory.h"
+#endif
+
+/* For Master Minion all Trace data is based on L2 Cache, that is we need to perform all updates in L2. 
+   On other hand, for Service Processor and Compute Minion, Trace data is in L1 Cache, and updated are 
+   done by normal load/store operations. */
+#if defined(MASTER_MINION)
+/* All Trace CB operations are Atomic operations in L2 Cache. */
+
+union data_u32_f
+{
+    uint32_t value_u32;
+    float value_f;
+};
+
+/* Utilities for trace data updates in L2 Cache. */
+#define READ_U64(addr)                  atomic_load_local_64(&addr)
+#define READ_U32(addr)                  atomic_load_local_32(&addr)
+#define READ_U16(addr)                  atomic_load_local_16(&addr)
+#define READ_U8(addr)                   atomic_load_local_8(&addr)
+
+#define WRITE_U64(addr, value)          atomic_store_local_64(&addr, value)
+#define WRITE_U32(addr, value)          atomic_store_local_32(&addr, value)
+#define WRITE_U16(addr, value)          atomic_store_local_16(&addr, value)
+#define WRITE_U8(addr, value)           atomic_store_local_8(&addr, value)
+/* TODO: Use atomic float store, when its implementation is vailable. */
+#define WRITE_F(addr, value)            ({ union data_u32_f data; data.value_f = value;                 \
+                                         atomic_store_local_32((void *)&addr, data.value_u32);})
+#define MEM_CPY(dest, src, size)        ETSOC_Memory_Write_Local_Atomic(src, dest, size)
+
+#define EVICT(dest, cb, size)           ({asm volatile("fence");                                        \
+                                         evict(dest, atomic_load_local_64(&cb->base_per_hart), size);   \
+                                         __asm__ __volatile__ ( "csrwi tensor_wait, 6\n" : : );})
+#define IS_TRACE_ENABLED(cb)            (READ_U8(cb->enable) == TRACE_ENABLE) 
+#define IS_TRACE_STR_ENABLED(cb, log)   (IS_TRACE_ENABLED(cb) &&                                        \
+                                        (atomic_load_local_32(&cb->event_mask) & TRACE_EVENT_STRING) && \
+                                        (CHECK_STRING_FILTER(cb, log)))
+
+#else
+/* All Trace CB operations are normal operations in L1 Cache. */
+
+/* Utilities for trace data updates in L1 Cache. */
+#define READ_U64(var)                   (var)
+#define READ_U32(var)                   (var)
+#define READ_U16(var)                   (var)
+#define READ_U8(var)                    (var)
+
+#define WRITE_U64(var, value)           (var = value)
+#define WRITE_U32(var, value)           (var = value)
+#define WRITE_U16(var, value)           (var = value)
+#define WRITE_U8(var, value)            (var = value)
+#define WRITE_F(var, value)             (var = value)
+#define MEM_CPY(dest, src, size)        memcpy(dest, src, size)
+
+#define EVICT(dest, cb, size)           ({asm volatile("fence");                    \
+                                         evict(dest, cb->base_per_hart, size);      \
+                                         __asm__ __volatile__ ( "csrwi tensor_wait, 6\n" : : );})
+#define IS_TRACE_ENABLED(cb)            (cb->enable == TRACE_ENABLE)
+#define IS_TRACE_STR_ENABLED(cb, log)   (IS_TRACE_ENABLED(cb) &&                    \
+                                        (cb->event_mask & TRACE_EVENT_STRING) &&    \
+                                        (CHECK_STRING_FILTER(cb, log)))   
+
+#endif
+
+inline static bool trace_check_buffer_full(struct trace_control_block_t *cb, uint64_t size, uint32_t *current_offset)
+{
+    *current_offset = READ_U32(cb->offset_per_hart);
+    if((*current_offset + size) > READ_U32(cb->threshold))
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+union trace_header_u {
+    struct
+    {    
+        uint32_t hart_id; // Hart ID of the Hart which is logging Trace
+        uint16_t type;    // One of enum trace_type_e
+        uint8_t  pad[2];
+    };
+    uint64_t header_raw;
+};
 
 enum cop_dest {
    to_L1  = 0x0ULL,
@@ -101,24 +190,25 @@ static inline uint64_t PMU_Get_Counter(enum pmc_counter_e counter)
 static inline void *TraceBuffer_Reserve(struct trace_control_block_t *cb, uint64_t size)
 {
     void *head;
+    uint32_t current_offset = 0;
 
-    if ((cb->offset_per_hart + size) > cb->threshold) 
+    if (trace_check_buffer_full(cb, size, &current_offset)) 
     {    
         /* Flush buffer to L3 (dst = 2) */
-        asm volatile("fence");
-        evict(0x2ULL, cb->base_per_hart, cb->offset_per_hart);      
-        __asm__ __volatile__ ( "csrwi tensor_wait, 6\n" : : );
+        EVICT(to_Mem, cb, current_offset);      
 
-        // TODO: Should we CacheOps wait?
         // TODO: Notify that we reached the notification threshold
         //       syscall(SYSCALL_TRACE_BUFFER_THRESHOLD_HIT);
 
-        /* Reset the head pointer */
-        head = (void *)cb->base_per_hart;
-        cb->offset_per_hart = 0;
-    } else {
-        head = (void *)(cb->base_per_hart + cb->offset_per_hart);
-        cb->offset_per_hart += size;
+        /* Reset buffer. */
+        WRITE_U32(cb->offset_per_hart, 0U);
+        head = (void *)(READ_U64(cb->base_per_hart) + 0UL);
+    }
+    else
+    {
+        /* Update offset. */
+        WRITE_U32(cb->offset_per_hart, (uint32_t)(current_offset + size));
+        head = (void *) (READ_U64(cb->base_per_hart) + current_offset);
     }
 
     return head;
@@ -147,10 +237,10 @@ static inline void *TraceBuffer_Reserve(struct trace_control_block_t *cb, uint64
 *       None
 *
 ***********************************************************************/
-void Trace_Init(const struct trace_init_info_t *init_info, struct trace_control_block_t *cb, uint64_t hart_id)
+void Trace_Init(const struct trace_init_info_t *init_info, struct trace_control_block_t *cb)
 {
     /* Check if Trace is enabled for current HART ID. */
-    if (!((init_info->shire_mask & GET_SHIRE_MASK(hart_id)) && (init_info->thread_mask & GET_HART_MASK(hart_id))))
+    if (!((init_info->shire_mask & GET_SHIRE_MASK(get_hart_id())) && (init_info->thread_mask & GET_HART_MASK(get_hart_id()))))
     {
         cb->enable = false;
         return;
@@ -163,7 +253,7 @@ void Trace_Init(const struct trace_init_info_t *init_info, struct trace_control_
     cb->event_mask = init_info->event_mask;
     cb->offset_per_hart = 0;
     cb->threshold = init_info->threshold;
-    cb->enable = true;
+    cb->enable = TRACE_ENABLE;
 }
 
 /************************************************************************
@@ -189,14 +279,16 @@ void Trace_Init(const struct trace_init_info_t *init_info, struct trace_control_
 ***********************************************************************/
 void Trace_String(enum trace_string_event log_level, struct trace_control_block_t *cb, const char *str)
 {
-    if ((cb->enable == true) && (cb->event_mask & TRACE_EVENT_STRING) && (CHECK_STRING_FILTER(cb, log_level)))
+    if (IS_TRACE_STR_ENABLED(cb, log_level))
     {
         struct trace_string_t *entry =
             TraceBuffer_Reserve(cb, sizeof(*entry));
 
-        entry->header.type = TRACE_TYPE_STRING;
-        entry->header.cycle = PMU_Get_hpmcounter3();
-        strlcpy(entry->string, str, sizeof(entry->string));
+        union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_STRING};
+
+        WRITE_U64(entry->header.cycle, PMU_Get_hpmcounter3());
+        WRITE_U64(entry->header.raw_u64, head.header_raw);
+        MEM_CPY(entry->string, str, sizeof(entry->string));
     }
 }
 
@@ -224,21 +316,42 @@ void Trace_String(enum trace_string_event log_level, struct trace_control_block_
 ***********************************************************************/
 void Trace_Format_String(enum trace_string_event log_level, struct trace_control_block_t *cb, const char *format, ...)
 {
-    if ((cb->enable == true) && (cb->event_mask & TRACE_EVENT_STRING) && (CHECK_STRING_FILTER(cb, log_level)))
+    if (IS_TRACE_STR_ENABLED(cb, log_level))
     {
         va_list args;
         struct trace_string_t *entry =
             TraceBuffer_Reserve(cb, sizeof(*entry));
 
-        entry->header.type = TRACE_TYPE_STRING;
-        entry->header.cycle = PMU_Get_hpmcounter3();
+        union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_STRING};
 
+        WRITE_U64(entry->header.cycle, PMU_Get_hpmcounter3());
+        WRITE_U64(entry->header.raw_u64, head.header_raw);
+        
         va_start(args, format);
         vsnprintf(entry->string, sizeof(entry->string), format, args);
         va_end(args);
     }
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_PMC_All_Counters
+*
+*   DESCRIPTION
+*
+*       A function to log all PMC counters.
+*
+*   INPUTS
+*
+*       trace_control_block_t     Trace control block of logging Thread/Hart.  
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
 void Trace_PMC_All_Counters(struct trace_control_block_t *cb)
 {
     if(cb->enable == true)
@@ -251,40 +364,223 @@ void Trace_PMC_All_Counters(struct trace_control_block_t *cb)
     }
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_PMC_Counter
+*
+*   DESCRIPTION
+*
+*       A function to log given PMC counter only.
+*
+*   INPUTS
+*
+*       trace_control_block_t     Trace control block of logging Thread/Hart.  
+*       pmc_counter_e             PMC counter number to log.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
 void Trace_PMC_Counter(struct trace_control_block_t *cb, enum pmc_counter_e counter)
 {
-    if(cb->enable == true)
+    if(IS_TRACE_ENABLED(cb))
     {
         struct trace_pmc_counter_t *entry =
             TraceBuffer_Reserve(cb, sizeof(*entry));
 
-        *entry = (struct trace_pmc_counter_t){
-            .header.type = TRACE_TYPE_PMC_COUNTER,
-            .header.cycle = PMU_Get_hpmcounter3(),
-            .value = PMU_Get_Counter(counter)
-        };
+        union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_PMC_COUNTER};
+
+        WRITE_U64(entry->header.cycle, PMU_Get_hpmcounter3());
+        WRITE_U64(entry->header.raw_u64, head.header_raw);
+
+        WRITE_U64(entry->value, PMU_Get_Counter(counter));
     }
 }
 
-#define Trace_Value_scalar_def(suffix, trace_type, c_type)                                    \
-void Trace_Value_##suffix(struct trace_control_block_t *cb, uint64_t tag, c_type value)       \
-{                                                                                             \
-    if(cb->enable == true)                                                                    \
-    {                                                                                         \
-        struct trace_value_##suffix##_t *entry =                                              \
-            TraceBuffer_Reserve(cb, sizeof(*entry));                                          \
-                                                                                              \
-        *entry = (struct trace_value_##suffix##_t){                                           \
-            .header.type = trace_type,                                                        \
-            .header.cycle = PMU_Get_hpmcounter3(),                                            \
-            .tag = tag,                                                                       \
-            .value = value                                                                    \
-        };                                                                                    \
-    }                                                                                         \
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Value_u64
+*
+*   DESCRIPTION
+*
+*       A function to log Trace scalar 64 bit value.
+*
+*   INPUTS
+*
+*       trace_control_block_t     Trace control block of logging Thread/Hart.  
+*       uint64_t                  Tag for scalar value.
+*       uint64_t                  Value to log.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Trace_Value_u64(struct trace_control_block_t *cb, uint32_t tag, uint64_t value)
+{
+    if(IS_TRACE_ENABLED(cb))
+    {
+        struct trace_value_u64_t *entry =                    
+                TraceBuffer_Reserve(cb, sizeof(*entry)); 
+
+        union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_VALUE_U64};
+
+        WRITE_U64(entry->header.cycle, PMU_Get_hpmcounter3());
+        WRITE_U64(entry->header.raw_u64, head.header_raw);
+        WRITE_U32(entry->tag, tag); 
+        WRITE_U64(entry->value, value); 
+    }
 }
 
-Trace_Value_scalar_def(u64, TRACE_TYPE_VALUE_U64, uint64_t)
-Trace_Value_scalar_def(u32, TRACE_TYPE_VALUE_U32, uint32_t)
-Trace_Value_scalar_def(u16, TRACE_TYPE_VALUE_U16, uint16_t)
-Trace_Value_scalar_def(u8, TRACE_TYPE_VALUE_U8, uint8_t)
-Trace_Value_scalar_def(float, TRACE_TYPE_VALUE_FLOAT, float)
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Value_u32
+*
+*   DESCRIPTION
+*
+*       A function to log Trace scalar 32 bit value.
+*
+*   INPUTS
+*
+*       trace_control_block_t     Trace control block of logging Thread/Hart.  
+*       uint64_t                  Tag for scalar value.
+*       uint64_t                  Value to log.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Trace_Value_u32(struct trace_control_block_t *cb, uint32_t tag, uint32_t value)
+{
+    if(IS_TRACE_ENABLED(cb))
+    {
+        struct trace_value_u32_t *entry =                    
+                TraceBuffer_Reserve(cb, sizeof(*entry));  
+
+        union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_VALUE_U32};
+
+        WRITE_U64(entry->header.cycle, PMU_Get_hpmcounter3());
+        WRITE_U64(entry->header.raw_u64, head.header_raw);
+        WRITE_U32(entry->tag, tag); 
+        WRITE_U32(entry->value, value); 
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Value_u16
+*
+*   DESCRIPTION
+*
+*       A function to log Trace scalar 16 bit value.
+*
+*   INPUTS
+*
+*       trace_control_block_t     Trace control block of logging Thread/Hart.  
+*       uint64_t                  Tag for scalar value.
+*       uint64_t                  Value to log.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Trace_Value_u16(struct trace_control_block_t *cb, uint32_t tag, uint16_t value)
+{
+    if(IS_TRACE_ENABLED(cb))
+    {
+        struct trace_value_u16_t *entry =                    
+            TraceBuffer_Reserve(cb, sizeof(*entry));  
+
+        union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_VALUE_U16};
+
+        WRITE_U64(entry->header.cycle, PMU_Get_hpmcounter3());
+        WRITE_U64(entry->header.raw_u64, head.header_raw);
+        WRITE_U32(entry->tag, tag); 
+        WRITE_U16(entry->value, value); 
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Value_u8
+*
+*   DESCRIPTION
+*
+*       A function to log Trace scalar 8 bit value.
+*
+*   INPUTS
+*
+*       trace_control_block_t     Trace control block of logging Thread/Hart.  
+*       uint64_t                  Tag for scalar value.
+*       uint64_t                  Value to log.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Trace_Value_u8(struct trace_control_block_t *cb, uint32_t tag, uint8_t value)
+{
+    if(IS_TRACE_ENABLED(cb))
+    {
+        struct trace_value_u8_t *entry =                    
+                TraceBuffer_Reserve(cb, sizeof(*entry)); 
+
+        union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_VALUE_U8};
+
+        WRITE_U64(entry->header.cycle, PMU_Get_hpmcounter3());
+        WRITE_U64(entry->header.raw_u64, head.header_raw);
+        WRITE_U32(entry->tag, tag); 
+        WRITE_U8(entry->value, value); 
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Value_float
+*
+*   DESCRIPTION
+*
+*       A function to log Trace scalar float (32 bit) value.
+*
+*   INPUTS
+*
+*       trace_control_block_t     Trace control block of logging Thread/Hart.  
+*       uint64_t                  Tag for scalar value.
+*       uint64_t                  Value to log.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Trace_Value_float(struct trace_control_block_t *cb, uint32_t tag, float value)
+{
+    if(IS_TRACE_ENABLED(cb))
+    {
+        struct trace_value_float_t *entry =                    
+            TraceBuffer_Reserve(cb, sizeof(*entry)); 
+
+        union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_VALUE_FLOAT};
+
+        WRITE_U64(entry->header.cycle, PMU_Get_hpmcounter3()); 
+        WRITE_U64(entry->header.raw_u64, head.header_raw);
+        WRITE_U32(entry->tag, tag); 
+        WRITE_F(entry->value, value); 
+    }
+}

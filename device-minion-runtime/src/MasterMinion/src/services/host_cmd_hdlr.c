@@ -26,6 +26,8 @@
 #include "workers/sqw.h"
 #include "config/mm_config.h"
 #include "pmu.h"
+#include "cacheops.h"
+#include "layout.h"
 
 /************************************************************************
 *
@@ -342,7 +344,9 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
         {
             struct device_ops_data_read_cmd_t *cmd = (void *)hdr;
             struct device_ops_data_read_rsp_t rsp;
+            dma_flags_e dma_flag = DMA_NORMAL;
             dma_chan_id_e chan;
+            status = STATUS_SUCCESS;
 
             /* Design Notes: Note a DMA write command from host will
             trigger the implementation to configure a DMA read channel
@@ -352,8 +356,65 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             Log_Write(LOG_LEVEL_DEBUG,
                 "HostCommandHandler:Processing:DATA_READ_CMD\r\n");
 
-            /* Obtain the next available DMA write channel */
-            status = DMAW_Write_Find_Idle_Chan_And_Reserve(&chan, sqw_idx);
+            /* If flags are set to extract both MM and CM Trace buffers. */
+            if((cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_MM_TRACE_BUF) && 
+               (cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_CM_TRACE_BUF))
+            {
+                if(cmd->size <= (MM_TRACE_BUFFER_SIZE + CM_TRACE_BUFFER_SIZE))
+                {
+                    /* TODO: Send command to CM RT to disable Trace and evict Trace buffer. */
+                    /* TODO: Disable MM RT Trace. */
+                    
+                    asm volatile("fence");
+                    evict(to_Mem, (uint64_t *) MM_TRACE_BUFFER_BASE, MM_TRACE_BUFFER_SIZE);      
+                    WAIT_CACHEOPS;
+
+                    cmd->src_device_phy_addr = MM_TRACE_BUFFER_BASE;
+                    dma_flag = DMA_SOC_NO_BOUNDS_CHECK;
+                }
+                else
+                {
+                    status = DMA_ERROR_OUT_OF_BOUNDS;
+                }
+            }
+            /* Check if flag is set to extract MM Trace buffer. */
+            else if(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_MM_TRACE_BUF)
+            {
+                if(cmd->size <= MM_TRACE_BUFFER_SIZE)
+                {
+                    /* TODO: Disable MM RT Trace. */
+                    asm volatile("fence");
+                    evict(to_Mem, (uint64_t *) MM_TRACE_BUFFER_BASE, MM_TRACE_BUFFER_SIZE);      
+                    WAIT_CACHEOPS;
+
+                    cmd->src_device_phy_addr = MM_TRACE_BUFFER_BASE;
+                    dma_flag = DMA_SOC_NO_BOUNDS_CHECK;
+                }
+                else
+                {
+                    status = DMA_ERROR_OUT_OF_BOUNDS;
+                }
+            }
+            /* Check if flag is set to extract CM Trace buffer. */
+            else if(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_CM_TRACE_BUF)
+            {
+                if(cmd->size <= CM_TRACE_BUFFER_SIZE)
+                {
+                    /* TODO: Send command to CM RT to disable Trace and evict Trace buffer. */
+                    cmd->src_device_phy_addr = CM_TRACE_BUFFER_BASE;
+                    dma_flag = DMA_SOC_NO_BOUNDS_CHECK;
+                }
+                else
+                {
+                    status = DMA_ERROR_OUT_OF_BOUNDS;
+                }
+            }
+
+            if(status == STATUS_SUCCESS)
+            {
+                /* Obtain the next available DMA write channel */
+                status = DMAW_Write_Find_Idle_Chan_And_Reserve(&chan, sqw_idx);
+            }
 
             if(status == STATUS_SUCCESS)
             {
@@ -377,7 +438,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                     /* Initiate DMA write transfer */
                     status = DMAW_Write_Trigger_Transfer(chan, cmd->src_device_phy_addr,
                         cmd->dst_host_phy_addr, cmd->size,
-                        sqw_idx, hdr->cmd_hdr.tag_id, &cycles, (uint8_t)sw_timer_idx);
+                        sqw_idx, hdr->cmd_hdr.tag_id, &cycles, (uint8_t)sw_timer_idx, dma_flag);
                 }
                 else
                 {
@@ -419,6 +480,11 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 else if(status == DMA_ERROR_INVALID_ADDRESS)
                 {
                     rsp.status = DEV_OPS_API_DMA_RESPONSE_INVALID_ADDRESS;
+                }
+                else if(status == DMA_ERROR_OUT_OF_BOUNDS)
+                {
+                    /* TODO: Return error DEV_OPS_API_DMA_RESPONSE_INVALID_SIZE. */
+                    rsp.status = DEV_OPS_API_DMA_RESPONSE_ERROR;
                 }
                 else
                 {

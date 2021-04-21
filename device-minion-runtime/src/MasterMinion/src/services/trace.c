@@ -26,16 +26,6 @@
 #include "services/log.h"
 #include "services/trace.h"
 
-/* Local function decalration. */
-inline static uint8_t get_set_bit_count(uint64_t mask, uint8_t max_bit_index);
-inline static uint8_t get_lowest_set_bit(uint64_t num);
-
-/*! \def GET_MM_BASE_BUFFER
-    \brief This calculates starting address of buffer for given MM Hart information 
-*/
-#define GET_MM_BASE_BUFFER(buf, size, thread_mask, hart_id)                                         \
-        (buf + (size * get_set_bit_count(thread_mask, get_lowest_set_bit(GET_HART_MASK(hart_id)))))
-
 /*! \def MM_DEFAULT_THREAD_MASK
     \brief Default masks to enable Trace for Dispatcher, SQ Worker (SQW), DMA Worker : Read & Write, and Kernel Worker (KW) 
 */
@@ -52,79 +42,8 @@ typedef struct mm_trace_control_block {
     struct trace_control_block_t cb;    /*!< Common Trace library control block. */
 } __attribute__((aligned(64))) mm_trace_control_block_t;
 
-/* A list of local Trace control blocks for Master Minions. */
-static mm_trace_control_block_t MM_Trace_CB[MM_HART_COUNT] = {0};
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       get_lowest_set_bit
-*
-*   DESCRIPTION
-*
-*       This function gets the lowest set bit in given bit mask(number).
-*
-*   INPUTS
-*
-*       uint64_t    A bit mask in which function will find lowest set bit.
-*
-*   OUTPUTS
-*
-*       uint8_t     Index of lowest set bit starting LSB as 0th index
-*
-***********************************************************************/
-inline static uint8_t get_lowest_set_bit(uint64_t num) 
-{
-    uint8_t count = 0;
-    while (!(num & 1))
-    {
-        num >>= 1;
-        ++count;
-    }
-
-    return count;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       get_set_bit_count
-*
-*   DESCRIPTION
-*
-*       Function to get no of set bits in binary representation of passed 
-*       binary number. It uses Brian Kernighan’s Algorithm 
-*
-*   INPUTS
-*
-*       uint64_t    A bit mask in which function will find set bits.
-*       uint8_t     Bit index to find set bit bits lower than this index 
-*                   starting with LSB as 1st index.
-*
-*   OUTPUTS
-*
-*       uint8_t     Number of set bits.
-*
-***********************************************************************/
-inline static uint8_t get_set_bit_count(uint64_t mask, uint8_t max_bit_index)
-{
-    uint8_t count = 0;
-
-    if (max_bit_index < 64)
-    {
-        mask = mask & (~(~0UL << max_bit_index));
-    }
-
-    while (mask) 
-    {
-        mask &= (mask - 1);
-        count++;
-    }
-
-    return count;
-}
+/* A local Trace control block for all Master Minions. */
+static mm_trace_control_block_t MM_Trace_CB = {0};
 
 /************************************************************************
 *
@@ -159,13 +78,7 @@ void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
         hart_init_info.thread_mask   = MM_DEFAULT_THREAD_MASK;
         hart_init_info.event_mask    = TRACE_EVENT_STRING;
         hart_init_info.filter_mask   = TRACE_EVENT_STRING_WARNING;
-        /* Set threshold so that buffer does not spill over to next Cache line.
-           It is assumed that thread will consume Cache line in which its 
-           starting address i.e base_per_hart falls. */
-        hart_init_info.threshold     = (uint64_t) (MM_TRACE_BUFFER_SIZE / 
-                                       (get_set_bit_count(MM_DEFAULT_THREAD_MASK, MM_HART_COUNT))) - 0x40UL;
-        hart_init_info.buffer        = MM_TRACE_BUFFER_BASE;
-        hart_init_info.buffer_size   = MM_TRACE_BUFFER_SIZE;
+        hart_init_info.threshold     = MM_TRACE_BUFFER_SIZE;
     }
     /* Check if shire mask is of Master Minion and atleast one thread is enabled. */
     else if ((mm_init_info->shire_mask & MM_SHIRE_MASK) && (mm_init_info->thread_mask & MM_HART_MASK))
@@ -176,40 +89,29 @@ void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
         hart_init_info.filter_mask   = mm_init_info->filter_mask;
         hart_init_info.event_mask    = mm_init_info->event_mask;
         hart_init_info.threshold     = mm_init_info->threshold;
-        hart_init_info.buffer        = MM_TRACE_BUFFER_BASE;
-        hart_init_info.buffer_size   = MM_TRACE_BUFFER_SIZE;
     }
     else
     {
+        MM_Trace_CB.cb.enable = TRACE_DISABLE;
+    
         /* Trace init information is invalid. */
         internal_status = INVALID_TRACE_INIT_INFO;
     }
     
     if(internal_status == STATUS_SUCCESS)
     {
-        /* Calculate buffer size for each HART. */
-        uint64_t buf_size_per_hart = (uint64_t)(hart_init_info.buffer_size / 
-                                                get_set_bit_count(hart_init_info.thread_mask, MM_HART_COUNT));
+        /* Common buffer for all MM Harts. */
+        MM_Trace_CB.cb.size_per_hart = MM_TRACE_BUFFER_SIZE;
+        MM_Trace_CB.cb.base_per_hart = MM_TRACE_BUFFER_BASE;
 
-        /* Initialize Trace for each Hart in Master Minion. */
-        for (uint8_t i = 0; i < MM_HART_COUNT; i++)
-        {
-            /* Update Trace buffer information for current Hart. 
-               It is assumed that thread will consume Cache line in which its 
-               starting address i.e base_per_hart falls. */
-            MM_Trace_CB[i].cb.size_per_hart = buf_size_per_hart;
-            MM_Trace_CB[i].cb.base_per_hart = GET_MM_BASE_BUFFER(hart_init_info.buffer, buf_size_per_hart, 
-                                                           hart_init_info.thread_mask, (i+MM_BASE_ID));
-
-            /* Initialize Trace for a Hart specified by Hart ID.  */
-            Trace_Init(&hart_init_info, &MM_Trace_CB[i].cb, (uint64_t)(i + MM_BASE_ID));
-
-            /* Evict an updated control block to L3 memory. */
-            asm volatile("fence");
-            evict(to_L3, &MM_Trace_CB[i], sizeof(mm_trace_control_block_t));      
-            WAIT_CACHEOPS;
-        }
+        /* Initialize Trace for each all Harts in Master Minion. */
+        Trace_Init(&hart_init_info, &MM_Trace_CB.cb);
     }
+
+    /* Evict an updated control block to L2 memory. */
+    asm volatile("fence");
+    evict(to_L2, &MM_Trace_CB, sizeof(mm_trace_control_block_t));      
+    WAIT_CACHEOPS;
 }
 
 /************************************************************************
@@ -220,12 +122,12 @@ void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
 *
 *   DESCRIPTION
 *
-*       This function return Trace control block for given Hart ID.
+*       This function returns the common Trace control block (CB) for all 
+*       MM Harts.
 *
 *   INPUTS
 *
-*       uint64_t              Hart ID for which user needs Trace control 
-*                             block.
+*       None
 *
 *   OUTPUTS
 *
@@ -234,5 +136,5 @@ void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
 ***********************************************************************/
 struct trace_control_block_t* Trace_Get_MM_CB(void)
 {
-    return &MM_Trace_CB[get_hart_id() - MM_BASE_ID].cb;
+    return &MM_Trace_CB.cb;
 }

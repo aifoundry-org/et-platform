@@ -120,10 +120,10 @@ static inline DMA_STATUS_e dma_bounds_check(uint64_t soc_addr, uint64_t size)
 }
 
 int dma_trigger_transfer(uint64_t src_addr, uint64_t dest_addr,
-    uint64_t size, dma_chan_id_e chan)
+    uint64_t size, dma_chan_id_e chan, dma_flags_e dma_flags)
 {
     /* Reads data from Host to Device memory */
-    int status = DMA_OPERATION_NOT_SUCCESS;
+    int status = DMA_OPERATION_SUCCESS;
 
     /* Validate the params */
     if ((src_addr == 0U) || (dest_addr == 0U) || (size == 0U) ||
@@ -133,15 +133,18 @@ int dma_trigger_transfer(uint64_t src_addr, uint64_t dest_addr,
     }
     else
     {
-        if (chan <= DMA_CHAN_ID_READ_3)
+        if(!(dma_flags & DMA_SOC_NO_BOUNDS_CHECK))
         {
-            /* Validate the bounds. Read: source is on host, dest is on SoC */
-            status = dma_bounds_check(dest_addr, size);
-        }
-        else
-        {
-            /* Validate the bounds. Write: source is on SoC, dest is on host */
-            status = dma_bounds_check(src_addr, size);
+            if (chan <= DMA_CHAN_ID_READ_3)
+            {
+                /* Validate the bounds. Read: source is on host, dest is on SoC */
+                status = dma_bounds_check(dest_addr, size);
+            }
+            else
+            {
+                /* Validate the bounds. Write: source is on SoC, dest is on host */
+                status = dma_bounds_check(src_addr, size);
+            }
         }
     }
 
