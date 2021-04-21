@@ -116,6 +116,52 @@ static void parse_sram_syndrome(struct device_mgmt_event_msg_t *event_msg,
 	);
 }
 
+static void parse_pmic_syndrome(struct device_mgmt_event_msg_t *event_msg,
+				struct event_dbg_msg *dbg_msg)
+{
+	int value_whole;
+	int value_fract;
+
+	if (event_msg->event_syndrome[0] &
+	    PMIC_ERROR_OVER_TEMP_INT_MASK) {
+		value_fract = 25 *
+		(event_msg->event_syndrome[1] & SYNDROME_TEMP_FRACT_MASK);
+		value_whole =
+		(event_msg->event_syndrome[1] >> 2) & SYNDROME_TEMP_MASK;
+		sprintf(dbg_msg->syndrome,
+			"Temperature Overshoot Beyond Threshold: %d.%d C\n",
+			value_whole, value_fract);
+	}
+	if (event_msg->event_syndrome[0] &
+	    PMIC_ERROR_OVER_POWER_INT_MASK) {
+		value_fract = 25 *
+		((event_msg->event_syndrome[1] >> 8) & SYNDROME_PWR_FRACT_MASK);
+		value_whole =
+		(event_msg->event_syndrome[1] >> 10) & SYNDROME_PWR_MASK;
+		sprintf(dbg_msg->syndrome,
+			"Power Overshoot beyond Threshold: %d.%d W\n",
+			value_whole, value_fract);
+	}
+	if (event_msg->event_syndrome[0] &
+	    PMIC_ERROR_INPUT_VOLTAGE_TOO_LOW_INT_MASK)
+		strcat(dbg_msg->syndrome, "Input Voltage Too Low Interrupt\n");
+	if (event_msg->event_syndrome[0] &
+	    PMIC_ERROR_MINION_REGULATOR_VOLTAGE_TOO_LOW_INT_MASK)
+		strcat(dbg_msg->syndrome,
+		       "Minion Regulator Voltage Too Low Interrupt\n");
+	if (event_msg->event_syndrome[0] &
+	    PMIC_ERROR_RESERVED_FOR_FUTURE_USE_MASK)
+		strcat(dbg_msg->syndrome, "Reserved For Future Use\n");
+	if (event_msg->event_syndrome[0] &
+	    PMIC_ERROR_WRONG_MSG_FORMAT_OR_DATA_OUT_OF_BOUND_MASK)
+		strcat(dbg_msg->syndrome,
+		       "Wrong Message Format or Data Out Of Bound\n");
+	if (event_msg->event_syndrome[0] &
+	    PMIC_ERROR_REGULATOR_COMM_FAILED_OR_BAD_DATA_MASK)
+		strcat(dbg_msg->syndrome,
+		       "Communication With Regulator Failed or Bad Data\n");
+}
+
 static void parse_thermal_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				   struct event_dbg_msg *dbg_msg)
 {
@@ -123,7 +169,7 @@ static void parse_thermal_syndrome(struct device_mgmt_event_msg_t *event_msg,
 	int temp_fract;
 
 	temp_fract = 25 *
-		(event_msg->event_syndrome[0] & SYNDROME_TEMP_FRACTION_MASK);
+		(event_msg->event_syndrome[0] & SYNDROME_TEMP_FRACT_MASK);
 	temp_whole = (event_msg->event_syndrome[0] >> 2) & SYNDROME_TEMP_MASK;
 
 	sprintf(dbg_msg->syndrome, "%d.%d C", temp_whole, temp_fract);
@@ -132,7 +178,16 @@ static void parse_thermal_syndrome(struct device_mgmt_event_msg_t *event_msg,
 static void parse_wdog_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				struct event_dbg_msg *dbg_msg)
 {
-	/* To be finalized */
+	u32 a0, mepc, mcause, mtval;
+
+	a0     = event_msg->event_syndrome[0] >> 32;
+	mepc   = event_msg->event_syndrome[0];
+	mcause = event_msg->event_syndrome[1] >> 32;
+	mtval  = event_msg->event_syndrome[1];
+
+	sprintf(dbg_msg->syndrome,
+		"\na0        : 0x%x\nmepc      : 0x%x\nmcause    : 0x%x\nmtval     : 0x%x\n",
+		a0, mepc, mcause, mtval);
 }
 
 static void parse_cm_err_syndrome(struct device_mgmt_event_msg_t *event_msg,
@@ -170,7 +225,7 @@ static void parse_throttling_syndrome(struct device_mgmt_event_msg_t *event_msg,
 
 int et_handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
 {
-	char syndrome_str[320];
+	char syndrome_str[ET_EVENT_SYNDROME_LEN];
 	struct pci_dev *pdev;
 	struct event_dbg_msg dbg_msg;
 	struct device_mgmt_event_msg_t event_msg;
@@ -239,15 +294,19 @@ int et_handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
 		parse_sram_syndrome(&event_msg, &dbg_msg);
 		break;
 	case DEV_MGMT_EID_THERMAL_LOW:
-		dbg_msg.desc = "Temperature Overshoot-1";
+		dbg_msg.desc = "Temperature Overshoot";
 		parse_thermal_syndrome(&event_msg, &dbg_msg);
 		break;
-	case DEV_MGMT_EID_THERMAL_HIGH:
-		dbg_msg.desc = "Temperature Overshoot-2";
-		parse_thermal_syndrome(&event_msg, &dbg_msg);
+	case DEV_MGMT_EID_PMIC_ERROR:
+		dbg_msg.desc = "Power Management IC Errors";
+		parse_pmic_syndrome(&event_msg, &dbg_msg);
 		break;
-	case DEV_MGMT_EID_WDOG_TIMEOUT:
-		dbg_msg.desc = "WatchDog Timeout";
+	case DEV_MGMT_EID_WDOG_INTERNAL_TIMEOUT:
+		dbg_msg.desc = "WatchDog Timeout - Internal WDT Interrupt";
+		parse_wdog_syndrome(&event_msg, &dbg_msg);
+		break;
+	case DEV_MGMT_EID_WDOG_EXTERNAL_TIMEOUT:
+		dbg_msg.desc = "WatchDog Timeout - External PMIC Reset";
 		parse_wdog_syndrome(&event_msg, &dbg_msg);
 		break;
 	case DEV_MGMT_EID_CM_ETH:

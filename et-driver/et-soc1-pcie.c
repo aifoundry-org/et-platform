@@ -34,6 +34,7 @@
 #include "et_vqueue.h"
 #include "et_mmio.h"
 #include "et_pci_dev.h"
+#include "et_event_handler.h"
 
 #ifdef ENABLE_DRIVER_TESTS
 #include "et_test.h"
@@ -578,8 +579,10 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 	struct et_dir_mem_region *dir_mem_region;
 	struct et_mapped_region *regions;
 	struct et_bar_mapping bm_info;
-	int num_reg_types, i;
+	int num_reg_types, compul_reg_count, non_compul_reg_count, i;
 	ssize_t rv;
+	struct event_dbg_msg dbg_msg;
+	char syndrome_str[ET_EVENT_SYNDROME_LEN];
 
 	if (is_mgmt) {
 		regions = et_dev->mgmt.regions;
@@ -590,6 +593,11 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 		num_reg_types = sizeof(et_dev->ops.regions) /
 				sizeof(et_dev->ops.regions[0]);
 	}
+
+	syndrome_str[0] = '\0';
+	dbg_msg.syndrome = syndrome_str;
+	dbg_msg.count = 0;
+	dbg_msg.desc = "";
 
 	memset(regions, 0, num_reg_types * sizeof(*regions));
 	for (i = 0; i < num_discovered_regions; i++, reg_pos += section_size) {
@@ -627,19 +635,40 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 		}
 
 		// Region attributes validity check
-		if (!valid_mem_region(dir_mem_region, is_mgmt)) {
-			dev_warn(&et_dev->pdev->dev,
-				 "Region type: %d has invalid attributes, skipping this region",
-				 dir_mem_region->type);
+		if (!valid_mem_region(dir_mem_region, is_mgmt, dbg_msg.syndrome,
+				      ET_EVENT_SYNDROME_LEN)) {
+			if (strcmp(dbg_msg.syndrome, "") == 0) {
+				dev_warn(&et_dev->pdev->dev,
+					 "Region type: %d has invalid attributes, skipping this region",
+					 dir_mem_region->type);
+			} else {
+				dbg_msg.level = LEVEL_FATAL;
+				sprintf(dbg_msg.desc,
+					"%s: DIRs compulsory field(s) not set",
+					is_mgmt ? "Mgmt" : "Ops");
+				dbg_msg.count = 0;
+				dev_err(&et_dev->pdev->dev, "Error Event Detected\nLevel     : %s\nDesc      : %s\nCount     : %d\nSyndrome  : %s",
+					dbg_msg.level, dbg_msg.desc,
+					dbg_msg.count, dbg_msg.syndrome);
+			}
 			continue;
 		}
 
 		// Region type uniqueness check
 		if (regions[dir_mem_region->type].is_valid) {
-			// if valid means already mapped
-			dev_err(&et_dev->pdev->dev,
-				"Region type: %d found again; types must be unique\n",
+			// is_valid means already mapped
+			dbg_msg.level = LEVEL_FATAL;
+			sprintf(dbg_msg.desc,
+				"%s: DIRs duplicate region type found",
+				is_mgmt ? "Mgmt" : "Ops");
+			dbg_msg.count = 0;
+			sprintf(dbg_msg.syndrome,
+				"Region type: %d found again\n",
 				dir_mem_region->type);
+			dev_err(&et_dev->pdev->dev, "Error Event Detected\nLevel     : %s\nDesc      : %s\nCount     : %d\nSyndrome  : %s",
+				dbg_msg.level, dbg_msg.desc, dbg_msg.count,
+				dbg_msg.syndrome);
+
 			rv = -EINVAL;
 			goto error_unmap_discovered_regions;
 		}
@@ -670,17 +699,45 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 	}
 
 	// Check if all compulsory region types have been discovered and mapped
+	compul_reg_count = 0;
+	non_compul_reg_count = 0;
 	for (i = 0; i < num_reg_types; i++) {
-		if (!compulsory_region_type(i, is_mgmt))
+		if (!compulsory_region_type(i, is_mgmt)) {
+			non_compul_reg_count += 1;
 			continue;
+		}
+
+		compul_reg_count += 1;
 
 		if (!regions[i].is_valid) {
-			dev_err(&et_dev->pdev->dev,
-				"Compulsory region type: %d, not found!\n",
-				i);
+			dbg_msg.level = LEVEL_FATAL;
+			sprintf(dbg_msg.desc,
+				"%s: DIRs missing compulsory region types",
+				is_mgmt ? "Mgmt" : "Ops");
+			dbg_msg.count = 0;
+			sprintf(dbg_msg.syndrome,
+				"Compulsory region type: %d, not found\n", i);
+			dev_err(&et_dev->pdev->dev, "Error Event Detected\nLevel     : %s\nDesc      : %s\nCount     : %d\nSyndrome  : %s",
+				dbg_msg.level, dbg_msg.desc, dbg_msg.count,
+				dbg_msg.syndrome);
+
 			rv = -EINVAL;
 			goto error_unmap_discovered_regions;
 		}
+	}
+
+	if (compul_reg_count + non_compul_reg_count != num_reg_types) {
+		dbg_msg.level = LEVEL_WARN;
+		sprintf(dbg_msg.desc,
+			"%s: DIRs expected number of memory regions doesn't match discovered number of memory regions",
+			is_mgmt ? "Mgmt" : "Ops");
+		dbg_msg.count = 0;
+		sprintf(dbg_msg.syndrome,
+			"Expected Regions: %d\n, Discovered compulsory regions: %d\nDiscovered non-compulsory regions: %d\n",
+			num_reg_types, compul_reg_count, non_compul_reg_count);
+		dev_warn(&et_dev->pdev->dev, "Error Event Detected\nLevel     : %s\nDesc      : %s\nCount     : %d\nSyndrome  : %s",
+			 dbg_msg.level, dbg_msg.desc, dbg_msg.count,
+			dbg_msg.syndrome);
 	}
 
 	return (ssize_t)((u64)reg_pos - (u64)regs_data);
@@ -699,6 +756,9 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	struct et_mgmt_dir_header *dir_mgmt;
 	struct et_dir_vqueue *dir_vq;
 	int rv, i;
+	u32 crc32_result;
+	struct event_dbg_msg dbg_msg;
+	char syndrome_str[ET_EVENT_SYNDROME_LEN];
 
 	et_dev->mgmt.is_mgmt_open = false;
 	spin_lock_init(&et_dev->mgmt.mgmt_open_lock);
@@ -727,9 +787,17 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 		}
 	}
 
+	syndrome_str[0] = '\0';
+	dbg_msg.syndrome = syndrome_str;
+	dbg_msg.count = 0;
+
 	if (!dir_ready) {
-		dev_err(&et_dev->pdev->dev,
-			"Mgmt: DIRs not ready; discovery timed out\n");
+		dbg_msg.level = LEVEL_FATAL;
+		dbg_msg.desc = "Mgmt: Device not ready";
+		sprintf(dbg_msg.syndrome, "Boot status: %d\n", rv);
+		dev_err(&et_dev->pdev->dev, "Error Event Detected\nLevel     : %s\nDesc      : %s\nCount     : %d\nSyndrome  : %s",
+			dbg_msg.level, dbg_msg.desc, dbg_msg.count,
+			dbg_msg.syndrome);
 		rv = -EBUSY;
 		goto error_unmap_dir_region;
 	}
@@ -780,10 +848,17 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	}
 
 	// Calculate crc32 checksum starting after DIRs header to the end
-	if (~crc32(~0, dir_pos + section_size, dir_size - section_size) !=
-	    dir_mgmt->crc32) {
-		dev_err(&et_dev->pdev->dev,
-			"Mgmt: DIRs checksum mismatch!");
+	crc32_result =
+		~crc32(~0, dir_pos + section_size, dir_size - section_size);
+	if (crc32_result != dir_mgmt->crc32) {
+		dbg_msg.level = LEVEL_FATAL;
+		dbg_msg.desc = "Mgmt: DIRs CRC32 check mismatch";
+		sprintf(dbg_msg.syndrome,
+			"Expected CRC: %x, Calculated CRC: %x\n",
+		dir_mgmt->crc32, crc32_result);
+		dev_err(&et_dev->pdev->dev, "Error Event Detected\nLevel     : %s\nDesc      : %s\nCount     : %d\nSyndrome  : %s",
+			dbg_msg.level, dbg_msg.desc, dbg_msg.count,
+			dbg_msg.syndrome);
 		rv = -EINVAL;
 		goto error_free_dir_data;
 	}
@@ -796,6 +871,20 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	 * Save vqueue information from DIRs
 	 */
 	dir_vq = (struct et_dir_vqueue *)dir_pos;
+	if (!valid_vq_region(dir_vq, true, dbg_msg.syndrome,
+			     ET_EVENT_SYNDROME_LEN)) {
+		if (strcmp(dbg_msg.syndrome, "") != 0) {
+			dbg_msg.level = LEVEL_FATAL;
+			dbg_msg.desc = "Mgmt: DIRs compulsory field(s) not set";
+			dbg_msg.count = 0;
+			dev_err(&et_dev->pdev->dev, "Error Event Detected\nLevel     : %s\nDesc      : %s\nCount     : %d\nSyndrome  : %s",
+				dbg_msg.level, dbg_msg.desc, dbg_msg.count,
+				dbg_msg.syndrome);
+		}
+		rv = -EINVAL;
+		goto error_free_dir_data;
+	}
+
 	section_size = dir_vq->attributes_size;
 
 	// End of region check
@@ -835,8 +924,16 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 
 	dir_pos += rv;
 	if (dir_pos != dir_data + dir_size) {
-		dev_warn(&et_dev->pdev->dev,
-			 "Mgmt: DIR total_size != sum of all region sizes!");
+		dbg_msg.level = LEVEL_WARN;
+		dbg_msg.desc =
+			"Mgmt: Total DIR Size does NOT match sum of respective Sizes of Attribute Regions";
+		dbg_msg.count = 0;
+		sprintf(dbg_msg.syndrome,
+			"Total size of DIRs: %zu, Total size of All Attribue Regions: %d\n",
+			dir_size, (int)(dir_pos - dir_data));
+		dev_warn(&et_dev->pdev->dev, "Error Event Detected\nLevel     : %s\nDesc      : %s\nCount     : %d\nSyndrome  : %s",
+			 dbg_msg.level, dbg_msg.desc, dbg_msg.count,
+			dbg_msg.syndrome);
 	}
 
 	kfree(dir_data);
@@ -895,6 +992,9 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	struct et_ops_dir_header *dir_ops;
 	struct et_dir_vqueue *dir_vq;
 	int rv, i;
+	u32 crc32_result;
+	struct event_dbg_msg dbg_msg;
+	char syndrome_str[ET_EVENT_SYNDROME_LEN];
 
 	et_dev->ops.is_ops_open = false;
 	spin_lock_init(&et_dev->ops.ops_open_lock);
@@ -927,6 +1027,10 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 		}
 	}
 
+	syndrome_str[0] = '\0';
+	dbg_msg.syndrome = syndrome_str;
+	dbg_msg.count = 0;
+
 	if (!dir_ready) {
 		dev_err(&et_dev->pdev->dev,
 			"Ops: DIRs not ready; discovery timed out\n");
@@ -946,6 +1050,12 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	// Allocate memory for reading DIRs
 	dir_data = kmalloc(dir_size, GFP_KERNEL);
 	if (!dir_data) {
+		dbg_msg.level = LEVEL_FATAL;
+		dbg_msg.desc = "Ops: Device not ready";
+		sprintf(dbg_msg.syndrome, "Boot status: %d\n", rv);
+		dev_err(&et_dev->pdev->dev, "Error Event Detected\nLevel     : %s\nDesc      : %s\nCount     : %d\nSyndrome  : %s",
+			dbg_msg.level, dbg_msg.desc, dbg_msg.count,
+			dbg_msg.syndrome);
 		rv = -ENOMEM;
 		goto error_unmap_dir_region;
 	}
@@ -980,10 +1090,17 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	}
 
 	// Calculate crc32 checksum starting after DIRs header to the end
-	if (~crc32(~0, dir_pos + section_size, dir_size - section_size) !=
-	    dir_ops->crc32) {
-		dev_err(&et_dev->pdev->dev,
-			"Ops: DIRs checksum mismatch!");
+	crc32_result =
+		~crc32(~0, dir_pos + section_size, dir_size - section_size);
+	if (crc32_result != dir_ops->crc32) {
+		dbg_msg.level = LEVEL_FATAL;
+		dbg_msg.desc = "Ops: DIRs CRC32 check mismatch";
+		sprintf(dbg_msg.syndrome,
+			"Expected CRC: %x, Calculated CRC: %x\n",
+			dir_ops->crc32, crc32_result);
+		dev_err(&et_dev->pdev->dev, "Error Event Detected\nLevel     : %s\nDesc      : %s\nCount     : %d\nSyndrome  : %s",
+			dbg_msg.level, dbg_msg.desc, dbg_msg.count,
+			dbg_msg.syndrome);
 		rv = -EINVAL;
 		goto error_free_dir_data;
 	}
@@ -994,6 +1111,20 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	 * Save vqueue information from DIRs
 	 */
 	dir_vq = (struct et_dir_vqueue *)dir_pos;
+	if (!valid_vq_region(dir_vq, false, dbg_msg.syndrome,
+			     ET_EVENT_SYNDROME_LEN)) {
+		if (strcmp(dbg_msg.syndrome, "") != 0) {
+			dbg_msg.level = LEVEL_FATAL;
+			dbg_msg.desc = "Ops: DIRs compulsory field(s) not set";
+			dbg_msg.count = 0;
+			dev_err(&et_dev->pdev->dev, "Error Event Detected\nLevel     : %s\nDesc      : %s\nCount     : %d\nSyndrome  : %s",
+				dbg_msg.level, dbg_msg.desc, dbg_msg.count,
+				dbg_msg.syndrome);
+		}
+		rv = -EINVAL;
+		goto error_free_dir_data;
+	}
+
 	section_size = dir_vq->attributes_size;
 
 	// End of region check
@@ -1033,8 +1164,16 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 
 	dir_pos += rv;
 	if (dir_pos != dir_data + dir_size) {
-		dev_warn(&et_dev->pdev->dev,
-			 "Ops: DIR total_size != sum of all region sizes!");
+		dbg_msg.level = LEVEL_WARN;
+		dbg_msg.desc =
+			"Ops: Total DIR Size does NOT match sum of respective Sizes of Attribute Regions";
+		dbg_msg.count = 0;
+		sprintf(dbg_msg.syndrome,
+			"Total size of DIRs: %zu, Total size of All Attribue Regions: %d\n",
+			dir_size, (int)(dir_pos - dir_data));
+		dev_warn(&et_dev->pdev->dev, "Error Event Detected\nLevel     : %s\nDesc      : %s\nCount     : %d\nSyndrome  : %s",
+			 dbg_msg.level, dbg_msg.desc, dbg_msg.count,
+			dbg_msg.syndrome);
 	}
 
 	kfree(dir_data);
