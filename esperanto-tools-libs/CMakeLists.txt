@@ -49,8 +49,7 @@ set(LIB_INSTALL_DIR  ${CMAKE_INSTALL_PREFIX}/lib/  CACHE STRING "Library install
 find_package(cereal REQUIRED)
 find_package(elfio REQUIRED)
 find_package(fmt REQUIRED)
-find_package(gflags REQUIRED)
-find_package(glog REQUIRED)
+find_package(logging REQUIRED)
 find_package(GTest CONFIG REQUIRED)
 
 # Esperanto dependencies
@@ -89,8 +88,8 @@ target_add_sanitizers(etrt_obj)
 target_link_libraries(etrt_obj
     PRIVATE
         cereal::cereal
-        glog::glog
         deviceLayer::deviceLayer
+        logging::logging
 )
 
 ## Build shared library

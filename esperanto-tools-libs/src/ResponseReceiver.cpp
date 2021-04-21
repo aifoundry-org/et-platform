@@ -40,11 +40,11 @@ ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServ
         std::random_shuffle(begin(devicesToCheck), end(devicesToCheck));
         int responsesCount = 0;
         for (auto dev : devicesToCheck) {
-          if (deviceLayer_->receiveResponseMasterMinion(dev, buffer)) {
-            RT_LOG(INFO) << "Got response from deviceId: " << dev;
+          while (deviceLayer_->receiveResponseMasterMinion(dev, buffer)) {
+            RT_VLOG(HIGH) << "Got response from deviceId: " << dev;
             responsesCount++;
             receiverServices_->onResponseReceived(buffer);
-            RT_LOG(INFO) << "Response processed";
+            RT_VLOG(HIGH) << "Response processed";
           }
         }
 
@@ -52,9 +52,9 @@ ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServ
           for (auto dev : devicesToCheck) {
             uint64_t sq_bitmap;
             bool cq_available;
-            RT_DLOG(INFO) << "No responses, waiting for epoll";
+            RT_LOG(INFO) << "No responses, waiting for epoll";
             deviceLayer_->waitForEpollEventsMasterMinion(dev, sq_bitmap, cq_available);
-            RT_DLOG(INFO) << "Finished waiting for epoll";
+            RT_LOG(INFO) << "Finished waiting for epoll";
           }
         }
       }
@@ -63,6 +63,8 @@ ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServ
 }
 
 ResponseReceiver::~ResponseReceiver() {
+  RT_LOG(INFO) << "Destroying response receiver";
   run_ = false;
   receiver_.join();
+  RT_LOG(INFO) << "Response receiver destroyed";
 }

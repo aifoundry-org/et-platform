@@ -9,13 +9,14 @@
 //------------------------------------------------------------------------------
 
 #include "runtime/IRuntime.h"
+#include <common/logging/Logging.h>
 #include <gtest/gtest-death-test.h>
 #include <ios>
+
 #define private public
 #include "MemoryManager.h"
 #include <chrono>
 #include <cstdio>
-#include <glog/logging.h>
 #include <gtest/gtest.h>
 
 using namespace rt;
@@ -154,8 +155,7 @@ TEST(MemoryManager, malloc_free_holes) {
 }
 
 int main(int argc, char** argv) {
-  google::InitGoogleLogging(argv[0]);
-  google::InstallFailureSignalHandler();
+  logging::LoggerDefault logger_;
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

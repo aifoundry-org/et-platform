@@ -20,6 +20,8 @@ find_package(EsperantoBootLoader REQUIRED)
 find_package(EsperantoDeviceMinionRuntime REQUIRED)
 find_package(EsperantoTestKernels REQUIRED)
 find_package(gflags REQUIRED)
+find_package(OpenMP REQUIRED)
+
 
 set(COMMON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/common)
 # Helper function to build a test binary
@@ -51,13 +53,13 @@ macro(build_test_binary)
         PRIVATE
             runtime::etrt_static
             cereal::cereal
-            glog::glog
             gflags
             deviceLayer::deviceLayer
             sw-sysemu::sw-sysemu
             GTest::gtest            
             GTest::gmock
             stdc++fs
+            OpenMP::OpenMP_CXX
     )
 
     target_add_sanitizers(${TEST_TARGET})

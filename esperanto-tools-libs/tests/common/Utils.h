@@ -1,10 +1,11 @@
-#include <runtime/IRuntime.h>
-#include <gtest/gtest.h>
-#include <device-layer/IDeviceLayer.h>
-#include <sw-sysemu/SysEmuOptions.h>
 #include <common/Constants.h>
+#include <common/logging/Logger.h>
+#include <device-layer/IDeviceLayer.h>
 #include <experimental/filesystem>
 #include <fstream>
+#include <gtest/gtest.h>
+#include <runtime/IRuntime.h>
+#include <sw-sysemu/SysEmuOptions.h>
 
 inline std::vector<std::byte> readFile(const std::string &path) {
   auto file = std::ifstream(path, std::ios_base::binary);
@@ -41,6 +42,7 @@ public:
   }
 
 protected:
+  logging::LoggerDefault loggerDefault_;
   std::unique_ptr<dev::IDeviceLayer> deviceLayer_;
   rt::RuntimePtr runtime_;
   std::vector<rt::DeviceId> devices_;

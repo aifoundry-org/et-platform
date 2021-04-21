@@ -1,7 +1,6 @@
+#include "Utils.h"
 #include <algorithm>
 #include <device-layer/IDeviceLayerMock.h>
-#include <glog/logging.h>
-#include "Utils.h"
 #include <thread>
 
 using namespace testing;
@@ -133,12 +132,6 @@ TEST_F(SysEmu, 1KB_2_memcpys_2stream_1thread) {
 }
 
 int main(int argc, char** argv) {
-  google::InitGoogleLogging(argv[0]);
-  google::InstallFailureSignalHandler();
-  google::SetCommandLineOption("GLOG_minloglevel", "0");
-  // Force logging in stderr and set min logging level
-  FLAGS_minloglevel = 0;
-  FLAGS_logtostderr = 1;
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

@@ -11,10 +11,10 @@
 #include "common/Constants.h"
 #include "runtime/IProfiler.h"
 #include "runtime/IRuntime.h"
+#include <common/logging/Logging.h>
 #include <device-layer/IDeviceLayer.h>
 #include <experimental/filesystem>
 #include <fstream>
-#include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <ios>
 #include <sstream>
@@ -110,17 +110,12 @@ TEST(Profiler, add_2_vectors_profiling) {
 
   // take the string from the serialization and deserialize it to check everything is in place
   auto str = ss.str();
-  DLOG(INFO) << "Trace: " << str;
+  LOG(INFO) << "Trace: " << str;
 }
 
 
 int main(int argc, char** argv) {
-  google::InitGoogleLogging(argv[0]);
-  google::InstallFailureSignalHandler();
-  google::SetCommandLineOption("GLOG_minloglevel", "0");
-  // Force logging in stderr and set min logging level
-  FLAGS_minloglevel = 0;
-  FLAGS_logtostderr = 1;
+  logging::LoggerDefault logger_;
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
