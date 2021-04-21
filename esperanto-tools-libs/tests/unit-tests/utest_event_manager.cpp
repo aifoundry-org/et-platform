@@ -9,13 +9,13 @@
 //------------------------------------------------------------------------------
 
 #include "runtime/IRuntime.h"
+#include <atomic>
 #include <chrono>
 #include <cstdio>
-#include <glog/logging.h>
+#include <functional>
 #include <gtest/gtest.h>
 #include <thread>
-#include <functional>
-#include <atomic>
+
 #define private public
 #include "EventManager.h"
 
@@ -32,10 +32,10 @@ public:
   std::thread createAndBlockThread(
     EventId evt, bool detach, std::function<void()> functor) {
     auto t = std::thread([=]() {
-      VLOG(5) << "Thread " << std::this_thread::get_id() << " blocking.";
+      LOG(DEBUG) << "Thread " << std::this_thread::get_id() << " blocking.";
       em_.blockUntilDispatched(evt, std::chrono::hours(5));
       functor();
-      VLOG(5) << "Thread " << std::this_thread::get_id() << " after block.";
+      LOG(DEBUG) << "Thread " << std::this_thread::get_id() << " after block.";
     });
     if (detach) {
       t.detach();
@@ -127,8 +127,7 @@ TEST_F(EventManagerF, blockingThreads) {
 }
 
 int main(int argc, char** argv) {
-  google::InitGoogleLogging(argv[0]);
-  google::InstallFailureSignalHandler();
+  logging::LoggerDefault logger_;
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

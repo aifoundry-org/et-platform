@@ -24,6 +24,7 @@ using namespace rt;
 using namespace rt::profiling;
 
 RuntimeImp::~RuntimeImp() {
+  RT_LOG(INFO) << "Destroying runtime";
   responseReceiver_.reset();
 }
 

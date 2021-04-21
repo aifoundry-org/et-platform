@@ -8,17 +8,17 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-
+#include "common/Constants.h"
 #include "device-layer/IDeviceLayer.h"
 #include "runtime/IRuntime.h"
 #include "sw-sysemu/SysEmuOptions.h"
-#include "common/Constants.h"
+#include "utils.h"
 
+#include <common/logging/Logger.h>
+#include <experimental/filesystem>
 #include <fstream>
-#include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <ios>
-#include <experimental/filesystem>
 
 namespace fs = std::experimental::filesystem;
 
@@ -59,10 +59,12 @@ public:
     elf_file.read(reinterpret_cast<char*>(convolutionContent_.data()), size);
   }
 
-  void TearDown() override { runtime_.reset(); }
+  void TearDown() override {
+    runtime_.reset();
+  }
 
-  rt::RuntimePtr runtime_;
   std::unique_ptr<dev::IDeviceLayer> deviceLayer_;
+  rt::RuntimePtr runtime_;
   std::vector<std::byte> convolutionContent_;
   std::vector<rt::DeviceId> devices_;
 };
@@ -81,6 +83,7 @@ TEST_F(TestCodeLoading, LoadKernel) {
 TEST_F(TestCodeLoading, MultipleLoads) {
   std::vector<rt::KernelId> kernels;
 
+  RT_LOG(INFO) << "Loading 100 kernels";
   for (int i = 0; i < 100; ++i) {
     EXPECT_NO_THROW(kernels.emplace_back(
       runtime_->loadCode(devices_.front(), convolutionContent_.data(), convolutionContent_.size())));
@@ -88,6 +91,7 @@ TEST_F(TestCodeLoading, MultipleLoads) {
   for (auto it = begin(kernels) + 1; it != end(kernels); ++it) {
     EXPECT_LT(static_cast<uint32_t>(*(it - 1)), static_cast<uint32_t>(*it));
   }
+  RT_LOG(INFO) << "Unloading 100 kernels";
   for (auto kernel : kernels) {
     EXPECT_NO_THROW(runtime_->unloadCode(kernel));
   }
@@ -96,12 +100,8 @@ TEST_F(TestCodeLoading, MultipleLoads) {
 } // namespace
 
 int main(int argc, char** argv) {
-  google::InitGoogleLogging(argv[0]);
-  google::InstallFailureSignalHandler();
-  google::SetCommandLineOption("GLOG_minloglevel", "0");
-  // Force logging in stderr and set min logging level
-  FLAGS_minloglevel = 0;
-  FLAGS_logtostderr = 1;
+  logging::LoggerDefault logger_;
+  g3::log_levels::disable(DEBUG);
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

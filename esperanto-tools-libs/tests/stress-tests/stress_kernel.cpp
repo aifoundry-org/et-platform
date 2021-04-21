@@ -1,7 +1,6 @@
 #include "Utils.h"
 #include <algorithm>
 #include <device-layer/IDeviceLayerMock.h>
-#include <glog/logging.h>
 #include <thread>
 
 using namespace testing;
@@ -34,7 +33,7 @@ public:
         for (int j = 0; j < streams; ++j) {
           streams_[j] = runtime_->createStream(dev);
           for (int k = 0; k < num_executions / streams; ++k) {
-            DLOG(INFO) << "Num execution: " << k;
+            LOG(INFO) << "Num execution: " << k;
             auto idx = k + j * num_executions / streams;
             host_src1[idx] = std::vector<int>(elems);
             host_src2[idx] = std::vector<int>(elems);
@@ -131,12 +130,6 @@ TEST_F(SysEmu, 64_ele_1_exe_1_st_45_th) {
 }
 
 int main(int argc, char** argv) {
-  google::InitGoogleLogging(argv[0]);
-  google::InstallFailureSignalHandler();
-  google::SetCommandLineOption("GLOG_minloglevel", "0");
-  // Force logging in stderr and set min logging level
-  FLAGS_minloglevel = 0;
-  FLAGS_logtostderr = 1;
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
