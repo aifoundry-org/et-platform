@@ -72,17 +72,24 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
     power_event_callback(UNCORRECTABLE, &message);
     vTaskDelay(pdMS_TO_TICKS(10));
 
-    /* Generate High Temperature Error */
-    FILL_EVENT_HEADER(&message.header, THERMAL_HIGH,
+    /* Generate PMIC Error */
+    FILL_EVENT_HEADER(&message.header, PMIC_ERROR,
             sizeof(struct event_message_t));
-    FILL_EVENT_PAYLOAD(&message.payload, FATAL, 65, 100, 0);
+    FILL_EVENT_PAYLOAD(&message.payload, FATAL, 33, 0xFF, 0xC35A);
     power_event_callback(UNCORRECTABLE, &message);
     vTaskDelay(pdMS_TO_TICKS(10));
 
-    /* Generate Watchdog Timeout Error */
-    FILL_EVENT_HEADER(&message.header, WDOG_TIMEOUT,
+    /* Generate Internal Watchdog Timeout Error */
+    FILL_EVENT_HEADER(&message.header, WDOG_INTERNAL_TIMEOUT,
             sizeof(struct event_message_t));
-    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 65, 1, 0);
+    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 22, 0xA0A0A0A0B0B0B0B0, 0xECECECEC1D2D3D4D);
+    wdog_timeout_callback(UNCORRECTABLE, &message);
+    vTaskDelay(pdMS_TO_TICKS(10));
+
+    /* Generate External Watchdog Timeout Error */
+    FILL_EVENT_HEADER(&message.header, WDOG_EXTERNAL_TIMEOUT,
+            sizeof(struct event_message_t));
+    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 11, 0xCACACACA09110911, 0xAAAAAAAA1234CDEF);
     wdog_timeout_callback(UNCORRECTABLE, &message);
     vTaskDelay(pdMS_TO_TICKS(10));
 

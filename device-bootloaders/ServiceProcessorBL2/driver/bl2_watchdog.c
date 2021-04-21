@@ -256,7 +256,7 @@ void watchdog_isr(void)
     if (wdog_control_block.event_cb) {
         struct event_message_t message;
         /* add details in message header and fill payload */
-        FILL_EVENT_HEADER(&message.header, WDOG_TIMEOUT,
+        FILL_EVENT_HEADER(&message.header, WDOG_INTERNAL_TIMEOUT,
                           sizeof(struct event_message_t) - sizeof(struct cmn_header_t));
         FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, 0, 0);
         wdog_control_block.event_cb(CORRECTABLE, &message);

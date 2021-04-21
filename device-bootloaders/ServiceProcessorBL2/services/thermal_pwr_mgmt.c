@@ -749,7 +749,7 @@ void thermal_power_task_entry(void *pvParameter)
     while(1)
     {
         xTaskNotifyWait(0, 0xFFFFFFFFU, &notificationValue, portMAX_DELAY);
-        if (notificationValue == THERMAL_HIGH)
+        if (notificationValue == PMIC_ERROR)
         {
             current_temperature = pmic_get_temperature();
 
@@ -759,10 +759,10 @@ void thermal_power_task_entry(void *pvParameter)
             if (get_soc_power_reg()->event_cb)
             {
                 /* Send the event to host for exceeding the high temperature threshold */
-                FILL_EVENT_HEADER(&message.header, THERMAL_HIGH,
+                FILL_EVENT_HEADER(&message.header, PMIC_ERROR,
                             sizeof(struct event_message_t) - sizeof(struct cmn_header_t));
 
-                FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, current_temperature, 0);
+                FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, 0x1, current_temperature);
 
                 /* Invoke the callback function and post message */
                 get_soc_power_reg()->event_cb(0, &message);
