@@ -6,6 +6,9 @@
 #include "esr_defines.h"
 #include "pcie_device.h"
 #include "io.h"
+#include "bl2_sp_pll.h"
+#include "bl2_pmic_controller.h"
+#include "pcie_init.h"
 
 /*! \def PCIE_GEN_1
     \brief PCIE gen 1 bit rates(GT/s) definition.
@@ -142,5 +145,54 @@ int32_t pcie_retrain_phy(void);
     \returns Status indicating success or negative error
 */
 int pcie_get_speed(char *pcie_speed);
+
+/*! \fn int PShire_Initialize(void)
+    \brief Interface to initialize PShire
+    \param None
+    \returns Status indicating success or negative error
+*/
+int PShire_Initialize(void);
+
+/*! \fn int PCIE_Controller_Initialize(void)
+    \brief Interface to initialize PCIE controller
+    \param None
+    \returns Status indicating success or negative error
+*/
+int PCIE_Controller_Initialize(void);
+
+/*! \fn int PCIE_Phy_Initialize(void)
+    \brief Interface to initialize PCIE phy
+    \param None
+    \returns Status indicating success or negative error
+*/
+int PCIE_Phy_Initialize(void);
+
+/*! \fn int PShire_Voltage_Update(uint8_t voltage)
+    \brief Interface to set pshire voltage
+    \param voltage
+    \returns Status indicating success or negative error
+*/
+int PShire_Voltage_Update(uint8_t voltage);
+
+/*! \fn int Pshire_PLL_Program(uint8_t frequency)
+    \brief Interface to program PLL of PShire
+    \param frequency
+    \returns Status indicating success or negative error
+*/
+int Pshire_PLL_Program(uint8_t frequency);
+
+/*! \fn int Pshire_NOC_update_routing_table(void)
+    \brief Interface to update routing table
+    \param None 
+    \returns Status indicating success or negative error
+*/
+int Pshire_NOC_update_routing_table(void);
+
+/*! \fn int PCIe_Phy_Firmware_Update (uint64_t* image)
+    \brief Interface to update phy firmware
+    \param image pointer to firmware image 
+    \returns Status indicating success or negative error
+*/
+int PCIe_Phy_Firmware_Update (uint64_t* image);
 
 #endif

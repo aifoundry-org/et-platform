@@ -29,6 +29,7 @@ uint32_t get_input_clock_index(void);
 int configure_sp_pll_2(void);
 int configure_sp_pll_4(void);
 int configure_pcie_pll(void);
+int configure_pshire_pll(const uint8_t mode);
 int configure_minion_plls(void);
 int get_pll_frequency(PLL_ID_t pll_id, uint32_t *frequency);
 int pll_init(uint32_t sp_pll_0_frequency, uint32_t sp_pll_1_frequency,

@@ -242,6 +242,35 @@ int configure_pcie_pll(void)
     return rv;
 }
 
+int configure_pshire_pll(const uint8_t mode)
+{
+
+    int rv;
+
+    rv = configure_pll((uint32_t *)R_PCIE_PLLP0_BASEADDR, mode);
+    if (0 != rv) {
+        goto ERROR;
+    }
+
+    if (0 != clock_manager_pll_bypass(PLL_ID_PSHIRE, false)) {
+        goto ERROR;
+    }
+
+    if (0 == rv) {
+        gs_pcie_pll_0_frequency = 1010;
+    } else {
+        gs_pcie_pll_0_frequency = 0;
+    }
+
+    return 0;
+
+ERROR:
+    clock_manager_pll_bypass(PLL_ID_PSHIRE, true);
+    configure_pll_off((uint32_t *)R_PCIE_PLLP0_BASEADDR);
+
+    return rv;
+}
+
 int get_pll_frequency(PLL_ID_t pll_id, uint32_t *frequency)
 {
     if (NULL == frequency) {

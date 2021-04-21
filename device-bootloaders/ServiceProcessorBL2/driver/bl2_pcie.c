@@ -134,3 +134,45 @@ int pcie_get_speed(char *pcie_speed)
 
     return 0;
 }
+
+int PShire_Initialize(void)
+{
+    PCIe_release_pshire_from_reset();
+    configure_pcie_pll();
+    return 0;
+}
+
+int PCIE_Controller_Initialize(void)
+{
+    PCIe_init(true /* expect_link_up*/);
+    return 0;
+}
+
+int PCIE_Phy_Initialize(void)
+{
+    /* interface to initialize PCIe phy */
+    return 0;
+}
+
+int PShire_Voltage_Update(uint8_t voltage)
+{
+    return pmic_set_voltage(PCIE, voltage);
+}
+
+int Pshire_PLL_Program(uint8_t mode)
+{
+    return  configure_pshire_pll(mode);
+}
+
+int Pshire_NOC_update_routing_table(void)
+{
+    /* interface to update routing table */
+    return 0;
+}
+
+int PCIe_Phy_Firmware_Update (uint64_t* image)
+{
+    /* interface to initialize PCIe phy */
+    (void)image;
+    return 0;
+}
