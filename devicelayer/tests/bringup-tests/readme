@@ -1,0 +1,109 @@
+Instructions to use the test framework:
+
+> To create a suite of tests it is recommended a new pttest file be
+created. See test_sp.py for example.
+
+> tf_target class implements support to connect to supported target
+intarfaces (fifo for sysemu, serial for silicon, JTAG)
+
+>tf_specification class implements services to create and processes
+supported test commands. test_specificication.json documents meta
+data needed for TF commands and responses
+
+> JSON test specifiction: to add a new test command and response:
+    >Add command and response <name><id> to "command_ids" and 
+    "response_ids" in the JSON file
+    >Add command/response binding:
+    Example command binding for echo command to SP
+    "TF_CMD_ECHO_TO_SP": {
+        "id":"uint16_t", /* Type for command, this should always be defined to uint_16_t */
+        "flags":2, /* Specify flags value to indicate command only/command with payload/ or payload only. refer to "protocol" section for supported masks */
+        "payload_size":4, /* Spefify payload size, NOTE: if command carries no payload define 0 */
+        "payload_args": {
+            "cmd_payload":"uint32_t" /* Specify payload arg name and c data type */
+        }
+    },
+    Example response binding for SP FW version query command
+    "TF_RSP_SP_FW_VERSION": {
+        "flags":2, /* Specify flags value to indicate command only/command with payload/ or payload only. refer to "protocol" section for supported masks */
+        "payload_size":12, /* Spefify payload size, NOTE: if command carries no payload define 0 */
+        "payload_args": {
+            "major":"uint32_t", /* Specify payload arg name and c data type */
+            "minor":"uint32_t", /* Specify payload arg name and c data type */
+            "revision":"uint32_t" /* Specify payload arg name and c data type */
+        }
+    },
+
+> To run the pytest use command below
+    pytest <testfile> -s
+    Example, >pytest test_sp.py -s
+
+> Output from test run
+
+*********************************************************************************************************
+
+pytest test_sp.py -s
+============================= test session starts ==============================
+platform linux -- Python 3.6.8, pytest-5.2.0, py-1.10.0, pluggy-0.13.1
+rootdir: /eng/arvindr/work/repo/sw-platform/build/host-software/deviceLayer/tests/bringup-tests
+plugins: forked-1.3.0, html-2.0.0, metadata-1.11.0, rerunfailures-9.0, xdist-1.30.0
+collected 6 items                                                              
+
+test_sp.py Launching sysemu..
+mkfifo: cannot create fifo 'sp_uart0_tx': File exists
+mkfifo: cannot create fifo 'sp_uart0_rx': File exists
+Test project /eng/arvindr/work/repo/sw-platform/build/host-software/deviceLayer/tests/bringup-tests
+    Start 1: device-layer:TestLaunchSysemu.LaunchSuccess
+test initialization
+Fifo Target Instance: sp_uart0_tx:sp_uart0_rx
+Serial Target Instance: /dev/ttyS0:115200
+.Testing echo to SP..
+id
+        259
+flags
+        16
+payload_size
+        4
+cmd_payload
+        3735928559
+.Testing echo to MM..
+id
+        259
+flags
+        16
+payload_size
+        4
+cmd_payload
+        3735928559
+.SP FW version ..
+id
+        257
+flags
+        16
+payload_size
+        12
+major
+        1
+minor
+        2
+revision
+        3
+.MM FW Version ..
+id
+        258
+flags
+        16
+payload_size
+        12
+major
+        1
+minor
+        2
+revision
+        3
+.test finalize
+.
+
+============================== 6 passed in 5.07s ===============================
+
+*********************************************************************************************************
