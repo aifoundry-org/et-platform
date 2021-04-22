@@ -8,8 +8,8 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "testHelper/TestDevOpsApi.h"
 #include "Autogen.h"
+#include "testHelper/TestDevOpsApi.h"
 #include <experimental/filesystem>
 
 /*

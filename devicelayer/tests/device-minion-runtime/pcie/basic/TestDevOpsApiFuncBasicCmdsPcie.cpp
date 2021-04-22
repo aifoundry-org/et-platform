@@ -42,7 +42,7 @@ TEST_F(TestDevOpsApiFuncBasicCmdsPcie, devUnknownCmd_NegativeTest_2_7) {
   devUnknownCmd_NegativeTest_2_7();
 }
 
-int main(int argc, char** argv) {  
+int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   google::ParseCommandLineFlags(&argc, &argv, true);
   return RUN_ALL_TESTS();

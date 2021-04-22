@@ -25,5 +25,6 @@ protected:
   /* DMA Stress Testing Functions */
   void dataWRStressSize_2_1(uint8_t maxExp2);
   void dataWRStressSpeed_2_2(uint8_t maxExp2);
-  void dataWRStressChannels_2_3();
+  void dataWRStressChannelsSingleQueue_2_3(uint32_t numOfLoopbackCmds);
+  void dataWRStressChannelsMultiQueue_2_4(uint32_t numOfLoopbackCmds);
 };

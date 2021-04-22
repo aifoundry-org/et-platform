@@ -56,7 +56,7 @@ protected:
   }
 };
 
-//TODO: following tests are failing and need to enable with the fix of SW-6991
+// TODO: following tests are failing and need to enable with the fix of SW-6991
 TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dataWRStressSize_2_1) {
   dataWRStressSize_2_1(30);
 }
@@ -65,8 +65,12 @@ TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dataWRStressSpeed_2_2) {
   dataWRStressSpeed_2_2(30);
 }
 
-TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dataWRStressChannels_2_3) {
-  dataWRStressChannels_2_3();
+TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dataWRStressChannelsSingleQueue_2_3) {
+  dataWRStressChannelsSingleQueue_2_3(1000);
+}
+
+TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dataWRStressChannelsMultiQueue_2_4) {
+  dataWRStressChannelsMultiQueue_2_4(1000);
 }
 
 int main(int argc, char** argv) {

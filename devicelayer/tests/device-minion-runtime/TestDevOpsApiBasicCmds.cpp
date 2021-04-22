@@ -79,14 +79,18 @@ void TestDevOpsApiBasicCmds::devUnknownCmd_NegativeTest_2_7() {
 
   // TODO SW-6818: Use executeAsync()/executeSync() instead when waitForEpollEventsMasterMinion()
   // is functional with timeout in sysemu
-  uint8_t queueId = 0;
-  auto res = pushCmd(queueId, cmd);
-  ASSERT_TRUE(res) << "Unable to send the unknown command!";
+  uint8_t queueCount = devLayer_->getSubmissionQueuesCount(kIDevice);
+
+  for (int queueId = 0; queueId < queueCount; queueId++) {
+    // Push command to all the availabel queus one by one.
+    auto res = pushCmd(queueId, cmd);
+    ASSERT_TRUE(res) << "Unable to send the unknown command!";
+  }
 
   TEST_VLOG(1) << "Waiting for some time to see if response is received for unknown command ...";
   std::this_thread::sleep_for(std::chrono::seconds(5));
 
-  res = popRsp();
+  auto res = popRsp();
   ASSERT_FALSE(res) << "ERROR: Response received for unknown command!";
   TEST_VLOG(1) << "No response received for unknown command as expected";
 
@@ -98,13 +102,29 @@ void TestDevOpsApiBasicCmds::devUnknownCmd_NegativeTest_2_7() {
  *                      Stress Tests                       *
  *                                                         *
  **********************************************************/
-void TestDevOpsApiBasicCmds::backToBackSameCmds_1_1(int numOfIterations) {
+void TestDevOpsApiBasicCmds::backToBackSameCmdsSingleQueue_1_1(int numOfCmds) {
+  std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
+  initTagId(0x31);
+  int queueId = 0;
+
+  for (int i = 0; i < numOfCmds; i++) {
+    // Add cmd to stream
+    stream.push_back(IDevOpsApiCmd::createEchoCmd(getNextTagId(), false, kEchoPayload));
+  }
+
+  // Move stream to streams_
+  streams_.emplace(queueId, std::move(stream));
+
+  executeAsync();
+}
+
+void TestDevOpsApiBasicCmds::backToBackSameCmdsMultiQueue_1_2(int numOfCmds) {
   std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
   uint8_t queueCount = devLayer_->getSubmissionQueuesCount(kIDevice);
-  initTagId(0x31);
+  initTagId(0x41);
 
   for (int queueId = 0; queueId < queueCount; queueId++) {
-    for (int i = 0; i < numOfIterations; i++) {
+    for (int i = 0; i < (numOfCmds / queueCount); i++) {
       // Add cmd to stream
       stream.push_back(IDevOpsApiCmd::createEchoCmd(getNextTagId(), false, kEchoPayload));
     }
@@ -116,21 +136,40 @@ void TestDevOpsApiBasicCmds::backToBackSameCmds_1_1(int numOfIterations) {
   executeAsync();
 }
 
-void TestDevOpsApiBasicCmds::backToBackDiffCmds_1_2(int numOfIterations) {
+void TestDevOpsApiBasicCmds::backToBackDiffCmdsSingleQueue_1_3(int numOfCmds) {
   std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
-  uint8_t queueCount = devLayer_->getSubmissionQueuesCount(kIDevice);
-  initTagId(0x41);
+  initTagId(0x51);
+  int queueId = 0;
 
-  for (int i = 0; i < numOfIterations; i++) {
+  for (int i = 0; i < numOfCmds; i++) {
     // Add cmd to stream
     stream.push_back(IDevOpsApiCmd::createEchoCmd(getNextTagId(), false, kEchoPayload));
     stream.push_back(IDevOpsApiCmd::createFwVersionCmd(getNextTagId(), false, 1));
     stream.push_back(
       IDevOpsApiCmd::createApiCompatibilityCmd(getNextTagId(), false, kDevFWMajor, kDevFWMinor, kDevFWPatch));
   }
-
   // Move stream to streams_
-  streams_.emplace(0, std::move(stream));
+  streams_.emplace(queueId, std::move(stream));
+
+  executeAsync();
+}
+
+void TestDevOpsApiBasicCmds::backToBackDiffCmdsMultiQueue_1_4(int numOfCmds) {
+  std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
+  uint8_t queueCount = devLayer_->getSubmissionQueuesCount(kIDevice);
+  initTagId(0x61);
+
+  for (int queueId = 0; queueId < queueCount; queueId++) {
+    for (int i = 0; i < (numOfCmds / queueCount); i++) {
+      // Add cmd to stream
+      stream.push_back(IDevOpsApiCmd::createEchoCmd(getNextTagId(), false, kEchoPayload));
+      stream.push_back(IDevOpsApiCmd::createFwVersionCmd(getNextTagId(), false, 1));
+      stream.push_back(
+        IDevOpsApiCmd::createApiCompatibilityCmd(getNextTagId(), false, kDevFWMajor, kDevFWMinor, kDevFWPatch));
+    }
+    // Move stream to streams_
+    streams_.emplace(queueId, std::move(stream));
+  }
 
   executeAsync();
 }

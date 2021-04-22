@@ -79,8 +79,8 @@ TEST_F(TestDevOpsApiFuncKernelCmdsSysEmu, abortHangKernel_PositiveTesting_4_10) 
 TEST_F(TestDevOpsApiFuncKernelCmdsSysEmu, allTestsConsecutively) {
   launchAddVectorKernel_PositiveTesting_4_1(0x1);
   launchUberKernel_PositiveTesting_4_4(0x3 | (1ull << 32)); /* Shire 0, 1 and 32 */
-  launchExceptionKernel_NegativeTesting_4_6(0x3); /* Shire 0 and 1 */
-  abortHangKernel_PositiveTesting_4_10(0x3); /* Shire 0 and 1 */
+  launchExceptionKernel_NegativeTesting_4_6(0x3);           /* Shire 0 and 1 */
+  abortHangKernel_PositiveTesting_4_10(0x3);                /* Shire 0 and 1 */
 }
 
 TEST_F(TestDevOpsApiFuncKernelCmdsSysEmu, kernelAbortCmd_InvalidTagIdNegativeTesting_6_2) {

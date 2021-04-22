@@ -26,12 +26,20 @@ protected:
   }
 };
 
-TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackSameCmds_1_1) {
-  backToBackSameCmds_1_1(1000);
+TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackSameCmdsSingleQueue_1_1) {
+  backToBackSameCmdsSingleQueue_1_1(1000);
 }
 
-TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackDiffCmds_1_2) {
-  backToBackDiffCmds_1_2(1000);
+TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackSameCmdsMultiQueue_1_2) {
+  backToBackSameCmdsMultiQueue_1_2(1000);
+}
+
+TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackDiffCmdsSingleQueue_1_3) {
+  backToBackDiffCmdsSingleQueue_1_3(1000);
+}
+
+TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackDiffCmdsMultiQueue_1_4) {
+  backToBackDiffCmdsMultiQueue_1_4(1000);
 }
 
 int main(int argc, char** argv) {

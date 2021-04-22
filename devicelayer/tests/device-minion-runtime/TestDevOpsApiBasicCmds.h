@@ -19,6 +19,8 @@ protected:
   void devUnknownCmd_NegativeTest_2_7();
 
   /* Stress Testing Functions */
-  void backToBackSameCmds_1_1(int numOfIterations);
-  void backToBackDiffCmds_1_2(int numOfIterations);
+  void backToBackSameCmdsSingleQueue_1_1(int numOfCmds);
+  void backToBackSameCmdsMultiQueue_1_2(int numOfCmds);
+  void backToBackDiffCmdsSingleQueue_1_3(int numOfCmds);
+  void backToBackDiffCmdsMultiQueue_1_4(int numOfCmds);
 };

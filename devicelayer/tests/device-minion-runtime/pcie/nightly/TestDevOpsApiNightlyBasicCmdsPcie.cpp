@@ -26,15 +26,21 @@ protected:
   }
 };
 
-TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBack3kSameCmds_1_3) {
-  backToBackSameCmds_1_1(3000);
+TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBack3kSameCmdsSingleQueue_1_3) {
+  backToBackSameCmdsSingleQueue_1_1(3000);
 }
 
-/* Commenting out till FC issues has been removed
-TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBack9kDiffCmds_1_4) {
-  backToBackDiffCmds_1_2(3000);
+TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBack3kSameCmdsMultiQueue_1_4) {
+  backToBackSameCmdsMultiQueue_1_2(3000);
 }
-*/
+
+TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBack9kDiffCmdsSingleQueue_1_5) {
+  backToBackDiffCmdsSingleQueue_1_3(9000);
+}
+
+TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBack9kDiffCmdsMultiQueue_1_6) {
+  backToBackDiffCmdsMultiQueue_1_4(9000);
+}
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);

@@ -480,14 +480,14 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(uint64_t s
 void TestDevOpsApiKernelCmds::kernelAbortCmd_InvalidTagIdNegativeTesting_6_2() {
   std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
   initTagId(0xb1);
-  
-  stream.push_back(IDevOpsApiCmd::createKernelAbortCmd(getNextTagId(), false, 0xbeef /* invalid tagId */,
-                                                       device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_INVALID_TAG_ID));
+
+  stream.push_back(
+    IDevOpsApiCmd::createKernelAbortCmd(getNextTagId(), false, 0xbeef /* invalid tagId */,
+                                        device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_INVALID_TAG_ID));
 
   // Move stream of commands to streams_[queueId]
   uint16_t queueId = 0;
   streams_.emplace(queueId, std::move(stream));
 
   executeAsync();
-
 }

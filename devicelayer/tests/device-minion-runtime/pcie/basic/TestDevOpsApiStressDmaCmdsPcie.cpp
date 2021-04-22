@@ -34,8 +34,12 @@ TEST_F(TestDevOpsApiStressDmaCmdsPcie, dataWRStressSpeed_2_2) {
   dataWRStressSpeed_2_2(25);
 }
 
-TEST_F(TestDevOpsApiStressDmaCmdsPcie, dataWRStressChannels_2_3) {
-  dataWRStressChannels_2_3();
+TEST_F(TestDevOpsApiStressDmaCmdsPcie, dataWRStressChannelsSingleQueue_2_3) {
+  dataWRStressChannelsSingleQueue_2_3(1000);
+}
+
+TEST_F(TestDevOpsApiStressDmaCmdsPcie, dataWRStressChannelsMultiQueue_2_4) {
+  dataWRStressChannelsMultiQueue_2_4(1000);
 }
 
 int main(int argc, char** argv) {

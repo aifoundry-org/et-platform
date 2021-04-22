@@ -56,20 +56,36 @@ protected:
   }
 };
 
-TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackSameCmds_1_1) {
-  backToBackSameCmds_1_1(1000);
+TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackSameCmdsSingleQueue_1_1) {
+  backToBackSameCmdsSingleQueue_1_1(1000);
 }
 
-TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackDiffCmds_1_2) {
-  backToBackDiffCmds_1_2(1000);
+TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackSameCmdsMultiQueue_1_2) {
+  backToBackSameCmdsMultiQueue_1_2(100);
 }
 
-TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBack10kSameCmds_1_3) {
-  backToBackSameCmds_1_1(10000);
+TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackDiffCmdsSingleQueue_1_3) {
+  backToBackDiffCmdsSingleQueue_1_3(1000);
 }
 
-TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBack30kDiffCmds_1_4) {
-  backToBackDiffCmds_1_2(10000);
+TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackDiffCmdsMultiQueue_1_4) {
+  backToBackDiffCmdsMultiQueue_1_4(100);
+}
+
+TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBack10kSameCmdsSingleQueue_1_1) {
+  backToBackSameCmdsSingleQueue_1_1(10000);
+}
+
+TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBack10kSameCmdsMultiQueue_1_2) {
+  backToBackSameCmdsMultiQueue_1_2(10000);
+}
+
+TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBack30kDiffCmdsSingleQueue_1_3) {
+  backToBackDiffCmdsSingleQueue_1_3(10000);
+}
+
+TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBack30kDiffCmdsMultiQueue_1_4) {
+  backToBackDiffCmdsMultiQueue_1_4(10000);
 }
 
 int main(int argc, char** argv) {
