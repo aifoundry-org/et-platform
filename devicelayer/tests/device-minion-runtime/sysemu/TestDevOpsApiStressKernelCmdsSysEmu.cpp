@@ -57,11 +57,11 @@ protected:
 };
 
 TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackSameKernelLaunchCmds_3_1) {
-  backToBackSameKernelLaunchCmds_3_1(0x1FFFFFFFF); // all shires
+  backToBackSameKernelLaunchCmds_3_1(kSysEmuMinionShiresMask);
 }
 
 TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackDifferentKernelLaunchCmds_3_2) {
-  backToBackDifferentKernelLaunchCmds_3_2(0x1FFFFFFFF); // all shires
+  backToBackDifferentKernelLaunchCmds_3_2(kSysEmuMinionShiresMask);
 }
 
 int main(int argc, char** argv) {

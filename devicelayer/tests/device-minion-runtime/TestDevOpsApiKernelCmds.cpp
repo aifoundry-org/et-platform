@@ -10,6 +10,7 @@
 
 #include "TestDevOpsApiKernelCmds.h"
 #include "Autogen.h"
+#include <bitset>
 #include <experimental/filesystem>
 
 using namespace ELFIO;
@@ -39,7 +40,7 @@ void TestDevOpsApiKernelCmds::launchAddVectorKernel_PositiveTesting_4_1(uint64_t
     vResult.emplace_back(vA.back() + vB.back());
   }
 
-  // Assign device memory for data - a hard coded hack for now
+  // Assign device memory for data 
   auto bufSize = numElems * sizeof(int);
   auto alignedBufSize = ALIGN(bufSize, kCacheLineSize);
   auto dataLoadAddr = getDmaWriteAddr(3 * alignedBufSize);
@@ -126,14 +127,17 @@ void TestDevOpsApiKernelCmds::launchUberKernel_PositiveTesting_4_4(uint64_t shir
   struct layer_parameters_t {
     uint64_t data_ptr;
     uint64_t length;
+    uint32_t shire_count;
   };
 
   layer_parameters_t launchArgs[2];
   uint64_t devAddrKernelArgs = getDmaWriteAddr(sizeof(launchArgs));
   launchArgs[0].data_ptr = devAddrBufLayer0;
   launchArgs[0].length = bufSizeLayer0;
+  launchArgs[0].shire_count = std::bitset<64>(shire_mask).count();
   launchArgs[1].data_ptr = devAddrBufLayer1;
   launchArgs[1].length = bufSizeLayer1;
+  launchArgs[1].shire_count = std::bitset<64>(shire_mask).count();
 
   // Copy kernel launch args
   auto hostVirtAddr = reinterpret_cast<uint64_t>(launchArgs);
