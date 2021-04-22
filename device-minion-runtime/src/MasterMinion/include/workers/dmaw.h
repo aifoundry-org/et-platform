@@ -51,6 +51,16 @@
 */
 #define DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL -2
 
+/*! \def TIMEOUT_DMAW_FIND_IDLE_CH
+    \brief Timeout value (in mS) for finding DMA idle channel
+*/
+#define TIMEOUT_DMAW_FIND_IDLE_CH  2
+
+/*! \def TIMEOUT_DMA_FACTOR
+    \brief Timeout value (in mS) for DMA per 2Kb (1ms)
+*/
+#define DMA_TIMEOUT_FACTOR(x)  (x < 0x800) ? 1:5
+
 /*! \enum dma_chan_state_e
     \brief Enum that provides the state of a DMA channel
 */

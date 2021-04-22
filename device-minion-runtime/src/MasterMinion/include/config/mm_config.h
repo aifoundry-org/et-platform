@@ -353,42 +353,6 @@
 */
 #define DMAW_NUM                  2
 
-/*****************************************************/
-/* Definitions for timeouts of various MM components */
-/*****************************************************/
-
-/*! \def TIMEOUT_DMAW_FIND_IDLE_CH
-    \brief Timeout value (in SW ticks) for finding DMA idle channel
-*/
-#define TIMEOUT_DMAW_FIND_IDLE_CH  40
-
-/*! \def TIMEOUT_DMA_READ
-    \brief Timeout value (in SW ticks) for DMA read
-*/
-#define TIMEOUT_DMA_READ           20
-
-/*! \def TIMEOUT_DMA_WRITE
-    \brief Timeout value (in SW ticks) for DMA write
-*/
-#define TIMEOUT_DMA_WRITE          20
-
-/*! \def TIMEOUT_KERNEL_LAUNCH
-    \brief Timeout value (in SW ticks) for kernel launch
-*/
-#define TIMEOUT_KERNEL_LAUNCH      20
-
-/*! \def TIMEOUT_MM_CM_MSG
-    \brief Timeout value (in SW ticks) for MM->CM messages
-*/
-#define TIMEOUT_MM_CM_MSG          20
-
-/*! \def TIMEOUT_SQW_BARRIER
-    \brief Timeout value (in SW ticks) for SQW commands barrier.
-    Keep the barrier timeout a higher value since the barrier is
-    supposed to block and if it blocks indefinitely, timeout will occur.
-*/
-#define TIMEOUT_SQW_BARRIER        100
-
 /***************************************************/
 /* Definitions to locate and manage MM to SP SQ/CQ */
 /***************************************************/

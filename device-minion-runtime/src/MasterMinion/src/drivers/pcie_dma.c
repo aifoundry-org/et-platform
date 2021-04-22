@@ -299,7 +299,7 @@ void dma_clear_done(dma_chan_id_e chan)
 DMA_STATUS_e dma_clear_read_abort(dma_chan_id_e chan)
 {
     DMA_STATUS_e status = DMA_OPERATION_SUCCESS;
-
+    
     if (chan <= DMA_CHAN_ID_READ_3)
     {
         iowrite32(
@@ -345,6 +345,11 @@ DMA_STATUS_e dma_abort_read(dma_chan_id_e chan)
         return DMA_ERROR_CHANNEL_NOT_AVAILABLE;
     }
 
+    /* Get the DMA error status DMA of respective channel */
+    uint32_t dma_error_stat_low   = ioread32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_DMA_CAP_DMA_READ_ERR_STATUS_LOW_OFF_ADDRESS);
+    uint32_t dma_error_stat_high  = ioread32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_DMA_CAP_DMA_READ_ERR_STATUS_HIGH_OFF_ADDRESS);
+    Log_Write(LOG_LEVEL_ERROR, "DMA Read channel (%d) Error Status: %d(LOW) %d(HIGH)\r\n", chan, dma_error_stat_low, dma_error_stat_high);
+
     /* Get the control1 register of the respective channel */
     uint32_t control1 =
              ioread32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_ADDRESS
@@ -372,6 +377,10 @@ DMA_STATUS_e dma_abort_write(dma_chan_id_e chan)
     }
 
     uint32_t wr_chan_num = chan - DMA_CHAN_ID_WRITE_0;
+
+    /* Get the DMA error status DMA of respective channel */
+    uint32_t dma_error_stat  = ioread32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_DMA_CAP_DMA_WRITE_ERR_STATUS_OFF_ADDRESS);
+    Log_Write(LOG_LEVEL_ERROR, "DMA Write channel (%d) Error Status: %d \r\n", chan, dma_error_stat);
 
     /* Get the control1 register of the respective channel */
     uint32_t control1 =

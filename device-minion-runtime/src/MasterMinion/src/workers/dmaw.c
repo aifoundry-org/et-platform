@@ -598,6 +598,7 @@ void DMAW_Launch(uint32_t hart_id)
                     {
                         /* DMA transfer aborted, clear interrupt status */
                         dma_status = dma_clear_read_abort(dma_chan_id);
+                        dma_configure_read(dma_chan_id);
                     }
 
                     if(dma_status == DMA_OPERATION_SUCCESS)
@@ -752,6 +753,7 @@ void DMAW_Launch(uint32_t hart_id)
                     {
                         /* DMA transfer aborted, clear interrupt status */
                         dma_status = dma_clear_write_abort(dma_chan_id);
+                        dma_configure_write(dma_chan_id);
                     }
 
                     if(dma_status == DMA_OPERATION_SUCCESS)
@@ -826,7 +828,7 @@ void DMAW_Read_Set_Abort_Status(uint8_t read_chan)
     SW_Timer_Cancel_Timeout(atomic_load_local_8(
         &DMAW_Read_CB.chan_status_cb[read_chan - DMA_CHAN_ID_READ_0].status.sw_timer_idx));
 
-    Log_Write(LOG_LEVEL_ERROR, "Aborting:DMAW: read channel=%d\r\n", read_chan);
+    Log_Write(LOG_LEVEL_DEBUG, "Aborting:DMAW: read channel=%d\r\n", read_chan);
 
     atomic_store_local_32
         (&DMAW_Read_CB.chan_status_cb[read_chan - DMA_CHAN_ID_READ_0].status.channel_state,
@@ -858,7 +860,7 @@ void DMAW_Write_Set_Abort_Status(uint8_t write_chan)
     SW_Timer_Cancel_Timeout(atomic_load_local_8(
         &DMAW_Write_CB.chan_status_cb[write_chan - DMA_CHAN_ID_WRITE_0].status.sw_timer_idx));
 
-    Log_Write(LOG_LEVEL_ERROR, "Aborting:DMAW: write channel=%d\r\n", write_chan);
+    Log_Write(LOG_LEVEL_DEBUG, "Aborting:DMAW: write channel=%d\r\n", write_chan);
 
     atomic_store_local_32
         (&DMAW_Write_CB.chan_status_cb[write_chan - DMA_CHAN_ID_WRITE_0].status.channel_state,

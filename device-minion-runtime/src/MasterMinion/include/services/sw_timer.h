@@ -27,11 +27,10 @@
 #define SW_TIME_FREE_SLOT_FLAG 0xFFFFFFFFFFFFFFFFull
 
 /*! \def SW_TIMER_HW_COUNT_PER_SEC
-    \brief HW count (5 ms) after which PU timer will expire periodically
+    \brief HW count (1 ms) after which PU timer will expire periodically
            Note each tick is based of 10 Mhz clock
 */
-/* TODO: This calculation needs to be fixed */
-#define SW_TIMER_HW_COUNT_PER_SEC     (5 * 0x2800)
+#define SW_TIMER_HW_COUNT_PER_SEC   100000000
 
 /*! \def SW_TIMER_SW_TICKS_TO_HW_COUNT(SW_TICKS)
     \brief Compute number of HW count in SW_TICKS
