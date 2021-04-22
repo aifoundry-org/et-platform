@@ -168,7 +168,7 @@ int64_t launch_kernel(uint8_t kw_base_id,
     // -sret to kernel_entry_addr in user mode
     asm volatile(
         "addi  sp, sp, -( 29 * 8 ) \n" // save context on stack (except ra, which is in clobber list)
-        "la    ra,  fw_resume      \n" // set return address to instruction after sret
+        "la    ra,  1f             \n" // set return address to instruction after sret
         "sd    x1,  0  * 8( sp )   \n"
         "sd    x3,  1  * 8( sp )   \n"
         "sd    x5,  2  * 8( sp )   \n"
@@ -272,7 +272,7 @@ int64_t launch_kernel(uint8_t kw_base_id,
         "fcvt.s.w f31, x0          \n"
 #endif
         "sret                      \n" /* ret to kernel_entry_addr in user mode */
-        "fw_resume:                \n" /* firmware context resumes from here via return_from_kernel() */
+        "1:                        \n" /* firmware context resumes from here via return_from_kernel() */
         "mv    %[return_value], a0 \n" /* collect kernel return value */
         "csrr  %[tensor_error], tensor_error \n" /* collect tensor_error */
         : [firmware_sp]  "=m"(*firmware_sp),

@@ -30,7 +30,7 @@
     \brief HW count (1 ms) after which PU timer will expire periodically
            Note each tick is based of 10 Mhz clock
 */
-#define SW_TIMER_HW_COUNT_PER_SEC   100000000
+#define SW_TIMER_HW_COUNT_PER_SEC   10000000
 
 /*! \def SW_TIMER_SW_TICKS_TO_HW_COUNT(SW_TICKS)
     \brief Compute number of HW count in SW_TICKS
