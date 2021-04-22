@@ -177,7 +177,7 @@
     \brief A macro that provides the Master Minion submission queue
     count
 */
-#define MM_SQ_COUNT         1
+#define MM_SQ_COUNT         2
 
 /*! \def MM_SQ_MAX_SUPPORTED
     \brief Maximum supported submission queues by Master Minion
@@ -188,9 +188,7 @@
     \brief A macro that provides size of the Master Minion
     submission queue. All submision queues will be of same size.
 */
-// TODO JIRA SW-6905
-//#define MM_SQ_SIZE          (MM_VQ_SIZE - (MM_CQ_SIZE*MM_CQ_COUNT))/MM_SQ_COUNT
-#define MM_SQ_SIZE          0x200UL
+#define MM_SQ_SIZE          (MM_VQ_SIZE - (MM_CQ_SIZE * MM_CQ_COUNT)) / MM_SQ_COUNT
 
 /*! \def MM_SQ_HP_INDEX
     \brief A macro that provides the Master Minion high priority
