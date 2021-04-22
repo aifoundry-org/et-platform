@@ -837,9 +837,9 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         /* Decrement commands count being processed by given SQW */
         SQW_Decrement_Command_Count(
             (uint8_t)atomic_load_local_16(&kernel->sqw_idx));
-    }
+    } /* loop forever */
 
-    return;
+    /* will not return */
 }
 
 /************************************************************************

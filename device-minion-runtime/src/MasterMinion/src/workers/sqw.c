@@ -351,9 +351,9 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
             /* Update the tail offset in VQ shared memory so that host is able to push new commands */
             Host_Iface_Optimized_SQ_Update_Tail(vq_shared, &vq_cached);
         }
-    }
+    } /* loop forever */
 
-    return;
+    /* will not return */
 }
 
 /************************************************************************

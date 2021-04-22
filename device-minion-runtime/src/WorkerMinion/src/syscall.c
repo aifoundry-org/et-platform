@@ -24,8 +24,9 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
         ret = syscall(SYSCALL_EVICT_L1_INT, arg1, arg2, arg3);
         break;
     case SYSCALL_RETURN_FROM_KERNEL:
-        ret = return_from_kernel((int64_t)arg1);
-        break;
+        return_from_kernel((int64_t)arg1);
+        /* should never get here */
+        for(;;){}
     case SYSCALL_LOG_WRITE:
         ret = log_write_str(LOG_LEVEL_CRITICAL, (const char *)arg1, (size_t)arg2);
         break;
