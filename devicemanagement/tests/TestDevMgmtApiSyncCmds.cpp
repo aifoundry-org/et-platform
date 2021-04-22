@@ -1057,7 +1057,7 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44() {
   auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_DEVICE_ERROR_EVENTS, nullptr, 0, output_buff,
-                              output_size, hst_latency.get(), dev_latency.get(), 360000),
+                              output_size, hst_latency.get(), dev_latency.get(), 600000),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
   ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
