@@ -10,8 +10,8 @@
 *
 ************************************************************************/
 /*! \file dispatcher.c
-    \brief A C module that implements the Dispatcher. The function of
-    the Dispatcher is to;
+    \brief A C module that implements the Dispatcher thread. 
+    The function of the Dispatcher is to;
     1. Initialize system components
         Serial
         Trace
@@ -19,17 +19,18 @@
     2. Initialize interfaces;
         Host Interface
         SP Interface
-        CW Interface
+        CM Interface
     2. Initialize Workers;
         Submission Queue Workers
         Kernel Worker
         DMA Worker
         Compute Workers
     3. Initialize Device Interface Registers
-    4. Infinite loop - that fields interrupts and dispatches appropriate
-    processing;
+    4. Spin in infinite loop - that fields interrupts and dispatches 
+    appropriate processing;
         Field Host PCIe interrupts and dispatch command processing
         Field SP IPIs and dispatch command processing
+        Field CM IPIs and dispatch handling of messages from CMs
 */
 /***********************************************************************/
 #include "minion_fw_boot_config.h"
@@ -39,7 +40,7 @@
 #include "workers/kw.h"
 #include "workers/dmaw.h"
 #include "workers/cw.h"
-#include "services/cm_to_mm_iface.h"
+#include "services/cm_iface.h"
 #include "services/host_iface.h"
 #include "services/host_cmd_hdlr.h"
 #include "services/sp_iface.h"
@@ -61,9 +62,6 @@ extern bool Host_Iface_Interrupt_Flag;
 
 extern bool SW_Timer_Interrupt_Flag;
 
-/* TODO: This shoul dbe included using a proper header during clean up */
-extern void message_init_master(void);
-
 /* Local functions */
 
 static inline void dispatcher_assert(bool condition, const char* error_log)
@@ -77,52 +75,6 @@ static inline void dispatcher_assert(bool condition, const char* error_log)
 
         /* Assert with failure */
         ASSERT(false, error_log);
-    }
-}
-
-static inline void dispatcher_process_cm_messages(void)
-{
-    /* Processes messages from CM from CM > MM unicast circbuff */
-    while(1)
-    {
-        cm_iface_message_t message;
-
-        /* Get the message from unicast buffer */
-        if (CM_To_MM_Iface_Unicast_Receive(CM_MM_MASTER_HART_UNICAST_BUFF_IDX, &message) !=
-            STATUS_SUCCESS)
-        {
-            break;
-        }
-
-        switch (message.header.id)
-        {
-            case CM_TO_MM_MESSAGE_ID_NONE:
-            {
-                Log_Write(LOG_LEVEL_DEBUG, "Dispatcher:CM_TO_MM:MESSAGE_ID_NONE\r\n");
-                break;
-            }
-
-            case CM_TO_MM_MESSAGE_ID_FW_EXCEPTION:
-            {
-                cm_to_mm_message_exception_t *exception =
-                    (cm_to_mm_message_exception_t *)&message;
-
-                Log_Write(LOG_LEVEL_CRITICAL,
-                    "Dispatcher:CM_TO_MM:MESSAGE_ID_FW_EXCEPTION from H%ld\r\n",
-                    exception->hart_id);
-
-                /* TODO: SW-6569: CW FW exception received. Decode exception and reset the FW */
-
-                break;
-            }
-            default:
-            {
-                Log_Write(LOG_LEVEL_CRITICAL,
-                    "Dispatcher:CM_TO_MM:Unknown message id = 0x%x\r\n",
-                    message.header.id);
-                break;
-            }
-        }
     }
 }
 
@@ -177,9 +129,8 @@ void Dispatcher_Launch(uint32_t hart_id)
     /* Reset PMC cycles counter */
     PMC_RESET_CYCLES_COUNTER;
 
-    /* TODO: Needs to be updated to proper coding standard and
-    abstractions */
-    message_init_master();
+    /* Initialize the interface to compute minion */
+    CM_Iface_Init();
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_CM_INTERFACE_READY);
 
     /* Initialize Computer Workers */
@@ -254,7 +205,7 @@ void Dispatcher_Launch(uint32_t hart_id)
             SP_Iface_Processing();
 
             /* Process the messages from Compute Minions */
-            dispatcher_process_cm_messages();
+            CW_Process_CM_SMode_Messages();
         }
 
         if(sip & (1 << SUPERVISOR_EXTERNAL_INTERRUPT))

@@ -31,10 +31,9 @@ set(SOURCES
     src/drivers/plic.c
     src/drivers/pu_timers.c
     src/services/log.c
-    src/services/cm_to_mm_iface.c
     src/services/host_iface.c
     src/services/host_cmd_hdlr.c
-    src/services/mm_to_cm_iface.c
+    src/services/cm_iface.c
     src/services/sp_iface.c
     src/services/sp_cmd_hdlr.c
     src/services/sw_timer.c

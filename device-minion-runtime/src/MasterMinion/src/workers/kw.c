@@ -31,9 +31,8 @@
 #include    "atomic.h"
 #include    "common_defs.h"
 #include    "config/mm_config.h"
-#include    "services/cm_to_mm_iface.h"
 #include    "services/host_iface.h"
-#include    "services/mm_to_cm_iface.h"
+#include    "services/cm_iface.h"
 #include    "services/log.h"
 #include    "services/sw_timer.h"
 #include    "workers/cw.h"
@@ -399,7 +398,7 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
         launch_args.shire_mask = cmd->shire_mask;
 
         /* Blocking call that blocks till all shires ack command */
-        status = MM_To_CM_Iface_Multicast_Send(launch_args.shire_mask,
+        status = CM_Iface_Multicast_Send(launch_args.shire_mask,
                     (cm_iface_message_t*)&launch_args);
 
         if (status == STATUS_SUCCESS)
@@ -471,7 +470,7 @@ int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
         message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
 
         /* Blocking call that blocks till all shires ack */
-        status = MM_To_CM_Iface_Multicast_Send(
+        status = CM_Iface_Multicast_Send(
             atomic_load_local_64(&KW_CB.kernels[slot_index].kernel_shire_mask),
             &message);
 
@@ -684,7 +683,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             /* Process all the available messages */
             while((done_cnt < kernel_shires_count) && (status_internal == STATUS_SUCCESS))
             {
-                status = CM_To_MM_Iface_Unicast_Receive(
+                status = CM_Iface_Unicast_Receive(
                     CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx, &message);
 
                 if (status != STATUS_SUCCESS)
@@ -746,9 +745,11 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                                 /* Set the kernel abort message */
                                 message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
 
-                                /* Blocking call (with timeout) that blocks till all shires ack */
+                                /* Blocking call (with timeout) that blocks till 
+                                all shires ack */
                                 status_internal =
-                                    MM_To_CM_Iface_Multicast_Send(kernel_shire_mask, &message);
+                                    CM_Iface_Multicast_Send(kernel_shire_mask, 
+                                    &message);
                             }
 
                             cw_exception = true;

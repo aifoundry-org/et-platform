@@ -197,8 +197,8 @@ vq_cb_t* Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type, uint8_t vq_id)
     }
     else
     {
-        Log_Write(LOG_LEVEL_DEBUG,
-            "HostIface:ERROR:Failed to obtain VQ base address, bad vq_id: %d\r\n",
+        Log_Write(LOG_LEVEL_ERROR,
+            "HostIface:ERROR:Obtaining VQ base address, badvq_id: %d\r\n",
             vq_id);
     }
 
@@ -380,7 +380,7 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
         if (status != STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_ERROR,
-                "HostIface:CQ_Push:ERROR: Host notification Failed. (Error code: %d)\r\n",
+                "HostIface:CQ_Push:ERROR: Notification (Error: %d)\r\n",
                 status);
         }
     }
@@ -390,7 +390,7 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
         release_local_spinlock(&Host_CQs.vqueue_locks[cq_id]);
 
         Log_Write(LOG_LEVEL_ERROR,
-            "HostIface:CQ_Push:ERROR: VQ push failed. (Error code: %d)\r\n",
+            "HostIface:CQ_Push:ERROR: VQ Push (Error: %d)\r\n",
             status);
     }
 

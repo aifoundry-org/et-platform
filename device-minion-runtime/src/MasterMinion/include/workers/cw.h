@@ -54,10 +54,21 @@ typedef uint8_t cw_shire_state_t;
 #define CW_SHIRES_NOT_READY   -3
 
 /*! \fn int8_t CW_Init(void)
-    \brief Initialize Compute Workers
+    \brief Initialize Compute Workers, used by dispatcher
+    to initialize compute shires
     \return none
 */
 int8_t CW_Init(void);
+
+/*! \fn void CW_Process_CM_SMode_Messages(void)
+    \brief CW helper to process messages from CM firmware
+    running in S Mode. Used by dispatcher to handle
+    exceptions that occur during CM firmware in S Mode.
+    \param none
+    \return none
+*/
+void CW_Process_CM_SMode_Messages(void);
+
 
 /*! \fn int8_t CW_Update_Shire_State
             (uint64_t shire, cw_shire_state_t shire_state)

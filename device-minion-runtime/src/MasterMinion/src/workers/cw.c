@@ -12,13 +12,16 @@
 /***********************************************************************/
 /*! \file cw.c
     \brief A C module that implements the compute worker related
-    public and private interfaces. The Compute Worker provides interfaces
-    to other components present in the Master Minion runtime that
-    facilitate management of compute workers and shires associated
-    with them. It implements the interfaces listed below;
+    public and private interfaces. This component provides interfaces
+    to other components in the Master Minion runtime for initialization, 
+    and management, of compute shires available on the device. Additionally
+    a helper fn is provided by this component to handle messages from
+    compute minion S mode firmware.
+    It implements the interfaces listed below;
 
     Public interfaces:
         CW_Init
+        CW_Process_CM_SMode_Messages
         CW_Update_Shire_State
         CW_Check_Shires_Available_And_Ready
         CW_Get_Physically_Enabled_Shires
@@ -29,7 +32,7 @@
 #include "minion_fw_boot_config.h"
 #include "layout.h"
 #include "workers/cw.h"
-#include "services/cm_to_mm_iface.h"
+#include "services/cm_iface.h"
 #include "services/log.h"
 #include "syscall.h"
 #include "syscall_internal.h"
@@ -88,7 +91,8 @@ int8_t CW_Init(void)
         minion_fw_boot_config->minion_shires & ((1ULL << NUM_SHIRES)-1);
 
     /* Initialize Global CW_CB */
-    atomic_store_local_64(&CW_CB.physically_avail_shires_mask, shire_mask);
+    atomic_store_local_64(&CW_CB.physically_avail_shires_mask, 
+        shire_mask);
     atomic_store_local_64(&CW_CB.booted_shires_mask, 0U);
 
     for(uint8_t shire = 0; shire < NUM_SHIRES; shire++)
@@ -122,9 +126,7 @@ int8_t CW_Init(void)
 
                 /* Unicast to dispatcher is slot 0 of unicast
                 circular-buffers */
-                /* TODO: This should be brought into proper abstraction
-                in cw_iface.h */
-                internal_status = CM_To_MM_Iface_Unicast_Receive
+                internal_status = CM_Iface_Unicast_Receive
                     (CM_MM_MASTER_HART_UNICAST_BUFF_IDX, &message);
 
                 if (internal_status != STATUS_SUCCESS)
@@ -134,7 +136,9 @@ int8_t CW_Init(void)
                 {
                     case CM_TO_MM_MESSAGE_ID_NONE:
                     {
-                        Log_Write(LOG_LEVEL_DEBUG, "Dispatcher:from CW:MESSAGE_ID_NONE\r\n");
+                        Log_Write(LOG_LEVEL_DEBUG, 
+                            "Dispatcher:CW_Init:MESSAGE_ID_NONE\r\n");
+
                         break;
                     }
 
@@ -144,7 +148,7 @@ int8_t CW_Init(void)
                             (const mm_to_cm_message_shire_ready_t *)&message;
 
                         Log_Write(LOG_LEVEL_DEBUG,
-                            "Dispatcher:from CW:MESSAGE_ID_SHIRE_READY S%d\r\n",
+                            "Dispatcher:CW_Init:MESSAGE_ID_SHIRE_READY S%d\r\n",
                             shire_ready->shire_id);
 
                         /* Update the shire state in CW CB */
@@ -156,7 +160,7 @@ int8_t CW_Init(void)
                     default:
                     {
                         Log_Write(LOG_LEVEL_ERROR,
-                            "Dispatcher:from CW:Unknown message id = 0x%x\r\n",
+                            "Dispatcher:CW_Init:Unknown message id = 0x%x\r\n",
                             message.header.id);
                         break;
                     }
@@ -171,11 +175,82 @@ int8_t CW_Init(void)
         else
         {
             Log_Write(LOG_LEVEL_ERROR,
-                "Dispatcher:Unexpected condition, broke wfi without a SWI during CW boot...\r\n");
+                "Dispatcher:CW_Init:Unexpected condition, \
+                broke wfi without a SWI during CW_Init...\r\n");
         }
     }
 
     return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       CW_Process_CM_SMode_Messages
+*
+*   DESCRIPTION
+*
+*       Helper to process messages from compute minion firmware running
+*       in S mode. Specifically handles exceptions that arise in during
+*       compute minion firmware in S mode.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       int8_t              status success or failure
+*
+***********************************************************************/
+void CW_Process_CM_SMode_Messages(void)
+{
+    /* Processes messages from CM from CM > MM unicast circbuff */
+    while(1)
+    {
+        cm_iface_message_t message;
+
+        /* Get the message from unicast buffer */
+        if (CM_Iface_Unicast_Receive
+            (CM_MM_MASTER_HART_UNICAST_BUFF_IDX, &message) != STATUS_SUCCESS)
+        {
+            break;
+        }
+
+        switch (message.header.id)
+        {
+            case CM_TO_MM_MESSAGE_ID_NONE:
+            {
+                Log_Write(LOG_LEVEL_DEBUG, 
+                    "Dispatcher:CM_TO_MM:MESSAGE_ID_NONE\r\n");
+                break;
+            }
+
+            case CM_TO_MM_MESSAGE_ID_FW_EXCEPTION:
+            {
+                cm_to_mm_message_exception_t *exception =
+                    (cm_to_mm_message_exception_t *)&message;
+
+                Log_Write(LOG_LEVEL_CRITICAL,
+                    "Dispatcher:CM_TO_MM:\
+                    MESSAGE_ID_FW_EXCEPTION from H%ld\r\n",
+                    exception->hart_id);
+
+                /* TODO: SW-6569: CW FW exception received. 
+                Decode exception and reset the FW */
+
+                break;
+            }
+            default:
+            {
+                Log_Write(LOG_LEVEL_CRITICAL,
+                    "Dispatcher:CM_TO_MM:Unknown message id = 0x%x\r\n",
+                    message.header.id);
+                break;
+            }
+        }
+    }
 }
 
 /************************************************************************
@@ -222,7 +297,8 @@ uint64_t CW_Get_Physically_Enabled_Shires(void)
 *       int8_t        status success or failure
 *
 ***********************************************************************/
-int8_t CW_Update_Shire_State(uint64_t shire, cw_shire_state_t shire_state)
+int8_t CW_Update_Shire_State(uint64_t shire, 
+    cw_shire_state_t shire_state)
 {
     int8_t status = STATUS_SUCCESS;
 
@@ -244,7 +320,8 @@ int8_t CW_Update_Shire_State(uint64_t shire, cw_shire_state_t shire_state)
         else
         {
             Log_Write(LOG_LEVEL_ERROR,
-                "CW:Error:Illegal transition from error:Shire:%" PRId64 "\r\n", shire);
+                "CW:Error:Illegal transition from \
+                error:Shire:%" PRId64 "\r\n", shire);
 
             status = GENERAL_ERROR;
         }

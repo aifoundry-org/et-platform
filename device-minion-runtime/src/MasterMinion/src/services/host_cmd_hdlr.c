@@ -11,7 +11,7 @@
 ************************************************************************/
 /*! \file host_cmd_hdlr.c
     \brief A C module that implements the host command handler
-    responsible for handling all commands from host
+    responsible for handling all Device Ops API commands from host
 
     Public interfaces:
         Host_Command_Handler
