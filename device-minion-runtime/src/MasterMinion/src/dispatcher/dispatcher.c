@@ -276,7 +276,7 @@ void Dispatcher_Launch(uint32_t hart_id)
         {
             /* TODO: set new mtimecp, timer_tick()*/
         }
-    }
+    } /* loop never breaks */
 
-    return;
+    /* no return */
 }
