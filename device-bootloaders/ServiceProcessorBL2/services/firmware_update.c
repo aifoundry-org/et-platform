@@ -98,11 +98,13 @@ static int32_t dm_svc_update_sw_boot_root_certificate_hash(struct dm_control_blo
 }
 */
 
-static int32_t update_sp_boot_root_certificate_hash(char *certficate_hash)
+static int32_t update_sp_boot_root_certificate_hash(char *key_blob, char* associated_data)
 {
-    static const uint32_t asset_policy = 26;
+    static const uint32_t asset_policy = 4;
     static uint32_t asset_size;
     static uint32_t asset_id;
+    static const uint32_t associated_data_size = sizeof(associated_data) - 1;
+    static const uint32_t key_blob_size = sizeof(key_blob);
 
     if (0 != vaultip_drv_static_asset_search(get_rom_identity(),
                                              VAULTIP_STATIC_ASSET_SP_ROOT_CA_HASH, &asset_id,
@@ -114,8 +116,8 @@ static int32_t update_sp_boot_root_certificate_hash(char *certficate_hash)
     }
 
     if (0 != vaultip_drv_otp_data_write(get_rom_identity(), VAULTIP_STATIC_ASSET_SP_ROOT_CA_HASH,
-                                        asset_policy, true, certficate_hash, asset_size,
-                                        (void *)NULL, 0)) {
+                                        asset_policy, true, key_blob, key_blob_size,
+                                        associated_data, associated_data_size)) {
         printf(" update_sp_boot_root_certificate_hash: vaultip_public_data_write() failed!\n");
         return -1;
     };
@@ -240,13 +242,16 @@ static void dm_svc_get_firmware_version(tag_id_t tag_id, uint64_t req_start_time
 static int32_t dm_svc_update_sp_boot_root_certificate_hash(
     struct device_mgmt_certificate_hash_cmd_t *certificate_hash_cmd)
 {
-    printf("recieved hash:\n");
-    for (int i = 0; i < 64; i++) {
-        printf("%02x ", *(unsigned char *)&certificate_hash_cmd->certificate_hash.hash[i]);
+    printf("recieved key_blob:\n");
+    for (int i = 0; i < 48; i++) {
+        printf("%02x ", *(unsigned char *)&certificate_hash_cmd->certificate_hash.key_blob[i]);
     }
-
+    printf("recieved associated_data:\n");
+    for (int i = 0; i < 48; i++) {
+        printf("%02x ", *(unsigned char *)&certificate_hash_cmd->certificate_hash.associated_data[i]);
+    }
     //Command payload contains the hash for new certificate.
-    if (0 != update_sp_boot_root_certificate_hash(certificate_hash_cmd->certificate_hash.hash)) {
+    if (0 != update_sp_boot_root_certificate_hash(certificate_hash_cmd->certificate_hash.key_blob, certificate_hash_cmd->certificate_hash.associated_data)) {
         printf(
             " dm_svc_update_sp_boot_root_certificate_hash : vault_ip_update_sp_boot_root_certificate_hash failed!\n");
         return -1;
