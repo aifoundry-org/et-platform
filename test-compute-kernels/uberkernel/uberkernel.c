@@ -14,6 +14,7 @@
 typedef struct {
   uint64_t* data_ptr;
   uint64_t length;
+  uint32_t shire_count;
 } layer_parameters_t;
 
 static void send_init_credit_to_act_pref(uint32_t minion_id, uint32_t shire_id)
@@ -215,9 +216,8 @@ int64_t main(const layer_parameters_t* kernel_params_ptr)
 
     if (shire_id == 32 && (minion_id >= 16))
     {   // Code for master sync minions, in charge of sync minions
-        // TODO: Properly support arbitrary number of compute shires
         const uint32_t num_nodes = 3; // One plus the real number of nodes
-        const uint32_t num_compute_shires = 2;
+        const uint32_t num_compute_shires = kernel_params_ptr->shire_count - 1;
         sync_master_code(minion_id, thread_id, num_nodes, num_compute_shires);
         return 0;
     }
