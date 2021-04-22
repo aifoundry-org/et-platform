@@ -1,0 +1,25 @@
+import:
+  - path: '@ci@/ci-tools/templates/template-main-top-level.yaml'
+
+parameters:
+  SW_PLATFORM_BRANCH:
+    description: SW-Platform branch to track
+    type: string
+    default_value: "origin/develop/system-sw"
+  REPO_SSH_URL:
+    description: Repository URL
+    type: string
+    default_value: "git@gitlab.esperanto.ai:software/devicelayer.git"
+  REPO_NAME:
+    description: Repository name
+    type: string
+    default_value: "deviceLayer"  
+
+stages:
+  JOB_DEVICELAYER:
+    cmds:
+      - job: sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}"
+          PYTEST_RETRIES: "0"
