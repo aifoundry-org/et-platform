@@ -254,7 +254,7 @@ static inline void evict_all_l1_ways(uint64_t use_tmask, uint64_t dest_level, ui
 
 static int64_t evict_l1_all(uint64_t use_tmask, uint64_t dest_level)
 {
-    int64_t rv;
+    int64_t rv=0;
     const uint64_t mcache_control_reg = mcache_control_get();
 
     if ((mcache_control_reg & 0x3) == 3) {
