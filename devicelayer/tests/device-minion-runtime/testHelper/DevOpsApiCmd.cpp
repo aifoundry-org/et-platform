@@ -54,7 +54,7 @@ EchoCmd::EchoCmd(device_ops_api::tag_id_t tagId, bool barrier, int32_t echoPaylo
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.flags = barrier ? (1 << 0U) : 0;
+  cmd_.command_info.cmd_hdr.flags = barrier ? (1 << 0U) : 0;
   cmd_.echo_payload = echoPayload;
 
   TEST_VLOG(1) << "Created Echo Command (tagId: " << std::hex << tagId << ")" << std::endl;
@@ -97,7 +97,7 @@ ApiCompatibilityCmd::ApiCompatibilityCmd(device_ops_api::tag_id_t tagId, bool ba
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.flags = barrier ? (1 << 0U) : 0;
+  cmd_.command_info.cmd_hdr.flags = barrier ? (1 << 0U) : 0;
   cmd_.major = major;
   cmd_.major = minor;
   cmd_.major = patch;
@@ -141,7 +141,7 @@ FwVersionCmd::FwVersionCmd(device_ops_api::tag_id_t tagId, bool barrier, uint8_t
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.flags = barrier ? (1 << 0U) : 0;
+  cmd_.command_info.cmd_hdr.flags = barrier ? (1 << 0U) : 0;
   cmd_.firmware_type = firmwareType;
 
   TEST_VLOG(1) << "Created Firmware Version Command (tagId: " << std::hex << tagId << ")" << std::endl;
@@ -185,7 +185,7 @@ DataWriteCmd::DataWriteCmd(device_ops_api::tag_id_t tagId, bool barrier, uint64_
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.flags = barrier ? (1 << 0U) : 0;
+  cmd_.command_info.cmd_hdr.flags = barrier ? (1 << 0U) : 0;
   cmd_.dst_device_phy_addr = devPhysAddr;
   cmd_.src_host_virt_addr = hostVirtAddr;
   cmd_.src_host_phy_addr = hostPhysAddr;
@@ -232,7 +232,7 @@ DataReadCmd::DataReadCmd(device_ops_api::tag_id_t tagId, bool barrier, uint64_t 
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.flags = barrier ? (1 << 0U) : 0;
+  cmd_.command_info.cmd_hdr.flags = barrier ? (1 << 0U) : 0;
   cmd_.src_device_phy_addr = devPhysAddr;
   cmd_.dst_host_virt_addr = hostVirtAddr;
   cmd_.dst_host_phy_addr = hostPhysAddr;
@@ -279,7 +279,7 @@ KernelLaunchCmd::KernelLaunchCmd(device_ops_api::tag_id_t tagId, bool barrier, u
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.flags = barrier ? (1 << 0U) : 0;
+  cmd_.command_info.cmd_hdr.flags = barrier ? (1 << 0U) : 0;
   cmd_.code_start_address = codeStartAddr;
   cmd_.pointer_to_args = ptrToArgs;
   cmd_.shire_mask = shireMask;
@@ -325,7 +325,7 @@ KernelAbortCmd::KernelAbortCmd(device_ops_api::tag_id_t tagId, bool barrier,
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.flags = barrier ? (1 << 0U) : 0;
+  cmd_.command_info.cmd_hdr.flags = barrier ? (1 << 0U) : 0;
   cmd_.kernel_launch_tag_id = kernelToAbortTagId;
 
   TEST_VLOG(1) << "Created Kernel Abort Command (tagId: " << std::hex << tagId << ")" << std::endl;
