@@ -12,7 +12,7 @@ and by firmware (e.g. normal kernel completion, kernel abort) */
 int64_t return_from_kernel(int64_t return_value)
 {
     const uint64_t thread_id = get_hart_id() & 63;
-    uint64_t prev_returned = kernel_info_set_thread_returned(get_shire_id(), thread_id);
+    uint64_t prev_returned = kernel_info_set_thread_returned( get_shire_id(), thread_id);
 
     /* A Hart in specific kernel launch can only pass through return_from_kernel once */
     if(!((prev_returned >> thread_id) & 1))

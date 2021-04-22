@@ -60,6 +60,8 @@
 #define SUPERVISOR_EXTERNAL_INTERRUPT            9
 #define MACHINE_EXTERNAL_INTERRUPT               11
 
+#define SUPERVISOR_PENDING_INTERRUPTS(sip)       asm volatile("csrr %0, sip" : "=r"(sip));
+
 //                                   csr       |     rs1      |    funct3   | opcode
 #define INST_CSRRx_MASK ((0xFFFULL << 20) | (0x1f << 15) | (0x7 << 12) | (0x7f))
 

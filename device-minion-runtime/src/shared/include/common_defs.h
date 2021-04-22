@@ -34,11 +34,21 @@
     }
 #endif
 
+/*! \def MASK_RESET_BIT(x, bit_num)
+    \brief A macro used to reset a bit the provided bit mask
+*/
+#define MASK_RESET_BIT(x, bit_num)  (x & (~(1ull << (bit_num))))
+
 /*! \def IS_ALIGNED(address, alignment)
     \brief A macro that checks the given address for the required alignment (in bytes) and
     returns true is address is aligned, else false
 */
 #define IS_ALIGNED(address, alignment)   (!((uintptr_t)address & (alignment - 1U)))
+
+/*! \def HARTS_PER_SHIRE
+    \brief A macro that provides number of Harts per Shire
+*/
+#define HARTS_PER_SHIRE         64
 
 /*! \def HARTS_PER_MINION
     \brief A macro that provides number of Harts per Minion

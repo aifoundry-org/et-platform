@@ -17,13 +17,63 @@
 #define master_to_worker_broadcast_message_ctrl_ptr \
     ((broadcast_message_ctrl_t *)FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL)
 
-/* Local function prototypes */
-static void mm_to_cm_iface_handle_message(uint64_t shire, uint64_t hart, cm_iface_message_t *const message_ptr);
+static spinlock_t notify_local_barrier[NUM_SHIRES] = { 0 };
 
+/* Local function prototypes */
+static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart, cm_iface_message_t *const message_ptr);
+
+/* Identify the last thread in pool */
+static inline bool find_last_thread(spinlock_t *lock, uint32_t num_threads)
+{
+    if (atomic_add_local_32(&lock->flag, 1U) == (num_threads - 1))
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+/* This barrier is required to synchronize all Shires before handling the message */
+static inline void synchronize_shires(uint64_t shire_id)
+{
+    const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
+    bool last;
+
+    last = find_last_thread(&notify_local_barrier[shire_id], thread_count);
+
+    /* Last thread per shire decrements global counter and waits for all Shires to reach sync point */
+    if (last)
+    {
+        int32_t last_shire = atomic_add_signed_global_32(
+            (int32_t*)&master_to_worker_broadcast_message_ctrl_ptr->shire_count, -1);
+
+        do
+        {
+           asm volatile("fence\n" ::: "memory");
+        } while (atomic_load_global_32(&master_to_worker_broadcast_message_ctrl_ptr->shire_count) != 0);
+
+        /* Reset the local barrier flag */
+        init_local_spinlock(&notify_local_barrier[shire_id], 0);
+
+        /* Last shire sends IPI to the sender thread in MM */
+        if(last_shire == 1)
+        {
+            /* Send IPI to the sender */
+            syscall(SYSCALL_IPI_TRIGGER_INT,
+                1ull << master_to_worker_broadcast_message_ctrl_ptr->sender_thread_id, MASTER_SHIRE, 0);
+        }
+    }
+
+    /* All threads in Shire wait for Last Thread to clear flag */
+    local_spinwait_wait(&notify_local_barrier[shire_id], 0);
+}
 
 void __attribute__((noreturn)) MM_To_CM_Iface_Main_Loop(void)
 {
-    for (;;) {
+    for (;;)
+    {
         /* Wait for an IPI (Software Interrupt) */
         asm volatile("wfi\n");
 
@@ -39,9 +89,7 @@ void __attribute__((noreturn)) MM_To_CM_Iface_Main_Loop(void)
 
 void MM_To_CM_Iface_Multicast_Receive(void)
 {
-    bool last;
-    const uint64_t shire_id = get_shire_id();
-    uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
+    const uint32_t shire_id = get_shire_id();
     cm_iface_message_t message;
 
     asm volatile("fence");
@@ -50,22 +98,15 @@ void MM_To_CM_Iface_Multicast_Receive(void)
 
     /* Copy message from shared global memory to local buffer */
     ETSOC_Memory_Read_Write_Cacheable(master_to_worker_broadcast_message_buffer_ptr,
-                                    &message, sizeof(message));
+                                      &message, sizeof(message));
 
-    /* Check if we are the last receiver of the Shire
-    TODO: FLBs are not safe and FLB 31 might be used by the caller. Use *local* atomics instead */
-    WAIT_FLB(thread_count, 31, last);
-
-    /* If we are the last receiver of the Shire, notify MT we have received the message */
-    if (last)
-    {
-        atomic_add_global_32(&master_to_worker_broadcast_message_ctrl_ptr->count, 1);
-    }
+    /* Synchronize all the shires to reach sync point and ack back to MM */
+    synchronize_shires(shire_id);
 
     mm_to_cm_iface_handle_message(shire_id, get_hart_id(), &message);
 }
 
-static void mm_to_cm_iface_handle_message(uint64_t shire, uint64_t hart, cm_iface_message_t *const message_ptr)
+static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart, cm_iface_message_t *const message_ptr)
 {
     switch (message_ptr->header.id)
     {
@@ -78,7 +119,7 @@ static void mm_to_cm_iface_handle_message(uint64_t shire, uint64_t hart, cm_ifac
         {
             uint64_t kernel_stack_addr = KERNEL_UMODE_STACK_BASE - (hart * KERNEL_UMODE_STACK_SIZE);
             rv = launch_kernel(launch->kw_base_id, launch->slot_index, launch->code_start_address, kernel_stack_addr,
-                               launch->pointer_to_args, launch->flags, launch->shire_mask);
+                               launch->pointer_to_args, launch->flags);
         }
 
         if (rv != 0)
@@ -89,8 +130,14 @@ static void mm_to_cm_iface_handle_message(uint64_t shire, uint64_t hart, cm_ifac
         break;
     }
     case MM_TO_CM_MESSAGE_ID_KERNEL_ABORT:
+    {
+        /* Should only abort if the kernel was launched on this hart */
+        if (kernel_info_has_thread_launched(shire, hart & (HARTS_PER_SHIRE - 1)))
+        {
             return_from_kernel(KERNEL_LAUNCH_ERROR_ABORTED);
+        }
         break;
+    }
     case MM_TO_CM_MESSAGE_ID_SET_LOG_LEVEL:
         log_set_level(((mm_to_cm_message_set_log_level_t *)message_ptr)->log_level);
         break;

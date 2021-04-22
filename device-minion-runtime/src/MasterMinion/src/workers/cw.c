@@ -13,7 +13,7 @@
 /*! \file cw.c
     \brief A C module that implements the compute worker related
     public and private interfaces. This component provides interfaces
-    to other components in the Master Minion runtime for initialization, 
+    to other components in the Master Minion runtime for initialization,
     and management, of compute shires available on the device. Additionally
     a helper fn is provided by this component to handle messages from
     compute minion S mode firmware.
@@ -91,7 +91,7 @@ int8_t CW_Init(void)
         minion_fw_boot_config->minion_shires & ((1ULL << NUM_SHIRES)-1);
 
     /* Initialize Global CW_CB */
-    atomic_store_local_64(&CW_CB.physically_avail_shires_mask, 
+    atomic_store_local_64(&CW_CB.physically_avail_shires_mask,
         shire_mask);
     atomic_store_local_64(&CW_CB.booted_shires_mask, 0U);
 
@@ -111,7 +111,7 @@ int8_t CW_Init(void)
         asm volatile("wfi");
 
         /* Read pending interrupts */
-        asm volatile("csrr %0, sip" : "=r"(sip));
+        SUPERVISOR_PENDING_INTERRUPTS(sip);
 
         if(sip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT))
         {
@@ -136,7 +136,7 @@ int8_t CW_Init(void)
                 {
                     case CM_TO_MM_MESSAGE_ID_NONE:
                     {
-                        Log_Write(LOG_LEVEL_DEBUG, 
+                        Log_Write(LOG_LEVEL_DEBUG,
                             "Dispatcher:CW_Init:MESSAGE_ID_NONE\r\n");
 
                         break;
@@ -222,7 +222,7 @@ void CW_Process_CM_SMode_Messages(void)
         {
             case CM_TO_MM_MESSAGE_ID_NONE:
             {
-                Log_Write(LOG_LEVEL_DEBUG, 
+                Log_Write(LOG_LEVEL_DEBUG,
                     "Dispatcher:CM_TO_MM:MESSAGE_ID_NONE\r\n");
                 break;
             }
@@ -237,7 +237,7 @@ void CW_Process_CM_SMode_Messages(void)
                     MESSAGE_ID_FW_EXCEPTION from H%ld\r\n",
                     exception->hart_id);
 
-                /* TODO: SW-6569: CW FW exception received. 
+                /* TODO: SW-6569: CW FW exception received.
                 Decode exception and reset the FW */
 
                 break;
@@ -297,7 +297,7 @@ uint64_t CW_Get_Physically_Enabled_Shires(void)
 *       int8_t        status success or failure
 *
 ***********************************************************************/
-int8_t CW_Update_Shire_State(uint64_t shire, 
+int8_t CW_Update_Shire_State(uint64_t shire,
     cw_shire_state_t shire_state)
 {
     int8_t status = STATUS_SUCCESS;

@@ -1,10 +1,13 @@
 #include "log.h"
 #include "macros.h"
+#include "common_defs.h"
 #include "kernel.h"
 #include "hart.h"
 #include "message_types.h"
 #include "cm_to_mm_iface.h"
 #include "cm_mm_defines.h"
+#include "riscv_encoding.h"
+#include "syscall_internal.h"
 #include <stdbool.h>
 #include <inttypes.h>
 
@@ -28,14 +31,24 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
         log_write(LOG_LEVEL_CRITICAL,
             "H%04" PRId64 ": Worker S-mode exception: scause=0x%" PRIx64 ", sepc=0x%" PRIx64 ", stval=0x%" PRIx64 "\n",
             hart_id, scause, sepc, stval);
-    }
 
-    send_exception_message(scause, sepc, stval, sstatus, hart_id, shire_id, user_mode);
+        send_exception_message(scause, sepc, stval, sstatus, hart_id, shire_id, user_mode);
+    }
 
     // TODO: Save context to Exception Buffer (if present)
     (void) reg;
 
-    return_from_kernel(KERNEL_ERROR_EXCEPTION);
+    /* First hart in the shire that took exception will do a self abort
+    and send IPI to other harts in the shire to abort as well */
+    if(kernel_info_set_abort_flag(shire_id))
+    {
+        /* Send the IPI to all other Harts in this shire */
+        syscall(SYSCALL_IPI_TRIGGER_INT, MASK_RESET_BIT(0xFFFFFFFFFFFFFFFFu, hart_id % 64), shire_id, 0);
+
+        return_from_kernel(KERNEL_ERROR_EXCEPTION);
+    }
+
+    return;
 }
 
 static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t mstatus,

@@ -660,7 +660,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             asm volatile("wfi");
 
             /* Read pending interrupts */
-            asm volatile("csrr %0, sip" : "=r"(sip));
+            SUPERVISOR_PENDING_INTERRUPTS(sip);
 
             /* We are only interesed in IPIs */
             if(!(sip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT)))
@@ -726,12 +726,11 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                         cm_to_mm_message_exception_t *exception =
                             (cm_to_mm_message_exception_t *)&message;
 
-                        Log_Write(LOG_LEVEL_DEBUG,
-                            "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION from H%" PRId64 "\r\n",
-                            exception->hart_id);
+                        /* TODO: SW-7528: We should receive a single exception message only */
 
-                        /* Note: Even if there was an exception, that Shire will
-                        still send KERNEL_COMPLETE */
+                        Log_Write(LOG_LEVEL_DEBUG,
+                            "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION from S%" PRId32 "\r\n",
+                            exception->shire_id);
 
                         /* First time we get an exception: abort kernel */
                         if(!cw_exception)
@@ -741,19 +740,21 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                             if(atomic_load_local_16(&kernel->kernel_state) !=
                                 KERNEL_STATE_ABORTED_BY_HOST)
                             {
-                                /* Multicast abort to shires associated with current kernel slot */
-                                /* Set the kernel abort message */
+                                /* Multicast abort to shires associated with current kernel slot
+                                excluding the shire which took an exception */
                                 message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
 
-                                /* Blocking call (with timeout) that blocks till 
+                                /* Blocking call (with timeout) that blocks till
                                 all shires ack */
-                                status_internal =
-                                    CM_Iface_Multicast_Send(kernel_shire_mask, 
+                                status_internal = CM_Iface_Multicast_Send(
+                                    MASK_RESET_BIT(kernel_shire_mask, exception->shire_id),
                                     &message);
                             }
 
                             cw_exception = true;
                         }
+                        /* Increase count of completed Shires */
+                        done_cnt++;
                         break;
                     }
                     default:

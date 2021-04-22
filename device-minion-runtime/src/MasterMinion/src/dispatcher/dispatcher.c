@@ -10,7 +10,7 @@
 *
 ************************************************************************/
 /*! \file dispatcher.c
-    \brief A C module that implements the Dispatcher thread. 
+    \brief A C module that implements the Dispatcher thread.
     The function of the Dispatcher is to;
     1. Initialize system components
         Serial
@@ -26,7 +26,7 @@
         DMA Worker
         Compute Workers
     3. Initialize Device Interface Registers
-    4. Spin in infinite loop - that fields interrupts and dispatches 
+    4. Spin in infinite loop - that fields interrupts and dispatches
     appropriate processing;
         Field Host PCIe interrupts and dispatch command processing
         Field SP IPIs and dispatch command processing
@@ -192,7 +192,7 @@ void Dispatcher_Launch(uint32_t hart_id)
         asm volatile("wfi");
 
         /* Read pending interrupts */
-        asm volatile("csrr %0, sip" : "=r"(sip));
+        SUPERVISOR_PENDING_INTERRUPTS(sip);
 
         Log_Write(LOG_LEVEL_DEBUG,
             "Dispatcher:Exiting WFI! SIP: 0x%" PRIx64 "\r\n", sip);
