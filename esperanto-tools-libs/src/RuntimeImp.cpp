@@ -177,7 +177,7 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
   cmd.command_info.cmd_hdr.tag_id = static_cast<uint16_t>(evt);
   cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD;
   cmd.command_info.cmd_hdr.size = sizeof(cmd);
-  cmd.command_info.flags = barrier ? 1 : 0;
+  cmd.command_info.cmd_hdr.flags = barrier ? 1 : 0;
   sendCommandMasterMinion(it->second, evt, cmd, lock);
   profileEvent.setEventId(evt);
   return evt;
@@ -206,7 +206,7 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
   cmd.command_info.cmd_hdr.tag_id = static_cast<uint16_t>(evt);
   cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD;
   cmd.command_info.cmd_hdr.size = sizeof(cmd);
-  cmd.command_info.flags = barrier ? 1 : 0;
+  cmd.command_info.cmd_hdr.flags = barrier ? 1 : 0;
   sendCommandMasterMinion(it->second, evt, cmd, lock);
   profileEvent.setEventId(evt);
   return evt;

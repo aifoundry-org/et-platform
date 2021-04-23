@@ -65,7 +65,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
   cmd.command_info.cmd_hdr.tag_id = static_cast<uint16_t>(event);
   cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD;
   cmd.command_info.cmd_hdr.size = sizeof(cmd);
-  cmd.command_info.flags = barrier ? 1 : 0;
+  cmd.command_info.cmd_hdr.flags = barrier ? 1 : 0;
   cmd.code_start_address = kernel->getEntryAddress();
   cmd.pointer_to_args = reinterpret_cast<uint64_t>(pBuffer->deviceBuffer_);
   cmd.shire_mask = shire_mask;
