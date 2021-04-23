@@ -5,7 +5,8 @@
 #include <stdbool.h>
 #include "service_processor_spi_flash.h"
 #include "esperanto_flash_image.h"
-#include "esperanto_executable_image.h"
+
+#include "esperanto_signed_image_format/executable_image.h"
 
 #include "service_processor_ROM_data.h"
 #include "service_processor_BL1_data.h"

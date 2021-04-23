@@ -15,9 +15,7 @@ add_riscv_executable(${TARGET_NAME} ${SOURCES})
 target_compile_definitions(${TARGET_NAME}.elf PUBLIC -DBL2_VARIANT="testframework")
 target_compile_definitions(${TARGET_NAME}.elf PUBLIC -DFAST_BOOT=1 -DBRINGUP_TEST=1)
 
-target_link_libraries(${TARGET_NAME}.elf
-  EsperantoDeviceMinionRuntime::sp_firmware_helpers
-  )
+target_link_libraries(${TARGET_NAME}.elf PRIVATE EsperantoDeviceMinionRuntime::sp_firmware_helpers)
 
 install(TARGETS ${TARGET_NAME}.elf
   EXPORT EsperantoBootLoaderTargets

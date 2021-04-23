@@ -15,9 +15,10 @@ add_definitions(-DFAST_BOOT=0 -DBRINGUP_TEST=0)
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
-target_link_libraries(${TARGET_NAME}.elf
-  EsperantoDeviceMinionRuntime::sp_firmware_helpers
-  )
+target_link_libraries(${TARGET_NAME}.elf PRIVATE
+    EsperantoDeviceMinionRuntime::sp_firmware_helpers
+    signedImageFormat::signedImageFormat
+)
 
 install(TARGETS ${TARGET_NAME}.elf
   EXPORT EsperantoBootLoaderTargets

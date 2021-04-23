@@ -93,11 +93,8 @@ find_package(EsperantoFlashTool CONFIG REQUIRED)
 get_target_property(FLASH_TOOL_HEADERS_INTERFACE_PATH flash-tool INTERFACE_INCLUDE_DIRECTORIES)
 include_directories(${FLASH_TOOL_HEADERS_INTERFACE_PATH})
 
-find_package(EsperantoCryptoAPI CONFIG REQUIRED)
+find_package(signedImageFormat REQUIRED)
 
-message("Crypto API Found: ${EsperantoCryptoAPI_FOUND}")
-get_target_property(CRYPTO_HEADERS_INTERFACE_PATH crypto_api INTERFACE_INCLUDE_DIRECTORIES)
-set(CRYPTO_HEADERS ${CRYPTO_HEADERS_INTERFACE_PATH})
 
 add_subdirectory(BootromTrampolineToBL2)
 add_subdirectory(ServiceProcessorBL1)

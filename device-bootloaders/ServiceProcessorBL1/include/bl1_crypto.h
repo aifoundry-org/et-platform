@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 
-#include "esperanto_public_key_data.h"
+#include "esperanto_signed_image_format/public_key_data.h"
 #include "vaultip_static_assets.h"
 
 typedef struct CRYPTO_HASH_CONTEXT_s {

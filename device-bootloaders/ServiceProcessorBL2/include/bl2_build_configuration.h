@@ -2,7 +2,8 @@
 #define __BL2_BUILD_CONFIGURATION_H__
 
 #include <stdint.h>
-#include "crypto_api.h"
+
+#include "esperanto_signed_image_format/executable_image.h"
 
 #include "../../ServiceProcessorBL2/include/build_configuration.h"
 

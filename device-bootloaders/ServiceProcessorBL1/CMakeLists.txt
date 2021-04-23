@@ -31,11 +31,11 @@ set(LINKER_SCRIPT src/bl1_sections.ld)
 include_directories(include)
 include_directories(${SHARED_INC_DIRS})
 include_directories(${FLASH_TOOL_HEADERS})
-include_directories(${CRYPTO_HEADERS})
 
 add_subdirectory(include)
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
+target_link_libraries(${TARGET_NAME}.elf PRIVATE signedImageFormat::signedImageFormat)
 
 install(TARGETS ${TARGET_NAME}.elf
   EXPORT EsperantoBootLoaderTargets

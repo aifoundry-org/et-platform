@@ -18,9 +18,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "service_processor_spi_flash.h"
+
 #include "esperanto_flash_image.h"
-#include "esperanto_executable_image.h"
-#include "esperanto_raw_image.h"
+
+#include "esperanto_signed_image_format/executable_image.h"
+#include "esperanto_signed_image_format/raw_image.h"
 
 #define SERVICE_PROCESSOR_ROM_DATA_VERSION 0x00000001
 
