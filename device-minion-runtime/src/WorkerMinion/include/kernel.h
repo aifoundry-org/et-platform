@@ -72,7 +72,8 @@ uint64_t kernel_info_set_thread_returned(uint32_t shire_id, uint64_t thread_id);
 void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t kernel_ret_val);
 
 /*! \fn int64_t launch_kernel(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_entry_addr,
-    uint64_t kernel_stack_addr, uint64_t kernel_params_ptr, uint64_t kernel_launch_flags)
+    uint64_t kernel_stack_addr, uint64_t kernel_params_ptr, uint64_t kernel_launch_flags,
+    uint64_t kernel_shire_mask)
     \brief Function used to launch kernel with the given parameters.
     \param kw_base_id Kernel worker base hart ID
     \param slot_index Slot ID of the kernel
@@ -83,6 +84,7 @@ void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t 
     \return Success or error
 */
 int64_t launch_kernel(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_entry_addr,
-    uint64_t kernel_stack_addr, uint64_t kernel_params_ptr, uint64_t kernel_launch_flags);
+    uint64_t kernel_stack_addr, uint64_t kernel_params_ptr, uint64_t kernel_launch_flags,
+    uint64_t kernel_shire_mask);
 
 #endif

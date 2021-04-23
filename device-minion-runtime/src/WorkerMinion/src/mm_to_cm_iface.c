@@ -49,11 +49,6 @@ static inline void synchronize_shires(uint64_t shire_id)
         int32_t last_shire = atomic_add_signed_global_32(
             (int32_t*)&master_to_worker_broadcast_message_ctrl_ptr->shire_count, -1);
 
-        do
-        {
-           asm volatile("fence\n" ::: "memory");
-        } while (atomic_load_global_32(&master_to_worker_broadcast_message_ctrl_ptr->shire_count) != 0);
-
         /* Reset the local barrier flag */
         init_local_spinlock(&notify_local_barrier[shire_id], 0);
 
@@ -119,7 +114,7 @@ static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart, cm_ifac
         {
             uint64_t kernel_stack_addr = KERNEL_UMODE_STACK_BASE - (hart * KERNEL_UMODE_STACK_SIZE);
             rv = launch_kernel(launch->kw_base_id, launch->slot_index, launch->code_start_address, kernel_stack_addr,
-                               launch->pointer_to_args, launch->flags);
+                               launch->pointer_to_args, launch->flags, launch->shire_mask);
         }
 
         if (rv != 0)

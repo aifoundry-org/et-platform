@@ -35,8 +35,51 @@ typedef struct kernel_launch_info {
 
 static const uint8_t tensor_zeros[64] __attribute__((aligned(64))) = { 0 };
 
+static spinlock_t pre_launch_local_barrier[NUM_SHIRES] = { 0 };
+static spinlock_t pre_launch_global_barrier = { 0 };
 static local_fcc_barrier_t post_launch_barrier[NUM_SHIRES] = { 0 };
 static kernel_launch_info_t kernel_launch_info[NUM_SHIRES] = { 0 };
+
+// Identify the last thread in pool
+static inline bool find_last_thread(spinlock_t *lock, uint32_t num_threads)
+{
+    if (atomic_add_local_32(&lock->flag, 1U) == (num_threads - 1))
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+// This barrier is required to synchronize all Shires before launching the Kernels
+static void synchronize_shires(spinlock_t *lock, uint32_t num_shires)
+{
+    const uint64_t shire_id = get_shire_id();
+    const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
+    bool last;
+
+    last = find_last_thread(&pre_launch_local_barrier[shire_id], thread_count);
+
+    // Last thread per shire increments global counter and waits for all Shires to reach sync point
+    if (last) {
+        atomic_add_global_32(&lock->flag, 1U);
+
+        do {
+           asm volatile("fence\n" ::: "memory");
+        } while (atomic_load_global_32(&lock->flag) != num_shires);
+
+        if (shire_id == 0) {
+            init_global_spinlock(&pre_launch_global_barrier, 0);
+        }
+        // Reset the local barrier flag
+        init_local_spinlock(&pre_launch_local_barrier[shire_id], 0);
+    }
+
+    // All threads in Shire wait for Last Thread to clear flag
+    local_spinwait_wait(&pre_launch_local_barrier[shire_id],0);
+}
 
 uint64_t kernel_info_reset_launched_thread(uint32_t shire_id, uint64_t thread_id)
 {
@@ -137,7 +180,8 @@ int64_t launch_kernel(uint8_t kw_base_id,
                       uint64_t kernel_entry_addr,
                       uint64_t kernel_stack_addr,
                       uint64_t kernel_params_ptr,
-                      uint64_t kernel_launch_flags)
+                      uint64_t kernel_launch_flags,
+                      uint64_t kernel_shire_mask)
 {
     uint64_t *firmware_sp;
     int64_t return_value;
@@ -148,6 +192,9 @@ int64_t launch_kernel(uint8_t kw_base_id,
                  : "=r"(firmware_sp));
 
     pre_kernel_setup(kw_base_id, slot_index, kernel_launch_flags);
+
+    /* Wait until all the Shires involved in the kernel launch reach this sync point */
+    synchronize_shires(&pre_launch_global_barrier, (uint32_t)__builtin_popcountll(kernel_shire_mask));
 
     /* Set the thread state to kernel launched */
     kernel_info_set_thread_launched(get_shire_id(), get_hart_id() & (HARTS_PER_SHIRE - 1));
