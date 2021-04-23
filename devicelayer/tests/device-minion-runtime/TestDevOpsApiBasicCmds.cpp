@@ -72,7 +72,7 @@ void TestDevOpsApiBasicCmds::devUnknownCmd_NegativeTest_2_7() {
   unknownCmd.cmd_hdr.size = sizeof(unknownCmd);
   unknownCmd.cmd_hdr.tag_id = getNextTagId();
   unknownCmd.cmd_hdr.msg_id = 0xdead; // Unknown message Id
-  unknownCmd.flags = 0;               // No barrier
+  unknownCmd.cmd_hdr.flags = 0;               // No barrier
 
   // Create unknown command
   auto cmd = IDevOpsApiCmd::createCustomCmd(reinterpret_cast<std::byte*>(&unknownCmd), sizeof(unknownCmd), 0);

@@ -34,7 +34,7 @@ constexpr int kDmaAlignment = 256;
 constexpr int kNumDevices = 1;
 // this value comes from device-api sizeof(rsp_header_t). should always be kept in sync with this file:
 // https://gitlab.esperanto.ai/software/device-api/-/blob/master/src/device-apis/device_apis_message_types.h
-constexpr auto kResponseHeaderSize = 8;
+constexpr auto kCommonHeaderSize = 8;
 
 constexpr size_t getAvailSpace(const CircBuffCb& buffer) {
   auto head = buffer.head_offset;
@@ -328,9 +328,9 @@ bool DeviceSysEmu::receiveResponse(QueueInfo& queue, std::vector<std::byte>& res
   };
 
   // make room to pop message header
-  response.resize(kResponseHeaderSize);
+  response.resize(kCommonHeaderSize);
   // pop message header
-  if (bufferPopWraping(kResponseHeaderSize, response.data(), buffer) <= 0) {
+  if (bufferPopWraping(kCommonHeaderSize, response.data(), buffer) <= 0) {
     response.clear();
     return false;
   }
@@ -342,9 +342,9 @@ bool DeviceSysEmu::receiveResponse(QueueInfo& queue, std::vector<std::byte>& res
     throw Exception("CompletionQueue: Invalid response size");
   }
   // make room for message payload
-  response.resize(respSize);
+  response.resize(respSize + kCommonHeaderSize);
   // pop the message payload
-  if (bufferPopWraping((respSize - kResponseHeaderSize), &response[kResponseHeaderSize], buffer) <= 0) {
+  if (bufferPopWraping((respSize ), &response[kCommonHeaderSize], buffer) <= 0) {
     response.clear();
     return false;
   }
