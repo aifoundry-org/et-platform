@@ -13,12 +13,6 @@ set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
 
 include_directories(${SHARED_INC_DIRS})
 
-if(EsperantoCryptoAPI_FOUND)
-  include_directories(${CRYPTO_HEADERS})
-else()
-  include_directories(${CRYPTO_HEADERS}/esperanto/crypto-api)
-endif(EsperantoCryptoAPI_FOUND)
-
 add_riscv_executable(WorkerMinion
     src/crt.S
     src/trap_handler.S
@@ -42,6 +36,7 @@ target_include_directories(WorkerMinion.elf
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
+target_link_libraries(WorkerMinion.elf PRIVATE signedImageFormat::signedImageFormat)
 
 install(TARGETS WorkerMinion.elf
     EXPORT EsperantoDeviceMinionRuntimeTargets

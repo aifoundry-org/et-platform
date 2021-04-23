@@ -33,6 +33,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 
 find_package(deviceApi REQUIRED)
+find_package(signedImageFormat REQUIRED)
 
 ########## Documentation #####################################
 
@@ -43,10 +44,6 @@ if (DOXYGEN_FOUND)
 else (DOXYGEN_FOUND)
   message("Doxygen need to be installed to generate the doxygen documentation")
 endif (DOXYGEN_FOUND)
-
-####################### External package build dependencies ####################
-
-add_subdirectory(external)
 
 ############################ FW build Rules ############### ####################
 

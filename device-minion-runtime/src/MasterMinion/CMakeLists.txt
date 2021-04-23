@@ -18,12 +18,6 @@ set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
 
 include_directories(${SHARED_INC_DIRS})
 
-if(EsperantoCryptoAPI_FOUND)
-  include_directories(${CRYPTO_HEADERS})
-else()
-  include_directories(${CRYPTO_HEADERS}/esperanto/crypto-api)
-endif(EsperantoCryptoAPI_FOUND)
-
 add_riscv_executable(MasterMinion 
     src/crt.S
     src/trap_handler.S
@@ -69,6 +63,7 @@ target_link_libraries(MasterMinion.elf
     PUBLIC
         deviceFirmware::device_trace
         deviceApi::deviceApi
+        signedImageFormat::signedImageFormat
 )
 
 install(TARGETS MasterMinion.elf

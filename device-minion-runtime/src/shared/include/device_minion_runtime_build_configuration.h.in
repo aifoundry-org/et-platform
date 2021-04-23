@@ -1,7 +1,7 @@
 #ifndef BUILD_CONFIGURATION_H
 #define BUILD_CONFIGURATION_H
 
-#include "crypto_api.h"
+#include "esperanto_signed_image_format/executable_image.h"
 
 #define DEVICE_MINION_RUNTIME_VERSION_MAJOR @DEVICE_MINION_RUNTIME_VERSION_MAJOR@
 #define DEVICE_MINION_RUNTIME_VERSION_MINOR @DEVICE_MINION_RUNTIME_VERSION_MINOR@
