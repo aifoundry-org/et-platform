@@ -1242,8 +1242,6 @@ int sys_emu::main_internal() {
                 running_threads.clear();
                 break;
             }
-
-            chip.cpu[thread_id].notify_pmu_minion_event(PMU_MINION_EVENT_CYCLES);
         }
 
         emu_cycle++;
