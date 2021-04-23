@@ -11,7 +11,7 @@
 
 #define THIS_SHIRE 0xFF
 
-static inline unsigned int __attribute__((always_inline)) get_hart_id(void)
+static inline unsigned int __attribute__((always_inline, const)) get_hart_id(void)
 {
     unsigned int ret;
 
@@ -20,22 +20,22 @@ static inline unsigned int __attribute__((always_inline)) get_hart_id(void)
     return ret;
 }
 
-static inline unsigned int __attribute__((always_inline)) get_shire_id(void)
+static inline unsigned int __attribute__((always_inline, const)) get_shire_id(void)
 {
     return get_hart_id() >> 6;
 }
 
-static inline unsigned int __attribute__((always_inline)) get_neighborhood_id(void)
+static inline unsigned int __attribute__((always_inline, const)) get_neighborhood_id(void)
 {
     return (get_hart_id() % 64) >> 4;
 }
 
-static inline unsigned int __attribute__((always_inline)) get_minion_id(void)
+static inline unsigned int __attribute__((always_inline, const)) get_minion_id(void)
 {
     return get_hart_id() >> 1;
 }
 
-static inline unsigned int __attribute__((always_inline)) get_thread_id(void)
+static inline unsigned int __attribute__((always_inline, const)) get_thread_id(void)
 {
     return get_hart_id() & 1;
 }
