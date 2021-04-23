@@ -23,7 +23,8 @@ void TestDevOpsApiBasicCmds::echoCmd_PositiveTest_2_1() {
 
   for (int queueId = 0; queueId < queueCount; queueId++) {
     // Add cmd to stream
-    stream.push_back(IDevOpsApiCmd::createEchoCmd(getNextTagId(), false, kEchoPayload));
+    stream.push_back(
+      IDevOpsApiCmd::createEchoCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kEchoPayload));
 
     // Move stream to streams_
     streams_.emplace(queueId, std::move(stream));
@@ -39,8 +40,8 @@ void TestDevOpsApiBasicCmds::devCompatCmd_PositiveTest_2_3() {
 
   for (int queueId = 0; queueId < queueCount; queueId++) {
     // Add cmd to stream
-    stream.push_back(
-      IDevOpsApiCmd::createApiCompatibilityCmd(getNextTagId(), false, kDevFWMajor, kDevFWMinor, kDevFWPatch));
+    stream.push_back(IDevOpsApiCmd::createApiCompatibilityCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                              kDevFWMajor, kDevFWMinor, kDevFWPatch));
 
     // Move stream to streams_
     streams_.emplace(queueId, std::move(stream));
@@ -56,7 +57,7 @@ void TestDevOpsApiBasicCmds::devFWCmd_PostiveTest_2_5() {
 
   for (int queueId = 0; queueId < queueCount; queueId++) {
     // Add cmd to stream
-    stream.push_back(IDevOpsApiCmd::createFwVersionCmd(getNextTagId(), false, 1));
+    stream.push_back(IDevOpsApiCmd::createFwVersionCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 1));
 
     // Move stream to streams_
     streams_.emplace(queueId, std::move(stream));
@@ -72,7 +73,7 @@ void TestDevOpsApiBasicCmds::devUnknownCmd_NegativeTest_2_7() {
   unknownCmd.cmd_hdr.size = sizeof(unknownCmd);
   unknownCmd.cmd_hdr.tag_id = getNextTagId();
   unknownCmd.cmd_hdr.msg_id = 0xdead; // Unknown message Id
-  unknownCmd.cmd_hdr.flags = 0;               // No barrier
+  unknownCmd.cmd_hdr.flags = 0;       // No barrier
 
   // Create unknown command
   auto cmd = IDevOpsApiCmd::createCustomCmd(reinterpret_cast<std::byte*>(&unknownCmd), sizeof(unknownCmd), 0);
@@ -126,7 +127,8 @@ void TestDevOpsApiBasicCmds::backToBackSameCmdsMultiQueue_1_2(int numOfCmds) {
   for (int queueId = 0; queueId < queueCount; queueId++) {
     for (int i = 0; i < (numOfCmds / queueCount); i++) {
       // Add cmd to stream
-      stream.push_back(IDevOpsApiCmd::createEchoCmd(getNextTagId(), false, kEchoPayload));
+      stream.push_back(
+        IDevOpsApiCmd::createEchoCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kEchoPayload));
     }
 
     // Move stream to streams_
@@ -143,10 +145,11 @@ void TestDevOpsApiBasicCmds::backToBackDiffCmdsSingleQueue_1_3(int numOfCmds) {
 
   for (int i = 0; i < numOfCmds; i++) {
     // Add cmd to stream
-    stream.push_back(IDevOpsApiCmd::createEchoCmd(getNextTagId(), false, kEchoPayload));
-    stream.push_back(IDevOpsApiCmd::createFwVersionCmd(getNextTagId(), false, 1));
     stream.push_back(
-      IDevOpsApiCmd::createApiCompatibilityCmd(getNextTagId(), false, kDevFWMajor, kDevFWMinor, kDevFWPatch));
+      IDevOpsApiCmd::createEchoCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kEchoPayload));
+    stream.push_back(IDevOpsApiCmd::createFwVersionCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 1));
+    stream.push_back(IDevOpsApiCmd::createApiCompatibilityCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                              kDevFWMajor, kDevFWMinor, kDevFWPatch));
   }
   // Move stream to streams_
   streams_.emplace(queueId, std::move(stream));

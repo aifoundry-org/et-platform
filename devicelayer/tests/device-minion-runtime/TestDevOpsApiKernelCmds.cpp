@@ -60,35 +60,35 @@ void TestDevOpsApiKernelCmds::launchAddVectorKernel_PositiveTesting_4_1(uint64_t
   // Copy kernel input data to device
   auto hostVirtAddr = reinterpret_cast<uint64_t>(vA.data());
   auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-  stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devAddrVecA, hostVirtAddr, hostPhysAddr,
-                                                     vA.size() * sizeof(vA[0]),
+  stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                     devAddrVecA, hostVirtAddr, hostPhysAddr, vA.size() * sizeof(vA[0]),
                                                      device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
   hostVirtAddr = reinterpret_cast<uint64_t>(vB.data());
   hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-  stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devAddrVecB, hostVirtAddr, hostPhysAddr,
-                                                     vB.size() * sizeof(vB[0]),
+  stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                     devAddrVecB, hostVirtAddr, hostPhysAddr, vB.size() * sizeof(vB[0]),
                                                      device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
   // Copy kernel args to device
   auto devAddrKernelArgs = getDmaWriteAddr(0x400);
   hostVirtAddr = reinterpret_cast<uint64_t>(&parameters);
   hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-  stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devAddrKernelArgs, hostVirtAddr,
-                                                     hostPhysAddr, sizeof(parameters),
+  stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                     devAddrKernelArgs, hostVirtAddr, hostPhysAddr, sizeof(parameters),
                                                      device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
   // Launch Kernel Command
-  stream.push_back(
-    IDevOpsApiCmd::createKernelLaunchCmd(getNextTagId(), true, kernelEntryAddr, devAddrKernelArgs, shire_mask,
-                                         device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
+  stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
+    getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_ENABLE, kernelEntryAddr, devAddrKernelArgs, shire_mask,
+    device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
 
   // Read back Kernel Results from device
   std::vector<int> resultFromDevice(numElems, 0);
   hostVirtAddr = reinterpret_cast<uint64_t>(resultFromDevice.data());
   hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-  stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), true, devAddrVecResult, hostVirtAddr, hostPhysAddr,
-                                                    resultFromDevice.size() * sizeof(resultFromDevice[0]),
-                                                    device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+  stream.push_back(IDevOpsApiCmd::createDataReadCmd(
+    getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrVecResult, hostVirtAddr, hostPhysAddr,
+    resultFromDevice.size() * sizeof(resultFromDevice[0]), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
   // Move stream of commands to streams_[queueId]
   uint16_t queueId = 0;
@@ -142,29 +142,29 @@ void TestDevOpsApiKernelCmds::launchUberKernel_PositiveTesting_4_4(uint64_t shir
   // Copy kernel launch args
   auto hostVirtAddr = reinterpret_cast<uint64_t>(launchArgs);
   auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-  stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devAddrKernelArgs, hostVirtAddr,
-                                                     hostPhysAddr, sizeof(launchArgs),
+  stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                     devAddrKernelArgs, hostVirtAddr, hostPhysAddr, sizeof(launchArgs),
                                                      device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
   // Kernel launch Command
-  stream.push_back(
-    IDevOpsApiCmd::createKernelLaunchCmd(getNextTagId(), true, kernelEntryAddr, devAddrKernelArgs, shire_mask,
-                                         device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
+  stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
+    getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_ENABLE, kernelEntryAddr, devAddrKernelArgs, shire_mask,
+    device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
 
   // Read back data written by layer 0
   std::vector<uint64_t> resultDataLayer0(numElemsLayer0, 0xEEEEEEEEEEEEEEEEULL);
   hostVirtAddr = reinterpret_cast<uint64_t>(resultDataLayer0.data());
   hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-  stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), true, devAddrBufLayer0, hostVirtAddr, hostPhysAddr,
-                                                    resultDataLayer0.size() * sizeof(resultDataLayer0[0]),
-                                                    device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+  stream.push_back(IDevOpsApiCmd::createDataReadCmd(
+    getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrBufLayer0, hostVirtAddr, hostPhysAddr,
+    resultDataLayer0.size() * sizeof(resultDataLayer0[0]), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
   // Read back data written by layer 1
   std::vector<uint64_t> resultDataLayer1(numElemsLayer1, 0xEEEEEEEEEEEEEEEEULL);
   hostVirtAddr = reinterpret_cast<uint64_t>(resultDataLayer1.data());
   hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-  stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), true, devAddrBufLayer1, hostVirtAddr, hostPhysAddr,
-                                                    resultDataLayer1.size() * sizeof(resultDataLayer1[0]),
-                                                    device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+  stream.push_back(IDevOpsApiCmd::createDataReadCmd(
+    getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrBufLayer1, hostVirtAddr, hostPhysAddr,
+    resultDataLayer1.size() * sizeof(resultDataLayer1[0]), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
   // Move stream of commands to streams_[queueId]
   uint16_t queueId = 0;
@@ -193,8 +193,8 @@ void TestDevOpsApiKernelCmds::launchExceptionKernel_NegativeTesting_4_6(uint64_t
   loadElfToDevice(reader, elfPath, stream, kernelEntryAddr);
 
   // Kernel launch
-  stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(getNextTagId(), false, kernelEntryAddr, 0 /* No kernel args */,
-                                                        shire_mask,
+  stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                        kernelEntryAddr, 0 /* No kernel args */, shire_mask,
                                                         device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_EXCEPTION));
 
   // Move stream of commands to streams_[queueId]
@@ -218,14 +218,15 @@ void TestDevOpsApiKernelCmds::abortHangKernel_PositiveTesting_4_10(uint64_t shir
 
   // Kernel launch
   auto kernelLaunchTagId = getNextTagId();
-  stream.push_back(
-    IDevOpsApiCmd::createKernelLaunchCmd(kernelLaunchTagId, false, kernelEntryAddr, 0 /* No kernel args */, shire_mask,
-                                         device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED));
+  stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
+    kernelLaunchTagId, device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kernelEntryAddr, 0 /* No kernel args */, shire_mask,
+    device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED));
 
   // Should we add some delay before sending the abort?
 
   // Kernel Abort
-  stream.push_back(IDevOpsApiCmd::createKernelAbortCmd(getNextTagId(), false, kernelLaunchTagId,
+  stream.push_back(IDevOpsApiCmd::createKernelAbortCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                       kernelLaunchTagId,
                                                        device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS));
 
   // Move stream of commands to streams_[queueId]
@@ -282,12 +283,12 @@ void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(uint64_t shire_
     auto dataLoadAddr = getDmaWriteAddr(3 * alignedBufSize);
     auto devAddrVecA = dataLoadAddr;
     auto devAddrVecB = devAddrVecA + alignedBufSize;
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devAddrVecA, hostVirtAddrVecA,
-                                                       hostPhysAddrVecA, vA.size() * sizeof(vA[0]),
-                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devAddrVecB, hostVirtAddrVecB,
-                                                       hostPhysAddrVecB, vB.size() * sizeof(vB[0]),
-                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(
+      getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecA, hostVirtAddrVecA, hostPhysAddrVecA,
+      vA.size() * sizeof(vA[0]), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(
+      getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecB, hostVirtAddrVecB, hostPhysAddrVecB,
+      vB.size() * sizeof(vB[0]), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
     // Copy kernel args to device
     devAddrVecResult[i] = devAddrVecB + alignedBufSize;
@@ -295,14 +296,14 @@ void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(uint64_t shire_
     kerParams[i] = {devAddrVecA, devAddrVecB, devAddrVecResult[i], numElems};
     auto hostVirtAddrKer = reinterpret_cast<uint64_t>(&kerParams[i]);
     auto hostPhysAddrKer = hostVirtAddrKer; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devAddrKernelArgs, hostVirtAddrKer,
-                                                       hostPhysAddrKer, sizeof(Params),
-                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(
+      getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrKernelArgs, hostVirtAddrKer, hostPhysAddrKer,
+      sizeof(Params), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
     // Launch Kernel Command
-    stream.push_back(
-      IDevOpsApiCmd::createKernelLaunchCmd(getNextTagId(), true, kernelEntryAddr, devAddrKernelArgs, shire_mask,
-                                           device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
+    stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
+      getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_ENABLE, kernelEntryAddr, devAddrKernelArgs, shire_mask,
+      device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
   }
 
   // Read back Kernel Results from device
@@ -389,13 +390,13 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(uint64_t s
   // Copy kernel input data to device
   auto hostVirtAddr = reinterpret_cast<uint64_t>(vA.data());
   auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-  stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devAddrVecA, hostVirtAddr, hostPhysAddr,
-                                                     vA.size() * sizeof(vA[0]),
+  stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                     devAddrVecA, hostVirtAddr, hostPhysAddr, vA.size() * sizeof(vA[0]),
                                                      device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
   hostVirtAddr = reinterpret_cast<uint64_t>(vB.data());
   hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-  stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devAddrVecB, hostVirtAddr, hostPhysAddr,
-                                                     vB.size() * sizeof(vB[0]),
+  stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                     devAddrVecB, hostVirtAddr, hostPhysAddr, vB.size() * sizeof(vB[0]),
                                                      device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
   // create device params structure
   struct Params {
@@ -420,32 +421,33 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(uint64_t s
       devAddrKernelArgs = getDmaWriteAddr(ALIGN(sizeof(Params), kCacheLineSize));
       hostVirtAddr = reinterpret_cast<uint64_t>(&addKerParams[addKerCount]);
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devAddrKernelArgs, hostVirtAddr,
-                                                         hostPhysAddr, sizeof(Params),
+      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                         devAddrKernelArgs, hostVirtAddr, hostPhysAddr, sizeof(Params),
                                                          device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
       // Launch Kernel Command for add kernel
-      stream.push_back(
-        IDevOpsApiCmd::createKernelLaunchCmd(getNextTagId(), true, addKernelEntryAddr, devAddrKernelArgs, shire_mask,
-                                             device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
+      stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
+        getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_ENABLE, addKernelEntryAddr, devAddrKernelArgs, shire_mask,
+        device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
       devAddrVecResult += alignedBufSize;
       addKerCount++;
       break;
 
     case excKerType:
       // Launch Kernel Command for exception kernel
-      stream.push_back(
-        IDevOpsApiCmd::createKernelLaunchCmd(getNextTagId(), true, excepKerEntryAddr, 0 /* No kernel args */,
-                                             shire_mask, device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_EXCEPTION));
+      stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
+        getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_ENABLE, excepKerEntryAddr, 0 /* No kernel args */, shire_mask,
+        device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_EXCEPTION));
       break;
 
     case hangKerType:
       // Kernel launch
       kernelLaunchTagId = getNextTagId();
       stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
-        kernelLaunchTagId, true, hangKerEntryAddr, 0 /* No kernel args */, shire_mask,
-        device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED));
+        kernelLaunchTagId, device_ops_api::CMD_FLAGS_BARRIER_ENABLE, hangKerEntryAddr, 0 /* No kernel args */,
+        shire_mask, device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED));
       // Kernel Abort
-      stream.push_back(IDevOpsApiCmd::createKernelAbortCmd(getNextTagId(), false, kernelLaunchTagId,
+      stream.push_back(IDevOpsApiCmd::createKernelAbortCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                           kernelLaunchTagId,
                                                            device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS));
       break;
 
@@ -485,9 +487,9 @@ void TestDevOpsApiKernelCmds::kernelAbortCmd_InvalidTagIdNegativeTesting_6_2() {
   std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
   initTagId(0xb1);
 
-  stream.push_back(
-    IDevOpsApiCmd::createKernelAbortCmd(getNextTagId(), false, 0xbeef /* invalid tagId */,
-                                        device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_INVALID_TAG_ID));
+  stream.push_back(IDevOpsApiCmd::createKernelAbortCmd(
+    getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 0xbeef /* invalid tagId */,
+    device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_INVALID_TAG_ID));
 
   // Move stream of commands to streams_[queueId]
   uint16_t queueId = 0;

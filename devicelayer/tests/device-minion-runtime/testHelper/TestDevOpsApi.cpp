@@ -327,7 +327,8 @@ bool TestDevOpsApi::popRsp(void) {
     TEST_VLOG(1) << "      - Command Execution time: " << response->cmd_execution_time << std::endl << std::endl;
     if (response->status == IDevOpsApiCmd::getExpectedRsp(rsp_tag_id)) {
       status = CmdStatus::CMD_SUCCESSFUL;
-    } else if (response->status == (device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE || device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG)) {
+    } else if (response->status == (device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE ||
+                                    device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG)) {
       status = CmdStatus::CMD_TIMED_OUT;
     } else {
       status = CmdStatus::CMD_FAILED;
@@ -342,7 +343,8 @@ bool TestDevOpsApi::popRsp(void) {
     TEST_VLOG(1) << "      - Command Execution time: " << response->cmd_execution_time << std::endl << std::endl;
     if (response->status == IDevOpsApiCmd::getExpectedRsp(rsp_tag_id)) {
       status = CmdStatus::CMD_SUCCESSFUL;
-    } else if (response->status == (device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE || device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG)) {
+    } else if (response->status == (device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE ||
+                                    device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG)) {
       status = CmdStatus::CMD_TIMED_OUT;
     } else {
       status = CmdStatus::CMD_FAILED;

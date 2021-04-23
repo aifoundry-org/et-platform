@@ -31,24 +31,25 @@ void TestDevOpsApiDmaCmds::dataRWCmdWithBasicCmds_3_4() {
     for (int i = 0; i < dmaWrBuf.size(); ++i) {
       dmaWrBuf[i] = rand() % 0x100;
     }
-    stream.push_back(IDevOpsApiCmd::createEchoCmd(getNextTagId(), false, kEchoPayload));
     stream.push_back(
-      IDevOpsApiCmd::createApiCompatibilityCmd(getNextTagId(), false, kDevFWMajor, kDevFWMinor, kDevFWPatch));
-    stream.push_back(IDevOpsApiCmd::createFwVersionCmd(getNextTagId(), false, 1));
+      IDevOpsApiCmd::createEchoCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kEchoPayload));
+    stream.push_back(IDevOpsApiCmd::createApiCompatibilityCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                              kDevFWMajor, kDevFWMinor, kDevFWPatch));
+    stream.push_back(IDevOpsApiCmd::createFwVersionCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 1));
 
     auto devPhysAddr = getDmaWriteAddr(dmaWrBuf.size());
     auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
     auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                       dmaWrBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                       devPhysAddr, hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaWrBufs.push_back(std::move(dmaWrBuf));
     dmaRdBuf.resize(bufSize, 0);
     devPhysAddr = getDmaReadAddr(dmaRdBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), true, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                      dmaRdBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_ENABLE,
+                                                      devPhysAddr, hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
     dmaRdBufs.push_back(std::move(dmaRdBuf));
@@ -85,8 +86,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixed_3_5() {
     auto devPhysAddr = getDmaWriteAddr(dmaWrBuf.size());
     auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
     auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                       dmaWrBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                       devPhysAddr, hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaWrBufs.push_back(std::move(dmaWrBuf));
 
@@ -97,8 +98,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixed_3_5() {
     devPhysAddr = getDmaWriteAddr(dmaWrBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                       dmaWrBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                       devPhysAddr, hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaWrBufs.push_back(std::move(dmaWrBuf));
 
@@ -106,8 +107,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixed_3_5() {
     devPhysAddr = getDmaReadAddr(dmaRdBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), true, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                      dmaRdBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_ENABLE,
+                                                      devPhysAddr, hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaRdBufs.push_back(std::move(dmaRdBuf));
 
@@ -115,8 +116,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixed_3_5() {
     devPhysAddr = getDmaReadAddr(dmaRdBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                      dmaRdBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                      devPhysAddr, hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaRdBufs.push_back(std::move(dmaRdBuf));
 
@@ -127,8 +128,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixed_3_5() {
     devPhysAddr = getDmaWriteAddr(dmaWrBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                       dmaWrBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                       devPhysAddr, hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaWrBufs.push_back(std::move(dmaWrBuf));
 
@@ -136,8 +137,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixed_3_5() {
     devPhysAddr = getDmaReadAddr(dmaRdBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), true, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                      dmaRdBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_ENABLE,
+                                                      devPhysAddr, hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaRdBufs.push_back(std::move(dmaRdBuf));
 
@@ -182,8 +183,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixedWithVarSize_3_6() {
     auto devPhysAddr = getDmaWriteAddr(dmaWrBuf.size());
     auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
     auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                       dmaWrBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                       devPhysAddr, hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaWrBufs.push_back(std::move(dmaWrBuf));
 
@@ -195,8 +196,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixedWithVarSize_3_6() {
     devPhysAddr = getDmaWriteAddr(dmaWrBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                       dmaWrBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                       devPhysAddr, hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaWrBufs.push_back(std::move(dmaWrBuf));
 
@@ -204,8 +205,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixedWithVarSize_3_6() {
     devPhysAddr = getDmaReadAddr(dmaRdBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), true, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                      dmaRdBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_ENABLE,
+                                                      devPhysAddr, hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaRdBufs.push_back(std::move(dmaRdBuf));
 
@@ -214,8 +215,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixedWithVarSize_3_6() {
     devPhysAddr = getDmaReadAddr(dmaRdBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                      dmaRdBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                      devPhysAddr, hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaRdBufs.push_back(std::move(dmaRdBuf));
 
@@ -227,8 +228,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixedWithVarSize_3_6() {
     devPhysAddr = getDmaWriteAddr(dmaWrBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                       dmaWrBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                       devPhysAddr, hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaWrBufs.push_back(std::move(dmaWrBuf));
 
@@ -237,8 +238,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixedWithVarSize_3_6() {
     devPhysAddr = getDmaReadAddr(dmaRdBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), true, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                      dmaRdBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_ENABLE,
+                                                      devPhysAddr, hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaRdBufs.push_back(std::move(dmaRdBuf));
 
@@ -276,8 +277,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdAllChannels_3_7() {
     auto devPhysAddr = getDmaWriteAddr(dmaWrBuf.size());
     auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
     auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                       dmaWrBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                       devPhysAddr, hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaWrBufs.push_back(std::move(dmaWrBuf));
 
@@ -289,8 +290,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdAllChannels_3_7() {
     devPhysAddr = getDmaWriteAddr(dmaWrBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                       dmaWrBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                       devPhysAddr, hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaWrBufs.push_back(std::move(dmaWrBuf));
 
@@ -302,8 +303,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdAllChannels_3_7() {
     devPhysAddr = getDmaWriteAddr(dmaWrBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                       dmaWrBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                       devPhysAddr, hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaWrBufs.push_back(std::move(dmaWrBuf));
 
@@ -315,8 +316,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdAllChannels_3_7() {
     devPhysAddr = getDmaWriteAddr(dmaWrBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                       dmaWrBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                       devPhysAddr, hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaWrBufs.push_back(std::move(dmaWrBuf));
 
@@ -324,8 +325,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdAllChannels_3_7() {
     devPhysAddr = getDmaReadAddr(dmaRdBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), true, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                      dmaRdBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_ENABLE,
+                                                      devPhysAddr, hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaRdBufs.push_back(std::move(dmaRdBuf));
 
@@ -334,8 +335,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdAllChannels_3_7() {
     devPhysAddr = getDmaReadAddr(dmaRdBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                      dmaRdBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                      devPhysAddr, hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaRdBufs.push_back(std::move(dmaRdBuf));
 
@@ -344,8 +345,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdAllChannels_3_7() {
     devPhysAddr = getDmaReadAddr(dmaRdBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), true, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                      dmaRdBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_ENABLE,
+                                                      devPhysAddr, hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaRdBufs.push_back(std::move(dmaRdBuf));
 
@@ -354,8 +355,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdAllChannels_3_7() {
     devPhysAddr = getDmaReadAddr(dmaRdBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), true, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                      dmaRdBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_ENABLE,
+                                                      devPhysAddr, hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaRdBufs.push_back(std::move(dmaRdBuf));
 
@@ -395,8 +396,8 @@ void TestDevOpsApiDmaCmds::dataRWCmd_PositiveTesting_3_1() {
     auto devPhysAddr = getDmaWriteAddr(dmaWrBuf.size());
     auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
     auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                       dmaWrBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                       devPhysAddr, hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaWrBufs.push_back(std::move(dmaWrBuf));
 
@@ -405,8 +406,8 @@ void TestDevOpsApiDmaCmds::dataRWCmd_PositiveTesting_3_1() {
     devPhysAddr = getDmaReadAddr(dmaRdBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), true, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                      dmaRdBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_ENABLE,
+                                                      devPhysAddr, hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaRdBufs.push_back(std::move(dmaRdBuf));
 
@@ -443,8 +444,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdWithBarrier_PositiveTesting_3_10() {
     auto devPhysAddr = getDmaWriteAddr(dmaWrBuf.size());
     auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
     auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                       dmaWrBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                       devPhysAddr, hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaWrBufs.push_back(std::move(dmaWrBuf));
 
@@ -455,8 +456,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdWithBarrier_PositiveTesting_3_10() {
     devPhysAddr = getDmaWriteAddr(dmaWrBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                       dmaWrBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                       devPhysAddr, hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaWrBufs.push_back(std::move(dmaWrBuf));
 
@@ -467,8 +468,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdWithBarrier_PositiveTesting_3_10() {
     devPhysAddr = getDmaWriteAddr(dmaWrBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                       dmaWrBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                       devPhysAddr, hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaWrBufs.push_back(std::move(dmaWrBuf));
 
@@ -479,8 +480,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdWithBarrier_PositiveTesting_3_10() {
     devPhysAddr = getDmaWriteAddr(dmaWrBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                       dmaWrBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                       devPhysAddr, hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaWrBufs.push_back(std::move(dmaWrBuf));
 
@@ -489,8 +490,8 @@ void TestDevOpsApiDmaCmds::dataRWCmdWithBarrier_PositiveTesting_3_10() {
     devPhysAddr = getDmaReadAddr(dmaRdBuf.size());
     hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), true, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                      dmaRdBuf.size(),
+    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_ENABLE,
+                                                      devPhysAddr, hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     dmaRdBufs.push_back(std::move(dmaRdBuf));
 
@@ -550,8 +551,8 @@ void TestDevOpsApiDmaCmds::dataWRStressSize_2_1(uint8_t maxExp2) {
       auto devPhysAddr = getDmaWriteAddr(dmaWrBuf.size());
       auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
       auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                         dmaWrBuf.size(),
+      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                         devPhysAddr, hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
                                                          device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
       writtenBuffs.push_back(std::move(dmaWrBuf));
     }
@@ -562,8 +563,8 @@ void TestDevOpsApiDmaCmds::dataWRStressSize_2_1(uint8_t maxExp2) {
       auto devPhysAddr = getDmaReadAddr(dmaRdBuf.size());
       auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
       auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                        dmaRdBuf.size(),
+      stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                        devPhysAddr, hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
                                                         device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
       dmaRdBufs.push_back(std::move(dmaRdBuf));
     }
@@ -602,8 +603,8 @@ void TestDevOpsApiDmaCmds::dataWRStressSpeed_2_2(uint8_t maxExp2) {
       auto devPhysAddr = getDmaWriteAddr(dmaWrBuf.size());
       auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
       auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                         dmaWrBuf.size(),
+      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                         devPhysAddr, hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
                                                          device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
       writtenBuffs.push_back(std::move(dmaWrBuf));
     }
@@ -650,8 +651,8 @@ void TestDevOpsApiDmaCmds::dataWRStressChannelsSingleQueue_2_3(uint32_t numOfLoo
       auto devPhysAddr = getDmaWriteAddr(dmaWrBuf.size());
       auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
       auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                         dmaWrBuf.size(),
+      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                         devPhysAddr, hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
                                                          device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     }
 
@@ -696,8 +697,8 @@ void TestDevOpsApiDmaCmds::dataWRStressChannelsMultiQueue_2_4(uint32_t numOfLoop
       auto devPhysAddr = getDmaWriteAddr(dmaWrBuf.size());
       auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
       auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devPhysAddr, hostVirtAddr, hostPhysAddr,
-                                                         dmaWrBuf.size(),
+      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                         devPhysAddr, hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
                                                          device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     }
 

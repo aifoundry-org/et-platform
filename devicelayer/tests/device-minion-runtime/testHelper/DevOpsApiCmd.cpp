@@ -41,20 +41,20 @@ void IDevOpsApiCmd::deleteRspEntry(device_ops_api::tag_id_t tagId) {
 /*
  * Device Ops Api Echo Command creation and it's handling
  */
-std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createEchoCmd(device_ops_api::tag_id_t tagId, bool barrier,
-                                                            int32_t echoPayload) {
+std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createEchoCmd(device_ops_api::tag_id_t tagId,
+                                                            device_ops_api::cmd_flags_e flag, int32_t echoPayload) {
   // Add default expected response `0` for command that does not have expected response
   if (!addRspEntry(tagId, 0)) {
     return nullptr;
   }
-  return std::make_unique<EchoCmd>(tagId, barrier, echoPayload);
+  return std::make_unique<EchoCmd>(tagId, flag, echoPayload);
 }
 
-EchoCmd::EchoCmd(device_ops_api::tag_id_t tagId, bool barrier, int32_t echoPayload) {
+EchoCmd::EchoCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, int32_t echoPayload) {
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.cmd_hdr.flags = barrier ? (1 << 0U) : 0;
+  cmd_.command_info.cmd_hdr.flags = flag;
   cmd_.echo_payload = echoPayload;
 
   TEST_VLOG(1) << "Created Echo Command (tagId: " << std::hex << tagId << ")" << std::endl;
@@ -83,21 +83,22 @@ device_ops_api::tag_id_t EchoCmd::getCmdTagId() {
 /*
  * Device Ops Api compatibility command creation and handling
  */
-std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createApiCompatibilityCmd(device_ops_api::tag_id_t tagId, bool barrier,
-                                                                        uint8_t major, uint8_t minor, uint8_t patch) {
+std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createApiCompatibilityCmd(device_ops_api::tag_id_t tagId,
+                                                                        device_ops_api::cmd_flags_e flag, uint8_t major,
+                                                                        uint8_t minor, uint8_t patch) {
   // Add default expected response `0` for command that does not have expected response
   if (!addRspEntry(tagId, 0)) {
     return nullptr;
   }
-  return std::make_unique<ApiCompatibilityCmd>(tagId, barrier, major, minor, patch);
+  return std::make_unique<ApiCompatibilityCmd>(tagId, flag, major, minor, patch);
 }
 
-ApiCompatibilityCmd::ApiCompatibilityCmd(device_ops_api::tag_id_t tagId, bool barrier, uint8_t major, uint8_t minor,
-                                         uint8_t patch) {
+ApiCompatibilityCmd::ApiCompatibilityCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
+                                         uint8_t major, uint8_t minor, uint8_t patch) {
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.cmd_hdr.flags = barrier ? (1 << 0U) : 0;
+  cmd_.command_info.cmd_hdr.flags = flag;
   cmd_.major = major;
   cmd_.major = minor;
   cmd_.major = patch;
@@ -128,20 +129,21 @@ device_ops_api::tag_id_t ApiCompatibilityCmd::getCmdTagId() {
 /*
  * Device Ops Api Firmware Version command creation and handling
  */
-std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createFwVersionCmd(device_ops_api::tag_id_t tagId, bool barrier,
+std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createFwVersionCmd(device_ops_api::tag_id_t tagId,
+                                                                 device_ops_api::cmd_flags_e flag,
                                                                  uint8_t firmwareType) {
   // Add default expected response `0` for command that does not have expected response
   if (!addRspEntry(tagId, 0)) {
     return nullptr;
   }
-  return std::make_unique<FwVersionCmd>(tagId, barrier, firmwareType);
+  return std::make_unique<FwVersionCmd>(tagId, flag, firmwareType);
 }
 
-FwVersionCmd::FwVersionCmd(device_ops_api::tag_id_t tagId, bool barrier, uint8_t firmwareType) {
+FwVersionCmd::FwVersionCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, uint8_t firmwareType) {
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.cmd_hdr.flags = barrier ? (1 << 0U) : 0;
+  cmd_.command_info.cmd_hdr.flags = flag;
   cmd_.firmware_type = firmwareType;
 
   TEST_VLOG(1) << "Created Firmware Version Command (tagId: " << std::hex << tagId << ")" << std::endl;
@@ -170,22 +172,23 @@ device_ops_api::tag_id_t FwVersionCmd::getCmdTagId() {
 /*
  * Device Ops Api Data Write command creation and handling
  */
-std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createDataWriteCmd(device_ops_api::tag_id_t tagId, bool barrier,
-                                                                 uint64_t devPhysAddr, uint64_t hostVirtAddr,
-                                                                 uint64_t hostPhysAddr, uint64_t dataSize,
+std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createDataWriteCmd(device_ops_api::tag_id_t tagId,
+                                                                 device_ops_api::cmd_flags_e flag, uint64_t devPhysAddr,
+                                                                 uint64_t hostVirtAddr, uint64_t hostPhysAddr,
+                                                                 uint64_t dataSize,
                                                                  device_ops_api::dev_ops_api_dma_response_e status) {
   if (!addRspEntry(tagId, status)) {
     return nullptr;
   }
-  return std::make_unique<DataWriteCmd>(tagId, barrier, devPhysAddr, hostVirtAddr, hostPhysAddr, dataSize);
+  return std::make_unique<DataWriteCmd>(tagId, flag, devPhysAddr, hostVirtAddr, hostPhysAddr, dataSize);
 }
 
-DataWriteCmd::DataWriteCmd(device_ops_api::tag_id_t tagId, bool barrier, uint64_t devPhysAddr, uint64_t hostVirtAddr,
-                           uint64_t hostPhysAddr, uint64_t dataSize) {
+DataWriteCmd::DataWriteCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, uint64_t devPhysAddr,
+                           uint64_t hostVirtAddr, uint64_t hostPhysAddr, uint64_t dataSize) {
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.cmd_hdr.flags = barrier ? (1 << 0U) : 0;
+  cmd_.command_info.cmd_hdr.flags = flag;
   cmd_.dst_device_phy_addr = devPhysAddr;
   cmd_.src_host_virt_addr = hostVirtAddr;
   cmd_.src_host_phy_addr = hostPhysAddr;
@@ -217,22 +220,23 @@ device_ops_api::tag_id_t DataWriteCmd::getCmdTagId() {
 /*
  * Device Ops Api Data Read command creation and handling
  */
-std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createDataReadCmd(device_ops_api::tag_id_t tagId, bool barrier,
-                                                                uint64_t devPhysAddr, uint64_t hostVirtAddr,
-                                                                uint64_t hostPhysAddr, uint64_t dataSize,
+std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createDataReadCmd(device_ops_api::tag_id_t tagId,
+                                                                device_ops_api::cmd_flags_e flag, uint64_t devPhysAddr,
+                                                                uint64_t hostVirtAddr, uint64_t hostPhysAddr,
+                                                                uint64_t dataSize,
                                                                 device_ops_api::dev_ops_api_dma_response_e status) {
   if (!addRspEntry(tagId, status)) {
     return nullptr;
   }
-  return std::make_unique<DataReadCmd>(tagId, barrier, devPhysAddr, hostVirtAddr, hostPhysAddr, dataSize);
+  return std::make_unique<DataReadCmd>(tagId, flag, devPhysAddr, hostVirtAddr, hostPhysAddr, dataSize);
 }
 
-DataReadCmd::DataReadCmd(device_ops_api::tag_id_t tagId, bool barrier, uint64_t devPhysAddr, uint64_t hostVirtAddr,
-                         uint64_t hostPhysAddr, uint64_t dataSize) {
+DataReadCmd::DataReadCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, uint64_t devPhysAddr,
+                         uint64_t hostVirtAddr, uint64_t hostPhysAddr, uint64_t dataSize) {
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.cmd_hdr.flags = barrier ? (1 << 0U) : 0;
+  cmd_.command_info.cmd_hdr.flags = flag;
   cmd_.src_device_phy_addr = devPhysAddr;
   cmd_.dst_host_virt_addr = hostVirtAddr;
   cmd_.dst_host_phy_addr = hostPhysAddr;
@@ -265,21 +269,21 @@ device_ops_api::tag_id_t DataReadCmd::getCmdTagId() {
  * Device Ops Api Kernel Launch command creation and handling
  */
 std::unique_ptr<IDevOpsApiCmd>
-IDevOpsApiCmd::createKernelLaunchCmd(device_ops_api::tag_id_t tagId, bool barrier, uint64_t codeStartAddr,
-                                     uint64_t ptrToArgs, uint64_t shireMask,
+IDevOpsApiCmd::createKernelLaunchCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
+                                     uint64_t codeStartAddr, uint64_t ptrToArgs, uint64_t shireMask,
                                      device_ops_api::dev_ops_api_kernel_launch_response_e status) {
   if (!addRspEntry(tagId, status)) {
     return nullptr;
   }
-  return std::make_unique<KernelLaunchCmd>(tagId, barrier, codeStartAddr, ptrToArgs, shireMask);
+  return std::make_unique<KernelLaunchCmd>(tagId, flag, codeStartAddr, ptrToArgs, shireMask);
 }
 
-KernelLaunchCmd::KernelLaunchCmd(device_ops_api::tag_id_t tagId, bool barrier, uint64_t codeStartAddr,
-                                 uint64_t ptrToArgs, uint64_t shireMask) {
+KernelLaunchCmd::KernelLaunchCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
+                                 uint64_t codeStartAddr, uint64_t ptrToArgs, uint64_t shireMask) {
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.cmd_hdr.flags = barrier ? (1 << 0U) : 0;
+  cmd_.command_info.cmd_hdr.flags = flag;
   cmd_.code_start_address = codeStartAddr;
   cmd_.pointer_to_args = ptrToArgs;
   cmd_.shire_mask = shireMask;
@@ -311,21 +315,21 @@ device_ops_api::tag_id_t KernelLaunchCmd::getCmdTagId() {
  * Device Ops Api Kernel Abort command creation and handling
  */
 std::unique_ptr<IDevOpsApiCmd>
-IDevOpsApiCmd::createKernelAbortCmd(device_ops_api::tag_id_t tagId, bool barrier,
+IDevOpsApiCmd::createKernelAbortCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
                                     device_ops_api::tag_id_t kernelToAbortTagId,
                                     device_ops_api::dev_ops_api_kernel_abort_response_e status) {
   if (!addRspEntry(tagId, status)) {
     return nullptr;
   }
-  return std::make_unique<KernelAbortCmd>(tagId, barrier, kernelToAbortTagId);
+  return std::make_unique<KernelAbortCmd>(tagId, flag, kernelToAbortTagId);
 }
 
-KernelAbortCmd::KernelAbortCmd(device_ops_api::tag_id_t tagId, bool barrier,
+KernelAbortCmd::KernelAbortCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
                                device_ops_api::tag_id_t kernelToAbortTagId) {
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.cmd_hdr.flags = barrier ? (1 << 0U) : 0;
+  cmd_.command_info.cmd_hdr.flags = flag;
   cmd_.kernel_launch_tag_id = kernelToAbortTagId;
 
   TEST_VLOG(1) << "Created Kernel Abort Command (tagId: " << std::hex << tagId << ")" << std::endl;
@@ -397,4 +401,96 @@ size_t CustomCmd::getCmdSize() {
 device_ops_api::tag_id_t CustomCmd::getCmdTagId() {
   auto* customCmd = reinterpret_cast<device_ops_api::cmd_header_t*>(cmd_);
   return customCmd->cmd_hdr.tag_id;
+}
+
+/*
+ * Device Ops Api trace configuration command creation and handling
+ */
+std::unique_ptr<IDevOpsApiCmd>
+IDevOpsApiCmd::createTraceRtConfigCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
+                                      uint32_t shire_mask, uint32_t thread_mask, uint32_t event_mask,
+                                      uint32_t filter_mask, device_ops_api::dev_ops_trace_rt_config_response_e status) {
+  if (!addRspEntry(tagId, status)) {
+    return nullptr;
+  }
+  return std::make_unique<TraceRtConfigCmd>(tagId, flag, shire_mask, thread_mask, event_mask, filter_mask);
+}
+
+TraceRtConfigCmd::TraceRtConfigCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
+                                   uint32_t shire_mask, uint32_t thread_mask, uint32_t event_mask,
+                                   uint32_t filter_mask) {
+
+  cmd_.command_info.cmd_hdr.tag_id = tagId;
+  cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD;
+  cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
+  cmd_.command_info.cmd_hdr.flags = flag;
+  cmd_.shire_mask = shire_mask;
+  cmd_.thread_mask = thread_mask;
+  cmd_.event_mask = event_mask;
+  cmd_.filter_mask = filter_mask;
+}
+
+TraceRtConfigCmd::~TraceRtConfigCmd() {
+  deleteRspEntry(cmd_.command_info.cmd_hdr.tag_id);
+}
+
+std::byte* TraceRtConfigCmd::getCmdPtr() {
+  return reinterpret_cast<std::byte*>(&cmd_);
+}
+
+IDevOpsApiCmd::CmdType TraceRtConfigCmd::whoAmI() {
+  return CmdType::TRACE_CONFIG_CMD;
+}
+
+size_t TraceRtConfigCmd::getCmdSize() {
+  return sizeof(cmd_);
+}
+
+device_ops_api::tag_id_t TraceRtConfigCmd::getCmdTagId() {
+  return cmd_.command_info.cmd_hdr.tag_id;
+}
+
+/*
+ * Device Ops Api trace control command creation and handling
+ */
+
+std::unique_ptr<IDevOpsApiCmd>
+IDevOpsApiCmd::createTraceRtControlCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
+                                       uint32_t rt_type, uint32_t control,
+                                       device_ops_api::dev_ops_trace_rt_control_response_e status) {
+  if (!addRspEntry(tagId, status)) {
+    return nullptr;
+  }
+  return std::make_unique<TraceRtControlCmd>(tagId, flag, rt_type, control);
+}
+
+TraceRtControlCmd::TraceRtControlCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, uint32_t rt_type,
+                                     uint32_t control) {
+
+  cmd_.command_info.cmd_hdr.tag_id = tagId;
+  cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD;
+  cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
+  cmd_.command_info.cmd_hdr.flags = flag;
+  cmd_.rt_type = rt_type;
+  cmd_.control = control;
+}
+
+TraceRtControlCmd::~TraceRtControlCmd() {
+  deleteRspEntry(cmd_.command_info.cmd_hdr.tag_id);
+}
+
+std::byte* TraceRtControlCmd::getCmdPtr() {
+  return reinterpret_cast<std::byte*>(&cmd_);
+}
+
+IDevOpsApiCmd::CmdType TraceRtControlCmd::whoAmI() {
+  return CmdType::TRACE_CONTROL_CMD;
+}
+
+size_t TraceRtControlCmd::getCmdSize() {
+  return sizeof(cmd_);
+}
+
+device_ops_api::tag_id_t TraceRtControlCmd::getCmdTagId() {
+  return cmd_.command_info.cmd_hdr.tag_id;
 }

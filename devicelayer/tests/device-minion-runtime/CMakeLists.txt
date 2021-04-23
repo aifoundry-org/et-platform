@@ -93,6 +93,13 @@ create_test(
 )
 
 create_test(
+  TARGET     TestDevOpsApiFuncTraceCmdsPcie
+  SOURCES    pcie/basic/TestDevOpsApiFuncTraceCmdsPcie.cpp TestDevOpsApiTraceCmds.cpp
+  ARGS       "--kernels_dir=${KERNELS_DIR}"
+  PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;SYSTEM;TIMEOUT;120"
+)
+
+create_test(
   TARGET     TestDevOpsApiStressBasicCmdsPcie
   SOURCES    pcie/basic/TestDevOpsApiStressBasicCmdsPcie.cpp TestDevOpsApiBasicCmds.cpp
   ARGS       ""
@@ -138,6 +145,13 @@ create_test(
   TARGET     TestDevOpsApiFuncKernelCmdsSysEmu
   SOURCES    sysemu/TestDevOpsApiFuncKernelCmdsSysEmu.cpp TestDevOpsApiKernelCmds.cpp
   ARGS       "--kernels_dir=${KERNELS_DIR}"
+  PROPERTIES "LABELS;SYSEMU;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;SYSTEM;TIMEOUT;120"
+)
+
+create_test(
+  TARGET     TestDevOpsApiFuncTraceCmdsSysEmu
+  SOURCES    sysemu/TestDevOpsApiFuncTraceCmdsSysEmu.cpp TestDevOpsApiTraceCmds.cpp
+  ARGS       ""
   PROPERTIES "LABELS;SYSEMU;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;SYSTEM;TIMEOUT;120"
 )
 

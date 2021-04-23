@@ -33,6 +33,8 @@ public:
     DATA_READ_CMD,
     KERNEL_LAUNCH_CMD,
     KERNEL_ABORT_CMD,
+    TRACE_CONFIG_CMD,
+    TRACE_CONTROL_CMD,
     CUSTOM_CMD
   };
 
@@ -42,26 +44,33 @@ public:
   virtual CmdType whoAmI() = 0;
   virtual ~IDevOpsApiCmd() = default;
 
-  static std::unique_ptr<IDevOpsApiCmd> createEchoCmd(device_ops_api::tag_id_t tagId, bool barrier,
+  static std::unique_ptr<IDevOpsApiCmd> createEchoCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
                                                       int32_t echoPayload);
-  static std::unique_ptr<IDevOpsApiCmd> createApiCompatibilityCmd(device_ops_api::tag_id_t tagId, bool barrier,
+  static std::unique_ptr<IDevOpsApiCmd> createApiCompatibilityCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
                                                                   uint8_t major, uint8_t minor, uint8_t patch);
-  static std::unique_ptr<IDevOpsApiCmd> createFwVersionCmd(device_ops_api::tag_id_t tagId, bool barrier,
+  static std::unique_ptr<IDevOpsApiCmd> createFwVersionCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
                                                            uint8_t firmwareType);
-  static std::unique_ptr<IDevOpsApiCmd> createDataWriteCmd(device_ops_api::tag_id_t tagId, bool barrier,
+  static std::unique_ptr<IDevOpsApiCmd> createDataWriteCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
                                                            uint64_t devPhysAddr, uint64_t hostVirtAddr,
                                                            uint64_t hostPhysAddr, uint64_t dataSize,
                                                            device_ops_api::dev_ops_api_dma_response_e status);
-  static std::unique_ptr<IDevOpsApiCmd> createDataReadCmd(device_ops_api::tag_id_t tagId, bool barrier,
+  static std::unique_ptr<IDevOpsApiCmd> createDataReadCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
                                                           uint64_t devPhysAddr, uint64_t hostVirtAddr,
                                                           uint64_t hostPhysAddr, uint64_t dataSize,
                                                           device_ops_api::dev_ops_api_dma_response_e status);
   static std::unique_ptr<IDevOpsApiCmd>
-  createKernelLaunchCmd(device_ops_api::tag_id_t tagId, bool barrier, uint64_t codeStartAddr, uint64_t ptrToArgs,
+  createKernelLaunchCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, uint64_t codeStartAddr, uint64_t ptrToArgs,
                         uint64_t shireMask, device_ops_api::dev_ops_api_kernel_launch_response_e status);
   static std::unique_ptr<IDevOpsApiCmd>
-  createKernelAbortCmd(device_ops_api::tag_id_t tagId, bool barrier, device_ops_api::tag_id_t kernelToAbortTagId,
+  createKernelAbortCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, device_ops_api::tag_id_t kernelToAbortTagId,
                        device_ops_api::dev_ops_api_kernel_abort_response_e status);
+  static std::unique_ptr<IDevOpsApiCmd> createTraceRtConfigCmd(device_ops_api::tag_id_t, device_ops_api::cmd_flags_e flag,
+                                                               uint32_t  shire_mask, uint32_t  thread_mask,
+                                                               uint32_t  event_mask, uint32_t  filter_mask,
+                                                               device_ops_api::dev_ops_trace_rt_config_response_e status);
+  static std::unique_ptr<IDevOpsApiCmd> createTraceRtControlCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
+                                                                uint32_t  rt_type, uint32_t  control,
+                                                                device_ops_api::dev_ops_trace_rt_control_response_e status);
   static std::unique_ptr<IDevOpsApiCmd> createCustomCmd(std::byte* cmdPtr, size_t cmdSize, uint32_t status);
 
   static uint32_t getExpectedRsp(device_ops_api::tag_id_t tagId);
@@ -79,7 +88,7 @@ public:
   size_t getCmdSize() override;
   device_ops_api::tag_id_t getCmdTagId() override;
   CmdType whoAmI() override;
-  explicit EchoCmd(device_ops_api::tag_id_t tagId, bool barrier, int32_t echoPayload);
+  explicit EchoCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, int32_t echoPayload);
   ~EchoCmd();
 
 private:
@@ -92,7 +101,7 @@ public:
   size_t getCmdSize() override;
   device_ops_api::tag_id_t getCmdTagId() override;
   CmdType whoAmI() override;
-  explicit ApiCompatibilityCmd(device_ops_api::tag_id_t tagId, bool barrier, uint8_t major, uint8_t minor,
+  explicit ApiCompatibilityCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, uint8_t major, uint8_t minor,
                                uint8_t patch);
   ~ApiCompatibilityCmd();
 
@@ -106,7 +115,7 @@ public:
   size_t getCmdSize() override;
   device_ops_api::tag_id_t getCmdTagId() override;
   CmdType whoAmI() override;
-  explicit FwVersionCmd(device_ops_api::tag_id_t tagId, bool barrier, uint8_t firmwareType);
+  explicit FwVersionCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, uint8_t firmwareType);
   ~FwVersionCmd();
 
 private:
@@ -119,7 +128,7 @@ public:
   size_t getCmdSize() override;
   device_ops_api::tag_id_t getCmdTagId() override;
   CmdType whoAmI() override;
-  explicit DataWriteCmd(device_ops_api::tag_id_t tagId, bool barrier, uint64_t devPhysAddr, uint64_t hostVirtAddr,
+  explicit DataWriteCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, uint64_t devPhysAddr, uint64_t hostVirtAddr,
                         uint64_t hostPhysAddr, uint64_t dataSize);
   ~DataWriteCmd();
 
@@ -133,7 +142,7 @@ public:
   size_t getCmdSize() override;
   device_ops_api::tag_id_t getCmdTagId() override;
   CmdType whoAmI() override;
-  explicit DataReadCmd(device_ops_api::tag_id_t tagId, bool barrier, uint64_t devPhysAddr, uint64_t hostVirtAddr,
+  explicit DataReadCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, uint64_t devPhysAddr, uint64_t hostVirtAddr,
                        uint64_t hostPhysAddr, uint64_t dataSize);
   ~DataReadCmd();
 
@@ -147,7 +156,7 @@ public:
   size_t getCmdSize() override;
   device_ops_api::tag_id_t getCmdTagId() override;
   CmdType whoAmI() override;
-  explicit KernelLaunchCmd(device_ops_api::tag_id_t tagId, bool barrier, uint64_t codeStartAddr, uint64_t ptrToArgs,
+  explicit KernelLaunchCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, uint64_t codeStartAddr, uint64_t ptrToArgs,
                            uint64_t shireMask);
   ~KernelLaunchCmd();
 
@@ -161,7 +170,7 @@ public:
   size_t getCmdSize() override;
   device_ops_api::tag_id_t getCmdTagId() override;
   CmdType whoAmI() override;
-  explicit KernelAbortCmd(device_ops_api::tag_id_t tagId, bool barrier, device_ops_api::tag_id_t kernelToAbortTagId);
+  explicit KernelAbortCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, device_ops_api::tag_id_t kernelToAbortTagId);
   ~KernelAbortCmd();
 
 private:
@@ -179,4 +188,32 @@ public:
 
 private:
   std::byte* cmd_;
+};
+
+class TraceRtConfigCmd : public IDevOpsApiCmd {
+public:
+  std::byte* getCmdPtr() override;
+  size_t getCmdSize() override;
+  device_ops_api::tag_id_t getCmdTagId() override;
+  CmdType whoAmI() override;
+  explicit TraceRtConfigCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, uint32_t  shire_mask, uint32_t  thread_mask,
+                            uint32_t  event_mask, uint32_t  filter_mask);
+  ~TraceRtConfigCmd();
+
+private:
+  device_ops_api::device_ops_trace_rt_config_cmd_t cmd_;
+};
+
+class TraceRtControlCmd : public IDevOpsApiCmd {
+public:
+  std::byte* getCmdPtr() override;
+  size_t getCmdSize() override;
+  device_ops_api::tag_id_t getCmdTagId() override;
+  CmdType whoAmI() override;
+  explicit TraceRtControlCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
+                             uint32_t  rt_type, uint32_t  control);
+  ~TraceRtControlCmd();
+
+private:
+  device_ops_api::device_ops_trace_rt_control_cmd_t cmd_;
 };
