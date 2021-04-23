@@ -24,7 +24,7 @@
 // Function that returns shire id
 inline __attribute__((always_inline)) __attribute__ ((const))  uint64_t get_hart_id()
 {
-    int ret;
+    uint64_t ret;
     __asm__ __volatile__ (
         "csrr %[ret], hartid\n" // u-mode hartid shadow
         : [ret] "=r" (ret)
