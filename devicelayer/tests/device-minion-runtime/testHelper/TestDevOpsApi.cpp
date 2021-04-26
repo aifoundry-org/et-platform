@@ -265,12 +265,14 @@ void TestDevOpsApi::initTagId(device_ops_api::tag_id_t value) {
 }
 
 bool TestDevOpsApi::pushCmd(uint16_t queueId, std::unique_ptr<IDevOpsApiCmd>& devOpsApiCmd) {
+  addCmdResultEntry(devOpsApiCmd->getCmdTagId(), CmdStatus::CMD_RSP_NOT_RECEIVED);
   auto res =
     devLayer_->sendCommandMasterMinion(kIDevice, queueId, devOpsApiCmd->getCmdPtr(), devOpsApiCmd->getCmdSize());
   if (res) {
     TEST_VLOG(1) << "=====> Command Sent (tag_id: " << std::hex << devOpsApiCmd->getCmdTagId()
                  << ") <====" << std::endl;
-    addCmdResultEntry(devOpsApiCmd->getCmdTagId(), CmdStatus::CMD_RSP_NOT_RECEIVED);
+  } else {
+    deleteCmdResultEntry(devOpsApiCmd->getCmdTagId());
   }
 
   return res;
