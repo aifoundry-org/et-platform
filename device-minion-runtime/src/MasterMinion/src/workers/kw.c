@@ -478,7 +478,7 @@ int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
         abort_rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
         abort_rsp.response_info.rsp_hdr.msg_id =
             DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP;
-        abort_rsp.response_info.rsp_hdr.size = 
+        abort_rsp.response_info.rsp_hdr.size =
             sizeof(abort_rsp) - sizeof(struct cmn_header_t);
 
         /* Check the multicast send for errors */
@@ -623,9 +623,8 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     int8_t status;
     int8_t status_internal;
     uint16_t kernel_state;
-    uint32_t done_cnt;
-    uint32_t kernel_shires_count;
     uint64_t kernel_shire_mask;
+    bool kernel_done;
     bool cw_exception;
     bool cw_error;
     /* Get the kernel instance */
@@ -642,7 +641,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         Log_Write(LOG_LEVEL_DEBUG, "KW:Received:FCCEvent\r\n");
 
         /* Reset state */
-        done_cnt = 0;
+        kernel_done = false;
         cw_exception = false;
         cw_error = false;
         status_internal = STATUS_SUCCESS;
@@ -650,12 +649,9 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         /* Read the shire mask for the current kernel */
         kernel_shire_mask = atomic_load_local_64(&kernel->kernel_shire_mask);
 
-        /* Calculate the number of shires involved in kernel launch */
-        kernel_shires_count = (uint32_t)__builtin_popcountll(kernel_shire_mask);
-
         /* Process kernel command responses from CM, for all shires
         associated with the kernel launch */
-        while(done_cnt < kernel_shires_count)
+        while(!kernel_done && (status_internal == STATUS_SUCCESS))
         {
             /* Wait for an interrupt */
             asm volatile("wfi");
@@ -681,24 +677,22 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                 break;
             }
 
-            /* Process all the available messages */
-            while((done_cnt < kernel_shires_count) && (status_internal == STATUS_SUCCESS))
+            /* Receive the CM->MM message */
+            status = CM_Iface_Unicast_Receive(
+                CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx, &message);
+
+            if (status != STATUS_SUCCESS)
             {
-                status = CM_Iface_Unicast_Receive(
-                    CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx, &message);
-
-                if (status != STATUS_SUCCESS)
+                /* No more pending messages left */
+                if ((status != CIRCBUFF_ERROR_BAD_LENGTH) &&
+                    (status != CIRCBUFF_ERROR_EMPTY))
                 {
-                    /* No more pending messages left */
-                    if ((status != CIRCBUFF_ERROR_BAD_LENGTH) &&
-                        (status != CIRCBUFF_ERROR_EMPTY))
-                    {
-                        Log_Write(LOG_LEVEL_ERROR,
-                            "KW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n", status);
-                    }
-                    break;
+                    Log_Write(LOG_LEVEL_ERROR,
+                        "KW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n", status);
                 }
-
+            }
+            else
+            {
                 /* Handle message from Compute Worker */
                 switch (message.header.id)
                 {
@@ -718,8 +712,8 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                             cw_error = true;
                         }
 
-                        /* Increase count of completed Shires */
-                        done_cnt++;
+                        /* Set the flag to indicate that kernel launch has completed */
+                        kernel_done = true;
                         break;
                     }
                     case CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION:
@@ -754,8 +748,6 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 
                             cw_exception = true;
                         }
-                        /* Increase count of completed Shires */
-                        done_cnt++;
                         break;
                     }
                     default:
@@ -813,7 +805,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             atomic_load_local_16(&kernel->launch_tag_id);
         launch_rsp.response_info.rsp_hdr.msg_id =
             DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
-        launch_rsp.response_info.rsp_hdr.size = 
+        launch_rsp.response_info.rsp_hdr.size =
             sizeof(launch_rsp) - sizeof(struct cmn_header_t);
         launch_rsp.cmd_wait_time = atomic_load_local_32(&kernel->kw_cycles.wait_cycles);
         launch_rsp.cmd_execution_time = (uint32_t)PMC_GET_LATENCY(atomic_load_local_32(
