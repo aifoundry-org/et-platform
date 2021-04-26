@@ -113,6 +113,7 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 {
 	struct et_pci_dev *et_dev;
 	struct et_ops_dev *ops;
+	struct dram_info user_dram;
 	struct mmio_desc mmio_info;
 	struct cmd_desc cmd_info;
 	struct rsp_desc rsp_info;
@@ -126,26 +127,39 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 	size = _IOC_SIZE(cmd);
 
 	switch (cmd) {
-	case ETSOC1_IOCTL_GET_USER_DRAM_BASE:
+	case ETSOC1_IOCTL_GET_USER_DRAM_INFO:
 		if (!ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED].is_valid)
 			return -EINVAL;
 
-		if (copy_to_user((u64 *)arg, &ops->regions
-		    [OPS_MEM_REGION_TYPE_HOST_MANAGED].soc_addr, size)) {
-			pr_err("ioctl: ETSOC1_IOCTL_GET_USER_DRAM_BASE: failed to copy to user\n");
+		user_dram.base = ops->regions
+			[OPS_MEM_REGION_TYPE_HOST_MANAGED].soc_addr;
+		user_dram.size = ops->regions
+			[OPS_MEM_REGION_TYPE_HOST_MANAGED].size;
+
+		switch (ops->regions
+			[OPS_MEM_REGION_TYPE_HOST_MANAGED].access.dma_align) {
+		case MEM_REGION_DMA_ALIGNMENT_NONE:
+			user_dram.align_in_bits = 0;
+			break;
+		case MEM_REGION_DMA_ALIGNMENT_8BIT:
+			user_dram.align_in_bits = 8;
+			break;
+		case MEM_REGION_DMA_ALIGNMENT_32BIT:
+			user_dram.align_in_bits = 32;
+			break;
+		case MEM_REGION_DMA_ALIGNMENT_64BIT:
+			user_dram.align_in_bits = 64;
+			break;
+		default:
+			user_dram.align_in_bits = 0;
+		}
+
+		if (size >= sizeof(user_dram) &&
+		    copy_to_user((struct dram_info *)arg, &user_dram, size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_USER_DRAM_INFO: failed to copy to user\n");
 			return -ENOMEM;
 		}
-		return 0;
 
-	case ETSOC1_IOCTL_GET_USER_DRAM_SIZE:
-		if (!ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED].is_valid)
-			return -EINVAL;
-
-		if (copy_to_user((u64 *)arg, &ops->regions
-		    [OPS_MEM_REGION_TYPE_HOST_MANAGED].size, size)) {
-			pr_err("ioctl: ETSOC1_IOCTL_GET_USER_DRAM_SIZE: failed to copy to user\n");
-			return -ENOMEM;
-		}
 		return 0;
 
 	case ETSOC1_IOCTL_MMIO_WRITE:
@@ -175,7 +189,8 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 						mmio_info.devaddr);
 
 	case ETSOC1_IOCTL_GET_SQ_COUNT:
-		if (copy_to_user((u64 *)arg, &ops->vq_common.dir_vq.sq_count,
+		if (size >= sizeof(u16) &&
+		    copy_to_user((u16 *)arg, &ops->vq_common.dir_vq.sq_count,
 				 size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_COUNT: failed to copy to user\n");
 			return -ENOMEM;
@@ -185,7 +200,8 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 	case ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE:
 		max_size = ops->vq_common.dir_vq.per_sq_size -
 			   sizeof(struct et_circbuffer);
-		if (copy_to_user((u64 *)arg, &max_size, size)) {
+		if (size >= sizeof(u16) &&
+		    copy_to_user((u16 *)arg, &max_size, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE: failed to copy to user\n");
 			return -ENOMEM;
 		}
@@ -230,7 +246,8 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 				 rsp_info.size);
 
 	case ETSOC1_IOCTL_GET_SQ_AVAIL_BITMAP:
-		if (copy_to_user((u64 *)arg, ops->vq_common.sq_bitmap,
+		if (size >= sizeof(u64) &&
+		    copy_to_user((u64 *)arg, ops->vq_common.sq_bitmap,
 				 size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_AVAIL_BITMAP: failed to copy to user\n");
 			return -ENOMEM;
@@ -238,7 +255,8 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 		return 0;
 
 	case ETSOC1_IOCTL_GET_CQ_AVAIL_BITMAP:
-		if (copy_to_user((u64 *)arg, ops->vq_common.cq_bitmap,
+		if (size >= sizeof(u64) &&
+		    copy_to_user((u64 *)arg, ops->vq_common.cq_bitmap,
 				 size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_CQ_AVAIL_BITMAP: failed to copy to user\n");
 			return -ENOMEM;
@@ -339,7 +357,8 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 
 	switch (cmd) {
 	case ETSOC1_IOCTL_GET_SQ_COUNT:
-		if (copy_to_user((u64 *)arg, &mgmt->vq_common.dir_vq.sq_count,
+		if (size >= sizeof(u16) &&
+		    copy_to_user((u16 *)arg, &mgmt->vq_common.dir_vq.sq_count,
 				 size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_COUNT: failed to copy to user\n");
 			return -ENOMEM;
@@ -349,14 +368,16 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 	case ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE:
 		max_size = mgmt->vq_common.dir_vq.per_sq_size -
 			   sizeof(struct et_circbuffer);
-		if (copy_to_user((u64 *)arg, &max_size, size)) {
+		if (size >= sizeof(u16) &&
+		    copy_to_user((u16 *)arg, &max_size, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE: failed to copy to user\n");
 			return -ENOMEM;
 		}
 		return 0;
 
 	case ETSOC1_IOCTL_GET_ACTIVE_SHIRE:
-		if (copy_to_user((u64 *)arg, &mgmt->minion_shires, size)) {
+		if (size >= sizeof(u64) &&
+		    copy_to_user((u64 *)arg, &mgmt->minion_shires, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_ACTIVE_SHIRE: failed to copy to user\n");
 			return -ENOMEM;
 		}
@@ -397,7 +418,8 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 				rsp_info.size);
 
 	case ETSOC1_IOCTL_GET_SQ_AVAIL_BITMAP:
-		if (copy_to_user((u64 *)arg, mgmt->vq_common.sq_bitmap,
+		if (size >= sizeof(u64) &&
+		    copy_to_user((u64 *)arg, mgmt->vq_common.sq_bitmap,
 				 size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_AVAIL_BITMAP: failed to copy to user\n");
 			return -ENOMEM;
@@ -405,7 +427,8 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 		return 0;
 
 	case ETSOC1_IOCTL_GET_CQ_AVAIL_BITMAP:
-		if (copy_to_user((u64 *)arg, mgmt->vq_common.cq_bitmap,
+		if (size >= sizeof(u64) &&
+		    copy_to_user((u64 *)arg, mgmt->vq_common.cq_bitmap,
 				 size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_CQ_AVAIL_BITMAP: failed to copy to user\n");
 			return -ENOMEM;
