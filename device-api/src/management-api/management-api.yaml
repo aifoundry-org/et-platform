@@ -260,8 +260,10 @@ Modules:
     - Name: certificate_hash_t
       Description: Fused Public Keys
       Fields:
-        - Name: hash[32]
+        - Name: key_blob[48]
           Type: char
+        - Name: associated_data[48]
+          Type: char          
     - Name: temperature_threshold_t
       Fields:
         - Name: lo_temperature_c
