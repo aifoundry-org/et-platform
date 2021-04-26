@@ -39,7 +39,9 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
     (void) reg;
 
     /* First hart in the shire that took exception will do a self abort
-    and send IPI to other harts in the shire to abort as well */
+    and send IPI to other harts in the shire to abort as well
+    NOTE: The harts in U-mode will trap only on IPI. Harts that will enter exception handler
+    must return from kernel since traps on IPIs are disabled in S-mode */
     if(kernel_info_set_abort_flag(shire_id))
     {
         /* Send the IPI to all other Harts in this shire */
@@ -47,8 +49,10 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
 
         return_from_kernel(KERNEL_ERROR_EXCEPTION);
     }
-
-    return;
+    else
+    {
+        return_from_kernel(KERNEL_ERROR_EXCEPTION);
+    }
 }
 
 static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t mstatus,

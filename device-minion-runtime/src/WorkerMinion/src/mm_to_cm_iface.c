@@ -11,6 +11,14 @@
 #include "sync.h"
 #include "syscall_internal.h"
 
+
+/* MM -> CM message counters */
+typedef struct mm_cm_message_number {
+    cm_iface_message_number_t mm_cm_message_number[HARTS_PER_SHIRE];
+} __attribute__((aligned(64))) mm_cm_message_number_t;
+
+static mm_cm_message_number_t mm_cm_msg_number[NUM_SHIRES] = { 0 };
+
 /* MM -> CM message buffers */
 #define master_to_worker_broadcast_message_buffer_ptr \
     ((cm_iface_message_t *)FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER)
@@ -85,6 +93,7 @@ void __attribute__((noreturn)) MM_To_CM_Iface_Main_Loop(void)
 void MM_To_CM_Iface_Multicast_Receive(void)
 {
     const uint32_t shire_id = get_shire_id();
+    const uint32_t hart_id = get_hart_id();
     cm_iface_message_t message;
 
     asm volatile("fence");
@@ -95,10 +104,19 @@ void MM_To_CM_Iface_Multicast_Receive(void)
     ETSOC_Memory_Read_Write_Cacheable(master_to_worker_broadcast_message_buffer_ptr,
                                       &message, sizeof(message));
 
-    /* Synchronize all the shires to reach sync point and ack back to MM */
-    synchronize_shires(shire_id);
+    /* Check for pending MM->CM message */
+    volatile uint8_t *addr = &mm_cm_msg_number[shire_id].mm_cm_message_number[hart_id & (HARTS_PER_SHIRE - 1)];
+    if(message.header.number != atomic_load_local_8(addr))
+    {
+        /* Synchronize all the shires to reach sync point and ack back to MM */
+        synchronize_shires(shire_id);
 
-    mm_to_cm_iface_handle_message(shire_id, get_hart_id(), &message);
+        /* Update the global copy of read messages */
+        atomic_store_local_8(addr, message.header.number);
+
+        /* Handle the message */
+        mm_to_cm_iface_handle_message(shire_id, hart_id, &message);
+    }
 }
 
 static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart, cm_iface_message_t *const message_ptr)

@@ -59,6 +59,12 @@ typedef struct mm_cm_iface_cb {
 */
 static mm_cm_iface_cb_t MM_CM_CB __attribute__((aligned(64))) = { 0 };
 
+/*! \var uint32_t MM_CM_Broadcast_Last_Number
+    \brief Global MM to CM Iface message last number
+    \warning Not thread safe!
+*/
+static uint32_t MM_CM_Broadcast_Last_Number __attribute__((aligned(64))) = 1;
+
 
 static void mm_to_cm_iface_multicast_timeout_cb(uint8_t arg);
 
@@ -196,6 +202,12 @@ int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask,
         /* Save the SW timer index in global CB */
         atomic_store_local_8(&MM_CM_CB.sw_timer_idx,
             (uint8_t)sw_timer_idx);
+
+        /* Check for overflow */
+        atomic_compare_and_exchange_local_32(&MM_CM_Broadcast_Last_Number, 255, 1);
+
+        /* Update the message number */
+        message->header.number = (uint8_t)atomic_add_local_32(&MM_CM_Broadcast_Last_Number, 1);
 
         /* Configure broadcast message control data */
         msg_control.shire_count = (uint32_t)__builtin_popcountll(dest_shire_mask);
