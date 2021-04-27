@@ -166,13 +166,13 @@ public:
 
   /// \brief Returns the DMA alignment requirement
   ///
-  /// @returns DMA alignment
+  /// @returns User DRAM alignment(in bits)
   ///
   virtual int getDmaAlignment() const = 0;
 
-  /// \brief Returns the DRAM available size in bytes
+  /// \brief Returns the DRAM available size (in bytes)
   ///
-  /// @returns DRAM size in bytes
+  /// @returns DRAM size (in bytes)
   ///
   virtual uint64_t getDramSize() const = 0;
 

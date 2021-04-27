@@ -12,7 +12,6 @@
 #include <fcntl.h>
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
-#include <et_ioctl.h>
 #include <cstring>
 #include <cassert>
 #include <stdio.h>
@@ -43,22 +42,20 @@ IoctlResult wrap_ioctl(int fd, unsigned long int request, Types... args) {
 }
 
 constexpr int kMaxEpollEvents = 6;
-constexpr int kDmaAlignment = 256;
 constexpr int kNumDevices = 1;
 }
 }
 
 int DevicePcie::getDmaAlignment() const {
-  // TODO: SW-5935: Implement when ioctl is available
-  return kDmaAlignment;
+  return userDram_.align_in_bits;
 }
 
 size_t DevicePcie::getDramSize() const {
-  return dramSize_;
+  return userDram_.size;
 }
 
 uint64_t DevicePcie::getDramBaseAddress() const {
-  return dramBase_;
+  return userDram_.base;
 }
 
 int DevicePcie::getDevicesCount() const {
@@ -103,11 +100,10 @@ DevicePcie::DevicePcie() {
   }
   DV_LOG(INFO) << "PCIe target ops opened: \"" << path << "\"\n";
 
-  wrap_ioctl(fdOps_, ETSOC1_IOCTL_GET_USER_DRAM_BASE, &dramBase_);
-  DV_LOG(INFO) << "DRAM base: 0x" << std::hex << dramBase_ << "\n";
-
-  wrap_ioctl(fdOps_, ETSOC1_IOCTL_GET_USER_DRAM_SIZE, &dramSize_);
-  DV_LOG(INFO) << "DRAM size: 0x" << std::hex << dramSize_ << "\n";
+  wrap_ioctl(fdOps_, ETSOC1_IOCTL_GET_USER_DRAM_INFO, &userDram_);
+  DV_LOG(INFO) << "DRAM base: 0x" << std::hex << userDram_.base << "\n";
+  DV_LOG(INFO) << "DRAM size: 0x" << std::hex << userDram_.size << "\n";
+  DV_LOG(INFO) << "DRAM alignment: " << userDram_.align_in_bits << "bits" << "\n";
 
   wrap_ioctl(fdOps_, ETSOC1_IOCTL_GET_SQ_COUNT, &mmSqCount_);
   DV_LOG(INFO) << "MM SQ count: " << mmSqCount_ << "\n";

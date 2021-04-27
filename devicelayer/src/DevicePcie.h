@@ -9,6 +9,7 @@
  *-------------------------------------------------------------------------*/
 #pragma once
 #include "deviceLayer/IDeviceLayer.h"
+#include <et_ioctl.h>
 
 namespace dev {
 
@@ -42,11 +43,10 @@ public:
 
 private:
   int devIdx_;
+  dram_info userDram_;
   uint16_t mmSqCount_;
   uint16_t spSqMaxMsgSize_;
   uint16_t mmSqMaxMsgSize_;
-  uint64_t dramBase_;
-  uint64_t dramSize_;
   int fdOps_, epFdOps_;
   int fdMgmt_, epFdMgmt_;
 };

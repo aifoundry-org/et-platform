@@ -100,7 +100,7 @@ public:
   };
 
   int getDmaAlignment() const override {
-    return 256;
+    return 64;
   };
 
   /// \brief Returns the DRAM available size in bytes

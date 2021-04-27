@@ -30,7 +30,7 @@ using namespace std::chrono_literals;
 // TODO. These magic numbers should be configurable?
 constexpr auto kVirtualQueuesDiscoveryTimeout = 300s;
 constexpr auto kPollingInterval = 100ms;
-constexpr int kDmaAlignment = 256;
+constexpr int kDmaAlignment = 64;
 constexpr int kNumDevices = 1;
 // this value comes from device-api sizeof(rsp_header_t). should always be kept in sync with this file:
 // https://gitlab.esperanto.ai/software/device-api/-/blob/master/src/device-apis/device_apis_message_types.h
