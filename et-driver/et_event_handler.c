@@ -16,6 +16,8 @@
 #include "et_event_handler.h"
 #include "et_pci_dev.h"
 
+#define VALUE_STR_MAX_LEN    128
+
 static void parse_pcie_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				struct event_dbg_msg *dbg_msg)
 {
@@ -121,6 +123,7 @@ static void parse_pmic_syndrome(struct device_mgmt_event_msg_t *event_msg,
 {
 	int value_whole;
 	int value_fract;
+	char value_str[VALUE_STR_MAX_LEN];
 
 	if (event_msg->event_syndrome[0] &
 	    PMIC_ERROR_OVER_TEMP_INT_MASK) {
@@ -128,9 +131,10 @@ static void parse_pmic_syndrome(struct device_mgmt_event_msg_t *event_msg,
 		(event_msg->event_syndrome[1] & SYNDROME_TEMP_FRACT_MASK);
 		value_whole =
 		(event_msg->event_syndrome[1] >> 2) & SYNDROME_TEMP_MASK;
-		sprintf(dbg_msg->syndrome,
+		snprintf(value_str, VALUE_STR_MAX_LEN,
 			"Temperature Overshoot Beyond Threshold: %d.%d C\n",
 			value_whole, value_fract);
+		strcat(dbg_msg->syndrome, value_str);
 	}
 	if (event_msg->event_syndrome[0] &
 	    PMIC_ERROR_OVER_POWER_INT_MASK) {
@@ -138,9 +142,10 @@ static void parse_pmic_syndrome(struct device_mgmt_event_msg_t *event_msg,
 		((event_msg->event_syndrome[1] >> 8) & SYNDROME_PWR_FRACT_MASK);
 		value_whole =
 		(event_msg->event_syndrome[1] >> 10) & SYNDROME_PWR_MASK;
-		sprintf(dbg_msg->syndrome,
-			"Power Overshoot beyond Threshold: %d.%d W\n",
+		snprintf(value_str, VALUE_STR_MAX_LEN,
+			"Power Overshoot Beyond Threshold: %d.%d W\n",
 			value_whole, value_fract);
+		strcat(dbg_msg->syndrome, value_str);
 	}
 	if (event_msg->event_syndrome[0] &
 	    PMIC_ERROR_INPUT_VOLTAGE_TOO_LOW_INT_MASK)
@@ -179,15 +184,17 @@ static void parse_wdog_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				struct event_dbg_msg *dbg_msg)
 {
 	u32 a0, mepc, mcause, mtval;
+	char value_str[VALUE_STR_MAX_LEN];
 
 	a0     = event_msg->event_syndrome[0] >> 32;
 	mepc   = event_msg->event_syndrome[0];
 	mcause = event_msg->event_syndrome[1] >> 32;
 	mtval  = event_msg->event_syndrome[1];
 
-	sprintf(dbg_msg->syndrome,
-		"\na0        : 0x%x\nmepc      : 0x%x\nmcause    : 0x%x\nmtval     : 0x%x\n",
+	snprintf(value_str, VALUE_STR_MAX_LEN,
+		"a0        : 0x%x\nmepc      : 0x%x\nmcause    : 0x%x\nmtval     : 0x%x\n",
 		a0, mepc, mcause, mtval);
+	strcat(dbg_msg->syndrome, value_str);
 }
 
 static void parse_cm_err_syndrome(struct device_mgmt_event_msg_t *event_msg,
@@ -303,10 +310,12 @@ int et_handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
 		break;
 	case DEV_MGMT_EID_WDOG_INTERNAL_TIMEOUT:
 		dbg_msg.desc = "WatchDog Timeout - Internal WDT Interrupt";
+		strcat(dbg_msg.syndrome, "SW modelled Threshold\n");
 		parse_wdog_syndrome(&event_msg, &dbg_msg);
 		break;
 	case DEV_MGMT_EID_WDOG_EXTERNAL_TIMEOUT:
 		dbg_msg.desc = "WatchDog Timeout - External PMIC Reset";
+		strcat(dbg_msg.syndrome, "Service Processor Stack Trace\n");
 		parse_wdog_syndrome(&event_msg, &dbg_msg);
 		break;
 	case DEV_MGMT_EID_CM_ETH:
