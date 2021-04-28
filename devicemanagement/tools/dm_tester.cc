@@ -139,8 +139,7 @@ static bool pcie_link_speed_flag = false;
 static pcie_lane_w_split_e pcie_lane_width;
 static bool pcie_lane_width_flag = false;
 
-static uint8_t lo_temperature_c;
-static uint8_t hi_temperature_c;
+static uint8_t temperature;
 static bool thresholds_flag = false;
 
 static uint8_t mem_count;
@@ -339,9 +338,7 @@ int verifyService() {
     }
 
     temperature_threshold_t* temperature_threshold = (temperature_threshold_t*)output_buff;
-    DV_LOG(INFO) << "Low Temperature Threshold Output: " << +temperature_threshold->lo_temperature_c << " c"
-                 << std::endl;
-    DV_LOG(INFO) << "High Temperature Threshold Output: " << +temperature_threshold->hi_temperature_c << " c"
+    DV_LOG(INFO) << "Temperature Threshold Output: " << +temperature_threshold->temperature << " c"
                  << std::endl;
   } break;
 
@@ -351,8 +348,7 @@ int verifyService() {
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(temperature_threshold_t);
-    const char input_buff[input_size] = {(char)lo_temperature_c,
-                                         (char)hi_temperature_c}; // bounds check prevents issues with narrowing
+    const char input_buff[input_size] = {(char)temperature}; // bounds check prevents issues with narrowing
 
     const uint32_t output_size = sizeof(uint32_t);
     char output_buff[output_size] = {0};
@@ -392,32 +388,51 @@ int verifyService() {
   case DM_CMD::DM_CMD_GET_MODULE_POWER: {
     const uint32_t output_size = sizeof(module_power_t);
     char output_buff[output_size] = {0};
+    float power;
 
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
 
     module_power_t* module_power = (module_power_t*)output_buff;
-    DV_LOG(INFO) << "Module Power Output: " << +module_power->watts << " W" << std::endl;
+    power = (module_power->power >> 2) + (module_power->power & 0x03)*0.25;
+    DV_LOG(INFO) << "Module Power Output: " << +power << " W" << std::endl;
   } break;
 #endif
 
 #ifdef TARGET_PCIE
+  #define BIN2VOLTAGE(REG_VALUE, BASE, MULTIPLIER) \
+     (BASE + REG_VALUE*MULTIPLIER)
+
   case DM_CMD::DM_CMD_GET_MODULE_VOLTAGE: {
     const uint32_t output_size = sizeof(module_voltage_t);
     char output_buff[output_size] = {0};
+    uint32_t voltage;
 
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
 
     module_voltage_t* module_voltage = (module_voltage_t*)output_buff;
-    DV_LOG(INFO) << "Module Voltage minion_shire: " << +module_voltage->minion_shire_mV << " mV" << std::endl;
-    DV_LOG(INFO) << "Module Voltage noc_mV: " << +module_voltage->noc_mV << " mV" << std::endl;
-    DV_LOG(INFO) << "Module Voltage mem_shire_mV: " << +module_voltage->mem_shire_mV << " mV" << std::endl;
-    DV_LOG(INFO) << "Module Voltage ddr_mV: " << +module_voltage->ddr_mV << " mV" << std::endl;
-    DV_LOG(INFO) << "Module Voltage pcie_shire_mV: " << +module_voltage->pcie_shire_mV << " mV" << std::endl;
-    DV_LOG(INFO) << "Module Voltage io_shire_mV: " << +module_voltage->io_shire_mV << " mV" << std::endl;
+
+    voltage = BIN2VOLTAGE(module_voltage->ddr, 250, 5);
+    DV_LOG(INFO) << "Module Voltage DDR: " << +voltage << " mV" << std::endl;
+    voltage = BIN2VOLTAGE(module_voltage->l2_cache, 250, 5);
+    DV_LOG(INFO) << "Module Voltage L2CACHE: " << +voltage << " mV" << std::endl;
+    voltage = BIN2VOLTAGE(module_voltage->maxion, 250, 5);
+    DV_LOG(INFO) << "Module Voltage MAXION: " << +voltage << " mV" << std::endl;
+    voltage = BIN2VOLTAGE(module_voltage->minion, 250, 5);
+    DV_LOG(INFO) << "Module Voltage MINION: " << +voltage << " mV" << std::endl;
+    voltage = BIN2VOLTAGE(module_voltage->pcie, 600, 6); //FIXME its 6.25 actualy, try float
+    DV_LOG(INFO) << "Module Voltage PCIE: " << +voltage << " mV" << std::endl;
+    voltage = BIN2VOLTAGE(module_voltage->noc, 250, 5);
+    DV_LOG(INFO) << "Module Voltage NOC: " << +voltage << " mV" << std::endl;
+    voltage = BIN2VOLTAGE(module_voltage->pcie_logic, 600, 6);
+    DV_LOG(INFO) << "Module Voltage PCIE_LOGIC: " << +voltage << " mV" << std::endl;
+    voltage = BIN2VOLTAGE(module_voltage->vddqlp, 250, 10);
+    DV_LOG(INFO) << "Module Voltage VDDQLP: " << +voltage << " mV" << std::endl;
+    voltage = BIN2VOLTAGE(module_voltage->vddq, 250, 10);
+    DV_LOG(INFO) << "Module Voltage VDDQ: " << +voltage << " mV" << std::endl;
 
   } break;
 #endif
@@ -931,23 +946,14 @@ bool validThresholds() {
   char* end;
   errno = 0;
 
-  auto lo = std::strtoul(str_optarg.substr(0, pos).c_str(), &end, 10);
+  auto temp = std::strtoul(str_optarg.substr(0, pos).c_str(), &end, 10);
 
-  if (lo > SCHAR_MAX || end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(ERROR) << "Aborting, argument: " << lo << " is not valid ( 0-" << SCHAR_MAX << " )" << std::endl;
+  if (temp > SCHAR_MAX || end == optarg || *end != '\0' || errno != 0) {
+    DV_LOG(ERROR) << "Aborting, argument: " << temp << " is not valid ( 0-" << SCHAR_MAX << " )" << std::endl;
     return false;
   }
 
-  errno = 0;
-  auto hi = std::strtoul(str_optarg.substr(pos + 1).c_str(), &end, 10);
-
-  if (hi > SCHAR_MAX || end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(ERROR) << "Aborting, argument: " << hi << " is not valid ( 0-" << SCHAR_MAX << " )" << std::endl;
-    return false;
-  }
-
-  lo_temperature_c = (uint8_t)lo;
-  hi_temperature_c = (uint8_t)hi;
+  temperature = (uint8_t)temp;
 
   return true;
 }

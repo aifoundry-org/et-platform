@@ -377,7 +377,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold_1_13() {
   DeviceManagement &dm = (*dmi)(devLayer_.get());
 
   const uint32_t input_size = sizeof(device_mgmt_api::temperature_threshold_t);
-  const char input_buff[input_size] = {(uint8_t)56, (uint8_t)84};
+  const char input_buff[input_size] = {(uint8_t)84};
 
   //Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
   const uint32_t set_output_size = sizeof(uint32_t);
@@ -401,8 +401,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold_1_13() {
   device_mgmt_api::temperature_threshold_t* temperature_threshold =
     (device_mgmt_api::temperature_threshold_t*)get_output_buff;
 
-  ASSERT_EQ(temperature_threshold->lo_temperature_c, 56);
-  ASSERT_EQ(temperature_threshold->hi_temperature_c, 84);
+  ASSERT_EQ(temperature_threshold->temperature, 84);
 }
 
 void TestDevMgmtApiSyncCmds::getModuleResidencyThrottleState_1_14() {
@@ -450,6 +449,7 @@ void TestDevMgmtApiSyncCmds::getModulePower_1_16() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement &dm = (*dmi)(devLayer_.get());
+  float power;
 
   const uint32_t output_size = sizeof(device_mgmt_api::module_power_t);
   char output_buff[output_size] = {0};
@@ -463,9 +463,10 @@ void TestDevMgmtApiSyncCmds::getModulePower_1_16() {
   // Note: Module power could vary. So there cannot be expected value for Module power in the test
   device_mgmt_api::module_power_t *module_power =  (device_mgmt_api::module_power_t *)output_buff;
 
-  printf("Module power (in watts): %d\n", module_power->watts);
+  power = (module_power->power >> 2) + (module_power->power & 0x03)*0.25;
+  printf("Module power (in Watts): %.3f \n", power);
 
-  ASSERT_NE(module_power->watts, 0);
+  ASSERT_NE(module_power->power, 0);
 }
 
 void TestDevMgmtApiSyncCmds::getModuleVoltage_1_17() {
@@ -477,6 +478,7 @@ void TestDevMgmtApiSyncCmds::getModuleVoltage_1_17() {
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
   auto dev_latency = std::make_unique<uint64_t>();
+  uint32_t voltage;
 
   ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_VOLTAGE, nullptr, 0, output_buff,
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
@@ -485,9 +487,10 @@ void TestDevMgmtApiSyncCmds::getModuleVoltage_1_17() {
   // Note: Module power could vary. So there cannot be expected value for Module power in the test
   device_mgmt_api::module_voltage_t *module_voltage =  (device_mgmt_api::module_voltage_t *)output_buff;
 
-  printf("Minion Shire Module Voltage (in millivolts): %d\n", module_voltage->minion_shire_mV);
+  voltage = 250 + (module_voltage->minion * 5);
+  printf("Minion Shire Module Voltage (in millivolts): %d\n", voltage);
 
-  ASSERT_NE(module_voltage->minion_shire_mV, 0);
+  ASSERT_NE(module_voltage->minion, 0);
 }
 
 void TestDevMgmtApiSyncCmds::getModuleCurrentTemperature_1_18() {

@@ -181,8 +181,7 @@
 				},
 
 				"fields": {
-					"low_temperature_c": "int32_t",
-					"high_temperature_c": "int32_t"
+					"temperature": "int32_t"
 				}
 			},
 			"power_state": {
