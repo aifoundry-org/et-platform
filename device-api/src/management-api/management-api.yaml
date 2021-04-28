@@ -166,18 +166,26 @@ Modules:
       Description: Module type
       Type: uint8_t
       Values:
-        - Name: MINION
+        - Name: DDR
           Value: 0
-        - Name: NOC
+        - Name: L2CACHE
           Value: 1
-        - Name: PSHIRE
+        - Name: MAXION
           Value: 2
-        - Name: IOSHIRE
+        - Name: MINION
           Value: 3
-        - Name: MEMSHIRE
+        - Name: PCIE
           Value: 4
-        - Name: INVALID
+        - Name: NOC
           Value: 5
+        - Name: PCIE_LOGIC
+          Value: 6
+        - Name: VDDQLP
+          Value: 7
+        - Name: VDDQ
+          Value: 8
+        - Name: INVALID
+          Value: 9
     - Name: dm_status
       Description: Device management command execution status
       Type: uint32_t
@@ -266,13 +274,10 @@ Modules:
           Type: char          
     - Name: temperature_threshold_t
       Fields:
-        - Name: lo_temperature_c
-          Description: Low temperature threshold
+        - Name: temperature
+          Description: Temperature threshold
           Type: uint8_t
-        - Name: hi_temperature_c
-          Description: High temperature threshold
-          Type: uint8_t
-        - Name: pad[6]
+        - Name: pad[7]
           Description: Padding for alignment
           Type: uint8_t
     - Name: current_temperature_t
@@ -290,8 +295,8 @@ Modules:
           Type: uint64_t
     - Name: module_power_t
       Fields:
-        - Name: watts
-          Description: Time(in usecs)
+        - Name: power
+          Description: binary encoded
           Type: uint8_t
         - Name: pad[7]
           Description: Padding for alignment
@@ -403,19 +408,25 @@ Modules:
           Type: uint32_t
     - Name: module_voltage_t
       Fields:
-        - Name: minion_shire_mV
-          Type: uint16_t
-        - Name: noc_mV
-          Type: uint16_t
-        - Name: mem_shire_mV
-          Type: uint16_t
-        - Name: ddr_mV
-          Type: uint16_t
-        - Name: pcie_shire_mV
-          Type: uint16_t
-        - Name: io_shire_mV
-          Type: uint16_t
-        - Name: pad[4]
+        - Name: ddr
+          Type: uint8_t
+        - Name: l2_cache
+          Type: uint8_t
+        - Name: maxion
+          Type: uint8_t
+        - Name: minion
+          Type: uint8_t
+        - Name: pcie
+          Type: uint8_t
+        - Name: noc
+          Type: uint8_t
+        - Name: pcie_logic
+          Type: uint8_t
+        - Name: vddqlp
+          Type: uint8_t
+        - Name: vddq
+          Type: uint8_t
+        - Name: pad[7]
           Description: Padding for alignment
           Type: uint8_t
   # List of Commands, Responses, Events
@@ -647,7 +658,7 @@ Modules:
       PairedMessage: device_mgmt_module_power_cmd
       Fields:
         - Name: module_power
-          Description: Module power in watts
+          Description: Module power (binary encoded)
           Type: struct
           Struct: module_power_t
     - Name: device_mgmt_module_voltage_cmd
@@ -664,7 +675,7 @@ Modules:
       PairedMessage: device_mgmt_module_voltage_cmd
       Fields:
         - Name: module_voltage
-          Description: Module power in millivolts
+          Description: Module voltage (binary encoded)
           Type: struct
           Struct: module_voltage_t
     - Name: device_mgmt_module_uptime_cmd
