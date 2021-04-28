@@ -179,36 +179,27 @@ int get_module_tdp_level(tdp_level_e *tdp_level)
 *
 *   DESCRIPTION
 *
-*       This function updates the temperature thresholds of the module.
+*       This function updates the temperature threshold of the module.
 *
 *   INPUTS
 *
-*       hi_threshold
-*       lo_threshold
+*       threshold
 *
 *   OUTPUTS
 *
 *       int                 Return status
 *
 ***********************************************************************/
-int update_module_temperature_threshold(uint8_t hi_threshold, uint8_t lo_threshold)
+int update_module_temperature_threshold(uint8_t threshold)
 {
-    int status;
+    int status = 0;
 
-    status = pmic_set_temperature_threshold(L0, lo_threshold);
-
-    if (0 != status) {
-        printf("thermal pwr mgmt svc: set low temperature threshold error\r\n");
-    } else {
-        get_soc_power_reg()->temperature_threshold.lo_temperature_c = lo_threshold;
-
-        status = pmic_set_temperature_threshold(HI, hi_threshold);
-
-        if (0 != status) {
-            printf("thermal pwr mgmt svc: set high temperature threshold error\r\n");
-        } else {
-            get_soc_power_reg()->temperature_threshold.hi_temperature_c = hi_threshold;
-        }
+    if(0 != pmic_set_temperature_threshold(threshold)) {
+        printf("thermal pwr mgmt svc: set temperature threshold error\r\n");
+        status = -1;
+    }
+    else {
+        get_soc_power_reg()->temperature_threshold.temperature = threshold;
     }
 
     return status;
@@ -262,14 +253,21 @@ int get_module_temperature_threshold(struct temperature_threshold_t *temperature
 int update_module_current_temperature(void)
 {
     int status=0;
+    uint8_t temperature;
     struct event_message_t message;
     struct temperature_threshold_t temperature_threshold;
 
-    get_soc_power_reg()->soc_temperature = pmic_get_temperature();
+    if(0 != pmic_get_temperature(&temperature)) {
+        printf("thermal pwr mgmt svc error: failed to get temperature\r\n");
+        status = -1;
+    }
+    else {
+        get_soc_power_reg()->soc_temperature = temperature;
+    }
 
     get_module_temperature_threshold(&temperature_threshold);
 
-    if ((get_soc_power_reg()->soc_temperature) > (temperature_threshold.lo_temperature_c)) {
+    if ((get_soc_power_reg()->soc_temperature) > (temperature_threshold.temperature)) {
         /* add details in message header and fill payload */
         FILL_EVENT_HEADER(&message.header, THERMAL_LOW,
                           sizeof(struct event_message_t) - sizeof(struct cmn_header_t));
@@ -309,7 +307,15 @@ int update_module_current_temperature(void)
 ***********************************************************************/
 int get_module_current_temperature(uint8_t *soc_temperature)
 {
-    get_soc_power_reg()->soc_temperature = pmic_get_temperature();
+    uint8_t temperature;
+    if(0 != pmic_get_temperature(&temperature)) {
+        printf("thermal pwr mgmt svc error: failed to get temperature\r\n");
+        return -1;
+    }
+    else {
+        get_soc_power_reg()->soc_temperature = temperature;
+    }
+
     *soc_temperature = get_soc_power_reg()->soc_temperature;
     return 0;
 }
@@ -335,7 +341,16 @@ int get_module_current_temperature(uint8_t *soc_temperature)
 ***********************************************************************/
 int update_module_soc_power(void)
 {
-    get_soc_power_reg()->soc_power = pmic_read_soc_power();
+    uint8_t soc_pwr;
+
+    if(0 != pmic_read_soc_power(&soc_pwr)) {
+        printf("thermal pwr mgmt svc error: failed to get soc power\r\n");
+        return -1;
+    }
+    else {
+        get_soc_power_reg()->soc_power = soc_pwr;
+    }
+
     return 0;
 }
 
@@ -386,11 +401,79 @@ int get_module_soc_power(uint8_t *soc_power)
 ***********************************************************************/
 int get_module_voltage(struct module_voltage_t *module_voltage)
 {
-    get_soc_power_reg()->module_voltage.minion_shire_mV = (uint16_t)pmic_get_voltage(MODULE_MINION);
-    get_soc_power_reg()->module_voltage.noc_mV = (uint16_t)pmic_get_voltage(MODULE_NOC);
-    get_soc_power_reg()->module_voltage.pcie_shire_mV = (uint16_t)pmic_get_voltage(MODULE_PSHIRE);
-    get_soc_power_reg()->module_voltage.io_shire_mV = (uint16_t)pmic_get_voltage(MODULE_IOSHIRE);
-    get_soc_power_reg()->module_voltage.mem_shire_mV = (uint16_t)pmic_get_voltage(MODULE_MEMSHIRE);
+    uint8_t voltage;
+
+    if(0 != pmic_get_voltage(MODULE_DDR, &voltage)) {
+        printf("thermal pwr mgmt svc error: failed to get ddr voltage\r\n");
+        return -1;
+    }
+    else {
+        get_soc_power_reg()->module_voltage.ddr = voltage;
+    }
+
+    if(0 != pmic_get_voltage(MODULE_L2CACHE, &voltage)) {
+        printf("thermal pwr mgmt svc error: failed to get l2 cache voltage\r\n");
+        return -1;
+    }
+    else {
+        get_soc_power_reg()->module_voltage.l2_cache = voltage;
+    }
+
+    if(0 != pmic_get_voltage(MODULE_MAXION, &voltage)) {
+        printf("thermal pwr mgmt svc error: failed to get maxion voltage\r\n");
+        return -1;
+    }
+    else {
+        get_soc_power_reg()->module_voltage.maxion = voltage;
+    }
+
+    if(0 != pmic_get_voltage(MODULE_MINION, &voltage)) {
+        printf("thermal pwr mgmt svc error: failed to get minion voltage\r\n");
+        return -1;
+    }
+    else {
+        get_soc_power_reg()->module_voltage.minion = voltage;
+    }
+
+    if(0 != pmic_get_voltage(MODULE_PCIE, &voltage)) {
+        printf("thermal pwr mgmt svc error: failed to get pcie voltage\r\n");
+        return -1;
+    }
+    else {
+        get_soc_power_reg()->module_voltage.pcie = voltage;
+    }
+
+    if(0 != pmic_get_voltage(MODULE_NOC, &voltage)) {
+        printf("thermal pwr mgmt svc error: failed to get noc voltage\r\n");
+        return -1;
+    }
+    else {
+        get_soc_power_reg()->module_voltage.noc = voltage;
+    }
+
+    if(0 != pmic_get_voltage(MODULE_PCIE_LOGIC, &voltage)) {
+        printf("thermal pwr mgmt svc error: failed to get pcie logic voltage\r\n");
+        return -1;
+    }
+    else {
+        get_soc_power_reg()->module_voltage.pcie_logic = voltage;
+    }
+
+    if(0 != pmic_get_voltage(MODULE_VDDQLP, &voltage)) {
+        printf("thermal pwr mgmt svc error: failed to get vddqlp voltage\r\n");
+        return -1;
+    }
+    else {
+        get_soc_power_reg()->module_voltage.vddqlp = voltage;
+    }
+
+    if(0 != pmic_get_voltage(MODULE_VDDQ, &voltage)) {
+        printf("thermal pwr mgmt svc error: failed to get vddq voltage\r\n");
+        return -1;
+    }
+    else {
+        get_soc_power_reg()->module_voltage.vddq = voltage;
+    }
 
     *module_voltage = get_soc_power_reg()->module_voltage;
 
@@ -420,7 +503,9 @@ void update_module_max_temp(void)
 {
     uint8_t curr_temp;
 
-    curr_temp = pmic_get_temperature();
+    if(0 != pmic_get_temperature(&curr_temp)) {
+        printf("thermal pwr mgmt svc error: failed to get temperature\r\n");
+    }
 
     if (get_soc_power_reg()->max_temp < curr_temp) {
         get_soc_power_reg()->max_temp = curr_temp;
@@ -670,7 +755,7 @@ int init_thermal_pwr_mgmt_service(void)
     }
 
     /* Set default parameters */
-    status = update_module_temperature_threshold(80, 70);
+    status = update_module_temperature_threshold(65);
 
     if (!status)
     {
@@ -739,10 +824,10 @@ void thermal_power_task_entry(void *pvParameter)
 {
     uint64_t start_time;
     uint64_t end_time;
-    uint32_t current_temperature;
+    uint8_t current_temperature;
     struct event_message_t message;
     uint32_t notificationValue;
-    uint32_t current_power; 
+    uint8_t current_power; 
 
     (void)pvParameter;
 
@@ -751,9 +836,11 @@ void thermal_power_task_entry(void *pvParameter)
         xTaskNotifyWait(0, 0xFFFFFFFFU, &notificationValue, portMAX_DELAY);
         if (notificationValue == PMIC_ERROR)
         {
-            current_temperature = pmic_get_temperature();
+            if(0 != pmic_get_temperature(&current_temperature)) {
+                printf("thermal pwr mgmt svc error: failed to get temperature\r\n");
+            }
 
-            if (current_temperature < get_soc_power_reg()->temperature_threshold.hi_temperature_c)
+            if (current_temperature < get_soc_power_reg()->temperature_threshold.temperature)
                 continue;
 
             if (get_soc_power_reg()->event_cb)
@@ -778,19 +865,25 @@ void thermal_power_task_entry(void *pvParameter)
             do
             {
                 /* Get the current power */
-                current_power = (uint32_t)pmic_read_soc_power();
+                if(0 != pmic_read_soc_power(&current_power)) {
+                    printf("thermal pwr mgmt svc error: failed to get soc power\r\n");
+                }
 
-                /* FIXME: Scale it down by 10 % of current value and change the frequency accordingly */
-                current_power = (current_power * 10) / 100;
+                /* FIXME: Scale it down by 10 % of current value and change the frequency accordingly
+                Take care that current_power is binary encoded */
+                current_power = (uint8_t)((current_power * 10) / 100);
 
                 /* Program the new operating point  */
-                set_operating_point((uint8_t)current_power);
+                set_operating_point(current_power);
 
                 /* FIXME: What should be this delay? */
                 vTaskDelay(pdMS_TO_TICKS(500));
 
                 /* Sample the temperature again */
-            } while(pmic_get_temperature() > get_soc_power_reg()->temperature_threshold.hi_temperature_c);
+                if(0 != pmic_get_temperature(&current_temperature)) {
+                    printf("thermal pwr mgmt svc error: failed to get temperature\r\n");
+                }
+            } while(current_temperature > get_soc_power_reg()->temperature_threshold.temperature);
 
             end_time = timer_get_ticks_count();
 
