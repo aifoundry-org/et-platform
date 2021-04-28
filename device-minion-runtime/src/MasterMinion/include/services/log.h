@@ -18,20 +18,7 @@
 
 #include <stddef.h>
 #include <inttypes.h>
-#include "device-common/log_levels.h"
-
-/*
- * Log Interface.
- */
-typedef uint8_t log_interface_t;
-
-/*
- * Available Log Interfaces.
- */
-enum log_interface_t {
-    LOG_DUMP_TO_TRACE = 0,
-    LOG_DUMP_TO_UART = 1,
-};
+#include "device-common/log_common.h"
 
 /*! \fn void Log_Init(void)
     \brief Initialize the logging component

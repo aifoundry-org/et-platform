@@ -193,3 +193,27 @@ void Trace_Set_CM_Shire_Mask(uint64_t cm_mask)
 {
     atomic_store_local_64(&MM_Trace_CB.cm_shire_mask, cm_mask);
 }
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_RT_Control_MM
+*
+*   DESCRIPTION
+*
+*       This function enable/disable Trace for Master Minion.
+*
+*   INPUTS
+*
+*       enum trace_enable_e    Enable/Disable Trace.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Trace_RT_Control_MM(enum trace_enable_e state)
+{
+    atomic_store_local_8(&(MM_Trace_CB.cb.enable), state);
+}

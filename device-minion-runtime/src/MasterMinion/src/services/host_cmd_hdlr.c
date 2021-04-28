@@ -382,9 +382,11 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                     cm_shire_mask = Trace_Get_CM_Shire_Mask ();
 
                     if((cmd->list[TRACE_NODE_INDEX].size <= (MM_TRACE_BUFFER_SIZE + CM_TRACE_BUFFER_SIZE)) &&
-                    ((cm_shire_mask) & CW_Get_Booted_Shires()) == cm_shire_mask)
+                    (cm_shire_mask & CW_Get_Booted_Shires()) == cm_shire_mask)
                     {
-                        /* TODO: Disable MM RT Trace. */
+                        /* Disable MM Trace.*/
+                        Trace_RT_Control_MM(TRACE_DISABLE);
+
                         cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT;
 
                         /* Send command to CM RT to disable Trace and evict Trace buffer. */
@@ -407,7 +409,9 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 {
                     if(cmd->list[TRACE_NODE_INDEX].size <= MM_TRACE_BUFFER_SIZE)
                     {
-                        /* TODO: Disable MM RT Trace. */
+                        /* Disable MM Trace.*/
+                        Trace_RT_Control_MM(TRACE_DISABLE);
+
                         asm volatile("fence");
                         evict(to_Mem, (uint64_t *) MM_TRACE_BUFFER_BASE, MM_TRACE_BUFFER_SIZE);
                         WAIT_CACHEOPS;
@@ -689,6 +693,130 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 /* Decrement commands count being processed by given SQW */
                 SQW_Decrement_Command_Count(sqw_idx);
             }
+
+            break;
+        }
+        case DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD:
+        {
+            struct device_ops_trace_rt_control_cmd_t *cmd = (void *)hdr;
+            struct device_ops_trace_rt_control_rsp_t rsp;
+            status = STATUS_SUCCESS;
+
+            Log_Write(LOG_LEVEL_DEBUG,
+                "HostCommandHandler:Processing:TRACE_RT_CONTROL_CMD\r\n");
+
+            /* Check if RT Component is MM Trace. */
+            if(cmd->rt_type & TRACE_RT_CTRL_MM)
+            {
+                /* Check flag to Enable/Disable Trace. */
+                if (cmd->control & (1U << 0))
+                {
+                    Log_Write(LOG_LEVEL_DEBUG,
+                            "TRACE_RT_CONTROL:MM:Trace Enabled.\r\n");
+                    Trace_RT_Control_MM(TRACE_ENABLE);
+                }
+                else
+                {
+                    Log_Write(LOG_LEVEL_DEBUG,
+                            "TRACE_RT_CONTROL:MM:Trace Disabled.\r\n");
+                    Trace_RT_Control_MM(TRACE_DISABLE);
+                }
+
+                /* Check flag to redirect logs to Trace or UART. */
+                if (cmd->control & (1U << 1))
+                {
+                    Log_Write(LOG_LEVEL_DEBUG,
+                            "TRACE_RT_CONTROL:MM:Logs redirected to Trace buffer.\r\n");
+                    Log_Set_Interface(LOG_DUMP_TO_TRACE);
+                }
+                else
+                {
+                    Log_Write(LOG_LEVEL_DEBUG,
+                            "TRACE_RT_CONTROL:MM:Logs redirected to UART.\r\n");
+                    Log_Set_Interface(LOG_DUMP_TO_UART);
+                }
+            }
+
+            /* Check if RT Component is CM Trace. */
+            if(cmd->rt_type & TRACE_RT_CTRL_CM)
+            {
+                mm_to_cm_message_trace_rt_control_t cm_msg;
+                cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL;
+                uint64_t cm_shire_mask;
+
+                /* Check flag to Enable/Disable Trace. */
+                if (cmd->control & (1U << 0))
+                {
+                    cm_msg.enable = TRACE_ENABLE;
+                    Log_Write(LOG_LEVEL_DEBUG,
+                            "TRACE_RT_CONTROL:CM:Enabling Trace.\r\n");
+                }
+                else
+                {
+                    cm_msg.enable = TRACE_DISABLE;
+                    Log_Write(LOG_LEVEL_DEBUG,
+                            "TRACE_RT_CONTROL:CM:Disabling Trace.\r\n");
+                }
+
+                /* Check flag to redirect logs to Trace or UART. */
+                if (cmd->control & (1U << 1))
+                {
+                    cm_msg.log_interface = LOG_DUMP_TO_TRACE;
+                    Log_Write(LOG_LEVEL_DEBUG,
+                            "TRACE_RT_CONTROL:CM:Redirecting logs to Trace buffer.\r\n");
+                }
+                else
+                {
+                    cm_msg.log_interface = LOG_DUMP_TO_UART;
+                    Log_Write(LOG_LEVEL_DEBUG,
+                            "TRACE_RT_CONTROL:CM:Redirecting logs to UART.\r\n");
+                }
+
+                cm_shire_mask = Trace_Get_CM_Shire_Mask();
+
+                if((cm_shire_mask & CW_Get_Booted_Shires()) == cm_shire_mask)
+                {
+                    /* Send command to CM RT to disable Trace and evict Trace buffer. */
+                    status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t*)&cm_msg);
+                    if(status != STATUS_SUCCESS)
+                    {
+                        Log_Write(LOG_LEVEL_ERROR,
+                            "TRACE_RT_CONTROL:CM:Failed to Enable/Disable Trace, and failed to redirect logs.\r\n");
+                    }
+                }
+                else
+                {
+                    status = INVALID_CM_SHIRE_MASK;
+                }
+            }
+
+            /* Construct and transmit command response. */
+            rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
+            rsp.response_info.rsp_hdr.msg_id =
+                DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_RSP;
+            rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);
+
+            if(status != STATUS_SUCCESS)
+            {
+                rsp.status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_CM_RT_CTRL_ERROR;
+            }
+
+            status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+
+            if(status == STATUS_SUCCESS)
+            {
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "HostCommandHandler:Pushed:TRACE_RT_CONTROL_RSP:tag_id=%x->Host_CQ\r\n",
+                    rsp.response_info.rsp_hdr.tag_id);
+            }
+            else
+            {
+                Log_Write(LOG_LEVEL_ERROR,
+                    "HostCommandHandler:HostIface:Push:Failed\r\n");
+            }
+
+            /* Decrement commands count being processed by given SQW */
+            SQW_Decrement_Command_Count(sqw_idx);
 
             break;
         }

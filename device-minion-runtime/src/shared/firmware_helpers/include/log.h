@@ -1,23 +1,10 @@
 #ifndef LOG_H
 #define LOG_H
 
-#include "device-common/log_levels.h"
+#include "device-common/log_common.h"
 
 #include <stdint.h>
 #include <stdio.h>
-
-/*
- * Log Interface.
- */
-typedef uint8_t log_interface_t;
-
-/*
- * Available Log Interfaces.
- */
-enum log_interface_t {
-    LOG_DUMP_TO_TRACE = 0,
-    LOG_DUMP_TO_UART = 1,
-};
 
 /*! \fn void log_set_interface(log_interface_t interface)
     \brief Set current log interface

@@ -46,6 +46,18 @@
 */
 #define CMD_HEADER_FLAG_CM_TRACE_BUF        (1 << 3)
 
+/*! \def TRACE_RT_CTRL_MM
+    \brief Flag inside trace runtime control command for
+            Master Minion Trace component.
+*/
+#define TRACE_RT_CTRL_MM                    (1 << 0)
+
+/*! \def TRACE_RT_CTRL_CM
+    \brief Flag inside trace runtime control command for
+            Compute Minion Trace component.
+*/
+#define TRACE_RT_CTRL_CM                    (1 << 1)
+
 /*! \def HIFACE_INT_PRIORITY
     \brief Macro that provides the Host Interface interrupt priority.
 */

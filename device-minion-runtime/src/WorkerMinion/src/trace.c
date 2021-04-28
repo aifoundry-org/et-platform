@@ -15,7 +15,7 @@
     Public interfaces:
         Trace_Init_CM
         Trace_Get_CM_CB
-        Trace_Control_CM_RT
+        Trace_RT_Control_CM
         Trace_Evict_CM_Buffer
 */
 /***********************************************************************/
@@ -29,12 +29,12 @@
 #include "common_trace_defs.h"
 
 /*! \def GET_CB_INDEX
-    \brief Get CB index of current Hart in pre-allocated CB array.. 
+    \brief Get CB index of current Hart in pre-allocated CB array.
 */
 #define GET_CB_INDEX(hart_id)       ((hart_id < 2048U)? hart_id: (hart_id - 32U))
 
 /*! \def CM_HART_COUNT
-    \brief Number of Harts running CMFW. (CM Shires * Harts per Shire + MM Harts acting as Workers) 
+    \brief Number of Harts running CMFW. (CM Shires * Harts per Shire + MM Harts acting as Workers)
 */
 #define CM_HART_COUNT               (2080)
 
@@ -56,12 +56,12 @@ static cm_trace_control_block_t CM_Trace_CB = {0};
 *
 *   DESCRIPTION
 *
-*       This function initializes Trace for a single Hart in CM Shires. 
+*       This function initializes Trace for a single Hart in CM Shires.
 *       All CM Harts must call this function to Enable Trace.
 *
 *   INPUTS
 *
-*       trace_init_info_t    Trace init info for Compute Minion shire. 
+*       trace_init_info_t    Trace init info for Compute Minion shire.
 *                            NULL for default configs.
 *
 *   OUTPUTS
@@ -93,9 +93,9 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
         hart_init_info.event_mask    = cm_init_info->event_mask;
         hart_init_info.threshold     = cm_init_info->threshold;
     }
-    
+
     /* Buffer settings for current Hart. */
-    CM_Trace_CB.cb[hart_cb_index].base_per_hart = (CM_TRACE_BUFFER_BASE + 
+    CM_Trace_CB.cb[hart_cb_index].base_per_hart = (CM_TRACE_BUFFER_BASE +
                                         (hart_cb_index * CM_TRACE_BUFFER_SIZE_PER_HART));
     CM_Trace_CB.cb[hart_cb_index].size_per_hart = CM_TRACE_BUFFER_SIZE_PER_HART;
 
@@ -111,8 +111,8 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
 *
 *   DESCRIPTION
 *
-*       This function returns the Trace control block (CB) of 
-*       the Worker Hart which is calling this function. 
+*       This function returns the Trace control block (CB) of
+*       the Worker Hart which is calling this function.
 *
 *   INPUTS
 *
@@ -132,12 +132,12 @@ struct trace_control_block_t* Trace_Get_CM_CB(void)
 *
 *   FUNCTION
 *
-*       Trace_Control_CM_RT
+*       Trace_RT_Control_CM
 *
 *   DESCRIPTION
 *
-*       This function updates the control of Trace for Compute Minnion 
-*       runtime. 
+*       This function updates the control of Trace for Compute Minnion
+*       runtime.
 *
 *   INPUTS
 *
@@ -148,7 +148,7 @@ struct trace_control_block_t* Trace_Get_CM_CB(void)
 *       None.
 *
 ***********************************************************************/
-void Trace_Control_CM_RT(enum trace_enable_e enable)
+void Trace_RT_Control_CM(enum trace_enable_e enable)
 {
     CM_Trace_CB.cb[GET_CB_INDEX(get_hart_id())].enable = enable;
 }
@@ -161,7 +161,7 @@ void Trace_Control_CM_RT(enum trace_enable_e enable)
 *
 *   DESCRIPTION
 *
-*       This function evicts the Trace buffer of caller Worker Hart. 
+*       This function evicts the Trace buffer of caller Worker Hart.
 *
 *   INPUTS
 *
@@ -175,16 +175,16 @@ void Trace_Control_CM_RT(enum trace_enable_e enable)
 void Trace_Evict_CM_Buffer(void)
 {
     uint32_t hart_cb_index = GET_CB_INDEX(get_hart_id());
-    
-    /* Check if current hart any data preset in its buffer that needs to be evicted. 
-       In case case of buffer overflow and reset, data eviction should be handled 
+
+    /* Check if current hart any data preset in its buffer that needs to be evicted.
+       In case case of buffer overflow and reset, data eviction should be handled
        separately. */
     if(CM_Trace_CB.cb[hart_cb_index].offset_per_hart > 0)
     {
         /* Flush the buffer from Cache to memory. */
         asm volatile("fence");
-        evict(to_Mem, (uint64_t *)CM_Trace_CB.cb[hart_cb_index].base_per_hart, 
-                    CM_Trace_CB.cb[hart_cb_index].offset_per_hart);      
+        evict(to_Mem, (uint64_t *)CM_Trace_CB.cb[hart_cb_index].base_per_hart,
+                    CM_Trace_CB.cb[hart_cb_index].offset_per_hart);
         WAIT_CACHEOPS;
     }
 }

@@ -19,7 +19,7 @@
 #include "device_trace.h"
 
 /*! \fn void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
-    \brief This function initializes Trace for a single Hart in CM Shires. 
+    \brief This function initializes Trace for a single Hart in CM Shires.
            All CM Harts must call this function to Enable Trace.
     \param cm_init_info Pointer Trace init information.
     \return None
@@ -27,8 +27,8 @@
 void Trace_Init_CM(const struct trace_init_info_t *cm_init_info);
 
 /*! \fn struct trace_control_block_t* Trace_Get_CM_CB(void)
-    \brief This function returns the Trace control block (CB) of 
-           the Worker Hart which is calling this function. 
+    \brief This function returns the Trace control block (CB) of
+           the Worker Hart which is calling this function.
     \return Pointer to the Trace control block for caller Hart.
 */
 struct trace_control_block_t* Trace_Get_CM_CB(void);
@@ -39,12 +39,12 @@ struct trace_control_block_t* Trace_Get_CM_CB(void);
 */
 void Trace_Evict_CM_Buffer(void);
 
-/*! \fn void Trace_Control_CM_RT(enum trace_enable_e enable)
-    \brief This function updates the control of Trace for Computer Minnion 
-          runtime. 
+/*! \fn void Trace_RT_Control_CM(enum trace_enable_e enable)
+    \brief This function updates the control of Trace for Computer Minnion
+          runtime.
     \param trace_enable_e Enable / Disbale Trace.
     \return None
 */
-void Trace_Control_CM_RT(enum trace_enable_e enable);
+void Trace_RT_Control_CM(enum trace_enable_e enable);
 
 #endif
