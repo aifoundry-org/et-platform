@@ -94,6 +94,7 @@ typedef struct dma_channel_status {
 */
 typedef struct dma_channel_status_cb {
     dma_channel_status_t status; /* Holds the attributes related to a channel's status */
+    uint16_t             msg_id; /* TODO: To be removed, temporary field for dmalist cmds */
     exec_cycles_t        dmaw_cycles; /* Cycles associated with the transaction*/
 } dma_channel_status_cb_t;
 
@@ -139,11 +140,12 @@ int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id, uint8_t sqw
     \param tag_id Tag ID of the command
     \param cycles Pointer to latency cycles struct
     \param sw_timer_idx Index of SW Timer used for timeout
+    \param msg_id Msg ID of the command (TODO: SW-7137: To be removed)
     \return Status success or error
 */
 int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
     uint64_t src_addr, uint64_t dest_addr, uint64_t size, uint8_t sqw_idx,
-    uint16_t tag_id, exec_cycles_t *cycles, uint8_t sw_timer_idx);
+    uint16_t tag_id, exec_cycles_t *cycles, uint8_t sw_timer_idx, uint16_t msg_id);
 
 /*! \fn int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id,
     uint64_t src_addr, uint64_t dest_addr, uint64_t size, uint8_t sqw_idx,
@@ -159,11 +161,13 @@ int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
     \param cycles Pointer to latency cycles struct
     \param sw_timer_idx Index of SW Timer used for timeout
     \param flags DMA flag to set a specific DMA action.
+    \param msg_id Msg ID of the command (TODO: SW-7137: To be removed)
     \return Status success or error
 */
 int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id,
     uint64_t src_addr, uint64_t dest_addr, uint64_t size, uint8_t sqw_idx,
-    uint16_t tag_id, exec_cycles_t *cycles, uint8_t sw_timer_idx, dma_flags_e flags);
+    uint16_t tag_id, exec_cycles_t *cycles, uint8_t sw_timer_idx, dma_flags_e flags,
+    uint16_t msg_id);
 
 /*! \fn void DMAW_Read_Ch_Search_Timeout_Callback(uint8_t sqw_idx)
     \brief Callback for read channel search timeout

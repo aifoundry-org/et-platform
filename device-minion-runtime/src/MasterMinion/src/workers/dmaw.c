@@ -263,6 +263,7 @@ int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id, uint8_t sqw
 *       tag_id          Tag ID of the command
 *       cycles          Pointer to latency cycles struct
 *       sw_timer_idx    Index of SW Timer used for timeout
+*       msg_id          Msg ID of the command (TODO: SW-7137: To be removed)
 *
 *   OUTPUTS
 *
@@ -271,7 +272,7 @@ int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id, uint8_t sqw
 ***********************************************************************/
 int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
     uint64_t src_addr, uint64_t dest_addr, uint64_t size, uint8_t sqw_idx,
-    uint16_t tag_id, exec_cycles_t *cycles, uint8_t sw_timer_idx)
+    uint16_t tag_id, exec_cycles_t *cycles, uint8_t sw_timer_idx, uint16_t msg_id)
 {
     int8_t status;
     uint8_t rd_ch_idx = (uint8_t)(chan_id - DMA_CHAN_ID_READ_0);
@@ -285,6 +286,10 @@ int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
 
     atomic_store_local_64(&DMAW_Read_CB.chan_status_cb[rd_ch_idx].status.raw_u64,
         chan_status.raw_u64);
+
+    /* TODO: SW-7137: To be removed */
+    atomic_store_local_16(
+        &DMAW_Read_CB.chan_status_cb[rd_ch_idx].msg_id, msg_id);
 
     /* Call the DMA device driver function */
     status = (int8_t)dma_trigger_transfer(src_addr, dest_addr, size, chan_id, DMA_NORMAL);
@@ -339,6 +344,7 @@ int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
 *       cycles          Pointer to latency cycles struct
 *       sw_timer_idx    Index of SW Timer used for timeout
 *       flags           DMA flag to set a specific DMA action.
+*       msg_id          Msg ID of the command (TODO: SW-7137: To be removed)
 *
 *   OUTPUTS
 *
@@ -347,7 +353,8 @@ int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
 ***********************************************************************/
 int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id,
     uint64_t src_addr, uint64_t dest_addr, uint64_t size, uint8_t sqw_idx,
-    uint16_t tag_id, exec_cycles_t *cycles, uint8_t sw_timer_idx, dma_flags_e flags)
+    uint16_t tag_id, exec_cycles_t *cycles, uint8_t sw_timer_idx, dma_flags_e flags,
+    uint16_t msg_id)
 {
     int8_t status;
     uint8_t wrt_ch_idx = (uint8_t)(chan_id - DMA_CHAN_ID_WRITE_0);
@@ -361,6 +368,10 @@ int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id,
 
     atomic_store_local_64(&DMAW_Write_CB.chan_status_cb[wrt_ch_idx].status.raw_u64,
         chan_status.raw_u64);
+
+    /* TODO: SW-7137: To be removed */
+    atomic_store_local_16(
+        &DMAW_Write_CB.chan_status_cb[wrt_ch_idx].msg_id, msg_id);
 
     /* Call the DMA device driver function */
     status = (int8_t)dma_trigger_transfer(src_addr, dest_addr, size, chan_id, flags);
@@ -476,6 +487,7 @@ void DMAW_Launch(uint32_t hart_id)
     bool dma_aborted = false;
     int8_t status = STATUS_SUCCESS;
     DMA_STATUS_e dma_status = DMA_OPERATION_SUCCESS;
+    uint16_t msg_id; /* TODO: SW-7137: To be removed */
 
     Log_Write(LOG_LEVEL_CRITICAL, "DMAW:H%d\r\n", hart_id);
 
@@ -534,6 +546,10 @@ void DMAW_Launch(uint32_t hart_id)
                             write_rsp.status = DEV_OPS_API_DMA_RESPONSE_ERROR;
                         }
 
+                        /* TODO: SW-7137: To be removed */
+                        msg_id = atomic_load_local_16(
+                            &DMAW_Read_CB.chan_status_cb[ch_index].msg_id);
+
                         /* Read the channel status from CB */
                         chan_status.raw_u64 = atomic_load_local_64(
                             &DMAW_Read_CB.chan_status_cb[ch_index].status.raw_u64);
@@ -560,8 +576,10 @@ void DMAW_Launch(uint32_t hart_id)
                         write_rsp.response_info.rsp_hdr.size =
                             sizeof(write_rsp) - sizeof(struct cmn_header_t);
                         write_rsp.response_info.rsp_hdr.tag_id = chan_status.tag_id;
+                        write_rsp.response_info.rsp_hdr.msg_id = (msg_id_t)(msg_id + 1U);
+                        /* TODO: SW-7137 To be enabled back
                         write_rsp.response_info.rsp_hdr.msg_id =
-                            DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP;
+                            DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP; */
                         write_rsp.cmd_wait_time = dma_cycles.wait_cycles;
                         /* Compute command execution latency */
                         write_rsp.cmd_execution_time = PMC_GET_LATENCY(dma_cycles.start_cycles);
@@ -604,6 +622,10 @@ void DMAW_Launch(uint32_t hart_id)
 
                     if(dma_status == DMA_OPERATION_SUCCESS)
                     {
+                        /* TODO: SW-7137: To be removed */
+                        msg_id = atomic_load_local_16(
+                            &DMAW_Read_CB.chan_status_cb[ch_index].msg_id);
+
                         /* Update global DMA channel status
                         NOTE: Channel state must be made idle once all resources are read */
                         atomic_store_local_32
@@ -619,8 +641,10 @@ void DMAW_Launch(uint32_t hart_id)
                         write_rsp.response_info.rsp_hdr.size =
                             sizeof(write_rsp) - sizeof(struct cmn_header_t);
                         write_rsp.response_info.rsp_hdr.tag_id = chan_status.tag_id;
+                        write_rsp.response_info.rsp_hdr.msg_id = (msg_id_t)(msg_id + 1U);
+                        /* TODO: SW-7137 To be enabled back
                         write_rsp.response_info.rsp_hdr.msg_id =
-                            DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP;
+                            DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP; */
                         write_rsp.cmd_wait_time = dma_cycles.wait_cycles;
                         /* Compute command execution latency */
                         write_rsp.cmd_execution_time = PMC_GET_LATENCY(dma_cycles.start_cycles);
@@ -690,6 +714,10 @@ void DMAW_Launch(uint32_t hart_id)
                             read_rsp.status = DEV_OPS_API_DMA_RESPONSE_ERROR;
                         }
 
+                        /* TODO: SW-7137: To be removed */
+                        msg_id = atomic_load_local_16(
+                            &DMAW_Write_CB.chan_status_cb[ch_index].msg_id);
+
                         /* Read the channel status from CB */
                         chan_status.raw_u64 = atomic_load_local_64(
                             &DMAW_Write_CB.chan_status_cb[ch_index].status.raw_u64);
@@ -716,8 +744,10 @@ void DMAW_Launch(uint32_t hart_id)
                         read_rsp.response_info.rsp_hdr.size = 
                             sizeof(read_rsp) - sizeof(struct cmn_header_t);
                         read_rsp.response_info.rsp_hdr.tag_id = chan_status.tag_id;
+                        read_rsp.response_info.rsp_hdr.msg_id = (msg_id_t)(msg_id + 1U);
+                        /* TODO: SW-7137 To be enabled back
                         read_rsp.response_info.rsp_hdr.msg_id =
-                            DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP;
+                            DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP; */
                         read_rsp.cmd_wait_time = dma_cycles.wait_cycles;
                         /* Compute command execution latency */
                         read_rsp.cmd_execution_time = PMC_GET_LATENCY(dma_cycles.start_cycles);
@@ -760,6 +790,10 @@ void DMAW_Launch(uint32_t hart_id)
 
                     if(dma_status == DMA_OPERATION_SUCCESS)
                     {
+                        /* TODO: SW-7137: To be removed */
+                        msg_id = atomic_load_local_16(
+                            &DMAW_Write_CB.chan_status_cb[ch_index].msg_id);
+
                         /* Update global DMA channel status
                         NOTE: Channel state must be made idle once all resources are read */
                         atomic_store_local_32
@@ -775,8 +809,10 @@ void DMAW_Launch(uint32_t hart_id)
                         read_rsp.response_info.rsp_hdr.size =
                             sizeof(read_rsp) - sizeof(struct cmn_header_t);
                         read_rsp.response_info.rsp_hdr.tag_id = chan_status.tag_id;
+                        read_rsp.response_info.rsp_hdr.msg_id = (msg_id_t)(msg_id + 1U);
+                        /* TODO: SW-7137 To be enabled back
                         read_rsp.response_info.rsp_hdr.msg_id =
-                            DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP;
+                            DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP; */
                         read_rsp.cmd_wait_time = dma_cycles.wait_cycles;
                         /* Compute command execution latency */
                         read_rsp.cmd_execution_time = PMC_GET_LATENCY(dma_cycles.start_cycles);

@@ -439,7 +439,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                     /* Initiate DMA write transfer */
                     status = DMAW_Write_Trigger_Transfer(chan, cmd->src_device_phy_addr,
                         cmd->dst_host_phy_addr, cmd->size,
-                        sqw_idx, hdr->cmd_hdr.tag_id, &cycles, (uint8_t)sw_timer_idx, dma_flag);
+                        sqw_idx, hdr->cmd_hdr.tag_id, &cycles, (uint8_t)sw_timer_idx, dma_flag,
+                        hdr->cmd_hdr.msg_id);
                 }
                 else
                 {
@@ -466,8 +467,9 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 /* Construct and transmit command response */
                 rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
                 rsp.response_info.rsp_hdr.msg_id = (msg_id_t)(hdr->cmd_hdr.msg_id + 1U);
-                //rsp.response_info.rsp_hdr.msg_id =
-                //    DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP;
+                /* TODO: SW-7137: Add dma_readlist_cmd handling
+                rsp.response_info.rsp_hdr.msg_id =
+                    DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP; */
                 rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);
                 /* Compute Wait Cycles (cycles the command was sitting
                 in SQ prior to launch) Snapshot current cycle */
@@ -556,7 +558,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                     /* Initiate DMA read transfer */
                     status = DMAW_Read_Trigger_Transfer(chan, cmd->src_host_phy_addr,
                         cmd->dst_device_phy_addr, cmd->size,
-                        sqw_idx, hdr->cmd_hdr.tag_id, &cycles, (uint8_t)sw_timer_idx);
+                        sqw_idx, hdr->cmd_hdr.tag_id, &cycles, (uint8_t)sw_timer_idx,
+                        hdr->cmd_hdr.msg_id);
                 }
                 else
                 {
@@ -584,8 +587,9 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 /* Construct and transit command response */
                 rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
                 rsp.response_info.rsp_hdr.msg_id = (msg_id_t)(hdr->cmd_hdr.msg_id + 1U);
-                //rsp.response_info.rsp_hdr.msg_id =
-                //    DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP;
+                /* TODO: SW-7137: Add dma_writelist_cmd handling
+                rsp.response_info.rsp_hdr.msg_id =
+                    DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP; */
                 rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);
                 /* Compute Wait Cycles (cycles the command was sitting
                 in SQ prior to launch) Snapshot current cycle */
