@@ -341,6 +341,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             break;
         }
         case DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD:
+        case DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD:
         {
             struct device_ops_data_read_cmd_t *cmd = (void *)hdr;
             struct device_ops_data_read_rsp_t rsp;
@@ -464,8 +465,9 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
                 /* Construct and transmit command response */
                 rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
-                rsp.response_info.rsp_hdr.msg_id =
-                    DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP;
+                rsp.response_info.rsp_hdr.msg_id = (msg_id_t)(hdr->cmd_hdr.msg_id + 1U);
+                //rsp.response_info.rsp_hdr.msg_id =
+                //    DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP;
                 rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);
                 /* Compute Wait Cycles (cycles the command was sitting
                 in SQ prior to launch) Snapshot current cycle */
@@ -513,6 +515,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
         }
 
         case DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD:
+        case DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD:
         {
             struct device_ops_data_write_cmd_t *cmd = (void *)hdr;
             struct device_ops_data_write_rsp_t rsp;
@@ -580,8 +583,9 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
                 /* Construct and transit command response */
                 rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
-                rsp.response_info.rsp_hdr.msg_id =
-                    DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP;
+                rsp.response_info.rsp_hdr.msg_id = (msg_id_t)(hdr->cmd_hdr.msg_id + 1U);
+                //rsp.response_info.rsp_hdr.msg_id =
+                //    DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP;
                 rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);
                 /* Compute Wait Cycles (cycles the command was sitting
                 in SQ prior to launch) Snapshot current cycle */
