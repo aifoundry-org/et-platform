@@ -13,6 +13,7 @@
 #include <device-layer/IDeviceLayer.h>
 #include <esperanto/device-apis/device_apis_message_types.h>
 #include <esperanto/device-apis/operations-api/device_ops_api_cxx.h>
+#include <mutex>
 #include <queue>
 namespace dev {
 class IDeviceLayerFake : public IDeviceLayer {
@@ -25,6 +26,7 @@ class IDeviceLayerFake : public IDeviceLayer {
 
 public:
   bool sendCommandMasterMinion(int device, int sqIdx, std::byte* command, size_t commandSize) override {
+    std::lock_guard<std::mutex> lock(mmMutex_);
     auto cmd = reinterpret_cast<cmn_header_t*>(command);
     rsp_header_t rsp;
     rsp.rsp_hdr.tag_id = cmd->tag_id;
@@ -40,13 +42,21 @@ public:
 
   void waitForEpollEventsMasterMinion(int device, uint64_t& sq_bitmap, bool& cq_available,
                                       std::chrono::seconds timeout) override {
-    std::unique_lock lock(mmMutex_);
+    std::unique_lock<std::mutex> lock(mmMutex_, std::defer_lock);
+    while (!lock.try_lock()) {
+      // spin-lock
+    }
     cvMm_.wait_for(lock, timeout, [this] { return !responsesMasterMinion_.empty(); });
     cq_available = true;
     sq_bitmap = 0xFFFFFFFFFFFFFFFF;
   }
 
   bool receiveResponseMasterMinion(int device, std::vector<std::byte>& response) override {
+    std::unique_lock<std::mutex> lock(mmMutex_, std::defer_lock);
+    while (!lock.try_lock()) {
+      // spin-lock
+    }
+
     if (!responsesMasterMinion_.empty()) {
       response.resize(sizeof(rsp_header_t));
       std::memcpy(response.data(), &responsesMasterMinion_.front(), sizeof(rsp_header_t));
@@ -57,6 +67,10 @@ public:
   }
 
   bool sendCommandServiceProcessor(int device, std::byte* command, size_t commandSize) override {
+    std::unique_lock<std::mutex> lock(spMutex_, std::defer_lock);
+    while (!lock.try_lock()) {
+      // spin-lock
+    }
     auto cmd = reinterpret_cast<cmn_header_t*>(command);
     dev_mgmt_rsp_header_t rsp;
     rsp.rsp_hdr.tag_id = cmd->tag_id;
@@ -74,6 +88,10 @@ public:
   }
 
   bool receiveResponseServiceProcessor(int device, std::vector<std::byte>& response) override {
+    std::unique_lock<std::mutex> lock(spMutex_, std::defer_lock);
+    while (!lock.try_lock()) {
+      // spin-lock
+    }
     if (!responsesServiceProcessor_.empty()) {
       response.resize(sizeof(rsp_header_t));
       std::memcpy(response.data(), &responsesServiceProcessor_.front(), sizeof(rsp_header_t));

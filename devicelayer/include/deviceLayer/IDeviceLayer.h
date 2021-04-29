@@ -54,9 +54,9 @@ public:
   ///
   virtual bool sendCommandMasterMinion(int device, int sqIdx, std::byte* command, size_t commandSize) = 0;
 
-  /// \brief Set the submission queue availability threshold. Submission queue epoll event will be generated only if space
-  /// on submission queue is greater or equal to this threshold set. Default threshold value is one forth of size of
-  /// submission queue buffer returned by `getSubmissionQueueSizeMasterMinion()`.
+  /// \brief Set the submission queue availability threshold. Submission queue epoll event will be generated only if
+  /// space on submission queue is greater or equal to this threshold set. Default threshold value is one forth of size
+  /// of submission queue buffer returned by `getSubmissionQueueSizeMasterMinion()`.
   ///
   /// @param[in] device indicating which device to send the command.
   /// @param[in] sqIdx indicates which submission queue to set the threshold for.
@@ -98,9 +98,9 @@ public:
   ///
   virtual bool sendCommandServiceProcessor(int device, std::byte* command, size_t commandSize) = 0;
 
-  /// \brief Set the submission queue availability threshold. Submission queue epoll event will be generated only if space
-  /// on submission queue is greater or equal to this threshold set. Default threshold value is one forth of size of
-  /// submission queue buffer returned by `getSubmissionQueueSizeServiceProcessor()`.
+  /// \brief Set the submission queue availability threshold. Submission queue epoll event will be generated only if
+  /// space on submission queue is greater or equal to this threshold set. Default threshold value is one forth of size
+  /// of submission queue buffer returned by `getSubmissionQueueSizeServiceProcessor()`.
   ///
   /// @param[in] device indicating which device to send the command.
   /// @param[in] sqIdx indicates which submission queue to set the threshold for.
