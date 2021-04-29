@@ -3,6 +3,7 @@
 #include "flb.h"
 #include "hart.h"
 #include "layout.h"
+#include "log.h"
 #include "message_types.h"
 #include "cm_mm_defines.h"
 #include "cm_to_mm_iface.h"
@@ -17,6 +18,7 @@ extern void trap_handler(void);
 void __attribute__((noreturn)) main(void)
 {
     bool result;
+    int8_t status;
 
     // Setup supervisor trap vector
     asm volatile("csrw  stvec, %0\n"
@@ -39,8 +41,15 @@ void __attribute__((noreturn)) main(void)
         };
 
         // To Master Shire thread 0 aka Dispatcher (circbuff queue index is 0)
-        CM_To_MM_Iface_Unicast_Send(CM_MM_MASTER_HART_DISPATCHER_IDX,
+        status = CM_To_MM_Iface_Unicast_Send(CM_MM_MASTER_HART_DISPATCHER_IDX,
             CM_MM_MASTER_HART_UNICAST_BUFF_IDX, (const cm_iface_message_t *)&message);
+
+        if(status != 0)
+        {
+            log_write(LOG_LEVEL_ERROR,
+                "H%04" PRId64 ": CM->MM:Shire_ready:Unicast send failed! Error code: " PRIi8 "\n",
+                get_hart_id(), status);
+        }
     }
 
     // Disable global interrupts (sstatus.SIE = 0) to not trap to trap handler.

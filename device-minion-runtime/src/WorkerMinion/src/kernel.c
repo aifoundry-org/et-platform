@@ -39,7 +39,7 @@ static spinlock_t pre_launch_local_barrier[NUM_SHIRES] = { 0 };
 static spinlock_t pre_launch_global_barrier = { 0 };
 static local_fcc_barrier_t post_launch_barrier[NUM_SHIRES] = { 0 };
 static kernel_launch_info_t kernel_launch_info[NUM_SHIRES] = { 0 };
-static int32_t kernel_launch_shire_count __attribute__((aligned(64))) = 0;
+static uint64_t kernel_launch_shire_mask __attribute__((aligned(64))) = 0;
 static uint32_t kernel_launch_global_abort_flag __attribute__((aligned(64))) = 0;
 
 // Identify the last thread in pool
@@ -81,6 +81,21 @@ static void synchronize_shires(spinlock_t *lock, uint32_t num_shires)
 
     // All threads in Shire wait for Last Thread to clear flag
     local_spinwait_wait(&pre_launch_local_barrier[shire_id],0);
+}
+
+bool kernel_launch_set_global_abort_flag(void)
+{
+    return (atomic_compare_and_exchange_global_32(&kernel_launch_global_abort_flag, 0, 1) == 0);
+}
+
+uint64_t kernel_launch_get_pending_shire_mask(void)
+{
+    return atomic_load_global_64(&kernel_launch_shire_mask);
+}
+
+static inline uint64_t kernel_launch_reset_shire_mask(uint32_t shire_id)
+{
+    return atomic_and_global_64(&kernel_launch_shire_mask, ~(1ull << shire_id));
 }
 
 uint64_t kernel_info_reset_launched_thread(uint32_t shire_id, uint64_t thread_id)
@@ -175,7 +190,7 @@ static inline void kernel_info_set_attributes(uint32_t shire_id, uint8_t kw_base
     atomic_store_local_16(&kernel_launch_info[shire_id].raw_u16, kernel_info.raw_u16);
 }
 
-static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint32_t shire_count, uint64_t kernel_launch_flags);
+static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_shire_mask, uint64_t kernel_launch_flags);
 
 int64_t launch_kernel(uint8_t kw_base_id,
                       uint8_t slot_index,
@@ -188,16 +203,15 @@ int64_t launch_kernel(uint8_t kw_base_id,
     uint64_t *firmware_sp;
     int64_t return_value;
     uint64_t tensor_error;
-    const uint32_t kernel_shire_count = (uint32_t)__builtin_popcountll(kernel_shire_mask);
 
     asm volatile("csrr  %0, sscratch \n"
                  "addi  %0, %0, 8    \n"
                  : "=r"(firmware_sp));
 
-    pre_kernel_setup(kw_base_id, slot_index, kernel_shire_count, kernel_launch_flags);
+    pre_kernel_setup(kw_base_id, slot_index, kernel_shire_mask, kernel_launch_flags);
 
     /* Wait until all the Shires involved in the kernel launch reach this sync point */
-    synchronize_shires(&pre_launch_global_barrier, kernel_shire_count);
+    synchronize_shires(&pre_launch_global_barrier, (uint32_t)__builtin_popcountll(kernel_shire_mask));
 
     /* Set the thread state to kernel launched */
     kernel_info_set_thread_launched(get_shire_id(), get_hart_id() & (HARTS_PER_SHIRE - 1));
@@ -337,7 +351,7 @@ int64_t launch_kernel(uint8_t kw_base_id,
     return return_value;
 }
 
-static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint32_t shire_count, uint64_t kernel_launch_flags)
+static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_shire_mask, uint64_t kernel_launch_flags)
 {
     const uint32_t shire_id = get_shire_id();
     const uint32_t minion_mask = (shire_id == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
@@ -358,7 +372,7 @@ static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint32_t sh
         kernel_info_reset_completed_threads(shire_id);
         kernel_info_reset_thread_returned(shire_id);
         kernel_info_reset_abort_flag(shire_id);
-        atomic_store_global_32((uint32_t*)&kernel_launch_shire_count, shire_count);
+        atomic_store_global_64(&kernel_launch_shire_mask, kernel_shire_mask);
         atomic_store_global_32(&kernel_launch_global_abort_flag, 0);
 
         // Init all FLBs except reserved FLBs 28-31
@@ -452,8 +466,9 @@ void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t 
     const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
     const uint32_t minion_mask = (get_shire_id() == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
     const uint64_t thread_mask = (get_shire_id() == MASTER_SHIRE) ? 0xFFFFFFFF00000000U : 0xFFFFFFFFFFFFFFFFU;
-    uint64_t prev_completed;
-    int32_t prev_shire_count;
+    uint64_t prev_completed_threads;
+    uint64_t prev_shire_mask;
+    int8_t status;
 
     /* Reset the launched bit for the current thread */
     kernel_info_reset_launched_thread(shire_id, thread_id);
@@ -480,6 +495,10 @@ void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t 
         kernel_info_set_execution_status(shire_id, KERNEL_COMPLETE_STATUS_ERROR);
     }
 
+    /* Empty all FCCs before blocking on FCC barrier */
+    init_fcc(FCC_0);
+    init_fcc(FCC_1);
+
     // Blocking barrier with all the participating threads of the shire
     // We have to make sure all threads have finished before evicting caches
     local_fcc_barrier(&post_launch_barrier[shire_id], thread_count, minion_mask);
@@ -488,31 +507,14 @@ void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t 
 
     /* Last thread to reach here decrements the kernel launch shire count and checks if
     messages need to be sent to MM */
-    prev_completed = kernel_info_set_thread_completed(shire_id, thread_id);
-    if ((prev_completed | (1ull << thread_id)) == thread_mask)
+    prev_completed_threads = kernel_info_set_thread_completed(shire_id, thread_id);
+    if ((prev_completed_threads | (1ull << thread_id)) == thread_mask)
     {
         /* Decrement the kernel launch shire count */
-        prev_shire_count = atomic_add_signed_global_32(&kernel_launch_shire_count, -1);
-
-        /* Check for kernel exception abort */
-        if(kernel_info_get_abort_flag(shire_id) == 1)
-        {
-            /* Only send kernel launch abort message once to MM
-            MM will send kernel abort message to rest of the shires */
-            if(atomic_compare_and_exchange_global_32(&kernel_launch_global_abort_flag, 0, 1) == 0)
-            {
-                cm_to_mm_message_exception_t msg;
-                msg.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION;
-                msg.shire_id = shire_id;
-                /* TODO: Collect exception context for MM from user-kernel exception buffer */
-                CM_To_MM_Iface_Unicast_Send((uint64_t)(kw_base_id + slot_index),
-                    (uint64_t)(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + slot_index),
-                    (cm_iface_message_t *)&msg);
-            }
-        }
+        prev_shire_mask = kernel_launch_reset_shire_mask(shire_id);
 
         /* Last shire in kernel launch sends a complete message to MM */
-        if(prev_shire_count == 1)
+        if((prev_shire_mask & ~(1ull << shire_id)) == 0)
         {
             cm_to_mm_message_kernel_launch_completed_t msg;
             msg.header.number = 0; // Not used. TODO: Remove
@@ -520,9 +522,16 @@ void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t 
             msg.shire_id = shire_id;
             msg.slot_index = slot_index;
             msg.status = kernel_info_get_execution_status(shire_id);
-            CM_To_MM_Iface_Unicast_Send((uint64_t)(kw_base_id + slot_index),
+            status = CM_To_MM_Iface_Unicast_Send((uint64_t)(kw_base_id + slot_index),
                 (uint64_t)(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + slot_index),
                 (cm_iface_message_t *)&msg);
+
+            if(status != STATUS_SUCCESS)
+            {
+                log_write(LOG_LEVEL_ERROR,
+                    "H%04" PRId64 ": CM->MM:launch_complete:Unicast send failed! Error code: " PRIi8 "\n",
+                    get_hart_id(), status);
+            }
         }
     }
 }

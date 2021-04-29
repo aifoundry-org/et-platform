@@ -43,8 +43,8 @@ static inline bool find_last_thread(spinlock_t *lock, uint32_t num_threads)
     }
 }
 
-/* This barrier is required to synchronize all Shires before handling the message */
-static inline void synchronize_shires(uint64_t shire_id)
+/* Finds the last shire involved in MM->CM message and notifies the MM */
+static inline void find_last_shire_and_notify_mm(uint64_t shire_id)
 {
     const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
     bool last;
@@ -68,9 +68,6 @@ static inline void synchronize_shires(uint64_t shire_id)
                 1ull << master_to_worker_broadcast_message_ctrl_ptr->sender_thread_id, MASTER_SHIRE, 0);
         }
     }
-
-    /* All threads in Shire wait for Last Thread to clear flag */
-    local_spinwait_wait(&notify_local_barrier[shire_id], 0);
 }
 
 void __attribute__((noreturn)) MM_To_CM_Iface_Main_Loop(void)
@@ -108,8 +105,8 @@ void MM_To_CM_Iface_Multicast_Receive(void)
     volatile uint8_t *addr = &mm_cm_msg_number[shire_id].mm_cm_message_number[hart_id & (HARTS_PER_SHIRE - 1)];
     if(message.header.number != atomic_load_local_8(addr))
     {
-        /* Synchronize all the shires to reach sync point and ack back to MM */
-        synchronize_shires(shire_id);
+        /* Find the last shire in MM->CM multicast and ack back to MM */
+        find_last_shire_and_notify_mm(shire_id);
 
         /* Update the global copy of read messages */
         atomic_store_local_8(addr, message.header.number);

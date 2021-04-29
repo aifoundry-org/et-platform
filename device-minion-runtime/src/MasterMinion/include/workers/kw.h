@@ -68,7 +68,7 @@
 /*! \def TIMEOUT_KERNEL_LAUNCH
     \brief Timeout value (in mS) for kernel launch
 */
-#define KERNEL_LAUNCH_TIMEOUT(x)   x*5
+#define KERNEL_LAUNCH_TIMEOUT(x)   (x * 2)
 
 /*! \enum kernel_state_e
     \brief Enum that provides the state of a kernel

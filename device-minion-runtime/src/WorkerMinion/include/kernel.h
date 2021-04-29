@@ -71,6 +71,19 @@ uint64_t kernel_info_set_thread_returned(uint32_t shire_id, uint64_t thread_id);
 */
 void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t kernel_ret_val);
 
+/*! \fn uint64_t kernel_launch_get_pending_shire_mask(void)
+    \brief This function returns the shires pending to complete the kernel launch.
+    \return Returns the shire mask of pending shires
+*/
+uint64_t kernel_launch_get_pending_shire_mask(void);
+
+/*! \fn bool kernel_launch_set_global_abort_flag(void)
+    \brief This function sets the global abort flag for the current kernel launch. This helps us to
+    send a single abort/exception message to MM.
+    \return none
+*/
+bool kernel_launch_set_global_abort_flag(void);
+
 /*! \fn int64_t launch_kernel(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_entry_addr,
     uint64_t kernel_stack_addr, uint64_t kernel_params_ptr, uint64_t kernel_launch_flags,
     uint64_t kernel_shire_mask)

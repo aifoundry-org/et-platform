@@ -622,6 +622,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     cm_iface_message_t message;
     int8_t status;
     int8_t status_internal;
+    int8_t status_hang_abort;
     uint16_t kernel_state;
     uint64_t kernel_shire_mask;
     bool kernel_done;
@@ -672,6 +673,20 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             if(atomic_load_local_16(&kernel->kernel_state) == KERNEL_STATE_ABORTING)
             {
                 Log_Write(LOG_LEVEL_ERROR, "Aborting:KW:kw_idx=%d\r\n", kw_idx);
+
+                /* Multicast abort to shires associated with current kernel slot
+                This abort should forcefully abort all the shires involved in
+                kernel launch and if it timesout as well, do a reset of the shires. */
+                message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
+
+                /* Blocking call (with timeout) that blocks till all shires ack */
+                status_hang_abort = CM_Iface_Multicast_Send(kernel_shire_mask, &message);
+
+                if(status_hang_abort != STATUS_SUCCESS)
+                {
+                    /* TODO: SW-6569: Do the reset of the shires involved in kernel launch. */
+                    Log_Write(LOG_LEVEL_ERROR, "KW:MM->CM:Abort hanged, doing reset of shires.\r\n");
+                }
 
                 /* Break the loop waiting to complete the kernel as it is timeout */
                 break;

@@ -1,3 +1,4 @@
+#include "layout.h"
 #include "log.h"
 #include "macros.h"
 #include "common_defs.h"
@@ -35,8 +36,10 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
         send_exception_message(scause, sepc, stval, sstatus, hart_id, shire_id, user_mode);
     }
 
-    // TODO: Save context to Exception Buffer (if present)
-    (void) reg;
+    /* TODO: Save the execution context in the buffer provided as an argument in kernel launch */
+    /* Save the execution context in the buffer provided */
+    CM_To_MM_Save_Execution_Context((execution_context_t*)CM_EXECUTION_CONTEXT_BUFFER,
+        kernel_launch_get_pending_shire_mask(), hart_id, scause, sepc, stval, sstatus, reg);
 
     /* First hart in the shire that took exception will do a self abort
     and send IPI to other harts in the shire to abort as well
@@ -44,6 +47,14 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
     must return from kernel since traps on IPIs are disabled in S-mode */
     if(kernel_info_set_abort_flag(shire_id))
     {
+        /* Only send kernel launch abort message once to MM.
+        MM will send kernel abort message to rest of the shires */
+        if(kernel_launch_set_global_abort_flag())
+        {
+            /* Sends exception message to MM */
+            send_exception_message(scause, sepc, stval, sstatus, hart_id, shire_id, user_mode);
+        }
+
         /* Send the IPI to all other Harts in this shire */
         syscall(SYSCALL_IPI_TRIGGER_INT, MASK_RESET_BIT(0xFFFFFFFFFFFFFFFFu, hart_id % 64), shire_id, 0);
 
@@ -61,8 +72,10 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
     cm_to_mm_message_exception_t message;
     uint8_t kw_base_id;
     uint8_t slot_index;
+    int8_t status;
 
     /* Populate the exception message */
+    message.shire_id  = shire_id;
     message.hart_id   = hart_id;
     message.mcause    = mcause;
     message.mepc      = mepc;
@@ -78,17 +91,31 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
         kernel_info_get_attributes(shire_id, &kw_base_id, &slot_index);
 
         /* Send exception message to appripriate kernel worker */
-        CM_To_MM_Iface_Unicast_Send((uint64_t)(kw_base_id + slot_index),
+        status = CM_To_MM_Iface_Unicast_Send((uint64_t)(kw_base_id + slot_index),
             (uint64_t)(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + slot_index),
             (cm_iface_message_t *)&message);
+
+        if(status != STATUS_SUCCESS)
+        {
+            log_write(LOG_LEVEL_ERROR,
+                "H%04" PRId64 ": CM->MM:U-mode_exceptionUnicast send failed! Error code: " PRIi8 "\n",
+                hart_id, status);
+        }
     }
     else
     {
         message.header.id = CM_TO_MM_MESSAGE_ID_FW_EXCEPTION;
 
         /* Send exception message to dispatcher (Master shire Hart 0) */
-        CM_To_MM_Iface_Unicast_Send(CM_MM_MASTER_HART_DISPATCHER_IDX,
+        status = CM_To_MM_Iface_Unicast_Send(CM_MM_MASTER_HART_DISPATCHER_IDX,
             CM_MM_MASTER_HART_UNICAST_BUFF_IDX, (cm_iface_message_t *)&message);
+
+        if(status != STATUS_SUCCESS)
+        {
+            log_write(LOG_LEVEL_ERROR,
+                "H%04" PRId64 ": CM->MM:S-mode_exception:Unicast send failed! Error code: " PRIi8 "\n",
+                hart_id, status);
+        }
     }
 }
 
