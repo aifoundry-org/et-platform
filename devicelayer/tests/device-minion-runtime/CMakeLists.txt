@@ -169,7 +169,7 @@ create_test(
   TARGET     TestDevOpsApiNightlyBasicCmdsPcie
   SOURCES    pcie/nightly/TestDevOpsApiNightlyBasicCmdsPcie.cpp TestDevOpsApiBasicCmds.cpp
   ARGS       ""
-  PROPERTIES "LABELS;NIGHTLY;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;540"
+  PROPERTIES "LABELS;NIGHTLY;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;900"
 )
 
 create_test(
