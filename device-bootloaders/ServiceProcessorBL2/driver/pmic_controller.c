@@ -72,6 +72,31 @@ static void set_pmic_i2c_dev(void)
 *
 *   FUNCTION
 *
+*       I2C_PMIC_Initialize
+*
+*   DESCRIPTION
+*
+*       This function initializes PMIC.
+*
+*   INPUTS
+*
+*       i2c_id      i2C bus ID
+*
+*   OUTPUTS
+*
+*       status     status of initialization success/error
+*
+***********************************************************************/
+int I2C_PMIC_Initialize(void)
+{
+    setup_pmic();
+    return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       setup_pmic
 *
 *   DESCRIPTION
@@ -1422,3 +1447,59 @@ int pmic_get_average_soc_power(uint8_t *avg_power)
 {
     return (get_pmic_reg(PMIC_I2C_AVERAGE_PWR_ADDRESS, avg_power));
 }
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       I2C_PMIC_Read
+*
+*   DESCRIPTION
+*
+*       This function reads value in PMIC register.
+*
+*   INPUTS
+*
+*       reg     register to read from
+*
+*   OUTPUTS
+*
+*       value stored in register
+*
+***********************************************************************/
+int I2C_PMIC_Read (uint8_t reg)
+{
+    uint8_t reg_value;
+
+    if (0 != get_pmic_reg(reg, &reg_value)) {
+        MESSAGE_ERROR("PMIC read failed");
+        return ERROR_PMIC_I2C_READ_FAILED;
+    }
+
+    return reg_value;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       I2C_PMIC_Write
+*
+*   DESCRIPTION
+*
+*       This function writes value in PMIC register.
+*
+*   INPUTS
+*
+*       reg     register to write into
+*
+*   OUTPUTS
+*
+*       status of function call
+*
+***********************************************************************/
+int I2C_PMIC_Write (uint8_t reg, uint8_t data)
+{
+    return set_pmic_reg(reg, data);
+}
+

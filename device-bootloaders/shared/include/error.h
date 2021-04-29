@@ -47,5 +47,6 @@
 #define ERROR_PMIC_I2C_INVALID_ARGUMENTS             -5002
 #define ERROR_PMIC_I2C_INVALID_VOLTAGE_TYPE          -5003
 #define ERROR_PMIC_I2C_INVALID_MINION_GROUP          -5004
+#define ERROR_PMIC_INIT_FAILED                       -5005
 
 #endif

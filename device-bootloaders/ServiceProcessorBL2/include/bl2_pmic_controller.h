@@ -258,4 +258,25 @@ int pmic_reset_wdog_timer(void);
 */
 int pmic_get_average_soc_power(uint8_t *avg_power);
 
+/*! \fn int I2C_PMIC_Initialize(uint8_t i2c_id)
+    \brief This function initializes PMIC
+    \param i2c_id - I2C bus ID
+    \return The function call status, pass/fail.
+*/
+int I2C_PMIC_Initialize(void);
+
+/*! \fn int I2C_PMIC_Read (uint8_t reg)
+    \brief This function reads data from PMIC register
+    \param None
+    \return value stored in register
+*/
+int I2C_PMIC_Read (uint8_t reg);
+
+/*! \fn int I2C_PMIC_Write (uint8_t reg, uint8_t data)
+    \brief This function writes data to PMIC register
+    \param reg - register to write into
+    \return The function call status, pass/fail
+*/
+int I2C_PMIC_Write (uint8_t reg, uint8_t data);
+
 #endif
