@@ -24,21 +24,21 @@ struct cmn_header_t {
 	u16 tag_id;
 	u16 msg_id;
 	u16 flags;
-} __attribute__ ((packed, aligned(8)));
+} __packed __aligned(8);
 
 /*
  * Command header for all commands host to device
  */
 struct cmd_header_t {
 	struct cmn_header_t cmd_hdr;
-} __attribute__ ((packed, aligned(8)));
+} __packed __aligned(8);
 
 /*
  * Response header for all command responses from device to host
  */
 struct rsp_header_t {
 	struct cmn_header_t rsp_hdr;
-} __attribute__ ((packed, aligned(8)));
+} __packed __aligned(8);
 
 /*
  * Event header for all events from device to host
@@ -47,7 +47,7 @@ struct evt_header_t {
 	u16 size;
 	u16 evt_id;
 	u8 pad[4];
-} __attribute__ ((packed, aligned(8)));
+} __packed __aligned(8);
 
 /*
  * Enumeration of all the RPC messages that the Device Mgmt/Ops API
@@ -70,6 +70,10 @@ enum device_msg_e {
 	DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP,
 	DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD,
 	DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP,
+	DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD,
+	DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP,
+	DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD,
+	DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP,
 	DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_ERROR,
 	DEV_OPS_API_MID_LAST,
 	/* Ops API Msg IDs reserved for future use */
@@ -115,7 +119,7 @@ struct device_ops_data_read_cmd_t {
 	u64 src_device_phy_addr;
 	u32 size;
 	u32 pad;
-} __attribute__ ((packed, aligned(8)));
+} __packed __aligned(8);
 
 /*
  * Data read command response
@@ -126,7 +130,37 @@ struct device_ops_data_read_rsp_t {
 	u64 cmd_execution_time;
 	u32 status;
 	u32 pad;
-} __attribute__ ((packed, aligned(8)));
+} __packed __aligned(8);
+
+/*
+ * Node containing one DMA read transfer information
+ */
+struct dma_read_node {
+	u64 dst_host_virt_addr;
+	u64 dst_host_phy_addr;
+	u64 src_device_phy_addr;
+	u32 size;
+	u8 pad[4];
+} __packed __aligned(8);
+
+/*
+ * Single list Command to perform multiple DMA reads from device memory
+ */
+struct device_ops_dma_readlist_cmd_t {
+	struct cmd_header_t command_info;
+	struct dma_read_node list[];
+} __packed __aligned(8);
+
+/*
+ * DMA readlist command response
+ */
+struct device_ops_dma_readlist_rsp_t {
+	struct rsp_header_t response_info;
+	u64 cmd_wait_time;
+	u64 cmd_execution_time;
+	u32 status;
+	u32 pad;
+} __packed __aligned(8);
 
 /*
  * Command to write data to device memory
@@ -138,7 +172,7 @@ struct device_ops_data_write_cmd_t {
 	u64 dst_device_phy_addr;
 	u32 size;
 	u32 pad;
-} __attribute__ ((packed, aligned(8)));
+} __packed __aligned(8);
 
 /*
  * Data write command response
@@ -149,7 +183,37 @@ struct device_ops_data_write_rsp_t {
 	u64 cmd_execution_time;
 	u32 status;
 	u32 pad;
-} __attribute__ ((packed, aligned(8)));
+} __packed __aligned(8);
+
+/*
+ * Node containing one DMA write transfer information
+ */
+struct dma_write_node {
+	u64 src_host_virt_addr;
+	u64 src_host_phy_addr;
+	u64 dst_device_phy_addr;
+	u32 size;
+	u8 pad[4];
+} __packed __aligned(8);
+
+/*
+ * Single list Command to perform multiple DMA writes on device memory
+ */
+struct device_ops_dma_writelist_cmd_t {
+	struct cmd_header_t command_info;
+	struct dma_write_node list[];
+} __packed __aligned(8);
+
+/*
+ * DMA writelist command response
+ */
+struct device_ops_dma_writelist_rsp_t {
+	struct rsp_header_t response_info;
+	u64 cmd_wait_time;
+	u64 cmd_execution_time;
+	u32 status;
+	u32 pad;
+} __packed __aligned(8);
 
 /*
  * Device to host event message
@@ -158,6 +222,6 @@ struct device_mgmt_event_msg_t {
 	struct cmn_header_t event_info;
 	u16 class_count; // event class[1:0] and error count[15:2]
 	u64 event_syndrome[2]; // hardware defined event syndrome
-} __attribute__((__packed__));
+} __packed;
 
 #endif // ET_DEVICE_API_H

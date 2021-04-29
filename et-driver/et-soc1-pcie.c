@@ -71,6 +71,8 @@ static u8 get_index(void)
 	return index;
 }
 
+#define DMA_MAX_ALLOC_SIZE	(BIT(31)) /* 2GB */
+
 #ifndef ENABLE_DRIVER_TESTS
 static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 {
@@ -135,6 +137,9 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 			[OPS_MEM_REGION_TYPE_HOST_MANAGED].soc_addr;
 		user_dram.size = ops->regions
 			[OPS_MEM_REGION_TYPE_HOST_MANAGED].size;
+		user_dram.dma_max_alloc_size = DMA_MAX_ALLOC_SIZE;
+		// TODO: Discover from DIRs
+		user_dram.dma_max_elem_size = BIT(27); /* 128MB */
 
 		switch (ops->regions
 			[OPS_MEM_REGION_TYPE_HOST_MANAGED].access.dma_align) {
@@ -337,6 +342,106 @@ static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 	return mask;
 }
 
+static void esperanto_pcie_vm_open(struct vm_area_struct *vma)
+{
+        struct et_dma_mapping *map = vma->vm_private_data;
+
+        dev_dbg(&map->pdev->dev, "vm_open: %p, [size=%lu,vma=%08lx-%08lx]\n",
+		map, map->size, vma->vm_start, vma->vm_end);
+
+        map->ref_count++;
+}
+
+static void esperanto_pcie_vm_close(struct vm_area_struct *vma)
+{
+	struct et_dma_mapping *map = vma->vm_private_data;
+
+	if (!map)
+		return;
+
+	dev_dbg(&map->pdev->dev, "vm_close: %p, [size=%lu,vma=%08lx-%08lx]\n",
+		map, map->size, vma->vm_start, vma->vm_end);
+
+	map->ref_count--;
+	if (map->ref_count == 0) {
+		dma_free_coherent(&map->pdev->dev, map->size, map->kern_vaddr,
+				  map->dma_addr);
+
+		kfree(map);
+	}
+}
+
+static const struct vm_operations_struct esperanto_pcie_vm_ops = {
+	.open = esperanto_pcie_vm_open,
+	.close = esperanto_pcie_vm_close,
+};
+
+static int esperanto_pcie_ops_mmap(struct file *fp, struct vm_area_struct *vma)
+{
+	struct et_ops_dev *ops;
+	struct et_pci_dev *et_dev;
+	struct et_dma_mapping *map;
+	dma_addr_t dma_addr;
+	void *kern_vaddr;
+	size_t size = vma->vm_end - vma->vm_start;
+	int rv;
+
+	ops = container_of(fp->private_data, struct et_ops_dev, misc_ops_dev);
+	et_dev = container_of(ops, struct et_pci_dev, ops);
+
+	if (vma->vm_pgoff != 0) {
+		dev_err(&et_dev->pdev->dev, "mmap() offset must be 0.\n");
+		return -EINVAL;
+	}
+
+	if (size > DMA_MAX_ALLOC_SIZE) {
+		dev_err(&et_dev->pdev->dev,
+			"mmap() can't map more than 2GB at a time!");
+		return -EINVAL;
+	}
+
+	vma->vm_flags |= VM_DONTCOPY | VM_NORESERVE;
+	vma->vm_ops = &esperanto_pcie_vm_ops;
+
+	kern_vaddr = dma_alloc_coherent(&et_dev->pdev->dev, size, &dma_addr,
+					GFP_USER);
+	if (!kern_vaddr) {
+		dev_err(&et_dev->pdev->dev, "dma_alloc_coherent() failed!\n");
+		return -ENOMEM;
+	}
+
+	rv = remap_pfn_range(vma, vma->vm_start,
+			     page_to_pfn(virt_to_page(kern_vaddr)),
+			     vma_pages(vma) << PAGE_SHIFT, vma->vm_page_prot);
+	if (rv) {
+		dev_err(&et_dev->pdev->dev, "remap_pfn_range() failed!");
+		goto error_dma_free_coherent;
+	}
+
+	map = kzalloc(sizeof(struct et_dma_mapping), GFP_KERNEL);
+	if (!map) {
+		rv = -ENOMEM;
+		goto error_dma_free_coherent;
+	}
+
+	map->usr_vaddr = (void *)vma->vm_start;
+	map->pdev = et_dev->pdev;
+	map->kern_vaddr = kern_vaddr;
+	map->dma_addr = dma_addr;
+	map->size = size;
+	map->ref_count = 0;
+	vma->vm_private_data = map;
+
+	esperanto_pcie_vm_open(vma);
+
+	return 0;
+
+error_dma_free_coherent:
+	dma_free_coherent(&et_dev->pdev->dev, size, kern_vaddr, dma_addr);
+
+	return rv;
+}
+
 static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 				      unsigned long arg)
 {
@@ -532,6 +637,7 @@ static const struct file_operations et_pcie_ops_fops = {
 	.poll = esperanto_pcie_ops_poll,
 #endif
 	.unlocked_ioctl = esperanto_pcie_ops_ioctl,
+	.mmap = esperanto_pcie_ops_mmap,
 	.open = esperanto_pcie_ops_open,
 	.release = esperanto_pcie_ops_release,
 };

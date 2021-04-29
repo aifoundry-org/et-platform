@@ -35,6 +35,8 @@ struct sq_threshold {
 struct dram_info {
 	__u64 base;
 	__u64 size;
+	__u64 dma_max_alloc_size;
+	__u32 dma_max_elem_size;
 	__u16 align_in_bits;
 };
 
