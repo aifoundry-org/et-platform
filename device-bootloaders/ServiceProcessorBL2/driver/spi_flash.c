@@ -111,7 +111,7 @@ static int get_flash_controller_and_slave_ids(SPI_FLASH_ID_t id, SPI_CONTROLLER_
 *
 *   FUNCTION
 *
-*       spi_flash_init
+*       SPI_Flash_Initialize
 *
 *   DESCRIPTION
 *
@@ -127,7 +127,7 @@ static int get_flash_controller_and_slave_ids(SPI_FLASH_ID_t id, SPI_CONTROLLER_
 *
 ***********************************************************************/
 
-int spi_flash_init(SPI_FLASH_ID_t flash_id)
+int SPI_Flash_Initialize(SPI_FLASH_ID_t flash_id)
 {
     SPI_CONTROLLER_ID_t controller_id;
     uint8_t slave_index;
@@ -647,4 +647,64 @@ int spi_flash_sector_erase(SPI_FLASH_ID_t flash_id, uint32_t address)
     return 0;
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       SPI_Flash_Read_Word
+*
+*   DESCRIPTION
+*
+*       This function performs read operation on SPI flash memory.
+*
+*   INPUTS
+*
+*       flash_id           flash id (SPI_FLASH_ON_PACKAGE or SPI_FLASH_OFF_PACKAGE)
+*       address            memory address to read from
+*       size               size of data to read
+*
+*   OUTPUTS
+*
+*       data_buffer        data read from the address
+*
+***********************************************************************/
+int SPI_Flash_Read_Page(SPI_FLASH_ID_t flash_id, uint32_t address, uint32_t* data_buffer, uint32_t size)
+{
+    if (0 != spi_flash_normal_read(flash_id, address, (uint8_t *)data_buffer, size)) {
+        return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
+    }
+
+    return (0);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       SPI_Flash_Read_Word
+*
+*   DESCRIPTION
+*
+*       This function performs read operation on SPI flash memory.
+*
+*   INPUTS
+*
+*       flash_id           flash id (SPI_FLASH_ON_PACKAGE or SPI_FLASH_OFF_PACKAGE)
+*       address            memory address to read from
+*       data_buffer        data to wrote onto memorty location
+*       size               size of data to be written
+*
+*   OUTPUTS
+*
+*       none
+*
+***********************************************************************/
+int SPI_Flash_Write_Page(SPI_FLASH_ID_t flash_id, uint32_t address, uint32_t *data, uint32_t size) 
+{
+    if (0 != spi_flash_page_program(flash_id, address, (uint8_t *)data, size)) {
+        return ERROR_SPI_FLASH_PP_FAILED;
+    }
+
+    return 0;
+}
 #pragma GCC pop_options

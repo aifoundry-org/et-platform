@@ -24,12 +24,32 @@
 #define SPI_FLASH_BLOCK_MASK  0xFFFFul
 #define SPI_FLASH_SECTOR_MASK 0x0FFFul
 
-/*! \fn int spi_flash_init(SPI_FLASH_ID_t flash_id)
-    \brief This function initialize spi controller.
-    \param flash_id - flash id (SPI_FLASH_ON_PACKAGE or SPI_FLASH_OFF_PACKAGE)
+/*! \fn int SPI_Flash_Initialize (uint32_t type)
+    \brief This function initialize flash fs according to given type
+    \param type - type of flash fs to be initialized
     \return The function call status, pass/fail.
 */
-int spi_flash_init(SPI_FLASH_ID_t flash_id);
+int SPI_Flash_Initialize (uint32_t type);
+
+/*! \fn int SPI_Flash_Read_Page(SPI_FLASH_ID_t flash_id, uint32_t address, uint32_t* data_buffer, uint32_t size)
+    \brief This function reads the data from the file of the particular region.
+    \param flash_id flash device id
+    \param address - memory address
+    \param data_buffer - buffer to store data read from the address
+    \param size - size of data to read
+    \return The function call status, pass/fail.
+*/
+int SPI_Flash_Read_Page(SPI_FLASH_ID_t flash_id, uint32_t address, uint32_t* data_buffer, uint32_t size);
+
+/*! \fn int SPI_Flash_Write_Page(SPI_FLASH_ID_t flash_id, uint32_t address, uint32_t *data, uint32_t size) 
+    \brief This function reads the data from the file of the particular region.
+    \param flash_id flash device id
+    \param address - memory address
+    \param data - data to be written on to memory address
+    \param size - size of data
+    \return The function call status, pass/fail.
+*/
+int SPI_Flash_Write_Page(SPI_FLASH_ID_t flash_id, uint32_t address, uint32_t *data, uint32_t size);
 
 /*! \fn int spi_flash_wren(SPI_FLASH_ID_t flash_id)
     \brief This function performs write enable of flash memory.
