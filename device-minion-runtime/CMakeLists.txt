@@ -20,21 +20,20 @@ include(GNUInstallDirs)
 include(DeviceUtils)
 cmake_policy(SET CMP0076 NEW)
 
+option(BUILD_DOC "Build documentation" ON)
 set(DOCUMENTATION_INSTALL_DIR  "${CMAKE_INSTALL_PREFIX}" CACHE STRING "Documentation installation path")
-
-find_package(esperanto-device-api CONFIG REQUIRED)
-message("Esperanto Device API Found: ${esperanto-device-api_FOUND}")
 
 set(BIN_INSTALL_DIR bin CACHE STRING "Bin install dir")
 set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
 set(LIB_INSTALL_DIR  lib/  CACHE STRING "Library install dir")
 set(SYSCONFIG_INSTALL_DIR etc/et-fw/ CACHE STRING "Config install dir")
 
-option(BUILD_DOC "Build documentation" ON)
+
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 
-#Make sure that custom modules are loaded
-list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake)
+find_package(esperanto-device-api CONFIG REQUIRED)
+message("Esperanto Device API Found: ${esperanto-device-api_FOUND}")
 
 ########## Documentation #####################################
 
