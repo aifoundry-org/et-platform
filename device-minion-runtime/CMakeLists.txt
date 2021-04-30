@@ -20,13 +20,6 @@ include(GNUInstallDirs)
 include(DeviceUtils)
 cmake_policy(SET CMP0076 NEW)
 
-# Providers for third-party dependencies (gRPC_*_PROVIDER properties):
-# "module": build the dependency using sources from git submodule under external
-# "package": use cmake's find_package functionality to locate a pre-installed dependency
-# TODO enable correct use of package to find preinstalled dependencies for now "package"
-# will mean to use the DEPENDENCIES_PATH to derive the include and library paths
-set(devicefw_CODE_SIGNING_TOOLS_PROVIDER "module" CACHE STRING "Provider of code signing tools library")
-set_property(CACHE devicefw_CODE_SIGNING_TOOLS_PROVIDER PROPERTY STRINGS "module" "package")
 set(DOCUMENTATION_INSTALL_DIR  "${CMAKE_INSTALL_PREFIX}" CACHE STRING "Documentation installation path")
 
 find_package(esperanto-device-api CONFIG REQUIRED)
@@ -37,18 +30,8 @@ set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
 set(LIB_INSTALL_DIR  lib/  CACHE STRING "Library install dir")
 set(SYSCONFIG_INSTALL_DIR etc/et-fw/ CACHE STRING "Config install dir")
 
-set(EXTERNAL_PROJECT_DEPENDENCIES "" CACHE STRING "External project list")
-
-set(DEVFW_EXTERNAL_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/external-install"
-  CACHE PATH "Installation path of external dependencies")
-
-list(APPEND CMAKE_PREFIX_PATH ${DEVFW_EXTERNAL_INSTALL_PREFIX})
-
 option(BUILD_DOC "Build documentation" ON)
 
-# Git configuration options to pass when building projects we clone
-# when building an external project
-set(GIT_CONFIG_OPTIONS "http.sslVerify=false http.proxy=http://sc-squid-sw.esperanto.ai:3128")
 
 #Make sure that custom modules are loaded
 list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake)
