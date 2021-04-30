@@ -16,11 +16,8 @@ set(DEVICE_MINION_RUNTIME_REVISION_NUMBER 1)
 
 include(ExternalProject)
 include(GNUInstallDirs)
+include(DeviceUtils)
 cmake_policy(SET CMP0076 NEW)
-
-set(GCC_SYSROOT_PATH /esperanto/minion CACHE STRING "Path to the gcc riscv toolchain sysroot folder")
-# Must set CMAKE_TOOLCHAIN_FILE before project() is called
-set(CMAKE_TOOLCHAIN_FILE Toolchain-gcc-riscv.cmake)
 
 project(DeviceFirmware VERSION 0.1.0 LANGUAGES C ASM)
 
