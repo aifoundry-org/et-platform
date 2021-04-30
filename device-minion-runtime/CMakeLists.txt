@@ -32,7 +32,6 @@ set(DOCUMENTATION_INSTALL_DIR  "${CMAKE_INSTALL_PREFIX}" CACHE STRING "Documenta
 find_package(esperanto-device-api CONFIG REQUIRED)
 message("Esperanto Device API Found: ${esperanto-device-api_FOUND}")
 
-set(CMAKE_VERBOSE_MAKEFILE OFF)
 set(BIN_INSTALL_DIR bin CACHE STRING "Bin install dir")
 set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
 set(LIB_INSTALL_DIR  lib/  CACHE STRING "Library install dir")
