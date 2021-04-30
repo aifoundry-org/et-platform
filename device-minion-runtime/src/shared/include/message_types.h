@@ -98,8 +98,7 @@ ASSERT_CACHE_LINE_CONSTRAINTS(mm_to_cm_message_pmc_configure_t);
 typedef enum {
     CM_TO_MM_MESSAGE_ID_NONE = 0x80u,
     /* Kernel specific messages start from here */
-    CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ACK,
-    CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_NACK,
+    CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ERROR,
     CM_TO_MM_MESSAGE_ID_KERNEL_ABORT_NACK,
     CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE,
     CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION,
@@ -135,19 +134,12 @@ ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_exception_t);
 
 typedef struct {
     cm_iface_message_header_t header;
-    uint32_t shire_id;
+    uint64_t hart_id;
     uint8_t slot_index;
-} __attribute__((packed, aligned(64))) cm_to_mm_message_kernel_launch_ack_t;
+    int8_t error_code;
+} __attribute__((packed, aligned(64))) cm_to_mm_message_kernel_launch_error_t;
 
-ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_kernel_launch_ack_t);
-
-typedef struct {
-    cm_iface_message_header_t header;
-    uint32_t shire_id;
-    uint8_t slot_index;
-} __attribute__((packed, aligned(64))) cm_to_mm_message_kernel_launch_nack_t;
-
-ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_kernel_launch_nack_t);
+ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_kernel_launch_error_t);
 
 typedef struct {
     cm_iface_message_header_t header;

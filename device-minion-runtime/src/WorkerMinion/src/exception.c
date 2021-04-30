@@ -27,6 +27,11 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
     asm volatile("csrr %0, sstatus" : "=r"(sstatus));
     user_mode = ((sstatus & 0x100U) >> 8U) == 0;
 
+    /* TODO: Save the execution context in the buffer provided as an argument in kernel launch */
+    /* Save the execution context in the buffer provided */
+    CM_To_MM_Save_Execution_Context((execution_context_t*)CM_EXECUTION_CONTEXT_BUFFER,
+        kernel_launch_get_pending_shire_mask(), hart_id, scause, sepc, stval, sstatus, reg);
+
     if (!user_mode)
     {
         log_write(LOG_LEVEL_CRITICAL,
@@ -36,11 +41,6 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
         send_exception_message(scause, sepc, stval, sstatus, hart_id, shire_id, user_mode);
     }
 
-    /* TODO: Save the execution context in the buffer provided as an argument in kernel launch */
-    /* Save the execution context in the buffer provided */
-    CM_To_MM_Save_Execution_Context((execution_context_t*)CM_EXECUTION_CONTEXT_BUFFER,
-        kernel_launch_get_pending_shire_mask(), hart_id, scause, sepc, stval, sstatus, reg);
-
     /* First hart in the shire that took exception will do a self abort
     and send IPI to other harts in the shire to abort as well
     NOTE: The harts in U-mode will trap only on IPI. Harts that will enter exception handler
@@ -49,7 +49,7 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
     {
         /* Only send kernel launch abort message once to MM.
         MM will send kernel abort message to rest of the shires */
-        if(kernel_launch_set_global_abort_flag())
+        if(kernel_launch_set_global_abort_flag() && user_mode)
         {
             /* Sends exception message to MM */
             send_exception_message(scause, sepc, stval, sstatus, hart_id, shire_id, user_mode);
@@ -57,13 +57,9 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
 
         /* Send the IPI to all other Harts in this shire */
         syscall(SYSCALL_IPI_TRIGGER_INT, MASK_RESET_BIT(0xFFFFFFFFFFFFFFFFu, hart_id % 64), shire_id, 0);
+    }
 
-        return_from_kernel(KERNEL_ERROR_EXCEPTION);
-    }
-    else
-    {
-        return_from_kernel(KERNEL_ERROR_EXCEPTION);
-    }
+    return_from_kernel(KERNEL_ERROR_EXCEPTION);
 }
 
 static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t mstatus,

@@ -736,8 +736,6 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                         cm_to_mm_message_exception_t *exception =
                             (cm_to_mm_message_exception_t *)&message;
 
-                        /* TODO: SW-7528: We should receive a single exception message only */
-
                         Log_Write(LOG_LEVEL_DEBUG,
                             "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION from S%" PRId32 "\r\n",
                             exception->shire_id);
@@ -763,6 +761,30 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 
                             cw_exception = true;
                         }
+                        break;
+                    }
+                    case CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ERROR:
+                    {
+                        cm_to_mm_message_kernel_launch_error_t *error =
+                            (cm_to_mm_message_kernel_launch_error_t *)&message;
+
+                        /* Fatal error received. Try to recover kernel shires by sending abort message */
+                        /* TODO: Inform SP about this error */
+
+                        Log_Write(LOG_LEVEL_DEBUG,
+                            "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ERROR from H%" PRId64 "\r\n",
+                            error->hart_id);
+
+                        /* Multicast abort to shires associated with current kernel slot */
+                        message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
+
+                        /* Blocking call (with timeout) that blocks till
+                        all shires ack */
+                        status_internal = CM_Iface_Multicast_Send(kernel_shire_mask, &message);
+
+                        /* Set error and done flag */
+                        cw_error = true;
+                        kernel_done = true;
                         break;
                     }
                     default:

@@ -76,6 +76,10 @@ test_if_environment_call:
 handle_interrupt:
     li    t2, ((1 << 63) | SUPERVISOR_SOFTWARE_INTERRUPT)
     bne   t2, t0, as_yet_unhandled      /* Something as yet unhandled. */
+    mv    a0, t0                        /* 1st argument = scause */
+    mv    a1, t1                        /* 2nd argument = sepc */
+    csrr  a2, stval                     /* 3rd argument = stval */
+    mv    a3, sp                        /* 4th argument = pointer to regs on stack */
     la    ra, processed_source
     j     swi_handler                   /* Software interrupt */
 

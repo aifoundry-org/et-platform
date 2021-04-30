@@ -223,11 +223,33 @@ static inline void local_spinwait_set(spinlock_t *lock, uint32_t value)
     asm volatile("fence\n" ::: "memory");
 }
 
-static inline void local_spinwait_wait(const spinlock_t *lock, uint32_t value)
+/* This function spins and waits until the specified value is set in flag.
+Timeout is optional. Timeout = 0 (Blocking mode), lse waits and polls until timeout expires. */
+static inline bool local_spinwait_wait(const spinlock_t *lock, uint32_t value, uint64_t timeout)
 {
-    while (atomic_load_local_32(&lock->flag) != value) {
-        asm volatile("fence\n" ::: "memory");
+    if(timeout != 0)
+    {
+        /* Poll with timeout */
+        while ((atomic_load_local_32(&lock->flag) != value) && (timeout)) {
+            asm volatile("fence\n" ::: "memory");
+            timeout--;
+        }
+
+        /* Check for timeout expire */
+        if(!timeout)
+        {
+            return false;
+        }
     }
+    else
+    {
+        /* Poll without timeout */
+        while (atomic_load_local_32(&lock->flag) != value) {
+            asm volatile("fence\n" ::: "memory");
+        }
+    }
+
+    return true;
 }
 
 #endif

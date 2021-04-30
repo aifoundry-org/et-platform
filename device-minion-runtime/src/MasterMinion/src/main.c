@@ -78,21 +78,21 @@ void main(void)
             (hart_id < SQW_MAX_HART_ID) && HART_PARITY(hart_id))
     {
         /* Spin wait till dispatcher initialization is complete */
-        local_spinwait_wait(&Launch_Wait, 1);
+        local_spinwait_wait(&Launch_Wait, 1, 0);
         SQW_Launch(hart_id, (hart_id - SQW_BASE_HART_ID) / WORKER_HART_FACTOR);
     }
     else if ((hart_id >= KW_BASE_HART_ID) &&
             (hart_id < KW_MAX_HART_ID) && HART_PARITY(hart_id))
     {
         /* Spin wait till dispatcher initialization is complete */
-        local_spinwait_wait(&Launch_Wait, 1);
+        local_spinwait_wait(&Launch_Wait, 1, 0);
         KW_Launch(hart_id, (hart_id - KW_BASE_HART_ID) / WORKER_HART_FACTOR);
     }
     else if ((hart_id >= DMAW_BASE_HART_ID) &&
             (hart_id < DMAW_MAX_HART_ID) && HART_PARITY(hart_id))
     {
         /* Spin wait till dispatcher initialization is complete */
-        local_spinwait_wait(&Launch_Wait, 1);
+        local_spinwait_wait(&Launch_Wait, 1, 0);
         DMAW_Launch(hart_id);
     }
     else

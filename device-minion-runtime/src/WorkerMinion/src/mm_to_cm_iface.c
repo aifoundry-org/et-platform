@@ -1,3 +1,4 @@
+#include "cm_to_mm_iface.h"
 #include "etsoc_memory.h"
 #include "flb.h"
 #include "cacheops.h"
@@ -28,7 +29,8 @@ static mm_cm_message_number_t mm_cm_msg_number[NUM_SHIRES] = { 0 };
 static spinlock_t notify_local_barrier[NUM_SHIRES] = { 0 };
 
 /* Local function prototypes */
-static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart, cm_iface_message_t *const message_ptr);
+static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
+    cm_iface_message_t *const message_ptr, void *const optional_arg);
 
 /* Identify the last thread in pool */
 static inline bool find_last_thread(spinlock_t *lock, uint32_t num_threads)
@@ -83,11 +85,11 @@ void __attribute__((noreturn)) MM_To_CM_Iface_Main_Loop(void)
         asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
 
         /* Receive and process message buffer */
-        MM_To_CM_Iface_Multicast_Receive();
+        MM_To_CM_Iface_Multicast_Receive(0);
     }
 }
 
-void MM_To_CM_Iface_Multicast_Receive(void)
+void MM_To_CM_Iface_Multicast_Receive(void *const optional_arg)
 {
     const uint32_t shire_id = get_shire_id();
     const uint32_t hart_id = get_hart_id();
@@ -112,11 +114,12 @@ void MM_To_CM_Iface_Multicast_Receive(void)
         atomic_store_local_8(addr, message.header.number);
 
         /* Handle the message */
-        mm_to_cm_iface_handle_message(shire_id, hart_id, &message);
+        mm_to_cm_iface_handle_message(shire_id, hart_id, &message, optional_arg);
     }
 }
 
-static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart, cm_iface_message_t *const message_ptr)
+static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
+    cm_iface_message_t *const message_ptr, void *const optional_arg)
 {
     switch (message_ptr->header.id)
     {
@@ -144,6 +147,17 @@ static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart, cm_ifac
         /* Should only abort if the kernel was launched on this hart */
         if (kernel_info_has_thread_launched(shire, hart & (HARTS_PER_SHIRE - 1)))
         {
+            /* Check if pointer to execution context was set */
+            if (optional_arg != 0)
+            {
+                swi_execution_context_t *context = (swi_execution_context_t*)optional_arg;
+
+                /* Save the execution context in the buffer provided */
+                CM_To_MM_Save_Execution_Context((execution_context_t*)CM_EXECUTION_CONTEXT_BUFFER,
+                    kernel_launch_get_pending_shire_mask(), hart, context->scause, context->sepc,
+                    context->stval, context->sstatus, context->regs);
+            }
+
             return_from_kernel(KERNEL_LAUNCH_ERROR_ABORTED);
         }
         break;

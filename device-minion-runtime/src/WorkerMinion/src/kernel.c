@@ -56,10 +56,10 @@ static inline bool find_last_thread(spinlock_t *lock, uint32_t num_threads)
 }
 
 // This barrier is required to synchronize all Shires before launching the Kernels
-static void synchronize_shires(spinlock_t *lock, uint32_t num_shires)
+static void pre_launch_synchronize_shires(spinlock_t *lock, uint32_t num_shires)
 {
     const uint64_t shire_id = get_shire_id();
-    const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
+    const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
     bool last;
 
     last = find_last_thread(&pre_launch_local_barrier[shire_id], thread_count);
@@ -79,8 +79,8 @@ static void synchronize_shires(spinlock_t *lock, uint32_t num_shires)
         init_local_spinlock(&pre_launch_local_barrier[shire_id], 0);
     }
 
-    // All threads in Shire wait for Last Thread to clear flag
-    local_spinwait_wait(&pre_launch_local_barrier[shire_id],0);
+    /* All threads in Shire wait for Last Thread to clear flag */
+    local_spinwait_wait(&pre_launch_local_barrier[shire_id], 0, 0);
 }
 
 bool kernel_launch_set_global_abort_flag(void)
@@ -211,7 +211,7 @@ int64_t launch_kernel(uint8_t kw_base_id,
     pre_kernel_setup(kw_base_id, slot_index, kernel_shire_mask, kernel_launch_flags);
 
     /* Wait until all the Shires involved in the kernel launch reach this sync point */
-    synchronize_shires(&pre_launch_global_barrier, (uint32_t)__builtin_popcountll(kernel_shire_mask));
+    pre_launch_synchronize_shires(&pre_launch_global_barrier, (uint32_t)__builtin_popcountll(kernel_shire_mask));
 
     /* Set the thread state to kernel launched */
     kernel_info_set_thread_launched(get_shire_id(), get_hart_id() & (HARTS_PER_SHIRE - 1));
@@ -463,9 +463,9 @@ void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t 
 {
     const uint32_t shire_id = get_shire_id();
     const uint64_t thread_id = get_hart_id() & (HARTS_PER_SHIRE - 1);
-    const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
-    const uint32_t minion_mask = (get_shire_id() == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
-    const uint64_t thread_mask = (get_shire_id() == MASTER_SHIRE) ? 0xFFFFFFFF00000000U : 0xFFFFFFFFFFFFFFFFU;
+    const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
+    const uint32_t minion_mask = (shire_id == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
+    const uint64_t thread_mask = (shire_id == MASTER_SHIRE) ? 0xFFFFFFFF00000000U : 0xFFFFFFFFFFFFFFFFU;
     uint64_t prev_completed_threads;
     uint64_t prev_shire_mask;
     int8_t status;
