@@ -12,9 +12,19 @@
 # compile for the host. CMake does not support having different targets use
 # different toolchains in the same build. For simplicity submodules that are self
 # contained build as external projects, otherwise a two-step process would be needded.
-include(ExternalProject)
 
-set(SOURCES
+set(LINKER_SCRIPT src/sections.ld)
+set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
+
+include_directories(${SHARED_INC_DIRS})
+
+if(EsperantoCryptoAPI_FOUND)
+  include_directories(${CRYPTO_HEADERS})
+else()
+  include_directories(${CRYPTO_HEADERS}/esperanto/crypto-api)
+endif(EsperantoCryptoAPI_FOUND)
+
+add_riscv_executable(MasterMinion 
     src/crt.S
     src/trap_handler.S
     src/exception.c
@@ -47,35 +57,26 @@ set(SOURCES
     ${SHARED_SRC_DIR}/broadcast.c
     ${SHARED_SRC_DIR}/circbuff.c
     ${SHARED_SRC_DIR}/vq.c
-    )
+)
 
-set(TARGET_NAME MasterMinion)
-set(LINKER_SCRIPT src/sections.ld)
-set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
+target_compile_definitions(MasterMinion.elf PUBLIC -DMASTER_MINION=1)
+target_include_directories(MasterMinion.elf
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    PRIVATE
+        ${ESPERANTO_DEVICE_API_INCLUDE_DIR}
+)
+target_link_libraries(MasterMinion.elf PUBLIC deviceFirmware::device_trace)
 
-include_directories(include)
-include_directories(${ESPERANTO_DEVICE_API_INCLUDE_DIR})
-include_directories(${SHARED_INC_DIRS})
+install(TARGETS MasterMinion.elf
+    EXPORT EsperantoDeviceMinionRuntimeTargets
+    RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/MasterMinion
+    COMPONENT master-minion
+)
 
-if(EsperantoCryptoAPI_FOUND)
-  include_directories(${CRYPTO_HEADERS})
-else()
-  include_directories(${CRYPTO_HEADERS}/esperanto/crypto-api)
-endif(EsperantoCryptoAPI_FOUND)
-
-add_riscv_executable(${TARGET_NAME} ${SOURCES})
-
-target_compile_definitions(${TARGET_NAME}.elf PUBLIC -DMASTER_MINION=1)
-
-target_link_libraries(${TARGET_NAME}.elf PUBLIC deviceFirmware::device_trace)
-
-install(TARGETS ${TARGET_NAME}.elf
-  EXPORT EsperantoDeviceMinionRuntimeTargets
-  RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/MasterMinion
-  COMPONENT master-minion)
-
-install(
-  FILES ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.lst
-        ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.map
-  DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/MasterMinion
-  COMPONENT master-minion)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/MasterMinion.lst
+              ${CMAKE_CURRENT_BINARY_DIR}/MasterMinion.map
+    DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/MasterMinion
+    COMPONENT master-minion
+)
