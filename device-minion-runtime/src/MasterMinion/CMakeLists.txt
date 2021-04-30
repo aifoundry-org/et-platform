@@ -64,10 +64,12 @@ target_include_directories(MasterMinion.elf
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-    PRIVATE
-        ${ESPERANTO_DEVICE_API_INCLUDE_DIR}
 )
-target_link_libraries(MasterMinion.elf PUBLIC deviceFirmware::device_trace)
+target_link_libraries(MasterMinion.elf
+    PUBLIC
+        deviceFirmware::device_trace
+        deviceApi::deviceApi
+)
 
 install(TARGETS MasterMinion.elf
     EXPORT EsperantoDeviceMinionRuntimeTargets

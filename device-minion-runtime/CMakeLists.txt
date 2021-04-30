@@ -32,8 +32,7 @@ set(SYSCONFIG_INSTALL_DIR etc/et-fw/ CACHE STRING "Config install dir")
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 
-find_package(esperanto-device-api CONFIG REQUIRED)
-message("Esperanto Device API Found: ${esperanto-device-api_FOUND}")
+find_package(deviceApi REQUIRED)
 
 ########## Documentation #####################################
 
