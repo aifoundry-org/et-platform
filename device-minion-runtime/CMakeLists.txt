@@ -51,7 +51,7 @@ add_subdirectory(external)
 
 ############################ FW build Rules ############### ####################
 
-include_directories("${PROJECT_BINARY_DIR}/src/shared/include")
+include_directories(${PROJECT_BINARY_DIR}/src/shared/include)
 
 add_subdirectory(src)
 add_subdirectory(scripts)
@@ -77,12 +77,12 @@ write_basic_package_version_file(
 
 # Install the *Config.cmake and *ConfigVersion.cmake
 install(FILES
-  "${CMAKE_CURRENT_BINARY_DIR}/EsperantoDeviceMinionRuntimeConfig.cmake"
-  "${CMAKE_CURRENT_BINARY_DIR}/EsperantoDeviceMinionRuntimeConfigVersion.cmake"
+  ${CMAKE_CURRENT_BINARY_DIR}/EsperantoDeviceMinionRuntimeConfig.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/EsperantoDeviceMinionRuntimeConfigVersion.cmake
   DESTINATION ${LIB_INSTALL_DIR}/cmake/EsperantoDeviceMinionRuntime
   COMPONENT machine-minion)
 
 # Install the export set for use with the install-tree
 install(EXPORT EsperantoDeviceMinionRuntimeTargets
   NAMESPACE EsperantoDeviceMinionRuntime::
-  DESTINATION "${LIB_INSTALL_DIR}/cmake/EsperantoDeviceMinionRuntime")
+  DESTINATION ${LIB_INSTALL_DIR}/cmake/EsperantoDeviceMinionRuntime)
