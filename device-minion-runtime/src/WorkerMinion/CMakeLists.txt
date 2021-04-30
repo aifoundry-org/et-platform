@@ -8,7 +8,18 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-set(SOURCES
+set(LINKER_SCRIPT src/sections.ld)
+set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
+
+include_directories(${SHARED_INC_DIRS})
+
+if(EsperantoCryptoAPI_FOUND)
+  include_directories(${CRYPTO_HEADERS})
+else()
+  include_directories(${CRYPTO_HEADERS}/esperanto/crypto-api)
+endif(EsperantoCryptoAPI_FOUND)
+
+add_riscv_executable(WorkerMinion
     src/crt.S
     src/trap_handler.S
     src/syscall.c
@@ -25,31 +36,23 @@ set(SOURCES
     ${SHARED_SRC_DIR}/etsoc_memory.c
     ${SHARED_SRC_DIR}/printf.c
     ${SHARED_SRC_DIR}/serial.c
-    )
+)
+target_include_directories(WorkerMinion.elf
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    PRIVATE
+        ${ESPERANTO_DEVICE_API_INCLUDE_DIR}
+)
 
-set(TARGET_NAME WorkerMinion)
-set(LINKER_SCRIPT src/sections.ld)
-set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
+install(TARGETS WorkerMinion.elf
+    EXPORT EsperantoDeviceMinionRuntimeTargets
+    RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/WorkerMinion
+    COMPONENT worker-minion
+)
 
-include_directories(include)
-include_directories(${SHARED_INC_DIRS})
-include_directories(${ESPERANTO_DEVICE_API_INCLUDE_DIR})
-
-if(EsperantoCryptoAPI_FOUND)
-  include_directories(${CRYPTO_HEADERS})
-else()
-  include_directories(${CRYPTO_HEADERS}/esperanto/crypto-api)
-endif(EsperantoCryptoAPI_FOUND)
-
-add_riscv_executable(${TARGET_NAME} ${SOURCES})
-
-install(TARGETS ${TARGET_NAME}.elf
-  EXPORT EsperantoDeviceMinionRuntimeTargets
-  RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/WorkerMinion
-  COMPONENT worker-minion)
-
-install(
-  FILES ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.lst
-        ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.map
-  DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/WorkerMinion
-  COMPONENT worker-minion)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/WorkerMinion.lst
+        ${CMAKE_CURRENT_BINARY_DIR}/WorkerMinion.map
+    DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/WorkerMinion
+    COMPONENT worker-minion
+)
