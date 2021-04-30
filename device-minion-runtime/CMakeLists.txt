@@ -9,17 +9,16 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.5)
+project(DeviceFirmware VERSION 0.0.1 LANGUAGES C ASM)
 
-set(DEVICE_MINION_RUNTIME_VERSION_MAJOR   0)
-set(DEVICE_MINION_RUNTIME_VERSION_MINOR   0)
-set(DEVICE_MINION_RUNTIME_REVISION_NUMBER 1)
+set(DEVICE_MINION_RUNTIME_VERSION_MAJOR   ${CMAKE_MAJOR_VERSION})
+set(DEVICE_MINION_RUNTIME_VERSION_MINOR   ${CMAKE_MINOR_VERSION})
+set(DEVICE_MINION_RUNTIME_REVISION_NUMBER ${CMAKE_PATCH_VERSION})
 
 include(ExternalProject)
 include(GNUInstallDirs)
 include(DeviceUtils)
 cmake_policy(SET CMP0076 NEW)
-
-project(DeviceFirmware VERSION 0.1.0 LANGUAGES C ASM)
 
 # Providers for third-party dependencies (gRPC_*_PROVIDER properties):
 # "module": build the dependency using sources from git submodule under external
