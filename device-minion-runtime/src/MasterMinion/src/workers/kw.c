@@ -796,7 +796,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         }
 
         /* Kernel run complete with host abort, exception or success.
-        Prepare response and reclaim resources */
+        reclaim resources and Prepare response */
 
         struct device_ops_kernel_launch_rsp_t launch_rsp;
 

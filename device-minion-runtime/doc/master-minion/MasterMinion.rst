@@ -79,6 +79,27 @@ the sections below.
 
 **Host Interface:**
 
+Figure 2 below shows the key interfaces which the Master Minion Shire interacts at the Hardware layer.
+Note the Master Minion Shire is divided into 2 separate domain - 1 for performing tasks related
+to scheduling operation commands from the Host, and 2 participate as part of the Compute Minion Shires
+to execute Compute Kernels.
+Tasks are distributed within the 16 Cores in Master Minion as follows
+- Dispatcher Core - handle all interrupts on behalf of the Master Minion Runtime
+- Submission Queue Worker - handles poping command from the Virtual Queue buffer
+                            and executing the command. There can be many SQW (upto 4) each 
+                            on executing on a separate Core
+- DMA Workers - handles checking status of pending DMA channels, and handling completion of the
+                respective channels. Note there are 2 Workers handling: RX channels and TX channels
+- Kernel Workers - handles checking status of pending Kernel execution on slots of Compute Minions
+                   and handling completion of the kernel execution. Note there can be upto 2 as we 
+                   simultaneous Kernel execution - clusters of Compute Shires
+- PMC Sampler - handles sampling of Performance Counters for Shire Caches, MemShire, (NOC - TBD), PCI Controller
+- Compute Minion PLL Freq Update Worker - handles updating the Compute PLLs as per the DVFS algorithm
+ 
+.. figure:: Master-Minion-HW-Interfaces.png
+**Figure 2 : Master Minion Physical Shire and interfaces to different Hardware Interfaces
+
+
 Host submits commands to device using the Host to Device Submission Queue (SQ) interface that serves
 as the transport layer. A set of Command/Response bindings called the *Device Ops API* serves as the
 logical layer using which host offloads work to the device minion runtime firmware.  

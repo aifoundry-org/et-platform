@@ -7,8 +7,11 @@
         {"name":"DMA RX Worker","id":@DMAW_RX_HART_ID@},
         {"name":"DMA TX Worker","id":@DMAW_TX_HART_ID@}
     ]},
-    {"name":"Compute Minion Shire","id":5,"threads":[
+    {"name":"Compute Minion Shire 0","id":2,"threads":[
         {"name":"Compute Runtime","id":0}
+    ]},
+    {"name":"Compute Minion Shire 32","id":3,"threads":[
+        {"name":"Compute Runtime","id":2080}
     ]},
     {"name":"IO Shire","id":34,"threads":[
         {"name":"Service Processor Runtime","id":16256}
