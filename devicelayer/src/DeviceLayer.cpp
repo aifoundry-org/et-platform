@@ -17,6 +17,7 @@ std::unique_ptr<IDeviceLayer> IDeviceLayer::createSysEmuDeviceLayer(const emu::S
   return std::make_unique<DeviceSysEmu>(options);
 }
 
-std::unique_ptr<IDeviceLayer> IDeviceLayer::createPcieDeviceLayer() {
-  return std::make_unique<DevicePcie>();
+std::unique_ptr<IDeviceLayer> IDeviceLayer::createPcieDeviceLayer(bool enableMasterMinion,
+                                                                  bool enableServiceProcessor) {
+  return std::make_unique<DevicePcie>(enableMasterMinion, enableServiceProcessor);
 }

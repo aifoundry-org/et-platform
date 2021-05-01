@@ -47,14 +47,23 @@ constexpr int kNumDevices = 1;
 }
 
 int DevicePcie::getDmaAlignment() const {
+  if (!opsEnabled_) {
+    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
+  }
   return userDram_.align_in_bits;
 }
 
 size_t DevicePcie::getDramSize() const {
+  if (!opsEnabled_) {
+    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
+  }
   return userDram_.size;
 }
 
 uint64_t DevicePcie::getDramBaseAddress() const {
+  if (!opsEnabled_) {
+    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
+  }
   return userDram_.base;
 }
 
@@ -64,101 +73,122 @@ int DevicePcie::getDevicesCount() const {
 }
 
 int DevicePcie::getSubmissionQueuesCount(int device) const {
+  if (!opsEnabled_) {
+    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
+  }
   return mmSqCount_;
 }
 
 size_t DevicePcie::getSubmissionQueueSizeMasterMinion(int device) const {
+  if (!opsEnabled_) {
+    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
+  }
   // Size of all submission queues is same.
   return mmSqMaxMsgSize_;
 }
 
 size_t DevicePcie::getSubmissionQueueSizeServiceProcessor(int device) const {
+  if (!mngmtEnabled_) {
+    throw Exception("Can't use Service Processor operations if service processor port is not enabled");
+  }
   return spSqMaxMsgSize_;
 }
 
-DevicePcie::DevicePcie() {
+DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
+  : opsEnabled_(enableOps)
+  , mngmtEnabled_(enableMngmt) {
   // TODO: SW-5934: Multiple devices handling in deviceLayer
   // Currently device 0 is initialized only
   devIdx_ = 0;
+  LOG_IF(FATAL, enableOps || enableMngmt) << "Ops or Mngmt must be enabled";
 
-  char path[32];
-  std::snprintf(path, sizeof(path), "/dev/et%d_mgmt", devIdx_);
 
-  fdMgmt_ = open(path, O_RDWR | O_NONBLOCK);
-  if (fdMgmt_ < 0) {
-    throw Exception("Error opening mgmt file: '"s + std::strerror(errno) + "'"s);
+  if (mngmtEnabled_) {
+    char path[32];  
+    std::snprintf(path, sizeof(path), "/dev/et%d_mgmt", devIdx_);
+    fdMgmt_ = open(path, O_RDWR | O_NONBLOCK);
+    if (fdMgmt_ < 0) {
+      throw Exception("Error opening mgmt file: '"s + std::strerror(errno) + "'"s);
+    }
+    DV_LOG(INFO) << "PCIe target mgmt opened: \"" << path << "\"\n";
+
+    wrap_ioctl(fdMgmt_, ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE, &spSqMaxMsgSize_);
+    DV_LOG(INFO) << "SP VQ Maximum message size: " << spSqMaxMsgSize_ << "\n";
+    epFdMgmt_ = epoll_create(1);
+    if (epFdMgmt_ < 0) {
+      throw Exception("Error opening epoll file for mgmt: '"s + std::strerror(errno) + "'"s);
+    }
+    epoll_event epEvent;
+    epEvent.events = EPOLLIN | EPOLLOUT | EPOLLET;
+    epEvent.data.fd = fdMgmt_;
+
+    if (epoll_ctl(epFdMgmt_, EPOLL_CTL_ADD, fdMgmt_, &epEvent) < 0) {
+      throw Exception("Error setting up epoll on mgmt file: '"s + std::strerror(errno) + "'"s);
+    }
   }
-  DV_LOG(INFO) << "PCIe target mgmt opened: \"" << path << "\"\n";
+  if (opsEnabled_) {
+    char path[32];  
+    std::snprintf(path, sizeof(path), "/dev/et%d_ops", devIdx_);
+    fdOps_ = open(path, O_RDWR | O_NONBLOCK);
+    if (fdOps_ < 0) {
+      throw Exception("Error opening ops file: '"s + std::strerror(errno) + "'"s);
+    }
+    DV_LOG(INFO) << "PCIe target ops opened: \"" << path << "\"\n";
 
-  wrap_ioctl(fdMgmt_, ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE, &spSqMaxMsgSize_);
-  DV_LOG(INFO) << "SP VQ Maximum message size: " << spSqMaxMsgSize_ << "\n";
+    wrap_ioctl(fdOps_, ETSOC1_IOCTL_GET_USER_DRAM_INFO, &userDram_);
+    DV_LOG(INFO) << "DRAM base: 0x" << std::hex << userDram_.base << "\n";
+    DV_LOG(INFO) << "DRAM size: 0x" << std::hex << userDram_.size << "\n";
+    DV_LOG(INFO) << "DRAM alignment: " << userDram_.align_in_bits << "bits" << "\n";
 
-  std::snprintf(path, sizeof(path), "/dev/et%d_ops", devIdx_);
-  fdOps_ = open(path, O_RDWR | O_NONBLOCK);
-  if (fdOps_ < 0) {
-    throw Exception("Error opening ops file: '"s + std::strerror(errno) + "'"s);
-  }
-  DV_LOG(INFO) << "PCIe target ops opened: \"" << path << "\"\n";
+    wrap_ioctl(fdOps_, ETSOC1_IOCTL_GET_SQ_COUNT, &mmSqCount_);
+    DV_LOG(INFO) << "MM SQ count: " << mmSqCount_ << "\n";
 
-  wrap_ioctl(fdOps_, ETSOC1_IOCTL_GET_USER_DRAM_INFO, &userDram_);
-  DV_LOG(INFO) << "DRAM base: 0x" << std::hex << userDram_.base << "\n";
-  DV_LOG(INFO) << "DRAM size: 0x" << std::hex << userDram_.size << "\n";
-  DV_LOG(INFO) << "DRAM alignment: " << userDram_.align_in_bits << "bits" << "\n";
+    wrap_ioctl(fdOps_, ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE, &mmSqMaxMsgSize_);
+    DV_LOG(INFO) << "MM VQ Maximum message size: " << mmSqMaxMsgSize_ << "\n";
 
-  wrap_ioctl(fdOps_, ETSOC1_IOCTL_GET_SQ_COUNT, &mmSqCount_);
-  DV_LOG(INFO) << "MM SQ count: " << mmSqCount_ << "\n";
+    epFdOps_ = epoll_create(1);
+    if (epFdOps_ < 0) {
+      throw Exception("Error opening epoll file for ops: '"s + std::strerror(errno) + "'"s);
+    }
+    epoll_event epEvent;
+    epEvent.events = EPOLLIN | EPOLLOUT | EPOLLET;
+    epEvent.data.fd = fdOps_;
 
-  wrap_ioctl(fdOps_, ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE, &mmSqMaxMsgSize_);
-  DV_LOG(INFO) << "MM VQ Maximum message size: " << mmSqMaxMsgSize_ << "\n";
-
-  epFdOps_ = epoll_create(1);
-  if (epFdOps_ < 0) {
-    throw Exception("Error opening epoll file for ops: '"s + std::strerror(errno) + "'"s);
-  }
-
-  epoll_event epEvent;
-  epEvent.events = EPOLLIN | EPOLLOUT | EPOLLET;
-  epEvent.data.fd = fdOps_;
-
-  if (epoll_ctl(epFdOps_, EPOLL_CTL_ADD, fdOps_, &epEvent) < 0) {
-    throw Exception("Error setting up epoll on ops file: '"s + std::strerror(errno) + "'"s);
-  }
-
-  epFdMgmt_ = epoll_create(1);
-  if (epFdMgmt_ < 0) {
-    throw Exception("Error opening epoll file for mgmt: '"s + std::strerror(errno) + "'"s);
-  }
-
-  epEvent.data.fd = fdMgmt_;
-
-  if (epoll_ctl(epFdMgmt_, EPOLL_CTL_ADD, fdMgmt_, &epEvent) < 0) {
-    throw Exception("Error setting up epoll on mgmt file: '"s + std::strerror(errno) + "'"s);
-  }
+    if (epoll_ctl(epFdOps_, EPOLL_CTL_ADD, fdOps_, &epEvent) < 0) {
+      throw Exception("Error setting up epoll on ops file: '"s + std::strerror(errno) + "'"s);
+    }
+  }  
 }
 
 DevicePcie::~DevicePcie() {
-  auto res = close(fdOps_);
-  if (res < 0) {
-    DV_LOG(FATAL) << "Failed to close ops file, error: " << std::strerror(errno) << "\n";
-  }
+  if (opsEnabled_) {
+    auto res = close(fdOps_);
+    if (res < 0) {
+      DV_LOG(FATAL) << "Failed to close ops file, error: " << std::strerror(errno) << "\n";
+    }
 
-  res = close(epFdOps_);
-  if (res < 0) {
-    DV_LOG(FATAL) << "Failed to close ops epoll file, error: " << std::strerror(errno) << "\n";
+    res = close(epFdOps_);
+    if (res < 0) {
+      DV_LOG(FATAL) << "Failed to close ops epoll file, error: " << std::strerror(errno) << "\n";
+    }
   }
+  if (mngmtEnabled_) {
+    auto res = close(fdMgmt_);
+    if (res < 0) {
+      DV_LOG(FATAL) << "Failed to close mgmt file, error: " << std::strerror(errno) << "\n";
+    }
 
-  res = close(fdMgmt_);
-  if (res < 0) {
-    DV_LOG(FATAL) << "Failed to close mgmt file, error: " << std::strerror(errno) << "\n";
-  }
-
-  res = close(epFdMgmt_);
-  if (res < 0) {
-    DV_LOG(FATAL) << "Failed to close mgmt epoll file, error: " << std::strerror(errno) << "\n";
+    res = close(epFdMgmt_);
+    if (res < 0) {
+      DV_LOG(FATAL) << "Failed to close mgmt epoll file, error: " << std::strerror(errno) << "\n";
+    }
   }
 }
 
 bool DevicePcie::sendCommandMasterMinion(int device, int sqIdx, std::byte* command, size_t commandSize) {
+  if (!opsEnabled_) {
+    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
+  }
   if (sqIdx >= mmSqCount_) {
     throw Exception("Invalid queue");
   }
@@ -176,6 +206,9 @@ bool DevicePcie::sendCommandMasterMinion(int device, int sqIdx, std::byte* comma
 }
 
 void DevicePcie::setSqThresholdMasterMinion(int device, int sqIdx, uint32_t bytesNeeded) {
+  if (!opsEnabled_) {
+    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
+  }
   if (sqIdx >= mmSqCount_) {
     throw Exception("Invalid queue");
   }
@@ -190,6 +223,9 @@ void DevicePcie::setSqThresholdMasterMinion(int device, int sqIdx, uint32_t byte
 
 void DevicePcie::waitForEpollEventsMasterMinion(int device, uint64_t& sq_bitmap, bool& cq_available,
                                                 std::chrono::seconds timeout) {
+  if (!opsEnabled_) {
+    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
+  }
   sq_bitmap = 0;
   cq_available = false;
   epoll_event eventList[kMaxEpollEvents];
@@ -217,6 +253,9 @@ void DevicePcie::waitForEpollEventsMasterMinion(int device, uint64_t& sq_bitmap,
 
 bool DevicePcie::receiveResponseMasterMinion(int device, std::vector<std::byte>& response) {
   // TODO: Optimize it to use only the maximum size of device-api messages
+  if (!opsEnabled_) {
+    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
+  }
   response.resize(mmSqMaxMsgSize_);
   int dataRead = 0;
   rsp_desc rspInfo;
@@ -227,6 +266,9 @@ bool DevicePcie::receiveResponseMasterMinion(int device, std::vector<std::byte>&
 }
 
 bool DevicePcie::sendCommandServiceProcessor(int device, std::byte* command, size_t commandSize) {
+  if (!mngmtEnabled_) {
+    throw Exception("Can't use Service Processor operations if service processor port is not enabled");
+  }
   cmd_desc cmdInfo;
   cmdInfo.cmd = command;
   cmdInfo.size = commandSize;
@@ -236,6 +278,9 @@ bool DevicePcie::sendCommandServiceProcessor(int device, std::byte* command, siz
 }
 
 void DevicePcie::setSqThresholdServiceProcessor(int device, uint32_t bytesNeeded) {
+  if (!mngmtEnabled_) {
+    throw Exception("Can't use Service Processor operations if service processor port is not enabled");
+  }
   if (!bytesNeeded || bytesNeeded > mmSqMaxMsgSize_) {
     throw Exception("Invalid value for bytesNeeded");
   }
@@ -247,6 +292,9 @@ void DevicePcie::setSqThresholdServiceProcessor(int device, uint32_t bytesNeeded
 
 void DevicePcie::waitForEpollEventsServiceProcessor(int device, bool& sq_available, bool& cq_available,
                                                     std::chrono::seconds timeout) {
+  if (!mngmtEnabled_) {
+    throw Exception("Can't use Service Processor operations if service processor port is not enabled");
+  }
   sq_available = false;
   cq_available = false;
   epoll_event eventList[kMaxEpollEvents];
@@ -275,6 +323,9 @@ void DevicePcie::waitForEpollEventsServiceProcessor(int device, bool& sq_availab
 
 bool DevicePcie::receiveResponseServiceProcessor(int device, std::vector<std::byte>& response) {
   // TODO: Optimize it to use only the maximum size of device-api messages
+  if (!mngmtEnabled_) {
+    throw Exception("Can't use Service Processor operations if service processor port is not enabled");
+  }
   response.resize(spSqMaxMsgSize_);
   int dataRead = 0;
   rsp_desc rspInfo;

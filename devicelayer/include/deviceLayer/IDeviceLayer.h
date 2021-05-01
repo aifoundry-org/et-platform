@@ -197,9 +197,14 @@ public:
 
   /// \brief Factory method to instantiate a IDeviceApi implementation, based on Pcie backend
   ///
+  /// @param[in] enableMasterMinion if this is true, deviceLayer will attempt to open the operations port (Master
+  /// Minion). If this is not enabled, then all Master Minion operations will fail.
+  /// @param[in] enableServiceProcessor if this is true, deviceLayer will attempt to open the management port (Service
+  /// Processor). If this is not enabled, then all Service Processor operations will fail.
   /// @returns std::unique_ptr<IDeviceApi> is the IDeviceApi implementation
   ///
-  static std::unique_ptr<IDeviceLayer> createPcieDeviceLayer();
+  static std::unique_ptr<IDeviceLayer> createPcieDeviceLayer(bool enableMasterMinion = true,
+                                                             bool enableServiceProcessor = true);
 
   /// \brief Virtual Destructor to enable polymorphic release of the IDeviceApi
   /// instances

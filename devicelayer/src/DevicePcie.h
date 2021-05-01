@@ -15,7 +15,7 @@ namespace dev {
 
 class DevicePcie : public IDeviceLayer {
 public:
-  explicit DevicePcie();
+  explicit DevicePcie(bool enableOps = true, bool enableMngmt = true);
   ~DevicePcie();
 
   // IDeviceAsync
@@ -49,5 +49,7 @@ private:
   uint16_t mmSqMaxMsgSize_;
   int fdOps_, epFdOps_;
   int fdMgmt_, epFdMgmt_;
+  bool opsEnabled_;
+  bool mngmtEnabled_;
 };
 } // namespace dev
