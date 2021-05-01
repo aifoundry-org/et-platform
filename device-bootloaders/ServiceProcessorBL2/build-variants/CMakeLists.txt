@@ -10,3 +10,4 @@
 
 add_subdirectory(production)
 add_subdirectory(fast-boot)
+add_subdirectory(testframework)

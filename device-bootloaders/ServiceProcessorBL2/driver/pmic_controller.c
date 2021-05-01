@@ -803,28 +803,28 @@ int pmic_set_voltage(enum voltage_type_t voltage_type, uint8_t voltage)
             set_pmic_reg(PMIC_I2C_DDR_VOLTAGE_ADDRESS, PMIC_I2C_DDR_VOLTAGE_VOLTAGE_SET(voltage)));
     case L2CACHE:
         return (
-            set_pmic_reg(PMIC_I2C_L2_VOLTAGE_ADDRESS, PMIC_I2C_DDR_VOLTAGE_VOLTAGE_SET(voltage)));
+            set_pmic_reg(PMIC_I2C_L2_VOLTAGE_ADDRESS, PMIC_I2C_L2_VOLTAGE_VOLTAGE_SET(voltage)));
     case MAXION:
         return (set_pmic_reg(PMIC_I2C_MAXION_VOLTAGE_ADDRESS,
-                             PMIC_I2C_DDR_VOLTAGE_VOLTAGE_SET(voltage)));
+                             PMIC_I2C_MAXION_VOLTAGE_VOLTAGE_SET(voltage)));
     case MINION:
         return (set_pmic_reg(PMIC_I2C_MINION_ALL_VOLTAGE_ADDRESS,
-                             PMIC_I2C_DDR_VOLTAGE_VOLTAGE_SET(voltage)));
+                             PMIC_I2C_MINION_ALL_VOLTAGE_VOLTAGE_SET(voltage)));
     case PCIE:
         return (
-            set_pmic_reg(PMIC_I2C_PCIE_VOLTAGE_ADDRESS, PMIC_I2C_DDR_VOLTAGE_VOLTAGE_SET(voltage)));
+            set_pmic_reg(PMIC_I2C_PCIE_VOLTAGE_ADDRESS, PMIC_I2C_PCIE_VOLTAGE_VOLTAGE_SET(voltage)));
     case NOC:
         return (
-            set_pmic_reg(PMIC_I2C_NOC_VOLTAGE_ADDRESS, PMIC_I2C_DDR_VOLTAGE_VOLTAGE_SET(voltage)));
+            set_pmic_reg(PMIC_I2C_NOC_VOLTAGE_ADDRESS, PMIC_I2C_NOC_VOLTAGE_VOLTAGE_SET(voltage)));
     case PCIE_LOGIC:
         return (set_pmic_reg(PMIC_I2C_PCIE_LOGIC_VOLTAGE_ADDRESS,
-                             PMIC_I2C_DDR_VOLTAGE_VOLTAGE_SET(voltage)));
+                             PMIC_I2C_PCIE_LOGIC_VOLTAGE_VOLTAGE_SET(voltage)));
     case VDDQLP:
         return (set_pmic_reg(PMIC_I2C_VDDQLP_VOLTAGE_ADDRESS,
-                             PMIC_I2C_DDR_VOLTAGE_VOLTAGE_SET(voltage)));
+                             PMIC_I2C_VDDQLP_VOLTAGE_VOLTAGE_SET(voltage)));
     case VDDQ:
         return (
-            set_pmic_reg(PMIC_I2C_VDDQ_VOLTAGE_ADDRESS, PMIC_I2C_DDR_VOLTAGE_VOLTAGE_SET(voltage)));
+            set_pmic_reg(PMIC_I2C_VDDQ_VOLTAGE_ADDRESS, PMIC_I2C_VDDQ_VOLTAGE_VOLTAGE_SET(voltage)));
     default: {
         MESSAGE_ERROR("Error invalid voltage type to set Voltage");
         return ERROR_PMIC_I2C_INVALID_VOLTAGE_TYPE;

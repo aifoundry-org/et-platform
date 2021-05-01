@@ -13,7 +13,7 @@ set(TARGET_NAME ServiceProcessorBL2_fast-boot)
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
 target_compile_definitions(${TARGET_NAME}.elf PUBLIC -DBL2_VARIANT="fast-boot")
-target_compile_definitions(${TARGET_NAME}.elf PUBLIC -DFAST_BOOT=1)
+target_compile_definitions(${TARGET_NAME}.elf PUBLIC -DFAST_BOOT=1 -DBRINGUP_TEST=0)
 
 target_link_libraries(${TARGET_NAME}.elf
   EsperantoDeviceMinionRuntime::sp_firmware_helpers

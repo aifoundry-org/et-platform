@@ -8,12 +8,12 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-set(TARGET_NAME ServiceProcessorBL2_production)
-
-add_definitions(-DBL2_VARIANT="production")
-add_definitions(-DFAST_BOOT=0 -DBRINGUP_TEST=0)
+set(TARGET_NAME ServiceProcessorBL2_testframework)
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
+
+target_compile_definitions(${TARGET_NAME}.elf PUBLIC -DBL2_VARIANT="testframework")
+target_compile_definitions(${TARGET_NAME}.elf PUBLIC -DFAST_BOOT=1 -DBRINGUP_TEST=1)
 
 target_link_libraries(${TARGET_NAME}.elf
   EsperantoDeviceMinionRuntime::sp_firmware_helpers
@@ -21,7 +21,7 @@ target_link_libraries(${TARGET_NAME}.elf
 
 install(TARGETS ${TARGET_NAME}.elf
   EXPORT EsperantoBootLoaderTargets
-  RUNTIME DESTINATION ${BL2_INSTALL_DIR}/production
+  RUNTIME DESTINATION ${BL2_INSTALL_DIR}/testframework
   COMPONENT bootloader)
 
 install(
@@ -30,6 +30,6 @@ install(
     ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.map
     ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.bin
   DESTINATION
-    ${BL2_INSTALL_DIR}/production
+    ${BL2_INSTALL_DIR}/testframework
   COMPONENT service-processor
   )

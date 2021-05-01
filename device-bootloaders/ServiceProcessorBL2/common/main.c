@@ -45,10 +45,7 @@
 
 #include "command_dispatcher.h"
 
-/* Uncomment define below to enable build for
-silicon bring up testing */
-/*#define BRINGUP_TEST*/
-#ifdef BRINGUP_TEST
+#if BRINGUP_TEST
 #include "tests/tf/tf.h"
 #endif
 
@@ -427,7 +424,7 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data);
 void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 {
     bool vaultip_disabled;
-#ifndef BRINGUP_TEST 
+#if !BRINGUP_TEST 
     const IMAGE_VERSION_INFO_t *image_version_info = get_image_version_info();
 #endif
 
@@ -468,7 +465,7 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 /* Dont use serial port for info messages if bringup test is enabled
 the port usage is reserved for TF communications */
 /* TODO: SW-7517 dedicate usage ofr UART1 for TF and UART0 for STDOUT */
-#ifndef BRINGUP_TEST 
+#if !BRINGUP_TEST 
     printf("\n** SP BL2 STARTED **\r\n");
     printf("BL2 version: %u.%u.%u:" GIT_VERSION_STRING " (" BL2_VARIANT ")\n",
            image_version_info->file_version_major, image_version_info->file_version_minor,
@@ -481,7 +478,7 @@ the port usage is reserved for TF communications */
         sizeof(g_service_processor_bl2_data);
     g_service_processor_bl2_data.service_processor_bl2_version = SERVICE_PROCESSOR_BL2_DATA_VERSION;
 
-#ifdef BRINGUP_TEST
+#if BRINGUP_TEST
     /* control does not return from call below for now .. */
     TF_Wait_And_Process_TF_Cmds();
 #endif
