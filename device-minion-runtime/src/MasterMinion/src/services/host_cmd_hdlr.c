@@ -21,7 +21,10 @@
 #include "services/host_iface.h"
 #include "services/log.h"
 #include "services/sw_timer.h"
+#include "services/trace.h"
+#include "services/cm_iface.h"
 #include "workers/kw.h"
+#include "workers/cw.h"
 #include "workers/dmaw.h"
 #include "workers/sqw.h"
 #include "config/mm_config.h"
@@ -347,7 +350,9 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             struct device_ops_data_read_rsp_t rsp;
             dma_flags_e dma_flag = DMA_NORMAL;
             dma_chan_id_e chan;
+            cm_iface_message_t cm_msg;
             status = STATUS_SUCCESS;
+            uint64_t cm_shire_mask;
 
             /* Design Notes: Note a DMA write command from host will
             trigger the implementation to configure a DMA read channel
@@ -361,11 +366,17 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             if((cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_MM_TRACE_BUF) && 
                (cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_CM_TRACE_BUF))
             {
-                if(cmd->size <= (MM_TRACE_BUFFER_SIZE + CM_TRACE_BUFFER_SIZE))
+                cm_shire_mask = Trace_Get_CM_Shire_Mask ();
+
+                if((cmd->size <= (MM_TRACE_BUFFER_SIZE + CM_TRACE_BUFFER_SIZE)) && 
+                   ((cm_shire_mask) & CW_Get_Booted_Shires()) == cm_shire_mask)
                 {
-                    /* TODO: Send command to CM RT to disable Trace and evict Trace buffer. */
                     /* TODO: Disable MM RT Trace. */
+                    cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT; 
                     
+                    /* Send command to CM RT to disable Trace and evict Trace buffer. */
+                    status = CM_Iface_Multicast_Send(cm_shire_mask, &cm_msg);
+
                     asm volatile("fence");
                     evict(to_Mem, (uint64_t *) MM_TRACE_BUFFER_BASE, MM_TRACE_BUFFER_SIZE);      
                     WAIT_CACHEOPS;
@@ -399,9 +410,16 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             /* Check if flag is set to extract CM Trace buffer. */
             else if(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_CM_TRACE_BUF)
             {
-                if(cmd->size <= CM_TRACE_BUFFER_SIZE)
+                cm_shire_mask = Trace_Get_CM_Shire_Mask ();
+
+                if((cmd->size <= CM_TRACE_BUFFER_SIZE) && 
+                   ((cm_shire_mask & CW_Get_Booted_Shires()) == cm_shire_mask))
                 {
-                    /* TODO: Send command to CM RT to disable Trace and evict Trace buffer. */
+                    cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT; 
+
+                    /* Send command to CM RT to disable Trace and evict Trace buffer. */
+                    status = CM_Iface_Multicast_Send(cm_shire_mask, &cm_msg);
+                                    
                     cmd->src_device_phy_addr = CM_TRACE_BUFFER_BASE;
                     dma_flag = DMA_SOC_NO_BOUNDS_CHECK;
                 }
@@ -411,7 +429,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 }
             }
 
-            if(status == STATUS_SUCCESS)
+            if (status == STATUS_SUCCESS)
             {
                 /* Obtain the next available DMA write channel */
                 status = DMAW_Write_Find_Idle_Chan_And_Reserve(&chan, sqw_idx);
@@ -487,8 +505,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 }
                 else if(status == DMA_ERROR_OUT_OF_BOUNDS)
                 {
-                    /* TODO: Return error DEV_OPS_API_DMA_RESPONSE_INVALID_SIZE. */
-                    rsp.status = DEV_OPS_API_DMA_RESPONSE_ERROR;
+                    rsp.status = DEV_OPS_API_DMA_RESPONSE_INVALID_SIZE;
                 }
                 else
                 {

@@ -11,6 +11,7 @@
 #include "riscv_encoding.h"
 #include "sync.h"
 #include "syscall_internal.h"
+#include "trace.h"
 
 
 /* MM -> CM message counters */
@@ -164,9 +165,8 @@ static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
         // TRACE_init_buffer();
         break;
     case MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT:
-        // Evict trace buffer for consumption
-        // TODO: Implement new Tracing
-        // TRACE_evict_buffer();
+        Trace_Control_CM_RT(TRACE_DISABLE);
+        Trace_Evict_CM_Buffer();
         break;
     case MM_TO_CM_MESSAGE_ID_PMC_CONFIGURE:
         // Make a syscall to M-mode to configure PMCs

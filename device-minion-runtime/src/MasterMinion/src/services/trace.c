@@ -19,20 +19,23 @@
 */
 /***********************************************************************/
 
+#include "atomic.h"
 #include "cacheops.h"
 #include "hart.h"
 #include "layout.h"
 #include "config/mm_config.h"
 #include "services/log.h"
 #include "services/trace.h"
+#include "common_trace_defs.h"
 
 /*! \def MM_DEFAULT_THREAD_MASK
-    \brief Default masks to enable Trace for Dispatcher, SQ Worker (SQW), DMA Worker : Read & Write, and Kernel Worker (KW) 
+    \brief Default masks to enable Trace for Dispatcher, SQ Worker (SQW), 
+        DMA Worker : Read & Write, and Kernel Worker (KW) 
 */
-#define MM_DEFAULT_THREAD_MASK   ((1UL << (DISPATCHER_BASE_HART_ID - MM_BASE_ID)) |                     \
-                                  (1UL << (DMAW_BASE_HART_ID - MM_BASE_ID)) |                           \
-                                  (1UL << (DMAW_BASE_HART_ID + HARTS_PER_MINION - MM_BASE_ID)) |        \
-                                  (1UL << (SQW_BASE_HART_ID - MM_BASE_ID)) |                            \
+#define MM_DEFAULT_THREAD_MASK   ((1UL << (DISPATCHER_BASE_HART_ID - MM_BASE_ID)) |              \
+                                  (1UL << (DMAW_BASE_HART_ID - MM_BASE_ID)) |                    \
+                                  (1UL << (DMAW_BASE_HART_ID + HARTS_PER_MINION - MM_BASE_ID)) | \
+                                  (1UL << (SQW_BASE_HART_ID - MM_BASE_ID)) |                     \
                                   (1UL << (KW_BASE_HART_ID - MM_BASE_ID)))
 
 /*
@@ -40,10 +43,12 @@
  */
 typedef struct mm_trace_control_block {
     struct trace_control_block_t cb;    /*!< Common Trace library control block. */
+    uint64_t cm_shire_mask;         /* Compute Minion Shire mask to fetch Trace data from CM. */
 } __attribute__((aligned(64))) mm_trace_control_block_t;
 
 /* A local Trace control block for all Master Minions. */
-static mm_trace_control_block_t MM_Trace_CB = {0};
+static mm_trace_control_block_t MM_Trace_CB = 
+                {.cb = {0}, .cm_shire_mask = CM_DEFAULT_TRACE_SHIRE_MASK};
 
 /************************************************************************
 *
@@ -137,4 +142,54 @@ void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
 struct trace_control_block_t* Trace_Get_MM_CB(void)
 {
     return &MM_Trace_CB.cb;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Get_CM_Shire_Mask
+*
+*   DESCRIPTION
+*
+*       This function returns shire mask of Compute Minions for which 
+*       Trace is enabled.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       uint64_t    CM Shire Mask.
+*
+***********************************************************************/
+uint64_t Trace_Get_CM_Shire_Mask(void)
+{
+    return atomic_load_local_64(&MM_Trace_CB.cm_shire_mask);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Set_CM_Shire_Mask
+*
+*   DESCRIPTION
+*
+*       This function sets shire mask of Compute Minions for which 
+*       Trace is enabled.
+*
+*   INPUTS
+*
+*       uint64_t    CM Shire Mask.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Trace_Set_CM_Shire_Mask(uint64_t cm_mask)
+{
+    atomic_store_local_64(&MM_Trace_CB.cm_shire_mask, cm_mask);
 }

@@ -202,7 +202,7 @@ static inline void *TraceBuffer_Reserve(struct trace_control_block_t *cb, uint64
 
         /* Reset buffer. */
         WRITE_U32(cb->offset_per_hart, 0U);
-        head = (void *)(READ_U64(cb->base_per_hart) + 0UL);
+        head = (void *)(uintptr_t)(READ_U64(cb->base_per_hart));
     }
     else
     {
@@ -242,7 +242,7 @@ void Trace_Init(const struct trace_init_info_t *init_info, struct trace_control_
     /* Check if Trace is enabled for current HART ID. */
     if (!((init_info->shire_mask & GET_SHIRE_MASK(get_hart_id())) && (init_info->thread_mask & GET_HART_MASK(get_hart_id()))))
     {
-        cb->enable = false;
+        cb->enable = TRACE_DISABLE;
         return;
     }
 

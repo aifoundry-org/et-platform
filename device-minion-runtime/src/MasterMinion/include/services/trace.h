@@ -37,4 +37,19 @@ void Trace_Init_MM(const struct trace_init_info_t *mm_init_info);
 */
 struct trace_control_block_t* Trace_Get_MM_CB(void);
 
+/*! \fn uint64_t Trace_Get_CM_Shire_Mask(void)
+    \brief This function returns shire mask of Compute Minions for which 
+           Trace is enabled.
+    \return CM Shire Mask.
+*/
+uint64_t Trace_Get_CM_Shire_Mask(void);
+
+/*! \fn void Trace_Set_CM_Shire_Mask(uint64_t cm_mask)
+    \brief This function sets shire mask of Compute Minions for which 
+           Trace is enabled.
+    \param cm_mask CM Shire Mask.
+    \return None
+*/
+void Trace_Set_CM_Shire_Mask(uint64_t cm_mask);
+
 #endif

@@ -280,6 +280,30 @@ uint64_t CW_Get_Physically_Enabled_Shires(void)
 *
 *   FUNCTION
 *
+*       CW_Get_Booted_Shires
+*
+*   DESCRIPTION
+*
+*       Get the booted available shires
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       uint64_t    Returns booted shires mask
+*
+***********************************************************************/
+uint64_t CW_Get_Booted_Shires(void)
+{
+    return atomic_load_local_64(&CW_CB.booted_shires_mask);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       CW_Update_Shire_State
 *
 *   DESCRIPTION

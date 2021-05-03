@@ -26,6 +26,7 @@ add_riscv_executable(WorkerMinion
     src/kernel_return.c
     src/build_configuration.c
     src/log.c
+    src/trace.c
     ${SHARED_SRC_DIR}/circbuff.c
     ${SHARED_SRC_DIR}/etsoc_memory.c
     ${SHARED_SRC_DIR}/printf.c
@@ -37,6 +38,8 @@ target_include_directories(WorkerMinion.elf
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 target_link_libraries(WorkerMinion.elf PRIVATE signedImageFormat::signedImageFormat)
+
+target_link_libraries(WorkerMinion.elf PUBLIC deviceFirmware::device_trace)
 
 install(TARGETS WorkerMinion.elf
     EXPORT EsperantoDeviceMinionRuntimeTargets

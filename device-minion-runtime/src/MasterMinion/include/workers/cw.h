@@ -90,4 +90,10 @@ int8_t CW_Check_Shires_Available_And_Free(uint64_t shire_mask);
 */
 uint64_t CW_Get_Physically_Enabled_Shires(void);
 
+/*! \fn uint64_t CW_Get_Booted_Shires(void)
+    \brief Get the booted available shires.
+    \return Booted available shire mask
+*/
+uint64_t CW_Get_Booted_Shires(void);
+
 #endif /* CW_DEFS_H */

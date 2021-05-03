@@ -156,7 +156,9 @@
 
 /* Compute Minion FW Trace Buffer */
 #define CM_TRACE_BUFFER_BASE              (MM_TRACE_BUFFER_BASE + MM_TRACE_BUFFER_SIZE)
-#define CM_TRACE_BUFFER_SIZE              0x400000 /* 4MB for Compute Minion Trace Buffer */
+/* Default 4KB fixed buffer size per Hart for all Compute Worker Harts. It must be 64 byte aligned. */
+#define CM_TRACE_BUFFER_SIZE_PER_HART     0x1000 
+#define CM_TRACE_BUFFER_SIZE              (CM_TRACE_BUFFER_SIZE_PER_HART * 2080U)
 
 /************************/
 /* Compile-time checks  */

@@ -59,9 +59,10 @@ target_include_directories(MasterMinion.elf
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
+
 target_link_libraries(MasterMinion.elf
     PUBLIC
-        deviceFirmware::device_trace
+        deviceFirmware::device_trace_mm
         deviceApi::deviceApi
         signedImageFormat::signedImageFormat
 )

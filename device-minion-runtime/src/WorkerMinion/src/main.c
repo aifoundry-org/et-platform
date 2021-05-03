@@ -10,6 +10,7 @@
 #include "mm_to_cm_iface.h"
 #include "pmu.h"
 #include "riscv_encoding.h"
+#include "trace.h"
 
 #include <stdint.h>
 
@@ -39,6 +40,11 @@ void __attribute__((noreturn)) main(void)
     const uint64_t shire_id = get_shire_id();
     const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
 
+    /* Initialize Trace with default configurations. */
+    Trace_Init_CM(NULL);
+
+    Trace_String(TRACE_EVENT_STRING_CRITICAL, Trace_Get_CM_CB(), "Trace Initialized!!\n");
+    
     WAIT_FLB(thread_count, 31, result);
 
     // Last thread to join barrier sends ready message to master
