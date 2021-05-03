@@ -7,6 +7,7 @@
 #include "esperanto_flash_image.h"
 
 #include "esperanto_signed_image_format/executable_image.h"
+#include "asset_config_info.h"
 
 #include "service_processor_ROM_data.h"
 #include "service_processor_BL1_data.h"
@@ -65,6 +66,8 @@ typedef struct FLASH_FS_BL2_INFO_s {
     uint32_t active_partition;
     uint32_t other_partition_valid;
     uint32_t configuration_region_address;
+
+    asset_config_info_t asset_config_info;
 
     ESPERANATO_FILE_INFO_t pcie_config_file_info;
     ESPERANATO_FILE_INFO_t vaultip_firmware_file_info;
