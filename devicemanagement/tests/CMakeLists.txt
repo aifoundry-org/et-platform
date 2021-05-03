@@ -14,7 +14,6 @@ include(GoogleTest)
 
 enable_testing()
 
-find_package(SimulatorAPI REQUIRED)
 find_package(esperanto-device-api REQUIRED)
 find_package(DeviceLayer REQUIRED)
 find_package(fmt REQUIRED)
