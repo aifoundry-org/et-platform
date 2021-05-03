@@ -6,8 +6,17 @@
 #include "ms_reg_def.h"
 #include "ddrc_reg_def.h"
 #include "dm_event_def.h"
+#include "bl2_pmic_controller.h"
+#include "error.h"
 
 #define MODE_NUMBER 6
+
+/* Frequency enum defines for memshire */
+typedef enum {
+    MEMSHIRE_FREQUENCY_800,
+    MEMSHIRE_FREQUENCY_933,
+    MEMSHIRE_FREQUENCY_1067,
+} ms_config_frequeny;
 
 void ddr_init(uint8_t memshire_id);
 int ddr_config(void);
@@ -40,8 +49,6 @@ struct ddr_event_control_block
     \param event_cb pointer to the error call back function
     \return Status indicating success or negative error
 */
-
-
 int32_t ddr_error_control_init(dm_event_isr_callback event_cb);
 
 /*! \fn int32_t ddr_error_control_deinit(void)
@@ -49,7 +56,6 @@ int32_t ddr_error_control_init(dm_event_isr_callback event_cb);
     \param none
     \return Status indicating success or negative error
 */
-
 int32_t ddr_error_control_deinit(void);
 
 /*! \fn int32_t ddr_enable_uce_interrupt(void)
@@ -57,7 +63,6 @@ int32_t ddr_error_control_deinit(void);
     \param none
     \return Status indicating success or negative error
 */
-
 int32_t ddr_enable_uce_interrupt(void);
 
 /*! \fn int32_t ddr_disable_ce_interrupt(void)
@@ -65,7 +70,6 @@ int32_t ddr_enable_uce_interrupt(void);
     \param none
     \return Status indicating success or negative error
 */
-
 int32_t ddr_disable_ce_interrupt(void);
 
 /*! \fn int32_t ddr_disable_uce_interrupt(void)
@@ -73,7 +77,6 @@ int32_t ddr_disable_ce_interrupt(void);
     \param none
     \return Status indicating success or negative error
 */
-
 int32_t ddr_disable_uce_interrupt(void);
 
 /*! \fn int32_t ddr_set_ce_threshold(uint32_t ce_threshold)
@@ -81,7 +84,6 @@ int32_t ddr_disable_uce_interrupt(void);
     \param ce_threshold threshold value to set
     \return Status indicating success or negative error
 */
-
 int32_t ddr_set_ce_threshold(uint32_t ce_threshold);
 
 /*! \fn int32_t ddr_get_ce_count(uint32_t *ce_count)
@@ -89,7 +91,6 @@ int32_t ddr_set_ce_threshold(uint32_t ce_threshold);
     \param ce_count pointer to variable to hold count value
     \return Status indicating success or negative error
 */
-
 int32_t ddr_get_ce_count(uint32_t *ce_count);
 
 /*! \fn int32_t ddr_get_uce_count(uint32_t *uce_count)
@@ -97,7 +98,6 @@ int32_t ddr_get_ce_count(uint32_t *ce_count);
     \param uce_count pointer to variable to hold count value
     \return Status indicating success or negative error
 */
-
 int32_t ddr_get_uce_count(uint32_t *uce_count);
 
 void ddr_error_threshold_isr(void);  //TODO: WILL BE MADE STATIC FUNCION WITH ACTUAL ISR IMPLEMENTATION
@@ -117,5 +117,51 @@ int ddr_get_memory_details(char *mem_vendor, char *mem_part);
 */
 int ddr_get_memory_type(char *mem_type);
 
+/*! \fn int MemShire_Initialize(uint8_t memshire_id)
+    \brief This function initializes a memshire
+    \param None
+    \return Status indicating success or negative error
+*/
+int MemShire_Initialize(uint8_t memshire_id);
+
+/*! \fn int DDR_Controller_Initialize(void)
+    \brief This function initializes DDR controller, also it inializes all memshires
+    \param None
+    \return Status indicating success or negative error
+*/
+int DDR_Controller_Initialize(void);
+
+/*! \fn int MemShire_PLL_Program(uint8_t frequency)
+    \brief This function will program PLL with provided frequency value
+    \param memshire ID of memshire 
+    \param frequency the value of frequency to be programmed
+    \return Status indicating success or negative error
+*/
+int MemShire_PLL_Program(uint8_t memshire, uint8_t frequency);
+
+/*! \fn int MemShire_Voltage_Update(uint8_t voltage)
+    \brief This function updates voltage value of memshire
+    \param voltage new voltage value to set
+    \return Status indicating success or negative error
+*/
+int MemShire_Voltage_Update(uint8_t voltage);
+
+/*! \fn int uint8_t Memory_read(uint64_t address, uint8_t *buffer, uint64_t size)
+    \brief This function reads data from a given address
+    \param address address to read data from
+    \param rx_buffer data buffer to read into
+    \param size data size to read
+    \return Status indicating success or negative error
+*/
+int Memory_read(uint8_t *address, uint8_t *rx_buffer, uint64_t size);
+
+/*! \fn int Memory_write(uint64_t address, uint64_t* data_buf, uint64_t size)
+    \brief This function reads data from a given address
+    \param address address to write data 
+    \param data_buf buffer containing data  to be written
+    \param size data size to write
+    \return data pointer 
+*/
+int Memory_write(uint8_t *address, uint8_t* data_buf, uint64_t size);
 #endif
 

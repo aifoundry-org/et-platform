@@ -1,6 +1,7 @@
 #include "bl2_ddr_init.h"
 #include "dm_event_control.h"
-
+#include "layout.h"
+#include "etsoc_hal/inc/memshire_pll.h"
 //
 // get_ms_reg_addr: This procedure is used to generate a memshire register address based on the
 // memshire ID and register name.
@@ -1073,22 +1074,29 @@ uint8_t ms_init_seq_phase4(uint8_t memshire)
     return 0;
 }
 
-void ddr_init(uint8_t memshire_id)
+int MemShire_Initialize(uint8_t memshire_id)
 {
-    // Args: Mem ID, Enable ECC, Real PLL
     ms_init_seq_phase1(memshire_id, 0, 1);
-    // Args: Mem ID, Real PLL
     ms_init_seq_phase2(memshire_id, 1);
     ms_init_seq_phase3(memshire_id);
     ms_init_seq_phase4(memshire_id);
+
+    return 0;
+}
+
+int DDR_Controller_Initialize(void)
+{
+    for (uint8_t memshire_id = 0; memshire_id < 8; memshire_id++)
+    {
+        MemShire_Initialize(memshire_id);
+    }
+
+    return 0;
 }
 
 int ddr_config(void)
 {
-    // configure the dram controllers and train the memory
-
-    for (uint8_t memshire_id = 0; memshire_id < 8; memshire_id++)
-        ddr_init(memshire_id);
+    DDR_Controller_Initialize();
 
     return 0;
 
@@ -1156,5 +1164,69 @@ int ddr_get_memory_type(char *mem_type)
 {
     // TODO: https://esperantotech.atlassian.net/browse/SW-6869
     strcpy(mem_type, "ETLPDDR4");
+    return 0;
+}
+
+int MemShire_PLL_Program(uint8_t memshire, uint8_t frequency)
+{
+    switch(frequency) {
+        case MEMSHIRE_FREQUENCY_800:
+            return ms_config_795mhz(memshire);
+            break;
+
+        case MEMSHIRE_FREQUENCY_933:
+            return ms_config_933mhz(memshire);
+            break;
+
+        case MEMSHIRE_FREQUENCY_1067:
+            return ms_config_1067mhz(memshire);
+            break;
+        
+        default:
+            return -1;
+    }
+
+    return 0;
+}
+ 
+int Memory_read(uint8_t *address, uint8_t *rx_buffer, uint64_t size)
+{
+    /* check if address range is valid */
+    if ((rx_buffer == NULL) || 
+        (((uintptr_t)address < (uintptr_t)LOW_MEM_SUB_REGIONS_BASE) || 
+         ((uintptr_t)address > (uintptr_t)(LOW_MEM_SUB_REGIONS_BASE + LOW_MEM_SUB_REGIONS_SIZE)))) {
+        
+        return ERROR_INVALID_ARGUMENT;
+    }
+
+    /* read data into buffer */
+    for (uint64_t i=0; i < size; i++)
+    {
+        *rx_buffer = *address;
+        rx_buffer++;
+        address++;
+    }
+
+    return 0;
+}
+
+int Memory_write(uint8_t *address, uint8_t* data_buf, uint64_t size)
+{
+    /* check if address range is valid */
+    if ((data_buf == NULL) || 
+        (((uintptr_t)address < (uintptr_t)LOW_MEM_SUB_REGIONS_BASE) || 
+         ((uintptr_t)address > (uintptr_t)(LOW_MEM_SUB_REGIONS_BASE + LOW_MEM_SUB_REGIONS_SIZE)))) {
+        
+        return ERROR_INVALID_ARGUMENT;
+    }
+
+    /* write data onto memory */
+    for (uint64_t i=0; i < size; i++)
+    {
+        *address = *data_buf;
+        data_buf++;
+        address++;
+    }
+
     return 0;
 }
