@@ -1,6 +1,12 @@
 #ifndef __ASSET_CONFIG_INFO__
 #define __ASSET_CONFIG_INFO__
 
+#define ASSET_CONFIG_PART_NUM_SIZE    sizeof(uint32_t)
+#define ASSET_CONFIG_SERIAL_NUM_SIZE  sizeof(uint64_t)
+#define ASSET_CONFIG_MEM_SIZE_SIZE    sizeof(uint8_t)
+#define ASSET_CONFIG_MODULE_REV_SIZE  sizeof(uint32_t)
+#define ASSET_CONFIG_FORM_FACTOR_SIZE sizeof(uint8_t)
+
 typedef struct asset_config_info_s {
     uint32_t part_num;
     uint64_t serial_num;
