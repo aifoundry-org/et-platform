@@ -1365,17 +1365,13 @@ int flash_fs_get_manufacturer_name(char *mfg_name, size_t size)
 
 int flash_fs_get_part_number(char *part_number, size_t size)
 {
-    uint32_t read_address = sg_flash_fs_bl2_info->configuration_region_address
-        + ASSET_TRACK_PART_NUMBER_OFFSET;
-    int ret = spi_flash_normal_read(
-            sg_flash_fs_bl2_info->flash_id,
-            read_address,
-            (uint8_t*)part_number,
-            ASSET_TRACK_PART_NUMBER_SIZE);
-    if (ret != 0) {
-        printf("flash_fs_get_part_number: failed to read from configuration_data!\n");
+    if (sg_flash_fs_bl2_info == NULL) {
+        printf("flash_fs_get_part_number: asset config info not initialized!\n");
+        return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
-    return ret;
+    memcpy(part_number, &(sg_flash_fs_bl2_info->asset_config_info.part_num),
+           ASSET_CONFIG_PART_NUM_SIZE);
+    return 0;
 }
 
 /************************************************************************
@@ -1400,17 +1396,13 @@ int flash_fs_get_part_number(char *part_number, size_t size)
 
 int flash_fs_get_serial_number(char *ser_number, size_t size)
 {
-    uint32_t read_address = sg_flash_fs_bl2_info->configuration_region_address
-        + ASSET_TRACK_SERIAL_NUMBER_OFFSET;
-    int ret = spi_flash_normal_read(
-            sg_flash_fs_bl2_info->flash_id,
-            read_address,
-            (uint8_t*)serial_number,
-            ASSET_TRACK_SERIAL_NUMBER_SIZE);
-    if (ret != 0) {
-        printf("flash_fs_get_serial_number: failed to read from configuration_data!\n");
+    if (sg_flash_fs_bl2_info == NULL) {
+        printf("flash_fs_get_serial_number: asset config info not initialized!\n");
+        return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
-    return ret;
+    memcpy(ser_number, &(sg_flash_fs_bl2_info->asset_config_info.serial_num),
+           ASSET_CONFIG_SERIAL_NUM_SIZE);
+    return 0;
 }
 
 /************************************************************************
@@ -1435,17 +1427,13 @@ int flash_fs_get_serial_number(char *ser_number, size_t size)
 
 int flash_fs_get_module_rev(char *module_rev, size_t size)
 {
-    uint32_t read_address = sg_flash_fs_bl2_info->configuration_region_address
-        + ASSET_TRACK_MODULE_REV_OFFSET;
-    int ret = spi_flash_normal_read(
-            sg_flash_fs_bl2_info->flash_id,
-            read_address,
-            (uint8_t*)module_rev,
-            ASSET_TRACK_MODULE_REV_SIZE);
-    if (ret != 0) {
-        printf("flash_fs_get_module_rev: failed to read from configuration_data!\n");
+    if (sg_flash_fs_bl2_info == NULL) {
+        printf("flash_fs_get_module_rev: asset config info not initialized!\n");
+        return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
-    return ret;
+    memcpy(module_rev, &(sg_flash_fs_bl2_info->asset_config_info.module_rev),
+           ASSET_CONFIG_MODULE_REV_SIZE);
+    return 0;
 }
 
 /************************************************************************
@@ -1470,17 +1458,13 @@ int flash_fs_get_module_rev(char *module_rev, size_t size)
 
 int flash_fs_get_memory_size(char *mem_size, size_t size)
 {
-    uint32_t read_address = sg_flash_fs_bl2_info->configuration_region_address
-        + ASSET_TRACK_MEMORY_SIZE_OFFSET;
-    int ret = spi_flash_normal_read(
-            sg_flash_fs_bl2_info->flash_id,
-            read_address,
-            (uint8_t*)memory_size,
-            ASSET_TRACK_MEMORY_SIZE_SIZE);
-    if (ret != 0) {
-        printf("flash_fs_get_memory_size: failed to read from configuration_data!\n");
+    if (sg_flash_fs_bl2_info == NULL) {
+        printf("flash_fs_get_memory_size: asset config info not initialized!\n");
+        return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
-    return ret;
+    memcpy(mem_size, &(sg_flash_fs_bl2_info->asset_config_info.mem_size),
+           ASSET_CONFIG_MEM_SIZE_SIZE);
+    return 0;
 }
 
 /************************************************************************
@@ -1505,17 +1489,13 @@ int flash_fs_get_memory_size(char *mem_size, size_t size)
 
 int flash_fs_get_form_factor(char *form_factor, size_t size)
 {
-    uint32_t read_address = sg_flash_fs_bl2_info->configuration_region_address
-        + ASSET_TRACK_FORM_FACTOR_OFFSET;
-    int ret = spi_flash_normal_read(
-            sg_flash_fs_bl2_info->flash_id,
-            read_address,
-            (uint8_t*)form_factor,
-            ASSET_TRACK_FORM_FACTOR_SIZE);
-    if (ret != 0) {
-        printf("flash_fs_get_form_factor: failed to read from configuration_data!\n");
+    if (sg_flash_fs_bl2_info == NULL) {
+        printf("flash_fs_get_form_factor: asset config info not initialized!\n");
+        return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
-    return ret;
+    memcpy(form_factor, &(sg_flash_fs_bl2_info->asset_config_info.form_factor),
+           ASSET_CONFIG_FORM_FACTOR_SIZE);
+    return 0;
 }
 
 #pragma GCC pop_options
