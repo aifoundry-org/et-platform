@@ -18,5 +18,6 @@ protected:
 
 private:
 
-  void printTraceStringData(std::vector<uint8_t> &traceBuf);
+  void printMMTraceStringData(std::vector<uint8_t> &traceBuf);
+  void printCMTraceStringData(std::vector<uint8_t> &traceBuf);
 };

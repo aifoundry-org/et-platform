@@ -18,6 +18,12 @@
  **********************************************************/
 
 namespace {
+
+/* TODO: All trace packet information should be in common files 
+         for both Host and Device usage. */
+constexpr uint32_t CM_SIZE_PER_HART  = 4096;
+constexpr uint32_t WORKER_HART_COUNT = 2080;
+
 enum trace_type_e {
   TRACE_TYPE_STRING,
   TRACE_TYPE_PMC_COUNTER,
@@ -63,12 +69,12 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractMMFwData_5_1() {
 
   ASSERT_NE(readBuf, compBuf);
 
-  printTraceStringData(readBuf);
+  printMMTraceStringData(readBuf);
 }
 
 void TestDevOpsApiTraceCmds::traceCtrlAndExtractCMFwData_5_2() {
   std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
-  uint64_t size = 1024 * 1024 * 4;
+  uint64_t size = CM_SIZE_PER_HART * WORKER_HART_COUNT;
   uint16_t sqIdx = 0; // Default SQ for dmaLoopback
   std::vector<uint8_t> readBuf(size, 0);
   std::vector<uint8_t> compBuf(size, 0);
@@ -87,17 +93,35 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractCMFwData_5_2() {
 
   ASSERT_NE(readBuf, compBuf);
 
-  printTraceStringData(readBuf);
+  printCMTraceStringData(readBuf);
 }
 
-void TestDevOpsApiTraceCmds::printTraceStringData(std::vector<uint8_t>& traceBuf) {
+void TestDevOpsApiTraceCmds::printMMTraceStringData(std::vector<uint8_t>& traceBuf) {
   auto dataPtr = reinterpret_cast<trace_string_t*>(traceBuf.data());
   while (1) {
     if (dataPtr->header.type == TRACE_TYPE_STRING) {
-      std::cout << dataPtr->dataString;
+      std::cout << "H:" <<dataPtr->header.hart_id << ":" << dataPtr->dataString;
       dataPtr++;
     } else {
       break;
     }
+  }
+}
+
+void TestDevOpsApiTraceCmds::printCMTraceStringData(std::vector<uint8_t>& traceBuf) {
+  uint64_t size = CM_SIZE_PER_HART / sizeof(trace_string_t);
+  unsigned char* bytePtr = reinterpret_cast<unsigned char*>(traceBuf.data());
+  
+  for (int i=0; i < WORKER_HART_COUNT; ++i)
+  {
+    auto dataPtr = reinterpret_cast<trace_string_t*>(bytePtr);
+    auto start = dataPtr;
+    while ((dataPtr - start) < size) {
+      if ((dataPtr->header.type == TRACE_TYPE_STRING) && (dataPtr->dataString[0] != '\0')){
+        std::cout << "H:" <<dataPtr->header.hart_id << ":" << dataPtr->dataString;
+      } 
+      dataPtr++;
+    }
+    bytePtr += CM_SIZE_PER_HART;
   }
 }
