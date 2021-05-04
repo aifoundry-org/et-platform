@@ -44,6 +44,7 @@ set(BL2_SOURCES
     driver/bl2_watchdog.c
     driver/bl2_otp.c
     driver/spio_sram.c
+    driver/bl2_pu.c
     rtos_task/command_dispatcher.c
     rtos_task/flash_fs.c
     rtos_task/vaultip.c
