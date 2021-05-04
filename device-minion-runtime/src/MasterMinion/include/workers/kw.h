@@ -68,7 +68,17 @@
 /*! \def TIMEOUT_KERNEL_LAUNCH
     \brief Timeout value (in mS) for kernel launch
 */
-#define KERNEL_LAUNCH_TIMEOUT(x)   (x * 2)
+#define KERNEL_LAUNCH_TIMEOUT(x)         (x * 2)
+
+/*! \def KERNEL_SLOT_SEARCH_TIMEOUT
+    \brief Timeout value (in mS) for finding kernel free slot
+*/
+#define KERNEL_SLOT_SEARCH_TIMEOUT       5
+
+/*! \def KERNEL_FREE_SHIRES_TIMEOUT
+    \brief Timeout value (in mS) for waiting for the shires to get free
+*/
+#define KERNEL_FREE_SHIRES_TIMEOUT       5
 
 /*! \enum kernel_state_e
     \brief Enum that provides the state of a kernel

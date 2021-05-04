@@ -83,18 +83,19 @@ Figure 2 below shows the key interfaces which the Master Minion Shire interacts 
 Note the Master Minion Shire is divided into 2 separate domain - 1 for performing tasks related
 to scheduling operation commands from the Host, and 2 participate as part of the Compute Minion Shires
 to execute Compute Kernels.
-Tasks are distributed within the 16 Cores in Master Minion as follows
-- Dispatcher Core - handle all interrupts on behalf of the Master Minion Runtime
-- Submission Queue Worker - handles poping command from the Virtual Queue buffer
+Tasks are distributed within the 16 Cores in Master Minion as follows:
+
+  - **Dispatcher Core** - handle all interrupts on behalf of the Master Minion Runtime
+  - **Submission Queue Worker** - handles poping command from the Virtual Queue buffer
                             and executing the command. There can be many SQW (upto 4) each 
                             on executing on a separate Core
-- DMA Workers - handles checking status of pending DMA channels, and handling completion of the
+  - **DMA Workers** - handles checking status of pending DMA channels, and handling completion of the
                 respective channels. Note there are 2 Workers handling: RX channels and TX channels
-- Kernel Workers - handles checking status of pending Kernel execution on slots of Compute Minions
+  - **Kernel Workers** - handles checking status of pending Kernel execution on slots of Compute Minions
                    and handling completion of the kernel execution. Note there can be upto 2 as we 
                    simultaneous Kernel execution - clusters of Compute Shires
-- PMC Sampler - handles sampling of Performance Counters for Shire Caches, MemShire, (NOC - TBD), PCI Controller
-- Compute Minion PLL Freq Update Worker - handles updating the Compute PLLs as per the DVFS algorithm
+  - **PMC Sampler** - handles sampling of Performance Counters for Shire Caches, MemShire, (NOC - TBD), PCI Controller
+  - **Compute Minion PLL Freq Update Worker** - handles updating the Compute PLLs as per the DVFS algorithm
  
 .. figure:: Master-Minion-HW-Interfaces.png
 **Figure 2 : Master Minion Physical Shire and interfaces to different Hardware Interfaces
@@ -224,7 +225,11 @@ Kernel Abort Command is handled by looking up the Kernel Slot for the tag ID spe
 Abort Command. Based on the shire mask associated with the identified Kernel Slot, an Abort MM to CM 
 command is posted, and a multicast notification is sent to compute minions.
 
-Kernel command handling supports handling of error scenarios; when a kernel command (launch or abort)
+Kernel command handling supports handling of error scenarios; while dispatching kernel launch command, 
+the SQW registers a timer and waits until a free kernel slot is available for kernel launch. Also, 
+after acquiring the kernel slot, the SQW registers another timer and waits until it gets the requested 
+compute shires for the kernel run. If any of the above scenarios fail (due to timeout or any other error), 
+an error response is constructed and sent back to the host. When a kernel command (launch or abort) 
 is dispatched, a timer tracks time transpired from point of command dispatch. If a successfully 
 dispatched kernel command does not complete within the command time-out period a command time-out 
 error response is constructed and transmitted to host by the SQW. It is the responsibility of the 

@@ -22,11 +22,8 @@
     \brief Enum that provides the status of a shire
 */
 enum cw_shire_state_t {
-    CW_SHIRE_STATE_UNKNOWN = 0,
-    CW_SHIRE_STATE_READY,
-    CW_SHIRE_STATE_RUNNING,
-    CW_SHIRE_STATE_ERROR,
-    CW_SHIRE_STATE_RESERVED
+    CW_SHIRE_STATE_FREE = 0,
+    CW_SHIRE_STATE_BUSY,
 };
 
 /*! \cond
@@ -48,10 +45,10 @@ typedef uint8_t cw_shire_state_t;
 */
 #define CW_SHIRE_UNAVAILABLE -2
 
-/*! \def CW_SHIRES_NOT_READY
-    \brief Compute Worker - Shires not ready
+/*! \def CW_SHIRES_NOT_FREE
+    \brief Compute Worker - Shires not free
 */
-#define CW_SHIRES_NOT_READY   -3
+#define CW_SHIRES_NOT_FREE   -3
 
 /*! \fn int8_t CW_Init(void)
     \brief Initialize Compute Workers, used by dispatcher
@@ -70,22 +67,21 @@ int8_t CW_Init(void);
 void CW_Process_CM_SMode_Messages(void);
 
 
-/*! \fn int8_t CW_Update_Shire_State
-            (uint64_t shire, cw_shire_state_t shire_state)
+/*! \fn void CW_Update_Shire_State
+            (uint64_t shire_mask, cw_shire_state_t shire_state)
     \brief Update shire state associated with compute workers
-    \param shire Shire to update
+    \param shire_mask Shire Group to update
     \param shire_state State to update to
     \return Status success or error
 */
-int8_t CW_Update_Shire_State(uint64_t shire, cw_shire_state_t shire_state);
+void CW_Update_Shire_State(uint64_t shire_mask, cw_shire_state_t shire_state);
 
-/*! \fn int8_t CW_Check_Shires_Available_And_Ready(uint64_t shire_mask)
-    \brief Check if shire associated with compute workers is available
-    and ready
+/*! \fn int8_t CW_Check_Shires_Available_And_Free(uint64_t shire_mask)
+    \brief Check if shire associated with compute workers are free
     \param shire_mask Shire mask to check
     \return Status success or error
 */
-int8_t CW_Check_Shires_Available_And_Ready(uint64_t shire_mask);
+int8_t CW_Check_Shires_Available_And_Free(uint64_t shire_mask);
 
 /*! \fn uint64_t CW_Get_Physically_Enabled_Shires(void)
     \brief Get mask for physically available shires of the chip

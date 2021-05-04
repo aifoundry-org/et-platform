@@ -47,7 +47,7 @@
 typedef struct cw_cb_t_{
     uint64_t physically_avail_shires_mask;
     uint64_t booted_shires_mask;
-    cw_shire_state_t shire_status[NUM_SHIRES];
+    uint64_t shire_state;
 } cw_cb_t;
 
 /*! \var cw_cb_t CW_CB
@@ -79,6 +79,7 @@ int8_t CW_Init(void)
 {
     uint64_t sip;
     uint64_t shire_mask;
+    uint64_t booted_shires_mask = 0U;
     int8_t status = STATUS_SUCCESS;
 
     minion_fw_boot_config_t *minion_fw_boot_config;
@@ -95,11 +96,7 @@ int8_t CW_Init(void)
         shire_mask);
     atomic_store_local_64(&CW_CB.booted_shires_mask, 0U);
 
-    for(uint8_t shire = 0; shire < NUM_SHIRES; shire++)
-    {
-        atomic_store_local_8(&CW_CB.shire_status[shire],
-            CW_SHIRE_STATE_UNKNOWN);
-    }
+    atomic_store_local_64(&CW_CB.shire_state, 0U);
 
     /* Bring up Compute Workers */
     syscall(SYSCALL_CONFIGURE_COMPUTE_MINION, shire_mask, 0x1u, 0);
@@ -151,9 +148,8 @@ int8_t CW_Init(void)
                             "Dispatcher:CW_Init:MESSAGE_ID_SHIRE_READY S%d\r\n",
                             shire_ready->shire_id);
 
-                        /* Update the shire state in CW CB */
-                        CW_Update_Shire_State(shire_ready->shire_id,
-                            CW_SHIRE_STATE_READY);
+                        /* Update the booted shire mask */
+                        booted_shires_mask |= (1ULL << shire_ready->shire_id);
                         break;
                     }
 
@@ -168,9 +164,12 @@ int8_t CW_Init(void)
             }
 
             /* Break loop if all compute minions are booted and ready */
-            if((atomic_load_local_64
-                (&CW_CB.booted_shires_mask) & shire_mask) == shire_mask)
+            if((booted_shires_mask & shire_mask) == shire_mask)
+            {
+                atomic_store_local_64(&CW_CB.booted_shires_mask,
+                                      booted_shires_mask);
                 break;
+            }
         }
         else
         {
@@ -285,11 +284,11 @@ uint64_t CW_Get_Physically_Enabled_Shires(void)
 *
 *   DESCRIPTION
 *
-*       Set the state of a shire
+*       Set the state of a group of shires
 *
 *   INPUTS
 *
-*       shire         Shire number
+*       shire_mask    Shire group mask
 *       shire_state   Shire state
 *
 *   OUTPUTS
@@ -297,44 +296,23 @@ uint64_t CW_Get_Physically_Enabled_Shires(void)
 *       int8_t        status success or failure
 *
 ***********************************************************************/
-int8_t CW_Update_Shire_State(uint64_t shire,
-    cw_shire_state_t shire_state)
+void CW_Update_Shire_State(uint64_t shire_mask, cw_shire_state_t shire_state)
 {
-    int8_t status = STATUS_SUCCESS;
-
-    if (atomic_load_local_8(&CW_CB.shire_status[shire]) !=
-        CW_SHIRE_STATE_ERROR)
+    if (shire_state == CW_SHIRE_STATE_FREE)
     {
-        atomic_store_local_8(&CW_CB.shire_status[shire], shire_state);
-
-        /* Update mask of booted shires */
-        atomic_or_local_64(&CW_CB.booted_shires_mask, 1ULL << shire);
+        atomic_and_local_64(&CW_CB.shire_state, ~shire_mask);
     }
     else
     {
-        /* The only legal transition from ERROR state is to READY state */
-        if (shire_state == CW_SHIRE_STATE_READY)
-        {
-            atomic_store_local_8(&CW_CB.shire_status[shire], shire_state);
-        }
-        else
-        {
-            Log_Write(LOG_LEVEL_ERROR,
-                "CW:Error:Illegal transition from \
-                error:Shire:%" PRId64 "\r\n", shire);
-
-            status = GENERAL_ERROR;
-        }
+        atomic_or_local_64(&CW_CB.shire_state, shire_mask);
     }
-
-    return status;
 }
 
 /************************************************************************
 *
 *   FUNCTION
 *
-*       CW_Check_Shires_Available_And_Ready
+*       CW_Check_Shires_Available_And_Free
 *
 *   DESCRIPTION
 *
@@ -349,26 +327,19 @@ int8_t CW_Update_Shire_State(uint64_t shire,
 *       int8t_t    Success status or error code
 *
 ***********************************************************************/
-int8_t CW_Check_Shires_Available_And_Ready(uint64_t shire_mask)
+int8_t CW_Check_Shires_Available_And_Free(uint64_t shire_mask)
 {
-    int8_t status = STATUS_SUCCESS;
+    int8_t status = CW_SHIRES_NOT_FREE;
 
-    /* Verify if all the given shires are physically available */
-    if ((atomic_load_local_64(&CW_CB.physically_avail_shires_mask) &
+    /* Verify if all the given shires are booted */
+    if((atomic_load_local_64(&CW_CB.booted_shires_mask) &
         shire_mask) == shire_mask)
     {
-        /* Check the provided the shire_mask for ready state */
-        for (uint64_t shire = 0; shire < NUM_SHIRES; shire++)
+        /* Shire state definition is 0 if free else 1 if busy */
+        /* Hence flips status to compare with Requested Shire Mask */
+        if((~atomic_load_local_64(&CW_CB.shire_state) & shire_mask) == shire_mask)
         {
-            if (shire_mask & (1ULL << shire))
-            {
-                if (atomic_load_local_8(&CW_CB.shire_status[shire]) !=
-                    CW_SHIRE_STATE_READY)
-                {
-                    status = CW_SHIRES_NOT_READY;
-                    break;
-                }
-            }
+            status = STATUS_SUCCESS;
         }
     }
     else
