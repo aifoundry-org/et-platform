@@ -1,7 +1,12 @@
 #include "Utils.h"
 #include <algorithm>
 #include <device-layer/IDeviceLayerMock.h>
+#include <g3log/loglevels.hpp>
 #include <thread>
+
+#define private public
+#include "RuntimeImp.h"
+#undef private
 
 using namespace testing;
 bool areEqual(int one, int other, int index, int thread, int stream) {
@@ -19,11 +24,11 @@ public:
   }
   void run_stress_kernel(size_t elems, int num_executions, int streams, int threads, bool check_results = true) {
     std::vector<std::thread> threads_;
-
+    auto dev = devices_[0];
     for (int i = 0; i < threads; ++i) {
       threads_.emplace_back([=] {
-        auto dev = devices_[0];
         std::vector<rt::StreamId> streams_(streams);
+        auto stream = runtime_->createStream(dev);
         std::vector<std::vector<int>> host_src1(num_executions);
         std::vector<std::vector<int>> host_src2(num_executions);
         std::vector<std::vector<int>> host_dst(num_executions);
@@ -32,6 +37,9 @@ public:
         std::vector<void*> dev_mem_dst(num_executions);
         for (int j = 0; j < streams; ++j) {
           streams_[j] = runtime_->createStream(dev);
+          // TODO fix this after device-fw multiple SQs are allowed
+          auto rt = static_cast<rt::RuntimeImp*>(runtime_.get());
+          rt->streams_.find(streams_[j])->second.vq_ = 0;
           for (int k = 0; k < num_executions / streams; ++k) {
             LOG(INFO) << "Num execution: " << k;
             auto idx = k + j * num_executions / streams;
@@ -131,5 +139,6 @@ TEST_F(SysEmu, 64_ele_1_exe_1_st_45_th) {
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
+  g3::log_levels::disable(DEBUG);
   return RUN_ALL_TESTS();
 }
