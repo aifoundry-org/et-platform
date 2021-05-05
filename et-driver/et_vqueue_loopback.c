@@ -19,6 +19,80 @@
 #include "et_pci_dev.h"
 #include "et_event_handler.h"
 
+/*
+ * Echo command
+ */
+struct device_ops_echo_cmd_t {
+	struct cmd_header_t command_info;
+	s32 echo_payload;
+	u32 pad;
+} __packed __aligned(8);
+
+/*
+ * Echo response
+ */
+struct device_ops_echo_rsp_t {
+	struct rsp_header_t response_info;
+	s32 echo_payload;
+	u32 pad;
+} __packed __aligned(8);
+
+enum dev_ops_api_kernel_launch_response_e {
+	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED = 0,
+	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR = 1,
+	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_EXCEPTION = 2,
+	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_SHIRES_NOT_READY = 3,
+	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED = 4,
+	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ADDRESS = 5,
+	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG = 6,
+};
+
+/*
+ * Launch a kernel on the target
+ */
+struct device_ops_kernel_launch_cmd_t {
+	struct cmd_header_t command_info;
+	u64 code_start_address;
+	u64 pointer_to_args;
+	u64 shire_mask;
+} __packed __aligned(8);
+
+/*
+ * Response and result of a kernel launch on the device
+ */
+struct device_ops_kernel_launch_rsp_t {
+	struct rsp_header_t response_info;
+	u64 cmd_wait_time;
+	u64 cmd_execution_time;
+	u32 status;
+	u32 pad;
+} __packed __aligned(8);
+
+enum dev_ops_api_kernel_abort_response_e {
+	DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS = 0,
+	DEV_OPS_API_KERNEL_ABORT_RESPONSE_ERROR = 1,
+	DEV_OPS_API_KERNEL_ABORT_RESPONSE_INVALID_TAG_ID = 2,
+	DEV_OPS_API_KERNEL_ABORT_RESPONSE_TIMEOUT_HANG = 3,
+};
+
+/*
+ * Command to abort a currently running kernel on the device
+ */
+struct device_ops_kernel_abort_cmd_t {
+	struct cmd_header_t command_info;
+	u16 kernel_launch_tag_id;
+	u8 pad[6];
+} __packed __aligned(8);
+
+/*
+ * Response to an abort request
+ */
+struct device_ops_kernel_abort_rsp_t {
+	struct rsp_header_t response_info;
+	u32 status;
+	u32 pad;
+} __packed __aligned(8);
+
 static struct et_msg_node *create_msg_node(u32 msg_size)
 {
 	struct et_msg_node *new_node;
@@ -167,8 +241,12 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		sq_pptr[i]->index = i;
 		sq_pptr[i]->vq_common = vq_common;
 		sq_pptr[i]->cb_mem = (struct et_circbuffer *)sq_baseaddr;
-		et_ioread(sq_pptr[i]->cb_mem, 0, (u8 *)&sq_pptr[i]->cb,
-			  sizeof(sq_pptr[i]->cb));
+		sq_pptr[i]->cb.head = 0;
+		sq_pptr[i]->cb.tail = 0;
+		sq_pptr[i]->cb.len = vq_common->dir_vq.per_sq_size -
+			sizeof(struct et_circbuffer);
+		et_iowrite(sq_pptr[i]->cb_mem, 0, (u8 *)&sq_pptr[i]->cb,
+			   sizeof(sq_pptr[i]->cb));
 		sq_baseaddr += vq_common->dir_vq.per_sq_size;
 
 		mutex_init(&sq_pptr[i]->push_mutex);
@@ -187,9 +265,7 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 
 static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 {
-	char irq_name[16];
-	ssize_t rv;
-	u32 i, irq_cnt_init;
+	u32 i;
 	struct et_vq_common *vq_common;
 	struct et_cqueue **cq_pptr;
 	struct et_mapped_region *vq_region;
@@ -224,16 +300,19 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	cq_baseaddr = (u8 *)vq_region->mapped_baseaddr +
 		      vq_common->dir_vq.cq_offset;
 
-	for (i = 0, irq_cnt_init = 0; i < vq_common->dir_vq.cq_count; i++,
-	     irq_cnt_init++) {
+	for (i = 0; i < vq_common->dir_vq.cq_count; i++) {
 		cq_pptr[i] = (struct et_cqueue *)mem;
 		mem += sizeof(**cq_pptr);
 
 		cq_pptr[i]->index = i;
 		cq_pptr[i]->vq_common = vq_common;
 		cq_pptr[i]->cb_mem = (struct et_circbuffer *)cq_baseaddr;
-		et_ioread(cq_pptr[i]->cb_mem, 0, (u8 *)&cq_pptr[i]->cb,
-			  sizeof(cq_pptr[i]->cb));
+		cq_pptr[i]->cb.head = 0;
+		cq_pptr[i]->cb.tail = 0;
+		cq_pptr[i]->cb.len = vq_common->dir_vq.per_cq_size -
+			sizeof(struct et_circbuffer);
+		et_iowrite(cq_pptr[i]->cb_mem, 0, (u8 *)&cq_pptr[i]->cb,
+			   sizeof(cq_pptr[i]->cb));
 		cq_baseaddr += vq_common->dir_vq.per_cq_size;
 
 		mutex_init(&cq_pptr[i]->pop_mutex);
@@ -241,17 +320,9 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		mutex_init(&cq_pptr[i]->msg_list_mutex);
 
 		INIT_WORK(&cq_pptr[i]->isr_work, et_isr_work);
-
-		snprintf(irq_name, sizeof(irq_name), "irq_%s_cq_%d",
-			 (is_mgmt) ? "mgmt" : "ops", i);
-		rv = request_irq(pci_irq_vector(et_dev->pdev,
-						vq_common->vec_idx_offset + i),
-				 et_pcie_isr, 0, irq_name, (void *)cq_pptr[i]);
-		if (rv) {
-			dev_err(&et_dev->pdev->dev, "request irq failed\n");
-			goto error_free_irq;
-		}
 	}
+
+	vq_common->intrpt_addr = (void *)cq_pptr[0];
 
 	if (is_mgmt)
 		et_dev->mgmt.cq_pptr = cq_pptr;
@@ -259,15 +330,6 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		et_dev->ops.cq_pptr = cq_pptr;
 
 	return 0;
-
-error_free_irq:
-	for (i = 0; i < irq_cnt_init; i++)
-		free_irq(pci_irq_vector(et_dev->pdev,
-			 vq_common->vec_idx_offset + i), (void *)cq_pptr[i]);
-
-	kfree(cq_pptr);
-
-	return rv;
 }
 
 static void et_squeue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt);
@@ -297,27 +359,6 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		if (!vq_common->workqueue)
 			return -ENOMEM;
 	}
-
-	// Set interrupt address
-	if (!et_dev->mgmt.regions
-	    [MGMT_MEM_REGION_TYPE_VQ_INTRPT_TRG].is_valid) {
-		rv = -EINVAL;
-		goto error_destroy_workqueue;
-	}
-
-	vq_common->intrpt_addr =
-		(u8 *)et_dev->mgmt.regions
-		[MGMT_MEM_REGION_TYPE_VQ_INTRPT_TRG].mapped_baseaddr +
-		vq_common->dir_vq.intrpt_trg_offset;
-
-	if (et_dev->used_irq_vecs + vq_common->dir_vq.cq_count >
-	    et_dev->num_irq_vecs) {
-		dev_err(&et_dev->pdev->dev,
-			"VQ: not enough vecs allocated\n");
-		rv = -EINVAL;
-		goto error_destroy_workqueue;
-	}
-	vq_common->vec_idx_offset = et_dev->used_irq_vecs;
 
 	bitmap_zero(vq_common->sq_bitmap, ET_MAX_QUEUES);
 	bitmap_zero(vq_common->cq_bitmap, ET_MAX_QUEUES);
@@ -385,9 +426,6 @@ static void et_cqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	}
 
 	for (i = 0; i < vq_common->dir_vq.cq_count; i++) {
-		free_irq(pci_irq_vector(et_dev->pdev,
-					vq_common->vec_idx_offset + i),
-			 (void *)cq_pptr[i]);
 		cancel_work_sync(&cq_pptr[i]->isr_work);
 		mutex_destroy(&cq_pptr[i]->pop_mutex);
 		et_destroy_msg_list(cq_pptr[i]);
@@ -419,35 +457,150 @@ void et_vqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	et_cqueue_destroy_all(et_dev, is_mgmt);
 	et_squeue_destroy_all(et_dev, is_mgmt);
 
-	et_dev->used_irq_vecs -= vq_common->dir_vq.cq_count;
 	destroy_workqueue(vq_common->workqueue);
+}
+
+static ssize_t cmd_loopback_handler(struct et_squeue *sq)
+{
+	u8 *cmd;
+	ssize_t rv = 0;
+	struct cmn_header_t header;
+	struct device_ops_echo_cmd_t *echo_cmd;
+	struct device_ops_echo_rsp_t echo_rsp;
+	struct device_ops_data_read_cmd_t *data_read_cmd;
+	struct device_ops_data_read_rsp_t data_read_rsp;
+	struct device_ops_data_write_cmd_t *data_write_cmd;
+	struct device_ops_data_write_rsp_t data_write_rsp;
+	struct device_ops_kernel_launch_cmd_t *kernel_launch_cmd;
+	struct device_ops_kernel_launch_rsp_t kernel_launch_rsp;
+	struct device_ops_kernel_abort_cmd_t *kernel_abort_cmd;
+	struct device_ops_kernel_abort_rsp_t kernel_abort_rsp;
+	struct et_cqueue *cq = (struct et_cqueue *)sq->vq_common->intrpt_addr;
+
+	// Read the message header
+	if (!et_circbuffer_pop(&sq->cb, sq->cb_mem, (u8 *)&header,
+			       sizeof(header), ET_CB_SYNC_FOR_HOST))
+		return -EAGAIN;
+
+	cmd = kzalloc(header.size, GFP_KERNEL);
+	memcpy(cmd, (u8 *)&header, sizeof(header));
+
+	// Read the message payload
+	if (!et_circbuffer_pop(&sq->cb, sq->cb_mem, cmd + sizeof(header),
+			       header.size - sizeof(header),
+			       ET_CB_SYNC_FOR_DEVICE)) {
+		rv = -EAGAIN;
+		goto error_free_cmd_mem;
+	}
+
+	mutex_lock(&cq->pop_mutex);
+	switch (header.msg_id) {
+	case DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD:
+		echo_cmd = (struct device_ops_echo_cmd_t *)cmd;
+		echo_rsp.response_info.rsp_hdr.size =
+			sizeof(echo_rsp) - sizeof(header);
+		echo_rsp.response_info.rsp_hdr.tag_id =
+			echo_cmd->command_info.cmd_hdr.tag_id;
+		echo_rsp.response_info.rsp_hdr.msg_id =
+			DEV_OPS_API_MID_DEVICE_OPS_ECHO_RSP;
+		echo_rsp.echo_payload = echo_cmd->echo_payload;
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&echo_rsp,
+					sizeof(echo_rsp), ET_CB_SYNC_FOR_HOST |
+					ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD:
+		data_read_cmd = (struct device_ops_data_read_cmd_t *)cmd;
+		data_read_rsp.response_info.rsp_hdr.size =
+			sizeof(data_read_rsp) - sizeof(header);
+		data_read_rsp.response_info.rsp_hdr.tag_id =
+			data_read_cmd->command_info.cmd_hdr.tag_id;
+		data_read_rsp.response_info.rsp_hdr.msg_id =
+			DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP;
+		data_read_rsp.status =
+			DEV_OPS_API_DMA_RESPONSE_COMPLETE;
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem,
+					(u8 *)&data_read_rsp,
+					sizeof(data_read_rsp),
+					ET_CB_SYNC_FOR_HOST |
+					ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD:
+		data_write_cmd = (struct device_ops_data_write_cmd_t *)cmd;
+		data_write_rsp.response_info.rsp_hdr.size =
+			sizeof(data_write_rsp) - sizeof(header);
+		data_write_rsp.response_info.rsp_hdr.tag_id =
+			data_write_cmd->command_info.cmd_hdr.tag_id;
+		data_write_rsp.response_info.rsp_hdr.msg_id =
+			DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP;
+		data_write_rsp.status =
+			DEV_OPS_API_DMA_RESPONSE_COMPLETE;
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem,
+					(u8 *)&data_write_rsp,
+					sizeof(data_write_rsp),
+					ET_CB_SYNC_FOR_HOST |
+					ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+	case DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD:
+		kernel_launch_cmd =
+			(struct device_ops_kernel_launch_cmd_t *)cmd;
+		kernel_launch_rsp.response_info.rsp_hdr.size =
+			sizeof(kernel_launch_rsp) - sizeof(header);
+		kernel_launch_rsp.response_info.rsp_hdr.tag_id =
+			kernel_launch_cmd->command_info.cmd_hdr.tag_id;
+		kernel_launch_rsp.response_info.rsp_hdr.msg_id =
+			DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
+		kernel_launch_rsp.status =
+			DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED;
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem,
+					(u8 *)&kernel_launch_rsp,
+					sizeof(kernel_launch_rsp),
+					ET_CB_SYNC_FOR_HOST |
+					ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD:
+		kernel_abort_cmd =
+			(struct device_ops_kernel_abort_cmd_t *)cmd;
+		kernel_abort_rsp.response_info.rsp_hdr.size =
+			sizeof(kernel_abort_rsp) - sizeof(header);
+		kernel_abort_rsp.response_info.rsp_hdr.tag_id =
+			kernel_abort_cmd->command_info.cmd_hdr.tag_id;
+		kernel_abort_rsp.response_info.rsp_hdr.msg_id =
+			DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP;
+		kernel_abort_rsp.status =
+			DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS;
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem,
+					(u8 *)&kernel_abort_rsp,
+					sizeof(kernel_abort_rsp),
+					ET_CB_SYNC_FOR_HOST |
+					ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	}
+	mutex_unlock(&cq->pop_mutex);
+
+error_free_cmd_mem:
+	kfree(cmd);
+
+	return rv;
 }
 
 static inline void interrupt_device(struct et_squeue *sq)
 {
-	switch (sq->vq_common->dir_vq.intrpt_trg_size) {
-	case 1:
-		iowrite8(sq->vq_common->dir_vq.intrpt_id,
-			 sq->vq_common->intrpt_addr);
-		break;
-	case 2:
-		iowrite16(sq->vq_common->dir_vq.intrpt_id,
-			  sq->vq_common->intrpt_addr);
-		break;
-	case 4:
-		iowrite32(sq->vq_common->dir_vq.intrpt_id,
-			  sq->vq_common->intrpt_addr);
-		break;
-	case 8:
-		iowrite64(sq->vq_common->dir_vq.intrpt_id,
-			  sq->vq_common->intrpt_addr);
-	}
+	et_pcie_isr(0, sq->vq_common->intrpt_addr);
 }
 
 ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count)
 {
 	struct cmn_header_t *header = buf;
-	ssize_t rv = count;
+	ssize_t rv;
 
 	if (count < sizeof(*header)) {
 		pr_err("VQ[%d]: size too small: %ld", sq->index, count);
@@ -469,8 +622,16 @@ ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count)
 		goto update_sq_bitmap;
 	}
 
+	rv = cmd_loopback_handler(sq);
+	if (rv) {
+		pr_err("VQ[%d]: cmd_loopback_handler failed", sq->index);
+		goto update_sq_bitmap;
+	}
+
 	// Inform device that message has been pushed to SQ
 	interrupt_device(sq);
+
+	rv = count;
 
 update_sq_bitmap:
 	mutex_unlock(&sq->push_mutex);
