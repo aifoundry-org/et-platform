@@ -66,6 +66,7 @@ typedef struct FLASH_FS_BL2_INFO_s {
     uint32_t active_partition;
     uint32_t other_partition_valid;
     uint32_t configuration_region_address;
+    // @cabul: Need to add file_info for this if we want to use flash_fs_read_file
 
     asset_config_info_t asset_config_info;
 
