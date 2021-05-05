@@ -1,3 +1,9 @@
+# Conan
+conan/test_package/build/
+
+# common build folder names
+build/
+
 # Created by .ignore support plugin (hsz.mobi)
 ### Vim template
 # Swap
