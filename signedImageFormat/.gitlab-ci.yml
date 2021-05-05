@@ -1,0 +1,12 @@
+stages:
+  - package
+
+package:
+  stage: package
+  tags:
+    - docker
+  image: conanio/gcc8
+  before_script:
+    - conan --version
+  script:
+    - conan create . -tf conan/test_package
