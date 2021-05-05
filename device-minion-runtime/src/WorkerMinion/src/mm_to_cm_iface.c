@@ -26,24 +26,9 @@ static mm_cm_message_number_t mm_cm_msg_number[NUM_SHIRES] = { 0 };
 #define master_to_worker_broadcast_message_ctrl_ptr \
     ((broadcast_message_ctrl_t *)FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL)
 
-static spinlock_t notify_local_barrier[NUM_SHIRES] = { 0 };
-
 /* Local function prototypes */
 static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
     cm_iface_message_t *const message_ptr, void *const optional_arg);
-
-/* Identify the last thread in pool */
-static inline bool find_last_thread(spinlock_t *lock, uint32_t num_threads)
-{
-    if (atomic_add_local_32(&lock->flag, 1U) == (num_threads - 1))
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
 
 /* Finds the last shire involved in MM->CM message and notifies the MM */
 static inline void find_last_shire_and_notify_mm(uint64_t shire_id)
@@ -51,16 +36,14 @@ static inline void find_last_shire_and_notify_mm(uint64_t shire_id)
     const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
     bool last;
 
-    last = find_last_thread(&notify_local_barrier[shire_id], thread_count);
+    /* Check if we are the last receiver of the Shire */
+    WAIT_FLB(thread_count, 31, last);
 
     /* Last thread per shire decrements global counter and waits for all Shires to reach sync point */
     if (last)
     {
         int32_t last_shire = atomic_add_signed_global_32(
             (int32_t*)&master_to_worker_broadcast_message_ctrl_ptr->shire_count, -1);
-
-        /* Reset the local barrier flag */
-        init_local_spinlock(&notify_local_barrier[shire_id], 0);
 
         /* Last shire sends IPI to the sender thread in MM */
         if(last_shire == 1)
@@ -115,6 +98,11 @@ void MM_To_CM_Iface_Multicast_Receive(void *const optional_arg)
 
         /* Handle the message */
         mm_to_cm_iface_handle_message(shire_id, hart_id, &message, optional_arg);
+    }
+    else
+    {
+        log_write(LOG_LEVEL_WARNING,
+            "H%04" PRId64 ":MM->CM: Tried to read a non-pending message!\n", hart_id);
     }
 }
 

@@ -79,7 +79,7 @@ int8_t CW_Init(void)
 {
     uint64_t sip;
     uint64_t shire_mask;
-    uint64_t booted_shires_mask = 0U;
+    uint64_t booted_shires_mask = 0ULL;
     int8_t status = STATUS_SUCCESS;
 
     minion_fw_boot_config_t *minion_fw_boot_config;
@@ -94,9 +94,9 @@ int8_t CW_Init(void)
     /* Initialize Global CW_CB */
     atomic_store_local_64(&CW_CB.physically_avail_shires_mask,
         shire_mask);
-    atomic_store_local_64(&CW_CB.booted_shires_mask, 0U);
+    atomic_store_local_64(&CW_CB.booted_shires_mask, 0ULL);
 
-    atomic_store_local_64(&CW_CB.shire_state, 0U);
+    atomic_store_local_64(&CW_CB.shire_state, 0ULL);
 
     /* Bring up Compute Workers */
     syscall(SYSCALL_CONFIGURE_COMPUTE_MINION, shire_mask, 0x1u, 0);
