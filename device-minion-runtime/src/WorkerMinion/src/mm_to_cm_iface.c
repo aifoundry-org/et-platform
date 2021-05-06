@@ -13,13 +13,14 @@
 #include "syscall_internal.h"
 #include "trace.h"
 
+typedef struct {
+    cm_iface_message_number_t number;
+} __attribute__((aligned(64))) cm_iface_message_number_internal_t;
 
 /* MM -> CM message counters */
-typedef struct mm_cm_message_number {
-    cm_iface_message_number_t mm_cm_message_number[HARTS_PER_SHIRE];
-} __attribute__((aligned(64))) mm_cm_message_number_t;
-
-static mm_cm_message_number_t mm_cm_msg_number[NUM_SHIRES] = { 0 };
+static cm_iface_message_number_internal_t mm_cm_msg_number[NUM_HARTS] = { 0 };
+static spinlock_t pre_msg_local_barrier[NUM_SHIRES] = { 0 };
+static spinlock_t msg_sync_local_barrier[NUM_SHIRES] = { 0 };
 
 /* MM -> CM message buffers */
 #define master_to_worker_broadcast_message_buffer_ptr \
@@ -32,17 +33,44 @@ static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
     cm_iface_message_t *const message_ptr, void *const optional_arg);
 
 /* Finds the last shire involved in MM->CM message and notifies the MM */
-static inline void find_last_shire_and_notify_mm(uint64_t shire_id)
+static inline void read_msg_and_notify_mm(uint64_t shire_id, cm_iface_message_t *const message)
 {
     const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
-    bool last;
+    uint32_t thread_num = atomic_add_local_32(&pre_msg_local_barrier[shire_id].flag, 1U);
 
-    /* Check if we are the last receiver of the Shire */
-    WAIT_FLB(thread_count, 31, last);
-
-    /* Last thread per shire decrements global counter and waits for all Shires to reach sync point */
-    if (last)
+    /* First thread brings message from L3 */
+    if (thread_num == 0)
     {
+        asm volatile("fence");
+        evict(to_L3, master_to_worker_broadcast_message_buffer_ptr, sizeof(*message));
+        WAIT_CACHEOPS;
+
+        /* Set the local barrier flag */
+        init_local_spinlock(&msg_sync_local_barrier[shire_id], 1);
+    }
+    else
+    {
+        /* All threads in Shire wait for first Thread to set flag */
+        local_spinwait_wait(&msg_sync_local_barrier[shire_id], 1, 0);
+
+        asm volatile("fence");
+        evict(to_L2, master_to_worker_broadcast_message_buffer_ptr, sizeof(*message));
+        WAIT_CACHEOPS;
+    }
+
+    /* Copy message from shared global memory to local buffer */
+    ETSOC_Memory_Read_Write_Cacheable(master_to_worker_broadcast_message_buffer_ptr,
+                                      message, sizeof(*message));
+
+    /* Last thread per shire decrements global counter */
+    if (thread_num == (thread_count -1))
+    {
+        /* Reset the pre msg local barrier flag */
+        init_local_spinlock(&pre_msg_local_barrier[shire_id], 0);
+
+        /* Reset the msg sync local barrier flag */
+        init_local_spinlock(&msg_sync_local_barrier[shire_id], 0);
+
         int32_t last_shire = atomic_add_signed_global_32(
             (int32_t*)&master_to_worker_broadcast_message_ctrl_ptr->shire_count, -1);
 
@@ -79,23 +107,13 @@ void MM_To_CM_Iface_Multicast_Receive(void *const optional_arg)
     const uint32_t hart_id = get_hart_id();
     cm_iface_message_t message;
 
-    asm volatile("fence");
-    evict(to_L3, master_to_worker_broadcast_message_buffer_ptr, sizeof(message));
-    WAIT_CACHEOPS;
-
-    /* Copy message from shared global memory to local buffer */
-    ETSOC_Memory_Read_Write_Cacheable(master_to_worker_broadcast_message_buffer_ptr,
-                                      &message, sizeof(message));
+    read_msg_and_notify_mm(shire_id, &message);
 
     /* Check for pending MM->CM message */
-    volatile uint8_t *addr = &mm_cm_msg_number[shire_id].mm_cm_message_number[hart_id & (HARTS_PER_SHIRE - 1)];
-    if(message.header.number != atomic_load_local_8(addr))
+    if(message.header.number != mm_cm_msg_number[hart_id].number)
     {
-        /* Find the last shire in MM->CM multicast and ack back to MM */
-        find_last_shire_and_notify_mm(shire_id);
-
         /* Update the global copy of read messages */
-        atomic_store_local_8(addr, message.header.number);
+        mm_cm_msg_number[hart_id].number = message.header.number;
 
         /* Handle the message */
         mm_to_cm_iface_handle_message(shire_id, hart_id, &message, optional_arg);

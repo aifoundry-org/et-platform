@@ -62,20 +62,24 @@ static void pre_launch_synchronize_shires(spinlock_t *lock, uint32_t num_shires)
     const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
     bool last;
 
-    last = find_last_thread(&pre_launch_local_barrier[shire_id], thread_count);
+    /* Check if we are the last receiver of the Shire */
+    WAIT_FLB(thread_count, 28, last);
 
-    // Last thread per shire increments global counter and waits for all Shires to reach sync point
-    if (last) {
-        atomic_add_global_32(&lock->flag, 1U);
+    /* Last thread per shire increments global counter */
+    if (last) 
+    {
+        uint32_t prev_shire = atomic_add_global_32(&lock->flag, 1U);
 
         do {
            asm volatile("fence\n" ::: "memory");
         } while (atomic_load_global_32(&lock->flag) != num_shires);
 
-        if (shire_id == 0) {
+        /* Last shire resets the global barrier */
+        if (prev_shire == (num_shires - 1)) 
+        {
             init_global_spinlock(&pre_launch_global_barrier, 0);
         }
-        // Reset the local barrier flag
+        /* Reset the local barrier flag */
         init_local_spinlock(&pre_launch_local_barrier[shire_id], 0);
     }
 
@@ -387,6 +391,9 @@ static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t ke
 
         // Init post-kernel launch barrier
         local_fcc_barrier_init(&post_launch_barrier[shire_id]);
+
+        // Init pre-kernel launch barrier
+        init_local_spinlock(&pre_launch_local_barrier[shire_id], 1);
     }
 
     // [SW-3260] Force L3 evict in the firmware before starting a kernel - for performance analysis
