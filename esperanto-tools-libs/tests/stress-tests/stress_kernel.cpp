@@ -37,9 +37,6 @@ public:
         std::vector<void*> dev_mem_dst(num_executions);
         for (int j = 0; j < streams; ++j) {
           streams_[j] = runtime_->createStream(dev);
-          // TODO fix this after device-fw multiple SQs are allowed
-          auto rt = static_cast<rt::RuntimeImp*>(runtime_.get());
-          rt->streams_.find(streams_[j])->second.vq_ = 0;
           for (int k = 0; k < num_executions / streams; ++k) {
             LOG(INFO) << "Num execution: " << k;
             auto idx = k + j * num_executions / streams;
