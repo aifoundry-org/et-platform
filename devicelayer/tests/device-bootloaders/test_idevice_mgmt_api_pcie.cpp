@@ -20,7 +20,7 @@ protected:
     fListenerTimeout_ = std::chrono::seconds(300);
 
     // Launch PCIE through IDevice Abstraction
-    devLayer_ = dev::IDeviceLayer::createPcieDeviceLayer(false, true);
+    devLayer_ = dev::IDeviceLayer::createPcieDeviceLayer();
   }
 };
 

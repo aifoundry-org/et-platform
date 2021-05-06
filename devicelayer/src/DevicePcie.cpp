@@ -97,10 +97,10 @@ size_t DevicePcie::getSubmissionQueueSizeServiceProcessor(int device) const {
 DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
   : opsEnabled_(enableOps)
   , mngmtEnabled_(enableMngmt) {
-  // TODO: SW-5934: Multiple devices handling in deviceLayer
+  // TODO: SW-5934:  Multiple devices handling in deviceLayer
   // Currently device 0 is initialized only
   devIdx_ = 0;
-  LOG_IF(FATAL, enableOps || enableMngmt) << "Ops or Mngmt must be enabled";
+  LOG_IF(FATAL, !(enableOps || enableMngmt)) << "Ops or Mngmt must be enabled";
 
 
   if (mngmtEnabled_) {
