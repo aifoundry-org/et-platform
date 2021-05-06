@@ -52,7 +52,7 @@ std::vector<DeviceId> RuntimeImp::getDevices() {
 
 KernelId RuntimeImp::loadCode(DeviceId device, const void* data, size_t size) {
   ScopedProfileEvent profileEvent(Class::LoadCode, profiler_);
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  std::unique_lock<std::recursive_mutex> lock(mutex_);
 
   // allocate a buffer in the device to load the code
   auto deviceBuffer = mallocDevice(device, size);
@@ -87,8 +87,6 @@ KernelId RuntimeImp::loadCode(DeviceId device, const void* data, size_t size) {
                          memSize);
     }
   }
-  waitForStream(sstream);
-  destroyStream(sstream);
 
   auto kernel = std::make_unique<Kernel>(device, deviceBuffer, entry - basePhysicalAddress);
 
@@ -99,6 +97,9 @@ KernelId RuntimeImp::loadCode(DeviceId device, const void* data, size_t size) {
     throw Exception("Can't create kernel");
   }
   kernels_.emplace(kernelId, std::move(kernel));
+  lock.unlock();
+  waitForStream(sstream);
+  destroyStream(sstream);
   return kernelId;
 }
 
@@ -239,6 +240,7 @@ bool RuntimeImp::waitForStream(StreamId stream, std::chrono::milliseconds timeou
 }
 
 std::vector<int> RuntimeImp::getDevicesWithEventsOnFly() const {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   auto events = eventManager_.getOnflyEvents();
   std::vector<int> busyDevices;
   for (auto& [key, s] : streams_) {
