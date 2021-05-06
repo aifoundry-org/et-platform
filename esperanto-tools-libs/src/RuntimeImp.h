@@ -137,14 +137,14 @@ private:
 
   // using unique_ptr to not have to deal with elfio mess (the class is not friendly with modern c++)
   std::unordered_map<KernelId, std::unique_ptr<Kernel>> kernels_;
-  std::unique_ptr<ResponseReceiver> responseReceiver_;
 
   int nextKernelId_ = 0;
   int nextStreamId_ = 0;
 
-  std::recursive_mutex mutex_;
+  mutable std::recursive_mutex mutex_;
 
   profiling::ProfilerImp profiler_;
   std::unique_ptr<KernelParametersCache> kernelParametersCache_;
+  std::unique_ptr<ResponseReceiver> responseReceiver_;
 };
 } // namespace rt
