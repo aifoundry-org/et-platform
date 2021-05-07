@@ -18,7 +18,7 @@ class TestDevOpenClosePcie : public TestDevOpsApi {};
 
 TEST_F(TestDevOpenClosePcie, instantiateIDeviceLayer_1_1) {
   execTimeout_ = std::chrono::seconds(FLAGS_exec_timeout);
-  devLayer_ = dev::IDeviceLayer::createPcieDeviceLayer();
+  devLayer_ = dev::IDeviceLayer::createPcieDeviceLayer(true, false);
 
   ASSERT_NE(devLayer_, nullptr);
 }
