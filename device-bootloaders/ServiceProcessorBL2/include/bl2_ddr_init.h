@@ -172,13 +172,12 @@ int32_t ddr_get_uce_count(uint32_t *uce_count);
 
 void ddr_error_threshold_isr(void);  //TODO: WILL BE MADE STATIC FUNCION WITH ACTUAL ISR IMPLEMENTATION
 
-/*! \fn int ddr_get_memory_details(char *mem_vendor, char *mem_part)
+/*! \fn int ddr_get_memory_details(char *mem_detail)
     \brief This function get Memory vendor and part details
-    \param mem_vendor pointer to variable to hold Memory vendor value
-    \param mem_part pointer to variable to hold Memory part value
+    \param mem_detail pointer to variable to hold Memory detail value
     \return Status indicating success or negative error
 */
-int ddr_get_memory_details(char *mem_vendor, char *mem_part);
+int ddr_get_memory_details(char *mem_detail);
 
 /*! \fn int ddr_get_memory_type(char *mem_type)
     \brief This function get Memory type details

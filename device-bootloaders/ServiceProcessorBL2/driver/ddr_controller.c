@@ -1194,18 +1194,15 @@ void ddr_error_threshold_isr(void)
 
 }
 
-int ddr_get_memory_details(char *mem_vendor, char *mem_part)
+int ddr_get_memory_details(char *mem_detail)
 {
-    // TODO: https://esperantotech.atlassian.net/browse/SW-6869
-    strcpy(mem_vendor, "Micron");
-    strcpy(mem_part, "ETDDR4");
+    strncpy(mem_detail, "Unknown", 8);
     return 0;
 }
 
 int ddr_get_memory_type(char *mem_type)
 {
-    // TODO: https://esperantotech.atlassian.net/browse/SW-6869
-    strcpy(mem_type, "ETLPDDR4");
+    strncpy(mem_type, "LPDDR4X", 8);
     return 0;
 }
 

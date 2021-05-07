@@ -73,13 +73,12 @@ int get_form_factor(char *form_factor);
 */
 int get_PCIE_speed(char *pcie_speed);
 
-/*! \fn int get_memory_details(char *mem_vendor, char *mem_part)
+/*! \fn int get_memory_details(char *mem_detail)
     \brief Interface to get the memory details.
-    \param *mem_vendor  Pointer to Memory vendor variable
-    \param *mem_part  Pointer to Memory part number variable
+    \param *mem_detail  Pointer to Memory detail variable
     \returns Status indicating success or negative error
 */
-int get_memory_details(char *mem_vendor, char *mem_part);
+int get_memory_details(char *mem_detail);
 
 /*! \fn int get_memory_size(char *mem_size)
     \brief Interface to get the memory size

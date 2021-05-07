@@ -102,10 +102,10 @@ static int32_t asset_svc_getformfactor(char *form_factor)
     return status;
 }
 
-static int32_t asset_svc_getmemorydetails(char *mem_vendor, char *mem_part)
+static int32_t asset_svc_getmemorydetails(char *mem_detail)
 {
     int32_t status;
-    status = get_memory_details(mem_vendor, mem_part);
+    status = get_memory_details(mem_detail);
 
     if (0 != status) {
         printf("Asset tracking svc error: get_memory_details()\r\n");
@@ -177,7 +177,7 @@ static void asset_tracking_send_response(tag_id_t tag_id, msg_id_t msg_id, uint6
 void asset_tracking_process_request(tag_id_t tag_id, msg_id_t msg_id)
 {
     int32_t ret = 0;
-    char req_asset_info[8] = { 0 }, mem_part[8] = { 0 };
+    char req_asset_info[8] = { 0 };
     uint64_t req_start_time;
 
     req_start_time = timer_get_ticks_count();
@@ -205,7 +205,7 @@ void asset_tracking_process_request(tag_id_t tag_id, msg_id_t msg_id)
         ret = asset_svc_getformfactor(req_asset_info);
         break;
     case DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER:
-        ret = asset_svc_getmemorydetails(req_asset_info, mem_part);
+        ret = asset_svc_getmemorydetails(req_asset_info);
         break;
     case DM_CMD_GET_MODULE_MEMORY_SIZE_MB:
         ret = asset_svc_getmemorysize(req_asset_info);
