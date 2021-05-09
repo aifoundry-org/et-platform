@@ -382,7 +382,14 @@ void SQW_Decrement_Command_Count(uint8_t sqw_idx)
     int32_t original_val =
         atomic_add_signed_local_32(&SQW_CB.sqw_barrier[sqw_idx].cmds_count, -1);
 
-    Log_Write(LOG_LEVEL_DEBUG, "SQW:Decrement:Command Count: %d\r\n", original_val - 1);
+    if ((original_val - 1) < 0)
+    {
+       Log_Write(LOG_LEVEL_ERROR, "SQW[%d] Decrement:Command Counter is Negative : %d\r\n", sqw_idx, original_val -1);
+    }
+    else 
+    {
+       Log_Write(LOG_LEVEL_DEBUG, "SQW[%d] Decrement:Command Counter: %d\r\n", sqw_idx, original_val - 1);
+    }
 }
 
 /************************************************************************
@@ -411,7 +418,7 @@ void SQW_Increment_Command_Count(uint8_t sqw_idx)
     int32_t original_val =
         atomic_add_signed_local_32(&SQW_CB.sqw_barrier[sqw_idx].cmds_count, 1);
 
-    Log_Write(LOG_LEVEL_DEBUG, "SQW:Increment:Command Count: %d\r\n", original_val + 1);
+    Log_Write(LOG_LEVEL_DEBUG, "SQW[%d] Increment:Command Count: %d\r\n", sqw_idx, original_val + 1);
 }
 
 /************************************************************************

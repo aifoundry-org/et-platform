@@ -653,6 +653,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     int8_t status;
     int8_t status_internal;
     int8_t status_hang_abort;
+    uint8_t local_sqw_idx;
     uint32_t kernel_state;
     uint64_t kernel_shire_mask;
     bool kernel_done;
@@ -878,6 +879,8 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         launch_rsp.cmd_execution_time = (uint32_t)PMC_GET_LATENCY(atomic_load_local_32(
                                         &kernel->kw_cycles.start_cycles)) & 0xFFFFFFFF;
 
+        local_sqw_idx = (uint8_t)atomic_load_local_16(&kernel->sqw_idx); 
+
         /* Give back the reserved compute shires. */
         kw_unreserve_kernel_shires(kernel_shire_mask);
 
@@ -898,8 +901,8 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         }
 
         /* Decrement commands count being processed by given SQW */
-        SQW_Decrement_Command_Count(
-            (uint8_t)atomic_load_local_16(&kernel->sqw_idx));
+        SQW_Decrement_Command_Count(local_sqw_idx);
+
     } /* loop forever */
 
     /* will not return */

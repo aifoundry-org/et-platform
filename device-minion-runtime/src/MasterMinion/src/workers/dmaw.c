@@ -300,7 +300,7 @@ int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
         atomic_store_local_64(
             &DMAW_Read_CB.chan_status_cb[rd_ch_idx].dmaw_cycles.raw_u64, cycles->raw_u64);
 
-        Log_Write(LOG_LEVEL_DEBUG, "DMAW:DMAW_Trigger_Transfer:Success!\r\n");
+        Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] DMAW_Trigger_Transfer:Success!\r\n", sqw_idx);
 
         status = STATUS_SUCCESS;
     }
@@ -382,7 +382,7 @@ int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id,
         atomic_store_local_64(
             &DMAW_Write_CB.chan_status_cb[wrt_ch_idx].dmaw_cycles.raw_u64, cycles->raw_u64);
 
-        Log_Write(LOG_LEVEL_DEBUG, "DMAW:DMAW_Trigger_Transfer:Success!\r\n");
+        Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] DMAW_Trigger_Transfer:Success!\r\n", sqw_idx);
 
         status = STATUS_SUCCESS;
     }
@@ -518,7 +518,6 @@ void DMAW_Launch(uint32_t hart_id)
                 global DMA channel status for read channels */
                 if(channel_state == DMA_CHAN_STATE_IN_USE)
                 {
-                    Log_Write(LOG_LEVEL_DEBUG, "DMAW:%d:read_chan_active:%d\r\n", hart_id, ch_index);
 
                     /* Populate the DMA channel index */
                     dma_chan_id = ch_index + DMA_CHAN_ID_READ_0;
@@ -537,6 +536,7 @@ void DMAW_Launch(uint32_t hart_id)
                             /* DMA transfer complete, clear interrupt status */
                             dma_clear_done(dma_chan_id);
                             write_rsp.status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
+                            Log_Write(LOG_LEVEL_DEBUG,"DMAW: Read Transfer Completed\r\n");
                         }
                         else
                         {
@@ -544,6 +544,7 @@ void DMAW_Launch(uint32_t hart_id)
                             dma_clear_read_abort(dma_chan_id);
                             dma_configure_read(dma_chan_id);
                             write_rsp.status = DEV_OPS_API_DMA_RESPONSE_ERROR;
+                            Log_Write(LOG_LEVEL_DEBUG,"DMAW: Read Transfer Aborted\r\n");
                         }
 
                         /* TODO: SW-7137: To be removed */
@@ -554,6 +555,8 @@ void DMAW_Launch(uint32_t hart_id)
                         chan_status.raw_u64 = atomic_load_local_64(
                             &DMAW_Read_CB.chan_status_cb[ch_index].status.raw_u64);
 
+                        Log_Write(LOG_LEVEL_DEBUG,"SQ[%d] DMAW: Read Tag ID:%d Chan ID:%d \r\n",
+                            chan_status.sqw_idx, chan_status.tag_id, dma_chan_id);
                         /* Obtain wait latency, start cycles measured
                         for the command and obtain current cycles */
                         dma_cycles.raw_u64 = atomic_load_local_64
@@ -705,6 +708,7 @@ void DMAW_Launch(uint32_t hart_id)
                             /* DMA transfer complete, clear interrupt status */
                             dma_clear_done(dma_chan_id);
                             read_rsp.status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
+                            Log_Write(LOG_LEVEL_DEBUG,"DMAW: Write Transfer Completed\r\n");
                         }
                         else
                         {
@@ -712,6 +716,7 @@ void DMAW_Launch(uint32_t hart_id)
                             dma_clear_write_abort(dma_chan_id);
                             dma_configure_write(dma_chan_id);
                             read_rsp.status = DEV_OPS_API_DMA_RESPONSE_ERROR;
+                            Log_Write(LOG_LEVEL_DEBUG,"DMAW: Write Transfer Aborted\r\n");
                         }
 
                         /* TODO: SW-7137: To be removed */
@@ -722,6 +727,8 @@ void DMAW_Launch(uint32_t hart_id)
                         chan_status.raw_u64 = atomic_load_local_64(
                             &DMAW_Write_CB.chan_status_cb[ch_index].status.raw_u64);
 
+                        Log_Write(LOG_LEVEL_DEBUG,"SQ[%d] DMAW: Write Tag ID:%d Chan ID:%d \r\n",
+                            chan_status.sqw_idx, chan_status.tag_id, dma_chan_id);
                         /* Obtain wait latency, start cycles measured
                         for the command and obtain current cycles */
                         dma_cycles.raw_u64 = atomic_load_local_64

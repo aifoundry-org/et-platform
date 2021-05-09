@@ -68,7 +68,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             struct device_ops_api_compatibility_rsp_t rsp;
 
             Log_Write(LOG_LEVEL_DEBUG,
-                "HostCommandHandler:Processing:API_COMPATIBILITY_CMD\r\n");
+                "SQ[%d] HostCommandHandler:Processing:API_COMPATIBILITY_CMD\r\n",sqw_idx);
 
             /* Construct and transmit response */
             rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
@@ -85,13 +85,13 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             if(status == STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_DEBUG,
-                    "HostCommandHandler:Pushed:API_COMPATIBILITY_CMD_RSP:tag_id=%x->Host_CQ\r\n",
-                    rsp.response_info.rsp_hdr.tag_id);
+                    "SQ[%d] HostCommandHandler:Pushed:API_COMPATIBILITY_CMD_RSP:tag_id=%x->Host_CQ\r\n",
+                    sqw_idx, rsp.response_info.rsp_hdr.tag_id);
             }
             else
             {
                 Log_Write(LOG_LEVEL_ERROR,
-                    "HostCommandHandler:HostIface:Push:Failed\r\n");
+                    "SQ[%d] HostCommandHandler:HostIface:Push:Failed\r\n", sqw_idx);
             }
 
             /* Decrement commands count being processed by given SQW */
@@ -105,7 +105,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             struct device_ops_fw_version_rsp_t rsp;
 
             Log_Write(LOG_LEVEL_DEBUG,
-                "HostCommandHandler:Processing:FW_VERSION_CMD\r\n");
+                "SQ[%d] HostCommandHandler:Processing:FW_VERSION_CMD\r\n", sqw_idx);
 
             /* Construct and transmit response */
             rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
@@ -146,13 +146,13 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             if(status == STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_DEBUG,
-                    "HostCommandHandler:Pushed:FW_VERSION_CMD_RSP:tag_id=%x->Host_CQ\r\n",
-                    rsp.response_info.rsp_hdr.tag_id);
+                    "SQ [%d] HostCommandHandler:Pushed:FW_VERSION_CMD_RSP:tag_id=%x->Host_CQ\r\n",
+                    sqw_idx, rsp.response_info.rsp_hdr.tag_id);
             }
             else
             {
                 Log_Write(LOG_LEVEL_ERROR,
-                    "HostCommandHandler:HostIface:Push:Failed\r\n");
+                    "SQ [%d] HostCommandHandler:HostIface:Push:Failed\r\n", sqw_idx);
             }
 
             /* Decrement commands count being processed by given SQW */
@@ -166,7 +166,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             struct device_ops_echo_rsp_t rsp;
 
             Log_Write(LOG_LEVEL_DEBUG,
-                "HostCommandHandler:Processing:ECHO_CMD\r\n");
+                "SQ[%d] HostCommandHandler:Processing:ECHO_CMD\r\n", sqw_idx);
 
             /* Construct and transmit response */
             rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
@@ -181,13 +181,13 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             if(status == STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_DEBUG,
-                    "HostCommandHandler:Pushed:ECHO_CMD_RSP:tag_id=%x->Host_CQ\r\n",
-                    rsp.response_info.rsp_hdr.tag_id);
+                    "SQ[%d] HostCommandHandler:Pushed:ECHO_CMD_RSP:tag_id=%x->Host_CQ\r\n",
+                    sqw_idx, rsp.response_info.rsp_hdr.tag_id);
             }
             else
             {
                 Log_Write(LOG_LEVEL_ERROR,
-                    "HostCommandHandler:HostIface:Push:Failed\r\n");
+                    "SQ[%d] HostCommandHandler:HostIface:Push:Failed\r\n", sqw_idx);
             }
 
             /* Decrement commands count being processed by given SQW */
@@ -202,7 +202,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             uint8_t kw_idx;
 
             Log_Write(LOG_LEVEL_DEBUG,
-                "HostCommandHandler:Processing:KERNEL_LAUNCH_CMD\r\n");
+                "SQ[%d] HostCommandHandler:Processing:KERNEL_LAUNCH_CMD\r\n", sqw_idx);
 
             /* Compute Wait Cycles (cycles the command was sitting in SQ prior to launch)
                Snapshot current cycle */
@@ -229,21 +229,19 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 else
                 {
                     Log_Write(LOG_LEVEL_ERROR,
-                        "HostCommandHandler:CreateTimeot:Failed\r\n");
+                        "SQ[%d] HostCommandHandler:CreateTimeot:Failed Tag ID:%d\r\n", 
+                         sqw_idx, cmd->command_info.cmd_hdr.tag_id);
                 }
             }
             else
             {
                 Log_Write(LOG_LEVEL_ERROR,
-                    "HostCmdHdlr:KernelLaunch:Failed Status:%d\r\n", status);
-
-                Log_Write(LOG_LEVEL_ERROR,
-                    "HostCmdHdlr:KernelLaunch:Failed CmdParam:code_start_address:%lx\r\n",
-                    cmd->code_start_address);
+                    "SQ[%d] HostCmdHdlr:KernelLaunch:Failed Tag ID=%d shire_mask:%lx Status:%d\r\n", 
+                     sqw_idx, cmd->command_info.cmd_hdr.tag_id, cmd->shire_mask, status);
 
                 Log_Write(LOG_LEVEL_DEBUG,
-                    "HostCmdHdlr:KernelLaunch:Failed CmdParam:pointer_to_args:%lx shire_mask:%lx\r\n",
-                    cmd->pointer_to_args, cmd->shire_mask);
+                    "HostCmdHdlr:KernelLaunch:Failed CmdParam:code_start_address:%lx pointer_to_args:%lx\r\n",
+                    cmd->code_start_address, cmd->pointer_to_args);
 
                 /* Construct and transit command response */
                 rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
@@ -273,13 +271,13 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 if(status == STATUS_SUCCESS)
                 {
                     Log_Write(LOG_LEVEL_DEBUG,
-                        "HostCommandHandler:Pushed:KERNEL_LAUNCH_CMD_RSP:tag_id=%x->Host_CQ\r\n",
-                        rsp.response_info.rsp_hdr.tag_id);
+                        "SQ[%d] HostCommandHandler:Pushed:KERNEL_LAUNCH_CMD_RSP:tag_id=%x->Host_CQ\r\n",
+                        sqw_idx, rsp.response_info.rsp_hdr.tag_id);
                 }
                 else
                 {
                     Log_Write(LOG_LEVEL_ERROR,
-                        "HostCommandHandler:HostIface:Push:Failed\r\n");
+                        "SQ[%d] HostCommandHandler:HostIface:Push:Failed\r\n", sqw_idx);
                 }
 
                 /* Decrement commands count being processed by given SQW */
@@ -294,7 +292,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             struct device_ops_kernel_abort_rsp_t rsp;
 
             Log_Write(LOG_LEVEL_DEBUG,
-                "HostCommandHandler:Processing:KERNEL_ABORT_CMD\r\n");
+                "SQ[%d] HostCommandHandler:Processing:KERNEL_ABORT_CMD\r\n", sqw_idx);
 
             /* Dispatch kernel abort command */
             status = KW_Dispatch_Kernel_Abort_Cmd(cmd, sqw_idx);
@@ -360,7 +358,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             command from host will trigger the implementation to configure
             a DMA write channel on device to move data from device to host */
             Log_Write(LOG_LEVEL_DEBUG,
-                "HostCommandHandler:Processing:DATA_READ_CMD\r\n");
+                "SQ[%d] HostCommandHandler:Processing:DATA_READ_CMD\r\n", sqw_idx);
 
             /* If flags are set to extract both MM and CM Trace buffers. */
             if((cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_MM_TRACE_BUF) && 
@@ -437,7 +435,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
             if(status == STATUS_SUCCESS)
             {
-                Log_Write(LOG_LEVEL_DEBUG, "DMA_READ:channel_used:%d\r\n", chan);
+                Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] DMA_READ:channel_used:%d\r\n", sqw_idx, chan);
                 Log_Write(LOG_LEVEL_DEBUG, "DMA_READ:src_device_phy_addr:%" PRIx64 "\r\n",
                     cmd->src_device_phy_addr);
                 Log_Write(LOG_LEVEL_DEBUG, "DMA_READ:dst_host_phy_addr:%" PRIx64 "\r\n",
@@ -470,7 +468,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             if(status != STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_ERROR,
-                    "HostCmdHdlr:DataReadCmd:Failed:Status:%d\r\n", status);
+                    "SQ[%d] HostCmdHdlr:DataReadCmd:Failed:Status:%d\r\n", sqw_idx, status);
 
                 Log_Write(LOG_LEVEL_ERROR,
                     "HostCmdHdlr:DataReadCmd:Failed:CmdParams:src_device_phy_addr:%lx:size:%x\r\n",
@@ -546,14 +544,14 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             trigger the implementation to configure a DMA write channel on device
             to move data from device to host */
             Log_Write(LOG_LEVEL_DEBUG,
-                "HostCommandHandler:Processing:DATA_WRITE_CMD\r\n");
+                "SQ[%d] HostCommandHandler:Processing:DATA_WRITE_CMD\r\n", sqw_idx);
 
             /* Obtain the next available DMA read channel */
             status = DMAW_Read_Find_Idle_Chan_And_Reserve(&chan, sqw_idx);
 
             if(status == STATUS_SUCCESS)
             {
-                Log_Write(LOG_LEVEL_DEBUG, "DMA_WRITE:channel_used:%d\r\n", chan);
+                Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] DMA_WRITE:channel_used:%d\r\n", sqw_idx, chan);
                 Log_Write(LOG_LEVEL_DEBUG, "DMA_WRITE:src_host_virt_addr:%" PRIx64 "\r\n",
                     cmd->src_host_virt_addr);
                 Log_Write(LOG_LEVEL_DEBUG, "DMA_WRITE:src_host_phy_addr:%" PRIx64 "\r\n",
