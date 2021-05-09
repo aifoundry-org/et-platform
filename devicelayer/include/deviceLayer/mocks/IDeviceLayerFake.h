@@ -15,6 +15,7 @@
 #include <esperanto/device-apis/operations-api/device_ops_api_cxx.h>
 #include <mutex>
 #include <queue>
+#include <string>
 namespace dev {
 class IDeviceLayerFake : public IDeviceLayer {
   std::queue<rsp_header_t> responsesMasterMinion_;
@@ -32,6 +33,14 @@ public:
     rsp.rsp_hdr.tag_id = cmd->tag_id;
     if (cmd->msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD) {
       rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
+    } else if (cmd->msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD) {
+      rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP;
+    }
+    else if (cmd->msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD){
+      rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP;
+    }
+    else {
+      throw Exception("Please, add command with msg_id: " + std::to_string(cmd->msg_id));
     }
     responsesMasterMinion_.push(rsp);
     return true;
