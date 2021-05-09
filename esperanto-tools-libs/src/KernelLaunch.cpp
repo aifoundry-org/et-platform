@@ -67,7 +67,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
   cmd.command_info.cmd_hdr.size = sizeof(cmd);
   cmd.command_info.cmd_hdr.flags = barrier ? 1 : 0;
   cmd.code_start_address = kernel->getEntryAddress();
-  cmd.pointer_to_args = reinterpret_cast<uint64_t>(pBuffer->deviceBuffer_);
+  cmd.pointer_to_args = kernel_args_size > 0 ? reinterpret_cast<uint64_t>(pBuffer->deviceBuffer_) : 0;
   cmd.shire_mask = shire_mask;
 
 
