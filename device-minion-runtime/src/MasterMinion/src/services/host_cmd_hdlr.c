@@ -217,7 +217,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 /* Create timeout for kernel_launch command to complete */
                 /* TODO Add support in Device API Kernel Launch command to override timeout */
                 /* cmd->timeout */
-                sw_timer_idx = SW_Timer_Create_Timeout(&KW_Set_Abort_Status, kw_idx, KERNEL_LAUNCH_TIMEOUT(1));
+                sw_timer_idx = SW_Timer_Create_Timeout(&KW_Set_Abort_Status, kw_idx, KERNEL_LAUNCH_TIMEOUT(5));
                 if(sw_timer_idx >= 0)
                 {
                     /* Notify kernel worker to aggregate
