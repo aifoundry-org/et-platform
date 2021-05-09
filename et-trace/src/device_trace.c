@@ -30,9 +30,9 @@
 #include <stdio.h>
 #include <string.h>
 #include "device_trace.h"
-#include "hart.h"
+#include "device-common/hart.h"
 #if defined(MASTER_MINION)
-#include "atomic.h"
+#include "device-common/atomic.h"
 #include "etsoc_memory.h"
 #endif
 

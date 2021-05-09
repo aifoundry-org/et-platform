@@ -9,55 +9,53 @@
 #------------------------------------------------------------------------------
 
 # Compile the library for Master Minon.
-add_library(device_trace_mm STATIC
-    device_trace.c
-)
+add_library(device_trace_mm STATIC src/device_trace.c)
 add_library(deviceFirmware::device_trace_mm ALIAS device_trace_mm)
 target_compile_definitions(device_trace_mm PRIVATE -DMASTER_MINION=1)
-
 target_include_directories(device_trace_mm
-PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-    $<INSTALL_INTERFACE:${INCLUDE_INSTALL_DIR}/esperanto-fw/device_trace>
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/device_trace>
+)
+target_link_libraries(device_trace_mm
+    PRIVATE
+        deviceFirmware::device_common
+        deviceFirmware::firmware_helpers_interface
 )
 
-include_directories(${SHARED_INC_DIRS})
-
 set_target_properties(device_trace_mm PROPERTIES
-    PUBLIC_HEADER "device_trace.h;device_trace_types.h"
+    PUBLIC_HEADER "include/device_trace.h;include/device_trace_types.h"
 )
 
 install(TARGETS device_trace_mm
     EXPORT  EsperantoDeviceMinionRuntimeTargets
-    ARCHIVE       DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw
-    PUBLIC_HEADER DESTINATION ${INCLUDE_INSTALL_DIR}/esperanto-fw/device_trace
+    ARCHIVE       DESTINATION ${CMAKE_INSTALL_LIBDIR}/esperanto-fw
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/device_trace
     COMPONENT device_trace
 )
 
 # Compile the library for Service processor and Computer Minon.
-add_library(device_trace STATIC
-    device_trace.c
-)
+add_library(device_trace STATIC src/device_trace.c)
 add_library(deviceFirmware::device_trace ALIAS device_trace)
 target_compile_definitions(device_trace PRIVATE -DSP_OR_COMPUTE_MINION=1)
-
 target_include_directories(device_trace
     PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-        $<INSTALL_INTERFACE:${INCLUDE_INSTALL_DIR}/esperanto-fw/device_trace>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/device_trace>
+)
+target_link_libraries(device_trace
+    PRIVATE
+        deviceFirmware::device_common
+        deviceFirmware::firmware_helpers_interface
 )
 
-include_directories(${SHARED_INC_DIRS})
-
 set_target_properties(device_trace PROPERTIES
-    PUBLIC_HEADER "device_trace.h;device_trace_types.h"
+    PUBLIC_HEADER "include/device_trace.h;include/device_trace_types.h"
 )
 
 install(TARGETS device_trace
     EXPORT  EsperantoDeviceMinionRuntimeTargets
-    ARCHIVE       DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw
-    PUBLIC_HEADER DESTINATION ${INCLUDE_INSTALL_DIR}/esperanto-fw/device_trace
+    ARCHIVE       DESTINATION ${CMAKE_INSTALL_LIBDIR}/esperanto-fw
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/device_trace
     COMPONENT device_trace
 )
