@@ -29,7 +29,7 @@
 #include "workers/sqw.h"
 #include "config/mm_config.h"
 #include "pmu.h"
-#include "cacheops.h"
+#include "device-common/cacheops.h"
 #include "layout.h"
 
 /************************************************************************

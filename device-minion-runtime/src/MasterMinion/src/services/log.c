@@ -24,7 +24,7 @@
 #include "services/trace.h"
 #include "device-common/hart.h"
 #include "drivers/console.h"
-#include "atomic.h"
+#include "device-common/atomic.h"
 #include "layout.h"
 #include <stddef.h>
 #include "sync.h"

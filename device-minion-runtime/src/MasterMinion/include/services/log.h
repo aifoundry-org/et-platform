@@ -18,7 +18,7 @@
 
 #include <stddef.h>
 #include <inttypes.h>
-#include "log_levels.h"
+#include "device-common/log_levels.h"
 
 /*
  * Log Interface.

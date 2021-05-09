@@ -10,7 +10,7 @@
 *-------------------------------------------------------------------------
 */
 
-#include "esr_defines.h"
+#include "device-common/esr_defines.h"
 #include "minion_esr_defines.h"
 #include "broadcast.h"
 #include "minion_cfg.h"

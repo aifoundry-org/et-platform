@@ -11,8 +11,6 @@
 set(LINKER_SCRIPT src/sections.ld)
 set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
 
-include_directories(${SHARED_INC_DIRS})
-
 add_riscv_executable(MachineMinion
     src/boot.S
     src/trap_handler.S
@@ -22,7 +20,6 @@ add_riscv_executable(MachineMinion
     src/pmu.c
     src/minion_cfg.c
     src/build_configuration.c
-    ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/print_exception.c
     ${SHARED_SRC_DIR}/broadcast.c
 )
@@ -30,17 +27,25 @@ target_include_directories(MachineMinion.elf
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    PRIVATE 
+        $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/shared/include>
 )
-target_link_libraries(MachineMinion.elf PRIVATE signedImageFormat::signedImageFormat)
+target_link_libraries(MachineMinion.elf
+    PRIVATE
+        deviceFirmware::firmware_helpers_interface
+        deviceFirmware::firmware_helpers_serial
+    PRIVATE
+        deviceFirmware::device_configuration
+)
 
 install(TARGETS MachineMinion.elf
     EXPORT EsperantoDeviceMinionRuntimeTargets
-    RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/MachineMinion
+    RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR}/esperanto-fw/MachineMinion
     COMPONENT machine-minion
 )
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/MachineMinion.lst
               ${CMAKE_CURRENT_BINARY_DIR}/MachineMinion.map
-    DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/MachineMinion
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/esperanto-fw/MachineMinion
     COMPONENT machine-minion
 )

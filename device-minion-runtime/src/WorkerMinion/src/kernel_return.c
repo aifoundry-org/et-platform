@@ -1,4 +1,4 @@
-#include "hart.h"
+#include "device-common/hart.h"
 #include "kernel.h"
 #include "kernel_return.h"
 #include "kernel_error.h"

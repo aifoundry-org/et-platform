@@ -22,7 +22,7 @@
 #include "drivers/pu_timers.h"
 #include "drivers/plic.h"
 #include "io.h"
-#include "atomic.h"
+#include "device-common/atomic.h"
 #include "etsoc_hal/inc/pu_timers.h"
 #include "etsoc_hal/inc/hal_device.h"
 #include "etsoc_hal/inc/pu_plic.h"

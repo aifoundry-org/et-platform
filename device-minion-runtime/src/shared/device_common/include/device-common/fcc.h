@@ -1,7 +1,7 @@
 #ifndef FCC_H
 #define FCC_H
 
-#include "esr_defines.h"
+#include "device-common/esr_defines.h"
 
 #include <stdint.h>
 

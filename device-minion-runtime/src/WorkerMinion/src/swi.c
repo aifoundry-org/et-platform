@@ -1,5 +1,5 @@
 #include "cm_to_mm_iface.h"
-#include "hart.h"
+#include "device-common/hart.h"
 #include "kernel.h"
 #include "layout.h"
 #include "mm_to_cm_iface.h"

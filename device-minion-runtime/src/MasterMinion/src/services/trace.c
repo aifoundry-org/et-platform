@@ -19,9 +19,9 @@
 */
 /***********************************************************************/
 
-#include "atomic.h"
-#include "cacheops.h"
-#include "hart.h"
+#include "device-common/atomic.h"
+#include "device-common/cacheops.h"
+#include "device-common/hart.h"
 #include "layout.h"
 #include "config/mm_config.h"
 #include "services/log.h"

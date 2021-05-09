@@ -27,14 +27,14 @@
         CW_Get_Physically_Enabled_Shires
 */
 /***********************************************************************/
-#include "atomic.h"
+#include "device-common/atomic.h"
 #include "common_defs.h"
 #include "minion_fw_boot_config.h"
 #include "layout.h"
 #include "workers/cw.h"
 #include "services/cm_iface.h"
 #include "services/log.h"
-#include "syscall.h"
+#include "device-common/syscall.h"
 #include "syscall_internal.h"
 #include "message_types.h"
 #include "riscv_encoding.h"

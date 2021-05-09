@@ -12,7 +12,7 @@
 #include "io.h"
 #include "pcie_int.h"
 #include "pcie_device.h"
-#include "atomic.h"
+#include "device-common/atomic.h"
 
 /*! \enum pcie_int_t
     \brief Enum which specifies the PCI interrupt types

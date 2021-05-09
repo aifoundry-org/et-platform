@@ -1,5 +1,5 @@
 #include "services/log.h"
-#include "macros.h"
+#include "device-common/macros.h"
 
 uint64_t exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const regs);
 

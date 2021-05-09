@@ -9,8 +9,8 @@
 *-------------------------------------------------------------------------
 */
 
-#include "esr_defines.h"
-#include "hart.h"
+#include "device-common/esr_defines.h"
+#include "device-common/hart.h"
 #include "pmu.h"
 
 // Configure PMCs

@@ -10,5 +10,5 @@
 
 install(
   PROGRAMS get_git_hash.py get_git_version.py
-  DESTINATION ${BIN_INSTALL_DIR}/esperanto-fw
+  DESTINATION ${CMAKE_INSTALL_BINDIR}/esperanto-fw
   COMPONENT tools)

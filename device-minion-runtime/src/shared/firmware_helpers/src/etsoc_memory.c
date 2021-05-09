@@ -24,7 +24,7 @@
 /***********************************************************************/
 #include "etsoc_memory.h"
 #include "io.h"
-#include "atomic.h"
+#include "device-common/atomic.h"
 #include <string.h>
 
 static inline uint8_t io_read_8(const volatile uint8_t *addr)

@@ -22,10 +22,10 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "atomic.h"
-#include "fcc.h"
-#include "macros.h"
-#include "utils.h"
+#include "device-common/atomic.h"
+#include "device-common/fcc.h"
+#include "device-common/macros.h"
+#include "device-common/utils.h"
 
 #define CACHE_LINE_SIZE 64
 

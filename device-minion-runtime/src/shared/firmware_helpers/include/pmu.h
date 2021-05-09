@@ -13,7 +13,7 @@
 #ifndef __PMU_H__
 #define __PMU_H__
 
-#include "esr_defines.h"
+#include "device-common/esr_defines.h"
 // PMU support: Defines and basic API
 
 // ETSoC-1 PMU hardware

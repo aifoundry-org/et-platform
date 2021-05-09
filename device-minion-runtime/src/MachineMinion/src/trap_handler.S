@@ -1,4 +1,4 @@
-#include "esr_defines.h"
+#include "device-common/esr_defines.h"
 #include "syscall_internal.h"
 #include "riscv_encoding.h"
 

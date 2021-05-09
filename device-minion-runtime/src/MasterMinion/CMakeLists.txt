@@ -16,8 +16,6 @@
 set(LINKER_SCRIPT src/sections.ld)
 set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
 
-include_directories(${SHARED_INC_DIRS})
-
 add_riscv_executable(MasterMinion 
     src/crt.S
     src/trap_handler.S
@@ -43,7 +41,6 @@ add_riscv_executable(MasterMinion
     src/services/sw_timer.c
     src/services/trace.c
     ${SHARED_SRC_DIR}/etsoc_memory.c
-    ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/printf.c
     ${SHARED_SRC_DIR}/putchar.c
     ${SHARED_SRC_DIR}/print_exception.c
@@ -58,23 +55,30 @@ target_include_directories(MasterMinion.elf
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    PRIVATE 
+        $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/shared/include>
 )
 
 target_link_libraries(MasterMinion.elf
     PUBLIC
         deviceFirmware::device_trace_mm
         deviceApi::deviceApi
-        signedImageFormat::signedImageFormat
+        etsoc_hal::etsoc_hal
+        deviceFirmware::device_common
+        deviceFirmware::device_trace
+        deviceFirmware::firmware_helpers_serial
+    PRIVATE
+        deviceFirmware::device_configuration
 )
 
 install(TARGETS MasterMinion.elf
     EXPORT EsperantoDeviceMinionRuntimeTargets
-    RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/MasterMinion
+    RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR}/esperanto-fw/MasterMinion
     COMPONENT master-minion
 )
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/MasterMinion.lst
               ${CMAKE_CURRENT_BINARY_DIR}/MasterMinion.map
-    DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/MasterMinion
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/esperanto-fw/MasterMinion
     COMPONENT master-minion
 )

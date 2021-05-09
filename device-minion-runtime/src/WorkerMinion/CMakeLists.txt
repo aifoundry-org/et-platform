@@ -11,8 +11,6 @@
 set(LINKER_SCRIPT src/sections.ld)
 set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
 
-include_directories(${SHARED_INC_DIRS})
-
 add_riscv_executable(WorkerMinion
     src/crt.S
     src/trap_handler.S
@@ -30,25 +28,32 @@ add_riscv_executable(WorkerMinion
     ${SHARED_SRC_DIR}/circbuff.c
     ${SHARED_SRC_DIR}/etsoc_memory.c
     ${SHARED_SRC_DIR}/printf.c
-    ${SHARED_SRC_DIR}/serial.c
 )
 target_include_directories(WorkerMinion.elf
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    PRIVATE 
+        $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/shared/include>
 )
-target_link_libraries(WorkerMinion.elf PRIVATE signedImageFormat::signedImageFormat)
+target_link_libraries(WorkerMinion.elf
+    PRIVATE
+        deviceFirmware::firmware_helpers_interface
+        deviceFirmware::firmware_helpers_serial
+    PRIVATE
+        deviceFirmware::device_configuration
+)
 
 target_link_libraries(WorkerMinion.elf PUBLIC deviceFirmware::device_trace)
 
 install(TARGETS WorkerMinion.elf
     EXPORT EsperantoDeviceMinionRuntimeTargets
-    RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/WorkerMinion
+    RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR}/esperanto-fw/WorkerMinion
     COMPONENT worker-minion
 )
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/WorkerMinion.lst
         ${CMAKE_CURRENT_BINARY_DIR}/WorkerMinion.map
-    DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/WorkerMinion
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/esperanto-fw/WorkerMinion
     COMPONENT worker-minion
 )

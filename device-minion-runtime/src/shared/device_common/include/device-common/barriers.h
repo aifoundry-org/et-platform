@@ -14,8 +14,8 @@
 
 #include <inttypes.h>
 
-#include "utils.h"
-#include "esr_defines.h"
+#include "device-common/utils.h"
+#include "device-common/esr_defines.h"
 
 #ifdef __cplusplus
 #define EXTERN_C extern "C"

@@ -9,25 +9,27 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.5)
-project(DeviceFirmware VERSION 0.0.1 LANGUAGES C ASM)
-
-set(DEVICE_MINION_RUNTIME_VERSION_MAJOR   ${CMAKE_MAJOR_VERSION})
-set(DEVICE_MINION_RUNTIME_VERSION_MINOR   ${CMAKE_MINOR_VERSION})
-set(DEVICE_MINION_RUNTIME_REVISION_NUMBER ${CMAKE_PATCH_VERSION})
+project(deviceMinionRuntime VERSION 0.0.1 LANGUAGES C ASM)
 
 include(ExternalProject)
 include(GNUInstallDirs)
 include(DeviceUtils)
 cmake_policy(SET CMP0076 NEW)
 
+option(DEVICE_MINION_RUNTIME_DEPRECATED "Enable deprecated functionality" ON)
 option(BUILD_DOC "Build documentation" ON)
+
 set(DOCUMENTATION_INSTALL_DIR  "${CMAKE_INSTALL_PREFIX}" CACHE STRING "Documentation installation path")
 
-set(BIN_INSTALL_DIR bin CACHE STRING "Bin install dir")
-set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
-set(LIB_INSTALL_DIR  lib/  CACHE STRING "Library install dir")
-set(SYSCONFIG_INSTALL_DIR etc/et-fw/ CACHE STRING "Config install dir")
+set(DEVICE_MINION_RUNTIME_VERSION_MAJOR   ${CMAKE_MAJOR_VERSION})
+set(DEVICE_MINION_RUNTIME_VERSION_MINOR   ${CMAKE_MINOR_VERSION})
+set(DEVICE_MINION_RUNTIME_REVISION_NUMBER ${CMAKE_PATCH_VERSION})
 
+if (DEVICE_MINION_RUNTIME_DEPRECATED)
+    set(BIN_INSTALL_DIR     ${CMAKE_INSTALL_BINDIR}     CACHE STRING "Bin install dir")
+    set(INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_INCLUDEDIR} CACHE STRING "Include install dir")
+    set(LIB_INSTALL_DIR     ${CMAKE_INSTALL_LIBDIR}     CACHE STRING "Library install dir")
+endif()
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
@@ -47,8 +49,7 @@ endif (DOXYGEN_FOUND)
 
 ############################ FW build Rules ############### ####################
 
-include_directories(${PROJECT_BINARY_DIR}/src/shared/include)
-
+add_subdirectory(external)
 add_subdirectory(src)
 add_subdirectory(scripts)
 add_subdirectory(tools)
@@ -56,29 +57,30 @@ add_subdirectory(tools)
 ### Add package information
 include(CMakePackageConfigHelpers)
 
+
 # Export the package for use from the build-tree
 # (this registers the build-tree with a global CMake-registry)
 export(PACKAGE EsperantoDeviceMinionRuntime)
-
 # Create the *-config.cmake and *-config-version.cmake files
 configure_package_config_file(EsperantoDeviceMinionRuntimeConfig.cmake.in
-     ${CMAKE_CURRENT_BINARY_DIR}/EsperantoDeviceMinionRuntimeConfig.cmake
-  INSTALL_DESTINATION ${LIB_INSTALL_DIR}/EsperantoDeviceMinionRuntime/cmake
-  PATH_VARS INCLUDE_INSTALL_DIR SYSCONFIG_INSTALL_DIR LIB_INSTALL_DIR BIN_INSTALL_DIR
-  )
+    ${CMAKE_CURRENT_BINARY_DIR}/EsperantoDeviceMinionRuntimeConfig.cmake
+    INSTALL_DESTINATION ${LIB_INSTALL_DIR}/EsperantoDeviceMinionRuntime/cmake
+    PATH_VARS INCLUDE_INSTALL_DIR LIB_INSTALL_DIR BIN_INSTALL_DIR
+)
 write_basic_package_version_file(
-  ${CMAKE_CURRENT_BINARY_DIR}/EsperantoDeviceMinionRuntimeConfigVersion.cmake
-  VERSION ${VERSION}
-  COMPATIBILITY SameMajorVersion )
-
+    ${CMAKE_CURRENT_BINARY_DIR}/EsperantoDeviceMinionRuntimeConfigVersion.cmake
+    VERSION ${VERSION}
+    COMPATIBILITY SameMajorVersion
+)
 # Install the *Config.cmake and *ConfigVersion.cmake
 install(FILES
-  ${CMAKE_CURRENT_BINARY_DIR}/EsperantoDeviceMinionRuntimeConfig.cmake
-  ${CMAKE_CURRENT_BINARY_DIR}/EsperantoDeviceMinionRuntimeConfigVersion.cmake
-  DESTINATION ${LIB_INSTALL_DIR}/cmake/EsperantoDeviceMinionRuntime
-  COMPONENT machine-minion)
-
+    ${CMAKE_CURRENT_BINARY_DIR}/EsperantoDeviceMinionRuntimeConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/EsperantoDeviceMinionRuntimeConfigVersion.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/EsperantoDeviceMinionRuntime
+    COMPONENT machine-minion
+)
 # Install the export set for use with the install-tree
 install(EXPORT EsperantoDeviceMinionRuntimeTargets
-  NAMESPACE EsperantoDeviceMinionRuntime::
-  DESTINATION ${LIB_INSTALL_DIR}/cmake/EsperantoDeviceMinionRuntime)
+    NAMESPACE EsperantoDeviceMinionRuntime::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/EsperantoDeviceMinionRuntime
+)

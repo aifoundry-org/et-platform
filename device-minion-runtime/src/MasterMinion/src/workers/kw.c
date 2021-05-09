@@ -28,7 +28,7 @@
         KW_Dispatch_Kernel_Abort_Cmd
 */
 /***********************************************************************/
-#include    "atomic.h"
+#include    "device-common/atomic.h"
 #include    "common_defs.h"
 #include    "config/mm_config.h"
 #include    "services/host_iface.h"
@@ -38,11 +38,11 @@
 #include    "workers/cw.h"
 #include    "workers/kw.h"
 #include    "workers/sqw.h"
-#include    "cacheops.h"
+#include    "device-common/cacheops.h"
 #include    "circbuff.h"
 #include    "riscv_encoding.h"
 #include    "sync.h"
-#include    "utils.h"
+#include    "device-common/utils.h"
 #include    "vq.h"
 #include    "syscall_internal.h"
 

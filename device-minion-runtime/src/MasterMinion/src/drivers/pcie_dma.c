@@ -1,4 +1,4 @@
-#include "atomic.h"
+#include "device-common/atomic.h"
 #include "drivers/pcie_dma.h"
 #include "drivers/pcie_dma_ll.h"
 #include "layout.h"

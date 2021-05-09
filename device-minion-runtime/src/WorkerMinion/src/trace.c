@@ -23,9 +23,9 @@
 #include <stddef.h>
 #include <inttypes.h>
 #include "trace.h"
-#include "hart.h"
+#include "device-common/hart.h"
 #include "layout.h"
-#include "cacheops.h"
+#include "device-common/cacheops.h"
 #include "common_trace_defs.h"
 
 /*! \def GET_CB_INDEX

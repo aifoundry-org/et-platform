@@ -1,4 +1,4 @@
-#include "atomic.h"
+#include "device-common/atomic.h"
 #include "layout.h"
 #include "log.h"
 #include "printf.h"

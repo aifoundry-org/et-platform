@@ -10,7 +10,7 @@
 
 try_compile(CHECK_RESULT ${CMAKE_BINARY_DIR}
     SOURCES ${PROJECT_SOURCE_DIR}/cmake/checks/mm_config_values.c
-    CMAKE_FLAGS "-DINCLUDE_DIRECTORIES=${PROJECT_SOURCE_DIR}/src/MasterMinion/include;${PROJECT_SOURCE_DIR}/src/shared/include"
+    CMAKE_FLAGS "-DINCLUDE_DIRECTORIES=${PROJECT_SOURCE_DIR}/src/MasterMinion/include;${PROJECT_SOURCE_DIR}/src/shared/firmware_helpers/include"
     OUTPUT_VARIABLE MM_CONFIG_VALUES_CHECK_OUTPUT
 )
 

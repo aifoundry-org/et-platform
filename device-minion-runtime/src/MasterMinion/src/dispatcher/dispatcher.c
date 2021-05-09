@@ -52,7 +52,7 @@
 #include "serial.h"
 #include "message_types.h"
 #include "sync.h"
-#include "fcc.h"
+#include "device-common/fcc.h"
 #include "pmu.h"
 #include "riscv_encoding.h"
 

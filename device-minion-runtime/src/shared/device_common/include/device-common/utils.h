@@ -14,8 +14,8 @@
 
 #include <inttypes.h>
 
-#include "esr_defines.h"
-#include "fcc.h"
+#include "device-common/esr_defines.h"
+#include "device-common/fcc.h"
 
 #ifdef __cplusplus
 #define EXTERN_C extern "C"

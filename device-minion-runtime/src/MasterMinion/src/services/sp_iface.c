@@ -29,7 +29,7 @@
 #include "services/log.h"
 #include "circbuff.h"
 #include "pcie_int.h"
-#include "atomic.h"
+#include "device-common/atomic.h"
 
 /*! \var iface_q_cb_t SP_SQs
     \brief Global MM to SP submission queue

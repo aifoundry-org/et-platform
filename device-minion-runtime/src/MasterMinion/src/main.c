@@ -28,8 +28,8 @@
 #include "workers/kw.h"
 #include "workers/dmaw.h"
 #include "services/log.h"
-#include "hart.h"
-#include "atomic.h"
+#include "device-common/hart.h"
+#include "device-common/atomic.h"
 #include "riscv_encoding.h"
 
 /*! \def HART_PARITY(x)

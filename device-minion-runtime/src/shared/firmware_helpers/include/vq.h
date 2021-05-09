@@ -21,7 +21,7 @@
 
 #include "common_defs.h"
 #include "circbuff.h"
-#include "atomic.h"
+#include "device-common/atomic.h"
 
 /**
  * @brief Macros for Virtual Queues related error codes.

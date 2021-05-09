@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# Copyright (C) 2019, Esperanto Technologies Inc.
+# Copyright (C) 2021, Esperanto Technologies Inc.
 # The copyright to the computer program(s) herein is the
 # property of Esperanto Technologies, Inc. All Rights Reserved.
 # The program(s) may be used and/or copied only with
@@ -8,11 +8,9 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-get_filename_component(SHARED_SRC_DIR "shared/firmware_helpers/src" ABSOLUTE)
-get_filename_component(SHARED_INC_DIR "shared/firmware_helpers/include" ABSOLUTE)
-set(SHARED_INC_DIRS ${SHARED_INC_DIR} ${SHARED_INC_DIR}/device-common ${SHARED_HAL_DIR})
+add_subdirectory(include)
 
-add_subdirectory(shared)
-add_subdirectory(MachineMinion)
-add_subdirectory(MasterMinion)
-add_subdirectory(WorkerMinion)
+add_library(device_configuration INTERFACE)
+add_library(deviceFirmware::device_configuration ALIAS device_configuration)
+target_include_directories(device_configuration INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>)
+target_link_libraries(device_configuration INTERFACE signedImageFormat::signedImageFormat)
