@@ -8,6 +8,11 @@
 #define ASSET_CONFIG_FORM_FACTOR_SIZE sizeof(uint8_t)
 
 typedef struct asset_config_info_s {
+    struct {
+        uint32_t tag;
+        uint32_t version;
+        uint64_t hash;
+    } header;
     uint32_t part_num;
     uint64_t serial_num;
     uint8_t mem_size;
