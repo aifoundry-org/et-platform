@@ -101,9 +101,9 @@ static void flashfs_driver_task(void *pvParameters)
         rsp_msg.request = req_msg.request;
 
         switch (req_msg.request) {
-            // case FLASHFS_DRIVER_REQUEST_GET_CONFIG_DATA:
-            //     rsp_msg.status_code = flash_fs_get_config_data(req_msg.args.get_config_data.buffer);
-            //     break;
+        case FLASHFS_DRIVER_REQUEST_GET_CONFIG_DATA:
+            rsp_msg.status_code = flash_fs_get_config_data(req_msg.args.get_config_data.buffer);
+            break;
 
         case FLASHFS_DRIVER_REQUEST_GET_FILE_SIZE:
             rsp_msg.status_code = flash_fs_get_file_size(req_msg.args.get_file_size.region_id,
