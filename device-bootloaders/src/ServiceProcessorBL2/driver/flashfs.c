@@ -481,6 +481,10 @@ static int flash_fs_preload_config_data(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info)
     printf("asset_config_info.module_rev:  0x%08x\n", flash_fs_bl2_info->asset_config_info.module_rev);
     printf("asset_config_info.form_factor: 0x%02x\n", flash_fs_bl2_info->asset_config_info.form_factor);
 
+    // @cabul: This should be encrypted so we either have to
+    //  a) implement this as a file and use flash_fs_read_file
+    //  b) unencrypt the data here..
+
     return 0;
 }
 
