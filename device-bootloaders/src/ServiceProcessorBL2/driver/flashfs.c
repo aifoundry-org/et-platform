@@ -416,6 +416,78 @@ init_partition_info_data(ESPERANTO_PARTITION_BL2_INFO_t *restrict bl2_partition_
 *
 *   FUNCTION
 *
+*       flash_fs_preload_config_data
+*
+*   DESCRIPTION
+*
+*       This function loads asset config data from the flash image.
+*
+*   INPUTS
+*
+*       flash_fs_bl2_info      Pointer to the info struct to populate
+*
+*   OUTPUTS
+*
+*       none
+*
+***********************************************************************/
+
+static int flash_fs_preload_config_data(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info)
+{
+    if (NULL == flash_fs_bl2_info) {
+        return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
+    }
+
+    // @cabul: Copied from flash_fs_load_file_info
+    uint32_t partition_address;
+    // Get partition address based on active partition
+    if (0 == flash_fs_bl2_info->active_partition) {
+        partition_address = 0;
+    } else if (1 == flash_fs_bl2_info->active_partition) {
+        partition_address = flash_fs_bl2_info->flash_size / 2;
+    } else {
+        return ERROR_SPI_FLASH_NO_VALID_PARTITION;
+    }
+
+    uint32_t region_address = flash_fs_bl2_info->configuration_region_address;
+    uint32_t config_data_address = partition_address + region_address;
+
+    asset_config_header_t header = {0};
+
+    if (0 != spi_flash_normal_read(flash_fs_bl2_info->flash_id,
+                                   config_data_address,
+                                   (uint8_t*)&header,
+                                   sizeof(asset_config_header_t))) {
+        MESSAGE_ERROR("flash_fs_preload_config_data: failed to read asset config header!\n");
+        return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
+    }
+
+    printf("asset_config_header.tag:     0x%08x\n", header.tag);
+    printf("asset_config_header.version: 0x%08x\n", header.version);
+    printf("asset_config_header.hash:    0x%016lx\n", header.hash);
+
+    if (0 != spi_flash_normal_read(flash_fs_bl2_info->flash_id,
+                                   config_data_address + (uint32_t)sizeof(asset_config_header_t),
+                                   (uint8_t*)&(flash_fs_bl2_info->asset_config_info),
+                                   sizeof(asset_config_info_t))) {
+        MESSAGE_ERROR("flash_fs_preload_config_data: failed to read asset config data!\n");
+        memset(&(flash_fs_bl2_info->asset_config_info), 0, sizeof(asset_config_info_t));
+        return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
+    }
+
+    printf("asset_config_info.part_num:    0x%08x\n", flash_fs_bl2_info->asset_config_info.part_num);
+    printf("asset_config_info.serial_num:  0x%016lx\n", flash_fs_bl2_info->asset_config_info.serial_num);
+    printf("asset_config_info.mem_size:    0x%02x\n", flash_fs_bl2_info->asset_config_info.mem_size);
+    printf("asset_config_info.module_rev:  0x%08x\n", flash_fs_bl2_info->asset_config_info.module_rev);
+    printf("asset_config_info.form_factor: 0x%02x\n", flash_fs_bl2_info->asset_config_info.form_factor);
+
+    return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       flash_fs_init
 *
 *   DESCRIPTION
@@ -501,6 +573,9 @@ int flash_fs_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info,
         return ERROR_SPI_FLASH_FS_INIT_FAILED;
     }
 
+
+    flash_fs_preload_config_data(flash_fs_bl2_info);
+    
     memcpy(&sg_flash_fs_bl2_info, flash_fs_bl2_info, sizeof(FLASH_FS_BL2_INFO_t));
 
     return 0;
