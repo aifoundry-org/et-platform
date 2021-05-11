@@ -1197,16 +1197,36 @@ int flash_fs_increment_completed_boot_count(void)
     return 0;
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       flash_fs_get_config_data
+*
+*   DESCRIPTION
+*
+*       This function returns ET-SOC configuration data.
+*
+*   INPUTS
+*
+*       none
+*
+*   OUTPUTS
+*
+*       buffer        Pointer to buffer which will hold config data
+*
+***********************************************************************/
+
 int flash_fs_get_config_data(void* buffer)
 {
-    int rv;
-    ESPERANTO_FLASH_REGION_ID_t region_id = ESPERANTO_FLASH_REGION_ID_CONFIGURATION_DATA;
-    size_t bufsize = 0; // TBD
-
-    if (0 != flashfs_drv_read_file(region_id, 0, buffer, bufsize)) {
-        printf("flash_fs_get_config_data: flashfs_drv_read_file(CONFIG_DATA) failed!\n");
-        return -1;
+    if (NULL == buffer) {
+        MESSAGE_ERROR("flash_fs_get_config_data: buffer points to null\n");
+        return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
+    // Since config data is preloaded we can simply copy it here
+    // @cabul: manufacturer name missing..?
+    memcpy(buffer, &(sg_flash_fs_bl2_info->asset_config_info), sizeof(asset_config_info_t));
+    return 0;
 }
 
 /************************************************************************
