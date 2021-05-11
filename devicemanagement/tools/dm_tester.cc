@@ -49,7 +49,7 @@ public:
     handle_ = dlopen("libDM.so", RTLD_LAZY);
 
 #ifdef TARGET_PCIE
-    devLayer_ = IDeviceLayer::createPcieDeviceLayer();
+    devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
 #else
     emu::SysEmuOptions sysEmuOptions;
 
