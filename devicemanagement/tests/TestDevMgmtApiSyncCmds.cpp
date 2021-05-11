@@ -268,7 +268,7 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryVendorPartNumber_1_9() {
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
-  strncpy(expected, "Micron", output_size);
+  strncpy(expected, "Unknown", output_size);
 
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
@@ -292,7 +292,7 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryType_1_10() {
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
-  strncpy(expected, "ETLPDDR4", output_size);
+  strncpy(expected, "LPDDR4X", output_size);
 
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
