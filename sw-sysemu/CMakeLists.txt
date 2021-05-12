@@ -11,16 +11,19 @@
 cmake_minimum_required(VERSION 3.17)
 project(sw-sysemu VERSION 0.2.0)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 option(PROFILING "Enable profiling" OFF)
 option(BACKTRACE "Enable backtrace" OFF)
-set(CMAKE_VERBOSE_MAKEFILE TRUE)
 
 include(GNUInstallDirs)
 
+find_package(glog REQUIRED)
+
 # dependencies
-find_package(libunwind)
+if (BACKTRACE)
+    find_package(libunwind REQUIRED)
+endif()
 
 add_library(sysemu
     sys_emu/checkers/flb_checker.cpp
@@ -72,6 +75,7 @@ add_library(sysemu
     $<$<BOOL:${PROFILING}>:sys_emu/profiling.cpp>
     $<$<BOOL:${BACKTRACE}>:sys_emu/crash_handler.cpp>
 )
+add_library(sw-sysemu::sysemu ALIAS sysemu)
 target_include_directories(sysemu
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
@@ -87,6 +91,8 @@ target_compile_definitions(sysemu
 target_compile_features(sysemu PUBLIC cxx_std_17)
 target_compile_options(sysemu PRIVATE -Wall -Wextra -pedantic-errors)
 set_target_properties(sysemu PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+target_link_libraries(sysemu PRIVATE $<$<BOOL:${BACKTRACE}>:libunwind::libunwind>)
+
 install(TARGETS sysemu
   EXPORT sw-sysemuTargets
   RUNTIME       DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -332,6 +338,7 @@ add_library(fpu
     softfloat/ui64_to_f32.c
     softfloat/ui64_to_f64.c
 )
+add_library(sw-sysemu::fpu ALIAS fpu)
 target_include_directories(fpu
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
@@ -340,6 +347,7 @@ target_include_directories(fpu
 target_compile_features(fpu PUBLIC cxx_std_17)
 target_compile_options(fpu PRIVATE -Wall -Werror -Wextra -Wno-implicit-fallthrough -Wno-sign-compare)
 set_target_properties(fpu PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+
 install(TARGETS fpu
   EXPORT sw-sysemuTargets
   RUNTIME       DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -360,9 +368,8 @@ install(TARGETS sys_emu
 
 target_link_libraries(sys_emu
     PRIVATE
-        sysemu
-        fpu
-        $<$<BOOL:LIBUNWIND_FOUND>:${LIBUNWIND_LIBRARIES}>
+        sw-sysemu::sysemu
+        sw-sysemu::fpu
 )
 
 # sw-sysemu
@@ -372,6 +379,7 @@ add_library(sw-sysemu
     sw-sysemu/utils.h
     sw-sysemu/ISysEmu.cpp
 )
+add_library(sw-sysemu::sw-sysemu ALIAS sw-sysemu)
 target_include_directories(sw-sysemu
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sw-sysemu/include>
@@ -385,20 +393,25 @@ set_target_properties(sw-sysemu PROPERTIES
     POSITION_INDEPENDENT_CODE TRUE
     CXX_EXTENSIONS OFF
 )
-target_link_libraries(sw-sysemu PRIVATE sysemu fpu glog)
+target_link_libraries(sw-sysemu
+    PRIVATE
+        sw-sysemu::sysemu
+        sw-sysemu::fpu
+        glog::glog
+)
 
 install(TARGETS sw-sysemu
-  EXPORT sw-sysemuTargets
-  RUNTIME       DESTINATION ${CMAKE_INSTALL_BINDIR}
-  LIBRARY       DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  ARCHIVE       DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/sw-sysemu
+    EXPORT sw-sysemuTargets
+    RUNTIME       DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY       DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE       DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/sw-sysemu
 )
 
 # Install the export set for use with the install-tree
 install(EXPORT sw-sysemuTargets
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/sw-sysemu
-  NAMESPACE sw-sysemu::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/sw-sysemu
+    NAMESPACE sw-sysemu::
 )
 
 ##### Package
