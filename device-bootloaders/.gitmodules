@@ -1,5 +1,5 @@
-[submodule "shared/include/etsoc_hal"]
-	path = shared/include/etsoc_hal
+[submodule "external/etsoc_hal"]
+	path = external/etsoc_hal
 	url = ../etsoc_hal.git
 [submodule "ci/ci-tools"]
 	path = ci/ci-tools

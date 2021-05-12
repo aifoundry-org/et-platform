@@ -8,24 +8,20 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-set(SOURCES src/boot.S)
-
-set(TARGET_NAME BootromTrampolineToBL2)
 set(LINKER_SCRIPT src/sections.ld)
 
-add_riscv_executable(${TARGET_NAME} ${SOURCES})
+add_riscv_executable(BootromTrampolineToBL2 src/boot.S)
 
-install(TARGETS ${TARGET_NAME}.elf
-  EXPORT EsperantoBootLoaderTargets
-  RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/BootromTrampolineToBL2
-  COMPONENT service-processor)
+install(TARGETS BootromTrampolineToBL2.elf
+    EXPORT EsperantoBootLoaderTargets
+    RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/BootromTrampolineToBL2
+    COMPONENT service-processor
+)
 
-install(
-  FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.lst
-    ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.map
-    ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.bin
-  DESTINATION
-    ${LIB_INSTALL_DIR}/esperanto-fw/BootromTrampolineToBL2
-  COMPONENT service-processor
-  )
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/BootromTrampolineToBL2.lst
+    ${CMAKE_CURRENT_BINARY_DIR}/BootromTrampolineToBL2.map
+    ${CMAKE_CURRENT_BINARY_DIR}/BootromTrampolineToBL2.bin
+    DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/BootromTrampolineToBL2
+    COMPONENT service-processor
+)
