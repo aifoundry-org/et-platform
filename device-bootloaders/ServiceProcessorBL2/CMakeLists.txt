@@ -21,16 +21,18 @@ set(ZEBU_TARGET SP_RAM)
 foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
     set(TARGET_NAME ServiceProcessorBL2_${BL2_BUILD_VARIANT})
 
-    if (BL2_BUILD_VARIANT STREQUAL "production")
-        set(FAST_BOOT 0)
-    else()
+    if (BL2_BUILD_VARIANT STREQUAL "fast-boot")
+        # Fast Boot version
         set(FAST_BOOT 1)
-    endif()
-
-    if (BL2_BUILD_VARIANT STREQUAL "testframework")
+        set(BRINGUP_TEST 0)
+    elseif (BL2_BUILD_VARIANT STREQUAL "testframework")
+        # Test Frame work version
+        set(FAST_BOOT 0)
         set(BRINGUP_TEST 1)
     else()
-        set(BRINGUP_TEST 0) # mainly production
+        # Default to Production version
+        set(FAST_BOOT 0)
+        set(BRINGUP_TEST 0)
     endif()
     
     add_riscv_executable(${TARGET_NAME}

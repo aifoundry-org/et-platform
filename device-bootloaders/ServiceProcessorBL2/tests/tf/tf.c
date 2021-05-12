@@ -40,7 +40,7 @@ int8_t TF_Wait_And_Process_TF_Cmds(void)
     {
         do 
         {
-            SERIAL_getchar(UART0, &c);
+            SERIAL_getchar(UART1, &c);
             /* printf("%c", c); */
             
             if(c == TF_CMD_START)
@@ -79,7 +79,7 @@ int8_t TF_Send_Response(void* rsp, uint32_t rsp_size)
     p_rsp += TF_CHECKSUM_SIZE;size += TF_CHECKSUM_SIZE;
     *p_rsp = TF_CHECKSUM_END;
 
-    SERIAL_write(UART0, &Output_Rsp_Buffer[0], (int)size);
+    SERIAL_write(UART1, &Output_Rsp_Buffer[0], (int)size);
 
     return 0;
 }

@@ -453,8 +453,8 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     bl1_data = &fake_bl1_data;
 #endif
 
-    // In non-fast-boot mode, the bootrom initializes SPIO UART0
-#if FAST_BOOT
+    // In Production mode, the bootrom initializes SPIO UART0
+#if FAST_BOOT || BRINGUP_TEST
     SERIAL_init(UART0);
 #endif
 
@@ -462,26 +462,23 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     SERIAL_init(PU_UART0);
     SERIAL_init(PU_UART1);
 
-/* Dont use serial port for info messages if bringup test is enabled
-the port usage is reserved for TF communications */
-/* TODO: SW-7517 dedicate usage ofr UART1 for TF and UART0 for STDOUT */
-#if !BRINGUP_TEST 
+#if BRINGUP_TEST
+    printf("\n** SP BL2 STARTED **\r\n");
+    printf("BL2 version:" GIT_VERSION_STRING " (" BL2_VARIANT ")\n");
+    /* control does not return from call below for now .. */
+    TF_Wait_And_Process_TF_Cmds();
+#else
     printf("\n** SP BL2 STARTED **\r\n");
     printf("BL2 version: %u.%u.%u:" GIT_VERSION_STRING " (" BL2_VARIANT ")\n",
            image_version_info->file_version_major, image_version_info->file_version_minor,
            image_version_info->file_version_revision);
-    // printf("GIT hash: " GIT_HASH_STRING "\n");
-#endif
 
+#endif
     memset(&g_service_processor_bl2_data, 0, sizeof(g_service_processor_bl2_data));
     g_service_processor_bl2_data.service_processor_bl2_data_size =
         sizeof(g_service_processor_bl2_data);
     g_service_processor_bl2_data.service_processor_bl2_version = SERVICE_PROCESSOR_BL2_DATA_VERSION;
 
-#if BRINGUP_TEST
-    /* control does not return from call below for now .. */
-    TF_Wait_And_Process_TF_Cmds();
-#endif
 
     if (0 != copy_bl1_data(bl1_data)) {
         printf("copy_bl1_data() failed!!\n");
