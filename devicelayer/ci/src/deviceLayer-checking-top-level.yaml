@@ -23,3 +23,10 @@ stages:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}"
           PYTEST_RETRIES: "0"
+  
+  JOB_CODE_QUALITY:
+    cmds:
+      - job: sw-platform/code-analysis/deviceLayer-sonarqube
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}"
