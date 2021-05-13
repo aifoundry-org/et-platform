@@ -34,9 +34,11 @@ TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBack3kSameCmdsMultiQueue_1_4) {
   backToBackSameCmdsMultiQueue_1_2(3000);
 }
 
+/* this test takes too long to run in Zebu - hence will only limit to 9K with multi queue
 TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBack9kDiffCmdsSingleQueue_1_5) {
   backToBackDiffCmdsSingleQueue_1_3(9000);
 }
+*/
 
 TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBack9kDiffCmdsMultiQueue_1_6) {
   backToBackDiffCmdsMultiQueue_1_4(9000);
