@@ -138,7 +138,8 @@ int pcie_get_speed(char *pcie_speed)
 int PShire_Initialize(void)
 {
     PCIe_release_pshire_from_reset();
-    configure_pcie_pll();
+    /*Configure PShire PLL to 1010 Mhz */
+    configure_pshire_pll(6);
     return 0;
 }
 

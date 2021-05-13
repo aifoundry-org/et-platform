@@ -87,7 +87,8 @@ bool is_vaultip_disabled(void)
 
 static int32_t configure_noc(void)
 {
-    if (0 != configure_sp_pll_2()) {
+    /* Configure NOC to 400 Mhz */
+    if (0 != configure_sp_pll_2(5)) {
         printf("configure_sp_pll_2() failed!\n");
         return NOC_MAIN_CLOCK_CONFIGURE_ERROR;
     }
@@ -121,8 +122,8 @@ static int32_t configure_memshire(void)
 
 static int32_t configure_minion(uint64_t minion_shires_mask)
 {
-
-    if (0 != configure_sp_pll_4()) {
+    /* Configure Minon Step clock to 650 Mhz */
+    if (0 != configure_sp_pll_4(3)) {
         printf("configure_sp_pll_4() failed!\n");
         return MINION_STEP_CLOCK_CONFIGURE_ERROR;
     }
@@ -240,7 +241,8 @@ static void taskMain(void *pvParameters)
     // In non-fast-boot mode, the bootrom initializes PCIe link
 #if FAST_BOOT
     PCIe_release_pshire_from_reset();
-    configure_pcie_pll();
+    /* Configure Pshire Pll to 1010 Mhz */
+    configure_pshire_pll(6);
     PCIe_init(false /*expect_link_up*/);
 #else
     PCIe_init(true /*expect_link_up*/);

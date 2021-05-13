@@ -67,26 +67,19 @@ typedef enum SP_PLL_STATE_e {
 */
 uint32_t get_input_clock_index(void);
 
-/*! \fn int configure_sp_pll_2(void)
+/*! \fn int configure_sp_pll_2(uint8_t mode)
     \brief This function configures service processor PLL 2
     \param None 
     \return The function call status, pass/fail.
 */
-int configure_sp_pll_2(void);
+int configure_sp_pll_2(const uint8_t mode);
 
-/*! \fn int configure_sp_pll_4(void)
+/*! \fn int configure_sp_pll_4(uint8_t mode)
     \brief This function configures service processor PLL 4
     \param None 
     \return The function call status, pass/fail.
 */
-int configure_sp_pll_4(void);
-
-/*! \fn int configure_pcie_pll(void)
-    \brief This function configures PCIe PLL
-    \param None 
-    \return The function call status, pass/fail.
-*/
-int configure_pcie_pll(void);
+int configure_sp_pll_4(const uint8_t mode);
 
 /*! \fn int configure_pshire_pll(const uint8_t mode)
     \brief This function configures pshire PLL
@@ -100,7 +93,7 @@ int configure_pshire_pll(const uint8_t mode);
     \param None 
     \return The function call status, pass/fail.
 */
-int configure_minion_plls(void);
+int configure_minion_plls(const uint8_t mode);
 
 /*! \fn int get_pll_frequency(PLL_ID_t pll_id, uint32_t *frequency)
     \brief This function returns current configured PLL frequency of 

@@ -14,7 +14,6 @@
 
     Public interfaces:
         get_input_clock_index
-        configure_sp_pll_2
         configure_pcie_pll
         configure_pshire_pll
         configure_minion_plls
@@ -120,7 +119,7 @@ static void update_pll_registers(volatile uint32_t *pll_registers)
     pll_registers[PLL_REG_INDEX_REG_UPDATE_STROBE] = strobe;
 }
 
-static int configure_pll(volatile uint32_t *pll_registers, uint8_t mode)
+static int configure_pll(volatile uint32_t *pll_registers, uint8_t mode, uint32_t* target_freq)
 {
     uint32_t timeout = PLL_LOCK_TIMEOUT;
     uint8_t register_index;
@@ -152,6 +151,8 @@ FOUND_CONFIG_DATA:
         register_value = gs_hpdpll_settings[pll_settings_index].values[entry_index];
         pll_registers[register_index] = register_value;
     }
+ 
+    *target_freq = (uint32_t) gs_hpdpll_settings[pll_settings_index].output_frequency;
 
     // Update PLL registers
     update_pll_registers(pll_registers);
@@ -231,70 +232,48 @@ static int clock_manager_pll_bypass(PLL_ID_t pll, bool bypass_enable)
     return 0;
 }
 
-static int configure_sp_pll(PLL_ID_t pll_id, volatile uint32_t *pll_registers,
-                            const uint8_t mode[INPUT_CLK_CONFIG_COUNT])
+int configure_sp_pll_2(uint8_t mode)
 {
     int rv;
 
-    rv = configure_pll(pll_registers, mode[get_input_clock_index()]);
+    rv = configure_pll((uint32_t *)R_SP_PLL2_BASEADDR, mode, &gs_sp_pll_2_frequency);
     if (0 != rv) {
         goto ERROR;
     }
 
-    if (0 != clock_manager_pll_bypass(pll_id, false)) {
+    if (0 != clock_manager_pll_bypass(PLL_ID_SP_PLL_2, false)) {
         goto ERROR;
     }
 
     return 0;
 
 ERROR:
-    clock_manager_pll_bypass(pll_id, true);
-    configure_pll_off(pll_registers);
-
+    clock_manager_pll_bypass(PLL_ID_SP_PLL_2, true);
+    configure_pll_off((uint32_t *)R_SP_PLL2_BASEADDR);
+    gs_sp_pll_2_frequency = 100;
+ 
     return rv;
 }
 
-int configure_sp_pll_2(void)
+int configure_sp_pll_4(uint8_t mode)
 {
     int rv;
-    static const uint8_t mode[INPUT_CLK_CONFIG_COUNT] = { 5, 11, 17 };
 
-    rv = configure_sp_pll(PLL_ID_SP_PLL_2, (uint32_t *)R_SP_PLL2_BASEADDR, mode);
-    if (0 == rv) {
-        gs_sp_pll_2_frequency = 500;
-    } else {
-        gs_sp_pll_2_frequency = 0;
+    rv = configure_pll((uint32_t *)R_SP_PLL4_BASEADDR, mode, &gs_sp_pll_4_frequency);
+    if (0 != rv) {
+        goto ERROR;
     }
 
-    return rv;
-}
-
-int configure_sp_pll_4(void)
-{
-    int rv;
-    static const uint8_t mode[INPUT_CLK_CONFIG_COUNT] = { 3, 9, 15 };
-
-    rv = configure_sp_pll(PLL_ID_SP_PLL_4, (uint32_t *)R_SP_PLL4_BASEADDR, mode);
-    if (0 == rv) {
-        gs_sp_pll_2_frequency = 1000;
-    } else {
-        gs_sp_pll_2_frequency = 0;
+    if (0 != clock_manager_pll_bypass(PLL_ID_SP_PLL_4, false)) {
+        goto ERROR;
     }
 
-    return rv;
-}
+    return 0;
 
-int configure_pcie_pll(void)
-{
-    int rv;
-    static const uint8_t mode[INPUT_CLK_CONFIG_COUNT] = { 6, 12, 18 };
-
-    rv = configure_sp_pll(PLL_ID_PSHIRE, (uint32_t *)R_PCIE_PLLP0_BASEADDR, mode);
-    if (0 == rv) {
-        gs_pcie_pll_0_frequency = 1010;
-    } else {
-        gs_pcie_pll_0_frequency = 0;
-    }
+ERROR:
+    clock_manager_pll_bypass(PLL_ID_SP_PLL_4, true);
+    configure_pll_off((uint32_t *)R_SP_PLL4_BASEADDR);
+    gs_sp_pll_4_frequency = 100;
 
     return rv;
 }
@@ -304,7 +283,7 @@ int configure_pshire_pll(const uint8_t mode)
 
     int rv;
 
-    rv = configure_pll((uint32_t *)R_PCIE_PLLP0_BASEADDR, mode);
+    rv = configure_pll((uint32_t *)R_PCIE_PLLP0_BASEADDR, mode, &gs_pcie_pll_0_frequency);
     if (0 != rv) {
         goto ERROR;
     }
@@ -313,17 +292,12 @@ int configure_pshire_pll(const uint8_t mode)
         goto ERROR;
     }
 
-    if (0 == rv) {
-        gs_pcie_pll_0_frequency = 1010;
-    } else {
-        gs_pcie_pll_0_frequency = 0;
-    }
-
     return 0;
 
 ERROR:
     clock_manager_pll_bypass(PLL_ID_PSHIRE, true);
     configure_pll_off((uint32_t *)R_PCIE_PLLP0_BASEADDR);
+    gs_pcie_pll_0_frequency = 100;
 
     return rv;
 }
