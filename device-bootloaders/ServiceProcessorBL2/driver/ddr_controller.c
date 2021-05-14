@@ -48,7 +48,7 @@
 // get_ms_reg_addr: This procedure is used to generate a memshire register address based on the
 // memshire ID and register name.
 //
-static inline uint64_t *get_ms_reg_addr(uint8_t memshire, uint64_t reg)
+static inline volatile uint64_t *get_ms_reg_addr(uint8_t memshire, uint64_t reg)
 {
     uint64_t *reg_addr;
 
@@ -62,14 +62,12 @@ static inline uint64_t *get_ms_reg_addr(uint8_t memshire, uint64_t reg)
 
 static inline uint32_t ms_write_esr(uint8_t memshire, uint64_t reg, uint64_t value)
 {
-    uint64_t *addr = get_ms_reg_addr(memshire, reg);
-    *addr = value;
+    *get_ms_reg_addr(memshire, reg) = value;
     return 0;
 }
 static inline uint64_t ms_read_esr(uint8_t memshire, uint64_t reg)
 {
-    uint64_t *addr = get_ms_reg_addr(memshire, reg);
-    return *addr;
+    return *get_ms_reg_addr(memshire, reg);
 }
 // get_ddr_reg_addr: This procedure is used to generate a DDRC register address based on the
 // memshire ID, block, and register name.  The block can have one of the following values:
@@ -79,7 +77,7 @@ static inline uint64_t ms_read_esr(uint8_t memshire, uint64_t reg)
 //    2: phy
 //    3: subystem
 //
-static inline uint32_t *get_ddrc_reg_addr(uint8_t memshire, uint32_t blk, uint32_t reg)
+static inline volatile uint32_t *get_ddrc_reg_addr(uint8_t memshire, uint32_t blk, uint32_t reg)
 {
     uint32_t *reg_addr;
 
@@ -98,8 +96,7 @@ static inline uint32_t *get_ddrc_reg_addr(uint8_t memshire, uint32_t blk, uint32
 static inline uint32_t ms_write_ddrc_reg(uint8_t memshire, uint32_t blk, uint32_t reg,
                                          uint32_t value)
 {
-    uint32_t *addr = get_ddrc_reg_addr(memshire, blk, reg);
-    *addr = value;
+    *get_ddrc_reg_addr(memshire, blk, reg) = value;
     return 0;
 }
 
@@ -108,8 +105,7 @@ static inline uint32_t ms_write_ddrc_reg(uint8_t memshire, uint32_t blk, uint32_
 //
 static inline uint32_t ms_read_ddrc_reg(uint8_t memshire, uint32_t blk, uint32_t reg)
 {
-    uint32_t *addr = (uint32_t *)get_ddrc_reg_addr(memshire, blk, reg);
-    return *addr;
+    return *get_ddrc_reg_addr(memshire, blk, reg);
 }
 
 static inline uint32_t ms_poll_ddrc_reg(uint8_t memshire, uint32_t blk, uint32_t reg,
