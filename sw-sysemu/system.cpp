@@ -86,6 +86,9 @@ void System::reset_hart(unsigned thread)
     // Currently executing instruction
     cpu[thread].inst = insn_t { 0, 0 };
 
+    // Fetch buffer
+    cpu[thread].fetch_pc = -1;
+
     // RISCV control and status registers
     cpu[thread].scounteren = 0;
     cpu[thread].mstatus = 0x0000000A00001800ULL; // mpp=11, sxl=uxl=10

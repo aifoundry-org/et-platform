@@ -30,7 +30,7 @@ uint64_t mmu_translate(const Hart& cpu, uint64_t vaddr, size_t bytes,
 
 
 // MMU virtual memory read accesses
-uint32_t mmu_fetch    (const Hart& cpu, uint64_t vaddr);
+uint32_t mmu_fetch    (Hart& cpu, uint64_t vaddr);
 uint8_t  mmu_load8    (const Hart& cpu, uint64_t eaddr, mem_access_type macc);
 uint16_t mmu_load16   (const Hart& cpu, uint64_t eaddr, mem_access_type macc);
 uint32_t mmu_load32   (const Hart& cpu, uint64_t eaddr, mem_access_type macc);

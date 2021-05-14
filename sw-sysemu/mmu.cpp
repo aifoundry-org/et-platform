@@ -775,6 +775,29 @@ static uint64_t vmemtranslate(const Hart& cpu, uint64_t vaddr, size_t size,
 }
 
 
+static void ensure_fetch_cache(Hart& cpu, uint64_t vaddr)
+{
+    if (cpu.fetch_pc == (vaddr & ~31))
+        return;
+
+    cpu.fetch_pc = vaddr & ~31;
+    try {
+        uint64_t paddr = vmemtranslate(cpu, cpu.fetch_pc, 32, Mem_Access_Fetch);
+        uint64_t addr = pma_check_fetch_access(cpu, cpu.fetch_pc, paddr, 32);
+        cpu.chip->memory.read(cpu, addr, 32, &cpu.fetch_cache);
+    }
+    catch (const trap_instruction_access_fault&) {
+        throw trap_instruction_access_fault(vaddr);
+    }
+    catch (const trap_instruction_page_fault&) {
+        throw trap_instruction_page_fault(vaddr);
+    }
+    catch (const memory_error&) {
+        throw trap_instruction_bus_error();
+    }
+}
+
+
 //------------------------------------------------------------------------------
 //
 // External methods: loads/stores
@@ -789,44 +812,33 @@ uint64_t mmu_translate(const Hart& cpu, uint64_t vaddr, size_t bytes,
 }
 
 
-uint32_t mmu_fetch(const Hart& cpu, uint64_t vaddr)
+uint32_t mmu_fetch(Hart& cpu, uint64_t vaddr)
 {
     check_fetch_breakpoint(cpu, vaddr);
-    try {
-        if (vaddr & 3) {
-            // 2B-aligned fetch
-            uint16_t low, high;
-            uint64_t paddr = vmemtranslate(cpu, vaddr, 2, Mem_Access_Fetch);
-            uint64_t addr = pma_check_fetch_access(cpu, vaddr, paddr, 2);
-            cpu.chip->memory.read(cpu, addr, 2, &low);
-            if ((low & 3) != 3) {
-                LOG_HART(DEBUG, cpu, "Fetched compressed instruction from PC 0x%" PRIx64 ": 0x%04x", vaddr, low);
-                return low;
-            }
-            paddr = ((paddr & 4095) <= 4092)
-                    ? (paddr + 2)
-                    : vmemtranslate(cpu, vaddr + 2, 2, Mem_Access_Fetch);
-            addr = pma_check_fetch_access(cpu, vaddr + 2, paddr, 2);
-            cpu.chip->memory.read(cpu, addr, 2, &high);
-            uint32_t bits = uint32_t(low) + (uint32_t(high) << 16);
-            LOG_HART(DEBUG, cpu, "Fetched instruction from PC 0x%" PRIx64 ": 0x%08x", vaddr, bits);
-            return bits;
-        }
-        // 4B-aligned fetch
-        uint32_t bits;
-        uint64_t paddr = vmemtranslate(cpu, vaddr, 4, Mem_Access_Fetch);
-        uint64_t addr = pma_check_fetch_access(cpu, vaddr, paddr, 4);
-        cpu.chip->memory.read(cpu, addr, 4, &bits);
-        if ((bits & 3) != 3) {
-            uint16_t low = uint16_t(bits);
+    ensure_fetch_cache(cpu, vaddr);
+    if (vaddr & 3) {
+        // 2B-aligned fetch
+        uint16_t low = *reinterpret_cast<const uint16_t*>(&cpu.fetch_cache[vaddr & 31]);
+        if ((low & 3) != 3) {
             LOG_HART(DEBUG, cpu, "Fetched compressed instruction from PC 0x%" PRIx64 ": 0x%04x", vaddr, low);
             return low;
         }
+        vaddr += 2;
+        ensure_fetch_cache(cpu, vaddr);
+        uint16_t high = *reinterpret_cast<const uint16_t*>(&cpu.fetch_cache[vaddr & 31]);
+        uint32_t bits = uint32_t(low) + (uint32_t(high) << 16);
         LOG_HART(DEBUG, cpu, "Fetched instruction from PC 0x%" PRIx64 ": 0x%08x", vaddr, bits);
         return bits;
-    } catch (const memory_error&) {
-        throw trap_instruction_bus_error();
     }
+    // 4B-aligned fetch
+    uint32_t bits = *reinterpret_cast<const uint32_t*>(&cpu.fetch_cache[vaddr & 31]);
+    if ((bits & 3) != 3) {
+        uint16_t low = uint16_t(bits);
+        LOG_HART(DEBUG, cpu, "Fetched compressed instruction from PC 0x%" PRIx64 ": 0x%04x", vaddr, low);
+        return low;
+    }
+    LOG_HART(DEBUG, cpu, "Fetched instruction from PC 0x%" PRIx64 ": 0x%08x", vaddr, bits);
+    return bits;
 }
 
 

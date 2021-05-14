@@ -10,19 +10,20 @@
 
 #include "sys_emu.h"
 
-#include <iostream>
+#include <algorithm>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <list>
 #include <exception>
-#include <algorithm>
+#include <fcntl.h>
+#include <iostream>
+#include <list>
 #include <locale>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <tuple>
+#include <unistd.h>
 
 #include "api_communicate.h"
 #include "checkers/l2_scp_checker.h"
@@ -1018,6 +1019,9 @@ int sys_emu::main_internal() {
 
     LOG_NOTHREAD(INFO, "%s", "Starting emulation");
 
+    double total_time = 0.0;
+    const auto begin_time = std::chrono::high_resolution_clock::now();
+
     // While there are active threads or the network emulator is still not done
     while(  (chip.emu_done() == false)
          && (   !running_threads.empty()
@@ -1246,6 +1250,14 @@ int sys_emu::main_internal() {
 
         emu_cycle++;
     }
+
+    const auto end_time = std::chrono::high_resolution_clock::now();
+    total_time += std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - begin_time).count();
+
+    LOG_NOTHREAD(INFO, "Emulation performance: %lf cycles/sec (%" PRIu64 " cycles / %lf sec)",
+                 1e3 * double(emu_cycle) / total_time,
+                 emu_cycle,
+                 total_time*1e-9);
 
     if (emu_cycle == cmd_options.max_cycles)
     {
