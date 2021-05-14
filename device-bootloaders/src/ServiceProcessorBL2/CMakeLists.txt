@@ -66,6 +66,7 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/bl2_otp.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/spio_sram.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/bl2_pu.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/driver/pcie_init.c
         ${CMAKE_CURRENT_SOURCE_DIR}/rtos_task/command_dispatcher.c
         ${CMAKE_CURRENT_SOURCE_DIR}/rtos_task/flash_fs.c
         ${CMAKE_CURRENT_SOURCE_DIR}/rtos_task/vaultip.c
@@ -96,20 +97,12 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/tf_spio_tests.c
         # This file get compiled different based on the configuration of each target
         ${CMAKE_CURRENT_SOURCE_DIR}/common/build_configuration.c
-        # TODO: improve this - we should not add files with variables nor cherry-pick sources from SHARED_SRC_DIR
-        ${FREERTOS_SRC_FILES}
-        ${SHARED_SRC_DIR}/constant_memory_compare.c
-        ${SHARED_SRC_DIR}/pcie_init.c
-        ${SHARED_SRC_DIR}/serial.c
-        ${SHARED_SRC_DIR}/sp_otp.c
-        ${SHARED_SRC_DIR}/usb2_0.c
     )
     target_include_directories(${TARGET_NAME}.elf
         PRIVATE
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
             $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
             $<BUILD_INTERFACE:${SHARED_INC_DIRS}>
-            ${FREERTOS_INC_DIRS}
             $<BUILD_INTERFACE:${FLASH_TOOL_HEADERS}>
             $<BUILD_INTERFACE:${ESPERANTO_DEVICE_API_INCLUDE_DIR}>
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw>
@@ -118,15 +111,18 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
         PUBLIC
             -DBL2_VARIANT="${BL2_BUILD_VARIANT}"
             -DFAST_BOOT=${FAST_BOOT} -DBRINGUP_TEST=${BRINGUP_TEST}
-            # FreeRTOS definitions
-            -DportasmHANDLE_INTERRUPT=external_interrupt_handler
     )
     target_link_libraries(${TARGET_NAME}.elf
         PRIVATE
             signedImageFormat::signedImageFormat
             etsoc_hal::etsoc_hal
             EsperantoDeviceMinionRuntime::sp_firmware_helpers
+            deviceFirmware::device_serial
+            FreeRTOS::FreeRTOS
     )
+
+    target_report_riscv_size(${TARGET_NAME}.elf)
+    target_report_riscv_elf_file_header(${TARGET_NAME}.elf)
 
     install(TARGETS ${TARGET_NAME}.elf
         EXPORT EsperantoBootLoaderTargets

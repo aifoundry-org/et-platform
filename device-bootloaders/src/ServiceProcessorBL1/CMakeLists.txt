@@ -24,10 +24,6 @@ add_riscv_executable(ServiceProcessorBL1
     src/bl1_sp_certificates.c
     src/bl1_sp_firmware_loader.c
     src/bl1_vaultip_controller.c
-    ${SHARED_SRC_DIR}/constant_memory_compare.c
-    ${SHARED_SRC_DIR}/serial.c
-    ${SHARED_SRC_DIR}/sp_otp.c
-    # This file get compiled different based on the serial_device.h configuration of each target
     src/bl1_build_configuration.c
 )
 target_include_directories(ServiceProcessorBL1.elf
@@ -41,7 +37,11 @@ target_link_libraries(ServiceProcessorBL1.elf
     PRIVATE
         signedImageFormat::signedImageFormat
         etsoc_hal::etsoc_hal
+        deviceFirmware::device_serial
 )
+
+target_report_riscv_size(ServiceProcessorBL1.elf)
+target_report_riscv_elf_file_header(ServiceProcessorBL1.elf)
 
 install(TARGETS ServiceProcessorBL1.elf
     EXPORT EsperantoBootLoaderTargets

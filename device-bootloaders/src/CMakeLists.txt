@@ -1,0 +1,4 @@
+add_subdirectory(shared)
+add_subdirectory(BootromTrampolineToBL2)
+add_subdirectory(ServiceProcessorBL1)
+add_subdirectory(ServiceProcessorBL2)

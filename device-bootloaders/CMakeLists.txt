@@ -9,15 +9,15 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.5)
-#TODO: This have to be removed
-set(CMAKE_TOOLCHAIN_FILE Toolchain-gcc-riscv.cmake)
 project(EsperantoBootLoader VERSION 0.1.0 LANGUAGES C ASM)
 
-
+option(ENABLE_STRICT_BUILD_TYPES "Whether project configuration should fail if build_type is not one of the allowed values: Debug Release RelWithDebInfo MinSizeRel" OFF)
+option(ENABLE_REPORT_GLOBAL_FLAGS "Wether global flags should be shown when configuring the project" ON)
+include(CommonProjectSettings)
+include(DeviceUtils)
 include(GNUInstallDirs)
 cmake_policy(SET CMP0076 NEW)
 
-find_package(esperanto-device-api CONFIG REQUIRED)
 find_package(EsperantoDeviceMinionRuntime REQUIRED)
 find_package(signedImageFormat REQUIRED)
 find_package(EsperantoFlashTool CONFIG REQUIRED)
@@ -71,10 +71,7 @@ include_directories(${FLASH_TOOL_HEADERS_INTERFACE_PATH})
 
 
 add_subdirectory(external)
-
-add_subdirectory(BootromTrampolineToBL2)
-add_subdirectory(ServiceProcessorBL1)
-add_subdirectory(ServiceProcessorBL2)
+add_subdirectory(src)
 
 
 include(CMakePackageConfigHelpers)
