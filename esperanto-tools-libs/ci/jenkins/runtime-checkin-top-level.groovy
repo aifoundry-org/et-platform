@@ -5,9 +5,12 @@ pipeline {
     string(name: 'BRANCH', defaultValue: '$gitlabSourceBranch', description: 'Branch name to checkout')
     string(name: 'REPO_SSH_URL', defaultValue: 'git@gitlab.esperanto.ai:software/esperanto-tools-libs.git', description: 'Repository URL')
     string(name: 'REPO_NAME', defaultValue: 'esperanto-tools-libs', description: 'Repository name')
+    string(name: 'GITLAB_SOURCE_BRANCH', defaultValue: '', description: 'Name of the branch in Gitlab that triggered the current MR')
+    string(name: 'GITLAB_TARGET_BRANCH', defaultValue: '', description: 'Target branch where the current branch will be merged')
+    string(name: 'GITLAB_MR_ID', defaultValue: '', description: 'Identifier of the Gitlab MR that triggered the pipeline')
     string(name: 'COMPONENT_COMMITS', defaultValue: '', description: 'List of submodule-paths and their commits to checkout as part of the build. The formath is <SUBMODULE_PATH_1>:<COMMIT_1>,<SUBMODULE_PATH_2>:<COMMIT_2>')
     string(name: 'NODE', defaultValue: 'DISPATCHER', description: 'Node label where the job should run')
-    string(name: 'TIMEOUT', defaultValue: '12', description: 'Timeout (in hours)')
+    string(name: 'TIMEOUT', defaultValue: '23', description: 'Timeout (in hours)')
     booleanParam(name: 'HARD_CLEAN', defaultValue: 'true', description: 'If set to 1, removes all the workspace at the end of the regression')
     booleanParam(name: 'EMAIL_CI_AUTHORS', defaultValue: 'true', description: 'This will enable email notifications on CI jobs back to the Authors of the Change. This will include all authors of a given change set.')
     string(name: 'EMAIL_CI_EXTRAS', defaultValue: '', description: 'Manually add this comma seperated list of email addresses to the recipients for a CI job')
@@ -29,6 +32,7 @@ pipeline {
     timeout(time: "${params.TIMEOUT}", unit: "HOURS")
     timestamps()
     skipDefaultCheckout(true)
+    ansiColor('xterm')
   }
   triggers {
     gitlab(triggerOnMergeRequest: true, branchFilterType: 'All')
@@ -88,28 +92,17 @@ pipeline {
     }
     stage('PARALLEL0') {
       parallel {
-        stage('JOB_DEVICE_LAYER') {
+        stage('JOB_CODE_QUALITY') {
           steps {
             build job:
-              'sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests/',
+              'sw-platform/code-analysis/runtime-sonarqube',
               propagate: true,
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                string(name: 'GITLAB_SOURCE_BRANCH', value: "${env.gitlabSourceBranch}"),
+                string(name: 'GITLAB_TARGET_BRANCH', value: "${env.gitlabTargetBranch}"),
+                string(name: 'GITLAB_MR_ID', value: "${env.gitlabMergeRequestIid}"),
                 string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
-                string(name: 'PYTEST_RETRIES', value: '2'),
-                string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-              ]
-          }
-        }
-        stage('JOB_DEVICE_MANAGEMENT') {
-          steps {
-            build job:
-              'sw-platform/system-sw-integration/pipelines/device-management-checkin-tests/',
-              propagate: true,
-              parameters: [
-                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
-                string(name: 'PYTEST_RETRIES', value: '2'),
                 string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
               ]
           }
@@ -122,7 +115,7 @@ pipeline {
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
                 string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
-                string(name: 'PYTEST_RETRIES', value: '2'),
+                string(name: 'PYTEST_RETRIES', value: '0'),
                 string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
               ]
           }
