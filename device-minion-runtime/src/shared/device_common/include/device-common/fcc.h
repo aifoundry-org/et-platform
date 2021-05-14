@@ -47,7 +47,7 @@ static inline void init_fcc(fcc_t fcc)
 {
     // Consume all credits
     for (uint64_t i = read_fcc(fcc); i > 0; i--) {
-        WAIT_FCC(fcc);
+        wait_fcc(fcc);
     }
 }
 

@@ -16,6 +16,8 @@ include(GNUInstallDirs)
 include(DeviceUtils)
 cmake_policy(SET CMP0076 NEW)
 
+set(ET_DEFAULT_BUILD_TYPE "Release")
+
 option(DEVICE_MINION_RUNTIME_DEPRECATED "Enable deprecated functionality" ON)
 option(BUILD_DOC "Build documentation" ON)
 
