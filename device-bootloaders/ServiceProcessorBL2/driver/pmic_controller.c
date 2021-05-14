@@ -818,7 +818,7 @@ int pmic_get_reset_cause(uint8_t *reset_cause)
 *
 ***********************************************************************/
 
-int pmic_get_voltage(enum voltage_type_t voltage_type, uint8_t *voltage)
+int pmic_get_voltage(voltage_type_e voltage_type, uint8_t *voltage)
 {
     switch (voltage_type) {
     case DDR:
@@ -867,7 +867,7 @@ int pmic_get_voltage(enum voltage_type_t voltage_type, uint8_t *voltage)
 *
 ***********************************************************************/
 
-int pmic_set_voltage(enum voltage_type_t voltage_type, uint8_t voltage)
+int pmic_set_voltage(voltage_type_e voltage_type, uint8_t voltage)
 {
     switch (voltage_type) {
     case DDR:

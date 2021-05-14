@@ -20,7 +20,17 @@
 
 #include "pmic_i2c.h"
 
-enum voltage_type_t { DDR = 0, L2CACHE, MAXION, MINION, PCIE, NOC, PCIE_LOGIC, VDDQLP, VDDQ };
+typedef enum { 
+     DDR = 0,
+     L2CACHE, 
+     MAXION, 
+     MINION, 
+     PCIE, 
+     NOC, 
+     PCIE_LOGIC, 
+     VDDQLP, 
+     VDDQ 
+}voltage_type_e ;
 
 /*! \fn void setup_pmic(void)
     \brief This function initialize I2C connection.
@@ -134,7 +144,7 @@ int pmic_disable_wdog_reset(void);
 */
 int pmic_get_reset_cause(uint8_t *reset_cause);
 
-/*! \fn int pmic_get_voltage(enum voltage_type_t voltage_type, uint8_t* voltage)
+/*! \fn int pmic_get_voltage(voltage_type_e voltage_type, uint8_t* voltage)
     \brief This function returns specific voltage setting.
     \param voltage_type - voltage type to be read:
 *   - DDR
@@ -149,9 +159,9 @@ int pmic_get_reset_cause(uint8_t *reset_cause);
     \param voltage - voltage value (binary encoded)
     \return The function call status, pass/fail.
 */
-int pmic_get_voltage(enum voltage_type_t voltage_type, uint8_t *voltage);
+int pmic_get_voltage(voltage_type_e voltage_type, uint8_t *voltage);
 
-/*! \fn int pmic_set_voltage(enum voltage_type_t voltage_type, uint8_t voltage)
+/*! \fn int pmic_set_voltage(voltage_type_e voltage_type, uint8_t voltage)
     \brief This function returns specific voltage setting.
     \param voltage_type - voltage type to be set:
 *   - DDR
@@ -166,7 +176,7 @@ int pmic_get_voltage(enum voltage_type_t voltage_type, uint8_t *voltage);
     \param voltage - voltage value to be set (binary encoded)
     \return The function call status, pass/fail.
 */
-int pmic_set_voltage(enum voltage_type_t voltage_type, uint8_t voltage);
+int pmic_set_voltage(voltage_type_e voltage_type, uint8_t voltage);
 
 /*! \fn int pmic_get_minion_group_voltage(uint8_t group_id, uint8_t* voltage)
     \brief This function returns minion group voltage setting.

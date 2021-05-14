@@ -121,7 +121,6 @@ uint32_t OTP_Read_Word (uint32_t bank, uint32_t row, uint32_t mask)
         return (sp_otp_data[index] & mask);
     }
 
-    return 0;
 }
 
 int OTP_Write_Word (uint32_t bank, uint32_t row, uint32_t mask, uint32_t value)

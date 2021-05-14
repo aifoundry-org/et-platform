@@ -1211,21 +1211,17 @@ int MemShire_PLL_Program(uint8_t memshire, uint8_t frequency)
     switch(frequency) {
         case MEMSHIRE_FREQUENCY_800:
             return ms_config_795mhz(memshire);
-            break;
 
         case MEMSHIRE_FREQUENCY_933:
             return ms_config_933mhz(memshire);
-            break;
 
         case MEMSHIRE_FREQUENCY_1067:
             return ms_config_1067mhz(memshire);
-            break;
         
         default:
             return -1;
     }
 
-    return 0;
 }
  
 int Memory_read(uint8_t *address, uint8_t *rx_buffer, uint64_t size)
