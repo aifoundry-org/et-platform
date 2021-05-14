@@ -28,6 +28,20 @@ stages:
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
           PYTEST_RETRIES: "0"
 
+  JOB_CODE_QUALITY:
+    cmds:
+      - job: sw-platform/code-analysis/runtime-sonarqube
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          GITLAB_SOURCE_BRANCH:
+            raw_cmd: '"${env.gitlabSourceBranch}"'
+          GITLAB_TARGET_BRANCH: 
+            raw_cmd: '"${env.gitlabTargetBranch}"'
+          GITLAB_MR_ID: 
+            raw_cmd: '"${env.gitlabMergeRequestIid}"'
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
+
+
   # to be enabled again with SW-4451; when the old runtime is wiped out
   # JOB_COVERAGE:
   #   cmds:
