@@ -880,6 +880,14 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         // TODO: CSR_AMOFENCE_CTRL
     case CSR_CACHE_INVALIDATE:
         val &= 0x3;
+        if (val & 1) {
+            // invalidate the fetch buffers of all harts in the neighborhood
+            int first_hart = EMU_THREADS_PER_NEIGH * neigh_index(cpu);
+            int last_hart = std::min(first_hart + EMU_THREADS_PER_NEIGH, EMU_NUM_THREADS);
+            for (int i = first_hart; i < last_hart; ++i) {
+                cpu.chip->cpu[i].fetch_pc = -1;
+            }
+        }
         break;
     case CSR_MENABLE_SHADOWS:
         val &= 1;
