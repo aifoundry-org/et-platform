@@ -23,6 +23,9 @@
 #define L0 0x0 // Low
 #define HI 0x1 // High
 
+// Default Reset values
+#define DEF_SYS_TEMP_VALUE 52 // Expected average temperature 
+
 // Defines for uptime calc
 #define HOURS_IN_DAY      24
 #define SECONDS_IN_HOUR   3600

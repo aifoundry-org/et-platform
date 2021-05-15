@@ -501,7 +501,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
 ***********************************************************************/
 void update_module_max_temp(void)
 {
-    uint8_t curr_temp;
+    uint8_t curr_temp = DEF_SYS_TEMP_VALUE;
 
     if(0 != pmic_get_temperature(&curr_temp)) {
         printf("thermal pwr mgmt svc error: failed to get temperature\r\n");
@@ -824,7 +824,7 @@ void thermal_power_task_entry(void *pvParameter)
 {
     uint64_t start_time;
     uint64_t end_time;
-    uint8_t current_temperature;
+    uint8_t current_temperature=DEF_SYS_TEMP_VALUE;
     struct event_message_t message;
     uint32_t notificationValue;
     uint8_t current_power; 

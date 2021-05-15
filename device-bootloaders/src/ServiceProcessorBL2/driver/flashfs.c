@@ -71,7 +71,7 @@
 */
 #define PAGE_PROGRAM_TIMEOUT 2000
 
-static FLASH_FS_BL2_INFO_t *sg_flash_fs_bl2_info = NULL;
+static FLASH_FS_BL2_INFO_t sg_flash_fs_bl2_info = { 0 };
 
 /************************************************************************
 *
@@ -380,7 +380,6 @@ int flash_fs_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info,
         return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
 
-    sg_flash_fs_bl2_info = NULL;
     memset(flash_fs_bl2_info, 0, sizeof(FLASH_FS_BL2_INFO_t));
 
     for (n = 0; n < 2; n++) {
@@ -429,7 +428,7 @@ int flash_fs_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info,
         return ERROR_SPI_FLASH_FS_INIT_FAILED;
     }
 
-    sg_flash_fs_bl2_info = flash_fs_bl2_info;
+    memcpy(&sg_flash_fs_bl2_info, flash_fs_bl2_info, sizeof(FLASH_FS_BL2_INFO_t));
     return 0;
 }
 
@@ -464,42 +463,38 @@ static int flash_fs_load_file_info(ESPERANTO_FLASH_REGION_ID_t region_id,
     uint32_t region_address;
     uint32_t region_size;
 
-    if (NULL == sg_flash_fs_bl2_info) {
-        return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
-    }
-
-    if (0 == sg_flash_fs_bl2_info->active_partition) {
+    if (0 == sg_flash_fs_bl2_info.active_partition) {
         partition_address = 0;
-    } else if (1 == sg_flash_fs_bl2_info->active_partition) {
-        partition_address = sg_flash_fs_bl2_info->flash_size / 2;
+    } else if (1 == sg_flash_fs_bl2_info.active_partition) {
+        partition_address = sg_flash_fs_bl2_info.flash_size / 2;
     } else {
         return ERROR_SPI_FLASH_NO_VALID_PARTITION;
     }
 
     switch (region_id) {
     case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING:
-        file_info = &(sg_flash_fs_bl2_info->dram_training_file_info);
-        region_index = sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]
+        file_info = &(sg_flash_fs_bl2_info.dram_training_file_info);
+        region_index = sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                            .dram_training_region_index;
         break;
     case ESPERANTO_FLASH_REGION_ID_MACHINE_MINION:
-        file_info = &(sg_flash_fs_bl2_info->machine_minion_file_info);
-        region_index = sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]
+        file_info = &(sg_flash_fs_bl2_info.machine_minion_file_info);
+        region_index = sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                            .machine_minion_region_index;
         break;
     case ESPERANTO_FLASH_REGION_ID_MASTER_MINION:
-        file_info = &(sg_flash_fs_bl2_info->master_minion_file_info);
-        region_index = sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]
+        file_info = &(sg_flash_fs_bl2_info.master_minion_file_info);
+        region_index = sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                            .master_minion_region_index;
         break;
     case ESPERANTO_FLASH_REGION_ID_WORKER_MINION:
-        file_info = &(sg_flash_fs_bl2_info->worker_minion_file_info);
-        region_index = sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]
+        file_info = &(sg_flash_fs_bl2_info.worker_minion_file_info);
+        region_index = sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                            .worker_minion_region_index;
         break;
     case ESPERANTO_FLASH_REGION_ID_MAXION_BL1:
-        file_info = &(sg_flash_fs_bl2_info->maxion_bl1_file_info);
-        region_index = sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]
+        file_info = &(sg_flash_fs_bl2_info.maxion_bl1_file_info);
+        region_index = sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                            .maxion_bl1_region_index;
         break;
     default:
@@ -510,18 +505,18 @@ static int flash_fs_load_file_info(ESPERANTO_FLASH_REGION_ID_t region_id,
         return ERROR_SPI_FLASH_INVALID_REGION_ID;
     }
 
-    region_address = sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]
+    region_address = sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                          .regions_table[region_index]
                          .region_offset *
                      FLASH_PAGE_SIZE;
-    region_size = sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]
+    region_size = sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                       .regions_table[region_index]
                       .region_reserved_size *
                   FLASH_PAGE_SIZE;
 
     if (0 == file_info->file_header_tag && 0 == file_info->file_header_size &&
         0 == file_info->file_size && 0 == file_info->file_header_crc) {
-        if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info->flash_id,
+        if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info.flash_id,
                                        partition_address + region_address, (uint8_t *)file_info,
                                        sizeof(ESPERANATO_FILE_INFO_t))) {
             MESSAGE_ERROR("flash_fs_load_file_info: failed to read file info!\n");
@@ -652,7 +647,7 @@ int flash_fs_read_file(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t offset, v
         return ERROR_SPI_FLASH_INVALID_FILE_SIZE_OFFSET;
     }
 
-    if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info->flash_id, file_data_address + offset,
+    if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info.flash_id, file_data_address + offset,
                                    (uint8_t *)buffer, buffer_size)) {
         MESSAGE_ERROR("flash_fs_read_file: failed to read file data!\n");
         memset(buffer, 0, buffer_size);
@@ -704,7 +699,7 @@ int flash_fs_write_partition(uint32_t partition_address, void *buffer, uint32_t 
     for (uint32_t iter_buffer_size = 0; iter_buffer_size < buffer_size;
          iter_buffer_size += chunk_size, buffer = (uint8_t *)buffer + chunk_size,
                   iter_partition_address = iter_partition_address + chunk_size) {
-        if (0 != spi_flash_page_program(sg_flash_fs_bl2_info->flash_id, iter_partition_address,
+        if (0 != spi_flash_page_program(sg_flash_fs_bl2_info.flash_id, iter_partition_address,
                                         (uint8_t *)buffer, chunk_size)) {
             MESSAGE_ERROR("flash_fs_write_partition: failed to write data!\n");
             return ERROR_SPI_FLASH_PP_FAILED;
@@ -745,7 +740,7 @@ int flash_fs_erase_partition(uint32_t partition_address, uint32_t partition_size
     // Erase partition
     for (uint32_t block_addr = partition_address;
          block_addr <= (partition_address + partition_size); block_addr += SPI_FLASH_BLOCK_SIZE) {
-        if (0 != spi_flash_block_erase(sg_flash_fs_bl2_info->flash_id, block_addr)) {
+        if (0 != spi_flash_block_erase(sg_flash_fs_bl2_info.flash_id, block_addr)) {
             MESSAGE_ERROR("spi_flash_erase: failed to erase block data!\n");
             return ERROR_SPI_FLASH_BE_FAILED;
         }
@@ -781,7 +776,7 @@ int flash_fs_update_partition(void *buffer, uint64_t buffer_size, uint32_t chunk
     uint32_t passive_partition_address;
     uint32_t partition_size;
 
-    partition_size = sg_flash_fs_bl2_info->flash_size / 2;
+    partition_size = sg_flash_fs_bl2_info.flash_size / 2;
 
     // Check that buffer size is greater than partition size
     if (buffer_size < partition_size) {
@@ -792,9 +787,9 @@ int flash_fs_update_partition(void *buffer, uint64_t buffer_size, uint32_t chunk
 
     // Check for active partition and get the passive partition address to store the
     // new firmware image
-    if (0 == sg_flash_fs_bl2_info->active_partition) {
-        passive_partition_address = sg_flash_fs_bl2_info->flash_size / 2;
-    } else if (1 == sg_flash_fs_bl2_info->active_partition) {
+    if (0 == sg_flash_fs_bl2_info.active_partition) {
+        passive_partition_address = sg_flash_fs_bl2_info.flash_size / 2;
+    } else if (1 == sg_flash_fs_bl2_info.active_partition) {
         passive_partition_address = 0;
     } else {
         return ERROR_SPI_FLASH_NO_VALID_PARTITION;
@@ -846,19 +841,19 @@ int flash_fs_get_boot_counters(uint32_t *attempted_boot_counter, uint32_t *compl
     ESPERANTO_PARTITION_BL2_INFO_t *partition_info;
     uint32_t partition_address;
 
-    if (0 == sg_flash_fs_bl2_info->active_partition) {
+    if (0 == sg_flash_fs_bl2_info.active_partition) {
         partition_address = 0;
-    } else if (1 == sg_flash_fs_bl2_info->active_partition) {
-        partition_address = sg_flash_fs_bl2_info->flash_size / 2;
+    } else if (1 == sg_flash_fs_bl2_info.active_partition) {
+        partition_address = sg_flash_fs_bl2_info.flash_size / 2;
     } else {
         return ERROR_SPI_FLASH_NO_VALID_PARTITION;
     }
 
     partition_info =
-        &(sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]);
+        &(sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]);
 
     if (0 != spi_flash_normal_read(
-                 sg_flash_fs_bl2_info->flash_id,
+                 sg_flash_fs_bl2_info.flash_id,
                  partition_address +
                      partition_info->regions_table[partition_info->boot_counters_region_index]
                              .region_offset *
@@ -910,21 +905,17 @@ int flash_fs_increment_completed_boot_count(void)
     uint32_t page_address;
     uint8_t mask;
 
-    if (NULL == sg_flash_fs_bl2_info) {
-        return ERROR_SPI_FLASH_BL2_INFO_IS_NULL;
-    }
-
-    if (0 == sg_flash_fs_bl2_info->active_partition) {
+    if (0 == sg_flash_fs_bl2_info.active_partition) {
         partition_address = 0;
-    } else if (1 == sg_flash_fs_bl2_info->active_partition) {
-        partition_address = sg_flash_fs_bl2_info->flash_size / 2;
+    } else if (1 == sg_flash_fs_bl2_info.active_partition) {
+        partition_address = sg_flash_fs_bl2_info.flash_size / 2;
     } else {
         return ERROR_SPI_FLASH_NO_VALID_PARTITION;
     }
 
-    region_index = sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]
+    region_index = sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                        .boot_counters_region_index;
-    region_address = sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]
+    region_address = sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                          .regions_table[region_index]
                          .region_offset *
                      FLASH_PAGE_SIZE;
@@ -936,7 +927,7 @@ int flash_fs_increment_completed_boot_count(void)
 
     if (0 != find_first_unset_bit_offset(
                  &increment_offset, &bit_offset,
-                 sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]
+                 sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                          .boot_counters_region_data.ull +
                      FLASH_PAGE_SIZE / 2,
                  FLASH_PAGE_SIZE / 2)) {
@@ -953,30 +944,30 @@ int flash_fs_increment_completed_boot_count(void)
     mask = (uint8_t) ~(1u << bit_offset);
 
     /*printf("Original data: %02x\n",
-           sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]
+           sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                .boot_counters_region_data.b[increment_offset]);*/
 
-    sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]
+    sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
         .boot_counters_region_data.b[increment_offset] &= mask;
 
     /*printf("Updated data: %02x\n",
-           sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]
+           sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                .boot_counters_region_data.b[increment_offset]);*/
 
     /*printf("Writing 16 bytes @ %lx\n",
-           (uintptr_t)(sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]
+           (uintptr_t)(sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                            .boot_counters_region_data.b +
                        page_address));
     for (uint32_t n = 0; n < 16; n++) {
-        printf(" %02x", sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]
+        printf(" %02x", sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                             .boot_counters_region_data.b[page_address + n]);
     }
     printf("\n to flash address 0x%x\n", counter_data_address + page_address + FLASH_PAGE_SIZE / 2); */
 
-    if (0 != spi_flash_page_program(sg_flash_fs_bl2_info->flash_id,
+    if (0 != spi_flash_page_program(sg_flash_fs_bl2_info.flash_id,
                                     counter_data_address + page_address + FLASH_PAGE_SIZE / 2,
                                     sg_flash_fs_bl2_info
-                                            ->partition_info[sg_flash_fs_bl2_info->active_partition]
+                                            .partition_info[sg_flash_fs_bl2_info.active_partition]
                                             .boot_counters_region_data.b +
                                         page_address,
                                     16)) {
@@ -1019,12 +1010,12 @@ int flash_fs_swap_primary_boot_partition(void)
     ESPERANTO_PARTITION_BL2_INFO_t *active_partition_info, *passive_partition_info;
 
     // Get Active partition address.
-    if (0 == sg_flash_fs_bl2_info->active_partition) {
+    if (0 == sg_flash_fs_bl2_info.active_partition) {
         active_partition_address = 0;
-        passive_partition_address = sg_flash_fs_bl2_info->flash_size / 2;
+        passive_partition_address = sg_flash_fs_bl2_info.flash_size / 2;
         inactive_partition_index = 1;
-    } else if (1 == sg_flash_fs_bl2_info->active_partition) {
-        active_partition_address = sg_flash_fs_bl2_info->flash_size / 2;
+    } else if (1 == sg_flash_fs_bl2_info.active_partition) {
+        active_partition_address = sg_flash_fs_bl2_info.flash_size / 2;
         passive_partition_address = 0;
         inactive_partition_index = 0;
     } else {
@@ -1033,15 +1024,15 @@ int flash_fs_swap_primary_boot_partition(void)
 
     // Get Active partition info
     active_partition_info =
-        &(sg_flash_fs_bl2_info->partition_info[sg_flash_fs_bl2_info->active_partition]);
+        &(sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]);
 
     // Get the passive partition info
-    passive_partition_info = &(sg_flash_fs_bl2_info->partition_info[inactive_partition_index]);
+    passive_partition_info = &(sg_flash_fs_bl2_info.partition_info[inactive_partition_index]);
 
     // Erase the active partition priority designator area.
     if (0 !=
         spi_flash_sector_erase(
-            sg_flash_fs_bl2_info->flash_id,
+            sg_flash_fs_bl2_info.flash_id,
             active_partition_address +
                 active_partition_info
                         ->regions_table[active_partition_info->priority_designator_region_index]
@@ -1054,7 +1045,7 @@ int flash_fs_swap_primary_boot_partition(void)
     // Erase the passive partition priority designator area.
     if (0 !=
         spi_flash_sector_erase(
-            sg_flash_fs_bl2_info->flash_id,
+            sg_flash_fs_bl2_info.flash_id,
             passive_partition_address +
                 passive_partition_info
                         ->regions_table[passive_partition_info->priority_designator_region_index]
@@ -1068,7 +1059,7 @@ int flash_fs_swap_primary_boot_partition(void)
     passive_partition_priority_counter = 0xFFFFFFF8;
     if (0 !=
         spi_flash_page_program(
-            sg_flash_fs_bl2_info->flash_id,
+            sg_flash_fs_bl2_info.flash_id,
             passive_partition_address +
                 passive_partition_info
                         ->regions_table[passive_partition_info->priority_designator_region_index]
@@ -1107,7 +1098,7 @@ int flash_fs_swap_primary_boot_partition(void)
 int flash_fs_get_manufacturer_name(char *mfg_name)
 {
     // TODO: https://esperantotech.atlassian.net/browse/SW-4327
-    strcpy(mfg_name, "Esperant");
+    strncpy(mfg_name, "Esperan", 8);
     return 0;
 }
 
@@ -1134,7 +1125,7 @@ int flash_fs_get_manufacturer_name(char *mfg_name)
 int flash_fs_get_part_number(char *part_number)
 {
     // TODO: https://esperantotech.atlassian.net/browse/SW-4327
-    strcpy(part_number, "ETPART01");
+    strncpy(part_number, "ETPART1", 8);
     return 0;
 }
 
@@ -1161,7 +1152,7 @@ int flash_fs_get_part_number(char *part_number)
 int flash_fs_get_serial_number(char *ser_number)
 {
     // TODO: https://esperantotech.atlassian.net/browse/SW-4327
-    strcpy(ser_number, "ETSERNO1");
+    strncpy(ser_number, "ETSER_1", 8);
     return 0;
 }
 
@@ -1216,7 +1207,8 @@ int flash_fs_get_module_rev(char *module_rev)
 int flash_fs_get_memory_size(char *mem_size)
 {
     // TODO: https://esperantotech.atlassian.net/browse/SW-4327
-    sprintf(mem_size, "%ld", (uint64_t)16 * 1024);
+    uint64_t size = 16 * 1024;
+    sprintf(mem_size, "%ld", size);
     return 0;
 }
 

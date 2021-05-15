@@ -11,7 +11,9 @@
 cmake_minimum_required(VERSION 3.5)
 project(EsperantoBootLoader VERSION 0.1.0 LANGUAGES C ASM)
 
-option(ENABLE_STRICT_BUILD_TYPES "Whether project configuration should fail if build_type is not one of the allowed values: Debug Release RelWithDebInfo MinSizeRel" OFF)
+set(ET_DEFAULT_BUILD_TYPE "Release")
+
+option(ENABLE_STRICT_BUILD_TYPES "Whether project configuration should fail if build_type is not one of the allowed values: Debug Release RelWithDebInfo MinSizeRel" ON)
 option(ENABLE_REPORT_GLOBAL_FLAGS "Wether global flags should be shown when configuring the project" ON)
 include(CommonProjectSettings)
 include(DeviceUtils)
