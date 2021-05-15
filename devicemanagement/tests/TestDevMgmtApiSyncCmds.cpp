@@ -69,7 +69,7 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureName_1_1() {
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
-  strncpy(expected, "Esperant", output_size);
+  strncpy(expected, "Esperan", output_size);
   
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
@@ -93,7 +93,7 @@ void TestDevMgmtApiSyncCmds::getModulePartNumber_1_2() {
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
-  strncpy(expected, "ETPART01", output_size);
+  strncpy(expected, "ETPART1", output_size);
   printf("expected: %.*s\n", output_size, expected);
 
   char output_buff[output_size] = {0};
@@ -118,7 +118,7 @@ void TestDevMgmtApiSyncCmds::getModuleSerialNumber_1_3() {
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
-  strncpy(expected, "ETSERNO1", output_size);
+  strncpy(expected, "ETSER_1", output_size);
   printf("expected: %.*s\n", output_size, expected);
 
   char output_buff[output_size] = {0};
