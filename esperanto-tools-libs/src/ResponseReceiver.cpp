@@ -13,6 +13,7 @@
 #include "utils.h"
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <thread>
 using namespace rt;
 
@@ -52,9 +53,13 @@ ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServ
           for (auto dev : devicesToCheck) {
             uint64_t sq_bitmap;
             bool cq_available;
-            RT_LOG(INFO) << "No responses, waiting for epoll";
-            deviceLayer_->waitForEpollEventsMasterMinion(dev, sq_bitmap, cq_available);
-            RT_LOG(INFO) << "Finished waiting for epoll";
+            // https://esperantotech.atlassian.net/browse/SW-7822
+            // we are losing somehow interrupts in sysemu, so instead of waitForEpoll lets do a quick & dirty polling
+            // worarkound ...
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            // RT_LOG(INFO) << "No responses, waiting for epoll";
+            // deviceLayer_->waitForEpollEventsMasterMinion(dev, sq_bitmap, cq_available);
+            // RT_LOG(INFO) << "Finished waiting for epoll";
           }
         }
       }
