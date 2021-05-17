@@ -32,7 +32,7 @@
 #include "et_dma.h"
 #include "et_ioctl.h"
 #include "et_vqueue.h"
-#include "et_mmio.h"
+#include "et_fw_update.h"
 #include "et_pci_dev.h"
 #include "et_event_handler.h"
 
@@ -113,7 +113,6 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 	struct et_pci_dev *et_dev;
 	struct et_ops_dev *ops;
 	struct dram_info user_dram;
-	struct mmio_desc mmio_info;
 	struct cmd_desc cmd_info;
 	struct rsp_desc rsp_info;
 	struct sq_threshold sq_threshold_info;
@@ -163,32 +162,6 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 		}
 
 		return 0;
-
-	case ETSOC1_IOCTL_MMIO_WRITE:
-		if (copy_from_user(&mmio_info, (void __user *)arg,
-				   _IOC_SIZE(cmd)))
-			return -EINVAL;
-
-		if (!mmio_info.ubuf || !mmio_info.size || !mmio_info.devaddr)
-			return -EINVAL;
-
-		return et_mmio_write_to_device(et_dev, false /* ops_dev */,
-					       (void __user *)mmio_info.ubuf,
-					       mmio_info.size,
-					       mmio_info.devaddr);
-
-	case ETSOC1_IOCTL_MMIO_READ:
-		if (copy_from_user(&mmio_info, (void __user *)arg,
-				   _IOC_SIZE(cmd)))
-			return -EINVAL;
-
-		if (!mmio_info.ubuf || !mmio_info.size || !mmio_info.devaddr)
-			return -EINVAL;
-
-		return et_mmio_read_from_device(et_dev, false /* ops_dev */,
-						(void __user *)mmio_info.ubuf,
-						mmio_info.size,
-						mmio_info.devaddr);
 
 	case ETSOC1_IOCTL_GET_SQ_COUNT:
 		if (size >= sizeof(u16) &&
@@ -442,6 +415,7 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 	struct cmd_desc cmd_info;
 	struct rsp_desc rsp_info;
 	struct sq_threshold sq_threshold_info;
+	struct fw_update_desc fw_update_info;
 	u16 sq_idx;
 	size_t size;
 	u16 max_size;
@@ -453,6 +427,18 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 	size = _IOC_SIZE(cmd);
 
 	switch (cmd) {
+	case ETSOC1_IOCTL_FW_UPDATE:
+		if (copy_from_user(&fw_update_info, (void __user *)arg,
+				   _IOC_SIZE(cmd)))
+			return -EINVAL;
+
+		if (!fw_update_info.ubuf || !fw_update_info.size)
+			return -EINVAL;
+
+		return et_mmio_write_fw_image
+			(et_dev, (void __user *)fw_update_info.ubuf,
+			 fw_update_info.size);
+
 	case ETSOC1_IOCTL_GET_SQ_COUNT:
 		if (size >= sizeof(u16) &&
 		    copy_to_user((u16 *)arg, &mgmt->vq_common.dir_vq.sq_count,
