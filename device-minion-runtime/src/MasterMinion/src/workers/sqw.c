@@ -96,7 +96,7 @@ static inline void sqw_command_barrier(uint8_t sqw_idx)
     int8_t sw_timer_idx;
     sqw_cmds_barrier_t cmds_barrier;
 
-    Log_Write(LOG_LEVEL_DEBUG, "SQW:Command Barrier\r\n");
+    Log_Write(LOG_LEVEL_DEBUG, "SQW[%d]:Command Barrier\r\n",sqw_idx);
 
     /* Create timeout for kernel_launch command to complete */
     sw_timer_idx = SW_Timer_Create_Timeout(&SQW_Command_Barrier_Timeout_Cb,
@@ -108,6 +108,9 @@ static inline void sqw_command_barrier(uint8_t sqw_idx)
         Log_Write(LOG_LEVEL_ERROR, "SQW: Unable to register SQW barrier timeout!\r\n");
     }
 
+    cmds_barrier.raw_u64 = atomic_load_local_64(&SQW_CB.sqw_barrier[sqw_idx].raw_u64);
+    Log_Write(LOG_LEVEL_DEBUG, "SQW[%d]:Outstanding Cmd Cnt: %d\r\n",sqw_idx, (uint32_t)cmds_barrier.cmds_count);
+     
     /* Spin-wait until the commands count is zero or timeout has occured */
     do
     {
