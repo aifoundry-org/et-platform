@@ -10,6 +10,7 @@
 
 #include "TestDevOpsApi.h"
 #include "Autogen.h"
+#include <cmath>
 #include <experimental/filesystem>
 
 using namespace ELFIO;
@@ -17,6 +18,7 @@ namespace fs = std::experimental::filesystem;
 
 DEFINE_string(kernels_dir, "", "Directory where different kernel ELF files are located");
 DEFINE_uint32(exec_timeout, 100, "Internal execution timeout");
+DEFINE_bool(loopback_driver, false, "Run on loopback driver");
 
 void TestDevOpsApi::fExecutor(uint8_t queueId) {
   auto start = Clock::now();
@@ -401,6 +403,13 @@ bool TestDevOpsApi::addCmdResultEntry(device_ops_api::tag_id_t tagId, CmdStatus 
     return false;
   }
 
+  if (cmdResults_.size() == 0) {
+    firstCmdTimepoint_ = Clock::now();
+    firstRspTimepoint_ = firstCmdTimepoint_;
+  } else {
+    lastCmdTimepoint_ = Clock::now();
+  }
+
   cmdResults_.emplace(tagId, status);
   return true;
 }
@@ -411,6 +420,8 @@ bool TestDevOpsApi::updateCmdResult(device_ops_api::tag_id_t tagId, CmdStatus st
   if (it == cmdResults_.end()) {
     return false;
   }
+
+  lastRspTimepoint_ = Clock::now();
 
   it->second = status;
   return true;
@@ -493,6 +504,12 @@ void TestDevOpsApi::printCmdExecutionSummary() {
     }
     TEST_VLOG(0) << "    ----> Tag IDs: " << tagIdsStream.str() << std::endl;
   }
+  std::chrono::duration<double> cmdsTotalDuration = lastCmdTimepoint_ - firstCmdTimepoint_;
+  std::chrono::duration<double> rspsTotalDuration = lastRspTimepoint_ - firstRspTimepoint_;
+  TEST_VLOG(0) << "  ====> Commands sent per second: " << std::ceil(cmdResults_.size() / cmdsTotalDuration.count())
+               << std::endl;
+  TEST_VLOG(0) << "  ====> Responses received per second: " << std::ceil(cmdResults_.size() / rspsTotalDuration.count())
+               << std::endl;
   TEST_VLOG(0) << "================================================" << std::endl;
 
   EXPECT_EQ(failedCmdTags.size(), 0);

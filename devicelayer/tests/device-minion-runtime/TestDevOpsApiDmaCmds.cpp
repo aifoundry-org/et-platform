@@ -58,6 +58,12 @@ void TestDevOpsApiDmaCmds::dataRWCmdWithBasicCmds_3_4() {
   }
 
   executeAsync();
+
+  // Skip data validation in case of loopback driver
+  if (FLAGS_loopback_driver) {
+    return;
+  }
+
   // For DMA received Data Validation
   for (size_t i = 0; i < dmaWrBufs.size(); ++i) {
     EXPECT_EQ(dmaWrBufs[i], dmaRdBufs[i]);
@@ -147,6 +153,11 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixed_3_5() {
   }
 
   executeAsync();
+
+  // Skip data validation in case of loopback driver
+  if (FLAGS_loopback_driver) {
+    return;
+  }
 
   // For DMA received Data Validation
   for (std::size_t i = 0; i < dmaWrBufs.size(); ++i) {
@@ -248,6 +259,11 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixedWithVarSize_3_6() {
   }
 
   executeAsync();
+
+  // Skip data validation in case of loopback driver
+  if (FLAGS_loopback_driver) {
+    return;
+  }
 
   // For DMA received Data Validation
   for (std::size_t i = 0; i < dmaWrBufs.size(); ++i) {
@@ -366,6 +382,11 @@ void TestDevOpsApiDmaCmds::dataRWCmdAllChannels_3_7() {
 
   executeAsync();
 
+  // Skip data validation in case of loopback driver
+  if (FLAGS_loopback_driver) {
+    return;
+  }
+
   // For DMA received Data Validation
   for (std::size_t i = 0; i < dmaWrBufs.size(); ++i) {
     EXPECT_EQ(dmaWrBufs[i], dmaRdBufs[i]);
@@ -416,6 +437,11 @@ void TestDevOpsApiDmaCmds::dataRWCmd_PositiveTesting_3_1() {
   }
 
   executeAsync();
+
+  // Skip data validation in case of loopback driver
+  if (FLAGS_loopback_driver) {
+    return;
+  }
 
   // Validate data received from DMA
   for (std::size_t i = 0; i < dmaWrBufs.size(); ++i) {
@@ -501,6 +527,11 @@ void TestDevOpsApiDmaCmds::dataRWCmdWithBarrier_PositiveTesting_3_10() {
 
   executeAsync();
 
+  // Skip data validation in case of loopback driver
+  if (FLAGS_loopback_driver) {
+    return;
+  }
+
   // For DMA received Data Validation
   for (uint8_t queueId = 0; queueId < queueCount; queueId++) {
     uint8_t writeIdxOffset = queueId * 4;
@@ -575,6 +606,11 @@ void TestDevOpsApiDmaCmds::dataWRStressSize_2_1(uint8_t maxExp2) {
 
   executeSync();
 
+  // Skip data validation in case of loopback driver
+  if (FLAGS_loopback_driver) {
+    return;
+  }
+
   for (std::size_t i = 0; i < writtenBuffs.size(); ++i) {
     EXPECT_EQ(writtenBuffs[i], dmaRdBufs[i]);
   }
@@ -629,6 +665,11 @@ void TestDevOpsApiDmaCmds::dataWRStressSpeed_2_2(uint8_t maxExp2) {
 
   executeAsync();
 
+  // Skip data validation in case of loopback driver
+  if (FLAGS_loopback_driver) {
+    return;
+  }
+
   for (std::size_t i = 0; i < writtenBuffs.size(); ++i) {
     EXPECT_EQ(writtenBuffs[i], dmaRdBufs[i]);
   }
@@ -675,6 +716,11 @@ void TestDevOpsApiDmaCmds::dataWRStressChannelsSingleQueue_2_3(uint32_t numOfLoo
 
   executeAsync();
 
+  // Skip data validation in case of loopback driver
+  if (FLAGS_loopback_driver) {
+    return;
+  }
+
   for (std::size_t i = 0; i < dmaRdBufs.size(); ++i) {
     EXPECT_EQ(dmaWrBuf, dmaRdBufs[i]);
   }
@@ -720,6 +766,11 @@ void TestDevOpsApiDmaCmds::dataWRStressChannelsMultiQueue_2_4(uint32_t numOfLoop
   }
 
   executeAsync();
+
+  // Skip data validation in case of loopback driver
+  if (FLAGS_loopback_driver) {
+    return;
+  }
 
   for (std::size_t i = 0; i < dmaRdBufs.size(); ++i) {
     EXPECT_EQ(dmaWrBuf, dmaRdBufs[i]);

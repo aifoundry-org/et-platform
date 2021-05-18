@@ -59,6 +59,12 @@ function(create_test)
   )
 endfunction()
 
+if(BUILD_PCIE_LOOPBACK_DRIVER)
+  set(LOOPBACK_DRIVER "true")
+else()
+  set(LOOPBACK_DRIVER "false")
+endif()
+
 #all tests should be created using the helper
 
 ###############
@@ -67,22 +73,22 @@ endfunction()
 create_test(
   TARGET     TestDevOpenClosePcie
   SOURCES    pcie/basic/TestDevOpenClosePcie.cpp
-  ARGS       ""
-  PROPERTIES "LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;UNIT;TIMEOUT;120"
+  ARGS       "--loopback_driver=${LOOPBACK_DRIVER}"
+  PROPERTIES "LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;UNIT;LABELS;LOOPBACK;TIMEOUT;120"
 )
 
 create_test(
   TARGET     TestDevOpsApiFuncBasicCmdsPcie
   SOURCES    pcie/basic/TestDevOpsApiFuncBasicCmdsPcie.cpp TestDevOpsApiBasicCmds.cpp
-  ARGS       ""
-  PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;SYSTEM;TIMEOUT;120"
+  ARGS       "--loopback_driver=${LOOPBACK_DRIVER}"
+  PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;SYSTEM;LABELS;LOOPBACK;TIMEOUT;120"
 )
 
 create_test(
   TARGET     TestDevOpsApiFuncDmaCmdsPcie
   SOURCES    pcie/basic/TestDevOpsApiFuncDmaCmdsPcie.cpp TestDevOpsApiDmaCmds.cpp
-  ARGS       ""
-  PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;SYSTEM;TIMEOUT;120"
+  ARGS       "--loopback_driver=${LOOPBACK_DRIVER}"
+  PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;SYSTEM;LABELS;LOOPBACK;TIMEOUT;120"
 )
 
 create_test(
@@ -102,15 +108,15 @@ create_test(
 create_test(
   TARGET     TestDevOpsApiStressBasicCmdsPcie
   SOURCES    pcie/basic/TestDevOpsApiStressBasicCmdsPcie.cpp TestDevOpsApiBasicCmds.cpp
-  ARGS       ""
-  PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;240"
+  ARGS       "--loopback_driver=${LOOPBACK_DRIVER}"
+  PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;LABELS;LOOPBACK;TIMEOUT;240"
 )
 
 create_test(
   TARGET     TestDevOpsApiStressDmaCmdsPcie
   SOURCES    pcie/basic/TestDevOpsApiStressDmaCmdsPcie.cpp TestDevOpsApiDmaCmds.cpp
-  ARGS       ""
-  PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;240"
+  ARGS       "--loopback_driver=${LOOPBACK_DRIVER}"
+  PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;LABELS;LOOPBACK;TIMEOUT;240"
 )
 
 create_test(

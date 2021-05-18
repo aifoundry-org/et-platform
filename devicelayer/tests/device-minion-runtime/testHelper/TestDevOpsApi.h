@@ -29,6 +29,7 @@ using TimeDuration = Clock::duration;
 
 DECLARE_string(kernels_dir);
 DECLARE_uint32(exec_timeout);
+DECLARE_bool(loopback_driver);
 
 namespace {
 constexpr int kIDevice = 0;
@@ -87,6 +88,11 @@ protected:
 
   std::unordered_map<device_ops_api::tag_id_t, CmdStatus> cmdResults_;
   std::recursive_mutex cmdResultsMtx_;
+
+  Timepoint firstCmdTimepoint_;
+  Timepoint lastCmdTimepoint_;
+  Timepoint firstRspTimepoint_;
+  Timepoint lastRspTimepoint_;
 };
 
 #endif // TEST_DEV_OPS_API_H
