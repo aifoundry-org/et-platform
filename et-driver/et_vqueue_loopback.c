@@ -37,6 +37,49 @@ struct device_ops_echo_rsp_t {
 	u32 pad;
 } __packed __aligned(8);
 
+/*
+ *  Device compatibility command
+ */
+struct device_ops_compatibility_cmd_t {
+	struct cmd_header_t command_info;
+	u16 major;
+	u16 minor;
+	u16 patch;
+	u16 pad;
+} __packed __aligned(8);
+
+/*
+ * Device compatibility response
+ */
+struct device_ops_compatibility_rsp_t {
+	struct rsp_header_t response_info;
+	u16 major;
+	u16 minor;
+	u16 patch;
+	u16 pad;
+} __packed __aligned(8);
+
+/*
+ * Device firmware version command
+ */
+struct device_ops_fw_version_cmd_t {
+	struct cmd_header_t command_info;
+	u8 firmware_type;
+	u8 pad[7];
+} __packed __aligned(8);
+
+/*
+ * Device firmware version response
+ */
+struct device_ops_fw_version_rsp_t {
+	struct rsp_header_t response_info;
+	u16 major;
+	u16 minor;
+	u16 patch;
+	u8 type;
+	u8 pad;
+} __packed __aligned(8);
+
 enum dev_ops_api_kernel_launch_response_e {
 	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED = 0,
 	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR = 1,
@@ -467,6 +510,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 	struct cmn_header_t header;
 	struct device_ops_echo_cmd_t *echo_cmd;
 	struct device_ops_echo_rsp_t echo_rsp;
+	struct device_ops_compatibility_cmd_t *compat_cmd;
+	struct device_ops_compatibility_rsp_t compat_rsp;
+	struct device_ops_fw_version_cmd_t *fw_version_cmd;
+	struct device_ops_fw_version_rsp_t fw_version_rsp;
 	struct device_ops_data_read_cmd_t *data_read_cmd;
 	struct device_ops_data_read_rsp_t data_read_rsp;
 	struct device_ops_data_write_cmd_t *data_write_cmd;
@@ -510,14 +557,52 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 			rv = -EAGAIN;
 		break;
 
+	case DEV_OPS_API_MID_DEVICE_OPS_COMPATIBILITY_CMD:
+		compat_cmd = (struct device_ops_compatibility_cmd_t *)cmd;
+		compat_rsp.response_info.rsp_hdr.size =
+			sizeof(compat_rsp) - sizeof(header);
+		compat_rsp.response_info.rsp_hdr.tag_id =
+			compat_cmd->command_info.cmd_hdr.tag_id;
+		compat_rsp.response_info.rsp_hdr.msg_id =
+			DEV_OPS_API_MID_DEVICE_OPS_COMPATIBILITY_RSP;
+		compat_rsp.major = 0;
+		compat_rsp.minor = 1;
+		compat_rsp.patch = 0;
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&compat_rsp,
+					sizeof(compat_rsp),
+					ET_CB_SYNC_FOR_HOST |
+					ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DEV_OPS_API_MID_DEVICE_OPS_FW_VERSION_CMD:
+		fw_version_cmd = (struct device_ops_fw_version_cmd_t *)cmd;
+		fw_version_rsp.response_info.rsp_hdr.size =
+			sizeof(fw_version_rsp) - sizeof(header);
+		fw_version_rsp.response_info.rsp_hdr.tag_id =
+			fw_version_cmd->command_info.cmd_hdr.tag_id;
+		fw_version_rsp.response_info.rsp_hdr.msg_id =
+			DEV_OPS_API_MID_DEVICE_OPS_FW_VERSION_RSP;
+		fw_version_rsp.major = 1;
+		fw_version_rsp.minor = 0;
+		fw_version_rsp.patch = 0;
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem,
+					(u8 *)&fw_version_rsp,
+					sizeof(fw_version_rsp),
+					ET_CB_SYNC_FOR_HOST |
+					ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
 	case DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD:
+	case DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD:
 		data_read_cmd = (struct device_ops_data_read_cmd_t *)cmd;
 		data_read_rsp.response_info.rsp_hdr.size =
 			sizeof(data_read_rsp) - sizeof(header);
 		data_read_rsp.response_info.rsp_hdr.tag_id =
 			data_read_cmd->command_info.cmd_hdr.tag_id;
 		data_read_rsp.response_info.rsp_hdr.msg_id =
-			DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP;
+			data_read_cmd->command_info.cmd_hdr.msg_id + 1;
 		data_read_rsp.status =
 			DEV_OPS_API_DMA_RESPONSE_COMPLETE;
 		if (!et_circbuffer_push(&cq->cb, cq->cb_mem,
@@ -529,13 +614,14 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD:
+	case DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD:
 		data_write_cmd = (struct device_ops_data_write_cmd_t *)cmd;
 		data_write_rsp.response_info.rsp_hdr.size =
 			sizeof(data_write_rsp) - sizeof(header);
 		data_write_rsp.response_info.rsp_hdr.tag_id =
 			data_write_cmd->command_info.cmd_hdr.tag_id;
 		data_write_rsp.response_info.rsp_hdr.msg_id =
-			DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP;
+			data_write_cmd->command_info.cmd_hdr.msg_id + 1;
 		data_write_rsp.status =
 			DEV_OPS_API_DMA_RESPONSE_COMPLETE;
 		if (!et_circbuffer_push(&cq->cb, cq->cb_mem,
