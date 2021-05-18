@@ -47,15 +47,38 @@ typedef enum {
     DMA_OPERATION_SUCCESS = 0
 } DMA_STATUS_e;
 
-/// @brief Triggers a DMA read/write transaction based on channel ID.
-int dma_trigger_transfer(uint64_t src_addr, uint64_t dest_addr,
-    uint64_t size, dma_chan_id_e chan, dma_flags_e dma_flags);
-
 /// @brief Configure a DMA engine to issue PCIe memory reads to the x86 host, pulling data to the SoC.
 int dma_configure_read(dma_chan_id_e chan);
 
 /// @brief Configure a DMA engine to issue PCIe memory writes to the x86 host, pushing data from the SoC.
 int dma_configure_write(dma_chan_id_e chan);
+
+/*! \fn DMA_STATUS_e dma_config_add_data_node(uint64_t src_addr, uint64_t dest_addr,
+    uint32_t size, dma_chan_id_e chan, uint32_t index, dma_flags_e dma_flags,
+    bool local_interrupt);
+    \brief This function adds a new data node in DMA transfer list. After adding
+           all data nodes user must to add a link node as well.
+    \param src_addr Source address
+    \param dest_addr Pointer to command buffer
+    \param xfer_count Number of transfer nodes in command.
+    \param size SQW ID
+    \param chan DMA channel ID
+    \param index Index of current data node
+    \param dma_flags DMA flag to set a specific DMA action.
+    \param local_interrupt Enable/Disable DMA local interrupt.
+    \return Status success or error
+*/
+DMA_STATUS_e dma_config_add_data_node(uint64_t src_addr, uint64_t dest_addr,
+    uint32_t size, dma_chan_id_e chan, uint32_t index, dma_flags_e dma_flags,
+    bool local_interrupt);
+
+/*! \fn DMA_STATUS_e dma_config_add_link_node(dma_chan_id_e id, uint32_t index);
+    \brief This function adds a new link node in DMA transfer list.
+    \param chan DMA channel ID
+    \param index Index of current data node
+    \return Status success or error
+*/
+DMA_STATUS_e dma_config_add_link_node(dma_chan_id_e chan, uint32_t index);
 
 /// @brief Starts a DMA transfer for the specified channel.
 int dma_start(dma_chan_id_e chan);

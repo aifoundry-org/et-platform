@@ -253,7 +253,9 @@
     communication interface in bytes
 */
 /* TODO: Fine tune this value according to the final device-ops-api spec */
-#define MM_CMD_MAX_SIZE      64U
+#define MM_CMD_MAX_SIZE      264U /* = sizeof(struct dma_write/read_node) * Max Nodes + Command header
+                                     = 32 * 8 + 8
+                                     = 264 bytes */
 
 /*******************************************************************/
 /* Definitions for MM Shire and its Harts                          */

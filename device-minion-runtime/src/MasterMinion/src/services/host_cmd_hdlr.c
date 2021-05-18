@@ -32,6 +32,13 @@
 #include "device-common/cacheops.h"
 #include "layout.h"
 
+/*! \def TRACE_NODE_INDEX
+    \brief Default trace node index in DMA list command when flag is set to extract Trace buffers.
+           As flags are per command, not per transfer in the command, that is why when Trace flags
+           are set only one transfer will be done which is the first one.
+*/
+#define TRACE_NODE_INDEX    0
+
 /************************************************************************
 *
 *   FUNCTION
@@ -229,14 +236,14 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 else
                 {
                     Log_Write(LOG_LEVEL_ERROR,
-                        "SQ[%d] HostCommandHandler:CreateTimeot:Failed Tag ID:%d\r\n", 
+                        "SQ[%d] HostCommandHandler:CreateTimeot:Failed Tag ID:%d\r\n",
                          sqw_idx, cmd->command_info.cmd_hdr.tag_id);
                 }
             }
             else
             {
                 Log_Write(LOG_LEVEL_ERROR,
-                    "SQ[%d] HostCmdHdlr:KernelLaunch:Failed Tag ID=%d shire_mask:%lx Status:%d\r\n", 
+                    "SQ[%d] HostCmdHdlr:KernelLaunch:Failed Tag ID=%d shire_mask:%lx Status:%d\r\n",
                      sqw_idx, cmd->command_info.cmd_hdr.tag_id, cmd->shire_mask, status);
 
                 Log_Write(LOG_LEVEL_DEBUG,
@@ -344,13 +351,16 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
         case DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD:
         case DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD:
         {
-            struct device_ops_data_read_cmd_t *cmd = (void *)hdr;
-            struct device_ops_data_read_rsp_t rsp;
+            struct device_ops_dma_readlist_cmd_t *cmd = (void *)hdr;
+            struct device_ops_dma_readlist_rsp_t rsp;
             dma_flags_e dma_flag = DMA_NORMAL;
             dma_chan_id_e chan;
             cm_iface_message_t cm_msg;
             status = STATUS_SUCCESS;
             uint64_t cm_shire_mask;
+            uint64_t total_dma_size = 0;
+            uint8_t dma_xfer_count;
+            uint8_t loop_cnt;
 
             /* Design Notes: Note a DMA write command from host will
             trigger the implementation to configure a DMA read channel
@@ -360,71 +370,83 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             Log_Write(LOG_LEVEL_DEBUG,
                 "SQ[%d] HostCommandHandler:Processing:DATA_READ_CMD\r\n", sqw_idx);
 
-            /* If flags are set to extract both MM and CM Trace buffers. */
-            if((cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_MM_TRACE_BUF) && 
+            /* If flags are set to extract MM and/or CM Trace buffers. Then only one DMA command will be processed. */
+            if((cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_MM_TRACE_BUF) ||
                (cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_CM_TRACE_BUF))
             {
-                cm_shire_mask = Trace_Get_CM_Shire_Mask ();
-
-                if((cmd->size <= (MM_TRACE_BUFFER_SIZE + CM_TRACE_BUFFER_SIZE)) && 
-                   ((cm_shire_mask) & CW_Get_Booted_Shires()) == cm_shire_mask)
+                dma_xfer_count = 1;
+                /* If flags are set to extract both MM and CM Trace buffers. */
+                if((cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_MM_TRACE_BUF) &&
+                (cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_CM_TRACE_BUF))
                 {
-                    /* TODO: Disable MM RT Trace. */
-                    cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT; 
-                    
-                    /* Send command to CM RT to disable Trace and evict Trace buffer. */
-                    status = CM_Iface_Multicast_Send(cm_shire_mask, &cm_msg);
+                    cm_shire_mask = Trace_Get_CM_Shire_Mask ();
 
-                    asm volatile("fence");
-                    evict(to_Mem, (uint64_t *) MM_TRACE_BUFFER_BASE, MM_TRACE_BUFFER_SIZE);      
-                    WAIT_CACHEOPS;
+                    if((cmd->list[TRACE_NODE_INDEX].size <= (MM_TRACE_BUFFER_SIZE + CM_TRACE_BUFFER_SIZE)) &&
+                    ((cm_shire_mask) & CW_Get_Booted_Shires()) == cm_shire_mask)
+                    {
+                        /* TODO: Disable MM RT Trace. */
+                        cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT;
 
-                    cmd->src_device_phy_addr = MM_TRACE_BUFFER_BASE;
-                    dma_flag = DMA_SOC_NO_BOUNDS_CHECK;
+                        /* Send command to CM RT to disable Trace and evict Trace buffer. */
+                        status = CM_Iface_Multicast_Send(cm_shire_mask, &cm_msg);
+
+                        asm volatile("fence");
+                        evict(to_Mem, (uint64_t *) MM_TRACE_BUFFER_BASE, MM_TRACE_BUFFER_SIZE);
+                        WAIT_CACHEOPS;
+
+                        cmd->list[TRACE_NODE_INDEX].src_device_phy_addr = MM_TRACE_BUFFER_BASE;
+                        dma_flag = DMA_SOC_NO_BOUNDS_CHECK;
+                    }
+                    else
+                    {
+                        status = DMA_ERROR_OUT_OF_BOUNDS;
+                    }
                 }
-                else
+                /* Check if flag is set to extract MM Trace buffer. */
+                else if(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_MM_TRACE_BUF)
                 {
-                    status = DMA_ERROR_OUT_OF_BOUNDS;
+                    if(cmd->list[TRACE_NODE_INDEX].size <= MM_TRACE_BUFFER_SIZE)
+                    {
+                        /* TODO: Disable MM RT Trace. */
+                        asm volatile("fence");
+                        evict(to_Mem, (uint64_t *) MM_TRACE_BUFFER_BASE, MM_TRACE_BUFFER_SIZE);
+                        WAIT_CACHEOPS;
+
+                        cmd->list[TRACE_NODE_INDEX].src_device_phy_addr = MM_TRACE_BUFFER_BASE;
+                        dma_flag = DMA_SOC_NO_BOUNDS_CHECK;
+                    }
+                    else
+                    {
+                        status = DMA_ERROR_OUT_OF_BOUNDS;
+                    }
+                }
+                /* Check if flag is set to extract CM Trace buffer. */
+                else if(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_CM_TRACE_BUF)
+                {
+                    cm_shire_mask = Trace_Get_CM_Shire_Mask ();
+
+                    if((cmd->list[TRACE_NODE_INDEX].size <= CM_TRACE_BUFFER_SIZE) &&
+                    ((cm_shire_mask & CW_Get_Booted_Shires()) == cm_shire_mask))
+                    {
+                        cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT;
+
+                        /* Send command to CM RT to disable Trace and evict Trace buffer. */
+                        status = CM_Iface_Multicast_Send(cm_shire_mask, &cm_msg);
+
+                        cmd->list[TRACE_NODE_INDEX].src_device_phy_addr = CM_TRACE_BUFFER_BASE;
+                        dma_flag = DMA_SOC_NO_BOUNDS_CHECK;
+                    }
+                    else
+                    {
+                        status = DMA_ERROR_OUT_OF_BOUNDS;
+                    }
                 }
             }
-            /* Check if flag is set to extract MM Trace buffer. */
-            else if(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_MM_TRACE_BUF)
+            else
             {
-                if(cmd->size <= MM_TRACE_BUFFER_SIZE)
-                {
-                    /* TODO: Disable MM RT Trace. */
-                    asm volatile("fence");
-                    evict(to_Mem, (uint64_t *) MM_TRACE_BUFFER_BASE, MM_TRACE_BUFFER_SIZE);      
-                    WAIT_CACHEOPS;
-
-                    cmd->src_device_phy_addr = MM_TRACE_BUFFER_BASE;
-                    dma_flag = DMA_SOC_NO_BOUNDS_CHECK;
-                }
-                else
-                {
-                    status = DMA_ERROR_OUT_OF_BOUNDS;
-                }
-            }
-            /* Check if flag is set to extract CM Trace buffer. */
-            else if(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_CM_TRACE_BUF)
-            {
-                cm_shire_mask = Trace_Get_CM_Shire_Mask ();
-
-                if((cmd->size <= CM_TRACE_BUFFER_SIZE) && 
-                   ((cm_shire_mask & CW_Get_Booted_Shires()) == cm_shire_mask))
-                {
-                    cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT; 
-
-                    /* Send command to CM RT to disable Trace and evict Trace buffer. */
-                    status = CM_Iface_Multicast_Send(cm_shire_mask, &cm_msg);
-                                    
-                    cmd->src_device_phy_addr = CM_TRACE_BUFFER_BASE;
-                    dma_flag = DMA_SOC_NO_BOUNDS_CHECK;
-                }
-                else
-                {
-                    status = DMA_ERROR_OUT_OF_BOUNDS;
-                }
+                /* Get number of transfer commands in the list, based on message payload length. */
+                dma_xfer_count = (uint8_t)(cmd->command_info.cmd_hdr.size - DEVICE_CMD_HEADER_SIZE) /
+                                           sizeof(struct dma_read_node);
             }
 
             if (status == STATUS_SUCCESS)
@@ -435,12 +457,19 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
             if(status == STATUS_SUCCESS)
             {
-                Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] DMA_READ:channel_used:%d\r\n", sqw_idx, chan);
-                Log_Write(LOG_LEVEL_DEBUG, "DMA_READ:src_device_phy_addr:%" PRIx64 "\r\n",
-                    cmd->src_device_phy_addr);
-                Log_Write(LOG_LEVEL_DEBUG, "DMA_READ:dst_host_phy_addr:%" PRIx64 "\r\n",
-                    cmd->dst_host_phy_addr);
-                Log_Write(LOG_LEVEL_DEBUG, "DMA_READ:size:%" PRIx32 "\r\n", cmd->size);
+                Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] DMA_READ:channel_used:%d, dma xfer count=%d\r\n",
+                    sqw_idx, chan, dma_xfer_count);
+
+                for(loop_cnt=0; loop_cnt < dma_xfer_count; ++loop_cnt)
+                {
+                    Log_Write(LOG_LEVEL_DEBUG, "DMA_READ:src_device_phy_addr:%" PRIx64 "\r\n",
+                        cmd->list[loop_cnt].src_device_phy_addr);
+                    Log_Write(LOG_LEVEL_DEBUG, "DMA_READ:dst_host_phy_addr:%" PRIx64 "\r\n",
+                        cmd->list[loop_cnt].dst_host_phy_addr);
+                    Log_Write(LOG_LEVEL_DEBUG, "DMA_READ:size:%" PRIx32 "\r\n", cmd->list[loop_cnt].size);
+
+                    total_dma_size += cmd->list[loop_cnt].size;
+                }
 
                 /* Compute Wait Cycles (cycles the command was sitting in SQ prior to launch)
                    Snapshot current cycle */
@@ -448,15 +477,14 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 cycles.start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
 
                 /* Create timeout for DMA_Write command to complete */
-                sw_timer_idx = SW_Timer_Create_Timeout(&DMAW_Write_Set_Abort_Status, chan, DMA_TIMEOUT_FACTOR(cmd->size));
+                sw_timer_idx = SW_Timer_Create_Timeout(&DMAW_Write_Set_Abort_Status, chan,
+                                    DMA_TIMEOUT_FACTOR(total_dma_size));
 
                 if(sw_timer_idx >= 0)
                 {
                     /* Initiate DMA write transfer */
-                    status = DMAW_Write_Trigger_Transfer(chan, cmd->src_device_phy_addr,
-                        cmd->dst_host_phy_addr, cmd->size,
-                        sqw_idx, hdr->cmd_hdr.tag_id, &cycles, (uint8_t)sw_timer_idx, dma_flag,
-                        hdr->cmd_hdr.msg_id);
+                    status = DMAW_Write_Trigger_Transfer(chan, cmd, dma_xfer_count,
+                        sqw_idx, &cycles, (uint8_t)sw_timer_idx, dma_flag);
                 }
                 else
                 {
@@ -470,13 +498,17 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 Log_Write(LOG_LEVEL_ERROR,
                     "SQ[%d] HostCmdHdlr:DataReadCmd:Failed:Status:%d\r\n", sqw_idx, status);
 
-                Log_Write(LOG_LEVEL_ERROR,
-                    "HostCmdHdlr:DataReadCmd:Failed:CmdParams:src_device_phy_addr:%lx:size:%x\r\n",
-                    cmd->src_device_phy_addr, cmd->size);
+                for(loop_cnt=0; loop_cnt < dma_xfer_count; ++loop_cnt)
+                {
+                    Log_Write(LOG_LEVEL_ERROR,
+                        "HostCmdHdlr:DataReadCmd:Failed:CmdParams:src_device_phy_addr:%lx:size:%x\r\n",
+                        cmd->list[loop_cnt].src_device_phy_addr, cmd->list[loop_cnt].size);
 
-                Log_Write(LOG_LEVEL_DEBUG,
-                    "HostCmdHdlr:DataReadCmd:Failed:CmdParams:dst_host_virt_addr:%lx:dst_host_phy_addr:%lx\r\n",
-                    cmd->dst_host_virt_addr, cmd->dst_host_phy_addr);
+                    Log_Write(LOG_LEVEL_DEBUG,
+                        "HostCmdHdlr:DataReadCmd:Failed:CmdParams:dst_host_virt_addr:%lx:dst_host_phy_addr:%lx\r\n",
+                        cmd->list[loop_cnt].dst_host_virt_addr, cmd->list[loop_cnt].dst_host_phy_addr);
+                }
+
                 /* Free the registered SW Timeout */
                 SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
 
@@ -534,9 +566,12 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
         case DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD:
         case DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD:
         {
-            struct device_ops_data_write_cmd_t *cmd = (void *)hdr;
-            struct device_ops_data_write_rsp_t rsp;
+            struct device_ops_dma_writelist_cmd_t *cmd = (void *)hdr;
+            struct device_ops_dma_writelist_rsp_t rsp;
             dma_chan_id_e chan;
+            uint64_t total_dma_size=0;
+            uint8_t dma_xfer_count;
+            uint8_t loop_cnt;
 
             /* Design Notes: Note a DMA write command from host will trigger
             the implementation to configure a DMA read channel on device to move
@@ -546,19 +581,30 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             Log_Write(LOG_LEVEL_DEBUG,
                 "SQ[%d] HostCommandHandler:Processing:DATA_WRITE_CMD\r\n", sqw_idx);
 
+            /* Get number of transfer commands in the list, based on message payload length. */
+            dma_xfer_count = (uint8_t)(cmd->command_info.cmd_hdr.size - DEVICE_CMD_HEADER_SIZE) /
+                                       sizeof(struct dma_write_node);
+
             /* Obtain the next available DMA read channel */
             status = DMAW_Read_Find_Idle_Chan_And_Reserve(&chan, sqw_idx);
 
             if(status == STATUS_SUCCESS)
             {
-                Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] DMA_WRITE:channel_used:%d\r\n", sqw_idx, chan);
-                Log_Write(LOG_LEVEL_DEBUG, "DMA_WRITE:src_host_virt_addr:%" PRIx64 "\r\n",
-                    cmd->src_host_virt_addr);
-                Log_Write(LOG_LEVEL_DEBUG, "DMA_WRITE:src_host_phy_addr:%" PRIx64 "\r\n",
-                    cmd->src_host_phy_addr);
-                Log_Write(LOG_LEVEL_DEBUG, "DMA_WRITE:dst_device_phy_addr:%" PRIx64 "\r\n",
-                    cmd->dst_device_phy_addr);
-                Log_Write(LOG_LEVEL_DEBUG, "DMA_WRITE:size:%" PRIx32 "\r\n", cmd->size);
+                Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] DMA_WRITE:channel_used:%d, dma xfer count=%d \r\n",
+                        sqw_idx, chan, dma_xfer_count);
+
+                for(loop_cnt=0; loop_cnt < dma_xfer_count; ++loop_cnt)
+                {
+                    Log_Write(LOG_LEVEL_DEBUG, "DMA_WRITE:src_host_virt_addr:%" PRIx64 "\r\n",
+                        cmd->list[loop_cnt].src_host_virt_addr);
+                    Log_Write(LOG_LEVEL_DEBUG, "DMA_WRITE:src_host_phy_addr:%" PRIx64 "\r\n",
+                        cmd->list[loop_cnt].src_host_phy_addr);
+                    Log_Write(LOG_LEVEL_DEBUG, "DMA_WRITE:dst_device_phy_addr:%" PRIx64 "\r\n",
+                        cmd->list[loop_cnt].dst_device_phy_addr);
+                    Log_Write(LOG_LEVEL_DEBUG, "DMA_WRITE:size:%" PRIx32 "\r\n", cmd->list[loop_cnt].size);
+
+                    total_dma_size += cmd->list[loop_cnt].size;
+                }
 
                 /* Compute Wait Cycles (cycles the command was sitting in SQ prior to launch)
                    Snapshot current cycle */
@@ -566,15 +612,14 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 cycles.start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
 
                 /* Create timeout for DMA_Read command to complete */
-                sw_timer_idx = SW_Timer_Create_Timeout(&DMAW_Read_Set_Abort_Status, chan, DMA_TIMEOUT_FACTOR(cmd->size));
+                sw_timer_idx = SW_Timer_Create_Timeout(&DMAW_Read_Set_Abort_Status, chan,
+                                        DMA_TIMEOUT_FACTOR(total_dma_size));
 
                 if(sw_timer_idx >=0 )
                 {
                     /* Initiate DMA read transfer */
-                    status = DMAW_Read_Trigger_Transfer(chan, cmd->src_host_phy_addr,
-                        cmd->dst_device_phy_addr, cmd->size,
-                        sqw_idx, hdr->cmd_hdr.tag_id, &cycles, (uint8_t)sw_timer_idx,
-                        hdr->cmd_hdr.msg_id);
+                    status = DMAW_Read_Trigger_Transfer(chan, cmd, dma_xfer_count,
+                                                        sqw_idx, &cycles, (uint8_t)sw_timer_idx);
                 }
                 else
                 {
@@ -588,14 +633,16 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 Log_Write(LOG_LEVEL_ERROR,
                     "HostCmdHdlr:DataWriteCmd:Failed:Status:%d\r\n", status);
 
-                Log_Write(LOG_LEVEL_ERROR,
-                    "HostCmdHdlr:DataWriteCmd:Failed:CmdParams:dst_device_phy_addr:%lx:size:%x\r\n",
-                    cmd->dst_device_phy_addr, cmd->size);
+                for(loop_cnt=0; loop_cnt < dma_xfer_count; ++loop_cnt)
+                {
+                    Log_Write(LOG_LEVEL_ERROR,
+                        "HostCmdHdlr:DataWriteCmd:Failed:CmdParams:dst_device_phy_addr:%lx:size:%x\r\n",
+                        cmd->list[loop_cnt].dst_device_phy_addr, cmd->list[loop_cnt].size);
 
-                Log_Write(LOG_LEVEL_DEBUG,
-                    "HostCmdHdlr:DataWriteCmd:Failed:CmdParams:src_host_virt_addr:%lx:src_host_phy_addr:%lx\r\n",
-                    cmd->src_host_virt_addr, cmd->src_host_phy_addr);
-
+                    Log_Write(LOG_LEVEL_DEBUG,
+                        "HostCmdHdlr:DataWriteCmd:Failed:CmdParams:src_host_virt_addr:%lx:src_host_phy_addr:%lx\r\n",
+                        cmd->list[loop_cnt].src_host_virt_addr, cmd->list[loop_cnt].src_host_phy_addr);
+                }
                 /* Free the registered SW Timeout */
                 SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
 

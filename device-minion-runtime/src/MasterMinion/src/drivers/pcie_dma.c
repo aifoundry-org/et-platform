@@ -56,7 +56,7 @@ static const struct dma_mem_region valid_dma_targets[] = {
 };
 
 /*
- * Writes one data element of a DMA tranfser list. This structure is used
+ * Writes one data element of a DMA transfer list. This structure is used
  * to configure the DMA engine.
  */
 static inline void write_xfer_list_data(dma_chan_id_e id, uint32_t i, uint64_t sar,
@@ -76,7 +76,7 @@ static inline void write_xfer_list_data(dma_chan_id_e id, uint32_t i, uint64_t s
 }
 
 /*
- * Writes one data element of a DMA tranfser list. This structure is used
+ * Writes one data element of a DMA transfer list. This structure is used
  * to configure the DMA engine.
  */
 static inline void write_xfer_list_link(dma_chan_id_e id, uint32_t i, uint64_t ptr)
@@ -119,46 +119,94 @@ static inline DMA_STATUS_e dma_bounds_check(uint64_t soc_addr, uint64_t size)
     return DMA_ERROR_INVALID_ADDRESS;
 }
 
-int dma_trigger_transfer(uint64_t src_addr, uint64_t dest_addr,
-    uint64_t size, dma_chan_id_e chan, dma_flags_e dma_flags)
+/************************************************************************
+*
+*   FUNCTION
+*
+*       dma_config_add_data_node
+*
+*   DESCRIPTION
+*
+*       This function adds a new data node in DMA transfer list. After adding
+*       all data nodes user must to add a link node as well.
+*
+*   INPUTS
+*
+*       src_addr        Source address
+*       dest_addr       Destination address
+*       xfer_count      Number of transfer nodes in command.
+*       size            Size of DMA transaction
+*       chan            DMA channel ID
+*       index           Index of current data node
+*       dma_flags       DMA flag to set a specific DMA action.
+*       local_interrupt Enable/Disable DMA local interrupt.
+*
+*   OUTPUTS
+*
+*       DMA_STATUS_e     status success or error
+*
+***********************************************************************/
+DMA_STATUS_e dma_config_add_data_node(uint64_t src_addr, uint64_t dest_addr,
+    uint32_t size, dma_chan_id_e chan, uint32_t index, dma_flags_e dma_flags,
+    bool local_interrupt)
 {
     /* Reads data from Host to Device memory */
     int status = DMA_OPERATION_SUCCESS;
 
     /* Validate the params */
-    if ((src_addr == 0U) || (dest_addr == 0U) || (size == 0U) ||
-        !(chan >= DMA_CHAN_ID_READ_0 && chan <= DMA_CHAN_ID_WRITE_3))
+    if (!(chan >= DMA_CHAN_ID_READ_0 && chan <= DMA_CHAN_ID_WRITE_3))
     {
         status = DMA_ERROR_INVALID_PARAM;
     }
-    else
+    else if(!(dma_flags & DMA_SOC_NO_BOUNDS_CHECK))
     {
-        if(!(dma_flags & DMA_SOC_NO_BOUNDS_CHECK))
+        if (chan <= DMA_CHAN_ID_READ_3)
         {
-            if (chan <= DMA_CHAN_ID_READ_3)
-            {
-                /* Validate the bounds. Read: source is on host, dest is on SoC */
-                status = dma_bounds_check(dest_addr, size);
-            }
-            else
-            {
-                /* Validate the bounds. Write: source is on SoC, dest is on host */
-                status = dma_bounds_check(src_addr, size);
-            }
+            /* Validate the bounds. Read: source is on host, dest is on SoC */
+            status = dma_bounds_check(dest_addr, size);
+        }
+        else
+        {
+            /* Validate the bounds. Write: source is on SoC, dest is on host */
+            status = dma_bounds_check(src_addr, size);
         }
     }
 
     if (status == DMA_OPERATION_SUCCESS)
     {
-        status = dma_config_buff(src_addr, dest_addr, (uint32_t)size, chan);
-
-        if (status == DMA_OPERATION_SUCCESS)
-        {
-             dma_start(chan);
-        }
+        /* Add a data node in xfer list */
+        write_xfer_list_data(chan, index, src_addr, dest_addr, size, local_interrupt);
     }
 
     return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       dma_config_add_link_node
+*
+*   DESCRIPTION
+*
+*       This function adds a new link node in DMA transfer list.
+*
+*   INPUTS
+*
+*       chan            DMA channel ID
+*       index           Index of current data node
+*
+*   OUTPUTS
+*
+*       DMA_STATUS_e     status success or error
+*
+***********************************************************************/
+DMA_STATUS_e dma_config_add_link_node(dma_chan_id_e chan, uint32_t index)
+{
+    /* Add a link node in xfer list */
+    write_xfer_list_link(chan, index, (uint64_t)(transfer_lists[chan]) /* circular link */);
+
+    return DMA_OPERATION_SUCCESS;
 }
 
 int dma_configure_read(dma_chan_id_e chan)
@@ -302,7 +350,7 @@ void dma_clear_done(dma_chan_id_e chan)
 DMA_STATUS_e dma_clear_read_abort(dma_chan_id_e chan)
 {
     DMA_STATUS_e status = DMA_OPERATION_SUCCESS;
-    
+
     if (chan <= DMA_CHAN_ID_READ_3)
     {
         iowrite32(

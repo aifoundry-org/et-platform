@@ -22,6 +22,8 @@
 #include "sync.h"
 #include "vq.h"
 #include "drivers/pcie_dma.h"
+#include  <esperanto/device-apis/operations-api/device_ops_api_spec.h>
+#include  <esperanto/device-apis/operations-api/device_ops_api_rpc_types.h>
 
 /*! \def DMAW_MAX_HART_ID
     \brief A macro that provides the maximum HART ID the DMAW is configued
@@ -128,46 +130,39 @@ int8_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id, uint8_t sqw_
 int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id, uint8_t sqw_idx);
 
 /*! \fn int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
-    uint64_t src_addr, uint64_t dest_addr, uint64_t size, uint8_t sqw_idx,
-    uint16_t tag_id, exec_cycles_t *cycles)
+    struct device_ops_dma_writelist_cmd_t *cmd, uint16_t xfer_count, uint8_t sqw_idx,
+    exec_cycles_t *cycles, uint8_t sw_timer_idx);
     \brief This function is used to trigger a DMA read transaction by calling the
     PCIe device driver routine
     \param chan_id DMA channel ID
-    \param src_addr Source address
-    \param dest_addr Destination address
-    \param size Size of DMA transaction
+    \param cmd Pointer to command buffer
+    \param xfer_count Number of transfer nodes in command.
     \param sqw_idx SQW ID
-    \param tag_id Tag ID of the command
     \param cycles Pointer to latency cycles struct
     \param sw_timer_idx Index of SW Timer used for timeout
-    \param msg_id Msg ID of the command (TODO: SW-7137: To be removed)
     \return Status success or error
 */
 int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
-    uint64_t src_addr, uint64_t dest_addr, uint64_t size, uint8_t sqw_idx,
-    uint16_t tag_id, exec_cycles_t *cycles, uint8_t sw_timer_idx, uint16_t msg_id);
+    struct device_ops_dma_writelist_cmd_t *cmd, uint8_t xfer_count, uint8_t sqw_idx,
+    exec_cycles_t *cycles, uint8_t sw_timer_idx);
 
 /*! \fn int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id,
-    uint64_t src_addr, uint64_t dest_addr, uint64_t size, uint8_t sqw_idx,
-    uint16_t tag_id, exec_cycles_t *cycles)
+    struct device_ops_dma_readlist_cmd_t *cmd, uint16_t xfer_count, uint8_t sqw_idx,
+    exec_cycles_t *cycles, uint8_t sw_timer_idx, dma_flags_e flags);
     \brief This function is used to trigger a DMA write transaction by calling the
     PCIe device driver routine
     \param chan_id DMA channel ID
-    \param src_addr Source address
-    \param dest_addr Destination address
-    \param size Size of DMA transaction
+    \param cmd Pointer to command buffer
+    \param xfer_count Number of transfer nodes in command.
     \param sqw_idx SQW ID
-    \param tag_id Tag ID of the command
     \param cycles Pointer to latency cycles struct
     \param sw_timer_idx Index of SW Timer used for timeout
     \param flags DMA flag to set a specific DMA action.
-    \param msg_id Msg ID of the command (TODO: SW-7137: To be removed)
     \return Status success or error
 */
 int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id,
-    uint64_t src_addr, uint64_t dest_addr, uint64_t size, uint8_t sqw_idx,
-    uint16_t tag_id, exec_cycles_t *cycles, uint8_t sw_timer_idx, dma_flags_e flags,
-    uint16_t msg_id);
+    struct device_ops_dma_readlist_cmd_t *cmd, uint8_t xfer_count, uint8_t sqw_idx,
+    exec_cycles_t *cycles, uint8_t sw_timer_idx, dma_flags_e flags);
 
 /*! \fn void DMAW_Read_Ch_Search_Timeout_Callback(uint8_t sqw_idx)
     \brief Callback for read channel search timeout

@@ -39,8 +39,6 @@
 #include    "services/log.h"
 #include    "services/host_iface.h"
 #include    "services/sw_timer.h"
-#include    <esperanto/device-apis/operations-api/device_ops_api_spec.h>
-#include    <esperanto/device-apis/operations-api/device_ops_api_rpc_types.h>
 #include    "pmu.h"
 #include    "sync.h"
 
@@ -256,30 +254,26 @@ int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id, uint8_t sqw
 *   INPUTS
 *
 *       chan_id         DMA channel ID
-*       src_addr        Source address
-*       dest_addr       Destination address
-*       size            Size of DMA transaction
+*       cmd             Pointer to command buffer
+*       xfer_count      Number of transfer nodes in command.
 *       sqw_idx         SQW ID
-*       tag_id          Tag ID of the command
 *       cycles          Pointer to latency cycles struct
 *       sw_timer_idx    Index of SW Timer used for timeout
-*       msg_id          Msg ID of the command (TODO: SW-7137: To be removed)
 *
 *   OUTPUTS
 *
 *       int8_t          status success or error
 *
 ***********************************************************************/
-int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
-    uint64_t src_addr, uint64_t dest_addr, uint64_t size, uint8_t sqw_idx,
-    uint16_t tag_id, exec_cycles_t *cycles, uint8_t sw_timer_idx, uint16_t msg_id)
+int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id, struct device_ops_dma_writelist_cmd_t *cmd,
+    uint8_t xfer_count, uint8_t sqw_idx, exec_cycles_t *cycles, uint8_t sw_timer_idx)
 {
-    int8_t status;
+    int8_t status=DMA_OPERATION_SUCCESS;
     uint8_t rd_ch_idx = (uint8_t)(chan_id - DMA_CHAN_ID_READ_0);
     dma_channel_status_t chan_status;
 
     /* Set tag ID, set channel state to active, set SQW Index */
-    chan_status.tag_id = tag_id;
+    chan_status.tag_id = cmd->command_info.cmd_hdr.tag_id;
     chan_status.sqw_idx = sqw_idx;
     chan_status.channel_state = DMA_CHAN_STATE_IN_USE;
     chan_status.sw_timer_idx = sw_timer_idx;
@@ -288,11 +282,43 @@ int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
         chan_status.raw_u64);
 
     /* TODO: SW-7137: To be removed */
+    uint16_t t_msg_id = cmd->command_info.cmd_hdr.msg_id;
     atomic_store_local_16(
-        &DMAW_Read_CB.chan_status_cb[rd_ch_idx].msg_id, msg_id);
+        &DMAW_Read_CB.chan_status_cb[rd_ch_idx].msg_id, t_msg_id);
 
-    /* Call the DMA device driver function */
-    status = (int8_t)dma_trigger_transfer(src_addr, dest_addr, size, chan_id, DMA_NORMAL);
+    /* To start indexing from zero, decrement the count by one. */
+    uint8_t last_i = (uint8_t)(xfer_count - 1);
+
+    /* Configure DMA for all transfers one-by-one. */
+    for(uint8_t xfer_index=0;
+        (xfer_index < last_i) && (status == DMA_OPERATION_SUCCESS); ++xfer_index)
+    {
+        /* Add DMA list data node for current transfer in the list. */
+        status = dma_config_add_data_node(cmd->list[xfer_index].src_host_phy_addr,
+                    cmd->list[xfer_index].dst_device_phy_addr, cmd->list[xfer_index].size,
+                    chan_id, xfer_index, DMA_NORMAL, false);
+
+        Log_Write(LOG_LEVEL_DEBUG, "DMAW:Config:Added read data node No:%u\r\n", xfer_index);
+    }
+
+    if(status == DMA_OPERATION_SUCCESS)
+    {
+        /* Add DMA list data node for last transfer in the list. Enable interrupt on completion. */
+        status = dma_config_add_data_node(cmd->list[last_i].src_host_phy_addr,
+                    cmd->list[last_i].dst_device_phy_addr, cmd->list[last_i].size,
+                    chan_id, (last_i), DMA_NORMAL, true);
+
+        /* Add DMA list link node at the end ot transfer list. */
+        dma_config_add_link_node(chan_id, xfer_count);
+
+        Log_Write(LOG_LEVEL_DEBUG, "DMAW:Config:Added last read data node No:%u and Link node.\r\n", last_i);
+    }
+
+    if (status == DMA_OPERATION_SUCCESS)
+    {
+        dma_start(chan_id);
+        Log_Write(LOG_LEVEL_DEBUG, "DMAW:Read transfer started.\r\n");
+    }
 
     if(status == DMA_OPERATION_SUCCESS)
     {
@@ -301,8 +327,6 @@ int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
             &DMAW_Read_CB.chan_status_cb[rd_ch_idx].dmaw_cycles.raw_u64, cycles->raw_u64);
 
         Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] DMAW_Trigger_Transfer:Success!\r\n", sqw_idx);
-
-        status = STATUS_SUCCESS;
     }
     else
     {
@@ -336,32 +360,28 @@ int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
 *   INPUTS
 *
 *       chan_id         DMA channel ID
-*       src_addr        Source address
-*       dest_addr       Destination address
-*       size            Size of DMA transaction
+*       cmd             Pointer to command buffer
+*       xfer_count      Number of transfer nodes in command.
 *       sqw_idx         SQW ID
-*       tag_id          Tag ID of the command
 *       cycles          Pointer to latency cycles struct
 *       sw_timer_idx    Index of SW Timer used for timeout
 *       flags           DMA flag to set a specific DMA action.
-*       msg_id          Msg ID of the command (TODO: SW-7137: To be removed)
 *
 *   OUTPUTS
 *
 *       int8_t     status success or error
 *
 ***********************************************************************/
-int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id,
-    uint64_t src_addr, uint64_t dest_addr, uint64_t size, uint8_t sqw_idx,
-    uint16_t tag_id, exec_cycles_t *cycles, uint8_t sw_timer_idx, dma_flags_e flags,
-    uint16_t msg_id)
+int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id, struct device_ops_dma_readlist_cmd_t *cmd,
+    uint8_t xfer_count, uint8_t sqw_idx, exec_cycles_t *cycles, uint8_t sw_timer_idx,
+    dma_flags_e flags)
 {
-    int8_t status;
+    int8_t status=DMA_OPERATION_SUCCESS;
     uint8_t wrt_ch_idx = (uint8_t)(chan_id - DMA_CHAN_ID_WRITE_0);
     dma_channel_status_t chan_status;
 
     /* Set tag ID, set channel state to active, set SQW Index */
-    chan_status.tag_id = tag_id;
+    chan_status.tag_id = cmd->command_info.cmd_hdr.tag_id;
     chan_status.sqw_idx = sqw_idx;
     chan_status.channel_state = DMA_CHAN_STATE_IN_USE;
     chan_status.sw_timer_idx = sw_timer_idx;
@@ -370,11 +390,43 @@ int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id,
         chan_status.raw_u64);
 
     /* TODO: SW-7137: To be removed */
+    uint16_t t_msg_id = cmd->command_info.cmd_hdr.msg_id;
     atomic_store_local_16(
-        &DMAW_Write_CB.chan_status_cb[wrt_ch_idx].msg_id, msg_id);
+        &DMAW_Write_CB.chan_status_cb[wrt_ch_idx].msg_id, t_msg_id);
 
-    /* Call the DMA device driver function */
-    status = (int8_t)dma_trigger_transfer(src_addr, dest_addr, size, chan_id, flags);
+    /* To start indexing from zero, decrement the count by one. */
+    uint8_t last_i = (uint8_t)(xfer_count - 1);
+
+    /* Configure DMA for all transfers one-by-one. */
+    for(uint8_t xfer_index=0;
+        (xfer_index < last_i) && (status == DMA_OPERATION_SUCCESS); ++xfer_index)
+    {
+        /* Add DMA list data node for current transfer in the list. */
+        status = dma_config_add_data_node(cmd->list[xfer_index].src_device_phy_addr,
+                    cmd->list[xfer_index].dst_host_phy_addr, cmd->list[xfer_index].size,
+                    chan_id, xfer_index, flags, false);
+
+        Log_Write(LOG_LEVEL_DEBUG, "DMAW:Config:Added write data node No:%u\r\n", xfer_index);
+    }
+
+    if(status == DMA_OPERATION_SUCCESS)
+    {
+        /* Add DMA list data node for last transfer in the list. Enable interrupt on completion. */
+        status = dma_config_add_data_node(cmd->list[last_i].src_device_phy_addr,
+                    cmd->list[last_i].dst_host_phy_addr, cmd->list[last_i].size,
+                    chan_id, (last_i), flags, true);
+
+        /* Add DMA list link node at the end ot transfer list. */
+        dma_config_add_link_node(chan_id, xfer_count);
+
+        Log_Write(LOG_LEVEL_DEBUG, "DMAW:Config:Added last write data node No:%u and Link node.\r\n", last_i);
+    }
+
+    if (status == DMA_OPERATION_SUCCESS)
+    {
+        dma_start(chan_id);
+        Log_Write(LOG_LEVEL_DEBUG, "DMAW:Write transfer started.\r\n");
+    }
 
     if(status == DMA_OPERATION_SUCCESS)
     {
@@ -748,7 +800,7 @@ void DMAW_Launch(uint32_t hart_id)
                         SQW_Decrement_Command_Count(chan_status.sqw_idx);
 
                         /* Create and transmit DMA command response */
-                        read_rsp.response_info.rsp_hdr.size = 
+                        read_rsp.response_info.rsp_hdr.size =
                             sizeof(read_rsp) - sizeof(struct cmn_header_t);
                         read_rsp.response_info.rsp_hdr.tag_id = chan_status.tag_id;
                         read_rsp.response_info.rsp_hdr.msg_id = (msg_id_t)(msg_id + 1U);
