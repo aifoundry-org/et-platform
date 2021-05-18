@@ -11,23 +11,20 @@
 
 cmake_minimum_required(VERSION 3.17)
 project(logging VERSION 0.1.0)
-find_package(g3log CONFIG REQUIRED)
-
-add_library(logging INTERFACE)
-
-add_library(logging::logging ALIAS logging)
-target_compile_features(logging INTERFACE cxx_std_17)
 
 include(GNUInstallDirs)
 
+find_package(g3log REQUIRED)
+
+add_library(logging INTERFACE)
+add_library(logging::logging ALIAS logging)
+target_compile_features(logging INTERFACE cxx_std_17)
 target_include_directories(logging
-  INTERFACE
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  ${G3LOG_INCLUDE_DIRS}
+    INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
-
-target_link_libraries(logging INTERFACE ${G3LOG_LIBRARIES})
-
+target_link_libraries(logging INTERFACE g3log::g3log)
 
 set_target_properties(logging PROPERTIES
   PUBLIC_HEADER "include/logging/Logging.h;include/logging/Logger.h;include/logging/DefaultSinks.h"
@@ -37,46 +34,37 @@ set_target_properties(logging PROPERTIES
 # Add package information
 include(CMakePackageConfigHelpers)
 
-# Add all targets to the build-tree export set
-export(TARGETS logging
-  FILE "${PROJECT_BINARY_DIR}/logging.cmake"
-)
-
-# Export the package for use from the build-tree
-# (this registers the build-tree with a global CMake-registry)
-export(PACKAGE logging)
-
 install(TARGETS logging
-  EXPORT loggingTargets
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/common/logging
+    EXPORT loggingTargets
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/common/logging
 )
 
 # Install the export set for use with the install-tree
 install(EXPORT loggingTargets
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/logging
-  NAMESPACE logging::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/logging
+    NAMESPACE logging::
 )
 
 
 ##### Package
 
 configure_package_config_file(
-  ${CMAKE_CURRENT_SOURCE_DIR}/loggingConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/loggingConfig.cmake
-  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/logging
+    ${CMAKE_CURRENT_SOURCE_DIR}/loggingConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/loggingConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/logging
 )
 
 write_basic_package_version_file(
-  ${CMAKE_CURRENT_BINARY_DIR}/loggingConfigVersion.cmake
-  VERSION ${CMAKE_PROJECT_VERSION}
-  COMPATIBILITY SameMajorVersion
+    ${CMAKE_CURRENT_BINARY_DIR}/loggingConfigVersion.cmake
+    VERSION ${CMAKE_PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
 )
 
 install(FILES
-  ${CMAKE_CURRENT_BINARY_DIR}/loggingConfig.cmake
-  ${CMAKE_CURRENT_BINARY_DIR}/loggingConfigVersion.cmake
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/logging
+    ${CMAKE_CURRENT_BINARY_DIR}/loggingConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/loggingConfigVersion.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/logging
 )
