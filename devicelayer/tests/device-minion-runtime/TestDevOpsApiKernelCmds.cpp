@@ -12,6 +12,7 @@
 #include "Autogen.h"
 #include <bitset>
 #include <experimental/filesystem>
+#include <random>
 
 using namespace ELFIO;
 namespace fs = std::experimental::filesystem;
@@ -23,76 +24,81 @@ namespace fs = std::experimental::filesystem;
  **********************************************************/
 void TestDevOpsApiKernelCmds::launchAddVectorKernel_PositiveTesting_4_1(uint64_t shire_mask) {
   std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
-  uint8_t queueCount = devLayer_->getSubmissionQueuesCount(kIDevice);
+  constexpr int maxQueueCount = 8; // upper limit for now
+  auto queueCount = devLayer_->getSubmissionQueuesCount(kIDevice);
   initTagId(0x91);
 
   // Load ELF
-  ELFIO::elfio reader[queueCount];
+  std::array<ELFIO::elfio, maxQueueCount> reader;
   auto elfPath = (fs::path(FLAGS_kernels_dir) / fs::path("add_vector.elf")).string();
   uint64_t kernelEntryAddr[queueCount];
 
   // Create vector data
-  std::vector<int> vA[queueCount];
-  std::vector<int> vB[queueCount];
-  std::vector<int> vResult[queueCount];
+  std::array<std::vector<int>, maxQueueCount> vA;
+  std::array<std::vector<int>, maxQueueCount> vB;
+  std::array<std::vector<int>, maxQueueCount> vResult;
   int numElems = 10496;
 
   std::vector<std::vector<int>> resultFromDevice;
-  std::vector<int> readBuf[queueCount];
+  std::array<std::vector<int>, maxQueueCount> readBuf;
 
   // Assign device memory for data
   auto bufSize = numElems * sizeof(int);
   auto alignedBufSize = ALIGN(bufSize, kCacheLineSize);
-  uint64_t dataLoadAddr[queueCount];
-  uint64_t devAddrVecA[queueCount];
-  uint64_t devAddrVecB[queueCount];
-  uint64_t devAddrVecResult[queueCount];
+  std::array<uint64_t, maxQueueCount> dataLoadAddr;
+  std::array<uint64_t, maxQueueCount> devAddrVecA;
+  std::array<uint64_t, maxQueueCount> devAddrVecB;
+  std::array<uint64_t, maxQueueCount> devAddrVecResult;
 
-    // create device params structure
+  // create device params structure
   struct Params {
     uint64_t vA;
     uint64_t vB;
     uint64_t vResult;
     int numElements;
-  } parameters[queueCount];
+  };
+  std::array<Params, maxQueueCount> parameters;
 
-  for (uint8_t queueId = 0; queueId < queueCount; queueId++) {
+  std::minstd_rand simple_rand;
+  simple_rand.seed(time(NULL));
+
+  for (int queueId = 0; queueId < queueCount; queueId++) {
     stream.clear();
 
     for (int i = 0; i < numElems; ++i) {
-      vA[queueId].emplace_back(rand());
-      vB[queueId].emplace_back(rand());
-      vResult[queueId].emplace_back(vA[queueId].back() + vB[queueId].back());
+      vA.at(queueId).emplace_back(simple_rand());
+      vB.at(queueId).emplace_back(simple_rand());
+      vResult.at(queueId).emplace_back(vA.at(queueId).back() + vB.at(queueId).back());
     }
 
-    dataLoadAddr[queueId] = getDmaWriteAddr(3 * alignedBufSize);
-    devAddrVecA[queueId] = dataLoadAddr[queueId];
-    devAddrVecB[queueId] = devAddrVecA[queueId] + alignedBufSize;
-    devAddrVecResult[queueId] = devAddrVecB[queueId] + alignedBufSize;
+    dataLoadAddr.at(queueId) = getDmaWriteAddr(3 * alignedBufSize);
+    devAddrVecA.at(queueId) = dataLoadAddr.at(queueId);
+    devAddrVecB.at(queueId) = devAddrVecA.at(queueId) + alignedBufSize;
+    devAddrVecResult.at(queueId) = devAddrVecB.at(queueId) + alignedBufSize;
 
-    parameters[queueId] = {devAddrVecA[queueId], devAddrVecB[queueId], devAddrVecResult[queueId], numElems};
-    auto sizeOfParams = sizeof(parameters[queueId]);
+    parameters.at(queueId) = {devAddrVecA.at(queueId), devAddrVecB.at(queueId), devAddrVecResult.at(queueId), numElems};
+    auto sizeOfParams = sizeof(parameters.at(queueId));
 
     // Load ELF
-    loadElfToDevice(reader[queueId], elfPath, stream, kernelEntryAddr[queueId]);
+    loadElfToDevice(reader.at(queueId), elfPath, stream, kernelEntryAddr[queueId]);
     // Copy kernel input data to device
-    auto hostVirtAddr = reinterpret_cast<uint64_t>(vA[queueId].data());
+    auto hostVirtAddr = reinterpret_cast<uint64_t>(vA.at(queueId).data());
     auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devAddrVecA[queueId], hostVirtAddr, hostPhysAddr,
-                                                      vA[queueId].size() * sizeof(vA[queueId][0]),
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devAddrVecA.at(queueId), hostVirtAddr, hostPhysAddr,
+                                                      vA.at(queueId).size() * sizeof(vA.at(queueId)[0]),
                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-    hostVirtAddr = reinterpret_cast<uint64_t>(vB[queueId].data());
+    hostVirtAddr = reinterpret_cast<uint64_t>(vB.at(queueId).data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devAddrVecB[queueId], hostVirtAddr, hostPhysAddr,
-                                                      vB[queueId].size() * sizeof(vB[queueId][0]),
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devAddrVecB.at(queueId), hostVirtAddr, hostPhysAddr,
+                                                      vB.at(queueId).size() * sizeof(vB.at(queueId)[0]),
                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
     // Copy kernel args to device
     auto devAddrKernelArgs = getDmaWriteAddr(0x400);
-    hostVirtAddr = reinterpret_cast<uint64_t>(&parameters[queueId]);
+    hostVirtAddr = reinterpret_cast<uint64_t>(&parameters.at(queueId));
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
     stream.push_back(IDevOpsApiCmd::createDataWriteCmd(getNextTagId(), false, devAddrKernelArgs, hostVirtAddr,
-                                                      hostPhysAddr, sizeof(parameters[queueId]),
+                                                      hostPhysAddr, sizeof(parameters.at(queueId)),
                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
     // Launch Kernel Command
@@ -101,13 +107,13 @@ void TestDevOpsApiKernelCmds::launchAddVectorKernel_PositiveTesting_4_1(uint64_t
                                           device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
 
     // Read back Kernel Results from device
-    readBuf[queueId].resize(numElems, 0);
-    hostVirtAddr = reinterpret_cast<uint64_t>(readBuf[queueId].data());
+    readBuf.at(queueId).resize(numElems, 0);
+    hostVirtAddr = reinterpret_cast<uint64_t>(readBuf.at(queueId).data());
     hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), true, devAddrVecResult[queueId], hostVirtAddr, hostPhysAddr,
-                                                      readBuf[queueId].size() * sizeof(readBuf[queueId][0]),
+    stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), true, devAddrVecResult.at(queueId), hostVirtAddr, hostPhysAddr,
+                                                      readBuf.at(queueId).size() * sizeof(readBuf.at(queueId)[0]),
                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-    resultFromDevice.push_back(std::move(readBuf[queueId]));
+    resultFromDevice.push_back(std::move(readBuf.at(queueId)));
     // Move stream of commands to streams_[queueId]
     streams_.emplace(queueId, std::move(stream));
   }
@@ -115,8 +121,8 @@ void TestDevOpsApiKernelCmds::launchAddVectorKernel_PositiveTesting_4_1(uint64_t
   executeAsync();
 
   // Verify Vector's Data
-  for (uint8_t queueId = 0; queueId < queueCount; queueId++) {
-    ASSERT_EQ(resultFromDevice[queueId], vResult[queueId]);
+  for (int queueId = 0; queueId < queueCount; queueId++) {
+    ASSERT_EQ(resultFromDevice[queueId], vResult.at(queueId));
   }
 
   TEST_VLOG(1) << "====> ADD TWO VECTORS KERNEL RESPONSE DATA VERIFIED <====" << std::endl;

@@ -30,6 +30,12 @@ TEST_F(TestDevOpsApiFuncKernelCmdsPcie, launchAddVectorKernel_PositiveTesting_4_
   launchAddVectorKernel_PositiveTesting_4_1(0x1);
 }
 
+TEST_F(TestDevOpsApiFuncKernelCmdsPcie, launchAddVectorKernel_VariableShireMasks) {
+  launchAddVectorKernel_PositiveTesting_4_1(0x1); /* Shire 0 */
+  launchAddVectorKernel_PositiveTesting_4_1(0x3); /* Shire 0, 1 */
+  launchAddVectorKernel_PositiveTesting_4_1(0x3 | (1ull << 32)); /* Shire 0, 1, 32 */
+}
+
 TEST_F(TestDevOpsApiFuncKernelCmdsPcie, launchUberKernel_PositiveTesting_4_4) {
   launchUberKernel_PositiveTesting_4_4(0x3 | (1ull << 32)); /* Shire 0, 1 and 32 */
 }

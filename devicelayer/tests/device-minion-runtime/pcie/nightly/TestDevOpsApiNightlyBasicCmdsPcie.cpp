@@ -41,7 +41,7 @@ TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBack9kDiffCmdsSingleQueue_1_5) {
 */
 
 TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBack9kDiffCmdsMultiQueue_1_6) {
-  backToBackDiffCmdsMultiQueue_1_4(9000);
+  backToBackDiffCmdsMultiQueue_1_4(3000);
 }
 
 int main(int argc, char** argv) {
