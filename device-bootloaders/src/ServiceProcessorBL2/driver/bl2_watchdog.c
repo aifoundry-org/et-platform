@@ -28,6 +28,7 @@
 #include "io.h"
 
 #include <bl2_watchdog.h>
+#include "hal_device.h"
 #include <wdt.h>
 #include <interrupt.h>
 #include <bl2_pmic_controller.h>
@@ -65,6 +66,9 @@ int32_t watchdog_init(uint32_t timeout_msec)
     //Start the watch dog
 
     wdog_control_block.timeout_msec = timeout_msec;
+    
+    //TODO: calculate precise register value for milisec provided
+    iowrite32(R_SP_WDT_BASEADDR + WDT_WDT_TORR_ADDRESS, 0xff);
 
     INT_enableInterrupt(SPIO_PLIC_WDT_INTR, 1, watchdog_isr);
 
@@ -123,7 +127,7 @@ int32_t watchdog_error_init(dm_event_isr_callback event_cb)
 ***********************************************************************/
 int32_t watchdog_start(void)
 {
-    iowrite32(WDT_WDT_CR_ADDRESS, WDT_WDT_CR_WDT_EN_WDT_EN_ENABLED);
+    iowrite32(R_SP_WDT_BASEADDR + WDT_WDT_CR_ADDRESS, WDT_WDT_CR_WDT_EN_WDT_EN_ENABLED);
 
     return 0;
 }
@@ -149,7 +153,7 @@ int32_t watchdog_start(void)
 ***********************************************************************/
 int32_t watchdog_stop(void)
 {
-    iowrite32(WDT_WDT_CR_ADDRESS, WDT_WDT_CR_WDT_EN_WDT_EN_DISABLED);
+    iowrite32(R_SP_WDT_BASEADDR + WDT_WDT_CR_ADDRESS, WDT_WDT_CR_WDT_EN_WDT_EN_DISABLED);
 
     return 0;
 }
@@ -176,7 +180,7 @@ int32_t watchdog_stop(void)
 void watchdog_kick(void)
 {
     //Feed the wdog
-    iowrite32(WDT_WDT_CRR_ADDRESS, WDT_WDT_CRR_WDT_CRR_WDT_CRR_RESTART);
+    iowrite32(R_SP_WDT_BASEADDR + WDT_WDT_CRR_ADDRESS, WDT_WDT_CRR_WDT_CRR_WDT_CRR_RESTART);
 }
 
 /************************************************************************
@@ -250,8 +254,9 @@ int32_t get_watchdog_max_timeout(uint32_t *timeout_msec)
 ***********************************************************************/
 void watchdog_isr(void)
 {
-    /* Take any corrective action required */
-
+    /* Clear the interrupt */
+    ioread32(R_SP_WDT_BASEADDR + WDT_WDT_EOI_ADDRESS);
+    
     /* Invoke the event handler callback */
     if (wdog_control_block.event_cb) {
         struct event_message_t message;
