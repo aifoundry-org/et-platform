@@ -30,3 +30,10 @@ stages:
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}"
+          GITLAB_SOURCE_BRANCH:
+            raw_cmd: '"${env.gitlabSourceBranch}"'
+          GITLAB_TARGET_BRANCH: 
+            raw_cmd: '"${env.gitlabTargetBranch}"'
+          GITLAB_MR_ID: 
+            raw_cmd: '"${env.gitlabMergeRequestIid}"'
+

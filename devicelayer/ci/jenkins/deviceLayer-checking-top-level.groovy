@@ -99,6 +99,9 @@ pipeline {
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
                 string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}"),
+                string(name: 'GITLAB_SOURCE_BRANCH', value: "${env.gitlabSourceBranch}"),
+                string(name: 'GITLAB_TARGET_BRANCH', value: "${env.gitlabTargetBranch}"),
+                string(name: 'GITLAB_MR_ID', value: "${env.gitlabMergeRequestIid}"),
                 string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
               ]
           }
