@@ -40,10 +40,6 @@ get_property(DEVICE_COMMON_INCLUDE_PATH
 include_directories(${DEVICE_COMMON_INCLUDE_PATH})
 include_directories(${DEVICE_COMMON_INCLUDE_PATH}/etsoc_hal)
 
-
-find_package(esperanto-device-api CONFIG REQUIRED)
-include_directories(${ESPERANTO_DEVICE_API_INCLUDE_DIR})
-
 set(SHARED_INC_DIR ${PROJECT_SOURCE_DIR}/shared/include)
 
 
@@ -83,7 +79,6 @@ macro(test_kernel)
   include_directories(${TEST_KERNEL_INCLUDES})
   include_directories(${SHARED_INC_DIRS})
   include_directories(${SHARED_KERNEL_INC_DIR})
-  include_directories(${ESPERANTO_DEVICE_API_INCLUDE_DIR})
 
   add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
@@ -117,7 +112,6 @@ macro(randomized_test)
   include_directories(include)
   include_directories(${SHARED_INC_DIRS})
   include_directories(${SHARED_KERNEL_INC_DIR})
-  include_directories(${ESPERANTO_DEVICE_API_INCLUDE_DIR})
   foreach(TEST_ID RANGE ${RANDOMIZED_TEST_NUMBER_OF_TESTS})
 
     set(TEST_NAME "${RANDOMIZED_TEST_NAME}_${TEST_ID}")
