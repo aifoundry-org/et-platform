@@ -22,6 +22,7 @@ cmake_policy(SET CMP0076 NEW)
 
 find_package(EsperantoDeviceMinionRuntime REQUIRED)
 find_package(signedImageFormat REQUIRED)
+find_package(deviceApi REQUIRED)
 find_package(EsperantoFlashTool CONFIG REQUIRED)
 
 # Providers for third-party dependencies (gRPC_*_PROVIDER properties):

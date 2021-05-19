@@ -104,7 +104,6 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
             $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
             $<BUILD_INTERFACE:${SHARED_INC_DIRS}>
             $<BUILD_INTERFACE:${FLASH_TOOL_HEADERS}>
-            $<BUILD_INTERFACE:${ESPERANTO_DEVICE_API_INCLUDE_DIR}>
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw>
     )
     target_compile_definitions(${TARGET_NAME}.elf
@@ -114,6 +113,7 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
     )
     target_link_libraries(${TARGET_NAME}.elf
         PRIVATE
+            deviceApi::deviceApi
             signedImageFormat::signedImageFormat
             etsoc_hal::etsoc_hal
             EsperantoDeviceMinionRuntime::sp_firmware_helpers
