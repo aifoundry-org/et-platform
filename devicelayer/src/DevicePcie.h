@@ -10,6 +10,7 @@
 #pragma once
 #include "deviceLayer/IDeviceLayer.h"
 #include <et_ioctl.h>
+#include <unordered_map>
 
 namespace dev {
 
@@ -31,7 +32,6 @@ public:
                                           std::chrono::seconds timeout = std::chrono::seconds(10)) override;
   bool receiveResponseServiceProcessor(int device, std::vector<std::byte>& response) override;
 
-
   // IDeviceSync
   int getDevicesCount() const override;
   int getSubmissionQueuesCount(int device) const override;
@@ -42,14 +42,20 @@ public:
   uint64_t getDramBaseAddress() const override;
 
 private:
-  int devIdx_;
-  dram_info userDram_;
-  uint16_t mmSqCount_;
-  uint16_t spSqMaxMsgSize_;
-  uint16_t mmSqMaxMsgSize_;
-  int fdOps_, epFdOps_;
-  int fdMgmt_, epFdMgmt_;
+  struct devInfo {
+    int devIdx;
+    dram_info userDram;
+    uint16_t mmSqCount;
+    uint16_t spSqMaxMsgSize;
+    uint16_t mmSqMaxMsgSize;
+    int fdOps, epFdOps;
+    int fdMgmt, epFdMgmt;
+  };
+
   bool opsEnabled_;
   bool mngmtEnabled_;
+  std::unordered_map<int, devInfo> devices_;
+
+  int countDeviceNodes();
 };
 } // namespace dev
