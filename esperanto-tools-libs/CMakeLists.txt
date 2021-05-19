@@ -53,7 +53,7 @@ find_package(logging REQUIRED)
 find_package(GTest CONFIG REQUIRED)
 
 # Esperanto dependencies
-find_package(esperanto-device-api REQUIRED)
+find_package(deviceApi REQUIRED)
 find_package(linuxDriver REQUIRED)
 find_package(DeviceLayer REQUIRED)
 find_package(sw-sysemu REQUIRED)
@@ -88,6 +88,7 @@ target_add_sanitizers(etrt_obj)
 target_link_libraries(etrt_obj
     PRIVATE
         cereal::cereal
+        deviceApi::deviceApi
         deviceLayer::deviceLayer
         logging::logging
 )
