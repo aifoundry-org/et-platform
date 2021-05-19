@@ -120,6 +120,11 @@ void TestDevOpsApiKernelCmds::launchAddVectorKernel_PositiveTesting_4_1(uint64_t
 
   executeAsync();
 
+  // Skip data validation in case of loopback driver
+  if (FLAGS_loopback_driver) {
+    return;
+  }
+
   // Verify Vector's Data
   for (int queueId = 0; queueId < queueCount; queueId++) {
     ASSERT_EQ(resultFromDevice[queueId], vResult.at(queueId));
@@ -198,6 +203,11 @@ void TestDevOpsApiKernelCmds::launchUberKernel_PositiveTesting_4_4(uint64_t shir
   streams_.emplace(queueId, std::move(stream));
 
   executeAsync();
+
+  // Skip data validation in case of loopback driver
+  if (FLAGS_loopback_driver) {
+    return;
+  }
 
   // Verify data
   const std::vector<uint64_t> refdata0(numElemsLayer0, 0xBEEFBEEFBEEFBEEFULL);
@@ -350,6 +360,11 @@ void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(uint64_t shire_
   streams_.emplace(queueId, std::move(stream));
 
   executeAsync();
+
+  // Skip data validation in case of loopback driver
+  if (FLAGS_loopback_driver) {
+    return;
+  }
 
   // Verify Vector's Data
   for (int i = 0; i < totalKer; i++) {

@@ -31,6 +31,11 @@ TEST_F(TestDevOpsApiStressKernelCmdsPcie, backToBackSameKernelLaunchCmds_3_1) {
 }
 
 TEST_F(TestDevOpsApiStressKernelCmdsPcie, backToBackDifferentKernelLaunchCmds_3_2) {
+  // Skip Test, if loopback driver
+  if (FLAGS_loopback_driver) {
+    TEST_VLOG(0) << "Skipping: backToBackDifferentKernelLaunchCmds_3_2, not supported on loopback driver" << std::endl;
+    return;
+  }
   backToBackDifferentKernelLaunchCmds_3_2(0x3);
 }
 
