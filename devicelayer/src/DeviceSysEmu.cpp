@@ -14,7 +14,6 @@
 #include <chrono>
 #include <elfio/elfio.hpp>
 #include <experimental/filesystem>
-#include <fmt/format.h>
 #include <future>
 #include <stdio.h>
 #include <thread>

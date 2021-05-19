@@ -23,6 +23,7 @@ get_property(MACHINE_MINION_ELF TARGET EsperantoDeviceMinionRuntime::MachineMini
 get_property(WORKER_MINION_ELF TARGET EsperantoDeviceMinionRuntime::WorkerMinion.elf PROPERTY LOCATION)
 
 configure_file(Autogen.h.in Autogen.h)
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 add_subdirectory(integration)
 add_subdirectory(device-bootloaders)
@@ -31,6 +32,6 @@ add_subdirectory(bringup-tests)
 
 
 install(FILES
-  ${CMAKE_CURRENT_BINARY_DIR}/Autogen.h
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/device-layer
+    ${CMAKE_CURRENT_BINARY_DIR}/Autogen.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/device-layer
 )
