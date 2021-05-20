@@ -82,7 +82,7 @@ void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
     }
 }
 
-void Minion_State_MM_Iface_Process_Request(uint8_t msg_id)
+void Minion_State_MM_Iface_Process_Request(uint16_t msg_id)
 {
     switch (msg_id) {
         case MM2SP_CMD_GET_ACTIVE_SHIRE_MASK: {
@@ -90,8 +90,9 @@ void Minion_State_MM_Iface_Process_Request(uint8_t msg_id)
             rsp.msg_hdr.msg_id = MM2SP_RSP_GET_ACTIVE_SHIRE_MASK;
             rsp.active_shire_mask = (uint64_t)(g_active_shire_mask & 0xFFFFFFFF); // Compute shires
 
-            if (0 != SP_MM_Iface_CQ_Push_Cmd((char *)&rsp, sizeof(rsp))) {
-                printf("SP_MM_Iface_CQ_Push_Cmd: Cqueue push error!\n");
+            if(0 != MM_Iface_Push_Cmd_To_MM2SP_CQ((char *)&rsp, sizeof(rsp)))
+            {
+                printf("MM_Iface_Push_Cmd_To_MM2SP_CQ: Cqueue push error!\n");
             }
             break;
         }

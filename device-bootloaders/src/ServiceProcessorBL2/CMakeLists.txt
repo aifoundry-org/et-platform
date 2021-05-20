@@ -34,14 +34,14 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
         set(FAST_BOOT 0)
         set(TEST_FRAMEWORK 0)
     endif()
-    
+
     add_riscv_executable(${TARGET_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/common/entry.S
         ${CMAKE_CURRENT_SOURCE_DIR}/common/trap_handler.S
         ${CMAKE_CURRENT_SOURCE_DIR}/common/main.c
         ${CMAKE_CURRENT_SOURCE_DIR}/config/dir_regs.c
         ${CMAKE_CURRENT_SOURCE_DIR}/interface/sp_host_iface.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/interface/sp_mm_iface.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/interface/mm_iface.c
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/stubs.c
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/crc32.c
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/memory_copy_8x32.S
@@ -85,7 +85,7 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
         ${CMAKE_CURRENT_SOURCE_DIR}/services/minion_state.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/dm_events.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/perf_mgmt.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/services/thermal_pwr_mgmt.c 
+        ${CMAKE_CURRENT_SOURCE_DIR}/services/thermal_pwr_mgmt.c
         # This file get compiled different based on the configuration of each target
         ${CMAKE_CURRENT_SOURCE_DIR}/common/build_configuration.c
     )

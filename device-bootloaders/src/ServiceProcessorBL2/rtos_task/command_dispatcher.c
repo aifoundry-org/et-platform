@@ -25,7 +25,9 @@
 #include "command_dispatcher.h"
 
 #include "sp_host_iface.h"
-#include "sp_mm_iface.h"
+
+#include "mm_iface.h"
+#include "sp_mm_comms_spec.h"
 
 #include "FreeRTOS.h"
 #include "queue.h"
@@ -33,7 +35,6 @@
 #include "task.h"
 
 #include "dm.h"
-#include "mm_sp_cmd_spec.h"
 
 #include <inttypes.h>
 #include <stdbool.h>
@@ -213,7 +214,7 @@ static void pc_vq_task(void *pvParameters)
             case DM_CMD_GET_DEVICE_ERROR_EVENTS:
 #ifdef TEST_EVENT_GEN
                 start_test_events(tag_id, msg_id);
-#endif                
+#endif
                 break;
 
             default:
@@ -230,59 +231,68 @@ static void pc_vq_task(void *pvParameters)
 static void mm_vq_task(void *pvParameters)
 {
     (void)pvParameters;
-
-    static uint8_t buffer[SP_MM_SQ_MAX_ELEMENT_SIZE] __attribute__((aligned(8))) = { 0 };
+    uint8_t buffer[SP_MM_SQ_MAX_ELEMENT_SIZE] __attribute__((aligned(8))) = { 0 };
+    struct dev_cmd_hdr_t *hdr;
+    int64_t cmd_length = 0;
 
     // Disable buffering on stdout
     setbuf(stdout, NULL);
 
-    while (1) {
+    while (1)
+    {
         uint32_t notificationValue;
 
         // ISRs set notification bits per ipi_trigger in case we want them - not currently using them
         xTaskNotifyWait(0, 0xFFFFFFFFU, &notificationValue, portMAX_DELAY);
 
-        // Process as many new messages as possible
-        while (1) {
-            // Pop a command from SP<->MM VQueue
-            int64_t length = SP_MM_Iface_SQ_Pop_Cmd(&buffer);
+        /* Process as many new messages as possible */
+        while (1)
+        {
+            /* Pop a command from SP<->MM VQueue */
+            cmd_length = MM_Iface_Pop_Cmd_From_MM2SP_SQ(&buffer[0]);
 
-            // No new messages
-            if (length <= 0) {
+            if(cmd_length == 0)
+            {
                 break;
             }
 
-            // Message with an invalid size
-            if ((size_t)length < sizeof(struct cmd_header_t)) {
-                printf("Invalid message: length = %" PRId64 ", min length %" PRIu64 "\r\n", length,
-                       sizeof(struct cmd_header_t));
-                break;
-            }
-
-            const struct mm_sp_cmd_hdr_t *const hdr = (void *)buffer;
+            hdr = (void *)&buffer[0];
 
             // Process new message
-            switch (hdr->msg_id) {
-            case MM2SP_CMD_ECHO: {
-                struct mm2sp_echo_cmd_t *req = (void *)buffer;
-                struct mm2sp_echo_rsp_t rsp;
-                rsp.msg_hdr.msg_id = MM2SP_RSP_ECHO;
-                rsp.payload = req->payload;
+            switch (hdr->msg_id)
+            {
+                case MM2SP_CMD_ECHO:
+                {
+                    struct mm2sp_echo_cmd_t *req = (void *)buffer;
+                    struct mm2sp_echo_rsp_t rsp;
+                    rsp.msg_hdr.msg_id = MM2SP_RSP_ECHO;
+                    rsp.msg_hdr.msg_size = sizeof(struct mm2sp_echo_rsp_t);
+                    rsp.payload = req->payload;
 
-                if (0 != SP_MM_Iface_CQ_Push_Cmd((char *)&rsp, sizeof(rsp))) {
-                    printf("SP_MM_Iface_CQ_Push_Cmd: Cqueue push error!\n");
+                    printf("MM_Iface: Received echo command 1 from MM ****\r\n");
+
+                    printf("MM_Iface: Transmitting echo response 1 to MM ****\r\n");
+
+                    if(0 != MM_Iface_Push_Cmd_To_MM2SP_CQ((void*)&rsp, sizeof(rsp)))
+                    {
+                        printf("MM_Iface_Push_Cmd_To_MM2SP_CQ: Cqueue push error!\n");
+                    }
+
+                    break;
                 }
-                break;
-            }
-            case MM2SP_CMD_GET_ACTIVE_SHIRE_MASK:
-                Minion_State_MM_Iface_Process_Request(hdr->msg_id);
-                break;
-            default:
-                printf("[MM VQ] Invalid message id: %" PRIu16 "\r\n", hdr->msg_id);
-                printf("message length: %" PRIi64 ", buffer:\r\n", length);
-                // TODO:
-                // Implement error handler
-                break;
+            	case MM2SP_CMD_GET_ACTIVE_SHIRE_MASK:
+		        {
+                	Minion_State_MM_Iface_Process_Request(hdr->msg_id);
+                	break;
+		        }
+            	default:
+                {
+                    printf("[MM VQ] Invalid message id: %" PRIu16 "\r\n", hdr->msg_id);
+                    printf("message length: %" PRIi64 ", buffer:\r\n", cmd_length);
+                    // TODO:
+                    // Implement error handler
+                    break;
+                }
             }
         }
     }
@@ -294,10 +304,8 @@ void sp_intf_init(void)
     SP_Host_Iface_SQ_Init();
     SP_Host_Iface_CQ_Init();
 
-    /* Setup and Initialize the SP -> MM Transport layer*/
-    SP_MM_Iface_SQ_Init();
-    SP_MM_Iface_CQ_Init();
-
+    /* MM Iface initialization */
+    MM_Iface_Init();
 }
 
 void launch_command_dispatcher(void)

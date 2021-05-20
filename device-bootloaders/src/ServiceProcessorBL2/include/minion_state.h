@@ -19,10 +19,8 @@
 #define __MINION_STATE_H__
 
 #include "dm.h"
-#include "mm_sp_cmd_spec.h"
 #include "sp_host_iface.h"
-#include "sp_mm_iface.h"
-#include "mm_sp_cmd_spec.h"
+#include "mm_iface.h"
 #include "dm_event_def.h"
 
 /*!
@@ -51,7 +49,7 @@ void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id);
     \param msg_id Unique enum representing specific command
     \returns none
 */
-void Minion_State_MM_Iface_Process_Request(uint8_t msg_id);
+void Minion_State_MM_Iface_Process_Request(uint16_t msg_id);
 
 /*! \fn int32_t minion_error_control_init(dm_event_isr_callback event_cb)
     \brief This function initializes the Minion error control subsystem, including

@@ -21,7 +21,7 @@
 
 #include <stdint.h>
 #include "dm.h"
-#include "mm_sp_cmd_spec.h"
+#include "sp_mm_comms_spec.h"
 
 /*!
  * @enum enum event_class
