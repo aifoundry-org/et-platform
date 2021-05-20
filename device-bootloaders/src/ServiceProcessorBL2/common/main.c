@@ -465,7 +465,7 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     SERIAL_init(PU_UART1);
 
 #if TEST_FRAMEWORK
-    printf("\n** SP BL2 STARTED **\r\n");
+    printf("\n** SP BL2 STARTED - TF **\r\n");
     printf("BL2 version:" GIT_VERSION_STRING " (" BL2_VARIANT ")\n");
     /* control does not return from call below for now .. */
     TF_Wait_And_Process_TF_Cmds();

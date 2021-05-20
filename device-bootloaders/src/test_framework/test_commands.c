@@ -8,6 +8,8 @@ extern int8_t Echo_To_SP_Cmd_Handler(void* test_cmd);
 extern int8_t Echo_To_MM_Cmd_Handler(void* test_cmd);
 extern int8_t Move_Data_To_Device_Cmd_Handler(void* test_cmd);
 extern int8_t Move_Data_To_Host_Cmd_Handler(void* test_cmd);
+
+#if !TF_CORE
 /* SPIO tests */
 extern int8_t SPIO_RAM_Read_Word_Cmd_Handler(void* test_cmd);
 extern int8_t SPIO_RAM_Write_Word_Cmd_Handler(void* test_cmd);
@@ -52,6 +54,8 @@ extern int8_t Minion_Shire_Boot_Cmd_Handler(void* test_cmd);
 extern int8_t Minion_Kernel_Launch_Cmd_Handler(void* test_cmd);
 extern int8_t Minion_ESR_Read_Cmd_Handler(void* test_cmd);
 extern int8_t Minion_ESR_Write_Cmd_Handler(void* test_cmd);
+#endif  // !TF_CORE
+
 /* Unregistered Handler */
 int8_t Unregistered_Handler(void* test_cmd);
 int8_t Unregistered_Handler(void* test_cmd)
@@ -80,6 +84,7 @@ int8_t (*TF_Test_Cmd_Handler[TF_NUM_COMMANDS])(void *test_cmd) =
     Echo_To_MM_Cmd_Handler,
     Move_Data_To_Device_Cmd_Handler,
     Move_Data_To_Host_Cmd_Handler,
+#if !TF_CORE
     SPIO_RAM_Read_Word_Cmd_Handler,
     SPIO_RAM_Write_Word_Cmd_Handler,
     SPIO_Flash_Init_Cmd_Handler,
@@ -118,4 +123,5 @@ int8_t (*TF_Test_Cmd_Handler[TF_NUM_COMMANDS])(void *test_cmd) =
     Minion_Kernel_Launch_Cmd_Handler,
     Minion_ESR_Read_Cmd_Handler,
     Minion_ESR_Write_Cmd_Handler
+#endif  // !TF_CORE
 };

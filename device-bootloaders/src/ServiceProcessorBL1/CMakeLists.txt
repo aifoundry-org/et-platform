@@ -4,6 +4,7 @@ set(FILE_REVISION_NUMBER 1)
 
 set(TARGET_NAME ServiceProcessorBL1)
 set(LINKER_SCRIPT src/bl1_sections.ld)
+set(TEST_FRAMEWORK 0)
 
 add_subdirectory(include)
 
@@ -38,6 +39,11 @@ target_link_libraries(ServiceProcessorBL1.elf
         signedImageFormat::signedImageFormat
         etsoc_hal::etsoc_hal
         deviceFirmware::device_serial
+        $<${TEST_FRAMEWORK}:test_framework_core>
+)
+target_compile_definitions(ServiceProcessorBL1.elf
+    PUBLIC
+        -DTEST_FRAMEWORK=${TEST_FRAMEWORK}
 )
 
 target_report_riscv_size(ServiceProcessorBL1.elf)

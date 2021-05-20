@@ -21,6 +21,10 @@
 #include "etsoc_hal/inc/rm_esr.h"
 #include "etsoc_hal/inc/hal_device.h"
 
+#if TEST_FRAMEWORK
+#include "tf.h"
+#endif // TEST_FRAMEWORK
+
 //#define MINIMAL_IMAGE
 
 #ifndef MINIMAL_IMAGE
@@ -152,6 +156,12 @@ int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t *rom_data);
 
 int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t *rom_data)
 {
+#if TEST_FRAMEWORK
+    printx("\n** SP BL1 STARTED - TF **\r\n");
+    /* control does not return from call below for now .. */
+    TF_Wait_And_Process_TF_Cmds();
+#endif  // TEST_FRAMEWORK
+
     bool disable_vault;
 
     const IMAGE_VERSION_INFO_t *image_version_info = get_image_version_info();
