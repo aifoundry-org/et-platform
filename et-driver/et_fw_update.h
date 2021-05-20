@@ -14,6 +14,7 @@ struct et_pci_dev;
  * on failure.
  */
 ssize_t et_mmio_write_fw_image(struct et_pci_dev *et_dev,
-			       const char __user *buf, size_t count);
+			       const char __user *buf,
+			       size_t count);
 
 #endif

@@ -15,18 +15,18 @@
 #ifndef __ET_CIRCBUFFER_H
 #define __ET_CIRCBUFFER_H
 
-#include <linux/types.h>
 #include <linux/mutex.h>
+#include <linux/types.h>
 
-#define ET_CB_SYNC_FOR_HOST	BIT(0)
-#define ET_CB_SYNC_FOR_DEVICE	BIT(1)
+#define ET_CB_SYNC_FOR_HOST   BIT(0)
+#define ET_CB_SYNC_FOR_DEVICE BIT(1)
 
 struct et_circbuffer {
 	u64 head;
 	u64 tail;
 	u64 len;
 	u8 __iomem buf[];
-} __attribute__ ((__packed__));
+} __packed;
 
 static inline u64 et_circbuffer_used(struct et_circbuffer *cb)
 {
@@ -50,10 +50,14 @@ static inline u64 et_circbuffer_free(struct et_circbuffer *cb)
  * device memory and then can use cached copy.
  */
 bool et_circbuffer_push(struct et_circbuffer *cb,
-			struct et_circbuffer __iomem *cb_mem, u8 *buf,
-			size_t len, u8 sync);
+			struct et_circbuffer __iomem *cb_mem,
+			u8 *buf,
+			size_t len,
+			u8 sync);
 bool et_circbuffer_pop(struct et_circbuffer *cb,
-		       struct et_circbuffer __iomem *cb_mem, u8 *buf,
-		       size_t len, u8 sync);
+		       struct et_circbuffer __iomem *cb_mem,
+		       u8 *buf,
+		       size_t len,
+		       u8 sync);
 
 #endif

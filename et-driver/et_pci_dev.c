@@ -1,62 +1,77 @@
 #include "et_pci_dev.h"
 
-#define R_PU_DIR_PC_SP_BAR		2
-#define R_PU_DIR_PC_SP_BAR_OFFSET	0x1000
-#define R_PU_DIR_PC_SP_SIZE		0x0000000200
+/* DIR Management BAR mapping */
+#define R_DIR_MGMT_BAR	      2
+#define R_DIR_MGMT_BAR_OFFSET 0x1000
+#define R_DIR_MGMT_SIZE	      0x0000000200
 
-#define R_PU_DIR_PC_MM_BAR		2
-#define R_PU_DIR_PC_MM_BAR_OFFSET	0x0
-#define R_PU_DIR_PC_MM_SIZE		0x0000000200
+/* DIR Operations BAR mapping */
+#define R_DIR_OPS_BAR	     2
+#define R_DIR_OPS_BAR_OFFSET 0x0
+#define R_DIR_OPS_SIZE	     0x0000000200
 
-//BAR2
-//Name              Host Addr       Size     Notes
-//R_PU_DIR_PC_MM    BAR2 + 0x0000   512B     MM DIR shared memory
-//R_PU_DIR_PC_SP    BAR2 + 0x1000   512B     SP DIR shared memory
+// clang-format off
+/*
+ * ET BAR MAP
+ * Name		Host Addr	Size	Notes
+ * R_DIR_OPS	BAR2 + 0x0000	512B	DIR Ops shared memory
+ * R_DIR_MGMT	BAR2 + 0x1000	512B	DIR Mgmt shared memory
+ */
 const struct et_bar_mapping DIR_MAPPINGS[] = {
 	{
-		.bar		= R_PU_DIR_PC_MM_BAR,
-		.bar_offset	= R_PU_DIR_PC_MM_BAR_OFFSET,
-		.size		= R_PU_DIR_PC_MM_SIZE
+		.bar		= R_DIR_OPS_BAR,
+		.bar_offset	= R_DIR_OPS_BAR_OFFSET,
+		.size		= R_DIR_OPS_SIZE
 	},
 	{
-		.bar		= R_PU_DIR_PC_SP_BAR,
-		.bar_offset	= R_PU_DIR_PC_SP_BAR_OFFSET,
-		.size		= R_PU_DIR_PC_SP_SIZE
+		.bar		= R_DIR_MGMT_BAR,
+		.bar_offset	= R_DIR_MGMT_BAR_OFFSET,
+		.size		= R_DIR_MGMT_SIZE
 	}
 };
 
-int et_map_bar(struct et_pci_dev *et_dev, const struct et_bar_mapping *bm_info,
+// clang-format on
+
+int et_map_bar(struct et_pci_dev *et_dev,
+	       const struct et_bar_mapping *bm_info,
 	       void __iomem **mapped_addr_ptr)
 {
 	u32 bar_cfg;
 
 	switch (bm_info->bar) {
 	case 0:
-		pci_read_config_dword(et_dev->pdev, PCI_BASE_ADDRESS_0,
+		pci_read_config_dword(et_dev->pdev,
+				      PCI_BASE_ADDRESS_0,
 				      &bar_cfg);
 		break;
 	case 1:
-		pci_read_config_dword(et_dev->pdev, PCI_BASE_ADDRESS_1,
+		pci_read_config_dword(et_dev->pdev,
+				      PCI_BASE_ADDRESS_1,
 				      &bar_cfg);
 		break;
 	case 2:
-		pci_read_config_dword(et_dev->pdev, PCI_BASE_ADDRESS_2,
+		pci_read_config_dword(et_dev->pdev,
+				      PCI_BASE_ADDRESS_2,
 				      &bar_cfg);
 		break;
 	case 3:
-		pci_read_config_dword(et_dev->pdev, PCI_BASE_ADDRESS_3,
+		pci_read_config_dword(et_dev->pdev,
+				      PCI_BASE_ADDRESS_3,
 				      &bar_cfg);
 		break;
 	case 4:
-		pci_read_config_dword(et_dev->pdev, PCI_BASE_ADDRESS_4,
+		pci_read_config_dword(et_dev->pdev,
+				      PCI_BASE_ADDRESS_4,
 				      &bar_cfg);
 		break;
 	case 5:
-		pci_read_config_dword(et_dev->pdev, PCI_BASE_ADDRESS_5,
+		pci_read_config_dword(et_dev->pdev,
+				      PCI_BASE_ADDRESS_5,
 				      &bar_cfg);
 		break;
 	default:
-		dev_err(&et_dev->pdev->dev, "Invalid BAR number: %d\n",
+		dev_err(&et_dev->pdev->dev,
+			"Invalid BAR number: %d\n",
 			bm_info->bar);
 		return -EINVAL;
 	}
@@ -67,7 +82,8 @@ int et_map_bar(struct et_pci_dev *et_dev, const struct et_bar_mapping *bm_info,
 						      bm_info->bar_offset,
 						      bm_info->size);
 	else
-		*mapped_addr_ptr = pci_iomap_range(et_dev->pdev, bm_info->bar,
+		*mapped_addr_ptr = pci_iomap_range(et_dev->pdev,
+						   bm_info->bar,
 						   bm_info->bar_offset,
 						   bm_info->size);
 

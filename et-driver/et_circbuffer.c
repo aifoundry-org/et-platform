@@ -12,23 +12,26 @@
  *
  **********************************************************************/
 
-#include "et_io.h"
 #include "et_circbuffer.h"
+#include "et_io.h"
 
 bool et_circbuffer_push(struct et_circbuffer *cb,
-			struct et_circbuffer __iomem *cb_mem, u8 *buf,
-			size_t len, u8 sync)
+			struct et_circbuffer __iomem *cb_mem,
+			u8 *buf,
+			size_t len,
+			u8 sync)
 {
 	size_t bytes_to_write;
 
 	if (!cb || !cb_mem)
 		return false;
 
-	if (sync & ET_CB_SYNC_FOR_HOST)
+	if (sync & ET_CB_SYNC_FOR_HOST) {
 		cb->tail = ioread64(&cb_mem->tail);
 		// TODO SW-6388: Sync whole circbuffer instead when
 		// requested
 		// et_ioread(cb_mem, 0, (u8 *)cb, sizeof(*cb));
+	}
 
 	if (len > cb->len) {
 		pr_err("message too big (len %ld, max %lld)", len, cb->len);
@@ -58,19 +61,22 @@ bool et_circbuffer_push(struct et_circbuffer *cb,
 }
 
 bool et_circbuffer_pop(struct et_circbuffer *cb,
-		       struct et_circbuffer __iomem *cb_mem, u8 *buf,
-		       size_t len, u8 sync)
+		       struct et_circbuffer __iomem *cb_mem,
+		       u8 *buf,
+		       size_t len,
+		       u8 sync)
 {
 	size_t bytes_to_read;
 
 	if (!cb || !cb_mem)
 		return false;
 
-	if (sync & ET_CB_SYNC_FOR_HOST)
+	if (sync & ET_CB_SYNC_FOR_HOST) {
 		cb->head = ioread64(&cb_mem->head);
 		// TODO SW-6388: Sync whole circbuffer instead when
 		// requested
 		// et_ioread(cb_mem, 0, (u8 *)cb, sizeof(*cb));
+	}
 
 	if (et_circbuffer_used(cb) < len)
 		return false;

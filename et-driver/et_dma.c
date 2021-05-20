@@ -1,3 +1,10 @@
+/*-------------------------------------------------------------------------
+ * Copyright (C) 2018, Esperanto Technologies Inc.
+ * The copyright to the computer program(s) herein is the
+ * property of Esperanto Technologies, Inc. All Rights Reserved.
+ *-------------------------------------------------------------------------
+ */
+
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/errno.h>
@@ -5,25 +12,28 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
-#include <asm/uaccess.h>
 
-#include "et_io.h"
 #include "et_dma.h"
-#include "et_vqueue.h"
+#include "et_io.h"
 #include "et_pci_dev.h"
+#include "et_vqueue.h"
 
 static inline void et_dma_free_coherent(struct et_dma_info *dma_info)
 {
 	if (dma_info)
-		dma_free_coherent(&dma_info->pdev->dev, dma_info->size,
-				  dma_info->kern_vaddr, dma_info->dma_addr);
+		dma_free_coherent(&dma_info->pdev->dev,
+				  dma_info->size,
+				  dma_info->kern_vaddr,
+				  dma_info->dma_addr);
 }
 
 static inline void *et_dma_alloc_coherent(struct et_dma_info *dma_info)
 {
 	if (dma_info)
-		return dma_alloc_coherent(&dma_info->pdev->dev, dma_info->size,
-					  &dma_info->dma_addr, GFP_KERNEL);
+		return dma_alloc_coherent(&dma_info->pdev->dev,
+					  dma_info->size,
+					  &dma_info->dma_addr,
+					  GFP_KERNEL);
 	return NULL;
 }
 
@@ -90,9 +100,8 @@ struct et_dma_info *et_dma_search_info(struct rb_root *root, u16 tag_id)
 	struct rb_node *node = root->rb_node;
 
 	while (node) {
-		struct et_dma_info *dma_info = rb_entry(node,
-							struct et_dma_info,
-							node);
+		struct et_dma_info *dma_info =
+			rb_entry(node, struct et_dma_info, node);
 		if (tag_id < dma_info->tag_id)
 			node = node->rb_left;
 		else if (tag_id > dma_info->tag_id)
@@ -109,8 +118,8 @@ bool et_dma_insert_info(struct rb_root *root, struct et_dma_info *dma_info)
 
 	/* Figure out where to put new node */
 	while (*new) {
-		struct et_dma_info *this = rb_entry(*new, struct et_dma_info,
-						    node);
+		struct et_dma_info *this =
+			rb_entry(*new, struct et_dma_info, node);
 		parent = *new;
 		if (dma_info->tag_id < this->tag_id)
 			new = &((*new)->rb_left);
@@ -130,9 +139,9 @@ bool et_dma_insert_info(struct rb_root *root, struct et_dma_info *dma_info)
 void et_dma_delete_info(struct rb_root *root, struct et_dma_info *dma_info)
 {
 	if (dma_info) {
-		/* TODO JIRA SW-957: Uncomment when zero copy support is
-		   available */
-//		et_dma_unpin_ubuf(dma_info);
+		// TODO JIRA SW-957: Uncomment when zero copy support is
+		// available
+		//et_dma_unpin_ubuf(dma_info);
 		et_dma_free_coherent(dma_info);
 
 		rb_erase(&dma_info->node, root);
@@ -149,9 +158,9 @@ void et_dma_delete_all_info(struct rb_root *root)
 		dma_info = rb_entry(node, struct et_dma_info, node);
 		node = rb_next(node);
 
-		/* TODO JIRA SW-957: Uncomment when zero copy support is
-		   available */
-//		et_dma_unpin_ubuf(dma_info);
+		// TODO JIRA SW-957: Uncomment when zero copy support is
+		// available
+		//et_dma_unpin_ubuf(dma_info);
 		et_dma_free_coherent(dma_info);
 
 		rb_erase(&dma_info->node, root);
@@ -159,7 +168,8 @@ void et_dma_delete_all_info(struct rb_root *root)
 	}
 }
 
-ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev, u16 queue_index,
+ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev,
+			       u16 queue_index,
 			       struct device_ops_data_write_cmd_t *cmd,
 			       size_t cmd_size)
 {
@@ -176,7 +186,7 @@ ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev, u16 queue_index,
 		return -ENOMEM;
 
 	dma_info->tag_id = cmd->command_info.cmd_hdr.tag_id;
-	dma_info->usr_vaddr = (void *)cmd->src_host_virt_addr;
+	dma_info->usr_vaddr = (void __user __force *)cmd->src_host_virt_addr;
 	dma_info->pdev = et_dev->pdev;
 	dma_info->size = cmd->size;
 	dma_info->is_writable = false; /* readonly */
@@ -187,26 +197,29 @@ ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev, u16 queue_index,
 		goto error_free_dma_info;
 	}
 
-	/* TODO JIRA SW-957: Uncomment when zero copy support is available */
-//	// Pin the user buffer to avoid swapping out of pages during DMA
-//	// operations
-//	rv = et_dma_pin_ubuf(dma_info);
-//	if (rv < 0) {
-//		pr_err("et_dma_pin_ubuf failed\n");
-//		goto error_dma_free_coherent;
-//	}
+	// TODO JIRA SW-957: Uncomment when zero copy support is available
+	// Pin the user buffer to avoid swapping out of pages during DMA
+	// operations
+	//rv = et_dma_pin_ubuf(dma_info);
+	//if (rv < 0) {
+	//	pr_err("et_dma_pin_ubuf failed\n");
+	//	goto error_dma_free_coherent;
+	//}
 
 	mutex_lock(&et_dev->ops.dma_rbtree_mutex);
 	if (!et_dma_insert_info(&et_dev->ops.dma_rbtree, dma_info)) {
 		pr_err("err: tag_id already exists\n");
 		rv = -EINVAL;
 		mutex_unlock(&et_dev->ops.dma_rbtree_mutex);
-//		goto error_dma_unpin_ubuf;
+		// TODO JIRA SW-957: Uncomment when zero copy support is
+		// available
+		//goto error_dma_unpin_ubuf;
 		goto error_dma_free_coherent;
 	}
 	mutex_unlock(&et_dev->ops.dma_rbtree_mutex);
 
-	rv = copy_from_user(dma_info->kern_vaddr, dma_info->usr_vaddr,
+	rv = copy_from_user(dma_info->kern_vaddr,
+			    dma_info->usr_vaddr,
 			    dma_info->size);
 	if (rv != 0) {
 		pr_err("Failed to copy from user\n");
@@ -230,9 +243,9 @@ error_dma_delete_info:
 	et_dma_delete_info(&et_dev->ops.dma_rbtree, dma_info);
 	return rv;
 
-/* TODO JIRA SW-957: Uncomment when zero copy support is available */
-//error_dma_unpin_ubuf:
-//	et_dma_unpin_ubuf(dma_info);
+	// TODO JIRA SW-957: Uncomment when zero copy support is available
+	//error_dma_unpin_ubuf:
+	//	et_dma_unpin_ubuf(dma_info);
 
 error_dma_free_coherent:
 	et_dma_free_coherent(dma_info);
@@ -243,7 +256,8 @@ error_free_dma_info:
 	return rv;
 }
 
-ssize_t et_dma_read_from_device(struct et_pci_dev *et_dev, u16 queue_index,
+ssize_t et_dma_read_from_device(struct et_pci_dev *et_dev,
+				u16 queue_index,
 				struct device_ops_data_read_cmd_t *cmd,
 				size_t cmd_size)
 {
@@ -260,7 +274,7 @@ ssize_t et_dma_read_from_device(struct et_pci_dev *et_dev, u16 queue_index,
 		return -ENOMEM;
 
 	dma_info->tag_id = cmd->command_info.cmd_hdr.tag_id;
-	dma_info->usr_vaddr = (void *)cmd->dst_host_virt_addr;
+	dma_info->usr_vaddr = (void __user __force *)cmd->dst_host_virt_addr;
 	dma_info->pdev = et_dev->pdev;
 	dma_info->size = cmd->size;
 	dma_info->is_writable = true; /* writable */
@@ -271,21 +285,23 @@ ssize_t et_dma_read_from_device(struct et_pci_dev *et_dev, u16 queue_index,
 		goto error_free_dma_info;
 	}
 
-	/* TODO JIRA SW-957: Uncomment when zero copy support is available */
-//	// Pin the user buffer to avoid swapping out of pages during DMA
-//	// operations
-//	rv = et_dma_pin_ubuf(dma_info);
-//	if (rv < 0) {
-//		pr_err("et_dma_pin_ubuf failed\n");
-//		goto error_dma_free_coherent;
-//	}
+	// TODO JIRA SW-957: Uncomment when zero copy support is available
+	// Pin the user buffer to avoid swapping out of pages during DMA
+	// operations
+	//rv = et_dma_pin_ubuf(dma_info);
+	//if (rv < 0) {
+	//	pr_err("et_dma_pin_ubuf failed\n");
+	//	goto error_dma_free_coherent;
+	//}
 
 	mutex_lock(&et_dev->ops.dma_rbtree_mutex);
 	if (!et_dma_insert_info(&et_dev->ops.dma_rbtree, dma_info)) {
 		pr_err("err: tag_id already exists\n");
 		rv = -EINVAL;
 		mutex_unlock(&et_dev->ops.dma_rbtree_mutex);
-//		goto error_dma_unpin_ubuf;
+		// TODO JIRA SW-957: Uncomment when zero copy support is
+		// available
+		//goto error_dma_unpin_ubuf;
 		goto error_dma_free_coherent;
 	}
 	mutex_unlock(&et_dev->ops.dma_rbtree_mutex);
@@ -307,9 +323,9 @@ error_dma_delete_info:
 	et_dma_delete_info(&et_dev->ops.dma_rbtree, dma_info);
 	return rv;
 
-/* TODO JIRA SW-957: Uncomment when zero copy support is available */
-//error_dma_unpin_ubuf:
-//	et_dma_unpin_ubuf(dma_info);
+	// TODO JIRA SW-957: Uncomment when zero copy support is available
+	//error_dma_unpin_ubuf:
+	//	et_dma_unpin_ubuf(dma_info);
 
 error_dma_free_coherent:
 	et_dma_free_coherent(dma_info);
@@ -320,7 +336,8 @@ error_free_dma_info:
 	return rv;
 }
 
-ssize_t et_dma_writelist_to_device(struct et_pci_dev *et_dev, u16 queue_index,
+ssize_t et_dma_writelist_to_device(struct et_pci_dev *et_dev,
+				   u16 queue_index,
 				   struct device_ops_dma_writelist_cmd_t *cmd,
 				   size_t cmd_size)
 {
@@ -336,7 +353,8 @@ ssize_t et_dma_writelist_to_device(struct et_pci_dev *et_dev, u16 queue_index,
 	if (cmd_size <= sizeof(struct device_ops_dma_writelist_cmd_t) ||
 	    !nodes_count) {
 		dev_err(&et_dev->pdev->dev,
-			"Invalid DMA writelist cmd (size %ld)!", cmd_size);
+			"Invalid DMA writelist cmd (size %ld)!",
+			cmd_size);
 	}
 
 	for (node_num = 0; node_num < nodes_count; node_num++) {
@@ -350,7 +368,8 @@ ssize_t et_dma_writelist_to_device(struct et_pci_dev *et_dev, u16 queue_index,
 		}
 
 		if (cmd->list[node_num].src_host_virt_addr +
-		    cmd->list[node_num].size > vma->vm_end) {
+			    cmd->list[node_num].size >
+		    vma->vm_end) {
 			dev_err(&et_dev->pdev->dev,
 				"writelist[%u]{.src_host_virt_addr + .size} out of bound!",
 				node_num);
@@ -358,8 +377,9 @@ ssize_t et_dma_writelist_to_device(struct et_pci_dev *et_dev, u16 queue_index,
 		}
 
 		map = vma->vm_private_data;
-		cmd->list[node_num].src_host_phy_addr = map->dma_addr +
-			cmd->list[node_num].src_host_virt_addr - vma->vm_start;
+		cmd->list[node_num].src_host_phy_addr =
+			map->dma_addr + cmd->list[node_num].src_host_virt_addr -
+			vma->vm_start;
 	}
 
 	rv = et_squeue_push(et_dev->ops.sq_pptr[queue_index], cmd, cmd_size);
@@ -375,7 +395,8 @@ ssize_t et_dma_writelist_to_device(struct et_pci_dev *et_dev, u16 queue_index,
 	return rv;
 }
 
-ssize_t et_dma_readlist_from_device(struct et_pci_dev *et_dev, u16 queue_index,
+ssize_t et_dma_readlist_from_device(struct et_pci_dev *et_dev,
+				    u16 queue_index,
 				    struct device_ops_dma_readlist_cmd_t *cmd,
 				    size_t cmd_size)
 {
@@ -391,7 +412,8 @@ ssize_t et_dma_readlist_from_device(struct et_pci_dev *et_dev, u16 queue_index,
 	if (cmd_size <= sizeof(struct device_ops_dma_readlist_cmd_t) ||
 	    !nodes_count) {
 		dev_err(&et_dev->pdev->dev,
-			"Invalid DMA readlist cmd (size %ld)!", cmd_size);
+			"Invalid DMA readlist cmd (size %ld)!",
+			cmd_size);
 	}
 
 	for (node_num = 0; node_num < nodes_count; node_num++) {
@@ -405,7 +427,8 @@ ssize_t et_dma_readlist_from_device(struct et_pci_dev *et_dev, u16 queue_index,
 		}
 
 		if (cmd->list[node_num].dst_host_virt_addr +
-		    cmd->list[node_num].size > vma->vm_end) {
+			    cmd->list[node_num].size >
+		    vma->vm_end) {
 			dev_err(&et_dev->pdev->dev,
 				"readlist[%u]{.dst_host_virt_addr + .size} out of bound!",
 				node_num);
@@ -413,8 +436,9 @@ ssize_t et_dma_readlist_from_device(struct et_pci_dev *et_dev, u16 queue_index,
 		}
 
 		map = vma->vm_private_data;
-		cmd->list[node_num].dst_host_phy_addr = map->dma_addr +
-			cmd->list[node_num].dst_host_virt_addr - vma->vm_start;
+		cmd->list[node_num].dst_host_phy_addr =
+			map->dma_addr + cmd->list[node_num].dst_host_virt_addr -
+			vma->vm_start;
 	}
 
 	rv = et_squeue_push(et_dev->ops.sq_pptr[queue_index], cmd, cmd_size);
@@ -430,17 +454,19 @@ ssize_t et_dma_readlist_from_device(struct et_pci_dev *et_dev, u16 queue_index,
 	return rv;
 }
 
-ssize_t et_dma_move_data(struct et_pci_dev *et_dev, u16 queue_index,
-			 char __user *ucmd, size_t ucmd_size)
+ssize_t et_dma_move_data(struct et_pci_dev *et_dev,
+			 u16 queue_index,
+			 char __user *ucmd,
+			 size_t ucmd_size)
 {
 	void *kern_buf;
 	struct cmn_header_t *header;
 	ssize_t rv;
 
 	if (ucmd_size < sizeof(struct cmn_header_t) || ucmd_size > U16_MAX) {
-                pr_err("invalid cmd size: %ld", ucmd_size);
-                return -EINVAL;
-        }
+		pr_err("invalid cmd size: %ld", ucmd_size);
+		return -EINVAL;
+	}
 
 	kern_buf = kzalloc(ucmd_size, GFP_KERNEL);
 
@@ -462,7 +488,9 @@ ssize_t et_dma_move_data(struct et_pci_dev *et_dev, u16 queue_index,
 			rv = -EINVAL;
 			goto free_kern_buf;
 		}
-		rv = et_dma_read_from_device(et_dev, queue_index, kern_buf,
+		rv = et_dma_read_from_device(et_dev,
+					     queue_index,
+					     kern_buf,
 					     ucmd_size);
 	} else if (header->msg_id ==
 		   DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD) {
@@ -471,33 +499,39 @@ ssize_t et_dma_move_data(struct et_pci_dev *et_dev, u16 queue_index,
 			rv = -EINVAL;
 			goto free_kern_buf;
 		}
-		rv = et_dma_write_to_device(et_dev, queue_index, kern_buf,
+		rv = et_dma_write_to_device(et_dev,
+					    queue_index,
+					    kern_buf,
 					    ucmd_size);
 	} else if (header->msg_id ==
 		   DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD) {
 		// Command size should be large enough to have atleast one read
 		// node entry
 		if (ucmd_size < sizeof(struct device_ops_dma_readlist_cmd_t) +
-		    sizeof(struct dma_read_node)) {
+					sizeof(struct dma_read_node)) {
 			pr_err("Invalid DMA readlist cmd (size %ld)",
 			       ucmd_size);
 			rv = -EINVAL;
 			goto free_kern_buf;
 		}
-		rv = et_dma_readlist_from_device(et_dev, queue_index, kern_buf,
+		rv = et_dma_readlist_from_device(et_dev,
+						 queue_index,
+						 kern_buf,
 						 ucmd_size);
 	} else if (header->msg_id ==
 		   DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD) {
 		// Command size should be large enough to have atleast one
 		// write node entry
 		if (ucmd_size < sizeof(struct device_ops_dma_writelist_cmd_t) +
-		    sizeof(struct dma_write_node)) {
+					sizeof(struct dma_write_node)) {
 			pr_err("Invalid DMA writelist cmd (size %ld)",
 			       ucmd_size);
 			rv = -EINVAL;
 			goto free_kern_buf;
 		}
-		rv = et_dma_writelist_to_device(et_dev, queue_index, kern_buf,
+		rv = et_dma_writelist_to_device(et_dev,
+						queue_index,
+						kern_buf,
 						ucmd_size);
 	}
 

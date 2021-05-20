@@ -1,18 +1,19 @@
 #ifndef __ET_PCI_DEV_H
 #define __ET_PCI_DEV_H
 
-#include <linux/miscdevice.h>
+#include "et_vqueue.h"
 #include <linux/kernel.h>
+#include <linux/miscdevice.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
-#include "et_vqueue.h"
 
+// clang-format off
 enum et_iomem_r {
-	IOMEM_R_PU_DIR_PC_MM = 0,
-	IOMEM_R_PU_DIR_PC_SP,
+	IOMEM_R_DIR_OPS = 0,
+	IOMEM_R_DIR_MGMT,
 	IOMEM_REGIONS
 };
 
@@ -42,11 +43,9 @@ struct et_ops_dev {
 	spinlock_t ops_open_lock;	/* serializes access to is_ops_open */
 	void __iomem *dir;
 	struct et_mapped_region regions[MGMT_MEM_REGION_TYPE_NUM];
-
 	struct et_squeue **sq_pptr;
 	struct et_cqueue **cq_pptr;
 	struct et_vq_common vq_common;
-
 	struct rb_root dma_rbtree;
 	struct mutex dma_rbtree_mutex;	/* serializes access to dma_rbtree */
 };
@@ -57,26 +56,25 @@ struct et_mgmt_dev {
 	spinlock_t mgmt_open_lock;	/* serializes access to is_mgmt_open */
 	void __iomem *dir;
 	struct et_mapped_region regions[OPS_MEM_REGION_TYPE_NUM];
-
 	struct et_squeue **sq_pptr;
 	struct et_cqueue **cq_pptr;
 	struct et_vq_common vq_common;
-
 	u64 minion_shires;
 };
 
 struct et_pci_dev {
 	u8 dev_index;
 	struct pci_dev *pdev;
-
 	struct et_ops_dev ops;
 	struct et_mgmt_dev mgmt;
-
 	u8 num_irq_vecs;
 	u8 used_irq_vecs;
 };
 
-int et_map_bar(struct et_pci_dev *et_dev, const struct et_bar_mapping *bm_info,
+// clang-format on
+
+int et_map_bar(struct et_pci_dev *et_dev,
+	       const struct et_bar_mapping *bm_info,
 	       void __iomem **mapped_addr_ptr);
 void et_unmap_bar(void __iomem *mapped_addr);
 

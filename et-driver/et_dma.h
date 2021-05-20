@@ -54,8 +54,10 @@ void et_dma_delete_all_info(struct rb_root *root);
  * Returns the number of bytes pushed on vqueue on success, or a negative value
  * on failure.
  */
-ssize_t et_dma_move_data(struct et_pci_dev *et_dev, u16 queue_index,
-			 char __user *ucmd, size_t ucmd_size);
+ssize_t et_dma_move_data(struct et_pci_dev *et_dev,
+			 u16 queue_index,
+			 char __user *ucmd,
+			 size_t ucmd_size);
 
 /*
  * Allocates DMA coherent memory for data write command and pushes vqueue
@@ -64,7 +66,8 @@ ssize_t et_dma_move_data(struct et_pci_dev *et_dev, u16 queue_index,
  * Returns the number of bytes pushed on vqueue on success, or a negative value
  * on failure.
  */
-ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev, u16 queue_index,
+ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev,
+			       u16 queue_index,
 			       struct device_ops_data_write_cmd_t *cmd,
 			       size_t cmd_size);
 
@@ -75,7 +78,8 @@ ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev, u16 queue_index,
  * Returns the number of bytes pushed on vqueue on success, or a negative value
  * on failure.
  */
-ssize_t et_dma_read_from_device(struct et_pci_dev *et_dev, u16 queue_index,
+ssize_t et_dma_read_from_device(struct et_pci_dev *et_dev,
+				u16 queue_index,
 				struct device_ops_data_read_cmd_t *cmd,
 				size_t cmd_size);
 
@@ -86,7 +90,8 @@ ssize_t et_dma_read_from_device(struct et_pci_dev *et_dev, u16 queue_index,
  * Returns the number of bytes pushed on vqueue on success, or a negative value
  * on failure.
  */
-ssize_t et_dma_writelist_to_device(struct et_pci_dev *et_dev, u16 queue_index,
+ssize_t et_dma_writelist_to_device(struct et_pci_dev *et_dev,
+				   u16 queue_index,
 				   struct device_ops_dma_writelist_cmd_t *cmd,
 				   size_t cmd_size);
 
@@ -97,7 +102,8 @@ ssize_t et_dma_writelist_to_device(struct et_pci_dev *et_dev, u16 queue_index,
  * Returns the number of bytes pushed on vqueue on success, or a negative value
  * on failure.
  */
-ssize_t et_dma_readlist_from_device(struct et_pci_dev *et_dev, u16 queue_index,
+ssize_t et_dma_readlist_from_device(struct et_pci_dev *et_dev,
+				    u16 queue_index,
 				    struct device_ops_dma_readlist_cmd_t *cmd,
 				    size_t cmd_size);
 

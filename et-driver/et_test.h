@@ -18,6 +18,7 @@
 #include "et_device_api.h"
 #include "et_pci_dev.h"
 
+// clang-format off
 /*
  * Echo command
  */
@@ -35,6 +36,8 @@ struct device_ops_echo_rsp_t {
 	s32 echo_payload;	// Echo payload field
 	u32 pad;		// Padding for alignment
 } __packed __aligned(8);
+
+// clang-format off
 
 long test_virtqueue(struct et_pci_dev *et_dev, u16 cmd_count);
 

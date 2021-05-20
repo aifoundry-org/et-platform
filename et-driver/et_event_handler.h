@@ -18,6 +18,7 @@
 #include "et_device_api.h"
 #include "et_vqueue.h"
 
+// clang-format off
 enum event_class {
 	ECLASS_INFO,           /* Informational */
 	ECLASS_WARNING,        /* Warning */
@@ -123,5 +124,7 @@ struct event_dbg_msg {
 #define ET_EVENT_SYNDROME_LEN		320
 
 int et_handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr);
+
+// clang-format on
 
 #endif

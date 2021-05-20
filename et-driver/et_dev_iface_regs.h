@@ -55,18 +55,21 @@
  * will be generated to update the driver.
  */
 
-#define MEM_REGION_PRIVILEGE_MODE_KERNEL	(0x0)
-#define	MEM_REGION_PRIVILEGE_MODE_USER		(0x1)
+/* MEM_REGION_PRIVILEGE_MODE */
+#define MEM_REGION_PRIVILEGE_MODE_KERNEL (0x0)
+#define MEM_REGION_PRIVILEGE_MODE_USER	 (0x1)
 
-#define MEM_REGION_NODE_ACCESSIBLE_NONE		(0x0)
-#define MEM_REGION_NODE_ACCESSIBLE_MGMT		(0x1)
-#define MEM_REGION_NODE_ACCESSIBLE_OPS		(0x2)
-#define MEM_REGION_NODE_ACCESSIBLE_ALL		(0x3)
+/* MEM_REGION_NODE_ACCESSIBLE */
+#define MEM_REGION_NODE_ACCESSIBLE_NONE (0x0)
+#define MEM_REGION_NODE_ACCESSIBLE_MGMT (0x1)
+#define MEM_REGION_NODE_ACCESSIBLE_OPS	(0x2)
+#define MEM_REGION_NODE_ACCESSIBLE_ALL	(0x3)
 
-#define MEM_REGION_DMA_ALIGNMENT_NONE		(0x0)
-#define MEM_REGION_DMA_ALIGNMENT_8BIT		(0x1)
-#define MEM_REGION_DMA_ALIGNMENT_32BIT		(0x2)
-#define MEM_REGION_DMA_ALIGNMENT_64BIT		(0x3)
+/* MEM_REGION_DMA_ALIGNMENT */
+#define MEM_REGION_DMA_ALIGNMENT_NONE  (0x0)
+#define MEM_REGION_DMA_ALIGNMENT_8BIT  (0x1)
+#define MEM_REGION_DMA_ALIGNMENT_32BIT (0x2)
+#define MEM_REGION_DMA_ALIGNMENT_64BIT (0x3)
 
 /*
  * Holds the information memory region access attributes
@@ -107,7 +110,7 @@ struct et_dir_reg_access {
 	u32 dma_align : 2; /* bit 3-4 */
 
 	u32 reserved : 27;
-} __attribute__((__packed__));
+} __packed;
 
 /*
  * Holds the information of Device interface memory region.
@@ -120,7 +123,7 @@ struct et_dir_mem_region {
 	u64 bar_offset;
 	u64 bar_size;
 	u64 dev_address;
-} __attribute__((__packed__));
+} __packed;
 
 /*
  * Holds the information of Device Virtual Queues.
@@ -136,7 +139,7 @@ struct et_dir_vqueue {
 	u8 intrpt_trg_size;
 	u8 intrpt_id;
 	u16 attributes_size;
-} __attribute__((__packed__));
+} __packed;
 
 /*
  * Values representing Mgmt Device Boot status.
@@ -182,7 +185,7 @@ struct et_mgmt_dir_header {
 	u8 reserved[2];
 	s16 status;
 	u32 crc32;
-} __attribute__((__packed__));
+} __packed;
 
 /*
  * Values representing Ops Device Boot status.
@@ -223,12 +226,14 @@ struct et_ops_dir_header {
 	u8 reserved[2];
 	s16 status;
 	u32 crc32;
-} __attribute__((__packed__));
+} __packed;
 
-#define MAX_LEN		64
+#define MAX_LEN 64
 
 static inline bool valid_vq_region(struct et_dir_vqueue *vq_region,
-				   bool is_mgmt, char *syndrome, size_t len)
+				   bool is_mgmt,
+				   char *syndrome,
+				   size_t len)
 {
 	char *syndrome_str;
 	bool rv;
@@ -290,7 +295,9 @@ static inline bool valid_vq_region(struct et_dir_vqueue *vq_region,
 }
 
 static inline bool valid_mem_region(struct et_dir_mem_region *region,
-				    bool is_mgmt, char *syndrome, size_t len)
+				    bool is_mgmt,
+				    char *syndrome,
+				    size_t len)
 {
 	char *syndrome_str;
 	char err_str[MAX_LEN];
@@ -333,11 +340,11 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 		case MGMT_MEM_REGION_TYPE_SPFW_TRACE:
 			// Attributes compatibility check
 			if (region->access.priv_mode !=
-			    MEM_REGION_PRIVILEGE_MODE_KERNEL ||
+				    MEM_REGION_PRIVILEGE_MODE_KERNEL ||
 			    region->access.node_access !=
-			    MEM_REGION_NODE_ACCESSIBLE_NONE ||
+				    MEM_REGION_NODE_ACCESSIBLE_NONE ||
 			    region->access.dma_align !=
-			    MEM_REGION_DMA_ALIGNMENT_NONE) {
+				    MEM_REGION_DMA_ALIGNMENT_NONE) {
 				strcat(syndrome_str,
 				       "Incorrect access for region: ");
 				strcat(syndrome_str, err_str);
@@ -348,11 +355,11 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 		case MGMT_MEM_REGION_TYPE_SCRATCH:
 			// Attributes compatibility check
 			if (region->access.priv_mode !=
-			    MEM_REGION_PRIVILEGE_MODE_KERNEL ||
+				    MEM_REGION_PRIVILEGE_MODE_KERNEL ||
 			    region->access.node_access !=
-			    MEM_REGION_NODE_ACCESSIBLE_MGMT ||
+				    MEM_REGION_NODE_ACCESSIBLE_MGMT ||
 			    region->access.dma_align !=
-			    MEM_REGION_DMA_ALIGNMENT_NONE) {
+				    MEM_REGION_DMA_ALIGNMENT_NONE) {
 				strcat(syndrome_str,
 				       "Incorrect access for region: ");
 				strcat(syndrome_str, err_str);
@@ -373,11 +380,11 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 		case OPS_MEM_REGION_TYPE_CMFW_TRACE:
 			// Attributes compatibility check
 			if (region->access.priv_mode !=
-			    MEM_REGION_PRIVILEGE_MODE_KERNEL ||
+				    MEM_REGION_PRIVILEGE_MODE_KERNEL ||
 			    region->access.node_access !=
-			    MEM_REGION_NODE_ACCESSIBLE_NONE ||
+				    MEM_REGION_NODE_ACCESSIBLE_NONE ||
 			    region->access.dma_align !=
-			    MEM_REGION_DMA_ALIGNMENT_NONE) {
+				    MEM_REGION_DMA_ALIGNMENT_NONE) {
 				strcat(syndrome_str,
 				       "Incorrect access for region: ");
 				strcat(syndrome_str, err_str);
@@ -388,11 +395,11 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 		case OPS_MEM_REGION_TYPE_HOST_MANAGED:
 			// Attributes compatibility check
 			if (region->access.priv_mode !=
-			    MEM_REGION_PRIVILEGE_MODE_USER ||
+				    MEM_REGION_PRIVILEGE_MODE_USER ||
 			    region->access.node_access !=
-			    MEM_REGION_NODE_ACCESSIBLE_OPS ||
+				    MEM_REGION_NODE_ACCESSIBLE_OPS ||
 			    region->access.dma_align !=
-			    MEM_REGION_DMA_ALIGNMENT_64BIT) {
+				    MEM_REGION_DMA_ALIGNMENT_64BIT) {
 				strcat(syndrome_str,
 				       "Incorrect access for region: ");
 				strcat(syndrome_str, err_str);

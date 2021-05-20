@@ -12,11 +12,11 @@
  *
  **********************************************************************/
 
-#include "et_circbuffer.h"
 #include "et_event_handler.h"
+#include "et_circbuffer.h"
 #include "et_pci_dev.h"
 
-#define VALUE_STR_MAX_LEN    128
+#define VALUE_STR_MAX_LEN 128
 
 static void parse_pcie_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				struct event_dbg_msg *dbg_msg)
@@ -52,8 +52,7 @@ static void parse_pcie_syndrome(struct device_mgmt_event_msg_t *event_msg,
 			strcat(dbg_msg->syndrome,
 			       "Header Log Overflow Error Status\n");
 	} else {
-		if (event_msg->event_syndrome[0] &
-		    PCIE_UCE_RESERVED_MASK)
+		if (event_msg->event_syndrome[0] & PCIE_UCE_RESERVED_MASK)
 			strcat(dbg_msg->syndrome, "Reserved Bits\n");
 		if (event_msg->event_syndrome[0] &
 		    PCIE_UCE_DATA_LINK_PROTOCOL_ERR_STATUS_MASK)
@@ -107,15 +106,22 @@ static void parse_sram_syndrome(struct device_mgmt_event_msg_t *event_msg,
 {
 	sprintf(dbg_msg->syndrome,
 		"ESR_SC_ERR_LOG_INFO\nValid     : %d\nMultiple  : %d\nEnabled   : %d\nImprecise : %d\nCode      : %d\nIndex     : %d\nError_bits: %d\nRam       : %d",
-	(int)GET_ESR_SC_ERR_LOG_INFO_V_BIT(event_msg->event_syndrome[0]),
-	(int)GET_ESR_SC_ERR_LOG_INFO_M_BIT(event_msg->event_syndrome[0]),
-	(int)GET_ESR_SC_ERR_LOG_INFO_E_BIT(event_msg->event_syndrome[0]),
-	(int)GET_ESR_SC_ERR_LOG_INFO_I_BIT(event_msg->event_syndrome[0]),
-	(int)GET_ESR_SC_ERR_LOG_INFO_CODE_BITS(event_msg->event_syndrome[0]),
-	(int)GET_ESR_SC_ERR_LOG_INFO_INDEX_BITS(event_msg->event_syndrome[0]),
-	(int)GET_ESR_SC_ERR_LOG_INFO_ERR_BITS(event_msg->event_syndrome[0]),
-	(int)GET_ESR_SC_ERR_LOG_INFO_RAM_BITS(event_msg->event_syndrome[0])
-	);
+		(int)GET_ESR_SC_ERR_LOG_INFO_V_BIT(
+			event_msg->event_syndrome[0]),
+		(int)GET_ESR_SC_ERR_LOG_INFO_M_BIT(
+			event_msg->event_syndrome[0]),
+		(int)GET_ESR_SC_ERR_LOG_INFO_E_BIT(
+			event_msg->event_syndrome[0]),
+		(int)GET_ESR_SC_ERR_LOG_INFO_I_BIT(
+			event_msg->event_syndrome[0]),
+		(int)GET_ESR_SC_ERR_LOG_INFO_CODE_BITS(
+			event_msg->event_syndrome[0]),
+		(int)GET_ESR_SC_ERR_LOG_INFO_INDEX_BITS(
+			event_msg->event_syndrome[0]),
+		(int)GET_ESR_SC_ERR_LOG_INFO_ERR_BITS(
+			event_msg->event_syndrome[0]),
+		(int)GET_ESR_SC_ERR_LOG_INFO_RAM_BITS(
+			event_msg->event_syndrome[0]));
 }
 
 static void parse_pmic_syndrome(struct device_mgmt_event_msg_t *event_msg,
@@ -125,26 +131,28 @@ static void parse_pmic_syndrome(struct device_mgmt_event_msg_t *event_msg,
 	int value_fract;
 	char value_str[VALUE_STR_MAX_LEN];
 
-	if (event_msg->event_syndrome[0] &
-	    PMIC_ERROR_OVER_TEMP_INT_MASK) {
-		value_fract = 25 *
-		(event_msg->event_syndrome[1] & SYNDROME_TEMP_FRACT_MASK);
-		value_whole =
-		(event_msg->event_syndrome[1] >> 2) & SYNDROME_TEMP_MASK;
-		snprintf(value_str, VALUE_STR_MAX_LEN,
-			"Temperature Overshoot Beyond Threshold: %d.%d C\n",
-			value_whole, value_fract);
+	if (event_msg->event_syndrome[0] & PMIC_ERROR_OVER_TEMP_INT_MASK) {
+		value_fract = 25 * (event_msg->event_syndrome[1] &
+				    SYNDROME_TEMP_FRACT_MASK);
+		value_whole = (event_msg->event_syndrome[1] >> 2) &
+			      SYNDROME_TEMP_MASK;
+		snprintf(value_str,
+			 VALUE_STR_MAX_LEN,
+			 "Temperature Overshoot Beyond Threshold: %d.%d C\n",
+			 value_whole,
+			 value_fract);
 		strcat(dbg_msg->syndrome, value_str);
 	}
-	if (event_msg->event_syndrome[0] &
-	    PMIC_ERROR_OVER_POWER_INT_MASK) {
-		value_fract = 25 *
-		((event_msg->event_syndrome[1] >> 8) & SYNDROME_PWR_FRACT_MASK);
-		value_whole =
-		(event_msg->event_syndrome[1] >> 10) & SYNDROME_PWR_MASK;
-		snprintf(value_str, VALUE_STR_MAX_LEN,
-			"Power Overshoot Beyond Threshold: %d.%d W\n",
-			value_whole, value_fract);
+	if (event_msg->event_syndrome[0] & PMIC_ERROR_OVER_POWER_INT_MASK) {
+		value_fract = 25 * ((event_msg->event_syndrome[1] >> 8) &
+				    SYNDROME_PWR_FRACT_MASK);
+		value_whole = (event_msg->event_syndrome[1] >> 10) &
+			      SYNDROME_PWR_MASK;
+		snprintf(value_str,
+			 VALUE_STR_MAX_LEN,
+			 "Power Overshoot Beyond Threshold: %d.%d W\n",
+			 value_whole,
+			 value_fract);
 		strcat(dbg_msg->syndrome, value_str);
 	}
 	if (event_msg->event_syndrome[0] &
@@ -173,8 +181,8 @@ static void parse_thermal_syndrome(struct device_mgmt_event_msg_t *event_msg,
 	int temp_whole;
 	int temp_fract;
 
-	temp_fract = 25 *
-		(event_msg->event_syndrome[0] & SYNDROME_TEMP_FRACT_MASK);
+	temp_fract =
+		25 * (event_msg->event_syndrome[0] & SYNDROME_TEMP_FRACT_MASK);
 	temp_whole = (event_msg->event_syndrome[0] >> 2) & SYNDROME_TEMP_MASK;
 
 	sprintf(dbg_msg->syndrome, "%d.%d C", temp_whole, temp_fract);
@@ -186,14 +194,19 @@ static void parse_wdog_syndrome(struct device_mgmt_event_msg_t *event_msg,
 	u32 a0, mepc, mcause, mtval;
 	char value_str[VALUE_STR_MAX_LEN];
 
-	a0     = event_msg->event_syndrome[0] >> 32;
-	mepc   = event_msg->event_syndrome[0];
+	a0 = event_msg->event_syndrome[0] >> 32;
+	mepc = event_msg->event_syndrome[0];
 	mcause = event_msg->event_syndrome[1] >> 32;
-	mtval  = event_msg->event_syndrome[1];
+	mtval = event_msg->event_syndrome[1];
 
-	snprintf(value_str, VALUE_STR_MAX_LEN,
+	snprintf(
+		value_str,
+		VALUE_STR_MAX_LEN,
 		"a0        : 0x%x\nmepc      : 0x%x\nmcause    : 0x%x\nmtval     : 0x%x\n",
-		a0, mepc, mcause, mtval);
+		a0,
+		mepc,
+		mcause,
+		mtval);
 	strcat(dbg_msg->syndrome, value_str);
 }
 
@@ -227,7 +240,8 @@ static void parse_throttling_syndrome(struct device_mgmt_event_msg_t *event_msg,
 {
 	sprintf(dbg_msg->syndrome,
 		"Thermal Throttling Duration Beyond Threshold: %u msec\n",
-	(u32)GET_OVER_THROTTLE_DURATION_BITS(event_msg->event_syndrome[0]));
+		(u32)GET_OVER_THROTTLE_DURATION_BITS(
+			event_msg->event_syndrome[0]));
 }
 
 int et_handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
@@ -243,10 +257,11 @@ int et_handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
 
 	memcpy((u8 *)&event_msg.event_info, (u8 *)hdr, sizeof(*hdr));
 
-	if (!et_circbuffer_pop(&cq->cb, cq->cb_mem,
+	if (!et_circbuffer_pop(&cq->cb,
+			       cq->cb_mem,
 			       (u8 *)&event_msg + sizeof(*hdr),
-				hdr->size - sizeof(*hdr),
-				ET_CB_SYNC_FOR_DEVICE))
+			       hdr->size - sizeof(*hdr),
+			       ET_CB_SYNC_FOR_DEVICE))
 		return -EAGAIN;
 
 	rv = hdr->size;
@@ -332,14 +347,20 @@ int et_handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
 		break;
 	default:
 		dbg_msg.desc = "Un-Supported Event MSG ID";
-		dev_err(&pdev->dev, "Event MSG ID [%d] is invalid\n",
+		dev_err(&pdev->dev,
+			"Event MSG ID [%d] is invalid\n",
 			event_msg.event_info.msg_id);
 		rv = -EINVAL;
 		break;
 	}
 
-	dev_info(&pdev->dev, "Error Event Detected\nLevel     : %s\nDesc      : %s\nCount     : %d\nSyndrome  : %s",
-		 dbg_msg.level, dbg_msg.desc, dbg_msg.count, dbg_msg.syndrome);
+	dev_info(
+		&pdev->dev,
+		"Error Event Detected\nLevel     : %s\nDesc      : %s\nCount     : %d\nSyndrome  : %s",
+		dbg_msg.level,
+		dbg_msg.desc,
+		dbg_msg.count,
+		dbg_msg.syndrome);
 
 	return rv;
 }

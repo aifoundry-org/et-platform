@@ -5,50 +5,50 @@
  *-------------------------------------------------------------------------
  */
 
+#include <linux/crc32.h>
+#include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/errno.h>
+#include <linux/fs.h>
+#include <linux/init.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
+#include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/init.h>
-#include <linux/delay.h>
-#include <linux/string.h>
 #include <linux/mutex.h>
-#include <linux/slab.h>
-#include <linux/fs.h>
-#include <linux/types.h>
-#include <linux/miscdevice.h>
 #include <linux/pci.h>
-#include <linux/device.h>
-#include <linux/jiffies.h>
+#include <linux/poll.h>
 #include <linux/sched.h>
 #include <linux/sched/signal.h>
-#include <linux/errno.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/types.h>
 #include <linux/uaccess.h>
 #include <uapi/linux/pci_regs.h>
-#include <asm/uaccess.h>
-#include <linux/poll.h>
-#include <linux/crc32.h>
 
-#include "et_io.h"
 #include "et_dma.h"
-#include "et_ioctl.h"
-#include "et_vqueue.h"
-#include "et_fw_update.h"
-#include "et_pci_dev.h"
 #include "et_event_handler.h"
+#include "et_fw_update.h"
+#include "et_io.h"
+#include "et_ioctl.h"
+#include "et_pci_dev.h"
+#include "et_vqueue.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Esperanto <esperanto@gmail.com or admin@esperanto.com>");
 MODULE_DESCRIPTION("PCIe loopback device driver for esperanto soc-1");
 MODULE_VERSION("1.0");
 
-#define DRIVER_NAME "Esperanto"
-
-#define PCI_VENDOR_ID_REDHAT		0x1b36
-#define PCI_DEVICE_ID_REDHAT_TEST	0x0005
+#define DRIVER_NAME		  "Esperanto"
+#define PCI_VENDOR_ID_REDHAT	  0x1b36
+#define PCI_DEVICE_ID_REDHAT_TEST 0x0005
 /* Define Vendor ID and Device ID to utilize QEMU PCI test device */
-#define ET_PCIE_VENDOR_ID		PCI_VENDOR_ID_REDHAT
-#define ET_PCIE_TEST_DEVICE_ID		PCI_DEVICE_ID_REDHAT_TEST
-#define ET_PCIE_SOC1_ID 0xeb01
+#define ET_PCIE_VENDOR_ID      PCI_VENDOR_ID_REDHAT
+#define ET_PCIE_TEST_DEVICE_ID PCI_DEVICE_ID_REDHAT_TEST
+#define ET_PCIE_SOC1_ID	       0xeb01
+#define ET_MAX_DEVS	       64
+#define DMA_MAX_ALLOC_SIZE     (BIT(31)) /* 2GB */
 
 static const struct pci_device_id esperanto_pcie_tbl[] = {
 	{ PCI_DEVICE(ET_PCIE_VENDOR_ID, ET_PCIE_TEST_DEVICE_ID) },
@@ -56,7 +56,6 @@ static const struct pci_device_id esperanto_pcie_tbl[] = {
 	{}
 };
 
-#define ET_MAX_DEVS	64
 static DECLARE_BITMAP(dev_bitmap, ET_MAX_DEVS);
 
 static u8 get_index(void)
@@ -69,8 +68,6 @@ static u8 get_index(void)
 	set_bit(index, dev_bitmap);
 	return index;
 }
-
-#define DMA_MAX_ALLOC_SIZE	(BIT(31)) /* 2GB */
 
 static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 {
@@ -87,7 +84,7 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 	poll_wait(fp, &ops->vq_common.waitqueue, wait);
 
 	if (ops->vq_common.aborting)
-		return -EINTR;
+		return mask;
 
 	// Update sq_bitmap for all SQs, set corresponding bit when space
 	// available is more than threshold
@@ -107,8 +104,8 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 	return mask;
 }
 
-static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
-				     unsigned long arg)
+static long
+esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 {
 	struct et_pci_dev *et_dev;
 	struct et_ops_dev *ops;
@@ -116,6 +113,7 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 	struct cmd_desc cmd_info;
 	struct rsp_desc rsp_info;
 	struct sq_threshold sq_threshold_info;
+	void __user *usr_arg = (void __user *)arg;
 	u16 sq_idx;
 	size_t size;
 	u16 max_size;
@@ -129,16 +127,16 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 		if (!ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED].is_valid)
 			return -EINVAL;
 
-		user_dram.base = ops->regions
-			[OPS_MEM_REGION_TYPE_HOST_MANAGED].soc_addr;
-		user_dram.size = ops->regions
-			[OPS_MEM_REGION_TYPE_HOST_MANAGED].size;
+		user_dram.base =
+			ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED].soc_addr;
+		user_dram.size =
+			ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED].size;
 		user_dram.dma_max_alloc_size = DMA_MAX_ALLOC_SIZE;
 		// TODO: Discover from DIRs
 		user_dram.dma_max_elem_size = BIT(27); /* 128MB */
 
-		switch (ops->regions
-			[OPS_MEM_REGION_TYPE_HOST_MANAGED].access.dma_align) {
+		switch (ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED]
+				.access.dma_align) {
 		case MEM_REGION_DMA_ALIGNMENT_NONE:
 			user_dram.align_in_bits = 0;
 			break;
@@ -156,7 +154,7 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 		}
 
 		if (size >= sizeof(user_dram) &&
-		    copy_to_user((struct dram_info *)arg, &user_dram, size)) {
+		    copy_to_user(usr_arg, &user_dram, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_USER_DRAM_INFO: failed to copy to user\n");
 			return -ENOMEM;
 		}
@@ -165,7 +163,8 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 
 	case ETSOC1_IOCTL_GET_SQ_COUNT:
 		if (size >= sizeof(u16) &&
-		    copy_to_user((u16 *)arg, &ops->vq_common.dir_vq.sq_count,
+		    copy_to_user(usr_arg,
+				 &ops->vq_common.dir_vq.sq_count,
 				 size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_COUNT: failed to copy to user\n");
 			return -ENOMEM;
@@ -176,54 +175,55 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 		max_size = ops->vq_common.dir_vq.per_sq_size -
 			   sizeof(struct et_circbuffer);
 		if (size >= sizeof(u16) &&
-		    copy_to_user((u16 *)arg, &max_size, size)) {
+		    copy_to_user(usr_arg, &max_size, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE: failed to copy to user\n");
 			return -ENOMEM;
 		}
 		return 0;
 
 	case ETSOC1_IOCTL_PUSH_SQ:
-		if (copy_from_user(&cmd_info, (void __user *)arg,
-				   _IOC_SIZE(cmd)))
+		if (copy_from_user(&cmd_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
 		if (cmd_info.sq_index >=
-		    et_dev->ops.vq_common.dir_vq.sq_count ||
+			    et_dev->ops.vq_common.dir_vq.sq_count ||
 		    !cmd_info.cmd || !cmd_info.size)
 			return -EINVAL;
 
 		if (cmd_info.flags & CMD_DESC_FLAG_DMA) {
-			return et_dma_move_data(et_dev, cmd_info.sq_index,
-						(void __user *)cmd_info.cmd,
-						cmd_info.size);
+			return et_dma_move_data(
+				et_dev,
+				cmd_info.sq_index,
+				(char __user __force *)cmd_info.cmd,
+				cmd_info.size);
 		} else {
-			return et_squeue_copy_from_user
-				(et_dev, false /* ops_dev */,
-				 cmd_info.sq_index,
-				 (char __user *)cmd_info.cmd,
-				 cmd_info.size);
+			return et_squeue_copy_from_user(
+				et_dev,
+				false /* ops_dev */,
+				cmd_info.sq_index,
+				(char __user __force *)cmd_info.cmd,
+				cmd_info.size);
 		}
 
 	case ETSOC1_IOCTL_POP_CQ:
-		if (copy_from_user(&rsp_info, (void __user *)arg,
-				   _IOC_SIZE(cmd)))
+		if (copy_from_user(&rsp_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
 		if (rsp_info.cq_index >=
-		    et_dev->ops.vq_common.dir_vq.cq_count ||
+			    et_dev->ops.vq_common.dir_vq.cq_count ||
 		    !rsp_info.rsp || !rsp_info.size)
 			return -EINVAL;
 
-		return et_cqueue_copy_to_user
-				(et_dev, false /* ops_dev */,
-				 rsp_info.cq_index,
-				 (char __user *)rsp_info.rsp,
-				 rsp_info.size);
+		return et_cqueue_copy_to_user(
+			et_dev,
+			false /* ops_dev */,
+			rsp_info.cq_index,
+			(char __user __force *)rsp_info.rsp,
+			rsp_info.size);
 
 	case ETSOC1_IOCTL_GET_SQ_AVAIL_BITMAP:
 		if (size >= sizeof(u64) &&
-		    copy_to_user((u64 *)arg, ops->vq_common.sq_bitmap,
-				 size)) {
+		    copy_to_user(usr_arg, ops->vq_common.sq_bitmap, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_AVAIL_BITMAP: failed to copy to user\n");
 			return -ENOMEM;
 		}
@@ -231,24 +231,22 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 
 	case ETSOC1_IOCTL_GET_CQ_AVAIL_BITMAP:
 		if (size >= sizeof(u64) &&
-		    copy_to_user((u64 *)arg, ops->vq_common.cq_bitmap,
-				 size)) {
+		    copy_to_user(usr_arg, ops->vq_common.cq_bitmap, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_CQ_AVAIL_BITMAP: failed to copy to user\n");
 			return -ENOMEM;
 		}
 		return 0;
 
 	case ETSOC1_IOCTL_SET_SQ_THRESHOLD:
-		if (copy_from_user(&sq_threshold_info, (void __user *)arg,
-				   _IOC_SIZE(cmd)))
+		if (copy_from_user(&sq_threshold_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
 		if (sq_threshold_info.sq_index >=
-		    et_dev->ops.vq_common.dir_vq.sq_count ||
+			    et_dev->ops.vq_common.dir_vq.sq_count ||
 		    !sq_threshold_info.bytes_needed ||
 		    sq_threshold_info.bytes_needed >
-		    (ops->vq_common.dir_vq.per_sq_size -
-		     sizeof(struct et_circbuffer)))
+			    (ops->vq_common.dir_vq.per_sq_size -
+			     sizeof(struct et_circbuffer)))
 			return -EINVAL;
 
 		sq_idx = sq_threshold_info.sq_index;
@@ -259,8 +257,8 @@ static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
 		// Update sq_bitmap w.r.t new threshold
 		clear_bit(sq_idx, ops->vq_common.sq_bitmap);
 		if (et_squeue_event_available(ops->sq_pptr[sq_idx]))
-			wake_up_interruptible
-				(&ops->sq_pptr[sq_idx]->vq_common->waitqueue);
+			wake_up_interruptible(
+				&ops->sq_pptr[sq_idx]->vq_common->waitqueue);
 
 		return 0;
 
@@ -277,7 +275,8 @@ static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 	struct et_mgmt_dev *mgmt;
 	int i;
 
-	mgmt = container_of(fp->private_data, struct et_mgmt_dev,
+	mgmt = container_of(fp->private_data,
+			    struct et_mgmt_dev,
 			    misc_mgmt_dev);
 
 	// TODO: Separate ISRs for SQ and CQ. waitqueue is wake up whenever an
@@ -287,7 +286,7 @@ static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 	poll_wait(fp, &mgmt->vq_common.waitqueue, wait);
 
 	if (mgmt->vq_common.aborting)
-		return -EINTR;
+		return mask;
 
 	// Update sq_bitmap for all SQs, set corresponding bit when space
 	// available is more than threshold
@@ -309,12 +308,16 @@ static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 
 static void esperanto_pcie_vm_open(struct vm_area_struct *vma)
 {
-        struct et_dma_mapping *map = vma->vm_private_data;
+	struct et_dma_mapping *map = vma->vm_private_data;
 
-        dev_dbg(&map->pdev->dev, "vm_open: %p, [size=%lu,vma=%08lx-%08lx]\n",
-		map, map->size, vma->vm_start, vma->vm_end);
+	dev_dbg(&map->pdev->dev,
+		"vm_open: %p, [size=%lu,vma=%08lx-%08lx]\n",
+		map,
+		map->size,
+		vma->vm_start,
+		vma->vm_end);
 
-        map->ref_count++;
+	map->ref_count++;
 }
 
 static void esperanto_pcie_vm_close(struct vm_area_struct *vma)
@@ -324,22 +327,31 @@ static void esperanto_pcie_vm_close(struct vm_area_struct *vma)
 	if (!map)
 		return;
 
-	dev_dbg(&map->pdev->dev, "vm_close: %p, [size=%lu,vma=%08lx-%08lx]\n",
-		map, map->size, vma->vm_start, vma->vm_end);
+	dev_dbg(&map->pdev->dev,
+		"vm_close: %p, [size=%lu,vma=%08lx-%08lx]\n",
+		map,
+		map->size,
+		vma->vm_start,
+		vma->vm_end);
 
 	map->ref_count--;
 	if (map->ref_count == 0) {
-		dma_free_coherent(&map->pdev->dev, map->size, map->kern_vaddr,
+		dma_free_coherent(&map->pdev->dev,
+				  map->size,
+				  map->kern_vaddr,
 				  map->dma_addr);
 
 		kfree(map);
 	}
 }
 
+// clang-format off
 static const struct vm_operations_struct esperanto_pcie_vm_ops = {
-	.open = esperanto_pcie_vm_open,
-	.close = esperanto_pcie_vm_close,
+	.open	= esperanto_pcie_vm_open,
+	.close	= esperanto_pcie_vm_close,
 };
+
+// clang-format on
 
 static int esperanto_pcie_ops_mmap(struct file *fp, struct vm_area_struct *vma)
 {
@@ -368,16 +380,20 @@ static int esperanto_pcie_ops_mmap(struct file *fp, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_DONTCOPY | VM_NORESERVE;
 	vma->vm_ops = &esperanto_pcie_vm_ops;
 
-	kern_vaddr = dma_alloc_coherent(&et_dev->pdev->dev, size, &dma_addr,
+	kern_vaddr = dma_alloc_coherent(&et_dev->pdev->dev,
+					size,
+					&dma_addr,
 					GFP_USER);
 	if (!kern_vaddr) {
 		dev_err(&et_dev->pdev->dev, "dma_alloc_coherent() failed!\n");
 		return -ENOMEM;
 	}
 
-	rv = remap_pfn_range(vma, vma->vm_start,
-			     page_to_pfn(virt_to_page(kern_vaddr)),
-			     vma_pages(vma) << PAGE_SHIFT, vma->vm_page_prot);
+	rv = remap_pfn_range(vma,
+			     vma->vm_start,
+			     __pa((unsigned long)kern_vaddr) >> PAGE_SHIFT,
+			     vma_pages(vma) << PAGE_SHIFT,
+			     vma->vm_page_prot);
 	if (rv) {
 		dev_err(&et_dev->pdev->dev, "remap_pfn_range() failed!");
 		goto error_dma_free_coherent;
@@ -407,8 +423,8 @@ error_dma_free_coherent:
 	return rv;
 }
 
-static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
-				      unsigned long arg)
+static long
+esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 {
 	struct et_mgmt_dev *mgmt;
 	struct et_pci_dev *et_dev;
@@ -416,11 +432,13 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 	struct rsp_desc rsp_info;
 	struct sq_threshold sq_threshold_info;
 	struct fw_update_desc fw_update_info;
+	void __user *usr_arg = (void __user *)arg;
 	u16 sq_idx;
 	size_t size;
 	u16 max_size;
 
-	mgmt = container_of(fp->private_data, struct et_mgmt_dev,
+	mgmt = container_of(fp->private_data,
+			    struct et_mgmt_dev,
 			    misc_mgmt_dev);
 	et_dev = container_of(mgmt, struct et_pci_dev, mgmt);
 
@@ -428,20 +446,21 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 
 	switch (cmd) {
 	case ETSOC1_IOCTL_FW_UPDATE:
-		if (copy_from_user(&fw_update_info, (void __user *)arg,
-				   _IOC_SIZE(cmd)))
+		if (copy_from_user(&fw_update_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
 		if (!fw_update_info.ubuf || !fw_update_info.size)
 			return -EINVAL;
 
-		return et_mmio_write_fw_image
-			(et_dev, (void __user *)fw_update_info.ubuf,
-			 fw_update_info.size);
+		return et_mmio_write_fw_image(
+			et_dev,
+			(char __user __force *)fw_update_info.ubuf,
+			fw_update_info.size);
 
 	case ETSOC1_IOCTL_GET_SQ_COUNT:
 		if (size >= sizeof(u16) &&
-		    copy_to_user((u16 *)arg, &mgmt->vq_common.dir_vq.sq_count,
+		    copy_to_user(usr_arg,
+				 &mgmt->vq_common.dir_vq.sq_count,
 				 size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_COUNT: failed to copy to user\n");
 			return -ENOMEM;
@@ -452,7 +471,7 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 		max_size = mgmt->vq_common.dir_vq.per_sq_size -
 			   sizeof(struct et_circbuffer);
 		if (size >= sizeof(u16) &&
-		    copy_to_user((u16 *)arg, &max_size, size)) {
+		    copy_to_user(usr_arg, &max_size, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE: failed to copy to user\n");
 			return -ENOMEM;
 		}
@@ -460,50 +479,51 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 
 	case ETSOC1_IOCTL_GET_ACTIVE_SHIRE:
 		if (size >= sizeof(u64) &&
-		    copy_to_user((u64 *)arg, &mgmt->minion_shires, size)) {
+		    copy_to_user(usr_arg, &mgmt->minion_shires, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_ACTIVE_SHIRE: failed to copy to user\n");
 			return -ENOMEM;
 		}
 		return 0;
 
 	case ETSOC1_IOCTL_PUSH_SQ:
-		if (copy_from_user(&cmd_info, (void __user *)arg,
-				   _IOC_SIZE(cmd)))
+		if (copy_from_user(&cmd_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
 		if (cmd_info.sq_index >=
-		    et_dev->mgmt.vq_common.dir_vq.sq_count ||
+			    et_dev->mgmt.vq_common.dir_vq.sq_count ||
 		    !cmd_info.cmd || !cmd_info.size)
 			return -EINVAL;
 
 		if (cmd_info.flags & CMD_DESC_FLAG_DMA) {
 			return -EINVAL;
 		} else {
-			return et_squeue_copy_from_user
-				(et_dev, true /* mgmt_dev */,
-				 cmd_info.sq_index,
-				 (char __user *)cmd_info.cmd,
-				 cmd_info.size);
+			return et_squeue_copy_from_user(
+				et_dev,
+				true /* mgmt_dev */,
+				cmd_info.sq_index,
+				(char __user __force *)cmd_info.cmd,
+				cmd_info.size);
 		}
 
 	case ETSOC1_IOCTL_POP_CQ:
-		if (copy_from_user(&rsp_info, (void __user *)arg,
-				   _IOC_SIZE(cmd)))
+		if (copy_from_user(&rsp_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
 		if (rsp_info.cq_index >=
-		    et_dev->mgmt.vq_common.dir_vq.cq_count ||
+			    et_dev->mgmt.vq_common.dir_vq.cq_count ||
 		    !rsp_info.rsp || !rsp_info.size)
 			return -EINVAL;
 
-		return et_cqueue_copy_to_user(et_dev, true /* mgmt_dev */,
-				rsp_info.cq_index, (char __user *)rsp_info.rsp,
-				rsp_info.size);
+		return et_cqueue_copy_to_user(
+			et_dev,
+			true /* mgmt_dev */,
+			rsp_info.cq_index,
+			(char __user __force *)rsp_info.rsp,
+			rsp_info.size);
 
 	case ETSOC1_IOCTL_GET_SQ_AVAIL_BITMAP:
 		if (size >= sizeof(u64) &&
-		    copy_to_user((u64 *)arg, mgmt->vq_common.sq_bitmap,
-				 size)) {
+		    copy_to_user(usr_arg, mgmt->vq_common.sq_bitmap, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_AVAIL_BITMAP: failed to copy to user\n");
 			return -ENOMEM;
 		}
@@ -511,24 +531,22 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 
 	case ETSOC1_IOCTL_GET_CQ_AVAIL_BITMAP:
 		if (size >= sizeof(u64) &&
-		    copy_to_user((u64 *)arg, mgmt->vq_common.cq_bitmap,
-				 size)) {
+		    copy_to_user(usr_arg, mgmt->vq_common.cq_bitmap, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_CQ_AVAIL_BITMAP: failed to copy to user\n");
 			return -ENOMEM;
 		}
 		return 0;
 
 	case ETSOC1_IOCTL_SET_SQ_THRESHOLD:
-		if (copy_from_user(&sq_threshold_info, (void __user *)arg,
-				   _IOC_SIZE(cmd)))
+		if (copy_from_user(&sq_threshold_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
 		if (sq_threshold_info.sq_index >=
-		    et_dev->mgmt.vq_common.dir_vq.sq_count ||
+			    et_dev->mgmt.vq_common.dir_vq.sq_count ||
 		    !sq_threshold_info.bytes_needed ||
 		    sq_threshold_info.bytes_needed >
-		    (mgmt->vq_common.dir_vq.per_sq_size -
-		     sizeof(struct et_circbuffer)))
+			    (mgmt->vq_common.dir_vq.per_sq_size -
+			     sizeof(struct et_circbuffer)))
 			return -EINVAL;
 
 		sq_idx = sq_threshold_info.sq_index;
@@ -539,8 +557,8 @@ static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
 		// Update sq_bitmap w.r.t new threshold
 		clear_bit(sq_idx, mgmt->vq_common.sq_bitmap);
 		if (et_squeue_event_available(mgmt->sq_pptr[sq_idx]))
-			wake_up_interruptible
-				(&mgmt->sq_pptr[sq_idx]->vq_common->waitqueue);
+			wake_up_interruptible(
+				&mgmt->sq_pptr[sq_idx]->vq_common->waitqueue);
 
 		return 0;
 
@@ -573,7 +591,8 @@ static int esperanto_pcie_mgmt_open(struct inode *inode, struct file *fp)
 {
 	struct et_mgmt_dev *mgmt;
 
-	mgmt = container_of(fp->private_data, struct et_mgmt_dev,
+	mgmt = container_of(fp->private_data,
+			    struct et_mgmt_dev,
 			    misc_mgmt_dev);
 
 	spin_lock(&mgmt->mgmt_open_lock);
@@ -602,29 +621,33 @@ static int esperanto_pcie_mgmt_release(struct inode *inode, struct file *fp)
 {
 	struct et_mgmt_dev *mgmt;
 
-	mgmt = container_of(fp->private_data, struct et_mgmt_dev,
+	mgmt = container_of(fp->private_data,
+			    struct et_mgmt_dev,
 			    misc_mgmt_dev);
 	mgmt->is_mgmt_open = false;
 
 	return 0;
 }
 
+// clang-format off
 static const struct file_operations et_pcie_ops_fops = {
-	.owner = THIS_MODULE,
-	.poll = esperanto_pcie_ops_poll,
-	.unlocked_ioctl = esperanto_pcie_ops_ioctl,
-	.mmap = esperanto_pcie_ops_mmap,
-	.open = esperanto_pcie_ops_open,
-	.release = esperanto_pcie_ops_release,
+	.owner		= THIS_MODULE,
+	.poll		= esperanto_pcie_ops_poll,
+	.unlocked_ioctl	= esperanto_pcie_ops_ioctl,
+	.mmap		= esperanto_pcie_ops_mmap,
+	.open		= esperanto_pcie_ops_open,
+	.release	= esperanto_pcie_ops_release,
 };
 
 static const struct file_operations et_pcie_mgmt_fops = {
-	.owner = THIS_MODULE,
-	.poll = esperanto_pcie_mgmt_poll,
-	.unlocked_ioctl = esperanto_pcie_mgmt_ioctl,
-	.open = esperanto_pcie_mgmt_open,
-	.release = esperanto_pcie_mgmt_release,
+	.owner		= THIS_MODULE,
+	.poll		= esperanto_pcie_mgmt_poll,
+	.unlocked_ioctl	= esperanto_pcie_mgmt_ioctl,
+	.open		= esperanto_pcie_mgmt_open,
+	.release	= esperanto_pcie_mgmt_release,
 };
+
+// clang-format on
 
 static int create_et_pci_dev(struct et_pci_dev **new_dev, struct pci_dev *pdev)
 {
@@ -649,6 +672,7 @@ static int create_et_pci_dev(struct et_pci_dev **new_dev, struct pci_dev *pdev)
 
 static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 {
+	struct et_mapped_region *region;
 	int rv;
 
 	et_dev->mgmt.is_mgmt_open = false;
@@ -663,27 +687,19 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	et_dev->mgmt.vq_common.dir_vq.cq_offset =
 		et_dev->mgmt.vq_common.dir_vq.sq_offset +
 		et_dev->mgmt.vq_common.dir_vq.sq_count *
-		et_dev->mgmt.vq_common.dir_vq.per_sq_size;
+			et_dev->mgmt.vq_common.dir_vq.per_sq_size;
 
-	et_dev->mgmt.regions
-		[MGMT_MEM_REGION_TYPE_VQ_BUFFER].is_valid = true;
-	et_dev->mgmt.regions
-		[MGMT_MEM_REGION_TYPE_VQ_BUFFER].access.priv_mode =
-		MEM_REGION_PRIVILEGE_MODE_KERNEL;
-	et_dev->mgmt.regions
-		[MGMT_MEM_REGION_TYPE_VQ_BUFFER].access.node_access =
-		MEM_REGION_NODE_ACCESSIBLE_NONE;
-	et_dev->mgmt.regions
-		[MGMT_MEM_REGION_TYPE_VQ_BUFFER].access.dma_align =
-		MEM_REGION_DMA_ALIGNMENT_NONE;
-	et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER].size =
-		et_dev->mgmt.vq_common.dir_vq.sq_count *
-		et_dev->mgmt.vq_common.dir_vq.per_sq_size +
-		et_dev->mgmt.vq_common.dir_vq.cq_count *
-		et_dev->mgmt.vq_common.dir_vq.per_cq_size;
-	et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER].mapped_baseaddr =
-		kzalloc(et_dev->mgmt.regions
-			[MGMT_MEM_REGION_TYPE_VQ_BUFFER].size, GFP_KERNEL);
+	region = &et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER];
+	region->is_valid = true;
+	region->access.priv_mode = MEM_REGION_PRIVILEGE_MODE_KERNEL;
+	region->access.node_access = MEM_REGION_NODE_ACCESSIBLE_NONE;
+	region->access.dma_align = MEM_REGION_DMA_ALIGNMENT_NONE;
+	region->size = et_dev->mgmt.vq_common.dir_vq.sq_count *
+			       et_dev->mgmt.vq_common.dir_vq.per_sq_size +
+		       et_dev->mgmt.vq_common.dir_vq.cq_count *
+			       et_dev->mgmt.vq_common.dir_vq.per_cq_size;
+	region->mapped_baseaddr =
+		(void __iomem __force *)kzalloc(region->size, GFP_KERNEL);
 
 	// VQs initialization
 	rv = et_vqueue_init_all(et_dev, true /* mgmt_dev */);
@@ -695,11 +711,11 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 
 	// Create Mgmt device node
 	et_dev->mgmt.misc_mgmt_dev.minor = MISC_DYNAMIC_MINOR;
-	et_dev->mgmt.misc_mgmt_dev.fops  = &et_pcie_mgmt_fops;
-	et_dev->mgmt.misc_mgmt_dev.name  = devm_kasprintf(&et_dev->pdev->dev,
-							GFP_KERNEL,
-							"et%d_mgmt",
-							et_dev->dev_index);
+	et_dev->mgmt.misc_mgmt_dev.fops = &et_pcie_mgmt_fops;
+	et_dev->mgmt.misc_mgmt_dev.name = devm_kasprintf(&et_dev->pdev->dev,
+							 GFP_KERNEL,
+							 "et%d_mgmt",
+							 et_dev->dev_index);
 	rv = misc_register(&et_dev->mgmt.misc_mgmt_dev);
 	if (rv) {
 		dev_err(&et_dev->pdev->dev, "Mgmt: misc register failed\n");
@@ -712,10 +728,10 @@ error_vqueue_destroy_all:
 	et_vqueue_destroy_all(et_dev, true /* mgmt_dev */);
 
 error_free_vq_buffer:
-	kfree(et_dev->mgmt.regions
-	      [MGMT_MEM_REGION_TYPE_VQ_BUFFER].mapped_baseaddr);
-	et_dev->mgmt.regions
-		[MGMT_MEM_REGION_TYPE_VQ_BUFFER].is_valid = false;
+	kfree((void __force *)et_dev->mgmt
+		      .regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER]
+		      .mapped_baseaddr);
+	et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER].is_valid = false;
 
 	return rv;
 }
@@ -725,14 +741,15 @@ static void et_mgmt_dev_destroy(struct et_pci_dev *et_dev)
 	misc_deregister(&et_dev->mgmt.misc_mgmt_dev);
 	et_vqueue_destroy_all(et_dev, true /* mgmt_dev */);
 
-	kfree(et_dev->mgmt.regions
-	      [MGMT_MEM_REGION_TYPE_VQ_BUFFER].mapped_baseaddr);
-	et_dev->mgmt.regions
-		[MGMT_MEM_REGION_TYPE_VQ_BUFFER].is_valid = false;
+	kfree((void __force *)et_dev->mgmt
+		      .regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER]
+		      .mapped_baseaddr);
+	et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER].is_valid = false;
 }
 
 static int et_ops_dev_init(struct et_pci_dev *et_dev)
 {
+	struct et_mapped_region *region;
 	int rv;
 
 	et_dev->ops.is_ops_open = false;
@@ -750,47 +767,30 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	et_dev->ops.vq_common.dir_vq.cq_offset =
 		et_dev->ops.vq_common.dir_vq.sq_offset +
 		et_dev->ops.vq_common.dir_vq.sq_count *
-		et_dev->ops.vq_common.dir_vq.per_sq_size;
+			et_dev->ops.vq_common.dir_vq.per_sq_size;
 
-	et_dev->ops.regions
-		[OPS_MEM_REGION_TYPE_VQ_BUFFER].is_valid = true;
-	et_dev->ops.regions
-		[OPS_MEM_REGION_TYPE_VQ_BUFFER].access.priv_mode =
-		MEM_REGION_PRIVILEGE_MODE_KERNEL;
-	et_dev->ops.regions
-		[OPS_MEM_REGION_TYPE_VQ_BUFFER].access.node_access =
-		MEM_REGION_NODE_ACCESSIBLE_NONE;
-	et_dev->ops.regions
-		[OPS_MEM_REGION_TYPE_VQ_BUFFER].access.dma_align =
-		MEM_REGION_DMA_ALIGNMENT_NONE;
-	et_dev->ops.regions
-		[OPS_MEM_REGION_TYPE_VQ_BUFFER].size =
-		et_dev->ops.vq_common.dir_vq.sq_count *
-		et_dev->ops.vq_common.dir_vq.per_sq_size +
-		et_dev->ops.vq_common.dir_vq.cq_count *
-		et_dev->ops.vq_common.dir_vq.per_cq_size;
-	et_dev->ops.regions
-		[OPS_MEM_REGION_TYPE_VQ_BUFFER].mapped_baseaddr =
-		kzalloc(et_dev->ops.regions
-			[OPS_MEM_REGION_TYPE_VQ_BUFFER].size, GFP_KERNEL);
+	// Initialize VQ_BUFFER region
+	region = &et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER];
+	region->is_valid = true;
+	region->access.priv_mode = MEM_REGION_PRIVILEGE_MODE_KERNEL;
+	region->access.node_access = MEM_REGION_NODE_ACCESSIBLE_NONE;
+	region->access.dma_align = MEM_REGION_DMA_ALIGNMENT_NONE;
+	region->size = et_dev->ops.vq_common.dir_vq.sq_count *
+			       et_dev->ops.vq_common.dir_vq.per_sq_size +
+		       et_dev->ops.vq_common.dir_vq.cq_count *
+			       et_dev->ops.vq_common.dir_vq.per_cq_size;
+	region->mapped_baseaddr =
+		(void __iomem __force *)kzalloc(region->size, GFP_KERNEL);
 
-	et_dev->ops.regions
-		[OPS_MEM_REGION_TYPE_HOST_MANAGED].is_valid = true;
-	et_dev->ops.regions
-		[OPS_MEM_REGION_TYPE_HOST_MANAGED].access.priv_mode =
-		MEM_REGION_PRIVILEGE_MODE_USER;
-	et_dev->ops.regions
-		[OPS_MEM_REGION_TYPE_HOST_MANAGED].access.node_access =
-		MEM_REGION_NODE_ACCESSIBLE_OPS;
-	et_dev->ops.regions
-		[OPS_MEM_REGION_TYPE_HOST_MANAGED].access.dma_align =
-		MEM_REGION_DMA_ALIGNMENT_64BIT;
-	et_dev->ops.regions
-		[OPS_MEM_REGION_TYPE_HOST_MANAGED].soc_addr = 0x8100600000ULL;
-	et_dev->ops.regions
-		[OPS_MEM_REGION_TYPE_HOST_MANAGED].size = 0x2fba00000ULL;
-	et_dev->ops.regions
-		[OPS_MEM_REGION_TYPE_HOST_MANAGED].mapped_baseaddr = NULL;
+	// Initialize HOST_MANAGED region
+	region = &et_dev->ops.regions[OPS_MEM_REGION_TYPE_HOST_MANAGED];
+	region->is_valid = true;
+	region->access.priv_mode = MEM_REGION_PRIVILEGE_MODE_USER;
+	region->access.node_access = MEM_REGION_NODE_ACCESSIBLE_OPS;
+	region->access.dma_align = MEM_REGION_DMA_ALIGNMENT_64BIT;
+	region->soc_addr = 0x8100600000ULL;
+	region->size = 0x2fba00000ULL;
+	region->mapped_baseaddr = NULL;
 
 	// VQs initialization
 	rv = et_vqueue_init_all(et_dev, false /* ops_dev */);
@@ -802,10 +802,11 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 
 	// Create Ops device node
 	et_dev->ops.misc_ops_dev.minor = MISC_DYNAMIC_MINOR;
-	et_dev->ops.misc_ops_dev.fops  = &et_pcie_ops_fops;
-	et_dev->ops.misc_ops_dev.name  = devm_kasprintf(&et_dev->pdev->dev,
-							GFP_KERNEL, "et%d_ops",
-							et_dev->dev_index);
+	et_dev->ops.misc_ops_dev.fops = &et_pcie_ops_fops;
+	et_dev->ops.misc_ops_dev.name = devm_kasprintf(&et_dev->pdev->dev,
+						       GFP_KERNEL,
+						       "et%d_ops",
+						       et_dev->dev_index);
 	rv = misc_register(&et_dev->ops.misc_ops_dev);
 	if (rv) {
 		dev_err(&et_dev->pdev->dev, "misc ops register failed\n");
@@ -818,10 +819,9 @@ error_vqueue_destroy_all:
 	et_vqueue_destroy_all(et_dev, false /* ops_dev */);
 
 error_free_vq_buffer:
-	kfree(et_dev->ops.regions
-	      [OPS_MEM_REGION_TYPE_VQ_BUFFER].mapped_baseaddr);
-	et_dev->ops.regions
-		[OPS_MEM_REGION_TYPE_VQ_BUFFER].is_valid = false;
+	kfree((void __force *)et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER]
+		      .mapped_baseaddr);
+	et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER].is_valid = false;
 
 	return rv;
 }
@@ -831,10 +831,9 @@ static void et_ops_dev_destroy(struct et_pci_dev *et_dev)
 	misc_deregister(&et_dev->ops.misc_ops_dev);
 	et_vqueue_destroy_all(et_dev, false /* ops_dev */);
 
-	kfree(et_dev->ops.regions
-	      [OPS_MEM_REGION_TYPE_VQ_BUFFER].mapped_baseaddr);
-	et_dev->ops.regions
-		[OPS_MEM_REGION_TYPE_VQ_BUFFER].is_valid = false;
+	kfree((void __force *)et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER]
+		      .mapped_baseaddr);
+	et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER].is_valid = false;
 
 	mutex_lock(&et_dev->ops.dma_rbtree_mutex);
 	et_dma_delete_all_info(&et_dev->ops.dma_rbtree);
@@ -884,8 +883,7 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 
 	rv = et_mgmt_dev_init(et_dev);
 	if (rv) {
-		dev_err(&pdev->dev,
-			"Mgmt device initialization failed\n");
+		dev_err(&pdev->dev, "Mgmt device initialization failed\n");
 		goto error_clear_master;
 	}
 
@@ -931,11 +929,14 @@ static void esperanto_pcie_remove(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
+// clang-format off
 static struct pci_driver et_pcie_driver = {
-	.name = DRIVER_NAME,
-	.id_table = esperanto_pcie_tbl,
-	.probe = esperanto_pcie_probe,
-	.remove = esperanto_pcie_remove,
+	.name		= DRIVER_NAME,
+	.id_table	= esperanto_pcie_tbl,
+	.probe		= esperanto_pcie_probe,
+	.remove		= esperanto_pcie_remove,
 };
+
+// clang-format on
 
 module_pci_driver(et_pcie_driver);

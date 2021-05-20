@@ -15,8 +15,11 @@
 #include "et_test.h"
 #include "et_vqueue.h"
 
-static ssize_t et_cqueue_copy_to_kbuf(struct et_pci_dev *et_dev, bool is_mgmt,
-				      u16 cq_index, char *kbuf, size_t count)
+static ssize_t et_cqueue_copy_to_kbuf(struct et_pci_dev *et_dev,
+				      bool is_mgmt,
+				      u16 cq_index,
+				      char *kbuf,
+				      size_t count)
 {
 	struct et_cqueue *cq;
 	struct et_msg_node *msg = NULL;
@@ -89,13 +92,13 @@ long test_virtqueue(struct et_pci_dev *et_dev, u16 cmd_count)
 
 	while (cmd_sent < cmd_count || rsp_received < cmd_count) {
 		// If no event occurred for 10secs, exit the test
-		rv = wait_event_interruptible_timeout
-			(et_dev->ops.vq_common.waitqueue,
-			 et_squeue_event_available
-				(et_dev->ops.sq_pptr[sq_idx]) ||
-			 et_cqueue_event_available
-				(et_dev->ops.cq_pptr[cq_idx]),
-			 msecs_to_jiffies(10000));
+		rv = wait_event_interruptible_timeout(
+			et_dev->ops.vq_common.waitqueue,
+			et_squeue_event_available(
+				et_dev->ops.sq_pptr[sq_idx]) ||
+				et_cqueue_event_available(
+					et_dev->ops.cq_pptr[cq_idx]),
+			msecs_to_jiffies(10000));
 		if (rv == -ERESTARTSYS) {
 			goto error_destroy_msg_list;
 		} else if (!rv) {
@@ -110,7 +113,8 @@ long test_virtqueue(struct et_pci_dev *et_dev, u16 cmd_count)
 			echo_cmd.echo_payload = (s32)(cmd_sent * 0xbeef);
 
 			rv = et_squeue_push(et_dev->ops.sq_pptr[sq_idx],
-					    &echo_cmd, sizeof(echo_cmd));
+					    &echo_cmd,
+					    sizeof(echo_cmd));
 			if (rv <= 0)
 				break;
 		}
@@ -123,13 +127,15 @@ long test_virtqueue(struct et_pci_dev *et_dev, u16 cmd_count)
 		for (; rsp_received < cmd_sent; rsp_received++) {
 			rv = et_cqueue_copy_to_kbuf(et_dev,
 						    false /* ops_dev */,
-						    cq_idx, (char *)&echo_rsp,
+						    cq_idx,
+						    (char *)&echo_rsp,
 						    sizeof(echo_rsp));
 			if (rv <= 0)
 				break;
 
-			if (echo_rsp.echo_payload != (s32)
-			    (echo_rsp.response_info.rsp_hdr.tag_id * 0xbeef)) {
+			if (echo_rsp.echo_payload !=
+			    (s32)(echo_rsp.response_info.rsp_hdr.tag_id *
+				  0xbeef)) {
 				rv = -EINVAL;
 				break;
 			}
