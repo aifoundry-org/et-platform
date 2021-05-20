@@ -1,4 +1,5 @@
 add_subdirectory(shared)
+add_subdirectory(test_framework)
 add_subdirectory(BootromTrampolineToBL2)
 add_subdirectory(ServiceProcessorBL1)
 add_subdirectory(ServiceProcessorBL2)

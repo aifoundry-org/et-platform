@@ -24,15 +24,15 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
     if (BL2_BUILD_VARIANT STREQUAL "fast-boot")
         # Fast Boot version
         set(FAST_BOOT 1)
-        set(BRINGUP_TEST 0)
+        set(TEST_FRAMEWORK 0)
     elseif (BL2_BUILD_VARIANT STREQUAL "testframework")
         # Test Frame work version
         set(FAST_BOOT 0)
-        set(BRINGUP_TEST 1)
+        set(TEST_FRAMEWORK 1)
     else()
         # Default to Production version
         set(FAST_BOOT 0)
-        set(BRINGUP_TEST 0)
+        set(TEST_FRAMEWORK 0)
     endif()
     
     add_riscv_executable(${TARGET_NAME}
@@ -86,15 +86,6 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
         ${CMAKE_CURRENT_SOURCE_DIR}/services/dm_events.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/perf_mgmt.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/thermal_pwr_mgmt.c 
-        ${CMAKE_CURRENT_SOURCE_DIR}/tests/tf/tf.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_commands.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/tests/tf_generic_tests.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/tests/tf_mem_tests.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/tests/tf_minion_tests.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/tests/tf_noc_tests.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/tests/tf_pcie_tests.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/tests/tf_pu_tests.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/tests/tf_spio_tests.c
         # This file get compiled different based on the configuration of each target
         ${CMAKE_CURRENT_SOURCE_DIR}/common/build_configuration.c
     )
@@ -109,7 +100,7 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
     target_compile_definitions(${TARGET_NAME}.elf
         PUBLIC
             -DBL2_VARIANT="${BL2_BUILD_VARIANT}"
-            -DFAST_BOOT=${FAST_BOOT} -DBRINGUP_TEST=${BRINGUP_TEST}
+            -DFAST_BOOT=${FAST_BOOT} -DTEST_FRAMEWORK=${TEST_FRAMEWORK}
     )
     target_link_libraries(${TARGET_NAME}.elf
         PRIVATE
@@ -119,6 +110,7 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
             EsperantoDeviceMinionRuntime::sp_firmware_helpers
             deviceFirmware::device_serial
             FreeRTOS::FreeRTOS
+            $<${TEST_FRAMEWORK}:test_framework>
     )
 
     target_report_riscv_size(${TARGET_NAME}.elf)

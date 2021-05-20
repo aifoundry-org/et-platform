@@ -1,4 +1,4 @@
-#include "tests/tf/tf.h"
+#include "tf.h"
 
 int8_t SP_Fw_Version_Cmd_Handler(void* test_cmd);
 int8_t MM_Fw_Version_Cmd_Handler(void* test_cmd);

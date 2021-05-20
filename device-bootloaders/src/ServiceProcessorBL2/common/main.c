@@ -45,8 +45,8 @@
 
 #include "command_dispatcher.h"
 
-#if BRINGUP_TEST
-#include "tests/tf/tf.h"
+#if TEST_FRAMEWORK
+#include "tf.h"
 #endif
 
 #define TASK_STACK_SIZE 4096 // overkill for now
@@ -426,7 +426,7 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data);
 void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 {
     bool vaultip_disabled;
-#if !BRINGUP_TEST 
+#if !TEST_FRAMEWORK 
     const IMAGE_VERSION_INFO_t *image_version_info = get_image_version_info();
 #endif
 
@@ -456,7 +456,7 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 #endif
 
     // In Production mode, the bootrom initializes SPIO UART0
-#if FAST_BOOT || BRINGUP_TEST
+#if FAST_BOOT || TEST_FRAMEWORK
     SERIAL_init(UART0);
 #endif
 
@@ -464,7 +464,7 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     SERIAL_init(PU_UART0);
     SERIAL_init(PU_UART1);
 
-#if BRINGUP_TEST
+#if TEST_FRAMEWORK
     printf("\n** SP BL2 STARTED **\r\n");
     printf("BL2 version:" GIT_VERSION_STRING " (" BL2_VARIANT ")\n");
     /* control does not return from call below for now .. */

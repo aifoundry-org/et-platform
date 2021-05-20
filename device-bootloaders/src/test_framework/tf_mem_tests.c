@@ -1,4 +1,4 @@
-#include "tests/tf/tf.h"
+#include "tf.h"
 
 int8_t Mem_MemShire_Init_Cmd_Handler(void* test_cmd);
 int8_t Mem_MemShire_PLL_Program_Cmd_Handler(void* test_cmd);

@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "tests/tf/tf.h"
+#include "tf.h"
 
 /* Extern prototypes for TF command handlers */
 extern int8_t SP_Fw_Version_Cmd_Handler(void* test_cmd);

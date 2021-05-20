@@ -1,4 +1,4 @@
-#include "tests/tf/tf.h"
+#include "tf.h"
 
 int8_t PU_UART_Init_Cmd_Handler(void* test_cmd);
 int8_t PU_SRAM_Read_Word_Cmd_Handler(void* test_cmd);

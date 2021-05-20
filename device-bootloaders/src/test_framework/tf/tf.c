@@ -1,6 +1,6 @@
 #include <stdio.h>
-#include "tests/tf/tf.h"
-#include "tests/tf/tf_protocol.h"
+#include "tf.h"
+#include "tf_protocol.h"
 #include "serial.h"
 #include "etsoc_hal/inc/hal_device.h"
 
