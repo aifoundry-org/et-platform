@@ -11,7 +11,7 @@
 cmake_minimum_required(VERSION 3.17)
 project(deviceManagement VERSION 0.1.0)
 
-find_package(esperanto-device-api REQUIRED)
+find_package(deviceApi REQUIRED)
 
 set(DOCUMENTATION_INSTALL_DIR  "${CMAKE_INSTALL_PREFIX}" CACHE STRING "Documentation installation path")
 
@@ -46,8 +46,7 @@ set_target_properties(deviceManagement PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE
 )
 
-target_link_libraries(deviceManagement PRIVATE glog)
-target_include_directories(deviceManagement PRIVATE ${ESPERANTO_DEVICE_API_INCLUDE_DIR})
+target_link_libraries(deviceManagement PUBLIC deviceApi::deviceApi PRIVATE glog)
 
 # Add package information
 include(CMakePackageConfigHelpers)

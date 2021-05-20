@@ -14,7 +14,6 @@ include(GoogleTest)
 
 enable_testing()
 
-find_package(esperanto-device-api REQUIRED)
 find_package(DeviceLayer REQUIRED)
 find_package(fmt REQUIRED)
 find_package(sw-sysemu REQUIRED)
@@ -40,7 +39,6 @@ function(create_test)
   add_executable(${TEST_TARGET} ${TEST_SOURCES})
   target_compile_features(${TEST_TARGET} PRIVATE cxx_std_17)
   target_link_libraries(${TEST_TARGET} deviceManagement::deviceManagement deviceLayer::deviceLayer GTest::GTest GTest::Main gflags ${CMAKE_DL_LIBS})
-  target_include_directories(${TEST_TARGET} PRIVATE ${ESPERANTO_DEVICE_API_INCLUDE_DIR})
 
   gtest_discover_tests(${TEST_TARGET}
     EXTRA_ARGS ${TEST_ARGS}
