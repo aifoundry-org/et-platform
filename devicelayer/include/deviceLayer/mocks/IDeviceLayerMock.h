@@ -14,7 +14,7 @@
 namespace dev {
 class IDeviceLayerMock : public  IDeviceLayer {
 public:
-  MOCK_METHOD4(sendCommandMasterMinion, bool(int device, int sqIdx, std::byte* command, size_t commandSize));
+  MOCK_METHOD5(sendCommandMasterMinion, bool(int device, int sqIdx, std::byte* command, size_t commandSize, bool isDma));
   MOCK_METHOD3(setSqThresholdMasterMinion, void(int device, int sqIdx, uint32_t bytesNeeded));
   MOCK_METHOD3(waitForEpollEventsMasterMinion, void(int device, uint64_t& sq_bitmap, bool& cq_available));
   MOCK_METHOD4(waitForEpollEventsMasterMinion,

@@ -26,7 +26,7 @@ class IDeviceLayerFake : public IDeviceLayer {
   std::mutex spMutex_;
 
 public:
-  bool sendCommandMasterMinion(int device, int sqIdx, std::byte* command, size_t commandSize) override {
+  bool sendCommandMasterMinion(int, int, std::byte* command, size_t, bool) override {
     std::lock_guard<std::mutex> lock(mmMutex_);
     auto cmd = reinterpret_cast<cmn_header_t*>(command);
     rsp_header_t rsp;
@@ -46,10 +46,11 @@ public:
     return true;
   }
 
-  void setSqThresholdMasterMinion(int device, int sqIdx, uint32_t bytesNeeded) override {
+  void setSqThresholdMasterMinion(int, int, uint32_t) override {
+    
   }
 
-  void waitForEpollEventsMasterMinion(int device, uint64_t& sq_bitmap, bool& cq_available,
+  void waitForEpollEventsMasterMinion(int, uint64_t& sq_bitmap, bool& cq_available,
                                       std::chrono::seconds timeout) override {
     std::unique_lock<std::mutex> lock(mmMutex_, std::defer_lock);
     while (!lock.try_lock()) {
@@ -60,7 +61,7 @@ public:
     sq_bitmap = 0xFFFFFFFFFFFFFFFF;
   }
 
-  bool receiveResponseMasterMinion(int device, std::vector<std::byte>& response) override {
+  bool receiveResponseMasterMinion(int, std::vector<std::byte>& response) override {
     std::unique_lock<std::mutex> lock(mmMutex_, std::defer_lock);
     while (!lock.try_lock()) {
       // spin-lock
@@ -75,7 +76,7 @@ public:
     return false;
   }
 
-  bool sendCommandServiceProcessor(int device, std::byte* command, size_t commandSize) override {
+  bool sendCommandServiceProcessor(int, std::byte* command, size_t) override {
     std::unique_lock<std::mutex> lock(spMutex_, std::defer_lock);
     while (!lock.try_lock()) {
       // spin-lock
@@ -87,16 +88,16 @@ public:
     return true;
   }
 
-  void setSqThresholdServiceProcessor(int device, uint32_t bytesNeeded) override{};
+  void setSqThresholdServiceProcessor(int, uint32_t) override{};
 
-  void waitForEpollEventsServiceProcessor(int device, bool& sq_available, bool& cq_available,
+  void waitForEpollEventsServiceProcessor(int, bool& sq_available, bool& cq_available,
                                           std::chrono::seconds timeout) override {
     std::unique_lock lock(spMutex_);
     cvMm_.wait_for(lock, timeout, [this] { return !responsesServiceProcessor_.empty(); });
     sq_available = cq_available = true;
   }
 
-  bool receiveResponseServiceProcessor(int device, std::vector<std::byte>& response) override {
+  bool receiveResponseServiceProcessor(int, std::vector<std::byte>& response) override {
     std::unique_lock<std::mutex> lock(spMutex_, std::defer_lock);
     while (!lock.try_lock()) {
       // spin-lock
@@ -114,15 +115,15 @@ public:
     return 1;
   };
 
-  int getSubmissionQueuesCount(int device) const override {
+  int getSubmissionQueuesCount(int) const override {
     return 1;
   };
 
-  size_t getSubmissionQueueSizeMasterMinion(int device) const override {
+  size_t getSubmissionQueueSizeMasterMinion(int) const override {
     return 1024 * 1024 * 1024;
   };
 
-  size_t getSubmissionQueueSizeServiceProcessor(int device) const override {
+  size_t getSubmissionQueueSizeServiceProcessor(int) const override {
     return 1024 * 1024 * 1024;
   };
 
