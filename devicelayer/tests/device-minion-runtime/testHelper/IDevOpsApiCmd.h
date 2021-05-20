@@ -42,6 +42,9 @@ public:
   virtual size_t getCmdSize() = 0;
   virtual device_ops_api::tag_id_t getCmdTagId() = 0;
   virtual CmdType whoAmI() = 0;
+  virtual bool isDma() const {
+    return false;
+  }
   virtual ~IDevOpsApiCmd() = default;
 
   static std::unique_ptr<IDevOpsApiCmd> createEchoCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
@@ -131,6 +134,9 @@ public:
   explicit DataWriteCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, uint64_t devPhysAddr, uint64_t hostVirtAddr,
                         uint64_t hostPhysAddr, uint64_t dataSize);
   ~DataWriteCmd();
+  bool isDma() const override {
+    return true;
+  }
 
 private:
   device_ops_api::device_ops_data_write_cmd_t cmd_;
@@ -145,6 +151,9 @@ public:
   explicit DataReadCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, uint64_t devPhysAddr, uint64_t hostVirtAddr,
                        uint64_t hostPhysAddr, uint64_t dataSize);
   ~DataReadCmd();
+  bool isDma() const override {
+    return true;
+  }
 
 private:
   device_ops_api::device_ops_data_read_cmd_t cmd_;

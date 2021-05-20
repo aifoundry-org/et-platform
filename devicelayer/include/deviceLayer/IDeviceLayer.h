@@ -49,10 +49,11 @@ public:
   /// @param[in] sqIdx indicates which submission queue to send the command to.
   /// @param[in] command its a buffer which contains the command itself.
   /// @param[in] commandSize the size of the command + payload buffer.
+  /// @param[in] isDma indicates if the command involves a DMA operation. Needed for PCIe deviceLayer implementations
   ///
   /// @returns false if there was not enough space to send the command, true otherwise
   ///
-  virtual bool sendCommandMasterMinion(int device, int sqIdx, std::byte* command, size_t commandSize) = 0;
+  virtual bool sendCommandMasterMinion(int device, int sqIdx, std::byte* command, size_t commandSize, bool isDma) = 0;
 
   /// \brief Set the submission queue availability threshold. Submission queue epoll event will be generated only if
   /// space on submission queue is greater or equal to this threshold set. Default threshold value is one forth of size

@@ -72,14 +72,14 @@ int DevicePcie::getDevicesCount() const {
   return kNumDevices;
 }
 
-int DevicePcie::getSubmissionQueuesCount(int device) const {
+int DevicePcie::getSubmissionQueuesCount(int) const {
   if (!opsEnabled_) {
     throw Exception("Can't use Master Minion operations if master minion port is not enabled");
   }
   return mmSqCount_;
 }
 
-size_t DevicePcie::getSubmissionQueueSizeMasterMinion(int device) const {
+size_t DevicePcie::getSubmissionQueueSizeMasterMinion(int) const {
   if (!opsEnabled_) {
     throw Exception("Can't use Master Minion operations if master minion port is not enabled");
   }
@@ -87,7 +87,7 @@ size_t DevicePcie::getSubmissionQueueSizeMasterMinion(int device) const {
   return mmSqMaxMsgSize_;
 }
 
-size_t DevicePcie::getSubmissionQueueSizeServiceProcessor(int device) const {
+size_t DevicePcie::getSubmissionQueueSizeServiceProcessor(int) const {
   if (!mngmtEnabled_) {
     throw Exception("Can't use Service Processor operations if service processor port is not enabled");
   }
@@ -185,7 +185,7 @@ DevicePcie::~DevicePcie() {
   }
 }
 
-bool DevicePcie::sendCommandMasterMinion(int device, int sqIdx, std::byte* command, size_t commandSize) {
+bool DevicePcie::sendCommandMasterMinion(int device, int sqIdx, std::byte* command, size_t commandSize, bool isDma) {
   if (!opsEnabled_) {
     throw Exception("Can't use Master Minion operations if master minion port is not enabled");
   }
@@ -197,11 +197,8 @@ bool DevicePcie::sendCommandMasterMinion(int device, int sqIdx, std::byte* comma
   cmdInfo.size = commandSize;
   cmdInfo.sq_index = sqIdx;
   cmdInfo.flags = 0;
-  auto header = reinterpret_cast<device_ops_api::cmn_header_t*>(command);
-  if (header->msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD ||
-      header->msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD) {
+  if (isDma)
     cmdInfo.flags |= CMD_DESC_FLAG_DMA;
-  }
   return wrap_ioctl(fdOps_, ETSOC1_IOCTL_PUSH_SQ, &cmdInfo);
 }
 
