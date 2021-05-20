@@ -22,7 +22,6 @@ include(GNUInstallDirs)
 option(ENABLE_WARNINGS_AS_ERRORS "Wether deviceLayer targets should treat warnings as errors" OFF)
 include(CompilerWarnings)
 
-#TODO remove deviceApi once device-firmware tests are moved to another project
 #TODO replace linuxDriver dependency by a dependency against only the et_ioctl.h header
 find_package(linuxDriver REQUIRED)
 find_package(sw-sysemu REQUIRED)
