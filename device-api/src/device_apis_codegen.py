@@ -351,6 +351,9 @@ class DevAPICodeGeneratorHelper(object):
         if index != -1:
             val = ''
             j = index + 1
+            # Dynamic/flexible array, hence the size value won't be available
+            if (string_name[j] == ']'):
+                return -1
             while (j < str_len) and (string_name[j] != ']'):
                 val += string_name[j]
                 j += 1

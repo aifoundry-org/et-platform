@@ -27,6 +27,8 @@
 /// API Patch
 #define DEVICE_<<cgh.c_api_name | upper>>_API_PATCH <<cgh.spec_data['Version_Patch']>>
 
+/// Maximum size of the argument payload supported by kernel launch command
+#define DEVICE_OPS_KERNEL_LAUNCH_ARGS_PAYLOAD_MAX 64
 
 // Device << cgh.api_name >> API Enumerations
 <% for enum in cgh.enums() -%>

@@ -59,6 +59,8 @@ Enums:
         Value: 5
       - Name: TIMEOUT_HANG
         Value: 6
+      - Name: INVALID_ARGS_PAYLOAD_SIZE
+        Value: 7
   - Name: dev_ops_api_kernel_abort_response
     Type: uint32_t
     Values:
@@ -78,15 +80,15 @@ Enums:
       - Name: ERROR
         Value: 1
       - Name: TIMEOUT_IDLE_CHANNEL_UNAVAILABLE
-        Value: 3
+        Value: 2
       - Name: ABORTED
-        Value: 4
+        Value: 3
       - Name: TIMEOUT_HANG
-        Value: 5
+        Value: 4
       - Name: INVALID_ADDRESS
-        Value: 6
+        Value: 5
       - Name: INVALID_SIZE
-        Value: 7
+        Value: 6
   - Name: dev_ops_api_error_type
     Type: uint32_t
     Values:
@@ -268,13 +270,25 @@ Messages :
     Type: Command
     Fields:
       - Name: code_start_address
-        Description: Code start address
+        Description: Starting address of the location of the Compute Kernel code
         Type : uint64_t
       - Name: pointer_to_args
         Description: Pointer to kernel arguments
         Type : uint64_t
+      - Name: exception_buffer
+        Description: Pointer to the exception buffer
+        Type : uint64_t
       - Name: shire_mask
-        Description: Mask of Shires involved in the kernel launch
+        Description: BitMask indicating Compute Shires that is used to execute a given Kernel
+        Type : uint64_t
+      - Name: kernel_trace_buffer
+        Description: Pointer to Host Runtime allocation Trace buffer (optional)
+        Type : uint64_t
+      - Name: argument_payload[]
+        Description: |-
+                These are user provided values and can go up to 64 bytes
+                            /// Device will copy this to the pointer_to_args address
+                            /// User will update the Size in the header to reflect the actual size of this payload
         Type : uint64_t
   - Name: device_ops_kernel_launch_rsp
     Description: Response and result of a kernel launch on the device

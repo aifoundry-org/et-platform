@@ -38,6 +38,7 @@ struct cmn_header_t {
                                      ///       - 01 MEM_OPS_MMFW_TRACE
                                      ///       - 10 MEM_OPS_CMFW_TRACE
                                      ///       - 11 MEM_OPS_{MM+CM}_TRACE
+                                     ///   Bit [4] - Flush L3 prior to launching Kernel on Compute Minions
 } __attribute__((packed, aligned(8)));
 
 /// @brief Command header for all commands host to device
