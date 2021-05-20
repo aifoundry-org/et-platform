@@ -24,7 +24,6 @@ include(CompilerWarnings)
 
 #TODO remove deviceApi once device-firmware tests are moved to another project
 #TODO replace linuxDriver dependency by a dependency against only the et_ioctl.h header
-find_package(deviceApi REQUIRED)
 find_package(linuxDriver REQUIRED)
 find_package(sw-sysemu REQUIRED)
 find_package(logging REQUIRED)
@@ -56,7 +55,6 @@ set_target_properties(deviceLayer PROPERTIES
 target_link_libraries(deviceLayer
     PUBLIC
         sw-sysemu::sw-sysemu
-        deviceApi::deviceApi
     PRIVATE
         logging::logging
 )

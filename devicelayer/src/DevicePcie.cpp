@@ -15,7 +15,6 @@
 #include <cstring>
 #include <cassert>
 #include <stdio.h>
-#include <esperanto/device-apis/operations-api/device_ops_api_cxx.h>
 #include <unistd.h>
 
 using namespace dev;
