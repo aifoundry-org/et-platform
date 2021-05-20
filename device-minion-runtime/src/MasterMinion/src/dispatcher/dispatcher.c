@@ -44,6 +44,7 @@
 #include "services/host_iface.h"
 #include "services/host_cmd_hdlr.h"
 #include "services/sp_iface.h"
+#include "sp_mm_comms_spec.h"
 #include "services/log.h"
 #include "services/sw_timer.h"
 #include "services/trace.h"
@@ -157,13 +158,43 @@ void Dispatcher_Launch(uint32_t hart_id)
 
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_HOST_VQ_READY);
 
-    /* Initialize Service Processor Submission Queue and Completion
-    Queue Interface */
-    status = SP_Iface_SQs_Init();
-    dispatcher_assert(status == STATUS_SUCCESS, "SP SQs init failure.");
+    /* Initialize Service Processor interface, it consists;
+    1. MM to SP SQ, and MM to SQ CQ
+    2. SP to MM SQ, and Sp to MM CQ */
+    status = SP_Iface_Init();
+    dispatcher_assert(status == STATUS_SUCCESS, "Service Processor init failure.");
 
-    status = SP_Iface_CQs_Init();
-    dispatcher_assert(status == STATUS_SUCCESS, "SP CQs init failure.");
+    /* #define FOR_TESTING_SP_MM_IFACE */
+    #ifdef FOR_TESTING_SP_MM_IFACE //TODO: remove after proper integration
+
+    Log_Set_Level(LOG_LEVEL_DEBUG);
+
+    struct mm2sp_echo_cmd_t cmd;
+    cmd.msg_hdr.msg_id = MM2SP_CMD_ECHO;
+    cmd.msg_hdr.msg_size = sizeof(struct mm2sp_echo_cmd_t);
+    cmd.payload = 0xA5A5A5A5;
+
+    Log_Write(LOG_LEVEL_DEBUG, "Dispatcher: MM sends echo command 1 to SP ****\r\n");
+
+    SP_Iface_Push_Cmd_To_MM2SP_SQ(&cmd, sizeof(cmd));
+
+    #endif
+
+    /* #define FOR_TESTING_SP_MM_IFACE */
+    #ifdef FOR_TESTING_SP_MM_IFACE //TODO: remove after proper integration
+
+    Log_Set_Level(LOG_LEVEL_DEBUG);
+
+    struct mm2sp_echo_cmd_t cmd;
+    cmd.msg_hdr.msg_id = MM2SP_CMD_ECHO;
+    cmd.msg_hdr.msg_size = sizeof(struct mm2sp_echo_cmd_t);
+    cmd.payload = 0xA5A5A5A5;
+
+    Log_Write(LOG_LEVEL_DEBUG, "Dispatcher: MM sends echo command 1 to SP ****\r\n");
+
+    SP_Iface_Push_Cmd_To_MM2SP_SQ(&cmd, sizeof(cmd));
+
+    #endif
 
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_SP_INTERFACE_READY);
 

@@ -20,7 +20,7 @@
 #include "services/sp_iface.h"
 #include "services/sp_cmd_hdlr.h"
 #include "services/log.h"
-#include "mm_sp_cmd_spec.h"
+#include "sp_mm_comms_spec.h"
 
 /************************************************************************
 *
@@ -43,6 +43,10 @@
 ***********************************************************************/
 int8_t SP_Command_Handler(void* command_buffer)
 {
+    (void)command_buffer;
+
+    #if 0
+
     int8_t status = STATUS_SUCCESS;
     struct mm_sp_cmd_hdr_t *hdr = command_buffer;
 
@@ -124,4 +128,8 @@ int8_t SP_Command_Handler(void* command_buffer)
     }
 
     return status;
+
+    #endif
+
+    return 0;
 }

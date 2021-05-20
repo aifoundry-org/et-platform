@@ -29,6 +29,7 @@ set(FIRMWARE_HELPERS_SOURCES
     src/etsoc_memory.c
     src/circbuff.c
     src/vq.c
+    src/sp_mm_iface.c
 )
 
 # create a static library with MasterMinion compile time definition
@@ -38,7 +39,7 @@ target_include_directories(mm_firmware_helpers
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/firmware_helpers>
-    PRIVATE 
+    PRIVATE
         ${SHARED_INC_DIRS}
 )
 target_link_libraries(mm_firmware_helpers
@@ -61,11 +62,11 @@ target_include_directories(sp_firmware_helpers
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/firmware_helpers>
-    PRIVATE 
+    PRIVATE
         ${SHARED_INC_DIRS}
 )
 
-target_link_libraries(sp_firmware_helpers 
+target_link_libraries(sp_firmware_helpers
     PUBLIC
         deviceFirmware::device_common
         etsoc_hal::etsoc_hal
@@ -81,12 +82,14 @@ install(FILES
     include/layout.h
     include/minion_esr_defines.h
     include/minion_fw_boot_config.h
-    include/mm_sp_cmd_spec.h
     include/pcie_device.h
     include/pcie_int.h
     include/common_defs.h
     include/circbuff.h
     include/etsoc_memory.h
     include/vq.h
+    include/sp_mm_shared_config.h
+    include/sp_mm_iface.h
+    include/sp_mm_comms_spec.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/firmware_helpers COMPONENT firmware_helpers
 )

@@ -19,72 +19,58 @@
 #define SP_IFACE_DEFS_H
 
 #include "common_defs.h"
-#include "config/mm_config.h"
-#include "vq.h"
+#include "sp_mm_iface.h" /* header from shared/helper lib */
 
-/*! \fn int8_t SP_Iface_SQs_Init(void)
-    \brief Initialize SP Interface SQs
-    \return Statuc indicating success or negative error
-*/
-int8_t SP_Iface_SQs_Init(void);
-
-/*! \fn int8_t SP_Iface_CQs_Init(void)
-    \brief Initialize SP Interface CQs
-    \return Status indiicating success or negative error
-*/
-int8_t SP_Iface_CQs_Init(void);
-
-/*! \fn uint16_t SP_Iface_Peek_SQ_Cmd_Size(uint8_t sq_id)
-    \brief SP interface to peek SQ command size
-    \return Command size
-*/
-uint16_t SP_Iface_Peek_SQ_Cmd_Size(void);
-
-/*! \fn uint16_t SP_Iface_Peek_SQ_Cmd(uint8_t sq_id, void* cmd)
-    \brief SP interface to peek fetch SQ command, the command
-    is copied to the caller provided cmd bufffer
-    \param cmd Pointer to command buffer
-    \return Command size
-*/
-uint16_t SP_Iface_Peek_SQ_Cmd(void* cmd);
-
-/*! \fn uint32_t SP_Iface_SQ_Pop_Cmd(uint8_t sq_id, void* rx_buff)
-    \brief Interface to pop a command from the SP SQ
-    \param rx_buff Pointer to command rx buffer provided by caller
-    \return Command size
-*/
-uint32_t SP_Iface_SQ_Pop_Cmd(void* rx_buff);
-
-/*! \fn uint32_t SP_Iface_CQ_Push_Cmd(uint8_t cq_id, void* rx_buff)
-    \brief Interface to push command to the SP CQ
-    \param p_cmd Pointer to command rx buffer
-    \param cmd_size Command size
+/*! \fn int8_t SP_Iface_Init(void)
+    \brief Initialize Mm interface to Service Processor (SP)
     \return Status indicating success or negative error
 */
-int8_t SP_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size);
+#define SP_Iface_Init()   SP_MM_Iface_Init()
 
-/*! \fn bool SP_Iface_Interrupt_Status(void)
-    \brief Interface to query for Service Processor interface interrupt status
-    \return Boolean status indicating interrupt status
+/*! \fn int8_t SP_Iface_Push_Cmd_To_MM2SP_SQ(void* p_cmd, uint32_t cmd_size)
+    \brief Push command to Master Minion (MM) to Service Processor (SP)
+    Submission Queue(SQ)
+    \param p_cmd Pointer to command buffer
+    \param cmd_size Size of command
+    \return Status indicating success or negative error
 */
-bool SP_Iface_Interrupt_Status(void); 
+#define SP_Iface_Push_Cmd_To_MM2SP_SQ(p_cmd, cmd_size)   \
+    SP_MM_Iface_Push(MM_SQ, p_cmd, cmd_size)
+
+/*! \fn int8_t SP_Iface_Pop_Cmd_From_MM2SP_CQ(void* rx_buff)
+    \brief Pop response from to Master Minion (MM) to Service Processor (SP)
+    Completion Queue(CQ)
+    \param rx_buff Buffer to receive response popped
+    \return Status indicating success or negative error
+*/
+#define SP_Iface_Pop_Cmd_From_MM2SP_CQ(rx_buff)   \
+    SP_MM_Iface_Pop(MM_CQ, rx_buff)
+
+/*! \fn int8_t SP_Iface_Pop_Cmd_From_SP2MM_SQ(void* rx_buff)
+    \brief Pop response from to Service Processor (SP) to Master Minion (MM)
+    Submission Queue(SQ)
+    \param rx_buff Buffer to receive response popped
+    \return Status indicating success or negative error
+*/
+#define SP_Iface_Pop_Cmd_From_SP2MM_SQ(rx_buff)   \
+    SP_MM_Iface_Pop(SP_SQ, rx_buff)
+
+/*! \fn int8_t SP_Iface_Push_Cmd_To_SP2MM_CQ(void* p_cmd, uint32_t cmd_size)
+    \brief Push command to Service Processor (SP) to Master Minion (MM)
+    Completion Queue(CQ)
+    \param p_cmd Pointer to command buffer
+    \param cmd_size Size of command
+    \return Status indicating success or negative error
+*/
+#define SP_Iface_Push_Cmd_To_SP2MM_CQ(p_cmd, cmd_size)   \
+    SP_MM_Iface_Push(SP_CQ, p_cmd, cmd_size)
 
 /*! \fn void SP_Iface_Processing(void)
-    \brief Interface to process availabel commands in the SP SQ
-    \return none
+    \brief An API to process messages from SP on receving;
+    1. MM2SP_CQ post notification
+    2. SP2MM SQ post notification
+    \return Status indicating success or negative error
 */
-void SP_Iface_Processing(void);
+int8_t SP_Iface_Processing(void);
 
-/*! \fn int8_t SP_Iface_SQs_Deinit(void)
-    \brief SP interface SQs deinitialization
-    \returns Status indicating success or negative error
-*/
-int8_t SP_Iface_SQs_Deinit(void);
-
-/*! \fn int8_t SP_Iface_CQs_Deinit(void)
-    \brief SP interface CQs deinitialization
-    \returns Status indicating success or negative error
-*/
-int8_t SP_Iface_CQs_Deinit(void);
-
-#endif /* SP_IFACE_DEFS_H */
+#endif

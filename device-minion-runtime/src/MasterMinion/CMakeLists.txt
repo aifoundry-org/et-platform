@@ -16,7 +16,7 @@
 set(LINKER_SCRIPT src/sections.ld)
 set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
 
-add_riscv_executable(MasterMinion 
+add_riscv_executable(MasterMinion
     src/crt.S
     src/trap_handler.S
     src/exception.c
@@ -48,6 +48,7 @@ add_riscv_executable(MasterMinion
     ${SHARED_SRC_DIR}/broadcast.c
     ${SHARED_SRC_DIR}/circbuff.c
     ${SHARED_SRC_DIR}/vq.c
+    ${SHARED_SRC_DIR}/sp_mm_iface.c
 )
 
 target_compile_definitions(MasterMinion.elf PUBLIC -DMASTER_MINION=1)
@@ -55,7 +56,7 @@ target_include_directories(MasterMinion.elf
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-    PRIVATE 
+    PRIVATE
         $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/shared/include>
 )
 

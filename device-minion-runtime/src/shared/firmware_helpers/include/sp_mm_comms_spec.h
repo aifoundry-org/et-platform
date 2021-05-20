@@ -41,74 +41,75 @@ enum mm_sp_msg_e {
 the device api cmd and rsp headers being used now have some redundant
 fields */
 
-struct mm_sp_cmd_hdr_t {
-  uint8_t msg_id;
-  uint8_t pad[3];
+struct dev_cmd_hdr_t {
+  uint16_t msg_size;
+  uint16_t msg_id;
+  uint8_t pad[4];
 };
 
 struct mm2sp_echo_cmd_t {
-  struct mm_sp_cmd_hdr_t  msg_hdr;
-  uint64_t  payload;
+  struct dev_cmd_hdr_t  msg_hdr;
+  uint32_t  payload;
 };
 
 struct mm2sp_echo_rsp_t {
-  struct mm_sp_cmd_hdr_t  msg_hdr;
-  uint64_t  payload;
+  struct dev_cmd_hdr_t  msg_hdr;
+  uint32_t  payload;
 };
 
 struct mm2sp_get_active_shire_mask_cmd_t {
-  struct mm_sp_cmd_hdr_t  msg_hdr;
+  struct dev_cmd_hdr_t  msg_hdr;
 };
 
 struct mm2sp_get_active_shire_mask_rsp_t {
-  struct mm_sp_cmd_hdr_t  msg_hdr;
-  uint32_t  active_shire_mask;
+  struct dev_cmd_hdr_t  msg_hdr;
+  uint64_t  active_shire_mask;
 };
 
 struct mm2sp_get_cm_boot_freq_cmd_t {
-  struct mm_sp_cmd_hdr_t  msg_hdr;
+  struct dev_cmd_hdr_t  msg_hdr;
 };
 
 struct mm2sp_get_cm_boot_freq_rsp_t {
-  struct mm_sp_cmd_hdr_t  msg_hdr;
+  struct dev_cmd_hdr_t  msg_hdr;
   uint32_t  cm_boot_freq;
 };
 
 struct sp2mm_echo_cmd_t {
-  struct mm_sp_cmd_hdr_t  msg_hdr;
-  uint64_t  payload;
+  struct dev_cmd_hdr_t  msg_hdr;
+  uint32_t  payload;
 };
 
 struct sp2mm_echo_rsp_t {
-  struct mm_sp_cmd_hdr_t  msg_hdr;
-  uint64_t  payload;
+  struct dev_cmd_hdr_t  msg_hdr;
+  uint32_t  payload;
 };
 
 struct sp2mm_update_freq_cmd_t {
-  struct mm_sp_cmd_hdr_t  msg_hdr;
+  struct dev_cmd_hdr_t  msg_hdr;
   uint32_t  freq;
 };
 
 struct sp2mm_update_freq_rsp_t {
-  struct mm_sp_cmd_hdr_t  msg_hdr;
+  struct dev_cmd_hdr_t  msg_hdr;
   int32_t  status; /* TODO: Define status as a enum once all error states are defined */
 };
 
 struct sp2mm_teardown_mm_cmd_t {
-  struct mm_sp_cmd_hdr_t  msg_hdr;
+  struct dev_cmd_hdr_t  msg_hdr;
 };
 
 struct sp2mm_teardown_mm_rsp_t {
-  struct mm_sp_cmd_hdr_t  msg_hdr;
+  struct dev_cmd_hdr_t  msg_hdr;
   int32_t  status; /* TODO: Define status as a enum once all error states are defined */
 };
 
 struct sp2mm_quiesce_traffic_cmd_t {
-  struct mm_sp_cmd_hdr_t  msg_hdr;
+  struct dev_cmd_hdr_t  msg_hdr;
 };
 
 struct sp2mm_quiesce_traffic_rsp_t {
-  struct mm_sp_cmd_hdr_t  msg_hdr;
+  struct dev_cmd_hdr_t  msg_hdr;
   int32_t  status; /* TODO: Define status as a enum once all error states are defined */
 };
 
