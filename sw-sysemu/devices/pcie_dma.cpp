@@ -68,7 +68,7 @@ namespace bemu {
 template<bool wrch>
 void PcieDma<wrch>::go(const Agent& agent)
 {
-    LOG_NOTHREAD(DEBUG, "PcieDma%d<%s>::go(%s)", chan_id, wrch ? "Write" : "Read", agent.name().c_str());
+    LOG_AGENT(DEBUG, agent, "PcieDma%d<%s>::go(%s)", chan_id, wrch ? "Write" : "Read", agent.name().c_str());
 
     // Element pointer
     uint64_t elem_ptr = (uint64_t)llp_high << 32 | llp_low;
@@ -79,10 +79,10 @@ void PcieDma<wrch>::go(const Agent& agent)
         transfer_list_elem_t elem;
 
         // Read element
-        agent.chip->memory.read(Noagent{agent.chip}, elem_ptr, sizeof(elem), &elem);
+        agent.chip->memory.read(agent, elem_ptr, sizeof(elem), &elem);
 
-        LOG_NOTHREAD(DEBUG, "Elem ptr: 0x%" PRIx64, elem_ptr);
-        LOG_NOTHREAD(DEBUG, "elem.ctrl: 0x%" PRIx32, elem.link.ctrl.R);
+        LOG_AGENT(DEBUG, agent, "Elem ptr: 0x%" PRIx64, elem_ptr);
+        LOG_AGENT(DEBUG, agent, "elem.ctrl: 0x%" PRIx32, elem.link.ctrl.R);
 
         uint32_t llp = elem.link.ctrl.B.LLP;                 // Link element
         uint32_t cb = elem.link.ctrl.B.CB;                   // Cycle Bit
@@ -99,7 +99,7 @@ void PcieDma<wrch>::go(const Agent& agent)
 
         if (elem.link.ctrl.B.LLP) { // Link element. Also completes DMA process
             link_elem_t le = elem.link;
-            LOG_NOTHREAD(DEBUG, "LE: {ptr: 0x%" PRIx64 "}", le.ptr);
+            LOG_AGENT(DEBUG, agent, "LE: {ptr: 0x%" PRIx64 "}", le.ptr);
 
             // Toggle Cycle Bit
             if (tcb == 1) {
@@ -112,7 +112,7 @@ void PcieDma<wrch>::go(const Agent& agent)
             }
         } else { // Data element
             data_elem_t de = elem.data;
-            LOG_NOTHREAD(DEBUG, "DE: {size: 0x%" PRIx32 ", sar: 0x%" PRIx64 ", dar: 0x%" PRIx64 "}", de.size, de.sar, de.dar);
+            LOG_AGENT(DEBUG, agent, "DE: {size: 0x%" PRIx32 ", sar: 0x%" PRIx64 ", dar: 0x%" PRIx64 "}", de.size, de.sar, de.dar);
 
             // Trigger interrupt if it was pending
             if (liep) {
@@ -148,13 +148,13 @@ dma_done:
         break;
     } while (1);
 
-    LOG_NOTHREAD(DEBUG, "PcieDma%d<%s>::go() FINISHED", chan_id, wrch ? "Write" : "Read");
+    LOG_AGENT(DEBUG, agent, "PcieDma%d<%s>::go() FINISHED", chan_id, wrch ? "Write" : "Read");
 }
 
 template<bool wrch>
 void PcieDma<wrch>::trigger_done_int(const Agent& agent)
 {
-    LOG_NOTHREAD(DEBUG, "PcieDma%d<%s>::trigger_done_int(%s)", chan_id, wrch ? "Write" : "Read", agent.name().c_str());
+    LOG_AGENT(DEBUG, agent, "PcieDma%d<%s>::trigger_done_int(%s)", chan_id, wrch ? "Write" : "Read", agent.name().c_str());
     agent.chip->memory.pcie0_dbi_slv_trigger_done_int(agent, wrch, chan_id);
 }
 

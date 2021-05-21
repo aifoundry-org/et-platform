@@ -21,6 +21,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <fstream>
 
 #include "api_communicate.h"
 #include "system.h"
@@ -76,6 +77,7 @@ struct sys_emu_cmd_options {
     bool        master_min                   = false;
     bool        second_thread                = true;
     bool        log_en                       = false;
+    std::string log_path;
     std::bitset<EMU_NUM_THREADS> log_thread;
     std::vector<dump_info> dump_at_end;
     std::unordered_multimap<uint64_t, dump_info> dump_at_pc;
@@ -124,6 +126,7 @@ struct sys_emu_coop_tload
 
 class api_communicate;
 
+// Driver for a bemu::System instance
 class sys_emu
 {
 public:
@@ -135,89 +138,91 @@ public:
     parse_command_line_arguments(int argc, char* argv[]);
     static void get_command_line_help(std::ostream& stream);
 
-    static uint64_t thread_get_pc(unsigned thread_id) { return chip.cpu[thread_id].pc; }
-    static void thread_set_pc(unsigned thread_id, uint64_t pc) { chip.cpu[thread_id].pc = pc; }
-    static uint64_t thread_get_reg(int thread_id, int reg) { return chip.cpu[thread_id].xregs[reg]; }
-    static void thread_set_reg(int thread_id, int reg, uint64_t data) { chip.cpu[thread_id].xregs[reg] = data; }
-    static bemu::freg_t thread_get_freg(int thread_id, int reg) { return chip.cpu[thread_id].fregs[reg]; }
-    static void thread_set_freg(int thread_id, int reg, bemu::freg_t data) { chip.cpu[thread_id].fregs[reg] = data; }
-    static uint64_t thread_get_csr(int thread_id, int csr) { return chip.get_csr(thread_id, csr); }
-    static void thread_set_csr(int thread_id, int csr, uint32_t data) { chip.set_csr(thread_id, csr, data); }
+    uint64_t thread_get_pc(unsigned thread_id) { return chip.cpu[thread_id].pc; }
+    void thread_set_pc(unsigned thread_id, uint64_t pc) { chip.cpu[thread_id].pc = pc; }
+    uint64_t thread_get_reg(int thread_id, int reg) { return chip.cpu[thread_id].xregs[reg]; }
+    void thread_set_reg(int thread_id, int reg, uint64_t data) { chip.cpu[thread_id].xregs[reg] = data; }
+    bemu::freg_t thread_get_freg(int thread_id, int reg) { return chip.cpu[thread_id].fregs[reg]; }
+    void thread_set_freg(int thread_id, int reg, bemu::freg_t data) { chip.cpu[thread_id].fregs[reg] = data; }
+    uint64_t thread_get_csr(int thread_id, int csr) { return chip.get_csr(thread_id, csr); }
+    void thread_set_csr(int thread_id, int csr, uint32_t data) { chip.set_csr(thread_id, csr, data); }
 
-    static void fcc_to_threads(unsigned shire_id, unsigned thread_dest,
+    void fcc_to_threads(unsigned shire_id, unsigned thread_dest,
                                uint64_t thread_mask, unsigned cnt_dest);
-    static void msg_to_thread(unsigned thread_id);
-    static void send_ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask);
-    static void raise_timer_interrupt(uint64_t shire_mask);
-    static void clear_timer_interrupt(uint64_t shire_mask);
-    static void raise_software_interrupt(unsigned shire_id, uint64_t thread_mask);
-    static void clear_software_interrupt(unsigned shire_id, uint64_t thread_mask);
-    static void raise_external_interrupt(unsigned shire_id);
-    static void clear_external_interrupt(unsigned shire_id);
-    static void raise_external_supervisor_interrupt(unsigned shire_id);
-    static void clear_external_supervisor_interrupt(unsigned shire_id);
-    static void evl_dv_handle_irq_inj(bool raise, uint64_t subopcode, uint64_t shire_mask);
-    static void shire_enable_threads(unsigned shire_id, uint32_t thread0_disable, uint32_t thread1_disable);
-    static void recalculate_thread_disable(unsigned shire_id);
+    void msg_to_thread(unsigned thread_id);
+    void send_ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask);
+    void raise_timer_interrupt(uint64_t shire_mask);
+    void clear_timer_interrupt(uint64_t shire_mask);
+    void raise_software_interrupt(unsigned shire_id, uint64_t thread_mask);
+    void clear_software_interrupt(unsigned shire_id, uint64_t thread_mask);
+    void raise_external_interrupt(unsigned shire_id);
+    void clear_external_interrupt(unsigned shire_id);
+    void raise_external_supervisor_interrupt(unsigned shire_id);
+    void clear_external_supervisor_interrupt(unsigned shire_id);
+    void evl_dv_handle_irq_inj(bool raise, uint64_t subopcode, uint64_t shire_mask);
+    void shire_enable_threads(unsigned shire_id, uint32_t thread0_disable, uint32_t thread1_disable);
+    void recalculate_thread_disable(unsigned shire_id);
     int main_internal();
 
-    static uint64_t get_emu_cycle()  { return emu_cycle; }
+    uint64_t get_emu_cycle()  { return emu_cycle; }
 
-    static bool thread_is_disabled(unsigned thread) { return !chip.cpu[thread].enabled; }
+    bool thread_is_disabled(unsigned thread) { return !chip.cpu[thread].enabled; }
 
-    static void activate_thread(int thread_id) { active_threads[thread_id] = true; }
-    static void deactivate_thread(int thread_id) { active_threads[thread_id] = false; }
-    static bool thread_is_active(int thread_id) { return active_threads[thread_id]; }
+    void activate_thread(int thread_id) { active_threads[thread_id] = true; }
+    void deactivate_thread(int thread_id) { active_threads[thread_id] = false; }
+    bool thread_is_active(int thread_id) { return active_threads[thread_id]; }
 
     // gdbstub needs these
-    static void thread_read_memory(int thread, uint64_t addr, uint64_t size, uint8_t* buffer) {
+    void thread_read_memory(int thread, uint64_t addr, uint64_t size, uint8_t* buffer) {
         chip.memory.read(chip.cpu[thread], addr, size, buffer);
     }
-    static void thread_write_memory(int thread, uint64_t addr, uint64_t size, const uint8_t* buffer) {
+    void thread_write_memory(int thread, uint64_t addr, uint64_t size, const uint8_t* buffer) {
         chip.memory.write(chip.cpu[thread], addr, size, buffer);
     }
 
     // PCIe DMA needs this
-    static bemu::MainMemory& get_memory() { return chip.memory; }
+    bemu::MainMemory& get_memory() { return chip.memory; }
 
     // Returns whether a thread is running (not sleeping/waiting)
-    static bool thread_is_running(int thread_id) { return contains(running_threads, thread_id); }
-    static void thread_set_running(int thread_id) {
+    bool thread_is_running(int thread_id) { return contains(running_threads, thread_id); }
+    void thread_set_running(int thread_id) {
         if (thread_is_active(thread_id) &&
             /* && !thread_is_disabled(thread_id) && */
             !contains(running_threads, thread_id)) {
             running_threads.push_back(thread_id);
         }
     }
-    static int running_threads_count() { return running_threads.size(); }
+    int running_threads_count() { return running_threads.size(); }
 
-    static void thread_set_single_step(int thread_id) { single_step[thread_id] = true; }
+    void thread_set_single_step(int thread_id) { single_step[thread_id] = true; }
 
-    static bool get_mem_check() { return mem_check; }
-    static mem_checker& get_mem_checker() { return mem_checker_; }
-    static bool get_l1_scp_check() { return l1_scp_check; }
-    static l1_scp_checker& get_l1_scp_checker() { return l1_scp_checker_; }
-    static bool get_l2_scp_check() { return l2_scp_check; }
-    static l2_scp_checker& get_l2_scp_checker() { return l2_scp_checker_; }
-    static bool get_flb_check() { return flb_check; }
-    static flb_checker& get_flb_checker() { return flb_checker_; }
-    static bool get_display_trap_info() { return cmd_options.display_trap_info; }
+    bool get_mem_check() { return mem_check; }
+    mem_checker& get_mem_checker() { return mem_checker_; }
+    bool get_l1_scp_check() { return l1_scp_check; }
+    l1_scp_checker& get_l1_scp_checker() { return l1_scp_checker_; }
+    bool get_l2_scp_check() { return l2_scp_check; }
+    l2_scp_checker& get_l2_scp_checker() { return l2_scp_checker_; }
+    bool get_flb_check() { return flb_check; }
+    flb_checker& get_flb_checker() { return flb_checker_; }
+    bool get_display_trap_info() { return cmd_options.display_trap_info; }
 
-    static void coop_tload_add(uint32_t thread_id, bool tenb, uint32_t id, uint32_t coop_id, uint32_t min_mask, uint32_t neigh_mask);
-    static bool coop_tload_check(uint32_t thread_id, bool tenb, uint32_t id, uint32_t & requested_mask, uint32_t & present_mask);
-    static bool coop_tload_all_present(uint32_t thread_id, const sys_emu_coop_tload & coop_tload, uint32_t & requested_mask, uint32_t & present_mask);
-    static void coop_tload_mark_done(uint32_t thread_id, const sys_emu_coop_tload & coop_tload);
-    static uint32_t coop_tload_get_thread_id(uint32_t thread_id, uint32_t neigh, uint32_t min);
+    void coop_tload_add(uint32_t thread_id, bool tenb, uint32_t id, uint32_t coop_id, uint32_t min_mask, uint32_t neigh_mask);
+    bool coop_tload_check(uint32_t thread_id, bool tenb, uint32_t id, uint32_t & requested_mask, uint32_t & present_mask);
+    bool coop_tload_all_present(uint32_t thread_id, const sys_emu_coop_tload & coop_tload, uint32_t & requested_mask, uint32_t & present_mask);
+    void coop_tload_mark_done(uint32_t thread_id, const sys_emu_coop_tload & coop_tload);
+    uint32_t coop_tload_get_thread_id(uint32_t thread_id, uint32_t neigh, uint32_t min);
 
-    static void breakpoint_insert(uint64_t addr);
-    static void breakpoint_remove(uint64_t addr);
-    static bool breakpoint_exists(uint64_t addr);
+    void breakpoint_insert(uint64_t addr);
+    void breakpoint_remove(uint64_t addr);
+    bool breakpoint_exists(uint64_t addr);
 
-    static bool parse_mem_file(const char* filename);
+    bool parse_mem_file(const char* filename);
 
-    static api_communicate* get_api_communicate() { return api_listener; }
+    api_communicate* get_api_communicate() { return api_listener; }
 
-   protected:
+    testLog& get_logger() { return chip.log; }
+
+protected:
 
     // Returns whether a container contains an element
     template<class _container, class _Ty>
@@ -226,7 +231,7 @@ public:
     }
 
     // Checks if a sleeping thread (FCC, WFI, stall) has to wake up when receiving an interrupt
-    static void raise_interrupt_wakeup_check(unsigned thread_id);
+    void raise_interrupt_wakeup_check(unsigned thread_id);
 
 private:
 
@@ -236,46 +241,51 @@ private:
         int      thread; // -1 == all threads
     };
 
-    static std::list<pc_breakpoint_t> pc_breakpoints;
-    static int                        debug_steps;
+    std::list<pc_breakpoint_t> pc_breakpoints;
+    int                        debug_steps;
 
-    static bool pc_breakpoints_exists(uint64_t pc, int thread);
-    static bool pc_breakpoints_add(uint64_t pc, int thread);
-    static void pc_breakpoints_dump(int thread);
-    static void pc_breakpoints_clear_for_thread(int thread);
-    static void pc_breakpoints_clear(void);
+    bool pc_breakpoints_exists(uint64_t pc, int thread);
+    bool pc_breakpoints_add(uint64_t pc, int thread);
+    void pc_breakpoints_dump(int thread);
+    void pc_breakpoints_clear_for_thread(int thread);
+    void pc_breakpoints_clear(void);
 
-    static void memdump(uint64_t addr, uint64_t size);
+    void memdump(uint64_t addr, uint64_t size);
 
-    static bool process_dbg_cmd(std::string cmd);
-    static bool get_pc_break(uint64_t &pc, int &thread);
-    static void debug_init(void);
-    static void debug_check(void);
+    std::string dump_xregs(unsigned thread_id);
+    std::string dump_fregs(unsigned thread_id);
+    bool process_dbg_cmd(std::string cmd);
+    bool get_pc_break(uint64_t &pc, int &thread);
+    void debug_init(void);
+    void debug_check(void);
 #endif
 
-    static bemu::System    chip;
+    bemu::System    chip;
 
-    static uint64_t        emu_cycle;
-    static std::list<int>  running_threads; // List of running threads
-    static std::list<int>  wfi_stall_wait_threads; // List of threads waiting in a WFI or stall
-    static std::list<int>  fcc_wait_threads[EMU_NUM_FCC_COUNTERS_PER_THREAD]; // List of threads waiting for an FCC
-    static std::list<int>  port_wait_threads; // List of threads waiting for a port write
-    static std::bitset<EMU_NUM_THREADS> active_threads; // List of threads being simulated
-    static uint16_t        pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
-    static std::list<sys_emu_coop_tload> coop_tload_pending_list[EMU_NUM_THREADS];                      // List of pending cooperative tloads per thread
-    static bool            mem_check;
-    static mem_checker     mem_checker_;
-    static bool            l1_scp_check;
-    static l1_scp_checker  l1_scp_checker_;
-    static bool            l2_scp_check;
-    static l2_scp_checker  l2_scp_checker_;
-    static bool            flb_check;
-    static flb_checker     flb_checker_;
-    static std::unordered_set<uint64_t> breakpoints;
-    static std::bitset<EMU_NUM_THREADS> single_step;
+    std::ofstream   log_file;
+    uint64_t        emu_cycle = 0;
+    std::list<int>  running_threads; // List of running threads
+    std::list<int>  wfi_stall_wait_threads; // List of threads waiting in a WFI or stall
+    std::list<int>  fcc_wait_threads[EMU_NUM_FCC_COUNTERS_PER_THREAD]; // List of threads waiting for an FCC
+    std::list<int>  port_wait_threads; // List of threads waiting for a port write
+    std::bitset<EMU_NUM_THREADS> active_threads; // List of threads being simulated
+    uint16_t        pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
+    std::list<sys_emu_coop_tload> coop_tload_pending_list[EMU_NUM_THREADS];                      // List of pending cooperative tloads per thread
+    bool            mem_check = false;
+    mem_checker     mem_checker_{&chip};
+    bool            l1_scp_check = false;
+    l1_scp_checker  l1_scp_checker_{&chip};
+    bool            l2_scp_check = false;
+    l2_scp_checker  l2_scp_checker_{&chip};
+    bool            flb_check = false;
+    flb_checker     flb_checker_{&chip};
+    std::unordered_set<uint64_t> breakpoints;
+    std::bitset<EMU_NUM_THREADS> single_step;
 
-    static api_communicate* api_listener;
-    static sys_emu_cmd_options cmd_options;
+    bemu::Noagent   agent{&chip, "SYS-EMU"};
+
+    api_communicate* api_listener = nullptr;
+    sys_emu_cmd_options cmd_options;
 };
 
 

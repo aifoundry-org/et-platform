@@ -21,6 +21,11 @@
 #include "esrs.h"
 #include "processor.h"
 #include "memory/main_memory.h"
+#include "testLog.h"
+
+#ifdef SYS_EMU
+class sys_emu;
+#endif
 
 namespace bemu {
 
@@ -32,6 +37,9 @@ class System {
 public:
     // ----- Types -----
     typedef std::array<std::array<uint64_t, 6>, 2> neigh_pmu_counters_t;
+
+    using msg_func_t = std::function<void(unsigned)>;
+    using hart_mask_t = std::bitset<EMU_NUM_THREADS>;
 
     struct msg_port_write_t {
         uint32_t source_thread;
@@ -127,13 +135,23 @@ public:
     void finish_icache_prefetch(unsigned shire);
 
     // Message ports
-    void set_msg_funcs(void (*)(unsigned));
+    void set_msg_funcs(msg_func_t fn);
     void set_delayed_msg_port_write(bool);
     void write_msg_port_data(unsigned target_thread, unsigned port, unsigned source_thread, uint32_t* data);
     void commit_msg_port_data(unsigned target_thread, unsigned port, unsigned source_thread);
 
     // Checker interface
     std::queue<uint32_t>& get_minions_to_awake();
+
+#ifdef SYS_EMU
+    void set_emu(sys_emu* emu) { m_emu = emu; }
+    sys_emu* emu() const noexcept {
+        assert(m_emu && "sys_emu not linked with system");
+        return m_emu;
+    }
+#endif
+
+    uint64_t emu_cycle() const noexcept;
 
     // ----- Public system state -----
 
@@ -157,6 +175,12 @@ public:
     std::array<shire_other_esrs_t, EMU_NUM_SHIRES> shire_other_esrs {};
     std::array<broadcast_esrs_t, EMU_NUM_SHIRES>   broadcast_esrs {};
 
+    // Logging
+    testLog     log{"EMU", LOG_INFO}; // Consider making this a "plugin"
+    hart_mask_t log_thread;
+
+    Noagent noagent{this, "SYSTEM"};
+
 private:
     // ----- Private system methods -----
 
@@ -176,10 +200,14 @@ private:
     // Message ports
     bool msg_port_delayed_write {false};
     std::array<std::vector<msg_port_write_t>, EMU_NUM_SHIRES> msg_port_pending_writes {};
-    void (*msg_to_thread)(unsigned) {nullptr};
+    msg_func_t msg_to_thread = nullptr;
 
     // Only for the checker: list of minions to awake when an FCC is written
     std::queue<uint32_t> m_minions_to_awake;
+
+#ifdef SYS_EMU
+    sys_emu* m_emu = nullptr;
+#endif
 };
 
 
@@ -210,25 +238,25 @@ inline bool System::thread_is_blocked(unsigned thread) const
 
 inline void System::pu_plic_interrupt_pending_set(uint32_t source_id)
 {
-    memory.pu_plic_interrupt_pending_set(Noagent{this}, source_id);
+    memory.pu_plic_interrupt_pending_set(noagent, source_id);
 }
 
 
 inline void System::pu_plic_interrupt_pending_clear(uint32_t source_id)
 {
-    memory.pu_plic_interrupt_pending_clear(Noagent{this}, source_id);
+    memory.pu_plic_interrupt_pending_clear(noagent, source_id);
 }
 
 
 inline void System::sp_plic_interrupt_pending_set(uint32_t source_id)
 {
-    memory.sp_plic_interrupt_pending_set(Noagent{this}, source_id);
+    memory.sp_plic_interrupt_pending_set(noagent, source_id);
 }
 
 
 inline void System::sp_plic_interrupt_pending_clear(uint32_t source_id)
 {
-    memory.sp_plic_interrupt_pending_clear(Noagent{this}, source_id);
+    memory.sp_plic_interrupt_pending_clear(noagent, source_id);
 }
 
 inline void System::pu_uart0_set_rx_fd(int fd)
@@ -343,8 +371,8 @@ inline void System::tick_peripherals(uint64_t cycle)
 {
     // cycle at 1GHz, timer clock at 10MHz
     if ((cycle % 100) == 0) {
-        memory.pu_rvtimer_clock_tick(Noagent{this});
-        memory.spio_rvtimer_clock_tick(Noagent{this});
+        memory.pu_rvtimer_clock_tick(noagent);
+        memory.spio_rvtimer_clock_tick(noagent);
         memory.pu_apb_timers_clock_tick(*this);
         memory.spio_apb_timers_clock_tick(*this);
     }

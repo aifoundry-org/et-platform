@@ -17,6 +17,7 @@
 // Local
 #include "emu_defines.h"
 #include "cache.h"
+#include "agent.h"
 
 #define L2_SCP_ENTRIES 65536
 
@@ -40,11 +41,19 @@ struct shire_scp_info_t
     std::list<l2_scp_fill_info_t> l2_scp_fills[EMU_MINIONS_PER_SHIRE]; // For each minion in the shire list of outstanding l2 scp fills
 };
 
-class l2_scp_checker
+class l2_scp_checker : public bemu::Agent
 {
   public:
     // Creator
-    l2_scp_checker();
+    l2_scp_checker(bemu::System* chip = nullptr);
+
+    // Copy/Move
+    l2_scp_checker(const l2_scp_checker&) = default;
+    l2_scp_checker& operator=(const l2_scp_checker&) = default;
+    l2_scp_checker(l2_scp_checker&&) = default;
+    l2_scp_checker& operator=(l2_scp_checker&&) = default;
+
+    std::string name() const { return "L2-SCP-Checker"; }
 
     // Accessors
     void l2_scp_fill(uint32_t thread, uint32_t idx, uint32_t id, uint64_t src_addr);

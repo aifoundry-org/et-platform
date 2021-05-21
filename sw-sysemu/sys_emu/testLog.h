@@ -15,6 +15,8 @@
 #include <sstream>
 #include <iostream>
 
+class sys_emu;
+
 enum logLevel {LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERR, LOG_FTL, NR_LOG_LEVELS};
 
 void endSimAt(uint32_t extraTime=0); // time in time units (ps)
@@ -47,6 +49,8 @@ public:
   testLog(const testLog&) = delete;
   testLog& operator=(const testLog&) = delete;
 
+  // Note: The cosim testLog does not have a device
+  void setDevice(sys_emu* device) { device_ =  device; }
   void setLogLevel(logLevel level) {
     logLevel_ = level;
     // cannot mask errors or fatal
@@ -136,6 +140,7 @@ private:
 
  private:
   logLevel logLevel_;
+  sys_emu* device_ = nullptr;
 };
 
 

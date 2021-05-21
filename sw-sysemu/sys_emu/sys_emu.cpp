@@ -46,32 +46,6 @@
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// Static Member variables
-////////////////////////////////////////////////////////////////////////////////
-
-bemu::System    sys_emu::chip;
-uint64_t        sys_emu::emu_cycle = 0;
-std::list<int>  sys_emu::running_threads;                                               // List of running threads
-std::list<int>  sys_emu::wfi_stall_wait_threads;                                        // List of threads waiting in a WFI or stall
-std::list<int>  sys_emu::fcc_wait_threads[EMU_NUM_FCC_COUNTERS_PER_THREAD];             // List of threads waiting for an FCC
-std::list<int>  sys_emu::port_wait_threads;                                             // List of threads waiting for a port write
-std::bitset<EMU_NUM_THREADS> sys_emu::active_threads;                                   // List of threads being simulated
-uint16_t        sys_emu::pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
-std::list<sys_emu_coop_tload>    sys_emu::coop_tload_pending_list[EMU_NUM_THREADS];                      // List of pending cooperative tloads per thread
-bool            sys_emu::mem_check = false;
-mem_checker     sys_emu::mem_checker_;
-bool            sys_emu::l1_scp_check = false;
-l1_scp_checker  sys_emu::l1_scp_checker_;
-bool            sys_emu::l2_scp_check = false;
-l2_scp_checker  sys_emu::l2_scp_checker_;
-bool            sys_emu::flb_check = false;
-flb_checker     sys_emu::flb_checker_;
-api_communicate *sys_emu::api_listener;
-sys_emu_cmd_options              sys_emu::cmd_options;
-std::unordered_set<uint64_t>     sys_emu::breakpoints;
-std::bitset<EMU_NUM_THREADS>     sys_emu::single_step;
-
-////////////////////////////////////////////////////////////////////////////////
 // Helper methods
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -149,7 +123,7 @@ sys_emu::msg_to_thread(unsigned thread_id)
 {
     thread_id = bemu::hart_index(chip.cpu[thread_id]);
     auto thread = std::find(port_wait_threads.begin(), port_wait_threads.end(), thread_id);
-    LOG_NOTHREAD(INFO, "Message to thread %i", thread_id);
+    LOG_AGENT(INFO, agent, "Message to thread %i", thread_id);
     // Checks if in port wait state
     if(thread != port_wait_threads.end())
     {
@@ -745,14 +719,14 @@ sys_emu::coop_tload_check(uint32_t thread_id, bool tenb, uint32_t id, uint32_t &
 void
 sys_emu::breakpoint_insert(uint64_t addr)
 {
-    LOG_NOTHREAD(DEBUG, "Inserting breakpoint at address 0x%" PRIx64 "", addr);
+    LOG_AGENT(DEBUG, agent, "Inserting breakpoint at address 0x%" PRIx64 "", addr);
     breakpoints.insert(addr);
 }
 
 void
 sys_emu::breakpoint_remove(uint64_t addr)
 {
-    LOG_NOTHREAD(DEBUG, "Removing breakpoint at address 0x%" PRIx64 "", addr);
+    LOG_AGENT(DEBUG, agent, "Removing breakpoint at address 0x%" PRIx64 "", addr);
     breakpoints.erase(addr);
 }
 
@@ -766,6 +740,21 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
 {
     this->cmd_options = cmd_options;
     this->api_listener = api_comm;
+
+    chip.set_emu(this);
+
+    // Setup logging
+    chip.log.setDevice(this);
+    chip.log.setLogLevel(cmd_options.log_en ? LOG_DEBUG : LOG_INFO);
+    chip.log_thread = cmd_options.log_thread;
+
+    if (!cmd_options.log_path.empty()) {
+        log_file.open(cmd_options.log_path);
+        if (!log_file.is_open()) {
+            LOG_AGENT(FTL, agent, "Unable to open log file: %s", cmd_options.log_path.c_str());
+        }
+        chip.log.setOutputStream(&log_file);
+    }
 
     // Reset the SoC
     emu_cycle = 0;
@@ -781,46 +770,44 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
         item.clear();
     }
     mem_check = cmd_options.mem_check;
-    mem_checker_ = mem_checker{};
+    mem_checker_ = mem_checker{&chip};
     l1_scp_check = cmd_options.l1_scp_check;
-    l1_scp_checker_ = l1_scp_checker{};
+    l1_scp_checker_ = l1_scp_checker{&chip};
     l2_scp_check = cmd_options.l2_scp_check;
-    new (&l2_scp_checker_) l2_scp_checker{};
+    new (&l2_scp_checker_) l2_scp_checker{&chip};
     flb_check = cmd_options.flb_check;
-    flb_checker_ = flb_checker{};
+    flb_checker_ = flb_checker{&chip};
     breakpoints.clear();
     single_step.reset();
 
     if (cmd_options.elf_files.empty() && cmd_options.file_load_files.empty() &&
         cmd_options.mem_desc_file.empty() && cmd_options.api_comm_path.empty()) {
-        LOG_NOTHREAD(FTL, "%s", "Need an ELF file, a file load, a mem_desc file or runtime API!");
+        LOG_AGENT(FTL, agent, "%s", "Need an ELF file, a file load, a mem_desc file or runtime API!");
     }
 
 #ifdef SYSEMU_DEBUG
     if (cmd_options.debug == true) {
-        LOG_NOTHREAD(INFO, "%s", "Starting in interactive mode.");
+        LOG_AGENT(INFO, agent, "%s", "Starting in interactive mode.");
         debug_init();
     }
 #endif
 
-    bemu::log.setLogLevel(cmd_options.log_en ? LOG_DEBUG : LOG_INFO);
 
     // Init emu
     chip.init(bemu::system_version_t::ETSOC1_A0);
-    bemu::log_set_threads(cmd_options.log_thread);
     memcpy(&chip.memory_reset_value, &cmd_options.mem_reset, MEM_RESET_PATTERN_SIZE);
 
     // Callbacks for port writes
-    chip.set_msg_funcs(msg_to_thread);
+    chip.set_msg_funcs([this](unsigned tid) { msg_to_thread(tid); });
 
     // Parses the ELF files and memory description
     for (const auto &elf: cmd_options.elf_files) {
-        LOG_NOTHREAD(INFO, "Loading ELF: \"%s\"", elf.c_str());
+        LOG_AGENT(INFO, agent, "Loading ELF: \"%s\"", elf.c_str());
         try {
             chip.load_elf(elf.c_str());
         }
         catch (...) {
-            LOG_NOTHREAD(FTL, "Error loading ELF \"%s\"", elf.c_str());
+            LOG_AGENT(FTL, agent, "Error loading ELF \"%s\"", elf.c_str());
         }
     }
     if (!cmd_options.mem_desc_file.empty()) {
@@ -829,19 +816,19 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
 
     // Load files
     for (const auto &info: cmd_options.file_load_files) {
-        LOG_NOTHREAD(INFO, "Loading file @ 0x%" PRIx64 ": \"%s\"", info.addr, info.file.c_str());
+        LOG_AGENT(INFO, agent, "Loading file @ 0x%" PRIx64 ": \"%s\"", info.addr, info.file.c_str());
         try {
             chip.load_raw(info.file.c_str(), info.addr);
         }
         catch (...) {
-            LOG_NOTHREAD(FTL, "Error loading file \"%s\"", info.file.c_str());
+            LOG_AGENT(FTL, agent, "Error loading file \"%s\"", info.file.c_str());
         }
     }
 
     // Perform 32 bit writes
     for (const auto &info: cmd_options.mem_write32s) {
-        LOG_NOTHREAD(INFO, "Writing 32-bit value 0x%" PRIx32 " to 0x%" PRIx64, info.value, info.addr);
-        chip.memory.write(bemu::Noagent{&chip}, info.addr, sizeof(info.value),
+        LOG_AGENT(INFO, agent, "Writing 32-bit value 0x%" PRIx32 " to 0x%" PRIx64, info.value, info.addr);
+        chip.memory.write(agent, info.addr, sizeof(info.value),
                           reinterpret_cast<bemu::MainMemory::const_pointer>(&info.value));
     }
 
@@ -849,7 +836,7 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
     if (!cmd_options.pu_uart0_rx_file.empty()) {
         int fd = open(cmd_options.pu_uart0_rx_file.c_str(), O_RDONLY, 0666);
         if (fd < 0) {
-            LOG_NOTHREAD(FTL, "Error opening \"%s\"", cmd_options.pu_uart0_rx_file.c_str());
+            LOG_AGENT(FTL, agent, "Error opening \"%s\"", cmd_options.pu_uart0_rx_file.c_str());
         }
         chip.pu_uart0_set_rx_fd(fd);
     } else {
@@ -860,7 +847,7 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
     if (!cmd_options.pu_uart1_rx_file.empty()) {
         int fd = open(cmd_options.pu_uart1_rx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
-            LOG_NOTHREAD(FTL, "Error opening \"%s\"", cmd_options.pu_uart1_rx_file.c_str());
+            LOG_AGENT(FTL, agent, "Error opening \"%s\"", cmd_options.pu_uart1_rx_file.c_str());
         }
         chip.pu_uart1_set_rx_fd(fd);
     } else {
@@ -871,7 +858,7 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
     if (!cmd_options.spio_uart0_rx_file.empty()) {
         int fd = open(cmd_options.spio_uart0_rx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
-            LOG_NOTHREAD(FTL, "Error opening \"%s\"", cmd_options.spio_uart0_rx_file.c_str());
+            LOG_AGENT(FTL, agent, "Error opening \"%s\"", cmd_options.spio_uart0_rx_file.c_str());
         }
         chip.spio_uart0_set_rx_fd(fd);
     } else {
@@ -882,7 +869,7 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
     if (!cmd_options.spio_uart1_rx_file.empty()) {
         int fd = open(cmd_options.spio_uart1_rx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
-            LOG_NOTHREAD(FTL, "Error opening \"%s\"", cmd_options.spio_uart1_rx_file.c_str());
+            LOG_AGENT(FTL, agent, "Error opening \"%s\"", cmd_options.spio_uart1_rx_file.c_str());
         }
         chip.spio_uart1_set_rx_fd(fd);
     } else {
@@ -893,7 +880,7 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
     if (!cmd_options.pu_uart0_tx_file.empty()) {
         int fd = open(cmd_options.pu_uart0_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
-            LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.pu_uart0_tx_file.c_str());
+            LOG_AGENT(FTL, agent, "Error creating \"%s\"", cmd_options.pu_uart0_tx_file.c_str());
         }
         chip.pu_uart0_set_tx_fd(fd);
     } else {
@@ -904,7 +891,7 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
     if (!cmd_options.pu_uart1_tx_file.empty()) {
         int fd = open(cmd_options.pu_uart1_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
-            LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.pu_uart1_tx_file.c_str());
+            LOG_AGENT(FTL, agent, "Error creating \"%s\"", cmd_options.pu_uart1_tx_file.c_str());
         }
         chip.pu_uart1_set_tx_fd(fd);
     } else {
@@ -915,7 +902,7 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
     if (!cmd_options.spio_uart0_tx_file.empty()) {
         int fd = open(cmd_options.spio_uart0_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
-            LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.spio_uart0_tx_file.c_str());
+            LOG_AGENT(FTL, agent, "Error creating \"%s\"", cmd_options.spio_uart0_tx_file.c_str());
         }
         chip.spio_uart0_set_tx_fd(fd);
     } else {
@@ -926,7 +913,7 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
     if (!cmd_options.spio_uart1_tx_file.empty()) {
         int fd = open(cmd_options.spio_uart1_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
-            LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.spio_uart1_tx_file.c_str());
+            LOG_AGENT(FTL, agent, "Error creating \"%s\"", cmd_options.spio_uart1_tx_file.c_str());
         }
         chip.spio_uart1_set_tx_fd(fd);
     } else {
@@ -1009,15 +996,15 @@ int sys_emu::main_internal() {
 #endif
 
 #ifdef SYSEMU_PROFILING
-    profiling_init();
+    profiling_init(this);
 #endif
 
     if (cmd_options.gdb) {
-        gdbstub_init();
+        gdbstub_init(this, &chip);
         gdbstub_accept_client();
     }
 
-    LOG_NOTHREAD(INFO, "%s", "Starting emulation");
+    LOG_AGENT(INFO, agent, "%s", "Starting emulation");
 
     double total_time = 0.0;
     const auto begin_time = std::chrono::high_resolution_clock::now();
@@ -1143,15 +1130,15 @@ int sys_emu::main_internal() {
                     // Dumping when M0:T0 reaches a PC
                     auto range = cmd_options.dump_at_pc.equal_range(thread_get_pc(0));
                     for (auto it = range.first; it != range.second; ++it) {
-                        bemu::dump_data(chip.memory, bemu::Noagent{&chip},
+                        bemu::dump_data(chip.memory, agent,
                                         it->second.file.c_str(), it->second.addr, it->second.size);
                     }
 
                     // Logging
                     if (thread_get_pc(0) == cmd_options.log_at_pc) {
-                        bemu::log.setLogLevel(LOG_DEBUG);
+                        get_logger().setLogLevel(LOG_DEBUG);
                     } else if (thread_get_pc(0) == cmd_options.stop_log_at_pc) {
-                        bemu::log.setLogLevel(LOG_INFO);
+                        get_logger().setLogLevel(LOG_INFO);
                     }
 
                     chip.cpu[thread_id].execute();
@@ -1254,7 +1241,7 @@ int sys_emu::main_internal() {
     const auto end_time = std::chrono::high_resolution_clock::now();
     total_time += std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - begin_time).count();
 
-    LOG_NOTHREAD(INFO, "Emulation performance: %lf cycles/sec (%" PRIu64 " cycles / %lf sec)",
+    LOG_AGENT(INFO, agent, "Emulation performance: %lf cycles/sec (%" PRIu64 " cycles / %lf sec)",
                  1e3 * double(emu_cycle) / total_time,
                  emu_cycle,
                  total_time*1e-9);
@@ -1262,50 +1249,50 @@ int sys_emu::main_internal() {
     if (emu_cycle == cmd_options.max_cycles)
     {
        // Dumps awaken threads
-       LOG_NOTHREAD(INFO, "%s", "Dumping awaken threads:");
+       LOG_AGENT(INFO, agent, "%s", "Dumping awaken threads:");
        auto thread = running_threads.begin();
        while(thread != running_threads.end())
        {
           auto thread_id = * thread;
-          LOG_NOTHREAD(INFO, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, thread_get_pc(thread_id));
+          LOG_AGENT(INFO, agent, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, thread_get_pc(thread_id));
           thread++;
        }
 
        // Dumps FCC wait threads
        for (int i = 0; i < 2; ++i)
        {
-           LOG_NOTHREAD(INFO, "Dumping FCC%d wait threads:", i);
+           LOG_AGENT(INFO, agent, "Dumping FCC%d wait threads:", i);
            thread = fcc_wait_threads[i].begin();
            while(thread != fcc_wait_threads[i].end())
            {
                auto thread_id = * thread;
-               LOG_NOTHREAD(INFO, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, thread_get_pc(thread_id));
+               LOG_AGENT(INFO, agent, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, thread_get_pc(thread_id));
                thread++;
            }
        }
 
        // Dumps Port wait threads
-       LOG_NOTHREAD(INFO, "%s", "Dumping port wait threads:");
+       LOG_AGENT(INFO, agent, "%s", "Dumping port wait threads:");
        thread = port_wait_threads.begin();
        while(thread != port_wait_threads.end())
        {
           auto thread_id = * thread;
-          LOG_NOTHREAD(INFO, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, thread_get_pc(thread_id));
+          LOG_AGENT(INFO, agent, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, thread_get_pc(thread_id));
           thread++;
        }
-       LOG_NOTHREAD(ERR, "Error, max cycles reached (%" SCNd64 ")", cmd_options.max_cycles);
+       LOG_AGENT(ERR, agent, "Error, max cycles reached (%" SCNd64 ")", cmd_options.max_cycles);
     }
-    LOG_NOTHREAD(INFO, "%s", "Finishing emulation");
+    LOG_AGENT(INFO, agent, "%s", "Finishing emulation");
 
     if (cmd_options.gdb)
         gdbstub_fini();
 
     // Dumping
     for (auto &dump: cmd_options.dump_at_end)
-        bemu::dump_data(chip.memory, bemu::Noagent{&chip}, dump.file.c_str(), dump.addr, dump.size);
+        bemu::dump_data(chip.memory, agent, dump.file.c_str(), dump.addr, dump.size);
 
     if(!cmd_options.dump_mem.empty())
-        bemu::dump_data(chip.memory, bemu::Noagent{&chip}, cmd_options.dump_mem.c_str(), chip.memory.first(), (chip.memory.last() - chip.memory.first()) + 1);
+        bemu::dump_data(chip.memory, agent, cmd_options.dump_mem.c_str(), chip.memory.first(), (chip.memory.last() - chip.memory.first()) + 1);
 
     if(!cmd_options.pu_uart0_rx_file.empty())
         close(chip.pu_uart0_get_rx_fd());

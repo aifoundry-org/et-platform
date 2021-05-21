@@ -34,7 +34,7 @@ uint32_t l2_scp_checker_log_minion = 2048;            // None by default
  *
  *  This function creates a new object of the type Scp directory
  */
-l2_scp_checker::l2_scp_checker()
+l2_scp_checker::l2_scp_checker(bemu::System* chip) : bemu::Agent(chip)
 {
   // Marks all L2 entries as invalid
   for(uint32_t shire = 0; shire < EMU_NUM_SHIRES; shire++)
@@ -61,7 +61,7 @@ void l2_scp_checker::l2_scp_fill(uint32_t thread, uint32_t idx, uint32_t id, uin
 
   if((shire_scp_info[shire].l2_scp_line_status[idx] == L2Scp_Fill) && (shire_scp_info[shire].l2_scp_line_addr[idx] != src_addr))
   {
-    LOG_NOTHREAD(FTL, "l2_scp_checker::l2_scp_fill => filling with a different address an already inflight fill line %i. Old addr %016llX, new addr %016llX\n",
+    LOG_AGENT(FTL, *this, "l2_scp_checker::l2_scp_fill => filling with a different address an already inflight fill line %i. Old addr %016llX, new addr %016llX\n",
                  idx, (long long unsigned int) shire_scp_info[shire].l2_scp_line_addr[idx], (long long unsigned int) src_addr);
   }
 
@@ -146,12 +146,12 @@ void l2_scp_checker::l2_scp_read(uint32_t thread, uint64_t addr)
 
   if(shire_access >= EMU_NUM_SHIRES)
   {
-    LOG_NOTHREAD(FTL, "l2_scp_checker::l2_scp_read => accessing shire %i beyond limit %i\n", shire_access, EMU_NUM_SHIRES);
+    LOG_AGENT(FTL, *this, "l2_scp_checker::l2_scp_read => accessing shire %i beyond limit %i\n", shire_access, EMU_NUM_SHIRES);
   }
 
   if(shire_scp_info[shire_access].l2_scp_line_status[line_access] != L2Scp_Valid)
   {
-    LOG_NOTHREAD(FTL, "l2_scp_checker::l2_scp_read => line state is not valid!! It is %i\n", shire_scp_info[shire_access].l2_scp_line_status[line_access]);
+    LOG_AGENT(FTL, *this, "l2_scp_checker::l2_scp_read => line state is not valid!! It is %i\n", shire_scp_info[shire_access].l2_scp_line_status[line_access]);
   }
 }
 
