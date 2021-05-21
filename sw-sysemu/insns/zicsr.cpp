@@ -562,6 +562,10 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         if ((((val >> 13) & 0x3) == 0x3) || (((val >> 15) & 0x3) == 0x3)) {
             val |= 0x8000000000000000ULL;
         }
+        // Invalidate the fetch buffer when changing VM mode or permissions
+        if ((cpu.mstatus & 0xE0000) != (val & 0xE0000)) {
+            cpu.fetch_pc = -1;
+        }
         cpu.mstatus = val;
         // Return 'sstatus' view of 'mstatus'
         val &= 0x80000003000DE133ULL;
@@ -638,6 +642,10 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         // Attempting to set mpp to 2 will set it to 0 instead
         if (((val >> 11) & 0x3) == 0x2)
             val &= ~(0x3ULL << 11);
+        // Invalidate the fetch buffer when changing VM mode or permissions
+        if ((cpu.mstatus & 0xE0000) != (val & 0xE0000)) {
+            cpu.fetch_pc = -1;
+        }
         cpu.mstatus = val;
         break;
     case CSR_MISA:
