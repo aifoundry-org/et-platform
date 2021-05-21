@@ -12,7 +12,7 @@
 
 include(CMakeFindDependencyMacro)
 find_dependency(cereal)
-find_dependency(deviceLayer)
+find_dependency(DeviceLayer)
 find_dependency(logging)
 find_dependency(deviceApi)
 
