@@ -1330,6 +1330,9 @@ static void trap_to_mmode(Hart& cpu, uint64_t cause, uint64_t val)
 
 void Hart::take_trap(const trap_t& t)
 {
+    // Invalidate the fetch buffer when changing VM mode or permissions
+    fetch_pc = -1;
+
     trap_to_mmode(*this, t.cause(), t.tval());
 }
 

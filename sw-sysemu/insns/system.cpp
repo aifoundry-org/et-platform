@@ -61,6 +61,9 @@ void insn_mret(Hart& cpu)
     if (PRV != PRV_M)
         throw trap_illegal_instruction(cpu.inst.bits);
 
+    // Invalidate the fetch buffer when changing VM mode or permissions
+    cpu.fetch_pc = -1;
+
     // Take mpie and mpp
     uint64_t mstatus = cpu.mstatus;
     uint64_t mpie = (mstatus >> 7) & 0x1;
@@ -96,6 +99,9 @@ void insn_sret(Hart& cpu)
     uint64_t mstatus = cpu.mstatus;
     if (curprv == PRV_U || (curprv == PRV_S && (((mstatus >> 22) & 1) == 1)))
         throw trap_illegal_instruction(cpu.inst.bits);
+
+    // Invalidate the fetch buffer when changing VM mode or permissions
+    cpu.fetch_pc = -1;
 
     // Take spie and spp
     uint64_t spie = (mstatus >> 5) & 0x1;
