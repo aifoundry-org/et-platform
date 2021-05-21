@@ -28,8 +28,7 @@ target_compile_features(logging INTERFACE cxx_std_17)
 target_include_directories(logging
     PUBLIC
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-    PRIVATE
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>        
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>     
 )
 
 target_link_libraries(logging INTERFACE g3log::g3log)
