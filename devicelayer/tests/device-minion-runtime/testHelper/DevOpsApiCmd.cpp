@@ -268,31 +268,41 @@ device_ops_api::tag_id_t DataReadCmd::getCmdTagId() {
 /*
  * Device Ops Api Kernel Launch command creation and handling
  */
-std::unique_ptr<IDevOpsApiCmd>
-IDevOpsApiCmd::createKernelLaunchCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
-                                     uint64_t codeStartAddr, uint64_t ptrToArgs, uint64_t shireMask,
-                                     device_ops_api::dev_ops_api_kernel_launch_response_e status) {
+std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createKernelLaunchCmd(
+  device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, uint64_t codeStartAddr, uint64_t ptrToArgs,
+  uint64_t exceptionBuffer, uint64_t shireMask, uint64_t traceBuffer, void* argumentPayload, uint32_t sizeOfArgPayload,
+  device_ops_api::dev_ops_api_kernel_launch_response_e status) {
   if (!addRspEntry(tagId, status)) {
     return nullptr;
   }
-  return std::make_unique<KernelLaunchCmd>(tagId, flag, codeStartAddr, ptrToArgs, shireMask);
+  return std::make_unique<KernelLaunchCmd>(tagId, flag, codeStartAddr, ptrToArgs, exceptionBuffer, shireMask,
+                                           traceBuffer, argumentPayload, sizeOfArgPayload);
 }
 
 KernelLaunchCmd::KernelLaunchCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
-                                 uint64_t codeStartAddr, uint64_t ptrToArgs, uint64_t shireMask) {
-  cmd_.command_info.cmd_hdr.tag_id = tagId;
-  cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD;
-  cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.cmd_hdr.flags = flag;
-  cmd_.code_start_address = codeStartAddr;
-  cmd_.pointer_to_args = ptrToArgs;
-  cmd_.shire_mask = shireMask;
+                                 uint64_t codeStartAddr, uint64_t ptrToArgs, uint64_t exceptionBuffer,
+                                 uint64_t shireMask, uint64_t traceBuffer, void* argumentPayload,
+                                 uint32_t sizeOfArgPayload) {
+  cmdMem_.resize(sizeof(*cmd_) + sizeOfArgPayload);
+  cmd_ = reinterpret_cast<device_ops_api::device_ops_kernel_launch_cmd_t*>(cmdMem_.data());
+  cmd_->command_info.cmd_hdr.tag_id = tagId;
+  cmd_->command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD;
+  cmd_->command_info.cmd_hdr.size = cmdMem_.size();
+  cmd_->command_info.cmd_hdr.flags = flag;
+  cmd_->code_start_address = codeStartAddr;
+  cmd_->pointer_to_args = ptrToArgs;
+  cmd_->exception_buffer = exceptionBuffer;
+  cmd_->shire_mask = shireMask;
+  cmd_->kernel_trace_buffer = traceBuffer;
+  if (sizeOfArgPayload > 0) {
+    memcpy(cmd_->argument_payload, argumentPayload, sizeOfArgPayload);
+  }
 
   TEST_VLOG(1) << "Created Kernel Launch Command (tagId: " << std::hex << tagId << ")" << std::endl;
 }
 
 KernelLaunchCmd::~KernelLaunchCmd() {
-  deleteRspEntry(cmd_.command_info.cmd_hdr.tag_id);
+  deleteRspEntry(cmd_->command_info.cmd_hdr.tag_id);
 }
 
 IDevOpsApiCmd::CmdType KernelLaunchCmd::whoAmI() {
@@ -300,15 +310,15 @@ IDevOpsApiCmd::CmdType KernelLaunchCmd::whoAmI() {
 }
 
 std::byte* KernelLaunchCmd::getCmdPtr() {
-  return reinterpret_cast<std::byte*>(&cmd_);
+  return reinterpret_cast<std::byte*>(cmd_);
 }
 
 size_t KernelLaunchCmd::getCmdSize() {
-  return sizeof(cmd_);
+  return cmd_->command_info.cmd_hdr.size;
 }
 
 device_ops_api::tag_id_t KernelLaunchCmd::getCmdTagId() {
-  return cmd_.command_info.cmd_hdr.tag_id;
+  return cmd_->command_info.cmd_hdr.tag_id;
 }
 
 /*

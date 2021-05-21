@@ -268,8 +268,8 @@ void TestDevOpsApi::initTagId(device_ops_api::tag_id_t value) {
 
 bool TestDevOpsApi::pushCmd(uint16_t queueId, std::unique_ptr<IDevOpsApiCmd>& devOpsApiCmd) {
   addCmdResultEntry(devOpsApiCmd->getCmdTagId(), CmdStatus::CMD_RSP_NOT_RECEIVED);
-  auto res =
-    devLayer_->sendCommandMasterMinion(kIDevice, queueId, devOpsApiCmd->getCmdPtr(), devOpsApiCmd->getCmdSize(), devOpsApiCmd->isDma());
+  auto res = devLayer_->sendCommandMasterMinion(kIDevice, queueId, devOpsApiCmd->getCmdPtr(),
+                                                devOpsApiCmd->getCmdSize(), devOpsApiCmd->isDma());
   if (res) {
     TEST_VLOG(1) << "=====> Command Sent (tag_id: " << std::hex << devOpsApiCmd->getCmdTagId()
                  << ") <====" << std::endl;
@@ -370,6 +370,16 @@ bool TestDevOpsApi::popRsp(void) {
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP) {
     auto response = reinterpret_cast<device_ops_api::device_ops_kernel_abort_rsp_t*>(message.data());
     TEST_VLOG(1) << "=====> Kernel Abort command response received (tag_id: " << std::hex << rsp_tag_id
+                 << ") <====" << std::endl;
+    if (response->status == IDevOpsApiCmd::getExpectedRsp(rsp_tag_id)) {
+      status = CmdStatus::CMD_SUCCESSFUL;
+    } else {
+      status = CmdStatus::CMD_FAILED;
+    }
+
+  } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_RSP) {
+    auto response = reinterpret_cast<device_ops_api::device_ops_trace_rt_control_rsp_t*>(message.data());
+    TEST_VLOG(1) << "=====> Trace RT config command response received (tag_id: " << std::hex << rsp_tag_id
                  << ") <====" << std::endl;
     if (response->status == IDevOpsApiCmd::getExpectedRsp(rsp_tag_id)) {
       status = CmdStatus::CMD_SUCCESSFUL;
@@ -516,6 +526,54 @@ void TestDevOpsApi::printCmdExecutionSummary() {
   EXPECT_EQ(missingRspCmdTags.size(), 0);
   EXPECT_EQ(duplicateRspCmdTags.size(), 0);
   EXPECT_EQ(timeoutCmdTags.size(), 0);
+}
+
+void TestDevOpsApi::printErrorContext(void* buffer, uint64_t shireMask) {
+  hart_execution_context* context = reinterpret_cast<hart_execution_context*>(buffer);
+
+  TEST_VLOG(0) << "*** Error Context Start ***";
+  for (int shireID = 0; shireID < 32; shireID++) {
+    if (shireMask & (1 << shireID)) {
+      // print the context of the first hart in a shire only
+      auto minionHartID = shireID * 64;
+      TEST_VLOG(0) << "* HartID: " << context[minionHartID].hart_id;
+      TEST_VLOG(0) << "* epc: 0x" << std::hex << context[minionHartID].sepc;
+      TEST_VLOG(0) << "* status: 0x" << std::hex << context[minionHartID].sstatus;
+      TEST_VLOG(0) << "* tval: 0x" << std::hex << context[minionHartID].stval;
+      TEST_VLOG(0) << "* cause: 0x" << std::hex << context[minionHartID].scause;
+      TEST_VLOG(0) << "* gpr[x0]  : zero  : 0x" << std::hex << context[minionHartID].gpr[0];
+      TEST_VLOG(0) << "* gpr[x1]  : ra    : 0x" << std::hex << context[minionHartID].gpr[1];
+      TEST_VLOG(0) << "* gpr[x2]  : sp    : 0x" << std::hex << context[minionHartID].gpr[2];
+      TEST_VLOG(0) << "* gpr[x3]  : gp    : 0x" << std::hex << context[minionHartID].gpr[3];
+      TEST_VLOG(0) << "* gpr[x4]  : tp    : 0x" << std::hex << context[minionHartID].gpr[4];
+      TEST_VLOG(0) << "* gpr[x5]  : t0    : 0x" << std::hex << context[minionHartID].gpr[5];
+      TEST_VLOG(0) << "* gpr[x6]  : t1    : 0x" << std::hex << context[minionHartID].gpr[6];
+      TEST_VLOG(0) << "* gpr[x7]  : t2    : 0x" << std::hex << context[minionHartID].gpr[7];
+      TEST_VLOG(0) << "* gpr[x8]  : s0/fp : 0x" << std::hex << context[minionHartID].gpr[8];
+      TEST_VLOG(0) << "* gpr[x9]  : s1    : 0x" << std::hex << context[minionHartID].gpr[9];
+      TEST_VLOG(0) << "* gpr[x10] : a0    : 0x" << std::hex << context[minionHartID].gpr[10];
+      for (auto i = 0; i < 8; i++) {
+        auto reg = i + 10;
+        TEST_VLOG(0) << "* gpr[x" << reg << "] : a" << i << "    : 0x" << std::hex << context[minionHartID].gpr[reg];
+      }
+      for (auto i = 0; i < 10; i++) {
+        auto reg = i + 18;
+        if (i < 8) {
+          TEST_VLOG(0) << "* gpr[x" << reg << "] : s" << (i + 2) << "    : 0x" << std::hex
+                       << context[minionHartID].gpr[reg];
+        } else {
+          TEST_VLOG(0) << "* gpr[x" << reg << "] : s" << (i + 2) << "   : 0x" << std::hex
+                       << context[minionHartID].gpr[reg];
+        }
+      }
+      TEST_VLOG(0) << "* gpr[x28] : t3    : 0x" << std::hex << context[minionHartID].gpr[28];
+      TEST_VLOG(0) << "* gpr[x29] : t4    : 0x" << std::hex << context[minionHartID].gpr[29];
+      TEST_VLOG(0) << "* gpr[x30] : t5    : 0x" << std::hex << context[minionHartID].gpr[30];
+      TEST_VLOG(0) << "* gpr[x31] : t6    : 0x" << std::hex << context[minionHartID].gpr[31];
+      TEST_VLOG(0) << "--------------------------";
+    }
+  }
+  TEST_VLOG(0) << "*** Error Context End ***" << std::endl;
 }
 
 void TestDevOpsApi::deleteCmdResults() {

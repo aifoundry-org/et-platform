@@ -74,6 +74,10 @@ TEST_F(TestDevOpsApiFuncKernelCmdsSysEmu, launchUberKernel_PositiveTesting_4_4) 
   launchUberKernel_PositiveTesting_4_4(kSysEmuMinionShiresMask);
 }
 
+TEST_F(TestDevOpsApiFuncKernelCmdsSysEmu, launchEmptyKernel_PositiveTesting_4_5) {
+  launchEmptyKernel_PositiveTesting_4_5(kSysEmuMinionShiresMask);
+}
+
 TEST_F(TestDevOpsApiFuncKernelCmdsSysEmu, launchExceptionKernel_NegativeTesting_4_6) {
   launchExceptionKernel_NegativeTesting_4_6(kSysEmuMinionShiresMask);
 }
@@ -89,6 +93,7 @@ TEST_F(TestDevOpsApiFuncKernelCmdsSysEmu, abortHangKernel_PositiveTesting_4_10) 
 TEST_F(TestDevOpsApiFuncKernelCmdsSysEmu, allTestsConsecutively) {
   launchAddVectorKernel_PositiveTesting_4_1(kSysEmuMinionShiresMask);
   launchUberKernel_PositiveTesting_4_4(kSysEmuMinionShiresMask);
+  launchEmptyKernel_PositiveTesting_4_5(kSysEmuMinionShiresMask);
   launchExceptionKernel_NegativeTesting_4_6(kSysEmuMinionShiresMask);
   abortHangKernel_PositiveTesting_4_10(kSysEmuMinionShiresMask);
 }

@@ -19,9 +19,9 @@
 
 namespace {
 
-/* TODO: All trace packet information should be in common files 
+/* TODO: All trace packet information should be in common files
          for both Host and Device usage. */
-constexpr uint32_t CM_SIZE_PER_HART  = 4096;
+constexpr uint32_t CM_SIZE_PER_HART = 4096;
 constexpr uint32_t WORKER_HART_COUNT = 2080;
 
 enum trace_type_e {
@@ -56,6 +56,11 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractMMFwData_5_1() {
   std::vector<uint8_t> readBuf(size, 0);
   std::vector<uint8_t> compBuf(size, 0);
 
+  // start MM trace and dump logs to trace buffer
+  stream.push_back(IDevOpsApiCmd::createTraceRtControlCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                          0x1, 0x3,
+                                                          device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
+
   // Read Trace data from MM
   auto devPhysAddr = 0;
   auto hostVirtAddr = reinterpret_cast<uint64_t>(readBuf.data());
@@ -64,6 +69,10 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractMMFwData_5_1() {
                                                     devPhysAddr, hostVirtAddr, hostPhysAddr, readBuf.size(),
                                                     device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
+  // stop MM trace and redirect logs to UART
+  stream.push_back(IDevOpsApiCmd::createTraceRtControlCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_ENABLE, 0x1,
+                                                          0x0,
+                                                          device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
   streams_.emplace(sqIdx, std::move(stream));
   executeSync();
 
@@ -74,10 +83,16 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractMMFwData_5_1() {
 
 void TestDevOpsApiTraceCmds::traceCtrlAndExtractCMFwData_5_2() {
   std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
+  initTagId(0x61);
   uint64_t size = CM_SIZE_PER_HART * WORKER_HART_COUNT;
   uint16_t sqIdx = 0; // Default SQ for dmaLoopback
   std::vector<uint8_t> readBuf(size, 0);
   std::vector<uint8_t> compBuf(size, 0);
+
+  // start CM trace and dump logs to trace buffer
+  stream.push_back(IDevOpsApiCmd::createTraceRtControlCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                          0x2, 0x3,
+                                                          device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
 
   // Read Trace data from CM
   auto devPhysAddr = 0;
@@ -99,8 +114,8 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractCMFwData_5_2() {
 void TestDevOpsApiTraceCmds::printMMTraceStringData(std::vector<uint8_t>& traceBuf) {
   auto dataPtr = reinterpret_cast<trace_string_t*>(traceBuf.data());
   while (1) {
-    if (dataPtr->header.type == TRACE_TYPE_STRING) {
-      std::cout << "H:" <<dataPtr->header.hart_id << ":" << dataPtr->dataString;
+    if ((dataPtr->header.type == TRACE_TYPE_STRING) && (dataPtr->dataString[0] != '\0')) {
+      std::cout << "H:" << dataPtr->header.hart_id << ":" << dataPtr->dataString;
       dataPtr++;
     } else {
       break;
@@ -111,15 +126,14 @@ void TestDevOpsApiTraceCmds::printMMTraceStringData(std::vector<uint8_t>& traceB
 void TestDevOpsApiTraceCmds::printCMTraceStringData(std::vector<uint8_t>& traceBuf) {
   uint64_t size = CM_SIZE_PER_HART / sizeof(trace_string_t);
   unsigned char* bytePtr = reinterpret_cast<unsigned char*>(traceBuf.data());
-  
-  for (int i=0; i < WORKER_HART_COUNT; ++i)
-  {
+
+  for (int i = 0; i < WORKER_HART_COUNT; ++i) {
     auto dataPtr = reinterpret_cast<trace_string_t*>(bytePtr);
     auto start = dataPtr;
     while ((dataPtr - start) < size) {
-      if ((dataPtr->header.type == TRACE_TYPE_STRING) && (dataPtr->dataString[0] != '\0')){
-        std::cout << "H:" <<dataPtr->header.hart_id << ":" << dataPtr->dataString;
-      } 
+      if ((dataPtr->header.type == TRACE_TYPE_STRING) && (dataPtr->dataString[0] != '\0')) {
+        std::cout << "H:" << dataPtr->header.hart_id << ":" << dataPtr->dataString;
+      }
       dataPtr++;
     }
     bytePtr += CM_SIZE_PER_HART;

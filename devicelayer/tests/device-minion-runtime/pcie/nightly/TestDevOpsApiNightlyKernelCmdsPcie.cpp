@@ -60,6 +60,14 @@ TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackDifferentKernelLaunchCmds_3
   backToBackDifferentKernelLaunchCmds_3_2(0x1FFFFFFFF); // all shires
 }
 
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackEmptyKernelLaunch_3_3) {
+  backToBackEmptyKernelLaunch_3_3(0x1FFFFFFFF, false); // all shires
+}
+
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackEmptyKernelLaunchFlushL3_3_4) {
+  backToBackEmptyKernelLaunch_3_3(0x1FFFFFFFF, true); // all shires
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   google::ParseCommandLineFlags(&argc, &argv, true);

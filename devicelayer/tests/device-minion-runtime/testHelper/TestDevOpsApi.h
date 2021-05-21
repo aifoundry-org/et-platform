@@ -42,6 +42,16 @@ const uint64_t kCacheLineSize = 64;
 
 enum class CmdStatus { CMD_RSP_NOT_RECEIVED, CMD_TIMED_OUT, CMD_FAILED, CMD_RSP_DUPLICATE, CMD_SUCCESSFUL };
 
+struct __attribute__((packed, aligned(64))) hart_execution_context {
+  uint64_t kernel_pending_shires;
+  uint64_t hart_id;
+  uint64_t sepc;
+  uint64_t sstatus;
+  uint64_t stval;
+  uint64_t scause;
+  uint64_t gpr[32];
+};
+
 class TestDevOpsApi : public ::testing::Test {
 protected:
   void fExecutor(uint8_t queueId);
@@ -68,6 +78,7 @@ protected:
   void deleteCmdResultEntry(device_ops_api::tag_id_t tagId);
   void deleteCmdResults();
   void printCmdExecutionSummary();
+  void printErrorContext(void *buffer, uint64_t shireMask);
   void cleanUpExecution();
 
   logging::LoggerDefault logger_;

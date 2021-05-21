@@ -64,6 +64,14 @@ TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackDifferentKernelLaunchCmds_
   backToBackDifferentKernelLaunchCmds_3_2(kSysEmuMinionShiresMask);
 }
 
+TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackEmptyKernelLaunch_3_3) {
+  backToBackEmptyKernelLaunch_3_3(kSysEmuMinionShiresMask, false);
+}
+
+TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackEmptyKernelLaunchFlushL3_3_4) {
+  backToBackEmptyKernelLaunch_3_3(kSysEmuMinionShiresMask, true);
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   google::ParseCommandLineFlags(&argc, &argv, true);

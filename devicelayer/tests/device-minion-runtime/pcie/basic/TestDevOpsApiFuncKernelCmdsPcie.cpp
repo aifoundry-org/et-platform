@@ -40,6 +40,10 @@ TEST_F(TestDevOpsApiFuncKernelCmdsPcie, launchUberKernel_PositiveTesting_4_4) {
   launchUberKernel_PositiveTesting_4_4(0x3 | (1ull << 32)); /* Shire 0, 1 and 32 */
 }
 
+TEST_F(TestDevOpsApiFuncKernelCmdsPcie, launchEmptyKernel_PositiveTesting_4_5) {
+  launchEmptyKernel_PositiveTesting_4_5(0x3 | (1ull << 32)); /* Shire 0, 1 and 32 */
+}
+
 TEST_F(TestDevOpsApiFuncKernelCmdsPcie, launchExceptionKernel_NegativeTesting_4_6) {
   // Skip Test, if loopback driver
   if (FLAGS_loopback_driver) {
