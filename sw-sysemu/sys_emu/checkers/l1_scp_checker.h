@@ -17,6 +17,7 @@
 // Local
 #include "emu_defines.h"
 #include "cache.h"
+#include "agent.h"
 
 // L1 Scp status
 enum l1_scp_status {
@@ -31,11 +32,19 @@ struct minion_scp_info_t
     uint32_t      l1_scp_line_id[L1_SCP_ENTRIES];
 };
 
-class l1_scp_checker
+class l1_scp_checker : public bemu::Agent
 {
   public:
-    // Creator
-    l1_scp_checker();
+    // Constructor
+    l1_scp_checker(bemu::System* chip = nullptr);
+
+    // Copy/Move
+    l1_scp_checker(const l1_scp_checker&) = default;
+    l1_scp_checker& operator=(const l1_scp_checker&) = default;
+    l1_scp_checker(l1_scp_checker&&) = default;
+    l1_scp_checker& operator=(l1_scp_checker&&) = default;
+
+    std::string name() const { return "L1-SCP-Checker"; }
 
     // Accessors
     void l1_scp_fill(uint32_t thread, uint32_t idx, uint32_t id);

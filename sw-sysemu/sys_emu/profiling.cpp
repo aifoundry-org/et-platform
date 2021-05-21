@@ -26,8 +26,11 @@ static std::unordered_map<uint64_t, histogram_entry_t> histogram[EMU_NUM_THREADS
 static uint64_t last_event_pc[EMU_NUM_THREADS];
 static uint64_t last_event_time[EMU_NUM_THREADS];
 
-void profiling_init(void)
+static sys_emu* g_sys_emu = nullptr;
+
+void profiling_init(sys_emu* emu)
 {
+    g_sys_emu = emu;
     for (int i = 0; i < EMU_NUM_THREADS; i++)
         last_event_time[i] = UINT64_MAX;
 }
@@ -40,7 +43,7 @@ void profiling_fini(void)
 
 void profiling_flush()
 {
-    uint64_t event_time = sys_emu::get_emu_cycle();
+    uint64_t event_time = g_sys_emu->get_emu_cycle();
 
     for (int i = 0; i < EMU_NUM_THREADS; i++) {
         if (last_event_time[i] != UINT64_MAX) {
@@ -55,7 +58,7 @@ void profiling_dump(const char *filename)
     std::ofstream file(filename);
 
     if (!file.is_open()) {
-        LOG_NOTHREAD(ERR, "Cannot open %s", filename);
+        std::cerr << "Profiling: Cannot open " << filename << std::endl;
         return;
     }
 
@@ -69,7 +72,7 @@ void profiling_dump(const char *filename)
 
 void profiling_write_pc(int thread_id, uint64_t pc)
 {
-    uint64_t event_time = sys_emu::get_emu_cycle();
+    uint64_t event_time = g_sys_emu->get_emu_cycle();
 
     // If not the first event, accumulate the delta time to the previous BB
     if (last_event_time[thread_id] != UINT64_MAX) {

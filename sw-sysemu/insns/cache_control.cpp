@@ -24,6 +24,10 @@
 #include "sys_emu.h"
 #endif
 
+#ifdef SYS_EMU
+#define SYS_EMU_PTR cpu.chip->emu()
+#endif
+
 namespace bemu {
 
 
@@ -97,14 +101,14 @@ void dcache_evict_flush_set_way(Hart& cpu, bool evict, uint64_t value)
             LOG_HART(DEBUG, cpu, "\tDoing %s: Set: %d, Way: %d, DestLevel: %d",
                 evict ? "EvictSW" : "FlushSW", set, way, dest);
 #ifdef SYS_EMU
-            if (sys_emu::get_mem_check()) {
+            if (SYS_EMU_PTR->get_mem_check()) {
                 unsigned thread = hart_index(cpu);
                 unsigned shire = thread / EMU_THREADS_PER_SHIRE;
                 unsigned minion = (thread / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE;
                 if (evict) {
-                    sys_emu::get_mem_checker().l1_evict_sw(shire, minion, set, way);
+                    SYS_EMU_PTR->get_mem_checker().l1_evict_sw(shire, minion, set, way);
                 } else {
-                    sys_emu::get_mem_checker().l1_flush_sw(shire, minion, set, way);
+                    SYS_EMU_PTR->get_mem_checker().l1_flush_sw(shire, minion, set, way);
                 }
             }
 #endif

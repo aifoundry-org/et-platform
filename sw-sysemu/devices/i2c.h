@@ -15,6 +15,8 @@
 #include <cstdint>
 #include "memory/memory_error.h"
 #include "memory/memory_region.h"
+#include "literals.h"
+#include "emu_gio.h"
 
 namespace bemu {
 
@@ -27,10 +29,10 @@ struct I2c : public MemoryRegion {
 
     static_assert(N == 4_KiB, "bemu::I2c has illegal size");
 
-    void read(const Agent&, size_type pos, size_type n, pointer result) override {
+    void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
         uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
 
-        LOG_NOTHREAD(DEBUG, "I2c%d::read(pos=0x%llx)", ID, pos);
+        LOG_AGENT(DEBUG, agent, "I2c%d::read(pos=0x%llx)", ID, pos);
 
         if (n != 4)
             throw memory_error(first() + pos);
@@ -39,20 +41,20 @@ struct I2c : public MemoryRegion {
         *result32 = 0;
     }
 
-    void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
+    void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
         (void) source32;
 
-        LOG_NOTHREAD(DEBUG, "I2c%d::write(pos=0x%llx)", ID, pos);
+        LOG_AGENT(DEBUG, agent, "I2c%d::write(pos=0x%llx)", ID, pos);
 
         if (n != 4)
             throw memory_error(first() + pos);
     }
 
-    void init(const Agent&, size_type pos, size_type n, const_pointer source) override {
+    void init(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         const uint8_t *src = reinterpret_cast<const uint8_t *>(source);
         (void) src;
-        LOG_NOTHREAD(DEBUG, "I2c%d::init(pos=0x%llx, n=0x%llx)", ID, pos, n);
+        LOG_AGENT(DEBUG, agent, "I2c%d::init(pos=0x%llx, n=0x%llx)", ID, pos, n);
     }
 
     addr_type first() const override { return Base; }

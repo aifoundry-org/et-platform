@@ -16,6 +16,7 @@
 #include "memory/memory_error.h"
 #include "memory/memory_region.h"
 #include "system.h"
+#include "emu_gio.h"
 
 namespace bemu {
 
@@ -31,10 +32,10 @@ struct PcieNoPcieEsrRegion : public MemoryRegion {
         MSI_TX_VEC = 0x18,
     };
 
-    void read(const Agent&, size_type pos, size_type n, pointer result) override {
+    void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
         uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
 
-        LOG_NOTHREAD(DEBUG, "PcieNoPcieEsrRegion::read(pos=0x%llx)", pos);
+        LOG_AGENT(DEBUG, agent, "PcieNoPcieEsrRegion::read(pos=0x%llx)", pos);
 
         if (n != 4)
             throw memory_error(first() + pos);
@@ -49,7 +50,7 @@ struct PcieNoPcieEsrRegion : public MemoryRegion {
     void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
 
-        LOG_NOTHREAD(DEBUG, "PcieNoPcieEsrRegion::write(pos=0x%llx)", pos);
+        LOG_AGENT(DEBUG, agent, "PcieNoPcieEsrRegion::write(pos=0x%llx)", pos);
 
         if (n != 4)
             throw memory_error(first() + pos);

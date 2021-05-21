@@ -30,6 +30,10 @@
 #include "checkers/mem_checker.h"
 #endif
 
+#ifdef SYS_EMU
+#define SYS_EMU_PTR cpu.chip->emu()
+#endif
+
 namespace bemu {
 
 
@@ -341,8 +345,8 @@ static uint64_t pma_check_data_access(const Hart& cpu, uint64_t vaddr,
             }
         }
 #ifdef SYS_EMU
-        if (sys_emu::get_mem_check()) {
-            sys_emu::get_mem_checker().access(cpu.pc, addr, macc, cop, hart_index(cpu), size, mask);
+        if (SYS_EMU_PTR->get_mem_check()) {
+            SYS_EMU_PTR->get_mem_checker().access(cpu.pc, addr, macc, cop, hart_index(cpu), size, mask);
         }
 #endif
 #ifdef SMB_SIZE
@@ -368,11 +372,11 @@ static uint64_t pma_check_data_access(const Hart& cpu, uint64_t vaddr,
             addr = normalize_scratchpad_address(cpu, addr);
         }
 #ifdef SYS_EMU
-        if (sys_emu::get_mem_check()) {
-            sys_emu::get_mem_checker().access(cpu.pc, addr, macc, cop, hart_index(cpu), size, mask);
+        if (SYS_EMU_PTR->get_mem_check()) {
+            SYS_EMU_PTR->get_mem_checker().access(cpu.pc, addr, macc, cop, hart_index(cpu), size, mask);
         }
-        if (sys_emu::get_l2_scp_check()) {
-            sys_emu::get_l2_scp_checker().l2_scp_read(hart_index(cpu), addr);
+        if (SYS_EMU_PTR->get_l2_scp_check()) {
+            SYS_EMU_PTR->get_l2_scp_checker().l2_scp_read(hart_index(cpu), addr);
         }
 #endif
         return addr;
@@ -480,8 +484,8 @@ static uint64_t pma_check_fetch_access(const Hart& cpu, uint64_t vaddr,
             }
         }
 #ifdef SYS_EMU
-        if (sys_emu::get_mem_check()) {
-            sys_emu::get_mem_checker().access(cpu.pc, addr, Mem_Access_Fetch, CacheOp_None, hart_index(cpu), 64, mreg_t(-1));
+        if (SYS_EMU_PTR->get_mem_check()) {
+            SYS_EMU_PTR->get_mem_checker().access(cpu.pc, addr, Mem_Access_Fetch, CacheOp_None, hart_index(cpu), 64, mreg_t(-1));
         }
 #endif
 #ifdef SMB_SIZE

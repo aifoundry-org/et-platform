@@ -15,6 +15,10 @@
 #include "sys_emu.h"
 #endif
 
+#ifdef SYS_EMU
+#define SYS_EMU_PTR cpu.chip->emu()
+#endif
+
 namespace bemu {
 
 
@@ -31,8 +35,8 @@ uint64_t write_flb(const Hart& cpu, uint64_t value)
     LOG_AGENT(DEBUG, cpu, "S%u:fast_local_barrier%u : 0x%x", unsigned(cpu.shireid()), barrier, oldval);
 
 #ifdef SYS_EMU
-    if (sys_emu::get_flb_check())
-        sys_emu::get_flb_checker().access(oldval, limit, barrier, hart_index(cpu));
+    if (SYS_EMU_PTR->get_flb_check())
+        SYS_EMU_PTR->get_flb_checker().access(oldval, limit, barrier, hart_index(cpu));
 #endif
 
     unsigned newval = (oldval == limit) ? 0 : (oldval + 1);

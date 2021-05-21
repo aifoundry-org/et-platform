@@ -162,7 +162,7 @@ void System::reset_hart(unsigned thread)
 void System::raise_timer_interrupt(uint64_t shire_mask)
 {
 #ifdef SYS_EMU
-    sys_emu::raise_timer_interrupt(shire_mask);
+    emu()->raise_timer_interrupt(shire_mask);
 #else
     (void) shire_mask;
 #endif
@@ -172,7 +172,7 @@ void System::raise_timer_interrupt(uint64_t shire_mask)
 void System::clear_timer_interrupt(uint64_t shire_mask)
 {
 #ifdef SYS_EMU
-    sys_emu::clear_timer_interrupt(shire_mask);
+    emu()->clear_timer_interrupt(shire_mask);
 #else
     (void) shire_mask;
 #endif
@@ -182,7 +182,7 @@ void System::clear_timer_interrupt(uint64_t shire_mask)
 void System::raise_external_interrupt(unsigned shire)
 {
 #ifdef SYS_EMU
-    sys_emu::raise_external_interrupt(shire);
+    emu()->raise_external_interrupt(shire);
 #else
     (void) shire;
 #endif
@@ -192,7 +192,7 @@ void System::raise_external_interrupt(unsigned shire)
 void System::clear_external_interrupt(unsigned shire)
 {
 #ifdef SYS_EMU
-    sys_emu::clear_external_interrupt(shire);
+    emu()->clear_external_interrupt(shire);
 #else
     (void) shire;
 #endif
@@ -202,7 +202,7 @@ void System::clear_external_interrupt(unsigned shire)
 void System::raise_external_supervisor_interrupt(unsigned shire)
 {
 #ifdef SYS_EMU
-    sys_emu::raise_external_supervisor_interrupt(shire);
+    emu()->raise_external_supervisor_interrupt(shire);
 #else
     (void) shire;
 #endif
@@ -212,7 +212,7 @@ void System::raise_external_supervisor_interrupt(unsigned shire)
 void System::clear_external_supervisor_interrupt(unsigned shire)
 {
 #ifdef SYS_EMU
-    sys_emu::clear_external_supervisor_interrupt(shire);
+    emu()->clear_external_supervisor_interrupt(shire);
 #else
     (void) shire;
 #endif
@@ -222,7 +222,7 @@ void System::clear_external_supervisor_interrupt(unsigned shire)
 void System::raise_software_interrupt(unsigned shire, uint64_t thread_mask)
 {
 #ifdef SYS_EMU
-    sys_emu::raise_software_interrupt(shire, thread_mask);
+    emu()->raise_software_interrupt(shire, thread_mask);
 #else
     (void) shire;
     (void) thread_mask;
@@ -233,7 +233,7 @@ void System::raise_software_interrupt(unsigned shire, uint64_t thread_mask)
 void System::clear_software_interrupt(unsigned shire, uint64_t thread_mask)
 {
 #ifdef SYS_EMU
-    sys_emu::clear_software_interrupt(shire, thread_mask);
+    emu()->clear_software_interrupt(shire, thread_mask);
 #else
     (void) shire;
     (void) thread_mask;
@@ -244,7 +244,7 @@ void System::clear_software_interrupt(unsigned shire, uint64_t thread_mask)
 void System::send_ipi_redirect_to_threads(unsigned shire, uint64_t thread_mask)
 {
 #ifdef SYS_EMU
-    sys_emu::send_ipi_redirect_to_threads(shire, thread_mask);
+    emu()->send_ipi_redirect_to_threads(shire, thread_mask);
 #else
     (void) shire;
     (void) thread_mask;
@@ -256,10 +256,10 @@ bool System::raise_host_interrupt(uint32_t bitmap)
 {
 #ifdef SYS_EMU
     if (bitmap != 0) {
-        if (sys_emu::get_api_communicate()) {
-            return sys_emu::get_api_communicate()->raise_host_interrupt(bitmap);
+        if (emu()->get_api_communicate()) {
+            return emu()->get_api_communicate()->raise_host_interrupt(bitmap);
         }
-        LOG_NOTHREAD(WARN, "%s", "API Communicate is NULL!");
+        LOG_AGENT(WARN, noagent, "%s", "API Communicate is NULL!");
     }
 #else
     (void) bitmap;
@@ -271,14 +271,14 @@ bool System::raise_host_interrupt(uint32_t bitmap)
 void System::copy_memory_from_host_to_device(uint64_t from_addr, uint64_t to_addr, uint32_t size)
 {
 #ifdef SYS_EMU
-    api_communicate *api_comm = sys_emu::get_api_communicate();
+    api_communicate *api_comm = emu()->get_api_communicate();
     if (api_comm) {
         uint8_t *buff = new uint8_t[size];
         api_comm->host_memory_read(from_addr, size, buff);
-        memory.write(Noagent{this}, to_addr, size, buff);
+        memory.write(noagent, to_addr, size, buff);
         delete[] buff;
     } else {
-        LOG_NOTHREAD(WARN, "%s", "API Communicate is NULL!");
+        LOG_AGENT(WARN, noagent, "%s", "API Communicate is NULL!");
     }
 #else
     (void) from_addr;
@@ -291,14 +291,14 @@ void System::copy_memory_from_host_to_device(uint64_t from_addr, uint64_t to_add
 void System::copy_memory_from_device_to_host(uint64_t from_addr, uint64_t to_addr, uint32_t size)
 {
 #ifdef SYS_EMU
-    api_communicate *api_comm = sys_emu::get_api_communicate();
+    api_communicate *api_comm = emu()->get_api_communicate();
     if (api_comm) {
         uint8_t *buff = new uint8_t[size];
-        memory.read(Noagent{this}, from_addr, size, buff);
+        memory.read(noagent, from_addr, size, buff);
         api_comm->host_memory_write(to_addr, size, buff);
         delete[] buff;
     } else {
-        LOG_NOTHREAD(WARN, "%s", "API Communicate is NULL!");
+        LOG_AGENT(WARN, noagent, "%s", "API Communicate is NULL!");
     }
 #else
     (void) from_addr;
@@ -311,11 +311,11 @@ void System::copy_memory_from_device_to_host(uint64_t from_addr, uint64_t to_add
 void System::notify_iatu_ctrl_2_reg_write(int pcie_id, uint32_t iatu, uint32_t value)
 {
 #ifdef SYS_EMU
-    api_communicate *api_comm = sys_emu::get_api_communicate();
+    api_communicate *api_comm = emu()->get_api_communicate();
     if (api_comm) {
         api_comm->notify_iatu_ctrl_2_reg_write(pcie_id, iatu, value);
     } else {
-        LOG_NOTHREAD(WARN, "%s", "API Communicate is NULL!");
+        LOG_AGENT(WARN, noagent, "%s", "API Communicate is NULL!");
     }
 #else
     (void) pcie_id;
@@ -355,7 +355,7 @@ void System::write_fcc_credinc(int index, uint64_t shire, uint64_t minion_mask)
     }
 
 #ifdef SYS_EMU
-    sys_emu::fcc_to_threads(shire, thread_in_minion, minion_mask, counter);
+    emu()->fcc_to_threads(shire, thread_in_minion, minion_mask, counter);
 #endif
 }
 
@@ -369,7 +369,7 @@ void System::recalculate_thread0_enable(unsigned shire)
         cpu[thread].enabled = !((value >> m) & 1);
     }
 #ifdef SYS_EMU
-    sys_emu::recalculate_thread_disable(shire);
+    emu()->recalculate_thread_disable(shire);
 #endif
 }
 
@@ -387,7 +387,7 @@ void System::recalculate_thread1_enable(unsigned shire)
         cpu[thread].enabled = !((value >> m) & 1);
     }
 #ifdef SYS_EMU
-    sys_emu::recalculate_thread_disable(shire);
+    emu()->recalculate_thread_disable(shire);
 #endif
 }
 
@@ -404,7 +404,7 @@ void System::load_elf(const char* filename)
         if (!(seg->get_type() & PT_LOAD))
             continue;
 
-        LOG_NOTHREAD(INFO, "Segment[%d] VA: 0x%" PRIx64 "\tType: 0x%" PRIx32 " (LOAD)",
+        LOG_AGENT(INFO, noagent, "Segment[%d] VA: 0x%" PRIx64 "\tType: 0x%" PRIx32 " (LOAD)",
                      seg->get_index(), seg->get_virtual_address(), seg->get_type());
 
         uint64_t vma_offset = seg->get_virtual_address() - seg->get_physical_address();
@@ -421,7 +421,8 @@ void System::load_elf(const char* filename)
 
             uint64_t vma = sec->get_address();
             uint64_t lma = vma - vma_offset;
-            LOG_NOTHREAD(INFO, "Section[%d] %s\tVMA: 0x%" PRIx64 "\tLMA: 0x%" PRIx64 "\tSize: 0x%" PRIx64
+            LOG_AGENT(INFO, noagent,
+                         "Section[%d] %s\tVMA: 0x%" PRIx64 "\tLMA: 0x%" PRIx64 "\tSize: 0x%" PRIx64
                          "\tType: 0x%" PRIx32 "\tFlags: 0x%" PRIx64,
                          idx, sec->get_name().c_str(), vma, lma, sec->get_size(),
                          sec->get_type(), sec->get_flags());
@@ -429,7 +430,7 @@ void System::load_elf(const char* filename)
             if (lma >= MainMemory::dram_base)
                 lma &= ~0x4000000000ULL;
 
-            memory.init(Noagent{this}, lma, sec->get_size(), sec->get_data());
+            memory.init(noagent, lma, sec->get_size(), sec->get_data());
         }
     }
 }
@@ -450,9 +451,18 @@ void System::load_raw(const char* filename, unsigned long long addr)
             break;
         if (addr >= MainMemory::dram_base)
             addr &= ~0x4000000000ULL;
-        memory.init(Noagent{this}, addr, count, reinterpret_cast<MainMemory::const_pointer>(fbuf));
+        memory.init(noagent, addr, count, reinterpret_cast<MainMemory::const_pointer>(fbuf));
         addr += count;
     }
+}
+
+uint64_t System::emu_cycle() const noexcept
+{
+#ifdef SYS_EMU
+    return m_emu ? m_emu->get_emu_cycle() : 0;
+#else
+    return 0;
+#endif
 }
 
 

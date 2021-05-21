@@ -13,7 +13,9 @@
 
 #include <cstdint>
 
-void profiling_init();
+class sys_emu;
+
+void profiling_init(sys_emu* emu);
 void profiling_fini();
 void profiling_flush();
 void profiling_dump(const char *filename);

@@ -13,10 +13,6 @@
 #include "mmu.h"
 #include "sys_emu.h"
 
-
-int                                 sys_emu::debug_steps = 0;
-std::list<sys_emu::pc_breakpoint_t> sys_emu::pc_breakpoints;
-
 bool sys_emu::pc_breakpoints_exists(uint64_t pc, int thread)
 {
     return pc_breakpoints.end() !=
@@ -106,23 +102,23 @@ static size_t split(const std::string &txt, std::vector<std::string> &strs, char
    return strs.size();
 }
 
-static std::string dump_xregs(unsigned thread_id)
+std::string sys_emu::dump_xregs(unsigned thread_id)
 {
     std::stringstream str;
     if (thread_id < EMU_NUM_THREADS) {
         for (size_t ii = 0; ii < bemu::NXREGS; ++ii) {
-            str << "XREG[" << std::dec << ii << "] = 0x" << std::hex << sys_emu::thread_get_reg(thread_id, ii) << "\n";
+            str << "XREG[" << std::dec << ii << "] = 0x" << std::hex << thread_get_reg(thread_id, ii) << "\n";
         }
     }
     return str.str();
 }
 
-static std::string dump_fregs(unsigned thread_id)
+std::string sys_emu::dump_fregs(unsigned thread_id)
 {
     std::stringstream str;
     if (thread_id < EMU_NUM_THREADS) {
         for (size_t ii = 0; ii < bemu::NFREGS; ++ii) {
-            const auto value = sys_emu::thread_get_freg(thread_id, ii);
+            const auto value = thread_get_freg(thread_id, ii);
             for (size_t jj = 0; jj < bemu::VLEN/32; ++jj) {
                 str << "FREG[" << std::dec << ii << "][" << jj <<  "] = 0x" << std::hex << value.u32[jj] << "\t";
             }
@@ -137,7 +133,7 @@ void sys_emu::memdump(uint64_t addr, uint64_t size)
     char ascii[17] = {0};
     for (uint64_t i = 0; i < size; i++) {
         uint8_t data;
-        chip.memory.read(bemu::Noagent{&chip}, addr + i, 1, &data);
+        chip.memory.read(agent, addr + i, 1, &data);
         printf("%02X ", data);
         ascii[i % 16] = std::isprint(data) ? data : '.';
         if ((i + 1) % 8 == 0 || (i + 1) == size) {

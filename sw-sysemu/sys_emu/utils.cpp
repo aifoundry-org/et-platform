@@ -22,7 +22,7 @@ bool sys_emu::parse_mem_file(const char* filename)
     FILE * file = fopen(filename, "r");
     if (file == NULL)
     {
-        LOG_NOTHREAD(FTL, "Parse Mem File Error -> Couldn't open file %s for reading!!", filename);
+        LOG_AGENT(FTL, agent, "Parse Mem File Error -> Couldn't open file %s for reading!!", filename);
         return false;
     }
 
@@ -38,11 +38,11 @@ bool sys_emu::parse_mem_file(const char* filename)
         char str[1024];
         if(sscanf(buffer, "New Mem Region: 40'h%" PRIX64 ", 40'h%" PRIX64 ", %s", &base_addr, &size, str) == 3)
         {
-            LOG_NOTHREAD(WARN, "Ignore: New Mem Region found: @ 0x%" PRIx64 ", size = 0x%" PRIu64, base_addr, size);
+            LOG_AGENT(WARN, agent, "Ignore: New Mem Region found: @ 0x%" PRIx64 ", size = 0x%" PRIu64, base_addr, size);
         }
         else if(sscanf(buffer, "File Load: 40'h%" PRIX64 ", %s", &base_addr, str) == 2)
         {
-            LOG_NOTHREAD(INFO, "New File Load found: %s @ 0x%" PRIx64, str, base_addr);
+            LOG_AGENT(INFO, agent, "New File Load found: %s @ 0x%" PRIx64, str, base_addr);
             try
             {
                 chip.load_raw(str, base_addr);
@@ -50,13 +50,13 @@ bool sys_emu::parse_mem_file(const char* filename)
             catch (...)
             {
                 fclose(file);
-                LOG_NOTHREAD(FTL, "Error loading file \"%s\"", str);
+                LOG_AGENT(FTL, agent, "Error loading file \"%s\"", str);
                 return false;
             }
         }
         else if(sscanf(buffer, "ELF Load: %s", str) == 1)
         {
-            LOG_NOTHREAD(INFO, "New ELF Load found: %s", str);
+            LOG_AGENT(INFO, agent, "New ELF Load found: %s", str);
             try
             {
                 chip.load_elf(str);
@@ -64,13 +64,13 @@ bool sys_emu::parse_mem_file(const char* filename)
             catch (...)
             {
                 fclose(file);
-                LOG_NOTHREAD(FTL, "Error loading ELF \"%s\"", str);
+                LOG_AGENT(FTL, agent, "Error loading ELF \"%s\"", str);
                 return false;
             }
         }
         else if(sscanf(buffer, "Mem write32: 40'h%" PRIX64 ", 32'h%" PRIX32 , &base_addr, &value) == 2)
         {
-            chip.memory.write(bemu::Noagent{&chip}, base_addr, sizeof(value),
+            chip.memory.write(agent, base_addr, sizeof(value),
                               reinterpret_cast<bemu::MainMemory::const_pointer>(&value));
         }
     }

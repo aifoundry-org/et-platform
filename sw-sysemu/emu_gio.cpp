@@ -8,38 +8,28 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 
-#include <cstdio>
 #include <cstdarg>
+#include <cstdio>
 
 #include "emu_defines.h"
 #include "emu_gio.h"
+#include "system.h"
 #include "testLog.h"
 
 namespace bemu {
 
-
-std::bitset<EMU_NUM_THREADS> log_thread;
-testLog                      log("EMU", LOG_INFO);
-
-
-void lprintf(logLevel level, const char* fmt, ...)
+void lprintf(logLevel level, const Agent& agent, const char* fmt, ...)
 {
-    static thread_local char lbuf[4096] = {'\0'};
+    assert(agent.chip);
+
+    static thread_local char lbuf[4096] = { '\0' };
     va_list ap;
     va_start(ap, fmt);
-    (void) vsnprintf(lbuf, 4096, fmt, ap);
+    (void)vsnprintf(lbuf, 4096, fmt, ap);
     va_end(ap);
-    log << level << lbuf << endm;
+
+    auto& logger = agent.chip->log;
+    logger << level << "[" << agent.name() << "] " << lbuf << endm;
 }
-
-
-void log_set_threads(const std::bitset<EMU_NUM_THREADS> &threads)
-{
-    if (threads.count() == 0)
-        log_thread.set();
-    else
-        log_thread = threads;
-}
-
 
 } // namespace bemu

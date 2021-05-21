@@ -26,7 +26,7 @@ uint32_t l1_scp_checker_log_minion = 2048; // None by default
  *
  *  This function creates a new object of the type L1 Scp checker
  */
-l1_scp_checker::l1_scp_checker()
+l1_scp_checker::l1_scp_checker(bemu::System* chip) : bemu::Agent(chip)
 {
   // Marks all L1 entries as invalid
   for(uint32_t minion = 0; minion < EMU_NUM_MINIONS; minion++)
@@ -94,7 +94,7 @@ void l1_scp_checker::l1_scp_read(uint32_t thread, uint32_t idx)
 
   if(minion_scp_info[minion_id].l1_scp_line_status[idx] != L1Scp_Valid)
   {
-    LOG_NOTHREAD(FTL, "l1_scp_checker::l1_scp_read => line state is not valid!! It is %i\n", minion_scp_info[minion_id].l1_scp_line_status[idx]);
+    LOG_AGENT(FTL, *this, "l1_scp_checker::l1_scp_read => line state is not valid!! It is %i\n", minion_scp_info[minion_id].l1_scp_line_status[idx]);
   }
 }
 

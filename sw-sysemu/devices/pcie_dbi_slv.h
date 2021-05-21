@@ -100,10 +100,10 @@ struct PcieDbiSlvRegion : public MemoryRegion {
                      std::array<PcieDma<false>, ETSOC_CC_NUM_DMA_RD_CHAN> &dma_rdch) :
         dma_wrch_(dma_wrch), dma_rdch_(dma_rdch) {}
 
-    void read(const Agent&, size_type pos, size_type n, pointer result) override {
+    void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
         uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
 
-        LOG_NOTHREAD(DEBUG, "PcieDbiSlvRegion<%d>::read(pos=0x%llx)", ID, pos);
+        LOG_AGENT(DEBUG, agent, "PcieDbiSlvRegion<%d>::read(pos=0x%llx)", ID, pos);
 
         if (n != 4)
             throw memory_error(first() + pos);
@@ -278,7 +278,7 @@ struct PcieDbiSlvRegion : public MemoryRegion {
     void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
 
-        LOG_NOTHREAD(DEBUG, "PcieDbiSlvRegion<%d>::write(pos=0x%llx)", ID, pos);
+        LOG_AGENT(DEBUG, agent, "PcieDbiSlvRegion<%d>::write(pos=0x%llx)", ID, pos);
 
         if (n != 4)
             throw memory_error(first() + pos);

@@ -38,14 +38,14 @@ bool simEnded()
     return false;
 }
 
-uint64_t testLog::simTime()
-{
-    return sys_emu::get_emu_cycle();
-}
-
 void testLog::setLogLevels()
 {
     logLevelsSet_ = true;
+}
+
+uint64_t testLog::simTime()
+{
+    return device_ ? device_->get_emu_cycle() : 0;
 }
 
 std::string testLog::simTimeStr()

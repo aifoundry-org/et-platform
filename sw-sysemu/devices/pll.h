@@ -15,6 +15,7 @@
 #include <cstdint>
 #include "memory/memory_error.h"
 #include "memory/memory_region.h"
+#include "emu_gio.h"
 
 namespace bemu {
 
@@ -30,10 +31,10 @@ struct PLL : public MemoryRegion {
         PLL_REG_INDEX_REG_LOCK_DETECT_STATUS = 0xE4 // Register 0x39
     };
 
-    void read(const Agent&, size_type pos, size_type n, pointer result) override {
+    void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
         uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
 
-        LOG_NOTHREAD(DEBUG, "PLL%d::read(pos=0x%llx)", id, pos);
+        LOG_AGENT(DEBUG, agent, "PLL%d::read(pos=0x%llx)", id, pos);
 
         if (n < 4)
             throw memory_error(first() + pos);
@@ -48,11 +49,11 @@ struct PLL : public MemoryRegion {
         }
     }
 
-    void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
+    void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
         (void) source32;
 
-        LOG_NOTHREAD(DEBUG, "PLL%d::write(pos=0x%llx)", id, pos);
+        LOG_AGENT(DEBUG, agent, "PLL%d::write(pos=0x%llx)", id, pos);
 
         if (n < 4)
             throw memory_error(first() + pos);
