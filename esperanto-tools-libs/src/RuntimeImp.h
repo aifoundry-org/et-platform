@@ -112,7 +112,7 @@ private:
                                                   reinterpret_cast<std::byte*>(&command), sizeof(command), isDma);
       if (!done) {
         lock.unlock();
-        RT_LOG(INFO) << "Submission queue " << sqIdx
+        RT_VLOG(LOW) << "Submission queue " << sqIdx
                      << " is full. Can't send command now, blocking the thread till an event has been dispatched.";
         auto events = eventManager_.getOnflyEvents();
         if (events.empty()) {
