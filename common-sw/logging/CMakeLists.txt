@@ -16,14 +16,22 @@ include(GNUInstallDirs)
 
 find_package(g3log REQUIRED)
 
-add_library(logging INTERFACE)
+set(INC_DIR include/logging)
+add_library(logging 
+    ${INC_DIR}/Logging.h 
+    ${INC_DIR}/Logger.h 
+    ${INC_DIR}/DefaultSinks.h 
+    ${INC_DIR}/Instance.h 
+    src/Instance.cpp)
 add_library(logging::logging ALIAS logging)
 target_compile_features(logging INTERFACE cxx_std_17)
 target_include_directories(logging
-    INTERFACE
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    PUBLIC
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    PRIVATE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>        
 )
+
 target_link_libraries(logging INTERFACE g3log::g3log)
 
 set_target_properties(logging PROPERTIES
