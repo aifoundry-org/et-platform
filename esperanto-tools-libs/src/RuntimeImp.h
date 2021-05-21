@@ -103,24 +103,22 @@ private:
 
 
   template<typename Command, typename Lock>
-  void sendCommandMasterMinion(Stream& stream, EventId event, Command&& command, Lock& lock) {
+  void sendCommandMasterMinion(Stream& stream, EventId event, Command&& command, Lock& lock, bool isDma=false) {
     auto sqIdx = stream.vq_;
     auto device = static_cast<int>(stream.deviceId_);
     bool done = false;
     while (!done) {
       done = deviceLayer_->sendCommandMasterMinion(device, sqIdx,
-                                                  reinterpret_cast<std::byte*>(&command), sizeof(command));
+                                                  reinterpret_cast<std::byte*>(&command), sizeof(command), isDma);
       if (!done) {
         lock.unlock();
         RT_LOG(INFO) << "Submission queue " << sqIdx
                      << " is full. Can't send command now, blocking the thread till an event has been dispatched.";
-        uint64_t sq_bitmap;
-        bool cq_available;
         auto events = eventManager_.getOnflyEvents();
         if (events.empty()) {
           throw Exception("Submission queue is full but there are not on-fly events. There could be a firmware bug.");
         }        
-        waitForEvent(*events.begin(), 100ms);
+        waitForEvent(*events.begin(), 1s);
         lock.lock();
       }
     }
