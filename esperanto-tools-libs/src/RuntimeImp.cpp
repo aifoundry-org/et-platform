@@ -143,7 +143,7 @@ StreamId RuntimeImp::createStream(DeviceId device) {
   if (it != end(streams_)) {
     throw Exception("Can't create stream");
   }
-  streams_.emplace(streamId, Stream{device, queueHelpers_[static_cast<int>(device)].nextQueue()});
+  streams_.emplace(streamId, Stream{device, queueHelpers_[static_cast<uint32_t>(device)].nextQueue()});
   return streamId;
 }
 
