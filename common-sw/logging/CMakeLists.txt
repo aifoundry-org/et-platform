@@ -16,22 +16,21 @@ include(GNUInstallDirs)
 
 find_package(g3log REQUIRED)
 
-set(INC_DIR include/logging)
 add_library(logging 
-    ${INC_DIR}/Logging.h 
-    ${INC_DIR}/Logger.h 
-    ${INC_DIR}/DefaultSinks.h 
-    ${INC_DIR}/Instance.h 
-    src/Instance.cpp)
-add_library(logging::logging ALIAS logging)
+    include/logging/Logging.h 
+    include/logging/Logger.h 
+    include/logging/DefaultSinks.h 
+    include/logging/Instance.h
+    src/Instance.cpp
+)
+add_library(hostUtils::logging ALIAS logging)
 target_compile_features(logging INTERFACE cxx_std_17)
 target_include_directories(logging
     PUBLIC
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>     
 )
-
-target_link_libraries(logging INTERFACE g3log::g3log)
+target_link_libraries(logging PUBLIC g3log::g3log)
 
 set_target_properties(logging PROPERTIES
   PUBLIC_HEADER "include/logging/Logging.h;include/logging/Logger.h;include/logging/DefaultSinks.h;include/logging/Instance.h"
@@ -42,36 +41,16 @@ set_target_properties(logging PROPERTIES
 include(CMakePackageConfigHelpers)
 
 install(TARGETS logging
-    EXPORT loggingTargets
+    EXPORT hostUtilsTargets
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/common/logging
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/hostUtils/logging
 )
 
 # Install the export set for use with the install-tree
-install(EXPORT loggingTargets
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/logging
-    NAMESPACE logging::
+install(EXPORT hostUtilsTargets
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hostUtils
+    NAMESPACE hostUtils::
 )
 
-
-##### Package
-
-configure_package_config_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/loggingConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/loggingConfig.cmake
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/logging
-)
-
-write_basic_package_version_file(
-    ${CMAKE_CURRENT_BINARY_DIR}/loggingConfigVersion.cmake
-    VERSION ${CMAKE_PROJECT_VERSION}
-    COMPATIBILITY SameMajorVersion
-)
-
-install(FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/loggingConfig.cmake
-    ${CMAKE_CURRENT_BINARY_DIR}/loggingConfigVersion.cmake
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/logging
-)

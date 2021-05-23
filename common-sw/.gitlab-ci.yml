@@ -1,0 +1,69 @@
+stages:
+  - build
+  - package
+
+#### build
+
+build:conan:
+  stage: build
+  tags:
+    - docker
+  image: ${DOCKER_IMAGE}
+  variables:
+    DOCKER_IMAGE: conanio/${COMPILER}
+    CONAN_CONFIG_URL: "https://${CONAN_CONFIG_DEPLOY_TOKEN_USERNAME}:${CONAN_CONFIG_DEPLOY_TOKEN}@gitlab.esperanto.ai/software/conan/conan-config.git"
+  parallel:
+    matrix:
+      - COMPILER: [ gcc7 ]
+        COMPILER_LIBCXX: [ libstdc++11 ]
+        BUILD_TYPE: [ Release, Debug ]
+      - COMPILER: [ clang10 ]
+        COMPILER_LIBCXX: [ libc++ ]
+        BUILD_TYPE: [ Release, Debug ]
+  before_script:
+    - conan --version
+    - conan config install ${CONAN_CONFIG_URL}
+    - sudo apt-get update -qq
+    - sudo apt-get install -qq -y --no-install-recommends ninja-build
+    - mkdir build
+    - cd build
+  script:
+    - conan install .. -s build_type=${BUILD_TYPE} -s compiler.libcxx=${COMPILER_LIBCXX} -o g3log:use_dynamic_logging_levels=True --build missing
+    - cmake -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -G Ninja ..
+    - ninja
+  allow_failure: true
+
+package:conan:
+  stage: package
+  tags:
+    - docker
+  image:  ${DOCKER_IMAGE}
+  variables:
+    DOCKER_IMAGE: conanio/${COMPILER}${COMPILER_VERSION}
+    CONAN_CONFIG_URL: "https://${CONAN_CONFIG_DEPLOY_TOKEN_USERNAME}:${CONAN_CONFIG_DEPLOY_TOKEN}@gitlab.esperanto.ai/software/conan/conan-config.git"
+    CONAN_UPLOAD_DEPENDENCIES: "all"
+    CONAN_LOGIN_USERNAME: "${ARTIFACTORY_USER}"
+    CONAN_PASSWORD: "${ARTIFACTORY_PASSWORD}"
+    CONAN_USERNAME: "_"
+    CONAN_CHANNEL: "_"
+    CONAN_ARCHS: "x86_64"
+    CONAN_OPTIONS: "g3log:use_dynamic_logging_levels=True"
+    CONAN_CPPSTDS: "17"
+    CONAN_BUILD_POLICY: "missing"
+    CONAN_CMAKE_GENERATOR: "Ninja"
+  parallel:
+    matrix:
+      - COMPILER: [ gcc ]
+        COMPILER_VERSION: [ 7 ]
+        CONAN_GCC_VERSIONS: [ 7 ]
+      - COMPILER: [ clang ]
+        COMPILER_VERSION: [ 10 ]
+        CONAN_CLANG_VERSIONS: [ 10 ]
+  before_script:
+    - conan --version
+    - conan config install ${CONAN_CONFIG_URL}
+    - sudo apt-get update -qq
+    - sudo apt-get install -qq -y --no-install-recommends ninja-build
+  script:
+    - ./conan/ci/package.sh
+  allow_failure: true
