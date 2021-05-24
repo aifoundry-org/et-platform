@@ -127,7 +127,10 @@ Enums:
         Value: 1
       - Name: BAD_CONTROL_MASK
         Value: 2
-
+      - Name: CM_RT_CTRL_ERROR
+        Value: 3
+      - Name: MM_RT_CTRL_ERROR
+        Value: 4
 Structs:
   - Name: dma_read_node
     Description: Node containing one DMA read transfer information
@@ -508,24 +511,24 @@ Messages :
         Type: uint8_t
 #-------------------------------------------------------------------------------
   - Name: device_ops_trace_rt_control_cmd
-    Description: Contains options to start OR stop trace collection
+    Description: Configure options to start, stop, OR fetch trace logs.
     Type: Command
     PairedMessage: device_ops_trace_rt_control_rsp
     Fields:
       - Name: rt_type
-        Description: Trace runtime buffer type
+        Description: |-
+            This is a bit mask, each bit corresponds to a Trace RT component.
+                /// Bit 0 - MM Trace Runtime buffer as per DIR:- MEM_OPS_MM_FW_TRACE
+                /// Bit 1 - CM Trace Runtime buffer as per DIR:- MEM_OPS_CM_FW_TRACE
         Type: uint32_t
       - Name: control
         Description: |-
-                This is a bit mask that controls functionality
-                                     /// bit-0: 0 - instructs devive runtime to stop tracing
-                                     ///        1 - instructs device runtime to start tracing
-                                     /// bit-1: 0 - Dump to Trace Buffer (Default)
-                                     ///        1 - Dump to UART
-                                     /// bit-2: 0 - Dont evict
-                                     ///        1 - Evict memory
-                                     /// bit-3: 0 - Evict cache to L3
-                                     ///        1 - Evict cache to MEM
+            This is a bit mask, each bit corresponds control a Trace RT control.
+                /// Bit 0 - 0 - Disable - instructs device runtime to stop tracing
+                ///         1 - Enable - instructs device runtime to start tracing (Default)
+                /// Bit 1 - 0 - Dump to Trace Buffer (Default)
+                ///         1 - Redirect to UART
+
         Type: uint32_t
   - Name: device_ops_trace_rt_control_rsp
     Description: Trace runtime control command reply
