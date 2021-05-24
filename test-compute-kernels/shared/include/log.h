@@ -1,7 +1,7 @@
 #ifndef LOG_H
 #define LOG_H
 
-#include "log_levels.h"
+#include "log_common.h"
 
 #include <stdint.h>
 #include <stdio.h>
