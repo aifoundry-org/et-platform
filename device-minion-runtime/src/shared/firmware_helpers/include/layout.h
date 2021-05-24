@@ -126,10 +126,6 @@
 #define HOST_MANAGED_DRAM_END   DMA_CHAN_READ_0_LL_BASE
 #define HOST_MANAGED_DRAM_SIZE  (HOST_MANAGED_DRAM_END - HOST_MANAGED_DRAM_START)
 
-/* Temporarily reserve 1 MB buffer from the end of host managed DRAM */
-#define CM_EXECUTION_CONTEXT_BUFFER_SIZE  0x100000
-#define CM_EXECUTION_CONTEXT_BUFFER       (HOST_MANAGED_DRAM_START - CM_EXECUTION_CONTEXT_BUFFER_SIZE)
-
 // This range is mapped to the host via BAR0. The host can write the DMA configuration
 // linked list, but should never touch the stacks for the SoC processors in the first
 // part of DRAM.

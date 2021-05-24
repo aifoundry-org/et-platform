@@ -22,6 +22,7 @@ typedef struct kernel_launch_info {
     uint64_t launched_threads;
     uint64_t returned_threads;
     uint64_t completed_threads; /* Bitmask of threads that have already completed the launch */
+    uint64_t exception_buffer;
     union {
         struct {
             uint8_t kw_base_id;
@@ -171,6 +172,11 @@ bool kernel_info_has_thread_completed(uint32_t shire_id, uint64_t thread_id)
     return (atomic_load_local_64(&kernel_launch_info[shire_id].completed_threads) >> thread_id) & 1;
 }
 
+uint64_t kernel_info_get_exception_buffer(uint32_t shire_id)
+{
+    return atomic_load_local_64(&kernel_launch_info[shire_id].exception_buffer);
+}
+
 void kernel_info_get_attributes(uint32_t shire_id, uint8_t *kw_base_id, uint8_t *slot_index)
 {
     kernel_launch_info_t kernel_info;
@@ -183,7 +189,8 @@ void kernel_info_get_attributes(uint32_t shire_id, uint8_t *kw_base_id, uint8_t 
     *slot_index = kernel_info.slot_index;
 }
 
-static inline void kernel_info_set_attributes(uint32_t shire_id, uint8_t kw_base_id, uint8_t slot_index)
+static inline void kernel_info_set_attributes(uint32_t shire_id, uint8_t kw_base_id, 
+    uint8_t slot_index, uint64_t kernel_exception_buffer)
 {
     kernel_launch_info_t kernel_info;
 
@@ -191,17 +198,17 @@ static inline void kernel_info_set_attributes(uint32_t shire_id, uint8_t kw_base
     kernel_info.kw_base_id = kw_base_id;
     kernel_info.slot_index = slot_index;
     atomic_store_local_16(&kernel_launch_info[shire_id].raw_u16, kernel_info.raw_u16);
+
+    /* Save the exception buffer */
+    atomic_store_local_64(&kernel_launch_info[shire_id].exception_buffer, kernel_exception_buffer);
 }
 
-static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_shire_mask, uint64_t kernel_launch_flags);
+static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_shire_mask, 
+    uint64_t kernel_launch_flags, uint64_t kernel_exception_buffer);
 
-int64_t launch_kernel(uint8_t kw_base_id,
-                      uint8_t slot_index,
-                      uint64_t kernel_entry_addr,
-                      uint64_t kernel_stack_addr,
-                      uint64_t kernel_params_ptr,
-                      uint64_t kernel_launch_flags,
-                      uint64_t kernel_shire_mask)
+int64_t launch_kernel(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_entry_addr,
+    uint64_t kernel_stack_addr, uint64_t kernel_params_ptr, uint64_t kernel_launch_flags,
+    uint64_t kernel_shire_mask, uint64_t kernel_exception_buffer, uint64_t kernel_trace_buffer)
 {
     uint64_t *firmware_sp;
     int64_t return_value;
@@ -211,7 +218,8 @@ int64_t launch_kernel(uint8_t kw_base_id,
                  "addi  %0, %0, 8    \n"
                  : "=r"(firmware_sp));
 
-    pre_kernel_setup(kw_base_id, slot_index, kernel_shire_mask, kernel_launch_flags);
+    pre_kernel_setup(kw_base_id, slot_index, kernel_shire_mask, kernel_launch_flags, 
+        kernel_exception_buffer);
 
     /* Wait until all the Shires involved in the kernel launch reach this sync point */
     pre_launch_synchronize_shires(&pre_launch_global_barrier, (uint32_t)__builtin_popcountll(kernel_shire_mask));
@@ -258,7 +266,7 @@ int64_t launch_kernel(uint8_t kw_base_id,
         "sd    x30, 27 * 8( sp )   \n"
         "sd    x31, 28 * 8( sp )   \n"
         "mv    x10, %[k_param_a0]  \n" // a0 = kernel_params_ptr
-        "mv    x11, %[k_param_a1]  \n" // a1 = UNUSED
+        "mv    x11, %[k_param_a1]  \n" // a1 = kernel_trace_buffer
         "mv    x12, %[k_param_a2]  \n" // a2 = UNUSED
         "mv    x13, %[k_param_a3]  \n" // a3 = UNUSED
         "sd    sp, %[firmware_sp]  \n" // save sp to supervisor stack SP region (sscratch + 8)
@@ -341,7 +349,7 @@ int64_t launch_kernel(uint8_t kw_base_id,
           [k_stack_addr]  "r"(kernel_stack_addr),
           [k_entry]       "r"(kernel_entry_addr),
           [k_param_a0]    "r"(kernel_params_ptr),
-          [k_param_a1]    "r"(0), /* Unused for now */
+          [k_param_a1]    "r"(kernel_trace_buffer),
           [k_param_a2]    "r"(0), /* Unused for now */
           [k_param_a3]    "r"(0)  /* Unused for now */
     );
@@ -354,7 +362,8 @@ int64_t launch_kernel(uint8_t kw_base_id,
     return return_value;
 }
 
-static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_shire_mask, uint64_t kernel_launch_flags)
+static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_shire_mask, 
+    uint64_t kernel_launch_flags, uint64_t kernel_exception_buffer)
 {
     const uint32_t shire_id = get_shire_id();
     const uint32_t minion_mask = (shire_id == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
@@ -370,7 +379,7 @@ static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t ke
     if ((get_hart_id() % 64U) == (first_worker + 1)) {
 
         // Initialize the kernel execution status
-        kernel_info_set_attributes(shire_id, kw_base_id, slot_index);
+        kernel_info_set_attributes(shire_id, kw_base_id, slot_index, kernel_exception_buffer);
         kernel_info_set_execution_status(shire_id, KERNEL_COMPLETE_STATUS_SUCCESS);
         kernel_info_reset_completed_threads(shire_id);
         kernel_info_reset_thread_returned(shire_id);
@@ -515,6 +524,20 @@ void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t 
     {
         /* Decrement the kernel launch shire count */
         prev_shire_mask = kernel_launch_reset_shire_mask(shire_id);
+
+        /* Save the kernel error code per shire (if any) */
+        if (kernel_ret_val < KERNEL_COMPLETE_STATUS_SUCCESS)
+        {
+            /* Get the kernel exception/error buffer */
+            uint64_t error_buffer = kernel_info_get_exception_buffer(shire_id);
+
+            /* If the kernel error buffer is available */
+            if (error_buffer != 0)
+            {
+                CM_To_MM_Save_Kernel_Error((kernel_execution_error_t*)error_buffer, 
+                    shire_id, kernel_ret_val);
+            }
+        }
 
         /* Last shire in kernel launch sends a complete message to MM */
         if((prev_shire_mask & ~(1ull << shire_id)) == 0)

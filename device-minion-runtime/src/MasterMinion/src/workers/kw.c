@@ -81,8 +81,16 @@ static kw_cb_t KW_CB __attribute__((aligned(64))) = {0};
 
 /* Local function prototypes */
 
-static inline bool kw_check_address_bounds(uint64_t dev_address)
+static inline bool kw_check_address_bounds(uint64_t dev_address, bool is_optional)
 {
+    /* If the address check is optional, 
+    Address of zero means that do not verify the address (optional address) */
+    if(is_optional && (dev_address == 0))
+    {
+        return true;
+    }
+
+    /* Verify the bounds */
     return ((dev_address >= HOST_MANAGED_DRAM_START) &&
             (dev_address < HOST_MANAGED_DRAM_END));
 }
@@ -374,16 +382,15 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
     int8_t status = KW_ERROR_KERNEL_INVALID_ADDRESS;
     uint8_t slot_index;
 
-    /* Verify kernel start address */
-    if(kw_check_address_bounds(cmd->code_start_address))
+    /* Verify kernel start address (not optional) */
+    if(kw_check_address_bounds(cmd->code_start_address, false))
     {
-        /* Kernel args are optional */
-        if(cmd->pointer_to_args == 0)
-        {
-            status = STATUS_SUCCESS;
-        }
-        /* Verify kernel args address if provided */
-        else if (kw_check_address_bounds(cmd->pointer_to_args))
+        /* Verify different addresses provided in the command.
+        Could be optional address */
+        if(kw_check_address_bounds(cmd->pointer_to_args, true) && 
+            kw_check_address_bounds(cmd->exception_buffer, true) &&
+            kw_check_address_bounds(cmd->kernel_trace_buffer, 
+            !(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_KERNEL_TRACE_BUF)))
         {
             status = STATUS_SUCCESS;
         }
@@ -419,6 +426,28 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
         }
     }
 
+    /* Kernel arguments are optional (0 == optional) */
+    if((status == STATUS_SUCCESS) && (cmd->pointer_to_args != 0))
+    {
+        /* Calculate the kernel arguments size */
+        uint64_t args_size = (uint64_t)(cmd->command_info.cmd_hdr.size - sizeof(*cmd));
+        Log_Write(LOG_LEVEL_DEBUG, "KW:Kernel_launch_args_size: %ld\r\n", args_size);
+
+        if((args_size > 0) && (args_size <= DEVICE_OPS_KERNEL_LAUNCH_ARGS_PAYLOAD_MAX))
+        {
+            /* Copy the kernel arguments from command buffer to the buffer address provided */
+            ETSOC_MEM_COPY_AND_EVICT((void*)(uintptr_t)cmd->pointer_to_args, 
+                (void*)cmd->argument_payload, args_size, to_L3)
+        }
+        /* TODO: Enable this check once runtime has switched to using new kernel launch command 
+        else
+        {
+            status = KW_ERROR_KERNEL_INVLD_ARGS_SIZE;
+            Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:kernel argument payload size invalid\r\n");
+        }
+        */
+    }
+
     if(status == STATUS_SUCCESS)
     {
         /* Populate the tag_id and sqw_idx for KW */
@@ -426,16 +455,26 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
         atomic_store_local_16(&kernel->sqw_idx, sqw_idx);
 
         /* Populate the kernel launch params */
-        mm_to_cm_message_kernel_launch_t launch_args;
+        mm_to_cm_message_kernel_launch_t launch_args = {0};
         launch_args.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH;
         launch_args.kw_base_id = (uint8_t)KW_MS_BASE_HART;
         launch_args.slot_index = slot_index;
-        // SW-6502 - Pre launch flush are very expensive
-        //launch_args.flags = KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH;
-        launch_args.flags = 0x0;
         launch_args.code_start_address = cmd->code_start_address;
         launch_args.pointer_to_args = cmd->pointer_to_args;
         launch_args.shire_mask = cmd->shire_mask;
+        launch_args.exception_buffer = cmd->exception_buffer;
+
+        /* If the flag bit flush L3 is set */
+        if(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_KERNEL_FLUSH_L3)
+        {
+            launch_args.flags = KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH;
+        }
+
+        /* If the flag bit for U-mode trace buffer is set */
+        if(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_KERNEL_TRACE_BUF)
+        {
+            launch_args.trace_buffer = cmd->kernel_trace_buffer;
+        }
 
         /* Blocking call that blocks till all shires ack command */
         status = CM_Iface_Multicast_Send(launch_args.shire_mask,

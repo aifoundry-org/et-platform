@@ -65,6 +65,11 @@
 */
 #define KW_ERROR_KERNEL_INVALID_ADDRESS  -6
 
+/*! \def KW_ERROR_KERNEL_INVLD_ARGS_SIZE
+    \brief Kernel Worker - Kernel invalid argument payload size
+*/
+#define KW_ERROR_KERNEL_INVLD_ARGS_SIZE  -7
+
 /*! \def TIMEOUT_KERNEL_LAUNCH
     \brief Timeout value (in mS) for kernel launch
 */

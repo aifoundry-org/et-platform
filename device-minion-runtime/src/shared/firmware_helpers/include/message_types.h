@@ -73,6 +73,8 @@ typedef struct {
     uint64_t code_start_address;
     uint64_t pointer_to_args;
     uint64_t shire_mask;
+    uint64_t exception_buffer;
+    uint64_t trace_buffer;
 } __attribute__((packed, aligned(64))) mm_to_cm_message_kernel_launch_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(mm_to_cm_message_kernel_launch_t);

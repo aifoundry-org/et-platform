@@ -35,4 +35,12 @@ typedef struct {
     uint64_t gpr[32];
 } __attribute__((packed, aligned(64))) execution_context_t;
 
+/*! \struct kernel_execution_error_t
+    \brief A structure that is used to store the kernel execution error code per shire (if any)
+*/
+typedef struct {
+    uint64_t shire_id;
+    int64_t error_code;
+} __attribute__((packed, aligned(64))) kernel_execution_error_t;
+
 #endif

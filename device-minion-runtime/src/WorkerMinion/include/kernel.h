@@ -45,6 +45,13 @@ uint32_t kernel_info_get_abort_flag(uint32_t shire_id);
 */
 bool kernel_info_has_thread_completed(uint32_t shire_id, uint64_t thread_id);
 
+/*! \fn uint64_t kernel_info_get_exception_buffer(uint32_t shire_id)
+    \brief Used to get the address of the kernel exception buffer
+    \param shire_id Shire ID
+    \return Address of exception buffer
+*/
+uint64_t kernel_info_get_exception_buffer(uint32_t shire_id);
+
 /*! \fn void kernel_info_get_attributes(uint32_t shire_id, uint8_t *kw_base_id, uint8_t *slot_index)
     \brief Used to get the different kernel attributes associated with the shire.
     \param shire_id Shire ID
@@ -94,10 +101,12 @@ bool kernel_launch_set_global_abort_flag(void);
     \param kernel_stack_addr Address of the kernel stack
     \param kernel_params_ptr Address of the kernel parameters
     \param kernel_launch_flags Any extra kernel launch flags
+    \param kernel_exception_buffer Address of the kernel launch exception buffer
+    \param kernel_trace_buffer Address of the kernel launch trace buffer
     \return Success or error
 */
 int64_t launch_kernel(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_entry_addr,
     uint64_t kernel_stack_addr, uint64_t kernel_params_ptr, uint64_t kernel_launch_flags,
-    uint64_t kernel_shire_mask);
+    uint64_t kernel_shire_mask, uint64_t kernel_exception_buffer, uint64_t kernel_trace_buffer);
 
 #endif

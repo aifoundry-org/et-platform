@@ -26,7 +26,6 @@
 #include "services/sw_timer.h"
 #include "device-common/atomic.h"
 #include "broadcast.h"
-#include "device-common/cacheops.h"
 #include "circbuff.h"
 #include "device-common/esr_defines.h"
 #include "device-common/fcc.h"
@@ -91,13 +90,6 @@ static void mm_to_cm_iface_multicast_timeout_cb(uint8_t thread_id)
 
     /* Trigger IPI to respective hart */
     syscall(SYSCALL_IPI_TRIGGER_INT, (1ull << thread_id), MASTER_SHIRE, 0);
-}
-
-static inline void evict_message(cm_iface_message_t *const message)
-{
-    asm volatile("fence");
-    evict(to_L3, mm_to_cm_broadcast_message_buffer_ptr, sizeof(*message));
-    WAIT_CACHEOPS;
 }
 
 /************************************************************************
@@ -216,10 +208,8 @@ int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask,
             msg_control.raw_u64);
 
         /* Copy message to shared global buffer */
-        ETSOC_Memory_Read_Write_Cacheable(message,
-            mm_to_cm_broadcast_message_buffer_ptr, sizeof(*message));
-        /* evict the message */
-        evict_message(message);
+        ETSOC_MEM_COPY_AND_EVICT(mm_to_cm_broadcast_message_buffer_ptr, message, 
+            sizeof(*message), to_L3)
 
         /* Send IPI to receivers. Upper 32 Threads of Shire 32 also run Worker FW */
         broadcast_ipi_trigger(dest_shire_mask & 0xFFFFFFFFu, 0xFFFFFFFFFFFFFFFFu);

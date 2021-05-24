@@ -16,15 +16,25 @@ void swi_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const
     Clear Supervisor Software Interrupt Pending (SSIP) */
     asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
 
+    uint32_t shire_id = get_shire_id();
+
     /* Check for kernel abort handled down by a hart */
-    if(kernel_info_get_abort_flag(get_shire_id()) == 1)
+    if(kernel_info_get_abort_flag(shire_id) == 1)
     {
         uint64_t sstatus;
         asm volatile("csrr %0, sstatus" : "=r"(sstatus));
 
-        /* Save the execution context in the buffer provided (self abort case) */
-        CM_To_MM_Save_Execution_Context((execution_context_t*)CM_EXECUTION_CONTEXT_BUFFER,
-            kernel_launch_get_pending_shire_mask(), get_hart_id(), scause, sepc, stval, sstatus, reg);
+        /* Get the kernel exception buffer */
+        uint64_t exception_buffer = kernel_info_get_exception_buffer(shire_id);
+
+        /* If the kernel exception buffer is available */
+        if(exception_buffer != 0)
+        {
+            /* Save the execution context in the buffer provided (self abort case) */
+            CM_To_MM_Save_Execution_Context((execution_context_t*)exception_buffer,
+                kernel_launch_get_pending_shire_mask(), get_hart_id(), scause, sepc,
+                stval, sstatus, reg);
+        }
 
         return_from_kernel(KERNEL_LAUNCH_ERROR_ABORTED);
     }

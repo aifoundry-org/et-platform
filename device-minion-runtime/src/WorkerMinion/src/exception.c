@@ -26,11 +26,17 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
 
     asm volatile("csrr %0, sstatus" : "=r"(sstatus));
     user_mode = ((sstatus & 0x100U) >> 8U) == 0;
+    
+    /* Get the kernel exception buffer */
+    uint64_t exception_buffer = kernel_info_get_exception_buffer(shire_id);
 
-    /* TODO: Save the execution context in the buffer provided as an argument in kernel launch */
-    /* Save the execution context in the buffer provided */
-    CM_To_MM_Save_Execution_Context((execution_context_t*)CM_EXECUTION_CONTEXT_BUFFER,
-        kernel_launch_get_pending_shire_mask(), hart_id, scause, sepc, stval, sstatus, reg);
+    /* If the kernel exception buffer is available */
+    if(exception_buffer != 0)
+    {
+        /* Save the execution context in the buffer provided */
+        CM_To_MM_Save_Execution_Context((execution_context_t*)exception_buffer,
+            kernel_launch_get_pending_shire_mask(), hart_id, scause, sepc, stval, sstatus, reg);
+    }
 
     if (!user_mode)
     {

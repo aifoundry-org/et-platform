@@ -1,6 +1,7 @@
-#include "layout.h"
 #include "circbuff.h"
 #include "cm_to_mm_iface.h"
+#include "etsoc_memory.h"
+#include "layout.h"
 #include "sync.h"
 #include "syscall_internal.h"
 #include <string.h>
@@ -34,8 +35,24 @@ int8_t CM_To_MM_Save_Execution_Context(execution_context_t *context_buffer, uint
     context_buffer[hart_id].sepc = sepc;
     context_buffer[hart_id].stval = stval;
     context_buffer[hart_id].sstatus = sstatus;
+
     /* Copy all the GPRs (x0 - x31) */
     memcpy(context_buffer[hart_id].gpr, reg, sizeof(uint64_t) * 32);
+
+    /* Evict the data to L3 */
+    ETSOC_MEM_EVICT(&context_buffer[hart_id], sizeof(execution_context_t), to_L3)
+
+    return 0;
+}
+
+int8_t CM_To_MM_Save_Kernel_Error(kernel_execution_error_t *error_buffer, uint64_t shire_id, int64_t kernel_error_code)
+{
+    kernel_execution_error_t error;
+    error.error_code = kernel_error_code;
+    error.shire_id = shire_id;
+
+    /* Copy the kernel error info */
+    ETSOC_MEM_COPY_AND_EVICT(&error_buffer[shire_id], &error, sizeof(error), to_L3);
 
     return 0;
 }

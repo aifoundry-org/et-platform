@@ -16,7 +16,9 @@
 #ifndef ETSOC_MEMORY_DEFS_H_
 #define ETSOC_MEMORY_DEFS_H_
 
+#include "device-common/cacheops.h"
 #include <stdint.h>
+#include <string.h>
 
 /*! \enum ETSOC_MEM_TYPES
     \brief Enum that specifies the types of memory accesses available
@@ -30,6 +32,35 @@ enum ETSOC_MEM_TYPES
     CACHED, /**< Cached memory like DRAM, use io r/w to access */
     MEM_TYPES_COUNT /**< Specifies the count for memory types available */
 };
+
+/*! \define ETSOC_MEM_EVICT
+    \brief Macro that is used to evict the data to destination cache level from the address 
+    provided upto to the length (in bytes)
+    \warning Address must be cache-line aligned!
+*/
+#define ETSOC_MEM_EVICT(addr, size, cache_dest)                             \
+    asm volatile("fence");                                                  \
+    evict(cache_dest, addr, size);                                          \
+    WAIT_CACHEOPS;
+
+/*! \define ETSOC_MEM_COPY_AND_EVICT
+    \brief Macro that is used to copy data from source address to destination address
+    upto the size specified (in bytes) and evict the cache-lines upto the cache destination
+    \warning Destination address must be cache-line aligned!
+*/
+#define ETSOC_MEM_COPY_AND_EVICT(dest_addr, src_addr, size, cache_dest)     \
+    memcpy(dest_addr, src_addr, size);                                      \
+    ETSOC_MEM_EVICT(dest_addr, size, cache_dest)
+
+/*! \define ETSOC_MEM_EVICT_AND_COPY
+    \brief Macro that is used to invalidate the source address cache-lines upto the cache 
+    destination and copy data from source address to destination address upto the size 
+    specified (in bytes)
+    \warning Source address must be cache-line aligned!
+*/
+#define ETSOC_MEM_EVICT_AND_COPY(dest_addr, src_addr, size, cache_dest)      \
+    ETSOC_MEM_EVICT(src_addr, size, cache_dest)                              \
+    memcpy(dest_addr, src_addr, size);
 
 /*********************/
 /*! \fn void ETSOC_Memory_Read_Uncacheable(void *src_ptr, void *dest_ptr, uint64_t length)

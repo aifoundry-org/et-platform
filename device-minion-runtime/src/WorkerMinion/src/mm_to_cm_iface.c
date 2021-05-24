@@ -41,9 +41,9 @@ static inline void read_msg_and_notify_mm(uint64_t shire_id, cm_iface_message_t 
     /* First thread brings message from L3 */
     if (thread_num == 0)
     {
-        asm volatile("fence");
-        evict(to_L3, master_to_worker_broadcast_message_buffer_ptr, sizeof(*message));
-        WAIT_CACHEOPS;
+        /* Bring data from L3 and copy message from shared global memory to local buffer */
+        ETSOC_MEM_EVICT_AND_COPY(message, master_to_worker_broadcast_message_buffer_ptr,
+            sizeof(*message), to_L3)
 
         /* Set the local barrier flag */
         init_local_spinlock(&msg_sync_local_barrier[shire_id], 1);
@@ -53,14 +53,10 @@ static inline void read_msg_and_notify_mm(uint64_t shire_id, cm_iface_message_t 
         /* All threads in Shire wait for first Thread to set flag */
         local_spinwait_wait(&msg_sync_local_barrier[shire_id], 1, 0);
 
-        asm volatile("fence");
-        evict(to_L2, master_to_worker_broadcast_message_buffer_ptr, sizeof(*message));
-        WAIT_CACHEOPS;
+        /* Bring data from L2 and copy message from shared global memory to local buffer */
+        ETSOC_MEM_EVICT_AND_COPY(message, master_to_worker_broadcast_message_buffer_ptr,
+            sizeof(*message), to_L2)
     }
-
-    /* Copy message from shared global memory to local buffer */
-    ETSOC_Memory_Read_Write_Cacheable(master_to_worker_broadcast_message_buffer_ptr,
-                                      message, sizeof(*message));
 
     /* Last thread per shire decrements global counter */
     if (thread_num == (thread_count -1))
@@ -138,8 +134,9 @@ static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
         if (launch->shire_mask & (1ULL << shire))
         {
             uint64_t kernel_stack_addr = KERNEL_UMODE_STACK_BASE - (hart * KERNEL_UMODE_STACK_SIZE);
-            rv = launch_kernel(launch->kw_base_id, launch->slot_index, launch->code_start_address, kernel_stack_addr,
-                               launch->pointer_to_args, launch->flags, launch->shire_mask);
+            rv = launch_kernel(launch->kw_base_id, launch->slot_index, launch->code_start_address, 
+                kernel_stack_addr, launch->pointer_to_args, launch->flags, launch->shire_mask, 
+                launch->exception_buffer, launch->trace_buffer);
         }
 
         if (rv != 0)
@@ -157,12 +154,19 @@ static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
             /* Check if pointer to execution context was set */
             if (optional_arg != 0)
             {
-                swi_execution_context_t *context = (swi_execution_context_t*)optional_arg;
+                /* Get the kernel exception buffer */
+                uint64_t exception_buffer = kernel_info_get_exception_buffer(shire);
 
-                /* Save the execution context in the buffer provided */
-                CM_To_MM_Save_Execution_Context((execution_context_t*)CM_EXECUTION_CONTEXT_BUFFER,
-                    kernel_launch_get_pending_shire_mask(), hart, context->scause, context->sepc,
-                    context->stval, context->sstatus, context->regs);
+                /* If the kernel exception buffer is available */
+                if (exception_buffer != 0)
+                {
+                    swi_execution_context_t *context = (swi_execution_context_t*)optional_arg;
+
+                    /* Save the execution context in the buffer provided */
+                    CM_To_MM_Save_Execution_Context((execution_context_t*)exception_buffer,
+                        kernel_launch_get_pending_shire_mask(), hart, context->scause, 
+                        context->sepc, context->stval, context->sstatus, context->regs);
+                }
             }
 
             return_from_kernel(KERNEL_LAUNCH_ERROR_ABORTED);

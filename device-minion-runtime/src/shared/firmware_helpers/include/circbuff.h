@@ -18,6 +18,7 @@
 #define CIRCBUFF_H
 
 #include <common_defs.h>
+#include "etsoc_memory.h"
 
 /*! \var extern void memory_read
     \brief An array containing function pointers to ETSOC memory read functions.

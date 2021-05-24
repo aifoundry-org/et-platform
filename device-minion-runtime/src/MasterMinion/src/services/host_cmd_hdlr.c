@@ -268,6 +268,10 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 {
                     rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ADDRESS;
                 }
+                else if (status == KW_ERROR_KERNEL_INVLD_ARGS_SIZE)
+                {
+                    rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ARGS_PAYLOAD_SIZE;
+                }
                 else
                 {
                     rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
@@ -711,29 +715,29 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 /* Check flag to Enable/Disable Trace. */
                 if (cmd->control & (1U << 0))
                 {
+                    Trace_RT_Control_MM(TRACE_ENABLE);
                     Log_Write(LOG_LEVEL_DEBUG,
                             "TRACE_RT_CONTROL:MM:Trace Enabled.\r\n");
-                    Trace_RT_Control_MM(TRACE_ENABLE);
                 }
                 else
                 {
+                    Trace_RT_Control_MM(TRACE_DISABLE);
                     Log_Write(LOG_LEVEL_DEBUG,
                             "TRACE_RT_CONTROL:MM:Trace Disabled.\r\n");
-                    Trace_RT_Control_MM(TRACE_DISABLE);
                 }
 
                 /* Check flag to redirect logs to Trace or UART. */
                 if (cmd->control & (1U << 1))
                 {
-                    Log_Write(LOG_LEVEL_DEBUG,
-                            "TRACE_RT_CONTROL:MM:Logs redirected to Trace buffer.\r\n");
                     Log_Set_Interface(LOG_DUMP_TO_TRACE);
+                    Log_Write(LOG_LEVEL_CRITICAL,
+                            "TRACE_RT_CONTROL:MM:Logs redirected to Trace buffer.\r\n");
                 }
                 else
                 {
+                    Log_Set_Interface(LOG_DUMP_TO_UART);
                     Log_Write(LOG_LEVEL_DEBUG,
                             "TRACE_RT_CONTROL:MM:Logs redirected to UART.\r\n");
-                    Log_Set_Interface(LOG_DUMP_TO_UART);
                 }
             }
 
@@ -796,7 +800,20 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_RSP;
             rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);
 
-            if(status != STATUS_SUCCESS)
+            /* Populate the response status */
+            if(!(cmd->rt_type & TRACE_RT_CTRL_MM) || (cmd->rt_type & TRACE_RT_CTRL_CM))
+            {
+                rsp.status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_BAD_RT_TYPE;
+            }
+            if(status == STATUS_SUCCESS)
+            {
+                rsp.status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS;
+            }
+            else if(status == INVALID_CM_SHIRE_MASK)
+            {
+                rsp.status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_BAD_CONTROL_MASK;
+            }
+            else
             {
                 rsp.status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_CM_RT_CTRL_ERROR;
             }

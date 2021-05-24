@@ -95,9 +95,6 @@ typedef struct exec_cycles_ {
 /*! \typedef cmd_size_t
     \brief A typedef for command size field for SQ command.
 */
-// TODO: Make it a typedef in device-ops-api ?
 typedef uint16_t cmd_size_t;
-
-#include "etsoc_memory.h"
 
 #endif /* _COMMON_DEFS_H_ */

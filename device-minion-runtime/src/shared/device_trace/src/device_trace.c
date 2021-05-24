@@ -31,6 +31,7 @@
 #include <string.h>
 #include "device_trace.h"
 #include "device-common/hart.h"
+#include "device-common/cacheops.h"
 #if defined(MASTER_MINION)
 #include "device-common/atomic.h"
 #include "etsoc_memory.h"
@@ -63,8 +64,8 @@ union data_u32_f
                                          atomic_store_local_32((void *)&addr, data.value_u32);})
 #define MEM_CPY(dest, src, size)        ETSOC_Memory_Write_Local_Atomic(src, dest, size)
 
-#define EVICT(dest, cb, size)           ({asm volatile("fence");                                        \
-                                         evict(dest, atomic_load_local_64(&cb->base_per_hart), size);   \
+#define EVICT(dest, cb, size)           ({asm volatile("fence");                                                        \
+                                         evict(dest, (void*)(uintptr_t)atomic_load_local_64(&cb->base_per_hart), size); \
                                          __asm__ __volatile__ ( "csrwi tensor_wait, 6\n" : : );})
 #define IS_TRACE_ENABLED(cb)            (READ_U8(cb->enable) == TRACE_ENABLE) 
 #define IS_TRACE_STR_ENABLED(cb, log)   (IS_TRACE_ENABLED(cb) &&                                        \
@@ -87,8 +88,8 @@ union data_u32_f
 #define WRITE_F(var, value)             (var = value)
 #define MEM_CPY(dest, src, size)        memcpy(dest, src, size)
 
-#define EVICT(dest, cb, size)           ({asm volatile("fence");                    \
-                                         evict(dest, cb->base_per_hart, size);      \
+#define EVICT(dest, cb, size)           ({asm volatile("fence");                                   \
+                                         evict(dest, (void*)(uintptr_t)(cb->base_per_hart), size); \
                                          __asm__ __volatile__ ( "csrwi tensor_wait, 6\n" : : );})
 #define IS_TRACE_ENABLED(cb)            (cb->enable == TRACE_ENABLE)
 #define IS_TRACE_STR_ENABLED(cb, log)   (IS_TRACE_ENABLED(cb) &&                    \
@@ -119,34 +120,6 @@ union trace_header_u {
     };
     uint64_t header_raw;
 };
-
-enum cop_dest {
-   to_L1  = 0x0ULL,
-   to_L2  = 0x1ULL,
-   to_L3  = 0x2ULL,
-   to_Mem = 0x3ULL
-};
-
-static inline void __attribute__((always_inline)) evict_va(uint64_t use_tmask, uint64_t dst, uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id)
-{
-   uint64_t csr_enc = ((use_tmask & 1                     ) << 63 ) |
-                      ((dst       & 0x3                   ) << 58 ) | //00=L1, 01=L2, 10=L3, 11=MEM
-                      ((addr      & 0xFFFFFFFFFFC0ULL     )       ) |
-                      ((num_lines & 0xF                   )       ) ;
-
-   register uint64_t x31_enc asm("x31") = (stride & 0xFFFFFFFFFFC0ULL) | (id & 0x1);
-
-   __asm__ __volatile__ (
-      "csrw 0x89f, %[csr_enc]\n"
-      :
-      : [x31_enc] "r" (x31_enc), [csr_enc] "r" (csr_enc)
-   );
-}
-
-static inline void __attribute__((always_inline)) evict(enum cop_dest dest, uint64_t address, uint64_t size)
-{
-    evict_va(0, dest, address, ((address & 0x3F) + size) >> 6, 64, 0);
-}
 
 static inline uint64_t PMU_Get_hpmcounter3(void)
 {
@@ -194,7 +167,7 @@ static inline void *TraceBuffer_Reserve(struct trace_control_block_t *cb, uint64
 
     if (trace_check_buffer_full(cb, size, &current_offset)) 
     {    
-        /* Flush buffer to L3 (dst = 2) */
+        /* Flush buffer to Mem (dst = 3) */
         EVICT(to_Mem, cb, current_offset);      
 
         // TODO: Notify that we reached the notification threshold

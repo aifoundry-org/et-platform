@@ -31,10 +31,10 @@
 */
 #define CMD_HEADER_FLAG_BARRIER             (1 << 0)
 
-/*! \def CMD_HEADER_FLAG_KERNEL_LAUNCH
-    \brief Host Command flag for Kernel Launch.
+/*! \def CMD_HEADER_FLAG_KERNEL_TRACE_BUF
+    \brief Host Command flag for Kernel U-mode trace buffer.
 */
-#define CMD_HEADER_FLAG_KERNEL_LAUNCH       (1 << 1)
+#define CMD_HEADER_FLAG_KERNEL_TRACE_BUF    (1 << 1)
 
 /*! \def CMD_HEADER_FLAG_MM_TRACE_BUF
     \brief Host Command flag for MM Trace Buffer.
@@ -45,6 +45,11 @@
     \brief Host Command flag for CM Trace Buffer.
 */
 #define CMD_HEADER_FLAG_CM_TRACE_BUF        (1 << 3)
+
+/*! \def CMD_HEADER_FLAG_KERNEL_FLUSH_L3
+    \brief Host Command flag for flushing L3 before a kernel launch.
+*/
+#define CMD_HEADER_FLAG_KERNEL_FLUSH_L3     (1 << 4)
 
 /*! \def TRACE_RT_CTRL_MM
     \brief Flag inside trace runtime control command for
