@@ -86,14 +86,9 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 {
 	__poll_t mask = 0;
 	struct et_ops_dev *ops;
-	int i;
 
 	ops = container_of(fp->private_data, struct et_ops_dev, misc_ops_dev);
 
-	// TODO: Separate ISRs for SQ and CQ. waitqueue is wake up whenever an
-	// interrupt is received. Currently same interrupt is being used for SQ
-	// and CQ. Move `et_squeue_event_available()` to SQ ISR. waitqueue
-	// should be wake up from different ISRs after the bitmaps are updated.
 	poll_wait(fp, &ops->vq_common.waitqueue, wait);
 
 	if (ops->vq_common.aborting)
@@ -101,11 +96,6 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 
 	mutex_lock(&ops->vq_common.sq_bitmap_mutex);
 	mutex_lock(&ops->vq_common.cq_bitmap_mutex);
-
-	// Update sq_bitmap for all SQs, set corresponding bit when space
-	// available is more than threshold
-	for (i = 0; i < ops->dir_vq.sq_count; i++)
-		et_squeue_event_available(ops->sq_pptr[i]);
 
 	// Generate EPOLLOUT event if any SQ has space more than its threshold
 	if (!bitmap_empty(ops->vq_common.sq_bitmap, ops->dir_vq.sq_count))
@@ -346,11 +336,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			   sq_threshold_info.bytes_needed);
 
 		// Update sq_bitmap w.r.t new threshold
-		mutex_lock(&ops->vq_common.sq_bitmap_mutex);
-		clear_bit(sq_idx, ops->vq_common.sq_bitmap);
-		mutex_unlock(&ops->vq_common.sq_bitmap_mutex);
-		wake_up_interruptible(
-			&ops->sq_pptr[sq_idx]->vq_common->waitqueue);
+		et_squeue_sync_bitmap(ops->sq_pptr[sq_idx]);
 
 		return 0;
 
@@ -365,16 +351,11 @@ static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 {
 	__poll_t mask = 0;
 	struct et_mgmt_dev *mgmt;
-	int i;
 
 	mgmt = container_of(fp->private_data,
 			    struct et_mgmt_dev,
 			    misc_mgmt_dev);
 
-	// TODO: Separate ISRs for SQ and CQ. waitqueue is wake up whenever an
-	// interrupt is received. Currently same interrupt is being used for SQ
-	// and CQ. Move `et_squeue_event_available()` to SQ ISR. waitqueue
-	// should be wake up from different ISRs after the bitmaps are updated.
 	poll_wait(fp, &mgmt->vq_common.waitqueue, wait);
 
 	if (mgmt->vq_common.aborting)
@@ -382,11 +363,6 @@ static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 
 	mutex_lock(&mgmt->vq_common.sq_bitmap_mutex);
 	mutex_lock(&mgmt->vq_common.cq_bitmap_mutex);
-
-	// Update sq_bitmap for all SQs, set corresponding bit when space
-	// available is more than threshold
-	for (i = 0; i < mgmt->dir_vq.sq_count; i++)
-		et_squeue_event_available(mgmt->sq_pptr[i]);
 
 	// Generate EPOLLOUT event if any SQ has space more than its threshold
 	if (!bitmap_empty(mgmt->vq_common.sq_bitmap, mgmt->dir_vq.sq_count))
@@ -689,11 +665,7 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			   sq_threshold_info.bytes_needed);
 
 		// Update sq_bitmap w.r.t new threshold
-		mutex_lock(&mgmt->vq_common.sq_bitmap_mutex);
-		clear_bit(sq_idx, mgmt->vq_common.sq_bitmap);
-		mutex_unlock(&mgmt->vq_common.sq_bitmap_mutex);
-		wake_up_interruptible(
-			&mgmt->sq_pptr[sq_idx]->vq_common->waitqueue);
+		et_squeue_sync_bitmap(mgmt->sq_pptr[sq_idx]);
 
 		return 0;
 
@@ -1887,12 +1859,12 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	// TODO: Split MSI for SQ and CQ, currently following MSIs are
-	// supported
 	// Device Management:
-	//  - Vector[0] - Mgmt VQ (both SQ & CQ)
+	//  - Vector[0] - Mgmt SQ(s)
+	//  - Vector[1] - Mgmt CQ(s)
 	// Device Operations:
-	//  - Vector[1] - Ops VQ (both SQ & CQ)
+	//  - Vector[2] - Ops SQ(s)
+	//  - Vector[3] - Ops CQ(s)
 	rv = pci_alloc_irq_vectors(pdev,
 				   ET_MAX_MSI_VECS,
 				   ET_MAX_MSI_VECS,

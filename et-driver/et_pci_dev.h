@@ -49,8 +49,10 @@ struct et_mapped_region {
 };
 
 enum et_msi_vec_idx {
-	ET_MGMT_VEC_IDX = 0,
-	ET_OPS_VEC_IDX,
+	ET_MGMT_SQ_VEC_IDX = 0,
+	ET_MGMT_CQ_VEC_IDX,
+	ET_OPS_SQ_VEC_IDX,
+	ET_OPS_CQ_VEC_IDX,
 	ET_MAX_MSI_VECS
 };
 

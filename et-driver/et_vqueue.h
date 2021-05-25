@@ -39,16 +39,17 @@ struct et_vq_common {
 	u16 hpsq_count;
 	DECLARE_BITMAP(sq_bitmap, ET_MAX_QUEUES);
 	struct mutex sq_bitmap_mutex;
+	struct workqueue_struct *sq_workqueue;
 
 	u16 cq_count;
 	DECLARE_BITMAP(cq_bitmap, ET_MAX_QUEUES);
 	struct mutex cq_bitmap_mutex;
+	struct workqueue_struct *cq_workqueue;
 
 	u8 intrpt_id;
 	u8 intrpt_trg_size;
 	void __iomem *intrpt_addr;
 
-	struct workqueue_struct *workqueue;
 	wait_queue_head_t waitqueue;
 	bool aborting;
 	spinlock_t abort_lock;		/* serializes access to aborting */
@@ -65,6 +66,7 @@ struct et_squeue {
 	struct mutex push_mutex;	/* serializes access to cb */
 	atomic_t sq_threshold;
 	struct et_vq_common *vq_common;
+	struct work_struct isr_work;
 };
 
 // clang-format on
@@ -76,7 +78,7 @@ ssize_t et_squeue_copy_from_user(struct et_pci_dev *et_dev,
 				 u16 sq_index,
 				 const char __user *ubuf,
 				 size_t count);
-bool et_squeue_event_available(struct et_squeue *sq);
+void et_squeue_sync_bitmap(struct et_squeue *sq);
 bool et_squeue_empty(struct et_squeue *sq);
 
 // clang-format off
@@ -88,9 +90,9 @@ struct et_cqueue {
 	bool cb_mismatched;
 	struct mutex pop_mutex;		/* serializes access to cb */
 	struct et_vq_common *vq_common;
+	struct work_struct isr_work;
 	struct list_head msg_list;
 	struct mutex msg_list_mutex;	/* serializes access to msg_list */
-	struct work_struct isr_work;
 };
 
 // clang-format on
@@ -102,7 +104,6 @@ ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev,
 			       char __user *ubuf,
 			       size_t count);
 bool et_cqueue_msg_available(struct et_cqueue *cq);
-bool et_cqueue_event_available(struct et_cqueue *cq);
 void et_cqueue_isr_bottom(struct et_cqueue *cq);
 
 ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt);
