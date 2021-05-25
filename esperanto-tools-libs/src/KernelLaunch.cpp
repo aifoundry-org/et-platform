@@ -61,7 +61,10 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
     kernelParametersCache_->reserveBuffer(event, pBuffer);
   }
 
-  device_ops_api::device_ops_kernel_launch_cmd_t cmd;
+  // todo: SW-7616 - Allocation/extraction of Error buffer
+  // SW-7615 - Allocation/extraction of U mode Kernel Trace buffer
+  // SW-7558 - Embed kernel parameters into kernel command to avoid DMA
+  device_ops_api::device_ops_kernel_launch_cmd_t cmd = {0};
   cmd.command_info.cmd_hdr.tag_id = static_cast<uint16_t>(event);
   cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD;
   cmd.command_info.cmd_hdr.size = sizeof(cmd);
