@@ -31,7 +31,8 @@ typedef enum {
     DMA_CHAN_ID_WRITE_0 = 4,
     DMA_CHAN_ID_WRITE_1 = 5,
     DMA_CHAN_ID_WRITE_2 = 6,
-    DMA_CHAN_ID_WRITE_3 = 7
+    DMA_CHAN_ID_WRITE_3 = 7,
+    DMA_CHAN_ID_INVALID=8
 } dma_chan_id_e;
 
 /*! \enum DMA_STATUS_e

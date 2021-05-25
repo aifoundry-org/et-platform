@@ -354,7 +354,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             struct device_ops_dma_readlist_cmd_t *cmd = (void *)hdr;
             struct device_ops_dma_readlist_rsp_t rsp;
             dma_flags_e dma_flag = DMA_NORMAL;
-            dma_chan_id_e chan;
+            dma_chan_id_e chan=DMA_CHAN_ID_INVALID;
             cm_iface_message_t cm_msg;
             status = STATUS_SUCCESS;
             uint64_t cm_shire_mask;
@@ -572,7 +572,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
         {
             struct device_ops_dma_writelist_cmd_t *cmd = (void *)hdr;
             struct device_ops_dma_writelist_rsp_t rsp;
-            dma_chan_id_e chan;
+            dma_chan_id_e chan=DMA_CHAN_ID_INVALID;
             uint64_t total_dma_size=0;
             uint8_t dma_xfer_count;
             uint8_t loop_cnt;
