@@ -27,6 +27,8 @@ Enums:
         Value: 4
       - Name: CMFW_TRACEBUF
         Value: 8
+      - Name: KERNEL_LAUNCH_FLUSH_L3
+        Value: 16
   - Name: log_levels
     Type: uint8_t
     Values:
