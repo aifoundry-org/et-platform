@@ -51,6 +51,7 @@ private:
   std::mutex mutex_;
   bool running_ = true;
   uint32_t pendingInterruptsBitmask_ = 0;
+  uint64_t raised_interrupt_count_ = 0;
   std::condition_variable condVar_;
   IHostListener* hostListener_ = nullptr;
   std::queue<std::function<void()>> requests_;

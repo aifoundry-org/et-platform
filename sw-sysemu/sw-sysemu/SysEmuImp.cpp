@@ -270,7 +270,7 @@ uint32_t SysEmuImp::waitForInterrupt(uint32_t bitmap) {
   return bitmap;
 }
 bool SysEmuImp::raise_host_interrupt(uint32_t bitmap) {
-  LOG_NOTHREAD(INFO, "SysEmuImp: Raise Host Interrupt (0x%" PRIx32 ")", bitmap);
+  LOG_NOTHREAD(INFO, "SysEmuImp: Raise Host (Count: %" PRId64 ") Interrupt Bitmap: (0x%" PRIx32 ")", ++raised_interrupt_count_,  bitmap);
   std::lock_guard<std::mutex> lock(mutex_);
   pendingInterruptsBitmask_ |= bitmap;
   condVar_.notify_all();
