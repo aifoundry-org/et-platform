@@ -1134,3 +1134,28 @@ void TestDevMgmtApiSyncCmds::isUnsupportedService_1_45() {
                               output_size, hst_latency.get(), nullptr, DM_SERVICE_REQUEST_TIMEOUT),
             -EINVAL);
 }
+
+
+#define SP_CRT_512_V002 "../include/hash.txt"
+
+void TestDevMgmtApiSyncCmds::setSpRootCertificate_1_46() { 
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)(devLayer_.get());
+
+  // Payload in response is of type uint32_t
+  const uint32_t output_size = sizeof(uint32_t);
+  char output_buff[output_size] = {0};
+
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_SET_SP_BOOT_ROOT_CERT, SP_CRT_512_V002, 1,
+  output_buff, output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT*20), device_mgmt_api::DM_STATUS_SUCCESS);
+ 
+  char expected[output_size] = {0};
+  strncpy(expected, "0", output_size);
+
+  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+
+}

@@ -238,6 +238,10 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getDeviceErrorEvents_1_44) {
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, isUnsupportedService_1_45) {
   isUnsupportedService_1_45();
 }
+
+/*TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setSpRootCertificate_1_46) {
+  setSpRootCertificate_1_46();
+}*/
 //TODO: conditional to be removed with https://esperantotech.atlassian.net/browse/SW-6044
 #ifdef TARGET_PCIE
 /*
@@ -274,35 +278,6 @@ output_size, hst_latency.get(), dev_latency.get(), 2000), device_mgmt_api::DM_ST
 
   ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
 }
-
-
-// TODO : Enable SP ROO CERT Hash provision test
-// Test DM_CMD_SET_SP_BOOT_ROOT_CERT
-TEST_F(TestDevMgmtApiSyncCmds, test_DM_CMD_SET_SP_BOOT_ROOT_CERT) {
-  getDM_t dmi = getInstance();
-  ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
-
-  // DM_CMD_SET_FIRMWARE_UPDATE : Device returns response of type device_mgmt_default_rsp_t.
-  // Payload in response is of type uint32_t
-  const uint32_t output_size = sizeof(uint32_t);
-  char output_buff[output_size] = {0};
-  auto hst_latency = std::make_unique<uint32_t>();
-  auto dev_latency = std::make_unique<uint64_t>();
-
-  ASSERT_EQ(dm.serviceRequest("et0_mgmt", device_mgmt_api::DM_CMD::DM_CMD_SET_SP_BOOT_ROOT_CERT, SP_CRT_512_V002, 1 ,
-output_buff, output_size, hst_latency.get(), dev_latency.get(), 2000), device_mgmt_api::DM_STATUS_SUCCESS);
-
-  printf("output_buff: %.*s\n", output_size, output_buff);
-
-  char expected[output_size] = {0};
-  strncpy(expected, "0", output_size);
-  printf("expected: %.*s\n", output_size, expected);
-
-  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
-
-}
-
 
 // TODO : Enable Firmware update test case
 // Test firmware_update

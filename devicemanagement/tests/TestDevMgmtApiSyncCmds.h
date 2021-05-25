@@ -70,6 +70,7 @@ protected:
   void serializeAccessMgmtNode_1_43();
   void getDeviceErrorEvents_1_44();
   void isUnsupportedService_1_45();
+  void setSpRootCertificate_1_46();
 
   void *handle_ = nullptr;
   std::unique_ptr<IDeviceLayer> devLayer_;
