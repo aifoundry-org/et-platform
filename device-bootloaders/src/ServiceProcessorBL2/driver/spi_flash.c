@@ -1,16 +1,15 @@
-/*-------------------------------------------------------------------------
-* Copyright (C) 2018, Esperanto Technologies Inc.
+/***********************************************************************
+*
+* Copyright (C) 2020 Esperanto Technologies Inc.
 * The copyright to the computer program(s) herein is the
 * property of Esperanto Technologies, Inc. All Rights Reserved.
 * The program(s) may be used and/or copied only with
 * the written permission of Esperanto Technologies and
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
-*-------------------------------------------------------------------------
-*/
-
+*
+************************************************************************/
 #include <stdio.h>
-
 #include "serial.h"
 #include "string.h"
 #include "bl2_spi_controller.h"
@@ -28,43 +27,50 @@
 #define SPI_FLASH_CMD_NORMAL_READ  0x03
 #define SPI_FLASH_CMD_FAST_READ    0x0B
 #define SPI_FLASH_CMD_PAGE_PROGRAM 0x02
-#define SPI_FLASH_CMD_BLOCK_ERASE  0xD8 // 16KB block erase
-#define SPI_FLASH_CMD_SECTOR_ERASE 0x20 // 4KB sector erase
+#define SPI_FLASH_CMD_BLOCK_ERASE  0xD8 /* 16KB block erase */
+#define SPI_FLASH_CMD_SECTOR_ERASE 0x20 /* 4KB sector erase */
 
-// SPI TX FIFO Depth: 256 entries x 32 bits each
+/* SPI TX FIFO Depth: 256 entries x 32 bits each */
 #define MAX_SPI_TX_FIFO_DEPTH 256
 #define MAX_SPI_TX_FIFO_SIZE  (MAX_SPI_TX_FIFO_DEPTH * 4)
 
-// Polling for mem busy loop, num_reads - number of status reads before timeout error
+/* Polling for mem busy loop, num_reads - number of status reads before timeout error */
 #define SPI_MEM_BUSY_WAIT_LOOP(flash_id, spi_status, num_reads)            \
     int k = 0;                                                             \
-    if (0 != spi_flash_rdsr(flash_id, &spi_status)) {                      \
+    if (0 != spi_flash_rdsr(flash_id, &spi_status))                        \
+    {                                                                      \
         MESSAGE_ERROR("spi_flash_rdsr() failed!\n");                       \
         return ERROR_SPI_FLASH_RDSR_FAILED;                                \
     }                                                                      \
-    while (1 & spi_status) {                                               \
+    while (1 & spi_status)                                                 \
+    {                                                                      \
         k++;                                                               \
-        if (k > num_reads) {                                               \
+        if (k > num_reads)                                                 \
+        {                                                                  \
             MESSAGE_ERROR("timeout waiting for write/erase to finish!\n"); \
             return ERROR_SPI_FLASH_TIMEOUT_WAITING_MEM_READY;              \
         }                                                                  \
-        if (0 != spi_flash_rdsr(flash_id, &spi_status)) {                  \
+        if (0 != spi_flash_rdsr(flash_id, &spi_status))                    \
+        {                                                                  \
             MESSAGE_ERROR("spi_flash_rdsr() failed!\n");                   \
             return ERROR_SPI_FLASH_RDSR_FAILED;                            \
         }                                                                  \
     }
 
-// Check memory readiness for erase/write command
+/* Check memory readiness for erase/write command */
 #define SPI_MEM_PREPARE_FOR_ERASE_WRITE(flash_id, spi_status) \
-    if (0 != spi_flash_rdsr(flash_id, &spi_status)) {         \
+    if (0 != spi_flash_rdsr(flash_id, &spi_status))           \
+    {                                                         \
         MESSAGE_ERROR("spi_flash_rdsr() failed!\n");          \
         return ERROR_SPI_FLASH_RDSR_FAILED;                   \
     }                                                         \
-    if (0 != spi_status) {                                    \
+    if (0 != spi_status)                                      \
+    {                                                         \
         MESSAGE_ERROR("flash device not ready!\n");           \
         return ERROR_SPI_FLASH_MEM_NOT_READY;                 \
     }                                                         \
-    if (0 != spi_flash_wren(flash_id)) {                      \
+    if (0 != spi_flash_wren(flash_id))                        \
+    {                                                         \
         MESSAGE_ERROR("spi_flash_wren() failed!\n");          \
         return ERROR_SPI_FLASH_WREN_FAILED;                   \
     }
@@ -90,20 +96,22 @@
 *
 ***********************************************************************/
 
-static int get_flash_controller_and_slave_ids(SPI_FLASH_ID_t id, SPI_CONTROLLER_ID_t *controller_id,
-                                              uint8_t *slave_index)
+static int get_flash_controller_and_slave_ids(SPI_FLASH_ID_t id, 
+                                               SPI_CONTROLLER_ID_t *controller_id,
+                                               uint8_t *slave_index)
 {
-    switch (id) {
-    case SPI_FLASH_ON_PACKAGE:
-        *controller_id = SPI_CONTROLLER_ID_SPI_0;
-        *slave_index = 0;
-        return 0;
-    case SPI_FLASH_OFF_PACKAGE:
-        *controller_id = SPI_CONTROLLER_ID_SPI_1;
-        *slave_index = 0;
-        return 0;
-    default:
-        return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
+    switch (id) 
+    {
+        case SPI_FLASH_ON_PACKAGE:
+            *controller_id = SPI_CONTROLLER_ID_SPI_0;
+            *slave_index = 0;
+            return 0;
+        case SPI_FLASH_OFF_PACKAGE:
+            *controller_id = SPI_CONTROLLER_ID_SPI_1;
+            *slave_index = 0;
+            return 0;
+        default:
+            return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
 }
 
@@ -132,7 +140,8 @@ int SPI_Flash_Initialize(SPI_FLASH_ID_t flash_id)
     SPI_CONTROLLER_ID_t controller_id;
     uint8_t slave_index;
 
-    if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) {
+    if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index))
+    {
         MESSAGE_ERROR("get_flash_controller_and_slave_ids() failed!\n");
         return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
@@ -166,7 +175,8 @@ int spi_flash_wren(SPI_FLASH_ID_t flash_id)
     SPI_CONTROLLER_ID_t controller_id;
     uint8_t slave_index;
 
-    if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) {
+    if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) 
+    {
         return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
 
@@ -178,7 +188,8 @@ int spi_flash_wren(SPI_FLASH_ID_t flash_id)
     command.data_size = 0;
     command.data_buffer = NULL;
 
-    if (0 != spi_controller_command(controller_id, slave_index, &command)) {
+    if (0 != spi_controller_command(controller_id, slave_index, &command)) 
+    {
         MESSAGE_ERROR("spi_controller_command(WREN) failed!\n");
         return ERROR_SPI_FLASH_WREN_FAILED;
     }
@@ -213,7 +224,8 @@ int spi_flash_rdsr(SPI_FLASH_ID_t flash_id, uint8_t *status)
     uint8_t slave_index;
     uint8_t data;
 
-    if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) {
+    if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) 
+    {
         return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
 
@@ -225,7 +237,8 @@ int spi_flash_rdsr(SPI_FLASH_ID_t flash_id, uint8_t *status)
     command.data_size = sizeof(data);
     command.data_buffer = &data;
 
-    if (0 != spi_controller_command(controller_id, slave_index, &command)) {
+    if (0 != spi_controller_command(controller_id, slave_index, &command)) 
+    {
         MESSAGE_ERROR("spi_controller_command(RDSR) failed!\n");
         return ERROR_SPI_FLASH_RDSR_FAILED;
     }
@@ -262,7 +275,8 @@ int spi_flash_rdid(SPI_FLASH_ID_t flash_id, uint8_t *manufacturer_id, uint8_t de
     uint8_t slave_index;
     uint8_t data[3];
 
-    if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) {
+    if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) 
+    {
         return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
 
@@ -274,7 +288,8 @@ int spi_flash_rdid(SPI_FLASH_ID_t flash_id, uint8_t *manufacturer_id, uint8_t de
     command.data_size = sizeof(data);
     command.data_buffer = data;
 
-    if (0 != spi_controller_command(controller_id, slave_index, &command)) {
+    if (0 != spi_controller_command(controller_id, slave_index, &command)) 
+    {
         MESSAGE_ERROR("spi_controller_command(RDID) failed!\n");
         return ERROR_SPI_FLASH_RDID_FAILED;
     }
@@ -314,7 +329,8 @@ int spi_flash_rdsfdp(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *data_bu
     SPI_CONTROLLER_ID_t controller_id;
     uint8_t slave_index;
 
-    if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) {
+    if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) 
+    {
         return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
 
@@ -326,7 +342,8 @@ int spi_flash_rdsfdp(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *data_bu
     command.data_size = data_buffer_size;
     command.data_buffer = data_buffer;
 
-    if (0 != spi_controller_command(controller_id, slave_index, &command)) {
+    if (0 != spi_controller_command(controller_id, slave_index, &command)) 
+    {
         MESSAGE_ERROR("spi_controller_command(RDSFDP) failed!\n");
         return ERROR_SPI_FLASH_RDSFDP_FAILED;
     }
@@ -365,13 +382,16 @@ int spi_flash_normal_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *da
     uint8_t slave_index;
     uint32_t read_size;
 
-    if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) {
+    if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) 
+    {
         return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
 
-    while (data_buffer_size > 0) {
+    while (data_buffer_size > 0) 
+    {
         read_size = data_buffer_size;
-        if (read_size > MAXIMUM_READ_SIZE) {
+        if (read_size > MAXIMUM_READ_SIZE) 
+        {
             read_size = MAXIMUM_READ_SIZE;
         }
 
@@ -383,7 +403,8 @@ int spi_flash_normal_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *da
         command.data_size = read_size;
         command.data_buffer = data_buffer;
 
-        if (0 != spi_controller_command(controller_id, slave_index, &command)) {
+        if (0 != spi_controller_command(controller_id, slave_index, &command)) 
+        {
             MESSAGE_ERROR("spi_controller_command(RD) failed!\n");
             return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
         }
@@ -426,13 +447,16 @@ int spi_flash_fast_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *data
     uint8_t slave_index;
     uint32_t read_size;
 
-    if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) {
+    if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) 
+    {
         return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
 
-    while (data_buffer_size > 0) {
+    while (data_buffer_size > 0) 
+    {
         read_size = data_buffer_size;
-        if (read_size > MAXIMUM_READ_SIZE) {
+        if (read_size > MAXIMUM_READ_SIZE) 
+        {
             read_size = MAXIMUM_READ_SIZE;
         }
 
@@ -444,7 +468,8 @@ int spi_flash_fast_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *data
         command.data_size = data_buffer_size;
         command.data_buffer = data_buffer;
 
-        if (0 != spi_controller_command(controller_id, slave_index, &command)) {
+        if (0 != spi_controller_command(controller_id, slave_index, &command)) 
+        {
             MESSAGE_ERROR("spi_controller_command(RDHS) failed!\n");
             return ERROR_SPI_FLASH_FAST_RD_FAILED;
         }
@@ -488,19 +513,25 @@ int spi_flash_page_program(SPI_FLASH_ID_t flash_id, uint32_t address, const uint
     uint8_t slave_index;
     uint8_t spi_status;
 
-    if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) {
+    if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) 
+    {
         MESSAGE_ERROR("spi_flash_page_program: get_flash_controller_and_slave_ids() failed!\n");
         return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
 
-    // Max supported size will include 4 bytes of command for 8bits access
-    if (0 == (data_buffer_size & 0x3)) {
-        if (data_buffer_size > SPI_FLASH_PAGE_SIZE) {
+    /* Max supported size will include 4 bytes of command for 8bits access */
+    if (0 == (data_buffer_size & 0x3)) 
+    {
+        if (data_buffer_size > SPI_FLASH_PAGE_SIZE) 
+        {
             MESSAGE_ERROR("spi_flash_page_program failed! Max size = %d\n", SPI_FLASH_PAGE_SIZE);
             return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
         }
-    } else {
-        if (data_buffer_size > (MAX_SPI_TX_FIFO_DEPTH - 4)) {
+    } 
+    else 
+    {
+        if (data_buffer_size > (MAX_SPI_TX_FIFO_DEPTH - 4)) 
+        {
             MESSAGE_ERROR("spi_flash_page_program failed! Max size = %d\n",
                           (MAX_SPI_TX_FIFO_DEPTH - 4));
             return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
@@ -521,7 +552,8 @@ int spi_flash_page_program(SPI_FLASH_ID_t flash_id, uint32_t address, const uint
     command.data_buffer = (uint8_t *)data_buffer;
 #pragma GCC pop_options
 
-    if (0 != spi_controller_command(controller_id, slave_index, &command)) {
+    if (0 != spi_controller_command(controller_id, slave_index, &command)) 
+    {
         MESSAGE_ERROR("spi_flash_page_program failed!\n");
         return ERROR_SPI_FLASH_PP_FAILED;
     }
@@ -559,12 +591,14 @@ int spi_flash_block_erase(SPI_FLASH_ID_t flash_id, uint32_t address)
     uint8_t slave_index;
     uint8_t spi_status;
 
-    if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) {
+    if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) 
+    {
         MESSAGE_ERROR("spi_flash_block_erase: get_flash_controller_and_slave_ids() failed!\n");
         return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
 
-    if (0 != (address & SPI_FLASH_BLOCK_MASK)) {
+    if (0 != (address & SPI_FLASH_BLOCK_MASK)) 
+    {
         MESSAGE_ERROR("spi_flash_sector_erase: address must be 64kB alligned!\n");
         return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
@@ -579,7 +613,8 @@ int spi_flash_block_erase(SPI_FLASH_ID_t flash_id, uint32_t address)
     command.data_size = 0;
     command.data_buffer = NULL;
 
-    if (0 != spi_controller_command(controller_id, slave_index, &command)) {
+    if (0 != spi_controller_command(controller_id, slave_index, &command)) 
+    {
         MESSAGE_ERROR("spi_flash_block_erase: spi_controller_command(BE) failed!\n");
         return ERROR_SPI_FLASH_BE_FAILED;
     }
@@ -617,12 +652,14 @@ int spi_flash_sector_erase(SPI_FLASH_ID_t flash_id, uint32_t address)
     uint8_t slave_index;
     uint8_t spi_status;
 
-    if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) {
+    if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) 
+    {
         MESSAGE_ERROR("spi_flash_sector_erase: get_flash_controller_and_slave_ids() failed!\n");
         return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
 
-    if (0 != (address & SPI_FLASH_SECTOR_MASK)) {
+    if (0 != (address & SPI_FLASH_SECTOR_MASK)) 
+    {
         MESSAGE_ERROR("spi_flash_sector_erase: address must be 4kB alligned!\n");
         return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
@@ -637,7 +674,8 @@ int spi_flash_sector_erase(SPI_FLASH_ID_t flash_id, uint32_t address)
     command.data_size = 0;
     command.data_buffer = NULL;
 
-    if (0 != spi_controller_command(controller_id, slave_index, &command)) {
+    if (0 != spi_controller_command(controller_id, slave_index, &command)) 
+    {
         MESSAGE_ERROR("spi_flash_sector_erase: spi_controller_command(BE) failed!\n");
         return ERROR_SPI_FLASH_SE_FAILED;
     }
@@ -670,7 +708,8 @@ int spi_flash_sector_erase(SPI_FLASH_ID_t flash_id, uint32_t address)
 ***********************************************************************/
 int SPI_Flash_Read_Page(SPI_FLASH_ID_t flash_id, uint32_t address, uint32_t* data_buffer, uint32_t size)
 {
-    if (0 != spi_flash_normal_read(flash_id, address, (uint8_t *)data_buffer, size)) {
+    if (0 != spi_flash_normal_read(flash_id, address, (uint8_t *)data_buffer, size)) 
+    {
         return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
     }
 
@@ -701,7 +740,8 @@ int SPI_Flash_Read_Page(SPI_FLASH_ID_t flash_id, uint32_t address, uint32_t* dat
 ***********************************************************************/
 int SPI_Flash_Write_Page(SPI_FLASH_ID_t flash_id, uint32_t address, uint32_t *data, uint32_t size) 
 {
-    if (0 != spi_flash_page_program(flash_id, address, (uint8_t *)data, size)) {
+    if (0 != spi_flash_page_program(flash_id, address, (uint8_t *)data, size)) 
+    {
         return ERROR_SPI_FLASH_PP_FAILED;
     }
 

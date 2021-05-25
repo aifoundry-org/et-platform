@@ -1,12 +1,13 @@
-/*-------------------------------------------------------------------------
-* Copyright (C) 2020, Esperanto Technologies Inc.
+/***********************************************************************
+*
+* Copyright (C) 2020 Esperanto Technologies Inc.
 * The copyright to the computer program(s) herein is the
 * property of Esperanto Technologies, Inc. All Rights Reserved.
 * The program(s) may be used and/or copied only with
 * the written permission of Esperanto Technologies and
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
-*-------------------------------------------------------------------------
+*
 ************************************************************************/
 /*! \file pmic_controller.c
     \brief A C module that implements the PMIC controller's functionality. It 
@@ -25,10 +26,8 @@
 */
 /***********************************************************************/
 #include <stdio.h>
-
 #include "io.h"
 #include "bl2_reset.h"
-
 #include "etsoc_hal/inc/cm_esr.h"
 #include "etsoc_hal/inc/rm_esr.h"
 #include "etsoc_hal/inc/hal_device.h"
@@ -67,10 +66,10 @@ void release_etsoc_reset(void)
 
 void pcie_reset_flr(void)
 {
-  // TODO: https://esperantotech.atlassian.net/browse/SW-6606
+  /* TODO: https://esperantotech.atlassian.net/browse/SW-6606 */
 }
 
 void  pcie_reset_warm(void)
 {
-  // TODO: https://esperantotech.atlassian.net/browse/SW-6606
+  /* TODO: https://esperantotech.atlassian.net/browse/SW-6606 */
 }

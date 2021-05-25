@@ -22,11 +22,8 @@
         get_watchdog_max_timeout
 */
 /***********************************************************************/
-
 #include <stdio.h>
-
 #include "io.h"
-
 #include <bl2_watchdog.h>
 #include "hal_device.h"
 #include <wdt.h>
@@ -59,11 +56,13 @@ static struct watchdog_control_block wdog_control_block __attribute__((section("
 ***********************************************************************/
 int32_t watchdog_init(uint32_t timeout_msec)
 {
-    //Init Watchdog counter with the given timeout */
-    //Enable interrupt handler for the SPIO_WDT_INTR*/
-    //Enable PMIC interface to handle second interrupt
-    //and reset the system, spio_wdt_sys_rstn*.
-    //Start the watch dog
+    /*
+      Init Watchdog counter with the given timeout 
+      Enable interrupt handler for the SPIO_WDT_INTR
+      Enable PMIC interface to handle second interrupt
+      and reset the system, spio_wdt_sys_rstn*.
+      Start the watch dog 
+    */
 
     wdog_control_block.timeout_msec = timeout_msec;
     
@@ -179,7 +178,7 @@ int32_t watchdog_stop(void)
 ***********************************************************************/
 void watchdog_kick(void)
 {
-    //Feed the wdog
+    /* Feed the wdog */
     iowrite32(R_SP_WDT_BASEADDR + WDT_WDT_CRR_ADDRESS, WDT_WDT_CRR_WDT_CRR_WDT_CRR_RESTART);
 }
 
@@ -258,7 +257,8 @@ void watchdog_isr(void)
     ioread32(R_SP_WDT_BASEADDR + WDT_WDT_EOI_ADDRESS);
     
     /* Invoke the event handler callback */
-    if (wdog_control_block.event_cb) {
+    if (wdog_control_block.event_cb)
+    {
         struct event_message_t message;
         /* add details in message header and fill payload */
         FILL_EVENT_HEADER(&message.header, WDOG_INTERNAL_TIMEOUT,

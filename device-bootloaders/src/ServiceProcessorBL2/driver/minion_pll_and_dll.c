@@ -1,4 +1,4 @@
-/*-------------------------------------------------------------------------
+/************************************************************************
 * Copyright (C) 2020, Esperanto Technologies Inc.
 * The copyright to the computer program(s) herein is the
 * property of Esperanto Technologies.
@@ -6,7 +6,6 @@
 * the written permission of Esperanto Technologies or
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
-*-------------------------------------------------------------------------
 ************************************************************************/
 /*! \file minion_pll_dll.c.c
     \brief A C module that implements the minion PLL configuration services. It 
@@ -43,22 +42,22 @@ static void pll_config(uint8_t shire_id)
 {
     uint64_t reg_value;
 
-    // Select 1 GHz from step_clock, Bits[2:0] = 3'b011. Bit 3 to '1' to go with DLL output
+    /* Select 1 GHz from step_clock, Bits[2:0] = 3'b011. Bit 3 to '1' to go with DLL output */
     write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_CTRL_CLOCKMUX, 0xb);
 
-    // Auto-config register set dll_enable and get reset deasserted of the DLL
+    /* Auto-config register set dll_enable and get reset deasserted of the DLL */
     reg_value = SHIRE_OTHER_DLL_AUTO_CONFIG_PCLK_SEL |
                 (0x1 << SHIRE_OTHER_DLL_AUTO_CONFIG_DLL_EN_OFF);
     write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_DLL_AUTO_CONFIG, reg_value);
 
-    // Wait until DLL is locked to change clock mux
-    while (!(read_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_DLL_READ_DATA) & 0x20000))
-        ;
+    /* Wait until DLL is locked to change clock mux */
+    while (!(read_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_DLL_READ_DATA) & 0x20000));
 }
 
 static void minion_pll_config(uint64_t shire_mask)
 {
-    for (uint8_t i = 0; i <= 32; i++) {
+    for (uint8_t i = 0; i <= 32; i++) 
+    {
         if (shire_mask & 1)
             pll_config(i);
         shire_mask >>= 1;
@@ -73,9 +72,11 @@ int configure_minion_plls_and_dlls(uint64_t shire_mask)
 
 int enable_minion_neighborhoods(uint64_t shire_mask)
 {
-    for (uint8_t i = 0; i <= 32; i++) {
-        if (shire_mask & 1) {
-            // Set Shire ID, enable cache and all Neighborhoods
+    for (uint8_t i = 0; i <= 32; i++) 
+    {
+        if (shire_mask & 1) 
+        {
+            /* Set Shire ID, enable cache and all Neighborhoods */
             const uint64_t config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_SHIRE_ID_SET(i) |
                                     ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_CACHE_EN_SET(1) |
                                     ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_SET(0xF);
@@ -88,7 +89,7 @@ int enable_minion_neighborhoods(uint64_t shire_mask)
 
 int enable_master_shire_threads(uint8_t mm_id)
 {
-    // Enable only Device Runtime Management thread on Master Shire
+    /* Enable only Device Runtime Management thread on Master Shire */
     write_esr(PP_MACHINE, mm_id, REGION_OTHER, SHIRE_OTHER_THREAD0_DISABLE, ~(MM_RT_THREADS));
     return 0;
 }

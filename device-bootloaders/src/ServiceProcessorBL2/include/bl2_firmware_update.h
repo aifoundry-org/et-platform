@@ -1,19 +1,3 @@
-/*-------------------------------------------------------------------------
-* Copyright (C) 2018, Esperanto Technologies Inc.
-* The copyright to the computer program(s) herein is the
-* property of Esperanto Technologies, Inc. All Rights Reserved.
-* The program(s) may be used and/or copied only with
-* the written permission of Esperanto Technologies and
-* in accordance with the terms and conditions stipulated in the
-* agreement/contract under which the program(s) have been supplied.
-*-------------------------------------------------------------------------
-*/
-
-#ifndef __BL2_FIRMWARE_UPDATE_H__
-#define __BL2_FIRMWARE_UPDATE_H__
-
-#include <stdint.h>
-
 /***********************************************************************
 *
 * Copyright (C) 2020 Esperanto Technologies Inc.
@@ -31,6 +15,10 @@
     the host can issue firmware update/status commands to device.
 */
 /***********************************************************************/
+#ifndef __BL2_FIRMWARE_UPDATE_H__
+#define __BL2_FIRMWARE_UPDATE_H__
+
+#include <stdint.h>
 #include "dm.h"
 #include "bl2_build_configuration.h"
 #include "bl2_firmware_loader.h"
@@ -54,7 +42,7 @@ enum DEVICE_FW_UPDATE_STATUS {
     DEVICE_FW_UPDATED_IMAGE_BOOT_FAILED = 3
 };
 
-//Release 0.0.7 TODO: This needs to be retrieved from Device Interface registers
+/* Release 0.0.7 TODO: This needs to be retrieved from Device Interface registers */
 
 /*! \def DEVICE_FW_UPDATE_REGION_SIZE
     \brief Device Firmware update memory region size.
@@ -66,7 +54,7 @@ enum DEVICE_FW_UPDATE_STATUS {
 */
 #define DEVICE_FW_UPDATE_REGION_BASE 0x8005120000ULL
 
-//
+
 /*! \def FORMAT_VERSION
     \brief Macro for formatting FW version. It will be of the format:  Major[1 byte].[Minor 1 byte].[Revision 1 byte].[NULL].
 */

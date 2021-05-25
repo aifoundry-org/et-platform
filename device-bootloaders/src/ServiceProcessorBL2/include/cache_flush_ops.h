@@ -1,14 +1,25 @@
+/***********************************************************************
+*
+* Copyright (C) 2020 Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*
+************************************************************************/
 #ifndef __CACHE_FLUSH_OPS_H__
 #define __CACHE_FLUSH_OPS_H__
 
 #include <stdint.h>
 #include <stdlib.h>
 
-#define UNUSED_DATA_REGION 0x40000000 // we will use the SP ROM as the unused data region
+#define UNUSED_DATA_REGION 0x40000000 /* we will use the SP ROM as the unused data region */
 #define SET_MASK           0x3F0u
 #define CACHE_LINE_MASK    0x3Fu
 
-// this will flush the entire data cache
+/* this will flush the entire data cache */
 static inline void l1_data_cache_flush_all(void)
 {
     uint64_t temp;
@@ -80,14 +91,14 @@ static inline void l1_data_cache_flush_all(void)
     (void)temp;
 }
 
-// this will flush a single data cache line (64 bytes) that contains the specified address
+/* this will flush a single data cache line (64 bytes) that contains the specified address */
 static inline void l1_data_cache_flush_line(const void *address)
 {
     volatile uint64_t *addr;
     uint64_t temp;
     uint64_t a = (uint64_t)address;
-    a = a & SET_MASK; // isolate the set number
-    a = UNUSED_DATA_REGION | a; // use the SP ROM address as the unused data region
+    a = a & SET_MASK; /* isolate the set number */
+    a = UNUSED_DATA_REGION | a; /* use the SP ROM address as the unused data region */
     addr = (uint64_t *)a;
     temp = addr[0x000];
     temp = addr[0x080];
@@ -96,8 +107,8 @@ static inline void l1_data_cache_flush_line(const void *address)
     (void)temp;
 }
 
-// this will flush all data cache lines that contain the specified region
-// this might be useful if the region to flush is smaller than 1024 bytes
+/* this will flush all data cache lines that contain the specified region
+   this might be useful if the region to flush is smaller than 1024 bytes */
 static inline void l1_data_cache_flush_region(const void *address, size_t size)
 {
     uint32_t set;

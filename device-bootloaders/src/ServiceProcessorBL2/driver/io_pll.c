@@ -1,4 +1,4 @@
-/*-------------------------------------------------------------------------
+/*************************************************************************
 * Copyright (C) 2020, Esperanto Technologies Inc.
 * The copyright to the computer program(s) herein is the
 * property of Esperanto Technologies.
@@ -6,7 +6,6 @@
 * the written permission of Esperanto Technologies or
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
-*-------------------------------------------------------------------------
 ************************************************************************/
 /*! \file io_pll.c
     \brief A C module that implements the I/O PLL configuration services. It 
@@ -25,17 +24,14 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
-
 #include "error.h"
 #include "io.h"
 #include "bl2_sp_pll.h"
 #include "bl2_main.h"
-
 #include "etsoc_hal/inc/rm_esr.h"
 #include "etsoc_hal/inc/cm_esr.h"
 #include "etsoc_hal/inc/pshire_esr.h"
 #include "etsoc_hal/inc/hal_device.h"
-
 #include "etsoc_hal/inc/movellus_hpdpll_modes_config.h"
 
 /*! \def PLL_LOCK_TIMEOUT
@@ -97,10 +93,10 @@ uint32_t get_input_clock_index(void)
 
 static int configure_pll_off(volatile uint32_t *pll_registers)
 {
-    // disable the PLL
-    pll_registers[0] = 0;
+    /* disable the PLL */
+    pll_registers[0] = 0; 
 
-    // set reg_update strobe to update registers
+    /* set reg_update strobe to update registers */
     pll_registers[PLL_REG_INDEX_REG_UPDATE_STROBE] = 1;
 
     return 0;
@@ -130,12 +126,15 @@ static int configure_pll(volatile uint32_t *pll_registers, uint8_t mode, uint32_
     static const uint32_t pll_settings_count =
         sizeof(gs_hpdpll_settings) / sizeof(HPDPLL_SETTING_t);
 
-    if (0 == mode) {
+    if (0 == mode) 
+    {
         return 0;
     }
 
-    for (pll_settings_index = 0; pll_settings_index < pll_settings_count; pll_settings_index++) {
-        if (gs_hpdpll_settings[pll_settings_index].mode == mode) {
+    for (pll_settings_index = 0; pll_settings_index < pll_settings_count; pll_settings_index++) 
+    {
+        if (gs_hpdpll_settings[pll_settings_index].mode == mode) 
+        {
             goto FOUND_CONFIG_DATA;
         }
     }
@@ -144,9 +143,10 @@ static int configure_pll(volatile uint32_t *pll_registers, uint8_t mode, uint32_
 
 FOUND_CONFIG_DATA:
 
-    // program the PLL registers using generated configuration data
+    /* program the PLL registers using generated configuration data */
     for (entry_index = 0; entry_index < gs_hpdpll_settings[pll_settings_index].count;
-         entry_index++) {
+         entry_index++) 
+    {
         register_index = gs_hpdpll_settings[pll_settings_index].offsets[entry_index];
         register_value = gs_hpdpll_settings[pll_settings_index].values[entry_index];
         pll_registers[register_index] = register_value;
@@ -154,43 +154,45 @@ FOUND_CONFIG_DATA:
  
     *target_freq = (uint32_t) gs_hpdpll_settings[pll_settings_index].output_frequency;
 
-    // Update PLL registers
+    /* Update PLL registers */
     update_pll_registers(pll_registers);
+    
+    /*
+     POTENTIAL BUG WORKAROUND BEGIN
 
-    ///////////////////////////////////////////////////////////////////////////////////////
-    // POTENTIAL BUG WORKAROUND BEGIN
-    ///////////////////////////////////////////////////////////////////////////////////////
+     Toggle the DCO_NORMALIZATION_ENABLE 1 -> 0 -> 1 in order for PLL to acquire lock
+     this is required to work around potential HW bugs in Movellus PLL
+    */
 
-    // Toggle the DCO_NORMALIZATION_ENABLE 1 -> 0 -> 1 in order for PLL to acquire lock
-    // this is required to work around potential HW bugs in Movellus PLL
-
-    // if the DCO_NORMALIZATION_ENABLE bit is NOT 1, set it to 1
+    /* if the DCO_NORMALIZATION_ENABLE bit is NOT 1, set it to 1 */
     reg0 = pll_registers[PLL_REG_INDEX_REG_0];
-    if (!(reg0 & DCO_NORMALIZATION_ENABLE__MASK)) {
+    if (!(reg0 & DCO_NORMALIZATION_ENABLE__MASK)) 
+    {
         reg0 = reg0 | DCO_NORMALIZATION_ENABLE__MASK;
         pll_registers[PLL_REG_INDEX_REG_0] = reg0;
         update_pll_registers(pll_registers);
     }
 
-    // set the DCO_NORMALIZATION_ENABLE bit to 0
+    /* set the DCO_NORMALIZATION_ENABLE bit to 0 */
     reg0 = pll_registers[PLL_REG_INDEX_REG_0];
     reg0 = reg0 & ~DCO_NORMALIZATION_ENABLE__MASK;
     pll_registers[PLL_REG_INDEX_REG_0] = reg0;
     update_pll_registers(pll_registers);
 
-    // set the DCO_NORMALIZATION_ENABLE bit to 1
+    /* set the DCO_NORMALIZATION_ENABLE bit to 1 */
     reg0 = pll_registers[PLL_REG_INDEX_REG_0];
     reg0 = reg0 | DCO_NORMALIZATION_ENABLE__MASK;
     pll_registers[PLL_REG_INDEX_REG_0] = reg0;
     update_pll_registers(pll_registers);
 
-    ///////////////////////////////////////////////////////////////////////////////////////
-    // POTENTIAL BUG WORKAROUND END
-    ///////////////////////////////////////////////////////////////////////////////////////
-
-    // Wait for the PLL to lock within a given timeout
-    while (timeout > 0) {
-        if (pll_registers[PLL_REG_INDEX_REG_LOCK_DETECT_STATUS] & 1) {
+    /*
+     POTENTIAL BUG WORKAROUND END
+    
+     Wait for the PLL to lock within a given timeout */
+    while (timeout > 0) 
+    {
+        if (pll_registers[PLL_REG_INDEX_REG_LOCK_DETECT_STATUS] & 1) 
+        {
             return 0;
         }
         --timeout;
@@ -201,32 +203,33 @@ FOUND_CONFIG_DATA:
 
 static int clock_manager_pll_bypass(PLL_ID_t pll, bool bypass_enable)
 {
-    switch (pll) {
-    case PLL_ID_SP_PLL_0:
-        iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_IOS_CTRL_ADDRESS,
-                  CLOCK_MANAGER_CM_IOS_CTRL_MISSION_SET(bypass_enable ? 0 : 1));
-        break;
-    case PLL_ID_SP_PLL_1:
-        iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL1_CTRL_ADDRESS,
-                  CLOCK_MANAGER_CM_PLL1_CTRL_ENABLE_SET(bypass_enable ? 0 : 1));
-        break;
-    case PLL_ID_SP_PLL_2:
-        iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL2_CTRL_ADDRESS,
-                  CLOCK_MANAGER_CM_PLL2_CTRL_ENABLE_SET(bypass_enable ? 0 : 1));
-        break;
-    case PLL_ID_SP_PLL_4:
-        iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL4_CTRL_ADDRESS,
-                  CLOCK_MANAGER_CM_PLL4_CTRL_ENABLE_SET(bypass_enable ? 0 : 1));
-        break;
-    case PLL_ID_PSHIRE:
-        iowrite32(R_PCIE_ESR_BASEADDR + PSHIRE_PSHIRE_CTRL_ADDRESS,
-                  PSHIRE_PSHIRE_CTRL_PLL0_BYP_SET(bypass_enable ? 1 : 0));
-        break;
+    switch (pll) 
+    {
+        case PLL_ID_SP_PLL_0:
+            iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_IOS_CTRL_ADDRESS,
+                    CLOCK_MANAGER_CM_IOS_CTRL_MISSION_SET(bypass_enable ? 0 : 1));
+            break;
+        case PLL_ID_SP_PLL_1:
+            iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL1_CTRL_ADDRESS,
+                    CLOCK_MANAGER_CM_PLL1_CTRL_ENABLE_SET(bypass_enable ? 0 : 1));
+            break;
+        case PLL_ID_SP_PLL_2:
+            iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL2_CTRL_ADDRESS,
+                    CLOCK_MANAGER_CM_PLL2_CTRL_ENABLE_SET(bypass_enable ? 0 : 1));
+            break;
+        case PLL_ID_SP_PLL_4:
+            iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL4_CTRL_ADDRESS,
+                    CLOCK_MANAGER_CM_PLL4_CTRL_ENABLE_SET(bypass_enable ? 0 : 1));
+            break;
+        case PLL_ID_PSHIRE:
+            iowrite32(R_PCIE_ESR_BASEADDR + PSHIRE_PSHIRE_CTRL_ADDRESS,
+                    PSHIRE_PSHIRE_CTRL_PLL0_BYP_SET(bypass_enable ? 1 : 0));
+            break;
 
-    case PLL_ID_SP_PLL_3:
-    case PLL_ID_INVALID:
-    default:
-        return ERROR_SP_PLL_INVALID_PLL_ID;
+        case PLL_ID_SP_PLL_3:
+        case PLL_ID_INVALID:
+        default:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
     }
 
     return 0;
@@ -237,11 +240,13 @@ int configure_sp_pll_2(uint8_t mode)
     int rv;
 
     rv = configure_pll((uint32_t *)R_SP_PLL2_BASEADDR, mode, &gs_sp_pll_2_frequency);
-    if (0 != rv) {
+    if (0 != rv) 
+    {
         goto ERROR;
     }
 
-    if (0 != clock_manager_pll_bypass(PLL_ID_SP_PLL_2, false)) {
+    if (0 != clock_manager_pll_bypass(PLL_ID_SP_PLL_2, false)) 
+    {
         goto ERROR;
     }
 
@@ -260,11 +265,13 @@ int configure_sp_pll_4(uint8_t mode)
     int rv;
 
     rv = configure_pll((uint32_t *)R_SP_PLL4_BASEADDR, mode, &gs_sp_pll_4_frequency);
-    if (0 != rv) {
+    if (0 != rv) 
+    {
         goto ERROR;
     }
 
-    if (0 != clock_manager_pll_bypass(PLL_ID_SP_PLL_4, false)) {
+    if (0 != clock_manager_pll_bypass(PLL_ID_SP_PLL_4, false)) 
+    {
         goto ERROR;
     }
 
@@ -284,11 +291,13 @@ int configure_pshire_pll(const uint8_t mode)
     int rv;
 
     rv = configure_pll((uint32_t *)R_PCIE_PLLP0_BASEADDR, mode, &gs_pcie_pll_0_frequency);
-    if (0 != rv) {
+    if (0 != rv) 
+    {
         goto ERROR;
     }
 
-    if (0 != clock_manager_pll_bypass(PLL_ID_PSHIRE, false)) {
+    if (0 != clock_manager_pll_bypass(PLL_ID_PSHIRE, false)) 
+    {
         goto ERROR;
     }
 
@@ -304,30 +313,32 @@ ERROR:
 
 int get_pll_frequency(PLL_ID_t pll_id, uint32_t *frequency)
 {
-    if (NULL == frequency) {
+    if (NULL == frequency) 
+    {
         return ERROR_INVALID_ARGUMENT;
     }
 
-    switch (pll_id) {
-    case PLL_ID_SP_PLL_0:
-        *frequency = gs_sp_pll_0_frequency;
-        return 0;
-    case PLL_ID_SP_PLL_1:
-        *frequency = gs_sp_pll_1_frequency;
-        return 0;
-    case PLL_ID_SP_PLL_2:
-        *frequency = gs_sp_pll_2_frequency;
-        return 0;
-    case PLL_ID_SP_PLL_4:
-        *frequency = gs_sp_pll_4_frequency;
-        return 0;
-    case PLL_ID_PSHIRE:
-        *frequency = gs_pcie_pll_0_frequency;
-        return 0;
-    case PLL_ID_SP_PLL_3:
-    case PLL_ID_INVALID:
-    default:
-        return ERROR_SP_PLL_INVALID_PLL_ID;
+    switch (pll_id) 
+    {
+        case PLL_ID_SP_PLL_0:
+            *frequency = gs_sp_pll_0_frequency;
+            return 0;
+        case PLL_ID_SP_PLL_1:
+            *frequency = gs_sp_pll_1_frequency;
+            return 0;
+        case PLL_ID_SP_PLL_2:
+            *frequency = gs_sp_pll_2_frequency;
+            return 0;
+        case PLL_ID_SP_PLL_4:
+            *frequency = gs_sp_pll_4_frequency;
+            return 0;
+        case PLL_ID_PSHIRE:
+            *frequency = gs_pcie_pll_0_frequency;
+            return 0;
+        case PLL_ID_SP_PLL_3:
+        case PLL_ID_INVALID:
+        default:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
     }
 }
 

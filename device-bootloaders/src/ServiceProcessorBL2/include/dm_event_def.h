@@ -1,6 +1,3 @@
-#ifndef __DM_EVENT_DEF_H__
-#define __DM_EVENT_DEF_H__
-
 /***********************************************************************
 *
 * Copyright (C) 2020 Esperanto Technologies Inc.
@@ -18,6 +15,9 @@
            SP BL2
 */
 /***********************************************************************/
+#ifndef __DM_EVENT_DEF_H__
+#define __DM_EVENT_DEF_H__
+
 
 #include <stdint.h>
 #include "dm.h"

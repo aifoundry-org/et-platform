@@ -1,4 +1,14 @@
-
+/***********************************************************************
+*
+* Copyright (C) 2020 Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*
+************************************************************************/
 #include "bl2_pcie.h"
 
 /* The driver can populate this structure with the defaults that will be used during the init
@@ -10,7 +20,8 @@ static struct pcie_event_control_block event_control_block __attribute__((sectio
  * @struct struct pcie_event_control_block
  * @brief PCIE driver error mgmt control block
  */
-struct pcie_event_control_block {
+struct pcie_event_control_block 
+{
     uint32_t ce_count; /**< Correctable error count. */
     uint32_t uce_count; /**< Un-Correctable error count. */
     uint32_t ce_threshold; /**< Correctable error threshold. */
@@ -71,13 +82,15 @@ int32_t pcie_get_uce_count(uint32_t *uce_count)
 
 void pcie_error_threshold_isr(void)
 {
-    // TODO: This is just an example implementation.
-    // The final driver implementation will read these values from the
-    // hardware, create a message and invoke call back with message and error type as parameters.
+    /* TODO: This is just an example implementation.
+       The final driver implementation will read these values from the
+       hardware, create a message and invoke call back with message and error type as parameters.
+    */
     uint8_t error_type = CORRECTABLE;
 
     if ((error_type == UNCORRECTABLE) ||
-        (++event_control_block.ce_count > event_control_block.ce_threshold)) {
+        (++event_control_block.ce_count > event_control_block.ce_threshold))
+    {
         struct event_message_t message;
 
         /* add details in message header and fill payload */
@@ -92,31 +105,31 @@ void pcie_error_threshold_isr(void)
 
 int32_t setup_pcie_gen3_link_speed(void)
 {
-    //TODO: https://esperantotech.atlassian.net/browse/SW-6607
+    /* TODO: https://esperantotech.atlassian.net/browse/SW-6607 */
     return 0;
 }
 
 int32_t setup_pcie_gen4_link_speed(void)
 {
-    //TODO: https://esperantotech.atlassian.net/browse/SW-6607
+    /* TODO: https://esperantotech.atlassian.net/browse/SW-6607 */
     return 0;
 }
 
 int32_t setup_pcie_lane_width_x4(void)
 {
-    //TODO: https://esperantotech.atlassian.net/browse/SW-6607
+    /* TODO: https://esperantotech.atlassian.net/browse/SW-6607 */
     return 0;
 }
 
 int32_t setup_pcie_lane_width_x8(void)
 {
-    //TODO: https://esperantotech.atlassian.net/browse/SW-6607
+    /* TODO: https://esperantotech.atlassian.net/browse/SW-6607 */
     return 0;
 }
 
 int32_t pcie_retrain_phy(void)
 {
-    //TODO: https://esperantotech.atlassian.net/browse/SW-6607
+    /* TODO: https://esperantotech.atlassian.net/browse/SW-6607 */
     return 0;
 }
 
@@ -127,7 +140,7 @@ int pcie_get_speed(char *pcie_speed)
     tmp = ioread32(PCIE_CUST_SS +
                    DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_ADDRESS);
 
-    // Get the PCIE Gen
+    /* Get the PCIE Gen */
     pcie_gen = DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_RATE_GET(tmp);
 
     sprintf(pcie_speed, "%d", PCIE_SPEED[pcie_gen - 1]);

@@ -12,7 +12,6 @@
 /*! \file bl2_pu.c
     \brief A C module that implements functions to interface with PU 
     subsystem
-
 */
 /***********************************************************************/
 #include "bl2_pu.h"
@@ -34,8 +33,8 @@ uint32_t PU_SRAM_Read(uint32_t *address)
         (((uintptr_t)address > (uintptr_t)R_PU_SRAM_HI_BASEADDR) && 
         ((uintptr_t)address < (uintptr_t)(R_PU_SRAM_HI_BASEADDR + R_PU_SRAM_HI_SIZE))) ||
         (((uintptr_t)address > (uintptr_t)R_PU_SRAM_MID_BASEADDR) && 
-        ((uintptr_t)address < (uintptr_t)(R_PU_SRAM_MID_BASEADDR + R_PU_SRAM_MID_SIZE)))) {
-        
+        ((uintptr_t)address < (uintptr_t)(R_PU_SRAM_MID_BASEADDR + R_PU_SRAM_MID_SIZE))))
+    {
         return (uint32_t)*address;
     }
 
@@ -49,9 +48,9 @@ int PU_SRAM_Write(uint32_t *address, uint32_t data)
         (((uintptr_t)address > (uintptr_t)R_PU_SRAM_HI_BASEADDR) && 
         ((uintptr_t)address < (uintptr_t)(R_PU_SRAM_HI_BASEADDR + R_PU_SRAM_HI_SIZE))) ||
         (((uintptr_t)address > (uintptr_t)R_PU_SRAM_MID_BASEADDR) && 
-        ((uintptr_t)address < (uintptr_t)(R_PU_SRAM_MID_BASEADDR + R_PU_SRAM_MID_SIZE)))) {
-
-            *address = data;
+        ((uintptr_t)address < (uintptr_t)(R_PU_SRAM_MID_BASEADDR + R_PU_SRAM_MID_SIZE))))
+    {
+        *address = data;
     }
 
     return 0;

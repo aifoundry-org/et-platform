@@ -69,24 +69,20 @@
 
 #include <stdint.h>
 #include <stdio.h>
-
 #include "hal_device.h"
 #include "rm_esr.h"
 #include "io.h"
-
 #include "bl2_i2c_driver.h"
-
 #include "bl2_pmic_controller.h"
-
 #include "bl2_main.h"
-
 #include "error.h"
 
+/*! \def MSI_TWO_VECTORS
+    \brief MSI two verctor enable
+*/
 #define PMIC_SLAVE_ADDRESS 0x2
 
-// ***********************************
-// Generic PMIC setup
-// ***********************************
+/* Generic PMIC setup */
 static ET_I2C_DEV_t g_pmic_i2c_dev_reg;
 
 /************************************************************************
@@ -164,7 +160,8 @@ void setup_pmic(void)
 {
     set_pmic_i2c_dev();
 
-    if (0 != i2c_init(&g_pmic_i2c_dev_reg, ET_I2C_SPEED_400k, PMIC_SLAVE_ADDRESS)) {
+    if (0 != i2c_init(&g_pmic_i2c_dev_reg, ET_I2C_SPEED_400k, PMIC_SLAVE_ADDRESS)) 
+    {
         printf("PMIC connection failed to establish link\n");
     }
 
@@ -221,9 +218,7 @@ void pmic_error_isr(void)
 {
 }
 
-// ***********************************
-// Generic PMIC Read/Write functions
-// ***********************************
+/* Generic PMIC Read/Write functions */
 
 /************************************************************************
 *
@@ -247,7 +242,8 @@ void pmic_error_isr(void)
 
 inline static int get_pmic_reg(uint8_t reg, uint8_t *reg_value)
 {
-    if (0 != i2c_read(&g_pmic_i2c_dev_reg, reg, reg_value, 1)) {
+    if (0 != i2c_read(&g_pmic_i2c_dev_reg, reg, reg_value, 1)) 
+    {
         MESSAGE_ERROR("PMIC read failed!");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
@@ -278,7 +274,8 @@ inline static int get_pmic_reg(uint8_t reg, uint8_t *reg_value)
 
 inline static int set_pmic_reg(uint8_t reg, uint8_t value)
 {
-    if (0 != i2c_write(&g_pmic_i2c_dev_reg, reg, &value, 1)) {
+    if (0 != i2c_write(&g_pmic_i2c_dev_reg, reg, &value, 1)) 
+    {
         MESSAGE_ERROR("PMIC write failed!");
         return ERROR_PMIC_I2C_WRITE_FAILED;
     }
@@ -286,9 +283,7 @@ inline static int set_pmic_reg(uint8_t reg, uint8_t value)
     return 0;
 }
 
-// ***********************************
-// Specific Register Access
-// ***********************************
+/* Specific Register Access */
 
 /************************************************************************
 *
@@ -339,12 +334,14 @@ int pmic_get_gpo_bit(uint8_t index, uint8_t *gpo_bit_value)
 {
     uint8_t reg_value;
 
-    if (index > 7) {
+    if (index > 7) 
+    {
         MESSAGE_ERROR("Index out of range!");
         return ERROR_PMIC_I2C_INVALID_ARGUMENTS;
     }
 
-    if (0 != get_pmic_reg(PMIC_I2C_GPO_CTRL_ADDRESS, &reg_value)) {
+    if (0 != get_pmic_reg(PMIC_I2C_GPO_CTRL_ADDRESS, &reg_value)) 
+    {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
@@ -378,12 +375,14 @@ int pmic_set_gpo_bit(uint8_t index)
 {
     uint8_t reg_value;
 
-    if (index > 7) {
+    if (index > 7) 
+    {
         MESSAGE_ERROR("Index out of range!");
         return ERROR_PMIC_I2C_INVALID_ARGUMENTS;
     }
 
-    if (0 != get_pmic_reg(PMIC_I2C_GPO_CTRL_ADDRESS, &reg_value)) {
+    if (0 != get_pmic_reg(PMIC_I2C_GPO_CTRL_ADDRESS, &reg_value)) 
+    {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
@@ -417,12 +416,14 @@ int pmic_clear_gpo_bit(uint8_t index)
 {
     uint8_t reg_value;
 
-    if (index > 7) {
+    if (index > 7) 
+    {
         MESSAGE_ERROR("Index out of range!");
         return ERROR_PMIC_I2C_INVALID_ARGUMENTS;
     }
 
-    if (0 != get_pmic_reg(PMIC_I2C_GPO_CTRL_ADDRESS, &reg_value)) {
+    if (0 != get_pmic_reg(PMIC_I2C_GPO_CTRL_ADDRESS, &reg_value)) 
+    {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
@@ -583,10 +584,13 @@ int pmic_get_temperature_threshold(uint8_t *temp_threshold)
 
 int pmic_set_temperature_threshold(uint8_t temp_limit)
 {
-    if ((temp_limit < 55) || (temp_limit > 85)) {
+    if ((temp_limit < 55) || (temp_limit > 85)) 
+    {
         MESSAGE_ERROR("Error unsupported Temperature limits\n");
         return ERROR_PMIC_I2C_INVALID_ARGUMENTS;
-    } else {
+    } 
+    else 
+    {
         return set_pmic_reg(PMIC_I2C_TEMP_ALARM_CONF_ADDRESS, temp_limit);
     }
 }
@@ -665,7 +669,8 @@ int pmic_enable_etsoc_reset_after_perst(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS, &reg_value)) {
+    if (0 != get_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS, &reg_value)) 
+    {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
@@ -698,7 +703,8 @@ int pmic_disable_etsoc_reset_after_perst(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS, &reg_value)) {
+    if (0 != get_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS, &reg_value)) 
+    {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
@@ -731,13 +737,15 @@ int pmic_enable_wdog_reset(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS, &reg_value)) {
+    if (0 != get_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS, &reg_value)) 
+    {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
 
     return (
-        set_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS, PMIC_I2C_RESET_CTRL_WDT_EN_MODIFY(reg_value, 1)));
+        set_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS, 
+        PMIC_I2C_RESET_CTRL_WDT_EN_MODIFY(reg_value, 1)));
 }
 
 /************************************************************************
@@ -764,13 +772,15 @@ int pmic_disable_wdog_reset(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS, &reg_value)) {
+    if (0 != get_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS, &reg_value)) 
+    {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
 
     return (
-        set_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS, PMIC_I2C_RESET_CTRL_WDT_EN_MODIFY(reg_value, 0)));
+        set_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS, 
+            PMIC_I2C_RESET_CTRL_WDT_EN_MODIFY(reg_value, 0)));
 }
 
 /************************************************************************
@@ -820,29 +830,31 @@ int pmic_get_reset_cause(uint8_t *reset_cause)
 
 int pmic_get_voltage(voltage_type_e voltage_type, uint8_t *voltage)
 {
-    switch (voltage_type) {
-    case DDR:
-        return (get_pmic_reg(PMIC_I2C_DDR_VOLTAGE_ADDRESS, voltage));
-    case L2CACHE:
-        return (get_pmic_reg(PMIC_I2C_L2_VOLTAGE_ADDRESS, voltage));
-    case MAXION:
-        return (get_pmic_reg(PMIC_I2C_MAXION_VOLTAGE_ADDRESS, voltage));
-    case MINION:
-        return (get_pmic_reg(PMIC_I2C_MINION_ALL_VOLTAGE_ADDRESS, voltage));
-    case PCIE:
-        return (get_pmic_reg(PMIC_I2C_PCIE_VOLTAGE_ADDRESS, voltage));
-    case NOC:
-        return (get_pmic_reg(PMIC_I2C_NOC_VOLTAGE_ADDRESS, voltage));
-    case PCIE_LOGIC:
-        return (get_pmic_reg(PMIC_I2C_PCIE_LOGIC_VOLTAGE_ADDRESS, voltage));
-    case VDDQLP:
-        return (get_pmic_reg(PMIC_I2C_VDDQLP_VOLTAGE_ADDRESS, voltage));
-    case VDDQ:
-        return (get_pmic_reg(PMIC_I2C_VDDQ_VOLTAGE_ADDRESS, voltage));
-    default: {
-        MESSAGE_ERROR("Error invalid voltage type to extract Voltage");
-        return ERROR_PMIC_I2C_INVALID_VOLTAGE_TYPE;
-    }
+    switch (voltage_type) 
+    {
+        case DDR:
+            return (get_pmic_reg(PMIC_I2C_DDR_VOLTAGE_ADDRESS, voltage));
+        case L2CACHE:
+            return (get_pmic_reg(PMIC_I2C_L2_VOLTAGE_ADDRESS, voltage));
+        case MAXION:
+            return (get_pmic_reg(PMIC_I2C_MAXION_VOLTAGE_ADDRESS, voltage));
+        case MINION:
+            return (get_pmic_reg(PMIC_I2C_MINION_ALL_VOLTAGE_ADDRESS, voltage));
+        case PCIE:
+            return (get_pmic_reg(PMIC_I2C_PCIE_VOLTAGE_ADDRESS, voltage));
+        case NOC:
+            return (get_pmic_reg(PMIC_I2C_NOC_VOLTAGE_ADDRESS, voltage));
+        case PCIE_LOGIC:
+            return (get_pmic_reg(PMIC_I2C_PCIE_LOGIC_VOLTAGE_ADDRESS, voltage));
+        case VDDQLP:
+            return (get_pmic_reg(PMIC_I2C_VDDQLP_VOLTAGE_ADDRESS, voltage));
+        case VDDQ:
+            return (get_pmic_reg(PMIC_I2C_VDDQ_VOLTAGE_ADDRESS, voltage));
+        default: 
+        {
+            MESSAGE_ERROR("Error invalid voltage type to extract Voltage");
+            return ERROR_PMIC_I2C_INVALID_VOLTAGE_TYPE;
+        }
     }
 }
 
@@ -869,38 +881,40 @@ int pmic_get_voltage(voltage_type_e voltage_type, uint8_t *voltage)
 
 int pmic_set_voltage(voltage_type_e voltage_type, uint8_t voltage)
 {
-    switch (voltage_type) {
-    case DDR:
-        return (
-            set_pmic_reg(PMIC_I2C_DDR_VOLTAGE_ADDRESS, PMIC_I2C_DDR_VOLTAGE_VOLTAGE_SET(voltage)));
-    case L2CACHE:
-        return (
-            set_pmic_reg(PMIC_I2C_L2_VOLTAGE_ADDRESS, PMIC_I2C_L2_VOLTAGE_VOLTAGE_SET(voltage)));
-    case MAXION:
-        return (set_pmic_reg(PMIC_I2C_MAXION_VOLTAGE_ADDRESS,
-                             PMIC_I2C_MAXION_VOLTAGE_VOLTAGE_SET(voltage)));
-    case MINION:
-        return (set_pmic_reg(PMIC_I2C_MINION_ALL_VOLTAGE_ADDRESS,
-                             PMIC_I2C_MINION_ALL_VOLTAGE_VOLTAGE_SET(voltage)));
-    case PCIE:
-        return (
-            set_pmic_reg(PMIC_I2C_PCIE_VOLTAGE_ADDRESS, PMIC_I2C_PCIE_VOLTAGE_VOLTAGE_SET(voltage)));
-    case NOC:
-        return (
-            set_pmic_reg(PMIC_I2C_NOC_VOLTAGE_ADDRESS, PMIC_I2C_NOC_VOLTAGE_VOLTAGE_SET(voltage)));
-    case PCIE_LOGIC:
-        return (set_pmic_reg(PMIC_I2C_PCIE_LOGIC_VOLTAGE_ADDRESS,
-                             PMIC_I2C_PCIE_LOGIC_VOLTAGE_VOLTAGE_SET(voltage)));
-    case VDDQLP:
-        return (set_pmic_reg(PMIC_I2C_VDDQLP_VOLTAGE_ADDRESS,
-                             PMIC_I2C_VDDQLP_VOLTAGE_VOLTAGE_SET(voltage)));
-    case VDDQ:
-        return (
-            set_pmic_reg(PMIC_I2C_VDDQ_VOLTAGE_ADDRESS, PMIC_I2C_VDDQ_VOLTAGE_VOLTAGE_SET(voltage)));
-    default: {
-        MESSAGE_ERROR("Error invalid voltage type to set Voltage");
-        return ERROR_PMIC_I2C_INVALID_VOLTAGE_TYPE;
-    }
+    switch (voltage_type) 
+    {
+        case DDR:
+            return (
+                set_pmic_reg(PMIC_I2C_DDR_VOLTAGE_ADDRESS, PMIC_I2C_DDR_VOLTAGE_VOLTAGE_SET(voltage)));
+        case L2CACHE:
+            return (
+                set_pmic_reg(PMIC_I2C_L2_VOLTAGE_ADDRESS, PMIC_I2C_L2_VOLTAGE_VOLTAGE_SET(voltage)));
+        case MAXION:
+            return (set_pmic_reg(PMIC_I2C_MAXION_VOLTAGE_ADDRESS,
+                                PMIC_I2C_MAXION_VOLTAGE_VOLTAGE_SET(voltage)));
+        case MINION:
+            return (set_pmic_reg(PMIC_I2C_MINION_ALL_VOLTAGE_ADDRESS,
+                                PMIC_I2C_MINION_ALL_VOLTAGE_VOLTAGE_SET(voltage)));
+        case PCIE:
+            return (
+                set_pmic_reg(PMIC_I2C_PCIE_VOLTAGE_ADDRESS, PMIC_I2C_PCIE_VOLTAGE_VOLTAGE_SET(voltage)));
+        case NOC:
+            return (
+                set_pmic_reg(PMIC_I2C_NOC_VOLTAGE_ADDRESS, PMIC_I2C_NOC_VOLTAGE_VOLTAGE_SET(voltage)));
+        case PCIE_LOGIC:
+            return (set_pmic_reg(PMIC_I2C_PCIE_LOGIC_VOLTAGE_ADDRESS,
+                                PMIC_I2C_PCIE_LOGIC_VOLTAGE_VOLTAGE_SET(voltage)));
+        case VDDQLP:
+            return (set_pmic_reg(PMIC_I2C_VDDQLP_VOLTAGE_ADDRESS,
+                                PMIC_I2C_VDDQLP_VOLTAGE_VOLTAGE_SET(voltage)));
+        case VDDQ:
+            return (
+                set_pmic_reg(PMIC_I2C_VDDQ_VOLTAGE_ADDRESS, PMIC_I2C_VDDQ_VOLTAGE_VOLTAGE_SET(voltage)));
+        default: 
+        {
+            MESSAGE_ERROR("Error invalid voltage type to set Voltage");
+            return ERROR_PMIC_I2C_INVALID_VOLTAGE_TYPE;
+        }
     }
 }
 
@@ -926,45 +940,47 @@ int pmic_set_voltage(voltage_type_e voltage_type, uint8_t voltage)
 
 int pmic_get_minion_group_voltage(uint8_t group_id, uint8_t *voltage)
 {
-    switch (group_id) {
-    case 1:
-        return (get_pmic_reg(PMIC_I2C_MINION_G1_VOLTAGE_ADDRESS, voltage));
-    case 2:
-        return (get_pmic_reg(PMIC_I2C_MINION_G2_VOLTAGE_ADDRESS, voltage));
-    case 3:
-        return (get_pmic_reg(PMIC_I2C_MINION_G3_VOLTAGE_ADDRESS, voltage));
-    case 4:
-        return (get_pmic_reg(PMIC_I2C_MINION_G4_VOLTAGE_ADDRESS, voltage));
-    case 5:
-        return (get_pmic_reg(PMIC_I2C_MINION_G5_VOLTAGE_ADDRESS, voltage));
-    case 6:
-        return (get_pmic_reg(PMIC_I2C_MINION_G6_VOLTAGE_ADDRESS, voltage));
-    case 7:
-        return (get_pmic_reg(PMIC_I2C_MINION_G7_VOLTAGE_ADDRESS, voltage));
-    case 8:
-        return (get_pmic_reg(PMIC_I2C_MINION_G8_VOLTAGE_ADDRESS, voltage));
-    case 9:
-        return (get_pmic_reg(PMIC_I2C_MINION_G9_VOLTAGE_ADDRESS, voltage));
-    case 10:
-        return (get_pmic_reg(PMIC_I2C_MINION_G10_VOLTAGE_ADDRESS, voltage));
-    case 11:
-        return (get_pmic_reg(PMIC_I2C_MINION_G11_VOLTAGE_ADDRESS, voltage));
-    case 12:
-        return (get_pmic_reg(PMIC_I2C_MINION_G12_VOLTAGE_ADDRESS, voltage));
-    case 13:
-        return (get_pmic_reg(PMIC_I2C_MINION_G13_VOLTAGE_ADDRESS, voltage));
-    case 14:
-        return (get_pmic_reg(PMIC_I2C_MINION_G14_VOLTAGE_ADDRESS, voltage));
-    case 15:
-        return (get_pmic_reg(PMIC_I2C_MINION_G15_VOLTAGE_ADDRESS, voltage));
-    case 16:
-        return (get_pmic_reg(PMIC_I2C_MINION_G16_VOLTAGE_ADDRESS, voltage));
-    case 17:
-        return (get_pmic_reg(PMIC_I2C_MINION_G17_VOLTAGE_ADDRESS, voltage));
-    default: {
-        MESSAGE_ERROR("Error invalid minion group to extract Voltage");
-        return ERROR_PMIC_I2C_INVALID_MINION_GROUP;
-    }
+    switch (group_id) 
+    {
+        case 1:
+            return (get_pmic_reg(PMIC_I2C_MINION_G1_VOLTAGE_ADDRESS, voltage));
+        case 2:
+            return (get_pmic_reg(PMIC_I2C_MINION_G2_VOLTAGE_ADDRESS, voltage));
+        case 3:
+            return (get_pmic_reg(PMIC_I2C_MINION_G3_VOLTAGE_ADDRESS, voltage));
+        case 4:
+            return (get_pmic_reg(PMIC_I2C_MINION_G4_VOLTAGE_ADDRESS, voltage));
+        case 5:
+            return (get_pmic_reg(PMIC_I2C_MINION_G5_VOLTAGE_ADDRESS, voltage));
+        case 6:
+            return (get_pmic_reg(PMIC_I2C_MINION_G6_VOLTAGE_ADDRESS, voltage));
+        case 7:
+            return (get_pmic_reg(PMIC_I2C_MINION_G7_VOLTAGE_ADDRESS, voltage));
+        case 8:
+            return (get_pmic_reg(PMIC_I2C_MINION_G8_VOLTAGE_ADDRESS, voltage));
+        case 9:
+            return (get_pmic_reg(PMIC_I2C_MINION_G9_VOLTAGE_ADDRESS, voltage));
+        case 10:
+            return (get_pmic_reg(PMIC_I2C_MINION_G10_VOLTAGE_ADDRESS, voltage));
+        case 11:
+            return (get_pmic_reg(PMIC_I2C_MINION_G11_VOLTAGE_ADDRESS, voltage));
+        case 12:
+            return (get_pmic_reg(PMIC_I2C_MINION_G12_VOLTAGE_ADDRESS, voltage));
+        case 13:
+            return (get_pmic_reg(PMIC_I2C_MINION_G13_VOLTAGE_ADDRESS, voltage));
+        case 14:
+            return (get_pmic_reg(PMIC_I2C_MINION_G14_VOLTAGE_ADDRESS, voltage));
+        case 15:
+            return (get_pmic_reg(PMIC_I2C_MINION_G15_VOLTAGE_ADDRESS, voltage));
+        case 16:
+            return (get_pmic_reg(PMIC_I2C_MINION_G16_VOLTAGE_ADDRESS, voltage));
+        case 17:
+            return (get_pmic_reg(PMIC_I2C_MINION_G17_VOLTAGE_ADDRESS, voltage));
+        default: 
+        {
+            MESSAGE_ERROR("Error invalid minion group to extract Voltage");
+            return ERROR_PMIC_I2C_INVALID_MINION_GROUP;
+        }
     }
 }
 
@@ -991,62 +1007,64 @@ int pmic_get_minion_group_voltage(uint8_t group_id, uint8_t *voltage)
 
 int pmic_set_minion_group_voltage(uint8_t group_id, uint8_t voltage)
 {
-    switch (group_id) {
-    case 1:
-        return (set_pmic_reg(PMIC_I2C_MINION_G1_VOLTAGE_ADDRESS,
-                             PMIC_I2C_MINION_G1_VOLTAGE_VOLTAGE_SET(voltage)));
-    case 2:
-        return (set_pmic_reg(PMIC_I2C_MINION_G2_VOLTAGE_ADDRESS,
-                             PMIC_I2C_MINION_G2_VOLTAGE_VOLTAGE_SET(voltage)));
-    case 3:
-        return (set_pmic_reg(PMIC_I2C_MINION_G3_VOLTAGE_ADDRESS,
-                             PMIC_I2C_MINION_G3_VOLTAGE_VOLTAGE_SET(voltage)));
-    case 4:
-        return (set_pmic_reg(PMIC_I2C_MINION_G4_VOLTAGE_ADDRESS,
-                             PMIC_I2C_MINION_G4_VOLTAGE_VOLTAGE_SET(voltage)));
-    case 5:
-        return (set_pmic_reg(PMIC_I2C_MINION_G5_VOLTAGE_ADDRESS,
-                             PMIC_I2C_MINION_G5_VOLTAGE_VOLTAGE_SET(voltage)));
-    case 6:
-        return (set_pmic_reg(PMIC_I2C_MINION_G6_VOLTAGE_ADDRESS,
-                             PMIC_I2C_MINION_G6_VOLTAGE_VOLTAGE_SET(voltage)));
-    case 7:
-        return (set_pmic_reg(PMIC_I2C_MINION_G7_VOLTAGE_ADDRESS,
-                             PMIC_I2C_MINION_G7_VOLTAGE_VOLTAGE_SET(voltage)));
-    case 8:
-        return (set_pmic_reg(PMIC_I2C_MINION_G8_VOLTAGE_ADDRESS,
-                             PMIC_I2C_MINION_G8_VOLTAGE_VOLTAGE_SET(voltage)));
-    case 9:
-        return (set_pmic_reg(PMIC_I2C_MINION_G9_VOLTAGE_ADDRESS,
-                             PMIC_I2C_MINION_G9_VOLTAGE_VOLTAGE_SET(voltage)));
-    case 10:
-        return (set_pmic_reg(PMIC_I2C_MINION_G10_VOLTAGE_ADDRESS,
-                             PMIC_I2C_MINION_G10_VOLTAGE_VOLTAGE_SET(voltage)));
-    case 11:
-        return (set_pmic_reg(PMIC_I2C_MINION_G11_VOLTAGE_ADDRESS,
-                             PMIC_I2C_MINION_G11_VOLTAGE_VOLTAGE_SET(voltage)));
-    case 12:
-        return (set_pmic_reg(PMIC_I2C_MINION_G12_VOLTAGE_ADDRESS,
-                             PMIC_I2C_MINION_G12_VOLTAGE_VOLTAGE_SET(voltage)));
-    case 13:
-        return (set_pmic_reg(PMIC_I2C_MINION_G13_VOLTAGE_ADDRESS,
-                             PMIC_I2C_MINION_G13_VOLTAGE_VOLTAGE_SET(voltage)));
-    case 14:
-        return (set_pmic_reg(PMIC_I2C_MINION_G14_VOLTAGE_ADDRESS,
-                             PMIC_I2C_MINION_G14_VOLTAGE_VOLTAGE_SET(voltage)));
-    case 15:
-        return (set_pmic_reg(PMIC_I2C_MINION_G15_VOLTAGE_ADDRESS,
-                             PMIC_I2C_MINION_G15_VOLTAGE_VOLTAGE_SET(voltage)));
-    case 16:
-        return (set_pmic_reg(PMIC_I2C_MINION_G16_VOLTAGE_ADDRESS,
-                             PMIC_I2C_MINION_G16_VOLTAGE_VOLTAGE_SET(voltage)));
-    case 17:
-        return (set_pmic_reg(PMIC_I2C_MINION_G17_VOLTAGE_ADDRESS,
-                             PMIC_I2C_MINION_G17_VOLTAGE_VOLTAGE_SET(voltage)));
-    default: {
-        MESSAGE_ERROR("Error invalid minion group to set Voltage");
-        return ERROR_PMIC_I2C_INVALID_MINION_GROUP;
-    }
+    switch (group_id) 
+    {
+        case 1:
+            return (set_pmic_reg(PMIC_I2C_MINION_G1_VOLTAGE_ADDRESS,
+                                PMIC_I2C_MINION_G1_VOLTAGE_VOLTAGE_SET(voltage)));
+        case 2:
+            return (set_pmic_reg(PMIC_I2C_MINION_G2_VOLTAGE_ADDRESS,
+                                PMIC_I2C_MINION_G2_VOLTAGE_VOLTAGE_SET(voltage)));
+        case 3:
+            return (set_pmic_reg(PMIC_I2C_MINION_G3_VOLTAGE_ADDRESS,
+                                PMIC_I2C_MINION_G3_VOLTAGE_VOLTAGE_SET(voltage)));
+        case 4:
+            return (set_pmic_reg(PMIC_I2C_MINION_G4_VOLTAGE_ADDRESS,
+                                PMIC_I2C_MINION_G4_VOLTAGE_VOLTAGE_SET(voltage)));
+        case 5:
+            return (set_pmic_reg(PMIC_I2C_MINION_G5_VOLTAGE_ADDRESS,
+                                PMIC_I2C_MINION_G5_VOLTAGE_VOLTAGE_SET(voltage)));
+        case 6:
+            return (set_pmic_reg(PMIC_I2C_MINION_G6_VOLTAGE_ADDRESS,
+                                PMIC_I2C_MINION_G6_VOLTAGE_VOLTAGE_SET(voltage)));
+        case 7:
+            return (set_pmic_reg(PMIC_I2C_MINION_G7_VOLTAGE_ADDRESS,
+                                PMIC_I2C_MINION_G7_VOLTAGE_VOLTAGE_SET(voltage)));
+        case 8:
+            return (set_pmic_reg(PMIC_I2C_MINION_G8_VOLTAGE_ADDRESS,
+                                PMIC_I2C_MINION_G8_VOLTAGE_VOLTAGE_SET(voltage)));
+        case 9:
+            return (set_pmic_reg(PMIC_I2C_MINION_G9_VOLTAGE_ADDRESS,
+                                PMIC_I2C_MINION_G9_VOLTAGE_VOLTAGE_SET(voltage)));
+        case 10:
+            return (set_pmic_reg(PMIC_I2C_MINION_G10_VOLTAGE_ADDRESS,
+                                PMIC_I2C_MINION_G10_VOLTAGE_VOLTAGE_SET(voltage)));
+        case 11:
+            return (set_pmic_reg(PMIC_I2C_MINION_G11_VOLTAGE_ADDRESS,
+                                PMIC_I2C_MINION_G11_VOLTAGE_VOLTAGE_SET(voltage)));
+        case 12:
+            return (set_pmic_reg(PMIC_I2C_MINION_G12_VOLTAGE_ADDRESS,
+                                PMIC_I2C_MINION_G12_VOLTAGE_VOLTAGE_SET(voltage)));
+        case 13:
+            return (set_pmic_reg(PMIC_I2C_MINION_G13_VOLTAGE_ADDRESS,
+                                PMIC_I2C_MINION_G13_VOLTAGE_VOLTAGE_SET(voltage)));
+        case 14:
+            return (set_pmic_reg(PMIC_I2C_MINION_G14_VOLTAGE_ADDRESS,
+                                PMIC_I2C_MINION_G14_VOLTAGE_VOLTAGE_SET(voltage)));
+        case 15:
+            return (set_pmic_reg(PMIC_I2C_MINION_G15_VOLTAGE_ADDRESS,
+                                PMIC_I2C_MINION_G15_VOLTAGE_VOLTAGE_SET(voltage)));
+        case 16:
+            return (set_pmic_reg(PMIC_I2C_MINION_G16_VOLTAGE_ADDRESS,
+                                PMIC_I2C_MINION_G16_VOLTAGE_VOLTAGE_SET(voltage)));
+        case 17:
+            return (set_pmic_reg(PMIC_I2C_MINION_G17_VOLTAGE_ADDRESS,
+                                PMIC_I2C_MINION_G17_VOLTAGE_VOLTAGE_SET(voltage)));
+        default: 
+        {
+            MESSAGE_ERROR("Error invalid minion group to set Voltage");
+            return ERROR_PMIC_I2C_INVALID_MINION_GROUP;
+        }
     }
 }
 
@@ -1074,7 +1092,8 @@ int pmic_enable_wdog_timer(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value)) {
+    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value)) 
+    {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
@@ -1107,7 +1126,8 @@ int pmic_disable_wdog_timer(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value)) {
+    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value)) 
+    {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
@@ -1140,7 +1160,8 @@ int pmic_enable_wdog_timeout_reset(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value)) {
+    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value)) 
+    {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
@@ -1173,7 +1194,8 @@ int pmic_disable_wdog_timeout_reset(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value)) {
+    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value)) 
+    {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
@@ -1207,7 +1229,8 @@ int pmic_get_wdog_timeout_time(uint32_t *wdog_time)
     uint8_t reg_value;
     uint8_t timeout_time;
 
-    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value)) {
+    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value)) 
+    {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
@@ -1245,7 +1268,8 @@ int pmic_set_wdog_timeout_time(uint32_t timeout_time)
     uint8_t new_reg_value;
     uint8_t new_timeout_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value)) {
+    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value)) 
+    {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
@@ -1329,7 +1353,8 @@ int pmic_force_shutdown(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_RESET_COMMANDS_ADDRESS, &reg_value)) {
+    if (0 != get_pmic_reg(PMIC_I2C_RESET_COMMANDS_ADDRESS, &reg_value)) 
+    {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
@@ -1362,7 +1387,8 @@ int pmic_force_power_off_on(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_RESET_COMMANDS_ADDRESS, &reg_value)) {
+    if (0 != get_pmic_reg(PMIC_I2C_RESET_COMMANDS_ADDRESS, &reg_value)) 
+    {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
@@ -1395,7 +1421,8 @@ int pmic_force_reset(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_RESET_COMMANDS_ADDRESS, &reg_value)) {
+    if (0 != get_pmic_reg(PMIC_I2C_RESET_COMMANDS_ADDRESS, &reg_value)) 
+    {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
@@ -1428,7 +1455,8 @@ int pmic_force_perst(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_RESET_COMMANDS_ADDRESS, &reg_value)) {
+    if (0 != get_pmic_reg(PMIC_I2C_RESET_COMMANDS_ADDRESS, &reg_value)) 
+    {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
@@ -1461,7 +1489,8 @@ int pmic_reset_wdog_timer(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_RESET_ADDRESS, &reg_value)) {
+    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_RESET_ADDRESS, &reg_value)) 
+    {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
@@ -1518,7 +1547,8 @@ int I2C_PMIC_Read (uint8_t reg)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(reg, &reg_value)) {
+    if (0 != get_pmic_reg(reg, &reg_value)) 
+    {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }

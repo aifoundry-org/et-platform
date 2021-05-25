@@ -1,13 +1,14 @@
-/*-------------------------------------------------------------------------
-* Copyright (C) 2018, Esperanto Technologies Inc.
+/***********************************************************************
+*
+* Copyright (C) 2020 Esperanto Technologies Inc.
 * The copyright to the computer program(s) herein is the
 * property of Esperanto Technologies, Inc. All Rights Reserved.
 * The program(s) may be used and/or copied only with
 * the written permission of Esperanto Technologies and
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
-*-------------------------------------------------------------------------
-*/
+*
+************************************************************************/
 
 #ifndef __BL2_SPI_FLASH_H__
 #define __BL2_SPI_FLASH_H__
@@ -17,8 +18,8 @@
 
 #include "service_processor_BL2_data.h"
 
-// PAGE:           : 256 B
-// BLOCK (256 * Page): 64 KB
+/* PAGE:           : 256 B
+   BLOCK (256 * Page): 64 KB */
 #define SPI_FLASH_PAGE_SIZE   256
 #define SPI_FLASH_BLOCK_SIZE  0x10000U
 #define SPI_FLASH_BLOCK_MASK  0xFFFFul

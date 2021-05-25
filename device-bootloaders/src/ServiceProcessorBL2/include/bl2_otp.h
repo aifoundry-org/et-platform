@@ -1,3 +1,17 @@
+/***********************************************************************
+*
+* Copyright (C) 2020 Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*
+************************************************************************/
+#ifndef __BL2_OTP__
+#define __BL2_OTP__
+
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
@@ -40,3 +54,4 @@ int OTP_Write_Word (uint32_t Bank, uint32_t Row, uint32_t mask, uint32_t data);
     \returns Status indicating success or negative error
 */
 int otp_get_chip_revision(char *chip_rev);
+#endif

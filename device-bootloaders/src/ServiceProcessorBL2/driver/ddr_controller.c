@@ -1,4 +1,3 @@
-
 /***********************************************************************
 *
 * Copyright (C) 2020 Esperanto Technologies Inc.
@@ -44,17 +43,19 @@
 #include "dm_event_control.h"
 #include "layout.h"
 #include "etsoc_hal/inc/memshire_pll.h"
-//
-// get_ms_reg_addr: This procedure is used to generate a memshire register address based on the
-// memshire ID and register name.
-//
+
+/* get_ms_reg_addr: This procedure is used to generate a memshire register address based on the
+    memshire ID and register name.*/
 static inline volatile uint64_t *get_ms_reg_addr(uint8_t memshire, uint64_t reg)
 {
     uint64_t *reg_addr;
 
-    if ((reg & 0x0100000000) == 0) {
+    if ((reg & 0x0100000000) == 0) 
+    {
         reg_addr = (uint64_t *)((uint64_t)((memshire & 4) << 26) | reg);
-    } else {
+    }
+    else
+    {
         reg_addr = (uint64_t *)((uint64_t)((memshire + 232) << 22) | reg);
     }
     return reg_addr;
@@ -69,30 +70,32 @@ static inline uint64_t ms_read_esr(uint8_t memshire, uint64_t reg)
 {
     return *get_ms_reg_addr(memshire, reg);
 }
-// get_ddr_reg_addr: This procedure is used to generate a DDRC register address based on the
-// memshire ID, block, and register name.  The block can have one of the following values:
-//
-//    0: ddr 0
-//    1: ddr 1
-//    2: phy
-//    3: subystem
-//
+/* get_ddr_reg_addr: This procedure is used to generate a DDRC register address based on the
+   memshire ID, block, and register name.  The block can have one of the following values:
+
+      0: ddr 0
+      1: ddr 1
+      2: phy
+      3: subystem
+*/
 static inline volatile uint32_t *get_ddrc_reg_addr(uint8_t memshire, uint32_t blk, uint32_t reg)
 {
     uint32_t *reg_addr;
 
-    if (blk == 1) {
+    if (blk == 1) 
+    {
         reg_addr = (uint32_t *)((uint64_t)reg | 0x00001000ul);
-    } else {
+    }
+    else
+    {
         reg_addr = (uint32_t *)(uint64_t)reg;
     }
-    reg_addr = (uint32_t *)(0x0060000000ul | (uint64_t)((memshire & 7) << 26) | (uint64_t)reg_addr);
+    reg_addr = (uint32_t *)(0x0060000000ul | (uint64_t)((memshire & 7) << 26) | 
+                    (uint64_t)reg_addr);
     return reg_addr;
 }
 
-//
-// Write register in DDRC0, DDRC1, or PHY
-//
+/* Write register in DDRC0, DDRC1, or PHY */
 static inline uint32_t ms_write_ddrc_reg(uint8_t memshire, uint32_t blk, uint32_t reg,
                                          uint32_t value)
 {
@@ -100,9 +103,7 @@ static inline uint32_t ms_write_ddrc_reg(uint8_t memshire, uint32_t blk, uint32_
     return 0;
 }
 
-//
-// Read register in DDRC0, DDRC1, or PHY
-//
+/* Read register in DDRC0, DDRC1, or PHY */
 static inline uint32_t ms_read_ddrc_reg(uint8_t memshire, uint32_t blk, uint32_t reg)
 {
     return *get_ddrc_reg_addr(memshire, blk, reg);
@@ -116,20 +117,22 @@ static inline uint32_t ms_poll_ddrc_reg(uint8_t memshire, uint32_t blk, uint32_t
     uint32_t read_value = 0;
     uint32_t timer = timeout_tries;
 
-    while (done == 0) {
+    while (done == 0) 
+    {
         read_value = ms_read_ddrc_reg(memshire, blk, reg);
-        if (((read_value ^ wait_value) & wait_mask) == 0) {
+        if (((read_value ^ wait_value) & wait_mask) == 0) 
+        {
             done = 1;
-        } else
+        }
+        else
             timer--;
         if (timer == 0)
             return 1;
     }
     return 0;
 }
-//
-// Write a register in both DDRC channels
-//
+
+/* Write a register in both DDRC channels */
 static inline uint32_t ms_write_both_ddrc_reg(uint8_t memshire, uint32_t reg, uint32_t value)
 {
     ms_write_ddrc_reg(memshire, 0, reg, value);
@@ -137,9 +140,7 @@ static inline uint32_t ms_write_both_ddrc_reg(uint8_t memshire, uint32_t reg, ui
     return 0;
 }
 
-//
-// DDR Phy initialization for 1067 Mhz clock (without training).
-//
+/* DDR Phy initialization for 1067 Mhz clock (without training). */
 uint8_t ms_init_ddr_phy_1067(uint8_t memshire)
 {
     ms_write_ddrc_reg(memshire, 2, DBYTE0_TxSlewRate_b0_p0, 0x5ff);
@@ -868,30 +869,22 @@ uint8_t ms_init_ddr_phy_1067(uint8_t memshire)
     return 0;
 }
 
-//
-// Phase 1 of the DDR initialization sequence.
-//
+/* Phase 1 of the DDR initialization sequence. */
 uint8_t ms_init_seq_phase1(uint8_t memshire, uint8_t config_ecc, uint8_t config_real_pll)
 {
-    //
-    // Start to initialize the memory controllers
-    //
+    /* Start to initialize the memory controllers */
     ms_write_esr(memshire, ddrc_reset_ctl, 0x10d);
     ms_read_esr(memshire, ddrc_reset_ctl);
 
     ms_write_both_ddrc_reg(memshire, DBG1, 0x00000001);
     ms_write_both_ddrc_reg(memshire, PWRCTL, 0x00000001);
 
-    //
-    // Make sure operating mode is Init
-    //
+    /* Make sure operating mode is Init */
     ms_poll_ddrc_reg(memshire, 0, STAT, 0x0, 0x7, 10);
     ms_poll_ddrc_reg(memshire, 1, STAT, 0x0, 0x7, 10);
 
-    //
-    // Configure the memory controllers
-    //
-    ms_write_both_ddrc_reg(memshire, MSTR, 0x80080020); // set device config to x16 parts
+    /* Configure the memory controllers */
+    ms_write_both_ddrc_reg(memshire, MSTR, 0x80080020); /* set device config to x16 parts */
     ms_write_both_ddrc_reg(memshire, MRCTRL0, 0x0000a010);
     ms_write_both_ddrc_reg(memshire, MRCTRL1, 0x0001008c);
     ms_write_both_ddrc_reg(memshire, DERATEEN, 0x00000404);
@@ -901,13 +894,16 @@ uint8_t ms_init_seq_phase1(uint8_t memshire, uint8_t config_ecc, uint8_t config_
     ms_write_both_ddrc_reg(memshire, PWRTMG, 0x0040d104);
     ms_write_both_ddrc_reg(memshire, HWLPCTL, 0x00af0003);
     ms_write_both_ddrc_reg(memshire, RFSHCTL0, 0x00210000);
-    ms_write_both_ddrc_reg(memshire, RFSHCTL3, 0x00000001); // dis_auto_refresh = 1
+    ms_write_both_ddrc_reg(memshire, RFSHCTL3, 0x00000001); /* dis_auto_refresh = 1 */
     ms_write_both_ddrc_reg(memshire, RFSHTMG, 0x0082008c);
     ms_write_both_ddrc_reg(memshire, RFSHTMG1, 0x00410000);
-    if (config_ecc) {
-        ms_write_both_ddrc_reg(memshire, ECCCFG0, 0x003f7f14); // enable ECC
-    } else {
-        ms_write_both_ddrc_reg(memshire, ECCCFG0, 0x003f7f10); // disable ECC
+    if (config_ecc) 
+    {
+        ms_write_both_ddrc_reg(memshire, ECCCFG0, 0x003f7f14); /* enable ECC */
+    } 
+    else 
+    {
+        ms_write_both_ddrc_reg(memshire, ECCCFG0, 0x003f7f10); /* disable ECC */
     }
     ms_write_both_ddrc_reg(memshire, ECCCFG1, 0x000007b2);
     ms_write_both_ddrc_reg(memshire, ECCCTL, 0x00000300);
@@ -923,7 +919,7 @@ uint8_t ms_init_seq_phase1(uint8_t memshire, uint8_t config_ecc, uint8_t config_
     ms_write_both_ddrc_reg(memshire, INIT6, 0x0000004d);
     ms_write_both_ddrc_reg(memshire, INIT7, 0x0000004d);
     ms_write_both_ddrc_reg(memshire, DIMMCTL, 0x00000000);
-    ms_write_both_ddrc_reg(memshire, DRAMTMG0, 0x2921242d); // set TRasMax = 36 due to 2:1 clock
+    ms_write_both_ddrc_reg(memshire, DRAMTMG0, 0x2921242d); /* set TRasMax = 36 due to 2:1 clock */
     ms_write_both_ddrc_reg(memshire, DRAMTMG1, 0x00090901);
     ms_write_both_ddrc_reg(memshire, DRAMTMG2, 0x11120a21);
     ms_write_both_ddrc_reg(memshire, DRAMTMG3, 0x00f0f000);
@@ -948,28 +944,31 @@ uint8_t ms_init_seq_phase1(uint8_t memshire, uint8_t config_ecc, uint8_t config_
     ms_write_both_ddrc_reg(memshire, DFITMG2, 0x00001f1e);
     ms_write_both_ddrc_reg(memshire, DBICTL, 0x00000001);
     ms_write_both_ddrc_reg(memshire, DFIPHYMSTR, 0x00000000);
-    ms_write_both_ddrc_reg(memshire, ADDRMAP1, 0x00030303); // 1/2 cache line same bank
-    ms_write_both_ddrc_reg(memshire, ADDRMAP2, 0x03000000); // 1/2 cache line same bank
+    ms_write_both_ddrc_reg(memshire, ADDRMAP1, 0x00030303); /* 1/2 cache line same bank */
+    ms_write_both_ddrc_reg(memshire, ADDRMAP2, 0x03000000); /* 1/2 cache line same bank */
     ms_write_both_ddrc_reg(memshire, ADDRMAP4, 0x00001f1f);
 
-    if (config_ecc) {
-        ms_write_both_ddrc_reg(memshire, ADDRMAP3, 0x11111103); // For smallest LPDDR4x part
+    if (config_ecc) 
+    {
+        ms_write_both_ddrc_reg(memshire, ADDRMAP3, 0x11111103); /* For smallest LPDDR4x part */
         ms_write_both_ddrc_reg(memshire, ADDRMAP5, 0x04040404);
-        ms_write_both_ddrc_reg(memshire, ADDRMAP6, 0x0f0f0404); // For smallest LPDDR4x part
-        ms_write_both_ddrc_reg(memshire, ADDRMAP7, 0x00000f0f); // For smallest LPDDR4x part
-    } else {
-        ms_write_both_ddrc_reg(memshire, ADDRMAP3, 0x03030303); // 1/2 cache line same bank
+        ms_write_both_ddrc_reg(memshire, ADDRMAP6, 0x0f0f0404); /* For smallest LPDDR4x part */
+        ms_write_both_ddrc_reg(memshire, ADDRMAP7, 0x00000f0f); /* For smallest LPDDR4x part */
+    }
+    else
+    {
+        ms_write_both_ddrc_reg(memshire, ADDRMAP3, 0x03030303); /* 1/2 cache line same bank */
         ms_write_both_ddrc_reg(memshire, ADDRMAP5, 0x07070707);
         ms_write_both_ddrc_reg(
             memshire, ADDRMAP6,
-            0x07070707); // assume addressing for largest LPDDR4x part is okay always
+            0x07070707); /* assume addressing for largest LPDDR4x part is okay always */
         ms_write_both_ddrc_reg(
             memshire, ADDRMAP7,
-            0x00000f07); // assume addressing for largest LPDDR4x part is okay always
+            0x00000f07); /* assume addressing for largest LPDDR4x part is okay always */
     }
-    ms_write_both_ddrc_reg(memshire, ADDRMAP9, 0x07070707); // unused
-    ms_write_both_ddrc_reg(memshire, ADDRMAP10, 0x07070707); // unused
-    ms_write_both_ddrc_reg(memshire, ADDRMAP11, 0x001f1f07); // unused
+    ms_write_both_ddrc_reg(memshire, ADDRMAP9, 0x07070707); /* unused */
+    ms_write_both_ddrc_reg(memshire, ADDRMAP10, 0x07070707); /* unused */
+    ms_write_both_ddrc_reg(memshire, ADDRMAP11, 0x001f1f07); /* unused */
     ms_write_both_ddrc_reg(memshire, ODTCFG, 0x061a0c1c);
     ms_write_both_ddrc_reg(memshire, ODTMAP, 0x00000000);
     ms_write_both_ddrc_reg(memshire, SCHED, 0x00a01f01);
@@ -988,9 +987,7 @@ uint8_t ms_init_seq_phase1(uint8_t memshire, uint8_t config_ecc, uint8_t config_
     ms_write_both_ddrc_reg(memshire, PCTRL_0, 0x00000001);
     ms_write_both_ddrc_reg(memshire, PCTRL_1, 0x00000001);
 
-    //
-    // Make sure STAT == 0
-    //
+    /* Make sure STAT == 0 */
     ms_poll_ddrc_reg(memshire, 0, STAT, 0x0, 0xffffffff, 10);
     ms_poll_ddrc_reg(memshire, 1, STAT, 0x0, 0xffffffff, 10);
 
@@ -1013,10 +1010,10 @@ uint8_t ms_init_seq_phase1(uint8_t memshire, uint8_t config_ecc, uint8_t config_
     ms_write_both_ddrc_reg(memshire, PCFGW_1, 0x0000100f);
     ms_write_both_ddrc_reg(memshire, DBG1, 0x00000000);
 
-    //
-    // make power control reg can be written
-    // FIXME tberg: is this needed?
-    //
+    /*
+     make power control reg can be written
+     FIXME tberg: is this needed?
+    */
     ms_poll_ddrc_reg(memshire, 0, PWRCTL, 0, 0x1ff, 1);
     ms_poll_ddrc_reg(memshire, 0, PWRCTL, 0, 0x1ff, 1);
 
@@ -1024,15 +1021,15 @@ uint8_t ms_init_seq_phase1(uint8_t memshire, uint8_t config_ecc, uint8_t config_
     ms_poll_ddrc_reg(memshire, 0, PWRCTL, 0, 0x1ff, 1);
     ms_poll_ddrc_reg(memshire, 0, PWRCTL, 0, 0x1ff, 1);
 
-    ms_write_both_ddrc_reg(memshire, PWRCTL, 0x00000000); // powerdown_en = 0, selfref_en = 0
-    ms_write_both_ddrc_reg(memshire, SWCTL, 0x00000000); // sw_done = 0
-    ms_write_both_ddrc_reg(memshire, DFIMISC, 0x00000080); // dfi_init_complete_en = 0
-    ms_write_both_ddrc_reg(memshire, DFIMISC, 0x00001080); // ???
+    ms_write_both_ddrc_reg(memshire, PWRCTL, 0x00000000); /* powerdown_en = 0, selfref_en = 0 */
+    ms_write_both_ddrc_reg(memshire, SWCTL, 0x00000000); /* sw_done = 0 */
+    ms_write_both_ddrc_reg(memshire, DFIMISC, 0x00000080); /* dfi_init_complete_en = 0 */
+    ms_write_both_ddrc_reg(memshire, DFIMISC, 0x00001080); /* ??? */
 
-    //
-    // These are probably optional, but good to make sure
-    // the memory controllers are in the expected state
-    //
+    /*
+     These are probably optional, but good to make sure
+     the memory controllers are in the expected state
+    */
     ms_poll_ddrc_reg(memshire, 0, INIT0, 0x00020002, 0xffffffff, 1);
     ms_poll_ddrc_reg(memshire, 0, DBICTL, 0x00000001, 0xffffffff, 1);
     ms_poll_ddrc_reg(memshire, 0, MSTR, 0x00080020, 0xffffffff, 1);
@@ -1046,38 +1043,36 @@ uint8_t ms_init_seq_phase1(uint8_t memshire, uint8_t config_ecc, uint8_t config_
     ms_poll_ddrc_reg(memshire, 1, INIT3, 0x0074007f, 0xffffffff, 1);
     ms_poll_ddrc_reg(memshire, 1, INIT4, 0x00330000, 0xffffffff, 1);
     ms_poll_ddrc_reg(memshire, 1, INIT6, 0x0000004d, 0xffffffff, 1);
-    //
-    // Turn off core and axi resets
-    //
-    if (config_real_pll) {
+    /* Turn off core and axi resets */
+    if (config_real_pll) 
+    {
         ms_write_esr(memshire, ddrc_reset_ctl, 0x10c);
-    } else {
+    } 
+    else 
+    {
         ms_write_esr(memshire, ddrc_reset_ctl, 0x00c);
     }
 
     return 0;
 }
 
-//
-// Phase 2 of the DDR initialization sequence.
-//
+/* Phase 2 of the DDR initialization sequence. */
 uint8_t ms_init_seq_phase2(uint8_t memshire, uint8_t config_real_pll)
 {
-    //
-    // Turn off pub reset
-    //
-    if (config_real_pll) {
+    /* Turn off pub reset */
+    if (config_real_pll) 
+    {
         ms_write_esr(memshire, ddrc_reset_ctl, 0x108);
-    } else {
+    } 
+    else 
+    {
         ms_write_esr(memshire, ddrc_reset_ctl, 0x008);
     }
 
     return 0;
 }
 
-//
-// Phase 3 of the DDR initialization sequence.
-//
+/* Phase 3 of the DDR initialization sequence. */
 uint8_t ms_init_seq_phase3(uint8_t memshire)
 {
     ms_init_ddr_phy_1067(memshire);
@@ -1085,14 +1080,10 @@ uint8_t ms_init_seq_phase3(uint8_t memshire)
     return 0;
 }
 
-//
-// Phase 4 of the DDR initialization sequence.
-//
+/* Phase 4 of the DDR initialization sequence. */
 uint8_t ms_init_seq_phase4(uint8_t memshire)
 {
-    //
-    // Wait for init complete
-    //
+    /* Wait for init complete */
     ms_poll_ddrc_reg(memshire, 0, DFISTAT, 0x1, 0x1, 1000);
     ms_poll_ddrc_reg(memshire, 1, DFISTAT, 0x1, 0x1, 1000);
 
@@ -1204,7 +1195,8 @@ int ddr_get_memory_type(char *mem_type)
 
 int MemShire_PLL_Program(uint8_t memshire, uint8_t frequency)
 {
-    switch(frequency) {
+    switch(frequency) 
+    {
         case MEMSHIRE_FREQUENCY_800:
             return ms_config_795mhz(memshire);
 
@@ -1225,7 +1217,8 @@ int Memory_read(uint8_t *address, uint8_t *rx_buffer, uint64_t size)
     /* check if address range is valid */
     if ((rx_buffer == NULL) || 
         (((uintptr_t)address < (uintptr_t)LOW_MEM_SUB_REGIONS_BASE) || 
-         ((uintptr_t)address > (uintptr_t)(LOW_MEM_SUB_REGIONS_BASE + LOW_MEM_SUB_REGIONS_SIZE)))) {
+         ((uintptr_t)address > (uintptr_t)(LOW_MEM_SUB_REGIONS_BASE + LOW_MEM_SUB_REGIONS_SIZE)))) 
+    {
         
         return ERROR_INVALID_ARGUMENT;
     }
@@ -1246,7 +1239,8 @@ int Memory_write(uint8_t *address, uint8_t* data_buf, uint64_t size)
     /* check if address range is valid */
     if ((data_buf == NULL) || 
         (((uintptr_t)address < (uintptr_t)LOW_MEM_SUB_REGIONS_BASE) || 
-         ((uintptr_t)address > (uintptr_t)(LOW_MEM_SUB_REGIONS_BASE + LOW_MEM_SUB_REGIONS_SIZE)))) {
+         ((uintptr_t)address > (uintptr_t)(LOW_MEM_SUB_REGIONS_BASE + LOW_MEM_SUB_REGIONS_SIZE)))) 
+    {
         
         return ERROR_INVALID_ARGUMENT;
     }

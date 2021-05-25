@@ -73,9 +73,12 @@ uint64_t timer_get_ticks_count(void)
 {
     uint64_t tick_count;
     tick_count = ioread64(R_SP_RVTIM_BASEADDR + RVTIMER_MTIME_ADDRESS);
-    if (0 == gs_timer_raw_ticks_before_pll_turned_on) {
+    if (0 == gs_timer_raw_ticks_before_pll_turned_on) 
+    {
         return tick_count / gs_timer_divider;
-    } else {
+    } 
+    else 
+    {
         return gs_timer_1_MHz_ticks_before_pll_turned_on +
                ((tick_count - gs_timer_raw_ticks_before_pll_turned_on) / gs_timer_divider);
     }
@@ -86,25 +89,26 @@ void timer_init(uint64_t timer_raw_ticks_before_pll_turned_on, uint32_t sp_pll0_
     gs_timer_raw_ticks_before_pll_turned_on = timer_raw_ticks_before_pll_turned_on;
     gs_timer_1_MHz_ticks_before_pll_turned_on = timer_raw_ticks_before_pll_turned_on / DIVIDER_OFF;
 
-    //Setup RVTIMER interrupt intervals
+    /* Setup RVTIMER interrupt intervals */
     iowrite64(R_SP_RVTIM_BASEADDR + RVTIMER_MTIMECMP_ADDRESS, RVTimer_INTERVAL);
 
-    switch (sp_pll0_frequency) {
-    case 1000:
-        gs_timer_divider = DIVIDER_100;
-        break;
-    case 750:
-        gs_timer_divider = DIVIDER_75;
-        break;
-    case 500:
-        gs_timer_divider = DIVIDER_50;
-        break;
+    switch (sp_pll0_frequency) 
+    {
+        case 1000:
+            gs_timer_divider = DIVIDER_100;
+            break;
+        case 750:
+            gs_timer_divider = DIVIDER_75;
+            break;
+        case 500:
+            gs_timer_divider = DIVIDER_50;
+            break;
 
-    case 0:
-    default:
-        gs_timer_divider = DIVIDER_OFF;
-        gs_timer_raw_ticks_before_pll_turned_on = 0;
-        gs_timer_1_MHz_ticks_before_pll_turned_on = 0;
-        break;
+        case 0:
+        default:
+            gs_timer_divider = DIVIDER_OFF;
+            gs_timer_raw_ticks_before_pll_turned_on = 0;
+            gs_timer_1_MHz_ticks_before_pll_turned_on = 0;
+            break;
     }
 }
