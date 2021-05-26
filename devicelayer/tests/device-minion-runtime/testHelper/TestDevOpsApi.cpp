@@ -537,39 +537,36 @@ void TestDevOpsApi::printErrorContext(void* buffer, uint64_t shireMask) {
       // print the context of the first hart in a shire only
       auto minionHartID = shireID * 64;
       TEST_VLOG(0) << "* HartID: " << context[minionHartID].hart_id;
+      TEST_VLOG(0) << "* Hart cycles: " << context[minionHartID].cycles;
       TEST_VLOG(0) << "* epc: 0x" << std::hex << context[minionHartID].sepc;
       TEST_VLOG(0) << "* status: 0x" << std::hex << context[minionHartID].sstatus;
       TEST_VLOG(0) << "* tval: 0x" << std::hex << context[minionHartID].stval;
       TEST_VLOG(0) << "* cause: 0x" << std::hex << context[minionHartID].scause;
-      TEST_VLOG(0) << "* gpr[x0]  : zero  : 0x" << std::hex << context[minionHartID].gpr[0];
-      TEST_VLOG(0) << "* gpr[x1]  : ra    : 0x" << std::hex << context[minionHartID].gpr[1];
-      TEST_VLOG(0) << "* gpr[x2]  : sp    : 0x" << std::hex << context[minionHartID].gpr[2];
-      TEST_VLOG(0) << "* gpr[x3]  : gp    : 0x" << std::hex << context[minionHartID].gpr[3];
-      TEST_VLOG(0) << "* gpr[x4]  : tp    : 0x" << std::hex << context[minionHartID].gpr[4];
-      TEST_VLOG(0) << "* gpr[x5]  : t0    : 0x" << std::hex << context[minionHartID].gpr[5];
-      TEST_VLOG(0) << "* gpr[x6]  : t1    : 0x" << std::hex << context[minionHartID].gpr[6];
-      TEST_VLOG(0) << "* gpr[x7]  : t2    : 0x" << std::hex << context[minionHartID].gpr[7];
-      TEST_VLOG(0) << "* gpr[x8]  : s0/fp : 0x" << std::hex << context[minionHartID].gpr[8];
-      TEST_VLOG(0) << "* gpr[x9]  : s1    : 0x" << std::hex << context[minionHartID].gpr[9];
-      TEST_VLOG(0) << "* gpr[x10] : a0    : 0x" << std::hex << context[minionHartID].gpr[10];
+      TEST_VLOG(0) << "* gpr[x1]  : ra    : 0x" << std::hex << context[minionHartID].gpr[0];
+      TEST_VLOG(0) << "* gpr[x3]  : gp    : 0x" << std::hex << context[minionHartID].gpr[1];
+      TEST_VLOG(0) << "* gpr[x5]  : t0    : 0x" << std::hex << context[minionHartID].gpr[2];
+      TEST_VLOG(0) << "* gpr[x6]  : t1    : 0x" << std::hex << context[minionHartID].gpr[3];
+      TEST_VLOG(0) << "* gpr[x7]  : t2    : 0x" << std::hex << context[minionHartID].gpr[4];
+      TEST_VLOG(0) << "* gpr[x8]  : s0/fp : 0x" << std::hex << context[minionHartID].gpr[5];
+      TEST_VLOG(0) << "* gpr[x9]  : s1    : 0x" << std::hex << context[minionHartID].gpr[6];
       for (auto i = 0; i < 8; i++) {
-        auto reg = i + 10;
-        TEST_VLOG(0) << "* gpr[x" << reg << "] : a" << i << "    : 0x" << std::hex << context[minionHartID].gpr[reg];
+        auto reg = i + 7;
+        TEST_VLOG(0) << "* gpr[x" << (reg + 3) << "] : a" << i << "    : 0x" << std::hex << context[minionHartID].gpr[reg];
       }
       for (auto i = 0; i < 10; i++) {
-        auto reg = i + 18;
+        auto reg = i + 15;
         if (i < 8) {
-          TEST_VLOG(0) << "* gpr[x" << reg << "] : s" << (i + 2) << "    : 0x" << std::hex
+          TEST_VLOG(0) << "* gpr[x" << (reg + 3) << "] : s" << (i + 2) << "    : 0x" << std::hex
                        << context[minionHartID].gpr[reg];
         } else {
-          TEST_VLOG(0) << "* gpr[x" << reg << "] : s" << (i + 2) << "   : 0x" << std::hex
+          TEST_VLOG(0) << "* gpr[x" << (reg + 3) << "] : s" << (i + 2) << "   : 0x" << std::hex
                        << context[minionHartID].gpr[reg];
         }
       }
-      TEST_VLOG(0) << "* gpr[x28] : t3    : 0x" << std::hex << context[minionHartID].gpr[28];
-      TEST_VLOG(0) << "* gpr[x29] : t4    : 0x" << std::hex << context[minionHartID].gpr[29];
-      TEST_VLOG(0) << "* gpr[x30] : t5    : 0x" << std::hex << context[minionHartID].gpr[30];
-      TEST_VLOG(0) << "* gpr[x31] : t6    : 0x" << std::hex << context[minionHartID].gpr[31];
+      TEST_VLOG(0) << "* gpr[x28] : t3    : 0x" << std::hex << context[minionHartID].gpr[25];
+      TEST_VLOG(0) << "* gpr[x29] : t4    : 0x" << std::hex << context[minionHartID].gpr[26];
+      TEST_VLOG(0) << "* gpr[x30] : t5    : 0x" << std::hex << context[minionHartID].gpr[27];
+      TEST_VLOG(0) << "* gpr[x31] : t6    : 0x" << std::hex << context[minionHartID].gpr[28];
       TEST_VLOG(0) << "--------------------------";
     }
   }

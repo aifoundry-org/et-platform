@@ -44,12 +44,13 @@ enum class CmdStatus { CMD_RSP_NOT_RECEIVED, CMD_TIMED_OUT, CMD_FAILED, CMD_RSP_
 
 struct __attribute__((packed, aligned(64))) hart_execution_context {
   uint64_t kernel_pending_shires;
+  uint64_t cycles;
   uint64_t hart_id;
   uint64_t sepc;
   uint64_t sstatus;
   uint64_t stval;
   uint64_t scause;
-  uint64_t gpr[32];
+  uint64_t gpr[29];
 };
 
 class TestDevOpsApi : public ::testing::Test {
