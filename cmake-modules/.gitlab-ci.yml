@@ -1,0 +1,21 @@
+stages:
+  - package
+
+package:conan:
+  stage: package
+  tags:
+    - docker
+  image: conanio/gcc7
+  variables:
+    CONAN_CONFIG_URL: "https://${CONAN_CONFIG_DEPLOY_TOKEN_USERNAME}:${CONAN_CONFIG_DEPLOY_TOKEN}@gitlab.esperanto.ai/software/conan/conan-config.git"
+    CONAN_UPLOAD: "https://sc-artifactory1.esperanto.ai/artifactory/api/conan/conan-develop@True@conan-develop"
+    CONAN_LOGIN_USERNAME: "${ARTIFACTORY_USER}"
+    CONAN_PASSWORD: "${ARTIFACTORY_PASSWORD}"
+  before_script:
+    - conan --version
+    - conan config install ${CONAN_CONFIG_URL}
+    - conan user -p ${CONAN_PASSWORD} -r conan-develop ${CONAN_LOGIN_USERNAME}
+  script:
+    - conan create .
+    - conan upload "*" -r conan-develop --confirm
+  allow_failure: true
