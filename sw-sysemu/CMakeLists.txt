@@ -8,16 +8,21 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.16)
 project(sw-sysemu VERSION 0.2.0)
 
+list(APPEND CMAKE_PREFIX_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
+message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
+message(STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
 
 option(PROFILING "Enable profiling" OFF)
 option(BACKTRACE "Enable backtrace" OFF)
 
 include(GNUInstallDirs)
 
+find_package(elfio REQUIRED)
 find_package(glog REQUIRED)
 
 # dependencies
@@ -91,7 +96,11 @@ target_compile_definitions(sysemu
 target_compile_features(sysemu PUBLIC cxx_std_17)
 target_compile_options(sysemu PRIVATE -Wall -Wextra -pedantic-errors)
 set_target_properties(sysemu PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
-target_link_libraries(sysemu PRIVATE $<$<BOOL:${BACKTRACE}>:libunwind::libunwind>)
+target_link_libraries(sysemu
+    PRIVATE
+        elfio::elfio
+        $<$<BOOL:${BACKTRACE}>:libunwind::libunwind>
+)
 
 install(TARGETS sysemu
   EXPORT sw-sysemuTargets
