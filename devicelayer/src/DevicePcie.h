@@ -40,22 +40,23 @@ public:
   int getDmaAlignment() const override;
   uint64_t getDramSize() const override;
   uint64_t getDramBaseAddress() const override;
+  void* allocDmaBuffer(size_t sizeInBytes, bool writeable) override;
+  void freeDmaBuffer(void* dmaBuffer) override;
 
 private:
-  struct devInfo {
-    int devIdx;
-    dram_info userDram;
-    uint16_t mmSqCount;
-    uint16_t spSqMaxMsgSize;
-    uint16_t mmSqMaxMsgSize;
-    int fdOps, epFdOps;
-    int fdMgmt, epFdMgmt;
+  struct DevInfo {
+    dram_info userDram_;
+    uint16_t mmSqCount_;
+    uint16_t spSqMaxMsgSize_;
+    uint16_t mmSqMaxMsgSize_;
+    int fdOps_;
+    int epFdOps_;
+    int fdMgmt_;
+    int epFdMgmt_;
   };
 
   bool opsEnabled_;
   bool mngmtEnabled_;
-  std::unordered_map<int, devInfo> devices_;
-
-  int countDeviceNodes();
+  std::vector<DevInfo> devices_;
 };
 } // namespace dev

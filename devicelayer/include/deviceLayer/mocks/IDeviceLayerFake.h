@@ -15,6 +15,7 @@
 #include <esperanto/device-apis/operations-api/device_ops_api_cxx.h>
 #include <mutex>
 #include <queue>
+#include <cstdlib>
 #include <string>
 namespace dev {
 class IDeviceLayerFake : public IDeviceLayer {
@@ -131,20 +132,18 @@ public:
     return 64;
   };
 
-  /// \brief Returns the DRAM available size in bytes
-  ///
-  /// @returns DRAM size in bytes
-  ///
   uint64_t getDramSize() const override {
     return 1UL << (10 + 10 + 10 + 4);
   };
 
-  /// \brief Returns the DRAM base address
-  ///
-  /// @returns DRAM Host Managed base address
-  ///
   uint64_t getDramBaseAddress() const override {
     return 0x8000;
+  }
+  void* allocDmaBuffer(size_t sizeInBytes, bool ) override {
+    return malloc(sizeInBytes);
+  }
+  void freeDmaBuffer(void* dmaBuffer) override {
+    free(dmaBuffer);
   }
 };
 

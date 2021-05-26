@@ -492,3 +492,11 @@ void DeviceSysEmu::setupMasterMinion() {
   }
   throw Exception("Timeout MM virtual queue discovery");
 }
+
+void* DeviceSysEmu::allocDmaBuffer(size_t sizeInBytes, bool ) {
+  return malloc(sizeInBytes);
+}
+
+void DeviceSysEmu::freeDmaBuffer(void* dmaBuffer) {
+  free(dmaBuffer);
+}

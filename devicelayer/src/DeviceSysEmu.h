@@ -26,7 +26,6 @@ struct CircBuffCb {
   uint64_t head_offset; /**< Offset of the circular buffer to write data to */
   uint64_t tail_offset; /**< Offset of the circular buffer to read data from */
   uint64_t length;      /**< Total length (in bytes) of the circular buffer */
-  uint8_t buffer_ptr[]; /**< Flexible array to access circular buffer memory located just after circ_buff_cb */
 } __attribute__((__packed__));
 
 class DeviceSysEmu : public IDeviceLayer {
@@ -55,6 +54,8 @@ public:
   int getDmaAlignment() const override;
   uint64_t getDramSize() const override;
   uint64_t getDramBaseAddress() const override;
+  void* allocDmaBuffer(size_t sizeInBytes, bool writeable) override;
+  void freeDmaBuffer(void* dmaBuffer) override;
 
 private:
   struct QueueInfo {

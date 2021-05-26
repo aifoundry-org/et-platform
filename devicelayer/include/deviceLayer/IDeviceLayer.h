@@ -196,14 +196,14 @@ public:
   ///
   /// @returns a chunk of memory which is suitable to be used in DMA operations.
   ///
-  virtual void* allocDmaBuffer(size_t sizeInBytes, bool writeable);
+  virtual void* allocDmaBuffer(size_t sizeInBytes, bool writeable) = 0;
 
   /// \brief Deallocates a previously allocated dmaBuffer.
   ///
   /// @param[in] dmaBuffer the buffer to be deallocated.
   ///
-  virtual void freeDmaBuffer(void* dmaBuffer);
-  
+  virtual void freeDmaBuffer(void* dmaBuffer) = 0;
+
 };
 
 class IDeviceLayer : public IDeviceAsync, public IDeviceSync {
