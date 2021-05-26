@@ -34,6 +34,8 @@ constexpr int kNumDevices = 1;
 // this value comes from device-api sizeof(rsp_header_t). should always be kept in sync with this file:
 // https://gitlab.esperanto.ai/software/device-api/-/blob/master/src/device-apis/device_apis_message_types.h
 constexpr auto kCommonHeaderSize = 8;
+// This is the max possible size of the device API commands (DMA list with all 4 entries)
+constexpr auto kMMThresholdBytes = 136;
 
 constexpr size_t getAvailSpace(const CircBuffCb& buffer) {
   auto head = buffer.head_offset;
@@ -473,8 +475,9 @@ void DeviceSysEmu::setupMasterMinion() {
                     << " cqCount: " << cqCount << " cqSize: " << cqSize;
       // init VQs
       for (int i = 0; i < sqCount; ++i) {
-        submissionQueuesMM_.emplace_back(QueueInfo{(barAddress_[bar] + barOffset + sqOffset) + i * sqSize, sqSize});
+        submissionQueuesMM_.emplace_back(QueueInfo{(barAddress_[bar] + barOffset + sqOffset) + i * sqSize, sqSize, kMMThresholdBytes});
       }
+
       DV_DLOG(INFO) << "MM Submission queues initialized!";
 
       // single completion queue model
