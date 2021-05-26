@@ -658,24 +658,33 @@ bool et_cqueue_msg_available(struct et_cqueue *cq)
 	return !!(msg);
 }
 
-static irqreturn_t et_pcie_isr(int irq, void *cq_id)
+static void et_squeue_sync_cb_for_host(struct et_squeue *sq);
+
+static void et_sq_isr_work(struct work_struct *work)
 {
-	int i;
-	struct et_cqueue **cq_pptr = (struct et_cqueue **)cq_id;
-	struct et_vq_common *vq_common = cq_pptr[0]->vq_common;
+	struct et_squeue *sq = container_of(work, struct et_squeue, isr_work);
 
-	for (i = 0; i < vq_common->cq_count; i++)
-		queue_work(vq_common->workqueue, &cq_pptr[i]->isr_work);
+	// Check for SQ availability and wake up the waitqueue if available
+	if (test_bit(sq->index, sq->vq_common->sq_bitmap))
+		goto update_sq_bitmap;
 
-	return IRQ_HANDLED;
+	et_squeue_sync_cb_for_host(sq);
+
+update_sq_bitmap:
+	// Update sq_bitmap
+	mutex_lock(&sq->vq_common->sq_bitmap_mutex);
+
+	if (et_circbuffer_free(&sq->cb) >= atomic_read(&sq->sq_threshold)) {
+		set_bit(sq->index, sq->vq_common->sq_bitmap);
+		wake_up_interruptible(&sq->vq_common->waitqueue);
+	}
+
+	mutex_unlock(&sq->vq_common->sq_bitmap_mutex);
 }
 
-static void et_isr_work(struct work_struct *work)
+static void et_cq_isr_work(struct work_struct *work)
 {
 	struct et_cqueue *cq = container_of(work, struct et_cqueue, isr_work);
-
-	// TODO: Move following to separate ISR for SQ
-	wake_up_interruptible(&cq->vq_common->waitqueue);
 
 	et_cqueue_isr_bottom(cq);
 }
@@ -741,7 +750,7 @@ static ssize_t et_high_priority_squeue_init_all(struct et_pci_dev *et_dev,
 
 static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 {
-	ssize_t i;
+	ssize_t i, rv;
 	struct et_vq_common *vq_common;
 	struct et_squeue **sq_pptr;
 	struct et_mapped_region *vq_region;
@@ -771,14 +780,31 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		sq_size = et_dev->ops.dir_vq.sq_size;
 	}
 
+	// Initialize sq_workqueue
+	vq_common->sq_workqueue = alloc_workqueue("%s:%s%d_sqwq",
+						  WQ_MEM_RECLAIM | WQ_UNBOUND,
+						  vq_common->sq_count,
+						  dev_name(&et_dev->pdev->dev),
+						  (is_mgmt) ? "mgmt" : "ops",
+						  et_dev->dev_index);
+	if (!vq_common->sq_workqueue)
+		return -ENOMEM;
+
 	mem = kmalloc_array(vq_common->sq_count,
 			    sizeof(*sq_pptr) + sizeof(**sq_pptr),
 			    GFP_KERNEL);
-	if (!mem)
-		return -ENOMEM;
+	if (!mem) {
+		rv = -ENOMEM;
+		goto error_destroy_sq_workqueue;
+	}
 
 	sq_pptr = (struct et_squeue **)mem;
 	mem += vq_common->sq_count * sizeof(*sq_pptr);
+
+	if (is_mgmt)
+		et_dev->mgmt.sq_pptr = sq_pptr;
+	else
+		et_dev->ops.sq_pptr = sq_pptr;
 
 	for (i = 0; i < vq_common->sq_count; i++) {
 		sq_pptr[i] = (struct et_squeue *)mem;
@@ -801,19 +827,23 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		mutex_init(&sq_pptr[i]->push_mutex);
 		atomic_set(&sq_pptr[i]->sq_threshold,
 			   (sq_size - sizeof(struct et_circbuffer)) / 4);
+
+		INIT_WORK(&sq_pptr[i]->isr_work, et_sq_isr_work);
+		queue_work(vq_common->sq_workqueue, &sq_pptr[i]->isr_work);
+		flush_workqueue(vq_common->sq_workqueue);
 	}
 
-	if (is_mgmt)
-		et_dev->mgmt.sq_pptr = sq_pptr;
-	else
-		et_dev->ops.sq_pptr = sq_pptr;
-
 	return 0;
+
+error_destroy_sq_workqueue:
+	destroy_workqueue(vq_common->sq_workqueue);
+
+	return rv;
 }
 
 static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 {
-	u32 i;
+	ssize_t i, rv;
 	struct et_vq_common *vq_common;
 	struct et_cqueue **cq_pptr;
 	struct et_mapped_region *vq_region;
@@ -843,14 +873,31 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		cq_size = et_dev->ops.dir_vq.cq_size;
 	}
 
+	// Initialize cq_workqueue
+	vq_common->cq_workqueue = alloc_workqueue("%s:%s%d_cqwq",
+						  WQ_MEM_RECLAIM | WQ_UNBOUND,
+						  vq_common->cq_count,
+						  dev_name(&et_dev->pdev->dev),
+						  (is_mgmt) ? "mgmt" : "ops",
+						  et_dev->dev_index);
+	if (!vq_common->cq_workqueue)
+		return -ENOMEM;
+
 	mem = kmalloc_array(vq_common->cq_count,
 			    sizeof(*cq_pptr) + sizeof(**cq_pptr),
 			    GFP_KERNEL);
-	if (!mem)
-		return -ENOMEM;
+	if (!mem) {
+		rv = -ENOMEM;
+		goto error_destroy_cq_workqueue;
+	}
 
 	cq_pptr = (struct et_cqueue **)mem;
 	mem += vq_common->cq_count * sizeof(*cq_pptr);
+
+	if (is_mgmt)
+		et_dev->mgmt.cq_pptr = cq_pptr;
+	else
+		et_dev->ops.cq_pptr = cq_pptr;
 
 	for (i = 0; i < vq_common->cq_count; i++) {
 		cq_pptr[i] = (struct et_cqueue *)mem;
@@ -873,17 +920,19 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		INIT_LIST_HEAD(&cq_pptr[i]->msg_list);
 		mutex_init(&cq_pptr[i]->msg_list_mutex);
 
-		INIT_WORK(&cq_pptr[i]->isr_work, et_isr_work);
+		INIT_WORK(&cq_pptr[i]->isr_work, et_cq_isr_work);
+		queue_work(vq_common->cq_workqueue, &cq_pptr[i]->isr_work);
+		flush_workqueue(vq_common->cq_workqueue);
 	}
 
 	vq_common->intrpt_addr = (void __iomem __force *)cq_pptr;
 
-	if (is_mgmt)
-		et_dev->mgmt.cq_pptr = cq_pptr;
-	else
-		et_dev->ops.cq_pptr = cq_pptr;
-
 	return 0;
+
+error_destroy_cq_workqueue:
+	destroy_workqueue(vq_common->cq_workqueue);
+
+	return rv;
 }
 
 static void et_high_priority_squeue_destroy_all(struct et_pci_dev *et_dev,
@@ -894,30 +943,18 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 {
 	ssize_t rv;
 	struct et_vq_common *vq_common;
-	unsigned long vec_idx;
 
 	if (is_mgmt) {
-		vec_idx = ET_MGMT_VEC_IDX;
 		vq_common = &et_dev->mgmt.vq_common;
 		vq_common->sq_count = et_dev->mgmt.dir_vq.sq_count;
 		vq_common->hpsq_count = 0;
 		vq_common->cq_count = et_dev->mgmt.dir_vq.cq_count;
 	} else {
-		vec_idx = ET_OPS_VEC_IDX;
 		vq_common = &et_dev->ops.vq_common;
 		vq_common->sq_count = et_dev->ops.dir_vq.sq_count;
 		vq_common->hpsq_count = et_dev->ops.dir_vq.hpsq_count;
 		vq_common->cq_count = et_dev->ops.dir_vq.cq_count;
 	}
-
-	vq_common->workqueue = alloc_workqueue("%s:%s_wq%d",
-					       WQ_MEM_RECLAIM | WQ_UNBOUND,
-					       vq_common->cq_count,
-					       dev_name(&et_dev->pdev->dev),
-					       is_mgmt ? "mgmt" : "ops",
-					       vec_idx);
-	if (!vq_common->workqueue)
-		return -ENOMEM;
 
 	bitmap_zero(vq_common->sq_bitmap, ET_MAX_QUEUES);
 	mutex_init(&vq_common->sq_bitmap_mutex);
@@ -930,7 +967,7 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 
 	rv = et_high_priority_squeue_init_all(et_dev, is_mgmt);
 	if (rv)
-		goto error_destroy_workqueue;
+		return rv;
 
 	rv = et_squeue_init_all(et_dev, is_mgmt);
 	if (rv)
@@ -948,8 +985,6 @@ error_squeue_destroy_all:
 error_high_priority_squeue_destroy_all:
 	et_high_priority_squeue_destroy_all(et_dev, is_mgmt);
 
-error_destroy_workqueue:
-	destroy_workqueue(vq_common->workqueue);
 	return rv;
 }
 
@@ -991,6 +1026,7 @@ static void et_squeue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	}
 
 	for (i = 0; i < vq_common->sq_count; i++) {
+		cancel_work_sync(&sq_pptr[i]->isr_work);
 		mutex_destroy(&sq_pptr[i]->push_mutex);
 		sq_pptr[i]->cb_mem = NULL;
 		sq_pptr[i]->vq_common = NULL;
@@ -998,6 +1034,7 @@ static void et_squeue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	}
 
 	kfree(sq_pptr);
+	destroy_workqueue(vq_common->sq_workqueue);
 }
 
 static void et_cqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
@@ -1025,6 +1062,7 @@ static void et_cqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	}
 
 	kfree(cq_pptr);
+	destroy_workqueue(vq_common->cq_workqueue);
 }
 
 void et_vqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
@@ -1047,9 +1085,15 @@ void et_vqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	et_squeue_destroy_all(et_dev, is_mgmt);
 	et_high_priority_squeue_destroy_all(et_dev, is_mgmt);
 
-	destroy_workqueue(vq_common->workqueue);
 	mutex_destroy(&vq_common->sq_bitmap_mutex);
 	mutex_destroy(&vq_common->cq_bitmap_mutex);
+}
+
+static inline void loopback_interrupt(struct et_squeue *sq,
+				      struct et_cqueue *cq)
+{
+	queue_work(sq->vq_common->sq_workqueue, &sq->isr_work);
+	queue_work(cq->vq_common->cq_workqueue, &cq->isr_work);
 }
 
 static ssize_t cmd_loopback_handler(struct et_squeue *sq)
@@ -2065,15 +2109,12 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 	}
 	mutex_unlock(&cq->pop_mutex);
 
+	loopback_interrupt(sq, cq);
+
 error_free_cmd_mem:
 	kfree(cmd);
 
 	return rv;
-}
-
-static inline void interrupt_device(struct et_squeue *sq)
-{
-	et_pcie_isr(0, (void __force *)sq->vq_common->intrpt_addr);
 }
 
 ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count)
@@ -2108,9 +2149,6 @@ ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count)
 		// cmd_loopback_handler couldn't push response to CQ
 		goto update_sq_bitmap;
 	}
-
-	// Inform device that message has been pushed to SQ
-	interrupt_device(sq);
 
 	rv = count;
 
@@ -2197,23 +2235,20 @@ static inline void et_squeue_sync_cb_for_host(struct et_squeue *sq)
 	mutex_unlock(&sq->push_mutex);
 }
 
-bool et_squeue_event_available(struct et_squeue *sq)
+void et_squeue_sync_bitmap(struct et_squeue *sq)
 {
-	if (!sq)
-		return false;
-
-	// Sync SQ circbuffer
-	if (test_bit(sq->index, sq->vq_common->sq_bitmap))
-		return true;
-
 	et_squeue_sync_cb_for_host(sq);
 
-	if (et_circbuffer_free(&sq->cb) >= atomic_read(&sq->sq_threshold)) {
-		set_bit(sq->index, sq->vq_common->sq_bitmap);
-		return true;
-	}
+	// Update sq_bitmap
+	mutex_lock(&sq->vq_common->sq_bitmap_mutex);
 
-	return false;
+	if (et_circbuffer_free(&sq->cb) >= atomic_read(&sq->sq_threshold))
+		set_bit(sq->index, sq->vq_common->sq_bitmap);
+	else
+		clear_bit(sq->index, sq->vq_common->sq_bitmap);
+	wake_up_interruptible(&sq->vq_common->waitqueue);
+
+	mutex_unlock(&sq->vq_common->sq_bitmap_mutex);
 }
 
 bool et_squeue_empty(struct et_squeue *sq)
@@ -2463,25 +2498,6 @@ static inline void et_cqueue_sync_cb_for_host(struct et_cqueue *cq)
 		       cq->cb.tail);
 
 	mutex_unlock(&cq->pop_mutex);
-}
-
-bool et_cqueue_event_available(struct et_cqueue *cq)
-{
-	if (!cq)
-		return false;
-
-	// Sync CQ circbuffer
-	if (test_bit(cq->index, cq->vq_common->cq_bitmap))
-		return true;
-
-	et_cqueue_sync_cb_for_host(cq);
-
-	if (et_cqueue_msg_available(cq)) {
-		set_bit(cq->index, cq->vq_common->cq_bitmap);
-		return true;
-	}
-
-	return false;
 }
 
 /*
