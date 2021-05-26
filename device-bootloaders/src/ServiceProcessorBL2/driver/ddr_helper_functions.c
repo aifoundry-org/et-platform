@@ -98,14 +98,14 @@ static void log_training_error(training_stage stage, uint32_t memshire, uint32_t
 
 #endif  // DEBUG_INFO
 
-static void wait_for_training_internal(training_stage stage, uint32_t memshire, uint32_t train_wait_time, uint32_t train_cycle_count)
+static void wait_for_training_internal(training_stage stage, uint32_t memshire, uint32_t train_poll_max_iterations, uint32_t train_poll_iteration_delay)
 {
   uint32_t train_msg;
   uint32_t training_complete;
 
   training_complete = 0;
   while(!training_complete) {
-    ms_poll_ddrc_reg(memshire, 2, APBONLY0_UctShadowRegs, 0x0, 0x1, train_cycle_count, train_wait_time);
+    ms_poll_ddrc_reg(memshire, 2, APBONLY0_UctShadowRegs, 0x0, 0x1, train_poll_max_iterations, train_poll_iteration_delay);
     train_msg = ms_read_ddrc_reg(memshire, 2, APBONLY0_UctWriteOnlyShadow);
     LOG_TRAINING(stage, memshire, train_msg);
     if(train_msg == 0x7) {
@@ -213,9 +213,9 @@ void ms_ddr_phy_1d_train_from_file(uint32_t mem_config, uint32_t memshire)
   memshire = memshire;
 }
 
-void ms_wait_for_training(uint32_t memshire, uint32_t train_wait_time, uint32_t train_cycle_count)
+void ms_wait_for_training(uint32_t memshire, uint32_t train_poll_max_iterations, uint32_t train_poll_iteration_delay)
 {
-  wait_for_training_internal(TRAINING_1D, memshire, train_wait_time, train_cycle_count);
+  wait_for_training_internal(TRAINING_1D, memshire, train_poll_max_iterations, train_poll_iteration_delay);
 }
 
 void ms_ddr_phy_2d_train_from_file(uint32_t mem_config, uint32_t memshire)
@@ -225,7 +225,7 @@ void ms_ddr_phy_2d_train_from_file(uint32_t mem_config, uint32_t memshire)
   memshire = memshire;
 }
 
-void ms_wait_for_training_2d(uint32_t memshire, uint32_t train_wait_time, uint32_t train_cycle_count)
+void ms_wait_for_training_2d(uint32_t memshire, uint32_t train_poll_max_iterations, uint32_t train_poll_iteration_delay)
 {
-  wait_for_training_internal(TRAINING_2D, memshire, train_wait_time, train_cycle_count);
+  wait_for_training_internal(TRAINING_2D, memshire, train_poll_max_iterations, train_poll_iteration_delay);
 }

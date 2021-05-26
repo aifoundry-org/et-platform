@@ -65,8 +65,8 @@ int ddr_config(void)
     uint32_t config_debug_level = 1;            
     uint32_t config_sim_only = 0;
     uint32_t config_disable_unused_clks = 0;
-    uint32_t train_wait_time = 100;
-    uint32_t train_cycle_count = 1;
+    uint32_t config_train_poll_max_iterations = 50000;
+    uint32_t config_train_poll_iteration_delay = 10000;
     bool config_training = false;
     bool config_training_2d = true;
 
@@ -99,7 +99,7 @@ int ddr_config(void)
             ms_init_seq_phase3_03(memshire, config_debug_level, config_sim_only)
         );
 
-        ms_init_seq_phase3_04_no_loop(memshire, train_wait_time, train_cycle_count);
+        ms_init_seq_phase3_04_no_loop(memshire, config_train_poll_max_iterations, config_train_poll_iteration_delay);
 
         if(config_training_2d) {
             ms_init_seq_phase3_05_no_loop(memshire, config_800mhz, config_933mhz);
@@ -108,7 +108,7 @@ int ddr_config(void)
                 ms_init_seq_phase3_06 (memshire, config_debug_level, config_sim_only)
             );
 
-            ms_init_seq_phase3_07_no_loop (memshire, train_wait_time, train_cycle_count);
+            ms_init_seq_phase3_07_no_loop (memshire, config_train_poll_max_iterations, config_train_poll_iteration_delay);
         }
 
         FOR_EACH_MEMSHIRE(
