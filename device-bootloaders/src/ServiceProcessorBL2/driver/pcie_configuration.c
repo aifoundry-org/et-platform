@@ -107,10 +107,10 @@ static void reconfig_noc_pshire(void);
     \brief  MSI enabled value */
 #define MSI_ENABLED              0x1U
 
-/*! \def MSI_TWO_VECTORS
-    \brief MSI two verctor enable
+/*! \def MSI_FOUR_VECTORS
+    \brief MSI four verctor enable
 */
-#define MSI_TWO_VECTORS          1
+#define MSI_FOUR_VECTORS         0x2
 
 /* The driver can populate this structure with the defaults that will be used during the init
     phase.*/
@@ -415,14 +415,14 @@ static void pcie_init_ints(void)
     /* Enable MSI (PCIE CFG 0x50) */
     msi_ctrl = (uint32_t)
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_PCI_MSI_ENABLE_MODIFY(
-            msi_ctrl, MSI_TWO_VECTORS);
-    /* Request 2 interrupt vectors (1 for Management and Ops node) */
+            msi_ctrl, 1);
+    /* Request 4 interrupt vectors (2 each for Management and Ops node) */
     msi_ctrl = (uint32_t)
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_PCI_MSI_MULTIPLE_MSG_CAP_MODIFY(
-            msi_ctrl, MSI_TWO_VECTORS);
+            msi_ctrl, MSI_FOUR_VECTORS);
     msi_ctrl = (uint32_t)
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_PCI_MSI_MULTIPLE_MSG_EN_MODIFY(
-            msi_ctrl, MSI_TWO_VECTORS);
+            msi_ctrl, MSI_FOUR_VECTORS);
     iowrite32(PCIE0 +
                   PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_ADDRESS,
               msi_ctrl);

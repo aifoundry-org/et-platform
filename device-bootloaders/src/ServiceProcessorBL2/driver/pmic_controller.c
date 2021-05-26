@@ -79,9 +79,6 @@
 #include "hwinc/hal_device.h"
 #include "hwinc/sp_cru_reset.h"
 
-/*! \def MSI_TWO_VECTORS
-    \brief MSI two verctor enable
-*/
 #define PMIC_SLAVE_ADDRESS         0x42
 #define PMIC_GPIO_INT_PIN_NUMBER   0x1
 #define ENABLE_ALL_PMIC_INTERRUPTS 0xFF
