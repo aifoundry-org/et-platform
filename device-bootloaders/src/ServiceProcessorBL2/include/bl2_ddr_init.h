@@ -55,12 +55,6 @@ struct ddr_event_control_block
     dm_event_isr_callback event_cb; /**< Event callback handler. */
 };
 
-/*! \fn void ddr_init(uint8_t memshire_id)
-    \brief This function initializes the ddr memshire 
-    \param memshire_id memshire id to initialize
-*/
-void ddr_init(uint8_t memshire_id);
-
 /*! \fn int ddr_config(void)
     \brief This function initializes every memshire present in system. It internally
            calls ddr_init with memshire id
@@ -68,44 +62,6 @@ void ddr_init(uint8_t memshire_id);
     \return Status indicating success or negative error
 */
 int ddr_config(void);
-
-/*! \fn uint8_t ms_init_ddr_phy_1067(uint8_t memshire)
-    \brief This function initializes DDR Phy for 1067 Mhz clock
-    \param memshire_id memshire id to initialize
-    \return Status indicating success or negative error
-*/
-uint8_t ms_init_ddr_phy_1067(uint8_t memshire);
-
-/*! \fn uint8_t ms_init_seq_phase1(uint8_t memshire, uint8_t config_ecc, uint8_t config_real_pll)
-    \brief This function initiates sequence 1 of ddr system initialization
-    \param memshire_id memshire id to initialize
-    \param config_ecc ecc configuration
-    \param config_real_pll PLL configuration
-    \return Status indicating success or negative error
-*/
-uint8_t ms_init_seq_phase1(uint8_t memshire, uint8_t config_ecc, uint8_t config_real_pll);
-
-/*! \fn uint8_t ms_init_seq_phase2(uint8_t memshire, uint8_t config_real_pll)
-    \brief This function initiates sequence 2 of ddr system initialization
-    \param memshire_id memshire id to initialize
-    \param config_ecc ecc configuration
-    \return Status indicating success or negative error
-*/
-uint8_t ms_init_seq_phase2(uint8_t memshire, uint8_t config_real_pll);
-
-/*! \fn uint8_t ms_init_seq_phase3(uint8_t memshire)
-    \brief This function initiates sequence 3 of ddr system initialization
-    \param memshire_id memshire id to initialize
-    \return Status indicating success or negative error
-*/
-uint8_t ms_init_seq_phase3(uint8_t memshire);
-
-/*! \fn uint8_t ms_init_seq_phase4(uint8_t memshire)
-    \brief This function initiates sequence 4 of ddr system initialization
-    \param memshire_id memshire id to initialize
-    \return Status indicating success or negative error
-*/
-uint8_t ms_init_seq_phase4(uint8_t memshire);
 
 /*! \fn int32_t ddr_error_control_init(dm_event_isr_callback event_cb)
     \brief This function initializes the ddr error control subsystem, including
@@ -185,20 +141,6 @@ int ddr_get_memory_details(char *mem_detail);
     \return Status indicating success or negative error
 */
 int ddr_get_memory_type(char *mem_type);
-
-/*! \fn int MemShire_Initialize(uint8_t memshire_id)
-    \brief This function initializes a memshire
-    \param None
-    \return Status indicating success or negative error
-*/
-int MemShire_Initialize(uint8_t memshire_id);
-
-/*! \fn int DDR_Controller_Initialize(void)
-    \brief This function initializes DDR controller, also it inializes all memshires
-    \param None
-    \return Status indicating success or negative error
-*/
-int DDR_Controller_Initialize(void);
 
 /*! \fn int MemShire_PLL_Program(uint8_t frequency)
     \brief This function will program PLL with provided frequency value

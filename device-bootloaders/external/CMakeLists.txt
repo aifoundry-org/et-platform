@@ -1,13 +1,17 @@
 if (NOT TARGET etsoc_hal::etsoc_hal)
-    add_library(etsoc_hal INTERFACE)
+    add_library(etsoc_hal)
     add_library(etsoc_hal::etsoc_hal ALIAS etsoc_hal)
     target_include_directories(etsoc_hal
-        INTERFACE 
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/etsoc_hal/inc>
+        PUBLIC 
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/etsoc_hal/include>
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/etsoc_hal/include/etsoc_hal/inc>
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/etsoc_hal>
     )
-  
+    target_sources(etsoc_hal
+        PRIVATE
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/etsoc_hal/wrapper/ddr_init.c>
+    )
+
     install(DIRECTORY etsoc_hal DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw)
     install(TARGETS etsoc_hal
         EXPORT EsperantoDeviceMinionRuntimeTargets
