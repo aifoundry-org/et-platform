@@ -34,7 +34,7 @@ target_include_directories(logging
 target_link_libraries(logging INTERFACE g3log::g3log)
 
 set_target_properties(logging PROPERTIES
-  PUBLIC_HEADER "include/logging/Logging.h;include/logging/Logger.h;include/logging/DefaultSinks.h"
+  PUBLIC_HEADER "include/logging/Logging.h;include/logging/Logger.h;include/logging/DefaultSinks.h;include/logging/Instance.h"
 )
 
 
