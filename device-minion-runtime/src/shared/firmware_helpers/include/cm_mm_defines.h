@@ -27,12 +27,13 @@
 */
 typedef struct {
     uint64_t kernel_pending_shires;
+    uint64_t cycles;
     uint64_t hart_id;
     uint64_t sepc;
     uint64_t sstatus;
     uint64_t stval;
     uint64_t scause;
-    uint64_t gpr[32];
+    uint64_t gpr[29];
 } __attribute__((packed, aligned(64))) execution_context_t;
 
 /*! \struct kernel_execution_error_t

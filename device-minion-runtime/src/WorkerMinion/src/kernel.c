@@ -172,6 +172,19 @@ bool kernel_info_has_thread_completed(uint32_t shire_id, uint64_t thread_id)
     return (atomic_load_local_64(&kernel_launch_info[shire_id].completed_threads) >> thread_id) & 1;
 }
 
+static inline uint64_t kernel_info_get_error_buffer(uint32_t shire_id)
+{
+    uint64_t buffer = atomic_load_local_64(&kernel_launch_info[shire_id].exception_buffer);
+
+    if (buffer != 0ULL)
+    {
+        /* Error buffer starts from the end of exception contexts for all the harts in compute shires */
+        buffer += sizeof(execution_context_t) * (NUM_COMPUTE_SHIRES * HARTS_PER_SHIRE);
+    }
+
+    return buffer;
+}
+
 uint64_t kernel_info_get_exception_buffer(uint32_t shire_id)
 {
     return atomic_load_local_64(&kernel_launch_info[shire_id].exception_buffer);
@@ -485,6 +498,30 @@ void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t 
     /* Reset the launched bit for the current thread */
     kernel_info_reset_launched_thread(shire_id, thread_id);
 
+    /* Last thread to reach here decrements the kernel launch shire count */
+    prev_completed_threads = kernel_info_set_thread_completed(shire_id, thread_id);
+
+    /* Kernel error handling for MM */
+    if ((prev_completed_threads | (1ull << thread_id)) == thread_mask)
+    {
+        /* Save the kernel error code per shire (if any) */
+        if (kernel_ret_val < KERNEL_COMPLETE_STATUS_SUCCESS)
+        {
+            /* Save the kernel launch status for sending response to MM */
+            kernel_info_set_execution_status(shire_id, KERNEL_COMPLETE_STATUS_ERROR);
+
+            /* Get the kernel error buffer */
+            uint64_t error_buffer = kernel_info_get_error_buffer(shire_id);
+
+            /* If the kernel error buffer is available */
+            if (error_buffer != 0)
+            {
+                CM_To_MM_Save_Kernel_Error((kernel_execution_error_t*)error_buffer, 
+                    shire_id, kernel_ret_val);
+            }
+        }
+    }
+
     // Wait for all memory accesses to complete
     FENCE
 
@@ -500,13 +537,6 @@ void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t 
     WAIT_TENSOR_STORE
     WAIT_TENSOR_REDUCE
 
-    /* Check for kernel execution error. Has to be done before the barrier */
-    if (kernel_ret_val < KERNEL_COMPLETE_STATUS_SUCCESS)
-    {
-        // TODO: Use atomic OR/cmpxchg?
-        kernel_info_set_execution_status(shire_id, KERNEL_COMPLETE_STATUS_ERROR);
-    }
-
     /* Empty all FCCs before blocking on FCC barrier */
     init_fcc(FCC_0);
     init_fcc(FCC_1);
@@ -517,27 +547,11 @@ void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t 
 
     syscall(SYSCALL_POST_KERNEL_CLEANUP_INT, thread_count, 0, 0);
 
-    /* Last thread to reach here decrements the kernel launch shire count and checks if
-    messages need to be sent to MM */
-    prev_completed_threads = kernel_info_set_thread_completed(shire_id, thread_id);
+    /* Check if messages need to be sent to MM */
     if ((prev_completed_threads | (1ull << thread_id)) == thread_mask)
     {
         /* Decrement the kernel launch shire count */
         prev_shire_mask = kernel_launch_reset_shire_mask(shire_id);
-
-        /* Save the kernel error code per shire (if any) */
-        if (kernel_ret_val < KERNEL_COMPLETE_STATUS_SUCCESS)
-        {
-            /* Get the kernel exception/error buffer */
-            uint64_t error_buffer = kernel_info_get_exception_buffer(shire_id);
-
-            /* If the kernel error buffer is available */
-            if (error_buffer != 0)
-            {
-                CM_To_MM_Save_Kernel_Error((kernel_execution_error_t*)error_buffer, 
-                    shire_id, kernel_ret_val);
-            }
-        }
 
         /* Last shire in kernel launch sends a complete message to MM */
         if((prev_shire_mask & ~(1ull << shire_id)) == 0)
