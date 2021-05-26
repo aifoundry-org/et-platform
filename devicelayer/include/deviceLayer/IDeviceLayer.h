@@ -186,6 +186,24 @@ public:
   /// \brief Virtual Destructor to enable polymorphic release of the IDeviceOpsSync
   /// instances
   virtual ~IDeviceSync() = default;
+
+
+  /// \brief Allocates a consecutive chunk of memory, able to do DMA. This chunk of memory must be deallocated properly 
+  ///  using the freeDmaBuffer function.
+  ///
+  /// @param[in] sizeInBytes size, in bytes, for the memory allocation. 
+  /// @param[in] writeable indicates if the memory should be writeable or, if false, readonly.
+  ///
+  /// @returns a chunk of memory which is suitable to be used in DMA operations.
+  ///
+  virtual void* allocDmaBuffer(size_t sizeInBytes, bool writeable);
+
+  /// \brief Deallocates a previously allocated dmaBuffer.
+  ///
+  /// @param[in] dmaBuffer the buffer to be deallocated.
+  ///
+  virtual void freeDmaBuffer(void* dmaBuffer);
+  
 };
 
 class IDeviceLayer : public IDeviceAsync, public IDeviceSync {
