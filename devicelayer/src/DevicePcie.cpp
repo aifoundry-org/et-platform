@@ -416,5 +416,6 @@ void DevicePcie::freeDmaBuffer(void* dmaBuffer) {
   if (munmap(dmaBuffer, it->second) != 0) {
     throw Exception("Error munmap: '"s+ std::strerror(errno)+"'");
   }
+  dmaBuffers_.erase(it);
 }
 } // namespace dev
