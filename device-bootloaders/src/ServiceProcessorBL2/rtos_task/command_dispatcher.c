@@ -19,7 +19,7 @@
 #include "bl2_link_mgmt.h"
 #include "bl2_error_control.h"
 #include "bl2_historical_extreme.h"
-#include "minion_state.h"
+#include "minion_configuration.h"
 #include "bl2_perf.h"
 #include "bl2_timer.h"
 #include "trace.h"
@@ -50,11 +50,11 @@ static TaskHandle_t g_pc_vq_task_handle;
 static StackType_t g_pc_vq_task_stack[VQUEUE_STACK_SIZE];
 static StaticTask_t g_pc_vq_task_ptr;
 
-static TaskHandle_t g_mm_vq_task_handle;
-static StackType_t g_mm_vq_task_stack[VQUEUE_STACK_SIZE];
-static StaticTask_t g_mm_vq_task_ptr;
+static TaskHandle_t g_mm_cmd_hdlr_handle;
+static StackType_t g_mm_cmd_hdlr_stack[VQUEUE_STACK_SIZE];
+static StaticTask_t g_mm_cmd_hdlr_ptr;
 
-static void mm_vq_task(void *pvParameters);
+static void mm_cmd_hdlr_task(void *pvParameters);
 static void pc_vq_task(void *pvParameters);
 
 static void vqueue_pcie_isr(void)
@@ -76,7 +76,7 @@ static void vqueue_mm_isr(void)
     const uint32_t ipi_trigger = *(volatile uint32_t *)R_PU_TRG_MMIN_BASEADDR;
     volatile uint32_t *const ipi_clear_ptr = (volatile uint32_t *)(R_PU_TRG_MMIN_SP_BASEADDR);
 
-    xTaskNotifyFromISR(g_mm_vq_task_handle, ipi_trigger, eSetBits, &xHigherPriorityTaskWoken);
+    xTaskNotifyFromISR(g_mm_cmd_hdlr_handle, ipi_trigger, eSetBits, &xHigherPriorityTaskWoken);
 
     *ipi_clear_ptr = ipi_trigger;
 
@@ -85,7 +85,7 @@ static void vqueue_mm_isr(void)
 
 static void create_pc_vq_task(void)
 {
-    // Create PCIe VQueue task
+    /* Create PCIe VQueue task */
     g_pc_vq_task_handle = xTaskCreateStatic(pc_vq_task, "SP_PC_VQueue_Task", VQUEUE_STACK_SIZE,
                                             NULL, VQUEUE_TASK_PRIORITY, g_pc_vq_task_stack,
                                             &g_pc_vq_task_ptr);
@@ -94,14 +94,14 @@ static void create_pc_vq_task(void)
     }
 }
 
-static void create_mm_vq_task(void)
+static void create_mm_cmd_hdlr_task(void)
 {
-    // Create MM VQueue task
-    g_mm_vq_task_handle = xTaskCreateStatic(mm_vq_task, "SP_MM_VQueue_Task", VQUEUE_STACK_SIZE,
-                                            NULL, VQUEUE_TASK_PRIORITY, g_mm_vq_task_stack,
-                                            &g_mm_vq_task_ptr);
-    if (g_mm_vq_task_handle == NULL) {
-        Log_Write(LOG_LEVEL_ERROR, "xTaskCreateStatic(mm_vq_task) failed!\r\n");
+    /* Create MM_CMD_Handle_Task */
+    g_mm_cmd_hdlr_handle = xTaskCreateStatic(mm_cmd_hdlr_task, "MM_CMD_Handle_Task", VQUEUE_STACK_SIZE,
+                                            NULL, VQUEUE_TASK_PRIORITY, g_mm_cmd_hdlr_stack,
+                                            &g_mm_cmd_hdlr_ptr);
+    if (g_mm_cmd_hdlr_handle == NULL) {
+        Log_Write(LOG_LEVEL_ERROR, "xTaskCreateStatic(mm_cmd_hdlr_task) failed!\r\n");
     }
 }
 
@@ -234,21 +234,21 @@ static void pc_vq_task(void *pvParameters)
     }
 }
 
-static void mm_vq_task(void *pvParameters)
+static void mm_cmd_hdlr_task(void *pvParameters)
 {
     (void)pvParameters;
-    uint8_t buffer[SP_MM_SQ_MAX_ELEMENT_SIZE] __attribute__((aligned(8))) = { 0 };
+    uint8_t buffer[SP_MM_CQ_MAX_ELEMENT_SIZE] __attribute__((aligned(8))) = { 0 };
     struct dev_cmd_hdr_t *hdr;
     int64_t cmd_length = 0;
 
-    // Disable buffering on stdout
+    /* Disable buffering on stdout */
     setbuf(stdout, NULL);
 
     while (1)
     {
         uint32_t notificationValue;
 
-        // ISRs set notification bits per ipi_trigger in case we want them - not currently using them
+        /* ISRs set notification bits per ipi_trigger in case we want them - not currently using them */
         xTaskNotifyWait(0, 0xFFFFFFFFU, &notificationValue, portMAX_DELAY);
 
         /* Process as many new messages as possible */
@@ -264,20 +264,19 @@ static void mm_vq_task(void *pvParameters)
 
             hdr = (void *)&buffer[0];
 
-            // Process new message
+            /* Process new message */
             switch (hdr->msg_id)
             {
                 case MM2SP_CMD_ECHO:
                 {
-                    struct mm2sp_echo_cmd_t *req = (void *)buffer;
+                    struct mm2sp_echo_cmd_t *cmd = (void *)buffer;
                     struct mm2sp_echo_rsp_t rsp;
-                    rsp.msg_hdr.msg_id = MM2SP_RSP_ECHO;
-                    rsp.msg_hdr.msg_size = sizeof(struct mm2sp_echo_rsp_t);
-                    rsp.payload = req->payload;
 
-                    Log_Write(LOG_LEVEL_INFO, "MM_Iface: Received echo command 1 from MM ****\r\n");
+                    /* Initialize command header */
+                    SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_ECHO,
+                    sizeof(struct mm2sp_echo_rsp_t), cmd->msg_hdr.issuing_hart_id);
 
-                    Log_Write(LOG_LEVEL_INFO, "MM_Iface: Transmitting echo response 1 to MM ****\r\n");
+                    rsp.payload = cmd->payload;
 
                     if(0 != MM_Iface_Push_Cmd_To_MM2SP_CQ((void*)&rsp, sizeof(rsp)))
                     {
@@ -286,17 +285,85 @@ static void mm_vq_task(void *pvParameters)
 
                     break;
                 }
-            	case MM2SP_CMD_GET_ACTIVE_SHIRE_MASK:
-		        {
-                	Minion_State_MM_Iface_Process_Request(hdr->msg_id);
-                	break;
-		        }
-            	default:
+                case MM2SP_CMD_GET_ACTIVE_SHIRE_MASK:
+                {
+                    struct mm2sp_get_active_shire_mask_cmd_t *cmd = (void *)buffer;
+                    struct mm2sp_get_active_shire_mask_rsp_t rsp;
+
+                    SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_GET_ACTIVE_SHIRE_MASK,
+                    sizeof(struct mm2sp_get_active_shire_mask_rsp_t),
+                    cmd->msg_hdr.issuing_hart_id);
+
+                    rsp.active_shire_mask = Minion_State_MM_Iface_Get_Active_Shire_Mask();
+
+                    if(0 != MM_Iface_Push_Cmd_To_MM2SP_CQ((void*)&rsp, sizeof(rsp)))
+                    {
+                        Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_MM2SP_CQ: Cqueue push error!\n");
+                    }
+
+                    break;
+                }
+                case MM2SP_CMD_GET_CM_BOOT_FREQ:
+                {
+                    struct mm2sp_get_cm_boot_freq_cmd_t *cmd = (void *)buffer;
+                    struct mm2sp_get_cm_boot_freq_rsp_t rsp;
+
+                    SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_GET_CM_BOOT_FREQ,
+                    sizeof(struct mm2sp_get_cm_boot_freq_rsp_t),
+                    cmd->msg_hdr.issuing_hart_id);
+
+                    get_pll_frequency(PLL_ID_SP_PLL_4, &rsp.cm_boot_freq);
+
+                    if(0 != MM_Iface_Push_Cmd_To_MM2SP_CQ((void*)&rsp, sizeof(rsp)))
+                    {
+                        Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_MM2SP_CQ: Cqueue push error!\n");
+                    }
+
+                    break;
+                }
+                case MM2SP_EVENT_REPORT_ERROR:
+                {
+                    struct mm2sp_report_error_event_t *event = (void *)buffer;
+
+                    Log_Write(LOG_LEVEL_INFO, "MM_Error_Reported: Code = %d \r\n", event->error_code);
+
+                    if (event->error_type == MM_RECOVERABLE)
+                    {
+                        Minion_State_MM_Error_Handler(event->error_code);
+                    }
+                    else if (event->error_type == SP_RECOVERABLE)
+                    {
+                        /* Restart the Master Minion */
+                    }
+                    else
+                    {
+                        /* Not supported */
+                        Log_Write(LOG_LEVEL_ERROR, "MM2SP:Unsupported error type!\r\n");
+                    }
+
+                    break;
+                }
+                case MM2SP_EVENT_HEARTBEAT:
+                {
+                    struct mm2sp_heartbeat_event_t *event = (void *)buffer;
+
+                    /* TODO: Register watchdog timer for MM->SP heartbeats in MM_Iface_Update_MM_Heartbeat().
+                    Whenever a heatbeat is received from MM, SP will compare the minion cycles with
+                    the previously saved value, reset WD timer and if the cycles match, we have a hang.
+                    Also, if the heartbeat is not received within specified time interval of SP WD timer
+                    (error threshold of timer should be incorporated), SP detects a MM hang and resets
+                    the MM FW with taking approriate measures */
+                    if(MM_Iface_Update_MM_Heartbeat(event->minion_cycles) != 0)
+                    {
+                        Log_Write(LOG_LEVEL_ERROR, "MM2SP:Valid Heartbeat not found!\r\n");
+                    }
+
+                    break;
+                }
+                default:
                 {
                     Log_Write(LOG_LEVEL_ERROR, "[MM VQ] Invalid message id: %" PRIu16 "\r\n", hdr->msg_id);
                     Log_Write(LOG_LEVEL_ERROR, "message length: %" PRIi64 ", buffer:\r\n", cmd_length);
-                    // TODO:
-                    // Implement error handler
                     break;
                 }
             }
@@ -321,7 +388,8 @@ void launch_command_dispatcher(void)
     INT_enableInterrupt(SPIO_PLIC_MBOX_HOST_INTR, 1, vqueue_pcie_isr);
 
     /* Launch the SP-MM Command Dispatcher*/
-    create_mm_vq_task();
+    create_mm_cmd_hdlr_task();
+
     INT_enableInterrupt(SPIO_PLIC_MBOX_MMIN_INTR, 1, vqueue_mm_isr);
 }
 

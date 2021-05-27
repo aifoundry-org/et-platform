@@ -23,8 +23,29 @@
 
 #include "common_defs.h"
 #include "sp_mm_iface.h" /* header from shared/helper lib */
+#include "FreeRTOS.h"
 
+/*! \fn int8_t MM_Iface_Init(void)
+    \brief This function initialise SP to Master Minion interface.
+    \param none
+    \return Status indicating success or negative error
+*/
 int8_t MM_Iface_Init(void);
+
+/*! \fn int8_t MM_Iface_Update_MM_Heartbeat(uint64_t cycles)
+    \brief This function updates and checks the MM heartbeat for its correctness.
+    \param cycles Minion cycles
+    \return Status indicating success or negative error
+*/
+int8_t MM_Iface_Update_MM_Heartbeat(uint64_t cycles);
+
+/*! \fn int8_t MM_Iface_Send_Echo_Cmd(TickType_t timeout)
+    \brief This sends Echo command to Master Minion. It is a blocking call
+    and it waits for response for a given time.
+    This is an example to SP2MM command.
+    \return Status indicating success or negative error
+*/
+int32_t MM_Iface_Send_Echo_Cmd(void);
 
 #define MM_Iface_Push_Cmd_To_SP2MM_SQ(p_cmd, cmd_size)   \
         SP_MM_Iface_Push(SP_SQ, p_cmd, cmd_size)
@@ -35,7 +56,5 @@ int8_t MM_Iface_Init(void);
         SP_MM_Iface_Pop(MM_SQ, rx_buff)
 #define MM_Iface_Push_Cmd_To_MM2SP_CQ(p_cmd, cmd_size)   \
         SP_MM_Iface_Push(MM_CQ, p_cmd, cmd_size)
-
-//int8_t MM_Iface_Process_MM2SP_Cmds(void* cmd);
 
 #endif

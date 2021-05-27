@@ -254,6 +254,13 @@
 /* TODO: Fine tune this value according to the final device-ops-api spec */
 #define SP_CMD_MAX_SIZE      64U
 
+/*! \def SP_CMD_MAX_TIMEOUT
+    \brief A macro that provides the timeout for SP to MM commands. SP will
+           wait for response from MM for this much time at max.
+           NOTE: This value is in terms of OS ticks i.e. TickType_t.
+*/
+#define SP2MM_CMD_TIMEOUT      200
+
 /*! \def PMIC_TEMP_LOWER_SET_LIMIT
     \brief A macro that provides pmic minimum temperature threshold value
 */

@@ -28,8 +28,20 @@
 #include "error.h"
 #include "sp_mm_comms_spec.h"
 #include "mm_iface.h"
+#include "dm.h"
+#include "sp_host_iface.h"
+#include "dm_event_def.h"
 
-/*! \fn int Minion_Shire_Voltage_Update( uint8_t voltage) 
+/*!
+ * @enum minion_error_type
+ * @brief Enum defining event/error type
+ */
+enum minion_error_type {
+    EXCEPTION,
+    HANG,
+};
+
+/*! \fn int Minion_Shire_Voltage_Update( uint8_t voltage)
     \brief This function provide support to update the Minion
            Shire Power Rails
     \param value of the Voltage to updated to
@@ -37,7 +49,7 @@
 */
 int Minion_Shire_Voltage_Update( uint8_t voltage);
 
-/*! \fn int Minion_Program_Step_Clock_PLL(uint8_t mode) 
+/*! \fn int Minion_Program_Step_Clock_PLL(uint8_t mode)
     \brief This function provide support to program the
            Minion Shire Step Clock which is coming from
            IO Shire HDPLL 4
@@ -56,7 +68,7 @@ int Enable_Minion_Neighborhoods(uint64_t shire_mask);
 
 /*! \fn int Enable_Master_Shire_Threads(uint8_t mm_id)
     \brief This function enables mastershire threads
-    \param mm_id master minion shire id 
+    \param mm_id master minion shire id
     \return The function call status, pass/fail.
 */
 int Enable_Master_Shire_Threads(uint8_t mm_id);
@@ -70,16 +82,16 @@ int Enable_Compute_Minion(uint64_t minion_shires_mask);
 
 /*! \fn uint64_t Get_Active_Compute_Minion_Mask(void)
     \brief This function gets the active compute shire mask
-           by reading the value from SP OTP 
-    \param N/A 
+           by reading the value from SP OTP
+    \param N/A
     \return The function call status, pass/fail.
 */
 uint64_t Get_Active_Compute_Minion_Mask(void);
 
 
 /*! \fn int Load_Autheticate_Minion_Firmware(void)
-    \brief This function loads and authenticates the 
-           Minions firmware 
+    \brief This function loads and authenticates the
+           Minions firmware
     \param  N/A
     \return The function call status, pass/fail.
 */
@@ -88,7 +100,7 @@ int Load_Autheticate_Minion_Firmware(void);
 /*! \fn int Minion_Shire_PLL_Update_Freq(uint8_t mode)
     \brief This function supports updating the Minion
            Shire PLL dynamically without stoppong the
-           cores 
+           cores
     \param  value of the freq(in mode) to updated to
     \return The function call status, pass/fail.
 */
@@ -106,7 +118,7 @@ uint64_t Minion_ESR_read(uint32_t address);
     \brief This function supports writing to a Minion Shire
            ESR with specific data
     \param  ESR address offset
-    \param  Data to be written to 
+    \param  Data to be written to
     \param  Minion Shire Mask
     \return The function call status, pass/fail.
 */
@@ -116,8 +128,86 @@ int Minion_ESR_write(uint32_t address, uint64_t data, uint64_t mmshire_mask);
     \brief This function supports launching a compute Kernel on specific
             Shires
     \param  Minion Shire mask to launch Compute kernel on
-    \param  Arguments to the Compute Kernel 
+    \param  Arguments to the Compute Kernel
     \return The function call status, pass/fail.
 */
 int Minion_Kernel_Launch(uint64_t mmshire_mask, void *args);
+
+/*! \brief Initialize Minion state service
+    \param active_shire_mask Mask of active Shires
+    \returns none
+*/
+void Minion_State_Init(uint64_t active_shire_mask);
+
+/*! \fn void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
+    \brief Process the Minion State related host request
+    \param tag_id Tag ID
+    \param msg_id Unique enum representing specific command
+    \returns none
+*/
+void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id);
+
+/*! \fn uint64_t Minion_State_MM_Iface_Get_Active_Shire_Mask(void)
+    \brief Return current active shires mask.
+    \returns none
+*/
+uint64_t Minion_State_MM_Iface_Get_Active_Shire_Mask(void);
+
+/*! \fn void Minion_State_MM_Error_Handler(int32_t msg_id)
+    \brief Process the Minion State errors.
+    \param msg_id Unique enum representing specific error.
+    \returns none
+*/
+void Minion_State_MM_Error_Handler(int32_t msg_id);
+
+/*! \fn int32_t Minion_State_Error_Control_Init(dm_event_isr_callback event_cb)
+    \brief This function initializes the Minion error control subsystem, including
+           programming the default error thresholds, enabling the error interrupts
+           and setting up globals.
+    \param event_cb pointer to the error call back function
+    \return Status indicating success or negative error
+*/
+
+int32_t Minion_State_Error_Control_Init(dm_event_isr_callback event_cb);
+
+/*! \fn int32_t Minion_State_Error_Control_Deinit(void)
+    \brief This function cleans up the minion error control subsystem.
+    \param none
+    \return Status indicating success or negative error
+*/
+
+int32_t Minion_State_Error_Control_Deinit(void);
+
+/*! \fn int32_t Minion_State_Set_Exception_Error_Threshold(uint32_t ce_threshold)
+    \brief This function programs the minion exception error threshold
+    \param ce_threshold threshold value to set
+    \return Status indicating success or negative error
+*/
+
+int32_t Minion_State_Set_Exception_Error_Threshold(uint32_t ce_threshold);
+
+/*! \fn int32_t Minion_State_Set_Hang_Error_Threshold(uint32_t ce_threshold)
+    \brief This function programs the minion hang error threshold
+    \param ce_threshold threshold value to set
+    \return Status indicating success or negative error
+*/
+
+int32_t Minion_State_Set_Hang_Error_Threshold(uint32_t ce_threshold);
+
+/*! \fn int32_t Minion_State_Get_Exception_Error_Count(uint32_t *err_count)
+    \brief This function returns the minion exception error count
+    \param err_count pointer to variable to hold count value
+    \return Status indicating success or negative error
+*/
+
+int32_t Minion_State_Get_Exception_Error_Count(uint32_t *err_count);
+
+/*! \fn int32_t Minion_State_Get_Hang_Error_Count(uint32_t *err_count)
+    \brief This function returns the minion hang error count
+    \param err_count pointer to variable to hold count value
+    \return Status indicating success or negative error
+*/
+
+int32_t Minion_State_Get_Hang_Error_Count(uint32_t *err_count);
+
 #endif

@@ -8,14 +8,24 @@
 * agreement/contract under which the program(s) have been supplied.
 ************************************************************************/
 /*! \file minion_configuration.c
-    \brief A C module that implements the minion shire configuration services. 
+    \brief A C module that implements the minion shire configuration services.
 
     Public interfaces:
         Enable_Minion_Neighborhoods
         Enable_Master_Shire_Threads
         Enable_Compute_Minion
         Get_Active_Compute_Minion_Mask
-        Load_Autheticate_Minion_Firmware 
+        Load_Autheticate_Minion_Firmware
+        Minion_State_Init
+        Minion_State_MM_Iface_Get_Active_Shire_Mask
+        Minion_State_MM_Error_Handler
+        Minion_State_Host_Iface_Process_Request
+        Minion_State_Error_Control_Init
+        Minion_State_Error_Control_Deinit
+        Minion_State_Set_Exception_Error_Threshold
+        Minion_State_Set_Hang_Error_Threshold
+        Minion_State_Get_Exception_Error_Count
+        Minion_State_Get_Hang_Error_Count
 */
 /***********************************************************************/
 #include <stdio.h>
@@ -25,6 +35,26 @@
 
 #include "minion_esr_defines.h"
 #include "minion_configuration.h"
+
+/*!
+ * @struct struct minion_event_control_block
+ * @brief Minion error event mgmt control block
+ */
+struct minion_event_control_block {
+    uint32_t except_count;       /**< Exception error count. */
+    uint32_t hang_count;         /**< Hang error count. */
+    uint32_t except_threshold;   /**< Exception error count threshold. */
+    uint32_t hang_threshold;     /**< Hang error count threshold. */
+    uint64_t active_shire_mask;  /**< active shire number mask. */
+    dm_event_isr_callback event_cb; /**< Event callback handler. */
+};
+
+/* The driver can populate this structure with the defaults that will be used during the init
+    phase.*/
+
+static struct minion_event_control_block event_control_block __attribute__((section(".data")));
+
+static uint64_t g_active_shire_mask = 0;
 
 /*==================== Function Separator =============================*/
 
@@ -60,8 +90,8 @@ static int pll_config(uint8_t shire_id)
 
 static int configure_minion_plls_and_dlls(uint64_t shire_mask)
 {
-    int status = MINION_PLL_DLL_CONFIG_ERROR; 
-    for (uint8_t i = 0; i <= 32; i++) 
+    int status = MINION_PLL_DLL_CONFIG_ERROR;
+    for (uint8_t i = 0; i <= 32; i++)
     {
         if (shire_mask & 1) {
           status = pll_config(i);
@@ -73,9 +103,9 @@ static int configure_minion_plls_and_dlls(uint64_t shire_mask)
 
 int Enable_Minion_Neighborhoods(uint64_t shire_mask)
 {
-    for (uint8_t i = 0; i <= 32; i++) 
+    for (uint8_t i = 0; i <= 32; i++)
     {
-        if (shire_mask & 1) 
+        if (shire_mask & 1)
         {
             /* Set Shire ID, enable cache and all Neighborhoods */
             const uint64_t config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_SHIRE_ID_SET(i) |
@@ -191,10 +221,9 @@ int Load_Autheticate_Minion_Firmware(void)
         Log_Write(LOG_LEVEL_ERROR, "Failed to load Master Minion firmware!\n");
         return FW_MM_LOAD_ERROR;
     }
-    Log_Write(LOG_LEVEL_INFO, "MM FW loaded.\n");
+    Log_Write(LOG_LEVEL_INFO, "MM FW loaded.\n\r \
+                              Attempting to load Worker Minion firmware...\n");
 
-    // TODO: Update the following to Log macro - set to INFO/DEBUG
-    //Log_Write(LOG_LEVEL_ERROR, "Attempting to load Worker Minion firmware...\n");
     if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_WORKER_MINION)) {
         Log_Write(LOG_LEVEL_ERROR, "Failed to load Worker Minion firmware!\n");
         return FW_CM_LOAD_ERROR;
@@ -214,7 +243,7 @@ int Minion_Shire_PLL_Update_Freq(uint8_t mode)
     cmd.freq = mode;
 
     MM_Iface_Push_Cmd_To_SP2MM_SQ(&cmd, sizeof(cmd));
-    
+
     return 0;
 }
 
@@ -248,5 +277,257 @@ int Minion_Kernel_Launch(uint64_t mmshire_mask, void *args)
 
     MM_Iface_Push_Cmd_To_SP2MM_SQ(&cmd, sizeof(cmd));
 
+    return 0;
+}
+
+static int get_mm_error_count(struct mm_error_count_t *mm_error_count)
+{
+    /* TODO : Get the thread state from MM.
+       https://esperantotech.atlassian.net/browse/SW-6744
+       Currently providing dummy response.*/
+    mm_error_count->hang_count = 0;
+    mm_error_count->exception_count = 0;
+
+    return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       minion_error_update_count
+*
+*   DESCRIPTION
+*
+*       This function updates error count depending upon error type
+*       either EXCEPTION or HANG.
+*
+*   INPUTS
+*
+*       uint8_t Error type to update counter for
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void minion_error_update_count(uint8_t error_type)
+{
+    /* TODO: This is just an example implementation.
+       The final driver implementation will read these values from the
+       hardware, create a message and invoke call back with message and error type as parameters. */
+
+    struct event_message_t message;
+
+    switch (error_type)
+    {
+        case EXCEPTION:
+            if(++event_control_block.except_count > event_control_block.except_threshold) {
+
+                /* add details in message header and fill payload */
+                FILL_EVENT_HEADER(&message.header, MINION_EXCEPT_TH,
+                                    sizeof(struct event_message_t));
+                FILL_EVENT_PAYLOAD(&message.payload, WARNING, 1024, 1, 0);
+
+                /* call the callback function and post message */
+                event_control_block.event_cb(CORRECTABLE, &message);
+            }
+            break;
+
+        case HANG:
+            if(++event_control_block.hang_count > event_control_block.hang_threshold) {
+
+                /* add details in message header and fill payload */
+                FILL_EVENT_HEADER(&message.header, MINION_HANG_TH,
+                                    sizeof(struct event_message_t));
+                FILL_EVENT_PAYLOAD(&message.payload, WARNING, 1020, 1, 0);
+
+                /* call the callback function and post message */
+                event_control_block.event_cb(CORRECTABLE, &message);
+            }
+
+        default:
+            break;
+        }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_State_Init
+*
+*   DESCRIPTION
+*
+*       This function Initialize Minion state service.
+*
+*   INPUTS
+*
+*       uint64_t  Mask of active Shires
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Minion_State_Init(uint64_t active_shire_mask)
+{
+    g_active_shire_mask = active_shire_mask;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_State_MM_Iface_Get_Active_Shire_Mask
+*
+*   DESCRIPTION
+*
+*       This function returns current active shires mask.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       uint64_t Current active shires mask.
+*
+***********************************************************************/
+uint64_t Minion_State_MM_Iface_Get_Active_Shire_Mask(void)
+{
+    return g_active_shire_mask;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_State_Host_Iface_Process_Request
+*
+*   DESCRIPTION
+*
+*       This function process Host requests related to Master Minion state.
+*
+*   INPUTS
+*
+*       tag_id_t Unique tag ID of incoming command.
+        msg_id   Message ID of incoming command.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
+{
+    uint64_t req_start_time;
+    int32_t status;
+    req_start_time = timer_get_ticks_count();
+
+    switch (msg_id) {
+        case DM_CMD_GET_MM_ERROR_COUNT: {
+            struct device_mgmt_mm_state_rsp_t dm_rsp;
+
+            status = get_mm_error_count(&dm_rsp.mm_error_count);
+
+            if (0 != status) {
+                Log_Write(LOG_LEVEL_ERROR, " mm state svc error: get_mm_error_count()\r\n");
+            }
+
+            FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_GET_MM_ERROR_COUNT,
+                            timer_get_ticks_count() - req_start_time, status);
+
+            if (0 !=
+                SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_mm_state_rsp_t))) {
+                Log_Write(LOG_LEVEL_ERROR, "Minion_State_Host_Iface_Process_Request: Cqueue push error!\n");
+            }
+            break;
+        }
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_State_MM_Error_Handler
+*
+*   DESCRIPTION
+*
+*       This function process the Minion State errors.
+*
+*   INPUTS
+*
+*       int32_t Unique enum representing specific error.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Minion_State_MM_Error_Handler(int32_t error_code)
+{
+    switch (error_code) {
+        case MM_HANG_ERROR: {
+            /* update error count for Hang type */
+            minion_error_update_count(HANG);
+            break;
+        }
+        default:{
+            /* update error count for Exception type */
+            minion_error_update_count(EXCEPTION);
+            break;
+        }
+    }
+}
+
+int32_t Minion_State_Error_Control_Init(dm_event_isr_callback event_cb)
+{
+    /* register event callback */
+    event_control_block.event_cb = event_cb;
+
+    /* Set default counters to zero. */
+    event_control_block.except_count = 0;
+    event_control_block.hang_count = 0;
+
+    /* set default thershold values */
+    event_control_block.except_threshold = 5;
+    event_control_block.hang_threshold = 1;
+
+    return 0;
+}
+
+int32_t Minion_State_Error_Control_Deinit(void)
+{
+    event_control_block.event_cb = NULL;
+    return 0;
+}
+
+int32_t Minion_State_Set_Exception_Error_Threshold(uint32_t th_value)
+{
+    /* set errors count threshold */
+    event_control_block.except_threshold = th_value;
+    return 0;
+}
+
+int32_t Minion_State_Set_Hang_Error_Threshold(uint32_t th_value)
+{
+    /* set errors count threshold */
+    event_control_block.hang_threshold = th_value;
+    return 0;
+}
+
+int32_t Minion_State_Get_Exception_Error_Count(uint32_t *err_count)
+{
+    /* get exceptionerrors count */
+    *err_count = event_control_block.except_count;
+    return 0;
+}
+
+int32_t Minion_State_Get_Hang_Error_Count(uint32_t *err_count)
+{
+    /* get hang errors count */
+    *err_count = event_control_block.hang_count;
     return 0;
 }

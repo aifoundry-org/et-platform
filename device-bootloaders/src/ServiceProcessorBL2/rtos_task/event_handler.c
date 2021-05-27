@@ -20,7 +20,7 @@
 #include "bl2_pmic_controller.h"
 #include "mem_controller.h"
 #include "bl2_watchdog.h"
-#include "minion_state.h"
+#include "minion_configuration.h"
 #include "pcie_configuration.h"
 
 /* The variable used to hold the queue's data structure. */
@@ -84,7 +84,7 @@ int32_t dm_event_control_init(void)
                 if (!status) {
                     status = watchdog_error_init(wdog_timeout_callback);
                     if (!status) {
-                        status = minion_error_control_init(minion_event_callback);
+                        status = Minion_State_Error_Control_Init(minion_event_callback);
                         if (!status) {
                             status = pmic_error_control_init(pmic_event_callback);
                         }
@@ -220,6 +220,6 @@ void pmic_event_callback(enum error_type type, struct event_message_t *msg)
     //Type is always uncorectable, maybe it will be changed in the future
     (void)type;
 
-    xTaskNotifyFromISR(t_handle, (uint32_t) msg->header.msg_id, 
+    xTaskNotifyFromISR(t_handle, (uint32_t) msg->header.msg_id,
                         eSetValueWithOverwrite, (BaseType_t *)pdTRUE);
 }

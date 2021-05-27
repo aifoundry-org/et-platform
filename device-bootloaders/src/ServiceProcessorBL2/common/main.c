@@ -25,7 +25,6 @@
 #include "bl2_vaultip_driver.h"
 #include "bl2_reset.h"
 #include "bl2_sp_pll.h"
-#include "minion_state.h"
 
 #include "minion_configuration.h"
 #include "mem_controller.h"
@@ -80,15 +79,6 @@ static int32_t configure_noc(void)
    // Other potential NOC workarounds
 
    return SUCCESS;
-}
-
-// FIXME: SW-7879 Remove when MM-SP FREQ_REQ is implememtation
-static inline void write_minion_fw_boot_config(uint64_t minion_shires)
-{
-    volatile minion_fw_boot_config_t *boot_config;
-    // Use "High" DDR aliased addresses (bit 38) which are uncacheable by the SP
-    boot_config = (volatile minion_fw_boot_config_t *)(FW_MINION_FW_BOOT_CONFIG | (1ULL << 38));
-    boot_config->minion_shires = minion_shires;
 }
 
 static TaskHandle_t gs_taskHandleMain;
@@ -178,10 +168,6 @@ static void taskMain(void *pvParameters)
         goto FIRMWARE_LOAD_ERROR;
     }
 
-    // TODO: SW-7879 Remove this once MM-SP get_freq function is implemented
-    // Write Minion FW boot config before booting Minion threads up
-    write_minion_fw_boot_config(minion_shires_mask);
-
     // TODO: SW-3877 need to READ Master Shire ID from OTP, potentially reprogram NOC
     if (0 != Enable_Master_Shire_Threads(32)) {
         Log_Write(LOG_LEVEL_ERROR, "Failed to enable Master minion threads!\n");
@@ -229,6 +215,7 @@ static void taskMain(void *pvParameters)
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DEV_READY);
     Log_Write(LOG_LEVEL_INFO, "SP Device Ready!\n");
+
 
     // Init DM sampling task
     init_dm_sampling_task();

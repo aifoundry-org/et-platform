@@ -83,7 +83,6 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
         ${CMAKE_CURRENT_SOURCE_DIR}/services/link_mgmt.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/error_control.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/historical_extreme.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/services/minion_state.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/dm_events.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/perf_mgmt.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/thermal_pwr_mgmt.c

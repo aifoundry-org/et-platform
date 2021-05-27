@@ -61,4 +61,10 @@
 #define THERMAL_PWR_MGMT_EVENT_NOT_INITIALIZED       -8001
 #define THERMAL_PWR_MGMT_TASK_CREATION_FAILED        -8002
 
+/* MM IFACE Error Codes. */
+#define MM_IFACE_SP2MM_CMD_ERROR                     -8050
+#define MM_IFACE_SP2MM_TIMEOUT_ERROR                 -8051
+#define MM_IFACE_SP2MM_INVALID_RESPONSE              -8052
+#define MM_IFACE_SP2MM_CMD_PUSH_ERROR                -8053
+
 #endif
