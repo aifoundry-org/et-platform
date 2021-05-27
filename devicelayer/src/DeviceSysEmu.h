@@ -54,7 +54,7 @@ public:
   int getDmaAlignment() const override;
   uint64_t getDramSize() const override;
   uint64_t getDramBaseAddress() const override;
-  void* allocDmaBuffer(size_t sizeInBytes, bool writeable) override;
+  void* allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) override;
   void freeDmaBuffer(void* dmaBuffer) override;
 
 private:

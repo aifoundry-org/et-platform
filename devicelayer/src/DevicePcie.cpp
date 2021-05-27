@@ -18,6 +18,7 @@
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#include <sys/mman.h>
 
 using namespace dev;
 using namespace std::string_literals;
@@ -392,9 +393,28 @@ bool DevicePcie::receiveResponseServiceProcessor(int device, std::vector<std::by
   return wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_POP_CQ, &rspInfo);
 }
 
-void* DevicePcie::allocDmaBuffer(size_t sizeInBytes, bool writeable) {
-  return nullptr;
+void* DevicePcie::allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) {
+  if (device >= static_cast<int>(devices_.size())) {
+    throw Exception("Invalid device");
+  }
+  // NOTE fdOps_ must be open with O_RDWR for PROT_READ/PROT_WRITE with MAP_SHARED
+  // Argument "prot" can be one of PROT_WRITE, PROT_READ, or both. Refer: https://man7.org/linux/man-pages/man2/mmap.2.html
+  auto res = mmap(NULL, sizeInBytes, PROT_READ | (writeable ? PROT_WRITE : 0), MAP_SHARED, devices_[static_cast<uint32_t>(device)].fdOps_, 0);
+
+  if (res == MAP_FAILED) {
+    throw Exception("Error mmap: '"s+ std::strerror(errno)+"'");
+  }
+  dmaBuffers_[res] = sizeInBytes;
+  return res;
+
 }
 void DevicePcie::freeDmaBuffer(void* dmaBuffer) {
+  auto it = dmaBuffers_.find(dmaBuffer);
+  if (it == end(dmaBuffers_)) {
+    throw Exception("Can't free a non previously allocated DmaBuffer");
+  }
+  if (munmap(dmaBuffer, it->second) != 0) {
+    throw Exception("Error munmap: '"s+ std::strerror(errno)+"'");
+  }
 }
 } // namespace dev

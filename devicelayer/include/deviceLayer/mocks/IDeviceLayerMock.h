@@ -34,5 +34,7 @@ public:
   MOCK_CONST_METHOD0(getDramSize, uint64_t()); 
   MOCK_CONST_METHOD0(getDramBaseAddress, uint64_t());
   MOCK_CONST_METHOD0(getDevicesCount, int());
+  MOCK_METHOD3(allocDmaBuffer, void*(int, size_t sizeInBytes, bool ));
+  MOCK_METHOD1(freeDmaBuffer, void(void* ));
 };
 }

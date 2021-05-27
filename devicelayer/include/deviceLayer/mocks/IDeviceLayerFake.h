@@ -139,7 +139,7 @@ public:
   uint64_t getDramBaseAddress() const override {
     return 0x8000;
   }
-  void* allocDmaBuffer(size_t sizeInBytes, bool ) override {
+  void* allocDmaBuffer(int, size_t sizeInBytes, bool ) override {
     return malloc(sizeInBytes);
   }
   void freeDmaBuffer(void* dmaBuffer) override {

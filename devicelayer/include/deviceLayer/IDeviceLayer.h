@@ -196,7 +196,7 @@ public:
   ///
   /// @returns a chunk of memory which is suitable to be used in DMA operations.
   ///
-  virtual void* allocDmaBuffer(size_t sizeInBytes, bool writeable) = 0;
+  virtual void* allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) = 0; 
 
   /// \brief Deallocates a previously allocated dmaBuffer.
   ///

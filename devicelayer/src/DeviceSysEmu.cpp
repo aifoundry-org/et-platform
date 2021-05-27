@@ -75,11 +75,11 @@ int DeviceSysEmu::getDevicesCount() const {
   return kNumDevices;
 }
 
-int DeviceSysEmu::getSubmissionQueuesCount(int device) const {
+int DeviceSysEmu::getSubmissionQueuesCount(int) const {
   return mmInfo_.vq_attr.sq_count;
 }
 
-size_t DeviceSysEmu::getSubmissionQueueSizeMasterMinion(int device) const {
+size_t DeviceSysEmu::getSubmissionQueueSizeMasterMinion(int) const {
   // Submission queue size discovered from DIRs is sum of actual circular buffer and
   // it's header. User of this function doesn't need to know the underlying details
   // and should get the buffer size.
@@ -87,7 +87,7 @@ size_t DeviceSysEmu::getSubmissionQueueSizeMasterMinion(int device) const {
   return submissionQueuesMM_[0].size_ - sizeof(CircBuffCb);
 }
 
-size_t DeviceSysEmu::getSubmissionQueueSizeServiceProcessor(int device) const {
+size_t DeviceSysEmu::getSubmissionQueueSizeServiceProcessor(int) const {
   // Submission queue size discovered from DIRs is sum of actual circular buffer and
   // it's header. User of this function doesn't need to know the underlying details
   // and should get the buffer size.
@@ -116,7 +116,7 @@ DeviceSysEmu::DeviceSysEmu(const emu::SysEmuOptions& options) {
       // Device Operations:
       //  - MSI Vector[1] - Ops VQ
       auto bitmask = sysEmu_->waitForInterrupt(0xffffffff);
-      for (int i = 0; i < 32; ++i) {
+      for (uint32_t i = 0; i < 32; ++i) {
         if (bitmask & 1u << i) {
           interruptBlock_[i].notify_all();
         }
@@ -178,7 +178,8 @@ bool DeviceSysEmu::sendCommand(QueueInfo& queueInfo, std::byte* command, size_t 
   return true;
 }
 
-bool DeviceSysEmu::sendCommandMasterMinion(int device, int sq_idx, std::byte* command, size_t commandSize, bool) {
+bool DeviceSysEmu::sendCommandMasterMinion(int, int sqIdx, std::byte* command, size_t commandSize, bool) {
+  auto sq_idx = static_cast<uint32_t>(sqIdx);
   if (sq_idx >= submissionQueuesMM_.size()) {
     throw Exception("Invalid queue");
   }
@@ -197,7 +198,7 @@ bool DeviceSysEmu::sendCommandMasterMinion(int device, int sq_idx, std::byte* co
   return res;
 }
 
-bool DeviceSysEmu::sendCommandServiceProcessor(int device, std::byte* command, size_t commandSize) {
+bool DeviceSysEmu::sendCommandServiceProcessor(int, std::byte* command, size_t commandSize) {
   bool clearEvent = true;
   auto res = sendCommand(submissionQueueSP_, command, commandSize, clearEvent);
   if (res) {
@@ -233,8 +234,7 @@ bool DeviceSysEmu::checkForEventEPOLLOUT(QueueInfo& queueInfo) {
   return getAvailSpace(buffer) >= queueInfo.thresholdBytes_;
 }
 
-void DeviceSysEmu::waitForEpollEventsMasterMinion(int device, uint64_t& sq_bitmap, bool& cq_available,
-                                                  std::chrono::seconds timeout) {
+void DeviceSysEmu::waitForEpollEventsMasterMinion(int, uint64_t& sq_bitmap, bool& cq_available, std::chrono::seconds timeout) {
   DV_VLOG(HIGH) << "Waiting for interrupt from master minion";
   sq_bitmap = 0;
   cq_available = false;
@@ -245,7 +245,7 @@ void DeviceSysEmu::waitForEpollEventsMasterMinion(int device, uint64_t& sq_bitma
       return true;
     uint64_t tempSqBitmap = 0;
     bool tempCqAvailable = false;
-    for (auto sq_idx = 0; sq_idx < mmInfo_.vq_attr.sq_count; ++sq_idx) {
+    for (uint32_t sq_idx = 0; sq_idx < mmInfo_.vq_attr.sq_count; ++sq_idx) {
       if (checkForEventEPOLLOUT(submissionQueuesMM_[sq_idx])) {
         tempSqBitmap |= (0x1U << sq_idx);
       }
@@ -265,8 +265,7 @@ void DeviceSysEmu::waitForEpollEventsMasterMinion(int device, uint64_t& sq_bitma
              << " CQ_AVAILABLE: " << cq_available;
 }
 
-void DeviceSysEmu::waitForEpollEventsServiceProcessor(int device, bool& sq_available, bool& cq_available,
-                                                      std::chrono::seconds timeout) {
+void DeviceSysEmu::waitForEpollEventsServiceProcessor(int, bool& sq_available, bool& cq_available, std::chrono::seconds timeout) {
   DV_VLOG(HIGH) << "Waiting for interrupt from service processor";
 
   sq_available = false;
@@ -289,14 +288,15 @@ void DeviceSysEmu::waitForEpollEventsServiceProcessor(int device, bool& sq_avail
              << " CQ_AVAILABLE: " << cq_available;
 }
 
-void DeviceSysEmu::setSqThresholdMasterMinion(int device, int sqIdx, uint32_t bytesNeeded) {
+void DeviceSysEmu::setSqThresholdMasterMinion(int, int idx, uint32_t bytesNeeded) {
+  auto sqIdx = static_cast<uint32_t>(idx); 
   if (!bytesNeeded || bytesNeeded > (submissionQueuesMM_[sqIdx].size_ - sizeof(CircBuffCb))) {
     throw Exception("Invalid value for bytesNeeded");
   }
   submissionQueuesMM_[sqIdx].thresholdBytes_ = bytesNeeded;
 }
 
-void DeviceSysEmu::setSqThresholdServiceProcessor(int device, uint32_t bytesNeeded) {
+void DeviceSysEmu::setSqThresholdServiceProcessor(int, uint32_t bytesNeeded) {
   if (!bytesNeeded || bytesNeeded > (submissionQueueSP_.size_ - sizeof(CircBuffCb))) {
     throw Exception("Invalid value for bytesNeeded");
   }
@@ -362,7 +362,7 @@ bool DeviceSysEmu::receiveResponse(QueueInfo& queue, std::vector<std::byte>& res
   return true;
 }
 
-bool DeviceSysEmu::receiveResponseMasterMinion(int device, std::vector<std::byte>& response) {
+bool DeviceSysEmu::receiveResponseMasterMinion(int, std::vector<std::byte>& response) {
   DV_VLOG(HIGH) << "Start receiving response from Master Minion";
   bool clearEvent = true;
   auto tmp = receiveResponse(completionQueueMM_, response, clearEvent);
@@ -373,7 +373,7 @@ bool DeviceSysEmu::receiveResponseMasterMinion(int device, std::vector<std::byte
   return tmp;
 }
 
-bool DeviceSysEmu::receiveResponseServiceProcessor(int device, std::vector<std::byte>& response) {
+bool DeviceSysEmu::receiveResponseServiceProcessor(int, std::vector<std::byte>& response) {
   DV_VLOG(HIGH) << "Start receiving response from Service Processor";
   bool clearEvent = true;
   auto tmp = receiveResponse(completionQueueSP_, response, clearEvent);
@@ -424,7 +424,7 @@ void DeviceSysEmu::setupServiceProcessor() {
       // single submission queue model
       submissionQueueSP_.bufferAddress_ = barAddress_[bar] + barOffset + sqOffset;
       submissionQueueSP_.size_ = sqSize * sqCount;
-      submissionQueueSP_.thresholdBytes_ = (submissionQueueSP_.size_ - sizeof(CircBuffCb)) / 4;
+      submissionQueueSP_.thresholdBytes_ = static_cast<uint32_t>(submissionQueueSP_.size_ - sizeof(CircBuffCb)) / 4;
       // single completion queue model
       completionQueueSP_.bufferAddress_ = barAddress_[bar] + barOffset + cqOffset;
       completionQueueSP_.size_ = cqSize * cqCount;
@@ -493,7 +493,7 @@ void DeviceSysEmu::setupMasterMinion() {
   throw Exception("Timeout MM virtual queue discovery");
 }
 
-void* DeviceSysEmu::allocDmaBuffer(size_t sizeInBytes, bool ) {
+void* DeviceSysEmu::allocDmaBuffer(int, size_t sizeInBytes, bool ) {
   return malloc(sizeInBytes);
 }
 
