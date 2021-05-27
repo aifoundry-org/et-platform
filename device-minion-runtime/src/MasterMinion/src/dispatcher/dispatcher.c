@@ -44,7 +44,6 @@
 #include "services/host_iface.h"
 #include "services/host_cmd_hdlr.h"
 #include "services/sp_iface.h"
-#include "sp_mm_comms_spec.h"
 #include "services/log.h"
 #include "services/sw_timer.h"
 #include "services/trace.h"
@@ -65,14 +64,14 @@ extern bool SW_Timer_Interrupt_Flag;
 
 /* Local functions */
 
-static inline void dispatcher_assert(bool condition, const char* error_log)
+static inline void dispatcher_assert(bool condition, enum mm2sp_error_codes_e error, const char* error_log)
 {
     if (!condition)
     {
         /* Report error in DIRs */
         DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_FW_ERROR);
 
-        /* TODO: Report error to SP */
+        MM2SP_Report_Error(MM_DISPATCHER, error);
 
         /* Assert with failure */
         ASSERT(false, error_log);
@@ -109,10 +108,17 @@ void Dispatcher_Launch(uint32_t hart_id)
     /* Initialize Trace for Master Minions in default configuration. */
     Trace_Init_MM(NULL);
 
+    /* Initialize Service Processor interface, it consists;
+    1. MM to SP SQ, and MM to SQ CQ
+    2. SP to MM SQ, and Sp to MM CQ */
+    status = SP_Iface_Init();
+    dispatcher_assert(status == STATUS_SUCCESS, DISPATCHER_SP_IFACE_INIT_ERROR,
+                                                        "Service Processor init failure.");
+
     /* Initialize Serial Interface */
     status = (int8_t)SERIAL_init(UART0);
-    dispatcher_assert(status == STATUS_SUCCESS, "Serial init failure.");
-
+    dispatcher_assert(status == STATUS_SUCCESS, DISPATCHER_SERIAL_INIT_ERROR,
+                                                            "Serial init failure.");
     Log_Write(LOG_LEVEL_CRITICAL,
         "Dispatcher:launched on H%d\r\n", hart_id);
 
@@ -131,12 +137,15 @@ void Dispatcher_Launch(uint32_t hart_id)
     PMC_RESET_CYCLES_COUNTER;
 
     /* Initialize the interface to compute minion */
-    CM_Iface_Init();
+    status = CM_Iface_Init();
+    dispatcher_assert(status == STATUS_SUCCESS, DISPATCHER_CM_IFACE_INIT_ERROR,
+                                            "Compute Workers's interface init failure.");
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_CM_INTERFACE_READY);
 
     /* Initialize Computer Workers */
     status = CW_Init();
-    dispatcher_assert(status == STATUS_SUCCESS, "Compute Workers init failure.");
+    dispatcher_assert(status == STATUS_SUCCESS, DISPATCHER_CW_INIT_ERROR,
+                                                        "Compute Workers init failure.");
 
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_CM_WORKERS_INITIALIZED);
 
@@ -151,18 +160,14 @@ void Dispatcher_Launch(uint32_t hart_id)
 
     /* Initialize Host Submission Queue and Completion Queue Interface */
     status = Host_Iface_SQs_Init();
-    dispatcher_assert(status == STATUS_SUCCESS, "Host SQs init failure.");
+    dispatcher_assert(status == STATUS_SUCCESS, DISPATCHER_SQ_INIT_ERROR,
+                                                                "Host SQs init failure.");
 
     status = Host_Iface_CQs_Init();
-    dispatcher_assert(status == STATUS_SUCCESS, "Host CQs init failure.");
+    dispatcher_assert(status == STATUS_SUCCESS, DISPATCHER_CQ_INIT_ERROR,
+                                                                "Host CQs init failure.");
 
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_HOST_VQ_READY);
-
-    /* Initialize Service Processor interface, it consists;
-    1. MM to SP SQ, and MM to SQ CQ
-    2. SP to MM SQ, and Sp to MM CQ */
-    status = SP_Iface_Init();
-    dispatcher_assert(status == STATUS_SUCCESS, "Service Processor init failure.");
 
     /* #define FOR_TESTING_SP_MM_IFACE */
     #ifdef FOR_TESTING_SP_MM_IFACE //TODO: remove after proper integration

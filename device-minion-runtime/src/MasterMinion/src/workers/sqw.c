@@ -43,6 +43,7 @@
 #include <esperanto/device-apis/device_apis_message_types.h>
 #include "pmu.h"
 #include "etsoc_memory.h"
+#include "services/sp_iface.h"
 
 /*! \typedef sqw_cmds_barrier_t
     \brief Submission Queue Worker Commands Barrier Control Block structure
@@ -110,7 +111,7 @@ static inline void sqw_command_barrier(uint8_t sqw_idx)
 
     cmds_barrier.raw_u64 = atomic_load_local_64(&SQW_CB.sqw_barrier[sqw_idx].raw_u64);
     Log_Write(LOG_LEVEL_DEBUG, "SQW[%d]:Outstanding Cmd Cnt: %d\r\n",sqw_idx, (uint32_t)cmds_barrier.cmds_count);
-     
+
     /* Spin-wait until the commands count is zero or timeout has occured */
     do
     {
@@ -132,6 +133,8 @@ static inline void sqw_command_barrier(uint8_t sqw_idx)
                 "SQW: Command Barrier timeout abort! Unpredictable behaviour of next command.\r\n");
 
             /* TODO: Send asynchronous event back to host to indicate barrier timeout. */
+
+            MM2SP_Report_Error(MM_SQ_WORKER, SQW_CMD_BARRIER_TIMEOUT_ERROR);
         }
     }
 }
@@ -255,12 +258,14 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
     if (!(IS_ALIGNED(&circ_buff_cached.head_offset, 8) && IS_ALIGNED(&vq_cached.circbuff_cb->head_offset, 8)))
     {
         Log_Write(LOG_LEVEL_ERROR, "SQW:SQ HEAD not 64-bit aligned\r\n");
+        MM2SP_Report_Error(MM_SQ_WORKER, SQW_SQ_BUFFER_ALIGNMENT_ERROR);
     }
 
     /* Verify that the tail pointer in cached variable and shared SRAM are 8-byte aligned addresses */
     if (!(IS_ALIGNED(&circ_buff_cached.tail_offset, 8) && IS_ALIGNED(&vq_cached.circbuff_cb->tail_offset, 8)))
     {
         Log_Write(LOG_LEVEL_ERROR, "SQW:SQ tail not 64-bit aligned\r\n");
+        MM2SP_Report_Error(MM_SQ_WORKER, SQW_SQ_BUFFER_ALIGNMENT_ERROR);
     }
 
     /* Update the local VQ CB to point to the cached L1 stack variable */
@@ -294,6 +299,8 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
             Log_Write(LOG_LEVEL_ERROR,
             "SQW:FATAL_ERROR:Tail Mismatch:Cached: %ld, Shared Memory: %ld Using cached value as fallback mechanism\r\n",
             tail_prev, VQ_Get_Tail_Offset(&vq_cached));
+
+            MM2SP_Report_Error(MM_SQ_WORKER, SQW_SQ_PROCESSING_ERROR);
 
             /* TODO: Fallback mechanism: use the cached copy of SQ tail */
             vq_cached.circbuff_cb->tail_offset = tail_prev;
@@ -339,6 +346,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
             {
                 Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:VQ pop failed.(Error code: %d)\r\n",
                     pop_ret_val);
+                MM2SP_Report_Error(MM_SQ_WORKER, SQW_SQ_PROCESSING_ERROR);
             }
 
             /* Set the SQ tail update flag so that we can updated shared
@@ -389,7 +397,7 @@ void SQW_Decrement_Command_Count(uint8_t sqw_idx)
     {
        Log_Write(LOG_LEVEL_ERROR, "SQW[%d] Decrement:Command Counter is Negative : %d\r\n", sqw_idx, original_val -1);
     }
-    else 
+    else
     {
        Log_Write(LOG_LEVEL_DEBUG, "SQW[%d] Decrement:Command Counter: %d\r\n", sqw_idx, original_val - 1);
     }

@@ -20,6 +20,7 @@
 
 #include "common_defs.h"
 #include "sp_mm_iface.h" /* header from shared/helper lib */
+#include "sp_mm_comms_spec.h"
 
 /*! \fn int8_t SP_Iface_Init(void)
     \brief Initialize Mm interface to Service Processor (SP)
@@ -72,5 +73,15 @@
     \return Status indicating success or negative error
 */
 int8_t SP_Iface_Processing(void);
+
+/*! \fn void MM2SP_Report_Error(enum mm2sp_worker_type_e worker,
+                                        enum mm2sp_error_codes_e error)
+    \brief This function sends given error to Service Processor.
+           TODO: Move this function to MM error handler component.
+    \param worker Worker type where error has occurred.
+    \param error Error code.
+    \return None
+*/
+void MM2SP_Report_Error(enum mm2sp_worker_type_e worker, enum mm2sp_error_codes_e error);
 
 #endif

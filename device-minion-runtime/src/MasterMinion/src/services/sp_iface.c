@@ -199,3 +199,35 @@ int8_t SP_Iface_Processing(void)
 
     return status;
 }
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       MM2SP_Report_Error
+*
+*   DESCRIPTION
+*
+*       This function sends given error to Service Processor.
+*       TODO: Move this function to MM error handler component.
+*
+*   INPUTS
+*
+*       mm2sp_worker_type_e     Worker type where error has occurred.
+*       mm2sp_error_codes_e     Error code.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void MM2SP_Report_Error(enum mm2sp_worker_type_e worker, enum mm2sp_error_codes_e error)
+{
+    struct mm2sp_report_error_cmd_t sp_cmd;
+
+    sp_cmd.msg_hdr.msg_id = MM2SP_CMD_REPORT_EXCEPTION_ERROR;
+    sp_cmd.msg_hdr.msg_size = sizeof(struct mm2sp_report_error_cmd_t);
+    sp_cmd.worker_type = worker;
+    sp_cmd.error_type = error;
+    SP_Iface_Push_Cmd_To_MM2SP_SQ(&sp_cmd, sizeof(sp_cmd));
+}

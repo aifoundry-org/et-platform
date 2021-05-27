@@ -38,6 +38,7 @@
 #include    "workers/sqw.h"
 #include    "services/log.h"
 #include    "services/host_iface.h"
+#include    "services/sp_iface.h"
 #include    "services/sw_timer.h"
 #include    "pmu.h"
 #include    "sync.h"
@@ -179,6 +180,12 @@ int8_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id, uint8_t sqw_
         }
     } while(!channel_reserved && (atomic_load_local_8(&DMAW_Read_CB.chan_search_timeout_flag[sqw_idx]) == 0U));
 
+    /* If timeout occurs then report this event to SP. */
+    if(!channel_reserved)
+    {
+        MM2SP_Report_Error(MM_SQ_WORKER, DMAW_FIND_CHAN_TIMEOUT_ERROR);
+    }
+
     /* Reset the timeout flag */
     atomic_store_local_8(&DMAW_Read_CB.chan_search_timeout_flag[sqw_idx], 0U);
 
@@ -233,6 +240,12 @@ int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id, uint8_t sqw
             }
         }
     } while(!channel_reserved && (atomic_load_local_8(&DMAW_Write_CB.chan_search_timeout_flag[sqw_idx]) == 0U));
+
+    /* If timeout occurs then report this event to SP. */
+    if(!channel_reserved)
+    {
+        MM2SP_Report_Error(MM_SQ_WORKER, DMAW_FIND_CHAN_TIMEOUT_ERROR);
+    }
 
     /* Reset the timeout flag */
     atomic_store_local_8(&DMAW_Write_CB.chan_search_timeout_flag[sqw_idx], 0U);
@@ -314,19 +327,15 @@ int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id, struct device_ops_dma_w
         Log_Write(LOG_LEVEL_DEBUG, "DMAW:Config:Added last read data node No:%u and Link node.\r\n", last_i);
     }
 
-    if (status == DMA_OPERATION_SUCCESS)
-    {
-        dma_start(chan_id);
-        Log_Write(LOG_LEVEL_DEBUG, "DMAW:Read transfer started.\r\n");
-    }
-
     if(status == DMA_OPERATION_SUCCESS)
     {
+        dma_start(chan_id);
+
         /* Update cycles value into the Global Channel Status data structure */
         atomic_store_local_64(
             &DMAW_Read_CB.chan_status_cb[rd_ch_idx].dmaw_cycles.raw_u64, cycles->raw_u64);
 
-        Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] DMAW_Trigger_Transfer:Success!\r\n", sqw_idx);
+        Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] DMAW_Read_Trigger_Transfer:Success!\r\n", sqw_idx);
     }
     else
     {
@@ -422,19 +431,15 @@ int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id, struct device_ops_dma_
         Log_Write(LOG_LEVEL_DEBUG, "DMAW:Config:Added last write data node No:%u and Link node.\r\n", last_i);
     }
 
-    if (status == DMA_OPERATION_SUCCESS)
-    {
-        dma_start(chan_id);
-        Log_Write(LOG_LEVEL_DEBUG, "DMAW:Write transfer started.\r\n");
-    }
-
     if(status == DMA_OPERATION_SUCCESS)
     {
+        dma_start(chan_id);
+
         /* Update cycles value into the Global Channel Status data structure */
         atomic_store_local_64(
             &DMAW_Write_CB.chan_status_cb[wrt_ch_idx].dmaw_cycles.raw_u64, cycles->raw_u64);
 
-        Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] DMAW_Trigger_Transfer:Success!\r\n", sqw_idx);
+        Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] DMAW_Write_Trigger_Transfer:Success!\r\n", sqw_idx);
 
         status = STATUS_SUCCESS;
     }
@@ -451,6 +456,8 @@ int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id, struct device_ops_dma_
         atomic_store_local_64(
             &DMAW_Write_CB.chan_status_cb[wrt_ch_idx].status.raw_u64,
             chan_status.raw_u64);
+
+        MM2SP_Report_Error(MM_SQ_WORKER, CQ_PUSH_ERROR);
     }
 
     return status;
@@ -650,6 +657,7 @@ void DMAW_Launch(uint32_t hart_id)
                         else
                         {
                             Log_Write(LOG_LEVEL_ERROR, "DMAW:HostIface:Push:Failed\r\n");
+                            MM2SP_Report_Error(MM_DMA_WORKER, CQ_PUSH_ERROR);
                         }
                     }
                 }
@@ -714,6 +722,7 @@ void DMAW_Launch(uint32_t hart_id)
                         else
                         {
                             Log_Write(LOG_LEVEL_ERROR, "DMAW:HostIface:Push:Failed\r\n");
+                            MM2SP_Report_Error(MM_DMA_WORKER, CQ_PUSH_ERROR);
                         }
                     }
                 }
@@ -822,6 +831,7 @@ void DMAW_Launch(uint32_t hart_id)
                         else
                         {
                             Log_Write(LOG_LEVEL_ERROR, "DMAW:HostIface:Push:Failed\r\n");
+                            MM2SP_Report_Error(MM_DMA_WORKER, CQ_PUSH_ERROR);
                         }
                     }
                 }
@@ -886,6 +896,7 @@ void DMAW_Launch(uint32_t hart_id)
                         else
                         {
                             Log_Write(LOG_LEVEL_ERROR, "DMAW:HostIface:Push:Failed\r\n");
+                            MM2SP_Report_Error(MM_DMA_WORKER, CQ_PUSH_ERROR);
                         }
                     }
                 }

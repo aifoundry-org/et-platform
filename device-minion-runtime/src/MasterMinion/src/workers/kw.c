@@ -33,6 +33,7 @@
 #include    "config/mm_config.h"
 #include    "services/host_iface.h"
 #include    "services/cm_iface.h"
+#include    "services/sp_iface.h"
 #include    "services/log.h"
 #include    "services/sw_timer.h"
 #include    "workers/cw.h"
@@ -83,7 +84,7 @@ static kw_cb_t KW_CB __attribute__((aligned(64))) = {0};
 
 static inline bool kw_check_address_bounds(uint64_t dev_address, bool is_optional)
 {
-    /* If the address check is optional, 
+    /* If the address check is optional,
     Address of zero means that do not verify the address (optional address) */
     if(is_optional && (dev_address == 0))
     {
@@ -228,6 +229,12 @@ static kernel_instance_t* kw_reserve_kernel_slot(uint8_t sqw_idx, uint8_t *slot_
         } while (!slot_reserved &&
             (atomic_compare_and_exchange_local_32(&KW_CB.resource_timeout_flag[sqw_idx], 1, 0) == 0U));
 
+        /* If timeout occurs then report this event to SP. */
+        if(!slot_reserved)
+        {
+            MM2SP_Report_Error(MM_KERNEL_WORKER, DMAW_FIND_CHAN_TIMEOUT_ERROR);
+        }
+
         /* Free the registered SW Timeout slot */
         SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
     }
@@ -284,6 +291,7 @@ static int8_t kw_reserve_kernel_shires(uint8_t sqw_idx, uint64_t req_shire_mask)
 {
     int8_t status;
     int8_t sw_timer_idx;
+    bool timeout = false;
 
     /* Acquire the lock */
     acquire_local_spinlock(&KW_CB.resource_lock);
@@ -305,8 +313,12 @@ static int8_t kw_reserve_kernel_shires(uint8_t sqw_idx, uint64_t req_shire_mask)
         {
             /* Check the required shires are available and ready */
             status = CW_Check_Shires_Available_And_Free(req_shire_mask);
-        } while ((status != STATUS_SUCCESS) &&
-            (atomic_compare_and_exchange_local_32(&KW_CB.resource_timeout_flag[sqw_idx], 1, 0) == 0U));
+
+            if(atomic_compare_and_exchange_local_32(&KW_CB.resource_timeout_flag[sqw_idx], 1, 0) == 0U)
+            {
+                timeout = true;
+            }
+        } while ((status != STATUS_SUCCESS) && (!timeout));
 
         /* Free the registered SW Timeout slot */
         SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
@@ -319,6 +331,16 @@ static int8_t kw_reserve_kernel_shires(uint8_t sqw_idx, uint64_t req_shire_mask)
         else
         {
             status = KW_ERROR_KERNEL_SHIRES_NOT_READY;
+
+            /* If timeout occurs then report this event to SP. */
+            if(timeout)
+            {
+                MM2SP_Report_Error(MM_KERNEL_WORKER, DMAW_FIND_CHAN_TIMEOUT_ERROR);
+            }
+            else
+            {
+                MM2SP_Report_Error(MM_KERNEL_WORKER, KW_RESERVE_CM_ERROR);
+            }
         }
     }
 
@@ -387,9 +409,9 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
     {
         /* Verify different addresses provided in the command.
         Could be optional address */
-        if(kw_check_address_bounds(cmd->pointer_to_args, true) && 
+        if(kw_check_address_bounds(cmd->pointer_to_args, true) &&
             kw_check_address_bounds(cmd->exception_buffer, true) &&
-            kw_check_address_bounds(cmd->kernel_trace_buffer, 
+            kw_check_address_bounds(cmd->kernel_trace_buffer,
             !(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_KERNEL_TRACE_BUF)))
         {
             status = STATUS_SUCCESS;
@@ -436,10 +458,10 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
         if((args_size > 0) && (args_size <= DEVICE_OPS_KERNEL_LAUNCH_ARGS_PAYLOAD_MAX))
         {
             /* Copy the kernel arguments from command buffer to the buffer address provided */
-            ETSOC_MEM_COPY_AND_EVICT((void*)(uintptr_t)cmd->pointer_to_args, 
+            ETSOC_MEM_COPY_AND_EVICT((void*)(uintptr_t)cmd->pointer_to_args,
                 (void*)cmd->argument_payload, args_size, to_L3)
         }
-        /* TODO: Enable this check once runtime has switched to using new kernel launch command 
+        /* TODO: Enable this check once runtime has switched to using new kernel launch command
         else
         {
             status = KW_ERROR_KERNEL_INVLD_ARGS_SIZE;
@@ -486,10 +508,12 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
         }
         else
         {
-            Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:MM2CMLaunch:CommandMulticast:Failed\r\n");
             /* Broadcast message failed. Reclaim resources */
             kw_unreserve_kernel_shires(cmd->shire_mask);
             kw_unreserve_kernel_slot(kernel);
+
+            Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:MM2CMLaunch:CommandMulticast:Failed\r\n");
+            MM2SP_Report_Error(MM_SQ_WORKER, KW_MM2CM_CMD_ERROR);
         }
     }
 
@@ -557,8 +581,9 @@ int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
         }
         else
         {
-            Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:MM2CMAbort:CommandMulticast:Failed\r\n");
             abort_rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_ERROR;
+            MM2SP_Report_Error(MM_SQ_WORKER, KW_MM2CM_CMD_ERROR);
+            Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:MM2CMAbort:CommandMulticast:Failed\r\n");
         }
 
         /* Send kernel abort response to host */
@@ -571,6 +596,7 @@ int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
         }
         else
         {
+            MM2SP_Report_Error(MM_SQ_WORKER, CQ_PUSH_ERROR);
             Log_Write(LOG_LEVEL_ERROR, "KW:Push:KERNEL_ABORT_CMD_RSP:Failed\r\n");
         }
 
@@ -755,6 +781,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                 if(status_hang_abort != STATUS_SUCCESS)
                 {
                     /* TODO: SW-6569: Do the reset of the shires involved in kernel launch. */
+                    MM2SP_Report_Error(MM_KERNEL_WORKER, KW_MM2CM_CMD_ERROR);
                     Log_Write(LOG_LEVEL_ERROR, "KW:MM->CM:Abort hanged, doing reset of shires.\r\n");
                 }
 
@@ -772,6 +799,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                 if ((status != CIRCBUFF_ERROR_BAD_LENGTH) &&
                     (status != CIRCBUFF_ERROR_EMPTY))
                 {
+                    MM2SP_Report_Error(MM_KERNEL_WORKER, KW_CM2MM_CMD_ERROR);
                     Log_Write(LOG_LEVEL_ERROR,
                         "KW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n", status);
                 }
@@ -827,6 +855,11 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                                 status_internal = CM_Iface_Multicast_Send(
                                     MASK_RESET_BIT(kernel_shire_mask, exception->shire_id),
                                     &message);
+
+                                if(status_internal != STATUS_SUCCESS)
+                                {
+                                    MM2SP_Report_Error(MM_KERNEL_WORKER, KW_MM2CM_CMD_ERROR);
+                                }
                             }
 
                             cw_exception = true;
@@ -851,6 +884,11 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                         /* Blocking call (with timeout) that blocks till
                         all shires ack */
                         status_internal = CM_Iface_Multicast_Send(kernel_shire_mask, &message);
+
+                        if(status_internal != STATUS_SUCCESS)
+                        {
+                            MM2SP_Report_Error(MM_KERNEL_WORKER, KW_MM2CM_CMD_ERROR);
+                        }
 
                         /* Set error and done flag */
                         cw_error = true;
@@ -918,7 +956,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         launch_rsp.cmd_execution_time = (uint32_t)PMC_GET_LATENCY(atomic_load_local_32(
                                         &kernel->kw_cycles.start_cycles)) & 0xFFFFFFFF;
 
-        local_sqw_idx = (uint8_t)atomic_load_local_16(&kernel->sqw_idx); 
+        local_sqw_idx = (uint8_t)atomic_load_local_16(&kernel->sqw_idx);
 
         /* Give back the reserved compute shires. */
         kw_unreserve_kernel_shires(kernel_shire_mask);
@@ -937,6 +975,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         else
         {
             Log_Write(LOG_LEVEL_ERROR, "KW:Push:Failed\r\n");
+            MM2SP_Report_Error(MM_KERNEL_WORKER, CQ_PUSH_ERROR);
         }
 
         /* Decrement commands count being processed by given SQW */

@@ -75,6 +75,12 @@ struct mm2sp_get_cm_boot_freq_rsp_t {
   uint32_t  cm_boot_freq;
 };
 
+struct mm2sp_report_error_cmd_t {
+  struct dev_cmd_hdr_t  msg_hdr;
+  uint16_t error_type;
+  uint8_t worker_type; /* Source worker type of the error from where it is originated. */
+};
+
 struct sp2mm_echo_cmd_t {
   struct dev_cmd_hdr_t  msg_hdr;
   uint32_t  payload;

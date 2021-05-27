@@ -23,6 +23,7 @@
 #include "services/sw_timer.h"
 #include "services/trace.h"
 #include "services/cm_iface.h"
+#include "services/sp_iface.h"
 #include "workers/kw.h"
 #include "workers/cw.h"
 #include "workers/dmaw.h"
@@ -99,6 +100,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             {
                 Log_Write(LOG_LEVEL_ERROR,
                     "SQ[%d] HostCommandHandler:HostIface:Push:Failed\r\n", sqw_idx);
+                MM2SP_Report_Error(MM_SQ_WORKER, CQ_PUSH_ERROR);
             }
 
             /* Decrement commands count being processed by given SQW */
@@ -160,6 +162,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             {
                 Log_Write(LOG_LEVEL_ERROR,
                     "SQ [%d] HostCommandHandler:HostIface:Push:Failed\r\n", sqw_idx);
+                MM2SP_Report_Error(MM_SQ_WORKER, CQ_PUSH_ERROR);
             }
 
             /* Decrement commands count being processed by given SQW */
@@ -195,6 +198,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             {
                 Log_Write(LOG_LEVEL_ERROR,
                     "SQ[%d] HostCommandHandler:HostIface:Push:Failed\r\n", sqw_idx);
+                MM2SP_Report_Error(MM_SQ_WORKER, CQ_PUSH_ERROR);
             }
 
             /* Decrement commands count being processed by given SQW */
@@ -289,6 +293,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 {
                     Log_Write(LOG_LEVEL_ERROR,
                         "SQ[%d] HostCommandHandler:HostIface:Push:Failed\r\n", sqw_idx);
+                    MM2SP_Report_Error(MM_SQ_WORKER, CQ_PUSH_ERROR);
                 }
 
                 /* Decrement commands count being processed by given SQW */
@@ -344,6 +349,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 else
                 {
                     Log_Write(LOG_LEVEL_ERROR, "HostCommandHandler:HostIface:Push:Failed\r\n");
+                    MM2SP_Report_Error(MM_SQ_WORKER, CQ_PUSH_ERROR);
                 }
 
                 /* Decrement commands count being processed by given SQW */
@@ -562,6 +568,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 {
                     Log_Write(LOG_LEVEL_ERROR,
                         "HostCommandHandler:HostIface:Push:Failed\r\n");
+                    MM2SP_Report_Error(MM_SQ_WORKER, CQ_PUSH_ERROR);
                 }
 
                 /* Decrement commands count being processed by given SQW */
@@ -692,6 +699,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 {
                     Log_Write(LOG_LEVEL_ERROR,
                         "HostCommandHandler:HostIface:Push:Failed\r\n");
+                    MM2SP_Report_Error(MM_SQ_WORKER, CQ_PUSH_ERROR);
                 }
 
                 /* Decrement commands count being processed by given SQW */
@@ -830,6 +838,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             {
                 Log_Write(LOG_LEVEL_ERROR,
                     "HostCommandHandler:HostIface:Push:Failed\r\n");
+                MM2SP_Report_Error(MM_SQ_WORKER, CQ_PUSH_ERROR);
             }
 
             /* Decrement commands count being processed by given SQW */
