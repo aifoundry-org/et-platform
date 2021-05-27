@@ -19,6 +19,8 @@ cmake_policy(SET CMP0076 NEW)
 set(CMAKE_VERBOSE_MAKEFILE TRUE)
 set(ET_DEFAULT_BUILD_TYPE "Release")
 
+option(ENABLE_STRICT_BUILD_TYPES "Whether project configuration should fail if build_type is not one of the allowed values: Debug Release RelWithDebInfo MinSizeRel" ON)
+option(ENABLE_REPORT_GLOBAL_FLAGS "Wether global flags should be shown when configuring the project" ON)
 option(DEVICE_MINION_RUNTIME_DEPRECATED "Enable deprecated functionality" ON)
 option(BUILD_DOC "Build documentation" ON)
 
