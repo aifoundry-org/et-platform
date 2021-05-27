@@ -230,10 +230,11 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, serializeAccessMgmtNode_1_43) {
   serializeAccessMgmtNode_1_43();
 }
 */
-
+#if 0 // TODO: Enable with the fix for https://esperantotech.atlassian.net/browse/SW-7920
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getDeviceErrorEvents_1_44) {
   getDeviceErrorEvents_1_44();
 }
+#endif
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, isUnsupportedService_1_45) {
   isUnsupportedService_1_45();
