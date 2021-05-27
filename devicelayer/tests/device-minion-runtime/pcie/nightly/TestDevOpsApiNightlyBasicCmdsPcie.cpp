@@ -22,16 +22,16 @@ protected:
     // Launch PCIE through IDevice Abstraction
     devLayer_ = dev::IDeviceLayer::createPcieDeviceLayer(true, false);
 
-    resetMemPooltoDefault();
+    initTestHelper();
   }
 };
 
-TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBack3kSameCmdsSingleQueue_1_3) {
-  backToBackSameCmdsSingleQueue_1_1(3000);
+TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBack3kSameCmdsSingleDeviceSingleQueue_1_3) {
+  backToBackSameCmdsSingleDeviceSingleQueue_1_1(3000);
 }
 
-TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBack3kSameCmdsMultiQueue_1_4) {
-  backToBackSameCmdsMultiQueue_1_2(3000);
+TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBack3kSameCmdsSingleDeviceMultiQueue_1_4) {
+  backToBackSameCmdsSingleDeviceMultiQueue_1_2(3000);
 }
 
 /* this test takes too long to run in Zebu - hence will only limit to 9K with multi queue
@@ -40,8 +40,8 @@ TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBack9kDiffCmdsSingleQueue_1_5) {
 }
 */
 
-TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBack9kDiffCmdsMultiQueue_1_6) {
-  backToBackDiffCmdsMultiQueue_1_4(3000);
+TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBack3kDiffCmdsSingleDeviceMultiQueue_1_6) {
+  backToBackDiffCmdsSingleDeviceMultiQueue_1_4(3000);
 }
 
 int main(int argc, char** argv) {

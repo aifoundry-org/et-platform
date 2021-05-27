@@ -49,66 +49,82 @@ struct trace_string_t {
 } // namespace
 
 void TestDevOpsApiTraceCmds::traceCtrlAndExtractMMFwData_5_1() {
-  std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
-  initTagId(0x51);
-  uint64_t size = 1024 * 1024;
-  uint16_t sqIdx = 0; // Default SQ for dmaLoopback
-  std::vector<uint8_t> readBuf(size, 0);
-  std::vector<uint8_t> compBuf(size, 0);
+  std::vector<std::vector<uint8_t>> readBufs;
+  std::vector<std::vector<uint8_t>> compBufs;
+  int deviceCount = getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
+    uint64_t size = 1024 * 1024;
+    uint16_t sqIdx = 0; // Default SQ for dmaLoopback
+    std::vector<uint8_t> readBuf(size, 0);
+    std::vector<uint8_t> compBuf(size, 0);
 
-  // start MM trace and dump logs to trace buffer
-  stream.push_back(IDevOpsApiCmd::createTraceRtControlCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
-                                                          0x1, 0x3,
-                                                          device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
+    // start MM trace and dump logs to trace buffer
+    stream.push_back(IDevOpsApiCmd::createTraceRtControlCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 0x1, 0x3,
+                                                            device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
 
-  // Read Trace data from MM
-  auto devPhysAddr = 0;
-  auto hostVirtAddr = reinterpret_cast<uint64_t>(readBuf.data());
-  auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-  stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), device_ops_api::CMD_FLAGS_MMFW_TRACEBUF,
-                                                    devPhysAddr, hostVirtAddr, hostPhysAddr, readBuf.size(),
-                                                    device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+    // Read Trace data from MM
+    auto devPhysAddr = 0;
+    auto hostVirtAddr = reinterpret_cast<uint64_t>(readBuf.data());
+    auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
+    stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_MMFW_TRACEBUF, devPhysAddr,
+                                                      hostVirtAddr, hostPhysAddr, readBuf.size(),
+                                                      device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
-  // stop MM trace and redirect logs to UART
-  stream.push_back(IDevOpsApiCmd::createTraceRtControlCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_ENABLE, 0x1,
-                                                          0x0,
-                                                          device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
-  streams_.emplace(sqIdx, std::move(stream));
+    // stop MM trace and redirect logs to UART
+    stream.push_back(IDevOpsApiCmd::createTraceRtControlCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, 0x1, 0x0,
+                                                            device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
+    readBufs.push_back(std::move(readBuf));
+    compBufs.push_back(std::move(compBuf));
+    streams_.emplace(key(deviceIdx, sqIdx), std::move(stream));
+  }
   executeSync();
 
-  ASSERT_NE(readBuf, compBuf);
+  for (size_t i = 0; i < readBufs.size(); ++i) {
+    ASSERT_NE(readBufs[i], compBufs[i]);
+  }
 
-  printMMTraceStringData(readBuf);
+  for (size_t i = 0; i < readBufs.size(); ++i) {
+    printMMTraceStringData(readBufs[i]);
+  }
 }
 
 void TestDevOpsApiTraceCmds::traceCtrlAndExtractCMFwData_5_2() {
-  std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
-  initTagId(0x61);
-  uint64_t size = CM_SIZE_PER_HART * WORKER_HART_COUNT;
-  uint16_t sqIdx = 0; // Default SQ for dmaLoopback
-  std::vector<uint8_t> readBuf(size, 0);
-  std::vector<uint8_t> compBuf(size, 0);
+  std::vector<std::vector<uint8_t>> readBufs;
+  std::vector<std::vector<uint8_t>> compBufs;
+  int deviceCount = getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
+    uint64_t size = CM_SIZE_PER_HART * WORKER_HART_COUNT;
+    uint16_t sqIdx = 0; // Default SQ for dmaLoopback
+    std::vector<uint8_t> readBuf(size, 0);
+    std::vector<uint8_t> compBuf(size, 0);
 
-  // start CM trace and dump logs to trace buffer
-  stream.push_back(IDevOpsApiCmd::createTraceRtControlCmd(getNextTagId(), device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
-                                                          0x2, 0x3,
-                                                          device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
+    // start CM trace and dump logs to trace buffer
+    stream.push_back(IDevOpsApiCmd::createTraceRtControlCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 0x2, 0x3,
+                                                            device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
 
-  // Read Trace data from CM
-  auto devPhysAddr = 0;
-  auto hostVirtAddr = reinterpret_cast<uint64_t>(readBuf.data());
-  auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-  stream.push_back(IDevOpsApiCmd::createDataReadCmd(getNextTagId(), device_ops_api::CMD_FLAGS_CMFW_TRACEBUF,
-                                                    devPhysAddr, hostVirtAddr, hostPhysAddr, readBuf.size(),
-                                                    device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+    // Read Trace data from CM
+    auto devPhysAddr = 0;
+    auto hostVirtAddr = reinterpret_cast<uint64_t>(readBuf.data());
+    auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
+    stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_CMFW_TRACEBUF, devPhysAddr,
+                                                      hostVirtAddr, hostPhysAddr, readBuf.size(),
+                                                      device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
-  streams_.emplace(sqIdx, std::move(stream));
-
+    readBufs.push_back(std::move(readBuf));
+    compBufs.push_back(std::move(compBuf));
+    streams_.emplace(key(deviceIdx, sqIdx), std::move(stream));
+  }
   executeSync();
 
-  ASSERT_NE(readBuf, compBuf);
+  for (size_t i = 0; i < readBufs.size(); ++i) {
+    ASSERT_NE(readBufs[i], compBufs[i]);
+  }
 
-  printCMTraceStringData(readBuf);
+  for (size_t i = 0; i < readBufs.size(); ++i) {
+    printMMTraceStringData(readBufs[i]);
+  }
 }
 
 void TestDevOpsApiTraceCmds::printMMTraceStringData(std::vector<uint8_t>& traceBuf) {

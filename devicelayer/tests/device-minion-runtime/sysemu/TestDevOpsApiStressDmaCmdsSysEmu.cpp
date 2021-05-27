@@ -52,7 +52,7 @@ protected:
     // Launch Sysemu through IDevice Abstraction
     devLayer_ = dev::IDeviceLayer::createSysEmuDeviceLayer(sysEmuOptions);
 
-    resetMemPooltoDefault();
+    initTestHelper();
   }
 };
 
@@ -65,12 +65,16 @@ TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dataWRStressSpeed_2_2) {
   dataWRStressSpeed_2_2(30);
 }
 
-TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dataWRStressChannelsSingleQueue_2_3) {
-  dataWRStressChannelsSingleQueue_2_3(1000);
+TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dataWRStressChannelsSingleDeviceSingleQueue_2_3) {
+  dataWRStressChannelsSingleDeviceSingleQueue_2_3(1000);
 }
 
-TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dataWRStressChannelsMultiQueue_2_4) {
-  dataWRStressChannelsMultiQueue_2_4(1000);
+TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dataWRStressChannelsSingleDeviceMultiQueue_2_4) {
+  dataWRStressChannelsSingleDeviceMultiQueue_2_4(1000);
+}
+
+TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dataWRStressChannelsMultiDeviceMultiQueue_2_5) {
+  dataWRStressChannelsMultiDeviceMultiQueue_2_5(1000);
 }
 
 int main(int argc, char** argv) {

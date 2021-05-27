@@ -10,6 +10,7 @@
 
 #pragma once
 #include <algorithm>
+#include <atomic>
 #include <cstddef>
 #include <esperanto/device-apis/operations-api/device_ops_api_cxx.h>
 #include <glog/logging.h>
@@ -47,38 +48,33 @@ public:
   }
   virtual ~IDevOpsApiCmd() = default;
 
-  static std::unique_ptr<IDevOpsApiCmd> createEchoCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
-                                                      int32_t echoPayload);
-  static std::unique_ptr<IDevOpsApiCmd> createApiCompatibilityCmd(device_ops_api::tag_id_t tagId,
-                                                                  device_ops_api::cmd_flags_e flag, uint8_t major,
+  static std::unique_ptr<IDevOpsApiCmd> createEchoCmd(device_ops_api::cmd_flags_e flag, int32_t echoPayload);
+  static std::unique_ptr<IDevOpsApiCmd> createApiCompatibilityCmd(device_ops_api::cmd_flags_e flag, uint8_t major,
                                                                   uint8_t minor, uint8_t patch);
-  static std::unique_ptr<IDevOpsApiCmd> createFwVersionCmd(device_ops_api::tag_id_t tagId,
-                                                           device_ops_api::cmd_flags_e flag, uint8_t firmwareType);
-  static std::unique_ptr<IDevOpsApiCmd> createDataWriteCmd(device_ops_api::tag_id_t tagId,
-                                                           device_ops_api::cmd_flags_e flag, uint64_t devPhysAddr,
+  static std::unique_ptr<IDevOpsApiCmd> createFwVersionCmd(device_ops_api::cmd_flags_e flag, uint8_t firmwareType);
+  static std::unique_ptr<IDevOpsApiCmd> createDataWriteCmd(device_ops_api::cmd_flags_e flag, uint64_t devPhysAddr,
                                                            uint64_t hostVirtAddr, uint64_t hostPhysAddr,
                                                            uint64_t dataSize,
                                                            device_ops_api::dev_ops_api_dma_response_e status);
-  static std::unique_ptr<IDevOpsApiCmd> createDataReadCmd(device_ops_api::tag_id_t tagId,
-                                                          device_ops_api::cmd_flags_e flag, uint64_t devPhysAddr,
+  static std::unique_ptr<IDevOpsApiCmd> createDataReadCmd(device_ops_api::cmd_flags_e flag, uint64_t devPhysAddr,
                                                           uint64_t hostVirtAddr, uint64_t hostPhysAddr,
                                                           uint64_t dataSize,
                                                           device_ops_api::dev_ops_api_dma_response_e status);
   static std::unique_ptr<IDevOpsApiCmd>
-  createKernelLaunchCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, uint64_t codeStartAddr,
+  createKernelLaunchCmd(device_ops_api::cmd_flags_e flag, uint64_t codeStartAddr,
                         uint64_t ptrToArgs, uint64_t exceptionBuffer, uint64_t shireMask, uint64_t traceBuffer,
                         void* argumentPayload, uint32_t sizeOfArgPayload,
                         device_ops_api::dev_ops_api_kernel_launch_response_e status);
   static std::unique_ptr<IDevOpsApiCmd>
-  createKernelAbortCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
+  createKernelAbortCmd(device_ops_api::cmd_flags_e flag,
                        device_ops_api::tag_id_t kernelToAbortTagId,
                        device_ops_api::dev_ops_api_kernel_abort_response_e status);
   static std::unique_ptr<IDevOpsApiCmd>
-  createTraceRtConfigCmd(device_ops_api::tag_id_t, device_ops_api::cmd_flags_e flag, uint32_t shire_mask,
+  createTraceRtConfigCmd(device_ops_api::cmd_flags_e flag, uint32_t shire_mask,
                          uint32_t thread_mask, uint32_t event_mask, uint32_t filter_mask,
                          device_ops_api::dev_ops_trace_rt_config_response_e status);
   static std::unique_ptr<IDevOpsApiCmd>
-  createTraceRtControlCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, uint32_t rt_type,
+  createTraceRtControlCmd(device_ops_api::cmd_flags_e flag, uint32_t rt_type,
                           uint32_t control, device_ops_api::dev_ops_trace_rt_control_response_e status);
   static std::unique_ptr<IDevOpsApiCmd> createCustomCmd(std::byte* cmdPtr, size_t cmdSize, uint32_t status);
 
@@ -89,6 +85,7 @@ protected:
   static void deleteRspEntry(device_ops_api::tag_id_t tagId);
 
   static std::unordered_map<device_ops_api::tag_id_t, uint32_t> rspStorage_;
+  static std::atomic<device_ops_api::tag_id_t> tagId_;
 };
 
 class EchoCmd : public IDevOpsApiCmd {

@@ -55,49 +55,52 @@ struct __attribute__((packed, aligned(64))) hart_execution_context {
 
 class TestDevOpsApi : public ::testing::Test {
 protected:
-  void fExecutor(uint8_t queueId);
-  void fListener();
+  void initTestHelper();
   void executeAsync();
   void executeSync();
-
-  void resetMemPooltoDefault();
-  uint64_t getDmaWriteAddr(size_t bufSize);
-  uint64_t getDmaReadAddr(size_t bufSize);
-
-  void initTagId(device_ops_api::tag_id_t value);
-  device_ops_api::tag_id_t getNextTagId();
-
-  void loadElfToDevice(ELFIO::elfio& reader, const std::string& path,
+  int getDevicesCount();
+  int getSqCount(int deviceIdx);
+  uint64_t getDmaWriteAddr(int deviceIdx, size_t bufSize);
+  uint64_t getDmaReadAddr(int deviceIdx, size_t bufSize);
+  void resetMemPooltoDefault(int deviceIdx);
+  void loadElfToDevice(int deviceIdx, ELFIO::elfio& reader, const std::string& path,
                        std::vector<std::unique_ptr<IDevOpsApiCmd>>& stream, uint64_t& kernelEntryAddr);
 
-  bool pushCmd(uint16_t queueId, std::unique_ptr<IDevOpsApiCmd>& devOpsApiCmd);
-  bool popRsp(void);
+  void fExecutor(int deviceIdx, int queueIdx);
+  void fListener(int deviceIdx);
+  bool pushCmd(int deviceIdx, int queueIdx, std::unique_ptr<IDevOpsApiCmd>& devOpsApiCmd);
+  bool popRsp(int deviceIdx);
+  void printCmdExecutionSummary();
+  void printErrorContext(void* buffer, uint64_t shireMask);
+  void cleanUpExecution();
+  void deleteCmdResults();
+  void executeSyncPerDevice(int deviceIdx);
+  inline size_t key(int deviceIdx, int queueIdx) {
+    return (size_t)deviceIdx << 32 | (size_t)queueIdx;
+  }
 
+  std::unordered_map<size_t, std::vector<std::unique_ptr<IDevOpsApiCmd>>> streams_;
+  std::unique_ptr<dev::IDeviceLayer> devLayer_;
+  TimeDuration execTimeout_;
+
+private:
   bool addCmdResultEntry(device_ops_api::tag_id_t tagId, CmdStatus status);
   CmdStatus getCmdResult(device_ops_api::tag_id_t tagId);
   bool updateCmdResult(device_ops_api::tag_id_t tagId, CmdStatus status);
   void deleteCmdResultEntry(device_ops_api::tag_id_t tagId);
-  void deleteCmdResults();
-  void printCmdExecutionSummary();
-  void printErrorContext(void *buffer, uint64_t shireMask);
-  void cleanUpExecution();
+
+  struct DeviceInfo {
+    uint64_t dmaWriteAddr_;
+    std::mutex dmaWriteAddrMtx_;
+    uint64_t dmaReadAddr_;
+    std::mutex dmaReadAddrMtx_;
+    uint64_t sqBitmap_;
+    std::condition_variable sqBitmapCondVar_;
+    std::mutex sqBitmapMtx_;
+  };
 
   logging::LoggerDefault logger_;
-  std::unique_ptr<dev::IDeviceLayer> devLayer_;
-  std::atomic<device_ops_api::tag_id_t> tagId_;
-
-  uint64_t dmaWriteAddr_;
-  std::mutex dmaWriteAddrMtx_;
-  uint64_t dmaReadAddr_;
-  std::mutex dmaReadAddrMtx_;
-
-  uint64_t sqBitmap_ = 0xffffffffffffffff;
-  std::condition_variable sqBitmapCondVar_;
-  std::mutex sqBitmapMtx_;
-
-  std::unordered_map<int, std::vector<std::unique_ptr<IDevOpsApiCmd>>> streams_;
-  TimeDuration execTimeout_;
-
+  std::vector<std::unique_ptr<DeviceInfo>> devices_;
   std::unordered_map<device_ops_api::tag_id_t, CmdStatus> cmdResults_;
   std::recursive_mutex cmdResultsMtx_;
 

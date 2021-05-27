@@ -22,7 +22,7 @@ protected:
     // Launch PCIE through IDevice Abstraction
     devLayer_ = dev::IDeviceLayer::createPcieDeviceLayer(true, false);
 
-    resetMemPooltoDefault();
+    initTestHelper();
   }
 };
 
@@ -31,12 +31,12 @@ TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, launchAddVectorKernel_PositiveTesting
 }
 
 TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, launchAddVectorKernel_VariableShireMasks) {
-  launchAddVectorKernel_PositiveTesting_4_1(0x1); /* Shire 0 */
-  launchAddVectorKernel_PositiveTesting_4_1(0x3); /* Shire 0-1 */
-  launchAddVectorKernel_PositiveTesting_4_1(0x7); /* Shire 0-2 */
-  launchAddVectorKernel_PositiveTesting_4_1(0xF); /* Shire 0-4 */
-  launchAddVectorKernel_PositiveTesting_4_1(0xFF); /* Shire 0-8 */
-  launchAddVectorKernel_PositiveTesting_4_1(0xFFFF); /* Shire 0-16 */
+  launchAddVectorKernel_PositiveTesting_4_1(0x1);         /* Shire 0 */
+  launchAddVectorKernel_PositiveTesting_4_1(0x3);         /* Shire 0-1 */
+  launchAddVectorKernel_PositiveTesting_4_1(0x7);         /* Shire 0-2 */
+  launchAddVectorKernel_PositiveTesting_4_1(0xF);         /* Shire 0-4 */
+  launchAddVectorKernel_PositiveTesting_4_1(0xFF);        /* Shire 0-8 */
+  launchAddVectorKernel_PositiveTesting_4_1(0xFFFF);      /* Shire 0-16 */
   launchAddVectorKernel_PositiveTesting_4_1(0x1FFFFFFFF); /* Shire 0-32 */
 }
 

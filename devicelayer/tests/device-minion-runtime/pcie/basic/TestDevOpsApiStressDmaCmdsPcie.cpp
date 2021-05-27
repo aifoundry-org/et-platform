@@ -22,7 +22,7 @@ protected:
     // Launch PCIE through IDevice Abstraction
     devLayer_ = dev::IDeviceLayer::createPcieDeviceLayer(true, false);
 
-    resetMemPooltoDefault();
+    initTestHelper();
   }
 };
 
@@ -34,12 +34,16 @@ TEST_F(TestDevOpsApiStressDmaCmdsPcie, dataWRStressSpeed_2_2) {
   dataWRStressSpeed_2_2(25);
 }
 
-TEST_F(TestDevOpsApiStressDmaCmdsPcie, dataWRStressChannelsSingleQueue_2_3) {
-  dataWRStressChannelsSingleQueue_2_3(1000);
+TEST_F(TestDevOpsApiStressDmaCmdsPcie, dataWRStressChannelsSingleDeviceSingleQueue_2_3) {
+  dataWRStressChannelsSingleDeviceSingleQueue_2_3(1000);
 }
 
-TEST_F(TestDevOpsApiStressDmaCmdsPcie, dataWRStressChannelsMultiQueue_2_4) {
-  dataWRStressChannelsMultiQueue_2_4(1000);
+TEST_F(TestDevOpsApiStressDmaCmdsPcie, dataWRStressChannelsSingleDeviceMultiQueue_2_4) {
+  dataWRStressChannelsSingleDeviceMultiQueue_2_4(1000);
+}
+
+TEST_F(TestDevOpsApiStressDmaCmdsPcie, dataWRStressChannelsMultiDeviceMultiQueue_2_5) {
+  dataWRStressChannelsMultiDeviceMultiQueue_2_5(1000);
 }
 
 int main(int argc, char** argv) {

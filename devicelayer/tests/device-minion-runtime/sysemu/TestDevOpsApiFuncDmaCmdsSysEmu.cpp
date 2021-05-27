@@ -52,7 +52,7 @@ protected:
     // Launch Sysemu through IDevice Abstraction
     devLayer_ = dev::IDeviceLayer::createSysEmuDeviceLayer(sysEmuOptions);
 
-    resetMemPooltoDefault();
+    initTestHelper();
   }
 };
 

@@ -14,6 +14,7 @@
 // NOTE: This file can later be auto-generated using device-ops-api yaml files if needed
 
 std::unordered_map<device_ops_api::tag_id_t, uint32_t> IDevOpsApiCmd::rspStorage_;
+std::atomic<device_ops_api::tag_id_t> IDevOpsApiCmd::tagId_ = 0x1;
 
 bool IDevOpsApiCmd::addRspEntry(device_ops_api::tag_id_t tagId, uint32_t expectedRsp) {
   auto it = rspStorage_.find(tagId);
@@ -41,8 +42,8 @@ void IDevOpsApiCmd::deleteRspEntry(device_ops_api::tag_id_t tagId) {
 /*
  * Device Ops Api Echo Command creation and it's handling
  */
-std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createEchoCmd(device_ops_api::tag_id_t tagId,
-                                                            device_ops_api::cmd_flags_e flag, int32_t echoPayload) {
+std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createEchoCmd(device_ops_api::cmd_flags_e flag, int32_t echoPayload) {
+  auto tagId = tagId_++;
   // Add default expected response `0` for command that does not have expected response
   if (!addRspEntry(tagId, 0)) {
     return nullptr;
@@ -83,9 +84,9 @@ device_ops_api::tag_id_t EchoCmd::getCmdTagId() {
 /*
  * Device Ops Api compatibility command creation and handling
  */
-std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createApiCompatibilityCmd(device_ops_api::tag_id_t tagId,
-                                                                        device_ops_api::cmd_flags_e flag, uint8_t major,
+std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createApiCompatibilityCmd(device_ops_api::cmd_flags_e flag, uint8_t major,
                                                                         uint8_t minor, uint8_t patch) {
+  auto tagId = tagId_++;
   // Add default expected response `0` for command that does not have expected response
   if (!addRspEntry(tagId, 0)) {
     return nullptr;
@@ -129,9 +130,9 @@ device_ops_api::tag_id_t ApiCompatibilityCmd::getCmdTagId() {
 /*
  * Device Ops Api Firmware Version command creation and handling
  */
-std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createFwVersionCmd(device_ops_api::tag_id_t tagId,
-                                                                 device_ops_api::cmd_flags_e flag,
+std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createFwVersionCmd(device_ops_api::cmd_flags_e flag,
                                                                  uint8_t firmwareType) {
+  auto tagId = tagId_++;
   // Add default expected response `0` for command that does not have expected response
   if (!addRspEntry(tagId, 0)) {
     return nullptr;
@@ -172,11 +173,11 @@ device_ops_api::tag_id_t FwVersionCmd::getCmdTagId() {
 /*
  * Device Ops Api Data Write command creation and handling
  */
-std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createDataWriteCmd(device_ops_api::tag_id_t tagId,
-                                                                 device_ops_api::cmd_flags_e flag, uint64_t devPhysAddr,
+std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createDataWriteCmd(device_ops_api::cmd_flags_e flag, uint64_t devPhysAddr,
                                                                  uint64_t hostVirtAddr, uint64_t hostPhysAddr,
                                                                  uint64_t dataSize,
                                                                  device_ops_api::dev_ops_api_dma_response_e status) {
+  auto tagId = tagId_++;
   if (!addRspEntry(tagId, status)) {
     return nullptr;
   }
@@ -220,11 +221,11 @@ device_ops_api::tag_id_t DataWriteCmd::getCmdTagId() {
 /*
  * Device Ops Api Data Read command creation and handling
  */
-std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createDataReadCmd(device_ops_api::tag_id_t tagId,
-                                                                device_ops_api::cmd_flags_e flag, uint64_t devPhysAddr,
+std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createDataReadCmd(device_ops_api::cmd_flags_e flag, uint64_t devPhysAddr,
                                                                 uint64_t hostVirtAddr, uint64_t hostPhysAddr,
                                                                 uint64_t dataSize,
                                                                 device_ops_api::dev_ops_api_dma_response_e status) {
+  auto tagId = tagId_++;
   if (!addRspEntry(tagId, status)) {
     return nullptr;
   }
@@ -268,10 +269,12 @@ device_ops_api::tag_id_t DataReadCmd::getCmdTagId() {
 /*
  * Device Ops Api Kernel Launch command creation and handling
  */
-std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createKernelLaunchCmd(
-  device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, uint64_t codeStartAddr, uint64_t ptrToArgs,
-  uint64_t exceptionBuffer, uint64_t shireMask, uint64_t traceBuffer, void* argumentPayload, uint32_t sizeOfArgPayload,
-  device_ops_api::dev_ops_api_kernel_launch_response_e status) {
+std::unique_ptr<IDevOpsApiCmd>
+IDevOpsApiCmd::createKernelLaunchCmd(device_ops_api::cmd_flags_e flag, uint64_t codeStartAddr, uint64_t ptrToArgs,
+                                     uint64_t exceptionBuffer, uint64_t shireMask, uint64_t traceBuffer,
+                                     void* argumentPayload, uint32_t sizeOfArgPayload,
+                                     device_ops_api::dev_ops_api_kernel_launch_response_e status) {
+  auto tagId = tagId_++;
   if (!addRspEntry(tagId, status)) {
     return nullptr;
   }
@@ -325,9 +328,9 @@ device_ops_api::tag_id_t KernelLaunchCmd::getCmdTagId() {
  * Device Ops Api Kernel Abort command creation and handling
  */
 std::unique_ptr<IDevOpsApiCmd>
-IDevOpsApiCmd::createKernelAbortCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
-                                    device_ops_api::tag_id_t kernelToAbortTagId,
+IDevOpsApiCmd::createKernelAbortCmd(device_ops_api::cmd_flags_e flag, device_ops_api::tag_id_t kernelToAbortTagId,
                                     device_ops_api::dev_ops_api_kernel_abort_response_e status) {
+  auto tagId = tagId_++;
   if (!addRspEntry(tagId, status)) {
     return nullptr;
   }
@@ -417,9 +420,10 @@ device_ops_api::tag_id_t CustomCmd::getCmdTagId() {
  * Device Ops Api trace configuration command creation and handling
  */
 std::unique_ptr<IDevOpsApiCmd>
-IDevOpsApiCmd::createTraceRtConfigCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
-                                      uint32_t shire_mask, uint32_t thread_mask, uint32_t event_mask,
-                                      uint32_t filter_mask, device_ops_api::dev_ops_trace_rt_config_response_e status) {
+IDevOpsApiCmd::createTraceRtConfigCmd(device_ops_api::cmd_flags_e flag, uint32_t shire_mask, uint32_t thread_mask,
+                                      uint32_t event_mask, uint32_t filter_mask,
+                                      device_ops_api::dev_ops_trace_rt_config_response_e status) {
+  auto tagId = tagId_++;
   if (!addRspEntry(tagId, status)) {
     return nullptr;
   }
@@ -465,9 +469,9 @@ device_ops_api::tag_id_t TraceRtConfigCmd::getCmdTagId() {
  */
 
 std::unique_ptr<IDevOpsApiCmd>
-IDevOpsApiCmd::createTraceRtControlCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
-                                       uint32_t rt_type, uint32_t control,
+IDevOpsApiCmd::createTraceRtControlCmd(device_ops_api::cmd_flags_e flag, uint32_t rt_type, uint32_t control,
                                        device_ops_api::dev_ops_trace_rt_control_response_e status) {
+  auto tagId = tagId_++;
   if (!addRspEntry(tagId, status)) {
     return nullptr;
   }

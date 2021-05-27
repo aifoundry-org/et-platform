@@ -22,7 +22,7 @@ protected:
     // Launch PCIE through IDevice Abstraction
     devLayer_ = dev::IDeviceLayer::createPcieDeviceLayer(true, false);
 
-    resetMemPooltoDefault();
+    initTestHelper();
   }
 };
 

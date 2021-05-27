@@ -52,7 +52,7 @@ protected:
     // Launch Sysemu through IDevice Abstraction
     devLayer_ = dev::IDeviceLayer::createSysEmuDeviceLayer(sysEmuOptions);
 
-    resetMemPooltoDefault();
+    initTestHelper();
   }
 };
 
@@ -61,12 +61,12 @@ TEST_F(TestDevOpsApiFuncKernelCmdsSysEmu, launchAddVectorKernel_PositiveTesting_
 }
 
 TEST_F(TestDevOpsApiFuncKernelCmdsSysEmu, launchAddVectorKernel_VariableShireMasks) {
-  launchAddVectorKernel_PositiveTesting_4_1((0x1 & kSysEmuMinionShiresMask)); /* Shire 0 (if available) */
-  launchAddVectorKernel_PositiveTesting_4_1((0x3 & kSysEmuMinionShiresMask)); /* Shire 0-1 (if available) */
-  launchAddVectorKernel_PositiveTesting_4_1((0x7 & kSysEmuMinionShiresMask)); /* Shire 0-2 (if available) */
-  launchAddVectorKernel_PositiveTesting_4_1((0xF & kSysEmuMinionShiresMask)); /* Shire 0-4 (if available) */
-  launchAddVectorKernel_PositiveTesting_4_1((0xFF & kSysEmuMinionShiresMask)); /* Shire 0-8 (if available) */
-  launchAddVectorKernel_PositiveTesting_4_1((0xFFFF & kSysEmuMinionShiresMask)); /* Shire 0-16 (if available) */
+  launchAddVectorKernel_PositiveTesting_4_1((0x1 & kSysEmuMinionShiresMask));         /* Shire 0 (if available) */
+  launchAddVectorKernel_PositiveTesting_4_1((0x3 & kSysEmuMinionShiresMask));         /* Shire 0-1 (if available) */
+  launchAddVectorKernel_PositiveTesting_4_1((0x7 & kSysEmuMinionShiresMask));         /* Shire 0-2 (if available) */
+  launchAddVectorKernel_PositiveTesting_4_1((0xF & kSysEmuMinionShiresMask));         /* Shire 0-4 (if available) */
+  launchAddVectorKernel_PositiveTesting_4_1((0xFF & kSysEmuMinionShiresMask));        /* Shire 0-8 (if available) */
+  launchAddVectorKernel_PositiveTesting_4_1((0xFFFF & kSysEmuMinionShiresMask));      /* Shire 0-16 (if available) */
   launchAddVectorKernel_PositiveTesting_4_1((0x1FFFFFFFF & kSysEmuMinionShiresMask)); /* Shire 0-32 (if available) */
 }
 

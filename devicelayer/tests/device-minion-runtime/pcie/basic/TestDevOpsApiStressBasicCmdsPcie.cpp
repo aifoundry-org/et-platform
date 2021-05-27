@@ -22,24 +22,24 @@ protected:
     // Launch PCIE through IDevice Abstraction
     devLayer_ = dev::IDeviceLayer::createPcieDeviceLayer(true, false);
 
-    resetMemPooltoDefault();
+    initTestHelper();
   }
 };
 
-TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackSameCmdsSingleQueue_1_1) {
-  backToBackSameCmdsSingleQueue_1_1(1000);
+TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackSameCmdsSingleDeviceSingleQueue_1_1) {
+  backToBackSameCmdsSingleDeviceSingleQueue_1_1(1000);
 }
 
-TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackSameCmdsMultiQueue_1_2) {
-  backToBackSameCmdsMultiQueue_1_2(1000);
+TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackSameCmdsSingleDeviceMultiQueue_1_2) {
+  backToBackSameCmdsSingleDeviceMultiQueue_1_2(1000);
 }
 
-TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackDiffCmdsSingleQueue_1_3) {
-  backToBackDiffCmdsSingleQueue_1_3(1000);
+TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackDiffCmdsSingleDeviceSingleQueue_1_3) {
+  backToBackDiffCmdsSingleDeviceSingleQueue_1_3(1000);
 }
 
-TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackDiffCmdsMultiQueue_1_4) {
-  backToBackDiffCmdsMultiQueue_1_4(1000);
+TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackDiffCmdsSingleDeviceMultiQueue_1_4) {
+  backToBackDiffCmdsSingleDeviceMultiQueue_1_4(1000);
 }
 
 int main(int argc, char** argv) {

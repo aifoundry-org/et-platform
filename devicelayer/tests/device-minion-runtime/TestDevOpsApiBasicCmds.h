@@ -19,8 +19,10 @@ protected:
   void devUnknownCmd_NegativeTest_2_7();
 
   /* Stress Testing Functions */
-  void backToBackSameCmdsSingleQueue_1_1(int numOfCmds);
-  void backToBackSameCmdsMultiQueue_1_2(int numOfCmds);
-  void backToBackDiffCmdsSingleQueue_1_3(int numOfCmds);
-  void backToBackDiffCmdsMultiQueue_1_4(int numOfCmds);
+  void backToBackSameCmdsSingleDeviceSingleQueue_1_1(int numOfCmds);
+  void backToBackSameCmdsSingleDeviceMultiQueue_1_2(int numOfCmds);
+  void backToBackDiffCmdsSingleDeviceSingleQueue_1_3(int numOfCmds);
+  void backToBackDiffCmdsSingleDeviceMultiQueue_1_4(int numOfCmds);
+  void backToBackSameCmdsMultiDeviceMultiQueue_1_5(int numOfCmds);
+  void backToBackDiffCmdsMultiDeviceMultiQueue_1_6(int numOfCmds);
 };
