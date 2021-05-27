@@ -113,6 +113,7 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
             deviceFirmware::device_serial
             FreeRTOS::FreeRTOS
             $<${TEST_FRAMEWORK}:test_framework>
+            EsperantoDeviceMinionRuntime::device_trace
     )
 
     target_report_riscv_size(${TARGET_NAME}.elf)
