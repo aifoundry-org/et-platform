@@ -6,6 +6,9 @@ stages:
 
 build:conan:
   stage: build
+  except:
+    - master
+    - tags
   tags:
     - docker
   image: ${DOCKER_IMAGE}
@@ -15,10 +18,8 @@ build:conan:
   parallel:
     matrix:
       - COMPILER: [ gcc7 ]
-        COMPILER_LIBCXX: [ libstdc++11 ]
         BUILD_TYPE: [ Release, Debug ]
       - COMPILER: [ clang10 ]
-        COMPILER_LIBCXX: [ libc++ ]
         BUILD_TYPE: [ Release, Debug ]
   before_script:
     - conan --version
@@ -28,19 +29,25 @@ build:conan:
     - mkdir build
     - cd build
   script:
-    - conan install .. -s build_type=${BUILD_TYPE} -s compiler.libcxx=${COMPILER_LIBCXX} -o g3log:use_dynamic_logging_levels=True --build missing
+    - conan install .. -s build_type=${BUILD_TYPE} -o g3log:use_dynamic_logging_levels=True --build missing
     - cmake -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -G Ninja ..
     - ninja
   allow_failure: true
 
 package:conan:
   stage: package
+  only:
+    - master
+    - tags
+    - merge_requests
   tags:
     - docker
   image:  ${DOCKER_IMAGE}
   variables:
     DOCKER_IMAGE: conanio/${COMPILER}${COMPILER_VERSION}
     CONAN_CONFIG_URL: "https://${CONAN_CONFIG_DEPLOY_TOKEN_USERNAME}:${CONAN_CONFIG_DEPLOY_TOKEN}@gitlab.esperanto.ai/software/conan/conan-config.git"
+    CONAN_UPLOAD: "https://sc-artifactory1.esperanto.ai/artifactory/api/conan/conan-develop@True@conan-develop"
+    CONAN_STABLE_BRANCH_PATTERN: "release/*"
     CONAN_UPLOAD_DEPENDENCIES: "all"
     CONAN_LOGIN_USERNAME: "${ARTIFACTORY_USER}"
     CONAN_PASSWORD: "${ARTIFACTORY_PASSWORD}"
