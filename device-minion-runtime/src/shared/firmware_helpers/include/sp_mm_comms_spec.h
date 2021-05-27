@@ -24,8 +24,11 @@ enum mm_sp_msg_e {
     MM2SP_CMD_GET_CM_BOOT_FREQ,
     MM2SP_RSP_GET_CM_BOOT_FREQ,
     MM2SP_CMD_REPORT_EXCEPTION_ERROR,
-    MM2SP_CMD_REPORT_HANG_ERROR,
-    SP2MM_CMD_ECHO,
+    MM2SP_CMD_REPORT_HANG_ERROR
+};
+
+enum sp_mm_msg_e {
+    SP2MM_CMD_ECHO = 256,
     SP2MM_RSP_ECHO,
     SP2MM_CMD_UPDATE_FREQ,
     SP2MM_RSP_UPDATE_FREQ,
@@ -34,7 +37,9 @@ enum mm_sp_msg_e {
     SP2MM_CMD_QUIESCE_TRAFFIC,
     SP2MM_RSP_QUIESCE_TRAFFIC,
     SP2MM_CMD_GET_TRACE_BUFF_CONTROL_STRUCT,
-    SP2MM_RSP_GET_TRACE_BUFF_CONTROL_STRUCT
+    SP2MM_RSP_GET_TRACE_BUFF_CONTROL_STRUCT,
+    SP2MM_CMD_KERNEL_LAUNCH,
+    SP2MM_RSP_KERNEL_LAUNCH
 };
 
 /* TODO: We should invent a new cmd and rsp header for the mrt messages
@@ -115,6 +120,17 @@ struct sp2mm_quiesce_traffic_cmd_t {
 };
 
 struct sp2mm_quiesce_traffic_rsp_t {
+  struct dev_cmd_hdr_t  msg_hdr;
+  int32_t  status; /* TODO: Define status as a enum once all error states are defined */
+};
+
+struct sp2mm_kernel_launch_cmd_t {
+  struct dev_cmd_hdr_t  msg_hdr;
+  uint64_t  shire_mask;
+  void *args;
+};
+
+struct sp2mm_kernel_launch_rsp_t {
   struct dev_cmd_hdr_t  msg_hdr;
   int32_t  status; /* TODO: Define status as a enum once all error states are defined */
 };
