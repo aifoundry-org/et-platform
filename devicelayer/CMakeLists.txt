@@ -12,6 +12,10 @@ cmake_minimum_required(VERSION 3.17)
 project(deviceLayer VERSION 0.1.0)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+list(APPEND CMAKE_PREFIX_PATH ${CMAKE_CURRENT_SOURCE_DIR})
+
+message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
+message(STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
 
 set(ET_DEFAULT_BUILD_TYPE Release)
 
@@ -22,10 +26,12 @@ include(GNUInstallDirs)
 option(ENABLE_WARNINGS_AS_ERRORS "Wether deviceLayer targets should treat warnings as errors" OFF)
 include(CompilerWarnings)
 
-#TODO replace linuxDriver dependency by a dependency against only the et_ioctl.h header
+option(ENABLE_TESTS "Enable compiling tests" ON)
+
 find_package(linuxDriver REQUIRED)
 find_package(sw-sysemu REQUIRED)
-find_package(logging REQUIRED)
+find_package(hostUtils REQUIRED)
+find_package(Boost REQUIRED)
 
 add_library(deviceLayer
     src/DeviceLayer.cpp
@@ -37,14 +43,9 @@ add_library(deviceLayer
 add_library(deviceLayer::deviceLayer ALIAS deviceLayer)
 target_compile_features(deviceLayer PUBLIC cxx_std_17)
 target_set_project_warnings(deviceLayer)
-
-get_target_property(PCIE_DRIVER_INC_DIR linuxDriver::etsoc1-pcie-driver INTERFACE_INCLUDE_DIRECTORIES)
-
-
 target_include_directories(deviceLayer
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        ${PCIE_DRIVER_INC_DIR}
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 set_target_properties(deviceLayer PROPERTIES
@@ -55,7 +56,9 @@ target_link_libraries(deviceLayer
     PUBLIC
         sw-sysemu::sw-sysemu
     PRIVATE
-        logging::logging
+        hostUtils::logging
+        linuxDriver::linuxDriver
+        Boost::boost
 )
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "9")
@@ -88,7 +91,10 @@ install(EXPORT DeviceLayerTargets
     NAMESPACE deviceLayer::
 )
 
-add_subdirectory(tests)
+if (ENABLE_TESTS)
+    get_target_property(PCIE_DRIVER_INC_DIR linuxDriver::linuxDriver INTERFACE_INCLUDE_DIRECTORIES)
+    add_subdirectory(tests)
+endif()
 
 ##### Package
 

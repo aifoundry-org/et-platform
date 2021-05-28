@@ -29,7 +29,7 @@ target_link_libraries(testHelper
     PUBLIC
         deviceApi::deviceApi
         deviceLayer::deviceLayer
-        logging::logging
+        hostUtils::logging
         glog::glog
         gflags::gflags
         GTest::gtest

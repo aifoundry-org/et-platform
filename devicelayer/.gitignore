@@ -1,2 +1,4 @@
+build
+conan/test_package/build
 Testing/**
 tests/Testing/**

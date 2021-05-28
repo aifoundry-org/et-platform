@@ -9,7 +9,7 @@
  *-------------------------------------------------------------------------*/
 
 #pragma once
-#include <common/logging/Logging.h>
+#include <hostUtils/logging/Logging.h>
 
 #define DV_LOG(severity) ET_LOG(DEVICE_LAYER, severity)
 #define DV_DLOG(severity) ET_DLOG(DEVICE_LAYER, severity)

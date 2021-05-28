@@ -11,7 +11,7 @@
 #include <deviceLayer/IDeviceLayer.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <common/logging/Logging.h>
+#include <hostUtils/logging/Logging.h>
 
 TEST(Simple, test_nothing) {
   ASSERT_TRUE(true);

@@ -10,7 +10,7 @@
 
 find_package(GTest REQUIRED)
 
-find_package(logging REQUIRED)
+find_package(hostUtils REQUIRED)
 
 #helper to create tests
 function(create_test)
@@ -25,7 +25,7 @@ function(create_test)
     target_link_libraries(${TEST_TARGET}
         PRIVATE
             deviceLayer::deviceLayer
-            logging::logging
+            hostUtils::logging
             GTest::gtest
             GTest::gmock
     )

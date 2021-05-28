@@ -14,7 +14,7 @@
 #include "IDevOpsApiCmd.h"
 #include "deviceLayer/IDeviceLayer.h"
 #include <atomic>
-#include <common/logging/Logger.h>
+#include <hostUtils/logging/Logger.h>
 #include <condition_variable>
 #include <elfio/elfio.hpp>
 #include <gflags/gflags.h>

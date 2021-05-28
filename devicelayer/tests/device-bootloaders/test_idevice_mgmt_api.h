@@ -12,7 +12,7 @@
 #define TEST_DEVICE_MANAGEMENT_H
 
 #include <atomic>
-#include <common/logging/Logger.h>
+#include <hostUtils/logging/Logger.h>
 #include <deviceLayer/IDeviceLayer.h>
 #include <esperanto/device-apis/management-api/device_mgmt_api_cxx.h>
 #include <experimental/filesystem>
