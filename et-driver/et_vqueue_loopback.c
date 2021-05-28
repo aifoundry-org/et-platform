@@ -19,6 +19,449 @@
 #include "et_pci_dev.h"
 #include "et_vqueue.h"
 
+enum mgmt_device_msg_e {
+	DM_CMD_GET_MODULE_MANUFACTURE_NAME = 0,
+	DM_CMD_GET_MODULE_PART_NUMBER = 1,
+	DM_CMD_GET_MODULE_SERIAL_NUMBER = 2,
+	DM_CMD_GET_ASIC_CHIP_REVISION = 3,
+	DM_CMD_GET_MODULE_DRIVER_REVISION = 4,
+	DM_CMD_GET_MODULE_PCIE_ADDR = 5,
+	DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED = 6,
+	DM_CMD_GET_MODULE_MEMORY_SIZE_MB = 7,
+	DM_CMD_GET_MODULE_REVISION = 8,
+	DM_CMD_GET_MODULE_FORM_FACTOR = 9,
+	DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER = 10,
+	DM_CMD_GET_MODULE_MEMORY_TYPE = 11,
+	DM_CMD_GET_FUSED_PUBLIC_KEYS = 12,
+	DM_CMD_GET_MODULE_FIRMWARE_REVISIONS = 13,
+	DM_CMD_SET_FIRMWARE_UPDATE = 14,
+	DM_CMD_GET_FIRMWARE_BOOT_STATUS = 15,
+	DM_CMD_SET_SP_BOOT_ROOT_CERT = 16,
+	DM_CMD_SET_SW_BOOT_ROOT_CERT = 17,
+	DM_CMD_SET_FIRMWARE_VERSION_COUNTER = 18,
+	DM_CMD_SET_FIRMWARE_VALID = 19,
+	DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS = 20,
+	DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS = 21,
+	DM_CMD_GET_MODULE_POWER_STATE = 22,
+	DM_CMD_SET_MODULE_POWER_STATE = 23,
+	DM_CMD_GET_MODULE_STATIC_TDP_LEVEL = 24,
+	DM_CMD_SET_MODULE_STATIC_TDP_LEVEL = 25,
+	DM_CMD_GET_MODULE_CURRENT_TEMPERATURE = 26,
+	DM_CMD_GET_MODULE_TEMPERATURE_THROTTLE_STATUS = 27,
+	DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES = 28,
+	DM_CMD_GET_MODULE_UPTIME = 29,
+	DM_CMD_GET_MODULE_VOLTAGE = 30,
+	DM_CMD_GET_MODULE_POWER = 31,
+	DM_CMD_GET_MODULE_MAX_TEMPERATURE = 32,
+	DM_CMD_GET_MODULE_MAX_THROTTLE_TIME = 33,
+	DM_CMD_GET_MODULE_MAX_DDR_BW = 34,
+	DM_CMD_GET_MAX_MEMORY_ERROR = 35,
+	DM_CMD_SET_DDR_ECC_COUNT = 36,
+	DM_CMD_SET_PCIE_ECC_COUNT = 37,
+	DM_CMD_SET_SRAM_ECC_COUNT = 38,
+	DM_CMD_SET_PCIE_RESET = 39,
+	DM_CMD_GET_MODULE_PCIE_ECC_UECC = 40,
+	DM_CMD_GET_MODULE_DDR_BW_COUNTER = 41,
+	DM_CMD_GET_MODULE_DDR_ECC_UECC = 42,
+	DM_CMD_GET_MODULE_SRAM_ECC_UECC = 43,
+	DM_CMD_SET_PCIE_MAX_LINK_SPEED = 44,
+	DM_CMD_SET_PCIE_LANE_WIDTH = 45,
+	DM_CMD_SET_PCIE_RETRAIN_PHY = 46,
+	DM_CMD_RESET_ETSOC = 47,
+	DM_CMD_GET_ASIC_FREQUENCIES = 48,
+	DM_CMD_GET_DRAM_BANDWIDTH = 49,
+	DM_CMD_GET_DRAM_CAPACITY_UTILIZATION = 50,
+	DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION = 51,
+	DM_CMD_GET_ASIC_UTILIZATION = 52,
+	DM_CMD_GET_ASIC_STALLS = 53,
+	DM_CMD_GET_ASIC_LATENCY = 54,
+	DM_CMD_GET_MM_ERROR_COUNT = 55,
+	DM_CMD_GET_DEVICE_ERROR_EVENTS = 56,
+};
+
+/*
+ * brief Device management command execution status
+ */
+enum DM_STATUS {
+	DM_STATUS_SUCCESS = 0,
+	DM_STATUS_ERROR = 1,
+};
+
+/*
+ * Asset Information
+ */
+struct asset_info_t {
+	char asset[8];
+} __packed;
+
+/*
+ * Fused Public Keys
+ */
+struct fused_public_keys_t {
+	u8 keys[32];
+} __packed;
+
+/*
+ * Firmware versions of different minions
+ */
+struct firmware_version_t {
+	u32 bl1_v;
+	u32 bl2_v;
+	u32 mm_v;
+	u32 wm_v;
+	u32 machm_v;
+	u32 pad;
+} __packed;
+
+/*
+ * Firmware image path
+ */
+struct fw_image_path_t {
+	char path[64];
+} __packed;
+
+/*
+ * Fused Public Keys
+ */
+struct certificate_hash_t {
+	char key_blob[48];
+	char associated_data[48];
+} __packed;
+
+struct temperature_threshold_t {
+	u8 temperature;
+	u8 pad[7];
+} __packed;
+
+struct current_temperature_t {
+	u8 temperature_c;
+	u8 pad[7];
+} __packed;
+
+struct throttle_time_t {
+	u64 time_usec;
+} __packed;
+
+struct module_power_t {
+	u8 power;
+	u8 pad[7];
+} __packed;
+
+struct module_uptime_t {
+	u16 day;
+	u8 hours;
+	u8 mins;
+	u8 pad[4];
+} __packed;
+
+struct max_temperature_t {
+	u8 max_temperature_c;
+	u8 pad[7];
+} __packed;
+
+struct max_ecc_count_t {
+	u32 count;
+	u32 pad;
+} __packed;
+
+struct max_dram_bw_t {
+	u8 max_bw_rd_req_sec;
+	u8 max_bw_wr_req_sec;
+	u8 pad[6];
+
+} __packed;
+
+struct max_throttle_time_t {
+	u64 time_usec;
+
+} __packed;
+
+struct ecc_error_count_t {
+	u8 count;
+	u8 pad[7];
+
+} __packed;
+
+struct errors_count_t {
+	u32 ecc;
+	u32 uecc;
+
+} __packed;
+
+struct dram_bw_counter_t {
+	u32 bw_rd_req_sec;
+	u32 bw_wr_req_sec;
+
+} __packed;
+
+struct asic_frequencies_t {
+	u32 minion_shire_mhz;
+	u32 noc_mhz;
+	u32 mem_shire_mhz;
+	u32 ddr_mhz;
+	u32 pcie_shire_mhz;
+	u32 io_shire_mhz;
+
+} __packed;
+
+struct dram_bw_t {
+	u32 read_req_sec;
+	u32 write_req_sec;
+
+} __packed;
+
+struct percentage_cap_t {
+	u32 pct_cap;
+	u32 pad;
+
+} __packed;
+
+struct mm_error_count_t {
+	u32 hang_count;
+	u32 exception_count;
+
+} __packed;
+
+struct module_voltage_t {
+	u8 ddr;
+	u8 l2_cache;
+	u8 maxion;
+	u8 minion;
+	u8 pcie;
+	u8 noc;
+	u8 pcie_logic;
+	u8 vddqlp;
+	u8 vddq;
+	u8 pad[7];
+
+} __packed;
+
+typedef u8 power_state_e;
+typedef u8 tdp_level_e;
+
+/*
+ * Response header extension for all Device Management responses
+ */
+struct dev_mgmt_rsp_hdr_extn_t {
+	u64 device_latency_usec;
+	s32 status;
+	u8 pad[4];
+} __packed;
+
+/*
+ * DM response header. This header is attached to each response
+ */
+struct dev_mgmt_rsp_header_t {
+	struct cmn_header_t rsp_hdr;
+	struct dev_mgmt_rsp_hdr_extn_t rsp_hdr_ext;
+} __packed;
+
+/*
+ * Default response if no specific response is defined for a cmd
+ */
+struct device_mgmt_default_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	s32 payload;
+	u32 pad;
+} __packed;
+
+/*
+ * Response for the asset info command
+ */
+struct device_mgmt_asset_tracking_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	struct asset_info_t asset_info;
+} __packed;
+
+/*
+ * Response for firmware version command
+ */
+struct device_mgmt_firmware_versions_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	struct firmware_version_t firmware_version;
+} __packed;
+
+/*
+ * Response for temperature threshold update command
+ */
+struct device_mgmt_temperature_threshold_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	struct temperature_threshold_t temperature_threshold;
+} __packed;
+
+/*
+ * Response for power state command
+ */
+struct device_mgmt_power_state_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	power_state_e pwr_state;
+	u8 pad[7];
+} __packed;
+
+/*
+ * Response for TDL Level command
+ */
+struct device_mgmt_tdp_level_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	tdp_level_e tdp_level;
+	u8 pad[7];
+} __packed;
+
+/*
+ * Response for current temperature command
+ */
+struct device_mgmt_current_temperature_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	struct current_temperature_t current_temperature;
+} __packed;
+
+/*
+ * Response for throttle time command
+ */
+struct device_mgmt_throttle_time_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	struct throttle_time_t throttle_time;
+} __packed;
+
+/*
+ * Response for module power command
+ */
+struct device_mgmt_module_power_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	struct module_power_t module_power;
+} __packed;
+
+/*
+ * Response for module voltage command
+ */
+struct device_mgmt_module_voltage_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	struct module_voltage_t module_voltage;
+} __packed;
+
+/*
+ * Response for module uptime command
+ */
+struct device_mgmt_module_uptime_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	struct module_uptime_t module_uptime;
+} __packed;
+
+/*
+ * Response for max temperature command
+ */
+struct device_mgmt_max_temperature_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	struct max_temperature_t max_temperature;
+} __packed;
+
+/*
+ * Response for max memory error count command
+ */
+struct device_mgmt_max_memory_error_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	struct max_ecc_count_t max_ecc_count;
+} __packed;
+
+/*
+ * Response for Max DRAM BW info command
+ */
+struct device_mgmt_max_dram_bw_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	struct max_dram_bw_t max_dram_bw;
+} __packed;
+
+/*
+ * Response for max throttle time command
+ */
+struct device_mgmt_max_throttle_time_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	struct max_throttle_time_t max_throttle_time;
+} __packed;
+
+/*
+ * Response for ECC and UECC count command
+ */
+struct device_mgmt_get_error_count_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	struct errors_count_t errors_count;
+} __packed;
+
+/*
+ * Response for DRAM BW info command
+ */
+struct device_mgmt_dram_bw_counter_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	struct dram_bw_counter_t dram_bw_counter;
+} __packed;
+
+/*
+ * Response for asic_frequencies_cmd command
+ */
+struct device_mgmt_asic_frequencies_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	struct asic_frequencies_t asic_frequency;
+} __packed;
+
+/*
+ * Response for DRAM BW command
+ */
+struct device_mgmt_dram_bw_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	struct dram_bw_t dram_bw; ///
+} __packed;
+
+/*
+ * Response for DRAM Capacity command
+ */
+struct device_mgmt_dram_capacity_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	struct percentage_cap_t percentage_cap; ///
+} __packed;
+
+/*
+ * Response for ASIC utilization command
+ */
+struct device_mgmt_asic_per_core_util_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	u64 dummy;
+} __packed;
+
+/*
+ * Response for ASIC stalls command
+ */
+struct device_mgmt_asic_stalls_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	u64 dummy;
+} __packed;
+
+/*
+ * Response for ASIC Latency command
+ */
+struct device_mgmt_asic_latency_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	u64 dummy;
+} __packed;
+
+/*
+ * Response for MM state command
+ */
+struct device_mgmt_mm_state_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	struct mm_error_count_t mm_error_count;
+} __packed;
+
+/*
+ * Response Header of different response structs in DM services
+ */
+#define FILL_RSP_HEADER(rsp, tag, msg, latency, sts)                           \
+	(rsp).rsp_hdr.rsp_hdr.tag_id = tag;                                    \
+	(rsp).rsp_hdr.rsp_hdr.msg_id = msg;                                    \
+	(rsp).rsp_hdr.rsp_hdr.size =                                           \
+		sizeof(rsp) - sizeof(struct cmn_header_t);                     \
+	(rsp).rsp_hdr.rsp_hdr_ext.device_latency_usec = latency;               \
+	(rsp).rsp_hdr.rsp_hdr_ext.status = sts
+
 /*
  * Echo command
  */
@@ -519,6 +962,30 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 	u8 *cmd;
 	ssize_t rv = 0;
 	struct cmn_header_t header;
+	struct device_mgmt_default_rsp_t dm_def_rsp;
+	struct device_mgmt_get_error_count_rsp_t dm_gec_rsp;
+	struct device_mgmt_dram_bw_counter_rsp_t dm_dbc_rsp;
+	struct device_mgmt_max_memory_error_rsp_t dm_mme_rsp;
+	struct device_mgmt_max_dram_bw_rsp_t dm_mdb_rsp;
+	struct device_mgmt_max_throttle_time_rsp_t dm_mtt_rsp;
+	struct device_mgmt_max_temperature_rsp_t dm_mt_rsp;
+	struct device_mgmt_firmware_versions_rsp_t dm_fv_rsp;
+	struct device_mgmt_asset_tracking_rsp_t dm_at_rsp;
+	struct device_mgmt_power_state_rsp_t dm_ps_rsp;
+	struct device_mgmt_tdp_level_rsp_t dm_tl_rsp;
+	struct device_mgmt_temperature_threshold_rsp_t dm_tt_rsp;
+	struct device_mgmt_current_temperature_rsp_t dm_ct_rsp;
+	struct device_mgmt_throttle_time_rsp_t dm_tht_rsp;
+	struct device_mgmt_module_power_rsp_t dm_mp_rsp;
+	struct device_mgmt_module_voltage_rsp_t dm_mv_rsp;
+	struct device_mgmt_module_uptime_rsp_t dm_mu_rsp;
+	struct device_mgmt_asic_frequencies_rsp_t dm_af_rsp;
+	struct device_mgmt_dram_bw_rsp_t dm_db_rsp;
+	struct device_mgmt_dram_capacity_rsp_t dm_dc_rsp;
+	struct device_mgmt_asic_per_core_util_rsp_t dm_apcu_rsp;
+	struct device_mgmt_asic_stalls_rsp_t dm_as_rsp;
+	struct device_mgmt_asic_latency_rsp_t dm_al_rsp;
+	struct device_mgmt_mm_state_rsp_t dm_ms_rsp;
 	struct device_ops_echo_cmd_t *echo_cmd;
 	struct device_ops_echo_rsp_t echo_rsp;
 	struct device_ops_compatibility_cmd_t *compat_cmd;
@@ -688,6 +1155,737 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 					cq->cb_mem,
 					(u8 *)&kernel_abort_rsp,
 					sizeof(kernel_abort_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_SET_PCIE_RESET:
+		FILL_RSP_HEADER(dm_def_rsp,
+				header.tag_id,
+				DM_CMD_SET_PCIE_RESET,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_def_rsp,
+					sizeof(dm_def_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_SET_PCIE_MAX_LINK_SPEED:
+		FILL_RSP_HEADER(dm_def_rsp,
+				header.tag_id,
+				DM_CMD_SET_PCIE_MAX_LINK_SPEED,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_def_rsp,
+					sizeof(dm_def_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_SET_PCIE_LANE_WIDTH:
+		FILL_RSP_HEADER(dm_def_rsp,
+				header.tag_id,
+				DM_CMD_SET_PCIE_LANE_WIDTH,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_def_rsp,
+					sizeof(dm_def_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_SET_PCIE_RETRAIN_PHY:
+		FILL_RSP_HEADER(dm_def_rsp,
+				header.tag_id,
+				DM_CMD_SET_PCIE_RETRAIN_PHY,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_def_rsp,
+					sizeof(dm_def_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_PCIE_ECC_UECC:
+		FILL_RSP_HEADER(dm_gec_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_PCIE_ECC_UECC,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_gec_rsp,
+					sizeof(dm_gec_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_DDR_ECC_UECC:
+		FILL_RSP_HEADER(dm_gec_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_DDR_ECC_UECC,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_gec_rsp,
+					sizeof(dm_gec_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_SRAM_ECC_UECC:
+		FILL_RSP_HEADER(dm_gec_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_SRAM_ECC_UECC,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_gec_rsp,
+					sizeof(dm_gec_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_DDR_BW_COUNTER:
+		FILL_RSP_HEADER(dm_dbc_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_DDR_BW_COUNTER,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_dbc_rsp,
+					sizeof(dm_dbc_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_SET_DDR_ECC_COUNT:
+		FILL_RSP_HEADER(dm_def_rsp,
+				header.tag_id,
+				DM_CMD_SET_DDR_ECC_COUNT,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_def_rsp,
+					sizeof(dm_def_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_SET_PCIE_ECC_COUNT:
+		FILL_RSP_HEADER(dm_def_rsp,
+				header.tag_id,
+				DM_CMD_SET_PCIE_ECC_COUNT,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_def_rsp,
+					sizeof(dm_def_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_SET_SRAM_ECC_COUNT:
+		FILL_RSP_HEADER(dm_def_rsp,
+				header.tag_id,
+				DM_CMD_SET_SRAM_ECC_COUNT,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_def_rsp,
+					sizeof(dm_def_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MAX_MEMORY_ERROR:
+		FILL_RSP_HEADER(dm_mme_rsp,
+				header.tag_id,
+				DM_CMD_GET_MAX_MEMORY_ERROR,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_mme_rsp,
+					sizeof(dm_mme_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_MAX_DDR_BW:
+		FILL_RSP_HEADER(dm_mdb_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_MAX_DDR_BW,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_mdb_rsp,
+					sizeof(dm_mdb_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_MAX_THROTTLE_TIME:
+		FILL_RSP_HEADER(dm_mtt_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_MAX_THROTTLE_TIME,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_mtt_rsp,
+					sizeof(dm_mtt_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_MAX_TEMPERATURE:
+		FILL_RSP_HEADER(dm_mt_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_MAX_TEMPERATURE,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_mt_rsp,
+					sizeof(dm_mt_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_SET_FIRMWARE_UPDATE:
+		FILL_RSP_HEADER(dm_def_rsp,
+				header.tag_id,
+				DM_CMD_SET_FIRMWARE_UPDATE,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_def_rsp,
+					sizeof(dm_def_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_FIRMWARE_REVISIONS:
+		FILL_RSP_HEADER(dm_fv_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_FIRMWARE_REVISIONS,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_fv_rsp,
+					sizeof(dm_fv_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_FIRMWARE_BOOT_STATUS:
+		FILL_RSP_HEADER(dm_def_rsp,
+				header.tag_id,
+				DM_CMD_GET_FIRMWARE_BOOT_STATUS,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_def_rsp,
+					sizeof(dm_def_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_SET_SP_BOOT_ROOT_CERT:
+		FILL_RSP_HEADER(dm_def_rsp,
+				header.tag_id,
+				DM_CMD_SET_SP_BOOT_ROOT_CERT,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_def_rsp,
+					sizeof(dm_def_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_RESET_ETSOC:
+		break;
+
+	case DM_CMD_GET_MODULE_MANUFACTURE_NAME:
+		FILL_RSP_HEADER(dm_at_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_MANUFACTURE_NAME,
+				0,
+				DM_STATUS_SUCCESS);
+		sprintf(dm_at_rsp.asset_info.asset, "%s", "Esperan");
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_at_rsp,
+					sizeof(dm_at_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_PART_NUMBER:
+		FILL_RSP_HEADER(dm_at_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_PART_NUMBER,
+				0,
+				DM_STATUS_SUCCESS);
+		sprintf(dm_at_rsp.asset_info.asset, "%s", "ETPART1");
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_at_rsp,
+					sizeof(dm_at_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_SERIAL_NUMBER:
+		FILL_RSP_HEADER(dm_at_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_SERIAL_NUMBER,
+				0,
+				DM_STATUS_SUCCESS);
+		sprintf(dm_at_rsp.asset_info.asset, "%s", "ETSER_1");
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_at_rsp,
+					sizeof(dm_at_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_ASIC_CHIP_REVISION:
+		FILL_RSP_HEADER(dm_at_rsp,
+				header.tag_id,
+				DM_CMD_GET_ASIC_CHIP_REVISION,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_at_rsp,
+					sizeof(dm_at_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED:
+		FILL_RSP_HEADER(dm_at_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_at_rsp,
+					sizeof(dm_at_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_REVISION:
+		FILL_RSP_HEADER(dm_at_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_REVISION,
+				0,
+				DM_STATUS_SUCCESS);
+		sprintf(dm_at_rsp.asset_info.asset, "%d", 1);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_at_rsp,
+					sizeof(dm_at_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_FORM_FACTOR:
+		FILL_RSP_HEADER(dm_at_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_FORM_FACTOR,
+				0,
+				DM_STATUS_SUCCESS);
+		sprintf(dm_at_rsp.asset_info.asset, "%s", "Dual_M2");
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_at_rsp,
+					sizeof(dm_at_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER:
+		FILL_RSP_HEADER(dm_at_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER,
+				0,
+				DM_STATUS_SUCCESS);
+		sprintf(dm_at_rsp.asset_info.asset, "%s", "Unknown");
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_at_rsp,
+					sizeof(dm_at_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_MEMORY_SIZE_MB:
+		FILL_RSP_HEADER(dm_at_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_MEMORY_SIZE_MB,
+				0,
+				DM_STATUS_SUCCESS);
+		sprintf(dm_at_rsp.asset_info.asset, "%d", 16 * 1024);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_at_rsp,
+					sizeof(dm_at_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_MEMORY_TYPE:
+		FILL_RSP_HEADER(dm_at_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_MEMORY_TYPE,
+				0,
+				DM_STATUS_SUCCESS);
+		sprintf(dm_at_rsp.asset_info.asset, "%s", "LPDDR4X");
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_at_rsp,
+					sizeof(dm_at_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_POWER_STATE:
+		FILL_RSP_HEADER(dm_ps_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_POWER_STATE,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_ps_rsp,
+					sizeof(dm_ps_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_SET_MODULE_POWER_STATE:
+		FILL_RSP_HEADER(dm_def_rsp,
+				header.tag_id,
+				DM_CMD_SET_MODULE_POWER_STATE,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_def_rsp,
+					sizeof(dm_def_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_STATIC_TDP_LEVEL:
+		FILL_RSP_HEADER(dm_tl_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_STATIC_TDP_LEVEL,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_tl_rsp,
+					sizeof(dm_tl_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_SET_MODULE_STATIC_TDP_LEVEL:
+		FILL_RSP_HEADER(dm_def_rsp,
+				header.tag_id,
+				DM_CMD_SET_MODULE_STATIC_TDP_LEVEL,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_def_rsp,
+					sizeof(dm_def_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS:
+		FILL_RSP_HEADER(dm_tt_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_tt_rsp,
+					sizeof(dm_tt_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS:
+		FILL_RSP_HEADER(dm_def_rsp,
+				header.tag_id,
+				DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_def_rsp,
+					sizeof(dm_def_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_CURRENT_TEMPERATURE:
+		FILL_RSP_HEADER(dm_ct_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_CURRENT_TEMPERATURE,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_ct_rsp,
+					sizeof(dm_ct_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES:
+		FILL_RSP_HEADER(dm_tht_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_tht_rsp,
+					sizeof(dm_tht_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_POWER:
+		FILL_RSP_HEADER(dm_mp_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_POWER,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_mp_rsp,
+					sizeof(dm_mp_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_VOLTAGE:
+		FILL_RSP_HEADER(dm_mv_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_VOLTAGE,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_mv_rsp,
+					sizeof(dm_mv_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_UPTIME:
+		FILL_RSP_HEADER(dm_mu_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_UPTIME,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_mu_rsp,
+					sizeof(dm_mu_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_ASIC_FREQUENCIES:
+		FILL_RSP_HEADER(dm_af_rsp,
+				header.tag_id,
+				DM_CMD_GET_ASIC_FREQUENCIES,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_af_rsp,
+					sizeof(dm_af_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_DRAM_BANDWIDTH:
+		FILL_RSP_HEADER(dm_db_rsp,
+				header.tag_id,
+				DM_CMD_GET_DRAM_BANDWIDTH,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_db_rsp,
+					sizeof(dm_db_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_DRAM_CAPACITY_UTILIZATION:
+		FILL_RSP_HEADER(dm_dc_rsp,
+				header.tag_id,
+				DM_CMD_GET_DRAM_CAPACITY_UTILIZATION,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_dc_rsp,
+					sizeof(dm_dc_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION:
+		FILL_RSP_HEADER(dm_apcu_rsp,
+				header.tag_id,
+				DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_apcu_rsp,
+					sizeof(dm_apcu_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_ASIC_UTILIZATION:
+		FILL_RSP_HEADER(dm_apcu_rsp,
+				header.tag_id,
+				DM_CMD_GET_ASIC_UTILIZATION,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_apcu_rsp,
+					sizeof(dm_apcu_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_ASIC_STALLS:
+		FILL_RSP_HEADER(dm_as_rsp,
+				header.tag_id,
+				DM_CMD_GET_ASIC_STALLS,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_as_rsp,
+					sizeof(dm_as_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_ASIC_LATENCY:
+		FILL_RSP_HEADER(dm_al_rsp,
+				header.tag_id,
+				DM_CMD_GET_ASIC_LATENCY,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_al_rsp,
+					sizeof(dm_al_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MM_ERROR_COUNT:
+		FILL_RSP_HEADER(dm_ms_rsp,
+				header.tag_id,
+				DM_CMD_GET_MM_ERROR_COUNT,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_ms_rsp,
+					sizeof(dm_ms_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
 			rv = -EAGAIN;
