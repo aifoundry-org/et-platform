@@ -66,7 +66,7 @@ static void pre_launch_synchronize_shires(spinlock_t *lock, uint32_t num_shires)
     last = find_last_thread(&pre_launch_local_barrier[shire_id], thread_count);
 
     /* Last thread per shire increments global counter */
-    if (last) 
+    if (last)
     {
         uint32_t prev_shire = atomic_add_global_32(&lock->flag, 1U);
 
@@ -75,7 +75,7 @@ static void pre_launch_synchronize_shires(spinlock_t *lock, uint32_t num_shires)
         } while (atomic_load_global_32(&lock->flag) != num_shires);
 
         /* Last shire resets the global barrier */
-        if (prev_shire == (num_shires - 1)) 
+        if (prev_shire == (num_shires - 1))
         {
             init_global_spinlock(&pre_launch_global_barrier, 0);
         }
@@ -179,7 +179,8 @@ static inline uint64_t kernel_info_get_error_buffer(uint32_t shire_id)
     if (buffer != 0ULL)
     {
         /* Error buffer starts from the end of exception contexts for all the harts in compute shires */
-        buffer += sizeof(execution_context_t) * (NUM_COMPUTE_SHIRES * HARTS_PER_SHIRE);
+        buffer += sizeof(execution_context_t) *
+            (NUM_COMPUTE_SHIRES * HARTS_PER_SHIRE + MASTER_SHIRE_COMPUTE_HARTS);
     }
 
     return buffer;
@@ -202,7 +203,7 @@ void kernel_info_get_attributes(uint32_t shire_id, uint8_t *kw_base_id, uint8_t 
     *slot_index = kernel_info.slot_index;
 }
 
-static inline void kernel_info_set_attributes(uint32_t shire_id, uint8_t kw_base_id, 
+static inline void kernel_info_set_attributes(uint32_t shire_id, uint8_t kw_base_id,
     uint8_t slot_index, uint64_t kernel_exception_buffer)
 {
     kernel_launch_info_t kernel_info;
@@ -216,7 +217,7 @@ static inline void kernel_info_set_attributes(uint32_t shire_id, uint8_t kw_base
     atomic_store_local_64(&kernel_launch_info[shire_id].exception_buffer, kernel_exception_buffer);
 }
 
-static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_shire_mask, 
+static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_shire_mask,
     uint64_t kernel_launch_flags, uint64_t kernel_exception_buffer);
 
 int64_t launch_kernel(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_entry_addr,
@@ -231,7 +232,7 @@ int64_t launch_kernel(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_en
                  "addi  %0, %0, 8    \n"
                  : "=r"(firmware_sp));
 
-    pre_kernel_setup(kw_base_id, slot_index, kernel_shire_mask, kernel_launch_flags, 
+    pre_kernel_setup(kw_base_id, slot_index, kernel_shire_mask, kernel_launch_flags,
         kernel_exception_buffer);
 
     /* Wait until all the Shires involved in the kernel launch reach this sync point */
@@ -375,7 +376,7 @@ int64_t launch_kernel(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_en
     return return_value;
 }
 
-static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_shire_mask, 
+static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_shire_mask,
     uint64_t kernel_launch_flags, uint64_t kernel_exception_buffer)
 {
     const uint32_t shire_id = get_shire_id();
@@ -516,7 +517,7 @@ void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t 
             /* If the kernel error buffer is available */
             if (error_buffer != 0)
             {
-                CM_To_MM_Save_Kernel_Error((kernel_execution_error_t*)error_buffer, 
+                CM_To_MM_Save_Kernel_Error((kernel_execution_error_t*)error_buffer,
                     shire_id, kernel_ret_val);
             }
         }

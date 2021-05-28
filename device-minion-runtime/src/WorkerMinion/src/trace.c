@@ -36,7 +36,7 @@
 /*! \def CM_HART_COUNT
     \brief Number of Harts running CMFW. (CM Shires * Harts per Shire + MM Harts acting as Workers)
 */
-#define CM_HART_COUNT               (2080)
+#define CM_HART_COUNT               (NUM_COMPUTE_SHIRES * HARTS_PER_SHIRE + MASTER_SHIRE_COMPUTE_HARTS)
 
 /*
  * Compute Minion Trace control block.
