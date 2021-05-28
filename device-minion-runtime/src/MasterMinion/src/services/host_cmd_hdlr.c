@@ -499,6 +499,12 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                     /* Initiate DMA write transfer */
                     status = DMAW_Write_Trigger_Transfer(chan, cmd, dma_xfer_count,
                         sqw_idx, &cycles, (uint8_t)sw_timer_idx, dma_flag);
+
+                    if(status != STATUS_SUCCESS)
+                    {
+                        /* Free the registered SW Timeout */
+                        SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
+                    }
                 }
                 else
                 {
@@ -522,9 +528,6 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                         "HostCmdHdlr:DataReadCmd:Failed:CmdParams:dst_host_virt_addr:%lx:dst_host_phy_addr:%lx\r\n",
                         cmd->list[loop_cnt].dst_host_virt_addr, cmd->list[loop_cnt].dst_host_phy_addr);
                 }
-
-                /* Free the registered SW Timeout */
-                SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
 
                 /* Construct and transmit command response */
                 rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;
@@ -630,11 +633,17 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 sw_timer_idx = SW_Timer_Create_Timeout(&DMAW_Read_Set_Abort_Status, chan,
                                         DMA_TIMEOUT_FACTOR(total_dma_size));
 
-                if(sw_timer_idx >=0 )
+                if(sw_timer_idx >= 0)
                 {
                     /* Initiate DMA read transfer */
                     status = DMAW_Read_Trigger_Transfer(chan, cmd, dma_xfer_count,
-                                                        sqw_idx, &cycles, (uint8_t)sw_timer_idx);
+                        sqw_idx, &cycles, (uint8_t)sw_timer_idx);
+
+                    if(status != STATUS_SUCCESS)
+                    {
+                        /* Free the registered SW Timeout */
+                        SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
+                    }
                 }
                 else
                 {
@@ -658,8 +667,6 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                         "HostCmdHdlr:DataWriteCmd:Failed:CmdParams:src_host_virt_addr:%lx:src_host_phy_addr:%lx\r\n",
                         cmd->list[loop_cnt].src_host_virt_addr, cmd->list[loop_cnt].src_host_phy_addr);
                 }
-                /* Free the registered SW Timeout */
-                SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
 
                 /* Construct and transit command response */
                 rsp.response_info.rsp_hdr.tag_id = hdr->cmd_hdr.tag_id;

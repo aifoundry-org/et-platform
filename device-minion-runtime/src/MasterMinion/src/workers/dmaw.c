@@ -339,9 +339,6 @@ int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id, struct device_ops_dma_w
     }
     else
     {
-        /* Cancel the rimeout registered */
-        SW_Timer_Cancel_Timeout(sw_timer_idx);
-
         /* Release the DMA resources */
         chan_status.tag_id = 0;
         chan_status.sqw_idx = 0;
@@ -445,9 +442,6 @@ int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id, struct device_ops_dma_
     }
     else
     {
-        /* Cancel the rimeout registered */
-        SW_Timer_Cancel_Timeout(sw_timer_idx);
-
         /* Release the DMA resources */
         chan_status.tag_id = 0;
         chan_status.sqw_idx = 0;
@@ -577,7 +571,6 @@ void DMAW_Launch(uint32_t hart_id)
                 global DMA channel status for read channels */
                 if(channel_state == DMA_CHAN_STATE_IN_USE)
                 {
-
                     /* Populate the DMA channel index */
                     dma_chan_id = ch_index + DMA_CHAN_ID_READ_0;
 
@@ -590,6 +583,13 @@ void DMAW_Launch(uint32_t hart_id)
 
                     if (dma_done || dma_aborted)
                     {
+                        /* Read the channel status from CB */
+                        chan_status.raw_u64 = atomic_load_local_64(
+                            &DMAW_Read_CB.chan_status_cb[ch_index].status.raw_u64);
+
+                        /* Free the registered SW Timeout slot */
+                        SW_Timer_Cancel_Timeout(chan_status.sw_timer_idx);
+
                         if(dma_done)
                         {
                             /* DMA transfer complete, clear interrupt status */
@@ -603,16 +603,12 @@ void DMAW_Launch(uint32_t hart_id)
                             dma_clear_read_abort(dma_chan_id);
                             dma_configure_read(dma_chan_id);
                             write_rsp.status = DEV_OPS_API_DMA_RESPONSE_ERROR;
-                            Log_Write(LOG_LEVEL_DEBUG,"DMAW: Read Transfer Aborted\r\n");
+                            Log_Write(LOG_LEVEL_ERROR,"DMAW: Read Transfer Aborted\r\n");
                         }
 
                         /* TODO: SW-7137: To be removed */
                         msg_id = atomic_load_local_16(
                             &DMAW_Read_CB.chan_status_cb[ch_index].msg_id);
-
-                        /* Read the channel status from CB */
-                        chan_status.raw_u64 = atomic_load_local_64(
-                            &DMAW_Read_CB.chan_status_cb[ch_index].status.raw_u64);
 
                         Log_Write(LOG_LEVEL_DEBUG,"SQ[%d] DMAW: Read Tag ID:%d Chan ID:%d \r\n",
                             chan_status.sqw_idx, chan_status.tag_id, dma_chan_id);
@@ -620,9 +616,6 @@ void DMAW_Launch(uint32_t hart_id)
                         for the command and obtain current cycles */
                         dma_cycles.raw_u64 = atomic_load_local_64
                             (&DMAW_Read_CB.chan_status_cb[ch_index].dmaw_cycles.raw_u64);
-
-                        /* Free the registered SW Timeout slot */
-                        SW_Timer_Cancel_Timeout(chan_status.sw_timer_idx);
 
                         /* Update global DMA channel status
                         NOTE: Channel state must be made idle once all resources are read */
@@ -663,15 +656,11 @@ void DMAW_Launch(uint32_t hart_id)
                 }
                 else if (channel_state == DMA_CHAN_STATE_ABORTING)
                 {
-                    Log_Write(LOG_LEVEL_ERROR, "DMAW:%d:read_chan_aborting:%d\r\n", hart_id, ch_index);
+                    Log_Write(LOG_LEVEL_ERROR, "DMAW:%d:Timeout:read_chan_aborting:%d\r\n",
+                        hart_id, ch_index);
 
                     /* Populate the DMA channel index */
                     dma_chan_id = ch_index + DMA_CHAN_ID_READ_0;
-
-                    /* Obtain wait latency, start cycles measured for the command
-                    and obtain current cycles */
-                    dma_cycles.raw_u64 = atomic_load_local_64
-                        (&DMAW_Read_CB.chan_status_cb[ch_index].dmaw_cycles.raw_u64);
 
                     /* Abort the channel */
                     dma_status = dma_abort_read(dma_chan_id);
@@ -679,51 +668,57 @@ void DMAW_Launch(uint32_t hart_id)
                     if(dma_status == DMA_OPERATION_SUCCESS)
                     {
                         /* DMA transfer aborted, clear interrupt status */
-                        dma_status = dma_clear_read_abort(dma_chan_id);
+                        dma_clear_read_abort(dma_chan_id);
                         dma_configure_read(dma_chan_id);
                     }
 
-                    if(dma_status == DMA_OPERATION_SUCCESS)
+                    /* TODO: SW-7137: To be removed */
+                    msg_id = atomic_load_local_16(
+                        &DMAW_Read_CB.chan_status_cb[ch_index].msg_id);
+
+                    /* Read the channel status from CB */
+                    chan_status.raw_u64 = atomic_load_local_64(
+                        &DMAW_Read_CB.chan_status_cb[ch_index].status.raw_u64);
+
+                    /* Obtain wait latency, start cycles measured for the command
+                    and obtain current cycles */
+                    dma_cycles.raw_u64 = atomic_load_local_64
+                        (&DMAW_Read_CB.chan_status_cb[ch_index].dmaw_cycles.raw_u64);
+
+                    /* Update global DMA channel status
+                    NOTE: Channel state must be made idle once all resources are read */
+                    atomic_store_local_32
+                        (&DMAW_Read_CB.chan_status_cb[ch_index].status.channel_state,
+                        DMA_CHAN_STATE_IDLE);
+
+                    /* Decrement the commands count being processed by the
+                    given SQW. Should be done after clearing channel state */
+                    SQW_Decrement_Command_Count(chan_status.sqw_idx);
+
+                    /* Create and transmit DMA command response */
+                    write_rsp.status = DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG;
+                    write_rsp.response_info.rsp_hdr.size =
+                        sizeof(write_rsp) - sizeof(struct cmn_header_t);
+                    write_rsp.response_info.rsp_hdr.tag_id = chan_status.tag_id;
+                    write_rsp.response_info.rsp_hdr.msg_id = (msg_id_t)(msg_id + 1U);
+                    /* TODO: SW-7137 To be enabled back
+                    write_rsp.response_info.rsp_hdr.msg_id =
+                        DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP; */
+                    write_rsp.cmd_wait_time = dma_cycles.wait_cycles;
+                    /* Compute command execution latency */
+                    write_rsp.cmd_execution_time = PMC_GET_LATENCY(dma_cycles.start_cycles);
+
+                    status = Host_Iface_CQ_Push_Cmd(0, &write_rsp, sizeof(write_rsp));
+
+                    if(status == STATUS_SUCCESS)
                     {
-                        /* TODO: SW-7137: To be removed */
-                        msg_id = atomic_load_local_16(
-                            &DMAW_Read_CB.chan_status_cb[ch_index].msg_id);
-
-                        /* Update global DMA channel status
-                        NOTE: Channel state must be made idle once all resources are read */
-                        atomic_store_local_32
-                            (&DMAW_Read_CB.chan_status_cb[ch_index].status.channel_state,
-                            DMA_CHAN_STATE_IDLE);
-
-                        /* Decrement the commands count being processed by the
-                        given SQW. Should be done after clearing channel state */
-                        SQW_Decrement_Command_Count(chan_status.sqw_idx);
-
-                        /* Create and transmit DMA command response */
-                        write_rsp.status = DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG;
-                        write_rsp.response_info.rsp_hdr.size =
-                            sizeof(write_rsp) - sizeof(struct cmn_header_t);
-                        write_rsp.response_info.rsp_hdr.tag_id = chan_status.tag_id;
-                        write_rsp.response_info.rsp_hdr.msg_id = (msg_id_t)(msg_id + 1U);
-                        /* TODO: SW-7137 To be enabled back
-                        write_rsp.response_info.rsp_hdr.msg_id =
-                            DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP; */
-                        write_rsp.cmd_wait_time = dma_cycles.wait_cycles;
-                        /* Compute command execution latency */
-                        write_rsp.cmd_execution_time = PMC_GET_LATENCY(dma_cycles.start_cycles);
-
-                        status = Host_Iface_CQ_Push_Cmd(0, &write_rsp, sizeof(write_rsp));
-
-                        if(status == STATUS_SUCCESS)
-                        {
-                            Log_Write(LOG_LEVEL_DEBUG,
-                                "DMAW:Pushed:DATA_WRITE_CMD_RSP->Host_CQ\r\n");
-                        }
-                        else
-                        {
-                            Log_Write(LOG_LEVEL_ERROR, "DMAW:HostIface:Push:Failed\r\n");
-                            MM2SP_Report_Error(MM_DMA_WORKER, CQ_PUSH_ERROR);
-                        }
+                        Log_Write(LOG_LEVEL_DEBUG,
+                            "DMAW:Pushed:DATA_WRITE_CMD_RSP->Host_CQ\r\n");
+                    }
+                    else
+                    {
+                        Log_Write(LOG_LEVEL_ERROR, "DMAW:HostIface:Push:Failed\r\n");
+                        MM2SP_Report_Error(MM_DMA_WORKER, CQ_PUSH_ERROR);
                     }
                 }
             }
@@ -764,6 +759,13 @@ void DMAW_Launch(uint32_t hart_id)
 
                     if (dma_done || dma_aborted)
                     {
+                        /* Read the channel status from CB */
+                        chan_status.raw_u64 = atomic_load_local_64(
+                            &DMAW_Write_CB.chan_status_cb[ch_index].status.raw_u64);
+
+                        /* Free the registered SW Timeout slot */
+                        SW_Timer_Cancel_Timeout(chan_status.sw_timer_idx);
+
                         if(dma_done)
                         {
                             /* DMA transfer complete, clear interrupt status */
@@ -777,16 +779,12 @@ void DMAW_Launch(uint32_t hart_id)
                             dma_clear_write_abort(dma_chan_id);
                             dma_configure_write(dma_chan_id);
                             read_rsp.status = DEV_OPS_API_DMA_RESPONSE_ERROR;
-                            Log_Write(LOG_LEVEL_DEBUG,"DMAW: Write Transfer Aborted\r\n");
+                            Log_Write(LOG_LEVEL_ERROR,"DMAW: Write Transfer Aborted\r\n");
                         }
 
                         /* TODO: SW-7137: To be removed */
                         msg_id = atomic_load_local_16(
                             &DMAW_Write_CB.chan_status_cb[ch_index].msg_id);
-
-                        /* Read the channel status from CB */
-                        chan_status.raw_u64 = atomic_load_local_64(
-                            &DMAW_Write_CB.chan_status_cb[ch_index].status.raw_u64);
 
                         Log_Write(LOG_LEVEL_DEBUG,"SQ[%d] DMAW: Write Tag ID:%d Chan ID:%d \r\n",
                             chan_status.sqw_idx, chan_status.tag_id, dma_chan_id);
@@ -794,9 +792,6 @@ void DMAW_Launch(uint32_t hart_id)
                         for the command and obtain current cycles */
                         dma_cycles.raw_u64 = atomic_load_local_64
                             (&DMAW_Write_CB.chan_status_cb[ch_index].dmaw_cycles.raw_u64);
-
-                        /* Free the registered SW Timeout slot */
-                        SW_Timer_Cancel_Timeout(chan_status.sw_timer_idx);
 
                         /* Update global DMA channel status
                         NOTE: Channel state must be made idle once all resources are read */
@@ -837,15 +832,11 @@ void DMAW_Launch(uint32_t hart_id)
                 }
                 else if (channel_state == DMA_CHAN_STATE_ABORTING)
                 {
-                    Log_Write(LOG_LEVEL_ERROR, "DMAW:%d:write_chan_aborting:%d\r\n", hart_id, ch_index);
+                    Log_Write(LOG_LEVEL_ERROR, "DMAW:%d:Timeout:write_chan_aborting:%d\r\n",
+                        hart_id, ch_index);
 
                     /* Populate the DMA channel index */
                     dma_chan_id = ch_index + DMA_CHAN_ID_WRITE_0;
-
-                    /* Obtain wait latency, start cycles measured for the command
-                    and obtain current cycles */
-                    dma_cycles.raw_u64 = atomic_load_local_64
-                        (&DMAW_Write_CB.chan_status_cb[ch_index].dmaw_cycles.raw_u64);
 
                     /* Abort the channel */
                     dma_status = dma_abort_write(dma_chan_id);
@@ -853,51 +844,57 @@ void DMAW_Launch(uint32_t hart_id)
                     if(dma_status == DMA_OPERATION_SUCCESS)
                     {
                         /* DMA transfer aborted, clear interrupt status */
-                        dma_status = dma_clear_write_abort(dma_chan_id);
+                        dma_clear_write_abort(dma_chan_id);
                         dma_configure_write(dma_chan_id);
                     }
 
-                    if(dma_status == DMA_OPERATION_SUCCESS)
+                    /* TODO: SW-7137: To be removed */
+                    msg_id = atomic_load_local_16(
+                        &DMAW_Write_CB.chan_status_cb[ch_index].msg_id);
+
+                    /* Read the channel status from CB */
+                    chan_status.raw_u64 = atomic_load_local_64(
+                        &DMAW_Write_CB.chan_status_cb[ch_index].status.raw_u64);
+
+                    /* Obtain wait latency, start cycles measured for the command
+                    and obtain current cycles */
+                    dma_cycles.raw_u64 = atomic_load_local_64
+                        (&DMAW_Write_CB.chan_status_cb[ch_index].dmaw_cycles.raw_u64);
+
+                    /* Update global DMA channel status
+                    NOTE: Channel state must be made idle once all resources are read */
+                    atomic_store_local_32
+                        (&DMAW_Write_CB.chan_status_cb[ch_index].status.channel_state,
+                        DMA_CHAN_STATE_IDLE);
+
+                    /* Decrement the commands count being processed by the
+                    given SQW. Should be done after clearing channel state */
+                    SQW_Decrement_Command_Count(chan_status.sqw_idx);
+
+                    /* Create and transmit DMA command response */
+                    read_rsp.status = DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG;
+                    read_rsp.response_info.rsp_hdr.size =
+                        sizeof(read_rsp) - sizeof(struct cmn_header_t);
+                    read_rsp.response_info.rsp_hdr.tag_id = chan_status.tag_id;
+                    read_rsp.response_info.rsp_hdr.msg_id = (msg_id_t)(msg_id + 1U);
+                    /* TODO: SW-7137 To be enabled back
+                    read_rsp.response_info.rsp_hdr.msg_id =
+                        DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP; */
+                    read_rsp.cmd_wait_time = dma_cycles.wait_cycles;
+                    /* Compute command execution latency */
+                    read_rsp.cmd_execution_time = PMC_GET_LATENCY(dma_cycles.start_cycles);
+
+                    status = Host_Iface_CQ_Push_Cmd(0, &read_rsp, sizeof(read_rsp));
+
+                    if(status == STATUS_SUCCESS)
                     {
-                        /* TODO: SW-7137: To be removed */
-                        msg_id = atomic_load_local_16(
-                            &DMAW_Write_CB.chan_status_cb[ch_index].msg_id);
-
-                        /* Update global DMA channel status
-                        NOTE: Channel state must be made idle once all resources are read */
-                        atomic_store_local_32
-                            (&DMAW_Write_CB.chan_status_cb[ch_index].status.channel_state,
-                            DMA_CHAN_STATE_IDLE);
-
-                        /* Decrement the commands count being processed by the
-                        given SQW. Should be done after clearing channel state */
-                        SQW_Decrement_Command_Count(chan_status.sqw_idx);
-
-                        /* Create and transmit DMA command response */
-                        read_rsp.status = DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG;
-                        read_rsp.response_info.rsp_hdr.size =
-                            sizeof(read_rsp) - sizeof(struct cmn_header_t);
-                        read_rsp.response_info.rsp_hdr.tag_id = chan_status.tag_id;
-                        read_rsp.response_info.rsp_hdr.msg_id = (msg_id_t)(msg_id + 1U);
-                        /* TODO: SW-7137 To be enabled back
-                        read_rsp.response_info.rsp_hdr.msg_id =
-                            DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP; */
-                        read_rsp.cmd_wait_time = dma_cycles.wait_cycles;
-                        /* Compute command execution latency */
-                        read_rsp.cmd_execution_time = PMC_GET_LATENCY(dma_cycles.start_cycles);
-
-                        status = Host_Iface_CQ_Push_Cmd(0, &read_rsp, sizeof(read_rsp));
-
-                        if(status == STATUS_SUCCESS)
-                        {
-                            Log_Write(LOG_LEVEL_DEBUG,
-                                "DMAW:Pushed:DATA_WRITE_CMD_RSP->Host_CQ\r\n");
-                        }
-                        else
-                        {
-                            Log_Write(LOG_LEVEL_ERROR, "DMAW:HostIface:Push:Failed\r\n");
-                            MM2SP_Report_Error(MM_DMA_WORKER, CQ_PUSH_ERROR);
-                        }
+                        Log_Write(LOG_LEVEL_DEBUG,
+                            "DMAW:Pushed:DATA_WRITE_CMD_RSP->Host_CQ\r\n");
+                    }
+                    else
+                    {
+                        Log_Write(LOG_LEVEL_ERROR, "DMAW:HostIface:Push:Failed\r\n");
+                        MM2SP_Report_Error(MM_DMA_WORKER, CQ_PUSH_ERROR);
                     }
                 }
             }
@@ -936,8 +933,6 @@ void DMAW_Read_Set_Abort_Status(uint8_t read_chan)
     SW_Timer_Cancel_Timeout(atomic_load_local_8(
         &DMAW_Read_CB.chan_status_cb[read_chan - DMA_CHAN_ID_READ_0].status.sw_timer_idx));
 
-    Log_Write(LOG_LEVEL_DEBUG, "Aborting:DMAW: read channel=%d\r\n", read_chan);
-
     atomic_store_local_32
         (&DMAW_Read_CB.chan_status_cb[read_chan - DMA_CHAN_ID_READ_0].status.channel_state,
         DMA_CHAN_STATE_ABORTING);
@@ -967,8 +962,6 @@ void DMAW_Write_Set_Abort_Status(uint8_t write_chan)
     /* Free the registered SW Timeout slot */
     SW_Timer_Cancel_Timeout(atomic_load_local_8(
         &DMAW_Write_CB.chan_status_cb[write_chan - DMA_CHAN_ID_WRITE_0].status.sw_timer_idx));
-
-    Log_Write(LOG_LEVEL_DEBUG, "Aborting:DMAW: write channel=%d\r\n", write_chan);
 
     atomic_store_local_32
         (&DMAW_Write_CB.chan_status_cb[write_chan - DMA_CHAN_ID_WRITE_0].status.channel_state,
