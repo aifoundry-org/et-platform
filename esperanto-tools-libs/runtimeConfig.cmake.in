@@ -11,10 +11,13 @@
 @PACKAGE_INIT@
 
 include(CMakeFindDependencyMacro)
-find_dependency(cereal)
-find_dependency(DeviceLayer)
-find_dependency(logging)
-find_dependency(deviceApi)
+find_dependency(cereal REQUIRED)
+find_dependency(elfio REQUIRED)
+find_dependency(fmt REQUIRED)
+find_dependency(hostUtils REQUIRED)
+find_dependency(deviceApi REQUIRED)
+find_dependency(DeviceLayer REQUIRED)
+find_dependency(sw-sysemu REQUIRED)
 
 include(${CMAKE_CURRENT_LIST_DIR}/runtimeTargets.cmake)
 check_required_components(runtime)
