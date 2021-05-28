@@ -20,8 +20,8 @@ protected:
   void abortHangKernel_PositiveTesting_4_10(uint64_t shire_mask);
 
   /* Kernel Stress Tests*/
-  void backToBackSameKernelLaunchCmds_3_1(uint64_t shire_mask);
-  void backToBackDifferentKernelLaunchCmds_3_2(uint64_t shire_mask);
+  void backToBackSameKernelLaunchCmds_3_1(bool singleQueue, uint64_t shire_mask);
+  void backToBackDifferentKernelLaunchCmds_3_2(bool singleQueue, uint64_t shire_mask);
   void backToBackEmptyKernelLaunch_3_3(uint64_t shire_mask, bool flushL3);
   /* Kernel Negative Tests */
   void kernelAbortCmd_InvalidTagIdNegativeTesting_6_2();

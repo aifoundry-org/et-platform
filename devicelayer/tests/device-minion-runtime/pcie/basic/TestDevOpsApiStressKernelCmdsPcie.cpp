@@ -23,24 +23,41 @@ protected:
   }
 };
 
-TEST_F(TestDevOpsApiStressKernelCmdsPcie, backToBackSameKernelLaunchCmds_3_1) {
-  backToBackSameKernelLaunchCmds_3_1(0x1);
+TEST_F(TestDevOpsApiStressKernelCmdsPcie, backToBackSameKernelLaunchCmdsSingleDeviceSingleQueue_3_1) {
+  backToBackSameKernelLaunchCmds_3_1(true, 0x1);
 }
 
-TEST_F(TestDevOpsApiStressKernelCmdsPcie, backToBackDifferentKernelLaunchCmds_3_2) {
+TEST_F(TestDevOpsApiStressKernelCmdsPcie, backToBackSameKernelLaunchCmdsSingleDeviceMultiQueue_3_2) {
+  backToBackSameKernelLaunchCmds_3_1(false, 0x1);
+}
+
+TEST_F(TestDevOpsApiStressKernelCmdsPcie, backToBackDifferentKernelLaunchCmdsSingleDeviceSingleQueue_3_3) {
   // Skip Test, if loopback driver
   if (FLAGS_loopback_driver) {
-    TEST_VLOG(0) << "Skipping: backToBackDifferentKernelLaunchCmds_3_2, not supported on loopback driver" << std::endl;
+    TEST_VLOG(0)
+      << "Skipping: backToBackDifferentKernelLaunchCmdsSingleDeviceSingleQueue_3_3, not supported on loopback driver"
+      << std::endl;
     return;
   }
-  backToBackDifferentKernelLaunchCmds_3_2(0x3);
+  backToBackDifferentKernelLaunchCmds_3_2(true, 0x3);
 }
 
-TEST_F(TestDevOpsApiStressKernelCmdsPcie, backToBackEmptyKernelLaunch_3_3) {
+TEST_F(TestDevOpsApiStressKernelCmdsPcie, backToBackDifferentKernelLaunchCmdsSingleDeviceMultileQueue_3_4) {
+  // Skip Test, if loopback driver
+  if (FLAGS_loopback_driver) {
+    TEST_VLOG(0)
+      << "Skipping: backToBackDifferentKernelLaunchCmdsSingleDeviceMultileQueue_3_4, not supported on loopback driver"
+      << std::endl;
+    return;
+  }
+  backToBackDifferentKernelLaunchCmds_3_2(false, 0x3);
+}
+
+TEST_F(TestDevOpsApiStressKernelCmdsPcie, backToBackEmptyKernelLaunch_3_5) {
   backToBackEmptyKernelLaunch_3_3(0x3 | (1ull << 32), false); /* Shire 0, 1 and 32 */
 }
 
-TEST_F(TestDevOpsApiStressKernelCmdsPcie, backToBackEmptyKernelLaunchFlushL3_3_4) {
+TEST_F(TestDevOpsApiStressKernelCmdsPcie, backToBackEmptyKernelLaunchFlushL3_3_6) {
   backToBackEmptyKernelLaunch_3_3(0x3 | (1ull << 32), true); /* Shire 0, 1 and 32 */
 }
 

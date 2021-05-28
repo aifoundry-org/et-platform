@@ -53,19 +53,27 @@ protected:
   }
 };
 
-TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackSameKernelLaunchCmds_3_1) {
-  backToBackSameKernelLaunchCmds_3_1(kSysEmuMinionShiresMask);
+TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackSameKernelLaunchCmdsSingleDeviceSingleQueue_3_1) {
+  backToBackSameKernelLaunchCmds_3_1(true, kSysEmuMinionShiresMask);
 }
 
-TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackDifferentKernelLaunchCmds_3_2) {
-  backToBackDifferentKernelLaunchCmds_3_2(kSysEmuMinionShiresMask);
+TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackSameKernelLaunchCmdsSingleDeviceMultiQueue_3_2) {
+  backToBackSameKernelLaunchCmds_3_1(false, kSysEmuMinionShiresMask);
 }
 
-TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackEmptyKernelLaunch_3_3) {
+TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackDifferentKernelLaunchCmdsSingleDeviceSingleQueue_3_3) {
+  backToBackDifferentKernelLaunchCmds_3_2(true, kSysEmuMinionShiresMask);
+}
+
+TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackDifferentKernelLaunchCmdsSingleDeviceMultileQueue_3_4) {
+  backToBackDifferentKernelLaunchCmds_3_2(false, kSysEmuMinionShiresMask);
+}
+
+TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackEmptyKernelLaunch_3_5) {
   backToBackEmptyKernelLaunch_3_3(kSysEmuMinionShiresMask, false);
 }
 
-TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackEmptyKernelLaunchFlushL3_3_4) {
+TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackEmptyKernelLaunchFlushL3_3_6) {
   backToBackEmptyKernelLaunch_3_3(kSysEmuMinionShiresMask, true);
 }
 

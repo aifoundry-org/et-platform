@@ -29,27 +29,41 @@ void TestDevOpsApiKernelCmds::launchAddVectorKernel_PositiveTesting_4_1(uint64_t
   auto queueCount = getSqCount(deviceIdx);
 
   // Load ELF
-  std::array<ELFIO::elfio, maxQueueCount> reader;
+  std::vector<ELFIO::elfio> reader(queueCount);
   auto elfPath = (fs::path(FLAGS_kernels_dir) / fs::path("add_vector.elf")).string();
-  uint64_t kernelEntryAddr[queueCount];
+  std::vector<uint64_t> kernelEntryAddr(queueCount, 0);
 
+  std::minstd_rand simple_rand;
+  simple_rand.seed(time(NULL));
   // Create vector data
-  std::array<std::vector<int>, maxQueueCount> vA;
-  std::array<std::vector<int>, maxQueueCount> vB;
-  std::array<std::vector<int>, maxQueueCount> vResult;
+  std::vector<std::vector<int>> vA, vB, vSum;
   int numElems = 10496;
+  for (uint16_t queueId = 0; queueId < queueCount; queueId++) {
+    std::vector<int> tempVecA, tempVecB, tempSum;
+    for (int i = 0; i < numElems; ++i) {
+      tempVecA.emplace_back(simple_rand());
+      tempVecB.emplace_back(simple_rand());
+      tempSum.emplace_back(tempVecA.back() + tempVecB.back());
+    }
+    vA.push_back(std::move(tempVecA));
+    vB.push_back(std::move(tempVecB));
+    vSum.push_back(std::move(tempSum));
+  }
 
   std::vector<std::vector<int>> resultFromDevice;
-  std::array<std::vector<int>, maxQueueCount> readBuf;
+  std::vector<int> readBuf;
 
   // Assign device memory for data
   auto bufSize = numElems * sizeof(int);
   auto alignedBufSize = ALIGN(bufSize, kCacheLineSize);
-  std::array<uint64_t, maxQueueCount> dataLoadAddr;
-  std::array<uint64_t, maxQueueCount> devAddrVecA;
-  std::array<uint64_t, maxQueueCount> devAddrVecB;
-  std::array<uint64_t, maxQueueCount> devAddrVecResult;
-
+  std::vector<uint64_t> dataLoadAddr(queueCount, 0);
+  std::vector<uint64_t> devAddrVecA(queueCount, 0);
+  std::vector<uint64_t> devAddrVecB(queueCount, 0);
+  std::vector<uint64_t> devAddrVecResult(queueCount, 0);
+  std::vector<uint64_t> hostVirtAddrA(queueCount, 0);
+  std::vector<uint64_t> hostVirtAddrB(queueCount, 0);
+  std::vector<uint64_t> devAddrKernelArgs(queueCount, 0);
+  std::vector<uint64_t> devAddrkernelException(queueCount, 0);
   // create device params structure
   struct Params {
     uint64_t vA;
@@ -57,62 +71,53 @@ void TestDevOpsApiKernelCmds::launchAddVectorKernel_PositiveTesting_4_1(uint64_t
     uint64_t vResult;
     int numElements;
   };
-  std::array<Params, maxQueueCount> parameters;
-
-  std::minstd_rand simple_rand;
-  simple_rand.seed(time(NULL));
+  std::vector<Params> parameters(queueCount);
 
   for (int queueId = 0; queueId < queueCount; queueId++) {
     stream.clear();
 
-    for (int i = 0; i < numElems; ++i) {
-      vA.at(queueId).emplace_back(simple_rand());
-      vB.at(queueId).emplace_back(simple_rand());
-      vResult.at(queueId).emplace_back(vA.at(queueId).back() + vB.at(queueId).back());
-    }
+    dataLoadAddr[queueId] = getDmaWriteAddr(deviceIdx, 3 * alignedBufSize);
+    devAddrVecA[queueId] = dataLoadAddr[queueId];
+    devAddrVecB[queueId] = devAddrVecA[queueId] + alignedBufSize;
+    devAddrVecResult[queueId] = devAddrVecB[queueId] + alignedBufSize;
 
-    dataLoadAddr.at(queueId) = getDmaWriteAddr(deviceIdx, 3 * alignedBufSize);
-    devAddrVecA.at(queueId) = dataLoadAddr.at(queueId);
-    devAddrVecB.at(queueId) = devAddrVecA.at(queueId) + alignedBufSize;
-    devAddrVecResult.at(queueId) = devAddrVecB.at(queueId) + alignedBufSize;
-
-    parameters.at(queueId) = {devAddrVecA.at(queueId), devAddrVecB.at(queueId), devAddrVecResult.at(queueId), numElems};
-    auto sizeOfParams = sizeof(parameters.at(queueId));
+    parameters[queueId] = {devAddrVecA[queueId], devAddrVecB[queueId], devAddrVecResult[queueId], numElems};
+    auto sizeOfParams = sizeof(Params);
 
     // Load ELF
-    loadElfToDevice(deviceIdx, reader.at(queueId), elfPath, stream, kernelEntryAddr[queueId]);
+    loadElfToDevice(deviceIdx, reader[queueId], elfPath, stream, kernelEntryAddr[queueId]);
     // Copy kernel input data to device
-    auto hostVirtAddr = reinterpret_cast<uint64_t>(vA.at(queueId).data());
-    auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(false, devAddrVecA.at(queueId), hostVirtAddr, hostPhysAddr,
-                                                       vA.at(queueId).size() * sizeof(vA.at(queueId)[0]),
+    hostVirtAddrA[queueId] = reinterpret_cast<uint64_t>(vA[queueId].data());
+    auto hostPhysAddrA = hostVirtAddrA[queueId]; // Should be handled in SysEmu, userspace should not fill this value
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(false, devAddrVecA[queueId], hostVirtAddrA[queueId],
+                                                       hostPhysAddrA, vA[queueId].size() * sizeof(vA[queueId][0]),
                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-    hostVirtAddr = reinterpret_cast<uint64_t>(vB.at(queueId).data());
-    hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(false, devAddrVecB.at(queueId), hostVirtAddr, hostPhysAddr,
-                                                       vB.at(queueId).size() * sizeof(vB.at(queueId)[0]),
+    hostVirtAddrB[queueId] = reinterpret_cast<uint64_t>(vB[queueId].data());
+    auto hostPhysAddrB = hostVirtAddrB[queueId]; // Should be handled in SysEmu, userspace should not fill this value
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(false, devAddrVecB[queueId], hostVirtAddrB[queueId],
+                                                       hostPhysAddrB, vB[queueId].size() * sizeof(vB[queueId][0]),
                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
     // allocate space for kernel args
-    auto devAddrKernelArgs = getDmaWriteAddr(deviceIdx, 0x400);
+    devAddrKernelArgs[queueId] = getDmaWriteAddr(deviceIdx, 0x400);
 
     // allocate 1MB space for kernel error/exception buffer
-    auto devAddrkernelException = getDmaWriteAddr(deviceIdx, 0x100000);
+    devAddrkernelException[queueId] = getDmaWriteAddr(deviceIdx, 0x100000);
 
     // Launch Kernel Command
     stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
-      true, kernelEntryAddr[queueId], devAddrKernelArgs, devAddrkernelException, shire_mask, 0,
+      true, kernelEntryAddr[queueId], devAddrKernelArgs[queueId], devAddrkernelException[queueId], shire_mask, 0,
       reinterpret_cast<void*>(&parameters.at(queueId)), sizeOfParams,
       device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
 
     // Read back Kernel Results from device
-    readBuf.at(queueId).resize(numElems, 0);
-    hostVirtAddr = reinterpret_cast<uint64_t>(readBuf.at(queueId).data());
-    hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataReadCmd(true, devAddrVecResult.at(queueId), hostVirtAddr, hostPhysAddr,
-                                                      readBuf.at(queueId).size() * sizeof(readBuf.at(queueId)[0]),
+    readBuf.resize(numElems, 0);
+    auto hostVirtAddr = reinterpret_cast<uint64_t>(readBuf.data());
+    auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
+    stream.push_back(IDevOpsApiCmd::createDataReadCmd(true, devAddrVecResult[queueId], hostVirtAddr, hostPhysAddr,
+                                                      readBuf.size() * sizeof(readBuf[0]),
                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-    resultFromDevice.push_back(std::move(readBuf.at(queueId)));
+    resultFromDevice.push_back(std::move(readBuf));
     // Move stream of commands to streams_
     streams_.emplace(key(deviceIdx, queueId), std::move(stream));
   }
@@ -126,7 +131,7 @@ void TestDevOpsApiKernelCmds::launchAddVectorKernel_PositiveTesting_4_1(uint64_t
 
   // Verify Vector's Data
   for (int queueId = 0; queueId < queueCount; queueId++) {
-    ASSERT_EQ(resultFromDevice[queueId], vResult.at(queueId));
+    ASSERT_EQ(resultFromDevice[queueId], vSum[queueId]);
   }
 
   TEST_VLOG(1) << "====> ADD TWO VECTORS KERNEL RESPONSE DATA VERIFIED <====" << std::endl;
@@ -135,24 +140,24 @@ void TestDevOpsApiKernelCmds::launchAddVectorKernel_PositiveTesting_4_1(uint64_t
 void TestDevOpsApiKernelCmds::launchUberKernel_PositiveTesting_4_4(uint64_t shire_mask) {
   std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
   int deviceIdx = 0;
+  auto queueCount = getSqCount(deviceIdx);
 
   // Load ELF
-  ELFIO::elfio reader;
+  std::vector<ELFIO::elfio> reader(queueCount);
   auto elfPath = (fs::path(FLAGS_kernels_dir) / fs::path("uberkernel.elf")).string();
-  uint64_t kernelEntryAddr;
-  loadElfToDevice(deviceIdx, reader, elfPath, stream, kernelEntryAddr);
+  std::vector<uint64_t> kernelEntryAddr(queueCount, 0);
+  std::vector<uint64_t> devAddrBufLayer0(queueCount, 0);
+  std::vector<uint64_t> devAddrBufLayer1(queueCount, 0);
+  std::vector<uint64_t> devAddrKernelArgs(queueCount, 0);
+  std::vector<uint64_t> devAddrkernelException(queueCount, 0);
 
   // Allocate device buffer for layer 0
   const uint64_t numElemsLayer0 = 200;
   const uint64_t bufSizeLayer0 = sizeof(uint64_t) * numElemsLayer0;
-  uint64_t devAddrBufLayer0 = getDmaWriteAddr(deviceIdx, bufSizeLayer0);
-  TEST_VLOG(1) << "devAddrBufLayer0: 0x" << std::hex << devAddrBufLayer0 << std::endl;
 
   // Allocate device buffer for layer 1
   const uint64_t numElemsLayer1 = 400;
   const uint64_t bufSizeLayer1 = sizeof(uint64_t) * numElemsLayer1;
-  uint64_t devAddrBufLayer1 = getDmaWriteAddr(deviceIdx, bufSizeLayer1);
-  TEST_VLOG(1) << "devAddrBufLayer1: 0x" << std::hex << devAddrBufLayer1 << std::endl;
 
   // Setup and allocate kernel launch args
   struct layer_parameters_t {
@@ -162,43 +167,54 @@ void TestDevOpsApiKernelCmds::launchUberKernel_PositiveTesting_4_4(uint64_t shir
   };
 
   layer_parameters_t launchArgs[2];
-  auto devAddrKernelArgs = getDmaWriteAddr(deviceIdx, (sizeof(launchArgs), kCacheLineSize));
-  launchArgs[0].data_ptr = devAddrBufLayer0;
-  launchArgs[0].length = bufSizeLayer0;
-  launchArgs[0].shire_count = std::bitset<64>(shire_mask).count();
-  launchArgs[1].data_ptr = devAddrBufLayer1;
-  launchArgs[1].length = bufSizeLayer1;
-  launchArgs[1].shire_count = std::bitset<64>(shire_mask).count();
+  std::vector<std::vector<uint64_t>> resultFromDevice;
+  std::vector<uint64_t> readBuf;
+  for (uint8_t queueId = 0; queueId < queueCount; queueId++) {
 
-  // allocate 1MB space for kernel error/exception buffer
-  auto devAddrkernelException = getDmaWriteAddr(deviceIdx, 0x100000);
+    devAddrBufLayer0[queueId] = getDmaWriteAddr(deviceIdx, bufSizeLayer0);
+    devAddrBufLayer1[queueId] = getDmaWriteAddr(deviceIdx, bufSizeLayer1);
+    TEST_VLOG(1) << "SQ : " << queueId << " devAddrBufLayer0: 0x" << std::hex << devAddrBufLayer0[queueId];
+    TEST_VLOG(1) << "SQ : " << queueId << " devAddrBufLayer1: 0x" << std::hex << devAddrBufLayer1[queueId];
+    devAddrKernelArgs[queueId] = getDmaWriteAddr(deviceIdx, (sizeof(launchArgs), kCacheLineSize));
+    // allocate 1MB space for kernel error/exception buffer
+    devAddrkernelException[queueId] = getDmaWriteAddr(deviceIdx, 0x100000);
 
-  // Kernel launch Command
-  stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
-    device_ops_api::CMD_FLAGS_BARRIER_ENABLE, kernelEntryAddr, devAddrKernelArgs, devAddrkernelException, shire_mask, 0,
-    reinterpret_cast<void*>(launchArgs), sizeof(launchArgs),
-    device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
+    launchArgs[0].data_ptr = devAddrBufLayer0[queueId];
+    launchArgs[0].length = bufSizeLayer0;
+    launchArgs[0].shire_count = std::bitset<64>(shire_mask).count();
+    launchArgs[1].data_ptr = devAddrBufLayer1[queueId];
+    launchArgs[1].length = bufSizeLayer1;
+    launchArgs[1].shire_count = std::bitset<64>(shire_mask).count();
 
-  // Read back data written by layer 0
-  std::vector<uint64_t> resultDataLayer0(numElemsLayer0, 0xEEEEEEEEEEEEEEEEULL);
-  auto hostVirtAddr = reinterpret_cast<uint64_t>(resultDataLayer0.data());
-  auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-  stream.push_back(IDevOpsApiCmd::createDataReadCmd(
-    device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrBufLayer0, hostVirtAddr, hostPhysAddr,
-    resultDataLayer0.size() * sizeof(resultDataLayer0[0]), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+    loadElfToDevice(deviceIdx, reader[queueId], elfPath, stream, kernelEntryAddr[queueId]);
 
-  // Read back data written by layer 1
-  std::vector<uint64_t> resultDataLayer1(numElemsLayer1, 0xEEEEEEEEEEEEEEEEULL);
-  hostVirtAddr = reinterpret_cast<uint64_t>(resultDataLayer1.data());
-  hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-  stream.push_back(IDevOpsApiCmd::createDataReadCmd(
-    device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrBufLayer1, hostVirtAddr, hostPhysAddr,
-    resultDataLayer1.size() * sizeof(resultDataLayer1[0]), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+    // Kernel launch Command
+    stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
+      device_ops_api::CMD_FLAGS_BARRIER_ENABLE, kernelEntryAddr[queueId], devAddrKernelArgs[queueId],
+      devAddrkernelException[queueId], shire_mask, 0, reinterpret_cast<void*>(launchArgs), sizeof(launchArgs),
+      device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
 
-  // Move stream of commands to streams_[queueId]
-  uint16_t queueId = 0;
-  streams_.emplace(key(deviceIdx, queueId), std::move(stream));
+    // Read back data written by layer 0
+    readBuf.resize(numElemsLayer0, 0xEEEEEEEEEEEEEEEEULL);
+    auto hostVirtAddr = reinterpret_cast<uint64_t>(readBuf.data());
+    auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
+    stream.push_back(IDevOpsApiCmd::createDataReadCmd(
+      device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrBufLayer0[queueId], hostVirtAddr, hostPhysAddr,
+      readBuf.size() * sizeof(readBuf[0]), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+    resultFromDevice.push_back(std::move(readBuf));
 
+    // Read back data written by layer 1
+    readBuf.resize(numElemsLayer1, 0xEEEEEEEEEEEEEEEEULL);
+    hostVirtAddr = reinterpret_cast<uint64_t>(readBuf.data());
+    hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
+    stream.push_back(IDevOpsApiCmd::createDataReadCmd(
+      device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrBufLayer1[queueId], hostVirtAddr, hostPhysAddr,
+      readBuf.size() * sizeof(readBuf[0]), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+    resultFromDevice.push_back(std::move(readBuf));
+
+    // Move stream of commands to streams_
+    streams_.emplace(key(deviceIdx, queueId), std::move(stream));
+  }
   executeAsync();
 
   // Skip data validation in case of loopback driver
@@ -208,10 +224,11 @@ void TestDevOpsApiKernelCmds::launchUberKernel_PositiveTesting_4_4(uint64_t shir
 
   // Verify data
   const std::vector<uint64_t> refdata0(numElemsLayer0, 0xBEEFBEEFBEEFBEEFULL);
-  ASSERT_EQ(resultDataLayer0, refdata0);
-
   const std::vector<uint64_t> refdata1(numElemsLayer1, 0xBEEFBEEFBEEFBEEFULL);
-  ASSERT_EQ(resultDataLayer1, refdata1);
+  for (uint8_t queueId = 0; queueId < queueCount; queueId++) {
+    ASSERT_EQ(resultFromDevice[queueId * 2], refdata0);
+    ASSERT_EQ(resultFromDevice[(queueId * 2) + 1], refdata1);
+  }
 
   TEST_VLOG(1) << "====> UBERKERNEL KERNEL RESPONSE DATA VERIFIED <====" << std::endl;
 }
@@ -219,37 +236,44 @@ void TestDevOpsApiKernelCmds::launchUberKernel_PositiveTesting_4_4(uint64_t shir
 void TestDevOpsApiKernelCmds::launchEmptyKernel_PositiveTesting_4_5(uint64_t shire_mask) {
   std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
   int deviceIdx = 0;
+  auto queueCount = getSqCount(deviceIdx);
 
-  // Load ELF
-  ELFIO::elfio reader;
+  // Read ELF
+  std::vector<ELFIO::elfio> reader(queueCount);
   auto elfPath = (fs::path(FLAGS_kernels_dir) / fs::path("empty.elf")).string();
-  uint64_t kernelEntryAddr;
-  loadElfToDevice(deviceIdx, reader, elfPath, stream, kernelEntryAddr);
+  std::vector<uint64_t> kernelEntryAddr(queueCount, 0);
+  std::vector<uint64_t> devAddrKernelArgs(queueCount, 0);
+  std::vector<uint64_t> devAddrKernelResult(queueCount, 0);
+  std::vector<uint64_t> devAddrkernelException(queueCount, 0);
 
   uint8_t dummyKernelArgs[] = {0xDE, 0xAD, 0xBE, 0xEF};
-  // allocate space for kernel args
-  auto devAddrKernelArgs = getDmaWriteAddr(deviceIdx, ALIGN(sizeof(dummyKernelArgs), kCacheLineSize));
-  // allocate 4KB space for dummy kernel result
-  auto devAddrKernelResult = getDmaWriteAddr(deviceIdx, ALIGN(sizeof(0x1000), kCacheLineSize));
-  // allocate 1MB space for kernel error/exception buffer
-  auto devAddrkernelException = getDmaWriteAddr(deviceIdx, 0x100000);
+  std::vector<std::vector<uint8_t>> resultFromDevice;
 
-  // kernel launch
-  stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
-    device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kernelEntryAddr, devAddrKernelArgs, devAddrkernelException, shire_mask,
-    0, reinterpret_cast<void*>(dummyKernelArgs), sizeof(dummyKernelArgs),
-    device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
-  // Do a dummy read back Kernel Results from device
-  std::vector<uint8_t> resultFromDevice(0x1000, 0);
-  auto hostVirtAddr = reinterpret_cast<uint64_t>(resultFromDevice.data());
-  auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-  stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrKernelResult,
-                                                    hostVirtAddr, hostPhysAddr, resultFromDevice.size(),
-                                                    device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-  // Move stream of commands to streams_[queueId]
-  uint16_t queueId = 0;
-  streams_.emplace(key(deviceIdx, queueId), std::move(stream));
-
+  for (uint8_t queueId = 0; queueId < queueCount; queueId++) {
+    // Load ELF
+    loadElfToDevice(deviceIdx, reader[queueId], elfPath, stream, kernelEntryAddr[queueId]);
+    // allocate space for kernel args
+    devAddrKernelArgs[queueId] = getDmaWriteAddr(deviceIdx, ALIGN(sizeof(dummyKernelArgs), kCacheLineSize));
+    // allocate 4KB space for dummy kernel result
+    devAddrKernelResult[queueId] = getDmaWriteAddr(deviceIdx, ALIGN(sizeof(0x1000), kCacheLineSize));
+    // allocate 1MB space for kernel error/exception buffer
+    devAddrkernelException[queueId] = getDmaWriteAddr(deviceIdx, 0x100000);
+    // kernel launch
+    stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
+      device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kernelEntryAddr[queueId], devAddrKernelArgs[queueId],
+      devAddrkernelException[queueId], shire_mask, 0, reinterpret_cast<void*>(dummyKernelArgs), sizeof(dummyKernelArgs),
+      device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
+    // Do a dummy read back Kernel Results from device
+    std::vector<uint8_t> readBuf(0x1000, 0);
+    auto hostVirtAddr = reinterpret_cast<uint64_t>(readBuf.data());
+    auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
+    stream.push_back(IDevOpsApiCmd::createDataReadCmd(
+      device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrKernelResult[queueId], hostVirtAddr, hostPhysAddr,
+      readBuf.size(), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+    resultFromDevice.push_back(std::move(readBuf));
+    // Move stream of commands to streams_
+    streams_.emplace(key(deviceIdx, queueId), std::move(stream));
+  }
   executeAsync();
 
   TEST_VLOG(1) << "====> EMPTY KERNEL DONE <====" << std::endl;
@@ -258,37 +282,43 @@ void TestDevOpsApiKernelCmds::launchEmptyKernel_PositiveTesting_4_5(uint64_t shi
 void TestDevOpsApiKernelCmds::launchExceptionKernel_NegativeTesting_4_6(uint64_t shire_mask) {
   std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
   int deviceIdx = 0;
+  auto queueCount = getSqCount(deviceIdx);
 
   // Load ELF
-  ELFIO::elfio reader;
+  std::vector<ELFIO::elfio> reader(queueCount);
   auto elfPath = (fs::path(FLAGS_kernels_dir) / fs::path("exception.elf")).string();
-  uint64_t kernelEntryAddr;
-  loadElfToDevice(deviceIdx, reader, elfPath, stream, kernelEntryAddr);
+  std::vector<uint64_t> kernelEntryAddr(queueCount, 0);
+  std::vector<uint64_t> devAddrkernelException(queueCount, 0);
+  std::vector<std::vector<uint8_t>> resultFromDevice;
 
-  // allocate 1MB space for kernel error/exception buffer
-  auto devAddrkernelException = getDmaWriteAddr(deviceIdx, 0x100000);
+  for (uint8_t queueId = 0; queueId < queueCount; queueId++) {
+    // allocate 1MB space for kernel error/exception buffer
+    devAddrkernelException[queueId] = getDmaWriteAddr(deviceIdx, 0x100000);
+    loadElfToDevice(deviceIdx, reader[queueId], elfPath, stream, kernelEntryAddr[queueId]);
+    // Kernel launch
+    stream.push_back(
+      IDevOpsApiCmd::createKernelLaunchCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kernelEntryAddr[queueId],
+                                           0 /* No kernel args */, devAddrkernelException[queueId], shire_mask, 0, NULL,
+                                           0, device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_EXCEPTION));
 
-  // Kernel launch
-  stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
-    device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kernelEntryAddr, 0 /* No kernel args */, devAddrkernelException,
-    shire_mask, 0, NULL, 0, device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_EXCEPTION));
+    // pull the exception buffer from device
+    std::vector<uint8_t> readBuf(0x100000, 0);
+    auto hostVirtAddr = reinterpret_cast<uint64_t>(readBuf.data());
+    auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
+    stream.push_back(IDevOpsApiCmd::createDataReadCmd(
+      device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrkernelException[queueId], hostVirtAddr, hostPhysAddr,
+      readBuf.size(), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
-  // pull the exception buffer from device
-  std::vector<uint8_t> resultFromDevice(0x100000, 0);
-  auto hostVirtAddr = reinterpret_cast<uint64_t>(resultFromDevice.data());
-  auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-  stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrkernelException,
-                                                    hostVirtAddr, hostPhysAddr, resultFromDevice.size(),
-                                                    device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-  // Move stream of commands to streams_[queueId]
-  uint16_t queueId = 0;
-  streams_.emplace(key(deviceIdx, queueId), std::move(stream));
-
+    resultFromDevice.push_back(std::move(readBuf));
+    // Move stream of commands to streams_
+    streams_.emplace(key(deviceIdx, queueId), std::move(stream));
+  }
   executeAsync();
 
   // print the exception buffer scause for the first shire
-  printErrorContext(reinterpret_cast<void*>(resultFromDevice.data()), 0x1);
+  for (uint8_t queueId = 0; queueId < queueCount; queueId++) {
+    printErrorContext(reinterpret_cast<void*>(resultFromDevice[queueId].data()), 0x1);
+  }
 
   TEST_VLOG(1) << "====> EXCEPTION KERNEL DONE <====" << std::endl;
 }
@@ -296,43 +326,49 @@ void TestDevOpsApiKernelCmds::launchExceptionKernel_NegativeTesting_4_6(uint64_t
 void TestDevOpsApiKernelCmds::abortHangKernel_PositiveTesting_4_10(uint64_t shire_mask) {
   std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
   int deviceIdx = 0;
+  auto queueCount = getSqCount(deviceIdx);
 
   // Load ELF
-  ELFIO::elfio reader;
+  std::vector<ELFIO::elfio> reader(queueCount);
   auto elfPath = (fs::path(FLAGS_kernels_dir) / fs::path("hang.elf")).string();
-  uint64_t kernelEntryAddr;
-  loadElfToDevice(deviceIdx, reader, elfPath, stream, kernelEntryAddr);
+  std::vector<uint64_t> kernelEntryAddr(queueCount, 0);
+  std::vector<uint64_t> devAddrkernelException(queueCount, 0);
+  std::vector<std::vector<uint8_t>> resultFromDevice;
 
-  // allocate 1MB space for kernel error/exception buffer
-  auto devAddrkernelException = getDmaWriteAddr(deviceIdx, 0x100000);
+  for (uint8_t queueId = 0; queueId < queueCount; queueId++) {
+    // allocate 1MB space for kernel error/exception buffer
+    devAddrkernelException[queueId] = getDmaWriteAddr(deviceIdx, 0x100000);
+    loadElfToDevice(deviceIdx, reader[queueId], elfPath, stream, kernelEntryAddr[queueId]);
+    // Kernel launch
+    auto kernelCmd =
+      IDevOpsApiCmd::createKernelLaunchCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kernelEntryAddr[queueId],
+                                           0 /* No kernel args */, devAddrkernelException[queueId], shire_mask, 0, NULL,
+                                           0, device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED);
+    auto kernelLaunchTagId = kernelCmd->getCmdTagId();
+    stream.push_back(std::move(kernelCmd));
 
-  // Kernel launch
-  auto kernelCmd = IDevOpsApiCmd::createKernelLaunchCmd(
-    device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kernelEntryAddr, 0 /* No kernel args */, devAddrkernelException,
-    shire_mask, 0, NULL, 0, device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED);
-  auto kernelLaunchTagId = kernelCmd->getCmdTagId();
-  stream.push_back(std::move(kernelCmd));
+    // Kernel Abort
+    stream.push_back(IDevOpsApiCmd::createKernelAbortCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kernelLaunchTagId,
+                                                         device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS));
 
-  // Kernel Abort
-  stream.push_back(IDevOpsApiCmd::createKernelAbortCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kernelLaunchTagId,
-                                                       device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS));
+    // pull the exception buffer from device
+    std::vector<uint8_t> readBuf(0x100000, 0);
+    auto hostVirtAddr = reinterpret_cast<uint64_t>(readBuf.data());
+    auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
+    stream.push_back(IDevOpsApiCmd::createDataReadCmd(
+      device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrkernelException[queueId], hostVirtAddr, hostPhysAddr,
+      readBuf.size(), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+    resultFromDevice.push_back(std::move(readBuf));
 
-  // pull the exception buffer from device
-  std::vector<uint8_t> resultFromDevice(0x100000, 0);
-  auto hostVirtAddr = reinterpret_cast<uint64_t>(resultFromDevice.data());
-  auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-  stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrkernelException,
-                                                    hostVirtAddr, hostPhysAddr, resultFromDevice.size(),
-                                                    device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-  // Move stream of commands to streams_[queueId]
-  uint16_t queueId = 0;
-  streams_.emplace(key(deviceIdx, queueId), std::move(stream));
-
+    // Move stream of commands to streams_
+    streams_.emplace(key(deviceIdx, queueId), std::move(stream));
+  }
   executeAsync();
 
   // print the exception buffer scause for the first two shires
-  printErrorContext(reinterpret_cast<void*>(resultFromDevice.data()), 0x3);
+  for (uint8_t queueId = 0; queueId < queueCount; queueId++) {
+    printErrorContext(reinterpret_cast<void*>(resultFromDevice[queueId].data()), 0x3);
+  }
 
   TEST_VLOG(1) << "====> HANG KERNEL DONE <====" << std::endl;
 }
@@ -340,15 +376,15 @@ void TestDevOpsApiKernelCmds::abortHangKernel_PositiveTesting_4_10(uint64_t shir
 void TestDevOpsApiKernelCmds::kernelAbortCmd_InvalidTagIdNegativeTesting_6_2() {
   std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
   int deviceIdx = 0;
+  auto queueCount = getSqCount(deviceIdx);
+  for (uint8_t queueId = 0; queueId < queueCount; queueId++) {
+    stream.push_back(
+      IDevOpsApiCmd::createKernelAbortCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 0xbeef /* invalid tagId */,
+                                          device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_INVALID_TAG_ID));
 
-  stream.push_back(
-    IDevOpsApiCmd::createKernelAbortCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 0xbeef /* invalid tagId */,
-                                        device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_INVALID_TAG_ID));
-
-  // Move stream of commands to streams_[queueId]
-  uint16_t queueId = 0;
-  streams_.emplace(key(deviceIdx, queueId), std::move(stream));
-
+    // Move stream of commands to streams_[queueId]
+    streams_.emplace(key(deviceIdx, queueId), std::move(stream));
+  }
   executeAsync();
 }
 
@@ -357,9 +393,10 @@ void TestDevOpsApiKernelCmds::kernelAbortCmd_InvalidTagIdNegativeTesting_6_2() {
  *                  Kernel Stress Tests                    *
  *                                                         *
  **********************************************************/
-void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(uint64_t shire_mask) {
+void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(bool singleQueue, uint64_t shire_mask) {
   std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
   int deviceIdx = 0;
+  auto queueCount = singleQueue ? 1 : getSqCount(deviceIdx);
 
   const int totalKer = 100;
   // create device params structure
@@ -369,71 +406,90 @@ void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(uint64_t shire_
     uint64_t vResult;
     int numElements;
   } kerParams[totalKer];
-  ELFIO::elfio reader;
+  std::vector<ELFIO::elfio> reader(queueCount);
   auto elfPath = (fs::path(FLAGS_kernels_dir) / fs::path("add_vector.elf")).string();
-  uint64_t kernelEntryAddr;
+  std::vector<uint64_t> kernelEntryAddr(queueCount, 0);
+  std::vector<uint64_t> dataLoadAddr(queueCount, 0);
+  std::vector<uint64_t> devAddrKernelArgs(queueCount, 0);
+  std::vector<uint64_t> devAddrkernelException(queueCount, 0);
+  std::vector<uint64_t> hostVirtAddrVecA(queueCount, 0);
+  std::vector<uint64_t> hostVirtAddrVecB(queueCount, 0);
   int numElems = 4 * 1024;
   auto bufSize = numElems * sizeof(int);
   auto alignedBufSize = ALIGN(bufSize, kCacheLineSize);
-
+  std::minstd_rand simple_rand;
+  simple_rand.seed(time(NULL));
   // Create vector data
-  std::vector<int> vA, vB, vSum;
-  for (int i = 0; i < numElems; ++i) {
-    vA.emplace_back(rand() % 1000);
-    vB.emplace_back(rand() % 1000);
-    vSum.emplace_back(vA.back() + vB.back());
+  std::vector<std::vector<int>> vA, vB, vSum;
+  for (uint16_t queueId = 0; queueId < queueCount; queueId++) {
+    std::vector<int> tempVecA, tempVecB, tempSum;
+    for (int i = 0; i < numElems; ++i) {
+      tempVecA.emplace_back(simple_rand());
+      tempVecB.emplace_back(simple_rand());
+      tempSum.emplace_back(tempVecA.back() + tempVecB.back());
+    }
+    vA.push_back(std::move(tempVecA));
+    vB.push_back(std::move(tempVecB));
+    vSum.push_back(std::move(tempSum));
   }
-  auto hostVirtAddrVecA = reinterpret_cast<uint64_t>(vA.data());
-  auto hostPhysAddrVecA = hostVirtAddrVecA; // Should be handled in SysEmu, userspace should not fill this value
-  auto hostVirtAddrVecB = reinterpret_cast<uint64_t>(vB.data());
-  auto hostPhysAddrVecB = hostVirtAddrVecB; // Should be handled in SysEmu, userspace should not fill this value
+
   uint64_t devAddrVecResult[totalKer];
   std::vector<std::vector<int>> outputVec;
+  int paramIndex = 0;
+  int readIndex = 0;
 
-  // Load kernel ELF
-  loadElfToDevice(deviceIdx, reader, elfPath, stream, kernelEntryAddr);
-  for (int i = 0; i < totalKer; i++) {
+  for (uint16_t queueId = 0; queueId < queueCount; queueId++) {
+    hostVirtAddrVecA[queueId] = reinterpret_cast<uint64_t>(vA[queueId].data());
+    auto hostPhysAddrVecA =
+      hostVirtAddrVecA[queueId]; // Should be handled in SysEmu, userspace should not fill this value
+    hostVirtAddrVecB[queueId] = reinterpret_cast<uint64_t>(vB[queueId].data());
+    auto hostPhysAddrVecB =
+      hostVirtAddrVecB[queueId]; // Should be handled in SysEmu, userspace should not fill this value
+    // Load kernel ELF
+    loadElfToDevice(deviceIdx, reader[queueId], elfPath, stream, kernelEntryAddr[queueId]);
     // Copy kernel input data to device
-    auto dataLoadAddr = getDmaWriteAddr(deviceIdx, 3 * alignedBufSize);
-    auto devAddrVecA = dataLoadAddr;
+    dataLoadAddr[queueId] = getDmaWriteAddr(deviceIdx, 2 * alignedBufSize);
+    auto devAddrVecA = dataLoadAddr[queueId];
     auto devAddrVecB = devAddrVecA + alignedBufSize;
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecA,
-                                                       hostVirtAddrVecA, hostPhysAddrVecA, vA.size() * sizeof(vA[0]),
-                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecB,
-                                                       hostVirtAddrVecB, hostPhysAddrVecB, vB.size() * sizeof(vB[0]),
-                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(
+      device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecA, hostVirtAddrVecA[queueId], hostPhysAddrVecA,
+      vA[queueId].size() * sizeof(vA[queueId][0]), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(
+      device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecB, hostVirtAddrVecB[queueId], hostPhysAddrVecB,
+      vB[queueId].size() * sizeof(vB[queueId][0]), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+    for (int i = 0; i < totalKer / queueCount; i++) {
+      // allocate space for kernel args
+      devAddrVecResult[paramIndex] = getDmaWriteAddr(deviceIdx, alignedBufSize);
+      devAddrKernelArgs[queueId] = getDmaWriteAddr(deviceIdx, ALIGN(sizeof(Params), kCacheLineSize));
+      kerParams[paramIndex] = {devAddrVecA, devAddrVecB, devAddrVecResult[paramIndex], numElems};
 
-    // allocate space for kernel args
-    devAddrVecResult[i] = devAddrVecB + alignedBufSize;
-    auto devAddrKernelArgs = getDmaWriteAddr(deviceIdx, ALIGN(sizeof(Params), kCacheLineSize));
-    kerParams[i] = {devAddrVecA, devAddrVecB, devAddrVecResult[i], numElems};
+      // allocate 1MB space for kernel error/exception buffer
+      devAddrkernelException[queueId] = getDmaWriteAddr(deviceIdx, 0x100000);
 
-    // allocate 1MB space for kernel error/exception buffer
-    auto devAddrkernelException = getDmaWriteAddr(deviceIdx, 0x100000);
+      // Launch Kernel Command
+      stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
+        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, kernelEntryAddr[queueId], devAddrKernelArgs[queueId],
+        devAddrkernelException[queueId], shire_mask, 0, reinterpret_cast<void*>(&kerParams[paramIndex]), sizeof(Params),
+        device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
+      paramIndex++;
+    }
 
-    // Launch Kernel Command
-    stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
-      device_ops_api::CMD_FLAGS_BARRIER_ENABLE, kernelEntryAddr, devAddrKernelArgs, devAddrkernelException, shire_mask,
-      0, reinterpret_cast<void*>(&kerParams[i]), sizeof(Params),
-      device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
+    // Read back Kernel Results from device
+    for (int i = 0; i < totalKer / queueCount; i++) {
+      std::vector<int> resultFromDevice(numElems, 0);
+      auto hostVirtAddrRes = reinterpret_cast<uint64_t>(resultFromDevice.data());
+      auto hostPhysAddrRes = hostVirtAddrRes; // Should be handled in SysEmu, userspace should not fill this value
+      stream.push_back(IDevOpsApiCmd::createDataReadCmd(
+        i == 0, /* Barrier only for first read to make sure that all kernels execution done */
+        devAddrVecResult[readIndex], hostVirtAddrRes, hostPhysAddrRes,
+        resultFromDevice.size() * sizeof(resultFromDevice[0]), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+      outputVec.push_back(std::move(resultFromDevice));
+      readIndex++;
+    }
+
+    // Move stream of commands to streams_
+    streams_.emplace(key(deviceIdx, queueId), std::move(stream));
   }
-
-  // Read back Kernel Results from device
-  for (int i = 0; i < totalKer; i++) {
-    std::vector<int> resultFromDevice(numElems, 0);
-    auto hostVirtAddrRes = reinterpret_cast<uint64_t>(resultFromDevice.data());
-    auto hostPhysAddrRes = hostVirtAddrRes; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataReadCmd(
-      i == 0, /* Barrier only for first read to make sure that all kernels execution done */
-      devAddrVecResult[i], hostVirtAddrRes, hostPhysAddrRes, resultFromDevice.size() * sizeof(resultFromDevice[0]),
-      device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-    outputVec.push_back(std::move(resultFromDevice));
-  }
-
-  // Move stream of commands to streams_[queueId]
-  uint16_t queueId = 0;
-  streams_.emplace(key(deviceIdx, queueId), std::move(stream));
 
   executeAsync();
 
@@ -443,20 +499,25 @@ void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(uint64_t shire_
   }
 
   // Verify Vector's Data
-  for (int i = 0; i < totalKer; i++) {
-    ASSERT_EQ(outputVec[i], vSum) << "outputVec[" << i << "] result validation failed!";
+  readIndex = 0;
+  for (uint16_t queueId = 0; queueId < queueCount; queueId++) {
+    for (int i = 0; i < totalKer / queueCount; i++) {
+      ASSERT_EQ(outputVec[readIndex], vSum[queueId])
+        << "outputVec[" << readIndex << "] of SQ " << queueId << " result validation failed!";
+      readIndex++;
+    }
   }
 
   TEST_VLOG(1) << "====> BACK TO BACK " << totalKer << " KERNEL LAUNCH (ADD VECTORS KERNEL) DATA VERIFIED <====\n"
                << std::endl;
 }
 
-void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(uint64_t shire_mask) {
+void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(bool singleQueue, uint64_t shire_mask) {
   std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
   int deviceIdx = 0;
-
+  auto queueCount = singleQueue ? 1 : getSqCount(deviceIdx);
   const int totalKer = 100;
-
+  int totalAddKerPerSq[queueCount] = {0};
   enum kernelTypes { addKerType = 0, excKerType, hangKerType };
   uint8_t kerTypes[totalKer];
   uint8_t totalAddKer = 0;
@@ -471,51 +532,38 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(uint64_t s
    *                  load all ELF files                 *
    * *****************************************************/
   // Load add_vector ELF kerTypes = 0
-  ELFIO::elfio addKerReader;
+  std::vector<ELFIO::elfio> addKerReader(queueCount);
   auto addKerElfPath = (fs::path(FLAGS_kernels_dir) / fs::path("add_vector.elf")).string();
-  uint64_t addKernelEntryAddr;
-  loadElfToDevice(deviceIdx, addKerReader, addKerElfPath, stream, addKernelEntryAddr);
   // Load exception ELF kerTypes = 1
-  ELFIO::elfio excepKerReader;
+  std::vector<ELFIO::elfio> excepKerReader(queueCount);
   auto excepKerElfPath = (fs::path(FLAGS_kernels_dir) / fs::path("exception.elf")).string();
-  uint64_t excepKerEntryAddr;
-  loadElfToDevice(deviceIdx, excepKerReader, excepKerElfPath, stream, excepKerEntryAddr);
   // Load hang ELF kerTypes = 2
-  ELFIO::elfio hangKerReader;
+  std::vector<ELFIO::elfio> hangKerReader(queueCount);
   auto hangKerElfPath = (fs::path(FLAGS_kernels_dir) / fs::path("hang.elf")).string();
-  uint64_t hangKerEntryAddr;
-  loadElfToDevice(deviceIdx, hangKerReader, hangKerElfPath, stream, hangKerEntryAddr);
+
+  std::vector<uint64_t> addKernelEntryAddr(queueCount, 0);
+  std::vector<uint64_t> excepKerEntryAddr(queueCount, 0);
+  std::vector<uint64_t> hangKerEntryAddr(queueCount, 0);
 
   /*******************************************************
    *                  Setup for Add Kernel               *
    * *****************************************************/
+  std::minstd_rand simple_rand;
+  simple_rand.seed(time(NULL));
   // Create vector data
-  std::vector<int> vA, vB, vSum;
+  std::vector<std::vector<int>> vA, vB, vSum;
   int numElems = 1024;
-  for (int i = 0; i < numElems; ++i) {
-    vA.emplace_back(rand() % 1000);
-    vB.emplace_back(rand() % 1000);
-    vSum.emplace_back(vA.back() + vB.back());
+  for (uint16_t queueId = 0; queueId < queueCount; queueId++) {
+    std::vector<int> tempVecA, tempVecB, tempSum;
+    for (int i = 0; i < numElems; ++i) {
+      tempVecA.emplace_back(simple_rand());
+      tempVecB.emplace_back(simple_rand());
+      tempSum.emplace_back(tempVecA.back() + tempVecB.back());
+    }
+    vA.push_back(std::move(tempVecA));
+    vB.push_back(std::move(tempVecB));
+    vSum.push_back(std::move(tempSum));
   }
-  // Assign device memory for data - a hard coded hack for now
-  auto bufSize = numElems * sizeof(int);
-  auto alignedBufSize = ALIGN(bufSize, kCacheLineSize);
-  // Allocate device space for vector A, B and resultant vectors (totalAddKer)
-  auto dataLoadAddr = getDmaWriteAddr(deviceIdx, (2 + totalAddKer) * alignedBufSize);
-  auto devAddrVecA = dataLoadAddr;
-  auto devAddrVecB = devAddrVecA + alignedBufSize;
-  auto devAddrVecResult = devAddrVecB + alignedBufSize;
-  // Copy kernel input data to device
-  auto hostVirtAddr = reinterpret_cast<uint64_t>(vA.data());
-  auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-  stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecA,
-                                                     hostVirtAddr, hostPhysAddr, vA.size() * sizeof(vA[0]),
-                                                     device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-  hostVirtAddr = reinterpret_cast<uint64_t>(vB.data());
-  hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-  stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecB,
-                                                     hostVirtAddr, hostPhysAddr, vB.size() * sizeof(vB[0]),
-                                                     device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
   // create device params structure
   struct Params {
     uint64_t vA;
@@ -524,83 +572,124 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(uint64_t s
     int numElements;
   } addKerParams[totalAddKer];
 
+  // Assign device memory for data - a hard coded hack for now
+  auto bufSize = numElems * sizeof(int);
+  auto alignedBufSize = ALIGN(bufSize, kCacheLineSize);
+  std::vector<uint64_t> dataLoadAddr(queueCount, 0);
+  std::vector<uint64_t> devAddrKernelArgs(queueCount, 0);
+  std::vector<uint64_t> devAddrkernelException(queueCount, 0);
+  std::vector<uint64_t> hostVirtAddrA(queueCount, 0);
+  std::vector<uint64_t> hostVirtAddrB(queueCount, 0);
   int addKerCount = 0;
-  uint64_t devAddrKernelArgs;
-  uint64_t devAddrkernelException;
-  device_ops_api::tag_id_t kernelLaunchTagId;
-
-  for (int i = 0; i < totalKer; i++) {
-    switch (kerTypes[i]) {
-    case addKerType: /* Add Kernel */
-      // Copy kernel args to device
-      addKerParams[addKerCount].vA = devAddrVecA;
-      addKerParams[addKerCount].vB = devAddrVecB;
-      addKerParams[addKerCount].vResult = devAddrVecResult;
-      addKerParams[addKerCount].numElements = numElems;
-      devAddrKernelArgs = getDmaWriteAddr(deviceIdx, ALIGN(sizeof(Params), kCacheLineSize));
-      // allocate 1MB space for kernel error/exception buffer
-      devAddrkernelException = getDmaWriteAddr(deviceIdx, 0x100000);
-
-      // Launch Kernel Command for add kernel
-      stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
-        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, addKernelEntryAddr, devAddrKernelArgs, devAddrkernelException,
-        shire_mask, 0, reinterpret_cast<void*>(&addKerParams[addKerCount]), sizeof(Params),
-        device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
-      devAddrVecResult += alignedBufSize;
-      addKerCount++;
-      break;
-
-    case excKerType:
-      // allocate 1MB space for kernel error/exception buffer
-      devAddrkernelException = getDmaWriteAddr(deviceIdx, 0x100000);
-      // Launch Kernel Command for exception kernel
-      stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
-        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, excepKerEntryAddr, 0 /* No kernel args */, devAddrkernelException,
-        shire_mask, 0, reinterpret_cast<void*>(&addKerParams[addKerCount]), sizeof(Params),
-        device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_EXCEPTION));
-      break;
-
-    case hangKerType: {
-      // allocate 1MB space for kernel error/exception buffer
-      devAddrkernelException = getDmaWriteAddr(deviceIdx, 0x100000);
-      // Kernel launch
-      auto kernelCmd = IDevOpsApiCmd::createKernelLaunchCmd(
-        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, hangKerEntryAddr, 0 /* No kernel args */, devAddrkernelException,
-        shire_mask, 0, NULL, 0, device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED);
-      kernelLaunchTagId = kernelCmd->getCmdTagId();
-      stream.push_back(std::move(kernelCmd));
-      // Kernel Abort
-      stream.push_back(IDevOpsApiCmd::createKernelAbortCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kernelLaunchTagId,
-                                                           device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS));
-      break;
-    }
-    default:
-      break;
-    }
-  }
-
-  // Read back add Kernel Results from device
+  int kerCount = 0;
+  int readCount = 0;
   std::vector<std::vector<int>> outputVec;
-  for (int i = 0; i < totalAddKer; i++) {
-    std::vector<int> resultFromDevice(numElems, 0);
-    auto hostVirtAddrRes = reinterpret_cast<uint64_t>(resultFromDevice.data());
-    auto hostPhysAddrRes = hostVirtAddrRes; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataReadCmd(
-      i == 0, /* Barrier only for first read to make sure that all kernels execution done */
-      addKerParams[i].vResult, hostVirtAddrRes, hostPhysAddrRes, resultFromDevice.size() * sizeof(resultFromDevice[0]),
-      device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-    outputVec.push_back(std::move(resultFromDevice));
+
+  for (uint16_t queueId = 0; queueId < queueCount; queueId++) {
+    loadElfToDevice(deviceIdx, addKerReader[queueId], addKerElfPath, stream, addKernelEntryAddr[queueId]);
+    loadElfToDevice(deviceIdx, excepKerReader[queueId], excepKerElfPath, stream, excepKerEntryAddr[queueId]);
+    loadElfToDevice(deviceIdx, hangKerReader[queueId], hangKerElfPath, stream, hangKerEntryAddr[queueId]);
+
+    // Allocate device space for vector A, B and resultant vectors (totalAddKer)
+    dataLoadAddr[queueId] = getDmaWriteAddr(deviceIdx, 2 * alignedBufSize);
+    auto devAddrVecA = dataLoadAddr[queueId];
+    auto devAddrVecB = devAddrVecA + alignedBufSize;
+    // Copy kernel input data to device
+    hostVirtAddrA[queueId] = reinterpret_cast<uint64_t>(vA[queueId].data());
+    auto hostPhysAddrA = hostVirtAddrA[queueId]; // Should be handled in SysEmu, userspace should not fill this value
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(
+      device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecA, hostVirtAddrA[queueId], hostPhysAddrA,
+      vA[queueId].size() * sizeof(vA[queueId][0]), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+    hostVirtAddrB[queueId] = reinterpret_cast<uint64_t>(vB[queueId].data());
+    auto hostPhysAddrB = hostVirtAddrB[queueId]; // Should be handled in SysEmu, userspace should not fill this value
+    stream.push_back(IDevOpsApiCmd::createDataWriteCmd(
+      device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecB, hostVirtAddrB[queueId], hostPhysAddrB,
+      vB[queueId].size() * sizeof(vB[queueId][0]), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+
+    device_ops_api::tag_id_t kernelLaunchTagId;
+
+    for (int i = 0; i < totalKer / queueCount; i++) {
+      switch (kerTypes[kerCount]) {
+      case addKerType: /* Add Kernel */
+        // Copy kernel args to device
+        addKerParams[addKerCount].vA = devAddrVecA;
+        addKerParams[addKerCount].vB = devAddrVecB;
+        addKerParams[addKerCount].vResult = getDmaWriteAddr(deviceIdx, alignedBufSize);
+        addKerParams[addKerCount].numElements = numElems;
+        devAddrKernelArgs[queueId] = getDmaWriteAddr(deviceIdx, ALIGN(sizeof(Params), kCacheLineSize));
+        // allocate 1MB space for kernel error/exception buffer
+        devAddrkernelException[queueId] = getDmaWriteAddr(deviceIdx, 0x100000);
+
+        // Launch Kernel Command for add kernel
+        stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
+          device_ops_api::CMD_FLAGS_BARRIER_ENABLE, addKernelEntryAddr[queueId], devAddrKernelArgs[queueId],
+          devAddrkernelException[queueId], shire_mask, 0, reinterpret_cast<void*>(&addKerParams[addKerCount]),
+          sizeof(Params), device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
+        addKerCount++;
+        kerCount++;
+        totalAddKerPerSq[queueId]++;
+        break;
+
+      case excKerType:
+        // allocate 1MB space for kernel error/exception buffer
+        devAddrkernelException[queueId] = getDmaWriteAddr(deviceIdx, 0x100000);
+        // Launch Kernel Command for exception kernel
+        stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
+          device_ops_api::CMD_FLAGS_BARRIER_ENABLE, excepKerEntryAddr[queueId], 0 /* No kernel args */,
+          devAddrkernelException[queueId], shire_mask, 0, reinterpret_cast<void*>(&addKerParams[addKerCount]),
+          sizeof(Params), device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_EXCEPTION));
+        kerCount++;
+        break;
+
+      case hangKerType: {
+        // allocate 1MB space for kernel error/exception buffer
+        devAddrkernelException[queueId] = getDmaWriteAddr(deviceIdx, 0x100000);
+        // Kernel launch
+        auto kernelCmd = IDevOpsApiCmd::createKernelLaunchCmd(
+          device_ops_api::CMD_FLAGS_BARRIER_ENABLE, hangKerEntryAddr[queueId], 0 /* No kernel args */,
+          devAddrkernelException[queueId], shire_mask, 0, NULL, 0,
+          device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED);
+        kernelLaunchTagId = kernelCmd->getCmdTagId();
+        stream.push_back(std::move(kernelCmd));
+        // Kernel Abort
+        stream.push_back(
+          IDevOpsApiCmd::createKernelAbortCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kernelLaunchTagId,
+                                              device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS));
+        kerCount++;
+        break;
+      }
+      default:
+        kerCount++;
+        break;
+      }
+    }
+
+    // Read back add Kernel Results from device
+    for (int i = 0; i < totalAddKerPerSq[queueId]; i++) {
+      std::vector<int> resultFromDevice(numElems, 0);
+      auto hostVirtAddrRes = reinterpret_cast<uint64_t>(resultFromDevice.data());
+      auto hostPhysAddrRes = hostVirtAddrRes; // Should be handled in SysEmu, userspace should not fill this value
+      stream.push_back(IDevOpsApiCmd::createDataReadCmd(
+        i == 0, /* Barrier only for first read to make sure that all kernels execution done */
+        addKerParams[readCount].vResult, hostVirtAddrRes, hostPhysAddrRes,
+        resultFromDevice.size() * sizeof(resultFromDevice[0]), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+      outputVec.push_back(std::move(resultFromDevice));
+      readCount++;
+    }
+
+    // Move stream of commands to streams_
+    streams_.emplace(key(deviceIdx, queueId), std::move(stream));
   }
-
-  // Move stream of commands to streams_[queueId]
-  uint16_t queueId = 0;
-  streams_.emplace(key(deviceIdx, queueId), std::move(stream));
-
   executeAsync();
 
   // Verify Vector's Data
-  for (int i = 0; i < totalAddKer; i++) {
-    ASSERT_EQ(outputVec[i], vSum) << "outputVec[" << i << "] result validation failed!";
+  readCount = 0;
+  for (uint16_t queueId = 0; queueId < queueCount; queueId++) {
+    for (int i = 0; i < totalAddKerPerSq[queueId]; i++) {
+      ASSERT_EQ(outputVec[readCount], vSum[queueId])
+        << "outputVec[" << readCount << "] of SQ " << queueId << " result validation failed!";
+      readCount++;
+    }
   }
 
   TEST_VLOG(1) << "====> BACK TO BACK " << totalKer << " DIFFERENT KERNEL LAUNCH VERIFIED" << std::endl;
@@ -609,48 +698,56 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(uint64_t s
 void TestDevOpsApiKernelCmds::backToBackEmptyKernelLaunch_3_3(uint64_t shire_mask, bool flushL3) {
   std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
   int deviceIdx = 0;
+  auto queueCount = getSqCount(deviceIdx);
 
   const int totalKer = 100;
-  ELFIO::elfio reader;
+  std::vector<ELFIO::elfio> reader(queueCount);
   auto elfPath = (fs::path(FLAGS_kernels_dir) / fs::path("empty.elf")).string();
-  uint64_t kernelEntryAddr;
+  std::vector<uint64_t> kernelEntryAddr(queueCount, 0);
   uint64_t devAddrResult[totalKer];
   std::vector<std::vector<uint8_t>> outputVec;
   uint8_t dummyKernelArgs[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF};
+  std::vector<uint64_t> devAddrKernelArgs(queueCount, 0);
+  std::vector<uint64_t> devAddrkernelException(queueCount, 0);
+  int readCount = 0;
+  int writeCount = 0;
 
-  // Load kernel ELF
-  loadElfToDevice(deviceIdx, reader, elfPath, stream, kernelEntryAddr);
-  for (int i = 0; i < totalKer; i++) {
-    // allocate 4KB space for dummy kernel result
-    devAddrResult[i] = getDmaWriteAddr(deviceIdx, ALIGN(0x1000, kCacheLineSize));
-    // allocate space for kernel args
-    auto devAddrKernelArgs = getDmaWriteAddr(deviceIdx, ALIGN(sizeof(dummyKernelArgs), kCacheLineSize));
-    // allocate 1MB space for kernel error/exception buffer
-    auto devAddrkernelException = getDmaWriteAddr(deviceIdx, 0x100000);
+  for (uint16_t queueId = 0; queueId < queueCount; queueId++) {
+    // Load kernel ELF
+    loadElfToDevice(deviceIdx, reader[queueId], elfPath, stream, kernelEntryAddr[queueId]);
+    for (int i = 0; i < totalKer / queueCount; i++) {
+      // allocate 4KB space for dummy kernel result
+      devAddrResult[writeCount] = getDmaWriteAddr(deviceIdx, ALIGN(0x1000, kCacheLineSize));
+      // allocate space for kernel args
+      devAddrKernelArgs[queueId] = getDmaWriteAddr(deviceIdx, ALIGN(sizeof(dummyKernelArgs), kCacheLineSize));
+      // allocate 1MB space for kernel error/exception buffer
+      devAddrkernelException[queueId] = getDmaWriteAddr(deviceIdx, 0x100000);
 
-    // Launch Kernel Command
-    stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
-      (device_ops_api::CMD_FLAGS_BARRIER_ENABLE | (flushL3 ? device_ops_api::CMD_FLAGS_KERNEL_LAUNCH_FLUSH_L3 : 0)),
-      kernelEntryAddr, devAddrKernelArgs, devAddrkernelException, shire_mask, 0,
-      reinterpret_cast<void*>(dummyKernelArgs), sizeof(dummyKernelArgs),
-      device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
+      // Launch Kernel Command
+      stream.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
+        (device_ops_api::CMD_FLAGS_BARRIER_ENABLE | (flushL3 ? device_ops_api::CMD_FLAGS_KERNEL_LAUNCH_FLUSH_L3 : 0)),
+        kernelEntryAddr[queueId], devAddrKernelArgs[queueId], devAddrkernelException[queueId], shire_mask, 0,
+        reinterpret_cast<void*>(dummyKernelArgs), sizeof(dummyKernelArgs),
+        device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
+      writeCount++;
+    }
+
+    // Read back dummy Kernel Results from device
+    for (int i = 0; i < totalKer / queueCount; i++) {
+      std::vector<uint8_t> resultFromDevice(0x1000, 0);
+      auto hostVirtAddrRes = reinterpret_cast<uint64_t>(resultFromDevice.data());
+      auto hostPhysAddrRes = hostVirtAddrRes; // Should be handled in SysEmu, userspace should not fill this value
+      stream.push_back(IDevOpsApiCmd::createDataReadCmd(
+        i == 0, /* Barrier only for first read to make sure that all kernels execution done */
+        devAddrResult[readCount], hostVirtAddrRes, hostPhysAddrRes, resultFromDevice.size(),
+        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+      outputVec.push_back(std::move(resultFromDevice));
+      readCount++;
+    }
+
+    // Move stream of commands to streams_
+    streams_.emplace(key(deviceIdx, queueId), std::move(stream));
   }
-
-  // Read back dummy Kernel Results from device
-  for (int i = 0; i < totalKer; i++) {
-    std::vector<uint8_t> resultFromDevice(0x1000, 0);
-    auto hostVirtAddrRes = reinterpret_cast<uint64_t>(resultFromDevice.data());
-    auto hostPhysAddrRes = hostVirtAddrRes; // Should be handled in SysEmu, userspace should not fill this value
-    stream.push_back(IDevOpsApiCmd::createDataReadCmd(
-      i == 0, /* Barrier only for first read to make sure that all kernels execution done */
-      devAddrResult[i], hostVirtAddrRes, hostPhysAddrRes, resultFromDevice.size(),
-      device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-    outputVec.push_back(std::move(resultFromDevice));
-  }
-
-  // Move stream of commands to streams_[queueId]
-  uint16_t queueId = 0;
-  streams_.emplace(key(deviceIdx, queueId), std::move(stream));
 
   executeAsync();
 
