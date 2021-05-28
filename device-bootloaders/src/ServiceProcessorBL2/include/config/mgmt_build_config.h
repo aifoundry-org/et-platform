@@ -24,7 +24,7 @@
 
 #include <common_defs.h>
 #include "etsoc_hal/inc/hal_device.h"
-#include "sp_fw_memory_layout.h"
+#include "layout.h"
 
 /************************************************/
 /*      - PC_SP secure mailbox layout (4K) -    */
@@ -50,6 +50,16 @@
 */
 #define SP_DEV_INTF_SIZE           0x200
 
+/*! \def SP_DEV_INTF_SIZE
+    \brief This is the region dedicated to device's MBOX triggers
+*/
+#define SP_INTERRUPT_TRG_REGION_BASE_ADDR  R_PU_TRG_PCIE_BASEADDR
+
+/*! \def SP_DEV_INTF_SIZE
+    \brief Total size of the region dedicated to device's MBOX triggers
+*/
+#define SP_INTERRUPT_TRG_REGION_SIZE       R_PU_TRG_PCIE_SIZE
+
 /*! \def SP_INTERRUPT_TRG_OFFSET
     \brief A macro that provides the offset for triggering the interrupt for SP
     in Interrupt Trigger Region.
@@ -68,7 +78,7 @@
 */
 #define SP_INTERRUPT_TRG_ID         1U
 
-/* DDR Region 0 DEV_MANAGEMENT_SCRATCH (BAR=0, Offset=8MB, Size=4MB) */
+/* DDR Region 0 DEV_MANAGEMENT_SCRATCH (BAR=0, Offset=0, Size=4MB) */
 
 /*! \def SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_BAR
     \brief A macro that provides the PCI BAR region using which
@@ -80,15 +90,15 @@
     \brief A macro that provides the offset of Service Processor scratch space
     on PCI BAR
 */
-#define SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_OFFSET 0x0800000UL
+#define SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_OFFSET 0x0UL
 
 /*! \def SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_SIZE
     \brief A macro that provides the total size of Service Processor scratch space
     on PCI BAR.
 */
-#define SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_SIZE   SP_FW_MAP_DEV_MANAGEMENT_SCRATCH_REGION_SIZE
+#define SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_SIZE   SP_DM_SCRATCH_REGION_SIZE
 
-/* DDR Region 1 TRACE_BUFFER (BAR=0, Offset=0, Size=4KB) */
+/* DDR Region 1 TRACE_BUFFER (BAR=0, Offset=0x400000, Size=4KB) */
 
 /*! \def SP_DEV_INTF_TRACE_BUFFER_BAR
     \brief A macro that provides the PCI BAR region using which
@@ -100,13 +110,13 @@
     \brief A macro that provides the offset of Service Processor
     trace buffer space on PCI BAR
 */
-#define SP_DEV_INTF_TRACE_BUFFER_OFFSET            0x0000000000UL
+#define SP_DEV_INTF_TRACE_BUFFER_OFFSET            0x400000UL
 
 /*! \def SP_DEV_INTF_TRACE_BUFFER_SIZE
     \brief A macro that provides the total size of Service Processor
     trace buffer space on PCI BAR.
 */
-#define SP_DEV_INTF_TRACE_BUFFER_SIZE              SP_FW_MAP_TRACE_BUFFER_REGION_SIZE
+#define SP_DEV_INTF_TRACE_BUFFER_SIZE              SP_TRACE_BUFFER_SIZE
 
 /* Interrupt Trigger Region (BAR=2, Offset=0x2000, Size=8KB) */
 
@@ -126,7 +136,7 @@
     \brief A macro that provides the total size of Service Processor
     interrupt trigger region space on PCI BAR.
 */
-#define SP_DEV_INTF_INTERRUPT_TRG_REGION_SIZE       SP_FW_MAP_DEV_INTERRUPT_TRG_SIZE
+#define SP_DEV_INTF_INTERRUPT_TRG_REGION_SIZE       SP_INTERRUPT_TRG_REGION_SIZE
 
 /*****************************************************/
 /* Definitions to locate and manage Host to SP SQ/CQ */
