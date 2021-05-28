@@ -224,17 +224,15 @@ int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t *rom_data)
     printx("time: %lu\n", timer_get_ticks_count());
 
     invoke_sp_bl2();
-    for (;;)
-        ;
+    goto HALT;
 
 FATAL_ERROR:
     printx("BOOT FAILED! Waiting for reset!\r\n");
-    for (;;)
-        ;
-
     printx("*** SP BL1 FINISHED ***\r\n");
+    goto HALT;
 #endif
 
+HALT:
     while (1) {
     }
 }
