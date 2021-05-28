@@ -345,9 +345,8 @@ bool DeviceSysEmu::receiveResponse(QueueInfo& queue, std::vector<std::byte>& res
   // make room for message payload
   response.resize(respSize + kCommonHeaderSize);
   // pop the message payload
-  if (bufferPopWraping((respSize ), &response[kCommonHeaderSize], buffer) <= 0) {
-    response.clear();
-    return false;
+  if (auto res = bufferPopWraping(respSize, &response[kCommonHeaderSize], buffer) <= 0) {
+    throw Exception("CompletionQueue: Couldn't read the response payload. ");
   }
 
   // write the tail offset in circular buffer shared memory
