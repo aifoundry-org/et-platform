@@ -1,5 +1,5 @@
 #include <common/Constants.h>
-#include <common/logging/Logger.h>
+#include <hostUtils/logging/Logger.h>
 #include <device-layer/IDeviceLayer.h>
 #include <experimental/filesystem>
 #include <fstream>

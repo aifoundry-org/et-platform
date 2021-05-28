@@ -10,7 +10,7 @@
 #include "runtime/IRuntime.h"
 #include "utils.h"
 #include <chrono>
-#include <common/logging/Logger.h>
+#include <hostUtils/logging/Logger.h>
 #include <device-layer/IDeviceLayerFake.h>
 #include <functional>
 #include <gtest/gtest.h>

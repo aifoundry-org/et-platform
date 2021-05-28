@@ -11,7 +11,7 @@
 #pragma once
 #include "runtime/IRuntime.h"
 #include <chrono>
-#include <common/logging/Logging.h>
+#include <hostUtils/logging/Logging.h>
 #include <iomanip>
 #include <string>
 namespace rt {

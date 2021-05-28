@@ -14,7 +14,7 @@
 #include "sw-sysemu/SysEmuOptions.h"
 #include "utils.h"
 
-#include <common/logging/Logger.h>
+#include <hostUtils/logging/Logger.h>
 #include <experimental/filesystem>
 #include <fstream>
 #include <gtest/gtest.h>

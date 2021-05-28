@@ -11,7 +11,7 @@
 #include "common/Constants.h"
 #include "runtime/IProfiler.h"
 #include "runtime/IRuntime.h"
-#include <common/logging/Logging.h>
+#include <hostUtils/logging/Logging.h>
 #include <device-layer/IDeviceLayer.h>
 #include <experimental/filesystem>
 #include <fstream>

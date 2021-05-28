@@ -9,7 +9,7 @@
 //------------------------------------------------------------------------------
 
 #include "runtime/IRuntime.h"
-#include <common/logging/Logging.h>
+#include <hostUtils/logging/Logging.h>
 #include <gtest/gtest-death-test.h>
 #include <ios>
 
