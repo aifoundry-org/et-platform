@@ -75,12 +75,13 @@ int8_t SW_Timer_Create_Timeout(void (*timeout_callback_fn)(uint8_t),
 */
 void SW_Timer_Cancel_Timeout(uint8_t sw_timer_idx);
 
-/*! \fn uint32_t SW_Timer_Get_Remaining_Time(uint8_t sw_timer_idx)
-    \brief Returns the SW ticks to expire the timer
-    \param sw_timer_idx Slot number of the timer
-    \return SW ticks remaining to expire the command
+/*! \fn uint32_t SW_Timer_Get_Elapsed_Time(void)
+    \brief Returns the elapsed time from last 
+           periodic timer update 
+    \param none 
+    \return Residue delta time
 */
-uint32_t SW_Timer_Get_Remaining_Time(uint8_t sw_timer_idx);
+uint32_t SW_Timer_Get_Elapsed_Time(void);
 
 /*! \fn void SW_Timer_Processing(void)
     \brief Function to handle periodic PU Timer triggers

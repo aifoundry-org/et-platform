@@ -25,7 +25,13 @@
 */
 void PU_Timer_Init(void (*timeout_callback_fn)(void), uint32_t timeout);
 
-/*! \fn void PU_Timers_Stop(int8_t chan)
+/*! \fn void PU_Timer_Get_Current_Value(void)
+    \brief Gets the remaining value in the count down timer
+    \returns Current remaining value
+*/
+uint32_t PU_Timer_Get_Current_Value(void);
+
+/*! \fn void PU_Timer_Stop(void)
     \brief Stops a Timer channel from counting down
     \returns none
 */

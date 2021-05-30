@@ -20,7 +20,7 @@
         SW_Timer_Init
         SW_Timer_Create_Timeout
         SW_Timer_Cancel_Timeout
-        SW_Timer_Get_Remaining_Time
+        SW_Timer_Get_Elapsed_Time
         SW_Timer_Processing
 */
 /***********************************************************************/
@@ -44,7 +44,7 @@ typedef struct cmd_timeout_instance_ {
     till now
 */
 typedef struct sw_timer_cb_ {
-    uint64_t     time_elapsed;
+    uint64_t     accum_period;
     spinlock_t   resource_lock;
     cmd_timeout_t cmd_timeout_cb[SW_TIMER_MAX_SLOTS];
 } sw_timer_cb_t;
@@ -111,7 +111,7 @@ _Bool SW_Timer_Interrupt_Status(void)
 ***********************************************************************/
 void SW_Timer_Processing(void)
 {
-    uint64_t time_elapsed;
+    uint64_t accum_period;
     void (*timeout_callback_fn)(uint8_t);
 
     if(SW_Timer_Interrupt_Flag)
@@ -120,13 +120,13 @@ void SW_Timer_Processing(void)
         asm volatile("fence");
     }
 
-    time_elapsed = atomic_add_local_64(&SW_TIMER_CB.time_elapsed, SW_TIMER_HW_COUNT_PER_SEC);
-    time_elapsed += SW_TIMER_HW_COUNT_PER_SEC;
+    accum_period = atomic_add_local_64(&SW_TIMER_CB.accum_period, SW_TIMER_HW_COUNT_PER_SEC);
+    accum_period += SW_TIMER_HW_COUNT_PER_SEC;
 
     for (uint8_t i = 0; i < SW_TIMER_MAX_SLOTS; i++)
     {
         if(atomic_load_local_64(&SW_TIMER_CB.cmd_timeout_cb[i].expiration_time)
-            <= time_elapsed)
+            <= accum_period)
         {
             timeout_callback_fn = (void*)(uint64_t)atomic_load_local_64(
                 (void*)&SW_TIMER_CB.cmd_timeout_cb[i].timeout_callback_fn);
@@ -241,11 +241,12 @@ int8_t SW_Timer_Create_Timeout(void (*timeout_callback_fn)(uint8_t),
             (uint64_t)timeout_callback_fn);
         atomic_store_local_8(&SW_TIMER_CB.cmd_timeout_cb[free_timer_slot].callback_arg,
             callback_arg);
-        /* Store expiration_time = sw_ticks + time_elapsed */
+        /* Store expiration_time = sw_ticks + accum_period + elapsed_time */
         atomic_store_local_64(
             &SW_TIMER_CB.cmd_timeout_cb[free_timer_slot].expiration_time,
             SW_TIMER_SW_TICKS_TO_HW_COUNT(sw_ticks)
-            + atomic_load_local_64(&SW_TIMER_CB.time_elapsed));
+            + atomic_load_local_64(&SW_TIMER_CB.accum_period)
+            + SW_Timer_Get_Elapsed_Time());
     }
 
     /* Release the lock */
@@ -288,28 +289,22 @@ void SW_Timer_Cancel_Timeout(uint8_t sw_timer_idx)
 *
 *   FUNCTION
 *
-*       SW_Timer_Get_Remaining_Time
+*       SW_Timer_Get_Elapsed_Time
 *
 *   DESCRIPTION
 *
-*       Returns the SW ticks to expire the timer
-*
+*       Returns the elapsed time from last Periodic timer update
+*       
 *   INPUTS
 *
 *       sw_timer_idx     Slot number of the timer
 *
 *   OUTPUTS
 *
-*       uint32_t         SW ticks remaining to expire the command
+*       uint32_t         Elapsed delta time
 *
 ***********************************************************************/
-uint32_t SW_Timer_Get_Remaining_Time(uint8_t sw_timer_idx)
+uint32_t SW_Timer_Get_Elapsed_Time(void)
 {
-    uint64_t expiration_HW_COUNT;
-    expiration_HW_COUNT = atomic_load_local_64(
-        &SW_TIMER_CB.cmd_timeout_cb[sw_timer_idx].expiration_time);
-
-    expiration_HW_COUNT -= atomic_load_local_64(&SW_TIMER_CB.time_elapsed);
-
-    return (uint32_t)SW_TIMER_HW_COUNT_TO_SW_TICKS(expiration_HW_COUNT);
+    return (SW_TIMER_HW_COUNT_PER_SEC - PU_Timer_Get_Current_Value());
 }

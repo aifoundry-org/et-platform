@@ -95,6 +95,31 @@ void PU_Timer_Init(void (*timeout_callback_fn)(void), uint32_t timeout)
     PU_Timer_Enable(timeout);
 }
 
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       PU_Timer_Get_Current_Value
+*
+*   DESCRIPTION
+*
+*       Gets the remaining value in the count down timer
+*
+*   INPUTS
+*
+*       void 
+*
+*   OUTPUTS
+*     
+*       uint32_t Remaining value
+*
+***********************************************************************/
+uint32_t PU_Timer_Get_Current_Value(void)
+{
+   return ioread32(R_PU_TIMER_BASEADDR + PU_DW_APB_TIMERS_TIMER1CURRENTVAL_ADDRESS);
+}
+
 /************************************************************************
 *
 *   FUNCTION
