@@ -5,9 +5,12 @@ pipeline {
     string(name: 'BRANCH', defaultValue: '$gitlabSourceBranch', description: 'Branch name to checkout')
     string(name: 'REPO_SSH_URL', defaultValue: 'git@gitlab.esperanto.ai:software/sw-sysemu.git', description: 'Repository URL')
     string(name: 'REPO_NAME', defaultValue: 'sw-sysemu', description: 'Repository name')
+    string(name: 'GITLAB_SOURCE_BRANCH', defaultValue: '', description: 'Name of the branch in Gitlab that triggered the current MR')
+    string(name: 'GITLAB_TARGET_BRANCH', defaultValue: '', description: 'Target branch where the current branch will be merged')
+    string(name: 'GITLAB_MR_ID', defaultValue: '', description: 'Identifier of the Gitlab MR that triggered the pipeline')
     string(name: 'COMPONENT_COMMITS', defaultValue: '', description: 'List of submodule-paths and their commits to checkout as part of the build. The formath is <SUBMODULE_PATH_1>:<COMMIT_1>,<SUBMODULE_PATH_2>:<COMMIT_2>')
     string(name: 'NODE', defaultValue: 'DISPATCHER', description: 'Node label where the job should run')
-    string(name: 'TIMEOUT', defaultValue: '12', description: 'Timeout (in hours)')
+    string(name: 'TIMEOUT', defaultValue: '23', description: 'Timeout (in hours)')
     booleanParam(name: 'HARD_CLEAN', defaultValue: 'true', description: 'If set to 1, removes all the workspace at the end of the regression')
     booleanParam(name: 'EMAIL_CI_AUTHORS', defaultValue: 'true', description: 'This will enable email notifications on CI jobs back to the Authors of the Change. This will include all authors of a given change set.')
     string(name: 'EMAIL_CI_EXTRAS', defaultValue: '', description: 'Manually add this comma seperated list of email addresses to the recipients for a CI job')
@@ -28,6 +31,7 @@ pipeline {
     timeout(time: "${params.TIMEOUT}", unit: "HOURS")
     timestamps()
     skipDefaultCheckout(true)
+    ansiColor('xterm')
   }
   triggers {
     gitlab(triggerOnMergeRequest: true, branchFilterType: 'All')
@@ -128,6 +132,12 @@ pipeline {
     }
   }
   post {
+    always {
+      sh 'echo \"Sending metrics to InfluxDB\"'
+      script {
+         influxDbPublisher(selectedTarget: 'Influxdb-general-metrics')
+      }
+    }
     success {
       updateGitlabCommitStatus name: JOB_NAME, state: 'success'
       script {
