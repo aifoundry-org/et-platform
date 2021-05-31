@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "DmaBufferManager.h"
 #include "EventManager.h"
 #include "MemoryManager.h"
 #include "ProfilerImp.h"
@@ -129,6 +130,7 @@ private:
   std::vector<DeviceId> devices_;
   std::vector<QueueHelper> queueHelpers_;
   std::unordered_map<DeviceId, MemoryManager> memoryManagers_;
+  std::unordered_map<DeviceId, DmaBufferManager> dmaBufferManagers_;
   std::unordered_map<StreamId, Stream> streams_;
 
   EventManager eventManager_;
