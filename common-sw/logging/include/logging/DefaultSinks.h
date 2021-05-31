@@ -32,7 +32,7 @@ struct ColoredOutput {
   void ReceiveLogMessage(g3::LogMessageMover logEntry) {
      auto level = logEntry.get()._level;
      auto color = GetColor(level);
-     std::cout << "\033[" << color << "m" << logEntry.get().toString() << "\033[m" << std::flush;
+     std::cerr << "\033[" << color << "m" << logEntry.get().toString() << "\033[m" << std::flush;
   }
 };
 }
