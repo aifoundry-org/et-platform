@@ -14,11 +14,11 @@
 #include "IDevOpsApiCmd.h"
 #include "deviceLayer/IDeviceLayer.h"
 #include <atomic>
-#include <hostUtils/logging/Logger.h>
 #include <condition_variable>
 #include <elfio/elfio.hpp>
 #include <gflags/gflags.h>
 #include <gtest/gtest.h>
+#include <hostUtils/logging/Logger.h>
 #include <mutex>
 #include <thread>
 #include <unordered_map>
@@ -55,11 +55,10 @@ struct __attribute__((packed, aligned(64))) hart_execution_context {
 
 class TestDevOpsApi : public ::testing::Test {
 protected:
-  void initTestHelper();
+  void initTestHelperSysEmu(const emu::SysEmuOptions& options);
+  void initTestHelperPcie();
   void executeAsync();
   void executeSync();
-  int getDevicesCount();
-  int getSqCount(int deviceIdx);
   uint64_t getDmaWriteAddr(int deviceIdx, size_t bufSize);
   uint64_t getDmaReadAddr(int deviceIdx, size_t bufSize);
   void resetMemPooltoDefault(int deviceIdx);
@@ -75,12 +74,28 @@ protected:
   void cleanUpExecution();
   void deleteCmdResults();
   void executeSyncPerDevice(int deviceIdx);
+
+  inline int getDevicesCount() {
+    return devLayer_->getDevicesCount();
+  }
+
+  inline int getSqCount(int deviceIdx) {
+    return devLayer_->getSubmissionQueuesCount(deviceIdx);
+  }
+
+  inline void* allocDmaBuffer(int deviceIdx, size_t sizeInBytes, bool writeable) {
+    return devLayer_->allocDmaBuffer(deviceIdx, sizeInBytes, writeable);
+  }
+
+  inline void freeDmaBuffer(void* dmaBuffer) {
+    return devLayer_->freeDmaBuffer(dmaBuffer);
+  }
+
   inline size_t key(int deviceIdx, int queueIdx) {
     return (size_t)deviceIdx << 32 | (size_t)queueIdx;
   }
 
   std::unordered_map<size_t, std::vector<std::unique_ptr<IDevOpsApiCmd>>> streams_;
-  std::unique_ptr<dev::IDeviceLayer> devLayer_;
   TimeDuration execTimeout_;
 
 private:
@@ -100,6 +115,7 @@ private:
   };
 
   logging::LoggerDefault logger_;
+  std::unique_ptr<dev::IDeviceLayer> devLayer_;
   std::vector<std::unique_ptr<DeviceInfo>> devices_;
   std::unordered_map<device_ops_api::tag_id_t, CmdStatus> cmdResults_;
   std::recursive_mutex cmdResultsMtx_;

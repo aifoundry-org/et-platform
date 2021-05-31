@@ -20,10 +20,25 @@ DEFINE_string(kernels_dir, "", "Directory where different kernel ELF files are l
 DEFINE_uint32(exec_timeout, 100, "Internal execution timeout");
 DEFINE_bool(loopback_driver, false, "Run on loopback driver");
 
-void TestDevOpsApi::initTestHelper() {
-  auto deviceCount = getDevicesCount();
+void TestDevOpsApi::initTestHelperSysEmu(const emu::SysEmuOptions& options) {
+  devLayer_ = dev::IDeviceLayer::createSysEmuDeviceLayer(options);
+  EXPECT_NE(devLayer_, nullptr) << "Unable to instantiate devLayer!" << std::endl;
 
   devices_.clear();
+  auto deviceCount = getDevicesCount();
+  for (unsigned long i = 0; i < deviceCount; i++) {
+    devices_.emplace_back(new DeviceInfo);
+    devices_[i]->dmaWriteAddr_ = devices_[i]->dmaReadAddr_ = devLayer_->getDramBaseAddress();
+    devices_[i]->sqBitmap_ = ~0ULL;
+  }
+}
+
+void TestDevOpsApi::initTestHelperPcie() {
+  devLayer_ = dev::IDeviceLayer::createPcieDeviceLayer(true, false);
+  EXPECT_NE(devLayer_, nullptr) << "Unable to instantiate devLayer!" << std::endl;
+
+  devices_.clear();
+  auto deviceCount = getDevicesCount();
   for (unsigned long i = 0; i < deviceCount; i++) {
     devices_.emplace_back(new DeviceInfo);
     devices_[i]->dmaWriteAddr_ = devices_[i]->dmaReadAddr_ = devLayer_->getDramBaseAddress();
@@ -613,7 +628,8 @@ void TestDevOpsApi::printErrorContext(void* buffer, uint64_t shireMask) {
       TEST_VLOG(0) << "* gpr[x9]  : s1    : 0x" << std::hex << context[minionHartID].gpr[6];
       for (auto i = 0; i < 8; i++) {
         auto reg = i + 7;
-        TEST_VLOG(0) << "* gpr[x" << (reg + 3) << "] : a" << i << "    : 0x" << std::hex << context[minionHartID].gpr[reg];
+        TEST_VLOG(0) << "* gpr[x" << (reg + 3) << "] : a" << i << "    : 0x" << std::hex
+                     << context[minionHartID].gpr[reg];
       }
       for (auto i = 0; i < 10; i++) {
         auto reg = i + 15;
@@ -638,14 +654,6 @@ void TestDevOpsApi::printErrorContext(void* buffer, uint64_t shireMask) {
 void TestDevOpsApi::deleteCmdResults() {
   std::unique_lock<std::recursive_mutex> lock(cmdResultsMtx_);
   cmdResults_.clear();
-}
-
-int TestDevOpsApi::getSqCount(int deviceIdx) {
-  return devLayer_->getSubmissionQueuesCount(deviceIdx);
-}
-
-int TestDevOpsApi::getDevicesCount() {
-  return devLayer_->getDevicesCount();
 }
 
 void TestDevOpsApi::loadElfToDevice(int deviceIdx, ELFIO::elfio& reader, const std::string& path,

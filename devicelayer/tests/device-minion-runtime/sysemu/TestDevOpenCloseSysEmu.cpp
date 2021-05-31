@@ -49,10 +49,7 @@ TEST_F(TestDevOpenCloseSysEmu, instantiateIDeviceLayer_1_1) {
   sysEmuOptions.additionalOptions =
     std::vector<std::string>{std::istream_iterator<std::string>{iss}, std::istream_iterator<std::string>{}};
 
-  // Launch Sysemu through IDevice Abstraction
-  devLayer_ = dev::IDeviceLayer::createSysEmuDeviceLayer(sysEmuOptions);
-
-  ASSERT_NE(devLayer_, nullptr);
+  initTestHelperSysEmu(sysEmuOptions);
 }
 
 int main(int argc, char** argv) {

@@ -60,6 +60,7 @@ function(create_test)
         # default timeout value
         set(TIMEOUT_VAL "120")
     endif()
+    MATH(EXPR TIMEOUT_VAL "${TIMEOUT_VAL}-30")
     set(TEST_ARGS ${TEST_ARGS} --exec_timeout=${TIMEOUT_VAL})
 
     gtest_discover_tests(${TEST_TARGET}

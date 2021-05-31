@@ -19,10 +19,7 @@ protected:
   void SetUp() override {
     execTimeout_ = std::chrono::seconds(FLAGS_exec_timeout);
 
-    // Launch PCIE through IDevice Abstraction
-    devLayer_ = dev::IDeviceLayer::createPcieDeviceLayer(true, false);
-
-    initTestHelper();
+    initTestHelperPcie();
   }
 };
 

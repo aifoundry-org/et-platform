@@ -49,10 +49,7 @@ protected:
     sysEmuOptions.additionalOptions =
       std::vector<std::string>{std::istream_iterator<std::string>{iss}, std::istream_iterator<std::string>{}};
 
-    // Launch Sysemu through IDevice Abstraction
-    devLayer_ = dev::IDeviceLayer::createSysEmuDeviceLayer(sysEmuOptions);
-
-    initTestHelper();
+    initTestHelperSysEmu(sysEmuOptions);
   }
 };
 
