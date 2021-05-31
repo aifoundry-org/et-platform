@@ -788,8 +788,8 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	region->access.priv_mode = MEM_REGION_PRIVILEGE_MODE_USER;
 	region->access.node_access = MEM_REGION_NODE_ACCESSIBLE_OPS;
 	region->access.dma_align = MEM_REGION_DMA_ALIGNMENT_64BIT;
-	region->soc_addr = 0x8100600000ULL;
-	region->size = 0x2fba00000ULL;
+	region->soc_addr = 0x8101000000ULL;
+	region->size = 0x2FB000000ULL;
 	region->mapped_baseaddr = NULL;
 
 	// VQs initialization
