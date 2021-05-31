@@ -32,6 +32,8 @@ public:
     FW_VERSION_CMD,
     DATA_WRITE_CMD,
     DATA_READ_CMD,
+    DMA_WRITELIST_CMD,
+    DMA_READLIST_CMD,
     KERNEL_LAUNCH_CMD,
     KERNEL_ABORT_CMD,
     TRACE_CONFIG_CMD,
@@ -60,22 +62,26 @@ public:
                                                           uint64_t hostVirtAddr, uint64_t hostPhysAddr,
                                                           uint64_t dataSize,
                                                           device_ops_api::dev_ops_api_dma_response_e status);
+  static std::unique_ptr<IDevOpsApiCmd> createDmaWriteListCmd(device_ops_api::cmd_flags_e flag,
+                                                              device_ops_api::dma_write_node list[], uint32_t nodeCount,
+                                                              device_ops_api::dev_ops_api_dma_response_e status);
+  static std::unique_ptr<IDevOpsApiCmd> createDmaReadListCmd(device_ops_api::cmd_flags_e flag,
+                                                             device_ops_api::dma_read_node list[], uint32_t nodeCount,
+                                                             device_ops_api::dev_ops_api_dma_response_e status);
   static std::unique_ptr<IDevOpsApiCmd>
-  createKernelLaunchCmd(device_ops_api::cmd_flags_e flag, uint64_t codeStartAddr,
-                        uint64_t ptrToArgs, uint64_t exceptionBuffer, uint64_t shireMask, uint64_t traceBuffer,
-                        void* argumentPayload, uint32_t sizeOfArgPayload,
-                        device_ops_api::dev_ops_api_kernel_launch_response_e status);
+  createKernelLaunchCmd(device_ops_api::cmd_flags_e flag, uint64_t codeStartAddr, uint64_t ptrToArgs,
+                        uint64_t exceptionBuffer, uint64_t shireMask, uint64_t traceBuffer, void* argumentPayload,
+                        uint32_t sizeOfArgPayload, device_ops_api::dev_ops_api_kernel_launch_response_e status);
   static std::unique_ptr<IDevOpsApiCmd>
-  createKernelAbortCmd(device_ops_api::cmd_flags_e flag,
-                       device_ops_api::tag_id_t kernelToAbortTagId,
+  createKernelAbortCmd(device_ops_api::cmd_flags_e flag, device_ops_api::tag_id_t kernelToAbortTagId,
                        device_ops_api::dev_ops_api_kernel_abort_response_e status);
   static std::unique_ptr<IDevOpsApiCmd>
-  createTraceRtConfigCmd(device_ops_api::cmd_flags_e flag, uint32_t shire_mask,
-                         uint32_t thread_mask, uint32_t event_mask, uint32_t filter_mask,
+  createTraceRtConfigCmd(device_ops_api::cmd_flags_e flag, uint32_t shire_mask, uint32_t thread_mask,
+                         uint32_t event_mask, uint32_t filter_mask,
                          device_ops_api::dev_ops_trace_rt_config_response_e status);
   static std::unique_ptr<IDevOpsApiCmd>
-  createTraceRtControlCmd(device_ops_api::cmd_flags_e flag, uint32_t rt_type,
-                          uint32_t control, device_ops_api::dev_ops_trace_rt_control_response_e status);
+  createTraceRtControlCmd(device_ops_api::cmd_flags_e flag, uint32_t rt_type, uint32_t control,
+                          device_ops_api::dev_ops_trace_rt_control_response_e status);
   static std::unique_ptr<IDevOpsApiCmd> createCustomCmd(std::byte* cmdPtr, size_t cmdSize, uint32_t status);
 
   static uint32_t getExpectedRsp(device_ops_api::tag_id_t tagId);
@@ -162,6 +168,42 @@ private:
   device_ops_api::device_ops_data_read_cmd_t cmd_;
 };
 
+class DmaWriteListCmd : public IDevOpsApiCmd {
+public:
+  std::byte* getCmdPtr() override;
+  size_t getCmdSize() override;
+  device_ops_api::tag_id_t getCmdTagId() override;
+  CmdType whoAmI() override;
+  explicit DmaWriteListCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
+                           device_ops_api::dma_write_node list[], uint32_t nodeCount);
+  ~DmaWriteListCmd();
+  bool isDma() const override {
+    return true;
+  }
+
+private:
+  device_ops_api::device_ops_dma_writelist_cmd_t* cmd_;
+  std::vector<uint8_t> cmdMem_;
+};
+
+class DmaReadListCmd : public IDevOpsApiCmd {
+public:
+  std::byte* getCmdPtr() override;
+  size_t getCmdSize() override;
+  device_ops_api::tag_id_t getCmdTagId() override;
+  CmdType whoAmI() override;
+  explicit DmaReadListCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
+                          device_ops_api::dma_read_node list[], uint32_t nodeCount);
+  ~DmaReadListCmd();
+  bool isDma() const override {
+    return true;
+  }
+
+private:
+  device_ops_api::device_ops_dma_readlist_cmd_t* cmd_;
+  std::vector<uint8_t> cmdMem_;
+};
+
 class KernelLaunchCmd : public IDevOpsApiCmd {
 public:
   std::byte* getCmdPtr() override;
@@ -192,19 +234,6 @@ private:
   device_ops_api::device_ops_kernel_abort_cmd_t cmd_;
 };
 
-class CustomCmd : public IDevOpsApiCmd {
-public:
-  std::byte* getCmdPtr() override;
-  size_t getCmdSize() override;
-  device_ops_api::tag_id_t getCmdTagId() override;
-  CmdType whoAmI() override;
-  explicit CustomCmd(std::byte* cmdPtr, size_t cmdSize);
-  ~CustomCmd();
-
-private:
-  std::byte* cmd_;
-};
-
 class TraceRtConfigCmd : public IDevOpsApiCmd {
 public:
   std::byte* getCmdPtr() override;
@@ -231,4 +260,26 @@ public:
 
 private:
   device_ops_api::device_ops_trace_rt_control_cmd_t cmd_;
+};
+
+class CustomCmd : public IDevOpsApiCmd {
+public:
+  std::byte* getCmdPtr() override;
+  size_t getCmdSize() override;
+  device_ops_api::tag_id_t getCmdTagId() override;
+  CmdType whoAmI() override;
+  explicit CustomCmd(std::byte* cmdPtr, size_t cmdSize);
+  ~CustomCmd();
+  bool isDma() const override {
+    auto* customCmd = reinterpret_cast<device_ops_api::cmd_header_t*>(cmd_);
+    if (customCmd != nullptr) {
+      return customCmd->cmd_hdr.msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD ||
+             customCmd->cmd_hdr.msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD ||
+             customCmd->cmd_hdr.msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD ||
+             customCmd->cmd_hdr.msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD;
+    }
+  }
+
+private:
+  std::byte* cmd_;
 };

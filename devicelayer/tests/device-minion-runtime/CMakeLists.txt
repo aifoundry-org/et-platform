@@ -60,8 +60,9 @@ function(create_test)
         # default timeout value
         set(TIMEOUT_VAL "120")
     endif()
-    MATH(EXPR TIMEOUT_VAL "${TIMEOUT_VAL}-30")
-    set(TEST_ARGS ${TEST_ARGS} --exec_timeout=${TIMEOUT_VAL})
+    set(WRAP_UP_TIME "30")
+    MATH(EXPR EXEC_TIMEOUT "${TIMEOUT_VAL}-${WRAP_UP_TIME}")
+    set(TEST_ARGS ${TEST_ARGS} --exec_timeout=${EXEC_TIMEOUT})
 
     gtest_discover_tests(${TEST_TARGET}
         EXTRA_ARGS ${TEST_ARGS}
@@ -100,7 +101,7 @@ create_test(
     TARGET     TestDevOpsApiFuncDmaCmdsPcie
     SOURCES    pcie/basic/TestDevOpsApiFuncDmaCmdsPcie.cpp TestDevOpsApiDmaCmds.cpp
     ARGS       --loopback_driver=${LOOPBACK_DRIVER}
-    PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;SYSTEM;LABELS;LOOPBACK;TIMEOUT;120"
+    PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;SYSTEM;LABELS;LOOPBACK;TIMEOUT;360"
 )
 
 create_test(

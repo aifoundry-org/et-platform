@@ -47,6 +47,19 @@ TEST_F(TestDevOpsApiFuncDmaCmdsPcie, dataRWCmdWithBarrier_PositiveTesting_3_10) 
   dataRWCmdWithBarrier_PositiveTesting_3_10();
 }
 
+TEST_F(TestDevOpsApiFuncDmaCmdsPcie, dataRWListCmd_PositiveTesting_3_11) {
+  dataRWListCmd_PositiveTesting_3_11();
+}
+
+TEST_F(TestDevOpsApiFuncDmaCmdsPcie, dataRWListCmd_NegativeTesting_3_12) {
+  // Skip Test, if loopback driver
+  if (FLAGS_loopback_driver) {
+    TEST_VLOG(0) << "Skipping: dataRWListCmd_NegativeTesting_3_12, not supported on loopback driver";
+    return;
+  }
+  dataRWListCmd_NegativeTesting_3_12();
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   google::ParseCommandLineFlags(&argc, &argv, true);

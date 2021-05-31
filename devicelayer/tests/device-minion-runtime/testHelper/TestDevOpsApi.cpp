@@ -432,6 +432,36 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
       status = CmdStatus::CMD_FAILED;
     }
 
+  } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP) {
+    auto response = reinterpret_cast<device_ops_api::device_ops_dma_readlist_rsp_t*>(message.data());
+    TEST_VLOG(1) << "=====> DMA readlist command response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
+    TEST_VLOG(1) << "     => Total measured latencies (in cycles) ";
+    TEST_VLOG(1) << "      - Command Wait time: " << response->cmd_wait_time;
+    TEST_VLOG(1) << "      - Command Execution time: " << response->cmd_execution_time;
+    if (response->status == IDevOpsApiCmd::getExpectedRsp(rsp_tag_id)) {
+      status = CmdStatus::CMD_SUCCESSFUL;
+    } else if (response->status == (device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE ||
+                                    device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG)) {
+      status = CmdStatus::CMD_TIMED_OUT;
+    } else {
+      status = CmdStatus::CMD_FAILED;
+    }
+
+  } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP) {
+    auto response = reinterpret_cast<device_ops_api::device_ops_dma_writelist_rsp_t*>(message.data());
+    TEST_VLOG(1) << "=====> DMA writelist command response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
+    TEST_VLOG(1) << "     => Total measured latencies (in cycles)";
+    TEST_VLOG(1) << "      - Command Wait time: " << response->cmd_wait_time;
+    TEST_VLOG(1) << "      - Command Execution time: " << response->cmd_execution_time;
+    if (response->status == IDevOpsApiCmd::getExpectedRsp(rsp_tag_id)) {
+      status = CmdStatus::CMD_SUCCESSFUL;
+    } else if (response->status == (device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE ||
+                                    device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG)) {
+      status = CmdStatus::CMD_TIMED_OUT;
+    } else {
+      status = CmdStatus::CMD_FAILED;
+    }
+
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP) {
     auto response = reinterpret_cast<device_ops_api::device_ops_kernel_launch_rsp_t*>(message.data());
     TEST_VLOG(1) << "=====> Kernel Launch command response received (tag_id: " << std::hex << rsp_tag_id << ") <====";

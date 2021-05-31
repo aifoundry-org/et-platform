@@ -556,6 +556,122 @@ void TestDevOpsApiDmaCmds::dataRWCmdWithBarrier_PositiveTesting_3_10() {
                                    dmaRdBufs[dmaRdBufIdx].end()));
   }
 }
+
+void TestDevOpsApiDmaCmds::dataRWListCmd_PositiveTesting_3_11() {
+  std::vector<void*> dmaWrMemPtrs;
+  std::vector<void*> dmaRdMemPtrs;
+  const uint8_t kNodeCount = 4;
+  const size_t kBufSize = 64;
+  device_ops_api::dma_write_node wrList[kNodeCount];
+  device_ops_api::dma_read_node rdList[kNodeCount];
+
+  int deviceCount = getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    auto queueCount = getSqCount(deviceIdx);
+    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
+
+    dmaWrMemPtrs.push_back(allocDmaBuffer(deviceIdx, queueCount * kNodeCount * kBufSize, true));
+    dmaRdMemPtrs.push_back(allocDmaBuffer(deviceIdx, queueCount * kNodeCount * kBufSize, false));
+
+    uint8_t* rdBufPtr = static_cast<uint8_t*>(dmaRdMemPtrs[deviceIdx]);
+    uint8_t* wrBufPtr = static_cast<uint8_t*>(dmaWrMemPtrs[deviceIdx]);
+    for (std::size_t i = 0; i < queueCount * kNodeCount * kBufSize; ++i) {
+      wrBufPtr[i] = static_cast<uint8_t>(rand() % 0x100);
+    }
+    for (int queueIdx = 0; queueIdx < queueCount; ++queueIdx) {
+      for (int nodeIdx = 0; nodeIdx < kNodeCount; ++nodeIdx) {
+        // NOTE: host_phys_addr should be handled in SysEmu, userspace should not fill this value
+        wrList[nodeIdx] = {.src_host_virt_addr = reinterpret_cast<uint64_t>(wrBufPtr),
+                           .src_host_phy_addr = reinterpret_cast<uint64_t>(wrBufPtr),
+                           .dst_device_phy_addr = getDmaWriteAddr(deviceIdx, kBufSize),
+                           .size = kBufSize};
+        wrBufPtr += kBufSize;
+
+        rdList[nodeIdx] = {.dst_host_virt_addr = reinterpret_cast<uint64_t>(rdBufPtr),
+                           .dst_host_phy_addr = reinterpret_cast<uint64_t>(rdBufPtr),
+                           .src_device_phy_addr = getDmaReadAddr(deviceIdx, kBufSize),
+                           .size = kBufSize};
+        rdBufPtr += kBufSize;
+      }
+      stream.push_back(IDevOpsApiCmd::createDmaWriteListCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, wrList,
+                                                            kNodeCount,
+                                                            device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+      stream.push_back(IDevOpsApiCmd::createDmaReadListCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, rdList, kNodeCount,
+                                                           device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+      // Move stream of commands to streams_[queueId]
+      streams_.emplace(key(deviceIdx, queueIdx), std::move(stream));
+    }
+  }
+
+  executeAsync();
+
+  // Validate data received from DMA
+  for (int deviceIdx = 0; deviceIdx < deviceCount; ++deviceIdx) {
+    // Skip data validation in case of loopback driver
+    if (!FLAGS_loopback_driver) {
+      auto queueCount = getSqCount(deviceIdx);
+      auto bytesWritten = queueCount * kNodeCount * kBufSize;
+      EXPECT_EQ(memcmp(dmaWrMemPtrs[deviceIdx], dmaRdMemPtrs[deviceIdx], bytesWritten), 0)
+        << "DMA W/R data mismatched for deviceIdx: " << (int)deviceIdx << std::endl;
+    }
+    freeDmaBuffer(dmaWrMemPtrs[deviceIdx]);
+    freeDmaBuffer(dmaRdMemPtrs[deviceIdx]);
+  }
+}
+
+/**********************************************************
+ *                                                         *
+ *             DMA Negative Testing Functions              *
+ *                                                         *
+ **********************************************************/
+void TestDevOpsApiDmaCmds::dataRWListCmd_NegativeTesting_3_12() {
+  std::vector<void*> dmaWrMemPtrs;
+  std::vector<void*> dmaRdMemPtrs;
+  const uint8_t kNodeCount = 4;
+  const size_t kBufSize = 64;
+  device_ops_api::dma_write_node wrList[kNodeCount];
+  device_ops_api::dma_read_node rdList[kNodeCount];
+
+  int deviceCount = getDevicesCount();
+  int queueIdx = 0;
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
+
+    dmaWrMemPtrs.push_back(allocDmaBuffer(deviceIdx, kNodeCount * kBufSize, true));
+    dmaRdMemPtrs.push_back(allocDmaBuffer(deviceIdx, kNodeCount * kBufSize, false));
+
+    uint8_t* rdBufPtr = static_cast<uint8_t*>(dmaRdMemPtrs[deviceIdx]);
+    uint8_t* wrBufPtr = static_cast<uint8_t*>(dmaWrMemPtrs[deviceIdx]);
+    for (std::size_t i = 0; i < kNodeCount * kBufSize; ++i) {
+      wrBufPtr[i] = static_cast<uint8_t>(rand() % 0x100);
+    }
+    for (int nodeIdx = 0; nodeIdx < kNodeCount; ++nodeIdx) {
+      // NOTE: host_phys_addr should be handled in SysEmu, userspace should not fill this value
+      wrList[nodeIdx] = {.src_host_virt_addr = reinterpret_cast<uint64_t>(wrBufPtr),
+                         .src_host_phy_addr = reinterpret_cast<uint64_t>(wrBufPtr),
+                         .dst_device_phy_addr = (nodeIdx == 0) ? 0 : getDmaWriteAddr(deviceIdx, kBufSize),
+                         .size = kBufSize};
+      wrBufPtr += kBufSize;
+
+      rdList[nodeIdx] = {.dst_host_virt_addr = reinterpret_cast<uint64_t>(rdBufPtr),
+                         .dst_host_phy_addr = reinterpret_cast<uint64_t>(rdBufPtr),
+                         .src_device_phy_addr = (nodeIdx == 0) ? 0 : getDmaReadAddr(deviceIdx, kBufSize),
+                         .size = kBufSize};
+      rdBufPtr += kBufSize;
+    }
+    stream.push_back(
+      IDevOpsApiCmd::createDmaWriteListCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, wrList, kNodeCount,
+                                           device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ADDRESS));
+    stream.push_back(
+      IDevOpsApiCmd::createDmaReadListCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, rdList, kNodeCount,
+                                          device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ADDRESS));
+    // Move stream of commands to streams_[queueId]
+    streams_.emplace(key(deviceIdx, queueIdx), std::move(stream));
+  }
+
+  executeAsync();
+}
+
 /**********************************************************
  *                                                         *
  *             DMA Stress Testing Functions                *
@@ -831,4 +947,100 @@ void TestDevOpsApiDmaCmds::dataWRStressChannelsMultiDeviceMultiQueue_2_5(uint32_
   for (std::size_t i = 0; i < dmaRdBufs.size(); ++i) {
     EXPECT_EQ(dmaWrBuf, dmaRdBufs[i]);
   }
+}
+
+void TestDevOpsApiDmaCmds::dataRWListStressChannels(bool singleDevice, bool singleQueue, uint32_t numOfDmaEntries) {
+  std::vector<void*> dmaWrMemPtrs;
+  std::vector<void*> dmaRdMemPtrs;
+  const uint8_t kMaxNodeCountPerCmd = 4;
+  const size_t kBufSize = 4 * 1024; // 4K
+  const size_t kMaxAllocSize =
+    0x1 << 31; // 2GB, TODO: Get from device layer when support becomes available in device layer
+
+  ASSERT_LE(numOfDmaEntries * kBufSize, kMaxAllocSize)
+    << "Number of DMA entries are too large (max allowed: " << kMaxAllocSize / (numOfDmaEntries * kBufSize) << ")"
+    << std::endl;
+
+  auto deviceCount = (singleDevice) ? 1 : getDevicesCount();
+  auto numOfDmaEntriesPerDev = numOfDmaEntries / deviceCount;
+
+  device_ops_api::dma_write_node wrList[kMaxNodeCountPerCmd];
+  device_ops_api::dma_read_node rdList[kMaxNodeCountPerCmd];
+
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
+
+    dmaWrMemPtrs.push_back(allocDmaBuffer(deviceIdx, numOfDmaEntriesPerDev * kBufSize, true));
+    dmaRdMemPtrs.push_back(allocDmaBuffer(deviceIdx, numOfDmaEntriesPerDev * kBufSize, false));
+
+    uint8_t* rdBufPtr = static_cast<uint8_t*>(dmaRdMemPtrs[deviceIdx]);
+    uint8_t* wrBufPtr = static_cast<uint8_t*>(dmaWrMemPtrs[deviceIdx]);
+    for (std::size_t i = 0; i < numOfDmaEntriesPerDev * kBufSize; ++i) {
+      wrBufPtr[i] = static_cast<uint8_t>(rand() % 0x100);
+    }
+
+    auto queueCount = (singleQueue) ? 1 : getSqCount(deviceIdx);
+    auto numOfDmaEntriesPerQueue = numOfDmaEntriesPerDev / queueCount;
+    for (int queueIdx = 0; queueIdx < queueCount; ++queueIdx) {
+      for (int i = 0; i < numOfDmaEntriesPerQueue;) {
+        // NOTE: host_phys_addr should be handled in SysEmu, userspace should not fill this value
+        wrList[i % kMaxNodeCountPerCmd] = {.src_host_virt_addr = reinterpret_cast<uint64_t>(wrBufPtr),
+                                           .src_host_phy_addr = reinterpret_cast<uint64_t>(wrBufPtr),
+                                           .dst_device_phy_addr = getDmaWriteAddr(deviceIdx, kBufSize),
+                                           .size = kBufSize};
+        wrBufPtr += kBufSize;
+        ++i;
+        if (i % kMaxNodeCountPerCmd == 0 || i == numOfDmaEntriesPerQueue) {
+          stream.push_back(IDevOpsApiCmd::createDmaWriteListCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, wrList,
+                                                                (i - 1) % kMaxNodeCountPerCmd + 1,
+                                                                device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+        }
+      }
+
+      for (int i = 0; i < numOfDmaEntriesPerQueue;) {
+        // NOTE: host_phys_addr should be handled in SysEmu, userspace should not fill this value
+        rdList[i % kMaxNodeCountPerCmd] = {.dst_host_virt_addr = reinterpret_cast<uint64_t>(rdBufPtr),
+                                           .dst_host_phy_addr = reinterpret_cast<uint64_t>(rdBufPtr),
+                                           .src_device_phy_addr = getDmaReadAddr(deviceIdx, kBufSize),
+                                           .size = kBufSize};
+        rdBufPtr += kBufSize;
+        ++i;
+        if (i % kMaxNodeCountPerCmd == 0 || i == numOfDmaEntriesPerQueue) {
+          stream.push_back(IDevOpsApiCmd::createDmaReadListCmd(
+            (i == 1) ? device_ops_api::CMD_FLAGS_BARRIER_ENABLE : device_ops_api::CMD_FLAGS_BARRIER_DISABLE, rdList,
+            (i - 1) % kMaxNodeCountPerCmd + 1, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+        }
+      }
+      // Move stream of commands to streams_[queueId]
+      streams_.emplace(key(deviceIdx, queueIdx), std::move(stream));
+    }
+  }
+
+  executeAsync();
+
+  // Validate data received from DMA
+  for (int deviceIdx = 0; deviceIdx < deviceCount; ++deviceIdx) {
+    // Skip data validation in case of loopback driver
+    if (!FLAGS_loopback_driver) {
+      auto queueCount = (singleQueue) ? 1 : getSqCount(deviceIdx);
+      auto numOfDmaEntriesPerQueue = numOfDmaEntriesPerDev / queueCount;
+      auto bytesWritten = numOfDmaEntriesPerQueue * queueCount * kBufSize;
+      EXPECT_EQ(memcmp(dmaWrMemPtrs[deviceIdx], dmaRdMemPtrs[deviceIdx], bytesWritten), 0)
+        << "DMA W/R data mismatched for deviceIdx: " << (int)deviceIdx << std::endl;
+    }
+    freeDmaBuffer(dmaWrMemPtrs[deviceIdx]);
+    freeDmaBuffer(dmaRdMemPtrs[deviceIdx]);
+  }
+}
+
+void TestDevOpsApiDmaCmds::dataRWListStressChannelsSingleDeviceSingleQueue_2_6(uint32_t numOfDmaEntries) {
+  dataRWListStressChannels(true, true, numOfDmaEntries);
+}
+
+void TestDevOpsApiDmaCmds::dataRWListStressChannelsSingleDeviceMultiQueue_2_7(uint32_t numOfDmaEntries) {
+  dataRWListStressChannels(true, false, numOfDmaEntries);
+}
+
+void TestDevOpsApiDmaCmds::dataRWListStressChannelsMultiDeviceMultiQueue_2_8(uint32_t numOfDmaEntries) {
+  dataRWListStressChannels(false, false, numOfDmaEntries);
 }

@@ -22,10 +22,24 @@ protected:
   void dataRWCmd_PositiveTesting_3_1();
   void dataRWCmdWithBarrier_PositiveTesting_3_10();
 
+  /* DMA List Positive Testing Functions */
+  void dataRWListCmd_PositiveTesting_3_11();
+
+  /* DMA List Negative Testing Functions */
+  void dataRWListCmd_NegativeTesting_3_12();
+
   /* DMA Stress Testing Functions */
   void dataWRStressSize_2_1(uint8_t maxExp2);
   void dataWRStressSpeed_2_2(uint8_t maxExp2);
   void dataWRStressChannelsSingleDeviceSingleQueue_2_3(uint32_t numOfLoopbackCmds);
   void dataWRStressChannelsSingleDeviceMultiQueue_2_4(uint32_t numOfLoopbackCmds);
   void dataWRStressChannelsMultiDeviceMultiQueue_2_5(uint32_t numOfLoopbackCmds);
+
+  /* DMA List Stress Testing Functions */
+  void dataRWListStressChannelsSingleDeviceSingleQueue_2_6(uint32_t numOfDmaEntries);
+  void dataRWListStressChannelsSingleDeviceMultiQueue_2_7(uint32_t numOfDmaEntries);
+  void dataRWListStressChannelsMultiDeviceMultiQueue_2_8(uint32_t numOfDmaEntries);
+
+private:
+  void dataRWListStressChannels(bool singleDevice, bool singleQueue, uint32_t numOfDmaEntries);
 };

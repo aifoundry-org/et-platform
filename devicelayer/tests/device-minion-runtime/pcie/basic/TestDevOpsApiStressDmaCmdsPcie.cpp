@@ -43,6 +43,18 @@ TEST_F(TestDevOpsApiStressDmaCmdsPcie, dataWRStressChannelsMultiDeviceMultiQueue
   dataWRStressChannelsMultiDeviceMultiQueue_2_5(1000);
 }
 
+TEST_F(TestDevOpsApiStressDmaCmdsPcie, dataRWListStressChannelsSingleDeviceSingleQueue_2_6) {
+  dataRWListStressChannelsSingleDeviceSingleQueue_2_6(1000);
+}
+
+TEST_F(TestDevOpsApiStressDmaCmdsPcie, dataRWListStressChannelsSingleDeviceMultiQueue_2_7) {
+  dataRWListStressChannelsSingleDeviceMultiQueue_2_7(1000);
+}
+
+TEST_F(TestDevOpsApiStressDmaCmdsPcie, dataRWListStressChannelsMultiDeviceMultiQueue_2_8) {
+  dataRWListStressChannelsMultiDeviceMultiQueue_2_8(1000);
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   google::ParseCommandLineFlags(&argc, &argv, true);

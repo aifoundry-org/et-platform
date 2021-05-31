@@ -58,7 +58,7 @@ EchoCmd::EchoCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e fla
   cmd_.command_info.cmd_hdr.flags = flag;
   cmd_.echo_payload = echoPayload;
 
-  TEST_VLOG(1) << "Created Echo Command (tagId: " << std::hex << tagId << ")" << std::endl;
+  TEST_VLOG(1) << "Created Echo Command (tagId: " << std::hex << tagId << ")";
 }
 
 EchoCmd::~EchoCmd() {
@@ -104,7 +104,7 @@ ApiCompatibilityCmd::ApiCompatibilityCmd(device_ops_api::tag_id_t tagId, device_
   cmd_.major = minor;
   cmd_.major = patch;
 
-  TEST_VLOG(1) << "Created Api Compatibility Command (tagId: " << std::hex << tagId << ")" << std::endl;
+  TEST_VLOG(1) << "Created Api Compatibility Command (tagId: " << std::hex << tagId << ")";
 }
 
 ApiCompatibilityCmd::~ApiCompatibilityCmd() {
@@ -147,7 +147,7 @@ FwVersionCmd::FwVersionCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_f
   cmd_.command_info.cmd_hdr.flags = flag;
   cmd_.firmware_type = firmwareType;
 
-  TEST_VLOG(1) << "Created Firmware Version Command (tagId: " << std::hex << tagId << ")" << std::endl;
+  TEST_VLOG(1) << "Created Firmware Version Command (tagId: " << std::hex << tagId << ")";
 }
 
 FwVersionCmd::~FwVersionCmd() {
@@ -195,7 +195,7 @@ DataWriteCmd::DataWriteCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_f
   cmd_.src_host_phy_addr = hostPhysAddr;
   cmd_.size = dataSize;
 
-  TEST_VLOG(1) << "Created Data Write Command (tagId: " << std::hex << tagId << ")" << std::endl;
+  TEST_VLOG(1) << "Created Data Write Command (tagId: " << std::hex << tagId << ")";
 }
 
 DataWriteCmd::~DataWriteCmd() {
@@ -243,7 +243,7 @@ DataReadCmd::DataReadCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_fla
   cmd_.dst_host_phy_addr = hostPhysAddr;
   cmd_.size = dataSize;
 
-  TEST_VLOG(1) << "Created Data Read Command (tagId: " << std::hex << tagId << ")" << std::endl;
+  TEST_VLOG(1) << "Created Data Read Command (tagId: " << std::hex << tagId << ")";
 }
 
 DataReadCmd::~DataReadCmd() {
@@ -264,6 +264,100 @@ size_t DataReadCmd::getCmdSize() {
 
 device_ops_api::tag_id_t DataReadCmd::getCmdTagId() {
   return cmd_.command_info.cmd_hdr.tag_id;
+}
+
+/*
+ * Device Ops Api DMA Writelist command creation and handling
+ */
+std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createDmaWriteListCmd(device_ops_api::cmd_flags_e flag,
+                                                                    device_ops_api::dma_write_node list[],
+                                                                    uint32_t nodeCount,
+                                                                    device_ops_api::dev_ops_api_dma_response_e status) {
+  auto tagId = tagId_++;
+  if (!addRspEntry(tagId, status) || !nodeCount) {
+    return nullptr;
+  }
+  return std::make_unique<DmaWriteListCmd>(tagId, flag, list, nodeCount);
+}
+
+DmaWriteListCmd::DmaWriteListCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
+                                 device_ops_api::dma_write_node list[], uint32_t nodeCount) {
+  cmdMem_.resize(sizeof(*cmd_) + sizeof(list[0]) * nodeCount);
+  cmd_ = reinterpret_cast<device_ops_api::device_ops_dma_writelist_cmd_t*>(cmdMem_.data());
+  cmd_->command_info.cmd_hdr.tag_id = tagId;
+  cmd_->command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD;
+  cmd_->command_info.cmd_hdr.size = cmdMem_.size();
+  cmd_->command_info.cmd_hdr.flags = flag;
+  memcpy(cmd_->list, list, sizeof(list[0]) * nodeCount);
+
+  TEST_VLOG(1) << "Created DMA Writelist Command (tagId: " << std::hex << tagId << ", nodeCount: " << nodeCount << ")";
+}
+
+DmaWriteListCmd::~DmaWriteListCmd() {
+  deleteRspEntry(cmd_->command_info.cmd_hdr.tag_id);
+}
+
+IDevOpsApiCmd::CmdType DmaWriteListCmd::whoAmI() {
+  return CmdType::DMA_WRITELIST_CMD;
+}
+
+std::byte* DmaWriteListCmd::getCmdPtr() {
+  return reinterpret_cast<std::byte*>(cmd_);
+}
+
+size_t DmaWriteListCmd::getCmdSize() {
+  return cmd_->command_info.cmd_hdr.size;
+}
+
+device_ops_api::tag_id_t DmaWriteListCmd::getCmdTagId() {
+  return cmd_->command_info.cmd_hdr.tag_id;
+}
+
+/*
+ * Device Ops Api DMA Readlist command creation and handling
+ */
+std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createDmaReadListCmd(device_ops_api::cmd_flags_e flag,
+                                                                   device_ops_api::dma_read_node list[],
+                                                                   uint32_t nodeCount,
+                                                                   device_ops_api::dev_ops_api_dma_response_e status) {
+  auto tagId = tagId_++;
+  if (!addRspEntry(tagId, status) || !nodeCount) {
+    return nullptr;
+  }
+  return std::make_unique<DmaReadListCmd>(tagId, flag, list, nodeCount);
+}
+
+DmaReadListCmd::DmaReadListCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
+                               device_ops_api::dma_read_node list[], uint32_t nodeCount) {
+  cmdMem_.resize(sizeof(*cmd_) + sizeof(list[0]) * nodeCount);
+  cmd_ = reinterpret_cast<device_ops_api::device_ops_dma_readlist_cmd_t*>(cmdMem_.data());
+  cmd_->command_info.cmd_hdr.tag_id = tagId;
+  cmd_->command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD;
+  cmd_->command_info.cmd_hdr.size = cmdMem_.size();
+  cmd_->command_info.cmd_hdr.flags = flag;
+  memcpy(cmd_->list, list, sizeof(list[0]) * nodeCount);
+
+  TEST_VLOG(1) << "Created DMA Readlist Command (tagId: " << std::hex << tagId << ", nodeCount: " << nodeCount << ")";
+}
+
+DmaReadListCmd::~DmaReadListCmd() {
+  deleteRspEntry(cmd_->command_info.cmd_hdr.tag_id);
+}
+
+IDevOpsApiCmd::CmdType DmaReadListCmd::whoAmI() {
+  return CmdType::DMA_READLIST_CMD;
+}
+
+std::byte* DmaReadListCmd::getCmdPtr() {
+  return reinterpret_cast<std::byte*>(cmd_);
+}
+
+size_t DmaReadListCmd::getCmdSize() {
+  return cmd_->command_info.cmd_hdr.size;
+}
+
+device_ops_api::tag_id_t DmaReadListCmd::getCmdTagId() {
+  return cmd_->command_info.cmd_hdr.tag_id;
 }
 
 /*
@@ -301,7 +395,7 @@ KernelLaunchCmd::KernelLaunchCmd(device_ops_api::tag_id_t tagId, device_ops_api:
     memcpy(cmd_->argument_payload, argumentPayload, sizeOfArgPayload);
   }
 
-  TEST_VLOG(1) << "Created Kernel Launch Command (tagId: " << std::hex << tagId << ")" << std::endl;
+  TEST_VLOG(1) << "Created Kernel Launch Command (tagId: " << std::hex << tagId << ")";
 }
 
 KernelLaunchCmd::~KernelLaunchCmd() {
@@ -345,7 +439,7 @@ KernelAbortCmd::KernelAbortCmd(device_ops_api::tag_id_t tagId, device_ops_api::c
   cmd_.command_info.cmd_hdr.flags = flag;
   cmd_.kernel_launch_tag_id = kernelToAbortTagId;
 
-  TEST_VLOG(1) << "Created Kernel Abort Command (tagId: " << std::hex << tagId << ")" << std::endl;
+  TEST_VLOG(1) << "Created Kernel Abort Command (tagId: " << std::hex << tagId << ")";
 }
 
 KernelAbortCmd::~KernelAbortCmd() {
@@ -366,54 +460,6 @@ size_t KernelAbortCmd::getCmdSize() {
 
 device_ops_api::tag_id_t KernelAbortCmd::getCmdTagId() {
   return cmd_.command_info.cmd_hdr.tag_id;
-}
-
-/*
- * Device Ops Api Custom command creation and handling. Custom command can be any of device Ops API
- * commands.
- */
-std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createCustomCmd(std::byte* cmdPtr, size_t cmdSize, uint32_t status) {
-  if (cmdSize < sizeof(device_ops_api::cmd_header_t)) {
-    return nullptr;
-  }
-
-  auto* customCmd = reinterpret_cast<device_ops_api::cmd_header_t*>(cmdPtr);
-  if (!addRspEntry(customCmd->cmd_hdr.tag_id, status)) {
-    return nullptr;
-  }
-
-  return std::make_unique<CustomCmd>(cmdPtr, cmdSize);
-}
-
-CustomCmd::CustomCmd(std::byte* cmdPtr, size_t cmdSize) {
-  cmd_ = cmdPtr;
-  auto* customCmd = reinterpret_cast<device_ops_api::cmd_header_t*>(cmd_);
-  customCmd->cmd_hdr.size = cmdSize;
-
-  TEST_VLOG(1) << "Created Custom Command (tagId: " << std::hex << customCmd->cmd_hdr.tag_id << ")" << std::endl;
-}
-
-CustomCmd::~CustomCmd() {
-  auto* customCmd = reinterpret_cast<device_ops_api::cmd_header_t*>(cmd_);
-  deleteRspEntry(customCmd->cmd_hdr.tag_id);
-}
-
-IDevOpsApiCmd::CmdType CustomCmd::whoAmI() {
-  return CmdType::CUSTOM_CMD;
-}
-
-std::byte* CustomCmd::getCmdPtr() {
-  return cmd_;
-}
-
-size_t CustomCmd::getCmdSize() {
-  auto* customCmd = reinterpret_cast<device_ops_api::cmd_header_t*>(cmd_);
-  return customCmd->cmd_hdr.size;
-}
-
-device_ops_api::tag_id_t CustomCmd::getCmdTagId() {
-  auto* customCmd = reinterpret_cast<device_ops_api::cmd_header_t*>(cmd_);
-  return customCmd->cmd_hdr.tag_id;
 }
 
 /*
@@ -507,4 +553,52 @@ size_t TraceRtControlCmd::getCmdSize() {
 
 device_ops_api::tag_id_t TraceRtControlCmd::getCmdTagId() {
   return cmd_.command_info.cmd_hdr.tag_id;
+}
+
+/*
+ * Device Ops Api Custom command creation and handling. Custom command can be any of device Ops API
+ * commands.
+ */
+std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createCustomCmd(std::byte* cmdPtr, size_t cmdSize, uint32_t status) {
+  if (cmdSize < sizeof(device_ops_api::cmd_header_t)) {
+    return nullptr;
+  }
+
+  auto* customCmd = reinterpret_cast<device_ops_api::cmd_header_t*>(cmdPtr);
+  if (!addRspEntry(customCmd->cmd_hdr.tag_id, status)) {
+    return nullptr;
+  }
+
+  return std::make_unique<CustomCmd>(cmdPtr, cmdSize);
+}
+
+CustomCmd::CustomCmd(std::byte* cmdPtr, size_t cmdSize) {
+  cmd_ = cmdPtr;
+  auto* customCmd = reinterpret_cast<device_ops_api::cmd_header_t*>(cmd_);
+  customCmd->cmd_hdr.size = cmdSize;
+
+  TEST_VLOG(1) << "Created Custom Command (tagId: " << std::hex << customCmd->cmd_hdr.tag_id << ")";
+}
+
+CustomCmd::~CustomCmd() {
+  auto* customCmd = reinterpret_cast<device_ops_api::cmd_header_t*>(cmd_);
+  deleteRspEntry(customCmd->cmd_hdr.tag_id);
+}
+
+IDevOpsApiCmd::CmdType CustomCmd::whoAmI() {
+  return CmdType::CUSTOM_CMD;
+}
+
+std::byte* CustomCmd::getCmdPtr() {
+  return cmd_;
+}
+
+size_t CustomCmd::getCmdSize() {
+  auto* customCmd = reinterpret_cast<device_ops_api::cmd_header_t*>(cmd_);
+  return customCmd->cmd_hdr.size;
+}
+
+device_ops_api::tag_id_t CustomCmd::getCmdTagId() {
+  auto* customCmd = reinterpret_cast<device_ops_api::cmd_header_t*>(cmd_);
+  return customCmd->cmd_hdr.tag_id;
 }
