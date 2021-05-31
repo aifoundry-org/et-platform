@@ -84,6 +84,9 @@ int32_t dm_event_control_init(void)
                     status = watchdog_error_init(wdog_timeout_callback);
                     if (!status) {
                         status = minion_error_control_init(minion_event_callback);
+                        if (!status) {
+                            status = pmic_error_control_init(pmic_event_callback);
+                        }
                     }
                 }
             }
@@ -182,4 +185,33 @@ void minion_event_callback(enum error_type type, struct event_message_t *msg)
     (void)type;
     /* Post message to the queue */
     xQueueSend(q_handle, msg, portMAX_DELAY);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       pmic_event_callback
+*
+*   DESCRIPTION
+*
+*       Callback function invoked from PMIC ISR
+*
+*   INPUTS
+*
+*       type                  Error type
+*       msg                   Error/Event message
+*
+*   OUTPUTS
+*
+*       void                       none
+*
+***********************************************************************/
+void pmic_event_callback(enum error_type type, struct event_message_t *msg)
+{
+    //Type is always uncorectable, maybe it will be changed in the future
+    (void)type;
+
+    xTaskNotifyFromISR(t_handle, (uint32_t) msg->header.msg_id, 
+                        eSetValueWithOverwrite, (BaseType_t *)pdTRUE);
 }

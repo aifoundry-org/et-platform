@@ -52,4 +52,13 @@
 // VaultIP  error codes
 #define ERROR_VAULTIP_COMMAND_FAILED                 -6000
 
+// GPIO
+#define ERROR_GPIO_INVALID_ID                        -7000
+#define ERROR_GPIO_INVALID_ARGUMENTS                 -7001
+
+// THERMAL_PWR_MGMT
+#define THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED          -8000
+#define THERMAL_PWR_MGMT_EVENT_NOT_INITIALIZED       -8001
+#define THERMAL_PWR_MGMT_TASK_CREATION_FAILED        -8002
+
 #endif

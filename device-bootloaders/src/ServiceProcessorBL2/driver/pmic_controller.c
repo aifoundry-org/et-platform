@@ -29,8 +29,6 @@
         pmic_read_soc_power
         pmic_enable_etsoc_reset_after_perst
         pmic_disable_etsoc_reset_after_perst
-        pmic_enable_wdog_reset
-        pmic_disable_wdog_reset
         pmic_get_reset_cause
         pmic_get_voltage
         pmic_set_voltage
@@ -73,14 +71,20 @@
 #include "rm_esr.h"
 #include "io.h"
 #include "bl2_i2c_driver.h"
+#include "bl2_gpio_controller.h"
 #include "bl2_pmic_controller.h"
 #include "bl2_main.h"
+#include "interrupt.h"
 #include "error.h"
 
 /*! \def MSI_TWO_VECTORS
     \brief MSI two verctor enable
 */
 #define PMIC_SLAVE_ADDRESS 0x2
+#define PMIC_GPIO_INT_PIN_NUMBER 0x1
+#define ENABLE_ALL_PMIC_INTERRUPTS 0xFF
+
+static struct pmic_event_control_block  event_control_block __attribute__((section(".data")));
 
 /* Generic PMIC setup */
 static ET_I2C_DEV_t g_pmic_i2c_dev_reg;
@@ -135,90 +139,6 @@ int I2C_PMIC_Initialize(void)
     setup_pmic();
     return 0;
 }
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       setup_pmic
-*
-*   DESCRIPTION
-*
-*       This function initialize I2C connection.
-*
-*   INPUTS
-*
-*       none
-*
-*   OUTPUTS
-*
-*       none
-*
-***********************************************************************/
-
-void setup_pmic(void)
-{
-    set_pmic_i2c_dev();
-
-    if (0 != i2c_init(&g_pmic_i2c_dev_reg, ET_I2C_SPEED_400k, PMIC_SLAVE_ADDRESS)) 
-    {
-        printf("PMIC connection failed to establish link\n");
-    }
-
-    printf("PMIC connection establish\n");
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       pmic_error_control_init
-*
-*   DESCRIPTION
-*
-*       This function setup error callback.
-*
-*   INPUTS
-*
-*       event_cb    callback pointer
-*
-*   OUTPUTS
-*
-*       none
-*
-***********************************************************************/
-
-int32_t pmic_error_control_init(dm_event_isr_callback event_cb)
-{
-    (void)event_cb;
-    return 0;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       pmic_error_isr
-*
-*   DESCRIPTION
-*
-*       PMIC interrupt routine.
-*
-*   INPUTS
-*
-*       none
-*
-*   OUTPUTS
-*
-*       none
-*
-***********************************************************************/
-
-void pmic_error_isr(void)
-{
-}
-
-/* Generic PMIC Read/Write functions */
 
 /************************************************************************
 *
@@ -281,6 +201,199 @@ inline static int set_pmic_reg(uint8_t reg, uint8_t value)
     }
 
     return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       pmic_get_int_config
+*
+*   DESCRIPTION
+*
+*       This function reads Interrupt Controller Configuration
+*       register of PMIC.
+*
+*   INPUTS
+*
+*       none
+*
+*   OUTPUTS
+*
+*       int_config   value of Interrupt Controller Configuration register of PMIC.
+*
+***********************************************************************/
+
+int pmic_get_int_config(uint8_t* int_config)
+{
+    return (get_pmic_reg(PMIC_I2C_INT_CTRL_ADDRESS, int_config));
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       pmic_set_int_config
+*
+*   DESCRIPTION
+*
+*       This function sets Interrupt Controller Configuration
+*       register of PMIC.
+*
+*   INPUTS
+*
+*       int_cfg            value to be set
+*
+*   OUTPUTS
+*
+*       none
+*
+***********************************************************************/
+
+static int pmic_set_int_config(uint8_t int_cfg)
+{
+    return set_pmic_reg(PMIC_I2C_INT_CTRL_ADDRESS, int_cfg);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       setup_pmic
+*
+*   DESCRIPTION
+*
+*       This function initialize I2C connection.
+*
+*   INPUTS
+*
+*       none
+*
+*   OUTPUTS
+*
+*       none
+*
+***********************************************************************/
+
+void setup_pmic(void)
+{
+    set_pmic_i2c_dev();
+
+    if (0 != i2c_init(&g_pmic_i2c_dev_reg, ET_I2C_SPEED_400k, PMIC_SLAVE_ADDRESS)) 
+    {
+        MESSAGE_ERROR("PMIC connection failed to establish link\n");
+    }
+
+    /* Enable all PMIC interrupts */
+    if(0 != pmic_set_int_config(ENABLE_ALL_PMIC_INTERRUPTS))
+    {
+        MESSAGE_ERROR("Failed to enable PMIC interrupts!");
+    }
+
+    /* Configure and enable GPIO interrupt */
+    if(0 != gpio_config_interrupt(GPIO_CONTROLLER_ID_SPIO, PMIC_GPIO_INT_PIN_NUMBER, GPIO_INT_EDGE,
+                            GPIO_INT_LOW, GPIO_INT_DEBOUNCE_OFF))
+    {
+        MESSAGE_ERROR("Failed to configure GPIO PMIC interrupt!");
+    }
+
+    if(0 != gpio_enable_interrupt(GPIO_CONTROLLER_ID_SPIO, PMIC_GPIO_INT_PIN_NUMBER))
+    {
+        MESSAGE_ERROR("Failed to enable GPIO PMIC interrupt!");
+    }
+
+    INT_enableInterrupt(SPIO_PLIC_GPIO_INTR, 1, pmic_error_isr);
+
+    printf("PMIC connection establish\n");
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       pmic_error_control_init
+*
+*   DESCRIPTION
+*
+*       This function setup error callback.
+*
+*   INPUTS
+*
+*       event_cb    callback pointer
+*
+*   OUTPUTS
+*
+*       none
+*
+***********************************************************************/
+
+int32_t pmic_error_control_init(dm_event_isr_callback event_cb)
+{
+    event_control_block.event_cb = event_cb;
+    return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       pmic_get_int_cause
+*
+*   DESCRIPTION
+*
+*       This function reads Interrupt Controller Causation
+*       register of PMIC.
+*
+*   INPUTS
+*
+*       none
+*
+*   OUTPUTS
+*
+*       int_cause    value of Interrupt Controller Causation register of PMIC.
+*
+***********************************************************************/
+
+static int pmic_get_int_cause(uint8_t* int_cause)
+{
+    return (get_pmic_reg(PMIC_I2C_INT_CAUSE_ADDRESS, int_cause));
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       pmic_error_isr
+*
+*   DESCRIPTION
+*
+*       PMIC interrupt routine.
+*
+*   INPUTS
+*
+*       none
+*
+*   OUTPUTS
+*
+*       none
+*
+***********************************************************************/
+
+void pmic_error_isr(void)
+{
+    uint8_t int_cause = 0;
+    struct event_message_t message;
+
+    gpio_clear_interrupt(GPIO_CONTROLLER_ID_SPIO, PMIC_GPIO_INT_PIN_NUMBER);
+    
+    pmic_get_int_cause(&int_cause);
+
+    /* Generate PMIC Error */
+    FILL_EVENT_HEADER(&message.header, PMIC_ERROR,
+            sizeof(struct event_message_t));
+    FILL_EVENT_PAYLOAD(&message.payload, FATAL, 33, int_cause, 0);
+    event_control_block.event_cb(UNCORRECTABLE, &message);
+
 }
 
 /* Specific Register Access */
@@ -428,88 +541,10 @@ int pmic_clear_gpo_bit(uint8_t index)
         return ERROR_PMIC_I2C_READ_FAILED;
     }
 
-    reg_value = reg_value ^ (uint8_t)(0x1u << index);
+    reg_value = reg_value & (uint8_t)(~(0x1u << index));
 
     return (set_pmic_reg(PMIC_I2C_GPO_CTRL_ADDRESS, PMIC_I2C_GPO_CTRL_GPO_SET(reg_value)));
 }
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       pmic_get_int_config
-*
-*   DESCRIPTION
-*
-*       This function reads Interrupt Controller Configuration
-*       register of PMIC.
-*
-*   INPUTS
-*
-*       none
-*
-*   OUTPUTS
-*
-*       int_config   value of Interrupt Controller Configuration register of PMIC.
-*
-***********************************************************************/
-
-/*static int pmic_get_int_config(uint8_t* int_config)
-{
-    return (get_pmic_reg(PMIC_I2C_INT_CTRL_ADDRESS, int_config));
-}*/
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       pmic_set_int_config
-*
-*   DESCRIPTION
-*
-*       This function sets Interrupt Controller Configuration
-*       register of PMIC.
-*
-*   INPUTS
-*
-*       int_cfg            value to be set
-*
-*   OUTPUTS
-*
-*       none
-*
-***********************************************************************/
-
-/*static int pmic_set_int_config(uint8_t int_cfg)
-{
-    return set_pmic_reg(PMIC_I2C_INT_CTRL_ADDRESS, int_cfg);
-}*/
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       pmic_get_int_cause
-*
-*   DESCRIPTION
-*
-*       This function reads Interrupt Controller Causation
-*       register of PMIC.
-*
-*   INPUTS
-*
-*       none
-*
-*   OUTPUTS
-*
-*       int_cause    value of Interrupt Controller Causation register of PMIC.
-*
-***********************************************************************/
-
-/*static int pmic_get_int_cause(uint8_t* int_cause)
-{
-    return (get_pmic_reg(PMIC_I2C_INT_CAUSE_ADDRESS, int_cause));
-}*/
 
 /************************************************************************
 *
@@ -584,13 +619,11 @@ int pmic_get_temperature_threshold(uint8_t *temp_threshold)
 
 int pmic_set_temperature_threshold(uint8_t temp_limit)
 {
-    if ((temp_limit < 55) || (temp_limit > 85)) 
+    if ((temp_limit < PMIC_TEMP_LOWER_SET_LIMIT) || (temp_limit > PMIC_TEMP_UPPER_SET_LIMIT)) 
     {
         MESSAGE_ERROR("Error unsupported Temperature limits\n");
         return ERROR_PMIC_I2C_INVALID_ARGUMENTS;
-    } 
-    else 
-    {
+    } else {
         return set_pmic_reg(PMIC_I2C_TEMP_ALARM_CONF_ADDRESS, temp_limit);
     }
 }
@@ -711,76 +744,6 @@ int pmic_disable_etsoc_reset_after_perst(void)
 
     return (set_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS,
                          PMIC_I2C_RESET_CTRL_PERST_EN_MODIFY(reg_value, 0)));
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       pmic_enable_wdog_reset
-*
-*   DESCRIPTION
-*
-*       This function enables the watchdog timer to reset the ET-SOC.
-*
-*   INPUTS
-*
-*       none
-*
-*   OUTPUTS
-*
-*       none
-*
-***********************************************************************/
-
-int pmic_enable_wdog_reset(void)
-{
-    uint8_t reg_value;
-
-    if (0 != get_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS, &reg_value)) 
-    {
-        MESSAGE_ERROR("PMIC read failed");
-        return ERROR_PMIC_I2C_READ_FAILED;
-    }
-
-    return (
-        set_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS, 
-        PMIC_I2C_RESET_CTRL_WDT_EN_MODIFY(reg_value, 1)));
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       pmic_disable_wdog_reset
-*
-*   DESCRIPTION
-*
-*       This function disables the watchdog timer to reset the ET-SOC.
-*
-*   INPUTS
-*
-*       none
-*
-*   OUTPUTS
-*
-*       none
-*
-***********************************************************************/
-
-int pmic_disable_wdog_reset(void)
-{
-    uint8_t reg_value;
-
-    if (0 != get_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS, &reg_value)) 
-    {
-        MESSAGE_ERROR("PMIC read failed");
-        return ERROR_PMIC_I2C_READ_FAILED;
-    }
-
-    return (
-        set_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS, 
-            PMIC_I2C_RESET_CTRL_WDT_EN_MODIFY(reg_value, 0)));
 }
 
 /************************************************************************

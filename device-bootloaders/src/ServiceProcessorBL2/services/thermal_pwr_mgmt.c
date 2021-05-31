@@ -20,6 +20,8 @@
 #include "bl2_pmic_controller.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "bl2_main.h"
+#include "error.h"
 
 struct soc_power_reg_t g_soc_power_reg __attribute__((section(".data")));
 
@@ -38,8 +40,6 @@ static StackType_t g_pm_task[TT_TASK_STACK_SIZE];
 
 /* The variable used to hold the task's data structure. */
 static StaticTask_t g_staticTask_ptr;
-
-static void pmic_isr_callback(enum error_type type, struct event_message_t *msg);
 
 
 struct soc_power_reg_t {
@@ -138,7 +138,7 @@ int update_module_tdp_level(tdp_level_e tdp)
     status = pmic_set_tdp_threshold(tdp);
 
     if (0 != status) {
-        printf("thermal pwr mgmt svc: update module tdp level error\r\n");
+        MESSAGE_ERROR("thermal pwr mgmt svc: update module tdp level error\r\n");
     } else {
         get_soc_power_reg()->module_tdp_level = tdp;
     }
@@ -195,8 +195,8 @@ int update_module_temperature_threshold(uint8_t threshold)
     int status = 0;
 
     if(0 != pmic_set_temperature_threshold(threshold)) {
-        printf("thermal pwr mgmt svc: set temperature threshold error\r\n");
-        status = -1;
+        MESSAGE_ERROR("thermal pwr mgmt svc: set temperature threshold error\r\n");
+        status = THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
     else {
         get_soc_power_reg()->temperature_threshold.temperature = threshold;
@@ -258,8 +258,8 @@ int update_module_current_temperature(void)
     struct temperature_threshold_t temperature_threshold;
 
     if(0 != pmic_get_temperature(&temperature)) {
-        printf("thermal pwr mgmt svc error: failed to get temperature\r\n");
-        status = -1;
+        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get temperature\r\n");
+        status = THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
     else {
         get_soc_power_reg()->soc_temperature = temperature;
@@ -278,8 +278,8 @@ int update_module_current_temperature(void)
             /* call the callback function and post message */
             get_soc_power_reg()->event_cb(UNCORRECTABLE, &message);
         } else {
-            printf("thermal pwr mgmt svc error: event_cb is not initialized\r\n");
-            status = -1;
+            MESSAGE_ERROR("thermal pwr mgmt svc error: event_cb is not initialized\r\n");
+            status = THERMAL_PWR_MGMT_EVENT_NOT_INITIALIZED;
         }
     }
 
@@ -309,8 +309,8 @@ int get_module_current_temperature(uint8_t *soc_temperature)
 {
     uint8_t temperature;
     if(0 != pmic_get_temperature(&temperature)) {
-        printf("thermal pwr mgmt svc error: failed to get temperature\r\n");
-        return -1;
+        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get temperature\r\n");
+        return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
     else {
         get_soc_power_reg()->soc_temperature = temperature;
@@ -344,8 +344,8 @@ int update_module_soc_power(void)
     uint8_t soc_pwr;
 
     if(0 != pmic_read_soc_power(&soc_pwr)) {
-        printf("thermal pwr mgmt svc error: failed to get soc power\r\n");
-        return -1;
+        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get soc power\r\n");
+        return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
     else {
         get_soc_power_reg()->soc_power = soc_pwr;
@@ -404,72 +404,72 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     uint8_t voltage;
 
     if(0 != pmic_get_voltage(MODULE_DDR, &voltage)) {
-        printf("thermal pwr mgmt svc error: failed to get ddr voltage\r\n");
-        return -1;
+        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get ddr voltage\r\n");
+        return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
     else {
         get_soc_power_reg()->module_voltage.ddr = voltage;
     }
 
     if(0 != pmic_get_voltage(MODULE_L2CACHE, &voltage)) {
-        printf("thermal pwr mgmt svc error: failed to get l2 cache voltage\r\n");
-        return -1;
+        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get l2 cache voltage\r\n");
+        return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
     else {
         get_soc_power_reg()->module_voltage.l2_cache = voltage;
     }
 
     if(0 != pmic_get_voltage(MODULE_MAXION, &voltage)) {
-        printf("thermal pwr mgmt svc error: failed to get maxion voltage\r\n");
-        return -1;
+        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get maxion voltage\r\n");
+        return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
     else {
         get_soc_power_reg()->module_voltage.maxion = voltage;
     }
 
     if(0 != pmic_get_voltage(MODULE_MINION, &voltage)) {
-        printf("thermal pwr mgmt svc error: failed to get minion voltage\r\n");
-        return -1;
+        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get minion voltage\r\n");
+        return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
     else {
         get_soc_power_reg()->module_voltage.minion = voltage;
     }
 
     if(0 != pmic_get_voltage(MODULE_PCIE, &voltage)) {
-        printf("thermal pwr mgmt svc error: failed to get pcie voltage\r\n");
-        return -1;
+        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get pcie voltage\r\n");
+        return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
     else {
         get_soc_power_reg()->module_voltage.pcie = voltage;
     }
 
     if(0 != pmic_get_voltage(MODULE_NOC, &voltage)) {
-        printf("thermal pwr mgmt svc error: failed to get noc voltage\r\n");
-        return -1;
+        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get noc voltage\r\n");
+        return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
     else {
         get_soc_power_reg()->module_voltage.noc = voltage;
     }
 
     if(0 != pmic_get_voltage(MODULE_PCIE_LOGIC, &voltage)) {
-        printf("thermal pwr mgmt svc error: failed to get pcie logic voltage\r\n");
-        return -1;
+        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get pcie logic voltage\r\n");
+        return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
     else {
         get_soc_power_reg()->module_voltage.pcie_logic = voltage;
     }
 
     if(0 != pmic_get_voltage(MODULE_VDDQLP, &voltage)) {
-        printf("thermal pwr mgmt svc error: failed to get vddqlp voltage\r\n");
-        return -1;
+        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get vddqlp voltage\r\n");
+        return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
     else {
         get_soc_power_reg()->module_voltage.vddqlp = voltage;
     }
 
     if(0 != pmic_get_voltage(MODULE_VDDQ, &voltage)) {
-        printf("thermal pwr mgmt svc error: failed to get vddq voltage\r\n");
-        return -1;
+        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get vddq voltage\r\n");
+        return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
     else {
         get_soc_power_reg()->module_voltage.vddq = voltage;
@@ -632,7 +632,7 @@ void update_module_throttle_time(uint64_t time_usec)
     // TODO : Set it to throttle time to valid value. Compute/Read from HW.
     // https://esperantotech.atlassian.net/browse/SW-6559
     // Update the value in get_soc_power_reg()->throttled_states_residency.
-    get_soc_power_reg()->throttled_states_residency = time_usec;
+    get_soc_power_reg()->throttled_states_residency += time_usec;
 
     // Update the MAX throttle time
     if (get_soc_power_reg()->max_throttled_states_residency <
@@ -745,17 +745,12 @@ int init_thermal_pwr_mgmt_service(void)
                                     NULL, TT_TASK_PRIORITY, g_pm_task,
                                     &g_staticTask_ptr);
     if (!t_handle) {
-        printf("Task Creation Failed: Failed to create power management task.\n");
-        status = -1;
-    }
-
-    if (!status)
-    {
-        status = pmic_error_control_init(pmic_isr_callback);
+        MESSAGE_ERROR("Task Creation Failed: Failed to create power management task.\n");
+        status = THERMAL_PWR_MGMT_TASK_CREATION_FAILED;
     }
 
     /* Set default parameters */
-    status = update_module_temperature_threshold(65);
+    status = update_module_temperature_threshold(PMIC_TEMP_THRESHOLD_DEFAULT);
 
     if (!status)
     {
@@ -877,7 +872,7 @@ void thermal_power_task_entry(void *pvParameter)
                 set_operating_point(current_power);
 
                 /* FIXME: What should be this delay? */
-                vTaskDelay(pdMS_TO_TICKS(500));
+                vTaskDelay(pdMS_TO_TICKS(THERMAL_THROTTLE_SAMPLE_PERIOD));
 
                 /* Sample the temperature again */
                 if(0 != pmic_get_temperature(&current_temperature)) {
@@ -906,32 +901,5 @@ void thermal_power_task_entry(void *pvParameter)
             update_module_throttle_time(end_time - start_time);
         }
     }
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       pmic_isr_callback
-*
-*   DESCRIPTION
-*
-*       Callback function invoked from PMIC ISR
-*
-*   INPUTS
-*
-*       type                  Error type
-*       msg                   Error/Event message
-*
-*   OUTPUTS
-*
-*       void                       none
-*
-***********************************************************************/
-static void pmic_isr_callback(enum error_type type, struct event_message_t *msg)
-{
-    (void)type;
-
-    xTaskNotifyFromISR(t_handle, (uint32_t) msg->header.msg_id, eSetValueWithOverwrite, (BaseType_t *)pdTRUE);
 }
 

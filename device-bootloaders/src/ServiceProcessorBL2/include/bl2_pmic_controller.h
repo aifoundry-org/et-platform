@@ -32,6 +32,18 @@ typedef enum {
      VDDQ 
 }voltage_type_e ;
 
+/*!
+ * @struct struct pmic_event_control_block
+ * @brief PMIC driver error mgmt control block
+ */
+struct pmic_event_control_block
+{
+    uint32_t ce_count;              /**< Correctable error count. */
+    uint32_t uce_count;             /**< Un-Correctable error count. */
+    uint32_t ce_threshold;          /**< Correctable error threshold. */
+    dm_event_isr_callback event_cb; /**< Event callback handler. */
+};
+
 /*! \fn void setup_pmic(void)
     \brief This function initialize I2C connection.
 */
@@ -124,18 +136,6 @@ int pmic_enable_etsoc_reset_after_perst(void);
     \return The function call status, pass/fail.
 */
 int pmic_disable_etsoc_reset_after_perst(void);
-
-/*! \fn int pmic_enable_wdog_reset(void)
-    \brief This function enables the watchdog timer to reset the ET-SOC.
-    \return The function call status, pass/fail.
-*/
-int pmic_enable_wdog_reset(void);
-
-/*! \fn int pmic_disable_wdog_reset(void)
-    \brief This function disables the watchdog timer to reset the ET-SOC.
-    \return The function call status, pass/fail.
-*/
-int pmic_disable_wdog_reset(void);
 
 /*! \fn int pmic_get_reset_cause(uint8_t* reset_cause)
     \brief This function reads Reset Causation register of PMIC.
@@ -303,5 +303,12 @@ int I2C_PMIC_Read (uint8_t reg);
     \return The function call status, pass/fail
 */
 int I2C_PMIC_Write (uint8_t reg, uint8_t data);
+
+/*! \fn int pmic_get_int_config(uint8_t* int_config)
+    \brief This function reads Interrupt Controller Configuration register of PMIC.
+    \param int_config - interrupt configuration
+    \return The function call status, pass/fail
+*/
+int pmic_get_int_config(uint8_t* int_config);
 
 #endif

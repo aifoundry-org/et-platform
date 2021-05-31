@@ -254,6 +254,26 @@
 /* TODO: Fine tune this value according to the final device-ops-api spec */
 #define SP_CMD_MAX_SIZE      64U
 
+/*! \def PMIC_TEMP_LOWER_SET_LIMIT
+    \brief A macro that provides pmic minimum temperature threshold value
+*/
+#define PMIC_TEMP_LOWER_SET_LIMIT      55
+
+/*! \def PMIC_TEMP_UPPER_SET_LIMIT
+    \brief A macro that provides pmic maximum temperature threshold value
+*/
+#define PMIC_TEMP_UPPER_SET_LIMIT      85
+
+/*! \def PMIC_TEMP_THRESHOLD_DEFAULT
+    \brief A macro that provides pmic temperature threshold default value
+*/
+#define PMIC_TEMP_THRESHOLD_DEFAULT      65
+
+/*! \def THERMAL_THROTTLE_SAMPLE_PERIOD
+    \brief A macro that provides thermal throttle sample period
+*/
+#define THERMAL_THROTTLE_SAMPLE_PERIOD      500
+
 /************************/
 /* Compile-time checks  */
 /************************/

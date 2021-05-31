@@ -52,6 +52,7 @@ void ddr_event_callback(enum error_type type, struct event_message_t *msg);
 void power_event_callback(enum error_type type, struct event_message_t *msg);
 void wdog_timeout_callback(enum error_type type, struct event_message_t *msg);
 void minion_event_callback(enum error_type type, struct event_message_t *msg);
+void pmic_event_callback(enum error_type type, struct event_message_t *msg);
 
 #define DM_EVENT_TASK_STACK             1024
 #define DM_EVENT_TASK_PRIORITY          1
