@@ -308,8 +308,8 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
   eventManager_.dispatch(eventId);
 }
 
-std::unique_ptr<DmaBuffer> RuntimeImp::allocateDmaBuffer(DeviceId device, size_t size) {
+std::unique_ptr<DmaBuffer> RuntimeImp::allocateDmaBuffer(DeviceId device, size_t size, bool writeable) {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   auto it = find(dmaBufferManagers_, device);
-  return it->second.allocate(size, true);
+  return it->second.allocate(size, writeable);
 }
