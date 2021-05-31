@@ -28,7 +28,7 @@ size_t DmaBuffer::getSize() const {
 DmaBuffer::DmaBuffer(DmaBuffer&&) = default;
 DmaBuffer& DmaBuffer::operator=(DmaBuffer&&) = default;
 
-DmaBuffer::DmaBuffer(std::unique_ptr<Impl> impl, DmaBufferManager* dmaBufferManager)
+DmaBuffer::DmaBuffer(std::unique_ptr<DmaBufferImp> impl, DmaBufferManager* dmaBufferManager)
   : impl_(std::move(impl))
   , dmaBufferManager_(dmaBufferManager) {
 }

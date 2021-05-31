@@ -17,18 +17,14 @@ struct DmaBufferImp {
     : address_(reinterpret_cast<std::byte*>(deviceLayer->allocDmaBuffer(device, size, writeable)))
     , size_(size) {
   }
+  explicit DmaBufferImp() = default;
   bool containsAddr(std::byte* address) const {
     return address >= address_ && address < address_ + size_;
   }
   bool operator<(const DmaBufferImp& other) const {
     return address_ < other.address_;
   }
-  bool operator<(const std::byte* address) const {
-    return address_ < address;
-  }
-
   std::byte* address_;
   size_t size_;
 };
-struct DmaBuffer::Impl : DmaBufferImp {};
 } // namespace rt

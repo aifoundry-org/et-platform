@@ -8,7 +8,6 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 
-#pragma once
 #include "DmaBufferManager.h"
 #include "runtime/DmaBuffer.h"
 #include <algorithm>
@@ -17,7 +16,11 @@ using namespace rt;
 bool DmaBufferManager::isDmaBuffer(std::byte* address, size_t size) const {
   if (inUseBuffers_.empty())
     return false;
-  auto it = std::upper_bound(begin(inUseBuffers_), end(inUseBuffers_), address);
+  // this tmp is just because I don't want to specialize the less operator for checking against address instead of
+  // DmaBuffers
+  auto tmp = DmaBufferImp{};
+  tmp.address_ = address;
+  auto it = std::upper_bound(begin(inUseBuffers_), end(inUseBuffers_), tmp);
   if (it == begin(inUseBuffers_))
     return false;
   return (it - 1)->containsAddr(address);
@@ -27,7 +30,7 @@ std::unique_ptr<DmaBuffer> DmaBufferManager::allocate(size_t size, bool writeabl
   auto bufferImp = std::make_unique<DmaBufferImp>(device_, size, writeable, deviceLayer_);
   auto it = std::upper_bound(begin(inUseBuffers_), end(inUseBuffers_), *bufferImp);
   inUseBuffers_.emplace(it, *bufferImp);
-  return std::make_unique<DmaBuffer>(std::move(bufferImp), device_, this);
+  return std::make_unique<DmaBuffer>(std::move(bufferImp), this);
 }
 
 void DmaBufferManager::release(DmaBufferImp&& dmaBuffer) {

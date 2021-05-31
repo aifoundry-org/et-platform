@@ -55,6 +55,7 @@ public:
   bool waitForEvent(EventId event, std::chrono::milliseconds timeout) override;
   void waitForStream(StreamId stream) override;
   bool waitForStream(StreamId stream, std::chrono::milliseconds timeout) override;
+  std::unique_ptr<DmaBuffer> allocateDmaBuffer(DeviceId device, size_t size) override;
 
   IProfiler* getProfiler() override {
     return &profiler_;

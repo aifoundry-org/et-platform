@@ -14,9 +14,9 @@
 #include <memory>
 namespace rt {
 class DmaBufferManager;
+class DmaBufferImp;
 
 class DmaBuffer {
-  struct Impl;
 
 public:
   const std::byte* getPtr() const;
@@ -24,14 +24,14 @@ public:
   bool containsAddr(std::byte* address) const;
   size_t getSize() const;
 
-  explicit DmaBuffer(std::unique_ptr<Impl> impl, DmaBufferManager* dmaBufferManager);
+  explicit DmaBuffer(std::unique_ptr<DmaBufferImp> impl, DmaBufferManager* dmaBufferManager);
   ~DmaBuffer();
 
   DmaBuffer(DmaBuffer&&);
   DmaBuffer& operator=(DmaBuffer&&);
 
 private:
-  std::unique_ptr<Impl> impl_;
+  std::unique_ptr<DmaBufferImp> impl_;
   DmaBufferManager* dmaBufferManager_;
 };
 } // namespace rt
