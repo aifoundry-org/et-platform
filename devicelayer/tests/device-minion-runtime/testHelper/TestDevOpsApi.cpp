@@ -417,8 +417,9 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
     auto response = reinterpret_cast<device_ops_api::device_ops_data_read_rsp_t*>(message.data());
     TEST_VLOG(1) << "=====> DMA data read command response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
     TEST_VLOG(1) << "     => Total measured latencies (in cycles) ";
-    TEST_VLOG(1) << "      - Command Wait time: " << response->cmd_wait_time;
-    TEST_VLOG(1) << "      - Command Execution time: " << response->cmd_execution_time;
+    TEST_VLOG(1) << "      - Command Start time: " << response->device_cmd_start_ts;
+    TEST_VLOG(1) << "      - Command Wait time: " << response->device_cmd_wait_dur;
+    TEST_VLOG(1) << "      - Command Execution time: " << response->device_cmd_execute_dur;
     if (response->status == IDevOpsApiCmd::getExpectedRsp(rsp_tag_id)) {
       status = CmdStatus::CMD_SUCCESSFUL;
     } else if (response->status == (device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE ||
@@ -432,8 +433,9 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
     auto response = reinterpret_cast<device_ops_api::device_ops_data_write_rsp_t*>(message.data());
     TEST_VLOG(1) << "=====> DMA data write command response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
     TEST_VLOG(1) << "     => Total measured latencies (in cycles)";
-    TEST_VLOG(1) << "      - Command Wait time: " << response->cmd_wait_time;
-    TEST_VLOG(1) << "      - Command Execution time: " << response->cmd_execution_time;
+    TEST_VLOG(1) << "      - Command Start time: " << response->device_cmd_start_ts;
+    TEST_VLOG(1) << "      - Command Wait time: " << response->device_cmd_wait_dur;
+    TEST_VLOG(1) << "      - Command Execution time: " << response->device_cmd_execute_dur;
     if (response->status == IDevOpsApiCmd::getExpectedRsp(rsp_tag_id)) {
       status = CmdStatus::CMD_SUCCESSFUL;
     } else if (response->status == (device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE ||
@@ -447,8 +449,9 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
     auto response = reinterpret_cast<device_ops_api::device_ops_dma_readlist_rsp_t*>(message.data());
     TEST_VLOG(1) << "=====> DMA readlist command response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
     TEST_VLOG(1) << "     => Total measured latencies (in cycles) ";
-    TEST_VLOG(1) << "      - Command Wait time: " << response->cmd_wait_time;
-    TEST_VLOG(1) << "      - Command Execution time: " << response->cmd_execution_time;
+    TEST_VLOG(1) << "      - Command Start time: " << response->device_cmd_start_ts;
+    TEST_VLOG(1) << "      - Command Wait time: " << response->device_cmd_wait_dur;
+    TEST_VLOG(1) << "      - Command Execution time: " << response->device_cmd_execute_dur;
     if (response->status == IDevOpsApiCmd::getExpectedRsp(rsp_tag_id)) {
       status = CmdStatus::CMD_SUCCESSFUL;
     } else if (response->status == (device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE ||
@@ -462,8 +465,9 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
     auto response = reinterpret_cast<device_ops_api::device_ops_dma_writelist_rsp_t*>(message.data());
     TEST_VLOG(1) << "=====> DMA writelist command response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
     TEST_VLOG(1) << "     => Total measured latencies (in cycles)";
-    TEST_VLOG(1) << "      - Command Wait time: " << response->cmd_wait_time;
-    TEST_VLOG(1) << "      - Command Execution time: " << response->cmd_execution_time;
+    TEST_VLOG(1) << "      - Command Start time: " << response->device_cmd_start_ts;
+    TEST_VLOG(1) << "      - Command Wait time: " << response->device_cmd_wait_dur;
+    TEST_VLOG(1) << "      - Command Execution time: " << response->device_cmd_execute_dur;
     if (response->status == IDevOpsApiCmd::getExpectedRsp(rsp_tag_id)) {
       status = CmdStatus::CMD_SUCCESSFUL;
     } else if (response->status == (device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE ||
@@ -477,8 +481,9 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
     auto response = reinterpret_cast<device_ops_api::device_ops_kernel_launch_rsp_t*>(message.data());
     TEST_VLOG(1) << "=====> Kernel Launch command response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
     TEST_VLOG(1) << "     => Total measured latencies (in cycles)";
-    TEST_VLOG(1) << "      - Command Wait time: " << response->cmd_wait_time;
-    TEST_VLOG(1) << "      - Command Execution time: " << response->cmd_execution_time;
+    TEST_VLOG(1) << "      - Command Start time: " << response->device_cmd_start_ts;
+    TEST_VLOG(1) << "      - Command Wait time: " << response->device_cmd_wait_dur;
+    TEST_VLOG(1) << "      - Command Execution time: " << response->device_cmd_execute_dur;
     if (response->status == IDevOpsApiCmd::getExpectedRsp(rsp_tag_id)) {
       status = CmdStatus::CMD_SUCCESSFUL;
     } else if (response->status == device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG) {
@@ -486,8 +491,8 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
     } else {
       status = CmdStatus::CMD_FAILED;
     }
-    // todo: send the correct start timestamp
-    addkernelRspContext(rsp_tag_id, 0, response->cmd_wait_time, response->cmd_execution_time);
+    addkernelRspContext(rsp_tag_id, response->device_cmd_start_ts, response->device_cmd_wait_dur,
+      response->device_cmd_execute_dur);
 
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP) {
     auto response = reinterpret_cast<device_ops_api::device_ops_kernel_abort_rsp_t*>(message.data());
