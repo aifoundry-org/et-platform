@@ -23,6 +23,11 @@
 
 using namespace rt;
 using namespace rt::profiling;
+namespace {
+// these bit flags are defined in device-apis/device_apis_message_types.h
+constexpr auto kBarrierBitset = 1 << 0;
+constexpr auto kFlushL3Bitset = 1 << 4;
+} // namespace
 
 EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const void* kernel_args, size_t kernel_args_size,
                                  uint64_t shire_mask, bool barrier, bool flushL3) {
@@ -68,10 +73,14 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
   cmd.command_info.cmd_hdr.tag_id = static_cast<uint16_t>(event);
   cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD;
   cmd.command_info.cmd_hdr.size = sizeof(cmd);
-  cmd.command_info.cmd_hdr.flags = barrier ? 1 : 0;
-  if (flushL3) {
-    cmd.command_info.cmd_hdr.flags |= (1 << 4);
+  cmd.command_info.cmd_hdr.flags = 0;
+  if (barrier) {
+    cmd.command_info.cmd_hdr.flags |= kBarrierBitset;
   }
+  if (flushL3) {
+    cmd.command_info.cmd_hdr.flags |= kFlushL3Bitset;
+  }
+
   cmd.code_start_address = kernel->getEntryAddress();
   cmd.pointer_to_args = kernel_args_size > 0 ? reinterpret_cast<uint64_t>(pBuffer->deviceBuffer_) : 0;
   cmd.shire_mask = shire_mask;
