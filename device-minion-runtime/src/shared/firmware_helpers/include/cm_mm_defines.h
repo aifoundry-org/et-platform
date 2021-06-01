@@ -21,6 +21,17 @@
 */
 #define CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX  1U
 
+/* Error Codes */
+/*! \def CM_ERROR_KERNEL_RETURN
+    \brief A macro that provides the error code for compute minion kernel return error
+*/
+#define CM_ERROR_KERNEL_RETURN                -1
+
+/*! \def CM_ERROR_KERNEL_LAUNCH
+    \brief A macro that provides the error code for compute minion kernel launch error
+*/
+#define CM_ERROR_KERNEL_LAUNCH                -2
+
 /*! \struct execution_context_t
     \brief A structure that is used to store the execution context of hart
     when a exception occurs or abort is initiated.

@@ -225,7 +225,6 @@ void CW_Process_CM_SMode_Messages(void)
                     "Dispatcher:CM_TO_MM:MESSAGE_ID_NONE\r\n");
                 break;
             }
-
             case CM_TO_MM_MESSAGE_ID_FW_EXCEPTION:
             {
                 cm_to_mm_message_exception_t *exception =
@@ -238,6 +237,18 @@ void CW_Process_CM_SMode_Messages(void)
 
                 /* TODO: SW-6569: CW FW exception received.
                 Decode exception and reset the FW */
+
+                break;
+            }
+            case CM_TO_MM_MESSAGE_ID_FW_ERROR:
+            {
+                cm_to_mm_message_fw_error_t *error =
+                    (cm_to_mm_message_fw_error_t *)&message;
+
+                Log_Write(LOG_LEVEL_CRITICAL,
+                    "Dispatcher:CM_TO_MM:\
+                    MESSAGE_ID_FW_ERROR from H%ld: Error_code: %d\r\n",
+                    error->hart_id, error->error_code);
 
                 break;
             }

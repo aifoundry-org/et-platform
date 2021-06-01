@@ -115,6 +115,7 @@ typedef enum {
     /* Compute FW specific messages start from here */
     CM_TO_MM_MESSAGE_ID_FW_SHIRE_READY,
     CM_TO_MM_MESSAGE_ID_FW_EXCEPTION,
+    CM_TO_MM_MESSAGE_ID_FW_ERROR
 } cm_to_mm_message_id_e;
 
 /* Status values for kernel completion message */
@@ -141,6 +142,14 @@ typedef struct {
 } __attribute__((packed, aligned(64))) cm_to_mm_message_exception_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_exception_t);
+
+typedef struct {
+    cm_iface_message_header_t header;
+    uint64_t hart_id;
+    int8_t error_code;
+} __attribute__((packed, aligned(64))) cm_to_mm_message_fw_error_t;
+
+ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_fw_error_t);
 
 typedef struct {
     cm_iface_message_header_t header;

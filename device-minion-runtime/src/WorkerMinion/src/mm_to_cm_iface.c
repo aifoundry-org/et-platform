@@ -134,8 +134,8 @@ static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
         if (launch->shire_mask & (1ULL << shire))
         {
             uint64_t kernel_stack_addr = KERNEL_UMODE_STACK_BASE - (hart * KERNEL_UMODE_STACK_SIZE);
-            rv = launch_kernel(launch->kw_base_id, launch->slot_index, launch->code_start_address, 
-                kernel_stack_addr, launch->pointer_to_args, launch->flags, launch->shire_mask, 
+            rv = launch_kernel(launch->kw_base_id, launch->slot_index, launch->code_start_address,
+                kernel_stack_addr, launch->pointer_to_args, launch->flags, launch->shire_mask,
                 launch->exception_buffer, launch->trace_buffer);
         }
 
@@ -164,7 +164,7 @@ static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
 
                     /* Save the execution context in the buffer provided */
                     CM_To_MM_Save_Execution_Context((execution_context_t*)exception_buffer,
-                        kernel_launch_get_pending_shire_mask(), hart, context->scause, 
+                        kernel_launch_get_pending_shire_mask(), hart, context->scause,
                         context->sepc, context->stval, context->sstatus, context->regs);
                 }
             }

@@ -248,37 +248,38 @@ int64_t launch_kernel(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_en
     // -Wipe register state (no leakage from S to U mode)
     // -sret to kernel_entry_addr in user mode
     asm volatile(
-        "addi  sp, sp, -( 29 * 8 ) \n" // save context on stack (except ra, which is in clobber list)
+        "addi  sp, sp, -(32 * 8)   \n" // save context on stack (except ra, which is in clobber list)
         "la    ra,  1f             \n" // set return address to instruction after sret
-        "sd    x1,  0  * 8( sp )   \n"
-        "sd    x3,  1  * 8( sp )   \n"
-        "sd    x5,  2  * 8( sp )   \n"
-        "sd    x6,  3  * 8( sp )   \n"
-        "sd    x7,  4  * 8( sp )   \n"
-        "sd    x8,  5  * 8( sp )   \n"
-        "sd    x9,  6  * 8( sp )   \n"
-        "sd    x10, 7  * 8( sp )   \n"
-        "sd    x11, 8  * 8( sp )   \n"
-        "sd    x12, 9  * 8( sp )   \n"
-        "sd    x13, 10 * 8( sp )   \n"
-        "sd    x14, 11 * 8( sp )   \n"
-        "sd    x15, 12 * 8( sp )   \n"
-        "sd    x16, 13 * 8( sp )   \n"
-        "sd    x17, 14 * 8( sp )   \n"
-        "sd    x18, 15 * 8( sp )   \n"
-        "sd    x19, 16 * 8( sp )   \n"
-        "sd    x20, 17 * 8( sp )   \n"
-        "sd    x21, 18 * 8( sp )   \n"
-        "sd    x22, 19 * 8( sp )   \n"
-        "sd    x23, 20 * 8( sp )   \n"
-        "sd    x24, 21 * 8( sp )   \n"
-        "sd    x25, 22 * 8( sp )   \n"
-        "sd    x26, 23 * 8( sp )   \n"
-        "sd    x27, 24 * 8( sp )   \n"
-        "sd    x28, 25 * 8( sp )   \n"
-        "sd    x29, 26 * 8( sp )   \n"
-        "sd    x30, 27 * 8( sp )   \n"
-        "sd    x31, 28 * 8( sp )   \n"
+        "sd    x1,  1  * 8( sp )   \n"
+        "sd    x3,  3  * 8( sp )   \n"
+        "sd    x4,  4  * 8( sp )   \n"
+        "sd    x5,  5  * 8( sp )   \n"
+        "sd    x6,  6  * 8( sp )   \n"
+        "sd    x7,  7  * 8( sp )   \n"
+        "sd    x8,  8  * 8( sp )   \n"
+        "sd    x9,  9  * 8( sp )   \n"
+        "sd    x10, 10 * 8( sp )   \n"
+        "sd    x11, 11 * 8( sp )   \n"
+        "sd    x12, 12 * 8( sp )   \n"
+        "sd    x13, 13 * 8( sp )   \n"
+        "sd    x14, 14 * 8( sp )   \n"
+        "sd    x15, 15 * 8( sp )   \n"
+        "sd    x16, 16 * 8( sp )   \n"
+        "sd    x17, 17 * 8( sp )   \n"
+        "sd    x18, 18 * 8( sp )   \n"
+        "sd    x19, 19 * 8( sp )   \n"
+        "sd    x20, 20 * 8( sp )   \n"
+        "sd    x21, 21 * 8( sp )   \n"
+        "sd    x22, 22 * 8( sp )   \n"
+        "sd    x23, 23 * 8( sp )   \n"
+        "sd    x24, 24 * 8( sp )   \n"
+        "sd    x25, 25 * 8( sp )   \n"
+        "sd    x26, 26 * 8( sp )   \n"
+        "sd    x27, 27 * 8( sp )   \n"
+        "sd    x28, 28 * 8( sp )   \n"
+        "sd    x29, 29 * 8( sp )   \n"
+        "sd    x30, 30 * 8( sp )   \n"
+        "sd    x31, 31 * 8( sp )   \n"
         "mv    x10, %[k_param_a0]  \n" // a0 = kernel_params_ptr
         "mv    x11, %[k_param_a1]  \n" // a1 = kernel_trace_buffer
         "mv    x12, %[k_param_a2]  \n" // a2 = UNUSED
@@ -367,8 +368,6 @@ int64_t launch_kernel(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_en
           [k_param_a2]    "r"(0), /* Unused for now */
           [k_param_a3]    "r"(0)  /* Unused for now */
     );
-
-    /* TODO: save the return_value and tensor_error in kernel exception/error buffer (if available) */
 
     /* Do post kernel launch cleanup */
     kernel_launch_post_cleanup(kw_base_id, slot_index, return_value);
