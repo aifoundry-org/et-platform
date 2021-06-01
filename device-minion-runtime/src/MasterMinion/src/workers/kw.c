@@ -682,8 +682,12 @@ void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle, uint8_t sw_timer_idx)
     Log_Write(LOG_LEVEL_DEBUG, "Notifying:KW:minion=%d:thread=%d\r\n",
         minion, thread);
 
-    atomic_store_local_64((void*)&KW_CB.kernels[kw_idx].kw_cycles,
+    atomic_store_local_64((void*)&KW_CB.kernels[kw_idx].kw_cycles.cmd_start_cycles,
+                          cycle->cmd_start_cycles);
+
+    atomic_store_local_64((void*)&KW_CB.kernels[kw_idx].kw_cycles.raw_u64,
                           cycle->raw_u64);
+
     atomic_store_local_8(&KW_CB.kernels[kw_idx].sw_timer_idx, sw_timer_idx);
 
     global_fcc_notify(atomic_load_local_8(&KW_CB.host2kw[kw_idx].fcc_id),
@@ -726,6 +730,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     bool cw_error;
     /* Get the kernel instance */
     kernel_instance_t *const kernel = &KW_CB.kernels[kw_idx];
+    exec_cycles_t cycles;
 
     Log_Write(LOG_LEVEL_CRITICAL, "KW:H%d:IDX=%d\r\n", hart_id, kw_idx);
 
@@ -945,6 +950,10 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             launch_rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED;
         }
 
+        /* Read the execution cycles info */
+        cycles.cmd_start_cycles = atomic_load_local_64(&kernel->kw_cycles.cmd_start_cycles);
+        cycles.raw_u64 = atomic_load_local_64(&kernel->kw_cycles.raw_u64);
+
         /* Construct and transmit kernel launch response to host */
         launch_rsp.response_info.rsp_hdr.tag_id =
             atomic_load_local_16(&kernel->launch_tag_id);
@@ -952,9 +961,9 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
         launch_rsp.response_info.rsp_hdr.size =
             sizeof(launch_rsp) - sizeof(struct cmn_header_t);
-        launch_rsp.cmd_wait_time = atomic_load_local_32(&kernel->kw_cycles.wait_cycles);
-        launch_rsp.cmd_execution_time = (uint32_t)PMC_GET_LATENCY(atomic_load_local_32(
-                                        &kernel->kw_cycles.start_cycles)) & 0xFFFFFFFF;
+        launch_rsp.device_cmd_start_ts = cycles.cmd_start_cycles;
+        launch_rsp.device_cmd_wait_dur = cycles.wait_cycles;
+        launch_rsp.device_cmd_execute_dur = (PMC_GET_LATENCY(cycles.exec_start_cycles) & 0xFFFFFFFF);
 
         local_sqw_idx = (uint8_t)atomic_load_local_16(&kernel->sqw_idx);
 

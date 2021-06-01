@@ -217,8 +217,9 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
             /* Compute Wait Cycles (cycles the command was sitting in SQ prior to launch)
                Snapshot current cycle */
+            cycles.cmd_start_cycles = start_cycles;
             cycles.wait_cycles = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
-            cycles.start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
+            cycles.exec_start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
 
             /* Blocking call to launch kernel */
             status = KW_Dispatch_Kernel_Launch_Cmd(cmd, sqw_idx, &kw_idx);
@@ -260,8 +261,9 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                     DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
                 rsp.response_info.rsp_hdr.size =
                     sizeof(struct device_ops_kernel_launch_rsp_t) - sizeof(struct cmn_header_t);
-                rsp.cmd_wait_time = cycles.wait_cycles;
-                rsp.cmd_execution_time = 0U;
+                rsp.device_cmd_start_ts = start_cycles;
+                rsp.device_cmd_wait_dur = cycles.wait_cycles;
+                rsp.device_cmd_execute_dur = 0U;
 
                 /* Populate the error type response */
                 if (status == KW_ERROR_KERNEL_SHIRES_NOT_READY)
@@ -487,8 +489,9 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
                 /* Compute Wait Cycles (cycles the command was sitting in SQ prior to launch)
                    Snapshot current cycle */
+                cycles.cmd_start_cycles = start_cycles;
                 cycles.wait_cycles = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
-                cycles.start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
+                cycles.exec_start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
 
                 /* Create timeout for DMA_Write command to complete */
                 sw_timer_idx = SW_Timer_Create_Timeout(&DMAW_Write_Set_Abort_Status, chan,
@@ -538,8 +541,9 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);
                 /* Compute Wait Cycles (cycles the command was sitting
                 in SQ prior to launch) Snapshot current cycle */
-                rsp.cmd_wait_time = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
-                rsp.cmd_execution_time = 0U;
+                rsp.device_cmd_start_ts = start_cycles;
+                rsp.device_cmd_wait_dur = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
+                rsp.device_cmd_execute_dur = 0U;
 
                 /* Populate the error type response */
                 if (status == DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL)
@@ -626,8 +630,9 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
 
                 /* Compute Wait Cycles (cycles the command was sitting in SQ prior to launch)
                    Snapshot current cycle */
+                cycles.cmd_start_cycles = start_cycles;
                 cycles.wait_cycles = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
-                cycles.start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
+                cycles.exec_start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
 
                 /* Create timeout for DMA_Read command to complete */
                 sw_timer_idx = SW_Timer_Create_Timeout(&DMAW_Read_Set_Abort_Status, chan,
@@ -677,8 +682,9 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);
                 /* Compute Wait Cycles (cycles the command was sitting
                 in SQ prior to launch) Snapshot current cycle */
-                rsp.cmd_wait_time = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
-                rsp.cmd_execution_time = 0U;
+                rsp.device_cmd_start_ts = start_cycles;
+                rsp.device_cmd_wait_dur = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
+                rsp.device_cmd_execute_dur = 0U;
 
                 /* Populate the error type response */
                 if (status == DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL)

@@ -106,10 +106,11 @@ enum mm2sp_error_codes_e {
             - Start cycles(Snapshot cycle when a command gets launched on a specific HW component: DMA, Compute Minion)
 */
 typedef struct exec_cycles_ {
+    uint64_t cmd_start_cycles;
     union {
         struct {
             uint32_t wait_cycles;
-            uint32_t start_cycles;
+            uint32_t exec_start_cycles;
         };
         uint64_t raw_u64;
     };

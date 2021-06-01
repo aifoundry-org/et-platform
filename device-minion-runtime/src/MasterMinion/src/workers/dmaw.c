@@ -333,6 +333,8 @@ int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id, struct device_ops_dma_w
 
         /* Update cycles value into the Global Channel Status data structure */
         atomic_store_local_64(
+            &DMAW_Read_CB.chan_status_cb[rd_ch_idx].dmaw_cycles.cmd_start_cycles, cycles->cmd_start_cycles);
+        atomic_store_local_64(
             &DMAW_Read_CB.chan_status_cb[rd_ch_idx].dmaw_cycles.raw_u64, cycles->raw_u64);
 
         Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] DMAW_Read_Trigger_Transfer:Success!\r\n", sqw_idx);
@@ -433,6 +435,8 @@ int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id, struct device_ops_dma_
         dma_start(chan_id);
 
         /* Update cycles value into the Global Channel Status data structure */
+        atomic_store_local_64(
+            &DMAW_Write_CB.chan_status_cb[wrt_ch_idx].dmaw_cycles.cmd_start_cycles, cycles->cmd_start_cycles);
         atomic_store_local_64(
             &DMAW_Write_CB.chan_status_cb[wrt_ch_idx].dmaw_cycles.raw_u64, cycles->raw_u64);
 
@@ -614,6 +618,8 @@ void DMAW_Launch(uint32_t hart_id)
                             chan_status.sqw_idx, chan_status.tag_id, dma_chan_id);
                         /* Obtain wait latency, start cycles measured
                         for the command and obtain current cycles */
+                        dma_cycles.cmd_start_cycles = atomic_load_local_64
+                            (&DMAW_Read_CB.chan_status_cb[ch_index].dmaw_cycles.cmd_start_cycles);
                         dma_cycles.raw_u64 = atomic_load_local_64
                             (&DMAW_Read_CB.chan_status_cb[ch_index].dmaw_cycles.raw_u64);
 
@@ -635,9 +641,10 @@ void DMAW_Launch(uint32_t hart_id)
                         /* TODO: SW-7137 To be enabled back
                         write_rsp.response_info.rsp_hdr.msg_id =
                             DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP; */
-                        write_rsp.cmd_wait_time = dma_cycles.wait_cycles;
+                        write_rsp.device_cmd_start_ts = dma_cycles.cmd_start_cycles;
+                        write_rsp.device_cmd_wait_dur = dma_cycles.wait_cycles;
                         /* Compute command execution latency */
-                        write_rsp.cmd_execution_time = PMC_GET_LATENCY(dma_cycles.start_cycles);
+                        write_rsp.device_cmd_execute_dur = PMC_GET_LATENCY(dma_cycles.exec_start_cycles);
 
                         status = Host_Iface_CQ_Push_Cmd(0, &write_rsp, sizeof(write_rsp));
 
@@ -682,6 +689,8 @@ void DMAW_Launch(uint32_t hart_id)
 
                     /* Obtain wait latency, start cycles measured for the command
                     and obtain current cycles */
+                    dma_cycles.cmd_start_cycles = atomic_load_local_64
+                        (&DMAW_Read_CB.chan_status_cb[ch_index].dmaw_cycles.cmd_start_cycles);
                     dma_cycles.raw_u64 = atomic_load_local_64
                         (&DMAW_Read_CB.chan_status_cb[ch_index].dmaw_cycles.raw_u64);
 
@@ -704,9 +713,10 @@ void DMAW_Launch(uint32_t hart_id)
                     /* TODO: SW-7137 To be enabled back
                     write_rsp.response_info.rsp_hdr.msg_id =
                         DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP; */
-                    write_rsp.cmd_wait_time = dma_cycles.wait_cycles;
+                    write_rsp.device_cmd_start_ts = dma_cycles.cmd_start_cycles;
+                    write_rsp.device_cmd_wait_dur = dma_cycles.wait_cycles;
                     /* Compute command execution latency */
-                    write_rsp.cmd_execution_time = PMC_GET_LATENCY(dma_cycles.start_cycles);
+                    write_rsp.device_cmd_execute_dur = PMC_GET_LATENCY(dma_cycles.exec_start_cycles);
 
                     status = Host_Iface_CQ_Push_Cmd(0, &write_rsp, sizeof(write_rsp));
 
@@ -790,6 +800,8 @@ void DMAW_Launch(uint32_t hart_id)
                             chan_status.sqw_idx, chan_status.tag_id, dma_chan_id);
                         /* Obtain wait latency, start cycles measured
                         for the command and obtain current cycles */
+                        dma_cycles.cmd_start_cycles = atomic_load_local_64
+                            (&DMAW_Write_CB.chan_status_cb[ch_index].dmaw_cycles.cmd_start_cycles);
                         dma_cycles.raw_u64 = atomic_load_local_64
                             (&DMAW_Write_CB.chan_status_cb[ch_index].dmaw_cycles.raw_u64);
 
@@ -811,9 +823,10 @@ void DMAW_Launch(uint32_t hart_id)
                         /* TODO: SW-7137 To be enabled back
                         read_rsp.response_info.rsp_hdr.msg_id =
                             DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP; */
-                        read_rsp.cmd_wait_time = dma_cycles.wait_cycles;
+                        read_rsp.device_cmd_start_ts = dma_cycles.cmd_start_cycles;
+                        read_rsp.device_cmd_wait_dur = dma_cycles.wait_cycles;
                         /* Compute command execution latency */
-                        read_rsp.cmd_execution_time = PMC_GET_LATENCY(dma_cycles.start_cycles);
+                        read_rsp.device_cmd_execute_dur = PMC_GET_LATENCY(dma_cycles.exec_start_cycles);
 
                         status = Host_Iface_CQ_Push_Cmd(0, &read_rsp, sizeof(read_rsp));
 
@@ -858,6 +871,8 @@ void DMAW_Launch(uint32_t hart_id)
 
                     /* Obtain wait latency, start cycles measured for the command
                     and obtain current cycles */
+                    dma_cycles.cmd_start_cycles = atomic_load_local_64
+                        (&DMAW_Write_CB.chan_status_cb[ch_index].dmaw_cycles.cmd_start_cycles);
                     dma_cycles.raw_u64 = atomic_load_local_64
                         (&DMAW_Write_CB.chan_status_cb[ch_index].dmaw_cycles.raw_u64);
 
@@ -880,9 +895,10 @@ void DMAW_Launch(uint32_t hart_id)
                     /* TODO: SW-7137 To be enabled back
                     read_rsp.response_info.rsp_hdr.msg_id =
                         DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP; */
-                    read_rsp.cmd_wait_time = dma_cycles.wait_cycles;
+                    read_rsp.device_cmd_start_ts = dma_cycles.cmd_start_cycles;
+                    read_rsp.device_cmd_wait_dur = dma_cycles.wait_cycles;
                     /* Compute command execution latency */
-                    read_rsp.cmd_execution_time = PMC_GET_LATENCY(dma_cycles.start_cycles);
+                    read_rsp.device_cmd_execute_dur = PMC_GET_LATENCY(dma_cycles.exec_start_cycles);
 
                     status = Host_Iface_CQ_Push_Cmd(0, &read_rsp, sizeof(read_rsp));
 
