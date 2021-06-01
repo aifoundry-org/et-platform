@@ -24,8 +24,8 @@
 using namespace rt;
 using namespace rt::profiling;
 
-EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const void* kernel_args,
-                                 size_t kernel_args_size, uint64_t shire_mask, bool barrier) {
+EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const void* kernel_args, size_t kernel_args_size,
+                                 uint64_t shire_mask, bool barrier, bool flushL3) {
   std::unique_lock<std::recursive_mutex> lock(mutex_);
   auto&& kernel = find(kernels_, kernelId)->second;
 
@@ -69,6 +69,9 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
   cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD;
   cmd.command_info.cmd_hdr.size = sizeof(cmd);
   cmd.command_info.cmd_hdr.flags = barrier ? 1 : 0;
+  if (flushL3) {
+    cmd.command_info.cmd_hdr.flags |= (1 << 4);
+  }
   cmd.code_start_address = kernel->getEntryAddress();
   cmd.pointer_to_args = kernel_args_size > 0 ? reinterpret_cast<uint64_t>(pBuffer->deviceBuffer_) : 0;
   cmd.shire_mask = shire_mask;
