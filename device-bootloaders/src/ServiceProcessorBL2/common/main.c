@@ -426,7 +426,7 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data);
 void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 {
     bool vaultip_disabled;
-#if !TEST_FRAMEWORK 
+#if !TEST_FRAMEWORK
     const IMAGE_VERSION_INFO_t *image_version_info = get_image_version_info();
 #endif
 

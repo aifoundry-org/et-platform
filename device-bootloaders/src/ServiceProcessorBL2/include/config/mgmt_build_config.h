@@ -48,7 +48,7 @@
     \brief Macro that provides the total allowed size of the SP DIRs
     at PC_SP Mailbox
 */
-#define SP_DEV_INTF_SIZE           0x200
+#define SP_DEV_INTF_SIZE           0x100
 
 /*! \def SP_DEV_INTF_SIZE
     \brief This is the region dedicated to device's MBOX triggers
@@ -159,7 +159,7 @@
     \brief A macro that provides the PCI BAR region offset using which
     the Service Processor virtual queues can be accessed
 */
-#define SP_VQ_OFFSET       0x200UL
+#define SP_VQ_OFFSET       0x100UL
 
 /*! \def SP_SQ_OFFSET
     \brief A macro that provides the PCI BAR region offset relative to
@@ -177,7 +177,7 @@
     \brief A macro that provides the total size for SP VQs (SQs + CQs)
     on PCI BAR.
 */
-#define SP_VQ_BAR_SIZE     0xE00UL
+#define SP_VQ_BAR_SIZE     0xF00UL
 
 /*! \def SP_SQ_COUNT
     \brief A macro that provides the Service Processor submission queue
@@ -194,7 +194,7 @@
     \brief A macro that provides size of the Service Processor
     submission queue. All submision queues will be of same size.
 */
-#define SP_SQ_SIZE          SP_VQ_BAR_SIZE/2
+#define SP_SQ_SIZE          (SP_VQ_BAR_SIZE / 2)
 
 /*! \def SP_SQ_MEM_TYPE
     \brief A macro that provides the memory type for SP submission queues
@@ -220,7 +220,7 @@
     \brief A macro that provides size of the Service Processor
     completion queue.
 */
-#define SP_CQ_SIZE          SP_VQ_BAR_SIZE/2
+#define SP_CQ_SIZE          (SP_VQ_BAR_SIZE / 2)
 
 /*! \def SP_CQ_COUNT
     \brief A macro that provides the Service Processor completion queue
