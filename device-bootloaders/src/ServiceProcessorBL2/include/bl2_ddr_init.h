@@ -142,37 +142,6 @@ int ddr_get_memory_details(char *mem_detail);
 */
 int ddr_get_memory_type(char *mem_type);
 
-/*! \fn int MemShire_PLL_Program(uint8_t frequency)
-    \brief This function will program PLL with provided frequency value
-    \param memshire ID of memshire 
-    \param frequency the value of frequency to be programmed
-    \return Status indicating success or negative error
-*/
-int MemShire_PLL_Program(uint8_t memshire, uint8_t frequency);
 
-/*! \fn int MemShire_Voltage_Update(uint8_t voltage)
-    \brief This function updates voltage value of memshire
-    \param voltage new voltage value to set
-    \return Status indicating success or negative error
-*/
-int MemShire_Voltage_Update(uint8_t voltage);
-
-/*! \fn int uint8_t Memory_read(uint64_t address, uint8_t *buffer, uint64_t size)
-    \brief This function reads data from a given address
-    \param address address to read data from
-    \param rx_buffer data buffer to read into
-    \param size data size to read
-    \return Status indicating success or negative error
-*/
-int Memory_read(uint8_t *address, uint8_t *rx_buffer, uint64_t size);
-
-/*! \fn int Memory_write(uint64_t address, uint64_t* data_buf, uint64_t size)
-    \brief This function reads data from a given address
-    \param address address to write data 
-    \param data_buf buffer containing data  to be written
-    \param size data size to write
-    \return data pointer 
-*/
-int Memory_write(uint8_t *address, uint8_t* data_buf, uint64_t size);
 #endif
 

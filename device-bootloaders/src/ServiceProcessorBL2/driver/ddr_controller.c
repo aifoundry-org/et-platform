@@ -25,10 +25,6 @@
         ddr_error_threshold_isr
         ddr_get_memory_details
         ddr_get_memory_type
-        MemShire_PLL_Program
-        MemShire_Voltage_Update
-        Memory_read
-        Memory_write
 */
 /***********************************************************************/
 #include "bl2_ddr_init.h"
@@ -55,14 +51,13 @@
 */
 int ddr_config(void)
 {
-    // config parameter from hardware team
-    // TODO confirm the right value
+    // algorithm/flow and config parameters are from hardware team
     uint32_t config_ecc = 0;
     uint32_t config_real_pll = 1;
-    uint32_t config_800mhz = 0;
+    uint32_t config_800mhz = 1;   //TODO 800Mhz for first boot.  Production should have it as zero.
     uint32_t config_933mhz = 0;
     uint32_t config_auto_precharge = 0;
-    uint32_t config_debug_level = 1;            
+    uint32_t config_debug_level = 1;
     uint32_t config_sim_only = 0;
     uint32_t config_disable_unused_clks = 0;
     uint32_t config_train_poll_max_iterations = 50000;
@@ -70,10 +65,15 @@ int ddr_config(void)
     bool config_training = false;
     bool config_training_2d = true;
 
-    uint32_t memshire;
+    /* for simuation only
+    config_real_pll = 0;
+    config_training = false;
+    config_sim_only = 1;
+    config_train_poll_max_iterations = 50000;
+    config_train_poll_iteration_delay = 10000;
+    */
 
-    // figure out the correct config value here
-    // e.g. if not real_pll, config_real_pll=0
+    uint32_t memshire;
 
     // only #0 and #4 has PLL, kick them off before phy init
     ms_pll_init(0x0, config_real_pll, 1, config_800mhz, config_933mhz);
@@ -185,71 +185,5 @@ int ddr_get_memory_details(char *mem_detail)
 int ddr_get_memory_type(char *mem_type)
 {
     strncpy(mem_type, "LPDDR4X", 8);
-    return 0;
-}
-
-//////////////////////////////////////////////////////////////////////
-// Following MemShire_x must go.  They belong to TF framework.
-
-int MemShire_PLL_Program(uint8_t memshire, uint8_t frequency)
-{
-    switch(frequency) 
-    {
-        case MEMSHIRE_FREQUENCY_800:
-            return (int) ms_config_795mhz(memshire);
-
-        case MEMSHIRE_FREQUENCY_933:
-            return (int) ms_config_933mhz(memshire);
-
-        case MEMSHIRE_FREQUENCY_1067:
-            return (int) ms_config_1067mhz(memshire);
-        
-        default:
-            return -1;
-    }
-
-}
- 
-int Memory_read(uint8_t *address, uint8_t *rx_buffer, uint64_t size)
-{
-    /* check if address range is valid */
-    if ((rx_buffer == NULL) || 
-        (((uintptr_t)address < (uintptr_t)LOW_MEM_SUB_REGIONS_BASE) || 
-         ((uintptr_t)address > (uintptr_t)(LOW_MEM_SUB_REGIONS_BASE + LOW_MEM_SUB_REGIONS_SIZE)))) 
-    {
-        
-        return ERROR_INVALID_ARGUMENT;
-    }
-
-    /* read data into buffer */
-    for (uint64_t i=0; i < size; i++)
-    {
-        *rx_buffer = *address;
-        rx_buffer++;
-        address++;
-    }
-
-    return 0;
-}
-
-int Memory_write(uint8_t *address, uint8_t* data_buf, uint64_t size)
-{
-    /* check if address range is valid */
-    if ((data_buf == NULL) || 
-        (((uintptr_t)address < (uintptr_t)LOW_MEM_SUB_REGIONS_BASE) || 
-         ((uintptr_t)address > (uintptr_t)(LOW_MEM_SUB_REGIONS_BASE + LOW_MEM_SUB_REGIONS_SIZE)))) 
-    {
-        
-        return ERROR_INVALID_ARGUMENT;
-    }
-
-    /* write data onto memory */
-    for (uint64_t i=0; i < size; i++)
-    {
-        *address = *data_buf;
-        data_buf++;
-        address++;
-    }
-
     return 0;
 }
