@@ -131,3 +131,11 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
         COMPONENT service-processor
     )
 endforeach()
+
+# Exposing BL2_driver for e.g. Test Framework
+#   This interface is universal between variants for now
+add_library(BL2_driver INTERFACE)
+target_include_directories(BL2_driver
+    INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)

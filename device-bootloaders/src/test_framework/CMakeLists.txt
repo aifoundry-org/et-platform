@@ -48,6 +48,7 @@ target_link_libraries(test_framework
   PUBLIC
     EsperantoDeviceMinionRuntime::sp_firmware_helpers
     deviceFirmware::device_serial
+    BL2_driver
 )
 
 target_compile_definitions(test_framework
