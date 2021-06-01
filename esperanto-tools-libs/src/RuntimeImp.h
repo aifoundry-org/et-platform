@@ -44,7 +44,7 @@ public:
   void destroyStream(StreamId stream) override;
 
   EventId kernelLaunch(StreamId stream, KernelId kernel, const void* kernel_args, size_t kernel_args_size,
-                       uint64_t shire_mask, bool barrier = true) override;
+                       uint64_t shire_mask, bool barrier = true, bool flushL3 = true) override;
 
   EventId memcpyHostToDevice(StreamId stream, const void* src, void* dst, size_t size,
                              bool barrier = false) override;
