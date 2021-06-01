@@ -58,7 +58,7 @@
     \brief Macro that provides the total allowed size of the MM DIRs
     at PC_MM Mailbox
 */
-#define MM_DEV_INTF_SIZE           0x200
+#define MM_DEV_INTF_SIZE           0x100
 
 /*! \def MM_INTERRUPT_TRG_OFFSET
     \brief A macro that provides the offset for triggering the interrupt for MM
@@ -152,13 +152,13 @@
     \brief A macro that provides the total size for MM VQs (SQs + CQs)
     on PCI BAR.
 */
-#define MM_VQ_SIZE          0xE00UL
+#define MM_VQ_SIZE          0xF00UL
 
 /*! \def MM_VQ_OFFSET
     \brief A macro that provides the offset for MM VQs (SQs + CQs)
     on PCI BAR.
 */
-#define MM_VQ_OFFSET        0x200UL
+#define MM_VQ_OFFSET        0x100UL
 
 /*! \def MM_SQ_OFFSET
     \brief A macro that provides the PCI BAR region offset relative to
