@@ -176,11 +176,11 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
   // first check if its a DmaBuffer
   auto dmaBufferManager = find(dmaBufferManagers_, device)->second.get();
   if (dmaBufferManager->isDmaBuffer(reinterpret_cast<const std::byte*>(h_src), size)) {
-    cmd.src_host_phy_addr = reinterpret_cast<uint64_t>(h_src);
+    cmd.src_host_virt_addr = reinterpret_cast<uint64_t>(h_src);
   } else {
     // if not, allocate a buffer, and stage the memory first into it
     auto tmpBuffer = dmaBufferManager->allocate(size, true);
-    cmd.src_host_phy_addr = reinterpret_cast<uint64_t>(tmpBuffer->getPtr());
+    cmd.src_host_virt_addr = reinterpret_cast<uint64_t>(tmpBuffer->getPtr());
 
     // TODO: It can be copied in background and return control to the user. Future work.
     auto srcPtr = reinterpret_cast<const std::byte*>(h_src);
@@ -230,11 +230,11 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
   // first check if its a DmaBuffer
   auto dmaBufferManager = find(dmaBufferManagers_, device)->second.get();
   if (dmaBufferManager->isDmaBuffer(reinterpret_cast<std::byte*>(h_dst), size)) {
-    cmd.dst_host_phy_addr = reinterpret_cast<uint64_t>(h_dst);
+    cmd.dst_host_virt_addr = reinterpret_cast<uint64_t>(h_dst);
   } else {
     // if not, allocate a buffer, and copy the results from it to h_dst
     auto tmpBuffer = dmaBufferManager->allocate(size, false);
-    cmd.dst_host_phy_addr = reinterpret_cast<uint64_t>(tmpBuffer->getPtr());
+    cmd.dst_host_virt_addr = reinterpret_cast<uint64_t>(tmpBuffer->getPtr());
 
     // TODO: There are many ways to optimize this, future work.
     // replace the event (because we need to do the copy before dispatching the final event to the user)
