@@ -189,9 +189,9 @@ Messages :
       - Name: patch
         Description: Sem Version Patch
         Type: uint16_t
-      - Name: pad
+      - Name: pad[2]
         Description: Padding for alignment
-        Type: uint16_t
+        Type: uint8_t
   - Name: device_ops_api_compatibility_rsp
     Type: Response
     Description: Return the version implemented by the target
@@ -206,9 +206,9 @@ Messages :
       - Name: patch
         Description: Sem Version Patch
         Type: uint16_t
-      - Name: pad
+      - Name: pad[2]
         Description: Padding for alignment
-        Type: uint16_t
+        Type: uint8_t
 #-------------------------------------------------------------------------------
   - Name: device_ops_device_fw_version_cmd
     Description:  Request the version of the device firmware, advertise the one we support
@@ -252,9 +252,9 @@ Messages :
       - Name: echo_payload
         Description: Echo payload field
         Type: int32_t
-      - Name: pad
+      - Name: pad[4]
         Description: Padding for alignment
-        Type: uint32_t
+        Type: uint8_t
   - Name: device_ops_echo_rsp
     Description:  Echo response
     Type: Response
@@ -263,9 +263,9 @@ Messages :
       - Name: echo_payload
         Description: Echo payload field
         Type: int32_t
-      - Name: pad
+      - Name: pad[4]
         Description: Padding for alignment
-        Type: uint32_t
+        Type: uint8_t
 #-------------------------------------------------------------------------------
 # Kernel Execution Commands and Responses
 #-------------------------------------------------------------------------------
@@ -300,19 +300,22 @@ Messages :
     Type: Response
     PairedMessage: device_ops_kernel_launch_cmd
     Fields:
-      - Name: cmd_wait_time
+      - Name: device_cmd_start_ts
+        Description: Timestamp (in cycles) at which the command was dispatched
+        Type: uint64_t
+      - Name: device_cmd_wait_dur
         Description: Time transpired between command arrival and dispatch
-        Type: uint64_t
-      - Name: cmd_execution_time
+        Type: uint32_t
+      - Name: device_cmd_execute_dur
         Description: Time transpired between command dispatch and command completion
-        Type: uint64_t
+        Type: uint32_t
       - Name: status
         Description: Kernel Launch status
         Type: enum
         Enum: dev_ops_api_kernel_launch_response
-      - Name: pad
+      - Name: pad[4]
         Description: Padding for alignment
-        Type: uint32_t
+        Type: uint8_t
 #-------------------------------------------------------------------------------
   - Name: device_ops_kernel_abort_cmd
     Description: Command to abort a currently running kernel on the device
@@ -334,9 +337,9 @@ Messages :
         Description: Kernel Abort status
         Type: enum
         Enum: dev_ops_api_kernel_abort_response
-      - Name: pad
+      - Name: pad[4]
         Description: Padding for alignment
-        Type: uint32_t
+        Type: uint8_t
 #-------------------------------------------------------------------------------
 # Data Transfer Commands and Responses
 #-------------------------------------------------------------------------------
@@ -357,27 +360,30 @@ Messages :
       - Name: size
         Description: Size
         Type: uint32_t
-      - Name: pad
+      - Name: pad[4]
         Description: Padding for alignment
-        Type: uint32_t
+        Type: uint8_t
   - Name: device_ops_data_read_rsp
     Description:  Data read command response
     Type: Response
     PairedMessage: device_ops_data_read_cmd
     Fields:
-      - Name: cmd_wait_time
+      - Name: device_cmd_start_ts
+        Description: Timestamp (in cycles) at which the command was dispatched
+        Type: uint64_t
+      - Name: device_cmd_wait_dur
         Description: Time transpired between command arrival and dispatch
-        Type: uint64_t
-      - Name: cmd_execution_time
+        Type: uint32_t
+      - Name: device_cmd_execute_dur
         Description: Time transpired between command dispatch and command completion
-        Type: uint64_t
+        Type: uint32_t
       - Name: status
         Description: Status of the DMA operation
         Type: enum
         Enum: dev_ops_api_dma_response
-      - Name: pad
+      - Name: pad[4]
         Description: Padding for alignment
-        Type: uint32_t
+        Type: uint8_t
 #-------------------------------------------------------------------------------
   - Name: device_ops_data_write_cmd
     Description: Command to write data to device memory
@@ -396,27 +402,30 @@ Messages :
       - Name: size
         Description: Size
         Type: uint32_t
-      - Name: pad
+      - Name: pad[4]
         Description: Padding for alignment
-        Type: uint32_t
+        Type: uint8_t
   - Name: device_ops_data_write_rsp
     Description:  Data write command response
     Type: Response
     PairedMessage: device_ops_data_write_cmd
     Fields:
-      - Name: cmd_wait_time
+      - Name: device_cmd_start_ts
+        Description: Timestamp (in cycles) at which the command was dispatched
+        Type: uint64_t
+      - Name: device_cmd_wait_dur
         Description: Time transpired between command arrival and dispatch
-        Type: uint64_t
-      - Name: cmd_execution_time
+        Type: uint32_t
+      - Name: device_cmd_execute_dur
         Description: Time transpired between command dispatch and command completion
-        Type: uint64_t
+        Type: uint32_t
       - Name: status
         Description: Status of the DMA operation
         Type: enum
         Enum: dev_ops_api_dma_response
-      - Name: pad
+      - Name: pad[4]
         Description: Padding for alignment
-        Type: uint32_t
+        Type: uint8_t
 #-------------------------------------------------------------------------------
 # DMA Transfer list Commands and Responses
 #-------------------------------------------------------------------------------
@@ -436,12 +445,15 @@ Messages :
     Type: Response
     PairedMessage: device_ops_dma_readlist_cmd
     Fields:
-      - Name: cmd_wait_time
+      - Name: device_cmd_start_ts
+        Description: Timestamp (in cycles) at which the command was dispatched
+        Type: uint64_t
+      - Name: device_cmd_wait_dur
         Description: Time transpired between command arrival and dispatch
-        Type: uint64_t
-      - Name: cmd_execution_time
+        Type: uint32_t
+      - Name: device_cmd_execute_dur
         Description: Time transpired between command dispatch and command completion
-        Type: uint64_t
+        Type: uint32_t
       - Name: status
         Description: Status of the DMA operation
         Type: enum
@@ -466,12 +478,15 @@ Messages :
     Type: Response
     PairedMessage: device_ops_dma_writelist_cmd
     Fields:
-      - Name: cmd_wait_time
+      - Name: device_cmd_start_ts
+        Description: Timestamp (in cycles) at which the command was dispatched
+        Type: uint64_t
+      - Name: device_cmd_wait_dur
         Description: Time transpired between command arrival and dispatch
-        Type: uint64_t
-      - Name: cmd_execution_time
+        Type: uint32_t
+      - Name: device_cmd_execute_dur
         Description: Time transpired between command dispatch and command completion
-        Type: uint64_t
+        Type: uint32_t
       - Name: status
         Description: Status of the DMA operation
         Type: enum
@@ -556,9 +571,9 @@ Messages :
       - Name: error_type
         Type: enum
         Enum: dev_ops_api_error_type
-      - Name: pad
+      - Name: pad[4]
         Description: Padding for alignment
-        Type: uint32_t
+        Type: uint8_t
 #------------------------------------------------------------------------------
   - Name: device_ops_trace_buffer_full_event
     Description: Binary trace buffer is full and the host should consume it
