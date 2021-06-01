@@ -18,7 +18,7 @@ struct DmaBufferImp {
     , size_(size) {
   }
   explicit DmaBufferImp() = default;
-  bool containsAddr(std::byte* address) const {
+  bool containsAddr(const std::byte* address) const {
     return address >= address_ && address < address_ + size_;
   }
   bool operator<(const DmaBufferImp& other) const {

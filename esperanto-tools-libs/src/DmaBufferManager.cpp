@@ -10,16 +10,17 @@
 
 #include "DmaBufferManager.h"
 #include "runtime/DmaBuffer.h"
+#include "utils.h"
 #include <algorithm>
 using namespace rt;
 
-bool DmaBufferManager::isDmaBuffer(std::byte* address, size_t size) const {
+bool DmaBufferManager::isDmaBuffer(const std::byte* address, size_t size) const {
   if (inUseBuffers_.empty())
     return false;
   // this tmp is just because I don't want to specialize the less operator for checking against address instead of
   // DmaBuffers
   auto tmp = DmaBufferImp{};
-  tmp.address_ = address;
+  tmp.address_ = const_cast<decltype(tmp.address_)>(address);
   auto it = std::upper_bound(begin(inUseBuffers_), end(inUseBuffers_), tmp);
   if (it == begin(inUseBuffers_))
     return false;
@@ -30,9 +31,10 @@ std::unique_ptr<DmaBuffer> DmaBufferManager::allocate(size_t size, bool writeabl
   auto bufferImp = std::make_unique<DmaBufferImp>(device_, size, writeable, deviceLayer_);
   auto it = std::upper_bound(begin(inUseBuffers_), end(inUseBuffers_), *bufferImp);
   inUseBuffers_.emplace(it, *bufferImp);
-  return std::make_unique<DmaBuffer>(std::move(bufferImp), this);
+  auto res = std::make_unique<DmaBuffer>(std::move(bufferImp), this);
+  return std::move(res);
 }
 
-void DmaBufferManager::release(DmaBufferImp&& dmaBuffer) {
-  deviceLayer_->freeDmaBuffer(dmaBuffer.address_);
+void DmaBufferManager::release(DmaBufferImp* dmaBuffer) {
+  deviceLayer_->freeDmaBuffer(dmaBuffer->address_);
 }

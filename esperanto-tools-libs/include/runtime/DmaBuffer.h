@@ -21,7 +21,7 @@ class DmaBuffer {
 public:
   const std::byte* getPtr() const;
   std::byte* getPtr();
-  bool containsAddr(std::byte* address) const;
+  bool containsAddr(const std::byte* address) const;
   size_t getSize() const;
 
   explicit DmaBuffer(std::unique_ptr<DmaBufferImp> impl, DmaBufferManager* dmaBufferManager);

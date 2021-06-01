@@ -10,6 +10,7 @@
 
 #pragma once
 #include "DmaBufferImp.h"
+#include "utils.h"
 #include <device-layer/IDeviceLayer.h>
 
 namespace rt {
@@ -18,11 +19,13 @@ public:
   explicit DmaBufferManager(dev::IDeviceLayer* deviceLayer, int device)
     : deviceLayer_(deviceLayer)
     , device_(device) {
+    RT_LOG(INFO) << "DmaBufferManager ptr: " << this;
+    RT_LOG(INFO) << "Device Layer ptr: " << deviceLayer_;
   }
   std::unique_ptr<DmaBuffer> allocate(size_t size, bool writeable);
   // check if this region of memory falls into an already allocated dmaBuffer
-  bool isDmaBuffer(std::byte* address, size_t size) const;
-  void release(DmaBufferImp&& dmaBuffer);
+  bool isDmaBuffer(const std::byte* address, size_t size) const;
+  void release(DmaBufferImp* dmaBuffer);
 
 private:
   dev::IDeviceLayer* deviceLayer_;

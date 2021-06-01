@@ -70,18 +70,20 @@ struct RuntimeBenchmark : Test {
 
 void sendDmas(int num_dmas, StreamId stream, RuntimePtr& runtime) {
   RT_LOG(INFO) << "Submitting " << num_dmas << " DMA commands";
+  const size_t transferSize = 16;
+  std::byte dummyBuffer[transferSize];
   for (int i = 0; i < num_dmas; ++i) {
-    runtime->memcpyHostToDevice(stream, nullptr, nullptr, 2048);
+    runtime->memcpyHostToDevice(stream, dummyBuffer, nullptr, transferSize);
   }
   RT_LOG(INFO) << "Waiting for all commands processed";
   runtime->waitForStream(stream);
 }
 
 TEST_F(RuntimeBenchmark, DMA_transactions) {
-  sendDmas(1e6, stream_, runtime_);
-  sendDmas(1e4, stream_, runtime_);
+  // sendDmas(1e6, stream_, runtime_);
+  // sendDmas(1e4, stream_, runtime_);
   sendDmas(1e3, stream_, runtime_);
-  sendDmas(1e6, stream_, runtime_);
+  // sendDmas(1e6, stream_, runtime_);
 }
 
 void sendH2D_K_D2H(int iterations, StreamId stream, KernelId kernel, RuntimePtr& runtime, bool sync_on_each_iter) {
@@ -89,10 +91,12 @@ void sendH2D_K_D2H(int iterations, StreamId stream, KernelId kernel, RuntimePtr&
                << " HostToDevice DMA + Kernel + DeviceToHost DMA. Syncing on each iteration? "
                << (sync_on_each_iter ? "True" : "False");
   char args[128];
+  const size_t transferSize = 16;
+  std::byte dummyBuffer[transferSize];
   for (int i = 0; i < iterations; ++i) {
-    runtime->memcpyHostToDevice(stream, nullptr, nullptr, 2048);
+    runtime->memcpyHostToDevice(stream, dummyBuffer, nullptr, transferSize);
     runtime->kernelLaunch(stream, kernel, args, sizeof args, 0x3);
-    runtime->memcpyDeviceToHost(stream, nullptr, nullptr, 2048);
+    runtime->memcpyDeviceToHost(stream, nullptr, dummyBuffer, transferSize);
     if (sync_on_each_iter) {
       runtime->waitForStream(stream);
     }
@@ -104,10 +108,8 @@ TEST_F(RuntimeBenchmark, H2D_K_D2H_Sync_On_Iters) {
 }
 
 TEST_F(RuntimeBenchmark, H2D_K_D2H_NoSync_On_Iters) {
-  sendH2D_K_D2H(1e6, stream_, kernel_, runtime_, false);
-  LOG(INFO) << "Waiting for stream";
+  sendH2D_K_D2H(1e4, stream_, kernel_, runtime_, false);
   runtime_->waitForStream(stream_);
-  LOG(INFO) << "Wait ended";
 }
 
 int main(int argc, char** argv) {

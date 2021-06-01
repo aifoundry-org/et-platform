@@ -25,18 +25,25 @@ std::byte* DmaBuffer::getPtr() {
 size_t DmaBuffer::getSize() const {
   return impl_->size_;
 }
+bool DmaBuffer::containsAddr(const std::byte* address) const {
+  return impl_->containsAddr(address);
+}
+
 DmaBuffer::DmaBuffer(DmaBuffer&&) = default;
 DmaBuffer& DmaBuffer::operator=(DmaBuffer&&) = default;
 
 DmaBuffer::DmaBuffer(std::unique_ptr<DmaBufferImp> impl, DmaBufferManager* dmaBufferManager)
   : impl_(std::move(impl))
   , dmaBufferManager_(dmaBufferManager) {
+  LOG(INFO) << "Dma buffer manager at ctor: " << dmaBufferManager_;
 }
 
 DmaBuffer::~DmaBuffer() {
   // call to deallocate DmaBufferImp
   if (impl_) {
-    dmaBufferManager_->release(std::move(static_cast<DmaBufferImp>(*impl_.release())));
+    auto dmaBuffer = impl_.release();
+    LOG(INFO) << "Dma buffer manager at dtor: " << dmaBufferManager_;
+    dmaBufferManager_->release(dmaBuffer);
   }
 }
 } // namespace rt
