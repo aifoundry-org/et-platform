@@ -12,6 +12,7 @@
 #include "KernelParametersCache.h"
 #include "ProfileEvent.h"
 #include "ScopedProfileEvent.h"
+#include "runtime/DmaBuffer.h"
 #include "runtime/IRuntime.h"
 #include <chrono>
 #include <cstdio>
@@ -40,6 +41,7 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
                << " Dram size: " << dramSize;
   for (auto&& d : devices_) {
     memoryManagers_.insert({d, MemoryManager{dramBaseAddress, dramSize, kMinAllocationSize}});
+    dmaBufferManagers_.insert({d, std::make_unique<DmaBufferManager>(deviceLayer_, static_cast<int>(d))});
   }
   kernelParametersCache_ = std::make_unique<KernelParametersCache>(this);
   responseReceiver_ = std::make_unique<ResponseReceiver>(deviceLayer_, this);
@@ -166,13 +168,32 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
   auto device = it->second.deviceId_;
   auto vq = it->second.vq_;
 
-  device_ops_api::device_ops_data_write_cmd_t cmd;
+  device_ops_api::device_ops_data_write_cmd_t cmd = {0};
   cmd.dst_device_phy_addr = reinterpret_cast<uint64_t>(d_dst);
   RT_VLOG(LOW) << "MemcpyHostToDevice stream: " << static_cast<std::underlying_type_t<StreamId>>(stream) << std::hex
                << " Host address: " << h_src << " Device address: " << cmd.dst_device_phy_addr << " Size: " << size;
-  // TODO this could/should change with this ticket SW-6256. At the moment I fill both fields even if we only use
-  // virtual address, because I'm not sure what value the firmware uses
-  cmd.src_host_phy_addr = cmd.src_host_virt_addr = reinterpret_cast<uint64_t>(h_src);
+
+  // first check if its a DmaBuffer
+  auto dmaBufferManager = find(dmaBufferManagers_, device)->second.get();
+  if (dmaBufferManager->isDmaBuffer(reinterpret_cast<const std::byte*>(h_src), size)) {
+    cmd.src_host_phy_addr = reinterpret_cast<uint64_t>(h_src);
+  } else {
+    // if not, allocate a buffer, and stage the memory first into it
+    auto tmpBuffer = dmaBufferManager->allocate(size, true);
+    cmd.src_host_phy_addr = reinterpret_cast<uint64_t>(tmpBuffer->getPtr());
+
+    // TODO: It can be copied in background and return control to the user. Future work.
+    auto srcPtr = reinterpret_cast<const std::byte*>(h_src);
+    std::copy(srcPtr, srcPtr + size, tmpBuffer->getPtr());
+
+    // TODO: There are more efficient ways of achieving this. Future work.
+    auto t = std::thread([this, evt, tmpBuffer = std::move(tmpBuffer)]() mutable {
+      // wait till the command is acked
+      waitForEvent(evt);
+      // when exiting, tmpBuffer will be deallocated
+    });
+    t.detach();
+  }
   cmd.size = size;
 
   cmd.command_info.cmd_hdr.tag_id = static_cast<uint16_t>(evt);
@@ -193,21 +214,46 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
   auto it = find(streams_, stream);
 
   auto evt = eventManager_.getNextId();
-  it->second.lastEventId_ = evt;
-  auto device = it->second.deviceId_;
-  auto vq = it->second.vq_;
+  auto& st = it->second;
+  st.lastEventId_ = evt;
+  auto device = st.deviceId_;
+  auto vq = st.vq_;
 
-  device_ops_api::device_ops_data_read_cmd_t cmd;
-  cmd.src_device_phy_addr = reinterpret_cast<uint64_t>(d_src);
-  // TODO this could/should change with this ticket SW-6256.At the moment I fill both fields even if we only use
-  // virtual address, because I'm not sure what value the firmware uses
-  cmd.dst_host_virt_addr = cmd.dst_host_phy_addr = reinterpret_cast<uint64_t>(h_dst);
+  device_ops_api::device_ops_data_read_cmd_t cmd = {0};
   cmd.size = size;
-
+  cmd.src_device_phy_addr = reinterpret_cast<uint64_t>(d_src);
   cmd.command_info.cmd_hdr.tag_id = static_cast<uint16_t>(evt);
   cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD;
   cmd.command_info.cmd_hdr.size = sizeof(cmd);
   cmd.command_info.cmd_hdr.flags = barrier ? 1 : 0;
+
+  // first check if its a DmaBuffer
+  auto dmaBufferManager = find(dmaBufferManagers_, device)->second.get();
+  if (dmaBufferManager->isDmaBuffer(reinterpret_cast<std::byte*>(h_dst), size)) {
+    cmd.dst_host_phy_addr = reinterpret_cast<uint64_t>(h_dst);
+  } else {
+    // if not, allocate a buffer, and copy the results from it to h_dst
+    auto tmpBuffer = dmaBufferManager->allocate(size, false);
+    cmd.dst_host_phy_addr = reinterpret_cast<uint64_t>(tmpBuffer->getPtr());
+
+    // TODO: There are many ways to optimize this, future work.
+    // replace the event (because we need to do the copy before dispatching the final event to the user)
+    auto memcpyEvt = evt;
+    evt = eventManager_.getNextId();
+    st.lastEventId_ = evt;
+    auto t = std::thread([this, memcpyEvt, size, evt, h_dst, tmpBuffer = std::move(tmpBuffer)]() mutable {
+      // first wait till the copy ends
+      waitForEvent(memcpyEvt);
+      // copy results to user buffer
+      std::copy(tmpBuffer->getPtr(), tmpBuffer->getPtr() + size, reinterpret_cast<std::byte*>(h_dst));
+      // release the dmaBuffer before exiting the thread
+      tmpBuffer.reset();
+      // dispatch the event
+      eventManager_.dispatch(evt);
+    });
+    t.detach();
+  }
+
   sendCommandMasterMinion(it->second, evt, cmd, lock, true);
   profileEvent.setEventId(evt);
   return evt;
@@ -305,4 +351,10 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
   }
   profiler_.record(event);
   eventManager_.dispatch(eventId);
+}
+
+std::unique_ptr<DmaBuffer> RuntimeImp::allocateDmaBuffer(DeviceId device, size_t size, bool writeable) {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  auto it = find(dmaBufferManagers_, device);
+  return it->second->allocate(size, writeable);
 }

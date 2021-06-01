@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "DmaBufferManager.h"
 #include "EventManager.h"
 #include "MemoryManager.h"
 #include "ProfilerImp.h"
@@ -54,6 +55,7 @@ public:
   bool waitForEvent(EventId event, std::chrono::milliseconds timeout) override;
   void waitForStream(StreamId stream) override;
   bool waitForStream(StreamId stream, std::chrono::milliseconds timeout) override;
+  std::unique_ptr<DmaBuffer> allocateDmaBuffer(DeviceId device, size_t size, bool writeable) override;
 
   IProfiler* getProfiler() override {
     return &profiler_;
@@ -129,6 +131,7 @@ private:
   std::vector<DeviceId> devices_;
   std::vector<QueueHelper> queueHelpers_;
   std::unordered_map<DeviceId, MemoryManager> memoryManagers_;
+  std::unordered_map<DeviceId, std::unique_ptr<DmaBufferManager>> dmaBufferManagers_;
   std::unordered_map<StreamId, Stream> streams_;
 
   EventManager eventManager_;

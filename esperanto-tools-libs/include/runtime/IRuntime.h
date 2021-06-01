@@ -38,6 +38,9 @@ class IDeviceLayer;
 /// @{
 namespace rt {
 
+/// \brief Forward declaration of \ref DmaBuffer
+class DmaBuffer;
+
 /// \brief Forward declaration of \ref IProfiler
 class IProfiler;
 
@@ -261,6 +264,18 @@ public:
   /// @returns IProfiler an interface to the profiler. See \ref IProfiler
   ///
   virtual IProfiler* getProfiler() = 0;
+
+  /// \brief Allocates a DmaBuffer which can be used to perform "zero-copy" DMA transfers. Ideally all memcpy operations
+  /// should be used using DmaBuffers; if not, runtime will do it under the hood.
+  ///
+  /// @param[in] device indicates the device where the DmaBuffer will be assoaciated to.
+  /// @param[in] size is the desired size in bytes of the DmaBuffer allocation.
+  /// @param[in] writeable indicates if the DmaBuffer should be writeable by the host or not (for read-only buffers pass
+  /// "false").
+  ///
+  /// @returns DmaBuffer which can be used to avoid unnecessary staging memory copies; enabling "zero-copy".
+  ///
+  virtual std::unique_ptr<DmaBuffer> allocateDmaBuffer(DeviceId device, size_t size, bool writeable) = 0;
 
   ///
   /// \brief Factory method to instantiate a IRuntime implementation

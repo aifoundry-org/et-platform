@@ -66,6 +66,8 @@ add_library(etrt_obj OBJECT
     src/KernelParametersCache.cpp
     src/ResponseReceiver.cpp
     src/KernelLaunch.cpp
+    src/DmaBufferManager.cpp
+    src/DmaBuffer.cpp
 )
 
 set_target_properties(etrt_obj PROPERTIES
