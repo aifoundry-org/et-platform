@@ -99,6 +99,12 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
                                         (hart_cb_index * CM_TRACE_BUFFER_SIZE_PER_HART));
     CM_Trace_CB.cb[hart_cb_index].size_per_hart = CM_TRACE_BUFFER_SIZE_PER_HART;
 
+    if ((hart_init_info.shire_mask & GET_SHIRE_MASK(get_hart_id())) && (hart_init_info.thread_mask & GET_HART_MASK(get_hart_id())))
+    {
+        CM_Trace_CB.cb[hart_cb_index].enable = TRACE_DISABLE;
+        return;
+    }
+
     /* Initialize Trace for current Hart in Compute Minion Shire. */
     Trace_Init(&hart_init_info, &CM_Trace_CB.cb[hart_cb_index]);
 }
