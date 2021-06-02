@@ -42,15 +42,35 @@ const uint64_t kCacheLineSize = 64;
 
 enum class CmdStatus { CMD_RSP_NOT_RECEIVED, CMD_TIMED_OUT, CMD_FAILED, CMD_RSP_DUPLICATE, CMD_SUCCESSFUL };
 
-struct __attribute__((packed, aligned(64))) hart_execution_context {
-  uint64_t kernel_pending_shires;
+enum cm_context_type {
+  CM_CONTEXT_TYPE_HANG = 0,
+  CM_CONTEXT_TYPE_UMODE_EXCEPTION,
+  CM_CONTEXT_TYPE_SMODE_EXCEPTION,
+  CM_CONTEXT_TYPE_SYSTEM_ABORT,
+  CM_CONTEXT_TYPE_SELF_ABORT,
+  CM_CONTEXT_TYPE_USER_KERNEL_ERROR
+};
+
+struct kernelRuntimeContext {
+  std::string kernelName;
+  uint64_t shireMask;
+  bool cmdBarrier;
+  bool flushL3;
+  uint64_t startCycles;
+  uint32_t waitDuration;
+  uint32_t executionDuration;
+};
+
+struct __attribute__((packed, aligned(64))) hartExecutionContext {
+  uint64_t type;
   uint64_t cycles;
   uint64_t hart_id;
   uint64_t sepc;
   uint64_t sstatus;
   uint64_t stval;
   uint64_t scause;
-  uint64_t gpr[29];
+  int64_t user_error;
+  uint64_t gpr[31];
 };
 
 class TestDevOpsApi : public ::testing::Test {
@@ -70,7 +90,7 @@ protected:
   bool pushCmd(int deviceIdx, int queueIdx, std::unique_ptr<IDevOpsApiCmd>& devOpsApiCmd);
   bool popRsp(int deviceIdx);
   void printCmdExecutionSummary();
-  void printErrorContext(void* buffer, uint64_t shireMask);
+  void printErrorContext(int queueId, void* buffer, uint64_t shireMask, device_ops_api::tag_id_t tagId);
   void cleanUpExecution();
   void deleteCmdResults();
   void executeSyncPerDevice(int deviceIdx);
@@ -99,6 +119,11 @@ protected:
   TimeDuration execTimeout_;
 
 private:
+  bool addkernelCmdContext(device_ops_api::tag_id_t tagId, std::string kernelName, uint64_t shireMask, bool barrier,
+                           bool flushL3);
+  bool addkernelRspContext(device_ops_api::tag_id_t tagId, uint64_t startTime, uint32_t waitDuration,
+                           uint32_t execDuration);
+  bool printKernelRtContext(device_ops_api::tag_id_t tagId);
   bool addCmdResultEntry(device_ops_api::tag_id_t tagId, CmdStatus status);
   CmdStatus getCmdResult(device_ops_api::tag_id_t tagId);
   bool updateCmdResult(device_ops_api::tag_id_t tagId, CmdStatus status);
@@ -119,6 +144,8 @@ private:
   std::vector<std::unique_ptr<DeviceInfo>> devices_;
   std::unordered_map<device_ops_api::tag_id_t, CmdStatus> cmdResults_;
   std::recursive_mutex cmdResultsMtx_;
+  std::unordered_map<device_ops_api::tag_id_t, kernelRuntimeContext> kernelRtContext_;
+  std::recursive_mutex kernelRtContextMtx_;
 
   Timepoint firstCmdTimepoint_;
   Timepoint lastCmdTimepoint_;

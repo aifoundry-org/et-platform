@@ -352,6 +352,15 @@ uint64_t TestDevOpsApi::getDmaReadAddr(int deviceIdx, size_t bufSize) {
 
 bool TestDevOpsApi::pushCmd(int deviceIdx, int queueIdx, std::unique_ptr<IDevOpsApiCmd>& devOpsApiCmd) {
   addCmdResultEntry(devOpsApiCmd->getCmdTagId(), CmdStatus::CMD_RSP_NOT_RECEIVED);
+  // save kernel command context
+  if (devOpsApiCmd->whoAmI() == IDevOpsApiCmd::CmdType::KERNEL_LAUNCH_CMD) {
+    KernelLaunchCmd* cmd = static_cast<KernelLaunchCmd*>(devOpsApiCmd.get());
+    uint16_t flags = cmd->getCmdFlags();
+    addkernelCmdContext(
+      devOpsApiCmd->getCmdTagId(), cmd->getKernelName(), cmd->getShireMask(),
+      ((flags & device_ops_api::CMD_FLAGS_BARRIER_ENABLE) == device_ops_api::CMD_FLAGS_BARRIER_ENABLE),
+      ((flags & device_ops_api::CMD_FLAGS_KERNEL_LAUNCH_FLUSH_L3) == device_ops_api::CMD_FLAGS_KERNEL_LAUNCH_FLUSH_L3));
+  }
   auto res = devLayer_->sendCommandMasterMinion(deviceIdx, queueIdx, devOpsApiCmd->getCmdPtr(),
                                                 devOpsApiCmd->getCmdSize(), devOpsApiCmd->isDma());
   if (res) {
@@ -477,6 +486,8 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
     } else {
       status = CmdStatus::CMD_FAILED;
     }
+    // todo: send the correct start timestamp
+    addkernelRspContext(rsp_tag_id, 0, response->cmd_wait_time, response->cmd_execution_time);
 
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP) {
     auto response = reinterpret_cast<device_ops_api::device_ops_kernel_abort_rsp_t*>(message.data());
@@ -517,6 +528,52 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
   bytesReceived_ += rsp_size;
 
   return res;
+}
+
+bool TestDevOpsApi::addkernelCmdContext(device_ops_api::tag_id_t tagId, std::string kernelName, uint64_t shireMask,
+                                        bool barrier, bool flushL3) {
+  std::unique_lock<std::recursive_mutex> lock(kernelRtContextMtx_);
+  auto it = kernelRtContext_.find(tagId);
+  if (it != kernelRtContext_.end()) {
+    return false;
+  }
+  kernelRuntimeContext context;
+  context.kernelName = kernelName;
+  context.shireMask = shireMask;
+  context.cmdBarrier = barrier;
+  context.flushL3 = flushL3;
+  kernelRtContext_.emplace(tagId, context);
+  return true;
+}
+
+bool TestDevOpsApi::addkernelRspContext(device_ops_api::tag_id_t tagId, uint64_t startTime, uint32_t waitDuration,
+                                        uint32_t execDuration) {
+  std::unique_lock<std::recursive_mutex> lock(kernelRtContextMtx_);
+  auto it = kernelRtContext_.find(tagId);
+  if (it == kernelRtContext_.end()) {
+    return false;
+  }
+  it->second.startCycles = startTime;
+  it->second.waitDuration = waitDuration;
+  it->second.executionDuration = execDuration;
+  return true;
+}
+
+bool TestDevOpsApi::printKernelRtContext(device_ops_api::tag_id_t tagId) {
+  std::unique_lock<std::recursive_mutex> lock(kernelRtContextMtx_);
+  auto it = kernelRtContext_.find(tagId);
+  if (it == kernelRtContext_.end()) {
+    return false;
+  }
+  TEST_VLOG(0) << "* Tag ID: 0x" << std::hex << tagId;
+  TEST_VLOG(0) << "* Kernel Name: " << it->second.kernelName;
+  TEST_VLOG(0) << "* Shire Mask: 0x" << std::hex << it->second.shireMask;
+  TEST_VLOG(0) << "* Barrier: " << it->second.cmdBarrier;
+  TEST_VLOG(0) << "* Flush L3: " << it->second.flushL3;
+  TEST_VLOG(0) << "* Kernel Start cycles: " << it->second.startCycles;
+  TEST_VLOG(0) << "* Kernel Wait duration: " << it->second.waitDuration;
+  TEST_VLOG(0) << "* Kernel Execution duration: " << it->second.executionDuration;
+  return true;
 }
 
 bool TestDevOpsApi::addCmdResultEntry(device_ops_api::tag_id_t tagId, CmdStatus status) {
@@ -643,46 +700,70 @@ void TestDevOpsApi::printCmdExecutionSummary() {
   EXPECT_EQ(timeoutCmdTags.size(), 0);
 }
 
-void TestDevOpsApi::printErrorContext(void* buffer, uint64_t shireMask) {
-  hart_execution_context* context = reinterpret_cast<hart_execution_context*>(buffer);
-
-  TEST_VLOG(0) << "*** Error Context Start ***";
+void TestDevOpsApi::printErrorContext(int queueId, void* buffer, uint64_t shireMask, device_ops_api::tag_id_t tagId) {
+  hartExecutionContext* context = reinterpret_cast<hartExecutionContext*>(buffer);
+  TEST_VLOG(0) << "*** Error Context Start (Queue ID: " << queueId << ")***";
+  TEST_VLOG(0) << "  * RUNTIME CONTEXT *";
+  printKernelRtContext(tagId);
+  TEST_VLOG(0) << "--------------------------";
   for (int shireID = 0; shireID < 32; shireID++) {
     if (shireMask & (1 << shireID)) {
       // print the context of the first hart in a shire only
       auto minionHartID = shireID * 64;
+      TEST_VLOG(0) << "  * DEVICE CONTEXT *";
       TEST_VLOG(0) << "* HartID: " << context[minionHartID].hart_id;
-      TEST_VLOG(0) << "* Hart cycles: " << context[minionHartID].cycles;
-      TEST_VLOG(0) << "* epc: 0x" << std::hex << context[minionHartID].sepc;
-      TEST_VLOG(0) << "* status: 0x" << std::hex << context[minionHartID].sstatus;
-      TEST_VLOG(0) << "* tval: 0x" << std::hex << context[minionHartID].stval;
-      TEST_VLOG(0) << "* cause: 0x" << std::hex << context[minionHartID].scause;
-      TEST_VLOG(0) << "* gpr[x1]  : ra    : 0x" << std::hex << context[minionHartID].gpr[0];
-      TEST_VLOG(0) << "* gpr[x3]  : gp    : 0x" << std::hex << context[minionHartID].gpr[1];
-      TEST_VLOG(0) << "* gpr[x5]  : t0    : 0x" << std::hex << context[minionHartID].gpr[2];
-      TEST_VLOG(0) << "* gpr[x6]  : t1    : 0x" << std::hex << context[minionHartID].gpr[3];
-      TEST_VLOG(0) << "* gpr[x7]  : t2    : 0x" << std::hex << context[minionHartID].gpr[4];
-      TEST_VLOG(0) << "* gpr[x8]  : s0/fp : 0x" << std::hex << context[minionHartID].gpr[5];
-      TEST_VLOG(0) << "* gpr[x9]  : s1    : 0x" << std::hex << context[minionHartID].gpr[6];
-      for (auto i = 0; i < 8; i++) {
-        auto reg = i + 7;
-        TEST_VLOG(0) << "* gpr[x" << (reg + 3) << "] : a" << i << "    : 0x" << std::hex
-                     << context[minionHartID].gpr[reg];
-      }
-      for (auto i = 0; i < 10; i++) {
-        auto reg = i + 15;
-        if (i < 8) {
-          TEST_VLOG(0) << "* gpr[x" << (reg + 3) << "] : s" << (i + 2) << "    : 0x" << std::hex
-                       << context[minionHartID].gpr[reg];
+      if (context[minionHartID].type == CM_CONTEXT_TYPE_USER_KERNEL_ERROR) {
+        TEST_VLOG(0) << "* Type: User Kernel Error";
+        TEST_VLOG(0) << "* Error cycles: " << context[minionHartID].cycles;
+        TEST_VLOG(0) << "* Error code: " << context[minionHartID].user_error;
+      } else {
+        if (context[minionHartID].type == CM_CONTEXT_TYPE_HANG) {
+          TEST_VLOG(0) << "* Type: Compute Minion Hang";
+        } else if (context[minionHartID].type == CM_CONTEXT_TYPE_UMODE_EXCEPTION) {
+          TEST_VLOG(0) << "* Type: U-mode Exception";
+        } else if (context[minionHartID].type == CM_CONTEXT_TYPE_SMODE_EXCEPTION) {
+          TEST_VLOG(0) << "* Type: S-mode Exception";
+        } else if (context[minionHartID].type == CM_CONTEXT_TYPE_SYSTEM_ABORT) {
+          TEST_VLOG(0) << "* Type: System Abort";
+        } else if (context[minionHartID].type == CM_CONTEXT_TYPE_SELF_ABORT) {
+          TEST_VLOG(0) << "* Type: Kernel Self Abort";
         } else {
-          TEST_VLOG(0) << "* gpr[x" << (reg + 3) << "] : s" << (i + 2) << "   : 0x" << std::hex
+          TEST_VLOG(0) << "* Type: Undefined";
+        }
+        TEST_VLOG(0) << "* Error cycles: " << context[minionHartID].cycles;
+        TEST_VLOG(0) << "* epc: 0x" << std::hex << context[minionHartID].sepc;
+        TEST_VLOG(0) << "* status: 0x" << std::hex << context[minionHartID].sstatus;
+        TEST_VLOG(0) << "* tval: 0x" << std::hex << context[minionHartID].stval;
+        TEST_VLOG(0) << "* cause: 0x" << std::hex << context[minionHartID].scause;
+        TEST_VLOG(0) << "* gpr[x1]  : ra    : 0x" << std::hex << context[minionHartID].gpr[0];
+        TEST_VLOG(0) << "* gpr[x2]  : sp    : 0x" << std::hex << context[minionHartID].gpr[1];
+        TEST_VLOG(0) << "* gpr[x3]  : gp    : 0x" << std::hex << context[minionHartID].gpr[2];
+        TEST_VLOG(0) << "* gpr[x4]  : tp    : 0x" << std::hex << context[minionHartID].gpr[3];
+        TEST_VLOG(0) << "* gpr[x5]  : t0    : 0x" << std::hex << context[minionHartID].gpr[4];
+        TEST_VLOG(0) << "* gpr[x6]  : t1    : 0x" << std::hex << context[minionHartID].gpr[5];
+        TEST_VLOG(0) << "* gpr[x7]  : t2    : 0x" << std::hex << context[minionHartID].gpr[6];
+        TEST_VLOG(0) << "* gpr[x8]  : s0/fp : 0x" << std::hex << context[minionHartID].gpr[7];
+        TEST_VLOG(0) << "* gpr[x9]  : s1    : 0x" << std::hex << context[minionHartID].gpr[8];
+        for (auto i = 0; i < 8; i++) {
+          auto reg = i + 9;
+          TEST_VLOG(0) << "* gpr[x" << (reg + 1) << "] : a" << i << "    : 0x" << std::hex
                        << context[minionHartID].gpr[reg];
         }
+        for (auto i = 0; i < 10; i++) {
+          auto reg = i + 17;
+          if (i < 8) {
+            TEST_VLOG(0) << "* gpr[x" << (reg + 1) << "] : s" << (i + 2) << "    : 0x" << std::hex
+                         << context[minionHartID].gpr[reg];
+          } else {
+            TEST_VLOG(0) << "* gpr[x" << (reg + 1) << "] : s" << (i + 2) << "   : 0x" << std::hex
+                         << context[minionHartID].gpr[reg];
+          }
+        }
+        TEST_VLOG(0) << "* gpr[x28] : t3    : 0x" << std::hex << context[minionHartID].gpr[27];
+        TEST_VLOG(0) << "* gpr[x29] : t4    : 0x" << std::hex << context[minionHartID].gpr[28];
+        TEST_VLOG(0) << "* gpr[x30] : t5    : 0x" << std::hex << context[minionHartID].gpr[29];
+        TEST_VLOG(0) << "* gpr[x31] : t6    : 0x" << std::hex << context[minionHartID].gpr[30];
       }
-      TEST_VLOG(0) << "* gpr[x28] : t3    : 0x" << std::hex << context[minionHartID].gpr[25];
-      TEST_VLOG(0) << "* gpr[x29] : t4    : 0x" << std::hex << context[minionHartID].gpr[26];
-      TEST_VLOG(0) << "* gpr[x30] : t5    : 0x" << std::hex << context[minionHartID].gpr[27];
-      TEST_VLOG(0) << "* gpr[x31] : t6    : 0x" << std::hex << context[minionHartID].gpr[28];
       TEST_VLOG(0) << "--------------------------";
     }
   }

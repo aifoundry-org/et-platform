@@ -71,7 +71,8 @@ public:
   static std::unique_ptr<IDevOpsApiCmd>
   createKernelLaunchCmd(device_ops_api::cmd_flags_e flag, uint64_t codeStartAddr, uint64_t ptrToArgs,
                         uint64_t exceptionBuffer, uint64_t shireMask, uint64_t traceBuffer, void* argumentPayload,
-                        uint32_t sizeOfArgPayload, device_ops_api::dev_ops_api_kernel_launch_response_e status);
+                        uint32_t sizeOfArgPayload, device_ops_api::dev_ops_api_kernel_launch_response_e status,
+                        std::string kernelName = "");
   static std::unique_ptr<IDevOpsApiCmd>
   createKernelAbortCmd(device_ops_api::cmd_flags_e flag, device_ops_api::tag_id_t kernelToAbortTagId,
                        device_ops_api::dev_ops_api_kernel_abort_response_e status);
@@ -210,14 +211,18 @@ public:
   size_t getCmdSize() override;
   device_ops_api::tag_id_t getCmdTagId() override;
   CmdType whoAmI() override;
+  uint16_t getCmdFlags();
+  uint64_t getShireMask();
+  std::string getKernelName();
   explicit KernelLaunchCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, uint64_t codeStartAddr,
                            uint64_t ptrToArgs, uint64_t exceptionBuffer, uint64_t shireMask, uint64_t traceBuffer,
-                           void* argumentPayload, uint32_t sizeOfArgPayload);
+                           void* argumentPayload, uint32_t sizeOfArgPayload, std::string kernelName);
   ~KernelLaunchCmd();
 
 private:
   device_ops_api::device_ops_kernel_launch_cmd_t* cmd_;
   std::vector<uint8_t> cmdMem_;
+  std::string kernelName_;
 };
 
 class KernelAbortCmd : public IDevOpsApiCmd {

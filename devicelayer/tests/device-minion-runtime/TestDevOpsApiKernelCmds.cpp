@@ -290,16 +290,19 @@ void TestDevOpsApiKernelCmds::launchExceptionKernel_NegativeTesting_4_6(uint64_t
   std::vector<uint64_t> kernelEntryAddr(queueCount, 0);
   std::vector<uint64_t> devAddrkernelException(queueCount, 0);
   std::vector<std::vector<uint8_t>> resultFromDevice;
+  std::vector<device_ops_api::tag_id_t> kernelLaunchTagId;
 
   for (uint8_t queueId = 0; queueId < queueCount; queueId++) {
     // allocate 1MB space for kernel error/exception buffer
     devAddrkernelException[queueId] = getDmaWriteAddr(deviceIdx, 0x100000);
     loadElfToDevice(deviceIdx, reader[queueId], elfPath, stream, kernelEntryAddr[queueId]);
     // Kernel launch
-    stream.push_back(
-      IDevOpsApiCmd::createKernelLaunchCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kernelEntryAddr[queueId],
-                                           0 /* No kernel args */, devAddrkernelException[queueId], shire_mask, 0, NULL,
-                                           0, device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_EXCEPTION));
+    auto kernelCmd = IDevOpsApiCmd::createKernelLaunchCmd(
+      device_ops_api::CMD_FLAGS_BARRIER_ENABLE, kernelEntryAddr[queueId], 0 /* No kernel args */,
+      devAddrkernelException[queueId], shire_mask, 0, NULL, 0,
+      device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_EXCEPTION, "exception.elf");
+    kernelLaunchTagId.push_back(kernelCmd->getCmdTagId());
+    stream.push_back(std::move(kernelCmd));
 
     // pull the exception buffer from device
     std::vector<uint8_t> readBuf(0x100000, 0);
@@ -315,9 +318,10 @@ void TestDevOpsApiKernelCmds::launchExceptionKernel_NegativeTesting_4_6(uint64_t
   }
   executeAsync();
 
-  // print the exception buffer scause for the first shire
-  for (uint8_t queueId = 0; queueId < queueCount; queueId++) {
-    printErrorContext(reinterpret_cast<void*>(resultFromDevice[queueId].data()), 0x1);
+  // print the exception buffer for the first two shires
+  for (int queueId = 0; queueId < queueCount; queueId++) {
+    printErrorContext(queueId, reinterpret_cast<void*>(resultFromDevice[queueId].data()), 0x3,
+                      kernelLaunchTagId[queueId]);
   }
 
   TEST_VLOG(1) << "====> EXCEPTION KERNEL DONE <====" << std::endl;
@@ -334,21 +338,23 @@ void TestDevOpsApiKernelCmds::abortHangKernel_PositiveTesting_4_10(uint64_t shir
   std::vector<uint64_t> kernelEntryAddr(queueCount, 0);
   std::vector<uint64_t> devAddrkernelException(queueCount, 0);
   std::vector<std::vector<uint8_t>> resultFromDevice;
+  std::vector<device_ops_api::tag_id_t> kernelLaunchTagId;
 
   for (uint8_t queueId = 0; queueId < queueCount; queueId++) {
     // allocate 1MB space for kernel error/exception buffer
     devAddrkernelException[queueId] = getDmaWriteAddr(deviceIdx, 0x100000);
     loadElfToDevice(deviceIdx, reader[queueId], elfPath, stream, kernelEntryAddr[queueId]);
     // Kernel launch
-    auto kernelCmd =
-      IDevOpsApiCmd::createKernelLaunchCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kernelEntryAddr[queueId],
-                                           0 /* No kernel args */, devAddrkernelException[queueId], shire_mask, 0, NULL,
-                                           0, device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED);
-    auto kernelLaunchTagId = kernelCmd->getCmdTagId();
+    auto kernelCmd = IDevOpsApiCmd::createKernelLaunchCmd(
+      device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kernelEntryAddr[queueId], 0 /* No kernel args */,
+      devAddrkernelException[queueId], shire_mask, 0, NULL, 0,
+      device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED, "hang.elf");
+    kernelLaunchTagId.push_back(kernelCmd->getCmdTagId());
     stream.push_back(std::move(kernelCmd));
 
     // Kernel Abort
-    stream.push_back(IDevOpsApiCmd::createKernelAbortCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kernelLaunchTagId,
+    stream.push_back(IDevOpsApiCmd::createKernelAbortCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                         kernelLaunchTagId[queueId],
                                                          device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS));
 
     // pull the exception buffer from device
@@ -365,9 +371,10 @@ void TestDevOpsApiKernelCmds::abortHangKernel_PositiveTesting_4_10(uint64_t shir
   }
   executeAsync();
 
-  // print the exception buffer scause for the first two shires
-  for (uint8_t queueId = 0; queueId < queueCount; queueId++) {
-    printErrorContext(reinterpret_cast<void*>(resultFromDevice[queueId].data()), 0x3);
+  // print the exception buffer for the first two shires
+  for (int queueId = 0; queueId < queueCount; queueId++) {
+    printErrorContext(queueId, reinterpret_cast<void*>(resultFromDevice[queueId].data()), 0x3,
+                      kernelLaunchTagId[queueId]);
   }
 
   TEST_VLOG(1) << "====> HANG KERNEL DONE <====" << std::endl;

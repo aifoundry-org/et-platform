@@ -363,24 +363,24 @@ device_ops_api::tag_id_t DmaReadListCmd::getCmdTagId() {
 /*
  * Device Ops Api Kernel Launch command creation and handling
  */
-std::unique_ptr<IDevOpsApiCmd>
-IDevOpsApiCmd::createKernelLaunchCmd(device_ops_api::cmd_flags_e flag, uint64_t codeStartAddr, uint64_t ptrToArgs,
-                                     uint64_t exceptionBuffer, uint64_t shireMask, uint64_t traceBuffer,
-                                     void* argumentPayload, uint32_t sizeOfArgPayload,
-                                     device_ops_api::dev_ops_api_kernel_launch_response_e status) {
+std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createKernelLaunchCmd(
+  device_ops_api::cmd_flags_e flag, uint64_t codeStartAddr, uint64_t ptrToArgs, uint64_t exceptionBuffer,
+  uint64_t shireMask, uint64_t traceBuffer, void* argumentPayload, uint32_t sizeOfArgPayload,
+  device_ops_api::dev_ops_api_kernel_launch_response_e status, std::string kernelName) {
   auto tagId = tagId_++;
   if (!addRspEntry(tagId, status)) {
     return nullptr;
   }
   return std::make_unique<KernelLaunchCmd>(tagId, flag, codeStartAddr, ptrToArgs, exceptionBuffer, shireMask,
-                                           traceBuffer, argumentPayload, sizeOfArgPayload);
+                                           traceBuffer, argumentPayload, sizeOfArgPayload, kernelName);
 }
 
 KernelLaunchCmd::KernelLaunchCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
                                  uint64_t codeStartAddr, uint64_t ptrToArgs, uint64_t exceptionBuffer,
                                  uint64_t shireMask, uint64_t traceBuffer, void* argumentPayload,
-                                 uint32_t sizeOfArgPayload) {
+                                 uint32_t sizeOfArgPayload, std::string kernelName) {
   cmdMem_.resize(sizeof(*cmd_) + sizeOfArgPayload);
+  kernelName_ = kernelName;
   cmd_ = reinterpret_cast<device_ops_api::device_ops_kernel_launch_cmd_t*>(cmdMem_.data());
   cmd_->command_info.cmd_hdr.tag_id = tagId;
   cmd_->command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD;
@@ -416,6 +416,18 @@ size_t KernelLaunchCmd::getCmdSize() {
 
 device_ops_api::tag_id_t KernelLaunchCmd::getCmdTagId() {
   return cmd_->command_info.cmd_hdr.tag_id;
+}
+
+std::string KernelLaunchCmd::getKernelName() {
+  return kernelName_;
+}
+
+uint16_t KernelLaunchCmd::getCmdFlags() {
+  return cmd_->command_info.cmd_hdr.flags;
+}
+
+uint64_t KernelLaunchCmd::getShireMask() {
+  return cmd_->shire_mask;
 }
 
 /*
