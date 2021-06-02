@@ -27,33 +27,37 @@ int8_t CM_To_MM_Iface_Unicast_Send(uint64_t ms_thread_id, uint64_t cb_idx, const
     return status;
 }
 
-int8_t CM_To_MM_Save_Execution_Context(execution_context_t *context_buffer, uint64_t kernel_pending_shires,
+int8_t CM_To_MM_Save_Execution_Context(execution_context_t *context_buffer, uint64_t type,
     uint64_t hart_id, uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t sstatus, uint64_t *const reg)
 {
-    context_buffer[hart_id].kernel_pending_shires = kernel_pending_shires;
-    context_buffer[hart_id].cycles = PMC_Get_Current_Cycles();
-    context_buffer[hart_id].hart_id = hart_id;
-    context_buffer[hart_id].scause = scause;
-    context_buffer[hart_id].sepc = sepc;
-    context_buffer[hart_id].stval = stval;
-    context_buffer[hart_id].sstatus = sstatus;
+    const uint64_t buffer_index = (hart_id < 2048U) ? hart_id: (hart_id - 32U);
+    context_buffer[buffer_index].type = type;
+    context_buffer[buffer_index].cycles = PMC_Get_Current_Cycles();
+    context_buffer[buffer_index].hart_id = hart_id;
+    context_buffer[buffer_index].scause = scause;
+    context_buffer[buffer_index].sepc = sepc;
+    context_buffer[buffer_index].stval = stval;
+    context_buffer[buffer_index].sstatus = sstatus;
 
-    /* Copy all the GPRs */
-    memcpy(context_buffer[hart_id].gpr, reg, sizeof(uint64_t) * 29);
+    /* Copy all the GPRs except x0 (hardwired to zero) */
+    memcpy(context_buffer[buffer_index].gpr, &reg[1], sizeof(uint64_t) * 31);
 
     /* Evict the data to L3 */
-    ETSOC_MEM_EVICT(&context_buffer[hart_id], sizeof(execution_context_t), to_L3)
+    ETSOC_MEM_EVICT(&context_buffer[buffer_index], sizeof(execution_context_t), to_L3)
 
     return 0;
 }
 
-int8_t CM_To_MM_Save_Kernel_Error(kernel_execution_error_t *error_buffer, uint64_t shire_id, int64_t kernel_error_code)
+int8_t CM_To_MM_Save_Kernel_Error(execution_context_t *context_buffer, uint64_t hart_id, int64_t kernel_error_code)
 {
-    error_buffer[shire_id].error_code = kernel_error_code;
-    error_buffer[shire_id].shire_id = shire_id;
+    const uint64_t buffer_index = (hart_id < 2048U) ? hart_id: (hart_id - 32U);
+    context_buffer[buffer_index].type = CM_CONTEXT_TYPE_USER_KERNEL_ERROR;
+    context_buffer[buffer_index].cycles = PMC_Get_Current_Cycles();
+    context_buffer[buffer_index].hart_id = hart_id;
+    context_buffer[buffer_index].user_error = kernel_error_code;
 
     /* Evict the data to L3 */
-    ETSOC_MEM_EVICT(&error_buffer[shire_id], sizeof(kernel_execution_error_t), to_L3)
+    ETSOC_MEM_EVICT(&context_buffer[buffer_index], sizeof(execution_context_t), to_L3)
 
     return 0;
 }

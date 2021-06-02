@@ -30,9 +30,9 @@ void swi_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const
         /* If the kernel exception buffer is available */
         if(exception_buffer != 0)
         {
-            /* Save the execution context in the buffer provided (self abort case) */
+            /* Save the execution context in the buffer provided (system abort case) */
             CM_To_MM_Save_Execution_Context((execution_context_t*)exception_buffer,
-                kernel_launch_get_pending_shire_mask(), get_hart_id(), scause, sepc,
+                CM_CONTEXT_TYPE_SYSTEM_ABORT, get_hart_id(), scause, sepc,
                 stval, sstatus, reg);
         }
 

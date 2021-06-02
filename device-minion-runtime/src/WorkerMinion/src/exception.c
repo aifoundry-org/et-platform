@@ -26,25 +26,35 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
 
     asm volatile("csrr %0, sstatus" : "=r"(sstatus));
     user_mode = ((sstatus & 0x100U) >> 8U) == 0;
-    
+
     /* Get the kernel exception buffer */
     uint64_t exception_buffer = kernel_info_get_exception_buffer(shire_id);
 
-    /* If the kernel exception buffer is available */
-    if(exception_buffer != 0)
-    {
-        /* Save the execution context in the buffer provided */
-        CM_To_MM_Save_Execution_Context((execution_context_t*)exception_buffer,
-            kernel_launch_get_pending_shire_mask(), hart_id, scause, sepc, stval, sstatus, reg);
-    }
-
     if (!user_mode)
     {
+        /* If the kernel exception buffer is available */
+        if(exception_buffer != 0)
+        {
+            /* Save the execution context in the buffer provided */
+            CM_To_MM_Save_Execution_Context((execution_context_t*)exception_buffer,
+                CM_CONTEXT_TYPE_SMODE_EXCEPTION, hart_id, scause, sepc, stval, sstatus, reg);
+        }
+
         log_write(LOG_LEVEL_CRITICAL,
             "H%04" PRId64 ": Worker S-mode exception: scause=0x%" PRIx64 ", sepc=0x%" PRIx64 ", stval=0x%" PRIx64 "\n",
             hart_id, scause, sepc, stval);
 
         send_exception_message(scause, sepc, stval, sstatus, hart_id, shire_id, user_mode);
+    }
+    else /* U-mode exception */
+    {
+        /* If the kernel exception buffer is available */
+        if(exception_buffer != 0)
+        {
+            /* Save the execution context in the buffer provided */
+            CM_To_MM_Save_Execution_Context((execution_context_t*)exception_buffer,
+                CM_CONTEXT_TYPE_UMODE_EXCEPTION, hart_id, scause, sepc, stval, sstatus, reg);
+        }
     }
 
     /* First hart in the shire that took exception will do a self abort

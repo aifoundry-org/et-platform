@@ -10,6 +10,7 @@
 #include "device-common/macros.h"
 #include "message_types.h"
 #include "cm_to_mm_iface.h"
+#include "pmu.h"
 #include "printf.h"
 #include "sync.h"
 #include "syscall_internal.h"
@@ -170,20 +171,6 @@ static inline uint64_t kernel_info_set_thread_completed(uint32_t shire_id, uint6
 bool kernel_info_has_thread_completed(uint32_t shire_id, uint64_t thread_id)
 {
     return (atomic_load_local_64(&kernel_launch_info[shire_id].completed_threads) >> thread_id) & 1;
-}
-
-static inline uint64_t kernel_info_get_error_buffer(uint32_t shire_id)
-{
-    uint64_t buffer = atomic_load_local_64(&kernel_launch_info[shire_id].exception_buffer);
-
-    if (buffer != 0ULL)
-    {
-        /* Error buffer starts from the end of exception contexts for all the harts in compute shires */
-        buffer += sizeof(execution_context_t) *
-            (NUM_COMPUTE_SHIRES * HARTS_PER_SHIRE + MASTER_SHIRE_COMPUTE_HARTS);
-    }
-
-    return buffer;
 }
 
 uint64_t kernel_info_get_exception_buffer(uint32_t shire_id)
@@ -379,8 +366,14 @@ static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t ke
     uint64_t kernel_launch_flags, uint64_t kernel_exception_buffer)
 {
     const uint32_t shire_id = get_shire_id();
+    const uint64_t hart_id = get_hart_id();
     const uint32_t minion_mask = (shire_id == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
     const uint64_t first_worker = (shire_id == MASTER_SHIRE) ? 32 : 0;
+
+    // First core in each neighborhood resets the PMC counter 3
+    if ((hart_id % 16 == 0) || (hart_id % 16 == 1)) {
+        PMC_RESET_CYCLES_COUNTER;
+    }
 
     // Enable Thread 1, init L1, invalidate I-cache
     //   arg1 = enable all worker thread 1s of the shire
@@ -389,7 +382,7 @@ static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t ke
 
     // Second worker HART (first minion thread 1) in the shire
     // Thread 0s have more init to do than thread 1s, so use a thread 1 for per-shire init
-    if ((get_hart_id() % 64U) == (first_worker + 1)) {
+    if ((hart_id % 64U) == (first_worker + 1)) {
 
         // Initialize the kernel execution status
         kernel_info_set_attributes(shire_id, kw_base_id, slot_index, kernel_exception_buffer);
@@ -418,7 +411,7 @@ static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t ke
     if (kernel_launch_flags & KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH) {
         // First Thread of first Minion of Shires 0-31 evict their L3 chunk
         // NOTE: This will only evict the whole L3 if all the 32 Shires participate in the launch
-        if ((get_hart_id() % 64U == 0) && (shire_id < 32))
+        if ((hart_id % 64U == 0) && (shire_id < 32))
             syscall(SYSCALL_EVICT_L3_INT, 0, 0, 0);
     }
 
@@ -510,14 +503,14 @@ void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t 
             /* Save the kernel launch status for sending response to MM */
             kernel_info_set_execution_status(shire_id, KERNEL_COMPLETE_STATUS_ERROR);
 
-            /* Get the kernel error buffer */
-            uint64_t error_buffer = kernel_info_get_error_buffer(shire_id);
+            /* Get the kernel exception buffer */
+            uint64_t exception_buffer = kernel_info_get_exception_buffer(shire_id);
 
-            /* If the kernel error buffer is available */
-            if (error_buffer != 0)
+            /* If the kernel exception buffer is available */
+            if (exception_buffer != 0)
             {
-                CM_To_MM_Save_Kernel_Error((kernel_execution_error_t*)error_buffer,
-                    shire_id, kernel_ret_val);
+                CM_To_MM_Save_Kernel_Error((execution_context_t *)exception_buffer,
+                    get_hart_id(), kernel_ret_val);
             }
         }
     }

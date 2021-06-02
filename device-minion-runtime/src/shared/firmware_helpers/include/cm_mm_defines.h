@@ -32,27 +32,32 @@
 */
 #define CM_ERROR_KERNEL_LAUNCH                -2
 
+/*! \enum cm_context_type_e
+    \brief An enum that provides the types of CM execution contexts that can be saved.
+*/
+typedef enum {
+    CM_CONTEXT_TYPE_HANG = 0,
+    CM_CONTEXT_TYPE_UMODE_EXCEPTION,
+    CM_CONTEXT_TYPE_SMODE_EXCEPTION,
+    CM_CONTEXT_TYPE_SYSTEM_ABORT,
+    CM_CONTEXT_TYPE_SELF_ABORT,
+    CM_CONTEXT_TYPE_USER_KERNEL_ERROR
+} cm_context_type_e;
+
 /*! \struct execution_context_t
     \brief A structure that is used to store the execution context of hart
     when a exception occurs or abort is initiated.
 */
 typedef struct {
-    uint64_t kernel_pending_shires;
+    uint64_t type;
     uint64_t cycles;
     uint64_t hart_id;
     uint64_t sepc;
     uint64_t sstatus;
     uint64_t stval;
     uint64_t scause;
-    uint64_t gpr[29];
+    int64_t user_error;
+    uint64_t gpr[31];
 } __attribute__((packed, aligned(64))) execution_context_t;
-
-/*! \struct kernel_execution_error_t
-    \brief A structure that is used to store the kernel execution error code per shire (if any)
-*/
-typedef struct {
-    uint64_t shire_id;
-    int64_t error_code;
-} __attribute__((packed, aligned(64))) kernel_execution_error_t;
 
 #endif
