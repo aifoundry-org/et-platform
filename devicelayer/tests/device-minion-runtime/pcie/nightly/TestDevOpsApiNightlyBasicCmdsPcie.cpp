@@ -23,22 +23,28 @@ protected:
   }
 };
 
-TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBack3kSameCmdsSingleDeviceSingleQueue_1_3) {
-  backToBackSameCmdsSingleDeviceSingleQueue_1_1(3000);
+TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBackSame3kCmdsSingleDeviceSingleQueue_1_1) {
+  bool singleDevice = true;
+  bool singleQueue = true;
+  backToBackSameCmds(singleDevice, singleQueue, 3000);
 }
 
-TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBack3kSameCmdsSingleDeviceMultiQueue_1_4) {
-  backToBackSameCmdsSingleDeviceMultiQueue_1_2(3000);
+TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBackSame3kCmdsSingleDeviceMultiQueue_1_2) {
+  bool singleDevice = true;
+  bool singleQueue = false;
+  backToBackSameCmds(singleDevice, singleQueue, 3000);
 }
 
-/* this test takes too long to run in Zebu - hence will only limit to 9K with multi queue
-TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBack9kDiffCmdsSingleQueue_1_5) {
-  backToBackDiffCmdsSingleQueue_1_3(9000);
+TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBackDiff3kCmdsSingleDeviceSingleQueue_1_3) {
+  bool singleDevice = true;
+  bool singleQueue = true;
+  backToBackDiffCmds(singleDevice, singleQueue, 3000);
 }
-*/
 
-TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBack3kDiffCmdsSingleDeviceMultiQueue_1_6) {
-  backToBackDiffCmdsSingleDeviceMultiQueue_1_4(3000);
+TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBackDiff3kCmdsSingleDeviceMultiQueue_1_4) {
+  bool singleDevice = true;
+  bool singleQueue = false;
+  backToBackDiffCmds(singleDevice, singleQueue, 3000);
 }
 
 int main(int argc, char** argv) {

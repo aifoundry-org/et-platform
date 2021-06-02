@@ -86,59 +86,120 @@ endif()
 create_test(
     TARGET     TestDevOpenClosePcie
     SOURCES    pcie/basic/TestDevOpenClosePcie.cpp
-    ARGS       --loopback_driver=${LOOPBACK_DRIVER}
-    PROPERTIES "LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;UNIT;LABELS;LOOPBACK;TIMEOUT;120"
+    ARGS       ""
+    PROPERTIES "LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;UNIT;TIMEOUT;120"
 )
 
 create_test(
     TARGET     TestDevOpsApiFuncBasicCmdsPcie
     SOURCES    pcie/basic/TestDevOpsApiFuncBasicCmdsPcie.cpp TestDevOpsApiBasicCmds.cpp
-    ARGS       --loopback_driver=${LOOPBACK_DRIVER}
-    PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;SYSTEM;LABELS;LOOPBACK;TIMEOUT;120"
+    ARGS       ""
+    PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;SYSTEM;TIMEOUT;120"
 )
 
 create_test(
     TARGET     TestDevOpsApiFuncDmaCmdsPcie
     SOURCES    pcie/basic/TestDevOpsApiFuncDmaCmdsPcie.cpp TestDevOpsApiDmaCmds.cpp
-    ARGS       --loopback_driver=${LOOPBACK_DRIVER}
-    PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;SYSTEM;LABELS;LOOPBACK;TIMEOUT;360"
+    ARGS       ""
+    PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;SYSTEM;TIMEOUT;360"
 )
 
 create_test(
     TARGET     TestDevOpsApiFuncKernelCmdsPcie
     SOURCES    pcie/basic/TestDevOpsApiFuncKernelCmdsPcie.cpp TestDevOpsApiKernelCmds.cpp
-    ARGS       --kernels_dir=${KERNELS_DIR} --loopback_driver=${LOOPBACK_DRIVER}
-    PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;SYSTEM;LABELS;LOOPBACK;TIMEOUT;120"
+    ARGS       --kernels_dir=${KERNELS_DIR}
+    PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;SYSTEM;TIMEOUT;120"
 )
 
 create_test(
     TARGET     TestDevOpsApiFuncTraceCmdsPcie
     SOURCES    pcie/basic/TestDevOpsApiFuncTraceCmdsPcie.cpp TestDevOpsApiTraceCmds.cpp
-    ARGS       --kernels_dir=${KERNELS_DIR}
+    ARGS       ""
     PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;SYSTEM;TIMEOUT;120"
 )
 
 create_test(
     TARGET     TestDevOpsApiStressBasicCmdsPcie
     SOURCES    pcie/basic/TestDevOpsApiStressBasicCmdsPcie.cpp TestDevOpsApiBasicCmds.cpp
-    ARGS       --loopback_driver=${LOOPBACK_DRIVER}
-    PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;LABELS;LOOPBACK;TIMEOUT;240"
+    ARGS       ""
+    PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;240"
 )
 
 create_test(
     TARGET     TestDevOpsApiStressDmaCmdsPcie
     SOURCES    pcie/basic/TestDevOpsApiStressDmaCmdsPcie.cpp TestDevOpsApiDmaCmds.cpp
-    ARGS       --loopback_driver=${LOOPBACK_DRIVER}
-    PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;LABELS;LOOPBACK;TIMEOUT;240"
+    ARGS       ""
+    PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;240"
 )
 
 create_test(
     TARGET     TestDevOpsApiStressKernelCmdsPcie
     SOURCES    pcie/basic/TestDevOpsApiStressKernelCmdsPcie.cpp TestDevOpsApiKernelCmds.cpp
-    ARGS       --kernels_dir=${KERNELS_DIR} --loopback_driver=${LOOPBACK_DRIVER}
-    PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;LABELS;LOOPBACK;TIMEOUT;240"
+    ARGS       --kernels_dir=${KERNELS_DIR}
+    PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;240"
 )
 
+#########################
+# LOOPBACK DRIVER TESTS #
+#########################
+if(BUILD_PCIE_LOOPBACK_DRIVER)
+    set(LOOPBACK_DRIVER "true")
+    create_test(
+        TARGET     TestDevOpenCloseLoopbackPcie
+        SOURCES    pcie/loopback/TestDevOpenCloseLoopbackPcie.cpp
+        ARGS       --loopback_driver=${LOOPBACK_DRIVER}
+        PROPERTIES "LABELS;LOOPBACK;LABELS;PCIE;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;UNIT;TIMEOUT;120"
+    )
+
+    create_test(
+        TARGET     TestDevOpsApiLoopbackBasicCmdsPcie
+        SOURCES    pcie/loopback/TestDevOpsApiLoopbackBasicCmdsPcie.cpp TestDevOpsApiBasicCmds.cpp
+        ARGS       --loopback_driver=${LOOPBACK_DRIVER}
+        PROPERTIES "LABELS;LOOPBACK;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;120"
+    )
+
+    create_test(
+        TARGET     TestDevOpsApiLoopbackDmaCmdsPcie
+        SOURCES    pcie/loopback/TestDevOpsApiLoopbackDmaCmdsPcie.cpp TestDevOpsApiDmaCmds.cpp
+        ARGS       --loopback_driver=${LOOPBACK_DRIVER}
+        PROPERTIES "LABELS;LOOPBACK;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;120"
+    )
+
+    create_test(
+        TARGET     TestDevOpsApiLoopbackKernelCmdsPcie
+        SOURCES    pcie/loopback/TestDevOpsApiLoopbackKernelCmdsPcie.cpp TestDevOpsApiKernelCmds.cpp
+        ARGS       --kernels_dir=${KERNELS_DIR} --loopback_driver=${LOOPBACK_DRIVER}
+        PROPERTIES "LABELS;LOOPBACK;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;120"
+    )
+endif()
+
+#################
+# NIGHTLY TESTS #
+#################
+create_test(
+    TARGET     TestDevOpsApiNightlyBasicCmdsPcie
+    SOURCES    pcie/nightly/TestDevOpsApiNightlyBasicCmdsPcie.cpp TestDevOpsApiBasicCmds.cpp
+    ARGS       ""
+    PROPERTIES "LABELS;NIGHTLY;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;900"
+)
+
+create_test(
+    TARGET     TestDevOpsApiNightlyDmaCmdsPcie
+    SOURCES    pcie/nightly/TestDevOpsApiNightlyDmaCmdsPcie.cpp TestDevOpsApiDmaCmds.cpp
+    ARGS       ""
+    PROPERTIES "LABELS;NIGHTLY;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;240"
+)
+
+create_test(
+    TARGET     TestDevOpsApiNightlyKernelCmdsPcie
+    SOURCES    pcie/nightly/TestDevOpsApiNightlyKernelCmdsPcie.cpp TestDevOpsApiKernelCmds.cpp
+    ARGS       --kernels_dir=${KERNELS_DIR}
+    PROPERTIES "LABELS;NIGHTLY;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;600"
+)
+
+#################
+# SYSEMU TESTS #
+#################
 create_test(
     TARGET     TestDevOpenCloseSysEmu
     SOURCES    sysemu/TestDevOpenCloseSysEmu.cpp
@@ -193,28 +254,4 @@ create_test(
     SOURCES    sysemu/TestDevOpsApiStressKernelCmdsSysEmu.cpp TestDevOpsApiKernelCmds.cpp
     ARGS       --kernels_dir=${KERNELS_DIR}
     PROPERTIES "LABELS;SYSEMU;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;500"
-)
-
-#################
-# NIGHTLY TESTS #
-#################
-create_test(
-    TARGET     TestDevOpsApiNightlyBasicCmdsPcie
-    SOURCES    pcie/nightly/TestDevOpsApiNightlyBasicCmdsPcie.cpp TestDevOpsApiBasicCmds.cpp
-    ARGS       ""
-    PROPERTIES "LABELS;NIGHTLY;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;900"
-)
-
-create_test(
-    TARGET     TestDevOpsApiNightlyDmaCmdsPcie
-    SOURCES    pcie/nightly/TestDevOpsApiNightlyDmaCmdsPcie.cpp TestDevOpsApiDmaCmds.cpp
-    ARGS       ""
-    PROPERTIES "LABELS;NIGHTLY;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;240"
-)
-
-create_test(
-    TARGET     TestDevOpsApiNightlyKernelCmdsPcie
-    SOURCES    pcie/nightly/TestDevOpsApiNightlyKernelCmdsPcie.cpp TestDevOpsApiKernelCmds.cpp
-    ARGS       --kernels_dir=${KERNELS_DIR}
-    PROPERTIES "LABELS;NIGHTLY;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;600"
 )

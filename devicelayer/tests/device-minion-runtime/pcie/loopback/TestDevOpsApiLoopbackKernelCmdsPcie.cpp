@@ -8,13 +8,13 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "TestDevOpsApiBasicCmds.h"
+#include "TestDevOpsApiKernelCmds.h"
 
 /*
  * Test Labels: PCIE, OPS, FUNCTIONAL, SYSTEM
  */
 
-class TestDevOpsApiStressBasicCmdsPcie : public TestDevOpsApiBasicCmds {
+class TestDevOpsApiLoopbackKernelCmdsPcie : public TestDevOpsApiKernelCmds {
 protected:
   void SetUp() override {
     execTimeout_ = std::chrono::seconds(FLAGS_exec_timeout);
@@ -23,28 +23,20 @@ protected:
   }
 };
 
-TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackSame1kCmdsSingleDeviceSingleQueue_1_1) {
-  bool singleDevice = true;
-  bool singleQueue = true;
-  backToBackSameCmds(singleDevice, singleQueue, 1000);
+TEST_F(TestDevOpsApiLoopbackKernelCmdsPcie, backToBackSameKernelLaunchCmdsSingleDeviceSingleQueue_3_1) {
+  backToBackSameKernelLaunchCmds_3_1(true, 0x1);
 }
 
-TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackSame1kCmdsSingleDeviceMultiQueue_1_2) {
-  bool singleDevice = true;
-  bool singleQueue = false;
-  backToBackSameCmds(singleDevice, singleQueue, 1000);
+TEST_F(TestDevOpsApiLoopbackKernelCmdsPcie, backToBackSameKernelLaunchCmdsSingleDeviceMultiQueue_3_2) {
+  backToBackSameKernelLaunchCmds_3_1(false, 0x1);
 }
 
-TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackDiff1kCmdsSingleDeviceSingleQueue_1_3) {
-  bool singleDevice = true;
-  bool singleQueue = true;
-  backToBackSameCmds(singleDevice, singleQueue, 1000);
+TEST_F(TestDevOpsApiLoopbackKernelCmdsPcie, backToBackEmptyKernelLaunch_3_5) {
+  backToBackEmptyKernelLaunch_3_3(0x3 | (1ull << 32), false); /* Shire 0, 1 and 32 */
 }
 
-TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackDiff1kCmdsSingleDeviceMultiQueue_1_4) {
-  bool singleDevice = true;
-  bool singleQueue = false;
-  backToBackSameCmds(singleDevice, singleQueue, 1000);
+TEST_F(TestDevOpsApiLoopbackKernelCmdsPcie, backToBackEmptyKernelLaunchFlushL3_3_6) {
+  backToBackEmptyKernelLaunch_3_3(0x3 | (1ull << 32), true); /* Shire 0, 1 and 32 */
 }
 
 int main(int argc, char** argv) {

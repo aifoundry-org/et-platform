@@ -53,52 +53,52 @@ protected:
   }
 };
 
-TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackSameCmdsSingleDeviceSingleQueue_1_1) {
-  backToBackSameCmdsSingleDeviceSingleQueue_1_1(1000);
+TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackSame1kCmdsSingleDeviceSingleQueue_1_1) {
+  bool singleDevice = true;
+  bool singleQueue = true;
+  backToBackSameCmds(singleDevice, singleDevice, 1000);
 }
 
-TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackSameCmdsSingleDeviceMultiQueue_1_2) {
-  backToBackSameCmdsSingleDeviceMultiQueue_1_2(100);
+TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackSame1kCmdsSingleDeviceMultiQueue_1_2) {
+  bool singleDevice = true;
+  bool singleQueue = false;
+  backToBackSameCmds(singleDevice, singleDevice, 1000);
 }
 
-TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackDiffCmdsSingleDeviceSingleQueue_1_3) {
-  backToBackDiffCmdsSingleDeviceSingleQueue_1_3(1000);
+TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackDiff1kCmdsSingleDeviceSingleQueue_1_3) {
+  bool singleDevice = true;
+  bool singleQueue = true;
+  backToBackDiffCmds(singleDevice, singleDevice, 1000);
 }
 
-TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackDiffCmdsSingleDeviceMultiQueue_1_4) {
-  backToBackDiffCmdsSingleDeviceMultiQueue_1_4(100);
+TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackDiff1kCmdsSingleDeviceMultiQueue_1_4) {
+  bool singleDevice = true;
+  bool singleQueue = false;
+  backToBackDiffCmds(singleDevice, singleDevice, 1000);
 }
 
-TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBack10kSameCmdsSingleDeviceSingleQueue_1_5) {
-  backToBackSameCmdsSingleDeviceSingleQueue_1_1(10000);
+TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackSame10kCmdsSingleDeviceSingleQueue_1_5) {
+  bool singleDevice = true;
+  bool singleQueue = true;
+  backToBackSameCmds(singleDevice, singleDevice, 10000);
 }
 
-TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBack10kSameCmdsSingleDeviceMultiQueue_1_6) {
-  backToBackSameCmdsSingleDeviceMultiQueue_1_2(10000);
+TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackSame10kCmdsSingleDeviceMultiQueue_1_6) {
+  bool singleDevice = true;
+  bool singleQueue = false;
+  backToBackSameCmds(singleDevice, singleDevice, 10000);
 }
 
-TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBack10kDiffCmdsSingleDeviceSingleQueue_1_7) {
-  backToBackDiffCmdsSingleDeviceSingleQueue_1_3(10000);
+TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackDiff10kCmdsSingleDeviceSingleQueue_1_7) {
+  bool singleDevice = true;
+  bool singleQueue = true;
+  backToBackDiffCmds(singleDevice, singleDevice, 10000);
 }
 
-TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBack10kDiffCmdsSingleDeviceMultiQueue_1_8) {
-  backToBackDiffCmdsSingleDeviceMultiQueue_1_4(10000);
-}
-
-TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackSameCmdsMultiQueueMultiDevice_1_9) {
-  backToBackSameCmdsMultiDeviceMultiQueue_1_5(100);
-}
-
-TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackDiffCmdsMultiQueueMultiDevice_1_10) {
-  backToBackDiffCmdsMultiDeviceMultiQueue_1_6(100);
-}
-
-TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBack10kSameCmdsMultiDeviceMultiQueue1_11) {
-  backToBackSameCmdsMultiDeviceMultiQueue_1_5(10000);
-}
-
-TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBack10kDiffCmdsMultiDeviceMultiQueue_1_12) {
-  backToBackDiffCmdsMultiDeviceMultiQueue_1_6(10000);
+TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackDiff10kCmdsSingleDeviceMultiQueue_1_8) {
+  bool singleDevice = true;
+  bool singleQueue = false;
+  backToBackDiffCmds(singleDevice, singleDevice, 10000);
 }
 
 int main(int argc, char** argv) {

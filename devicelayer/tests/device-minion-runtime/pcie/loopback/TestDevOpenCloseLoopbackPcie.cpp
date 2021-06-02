@@ -10,15 +10,19 @@
 
 #include "testHelper/TestDevOpsApi.h"
 
-class TestDevOpsApiBasicCmds : public TestDevOpsApi {
-protected:
-  /* Basic Testing Functions */
-  void echoCmd_PositiveTest_2_1();
-  void devCompatCmd_PositiveTest_2_3();
-  void devFWCmd_PostiveTest_2_5();
-  void devUnknownCmd_NegativeTest_2_7();
+/*
+ * Test Labels: PCIE, OPS, FUNCTIONAL, UNIT
+ */
 
-  /* Stress Testing Functions */
-  void backToBackSameCmds(bool singleDevice, bool singleQueue, int numOfCmds);
-  void backToBackDiffCmds(bool singleDevice, bool singleQueue, int numOfCmds);
-};
+class TestDevOpenCloseLoopbackPcie : public TestDevOpsApi {};
+
+TEST_F(TestDevOpenCloseLoopbackPcie, instantiateIDeviceLayer_1_1) {
+  execTimeout_ = std::chrono::seconds(FLAGS_exec_timeout);
+  initTestHelperPcie();
+}
+
+int main(int argc, char** argv) {
+  testing::InitGoogleTest(&argc, argv);
+  google::ParseCommandLineFlags(&argc, &argv, true);
+  return RUN_ALL_TESTS();
+}

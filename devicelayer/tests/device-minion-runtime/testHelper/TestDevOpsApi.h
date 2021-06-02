@@ -124,6 +124,9 @@ private:
   Timepoint lastCmdTimepoint_;
   Timepoint firstRspTimepoint_;
   Timepoint lastRspTimepoint_;
+
+  size_t bytesSent_ = 0;
+  size_t bytesReceived_ = 0;
 };
 
 #endif // TEST_DEV_OPS_API_H

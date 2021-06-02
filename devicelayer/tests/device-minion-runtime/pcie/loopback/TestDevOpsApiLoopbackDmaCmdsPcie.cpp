@@ -14,7 +14,7 @@
  * Test Labels: PCIE, OPS, FUNCTIONAL, SYSTEM
  */
 
-class TestDevOpsApiStressDmaCmdsPcie : public TestDevOpsApiDmaCmds {
+class TestDevOpsApiLoopbackDmaCmdsPcie : public TestDevOpsApiDmaCmds {
 protected:
   void SetUp() override {
     execTimeout_ = std::chrono::seconds(FLAGS_exec_timeout);
@@ -23,32 +23,42 @@ protected:
   }
 };
 
-TEST_F(TestDevOpsApiStressDmaCmdsPcie, dataWRStressSize_2_1) {
+TEST_F(TestDevOpsApiLoopbackDmaCmdsPcie, dataWRStressSize_2_1) {
   dataWRStressSize_2_1(25);
 }
 
-TEST_F(TestDevOpsApiStressDmaCmdsPcie, dataWRStressSpeed_2_2) {
+TEST_F(TestDevOpsApiLoopbackDmaCmdsPcie, dataWRStressSpeed_2_2) {
   dataWRStressSpeed_2_2(25);
 }
 
-TEST_F(TestDevOpsApiStressDmaCmdsPcie, dataWRStressChannelsSingleDeviceSingleQueue_2_3) {
+TEST_F(TestDevOpsApiLoopbackDmaCmdsPcie, dataWrRdCmd1kWrAndRdSingleDeviceSingleQueue_2_3) {
   dataWRStressChannelsSingleDeviceSingleQueue_2_3(1000);
 }
 
-TEST_F(TestDevOpsApiStressDmaCmdsPcie, dataWRStressChannelsSingleDeviceMultiQueue_2_4) {
+TEST_F(TestDevOpsApiLoopbackDmaCmdsPcie, dataWrRdCmd1kWrAndRdSingleDeviceMultiQueue_2_4) {
   dataWRStressChannelsSingleDeviceMultiQueue_2_4(1000);
 }
 
-TEST_F(TestDevOpsApiStressDmaCmdsPcie, dmaList1kWrAndRdSingleDeviceSingleQueue_2_5) {
-  bool singleDevice = true;
-  bool singleQueue = true;
-  dmaListWrAndRd(singleDevice, singleQueue, 1000);
+TEST_F(TestDevOpsApiLoopbackDmaCmdsPcie, dataWrRdCmd1kWrAndRdMultiDeviceMultiQueue_2_5) {
+  dataWRStressChannelsMultiDeviceMultiQueue_2_5(1000);
 }
 
-TEST_F(TestDevOpsApiStressDmaCmdsPcie, dmaList1kWrAndRdSingleDeviceMultiQueue_2_6) {
+TEST_F(TestDevOpsApiLoopbackDmaCmdsPcie, dmaList50kWrAndRdSingleDeviceSingleQueue_2_6) {
+  bool singleDevice = true;
+  bool singleQueue = true;
+  dmaListWrAndRd(singleDevice, singleQueue, 50000);
+}
+
+TEST_F(TestDevOpsApiLoopbackDmaCmdsPcie, dmaList50kWrAndRdSingleDeviceMultiQueue_2_7) {
   bool singleDevice = true;
   bool singleQueue = false;
-  dmaListWrAndRd(singleDevice, singleQueue, 1000);
+  dmaListWrAndRd(singleDevice, singleQueue, 50000);
+}
+
+TEST_F(TestDevOpsApiLoopbackDmaCmdsPcie, dmaList50kWrAndRdMultiDeviceMultiQueue_2_8) {
+  bool singleDevice = false;
+  bool singleQueue = false;
+  dmaListWrAndRd(singleDevice, singleQueue, 50000);
 }
 
 int main(int argc, char** argv) {

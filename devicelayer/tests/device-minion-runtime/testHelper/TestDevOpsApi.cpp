@@ -355,6 +355,7 @@ bool TestDevOpsApi::pushCmd(int deviceIdx, int queueIdx, std::unique_ptr<IDevOps
   auto res = devLayer_->sendCommandMasterMinion(deviceIdx, queueIdx, devOpsApiCmd->getCmdPtr(),
                                                 devOpsApiCmd->getCmdSize(), devOpsApiCmd->isDma());
   if (res) {
+    bytesSent_ += devOpsApiCmd->getCmdSize();
     TEST_VLOG(1) << "=====> Command Sent (tag_id: " << std::hex << devOpsApiCmd->getCmdTagId() << ") <====";
   } else {
     deleteCmdResultEntry(devOpsApiCmd->getCmdTagId());
@@ -373,6 +374,7 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
   auto response_header = reinterpret_cast<device_ops_api::rsp_header_t*>(message.data());
   auto rsp_msg_id = response_header->rsp_hdr.msg_id;
   auto rsp_tag_id = response_header->rsp_hdr.tag_id;
+  auto rsp_size = response_header->rsp_hdr.size;
   CmdStatus status;
 
   if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_ECHO_RSP) {
@@ -511,6 +513,9 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
                  << ") wasn't sent under this scope, discarding this response!";
     return popRsp(deviceIdx);
   }
+
+  bytesReceived_ += rsp_size;
+
   return res;
 }
 
@@ -624,9 +629,12 @@ void TestDevOpsApi::printCmdExecutionSummary() {
   }
   std::chrono::duration<double> cmdsTotalDuration = lastCmdTimepoint_ - firstCmdTimepoint_;
   std::chrono::duration<double> rspsTotalDuration = lastRspTimepoint_ - firstRspTimepoint_;
-  TEST_VLOG(0) << "  ====> Commands sent per second: " << std::ceil(cmdResults_.size() / cmdsTotalDuration.count());
-  TEST_VLOG(0) << "  ====> Responses received per second: "
-               << std::ceil(cmdResults_.size() / rspsTotalDuration.count());
+  TEST_VLOG(0) << "  ====> Commands Sent / second: " << std::ceil(cmdResults_.size() / cmdsTotalDuration.count());
+  TEST_VLOG(0) << "  ====> Bytes Sent / second: " << std::setprecision(10)
+               << std::ceil(bytesSent_ / cmdsTotalDuration.count());
+  TEST_VLOG(0) << "  ====> Responses Received / second: " << std::ceil(cmdResults_.size() / rspsTotalDuration.count());
+  TEST_VLOG(0) << "  ====> Bytes Received / second: " << std::setprecision(10)
+               << std::ceil(bytesReceived_ / rspsTotalDuration.count());
   TEST_VLOG(0) << "================================================";
 
   EXPECT_EQ(failedCmdTags.size(), 0);

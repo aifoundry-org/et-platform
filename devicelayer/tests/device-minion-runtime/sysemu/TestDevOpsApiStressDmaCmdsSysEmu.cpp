@@ -70,20 +70,16 @@ TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dataWRStressChannelsSingleDeviceMultiQu
   dataWRStressChannelsSingleDeviceMultiQueue_2_4(1000);
 }
 
-TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dataWRStressChannelsMultiDeviceMultiQueue_2_5) {
-  dataWRStressChannelsMultiDeviceMultiQueue_2_5(1000);
+TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dmaList1kWrAndRdSingleDeviceSingleQueue_2_5) {
+  bool singleDevice = true;
+  bool singleQueue = true;
+  dmaListWrAndRd(singleDevice, singleDevice, 1000);
 }
 
-TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dataRWListStressChannelsSingleDeviceSingleQueue_2_6) {
-  dataRWListStressChannelsSingleDeviceSingleQueue_2_6(1000);
-}
-
-TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dataRWListStressChannelsSingleDeviceMultiQueue_2_7) {
-  dataRWListStressChannelsSingleDeviceMultiQueue_2_7(1000);
-}
-
-TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dataRWListStressChannelsMultiDeviceMultiQueue_2_8) {
-  dataRWListStressChannelsMultiDeviceMultiQueue_2_8(1000);
+TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dmaList1kWrAndRdSingleDeviceMultiQueue_2_6) {
+  bool singleDevice = true;
+  bool singleQueue = false;
+  dmaListWrAndRd(singleDevice, singleDevice, 1000);
 }
 
 int main(int argc, char** argv) {

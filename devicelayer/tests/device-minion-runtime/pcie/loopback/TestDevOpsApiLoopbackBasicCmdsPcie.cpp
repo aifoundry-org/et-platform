@@ -14,7 +14,7 @@
  * Test Labels: PCIE, OPS, FUNCTIONAL, SYSTEM
  */
 
-class TestDevOpsApiStressBasicCmdsPcie : public TestDevOpsApiBasicCmds {
+class TestDevOpsApiLoopbackBasicCmdsPcie : public TestDevOpsApiBasicCmds {
 protected:
   void SetUp() override {
     execTimeout_ = std::chrono::seconds(FLAGS_exec_timeout);
@@ -23,28 +23,40 @@ protected:
   }
 };
 
-TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackSame1kCmdsSingleDeviceSingleQueue_1_1) {
+TEST_F(TestDevOpsApiLoopbackBasicCmdsPcie, backToBackSame50kCmdsSingleDeviceSingleQueue_1_1) {
   bool singleDevice = true;
   bool singleQueue = true;
-  backToBackSameCmds(singleDevice, singleQueue, 1000);
+  backToBackSameCmds(singleDevice, singleDevice, 50000);
 }
 
-TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackSame1kCmdsSingleDeviceMultiQueue_1_2) {
+TEST_F(TestDevOpsApiLoopbackBasicCmdsPcie, backToBackSame50kCmdsSingleDeviceMultiQueue_1_2) {
   bool singleDevice = true;
   bool singleQueue = false;
-  backToBackSameCmds(singleDevice, singleQueue, 1000);
+  backToBackSameCmds(singleDevice, singleDevice, 50000);
 }
 
-TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackDiff1kCmdsSingleDeviceSingleQueue_1_3) {
+TEST_F(TestDevOpsApiLoopbackBasicCmdsPcie, backToBackSame50kCmdsMultiDeviceMultiQueue_1_3) {
+  bool singleDevice = false;
+  bool singleQueue = false;
+  backToBackSameCmds(singleDevice, singleDevice, 50000);
+}
+
+TEST_F(TestDevOpsApiLoopbackBasicCmdsPcie, backToBackDiff50kCmdsSingleDeviceSingleQueue_1_4) {
   bool singleDevice = true;
   bool singleQueue = true;
-  backToBackSameCmds(singleDevice, singleQueue, 1000);
+  backToBackDiffCmds(singleDevice, singleDevice, 50000);
 }
 
-TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackDiff1kCmdsSingleDeviceMultiQueue_1_4) {
+TEST_F(TestDevOpsApiLoopbackBasicCmdsPcie, backToBackDiff50kCmdsSingleDeviceMultiQueue_1_5) {
   bool singleDevice = true;
   bool singleQueue = false;
-  backToBackSameCmds(singleDevice, singleQueue, 1000);
+  backToBackDiffCmds(singleDevice, singleDevice, 50000);
+}
+
+TEST_F(TestDevOpsApiLoopbackBasicCmdsPcie, backToBackDiff50kCmdsMultiDeviceMultiQueue_1_6) {
+  bool singleDevice = false;
+  bool singleQueue = false;
+  backToBackDiffCmds(singleDevice, singleDevice, 50000);
 }
 
 int main(int argc, char** argv) {
