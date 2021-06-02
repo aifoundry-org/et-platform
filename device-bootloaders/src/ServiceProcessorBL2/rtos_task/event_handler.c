@@ -176,9 +176,12 @@ void power_event_callback(enum error_type type, struct event_message_t *msg)
 
 void wdog_timeout_callback(enum error_type type, struct event_message_t *msg)
 {
-    (void)type;
-    /* Post message to the queue */
-    xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
+    if (type == CORRECTABLE) {
+        //TODO: Handle wdog timeouts
+    } else {
+       /* Post message to the queue */
+       xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
+    }
 }
 
 void minion_event_callback(enum error_type type, struct event_message_t *msg)
