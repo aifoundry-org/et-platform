@@ -67,7 +67,7 @@ void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
             status = get_mm_error_count(&dm_rsp.mm_error_count);
 
             if (0 != status) {
-                printf(" mm state svc error: get_mm_error_count()\r\n");
+                Log_Write(LOG_LEVEL_ERROR, " mm state svc error: get_mm_error_count()\r\n");
             }
 
             FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_GET_MM_ERROR_COUNT,
@@ -75,7 +75,7 @@ void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
 
             if (0 !=
                 SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_mm_state_rsp_t))) {
-                printf("Minion_State_Host_Iface_Process_Request: Cqueue push error!\n");
+                Log_Write(LOG_LEVEL_ERROR, "Minion_State_Host_Iface_Process_Request: Cqueue push error!\n");
             }
             break;
         }
@@ -92,7 +92,7 @@ void Minion_State_MM_Iface_Process_Request(uint16_t msg_id)
 
             if(0 != MM_Iface_Push_Cmd_To_MM2SP_CQ((char *)&rsp, sizeof(rsp)))
             {
-                printf("MM_Iface_Push_Cmd_To_MM2SP_CQ: Cqueue push error!\n");
+                Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_MM2SP_CQ: Cqueue push error!\n");
             }
             break;
         }

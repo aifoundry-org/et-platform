@@ -10,7 +10,7 @@
 *
 ************************************************************************/
 /*! \file flashfs.c
-    \brief A C module that implements the flash filesystem service. This 
+    \brief A C module that implements the flash filesystem service. This
     service provides fs initialization and file read/write functionality.
 
     Public interfaces:
@@ -38,6 +38,7 @@
 #include <string.h>
 #include <stddef.h>
 #include <stdio.h>
+#include "log.h"
 #include "serial.h"
 #include "crc32.h"
 #include "bl2_spi_controller.h"
@@ -99,7 +100,7 @@ static uint32_t count_zero_bits(const unsigned long long *data, uint32_t data_si
     uint32_t index;
     int count = 0;
 
-    for (index = 0; index < data_size; index++) 
+    for (index = 0; index < data_size; index++)
     {
         count += __builtin_popcountll(data[index]);
     }
@@ -129,7 +130,7 @@ static uint32_t count_zero_bits(const unsigned long long *data, uint32_t data_si
 *
 ***********************************************************************/
 
-union 
+union
 {
     unsigned long long ull;
     uint8_t u8[sizeof(unsigned long long)];
@@ -141,20 +142,20 @@ static int find_first_unset_bit_offset(uint32_t *offset, uint32_t *bit,
     const unsigned long long *data = ull_array;
     const unsigned long long *ull_array_end = ull_array + ull_array_size;
 
-    while (data < ull_array_end) 
+    while (data < ull_array_end)
     {
-        if (0 != *data) 
+        if (0 != *data)
         {
             ull_index = (uint32_t)(data - ull_array);
             value_uu.ull = *data;
-            for (b_index = 0; b_index < sizeof(unsigned long long); b_index++) 
+            for (b_index = 0; b_index < sizeof(unsigned long long); b_index++)
             {
-                if (0 != value_uu.u8[b_index]) 
+                if (0 != value_uu.u8[b_index])
                 {
-                    for (n = 0; n < 8; n++) 
+                    for (n = 0; n < 8; n++)
                     {
                         flag = 0x01u << n;
-                        if (flag & value_uu.u8[b_index]) 
+                        if (flag & value_uu.u8[b_index])
                         {
                             *offset = b_index + (uint32_t)(sizeof(unsigned long long) * ull_index);
                             *bit = n;
@@ -177,7 +178,7 @@ static int find_first_unset_bit_offset(uint32_t *offset, uint32_t *bit,
 *
 *   DESCRIPTION
 *
-*       This function scans and checks partition regions 
+*       This function scans and checks partition regions
 *
 *   INPUTS
 *
@@ -200,9 +201,9 @@ static int flash_fs_scan_regions(uint32_t partition_size,
 
     partition_info->sp_bl2_region_index = INVALID_REGION_INDEX;
 
-    for (n = 0; n < partition_info->header.regions_count; n++) 
+    for (n = 0; n < partition_info->header.regions_count; n++)
     {
-        switch (partition_info->regions_table[n].region_id) 
+        switch (partition_info->regions_table[n].region_id)
         {
             case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING:
             case ESPERANTO_FLASH_REGION_ID_MACHINE_MINION:
@@ -211,14 +212,14 @@ static int flash_fs_scan_regions(uint32_t partition_size,
             case ESPERANTO_FLASH_REGION_ID_MAXION_BL1:
                 break;
             default:
-                /* printf("flash_fs_scan_regions: ignoring region %u.\n", n); */
+                /* Log_Write(LOG_LEVEL_ERROR, "flash_fs_scan_regions: ignoring region %u.\n", n); */
                 continue;
         }
 
         crc = 0;
         crc32(&(partition_info->regions_table[n]),
               offsetof(ESPERANATO_REGION_INFO_t, region_info_checksum), &crc);
-        if (crc != partition_info->regions_table[n].region_info_checksum) 
+        if (crc != partition_info->regions_table[n].region_info_checksum)
         {
             MESSAGE_ERROR("flash_fs_scan_regions: region %u CRC mismatch! (expected %08x, got %08x)\
                    \n",
@@ -227,30 +228,30 @@ static int flash_fs_scan_regions(uint32_t partition_size,
         }
 
         if (0 == partition_info->regions_table[n].region_offset ||
-            partition_info->regions_table[n].region_offset >= partition_size_in_blocks) 
+            partition_info->regions_table[n].region_offset >= partition_size_in_blocks)
         {
             MESSAGE_ERROR("flash_fs_scan_regions: invalid region %u offset!\n", n);
             return ERROR_SPI_FLASH_INVALID_REGION_SIZE_OFFSET;
         }
-        if (0 == partition_info->regions_table[n].region_reserved_size) 
+        if (0 == partition_info->regions_table[n].region_reserved_size)
         {
             MESSAGE_ERROR("flash_fs_scan_regions: region %u has zero size!\n", n);
             return ERROR_SPI_FLASH_INVALID_REGION_SIZE_OFFSET;
         }
         region_offset_end = partition_info->regions_table[n].region_offset +
                             partition_info->regions_table[n].region_reserved_size;
-        if (region_offset_end < partition_info->regions_table[n].region_offset) 
+        if (region_offset_end < partition_info->regions_table[n].region_offset)
         {
             MESSAGE_ERROR("flash_fs_scan_regions: region %u offset/size overflow!\n", n);
             return ERROR_SPI_FLASH_INVALID_REGION_SIZE_OFFSET; /* integer overflow */
         }
-        if (region_offset_end > partition_size_in_blocks) 
+        if (region_offset_end > partition_size_in_blocks)
         {
             MESSAGE_ERROR("flash_fs_scan_regions: invalid region %u size!\n", n);
             return ERROR_SPI_FLASH_INVALID_REGION_SIZE_OFFSET; /* integer overflow */
         }
 
-        switch (partition_info->regions_table[n].region_id) 
+        switch (partition_info->regions_table[n].region_id)
         {
             case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING:
                 partition_info->dram_training_region_index = n;
@@ -283,7 +284,7 @@ static int flash_fs_scan_regions(uint32_t partition_size,
 *
 *   DESCRIPTION
 *
-*       This function scans and checks partition regions 
+*       This function scans and checks partition regions
 *
 *   INPUTS
 *
@@ -327,7 +328,7 @@ static int
 init_partition_info_data(ESPERANTO_PARTITION_BL2_INFO_t *restrict bl2_partition_info,
                          const ESPERANTO_PARTITION_BL1_INFO_t *restrict bl1_partition_info)
 {
-    if (NULL == bl2_partition_info || NULL == bl1_partition_info) 
+    if (NULL == bl2_partition_info || NULL == bl1_partition_info)
     {
         MESSAGE_ERROR("init_partition_info_data: invalid arguments!\n");
         return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
@@ -340,7 +341,7 @@ init_partition_info_data(ESPERANTO_PARTITION_BL2_INFO_t *restrict bl2_partition_
 
     bl2_partition_info->priority_designator_region_index =
         bl1_partition_info->priority_designator_region_index;
-    bl2_partition_info->boot_counters_region_index = 
+    bl2_partition_info->boot_counters_region_index =
         bl1_partition_info->boot_counters_region_index;
     bl2_partition_info->configuration_data_region_index =
         bl1_partition_info->configuration_data_region_index;
@@ -393,7 +394,7 @@ int flash_fs_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info,
     uint32_t n;
     uint32_t partition_size;
 
-    if (NULL == flash_fs_bl2_info || NULL == flash_fs_bl1_info) 
+    if (NULL == flash_fs_bl2_info || NULL == flash_fs_bl1_info)
     {
         MESSAGE_ERROR("flash_fs_init: invalid arguments!\n");
         return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
@@ -401,10 +402,10 @@ int flash_fs_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info,
 
     memset(flash_fs_bl2_info, 0, sizeof(FLASH_FS_BL2_INFO_t));
 
-    for (n = 0; n < 2; n++) 
+    for (n = 0; n < 2; n++)
     {
         if (0 != init_partition_info_data(&(flash_fs_bl2_info->partition_info[n]),
-                                          &(flash_fs_bl1_info->partition_info[n]))) 
+                                          &(flash_fs_bl1_info->partition_info[n])))
         {
             MESSAGE_ERROR("flash_fs_init: init_partition_info_data(%u) failed!\n", n);
             return ERROR_SPI_FLASH_FS_INIT_FAILED;
@@ -426,29 +427,29 @@ int flash_fs_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info,
     partition_size = flash_fs_bl1_info->flash_size / 2;
 
     /* re-scan both partitions in the flash */
-    for (n = 0; n < 2; n++) 
+    for (n = 0; n < 2; n++)
     {
-        printf("Re-scanning partition %u...\n", n);
+        Log_Write(LOG_LEVEL_ERROR, "Re-scanning partition %u...\n", n);
 
-        if (0 != flash_fs_scan_partition(partition_size, &flash_fs_bl2_info->partition_info[n])) 
+        if (0 != flash_fs_scan_partition(partition_size, &flash_fs_bl2_info->partition_info[n]))
         {
-            printf("Partition %u seems corrupted.\n", n);
+            Log_Write(LOG_LEVEL_ERROR, "Partition %u seems corrupted.\n", n);
             flash_fs_bl2_info->partition_info[n].partition_valid = false;
         }
-        else 
+        else
         {
             /* test if the critical required files are present in the partition */
             if (INVALID_REGION_INDEX ==
-                flash_fs_bl2_info->partition_info[n].dram_training_region_index) 
+                flash_fs_bl2_info->partition_info[n].dram_training_region_index)
             {
-                printf("DRAM training data not found!\n");
+                Log_Write(LOG_LEVEL_ERROR, "DRAM training data not found!\n");
                 flash_fs_bl2_info->partition_info[n].partition_valid = false;
             }
         }
     }
 
     if (false ==
-        flash_fs_bl1_info->partition_info[flash_fs_bl1_info->active_partition].partition_valid) 
+        flash_fs_bl1_info->partition_info[flash_fs_bl1_info->active_partition].partition_valid)
     {
         /* the active boot partition is no longer valid! */
         MESSAGE_ERROR("No valid partition found!\n");
@@ -490,48 +491,48 @@ static int flash_fs_load_file_info(ESPERANTO_FLASH_REGION_ID_t region_id,
     uint32_t region_address;
     uint32_t region_size;
 
-    if (0 == sg_flash_fs_bl2_info.active_partition) 
+    if (0 == sg_flash_fs_bl2_info.active_partition)
     {
         partition_address = 0;
     }
-    else if (1 == sg_flash_fs_bl2_info.active_partition) 
+    else if (1 == sg_flash_fs_bl2_info.active_partition)
     {
         partition_address = sg_flash_fs_bl2_info.flash_size / 2;
-    } 
-    else 
+    }
+    else
     {
         return ERROR_SPI_FLASH_NO_VALID_PARTITION;
     }
 
-    switch (region_id) 
+    switch (region_id)
     {
         case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING:
             file_info = &(sg_flash_fs_bl2_info.dram_training_file_info);
-            region_index = 
+            region_index =
                 sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                             .dram_training_region_index;
             break;
         case ESPERANTO_FLASH_REGION_ID_MACHINE_MINION:
             file_info = &(sg_flash_fs_bl2_info.machine_minion_file_info);
-            region_index = 
+            region_index =
                 sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                             .machine_minion_region_index;
             break;
         case ESPERANTO_FLASH_REGION_ID_MASTER_MINION:
             file_info = &(sg_flash_fs_bl2_info.master_minion_file_info);
-            region_index = 
+            region_index =
                 sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                             .master_minion_region_index;
             break;
         case ESPERANTO_FLASH_REGION_ID_WORKER_MINION:
             file_info = &(sg_flash_fs_bl2_info.worker_minion_file_info);
-            region_index = 
+            region_index =
                 sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                             .worker_minion_region_index;
             break;
         case ESPERANTO_FLASH_REGION_ID_MAXION_BL1:
             file_info = &(sg_flash_fs_bl2_info.maxion_bl1_file_info);
-            region_index = 
+            region_index =
                 sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                             .maxion_bl1_region_index;
             break;
@@ -539,7 +540,7 @@ static int flash_fs_load_file_info(ESPERANTO_FLASH_REGION_ID_t region_id,
             return ERROR_SPI_FLASH_INVALID_REGION_ID;
     }
 
-    if (INVALID_REGION_INDEX == region_index) 
+    if (INVALID_REGION_INDEX == region_index)
     {
         return ERROR_SPI_FLASH_INVALID_REGION_ID;
     }
@@ -554,25 +555,25 @@ static int flash_fs_load_file_info(ESPERANTO_FLASH_REGION_ID_t region_id,
                   FLASH_PAGE_SIZE;
 
     if (0 == file_info->file_header_tag && 0 == file_info->file_header_size &&
-        0 == file_info->file_size && 0 == file_info->file_header_crc) 
+        0 == file_info->file_size && 0 == file_info->file_header_crc)
     {
         if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info.flash_id,
                                        partition_address + region_address, (uint8_t *)file_info,
-                                       sizeof(ESPERANATO_FILE_INFO_t))) 
+                                       sizeof(ESPERANATO_FILE_INFO_t)))
         {
             MESSAGE_ERROR("flash_fs_load_file_info: failed to read file info!\n");
             memset(file_info, 0, sizeof(ESPERANATO_FILE_INFO_t));
             return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
         }
 
-        if (ESPERANTO_FILE_TAG != file_info->file_header_tag) 
+        if (ESPERANTO_FILE_TAG != file_info->file_header_tag)
         {
             MESSAGE_ERROR("flash_fs_load_file_info: invalid file info header tag!\n");
             memset(file_info, 0, sizeof(ESPERANATO_FILE_INFO_t));
             return ERROR_SPI_FLASH_INVALID_FILE_INFO;
         }
 
-        if (sizeof(ESPERANATO_FILE_INFO_t) != file_info->file_header_size) 
+        if (sizeof(ESPERANATO_FILE_INFO_t) != file_info->file_header_size)
         {
             MESSAGE_ERROR("flash_fs_load_file_info: invalid file info header size!\n");
             memset(file_info, 0, sizeof(ESPERANATO_FILE_INFO_t));
@@ -581,14 +582,14 @@ static int flash_fs_load_file_info(ESPERANTO_FLASH_REGION_ID_t region_id,
 
         crc = 0;
         crc32(file_info, offsetof(ESPERANATO_FILE_INFO_t, file_header_crc), &crc);
-        if (crc != file_info->file_header_crc) 
+        if (crc != file_info->file_header_crc)
         {
             MESSAGE_ERROR("flash_fs_load_file_info: file info CRC mismatch!\n");
             memset(file_info, 0, sizeof(ESPERANATO_FILE_INFO_t));
             return ERROR_SPI_FLASH_INVALID_FILE_INFO;
         }
 
-        if (file_info->file_size > (region_size - sizeof(ESPERANATO_FILE_INFO_t))) 
+        if (file_info->file_size > (region_size - sizeof(ESPERANATO_FILE_INFO_t)))
         {
             MESSAGE_ERROR("flash_fs_load_file_info: invalid file size!\n");
             memset(file_info, 0, sizeof(ESPERANATO_FILE_INFO_t));
@@ -628,7 +629,7 @@ int flash_fs_get_file_size(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t *size
     uint32_t file_data_address;
     uint32_t file_size;
 
-    if (0 != flash_fs_load_file_info(region_id, &file_data_address, &file_size)) 
+    if (0 != flash_fs_load_file_info(region_id, &file_data_address, &file_size))
     {
         MESSAGE_ERROR("flash_fs_get_file_size: flash_fs_load_file_info(0x%x) failed!\n",
                          region_id);
@@ -668,39 +669,39 @@ int flash_fs_read_file(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t offset, v
     uint32_t file_size;
     uint32_t end_offset;
 
-    if (NULL == buffer || 0 == buffer_size) 
+    if (NULL == buffer || 0 == buffer_size)
     {
         MESSAGE_ERROR("flash_fs_read_file: invalid arguments!\n");
         return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
 
-    if (0 != flash_fs_load_file_info(region_id, &file_data_address, &file_size)) 
+    if (0 != flash_fs_load_file_info(region_id, &file_data_address, &file_size))
     {
         MESSAGE_ERROR("flash_fs_read_file: flash_fs_load_file_info(0x%x) failed!\n", region_id);
         return ERROR_SPI_FLASH_LOAD_FILE_INFO_FAILED;
     }
-    /* printf("file data address: 0x%x\n", file_data_address); */
+    /* Log_Write(LOG_LEVEL_ERROR, "file data address: 0x%x\n", file_data_address); */
 
-    if (offset >= file_size) 
+    if (offset >= file_size)
     {
         MESSAGE_ERROR("flash_fs_read_file: offset too large!\n");
         return ERROR_SPI_FLASH_INVALID_FILE_SIZE_OFFSET;
     }
 
     end_offset = offset + buffer_size;
-    if (end_offset < buffer_size) 
+    if (end_offset < buffer_size)
     {
         MESSAGE_ERROR("flash_fs_read_file: end_offset integer overflow!\n");
         return ERROR_SPI_FLASH_INVALID_FILE_SIZE_OFFSET;
     }
-    if (end_offset > file_size) 
+    if (end_offset > file_size)
     {
         MESSAGE_ERROR("flash_fs_read_file: end_offset too large!\n");
         return ERROR_SPI_FLASH_INVALID_FILE_SIZE_OFFSET;
     }
 
     if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info.flash_id, file_data_address + offset,
-                                   (uint8_t *)buffer, buffer_size)) 
+                                   (uint8_t *)buffer, buffer_size))
     {
         MESSAGE_ERROR("flash_fs_read_file: failed to read file data!\n");
         memset(buffer, 0, buffer_size);
@@ -738,13 +739,13 @@ int flash_fs_write_partition(uint32_t partition_address, void *buffer, uint32_t 
 {
     uint32_t iter_partition_address = partition_address;
 
-    if (NULL == buffer || 0 == buffer_size) 
+    if (NULL == buffer || 0 == buffer_size)
     {
         MESSAGE_ERROR("flash_fs_write_partition: invalid buffer arguments!\n");
         return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
 
-    if (SPI_FLASH_PAGE_SIZE < chunk_size) 
+    if (SPI_FLASH_PAGE_SIZE < chunk_size)
     {
         MESSAGE_ERROR("flash_fs_write_partition: invalid chunk_size!\n");
         return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
@@ -753,10 +754,10 @@ int flash_fs_write_partition(uint32_t partition_address, void *buffer, uint32_t 
     /* Program the partition with data from the buffer */
     for (uint32_t iter_buffer_size = 0; iter_buffer_size < buffer_size;
          iter_buffer_size += chunk_size, buffer = (uint8_t *)buffer + chunk_size,
-                  iter_partition_address = iter_partition_address + chunk_size) 
+                  iter_partition_address = iter_partition_address + chunk_size)
     {
         if (0 != spi_flash_page_program(sg_flash_fs_bl2_info.flash_id, iter_partition_address,
-                                        (uint8_t *)buffer, chunk_size)) 
+                                        (uint8_t *)buffer, chunk_size))
         {
             MESSAGE_ERROR("flash_fs_write_partition: failed to write data!\n");
             return ERROR_SPI_FLASH_PP_FAILED;
@@ -789,7 +790,7 @@ int flash_fs_write_partition(uint32_t partition_address, void *buffer, uint32_t 
 
 int flash_fs_erase_partition(uint32_t partition_address, uint32_t partition_size)
 {
-    if (0 != (partition_size & SPI_FLASH_BLOCK_MASK)) 
+    if (0 != (partition_size & SPI_FLASH_BLOCK_MASK))
     {
         MESSAGE_ERROR("spi_flash_erase: partision_size need to be multiple of 64kB!\n");
         return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
@@ -797,9 +798,9 @@ int flash_fs_erase_partition(uint32_t partition_address, uint32_t partition_size
 
     /* Erase partition */
     for (uint32_t block_addr = partition_address;
-         block_addr <= (partition_address + partition_size); block_addr += SPI_FLASH_BLOCK_SIZE) 
+         block_addr <= (partition_address + partition_size); block_addr += SPI_FLASH_BLOCK_SIZE)
     {
-        if (0 != spi_flash_block_erase(sg_flash_fs_bl2_info.flash_id, block_addr)) 
+        if (0 != spi_flash_block_erase(sg_flash_fs_bl2_info.flash_id, block_addr))
         {
             MESSAGE_ERROR("spi_flash_erase: failed to erase block data!\n");
             return ERROR_SPI_FLASH_BE_FAILED;
@@ -839,7 +840,7 @@ int flash_fs_update_partition(void *buffer, uint64_t buffer_size, uint32_t chunk
     partition_size = sg_flash_fs_bl2_info.flash_size / 2;
 
     /* Check that buffer size is greater than partition size */
-    if (buffer_size < partition_size) 
+    if (buffer_size < partition_size)
     {
         MESSAGE_ERROR("flash_fs_update_partition: failed (image buffer size is smaller \
                         than partition size)!\n");
@@ -848,30 +849,30 @@ int flash_fs_update_partition(void *buffer, uint64_t buffer_size, uint32_t chunk
 
     /* Check for active partition and get the passive partition address to store the
      new firmware image */
-    if (0 == sg_flash_fs_bl2_info.active_partition) 
+    if (0 == sg_flash_fs_bl2_info.active_partition)
     {
         passive_partition_address = sg_flash_fs_bl2_info.flash_size / 2;
-    } 
-    else if (1 == sg_flash_fs_bl2_info.active_partition) 
+    }
+    else if (1 == sg_flash_fs_bl2_info.active_partition)
     {
         passive_partition_address = 0;
-    } 
-    else 
+    }
+    else
     {
         return ERROR_SPI_FLASH_NO_VALID_PARTITION;
     }
 
-    printf("passive partition address:%x  partition size:%x  buffer:%lx  buffer_size:%x!\n",
+    Log_Write(LOG_LEVEL_ERROR, "passive partition address:%x  partition size:%x  buffer:%lx  buffer_size:%x!\n",
            passive_partition_address, partition_size, (uint64_t)buffer, (uint32_t)buffer_size);
 
-    if (0 != flash_fs_erase_partition(passive_partition_address, partition_size)) 
+    if (0 != flash_fs_erase_partition(passive_partition_address, partition_size))
     {
         MESSAGE_ERROR("flash_fs_erase_partition. failed !\n");
         return ERROR_SPI_FLASH_PARTITION_ERASE_FAILED;
     }
 
     if (0 !=
-        flash_fs_write_partition(passive_partition_address, buffer, partition_size, chunk_size)) 
+        flash_fs_write_partition(passive_partition_address, buffer, partition_size, chunk_size))
     {
         MESSAGE_ERROR("flash_fs_write_file: failed to write data  passive partition address:%x  \
             buffer:%lx  buffer_size:%x!\n",
@@ -909,15 +910,15 @@ int flash_fs_get_boot_counters(uint32_t *attempted_boot_counter, uint32_t *compl
     ESPERANTO_PARTITION_BL2_INFO_t *partition_info;
     uint32_t partition_address;
 
-    if (0 == sg_flash_fs_bl2_info.active_partition) 
+    if (0 == sg_flash_fs_bl2_info.active_partition)
     {
         partition_address = 0;
-    } 
-    else if (1 == sg_flash_fs_bl2_info.active_partition) 
+    }
+    else if (1 == sg_flash_fs_bl2_info.active_partition)
     {
         partition_address = sg_flash_fs_bl2_info.flash_size / 2;
-    } 
-    else 
+    }
+    else
     {
         return ERROR_SPI_FLASH_NO_VALID_PARTITION;
     }
@@ -931,7 +932,7 @@ int flash_fs_get_boot_counters(uint32_t *attempted_boot_counter, uint32_t *compl
                      partition_info->regions_table[partition_info->boot_counters_region_index]
                              .region_offset *
                          FLASH_PAGE_SIZE,
-                 partition_info->boot_counters_region_data.b, FLASH_PAGE_SIZE)) 
+                 partition_info->boot_counters_region_data.b, FLASH_PAGE_SIZE))
     {
         MESSAGE_ERROR("flash_fs_scan_regions: error reading boot counter region!\n");
         return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
@@ -942,7 +943,7 @@ int flash_fs_get_boot_counters(uint32_t *attempted_boot_counter, uint32_t *compl
     *completed_boot_counter = count_zero_bits(
         partition_info->boot_counters_region_data.ull + ULL_PER_PAGE / 2, ULL_PER_PAGE / 2);
 
-    printf("attempted_boot_counter: %d  completed_boot_counter:%d\n", *attempted_boot_counter,
+    Log_Write(LOG_LEVEL_ERROR, "attempted_boot_counter: %d  completed_boot_counter:%d\n", *attempted_boot_counter,
            *completed_boot_counter);
 
     return 0;
@@ -979,15 +980,15 @@ int flash_fs_increment_completed_boot_count(void)
     uint32_t page_address;
     uint8_t mask;
 
-    if (0 == sg_flash_fs_bl2_info.active_partition) 
+    if (0 == sg_flash_fs_bl2_info.active_partition)
     {
         partition_address = 0;
-    } 
-    else if (1 == sg_flash_fs_bl2_info.active_partition) 
+    }
+    else if (1 == sg_flash_fs_bl2_info.active_partition)
     {
         partition_address = sg_flash_fs_bl2_info.flash_size / 2;
-    } 
-    else 
+    }
+    else
     {
         return ERROR_SPI_FLASH_NO_VALID_PARTITION;
     }
@@ -999,7 +1000,7 @@ int flash_fs_increment_completed_boot_count(void)
                          .region_offset *
                      FLASH_PAGE_SIZE;
 
-    /*printf("partition address: %x, region_index: %x, region_address: %x\n", partition_address,
+    /*Log_Write(LOG_LEVEL_ERROR, "partition address: %x, region_index: %x, region_address: %x\n", partition_address,
            region_index, region_address); */
 
     counter_data_address = (uint32_t)(partition_address + region_address);
@@ -1009,41 +1010,41 @@ int flash_fs_increment_completed_boot_count(void)
                  sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                          .boot_counters_region_data.ull +
                      FLASH_PAGE_SIZE / 2,
-                 FLASH_PAGE_SIZE / 2)) 
+                 FLASH_PAGE_SIZE / 2))
     {
         MESSAGE_ERROR("flash_fs_increment_completed_boot_counter: \
                         attempted counter region is full!\n");
         return ERROR_SPI_FLASH_BOOT_COUNTER_REGION_FULL;
     }
     /* To be added once we have Trace integrated */
-    /* printf("First unset increment offset: 0x%x, bit offset: 0x%x\n",
+    /* Log_Write(LOG_LEVEL_ERROR, "First unset increment offset: 0x%x, bit offset: 0x%x\n",
          increment_offset, bit_offset); */
 
     page_address = increment_offset & 0xFFFFFFF0u;
-    /* printf("page_address: 0x%x\n", page_address); */
+    /* Log_Write(LOG_LEVEL_ERROR, "page_address: 0x%x\n", page_address); */
 
     mask = (uint8_t) ~(1u << bit_offset);
 
-    /*printf("Original data: %02x\n",
+    /*Log_Write(LOG_LEVEL_ERROR, "Original data: %02x\n",
            sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                .boot_counters_region_data.b[increment_offset]);*/
 
     sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
         .boot_counters_region_data.b[increment_offset] &= mask;
 
-    /*printf("Updated data: %02x\n",
+    /*Log_Write(LOG_LEVEL_ERROR, "Updated data: %02x\n",
            sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                .boot_counters_region_data.b[increment_offset]);*/
 
-    /*printf("Writing 16 bytes @ %lx\n",
+    /*Log_Write(LOG_LEVEL_ERROR, "Writing 16 bytes @ %lx\n",
            (uintptr_t)(sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                            .boot_counters_region_data.b +
                        page_address));
     for (uint32_t n = 0; n < 16; n++) {
-        printf(" %02x", sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
+        Log_Write(LOG_LEVEL_ERROR, " %02x", sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                             .boot_counters_region_data.b[page_address + n]);
     }
-    printf("\n to flash address 0x%x\n", counter_data_address + page_address 
+    Log_Write(LOG_LEVEL_ERROR, "\n to flash address 0x%x\n", counter_data_address + page_address
             + FLASH_PAGE_SIZE / 2); */
 
     if (0 != spi_flash_page_program(sg_flash_fs_bl2_info.flash_id,
@@ -1052,7 +1053,7 @@ int flash_fs_increment_completed_boot_count(void)
                                             .partition_info[sg_flash_fs_bl2_info.active_partition]
                                             .boot_counters_region_data.b +
                                         page_address,
-                                    16)) 
+                                    16))
     {
         MESSAGE_ERROR("flash_fs_increment_completed_boot_counter: spi_flash_program() failed!\n");
         return ERROR_SPI_FLASH_PP_FAILED;
@@ -1065,7 +1066,7 @@ int flash_fs_increment_completed_boot_count(void)
 *
 *   FUNCTION
 *
-*       flash_fs_swap_primary_boot_partition 
+*       flash_fs_swap_primary_boot_partition
 *
 *   DESCRIPTION
 *
@@ -1093,19 +1094,19 @@ int flash_fs_swap_primary_boot_partition(void)
     ESPERANTO_PARTITION_BL2_INFO_t *active_partition_info, *passive_partition_info;
 
     /* Get Active partition address. */
-    if (0 == sg_flash_fs_bl2_info.active_partition) 
+    if (0 == sg_flash_fs_bl2_info.active_partition)
     {
         active_partition_address = 0;
         passive_partition_address = sg_flash_fs_bl2_info.flash_size / 2;
         inactive_partition_index = 1;
-    } 
-    else if (1 == sg_flash_fs_bl2_info.active_partition) 
+    }
+    else if (1 == sg_flash_fs_bl2_info.active_partition)
     {
         active_partition_address = sg_flash_fs_bl2_info.flash_size / 2;
         passive_partition_address = 0;
         inactive_partition_index = 0;
-    } 
-    else 
+    }
+    else
     {
         return ERROR_SPI_FLASH_NO_VALID_PARTITION;
     }
@@ -1125,7 +1126,7 @@ int flash_fs_swap_primary_boot_partition(void)
                 active_partition_info
                         ->regions_table[active_partition_info->priority_designator_region_index]
                         .region_offset *
-                    FLASH_PAGE_SIZE)) 
+                    FLASH_PAGE_SIZE))
     {
         MESSAGE_ERROR("spi_flash_sector_erase: failed to erase active priority counter data!\n");
         return ERROR_SPI_FLASH_SE_FAILED;
@@ -1139,7 +1140,7 @@ int flash_fs_swap_primary_boot_partition(void)
                 passive_partition_info
                         ->regions_table[passive_partition_info->priority_designator_region_index]
                         .region_offset *
-                    FLASH_PAGE_SIZE)) 
+                    FLASH_PAGE_SIZE))
     {
         MESSAGE_ERROR("spi_flash_sector_erase: failed to erase passive priority counter data!\n");
         return ERROR_SPI_FLASH_SE_FAILED;
@@ -1155,13 +1156,13 @@ int flash_fs_swap_primary_boot_partition(void)
                         ->regions_table[passive_partition_info->priority_designator_region_index]
                         .region_offset *
                     FLASH_PAGE_SIZE,
-            (uint8_t *)(&passive_partition_priority_counter), 4)) 
+            (uint8_t *)(&passive_partition_priority_counter), 4))
     {
         MESSAGE_ERROR("spi_flash_program: failed to write priority counter data!\n");
         return ERROR_SPI_FLASH_PP_FAILED;
     }
 
-    printf("flash_fs_swap_primary_boot_partition: priority counters updated!\n");
+    Log_Write(LOG_LEVEL_ERROR, "flash_fs_swap_primary_boot_partition: priority counters updated!\n");
 
     return 0;
 }

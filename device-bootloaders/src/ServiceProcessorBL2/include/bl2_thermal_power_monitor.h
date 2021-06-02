@@ -22,6 +22,7 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include "log.h"
 #include "thermal_pwr_mgmt.h"
 #include "sp_host_iface.h"
 

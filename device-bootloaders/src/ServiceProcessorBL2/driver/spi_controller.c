@@ -21,6 +21,7 @@
 
 #include "serial.h"
 #include <stdio.h>
+#include "log.h"
 #include "io.h"
 #include "bl2_spi_controller.h"
 #include "etsoc_hal/inc/DW_apb_ssi.h"

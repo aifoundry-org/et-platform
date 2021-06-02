@@ -10,6 +10,7 @@
  */
 #include <inttypes.h>
 #include <stdio.h>
+#include "log.h"
 #include "dm_task.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -59,7 +60,7 @@ int32_t dm_event_control_init(void)
                                   &g_staticQueue);
 
     if (!q_handle) {
-        printf("Message Queue creation error: Failed to create DM Events Queue.\n");
+        Log_Write(LOG_LEVEL_ERROR, "Message Queue creation error: Failed to create DM Events Queue.\n");
         return status;
     }
 
@@ -67,7 +68,7 @@ int32_t dm_event_control_init(void)
                                  DM_EVENT_TASK_PRIORITY, g_dm_stack, &g_staticTask_ptr);
 
     if (!t_handle) {
-        printf("Task Creation Failed: Failed to create DM Event Handler Task.\n");
+        Log_Write(LOG_LEVEL_ERROR, "Task Creation Failed: Failed to create DM Event Handler Task.\n");
         vQueueDelete(q_handle);
         return status;
     }
@@ -94,7 +95,7 @@ int32_t dm_event_control_init(void)
     }
 
     if (status) {
-        printf("Error Control Init Failed: Failed to init error control\n");
+        Log_Write(LOG_LEVEL_ERROR, "Error Control Init Failed: Failed to init error control\n");
     }
 
     return status;
@@ -112,7 +113,7 @@ static void dm_event_task_entry(void *pvParameters)
         if (xQueueReceive(q_handle, &msg, portMAX_DELAY) == pdTRUE) {
             status = SP_Host_Iface_CQ_Push_Cmd((void *)&msg, sizeof(msg));
             if (status) {
-                printf("dm_event_handler_task_error :  push to CQ failed!\n");
+                Log_Write(LOG_LEVEL_ERROR, "dm_event_handler_task_error :  push to CQ failed!\n");
             }
         }
     }

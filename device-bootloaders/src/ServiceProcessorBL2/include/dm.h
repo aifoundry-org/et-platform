@@ -14,6 +14,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include "log.h"
 #include <string.h>
 #include "bl2_timer.h"
 #include "service_processor_BL2_data.h"

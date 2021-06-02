@@ -26,7 +26,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
+#include "log.h"
+#include <log.h>
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"

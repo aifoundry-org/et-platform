@@ -12,16 +12,17 @@
 *
 *   DESCRIPTION
 *
-*       This file implements the DM sampling task for sampling different 
+*       This file implements the DM sampling task for sampling different
 *       thermal and performance Management parameters.
 *
 *   FUNCTIONS
-*       
+*
 *       - init_dm_sampling_task
 *
 ***********************************************************************/
 #include <inttypes.h>
 #include <stdio.h>
+#include "log.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "bl2_pmic_controller.h"
@@ -49,7 +50,7 @@ static void dm_task_entry(void *pvParameters);
 *   FUNCTION
 *
 *       init_dm_sampling_task
-*  
+*
 *   DESCRIPTION
 *
 *       This function creates te DM sampling task.
@@ -74,7 +75,7 @@ void init_dm_sampling_task(void)
     //g_soc_power_reg.xyz = <value>;
 
     if (!g_dm_task_handle) {
-        printf("Task creation error: Failed to create DM sampling task.\n");
+        Log_Write(LOG_LEVEL_ERROR, "Task creation error: Failed to create DM sampling task.\n");
     }
 }
 
@@ -83,7 +84,7 @@ void init_dm_sampling_task(void)
 *   FUNCTION
 *
 *       dm_task_entry
-*  
+*
 *   DESCRIPTION
 *
 *       This DM sampling task entry point. The DM sampling task
@@ -113,14 +114,14 @@ static void dm_task_entry(void *pvParameters)
         ret = update_module_current_temperature();
 
         if (0 != ret) {
-            printf("thermal pwr mgmt svc error : update_module_current_temperature()\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error : update_module_current_temperature()\r\n");
         }
 
         // Module Power in watts
         ret = update_module_soc_power();
 
         if (0 != ret) {
-            printf("thermal pwr mgmt svc error : get_module_soc_power()\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error : get_module_soc_power()\r\n");
         }
 
         // Update module max temperature
@@ -133,13 +134,13 @@ static void dm_task_entry(void *pvParameters)
         ret = update_dram_bw();
 
         if (0 != ret) {
-            printf("perf mgmt svc error : update_dram_bw()\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "perf mgmt svc error : update_dram_bw()\r\n");
         }
 
         // DRAM capacity
         ret = update_dram_capacity_percent();
         if (0 != ret) {
-            printf("perf mgmt svc error : update_dram_capacity_percent()\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "perf mgmt svc error : update_dram_capacity_percent()\r\n");
         }
 
         // Wait for the sampling period

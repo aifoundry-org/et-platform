@@ -10,6 +10,7 @@
  */
 #include <inttypes.h>
 #include <stdio.h>
+#include "log.h"
 #include "dm_event_control.h"
 #include "sp_host_iface.h"
 
@@ -21,7 +22,7 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
     struct event_message_t message;
     uint64_t req_start_time = timer_get_ticks_count();
 
-    printf("Generating error event\r\n");
+    Log_Write(LOG_LEVEL_INFO, "Generating error event\r\n");
     
     /* Generate PCIE Correctable Error */
     FILL_EVENT_HEADER(&message.header, PCIE_CE,
@@ -121,7 +122,7 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
     dm_rsp.payload = 0;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
-        printf("send_status_response: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "send_status_response: Cqueue push error!\n");
     }
 }
 

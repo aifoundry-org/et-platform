@@ -23,6 +23,7 @@
 */
 /***********************************************************************/
 #include <stdio.h>
+#include "log.h"
 #include "io.h"
 #include <bl2_watchdog.h>
 #include "hal_device.h"
@@ -73,7 +74,7 @@ int32_t watchdog_init(uint32_t timeout_msec)
 
     watchdog_start();
 
-    printf("Started WATCHDOG...\n");
+    Log_Write(LOG_LEVEL_ERROR, "Started WATCHDOG...\n");
 
     return 0;
 }

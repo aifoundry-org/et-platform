@@ -45,6 +45,9 @@
 
 #include "command_dispatcher.h"
 
+#include "trace.h"
+#include "log.h"
+
 #if TEST_FRAMEWORK
 #include "tf.h"
 #endif
@@ -89,7 +92,7 @@ static int32_t configure_noc(void)
 {
     /* Configure NOC to 400 Mhz */
     if (0 != configure_sp_pll_2(5)) {
-        printf("configure_sp_pll_2() failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "configure_sp_pll_2() failed!\n");
         return NOC_MAIN_CLOCK_CONFIGURE_ERROR;
     }
 
@@ -103,19 +106,19 @@ static int32_t configure_noc(void)
 static int32_t configure_memshire(void)
 {
     if (0 != release_memshire_from_reset()) {
-        printf("release_memshire_from_reset() failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "release_memshire_from_reset() failed!\n");
         return MEMSHIRE_COLD_RESET_CONFIG_ERROR;
     }
     if (0 != configure_memshire_plls()) {
-        printf("configure_memshire_plls() failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "configure_memshire_plls() failed!\n");
         return MEMSHIRE_PLL_CONFIG_ERROR;
     }
 #if !FAST_BOOT
     if (0 != ddr_config()) {
-        printf("ddr_config() failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "ddr_config() failed!\n");
         return MEMSHIRE_DDR_CONFIG_ERROR;
     }
-    printf("DRAM ready.\n");
+    Log_Write(LOG_LEVEL_INFO, "DRAM ready.\n");
 #endif
    return SUCCESS;
 }
@@ -124,22 +127,22 @@ static int32_t configure_minion(uint64_t minion_shires_mask)
 {
     /* Configure Minon Step clock to 650 Mhz */
     if (0 != configure_sp_pll_4(3)) {
-        printf("configure_sp_pll_4() failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "configure_sp_pll_4() failed!\n");
         return MINION_STEP_CLOCK_CONFIGURE_ERROR;
     }
 
     if (0 != release_minions_from_cold_reset()) {
-        printf("release_minions_from_cold_reset() failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "release_minions_from_cold_reset() failed!\n");
         return MINION_COLD_RESET_CONFIG_ERROR;
     }
 
     if (0 != release_minions_from_warm_reset()) {
-        printf("release_minions_from_warm_reset() failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "release_minions_from_warm_reset() failed!\n");
         return MINION_WARM_RESET_CONFIG_ERROR ;
     }
 
     if (0 != configure_minion_plls_and_dlls(minion_shires_mask)) {
-        printf("configure_minion_plls_and_dlls() failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "configure_minion_plls_and_dlls() failed!\n");
         return MINION_PLL_DLL_CONFIG_ERROR;
     }
 
@@ -149,31 +152,31 @@ static int32_t configure_minion(uint64_t minion_shires_mask)
 static int32_t load_autheticate_minion_firmware(void)
 {
     if (0 != load_sw_certificates_chain()) {
-        printf("Failed to load SW ROOT/Issuing Certificate chain!\n");
+        Log_Write(LOG_LEVEL_ERROR, "Failed to load SW ROOT/Issuing Certificate chain!\n");
         return FW_SW_CERTS_LOAD_ERROR;
     }
 
     // In fast-boot mode we skip loading from flash, and assume everything is already pre-loaded
 #if !FAST_BOOT
     if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_MACHINE_MINION)) {
-        printf("Failed to load Machine Minion firmware!\n");
+        Log_Write(LOG_LEVEL_ERROR, "Failed to load Machine Minion firmware!\n");
         return FW_MACH_LOAD_ERROR;
     }
-    printf("MACH FW loaded.\n");
+    Log_Write(LOG_LEVEL_INFO, "MACH FW loaded.\n");
 
     if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_MASTER_MINION)) {
-        printf("Failed to load Master Minion firmware!\n");
+        Log_Write(LOG_LEVEL_ERROR, "Failed to load Master Minion firmware!\n");
         return FW_MM_LOAD_ERROR;
     }
-    printf("MM FW loaded.\n");
+    Log_Write(LOG_LEVEL_INFO, "MM FW loaded.\n");
 
     // TODO: Update the following to Log macro - set to INFO/DEBUG
-    //printf("Attempting to load Worker Minion firmware...\n");
+    //Log_Write(LOG_LEVEL_ERROR, "Attempting to load Worker Minion firmware...\n");
     if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_WORKER_MINION)) {
-        printf("Failed to load Worker Minion firmware!\n");
+        Log_Write(LOG_LEVEL_ERROR, "Failed to load Worker Minion firmware!\n");
         return FW_CM_LOAD_ERROR;
     }
-    printf("WM FW loaded.\n");
+    Log_Write(LOG_LEVEL_INFO, "WM FW loaded.\n");
 #endif
 
    return SUCCESS;
@@ -263,12 +266,12 @@ static void taskMain(void *pvParameters)
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_VQ_READY);
 
-    printf("time: %lu\n", timer_get_ticks_count());
+    Log_Write(LOG_LEVEL_INFO, "time: %lu\n", timer_get_ticks_count());
 
    // Setup NOC
 
     if (0 != configure_noc()) {
-        printf("configure_noc() failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "configure_noc() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_NOC_INITIALIZED);
@@ -276,7 +279,7 @@ static void taskMain(void *pvParameters)
    // Setup MemShire/DDR
 
     if (0 != configure_memshire()) {
-        printf("configure_memshire() failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "configure_memshire() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
 
@@ -285,7 +288,7 @@ static void taskMain(void *pvParameters)
    // Setup Minions
 
     if (0 != configure_minion(minion_shires_mask)) {
-        printf("Configure Minion failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "Configure Minion failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
 
@@ -293,7 +296,7 @@ static void taskMain(void *pvParameters)
 
     // Minion FW Authenticate and load to DDR
     if (0 != load_autheticate_minion_firmware()) {
-        printf("Failed to load Minion Firmware!\n");
+        Log_Write(LOG_LEVEL_ERROR, "Failed to load Minion Firmware!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
 
@@ -306,7 +309,7 @@ static void taskMain(void *pvParameters)
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_COMMAND_DISPATCHER_INITIALIZED);
 
     if (0 != enable_minion_neighborhoods(minion_shires_mask)) {
-        printf("Failed to enable minion neighborhoods!\n");
+        Log_Write(LOG_LEVEL_ERROR, "Failed to enable minion neighborhoods!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
 
@@ -315,7 +318,7 @@ static void taskMain(void *pvParameters)
 
     // TODO: SW-3877 need to READ Master Shire ID from OTP, potentially reprogram NOC
     if (0 != enable_master_shire_threads(32)) {
-        printf("Failed to enable Master minion threads!\n");
+        Log_Write(LOG_LEVEL_ERROR, "Failed to enable Master minion threads!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
 
@@ -328,7 +331,7 @@ static void taskMain(void *pvParameters)
 
     // init thermal power management service
     if (0 != init_thermal_pwr_mgmt_service()) {
-        printf("Failed to init thermal power management!\n");
+        Log_Write(LOG_LEVEL_ERROR, "Failed to init thermal power management!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
 
@@ -336,7 +339,7 @@ static void taskMain(void *pvParameters)
 
     // init watchdog service
      if (0 != init_watchdog_service()) {
-        printf("Failed to init watchdog service!\n");
+        Log_Write(LOG_LEVEL_ERROR, "Failed to init watchdog service!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
 
@@ -344,7 +347,7 @@ static void taskMain(void *pvParameters)
 
     // init DM event handler task
     if (0 != dm_event_control_init()) {
-        printf("Failed to create dm event handler task!\n");
+        Log_Write(LOG_LEVEL_ERROR, "Failed to create dm event handler task!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_EVENT_HANDLER_READY);
@@ -352,16 +355,16 @@ static void taskMain(void *pvParameters)
 #if !FAST_BOOT
     // SP and minions have booted successfully. Increment the completed boot counter
     if (0 != flashfs_drv_increment_completed_boot_count()) {
-        printf("Failed to increment the completed boot counter!\n");
+        Log_Write(LOG_LEVEL_ERROR, "Failed to increment the completed boot counter!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
-    printf("Incremented the completed boot counter!\n");
+    Log_Write(LOG_LEVEL_INFO, "Incremented the completed boot counter!\n");
 #endif
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DEV_READY);
-    printf("SP Device Ready!\n");
+    Log_Write(LOG_LEVEL_INFO, "SP Device Ready!\n");
 
-
+    Trace_String(0, NULL, NULL);
 
     // Init DM sampling task
     init_dm_sampling_task();
@@ -369,7 +372,7 @@ static void taskMain(void *pvParameters)
     goto DONE;
 
 FIRMWARE_LOAD_ERROR:
-    printf("Fatal error... waiting for reset!\n");
+    Log_Write(LOG_LEVEL_ERROR, "Fatal error... waiting for reset!\n");
 
 DONE:
     while (1) {
@@ -383,7 +386,7 @@ static int copy_bl1_data(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     if (NULL == bl1_data ||
         sizeof(SERVICE_PROCESSOR_BL1_DATA_t) != bl1_data->service_processor_bl1_data_size ||
         SERVICE_PROCESSOR_BL1_DATA_VERSION != bl1_data->service_processor_bl1_version) {
-        printf("Invalid BL1 DATA!\n");
+        Log_Write(LOG_LEVEL_ERROR, "Invalid BL1 DATA!\n");
         return -1;
     }
 
@@ -465,15 +468,19 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     SERIAL_init(PU_UART1);
 
 #if TEST_FRAMEWORK
-    printf("\n** SP BL2 STARTED - TF **\r\n");
+    printf ("\n** SP BL2 STARTED - TF **\r\n");
     printf("BL2 version:" GIT_VERSION_STRING " (" BL2_VARIANT ")\n");
     /* control does not return from call below for now .. */
     TF_Wait_And_Process_TF_Cmds();
 #else
-    printf("\n** SP BL2 STARTED **\r\n");
-    printf("BL2 version: %u.%u.%u:" GIT_VERSION_STRING " (" BL2_VARIANT ")\n",
+
+    Log_Init(LOG_LEVEL_INFO);
+    Trace_Init_SP(NULL);
+    Log_Write(LOG_LEVEL_INFO, "\n** SP BL2 STARTED **\r\n");
+    Log_Write(LOG_LEVEL_INFO, "BL2 version: %u.%u.%u:" GIT_VERSION_STRING " (" BL2_VARIANT ")\n",
            image_version_info->file_version_major, image_version_info->file_version_minor,
            image_version_info->file_version_revision);
+
 
 #endif
     memset(&g_service_processor_bl2_data, 0, sizeof(g_service_processor_bl2_data));
@@ -483,14 +490,14 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 
 
     if (0 != copy_bl1_data(bl1_data)) {
-        printf("copy_bl1_data() failed!!\n");
+        Log_Write(LOG_LEVEL_ERROR, "copy_bl1_data() failed!!\n");
         goto FATAL_ERROR;
     }
 
     timer_init(bl1_data->timer_raw_ticks_before_pll_turned_on, bl1_data->sp_pll0_frequency);
 
     if (0 != sp_otp_init()) {
-        printf("sp_otp_init() failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "sp_otp_init() failed!\n");
         goto FATAL_ERROR;
     }
 
@@ -498,21 +505,21 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 
     if (0 != pll_init(bl1_data->sp_pll0_frequency, bl1_data->sp_pll1_frequency,
                       bl1_data->pcie_pll0_frequency)) {
-        printf("pll_init() failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "pll_init() failed!\n");
         goto FATAL_ERROR;
     }
 
     INT_init();
 
     if (vaultip_disabled) {
-        printf("VaultIP is disabled!\n");
+        Log_Write(LOG_LEVEL_INFO, "VaultIP is disabled!\n");
     } else {
         if (0 != Vault_Initialize()) {
-            printf("Vault_Initialize() failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "Vault_Initialize() failed!\n");
             goto FATAL_ERROR;
         }
         if (0 != crypto_init(bl1_data->vaultip_coid_set)) {
-            printf("crypto_init() failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "crypto_init() failed!\n");
             goto FATAL_ERROR;
         }
     }
@@ -521,24 +528,24 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 #if !FAST_BOOT
     if (0 != flashfs_drv_init(&g_service_processor_bl2_data.flash_fs_bl2_info,
                               &bl1_data->flash_fs_bl1_info)) {
-        printf("flashfs_drv_init() failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "flashfs_drv_init() failed!\n");
         goto FATAL_ERROR;
     }
 #endif
 
-    printf("Starting RTOS...\n");
+    Log_Write(LOG_LEVEL_INFO, "Starting RTOS...\n");
 
     gs_taskHandleMain = xTaskCreateStatic(taskMain, "Main Task", TASK_STACK_SIZE, NULL, 1,
                                           gs_stackMain, &gs_taskBufferMain);
     if (gs_taskHandleMain == NULL) {
-        printf("xTaskCreateStatic(taskMain) failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "xTaskCreateStatic(taskMain) failed!\r\n");
     }
 
     vTaskStartScheduler();
 
 FATAL_ERROR:
-    printf("Encountered a FATAL ERROR!\n");
-    printf("Waiting for RESET!!!\n");
+    Log_Write(LOG_LEVEL_ERROR, "Encountered a FATAL ERROR!\n");
+    Log_Write(LOG_LEVEL_ERROR, "Waiting for RESET!!!\n");
     for (;;)
         ;
 }

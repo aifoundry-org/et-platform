@@ -39,6 +39,8 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include "log.h"
+
 
 #define VQUEUE_TASK_PRIORITY 2
 #define VQUEUE_STACK_SIZE    256
@@ -87,7 +89,7 @@ static void create_pc_vq_task(void)
                                             NULL, VQUEUE_TASK_PRIORITY, g_pc_vq_task_stack,
                                             &g_pc_vq_task_ptr);
     if (g_pc_vq_task_handle == NULL) {
-        printf("xTaskCreateStatic(pc_vq_task) failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "xTaskCreateStatic(pc_vq_task) failed!\r\n");
     }
 }
 
@@ -98,7 +100,7 @@ static void create_mm_vq_task(void)
                                             NULL, VQUEUE_TASK_PRIORITY, g_mm_vq_task_stack,
                                             &g_mm_vq_task_ptr);
     if (g_mm_vq_task_handle == NULL) {
-        printf("xTaskCreateStatic(mm_vq_task) failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "xTaskCreateStatic(mm_vq_task) failed!\r\n");
     }
 }
 
@@ -132,7 +134,7 @@ static void pc_vq_task(void *pvParameters)
 
             // Message with an invalid size
             if ((size_t)length < sizeof(struct cmd_header_t)) {
-                printf("Invalid message: length = %d, min length %ld\r\n", length,
+                Log_Write(LOG_LEVEL_ERROR, "Invalid message: length = %d, min length %ld\r\n", length,
                        sizeof(struct cmd_header_t));
                 break;
             }
@@ -218,8 +220,8 @@ static void pc_vq_task(void *pvParameters)
                 break;
 
             default:
-                printf("[PC VQ] Invalid message id: %d\r\n", msg_id);
-                printf("message length: %d, buffer:\r\n", length);
+                Log_Write(LOG_LEVEL_ERROR, "[PC VQ] Invalid message id: %d\r\n", msg_id);
+                Log_Write(LOG_LEVEL_ERROR, "message length: %d, buffer:\r\n", length);
                 // TODO:
                 // Implement error handler
                 break;
@@ -269,13 +271,13 @@ static void mm_vq_task(void *pvParameters)
                     rsp.msg_hdr.msg_size = sizeof(struct mm2sp_echo_rsp_t);
                     rsp.payload = req->payload;
 
-                    printf("MM_Iface: Received echo command 1 from MM ****\r\n");
+                    Log_Write(LOG_LEVEL_INFO, "MM_Iface: Received echo command 1 from MM ****\r\n");
 
-                    printf("MM_Iface: Transmitting echo response 1 to MM ****\r\n");
+                    Log_Write(LOG_LEVEL_INFO, "MM_Iface: Transmitting echo response 1 to MM ****\r\n");
 
                     if(0 != MM_Iface_Push_Cmd_To_MM2SP_CQ((void*)&rsp, sizeof(rsp)))
                     {
-                        printf("MM_Iface_Push_Cmd_To_MM2SP_CQ: Cqueue push error!\n");
+                        Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_MM2SP_CQ: Cqueue push error!\n");
                     }
 
                     break;
@@ -287,8 +289,8 @@ static void mm_vq_task(void *pvParameters)
 		        }
             	default:
                 {
-                    printf("[MM VQ] Invalid message id: %" PRIu16 "\r\n", hdr->msg_id);
-                    printf("message length: %" PRIi64 ", buffer:\r\n", cmd_length);
+                    Log_Write(LOG_LEVEL_ERROR, "[MM VQ] Invalid message id: %" PRIu16 "\r\n", hdr->msg_id);
+                    Log_Write(LOG_LEVEL_ERROR, "message length: %" PRIi64 ", buffer:\r\n", cmd_length);
                     // TODO:
                     // Implement error handler
                     break;

@@ -55,7 +55,7 @@ static void pwr_svc_get_module_power_state(uint16_t tag, uint64_t req_start_time
 
     status = get_module_power_state(&power_state);
     if (0 != status) {
-        printf(" thermal pwr mgmt error: get_module_power_state()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, " thermal pwr mgmt error: get_module_power_state()\r\n");
     } else {
         dm_rsp.pwr_state = power_state;
     }
@@ -65,7 +65,7 @@ static void pwr_svc_get_module_power_state(uint16_t tag, uint64_t req_start_time
 
     if (0 !=
         SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_power_state_rsp_t))) {
-        printf("pwr_svc_get_module_power_state: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "pwr_svc_get_module_power_state: Cqueue push error!\n");
     }
 }
 
@@ -106,7 +106,7 @@ static void pwr_svc_set_module_power_state(uint16_t tag, uint64_t req_start_time
     status = update_module_power_state(state);
 
     if (0 != status) {
-        printf(" thermal pwr mgmt error: update_module_power_state()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, " thermal pwr mgmt error: update_module_power_state()\r\n");
     }
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_SET_MODULE_POWER_STATE,
@@ -115,7 +115,7 @@ static void pwr_svc_set_module_power_state(uint16_t tag, uint64_t req_start_time
     dm_rsp.payload = status;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
-        printf("pwr_svc_set_module_power_state: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "pwr_svc_set_module_power_state: Cqueue push error!\n");
     }
 }
 
@@ -149,7 +149,7 @@ static void pwr_svc_get_module_power(uint16_t tag, uint64_t req_start_time)
     status = get_module_soc_power(&soc_power);
 
     if (0 != status) {
-        printf(" thermal pwr mgmt error: get_module_soc_power()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, " thermal pwr mgmt error: get_module_soc_power()\r\n");
     } else {
         dm_rsp.module_power.power = soc_power;
     }
@@ -159,7 +159,7 @@ static void pwr_svc_get_module_power(uint16_t tag, uint64_t req_start_time)
 
     if (0 !=
         SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_module_power_rsp_t))) {
-        printf("pwr_svc_get_module_power: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "pwr_svc_get_module_power: Cqueue push error!\n");
     }
 }
 
@@ -194,7 +194,7 @@ static void pwr_svc_get_module_voltage(uint16_t tag, uint64_t req_start_time)
     status = get_module_voltage(&module_voltage);
 
     if (0 != status) {
-        printf(" thermal pwr mgmt error: get_module_voltage()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, " thermal pwr mgmt error: get_module_voltage()\r\n");
     } else {
         dm_rsp.module_voltage = module_voltage;
     }
@@ -204,7 +204,7 @@ static void pwr_svc_get_module_voltage(uint16_t tag, uint64_t req_start_time)
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
                                        sizeof(struct device_mgmt_module_voltage_rsp_t))) {
-        printf("pwr_svc_get_module_voltage: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "pwr_svc_get_module_voltage: Cqueue push error!\n");
     }
 }
 
@@ -247,7 +247,7 @@ static void pwr_svc_get_module_tdp_level(uint16_t tag, uint64_t req_start_time)
     status = get_module_tdp_level(&tdp);
 
     if (0 != status) {
-        printf(" thermal pwr mgmt error: get_module_tdp_level()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, " thermal pwr mgmt error: get_module_tdp_level()\r\n");
     } else {
         dm_rsp.tdp_level = tdp;
     }
@@ -257,7 +257,7 @@ static void pwr_svc_get_module_tdp_level(uint16_t tag, uint64_t req_start_time)
 
     if (0 !=
         SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_tdp_level_rsp_t))) {
-        printf("pwr_svc_get_module_tdp_level: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "pwr_svc_get_module_tdp_level: Cqueue push error!\n");
     }
 }
 
@@ -291,7 +291,7 @@ static void pwr_svc_set_module_tdp_level(uint16_t tag, uint64_t req_start_time, 
     status = update_module_tdp_level(tdp);
 
     if (0 != status) {
-        printf(" thermal pwr mgmt error: update_module_tdp_level()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, " thermal pwr mgmt error: update_module_tdp_level()\r\n");
     }
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_SET_MODULE_STATIC_TDP_LEVEL,
@@ -300,7 +300,7 @@ static void pwr_svc_set_module_tdp_level(uint16_t tag, uint64_t req_start_time, 
     dm_rsp.payload = status;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
-        printf("pwr_svc_set_module_power_state: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "pwr_svc_set_module_power_state: Cqueue push error!\n");
     }
 }
 
@@ -335,7 +335,7 @@ static void pwr_svc_get_module_temp_thresholds(uint16_t tag, uint64_t req_start_
     status = get_module_temperature_threshold(&temperature_threshold);
 
     if (0 != status) {
-        printf(" thermal pwr mgmt error: get_module_temperature_threshold()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, " thermal pwr mgmt error: get_module_temperature_threshold()\r\n");
     } else {
         dm_rsp.temperature_threshold = temperature_threshold;
     }
@@ -345,7 +345,7 @@ static void pwr_svc_get_module_temp_thresholds(uint16_t tag, uint64_t req_start_
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
                                        sizeof(struct device_mgmt_temperature_threshold_rsp_t))) {
-        printf("pwr_svc_get_module_temp_thresholds: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "pwr_svc_get_module_temp_thresholds: Cqueue push error!\n");
     }
 }
 
@@ -380,7 +380,7 @@ static void pwr_svc_set_module_temp_thresholds(uint16_t tag, uint64_t req_start_
     status = update_module_temperature_threshold(threshold);
 
     if (0 != status) {
-        printf("thermal pwr mgmt error: update_module_temperature_threshold()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt error: update_module_temperature_threshold()\r\n");
     }
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS,
@@ -389,7 +389,7 @@ static void pwr_svc_set_module_temp_thresholds(uint16_t tag, uint64_t req_start_
     dm_rsp.payload = status;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
-        printf("pwr_svc_set_module_temp_thresholds: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "pwr_svc_set_module_temp_thresholds: Cqueue push error!\n");
     }
 }
 
@@ -424,7 +424,7 @@ static void pwr_svc_get_module_current_temperature(uint16_t tag, uint64_t req_st
     status = get_module_current_temperature(&soc_temperature);
 
     if (0 != status) {
-        printf("thermal pwr mgmt error: get_module_current_temperature()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt error: get_module_current_temperature()\r\n");
     } else {
         dm_rsp.current_temperature.temperature_c = soc_temperature;
     }
@@ -434,7 +434,7 @@ static void pwr_svc_get_module_current_temperature(uint16_t tag, uint64_t req_st
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
                                        sizeof(struct device_mgmt_current_temperature_rsp_t))) {
-        printf("pwr_svc_get_module_current_temperature: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "pwr_svc_get_module_current_temperature: Cqueue push error!\n");
     }
 }
 
@@ -469,7 +469,7 @@ static void pwr_svc_get_module_residency_throttle_states(uint16_t tag, uint64_t 
     status = get_throttle_time(&throttle_time);
 
     if (0 != status) {
-        printf("thermal pwr mgmt error: get_throttle_time()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt error: get_throttle_time()\r\n");
     } else {
         dm_rsp.throttle_time.time_usec = throttle_time;
     }
@@ -479,7 +479,7 @@ static void pwr_svc_get_module_residency_throttle_states(uint16_t tag, uint64_t 
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
                                        sizeof(struct device_mgmt_throttle_time_rsp_t))) {
-        printf("pwr_svc_get_module_residency_throttle_states: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "pwr_svc_get_module_residency_throttle_states: Cqueue push error!\n");
     }
 }
 
@@ -513,7 +513,7 @@ static void pwr_svc_get_module_uptime(uint16_t tag, uint64_t req_start_time)
     status = get_module_uptime(&module_uptime);
 
     if (0 != status) {
-        printf("thermal pwr mgmt error: get_module_uptime()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt error: get_module_uptime()\r\n");
     } else {
         dm_rsp.module_uptime = module_uptime;
     }
@@ -523,7 +523,7 @@ static void pwr_svc_get_module_uptime(uint16_t tag, uint64_t req_start_time)
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
                                        sizeof(struct device_mgmt_module_uptime_rsp_t))) {
-        printf("pwr_svc_get_module_uptime: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "pwr_svc_get_module_uptime: Cqueue push error!\n");
     }
 }
 

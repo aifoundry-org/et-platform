@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "log.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -93,7 +94,7 @@ static void flashfs_driver_task(void *pvParameters)
 
     while (1) {
         if (pdTRUE != xQueueReceive(gs_flashfs_driver_reqeust_queue, &req_msg, portMAX_DELAY)) {
-            printf("flashfs_driver_task:  xQueueReceive() failed!\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "flashfs_driver_task:  xQueueReceive() failed!\r\n");
             continue;
         }
 
@@ -123,13 +124,13 @@ static void flashfs_driver_task(void *pvParameters)
 
         case FLASHFS_DRIVER_REQUEST_RESET_BOOT_COUNTERS:
         default:
-            printf("flashfs_driver_task: invalid or not supported request code %u!\r\n",
+            Log_Write(LOG_LEVEL_ERROR, "flashfs_driver_task: invalid or not supported request code %u!\r\n",
                    req_msg.request);
             rsp_msg.status_code = -1;
         }
 
         if (pdTRUE != xQueueSend(gs_flashfs_driver_response_queue, &rsp_msg, portMAX_DELAY)) {
-            printf("flashfs_driver_task:  xQueueSend() failed!\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "flashfs_driver_task:  xQueueSend() failed!\r\n");
             continue;
         }
     }
@@ -141,7 +142,7 @@ int flashfs_drv_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info,
     gs_next_request_id = 0;
 
     if (0 != flash_fs_init(flash_fs_bl2_info, flash_fs_bl1_info)) {
-        printf("flashfs_drv_init:  flash_fs_init() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "flashfs_drv_init:  flash_fs_init() failed!\r\n");
         return -1;
     }
 
@@ -149,7 +150,7 @@ int flashfs_drv_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info,
         FLASHFS_DRIVER_REQUEST_QUEUE_SIZE, sizeof(FLASHFS_DRIVER_REQUEST_MESSAGE_t),
         gs_flashfs_driver_reqeust_queue_storage_buffer, &gs_flashfs_driver_reqeust_queue_buffer);
     if (NULL == gs_flashfs_driver_reqeust_queue) {
-        printf("flashfs_drv_init:  xQueueCreateStatic(request_queue) failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "flashfs_drv_init:  xQueueCreateStatic(request_queue) failed!\r\n");
         return -1;
     }
 
@@ -157,7 +158,7 @@ int flashfs_drv_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info,
         FLASHFS_DRIVER_RESPONSE_QUEUE_SIZE, sizeof(FLASHFS_DRIVER_RESPONSE_MESSAGE_t),
         gs_flashfs_driver_response_queue_storage_buffer, &gs_flashfs_driver_response_queue_buffer);
     if (NULL == gs_flashfs_driver_response_queue) {
-        printf("flashfs_drv_init:  xQueueCreateStatic(response_queue) failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "flashfs_drv_init:  xQueueCreateStatic(response_queue) failed!\r\n");
         return -1;
     }
 
@@ -167,7 +168,7 @@ int flashfs_drv_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info,
                           FLASHFS_DRIVER_TASK_PRIORITY, gs_flashfs_driver_task_stack_buffer,
                           &gs_flashfs_driver_task_buffer);
     if (NULL == gs_flashfs_driver_task_handle) {
-        printf("flashfs_drv_init:  xTaskCreateStatic() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "flashfs_drv_init:  xTaskCreateStatic() failed!\r\n");
         return -1;
     }
 
@@ -178,22 +179,22 @@ static int queue_request_and_wait_for_response(const FLASHFS_DRIVER_REQUEST_MESS
                                                FLASHFS_DRIVER_RESPONSE_MESSAGE_t *rsp_msg)
 {
     if (pdTRUE != xQueueSend(gs_flashfs_driver_reqeust_queue, req_msg, portMAX_DELAY)) {
-        printf("queue_request_and_wait_for_response:  xQueueSend() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "queue_request_and_wait_for_response:  xQueueSend() failed!\r\n");
         return -1;
     }
 
     if (pdTRUE != xQueueReceive(gs_flashfs_driver_response_queue, rsp_msg, portMAX_DELAY)) {
-        printf("queue_request_and_wait_for_response:  xQueueSend() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "queue_request_and_wait_for_response:  xQueueSend() failed!\r\n");
         return -1;
     }
 
     if (req_msg->id != rsp_msg->id) {
-        printf("queue_request_and_wait_for_response:  id mismatch!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "queue_request_and_wait_for_response:  id mismatch!\r\n");
         return -1;
     }
 
     if (req_msg->request != rsp_msg->request) {
-        printf("queue_request_and_wait_for_response:  request mismatch!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "queue_request_and_wait_for_response:  request mismatch!\r\n");
         return -1;
     }
 
@@ -210,12 +211,12 @@ int flashfs_drv_get_config_data(void *buffer)
     req.args.get_config_data.buffer = buffer;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("flashfs_drv_get_config_data: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "flashfs_drv_get_config_data: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("flashfs_drv_get_config_data: flash_fs_get_config_data() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "flashfs_drv_get_config_data: flash_fs_get_config_data() failed!\r\n");
         return -1;
     }
 
@@ -232,12 +233,12 @@ int flashfs_drv_get_file_size(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t *s
     req.args.get_file_size.region_id = region_id;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("flashfs_drv_get_config_data: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "flashfs_drv_get_config_data: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("flashfs_drv_get_config_data: flash_fs_get_file_size() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "flashfs_drv_get_config_data: flash_fs_get_file_size() failed!\r\n");
         return -1;
     }
 
@@ -259,12 +260,12 @@ int flashfs_drv_read_file(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t offset
     req.args.read_file.buffer_size = buffer_size;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("flashfs_drv_get_config_data: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "flashfs_drv_get_config_data: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("flashfs_drv_get_config_data: flash_fs_read_file() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "flashfs_drv_get_config_data: flash_fs_read_file() failed!\r\n");
         return -1;
     }
 
@@ -285,13 +286,13 @@ int flashfs_drv_increment_completed_boot_count(void)
     req.request = FLASHFS_DRIVER_REQUEST_INCREMENT_COMPLETED_BOOT_COUNT;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf(
+        Log_Write(LOG_LEVEL_ERROR, 
             "flashfs_drv_increment_completed_boot_count: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf(
+        Log_Write(LOG_LEVEL_ERROR, 
             "flashfs_drv_increment_completed_boot_count: flash_fs_increment_completed_boot_count() failed!\r\n");
         return -1;
     }

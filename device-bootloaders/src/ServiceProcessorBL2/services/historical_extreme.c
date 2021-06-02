@@ -48,7 +48,7 @@ static void get_max_memory_error(tag_id_t tag_id, uint64_t req_start_time)
 
     status = ddr_get_ce_count(&ddr_ce_count);
     if (0 != status) {
-        printf("get_max_memory_error : driver error !\n");
+        Log_Write(LOG_LEVEL_ERROR, "get_max_memory_error : driver error !\n");
     } else {
         if (error_count->ddr_ce_max_count < ddr_ce_count) {
             error_count->ddr_ce_max_count = ddr_ce_count;
@@ -62,7 +62,7 @@ static void get_max_memory_error(tag_id_t tag_id, uint64_t req_start_time)
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
                                        sizeof(struct device_mgmt_max_memory_error_rsp_t))) {
-        printf("get_max_memory_error: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "get_max_memory_error: Cqueue push error!\n");
     }
 }
 
@@ -95,7 +95,7 @@ static void get_module_max_ddr_bw(tag_id_t tag_id, uint64_t req_start_time)
     status = get_module_max_dram_bw(&max_dram_bw);
 
     if (0 != status) {
-        printf(" perf mgmt svc error: get_module_max_dram_bw()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, " perf mgmt svc error: get_module_max_dram_bw()\r\n");
     } else {
         dm_rsp.max_dram_bw.max_bw_rd_req_sec = max_dram_bw.max_bw_rd_req_sec;
         dm_rsp.max_dram_bw.max_bw_wr_req_sec = max_dram_bw.max_bw_wr_req_sec;
@@ -106,7 +106,7 @@ static void get_module_max_ddr_bw(tag_id_t tag_id, uint64_t req_start_time)
 
     if (0 !=
         SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_max_dram_bw_rsp_t))) {
-        printf("get_max_memory_error: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "get_max_memory_error: Cqueue push error!\n");
     }
 }
 
@@ -140,7 +140,7 @@ static void get_module_max_throttle_time(tag_id_t tag_id, uint64_t req_start_tim
     status = get_max_throttle_time(&max_throttle_time);
 
     if (0 != status) {
-        printf(" thermal pwr mgmt svc error: get_module_max_throttle_time()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, " thermal pwr mgmt svc error: get_module_max_throttle_time()\r\n");
     } else {
         dm_rsp.max_throttle_time.time_usec = max_throttle_time;
     }
@@ -150,7 +150,7 @@ static void get_module_max_throttle_time(tag_id_t tag_id, uint64_t req_start_tim
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
                                        sizeof(struct device_mgmt_max_throttle_time_rsp_t))) {
-        printf("get_module_max_throttle_time: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "get_module_max_throttle_time: Cqueue push error!\n");
     }
 }
 
@@ -185,7 +185,7 @@ static void get_module_max_temperature(uint16_t tag, uint64_t req_start_time)
     status = get_soc_max_temperature(&max_temp);
 
     if (0 != status) {
-        printf(" thermal pwr mgmt svc error: get_soc_max_temperature()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, " thermal pwr mgmt svc error: get_soc_max_temperature()\r\n");
     } else {
         dm_rsp.max_temperature.max_temperature_c = max_temp;
     }
@@ -195,7 +195,7 @@ static void get_module_max_temperature(uint16_t tag, uint64_t req_start_time)
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
                                        sizeof(struct device_mgmt_max_temperature_rsp_t))) {
-        printf("get_module_max_temperature: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "get_module_max_temperature: Cqueue push error!\n");
     }
 }
 

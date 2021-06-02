@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "log.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -332,7 +333,7 @@ static void vaultip_driver_task(void *pvParameters)
 
     while (1) {
         if (pdTRUE != xQueueReceive(gs_vaultip_driver_reqeust_queue, &req_msg, portMAX_DELAY)) {
-            printf("vaultip_driver_task:  xQueueReceive() failed!\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "vaultip_driver_task:  xQueueReceive() failed!\r\n");
             continue;
         }
 
@@ -545,13 +546,13 @@ static void vaultip_driver_task(void *pvParameters)
             break;
 
         default:
-            printf("vaultip_driver_task: invalid or not supported request code %u!\r\n",
+            Log_Write(LOG_LEVEL_ERROR, "vaultip_driver_task: invalid or not supported request code %u!\r\n",
                    req_msg.request);
             rsp_msg.status_code = -1;
         }
 
         if (pdTRUE != xQueueSend(gs_vaultip_driver_response_queue, &rsp_msg, portMAX_DELAY)) {
-            printf("vaultip_driver_task:  xQueueSend() failed!\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "vaultip_driver_task:  xQueueSend() failed!\r\n");
             continue;
         }
     }
@@ -565,7 +566,7 @@ int Vault_Initialize(void)
         VAULTIP_DRIVER_REQUEST_QUEUE_SIZE, sizeof(VAULTIP_DRIVER_REQUEST_MESSAGE_t),
         gs_vaultip_driver_reqeust_queue_storage_buffer, &gs_vaultip_driver_reqeust_queue_buffer);
     if (NULL == gs_vaultip_driver_reqeust_queue) {
-        printf("Vault_Initialize:  xQueueCreateStatic(request_queue) failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Vault_Initialize:  xQueueCreateStatic(request_queue) failed!\r\n");
         return -1;
     }
 
@@ -573,7 +574,7 @@ int Vault_Initialize(void)
         VAULTIP_DRIVER_RESPONSE_QUEUE_SIZE, sizeof(VAULTIP_DRIVER_RESPONSE_MESSAGE_t),
         gs_vaultip_driver_response_queue_storage_buffer, &gs_vaultip_driver_response_queue_buffer);
     if (NULL == gs_vaultip_driver_response_queue) {
-        printf("Vault_Initialize:  xQueueCreateStatic(response_queue) failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Vault_Initialize:  xQueueCreateStatic(response_queue) failed!\r\n");
         return -1;
     }
 
@@ -583,7 +584,7 @@ int Vault_Initialize(void)
                           VAULTIP_DRIVER_TASK_PRIORITY, gs_vaultip_driver_task_stack_buffer,
                           &gs_vaultip_driver_task_buffer);
     if (NULL == gs_vaultip_driver_task_handle) {
-        printf("vaultip_drv_init:  xTaskCreateStatic() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_init:  xTaskCreateStatic() failed!\r\n");
         return -1;
     }
 
@@ -594,22 +595,22 @@ static int queue_request_and_wait_for_response(const VAULTIP_DRIVER_REQUEST_MESS
                                                VAULTIP_DRIVER_RESPONSE_MESSAGE_t *rsp_msg)
 {
     if (pdTRUE != xQueueSend(gs_vaultip_driver_reqeust_queue, req_msg, portMAX_DELAY)) {
-        printf("queue_request_and_wait_for_response:  xQueueSend() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "queue_request_and_wait_for_response:  xQueueSend() failed!\r\n");
         return -1;
     }
 
     if (pdTRUE != xQueueReceive(gs_vaultip_driver_response_queue, rsp_msg, portMAX_DELAY)) {
-        printf("queue_request_and_wait_for_response:  xQueueSend() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "queue_request_and_wait_for_response:  xQueueSend() failed!\r\n");
         return -1;
     }
 
     if (req_msg->id != rsp_msg->id) {
-        printf("queue_request_and_wait_for_response:  id mismatch!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "queue_request_and_wait_for_response:  id mismatch!\r\n");
         return -1;
     }
 
     if (req_msg->request != rsp_msg->request) {
-        printf("queue_request_and_wait_for_response:  request mismatch!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "queue_request_and_wait_for_response:  request mismatch!\r\n");
         return -1;
     }
 
@@ -625,12 +626,12 @@ int vaultip_drv_self_test(void)
     req.request = VAULTIP_DRIVER_SELF_TEST;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_self_test: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_self_test: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_self_test: vaultip_drv_get_system_information() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_self_test: vaultip_drv_get_system_information() failed!\r\n");
         return -1;
     }
 
@@ -649,13 +650,13 @@ int vaultip_drv_get_system_information(uint32_t identity,
     req.args.get_system_information.system_info = system_info;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf(
+        Log_Write(LOG_LEVEL_ERROR, 
             "vaultip_drv_get_system_information: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf(
+        Log_Write(LOG_LEVEL_ERROR, 
             "vaultip_drv_get_system_information: vaultip_drv_get_system_information() failed!\r\n");
         return -1;
     }
@@ -678,12 +679,12 @@ int vaultip_drv_register_read(uint32_t identity, bool incremental_read, uint32_t
     req.args.register_read.result = result;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_register_read: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_register_read: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_register_read: vaultip_drv_register_read() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_register_read: vaultip_drv_register_read() failed!\r\n");
         return -1;
     }
 
@@ -706,12 +707,12 @@ int vaultip_drv_register_write(uint32_t identity, bool incremental_write, uint32
     req.args.register_write.value = value;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_register_write: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_register_write: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_register_write: vaultip_drv_register_write() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_register_write: vaultip_drv_register_write() failed!\r\n");
         return -1;
     }
 
@@ -728,12 +729,12 @@ int vaultip_drv_trng_configuration(uint32_t identity)
     req.args.trng_configuration.identity = identity;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_trng_configuration: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_trng_configuration: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_trng_configuration: vaultip_drv_trng_configuration() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_trng_configuration: vaultip_drv_trng_configuration() failed!\r\n");
         return -1;
     }
 
@@ -753,13 +754,13 @@ int vaultip_drv_trng_get_random_number(uint32_t identity, void *dst, uint16_t si
     req.args.get_random_number.raw = raw;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf(
+        Log_Write(LOG_LEVEL_ERROR, 
             "vaultip_drv_trng_get_random_number: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf(
+        Log_Write(LOG_LEVEL_ERROR, 
             "vaultip_drv_trng_get_random_number: vaultip_drv_trng_get_random_number() failed!\r\n");
         return -1;
     }
@@ -777,12 +778,12 @@ int vaultip_drv_provision_huk(uint32_t coid)
     req.args.provision_huk.coid = coid;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_provision_huk: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_provision_huk: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_provision_huk: vaultip_drv_provision_huk() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_provision_huk: vaultip_drv_provision_huk() failed!\r\n");
         return -1;
     }
 
@@ -798,12 +799,12 @@ int vaultip_drv_reset(uint32_t identity)
     req.args.reset.identity = identity;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_reset: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_reset: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_reset: vaultip_drv_reset() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_reset: vaultip_drv_reset() failed!\r\n");
         return -1;
     }
 
@@ -824,24 +825,24 @@ int vaultip_drv_hash(uint32_t identity, HASH_ALG_t hash_alg, const void *msg, si
     req.args.hash.hash = hash;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_hash: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_hash: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_hash: vaultip_drv_hash() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_hash: vaultip_drv_hash() failed!\r\n");
         return -1;
     }
 
     return 0;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_hash: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_hash: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_hash: vaultip_drv_hash() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_hash: vaultip_drv_hash() failed!\r\n");
         return -1;
     }
 
@@ -863,12 +864,12 @@ int vaultip_drv_hash_update(uint32_t identity, HASH_ALG_t hash_alg, uint32_t dig
     req.args.hash_update.init = init;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_hash_update: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_hash_update: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_hash_update: vaultip_hash_update() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_hash_update: vaultip_hash_update() failed!\r\n");
         return -1;
     }
 
@@ -893,12 +894,12 @@ int vaultip_drv_hash_final(uint32_t identity, HASH_ALG_t hash_alg, uint32_t dige
     req.args.hash_final.hash = hash;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_hash_final: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_hash_final: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_hash_final: vaultip_hash_final() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_hash_final: vaultip_hash_final() failed!\r\n");
         return -1;
     }
 
@@ -921,12 +922,12 @@ int vaultip_drv_mac_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, ui
     req.args.mac_generate.mac = mac;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_mac_generate: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_mac_generate: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_mac_generate: vaultip_asset_create() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_mac_generate: vaultip_asset_create() failed!\r\n");
         return -1;
     }
 
@@ -948,12 +949,12 @@ int vaultip_drv_mac_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint
     req.args.mac_verify.mac = mac;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_mac_verify: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_mac_verify: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_mac_verify: vaultip_asset_create() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_mac_verify: vaultip_asset_create() failed!\r\n");
         return -1;
     }
 
@@ -976,12 +977,12 @@ int vaultip_drv_mac_update(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint
     req.args.mac_update.init = init;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_mac_update: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_mac_update: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_mac_update: vaultip_asset_create() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_mac_update: vaultip_asset_create() failed!\r\n");
         return -1;
     }
 
@@ -1007,12 +1008,12 @@ int vaultip_drv_mac_final_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_a
     req.args.mac_final_generate.mac = mac;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_mac_final_generate: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_mac_final_generate: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_mac_final_generate: vaultip_asset_create() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_mac_final_generate: vaultip_asset_create() failed!\r\n");
         return -1;
     }
 
@@ -1039,12 +1040,12 @@ int vaultip_drv_mac_final_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg
     req.args.mac_final_verify.mac = mac;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_mac_final_verify: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_mac_final_verify: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_mac_final_verify: vaultip_asset_create() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_mac_final_verify: vaultip_asset_create() failed!\r\n");
         return -1;
     }
 
@@ -1066,12 +1067,12 @@ int vaultip_drv_aes_cbc_encrypt(uint32_t identity, uint32_t key_asset_id, uint8_
     req.args.aes_cbc_encrypt.data_size = data_size;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_aes_cbc_encrypt: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_aes_cbc_encrypt: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_aes_cbc_encrypt: vaultip_asset_create() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_aes_cbc_encrypt: vaultip_asset_create() failed!\r\n");
         return -1;
     }
 
@@ -1092,12 +1093,12 @@ int vaultip_drv_aes_cbc_decrypt(uint32_t identity, uint32_t key_asset_id, uint8_
     req.args.aes_cbc_decrypt.data_size = data_size;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_aes_cbc_decrypt: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_aes_cbc_decrypt: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_aes_cbc_decrypt: vaultip_asset_create() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_aes_cbc_decrypt: vaultip_asset_create() failed!\r\n");
         return -1;
     }
 
@@ -1121,12 +1122,12 @@ int vaultip_drv_asset_create(uint32_t identity, uint32_t policy_31_00, uint32_t 
     req.args.asset_create.asset_id = asset_id;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_asset_create: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_asset_create: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_asset_create: vaultip_asset_create() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_asset_create: vaultip_asset_create() failed!\r\n");
         return -1;
     }
 
@@ -1146,13 +1147,13 @@ int vaultip_drv_asset_load_plaintext(uint32_t identity, uint32_t asset_id, const
     req.args.asset_load_plaintext.data_size = data_size;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf(
+        Log_Write(LOG_LEVEL_ERROR, 
             "vaultip_drv_asset_load_plaintext: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_asset_load_plaintext: vaultip_asset_load_plaintext() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_asset_load_plaintext: vaultip_asset_load_plaintext() failed!\r\n");
         return -1;
     }
 
@@ -1179,12 +1180,12 @@ int vaultip_drv_asset_load_derive(uint32_t identity, uint32_t asset_id, uint32_t
     req.args.asset_load_derive.salt_size = salt_size;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_asset_load_derive: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_asset_load_derive: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_asset_load_derive: vaultip_asset_load_derive() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_asset_load_derive: vaultip_asset_load_derive() failed!\r\n");
         return -1;
     }
 
@@ -1201,12 +1202,12 @@ int vaultip_drv_asset_delete(uint32_t identity, uint32_t asset_id)
     req.args.asset_delete.asset_id = asset_id;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_asset_delete: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_asset_delete: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_asset_delete: vaultip_asset_delete() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_asset_delete: vaultip_asset_delete() failed!\r\n");
         return -1;
     }
 
@@ -1226,13 +1227,13 @@ int vaultip_drv_static_asset_search(uint32_t identity, VAULTIP_STATIC_ASSET_ID_t
     req.args.static_asset_search.data_length = data_length;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf(
+        Log_Write(LOG_LEVEL_ERROR, 
             "vaultip_drv_static_asset_search: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_static_asset_search: vaultip_static_asset_search() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_static_asset_search: vaultip_static_asset_search() failed!\r\n");
         return -1;
     }
 
@@ -1254,12 +1255,12 @@ int vaultip_drv_public_data_read(uint32_t identity, uint32_t asset_id, uint8_t *
     req.args.public_data_read.data_size = data_size;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_public_data_read: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_public_data_read: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_public_data_read: vaultip_static_asset_search() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_public_data_read: vaultip_static_asset_search() failed!\r\n");
         return -1;
     }
 
@@ -1281,13 +1282,13 @@ int vaultip_drv_monotonic_counter_read(uint32_t identity, uint32_t asset_id,
     req.args.monotonic_counter_read.data_size = data_size;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf(
+        Log_Write(LOG_LEVEL_ERROR, 
             "vaultip_drv_monotonic_counter_read: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_monotonic_counter_read: vaultip_static_asset_search() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_monotonic_counter_read: vaultip_static_asset_search() failed!\r\n");
         return -1;
     }
 
@@ -1304,13 +1305,13 @@ int vaultip_drv_monotonic_counter_increment(uint32_t identity, uint32_t asset_id
     req.args.monotonic_counter_increment.asset_id = asset_id;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf(
+        Log_Write(LOG_LEVEL_ERROR, 
             "vaultip_drv_monotonic_counter_increment: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf(
+        Log_Write(LOG_LEVEL_ERROR, 
             "vaultip_drv_monotonic_counter_increment: vaultip_static_asset_search() failed!\r\n");
         return -1;
     }
@@ -1336,12 +1337,12 @@ int vaultip_drv_otp_data_write(uint32_t identity, uint32_t asset_number, uint32_
     req.args.otp_data_write.associated_data_length = associated_data_length;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_otp_data_write: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_otp_data_write: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_otp_data_write: vaultip_static_asset_search() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_otp_data_write: vaultip_static_asset_search() failed!\r\n");
         return -1;
     }
 
@@ -1372,13 +1373,13 @@ int vaultip_drv_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t ide
     req.args.public_key_ecdsa_verify.sig_data_size = sig_data_size;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf(
+        Log_Write(LOG_LEVEL_ERROR, 
             "vaultip_drv_public_key_ecdsa_verify: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf(
+        Log_Write(LOG_LEVEL_ERROR, 
             "vaultip_drv_public_key_ecdsa_verify: vaultip_public_key_ecdsa_verify() failed!\r\n");
         return -1;
     }
@@ -1409,13 +1410,13 @@ int vaultip_drv_public_key_rsa_pss_verify(uint32_t modulus_size, uint32_t identi
     req.args.public_key_rsa_pss_verify.salt_length = salt_length;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf(
+        Log_Write(LOG_LEVEL_ERROR, 
             "vaultip_drv_public_key_rsa_pss_verify: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf(
+        Log_Write(LOG_LEVEL_ERROR, 
             "vaultip_drv_public_key_rsa_pss_verify: vaultip_public_key_rsa_pss_verify() failed!\r\n");
         return -1;
     }
@@ -1433,12 +1434,12 @@ int vaultip_drv_clock_switch(uint32_t identity, uint32_t token)
     req.args.clock_switch.token = token;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("vaultip_drv_clock_switch: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_clock_switch: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("vaultip_drv_clock_switch: vaultip_public_key_rsa_pss_verify() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_clock_switch: vaultip_public_key_rsa_pss_verify() failed!\r\n");
         return -1;
     }
 
@@ -1451,12 +1452,12 @@ int Vault_Command_Issue(void *req)
 
     /* send command to driver and wait for response*/
     if (0 != queue_request_and_wait_for_response((VAULTIP_DRIVER_REQUEST_MESSAGE_t *)req, &rsp)) {
-        printf("vaultip_drv_clock_switch: queue_request_and_wait_for_response() failed!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "vaultip_drv_clock_switch: queue_request_and_wait_for_response() failed!\r\n");
         return ERROR_VAULTIP_COMMAND_FAILED;
     }
 
     if (0 != rsp.status_code) {
-        printf("Vault_Command_Issue: invalid response!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Vault_Command_Issue: invalid response!\r\n");
         return rsp.status_code;
     }
 

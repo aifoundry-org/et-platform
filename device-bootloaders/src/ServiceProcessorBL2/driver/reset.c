@@ -26,6 +26,7 @@
 */
 /***********************************************************************/
 #include <stdio.h>
+#include "log.h"
 #include "io.h"
 #include "bl2_reset.h"
 #include "etsoc_hal/inc/cm_esr.h"
@@ -59,7 +60,7 @@ int release_minions_from_warm_reset(void)
 
 void release_etsoc_reset(void)
 {
-   printf("Reseting ETSOC\n");
+   Log_Write(LOG_LEVEL_INFO, "Reseting ETSOC\n");
    iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_SYS_RESET_CTRL_ADDRESS,
              RESET_MANAGER_RM_SYS_RESET_CTRL_ENABLE_SET(0x1));
 }

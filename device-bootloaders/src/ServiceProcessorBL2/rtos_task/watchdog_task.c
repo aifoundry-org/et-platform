@@ -10,6 +10,7 @@
  */
 #include <inttypes.h>
 #include <stdio.h>
+#include "log.h"
 #include "dm_task.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -45,7 +46,7 @@ int32_t init_watchdog_service(void)
                                      NULL, WDOG_TASK_PRIORITY, g_dm_stack,
                                      &g_staticTask_ptr);
         if (!t_handle) {
-            printf("Task Creation Failed: Failed to create Watchdog Handler Task.\n");
+            Log_Write(LOG_LEVEL_ERROR, "Task Creation Failed: Failed to create Watchdog Handler Task.\n");
             status = -1;
         }
     }

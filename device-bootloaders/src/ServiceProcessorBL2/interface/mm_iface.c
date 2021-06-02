@@ -23,6 +23,7 @@
 *
 ***********************************************************************/
 #include <stdio.h>
+#include "log.h"
 #include "mm_iface.h"
 #include "interrupt.h"
 
@@ -30,7 +31,7 @@ static void mm2sp_notification_isr(void);
 
 static void mm2sp_notification_isr(void)
 {
-    printf("Received SP_MM_Iface interrupt notification from MM..");
+    Log_Write(LOG_LEVEL_INFO, "Received SP_MM_Iface interrupt notification from MM..");
 }
 
 int8_t MM_Iface_Init(void)

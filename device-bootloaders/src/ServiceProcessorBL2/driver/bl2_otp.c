@@ -19,6 +19,7 @@
 */
 /***********************************************************************/
 #include "bl2_otp.h"
+#include "log.h"
 
 /*! \def OTP_ENTRY_SIZE_BYTES
     \brief size of single OTP entry
@@ -215,7 +216,7 @@ int otp_get_chip_revision(char *chip_rev)
 
     if (0 != sp_otp_get_silicon_revision(&silicon_revision)) 
     {
-        printf("sp_otp_get_silicon_revision() failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "sp_otp_get_silicon_revision() failed!\n");
         return -1;
     }
 

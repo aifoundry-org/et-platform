@@ -60,7 +60,7 @@
 
 /*! \def DEFAULT_READ_TOKEN_TIMEOUT_2
     \brief timeout used by the FIPS-SELF-TEST command
-*/ 
+*/
 #define DEFAULT_READ_TOKEN_TIMEOUT_2 200000 /* 200 ms */
 
 /*! \def DEFAULT_READ_TOKEN_TIMEOUT_3
@@ -121,7 +121,7 @@ void memory_copy_8x32(volatile uint32_t *dst, const volatile uint32_t *src,
 
 static inline void *volatile_cast(volatile void *vp)
 {
-    union 
+    union
     {
         volatile void *vp;
         void *p;
@@ -133,7 +133,7 @@ static inline void *volatile_cast(volatile void *vp)
 
 static inline void *const_cast(const void *vp)
 {
-    union 
+    union
     {
         const void *vp;
         void *p;
@@ -148,23 +148,23 @@ static uint32_t gs_vault_dma_reloc_write = 0x0;
 
 inline static void set_vault_dma_reloc_read(uint32_t reloc)
 {
-    if (reloc != gs_vault_dma_reloc_read) 
+    if (reloc != gs_vault_dma_reloc_read)
     {
         iowrite32(R_SP_MISC_BASEADDR + SPIO_MISC_ESR_VAULT_DMA_R_RELOC_ADDRESS,
                   SPIO_MISC_ESR_VAULT_DMA_R_RELOC_RD_CHANNEL_ADDR_SET(reloc & 0xFFu));
         gs_vault_dma_reloc_read = reloc;
-        printf("*** gs_vault_dma_reloc_read = 0x%x ***\n", gs_vault_dma_reloc_read);
+        Log_Write(LOG_LEVEL_INFO, "*** gs_vault_dma_reloc_read = 0x%x ***\n", gs_vault_dma_reloc_read);
     }
 }
 
 inline static void set_vault_dma_reloc_write(uint32_t reloc)
 {
-    if (reloc != gs_vault_dma_reloc_write) 
+    if (reloc != gs_vault_dma_reloc_write)
     {
         iowrite32(R_SP_MISC_BASEADDR + SPIO_MISC_ESR_VAULT_DMA_WR_RELOC_ADDRESS,
                   SPIO_MISC_ESR_VAULT_DMA_WR_RELOC_WT_CHANNEL_ADDR_SET(reloc & 0xFFu));
         gs_vault_dma_reloc_write = reloc;
-        printf("*** gs_vault_dma_reloc_write = 0x%x ***\n", gs_vault_dma_reloc_write);
+        Log_Write(LOG_LEVEL_INFO, "*** gs_vault_dma_reloc_write = 0x%x ***\n", gs_vault_dma_reloc_write);
     }
 }
 
@@ -179,20 +179,20 @@ static int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t *pinput_token)
     MODULE_STATUS_t module_status;
     MAILBOX_STAT_t mailbox_stat;
 
-    if (NULL == pinput_token) 
+    if (NULL == pinput_token)
     {
         return -1;
     }
 
     module_status.R = vaultip_regs->MODULE_STATUS.R;
     if (0 != module_status.B.FatalError || 0 == module_status.B.fw_image_checks_done ||
-        0 == module_status.B.fw_image_accepted) 
+        0 == module_status.B.fw_image_accepted)
     {
         return -1;
     }
 
     mailbox_stat.R = vaultip_regs->MAILBOX_STAT.R;
-    if (0 != mailbox_stat.B.mbx1_linked || 0 == mailbox_stat.B.mbx1_available) 
+    if (0 != mailbox_stat.B.mbx1_linked || 0 == mailbox_stat.B.mbx1_available)
     {
         return -1;
     }
@@ -201,12 +201,12 @@ static int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t *pinput_token)
 
     vaultip_regs->MAILBOX_CTRL.R = (MAILBOX_CTRL_t){ .B.mbx1_link = 1 }.R;
     mailbox_stat.R = vaultip_regs->MAILBOX_STAT.R;
-    if (0 == mailbox_stat.B.mbx1_linked) 
+    if (0 == mailbox_stat.B.mbx1_linked)
     {
         MESSAGE_ERROR("MAILBOX_STAT mbx1_linked is still 0!\n");
         return -1;
     }
-    if (0 != mailbox_stat.B.mbx1_in_full) 
+    if (0 != mailbox_stat.B.mbx1_in_full)
     {
         MESSAGE_ERROR("MAILBOX_STAT mbx1_in_full is not 0!\n");
         return -1;
@@ -220,7 +220,7 @@ static int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t *pinput_token)
 
     vaultip_regs->MAILBOX_CTRL.R = (MAILBOX_CTRL_t){ .B.mbx1_in_full = 1 }.R;
     mailbox_stat.R = vaultip_regs->MAILBOX_STAT.R;
-    if (0 == mailbox_stat.B.mbx1_in_full) 
+    if (0 == mailbox_stat.B.mbx1_in_full)
     {
         MESSAGE_ERROR("MAILBOX_STAT mbx1_in_full is not 1!\n");
         return -1;
@@ -247,21 +247,21 @@ static int vaultip_read_output_token(VAULTIP_OUTPUT_TOKEN_t *poutput_token, uint
     MAILBOX_STAT_t mailbox_stat;
     uint64_t time_end;
 
-    if (NULL == poutput_token) 
+    if (NULL == poutput_token)
     {
         return -1;
     }
 
     module_status.R = vaultip_regs->MODULE_STATUS.R;
     if (0 != module_status.B.FatalError || 0 == module_status.B.fw_image_checks_done ||
-        0 == module_status.B.fw_image_accepted) 
+        0 == module_status.B.fw_image_accepted)
     {
         MESSAGE_ERROR("read_output_token: Error 1: MODULE_STATS=%08x\n", module_status.R);
         return -1;
     }
 
     mailbox_stat.R = vaultip_regs->MAILBOX_STAT.R;
-    if (0 == mailbox_stat.B.mbx1_linked || 0 != mailbox_stat.B.mbx1_available) 
+    if (0 == mailbox_stat.B.mbx1_linked || 0 != mailbox_stat.B.mbx1_available)
     {
         MESSAGE_ERROR("read_output_token: Error 2: mailbox_stat=%08x\n", mailbox_stat.R);
         return -1;
@@ -271,10 +271,10 @@ static int vaultip_read_output_token(VAULTIP_OUTPUT_TOKEN_t *poutput_token, uint
 
     time_end = timer_get_ticks_count() + (uint64_t)timeout;
     mailbox_stat.R = vaultip_regs->MAILBOX_STAT.R;
-    while (0 == mailbox_stat.B.mbx1_out_full) 
+    while (0 == mailbox_stat.B.mbx1_out_full)
     {
         module_status.R = vaultip_regs->MODULE_STATUS.R;
-        if (0 != module_status.B.FatalError) 
+        if (0 != module_status.B.FatalError)
         {
             MESSAGE_ERROR("read_output_token: Fatal error!\n");
             MESSAGE_ERROR("MAILBOX_STAT = 0x%08x\n", mailbox_stat.R);
@@ -282,7 +282,7 @@ static int vaultip_read_output_token(VAULTIP_OUTPUT_TOKEN_t *poutput_token, uint
             return -1;
         }
         mailbox_stat.R = vaultip_regs->MAILBOX_STAT.R;
-        if (timer_get_ticks_count() > time_end) 
+        if (timer_get_ticks_count() > time_end)
         {
             MESSAGE_ERROR("read_output_token: Timeout waiting for output token!\n");
 
@@ -299,7 +299,7 @@ static int vaultip_read_output_token(VAULTIP_OUTPUT_TOKEN_t *poutput_token, uint
     /* report that the output token was read*/
     vaultip_regs->MAILBOX_CTRL.R = (MAILBOX_CTRL_t){ .B.mbx1_out_empty = 1 }.R;
     mailbox_stat.R = vaultip_regs->MAILBOX_STAT.R;
-    if (0 != mailbox_stat.B.mbx1_out_full) 
+    if (0 != mailbox_stat.B.mbx1_out_full)
     {
         MESSAGE_ERROR("MAILBOX_STAT mbx1_out_full is 1!\n");
         return -1;
@@ -309,7 +309,7 @@ static int vaultip_read_output_token(VAULTIP_OUTPUT_TOKEN_t *poutput_token, uint
 
     vaultip_regs->MAILBOX_CTRL.R = (MAILBOX_CTRL_t){ .B.mbx1_unlink = 1 }.R;
     mailbox_stat.R = vaultip_regs->MAILBOX_STAT.R;
-    if (1 == mailbox_stat.B.mbx1_linked) 
+    if (1 == mailbox_stat.B.mbx1_linked)
     {
         MESSAGE_ERROR("MAILBOX_STAT mbx1_linked is still 1!\n");
         return -1;
@@ -329,15 +329,15 @@ static void print_failed_input_token_info(const uint32_t *input_token_words, uin
     (void)input_token_words;
 
     MESSAGE_INFO_DEBUG("Input token:\n");
-    for (n = 0; n < words_count; n++) 
+    for (n = 0; n < words_count; n++)
     {
         MESSAGE_INFO_DEBUG("  si[%u] = %08x", n, input_token_words[n]);
-        if (3 == (n % 4)) 
+        if (3 == (n % 4))
         {
             MESSAGE_INFO_DEBUG("\n");
         }
     }
-    if (0 != (n % 4)) 
+    if (0 != (n % 4))
     {
         MESSAGE_INFO_DEBUG("\n");
     }
@@ -360,13 +360,13 @@ int vaultip_self_test(void)
 
     /*time_start = timer_get_ticks_count(); */
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_2)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_2))
     {
         MESSAGE_ERROR("read_output_token() failed!\n");
         return -1;
@@ -376,7 +376,7 @@ int vaultip_self_test(void)
 
     MESSAGE_INFO_DEBUG("MODULE_STATUS: %08x\n", vaultip_regs->MODULE_STATUS.R);
     if (1 == vaultip_regs->MODULE_STATUS.B.FIPS_mode &&
-        0 == vaultip_regs->MODULE_STATUS.B.Non_FIPS_mode) 
+        0 == vaultip_regs->MODULE_STATUS.B.Non_FIPS_mode)
     {
         MESSAGE_INFO("FIPS ON\n");
     }
@@ -384,11 +384,11 @@ int vaultip_self_test(void)
     /* time_delta = time_end - time_start;
       MESSAGE_INFO_DEBUG("SelfTest time: %lu\n", time_delta); */
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         return 0;
-    } 
-    else 
+    }
+    else
     {
         return -1;
     }
@@ -413,13 +413,13 @@ int vaultip_get_system_information(uint32_t identity,
 
     /* time_start = timer_get_ticks_count(); */
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_1)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_1))
     {
         MESSAGE_ERROR("read_output_token() failed!\n");
         return -1;
@@ -432,12 +432,12 @@ int vaultip_get_system_information(uint32_t identity,
     /* time_delta = time_end - time_start;
        MESSAGE_INFO_DEBUG("GetSystemInfo time: %lu\n", time_delta); */
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         *system_info = gs_output_token.system_info;
         return 0;
-    } 
-    else 
+    }
+    else
     {
         MESSAGE_ERROR_DEBUG("vaultip_get_system_information: gs_output_token = 0x%x\n",
                             gs_output_token.dw[0]);
@@ -449,7 +449,7 @@ int vaultip_get_system_information(uint32_t identity,
 int vaultip_public_data_read(uint32_t identity, uint32_t asset_id, uint8_t *data_buffer,
                              uint32_t data_buffer_size, uint32_t *data_size)
 {
-    if (NULL == data_buffer || 0 == data_buffer_size || NULL == data_size) 
+    if (NULL == data_buffer || 0 == data_buffer_size || NULL == data_size)
     {
         MESSAGE_ERROR("Invalid arguments!\n");
         return -1;
@@ -473,27 +473,27 @@ int vaultip_public_data_read(uint32_t identity, uint32_t asset_id, uint8_t *data
 
     l1_data_cache_flush_region(data_buffer, data_buffer_size);
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3))
     {
         MESSAGE_ERROR("read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
-        if (NULL != data_size) 
+        if (NULL != data_size)
         {
             *data_size = gs_output_token.public_data_read.dw_01.DataLength;
         }
         return 0;
-    } 
-    else 
+    }
+    else
     {
         return -1;
     }
@@ -502,7 +502,7 @@ int vaultip_public_data_read(uint32_t identity, uint32_t asset_id, uint8_t *data
 int vaultip_monotonic_counter_read(uint32_t identity, uint32_t asset_id, uint8_t *counter_buffer,
                                    uint32_t counter_buffer_size, uint32_t *data_size)
 {
-    if (NULL == counter_buffer || 0 == counter_buffer_size || NULL == data_size) 
+    if (NULL == counter_buffer || 0 == counter_buffer_size || NULL == data_size)
     {
         MESSAGE_ERROR("Invalid arguments!\n");
         return -1;
@@ -527,24 +527,24 @@ int vaultip_monotonic_counter_read(uint32_t identity, uint32_t asset_id, uint8_t
 
     l1_data_cache_flush_region(counter_buffer, counter_buffer_size);
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3))
     {
         MESSAGE_ERROR("read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         *data_size = gs_output_token.monotonic_counter_read.dw_01.DataLength;
         return 0;
-    } 
-    else 
+    }
+    else
     {
         /* MESSAGE_ERROR_DEBUG("monotonic_counter_read: gs_output_token = 0x%x\n", gs_output_token.dw[0]);
            print_failed_input_token_info(gs_input_token.dw, 6); */
@@ -566,23 +566,23 @@ int vaultip_monotonic_counter_increment(uint32_t identity, uint32_t asset_id)
 
     gs_input_token.monotonic_counter_increment.dw_02.AS_ID = asset_id;
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, DEFAULT_READ_TOKEN_TIMEOUT_MC_INC)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, DEFAULT_READ_TOKEN_TIMEOUT_MC_INC))
     {
         MESSAGE_ERROR("read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         return 0;
-    } 
-    else 
+    }
+    else
     {
         MESSAGE_ERROR_DEBUG("monotonic_counter_increment: gs_output_token = 0x%x\n",
                             gs_output_token.dw[0]);
@@ -595,7 +595,7 @@ int vaultip_otp_data_write(uint32_t identity, uint32_t asset_number, uint32_t po
                            bool CRC, const void *input_data, size_t input_data_length,
                            const void *associated_data, size_t associated_data_length)
 {
-    if (associated_data_length > 232) 
+    if (associated_data_length > 232)
     {
         return -1;
     }
@@ -626,23 +626,23 @@ int vaultip_otp_data_write(uint32_t identity, uint32_t asset_number, uint32_t po
 
     l1_data_cache_flush_region(input_data, input_data_length);
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, DEFAULT_READ_TOKEN_TIMEOUT_OTP_WRITE)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, DEFAULT_READ_TOKEN_TIMEOUT_OTP_WRITE))
     {
         MESSAGE_ERROR("read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         return 0;
-    } 
-    else 
+    }
+    else
     {
         MESSAGE_ERROR_DEBUG("otp_data_write: gs_output_token = 0x%x\n", gs_output_token.dw[0]);
         print_failed_input_token_info(gs_input_token.dw, 64);
@@ -655,7 +655,7 @@ int vaultip_register_read(uint32_t identity, bool incremental_read, uint32_t num
 {
     uint32_t n;
 
-    if (number > VAULTIP_INPUT_TOKEN_REGISTER_READ_MAXIMUM_NUMBER) 
+    if (number > VAULTIP_INPUT_TOKEN_REGISTER_READ_MAXIMUM_NUMBER)
     {
         MESSAGE_ERROR("Invalid register number!\n");
         return -1;
@@ -670,41 +670,41 @@ int vaultip_register_read(uint32_t identity, bool incremental_read, uint32_t num
     gs_input_token.dw_00.SubCode = VAULTIP_TOKEN_SERVICE_SUBCODE_REGISTER_READ;
 
     gs_input_token.register_read.dw_02.Number = number & 0x3F;
-    if (incremental_read) 
+    if (incremental_read)
     {
         gs_input_token.register_read.dw_02.Mode = 1;
         gs_input_token.register_read.dw_03_63[0].Address = address[0] & 0xFFFFu;
-    } 
-    else 
+    }
+    else
     {
         gs_input_token.register_read.dw_02.Mode = 0;
-        for (n = 0; n < number; n++) 
+        for (n = 0; n < number; n++)
         {
             gs_input_token.register_read.dw_03_63[n].Address = address[n] & 0xFFFFu;
         }
     }
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3))
     {
         MESSAGE_ERROR("read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
-        for (n = 0; n < number; n++) 
+        for (n = 0; n < number; n++)
         {
             result[n] = gs_output_token.register_read.dw_01_61[n].ReadData;
         }
         return 0;
-    } 
-    else 
+    }
+    else
     {
         MESSAGE_ERROR_DEBUG("register_read: gs_output_token = 0x%x\n", gs_output_token.dw[0]);
         print_failed_input_token_info(gs_input_token.dw, 4);
@@ -717,7 +717,7 @@ int vaultip_register_write(uint32_t identity, bool incremental_write, uint32_t n
 {
     uint32_t n;
 
-    if (number > VAULTIP_INPUT_TOKEN_REGISTER_READ_MAXIMUM_NUMBER) 
+    if (number > VAULTIP_INPUT_TOKEN_REGISTER_READ_MAXIMUM_NUMBER)
     {
         MESSAGE_ERROR("Invalid register number!\n");
         return -1;
@@ -732,28 +732,28 @@ int vaultip_register_write(uint32_t identity, bool incremental_write, uint32_t n
     gs_input_token.dw_00.SubCode = VAULTIP_TOKEN_SERVICE_SUBCODE_REGISTER_WRITE;
 
     gs_input_token.register_write.dw_02.Number = number & 0x3F;
-    if (incremental_write) 
+    if (incremental_write)
     {
-        if (number > VAULTIP_INPUT_TOKEN_REGISTER_WRITE_INCREMENTAL_MAXIMUM_NUMBER) 
+        if (number > VAULTIP_INPUT_TOKEN_REGISTER_WRITE_INCREMENTAL_MAXIMUM_NUMBER)
         {
             return -1;
         }
         gs_input_token.register_write.dw_02.Mode = 1;
         gs_input_token.register_write.incremental.Mask = mask[0];
         gs_input_token.register_write.incremental.Address = address[0] & 0xFFFFu;
-        for (n = 0; n < number; n++) 
+        for (n = 0; n < number; n++)
         {
             gs_input_token.register_write.incremental.WriteData[n] = value[n];
         }
-    } 
-    else 
+    }
+    else
     {
-        if (number > VAULTIP_INPUT_TOKEN_REGISTER_WRITE_NON_INCREMENTAL_MAXIMUM_NUMBER) 
+        if (number > VAULTIP_INPUT_TOKEN_REGISTER_WRITE_NON_INCREMENTAL_MAXIMUM_NUMBER)
         {
             return -1;
         }
         gs_input_token.register_write.dw_02.Mode = 0;
-        for (n = 0; n < number; n++) 
+        for (n = 0; n < number; n++)
         {
             gs_input_token.register_write.non_incremental.entries[n].Mask = mask[0];
             gs_input_token.register_write.non_incremental.entries[n].Address = address[0] & 0xFFFFu;
@@ -761,23 +761,23 @@ int vaultip_register_write(uint32_t identity, bool incremental_write, uint32_t n
         }
     }
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3))
     {
         MESSAGE_ERROR("read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         return 0;
-    } 
-    else 
+    }
+    else
     {
         MESSAGE_ERROR_DEBUG("register_write: gs_output_token = 0x%x\n", gs_output_token.dw[0]);
         print_failed_input_token_info(gs_input_token.dw, 4);
@@ -809,7 +809,7 @@ int vaultip_trng_configuration(uint32_t identity)
     /* suppress_token_read_diagnostics = true; */
     print_failed_input_token_info(gs_input_token.dw, 4);
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
         return -1;
@@ -817,17 +817,17 @@ int vaultip_trng_configuration(uint32_t identity)
 
     /* suppress_token_read_diagnostics = false; */
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3))
     {
         MESSAGE_ERROR("read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         return 0;
-    } 
-    else 
+    }
+    else
     {
         MESSAGE_ERROR_DEBUG("trng_configuration: gs_output_token = 0x%x\n", gs_output_token.dw[0]);
         print_failed_input_token_info(gs_input_token.dw, 4);
@@ -857,7 +857,7 @@ int vaultip_trng_get_random_number(void *dst, uint16_t size, bool raw)
 
     /* suppress_token_read_diagnostics = true; */
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
         return -1;
@@ -865,17 +865,17 @@ int vaultip_trng_get_random_number(void *dst, uint16_t size, bool raw)
 
     /* suppress_token_read_diagnostics = false; */
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3))
     {
         MESSAGE_ERROR("read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         return 0;
-    } 
-    else 
+    }
+    else
     {
         MESSAGE_ERROR_DEBUG("trng_get_random_number: gs_output_token = 0x%x\n",
                             gs_output_token.dw[0]);
@@ -909,23 +909,23 @@ int vaultip_provision_huk(uint32_t coid)
     gs_input_token.provision_huk.dw_04.AssociatedDataLength = 0;
     gs_input_token.provision_huk.dw_04.OutputDataLength = 0;
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, DEFAULT_READ_TOKEN_TIMEOUT_HUK)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, DEFAULT_READ_TOKEN_TIMEOUT_HUK))
     {
         MESSAGE_ERROR("read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         return 0;
-    } 
-    else 
+    }
+    else
     {
         MESSAGE_ERROR_DEBUG("provision_huk: gs_output_token = 0x%x\n", gs_output_token.dw[0]);
         print_failed_input_token_info(gs_input_token.dw, 5);
@@ -944,23 +944,23 @@ int vaultip_reset(uint32_t identity)
 
     gs_input_token.dw_01.Identity = identity;
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3))
     {
         MESSAGE_ERROR("read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         return 0;
-    } 
-    else 
+    }
+    else
     {
         return -1;
     }
@@ -973,7 +973,7 @@ int vaultip_hash(uint32_t identity, HASH_ALG_t hash_alg, const void *msg, size_t
     uint32_t hash_size;
     uint32_t hash_type;
 
-    switch (hash_alg) 
+    switch (hash_alg)
     {
         case HASH_ALG_SHA2_256:
             hash_type = VAULTIP_HASH_ALGORITHM_SHA_256;
@@ -1013,24 +1013,24 @@ int vaultip_hash(uint32_t identity, HASH_ALG_t hash_alg, const void *msg, size_t
 
     l1_data_cache_flush_region(msg, msg_size);
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("hash: send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_5)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_5))
     {
         MESSAGE_ERROR("hash: read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         memcpy(hash, &gs_output_token.hash.dw_02_17, hash_size);
         return 0;
-    } 
-    else 
+    }
+    else
     {
         MESSAGE_ERROR_DEBUG("hash: gs_output_token = 0x%x\n", gs_output_token.dw[0]);
         print_failed_input_token_info(gs_input_token.dw, 26);
@@ -1043,7 +1043,7 @@ int vaultip_hash_update(uint32_t identity, HASH_ALG_t hash_alg, uint32_t digest_
 {
     uint32_t hash_type;
 
-    switch (hash_alg) 
+    switch (hash_alg)
     {
         case HASH_ALG_SHA2_256:
             hash_type = VAULTIP_HASH_ALGORITHM_SHA_256;
@@ -1081,23 +1081,23 @@ int vaultip_hash_update(uint32_t identity, HASH_ALG_t hash_alg, uint32_t digest_
 
     l1_data_cache_flush_region(msg, msg_size);
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("hash_update: send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_5)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_5))
     {
         MESSAGE_ERROR("hash_update: read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         return 0;
-    } 
-    else 
+    }
+    else
     {
         MESSAGE_ERROR_DEBUG("hash_update: gs_output_token = 0x%x\n", gs_output_token.dw[0]);
         print_failed_input_token_info(gs_input_token.dw, 26);
@@ -1112,7 +1112,7 @@ int vaultip_hash_final(uint32_t identity, HASH_ALG_t hash_alg, uint32_t digest_a
     uint32_t hash_size;
     uint32_t hash_type;
 
-    switch (hash_alg) 
+    switch (hash_alg)
     {
         case HASH_ALG_SHA2_256:
             hash_type = VAULTIP_HASH_ALGORITHM_SHA_256;
@@ -1153,24 +1153,24 @@ int vaultip_hash_final(uint32_t identity, HASH_ALG_t hash_alg, uint32_t digest_a
 
     l1_data_cache_flush_region(msg, msg_size);
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("hash_final: send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_5)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_5))
     {
         MESSAGE_ERROR("hash_final: read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         memcpy(hash, gs_output_token.hash.dw_02_17, hash_size);
         return 0;
-    } 
-    else 
+    }
+    else
     {
         MESSAGE_ERROR_DEBUG("hash_final: gs_output_token = 0x%x\n", gs_output_token.dw[0]);
         print_failed_input_token_info(gs_input_token.dw, 26);
@@ -1184,7 +1184,7 @@ int vaultip_mac_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32
     uint32_t mac_type;
     uint32_t mac_size;
 
-    switch (mac_alg) 
+    switch (mac_alg)
     {
         case ESPERANTO_MAC_TYPE_AES_CMAC:
             mac_type = VAULTIP_MAC_ALGORITHM_AES_CMAC;
@@ -1234,24 +1234,24 @@ int vaultip_mac_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32
 
     l1_data_cache_flush_region(msg, msg_size);
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("mac_generate: send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_5)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_5))
     {
         MESSAGE_ERROR("mac_generate: read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         memcpy(mac, gs_output_token.mac.dw_02_17, mac_size);
         return 0;
-    } 
-    else 
+    }
+    else
     {
         MESSAGE_ERROR_DEBUG("mac_generate: gs_output_token = 0x%x\n", gs_output_token.dw[0]);
         print_failed_input_token_info(gs_input_token.dw, 60);
@@ -1265,7 +1265,7 @@ int vaultip_mac_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t
     uint32_t mac_type;
     uint32_t mac_size;
 
-    switch (mac_alg) 
+    switch (mac_alg)
     {
         case ESPERANTO_MAC_TYPE_AES_CMAC:
             mac_type = VAULTIP_MAC_ALGORITHM_AES_CMAC;
@@ -1317,23 +1317,23 @@ int vaultip_mac_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t
 
     l1_data_cache_flush_region(msg, msg_size);
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("mac_verify: send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_5)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_5))
     {
         MESSAGE_ERROR("mac_verify:read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         return 0;
-    } 
-    else 
+    }
+    else
     {
         MESSAGE_ERROR_DEBUG("mac_verify: gs_output_token = 0x%x\n", gs_output_token.dw[0]);
         print_failed_input_token_info(gs_input_token.dw, 60);
@@ -1346,7 +1346,7 @@ int vaultip_mac_update(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t
 {
     uint32_t mac_type;
 
-    switch (mac_alg) 
+    switch (mac_alg)
     {
         case ESPERANTO_MAC_TYPE_AES_CMAC:
             mac_type = VAULTIP_MAC_ALGORITHM_AES_CMAC;
@@ -1390,23 +1390,23 @@ int vaultip_mac_update(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t
 
     l1_data_cache_flush_region(msg, msg_size);
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("mac_update: send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_5)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_5))
     {
         MESSAGE_ERROR("mac_update: read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         return 0;
-    } 
-    else 
+    }
+    else
     {
         MESSAGE_ERROR_DEBUG("mac_update: gs_output_token = 0x%x\n", gs_output_token.dw[0]);
         print_failed_input_token_info(gs_input_token.dw, 60);
@@ -1421,7 +1421,7 @@ int vaultip_mac_final_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg,
     uint32_t mac_type;
     uint32_t mac_size;
 
-    switch (mac_alg) 
+    switch (mac_alg)
     {
         case ESPERANTO_MAC_TYPE_AES_CMAC:
             mac_type = VAULTIP_MAC_ALGORITHM_AES_CMAC;
@@ -1473,24 +1473,24 @@ int vaultip_mac_final_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg,
 
     l1_data_cache_flush_region(msg, msg_size);
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("mac_final_generate: send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_5)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_5))
     {
         MESSAGE_ERROR("mac_final_generate: read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         memcpy(mac, gs_output_token.mac.dw_02_17, mac_size);
         return 0;
-    } 
-    else 
+    }
+    else
     {
         MESSAGE_ERROR_DEBUG("mac_final_generate: gs_output_token = 0x%x\n", gs_output_token.dw[0]);
         print_failed_input_token_info(gs_input_token.dw, 60);
@@ -1505,7 +1505,7 @@ int vaultip_mac_final_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, ui
     uint32_t mac_type;
     uint32_t mac_size;
 
-    switch (mac_alg) 
+    switch (mac_alg)
     {
         case ESPERANTO_MAC_TYPE_AES_CMAC:
             mac_type = VAULTIP_MAC_ALGORITHM_AES_CMAC;
@@ -1558,23 +1558,23 @@ int vaultip_mac_final_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, ui
 
     l1_data_cache_flush_region(msg, msg_size);
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("mac_final_verify: send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_5)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_5))
     {
         MESSAGE_ERROR("mac_final_verify: read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         return 0;
-    } 
-    else 
+    }
+    else
     {
         MESSAGE_ERROR_DEBUG("mac_final_verify: gs_output_token = 0x%x\n", gs_output_token.dw[0]);
         print_failed_input_token_info(gs_input_token.dw, 60);
@@ -1608,7 +1608,7 @@ static int vaultip_aes_cbc(uint32_t identity, uint32_t key_asset_id, uint8_t *IV
     gs_input_token.encryption.dw_11.AS_LoadKey = 1;
     gs_input_token.encryption.dw_11.AS_LoadIV = 0;
     /* gs_input_token.encryption.dw_11.LoadParam = 0; */
-    /* gs_input_token.encryption.dw_11.AS_SaveIV = 1; */ 
+    /* gs_input_token.encryption.dw_11.AS_SaveIV = 1; */
     /* gs_input_token.encryption.dw_11.GCM_Mode = 0; */
     gs_input_token.encryption.dw_11.Encrypt = encrypt ? 1 : 0;
     gs_input_token.encryption.dw_11.KeyLength = VAULTIP_ENCRYPT_KEY_LENGTH_256;
@@ -1620,24 +1620,24 @@ static int vaultip_aes_cbc(uint32_t identity, uint32_t key_asset_id, uint8_t *IV
 
     l1_data_cache_flush_region(data, data_size);
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("aes_cbc: send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_5)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_5))
     {
         MESSAGE_ERROR("aes_cbc: read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         memcpy(IV, gs_output_token.encryption.dw_05_02, 16);
         return 0;
-    } 
-    else 
+    }
+    else
     {
         MESSAGE_ERROR_DEBUG("aes_cbc: gs_output_token = 0x%x\n", gs_output_token.dw[0]);
         print_failed_input_token_info(gs_input_token.dw, 41);
@@ -1674,25 +1674,25 @@ int vaultip_asset_create(uint32_t identity, uint32_t policy_31_00, uint32_t poli
 
     gs_input_token.asset_create.dw_05.Lifetime = lifetime;
 
-    /* MESSAGE_INFO_DEBUG("asset_create: 
+    /* MESSAGE_INFO_DEBUG("asset_create:
      policy=0x%08x_%08x, settings=0x%08x\n", policy_63_32, policy_31_00, other_settings);
      for (n = 0; n < 6; n++) {
          MESSAGE_INFO_DEBUG("asset_create[%u]=%08x\n", n, gs_input_token.dw[n]);
      } */
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3))
     {
         MESSAGE_ERROR("read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         *asset_id = gs_output_token.asset_create.dw_01.AS_ID;
 #ifdef TRACK_ASSETS_COUNT
@@ -1701,8 +1701,8 @@ int vaultip_asset_create(uint32_t identity, uint32_t policy_31_00, uint32_t poli
                            gs_output_token.asset_create.dw_01.AS_ID, gs_asset_count);
 #endif
         return 0;
-    } 
-    else 
+    }
+    else
     {
         MESSAGE_ERROR_DEBUG("asset_create: gs_output_token = 0x%x\n", gs_output_token.dw[0]);
         print_failed_input_token_info(gs_input_token.dw, 6);
@@ -1734,27 +1734,27 @@ int vaultip_asset_load_plaintext(uint32_t identity, uint32_t asset_id, const voi
          MESSAGE_INFO_DEBUG("asset_load[%u]=%08x\n", n, gs_input_token.dw[n]);
      }
 
-        MESSAGE_INFO_DEBUG("asset_load_plaintext: assetid=0x%08x, length=0x%08x\n", asset_id, data_size);  
+        MESSAGE_INFO_DEBUG("asset_load_plaintext: assetid=0x%08x, length=0x%08x\n", asset_id, data_size);
     */
     l1_data_cache_flush_region(data, data_size);
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3))
     {
         MESSAGE_ERROR("read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         return 0;
-    } 
-    else 
+    }
+    else
     {
         MESSAGE_ERROR("asset_load_plaintext: gs_output_token[0]=%08x\n", gs_output_token.dw[0]);
         return -1;
@@ -1794,23 +1794,23 @@ int vaultip_asset_load_derive(uint32_t identity, uint32_t asset_id, uint32_t kdk
     l1_data_cache_flush_region(salt, salt_size);
     l1_data_cache_flush_region(key_expansion_IV, key_expansion_IV_length);
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3))
     {
         MESSAGE_ERROR("read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         return 0;
-    } 
-    else 
+    }
+    else
     {
         return -1;
     }
@@ -1827,27 +1827,27 @@ int vaultip_asset_delete(uint32_t identity, uint32_t asset_id)
     gs_input_token.dw_01.Identity = identity;
     gs_input_token.asset_delete.dw_02.AS_ID = asset_id;
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3))
     {
         MESSAGE_ERROR("read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
 #ifdef TRACK_ASSETS_COUNT
         gs_asset_count--;
         MESSAGE_INFO_DEBUG("Deleted asset 0x%08x (%u)\n", asset_id, gs_asset_count);
 #endif
         return 0;
-    } 
-    else 
+    }
+    else
     {
         return -1;
     }
@@ -1865,25 +1865,25 @@ int vaultip_static_asset_search(uint32_t identity, VAULTIP_STATIC_ASSET_ID_t ass
     gs_input_token.dw_01.Identity = identity;
     gs_input_token.static_asset_search.dw_04.AssetNumber = asset_number & 0x3Fu;
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3))
     {
         MESSAGE_ERROR("read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         *asset_id = gs_output_token.static_asset_search.dw_01.AS_ID;
         *data_length = gs_output_token.static_asset_search.dw_02.DataLength;
         return 0;
-    } 
-    else 
+    }
+    else
     {
         return -1;
     }
@@ -1898,8 +1898,8 @@ int vaultip_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t identit
 {
     uint32_t modulus_size;
     uint32_t modulus_words;
-    
-    switch (curve_id) 
+
+    switch (curve_id)
     {
         case EC_KEY_CURVE_NIST_P256:
             modulus_size = 256;
@@ -1919,9 +1919,9 @@ int vaultip_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t identit
     memset(&gs_input_token, 0, sizeof(gs_input_token));
     memset(&gs_output_token, 0, sizeof(gs_output_token));
 
-    if (PTR232HI(message) != PTR232HI(sig_data_address)) 
+    if (PTR232HI(message) != PTR232HI(sig_data_address))
     {
-        printf(
+        Log_Write(LOG_LEVEL_ERROR,
             "vaultip_public_key_ecdsa_verify: vaultip limitation - the high bits of the message and signature address differ!\n");
         return -1;
     }
@@ -1950,23 +1950,23 @@ int vaultip_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t identit
     l1_data_cache_flush_region(message, message_size);
     l1_data_cache_flush_region(sig_data_address, sig_data_size);
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_4)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_4))
     {
         MESSAGE_ERROR("read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         return 0;
-    } 
-    else 
+    }
+    else
     {
         MESSAGE_ERROR_DEBUG("public_key_ecdsa_verify: output token[0] = 0x%08x\n",
                             gs_output_token.dw[0]);
@@ -1983,7 +1983,7 @@ int vaultip_public_key_rsa_pss_verify(uint32_t modulus_size, uint32_t identity,
 {
     uint32_t modulus_words;
 
-    switch (modulus_size) 
+    switch (modulus_size)
     {
         case 4096:
         case 3072:
@@ -1998,9 +1998,9 @@ int vaultip_public_key_rsa_pss_verify(uint32_t modulus_size, uint32_t identity,
     memset(&gs_input_token, 0, sizeof(gs_input_token));
     memset(&gs_output_token, 0, sizeof(gs_output_token));
 
-    if (PTR232HI(message) != PTR232HI(sig_data_address)) 
+    if (PTR232HI(message) != PTR232HI(sig_data_address))
     {
-        printf(
+        Log_Write(LOG_LEVEL_ERROR,
             "vaultip_public_key_rsa_pss_verify: vaultip limitation - \
              the high bits of the message and signature address differ!\n");
         return -1;
@@ -2029,23 +2029,23 @@ int vaultip_public_key_rsa_pss_verify(uint32_t modulus_size, uint32_t identity,
 
     l1_data_cache_flush_all();
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_4)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_4))
     {
         MESSAGE_ERROR("read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         return 0;
-    } 
-    else 
+    }
+    else
     {
         MESSAGE_ERROR_DEBUG("vaultip_public_key_rsa_pss_verify: output token[0] = 0x%08x\n",
                             gs_output_token.dw[0]);
@@ -2065,23 +2065,23 @@ int vaultip_clock_switch(uint32_t identity, uint32_t token)
     gs_input_token.dw_01.Identity = identity;
     gs_input_token.dw[2] = token;
 
-    if (0 != vaultip_send_input_token(&gs_input_token)) 
+    if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
         return -1;
     }
 
-    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3)) 
+    if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3))
     {
         MESSAGE_ERROR("read_output_token() failed!\n");
         return -1;
     }
 
-    if (0 == gs_output_token.dw_00.Error) 
+    if (0 == gs_output_token.dw_00.Error)
     {
         return 0;
-    } 
-    else 
+    }
+    else
     {
         return -1;
     }

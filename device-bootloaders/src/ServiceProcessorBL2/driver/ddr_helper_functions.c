@@ -85,9 +85,9 @@ static const char* get_training_status_text(uint32_t train_msg)
 static void log_training_error(training_stage stage, uint32_t memshire, uint32_t train_msg)
 {
   if(stage == TRAINING_1D)
-    printf("DDR TRAIN (S%d) received DDRC PHY message 0x%02x (%s)", memshire+232, train_msg, get_training_status_text(train_msg));
+    Log_Write(LOG_LEVEL_INFO, "DDR TRAIN (S%d) received DDRC PHY message 0x%02x (%s)", memshire+232, train_msg, get_training_status_text(train_msg));
   else
-    printf("DDR TRAIN 2d (S%d) received DDRC PHY message 0x%02x (%s)", memshire+232, train_msg, get_training_status_text(train_msg));
+    Log_Write(LOG_LEVEL_INFO, "DDR TRAIN 2d (S%d) received DDRC PHY message 0x%02x (%s)", memshire+232, train_msg, get_training_status_text(train_msg));
 }
 
 #define LOG_TRAINING(stage, memshire, train_msg)    log_training_error(stage, memshire, train_msg)

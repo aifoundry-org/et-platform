@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include "log.h"
 #include "bl2_main.h"
 #include "bl2_certificates.h"
 #include "sp_otp.h"
@@ -39,7 +40,7 @@ static bool gs_ignore_signatures;
 
 static void dump_sha512(const uint8_t hash[512 / 8])
 {
-    printf("%02x%02x%02x%02x%02x%02x..%02x%02x%02x%02x%02x%02x\n", hash[0], hash[1], hash[2],
+    Log_Write(LOG_LEVEL_ERROR, "%02x%02x%02x%02x%02x%02x..%02x%02x%02x%02x%02x%02x\n", hash[0], hash[1], hash[2],
            hash[3], hash[4], hash[5], hash[58], hash[59], hash[60], hash[61], hash[62], hash[63]);
 }
 
@@ -85,33 +86,33 @@ static int basic_certificate_check(const ESPERANTO_CERTIFICATE_t *certificate)
 
     if (CURRENT_CERTIFICATE_HEADER_TAG != certificate->certificate_info.header_tag) 
     {
-        printf("basic_certificate_check: invalid certificate header tag!\n");
+        Log_Write(LOG_LEVEL_ERROR, "basic_certificate_check: invalid certificate header tag!\n");
         return -1;
     }
 
     if (CURRENT_CERTIFICATE_VERSION_TAG != certificate->certificate_info.version_tag) 
     {
-        printf("basic_certificate_check: invalid certificate version!\n");
+        Log_Write(LOG_LEVEL_ERROR, "basic_certificate_check: invalid certificate version!\n");
         return -1;
     }
 
     if (0 != crypto_verify_signature_params(&(certificate->certificate_info_signature))) 
     {
-        printf("basic_certificate_check: crypto_verify_signature_params() failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "basic_certificate_check: crypto_verify_signature_params() failed!\n");
         return -1;
     }
 
     if (certificate->certificate_info.hash_algorithm !=
         certificate->certificate_info_signature.hashAlg) 
     {
-        printf("basic_certificate_check: certificate signature hash algorithm mismatch!\n");
+        Log_Write(LOG_LEVEL_ERROR, "basic_certificate_check: certificate signature hash algorithm mismatch!\n");
         return -1;
     }
 
     if (certificate->certificate_info.signing_key_type !=
         certificate->certificate_info_signature.keyType) 
     {
-        printf("basic_certificate_check: certificate signature signing key type mismatch!\n");
+        Log_Write(LOG_LEVEL_ERROR, "basic_certificate_check: certificate signature signing key type mismatch!\n");
         return -1;
     }
 
@@ -121,7 +122,7 @@ static int basic_certificate_check(const ESPERANTO_CERTIFICATE_t *certificate)
             if (certificate->certificate_info.curveID !=
                 certificate->certificate_info_signature.ec.curveID) 
             {
-                printf("basic_certificate_check: certificate signature EC curve mismatch!\n");
+                Log_Write(LOG_LEVEL_ERROR, "basic_certificate_check: certificate signature EC curve mismatch!\n");
                 return -1;
             }
             break;
@@ -129,30 +130,30 @@ static int basic_certificate_check(const ESPERANTO_CERTIFICATE_t *certificate)
             if (certificate->certificate_info.keySize !=
                 certificate->certificate_info_signature.rsa.keySize) 
             {
-                printf("basic_certificate_check: certificate signature RSA key size mismatch!\n");
+                Log_Write(LOG_LEVEL_ERROR, "basic_certificate_check: certificate signature RSA key size mismatch!\n");
                 return -1;
             }
             break;
         default:
-            printf("basic_certificate_check: invalid signing key type!\n");
+            Log_Write(LOG_LEVEL_ERROR, "basic_certificate_check: invalid signing key type!\n");
             return -1;
     }
 
     if (0 != crypto_verify_public_key_params(&(certificate->certificate_info.subject_public_key))) 
     {
-        printf("basic_certificate_check: verify_public_key_params() failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "basic_certificate_check: verify_public_key_params() failed!\n");
         return -1;
     }
 
     if (0 != verify_certificate_name_sequence(&(certificate->certificate_info.subject))) 
     {
-        printf("basic_certificate_check: verify_certificate_name_sequence(subject) failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "basic_certificate_check: verify_certificate_name_sequence(subject) failed!\n");
         return -1;
     }
 
     if (0 != verify_certificate_name_sequence(&(certificate->certificate_info.issuer))) 
     {
-        printf("basic_certificate_check: verify_certificate_name_sequence(issuer) failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "basic_certificate_check: verify_certificate_name_sequence(issuer) failed!\n");
         return -1;
     }
 
@@ -160,7 +161,7 @@ static int basic_certificate_check(const ESPERANTO_CERTIFICATE_t *certificate)
 }
 
 /* static void dump_sha512(const uint8_t hash[512/8]) {
-     printf("%02x%02x%02x%02x%02x%02x..%02x%02x%02x%02x%02x%02x\n",
+     Log_Write(LOG_LEVEL_DEBUG, "%02x%02x%02x%02x%02x%02x..%02x%02x%02x%02x%02x%02x\n",
          hash[0], hash[1], hash[2], hash[3], hash[4], hash[5],
          hash[58], hash[59], hash[60], hash[61], hash[62], hash[63]);
  } */
@@ -193,16 +194,16 @@ static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t *certificate
         if (0 != crypto_hash(HASH_ALG_SHA2_512, certificate, sizeof(ESPERANTO_CERTIFICATE_t),
                              hash_result)) 
         {
-            printf("enhanced_certificate_check: vaultip_hash_sha_512(sp_root_ca) failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "enhanced_certificate_check: vaultip_hash_sha_512(sp_root_ca) failed!\n");
             return -1;
         }
 
         if (0 != constant_time_memory_compare(hash_result, get_sw_root_ca_sha512_hash(), 512 / 8)) 
         {
-            printf("enhanced_certificate_check: Invalid SW ROOT CA certificate hash!\n");
-            printf("Expected: ");
+            Log_Write(LOG_LEVEL_ERROR, "enhanced_certificate_check: Invalid SW ROOT CA certificate hash!\n");
+            Log_Write(LOG_LEVEL_ERROR, "Expected: ");
             dump_sha512(get_sw_root_ca_sha512_hash());
-            printf("Computed: ");
+            Log_Write(LOG_LEVEL_ERROR, "Computed: ");
             dump_sha512(hash_result);
             return -1;
         }
@@ -213,13 +214,13 @@ static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t *certificate
 
         if (0 == parent_certificate->certificate_info.is_CA) 
         {
-            printf("enhanced_certificate_check: Parent certificate is not a CA!\n");
+            Log_Write(LOG_LEVEL_ERROR, "enhanced_certificate_check: Parent certificate is not a CA!\n");
             return -1;
         }
 
         /* todo: verify the esperanto attributes
          if (0 == parent_certificate->certificate_info.esperanto_attributes) {
-             printf("enhanced_certificate_check: esperanto attributes mismatch!\n");
+             Log_Write(LOG_LEVEL_ERROR, "enhanced_certificate_check: esperanto attributes mismatch!\n");
              return -1;
          } */
 
@@ -227,7 +228,7 @@ static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t *certificate
             (parent_certificate->certificate_info.esperanto_designation &
              required_designation_flags)) 
         {
-            printf("enhanced_certificate_check: esperanto designation mismatch!\n");
+            Log_Write(LOG_LEVEL_ERROR, "enhanced_certificate_check: esperanto designation mismatch!\n");
             return -1;
         }
 
@@ -236,7 +237,7 @@ static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t *certificate
                      &(parent_certificate->certificate_info.subject_key_identifier),
                      sizeof(certificate->certificate_info.subject_key_identifier))) 
         {
-            printf("enhanced_certificate_check: Certificate parent key identifier mismatch!\n");
+            Log_Write(LOG_LEVEL_ERROR, "enhanced_certificate_check: Certificate parent key identifier mismatch!\n");
             return -1;
         }
 
@@ -244,7 +245,7 @@ static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t *certificate
                                               &(parent_certificate->certificate_info.subject),
                                               sizeof(certificate->certificate_info.issuer))) 
         {
-            printf("enhanced_certificate_check: Certificate parent info mismatch!\n");
+            Log_Write(LOG_LEVEL_ERROR, "enhanced_certificate_check: Certificate parent info mismatch!\n");
             return -1;
         }
 
@@ -259,7 +260,7 @@ static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t *certificate
                          &(certificate->certificate_info_signature),
                          &(certificate->certificate_info), sizeof(certificate->certificate_info))) 
             {
-                printf("enhanced_certificate_check: signature check failed!\n");
+                Log_Write(LOG_LEVEL_ERROR, "enhanced_certificate_check: signature check failed!\n");
                 return -1;
             }
         }
@@ -328,13 +329,13 @@ int verify_esperanto_image_certificate(const ESPERANTO_IMAGE_TYPE_t image_type,
             parent_certificate = &(bl2_data->sw_certificates[1]);
             break;
         default:
-            printf("verify_esperanto_image_certificate: invalid image type!\n");
+            Log_Write(LOG_LEVEL_ERROR, "verify_esperanto_image_certificate: invalid image type!\n");
             return -1;
     }
 
     if (0 != verify_certificate(certificate, parent_certificate, designation_flags)) 
     {
-        printf("verify_esperanto_image_certificate: verify_certificate() failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "verify_esperanto_image_certificate: verify_certificate() failed!\n");
         return -1;
     }
     return 0;
@@ -350,17 +351,17 @@ static int verify_sw_certificates_chain(const ESPERANTO_CERTIFICATE_t sw_certifi
     if (0 !=
         verify_certificate(&sw_certificates[0], NULL, ESPERANTO_CERTIFICATE_DESIGNATION_ROOT_CA)) 
     {
-        printf("verify_sw_certificates_chain: Invalid SW ROOT CA certificate!\n");
+        Log_Write(LOG_LEVEL_ERROR, "verify_sw_certificates_chain: Invalid SW ROOT CA certificate!\n");
         return -1;
     }
-    printf("SW ROOT CA Certificate OK!\n");
+    Log_Write(LOG_LEVEL_ERROR, "SW ROOT CA Certificate OK!\n");
     if (0 != verify_certificate(&sw_certificates[1], &sw_certificates[0],
                                 ESPERANTO_CERTIFICATE_DESIGNATION_ISSUING_CA)) 
     {
-        printf("verify_sw_certificates_chain: Invalid ISSUING CA certificate!\n");
+        Log_Write(LOG_LEVEL_ERROR, "verify_sw_certificates_chain: Invalid ISSUING CA certificate!\n");
         return -1;
     }
-    printf("SW Issuing CA Certificate OK!\n");
+    Log_Write(LOG_LEVEL_INFO, "SW Issuing CA Certificate OK!\n");
     return 0;
 }
 
@@ -381,14 +382,14 @@ int load_sw_certificates_chain(void)
     if (gs_vaultip_disabled) 
     {
         /* TODO: Update the following to Log macro - set to INFO/DEBUG
-        printf("Skip VaultIP OTP SW ROOT CA HASH check!\n"); */
+        Log_Write(LOG_LEVEL_ERROR, "Skip VaultIP OTP SW ROOT CA HASH check!\n"); */
         sw_root_ca_hash_available = false;
     } 
     else 
     {
         if (0 != is_sw_root_ca_hash_provisioned(&sw_root_ca_hash_available)) 
         {
-            printf("is_sw_root_ca_hash_provisioned() failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "is_sw_root_ca_hash_provisioned() failed!\n");
             return -1;
         }
     }
@@ -396,7 +397,7 @@ int load_sw_certificates_chain(void)
     if (!sw_root_ca_hash_available) 
     {
         /* TODO: Update the following to Log macro - set to INFO/DEBUG
-           printf("SW ROOT CA not provisioned. Using SP ROOT CA.\n"); */
+           Log_Write(LOG_LEVEL_INFO, "SW ROOT CA not provisioned. Using SP ROOT CA.\n"); */
         memcpy(bl2_data->sw_certificates, bl2_data->sp_certificates,
                sizeof(bl2_data->sw_certificates));
         return 0;
@@ -406,25 +407,25 @@ int load_sw_certificates_chain(void)
     if (0 != flashfs_drv_get_file_size(ESPERANTO_FLASH_REGION_ID_SW_CERTIFICATES,
                                        &sw_certificates_size)) 
     {
-        printf("flashfs_drv_get_file_size(SW_CRT) failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "flashfs_drv_get_file_size(SW_CRT) failed!\n");
         return -1;
     }
     if (sizeof(bl2_data->sw_certificates) != sw_certificates_size) 
     {
-        printf("Invalid SW certificates file size!\n");
+        Log_Write(LOG_LEVEL_ERROR, "Invalid SW certificates file size!\n");
         return -1;
     }
     if (0 != flashfs_drv_read_file(ESPERANTO_FLASH_REGION_ID_SW_CERTIFICATES, 0,
                                    bl2_data->sw_certificates, sizeof(bl2_data->sw_certificates))) 
     {
-        printf("flashfs_drv_read_file(SW_CRT) failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "flashfs_drv_read_file(SW_CRT) failed!\n");
         return -1;
     }
-    printf("Loaded SW certificates chain.\n");
+    Log_Write(LOG_LEVEL_INFO, "Loaded SW certificates chain.\n");
 
     if (0 != verify_sw_certificates_chain(bl2_data->sw_certificates)) 
     {
-        printf("Invalid SW certificate chain!\n");
+        Log_Write(LOG_LEVEL_INFO, "Invalid SW certificate chain!\n");
         return -1;
     }
 

@@ -504,7 +504,7 @@ void update_module_max_temp(void)
     uint8_t curr_temp = DEF_SYS_TEMP_VALUE;
 
     if(0 != pmic_get_temperature(&curr_temp)) {
-        printf("thermal pwr mgmt svc error: failed to get temperature\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get temperature\r\n");
     }
 
     if (get_soc_power_reg()->max_temp < curr_temp) {
@@ -832,7 +832,7 @@ void thermal_power_task_entry(void *pvParameter)
         if (notificationValue == PMIC_ERROR)
         {
             if(0 != pmic_get_temperature(&current_temperature)) {
-                printf("thermal pwr mgmt svc error: failed to get temperature\r\n");
+                Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get temperature\r\n");
             }
 
             if (current_temperature < get_soc_power_reg()->temperature_threshold.temperature)
@@ -851,7 +851,7 @@ void thermal_power_task_entry(void *pvParameter)
             }
             else
             {
-                printf("thermal pwr mgmt svc error: event_cb is not initialized\n");
+                Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: event_cb is not initialized\n");
             }
 
             /* We need to throttle the voltage and frequency, lets keep track of throttling time */
@@ -861,7 +861,7 @@ void thermal_power_task_entry(void *pvParameter)
             {
                 /* Get the current power */
                 if(0 != pmic_read_soc_power(&current_power)) {
-                    printf("thermal pwr mgmt svc error: failed to get soc power\r\n");
+                    Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");
                 }
 
                 /* FIXME: Scale it down by 10 % of current value and change the frequency accordingly
@@ -876,7 +876,7 @@ void thermal_power_task_entry(void *pvParameter)
 
                 /* Sample the temperature again */
                 if(0 != pmic_get_temperature(&current_temperature)) {
-                    printf("thermal pwr mgmt svc error: failed to get temperature\r\n");
+                    Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get temperature\r\n");
                 }
             } while(current_temperature > get_soc_power_reg()->temperature_threshold.temperature);
 
@@ -894,7 +894,7 @@ void thermal_power_task_entry(void *pvParameter)
             }
             else
             {
-                printf("thermal pwr mgmt svc error: event_cb is not initialized\r\n");
+                Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: event_cb is not initialized\r\n");
             }
 
             /* Update the throttle time here */

@@ -29,6 +29,7 @@
 #include "sp_host_iface.h"
 #include "pcie_int.h"
 #include "vq.h"
+#include "log.h"
 
 /*! \struct host_iface_sqs_cb_t;
     \brief Host interface control block that manages
@@ -208,7 +209,7 @@ uint32_t SP_Host_Iface_SQ_Pop_Cmd(void* rx_buff)
     }
     else if (pop_ret_val < 0)
     {
-        printf("SP_Host_Iface:VQ pop failed.(Error code: %d)\r\n", pop_ret_val);
+        Log_Write(LOG_LEVEL_ERROR, "SP_Host_Iface:VQ pop failed.(Error code: %d)\r\n", pop_ret_val);
     }
 
     return return_val;

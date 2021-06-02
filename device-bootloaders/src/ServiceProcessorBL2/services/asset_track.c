@@ -24,7 +24,7 @@ static int32_t asset_svc_getmanufacturername(char *mfg_name)
     status = get_manufacturer_name(mfg_name);
 
     if (0 != status) {
-        printf("Asset tracking svc error: get_manufacturer_name()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: get_manufacturer_name()\r\n");
     }
 
     return status;
@@ -36,7 +36,7 @@ static int32_t asset_svc_getpartnumber(char *part_number)
     status = get_part_number(part_number);
 
     if (0 != status) {
-        printf("Asset tracking svc error: get_part_number()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: get_part_number()\r\n");
     }
 
     return status;
@@ -48,7 +48,7 @@ static int32_t asset_svc_getserialnumber(char *ser_number)
     status = get_serial_number(ser_number);
 
     if (0 != status) {
-        printf("Asset tracking svc error: get_serial_number()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: get_serial_number()\r\n");
     }
 
     return status;
@@ -60,7 +60,7 @@ static int32_t asset_svc_getchiprevision(char *chip_rev)
     status = get_chip_revision(chip_rev);
 
     if (0 != status) {
-        printf("Asset tracking svc error: get_chip_revision()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: get_chip_revision()\r\n");
     }
 
     return status;
@@ -72,7 +72,7 @@ static int32_t asset_svc_getPCIEspeed(char *pcie_speed)
     status = get_PCIE_speed(pcie_speed);
 
     if (0 != status) {
-        printf("Asset tracking svc error: get_PCIE_speed()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: get_PCIE_speed()\r\n");
     }
 
     return status;
@@ -84,7 +84,7 @@ static int32_t asset_svc_getmodulerev(char *module_revision)
     status = get_module_rev(module_revision);
 
     if (0 != status) {
-        printf("Asset tracking svc error: get_module_rev()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: get_module_rev()\r\n");
     }
 
     return status;
@@ -96,7 +96,7 @@ static int32_t asset_svc_getformfactor(char *form_factor)
     status = get_form_factor(form_factor);
 
     if (0 != status) {
-        printf("Asset tracking svc error: get_form_factor()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: get_form_factor()\r\n");
     }
 
     return status;
@@ -108,7 +108,7 @@ static int32_t asset_svc_getmemorydetails(char *mem_detail)
     status = get_memory_details(mem_detail);
 
     if (0 != status) {
-        printf("Asset tracking svc error: get_memory_details()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: get_memory_details()\r\n");
     }
 
     return status;
@@ -120,7 +120,7 @@ static int32_t asset_svc_getmemorysize(char *mem_size)
     status = get_memory_size(mem_size);
 
     if (0 != status) {
-        printf("Asset tracking svc error: get_memory_size()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: get_memory_size()\r\n");
     }
 
     return status;
@@ -132,7 +132,7 @@ static int32_t asset_svc_getmemorytype(char *mem_type)
     status = get_memory_type(mem_type);
 
     if (0 != status) {
-        printf("Asset tracking svc error: get_memory_type()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: get_memory_type()\r\n");
     }
 
     return status;
@@ -149,7 +149,7 @@ static void asset_tracking_send_response(tag_id_t tag_id, msg_id_t msg_id, uint6
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
                                        sizeof(struct device_mgmt_asset_tracking_rsp_t))) {
-        printf("asset_tracking_send_response: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "asset_tracking_send_response: Cqueue push error!\n");
     }
 }
 

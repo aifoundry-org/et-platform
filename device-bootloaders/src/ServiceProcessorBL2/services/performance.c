@@ -47,7 +47,7 @@ static void dm_svc_perf_get_asic_frequencies(uint16_t tag, uint64_t req_start_ti
     status = get_module_asic_frequencies(&asic_frequencies);
 
     if (0 != status) {
-        printf("perf mgmt error: get_module_asic_frequencies()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "perf mgmt error: get_module_asic_frequencies()\r\n");
     } else {
         dm_rsp.asic_frequency = asic_frequencies;
     }
@@ -57,7 +57,7 @@ static void dm_svc_perf_get_asic_frequencies(uint16_t tag, uint64_t req_start_ti
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
                                        sizeof(struct device_mgmt_asic_frequencies_rsp_t))) {
-        printf("dm_svc_perf_get_asic_frequencies: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "dm_svc_perf_get_asic_frequencies: Cqueue push error!\n");
     }
 }
 
@@ -90,7 +90,7 @@ static void dm_svc_perf_get_dram_bw(uint16_t tag, uint64_t req_start_time)
     status = get_module_dram_bw(&dram_bw);
 
     if (0 != status) {
-        printf("perf mgmt error: get_module_dram_bw()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "perf mgmt error: get_module_dram_bw()\r\n");
     } else {
         dm_rsp.dram_bw = dram_bw;
     }
@@ -99,7 +99,7 @@ static void dm_svc_perf_get_dram_bw(uint16_t tag, uint64_t req_start_time)
                     timer_get_ticks_count() - req_start_time, status);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_dram_bw_rsp_t))) {
-        printf("dm_svc_perf_get_dram_bw: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "dm_svc_perf_get_dram_bw: Cqueue push error!\n");
     }
 }
 
@@ -132,7 +132,7 @@ static void dm_svc_perf_get_dram_capacity_util(uint16_t tag, uint64_t req_start_
     status = get_dram_capacity_percent(&pct_cap);
 
     if (0 != status) {
-        printf("perf mgmt error: get_dram_capacity_percent()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "perf mgmt error: get_dram_capacity_percent()\r\n");
     } else {
         dm_rsp.percentage_cap.pct_cap = pct_cap;
     }
@@ -142,7 +142,7 @@ static void dm_svc_perf_get_dram_capacity_util(uint16_t tag, uint64_t req_start_
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
                                        sizeof(struct device_mgmt_dram_capacity_rsp_t))) {
-        printf("dm_svc_perf_get_dram_capacity_util: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "dm_svc_perf_get_dram_capacity_util: Cqueue push error!\n");
     }
 }
 
@@ -175,7 +175,7 @@ static void dm_svc_perf_get_asic_per_core_util(uint16_t tag, uint64_t req_start_
     status = get_asic_per_core_util(&core_util);
 
     if (0 != status) {
-        printf("perf mgmt error: get_asic_per_core_util()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "perf mgmt error: get_asic_per_core_util()\r\n");
     } else {
         dm_rsp.dummy = core_util;
     }
@@ -185,7 +185,7 @@ static void dm_svc_perf_get_asic_per_core_util(uint16_t tag, uint64_t req_start_
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
                                        sizeof(struct device_mgmt_asic_per_core_util_rsp_t))) {
-        printf("dm_svc_perf_get_asic_per_core_util: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "dm_svc_perf_get_asic_per_core_util: Cqueue push error!\n");
     }
 }
 
@@ -218,7 +218,7 @@ static void dm_svc_perf_get_asic_utilization(uint16_t tag, uint64_t req_start_ti
     status = get_asic_utilization(&asic_util);
 
     if (0 != status) {
-        printf("perf mgmt error: get_asic_utilization()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "perf mgmt error: get_asic_utilization()\r\n");
     } else {
         dm_rsp.dummy = asic_util;
     }
@@ -228,7 +228,7 @@ static void dm_svc_perf_get_asic_utilization(uint16_t tag, uint64_t req_start_ti
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
                                        sizeof(struct device_mgmt_asic_per_core_util_rsp_t))) {
-        printf("dm_svc_perf_get_asic_utilization: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "dm_svc_perf_get_asic_utilization: Cqueue push error!\n");
     }
 }
 
@@ -261,7 +261,7 @@ static void dm_svc_perf_get_asic_stalls(uint16_t tag, uint64_t req_start_time)
     status = get_asic_stalls(&asic_stall);
 
     if (0 != status) {
-        printf("perf mgmt error: get_asic_stalls()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "perf mgmt error: get_asic_stalls()\r\n");
     } else {
         dm_rsp.dummy = asic_stall;
     }
@@ -271,7 +271,7 @@ static void dm_svc_perf_get_asic_stalls(uint16_t tag, uint64_t req_start_time)
 
     if (0 !=
         SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_asic_stalls_rsp_t))) {
-        printf("dm_svc_perf_get_asic_stalls: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "dm_svc_perf_get_asic_stalls: Cqueue push error!\n");
     }
 }
 
@@ -304,7 +304,7 @@ static void dm_svc_perf_get_asic_latency(uint16_t tag, uint64_t req_start_time)
     status = get_asic_latency(&asic_latency);
 
     if (0 != status) {
-        printf("perf mgmt error: get_asic_latency()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "perf mgmt error: get_asic_latency()\r\n");
     } else {
         dm_rsp.dummy = asic_latency;
     }
@@ -314,7 +314,7 @@ static void dm_svc_perf_get_asic_latency(uint16_t tag, uint64_t req_start_time)
 
     if (0 !=
         SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_asic_latency_rsp_t))) {
-        printf("dm_svc_perf_perf_get_asic_latency: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "dm_svc_perf_perf_get_asic_latency: Cqueue push error!\n");
     }
 }
 
@@ -364,7 +364,7 @@ void process_performance_request(tag_id_t tag_id, msg_id_t msg_id)
         dm_svc_perf_get_asic_latency(tag_id, req_start_time);
         break;
     default:
-        printf("cmd_id: %d is not supported\r\n", msg_id);
+        Log_Write(LOG_LEVEL_ERROR, "cmd_id: %d is not supported\r\n", msg_id);
         break;
     }
 }

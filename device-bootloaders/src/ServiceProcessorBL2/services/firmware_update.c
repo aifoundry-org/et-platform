@@ -24,7 +24,7 @@
 
 static void reset_etsoc(void)
 {
-    printf("Resetting ETSOC..!\n");
+    Log_Write(LOG_LEVEL_INFO, "Resetting ETSOC..!\n");
 
     // Now Reset SP.
     release_etsoc_reset();
@@ -36,11 +36,11 @@ static int32_t dm_svc_get_firmware_status(void)
     uint32_t completed_boot_counter;
 
     if (0 != flash_fs_get_boot_counters(&attempted_boot_counter, &completed_boot_counter)) {
-        printf("flash_fs_get_boot_counters: failed to get boot counters!\n");
+        Log_Write(LOG_LEVEL_ERROR, "flash_fs_get_boot_counters: failed to get boot counters!\n");
     } else {
-        printf("flash_fs_get_boot_counters: Success!\n");
+        Log_Write(LOG_LEVEL_ERROR, "flash_fs_get_boot_counters: Success!\n");
         if (attempted_boot_counter != completed_boot_counter) {
-            printf(
+            Log_Write(LOG_LEVEL_ERROR, 
                 "flash_fs_get_boot_counters: Attempted and completed boot counter do not match!\n");
             return DEVICE_FW_UPDATED_IMAGE_BOOT_FAILED;
         }
@@ -86,11 +86,11 @@ static int32_t update_sw_boot_root_certificate_hash(char *hash)
 
 static int32_t dm_svc_update_sw_boot_root_certificate_hash(struct dm_control_block *dm_req)
 {
-   printf("hash :%s\n", dm_req->cmd_payload);
+   Log_Write(LOG_LEVEL_INFO, "hash :%s\n", dm_req->cmd_payload);
 
    //cmd_payload contains the hash for new certificate.
    if(0 != update_sw_boot_root_certificate_hash(dm_req->cmd_payload)) {
-        printf(" dm_svc_update_sp_boot_root_certificate_hash : vault_ip_update_sp_boot_root_certificate_hash failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, " dm_svc_update_sp_boot_root_certificate_hash : vault_ip_update_sp_boot_root_certificate_hash failed!\n");
         return -1;
    }
 
@@ -109,7 +109,7 @@ static int32_t update_sp_boot_root_certificate_hash(char *key_blob, char* associ
     if (0 != vaultip_drv_static_asset_search(get_rom_identity(),
                                              VAULTIP_STATIC_ASSET_SP_ROOT_CA_HASH, &asset_id,
                                              &asset_size)) {
-        printf(
+        Log_Write(LOG_LEVEL_ERROR, 
             "update_sp_boot_root_certificate_hash: vaultip_drv_static_asset_search(%u) failed!\n",
             VAULTIP_STATIC_ASSET_SP_ROOT_CA_HASH);
         return -1;
@@ -118,7 +118,7 @@ static int32_t update_sp_boot_root_certificate_hash(char *key_blob, char* associ
     if (0 != vaultip_drv_otp_data_write(get_rom_identity(), VAULTIP_STATIC_ASSET_SP_ROOT_CA_HASH,
                                         asset_policy, true, key_blob, key_blob_size,
                                         associated_data, associated_data_size)) {
-        printf(" update_sp_boot_root_certificate_hash: vaultip_public_data_write() failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, " update_sp_boot_root_certificate_hash: vaultip_public_data_write() failed!\n");
         return -1;
     };
 
@@ -135,14 +135,14 @@ static void send_status_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_
     dm_rsp.payload = status;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
-        printf("send_status_response: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "send_status_response: Cqueue push error!\n");
     }
 }
 
 static int32_t dm_svc_firmware_update(void)
 {
     // Firmware image is available in the memory.
-    printf("fw image available at : %lx,  size: %lx\n", (uint64_t)DEVICE_FW_UPDATE_REGION_BASE,
+    Log_Write(LOG_LEVEL_INFO, "fw image available at : %lx,  size: %lx\n", (uint64_t)DEVICE_FW_UPDATE_REGION_BASE,
            DEVICE_FW_UPDATE_REGION_SIZE);
 
     // Program the image to flash.
@@ -152,7 +152,7 @@ static int32_t dm_svc_firmware_update(void)
         MESSAGE_ERROR("flash_fs_update_partition: failed to write data!\n");
         return DEVICE_FW_FLASH_UPDATE_ERROR;
     } else {
-        printf("flash partition has been updated with new image!\n");
+        Log_Write(LOG_LEVEL_INFO, "flash partition has been updated with new image!\n");
     }
 
     // Swap the priority counter of the partitions. so bootrom will choose
@@ -235,24 +235,24 @@ static void dm_svc_get_firmware_version(tag_id_t tag_id, uint64_t req_start_time
                     timer_get_ticks_count() - req_start_time, DM_STATUS_SUCCESS);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(dm_rsp))) {
-        printf("dm_svc_get_firmware_version: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "dm_svc_get_firmware_version: Cqueue push error!\n");
     }
 }
 
 static int32_t dm_svc_update_sp_boot_root_certificate_hash(
     struct device_mgmt_certificate_hash_cmd_t *certificate_hash_cmd)
 {
-    printf("recieved key_blob:\n");
+    Log_Write(LOG_LEVEL_INFO, "recieved key_blob:\n");
     for (int i = 0; i < 48; i++) {
-        printf("%02x ", *(unsigned char *)&certificate_hash_cmd->certificate_hash.key_blob[i]);
+        Log_Write(LOG_LEVEL_INFO, "%02x ", *(unsigned char *)&certificate_hash_cmd->certificate_hash.key_blob[i]);
     }
-    printf("recieved associated_data:\n");
+    Log_Write(LOG_LEVEL_INFO, "recieved associated_data:\n");
     for (int i = 0; i < 48; i++) {
-        printf("%02x ", *(unsigned char *)&certificate_hash_cmd->certificate_hash.associated_data[i]);
+        Log_Write(LOG_LEVEL_INFO, "%02x ", *(unsigned char *)&certificate_hash_cmd->certificate_hash.associated_data[i]);
     }
     //Command payload contains the hash for new certificate.
     if (0 != update_sp_boot_root_certificate_hash(certificate_hash_cmd->certificate_hash.key_blob, certificate_hash_cmd->certificate_hash.associated_data)) {
-        printf(
+        Log_Write(LOG_LEVEL_ERROR, 
             " dm_svc_update_sp_boot_root_certificate_hash : vault_ip_update_sp_boot_root_certificate_hash failed!\n");
         return -1;
     }

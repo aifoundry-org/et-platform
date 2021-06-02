@@ -19,6 +19,7 @@
 #include "serial.h"
 #include <string.h>
 #include <stdio.h>
+#include "log.h"
 #include "bl2_main.h"
 #include "bl2_flashfs_driver.h"
 #include "bl2_crypto.h"
@@ -167,7 +168,7 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type,
 
     if (CURRENT_EXEC_FILE_HEADER_TAG != image_file_header->info.file_header_tag) 
     {
-        printf("verify_image_file_header: invalid file header tag (%08x)!\n",
+        Log_Write(LOG_LEVEL_ERROR, "verify_image_file_header: invalid file header tag (%08x)!\n",
                image_file_header->info.file_header_tag);
         return -1;
     }
@@ -175,14 +176,14 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type,
     if (CURRENT_EXEC_IMAGE_HEADER_TAG !=
         image_file_header->info.image_info_and_signaure.info.public_info.header_tag) 
     {
-        printf("verify_image_file_header: invalid image header tag (%08x)!\n",
+        Log_Write(LOG_LEVEL_ERROR, "verify_image_file_header: invalid image header tag (%08x)!\n",
                image_file_header->info.image_info_and_signaure.info.public_info.header_tag);
         return -1;
     }
 
     if (image_type != image_file_header->info.image_info_and_signaure.info.public_info.image_type) 
     {
-        printf("verify_image_file_header: Unexpected image type! (%08x, expected %08x)!\n",
+        Log_Write(LOG_LEVEL_ERROR, "verify_image_file_header: Unexpected image type! (%08x, expected %08x)!\n",
                image_file_header->info.image_info_and_signaure.info.public_info.image_type,
                image_type);
         return -1;
@@ -192,7 +193,7 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type,
          image_file_header->info.image_info_and_signaure.info.public_info.code_and_data_size) !=
         image_file_size) 
     {
-        printf("verify_image_file_header: invalid file size!\n");
+        Log_Write(LOG_LEVEL_ERROR, "verify_image_file_header: invalid file size!\n");
         return -1;
     }
 
@@ -205,10 +206,10 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type,
         if (0 != verify_esperanto_image_certificate(
                      image_type, &(image_file_header->info.signing_certificate))) 
         {
-            printf("verify_image_file_header: image certificate is not valid!\n");
+            Log_Write(LOG_LEVEL_ERROR, "verify_image_file_header: image certificate is not valid!\n");
             return -1;
         } else {
-            printf("Image certificate OK!\n");
+            Log_Write(LOG_LEVEL_ERROR, "Image certificate OK!\n");
         }
     }
 
@@ -219,7 +220,7 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type,
 
         if (0 != crypto_derive_kdk_key(kdk_derivation_data, kdk_derivation_data_size, &gs_kdk)) 
         {
-            printf("verify_image_file_header: crypto_derive_kdk_key() failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "verify_image_file_header: crypto_derive_kdk_key() failed!\n");
             return -1;
         }
         gs_kdk_created = true;
@@ -229,7 +230,7 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type,
         if (0 != crypto_derive_mac_key(image_file_header->info.mac_type, gs_kdk,
                                        mack_derivation_data, mack_derivation_data_size, &gs_mack)) 
         {
-            printf("verify_image_file_header: crypto_derive_mack_key() failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "verify_image_file_header: crypto_derive_mack_key() failed!\n");
             return -1;
         }
         gs_mack_created = true;
@@ -240,7 +241,7 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type,
                                    &(image_file_header->info), sizeof(image_file_header->info),
                                    image_file_header->MAC)) 
         {
-            printf("verify_image_file_header: crypto_mac_verify() failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "verify_image_file_header: crypto_mac_verify() failed!\n");
             return -1;
         }
 
@@ -249,7 +250,7 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type,
         if (0 != crypto_derive_enc_key(gs_kdk, enck_derivation_data, enck_derivation_data_size,
                                        &gs_enck)) 
         {
-            printf("verify_image_file_header: crypto_derive_enck_key() failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "verify_image_file_header: crypto_derive_enck_key() failed!\n");
             return -1;
         }
         gs_enck_created = true;
@@ -259,7 +260,7 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type,
         memcpy(gs_IV, image_file_header->info.encryption_IV, 16);
         if (0 != crypto_aes_decrypt_init(&gs_aes_context, gs_enck, gs_IV)) 
         {
-            printf("verify_image_file_header: crypto_aes_decrypt_init() failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "verify_image_file_header: crypto_aes_decrypt_init() failed!\n");
             return -1;
         }
         gs_aes_context_created = true;
@@ -269,7 +270,7 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type,
                      &(image_file_header->info.image_info_and_signaure.info.secret_info),
                      sizeof(image_file_header->info.image_info_and_signaure.info.secret_info))) 
         {
-            printf("verify_image_file_header: crypto_aes_decrypt_update() failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "verify_image_file_header: crypto_aes_decrypt_update() failed!\n");
             return -1;
         }
     }
@@ -288,25 +289,25 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type,
                 &(image_file_header->info.image_info_and_signaure.info),
                 sizeof(image_file_header->info.image_info_and_signaure.info))) 
         {
-            printf("firmware signature is not valid!\n");
+            Log_Write(LOG_LEVEL_ERROR, "firmware signature is not valid!\n");
             return -1;
         } 
         else 
         {
-            printf("firmware signature is OK!\n");
+            Log_Write(LOG_LEVEL_ERROR, "firmware signature is OK!\n");
         }
     }
 
     /* TODO: Enable this as FW update test case */
     if (0 != get_fw_monotonic_counter_value(image_type, &monotonic_counter)) 
     {
-        printf("firmware version not available!\n");
+        Log_Write(LOG_LEVEL_ERROR, "firmware version not available!\n");
         return -1;
     }
     if (image_file_header->info.image_info_and_signaure.info.public_info.revocation_counter <
         monotonic_counter) 
     {
-        printf("image version below %u!\n", monotonic_counter);
+        Log_Write(LOG_LEVEL_ERROR, "image version below %u!\n", monotonic_counter);
         return -1;
     }
 
@@ -386,7 +387,7 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
             code_and_data_hash_size = 512 / 8;
             break;
         default:
-            printf("load_image_code_and_data: Invalid hash algorithm!\n");
+            Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: Invalid hash algorithm!\n");
             return -1;
     }
 
@@ -396,7 +397,7 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
         if (0 != crypto_hash_init(&encrypted_hash_context,
                                   image_info->public_info.code_and_data_hash_algorithm)) 
         {
-            printf("load_image_code_and_data: crypto_hash_init(e) failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_init(e) failed!\n");
             return -1;
         }
         encrypted_hash_context_initialized = true;
@@ -408,7 +409,7 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
         if (0 !=
             crypto_hash_init(&hash_context, image_info->public_info.code_and_data_hash_algorithm))
         {
-            printf("load_image_code_and_data: crypto_hash_init() failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_init() failed!\n");
             return -1;
         }
         hash_context_initialized = true;
@@ -424,13 +425,13 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
         if (remap_load_address(&load_address.u64,
                                image_info->secret_info.load_regions[region_no].memory_size)) 
         {
-            printf("Invalid region %u: load=0x%x, addr=0x%lx, fsize=0x%x, msize=0x%x\n", region_no,
+            Log_Write(LOG_LEVEL_ERROR, "Invalid region %u: load=0x%x, addr=0x%lx, fsize=0x%x, msize=0x%x\n", region_no,
                    load_offset, load_address.u64,
                    image_info->secret_info.load_regions[region_no].load_size,
                    image_info->secret_info.load_regions[region_no].memory_size);
             goto CLEANUP_ON_ERROR;
         }
-        /*printf("Region %u: load=0x%x, addr=0x%lx, fsize=0x%x, msize=0x%x\n", region_no, 
+        /*Log_Write(LOG_LEVEL_ERROR, "Region %u: load=0x%x, addr=0x%lx, fsize=0x%x, msize=0x%x\n", region_no, 
                load_offset, load_address.u64, 
                image_info->secret_info.load_regions[region_no].load_size,
                image_info->secret_info.load_regions[region_no].memory_size);*/
@@ -441,10 +442,10 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
                 flashfs_drv_read_file(region_id, load_offset, (void *)load_address.u64,
                                       image_info->secret_info.load_regions[region_no].load_size))
             {
-                printf("load_image_code_and_data: flashfs_drv_read_file(code) failed!\n");
+                Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: flashfs_drv_read_file(code) failed!\n");
                 goto CLEANUP_ON_ERROR;
             }
-            /*printf("loaded 0x%x bytes at 0x%08lx\n",
+            /*Log_Write(LOG_LEVEL_ERROR, "loaded 0x%x bytes at 0x%08lx\n",
                    image_info->secret_info.load_regions[region_no].load_size, load_address.u64);*/
 
             if (!gs_vaultip_disabled) 
@@ -457,7 +458,7 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
                                  &encrypted_hash_context, (void *)load_address.u64,
                                  image_info->secret_info.load_regions[region_no].load_size)) 
                     {
-                        printf("load_image_code_and_data: crypto_hash_update() failed!\n");
+                        Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_update() failed!\n");
                         goto CLEANUP_ON_ERROR;
                     }
 
@@ -466,7 +467,7 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
                                  &gs_aes_context, (void *)load_address.u64,
                                  image_info->secret_info.load_regions[region_no].load_size)) 
                     {
-                        printf("load_image_code_and_data: crypto_aes_decrypt_update() failed!\n");
+                        Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_aes_decrypt_update() failed!\n");
                         goto CLEANUP_ON_ERROR;
                     }
                 }
@@ -476,7 +477,7 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
                     crypto_hash_update(&hash_context, (void *)load_address.u64,
                                        image_info->secret_info.load_regions[region_no].load_size)) 
                 {
-                    printf("load_image_code_and_data: crypto_hash_update() failed!\n");
+                    Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_update() failed!\n");
                     goto CLEANUP_ON_ERROR;
                 }
 #endif
@@ -492,7 +493,7 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
                    0,
                    image_info->secret_info.load_regions[region_no].memory_size -
                        image_info->secret_info.load_regions[region_no].load_size);
-            /*printf("erased 0x%x bytes\n",
+            /*Log_Write(LOG_LEVEL_ERROR, "erased 0x%x bytes\n",
                    image_info->secret_info.load_regions[region_no].memory_size -
                        image_info->secret_info.load_regions[region_no].load_size);*/
         }
@@ -503,7 +504,7 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
     {
         if (0 != crypto_hash_final(&encrypted_hash_context, NULL, 0, total_length, hash)) 
         {
-            printf("load_image_code_and_data: crypto_hash_final(p) failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_final(p) failed!\n");
             goto CLEANUP_ON_ERROR;
         }
         encrypted_hash_context_initialized = false;
@@ -512,13 +513,13 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
                                               image_file_header->info.encrypted_code_and_data_hash,
                                               code_and_data_hash_size)) 
         {
-            printf("load_image_code_and_data: encrypted code+data hash mismatch!\n");
+            Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: encrypted code+data hash mismatch!\n");
             goto CLEANUP_ON_ERROR;
         }
 
         if (0 != crypto_aes_decrypt_final(&gs_aes_context, NULL, 0, NULL)) 
         {
-            printf("load_bl1_code_and_data: crypto_aes_decrypt_final() failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "load_bl1_code_and_data: crypto_aes_decrypt_final() failed!\n");
             goto CLEANUP_ON_ERROR;
         }
         gs_aes_context_created = false;
@@ -533,7 +534,7 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
     {
         if (0 != crypto_hash_final(&hash_context, NULL, 0, total_length, hash)) 
         {
-            printf("load_image_code_and_data: crypto_hash_final() failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_final() failed!\n");
             goto CLEANUP_ON_ERROR;
         }
         hash_context_initialized = false;
@@ -541,7 +542,7 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
         if (0 != constant_time_memory_compare(hash, image_info->public_info.code_and_data_hash,
                                               code_and_data_hash_size)) 
         {
-            printf("load_image_code_and_data: code+data hash mismatch!\n");
+            Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: code+data hash mismatch!\n");
             goto CLEANUP_ON_ERROR;
         }
     }
@@ -561,7 +562,7 @@ CLEANUP_ON_ERROR:
     {
         if (0 != crypto_hash_abort(&encrypted_hash_context)) 
         {
-            printf("load_image_code_and_data: crypto_hash_abort(e) failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_abort(e) failed!\n");
         }
     }
 #ifndef IGNORE_HASH
@@ -569,7 +570,7 @@ CLEANUP_ON_ERROR:
     {
         if (0 != crypto_hash_abort(&hash_context)) 
         {
-            printf("load_image_code_and_data: crypto_hash_abort(p) failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_abort(p) failed!\n");
         }
     }
 #endif
@@ -632,46 +633,46 @@ int load_firmware(const ESPERANTO_IMAGE_TYPE_t image_type)
             image_name = "MAXION_BL1";
             break;
         default:
-            printf("load_firmware: invalid image type!\n");
+            Log_Write(LOG_LEVEL_ERROR, "load_firmware: invalid image type!\n");
             return -1;
     }
 
     /* load the image */
     if (0 != flashfs_drv_get_file_size(region_id, &image_file_size)) 
     {
-        printf("load_firmware: flashfs_drv_get_file_size(%s) failed!\n", image_name);
+        Log_Write(LOG_LEVEL_ERROR, "load_firmware: flashfs_drv_get_file_size(%s) failed!\n", image_name);
         return -1;
     }
     if (image_file_size < sizeof(ESPERANTO_IMAGE_FILE_HEADER_t)) 
     {
-        printf("load_firmware: %s image file too small!\n", image_name);
+        Log_Write(LOG_LEVEL_ERROR, "load_firmware: %s image file too small!\n", image_name);
         return -1;
     }
     if (0 != flashfs_drv_read_file(region_id, 0, image_file_header,
                                    sizeof(ESPERANTO_IMAGE_FILE_HEADER_t))) 
     {
-        printf("load_firmware: flashfs_drv_read_file(%s header) failed!\n", image_name);
+        Log_Write(LOG_LEVEL_ERROR, "load_firmware: flashfs_drv_read_file(%s header) failed!\n", image_name);
         rv = -1;
         goto DONE;
     }
-    printf("Loaded %s header...\n", image_name);
+    Log_Write(LOG_LEVEL_ERROR, "Loaded %s header...\n", image_name);
 
     if (0 != verify_image_file_header(image_type, image_file_header, image_file_size)) 
     {
-        printf("load_firmware: verify_image_file_header() failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "load_firmware: verify_image_file_header() failed!\n");
         rv = -1;
         goto DONE;
     }
-    printf("Verified %s header...\n", image_name);
+    Log_Write(LOG_LEVEL_ERROR, "Verified %s header...\n", image_name);
 
     if (0 != load_image_code_and_data(region_id, image_file_header)) 
     {
-        printf("load_firmware: load_image_code_and_data() failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "load_firmware: load_image_code_and_data() failed!\n");
         rv = -1;
         goto DONE;
     }
 
-    printf("load_firmware: Loaded %s firmware.\n", image_name);
+    Log_Write(LOG_LEVEL_ERROR, "load_firmware: Loaded %s firmware.\n", image_name);
     rv = 0;
 
 DONE:
@@ -679,14 +680,14 @@ DONE:
     {
         if (0 != crypto_aes_decrypt_final(&gs_aes_context, NULL, 0, NULL)) 
         {
-            printf("load_firmware: crypto_aes_decrypt_final() failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "load_firmware: crypto_aes_decrypt_final() failed!\n");
         }
     }
     if (gs_enck_created) 
     {
         if (0 != crypto_delete_key(gs_enck)) 
         {
-            printf("load_firmware: crypto_delete_key(enck) failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "load_firmware: crypto_delete_key(enck) failed!\n");
             rv = -1;
         }
     }
@@ -694,7 +695,7 @@ DONE:
     {
         if (0 != crypto_delete_key(gs_mack)) 
         {
-            printf("load_firmware: crypto_delete_key(mack) failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "load_firmware: crypto_delete_key(mack) failed!\n");
             rv = -1;
         }
     }
@@ -702,7 +703,7 @@ DONE:
     {
         if (0 != crypto_delete_key(gs_kdk)) 
         {
-            printf("load_firmware: crypto_delete_key(kdk) failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "load_firmware: crypto_delete_key(kdk) failed!\n");
             rv = -1;
         }
     }

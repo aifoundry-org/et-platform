@@ -27,6 +27,7 @@
 #include "etsoc_hal/inc/spio_plic_intr_device.h"
 #include "etsoc_hal/inc/hal_device.h"
 #include "task.h"
+#include "log.h"
 #include <stdio.h>
 #include <inttypes.h>
 
