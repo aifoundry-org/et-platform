@@ -1,6 +1,3 @@
-[submodule "external/etsoc_hal"]
-	path = external/etsoc_hal
-	url = ../etsoc_hal.git
 [submodule "ci/ci-tools"]
 	path = ci/ci-tools
 	url = git@gitlab.esperanto.ai:software/ci-tools.git

@@ -24,6 +24,7 @@ find_package(EsperantoDeviceMinionRuntime REQUIRED)
 find_package(signedImageFormat REQUIRED)
 find_package(deviceApi REQUIRED)
 find_package(EsperantoFlashTool CONFIG REQUIRED)
+find_package(etsoc_hal REQUIRED)
 
 # Providers for third-party dependencies (gRPC_*_PROVIDER properties):
 # "module": build the dependency using sources from git submodule under external
