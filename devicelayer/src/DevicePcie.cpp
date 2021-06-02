@@ -54,7 +54,7 @@ template <typename... Types> IoctlResult wrap_ioctl(int fd, unsigned long int re
   DV_VLOG(HIGH) << "Doing IOCTL fd: " << fd << " request: " << request << " args: " << params.str();
   auto res = ::ioctl(fd, request, args...);
   if (res < 0 && errno != EAGAIN) {
-    DV_LOG(ERROR) << "IOCTL failed. FD: " << fd << " request: " << request << " args: " << params.str();
+    DV_LOG(WARNING) << "IOCTL failed. FD: " << fd << " request: " << request << " args: " << params.str();
     throw Exception("Failed to execute IOCTL: '"s + std::strerror(errno) + "'"s);
   }
   return {res};
