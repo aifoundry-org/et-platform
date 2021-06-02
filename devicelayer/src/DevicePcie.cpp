@@ -49,12 +49,12 @@ struct IoctlResult {
 };
 
 template <typename... Types> IoctlResult wrap_ioctl(int fd, unsigned long int request, Types... args) {
-  std::stringstream ss;
-  ss << "Doing IOCTL fd: " << fd << " request: " << request << " args: ";
-  ((ss << ", " << std::forward<Types>(args)), ...);
-  DV_VLOG(HIGH) << ss.str();
+  std::stringstream params;
+  ((params << ", " << std::forward<Types>(args)), ...);
+  DV_VLOG(HIGH) << "Doing IOCTL fd: " << fd << " request: " << request << " args: " << params.str();
   auto res = ::ioctl(fd, request, args...);
   if (res < 0 && errno != EAGAIN) {
+    DV_LOG(ERROR) << "IOCTL failed. FD: " << fd << " request: " << request << " args: " << params.str();
     throw Exception("Failed to execute IOCTL: '"s + std::strerror(errno) + "'"s);
   }
   return {res};
