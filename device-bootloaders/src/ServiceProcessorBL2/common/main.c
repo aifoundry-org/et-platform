@@ -427,9 +427,7 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data);
 void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 {
     bool vaultip_disabled;
-#if !TEST_FRAMEWORK
     const IMAGE_VERSION_INFO_t *image_version_info = get_image_version_info();
-#endif
 
     // Disable buffering on stdout
     setbuf(stdout, NULL);
@@ -465,20 +463,19 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     SERIAL_init(PU_UART0);
     SERIAL_init(PU_UART1);
 
-#if TEST_FRAMEWORK
-    printf("\n** SP BL2 STARTED - TF **\r\n");
-    printf("BL2 version:" GIT_VERSION_STRING " (" BL2_VARIANT ")\n");
-    /* control does not return from call below for now .. */
-    TF_Wait_And_Process_TF_Cmds();
-#else
-
     Log_Init(LOG_LEVEL_INFO);
     Trace_Init_SP(NULL);
-    Log_Write(LOG_LEVEL_INFO, "\n** SP BL2 STARTED **\r\n");
+
+    Log_Write(LOG_LEVEL_INFO, "** SP BL2 STARTED **\n");
     Log_Write(LOG_LEVEL_INFO, "BL2 version: %u.%u.%u:" GIT_VERSION_STRING " (" BL2_VARIANT ")\n",
            image_version_info->file_version_major, image_version_info->file_version_minor,
            image_version_info->file_version_revision);
+
+#if TEST_FRAMEWORK
+    /* control does not return from call below for now .. */
+    TF_Wait_And_Process_TF_Cmds();
 #endif
+
     memset(&g_service_processor_bl2_data, 0, sizeof(g_service_processor_bl2_data));
     g_service_processor_bl2_data.service_processor_bl2_data_size =
         sizeof(g_service_processor_bl2_data);

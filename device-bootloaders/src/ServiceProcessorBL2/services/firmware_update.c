@@ -172,13 +172,9 @@ static void dm_svc_get_firmware_version(tag_id_t tag_id, uint64_t req_start_time
     ESPERANTO_IMAGE_FILE_HEADER_t *machine_image_file_header;
     ESPERANTO_IMAGE_FILE_HEADER_t *worker_image_file_header;
     SERVICE_PROCESSOR_BL2_DATA_t *sp_bl2_data;
-    const IMAGE_VERSION_INFO_t *bl2_image_version;
 
     //Get BL1 version from BL2 data.
     sp_bl2_data = get_service_processor_bl2_data();
-
-    //Get BL2 version
-    bl2_image_version = get_image_version_info();
 
     // Get firmware version info for master minion
     master_image_file_header = get_master_minion_image_file_header();
@@ -197,9 +193,9 @@ static void dm_svc_get_firmware_version(tag_id_t tag_id, uint64_t req_start_time
                        (uint32_t)sp_bl2_data->service_processor_bl1_image_file_version_revision);
 
     dm_rsp.firmware_version.bl2_v =
-        FORMAT_VERSION((uint32_t)bl2_image_version->file_version_major,
-                       (uint32_t)bl2_image_version->file_version_minor,
-                       (uint32_t)bl2_image_version->file_version_revision);
+        FORMAT_VERSION((uint32_t)get_image_version_info()->file_version_major,
+                       (uint32_t)get_image_version_info()->file_version_minor,
+                       (uint32_t)get_image_version_info()->file_version_revision);
 
     dm_rsp.firmware_version.mm_v = FORMAT_VERSION(
         ((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
