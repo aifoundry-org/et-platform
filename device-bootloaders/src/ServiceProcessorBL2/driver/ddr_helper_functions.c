@@ -20,6 +20,7 @@
 #include "hal_device.h"
 #include "hal_ddr_init.h"
 #include "ddrc_reg_def.h"
+#include "log.h"
 
 /*
 ** Private functions/macros used only in this file
@@ -34,7 +35,7 @@ static inline volatile void *get_ddrc_address(uint32_t memshire, uint32_t block,
   return (volatile void *) (R_SHIRE_LPDDR_BASEADDR | ((uint64_t)memshire & 0x7) << 26 | reg);
 }
 
-typedef enum 
+typedef enum
 {
   TRAINING_1D,
   TRAINING_2D
@@ -122,7 +123,7 @@ static void wait_for_training_internal(training_stage stage, uint32_t memshire, 
   return;
 }
 
-/* 
+/*
 ** Low-level support functions
 */
 uint64_t ms_read_esr(uint32_t memshire, uint64_t reg)
@@ -201,7 +202,7 @@ uint32_t ms_poll_ddrc_reg(uint32_t memshire, uint32_t blk, uint64_t reg, uint32_
   return timeout_tries;
 }
 
-/* 
+/*
 ** Training related functions
 ** - Reading training info from external storage, either file or flash.
 ** - Writing into DDR memory controllers

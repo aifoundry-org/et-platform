@@ -57,11 +57,11 @@ void Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
     if (sp_init_info == NULL)
     {
         /* Populate default Trace configurations for Service Processor. */
-        sp_init_info_l.buffer        = SP_DEV_INTF_TRACE_BUFFER_ADDRESS;
-        sp_init_info_l.buffer_size   = SP_DEV_INTF_TRACE_BUFFER_SIZE;
+        sp_init_info_l.buffer        = SP_TRACE_BUFFER_BASE;
+        sp_init_info_l.buffer_size   = SP_TRACE_BUFFER_SIZE;
         sp_init_info_l.event_mask    = TRACE_EVENT_STRING;
         sp_init_info_l.filter_mask   = TRACE_EVENT_STRING_WARNING;
-        sp_init_info_l.threshold     = SP_DEV_INTF_TRACE_BUFFER_SIZE;
+        sp_init_info_l.threshold     = SP_TRACE_BUFFER_SIZE;
     }
     else
     {
@@ -69,8 +69,8 @@ void Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
     }
 
     /* Common buffer for all SP HART. */
-    SP_Trace_CB.size_per_hart = SP_DEV_INTF_TRACE_BUFFER_ADDRESS;
-    SP_Trace_CB.base_per_hart = SP_DEV_INTF_TRACE_BUFFER_SIZE;
+    SP_Trace_CB.size_per_hart = SP_TRACE_BUFFER_SIZE;
+    SP_Trace_CB.base_per_hart = SP_TRACE_BUFFER_BASE;
 
     /* Initialize Trace for each all Harts in Service Processor. */
     Trace_Init(&sp_init_info_l, &SP_Trace_CB);
