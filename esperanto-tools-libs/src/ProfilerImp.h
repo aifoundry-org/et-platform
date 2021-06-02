@@ -10,19 +10,24 @@
 
 #pragma once
 
-#include "ProfileEvent.h"
-#include "runtime/IProfiler.h"
 #include "runtime/IRuntime.h"
+#include "runtime/IProfiler.h"
+#include "runtime/IProfileEvent.h"
+
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/portable_binary.hpp>
 #include <mutex>
 #include <variant>
+
 namespace rt {
 namespace profiling {
+
 class ProfilerImp : public IProfiler {
 public:
   // IProfiler interface
   void start(std::ostream& outputStream, OutputType outputType) override {
+    const std::lock_guard<std::mutex> lock(mutex_);
+
     switch (outputType) {
     case OutputType::Json:
       archive_.emplace<cereal::JSONOutputArchive>(outputStream);
@@ -35,16 +40,17 @@ public:
     }
   }
   void stop() override {
+    const std::lock_guard<std::mutex> lock(mutex_);
     // emplacing monostate makes the profiler stop recording (see record function)
     archive_.emplace<std::monostate>();
   }
 
   void record(const ProfileEvent& event) {
+    const std::lock_guard<std::mutex> lock(mutex_);
     std::visit(
       [&](auto&& archive) {
         using T = std::decay_t<decltype(archive)>;
         if constexpr (!std::is_same_v<T, std::monostate>) {
-          std::lock_guard<std::mutex> lock(mutex_);
           archive(event);
         }
       },

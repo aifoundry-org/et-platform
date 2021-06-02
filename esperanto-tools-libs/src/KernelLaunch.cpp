@@ -32,11 +32,8 @@ constexpr auto kFlushL3Bitset = 1 << 4;
 EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const void* kernel_args, size_t kernel_args_size,
                                  uint64_t shire_mask, bool barrier, bool flushL3) {
   std::unique_lock<std::recursive_mutex> lock(mutex_);
-  auto&& kernel = find(kernels_, kernelId)->second;
-
-  ScopedProfileEvent profileEvent(Class::KernelLaunch, profiler_, streamId,
-                                  {{"load_address", kernel->getLoadAddress()},
-                                   {"kernel_id", static_cast<std::underlying_type<KernelId>::type>(kernelId)}});
+  auto&& kernel = find(kernels_, kernelId)->second;  
+  ScopedProfileEvent profileEvent(Class::KernelLaunch, profiler_, streamId, kernelId, kernel->getEntryAddress());
 
   if (kernel_args_size > kMinAllocationSize) {
     char buffer[1024];

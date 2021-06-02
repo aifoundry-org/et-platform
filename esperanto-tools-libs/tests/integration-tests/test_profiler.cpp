@@ -9,16 +9,22 @@
 //------------------------------------------------------------------------------
 
 #include "common/Constants.h"
+
 #include "runtime/IProfiler.h"
+#include "runtime/IProfileEvent.h"
 #include "runtime/IRuntime.h"
+
 #include <hostUtils/logging/Logging.h>
 #include <device-layer/IDeviceLayer.h>
+#include <cereal/archives/json.hpp>
+
 #include <experimental/filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
 #include <ios>
 #include <sstream>
 #include <thread>
+
 
 namespace fs = std::experimental::filesystem;
 
@@ -113,6 +119,43 @@ TEST(Profiler, add_2_vectors_profiling) {
   LOG(INFO) << "Trace: " << str;
 }
 
+
+TEST(Profiler, deserialize_trace) {
+  const char *trace =
+  "{"
+  " \"value0\": {"
+  "     \"timeStamp\": {"
+  "         \"time_since_epoch\": {"
+  "             \"count\": 1031433892085159"
+  "         }"
+  "      },"
+  "     \"class\": \"GetDevices\","
+  "     \"type\": \"Start\","
+  "     \"thread_id\": \"140320044730880\","
+  "     \"extra\": ["
+  "         {"
+  "             \"key\": \"pair_id\","
+  "             \"value\": 11"
+  "         }"
+  "     ]"
+  "  }"
+  "}";
+  std::stringstream ss;
+  ss.str(trace);
+
+
+  cereal::JSONInputArchive ar(ss);
+  rt::profiling::ProfileEvent evt;
+  
+  // deserialize event
+  ar(evt);
+
+  EXPECT_EQ(rt::profiling::to_string(evt.getType()), "Start");
+  EXPECT_EQ(rt::profiling::to_string(evt.getClass()), "GetDevices");
+  EXPECT_EQ(evt.getTimeStamp().time_since_epoch().count(), 1031433892085159);
+  EXPECT_TRUE(evt.getPairId().has_value());
+  EXPECT_EQ(evt.getPairId().value(), 11);  
+}
 
 int main(int argc, char** argv) {
   logging::LoggerDefault logger_;

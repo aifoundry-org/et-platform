@@ -71,6 +71,7 @@ add_library(etrt_obj OBJECT
     src/KernelLaunch.cpp
     src/DmaBufferManager.cpp
     src/DmaBuffer.cpp
+    src/ProfileEvent.cpp
 )
 
 set_target_properties(etrt_obj PROPERTIES
@@ -95,7 +96,6 @@ target_link_libraries(etrt_obj
         deviceApi::deviceApi
         deviceLayer::deviceLayer
         hostUtils::logging
-        hostUtils::debug
 )
 
 ## Build shared library
