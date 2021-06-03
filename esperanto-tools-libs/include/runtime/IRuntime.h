@@ -12,6 +12,7 @@
 #include <chrono>
 #include <cstddef>
 #include <exception>
+#include <hostUtils/debug/StackException.h>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -61,8 +62,8 @@ using RuntimePtr = std::unique_ptr<class IRuntime>;
 
 /// \brief The error handling in the runtime is trough exceptions. This is the
 /// only exception kind that the runtime can throw
-class Exception : public std::runtime_error {
-  using std::runtime_error::runtime_error;
+class Exception : public dbg::StackException {
+  using dbg::StackException::StackException;
 };
 
 /// \brief Constants

@@ -308,10 +308,14 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
   ProfileEvent event(Type::Single, Class::KernelTimestamps);
   event.setEvent(eventId);
   auto fillEvent = [](ProfileEvent& evt, const auto& response) {
-    RT_VLOG(HIGH) << std::hex << " Wait time: " << response.cmd_wait_time
-                  << " Execution time: " << response.cmd_execution_time;
-    evt.addExtra("cmd_wait_time", response.cmd_wait_time);
-    evt.addExtra("cmd_execution_time", response.cmd_execution_time);
+    RT_VLOG(HIGH) << std::hex << " Start time: " << response.device_cmd_start_ts
+                  << " Wait time: " << response.device_cmd_wait_dur
+                  << " Execution time: " << response.device_cmd_execute_dur;
+    evt.addExtra("device_cmd_start_ts", response.device_cmd_start_ts);
+    evt.addExtra("device_cmd_wait_dur", response.device_cmd_wait_dur);
+    evt.addExtra("device_cmd_execute_dur", response.device_cmd_execute_dur);
+    evt.addExtra("cmd_wait_time", response.device_cmd_wait_dur);
+    evt.addExtra("cmd_execution_time", response.device_cmd_execute_dur);
   };
 
   RT_VLOG(MID) << "Response received eventId: " << std::hex << static_cast<int>(eventId)

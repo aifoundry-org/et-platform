@@ -7,7 +7,7 @@
 // in accordance with the terms and conditions stipulated in the
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
-#include "Utils.h"
+#include "TestUtils.h"
 #include <algorithm>
 #include <device-layer/IDeviceLayerMock.h>
 #include <g3log/loglevels.hpp>
