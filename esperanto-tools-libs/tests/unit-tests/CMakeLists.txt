@@ -13,6 +13,7 @@ set(TEST_LIST
   utest_streams_lifecycle.cpp:""
   utest_event_manager.cpp:""
   benchmark.cpp:""
+  other.cpp:""
   )
 
-create_test_targets("${TEST_LIST}" "LABELS;Generic;TIMEOUT;600")
+create_test_targets("${TEST_LIST}" "LABELS;Generic;TIMEOUT;300")
