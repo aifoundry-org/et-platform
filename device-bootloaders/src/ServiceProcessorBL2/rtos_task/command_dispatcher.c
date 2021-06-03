@@ -22,6 +22,7 @@
 #include "minion_state.h"
 #include "bl2_perf.h"
 #include "bl2_timer.h"
+#include "trace.h"
 #include "command_dispatcher.h"
 
 #include "sp_host_iface.h"
@@ -218,7 +219,10 @@ static void pc_vq_task(void *pvParameters)
                 start_test_events(tag_id, msg_id);
 #endif
                 break;
-
+            case DM_CMD_SET_DM_TRACE_RUN_CONTROL:
+            case DM_CMD_SET_DM_TRACE_CONFIG:
+                    Trace_Process_CMD(tag_id, msg_id, (void *)buffer);
+                break;
             default:
                 Log_Write(LOG_LEVEL_ERROR, "[PC VQ] Invalid message id: %d\r\n", msg_id);
                 Log_Write(LOG_LEVEL_ERROR, "message length: %d, buffer:\r\n", length);

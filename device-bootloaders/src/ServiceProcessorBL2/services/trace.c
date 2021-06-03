@@ -29,7 +29,79 @@
  */
 static struct trace_control_block_t SP_Trace_CB;
 
+static void Trace_Run_Control(enum trace_enable_e state);
+static void Trace_CONFIGURE(uint32_t event_mask, uint32_t filter_mask);
 
+static void trace_process_control_cmd(void *buffer)
+{
+    struct device_mgmt_trace_run_control_cmd_t *dm_cmd = 
+        (struct device_mgmt_trace_run_control_cmd_t *)buffer;
+    
+    /* Check flag to Enable/Disable Trace. */
+    if (dm_cmd->control & SP_TRACE_ENABLE)
+    {
+        Trace_Run_Control(TRACE_ENABLE);
+        Log_Write(LOG_LEVEL_DEBUG,
+                            "TRACE_RT_CONTROL:SP:Trace Disabled.\r\n");
+    }
+    else 
+    {
+        Trace_Run_Control(TRACE_DISABLE);
+        Log_Write(LOG_LEVEL_DEBUG,
+                            "TRACE_RT_CONTROL:SP:Trace Enabled.\r\n");
+    }
+
+    if (dm_cmd->control & SP_TRACE_UART_ENABLE)
+    {
+        Log_Set_Interface(LOG_DUMP_TO_UART);
+        Log_Write(LOG_LEVEL_CRITICAL,
+                "TRACE_RT_CONTROL:SP:Logs redirected to Trace buffer.\r\n");
+    }
+    else
+    {
+        Log_Set_Interface(LOG_DUMP_TO_TRACE);
+        Log_Write(LOG_LEVEL_DEBUG,
+                "TRACE_RT_CONTROL:SP:Logs redirected to UART.\r\n");
+    }
+}
+
+static void send_trace_control_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time)
+{
+    struct device_mgmt_trace_run_control_rsp_t dm_rsp;
+
+    FILL_RSP_HEADER(dm_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time,
+                     DM_STATUS_SUCCESS);
+
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, 
+                                        sizeof(struct device_mgmt_trace_run_control_rsp_t))) 
+    {
+        Log_Write(LOG_LEVEL_ERROR, "send_trace_control_response: Cqueue push error!\n");
+    }
+}
+
+static void trace_process_config_cmd(void *buffer)
+{
+    struct device_mgmt_trace_config_cmd_t *dm_cmd = 
+        (struct device_mgmt_trace_config_cmd_t *)buffer;
+
+    Trace_CONFIGURE(dm_cmd->event_mask, dm_cmd->filter_mask);
+          Log_Write(LOG_LEVEL_DEBUG,
+                            "TRACE_CONFIG:SP:Trace Event/Filter Mask set.\r\n");
+}
+
+static void send_trace_config_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time)
+{
+    struct device_mgmt_trace_config_rsp_t dm_rsp;
+
+    FILL_RSP_HEADER(dm_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time,
+                     DM_STATUS_SUCCESS);
+
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, 
+                                        sizeof(struct device_mgmt_trace_config_rsp_t))) 
+    {
+        Log_Write(LOG_LEVEL_ERROR, "send_trace_config_response: Cqueue push error!\n");
+    }
+}
 /************************************************************************
 *
 *   FUNCTION
@@ -105,7 +177,7 @@ struct trace_control_block_t* Trace_Get_SP_CB(void)
 *
 *   FUNCTION
 *
-*       Trace_RT_Control_SP
+*       Trace_Run_Control
 *
 *   DESCRIPTION
 *
@@ -120,7 +192,79 @@ struct trace_control_block_t* Trace_Get_SP_CB(void)
 *       None
 *
 ***********************************************************************/
-void Trace_RT_Control_SP(enum trace_enable_e state)
+static void Trace_Run_Control(enum trace_enable_e state)
 {
     SP_Trace_CB.enable = state;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_CONFIGURE
+*
+*   DESCRIPTION
+*
+*       This function sets event/filter mask of Trace for Service Processor.
+*
+*   INPUTS
+*
+*       uint32_t                     Trace event Mask.
+*       uint32_t                     Trace filter Mask.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void Trace_CONFIGURE(uint32_t event_mask, uint32_t filter_mask)
+{
+       SP_Trace_CB.event_mask = event_mask;
+       SP_Trace_CB.filter_mask = filter_mask;
+}
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Process_CMD
+*
+*   DESCRIPTION
+*
+*       This function process host commands for Trace.
+*
+*   INPUTS
+*
+*       tag_id      Unique enum representing specific command
+*       msg_id      Unique enum representing specific command
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Trace_Process_CMD(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
+{
+    
+    uint64_t req_start_time = timer_get_ticks_count();
+    
+    switch (msg_id) 
+    {
+        case DM_CMD_SET_DM_TRACE_RUN_CONTROL:
+
+            /* process trace control command */
+            trace_process_control_cmd((void *)buffer);
+
+            /* send response for trace control command */
+            send_trace_control_response(tag_id, msg_id, req_start_time);
+            break;
+
+        case DM_CMD_SET_DM_TRACE_CONFIG:
+
+            /* process trace config command */
+            trace_process_config_cmd((void *)buffer);
+
+            /* send response for trace config command */
+            send_trace_config_response(tag_id, msg_id, req_start_time);
+            break;
+    }
 }

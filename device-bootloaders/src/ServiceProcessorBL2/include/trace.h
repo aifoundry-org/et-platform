@@ -16,12 +16,18 @@
 #ifndef SP_TRACE_H
 #define SP_TRACE_H
 
+#include "dm.h"
+#include "dm_event_def.h"
 #include "device_trace.h"
+#include "sp_host_iface.h"
+#include "log.h"
 
 /**************************/
 /* SP Trace Status Codes  */
 /**************************/
 #define INVALID_TRACE_INIT_INFO       -10
+#define SP_TRACE_ENABLE               (1U << 0)
+#define SP_TRACE_UART_ENABLE          (1U << 1)
 
 /*! \fn void Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
     \brief This function initializes Trace for sp
@@ -36,11 +42,10 @@ void Trace_Init_SP(const struct trace_init_info_t *sp_init_info);
 */
 struct trace_control_block_t* Trace_Get_SP_CB(void);
 
-/*! \fn uint64_t Trace_RT_Control_SP(void)
-    \brief This function returns hanldes runtime control commands
-            for trace such as start/stop/configure
+/*! \fn void Trace_RT_Process_CMD(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
+    \brief This function processes trace commands from host, this includes
+            configuring trace for Service Processor.
     \return None.
 */
-void Trace_RT_Control_SP(enum trace_enable_e state);
-
+void Trace_Process_CMD(tag_id_t tag_id, msg_id_t msg_id, void *buffer);
 #endif
