@@ -12,7 +12,7 @@
 #include <chrono>
 #include <cstddef>
 #include <memory>
-#include <stdexcept>
+#include <hostUtils/debug/StackException.h>
 #include <sw-sysemu/SysEmuOptions.h>
 #include <vector>
 
@@ -36,8 +36,8 @@
 /// @{
 namespace dev {
 
-class Exception : public std::runtime_error {
-  using std::runtime_error::runtime_error;
+class Exception : public dbg::StackException {
+  using dbg::StackException::StackException;
 };
 
 class IDeviceAsync {

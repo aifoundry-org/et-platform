@@ -57,6 +57,7 @@ target_link_libraries(deviceLayer
         sw-sysemu::sw-sysemu
     PRIVATE
         hostUtils::logging
+        hostUtils::debug
         linuxDriver::linuxDriver
         Boost::boost
 )
