@@ -403,7 +403,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
 {
     uint8_t voltage;
 
-    if(0 != pmic_get_voltage(MODULE_DDR, &voltage)) {
+    if(0 != pmic_get_voltage(DDR, &voltage)) {
         MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get ddr voltage\r\n");
         return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
@@ -411,7 +411,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
         get_soc_power_reg()->module_voltage.ddr = voltage;
     }
 
-    if(0 != pmic_get_voltage(MODULE_L2CACHE, &voltage)) {
+    if(0 != pmic_get_voltage(L2CACHE, &voltage)) {
         MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get l2 cache voltage\r\n");
         return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
@@ -419,7 +419,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
         get_soc_power_reg()->module_voltage.l2_cache = voltage;
     }
 
-    if(0 != pmic_get_voltage(MODULE_MAXION, &voltage)) {
+    if(0 != pmic_get_voltage(MAXION, &voltage)) {
         MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get maxion voltage\r\n");
         return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
@@ -427,7 +427,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
         get_soc_power_reg()->module_voltage.maxion = voltage;
     }
 
-    if(0 != pmic_get_voltage(MODULE_MINION, &voltage)) {
+    if(0 != pmic_get_voltage(MINION, &voltage)) {
         MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get minion voltage\r\n");
         return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
@@ -435,7 +435,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
         get_soc_power_reg()->module_voltage.minion = voltage;
     }
 
-    if(0 != pmic_get_voltage(MODULE_PCIE, &voltage)) {
+    if(0 != pmic_get_voltage(PCIE, &voltage)) {
         MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get pcie voltage\r\n");
         return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
@@ -443,7 +443,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
         get_soc_power_reg()->module_voltage.pcie = voltage;
     }
 
-    if(0 != pmic_get_voltage(MODULE_NOC, &voltage)) {
+    if(0 != pmic_get_voltage(NOC, &voltage)) {
         MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get noc voltage\r\n");
         return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
@@ -451,7 +451,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
         get_soc_power_reg()->module_voltage.noc = voltage;
     }
 
-    if(0 != pmic_get_voltage(MODULE_PCIE_LOGIC, &voltage)) {
+    if(0 != pmic_get_voltage(PCIE_LOGIC, &voltage)) {
         MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get pcie logic voltage\r\n");
         return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
@@ -459,7 +459,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
         get_soc_power_reg()->module_voltage.pcie_logic = voltage;
     }
 
-    if(0 != pmic_get_voltage(MODULE_VDDQLP, &voltage)) {
+    if(0 != pmic_get_voltage(VDDQLP, &voltage)) {
         MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get vddqlp voltage\r\n");
         return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
@@ -467,7 +467,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
         get_soc_power_reg()->module_voltage.vddqlp = voltage;
     }
 
-    if(0 != pmic_get_voltage(MODULE_VDDQ, &voltage)) {
+    if(0 != pmic_get_voltage(VDDQ, &voltage)) {
         MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get vddq voltage\r\n");
         return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }

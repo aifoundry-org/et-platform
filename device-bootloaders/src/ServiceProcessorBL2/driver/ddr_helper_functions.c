@@ -80,7 +80,6 @@ static const char* get_training_status_text(uint32_t train_msg)
     default:
       return "unknown";
   }
-  return "unknown";
 }
 
 static void log_training_error(training_stage stage, uint32_t memshire, uint32_t train_msg)
@@ -196,7 +195,7 @@ uint32_t ms_poll_ddrc_reg(uint32_t memshire, uint32_t blk, uint64_t reg, uint32_
       break;
     }
     // usleep(wait_count);
-    wait_count = wait_count;  //suppress compilation warning
+    (void)wait_count;
   }
 
   return timeout_tries;
@@ -210,8 +209,8 @@ uint32_t ms_poll_ddrc_reg(uint32_t memshire, uint32_t blk, uint64_t reg, uint32_
 void ms_ddr_phy_1d_train_from_file(uint32_t mem_config, uint32_t memshire)
 {
   // TODO Now nothing but supress compile warnings
-  mem_config = mem_config;
-  memshire = memshire;
+  (void)mem_config;
+  (void)memshire;
 }
 
 void ms_wait_for_training(uint32_t memshire, uint32_t train_poll_max_iterations, uint32_t train_poll_iteration_delay)
@@ -222,8 +221,8 @@ void ms_wait_for_training(uint32_t memshire, uint32_t train_poll_max_iterations,
 void ms_ddr_phy_2d_train_from_file(uint32_t mem_config, uint32_t memshire)
 {
   // TODO Now nothing but supress compile warnings
-  mem_config = mem_config;
-  memshire = memshire;
+  (void)mem_config;
+  (void)memshire;
 }
 
 void ms_wait_for_training_2d(uint32_t memshire, uint32_t train_poll_max_iterations, uint32_t train_poll_iteration_delay)
