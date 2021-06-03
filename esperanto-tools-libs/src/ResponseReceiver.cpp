@@ -20,7 +20,7 @@ using namespace rt;
 
 namespace {
 using namespace std::chrono_literals;
-auto kPollingInterval = 100ms;
+auto kPollingInterval = 10ms;
 } // namespace
 
 ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServices* receiverServices)
@@ -57,7 +57,7 @@ ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServ
           // https://esperantotech.atlassian.net/browse/SW-7822
           // we are losing somehow interrupts in sysemu, so instead of waitForEpoll lets do a quick & dirty polling
           // worarkound ...
-          std::this_thread::sleep_for(std::chrono::milliseconds(1));
+          std::this_thread::sleep_for(kPollingInterval);
           // RT_LOG(INFO) << "No responses, waiting for epoll";
           // deviceLayer_->waitForEpollEventsMasterMinion(dev, sq_bitmap, cq_available);
           // RT_LOG(INFO) << "Finished waiting for epoll";
