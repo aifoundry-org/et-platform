@@ -17,6 +17,9 @@ set(CMAKE_CXX_STANDARD 17)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/external/sanitizer-cmake/cmake)
 
+option(ENABLE_WARNINGS_AS_ERRORS "Wether runtime targets should treat warnings as errors" OFF)
+include(CompilerWarnings)
+
 include(GNUInstallDirs)
 include(CompilerSanitizers)
 include(CoverageSupport)
@@ -83,7 +86,7 @@ target_include_directories(etrt_obj
         ${CMAKE_CURRENT_SOURCE_DIR}/src
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
-
+target_set_project_warnings(etrt_obj)
 target_add_sanitizers(etrt_obj)
 
 target_link_libraries(etrt_obj
