@@ -18,6 +18,7 @@ message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 message(STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
 
 add_subdirectory(logging)
+add_subdirectory(debug)
 
 
 ##### Package
