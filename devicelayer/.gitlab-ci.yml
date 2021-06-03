@@ -6,11 +6,6 @@ stages:
 
 build:conan:
   stage: build
-  except:
-    - master
-    - tags
-  only:
-    - merge_requests
   tags:
     - docker
   image: ${DOCKER_IMAGE}
@@ -40,8 +35,6 @@ package:conan:
   stage: package
   only:
     - master
-    - tags
-    - merge_requests
   tags:
     - docker
   image:  ${DOCKER_IMAGE}
