@@ -61,3 +61,6 @@ class HostUtilsConan(ConanFile):
         self.cpp_info.components["logging"].names["cmake_find_package"] = "logging"
         self.cpp_info.components["logging"].names["cmake_find_package_multi"] = "logging"
         self.cpp_info.components["logging"].requires = ["g3log::g3log"]
+        self.cpp_info.components["debug"].names["cmake_find_package"] = "debug"
+        self.cpp_info.components["debug"].names["cmake_find_package_multi"] = "debug"
+        self.cpp_info.components["debug"].requires = ["g3log::g3log"]
