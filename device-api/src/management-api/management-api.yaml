@@ -135,6 +135,10 @@ Modules:
           Value: 55
         - Name: GET_DEVICE_ERROR_EVENTS
           Value: 56
+        - Name: SET_DM_TRACE_RUN_CONTROL
+          Value: 57
+        - Name: SET_DM_TRACE_CONFIG
+          Value: 58
   ## List of Enums that are used in our messages
     - Name: power_state
       Description: Power State of the ETSOC
@@ -428,7 +432,7 @@ Modules:
           Type: uint8_t
         - Name: pad[7]
           Description: Padding for alignment
-          Type: uint8_t
+          Type: uint8_t       
   # List of Commands, Responses, Events
   Messages :
       #-------------------------------------------------------------------------------
@@ -972,4 +976,61 @@ Modules:
           Description: MM error count details.
           Type: struct
           Struct: mm_error_count_t
+#-------------------------------------------------------------------------------
+# Trace Management Commands and Responses
+#-------------------------------------------------------------------------------
+    - Name: device_mgmt_trace_config_cmd
+      Type: Command
+      Description: Configure the trace configuration
+      PairedMessage: device_mgmt_trace_config_rsp
+      Fields:
+        - Name: event_mask
+          Description: This is a bit mask, each bit corresponds to a specific Event to trace
+          Type: uint32_t
+        - Name: filter_mask
+          Description: This is a bit mask representing a list of filters for a given event to trace
+          Type: uint32_t
 
+    - Name: device_mgmt_trace_config_rsp
+      Description:  Trace configure command reply
+      Type: Response
+      PairedMessage: device_mgmt_trace_config_cmd
+      Fields:
+        - Name: status
+          Description: DM_STATUS_SUCCESS or non-zero error code
+          Type: enum
+          Enum: dm_status
+        - Name: pad[4]
+          Description: Padding for alignment
+          Type: uint8_t
+#-------------------------------------------------------------------------------
+    - Name: device_mgmt_trace_run_control_cmd
+      Description: Configure options to start, stop, OR fetch trace logs.
+      Type: Command
+      PairedMessage: device_mgmt_trace_run_control_rsp
+      Fields:
+        - Name: control
+          Description: |-
+              This is a bit mask, each bit corresponds control a Trace run control.
+                  /// Bit 0 - 0 - Disable - instructs service processor to stop tracing
+                  ///         1 - Enable - instructs service processor to start tracing (Default)
+                  /// Bit 1 - 0 - Dump to Trace Buffer (Default)
+                  ///         1 - Redirect to UART
+
+          Type: uint32_t
+        - Name: pad[4]
+          Description: Padding for alignment
+          Type: uint8_t
+    - Name: device_mgmt_trace_run_control_rsp
+      Description: Trace run control command reply
+      Type: Response
+      PairedMessage: device_mgmt_trace_run_control_cmd
+      Fields:
+        - Name: status
+          Description: DM_STATUS_SUCCESS or non-zero error code
+          Type: enum
+          Enum: dm_status
+        - Name: pad[4]
+          Description: Padding for alignment
+          Type: uint8_t
+#------------------------------------------------------------------------------
