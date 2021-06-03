@@ -50,27 +50,43 @@ TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, abortHangKernel_PositiveTesting_5_1) 
 }
 */
 TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackSameKernelLaunchCmdsSingleDeviceSingleQueue_3_1) {
-  backToBackSameKernelLaunchCmds_3_1(true, 0x1FFFFFFFF); // all shires
+  backToBackSameKernelLaunchCmds_3_1(true, true, 100, 0x1FFFFFFFF); // all shires
 }
 
 TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackSameKernelLaunchCmdsSingleDeviceMultiQueue_3_2) {
-  backToBackSameKernelLaunchCmds_3_1(false, 0x1FFFFFFFF); // all shires
+  backToBackSameKernelLaunchCmds_3_1(true, false, 100, 0x1FFFFFFFF); // all shires
 }
 
-TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackDifferentKernelLaunchCmdsSingleDeviceSingleQueue_3_3) {
-  backToBackDifferentKernelLaunchCmds_3_2(true, 0x1FFFFFFFF); // all shires
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackSameKernelLaunchCmdsMultiDeviceSingleQueue_3_3) {
+  backToBackSameKernelLaunchCmds_3_1(false, true, 100, 0x1FFFFFFFF); // all shires
+}
+
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackSameKernelLaunchCmdsMultiDeviceMultiQueue_3_4) {
+  backToBackSameKernelLaunchCmds_3_1(false, false, 100, 0x1FFFFFFFF); // all shires
+}
+
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackDifferentKernelLaunchCmdsSingleDeviceSingleQueue_3_5) {
+  backToBackDifferentKernelLaunchCmds_3_2(true, true, 100, 0x1FFFFFFFF); // all shires
 }
 
 TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackDifferentKernelLaunchCmdsSingleDeviceMultileQueue_3_4) {
-  backToBackDifferentKernelLaunchCmds_3_2(false, 0x1FFFFFFFF); // all shires
+  backToBackDifferentKernelLaunchCmds_3_2(true, false, 100, 0x1FFFFFFFF); // all shires
 }
 
-TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackEmptyKernelLaunch_3_5) {
-  backToBackEmptyKernelLaunch_3_3(0x1FFFFFFFF, false); // all shires
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackDifferentKernelLaunchCmdsMultiDeviceSingleQueue_3_7) {
+  backToBackDifferentKernelLaunchCmds_3_2(false, true, 100, 0x1FFFFFFFF); // all shires
 }
 
-TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackEmptyKernelLaunchFlushL3_3_6) {
-  backToBackEmptyKernelLaunch_3_3(0x1FFFFFFFF, true); // all shires
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackDifferentKernelLaunchCmdsMultiDeviceMultileQueue_3_8) {
+  backToBackDifferentKernelLaunchCmds_3_2(false, false, 100, 0x1FFFFFFFF); // all shires
+}
+
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackEmptyKernelLaunch_3_9) {
+  backToBackEmptyKernelLaunch_3_3(100, 0x1FFFFFFFF, false); // all shires
+}
+
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackEmptyKernelLaunchFlushL3_3_10) {
+  backToBackEmptyKernelLaunch_3_3(100, 0x1FFFFFFFF, true); // all shires
 }
 
 int main(int argc, char** argv) {
