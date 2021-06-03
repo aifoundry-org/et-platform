@@ -15,6 +15,7 @@
 #include <array>
 #include <chrono>
 #include <thread>
+#include <utility>
 using namespace rt;
 
 namespace {
@@ -33,34 +34,33 @@ ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServ
 
     std::vector<std::byte> buffer(kMaxMsgSize);
 
+    std::vector<int> devicesToCheck;
+    for (int i = 0, count = deviceLayer_->getDevicesCount(); i < count; ++i) {
+      devicesToCheck.emplace_back(i);
+    }
     while (run_) {
-      auto devicesToCheck = receiverServices_->getDevicesWithEventsOnFly();
-      if (devicesToCheck.empty()) {
-        std::this_thread::sleep_for(kPollingInterval);
-      } else {
-        std::random_shuffle(begin(devicesToCheck), end(devicesToCheck));
-        int responsesCount = 0;
-        for (auto dev : devicesToCheck) {
-          while (deviceLayer_->receiveResponseMasterMinion(dev, buffer)) {
-            RT_VLOG(HIGH) << "Got response from deviceId: " << dev;
-            responsesCount++;
-            receiverServices_->onResponseReceived(buffer);
-            RT_VLOG(HIGH) << "Response processed";
-          }
+      std::random_shuffle(begin(devicesToCheck), end(devicesToCheck));
+      int responsesCount = 0;
+      for (auto dev : devicesToCheck) {
+        while (deviceLayer_->receiveResponseMasterMinion(dev, buffer)) {
+          RT_VLOG(HIGH) << "Got response from deviceId: " << dev;
+          responsesCount++;
+          receiverServices_->onResponseReceived(buffer);
+          RT_VLOG(HIGH) << "Response processed";
         }
+      }
 
-        if (responsesCount == 0) {
-          for (auto dev : devicesToCheck) {
-            uint64_t sq_bitmap;
-            bool cq_available;
-            // https://esperantotech.atlassian.net/browse/SW-7822
-            // we are losing somehow interrupts in sysemu, so instead of waitForEpoll lets do a quick & dirty polling
-            // worarkound ...
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            // RT_LOG(INFO) << "No responses, waiting for epoll";
-            // deviceLayer_->waitForEpollEventsMasterMinion(dev, sq_bitmap, cq_available);
-            // RT_LOG(INFO) << "Finished waiting for epoll";
-          }
+      if (responsesCount == 0) {
+        for (auto dev : devicesToCheck) {
+          //uint64_t sq_bitmap;
+          //bool cq_available;
+          // https://esperantotech.atlassian.net/browse/SW-7822
+          // we are losing somehow interrupts in sysemu, so instead of waitForEpoll lets do a quick & dirty polling
+          // worarkound ...
+          std::this_thread::sleep_for(std::chrono::milliseconds(1));
+          // RT_LOG(INFO) << "No responses, waiting for epoll";
+          // deviceLayer_->waitForEpollEventsMasterMinion(dev, sq_bitmap, cq_available);
+          // RT_LOG(INFO) << "Finished waiting for epoll";
         }
       }
     }
