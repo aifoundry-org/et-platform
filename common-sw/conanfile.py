@@ -21,7 +21,7 @@ class HostUtilsConan(ConanFile):
 
     generators = "cmake_find_package_multi"
 
-    exports_sources = [ "CMakeLists.txt", "logging/*", "hostUtilsConfig.cmake.in" ]
+    exports_sources = [ "CMakeLists.txt", "logging/*", "debug/*", "hostUtilsConfig.cmake.in" ]
 
     requires = "g3log/1.3.2"
     python_requires = "conan-common/[>=0.1.0 <1.0.0]"
