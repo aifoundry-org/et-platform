@@ -32,16 +32,27 @@ public:
     auto cmd = reinterpret_cast<cmn_header_t*>(command);
     rsp_header_t rsp;
     rsp.rsp_hdr.tag_id = cmd->tag_id;
-    if (cmd->msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD) {
-      rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
-    } else if (cmd->msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD) {
-      rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP;
-    }
-    else if (cmd->msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD){
-      rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP;
-    }
-    else {
-      throw Exception("Please, add command with msg_id: " + std::to_string(cmd->msg_id));
+    switch (cmd->msg_id) {
+      case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD: 
+        rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP;
+        break;
+      case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD: 
+        rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP;
+        break;
+      case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP: 
+        rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
+        break;
+      case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD:
+        rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP;
+        break;
+      case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD:
+        rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP;
+        break;
+      case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD:
+        rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
+        break;
+      default:
+        throw Exception("Please, add command with msg_id: " + std::to_string(cmd->msg_id));
     }
     responsesMasterMinion_.push(rsp);
     return true;
