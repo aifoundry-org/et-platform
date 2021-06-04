@@ -16,4 +16,4 @@ set(TEST_LIST
   other.cpp:""
   )
 
-create_test_targets("${TEST_LIST}" "LABELS;Generic;TIMEOUT;300")
+create_test_targets("${TEST_LIST}" "LABELS;GENERIC;LABELS;SYSEMU;TIMEOUT;300")

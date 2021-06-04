@@ -22,6 +22,7 @@ EventId EventManager::getNextId() {
   std::lock_guard<std::mutex> lock(mutex_);
   auto res = EventId{nextEventId_++};
   onflyEvents_.emplace(res);
+  RT_VLOG(HIGH) << "Last event id: " << static_cast<int>(res);
   return res;
 }
 std::set<EventId> EventManager::getOnflyEvents() const {
@@ -30,7 +31,7 @@ std::set<EventId> EventManager::getOnflyEvents() const {
 }
 
 void EventManager::dispatch(EventId event) {
-  RT_DLOG(INFO) << "Dispatching event " << static_cast<int>(event);
+  RT_VLOG(HIGH) << "Dispatching event " << static_cast<int>(event);
   std::unique_lock<std::mutex> lock(mutex_);
   if (onflyEvents_.erase(event) != 1) {
 
@@ -38,9 +39,10 @@ void EventManager::dispatch(EventId event) {
     for (auto& e : onflyEvents_) {
       ss << static_cast<int>(e) << " ";
     }
-    RT_DLOG(INFO) << "Events on-fly: " << ss.str();
+    RT_VLOG(HIGH) << "Events on-fly: " << ss.str();
 
-    throw Exception("Couldn't dispatch event, perhaps it was already dispatched?");
+    throw Exception("Couldn't dispatch event: " + std::to_string(static_cast<int>(event)) +
+                    ". Perhaps it was already dispatched?");
   };
 
   auto it = blockedThreads_.find(event);

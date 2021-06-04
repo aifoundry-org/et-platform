@@ -4,6 +4,7 @@
 #include <experimental/filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 #include <runtime/IRuntime.h>
 #include <sw-sysemu/SysEmuOptions.h>
 
@@ -71,3 +72,50 @@ inline auto getDefaultOptions() {
   return sysEmuOptions;
 }
 
+inline
+void run_stress_mem(rt::IRuntime* runtime, size_t bytes, int transactions, int streams, int threads, bool check_results=true) {
+  std::vector<std::thread> threads_;
+  using namespace testing;
+
+  for (int i = 0; i < threads; ++i) {
+    threads_.emplace_back([=]{
+      auto dev = runtime->getDevices()[0];
+      std::vector<rt::StreamId> streams_(streams);
+      std::vector<std::vector<std::byte>> host_src(transactions);
+      std::vector<std::vector<std::byte>> host_dst(transactions);
+      std::vector<void*> dev_mem(transactions);
+      for (int j = 0; j < streams; ++j) {
+        streams_[j] = runtime->createStream(dev);
+        for (int k = 0; k < transactions / streams; ++k) {
+          auto idx = k + j * transactions / streams;
+          host_src[idx] = std::vector<std::byte>(bytes);
+          host_dst[idx] = std::vector<std::byte>(bytes);
+          //put random junk
+          for (auto& v : host_src[idx]) {
+            v = static_cast<std::byte>(rand() % 256);
+          }
+          dev_mem[idx] = runtime->mallocDevice(dev, bytes);
+          runtime->memcpyHostToDevice(streams_[j], host_src[idx].data(), dev_mem[idx], bytes);
+          runtime->memcpyDeviceToHost(streams_[j], dev_mem[idx], host_dst[idx].data(), bytes);
+        }
+      }
+      for (int j = 0; j < streams; ++j) {
+        runtime->waitForStream(streams_[j]);
+        if (check_results) {
+          for (int k = 0; k < transactions / streams; ++k) {
+            auto idx = k + j * transactions / streams;
+            runtime->freeDevice(dev, dev_mem[idx]);
+            ASSERT_THAT(host_dst[idx], ElementsAreArray(host_src[idx]));
+          }
+        }
+        runtime->destroyStream(streams_[j]);        
+      };
+      for (auto m: dev_mem) {
+          runtime->freeDevice(dev, m);
+      }
+    });
+  }
+  for (auto& t: threads_) {
+    t.join();
+  }
+}
