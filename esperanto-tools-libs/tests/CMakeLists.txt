@@ -61,7 +61,8 @@ macro(build_test_binary)
             stdc++fs
             OpenMP::OpenMP_CXX
     )
-
+    
+    target_set_project_warnings(${TEST_TARGET})
     target_add_sanitizers(${TEST_TARGET})
 endmacro()
 
