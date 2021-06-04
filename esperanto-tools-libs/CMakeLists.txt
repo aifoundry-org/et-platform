@@ -91,6 +91,8 @@ target_set_project_warnings(etrt_obj)
 target_add_sanitizers(etrt_obj)
 
 target_link_libraries(etrt_obj
+    PUBLIC
+        hostUtils::debug
     PRIVATE
         cereal::cereal
         deviceApi::deviceApi
