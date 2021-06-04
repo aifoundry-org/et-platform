@@ -33,9 +33,9 @@ constexpr int kDmaAlignment = 64;
 constexpr int kNumDevices = 1;
 // this value comes from device-api sizeof(rsp_header_t). should always be kept in sync with this file:
 // https://gitlab.esperanto.ai/software/device-api/-/blob/master/src/device-apis/device_apis_message_types.h
-constexpr auto kCommonHeaderSize = 8;
+constexpr auto kCommonHeaderSize = 8U;
 // This is the max possible size of the device API commands (DMA list with all 4 entries)
-constexpr auto kMMThresholdBytes = 136;
+constexpr auto kMMThresholdBytes = 136U;
 
 constexpr size_t getAvailSpace(const CircBuffCb& buffer) {
   auto head = buffer.head_offset;
@@ -145,33 +145,34 @@ DeviceSysEmu::~DeviceSysEmu() {
 bool DeviceSysEmu::sendCommand(QueueInfo& queueInfo, std::byte* command, size_t commandSize, bool& clearEvent) {
   clearEvent = true;
 
-  // read queue info
-  CircBuffCb buffer;
-  sysEmu_->mmioRead(queueInfo.bufferAddress_, sizeof(buffer), reinterpret_cast<std::byte*>(&buffer));
+  // read tail_offset
+  sysEmu_->mmioRead(queueInfo.bufferAddress_ + offsetof(CircBuffCb, tail_offset), sizeof(queueInfo.cb_.tail_offset),
+                    reinterpret_cast<std::byte*>(&queueInfo.cb_.tail_offset));
 
   // check if there is enough space
-  if (getAvailSpace(buffer) < commandSize) {
+  if (getAvailSpace(queueInfo.cb_) < commandSize) {
     return false;
   }
 
   // Check if buffer wrap is required
-  if (buffer.head_offset + commandSize > buffer.length) {
-    auto bytesUntilEnd = buffer.length - buffer.head_offset;
-    sysEmu_->mmioWrite(queueInfo.bufferAddress_ + sizeof(CircBuffCb) + buffer.head_offset, bytesUntilEnd, command);
-    buffer.head_offset = 0;
+  if (queueInfo.cb_.head_offset + commandSize > queueInfo.cb_.length) {
+    auto bytesUntilEnd = queueInfo.cb_.length - queueInfo.cb_.head_offset;
+    sysEmu_->mmioWrite(queueInfo.bufferAddress_ + sizeof(CircBuffCb) + queueInfo.cb_.head_offset, bytesUntilEnd,
+                       command);
+    queueInfo.cb_.head_offset = 0;
     commandSize -= bytesUntilEnd;
     command += bytesUntilEnd;
   }
 
-  sysEmu_->mmioWrite(queueInfo.bufferAddress_ + sizeof(CircBuffCb) + buffer.head_offset, commandSize, command);
+  sysEmu_->mmioWrite(queueInfo.bufferAddress_ + sizeof(CircBuffCb) + queueInfo.cb_.head_offset, commandSize, command);
 
   // Update the head offset
-  buffer.head_offset = (buffer.head_offset + commandSize) % buffer.length;
-  sysEmu_->mmioWrite(queueInfo.bufferAddress_ + offsetof(CircBuffCb, head_offset), sizeof(buffer.head_offset),
-                     reinterpret_cast<std::byte*>(&buffer.head_offset));
+  queueInfo.cb_.head_offset = (queueInfo.cb_.head_offset + commandSize) % queueInfo.cb_.length;
+  sysEmu_->mmioWrite(queueInfo.bufferAddress_ + offsetof(CircBuffCb, head_offset), sizeof(queueInfo.cb_.head_offset),
+                     reinterpret_cast<std::byte*>(&queueInfo.cb_.head_offset));
 
   // The availability of queue after the command is sent
-  if (getAvailSpace(buffer) >= queueInfo.thresholdBytes_) {
+  if (getAvailSpace(queueInfo.cb_) >= queueInfo.thresholdBytes_) {
     clearEvent = false;
   }
 
@@ -192,7 +193,7 @@ bool DeviceSysEmu::sendCommandMasterMinion(int, int sqIdx, std::byte* command, s
 
   if (clearEvent) {
     // clear corresponding bit
-    mmSqBitmap_ &= ~(1 << sq_idx);
+    mmSqBitmap_ &= ~(1U << sq_idx);
   }
 
   return res;
@@ -217,10 +218,10 @@ bool DeviceSysEmu::checkForEventEPOLLIN(QueueInfo& queueInfo) {
   // is available for reads
 
   // Pull the latest state of buffer
-  CircBuffCb buffer;
-  sysEmu_->mmioRead(queueInfo.bufferAddress_, sizeof(buffer), reinterpret_cast<std::byte*>(&buffer));
+  CircBuffCb cb;
+  sysEmu_->mmioRead(queueInfo.bufferAddress_, sizeof(cb), reinterpret_cast<std::byte*>(&cb));
 
-  return getUsedSpace(buffer) > 0;
+  return getUsedSpace(cb) > 0;
 }
 
 bool DeviceSysEmu::checkForEventEPOLLOUT(QueueInfo& queueInfo) {
@@ -228,13 +229,14 @@ bool DeviceSysEmu::checkForEventEPOLLOUT(QueueInfo& queueInfo) {
   // is available for writes
 
   // Pull the latest state of buffer
-  CircBuffCb buffer;
-  sysEmu_->mmioRead(queueInfo.bufferAddress_, sizeof(buffer), reinterpret_cast<std::byte*>(&buffer));
+  CircBuffCb cb;
+  sysEmu_->mmioRead(queueInfo.bufferAddress_, sizeof(cb), reinterpret_cast<std::byte*>(&cb));
 
-  return getAvailSpace(buffer) >= queueInfo.thresholdBytes_;
+  return getAvailSpace(cb) >= queueInfo.thresholdBytes_;
 }
 
-void DeviceSysEmu::waitForEpollEventsMasterMinion(int, uint64_t& sq_bitmap, bool& cq_available, std::chrono::seconds timeout) {
+void DeviceSysEmu::waitForEpollEventsMasterMinion(int, uint64_t& sq_bitmap, bool& cq_available,
+                                                  std::chrono::seconds timeout) {
   DV_VLOG(HIGH) << "Waiting for interrupt from master minion";
   sq_bitmap = 0;
   cq_available = false;
@@ -246,14 +248,19 @@ void DeviceSysEmu::waitForEpollEventsMasterMinion(int, uint64_t& sq_bitmap, bool
     uint64_t tempSqBitmap = 0;
     bool tempCqAvailable = false;
     for (uint32_t sq_idx = 0; sq_idx < mmInfo_.vq_attr.sq_count; ++sq_idx) {
+      if (mmSqBitmap_ & 0x1U << sq_idx) {
+        continue;
+      }
       if (checkForEventEPOLLOUT(submissionQueuesMM_[sq_idx])) {
         tempSqBitmap |= (0x1U << sq_idx);
       }
     }
-    tempCqAvailable = checkForEventEPOLLIN(completionQueueMM_);
+    if (!mmCqReady_) {
+      tempCqAvailable = checkForEventEPOLLIN(completionQueueMM_);
+    }
     // exit the wait whenever some bit from sqBitmap or cqReady activates (changes from  0 -> 1), mimic the PCIe
-      //
-      // driver
+    //
+    // driver
     if ((tempSqBitmap & ~mmSqBitmap_) || (tempCqAvailable && !mmCqReady_)) {
       mmSqBitmap_ = sq_bitmap = tempSqBitmap;
       mmCqReady_ = cq_available = tempCqAvailable;
@@ -262,10 +269,11 @@ void DeviceSysEmu::waitForEpollEventsMasterMinion(int, uint64_t& sq_bitmap, bool
     return false;
   });
   DV_VLOG(HIGH) << "Finished waiting interrupt for master minion. SQ_BITMAP: " << std::hex << sq_bitmap
-             << " CQ_AVAILABLE: " << cq_available;
+                << " CQ_AVAILABLE: " << cq_available;
 }
 
-void DeviceSysEmu::waitForEpollEventsServiceProcessor(int, bool& sq_available, bool& cq_available, std::chrono::seconds timeout) {
+void DeviceSysEmu::waitForEpollEventsServiceProcessor(int, bool& sq_available, bool& cq_available,
+                                                      std::chrono::seconds timeout) {
   DV_VLOG(HIGH) << "Waiting for interrupt from service processor";
 
   sq_available = false;
@@ -273,10 +281,17 @@ void DeviceSysEmu::waitForEpollEventsServiceProcessor(int, bool& sq_available, b
 
   auto lock = std::unique_lock<std::mutex>(interruptMutex_);
   interruptBlock_[0].wait_for(lock, timeout, [this, &sq_available, &cq_available]() {
-    if (!isRunning_)
+    if (!isRunning_) {
       return true;
-    bool tempSqAvailable = checkForEventEPOLLOUT(submissionQueueSP_);
-    bool tempCqAvailable = checkForEventEPOLLIN(completionQueueSP_);
+    }
+    bool tempSqAvailable = false;
+    bool tempCqAvailable = false;
+    if (!spSqReady_) {
+      tempSqAvailable = checkForEventEPOLLOUT(submissionQueueSP_);
+    }
+    if (!spCqReady_) {
+      tempCqAvailable = checkForEventEPOLLIN(completionQueueSP_);
+    }
     if ((tempSqAvailable && !spSqReady_) || (tempCqAvailable && !spCqReady_)) {
       sq_available = spSqReady_ = tempSqAvailable;
       cq_available = spCqReady_ = tempCqAvailable;
@@ -285,11 +300,11 @@ void DeviceSysEmu::waitForEpollEventsServiceProcessor(int, bool& sq_available, b
     return false;
   });
   DV_VLOG(HIGH) << "Finished waiting interrupt for service processor. SQ_AVAILABLE: " << std::hex << sq_available
-             << " CQ_AVAILABLE: " << cq_available;
+                << " CQ_AVAILABLE: " << cq_available;
 }
 
 void DeviceSysEmu::setSqThresholdMasterMinion(int, int idx, uint32_t bytesNeeded) {
-  auto sqIdx = static_cast<uint32_t>(idx); 
+  auto sqIdx = static_cast<uint32_t>(idx);
   if (!bytesNeeded || bytesNeeded > (submissionQueuesMM_[sqIdx].size_ - sizeof(CircBuffCb))) {
     throw Exception("Invalid value for bytesNeeded");
   }
@@ -307,31 +322,31 @@ bool DeviceSysEmu::receiveResponse(QueueInfo& queue, std::vector<std::byte>& res
   clearEvent = true;
 
   // read queue info
-  CircBuffCb buffer;
-  sysEmu_->mmioRead(queue.bufferAddress_, sizeof(buffer), reinterpret_cast<std::byte*>(&buffer));
+  sysEmu_->mmioRead(queue.bufferAddress_ + offsetof(CircBuffCb, head_offset), sizeof(queue.cb_.head_offset),
+                    reinterpret_cast<std::byte*>(&queue.cb_.head_offset));
 
   // helper function to pop from the circular buffer till size (in bytes) into dst, warping the tail offset if needed
-  auto bufferPopWraping = [this, &queue](size_t size, std::byte* dst, CircBuffCb& buffer) {
+  auto bufferPopWraping = [this, &queue](size_t size, std::byte* dst) {
     // check if there are some messages to read
-    if (getUsedSpace(buffer) < size) {
+    if (getUsedSpace(queue.cb_) < size) {
       return 0UL;
     }
-    if (buffer.tail_offset + size > buffer.length) {
-      auto bytesUntillEnd = buffer.length - buffer.tail_offset;
-      sysEmu_->mmioRead(queue.bufferAddress_ + sizeof(CircBuffCb) + buffer.tail_offset, bytesUntillEnd, dst);
-      buffer.tail_offset = 0;
+    if (queue.cb_.tail_offset + size > queue.cb_.length) {
+      auto bytesUntillEnd = queue.cb_.length - queue.cb_.tail_offset;
+      sysEmu_->mmioRead(queue.bufferAddress_ + sizeof(CircBuffCb) + queue.cb_.tail_offset, bytesUntillEnd, dst);
+      queue.cb_.tail_offset = 0;
       size -= bytesUntillEnd;
       dst += bytesUntillEnd;
     }
-    sysEmu_->mmioRead(queue.bufferAddress_ + sizeof(CircBuffCb) + buffer.tail_offset, size, dst);
-    buffer.tail_offset = (buffer.tail_offset + size) % buffer.length;
+    sysEmu_->mmioRead(queue.bufferAddress_ + sizeof(CircBuffCb) + queue.cb_.tail_offset, size, dst);
+    queue.cb_.tail_offset = (queue.cb_.tail_offset + size) % queue.cb_.length;
     return size;
   };
 
   // make room to pop message header
   response.resize(kCommonHeaderSize);
   // pop message header
-  if (bufferPopWraping(kCommonHeaderSize, response.data(), buffer) <= 0) {
+  if (bufferPopWraping(kCommonHeaderSize, response.data()) <= 0) {
     response.clear();
     return false;
   }
@@ -345,16 +360,16 @@ bool DeviceSysEmu::receiveResponse(QueueInfo& queue, std::vector<std::byte>& res
   // make room for message payload
   response.resize(respSize + kCommonHeaderSize);
   // pop the message payload
-  if (auto res = bufferPopWraping(respSize, &response[kCommonHeaderSize], buffer) <= 0) {
+  if (bufferPopWraping(respSize, &response[kCommonHeaderSize]) <= 0) {
     throw Exception("CompletionQueue: Couldn't read the response payload. ");
   }
 
   // write the tail offset in circular buffer shared memory
-  sysEmu_->mmioWrite(queue.bufferAddress_ + offsetof(CircBuffCb, tail_offset), sizeof(buffer.tail_offset),
-                     reinterpret_cast<std::byte*>(&buffer.tail_offset));
+  sysEmu_->mmioWrite(queue.bufferAddress_ + offsetof(CircBuffCb, tail_offset), sizeof(queue.cb_.tail_offset),
+                     reinterpret_cast<std::byte*>(&queue.cb_.tail_offset));
 
   // The availability of queue after the response is received
-  if (getUsedSpace(buffer) > 0) {
+  if (getUsedSpace(queue.cb_) > 0) {
     clearEvent = false;
   }
 
@@ -398,8 +413,8 @@ void DeviceSysEmu::setupServiceProcessor() {
       sysEmu_->mmioRead(spDevIntfRegAddr_, sizeof(spInfo_), reinterpret_cast<std::byte*>(&spInfo_));
       // calculate crc32 and match it
       boost::crc_32_type crc32Result;
-      crc32Result.process_bytes(&spInfo_.vq_attr,
-                                spInfo_.generic_attr.total_size - spInfo_.generic_attr.attributes_size);
+      crc32Result.process_bytes(
+        &spInfo_.vq_attr, static_cast<size_t>(spInfo_.generic_attr.total_size - spInfo_.generic_attr.attributes_size));
       DV_DLOG(INFO) << "SP DIRs CRC32 Checksum => Memory: " << spInfo_.generic_attr.crc32
                     << " Calculated: " << crc32Result.checksum();
       if (spInfo_.generic_attr.crc32 != crc32Result.checksum()) {
@@ -410,12 +425,12 @@ void DeviceSysEmu::setupServiceProcessor() {
       auto barOffset = spInfo_.mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER].bar_offset;
       auto sqOffset = spInfo_.vq_attr.sq_offset;
       auto sqCount = spInfo_.vq_attr.sq_count;
-      auto sqSize = spInfo_.vq_attr.per_sq_size;
+      size_t sqSize = spInfo_.vq_attr.per_sq_size;
       auto cqOffset = spInfo_.vq_attr.cq_offset;
       auto cqCount = spInfo_.vq_attr.cq_count;
-      auto cqSize = spInfo_.vq_attr.per_cq_size;
+      size_t cqSize = spInfo_.vq_attr.per_cq_size;
       DV_DLOG(INFO) << "SP Virtual Queues Descriptor => "
-                    << "bar: " << (uint16_t)bar << " barOffset: " << barOffset << " sqOffset: " << sqOffset
+                    << "bar: " << static_cast<uint16_t>(bar) << " barOffset: " << barOffset << " sqOffset: " << sqOffset
                     << " sqCount: " << sqCount << " sqSize: " << sqSize << " cqOffset: " << cqOffset
                     << " cqCount: " << cqCount << " cqSize: " << cqSize;
 
@@ -424,9 +439,13 @@ void DeviceSysEmu::setupServiceProcessor() {
       submissionQueueSP_.bufferAddress_ = barAddress_[bar] + barOffset + sqOffset;
       submissionQueueSP_.size_ = sqSize * sqCount;
       submissionQueueSP_.thresholdBytes_ = static_cast<uint32_t>(submissionQueueSP_.size_ - sizeof(CircBuffCb)) / 4;
+      sysEmu_->mmioRead(submissionQueueSP_.bufferAddress_, sizeof(submissionQueueSP_.cb_),
+                        reinterpret_cast<std::byte*>(&submissionQueueSP_.cb_));
       // single completion queue model
       completionQueueSP_.bufferAddress_ = barAddress_[bar] + barOffset + cqOffset;
       completionQueueSP_.size_ = cqSize * cqCount;
+      sysEmu_->mmioRead(completionQueueSP_.bufferAddress_, sizeof(completionQueueSP_.cb_),
+                        reinterpret_cast<std::byte*>(&completionQueueSP_.cb_));
       DV_DLOG(INFO) << "SP Submission and Completion queue initialized!";
       return;
     } else if (status < 0) {
@@ -452,8 +471,8 @@ void DeviceSysEmu::setupMasterMinion() {
       sysEmu_->mmioRead(mmDevIntfRegAddr_, sizeof(mmInfo_), reinterpret_cast<std::byte*>(&mmInfo_));
       // calculate crc32 and match it
       boost::crc_32_type crc32Result;
-      crc32Result.process_bytes(&mmInfo_.vq_attr,
-                                mmInfo_.generic_attr.total_size - mmInfo_.generic_attr.attributes_size);
+      crc32Result.process_bytes(
+        &mmInfo_.vq_attr, static_cast<size_t>(mmInfo_.generic_attr.total_size - mmInfo_.generic_attr.attributes_size));
       DV_DLOG(INFO) << "MM DIRs CRC32 Checksum => Memory: " << mmInfo_.generic_attr.crc32
                     << " Calculated: " << crc32Result.checksum();
       if (mmInfo_.generic_attr.crc32 != crc32Result.checksum()) {
@@ -464,17 +483,22 @@ void DeviceSysEmu::setupMasterMinion() {
       auto barOffset = mmInfo_.mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER].bar_offset;
       auto sqOffset = mmInfo_.vq_attr.sq_offset;
       auto sqCount = mmInfo_.vq_attr.sq_count;
-      auto sqSize = mmInfo_.vq_attr.per_sq_size;
+      size_t sqSize = mmInfo_.vq_attr.per_sq_size;
       auto cqOffset = mmInfo_.vq_attr.cq_offset;
       auto cqCount = mmInfo_.vq_attr.cq_count;
-      auto cqSize = mmInfo_.vq_attr.per_cq_size;
+      size_t cqSize = mmInfo_.vq_attr.per_cq_size;
       DV_DLOG(INFO) << "MM Virtual Queues Descriptor => "
-                    << "bar: " << (uint16_t)bar << " barOffset: " << barOffset << " sqOffset: " << sqOffset
+                    << "bar: " << static_cast<uint16_t>(bar) << " barOffset: " << barOffset << " sqOffset: " << sqOffset
                     << " sqCount: " << sqCount << " sqSize: " << sqSize << " cqOffset: " << cqOffset
                     << " cqCount: " << cqCount << " cqSize: " << cqSize;
       // init VQs
-      for (int i = 0; i < sqCount; ++i) {
-        submissionQueuesMM_.emplace_back(QueueInfo{(barAddress_[bar] + barOffset + sqOffset) + i * sqSize, sqSize, kMMThresholdBytes});
+      for (uint8_t i = 0; i < sqCount; ++i) {
+        QueueInfo sqInfo;
+        sqInfo.bufferAddress_ = barAddress_[bar] + barOffset + sqOffset + i * sqSize;
+        sqInfo.size_ = sqSize;
+        sqInfo.thresholdBytes_ = kMMThresholdBytes;
+        sysEmu_->mmioRead(sqInfo.bufferAddress_, sizeof(sqInfo.cb_), reinterpret_cast<std::byte*>(&sqInfo.cb_));
+        submissionQueuesMM_.emplace_back(sqInfo);
       }
 
       DV_DLOG(INFO) << "MM Submission queues initialized!";
@@ -482,6 +506,8 @@ void DeviceSysEmu::setupMasterMinion() {
       // single completion queue model
       completionQueueMM_.bufferAddress_ = barAddress_[bar] + barOffset + cqOffset;
       completionQueueMM_.size_ = cqSize;
+      sysEmu_->mmioRead(completionQueueMM_.bufferAddress_, sizeof(completionQueueMM_.cb_),
+                        reinterpret_cast<std::byte*>(&completionQueueMM_.cb_));
       DV_DLOG(INFO) << "MM Completion queue initialized!";
       return;
     } else if (status < 0) {
@@ -492,7 +518,7 @@ void DeviceSysEmu::setupMasterMinion() {
   throw Exception("Timeout MM virtual queue discovery");
 }
 
-void* DeviceSysEmu::allocDmaBuffer(int, size_t sizeInBytes, bool ) {
+void* DeviceSysEmu::allocDmaBuffer(int, size_t sizeInBytes, bool) {
   return malloc(sizeInBytes);
 }
 

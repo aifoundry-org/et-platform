@@ -62,6 +62,7 @@ private:
     uint64_t bufferAddress_;
     size_t size_;
     uint32_t thresholdBytes_;
+    CircBuffCb cb_;
   };
 
   bool sendCommand(QueueInfo& queue, std::byte* command, size_t commandSize, bool& clearEvent);
