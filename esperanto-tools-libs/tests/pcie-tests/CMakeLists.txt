@@ -8,9 +8,8 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-set(SIM_DEVFW_TEST_LIST
-  test_code_loading.cpp:"--kernels_dir ${KERNELS_DIR}"
-  test_memcpy.cpp:""
-  test_profiler.cpp:"--kernels_dir ${KERNELS_DIR}"
+set(LOOPBACK_TESTS
+    MemcpyLoopback.cpp:""
   )
-create_test_targets("${SIM_DEVFW_TEST_LIST}" "LABELS;GENERIC;LABELS;SYSEMU;TIMEOUT;120")
+
+create_test_targets("${LOOPBACK_TESTS}" "LABELS;LOOPBACK;TIMEOUT;300")

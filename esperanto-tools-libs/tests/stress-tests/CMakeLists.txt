@@ -13,4 +13,4 @@ set(TEST_LIST
   stress_kernel.cpp:""
   )
 
-create_test_targets("${TEST_LIST}" "LABELS;STRESS;LABELS;SYSEMU;TIMEOUT;600")
+create_test_targets("${TEST_LIST}" "LABELS;STRESS;LABELS;GENERIC;LABELS;SYSEMU;TIMEOUT;300")

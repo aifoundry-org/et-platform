@@ -167,7 +167,8 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
   it->second.lastEventId_ = evt;
   auto device = it->second.deviceId_;
   auto vq = it->second.vq_;
-
+  
+  //TODO this is using a wrong command; to be fixed when implementing the DMA list: https://esperantotech.atlassian.net/browse/SW-7830
   device_ops_api::device_ops_data_write_cmd_t cmd = {0};
   cmd.dst_device_phy_addr = reinterpret_cast<uint64_t>(d_dst);
   RT_VLOG(LOW) << "MemcpyHostToDevice stream: " << static_cast<std::underlying_type_t<StreamId>>(stream) << std::hex
@@ -196,8 +197,8 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
   }
   cmd.size = size;
 
-  cmd.command_info.cmd_hdr.tag_id = static_cast<uint16_t>(evt);
-  cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD;
+  cmd.command_info.cmd_hdr.tag_id = static_cast<uint16_t>(evt);  
+  cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD;
   cmd.command_info.cmd_hdr.size = sizeof(cmd);
   cmd.command_info.cmd_hdr.flags = barrier ? 1 : 0;
   sendCommandMasterMinion(it->second, evt, cmd, lock, true);
@@ -219,11 +220,12 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
   auto device = st.deviceId_;
   auto vq = st.vq_;
 
+  //TODO this is using a wrong command; to be fixed when implementing the DMA list: https://esperantotech.atlassian.net/browse/SW-7830
   device_ops_api::device_ops_data_read_cmd_t cmd = {0};
   cmd.size = size;
   cmd.src_device_phy_addr = reinterpret_cast<uint64_t>(d_src);
   cmd.command_info.cmd_hdr.tag_id = static_cast<uint16_t>(evt);
-  cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD;
+  cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD;
   cmd.command_info.cmd_hdr.size = sizeof(cmd);
   cmd.command_info.cmd_hdr.flags = barrier ? 1 : 0;
 
@@ -231,10 +233,12 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
   auto dmaBufferManager = find(dmaBufferManagers_, device)->second.get();
   if (dmaBufferManager->isDmaBuffer(reinterpret_cast<std::byte*>(h_dst), size)) {
     cmd.dst_host_virt_addr = cmd.dst_host_phy_addr = reinterpret_cast<uint64_t>(h_dst);
+    sendCommandMasterMinion(st, evt, cmd, lock, true);
   } else {
     // if not, allocate a buffer, and copy the results from it to h_dst
     auto tmpBuffer = dmaBufferManager->allocate(size, false);
     cmd.dst_host_virt_addr = cmd.dst_host_phy_addr = reinterpret_cast<uint64_t>(tmpBuffer->getPtr());
+    sendCommandMasterMinion(st, evt, cmd, lock, true);
 
     // TODO: There are many ways to optimize this, future work.
     // replace the event (because we need to do the copy before dispatching the final event to the user)
@@ -253,8 +257,7 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
     });
     t.detach();
   }
-
-  sendCommandMasterMinion(it->second, evt, cmd, lock, true);
+  
   profileEvent.setEventId(evt);
   return evt;
 }
@@ -321,7 +324,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
   RT_VLOG(MID) << "Response received eventId: " << std::hex << static_cast<int>(eventId)
                << " Message Id: " << header->rsp_hdr.msg_id;
   switch (header->rsp_hdr.msg_id) {
-  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP: {
+  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP: {
     auto r = reinterpret_cast<const device_ops_api::device_ops_data_read_rsp_t*>(response.data());
     if (r->status != device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
       char msg[128];
@@ -331,7 +334,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
     fillEvent(event, *r);
     break;
   }
-  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP: {
+  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP: {
     auto r = reinterpret_cast<const device_ops_api::device_ops_data_write_rsp_t*>(response.data());
     if (r->status != device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
       char msg[128];
