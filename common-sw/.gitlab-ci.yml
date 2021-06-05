@@ -34,9 +34,6 @@ build:conan:
 
 package:
   stage: package
-  only:
-    - master
-    - tags
   variables:
     DOCKER_IMAGE: conanio/${COMPILER}${COMPILER_VERSION}
     CONAN_OPTIONS: "g3log:use_dynamic_logging_levels=True"
