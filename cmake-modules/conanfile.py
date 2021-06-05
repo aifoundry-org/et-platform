@@ -2,7 +2,7 @@ from conans import ConanFile
 import os
 class CMakeModulesConan(ConanFile):
     name = "cmake-modules"
-    version = "0.4.0"
+    version = "0.4.1"
     license = "<Put the package license here>"
     author = "Pau Farre <pau.farre@esperantotech.com>"
     url = "<Package recipe repository url here, for issues about the package>"
