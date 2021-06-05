@@ -66,7 +66,7 @@ function(target_set_project_warnings project_name)
         message(STATUS "* Target ${project_name}: Adding warning flags.")
     endif()
 
-    target_compile_options(${project_name} INTERFACE
+    target_compile_options(${project_name} PRIVATE
         $<$<CXX_COMPILER_ID:MSVC>:${MSVC_WARNINGS}>
         $<$<CXX_COMPILER_ID:Clang>:${CLANG_WARNINGS}>
         $<$<CXX_COMPILER_ID:AppleClang>:${CLANG_WARNINGS}>
