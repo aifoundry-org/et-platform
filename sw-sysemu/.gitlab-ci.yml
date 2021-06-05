@@ -1,7 +1,14 @@
 stages:
   - build
-  - quality
   - package
+
+include:
+  - project: 'software/conan/conan-ci-pipelines-common'
+    file: 'conan-config.yaml'
+  - project: 'software/conan/conan-ci-pipelines-common'
+    file: 'build.yaml'
+  - project: 'software/conan/conan-ci-pipelines-common'
+    file: 'package.yaml'
 
 #### build
 
@@ -31,12 +38,8 @@ build:system_pkg_manager:
 
 build:conan:
   stage: build
-  tags:
-    - docker
-  image: ${DOCKER_IMAGE}
   variables:
     DOCKER_IMAGE: conanio/${COMPILER}
-    CONAN_CONFIG_URL: "https://${CONAN_CONFIG_DEPLOY_TOKEN_USERNAME}:${CONAN_CONFIG_DEPLOY_TOKEN}@gitlab.esperanto.ai/software/conan/conan-config.git"
   parallel:
     matrix:
       - COMPILER: [ gcc7 ]
@@ -47,83 +50,18 @@ build:conan:
         BUILD_TYPE: [ Release, Debug ]
         PROFILING: [ 'False' ]
         BACKTRACE: [ 'False' ]
-  before_script:
-    - conan --version
-    - conan config install ${CONAN_CONFIG_URL}
-    - sudo apt-get update -qq
-    - sudo apt-get install -qq -y --no-install-recommends ninja-build
-    - mkdir build
-    - cd build
   script:
     - conan install .. -s build_type=${BUILD_TYPE} -o sw-sysemu:profiling=${PROFILING} -o sw-sysemu:backtrace=${BACKTRACE} --build missing
     - cmake -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -G Ninja ..
     - ninja
-  allow_failure: true
 
-# sonarqube:gcc:
-#   stage: quality
-#   only:
-#     - merge_requests
-#     - master
-#     - develop/sw-sysemu
-#     - tags
-#   tags:
-#     - docker
-#   image: conanio/gcc7
-#   variables:
-#     SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache
-#     SONAR_HOST_URL: "http://sc-sonarq01:9000"
-#     SONAR_TOKEN: "233856945d0d2f8bf67bb698e15a8a76ef6c97db"
-#     CONAN_CONFIG_URL: "https://${CONAN_CONFIG_DEPLOY_TOKEN_USERNAME}:${CONAN_CONFIG_DEPLOY_TOKEN}@gitlab.esperanto.ai/software/conan/conan-config.git"
-#     GIT_STRATEGY: clone
-#     GIT_DEPTH: 0 # Tells git to fetch all the branches of the project, required by the analysis task
-#   cache:
-#     key: "${CI_JOB_NAME}"
-#     paths:
-#       - .sonar/cache
-#   before_script:
-#     - conan --version
-#     - conan config install ${CONAN_CONFIG_URL}
-#     - sudo apt-get update -qq
-#     - sudo apt-get install -qq -y --no-install-recommends zip unzip
-#     - wget ${SONAR_HOST_URL}/static/cpp/build-wrapper-linux-x86.zip
-#     - unzip build-wrapper-linux-x86.zip
-#     - wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.6.1.2450-linux.zip
-#     - unzip sonar-scanner-cli-4.6.1.2450-linux.zip
-#     - export PATH=$PATH:$PWD/build-wrapper-linux-x86:$PWD/sonar-scanner-4.6.1.2450-linux/bin
-#     - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/build-wrapper-linux-x86:$PWD/sonar-scanner-cli-4.6.1.2450-linux/lib
-#     - mkdir build
-#     - cd build
-#   script:
-#     - conan install .. -s build_type=Release -o sw-sysemu:profiling=True -o sw-sysemu:backtrace=True --build missing
-#     - cmake -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake ..
-#     - cd -
-#     - build-wrapper-linux-x86-64 --out-dir build_wrapper_output_directory make -C build clean all
-#     - sonar-scanner -Dsonar.cfamily.threads=4 -Dsonar.cfamily.cache.enabled=false=true
-#   allow_failure: true
+#### package
 
-package:conan:
+package:
   stage: package
-  tags:
-    - docker
-  only:
-    - master
-    - develop/sw-sysemu
-    - tags
-  image:  ${DOCKER_IMAGE}
   variables:
     DOCKER_IMAGE: conanio/${COMPILER}${COMPILER_VERSION}
-    CONAN_CONFIG_URL: "https://${CONAN_CONFIG_DEPLOY_TOKEN_USERNAME}:${CONAN_CONFIG_DEPLOY_TOKEN}@gitlab.esperanto.ai/software/conan/conan-config.git"
-    CONAN_UPLOAD: "https://sc-artifactory1.esperanto.ai/artifactory/api/conan/conan-develop@True@conan-develop"
-    CONAN_UPLOAD_DEPENDENCIES: "all"
-    CONAN_LOGIN_USERNAME: "${ARTIFACTORY_USER}"
-    CONAN_PASSWORD: "${ARTIFACTORY_PASSWORD}"
-    CONAN_USERNAME: "_"
-    CONAN_CHANNEL: "_"
-    CONAN_ARCHS: "x86_64"
-    CONAN_CPPSTDS: "17"
-    CONAN_BUILD_POLICY: "missing"
-    CONAN_CMAKE_GENERATOR: "Ninja"
+    CONAN_STABLE_BRANCH_PATTERN: "develop/sw-sysemu"
   parallel:
     matrix:
       - COMPILER: [ gcc ]
@@ -132,13 +70,7 @@ package:conan:
       - COMPILER: [ clang ]
         COMPILER_VERSION: [ 10 ]
         CONAN_CLANG_VERSIONS: [ 10 ]
-  before_script:
-    - conan --version
-    - conan config install ${CONAN_CONFIG_URL}
-    - sudo apt-get update -qq
-    - sudo apt-get install -qq -y --no-install-recommends ninja-build
   script:
     - ./conan/ci/package.sh
-  allow_failure: true
 
 
