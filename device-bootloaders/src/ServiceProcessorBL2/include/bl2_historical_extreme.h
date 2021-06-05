@@ -25,7 +25,7 @@
 #include "perf_mgmt.h"
 #include "thermal_pwr_mgmt.h"
 #include "sp_host_iface.h"
-#include "bl2_ddr_init.h"
+#include "mem_controller.h"
 #include "dm_event_control.h"
 
 /*! \fn void historical_extreme_value_request(tag_id_t tag_id, msg_id_t msg_id)

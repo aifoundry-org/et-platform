@@ -16,12 +16,12 @@
 #include "task.h"
 #include "dm_event_control.h"
 #include "sp_host_iface.h"
-#include "bl2_pcie.h"
 #include "bl2_cache_control.h"
 #include "bl2_pmic_controller.h"
-#include "bl2_ddr_init.h"
+#include "mem_controller.h"
 #include "bl2_watchdog.h"
 #include "minion_state.h"
+#include "pcie_configuration.h"
 
 /* The variable used to hold the queue's data structure. */
 static StaticQueue_t g_staticQueue;
@@ -179,8 +179,12 @@ void wdog_timeout_callback(enum error_type type, struct event_message_t *msg)
     if (type == CORRECTABLE) {
         //TODO: Handle wdog timeouts
     } else {
+
+       (void) type;
+       (void) *msg;
+       // TODO should be cleared b4 hitting this point
        /* Post message to the queue */
-       xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
+       //xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
     }
 }
 

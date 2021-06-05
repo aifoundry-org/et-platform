@@ -21,8 +21,8 @@
 #include "dm.h"
 #include "bl2_flash_fs.h"
 #include "bl2_otp.h"
-#include "bl2_pcie.h"
-#include "bl2_ddr_init.h"
+#include "mem_controller.h"
+#include "pcie_configuration.h"
 
 /*! \fn int get_manufacturer_name(char *mfg_name)
     \brief Interface to get the manufacturer name.

@@ -12,7 +12,7 @@
 #include "service_processor_ROM_data.h"
 #include "service_processor_BL1_data.h"
 #include "service_processor_BL2_data.h"
-#include "bl2_certificates.h"
+
 #include "bl2_firmware_loader.h"
 #include "bl2_firmware_update.h"
 #include "bl2_flash_fs.h"
@@ -26,10 +26,9 @@
 #include "bl2_reset.h"
 #include "bl2_sp_pll.h"
 #include "minion_state.h"
-#include "sp_otp.h"
-#include "bl2_sp_memshire_pll.h"
-#include "bl2_minion_pll_and_dll.h"
-#include "bl2_ddr_init.h"
+
+#include "minion_configuration.h"
+#include "mem_controller.h"
 
 #include "etsoc_hal/inc/rm_esr.h"
 #include "etsoc_hal/inc/hal_device.h"
@@ -68,26 +67,6 @@ SERVICE_PROCESSOR_BL2_DATA_t *get_service_processor_bl2_data(void)
     return &g_service_processor_bl2_data;
 }
 
-bool is_vaultip_disabled(void)
-{
-    uint32_t rm_status2;
-    static bool initialized = false;
-    static bool vaultip_disabled = false;
-
-    if (!initialized) {
-        if (0 != sp_otp_get_vaultip_chicken_bit(&vaultip_disabled)) {
-            vaultip_disabled = false;
-        }
-        rm_status2 = ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_STATUS2_ADDRESS);
-        if (0 != RESET_MANAGER_RM_STATUS2_A0_UNLOCK_GET(rm_status2) &&
-            0 != RESET_MANAGER_RM_STATUS2_SKIP_VAULT_GET(rm_status2)) {
-            vaultip_disabled = true;
-        }
-    }
-
-    return vaultip_disabled;
-}
-
 static int32_t configure_noc(void)
 {
     /* Configure NOC to 400 Mhz */
@@ -103,121 +82,7 @@ static int32_t configure_noc(void)
    return SUCCESS;
 }
 
-static int32_t configure_memshire(void)
-{
-    if (0 != release_memshire_from_reset()) {
-        Log_Write(LOG_LEVEL_ERROR, "release_memshire_from_reset() failed!\n");
-        return MEMSHIRE_COLD_RESET_CONFIG_ERROR;
-    }
-    if (0 != configure_memshire_plls()) {
-        Log_Write(LOG_LEVEL_ERROR, "configure_memshire_plls() failed!\n");
-        return MEMSHIRE_PLL_CONFIG_ERROR;
-    }
-#if !FAST_BOOT
-    if (0 != ddr_config()) {
-        Log_Write(LOG_LEVEL_ERROR, "ddr_config() failed!\n");
-        return MEMSHIRE_DDR_CONFIG_ERROR;
-    }
-    Log_Write(LOG_LEVEL_INFO, "DRAM ready.\n");
-#endif
-   return SUCCESS;
-}
-
-static int32_t configure_minion(uint64_t minion_shires_mask)
-{
-    /* Configure Minon Step clock to 650 Mhz */
-    if (0 != configure_sp_pll_4(3)) {
-        Log_Write(LOG_LEVEL_ERROR, "configure_sp_pll_4() failed!\n");
-        return MINION_STEP_CLOCK_CONFIGURE_ERROR;
-    }
-
-    if (0 != release_minions_from_cold_reset()) {
-        Log_Write(LOG_LEVEL_ERROR, "release_minions_from_cold_reset() failed!\n");
-        return MINION_COLD_RESET_CONFIG_ERROR;
-    }
-
-    if (0 != release_minions_from_warm_reset()) {
-        Log_Write(LOG_LEVEL_ERROR, "release_minions_from_warm_reset() failed!\n");
-        return MINION_WARM_RESET_CONFIG_ERROR ;
-    }
-
-    if (0 != configure_minion_plls_and_dlls(minion_shires_mask)) {
-        Log_Write(LOG_LEVEL_ERROR, "configure_minion_plls_and_dlls() failed!\n");
-        return MINION_PLL_DLL_CONFIG_ERROR;
-    }
-
-   return SUCCESS;
-}
-
-static int32_t load_autheticate_minion_firmware(void)
-{
-    if (0 != load_sw_certificates_chain()) {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to load SW ROOT/Issuing Certificate chain!\n");
-        return FW_SW_CERTS_LOAD_ERROR;
-    }
-
-    // In fast-boot mode we skip loading from flash, and assume everything is already pre-loaded
-#if !FAST_BOOT
-    if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_MACHINE_MINION)) {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to load Machine Minion firmware!\n");
-        return FW_MACH_LOAD_ERROR;
-    }
-    Log_Write(LOG_LEVEL_INFO, "MACH FW loaded.\n");
-
-    if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_MASTER_MINION)) {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to load Master Minion firmware!\n");
-        return FW_MM_LOAD_ERROR;
-    }
-    Log_Write(LOG_LEVEL_INFO, "MM FW loaded.\n");
-
-    // TODO: Update the following to Log macro - set to INFO/DEBUG
-    //Log_Write(LOG_LEVEL_ERROR, "Attempting to load Worker Minion firmware...\n");
-    if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_WORKER_MINION)) {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to load Worker Minion firmware!\n");
-        return FW_CM_LOAD_ERROR;
-    }
-    Log_Write(LOG_LEVEL_INFO, "WM FW loaded.\n");
-#endif
-
-   return SUCCESS;
-}
-
-
-static uint64_t calculate_minion_shire_enable_mask(void)
-{
-    int ret;
-    OTP_NEIGHBORHOOD_STATUS_NH128_NH135_OTHER_t status_other;
-    uint64_t enable_mask = 0;
-
-    // 32 Worker Shires: There are 4 OTP entries containing the status of their Neighboorhods
-    for (uint32_t entry = 0; entry < 4; entry++) {
-        uint32_t status;
-
-        ret = sp_otp_get_neighborhood_status_mask(entry, &status);
-        if (ret < 0) {
-            // If the OTP read fails, assume we have to enable all Neighboorhods
-            status = 0xFFFFFFFF;
-        }
-
-        // Each Neighboorhod status OTP entry contains information for 8 Shires
-        for (uint32_t i = 0; i < 8; i++) {
-            // Only enable a Shire if *ALL* its Neighboorhods are Functional
-            if ((status & 0xF) == 0xF) {
-                enable_mask |= 1ULL << (entry * 8 + i);
-            }
-            status >>= 4;
-        }
-    }
-
-    // Master Shire Neighboorhods status
-    ret = sp_otp_get_neighborhood_status_nh128_nh135_other(&status_other);
-    if ((ret < 0) || ((status_other.B.neighborhood_status & 0xF) == 0xF)) {
-        enable_mask |= 1ULL << 32;
-    }
-
-    return enable_mask;
-}
-
+// FIXME: SW-7879 Remove when MM-SP FREQ_REQ is implememtation
 static inline void write_minion_fw_boot_config(uint64_t minion_shires)
 {
     volatile minion_fw_boot_config_t *boot_config;
@@ -251,7 +116,7 @@ static void taskMain(void *pvParameters)
     PCIe_init(true /*expect_link_up*/);
 #endif
 
-    minion_shires_mask = calculate_minion_shire_enable_mask();
+    minion_shires_mask = Get_Active_Compute_Minion_Mask();
 
     Minion_State_Init(minion_shires_mask);
 
@@ -287,15 +152,15 @@ static void taskMain(void *pvParameters)
 
    // Setup Minions
 
-    if (0 != configure_minion(minion_shires_mask)) {
-        Log_Write(LOG_LEVEL_ERROR, "Configure Minion failed!\n");
+    if (0 != Enable_Compute_Minion(minion_shires_mask)) {
+        Log_Write(LOG_LEVEL_ERROR, "Enable Compute Minion failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_INITIALIZED);
 
     // Minion FW Authenticate and load to DDR
-    if (0 != load_autheticate_minion_firmware()) {
+    if (0 != Load_Autheticate_Minion_Firmware()) {
         Log_Write(LOG_LEVEL_ERROR, "Failed to load Minion Firmware!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
@@ -308,16 +173,17 @@ static void taskMain(void *pvParameters)
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_COMMAND_DISPATCHER_INITIALIZED);
 
-    if (0 != enable_minion_neighborhoods(minion_shires_mask)) {
+    if (0 != Enable_Minion_Neighborhoods(minion_shires_mask)) {
         Log_Write(LOG_LEVEL_ERROR, "Failed to enable minion neighborhoods!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
 
+    // TODO: SW-7879 Remove this once MM-SP get_freq function is implemented
     // Write Minion FW boot config before booting Minion threads up
     write_minion_fw_boot_config(minion_shires_mask);
 
     // TODO: SW-3877 need to READ Master Shire ID from OTP, potentially reprogram NOC
-    if (0 != enable_master_shire_threads(32)) {
+    if (0 != Enable_Master_Shire_Threads(32)) {
         Log_Write(LOG_LEVEL_ERROR, "Failed to enable Master minion threads!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
@@ -374,7 +240,7 @@ FIRMWARE_LOAD_ERROR:
 
 DONE:
     while (1) {
-        printf("M");
+        Log_Write(LOG_LEVEL_INFO, "M");
         vTaskDelay(2U);
     }
 }

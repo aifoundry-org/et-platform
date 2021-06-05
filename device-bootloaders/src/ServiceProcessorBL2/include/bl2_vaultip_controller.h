@@ -23,6 +23,14 @@
 #include "vaultip_sw.h"
 #include "vaultip_static_assets.h"
 
+
+/*! \fn bool is_vaultip_disabled(void)
+    \brief This function check if the Vault Controller is enabled
+    \param None
+    \return The function call status, pass/fail.
+*/
+bool is_vaultip_disabled(void);
+
 /*! \fn int vaultip_self_test(void)
     \brief This function starts a self test for vaultip controller
     \param None

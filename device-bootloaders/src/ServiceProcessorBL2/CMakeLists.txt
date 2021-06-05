@@ -45,38 +45,37 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/stubs.c
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/crc32.c
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/memory_copy_8x32.S
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/mem_controller_utils.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/io_pll.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/driver/minion_pll_and_dll.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/driver/ddr_controller.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/driver/ddr_helper_functions.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/driver/minion_configuration.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/driver/mem_controller.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/i2c_controller.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/spi_controller.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/spi_flash.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/vaultip_controller.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/gpio_controller.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/pmic_controller.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/driver/crypto_rot.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/reset.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/timer.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/flashfs.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/secure_sign.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/driver/firmware_loader.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/interrupt.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/driver/bl2_pcie.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/driver/pcie_configuration.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/bl2_cache_control.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/bl2_watchdog.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/bl2_otp.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/spio_sram.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/bl2_pu.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/driver/pcie_init.c
         ${CMAKE_CURRENT_SOURCE_DIR}/rtos_task/command_dispatcher.c
         ${CMAKE_CURRENT_SOURCE_DIR}/rtos_task/flash_fs.c
         ${CMAKE_CURRENT_SOURCE_DIR}/rtos_task/vaultip.c
         ${CMAKE_CURRENT_SOURCE_DIR}/rtos_task/dm_task.c
         ${CMAKE_CURRENT_SOURCE_DIR}/rtos_task/event_handler.c
         ${CMAKE_CURRENT_SOURCE_DIR}/rtos_task/watchdog_task.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/services/crypto_rot.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/test_events.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/firmware_update.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/services/firmware_loader.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/asset_track.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/asset_track_mgmt.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/thermal_power_monitor.c

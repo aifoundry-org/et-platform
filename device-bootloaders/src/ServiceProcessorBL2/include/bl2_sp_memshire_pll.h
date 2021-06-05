@@ -83,15 +83,4 @@ static int program_memshire_pll(uint8_t ms_num, uint8_t mode)
     return 0;
 }
 
-static int configure_memshire_plls(void)
-{
-    if (0 != program_memshire_pll(0, 19))
-        return -1;
-
-    if (0 != program_memshire_pll(4, 19))
-        return -1;
-
-    return 0;
-}
-
 #endif

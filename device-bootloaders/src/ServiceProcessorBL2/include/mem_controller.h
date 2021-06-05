@@ -9,15 +9,15 @@
 * agreement/contract under which the program(s) have been supplied.
 *
 ************************************************************************/
-/*! \file bl2_ddr_init.h
+/*! \file mem_controller.h
     \brief A C header that defines the DDR memory subsystem's
     public interfaces. These interfaces provide services using which
     DDR can be initialized and report error events.
 */
 /***********************************************************************/
 
-#ifndef __BL2_DDR_INIT_H__
-#define __BL2_DDR_INIT_H__
+#ifndef __MEM_CONTROLLER_H__
+#define __MEM_CONTROLLER_H__
 
 #include <stdint.h>
 
@@ -25,7 +25,9 @@
 #include "ddrc_reg_def.h"
 #include "dm_event_def.h"
 #include "bl2_pmic_controller.h"
+#include "bl2_reset.h"
 #include "error.h"
+#include "config/sp_bl2_return_code.h"
 
 /*! \def MODE_NUMBER
 */
@@ -141,6 +143,13 @@ int ddr_get_memory_details(char *mem_detail);
     \return Status indicating success or negative error
 */
 int ddr_get_memory_type(char *mem_type);
+
+/*! \fn int32_t configure_memshire(void)
+    \brief This function configures the MemShire and DDR Controllers
+    \param NA
+    \return Status indicating success or negative error
+*/
+int32_t configure_memshire(void);
 
 
 #endif

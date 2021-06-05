@@ -9,11 +9,6 @@
 * agreement/contract under which the program(s) have been supplied.
 *
 ************************************************************************/
-
-/* Note: The DV version that some of this code was ported from is at
-   esperanto-soc/dv/tests/ioshire/sw/inc/pshire_common.h */
-
-#include "pcie_init.h"
 #include <inttypes.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -24,6 +19,7 @@
 #include "etsoc_hal/inc/hal_device.h"
 #include "layout.h"
 #include "pcie_device.h"
+#include "pcie_configuration.h"
 
 static void pcie_init_pshire(void);
 static void pcie_init_caps_list(void);
@@ -33,11 +29,83 @@ static void pcie_init_link(void);
 static void pcie_init_atus(void);
 static void pcie_wait_for_ints(void);
 
+/*! \def BAR2_SIZE
+    \brief BAR Sizes must be powers of 2 per the PCIe spec. Round up to next biggest power of 2.
+*/
+#define BAR2_SIZE 0x000000000003FFFFULL /*256kb*/
+
+/*! \def BAR_IN_MEM_SPACE
+    \brief BARs in memory space
+*/
+#define BAR_IN_MEM_SPACE 0
+
+/*! \def BAR_TYPE_64BIT
+    \brief Define for 64-bit type
+*/
+#define BAR_TYPE_64BIT   2
+
+/*! \def BAR_ENABLE
+    \brief BAr Enable mask
+*/
+#define BAR_ENABLE       1
+
+/*! \def BAR_DISABLE
+    \brief BAR disable mask
+*/
+#define BAR_DISABLE      0
+
+/*! \def FB_MODE_FIGURE_OF_MERIT
+    \brief Set FB MODE
+*/
+#define FB_MODE_FIGURE_OF_MERIT  1
+
+/*! \def RATE_SHADOW_SEL_GEN4
+    \brief RATE_SHADOW_SEL_GEN4
+*/
+#define RATE_SHADOW_SEL_GEN4     1
+
 /*! \def SMLH_LTSSM_STATE_LINK_UP
     \brief Link up mask
 */
 #define SMLH_LTSSM_STATE_LINK_UP 0x11
 
+
+/*! \def MSI_ENABLED
+    \brief  MSI enabled value */
+#define MSI_ENABLED 0x1U
+
+/*! \def MSI_TWO_VECTORS
+    \brief MSI two verctor enable
+*/
+#define MSI_TWO_VECTORS 1
+
+/* The driver can populate this structure with the defaults that will be used during the init
+    phase.*/
+
+static struct pcie_event_control_block event_control_block __attribute__((section(".data")));
+
+/*!
+ * @struct struct pcie_event_control_block
+ * @brief PCIE driver error mgmt control block
+ */
+struct pcie_event_control_block 
+{
+    uint32_t ce_count; /**< Correctable error count. */
+    uint32_t uce_count; /**< Un-Correctable error count. */
+    uint32_t ce_threshold; /**< Correctable error threshold. */
+    dm_event_isr_callback event_cb; /**< Event callback handler. */
+};
+
+/*! \var static uint32_t PCIE_SPEED[5]
+    \brief PCIE Speed Generation
+*/
+static uint32_t PCIE_SPEED[5] = { PCIE_GEN_1, PCIE_GEN_2, PCIE_GEN_3, PCIE_GEN_4, PCIE_GEN_5 };
+
+int32_t pcie_error_control_init(dm_event_isr_callback event_cb)
+{
+    event_control_block.event_cb = event_cb;
+    return 0;
+}
 
 /*! \brief This step is to release PShire out of reset,
     Both Cold/Warm reset are initialized
@@ -88,7 +156,6 @@ void PCIe_init(bool expect_link_up)
     }
 
 }
-
 
 /*! \brief This is the last step to enable PCIe link so Host/Device can communicate.
     \param[in] none 
@@ -165,31 +232,6 @@ static void pcie_init_caps_list(void)
     iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
               misc_control);
 }
-
-/*! \def BAR2_SIZE
-    \brief BAR Sizes must be powers of 2 per the PCIe spec. Round up to next biggest power of 2.
-*/
-#define BAR2_SIZE 0x000000000003FFFFULL /*256kb*/
-
-/*! \def BAR_IN_MEM_SPACE
-    \brief BARs in memory space
-*/
-#define BAR_IN_MEM_SPACE 0
-
-/*! \def BAR_TYPE_64BIT
-    \brief Define for 64-bit type
-*/
-#define BAR_TYPE_64BIT   2
-
-/*! \def BAR_ENABLE
-    \brief BAr Enable mask
-*/
-#define BAR_ENABLE       1
-
-/*! \def BAR_DISABLE
-    \brief BAR disable mask
-*/
-#define BAR_DISABLE      0
 
 static void pcie_init_bars(void)
 {
@@ -274,11 +316,6 @@ static void pcie_init_bars(void)
               misc_control);
 }
 
-/*! \def MSI_TWO_VECTORS
-    \brief MSI two verctor enable
-*/
-#define MSI_TWO_VECTORS 1
-
 static void pcie_init_ints(void)
 {
     uint32_t misc_control;
@@ -316,21 +353,6 @@ static void pcie_init_ints(void)
     iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
               misc_control);
 }
-
-/*! \def FB_MODE_FIGURE_OF_MERIT
-    \brief Set FB MODE
-*/
-#define FB_MODE_FIGURE_OF_MERIT  1
-
-/*! \def RATE_SHADOW_SEL_GEN4
-    \brief RATE_SHADOW_SEL_GEN4
-*/
-#define RATE_SHADOW_SEL_GEN4     1
-
-/*! \def SMLH_LTSSM_STATE_LINK_UP
-    \brief SMLH_LTSSM_STATE_LINK_UP
-*/
-#define SMLH_LTSSM_STATE_LINK_UP 0x11
 
 static void pcie_init_link(void)
 {
@@ -567,9 +589,6 @@ static void pcie_init_atus(void)
               miscControl1);
 }
 
-/*! \def MSI_ENABLED
-    \brief  MSI enabled value */
-#define MSI_ENABLED 0x1U
 static void pcie_wait_for_ints(void)
 {
     /* Wait until the x86 host driver comes up and enables MSI
@@ -587,3 +606,158 @@ static void pcie_wait_for_ints(void)
             msi_ctrl) != MSI_ENABLED);
     Log_Write(LOG_LEVEL_ERROR, " done\r\n");
 }
+
+int32_t pcie_error_control_deinit(void)
+{
+    return 0;
+}
+
+int32_t pcie_enable_uce_interrupt(void)
+{
+    return 0;
+}
+
+int32_t pcie_disable_ce_interrupt(void)
+{
+    return 0;
+}
+
+int32_t pcie_disable_uce_interrupt(void)
+{
+    return 0;
+}
+
+int32_t pcie_set_ce_threshold(uint32_t ce_threshold)
+{
+    /* set countable errors threshold */
+    event_control_block.ce_threshold = ce_threshold;
+    return 0;
+}
+
+int32_t pcie_get_ce_count(uint32_t *ce_count)
+{
+    /* get correctable errors count */
+    *ce_count = event_control_block.ce_count;
+    return 0;
+}
+
+int32_t pcie_get_uce_count(uint32_t *uce_count)
+{
+    /* get un-correctable errors count */
+    *uce_count = event_control_block.uce_count;
+    return 0;
+}
+
+void pcie_error_threshold_isr(void)
+{
+    /* TODO: This is just an example implementation.
+       The final driver implementation will read these values from the
+       hardware, create a message and invoke call back with message and error type as parameters.
+    */
+    uint8_t error_type = CORRECTABLE;
+
+    if ((error_type == UNCORRECTABLE) ||
+        (++event_control_block.ce_count > event_control_block.ce_threshold))
+    {
+        struct event_message_t message;
+
+        /* add details in message header and fill payload */
+        FILL_EVENT_HEADER(&message.header, PCIE_UCE,
+                          sizeof(struct event_message_t) - sizeof(struct cmn_header_t));
+        FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 1024, 1, 0);
+
+        /* call the callback function and post message */
+        event_control_block.event_cb(CORRECTABLE, &message);
+    }
+}
+
+int32_t setup_pcie_gen3_link_speed(void)
+{
+    /* TODO: https://esperantotech.atlassian.net/browse/SW-6607 */
+    return 0;
+}
+
+int32_t setup_pcie_gen4_link_speed(void)
+{
+    /* TODO: https://esperantotech.atlassian.net/browse/SW-6607 */
+    return 0;
+}
+
+int32_t setup_pcie_lane_width_x4(void)
+{
+    /* TODO: https://esperantotech.atlassian.net/browse/SW-6607 */
+    return 0;
+}
+
+int32_t setup_pcie_lane_width_x8(void)
+{
+    /* TODO: https://esperantotech.atlassian.net/browse/SW-6607 */
+    return 0;
+}
+
+int32_t pcie_retrain_phy(void)
+{
+    /* TODO: https://esperantotech.atlassian.net/browse/SW-6607 */
+    return 0;
+}
+
+int pcie_get_speed(char *pcie_speed)
+{
+    uint32_t pcie_gen, tmp;
+
+    tmp = ioread32(PCIE_CUST_SS +
+                   DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_ADDRESS);
+
+    /* Get the PCIE Gen */
+    pcie_gen = DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_RATE_GET(tmp);
+
+    sprintf(pcie_speed, "%d", PCIE_SPEED[pcie_gen - 1]);
+
+    return 0;
+}
+
+int PShire_Initialize(void)
+{
+    PCIe_release_pshire_from_reset();
+    /*Configure PShire PLL to 1010 Mhz */
+    configure_pshire_pll(6);
+    return 0;
+}
+
+int PCIE_Controller_Initialize(void)
+{
+    PCIe_init(true /* expect_link_up*/);
+    return 0;
+}
+
+int PCIE_Phy_Initialize(void)
+{
+    /* interface to initialize PCIe phy */
+    return 0;
+}
+
+int PShire_Voltage_Update(uint8_t voltage)
+{
+    return pmic_set_voltage(PCIE, voltage);
+}
+
+int Pshire_PLL_Program(uint8_t mode)
+{
+    return  configure_pshire_pll(mode);
+}
+
+int Pshire_NOC_update_routing_table(void)
+{
+    /* interface to update routing table */
+    return 0;
+}
+
+int PCIe_Phy_Firmware_Update (uint64_t* image)
+{
+    /* interface to initialize PCIe phy */
+    (void)image;
+    return 0;
+}
+
+
+

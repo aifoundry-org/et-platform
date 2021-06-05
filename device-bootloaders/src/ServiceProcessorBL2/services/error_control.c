@@ -22,9 +22,9 @@
 
 #include "bl2_error_control.h"
 #include "sp_host_iface.h"
-#include "bl2_pcie.h"
 #include "bl2_cache_control.h"
-#include "bl2_ddr_init.h"
+#include "mem_controller.h"
+#include "pcie_configuration.h"
 
 /************************************************************************
 *

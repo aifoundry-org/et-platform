@@ -31,10 +31,12 @@
 #include "system_registers.h"
 #include "bl2_flash_fs.h"
 #include "cache_flush_ops.h"
-/*#include "sp_otp.h" */
+#include "bl2_reset.h"
+#include "sp_otp.h"
 /*#include "bl2_pll.h" */
 #include "bl2_timer.h"
 #include "bl2_vaultip_controller.h"
+#include "etsoc_hal/inc/rm_esr.h"
 #include "etsoc_hal/inc/spio_misc_esr.h"
 #include "etsoc_hal/inc/hal_device.h"
 #include "bl2_main.h"
@@ -341,6 +343,26 @@ static void print_failed_input_token_info(const uint32_t *input_token_words, uin
     {
         MESSAGE_INFO_DEBUG("\n");
     }
+}
+
+bool is_vaultip_disabled(void)
+{
+    uint32_t rm_status2;
+    static bool initialized = false;
+    static bool vaultip_disabled = false;
+
+    if (!initialized) {
+        if (0 != sp_otp_get_vaultip_chicken_bit(&vaultip_disabled)) {
+            vaultip_disabled = false;
+        }
+        rm_status2 = ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_STATUS2_ADDRESS);
+        if (0 != RESET_MANAGER_RM_STATUS2_A0_UNLOCK_GET(rm_status2) &&
+            0 != RESET_MANAGER_RM_STATUS2_SKIP_VAULT_GET(rm_status2)) {
+            vaultip_disabled = true;
+        }
+    }
+
+    return vaultip_disabled;
 }
 
 /* VAULTIP_TOKEN_SYSTEM_SUBCODE_SELF_TEST */

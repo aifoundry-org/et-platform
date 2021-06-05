@@ -76,6 +76,7 @@
 #include "bl2_main.h"
 #include "interrupt.h"
 #include "error.h"
+#include "log.h"
 
 /*! \def MSI_TWO_VECTORS
     \brief MSI two verctor enable
@@ -304,7 +305,7 @@ void setup_pmic(void)
 
     INT_enableInterrupt(SPIO_PLIC_GPIO_INTR, 1, pmic_error_isr);
 
-    printf("PMIC connection establish\n");
+    Log_Write(LOG_LEVEL_INFO, "PMIC connection establish\n");
 }
 
 /************************************************************************

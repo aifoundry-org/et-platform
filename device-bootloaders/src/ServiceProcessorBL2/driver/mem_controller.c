@@ -27,7 +27,8 @@
         ddr_get_memory_type
 */
 /***********************************************************************/
-#include "bl2_ddr_init.h"
+#include "mem_controller.h"
+#include "bl2_sp_memshire_pll.h"
 #include "dm_event_control.h"
 #include "hal_ddr_init.h"
 #include "layout.h"   // Memory_read()/Memory_write() dependent on this
@@ -45,6 +46,17 @@
                 for(memshire = 1;memshire < NUMBER_OF_MEMSHIRE;memshire += 2)      \
                    statement;                                                      \
             }
+
+static int configure_memshire_plls(void)
+{
+    if (0 != program_memshire_pll(0, 19))
+        return -1;
+
+    if (0 != program_memshire_pll(4, 19))
+        return -1;
+
+    return 0;
+}
 
 /*
 ** following DDR initialization flow from hardware team
@@ -186,4 +198,27 @@ int ddr_get_memory_type(char *mem_type)
 {
     strncpy(mem_type, "LPDDR4X", 8);
     return 0;
+}
+
+int32_t configure_memshire(void)
+{
+    // FIXME Program the DDR Voltage if required
+    //pmic_get_voltage(DDR, voltage)
+
+    if (0 != release_memshire_from_reset()) {
+        Log_Write(LOG_LEVEL_ERROR, "release_memshire_from_reset() failed!\n");
+        return MEMSHIRE_COLD_RESET_CONFIG_ERROR;
+    }
+    if (0 != configure_memshire_plls()) {
+        Log_Write(LOG_LEVEL_ERROR, "configure_memshire_plls() failed!\n");
+        return MEMSHIRE_PLL_CONFIG_ERROR;
+    }
+#if !FAST_BOOT
+    if (0 != ddr_config()) {
+        Log_Write(LOG_LEVEL_ERROR, "ddr_config() failed!\n");
+        return MEMSHIRE_DDR_CONFIG_ERROR;
+    }
+    Log_Write(LOG_LEVEL_INFO, "DRAM ready.\n");
+#endif
+   return SUCCESS;
 }

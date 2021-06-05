@@ -19,6 +19,7 @@
 #include "etsoc_hal/inc/spio_misc_esr.h"
 #include "etsoc_hal/inc/usb2_config_esrs.h"
 #include "io.h"
+#include "log.h"
 #include "usb2_0.h"
 
 static void usb2_0_phy_reset(bool release)
@@ -78,19 +79,19 @@ void usb2_0_init(bool enable_ultrasoc)
     // Enable UltraSoc USB controller if needed
     set_ust_ip_pin(enable_ultrasoc);
 
-    printf("USB2 1: Release PHY reset...\n");
+    Log_Write(LOG_LEVEL_INFO,"USB2 1: Release PHY reset...\n");
     usb2_0_phy_reset(1);
 
-    printf("USB2 1: Cfg clocks...\n");
+    Log_Write(LOG_LEVEL_INFO,"USB2 1: Cfg clocks...\n");
     usb_phy_clk_frequency_cfg(0x02, 0x02, 0x01);
 
-    printf("USB2 1: Release POR reset...\n");
+    Log_Write(LOG_LEVEL_INFO,"USB2 1: Release POR reset...\n");
     usb2_0_por_reset(1);
 
     // TODO: Wait UTMI and PHY clk at least 50us (at least 45us according the spec)
     // usleep(50);
 
-    printf("USB2 1: Release controller resets...\n");
+    Log_Write(LOG_LEVEL_INFO,"USB2 1: Release controller resets...\n");
     usb2_0_controller_reset(1);
 
     // ctrl_cfg -> GOTGCTL = ctrl_cfg -> GUSBCFG & (~(0x01 << 6));
