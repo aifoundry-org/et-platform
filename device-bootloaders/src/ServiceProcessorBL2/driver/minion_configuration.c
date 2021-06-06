@@ -24,7 +24,6 @@
 #include <etsoc_hal/inc/sp_minion_cold_reset_sequence.h>
 
 #include "minion_esr_defines.h"
-// #include "dvfs_lvdpll_prog.h"
 #include "minion_configuration.h"
 
 /*==================== Function Separator =============================*/
@@ -96,10 +95,26 @@ int Enable_Master_Shire_Threads(uint8_t mm_id)
     return 0;
 }
 
+int Minion_Shire_Voltage_Update( uint8_t voltage)
+{
+    return pmic_set_voltage(MINION, voltage);
+}
+
+int Minion_Program_Step_Clock_PLL(uint8_t mode)
+{
+    configure_sp_pll_4(mode);
+
+    return 0;
+}
+
 int Enable_Compute_Minion(uint64_t minion_shires_mask)
 {
+
+    /* FIXME: Update Minion Voltage if neccesary
+      Minion_Shire_Voltage_Update(voltage);
+    */
     /* Configure Minon Step clock to 650 Mhz */
-    if (0 != configure_sp_pll_4(3)) {
+    if (0 != Minion_Program_Step_Clock_PLL(3)) {
         Log_Write(LOG_LEVEL_ERROR, "configure_sp_pll_4() failed!\n");
         return MINION_STEP_CLOCK_CONFIGURE_ERROR;
     }
@@ -188,4 +203,50 @@ int Load_Autheticate_Minion_Firmware(void)
 #endif
 
    return SUCCESS;
+}
+
+int Minion_Shire_PLL_Update_Freq(uint8_t mode)
+{
+    struct sp2mm_update_freq_cmd_t cmd;
+
+    cmd.msg_hdr.msg_id = SP2MM_CMD_UPDATE_FREQ;
+    cmd.msg_hdr.msg_size = sizeof(struct sp2mm_update_freq_cmd_t);
+    cmd.freq = mode;
+
+    MM_Iface_Push_Cmd_To_SP2MM_SQ(&cmd, sizeof(cmd));
+    
+    return 0;
+}
+
+uint64_t Minion_ESR_read(uint32_t address)
+{
+    volatile uint64_t *p = esr_address(PP_MACHINE, 0, REGION_MINION, address);
+    return *p;
+}
+
+int Minion_ESR_write(uint32_t address, uint64_t data, uint64_t mmshire_mask)
+{
+
+    for (uint8_t i = 0; i <= 33; i++) {
+        if (mmshire_mask & 1) {
+                volatile uint64_t *p = esr_address(PP_MACHINE, i, REGION_MINION, address);
+                *p = data;
+        }
+        mmshire_mask >>= 1;
+    }
+    return 0;
+}
+
+int Minion_Kernel_Launch(uint64_t mmshire_mask, void *args)
+{
+    struct sp2mm_kernel_launch_cmd_t cmd;
+
+    cmd.msg_hdr.msg_id = SP2MM_CMD_KERNEL_LAUNCH;
+    cmd.msg_hdr.msg_size = sizeof(struct sp2mm_kernel_launch_cmd_t);
+    cmd.args = args;
+    cmd.shire_mask=mmshire_mask;
+
+    MM_Iface_Push_Cmd_To_SP2MM_SQ(&cmd, sizeof(cmd));
+
+    return 0;
 }
