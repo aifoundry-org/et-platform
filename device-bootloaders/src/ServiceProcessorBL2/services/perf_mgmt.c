@@ -145,6 +145,53 @@ int get_module_max_dram_bw(struct max_dram_bw_t *max_dram_bw)
 *
 *   FUNCTION
 *
+*       Get_Minion_Frequency
+*
+*   DESCRIPTION
+*
+*       This function return the global Minion frequency variable
+*
+*   INPUTS
+*       void
+*     
+*   OUTPUTS
+*
+*      minion_frequencies_t  New Minion Frequency in Mhz 
+*
+***********************************************************************/
+int32_t Get_Minion_Frequency(void)
+{
+    return (int32_t)get_soc_perf_reg()->asic_frequency.minion_shire_mhz;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Update_Minion_Frequency
+*
+*   DESCRIPTION
+*
+*       This function updates the global Minion frequency variable
+*
+*   INPUTS
+*
+*       minion_frequencies_t  New Minion Frequency in Mhz 
+*
+*   OUTPUTS
+*
+*      int                    Return status
+*
+***********************************************************************/
+void Update_Minion_Frequency(uint32_t new_freq)
+{
+    get_soc_perf_reg()->asic_frequency.minion_shire_mhz = new_freq;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       get_module_asic_frequencies
 *
 *   DESCRIPTION

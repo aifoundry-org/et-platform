@@ -17,7 +17,9 @@
 */
 /***********************************************************************/
 #include "thermal_pwr_mgmt.h"
+#include "perf_mgmt.h"
 #include "bl2_pmic_controller.h"
+#include "minion_configuration.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "bl2_main.h"
@@ -60,6 +62,13 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
 {
     return &g_soc_power_reg;
 }
+
+
+// FIXME: This needs to extracted from OTP Fuse
+#define DP_per_Mhz 1
+
+// FIXME: Need to add Freq to mode convertion equation
+#define FREQ2MODE(X) X
 
 /************************************************************************
 *
@@ -787,11 +796,29 @@ int init_thermal_pwr_mgmt_service(void)
 ***********************************************************************/
 static int set_operating_point(uint8_t power)
 {
+    tdp_level_e tdp;
+    get_module_tdp_level(&tdp);
 
-    (void)power;
-    /* Map the power to voltage frequency pair */
-    /* Update the SP shire power (VFS) */
-    /* update the Minions power (VFS) */
+    // FIXME: Add Binary Encoding to floatiing point: BCD2FP(power);
+    // Use this value to compare against TDP which should also
+    // be converted to a floatng point value
+
+    //calculate Delta Power then re-compute new Minion Freq
+    bool increase = (power > tdp) ? true: false;
+    int delta_power = increase ? (power - tdp): (tdp - power);
+    int delta_freq = (delta_power * DP_per_Mhz)*(increase? 1 : -1);
+
+    uint32_t new_freq = (uint32_t)( Get_Minion_Frequency() + delta_freq );
+    
+    // FIXME: Need check to see if Voltage update is required for new
+    //        frequency
+    // Minion_Shire_Voltage_Update(voltage);
+    // FIXME: Need to add error handling in case Minion was not able to be updated
+    //        check for error, then return Error enum instead
+    Minion_Shire_PLL_Update_Freq((uint8_t)FREQ2MODE(new_freq));
+
+    Update_Minion_Frequency(new_freq);
+
     return 0;
 
 }
@@ -822,7 +849,7 @@ void thermal_power_task_entry(void *pvParameter)
     uint8_t current_temperature=DEF_SYS_TEMP_VALUE;
     struct event_message_t message;
     uint32_t notificationValue;
-    uint8_t current_power; 
+    uint8_t current_power=0;
 
     (void)pvParameter;
 
