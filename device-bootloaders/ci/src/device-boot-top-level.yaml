@@ -20,6 +20,19 @@ parameters:
     default_value: true
 
 stages:
+  JOB_CODE_QUALITY:
+    cmds:
+      - job: sw-platform/code-analysis/device-bootloaders-sonarqube
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          GITLAB_SOURCE_BRANCH:
+            raw_cmd: '"${env.gitlabSourceBranch}"'
+          GITLAB_TARGET_BRANCH: 
+            raw_cmd: '"${env.gitlabTargetBranch}"'
+          GITLAB_MR_ID: 
+            raw_cmd: '"${env.gitlabMergeRequestIid}"'
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"
+
   JOB_RUNTIME:
     cmds:
       - job: sw-platform/runtime-integration/pipelines/runtime-checkin-tests
