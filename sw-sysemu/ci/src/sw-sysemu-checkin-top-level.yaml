@@ -38,15 +38,15 @@ stages:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},tools/sw-sysemu:${BRANCH}"
   
-  # JOB_CODE_QUALITY:
-  #   cmds:
-  #     - job: sw-platform/code-analysis/sw-sysemu-sonarqube
-  #       parameters:
-  #         BRANCH: "${SW_PLATFORM_BRANCH}"
-  #         COMPONENT_COMMITS: "${COMPONENT_COMMITS},tools/sw-sysemu:${BRANCH}"
-  #         GITLAB_SOURCE_BRANCH:
-  #           raw_cmd: '"${env.gitlabSourceBranch}"'
-  #         GITLAB_TARGET_BRANCH: 
-  #           raw_cmd: '"${env.gitlabTargetBranch}"'
-  #         GITLAB_MR_ID: 
-  #           raw_cmd: '"${env.gitlabMergeRequestIid}"'
+  JOB_CODE_QUALITY:
+    cmds:
+      - job: sw-platform/code-analysis/sw-sysemu-sonarqube
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},tools/sw-sysemu:${BRANCH}"
+          GITLAB_SOURCE_BRANCH:
+            raw_cmd: '"${env.gitlabSourceBranch}"'
+          GITLAB_TARGET_BRANCH: 
+            raw_cmd: '"${env.gitlabTargetBranch}"'
+          GITLAB_MR_ID: 
+            raw_cmd: '"${env.gitlabMergeRequestIid}"'
