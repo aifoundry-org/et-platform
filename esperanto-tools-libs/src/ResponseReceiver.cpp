@@ -33,12 +33,9 @@ ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServ
     constexpr uint32_t kMaxMsgSize = (1ul << 14) - 1;
 
     std::vector<std::byte> buffer(kMaxMsgSize);
-
-    std::vector<int> devicesToCheck;
-    for (int i = 0, count = deviceLayer_->getDevicesCount(); i < count; ++i) {
-      devicesToCheck.emplace_back(i);
-    }
+    
     while (run_) {
+      auto devicesToCheck = receiverServices_->getDevicesWithEventsOnFly();
       std::random_shuffle(begin(devicesToCheck), end(devicesToCheck));
       int responsesCount = 0;
       for (auto dev : devicesToCheck) {
@@ -49,19 +46,8 @@ ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServ
           RT_VLOG(HIGH) << "Response processed";
         }
       }
-
       if (responsesCount == 0) {
-        for (auto dev : devicesToCheck) {
-          //uint64_t sq_bitmap;
-          //bool cq_available;
-          // https://esperantotech.atlassian.net/browse/SW-7822
-          // we are losing somehow interrupts in sysemu, so instead of waitForEpoll lets do a quick & dirty polling
-          // worarkound ...
-          std::this_thread::sleep_for(kPollingInterval);
-          // RT_LOG(INFO) << "No responses, waiting for epoll";
-          // deviceLayer_->waitForEpollEventsMasterMinion(dev, sq_bitmap, cq_available);
-          // RT_LOG(INFO) << "Finished waiting for epoll";
-        }
+        std::this_thread::sleep_for(kPollingInterval);
       }
     }
   });
