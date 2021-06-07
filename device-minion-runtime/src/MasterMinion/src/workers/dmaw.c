@@ -329,7 +329,7 @@ int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id, struct device_ops_dma_w
 
     if(status == DMA_OPERATION_SUCCESS)
     {
-        dma_start(chan_id);
+        dma_start_read(chan_id);
 
         /* Update cycles value into the Global Channel Status data structure */
         atomic_store_local_64(
@@ -434,7 +434,7 @@ int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id, struct device_ops_dma_
 
     if(status == DMA_OPERATION_SUCCESS)
     {
-        dma_start(chan_id);
+        dma_start_write(chan_id);
 
         /* Update cycles value into the Global Channel Status data structure */
         atomic_store_local_64(
@@ -599,7 +599,7 @@ void DMAW_Launch(uint32_t hart_id)
                         if(dma_done)
                         {
                             /* DMA transfer complete, clear interrupt status */
-                            dma_clear_done(dma_chan_id);
+                            dma_clear_read_done(dma_chan_id);
                             write_rsp.status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
                             Log_Write(LOG_LEVEL_DEBUG,"DMAW: Read Transfer Completed\r\n");
                         }
@@ -609,7 +609,8 @@ void DMAW_Launch(uint32_t hart_id)
                             dma_clear_read_abort(dma_chan_id);
                             dma_configure_read(dma_chan_id);
                             write_rsp.status = DEV_OPS_API_DMA_RESPONSE_ERROR;
-                            Log_Write(LOG_LEVEL_ERROR,"DMAW: Read Transfer Aborted\r\n");
+                            Log_Write(LOG_LEVEL_ERROR,"DMAW:Tag_ID=%u:Read Transfer Aborted\r\n",
+                                      chan_status.tag_id);
                         }
 
                         /* TODO: SW-7137: To be removed */
@@ -658,15 +659,16 @@ void DMAW_Launch(uint32_t hart_id)
                         }
                         else
                         {
-                            Log_Write(LOG_LEVEL_ERROR, "DMAW:HostIface:Push:Failed\r\n");
+                            Log_Write(LOG_LEVEL_ERROR, "DMAW:Tag_ID=%u:HostIface:Push:Failed\r\n",
+                                      chan_status.tag_id);
                             SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
                         }
                     }
                 }
                 else if (channel_state == DMA_CHAN_STATE_ABORTING)
                 {
-                    Log_Write(LOG_LEVEL_ERROR, "DMAW:%d:Timeout:read_chan_aborting:%d\r\n",
-                        hart_id, ch_index);
+                    Log_Write(LOG_LEVEL_ERROR, "DMAW:%d:Tag_ID=%u:Timeout:read_chan_aborting:%d\r\n",
+                        hart_id, chan_status.tag_id, ch_index);
 
                     /* Populate the DMA channel index */
                     dma_chan_id = ch_index + DMA_CHAN_ID_READ_0;
@@ -729,7 +731,8 @@ void DMAW_Launch(uint32_t hart_id)
                     }
                     else
                     {
-                        Log_Write(LOG_LEVEL_ERROR, "DMAW:HostIface:Push:Failed\r\n");
+                        Log_Write(LOG_LEVEL_ERROR, "DMAW:Tag_ID=%u:HostIface:Push:Failed\r\n",
+                                  chan_status.tag_id);
                         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
                     }
                 }
@@ -781,7 +784,7 @@ void DMAW_Launch(uint32_t hart_id)
                         if(dma_done)
                         {
                             /* DMA transfer complete, clear interrupt status */
-                            dma_clear_done(dma_chan_id);
+                            dma_clear_write_done(dma_chan_id);
                             read_rsp.status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
                             Log_Write(LOG_LEVEL_DEBUG,"DMAW: Write Transfer Completed\r\n");
                         }
@@ -791,7 +794,8 @@ void DMAW_Launch(uint32_t hart_id)
                             dma_clear_write_abort(dma_chan_id);
                             dma_configure_write(dma_chan_id);
                             read_rsp.status = DEV_OPS_API_DMA_RESPONSE_ERROR;
-                            Log_Write(LOG_LEVEL_ERROR,"DMAW: Write Transfer Aborted\r\n");
+                            Log_Write(LOG_LEVEL_ERROR,"DMAW:Tag_ID=%u:Write Transfer Aborted\r\n",
+                                      chan_status.tag_id);
                         }
 
                         /* TODO: SW-7137: To be removed */
@@ -840,15 +844,16 @@ void DMAW_Launch(uint32_t hart_id)
                         }
                         else
                         {
-                            Log_Write(LOG_LEVEL_ERROR, "DMAW:HostIface:Push:Failed\r\n");
+                            Log_Write(LOG_LEVEL_ERROR, "DMAW:Tag_ID=%u:HostIface:Push:Failed\r\n",
+                                      chan_status.tag_id);
                             SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
                         }
                     }
                 }
                 else if (channel_state == DMA_CHAN_STATE_ABORTING)
                 {
-                    Log_Write(LOG_LEVEL_ERROR, "DMAW:%d:Timeout:write_chan_aborting:%d\r\n",
-                        hart_id, ch_index);
+                    Log_Write(LOG_LEVEL_ERROR, "DMAW:%d:Tag_ID=%u:Timeout:write_chan_aborting:%d\r\n",
+                        hart_id, chan_status.tag_id, ch_index);
 
                     /* Populate the DMA channel index */
                     dma_chan_id = ch_index + DMA_CHAN_ID_WRITE_0;
@@ -911,7 +916,8 @@ void DMAW_Launch(uint32_t hart_id)
                     }
                     else
                     {
-                        Log_Write(LOG_LEVEL_ERROR, "DMAW:HostIface:Push:Failed\r\n");
+                        Log_Write(LOG_LEVEL_ERROR, "DMAW:Tag_ID=%u:HostIface:Push:Failed\r\n",
+                                  chan_status.tag_id);
                         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
                     }
                 }

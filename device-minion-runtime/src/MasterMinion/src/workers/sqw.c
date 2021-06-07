@@ -338,13 +338,13 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
 
                 if(status != STATUS_SUCCESS)
                 {
-                    Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:Processing failed.(Error code: %d)\r\n",
+                    Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:Processing failed:%d\r\n",
                         status);
                 }
             }
             else if(pop_ret_val < 0)
             {
-                Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:VQ pop failed.(Error code: %d)\r\n",
+                Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:VQ pop failed:%d\r\n",
                     pop_ret_val);
                 SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_PROCESSING_ERROR);
             }

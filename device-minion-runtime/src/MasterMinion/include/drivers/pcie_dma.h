@@ -48,15 +48,25 @@ typedef enum {
     DMA_OPERATION_SUCCESS = 0
 } DMA_STATUS_e;
 
-/// @brief Configure a DMA engine to issue PCIe memory reads to the x86 host, pulling data to the SoC.
-int dma_configure_read(dma_chan_id_e chan);
+/*! \fn int8_t dma_configure_read(dma_chan_id_e chan)
+    \brief This function configures a DMA engine to issue PCIe memory reads to
+           the x86 host, pulling data to the SoC.
+    \param chan DMA channel ID
+    \return Status success or error
+*/
+int8_t dma_configure_read(dma_chan_id_e chan);
 
-/// @brief Configure a DMA engine to issue PCIe memory writes to the x86 host, pushing data from the SoC.
-int dma_configure_write(dma_chan_id_e chan);
+/*! \fn int8_t dma_configure_write(dma_chan_id_e chan)
+    \brief This function configures a DMA engine to issue PCIe memory writes to
+           the x86 host, pushing data from the SoC.
+    \param chan DMA channel ID
+    \return Status success or error
+*/
+int8_t dma_configure_write(dma_chan_id_e chan);
 
-/*! \fn DMA_STATUS_e dma_config_add_data_node(uint64_t src_addr, uint64_t dest_addr,
+/*! \fn int8_t dma_config_add_data_node(uint64_t src_addr, uint64_t dest_addr,
     uint32_t size, dma_chan_id_e chan, uint32_t index, dma_flags_e dma_flags,
-    bool local_interrupt);
+    bool local_interrupt)
     \brief This function adds a new data node in DMA transfer list. After adding
            all data nodes user must to add a link node as well.
     \param src_addr Source address
@@ -69,46 +79,99 @@ int dma_configure_write(dma_chan_id_e chan);
     \param local_interrupt Enable/Disable DMA local interrupt.
     \return Status success or error
 */
-DMA_STATUS_e dma_config_add_data_node(uint64_t src_addr, uint64_t dest_addr,
+int8_t dma_config_add_data_node(uint64_t src_addr, uint64_t dest_addr,
     uint32_t size, dma_chan_id_e chan, uint32_t index, dma_flags_e dma_flags,
     bool local_interrupt);
 
-/*! \fn DMA_STATUS_e dma_config_add_link_node(dma_chan_id_e id, uint32_t index);
+/*! \fn int8_t dma_config_add_link_node(dma_chan_id_e id, uint32_t index)
     \brief This function adds a new link node in DMA transfer list.
     \param chan DMA channel ID
     \param index Index of current data node
     \return Status success or error
 */
-DMA_STATUS_e dma_config_add_link_node(dma_chan_id_e chan, uint32_t index);
+int8_t dma_config_add_link_node(dma_chan_id_e chan, uint32_t index);
 
-/// @brief Starts a DMA transfer for the specified channel.
-int dma_start(dma_chan_id_e chan);
+/*! \fn int8_t dma_start_read(dma_chan_id_e chan)
+    \brief This function triggers DMA read for specified channel.
+    \param chan DMA channel ID
+    \return Status success or error
+*/
+int8_t dma_start_read(dma_chan_id_e chan);
 
-/// @brief Clears the DMA transfer flag for the specified channel.
-void dma_clear_done(dma_chan_id_e chan);
+/*! \fn int8_t dma_start_write(dma_chan_id_e chan)
+    \brief This function triggers DMA write for specified channel.
+    \param chan DMA channel ID
+    \return Status success or error
+*/
+int8_t dma_start_write(dma_chan_id_e chan);
 
-/// @brief Clears the DMA abort flag for the specified read channel.
-DMA_STATUS_e dma_clear_read_abort(dma_chan_id_e chan);
+/*! \fn void dma_clear_read_done(dma_chan_id_e chan)
+    \brief This function clears the DMA transfer flag for specified channel.
+    \param chan DMA channel ID
+    \param index Index of current data node
+    \return Status success or error
+*/
+void dma_clear_read_done(dma_chan_id_e chan);
 
-/// @brief Clears the DMA abort flag for the specified write channel.
-DMA_STATUS_e dma_clear_write_abort(dma_chan_id_e chan);
+/*! \fn void dma_clear_write_done(dma_chan_id_e chan)
+    \brief This function clears the DMA transfer flag for specified channel.
+    \param chan DMA channel ID
+    \return None
+*/
+void dma_clear_write_done(dma_chan_id_e chan);
 
-/// @brief Abort DMA for the specified read channel.
-DMA_STATUS_e dma_abort_read(dma_chan_id_e chan);
+/*! \fn int8_t dma_clear_read_abort(dma_chan_id_e chan)
+    \brief This function clears the DMA abort flag for specified read channel.
+    \param chan DMA channel ID
+    \return Status success or error
+*/
+int8_t dma_clear_read_abort(dma_chan_id_e chan);
 
-/// @brief Abort DMA for the specified write channel.
-DMA_STATUS_e dma_abort_write(dma_chan_id_e chan);
+/*! \fn int8_t dma_clear_write_abort(dma_chan_id_e chan)
+    \brief This function clears the DMA abort flag for specified write channel.
+    \param chan DMA channel ID
+    \return Status success or error
+*/
+int8_t dma_clear_write_abort(dma_chan_id_e chan);
 
+/*! \fn int8_t dma_abort_read(dma_chan_id_e chan)
+    \brief This function aborts DMA for the specified read channel.
+    \param chan DMA channel ID
+    \return Status success or error
+*/
+int8_t dma_abort_read(dma_chan_id_e chan);
+
+/*! \fn int8_t dma_abort_write(dma_chan_id_e chan)
+    \brief This function aborts DMA for the specified write channel.
+    \param chan DMA channel ID
+    \return Status success or error
+*/
+int8_t dma_abort_write(dma_chan_id_e chan);
+
+/*! \fn static inline uint32_t dma_get_read_int_status(void)
+    \brief This function returns status of specified DMA read channel.
+    \return Read status
+*/
 static inline uint32_t dma_get_read_int_status(void)
 {
     return ioread32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_ADDRESS);
 }
 
+/*! \fn static inline uint32_t dma_get_write_int_status(void)
+    \brief This function returns status of specified DMA write channel.
+    \return Write status
+*/
 static inline uint32_t dma_get_write_int_status(void)
 {
     return ioread32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_ADDRESS);
 }
 
+/*! \fn static inline bool dma_check_read_done(dma_chan_id_e chan, uint32_t read_int_status)
+    \brief This function checks completion status of specified DMA read channel.
+    \param chan DMA channel ID
+    \param read_int_status Interrupt status of specified DMA channel.
+    \return Read done status
+*/
 static inline bool dma_check_read_done(dma_chan_id_e chan, uint32_t read_int_status)
 {
     uint32_t done_status =
@@ -117,6 +180,12 @@ static inline bool dma_check_read_done(dma_chan_id_e chan, uint32_t read_int_sta
     return (done_status & (1U << chan)) != 0;
 }
 
+/*! \fn static inline bool dma_check_write_done(dma_chan_id_e chan, uint32_t write_int_status)
+    \brief This function checks completion status of specified DMA write channel.
+    \param chan DMA channel ID
+    \param write_int_status Interrupt status of specified DMA channel.
+    \return Write done status
+*/
 static inline bool dma_check_write_done(dma_chan_id_e chan, uint32_t write_int_status)
 {
     uint32_t done_status =
@@ -125,6 +194,12 @@ static inline bool dma_check_write_done(dma_chan_id_e chan, uint32_t write_int_s
     return (done_status & (1U << chan)) != 0;
 }
 
+/*! \fn static inline bool dma_check_read_abort(dma_chan_id_e chan, uint32_t read_int_status)
+    \brief This function checks abort status of specified DMA read channel.
+    \param chan DMA channel ID
+    \param read_int_status Interrupt status of specified DMA channel.
+    \return Read abort status
+*/
 static inline bool dma_check_read_abort(dma_chan_id_e chan, uint32_t read_int_status)
 {
     uint32_t abort_status =
@@ -133,6 +208,12 @@ static inline bool dma_check_read_abort(dma_chan_id_e chan, uint32_t read_int_st
     return (abort_status & (1U << chan)) != 0;
 }
 
+/*! \fn static inline bool dma_check_write_abort(dma_chan_id_e chan, uint32_t write_int_status)
+    \brief This function checks abort status of specified DMA write channel.
+    \param chan DMA channel ID
+    \param write_int_status Interrupt status of specified DMA channel.
+    \return Write abort status
+*/
 static inline bool dma_check_write_abort(dma_chan_id_e chan, uint32_t write_int_status)
 {
     uint32_t abort_status =

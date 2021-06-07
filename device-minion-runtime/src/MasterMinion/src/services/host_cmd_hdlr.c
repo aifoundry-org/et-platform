@@ -98,8 +98,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             }
             else
             {
-                Log_Write(LOG_LEVEL_ERROR,
-                    "SQ[%d] HostCommandHandler:HostIface:Push:Failed\r\n", sqw_idx);
+                Log_Write(LOG_LEVEL_ERROR, "SQ[%d]:HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n",
+                                            sqw_idx, hdr->cmd_hdr.tag_id);
                 SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
             }
 
@@ -160,8 +160,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             }
             else
             {
-                Log_Write(LOG_LEVEL_ERROR,
-                    "SQ [%d] HostCommandHandler:HostIface:Push:Failed\r\n", sqw_idx);
+                Log_Write(LOG_LEVEL_ERROR, "SQ[%d]:HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n",
+                                            sqw_idx, hdr->cmd_hdr.tag_id);
                 SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
             }
 
@@ -197,7 +197,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             else
             {
                 Log_Write(LOG_LEVEL_ERROR,
-                    "SQ[%d] HostCommandHandler:HostIface:Push:Failed\r\n", sqw_idx);
+                          "SQ[%d]:HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n",
+                           sqw_idx, hdr->cmd_hdr.tag_id);
                 SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
             }
 
@@ -294,7 +295,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 else
                 {
                     Log_Write(LOG_LEVEL_ERROR,
-                        "SQ[%d] HostCommandHandler:HostIface:Push:Failed\r\n", sqw_idx);
+                             "SQ[%d] HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n",
+                              sqw_idx, hdr->cmd_hdr.tag_id);
                     SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
                 }
 
@@ -350,7 +352,9 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 }
                 else
                 {
-                    Log_Write(LOG_LEVEL_ERROR, "HostCommandHandler:HostIface:Push:Failed\r\n");
+                    Log_Write(LOG_LEVEL_ERROR,
+                              "HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n",
+                               hdr->cmd_hdr.tag_id);
                     SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
                 }
 
@@ -519,16 +523,17 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             if(status != STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_ERROR,
-                    "SQ[%d] HostCmdHdlr:DataReadCmd:Failed:Status:%d\r\n", sqw_idx, status);
+                    "SQ[%d]:TID:%u:HostCmdHdlr:DMARead:Fail:%d\r\n",
+                     sqw_idx, hdr->cmd_hdr.tag_id, status);
 
                 for(loop_cnt=0; loop_cnt < dma_xfer_count; ++loop_cnt)
                 {
                     Log_Write(LOG_LEVEL_ERROR,
-                        "HostCmdHdlr:DataReadCmd:Failed:CmdParams:src_device_phy_addr:%lx:size:%x\r\n",
-                        cmd->list[loop_cnt].src_device_phy_addr, cmd->list[loop_cnt].size);
+                        "HostCmdHdlr:DMARead:Fail:TID:%u:src_device_phy_addr:%lx:size:%x\r\n",
+                        hdr->cmd_hdr.tag_id, cmd->list[loop_cnt].src_device_phy_addr, cmd->list[loop_cnt].size);
 
                     Log_Write(LOG_LEVEL_DEBUG,
-                        "HostCmdHdlr:DataReadCmd:Failed:CmdParams:dst_host_virt_addr:%lx:dst_host_phy_addr:%lx\r\n",
+                        "HostCmdHdlr:DMARead:Fail:dst_host_virt_addr:%lx:dst_host_phy_addr:%lx\r\n",
                         cmd->list[loop_cnt].dst_host_virt_addr, cmd->list[loop_cnt].dst_host_phy_addr);
                 }
 
@@ -574,7 +579,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 else
                 {
                     Log_Write(LOG_LEVEL_ERROR,
-                        "HostCommandHandler:HostIface:Push:Failed\r\n");
+                             "HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n",
+                              hdr->cmd_hdr.tag_id);
                     SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
                 }
 
@@ -653,23 +659,23 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 else
                 {
                     Log_Write(LOG_LEVEL_ERROR,
-                        "HostCommandHandler:CreateTimeot:Failed\r\n");
+                        "HostCommandHandler:Tag_ID=%u:CreateTimeot:Failed\r\n", hdr->cmd_hdr.tag_id);
                 }
             }
 
             if(status != STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_ERROR,
-                    "HostCmdHdlr:DataWriteCmd:Failed:Status:%d\r\n", status);
+                    "HostCmdHdlr:DMAWrite:TID:%u:Fail:%d\r\n", hdr->cmd_hdr.tag_id, status);
 
                 for(loop_cnt=0; loop_cnt < dma_xfer_count; ++loop_cnt)
                 {
                     Log_Write(LOG_LEVEL_ERROR,
-                        "HostCmdHdlr:DataWriteCmd:Failed:CmdParams:dst_device_phy_addr:%lx:size:%x\r\n",
-                        cmd->list[loop_cnt].dst_device_phy_addr, cmd->list[loop_cnt].size);
+                        "HostCmdHdlr:DMAWrite:Fail:TID:%u:dst_device_phy_addr:%lx:size:%x\r\n",
+                        hdr->cmd_hdr.tag_id, cmd->list[loop_cnt].dst_device_phy_addr, cmd->list[loop_cnt].size);
 
                     Log_Write(LOG_LEVEL_DEBUG,
-                        "HostCmdHdlr:DataWriteCmd:Failed:CmdParams:src_host_virt_addr:%lx:src_host_phy_addr:%lx\r\n",
+                        "HostCmdHdlr:DMAWrite:Fail:src_host_virt_addr:%lx:src_host_phy_addr:%lx\r\n",
                         cmd->list[loop_cnt].src_host_virt_addr, cmd->list[loop_cnt].src_host_phy_addr);
                 }
 
@@ -711,7 +717,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                 else
                 {
                     Log_Write(LOG_LEVEL_ERROR,
-                        "HostCommandHandler:HostIface:Push:Failed\r\n");
+                              "HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n",
+                               hdr->cmd_hdr.tag_id);
                     SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
                 }
 
@@ -806,7 +813,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
                     if(status != STATUS_SUCCESS)
                     {
                         Log_Write(LOG_LEVEL_ERROR,
-                            "TRACE_RT_CONTROL:CM:Failed to Enable/Disable Trace, and failed to redirect logs.\r\n");
+                            "TRACE_RT_CONTROL:CM:Tag_ID=%u:Failed to Enable/Disable Trace, and to redirect logs.\r\n",
+                             hdr->cmd_hdr.tag_id);
                     }
                 }
                 else
@@ -850,7 +858,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             else
             {
                 Log_Write(LOG_LEVEL_ERROR,
-                    "HostCommandHandler:HostIface:Push:Failed\r\n");
+                          "HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n",
+                           hdr->cmd_hdr.tag_id);
                 SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
             }
 
@@ -864,7 +873,8 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             /* Decrement commands count being processed by given SQW */
             SQW_Decrement_Command_Count(sqw_idx);
 
-            Log_Write(LOG_LEVEL_ERROR, "HostCmdHdlr:UnsupportedCmd\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "HostCmdHdlr:Tag_ID=%u:UnsupportedCmd\r\n",
+                      hdr->cmd_hdr.tag_id);
             status = -1;
             break;
         }
