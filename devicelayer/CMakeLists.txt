@@ -55,9 +55,9 @@ set_target_properties(deviceLayer PROPERTIES
 target_link_libraries(deviceLayer
     PUBLIC
         sw-sysemu::sw-sysemu
+        hostUtils::debug
     PRIVATE
         hostUtils::logging
-        hostUtils::debug
         linuxDriver::linuxDriver
         Boost::boost
 )

@@ -12,11 +12,14 @@
 #include "DevInfReg/SP_DIR.h"
 #include "SysEmuHostListener.h"
 #include "deviceLayer/IDeviceLayer.h"
+
+#include <sw-sysemu/ISysEmu.h>
+
+#include <array>
 #include <atomic>
 #include <condition_variable>
 #include <cstdlib>
 #include <future>
-#include <sw-sysemu/ISysEmu.h>
 #include <thread>
 #include <unordered_map>
 

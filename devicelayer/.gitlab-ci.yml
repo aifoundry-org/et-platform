@@ -39,8 +39,8 @@ package:
       - COMPILER: [ gcc ]
         COMPILER_VERSION: [ 7 ]
         CONAN_GCC_VERSIONS: [ 7 ]
-      #- COMPILER: [ clang ]
-      #  COMPILER_VERSION: [ 10 ]
-      #  CONAN_CLANG_VERSIONS: [ 10 ]
+      - COMPILER: [ clang ]
+        COMPILER_VERSION: [ 10 ]
+        CONAN_CLANG_VERSIONS: [ 10 ]
   script:
     - ./conan/ci/package.sh

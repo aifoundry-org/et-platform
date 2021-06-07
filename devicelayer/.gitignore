@@ -1,4 +1,7 @@
 build
+cmake-build-*
 conan/test_package/build
 Testing/**
 tests/Testing/**
+
+.idea/

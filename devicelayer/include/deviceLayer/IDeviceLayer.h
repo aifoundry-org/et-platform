@@ -9,11 +9,13 @@
  *-------------------------------------------------------------------------*/
 #pragma once
 
+
+#include <hostUtils/debug/StackException.h>
+#include <sw-sysemu/SysEmuOptions.h>
+
 #include <chrono>
 #include <cstddef>
 #include <memory>
-#include <hostUtils/debug/StackException.h>
-#include <sw-sysemu/SysEmuOptions.h>
 #include <vector>
 
 /// \defgroup device_api Device API

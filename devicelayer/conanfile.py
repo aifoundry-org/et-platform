@@ -29,7 +29,7 @@ class DeviceLayerConan(ConanFile):
         "linuxDriver/0.1",
         "boost/1.72.0"
     ]
-    build_requires = "cmake-modules/[>=0.4.0 <1.0.0]"
+    build_requires = "cmake-modules/[>=0.4.1 <1.0.0]"
     python_requires = "conan-common/[>=0.1.0 <1.0.0]"
 
     @property

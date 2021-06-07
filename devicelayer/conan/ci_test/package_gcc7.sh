@@ -5,7 +5,7 @@ set -x
 
 export CONAN_CONFIG_URL="git@gitlab.esperanto.ai:software/conan/conan-config.git"
 export CONAN_ARCHS="x86_64"
-export CONAN_OPTIONS="g3log:use_dynamic_logging_levels=True"
+export CONAN_OPTIONS="g3log:use_dynamic_logging_levels=True,boost:header_only=True"
 export CONAN_CPPSTDS="17"
 export CONAN_BUILD_POLICY="missing"
 export CONAN_CMAKE_GENERATOR="Ninja"
