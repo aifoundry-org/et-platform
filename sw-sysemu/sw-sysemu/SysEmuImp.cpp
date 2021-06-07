@@ -8,7 +8,6 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 #include "SysEmuImp.h"
-#include "agent.h"
 #include "emu_gio.h"
 #include "memory/main_memory.h"
 #include "sys_emu.h"
@@ -28,92 +27,88 @@ namespace {
 #define BAR3_ADDR 0x7E8000001C
 #define PF0_ATU_CAP_IATU_REGION_CTRL_2_OFF_OUTBOUND_x_REGION_EN_FIELD_MASK 0x80000000ul
 
-struct Agent : bemu::Agent {
-  std::string name() const override {
-    return "SysEmuImp";
-  }
-} g_Agent;
-
-void logSysEmuOptions(std::ostream& out, const sys_emu_cmd_options& options) {
-  out << std::hex;
-  out << "************************************************************************************\n";
-  out << "* SysEmu command options                                                           *\n";
-  out << "************************************************************************************\n";
-  out << " * Elf files: \n";
+void logSysEmuOptions(const sys_emu_cmd_options& options) {
+  SE_LOG(INFO) << std::hex;
+  SE_LOG(INFO) << "************************************************************************************\n";
+  SE_LOG(INFO) << "* SysEmu command options                                                           *\n";
+  SE_LOG(INFO) << "************************************************************************************\n";
+  SE_LOG(INFO) << " * Elf files: \n";
   for (auto& f : options.elf_files) {
-    out << "\t" << f << "\n";
+    SE_LOG(INFO) << "\t" << f << "\n";
   }
-  out << " * File load files: \n";
+  SE_LOG(INFO) << " * File load files: \n";
   for (auto& f : options.file_load_files) {
-    out << "\t Addr: 0x" << f.addr << " File: " << f.file << "\n";
+    SE_LOG(INFO) << "\t Addr: 0x" << f.addr << " File: " << f.file << "\n";
   }
-  out << " * MemWrite32: \n";
+  SE_LOG(INFO) << " * MemWrite32: \n";
   for (auto& f : options.mem_write32s) {
-    out << "\t Addr: 0x" << f.addr << " Value: 0x" << f.value << "\n";
+    SE_LOG(INFO) << "\t Addr: 0x" << f.addr << " Value: 0x" << f.value << "\n";
   }
-  out << " * Mem desc file: " << options.mem_desc_file << "\n";
-  out << " * Api comm path: " << options.api_comm_path << "\n";
-  out << " * Minions en: 0x" << options.minions_en << "\n";
-  out << " * Shires en: 0x" << options.shires_en << "\n";
-  out << " * Master min: " << options.master_min << "\n";
-  out << " * Second thread: " << options.second_thread << "\n";
-  out << " * Log en: " << options.log_en << "\n";
-  out << " * Log thread: \n\t";
+  SE_LOG(INFO) << " * Mem desc file: " << options.mem_desc_file << "\n";
+  SE_LOG(INFO) << " * Api comm path: " << options.api_comm_path << "\n";
+  SE_LOG(INFO) << " * Minions en: 0x" << options.minions_en << "\n";
+  SE_LOG(INFO) << " * Shires en: 0x" << options.shires_en << "\n";
+  SE_LOG(INFO) << " * Master min: " << options.master_min << "\n";
+  SE_LOG(INFO) << " * Second thread: " << options.second_thread << "\n";
+  SE_LOG(INFO) << " * Log en: " << options.log_en << "\n";
+  SE_LOG(INFO) << " * Log thread: \n\t";
   int num_logged_threads = 0;
   for (int i = 0; i < EMU_NUM_THREADS; ++i) {
     if (options.log_thread[i]) {
       ++num_logged_threads;
-      out << " " << i;
+      SE_LOG(INFO) << " " << i;
     }
   }
   if (num_logged_threads > 0) {
-    out << "\n";
+    SE_LOG(INFO) << "\n";
   } else {
-    out << "None\n";
+    SE_LOG(INFO) << "None\n";
   }
-  out << " * Dump at end: \n";
+  SE_LOG(INFO) << " * Dump at end: \n";
   for (auto& f : options.dump_at_end) {
-    out << "\t Addr: 0x" << f.addr << " Size: 0x" << f.size << " File: " << f.file << "\n";
+    SE_LOG(INFO) << "\t Addr: 0x" << f.addr << " Size: 0x" << f.size << " File: " << f.file << "\n";
   }
-  out << " * Dump at pc: \n";
+  SE_LOG(INFO) << " * Dump at pc: \n";
   for (auto& [k, f] : options.dump_at_pc) {
-    out << "\t PC: 0x" << k << " Addr: 0x" << f.addr << " Size: 0x" << f.size << " File: " << f.file << "\n";
+    SE_LOG(INFO) << "\t PC: 0x" << k << " Addr: 0x" << f.addr << " Size: 0x" << f.size << " File: " << f.file << "\n";
   }
-  out << " * Dump mem: " << options.dump_mem << "\n";
-  out << " * Reset pc: 0x" << options.reset_pc << "\n";
-  out << " * SP reset pc: 0x" << options.sp_reset_pc << "\n";
-  out << " * Set xreg: \n";
+  SE_LOG(INFO) << " * Dump mem: " << options.dump_mem << "\n";
+  SE_LOG(INFO) << " * Reset pc: 0x" << options.reset_pc << "\n";
+  SE_LOG(INFO) << " * SP reset pc: 0x" << options.sp_reset_pc << "\n";
+  SE_LOG(INFO) << " * Set xreg: \n";
   for (auto& f : options.set_xreg) {
-    out << "\t Thread: " << f.thread << " Xreg: " << f.xreg << " Value: 0x" << f.value << "\n";
+    SE_LOG(INFO) << "\t Thread: " << f.thread << " Xreg: " << f.xreg << " Value: 0x" << f.value << "\n";
   }
-  out << " * Coherence check: " << options.coherency_check << "\n";
-  out << " * Max cycles: 0x" << options.max_cycles << "\n";
-  out << " * Mins dis: " << options.mins_dis << "\n";
-  out << " * SP dis: " << options.sp_dis << "\n";
-  out << " * Mem reset: " << options.mem_reset << "\n";
-  out << " * pu_uart0_rx_file: " << options.pu_uart0_rx_file << "\n";
-  out << " * pu_uart1_rx_file: " << options.pu_uart1_rx_file << "\n";
-  out << " * spio_uart0_rx_file: " << options.spio_uart0_rx_file << "\n";
-  out << " * spio_uart1_rx_file: " << options.spio_uart1_rx_file << "\n";
-  out << " * pu_uart0_tx_file: " << options.pu_uart0_tx_file << "\n";
-  out << " * pu_uart1_tx_file: " << options.pu_uart1_tx_file << "\n";
-  out << " * spio_uart0_tx_file: " << options.spio_uart0_tx_file << "\n";
-  out << " * spio_uart1_tx_file: " << options.spio_uart1_tx_file << "\n";
-  out << " * Log at pc: 0x" << options.log_at_pc << "\n";
-  out << " * Stop log at pc: 0x" << options.stop_log_at_pc << "\n";
-  out << " * Display trap info: " << options.display_trap_info << "\n";
-  out << " * Gdb: " << options.gdb << "\n";
+  SE_LOG(INFO) << " * Coherence check: " << options.coherency_check << "\n";
+  SE_LOG(INFO) << " * Max cycles: 0x" << options.max_cycles << "\n";
+  SE_LOG(INFO) << " * Mins dis: " << options.mins_dis << "\n";
+  SE_LOG(INFO) << " * SP dis: " << options.sp_dis << "\n";
+  SE_LOG(INFO) << " * Mem reset: " << options.mem_reset << "\n";
+  SE_LOG(INFO) << " * pu_uart0_rx_file: " << options.pu_uart0_rx_file << "\n";
+  SE_LOG(INFO) << " * pu_uart1_rx_file: " << options.pu_uart1_rx_file << "\n";
+  SE_LOG(INFO) << " * spio_uart0_rx_file: " << options.spio_uart0_rx_file << "\n";
+  SE_LOG(INFO) << " * spio_uart1_rx_file: " << options.spio_uart1_rx_file << "\n";
+  SE_LOG(INFO) << " * pu_uart0_tx_file: " << options.pu_uart0_tx_file << "\n";
+  SE_LOG(INFO) << " * pu_uart1_tx_file: " << options.pu_uart1_tx_file << "\n";
+  SE_LOG(INFO) << " * spio_uart0_tx_file: " << options.spio_uart0_tx_file << "\n";
+  SE_LOG(INFO) << " * spio_uart1_tx_file: " << options.spio_uart1_tx_file << "\n";
+  SE_LOG(INFO) << " * Log at pc: 0x" << options.log_at_pc << "\n";
+  SE_LOG(INFO) << " * Stop log at pc: 0x" << options.stop_log_at_pc << "\n";
+  SE_LOG(INFO) << " * Display trap info: " << options.display_trap_info << "\n";
+  SE_LOG(INFO) << " * Gdb: " << options.gdb << "\n";
 #ifdef SYSEMU_PROFILING
-  out << " * Dump prof file: " << options.dump_prof_file << "\n";
+  SE_LOG(INFO) << " * Dump prof file: " << options.dump_prof_file << "\n";
 #endif
 #ifdef SYSEMU_DEBUG
-  out << " * Debug: " << options.debug << "\n";
+  SE_LOG(INFO) << " * Debug: " << options.debug << "\n";
 #endif
-  out << "************************************************************************************\n";
+  SE_LOG(INFO) << "************************************************************************************\n";
 }
 
 void iatusPrint(bemu::System* chip) {
   const auto& iatus = chip->memory.pcie0_get_iatus();
+
+  bemu::Noagent agent{chip, "SysEmuImp"};
 
   for (int i = 0, count = iatus.size(); i < count; ++i) {
     auto& iatu = iatus[i];
@@ -121,15 +116,17 @@ void iatusPrint(bemu::System* chip) {
     auto limit_addr = (uint64_t)iatu.uppr_limit_addr << 32 | iatu.limit_addr;
     auto target_addr = (uint64_t)iatu.upper_target_addr << 32 | iatu.lwr_target_addr;
 
-    LOG_NOTHREAD(INFO, "iATU[%d].ctrl_1: 0x%x", i, iatu.ctrl_1);
-    LOG_NOTHREAD(INFO, "iATU[%d].ctrl_2: 0x%x", i, iatu.ctrl_2);
-    LOG_NOTHREAD(INFO, "iATU[%d].base_addr: 0x%" PRIx64, i, base_addr);
-    LOG_NOTHREAD(INFO, "iATU[%d].limit_addr : 0x%" PRIx64, i, limit_addr);
-    LOG_NOTHREAD(INFO, "iATU[%d].target_addr: 0x%" PRIx64, i, target_addr);
+    LOG_AGENT(INFO, agent, "iATU[%d].ctrl_1: 0x%x", i, iatu.ctrl_1);
+    LOG_AGENT(INFO, agent, "iATU[%d].ctrl_2: 0x%x", i, iatu.ctrl_2);
+    LOG_AGENT(INFO, agent, "iATU[%d].base_addr: 0x%" PRIx64, i, base_addr);
+    LOG_AGENT(INFO, agent, "iATU[%d].limit_addr : 0x%" PRIx64, i, limit_addr);
+    LOG_AGENT(INFO, agent, "iATU[%d].target_addr: 0x%" PRIx64, i, target_addr);
   }
 }
 bool iatuTranslate(bemu::System* chip, uint64_t pci_addr, uint64_t size, uint64_t& device_addr, uint64_t& access_size) {
   const auto& iatus = chip->memory.pcie0_get_iatus();
+
+  bemu::Noagent agent{chip, "SysEmuImp"};
 
   for (int i = 0; i < iatus.size(); i++) {
     // Check REGION_EN (bit[31])
@@ -138,7 +135,7 @@ bool iatuTranslate(bemu::System* chip, uint64_t pci_addr, uint64_t size, uint64_
 
     // Check MATCH_MODE (bit[30]) to be Address Match Mode (0)
     if (((iatus[i].ctrl_2 >> 30) & 1) != 0) {
-      LOG_NOTHREAD(FTL, "iATU[%d]: Unsupported MATCH_MODE", i);
+      LOG_AGENT(FTL, agent, "iATU[%d]: Unsupported MATCH_MODE", i);
     }
 
     uint64_t iatu_base_addr = (uint64_t)iatus[i].upper_base_addr << 32 | (uint64_t)iatus[i].lwr_base_addr;
@@ -163,7 +160,7 @@ bool iatuTranslate(bemu::System* chip, uint64_t pci_addr, uint64_t size, uint64_
 
 void SysEmuImp::set_system(bemu::System* system) {
   chip_ = system;
-  g_Agent.chip = system;
+  agent_.chip = system;
 }
 
 void SysEmuImp::process() {
@@ -188,14 +185,14 @@ void SysEmuImp::mmioRead(uint64_t address, size_t size, std::byte* dst) {
       uint64_t device_addr, access_size;
 
       if (!iatuTranslate(chip_, pci_addr, readSize, device_addr, access_size)) {
-        LOG_NOTHREAD(WARN, "iATU: Could not find translation for host address: 0x%" PRIx64 ", size: 0x%" PRIx64,
-                     pci_addr, readSize);
+        LOG_AGENT(WARN, agent_, "iATU: Could not find translation for host address: 0x%" PRIx64 ", size: 0x%" PRIx64,
+                  pci_addr, readSize);
         iatusPrint(chip_);
         break;
       }
 
       try {
-        chip_->memory.read(g_Agent, device_addr, access_size, dst + host_access_offset);
+        chip_->memory.read(agent_, device_addr, access_size, dst + host_access_offset);
       } catch (...) {
         p.set_exception(std::current_exception());
         return;
@@ -230,13 +227,13 @@ void SysEmuImp::mmioWrite(uint64_t address, size_t size, const std::byte* src) {
     while (readSize > 0) {
       uint64_t device_addr, access_size;
       if (!iatuTranslate(chip_, pci_addr, size, device_addr, access_size)) {
-        LOG_NOTHREAD(WARN, "iATU: Could not find translation for host address: 0x%" PRIx64 ", size: 0x%" PRIx64,
-                     pci_addr, size);
+        LOG_AGENT(WARN, agent_, "iATU: Could not find translation for host address: 0x%" PRIx64 ", size: 0x%" PRIx64,
+                  pci_addr, size);
         iatusPrint(chip_);
         break;
       }
       try {
-        chip_->memory.write(g_Agent, device_addr, access_size, src + host_access_offset);
+        chip_->memory.write(agent_, device_addr, access_size, src + host_access_offset);
       } catch (...) {
         p.set_exception(std::current_exception());
         return;
@@ -263,8 +260,8 @@ void SysEmuImp::mmioWrite(uint64_t address, size_t size, const std::byte* src) {
 void SysEmuImp::raiseDevicePuPlicPcieMessageInterrupt() {
   auto request = [=]() {
     SE_LOG(INFO) << "raiseDevicePuPlicPcieMessageInterrupt";
-    LOG_NOTHREAD(INFO, "SysEmuImp: raise_device_interrupt(type = %s)", "PU");
-    chip_->memory.pu_trg_pcie_mmm_int_inc(g_Agent);
+    LOG_AGENT(INFO, agent_, "raise_device_interrupt(type = %s)", "PU");
+    chip_->memory.pu_trg_pcie_mmm_int_inc(agent_);
   };
   std::lock_guard<std::mutex> lock(mutex_);
   requests_.emplace(std::move(request));
@@ -282,8 +279,8 @@ uint32_t SysEmuImp::waitForInterrupt(uint32_t bitmap) {
   return bitmap;
 }
 bool SysEmuImp::raise_host_interrupt(uint32_t bitmap) {
-  LOG_NOTHREAD(INFO, "SysEmuImp: Raise Host (Count: %" PRId64 ") Interrupt Bitmap: (0x%" PRIx32 ")",
-               ++raised_interrupt_count_, bitmap);
+  LOG_AGENT(INFO, agent_, "Raise Host (Count: %" PRId64 ") Interrupt Bitmap: (0x%" PRIx32 ")",
+            ++raised_interrupt_count_, bitmap);
   std::lock_guard<std::mutex> lock(mutex_);
   pendingInterruptsBitmask_ |= bitmap;
   condVar_.notify_all();
@@ -293,8 +290,8 @@ bool SysEmuImp::raise_host_interrupt(uint32_t bitmap) {
 void SysEmuImp::raiseDeviceSpioPlicPcieMessageInterrupt() {
   auto request = [=]() {
     SE_LOG(INFO) << "raiseDeviceSpioPlicPcieMessageInterrupt";
-    LOG_NOTHREAD(INFO, "SysEmuImp: raise_device_interrupt(type = %s)", "SP");
-    chip_->memory.pu_trg_pcie_ipi_trigger(g_Agent);
+    LOG_AGENT(INFO, agent_, "raise_device_interrupt(type = %s)", "SP");
+    chip_->memory.pu_trg_pcie_ipi_trigger(agent_);
   };
   std::lock_guard<std::mutex> lock(mutex_);
   requests_.emplace(std::move(request));
@@ -302,7 +299,7 @@ void SysEmuImp::raiseDeviceSpioPlicPcieMessageInterrupt() {
 
 bool SysEmuImp::host_memory_read(uint64_t host_addr, uint64_t size, void* data) {
   if (!hostListener_) {
-    LOG_NOTHREAD(WARN, "%s: can't read host memory without hostListener", "SysEmuImp");
+    LOG_AGENT(WARN, agent_, "can't read host memory without hostListener (addr=0x%" PRIx64 ")", host_addr);
     return false;
   }
   hostListener_->memoryReadFromHost(host_addr, size, reinterpret_cast<std::byte*>(data));
@@ -311,7 +308,7 @@ bool SysEmuImp::host_memory_read(uint64_t host_addr, uint64_t size, void* data) 
 
 bool SysEmuImp::host_memory_write(uint64_t host_addr, uint64_t size, const void* data) {
   if (!hostListener_) {
-    LOG_NOTHREAD(WARN, "%s: can't write host memory without hostListener", "SysEmuImp");
+    LOG_AGENT(WARN, agent_, "can't write host memory without hostListener (addr=0x%" PRIx64 ")", host_addr);
     return false;
   }
   hostListener_->memoryWriteFromHost(host_addr, size, reinterpret_cast<const std::byte*>(data));
@@ -319,7 +316,7 @@ bool SysEmuImp::host_memory_write(uint64_t host_addr, uint64_t size, const void*
 }
 
 void SysEmuImp::notify_iatu_ctrl_2_reg_write(int pcie_id, uint32_t iatu, uint32_t value) {
-  LOG_NOTHREAD(DEBUG, "SysEmuImp::notify_iatu_ctrl_2_reg_write: %d, 0x%x, 0x%x", pcie_id, iatu, value);
+  LOG_AGENT(DEBUG, agent_, "notify_iatu_ctrl_2_reg_write: %d, 0x%x, 0x%x", pcie_id, iatu, value);
   // We only care about PCIE0
   // This expects the latest iATU to be configured by BL2 to be iATU 3:
   //   https://gitlab.esperanto.ai/software/device-bootloaders/-/blob/master/shared/src/pcie_init.c#L644
@@ -421,13 +418,12 @@ SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>
 
   opts.elf_files = preloadElfs;
   opts.mem_check = options.memcheck;
+  opts.log_path = options.logFile;
 
-  sysEmuThread_ = std::thread([opts, this, logfile = options.logFile]() {
+  sysEmuThread_ = std::thread([opts, this]() {
     try {
       SE_LOG(INFO) << "Starting sysemu thread " << std::this_thread::get_id();
-      std::ofstream log{logfile};
-      bemu::log.setOutputStream(&log);
-      logSysEmuOptions(log, opts);
+      logSysEmuOptions(opts);
       sys_emu emu(opts, this);
       emu.main_internal();
       SE_LOG(INFO) << "Ending sysemu thread " << std::this_thread::get_id();

@@ -13,6 +13,7 @@
 #include "sw-sysemu/ISysEmu.h"
 #include "sys_emu.h"
 #include "system.h"
+#include "agent.h"
 #include <condition_variable>
 #include <functional>
 #include <future>
@@ -45,9 +46,10 @@ public:
   SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>& barAddresses, IHostListener* hostListener);
 
 private:
-  bemu::System* chip_;
+  bemu::System* chip_ = nullptr;
   std::thread sysEmuThread_;
   std::exception_ptr sysEmuError_ = nullptr;
+  bemu::Noagent agent_{chip_, "SysEmuImp"};
 
   std::mutex mutex_;
   bool running_ = true;
