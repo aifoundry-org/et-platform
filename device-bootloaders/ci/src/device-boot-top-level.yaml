@@ -53,3 +53,10 @@ stages:
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"
+
+  JOB_FULL_BOOT_BUILD:
+    cmds:
+      - job: sw-platform/system-sw-integration/pipelines/device-full-boot-build
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"
