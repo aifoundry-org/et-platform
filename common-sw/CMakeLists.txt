@@ -17,6 +17,14 @@ list(APPEND CMAKE_PREFIX_PATH ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY
 message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 message(STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
 
+option(ENABLE_STRICT_BUILD_TYPES "Project configuration should fail if build_type is not one of the allowed values: Debug Release RelWithDebInfo MinSizeRel" ON)
+set(ET_DEFAULT_BUILD_TYPE Release)
+include(CommonProjectSettings)
+
+option(ENABLE_WARNINGS_AS_ERRORS "Targets should treat warnings as errors" OFF)
+include(CompilerWarnings)
+
+
 add_subdirectory(logging)
 add_subdirectory(debug)
 

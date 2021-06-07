@@ -25,6 +25,7 @@ add_library(logging
 )
 add_library(hostUtils::logging ALIAS logging)
 target_compile_features(logging INTERFACE cxx_std_17)
+target_set_project_warnings(logging)
 target_include_directories(logging
     PUBLIC
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
