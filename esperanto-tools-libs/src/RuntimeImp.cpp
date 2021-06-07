@@ -289,7 +289,6 @@ bool RuntimeImp::waitForStream(StreamId stream, std::chrono::milliseconds timeou
 }
 
 std::vector<int> RuntimeImp::getDevicesWithEventsOnFly() const {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
   auto events = eventManager_.getOnflyEvents();
   std::vector<int> busyDevices;
   for (auto& [key, s] : streams_) {
