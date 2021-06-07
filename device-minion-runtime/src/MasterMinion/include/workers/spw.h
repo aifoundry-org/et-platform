@@ -1,6 +1,6 @@
 /***********************************************************************
 *
-* Copyright (C) 2020 Esperanto Technologies Inc.
+* Copyright (C) 2021 Esperanto Technologies Inc.
 * The copyright to the computer program(s) herein is the
 * property of Esperanto Technologies, Inc. All Rights Reserved.
 * The program(s) may be used and/or copied only with
@@ -9,22 +9,23 @@
 * agreement/contract under which the program(s) have been supplied.
 *
 ************************************************************************/
-/*! \file dispatcher.h
-    \brief A C header that defines the Dispatcher component's public
-    interfaces.
+/***********************************************************************/
+/*! \file spw.h
+    \brief A C header that defines the Service Processor Worker's
+    public interfaces.
 */
 /***********************************************************************/
-#ifndef DISPATCHER_DEFS_H
-#define DISPATCHER_DEFS_H
+#ifndef SPW_DEFS_H
+#define SPW_DEFS_H
 
-#include "common_defs.h"
 #include "config/mm_config.h"
+#include "common_defs.h"
 
-/*! \fn void Dispatcher_Launch(void)
-    \brief Launch a dispatcher instance on HART ID requested
-    \param hart_id HART ID to launch the dispatcher
+/*! \fn void SPW_Launch(uint32_t hart_id)
+    \brief Launch the Service Processor Queue Worker
+    \param hart_id HART ID on which the Service Processor Queue Worker should be launched
     \return none
 */
-void Dispatcher_Launch(uint32_t hart_id);
+void SPW_Launch(uint32_t hart_id);
 
-#endif /* DISPATCHER_DEFS_H */
+#endif /* SPW_DEFS_H */

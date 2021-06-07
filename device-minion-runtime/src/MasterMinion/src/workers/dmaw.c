@@ -183,7 +183,7 @@ int8_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id, uint8_t sqw_
     /* If timeout occurs then report this event to SP. */
     if(!channel_reserved)
     {
-        MM2SP_Report_Error(MM_SQ_WORKER, DMAW_FIND_CHAN_TIMEOUT_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE, MM_DMA_TIMEOUT_ERROR);
     }
 
     /* Reset the timeout flag */
@@ -244,7 +244,7 @@ int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id, uint8_t sqw
     /* If timeout occurs then report this event to SP. */
     if(!channel_reserved)
     {
-        MM2SP_Report_Error(MM_SQ_WORKER, DMAW_FIND_CHAN_TIMEOUT_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE, MM_DMA_TIMEOUT_ERROR);
     }
 
     /* Reset the timeout flag */
@@ -349,6 +349,8 @@ int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id, struct device_ops_dma_w
         atomic_store_local_64(
             &DMAW_Read_CB.chan_status_cb[rd_ch_idx].status.raw_u64,
             chan_status.raw_u64);
+
+        SP_Iface_Report_Error(MM_RECOVERABLE, MM_DMA_CONFIG_ERROR);
     }
 
     return status;
@@ -455,7 +457,7 @@ int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id, struct device_ops_dma_
             &DMAW_Write_CB.chan_status_cb[wrt_ch_idx].status.raw_u64,
             chan_status.raw_u64);
 
-        MM2SP_Report_Error(MM_SQ_WORKER, CQ_PUSH_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE, MM_DMA_CONFIG_ERROR);
     }
 
     return status;
@@ -657,7 +659,7 @@ void DMAW_Launch(uint32_t hart_id)
                         else
                         {
                             Log_Write(LOG_LEVEL_ERROR, "DMAW:HostIface:Push:Failed\r\n");
-                            MM2SP_Report_Error(MM_DMA_WORKER, CQ_PUSH_ERROR);
+                            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
                         }
                     }
                 }
@@ -728,7 +730,7 @@ void DMAW_Launch(uint32_t hart_id)
                     else
                     {
                         Log_Write(LOG_LEVEL_ERROR, "DMAW:HostIface:Push:Failed\r\n");
-                        MM2SP_Report_Error(MM_DMA_WORKER, CQ_PUSH_ERROR);
+                        SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
                     }
                 }
             }
@@ -839,7 +841,7 @@ void DMAW_Launch(uint32_t hart_id)
                         else
                         {
                             Log_Write(LOG_LEVEL_ERROR, "DMAW:HostIface:Push:Failed\r\n");
-                            MM2SP_Report_Error(MM_DMA_WORKER, CQ_PUSH_ERROR);
+                            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
                         }
                     }
                 }
@@ -910,7 +912,7 @@ void DMAW_Launch(uint32_t hart_id)
                     else
                     {
                         Log_Write(LOG_LEVEL_ERROR, "DMAW:HostIface:Push:Failed\r\n");
-                        MM2SP_Report_Error(MM_DMA_WORKER, CQ_PUSH_ERROR);
+                        SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
                     }
                 }
             }

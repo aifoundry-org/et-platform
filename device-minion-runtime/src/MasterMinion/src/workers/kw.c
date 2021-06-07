@@ -232,7 +232,7 @@ static kernel_instance_t* kw_reserve_kernel_slot(uint8_t sqw_idx, uint8_t *slot_
         /* If timeout occurs then report this event to SP. */
         if(!slot_reserved)
         {
-            MM2SP_Report_Error(MM_KERNEL_WORKER, DMAW_FIND_CHAN_TIMEOUT_ERROR);
+            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM_RESERVE_SLOT_ERROR);
         }
 
         /* Free the registered SW Timeout slot */
@@ -335,11 +335,11 @@ static int8_t kw_reserve_kernel_shires(uint8_t sqw_idx, uint64_t req_shire_mask)
             /* If timeout occurs then report this event to SP. */
             if(timeout)
             {
-                MM2SP_Report_Error(MM_KERNEL_WORKER, DMAW_FIND_CHAN_TIMEOUT_ERROR);
+                SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM_RESERVE_TIMEOUT_ERROR);
             }
             else
             {
-                MM2SP_Report_Error(MM_KERNEL_WORKER, KW_RESERVE_CM_ERROR);
+                SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM_RESERVE_SLOT_ERROR);
             }
         }
     }
@@ -513,7 +513,7 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
             kw_unreserve_kernel_slot(kernel);
 
             Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:MM2CMLaunch:CommandMulticast:Failed\r\n");
-            MM2SP_Report_Error(MM_SQ_WORKER, KW_MM2CM_CMD_ERROR);
+            SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
         }
     }
 
@@ -582,7 +582,7 @@ int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
         else
         {
             abort_rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_ERROR;
-            MM2SP_Report_Error(MM_SQ_WORKER, KW_MM2CM_CMD_ERROR);
+            SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
             Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:MM2CMAbort:CommandMulticast:Failed\r\n");
         }
 
@@ -596,7 +596,7 @@ int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
         }
         else
         {
-            MM2SP_Report_Error(MM_SQ_WORKER, CQ_PUSH_ERROR);
+            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
             Log_Write(LOG_LEVEL_ERROR, "KW:Push:KERNEL_ABORT_CMD_RSP:Failed\r\n");
         }
 
@@ -786,7 +786,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                 if(status_hang_abort != STATUS_SUCCESS)
                 {
                     /* TODO: SW-6569: Do the reset of the shires involved in kernel launch. */
-                    MM2SP_Report_Error(MM_KERNEL_WORKER, KW_MM2CM_CMD_ERROR);
+                    SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
                     Log_Write(LOG_LEVEL_ERROR, "KW:MM->CM:Abort hanged, doing reset of shires.\r\n");
                 }
 
@@ -804,7 +804,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                 if ((status != CIRCBUFF_ERROR_BAD_LENGTH) &&
                     (status != CIRCBUFF_ERROR_EMPTY))
                 {
-                    MM2SP_Report_Error(MM_KERNEL_WORKER, KW_CM2MM_CMD_ERROR);
+                    SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM2MM_CMD_ERROR);
                     Log_Write(LOG_LEVEL_ERROR,
                         "KW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n", status);
                 }
@@ -863,7 +863,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 
                                 if(status_internal != STATUS_SUCCESS)
                                 {
-                                    MM2SP_Report_Error(MM_KERNEL_WORKER, KW_MM2CM_CMD_ERROR);
+                                    SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
                                 }
                             }
 
@@ -892,7 +892,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 
                         if(status_internal != STATUS_SUCCESS)
                         {
-                            MM2SP_Report_Error(MM_KERNEL_WORKER, KW_MM2CM_CMD_ERROR);
+                            SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
                         }
 
                         /* Set error and done flag */
@@ -984,7 +984,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         else
         {
             Log_Write(LOG_LEVEL_ERROR, "KW:Push:Failed\r\n");
-            MM2SP_Report_Error(MM_KERNEL_WORKER, CQ_PUSH_ERROR);
+            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
         }
 
         /* Decrement commands count being processed by given SQW */

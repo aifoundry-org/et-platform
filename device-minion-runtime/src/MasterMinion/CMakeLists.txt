@@ -24,6 +24,7 @@ add_riscv_executable(MasterMinion
     src/build_configuration.c
     src/config/dir_regs.c
     src/dispatcher/dispatcher.c
+    src/workers/spw.c
     src/workers/sqw.c
     src/workers/dmaw.c
     src/workers/kw.c

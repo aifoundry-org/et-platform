@@ -22,11 +22,41 @@
 #include "sp_mm_iface.h" /* header from shared/helper lib */
 #include "sp_mm_comms_spec.h"
 
+/*! \def TIMEOUT_SP_IFACE_RESPONSE
+    \brief Timeout value for SP response wait
+*/
+#define TIMEOUT_SP_IFACE_RESPONSE          1
+
+/*! \def SP_IFACE_MM_HEARTBEAT_INTERVAL
+    \brief Periodic Interval value after which a heartbeat is sent to SP
+*/
+#define SP_IFACE_MM_HEARTBEAT_INTERVAL     1
+
+/*! \def SP_IFACE_INVALID_SHIRE_MASK
+    \brief SP iface error code - Invalid shire mask
+*/
+#define SP_IFACE_INVALID_SHIRE_MASK       -1
+
+/*! \def SP_IFACE_INVALID_BOOT_FREQ
+    \brief SP iface error code - Invalid boot frequency
+*/
+#define SP_IFACE_INVALID_BOOT_FREQ        -2
+
+/*! \def SP_IFACE_TIMEOUT_REGISTER_FAILED
+    \brief SP iface error code - Timer resgistration failure
+*/
+#define SP_IFACE_TIMER_REGISTER_FAILED    -3
+
+/*! \def SP_IFACE_TIMEOUT_REGISTER_FAILED
+    \brief SP iface error code - SP response timeout occurred
+*/
+#define SP_IFACE_SP_RSP_TIMEDOUT          -4
+
 /*! \fn int8_t SP_Iface_Init(void)
     \brief Initialize Mm interface to Service Processor (SP)
     \return Status indicating success or negative error
 */
-#define SP_Iface_Init()   SP_MM_Iface_Init()
+int8_t SP_Iface_Init(void);
 
 /*! \fn int8_t SP_Iface_Push_Cmd_To_MM2SP_SQ(void* p_cmd, uint32_t cmd_size)
     \brief Push command to Master Minion (MM) to Service Processor (SP)
@@ -74,14 +104,32 @@
 */
 int8_t SP_Iface_Processing(void);
 
-/*! \fn void MM2SP_Report_Error(enum mm2sp_worker_type_e worker,
-                                        enum mm2sp_error_codes_e error)
-    \brief This function sends given error to Service Processor.
-           TODO: Move this function to MM error handler component.
-    \param worker Worker type where error has occurred.
-    \param error Error code.
-    \return None
+/*! \fn int8_t SP_Iface_Get_Shire_Mask(uint64_t *shire_mask)
+    \brief A blocking API to obtain active compute shires mask from service processor
+    \param shire_mask Pointer to shire mask variable, as return arg.
+    \return Status indicating success or negative error
 */
-void MM2SP_Report_Error(enum mm2sp_worker_type_e worker, enum mm2sp_error_codes_e error);
+int8_t SP_Iface_Get_Shire_Mask(uint64_t *shire_mask);
+
+/*! \fn int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq)
+    \brief A blocking API to obtain ccompute minin boot frequency from service processor
+    \param boot_freq Pointer to boot frequency variable, as return arg.
+    \return Status indicating success or negative error
+*/
+int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq);
+
+/*! \fn int8_t SP_Iface_Report_Error(enum mm2sp_error_type_e error_type, int16_t error_code)
+    \brief A non-blocking API to report Master Minion error codes to Service Processor
+    \param error_type Error type
+    \param error_code Error Code
+    \return Status indicating success or negative error
+*/
+int8_t SP_Iface_Report_Error(enum mm2sp_error_type_e error_type, int16_t error_code);
+
+/*! \fn int8_t SP_Iface_Setup_MM_HeartBeat(void)
+    \brief This function initializes the MM->SP heartbeat with a periodic timer.
+    \return Status indicating success or negative error
+*/
+int8_t SP_Iface_Setup_MM_HeartBeat(void);
 
 #endif

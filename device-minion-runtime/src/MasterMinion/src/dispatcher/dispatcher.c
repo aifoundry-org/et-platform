@@ -33,7 +33,6 @@
         Field CM IPIs and dispatch handling of messages from CMs
 */
 /***********************************************************************/
-#include "minion_fw_boot_config.h"
 #include "config/dir_regs.h"
 #include "dispatcher/dispatcher.h"
 #include "workers/sqw.h"
@@ -48,7 +47,6 @@
 #include "services/sw_timer.h"
 #include "services/trace.h"
 #include "drivers/plic.h"
-#include "syscall_internal.h"
 #include "serial.h"
 #include "message_types.h"
 #include "sync.h"
@@ -64,14 +62,15 @@ extern bool SW_Timer_Interrupt_Flag;
 
 /* Local functions */
 
-static inline void dispatcher_assert(bool condition, enum mm2sp_error_codes_e error, const char* error_log)
+static inline void dispatcher_assert(bool condition, enum mm2sp_sp_recoverable_error_code_e error,
+    const char* error_log)
 {
     if (!condition)
     {
         /* Report error in DIRs */
         DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_FW_ERROR);
 
-        MM2SP_Report_Error(MM_DISPATCHER, error);
+        SP_Iface_Report_Error(SP_RECOVERABLE, error);
 
         /* Assert with failure */
         ASSERT(false, error_log);
@@ -108,17 +107,18 @@ void Dispatcher_Launch(uint32_t hart_id)
     /* Initialize Trace for Master Minions in default configuration. */
     Trace_Init_MM(NULL);
 
-    /* Initialize Service Processor interface, it consists;
+   /* Initialize Service Processor interface, it consists;
     1. MM to SP SQ, and MM to SQ CQ
     2. SP to MM SQ, and Sp to MM CQ */
     status = SP_Iface_Init();
-    dispatcher_assert(status == STATUS_SUCCESS, DISPATCHER_SP_IFACE_INIT_ERROR,
-                                                        "Service Processor init failure.");
+    dispatcher_assert(status == STATUS_SUCCESS, MM_SP_IFACE_INIT_ERROR,
+                                                "Service Processor init failure.");
 
     /* Initialize Serial Interface */
     status = (int8_t)SERIAL_init(UART0);
-    dispatcher_assert(status == STATUS_SUCCESS, DISPATCHER_SERIAL_INIT_ERROR,
-                                                            "Serial init failure.");
+    dispatcher_assert(status == STATUS_SUCCESS, MM_SERIAL_INIT_ERROR,
+                                                        "Serial init failure.");
+
     Log_Write(LOG_LEVEL_CRITICAL,
         "Dispatcher:launched on H%d\r\n", hart_id);
 
@@ -133,24 +133,38 @@ void Dispatcher_Launch(uint32_t hart_id)
         "Dispatcher:PLIC initialized\r\n");
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_INTERRUPT_INITIALIZED);
 
-    /* Reset PMC cycles counter */
+    /* Reset PMC cycles counter for all Harts
+    (can be even or odd depending upong hart ID) in the Neighbourhood */
     PMC_RESET_CYCLES_COUNTER;
 
     /* Initialize the interface to compute minion */
     status = CM_Iface_Init();
-    dispatcher_assert(status == STATUS_SUCCESS, DISPATCHER_CM_IFACE_INIT_ERROR,
-                                            "Compute Workers's interface init failure.");
+    dispatcher_assert(status == STATUS_SUCCESS, MM_CM_IFACE_INIT_ERROR,
+                                        "Compute Workers's interface init failure.");
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_CM_INTERFACE_READY);
+
+    /* Also enable waking from WFI on supervisor external and timer interrupts (IPIs),
+    Host interrupts go to the PLIC, which are received as external interrupts. */
+    asm volatile("csrs  sie, %0\n"
+            : : "r" ((1 << SUPERVISOR_EXTERNAL_INTERRUPT) |
+            (1 << SUPERVISOR_TIMER_INTERRUPT)));
+
+    /* Initialize SW Timer to register timeouts for commands */
+    status = SW_Timer_Init();
+    dispatcher_assert(status == SW_TIMER_OPERATION_SUCCESS, MM_CW_INIT_ERROR,
+                                                        "SW Timer init failure.");
+
+    /* Setup MM->SP Heartbeat */
+    status = SP_Iface_Setup_MM_HeartBeat();
+    dispatcher_assert(status == STATUS_SUCCESS, MM_CW_INIT_ERROR,
+                                                    "MM->SP Heartbeat init failure.");
 
     /* Initialize Computer Workers */
     status = CW_Init();
-    dispatcher_assert(status == STATUS_SUCCESS, DISPATCHER_CW_INIT_ERROR,
-                                                        "Compute Workers init failure.");
+    dispatcher_assert(status == STATUS_SUCCESS, MM_CW_INIT_ERROR,
+                                                    "Compute Workers init failure.");
 
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_CM_WORKERS_INITIALIZED);
-
-    /* Initialize SW Timer to register timeouts for commands */
-    SW_Timer_Init();
 
     /* Initialize Master Shire Workers */
     SQW_Init();
@@ -160,47 +174,14 @@ void Dispatcher_Launch(uint32_t hart_id)
 
     /* Initialize Host Submission Queue and Completion Queue Interface */
     status = Host_Iface_SQs_Init();
-    dispatcher_assert(status == STATUS_SUCCESS, DISPATCHER_SQ_INIT_ERROR,
-                                                                "Host SQs init failure.");
+    dispatcher_assert(status == STATUS_SUCCESS, MM_SQ_INIT_ERROR,
+                                                        "Host SQs init failure.");
 
     status = Host_Iface_CQs_Init();
-    dispatcher_assert(status == STATUS_SUCCESS, DISPATCHER_CQ_INIT_ERROR,
-                                                                "Host CQs init failure.");
+    dispatcher_assert(status == STATUS_SUCCESS, MM_CQ_INIT_ERROR,
+                                                        "Host CQs init failure.");
 
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_HOST_VQ_READY);
-
-    /* #define FOR_TESTING_SP_MM_IFACE */
-    #ifdef FOR_TESTING_SP_MM_IFACE //TODO: remove after proper integration
-
-    Log_Set_Level(LOG_LEVEL_DEBUG);
-
-    struct mm2sp_echo_cmd_t cmd;
-    cmd.msg_hdr.msg_id = MM2SP_CMD_ECHO;
-    cmd.msg_hdr.msg_size = sizeof(struct mm2sp_echo_cmd_t);
-    cmd.payload = 0xA5A5A5A5;
-
-    Log_Write(LOG_LEVEL_DEBUG, "Dispatcher: MM sends echo command 1 to SP ****\r\n");
-
-    SP_Iface_Push_Cmd_To_MM2SP_SQ(&cmd, sizeof(cmd));
-
-    #endif
-
-    /* #define FOR_TESTING_SP_MM_IFACE */
-    #ifdef FOR_TESTING_SP_MM_IFACE //TODO: remove after proper integration
-
-    Log_Set_Level(LOG_LEVEL_DEBUG);
-
-    struct mm2sp_echo_cmd_t cmd;
-    cmd.msg_hdr.msg_id = MM2SP_CMD_ECHO;
-    cmd.msg_hdr.msg_size = sizeof(struct mm2sp_echo_cmd_t);
-    cmd.payload = 0xA5A5A5A5;
-
-    Log_Write(LOG_LEVEL_DEBUG, "Dispatcher: MM sends echo command 1 to SP ****\r\n");
-
-    SP_Iface_Push_Cmd_To_MM2SP_SQ(&cmd, sizeof(cmd));
-
-    #endif
-
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_SP_INTERFACE_READY);
 
     /* Release Master Shire Workers */
@@ -214,12 +195,6 @@ void Dispatcher_Launch(uint32_t hart_id)
 
     Log_Write(LOG_LEVEL_DEBUG,
         "Dispatcher:Master Minion READY!\r\n");
-
-    /* Also enable waking from WFI on supervisor external and timer interrupts (IPIs),
-    Host interrupts go to the PLIC, which are received as external interrupts. */
-    asm volatile("csrs  sie, %0\n"
-                 : : "r" ((1 << SUPERVISOR_EXTERNAL_INTERRUPT) |
-                          (1 << SUPERVISOR_TIMER_INTERRUPT)));
 
     /* Wait for a message from the host, SP, worker minions etc. */
     while(1)
@@ -237,8 +212,6 @@ void Dispatcher_Launch(uint32_t hart_id)
         {
             /* Clear IPI pending interrupt */
             asm volatile("csrc sip, %0" : : "r"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
-
-            SP_Iface_Processing();
 
             /* Process the messages from Compute Minions */
             CW_Process_CM_SMode_Messages();

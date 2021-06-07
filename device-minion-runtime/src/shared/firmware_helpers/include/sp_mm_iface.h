@@ -18,6 +18,15 @@
 #define __SP_MM_IFACE_H__
 
 #include "common_defs.h"
+#include "sp_mm_comms_spec.h"
+
+/*! \def SP_MM_IFACE_INIT_MSG_HDR
+    \brief Helper to initialize msg header
+*/
+#define SP_MM_IFACE_INIT_MSG_HDR(hdr, id, size, hart_id)      \
+    ((struct dev_cmd_hdr_t *)hdr)->msg_id = id;               \
+    ((struct dev_cmd_hdr_t *)hdr)->msg_size = size;           \
+    ((struct dev_cmd_hdr_t *)hdr)->issuing_hart_id = hart_id;
 
 /* Supported SP to MM interface targets */
 enum sp_mm_target_t {
@@ -40,15 +49,15 @@ int8_t SP_MM_Iface_Init(void);
     \param cmd_size size of command to push
     \return Status indicating success or negative error
 */
-int8_t SP_MM_Iface_Push(uint8_t target, void* p_cmd, uint32_t cmd_size);
+int8_t SP_MM_Iface_Push(uint8_t target, void* p_buff, uint32_t size);
 
-/*! \fn int8_t SP_MM_Iface_Pop(uint8_t target, void* rx_buff)
+/*! \fn int32_t SP_MM_Iface_Pop(uint8_t target, void* rx_buff)
     \brief Pop command from specified SP to MM interface target
     \param target target SP to MM interface
     \param rx_buff Buffer to receive popped command or response message
     \return Status indicating success or negative error
 */
-int8_t SP_MM_Iface_Pop(uint8_t target, void* rx_buff);
+int32_t SP_MM_Iface_Pop(uint8_t target, void* rx_buff);
 
 /*! \fn bool SP_MM_Iface_Data_Available(uint8_t target)
     \brief Check if data is available on the specified SP to MM interface target

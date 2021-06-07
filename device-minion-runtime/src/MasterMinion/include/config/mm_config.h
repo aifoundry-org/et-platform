@@ -35,6 +35,7 @@
 #include <common_defs.h>
 #include "layout.h"
 #include "hal_device.h"
+#include "sp_mm_shared_config.h"
 
 /************************************************/
 /*      - PC_MM secure mailbox layout (4K) -    */
@@ -318,6 +319,17 @@
 */
 #define DISPATCHER_NUM           1
 
+/*! \def SPW_BASE_HART_ID
+    \brief Base HART ID for the SP worker
+*/
+#define SPW_BASE_HART_ID          SP2MM_CMD_NOTIFY_HART
+
+/*! \def SPW_NUM
+    \brief Number of SP Workers
+    \warning DO NOT MODIFY!
+*/
+#define SPW_NUM                  1
+
 /*! \def SQW_BASE_HART_ID
     \brief Base HART ID for the Submission Queue Worker
 */
@@ -353,34 +365,6 @@
 */
 #define DMAW_NUM                  2
 
-/***************************************************/
-/* Definitions to locate and manage MM to SP SQ/CQ */
-/***************************************************/
-/* TODO: This data is same as data defined/used by sp_mm_iface in SP BL2 runtime,
-move this defined to a abstraction common to SP and MM runtimes*/
-
-#define     SP2MM_SQ_BASE        R_PU_MBOX_MM_SP_BASEADDR
-#define     SP2MM_SQ_COUNT       10U
-#define     SP2MM_SQ_SIZE        256 /* 1 KB */
-#define     SP2MM_SQ_MEM_TYPE    UNCACHED
-
-#define     SP2MM_CQ_BASE        (SP2MM_SQ_BASE + SP2MM_SQ_SIZE)
-#define     SP2MM_CQ_SIZE        256U
-#define     SP2MM_CQ_COUNT       10U
-#define     SP2MM_CQ_MEM_TYPE    UNCACHED
-
-#define     MM2SP_SQ_BASE        (SP2MM_CQ_BASE + SP2MM_CQ_SIZE)
-#define     MM2SP_SQ_SIZE        256U
-#define     MM2SP_SQ_COUNT       10U
-#define     MM2SP_SQ_MEM_TYPE    UNCACHED
-
-#define     MM2SP_CQ_BASE        (MM2SP_SQ_BASE + MM2SP_SQ_SIZE)
-#define     MM2SP_CQ_SIZE        256U
-#define     MM2SP_CQ_COUNT       10U
-#define     MM2SP_CQ_MEM_TYPE    UNCACHED
-
-#define     MM_SP_CMD_SIZE       64
-
 /************************/
 /* Compile-time checks  */
 /************************/
@@ -401,6 +385,10 @@ static_assert(MM_SQ_COUNT <= MM_SQ_MAX_SUPPORTED,
 /* Ensure that MM SQs and CQs size is within limits */
 static_assert(((MM_SQ_COUNT * MM_SQ_SIZE) + (MM_CQ_COUNT * MM_CQ_SIZE)) <= MM_VQ_SIZE,
     "MM VQs size not within limits.");
+
+/* Ensure that SPW Hart ID is unique */
+static_assert((SPW_BASE_HART_ID > DISPATCHER_BASE_HART_ID) && (SPW_BASE_HART_ID < SQW_BASE_HART_ID),
+    "SP Worker Hart ID overlapping");
 
 #endif /* __ASSEMBLER__ */
 

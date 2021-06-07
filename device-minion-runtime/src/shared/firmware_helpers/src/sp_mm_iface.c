@@ -22,6 +22,7 @@
 /***********************************************************************/
 #include "sp_mm_iface.h"
 #include "sp_mm_shared_config.h"
+#include "sp_mm_comms_spec.h"
 #include "device-common/esr_defines.h"
 #include "hal_device.h"
 #include "vq.h"
@@ -56,25 +57,38 @@ static sp_iface_cb_t MM_SP_SQ __attribute__((aligned(64))) = {0};
 */
 static sp_iface_cb_t MM_SP_CQ __attribute__((aligned(64))) = {0};
 
-static void notify(uint8_t target);
-
-static void notify(uint8_t target)
+static inline void notify(uint8_t target, int32_t issuing_hart_id)
 {
+    uint64_t target_hart_msk = 0;;
+
     switch (target)
     {
         case    SP_SQ: /* MM notifies SP - push to SP SQ */
         case    MM_CQ: /* MM notifies SP - push to SP CQ */
         {
-            /* Send IPI to Shire 32 HART 0 */
+            if(issuing_hart_id != -1)
+            {
+                target_hart_msk = (uint64_t)
+                    (1 << (issuing_hart_id - MM_BASE_HART_OFFSET));
+            }
+            else
+            {
+                target_hart_msk = 1;
+            }
+
             volatile uint64_t *const ipi_trigger_ptr =
                 (volatile uint64_t *)ESR_SHIRE(32, IPI_TRIGGER);
-            *ipi_trigger_ptr = 1;
+            *ipi_trigger_ptr = target_hart_msk;
             break;
         }
         case    SP_CQ: /* SP notifies MM - push to SP CQ */
+        {
+            /* Do nothing */
+            break;
+        }
         case    MM_SQ: /* SP notifies MM - push to MM SQ */
         {
-             /* Notify SP using PLIC */
+            /* Notify SP using PLIC */
             volatile uint32_t *const ipi_trigger_ptr =
                 (volatile uint32_t *)(R_PU_TRG_MMIN_BASEADDR);
             *ipi_trigger_ptr = 1;
@@ -186,32 +200,38 @@ int8_t SP_MM_Iface_Init(void)
 *       status      success or error code
 *
 ***********************************************************************/
-int8_t SP_MM_Iface_Push(uint8_t target, void* p_cmd,
-    uint32_t cmd_size)
+int8_t SP_MM_Iface_Push(uint8_t target, void* p_buff,
+    uint32_t size)
 {
     vq_cb_t *p_vq_cb = 0;
     int8_t status = 0;
+    int32_t issuing_hart_id = -1;
+    struct dev_cmd_hdr_t *rsp = p_buff;
 
     switch (target)
     {
         case    SP_SQ:
         {
             p_vq_cb = &SP_MM_SQ.vqueue;
+            issuing_hart_id = rsp->issuing_hart_id;
             break;
         }
         case    SP_CQ:
         {
             p_vq_cb = &SP_MM_CQ.vqueue;
+            issuing_hart_id = -1;
             break;
         }
         case    MM_SQ:
         {
             p_vq_cb = &MM_SP_SQ.vqueue;
+            issuing_hart_id = -1;
             break;
         }
         case    MM_CQ:
         {
             p_vq_cb = &MM_SP_CQ.vqueue;
+            issuing_hart_id = rsp->issuing_hart_id;
             break;
         }
         default:
@@ -223,11 +243,11 @@ int8_t SP_MM_Iface_Push(uint8_t target, void* p_cmd,
 
     if(p_vq_cb != 0)
     {
-        status = VQ_Push(p_vq_cb, p_cmd, cmd_size);
+        status = VQ_Push(p_vq_cb, p_buff, size);
 
         if(!status)
         {
-            notify(target);
+            notify(target, issuing_hart_id);
         }
     }
 
@@ -254,7 +274,7 @@ int8_t SP_MM_Iface_Push(uint8_t target, void* p_cmd,
 *       status      success or error code
 *
 ***********************************************************************/
-int8_t SP_MM_Iface_Pop(uint8_t target, void* rx_buff)
+int32_t SP_MM_Iface_Pop(uint8_t target, void* rx_buff)
 {
     vq_cb_t *p_vq_cb = 0;
     int32_t retval = 0;
@@ -292,7 +312,7 @@ int8_t SP_MM_Iface_Pop(uint8_t target, void* rx_buff)
         retval = VQ_Pop(p_vq_cb, rx_buff);
     }
 
-    return ((int8_t) retval);
+    return (retval);
 }
 
 /************************************************************************
@@ -352,4 +372,3 @@ bool SP_MM_Iface_Data_Available(uint8_t target)
 
     return result;
 }
-

@@ -29,11 +29,11 @@
 /***********************************************************************/
 #include "device-common/atomic.h"
 #include "common_defs.h"
-#include "minion_fw_boot_config.h"
 #include "layout.h"
 #include "workers/cw.h"
 #include "services/cm_iface.h"
 #include "services/log.h"
+#include "services/sp_iface.h"
 #include "device-common/syscall.h"
 #include "syscall_internal.h"
 #include "message_types.h"
@@ -78,18 +78,16 @@ static cw_cb_t CW_CB __attribute__((aligned(64))) = {0};
 int8_t CW_Init(void)
 {
     uint64_t sip;
-    uint64_t shire_mask;
+    uint64_t shire_mask = 0;
     uint64_t booted_shires_mask = 0ULL;
     int8_t status = STATUS_SUCCESS;
 
-    minion_fw_boot_config_t *minion_fw_boot_config;
-
-    /* Obtain the number of shires to be used from the boot
-    configuration and initialize the CW control block */
-    minion_fw_boot_config =
-        (minion_fw_boot_config_t*)FW_MINION_FW_BOOT_CONFIG;
-    shire_mask =
-        minion_fw_boot_config->minion_shires & ((1ULL << NUM_SHIRES)-1);
+    /* Obtain the number of shires to be used from SP and initialize the CW control block */
+    status = SP_Iface_Get_Shire_Mask(&shire_mask);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
 
     /* Initialize Global CW_CB */
     atomic_store_local_64(&CW_CB.physically_avail_shires_mask,

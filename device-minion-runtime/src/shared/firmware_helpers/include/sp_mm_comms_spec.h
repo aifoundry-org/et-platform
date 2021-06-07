@@ -8,12 +8,48 @@
  * agreement/contract under which the program(s) have been supplied.
  ------------------------------------------------------------------------------ */
 
-// WARNING: this file is auto-generated do not edit directly
-
-#ifndef MM_SP_CMD_SPEC_H
-#define MM_SP_CMD_SPEC_H
+#ifndef SP_MM_COMMS_SPEC_H
+#define SP_MM_COMMS_SPEC_H
 
 #include <inttypes.h>
+
+/***************/
+/* For these errors, mm will just inform SP and SP will increment the counter.
+When the threshold is hit on SP side, SP will inform the Host */
+enum mm2sp_mm_recoverable_error_code_e {
+    MM_HANG_ERROR                = -1,
+    MM_EXCEPTION_ERROR           = -2,
+    MM_DMA_CONFIG_ERROR          = -3,
+    MM_DMA_TIMEOUT_ERROR         = -4,
+    MM_KERNEL_LAUNCH_ERROR       = -5,
+    MM_CQ_PUSH_ERROR             = -6,
+    MM_SQ_PROCESSING_ERROR       = -7,
+    MM_SQ_BUFFER_ALIGNMENT_ERROR = -8,
+    MM_CMD_BARRIER_TIMEOUT_ERROR = -9,
+    MM_CM_RESERVE_SLOT_ERROR     = -10,
+    MM_CM_RESERVE_TIMEOUT_ERROR  = -11,
+    MM_MM2CM_CMD_ERROR           = -12,
+    MM_CM2MM_CMD_ERROR           = -13
+};
+
+/* For the errors, mm is not able to recover from error state, so it will require intervention
+from SP and perform the reset sequence */
+enum mm2sp_sp_recoverable_error_code_e {
+    MM_CM2MM_MM_HANG             = -1,
+    MM_CM_IFACE_INIT_ERROR       = -2,
+    MM_SP_IFACE_INIT_ERROR       = -3,
+    MM_CW_INIT_ERROR             = -4,
+    MM_SERIAL_INIT_ERROR         = -5,
+    MM_CQ_INIT_ERROR             = -6,
+    MM_SQ_INIT_ERROR             = -7
+};
+
+enum mm2sp_error_type_e {
+    MM_RECOVERABLE               = 0,
+    SP_RECOVERABLE
+};
+
+/***************/
 
 enum mm_sp_msg_e {
     MM2SP_CMD_OFFSET = 128,
@@ -23,8 +59,8 @@ enum mm_sp_msg_e {
     MM2SP_RSP_GET_ACTIVE_SHIRE_MASK,
     MM2SP_CMD_GET_CM_BOOT_FREQ,
     MM2SP_RSP_GET_CM_BOOT_FREQ,
-    MM2SP_CMD_REPORT_EXCEPTION_ERROR,
-    MM2SP_CMD_REPORT_HANG_ERROR
+    MM2SP_EVENT_REPORT_ERROR, /* this is more flexible, the payload now can report error codes in a scalable fashion */
+    MM2SP_EVENT_HEARTBEAT
 };
 
 enum sp_mm_msg_e {
@@ -49,7 +85,7 @@ fields */
 struct dev_cmd_hdr_t {
   uint16_t msg_size;
   uint16_t msg_id;
-  uint8_t pad[4];
+  int32_t issuing_hart_id; /* Used by MM to SP commands only */
 };
 
 struct mm2sp_echo_cmd_t {
@@ -80,10 +116,15 @@ struct mm2sp_get_cm_boot_freq_rsp_t {
   uint32_t  cm_boot_freq;
 };
 
-struct mm2sp_report_error_cmd_t {
+struct mm2sp_report_error_event_t {
   struct dev_cmd_hdr_t  msg_hdr;
   uint16_t error_type;
-  uint8_t worker_type; /* Source worker type of the error from where it is originated. */
+  int16_t error_code;
+};
+
+struct mm2sp_heartbeat_event_t {
+  struct dev_cmd_hdr_t  msg_hdr;
+  uint64_t minion_cycles;
 };
 
 struct sp2mm_echo_cmd_t {
@@ -134,5 +175,10 @@ struct sp2mm_kernel_launch_rsp_t {
   struct dev_cmd_hdr_t  msg_hdr;
   int32_t  status; /* TODO: Define status as a enum once all error states are defined */
 };
+
+/* Helper macros to construct MM to SP commands */
+#define MM2SP_CMD(cmd_var, cmd_id, cmd_size, issuing_hart_id) \
+    cmd_var.msg_hdr.msg_id = cmd_id; cmd_var.msg_hdr.msg_size = cmd_size; \
+    cmd_var.msg_hdr.issuing_hart_id = (uint16_t) issuing_hart_id
 
 #endif /* MM_SP_CMD_SPEC_H */

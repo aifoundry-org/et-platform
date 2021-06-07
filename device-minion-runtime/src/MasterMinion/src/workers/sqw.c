@@ -134,7 +134,7 @@ static inline void sqw_command_barrier(uint8_t sqw_idx)
 
             /* TODO: Send asynchronous event back to host to indicate barrier timeout. */
 
-            MM2SP_Report_Error(MM_SQ_WORKER, SQW_CMD_BARRIER_TIMEOUT_ERROR);
+            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CMD_BARRIER_TIMEOUT_ERROR);
         }
     }
 }
@@ -258,14 +258,14 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
     if (!(IS_ALIGNED(&circ_buff_cached.head_offset, 8) && IS_ALIGNED(&vq_cached.circbuff_cb->head_offset, 8)))
     {
         Log_Write(LOG_LEVEL_ERROR, "SQW:SQ HEAD not 64-bit aligned\r\n");
-        MM2SP_Report_Error(MM_SQ_WORKER, SQW_SQ_BUFFER_ALIGNMENT_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_BUFFER_ALIGNMENT_ERROR);
     }
 
     /* Verify that the tail pointer in cached variable and shared SRAM are 8-byte aligned addresses */
     if (!(IS_ALIGNED(&circ_buff_cached.tail_offset, 8) && IS_ALIGNED(&vq_cached.circbuff_cb->tail_offset, 8)))
     {
         Log_Write(LOG_LEVEL_ERROR, "SQW:SQ tail not 64-bit aligned\r\n");
-        MM2SP_Report_Error(MM_SQ_WORKER, SQW_SQ_BUFFER_ALIGNMENT_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_BUFFER_ALIGNMENT_ERROR);
     }
 
     /* Update the local VQ CB to point to the cached L1 stack variable */
@@ -300,7 +300,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
             "SQW:FATAL_ERROR:Tail Mismatch:Cached: %ld, Shared Memory: %ld Using cached value as fallback mechanism\r\n",
             tail_prev, VQ_Get_Tail_Offset(&vq_cached));
 
-            MM2SP_Report_Error(MM_SQ_WORKER, SQW_SQ_PROCESSING_ERROR);
+            SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_PROCESSING_ERROR);
 
             /* TODO: Fallback mechanism: use the cached copy of SQ tail */
             vq_cached.circbuff_cb->tail_offset = tail_prev;
@@ -346,7 +346,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
             {
                 Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:VQ pop failed.(Error code: %d)\r\n",
                     pop_ret_val);
-                MM2SP_Report_Error(MM_SQ_WORKER, SQW_SQ_PROCESSING_ERROR);
+                SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_PROCESSING_ERROR);
             }
 
             /* Set the SQ tail update flag so that we can updated shared

@@ -21,39 +21,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/*!
-*  Types of worker harts which can report error to SP.
-*/
-enum mm2sp_worker_type_e {
-    MM_DISPATCHER=0,
-    MM_KERNEL_WORKER,
-    MM_DMA_WORKER,
-    MM_SQ_WORKER,
-    CM_RUNTIME,
-    CM_USER_KERNEL
-};
-
-/*!
-*  Error codes for error events which are reported to SP.
-*/
-enum mm2sp_error_codes_e {
-    NO_ERROR=0,
-    CQ_PUSH_ERROR,
-    DISPATCHER_SQ_INIT_ERROR,
-    DISPATCHER_CQ_INIT_ERROR,
-    DISPATCHER_CM_IFACE_INIT_ERROR,
-    DISPATCHER_SP_IFACE_INIT_ERROR,
-    DISPATCHER_CW_INIT_ERROR,
-    DISPATCHER_SERIAL_INIT_ERROR,
-    SQW_CMD_BARRIER_TIMEOUT_ERROR,
-    SQW_SQ_PROCESSING_ERROR,
-    SQW_SQ_BUFFER_ALIGNMENT_ERROR,
-    DMAW_FIND_CHAN_TIMEOUT_ERROR,
-    KW_RESERVE_CM_ERROR,
-    KW_MM2CM_CMD_ERROR,
-    KW_CM2MM_CMD_ERROR
-};
-
 #if defined(MASTER_MINION)
 /*! \def ASSERT(cond, log)
     \brief A blocking assertion macro with serial log for Master Minion runtime

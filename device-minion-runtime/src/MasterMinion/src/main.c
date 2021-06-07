@@ -24,6 +24,7 @@
 ***********************************************************************/
 #include "common_defs.h"
 #include "dispatcher/dispatcher.h"
+#include "workers/spw.h"
 #include "workers/sqw.h"
 #include "workers/kw.h"
 #include "workers/dmaw.h"
@@ -66,13 +67,18 @@ void main(void)
     const uint32_t hart_id = get_hart_id();
 
     /* Launch Dispatcher and Workers */
-    if ((hart_id >= DISPATCHER_BASE_HART_ID) &&
-        (hart_id < DISPATCHER_MAX_HART_ID) && HART_PARITY(hart_id))
+    if (hart_id == DISPATCHER_BASE_HART_ID)
     {
         /* Initialize UART logging params */
         Log_Init(LOG_LEVEL_WARNING);
 
         Dispatcher_Launch(hart_id);
+    }
+    else if (hart_id == SPW_BASE_HART_ID)
+    {
+        /* Spin wait till dispatcher initialization is complete */
+        local_spinwait_wait(&Launch_Wait, 1, 0);
+        SPW_Launch(hart_id);
     }
     else if ((hart_id >= SQW_BASE_HART_ID) &&
             (hart_id < SQW_MAX_HART_ID) && HART_PARITY(hart_id))
