@@ -10,7 +10,7 @@
 *
 ************************************************************************/
 /*! \file device_trace.h
-    \brief A C header that implements the Trace services for device side.    
+    \brief A C header that implements the Trace services for device side.
 */
 /***********************************************************************/
 
@@ -20,17 +20,17 @@
 #include <stdbool.h>
 #include "device_trace_types.h"
 
-/* 
- * Get the Shire mask form Hart ID using Harts per Shire information. 
- */ 
+/*
+ * Get the Shire mask form Hart ID using Harts per Shire information.
+ */
 #define GET_SHIRE_MASK(hart_id)     (1UL << ((hart_id) / 64U))
 
-/* 
+/*
  * Get Hart mask form Hart ID using Harts per Shire information.
- */ 
+ */
 #define GET_HART_MASK(hart_id)      (1UL << ((hart_id) % 64U))
 
-/* 
+/*
  * Trace event masks.
  * Breakdown of sections in struct trace_init_info_t::event_mask
  * 0,       Type: Single bit    Desc: Trace String Event
@@ -43,7 +43,7 @@
 #define TRACE_EVENT_MARKER              (1U << 2)
 #define TRACE_EVENT_ENABLE_ALL          0XFFFFFFFF
 
-/* 
+/*
  * Trace event filters masks.
  * Breakdown of sections in struct trace_init_info_t::filter_mask
  * 0-7,     Type: uint8_t,      Desc: String log levels.
@@ -119,5 +119,6 @@ void Trace_Value_u32(struct trace_control_block_t *cb, uint32_t tag, uint32_t va
 void Trace_Value_u16(struct trace_control_block_t *cb, uint32_t tag, uint16_t value);
 void Trace_Value_u8(struct trace_control_block_t *cb, uint32_t tag, uint8_t value);
 void Trace_Value_float(struct trace_control_block_t *cb, uint32_t tag, float value);
+void Trace_Memory(struct trace_control_block_t *cb, const uint8_t *src, uint16_t num_cache_line);
 
 #endif

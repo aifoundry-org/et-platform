@@ -15,7 +15,8 @@ enum trace_type_e {
     TRACE_TYPE_VALUE_U32,
     TRACE_TYPE_VALUE_U16,
     TRACE_TYPE_VALUE_U8,
-    TRACE_TYPE_VALUE_FLOAT
+    TRACE_TYPE_VALUE_FLOAT,
+    TRACE_TYPE_MEMORY
 };
 
 enum pmc_counter_e {
@@ -50,6 +51,13 @@ struct trace_pmc_counter_t {
 struct trace_string_t {
     struct trace_entry_header_t header;
     char string[TRACE_STRING_MAX_SIZE];
+} __attribute__((packed));
+
+struct trace_memory_t {
+    struct trace_entry_header_t header;
+    uint64_t src_addr;
+    uint64_t size;
+    uint8_t data[];
 } __attribute__((packed));
 
 #define trace_scalar_type_def(suffix, c_type, pad_count)    \

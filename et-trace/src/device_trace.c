@@ -23,6 +23,7 @@
         Trace_Value_u16
         Trace_Value_u8
         Trace_Value_float
+        Trace_Memory
 */
 /***********************************************************************/
 
@@ -553,3 +554,47 @@ void Trace_Value_float(struct trace_control_block_t *cb, uint32_t tag, float val
         WRITE_F(entry->value, value);
     }
 }
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Memory
+*
+*   DESCRIPTION
+*
+*       A function to log specified memory into Trace.
+*
+*   INPUTS
+*
+*       trace_control_block_t     Trace control block of logging Thread/Hart.
+*       uint8_t                   Pointer to memory.
+*       uint16_t                  Size of memory in term of cache lines..
+*
+*   OUTPUTS
+*
+*       None
+*
+************************************************************************/
+void Trace_Memory(struct trace_control_block_t *cb, const uint8_t *src,
+                  uint16_t num_cache_line)
+{
+    if(IS_TRACE_ENABLED(cb))
+    {
+        struct trace_memory_t *entry =
+            TraceBuffer_Reserve(cb, sizeof(*entry) + (uint32_t)(num_cache_line*8));
+
+        union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_MEMORY};
+
+        WRITE_U64(entry->header.cycle, PMU_Get_hpmcounter3());
+        WRITE_U64(entry->header.raw_u64, head.header_raw);
+        WRITE_U64(entry->src_addr, (uint64_t)(src));
+        WRITE_U64(entry->size, (uint64_t)(num_cache_line*8));
+
+        for(uint16_t index=0; index < num_cache_line ; index++) {
+           MEM_CPY(&entry->data[index*64], src, 64);
+           src += 64;
+        }
+    }
+}
+
