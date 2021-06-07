@@ -1,6 +1,6 @@
 from conans import ConanFile, tools
 from conan.tools.cmake import CMake, CMakeToolchain
-from conans.errors import ConanInvalidConfiguration
+import os
 
 class HostUtilsConan(ConanFile):
     name = "hostUtils"
@@ -24,6 +24,7 @@ class HostUtilsConan(ConanFile):
     exports_sources = [ "CMakeLists.txt", "logging/*", "debug/*", "hostUtilsConfig.cmake.in" ]
 
     requires = "g3log/1.3.2"
+    build_requires = "cmake-modules/[>=0.4.1 <1.0.0]"
     python_requires = "conan-common/[>=0.1.0 <1.0.0]"
 
     @property
@@ -36,6 +37,7 @@ class HostUtilsConan(ConanFile):
 
     def generate(self):
         tc = CMakeToolchain(self)
+        tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.deps_cpp_info["cmake-modules"].rootpath, "cmake")
         tc.generate()
     
 

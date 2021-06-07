@@ -1,4 +1,5 @@
 build/
+cmake-build-*
 conan/test_pacakge/build/
 
 # IDEs

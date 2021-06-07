@@ -22,6 +22,7 @@ add_library(debug
 )
 add_library(hostUtils::debug ALIAS debug)
 target_compile_features(debug INTERFACE cxx_std_17)
+target_set_project_warnings(debug)
 target_include_directories(debug
     PUBLIC
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
