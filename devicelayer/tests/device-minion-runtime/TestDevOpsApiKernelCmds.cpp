@@ -44,12 +44,12 @@ void static generateRandomData(int totalNumbers, std::vector<std::vector<int>>& 
  *               Kernel Functional Tests                   *
  *                                                         *
  **********************************************************/
-void TestDevOpsApiKernelCmds::launchAddVectorKernel_PositiveTesting_4_1(uint64_t shire_mask) {
+void TestDevOpsApiKernelCmds::launchAddVectorKernel_PositiveTesting_4_1(uint64_t shire_mask, std::string kernelName) {
   std::vector<std::unique_ptr<IDevOpsApiCmd>> streamAddKer;
 
   std::vector<std::vector<ELFIO::elfio>> readersStorageAddKer;
   std::vector<ELFIO::elfio> readersAddKer;
-  auto elfPathAddKer = (fs::path(FLAGS_kernels_dir) / fs::path("add_vector.elf")).string();
+  auto elfPathAddKer = (fs::path(FLAGS_kernels_dir) / fs::path(kernelName)).string();
 
   // Create vector data
   std::vector<std::vector<int>> vDataAStorageAddKer;

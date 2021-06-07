@@ -99,6 +99,11 @@ TEST_F(TestDevOpsApiFuncKernelCmdsSysEmu, kernelAbortCmd_InvalidTagIdNegativeTes
   kernelAbortCmd_InvalidTagIdNegativeTesting_6_2();
 }
 
+TEST_F(TestDevOpsApiFuncKernelCmdsSysEmu, launchAddVectorKernel_CM_UModeTesting_6_1) {
+  // provide the new kernel elf that uses the cm-umode lib
+  launchAddVectorKernel_PositiveTesting_4_1(kSysEmuMinionShiresMask, "cm_umode_test.elf");
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   google::ParseCommandLineFlags(&argc, &argv, true);

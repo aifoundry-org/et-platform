@@ -13,7 +13,7 @@
 class TestDevOpsApiKernelCmds : public TestDevOpsApi {
 protected:
   /* Kernel Functional Tests */
-  void launchAddVectorKernel_PositiveTesting_4_1(uint64_t shire_mask);
+  void launchAddVectorKernel_PositiveTesting_4_1(uint64_t shire_mask, std::string kernelName = "add_vector.elf");
   void launchUberKernel_PositiveTesting_4_4(uint64_t shire_mask);
   void launchEmptyKernel_PositiveTesting_4_5(uint64_t shire_mask);
   void launchExceptionKernel_NegativeTesting_4_6(uint64_t shire_mask);
