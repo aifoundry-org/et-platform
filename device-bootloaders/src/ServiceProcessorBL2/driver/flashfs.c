@@ -1192,6 +1192,7 @@ int flash_fs_get_manufacturer_name(char *mfg_name)
     /* TODO: https://esperantotech.atlassian.net/browse/SW-4327 */
     char name[] = "Esperan";
     snprintf(mfg_name, 8, "%s", name);
+
     return 0;
 }
 
@@ -1220,6 +1221,7 @@ int flash_fs_get_part_number(char *part_number)
     /* TODO: https://esperantotech.atlassian.net/browse/SW-4327 */
     char name[] = "ETPART1";
     snprintf(part_number, 8, "%s", name);
+
     return 0;
 }
 

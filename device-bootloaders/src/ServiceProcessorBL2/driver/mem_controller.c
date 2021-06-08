@@ -192,6 +192,7 @@ int ddr_get_memory_details(char *mem_detail)
 {
     char name[] = "Unknown";
     snprintf(mem_detail, 8, "%s", name);
+
     return 0;
 }
 
@@ -199,6 +200,7 @@ int ddr_get_memory_type(char *mem_type)
 {
     char name[] = "LPDDR4X";
     snprintf(mem_type, 8, "%s", name);
+
     return 0;
 }
 
