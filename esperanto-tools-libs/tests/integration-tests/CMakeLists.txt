@@ -13,4 +13,4 @@ set(SIM_DEVFW_TEST_LIST
   test_memcpy.cpp:""
   test_profiler.cpp:"--kernels_dir ${KERNELS_DIR}"
   )
-create_test_targets("${SIM_DEVFW_TEST_LIST}" "LABELS;GENERIC;LABELS;SYSEMU;TIMEOUT;120")
+create_test_targets("${SIM_DEVFW_TEST_LIST}" "LABELS;Generic;LABELS;SYSEMU;TIMEOUT;120")

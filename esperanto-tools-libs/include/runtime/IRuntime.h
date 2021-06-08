@@ -161,17 +161,16 @@ public:
   /// to the device memory prior to the code execution
   /// @param[in] kernel_args_size size of the kernel_args buffer
   /// @param[in] shire_mask indicates in what shires the kernel will be executed
-  /// @param[in] barrier this parameter indicates if the kernel execution should
+  /// @param[in] barrier this parameter indicates if the kernel execution should be postponed till all previous works
+  /// issued into this stream finish (a barrier). Usually the kernel launch must be postponed till some previous
+  /// memory operations end, hence the default value is true.  
   /// @param[in] flushL3 this parameter indicates if the L3 should be flushed before the kernel execution starts.
-  /// be postponed till all previous works issued into this stream finish (a
-  /// barrier). Usually the kernel launch must be postponed till some previous
-  /// memory operations end, hence the default value is true
   ///
   /// @returns EventId is a handler of an event which can be waited for
   /// (waitForEventId) to syncrhonize when the kernel ends the execution
   ///
   virtual EventId kernelLaunch(StreamId stream, KernelId kernel, const void* kernel_args, size_t kernel_args_size,
-                               uint64_t shire_mask, bool barrier = true, bool flushL3 = true) = 0;
+                               uint64_t shire_mask, bool barrier = true, bool flushL3 = false) = 0;
 
   /// \brief Queues a memcpy operation from host memory to device memory. The
   /// device memory must be previously allocated by a mallocDevice.
