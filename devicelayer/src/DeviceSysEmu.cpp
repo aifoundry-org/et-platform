@@ -41,16 +41,31 @@ constexpr size_t getAvailSpace(const CircBuffCb& buffer) {
   auto head = buffer.head_offset;
   auto tail = buffer.tail_offset;
   auto length = buffer.length;
+
+  if((head%8) || (length%8) || (tail%8)) {
+    DV_DLOG(INFO) << "getAvailSpace:: head: " << head << " tail: "
+                  << tail << " length: " << length << std::endl;
+    throw Exception("getAvailSpace:: CB element not aligned to 64 bits");
+  }
+
   if (head >= tail) {
     return (length - 1) - (head - tail);
   } else {
     return tail - head - 1;
   }
 }
+
 constexpr size_t getUsedSpace(const CircBuffCb& buffer) {
   auto head = buffer.head_offset;
   auto tail = buffer.tail_offset;
   auto length = buffer.length;
+
+  if((head%8) || (length%8) || (tail%8)) {
+    DV_DLOG(INFO) << "getUsedSpace:: head: " << head << " tail: "
+                  << tail << " length: " << length << std::endl;
+    throw Exception("getUsedSpace:: CB element not aligned to 64 bits");
+  }
+
   if (head >= tail) {
     return (head - tail);
   } else {
@@ -329,6 +344,7 @@ bool DeviceSysEmu::receiveResponse(QueueInfo& queue, std::vector<std::byte>& res
   auto bufferPopWraping = [this, &queue](size_t size, std::byte* dst) {
     // check if there are some messages to read
     if (getUsedSpace(queue.cb_) < size) {
+      DV_VLOG(HIGH) << "receiveResponse: No new messages. CB Head offset: " << queue.cb_.head_offset << "CB Tail offset: " << queue.cb_.tail_offset ;
       return 0UL;
     }
     if (queue.cb_.tail_offset + size > queue.cb_.length) {
