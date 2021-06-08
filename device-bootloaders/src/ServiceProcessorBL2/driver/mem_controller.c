@@ -190,13 +190,15 @@ void ddr_error_threshold_isr(void)
 
 int ddr_get_memory_details(char *mem_detail)
 {
-    strncpy(mem_detail, "Unknown", 8);
+    char name[] = "Unknown";
+    snprintf(mem_detail, 8, "%s", name);
     return 0;
 }
 
 int ddr_get_memory_type(char *mem_type)
 {
-    strncpy(mem_type, "LPDDR4X", 8);
+    char name[] = "LPDDR4X";
+    snprintf(mem_type, 8, "%s", name);
     return 0;
 }
 

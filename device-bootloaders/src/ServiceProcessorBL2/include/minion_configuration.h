@@ -73,12 +73,13 @@ int Enable_Minion_Neighborhoods(uint64_t shire_mask);
 */
 int Enable_Master_Shire_Threads(uint8_t mm_id);
 
-/*! \fn int Enable_Compute_Minion(uint64_t minion_shires_mask)
+/*! \fn int Enable_Compute_Minion(uint64_t minion_shires_mask, uint8_t mode)
     \brief This function enables compute minion threads
     \param  minion_shires_mask Shire Mask to enable
+    \param  Frequency mode to bring up Minions
     \return The function call status, pass/fail.
 */
-int Enable_Compute_Minion(uint64_t minion_shires_mask);
+int Enable_Compute_Minion(uint64_t minion_shires_mask, uint8_t mode);
 
 /*! \fn uint64_t Get_Active_Compute_Minion_Mask(void)
     \brief This function gets the active compute shire mask

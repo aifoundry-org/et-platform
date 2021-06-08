@@ -1190,7 +1190,8 @@ int flash_fs_swap_primary_boot_partition(void)
 int flash_fs_get_manufacturer_name(char *mfg_name)
 {
     /* TODO: https://esperantotech.atlassian.net/browse/SW-4327 */
-    strncpy(mfg_name, "Esperan", 8);
+    char name[] = "Esperan";
+    snprintf(mfg_name, 8, "%s", name);
     return 0;
 }
 
@@ -1217,7 +1218,8 @@ int flash_fs_get_manufacturer_name(char *mfg_name)
 int flash_fs_get_part_number(char *part_number)
 {
     /* TODO: https://esperantotech.atlassian.net/browse/SW-4327 */
-    strncpy(part_number, "ETPART1", 8);
+    char name[] = "ETPART1";
+    snprintf(part_number, 8, "%s", name);
     return 0;
 }
 
@@ -1244,7 +1246,9 @@ int flash_fs_get_part_number(char *part_number)
 int flash_fs_get_serial_number(char *ser_number)
 {
     /* TODO: https://esperantotech.atlassian.net/browse/SW-4327 */
-    strncpy(ser_number, "ETSER_1", 8);
+    char name[] = "ETSER_1";
+    snprintf(ser_number, 8, "%s", name);
+
     return 0;
 }
 
@@ -1300,7 +1304,7 @@ int flash_fs_get_memory_size(char *mem_size)
 {
     /* TODO: https://esperantotech.atlassian.net/browse/SW-4327 */
     uint64_t size = 16 * 1024;
-    sprintf(mem_size, "%ld", size);
+    snprintf(mem_size, 8, "%ld", size);
     return 0;
 }
 

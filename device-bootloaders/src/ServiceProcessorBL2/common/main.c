@@ -141,8 +141,8 @@ static void taskMain(void *pvParameters)
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DDR_INITIALIZED);
 
    // Setup Minions
-
-    if (0 != Enable_Compute_Minion(minion_shires_mask)) {
+      /* Setup default PLL to be 650 Mhz (Mode -3) */
+    if (0 != Enable_Compute_Minion(minion_shires_mask, 3)) {
         Log_Write(LOG_LEVEL_ERROR, "Enable Compute Minion failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }

@@ -90,7 +90,7 @@ static uintptr_t get_gpio_registers(GPIO_CONTROLLER_ID_t id)
 *       none
 *
 ***********************************************************************/
-int gpio_config_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number, GPIO_CONTROLLER_ID_t sensitivity,
+int gpio_config_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number, GPIO_INT_SENSITIVITY_t sensitivity,
                           GPIO_INT_POLARITY_t polarity, GPIO_INT_DEBOUNCE_t debounce)
 {
     uint32_t reg_value;

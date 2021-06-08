@@ -137,14 +137,14 @@ int Minion_Program_Step_Clock_PLL(uint8_t mode)
     return 0;
 }
 
-int Enable_Compute_Minion(uint64_t minion_shires_mask)
+int Enable_Compute_Minion(uint64_t minion_shires_mask, uint8_t mode )
 {
 
     /* FIXME: Update Minion Voltage if neccesary
       Minion_Shire_Voltage_Update(voltage);
     */
     /* Configure Minon Step clock to 650 Mhz */
-    if (0 != Minion_Program_Step_Clock_PLL(3)) {
+    if (0 != Minion_Program_Step_Clock_PLL(mode)) {
         Log_Write(LOG_LEVEL_ERROR, "configure_sp_pll_4() failed!\n");
         return MINION_STEP_CLOCK_CONFIGURE_ERROR;
     }

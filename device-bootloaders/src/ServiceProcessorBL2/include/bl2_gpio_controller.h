@@ -15,29 +15,29 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-typedef enum GPIO_CONTROLLER_ID {
+typedef enum {
     GPIO_CONTROLLER_ID_INVALID = 0,
     GPIO_CONTROLLER_ID_SPIO,
     GPIO_CONTROLLER_ID_PU
 } GPIO_CONTROLLER_ID_t;
 
-typedef enum GPIO_INT_SENSITIVITY {
+typedef enum {
     GPIO_INT_LEVEL = 0,
     GPIO_INT_EDGE
 } GPIO_INT_SENSITIVITY_t;
 
-typedef enum GPIO_INT_POLARITY {
+typedef enum {
     GPIO_INT_LOW = 0,
     GPIO_INT_HIGH
 } GPIO_INT_POLARITY_t;
 
-typedef enum GPIO_INT_DEBOUNCE{
+typedef enum {
     GPIO_INT_DEBOUNCE_OFF = 0,
     GPIO_INT_DEBOUNCE_ON
 } GPIO_INT_DEBOUNCE_t;
 
 
-/*! \fn int gpio_config_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number, GPIO_CONTROLLER_ID_t sensitivity,
+/*! \fn int gpio_config_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number, GPIO_INT_SENSITIVITY_t sensitivity,
 *                          GPIO_INT_POLARITY_t polarity, GPIO_INT_DEBOUNCE_t debounce)
     \brief This function configures GPIO interrupt:
 *           - sensitivity (edge/level)
@@ -52,7 +52,7 @@ typedef enum GPIO_INT_DEBOUNCE{
     \return The function call status, pass/fail.
 */
 
-int gpio_config_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number, GPIO_CONTROLLER_ID_t sensitivity,
+int gpio_config_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number, GPIO_INT_SENSITIVITY_t sensitivity,
                           GPIO_INT_POLARITY_t polarity, GPIO_INT_DEBOUNCE_t debounce);
 
 /*! \fn int gpio_enable_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number)
