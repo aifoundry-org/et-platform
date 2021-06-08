@@ -75,6 +75,10 @@ private:
     uint64_t getEntryAddress() const {
       return reinterpret_cast<uint64_t>(deviceBuffer_) + entryPoint_;
     }
+
+    uint64_t getLoadAddress() const {
+      return reinterpret_cast<uint64_t>(deviceBuffer_);
+    }
     DeviceId deviceId_;
     void* deviceBuffer_;
     uint64_t entryPoint_;

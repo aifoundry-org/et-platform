@@ -35,7 +35,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
   auto&& kernel = find(kernels_, kernelId)->second;
 
   ScopedProfileEvent profileEvent(Class::KernelLaunch, profiler_, streamId,
-                                  {{"load_address", kernel->getEntryAddress()},
+                                  {{"load_address", kernel->getLoadAddress()},
                                    {"kernel_id", static_cast<std::underlying_type<KernelId>::type>(kernelId)}});
 
   if (kernel_args_size > kMinAllocationSize) {
