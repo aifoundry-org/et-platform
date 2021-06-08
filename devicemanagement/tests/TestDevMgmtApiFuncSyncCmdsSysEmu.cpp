@@ -208,11 +208,6 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getASICLatency_1_39) {
   getASICLatency_1_39();
 }
 
-// Master Minion State
-TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getMMErrorCount_1_40) {
-  getMMErrorCount_1_40();
-}
-
 // Test serial access
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, serializeAccessMgmtNode_1_43) {
   serializeAccessMgmtNode_1_43();
@@ -220,6 +215,12 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, serializeAccessMgmtNode_1_43) {
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, isUnsupportedService_1_45) {
   isUnsupportedService_1_45();
+}
+
+// retrieve MM FW error counts. This test should be run last so that we are
+// able to capture any errors in the previous test runs
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getMMErrorCount_1_40) {
+  getMMErrorCount_1_40();
 }
 
 int main(int argc, char** argv) {

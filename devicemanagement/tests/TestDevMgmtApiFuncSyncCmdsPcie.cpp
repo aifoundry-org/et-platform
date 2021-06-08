@@ -208,11 +208,6 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getASICLatency_1_39) {
   getASICLatency_1_39();
 }
 
-// Master Minion State
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getMMErrorCount_1_40) {
-  getMMErrorCount_1_40();
-}
-
 #ifdef TARGET_PCIE
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getFWBootstatus_1_41) {
   getFWBootstatus_1_41();
@@ -243,6 +238,13 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, isUnsupportedService_1_45) {
 /*TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setSpRootCertificate_1_46) {
   setSpRootCertificate_1_46();
 }*/
+
+// retrieve MM FW error counts. This test should be run last so that we are
+// able to capture any errors in the previous test runs
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getMMErrorCount_1_40) {
+  getMMErrorCount_1_40();
+}
+
 //TODO: conditional to be removed with https://esperantotech.atlassian.net/browse/SW-6044
 #ifdef TARGET_PCIE
 /*
