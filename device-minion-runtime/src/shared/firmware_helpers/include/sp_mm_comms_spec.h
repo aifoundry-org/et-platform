@@ -124,7 +124,6 @@ struct mm2sp_report_error_event_t {
 
 struct mm2sp_heartbeat_event_t {
   struct dev_cmd_hdr_t  msg_hdr;
-  uint64_t minion_cycles;
 };
 
 struct sp2mm_echo_cmd_t {
