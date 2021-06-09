@@ -316,7 +316,7 @@ int et_handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
 		parse_sram_syndrome(&event_msg, &dbg_msg);
 		break;
 	case DEV_MGMT_EID_THERMAL_LOW:
-		dbg_msg.desc = "Temperature Overshoot";
+		dbg_msg.desc = "Temperature Overshoot Warning";
 		parse_thermal_syndrome(&event_msg, &dbg_msg);
 		break;
 	case DEV_MGMT_EID_PMIC_ERROR:
@@ -354,7 +354,7 @@ int et_handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
 		break;
 	}
 
-	dev_info(
+	dev_dbg(
 		&pdev->dev,
 		"Error Event Detected\nLevel     : %s\nDesc      : %s\nCount     : %d\nSyndrome  : %s",
 		dbg_msg.level,
