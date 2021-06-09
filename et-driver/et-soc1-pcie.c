@@ -1503,14 +1503,18 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 
 	rv = et_ops_dev_init(et_dev);
 	if (rv) {
-		dev_err(&pdev->dev, "Ops device initialization failed\n");
-		goto error_mgmt_dev_destroy;
+		dev_warn(&pdev->dev,
+			 "Ops device initialization failed, errno: %d\n",
+			 -rv);
+
+		// Falling to recovery mode
+		et_dev->is_recovery_mode = true;
+		rv = 0;
+	} else {
+		et_dev->is_recovery_mode = false;
 	}
 
-	return 0;
-
-error_mgmt_dev_destroy:
-	et_mgmt_dev_destroy(et_dev);
+	return rv;
 
 error_pci_release_regions:
 	pci_release_regions(pdev);
@@ -1539,7 +1543,9 @@ static void esperanto_pcie_remove(struct pci_dev *pdev)
 	if (!et_dev)
 		return;
 
-	et_ops_dev_destroy(et_dev);
+	if (!et_dev->is_recovery_mode)
+		et_ops_dev_destroy(et_dev);
+
 	et_mgmt_dev_destroy(et_dev);
 
 	pci_release_regions(pdev);

@@ -889,14 +889,20 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 
 	rv = et_ops_dev_init(et_dev);
 	if (rv) {
-		dev_err(&pdev->dev, "Ops device initialization failed\n");
-		goto error_mgmt_dev_destroy;
-	}
-	printk("\n------------ET PCIe loop back driver!-------------\n\n");
-	return 0;
+		dev_warn(&pdev->dev,
+			 "Ops device initialization failed, errno: %d\n",
+			 -rv);
 
-error_mgmt_dev_destroy:
-	et_mgmt_dev_destroy(et_dev);
+		// Falling to recovery mode
+		et_dev->is_recovery_mode = true;
+		rv = 0;
+	} else {
+		et_dev->is_recovery_mode = false;
+	}
+
+	printk("\n------------ET PCIe loop back driver!-------------\n\n");
+
+	return rv;
 
 error_clear_master:
 	pci_clear_master(pdev);
@@ -919,7 +925,9 @@ static void esperanto_pcie_remove(struct pci_dev *pdev)
 	if (!et_dev)
 		return;
 
-	et_ops_dev_destroy(et_dev);
+	if (!et_dev->is_recovery_mode)
+		et_ops_dev_destroy(et_dev);
+
 	et_mgmt_dev_destroy(et_dev);
 
 	pci_clear_master(pdev);

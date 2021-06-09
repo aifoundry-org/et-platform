@@ -64,6 +64,7 @@ struct et_mgmt_dev {
 
 struct et_pci_dev {
 	u8 dev_index;
+	bool is_recovery_mode;
 	struct pci_dev *pdev;
 	struct et_ops_dev ops;
 	struct et_mgmt_dev mgmt;
