@@ -216,6 +216,13 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, serializeAccessMgmtNode_1_43) {
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, isUnsupportedService_1_45) {
   isUnsupportedService_1_45();
 }
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setTraceControl) {
+  setTraceControl();
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setTraceConfigure) {
+  setTraceConfigure();
+}
 
 // retrieve MM FW error counts. This test should be run last so that we are
 // able to capture any errors in the previous test runs
@@ -225,7 +232,7 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getMMErrorCount_1_40) {
 
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
-  google::SetCommandLineOption("GLOG_minloglevel", "2");
+  google::SetCommandLineOption("GLOG_minloglevel", "0");
   FLAGS_minloglevel = 0;
   FLAGS_logtostderr = 1;
   testing::InitGoogleTest(&argc, argv);

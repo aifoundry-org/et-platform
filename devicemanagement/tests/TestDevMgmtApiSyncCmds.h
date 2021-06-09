@@ -71,7 +71,8 @@ protected:
   void getDeviceErrorEvents_1_44();
   void isUnsupportedService_1_45();
   void setSpRootCertificate_1_46();
-
+  void setTraceControl();
+  void setTraceConfigure();
   void *handle_ = nullptr;
   std::unique_ptr<IDeviceLayer> devLayer_;
 };

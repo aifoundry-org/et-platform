@@ -241,6 +241,13 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
       wCB->info.cmd_hdr.size = (sizeof(*(wCB.get()))-1) + inputSize;
       DV_LOG(INFO) << "input_buff: " << tmp;
     } break;
+    case device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL: 
+    case device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG:
+    {
+      memcpy(wCB->payload, input_buff, inputSize);
+      wCB->info.cmd_hdr.size = (sizeof(*(wCB.get()))-1) + inputSize;
+      break;
+    }
     default: {
         if (isSet && input_buff && inputSize) {
           memcpy(wCB->payload, input_buff, inputSize);

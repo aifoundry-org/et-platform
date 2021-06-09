@@ -1159,3 +1159,45 @@ void TestDevMgmtApiSyncCmds::setSpRootCertificate_1_46() {
   ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
 
 }
+
+void TestDevMgmtApiSyncCmds::setTraceControl() {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)(devLayer_.get());
+
+  const uint32_t input_size = sizeof(device_mgmt_api::trace_control_e);
+  const char input_buff[input_size] = {device_mgmt_api::TRACE_CONTROL_TRACE_UART_ENABLE};
+
+  const uint32_t set_output_size = sizeof(uint8_t);
+  char set_output_buff[set_output_size] = {0};
+
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL, input_buff, input_size,
+                              set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+            device_mgmt_api::DM_STATUS_SUCCESS);
+
+  ASSERT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+}
+
+void TestDevMgmtApiSyncCmds::setTraceConfigure() {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement &dm = (*dmi)(devLayer_.get());
+
+  const uint32_t input_size = sizeof(device_mgmt_api::trace_configure_e);
+  const char input_buff[input_size] = {device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING};
+
+  const uint32_t set_output_size = sizeof(uint8_t);
+  char set_output_buff[set_output_size] = {0};
+
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG, input_buff, input_size,
+                              set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+            device_mgmt_api::DM_STATUS_SUCCESS);
+
+  ASSERT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+}

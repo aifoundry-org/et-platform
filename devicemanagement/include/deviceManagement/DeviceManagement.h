@@ -83,7 +83,8 @@ static std::unordered_map<std::string, device_mgmt_api::DM_CMD> const commandCod
   {"DM_CMD_GET_ASIC_STALLS", device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_STALLS},
   {"DM_CMD_GET_ASIC_LATENCY", device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_LATENCY},
   {"DM_CMD_GET_MM_ERROR_COUNT", device_mgmt_api::DM_CMD::DM_CMD_GET_MM_ERROR_COUNT},
-  {"DM_CMD_GET_DEVICE_ERROR_EVENTS", device_mgmt_api::DM_CMD::DM_CMD_GET_DEVICE_ERROR_EVENTS}};
+  {"DM_CMD_SET_DM_TRACE_RUN_CONTROL", device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL},
+  {"DM_CMD_SET_DM_TRACE_CONFIG", device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG}};
 
 static std::unordered_map<std::string, device_mgmt_api::POWER_STATE> const powerStateTable = {
   {"POWER_STATE_FULL", device_mgmt_api::POWER_STATE::POWER_STATE_FULL},
@@ -110,6 +111,7 @@ static std::unordered_map<std::string, device_mgmt_api::PCIE_LINK_SPEED> const p
 static std::unordered_map<std::string, device_mgmt_api::PCIE_LANE_W_SPLIT> const pcieLaneWidthTable = {
   {"PCIE_LANE_W_SPLIT_x4", device_mgmt_api::PCIE_LANE_W_SPLIT::PCIE_LANE_W_SPLIT_x4},
   {"PCIE_LANE_W_SPLIT_x8", device_mgmt_api::PCIE_LANE_W_SPLIT::PCIE_LANE_W_SPLIT_x8}};
+
 
 struct lockable_;
 
