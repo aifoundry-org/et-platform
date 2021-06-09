@@ -10,9 +10,9 @@
 
 #pragma once
 
-#include "runtime/IRuntime.h"
-#include "runtime/IProfiler.h"
 #include "runtime/IProfileEvent.h"
+#include "runtime/IProfiler.h"
+#include "runtime/IRuntime.h"
 
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/portable_binary.hpp>

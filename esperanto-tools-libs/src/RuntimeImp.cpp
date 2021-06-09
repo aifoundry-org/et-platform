@@ -311,10 +311,9 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
   auto header = reinterpret_cast<const device_ops_api::rsp_header_t*>(response.data());
   auto eventId = EventId{header->rsp_hdr.tag_id};
 
-  ProfileEvent event(Type::Single, Class::KernelTimestamps);
+  ProfileEvent event(Type::Instant, Class::KernelTimestamps);
   event.setEvent(eventId);
   auto fillEvent = [](ProfileEvent& evt, const auto& response) {
-
     RT_VLOG(HIGH) << std::hex << " Start time: " << response.device_cmd_start_ts
                   << " Wait time: " << response.device_cmd_wait_dur
                   << " Execution time: " << response.device_cmd_execute_dur;

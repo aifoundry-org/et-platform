@@ -10,12 +10,14 @@
 
 #include "common/Constants.h"
 
-#include "runtime/IProfiler.h"
 #include "runtime/IProfileEvent.h"
+#include "runtime/IProfiler.h"
 #include "runtime/IRuntime.h"
 
 #include <hostUtils/logging/Logging.h>
 #include <device-layer/IDeviceLayer.h>
+
+#include <cereal/archives/binary.hpp>
 #include <cereal/archives/json.hpp>
 
 #include <experimental/filesystem>
@@ -25,7 +27,6 @@
 #include <sstream>
 #include <thread>
 
-
 namespace fs = std::experimental::filesystem;
 
 namespace {
@@ -33,6 +34,7 @@ constexpr uint64_t kSysEmuMaxCycles = std::numeric_limits<uint64_t>::max();
 constexpr uint64_t kSysEmuMinionShiresMask = 0x1FFFFFFFFu;
 } // namespace
 
+namespace rt::tests {
 
 TEST(Profiler, add_2_vectors_profiling) {
   auto kernel_file = std::ifstream((fs::path(KERNELS_DIR) / fs::path("add_vector.elf")).string(), std::ios::binary);
@@ -119,43 +121,71 @@ TEST(Profiler, add_2_vectors_profiling) {
   LOG(INFO) << "Trace: " << str;
 }
 
+class ProfileEventDeserializationTest : public ::testing::Test {
+protected:
+  void SetUp() override {
+    // create a credible ProfileEvent
+    {
+      rt::profiling::ProfileEvent evt(rt::profiling::Type::Start, rt::profiling::Class::GetDevices);
+      evt.setPairId(33);
+      // etc..
+      reference_evt = evt;
+    }
 
-TEST(Profiler, deserialize_trace) {
-  const char *trace =
-  "{"
-  " \"value0\": {"
-  "     \"timeStamp\": {"
-  "         \"time_since_epoch\": {"
-  "             \"count\": 1031433892085159"
-  "         }"
-  "      },"
-  "     \"class\": \"GetDevices\","
-  "     \"type\": \"Start\","
-  "     \"thread_id\": \"140320044730880\","
-  "     \"extra\": ["
-  "         {"
-  "             \"key\": \"pair_id\","
-  "             \"value\": 11"
-  "         }"
-  "     ]"
-  "  }"
-  "}";
-  std::stringstream ss;
-  ss.str(trace);
+    std::ostringstream oss_json;
+    {
+      cereal::JSONOutputArchive archive_json(oss_json);
+      archive_json(reference_evt);
+    }
+    trace_contents_json = oss_json.str();
 
+    std::ostringstream oss_binary(std::ios_base::binary);
+    {
+      cereal::BinaryOutputArchive archive_binary(oss_binary);
+      archive_binary(reference_evt);
+    }
+    trace_contents_binary = oss_binary.str();
+  }
 
-  cereal::JSONInputArchive ar(ss);
-  rt::profiling::ProfileEvent evt;
-  
-  // deserialize event
-  ar(evt);
+  rt::profiling::ProfileEvent reference_evt;
 
-  EXPECT_EQ(rt::profiling::to_string(evt.getType()), "Start");
-  EXPECT_EQ(rt::profiling::to_string(evt.getClass()), "GetDevices");
-  EXPECT_EQ(evt.getTimeStamp().time_since_epoch().count(), 1031433892085159);
-  EXPECT_TRUE(evt.getPairId().has_value());
-  EXPECT_EQ(evt.getPairId().value(), 11);  
+  std::string trace_contents_json;
+  std::string trace_contents_binary;
+};
+
+TEST_F(ProfileEventDeserializationTest, DeserializeJson) {
+  std::istringstream iss(trace_contents_json);
+  cereal::JSONInputArchive archive(iss);
+
+  rt::profiling::ProfileEvent deserialized_evt;
+  archive(deserialized_evt);
+
+  EXPECT_EQ(deserialized_evt.getType(), reference_evt.getType());
+  EXPECT_EQ(deserialized_evt.getClass(), reference_evt.getClass());
+  EXPECT_EQ(deserialized_evt.getTimeStamp(), reference_evt.getTimeStamp());
+  EXPECT_EQ(deserialized_evt.getThreadId(), reference_evt.getThreadId());
+
+  EXPECT_TRUE(deserialized_evt.getPairId().has_value());
+  EXPECT_EQ(deserialized_evt.getPairId().value(), 33);
 }
+
+TEST_F(ProfileEventDeserializationTest, DeserializeBinary) {
+  std::istringstream iss(trace_contents_binary, std::ios_base::binary);
+  cereal::BinaryInputArchive archive(iss);
+
+  rt::profiling::ProfileEvent deserialized_evt;
+  archive(deserialized_evt);
+
+  EXPECT_EQ(deserialized_evt.getType(), reference_evt.getType());
+  EXPECT_EQ(deserialized_evt.getClass(), reference_evt.getClass());
+  EXPECT_EQ(deserialized_evt.getTimeStamp(), reference_evt.getTimeStamp());
+  EXPECT_EQ(deserialized_evt.getThreadId(), reference_evt.getThreadId());
+
+  EXPECT_TRUE(deserialized_evt.getPairId().has_value());
+  EXPECT_EQ(deserialized_evt.getPairId().value(), 33);
+}
+
+} // namespace rt::tests
 
 int main(int argc, char** argv) {
   logging::LoggerDefault logger_;

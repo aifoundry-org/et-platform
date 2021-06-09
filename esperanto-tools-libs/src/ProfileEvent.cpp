@@ -21,12 +21,9 @@
 #include <string>
 #include <thread>
 
-
-namespace rt {
-namespace profiling {
-
-std::string to_string(Class cls) {
-  using event = Class;
+namespace std {
+std::string to_string(rt::profiling::Class cls) {
+  using event = rt::profiling::Class;
   switch (cls) {
   case event::GetDevices:
     return "GetDevices";
@@ -64,206 +61,186 @@ std::string to_string(Class cls) {
   }
 }
 
-std::string to_string(Type type) {
+std::string to_string(rt::profiling::Type type) {
+  using Type = rt::profiling::Type;
   switch (type) {
   case Type::Start:
     return "Start";
   case Type::End:
     return "End";
-  case Type::Single:
-    return "Single";
+  case Type::Complete:
+    return "Complete";
+  case Type::Instant:
+    return "Instant";
   default:
     assert(false);
     return "Unknown type";
   }
 }
+} // end namespace std
 
-Class GetClass(const std::string& str) {
+namespace rt {
+namespace profiling {
+
+Class class_from_string(const std::string& str) {
   static std::once_flag s_once_flag;
   static std::unordered_map<std::string, Class> s_map;
   std::call_once(s_once_flag, []() {
-    for (auto cls : {Class::First, Class::Last}) {
-      s_map[to_string(cls)] = cls;
-    }
+    s_map[std::to_string(Class::GetDevices)] = Class::GetDevices;
+    s_map[std::to_string(Class::LoadCode)] = Class::LoadCode;
+    s_map[std::to_string(Class::UnloadCode)] = Class::UnloadCode;
+    s_map[std::to_string(Class::MallocDevice)] = Class::MallocDevice;
+    s_map[std::to_string(Class::FreeDevice)] = Class::FreeDevice;
+    s_map[std::to_string(Class::CreateStream)] = Class::CreateStream;
+    s_map[std::to_string(Class::DestroyStream)] = Class::DestroyStream;
+    s_map[std::to_string(Class::KernelLaunch)] = Class::KernelLaunch;
+    s_map[std::to_string(Class::MemcpyHostToDevice)] = Class::MemcpyHostToDevice;
+    s_map[std::to_string(Class::MemcpyDeviceToHost)] = Class::MemcpyDeviceToHost;
+    s_map[std::to_string(Class::WaitForEvent)] = Class::WaitForEvent;
+    s_map[std::to_string(Class::WaitForStream)] = Class::WaitForStream;
+    s_map[std::to_string(Class::DeviceCommand)] = Class::DeviceCommand;
+    s_map[std::to_string(Class::KernelTimestamps)] = Class::KernelTimestamps;
+    s_map[std::to_string(Class::Pmc)] = Class::Pmc;
   });
 
   return s_map[str];
 }
 
-Type GetType(const std::string& str) {
+Type type_from_string(const std::string& str) {
   static std::once_flag s_once_flag;
   static std::unordered_map<std::string, Type> s_map;
   std::call_once(s_once_flag, []() {
-    for (auto type : {Type::First, Type::Last}) {
-      s_map[to_string(type)] = type;
-    }
+    s_map[std::to_string(Type::Start)] = Type::Start;
+    s_map[std::to_string(Type::End)] = Type::End;
+    s_map[std::to_string(Type::Complete)] = Type::Complete;
+    s_map[std::to_string(Type::Instant)] = Type::Instant;
   });
   return s_map[str];
 }
-
 
 ProfileEvent::ProfileEvent(Type type, Class cls)
   : type_(type)
   , class_(cls) {
-    setTimeStamp();
+  setTimeStamp();
+  setThreadId();
 }
 
-
-ProfileEvent::ProfileEvent(Type type, Class cls, StreamId stream, EventId event,
-                        std::unordered_map<std::string, uint64_t> extra)
+ProfileEvent::ProfileEvent(Type type, Class cls, StreamId stream, EventId event, ProfileEvent::ExtraMetadata extra)
   : ProfileEvent(type, cls) {
   extra_ = std::move(extra);
   setStream(stream);
   setEvent(event);
 }
 
-void ProfileEvent::setTimeStamp() {
-  timeStamp_ = std::chrono::steady_clock::now();
+Type ProfileEvent::getType() const {
+  return type_;
+}
+Class ProfileEvent::getClass() const {
+  return class_;
+}
+ProfileEvent::TimePoint ProfileEvent::getTimeStamp() const {
+  return timeStamp_;
+}
+std::string ProfileEvent::getThreadId() const {
+  return threadId_;
+}
+ProfileEvent::ExtraMetadata ProfileEvent::getExtras() const {
+  return extra_;
+}
+
+std::optional<ProfileEvent::Id> ProfileEvent::getPairId() const {
+  return getExtra<ProfileEvent::Id>("pair_id");
+}
+std::optional<EventId> ProfileEvent::getEvent() const {
+  return getExtra<EventId>("event");
+}
+std::optional<StreamId> ProfileEvent::getStream() const {
+  return getExtra<StreamId>("stream");
+}
+std::optional<DeviceId> ProfileEvent::getDeviceId() const {
+  return getExtra<DeviceId>("device_id");
+}
+std::optional<KernelId> ProfileEvent::getKernelId() const {
+  return getExtra<KernelId>("kernel_id");
+}
+std::optional<uint64_t> ProfileEvent::getLoadAddress() const {
+  return getExtra<uint64_t>("load_address");
+}
+std::optional<uint64_t> ProfileEvent::getDeviceCmdStartTs() const {
+  return getExtra<uint64_t>("device_cmd_start_ts");
+}
+std::optional<uint64_t> ProfileEvent::getDeviceCmdWaitDur() const {
+  return getExtra<uint64_t>("device_cmd_wait_dur");
+}
+std::optional<uint64_t> ProfileEvent::getDeviceCmdExecDur() const {
+  return getExtra<uint64_t>("device_cmd_exec_dur");
+}
+
+void ProfileEvent::setType(Type t) {
+  type_ = t;
+}
+void ProfileEvent::setClass(Class c) {
+  class_ = c;
+}
+void ProfileEvent::setTimeStamp(TimePoint t) {
+  timeStamp_ = t;
+}
+void ProfileEvent::setThreadId(std::thread::id id) {
+  std::stringstream ss;
+  ss << id;
+  threadId_ = ss.str();
+}
+void ProfileEvent::setExtras(ExtraMetadata extras) {
+  extra_ = std::move(extras);
 }
 
 void ProfileEvent::setPairId(Id id) {
-  addExtra("pair_id", id);
+  addExtra<Id>("pair_id", id);
 }
 
 void ProfileEvent::setEvent(EventId event) {
-  addExtra("event", static_cast<uint64_t>(event));
+  addExtra<EventId>("event", event);
 }
 
 void ProfileEvent::setStream(StreamId stream) {
-  addExtra("stream", static_cast<uint64_t>(stream));
+  addExtra<StreamId>("stream", stream);
 }
 
 void ProfileEvent::setDeviceId(DeviceId deviceId) {
-  addExtra("device_id", static_cast<uint64_t>(deviceId));
+  addExtra<DeviceId>("device_id", deviceId);
 }
 
 void ProfileEvent::setKernelId(KernelId kernelId) {
-  addExtra("kernel_id", static_cast<uint64_t>(kernelId));
+  addExtra<KernelId>("kernel_id", kernelId);
 }
 
 void ProfileEvent::setLoadAddress(uint64_t loadAddress) {
-  addExtra("load_address", loadAddress);
+  addExtra<uint64_t>("load_address", loadAddress);
 }
 
 void ProfileEvent::setDeviceCmdStartTs(uint64_t start_ts) {
-  addExtra("device_cmd_start_ts", start_ts);
+  addExtra<uint64_t>("device_cmd_start_ts", start_ts);
 }
 
 void ProfileEvent::setDeviceCmdWaitDur(uint64_t wait_dur) {
-  addExtra("device_cmd_wait_dur", wait_dur);
-  addExtra("cmd_wait_time", wait_dur);
+  addExtra<uint64_t>("device_cmd_wait_dur", wait_dur);
+  addExtra<uint64_t>("cmd_wait_time", wait_dur);
 }
 
 void ProfileEvent::setDeviceCmdExecDur(uint64_t exec_dur) {
-  addExtra("device_cmd_execute_dur", exec_dur);
-  addExtra("cmd_execution_time", exec_dur);
+  addExtra<uint64_t>("device_cmd_execute_dur", exec_dur);
+  addExtra<uint64_t>("cmd_execution_time", exec_dur);
 }
 
-Type ProfileEvent::getType() const { return type_; }
-Class ProfileEvent::getClass() const { return class_; }
-ProfileEvent::TimePoint ProfileEvent::getTimeStamp() const { return timeStamp_; }
-std::string ProfileEvent::getThreadId() const { return threadId_; }
-
-std::optional<ProfileEvent::Id> ProfileEvent::getPairId() const {
-  return getExtra("pair_id");
-}
-std::optional<EventId> ProfileEvent::getEvent() const {
-  std::optional<EventId> optEventId;
-  auto it = extra_.find("event");
-  if (it != extra_.end()) {
-    optEventId = static_cast<EventId>(it->second);
-  }
-  return optEventId;
-}
-std::optional<StreamId> ProfileEvent::getStream() const {
-  std::optional<StreamId> optStreamId;
-  auto it = extra_.find("stream");
-  if (it != extra_.end()) {
-    optStreamId = static_cast<StreamId>(it->second);
-  }
-  return optStreamId;
-}
-std::optional<DeviceId> ProfileEvent::getDeviceId() const {
-  std::optional<DeviceId> optDeviceId;
-  auto it = extra_.find("device_id");
-  if (it != extra_.end()) {
-    optDeviceId = static_cast<DeviceId>(it->second);
-  }
-  return optDeviceId;
-}
-std::optional<KernelId> ProfileEvent::getKernelId() const {
-  std::optional<KernelId> optKernelId;
-  auto it = extra_.find("kernel_id");
-  if (it != extra_.end()) {
-    optKernelId = static_cast<KernelId>(it->second);
-  }
-  return optKernelId;
-}
-std::optional<uint64_t> ProfileEvent::getLoadAddress() const {
-  return getExtra("load_address");
-}
-std::optional<uint64_t> ProfileEvent::getDeviceCmdStartTs() const{
-  return getExtra("device_cmd_start_ts");
-}
-std::optional<uint64_t> ProfileEvent::getDeviceCmdWaitDur() const{
-  return getExtra("device_cmd_wait_dur");
-}
-std::optional<uint64_t> ProfileEvent::getDeviceCmdExecDur() const{
-  return getExtra("device_cmd_exec_dur");
+template <typename T> void ProfileEvent::addExtra(std::string name, T value) {
+  extra_.emplace(name, std::move(value));
 }
 
-void ProfileEvent::addExtra(std::string name, uint64_t value) {
-  extra_.insert({name, value});
-}
-
-template <> void ProfileEvent::load(cereal::JSONInputArchive& ar) {
-  std::string type;
-  ar(cereal::make_nvp("type", type));
-  type_ = GetType(type);
-  std::string cls;
-  ar(cereal::make_nvp("class", cls));
-  class_ = GetClass(cls.c_str());
-  
-  ar(cereal::make_nvp("timeStamp", timeStamp_));
-  ar(cereal::make_nvp("thread_id", threadId_));
-  ar(cereal::make_nvp("extra", extra_));
-}
-template <> void ProfileEvent::load(cereal::PortableBinaryOutputArchive& ar) {
-  std::string type;
-  ar(cereal::make_nvp("type", type));
-  type_ = GetType(type);
-  std::string cls;
-  ar(cereal::make_nvp("class", cls));
-  class_ = GetClass(cls.c_str());
-  
-  ar(cereal::make_nvp("timeStamp", timeStamp_));
-  ar(cereal::make_nvp("thread_id", threadId_));
-  ar(cereal::make_nvp("extra", extra_));
-}
-template <> void ProfileEvent::save(cereal::JSONOutputArchive& ar) const {
-  ar(cereal::make_nvp("type", to_string(type_)));
-  ar(cereal::make_nvp("class", to_string(class_)));
-  ar(cereal::make_nvp("timeStamp", timeStamp_));
-  std::stringstream ss;
-  ss << std::this_thread::get_id();
-  ar(cereal::make_nvp("thread_id", ss.str()));
-  ar(cereal::make_nvp("extra", extra_));
-}
-template <> void ProfileEvent::save(cereal::PortableBinaryOutputArchive& ar) const {
-  ar(cereal::make_nvp("type", to_string(type_)));
-  ar(cereal::make_nvp("class", to_string(class_)));
-  ar(cereal::make_nvp("timeStamp", timeStamp_));
-  std::stringstream ss;
-  ss << std::this_thread::get_id();
-  ar(cereal::make_nvp("thread_id", ss.str()));
-  ar(cereal::make_nvp("extra", extra_));
-}
-
-std::optional<uint64_t> ProfileEvent::getExtra(std::string name) const {
-  std::optional<uint64_t> optValue;
+template <typename T> std::optional<T> ProfileEvent::getExtra(std::string name) const {
+  std::optional<T> optValue;
   auto it = extra_.find(name);
   if (it != extra_.end()) {
-    optValue = it->second;
+    optValue = std::get<T>(it->second);
   }
   return optValue;
 }

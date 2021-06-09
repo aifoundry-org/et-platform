@@ -17,7 +17,8 @@ namespace rt {
 namespace profiling {
 class ScopedProfileEvent {
 public:
-  explicit ScopedProfileEvent(Class cls, ProfilerImp& profiler, StreamId streamId, KernelId kernelId, uint64_t loadAddress)
+  explicit ScopedProfileEvent(Class cls, ProfilerImp& profiler, StreamId streamId, KernelId kernelId,
+                              uint64_t loadAddress)
     : profiler_(profiler)
     , event_{Type::Start, cls} {
     event_.setStream(streamId);
