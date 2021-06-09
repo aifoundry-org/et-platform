@@ -41,39 +41,42 @@ static void trace_process_control_cmd(void *buffer)
     if (dm_cmd->control & SP_TRACE_ENABLE)
     {
         Trace_Run_Control(TRACE_ENABLE);
-        Log_Write(LOG_LEVEL_DEBUG,
-                            "TRACE_RT_CONTROL:SP:Trace Disabled.\r\n");
+        Log_Write(LOG_LEVEL_INFO,
+                            "TRACE_RT_CONTROL:SP:Trace Enabled.\r\n");
     }
     else 
     {
         Trace_Run_Control(TRACE_DISABLE);
-        Log_Write(LOG_LEVEL_DEBUG,
-                            "TRACE_RT_CONTROL:SP:Trace Enabled.\r\n");
+        Log_Write(LOG_LEVEL_INFO,
+                            "TRACE_RT_CONTROL:SP:Trace Disabled.\r\n");
     }
 
     if (dm_cmd->control & SP_TRACE_UART_ENABLE)
     {
         Log_Set_Interface(LOG_DUMP_TO_UART);
-        Log_Write(LOG_LEVEL_CRITICAL,
-                "TRACE_RT_CONTROL:SP:Logs redirected to Trace buffer.\r\n");
+        Log_Write(LOG_LEVEL_INFO,
+                "TRACE_RT_CONTROL:SP:Logs redirected to UART.\r\n");
     }
     else
     {
         Log_Set_Interface(LOG_DUMP_TO_TRACE);
-        Log_Write(LOG_LEVEL_DEBUG,
-                "TRACE_RT_CONTROL:SP:Logs redirected to UART.\r\n");
+        Log_Write(LOG_LEVEL_INFO,
+                "TRACE_RT_CONTROL:SP:Logs redirected to Trace buffer\r\n");
+                
     }
 }
 
 static void send_trace_control_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time)
 {
-    struct device_mgmt_trace_run_control_rsp_t dm_rsp;
+    struct device_mgmt_default_rsp_t dm_rsp;
 
     FILL_RSP_HEADER(dm_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time,
                      DM_STATUS_SUCCESS);
 
+    dm_rsp.payload = DM_STATUS_SUCCESS;
+
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, 
-                                        sizeof(struct device_mgmt_trace_run_control_rsp_t))) 
+                                        sizeof(struct device_mgmt_default_rsp_t))) 
     {
         Log_Write(LOG_LEVEL_ERROR, "send_trace_control_response: Cqueue push error!\n");
     }
@@ -91,11 +94,13 @@ static void trace_process_config_cmd(void *buffer)
 
 static void send_trace_config_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time)
 {
-    struct device_mgmt_trace_config_rsp_t dm_rsp;
+    struct device_mgmt_default_rsp_t dm_rsp;
 
     FILL_RSP_HEADER(dm_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time,
                      DM_STATUS_SUCCESS);
 
+    dm_rsp.payload = DM_STATUS_SUCCESS;
+    
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, 
                                         sizeof(struct device_mgmt_trace_config_rsp_t))) 
     {
