@@ -232,6 +232,30 @@ Modules:
           Value: 0
         - Name: x8
           Value: 1
+    - Name: trace_control
+      Description: Trace enable/disable and UART log
+      Type: uint32_t
+      Values:
+        - Name: TRACE_ENABLE
+          Value: 1
+        - Name: TRACE_DISABLE
+          Value: 0
+        - Name: TRACE_UART_ENABLE
+          Value: 3
+        - Name: TRACE_UART_DISABLE
+          Value: 1
+    - Name: trace_configure
+      Description: Trace enable/disable and UART log
+      Type: uint32_t
+      Values:
+        - Name: EVENT_STRING
+          Value: 1
+        - Name: EVENT_PMC
+          Value: 2
+        - Name: EVENT_MARKER
+          Value: 3
+        - Name: TRACE_EVENT_ENABLE_ALL
+          Value: 0xFFFF
   Structs:
     - Name: asset_info_t
       Description: Asset Information
@@ -1017,10 +1041,12 @@ Modules:
                   /// Bit 1 - 0 - Dump to Trace Buffer (Default)
                   ///         1 - Redirect to UART
 
-          Type: uint32_t
+          Type: enum
+          Enum: trace_control
         - Name: pad[4]
           Description: Padding for alignment
           Type: uint8_t
+
     - Name: device_mgmt_trace_run_control_rsp
       Description: Trace run control command reply
       Type: Response
