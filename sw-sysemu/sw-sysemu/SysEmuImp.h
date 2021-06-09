@@ -24,6 +24,12 @@
 namespace emu {
 class SysEmuImp : public ISysEmu, public api_communicate {
 public:
+
+  SysEmuImp(const SysEmuImp&) = delete;
+  SysEmuImp& operator=(const SysEmuImp&) = delete;
+  SysEmuImp(SysEmuImp&&) = delete;
+  SysEmuImp& operator=(SysEmuImp&&) = delete;
+
   // ISysEmu interface
   void mmioRead(uint64_t address, size_t size, std::byte* dst) override;
   void mmioWrite(uint64_t address, size_t size, const std::byte* src) override;

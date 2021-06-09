@@ -105,6 +105,19 @@ void logSysEmuOptions(const sys_emu_cmd_options& options) {
   SE_LOG(INFO) << "************************************************************************************\n";
 }
 
+void runMain(const sys_emu_cmd_options& opts, api_communicate* comm, std::exception_ptr* error) {
+  try {
+    SE_LOG(INFO) << "Starting sysemu thread " << std::this_thread::get_id();
+    logSysEmuOptions(opts);
+    auto emu = std::make_unique<sys_emu>(opts, comm);
+    emu->main_internal();
+    SE_LOG(INFO) << "Ending sysemu thread " << std::this_thread::get_id();
+  } catch (const std::exception& e) {
+    SE_LOG(ERROR) << "Aborting sysemu thread " << std::this_thread::get_id() << ": " << e.what();
+    *error = std::current_exception();
+  }
+}
+
 void iatusPrint(bemu::System* chip) {
   const auto& iatus = chip->memory.pcie0_get_iatus();
 
@@ -420,18 +433,7 @@ SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>
   opts.mem_check = options.memcheck;
   opts.log_path = options.logFile;
 
-  sysEmuThread_ = std::thread([opts, this]() {
-    try {
-      SE_LOG(INFO) << "Starting sysemu thread " << std::this_thread::get_id();
-      logSysEmuOptions(opts);
-      sys_emu emu(opts, this);
-      emu.main_internal();
-      SE_LOG(INFO) << "Ending sysemu thread " << std::this_thread::get_id();
-    } catch (const std::exception& e) {
-      SE_LOG(ERROR) << "Aborting sysemu thread " << std::this_thread::get_id() << ": " << e.what();
-      sysEmuError_ = std::current_exception();
-    }
-  });
+  sysEmuThread_ = std::thread(runMain, opts, this, &sysEmuError_); // FIXME Passing `this` like this is dangerous..
 
   // Wait until all the iATUs configured by BL2 have been enabled
   auto future = iatusReady_.get_future();
