@@ -345,17 +345,16 @@ static void mm_cmd_hdlr_task(void *pvParameters)
                 }
                 case MM2SP_EVENT_HEARTBEAT:
                 {
-                    struct mm2sp_heartbeat_event_t *event = (void *)buffer;
+                    int8_t status;
 
-                    /* TODO: Register watchdog timer for MM->SP heartbeats in MM_Iface_Update_MM_Heartbeat().
-                    Whenever a heatbeat is received from MM, SP will compare the minion cycles with
-                    the previously saved value, reset WD timer and if the cycles match, we have a hang.
-                    Also, if the heartbeat is not received within specified time interval of SP WD timer
-                    (error threshold of timer should be incorporated), SP detects a MM hang and resets
-                    the MM FW with taking approriate measures */
-                    if(MM_Iface_Update_MM_Heartbeat(event->minion_cycles) != 0)
+                    /* TODO: SW-8081: Register watchdog timer for MM->SP heartbeats in MM_Iface_Update_MM_Heartbeat().
+                    Whenever a heatbeat is received from MM, SP will reset WD timer. If the heartbeat is not
+                    received within specified time interval of SP WD timer (error threshold of timer should
+                    be incorporated), SP detects a MM hang and resets the MM FW with taking approriate measures */
+                    status = MM_Iface_Update_MM_Heartbeat();
+                    if(status != 0)
                     {
-                        Log_Write(LOG_LEVEL_ERROR, "MM2SP:Valid Heartbeat not found!\r\n");
+                        Log_Write(LOG_LEVEL_ERROR, "MM2SP:MM Heartbeat update error!\r\n");
                     }
 
                     break;

@@ -35,7 +35,7 @@
 #include "config/mgmt_build_config.h"
 
 typedef struct mm_iface_cb_ {
-    uint64_t mm_heartbeat_cycles;
+    bool mm_wd_initialized;
 } mm_iface_cb_t;
 
 static mm_iface_cb_t mm_iface_cb_g __attribute__((aligned(64))) = {0};
@@ -164,33 +164,26 @@ int32_t MM_Iface_Send_Echo_Cmd(void)
 *
 *   INPUTS
 *
-*       cycles  MM cycles
+*       None
 *
 *   OUTPUTS
 *
 *       int8_t  Success or error code.
 *
 ***********************************************************************/
-int8_t MM_Iface_Update_MM_Heartbeat(uint64_t cycles)
+int8_t MM_Iface_Update_MM_Heartbeat(void)
 {
     int8_t status = STATUS_SUCCESS;
 
     /* First time we get a heartbeat, we register watchdog timer */
-    if (mm_iface_cb_g.mm_heartbeat_cycles == 0ULL)
+    if (!mm_iface_cb_g.mm_wd_initialized)
     {
-        /* TODO: Watchdog initialization here. Also register a callback to reset MM FW */
-    }
-    else if (mm_iface_cb_g.mm_heartbeat_cycles != cycles)
-    {
-        /* TODO: Re-kick the watchdog timer here */
-
-        /* Update MM heartbeat cycles */
-        mm_iface_cb_g.mm_heartbeat_cycles = cycles;
+        /* TODO: SW-8081: Watchdog initialization here. Also register a callback to reset MM FW */
+        mm_iface_cb_g.mm_wd_initialized = true;
     }
     else
     {
-        status = -1;
-        Log_Write(LOG_LEVEL_ERROR, "MM2SP:Heartbeat cycles not updated!\r\n");;
+        /* TODO: SW-8081: Re-kick the watchdog timer here */
     }
 
     return status;
@@ -228,8 +221,8 @@ int8_t MM_Iface_Init(void)
 
     if (status == STATUS_SUCCESS)
     {
-        /* Reset MM heartbeat cycles */
-        mm_iface_cb_g.mm_heartbeat_cycles = 0ULL;
+        /* Reset MM heartbeat WD init flag */
+        mm_iface_cb_g.mm_wd_initialized = false;
     }
 
     /* Register interrupt handler */

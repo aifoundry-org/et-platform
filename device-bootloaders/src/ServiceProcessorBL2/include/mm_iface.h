@@ -32,12 +32,11 @@
 */
 int8_t MM_Iface_Init(void);
 
-/*! \fn int8_t MM_Iface_Update_MM_Heartbeat(uint64_t cycles)
+/*! \fn int8_t MM_Iface_Update_MM_Heartbeat(void)
     \brief This function updates and checks the MM heartbeat for its correctness.
-    \param cycles Minion cycles
     \return Status indicating success or negative error
 */
-int8_t MM_Iface_Update_MM_Heartbeat(uint64_t cycles);
+int8_t MM_Iface_Update_MM_Heartbeat(void);
 
 /*! \fn int8_t MM_Iface_Send_Echo_Cmd(TickType_t timeout)
     \brief This sends Echo command to Master Minion. It is a blocking call
