@@ -81,6 +81,22 @@ TEST_F(TestDevOpsApiFuncDmaCmdsSysEmu, dataRWListCmd_NegativeTesting_3_12) {
   dataRWListCmd_NegativeTesting_3_12();
 }
 
+TEST_F(TestDevOpsApiFuncDmaCmdsSysEmu, dataRWListCmdMixed_3_13) {
+  dataRWListCmdMixed();
+}
+
+TEST_F(TestDevOpsApiFuncDmaCmdsSysEmu, dataRWListCmdMixedWithVarSize_3_14) {
+  dataRWListCmdMixedWithVarSize();
+}
+
+TEST_F(TestDevOpsApiFuncDmaCmdsSysEmu, dataRWListCmdAllChannels_3_15) {
+  dataRWListCmdAllChannels();
+}
+
+TEST_F(TestDevOpsApiFuncDmaCmdsSysEmu, dataRWListCmdWithBarrier_PositiveTesting_3_16) {
+  dataRWListCmdWithBarrier_PositiveTesting();
+}
+
 /*
  * This test fixture executes all tests under same deviceLayer instantiation.
  * It helps validate cumulative effect of tests in SysEMU.

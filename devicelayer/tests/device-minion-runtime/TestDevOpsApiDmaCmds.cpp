@@ -10,10 +10,13 @@
 
 #include "TestDevOpsApiDmaCmds.h"
 #include "Autogen.h"
+#include <algorithm>
 #include <fcntl.h>
 #include <random>
 
 namespace {
+
+const uint8_t kNodeCount = 4;
 
 void inline fillRandData(uint8_t* buf, size_t size) {
   auto randFd = open("/dev/urandom", O_RDONLY);
@@ -25,20 +28,16 @@ void inline fillRandData(uint8_t* buf, size_t size) {
 } // namespace
 
 bool TestDevOpsApiDmaCmds::fillDmaStream(int deviceIdx, std::vector<std::unique_ptr<IDevOpsApiCmd>>& stream,
-                                         const std::vector<DmaType>& cmdSequence,
-                                         const std::vector<size_t>& sizeSequence,
+                                         const std::vector<std::pair<DmaType, size_t>>& cmdSequence,
                                          std::vector<std::vector<uint8_t>>& dmaWrBufs,
                                          std::vector<std::vector<uint8_t>>& dmaRdBufs) {
-  if (!cmdSequence.size() || !sizeSequence.size() || cmdSequence.size() != sizeSequence.size()) {
-    return false;
-  }
   std::vector<uint8_t> dmaWrBuf;
   std::vector<uint8_t> dmaRdBuf;
   bool isFirstRead = true;
   for (int cmdIdx = 0; cmdIdx < cmdSequence.size(); cmdIdx++) {
-    switch (cmdSequence[cmdIdx]) {
+    switch (cmdSequence[cmdIdx].first) {
     case DmaType::DMA_WRITE:
-      dmaWrBuf.resize(sizeSequence[cmdIdx], 0);
+      dmaWrBuf.resize(cmdSequence[cmdIdx].second, 0);
       fillRandData(dmaWrBuf.data(), dmaWrBuf.size());
       dmaWrBufs.push_back(std::move(dmaWrBuf));
       stream.push_back(IDevOpsApiCmd::createDataWriteCmd(
@@ -48,7 +47,7 @@ bool TestDevOpsApiDmaCmds::fillDmaStream(int deviceIdx, std::vector<std::unique_
       isFirstRead = true;
       break;
     case DmaType::DMA_READ:
-      dmaRdBuf.resize(sizeSequence[cmdIdx], 0);
+      dmaRdBuf.resize(cmdSequence[cmdIdx].second, 0);
       dmaRdBufs.push_back(std::move(dmaRdBuf));
       stream.push_back(IDevOpsApiCmd::createDataReadCmd(
         isFirstRead ? device_ops_api::CMD_FLAGS_BARRIER_ENABLE : device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
@@ -65,8 +64,7 @@ bool TestDevOpsApiDmaCmds::fillDmaStream(int deviceIdx, std::vector<std::unique_
 }
 
 bool TestDevOpsApiDmaCmds::executeDmaCmds(bool singleDevice, bool singleQueue, bool isAsync,
-                                          const std::vector<DmaType>& cmdSequence,
-                                          const std::vector<size_t>& sizeSequence,
+                                          const std::vector<std::pair<DmaType, size_t>>& cmdSequence,
                                           std::vector<std::vector<uint8_t>>& dmaWrBufs,
                                           std::vector<std::vector<uint8_t>>& dmaRdBufs) {
   int deviceCount = singleDevice ? 1 : getDevicesCount();
@@ -74,7 +72,7 @@ bool TestDevOpsApiDmaCmds::executeDmaCmds(bool singleDevice, bool singleQueue, b
     std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
     int queueCount = singleQueue ? 1 : getSqCount(deviceIdx);
     for (int queueIdx = 0; queueIdx < queueCount; ++queueIdx) {
-      if (!fillDmaStream(deviceIdx, stream, cmdSequence, sizeSequence, dmaWrBufs, dmaRdBufs)) {
+      if (!fillDmaStream(deviceIdx, stream, cmdSequence, dmaWrBufs, dmaRdBufs)) {
         return false;
       }
       // Move stream of commands to streams_
@@ -87,6 +85,198 @@ bool TestDevOpsApiDmaCmds::executeDmaCmds(bool singleDevice, bool singleQueue, b
   return true;
 }
 
+bool TestDevOpsApiDmaCmds::allocDmaBufferSequence(bool singleDevice, bool singleQueue,
+                                                  const std::vector<std::pair<DmaType, size_t>>& dmaMoveSequence,
+                                                  std::unordered_map<size_t, std::vector<uint8_t*>>& dmaWrBufs,
+                                                  std::unordered_map<size_t, std::vector<uint8_t*>>& dmaRdBufs) {
+  std::vector<std::pair<DmaType, size_t>> wrSequence(dmaMoveSequence.size());
+  std::vector<std::pair<DmaType, size_t>> rdSequence(dmaMoveSequence.size());
+
+  auto it = std::copy_if(dmaMoveSequence.begin(), dmaMoveSequence.end(), wrSequence.begin(),
+                         [](auto& e) { return e.first == DmaType::DMA_WRITE; });
+  wrSequence.resize(std::distance(wrSequence.begin(), it));
+
+  it = std::copy_if(dmaMoveSequence.begin(), dmaMoveSequence.end(), rdSequence.begin(),
+                    [](auto& e) { return e.first == DmaType::DMA_READ; });
+  rdSequence.resize(std::distance(rdSequence.begin(), it));
+
+  auto totalWrSize =
+    std::accumulate(wrSequence.begin(), wrSequence.end(), 0ULL, [](auto& a, auto& b) { return a + b.second; });
+  auto totalRdSize =
+    std::accumulate(rdSequence.begin(), rdSequence.end(), 0ULL, [](auto& a, auto& b) { return a + b.second; });
+
+  uint8_t* wrMemPtr;
+  uint8_t* rdMemPtr;
+  auto deviceCount = singleDevice ? 1 : getDevicesCount();
+  for (auto deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    auto queueCount = singleQueue ? 1 : getSqCount(deviceIdx);
+    wrMemPtr = static_cast<uint8_t*>(allocDmaBuffer(deviceIdx, queueCount * totalWrSize, true));
+    fillRandData(wrMemPtr, queueCount * totalWrSize);
+    rdMemPtr = static_cast<uint8_t*>(allocDmaBuffer(deviceIdx, queueCount * totalRdSize, false));
+    for (auto queueIdx = 0; queueIdx < queueCount; queueIdx++) {
+      std::vector<uint8_t*> dmaWrMemPtrs(wrSequence.size());
+      dmaWrBufs.try_emplace(key(deviceIdx, queueIdx), std::move(dmaWrMemPtrs));
+      for (size_t i = 0; i < wrSequence.size(); i++) {
+        dmaWrBufs[key(deviceIdx, queueIdx)][i] = wrMemPtr;
+        wrMemPtr += wrSequence[i].second;
+      }
+      std::vector<uint8_t*> dmaRdMemPtrs(rdSequence.size());
+      dmaRdBufs.try_emplace(key(deviceIdx, queueIdx), std::move(dmaRdMemPtrs));
+      for (size_t i = 0; i < rdSequence.size(); i++) {
+        dmaRdBufs[key(deviceIdx, queueIdx)][i] = rdMemPtr;
+        rdMemPtr += rdSequence[i].second;
+      }
+    }
+  }
+
+  return true;
+}
+
+bool TestDevOpsApiDmaCmds::validateAndDeallocDmaBufferSequence(
+  bool singleDevice, bool singleQueue, bool validateData,
+  const std::vector<std::pair<DmaType, size_t>>& dmaMoveSequence,
+  std::unordered_map<size_t, std::vector<uint8_t*>>& dmaWrBufs,
+  std::unordered_map<size_t, std::vector<uint8_t*>>& dmaRdBufs) {
+  bool res = true;
+
+  auto bytesToCmpPerQueuePerDevice =
+    std::min(std::accumulate(dmaMoveSequence.begin(), dmaMoveSequence.end(), 0ULL,
+                             [](auto& a, auto& b) { return b.first == DmaType::DMA_WRITE ? a + b.second : a; }),
+             std::accumulate(dmaMoveSequence.begin(), dmaMoveSequence.end(), 0ULL,
+                             [](auto& a, auto& b) { return b.first == DmaType::DMA_READ ? a + b.second : a; }));
+
+  auto deviceCount = singleDevice ? 1 : getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    auto queueCount = singleQueue ? 1 : getSqCount(deviceIdx);
+    auto bytesToCmpPerDevice = queueCount * bytesToCmpPerQueuePerDevice;
+    if (dmaWrBufs.find(key(deviceIdx, 0)) != dmaWrBufs.end() && dmaWrBufs[key(deviceIdx, 0)].size() != 0 &&
+        dmaRdBufs.find(key(deviceIdx, 0)) != dmaRdBufs.end() && dmaRdBufs[key(deviceIdx, 0)].size() != 0) {
+      if (validateData &&
+          memcmp(dmaWrBufs[key(deviceIdx, 0)][0], dmaRdBufs[key(deviceIdx, 0)][0], bytesToCmpPerDevice) != 0) {
+        TEST_VLOG(0) << "dmaWrBufs and dmaRdBufs data for device: " << deviceIdx << " did not match!";
+        res = false;
+      }
+      freeDmaBuffer(static_cast<void*>(dmaWrBufs[key(deviceIdx, 0)][0]));
+      freeDmaBuffer(static_cast<void*>(dmaRdBufs[key(deviceIdx, 0)][0]));
+    } else {
+      TEST_VLOG(0) << "dmaWrBufs/dmaRdBufs for device: " << deviceIdx
+                   << " does not contain entries conforming to dmaMoveSequence!";
+      res = false;
+    }
+  }
+  dmaWrBufs.clear();
+  dmaRdBufs.clear();
+  return res;
+}
+
+bool TestDevOpsApiDmaCmds::fillDmaListStream(int deviceIdx, int queueIdx,
+                                             std::vector<std::unique_ptr<IDevOpsApiCmd>>& stream,
+                                             const std::vector<std::pair<DmaType, size_t>>& dmaMoveSequence,
+                                             std::unordered_map<size_t, std::vector<uint8_t*>>& dmaWrBufs,
+                                             std::unordered_map<size_t, std::vector<uint8_t*>>& dmaRdBufs) {
+  if (dmaWrBufs.find(key(deviceIdx, queueIdx)) == dmaWrBufs.end() ||
+      dmaWrBufs[key(deviceIdx, queueIdx)].size() !=
+        std::count_if(dmaMoveSequence.begin(), dmaMoveSequence.end(),
+                      [](auto& e) { return e.first == DmaType::DMA_WRITE; }) ||
+      dmaRdBufs.find(key(deviceIdx, queueIdx)) == dmaRdBufs.end() ||
+      dmaRdBufs[key(deviceIdx, queueIdx)].size() !=
+        std::count_if(dmaMoveSequence.begin(), dmaMoveSequence.end(),
+                      [](auto& e) { return e.first == DmaType::DMA_READ; })) {
+    return false;
+  }
+
+  bool isFirstRead = true;
+  int wrNodesFilled = 0;
+  int rdNodesFilled = 0;
+  int wrIdx = 0;
+  int rdIdx = 0;
+  std::array<device_ops_api::dma_write_node, kNodeCount> wrList;
+  std::array<device_ops_api::dma_read_node, kNodeCount> rdList;
+  for (int i = 0; i < dmaMoveSequence.size(); i++) {
+    switch (dmaMoveSequence[i].first) {
+    case DmaType::DMA_WRITE:
+      wrList[wrNodesFilled] = {
+        .src_host_virt_addr = templ::bit_cast<uint64_t>(dmaWrBufs[key(deviceIdx, queueIdx)][wrIdx]),
+        .src_host_phy_addr = templ::bit_cast<uint64_t>(dmaWrBufs[key(deviceIdx, queueIdx)][wrIdx]),
+        .dst_device_phy_addr = getDmaWriteAddr(deviceIdx, dmaMoveSequence[i].second),
+        .size = static_cast<uint32_t>(dmaMoveSequence[i].second)};
+      wrNodesFilled++;
+      wrIdx++;
+      break;
+    case DmaType::DMA_READ:
+      rdList[rdNodesFilled] = {
+        .dst_host_virt_addr = templ::bit_cast<uint64_t>(dmaRdBufs[key(deviceIdx, queueIdx)][rdIdx]),
+        .dst_host_phy_addr = templ::bit_cast<uint64_t>(dmaRdBufs[key(deviceIdx, queueIdx)][rdIdx]),
+        .src_device_phy_addr = getDmaReadAddr(deviceIdx, dmaMoveSequence[i].second),
+        .size = static_cast<uint32_t>(dmaMoveSequence[i].second)};
+      rdNodesFilled++;
+      rdIdx++;
+      break;
+    default:
+      return false;
+    }
+    if (dmaMoveSequence[i].first == DmaType::DMA_WRITE &&
+          (i + 1 == dmaMoveSequence.size() || wrNodesFilled == kNodeCount) ||
+        wrNodesFilled > 0 && rdNodesFilled > 0 && dmaMoveSequence[i].first == DmaType::DMA_READ) {
+      stream.push_back(IDevOpsApiCmd::createDmaWriteListCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, wrList.data(),
+                                                            wrNodesFilled,
+                                                            device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+      wrNodesFilled = 0;
+      isFirstRead = true;
+    }
+    if (dmaMoveSequence[i].first == DmaType::DMA_READ &&
+          (i + 1 == dmaMoveSequence.size() || rdNodesFilled == kNodeCount) ||
+        wrNodesFilled > 0 && rdNodesFilled > 0 && dmaMoveSequence[i].first == DmaType::DMA_WRITE) {
+      stream.push_back(IDevOpsApiCmd::createDmaReadListCmd(
+        isFirstRead ? device_ops_api::CMD_FLAGS_BARRIER_ENABLE : device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+        rdList.data(), rdNodesFilled, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+      rdNodesFilled = 0;
+      isFirstRead = false;
+    }
+  }
+
+  return true;
+}
+
+bool TestDevOpsApiDmaCmds::executeDmaListCmds(bool singleDevice, bool singleQueue, bool isAsync,
+                                              const std::vector<std::pair<DmaType, size_t>>& dmaMoveSequence) {
+  std::unordered_map<size_t, std::vector<uint8_t*>> dmaWrBufs;
+  std::unordered_map<size_t, std::vector<uint8_t*>> dmaRdBufs;
+  auto res = allocDmaBufferSequence(singleDevice, singleQueue, dmaMoveSequence, dmaWrBufs, dmaRdBufs);
+  if (!res) {
+    TEST_VLOG(0) << "allocDmaBufferSequence() failed!";
+    return res;
+  }
+
+  auto deviceCount = singleDevice ? 1 : getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    auto queueCount = singleQueue ? 1 : getSqCount(deviceIdx);
+    for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
+      std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
+      if (!fillDmaListStream(deviceIdx, queueIdx, stream, dmaMoveSequence, dmaWrBufs, dmaRdBufs)) {
+        TEST_VLOG(0) << "fillDmaListStream() failed for device:" << deviceIdx << ", queue: " << queueIdx;
+        validateAndDeallocDmaBufferSequence(singleDevice, singleQueue, false /* only dealloc data */, dmaMoveSequence,
+                                            dmaWrBufs, dmaRdBufs);
+        streams_.clear();
+        return false;
+      }
+      // Move stream of commands to streams_
+      streams_.try_emplace(key(deviceIdx, queueIdx), std::move(stream));
+    }
+  }
+
+  isAsync ? executeAsync() : executeSync();
+
+  auto validateData = !FLAGS_loopback_driver;
+  res =
+    validateAndDeallocDmaBufferSequence(singleDevice, singleQueue, validateData, dmaMoveSequence, dmaWrBufs, dmaRdBufs);
+  if (!res) {
+    TEST_VLOG(0) << "validateAndDeallocDmaBufferSequence() failed!";
+  }
+
+  return res;
+}
+
 /**********************************************************
  *                                                         *
  *              DMA Basic Testing Functions                *
@@ -97,12 +287,12 @@ bool TestDevOpsApiDmaCmds::executeDmaCmds(bool singleDevice, bool singleQueue, b
 void TestDevOpsApiDmaCmds::dataRWCmdMixed_3_5() {
   std::vector<std::vector<uint8_t>> dmaWrBufs;
   std::vector<std::vector<uint8_t>> dmaRdBufs;
-  std::vector<DmaType> cmdSequence = {DmaType::DMA_WRITE, DmaType::DMA_WRITE, DmaType::DMA_READ,
-                                      DmaType::DMA_READ,  DmaType::DMA_WRITE, DmaType::DMA_READ};
-  std::vector<size_t> sizeSequence = {512, 512, 512, 512, 256, 256};
+  std::vector<std::pair<DmaType, size_t>> cmdSequence = {{DmaType::DMA_WRITE, 512}, {DmaType::DMA_WRITE, 512},
+                                                         {DmaType::DMA_READ, 512},  {DmaType::DMA_READ, 512},
+                                                         {DmaType::DMA_WRITE, 256}, {DmaType::DMA_READ, 256}};
 
   EXPECT_TRUE(executeDmaCmds(false /* multiple devices */, false /* multiple queues */, true /* execute async */,
-                             cmdSequence, sizeSequence, dmaWrBufs, dmaRdBufs));
+                             cmdSequence, dmaWrBufs, dmaRdBufs));
 
   // Skip data validation in case of loopback driver
   if (FLAGS_loopback_driver) {
@@ -115,14 +305,23 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixed_3_5() {
   }
 }
 
+void TestDevOpsApiDmaCmds::dataRWListCmdMixed() {
+  bool singleDevice = false;
+  bool singleQueue = false;
+  std::vector<std::pair<DmaType, size_t>> dmaMoveSequence = {
+    {DmaType::DMA_WRITE, 512}, {DmaType::DMA_WRITE, 256}, {DmaType::DMA_READ, 512}, {DmaType::DMA_READ, 256}};
+
+  EXPECT_TRUE(executeDmaListCmds(singleDevice, singleQueue, true /* execute async */, dmaMoveSequence));
+  dmaMoveSequence.clear();
+}
+
 // Add variable sized to each transaction, you can pick from
 // an array of 5-10 different sizes randomly, and assign to
 // the different channels different sizes
 void TestDevOpsApiDmaCmds::dataRWCmdMixedWithVarSize_3_6() {
   std::vector<std::vector<uint8_t>> dmaWrBufs;
   std::vector<std::vector<uint8_t>> dmaRdBufs;
-  std::vector<DmaType> cmdSequence;
-  std::vector<size_t> sizeSequence;
+  std::vector<std::pair<DmaType, size_t>> cmdSequence;
   static const std::array<uint64_t, 10> bufSizeArray = {8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096};
   const int kMaxLoopbackCount = 3;
   std::random_device rd;
@@ -132,14 +331,12 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixedWithVarSize_3_6() {
   for (int i = 0; i < kMaxLoopbackCount; i++) {
     auto bufSize = bufSizeArray[dis(gen)];
     TEST_VLOG(1) << "Chosen buffer size is: " << bufSize;
-    sizeSequence.push_back(bufSize); // Write buffer size
-    cmdSequence.push_back(DmaType::DMA_WRITE);
-    sizeSequence.push_back(bufSize); // Read buffer size
-    cmdSequence.push_back(DmaType::DMA_READ);
+    cmdSequence.push_back({DmaType::DMA_WRITE, bufSize});
+    cmdSequence.push_back({DmaType::DMA_READ, bufSize});
   }
 
   EXPECT_TRUE(executeDmaCmds(false /* multiple devices */, false /* multiple queues */, true /* execute async */,
-                             cmdSequence, sizeSequence, dmaWrBufs, dmaRdBufs));
+                             cmdSequence, dmaWrBufs, dmaRdBufs));
 
   // Skip data validation in case of loopback driver
   if (FLAGS_loopback_driver) {
@@ -152,26 +349,44 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixedWithVarSize_3_6() {
   }
 }
 
+void TestDevOpsApiDmaCmds::dataRWListCmdMixedWithVarSize() {
+  bool singleDevice = false;
+  bool singleQueue = false;
+  std::vector<std::pair<DmaType, size_t>> dmaMoveSequence;
+  static const std::array<uint64_t, 10> bufSizeArray = {8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096};
+  const int kMaxLoopbackCount = 3;
+  std::random_device rd;
+  std::mt19937_64 gen(rd());
+  std::uniform_int_distribution<> dis(0, bufSizeArray.size() - 1);
+
+  for (int i = 0; i < kMaxLoopbackCount; i++) {
+    auto bufSize = bufSizeArray[dis(gen)];
+    TEST_VLOG(1) << "Chosen buffer size is: " << bufSize;
+    dmaMoveSequence.push_back({DmaType::DMA_WRITE, bufSize});
+    dmaMoveSequence.push_back({DmaType::DMA_READ, bufSize});
+  }
+
+  EXPECT_TRUE(executeDmaListCmds(singleDevice, singleQueue, true /* execute async */, dmaMoveSequence));
+  dmaMoveSequence.clear();
+}
+
 // Add minimal 8 DMA transactions with each channel
 // having different transfer size, with at least
 // 1 CMD in the middle having a Barrier bit set
 void TestDevOpsApiDmaCmds::dataRWCmdAllChannels_3_7() {
   std::vector<std::vector<uint8_t>> dmaWrBufs;
   std::vector<std::vector<uint8_t>> dmaRdBufs;
-  std::vector<DmaType> cmdSequence;
-  std::vector<size_t> sizeSequence;
+  std::vector<std::pair<DmaType, size_t>> cmdSequence;
   const int kMaxLoopbackCount = 4;
 
   for (int i = 0; i < kMaxLoopbackCount; i++) {
     auto bufSize = 256 * (i + 1);
-    sizeSequence.push_back(bufSize); // Write buffer size
-    cmdSequence.push_back(DmaType::DMA_WRITE);
-    sizeSequence.push_back(bufSize); // Read buffer size
-    cmdSequence.push_back(DmaType::DMA_READ);
+    cmdSequence.push_back({DmaType::DMA_WRITE, bufSize});
+    cmdSequence.push_back({DmaType::DMA_READ, bufSize});
   }
 
   EXPECT_TRUE(executeDmaCmds(false /* multiple devices */, false /* multiple queues */, true /* execute async */,
-                             cmdSequence, sizeSequence, dmaWrBufs, dmaRdBufs));
+                             cmdSequence, dmaWrBufs, dmaRdBufs));
 
   // Skip data validation in case of loopback driver
   if (FLAGS_loopback_driver) {
@@ -182,6 +397,22 @@ void TestDevOpsApiDmaCmds::dataRWCmdAllChannels_3_7() {
   for (std::size_t i = 0; i < dmaWrBufs.size(); ++i) {
     EXPECT_EQ(dmaWrBufs[i], dmaRdBufs[i]);
   }
+}
+
+void TestDevOpsApiDmaCmds::dataRWListCmdAllChannels() {
+  bool singleDevice = false;
+  bool singleQueue = false;
+  std::vector<std::pair<DmaType, size_t>> dmaMoveSequence;
+  const int kMaxLoopbackCount = 4;
+
+  for (int i = 0; i < kMaxLoopbackCount; i++) {
+    auto bufSize = 256 * (i + 1);
+    dmaMoveSequence.push_back({DmaType::DMA_WRITE, bufSize});
+    dmaMoveSequence.push_back({DmaType::DMA_READ, bufSize});
+  }
+
+  EXPECT_TRUE(executeDmaListCmds(singleDevice, singleQueue, true /* execute async */, dmaMoveSequence));
+  dmaMoveSequence.clear();
 }
 
 /**********************************************************
@@ -192,11 +423,10 @@ void TestDevOpsApiDmaCmds::dataRWCmdAllChannels_3_7() {
 void TestDevOpsApiDmaCmds::dataRWCmd_PositiveTesting_3_1() {
   std::vector<std::vector<uint8_t>> dmaWrBufs;
   std::vector<std::vector<uint8_t>> dmaRdBufs;
-  std::vector<DmaType> cmdSequence = {DmaType::DMA_WRITE, DmaType::DMA_READ};
-  std::vector<size_t> sizeSequence = {64, 64};
+  std::vector<std::pair<DmaType, size_t>> cmdSequence = {{DmaType::DMA_WRITE, 64}, {DmaType::DMA_READ, 64}};
 
   EXPECT_TRUE(executeDmaCmds(false /* multiple devices */, false /* multiple queues */, true /* execute async */,
-                             cmdSequence, sizeSequence, dmaWrBufs, dmaRdBufs));
+                             cmdSequence, dmaWrBufs, dmaRdBufs));
 
   // Skip data validation in case of loopback driver
   if (FLAGS_loopback_driver) {
@@ -212,12 +442,14 @@ void TestDevOpsApiDmaCmds::dataRWCmd_PositiveTesting_3_1() {
 void TestDevOpsApiDmaCmds::dataRWCmdWithBarrier_PositiveTesting_3_10() {
   std::vector<std::vector<uint8_t>> dmaWrBufs;
   std::vector<std::vector<uint8_t>> dmaRdBufs;
-  std::vector<DmaType> cmdSequence = {DmaType::DMA_WRITE, DmaType::DMA_WRITE, DmaType::DMA_WRITE, DmaType::DMA_WRITE,
-                                      DmaType::DMA_READ};
-  std::vector<size_t> sizeSequence = {512, 512, 512, 512, 4 * 512};
+  std::vector<std::pair<DmaType, size_t>> cmdSequence = {{DmaType::DMA_WRITE, 512},
+                                                         {DmaType::DMA_WRITE, 512},
+                                                         {DmaType::DMA_WRITE, 512},
+                                                         {DmaType::DMA_WRITE, 512},
+                                                         {DmaType::DMA_READ, 4 * 512}};
 
   EXPECT_TRUE(executeDmaCmds(false /* multiple devices */, false /* multiple queues */, true /* execute async */,
-                             cmdSequence, sizeSequence, dmaWrBufs, dmaRdBufs));
+                             cmdSequence, dmaWrBufs, dmaRdBufs));
 
   // Skip data validation in case of loopback driver
   if (FLAGS_loopback_driver) {
@@ -246,65 +478,27 @@ void TestDevOpsApiDmaCmds::dataRWCmdWithBarrier_PositiveTesting_3_10() {
   }
 }
 
+void TestDevOpsApiDmaCmds::dataRWListCmdWithBarrier_PositiveTesting() {
+  bool singleDevice = false;
+  bool singleQueue = false;
+  std::vector<std::pair<DmaType, size_t>> dmaMoveSequence = {{DmaType::DMA_WRITE, 512},
+                                                             {DmaType::DMA_WRITE, 512},
+                                                             {DmaType::DMA_WRITE, 512},
+                                                             {DmaType::DMA_WRITE, 512},
+                                                             {DmaType::DMA_READ, 4 * 512}};
+  EXPECT_TRUE(executeDmaListCmds(singleDevice, singleQueue, true /* execute async */, dmaMoveSequence));
+  dmaMoveSequence.clear();
+}
+
 void TestDevOpsApiDmaCmds::dataRWListCmd_PositiveTesting_3_11() {
-  std::vector<void*> dmaWrMemPtrs;
-  std::vector<void*> dmaRdMemPtrs;
-  const uint8_t kNodeCount = 4;
-  const size_t kBufSize = 64;
-  device_ops_api::dma_write_node wrList[kNodeCount];
-  device_ops_api::dma_read_node rdList[kNodeCount];
+  bool singleDevice = false;
+  bool singleQueue = false;
+  std::vector<std::pair<DmaType, size_t>> dmaMoveSequence = {
+    {DmaType::DMA_WRITE, 64}, {DmaType::DMA_WRITE, 64}, {DmaType::DMA_WRITE, 64}, {DmaType::DMA_WRITE, 64},
+    {DmaType::DMA_READ, 64},  {DmaType::DMA_READ, 64},  {DmaType::DMA_READ, 64},  {DmaType::DMA_READ, 64}};
 
-  int deviceCount = getDevicesCount();
-  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    auto queueCount = getSqCount(deviceIdx);
-    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
-
-    dmaWrMemPtrs.push_back(allocDmaBuffer(deviceIdx, queueCount * kNodeCount * kBufSize, true));
-    dmaRdMemPtrs.push_back(allocDmaBuffer(deviceIdx, queueCount * kNodeCount * kBufSize, false));
-
-    fillRandData(static_cast<uint8_t*>(dmaWrMemPtrs[deviceIdx]), queueCount * kNodeCount * kBufSize);
-
-    uint8_t* rdBufPtr = static_cast<uint8_t*>(dmaRdMemPtrs[deviceIdx]);
-    uint8_t* wrBufPtr = static_cast<uint8_t*>(dmaWrMemPtrs[deviceIdx]);
-
-    for (int queueIdx = 0; queueIdx < queueCount; ++queueIdx) {
-      for (int nodeIdx = 0; nodeIdx < kNodeCount; ++nodeIdx) {
-        // NOTE: host_phys_addr should be handled in SysEmu, userspace should not fill this value
-        wrList[nodeIdx] = {.src_host_virt_addr = templ::bit_cast<uint64_t>(wrBufPtr),
-                           .src_host_phy_addr = templ::bit_cast<uint64_t>(wrBufPtr),
-                           .dst_device_phy_addr = getDmaWriteAddr(deviceIdx, kBufSize),
-                           .size = kBufSize};
-        wrBufPtr += kBufSize;
-
-        rdList[nodeIdx] = {.dst_host_virt_addr = templ::bit_cast<uint64_t>(rdBufPtr),
-                           .dst_host_phy_addr = templ::bit_cast<uint64_t>(rdBufPtr),
-                           .src_device_phy_addr = getDmaReadAddr(deviceIdx, kBufSize),
-                           .size = kBufSize};
-        rdBufPtr += kBufSize;
-      }
-      stream.push_back(IDevOpsApiCmd::createDmaWriteListCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, wrList,
-                                                            kNodeCount,
-                                                            device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-      stream.push_back(IDevOpsApiCmd::createDmaReadListCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, rdList, kNodeCount,
-                                                           device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-      // Move stream of commands to streams_[queueId]
-      streams_.try_emplace(key(deviceIdx, queueIdx), std::move(stream));
-    }
-  }
-  executeAsync();
-
-  // Validate data received from DMA
-  for (int deviceIdx = 0; deviceIdx < deviceCount; ++deviceIdx) {
-    // Skip data validation in case of loopback driver
-    if (!FLAGS_loopback_driver) {
-      auto queueCount = getSqCount(deviceIdx);
-      auto bytesWritten = queueCount * kNodeCount * kBufSize;
-      EXPECT_EQ(memcmp(dmaWrMemPtrs[deviceIdx], dmaRdMemPtrs[deviceIdx], bytesWritten), 0)
-        << "DMA W/R data mismatched for deviceIdx: " << (int)deviceIdx << std::endl;
-    }
-    freeDmaBuffer(dmaWrMemPtrs[deviceIdx]);
-    freeDmaBuffer(dmaRdMemPtrs[deviceIdx]);
-  }
+  EXPECT_TRUE(executeDmaListCmds(singleDevice, singleQueue, true /* execute async */, dmaMoveSequence));
+  dmaMoveSequence.clear();
 }
 
 /**********************************************************
@@ -317,8 +511,8 @@ void TestDevOpsApiDmaCmds::dataRWListCmd_NegativeTesting_3_12() {
   std::vector<void*> dmaRdMemPtrs;
   const uint8_t kNodeCount = 4;
   const size_t kBufSize = 64;
-  device_ops_api::dma_write_node wrList[kNodeCount];
-  device_ops_api::dma_read_node rdList[kNodeCount];
+  std::vector<device_ops_api::dma_write_node> wrList(kNodeCount);
+  std::vector<device_ops_api::dma_read_node> rdList(kNodeCount);
 
   int deviceCount = getDevicesCount();
   int queueIdx = 0;
@@ -330,8 +524,8 @@ void TestDevOpsApiDmaCmds::dataRWListCmd_NegativeTesting_3_12() {
 
     fillRandData(static_cast<uint8_t*>(dmaWrMemPtrs[deviceIdx]), kNodeCount * kBufSize);
 
-    uint8_t* rdBufPtr = static_cast<uint8_t*>(dmaRdMemPtrs[deviceIdx]);
-    uint8_t* wrBufPtr = static_cast<uint8_t*>(dmaWrMemPtrs[deviceIdx]);
+    auto* rdBufPtr = static_cast<uint8_t*>(dmaRdMemPtrs[deviceIdx]);
+    auto* wrBufPtr = static_cast<uint8_t*>(dmaWrMemPtrs[deviceIdx]);
 
     for (int nodeIdx = 0; nodeIdx < kNodeCount; ++nodeIdx) {
       // NOTE: host_phys_addr should be handled in SysEmu, userspace should not fill this value
@@ -348,10 +542,10 @@ void TestDevOpsApiDmaCmds::dataRWListCmd_NegativeTesting_3_12() {
       rdBufPtr += kBufSize;
     }
     stream.push_back(
-      IDevOpsApiCmd::createDmaWriteListCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, wrList, kNodeCount,
+      IDevOpsApiCmd::createDmaWriteListCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, wrList.data(), kNodeCount,
                                            device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ADDRESS));
     stream.push_back(
-      IDevOpsApiCmd::createDmaReadListCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, rdList, kNodeCount,
+      IDevOpsApiCmd::createDmaReadListCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, rdList.data(), kNodeCount,
                                           device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ADDRESS));
     // Move stream of commands to streams_[queueId]
     streams_.try_emplace(key(deviceIdx, queueIdx), std::move(stream));
@@ -367,21 +561,18 @@ void TestDevOpsApiDmaCmds::dataRWListCmd_NegativeTesting_3_12() {
 void TestDevOpsApiDmaCmds::dataWRStressSize_2_1(uint8_t maxExp2) {
   std::vector<std::vector<uint8_t>> dmaWrBufs;
   std::vector<std::vector<uint8_t>> dmaRdBufs;
-  std::vector<DmaType> cmdSequence;
-  std::vector<size_t> sizeSequence;
+  std::vector<std::pair<DmaType, size_t>> cmdSequence;
 
   for (uint8_t n = 2; n <= maxExp2; n++) {
-    cmdSequence.push_back(DmaType::DMA_WRITE);
-    sizeSequence.push_back(1ULL << n);
+    cmdSequence.push_back({DmaType::DMA_WRITE, 1ULL << n});
   }
 
   for (uint8_t n = 2; n <= maxExp2; n++) {
-    cmdSequence.push_back(DmaType::DMA_READ);
-    sizeSequence.push_back(1ULL << n);
+    cmdSequence.push_back({DmaType::DMA_READ, 1ULL << n});
   }
 
   EXPECT_TRUE(executeDmaCmds(true /* single queue */, true /* single device */, false /* execute sync */, cmdSequence,
-                             sizeSequence, dmaWrBufs, dmaRdBufs));
+                             dmaWrBufs, dmaRdBufs));
 
   // Skip data validation in case of loopback driver
   if (FLAGS_loopback_driver) {
@@ -391,26 +582,40 @@ void TestDevOpsApiDmaCmds::dataWRStressSize_2_1(uint8_t maxExp2) {
   for (std::size_t i = 0; i < dmaWrBufs.size(); ++i) {
     EXPECT_EQ(dmaWrBufs[i], dmaRdBufs[i]);
   }
+}
+
+void TestDevOpsApiDmaCmds::dataWRListStressSize(uint8_t maxExp2) {
+  bool singleDevice = true;
+  bool singleQueue = true;
+  std::vector<std::pair<DmaType, size_t>> dmaMoveSequence;
+
+  for (uint8_t n = 2; n <= maxExp2; n++) {
+    dmaMoveSequence.push_back({DmaType::DMA_WRITE, 1ULL << n});
+  }
+
+  for (uint8_t n = 2; n <= maxExp2; n++) {
+    dmaMoveSequence.push_back({DmaType::DMA_READ, 1ULL << n});
+  }
+
+  EXPECT_TRUE(executeDmaListCmds(singleDevice, singleQueue, false /* execute sync */, dmaMoveSequence));
+  dmaMoveSequence.clear();
 }
 
 void TestDevOpsApiDmaCmds::dataWRStressSpeed_2_2(uint8_t maxExp2) {
   std::vector<std::vector<uint8_t>> dmaWrBufs;
   std::vector<std::vector<uint8_t>> dmaRdBufs;
-  std::vector<DmaType> cmdSequence;
-  std::vector<size_t> sizeSequence;
+  std::vector<std::pair<DmaType, size_t>> cmdSequence;
 
   for (uint8_t n = 2; n <= maxExp2; n++) {
-    cmdSequence.push_back(DmaType::DMA_WRITE);
-    sizeSequence.push_back(1ULL << n);
+    cmdSequence.push_back({DmaType::DMA_WRITE, 1ULL << n});
   }
 
   for (uint8_t n = 2; n <= maxExp2; n++) {
-    cmdSequence.push_back(DmaType::DMA_READ);
-    sizeSequence.push_back(1ULL << n);
+    cmdSequence.push_back({DmaType::DMA_READ, 1ULL << n});
   }
 
   EXPECT_TRUE(executeDmaCmds(true /* single queue */, true /* single device */, true /* execute Async */, cmdSequence,
-                             sizeSequence, dmaWrBufs, dmaRdBufs));
+                             dmaWrBufs, dmaRdBufs));
 
   // Skip data validation in case of loopback driver
   if (FLAGS_loopback_driver) {
@@ -422,25 +627,37 @@ void TestDevOpsApiDmaCmds::dataWRStressSpeed_2_2(uint8_t maxExp2) {
   }
 }
 
+void TestDevOpsApiDmaCmds::dataWRListStressSpeed(uint8_t maxExp2) {
+  bool singleDevice = true;
+  bool singleQueue = true;
+  std::vector<std::pair<DmaType, size_t>> dmaMoveSequence;
+
+  for (uint8_t n = 2; n <= maxExp2; n++) {
+    dmaMoveSequence.push_back({DmaType::DMA_WRITE, 1ULL << n});
+  }
+
+  for (uint8_t n = 2; n <= maxExp2; n++) {
+    dmaMoveSequence.push_back({DmaType::DMA_READ, 1ULL << n});
+  }
+
+  EXPECT_TRUE(executeDmaListCmds(singleDevice, singleQueue, true /* execute async */, dmaMoveSequence));
+  dmaMoveSequence.clear();
+}
+
 void TestDevOpsApiDmaCmds::dataWRStressChannels(bool singleDevice, bool singleQueue, uint32_t numOfLoopbackCmds) {
   std::vector<std::vector<uint8_t>> dmaRdBufs;
   std::vector<std::vector<uint8_t>> dmaWrBufs;
-  std::vector<DmaType> cmdSequence;
-  std::vector<size_t> sizeSequence;
-  int deviceCount = singleDevice ? 1 : getDevicesCount();
-  int queueCount = singleQueue ? 1 : getSqCount(0);
+  std::vector<std::pair<DmaType, size_t>> cmdSequence;
+  auto deviceCount = singleDevice ? 1 : getDevicesCount();
+  auto queueCount = singleQueue ? 1 : getSqCount(0);
   for (int i = 1; i <= (numOfLoopbackCmds / deviceCount) / queueCount; i++) {
-    cmdSequence.push_back(DmaType::DMA_WRITE);
-    sizeSequence.push_back(4096 /* 4K */);
+    cmdSequence.push_back({DmaType::DMA_WRITE, 4096 /* 4K */});
   }
   for (int i = 1; i <= (numOfLoopbackCmds / deviceCount) / queueCount; i++) {
-    cmdSequence.push_back(DmaType::DMA_READ);
-    sizeSequence.push_back(4096 /* 4K */);
+    cmdSequence.push_back({DmaType::DMA_READ, 4096 /* 4K */});
   }
 
-  EXPECT_TRUE(executeDmaCmds(singleDevice, singleQueue, true /* execute Async */, cmdSequence, sizeSequence, dmaWrBufs,
-                             dmaRdBufs));
-
+  EXPECT_TRUE(executeDmaCmds(singleDevice, singleQueue, true /* execute Async */, cmdSequence, dmaWrBufs, dmaRdBufs));
   // Skip data validation in case of loopback driver
   if (FLAGS_loopback_driver) {
     return;
@@ -452,83 +669,16 @@ void TestDevOpsApiDmaCmds::dataWRStressChannels(bool singleDevice, bool singleQu
 }
 
 void TestDevOpsApiDmaCmds::dmaListWrAndRd(bool singleDevice, bool singleQueue, uint32_t numOfDmaEntries) {
-  std::vector<void*> dmaWrMemPtrs;
-  std::vector<void*> dmaRdMemPtrs;
-  const uint8_t kMaxNodeCountPerCmd = 4;
-  const size_t kBufSize = 4 * 1024; // 4K
-  const size_t kMaxAllocSize =
-    0x1 << 31; // 2GB, TODO: Get from device layer when support becomes available in device layer
-
-  ASSERT_LE(numOfDmaEntries * kBufSize, kMaxAllocSize)
-    << "Number of DMA entries are too large (max allowed: " << kMaxAllocSize / (numOfDmaEntries * kBufSize) << ")"
-    << std::endl;
-
-  auto deviceCount = (singleDevice) ? 1 : getDevicesCount();
-  auto numOfDmaEntriesPerDev = numOfDmaEntries / deviceCount;
-
-  device_ops_api::dma_write_node wrList[kMaxNodeCountPerCmd];
-  device_ops_api::dma_read_node rdList[kMaxNodeCountPerCmd];
-
-  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
-
-    dmaWrMemPtrs.push_back(allocDmaBuffer(deviceIdx, numOfDmaEntriesPerDev * kBufSize, true));
-    dmaRdMemPtrs.push_back(allocDmaBuffer(deviceIdx, numOfDmaEntriesPerDev * kBufSize, false));
-
-    fillRandData(static_cast<uint8_t*>(dmaWrMemPtrs[deviceIdx]), numOfDmaEntriesPerDev * kBufSize);
-
-    uint8_t* rdBufPtr = static_cast<uint8_t*>(dmaRdMemPtrs[deviceIdx]);
-    uint8_t* wrBufPtr = static_cast<uint8_t*>(dmaWrMemPtrs[deviceIdx]);
-
-    auto queueCount = (singleQueue) ? 1 : getSqCount(deviceIdx);
-    auto numOfDmaEntriesPerQueue = numOfDmaEntriesPerDev / queueCount;
-    for (int queueIdx = 0; queueIdx < queueCount; ++queueIdx) {
-      for (int i = 0; i < numOfDmaEntriesPerQueue;) {
-        // NOTE: host_phys_addr should be handled in SysEmu, userspace should not fill this value
-        wrList[i % kMaxNodeCountPerCmd] = {.src_host_virt_addr = templ::bit_cast<uint64_t>(wrBufPtr),
-                                           .src_host_phy_addr = templ::bit_cast<uint64_t>(wrBufPtr),
-                                           .dst_device_phy_addr = getDmaWriteAddr(deviceIdx, kBufSize),
-                                           .size = kBufSize};
-        wrBufPtr += kBufSize;
-        ++i;
-        if (i % kMaxNodeCountPerCmd == 0 || i == numOfDmaEntriesPerQueue) {
-          stream.push_back(IDevOpsApiCmd::createDmaWriteListCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, wrList,
-                                                                (i - 1) % kMaxNodeCountPerCmd + 1,
-                                                                device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-        }
-      }
-
-      for (int i = 0; i < numOfDmaEntriesPerQueue;) {
-        // NOTE: host_phys_addr should be handled in SysEmu, userspace should not fill this value
-        rdList[i % kMaxNodeCountPerCmd] = {.dst_host_virt_addr = templ::bit_cast<uint64_t>(rdBufPtr),
-                                           .dst_host_phy_addr = templ::bit_cast<uint64_t>(rdBufPtr),
-                                           .src_device_phy_addr = getDmaReadAddr(deviceIdx, kBufSize),
-                                           .size = kBufSize};
-        rdBufPtr += kBufSize;
-        ++i;
-        if (i % kMaxNodeCountPerCmd == 0 || i == numOfDmaEntriesPerQueue) {
-          stream.push_back(IDevOpsApiCmd::createDmaReadListCmd(
-            (i == 1) ? device_ops_api::CMD_FLAGS_BARRIER_ENABLE : device_ops_api::CMD_FLAGS_BARRIER_DISABLE, rdList,
-            (i - 1) % kMaxNodeCountPerCmd + 1, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-        }
-      }
-      // Move stream of commands to streams_[queueId]
-      streams_.try_emplace(key(deviceIdx, queueIdx), std::move(stream));
-    }
+  std::vector<std::pair<DmaType, size_t>> dmaMoveSequence;
+  auto deviceCount = singleDevice ? 1 : getDevicesCount();
+  auto queueCount = singleQueue ? 1 : getSqCount(0);
+  for (int i = 1; i <= (numOfDmaEntries / deviceCount) / queueCount; i++) {
+    dmaMoveSequence.push_back({DmaType::DMA_WRITE, 4096 /* 4K */});
   }
-  executeAsync();
-
-  // Validate data received from DMA
-  for (int deviceIdx = 0; deviceIdx < deviceCount; ++deviceIdx) {
-    // Skip data validation in case of loopback driver
-    if (!FLAGS_loopback_driver) {
-      auto queueCount = (singleQueue) ? 1 : getSqCount(deviceIdx);
-      auto numOfDmaEntriesPerQueue = numOfDmaEntriesPerDev / queueCount;
-      auto bytesWritten = numOfDmaEntriesPerQueue * queueCount * kBufSize;
-      EXPECT_EQ(memcmp(dmaWrMemPtrs[deviceIdx], dmaRdMemPtrs[deviceIdx], bytesWritten), 0)
-        << "DMA W/R data mismatched for deviceIdx: " << (int)deviceIdx << std::endl;
-    }
-    freeDmaBuffer(dmaWrMemPtrs[deviceIdx]);
-    freeDmaBuffer(dmaRdMemPtrs[deviceIdx]);
+  for (int i = 1; i <= (numOfDmaEntries / deviceCount) / queueCount; i++) {
+    dmaMoveSequence.push_back({DmaType::DMA_READ, 4096 /* 4K */});
   }
+
+  EXPECT_TRUE(executeDmaListCmds(singleDevice, singleQueue, true /* execute async */, dmaMoveSequence));
+  dmaMoveSequence.clear();
 }

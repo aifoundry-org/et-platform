@@ -78,6 +78,14 @@ TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dmaList1kWrAndRdSingleDeviceMultiQueue_
   dmaListWrAndRd(true /* single device */, false /* multiple queues */, 1000);
 }
 
+TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dataWRListStressSize_2_8) {
+  dataWRListStressSize(30);
+}
+
+TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dataWRListStressSpeed_2_9) {
+  dataWRListStressSpeed(30);
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   google::ParseCommandLineFlags(&argc, &argv, true);

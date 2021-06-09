@@ -47,6 +47,22 @@ TEST_F(TestDevOpsApiFuncDmaCmdsPcie, dataRWListCmd_PositiveTesting_3_11) {
   dataRWListCmd_PositiveTesting_3_11();
 }
 
+TEST_F(TestDevOpsApiFuncDmaCmdsPcie, dataRWListCmdMixed_3_12) {
+  dataRWListCmdMixed();
+}
+
+TEST_F(TestDevOpsApiFuncDmaCmdsPcie, dataRWListCmdMixedWithVarSize_3_13) {
+  dataRWListCmdMixedWithVarSize();
+}
+
+TEST_F(TestDevOpsApiFuncDmaCmdsPcie, dataRWListCmdAllChannels_3_14) {
+  dataRWListCmdAllChannels();
+}
+
+TEST_F(TestDevOpsApiFuncDmaCmdsPcie, dataRWListCmdWithBarrier_PositiveTesting_3_15) {
+  dataRWListCmdWithBarrier_PositiveTesting();
+}
+
 TEST_F(TestDevOpsApiFuncDmaCmdsPcie, dataRWListCmd_NegativeTesting_3_12) {
   // Skip Test, if loopback driver
   if (FLAGS_loopback_driver) {

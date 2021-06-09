@@ -55,6 +55,15 @@ TEST_F(TestDevOpsApiLoopbackDmaCmdsPcie, dmaList50kWrAndRdMultiDeviceMultiQueue_
   dmaListWrAndRd(false /* multiple devices */, false /* multiple queues */, 50000);
 }
 
+TEST_F(TestDevOpsApiLoopbackDmaCmdsPcie, dataWRListStressSize_2_9) {
+  dataWRListStressSize(25);
+}
+
+TEST_F(TestDevOpsApiLoopbackDmaCmdsPcie, dataWRListStressSpeed_2_10) {
+  dataWRListStressSpeed(25);
+}
+
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   google::ParseCommandLineFlags(&argc, &argv, true);
