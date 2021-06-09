@@ -29,91 +29,78 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
             sizeof(struct event_message_t) );
     FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 1024, 1, 0);
     pcie_event_callback(CORRECTABLE, &message);
-    vTaskDelay(pdMS_TO_TICKS(10));
 
     /* Generate PCIE Un-Correctable Error */
     FILL_EVENT_HEADER(&message.header, PCIE_UCE,
             sizeof(struct event_message_t) );
     FILL_EVENT_PAYLOAD(&message.payload, FATAL, 100, 16, 0);
     pcie_event_callback(UNCORRECTABLE, &message);
-    vTaskDelay(pdMS_TO_TICKS(10));
 
     /* Generate DRAM Correctable Error */
     FILL_EVENT_HEADER(&message.header, DRAM_CE,
             sizeof(struct event_message_t));
     FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 100, 1, 0);
     ddr_event_callback(CORRECTABLE, &message);
-    vTaskDelay(pdMS_TO_TICKS(10));
 
     /* Generate DRAM Un-Correctable Error */
     FILL_EVENT_HEADER(&message.header, DRAM_UCE,
             sizeof(struct event_message_t));
     FILL_EVENT_PAYLOAD(&message.payload, FATAL, 100, 1, 0);
     ddr_event_callback(UNCORRECTABLE, &message);
-    vTaskDelay(pdMS_TO_TICKS(10));
 
     /* Generate SRAM Correctable Error */
     FILL_EVENT_HEADER(&message.header, SRAM_CE,
             sizeof(struct event_message_t));
     FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 100, 1, 0);
     sram_event_callback(CORRECTABLE, &message);
-    vTaskDelay(pdMS_TO_TICKS(10));
 
     /* Generate SRAM UN-Correctable Error */
     FILL_EVENT_HEADER(&message.header, SRAM_UCE,
             sizeof(struct event_message_t));
     FILL_EVENT_PAYLOAD(&message.payload, FATAL, 100, 1, 0);
     sram_event_callback(UNCORRECTABLE, &message);
-    vTaskDelay(pdMS_TO_TICKS(10));
 
     /* Generate Low Temperature Error */
     FILL_EVENT_HEADER(&message.header, THERMAL_LOW,
             sizeof(struct event_message_t));
     FILL_EVENT_PAYLOAD(&message.payload, WARNING, 1, 50, 0);
     power_event_callback(UNCORRECTABLE, &message);
-    vTaskDelay(pdMS_TO_TICKS(10));
 
     /* Generate PMIC Error */
     FILL_EVENT_HEADER(&message.header, PMIC_ERROR,
             sizeof(struct event_message_t));
     FILL_EVENT_PAYLOAD(&message.payload, FATAL, 33, 0xFF, 0xC35A);
     power_event_callback(UNCORRECTABLE, &message);
-    vTaskDelay(pdMS_TO_TICKS(10));
 
     /* Generate Internal Watchdog Timeout Error */
     FILL_EVENT_HEADER(&message.header, WDOG_INTERNAL_TIMEOUT,
             sizeof(struct event_message_t));
     FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 22, 0xA0A0A0A0B0B0B0B0, 0xECECECEC1D2D3D4D);
     wdog_timeout_callback(UNCORRECTABLE, &message);
-    vTaskDelay(pdMS_TO_TICKS(10));
 
     /* Generate External Watchdog Timeout Error */
     FILL_EVENT_HEADER(&message.header, WDOG_EXTERNAL_TIMEOUT,
             sizeof(struct event_message_t));
     FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 11, 0xCACACACA09110911, 0xAAAAAAAA1234CDEF);
     wdog_timeout_callback(UNCORRECTABLE, &message);
-    vTaskDelay(pdMS_TO_TICKS(10));
 
     /* Generate Thermal Throttling Error */
      FILL_EVENT_HEADER(&message.header, THROTTLE_TIME,
              sizeof(struct event_message_t));
     FILL_EVENT_PAYLOAD(&message.payload, WARNING, 65, 5000, 0);
     power_event_callback(UNCORRECTABLE, &message);
-    vTaskDelay(pdMS_TO_TICKS(10));     
 
     /* Generate Minion Exception threshold Error */
      FILL_EVENT_HEADER(&message.header, MINION_EXCEPT_TH,
              sizeof(struct event_message_t));
     FILL_EVENT_PAYLOAD(&message.payload, WARNING, 20, 3, 0);
     minion_event_callback(UNCORRECTABLE, &message);
-    vTaskDelay(pdMS_TO_TICKS(10)); 
 
     /* Generate Minion hang threshold Error */
      FILL_EVENT_HEADER(&message.header, MINION_HANG_TH,
              sizeof(struct event_message_t));
     FILL_EVENT_PAYLOAD(&message.payload, WARNING, 80, 2, 0);
     minion_event_callback(UNCORRECTABLE, &message);
-    vTaskDelay(pdMS_TO_TICKS(10)); 
 
     struct device_mgmt_default_rsp_t dm_rsp;
 
