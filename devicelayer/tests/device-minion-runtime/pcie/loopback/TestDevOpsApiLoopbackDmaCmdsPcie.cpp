@@ -32,15 +32,15 @@ TEST_F(TestDevOpsApiLoopbackDmaCmdsPcie, dataWRStressSpeed_2_2) {
 }
 
 TEST_F(TestDevOpsApiLoopbackDmaCmdsPcie, dataWrRdCmd1kWrAndRdSingleDeviceSingleQueue_2_3) {
-  dataWRStressChannelsSingleDeviceSingleQueue_2_3(1000);
+  dataWRStressChannels(true, true, 1000);
 }
 
 TEST_F(TestDevOpsApiLoopbackDmaCmdsPcie, dataWrRdCmd1kWrAndRdSingleDeviceMultiQueue_2_4) {
-  dataWRStressChannelsSingleDeviceMultiQueue_2_4(1000);
+  dataWRStressChannels(true, false, 1000);
 }
 
 TEST_F(TestDevOpsApiLoopbackDmaCmdsPcie, dataWrRdCmd1kWrAndRdMultiDeviceMultiQueue_2_5) {
-  dataWRStressChannelsMultiDeviceMultiQueue_2_5(1000);
+  dataWRStressChannels(false, false, 1000);
 }
 
 TEST_F(TestDevOpsApiLoopbackDmaCmdsPcie, dmaList50kWrAndRdSingleDeviceSingleQueue_2_6) {

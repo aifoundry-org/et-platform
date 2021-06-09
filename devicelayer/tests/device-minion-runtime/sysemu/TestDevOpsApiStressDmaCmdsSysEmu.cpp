@@ -63,11 +63,11 @@ TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dataWRStressSpeed_2_2) {
 }
 
 TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dataWRStressChannelsSingleDeviceSingleQueue_2_3) {
-  dataWRStressChannelsSingleDeviceSingleQueue_2_3(1000);
+  dataWRStressChannels(true, true, 1000);
 }
 
 TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dataWRStressChannelsSingleDeviceMultiQueue_2_4) {
-  dataWRStressChannelsSingleDeviceMultiQueue_2_4(1000);
+  dataWRStressChannels(true, false, 1000);
 }
 
 TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dmaList1kWrAndRdSingleDeviceSingleQueue_2_5) {

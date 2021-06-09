@@ -25,9 +25,7 @@ protected:
   /* DMA Stress Testing Functions */
   void dataWRStressSize_2_1(uint8_t maxExp2);
   void dataWRStressSpeed_2_2(uint8_t maxExp2);
-  void dataWRStressChannelsSingleDeviceSingleQueue_2_3(uint32_t numOfLoopbackCmds);
-  void dataWRStressChannelsSingleDeviceMultiQueue_2_4(uint32_t numOfLoopbackCmds);
-  void dataWRStressChannelsMultiDeviceMultiQueue_2_5(uint32_t numOfLoopbackCmds);
+  void dataWRStressChannels(bool singleDevice, bool singleQueue, uint32_t numOfLoopbackCmds);
 
   /* DMA List Positive Testing Functions */
   void dataRWListCmd_PositiveTesting_3_11();
