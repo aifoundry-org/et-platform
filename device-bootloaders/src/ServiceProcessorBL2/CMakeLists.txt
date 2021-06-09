@@ -138,3 +138,14 @@ target_include_directories(BL2_driver
     INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
+
+target_link_libraries(BL2_driver
+    INTERFACE
+        deviceApi::deviceApi
+        signedImageFormat::signedImageFormat
+        etsoc_hal::etsoc_hal
+        EsperantoDeviceMinionRuntime::sp_firmware_helpers
+        deviceFirmware::device_serial
+        FreeRTOS::FreeRTOS
+        EsperantoDeviceMinionRuntime::device_trace
+)
