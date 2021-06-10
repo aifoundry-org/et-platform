@@ -385,6 +385,7 @@ rev2_output_buff, rev2_output_size, hst_latency.get(), dev_latency.get(), 2000),
 #endif
 
 int main(int argc, char** argv) {
+  logging::LoggerDefault loggerDefault_;
   google::InitGoogleLogging(argv[0]);
   google::SetCommandLineOption("GLOG_minloglevel", "0");
   FLAGS_minloglevel = 0;

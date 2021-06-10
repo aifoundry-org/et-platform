@@ -16,6 +16,11 @@
 #include <glog/logging.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <hostUtils/logging/Logger.h>
+
+#define DM_LOG(severity) ET_LOG(DM, severity)
+#define DM_DLOG(severity) ET_DLOG(DM, severity)
+#define DM_VLOG(severity) ET_VLOG(DM, severity)
 
 void testSerial(device_management::DeviceManagement &dm, uint32_t index, uint32_t timeout, int *result);
 

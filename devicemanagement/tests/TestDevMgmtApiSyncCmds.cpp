@@ -1046,7 +1046,7 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44() {
 
   fd = open("/dev/kmsg", mode);
   lseek(fd, 0, SEEK_END);
-  DV_LOG(INFO) << "waiting for error events...\n";
+  DM_LOG(INFO) << "waiting for error events...\n";
 
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
@@ -1066,7 +1066,7 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44() {
   ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
 
   sleep(10);
-  DV_LOG(INFO) << "waiting done, starting events verification...\n";
+  DM_LOG(INFO) << "waiting done, starting events verification...\n";
 
   do {
     do {
@@ -1084,7 +1084,7 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44() {
 
   for (i = 0; i < max_err_types; i++) {
     if (err_count[i] > 0) {
-      DV_LOG(INFO) << "matched '" << err_types[i] << "' " << err_count[i] << " time(s)\n";
+      DM_LOG(INFO) << "matched '" << err_types[i] << "' " << err_count[i] << " time(s)\n";
       result = 1;
     }
   }
