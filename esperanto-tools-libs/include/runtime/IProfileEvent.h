@@ -119,10 +119,9 @@ protected:
   template <class Archive> friend void load(Archive& ar, ProfileEvent& evt);
 
 private:
-  template <typename T> void addExtra(std::string name, T value);
+  template <typename... Args> void addExtra(std::string name, Args&&... args);
   template <typename T> std::optional<T> getExtra(std::string name) const;
 
-private:
   Type type_;
   Class class_;
   TimePoint timeStamp_;
@@ -137,8 +136,7 @@ std::string to_string(rt::profiling::Class cls);
 std::string to_string(rt::profiling::Type type);
 } // namespace std
 
-namespace rt {
-namespace profiling {
+namespace rt::profiling {
 
 template <typename Archive> void serialize(Archive& ar, rt::EventId& id) {
   ar(cereal::make_nvp("event_id", id));
@@ -185,8 +183,7 @@ template <class Archive> void save(Archive& ar, const ProfileEvent& evt) {
   ar(cereal::make_nvp("extra", evt.getExtras()));
 }
 
-} // end namespace profiling
-} // namespace rt
+} // end namespace rt::profiling
 
 /// @}
 // End of runtime_profile_event_api

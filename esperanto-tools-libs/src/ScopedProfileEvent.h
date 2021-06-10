@@ -9,12 +9,13 @@
  *-------------------------------------------------------------------------*/
 #pragma once
 #include "ProfilerImp.h"
+
 #include <optional>
 #include <tuple>
 #include <atomic>
 
-namespace rt {
-namespace profiling {
+namespace rt::profiling {
+
 class ScopedProfileEvent {
 public:
   explicit ScopedProfileEvent(Class cls, ProfilerImp& profiler, StreamId streamId, KernelId kernelId,
@@ -75,5 +76,5 @@ private:
   ProfilerImp& profiler_;
   ProfileEvent event_;
 };
-} // namespace profiling
-} // namespace rt
+
+} // namespace rt::profiling

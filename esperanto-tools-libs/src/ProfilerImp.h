@@ -26,7 +26,7 @@ class ProfilerImp : public IProfiler {
 public:
   // IProfiler interface
   void start(std::ostream& outputStream, OutputType outputType) override {
-    const std::lock_guard<std::mutex> lock(mutex_);
+    const std::scoped_lock lock{mutex_};
 
     switch (outputType) {
     case OutputType::Json:
@@ -40,13 +40,13 @@ public:
     }
   }
   void stop() override {
-    const std::lock_guard<std::mutex> lock(mutex_);
+    const std::scoped_lock lock{mutex_};
     // emplacing monostate makes the profiler stop recording (see record function)
     archive_.emplace<std::monostate>();
   }
 
   void record(const ProfileEvent& event) {
-    const std::lock_guard<std::mutex> lock(mutex_);
+    const std::scoped_lock lock{mutex_};
     std::visit(
       [&](auto&& archive) {
         using T = std::decay_t<decltype(archive)>;

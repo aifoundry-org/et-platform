@@ -124,29 +124,32 @@ TEST(Profiler, add_2_vectors_profiling) {
 class ProfileEventDeserializationTest : public ::testing::Test {
 protected:
   void SetUp() override {
-    // create a credible ProfileEvent
-    {
+    CreateProfileEvent();
+
+    std::ostringstream oss_json;
+    SerializeToJson(oss_json);
+    trace_contents_json = oss_json.str();
+
+    std::ostringstream oss_binary(std::ios_base::binary);
+    SerializeToBinary(oss_binary);
+    trace_contents_binary = oss_binary.str();
+  }
+private:
+  void CreateProfileEvent() {
       rt::profiling::ProfileEvent evt(rt::profiling::Type::Start, rt::profiling::Class::GetDevices);
       evt.setPairId(33);
       // etc..
       reference_evt = evt;
-    }
-
-    std::ostringstream oss_json;
-    {
+  }
+  void SerializeToJson(std::ostringstream& oss_json) {
       cereal::JSONOutputArchive archive_json(oss_json);
       archive_json(reference_evt);
-    }
-    trace_contents_json = oss_json.str();
-
-    std::ostringstream oss_binary(std::ios_base::binary);
-    {
-      cereal::BinaryOutputArchive archive_binary(oss_binary);
-      archive_binary(reference_evt);
-    }
-    trace_contents_binary = oss_binary.str();
   }
-
+  void SerializeToBinary(std::ostringstream& oss_binary) {
+    cereal::BinaryOutputArchive archive_binary(oss_binary);
+    archive_binary(reference_evt);
+  }
+protected:
   rt::profiling::ProfileEvent reference_evt;
 
   std::string trace_contents_json;

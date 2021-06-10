@@ -79,8 +79,7 @@ std::string to_string(rt::profiling::Type type) {
 }
 } // end namespace std
 
-namespace rt {
-namespace profiling {
+namespace rt::profiling {
 
 Class class_from_string(const std::string& str) {
   static std::once_flag s_once_flag;
@@ -195,55 +194,53 @@ void ProfileEvent::setExtras(ExtraMetadata extras) {
 }
 
 void ProfileEvent::setPairId(Id id) {
-  addExtra<Id>("pair_id", id);
+  addExtra("pair_id", id);
 }
 
 void ProfileEvent::setEvent(EventId event) {
-  addExtra<EventId>("event", event);
+  addExtra("event", std::move(event));
 }
 
 void ProfileEvent::setStream(StreamId stream) {
-  addExtra<StreamId>("stream", stream);
+  addExtra("stream", std::move(stream));
 }
 
 void ProfileEvent::setDeviceId(DeviceId deviceId) {
-  addExtra<DeviceId>("device_id", deviceId);
+  addExtra("device_id", std::move(deviceId));
 }
 
 void ProfileEvent::setKernelId(KernelId kernelId) {
-  addExtra<KernelId>("kernel_id", kernelId);
+  addExtra("kernel_id", std::move(kernelId));
 }
 
 void ProfileEvent::setLoadAddress(uint64_t loadAddress) {
-  addExtra<uint64_t>("load_address", loadAddress);
+  addExtra("load_address", loadAddress);
 }
 
 void ProfileEvent::setDeviceCmdStartTs(uint64_t start_ts) {
-  addExtra<uint64_t>("device_cmd_start_ts", start_ts);
+  addExtra("device_cmd_start_ts", start_ts);
 }
 
 void ProfileEvent::setDeviceCmdWaitDur(uint64_t wait_dur) {
-  addExtra<uint64_t>("device_cmd_wait_dur", wait_dur);
-  addExtra<uint64_t>("cmd_wait_time", wait_dur);
+  addExtra("device_cmd_wait_dur", wait_dur);
+  addExtra("cmd_wait_time", wait_dur);
 }
 
 void ProfileEvent::setDeviceCmdExecDur(uint64_t exec_dur) {
-  addExtra<uint64_t>("device_cmd_execute_dur", exec_dur);
-  addExtra<uint64_t>("cmd_execution_time", exec_dur);
+  addExtra("device_cmd_execute_dur", exec_dur);
+  addExtra("cmd_execution_time", exec_dur);
 }
 
-template <typename T> void ProfileEvent::addExtra(std::string name, T value) {
-  extra_.emplace(name, std::move(value));
+template <typename... Args> void ProfileEvent::addExtra(std::string name, Args&&... args) {
+  extra_.emplace(std::move(name), std::forward<Args>(args)...);
 }
 
 template <typename T> std::optional<T> ProfileEvent::getExtra(std::string name) const {
   std::optional<T> optValue;
-  auto it = extra_.find(name);
-  if (it != extra_.end()) {
+  if (auto it = extra_.find(name); it != extra_.end()) {
     optValue = std::get<T>(it->second);
   }
   return optValue;
 }
 
-} // namespace profiling
-} // namespace rt
+} // namespace rt::profiling
