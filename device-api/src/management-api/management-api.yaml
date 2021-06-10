@@ -139,6 +139,8 @@ Modules:
           Value: 57
         - Name: SET_DM_TRACE_CONFIG
           Value: 58
+        - Name: MID_END
+          Value: 255
   ## List of Enums that are used in our messages
     - Name: power_state
       Description: Power State of the ETSOC

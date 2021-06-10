@@ -12,7 +12,8 @@ Name: Ops
 Version_Major: 0
 Version_Minor: 1
 Version_Patch: 0
-MessageStartID: 0
+MessageStartID: 512
+MessageMaxID: 1023
 Modules:
   - !include ops-api-calls.yaml
   - !include tracing/device-mrt-trace.yaml
