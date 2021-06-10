@@ -559,14 +559,14 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 
 	mutex_lock(&cq->pop_mutex);
 	switch (header.msg_id) {
-	case DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD:
+	case DEV_OPS_API_MID_ECHO_CMD:
 		echo_cmd = (struct device_ops_echo_cmd_t *)cmd;
 		echo_rsp.response_info.rsp_hdr.size =
 			sizeof(echo_rsp) - sizeof(header);
 		echo_rsp.response_info.rsp_hdr.tag_id =
 			echo_cmd->command_info.cmd_hdr.tag_id;
 		echo_rsp.response_info.rsp_hdr.msg_id =
-			DEV_OPS_API_MID_DEVICE_OPS_ECHO_RSP;
+			DEV_OPS_API_MID_ECHO_RSP;
 		echo_rsp.echo_payload = echo_cmd->echo_payload;
 		if (!et_circbuffer_push(&cq->cb,
 					cq->cb_mem,
@@ -577,14 +577,14 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 			rv = -EAGAIN;
 		break;
 
-	case DEV_OPS_API_MID_DEVICE_OPS_COMPATIBILITY_CMD:
+	case DEV_OPS_API_MID_COMPATIBILITY_CMD:
 		compat_cmd = (struct device_ops_compatibility_cmd_t *)cmd;
 		compat_rsp.response_info.rsp_hdr.size =
 			sizeof(compat_rsp) - sizeof(header);
 		compat_rsp.response_info.rsp_hdr.tag_id =
 			compat_cmd->command_info.cmd_hdr.tag_id;
 		compat_rsp.response_info.rsp_hdr.msg_id =
-			DEV_OPS_API_MID_DEVICE_OPS_COMPATIBILITY_RSP;
+			DEV_OPS_API_MID_COMPATIBILITY_RSP;
 		compat_rsp.major = 0;
 		compat_rsp.minor = 1;
 		compat_rsp.patch = 0;
@@ -597,14 +597,14 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 			rv = -EAGAIN;
 		break;
 
-	case DEV_OPS_API_MID_DEVICE_OPS_FW_VERSION_CMD:
+	case DEV_OPS_API_MID_FW_VERSION_CMD:
 		fw_version_cmd = (struct device_ops_fw_version_cmd_t *)cmd;
 		fw_version_rsp.response_info.rsp_hdr.size =
 			sizeof(fw_version_rsp) - sizeof(header);
 		fw_version_rsp.response_info.rsp_hdr.tag_id =
 			fw_version_cmd->command_info.cmd_hdr.tag_id;
 		fw_version_rsp.response_info.rsp_hdr.msg_id =
-			DEV_OPS_API_MID_DEVICE_OPS_FW_VERSION_RSP;
+			DEV_OPS_API_MID_FW_VERSION_RSP;
 		fw_version_rsp.major = 1;
 		fw_version_rsp.minor = 0;
 		fw_version_rsp.patch = 0;
@@ -617,8 +617,8 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 			rv = -EAGAIN;
 		break;
 
-	case DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD:
-	case DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD:
+	case DEV_OPS_API_MID_DATA_READ_CMD:
+	case DEV_OPS_API_MID_DMA_READLIST_CMD:
 		data_read_cmd = (struct device_ops_data_read_cmd_t *)cmd;
 		data_read_rsp.response_info.rsp_hdr.size =
 			sizeof(data_read_rsp) - sizeof(header);
@@ -636,8 +636,8 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 			rv = -EAGAIN;
 		break;
 
-	case DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD:
-	case DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD:
+	case DEV_OPS_API_MID_DATA_WRITE_CMD:
+	case DEV_OPS_API_MID_DMA_WRITELIST_CMD:
 		data_write_cmd = (struct device_ops_data_write_cmd_t *)cmd;
 		data_write_rsp.response_info.rsp_hdr.size =
 			sizeof(data_write_rsp) - sizeof(header);
@@ -654,7 +654,7 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 						ET_CB_SYNC_FOR_DEVICE))
 			rv = -EAGAIN;
 		break;
-	case DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD:
+	case DEV_OPS_API_MID_KERNEL_LAUNCH_CMD:
 		kernel_launch_cmd =
 			(struct device_ops_kernel_launch_cmd_t *)cmd;
 		kernel_launch_rsp.response_info.rsp_hdr.size =
@@ -662,7 +662,7 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		kernel_launch_rsp.response_info.rsp_hdr.tag_id =
 			kernel_launch_cmd->command_info.cmd_hdr.tag_id;
 		kernel_launch_rsp.response_info.rsp_hdr.msg_id =
-			DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
+			DEV_OPS_API_MID_KERNEL_LAUNCH_RSP;
 		kernel_launch_rsp.status =
 			DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED;
 		if (!et_circbuffer_push(&cq->cb,
@@ -674,14 +674,14 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 			rv = -EAGAIN;
 		break;
 
-	case DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD:
+	case DEV_OPS_API_MID_KERNEL_ABORT_CMD:
 		kernel_abort_cmd = (struct device_ops_kernel_abort_cmd_t *)cmd;
 		kernel_abort_rsp.response_info.rsp_hdr.size =
 			sizeof(kernel_abort_rsp) - sizeof(header);
 		kernel_abort_rsp.response_info.rsp_hdr.tag_id =
 			kernel_abort_cmd->command_info.cmd_hdr.tag_id;
 		kernel_abort_rsp.response_info.rsp_hdr.msg_id =
-			DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP;
+			DEV_OPS_API_MID_KERNEL_ABORT_RSP;
 		kernel_abort_rsp.status =
 			DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS;
 		if (!et_circbuffer_push(&cq->cb,
@@ -852,8 +852,8 @@ static ssize_t free_dma_kernel_entry(struct et_pci_dev *et_dev,
 		return -EINVAL;
 
 	header = (struct cmn_header_t *)msg->msg;
-	if (header->msg_id != DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP &&
-	    header->msg_id != DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP)
+	if (header->msg_id != DEV_OPS_API_MID_DATA_READ_RSP &&
+	    header->msg_id != DEV_OPS_API_MID_DATA_WRITE_RSP)
 		return 0;
 
 	mutex_lock(&et_dev->ops.dma_rbtree_mutex);
@@ -866,7 +866,7 @@ static ssize_t free_dma_kernel_entry(struct et_pci_dev *et_dev,
 
 	// Copy the DMA data to user buffer if it is data read response with
 	// complete status otherwise only remove the kernel entry
-	if (header->msg_id == DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP) {
+	if (header->msg_id == DEV_OPS_API_MID_DATA_READ_RSP) {
 		if (header->size < (sizeof(*read_rsp) - sizeof(*header))) {
 			pr_err("Corrupted DATA read response received!");
 			rv = -EINVAL;
@@ -979,8 +979,8 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	if (!header.size)
 		panic("CQ corrupt: invalid size");
 
-	if (header.msg_id >= DEV_MGMT_EID_BEGIN &&
-	    header.msg_id <= DEV_MGMT_EID_END) {
+	if (header.msg_id >= DEV_MGMT_API_MID_EVENTS_BEGIN &&
+	    header.msg_id <= DEV_MGMT_API_MID_EVENTS_END) {
 		rv = et_handle_device_event(cq, &header);
 		mutex_unlock(&cq->pop_mutex);
 		return rv;

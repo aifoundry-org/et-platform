@@ -598,8 +598,8 @@ static ssize_t free_dma_kernel_entry(struct et_pci_dev *et_dev,
 		return -EINVAL;
 
 	header = (struct cmn_header_t *)msg->msg;
-	if (header->msg_id != DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP &&
-	    header->msg_id != DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP)
+	if (header->msg_id != DEV_OPS_API_MID_DATA_READ_RSP &&
+	    header->msg_id != DEV_OPS_API_MID_DATA_WRITE_RSP)
 		return 0;
 
 	mutex_lock(&et_dev->ops.dma_rbtree_mutex);
@@ -612,7 +612,7 @@ static ssize_t free_dma_kernel_entry(struct et_pci_dev *et_dev,
 
 	// Copy the DMA data to user buffer if it is data read response with
 	// complete status otherwise only remove the kernel entry
-	if (header->msg_id == DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP) {
+	if (header->msg_id == DEV_OPS_API_MID_DATA_READ_RSP) {
 		if (header->size < (sizeof(*read_rsp) - sizeof(*header))) {
 			pr_err("Corrupted DATA read response received!");
 			rv = -EINVAL;
@@ -725,8 +725,8 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	if (!header.size)
 		panic("CQ corrupt: invalid size");
 
-	if (header.msg_id >= DEV_MGMT_EID_BEGIN &&
-	    header.msg_id <= DEV_MGMT_EID_END) {
+	if (header.msg_id >= DEV_MGMT_API_MID_EVENTS_BEGIN &&
+	    header.msg_id <= DEV_MGMT_API_MID_EVENTS_END) {
 		rv = et_handle_device_event(cq, &header);
 		mutex_unlock(&cq->pop_mutex);
 		return rv;

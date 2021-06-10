@@ -74,8 +74,7 @@ long test_virtqueue(struct et_pci_dev *et_dev, u16 cmd_count)
 
 	// Fill in the command struct
 	echo_cmd.command_info.cmd_hdr.size = sizeof(echo_cmd);
-	echo_cmd.command_info.cmd_hdr.msg_id =
-		DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD;
+	echo_cmd.command_info.cmd_hdr.msg_id = DEV_OPS_API_MID_ECHO_CMD;
 	echo_cmd.command_info.cmd_hdr.flags = 0;
 
 	cmd_sent = 0;

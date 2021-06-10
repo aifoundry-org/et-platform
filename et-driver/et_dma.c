@@ -482,7 +482,7 @@ ssize_t et_dma_move_data(struct et_pci_dev *et_dev,
 
 	header = (struct cmn_header_t *)kern_buf;
 
-	if (header->msg_id == DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD) {
+	if (header->msg_id == DEV_OPS_API_MID_DATA_READ_CMD) {
 		if (ucmd_size < sizeof(struct device_ops_data_read_cmd_t)) {
 			pr_err("Invalid DMA read cmd (size %ld)", ucmd_size);
 			rv = -EINVAL;
@@ -492,8 +492,7 @@ ssize_t et_dma_move_data(struct et_pci_dev *et_dev,
 					     queue_index,
 					     kern_buf,
 					     ucmd_size);
-	} else if (header->msg_id ==
-		   DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD) {
+	} else if (header->msg_id == DEV_OPS_API_MID_DATA_WRITE_CMD) {
 		if (ucmd_size < sizeof(struct device_ops_data_write_cmd_t)) {
 			pr_err("Invalid DMA write cmd (size %ld)", ucmd_size);
 			rv = -EINVAL;
@@ -503,8 +502,7 @@ ssize_t et_dma_move_data(struct et_pci_dev *et_dev,
 					    queue_index,
 					    kern_buf,
 					    ucmd_size);
-	} else if (header->msg_id ==
-		   DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD) {
+	} else if (header->msg_id == DEV_OPS_API_MID_DMA_READLIST_CMD) {
 		// Command size should be large enough to have atleast one read
 		// node entry
 		if (ucmd_size < sizeof(struct device_ops_dma_readlist_cmd_t) +
@@ -518,8 +516,7 @@ ssize_t et_dma_move_data(struct et_pci_dev *et_dev,
 						 queue_index,
 						 kern_buf,
 						 ucmd_size);
-	} else if (header->msg_id ==
-		   DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD) {
+	} else if (header->msg_id == DEV_OPS_API_MID_DMA_WRITELIST_CMD) {
 		// Command size should be large enough to have atleast one
 		// write node entry
 		if (ucmd_size < sizeof(struct device_ops_dma_writelist_cmd_t) +

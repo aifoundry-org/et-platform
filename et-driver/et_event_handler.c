@@ -21,7 +21,7 @@
 static void parse_pcie_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				struct event_dbg_msg *dbg_msg)
 {
-	if (event_msg->event_info.msg_id == DEV_MGMT_EID_PCIE_CE) {
+	if (event_msg->event_info.msg_id == DEV_MGMT_API_MID_PCIE_CE_EVENT) {
 		if (event_msg->event_syndrome[0] &
 		    PCIE_CE_RECEIVER_ERR_STATUS_MASK)
 			strcat(dbg_msg->syndrome, "Receiver Error Status\n");
@@ -291,57 +291,57 @@ int et_handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
 	dbg_msg.syndrome = syndrome_str;
 
 	switch (event_msg.event_info.msg_id) {
-	case DEV_MGMT_EID_PCIE_CE:
+	case DEV_MGMT_API_MID_PCIE_CE_EVENT:
 		dbg_msg.desc = "PCIe Correctable Error";
 		parse_pcie_syndrome(&event_msg, &dbg_msg);
 		break;
-	case DEV_MGMT_EID_PCIE_UCE:
+	case DEV_MGMT_API_MID_PCIE_UCE_EVENT:
 		dbg_msg.desc = "PCIe Un-Correctable Error";
 		parse_pcie_syndrome(&event_msg, &dbg_msg);
 		break;
-	case DEV_MGMT_EID_DRAM_CE:
+	case DEV_MGMT_API_MID_DRAM_CE_EVENT:
 		dbg_msg.desc = "DRAM Correctable Error";
 		parse_dram_syndrome(&event_msg, &dbg_msg);
 		break;
-	case DEV_MGMT_EID_DRAM_UCE:
+	case DEV_MGMT_API_MID_DRAM_UCE_EVENT:
 		dbg_msg.desc = "DRAM Un-Correctable Error";
 		parse_dram_syndrome(&event_msg, &dbg_msg);
 		break;
-	case DEV_MGMT_EID_SRAM_CE:
+	case DEV_MGMT_API_MID_SRAM_CE_EVENT:
 		dbg_msg.desc = "SRAM Correctable Error";
 		parse_sram_syndrome(&event_msg, &dbg_msg);
 		break;
-	case DEV_MGMT_EID_SRAM_UCE:
+	case DEV_MGMT_API_MID_SRAM_UCE_EVENT:
 		dbg_msg.desc = "SRAM Un-Correctable Error";
 		parse_sram_syndrome(&event_msg, &dbg_msg);
 		break;
-	case DEV_MGMT_EID_THERMAL_LOW:
+	case DEV_MGMT_API_MID_THERMAL_LOW_EVENT:
 		dbg_msg.desc = "Temperature Overshoot Warning";
 		parse_thermal_syndrome(&event_msg, &dbg_msg);
 		break;
-	case DEV_MGMT_EID_PMIC_ERROR:
+	case DEV_MGMT_API_MID_PMIC_ERROR_EVENT:
 		dbg_msg.desc = "Power Management IC Errors";
 		parse_pmic_syndrome(&event_msg, &dbg_msg);
 		break;
-	case DEV_MGMT_EID_WDOG_INTERNAL_TIMEOUT:
+	case DEV_MGMT_API_MID_WDOG_INTERNAL_TIMEOUT_EVENT:
 		dbg_msg.desc = "WatchDog Timeout - Internal WDT Interrupt";
 		strcat(dbg_msg.syndrome, "SW modelled Threshold\n");
 		parse_wdog_syndrome(&event_msg, &dbg_msg);
 		break;
-	case DEV_MGMT_EID_WDOG_EXTERNAL_TIMEOUT:
+	case DEV_MGMT_API_MID_WDOG_EXTERNAL_TIMEOUT_EVENT:
 		dbg_msg.desc = "WatchDog Timeout - External PMIC Reset";
 		strcat(dbg_msg.syndrome, "Service Processor Stack Trace\n");
 		parse_wdog_syndrome(&event_msg, &dbg_msg);
 		break;
-	case DEV_MGMT_EID_CM_ETH:
+	case DEV_MGMT_API_MID_CM_ETH_EVENT:
 		dbg_msg.desc = "Compute Minion Exception";
 		parse_cm_err_syndrome(&event_msg, &dbg_msg);
 		break;
-	case DEV_MGMT_EID_CM_HTH:
+	case DEV_MGMT_API_MID_CM_HTH_EVENT:
 		dbg_msg.desc = "Compute Minion Hang";
 		parse_cm_err_syndrome(&event_msg, &dbg_msg);
 		break;
-	case DEV_MGMT_EID_THROTTLE_TIME:
+	case DEV_MGMT_API_MID_THROTTLE_TIME_EVENT:
 		dbg_msg.desc = "Thermal Throttling Error";
 		parse_throttling_syndrome(&event_msg, &dbg_msg);
 		break;
