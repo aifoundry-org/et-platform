@@ -1178,8 +1178,8 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44() {
   std::string line;
   std::string err_types[max_err_types] = {
     "PCIe Correctable Error", "PCIe Un-Correctable Error", "DRAM Correctable Error",  "DRAM Un-Correctable Error",
-    "SRAM Correctable Error", "SRAM Un-Correctable Error", "Temperature Overshoot-1", "Temperature Overshoot-2",
-    "WatchDog Timeout",       "Compute Minion Exception",  "Compute Minion Hang"};
+    "SRAM Correctable Error", "SRAM Un-Correctable Error", "Temperature Overshoot Warning", "Power Management IC Errors",
+    "Thermal Throttling Error", "Compute Minion Exception",  "Compute Minion Hang"};
 
   fd = open("/dev/kmsg", mode);
   lseek(fd, 0, SEEK_END);
@@ -1197,7 +1197,7 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44() {
   auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_DEVICE_ERROR_EVENTS, nullptr, 0, output_buff,
-                              output_size, hst_latency.get(), dev_latency.get(), 600000),
+                              output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
   // Skip validation if loopback driver
@@ -1208,11 +1208,13 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44() {
 
   ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
 
+  DM_LOG(INFO) << "Response received from device, wait for printing\n";
   sleep(10);
   DM_LOG(INFO) << "waiting done, starting events verification...\n";
 
   do {
     do {
+      buff[0] = '\0';
       size = read(fd, buff, BUFSIZ - 1);
     } while (size < 0 && errno == EPIPE);
 
@@ -1220,21 +1222,22 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44() {
     for (i = 0; i < max_err_types; i++) {
       if (std::string::npos != line.find(err_types[i])) {
         err_count[i] += 1;
-        i = max_err_types; // exit loop
+        break;
       }
     }
   } while (size > 0);
 
   for (i = 0; i < max_err_types; i++) {
+    DM_LOG(INFO) << "matched '" << err_types[i] << "' " << err_count[i] << " time(s)\n";
     if (err_count[i] > 0) {
-      DM_LOG(INFO) << "matched '" << err_types[i] << "' " << err_count[i] << " time(s)\n";
-      result = 1;
+      result += err_count[i];
     }
   }
 
   close(fd);
 
-  ASSERT_EQ(result, 1);
+  // Eleven events, and each should match once.
+  ASSERT_EQ(result, 11);
 }
 
 void TestDevMgmtApiSyncCmds::isUnsupportedService_1_45() {
