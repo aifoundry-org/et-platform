@@ -194,7 +194,12 @@ void SysEmuImp::mmioRead(uint64_t address, size_t size, std::byte* dst) {
         break;
       }
 
-      chip_->memory.read(g_Agent, device_addr, access_size, dst + host_access_offset);
+      try {
+        chip_->memory.read(g_Agent, device_addr, access_size, dst + host_access_offset);
+      } catch (...) {
+        p.set_exception(std::current_exception());
+        return;
+      }
 
       pci_addr += access_size;
       host_access_offset += access_size;
@@ -202,9 +207,10 @@ void SysEmuImp::mmioRead(uint64_t address, size_t size, std::byte* dst) {
     }
 
     if (readSize > 0) {
-      throw Exception(
+      p.set_exception(std::make_exception_ptr(emu::Exception(
         "Invalid IATU translation. Size too big to be covered fully by iATUs / translation failure. Address: " +
-        std::to_string(address) + " size: " + std::to_string(readSize));
+        std::to_string(address) + " size: " + std::to_string(readSize))));
+      return;
     }
     p.set_value();
   };
@@ -229,16 +235,22 @@ void SysEmuImp::mmioWrite(uint64_t address, size_t size, const std::byte* src) {
         iatusPrint(chip_);
         break;
       }
-      chip_->memory.write(g_Agent, device_addr, access_size, src + host_access_offset);
+      try {
+        chip_->memory.write(g_Agent, device_addr, access_size, src + host_access_offset);
+      } catch (...) {
+        p.set_exception(std::current_exception());
+        return;
+      }
 
       pci_addr += access_size;
       host_access_offset += access_size;
       readSize -= access_size;
     }
     if (readSize > 0) {
-      throw Exception(
+      p.set_exception(std::make_exception_ptr(emu::Exception(
         "Invalid IATU translation. Size too big to be covered fully by iATUs / translation failure. Address: " +
-        std::to_string(address) + " size: " + std::to_string(readSize));
+        std::to_string(address) + " size: " + std::to_string(readSize))));
+      return;
     }
     p.set_value();
   };
@@ -270,7 +282,8 @@ uint32_t SysEmuImp::waitForInterrupt(uint32_t bitmap) {
   return bitmap;
 }
 bool SysEmuImp::raise_host_interrupt(uint32_t bitmap) {
-  LOG_NOTHREAD(INFO, "SysEmuImp: Raise Host (Count: %" PRId64 ") Interrupt Bitmap: (0x%" PRIx32 ")", ++raised_interrupt_count_,  bitmap);
+  LOG_NOTHREAD(INFO, "SysEmuImp: Raise Host (Count: %" PRId64 ") Interrupt Bitmap: (0x%" PRIx32 ")",
+               ++raised_interrupt_count_, bitmap);
   std::lock_guard<std::mutex> lock(mutex_);
   pendingInterruptsBitmask_ |= bitmap;
   condVar_.notify_all();
@@ -318,8 +331,12 @@ void SysEmuImp::notify_iatu_ctrl_2_reg_write(int pcie_id, uint32_t iatu, uint32_
 SysEmuImp::~SysEmuImp() {
   std::promise<void> p;
   auto request = [=, &p]() {
-    chip_->set_emu_done(true);
-    p.set_value();
+    try {
+      chip_->set_emu_done(true);
+      p.set_value();
+    } catch (...) {
+      p.set_exception(std::current_exception());
+    }
   };
   std::unique_lock<std::mutex> lock(mutex_);
   requests_.emplace(std::move(request));
@@ -337,6 +354,9 @@ SysEmuImp::~SysEmuImp() {
   SE_LOG(INFO) << "Waiting for sysemu thread to finish.";
   sysEmuThread_.join();
   SE_LOG(INFO) << "Sysemu thread finished.";
+  if (sysEmuError_) {
+    std::rethrow_exception(sysEmuError_);
+  }
 }
 
 SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>& barAddresses,
@@ -382,18 +402,14 @@ SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>
   opts.pu_uart1_tx_file = options.puUart1Path.empty() ? options.runDir + "/" + "pu_uart1_tx.log" : options.puUart1Path;
 
   /* Initialize SP UART0 port based on FIFO retargeting selection from caller*/
-  if(!options.spUart0FifoOutPath.empty())
-  {
+  if (!options.spUart0FifoOutPath.empty()) {
     opts.spio_uart0_tx_file = options.spUart0FifoOutPath;
-  }
-  else
-  {
+  } else {
     opts.spio_uart0_tx_file =
       options.spUart0Path.empty() ? options.runDir + "/" + "spio_uart0_tx.log" : options.spUart0Path;
   }
 
-  if(!options.spUart0FifoInPath.empty())
-  {
+  if (!options.spUart0FifoInPath.empty()) {
     opts.spio_uart0_rx_file = options.spUart0FifoInPath;
   }
 
@@ -407,13 +423,18 @@ SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>
   opts.mem_check = options.memcheck;
 
   sysEmuThread_ = std::thread([opts, this, logfile = options.logFile]() {
-    SE_LOG(INFO) << "Starting sysemu thread " << std::this_thread::get_id();
-    std::ofstream log{logfile};
-    bemu::log.setOutputStream(&log);
-    logSysEmuOptions(log, opts);
-    sys_emu emu(opts, this);
-    emu.main_internal();
-    SE_LOG(INFO) << "Ending sysemu thread " << std::this_thread::get_id();
+    try {
+      SE_LOG(INFO) << "Starting sysemu thread " << std::this_thread::get_id();
+      std::ofstream log{logfile};
+      bemu::log.setOutputStream(&log);
+      logSysEmuOptions(log, opts);
+      sys_emu emu(opts, this);
+      emu.main_internal();
+      SE_LOG(INFO) << "Ending sysemu thread " << std::this_thread::get_id();
+    } catch (const std::exception& e) {
+      SE_LOG(ERROR) << "Aborting sysemu thread " << std::this_thread::get_id() << ": " << e.what();
+      sysEmuError_ = std::current_exception();
+    }
   });
 
   // Wait until all the iATUs configured by BL2 have been enabled

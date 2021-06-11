@@ -47,6 +47,7 @@ public:
 private:
   bemu::System* chip_;
   std::thread sysEmuThread_;
+  std::exception_ptr sysEmuError_ = nullptr;
 
   std::mutex mutex_;
   bool running_ = true;
