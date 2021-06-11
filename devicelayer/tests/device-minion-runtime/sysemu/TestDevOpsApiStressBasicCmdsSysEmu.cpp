@@ -54,51 +54,40 @@ protected:
 };
 
 TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackSame1kCmdsSingleDeviceSingleQueue_1_1) {
-  bool singleDevice = true;
-  bool singleQueue = true;
-  backToBackSameCmds(singleDevice, singleDevice, 1000);
+  backToBackSameCmds(true /* single device */, true /* single queue */, 1000);
 }
 
 TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackSame1kCmdsSingleDeviceMultiQueue_1_2) {
-  bool singleDevice = true;
-  bool singleQueue = false;
-  backToBackSameCmds(singleDevice, singleDevice, 1000);
+  backToBackSameCmds(true /* single device */, false /* multiple queues */, 1000);
 }
 
 TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackDiff1kCmdsSingleDeviceSingleQueue_1_3) {
-  bool singleDevice = true;
-  bool singleQueue = true;
-  backToBackDiffCmds(singleDevice, singleDevice, 1000);
+  backToBackDiffCmds(true /* single device */, true /* single queue */, 1000);
 }
 
 TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackDiff1kCmdsSingleDeviceMultiQueue_1_4) {
-  bool singleDevice = true;
-  bool singleQueue = false;
-  backToBackDiffCmds(singleDevice, singleDevice, 1000);
+  backToBackDiffCmds(true /* single device */, false /* multiple queues */, 1000);
 }
 
 TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackSame10kCmdsSingleDeviceSingleQueue_1_5) {
-  bool singleDevice = true;
-  bool singleQueue = true;
-  backToBackSameCmds(singleDevice, singleDevice, 10000);
+  backToBackSameCmds(true /* single device */, true /* single queue */, 10000);
 }
 
 TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackSame10kCmdsSingleDeviceMultiQueue_1_6) {
-  bool singleDevice = true;
-  bool singleQueue = false;
-  backToBackSameCmds(singleDevice, singleDevice, 10000);
+  backToBackSameCmds(true /* single device */, false /* multiple queues */, 10000);
 }
 
 TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackDiff10kCmdsSingleDeviceSingleQueue_1_7) {
-  bool singleDevice = true;
-  bool singleQueue = true;
-  backToBackDiffCmds(singleDevice, singleDevice, 10000);
+  backToBackDiffCmds(true /* single device */, true /* single queue */, 10000);
 }
 
 TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackDiff10kCmdsSingleDeviceMultiQueue_1_8) {
-  bool singleDevice = true;
-  bool singleQueue = false;
-  backToBackDiffCmds(singleDevice, singleDevice, 10000);
+  backToBackDiffCmds(true /* single device */, false /* multiple queues */, 10000);
+}
+
+TEST_F(TestDevOpsApiStressBasicCmdsSysEmu, backToBackDiff10kCmdsSingleDeviceMultiQueueWithoutEpoll_1_9) {
+  FLAGS_use_epoll = false;
+  backToBackDiffCmds(true /* single device */, false /* multiple queues */, 10000);
 }
 
 int main(int argc, char** argv) {

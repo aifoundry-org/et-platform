@@ -24,27 +24,24 @@ protected:
 };
 
 TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackSame1kCmdsSingleDeviceSingleQueue_1_1) {
-  bool singleDevice = true;
-  bool singleQueue = true;
-  backToBackSameCmds(singleDevice, singleQueue, 1000);
+  backToBackSameCmds(true /* single device */, true /* single queue */, 1000);
 }
 
 TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackSame1kCmdsSingleDeviceMultiQueue_1_2) {
-  bool singleDevice = true;
-  bool singleQueue = false;
-  backToBackSameCmds(singleDevice, singleQueue, 1000);
+  backToBackSameCmds(true /* single device */, false /* multiple queues */, 1000);
 }
 
 TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackDiff1kCmdsSingleDeviceSingleQueue_1_3) {
-  bool singleDevice = true;
-  bool singleQueue = true;
-  backToBackSameCmds(singleDevice, singleQueue, 1000);
+  backToBackDiffCmds(true /* single device */, true /* single queue */, 1000);
 }
 
 TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackDiff1kCmdsSingleDeviceMultiQueue_1_4) {
-  bool singleDevice = true;
-  bool singleQueue = false;
-  backToBackSameCmds(singleDevice, singleQueue, 1000);
+  backToBackDiffCmds(true /* single device */, false /* multiple queues */, 1000);
+}
+
+TEST_F(TestDevOpsApiStressBasicCmdsPcie, backToBackDiff1kCmdsSingleDeviceMultiQueueWithoutEpoll_1_5) {
+  FLAGS_use_epoll = false;
+  backToBackDiffCmds(true /* single device */, false /* multiple queues */, 1000);
 }
 
 int main(int argc, char** argv) {

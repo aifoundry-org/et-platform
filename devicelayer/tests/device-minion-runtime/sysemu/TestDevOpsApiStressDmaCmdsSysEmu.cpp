@@ -71,15 +71,11 @@ TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dataWRStressChannelsSingleDeviceMultiQu
 }
 
 TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dmaList1kWrAndRdSingleDeviceSingleQueue_2_5) {
-  bool singleDevice = true;
-  bool singleQueue = true;
-  dmaListWrAndRd(singleDevice, singleDevice, 1000);
+  dmaListWrAndRd(true /* single device */, true /* single queue */, 1000);
 }
 
 TEST_F(TestDevOpsApiStressDmaCmdsSysEmu, dmaList1kWrAndRdSingleDeviceMultiQueue_2_6) {
-  bool singleDevice = true;
-  bool singleQueue = false;
-  dmaListWrAndRd(singleDevice, singleDevice, 1000);
+  dmaListWrAndRd(true /* single device */, false /* multiple queues */, 1000);
 }
 
 int main(int argc, char** argv) {

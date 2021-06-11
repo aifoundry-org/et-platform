@@ -44,21 +44,15 @@ TEST_F(TestDevOpsApiLoopbackDmaCmdsPcie, dataWrRdCmd1kWrAndRdMultiDeviceMultiQue
 }
 
 TEST_F(TestDevOpsApiLoopbackDmaCmdsPcie, dmaList50kWrAndRdSingleDeviceSingleQueue_2_6) {
-  bool singleDevice = true;
-  bool singleQueue = true;
-  dmaListWrAndRd(singleDevice, singleQueue, 50000);
+  dmaListWrAndRd(true /* single device */, true /* single queue */, 50000);
 }
 
 TEST_F(TestDevOpsApiLoopbackDmaCmdsPcie, dmaList50kWrAndRdSingleDeviceMultiQueue_2_7) {
-  bool singleDevice = true;
-  bool singleQueue = false;
-  dmaListWrAndRd(singleDevice, singleQueue, 50000);
+  dmaListWrAndRd(true /* single device */, false /* multiple queues */, 50000);
 }
 
 TEST_F(TestDevOpsApiLoopbackDmaCmdsPcie, dmaList50kWrAndRdMultiDeviceMultiQueue_2_8) {
-  bool singleDevice = false;
-  bool singleQueue = false;
-  dmaListWrAndRd(singleDevice, singleQueue, 50000);
+  dmaListWrAndRd(false /* multiple devices */, false /* multiple queues */, 50000);
 }
 
 int main(int argc, char** argv) {

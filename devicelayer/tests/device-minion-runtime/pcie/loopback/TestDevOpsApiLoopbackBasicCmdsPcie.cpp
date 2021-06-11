@@ -24,39 +24,32 @@ protected:
 };
 
 TEST_F(TestDevOpsApiLoopbackBasicCmdsPcie, backToBackSame50kCmdsSingleDeviceSingleQueue_1_1) {
-  bool singleDevice = true;
-  bool singleQueue = true;
-  backToBackSameCmds(singleDevice, singleDevice, 50000);
+  backToBackSameCmds(true /* single device */, true /* single queue */, 50000);
 }
 
 TEST_F(TestDevOpsApiLoopbackBasicCmdsPcie, backToBackSame50kCmdsSingleDeviceMultiQueue_1_2) {
-  bool singleDevice = true;
-  bool singleQueue = false;
-  backToBackSameCmds(singleDevice, singleDevice, 50000);
+  backToBackSameCmds(true /* single device */, false /* multiple queues */, 50000);
 }
 
 TEST_F(TestDevOpsApiLoopbackBasicCmdsPcie, backToBackSame50kCmdsMultiDeviceMultiQueue_1_3) {
-  bool singleDevice = false;
-  bool singleQueue = false;
-  backToBackSameCmds(singleDevice, singleDevice, 50000);
+  backToBackSameCmds(false /* multiple devices */, false /* multiple queues */, 50000);
 }
 
 TEST_F(TestDevOpsApiLoopbackBasicCmdsPcie, backToBackDiff50kCmdsSingleDeviceSingleQueue_1_4) {
-  bool singleDevice = true;
-  bool singleQueue = true;
-  backToBackDiffCmds(singleDevice, singleDevice, 50000);
+  backToBackDiffCmds(true /* single device */, true /* single queue */, 50000);
 }
 
 TEST_F(TestDevOpsApiLoopbackBasicCmdsPcie, backToBackDiff50kCmdsSingleDeviceMultiQueue_1_5) {
-  bool singleDevice = true;
-  bool singleQueue = false;
-  backToBackDiffCmds(singleDevice, singleDevice, 50000);
+  backToBackDiffCmds(true /* single device */, false /* multiple queues */, 50000);
 }
 
 TEST_F(TestDevOpsApiLoopbackBasicCmdsPcie, backToBackDiff50kCmdsMultiDeviceMultiQueue_1_6) {
-  bool singleDevice = false;
-  bool singleQueue = false;
-  backToBackDiffCmds(singleDevice, singleDevice, 50000);
+  backToBackDiffCmds(false /* multiple devices */, false /* multiple queues */, 50000);
+}
+
+TEST_F(TestDevOpsApiLoopbackBasicCmdsPcie, backToBackDiff50kCmdsSingleDeviceMultiQueueWithoutEpoll_1_7) {
+  FLAGS_use_epoll = false;
+  backToBackDiffCmds(false /* multiple devices */, false /* multiple queues */, 50000);
 }
 
 int main(int argc, char** argv) {

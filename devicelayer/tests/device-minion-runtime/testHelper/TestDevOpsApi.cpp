@@ -13,12 +13,17 @@
 #include <cmath>
 #include <experimental/filesystem>
 
+namespace {
 using namespace ELFIO;
 namespace fs = std::experimental::filesystem;
+using namespace std::chrono_literals;
+auto kPollingInterval = 10ms;
+} // namespace
 
 DEFINE_string(kernels_dir, "", "Directory where different kernel ELF files are located");
 DEFINE_uint32(exec_timeout, 100, "Internal execution timeout");
 DEFINE_bool(loopback_driver, false, "Run on loopback driver");
+DEFINE_bool(use_epoll, true, "Use EPOLL if true, otherwise use interval based polling");
 
 void TestDevOpsApi::initTestHelperSysEmu(const emu::SysEmuOptions& options) {
   devLayer_ = dev::IDeviceLayer::createSysEmuDeviceLayer(options);
@@ -93,8 +98,8 @@ void TestDevOpsApi::fListener(int deviceIdx) {
   auto& deviceInfo = devices_[static_cast<unsigned long>(deviceIdx)];
 
   auto queueCount = getSqCount(deviceIdx);
-  uint64_t sq_bitmap = (0x1U << queueCount) - 1;
-  bool cq_available = true;
+  uint64_t sqBitmap = (0x1U << queueCount) - 1;
+  bool cqAvailable = true;
 
   ssize_t rspsToReceive = 0;
   for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
@@ -117,17 +122,23 @@ void TestDevOpsApi::fListener(int deviceIdx) {
       if (isPendingEvent) {
         isPendingEvent = false;
       } else {
-        devLayer_->waitForEpollEventsMasterMinion(deviceIdx, sq_bitmap, cq_available);
+        if (FLAGS_use_epoll) {
+          devLayer_->waitForEpollEventsMasterMinion(deviceIdx, sqBitmap, cqAvailable);
+        } else {
+          std::this_thread::sleep_for(kPollingInterval);
+          sqBitmap = (0x1U << queueCount) - 1;
+          cqAvailable = true;
+        }
       }
-      if (cq_available) {
+      if (cqAvailable) {
         while (popRsp(deviceIdx)) {
           rspsToReceive--;
         }
       }
-      if (sq_bitmap > 0) {
+      if (sqBitmap > 0) {
         {
           std::lock_guard<std::mutex> lk(deviceInfo->sqBitmapMtx_);
-          deviceInfo->sqBitmap_ |= sq_bitmap;
+          deviceInfo->sqBitmap_ |= sqBitmap;
         }
         deviceInfo->sqBitmapCondVar_.notify_all();
       }
@@ -492,7 +503,7 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
       status = CmdStatus::CMD_FAILED;
     }
     addkernelRspContext(rsp_tag_id, response->device_cmd_start_ts, response->device_cmd_wait_dur,
-      response->device_cmd_execute_dur);
+                        response->device_cmd_execute_dur);
 
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP) {
     auto response = reinterpret_cast<device_ops_api::device_ops_kernel_abort_rsp_t*>(message.data());

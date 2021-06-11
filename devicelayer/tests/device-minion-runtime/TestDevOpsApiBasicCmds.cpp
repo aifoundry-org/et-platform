@@ -110,9 +110,10 @@ void TestDevOpsApiBasicCmds::backToBackSameCmds(bool singleDevice, bool singleQu
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
 
-    uint8_t queueCount = (singleQueue) ? 1 : getSqCount(deviceIdx);
+    auto queueCount = (singleQueue) ? 1 : getSqCount(deviceIdx);
+    auto perDevPerQueueIterations = numOfCmds / deviceCount / queueCount;
     for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
-      for (int i = 0; i < ((numOfCmds / deviceCount) / queueCount); i++) {
+      for (int i = 0; i < perDevPerQueueIterations; i++) {
         // Add cmd to stream
         stream.push_back(IDevOpsApiCmd::createEchoCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kEchoPayload));
       }
@@ -129,9 +130,10 @@ void TestDevOpsApiBasicCmds::backToBackDiffCmds(bool singleDevice, bool singleQu
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
 
-    uint8_t queueCount = (singleQueue) ? 1 : getSqCount(deviceIdx);
+    auto queueCount = (singleQueue) ? 1 : getSqCount(deviceIdx);
+    auto perDevPerQueueIterations = numOfCmds / 3 / deviceCount / queueCount;
     for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
-      for (int i = 0; i < numOfCmds / 3 / deviceCount / queueCount; i++) {
+      for (int i = 0; i < perDevPerQueueIterations; i++) {
         // Add cmd to stream
         stream.push_back(IDevOpsApiCmd::createEchoCmd(false, kEchoPayload));
         stream.push_back(IDevOpsApiCmd::createFwVersionCmd(false, 1));

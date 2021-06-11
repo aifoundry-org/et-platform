@@ -30,6 +30,7 @@ using TimeDuration = Clock::duration;
 DECLARE_string(kernels_dir);
 DECLARE_uint32(exec_timeout);
 DECLARE_bool(loopback_driver);
+DECLARE_bool(use_epoll);
 
 namespace {
 constexpr int kIDevice = 0;

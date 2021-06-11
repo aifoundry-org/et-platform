@@ -24,27 +24,19 @@ protected:
 };
 
 TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBackSame3kCmdsSingleDeviceSingleQueue_1_1) {
-  bool singleDevice = true;
-  bool singleQueue = true;
-  backToBackSameCmds(singleDevice, singleQueue, 3000);
+  backToBackSameCmds(true /* single device */, true /* single queue */, 3000);
 }
 
 TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBackSame3kCmdsSingleDeviceMultiQueue_1_2) {
-  bool singleDevice = true;
-  bool singleQueue = false;
-  backToBackSameCmds(singleDevice, singleQueue, 3000);
+  backToBackSameCmds(true /* single device */, false /* multiple queues */, 3000);
 }
 
 TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBackDiff3kCmdsSingleDeviceSingleQueue_1_3) {
-  bool singleDevice = true;
-  bool singleQueue = true;
-  backToBackDiffCmds(singleDevice, singleQueue, 3000);
+  backToBackDiffCmds(true /* single device */, true /* single queue */, 3000);
 }
 
 TEST_F(TestDevOpsApiNightlyBasicCmdsPcie, backToBackDiff3kCmdsSingleDeviceMultiQueue_1_4) {
-  bool singleDevice = true;
-  bool singleQueue = false;
-  backToBackDiffCmds(singleDevice, singleQueue, 3000);
+  backToBackDiffCmds(true /* single device */, false /* multiple queues */, 3000);
 }
 
 int main(int argc, char** argv) {
