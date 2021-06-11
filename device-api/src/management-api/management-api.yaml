@@ -304,10 +304,13 @@ Modules:
           Type: char          
     - Name: temperature_threshold_t
       Fields:
-        - Name: temperature
-          Description: Temperature threshold
+        - Name: lo_temperature_c
+          Description: Low temperature threshold
           Type: uint8_t
-        - Name: pad[7]
+        - Name: hi_temperature_c
+          Description: High temperature threshold
+          Type: uint8_t
+        - Name: pad[6]
           Description: Padding for alignment
           Type: uint8_t
     - Name: current_temperature_t
