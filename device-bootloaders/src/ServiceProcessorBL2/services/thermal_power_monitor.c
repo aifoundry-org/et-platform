@@ -372,12 +372,12 @@ static void pwr_svc_get_module_temp_thresholds(uint16_t tag, uint64_t req_start_
 *
 ***********************************************************************/
 static void pwr_svc_set_module_temp_thresholds(uint16_t tag, uint64_t req_start_time,
-                                               uint8_t threshold)
+                                               uint8_t hi_threshold, uint8_t lo_threshold)
 {
     struct device_mgmt_default_rsp_t dm_rsp;
     int32_t status;
 
-    status = update_module_temperature_threshold(threshold);
+    status = update_module_temperature_threshold(hi_threshold, lo_threshold);
 
     if (0 != status) {
         Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt error: update_module_temperature_threshold()\r\n");
@@ -581,7 +581,9 @@ void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id, void *bu
     case DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS: {
         struct device_mgmt_temperature_threshold_cmd_t *threshold_cmd = buffer;
         pwr_svc_set_module_temp_thresholds(tag_id, req_start_time,
-                                           threshold_cmd->temperature_threshold.temperature);
+                                           threshold_cmd->temperature_threshold.hi_temperature_c,
+                                           threshold_cmd->temperature_threshold.lo_temperature_c);
+
         break;
     }
     case DM_CMD_GET_MODULE_CURRENT_TEMPERATURE: {

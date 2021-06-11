@@ -43,6 +43,7 @@ static StackType_t g_pm_task[TT_TASK_STACK_SIZE];
 /* The variable used to hold the task's data structure. */
 static StaticTask_t g_staticTask_ptr;
 
+static void pmic_isr_callback(enum error_type type, struct event_message_t *msg);
 
 struct soc_power_reg_t {
     power_state_e module_power_state;
@@ -199,16 +200,18 @@ int get_module_tdp_level(tdp_level_e *tdp_level)
 *       int                 Return status
 *
 ***********************************************************************/
-int update_module_temperature_threshold(uint8_t threshold)
+int update_module_temperature_threshold(uint8_t hi_threshold, uint8_t lo_threshold)
 {
     int status = 0;
 
-    if(0 != pmic_set_temperature_threshold(threshold)) {
+    get_soc_power_reg()->temperature_threshold.lo_temperature_c = lo_threshold;
+
+    if(0 != pmic_set_temperature_threshold(hi_threshold)) {
         MESSAGE_ERROR("thermal pwr mgmt svc: set temperature threshold error\r\n");
         status = THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
     else {
-        get_soc_power_reg()->temperature_threshold.temperature = threshold;
+        get_soc_power_reg()->temperature_threshold.hi_temperature_c = hi_threshold;
     }
 
     return status;
@@ -276,7 +279,7 @@ int update_module_current_temperature(void)
 
     get_module_temperature_threshold(&temperature_threshold);
 
-    if ((get_soc_power_reg()->soc_temperature) > (temperature_threshold.temperature)) {
+    if ((get_soc_power_reg()->soc_temperature) > (temperature_threshold.lo_temperature_c)) {
         /* add details in message header and fill payload */
         FILL_EVENT_HEADER(&message.header, THERMAL_LOW,
                           sizeof(struct event_message_t) - sizeof(struct cmn_header_t));
@@ -644,10 +647,9 @@ void update_module_throttle_time(uint64_t time_usec)
     get_soc_power_reg()->throttled_states_residency += time_usec;
 
     // Update the MAX throttle time
-    if (get_soc_power_reg()->max_throttled_states_residency <
-        get_soc_power_reg()->throttled_states_residency) {
-        get_soc_power_reg()->max_throttled_states_residency =
-            get_soc_power_reg()->throttled_states_residency;
+    if (get_soc_power_reg()->max_throttled_states_residency < time_usec)
+    {
+        get_soc_power_reg()->max_throttled_states_residency = time_usec;
     }
 }
 
@@ -758,8 +760,13 @@ int init_thermal_pwr_mgmt_service(void)
         status = THERMAL_PWR_MGMT_TASK_CREATION_FAILED;
     }
 
+    if (!status)
+    {
+        status = pmic_thermal_pwr_cb_init(pmic_isr_callback);
+    }
+
     /* Set default parameters */
-    status = update_module_temperature_threshold(PMIC_TEMP_THRESHOLD_DEFAULT);
+    status = update_module_temperature_threshold(PMIC_TEMP_THRESHOLD_HI, PMIC_TEMP_THRESHOLD_LO);
 
     if (!status)
     {
@@ -862,24 +869,8 @@ void thermal_power_task_entry(void *pvParameter)
                 Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get temperature\r\n");
             }
 
-            if (current_temperature < get_soc_power_reg()->temperature_threshold.temperature)
+            if (current_temperature < get_soc_power_reg()->temperature_threshold.hi_temperature_c)
                 continue;
-
-            if (get_soc_power_reg()->event_cb)
-            {
-                /* Send the event to host for exceeding the high temperature threshold */
-                FILL_EVENT_HEADER(&message.header, PMIC_ERROR,
-                            sizeof(struct event_message_t) - sizeof(struct cmn_header_t));
-
-                FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, 0x1, current_temperature);
-
-                /* Invoke the callback function and post message */
-                get_soc_power_reg()->event_cb(0, &message);
-            }
-            else
-            {
-                Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: event_cb is not initialized\n");
-            }
 
             /* We need to throttle the voltage and frequency, lets keep track of throttling time */
             start_time = timer_get_ticks_count();
@@ -905,7 +896,7 @@ void thermal_power_task_entry(void *pvParameter)
                 if(0 != pmic_get_temperature(&current_temperature)) {
                     Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get temperature\r\n");
                 }
-            } while(current_temperature > get_soc_power_reg()->temperature_threshold.temperature);
+            } while(current_temperature > get_soc_power_reg()->temperature_threshold.hi_temperature_c);
 
             end_time = timer_get_ticks_count();
 
@@ -928,5 +919,35 @@ void thermal_power_task_entry(void *pvParameter)
             update_module_throttle_time(end_time - start_time);
         }
     }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       pmic_isr_callback
+*
+*   DESCRIPTION
+*
+*       Callback function invoked from PMIC ISR
+*
+*   INPUTS
+*
+*       type                  Error type
+*       msg                   Error/Event message
+*
+*   OUTPUTS
+*
+*       void                       none
+*
+***********************************************************************/
+static void pmic_isr_callback(enum error_type type, struct event_message_t *msg)
+{
+    (void)type;
+    BaseType_t xHigherPriorityTaskWoken;
+
+    xTaskNotifyFromISR(t_handle, (uint32_t) msg->header.msg_id, eSetValueWithOverwrite, &xHigherPriorityTaskWoken);
+
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 

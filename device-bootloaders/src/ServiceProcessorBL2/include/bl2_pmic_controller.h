@@ -42,6 +42,7 @@ struct pmic_event_control_block
     uint32_t uce_count;             /**< Un-Correctable error count. */
     uint32_t ce_threshold;          /**< Correctable error threshold. */
     dm_event_isr_callback event_cb; /**< Event callback handler. */
+    dm_event_isr_callback thermal_pwr_event_cb; /**< Thermal power event callback handler. */
 };
 
 /*! \fn void setup_pmic(void)
@@ -55,6 +56,13 @@ void setup_pmic(void);
     \return The function call status, pass/fail.
 */
 int32_t pmic_error_control_init(dm_event_isr_callback event_cb);
+
+/*! \fn int32_t pmic_thermal_pwr_cb_init(dm_event_isr_callback event_cb)
+    \brief This function setup thermal power callback.
+    \param event_cb - callback pointer
+    \return The function call status, pass/fail.
+*/
+int32_t pmic_thermal_pwr_cb_init(dm_event_isr_callback event_cb);
 
 /*! \fn void pmic_error_isr(void)
     \brief PMIC interrupt routine.

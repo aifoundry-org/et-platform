@@ -271,10 +271,15 @@
 */
 #define PMIC_TEMP_UPPER_SET_LIMIT      85
 
-/*! \def PMIC_TEMP_THRESHOLD_DEFAULT
-    \brief A macro that provides pmic temperature threshold default value
+/*! \def PMIC_TEMP_THRESHOLD_HI
+    \brief A macro that provides pmic temperature threshold value
 */
-#define PMIC_TEMP_THRESHOLD_DEFAULT      65
+#define PMIC_TEMP_THRESHOLD_HI      80
+
+/*! \def PMIC_TEMP_THRESHOLD_LO
+    \brief A macro that provides early indication temperature threshold value
+*/
+#define PMIC_TEMP_THRESHOLD_LO      70
 
 /*! \def THERMAL_THROTTLE_SAMPLE_PERIOD
     \brief A macro that provides thermal throttle sample period

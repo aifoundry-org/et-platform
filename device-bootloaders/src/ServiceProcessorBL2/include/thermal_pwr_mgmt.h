@@ -66,12 +66,12 @@ int update_module_tdp_level(tdp_level_e tdp);
 */
 int get_module_tdp_level(tdp_level_e *tdp_level);
 
-/*! \fn int update_module_temperature_threshold(uint8_t threshold);
+/*! \fn int update_module_temperature_threshold(uint8_t hi_threshold, uint8_t lo_threshold);
     \brief Interface to update the temperature threshold.
     \param threshold  Threshold for temperature
     \returns Status indicating success or negative error
 */
-int update_module_temperature_threshold(uint8_t threshold);
+int update_module_temperature_threshold(uint8_t hi_threshold, uint8_t lo_threshold);
 
 /*! \fn int get_module_temperature_threshold(struct temperature_threshold_t *temperature_threshold);
     \brief Interface to get the temperature threshold.

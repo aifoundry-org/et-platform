@@ -195,31 +195,11 @@ void minion_event_callback(enum error_type type, struct event_message_t *msg)
     xQueueSend(q_handle, msg, portMAX_DELAY);
 }
 
-/************************************************************************
-*
-*   FUNCTION
-*
-*       pmic_event_callback
-*
-*   DESCRIPTION
-*
-*       Callback function invoked from PMIC ISR
-*
-*   INPUTS
-*
-*       type                  Error type
-*       msg                   Error/Event message
-*
-*   OUTPUTS
-*
-*       void                       none
-*
-***********************************************************************/
 void pmic_event_callback(enum error_type type, struct event_message_t *msg)
 {
     //Type is always uncorectable, maybe it will be changed in the future
     (void)type;
 
-    xTaskNotifyFromISR(t_handle, (uint32_t) msg->header.msg_id,
-                        eSetValueWithOverwrite, (BaseType_t *)pdTRUE);
+    /* Post message to the queue */
+    xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
 }
