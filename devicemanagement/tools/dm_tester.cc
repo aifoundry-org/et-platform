@@ -139,7 +139,8 @@ static bool pcie_link_speed_flag = false;
 static pcie_lane_w_split_e pcie_lane_width;
 static bool pcie_lane_width_flag = false;
 
-static uint8_t temperature;
+static uint8_t lo_temperature_c;
+static uint8_t hi_temperature_c;
 static bool thresholds_flag = false;
 
 static uint8_t mem_count;
@@ -338,7 +339,9 @@ int verifyService() {
     }
 
     temperature_threshold_t* temperature_threshold = (temperature_threshold_t*)output_buff;
-    DV_LOG(INFO) << "Temperature Threshold Output: " << +temperature_threshold->temperature << " c"
+    DV_LOG(INFO) << "Low Temperature Threshold Output: " << +temperature_threshold->lo_temperature_c << " c"
+                 << std::endl;
+    DV_LOG(INFO) << "High Temperature Threshold Output: " << +temperature_threshold->hi_temperature_c << " c"
                  << std::endl;
   } break;
 
@@ -348,7 +351,8 @@ int verifyService() {
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(temperature_threshold_t);
-    const char input_buff[input_size] = {(char)temperature}; // bounds check prevents issues with narrowing
+    const char input_buff[input_size] = {(char)lo_temperature_c,
+                                         (char)hi_temperature_c}; // bounds check prevents issues with narrowing
 
     const uint32_t output_size = sizeof(uint32_t);
     char output_buff[output_size] = {0};
@@ -946,14 +950,23 @@ bool validThresholds() {
   char* end;
   errno = 0;
 
-  auto temp = std::strtoul(str_optarg.substr(0, pos).c_str(), &end, 10);
+  auto lo = std::strtoul(str_optarg.substr(0, pos).c_str(), &end, 10);
 
-  if (temp > SCHAR_MAX || end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(ERROR) << "Aborting, argument: " << temp << " is not valid ( 0-" << SCHAR_MAX << " )" << std::endl;
+  if (lo > SCHAR_MAX || end == optarg || *end != '\0' || errno != 0) {
+    DV_LOG(ERROR) << "Aborting, argument: " << lo << " is not valid ( 0-" << SCHAR_MAX << " )" << std::endl;
     return false;
   }
 
-  temperature = (uint8_t)temp;
+  errno = 0;
+  auto hi = std::strtoul(str_optarg.substr(pos + 1).c_str(), &end, 10);
+
+  if (hi > SCHAR_MAX || end == optarg || *end != '\0' || errno != 0) {
+    DV_LOG(ERROR) << "Aborting, argument: " << hi << " is not valid ( 0-" << SCHAR_MAX << " )" << std::endl;
+    return false;
+  }
+
+  lo_temperature_c = (uint8_t)lo;
+  hi_temperature_c = (uint8_t)hi;
 
   return true;
 }

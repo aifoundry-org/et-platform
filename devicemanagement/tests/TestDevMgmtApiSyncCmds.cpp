@@ -377,7 +377,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold_1_13() {
   DeviceManagement &dm = (*dmi)(devLayer_.get());
 
   const uint32_t input_size = sizeof(device_mgmt_api::temperature_threshold_t);
-  const char input_buff[input_size] = {(uint8_t)84};
+  const char input_buff[input_size] = {(uint8_t)56, (uint8_t)84};
 
   //Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
   const uint32_t set_output_size = sizeof(uint32_t);
@@ -401,7 +401,9 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold_1_13() {
   device_mgmt_api::temperature_threshold_t* temperature_threshold =
     (device_mgmt_api::temperature_threshold_t*)get_output_buff;
 
-  ASSERT_EQ(temperature_threshold->temperature, 84);
+  ASSERT_EQ(temperature_threshold->lo_temperature_c, 56);
+  ASSERT_EQ(temperature_threshold->hi_temperature_c, 84);
+
 }
 
 void TestDevMgmtApiSyncCmds::getModuleResidencyThrottleState_1_14() {
