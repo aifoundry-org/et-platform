@@ -815,7 +815,7 @@ static int set_operating_point(uint8_t power)
     // Minion_Shire_Voltage_Update(voltage);
     // FIXME: Need to add error handling in case Minion was not able to be updated
     //        check for error, then return Error enum instead
-    Minion_Shire_PLL_Update_Freq((uint8_t)FREQ2MODE(new_freq));
+    Minion_Shire_Update_PLL_Freq((uint8_t)FREQ2MODE(new_freq));
 
     Update_Minion_Frequency(new_freq);
 

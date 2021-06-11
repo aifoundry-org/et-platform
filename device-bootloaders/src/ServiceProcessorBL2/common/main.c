@@ -106,7 +106,7 @@ static void taskMain(void *pvParameters)
     PCIe_init(true /*expect_link_up*/);
 #endif
 
-    minion_shires_mask = Get_Active_Compute_Minion_Mask();
+    minion_shires_mask = Minion_Get_Active_Compute_Minion_Mask();
 
     Minion_State_Init(minion_shires_mask);
 
@@ -142,7 +142,7 @@ static void taskMain(void *pvParameters)
 
    // Setup Minions
       /* Setup default PLL to be 650 Mhz (Mode -3) */
-    if (0 != Enable_Compute_Minion(minion_shires_mask, 3)) {
+    if (0 != Minion_Enable_Compute_Minion(minion_shires_mask, 3)) {
         Log_Write(LOG_LEVEL_ERROR, "Enable Compute Minion failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
@@ -150,7 +150,7 @@ static void taskMain(void *pvParameters)
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_INITIALIZED);
 
     // Minion FW Authenticate and load to DDR
-    if (0 != Load_Autheticate_Minion_Firmware()) {
+    if (0 != Minion_Load_Authenticate_Firmware()) {
         Log_Write(LOG_LEVEL_ERROR, "Failed to load Minion Firmware!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
@@ -163,13 +163,13 @@ static void taskMain(void *pvParameters)
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_COMMAND_DISPATCHER_INITIALIZED);
 
-    if (0 != Enable_Minion_Neighborhoods(minion_shires_mask)) {
+    if (0 != Minion_Enable_Neighborhoods(minion_shires_mask)) {
         Log_Write(LOG_LEVEL_ERROR, "Failed to enable minion neighborhoods!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
 
     // TODO: SW-3877 need to READ Master Shire ID from OTP, potentially reprogram NOC
-    if (0 != Enable_Master_Shire_Threads(32)) {
+    if (0 != Minion_Enable_Master_Shire_Threads(32)) {
         Log_Write(LOG_LEVEL_ERROR, "Failed to enable Master minion threads!\n");
         goto FIRMWARE_LOAD_ERROR;
     }

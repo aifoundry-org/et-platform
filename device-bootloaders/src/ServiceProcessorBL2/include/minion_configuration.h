@@ -41,13 +41,13 @@ enum minion_error_type {
     HANG,
 };
 
-/*! \fn int Minion_Shire_Voltage_Update( uint8_t voltage)
+/*! \fn int Minion_Shire_Update_Voltage( uint8_t voltage)
     \brief This function provide support to update the Minion
            Shire Power Rails
-    \param value of the Voltage to updated to
+    \param voltage value of the Voltage to updated to
     \return The function call status, pass/fail.
 */
-int Minion_Shire_Voltage_Update( uint8_t voltage);
+int Minion_Shire_Update_Voltage( uint8_t voltage);
 
 /*! \fn int Minion_Program_Step_Clock_PLL(uint8_t mode)
     \brief This function provide support to program the
@@ -58,72 +58,72 @@ int Minion_Shire_Voltage_Update( uint8_t voltage);
 */
 int Minion_Program_Step_Clock_PLL(uint8_t mode);
 
-/*! \fn int Enable_Minion_Neighborhoods(uint64_t shire_mask)
+/*! \fn int Minion_Enable_Neighborhoods(uint64_t shire_mask)
     \brief This function enables minion neighborhoods PLL and DLLs for a given
            set of shires
     \param shire_mask shire to be configured
     \return The function call status, pass/fail.
 */
-int Enable_Minion_Neighborhoods(uint64_t shire_mask);
+int Minion_Enable_Neighborhoods(uint64_t shire_mask);
 
-/*! \fn int Enable_Master_Shire_Threads(uint8_t mm_id)
+/*! \fn int Minion_Enable_Master_Shire_Threads(uint8_t mm_id)
     \brief This function enables mastershire threads
     \param mm_id master minion shire id
     \return The function call status, pass/fail.
 */
-int Enable_Master_Shire_Threads(uint8_t mm_id);
+int Minion_Enable_Master_Shire_Threads(uint8_t mm_id);
 
-/*! \fn int Enable_Compute_Minion(uint64_t minion_shires_mask, uint8_t mode)
+/*! \fn int Minion_Enable_Compute_Minion(uint64_t minion_shires_mask, uint8_t mode)
     \brief This function enables compute minion threads
     \param  minion_shires_mask Shire Mask to enable
-    \param  Frequency mode to bring up Minions
+    \param  mode Frequency mode to bring up Minions
     \return The function call status, pass/fail.
 */
-int Enable_Compute_Minion(uint64_t minion_shires_mask, uint8_t mode);
+int Minion_Enable_Compute_Minion(uint64_t minion_shires_mask, uint8_t mode);
 
-/*! \fn uint64_t Get_Active_Compute_Minion_Mask(void)
+/*! \fn uint64_t Minion_Get_Active_Compute_Minion_Mask(void)
     \brief This function gets the active compute shire mask
            by reading the value from SP OTP
     \param N/A
-    \return The function call status, pass/fail.
+    \return Active CM shire mask.
 */
-uint64_t Get_Active_Compute_Minion_Mask(void);
+uint64_t Minion_Get_Active_Compute_Minion_Mask(void);
 
 
-/*! \fn int Load_Autheticate_Minion_Firmware(void)
+/*! \fn int Minion_Load_Authenticate_Firmware(void)
     \brief This function loads and authenticates the
            Minions firmware
     \param  N/A
     \return The function call status, pass/fail.
 */
-int Load_Autheticate_Minion_Firmware(void);
+int Minion_Load_Authenticate_Firmware(void);
 
-/*! \fn int Minion_Shire_PLL_Update_Freq(uint8_t mode)
+/*! \fn int Minion_Shire_Update_PLL_Freq(uint8_t mode)
     \brief This function supports updating the Minion
            Shire PLL dynamically without stoppong the
            cores
-    \param  value of the freq(in mode) to updated to
+    \param  mode value of the freq(in mode) to updated to
     \return The function call status, pass/fail.
 */
-int Minion_Shire_PLL_Update_Freq(uint8_t mode);
+int Minion_Shire_Update_PLL_Freq(uint8_t mode);
 
-/*! \fn uint64_t Minion_ESR_read(uint32_t address)
+/*! \fn uint64_t Minion_Read_ESR(uint32_t address)
     \brief This function supports reading a Minion Shire
            ESR and returns value read
-    \param  ESR address offset
-    \return The function call status, pass/fail.
+    \param  address ESR address offset
+    \return value on offset of register address.
 */
-uint64_t Minion_ESR_read(uint32_t address);
+uint64_t Minion_Read_ESR(uint32_t address);
 
-/*! \fn int Minion_ESR_write(uint32_t address, uint64_t data, uint64_t mmshire_mask)
+/*! \fn int Minion_Write_ESR(uint32_t address, uint64_t data, uint64_t mmshire_mask)
     \brief This function supports writing to a Minion Shire
            ESR with specific data
-    \param  ESR address offset
-    \param  Data to be written to
-    \param  Minion Shire Mask
+    \param  address ESR address offset
+    \param  data to be written to
+    \param  mmshire_mask Shire Mask
     \return The function call status, pass/fail.
 */
-int Minion_ESR_write(uint32_t address, uint64_t data, uint64_t mmshire_mask);
+int Minion_Write_ESR(uint32_t address, uint64_t data, uint64_t mmshire_mask);
 
 /*! \fn int Minion_Kernel_Launch(uint64_t mmshire_mask, void *args)
     \brief This function supports launching a compute Kernel on specific

@@ -11,15 +11,21 @@
     \brief A C module that implements the minion shire configuration services.
 
     Public interfaces:
-        Enable_Minion_Neighborhoods
-        Enable_Master_Shire_Threads
-        Enable_Compute_Minion
-        Get_Active_Compute_Minion_Mask
-        Load_Autheticate_Minion_Firmware
+        Minion_Enable_Neighborhoods
+        Minion_Enable_Master_Shire_Threads
+        Minion_Shire_Update_Voltage
+        Minion_Program_Step_Clock_PLL
+        Minion_Enable_Compute_Minion
+        Minion_Get_Active_Compute_Minion_Mask
+        Minion_Load_Authenticate_Firmware
+        Minion_Shire_Update_PLL_Freq
+        Minion_Read_ESR
+        Minion_Read_ESR
+        Minion_Kernel_Launch
         Minion_State_Init
         Minion_State_MM_Iface_Get_Active_Shire_Mask
-        Minion_State_MM_Error_Handler
         Minion_State_Host_Iface_Process_Request
+        Minion_State_MM_Error_Handler
         Minion_State_Error_Control_Init
         Minion_State_Error_Control_Deinit
         Minion_State_Set_Exception_Error_Threshold
@@ -88,7 +94,7 @@ static int pll_config(uint8_t shire_id)
    return 0;
 }
 
-static int configure_minion_plls_and_dlls(uint64_t shire_mask)
+static int minion_configure_plls_and_dlls(uint64_t shire_mask)
 {
     int status = MINION_PLL_DLL_CONFIG_ERROR;
     for (uint8_t i = 0; i <= 32; i++)
@@ -101,7 +107,79 @@ static int configure_minion_plls_and_dlls(uint64_t shire_mask)
    return status;
 }
 
-int Enable_Minion_Neighborhoods(uint64_t shire_mask)
+static int mm_get_error_count(struct mm_error_count_t *mm_error_count)
+{
+    /* TODO : Get the thread state from MM.
+       https://esperantotech.atlassian.net/browse/SW-6744
+       Currently providing dummy response.*/
+    mm_error_count->hang_count = 0;
+    mm_error_count->exception_count = 0;
+
+    return 0;
+}
+
+static void minion_error_update_count(uint8_t error_type)
+{
+    /* TODO: This is just an example implementation.
+       The final driver implementation will read these values from the
+       hardware, create a message and invoke call back with message and 
+       error type as parameters. */
+
+    struct event_message_t message;
+
+    switch (error_type)
+    {
+        case EXCEPTION:
+            if(++event_control_block.except_count > event_control_block.except_threshold) {
+
+                /* add details in message header and fill payload */
+                FILL_EVENT_HEADER(&message.header, MINION_EXCEPT_TH,
+                                    sizeof(struct event_message_t));
+                FILL_EVENT_PAYLOAD(&message.payload, WARNING, 1024, 1, 0);
+
+                /* call the callback function and post message */
+                event_control_block.event_cb(CORRECTABLE, &message);
+            }
+            break;
+
+        case HANG:
+            if(++event_control_block.hang_count > event_control_block.hang_threshold) {
+
+                /* add details in message header and fill payload */
+                FILL_EVENT_HEADER(&message.header, MINION_HANG_TH,
+                                    sizeof(struct event_message_t));
+                FILL_EVENT_PAYLOAD(&message.payload, WARNING, 1020, 1, 0);
+
+                /* call the callback function and post message */
+                event_control_block.event_cb(CORRECTABLE, &message);
+            }
+
+        default:
+            break;
+        }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_Enable_Neighborhoods
+*
+*   DESCRIPTION
+*
+*       This function enables minion neighborhoods PLL and DLLs for a given
+        set of shires.
+*
+*   INPUTS
+*
+*       shire_mask shires to be configured
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
+int Minion_Enable_Neighborhoods(uint64_t shire_mask)
 {
     for (uint8_t i = 0; i <= 32; i++)
     {
@@ -118,18 +196,78 @@ int Enable_Minion_Neighborhoods(uint64_t shire_mask)
     return 0;
 }
 
-int Enable_Master_Shire_Threads(uint8_t mm_id)
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_Enable_Master_Shire_Threads
+*
+*   DESCRIPTION
+*
+*       This function enables mastershire threads.
+*
+*   INPUTS
+*
+*       mm_id master minion shire id
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
+int Minion_Enable_Master_Shire_Threads(uint8_t mm_id)
 {
     /* Enable only Device Runtime Management thread on Master Shire */
     write_esr(PP_MACHINE, mm_id, REGION_OTHER, SHIRE_OTHER_THREAD0_DISABLE, ~(MM_RT_THREADS));
     return 0;
 }
 
-int Minion_Shire_Voltage_Update( uint8_t voltage)
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_Shire_Update_Voltage
+*
+*   DESCRIPTION
+*
+*       This function provide support to update the Minion
+        Shire Power Rails.
+*
+*   INPUTS
+*
+*       voltage     value of the Voltage to updated to
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
+int Minion_Shire_Update_Voltage( uint8_t voltage)
 {
     return pmic_set_voltage(MINION, voltage);
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_Program_Step_Clock_PLL
+*
+*   DESCRIPTION
+*
+*       This function provide support to program the
+        Minion Shire Step Clock which is coming from
+        IO Shire HDPLL 4.
+*
+*   INPUTS
+*
+*       mode     value of the freq(in mode) to updated to
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
 int Minion_Program_Step_Clock_PLL(uint8_t mode)
 {
     configure_sp_pll_4(mode);
@@ -137,7 +275,27 @@ int Minion_Program_Step_Clock_PLL(uint8_t mode)
     return 0;
 }
 
-int Enable_Compute_Minion(uint64_t minion_shires_mask, uint8_t mode )
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_Enable_Compute_Minion
+*
+*   DESCRIPTION
+*
+*       This function enables compute minion threads.
+*
+*   INPUTS
+*
+*       minion_shires_mask  Shire Mask to enable
+*       Frequency mode to bring up Minions
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
+int Minion_Enable_Compute_Minion(uint64_t minion_shires_mask, uint8_t mode )
 {
 
     /* FIXME: Update Minion Voltage if neccesary
@@ -159,15 +317,35 @@ int Enable_Compute_Minion(uint64_t minion_shires_mask, uint8_t mode )
         return MINION_WARM_RESET_CONFIG_ERROR ;
     }
 
-    if (0 != configure_minion_plls_and_dlls(minion_shires_mask)) {
-        Log_Write(LOG_LEVEL_ERROR, "configure_minion_plls_and_dlls() failed!\n");
+    if (0 != minion_configure_plls_and_dlls(minion_shires_mask)) {
+        Log_Write(LOG_LEVEL_ERROR, "minion_configure_plls_and_dlls() failed!\n");
         return MINION_PLL_DLL_CONFIG_ERROR;
     }
 
    return SUCCESS;
 }
 
-uint64_t Get_Active_Compute_Minion_Mask(void)
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_Get_Active_Compute_Minion_Mask
+*
+*   DESCRIPTION
+*
+*       This function gets the active compute shire mask
+        by reading the value from SP OTP.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       Active CM shire mask
+*
+***********************************************************************/
+uint64_t Minion_Get_Active_Compute_Minion_Mask(void)
 {
     int ret;
     OTP_NEIGHBORHOOD_STATUS_NH128_NH135_OTHER_t status_other;
@@ -202,7 +380,27 @@ uint64_t Get_Active_Compute_Minion_Mask(void)
     return enable_mask;
 }
 
-int Load_Autheticate_Minion_Firmware(void)
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_Load_Authenticate_Firmware
+*
+*   DESCRIPTION
+*
+*       This function loads and authenticates the
+        Minions firmware.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
+int Minion_Load_Authenticate_Firmware(void)
 {
     if (0 != load_sw_certificates_chain()) {
         Log_Write(LOG_LEVEL_ERROR, "Failed to load SW ROOT/Issuing Certificate chain!\n");
@@ -234,7 +432,27 @@ int Load_Autheticate_Minion_Firmware(void)
    return SUCCESS;
 }
 
-int Minion_Shire_PLL_Update_Freq(uint8_t mode)
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_Shire_Update_PLL_Freq
+*
+*   DESCRIPTION
+*
+*       This function supports updating the Minion
+        Shire PLL dynamically without stoppong the cores.
+*
+*   INPUTS
+*
+*       Frequency mode to bring up Minions
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
+int Minion_Shire_Update_PLL_Freq(uint8_t mode)
 {
     struct sp2mm_update_freq_cmd_t cmd;
 
@@ -247,13 +465,54 @@ int Minion_Shire_PLL_Update_Freq(uint8_t mode)
     return 0;
 }
 
-uint64_t Minion_ESR_read(uint32_t address)
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_Read_ESR
+*
+*   DESCRIPTION
+*
+*       This function supports reading a Minion Shire
+        ESR and returns value read.
+*
+*   INPUTS
+*
+*       ESR address offset
+*
+*   OUTPUTS
+*
+*       value on offset of register address
+*
+***********************************************************************/
+uint64_t Minion_Read_ESR(uint32_t address)
 {
     volatile uint64_t *p = esr_address(PP_MACHINE, 0, REGION_MINION, address);
     return *p;
 }
 
-int Minion_ESR_write(uint32_t address, uint64_t data, uint64_t mmshire_mask)
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_Write_ESR
+*
+*   DESCRIPTION
+*
+*       This function supports writing a Minion Shire ESR.
+*
+*   INPUTS
+*
+*       ESR address offset
+*       Data to be written to
+*       Minion Shire Mask
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
+int Minion_Write_ESR(uint32_t address, uint64_t data, uint64_t mmshire_mask)
 {
 
     for (uint8_t i = 0; i <= 33; i++) {
@@ -266,6 +525,27 @@ int Minion_ESR_write(uint32_t address, uint64_t data, uint64_t mmshire_mask)
     return 0;
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_Kernel_Launch
+*
+*   DESCRIPTION
+*
+*       This function supports launching a compute Kernel on specific
+*       Shires.
+*
+*   INPUTS
+*
+*       Minion Shire mask to launch Compute kernel on
+*       Arguments to the Compute Kernel
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
 int Minion_Kernel_Launch(uint64_t mmshire_mask, void *args)
 {
     struct sp2mm_kernel_launch_cmd_t cmd;
@@ -278,77 +558,6 @@ int Minion_Kernel_Launch(uint64_t mmshire_mask, void *args)
     MM_Iface_Push_Cmd_To_SP2MM_SQ(&cmd, sizeof(cmd));
 
     return 0;
-}
-
-static int get_mm_error_count(struct mm_error_count_t *mm_error_count)
-{
-    /* TODO : Get the thread state from MM.
-       https://esperantotech.atlassian.net/browse/SW-6744
-       Currently providing dummy response.*/
-    mm_error_count->hang_count = 0;
-    mm_error_count->exception_count = 0;
-
-    return 0;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       minion_error_update_count
-*
-*   DESCRIPTION
-*
-*       This function updates error count depending upon error type
-*       either EXCEPTION or HANG.
-*
-*   INPUTS
-*
-*       uint8_t Error type to update counter for
-*
-*   OUTPUTS
-*
-*       None
-*
-***********************************************************************/
-static void minion_error_update_count(uint8_t error_type)
-{
-    /* TODO: This is just an example implementation.
-       The final driver implementation will read these values from the
-       hardware, create a message and invoke call back with message and error type as parameters. */
-
-    struct event_message_t message;
-
-    switch (error_type)
-    {
-        case EXCEPTION:
-            if(++event_control_block.except_count > event_control_block.except_threshold) {
-
-                /* add details in message header and fill payload */
-                FILL_EVENT_HEADER(&message.header, MINION_EXCEPT_TH,
-                                    sizeof(struct event_message_t));
-                FILL_EVENT_PAYLOAD(&message.payload, WARNING, 1024, 1, 0);
-
-                /* call the callback function and post message */
-                event_control_block.event_cb(CORRECTABLE, &message);
-            }
-            break;
-
-        case HANG:
-            if(++event_control_block.hang_count > event_control_block.hang_threshold) {
-
-                /* add details in message header and fill payload */
-                FILL_EVENT_HEADER(&message.header, MINION_HANG_TH,
-                                    sizeof(struct event_message_t));
-                FILL_EVENT_PAYLOAD(&message.payload, WARNING, 1020, 1, 0);
-
-                /* call the callback function and post message */
-                event_control_block.event_cb(CORRECTABLE, &message);
-            }
-
-        default:
-            break;
-        }
 }
 
 /************************************************************************
@@ -429,7 +638,7 @@ void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
         case DM_CMD_GET_MM_ERROR_COUNT: {
             struct device_mgmt_mm_state_rsp_t dm_rsp;
 
-            status = get_mm_error_count(&dm_rsp.mm_error_count);
+            status = mm_get_error_count(&dm_rsp.mm_error_count);
 
             if (0 != status) {
                 Log_Write(LOG_LEVEL_ERROR, " mm state svc error: get_mm_error_count()\r\n");
@@ -482,6 +691,27 @@ void Minion_State_MM_Error_Handler(int32_t error_code)
     }
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_State_Error_Control_Init
+*
+*   DESCRIPTION
+*
+*       This function initializes the Minion error control subsystem, including
+        programming the default error thresholds, enabling the error interrupts
+        and setting up globals.
+*
+*   INPUTS
+*
+*       event_cb  callback to event.
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
 int32_t Minion_State_Error_Control_Init(dm_event_isr_callback event_cb)
 {
     /* register event callback */
@@ -498,12 +728,50 @@ int32_t Minion_State_Error_Control_Init(dm_event_isr_callback event_cb)
     return 0;
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_State_Error_Control_Deinit
+*
+*   DESCRIPTION
+*
+*       This function de-initializes minion error control mechanism.
+*
+*   INPUTS
+*
+*       None.
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
 int32_t Minion_State_Error_Control_Deinit(void)
 {
     event_control_block.event_cb = NULL;
     return 0;
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_State_Set_Exception_Error_Threshold
+*
+*   DESCRIPTION
+*
+*       This function sets exception error threshold value.
+*
+*   INPUTS
+*
+*       th_value    threshold value.
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
 int32_t Minion_State_Set_Exception_Error_Threshold(uint32_t th_value)
 {
     /* set errors count threshold */
@@ -511,6 +779,25 @@ int32_t Minion_State_Set_Exception_Error_Threshold(uint32_t th_value)
     return 0;
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_State_Set_Hang_Error_Threshold
+*
+*   DESCRIPTION
+*
+*       This function sets hang error threshold value.
+*
+*   INPUTS
+*
+*       th_value    threshold value.
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
 int32_t Minion_State_Set_Hang_Error_Threshold(uint32_t th_value)
 {
     /* set errors count threshold */
@@ -518,6 +805,25 @@ int32_t Minion_State_Set_Hang_Error_Threshold(uint32_t th_value)
     return 0;
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_State_Get_Exception_Error_Count
+*
+*   DESCRIPTION
+*
+*       This function return exception error count value.
+*
+*   INPUTS
+*
+*       th_value    threshold value.
+*
+*   OUTPUTS
+*
+*       err_count   error count value
+*
+***********************************************************************/
 int32_t Minion_State_Get_Exception_Error_Count(uint32_t *err_count)
 {
     /* get exceptionerrors count */
@@ -525,6 +831,25 @@ int32_t Minion_State_Get_Exception_Error_Count(uint32_t *err_count)
     return 0;
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_State_Get_Hang_Error_Count
+*
+*   DESCRIPTION
+*
+*       This function return hang error count value.
+*
+*   INPUTS
+*
+*       th_value    threshold value.
+*
+*   OUTPUTS
+*
+*       err_count   error count value
+*
+***********************************************************************/
 int32_t Minion_State_Get_Hang_Error_Count(uint32_t *err_count)
 {
     /* get hang errors count */
