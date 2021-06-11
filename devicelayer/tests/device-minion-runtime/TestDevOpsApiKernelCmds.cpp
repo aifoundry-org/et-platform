@@ -258,7 +258,7 @@ void TestDevOpsApiKernelCmds::launchEmptyKernel_PositiveTesting_4_5(uint64_t shi
   std::vector<ELFIO::elfio> readers;
   auto elfPath = (fs::path(FLAGS_kernels_dir) / fs::path("empty.elf")).string();
 
-  uint8_t dummyKernelArgs[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF};
+  uint8_t dummyKernelArgs[] = {0xDE, 0xAD, 0xBE, 0xEF};
   std::vector<std::vector<uint8_t>> vResultStorage;
   std::vector<uint8_t> vResult;
   int deviceCount = getDevicesCount();
