@@ -12,6 +12,8 @@
 #include "Autogen.h"
 #include <cmath>
 #include <experimental/filesystem>
+#include <iostream>
+#include <numeric>
 
 namespace {
 using namespace ELFIO;
@@ -20,8 +22,11 @@ using namespace std::chrono_literals;
 auto kPollingInterval = 10ms;
 } // namespace
 
-DEFINE_string(kernels_dir, "", "Directory where different kernel ELF files are located");
 DEFINE_uint32(exec_timeout, 100, "Internal execution timeout");
+DEFINE_string(kernels_dir, "", "Directory where different kernel ELF files are located");
+DEFINE_string(trace_logfile, "TestHelper.log", "File where the MM and CM buffers will be dumped");
+DEFINE_bool(enable_trace_dump, true,
+            "Enable device trace dump to file specified by flag: trace_logfile, otherwise on UART");
 DEFINE_bool(loopback_driver, false, "Run on loopback driver");
 DEFINE_bool(use_epoll, true, "Use EPOLL if true, otherwise use interval based polling");
 
@@ -154,6 +159,19 @@ void TestDevOpsApi::executeAsync() {
   int deviceCount = getDevicesCount();
   TEST_VLOG(0) << "Test execution started...";
 
+  std::ofstream logfile;
+  if (FLAGS_enable_trace_dump) {
+    TEST_VLOG(1) << "Trace data is available at " << fs::current_path() / FLAGS_trace_logfile;
+    logfile.open(FLAGS_trace_logfile, std::ios_base::app);
+    logfile << "\n\n"
+            << ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() << "."
+            << ::testing::UnitTest::GetInstance()->current_test_info()->name() << std::endl;
+    for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+      redirectTraceLogging(deviceIdx, true /* to trace buffer */);
+    }
+    logfile.close();
+  }
+
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     int executorThreadCount = 0;
     auto queueCount = getSqCount(deviceIdx);
@@ -185,39 +203,32 @@ void TestDevOpsApi::executeAsync() {
   printCmdExecutionSummary();
 
   cleanUpExecution();
+
+  for (int deviceIdx = 0; FLAGS_enable_trace_dump && deviceIdx < deviceCount; deviceIdx++) {
+    extractAndPrintTraceData(deviceIdx);
+    redirectTraceLogging(deviceIdx, false /* to UART */);
+  }
 }
 
-void TestDevOpsApi::executeSyncPerDevice(int deviceIdx) {
+void TestDevOpsApi::executeSyncPerDevicePerQueue(int deviceIdx, int queueIdx,
+                                                 std::vector<std::unique_ptr<IDevOpsApiCmd>>& stream) {
   auto start = Clock::now();
   auto end = start + execTimeout_;
-  auto queueCount = getSqCount(deviceIdx);
-  uint64_t sqBitmap = 0;
-  bool cqAvailable = false;
-  for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
-    if (streams_.find(key(deviceIdx, queueIdx)) == streams_.end()) {
-      continue;
-    }
-    for (size_t cmdIdx = 0; cmdIdx < streams_[key(deviceIdx, queueIdx)].size(); cmdIdx++) {
-      auto execStart = Clock::now();
-      try {
-        while (!pushCmd(deviceIdx, queueIdx, streams_[key(deviceIdx, queueIdx)][cmdIdx])) {
-          do {
-            ASSERT_TRUE(end > Clock::now()) << "\nexecuteSync timed out!\n" << std::endl;
-            devLayer_->waitForEpollEventsMasterMinion(deviceIdx, sqBitmap, cqAvailable);
-          } while (!(sqBitmap & (1ULL << queueIdx)));
-        }
-        while (!popRsp(deviceIdx)) {
-          do {
-            ASSERT_TRUE(end > Clock::now()) << "\nexecuteSync timed out!\n" << std::endl;
-            devLayer_->waitForEpollEventsMasterMinion(deviceIdx, sqBitmap, cqAvailable);
-          } while (!cqAvailable);
-        }
-      } catch (const std::exception& e) {
-        TEST_VLOG(0) << "Exception: " << e.what();
-        assert(false);
+  uint64_t sqBitmap = 0x1U << queueIdx;
+  bool cqAvailable = true;
+  for (auto& cmd : stream) {
+    try {
+      while (!(sqBitmap & (1ULL << queueIdx)) || !pushCmd(deviceIdx, queueIdx, cmd)) {
+        ASSERT_TRUE(end > Clock::now()) << "\nexecuteSync timed out!\n" << std::endl;
+        devLayer_->waitForEpollEventsMasterMinion(deviceIdx, sqBitmap, cqAvailable);
       }
-      std::chrono::duration<double> execTime = Clock::now() - execStart;
-      TEST_VLOG(1) << " - Command sent to response receive time: " << (execTime.count() * 1000) << "ms";
+      while (!cqAvailable || !popRsp(deviceIdx)) {
+        ASSERT_TRUE(end > Clock::now()) << "\nexecuteSync timed out!\n" << std::endl;
+        devLayer_->waitForEpollEventsMasterMinion(deviceIdx, sqBitmap, cqAvailable);
+      }
+    } catch (const std::exception& e) {
+      TEST_VLOG(0) << "Exception: " << e.what();
+      assert(false);
     }
   }
 }
@@ -225,10 +236,17 @@ void TestDevOpsApi::executeSyncPerDevice(int deviceIdx) {
 void TestDevOpsApi::executeSync() {
   std::vector<std::thread> threadVector;
   int deviceCount = getDevicesCount();
-
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    TEST_VLOG(0) << "Device[" << deviceIdx << "]: test execution started...";
-    threadVector.push_back(std::thread([this, deviceIdx]() { this->executeSyncPerDevice(deviceIdx); }));
+    auto queueCount = getSqCount(deviceIdx);
+    for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
+      if (streams_.find(key(deviceIdx, queueIdx)) == streams_.end()) {
+        continue;
+      }
+      TEST_VLOG(0) << "Device[" << deviceIdx << "], Queue[" << queueIdx << "]: test execution started...";
+      threadVector.push_back(std::thread([this, deviceIdx, queueIdx]() {
+        this->executeSyncPerDevicePerQueue(deviceIdx, queueIdx, streams_[key(deviceIdx, queueIdx)]);
+      }));
+    }
   }
 
   for (auto& t : threadVector) {
@@ -575,20 +593,20 @@ bool TestDevOpsApi::addkernelRspContext(device_ops_api::tag_id_t tagId, uint64_t
   return true;
 }
 
-bool TestDevOpsApi::printKernelRtContext(device_ops_api::tag_id_t tagId) {
+bool TestDevOpsApi::printKernelRtContext(device_ops_api::tag_id_t tagId, std::stringstream& logs) {
   std::unique_lock<std::recursive_mutex> lock(kernelRtContextMtx_);
   auto it = kernelRtContext_.find(tagId);
   if (it == kernelRtContext_.end()) {
     return false;
   }
-  TEST_VLOG(0) << "* Tag ID: 0x" << std::hex << tagId;
-  TEST_VLOG(0) << "* Kernel Name: " << it->second.kernelName;
-  TEST_VLOG(0) << "* Shire Mask: 0x" << std::hex << it->second.shireMask;
-  TEST_VLOG(0) << "* Barrier: " << it->second.cmdBarrier;
-  TEST_VLOG(0) << "* Flush L3: " << it->second.flushL3;
-  TEST_VLOG(0) << "* Kernel Start cycles: " << it->second.startCycles;
-  TEST_VLOG(0) << "* Kernel Wait duration: " << it->second.waitDuration;
-  TEST_VLOG(0) << "* Kernel Execution duration: " << it->second.executionDuration;
+  logs << "* Tag ID: 0x" << std::hex << tagId << std::endl;
+  logs << "* Kernel Name: " << it->second.kernelName << std::endl;
+  logs << "* Shire Mask: 0x" << std::hex << it->second.shireMask << std::endl;
+  logs << "* Barrier: " << it->second.cmdBarrier << std::endl;
+  logs << "* Flush L3: " << it->second.flushL3 << std::endl;
+  logs << "* Kernel Start cycles: " << it->second.startCycles << std::endl;
+  logs << "* Kernel Wait duration: " << it->second.waitDuration << std::endl;
+  logs << "* Kernel Execution duration: " << it->second.executionDuration << std::endl;
   return true;
 }
 
@@ -717,77 +735,186 @@ void TestDevOpsApi::printCmdExecutionSummary() {
 }
 
 void TestDevOpsApi::printErrorContext(int queueId, void* buffer, uint64_t shireMask, device_ops_api::tag_id_t tagId) {
-  hartExecutionContext* context = reinterpret_cast<hartExecutionContext*>(buffer);
-  TEST_VLOG(0) << "*** Error Context Start (Queue ID: " << queueId << ")***";
-  TEST_VLOG(0) << "  * RUNTIME CONTEXT *";
-  printKernelRtContext(tagId);
-  TEST_VLOG(0) << "--------------------------";
-  for (int shireID = 0; shireID < 32; shireID++) {
-    if (shireMask & (1 << shireID)) {
-      // print the context of the first hart in a shire only
-      auto minionHartID = shireID * 64;
-      TEST_VLOG(0) << "  * DEVICE CONTEXT *";
-      TEST_VLOG(0) << "* HartID: " << context[minionHartID].hart_id;
-      if (context[minionHartID].type == CM_CONTEXT_TYPE_USER_KERNEL_ERROR) {
-        TEST_VLOG(0) << "* Type: User Kernel Error";
-        TEST_VLOG(0) << "* Error cycles: " << context[minionHartID].cycles;
-        TEST_VLOG(0) << "* Error code: " << context[minionHartID].user_error;
-      } else {
-        if (context[minionHartID].type == CM_CONTEXT_TYPE_HANG) {
-          TEST_VLOG(0) << "* Type: Compute Minion Hang";
-        } else if (context[minionHartID].type == CM_CONTEXT_TYPE_UMODE_EXCEPTION) {
-          TEST_VLOG(0) << "* Type: U-mode Exception";
-        } else if (context[minionHartID].type == CM_CONTEXT_TYPE_SMODE_EXCEPTION) {
-          TEST_VLOG(0) << "* Type: S-mode Exception";
-        } else if (context[minionHartID].type == CM_CONTEXT_TYPE_SYSTEM_ABORT) {
-          TEST_VLOG(0) << "* Type: System Abort";
-        } else if (context[minionHartID].type == CM_CONTEXT_TYPE_SELF_ABORT) {
-          TEST_VLOG(0) << "* Type: Kernel Self Abort";
-        } else {
-          TEST_VLOG(0) << "* Type: Undefined";
-        }
-        TEST_VLOG(0) << "* Error cycles: " << context[minionHartID].cycles;
-        TEST_VLOG(0) << "* epc: 0x" << std::hex << context[minionHartID].sepc;
-        TEST_VLOG(0) << "* status: 0x" << std::hex << context[minionHartID].sstatus;
-        TEST_VLOG(0) << "* tval: 0x" << std::hex << context[minionHartID].stval;
-        TEST_VLOG(0) << "* cause: 0x" << std::hex << context[minionHartID].scause;
-        TEST_VLOG(0) << "* gpr[x1]  : ra    : 0x" << std::hex << context[minionHartID].gpr[0];
-        TEST_VLOG(0) << "* gpr[x2]  : sp    : 0x" << std::hex << context[minionHartID].gpr[1];
-        TEST_VLOG(0) << "* gpr[x3]  : gp    : 0x" << std::hex << context[minionHartID].gpr[2];
-        TEST_VLOG(0) << "* gpr[x4]  : tp    : 0x" << std::hex << context[minionHartID].gpr[3];
-        TEST_VLOG(0) << "* gpr[x5]  : t0    : 0x" << std::hex << context[minionHartID].gpr[4];
-        TEST_VLOG(0) << "* gpr[x6]  : t1    : 0x" << std::hex << context[minionHartID].gpr[5];
-        TEST_VLOG(0) << "* gpr[x7]  : t2    : 0x" << std::hex << context[minionHartID].gpr[6];
-        TEST_VLOG(0) << "* gpr[x8]  : s0/fp : 0x" << std::hex << context[minionHartID].gpr[7];
-        TEST_VLOG(0) << "* gpr[x9]  : s1    : 0x" << std::hex << context[minionHartID].gpr[8];
-        for (auto i = 0; i < 8; i++) {
-          auto reg = i + 9;
-          TEST_VLOG(0) << "* gpr[x" << (reg + 1) << "] : a" << i << "    : 0x" << std::hex
-                       << context[minionHartID].gpr[reg];
-        }
-        for (auto i = 0; i < 10; i++) {
-          auto reg = i + 17;
-          if (i < 8) {
-            TEST_VLOG(0) << "* gpr[x" << (reg + 1) << "] : s" << (i + 2) << "    : 0x" << std::hex
-                         << context[minionHartID].gpr[reg];
-          } else {
-            TEST_VLOG(0) << "* gpr[x" << (reg + 1) << "] : s" << (i + 2) << "   : 0x" << std::hex
-                         << context[minionHartID].gpr[reg];
-          }
-        }
-        TEST_VLOG(0) << "* gpr[x28] : t3    : 0x" << std::hex << context[minionHartID].gpr[27];
-        TEST_VLOG(0) << "* gpr[x29] : t4    : 0x" << std::hex << context[minionHartID].gpr[28];
-        TEST_VLOG(0) << "* gpr[x30] : t5    : 0x" << std::hex << context[minionHartID].gpr[29];
-        TEST_VLOG(0) << "* gpr[x31] : t6    : 0x" << std::hex << context[minionHartID].gpr[30];
-      }
-      TEST_VLOG(0) << "--------------------------";
-    }
+  std::stringstream logs;
+  std::ofstream logfile;
+  if (FLAGS_enable_trace_dump) {
+    logfile.open(FLAGS_trace_logfile, std::ios_base::app);
   }
-  TEST_VLOG(0) << "*** Error Context End ***" << std::endl;
+
+  hartExecutionContext* context = reinterpret_cast<hartExecutionContext*>(buffer);
+  logs << "\n*** Error Context Start (Queue ID: " << queueId << ")***" << std::endl;
+  logs << "  * RUNTIME CONTEXT *" << std::endl;
+  printKernelRtContext(tagId, logs);
+  logs << "--------------------------" << std::endl;
+  for (int shireId = 0; shireId < 32; shireId++) {
+    if (!(shireMask & (1 << shireId))) {
+      continue;
+    }
+
+    // print the context of the first hart in a shire only
+    auto minionHartID = shireId * 64;
+    logs << "  * DEVICE CONTEXT *" << std::endl;
+    logs << "* HartID: " << context[minionHartID].hart_id << std::endl;
+    switch (context[minionHartID].type) {
+    case CM_CONTEXT_TYPE_USER_KERNEL_ERROR:
+      logs << "* Type: User Kernel Error" << std::endl;
+      logs << "* Error cycles: " << context[minionHartID].cycles << std::endl;
+      logs << "* Error code: " << context[minionHartID].user_error << std::endl;
+      break;
+    case CM_CONTEXT_TYPE_HANG:
+      logs << "* Type: Compute Minion Hang" << std::endl;
+      break;
+    case CM_CONTEXT_TYPE_UMODE_EXCEPTION:
+      logs << "* Type: U-mode Exception" << std::endl;
+      break;
+    case CM_CONTEXT_TYPE_SMODE_EXCEPTION:
+      logs << "* Type: S-mode Exception" << std::endl;
+      break;
+    case CM_CONTEXT_TYPE_SYSTEM_ABORT:
+      logs << "* Type: System Abort" << std::endl;
+      break;
+    case CM_CONTEXT_TYPE_SELF_ABORT:
+      logs << "* Type: Kernel Self Abort" << std::endl;
+      break;
+    default:
+      logs << "* Type: Undefined" << std::endl;
+    }
+    if (context[minionHartID].type != CM_CONTEXT_TYPE_USER_KERNEL_ERROR) {
+      std::array<std::string, 31> arr = {"ra", "sp", "gp", "tp", "t0", "t1", "t2", "s0/fp", "s1", "a0", "a1",
+                                         "a2", "a3", "a4", "a5", "a6", "a7", "s2", "s3",    "s4", "s5", "s6",
+                                         "s7", "s8", "s9", "sa", "sb", "t3", "t4", "t5",    "t6"};
+      logs << "* Error cycles: " << context[minionHartID].cycles << std::endl;
+      logs << "* epc: 0x" << std::hex << context[minionHartID].sepc << std::endl;
+      logs << "* status: 0x" << std::hex << context[minionHartID].sstatus << std::endl;
+      logs << "* tval: 0x" << std::hex << context[minionHartID].stval << std::endl;
+      logs << "* cause: 0x" << std::hex << context[minionHartID].scause << std::endl;
+      for (auto i = 0; i < 31; i++) {
+        logs << "* gpr[x" << std::hex << i + 1 << "] :" << arr[i] << ": 0x" << std::hex << context[minionHartID].gpr[i]
+             << std::endl;
+      }
+    }
+    logs << "--------------------------" << std::endl;
+  }
+  logs << "*** Error Context End ***" << std::endl;
+
+  if (FLAGS_enable_trace_dump) {
+    logfile << logs.str();
+    logfile.close();
+  } else {
+    TEST_VLOG(0) << logs.str();
+  }
 }
 
 void TestDevOpsApi::deleteCmdResults() {
   std::unique_lock<std::recursive_mutex> lock(cmdResultsMtx_);
+  cmdResults_.clear();
+}
+
+bool TestDevOpsApi::printMMTraceStringData(unsigned char* traceBuf, size_t size) const {
+  std::stringstream logs;
+  std::ofstream logfile;
+  if (FLAGS_enable_trace_dump) {
+    logfile.open(FLAGS_trace_logfile, std::ios_base::app);
+  }
+
+  auto dataPtr = reinterpret_cast<trace_string_t*>(traceBuf);
+  auto start = dataPtr;
+  bool validStringEventFound = false;
+  while ((dataPtr - start) < size) {
+    if ((dataPtr->header.type == TRACE_TYPE_STRING) && (dataPtr->dataString[0] != '\0')) {
+      logs << "H:" << dataPtr->header.hart_id << ":" << dataPtr->dataString;
+      dataPtr++;
+      validStringEventFound = true;
+    } else {
+      break;
+    }
+  }
+  if (FLAGS_enable_trace_dump) {
+    logfile << logs.str();
+    logfile.close();
+  } else {
+    TEST_VLOG(0) << logs.str();
+  }
+
+  return validStringEventFound;
+}
+
+bool TestDevOpsApi::printCMTraceStringData(unsigned char* traceBuf, size_t size) const {
+  std::stringstream logs;
+  std::ofstream logfile;
+  if (FLAGS_enable_trace_dump) {
+    logfile.open(FLAGS_trace_logfile, std::ios_base::app);
+  }
+
+  auto hartDataPtr = traceBuf;
+  bool validStringEventFound = false;
+  for (int i = 0; i < WORKER_HART_COUNT; ++i) {
+    auto dataPtr = reinterpret_cast<trace_string_t*>(hartDataPtr);
+    auto start = dataPtr;
+    while ((dataPtr - start) < size) {
+      if ((dataPtr->header.type == TRACE_TYPE_STRING) && (dataPtr->dataString[0] != '\0')) {
+        logs << "H:" << dataPtr->header.hart_id << ":" << dataPtr->dataString;
+        dataPtr++;
+        validStringEventFound = true;
+      } else {
+        break;
+      }
+    }
+    hartDataPtr += CM_SIZE_PER_HART;
+  }
+  if (FLAGS_enable_trace_dump) {
+    logfile << logs.str();
+    logfile.close();
+  } else {
+    TEST_VLOG(0) << logs.str();
+  }
+
+  return validStringEventFound;
+}
+
+void TestDevOpsApi::extractAndPrintTraceData(int deviceIdx) {
+  const int kBufCount = 2;
+  const std::array<uint32_t, kBufCount> bufSizes = {1024 * 1024, CM_SIZE_PER_HART * WORKER_HART_COUNT};
+  auto totalSize = std::accumulate(bufSizes.begin(), bufSizes.end(), 0);
+
+  auto rdBufMem = allocDmaBuffer(deviceIdx, totalSize, false /* read buffer */);
+
+  std::array<device_ops_api::dma_read_node, kBufCount> rdList;
+  auto rdBufPtr = static_cast<uint8_t*>(rdBufMem);
+  for (int nodeIdx = 0; nodeIdx < kBufCount; nodeIdx++) {
+    rdList[nodeIdx] = {.dst_host_virt_addr = reinterpret_cast<uint64_t>(rdBufPtr),
+                       .dst_host_phy_addr = reinterpret_cast<uint64_t>(rdBufPtr),
+                       .src_device_phy_addr = 0,
+                       .size = bufSizes[nodeIdx]};
+    rdBufPtr += bufSizes[nodeIdx];
+  }
+  std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
+  stream.push_back(IDevOpsApiCmd::createDmaReadListCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, rdList.data(),
+                                                       kBufCount, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+  executeSyncPerDevicePerQueue(deviceIdx, 0 /* queueIdx */, stream);
+
+  printMMTraceStringData(static_cast<unsigned char*>(rdBufMem), bufSizes[0]);
+  printCMTraceStringData(static_cast<unsigned char*>(rdBufMem) + bufSizes[0], bufSizes[1]);
+
+  freeDmaBuffer(rdBufMem);
+
+  cmdResults_.clear();
+}
+
+void TestDevOpsApi::redirectTraceLogging(int deviceIdx, bool toTraceBuf) {
+  std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
+
+  // redirect MM trace logging to TraceBuf/UART
+  stream.push_back(IDevOpsApiCmd::createTraceRtControlCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 0x1,
+                                                          toTraceBuf ? 0x3 : 0x0,
+                                                          device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
+  // redirect CM trace logging to TraceBuf/UART
+  stream.push_back(IDevOpsApiCmd::createTraceRtControlCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 0x2,
+                                                          toTraceBuf ? 0x3 : 0x0,
+                                                          device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
+
+  executeSyncPerDevicePerQueue(deviceIdx, 0 /* queueIdx */, stream);
+
   cmdResults_.clear();
 }
 

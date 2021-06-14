@@ -15,9 +15,4 @@ protected:
   /* Trace testing */
   void traceCtrlAndExtractMMFwData_5_1();
   void traceCtrlAndExtractCMFwData_5_2();
-
-private:
-
-  void printMMTraceStringData(std::vector<uint8_t> & traceBuf);
-  void printCMTraceStringData(std::vector<uint8_t> & traceBuf);
 };

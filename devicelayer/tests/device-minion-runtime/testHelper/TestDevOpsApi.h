@@ -27,18 +27,50 @@ using Clock = std::chrono::system_clock;
 using Timepoint = Clock::time_point;
 using TimeDuration = Clock::duration;
 
-DECLARE_string(kernels_dir);
 DECLARE_uint32(exec_timeout);
+DECLARE_string(kernels_dir);
+DECLARE_string(trace_logfile);
+DECLARE_bool(enable_trace_dump);
 DECLARE_bool(loopback_driver);
 DECLARE_bool(use_epoll);
 
 namespace {
-constexpr int kIDevice = 0;
 constexpr int32_t kEchoPayload = 0xDEADBEEF;
 const uint8_t kDevFWMajor = DEVICE_OPS_API_MAJOR;
 const uint8_t kDevFWMinor = DEVICE_OPS_API_MINOR;
 const uint8_t kDevFWPatch = DEVICE_OPS_API_PATCH;
 const uint64_t kCacheLineSize = 64;
+
+/* TODO: All trace packet information should be in common files
+         for both Host and Device usage. */
+constexpr uint32_t CM_SIZE_PER_HART = 4096;
+constexpr uint32_t WORKER_HART_COUNT = 2080;
+
+extern "C" {
+enum trace_type_e {
+  TRACE_TYPE_STRING,
+  TRACE_TYPE_PMC_COUNTER,
+  TRACE_TYPE_PMC_ALL_COUNTERS,
+  TRACE_TYPE_VALUE_U64,
+  TRACE_TYPE_VALUE_U32,
+  TRACE_TYPE_VALUE_U16,
+  TRACE_TYPE_VALUE_U8,
+  TRACE_TYPE_VALUE_FLOAT
+};
+
+struct trace_entry_header_t {
+  uint64_t cycle;   // Current cycle
+  uint32_t hart_id; // Hart ID of the Hart which is logging Trace
+  uint16_t type;    // One of enum trace_type_e
+  uint8_t pad[2];
+} __attribute__((packed));
+
+struct trace_string_t {
+  struct trace_entry_header_t header;
+  char dataString[64];
+} __attribute__((packed));
+}
+
 } // namespace
 
 enum class CmdStatus { CMD_RSP_NOT_RECEIVED, CMD_TIMED_OUT, CMD_FAILED, CMD_RSP_DUPLICATE, CMD_SUCCESSFUL };
@@ -94,7 +126,11 @@ protected:
   void printErrorContext(int queueId, void* buffer, uint64_t shireMask, device_ops_api::tag_id_t tagId);
   void cleanUpExecution();
   void deleteCmdResults();
-  void executeSyncPerDevice(int deviceIdx);
+  void executeSyncPerDevicePerQueue(int deviceIdx, int queueIdx, std::vector<std::unique_ptr<IDevOpsApiCmd>>& stream);
+
+  bool printMMTraceStringData(unsigned char* traceBuf, size_t size) const;
+  bool printCMTraceStringData(unsigned char* traceBuf, size_t size) const;
+  void extractAndPrintTraceData(int deviceIdx);
 
   inline int getDevicesCount() {
     return devLayer_->getDevicesCount();
@@ -124,11 +160,12 @@ private:
                            bool flushL3);
   bool addkernelRspContext(device_ops_api::tag_id_t tagId, uint64_t startTime, uint32_t waitDuration,
                            uint32_t execDuration);
-  bool printKernelRtContext(device_ops_api::tag_id_t tagId);
+  bool printKernelRtContext(device_ops_api::tag_id_t tagId, std::stringstream& logs);
   bool addCmdResultEntry(device_ops_api::tag_id_t tagId, CmdStatus status);
   CmdStatus getCmdResult(device_ops_api::tag_id_t tagId);
   bool updateCmdResult(device_ops_api::tag_id_t tagId, CmdStatus status);
   void deleteCmdResultEntry(device_ops_api::tag_id_t tagId);
+  void redirectTraceLogging(int deviceIdx, bool toTraceBuf);
 
   struct DeviceInfo {
     uint64_t dmaWriteAddr_;
