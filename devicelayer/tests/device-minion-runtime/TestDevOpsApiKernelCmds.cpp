@@ -258,7 +258,7 @@ void TestDevOpsApiKernelCmds::launchEmptyKernel_PositiveTesting_4_5(uint64_t shi
   std::vector<ELFIO::elfio> readers;
   auto elfPath = (fs::path(FLAGS_kernels_dir) / fs::path("empty.elf")).string();
 
-  uint8_t dummyKernelArgs[] = {0xDE, 0xAD, 0xBE, 0xEF};
+  std::vector<unsigned long int> dummyKernelArgs(1, 0xDEADBEEFBEEFDEADULL);
   std::vector<std::vector<uint8_t>> vResultStorage;
   std::vector<uint8_t> vResult;
   int deviceCount = getDevicesCount();
@@ -270,7 +270,8 @@ void TestDevOpsApiKernelCmds::launchEmptyKernel_PositiveTesting_4_5(uint64_t shi
       uint64_t kernelEntryDevAddrEmptyKer;
       loadElfToDevice(deviceIdx, readers[queueIdx], elfPath, streamEmptyKer, kernelEntryDevAddrEmptyKer);
       // allocate space for kernel args
-      auto devAddrKernelArgs = getDmaWriteAddr(deviceIdx, ALIGN(sizeof(dummyKernelArgs), kCacheLineSize));
+      auto devAddrKernelArgs = getDmaWriteAddr(deviceIdx,
+        ALIGN(dummyKernelArgs.size() * sizeof(unsigned long int), kCacheLineSize));
       // allocate 4KB space for dummy kernel result
       auto devAddrKernelResult = getDmaWriteAddr(deviceIdx, ALIGN(sizeof(0x1000), kCacheLineSize));
       // allocate 1MB space for kernel error/exception buffer
@@ -278,7 +279,8 @@ void TestDevOpsApiKernelCmds::launchEmptyKernel_PositiveTesting_4_5(uint64_t shi
       // kernel launch
       streamEmptyKer.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
         device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kernelEntryDevAddrEmptyKer, devAddrKernelArgs,
-        kernelExceptionDevAddr, shire_mask, 0, reinterpret_cast<void*>(dummyKernelArgs), sizeof(dummyKernelArgs),
+        kernelExceptionDevAddr, shire_mask, 0, static_cast<void*>(dummyKernelArgs.data()),
+        static_cast<int>(dummyKernelArgs.size() * sizeof(unsigned long int)),
         device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
       // Do a dummy read back Kernel Results from device
       vResult.resize(0x1000, 0);

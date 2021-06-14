@@ -129,19 +129,23 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractCMFwData_5_2() {
 
 void TestDevOpsApiTraceCmds::printMMTraceStringData(std::vector<uint8_t>& traceBuf) {
   auto dataPtr = reinterpret_cast<trace_string_t*>(traceBuf.data());
+  bool validStringEventFound = false;
   while (1) {
     if ((dataPtr->header.type == TRACE_TYPE_STRING) && (dataPtr->dataString[0] != '\0')) {
       std::cout << "H:" << dataPtr->header.hart_id << ":" << dataPtr->dataString;
       dataPtr++;
+      validStringEventFound = true;
     } else {
       break;
     }
   }
+  EXPECT_TRUE(validStringEventFound) << "No Trace String event found!" << std::endl;
 }
 
 void TestDevOpsApiTraceCmds::printCMTraceStringData(std::vector<uint8_t>& traceBuf) {
   uint64_t size = CM_SIZE_PER_HART / sizeof(trace_string_t);
   unsigned char* bytePtr = reinterpret_cast<unsigned char*>(traceBuf.data());
+  bool validStringEventFound = false;
 
   for (int i = 0; i < WORKER_HART_COUNT; ++i) {
     auto dataPtr = reinterpret_cast<trace_string_t*>(bytePtr);
@@ -149,9 +153,11 @@ void TestDevOpsApiTraceCmds::printCMTraceStringData(std::vector<uint8_t>& traceB
     while ((dataPtr - start) < size) {
       if ((dataPtr->header.type == TRACE_TYPE_STRING) && (dataPtr->dataString[0] != '\0')) {
         std::cout << "H:" << dataPtr->header.hart_id << ":" << dataPtr->dataString;
+        validStringEventFound = true;
       }
       dataPtr++;
     }
     bytePtr += CM_SIZE_PER_HART;
   }
+  EXPECT_TRUE(validStringEventFound) << "No Trace String event found!" << std::endl;
 }
