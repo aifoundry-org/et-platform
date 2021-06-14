@@ -44,7 +44,7 @@ void __attribute__((noreturn)) main(void)
     Trace_Init_CM(NULL);
 
     Trace_String(TRACE_EVENT_STRING_CRITICAL, Trace_Get_CM_CB(), "Trace Initialized!!\n");
-    
+
     WAIT_FLB(thread_count, 31, result);
 
     // Last thread to join barrier sends ready message to master
@@ -66,5 +66,9 @@ void __attribute__((noreturn)) main(void)
         }
     }
 
+    /* Initialize the MM-CM Iface */
+    MM_To_CM_Iface_Init();
+
+    /* Start the main processing loop */
     MM_To_CM_Iface_Main_Loop();
 }

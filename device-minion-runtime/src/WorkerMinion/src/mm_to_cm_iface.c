@@ -18,7 +18,7 @@ typedef struct {
 } __attribute__((aligned(64))) cm_iface_message_number_internal_t;
 
 /* MM -> CM message counters */
-static cm_iface_message_number_internal_t mm_cm_msg_number[NUM_HARTS] = { 0 };
+#define mm_cm_msg_number ((cm_iface_message_number_internal_t*)CM_MM_HART_MESSAGE_COUNTER)
 static spinlock_t pre_msg_local_barrier[NUM_SHIRES] = { 0 };
 static spinlock_t msg_sync_local_barrier[NUM_SHIRES] = { 0 };
 
@@ -78,6 +78,14 @@ static inline void read_msg_and_notify_mm(uint64_t shire_id, cm_iface_message_t 
                 1ull << master_to_worker_broadcast_message_ctrl_ptr->sender_thread_id, MASTER_SHIRE, 0);
         }
     }
+}
+
+void MM_To_CM_Iface_Init(void)
+{
+    const uint32_t hart_id = get_hart_id();
+
+    /* Initalize the MM-CM message counter to zero */
+    mm_cm_msg_number[hart_id].number = 0U;
 }
 
 void __attribute__((noreturn)) MM_To_CM_Iface_Main_Loop(void)
