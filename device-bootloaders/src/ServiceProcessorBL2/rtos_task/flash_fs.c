@@ -286,13 +286,13 @@ int flashfs_drv_increment_completed_boot_count(void)
     req.request = FLASHFS_DRIVER_REQUEST_INCREMENT_COMPLETED_BOOT_COUNT;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        Log_Write(LOG_LEVEL_ERROR, 
+        Log_Write(LOG_LEVEL_ERROR,
             "flashfs_drv_increment_completed_boot_count: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        Log_Write(LOG_LEVEL_ERROR, 
+        Log_Write(LOG_LEVEL_ERROR,
             "flashfs_drv_increment_completed_boot_count: flash_fs_increment_completed_boot_count() failed!\r\n");
         return -1;
     }

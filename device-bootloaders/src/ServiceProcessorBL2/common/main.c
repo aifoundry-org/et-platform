@@ -121,7 +121,7 @@ static void taskMain(void *pvParameters)
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_VQ_READY);
 
-    Log_Write(LOG_LEVEL_INFO, "time: %lu\n", timer_get_ticks_count());
+    Log_Write(LOG_LEVEL_CRITICAL, "time: %lu\n", timer_get_ticks_count());
 
    // Setup NOC
 
@@ -210,12 +210,11 @@ static void taskMain(void *pvParameters)
         Log_Write(LOG_LEVEL_ERROR, "Failed to increment the completed boot counter!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
-    Log_Write(LOG_LEVEL_INFO, "Incremented the completed boot counter!\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "Incremented the completed boot counter!\n");
 #endif
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DEV_READY);
-    Log_Write(LOG_LEVEL_INFO, "SP Device Ready!\n");
-
+    Log_Write(LOG_LEVEL_CRITICAL, "SP Device Ready!\n");
 
     // Init DM sampling task
     init_dm_sampling_task();
@@ -227,7 +226,7 @@ FIRMWARE_LOAD_ERROR:
 
 DONE:
     while (1) {
-        Log_Write(LOG_LEVEL_INFO, "M");
+        Log_Write(LOG_LEVEL_CRITICAL, "M");
         vTaskDelay(2U);
     }
 }
@@ -316,11 +315,10 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     SERIAL_init(PU_UART0);
     SERIAL_init(PU_UART1);
 
-    Log_Init(LOG_LEVEL_INFO);
+    Log_Init(LOG_LEVEL_WARNING);
     Trace_Init_SP(NULL);
-
-    Log_Write(LOG_LEVEL_INFO, "** SP BL2 STARTED **\n");
-    Log_Write(LOG_LEVEL_INFO, "BL2 version: %u.%u.%u:" GIT_VERSION_STRING " (" BL2_VARIANT ")\n",
+    Log_Write(LOG_LEVEL_CRITICAL, "\n** SP BL2 STARTED **\r\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "BL2 version: %u.%u.%u:" GIT_VERSION_STRING " (" BL2_VARIANT ")\n",
            image_version_info->file_version_major, image_version_info->file_version_minor,
            image_version_info->file_version_revision);
 
@@ -379,7 +377,7 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     }
 #endif
 
-    Log_Write(LOG_LEVEL_INFO, "Starting RTOS...\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "Starting RTOS...\n");
 
     gs_taskHandleMain = xTaskCreateStatic(taskMain, "Main Task", TASK_STACK_SIZE, NULL, 1,
                                           gs_stackMain, &gs_taskBufferMain);

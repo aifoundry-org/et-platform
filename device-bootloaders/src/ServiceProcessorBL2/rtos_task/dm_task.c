@@ -109,6 +109,9 @@ static void dm_task_entry(void *pvParameters)
 
     //Will need to cleanly yield this thread to avoid this Thread from hoging the SP
     while (1) {
+
+        Log_Write(LOG_LEVEL_DEBUG, "Updating the periodically sampled parameters: %s\n",__func__);
+
         // simulate the values fetched from the PMIC Interface
         // Module Temperature in C
         ret = update_module_current_temperature();

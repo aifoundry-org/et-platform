@@ -650,13 +650,13 @@ int vaultip_drv_get_system_information(uint32_t identity,
     req.args.get_system_information.system_info = system_info;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        Log_Write(LOG_LEVEL_ERROR, 
+        Log_Write(LOG_LEVEL_ERROR,
             "vaultip_drv_get_system_information: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        Log_Write(LOG_LEVEL_ERROR, 
+        Log_Write(LOG_LEVEL_ERROR,
             "vaultip_drv_get_system_information: vaultip_drv_get_system_information() failed!\r\n");
         return -1;
     }
@@ -754,13 +754,13 @@ int vaultip_drv_trng_get_random_number(uint32_t identity, void *dst, uint16_t si
     req.args.get_random_number.raw = raw;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        Log_Write(LOG_LEVEL_ERROR, 
+        Log_Write(LOG_LEVEL_ERROR,
             "vaultip_drv_trng_get_random_number: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        Log_Write(LOG_LEVEL_ERROR, 
+        Log_Write(LOG_LEVEL_ERROR,
             "vaultip_drv_trng_get_random_number: vaultip_drv_trng_get_random_number() failed!\r\n");
         return -1;
     }
@@ -1147,7 +1147,7 @@ int vaultip_drv_asset_load_plaintext(uint32_t identity, uint32_t asset_id, const
     req.args.asset_load_plaintext.data_size = data_size;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        Log_Write(LOG_LEVEL_ERROR, 
+        Log_Write(LOG_LEVEL_ERROR,
             "vaultip_drv_asset_load_plaintext: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
@@ -1227,7 +1227,7 @@ int vaultip_drv_static_asset_search(uint32_t identity, VAULTIP_STATIC_ASSET_ID_t
     req.args.static_asset_search.data_length = data_length;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        Log_Write(LOG_LEVEL_ERROR, 
+        Log_Write(LOG_LEVEL_ERROR,
             "vaultip_drv_static_asset_search: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
@@ -1282,7 +1282,7 @@ int vaultip_drv_monotonic_counter_read(uint32_t identity, uint32_t asset_id,
     req.args.monotonic_counter_read.data_size = data_size;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        Log_Write(LOG_LEVEL_ERROR, 
+        Log_Write(LOG_LEVEL_ERROR,
             "vaultip_drv_monotonic_counter_read: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
@@ -1305,13 +1305,13 @@ int vaultip_drv_monotonic_counter_increment(uint32_t identity, uint32_t asset_id
     req.args.monotonic_counter_increment.asset_id = asset_id;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        Log_Write(LOG_LEVEL_ERROR, 
+        Log_Write(LOG_LEVEL_ERROR,
             "vaultip_drv_monotonic_counter_increment: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        Log_Write(LOG_LEVEL_ERROR, 
+        Log_Write(LOG_LEVEL_ERROR,
             "vaultip_drv_monotonic_counter_increment: vaultip_static_asset_search() failed!\r\n");
         return -1;
     }
@@ -1373,13 +1373,13 @@ int vaultip_drv_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t ide
     req.args.public_key_ecdsa_verify.sig_data_size = sig_data_size;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        Log_Write(LOG_LEVEL_ERROR, 
+        Log_Write(LOG_LEVEL_ERROR,
             "vaultip_drv_public_key_ecdsa_verify: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        Log_Write(LOG_LEVEL_ERROR, 
+        Log_Write(LOG_LEVEL_ERROR,
             "vaultip_drv_public_key_ecdsa_verify: vaultip_public_key_ecdsa_verify() failed!\r\n");
         return -1;
     }
@@ -1410,13 +1410,13 @@ int vaultip_drv_public_key_rsa_pss_verify(uint32_t modulus_size, uint32_t identi
     req.args.public_key_rsa_pss_verify.salt_length = salt_length;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        Log_Write(LOG_LEVEL_ERROR, 
+        Log_Write(LOG_LEVEL_ERROR,
             "vaultip_drv_public_key_rsa_pss_verify: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        Log_Write(LOG_LEVEL_ERROR, 
+        Log_Write(LOG_LEVEL_ERROR,
             "vaultip_drv_public_key_rsa_pss_verify: vaultip_public_key_rsa_pss_verify() failed!\r\n");
         return -1;
     }

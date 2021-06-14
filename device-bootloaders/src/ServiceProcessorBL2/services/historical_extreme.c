@@ -46,6 +46,8 @@ static void get_max_memory_error(tag_id_t tag_id, uint64_t req_start_time)
     uint32_t ddr_ce_count;
     volatile struct max_error_count_t *error_count = get_soc_max_control_block();
 
+    Log_Write(LOG_LEVEL_INFO, "Historical extreme value request: %s\n",__func__);
+
     status = ddr_get_ce_count(&ddr_ce_count);
     if (0 != status) {
         Log_Write(LOG_LEVEL_ERROR, "get_max_memory_error : driver error !\n");
@@ -56,6 +58,8 @@ static void get_max_memory_error(tag_id_t tag_id, uint64_t req_start_time)
 
         dm_rsp.max_ecc_count.count = error_count->ddr_ce_max_count;
     }
+
+    Log_Write(LOG_LEVEL_INFO, "Historical extreme value response: %s\n",__func__);
 
     FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_GET_MAX_MEMORY_ERROR,
                     timer_get_ticks_count() - req_start_time, status);
@@ -92,6 +96,8 @@ static void get_module_max_ddr_bw(tag_id_t tag_id, uint64_t req_start_time)
     struct max_dram_bw_t max_dram_bw;
     int32_t status;
 
+    Log_Write(LOG_LEVEL_INFO, "Historical extreme value request: %s\n",__func__);
+
     status = get_module_max_dram_bw(&max_dram_bw);
 
     if (0 != status) {
@@ -100,6 +106,8 @@ static void get_module_max_ddr_bw(tag_id_t tag_id, uint64_t req_start_time)
         dm_rsp.max_dram_bw.max_bw_rd_req_sec = max_dram_bw.max_bw_rd_req_sec;
         dm_rsp.max_dram_bw.max_bw_wr_req_sec = max_dram_bw.max_bw_wr_req_sec;
     }
+
+    Log_Write(LOG_LEVEL_INFO, "Historical extreme value response: %s\n",__func__);
 
     FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_GET_MODULE_MAX_DDR_BW,
                     timer_get_ticks_count() - req_start_time, status);
@@ -137,6 +145,8 @@ static void get_module_max_throttle_time(tag_id_t tag_id, uint64_t req_start_tim
     uint64_t max_throttle_time;
     int32_t status;
 
+    Log_Write(LOG_LEVEL_INFO, "Historical extreme value request: %s\n",__func__);
+
     status = get_max_throttle_time(&max_throttle_time);
 
     if (0 != status) {
@@ -144,6 +154,8 @@ static void get_module_max_throttle_time(tag_id_t tag_id, uint64_t req_start_tim
     } else {
         dm_rsp.max_throttle_time.time_usec = max_throttle_time;
     }
+
+    Log_Write(LOG_LEVEL_INFO, "Historical extreme value response: %s\n",__func__);
 
     FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_GET_MODULE_MAX_THROTTLE_TIME,
                     timer_get_ticks_count() - req_start_time, status);
@@ -182,6 +194,8 @@ static void get_module_max_temperature(uint16_t tag, uint64_t req_start_time)
     uint8_t max_temp;
     int32_t status;
 
+    Log_Write(LOG_LEVEL_INFO, "Historical extreme value request: %s\n",__func__);
+
     status = get_soc_max_temperature(&max_temp);
 
     if (0 != status) {
@@ -189,6 +203,8 @@ static void get_module_max_temperature(uint16_t tag, uint64_t req_start_time)
     } else {
         dm_rsp.max_temperature.max_temperature_c = max_temp;
     }
+
+    Log_Write(LOG_LEVEL_INFO, "Historical extreme value response: %s\n",__func__);
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_MODULE_MAX_TEMPERATURE,
                     timer_get_ticks_count() - req_start_time, status);

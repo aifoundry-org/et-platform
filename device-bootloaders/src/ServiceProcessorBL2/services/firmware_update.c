@@ -35,12 +35,14 @@ static int32_t dm_svc_get_firmware_status(void)
     uint32_t attempted_boot_counter;
     uint32_t completed_boot_counter;
 
+    Log_Write(LOG_LEVEL_INFO, "FW mgmt request: %s\n", __func__);
+
     if (0 != flash_fs_get_boot_counters(&attempted_boot_counter, &completed_boot_counter)) {
         Log_Write(LOG_LEVEL_ERROR, "flash_fs_get_boot_counters: failed to get boot counters!\n");
     } else {
         Log_Write(LOG_LEVEL_ERROR, "flash_fs_get_boot_counters: Success!\n");
         if (attempted_boot_counter != completed_boot_counter) {
-            Log_Write(LOG_LEVEL_ERROR, 
+            Log_Write(LOG_LEVEL_ERROR,
                 "flash_fs_get_boot_counters: Attempted and completed boot counter do not match!\n");
             return DEVICE_FW_UPDATED_IMAGE_BOOT_FAILED;
         }
@@ -106,10 +108,12 @@ static int32_t update_sp_boot_root_certificate_hash(char *key_blob, char* associ
     static const uint32_t associated_data_size = sizeof(associated_data) - 1;
     static const uint32_t key_blob_size = sizeof(key_blob);
 
+    Log_Write(LOG_LEVEL_INFO, "FW mgmt request: %s\n", __func__);
+
     if (0 != vaultip_drv_static_asset_search(get_rom_identity(),
                                              VAULTIP_STATIC_ASSET_SP_ROOT_CA_HASH, &asset_id,
                                              &asset_size)) {
-        Log_Write(LOG_LEVEL_ERROR, 
+        Log_Write(LOG_LEVEL_ERROR,
             "update_sp_boot_root_certificate_hash: vaultip_drv_static_asset_search(%u) failed!\n",
             VAULTIP_STATIC_ASSET_SP_ROOT_CA_HASH);
         return -1;
@@ -130,6 +134,10 @@ static void send_status_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_
 {
     struct device_mgmt_default_rsp_t dm_rsp;
 
+    Log_Write(LOG_LEVEL_INFO, "FW mgmt response: %s\n", __func__);
+
+    Log_Write(LOG_LEVEL_DEBUG, "Fw mgmt response for msg_id = %u, tag_id = %u\n",msg_id, tag_id);
+
     FILL_RSP_HEADER(dm_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, status);
 
     dm_rsp.payload = status;
@@ -142,8 +150,9 @@ static void send_status_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_
 static int32_t dm_svc_firmware_update(void)
 {
     // Firmware image is available in the memory.
-    Log_Write(LOG_LEVEL_INFO, "fw image available at : %lx,  size: %lx\n", (uint64_t)DEVICE_FW_UPDATE_REGION_BASE,
-           DEVICE_FW_UPDATE_REGION_SIZE);
+    Log_Write(LOG_LEVEL_INFO, "FW mgmt request: %s\n", __func__);
+    Log_Write(LOG_LEVEL_DEBUG, "Image available at : %lx,  size: %lx\n",
+            (uint64_t)DEVICE_FW_UPDATE_REGION_BASE, DEVICE_FW_UPDATE_REGION_SIZE);
 
     // Program the image to flash.
     if (0 != flash_fs_update_partition((void *)DEVICE_FW_UPDATE_REGION_BASE,
@@ -172,6 +181,8 @@ static void dm_svc_get_firmware_version(tag_id_t tag_id, uint64_t req_start_time
     ESPERANTO_IMAGE_FILE_HEADER_t *machine_image_file_header;
     ESPERANTO_IMAGE_FILE_HEADER_t *worker_image_file_header;
     SERVICE_PROCESSOR_BL2_DATA_t *sp_bl2_data;
+
+    Log_Write(LOG_LEVEL_INFO, "FW mgmt request: %s\n", __func__);
 
     //Get BL1 version from BL2 data.
     sp_bl2_data = get_service_processor_bl2_data();
@@ -238,17 +249,19 @@ static void dm_svc_get_firmware_version(tag_id_t tag_id, uint64_t req_start_time
 static int32_t dm_svc_update_sp_boot_root_certificate_hash(
     struct device_mgmt_certificate_hash_cmd_t *certificate_hash_cmd)
 {
-    Log_Write(LOG_LEVEL_INFO, "recieved key_blob:\n");
+    Log_Write(LOG_LEVEL_INFO, "FW mgmt request: %s\n", __func__);
+
+    Log_Write(LOG_LEVEL_DEBUG, "recieved key_blob:\n");
     for (int i = 0; i < 48; i++) {
-        Log_Write(LOG_LEVEL_INFO, "%02x ", *(unsigned char *)&certificate_hash_cmd->certificate_hash.key_blob[i]);
+        Log_Write(LOG_LEVEL_DEBUG, "%02x ", *(unsigned char *)&certificate_hash_cmd->certificate_hash.key_blob[i]);
     }
-    Log_Write(LOG_LEVEL_INFO, "recieved associated_data:\n");
+    Log_Write(LOG_LEVEL_DEBUG, "recieved associated_data:\n");
     for (int i = 0; i < 48; i++) {
-        Log_Write(LOG_LEVEL_INFO, "%02x ", *(unsigned char *)&certificate_hash_cmd->certificate_hash.associated_data[i]);
+        Log_Write(LOG_LEVEL_DEBUG, "%02x ", *(unsigned char *)&certificate_hash_cmd->certificate_hash.associated_data[i]);
     }
     //Command payload contains the hash for new certificate.
     if (0 != update_sp_boot_root_certificate_hash(certificate_hash_cmd->certificate_hash.key_blob, certificate_hash_cmd->certificate_hash.associated_data)) {
-        Log_Write(LOG_LEVEL_ERROR, 
+        Log_Write(LOG_LEVEL_ERROR,
             " dm_svc_update_sp_boot_root_certificate_hash : vault_ip_update_sp_boot_root_certificate_hash failed!\n");
         return -1;
     }

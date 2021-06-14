@@ -47,6 +47,8 @@ static void link_mgmt_pcie_reset(uint16_t tag, uint64_t req_start_time,
     //       to host. For now sending the response.
     struct device_mgmt_default_rsp_t dm_rsp;
 
+    Log_Write(LOG_LEVEL_INFO, "Link mgmt request: %s\n",__func__);
+
     switch (pcie_reset_type) {
     case PCIE_RESET_FLR:
         pcie_reset_flr();
@@ -58,6 +60,8 @@ static void link_mgmt_pcie_reset(uint16_t tag, uint64_t req_start_time,
         pcie_reset_warm();
         break;
     }
+
+    Log_Write(LOG_LEVEL_INFO, "Link mgmt response: %s\n",__func__);
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_SET_PCIE_RESET, timer_get_ticks_count() - req_start_time,
                     DM_STATUS_SUCCESS);
@@ -96,6 +100,8 @@ static void link_mgmt_set_pcie_max_link_speed(uint16_t tag, uint64_t req_start_t
     struct device_mgmt_default_rsp_t dm_rsp;
     int status = DM_STATUS_SUCCESS;
 
+    Log_Write(LOG_LEVEL_INFO, "Link mgmt request: %s\n",__func__);
+
     switch (pcie_link_speed) {
     case PCIE_LINK_SPEED_GEN3:
         status = setup_pcie_gen3_link_speed();
@@ -104,6 +110,8 @@ static void link_mgmt_set_pcie_max_link_speed(uint16_t tag, uint64_t req_start_t
         status = setup_pcie_gen3_link_speed();
         break;
     }
+
+    Log_Write(LOG_LEVEL_INFO, "Link mgmt response: %s\n",__func__);
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_SET_PCIE_MAX_LINK_SPEED,
                     timer_get_ticks_count() - req_start_time, status);
@@ -142,6 +150,8 @@ static void link_mgmt_set_pcie_lane_width(uint16_t tag, uint64_t req_start_time,
     struct device_mgmt_default_rsp_t dm_rsp;
     int32_t status = DM_STATUS_SUCCESS;
 
+    Log_Write(LOG_LEVEL_INFO, "Link mgmt request: %s\n",__func__);
+
     switch (pcie_lane_w_split) {
     case PCIE_LANE_W_SPLIT_x4:
         status = setup_pcie_lane_width_x4();
@@ -150,6 +160,8 @@ static void link_mgmt_set_pcie_lane_width(uint16_t tag, uint64_t req_start_time,
         status = setup_pcie_lane_width_x8();
         break;
     }
+
+    Log_Write(LOG_LEVEL_INFO, "Link mgmt response: %s\n",__func__);
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_SET_PCIE_LANE_WIDTH,
                     timer_get_ticks_count() - req_start_time, status);
@@ -186,7 +198,11 @@ static void link_mgmt_pcie_retrain_phy(uint16_t tag, uint64_t req_start_time)
     struct device_mgmt_default_rsp_t dm_rsp;
     int32_t status;
 
+    Log_Write(LOG_LEVEL_INFO, "Link mgmt request: %s\n",__func__);
+
     status = pcie_retrain_phy();
+
+    Log_Write(LOG_LEVEL_INFO, "Link mgmt response: %s\n",__func__);
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_SET_PCIE_RETRAIN_PHY,
                     timer_get_ticks_count() - req_start_time, status);
@@ -225,6 +241,8 @@ static void link_mgmt_get_module_pcie_ecc_uecc(uint16_t tag, uint64_t req_start_
     uint32_t uce_count;
     int32_t status;
 
+    Log_Write(LOG_LEVEL_INFO, "Link mgmt request: %s\n",__func__);
+
     status = pcie_get_ce_count(&ce_count);
 
     if (0 != status) {
@@ -240,6 +258,8 @@ static void link_mgmt_get_module_pcie_ecc_uecc(uint16_t tag, uint64_t req_start_
     } else {
         dm_rsp.errors_count.uecc = uce_count;
     }
+
+    Log_Write(LOG_LEVEL_INFO, "Link mgmt response: %s\n",__func__);
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_MODULE_PCIE_ECC_UECC,
                     timer_get_ticks_count() - req_start_time, status);
@@ -277,6 +297,8 @@ static void link_mgmt_get_module_dram_uecc(uint16_t tag, uint64_t req_start_time
     uint32_t uce_count;
     int32_t status;
 
+    Log_Write(LOG_LEVEL_INFO, "Link mgmt request: %s\n",__func__);
+
     status = ddr_get_ce_count(&ce_count);
 
     if (0 != status) {
@@ -292,6 +314,8 @@ static void link_mgmt_get_module_dram_uecc(uint16_t tag, uint64_t req_start_time
     } else {
         dm_rsp.errors_count.uecc = uce_count;
     }
+
+    Log_Write(LOG_LEVEL_INFO, "Link mgmt response: %s\n",__func__);
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_MODULE_DDR_ECC_UECC,
                     timer_get_ticks_count() - req_start_time, status);
@@ -329,6 +353,8 @@ static void link_mgmt_get_module_sram_uecc(uint16_t tag, uint64_t req_start_time
     uint32_t uce_count;
     int32_t status;
 
+    Log_Write(LOG_LEVEL_INFO, "Link mgmt request: %s\n",__func__);
+
     status = sram_get_ce_count(&ce_count);
 
     if (0 != status) {
@@ -344,6 +370,8 @@ static void link_mgmt_get_module_sram_uecc(uint16_t tag, uint64_t req_start_time
     } else {
         dm_rsp.errors_count.uecc = uce_count;
     }
+
+    Log_Write(LOG_LEVEL_INFO, "Link mgmt response: %s\n",__func__);
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_MODULE_SRAM_ECC_UECC,
                     timer_get_ticks_count() - req_start_time, status);
@@ -380,6 +408,8 @@ static void link_mgmt_get_module_ddr_bw_counter(uint16_t tag, uint64_t req_start
     struct dram_bw_t dram_bw;
     int32_t status;
 
+    Log_Write(LOG_LEVEL_INFO, "Link mgmt request: %s\n",__func__);
+
     status = get_module_dram_bw(&dram_bw);
 
     if (0 != status) {
@@ -388,6 +418,8 @@ static void link_mgmt_get_module_ddr_bw_counter(uint16_t tag, uint64_t req_start
         dm_rsp.dram_bw_counter.bw_rd_req_sec = dram_bw.read_req_sec;
         dm_rsp.dram_bw_counter.bw_wr_req_sec = dram_bw.write_req_sec;
     }
+
+    Log_Write(LOG_LEVEL_INFO, "Link mgmt response: %s\n",__func__);
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_MODULE_DDR_BW_COUNTER,
                     timer_get_ticks_count() - req_start_time, status);

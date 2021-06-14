@@ -122,6 +122,7 @@ static void pc_vq_task(void *pvParameters)
         // ISRs set notification bits per ipi_trigger in case we want them - not currently using them
         xTaskNotifyWait(0, 0xFFFFFFFFU, &notificationValue, portMAX_DELAY);
 
+        Log_Write(LOG_LEVEL_INFO, "Host_Iface: Received DM request from host.\n");
         // Process as many new messages as possible
         while (1) {
 
@@ -130,12 +131,13 @@ static void pc_vq_task(void *pvParameters)
 
             // No new messages
             if (length == 0) {
+                Log_Write(LOG_LEVEL_WARNING, "Host_Iface: DM request received with 0 length.\n");
                 break;
             }
 
             // Message with an invalid size
             if ((size_t)length < sizeof(struct cmd_header_t)) {
-                Log_Write(LOG_LEVEL_ERROR, "Invalid message: length = %d, min length %ld\r\n", length,
+                Log_Write(LOG_LEVEL_ERROR, "Invalid message: length = %d, min length %ld\n", length,
                        sizeof(struct cmd_header_t));
                 break;
             }
@@ -250,6 +252,8 @@ static void mm_cmd_hdlr_task(void *pvParameters)
 
         /* ISRs set notification bits per ipi_trigger in case we want them - not currently using them */
         xTaskNotifyWait(0, 0xFFFFFFFFU, &notificationValue, portMAX_DELAY);
+
+        Log_Write(LOG_LEVEL_INFO, "MM request received: %s\n",__func__);
 
         /* Process as many new messages as possible */
         while (1)

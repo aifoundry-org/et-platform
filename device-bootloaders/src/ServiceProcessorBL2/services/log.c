@@ -48,7 +48,7 @@ typedef struct log_cb {
     \warning Not thread safe!
 */
 static log_cb_t Log_CB __attribute__((aligned(64))) =
-        {.current_log_level = LOG_LEVEL_INFO, .current_log_interface = LOG_DUMP_TO_UART};
+        {.current_log_level = LOG_LEVEL_WARNING, .current_log_interface = LOG_DUMP_TO_UART};
 
 static SemaphoreHandle_t xSemaphore = NULL;
 static StaticSemaphore_t xMutexBuffer;

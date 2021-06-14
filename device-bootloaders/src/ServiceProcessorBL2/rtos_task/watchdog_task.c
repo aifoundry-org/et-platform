@@ -49,6 +49,9 @@ int32_t init_watchdog_service(void)
             Log_Write(LOG_LEVEL_ERROR, "Task Creation Failed: Failed to create Watchdog Handler Task.\n");
             status = -1;
         }
+        else {
+            Log_Write(LOG_LEVEL_INFO, "Watchdog service initialized.\n");
+        }
     }
 
     return status;
@@ -61,7 +64,7 @@ static void watchdog_task_entry(void *pvParameter)
     /* Use 80% of the given time for the task delay
        to account for scheduling delays. Its a guess,
        might need to change*/
-    const TickType_t frequency = 
+    const TickType_t frequency =
                      pdMS_TO_TICKS((WDOG_DEFAULT_TIMEOUT_MSEC * 80) / 100);
 
     /* Initialise the xLastWakeTime variable with the current time. */

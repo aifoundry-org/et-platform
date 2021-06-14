@@ -111,6 +111,7 @@ static void dm_event_task_entry(void *pvParameters)
     while (1) {
         /* block until a message is received */
         if (xQueueReceive(q_handle, &msg, portMAX_DELAY) == pdTRUE) {
+            Log_Write(LOG_LEVEL_INFO, "DM event received: %s\n",__func__);
             status = SP_Host_Iface_CQ_Push_Cmd((void *)&msg, sizeof(msg));
             if (status) {
                 Log_Write(LOG_LEVEL_ERROR, "dm_event_handler_task_error :  push to CQ failed!\n");

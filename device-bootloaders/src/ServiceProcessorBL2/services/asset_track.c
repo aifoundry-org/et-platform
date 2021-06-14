@@ -21,10 +21,13 @@
 static int32_t asset_svc_getmanufacturername(char *mfg_name)
 {
     int32_t status;
+
+    Log_Write(LOG_LEVEL_INFO, "Asset tracking request: %s\n",__func__);
+
     status = get_manufacturer_name(mfg_name);
 
     if (0 != status) {
-        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: get_manufacturer_name()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: %s\n",__func__);
     }
 
     return status;
@@ -33,10 +36,13 @@ static int32_t asset_svc_getmanufacturername(char *mfg_name)
 static int32_t asset_svc_getpartnumber(char *part_number)
 {
     int32_t status;
+
+    Log_Write(LOG_LEVEL_INFO, "Asset tracking request: %s\n",__func__);
+
     status = get_part_number(part_number);
 
     if (0 != status) {
-        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: get_part_number()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: %s\n",__func__);
     }
 
     return status;
@@ -45,10 +51,13 @@ static int32_t asset_svc_getpartnumber(char *part_number)
 static int32_t asset_svc_getserialnumber(char *ser_number)
 {
     int32_t status;
+
+    Log_Write(LOG_LEVEL_INFO, "Asset tracking request: %s\n",__func__);
+
     status = get_serial_number(ser_number);
 
     if (0 != status) {
-        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: get_serial_number()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: %s\n",__func__);
     }
 
     return status;
@@ -57,10 +66,13 @@ static int32_t asset_svc_getserialnumber(char *ser_number)
 static int32_t asset_svc_getchiprevision(char *chip_rev)
 {
     int32_t status;
+
+    Log_Write(LOG_LEVEL_INFO, "Asset tracking request: %s\n",__func__);
+
     status = get_chip_revision(chip_rev);
 
     if (0 != status) {
-        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: get_chip_revision()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: %s\n",__func__);
     }
 
     return status;
@@ -69,10 +81,13 @@ static int32_t asset_svc_getchiprevision(char *chip_rev)
 static int32_t asset_svc_getPCIEspeed(char *pcie_speed)
 {
     int32_t status;
+
+    Log_Write(LOG_LEVEL_INFO, "Asset tracking request: %s\n",__func__);
+
     status = get_PCIE_speed(pcie_speed);
 
     if (0 != status) {
-        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: get_PCIE_speed()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: %s\n",__func__);
     }
 
     return status;
@@ -81,10 +96,13 @@ static int32_t asset_svc_getPCIEspeed(char *pcie_speed)
 static int32_t asset_svc_getmodulerev(char *module_revision)
 {
     int32_t status;
+
+    Log_Write(LOG_LEVEL_INFO, "Asset tracking request: %s\n",__func__);
+
     status = get_module_rev(module_revision);
 
     if (0 != status) {
-        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: get_module_rev()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: %s\n",__func__);
     }
 
     return status;
@@ -93,10 +111,13 @@ static int32_t asset_svc_getmodulerev(char *module_revision)
 static int32_t asset_svc_getformfactor(char *form_factor)
 {
     int32_t status;
+
+    Log_Write(LOG_LEVEL_INFO, "Asset tracking request: %s\n",__func__);
+
     status = get_form_factor(form_factor);
 
     if (0 != status) {
-        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: get_form_factor()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: %s\n",__func__);
     }
 
     return status;
@@ -105,10 +126,13 @@ static int32_t asset_svc_getformfactor(char *form_factor)
 static int32_t asset_svc_getmemorydetails(char *mem_detail)
 {
     int32_t status;
+
+    Log_Write(LOG_LEVEL_INFO, "Asset tracking request: %s\n",__func__);
+
     status = get_memory_details(mem_detail);
 
     if (0 != status) {
-        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: get_memory_details()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: %s\n",__func__);
     }
 
     return status;
@@ -117,10 +141,13 @@ static int32_t asset_svc_getmemorydetails(char *mem_detail)
 static int32_t asset_svc_getmemorysize(char *mem_size)
 {
     int32_t status;
+
+    Log_Write(LOG_LEVEL_INFO, "Asset tracking request: %s\n",__func__);
+
     status = get_memory_size(mem_size);
 
     if (0 != status) {
-        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: get_memory_size()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: %s\n",__func__);
     }
 
     return status;
@@ -129,10 +156,13 @@ static int32_t asset_svc_getmemorysize(char *mem_size)
 static int32_t asset_svc_getmemorytype(char *mem_type)
 {
     int32_t status;
+
+    Log_Write(LOG_LEVEL_INFO, "Asset tracking request: %s\n",__func__);
+
     status = get_memory_type(mem_type);
 
     if (0 != status) {
-        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: get_memory_type()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: %s\n",__func__);
     }
 
     return status;
@@ -142,6 +172,10 @@ static void asset_tracking_send_response(tag_id_t tag_id, msg_id_t msg_id, uint6
                                          char asset_info[], int32_t status)
 {
     struct device_mgmt_asset_tracking_rsp_t dm_rsp;
+
+    Log_Write(LOG_LEVEL_INFO, "Asset tracking response: %s\n", __func__);
+
+    Log_Write(LOG_LEVEL_DEBUG, "Response for msg_id = %u, tag_id = %u\n",msg_id, tag_id);
 
     strncpy(dm_rsp.asset_info.asset, asset_info, 8);
 

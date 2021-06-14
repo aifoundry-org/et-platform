@@ -863,6 +863,9 @@ void thermal_power_task_entry(void *pvParameter)
     while(1)
     {
         xTaskNotifyWait(0, 0xFFFFFFFFU, &notificationValue, portMAX_DELAY);
+
+        Log_Write(LOG_LEVEL_INFO, "Received PMIC event: %s\n", __func__);
+
         if (notificationValue == PMIC_ERROR)
         {
             if(0 != pmic_get_temperature(&current_temperature)) {

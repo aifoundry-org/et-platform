@@ -244,6 +244,8 @@ static void pwr_svc_get_module_tdp_level(uint16_t tag, uint64_t req_start_time)
     tdp_level_e tdp;
     int32_t status;
 
+    Log_Write(LOG_LEVEL_INFO, "Thermal & pwr mgmt request: %s\n",__func__);
+
     status = get_module_tdp_level(&tdp);
 
     if (0 != status) {
@@ -251,6 +253,8 @@ static void pwr_svc_get_module_tdp_level(uint16_t tag, uint64_t req_start_time)
     } else {
         dm_rsp.tdp_level = tdp;
     }
+
+    Log_Write(LOG_LEVEL_INFO, "Thermal & pwr mgmt response: %s\n",__func__);
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_MODULE_STATIC_TDP_LEVEL,
                     timer_get_ticks_count() - req_start_time, status);
@@ -377,11 +381,15 @@ static void pwr_svc_set_module_temp_thresholds(uint16_t tag, uint64_t req_start_
     struct device_mgmt_default_rsp_t dm_rsp;
     int32_t status;
 
+    Log_Write(LOG_LEVEL_INFO, "Thermal & pwr mgmt request: %s\n",__func__);
+
     status = update_module_temperature_threshold(hi_threshold, lo_threshold);
 
     if (0 != status) {
         Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt error: update_module_temperature_threshold()\r\n");
     }
+
+    Log_Write(LOG_LEVEL_INFO, "Thermal & pwr mgmt response: %s\n",__func__);
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS,
                     timer_get_ticks_count() - req_start_time, status);

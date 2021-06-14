@@ -54,11 +54,15 @@ static void error_ctl_set_ddr_ecc_count(tag_id_t tag_id, uint64_t req_start_time
     struct device_mgmt_default_rsp_t dm_rsp;
     int32_t status;
 
+    Log_Write(LOG_LEVEL_INFO, "Error control request: %s\n",__func__);
+
     status = ddr_set_ce_threshold(ecc_count);
 
     if (status) {
         Log_Write(LOG_LEVEL_ERROR, "error_ctl_set_ddr_ecc_count: driver error !\n");
     }
+
+    Log_Write(LOG_LEVEL_INFO, "Error control response: %s\n",__func__);
 
     FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_SET_DDR_ECC_COUNT,
                     timer_get_ticks_count() - req_start_time, status);
@@ -97,11 +101,15 @@ static void error_ctl_set_pcie_ecc_count(tag_id_t tag_id, uint64_t req_start_tim
     struct device_mgmt_default_rsp_t dm_rsp;
     int32_t status;
 
+    Log_Write(LOG_LEVEL_INFO, "Error control request: %s\n",__func__);
+
     status = pcie_set_ce_threshold(ecc_count);
 
     if (status) {
         Log_Write(LOG_LEVEL_ERROR, "error_ctl_set_pcie_ecc_count: driver error !\n");
     }
+
+    Log_Write(LOG_LEVEL_INFO, "Error control response: %s\n",__func__);
 
     FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_SET_PCIE_ECC_COUNT,
                     timer_get_ticks_count() - req_start_time, status);
@@ -140,11 +148,15 @@ static void error_ctl_set_sram_ecc_count(tag_id_t tag_id, uint64_t req_start_tim
     struct device_mgmt_default_rsp_t dm_rsp;
     int32_t status;
 
+    Log_Write(LOG_LEVEL_INFO, "Error control request: %s\n",__func__);
+
     status = sram_set_ce_threshold(ecc_count);
 
     if (status) {
         Log_Write(LOG_LEVEL_ERROR, "error_ctl_set_sram_ecc_count: driver error !\n");
     }
+
+    Log_Write(LOG_LEVEL_INFO, "Error control response: %s\n",__func__);
 
     FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_SET_SRAM_ECC_COUNT,
                     timer_get_ticks_count() - req_start_time, status);
