@@ -26,6 +26,13 @@ include(GNUInstallDirs)
 option(ENABLE_WARNINGS_AS_ERRORS "Wether deviceLayer targets should treat warnings as errors" OFF)
 include(CompilerWarnings)
 
+option(ENABLE_SANITIZER_ADDRESS "" OFF)
+option(ENABLE_SANITIZER_LEAK "" OFF)
+option(ENABLE_SANITIZER_UNDEFINED_BEHAVIOR "" OFF)
+option(ENABLE_SANITIZER_THREAD "" OFF)
+option(ENABLE_SANITIZER_MEMORY "" OFF)
+include(CompilerSanitizers)
+
 option(ENABLE_TESTS "Enable compiling tests" ON)
 
 find_package(linuxDriver REQUIRED)
@@ -43,6 +50,7 @@ add_library(deviceLayer
 add_library(deviceLayer::deviceLayer ALIAS deviceLayer)
 target_compile_features(deviceLayer PUBLIC cxx_std_17)
 target_set_project_warnings(deviceLayer)
+target_add_sanitizers(deviceLayer)
 target_include_directories(deviceLayer
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
