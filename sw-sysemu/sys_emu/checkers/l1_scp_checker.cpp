@@ -12,11 +12,9 @@
 #include "l1_scp_checker.h"
 #include "emu_gio.h"
 
-// Logging variables and macros
-uint32_t l1_scp_checker_log_minion = 2048; // None by default
-
+// Logging macros
 #define L1_SCP_CHECKER_LOG(minion, cmd) \
-  { if((minion == 0xFFFFFFFF) || (l1_scp_checker_log_minion == 0xFFFFFFFF) || (minion == l1_scp_checker_log_minion)) \
+  { if((minion == 0xFFFFFFFF) || (log_minion == 0xFFFFFFFF) || (minion == log_minion)) \
     { \
       cmd; \
     } \

@@ -51,6 +51,9 @@ class l1_scp_checker : public bemu::Agent
     void l1_scp_wait(uint32_t thread, uint32_t id);
     void l1_scp_read(uint32_t thread, uint32_t idx);
 
+    // Logging variables
+    uint32_t log_minion = 2048; // None by default
+
   private:
     minion_scp_info_t minion_scp_info[EMU_NUM_MINIONS];
 };

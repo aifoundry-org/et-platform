@@ -771,12 +771,19 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
     }
     mem_check = cmd_options.mem_check;
     mem_checker_ = mem_checker{&chip};
+    mem_checker_.log_addr = cmd_options.mem_checker_log_addr;
+    mem_checker_.log_minion = cmd_options.mem_checker_log_minion;
     l1_scp_check = cmd_options.l1_scp_check;
     l1_scp_checker_ = l1_scp_checker{&chip};
+    l1_scp_checker_.log_minion = cmd_options.l1_scp_checker_log_minion;
     l2_scp_check = cmd_options.l2_scp_check;
     new (&l2_scp_checker_) l2_scp_checker{&chip};
+    l2_scp_checker_.log_shire = cmd_options.l2_scp_checker_log_shire;
+    l2_scp_checker_.log_line = cmd_options.l2_scp_checker_log_line;
+    l2_scp_checker_.log_minion = cmd_options.l2_scp_checker_log_minion;
     flb_check = cmd_options.flb_check;
     flb_checker_ = flb_checker{&chip};
+    flb_checker_.log_shire = cmd_options.flb_checker_log_shire;
     breakpoints.clear();
     single_step.reset();
 

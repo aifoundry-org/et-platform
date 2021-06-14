@@ -103,9 +103,16 @@ struct sys_emu_cmd_options {
     bool        display_trap_info            = false;
     bool        gdb                          = false;
     bool        mem_check                    = false;
+    uint64_t    mem_checker_log_addr         = 1;
+    uint32_t    mem_checker_log_minion       = 2048;
     bool        l1_scp_check                 = false;
+    uint32_t    l1_scp_checker_log_minion    = 2048;
     bool        l2_scp_check                 = false;
+    uint32_t    l2_scp_checker_log_shire     = 64;
+    uint32_t    l2_scp_checker_log_line      = 1 * 1024 * 1024;
+    uint32_t    l2_scp_checker_log_minion    = 2048;
     bool        flb_check                    = false;
+    uint32_t    flb_checker_log_shire        = 64;
 #ifdef SYSEMU_PROFILING
     std::string dump_prof_file;
 #endif

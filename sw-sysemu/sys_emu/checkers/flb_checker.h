@@ -30,6 +30,9 @@ class flb_checker : public bemu::Agent
     // Accessors
     void access(uint32_t oldval, uint32_t limit, uint32_t flb, uint32_t thread);
 
+    // Logging variables
+    uint32_t log_shire = 64; // None by default
+
   private:
 };
 
