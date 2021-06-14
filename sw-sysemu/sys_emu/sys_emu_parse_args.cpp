@@ -414,11 +414,11 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "mem_check_minion"))
         {
-            mem_checker_log_minion = atoi(optarg);
+            cmd_options.mem_checker_log_minion = atoi(optarg);
         }
         else if (!strcmp(name, "mem_check_addr"))
         {
-            sscanf(optarg, "%" PRIx64, &mem_checker_log_addr);
+            sscanf(optarg, "%" PRIx64, &cmd_options.mem_checker_log_addr);
         }
         else if (!strcmp(name, "l1_scp_check"))
         {
@@ -426,7 +426,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "l1_scp_check_minion"))
         {
-            l1_scp_checker_log_minion = atoi(optarg);
+            cmd_options.l1_scp_checker_log_minion = atoi(optarg);
         }
         else if (!strcmp(name, "l2_scp_check"))
         {
@@ -434,15 +434,15 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "l2_scp_check_shire"))
         {
-            l2_scp_checker_log_shire = atoi(optarg);
+            cmd_options.l2_scp_checker_log_shire = atoi(optarg);
         }
         else if (!strcmp(name, "l2_scp_check_line"))
         {
-            l2_scp_checker_log_line = atoi(optarg);
+            cmd_options.l2_scp_checker_log_line = atoi(optarg);
         }
         else if (!strcmp(name, "l2_scp_check_minion"))
         {
-            l2_scp_checker_log_minion = atoi(optarg);
+            cmd_options.l2_scp_checker_log_minion = atoi(optarg);
         }
         else if (!strcmp(name, "flb_check"))
         {
@@ -450,7 +450,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "flb_check_shire"))
         {
-            flb_checker_log_shire = atoi(optarg);
+            cmd_options.flb_checker_log_shire = atoi(optarg);
         }
         else if (!strcmp(name, "gdb"))
         {

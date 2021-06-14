@@ -56,7 +56,7 @@ class mem_checker : public bemu::Agent
 {
 
 private:
-
+    uint64_t global_time_stamp = 0;
     // Directories global, per shire and per minion
     global_directory_map_t global_directory_map;
     shire_directory_map_t  shire_directory_map[EMU_NUM_SHIRES];
@@ -105,6 +105,11 @@ public:
     void l1_evict_sw(uint32_t shire_id, uint32_t minion_id, uint32_t set, uint32_t way);
     void l1_flush_sw(uint32_t shire_id, uint32_t minion_id, uint32_t set, uint32_t way);
     void mcache_control_up(uint32_t shire_id, uint32_t minion_id, uint32_t val);
+
+    // Logging variables
+    uint64_t log_addr = 1;
+    uint32_t log_minion = 2048;
+
 };
 
 #endif

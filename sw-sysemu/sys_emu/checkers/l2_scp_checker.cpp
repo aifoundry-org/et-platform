@@ -12,17 +12,13 @@
 #include "l2_scp_checker.h"
 #include "emu_gio.h"
 
-// Logging variables and macros
-uint32_t l2_scp_checker_log_shire  = 64;              // None by default
-uint32_t l2_scp_checker_log_line   = 1 * 1024 * 1024; // None by default
-uint32_t l2_scp_checker_log_minion = 2048;            // None by default
-
+// Logging macros
 #define L2_SCP_CHECKER_LOG(shire, line, minion, cmd) \
-  { if((shire == 0xFFFFFFFF) || (l2_scp_checker_log_shire == 0xFFFFFFFF) || (shire == l2_scp_checker_log_shire)) \
+  { if((shire == 0xFFFFFFFF) || (log_shire == 0xFFFFFFFF) || (shire == log_shire)) \
     { \
-      if((line == 0xFFFFFFFF) || (l2_scp_checker_log_line == 0xFFFFFFFF) || (line == l2_scp_checker_log_line)) \
+      if((line == 0xFFFFFFFF) || (log_line == 0xFFFFFFFF) || (line == log_line)) \
       { \
-        if((minion == 0xFFFFFFFF) || (l2_scp_checker_log_minion == 0xFFFFFFFF) || (minion == l2_scp_checker_log_minion)) \
+        if((minion == 0xFFFFFFFF) || (log_minion == 0xFFFFFFFF) || (minion == log_minion)) \
         { \
           cmd; \
         } \

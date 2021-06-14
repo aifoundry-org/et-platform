@@ -60,6 +60,11 @@ class l2_scp_checker : public bemu::Agent
     void l2_scp_wait(uint32_t thread, uint32_t id);
     void l2_scp_read(uint32_t thread, uint64_t addr);
 
+    // Logging variables
+    uint32_t log_shire  = 64;              // None by default
+    uint32_t log_line   = 1 * 1024 * 1024; // None by default
+    uint32_t log_minion = 2048;            // None by default
+
   private:
     shire_scp_info_t  shire_scp_info[EMU_NUM_SHIRES];
 };

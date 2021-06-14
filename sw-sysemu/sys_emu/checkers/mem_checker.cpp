@@ -13,14 +13,10 @@
 #include "emu_gio.h"
 #include "memmap.h"
 
-uint64_t mem_checker_log_addr   = 0x1;
-uint32_t mem_checker_log_minion = 2048;
-uint64_t global_time_stamp = 0;
-
 #define MD_LOG(addr, minion, cmd) \
-    { if((addr == 0x0) || (mem_checker_log_addr == 0x0) || (addr == mem_checker_log_addr)) \
+    { if((addr == 0x0) || (log_addr == 0x0) || (addr == log_addr)) \
     { \
-        if((minion == 0xFFFFFFFF) || (mem_checker_log_minion == 0xFFFFFFFF) || (minion == mem_checker_log_minion)) \
+        if((minion == 0xFFFFFFFF) || (log_minion == 0xFFFFFFFF) || (minion == log_minion)) \
         { \
             cmd; \
         } \
@@ -1179,7 +1175,7 @@ void mem_checker::l2_flush(uint32_t shire_id, uint32_t cache_bank)
 // Public function called when there's an ESR write that evicts an L2 bank
 void mem_checker::l2_evict(uint32_t shire_id, uint32_t cache_bank)
 {
-    MD_LOG(0, mem_checker_log_minion + 1, printf("mem_checker::l2_evict => shire_id %i, bank %i\n", shire_id, cache_bank));
+    MD_LOG(0, log_minion + 1, printf("mem_checker::l2_evict => shire_id %i, bank %i\n", shire_id, cache_bank));
     shire_directory_map_t::iterator it_shire = shire_directory_map[shire_id].begin();
 
     while(it_shire != shire_directory_map[shire_id].end())
@@ -1188,7 +1184,7 @@ void mem_checker::l2_evict(uint32_t shire_id, uint32_t cache_bank)
         bool bank = (((addr & 0xC0) >> 6) == cache_bank);
         if(bank && !it_shire->second.cb_dirty)
         {
-            MD_LOG(addr, mem_checker_log_minion + 1, printf("mem_checker::l2_evict => evicting addr %016llX, shire_id %i\n", (long long unsigned int) addr, shire_id));
+            MD_LOG(addr, log_minion + 1, printf("mem_checker::l2_evict => evicting addr %016llX, shire_id %i\n", (long long unsigned int) addr, shire_id));
 
             global_directory_map_t::iterator it_global;
             it_global = global_directory_map.find(addr);
@@ -1204,30 +1200,30 @@ void mem_checker::l2_evict(uint32_t shire_id, uint32_t cache_bank)
             {
                 it_shire->second.l2_dirty    = false;
                 it_global->second.time_stamp = it_shire->second.time_stamp;
-                dump_global(&it_global->second, "l2_evict", "update", addr, mem_checker_log_minion + 1);
+                dump_global(&it_global->second, "l2_evict", "update", addr, log_minion + 1);
             }
 
             // Line is no present in l2
             it_shire->second.l2 = false;
-            dump_shire(&it_shire->second, "l2_evict", "update", addr, shire_id, mem_checker_log_minion + 1);
+            dump_shire(&it_shire->second, "l2_evict", "update", addr, shire_id, log_minion + 1);
 
             // If no minion has the cacheline, remove from shire
             if(is_shire_clean(it_shire))
             {
                 // Remove from shire
-                dump_shire(&it_shire->second, "l2_evict", "remove", addr, shire_id, mem_checker_log_minion + 1);
+                dump_shire(&it_shire->second, "l2_evict", "remove", addr, shire_id, log_minion + 1);
                 shire_directory_map_t::iterator it_orig = it_shire;
                 it_shire++;
                 shire_directory_map[shire_id].erase(it_orig);
 
                 // Clean in global
                 it_global->second.shire_mask[shire_id] = false;
-                dump_global(&it_global->second, "l2_evict", "update", addr, mem_checker_log_minion + 1);
+                dump_global(&it_global->second, "l2_evict", "update", addr, log_minion + 1);
 
                 // Remove from global
                 if(is_global_clean(it_global))
                 {
-                    dump_global(&it_global->second, "l2_evict", "remove", addr, mem_checker_log_minion + 1);
+                    dump_global(&it_global->second, "l2_evict", "remove", addr, log_minion + 1);
                     global_directory_map.erase(it_global);
                 }
             }

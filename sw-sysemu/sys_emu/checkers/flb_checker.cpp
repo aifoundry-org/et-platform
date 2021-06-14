@@ -12,11 +12,9 @@
 #include "flb_checker.h"
 #include "emu_gio.h"
 
-// Logging variables and macros
-uint32_t flb_checker_log_shire = 64; // None by default
-
+// Logging macro
 #define FLB_CHECKER_LOG(shire, cmd) \
-  { if((shire == 0xFFFFFFFF) || (flb_checker_log_shire == 0xFFFFFFFF) || (shire == flb_checker_log_shire)) \
+  { if((shire == 0xFFFFFFFF) || (log_shire == 0xFFFFFFFF) || (shire == log_shire)) \
     { \
       cmd; \
     } \
