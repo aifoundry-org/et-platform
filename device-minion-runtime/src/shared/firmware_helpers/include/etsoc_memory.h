@@ -26,17 +26,18 @@
 */
 enum ETSOC_MEM_TYPES
 {
-    L2_CACHE = 0, /**< L2 cache, use local atomics to access */
-    L3_CACHE, /**< L3 cache, use global atomics to access */
+    LOCAL_ATOMIC = 0, /**< L2 cache, use local atomics to access shire local cache */
+    GLOBAL_ATOMIC, /**< L3 cache, use global atomics to access global cache */
     UNCACHED, /**< Uncached memory like SRAM, use io r/w to access */
     CACHED, /**< Cached memory like DRAM, use io r/w to access */
     MEM_TYPES_COUNT /**< Specifies the count for memory types available */
 };
 
 /*! \define ETSOC_MEM_EVICT
-    \brief Macro that is used to evict the data to destination cache level from the address 
+    \brief Macro that is used to evict the data to destination cache level from the address
     provided upto to the length (in bytes)
     \warning Address must be cache-line aligned!
+    cache_dest parameter value must be one of enum cop_dest
 */
 #define ETSOC_MEM_EVICT(addr, size, cache_dest)                             \
     asm volatile("fence");                                                  \
@@ -47,16 +48,18 @@ enum ETSOC_MEM_TYPES
     \brief Macro that is used to copy data from source address to destination address
     upto the size specified (in bytes) and evict the cache-lines upto the cache destination
     \warning Destination address must be cache-line aligned!
+    cache_dest parameter value must be one of enum cop_dest
 */
 #define ETSOC_MEM_COPY_AND_EVICT(dest_addr, src_addr, size, cache_dest)     \
     memcpy(dest_addr, src_addr, size);                                      \
     ETSOC_MEM_EVICT(dest_addr, size, cache_dest)
 
 /*! \define ETSOC_MEM_EVICT_AND_COPY
-    \brief Macro that is used to invalidate the source address cache-lines upto the cache 
-    destination and copy data from source address to destination address upto the size 
+    \brief Macro that is used to invalidate the source address cache-lines upto the cache
+    destination and copy data from source address to destination address upto the size
     specified (in bytes)
     \warning Source address must be cache-line aligned!
+    cache_dest parameter value must be one of enum cop_dest
 */
 #define ETSOC_MEM_EVICT_AND_COPY(dest_addr, src_addr, size, cache_dest)      \
     ETSOC_MEM_EVICT(src_addr, size, cache_dest)                              \

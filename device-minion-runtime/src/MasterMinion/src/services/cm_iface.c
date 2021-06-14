@@ -139,7 +139,7 @@ int8_t CM_Iface_Init(void)
 
         status = Circbuffer_Init(cb,
         (uint32_t)(CM_MM_IFACE_CIRCBUFFER_SIZE - sizeof(circ_buff_cb_t)),
-        L3_CACHE);
+        GLOBAL_ATOMIC);
     }
 
     return status;
@@ -208,7 +208,7 @@ int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask,
             msg_control.raw_u64);
 
         /* Copy message to shared global buffer */
-        ETSOC_MEM_COPY_AND_EVICT(mm_to_cm_broadcast_message_buffer_ptr, message, 
+        ETSOC_MEM_COPY_AND_EVICT(mm_to_cm_broadcast_message_buffer_ptr, message,
             sizeof(*message), to_L3)
 
         /* Send IPI to receivers. Upper 32 Threads of Shire 32 also run Worker FW */
@@ -294,7 +294,7 @@ int8_t CM_Iface_Unicast_Receive(uint64_t cb_idx,
         cb_idx * CM_MM_IFACE_CIRCBUFFER_SIZE);
 
     /* Pop the command from circular buffer */
-    status = Circbuffer_Pop(cb, message, sizeof(*message), L3_CACHE);
+    status = Circbuffer_Pop(cb, message, sizeof(*message), GLOBAL_ATOMIC);
 
     return status;
 }
