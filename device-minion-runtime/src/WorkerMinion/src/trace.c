@@ -85,7 +85,8 @@ static_assert(sizeof(cm_trace_control_block_t) <= TRACE_CB_MAX_SIZE,
 void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
 {
     struct trace_init_info_t hart_init_info;
-    uint32_t hart_cb_index = GET_CB_INDEX(get_hart_id());
+    const uint32_t hart_id = get_hart_id();
+    uint32_t hart_cb_index = GET_CB_INDEX(hart_id);
 
     /* If init information is NULL then do default initialization. */
     if (cm_init_info == NULL)
@@ -112,7 +113,9 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
                                         (hart_cb_index * CM_TRACE_BUFFER_SIZE_PER_HART));
     CM_TRACE_CB[hart_cb_index].cb.size_per_hart = CM_TRACE_BUFFER_SIZE_PER_HART;
 
-    if ((hart_init_info.shire_mask & GET_SHIRE_MASK(get_hart_id())) && (hart_init_info.thread_mask & GET_HART_MASK(get_hart_id())))
+    /* Verify if the current shire and thread is enabled for tracing */
+    if (!(hart_init_info.shire_mask & GET_SHIRE_MASK(hart_id)) &&
+        (hart_init_info.thread_mask & GET_HART_MASK(hart_id)))
     {
         CM_TRACE_CB[hart_cb_index].cb.enable = TRACE_DISABLE;
         return;
