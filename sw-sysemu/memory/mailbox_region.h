@@ -84,7 +84,7 @@ struct PU_TRG_MMin : public MemoryRegion
     void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
 
-        LOG_NOTHREAD(DEBUG, "PU_TRG_MMin::write(pos=0x%llx, data32 = 0x%" PRIx32 ")", pos, *source32);
+        LOG_AGENT(DEBUG, agent, "PU_TRG_MMin::write(pos=0x%llx, data32 = 0x%" PRIx32 ")", pos, *source32);
 
         if (n != 4)
             throw memory_error(first() + pos);
@@ -127,10 +127,10 @@ struct PU_TRG_MMin_SP : public MemoryRegion
 
     PU_TRG_MMin_SP(IMailboxInterrupts &mb) : mb_(mb) {}
 
-    void read(const Agent&, size_type pos, size_type n, pointer result) override {
+    void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
         uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
 
-        LOG_NOTHREAD(DEBUG, "PU_TRG_MMin_SP::read(pos=0x%llx)", pos);
+        LOG_AGENT(DEBUG, agent, "PU_TRG_MMin_SP::read(pos=0x%llx)", pos);
 
         if (n != 4)
             throw memory_error(first() + pos);
@@ -145,7 +145,7 @@ struct PU_TRG_MMin_SP : public MemoryRegion
     void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
 
-        LOG_NOTHREAD(DEBUG, "PU_TRG_MMin_SP::write(pos=0x%llx, data32 = 0x%" PRIx32 ")", pos, *source32);
+        LOG_AGENT(DEBUG, agent, "PU_TRG_MMin_SP::write(pos=0x%llx, data32 = 0x%" PRIx32 ")", pos, *source32);
 
         if (n != 4)
             throw memory_error(first() + pos);
@@ -203,7 +203,7 @@ struct PU_TRG_PCIe : public MemoryRegion
     void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
 
-        LOG_NOTHREAD(DEBUG, "PU_TRG_PCIe::write(pos=0x%llx, data32 = 0x%" PRIx32 ")", pos, *source32);
+        LOG_AGENT(DEBUG, agent, "PU_TRG_PCIe::write(pos=0x%llx, data32 = 0x%" PRIx32 ")", pos, *source32);
 
         if (n != 4)
             throw memory_error(first() + pos);
@@ -246,10 +246,10 @@ struct PU_TRG_PCIe_SP : public MemoryRegion
 
     PU_TRG_PCIe_SP(IMailboxInterrupts &mb) : mb_(mb) {}
 
-    void read(const Agent&, size_type pos, size_type n, pointer result) override {
+    void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
         uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
 
-        LOG_NOTHREAD(DEBUG, "PU_TRG_PCIe_SP::read(pos=0x%llx)", pos);
+        LOG_AGENT(DEBUG, agent, "PU_TRG_PCIe_SP::read(pos=0x%llx)", pos);
 
         if (n != 4)
             throw memory_error(first() + pos);
@@ -264,7 +264,7 @@ struct PU_TRG_PCIe_SP : public MemoryRegion
     void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
 
-        LOG_NOTHREAD(DEBUG, "PU_TRG_PCIe_SP::write(pos=0x%llx, data32 = 0x%" PRIx32 ")", pos, *source32);
+        LOG_AGENT(DEBUG, agent, "PU_TRG_PCIe_SP::write(pos=0x%llx, data32 = 0x%" PRIx32 ")", pos, *source32);
 
         if (n != 4)
             throw memory_error(first() + pos);

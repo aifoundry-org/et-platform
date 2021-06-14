@@ -41,6 +41,10 @@
                      (1ull << 23) | /* "X": Non-standard extensions present */          \
                      (2ull << 62))  /* XLEN = 64-bit */
 
+#ifdef SYS_EMU
+#define SYS_EMU_PTR cpu.chip->emu()
+#endif
+
 
 namespace bemu {
 
@@ -274,6 +278,12 @@ static uint64_t csrget(Hart& cpu, uint16_t csr)
     case CSR_MHPMCOUNTER7:
     case CSR_MHPMCOUNTER8:
         val = cpu.chip->neigh_pmu_counters[neigh_index(cpu)][cpu.mhartid & 1][csr - CSR_MHPMCOUNTER3];
+#ifdef SYS_EMU
+        // Special case for PMU_MINION_EVENT_CYCLES, use simulator cycle as baseline
+        if (cpu.mhpmevent[csr - CSR_MHPMCOUNTER3] == PMU_MINION_EVENT_CYCLES) {
+            val = SYS_EMU_PTR->get_emu_cycle() - val;
+        }
+#endif
         break;
     case CSR_MHPMCOUNTER9:
     case CSR_MHPMCOUNTER10:
@@ -313,6 +323,12 @@ static uint64_t csrget(Hart& cpu, uint16_t csr)
     case CSR_HPMCOUNTER8:
         check_counter_is_enabled(cpu, csr - CSR_CYCLE);
         val = cpu.chip->neigh_pmu_counters[neigh_index(cpu)][cpu.mhartid & 1][csr - CSR_HPMCOUNTER3];
+#ifdef SYS_EMU
+        // Special case for PMU_MINION_EVENT_CYCLES, use simulator cycle as baseline
+        if (cpu.mhpmevent[csr - CSR_HPMCOUNTER3] == PMU_MINION_EVENT_CYCLES) {
+            val = SYS_EMU_PTR->get_emu_cycle() - val;
+        }
+#endif
         break;
     case CSR_HPMCOUNTER9:
     case CSR_HPMCOUNTER10:
@@ -454,7 +470,7 @@ static uint64_t csrget(Hart& cpu, uint16_t csr)
         break;
     case CSR_VALIDATION1:
 #ifdef SYS_EMU
-        val = (cpu.validation1 == ET_DIAG_CYCLE) ? sys_emu::get_emu_cycle() : 0;
+        val = (cpu.validation1 == ET_DIAG_CYCLE) ? SYS_EMU_PTR->get_emu_cycle() : 0;
 #else
         val = 0;
 #endif
@@ -513,9 +529,7 @@ static uint64_t csrget(Hart& cpu, uint16_t csr)
 static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
 {
     uint64_t msk = 0;
-#ifdef SYS_EMU
-    int orig_mcache_control;
-#endif
+    uint64_t tmpval = 0;
 
     switch (csr) {
     case CSR_FFLAGS:
@@ -551,6 +565,10 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         // Set sd if fs==3 or xs==3
         if ((((val >> 13) & 0x3) == 0x3) || (((val >> 15) & 0x3) == 0x3)) {
             val |= 0x8000000000000000ULL;
+        }
+        // Invalidate the fetch buffer when changing VM mode or permissions
+        if ((cpu.mstatus & 0xE0000) != (val & 0xE0000)) {
+            cpu.fetch_pc = -1;
         }
         cpu.mstatus = val;
         // Return 'sstatus' view of 'mstatus'
@@ -628,6 +646,10 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         // Attempting to set mpp to 2 will set it to 0 instead
         if (((val >> 11) & 0x3) == 0x2)
             val &= ~(0x3ULL << 11);
+        // Invalidate the fetch buffer when changing VM mode or permissions
+        if ((cpu.mstatus & 0xE0000) != (val & 0xE0000)) {
+            cpu.fetch_pc = -1;
+        }
         cpu.mstatus = val;
         break;
     case CSR_MISA:
@@ -665,6 +687,15 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
     case CSR_MHPMEVENT7:
     case CSR_MHPMEVENT8:
         val &= 0x1F;
+#ifdef SYS_EMU
+        tmpval = cpu.mhpmevent[csr - CSR_MHPMEVENT3];
+        // Special case for PMU_MINION_EVENT_CYCLES, use simulator cycle as baseline
+        // When an event switches from EVENT_CYCLES to non-EVENT_CYCLES or vice versa, we need to change the baseline
+        if ((val != tmpval) && ((val == PMU_MINION_EVENT_CYCLES) || (tmpval == PMU_MINION_EVENT_CYCLES))) {
+            uint64_t& counter = cpu.chip->neigh_pmu_counters[neigh_index(cpu)][cpu.mhartid & 1][csr - CSR_MHPMEVENT3];
+            counter = SYS_EMU_PTR->get_emu_cycle() - counter;
+        }
+#endif
         cpu.mhpmevent[csr - CSR_MHPMEVENT3] = val;
         break;
     case CSR_MHPMEVENT9:
@@ -761,7 +792,14 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
     case CSR_MHPMCOUNTER6:
     case CSR_MHPMCOUNTER7:
     case CSR_MHPMCOUNTER8:
-        cpu.chip->neigh_pmu_counters[neigh_index(cpu)][cpu.mhartid & 1][csr - CSR_MHPMCOUNTER3] = val;
+        tmpval = val;
+#ifdef SYS_EMU
+        // Special case for PMU_MINION_EVENT_CYCLES, use simulator cycle as baseline
+        if (cpu.mhpmevent[csr - CSR_MHPMCOUNTER3] == PMU_MINION_EVENT_CYCLES) {
+            tmpval = SYS_EMU_PTR->get_emu_cycle() - val;
+        }
+#endif
+        cpu.chip->neigh_pmu_counters[neigh_index(cpu)][cpu.mhartid & 1][csr - CSR_MHPMCOUNTER3] = tmpval;
         break;
     case CSR_MHPMCOUNTER9:
     case CSR_MHPMCOUNTER10:
@@ -854,6 +892,14 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         // TODO: CSR_AMOFENCE_CTRL
     case CSR_CACHE_INVALIDATE:
         val &= 0x3;
+        if (val & 1) {
+            // invalidate the fetch buffers of all harts in the neighborhood
+            int first_hart = EMU_THREADS_PER_NEIGH * neigh_index(cpu);
+            int last_hart = std::min(first_hart + EMU_THREADS_PER_NEIGH, EMU_NUM_THREADS);
+            for (int i = first_hart; i < last_hart; ++i) {
+                cpu.chip->cpu[i].fetch_pc = -1;
+            }
+        }
         break;
     case CSR_MENABLE_SHADOWS:
         val &= 1;
@@ -873,7 +919,7 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         break;
     case CSR_MCACHE_CONTROL:
 #ifdef SYS_EMU
-        orig_mcache_control = cpu.core->mcache_control & 0x3;
+        tmpval = cpu.core->mcache_control & 0x3;
 #endif
         switch (cpu.core->mcache_control) {
         case  0: msk = ((val & 3) == 1) ? 3 : 0; break;
@@ -891,8 +937,8 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         }
         val &= 3;
 #ifdef SYS_EMU
-        if (sys_emu::get_mem_check() && (orig_mcache_control != (cpu.core->mcache_control & 0x3))) {
-            sys_emu::get_mem_checker().mcache_control_up(
+        if (SYS_EMU_PTR->get_mem_check() && (tmpval != (cpu.core->mcache_control & 0x3))) {
+            SYS_EMU_PTR->get_mem_checker().mcache_control_up(
                 (cpu.mhartid / EMU_THREADS_PER_MINION) / EMU_MINIONS_PER_SHIRE,
                 (cpu.mhartid / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE,
                 cpu.core->mcache_control);
@@ -967,7 +1013,7 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         break;
     case CSR_UCACHE_CONTROL:
 #ifdef SYS_EMU
-        orig_mcache_control = cpu.core->mcache_control & 0x3;
+        tmpval = cpu.core->mcache_control & 0x3;
 #endif
         require_feature_u_scratchpad();
         msk = (!(cpu.mhartid % EMU_THREADS_PER_MINION)
@@ -978,8 +1024,8 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         cpu.core->ucache_control = val;
         cpu.core->mcache_control = val & 3;
 #ifdef SYS_EMU
-        if(sys_emu::get_mem_check() && (orig_mcache_control != (cpu.core->mcache_control & 0x3))) {
-            sys_emu::get_mem_checker().mcache_control_up(
+        if (SYS_EMU_PTR->get_mem_check() && (tmpval != (cpu.core->mcache_control & 0x3))) {
+            SYS_EMU_PTR->get_mem_checker().mcache_control_up(
                 (cpu.mhartid / EMU_THREADS_PER_MINION) / EMU_MINIONS_PER_SHIRE,
                 (cpu.mhartid / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE,
                 cpu.core->mcache_control);
@@ -1045,7 +1091,7 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         switch (val) {
         case 0x1FEED000:
             LOG_AGENT(INFO, cpu, "%s", "Signal end test with PASS");
-            sys_emu::deactivate_thread(hart_index(cpu));
+            SYS_EMU_PTR->deactivate_thread(hart_index(cpu));
             break;
         case 0x50BAD000:
             LOG_AGENT(INFO, cpu, "%s", "Signal end test with FAIL");
@@ -1074,7 +1120,7 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
             break;
 #ifdef SYS_EMU
         case ET_DIAG_IRQ_INJ:
-            sys_emu::evl_dv_handle_irq_inj((val >> 55) & 1, (val >> 53) & 3, val & 0x3FFFFFFFFULL);
+            SYS_EMU_PTR->evl_dv_handle_irq_inj((val >> 55) & 1, (val >> 53) & 3, val & 0x3FFFFFFFFULL);
             break;
         case ET_DIAG_CYCLE:
             cpu.validation1 = (val >> 56) & 0xFF;

@@ -182,6 +182,10 @@ struct Hart : public Agent {
     // Instruction being executed
     insn_t      inst;
 
+    // Fetch buffer
+    uint64_t              fetch_pc;
+    std::array<char, 32>  fetch_cache;
+
     // Register files
     std::array<uint64_t,NXREGS>   xregs;
     std::array<freg_t,NFREGS>     fregs;

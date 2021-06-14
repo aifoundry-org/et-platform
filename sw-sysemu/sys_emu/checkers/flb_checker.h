@@ -13,14 +13,25 @@
 
 #include <stdint.h>
 
-class flb_checker
+#include "agent.h"
+
+class flb_checker : public bemu::Agent
 {
   public:
-    // Creator
-    flb_checker();
+    flb_checker(bemu::System* chip=nullptr) : bemu::Agent(chip) {}
+
+    flb_checker(const flb_checker&) = default;
+    flb_checker& operator=(const flb_checker&) = default;
+    flb_checker(flb_checker&&) = default;
+    flb_checker& operator=(flb_checker&&) = default;
+
+    std::string name() const { return "FLB-Checker"; }
 
     // Accessors
     void access(uint32_t oldval, uint32_t limit, uint32_t flb, uint32_t thread);
+
+    // Logging variables
+    uint32_t log_shire = 64; // None by default
 
   private:
 };

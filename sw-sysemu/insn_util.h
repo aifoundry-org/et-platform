@@ -44,8 +44,10 @@ namespace bemu {
         LOG_HART(DEBUG, cpu, "\tfrm " str " 0x%x (%s)", FRM, FRMNAME); \
 } while (0)
 
-#define LOG_REG(str, n) \
-    LOG_HART_IF(DEBUG, cpu, n != 0, "\tx%d " str " 0x%" PRIx64, n, cpu.xregs[n])
+#define LOG_REG(str, n) do { \
+    if (n != 0) \
+        LOG_HART(DEBUG, cpu, "\tx%d " str " 0x%" PRIx64, n, cpu.xregs[n]); \
+} while (0)
 
 #define LOG_FREG(str, n) \
     LOG_HART(DEBUG, cpu, "\tf%d " str " {" \

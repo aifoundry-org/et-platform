@@ -37,19 +37,20 @@
 
 // SCP checks
 #ifdef SYS_EMU
+    #define SYS_EMU_PTR cpu.chip->emu()
     #define L1_SCP_CHECK_FILL(cpu, idx, id) do { \
-        if (sys_emu::get_l1_scp_check()) { \
-            sys_emu::get_l1_scp_checker().l1_scp_fill(hart_index(cpu), idx, id); \
+        if (SYS_EMU_PTR->get_l1_scp_check()) { \
+            SYS_EMU_PTR->get_l1_scp_checker().l1_scp_fill(hart_index(cpu), idx, id); \
         } \
     } while (0)
     #define L1_SCP_CHECK_READ(cpu, idx) do { \
-        if (sys_emu::get_l1_scp_check()) { \
-            sys_emu::get_l1_scp_checker().l1_scp_read(hart_index(cpu), idx); \
+        if (SYS_EMU_PTR->get_l1_scp_check()) { \
+            SYS_EMU_PTR->get_l1_scp_checker().l1_scp_read(hart_index(cpu), idx); \
         } \
     } while (0)
     #define L2_SCP_CHECK_FILL(cpu, idx, id, addr) do { \
-        if (sys_emu::get_l2_scp_check()) { \
-            sys_emu::get_l2_scp_checker().l2_scp_fill(hart_index(cpu), idx, id, addr); \
+        if (SYS_EMU_PTR->get_l2_scp_check()) { \
+            SYS_EMU_PTR->get_l2_scp_checker().l2_scp_fill(hart_index(cpu), idx, id, addr); \
         } \
     } while (0)
 #else
@@ -285,8 +286,8 @@ void tensor_load_execute(Hart& cpu, bool tenb)
         uint32_t thread = hart_index(cpu);
         uint32_t requested_mask;
         uint32_t present_mask;
-        sys_emu::coop_tload_add(thread, tenb, tenb ? 0 : id, cpu.tensor_coop & 0xF, (cpu.tensor_coop >> 8) & 0xFF, cpu.tensor_coop >> 16);
-        sys_emu::coop_tload_check(thread, false, id, requested_mask, present_mask);
+        SYS_EMU_PTR->coop_tload_add(thread, tenb, tenb ? 0 : id, cpu.tensor_coop & 0xF, (cpu.tensor_coop >> 8) & 0xFF, cpu.tensor_coop >> 16);
+        SYS_EMU_PTR->coop_tload_check(thread, false, id, requested_mask, present_mask);
     }
 #endif
 
@@ -922,7 +923,7 @@ static void tensor_fma32_execute(Hart& cpu)
         uint32_t requested_mask;
         uint32_t present_mask;
         uint32_t thread = hart_index(cpu);
-        bool resolved = sys_emu::coop_tload_check(thread, true, 0, requested_mask, present_mask); // TENB
+        bool resolved = SYS_EMU_PTR->coop_tload_check(thread, true, 0, requested_mask, present_mask); // TENB
         // If not resolved, put the thread to sleep
         if(!resolved)
         {
@@ -1127,7 +1128,7 @@ static void tensor_fma16a32_execute(Hart& cpu)
         uint32_t requested_mask;
         uint32_t present_mask;
         uint32_t thread = hart_index(cpu);
-        bool resolved = sys_emu::coop_tload_check(thread, true, 0, requested_mask, present_mask); // TENB
+        bool resolved = SYS_EMU_PTR->coop_tload_check(thread, true, 0, requested_mask, present_mask); // TENB
         // If not resolved, put the thread to sleep
         if(!resolved)
         {
@@ -1338,7 +1339,7 @@ static void tensor_ima8a32_execute(Hart& cpu)
         uint32_t requested_mask;
         uint32_t present_mask;
         uint32_t thread = hart_index(cpu);
-        bool resolved = sys_emu::coop_tload_check(thread, true, 0, requested_mask, present_mask); // TENB
+        bool resolved = SYS_EMU_PTR->coop_tload_check(thread, true, 0, requested_mask, present_mask); // TENB
         // If not resolved, put the thread to sleep
         if(!resolved)
         {
@@ -1920,7 +1921,7 @@ void tensor_wait_start(Hart& cpu, uint64_t value)
         uint32_t requested_mask;
         uint32_t present_mask;
         uint32_t thread = hart_index(cpu);
-        bool resolved = sys_emu::coop_tload_check(thread, false, id, requested_mask, present_mask);
+        bool resolved = SYS_EMU_PTR->coop_tload_check(thread, false, id, requested_mask, present_mask);
         // If not resolved, put the thread to sleep
         if (!resolved) {
             cpu.wait.state = Hart::Wait::State::Wait;
@@ -1963,18 +1964,18 @@ void tensor_wait_start(Hart& cpu, uint64_t value)
 void tensor_wait_execute(Hart& cpu)
 {
 #ifdef SYS_EMU
-    if(sys_emu::get_l1_scp_check())
+    if(SYS_EMU_PTR->get_l1_scp_check())
     {
         uint32_t thread = hart_index(cpu);
         // TensorWait TLoad Id0
-        if     ((cpu.wait.id) == 0) { sys_emu::get_l1_scp_checker().l1_scp_wait(thread, 0); }
-        else if((cpu.wait.id) == 1) { sys_emu::get_l1_scp_checker().l1_scp_wait(thread, 1); }
+        if     ((cpu.wait.id) == 0) { SYS_EMU_PTR->get_l1_scp_checker().l1_scp_wait(thread, 0); }
+        else if((cpu.wait.id) == 1) { SYS_EMU_PTR->get_l1_scp_checker().l1_scp_wait(thread, 1); }
     }
-    if(sys_emu::get_l2_scp_check())
+    if(SYS_EMU_PTR->get_l2_scp_check())
     {
         uint32_t thread = hart_index(cpu);
-        if((cpu.wait.id) == 2) { sys_emu::get_l2_scp_checker().l2_scp_wait(thread, 0); }
-        else if((cpu.wait.id) == 3) { sys_emu::get_l2_scp_checker().l2_scp_wait(thread, 1); }
+        if((cpu.wait.id) == 2) { SYS_EMU_PTR->get_l2_scp_checker().l2_scp_wait(thread, 0); }
+        else if((cpu.wait.id) == 3) { SYS_EMU_PTR->get_l2_scp_checker().l2_scp_wait(thread, 1); }
     }
 #endif
     cpu.wait.state = Hart::Wait::State::Idle;

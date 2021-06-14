@@ -64,9 +64,9 @@ void System::write_msg_port_data_to_scp(Hart& cpu, unsigned id, uint32_t *data, 
 }
 
 
-void System::set_msg_funcs(void (*func_msg_to_thread)(unsigned))
+void System::set_msg_funcs(msg_func_t fn)
 {
-    msg_to_thread = func_msg_to_thread;
+    msg_to_thread = fn;
 }
 
 
@@ -88,9 +88,9 @@ void System::write_msg_port_data(unsigned target_thread, unsigned id, unsigned s
         port_write.oob = 0;
         msg_port_pending_writes[target_thread / EMU_THREADS_PER_SHIRE].push_back(port_write);
 
-        LOG_NOTHREAD(DEBUG, "Delayed write on MSG_PORT (m%u p%u) from m%u", target_thread, id, source_thread);
+        LOG_AGENT(DEBUG, cpu[source_thread], "Delayed write on MSG_PORT (m%u p%u) from m%u", target_thread, id, source_thread);
         for (unsigned w = 0; w < nwords; ++w) {
-            LOG_NOTHREAD(DEBUG, "                              data[%u] 0x%8" PRIx32, w, data[w]);
+            LOG_AGENT(DEBUG, cpu[source_thread], "                              data[%u] 0x%8" PRIx32, w, data[w]);
         }
     }
     else
@@ -98,62 +98,6 @@ void System::write_msg_port_data(unsigned target_thread, unsigned id, unsigned s
         write_msg_port_data_to_scp(cpu[target_thread], id, data, 0);
     }
 }
-
-
-#if 0
-void write_msg_port_data_from_tbox(unsigned target_thread, unsigned id, unsigned tbox_id, uint32_t *data, uint8_t oob)
-{
-    if (msg_port_delayed_write)
-    {
-        msg_port_write_t port_write;
-        port_write.source_thread = tbox_id;
-        port_write.target_thread = target_thread;
-        port_write.target_port   = id;
-        port_write.is_tbox       = true;
-        port_write.is_rbox       = false;
-
-        unsigned nwords = (1ULL << cpu[target_thread].portctrl[id].logsize) / 4;
-        for (unsigned w = 0; w < nwords; w++) {
-            port_write.data[w] = data[w];
-        }
-        port_write.oob = oob;
-        msg_port_pending_writes[target_thread / EMU_THREADS_PER_SHIRE].push_back(port_write);
-
-        LOG_NOTHREAD(DEBUG, "Delayed write on MSG_PORT (m%u p%u) from tbox%u", target_thread, id, tbox_id);
-    }
-    else
-    {
-        write_msg_port_data_to_scp(cpu[target_thread], id, data, oob);
-    }
-}
-
-
-void write_msg_port_data_from_rbox(unsigned target_thread, unsigned id, unsigned rbox_id, uint32_t *data, uint8_t oob)
-{
-    if (msg_port_delayed_write)
-    {
-        msg_port_write_t port_write;
-        port_write.source_thread = rbox_id;
-        port_write.target_thread = target_thread;
-        port_write.target_port   = id;
-        port_write.is_tbox       = false;
-        port_write.is_rbox       = true;
-
-        unsigned nwords = (1ULL << cpu[target_thread].portctrl[id].logsize) / 4;
-        for (unsigned w = 0; w < nwords; w++) {
-            port_write.data[w] = data[w];
-        }
-        port_write.oob = oob;
-        msg_port_pending_writes[target_thread / EMU_THREADS_PER_SHIRE].push_back(port_write);
-
-        LOG_NOTHREAD(DEBUG, "Delayed write on MSG_PORT (m%u p%u) from rbox%u", target_thread, id, rbox_id);
-    }
-    else
-    {
-        write_msg_port_data_to_scp(cpu[target_thread], id, data, oob);
-    }
-}
-#endif
 
 
 void System::commit_msg_port_data(unsigned target_thread, unsigned port_id, unsigned source_thread)
@@ -164,7 +108,7 @@ void System::commit_msg_port_data(unsigned target_thread, unsigned port_id, unsi
         msg_port_write_t port_write;
         bool found = false;
 
-        LOG_NOTHREAD(INFO, "Pending MSG_PORT writes for Shire %u is %zu", shire, msg_port_pending_writes[shire].size());
+        LOG_AGENT(INFO, cpu[source_thread], "Pending MSG_PORT writes for Shire %u is %zu", shire, msg_port_pending_writes[shire].size());
 
         for (auto it = msg_port_pending_writes[shire].begin(); it != msg_port_pending_writes[shire].end(); it++)
         {
@@ -182,103 +126,19 @@ void System::commit_msg_port_data(unsigned target_thread, unsigned port_id, unsi
 
         if (found)
         {
-            LOG_NOTHREAD(DEBUG, "Commit write on MSG_PORT (h%u p%u) from h%u", target_thread, port_id, source_thread);
+            LOG_AGENT(DEBUG, cpu[source_thread], "Commit write on MSG_PORT (h%u p%u) from h%u", target_thread, port_id, source_thread);
             write_msg_port_data_to_scp(cpu[target_thread], port_id, (uint32_t *) port_write.data, port_write.oob);
         }
         else
         {
-            LOG_NOTHREAD(DEBUG, "ERROR Commit write on MSG_PORT (h%u p%u) from h%u not found!!", target_thread, port_id, source_thread);
+            LOG_AGENT(DEBUG, cpu[source_thread], "ERROR Commit write on MSG_PORT (h%u p%u) from h%u not found!!", target_thread, port_id, source_thread);
         }
     }
     else
     {
-        LOG_NOTHREAD(DEBUG, "ERROR Commit write on MSG_PORT (h%u p%u) from h%u not found!!", target_thread, port_id, source_thread);
+        LOG_AGENT(DEBUG, cpu[source_thread], "ERROR Commit write on MSG_PORT (h%u p%u) from h%u not found!!", target_thread, port_id, source_thread);
     }
 }
-
-
-#if 0
-void commit_msg_port_data_from_tbox(unsigned target_thread, unsigned port_id, unsigned tbox_id)
-{
-    unsigned shire = target_thread / EMU_THREADS_PER_SHIRE;
-    if (!msg_port_pending_writes[shire].empty())
-    {
-        msg_port_write_t port_write;
-        bool found = false;
-
-        LOG_NOTHREAD(INFO, "Pending MSG_PORT writes for Shire %u is %zu", shire, msg_port_pending_writes[shire].size());
-
-        for (auto it = msg_port_pending_writes[shire].begin(); it != msg_port_pending_writes[shire].end(); it++)
-        {
-            port_write = *it;
-            if ((port_write.target_thread == target_thread) &&
-                (port_write.target_port   == port_id)       &&
-                (port_write.source_thread == tbox_id)       &&
-                 port_write.is_tbox && !port_write.is_rbox)
-            {
-                found = true;
-                msg_port_pending_writes[shire].erase(it);
-                break;
-            }
-        }
-
-        if (found)
-        {
-            LOG_NOTHREAD(DEBUG, "Commit write on MSG_PORT (m%u p%u) from tbox%u oob %d", target_thread, port_id, tbox_id, port_write.oob);
-            write_msg_port_data_to_scp(cpu[target_thread], port_id, (uint32_t *) port_write.data, port_write.oob);
-        }
-        else
-        {
-            LOG_NOTHREAD(DEBUG, "ERROR Commit write on MSG_PORT (m%u p%u) from tbox%u not found!!", target_thread, port_id, tbox_id);
-        }
-    }
-    else
-    {
-        LOG_NOTHREAD(DEBUG, "ERROR Commit write on MSG_PORT (m%u p%u) from tbox%u not found!!", target_thread, port_id, tbox_id);
-    }
-}
-
-
-void commit_msg_port_data_from_rbox(unsigned target_thread, unsigned port_id, unsigned rbox_id)
-{
-    unsigned shire = target_thread / EMU_THREADS_PER_SHIRE;
-    if (!msg_port_pending_writes[shire].empty())
-    {
-        msg_port_write_t port_write;
-        bool found = false;
-
-        LOG_NOTHREAD(INFO, "Pending MSG_PORT writes for Shire %u is %zu", shire, msg_port_pending_writes[shire].size());
-
-        for (auto it = msg_port_pending_writes[shire].begin(); it != msg_port_pending_writes[shire].end(); it++)
-        {
-            port_write = *it;
-            if ((port_write.target_thread == target_thread) &&
-                (port_write.target_port   == port_id)       &&
-                (port_write.source_thread == rbox_id)       &&
-                !port_write.is_tbox && port_write.is_rbox)
-            {
-                found = true;
-                msg_port_pending_writes[shire].erase(it);
-                break;
-            }
-        }
-
-        if (found)
-        {
-            LOG_NOTHREAD(DEBUG, "Commit write on MSG_PORT (m%u p%u) from rbox%u", target_thread, port_id, rbox_id);
-            write_msg_port_data_to_scp(cpu[target_thread], port_id, (uint32_t *) port_write.data, port_write.oob);
-        }
-        else
-        {
-            LOG_NOTHREAD(DEBUG, "ERROR Commit write on MSG_PORT (m%u p%u) from rbox%u not found!!", target_thread, port_id, rbox_id);
-        }
-    }
-    else
-    {
-        LOG_NOTHREAD(DEBUG, "ERROR Commit write on MSG_PORT (m%u p%u) from rbox%u not found!!", target_thread, port_id, rbox_id);
-    }
-}
-#endif
 
 
 // -----------------------------------------------------------------------------

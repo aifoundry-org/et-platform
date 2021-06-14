@@ -13,14 +13,10 @@
 #include "emu_gio.h"
 #include "memmap.h"
 
-uint64_t mem_checker_log_addr   = 0x1;
-uint32_t mem_checker_log_minion = 2048;
-uint64_t global_time_stamp = 0;
-
 #define MD_LOG(addr, minion, cmd) \
-    { if((addr == 0x0) || (mem_checker_log_addr == 0x0) || (addr == mem_checker_log_addr)) \
+    { if((addr == 0x0) || (log_addr == 0x0) || (addr == log_addr)) \
     { \
-        if((minion == 0xFFFFFFFF) || (mem_checker_log_minion == 0xFFFFFFFF) || (minion == mem_checker_log_minion)) \
+        if((minion == 0xFFFFFFFF) || (log_minion == 0xFFFFFFFF) || (minion == log_minion)) \
         { \
             cmd; \
         } \
@@ -67,11 +63,11 @@ bool mem_checker::write(uint64_t pc, uint64_t address, op_location_t location, u
 
     if(minion_found && !shire_found)
     {
-       LOG_NOTHREAD(FTL, "mem_checker::write minion entry found and shire entry not found for addr %llX when doing write\n", (long long unsigned int) address);
+       LOG_AGENT(FTL, *this, "mem_checker::write minion entry found and shire entry not found for addr %llX when doing write\n", (long long unsigned int) address);
     }
     if(shire_found && !global_found)
     {
-       LOG_NOTHREAD(FTL, "mem_checker::write shire entry found and global entry not found for addr %llX when doing write\n", (long long unsigned int) address);
+       LOG_AGENT(FTL, *this, "mem_checker::write shire entry found and global entry not found for addr %llX when doing write\n", (long long unsigned int) address);
     }
 
     // Info
@@ -294,11 +290,11 @@ bool mem_checker::read(uint64_t pc, uint64_t address, op_location_t location, ui
 
     if(minion_found && !shire_found)
     {
-       LOG_NOTHREAD(FTL, "mem_checker::read minion entry found and shire entry not found for addr %llX when doing write\n", (long long unsigned int) address);
+       LOG_AGENT(FTL, *this, "mem_checker::read minion entry found and shire entry not found for addr %llX when doing write\n", (long long unsigned int) address);
     }
     if(shire_found && !global_found)
     {
-       LOG_NOTHREAD(FTL, "mem_checker::read shire entry found and global entry not found for addr %llX when doing write\n", (long long unsigned int) address);
+       LOG_AGENT(FTL, *this, "mem_checker::read shire entry found and global entry not found for addr %llX when doing write\n", (long long unsigned int) address);
     }
 
     // Info
@@ -498,11 +494,11 @@ bool mem_checker::evict_va(uint64_t pc, uint64_t address, op_location_t location
     bool global_found = it_global != global_directory_map.end();
     if(minion_found && !shire_found)
     {
-       LOG_NOTHREAD(FTL, "mem_checker::evict_va minion entry found and shire entry not found for addr %llX when doing write\n", (long long unsigned int) address);
+       LOG_AGENT(FTL, *this, "mem_checker::evict_va minion entry found and shire entry not found for addr %llX when doing write\n", (long long unsigned int) address);
     }
     if(shire_found && !global_found)
     {
-       LOG_NOTHREAD(FTL, "mem_checker::evict_va shire entry found and global entry not found for addr %llX when doing write\n", (long long unsigned int) address);
+       LOG_AGENT(FTL, *this, "mem_checker::evict_va shire entry found and global entry not found for addr %llX when doing write\n", (long long unsigned int) address);
     }
 
     MD_LOG(address, minion, printf("mem_checker::evict_va => pc %016llX addr %016llX, location %i, shire_id %i, minion_id %i, thread_id %i, found (%i, %i, %i)\n",
@@ -550,7 +546,7 @@ bool mem_checker::evict_va(uint64_t pc, uint64_t address, op_location_t location
             // Clears the minion dirty flag in shire, must have an entry
             if((it_shire->second.l2_dirty_minion_id != 255) && (it_shire->second.l2_dirty_minion_id != minion_id))
             {
-                LOG_NOTHREAD(FTL, "\t(Coherency EvictVA Hazard wrong minion) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u, l2_dirty_minion_id=%u\n", (long long unsigned int) address, location, shire_id, minion_id, thread_id, it_shire->second.l2_dirty_minion_id);
+                LOG_AGENT(FTL, *this, "\t(Coherency EvictVA Hazard wrong minion) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u, l2_dirty_minion_id=%u\n", (long long unsigned int) address, location, shire_id, minion_id, thread_id, it_shire->second.l2_dirty_minion_id);
             }
             it_shire->second.l2_dirty_minion_id     = 255;
             if(* dirty_evict)
@@ -580,7 +576,7 @@ bool mem_checker::evict_va(uint64_t pc, uint64_t address, op_location_t location
         // CBs should be drained with ESRs, not evict_va
         if(it_shire->second.cb_dirty)
         {
-            LOG_NOTHREAD(FTL, "\t(Coherency EvictVA Hazard CB evict) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) address, location, shire_id, minion_id, thread_id);
+            LOG_AGENT(FTL, *this, "\t(Coherency EvictVA Hazard CB evict) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) address, location, shire_id, minion_id, thread_id);
         }
 
         // Gets if dirty data from L1 is dirty
@@ -601,7 +597,7 @@ bool mem_checker::evict_va(uint64_t pc, uint64_t address, op_location_t location
             // Clears the minion dirty flag in global, must have an entry
             if((it_global->second.l2_dirty_shire_id != 255) && (it_global->second.l2_dirty_shire_id != shire_id))
             {
-                LOG_NOTHREAD(FTL, "\t(Coherency EvictVA Hazard wrong shire) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u, l2_dirty_shire_id=%u", (long long unsigned int) address, location, shire_id, minion_id, thread_id, it_global->second.l2_dirty_shire_id);
+                LOG_AGENT(FTL, *this, "\t(Coherency EvictVA Hazard wrong shire) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u, l2_dirty_shire_id=%u", (long long unsigned int) address, location, shire_id, minion_id, thread_id, it_global->second.l2_dirty_shire_id);
             }
             it_global->second.l2_dirty_shire_id = 255;
             if(* dirty_evict)
@@ -685,7 +681,7 @@ void mem_checker::l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t s
             // Must have an entry
             if(it_shire == shire_directory_map[shire_id].end())
             {
-                LOG_NOTHREAD(FTL, "Should have found address %llX in shire when doing l1_clear_set\n", (long long unsigned int) addr);
+                LOG_AGENT(FTL, *this, "Should have found address %llX in shire when doing l1_clear_set\n", (long long unsigned int) addr);
             }
             bool is_l2_scp              = bemu::paddr_is_scratchpad(addr);
             it_shire->second.l2         = !is_l2_scp;
@@ -708,7 +704,7 @@ void mem_checker::l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t s
             // Must have an entry
             if(it_shire == shire_directory_map[shire_id].end())
             {
-                LOG_NOTHREAD(FTL, "Should have found address %llX in shire when doing l1_clear_set\n", (long long unsigned int) addr);
+                LOG_AGENT(FTL, *this, "Should have found address %llX in shire when doing l1_clear_set\n", (long long unsigned int) addr);
             }
 
             it_shire->second.l2_dirty_minion_id = 255;
@@ -738,7 +734,7 @@ void mem_checker::l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t s
             // Must have an entry
             if(it_global == global_directory_map.end())
             {
-                LOG_NOTHREAD(FTL, "Should have found address %llX in global when doing l1_clear_set\n", (long long unsigned int) addr);
+                LOG_AGENT(FTL, *this, "Should have found address %llX in global when doing l1_clear_set\n", (long long unsigned int) addr);
             }
 
             it_global->second.l2_dirty_shire_id = 255;
@@ -750,7 +746,7 @@ void mem_checker::l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t s
             // Must have an entry
             if(it_global == global_directory_map.end())
             {
-                LOG_NOTHREAD(FTL, "Should have found address %llX in global when doing l1_clear_set\n", (long long unsigned int) addr);
+                LOG_AGENT(FTL, *this, "Should have found address %llX in global when doing l1_clear_set\n", (long long unsigned int) addr);
             }
 
             // Removes entry from shire
@@ -909,7 +905,7 @@ void mem_checker::dump_state(global_directory_map_t::iterator it_global, shire_d
 }
 
 // Constructor
-mem_checker::mem_checker()
+mem_checker::mem_checker(bemu::System* chip) : bemu::Agent(chip)
 {
     // All set and ways are clear
     for(uint32_t minion = 0; minion < EMU_NUM_MINIONS; minion++)
@@ -961,7 +957,7 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
         else if(cop == bemu::CacheOp_PrefetchL3)
             location = COH_GLOBAL;
         else
-            LOG_NOTHREAD(FTL, "Invalid CacheOp type %i for prefetch!!\n", (int) cop);
+            LOG_AGENT(FTL, *this, "Invalid CacheOp type %i for prefetch!!\n", (int) cop);
         break;
     case bemu::Mem_Access_Store:
         operation = 2;
@@ -991,7 +987,7 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
         if((cop == bemu::CacheOp_EvictL2) || (cop == bemu::CacheOp_EvictL3) || (cop == bemu::CacheOp_EvictDDR))
             operation = 6;
         else
-            LOG_NOTHREAD(FTL, "CacheOp %i not supported yet!!\n", (int) cop);
+            LOG_AGENT(FTL, *this, "CacheOp %i not supported yet!!\n", (int) cop);
         if((cop == bemu::CacheOp_EvictL3) || (cop == bemu::CacheOp_EvictDDR) ||
            (cop == bemu::CacheOp_EvictL2 && bemu::paddr_is_scratchpad(addr))) // evict l2 scp to l2 can be interpreted as 'global' (it cannot be evicted to l3)
             location = COH_GLOBAL;
@@ -1027,7 +1023,7 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
 
         if(!coherent)
         {
-            LOG_NOTHREAD(FTL, "\t(Coherency Read Hazard) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
+            LOG_AGENT(FTL, *this, "\t(Coherency Read Hazard) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
             return false;
         }
 
@@ -1037,7 +1033,7 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
 
             if(!coherent)
             {
-                LOG_NOTHREAD(FTL, "\t(Coherency Read Hazard Unaligned Access) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) (addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id);
+                LOG_AGENT(FTL, *this, "\t(Coherency Read Hazard Unaligned Access) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) (addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id);
                 return false;
             }
         }
@@ -1053,7 +1049,7 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
 
         if(!coherent)
         {
-            LOG_NOTHREAD(FTL, "\t(Coherency EvictVA Hazard) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
+            LOG_AGENT(FTL, *this, "\t(Coherency EvictVA Hazard) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
             return false;
         }
     }
@@ -1065,7 +1061,7 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
         
         if(!coherent)
         {
-            LOG_NOTHREAD(FTL, "\t(Coherency Write Hazard) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
+            LOG_AGENT(FTL, *this, "\t(Coherency Write Hazard) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
             return false;
         }
 
@@ -1075,7 +1071,7 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
 
             if(!coherent)
             {
-                LOG_NOTHREAD(FTL, "\t(Coherency Write Hazard Unaligned Access) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) (addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id);
+                LOG_AGENT(FTL, *this, "\t(Coherency Write Hazard Unaligned Access) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) (addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id);
                 return false;
             }
         }
@@ -1170,7 +1166,7 @@ void mem_checker::cb_drain(uint32_t shire_id, uint32_t cache_bank)
 void mem_checker::l2_flush(uint32_t shire_id, uint32_t cache_bank)
 {
     MD_LOG(0, 0, printf("mem_checker::l2_flush => shire_id %i, bank %ir\n", shire_id, cache_bank));
-    LOG_NOTHREAD(FTL, "L2 flush not implemented yet!!%s\n", "");
+    LOG_AGENT(FTL, *this, "L2 flush not implemented yet!!%s\n", "");
 
     // L2 flush drains CB as well
     cb_drain(shire_id, cache_bank);
@@ -1179,7 +1175,7 @@ void mem_checker::l2_flush(uint32_t shire_id, uint32_t cache_bank)
 // Public function called when there's an ESR write that evicts an L2 bank
 void mem_checker::l2_evict(uint32_t shire_id, uint32_t cache_bank)
 {
-    MD_LOG(0, mem_checker_log_minion + 1, printf("mem_checker::l2_evict => shire_id %i, bank %i\n", shire_id, cache_bank));
+    MD_LOG(0, log_minion + 1, printf("mem_checker::l2_evict => shire_id %i, bank %i\n", shire_id, cache_bank));
     shire_directory_map_t::iterator it_shire = shire_directory_map[shire_id].begin();
 
     while(it_shire != shire_directory_map[shire_id].end())
@@ -1188,7 +1184,7 @@ void mem_checker::l2_evict(uint32_t shire_id, uint32_t cache_bank)
         bool bank = (((addr & 0xC0) >> 6) == cache_bank);
         if(bank && !it_shire->second.cb_dirty)
         {
-            MD_LOG(addr, mem_checker_log_minion + 1, printf("mem_checker::l2_evict => evicting addr %016llX, shire_id %i\n", (long long unsigned int) addr, shire_id));
+            MD_LOG(addr, log_minion + 1, printf("mem_checker::l2_evict => evicting addr %016llX, shire_id %i\n", (long long unsigned int) addr, shire_id));
 
             global_directory_map_t::iterator it_global;
             it_global = global_directory_map.find(addr);
@@ -1204,30 +1200,30 @@ void mem_checker::l2_evict(uint32_t shire_id, uint32_t cache_bank)
             {
                 it_shire->second.l2_dirty    = false;
                 it_global->second.time_stamp = it_shire->second.time_stamp;
-                dump_global(&it_global->second, "l2_evict", "update", addr, mem_checker_log_minion + 1);
+                dump_global(&it_global->second, "l2_evict", "update", addr, log_minion + 1);
             }
 
             // Line is no present in l2
             it_shire->second.l2 = false;
-            dump_shire(&it_shire->second, "l2_evict", "update", addr, shire_id, mem_checker_log_minion + 1);
+            dump_shire(&it_shire->second, "l2_evict", "update", addr, shire_id, log_minion + 1);
 
             // If no minion has the cacheline, remove from shire
             if(is_shire_clean(it_shire))
             {
                 // Remove from shire
-                dump_shire(&it_shire->second, "l2_evict", "remove", addr, shire_id, mem_checker_log_minion + 1);
+                dump_shire(&it_shire->second, "l2_evict", "remove", addr, shire_id, log_minion + 1);
                 shire_directory_map_t::iterator it_orig = it_shire;
                 it_shire++;
                 shire_directory_map[shire_id].erase(it_orig);
 
                 // Clean in global
                 it_global->second.shire_mask[shire_id] = false;
-                dump_global(&it_global->second, "l2_evict", "update", addr, mem_checker_log_minion + 1);
+                dump_global(&it_global->second, "l2_evict", "update", addr, log_minion + 1);
 
                 // Remove from global
                 if(is_global_clean(it_global))
                 {
-                    dump_global(&it_global->second, "l2_evict", "remove", addr, mem_checker_log_minion + 1);
+                    dump_global(&it_global->second, "l2_evict", "remove", addr, log_minion + 1);
                     global_directory_map.erase(it_global);
                 }
             }
@@ -1273,7 +1269,7 @@ void mem_checker::l1_flush_sw(uint32_t shire_id, uint32_t minion_id, uint32_t se
     uint32_t minion = shire_id * EMU_MINIONS_PER_SHIRE + minion_id;
     l1_minion_valid[minion][set][way] = false;
     MD_LOG(0, minion, printf("mem_checker::l1_flush_sw => shire_id %i, minion_id %i, set %i, way %i\n", shire_id, minion_id, set, way));
-    LOG_NOTHREAD(FTL, "L1 flush not implemented yet!!%s\n", "");
+    LOG_AGENT(FTL, *this, "L1 flush not implemented yet!!%s\n", "");
 
     // Checks if all ways of a set are clear
     bool all_clear = true;
@@ -1305,7 +1301,7 @@ void mem_checker::mcache_control_up(uint32_t shire_id, uint32_t minion_id, uint3
 
     if(!all_clear)
     {
-        LOG_NOTHREAD(FTL, "\t(Coherency mcache control Hazard) shire_id=%u, minion_id=%u changed mcache control and cache not clear", shire_id, minion_id);
+        LOG_AGENT(FTL, *this, "\t(Coherency mcache control Hazard) shire_id=%u, minion_id=%u changed mcache control and cache not clear", shire_id, minion_id);
     }
     if(all_clear && minion_directory_map[minion].size())
     {

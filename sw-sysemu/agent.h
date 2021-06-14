@@ -25,8 +25,12 @@ class System;
 //
 struct Agent {
     virtual std::string name() const = 0;
+    uint64_t emu_cycle() const noexcept;
 
-    System* chip = nullptr;
+    Agent(System* chip=nullptr) : chip(chip) {}
+    virtual ~Agent() {}
+
+    System* chip;
 };
 
 
@@ -34,9 +38,10 @@ struct Agent {
 // An external agent
 //
 struct Noagent final: public Agent {
-    Noagent(System* system) { this->chip = system; }
-
-    std::string name() const override { return std::string(""); }
+    Noagent(System* chip, std::string name = "") : Agent(chip), m_name(std::move(name)) {}
+    std::string name() const override { return m_name; }
+private:
+    std::string m_name;
 };
 
 

@@ -15,6 +15,7 @@
 
 #include "emu_defines.h"
 #include "cache.h"
+#include "agent.h"
 
 typedef enum {COH_MINION, COH_SHIRE, COH_CB, COH_GLOBAL} op_location_t;
 
@@ -51,11 +52,11 @@ typedef std::map<uint64_t, global_mem_info_t> global_directory_map_t;
 typedef std::map<uint64_t, shire_mem_info_t>  shire_directory_map_t;
 typedef std::map<uint64_t, minion_mem_info_t> minion_directory_map_t;
 
-class mem_checker
+class mem_checker : public bemu::Agent
 {
 
 private:
-
+    uint64_t global_time_stamp = 0;
     // Directories global, per shire and per minion
     global_directory_map_t global_directory_map;
     shire_directory_map_t  shire_directory_map[EMU_NUM_SHIRES];
@@ -86,7 +87,16 @@ private:
 
 public:
 
-    mem_checker();
+    // Constructor
+    mem_checker(bemu::System* chip = nullptr);
+
+    // Copy/Move
+    mem_checker(const mem_checker&) = default;
+    mem_checker& operator=(const mem_checker&) = default;
+    mem_checker(mem_checker&&) = default;
+    mem_checker& operator=(mem_checker&&) = default;
+
+    std::string name() const { return "Mem-Checker"; }
 
     bool access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc, bemu::cacheop_type cop, uint32_t thread, size_t size, bemu::mreg_t mask);
     void cb_drain(uint32_t shire_id, uint32_t cache_bank);
@@ -95,6 +105,11 @@ public:
     void l1_evict_sw(uint32_t shire_id, uint32_t minion_id, uint32_t set, uint32_t way);
     void l1_flush_sw(uint32_t shire_id, uint32_t minion_id, uint32_t set, uint32_t way);
     void mcache_control_up(uint32_t shire_id, uint32_t minion_id, uint32_t val);
+
+    // Logging variables
+    uint64_t log_addr = 1;
+    uint32_t log_minion = 2048;
+
 };
 
 #endif

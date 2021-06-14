@@ -33,6 +33,7 @@ static const char * help_msg =
      -lt <thread>             Log a given Thread. Can be used multiple times. (default: all)\n\
      -lm <minion>             Log a given Minion. Can be used multiple times. (default: all)\n\
      -ls <shire>,<threads>    Log given Threads of a Shire. Can be used multiple times. (default: all)\n\
+     -lp <path>               Redirect log output to path. (default: stdout)\n\
      -minions <mask>          A mask of Minions that should be enabled in each Shire (default: 1 Minion/Shire)\n\
      -shires <mask>           A mask of Shires that should be enabled. (default: 1 Shire)\n\
      -single_thread           Disable 2nd Minion thread\n\
@@ -98,12 +99,15 @@ static int strsplit(char *str, const char *delimiters, char *tokens[], int max_t
     return n;
 }
 
+// Util macros for the cmdline parser
+#define SE_WARN(msg) std::cerr << "sys_emu: " << msg << std::endl;
+#define SE_ERROR(msg) do { SE_WARN(msg); return std::make_pair(false, cmd_options); } while (0)
+
 std::tuple<bool, struct sys_emu_cmd_options>
 sys_emu::parse_command_line_arguments(int argc, char* argv[])
 {
     sys_emu_cmd_options cmd_options;
     int opt, index;
-    bool ret = true;
     uint64_t dump_at_end_addr = 0, dump_at_end_size = 0;
     uint64_t dump_at_pc_pc, dump_at_pc_addr, dump_at_pc_size;
 
@@ -117,6 +121,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"lt",                     required_argument, nullptr, 0},
         {"lm",                     required_argument, nullptr, 0},
         {"ls",                     required_argument, nullptr, 0},
+        {"lp",                     required_argument, nullptr, 0},
         {"minions",                required_argument, nullptr, 0},
         {"shires",                 required_argument, nullptr, 0},
         {"master_min",             no_argument,       nullptr, 0}, // deprecated, use -shires <mask> to enable Master Shire and SP
@@ -174,8 +179,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
 
     while ((opt = getopt_long_only(argc, argv, "", long_options, &index)) != -1) {
         if (opt == '?') {
-            LOG_NOTHREAD(FTL, "%s", "Wrong arguments");
-            continue;
+            SE_ERROR("Wrong arguments");
         }
 
         const char *const name = long_options[index].name;
@@ -243,6 +247,10 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
                 }
             }
         }
+        else if (!strcmp(name, "lp"))
+        {
+            cmd_options.log_path = optarg;
+        }
         else if (!strcmp(name, "minions"))
         {
             sscanf(optarg, "%" PRIx64, &cmd_options.minions_en);
@@ -253,7 +261,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "master_min"))
         {
-            LOG_NOTHREAD(WARN, "%s", "Ignoring deprecated option '-master_min'");
+            SE_WARN("Ignoring deprecated option '-master_min'");
         }
         else if (!strcmp(name, "single_thread"))
         {
@@ -282,9 +290,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
 
             int ntokens = strsplit(optarg, ",", tokens, 3);
             if (ntokens != 3) {
-                LOG_NOTHREAD(FTL, "%s", "Command line option '-set_xreg': Wrong number of arguments\n");
-                ret = false;
-                break;
+                SE_ERROR("Command line option '-set_xreg': Wrong number of arguments");
             }
 
             if (!strcmp(tokens[0], "sp")) {
@@ -294,17 +300,13 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
                 if (thread == IO_SHIRE_SP_HARTID) {
                     thread = EMU_IO_SHIRE_SP_THREAD;
                 } else if (thread >= EMU_NUM_THREADS) {
-                    LOG_NOTHREAD(FTL, "%s", "Command line option '-set_xreg': Invalid thread\n");
-                    ret = false;
-                    break;
+                    SE_ERROR("Command line option '-set_xreg': Invalid thread");
                 }
             }
 
             xreg = atoi(tokens[1]);
             if (xreg == 0 || xreg >= bemu::NXREGS) {
-                LOG_NOTHREAD(FTL, "%s", "Command line option '-set_xreg': Invalid xreg\n");
-                ret = false;
-                break;
+                SE_ERROR("Command line option '-set_xreg': Invalid xreg");
             }
 
             value = strtoull(tokens[2], nullptr, 0);
@@ -412,11 +414,11 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "mem_check_minion"))
         {
-            mem_checker_log_minion = atoi(optarg);
+            cmd_options.mem_checker_log_minion = atoi(optarg);
         }
         else if (!strcmp(name, "mem_check_addr"))
         {
-            sscanf(optarg, "%" PRIx64, &mem_checker_log_addr);
+            sscanf(optarg, "%" PRIx64, &cmd_options.mem_checker_log_addr);
         }
         else if (!strcmp(name, "l1_scp_check"))
         {
@@ -424,7 +426,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "l1_scp_check_minion"))
         {
-            l1_scp_checker_log_minion = atoi(optarg);
+            cmd_options.l1_scp_checker_log_minion = atoi(optarg);
         }
         else if (!strcmp(name, "l2_scp_check"))
         {
@@ -432,15 +434,15 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "l2_scp_check_shire"))
         {
-            l2_scp_checker_log_shire = atoi(optarg);
+            cmd_options.l2_scp_checker_log_shire = atoi(optarg);
         }
         else if (!strcmp(name, "l2_scp_check_line"))
         {
-            l2_scp_checker_log_line = atoi(optarg);
+            cmd_options.l2_scp_checker_log_line = atoi(optarg);
         }
         else if (!strcmp(name, "l2_scp_check_minion"))
         {
-            l2_scp_checker_log_minion = atoi(optarg);
+            cmd_options.l2_scp_checker_log_minion = atoi(optarg);
         }
         else if (!strcmp(name, "flb_check"))
         {
@@ -448,7 +450,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "flb_check_shire"))
         {
-            flb_checker_log_shire = atoi(optarg);
+            cmd_options.flb_checker_log_shire = atoi(optarg);
         }
         else if (!strcmp(name, "gdb"))
         {
@@ -456,7 +458,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "m"))
         {
-            LOG_NOTHREAD(WARN, "%s", "Ignoring deprecated option '-m'");
+            SE_WARN("Ignoring deprecated option '-m'");
         }
 #ifdef SYSEMU_DEBUG
         else if (!strcmp(name, "d"))
@@ -471,13 +473,14 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
 #endif
         else if (!strcmp(name, "help")) {
-            ret = false;
-            break;
+            return std::make_pair(false, cmd_options);
         }
     }
 
-    std::tuple<bool, sys_emu_cmd_options> ret_value(ret, cmd_options);
-    return ret_value;
+    // Enable logging for all threads if no filter has been specified
+    if (cmd_options.log_thread.none()) cmd_options.log_thread.set();
+
+    return std::make_pair(true, cmd_options);
 }
 
 void sys_emu::get_command_line_help(std::ostream& stream)

@@ -1207,7 +1207,7 @@ static void trap_to_smode(Hart& cpu, uint64_t cause, uint64_t val)
     assert(cpu.prv <= PRV_S);
 
 #ifdef SYS_EMU
-    if (sys_emu::get_display_trap_info()) {
+    if (cpu.chip->emu()->get_display_trap_info()) {
         LOG_HART(INFO, cpu, "\tTrapping to S-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
     } else
 #endif
@@ -1290,7 +1290,7 @@ static void trap_to_mmode(Hart& cpu, uint64_t cause, uint64_t val)
 #endif
 
 #ifdef SYS_EMU
-    if (sys_emu::get_display_trap_info()) {
+    if (cpu.chip->emu()->get_display_trap_info()) {
         LOG_HART(INFO, cpu, "\tTrapping to M-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
     } else
 #endif
@@ -1330,6 +1330,9 @@ static void trap_to_mmode(Hart& cpu, uint64_t cause, uint64_t val)
 
 void Hart::take_trap(const trap_t& t)
 {
+    // Invalidate the fetch buffer when changing VM mode or permissions
+    fetch_pc = -1;
+
     trap_to_mmode(*this, t.cause(), t.tval());
 }
 

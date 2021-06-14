@@ -15,6 +15,7 @@
 #include <cstdint>
 #include "memory/memory_error.h"
 #include "memory/memory_region.h"
+#include "emu_gio.h"
 
 namespace bemu {
 
@@ -36,10 +37,10 @@ struct PcieApbSubsys : public MemoryRegion {
         SMLH_LTSSM_STATE_LINK_UP = 0x11u,
     };
 
-    void read(const Agent&, size_type pos, size_type n, pointer result) override {
+    void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
         uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
 
-        LOG_NOTHREAD(DEBUG, "PcieApbSubsys::read(pos=0x%llx)", pos);
+        LOG_AGENT(DEBUG, agent, "PcieApbSubsys::read(pos=0x%llx)", pos);
 
         if (n < 4)
             throw memory_error(first() + pos);
@@ -60,10 +61,10 @@ struct PcieApbSubsys : public MemoryRegion {
         }
     }
 
-    void write(const Agent&, size_type pos, size_type n, const_pointer source) override {
+    void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
         const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
 
-        LOG_NOTHREAD(DEBUG, "PcieApbSubsys::write(pos=0x%llx)", pos);
+        LOG_AGENT(DEBUG, agent, "PcieApbSubsys::write(pos=0x%llx)", pos);
 
         if (n < 4)
             throw memory_error(first() + pos);
