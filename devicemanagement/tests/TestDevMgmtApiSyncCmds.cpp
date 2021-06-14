@@ -16,13 +16,13 @@
 #include <condition_variable>
 #include <cstdio>
 #include <dlfcn.h>
-#include <experimental/filesystem>
-#include <glog/logging.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <errno.h>
+#include <experimental/filesystem>
+#include <fcntl.h>
+#include <glog/logging.h>
 #include <iostream>
 #include <string>
+#include <unistd.h>
 
 namespace fs = std::experimental::filesystem;
 
@@ -35,7 +35,9 @@ using TimeDuration = Clock::duration;
 
 #define DM_SERVICE_REQUEST_TIMEOUT 70000
 
-void testSerial(DeviceManagement &dm, uint32_t index, uint32_t timeout, int *result) {
+DEFINE_bool(loopback_driver, false, "Run on loopback driver");
+
+void testSerial(DeviceManagement& dm, uint32_t index, uint32_t timeout, int* result) {
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
@@ -50,7 +52,7 @@ void testSerial(DeviceManagement &dm, uint32_t index, uint32_t timeout, int *res
 }
 
 getDM_t TestDevMgmtApiSyncCmds::getInstance() {
-  const char *error;
+  const char* error;
 
   if (handle_) {
     getDM_t getDM = reinterpret_cast<getDM_t>(dlsym(handle_, "getInstance"));
@@ -65,12 +67,12 @@ getDM_t TestDevMgmtApiSyncCmds::getInstance() {
 void TestDevMgmtApiSyncCmds::getModuleManufactureName_1_1() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
   strncpy(expected, "Esperan", output_size);
-  
+
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
   auto dev_latency = std::make_unique<uint64_t>();
@@ -79,17 +81,20 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureName_1_1() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  printf("output_buff: %.*s\n", output_size, output_buff);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    printf("output_buff: %.*s\n", output_size, output_buff);
 
-  device_mgmt_api::asset_info_t *asset_info = (device_mgmt_api::asset_info_t*)output_buff;
+    device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-  ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+    ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getModulePartNumber_1_2() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
@@ -104,17 +109,20 @@ void TestDevMgmtApiSyncCmds::getModulePartNumber_1_2() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  printf("output_buff: %.*s\n", output_size, output_buff);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    printf("output_buff: %.*s\n", output_size, output_buff);
 
-  device_mgmt_api::asset_info_t *asset_info = (device_mgmt_api::asset_info_t*)output_buff;
+    device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-  ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+    ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getModuleSerialNumber_1_3() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
@@ -129,17 +137,20 @@ void TestDevMgmtApiSyncCmds::getModuleSerialNumber_1_3() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  printf("output_buff: %.*s\n", output_size, output_buff);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    printf("output_buff: %.*s\n", output_size, output_buff);
 
-  device_mgmt_api::asset_info_t *asset_info = (device_mgmt_api::asset_info_t*)output_buff;
+    device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-  ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+    ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getASICChipRevision_1_4() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
@@ -154,17 +165,20 @@ void TestDevMgmtApiSyncCmds::getASICChipRevision_1_4() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  printf("output_buff: %.*s\n", output_size, output_buff);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    printf("output_buff: %.*s\n", output_size, output_buff);
 
-  device_mgmt_api::asset_info_t *asset_info = (device_mgmt_api::asset_info_t*)output_buff;
+    device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-  ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+    ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getModulePCIENumPortsMaxSpeed_1_5() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
@@ -176,20 +190,24 @@ void TestDevMgmtApiSyncCmds::getModulePCIENumPortsMaxSpeed_1_5() {
   auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED, nullptr, 0,
-                              output_buff, output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                              output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                              DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  printf("output_buff: %.*s\n", output_size, output_buff);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    printf("output_buff: %.*s\n", output_size, output_buff);
 
-  device_mgmt_api::asset_info_t *asset_info = (device_mgmt_api::asset_info_t*)output_buff;
+    device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-  ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+    ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getModuleMemorySizeMB_1_6() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
@@ -204,17 +222,20 @@ void TestDevMgmtApiSyncCmds::getModuleMemorySizeMB_1_6() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  printf("output_buff: %.*s\n", output_size, output_buff);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    printf("output_buff: %.*s\n", output_size, output_buff);
 
-  device_mgmt_api::asset_info_t *asset_info = (device_mgmt_api::asset_info_t*)output_buff;
+    device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-  ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+    ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getModuleRevision_1_7() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
@@ -229,17 +250,20 @@ void TestDevMgmtApiSyncCmds::getModuleRevision_1_7() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  printf("output_buff: %.*s\n", output_size, output_buff);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    printf("output_buff: %.*s\n", output_size, output_buff);
 
-  device_mgmt_api::asset_info_t *asset_info = (device_mgmt_api::asset_info_t*)output_buff;
+    device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-  ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+    ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getModuleFormFactor_1_8() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
@@ -254,17 +278,20 @@ void TestDevMgmtApiSyncCmds::getModuleFormFactor_1_8() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  printf("output_buff: %.*s\n", output_size, output_buff);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    printf("output_buff: %.*s\n", output_size, output_buff);
 
-  device_mgmt_api::asset_info_t *asset_info = (device_mgmt_api::asset_info_t*)output_buff;
+    device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-  ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+    ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getModuleMemoryVendorPartNumber_1_9() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
@@ -275,20 +302,24 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryVendorPartNumber_1_9() {
   auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER, nullptr, 0,
-                              output_buff, output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                              output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                              DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  printf("output_buff: %.*s\n", output_size, output_buff);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    printf("output_buff: %.*s\n", output_size, output_buff);
 
-  device_mgmt_api::asset_info_t *asset_info = (device_mgmt_api::asset_info_t*)output_buff;
+    device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-  ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+    ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getModuleMemoryType_1_10() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
@@ -302,17 +333,20 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryType_1_10() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  printf("output_buff: %.*s\n", output_size, output_buff);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    printf("output_buff: %.*s\n", output_size, output_buff);
 
-  device_mgmt_api::asset_info_t *asset_info = (device_mgmt_api::asset_info_t*)output_buff;
+    device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-  ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+    ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::setAndGetModulePowerState_1_11() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t input_size = sizeof(device_mgmt_api::power_state_e);
   const char input_buff[input_size] = {device_mgmt_api::POWER_STATE_REDUCED};
@@ -324,10 +358,14 @@ void TestDevMgmtApiSyncCmds::setAndGetModulePowerState_1_11() {
   auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE, input_buff, input_size,
-                              set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                              set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
+                              DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  ASSERT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    ASSERT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  }
 
   const uint32_t get_output_size = sizeof(device_mgmt_api::power_state_e);
   char get_output_buff[get_output_size] = {0};
@@ -336,14 +374,17 @@ void TestDevMgmtApiSyncCmds::setAndGetModulePowerState_1_11() {
                               get_output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  uint8_t powerstate = get_output_buff[0];
-  ASSERT_EQ(powerstate, device_mgmt_api::POWER_STATE_REDUCED);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    uint8_t powerstate = get_output_buff[0];
+    ASSERT_EQ(powerstate, device_mgmt_api::POWER_STATE_REDUCED);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::setAndGetModuleStaticTDPLevel_1_12() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t input_size = sizeof(device_mgmt_api::tdp_level_e);
   const char input_buff[input_size] = {device_mgmt_api::TDP_LEVEL_TWO};
@@ -354,62 +395,75 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleStaticTDPLevel_1_12() {
   auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL, input_buff, input_size,
-                              set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                              set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
+                              DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  ASSERT_EQ(set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    ASSERT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  }
 
   const uint32_t get_output_size = sizeof(device_mgmt_api::tdp_level_e);
   char get_output_buff[get_output_size] = {0};
 
   ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_STATIC_TDP_LEVEL, nullptr, 0,
-                              get_output_buff, get_output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                              get_output_buff, get_output_size, hst_latency.get(), dev_latency.get(),
+                              DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  uint8_t tdp_level = get_output_buff[0];
-
-  ASSERT_EQ(tdp_level, device_mgmt_api::TDP_LEVEL_TWO);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    uint8_t tdp_level = get_output_buff[0];
+    ASSERT_EQ(tdp_level, device_mgmt_api::TDP_LEVEL_TWO);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold_1_13() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t input_size = sizeof(device_mgmt_api::temperature_threshold_t);
   const char input_buff[input_size] = {(uint8_t)56, (uint8_t)84};
 
-  //Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
+  // Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
   const uint32_t set_output_size = sizeof(uint32_t);
   char set_output_buff[set_output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
   auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS, input_buff,
-                              input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                              input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
+                              DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  ASSERT_EQ(set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    ASSERT_EQ(set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  }
 
   const uint32_t get_output_size = sizeof(device_mgmt_api::temperature_threshold_t);
   char get_output_buff[get_output_size] = {0};
 
   ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS, nullptr, 0,
-                              get_output_buff, get_output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                              get_output_buff, get_output_size, hst_latency.get(), dev_latency.get(),
+                              DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  device_mgmt_api::temperature_threshold_t* temperature_threshold =
-    (device_mgmt_api::temperature_threshold_t*)get_output_buff;
-
-  ASSERT_EQ(temperature_threshold->lo_temperature_c, 56);
-  ASSERT_EQ(temperature_threshold->hi_temperature_c, 84);
-
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    device_mgmt_api::temperature_threshold_t* temperature_threshold =
+      (device_mgmt_api::temperature_threshold_t*)get_output_buff;
+    ASSERT_EQ(temperature_threshold->lo_temperature_c, 56);
+    ASSERT_EQ(temperature_threshold->hi_temperature_c, 84);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getModuleResidencyThrottleState_1_14() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::throttle_time_t);
   char output_buff[output_size] = {0};
@@ -417,20 +471,22 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyThrottleState_1_14() {
   auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES, nullptr, 0,
-                              output_buff, output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                              output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                              DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  // Note: Throttle time could vary. So there cannot be expected value for throttle time in the test
-  device_mgmt_api::throttle_time_t *throttle_time =  (device_mgmt_api::throttle_time_t *)output_buff;
-
-  printf("throttle_time (in usecs): %d\n", throttle_time->time_usec);
+  // Skip printing if loopback driver
+  if (!FLAGS_loopback_driver) {
+    // Note: Throttle time could vary. So there cannot be expected value for throttle time in the test
+    device_mgmt_api::throttle_time_t* throttle_time = (device_mgmt_api::throttle_time_t*)output_buff;
+    printf("throttle_time (in usecs): %d\n", throttle_time->time_usec);
+  }
 }
-
 
 void TestDevMgmtApiSyncCmds::getModuleUptime_1_15() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::module_uptime_t);
   char output_buff[output_size] = {0};
@@ -441,17 +497,18 @@ void TestDevMgmtApiSyncCmds::getModuleUptime_1_15() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  device_mgmt_api::module_uptime_t *module_uptime =  (device_mgmt_api::module_uptime_t *)output_buff;
-
-  printf("Module uptime (day:hours:mins): %d:%d:%d\r\n", module_uptime->day, module_uptime->hours, module_uptime->mins);
-
+  // Skip printing if loopback driver
+  if (!FLAGS_loopback_driver) {
+    device_mgmt_api::module_uptime_t* module_uptime = (device_mgmt_api::module_uptime_t*)output_buff;
+    printf("Module uptime (day:hours:mins): %d:%d:%d\r\n", module_uptime->day, module_uptime->hours,
+           module_uptime->mins);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getModulePower_1_16() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
-  float power;
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::module_power_t);
   char output_buff[output_size] = {0};
@@ -463,18 +520,21 @@ void TestDevMgmtApiSyncCmds::getModulePower_1_16() {
             device_mgmt_api::DM_STATUS_SUCCESS);
 
   // Note: Module power could vary. So there cannot be expected value for Module power in the test
-  device_mgmt_api::module_power_t *module_power =  (device_mgmt_api::module_power_t *)output_buff;
+  device_mgmt_api::module_power_t* module_power = (device_mgmt_api::module_power_t*)output_buff;
 
-  power = (module_power->power >> 2) + (module_power->power & 0x03)*0.25;
-  printf("Module power (in Watts): %.3f \n", power);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    auto power = (module_power->power >> 2) + (module_power->power & 0x03) * 0.25;
+    printf("Module power (in Watts): %.3f \n", power);
 
-  ASSERT_NE(module_power->power, 0);
+    ASSERT_NE(module_power->power, 0);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getModuleVoltage_1_17() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::module_voltage_t);
   char output_buff[output_size] = {0};
@@ -486,19 +546,22 @@ void TestDevMgmtApiSyncCmds::getModuleVoltage_1_17() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  // Note: Module power could vary. So there cannot be expected value for Module power in the test
-  device_mgmt_api::module_voltage_t *module_voltage =  (device_mgmt_api::module_voltage_t *)output_buff;
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    // Note: Module power could vary. So there cannot be expected value for Module power in the test
+    device_mgmt_api::module_voltage_t* module_voltage = (device_mgmt_api::module_voltage_t*)output_buff;
 
-  voltage = 250 + (module_voltage->minion * 5);
-  printf("Minion Shire Module Voltage (in millivolts): %d\n", voltage);
+    voltage = 250 + (module_voltage->minion * 5);
+    printf("Minion Shire Module Voltage (in millivolts): %d\n", voltage);
 
-  ASSERT_NE(module_voltage->minion, 0);
+    ASSERT_NE(module_voltage->minion, 0);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getModuleCurrentTemperature_1_18() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::current_temperature_t);
   char output_buff[output_size] = {0};
@@ -506,20 +569,24 @@ void TestDevMgmtApiSyncCmds::getModuleCurrentTemperature_1_18() {
   auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_CURRENT_TEMPERATURE, nullptr, 0,
-                              output_buff, output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                              output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                              DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  device_mgmt_api::current_temperature_t *cur_temp =  (device_mgmt_api::current_temperature_t *)output_buff;
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    device_mgmt_api::current_temperature_t* cur_temp = (device_mgmt_api::current_temperature_t*)output_buff;
 
-  printf(" Module current temperature (in C): %d\r\n", cur_temp->temperature_c);
+    printf(" Module current temperature (in C): %d\r\n", cur_temp->temperature_c);
 
-  ASSERT_NE(cur_temp->temperature_c, 0);
+    ASSERT_NE(cur_temp->temperature_c, 0);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getModuleMaxTemperature_1_19() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::max_temperature_t);
   char output_buff[output_size] = {0};
@@ -530,17 +597,19 @@ void TestDevMgmtApiSyncCmds::getModuleMaxTemperature_1_19() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  device_mgmt_api::max_temperature_t *max_temperature =  (device_mgmt_api::max_temperature_t *)output_buff;
+  // Skip printing if loopback driver
+  if (!FLAGS_loopback_driver) {
+    device_mgmt_api::max_temperature_t* max_temperature = (device_mgmt_api::max_temperature_t*)output_buff;
 
-  // Note: Module's Max Temperature could vary. So there cannot be expected value for max temperature in the test
-  printf("Module's Max Temperature: %d\n", max_temperature->max_temperature_c);
-
+    // Note: Module's Max Temperature could vary. So there cannot be expected value for max temperature in the test
+    printf("Module's Max Temperature: %d\n", max_temperature->max_temperature_c);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getModuleMaxMemoryErrors_1_20() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::max_ecc_count_t);
   char output_buff[output_size] = {0};
@@ -551,16 +620,19 @@ void TestDevMgmtApiSyncCmds::getModuleMaxMemoryErrors_1_20() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  device_mgmt_api::max_ecc_count_t *max_ecc_count =  (device_mgmt_api::max_ecc_count_t *)output_buff;
+  // Skip printing if loopback driver
+  if (!FLAGS_loopback_driver) {
+    device_mgmt_api::max_ecc_count_t* max_ecc_count = (device_mgmt_api::max_ecc_count_t*)output_buff;
 
-  // Note: ECC count could vary. So there cannot be expected value for max_ecc_count in the test
-  printf("Max ECC Count: %d\n", max_ecc_count->count);
+    // Note: ECC count could vary. So there cannot be expected value for max_ecc_count in the test
+    printf("Max ECC Count: %d\n", max_ecc_count->count);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getModuleMaxDDRBW_1_21() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::max_dram_bw_t);
   char output_buff[output_size] = {0};
@@ -571,16 +643,19 @@ void TestDevMgmtApiSyncCmds::getModuleMaxDDRBW_1_21() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  device_mgmt_api::max_dram_bw_t *max_dram_bw =  (device_mgmt_api::max_dram_bw_t *)output_buff;
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    device_mgmt_api::max_dram_bw_t* max_dram_bw = (device_mgmt_api::max_dram_bw_t*)output_buff;
 
-  ASSERT_EQ(max_dram_bw->max_bw_rd_req_sec, 16);
-  ASSERT_EQ(max_dram_bw->max_bw_wr_req_sec, 16);
+    ASSERT_EQ(max_dram_bw->max_bw_rd_req_sec, 16);
+    ASSERT_EQ(max_dram_bw->max_bw_wr_req_sec, 16);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getModuleMaxThrottleTime_1_22() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::max_throttle_time_t);
   char output_buff[output_size] = {0};
@@ -591,22 +666,25 @@ void TestDevMgmtApiSyncCmds::getModuleMaxThrottleTime_1_22() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  device_mgmt_api::max_throttle_time_t *max_throttle_time =  (device_mgmt_api::max_throttle_time_t *)output_buff;
+  // Skip printing if loopback driver
+  if (!FLAGS_loopback_driver) {
+    device_mgmt_api::max_throttle_time_t* max_throttle_time = (device_mgmt_api::max_throttle_time_t*)output_buff;
 
-  // Note: Throttle time could vary so there cannot be an expected value.
-  //ASSERT_EQ(max_throttle_time->time_usec, 1000);
-  printf("Max Throttle Time: %llu\n", max_throttle_time->time_usec);
+    // Note: Throttle time could vary so there cannot be an expected value.
+    // ASSERT_EQ(max_throttle_time->time_usec, 1000);
+    printf("Max Throttle Time: %llu\n", max_throttle_time->time_usec);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::setAndGetDDRECCThresholdCount_1_23() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t input_size = sizeof(uint8_t);
   const char input_buff[input_size] = {10};
 
-  //Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
+  // Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
   const uint32_t output_size = sizeof(uint32_t);
   char output_buff[output_size] = {0};
 
@@ -617,55 +695,66 @@ void TestDevMgmtApiSyncCmds::setAndGetDDRECCThresholdCount_1_23() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::setAndGetSRAMECCThresholdCount_1_24() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t input_size = sizeof(uint8_t);
   const char input_buff[input_size] = {20};
 
-  //Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
+  // Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
   const uint32_t output_size = sizeof(uint32_t);
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
   auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, input_buff, input_size,
-                              output_buff, output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                              output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                              DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::setAndGetPCIEECCThresholdCount_1_25() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t input_size = sizeof(uint8_t);
   const char input_buff[input_size] = {30};
 
-  //Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
+  // Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
   const uint32_t output_size = sizeof(uint32_t);
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
   auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, input_buff, input_size,
-                              output_buff, output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                              output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                              DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getPCIEECCUECCCount_1_26() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::errors_count_t);
   char output_buff[output_size] = {0};
@@ -676,16 +765,19 @@ void TestDevMgmtApiSyncCmds::getPCIEECCUECCCount_1_26() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  device_mgmt_api::errors_count_t *errors_count =  (device_mgmt_api::errors_count_t *)output_buff;
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    device_mgmt_api::errors_count_t* errors_count = (device_mgmt_api::errors_count_t*)output_buff;
 
-  ASSERT_EQ(errors_count->ecc, 0);
-  ASSERT_EQ(errors_count->uecc, 0);
+    ASSERT_EQ(errors_count->ecc, 0);
+    ASSERT_EQ(errors_count->uecc, 0);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getDDRECCUECCCount_1_27() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::errors_count_t);
   char output_buff[output_size] = {0};
@@ -696,16 +788,19 @@ void TestDevMgmtApiSyncCmds::getDDRECCUECCCount_1_27() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  device_mgmt_api::errors_count_t *errors_count =  (device_mgmt_api::errors_count_t *)output_buff;
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    device_mgmt_api::errors_count_t* errors_count = (device_mgmt_api::errors_count_t*)output_buff;
 
-  ASSERT_EQ(errors_count->ecc, 0);
-  ASSERT_EQ(errors_count->uecc, 0);
+    ASSERT_EQ(errors_count->ecc, 0);
+    ASSERT_EQ(errors_count->uecc, 0);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getSRAMECCUECCCount_1_28() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::errors_count_t);
   char output_buff[output_size] = {0};
@@ -716,16 +811,19 @@ void TestDevMgmtApiSyncCmds::getSRAMECCUECCCount_1_28() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  device_mgmt_api::errors_count_t *errors_count =  (device_mgmt_api::errors_count_t *)output_buff;
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    device_mgmt_api::errors_count_t* errors_count = (device_mgmt_api::errors_count_t*)output_buff;
 
-  ASSERT_EQ(errors_count->ecc, 0);
-  ASSERT_EQ(errors_count->uecc, 0);
+    ASSERT_EQ(errors_count->ecc, 0);
+    ASSERT_EQ(errors_count->uecc, 0);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getDDRBWCounter_1_29() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::dram_bw_counter_t);
   char output_buff[output_size] = {0};
@@ -736,16 +834,19 @@ void TestDevMgmtApiSyncCmds::getDDRBWCounter_1_29() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  device_mgmt_api::dram_bw_counter_t *dram_bw_counter =  (device_mgmt_api::dram_bw_counter_t *)output_buff;
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    device_mgmt_api::dram_bw_counter_t* dram_bw_counter = (device_mgmt_api::dram_bw_counter_t*)output_buff;
 
-  ASSERT_EQ(dram_bw_counter->bw_rd_req_sec, 16);
-  ASSERT_EQ(dram_bw_counter->bw_wr_req_sec, 16);
+    ASSERT_EQ(dram_bw_counter->bw_rd_req_sec, 16);
+    ASSERT_EQ(dram_bw_counter->bw_wr_req_sec, 16);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::setPCIELinkSpeed_1_30() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t input_size = sizeof(device_mgmt_api::pcie_link_speed_e);
   const char input_buff[input_size] = {device_mgmt_api::PCIE_LINK_SPEED_GEN3};
@@ -758,16 +859,20 @@ void TestDevMgmtApiSyncCmds::setPCIELinkSpeed_1_30() {
   auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED, input_buff, input_size,
-                              output_buff, output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                              output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                              DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::setPCIELaneWidth_1_31() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t input_size = sizeof(device_mgmt_api::pcie_lane_w_split_e);
   const char input_buff[input_size] = {device_mgmt_api::PCIE_LANE_W_SPLIT_x4};
@@ -780,16 +885,20 @@ void TestDevMgmtApiSyncCmds::setPCIELaneWidth_1_31() {
   auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH, input_buff, input_size,
-                              output_buff, output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                              output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                              DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::setPCIERetrainPhy_1_32() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t input_size = sizeof(uint8_t);
   const char input_buff[input_size] = {0};
@@ -802,16 +911,20 @@ void TestDevMgmtApiSyncCmds::setPCIERetrainPhy_1_32() {
   auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_RETRAIN_PHY, input_buff, input_size,
-                              output_buff, output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                              output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                              DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getASICFrequencies_1_33() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::asic_frequencies_t);
   char output_buff[output_size] = {0};
@@ -826,7 +939,7 @@ void TestDevMgmtApiSyncCmds::getASICFrequencies_1_33() {
 void TestDevMgmtApiSyncCmds::getDRAMBW_1_34() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::dram_bw_t);
   char output_buff[output_size] = {0};
@@ -837,16 +950,19 @@ void TestDevMgmtApiSyncCmds::getDRAMBW_1_34() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  device_mgmt_api::dram_bw_t *dram_bw =  (device_mgmt_api::dram_bw_t *)output_buff;
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    device_mgmt_api::dram_bw_t* dram_bw = (device_mgmt_api::dram_bw_t*)output_buff;
 
-  ASSERT_EQ(dram_bw->read_req_sec, 16);
-  ASSERT_EQ(dram_bw->write_req_sec, 16);
+    ASSERT_EQ(dram_bw->read_req_sec, 16);
+    ASSERT_EQ(dram_bw->write_req_sec, 16);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilization_1_35() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::percentage_cap_t);
   char output_buff[output_size] = {0};
@@ -857,35 +973,42 @@ void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilization_1_35() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  device_mgmt_api::percentage_cap_t *percentage_cap =  (device_mgmt_api::percentage_cap_t *)output_buff;
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    device_mgmt_api::percentage_cap_t* percentage_cap = (device_mgmt_api::percentage_cap_t*)output_buff;
 
-  ASSERT_EQ(percentage_cap->pct_cap, 80);
+    ASSERT_EQ(percentage_cap->pct_cap, 80);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilization_1_36() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
-  //Actual Payload is TBD. So device is currently returning the status of cmd execution
+  // Actual Payload is TBD. So device is currently returning the status of cmd execution
   const uint32_t output_size = sizeof(uint8_t);
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
   auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION, nullptr, 0,
-                              output_buff, output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                              output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                              DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getASICUtilization_1_37() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
-  //Actual Payload is TBD. So device is currently returning the status of cmd execution
+  // Actual Payload is TBD. So device is currently returning the status of cmd execution
   const uint32_t output_size = sizeof(uint8_t);
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
@@ -895,15 +1018,18 @@ void TestDevMgmtApiSyncCmds::getASICUtilization_1_37() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getASICStalls_1_38() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
-  //Actual Payload is TBD. So device is currently returning the status of cmd execution
+  // Actual Payload is TBD. So device is currently returning the status of cmd execution
   const uint32_t output_size = sizeof(uint8_t);
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
@@ -913,15 +1039,18 @@ void TestDevMgmtApiSyncCmds::getASICStalls_1_38() {
                               hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getASICLatency_1_39() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
-  //Actual Payload is TBD. So device is currently returning the status of cmd execution
+  // Actual Payload is TBD. So device is currently returning the status of cmd execution
   const uint32_t output_size = sizeof(uint8_t);
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
@@ -931,13 +1060,16 @@ void TestDevMgmtApiSyncCmds::getASICLatency_1_39() {
                               hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getMMErrorCount_1_40() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::mm_error_count_t);
   char output_buff[output_size] = {0};
@@ -948,16 +1080,19 @@ void TestDevMgmtApiSyncCmds::getMMErrorCount_1_40() {
                               output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  device_mgmt_api::mm_error_count_t *mm_err_count = (device_mgmt_api::mm_error_count_t *)output_buff;
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    device_mgmt_api::mm_error_count_t* mm_err_count = (device_mgmt_api::mm_error_count_t*)output_buff;
 
-  ASSERT_EQ(mm_err_count->hang_count, 0);
-  ASSERT_EQ(mm_err_count->exception_count, 0);
+    ASSERT_EQ(mm_err_count->hang_count, 0);
+    ASSERT_EQ(mm_err_count->exception_count, 0);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getFWBootstatus_1_41() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   // DM_CMD_GET_FIRMWARE_BOOT_STATUS : Device returns response of type device_mgmt_default_rsp_t.
   // Payload in response is of type uint32_t
@@ -966,46 +1101,54 @@ void TestDevMgmtApiSyncCmds::getFWBootstatus_1_41() {
   auto hst_latency = std::make_unique<uint32_t>();
   auto dev_latency = std::make_unique<uint64_t>();
 
-  ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_FIRMWARE_BOOT_STATUS, nullptr, 0,
-output_buff, output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+  ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_FIRMWARE_BOOT_STATUS, nullptr, 0, output_buff,
+                              output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+            device_mgmt_api::DM_STATUS_SUCCESS);
 
-  printf("output_buff: %.*s\n", output_size, output_buff);
+  // Skip printing and validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    printf("output_buff: %.*s\n", output_size, output_buff);
 
-  char expected[output_size] = {0};
-  strncpy(expected, "0", output_size);
-  printf("expected: %.*s\n", output_size, expected);
+    char expected[output_size] = {0};
+    strncpy(expected, "0", output_size);
+    printf("expected: %.*s\n", output_size, expected);
 
-  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+    ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::getModuleFWRevision_1_42() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::firmware_version_t);
   char output_buff[output_size] = {0};
   auto hst_latency = std::make_unique<uint32_t>();
   auto dev_latency = std::make_unique<uint64_t>();
 
-  ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_FIRMWARE_REVISIONS, nullptr, 0,
-output_buff, output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+  ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_FIRMWARE_REVISIONS, nullptr, 0, output_buff,
+                              output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+            device_mgmt_api::DM_STATUS_SUCCESS);
 
-  printf("output_buff: %.*s\n", output_size, output_buff);
+  // Skip printing and validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    printf("output_buff: %.*s\n", output_size, output_buff);
 
-  device_mgmt_api::firmware_version_t *firmware_versions = (device_mgmt_api::firmware_version_t *)output_buff;
+    device_mgmt_api::firmware_version_t* firmware_versions = (device_mgmt_api::firmware_version_t*)output_buff;
 
-  ASSERT_EQ(firmware_versions->bl1_v, 0010);
-  ASSERT_EQ(firmware_versions->bl2_v, 0010);
-  ASSERT_EQ(firmware_versions->mm_v, 0010);
-  ASSERT_EQ(firmware_versions->wm_v, 0010);
-  ASSERT_EQ(firmware_versions->machm_v, 0010);
+    ASSERT_EQ(firmware_versions->bl1_v, 0010);
+    ASSERT_EQ(firmware_versions->bl2_v, 0010);
+    ASSERT_EQ(firmware_versions->mm_v, 0010);
+    ASSERT_EQ(firmware_versions->wm_v, 0010);
+    ASSERT_EQ(firmware_versions->machm_v, 0010);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::serializeAccessMgmtNode_1_43() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   auto res1 = std::make_unique<int>();
   auto res2 = std::make_unique<int>();
@@ -1013,7 +1156,7 @@ void TestDevMgmtApiSyncCmds::serializeAccessMgmtNode_1_43() {
 
   std::thread first(testSerial, std::ref(dm), (uint32_t)1, (uint32_t)DM_SERVICE_REQUEST_TIMEOUT, res1.get());
   std::thread second(testSerial, std::ref(dm), (uint32_t)2, (uint32_t)0, res2.get());
-  std::thread third(testSerial, std::ref(dm), (uint32_t)3, (uint32_t)DM_SERVICE_REQUEST_TIMEOUT<<1, res3.get());
+  std::thread third(testSerial, std::ref(dm), (uint32_t)3, (uint32_t)DM_SERVICE_REQUEST_TIMEOUT << 1, res3.get());
 
   first.join();
   second.join();
@@ -1033,18 +1176,10 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44() {
   const int max_err_types = 11;
   int err_count[max_err_types] = {0};
   std::string line;
-  std::string err_types[max_err_types] =
-    {"PCIe Correctable Error",
-    "PCIe Un-Correctable Error",
-    "DRAM Correctable Error",
-    "DRAM Un-Correctable Error",
-    "SRAM Correctable Error",
-    "SRAM Un-Correctable Error",
-    "Temperature Overshoot-1",
-    "Temperature Overshoot-2",
-    "WatchDog Timeout",
-    "Compute Minion Exception",
-    "Compute Minion Hang"};
+  std::string err_types[max_err_types] = {
+    "PCIe Correctable Error", "PCIe Un-Correctable Error", "DRAM Correctable Error",  "DRAM Un-Correctable Error",
+    "SRAM Correctable Error", "SRAM Un-Correctable Error", "Temperature Overshoot-1", "Temperature Overshoot-2",
+    "WatchDog Timeout",       "Compute Minion Exception",  "Compute Minion Hang"};
 
   fd = open("/dev/kmsg", mode);
   lseek(fd, 0, SEEK_END);
@@ -1052,7 +1187,7 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44() {
 
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   // Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
   const uint32_t output_size = sizeof(uint32_t);
@@ -1064,6 +1199,12 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44() {
   ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_DEVICE_ERROR_EVENTS, nullptr, 0, output_buff,
                               output_size, hst_latency.get(), dev_latency.get(), 600000),
             device_mgmt_api::DM_STATUS_SUCCESS);
+
+  // Skip validation if loopback driver
+  if (FLAGS_loopback_driver) {
+    close(fd);
+    return;
+  }
 
   ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
 
@@ -1079,7 +1220,7 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44() {
     for (i = 0; i < max_err_types; i++) {
       if (std::string::npos != line.find(err_types[i])) {
         err_count[i] += 1;
-        i = max_err_types;     // exit loop
+        i = max_err_types; // exit loop
       }
     }
   } while (size > 0);
@@ -1099,7 +1240,7 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44() {
 void TestDevMgmtApiSyncCmds::isUnsupportedService_1_45() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char output_buff[output_size] = {0};
@@ -1137,13 +1278,12 @@ void TestDevMgmtApiSyncCmds::isUnsupportedService_1_45() {
             -EINVAL);
 }
 
-
 #define SP_CRT_512_V002 "../include/hash.txt"
 
-void TestDevMgmtApiSyncCmds::setSpRootCertificate_1_46() { 
+void TestDevMgmtApiSyncCmds::setSpRootCertificate_1_46() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   // Payload in response is of type uint32_t
   const uint32_t output_size = sizeof(uint32_t);
@@ -1152,20 +1292,23 @@ void TestDevMgmtApiSyncCmds::setSpRootCertificate_1_46() {
   auto hst_latency = std::make_unique<uint32_t>();
   auto dev_latency = std::make_unique<uint64_t>();
 
-  ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_SET_SP_BOOT_ROOT_CERT, SP_CRT_512_V002, 1,
-  output_buff, output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT*20), device_mgmt_api::DM_STATUS_SUCCESS);
- 
-  char expected[output_size] = {0};
-  strncpy(expected, "0", output_size);
+  ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_SET_SP_BOOT_ROOT_CERT, SP_CRT_512_V002, 1, output_buff,
+                              output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT * 20),
+            device_mgmt_api::DM_STATUS_SUCCESS);
 
-  ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    char expected[output_size] = {0};
+    strncpy(expected, "0", output_size);
 
+    ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::setTraceControl() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t input_size = sizeof(device_mgmt_api::trace_control_e);
   const char input_buff[input_size] = {device_mgmt_api::TRACE_CONTROL_TRACE_UART_ENABLE};
@@ -1177,16 +1320,20 @@ void TestDevMgmtApiSyncCmds::setTraceControl() {
   auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL, input_buff, input_size,
-                              set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                              set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
+                              DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  ASSERT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    ASSERT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  }
 }
 
 void TestDevMgmtApiSyncCmds::setTraceConfigure() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t input_size = sizeof(device_mgmt_api::trace_configure_e);
   const char input_buff[input_size] = {device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING};
@@ -1198,8 +1345,12 @@ void TestDevMgmtApiSyncCmds::setTraceConfigure() {
   auto dev_latency = std::make_unique<uint64_t>();
 
   ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG, input_buff, input_size,
-                              set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                              set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
+                              DM_SERVICE_REQUEST_TIMEOUT),
             device_mgmt_api::DM_STATUS_SUCCESS);
 
-  ASSERT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  // Skip validation if loopback driver
+  if (!FLAGS_loopback_driver) {
+    ASSERT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  }
 }

@@ -21,7 +21,11 @@ public:
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
   }
 
-  void TearDown() override { if (handle_ != nullptr) { dlclose(handle_); } }
+  void TearDown() override {
+    if (handle_ != nullptr) {
+      dlclose(handle_);
+    }
+  }
 };
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleManufactureName_1_1) {
@@ -59,7 +63,6 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleFormFactor_1_8) {
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleMemoryVendorPartNumber_1_9) {
   getModuleMemoryVendorPartNumber_1_9();
 }
-
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleMemoryType_1_10) {
   getModuleMemoryType_1_10();
@@ -245,7 +248,7 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getMMErrorCount_1_40) {
   getMMErrorCount_1_40();
 }
 
-//TODO: conditional to be removed with https://esperantotech.atlassian.net/browse/SW-6044
+// TODO: conditional to be removed with https://esperantotech.atlassian.net/browse/SW-6044
 #ifdef TARGET_PCIE
 /*
 // TODO : Enable Firmware update test case
@@ -391,5 +394,6 @@ int main(int argc, char** argv) {
   FLAGS_minloglevel = 0;
   FLAGS_logtostderr = 1;
   testing::InitGoogleTest(&argc, argv);
+  google::ParseCommandLineFlags(&argc, &argv, true);
   return RUN_ALL_TESTS();
 }

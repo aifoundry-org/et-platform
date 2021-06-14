@@ -20,10 +20,10 @@ namespace fs = std::experimental::filesystem;
 using namespace device_management;
 
 namespace {
-  constexpr int kIDevice = 0;
-  constexpr uint64_t kSysEmuMaxCycles = std::numeric_limits<uint64_t>::max();
-  constexpr uint64_t kSysEmuMinionShiresMask = 0x1FFFFFFFFu;
-} //namespace
+constexpr int kIDevice = 0;
+constexpr uint64_t kSysEmuMaxCycles = std::numeric_limits<uint64_t>::max();
+constexpr uint64_t kSysEmuMinionShiresMask = 0x1FFFFFFFFu;
+} // namespace
 
 class TestDevMgmtApiFuncSyncCmdsSysEmu : public TestDevMgmtApiSyncCmds {
 public:
@@ -52,14 +52,16 @@ public:
     devLayer_ = IDeviceLayer::createSysEmuDeviceLayer(sysEmuOptions);
   }
 
-  void TearDown() override { if (handle_ != nullptr) { dlclose(handle_); } }
+  void TearDown() override {
+    if (handle_ != nullptr) {
+      dlclose(handle_);
+    }
+  }
 };
-
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleManufactureName_1_1) {
   getModuleManufactureName_1_1();
 }
-
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModulePartNumber_1_2) {
   getModulePartNumber_1_2();
@@ -68,7 +70,6 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModulePartNumber_1_2) {
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleSerialNumber_1_3) {
   getModuleSerialNumber_1_3();
 }
-
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModulePCIENumPortsMaxSpeed_1_5) {
   getModulePCIENumPortsMaxSpeed_1_5();
@@ -237,5 +238,6 @@ int main(int argc, char** argv) {
   FLAGS_minloglevel = 0;
   FLAGS_logtostderr = 1;
   testing::InitGoogleTest(&argc, argv);
+  google::ParseCommandLineFlags(&argc, &argv, true);
   return RUN_ALL_TESTS();
 }

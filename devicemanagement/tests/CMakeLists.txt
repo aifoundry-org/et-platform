@@ -48,6 +48,12 @@ function(create_test)
   )
 endfunction()
 
+if(BUILD_PCIE_LOOPBACK_DRIVER)
+    set(LOOPBACK_DRIVER "true")
+else()
+    set(LOOPBACK_DRIVER "false")
+endif()
+
 # All tests should be created using the helper
 
 ###############
@@ -57,13 +63,12 @@ create_test(
   TARGET     TestDevMgmtApiFuncSyncCmdsSysEmu
   SOURCES    TestDevMgmtApiFuncSyncCmdsSysEmu.cpp TestDevMgmtApiSyncCmds.cpp
   ARGS       ""
-  PROPERTIES "LABELS;SYSEMU;LABELS;MGMT;LABELS;FUNCTIONAL;LABEL;SYSTEM;TIMEOUT;120"
+  PROPERTIES "LABELS;SYSEMU;LABELS;MGMT;LABELS;FUNCTIONAL;LABELS;SYSTEM;TIMEOUT;120"
 )
 
 create_test(
   TARGET     TestDevMgmtApiFuncSyncCmdsPcie
   SOURCES    TestDevMgmtApiFuncSyncCmdsPcie.cpp TestDevMgmtApiSyncCmds.cpp
-  ARGS       ""
-  PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;MGMT;LABELS;FUNCTIONAL;LABEL;SYSTEM;TIMEOUT;600"
+  ARGS       --loopback_driver=${LOOPBACK_DRIVER}
+  PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;MGMT;LABELS;FUNCTIONAL;LABELS;SYSTEM;LABELS;LOOPBACK;TIMEOUT;600"
 )
-

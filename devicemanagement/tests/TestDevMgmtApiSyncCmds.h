@@ -11,8 +11,9 @@
 #ifndef TEST_DEVICE_M_H
 #define TEST_DEVICE_M_H
 
-#include "deviceManagement/DeviceManagement.h"
 #include "DeviceSysEmu.h"
+#include "deviceManagement/DeviceManagement.h"
+#include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -22,7 +23,9 @@
 #define DM_DLOG(severity) ET_DLOG(DM, severity)
 #define DM_VLOG(severity) ET_VLOG(DM, severity)
 
-void testSerial(device_management::DeviceManagement &dm, uint32_t index, uint32_t timeout, int *result);
+DECLARE_bool(loopback_driver);
+
+void testSerial(device_management::DeviceManagement& dm, uint32_t index, uint32_t timeout, int* result);
 
 class TestDevMgmtApiSyncCmds : public ::testing::Test {
 protected:
@@ -78,9 +81,8 @@ protected:
   void setSpRootCertificate_1_46();
   void setTraceControl();
   void setTraceConfigure();
-  void *handle_ = nullptr;
+  void* handle_ = nullptr;
   std::unique_ptr<IDeviceLayer> devLayer_;
 };
 
 #endif // TEST_DEVICE_M_H
-
