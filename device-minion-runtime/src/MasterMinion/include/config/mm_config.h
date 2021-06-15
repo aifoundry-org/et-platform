@@ -12,7 +12,7 @@
 /*! \file mm_config.h
     \brief This is the only build configuration file for the MasterMinion.
 
-    Allows for configuration of all key attributes of MM runtime incl;
+    Allows for configuration of all key attributes of MM runtime incl
     1. Location and configuration of Virtual Queues, incl,
         Host Interface Virtual Queues
             Submission Queues
@@ -21,7 +21,7 @@
             Submission Queue
             Completion Queue
     2. Location and configuration of Device Interface Registers
-    3. Configuration of Master Minion Workers such as;
+    3. Configuration of Master Minion Workers such as
         kernel worker
         DMA worker
         Submission Queue Workers

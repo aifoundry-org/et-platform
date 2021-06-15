@@ -90,7 +90,7 @@ int8_t VQ_Push(vq_cb_t* vq_cb, void* data, uint32_t data_size);
 int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff);
 
 /*! \fn int32_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint32_t vq_used_space,
-    void *restrict const shared_mem_ptr, void* rx_buff)
+    void *const shared_mem_ptr, void* rx_buff)
     \brief Pops a command from a virtual queue.
     \param vq_cb Pointer to virtual queue control block.
     \param vq_used_space Number of bytes used in VQ
@@ -101,7 +101,7 @@ int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff);
     \return The size of the command in bytes or negative error code.
 */
 int32_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint64_t vq_used_space,
-    void *restrict const shared_mem_ptr, void* rx_buff);
+    void *const shared_mem_ptr, void* rx_buff);
 
 /*! \fn int8_t VQ_Peek(vq_cb_t* vq_cb, void* peek_buff,
         uint16_t peek_offset, uint16_t peek_length)

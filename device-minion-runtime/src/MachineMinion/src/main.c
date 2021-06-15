@@ -145,5 +145,5 @@ void __attribute__((noreturn)) main(void)
 
     while (1) {
         // Should never get here
-    };
+    }
 }

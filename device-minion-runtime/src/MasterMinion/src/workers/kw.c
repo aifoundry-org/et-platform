@@ -12,7 +12,7 @@
 /***********************************************************************/
 /*! \file kw.c
     \brief A C module that implements the Kernel Worker's
-    public and private interfaces. The kernel worker implements;
+    public and private interfaces. The kernel worker implements
     1. KW_Launch - An infinite loop that unblocks on FCC notification
     from SQWs, aggregates kernel launch responses from compute workers,
     constructs and transmits launch response to host
@@ -209,35 +209,34 @@ static kernel_instance_t* kw_reserve_kernel_slot(uint8_t sqw_idx, uint8_t *slot_
     {
         Log_Write(LOG_LEVEL_ERROR,
             "KW: Unable to register kernel reserve slot timeout!\r\n");
+        return kernel;
     }
-    else
+
+    do
     {
-        do
+        for(uint8_t i = 0; i < MM_MAX_PARALLEL_KERNELS; i++)
         {
-            for(uint8_t i = 0; i < MM_MAX_PARALLEL_KERNELS; i++)
+            /* Find unused kernel slot and reserve it */
+            if(atomic_compare_and_exchange_local_32
+                (&KW_CB.kernels[i].kernel_state, KERNEL_STATE_UN_USED, KERNEL_STATE_IN_USE)
+                == KERNEL_STATE_UN_USED)
             {
-                /* Find unused kernel slot and reserve it */
-                if(atomic_compare_and_exchange_local_32
-                    (&KW_CB.kernels[i].kernel_state, KERNEL_STATE_UN_USED, KERNEL_STATE_IN_USE)
-                    == KERNEL_STATE_UN_USED)
-                {
-                    kernel = &KW_CB.kernels[i];
-                    *slot_index = i;
-                    slot_reserved = true;
-                }
+                kernel = &KW_CB.kernels[i];
+                *slot_index = i;
+                slot_reserved = true;
             }
-        } while (!slot_reserved &&
-            (atomic_compare_and_exchange_local_32(&KW_CB.resource_timeout_flag[sqw_idx], 1, 0) == 0U));
-
-        /* If timeout occurs then report this event to SP. */
-        if(!slot_reserved)
-        {
-            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM_RESERVE_SLOT_ERROR);
         }
+    } while (!slot_reserved &&
+        (atomic_compare_and_exchange_local_32(&KW_CB.resource_timeout_flag[sqw_idx], 1, 0) == 0U));
 
-        /* Free the registered SW Timeout slot */
-        SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
+    /* If timeout occurs then report this event to SP. */
+    if(!slot_reserved)
+    {
+        SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM_RESERVE_SLOT_ERROR);
     }
+
+    /* Free the registered SW Timeout slot */
+    SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
 
     return kernel;
 }
@@ -404,18 +403,16 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
     int8_t status = KW_ERROR_KERNEL_INVALID_ADDRESS;
     uint8_t slot_index;
 
-    /* Verify kernel start address (not optional) */
-    if(kw_check_address_bounds(cmd->code_start_address, false))
+    /* Verify address bounds
+       kernel start address (not optional)
+       different addresses provided in the command could be optional address. */
+    if(kw_check_address_bounds(cmd->code_start_address, false) &&
+       kw_check_address_bounds(cmd->pointer_to_args, true) &&
+       kw_check_address_bounds(cmd->exception_buffer, true) &&
+       kw_check_address_bounds(cmd->kernel_trace_buffer,
+        !(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_KERNEL_TRACE_BUF)))
     {
-        /* Verify different addresses provided in the command.
-        Could be optional address */
-        if(kw_check_address_bounds(cmd->pointer_to_args, true) &&
-            kw_check_address_bounds(cmd->exception_buffer, true) &&
-            kw_check_address_bounds(cmd->kernel_trace_buffer,
-            !(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_KERNEL_TRACE_BUF)))
-        {
-            status = STATUS_SUCCESS;
-        }
+        status = STATUS_SUCCESS;
     }
 
     if(status == STATUS_SUCCESS)
@@ -452,7 +449,7 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
     if((status == STATUS_SUCCESS) && (cmd->pointer_to_args != 0))
     {
         /* Calculate the kernel arguments size */
-        uint64_t args_size = (uint64_t)(cmd->command_info.cmd_hdr.size - sizeof(*cmd));
+        uint64_t args_size = (cmd->command_info.cmd_hdr.size - sizeof(*cmd));
         Log_Write(LOG_LEVEL_DEBUG, "KW:Kernel_launch_args_size: %ld\r\n", args_size);
 
         if((args_size > 0) && (args_size <= DEVICE_OPS_KERNEL_LAUNCH_ARGS_PAYLOAD_MAX))
@@ -464,8 +461,8 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
         /* TODO: Enable this check once runtime has switched to using new kernel launch command
         else
         {
-            status = KW_ERROR_KERNEL_INVLD_ARGS_SIZE;
-            Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:kernel argument payload size invalid\r\n");
+            status = KW_ERROR_KERNEL_INVLD_ARGS_SIZE
+            Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:kernel argument payload size invalid\r\n")
         }
         */
     }

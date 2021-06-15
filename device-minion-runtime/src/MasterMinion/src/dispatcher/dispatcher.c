@@ -11,23 +11,23 @@
 ************************************************************************/
 /*! \file dispatcher.c
     \brief A C module that implements the Dispatcher thread.
-    The function of the Dispatcher is to;
+    The function of the Dispatcher is to
     1. Initialize system components
         Serial
         Trace
         Interrupts
-    2. Initialize interfaces;
+    2. Initialize interfaces
         Host Interface
         SP Interface
         CM Interface
-    2. Initialize Workers;
+    2. Initialize Workers
         Submission Queue Workers
         Kernel Worker
         DMA Worker
         Compute Workers
     3. Initialize Device Interface Registers
     4. Spin in infinite loop - that fields interrupts and dispatches
-    appropriate processing;
+    appropriate processing
         Field Host PCIe interrupts and dispatch command processing
         Field SP IPIs and dispatch command processing
         Field CM IPIs and dispatch handling of messages from CMs
@@ -107,7 +107,7 @@ void Dispatcher_Launch(uint32_t hart_id)
     /* Initialize Trace for Master Minions in default configuration. */
     Trace_Init_MM(NULL);
 
-   /* Initialize Service Processor interface, it consists;
+   /* Initialize Service Processor interface, it consists
     1. MM to SP SQ, and MM to SQ CQ
     2. SP to MM SQ, and Sp to MM CQ */
     status = SP_Iface_Init();

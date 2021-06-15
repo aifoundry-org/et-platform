@@ -60,6 +60,73 @@ static cw_cb_t CW_CB __attribute__((aligned(64))) = {0};
 *
 *   FUNCTION
 *
+*       cw_get_booted_shires
+*
+*   DESCRIPTION
+*
+*       Helper to process messages from compute minion (CM) firmware running
+*       in S mode. Specifically handles boot message Acks which means that a
+*       shire is booted successfully.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       uint64_t              Booted shire mask
+*
+***********************************************************************/
+static inline uint64_t cw_get_booted_shires(void)
+{
+    cm_iface_message_t message;
+    const mm_to_cm_message_shire_ready_t *shire_ready =
+        (const mm_to_cm_message_shire_ready_t *)&message;
+    int8_t internal_status;
+    uint64_t booted_shires_mask = 0ULL;
+
+    /* Processess messages from CM from CM > MM unicast circbuff */
+    while(1)
+    {
+        /* Unicast to dispatcher is slot 0 of unicast
+        circular-buffers */
+        internal_status = CM_Iface_Unicast_Receive
+            (CM_MM_MASTER_HART_UNICAST_BUFF_IDX, &message);
+
+        if (internal_status != STATUS_SUCCESS)
+            break;
+
+        switch (message.header.id)
+        {
+            case CM_TO_MM_MESSAGE_ID_NONE:
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "Dispatcher:CW_Init:MESSAGE_ID_NONE\r\n");
+                break;
+
+            case CM_TO_MM_MESSAGE_ID_FW_SHIRE_READY:
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "Dispatcher:CW_Init:MESSAGE_ID_SHIRE_READY S%d\r\n",
+                    shire_ready->shire_id);
+
+                /* Update the booted shire mask */
+                booted_shires_mask |= (1ULL << shire_ready->shire_id);
+                break;
+
+            default:
+                Log_Write(LOG_LEVEL_ERROR,
+                    "Dispatcher:CW_Init:Unknown message id = 0x%x\r\n",
+                    message.header.id);
+                break;
+        }
+    }
+
+    return booted_shires_mask;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       CW_Init
 *
 *   DESCRIPTION
@@ -113,53 +180,8 @@ int8_t CW_Init(void)
             /* Clear IPI pending interrupt */
             asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
 
-            /* Processess messages from CM from CM > MM unicast circbuff */
-            while(1)
-            {
-                cm_iface_message_t message;
-                int8_t internal_status;
-
-                /* Unicast to dispatcher is slot 0 of unicast
-                circular-buffers */
-                internal_status = CM_Iface_Unicast_Receive
-                    (CM_MM_MASTER_HART_UNICAST_BUFF_IDX, &message);
-
-                if (internal_status != STATUS_SUCCESS)
-                    break;
-
-                switch (message.header.id)
-                {
-                    case CM_TO_MM_MESSAGE_ID_NONE:
-                    {
-                        Log_Write(LOG_LEVEL_DEBUG,
-                            "Dispatcher:CW_Init:MESSAGE_ID_NONE\r\n");
-
-                        break;
-                    }
-
-                    case CM_TO_MM_MESSAGE_ID_FW_SHIRE_READY:
-                    {
-                        const mm_to_cm_message_shire_ready_t *shire_ready =
-                            (const mm_to_cm_message_shire_ready_t *)&message;
-
-                        Log_Write(LOG_LEVEL_DEBUG,
-                            "Dispatcher:CW_Init:MESSAGE_ID_SHIRE_READY S%d\r\n",
-                            shire_ready->shire_id);
-
-                        /* Update the booted shire mask */
-                        booted_shires_mask |= (1ULL << shire_ready->shire_id);
-                        break;
-                    }
-
-                    default:
-                    {
-                        Log_Write(LOG_LEVEL_ERROR,
-                            "Dispatcher:CW_Init:Unknown message id = 0x%x\r\n",
-                            message.header.id);
-                        break;
-                    }
-                }
-            }
+            /* Get booted shires, keeping previously booted shire mask as well. */
+            booted_shires_mask |= cw_get_booted_shires();
 
             /* Break loop if all compute minions are booted and ready */
             if((booted_shires_mask & shire_mask) == shire_mask)
@@ -172,8 +194,7 @@ int8_t CW_Init(void)
         else
         {
             Log_Write(LOG_LEVEL_ERROR,
-                "Dispatcher:CW_Init:Unexpected condition, \
-                broke wfi without a SWI during CW_Init...\r\n");
+            "Dispatcher:CW_Init:Unexpected condition,broke wfi without a SWI during CW_Init...\r\n");
         }
     }
 
@@ -229,8 +250,7 @@ void CW_Process_CM_SMode_Messages(void)
                     (cm_to_mm_message_exception_t *)&message;
 
                 Log_Write(LOG_LEVEL_CRITICAL,
-                    "Dispatcher:CM_TO_MM:\
-                    MESSAGE_ID_FW_EXCEPTION from H%ld\r\n",
+                    "Dispatcher:CM_TO_MM:MESSAGE_ID_FW_EXCEPTION from H%ld\r\n",
                     exception->hart_id);
 
                 /* TODO: SW-6569: CW FW exception received.
@@ -244,8 +264,7 @@ void CW_Process_CM_SMode_Messages(void)
                     (cm_to_mm_message_fw_error_t *)&message;
 
                 Log_Write(LOG_LEVEL_CRITICAL,
-                    "Dispatcher:CM_TO_MM:\
-                    MESSAGE_ID_FW_ERROR from H%ld: Error_code: %d\r\n",
+                    "Dispatcher:CM_TO_MM:MESSAGE_ID_FW_ERROR from H%ld: Error_code: %d\r\n",
                     error->hart_id, error->error_code);
 
                 break;

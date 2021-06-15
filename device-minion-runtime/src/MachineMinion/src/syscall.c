@@ -157,6 +157,16 @@ static int64_t post_kernel_cleanup(uint64_t thread_count)
     return 0;
 }
 
+static inline void unlock_required_sw(void)
+{
+    // Unlock sets 14-15: enabling scratchpad will reset sets 0-13
+    for (uint64_t set = 14; set < 16; set++) {
+        for (uint64_t way = 0; way < 4; way++) {
+            unlock_sw(way, set);
+        }
+    }
+}
+
 static int64_t init_l1(void)
 {
     int64_t rv = 0;
@@ -206,13 +216,9 @@ static int64_t init_l1(void)
             //  If software wishes to preserve the contents of sets 0-13, it should use
             //  some of the Evict/Flush instructions before enabling/disabling the scratchpad.""
 
-            if (!allSetsReset) {
-                // Unlock sets 14-15: enabling scratchpad will reset sets 0-13
-                for (uint64_t set = 14; set < 16; set++) {
-                    for (uint64_t way = 0; way < 4; way++) {
-                        unlock_sw(way, set);
-                    }
-                }
+            if (!allSetsReset)
+            {
+                unlock_required_sw();
             }
 
             // Evict sets 0-13 for HART0

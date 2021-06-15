@@ -24,9 +24,9 @@
 /***********************************************************************/
 #include "vq.h"
 
-#undef DEBUG_LOG
-
-#ifdef DEBUG_LOG
+/* Uncomment following line to enable VG debug messages. */
+/* #define VQ_DEBUG_LOG */
+#ifdef VQ_DEBUG_LOG
 #include "../../MasterMinion/include/services/log.h"
 #endif
 
@@ -125,7 +125,7 @@ int8_t VQ_Push(vq_cb_t* vq_cb, void* data, uint32_t data_size)
 {
     int8_t status = -1;
 
-    #ifdef DEBUG_LOG
+    #ifdef VQ_DEBUG_LOG
     Log_Write(LOG_LEVEL_DEBUG, "%s%p%s%p%s%d%s",
         "VQ_Push:dst_addr:", vq_cb->circbuff_cb->buffer_ptr, ":src_addr:",
         data, ":data_size:", data_size, "\r\n");
@@ -209,7 +209,7 @@ int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
 
     if (return_val == STATUS_SUCCESS)
     {
-        #ifdef DEBUG_LOG
+        #ifdef VQ_DEBUG_LOG
         Log_Write(LOG_LEVEL_DEBUG, "%s%p%s%p%s%d%s",
             "VQ_Pop:src_addr:", vq_cb->circbuff_cb, ":dst_addr:",
             rx_buff, ":data_size:", command_size, "\r\n");
@@ -272,10 +272,10 @@ int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
 *
 ***********************************************************************/
 int32_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint64_t vq_used_space,
-    void *restrict const shared_mem_ptr,  void* rx_buff)
+    void *const shared_mem_ptr,  void* rx_buff)
 {
     int32_t return_val;
-    uint16_t cmd_size;
+    uint16_t cmd_size = 0;
     uint32_t payload_size;
 
     /* Pop the header from circular buffer */
@@ -286,44 +286,41 @@ int32_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint64_t vq_used_space,
     {
         /* Get the size of the command header + payload */
         cmd_size = DEVICE_GET_CMD_SIZE(rx_buff);
+    }
 
-        /* Command size should be at least equal to command header */
-        if (cmd_size >= DEVICE_CMD_HEADER_SIZE)
+    /* If payload is available.
+       Command size should be at least equal to command header + payload. */
+    if(cmd_size > DEVICE_CMD_HEADER_SIZE)
+    {
+        payload_size = (cmd_size - DEVICE_CMD_HEADER_SIZE);
+
+        /* Verify the payload size */
+        if (payload_size <= vq_used_space)
         {
-            payload_size = (cmd_size - DEVICE_CMD_HEADER_SIZE);
+            /* Pop the command payload from circular buffer */
+            return_val = Circbuffer_Read(vq_cb->circbuff_cb, shared_mem_ptr,
+                ((uint8_t*)rx_buff) + DEVICE_CMD_HEADER_SIZE, payload_size, vq_cb->flags);
 
-            /* If payload is available */
-            if(payload_size > 0)
+            /* Populate the popped size */
+            if (return_val == STATUS_SUCCESS)
             {
-                /* Verify the payload size */
-                if (payload_size <= vq_used_space)
-                {
-                    /* Pop the command payload from circular buffer */
-                    return_val = Circbuffer_Read(vq_cb->circbuff_cb, shared_mem_ptr,
-                        ((uint8_t*)rx_buff) + DEVICE_CMD_HEADER_SIZE, payload_size, vq_cb->flags);
-
-                    /* Populate the popped size */
-                    if (return_val == STATUS_SUCCESS)
-                    {
-                        return_val = cmd_size;
-                    }
-                }
-                else
-                {
-                    /* Bad length of payload in command */
-                    return_val = VQ_ERROR_BAD_PAYLOAD_LENGTH;
-                }
-            }
-            else
-            {
-                /* Populate the popped size */
                 return_val = cmd_size;
             }
         }
         else
         {
-            return_val = VQ_ERROR_INVLD_CMD_SIZE;
+            /* Bad length of payload in command */
+            return_val = VQ_ERROR_BAD_PAYLOAD_LENGTH;
         }
+    }
+    else if(cmd_size == DEVICE_CMD_HEADER_SIZE)
+    {
+        /* Populate the popped size */
+        return_val = cmd_size;
+    }
+    else
+    {
+        return_val = VQ_ERROR_INVLD_CMD_SIZE;
     }
 
     return return_val;

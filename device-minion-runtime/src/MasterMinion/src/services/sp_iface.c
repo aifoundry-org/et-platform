@@ -241,7 +241,7 @@ static int8_t sp_command_handler(void* cmd_buffer)
         }
         case SP2MM_CMD_TEARDOWN_MM:
         {
-            /* struct sp2mm_teardown_mm_cmd_t *teardown_mm_cmd = (void*) hdr; */
+            /* struct sp2mm_teardown_mm_cmd_t *teardown_mm_cmd = (void*) hdr */
 
             Log_Write(LOG_LEVEL_DEBUG,
                 "SP_Command_Handler:TearDownMM:%s%d%s%d%s",
@@ -253,7 +253,7 @@ static int8_t sp_command_handler(void* cmd_buffer)
         }
         case SP2MM_CMD_QUIESCE_TRAFFIC:
         {
-            /* struct sp2mm_quiesce_traffic_cmd_t *quiese_traffic_cmd = (void*) hdr; */
+            /* struct sp2mm_quiesce_traffic_cmd_t *quiese_traffic_cmd = (void*) hdr */
 
             Log_Write(LOG_LEVEL_DEBUG,
                 "SP_Command_Handler:QuieseTraffic:%s%d%s%d%s",
@@ -395,38 +395,43 @@ int8_t SP_Iface_Get_Shire_Mask(uint64_t *shire_mask)
     {
         /* Wait for response from Service Processor */
         status = wait_for_response_from_service_processor();
-
-        if(status == STATUS_SUCCESS)
-        {
-            /* Pop response from MM to SP completion queue */
-            rsp_length = (uint64_t) SP_Iface_Pop_Cmd_From_MM2SP_CQ(&rsp_buff[0]);
-
-            /* Process response and fetch shire mask */
-            if(rsp_length != 0)
-            {
-                hdr = (void*)rsp_buff;
-                if(hdr->msg_id == MM2SP_RSP_GET_ACTIVE_SHIRE_MASK)
-                {
-                    struct mm2sp_get_active_shire_mask_rsp_t *rsp = (void *)rsp_buff;
-                    *shire_mask = rsp->active_shire_mask;
-                }
-                else
-                {
-                    status = SP_IFACE_INVALID_SHIRE_MASK;
-                    Log_Write(LOG_LEVEL_ERROR,
-                        "ERROR: Received unexpected response, for shire mask from SP\r\n");
-                }
-            }
-            else
-            {
-                Log_Write(LOG_LEVEL_ERROR,
-                    "ERROR: Received a notification from SP with no data\r\n");
-            }
-        }
     }
     else
     {
         Log_Write(LOG_LEVEL_ERROR, "ERROR: Pushing command to MM to SP SQ\r\n");
+    }
+
+    if(status == STATUS_SUCCESS)
+    {
+        /* Pop response from MM to SP completion queue */
+        rsp_length = (uint64_t) SP_Iface_Pop_Cmd_From_MM2SP_CQ(&rsp_buff[0]);
+
+        /* Process response and fetch shire mask */
+        if(rsp_length != 0)
+        {
+            hdr = (void*)rsp_buff;
+            if(hdr->msg_id == MM2SP_RSP_GET_ACTIVE_SHIRE_MASK)
+            {
+                struct mm2sp_get_active_shire_mask_rsp_t *rsp = (void *)rsp_buff;
+                *shire_mask = rsp->active_shire_mask;
+            }
+            else
+            {
+                status = SP_IFACE_INVALID_SHIRE_MASK;
+                Log_Write(LOG_LEVEL_ERROR,
+                    "ERROR: Received unexpected response, for shire mask from SP\r\n");
+            }
+        }
+        else
+        {
+            Log_Write(LOG_LEVEL_ERROR,
+                "ERROR: Received a notification from SP with no data\r\n");
+        }
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR,
+            "ERROR:Timeout while waiting to get shire mask from SP\r\n");
     }
 
     /* Release the lock */
@@ -478,38 +483,43 @@ int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq)
     {
         /* Wait for response from Service Processor */
         status = wait_for_response_from_service_processor();
-
-        if(status == STATUS_SUCCESS)
-        {
-            /* Pop response from MM to SP completion queue */
-            rsp_length = (uint64_t) SP_Iface_Pop_Cmd_From_MM2SP_CQ(&rsp_buff[0]);
-
-            /* Process response and fetch boot frequency */
-            if(rsp_length != 0)
-            {
-                hdr = (void*)rsp_buff;
-                if(hdr->msg_id == MM2SP_RSP_GET_CM_BOOT_FREQ)
-                {
-                    struct mm2sp_get_cm_boot_freq_rsp_t *rsp = (void *)rsp_buff;
-                    *boot_freq = rsp->cm_boot_freq;
-                }
-                else
-                {
-                    status = SP_IFACE_INVALID_BOOT_FREQ;
-                    Log_Write(LOG_LEVEL_ERROR,
-                        "ERROR: Received unexpected response, for boot frequency from SP \r\n");
-                }
-            }
-            else
-            {
-                Log_Write(LOG_LEVEL_ERROR,
-                    "ERROR: Received a notification from SP and no data");
-            }
-        }
     }
     else
     {
         Log_Write(LOG_LEVEL_ERROR, "ERROR: Pushing command to MM to SP SQ\r\n");
+    }
+
+    if(status == STATUS_SUCCESS)
+    {
+        /* Pop response from MM to SP completion queue */
+        rsp_length = (uint64_t) SP_Iface_Pop_Cmd_From_MM2SP_CQ(&rsp_buff[0]);
+
+        /* Process response and fetch boot frequency */
+        if(rsp_length != 0)
+        {
+            hdr = (void*)rsp_buff;
+            if(hdr->msg_id == MM2SP_RSP_GET_CM_BOOT_FREQ)
+            {
+                struct mm2sp_get_cm_boot_freq_rsp_t *rsp = (void *)rsp_buff;
+                *boot_freq = rsp->cm_boot_freq;
+            }
+            else
+            {
+                status = SP_IFACE_INVALID_BOOT_FREQ;
+                Log_Write(LOG_LEVEL_ERROR,
+                    "ERROR: Received unexpected response, for boot frequency from SP \r\n");
+            }
+        }
+        else
+        {
+            Log_Write(LOG_LEVEL_ERROR,
+                "ERROR: Received a notification from SP and no data");
+        }
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR,
+            "ERROR:Timeout while waiting to get boot frequency from SP\r\n");
     }
 
     /* Release the lock */

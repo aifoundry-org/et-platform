@@ -51,7 +51,7 @@
 /*! \def DMAW_ERROR_FIND_IDLE_CHANNEL_TIMEOUT
     \brief DMA Worker - Find DMA idle channel timeoeut error
 */
-#define DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL -2
+#define DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL -10
 
 /*! \def TIMEOUT_DMAW_FIND_IDLE_CH
     \brief Timeout value (in mS) for finding DMA idle channel
@@ -131,7 +131,7 @@ int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_chan_id_e *chan_id, uint8_t sqw
 
 /*! \fn int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
     struct device_ops_dma_writelist_cmd_t *cmd, uint16_t xfer_count, uint8_t sqw_idx,
-    exec_cycles_t *cycles, uint8_t sw_timer_idx);
+    exec_cycles_t *cycles, uint8_t sw_timer_idx)
     \brief This function is used to trigger a DMA read transaction by calling the
     PCIe device driver routine
     \param chan_id DMA channel ID
@@ -148,7 +148,7 @@ int8_t DMAW_Read_Trigger_Transfer(dma_chan_id_e chan_id,
 
 /*! \fn int8_t DMAW_Write_Trigger_Transfer(dma_chan_id_e chan_id,
     struct device_ops_dma_readlist_cmd_t *cmd, uint16_t xfer_count, uint8_t sqw_idx,
-    exec_cycles_t *cycles, uint8_t sw_timer_idx, dma_flags_e flags);
+    exec_cycles_t *cycles, uint8_t sw_timer_idx, dma_flags_e flags)
     \brief This function is used to trigger a DMA write transaction by calling the
     PCIe device driver routine
     \param chan_id DMA channel ID

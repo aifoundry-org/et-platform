@@ -102,8 +102,8 @@ int8_t Circbuffer_Init(circ_buff_cb_t *circ_buff_cb_ptr, uint64_t buffer_length,
 *       int8_t            Returns successful status or error code.
 *
 ***********************************************************************/
-int8_t Circbuffer_Push(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
-    const void *restrict src_buffer, uint64_t src_length, uint32_t flags)
+int8_t Circbuffer_Push(circ_buff_cb_t *  const circ_buff_cb_ptr,
+    const void * src_buffer, uint64_t src_length, uint32_t flags)
 {
     int8_t status = CIRCBUFF_OPERATION_SUCCESS;
     const uint8_t *src_u8 = (const uint8_t *)src_buffer;
@@ -177,8 +177,8 @@ int8_t Circbuffer_Push(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
 *       int8_t            Returns successful status or error code.
 *
 ***********************************************************************/
-int8_t Circbuffer_Pop(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
-    void *restrict const dest_buffer, uint64_t dest_length, uint32_t flags)
+int8_t Circbuffer_Pop(circ_buff_cb_t *const circ_buff_cb_ptr,
+    void *const dest_buffer, uint64_t dest_length, uint32_t flags)
 {
     int8_t status = CIRCBUFF_OPERATION_SUCCESS;
     uint8_t *dest_u8 = (uint8_t *)dest_buffer;
@@ -264,8 +264,8 @@ int8_t Circbuffer_Pop(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
 *       int8_t            Returns successful status or error code.
 *
 ***********************************************************************/
-int8_t Circbuffer_Read(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
-    void *restrict const src_circ_buffer, void *restrict const dest_buffer,
+int8_t Circbuffer_Read(circ_buff_cb_t *const circ_buff_cb_ptr,
+    void *const src_circ_buffer, void *const dest_buffer,
     uint64_t dest_length, uint32_t flags)
 {
     int8_t status = CIRCBUFF_OPERATION_SUCCESS;
@@ -329,8 +329,8 @@ int8_t Circbuffer_Read(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
 *       int8_t            Returns successful status or error code.
 *
 ***********************************************************************/
-int8_t Circbuffer_Peek(circ_buff_cb_t *restrict const circ_buff_cb_ptr,
-    void *restrict const dest_buffer, uint64_t peek_offset, uint64_t peek_length, uint32_t flags)
+int8_t Circbuffer_Peek(circ_buff_cb_t *const circ_buff_cb_ptr,
+    void *const dest_buffer, uint64_t peek_offset, uint64_t peek_length, uint32_t flags)
 {
     int8_t status = CIRCBUFF_OPERATION_SUCCESS;
     uint8_t *dest_u8 = (uint8_t *)dest_buffer;

@@ -16,7 +16,7 @@
     architecture enables parallel processing of commands submitted to
     Submission Queueus by dedicating one SQW per Host to Device
     Submission Queue.
-    This module implements;
+    This module implements:
     1. SQW_Launch - An infinite loop that unblocks on FCC notification
     from dispatcher, pops available commands from the associated
     submission queue, decodes commands, and processes commands.
@@ -205,6 +205,61 @@ void SQW_Notify(uint8_t sqw_idx)
     return;
 }
 
+static inline void sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_cached, uint64_t start_cycles,
+    void* shared_mem_ptr)
+{
+    uint8_t cmd_buff[MM_CMD_MAX_SIZE] __attribute__((aligned(64))) = { 0 };
+    const struct cmd_header_t *cmd_hdr = (void*)cmd_buff;
+    int32_t pop_ret_val;
+    int8_t status = STATUS_SUCCESS;
+    /* Calculate the total number of bytes available in the VQ */
+    uint64_t vq_used_space = VQ_Get_Used_Space(vq_cached, CIRCBUFF_FLAG_NO_READ);
+
+    /* Process commands until there is no more data in VQ */
+    while(vq_used_space)
+    {
+        /* Pop from Submission Queue */
+        pop_ret_val = VQ_Pop_Optimized(vq_cached, vq_used_space, shared_mem_ptr, cmd_buff);
+
+        if(pop_ret_val > 0)
+        {
+            Log_Write(LOG_LEVEL_DEBUG, "SQW:Processing:SQW_IDX=%d:tag_id=%x\r\n",
+                sqw_idx, cmd_hdr->cmd_hdr.tag_id);
+
+            /* If barrier flag is set, wait until all cmds are
+            processed in the current SQ */
+            if(cmd_hdr->cmd_hdr.flags & CMD_HEADER_FLAG_BARRIER)
+            {
+                sqw_command_barrier((uint8_t)sqw_idx);
+            }
+
+            /* Increment the SQW command count.
+            NOTE: Its Host_Command_Handler's job to ensure this
+            count is decremented on the basis of the path it
+            takes to process a command. */
+            SQW_Increment_Command_Count((uint8_t)sqw_idx);
+
+            status = Host_Command_Handler(cmd_buff,
+                (uint8_t)sqw_idx, start_cycles);
+
+            if(status != STATUS_SUCCESS)
+            {
+                Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:Processing failed:%d\r\n",
+                    status);
+            }
+        }
+        else if(pop_ret_val < 0)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:VQ pop failed:%d\r\n",
+                pop_ret_val);
+            SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_PROCESSING_ERROR);
+        }
+
+        /* Re-calculate the total number of bytes available in the VQ */
+        vq_used_space = VQ_Get_Used_Space(vq_cached, CIRCBUFF_FLAG_NO_READ);
+    }
+}
+
 /************************************************************************
 *
 *   FUNCTION
@@ -226,13 +281,8 @@ void SQW_Notify(uint8_t sqw_idx)
 ***********************************************************************/
 void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
 {
-    uint8_t cmd_buff[MM_CMD_MAX_SIZE] __attribute__((aligned(64))) = { 0 };
-    struct cmd_header_t *cmd_hdr = (void*)cmd_buff;
     bool update_sq_tail;
-    int8_t status = 0;
-    int32_t pop_ret_val;
     uint64_t tail_prev;
-    uint64_t vq_used_space;
     uint64_t start_cycles = 0;
     void* shared_mem_ptr;
     circ_buff_cb_t circ_buff_cached __attribute__((aligned(8)));
@@ -306,55 +356,12 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
             vq_cached.circbuff_cb->tail_offset = tail_prev;
         }
 
-        /* Get the total number of bytes available in the VQ */
-        vq_used_space = VQ_Get_Used_Space(&vq_cached, CIRCBUFF_FLAG_NO_READ);
-
-        /* Process commands until there is no more data in VQ */
-        while(vq_used_space)
+        if(VQ_Get_Used_Space(&vq_cached, CIRCBUFF_FLAG_NO_READ))
         {
-            /* Pop from Submission Queue */
-            pop_ret_val = VQ_Pop_Optimized(&vq_cached, vq_used_space, shared_mem_ptr, cmd_buff);
-
-            if(pop_ret_val > 0)
-            {
-                Log_Write(LOG_LEVEL_DEBUG, "SQW:Processing:SQW_IDX=%d:tag_id=%x\r\n",
-                    sqw_idx, cmd_hdr->cmd_hdr.tag_id);
-
-                /* If barrier flag is set, wait until all cmds are
-                processed in the current SQ */
-                if(cmd_hdr->cmd_hdr.flags & CMD_HEADER_FLAG_BARRIER)
-                {
-                    sqw_command_barrier((uint8_t)sqw_idx);
-                }
-
-                /* Increment the SQW command count.
-                NOTE: Its Host_Command_Handler's job to ensure this
-                count is decremented on the basis of the path it
-                takes to process a command. */
-                SQW_Increment_Command_Count((uint8_t)sqw_idx);
-
-                status = Host_Command_Handler(cmd_buff,
-                    (uint8_t)sqw_idx, start_cycles);
-
-                if(status != STATUS_SUCCESS)
-                {
-                    Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:Processing failed:%d\r\n",
-                        status);
-                }
-            }
-            else if(pop_ret_val < 0)
-            {
-                Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:VQ pop failed:%d\r\n",
-                    pop_ret_val);
-                SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_PROCESSING_ERROR);
-            }
-
+            sqw_process_waiting_commands(sqw_idx, &vq_cached, start_cycles, shared_mem_ptr);
             /* Set the SQ tail update flag so that we can updated shared
             memory circular buffer CB with new tail offset */
             update_sq_tail = true;
-
-            /* Re-calculate the total number of bytes available in the VQ */
-            vq_used_space = VQ_Get_Used_Space(&vq_cached, CIRCBUFF_FLAG_NO_READ);
         }
 
         if(update_sq_tail)

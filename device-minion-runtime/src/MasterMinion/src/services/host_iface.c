@@ -35,7 +35,7 @@
 #include "pcie_int.h"
 #include "hal_device.h"
 
-/*! \struct host_iface_sqs_cb_t;
+/*! \struct host_iface_sqs_cb_t
     \brief Host interface control block that manages
     submissions queues
 */
@@ -45,7 +45,7 @@ typedef struct host_iface_sqs_cb_ {
     vq_cb_t vqueues[MM_SQ_COUNT];
 } host_iface_sqs_cb_t;
 
-/*! \struct host_iface_cqs_cb_t;
+/*! \struct host_iface_cqs_cb_t
     \brief Host interface control block that manages
     completion queues
 */

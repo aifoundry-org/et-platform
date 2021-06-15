@@ -59,7 +59,7 @@ static sp_iface_cb_t MM_SP_CQ __attribute__((aligned(64))) = {0};
 
 static inline void notify(uint8_t target, int32_t issuing_hart_id)
 {
-    uint64_t target_hart_msk = 0;;
+    uint64_t target_hart_msk = 0;
 
     switch (target)
     {
@@ -94,6 +94,9 @@ static inline void notify(uint8_t target, int32_t issuing_hart_id)
             *ipi_trigger_ptr = 1;
             break;
         }
+        default:
+            /* TODO: This should never execute. Add error handling. */
+            break;
     }
 }
 

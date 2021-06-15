@@ -708,7 +708,7 @@ int8_t dma_abort_write(dma_chan_id_e chan)
     /* If the respective channel is running, abort it */
     if (1 == PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_CS_GET(control1))
     {
-        uint32_t dma_abort = (uint32_t)(chan - DMA_CHAN_ID_WRITE_0) |
+        uint32_t dma_abort = (chan - DMA_CHAN_ID_WRITE_0) |
             PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_DOORBELL_OFF_WR_STOP_FIELD_MASK;
         iowrite32(
             PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_DOORBELL_OFF_ADDRESS, dma_abort);

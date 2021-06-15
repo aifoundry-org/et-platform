@@ -159,22 +159,24 @@ static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
         /* Should only abort if the kernel was launched on this hart */
         if (kernel_info_has_thread_launched(shire, hart & (HARTS_PER_SHIRE - 1)))
         {
+            uint64_t exception_buffer = 0;
+
             /* Check if pointer to execution context was set */
             if (optional_arg != 0)
             {
                 /* Get the kernel exception buffer */
-                uint64_t exception_buffer = kernel_info_get_exception_buffer(shire);
+                exception_buffer = kernel_info_get_exception_buffer(shire);
+            }
 
-                /* If the kernel exception buffer is available */
-                if (exception_buffer != 0)
-                {
-                    swi_execution_context_t *context = (swi_execution_context_t*)optional_arg;
+            /* If the kernel exception buffer is available */
+            if (exception_buffer != 0)
+            {
+                swi_execution_context_t *context = (swi_execution_context_t*)optional_arg;
 
-                    /* Save the execution context in the buffer provided */
-                    CM_To_MM_Save_Execution_Context((execution_context_t*)exception_buffer,
-                        CM_CONTEXT_TYPE_SYSTEM_ABORT, hart, context->scause, context->sepc,
-                        context->stval, context->sstatus, context->regs);
-                }
+                /* Save the execution context in the buffer provided */
+                CM_To_MM_Save_Execution_Context((execution_context_t*)exception_buffer,
+                    CM_CONTEXT_TYPE_SYSTEM_ABORT, hart, context->scause, context->sepc,
+                    context->stval, context->sstatus, context->regs);
             }
 
             return_from_kernel(KERNEL_LAUNCH_ERROR_ABORTED);
