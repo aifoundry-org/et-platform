@@ -562,7 +562,7 @@ void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t 
             if(status != STATUS_SUCCESS)
             {
                 log_write(LOG_LEVEL_ERROR,
-                    "H%04" PRId64 ": CM->MM:launch_complete:Unicast send failed! Error code: " PRIi8 "\n",
+                    "H%04lld: CM->MM:launch_complete:Unicast send failed! Error code: %d\n",
                     get_hart_id(), status);
             }
         }

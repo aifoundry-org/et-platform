@@ -110,7 +110,7 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
         if(status != STATUS_SUCCESS)
         {
             log_write(LOG_LEVEL_ERROR,
-                "H%04" PRId64 ": CM->MM:U-mode_exceptionUnicast send failed! Error code: " PRIi8 "\n",
+                "H%04lld: CM->MM:U-mode_exceptionUnicast send failed! Error code: %d\n",
                 hart_id, status);
         }
     }
@@ -118,14 +118,20 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
     {
         message.header.id = CM_TO_MM_MESSAGE_ID_FW_EXCEPTION;
 
+        /* Acquire the unicast lock */
+        CM_Iface_Unicast_Acquire_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
+
         /* Send exception message to dispatcher (Master shire Hart 0) */
         status = CM_To_MM_Iface_Unicast_Send(CM_MM_MASTER_HART_DISPATCHER_IDX,
             CM_MM_MASTER_HART_UNICAST_BUFF_IDX, (cm_iface_message_t *)&message);
 
+        /* Release the unicast lock */
+        CM_Iface_Unicast_Release_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
+
         if(status != STATUS_SUCCESS)
         {
             log_write(LOG_LEVEL_ERROR,
-                "H%04" PRId64 ": CM->MM:S-mode_exception:Unicast send failed! Error code: " PRIi8 "\n",
+                "H%04lld: CM->MM:S-mode_exception:Unicast send failed! Error code: %d\n",
                 hart_id, status);
         }
     }

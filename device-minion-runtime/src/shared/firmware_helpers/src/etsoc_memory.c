@@ -20,6 +20,8 @@
         ETSOC_Memory_Read_Global_Atomic
         ETSOC_Memory_Write_Global_Atomic
         ETSOC_Memory_Read_Write_Cacheable
+        ETSOC_Memory_Read_SCP
+        ETSOC_Memory_Write_SCP
 */
 /***********************************************************************/
 #include "etsoc_memory.h"
@@ -189,13 +191,15 @@ static inline void io_write_64(volatile uint64_t *addr, uint64_t val)
 *
 *   OUTPUTS
 *
-*       None.
+*       int8_t            Returns successful status or error code.
 *
 ***********************************************************************/
-void ETSOC_Memory_Read_Uncacheable(const void *src_ptr, void *dest_ptr, uint64_t length)
+int8_t ETSOC_Memory_Read_Uncacheable(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
     optimized_memory_read_body(io_read_8, io_read_16, io_read_32, \
         io_read_64, src_ptr, dest_ptr, length);
+
+    return ETSOC_MEM_OPERATION_SUCCESS;
 }
 
 /************************************************************************
@@ -217,13 +221,15 @@ void ETSOC_Memory_Read_Uncacheable(const void *src_ptr, void *dest_ptr, uint64_t
 *
 *   OUTPUTS
 *
-*       None.
+*       int8_t            Returns successful status or error code.
 *
 ***********************************************************************/
-void ETSOC_Memory_Write_Uncacheable(const void *src_ptr, void *dest_ptr, uint64_t length)
+int8_t ETSOC_Memory_Write_Uncacheable(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
     optimized_memory_write_body(io_write_8, io_write_16, io_write_32, \
         io_write_64, src_ptr, dest_ptr, length);
+
+    return ETSOC_MEM_OPERATION_SUCCESS;
 }
 
 /************************************************************************
@@ -245,14 +251,16 @@ void ETSOC_Memory_Write_Uncacheable(const void *src_ptr, void *dest_ptr, uint64_
 *
 *   OUTPUTS
 *
-*       None.
+*       int8_t            Returns successful status or error code.
 *
 ***********************************************************************/
-void ETSOC_Memory_Read_Local_Atomic(const void *src_ptr, void *dest_ptr, uint64_t length)
+int8_t ETSOC_Memory_Read_Local_Atomic(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
     optimized_memory_read_body(atomic_load_local_8,      \
         atomic_load_local_16, atomic_load_local_32,      \
         atomic_load_local_64, src_ptr, dest_ptr, length);
+
+    return ETSOC_MEM_OPERATION_SUCCESS;
 }
 
 /************************************************************************
@@ -274,14 +282,16 @@ void ETSOC_Memory_Read_Local_Atomic(const void *src_ptr, void *dest_ptr, uint64_
 *
 *   OUTPUTS
 *
-*       None.
+*       int8_t            Returns successful status or error code.
 *
 ***********************************************************************/
-void ETSOC_Memory_Write_Local_Atomic(const void *src_ptr, void *dest_ptr, uint64_t length)
+int8_t ETSOC_Memory_Write_Local_Atomic(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
     optimized_memory_write_body(atomic_store_local_8,     \
         atomic_store_local_16, atomic_store_local_32,     \
         atomic_store_local_64, src_ptr, dest_ptr, length);
+
+    return ETSOC_MEM_OPERATION_SUCCESS;
 }
 
 /************************************************************************
@@ -303,14 +313,16 @@ void ETSOC_Memory_Write_Local_Atomic(const void *src_ptr, void *dest_ptr, uint64
 *
 *   OUTPUTS
 *
-*       None.
+*       int8_t            Returns successful status or error code.
 *
 ***********************************************************************/
-void ETSOC_Memory_Read_Global_Atomic(const void *src_ptr, void *dest_ptr, uint64_t length)
+int8_t ETSOC_Memory_Read_Global_Atomic(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
     optimized_memory_read_body(atomic_load_global_8,      \
         atomic_load_global_16, atomic_load_global_32,     \
         atomic_load_global_64, src_ptr, dest_ptr, length);
+
+    return ETSOC_MEM_OPERATION_SUCCESS;
 }
 
 /************************************************************************
@@ -332,14 +344,16 @@ void ETSOC_Memory_Read_Global_Atomic(const void *src_ptr, void *dest_ptr, uint64
 *
 *   OUTPUTS
 *
-*       None.
+*       int8_t            Returns successful status or error code.
 *
 ***********************************************************************/
-void ETSOC_Memory_Write_Global_Atomic(const void *src_ptr, void *dest_ptr, uint64_t length)
+int8_t ETSOC_Memory_Write_Global_Atomic(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
     optimized_memory_write_body(atomic_store_global_8,     \
         atomic_store_global_16, atomic_store_global_32,    \
         atomic_store_global_64, src_ptr, dest_ptr, length);
+
+    return ETSOC_MEM_OPERATION_SUCCESS;
 }
 
 /************************************************************************
@@ -362,10 +376,90 @@ void ETSOC_Memory_Write_Global_Atomic(const void *src_ptr, void *dest_ptr, uint6
 *
 *   OUTPUTS
 *
-*       None.
+*       int8_t            Returns successful status or error code.
 *
 ***********************************************************************/
-void ETSOC_Memory_Read_Write_Cacheable(const void *src_ptr, void *dest_ptr, uint64_t length)
+int8_t ETSOC_Memory_Read_Write_Cacheable(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
     memcpy(dest_ptr, src_ptr, length);
+
+    return ETSOC_MEM_OPERATION_SUCCESS;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       ETSOC_Memory_Read_SCP
+*
+*   DESCRIPTION
+*
+*       This function reads the data from shire L2 SCP device memory.
+*
+*   INPUTS
+*
+*       src_ptr           Pointer to source L2 SCP buffer.
+*       dest_ptr          Pointer to destination data buffer.
+*       length            Total length (in bytes) of the data that needs
+*                         to be read.
+*
+*   OUTPUTS
+*
+*       int8_t            Returns successful status or error code.
+*
+***********************************************************************/
+int8_t ETSOC_Memory_Read_SCP(const void *src_ptr, void *dest_ptr, uint64_t length)
+{
+    /* Verify the shire index and address range of shire L2 SCP */
+    if((ETSOC_SCP_GET_SHIRE_ID((uint64_t)src_ptr) < NUM_SHIRES) &&
+        (ETSOC_SCP_GET_SHIRE_OFFSET((uint64_t)src_ptr) < ETSOC_SCP_GET_SHIRE_SIZE))
+    {
+        /* Copy the data from the SCP to the buffer */
+        ETSOC_MEM_EVICT_AND_COPY(dest_ptr, src_ptr, length, to_L2)
+
+        return ETSOC_MEM_OPERATION_SUCCESS;
+    }
+    else
+    {
+        return ETSOC_MEM_ERROR_INVALID_PARAM;
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       ETSOC_Memory_Write_SCP
+*
+*   DESCRIPTION
+*
+*       This function writes the data to shire L2 SCP device memory.
+*
+*   INPUTS
+*
+*       src_ptr           Pointer to source data buffer.
+*       dest_ptr          Pointer to destination L2 SCP buffer.
+*       length            Total length (in bytes) of the data that needs
+*                         to be written.
+*
+*   OUTPUTS
+*
+*       int8_t            Returns successful status or error code.
+*
+***********************************************************************/
+int8_t ETSOC_Memory_Write_SCP(const void *src_ptr, void *dest_ptr, uint64_t length)
+{
+    /* Verify the shire index and address range of shire L2 SCP */
+    if((ETSOC_SCP_GET_SHIRE_ID((uint64_t)dest_ptr) < NUM_SHIRES) &&
+        (ETSOC_SCP_GET_SHIRE_OFFSET((uint64_t)dest_ptr) < ETSOC_SCP_GET_SHIRE_SIZE))
+    {
+        /* Copy the data to the SCP from the buffer */
+        ETSOC_MEM_COPY_AND_EVICT(dest_ptr, src_ptr, length, to_L2)
+
+        return ETSOC_MEM_OPERATION_SUCCESS;
+    }
+    else
+    {
+        return ETSOC_MEM_ERROR_INVALID_PARAM;
+    }
 }

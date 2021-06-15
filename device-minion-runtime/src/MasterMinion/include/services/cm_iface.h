@@ -27,34 +27,36 @@
 #define TIMEOUT_MM_CM_MSG    1
 
 /*! \fn void CM_Iface_Init(void)
-    \brief Function to initialize messaging infrastucture to compute 
-    minions. 
+    \brief Function to initialize messaging infrastucture to compute
+    minions.
     \param None
     \return Status success or error
 */
 int8_t CM_Iface_Init(void);
 
-/*! \fn int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, 
+/*! \fn int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask,
     cm_iface_message_t *const message)
-    \brief Function to multicast a message to the compute shires 
+    \brief Function to multicast a message to the compute shires
     specified
     by the shire mask
     \param dest_shire_mask Destination shire mask
     \param message Pointer to message buffer
     \return Status success or error
 */
-int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, 
+int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask,
     cm_iface_message_t *const message);
 
 /*! \fn int8_t CM_Iface_Unicast_Receive(uint64_t cb_idx,
     cm_iface_message_t *const message)
-    \brief Function to receive any message from CM to MM unicast 
-    buffer.Not thread safe. Only one caller per cb_idx
+    \brief Function to receive any message from CM to MM unicast
+    buffer.
     \param cb_idx Index of the unicast buffer
     \param message Pointer to message buffer
     \return Status success or error
+    \warning Not thread safe. Only one caller per cb_idx.
+    User needs to use the respective locking APIs if thread safety is required.
 */
-int8_t CM_Iface_Unicast_Receive(uint64_t cb_idx, 
+int8_t CM_Iface_Unicast_Receive(uint64_t cb_idx,
     cm_iface_message_t *const message);
 
 #endif

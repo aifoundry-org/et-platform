@@ -8,6 +8,29 @@
 
 #include <stdint.h>
 
+static inline void initialize_scp(void)
+{
+    /* setup cache op state machine to zero out the SCP region */
+    __asm__ __volatile__(
+        "li t0, 0x00000901\n"
+
+        "li t1, 0x01c0300030\n"
+        "sd t0, 0(t1)\n"
+
+        "li t1, 0x01c0302030\n"
+        "sd t0, 0(t1)\n"
+
+        "li t1, 0x01c0304030\n"
+        "sd t0, 0(t1)\n"
+
+        "li t1, 0x01c0306030\n"
+        "sd t0, 0(t1)\n"
+
+        "fence iorw, iorw\n"
+            : :
+    );
+}
+
 void __attribute__((noreturn)) main(void)
 {
     uint64_t temp;
@@ -63,6 +86,9 @@ void __attribute__((noreturn)) main(void)
         volatile uint64_t *const ipi_redirect_filter_ptr =
             (volatile uint64_t *)ESR_SHIRE(THIS_SHIRE, IPI_REDIRECT_FILTER);
         *ipi_redirect_filter_ptr = 0;
+
+        /* Initialize Shire L2 SCP */
+        initialize_scp();
     }
 
     if ((get_shire_id() == 32) &&

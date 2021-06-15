@@ -26,19 +26,21 @@
     \brief An array containing function pointers to ETSOC memory read functions.
     \warning Not thread safe!
 */
-void (*memory_read[MEM_TYPES_COUNT])
+int8_t (*memory_read[MEM_TYPES_COUNT])
     (const void *src_ptr, void *dest_ptr, uint64_t length) __attribute__((aligned(64))) =
     { ETSOC_Memory_Read_Local_Atomic, ETSOC_Memory_Read_Global_Atomic,
-      ETSOC_Memory_Read_Uncacheable, ETSOC_Memory_Read_Write_Cacheable };
+      ETSOC_Memory_Read_Uncacheable, ETSOC_Memory_Read_Write_Cacheable,
+      ETSOC_Memory_Read_SCP };
 
 /*! \var void memory_write
     \brief An array containing function pointers to ETSOC memory write functions.
     \warning Not thread safe!
 */
-void (*memory_write[MEM_TYPES_COUNT])
+int8_t (*memory_write[MEM_TYPES_COUNT])
     (const void *src_ptr, void *dest_ptr, uint64_t length) __attribute__((aligned(64))) =
     { ETSOC_Memory_Write_Local_Atomic, ETSOC_Memory_Write_Global_Atomic,
-      ETSOC_Memory_Write_Uncacheable, ETSOC_Memory_Read_Write_Cacheable };
+      ETSOC_Memory_Write_Uncacheable, ETSOC_Memory_Read_Write_Cacheable,
+      ETSOC_Memory_Write_SCP };
 
 /************************************************************************
 *

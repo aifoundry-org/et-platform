@@ -12,11 +12,8 @@ int8_t CM_To_MM_Iface_Unicast_Send(uint64_t ms_thread_id, uint64_t cb_idx, const
     int8_t status;
     circ_buff_cb_t *cb = (circ_buff_cb_t *)(CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR +
                                             cb_idx * CM_MM_IFACE_CIRCBUFFER_SIZE);
-    spinlock_t *lock = &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[cb_idx];
 
-    acquire_global_spinlock(lock);
-    status = Circbuffer_Push(cb, (const void *const)message, sizeof(*message), GLOBAL_ATOMIC);
-    release_global_spinlock(lock);
+    status = Circbuffer_Push(cb, (const void *const)message, sizeof(*message), L2_SCP);
 
     if(status == STATUS_SUCCESS)
     {

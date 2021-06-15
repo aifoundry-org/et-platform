@@ -24,14 +24,14 @@
     \brief An array containing function pointers to ETSOC memory read functions.
     \warning Not thread safe!
 */
-extern void (*memory_read[MEM_TYPES_COUNT])
+extern int8_t (*memory_read[MEM_TYPES_COUNT])
     (const void *src_ptr, void *dest_ptr, uint64_t length);
 
 /*! \var extern void memory_write
     \brief An array containing function pointers to ETSOC memory write functions.
     \warning Not thread safe!
 */
-extern void (*memory_write[MEM_TYPES_COUNT])
+extern int8_t (*memory_write[MEM_TYPES_COUNT])
     (const void *src_ptr, void *dest_ptr, uint64_t length);
 
 /**

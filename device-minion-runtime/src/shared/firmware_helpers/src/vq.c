@@ -27,7 +27,7 @@
 /* Uncomment following line to enable VG debug messages. */
 /* #define VQ_DEBUG_LOG */
 #ifdef VQ_DEBUG_LOG
-#include "../../MasterMinion/include/services/log.h"
+#include "../../../MasterMinion/include/services/log.h"
 #endif
 
 /************************************************************************

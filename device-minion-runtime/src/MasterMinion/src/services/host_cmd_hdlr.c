@@ -301,6 +301,9 @@ static inline int8_t kernel_launch_cmd_handler(void* command_buffer, uint8_t sqw
             and transmit command response to host
             completion queue */
             KW_Notify(kw_idx, &cycles, (uint8_t)sw_timer_idx);
+
+            Log_Write(LOG_LEVEL_DEBUG,
+                "SQ[%d] HostCommandHandler:KW:%d:Notified\r\n", sqw_idx, kw_idx);
         }
         else
         {

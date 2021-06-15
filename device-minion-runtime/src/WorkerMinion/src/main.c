@@ -54,14 +54,20 @@ void __attribute__((noreturn)) main(void)
             .shire_id = get_shire_id()
         };
 
+        /* Acquire the unicast lock */
+        CM_Iface_Unicast_Acquire_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
+
         // To Master Shire thread 0 aka Dispatcher (circbuff queue index is 0)
         status = CM_To_MM_Iface_Unicast_Send(CM_MM_MASTER_HART_DISPATCHER_IDX,
             CM_MM_MASTER_HART_UNICAST_BUFF_IDX, (const cm_iface_message_t *)&message);
 
+        /* Release the unicast lock */
+        CM_Iface_Unicast_Release_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
+
         if(status != 0)
         {
             log_write(LOG_LEVEL_ERROR,
-                "H%04" PRId64 ": CM->MM:Shire_ready:Unicast send failed! Error code: " PRIi8 "\n",
+                "H%04lld: CM->MM:Shire_ready:Unicast send failed! Error code: %d\n",
                 get_hart_id(), status);
         }
     }

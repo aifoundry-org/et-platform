@@ -20,6 +20,7 @@
         CM_Iface_Unicast_Receive
 */
 /***********************************************************************/
+#include "cm_mm_defines.h"
 #include "config/mm_config.h"
 #include "services/log.h"
 #include "services/cm_iface.h"
@@ -139,7 +140,7 @@ int8_t CM_Iface_Init(void)
 
         status = Circbuffer_Init(cb,
         (uint32_t)(CM_MM_IFACE_CIRCBUFFER_SIZE - sizeof(circ_buff_cb_t)),
-        GLOBAL_ATOMIC);
+        L2_SCP);
     }
 
     return status;
@@ -284,8 +285,7 @@ int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask,
 *       int8_t    status success or failure
 *
 ***********************************************************************/
-int8_t CM_Iface_Unicast_Receive(uint64_t cb_idx,
-    cm_iface_message_t *const message)
+int8_t CM_Iface_Unicast_Receive(uint64_t cb_idx, cm_iface_message_t *const message)
 {
     int8_t status;
 
@@ -294,7 +294,7 @@ int8_t CM_Iface_Unicast_Receive(uint64_t cb_idx,
         cb_idx * CM_MM_IFACE_CIRCBUFFER_SIZE);
 
     /* Pop the command from circular buffer */
-    status = Circbuffer_Pop(cb, message, sizeof(*message), GLOBAL_ATOMIC);
+    status = Circbuffer_Pop(cb, message, sizeof(*message), L2_SCP);
 
     return status;
 }

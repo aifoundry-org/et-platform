@@ -4,10 +4,46 @@
 #include "cm_mm_defines.h"
 #include "message_types.h"
 
-// Thread safe. Can be called by multiple threads (takes a lock)
-int8_t CM_To_MM_Iface_Unicast_Send(uint64_t ms_thread_id, uint64_t cb_idx, const cm_iface_message_t *const message);
+/*! \fn int8_t CM_To_MM_Iface_Unicast_Send(uint64_t ms_thread_id, uint64_t cb_idx,
+    const cm_iface_message_t *const message)
+    \brief Function to send any unicast message from CM to MM.
+    \param ms_thread_id Index of the thread in Master shire
+    \param cb_idx Index of the unicast buffer
+    \param message Pointer to message buffer
+    \return Status success or error
+    \warning Not thread safe. Only one caller per cb_idx.
+    User needs to use the respective locking APIs if thread safety is required.
+*/
+int8_t CM_To_MM_Iface_Unicast_Send(uint64_t ms_thread_id, uint64_t cb_idx,
+    const cm_iface_message_t *const message);
+
+/*! \fn int8_t CM_To_MM_Save_Execution_Context(execution_context_t *context_buffer, uint64_t type,
+    uint64_t hart_id, uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t sstatus,
+    uint64_t *const reg)
+    \brief Function to save execution context in a buffer
+    \param context_buffer Pointer to context buffer
+    \param type Type of exception
+    \param hart_id Hart ID of thread that took exception
+    \param scause Cause of exception
+    \param sepc PC value
+    \param stval tval value
+    \param sstatus status value
+    \param reg Pointer to GPRs
+    \return success or error
+*/
 int8_t CM_To_MM_Save_Execution_Context(execution_context_t *context_buffer, uint64_t type,
-    uint64_t hart_id, uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t sstatus, uint64_t *const reg);
-int8_t CM_To_MM_Save_Kernel_Error(execution_context_t *context_buffer, uint64_t hart_id, int64_t kernel_error_code);
+    uint64_t hart_id, uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t sstatus,
+    uint64_t *const reg);
+
+/*! \fn int8_t CM_To_MM_Save_Kernel_Error(execution_context_t *context_buffer, uint64_t hart_id,
+    int64_t kernel_error_code)
+    \brief Function to save kernel execution error in a buffer
+    \param context_buffer Pointer to context buffer
+    \param hart_id Hart ID of thread that took error
+    \param kernel_error_code Error code to be saved
+    \return Status success or error
+*/
+int8_t CM_To_MM_Save_Kernel_Error(execution_context_t *context_buffer, uint64_t hart_id,
+    int64_t kernel_error_code);
 
 #endif
