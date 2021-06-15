@@ -70,7 +70,7 @@ IDevOpsApiCmd::CmdType EchoCmd::whoAmI() {
 }
 
 std::byte* EchoCmd::getCmdPtr() {
-  return reinterpret_cast<std::byte*>(&cmd_);
+  return templ::bit_cast<std::byte*>(&cmd_);
 }
 
 size_t EchoCmd::getCmdSize() {
@@ -116,7 +116,7 @@ IDevOpsApiCmd::CmdType ApiCompatibilityCmd::whoAmI() {
 }
 
 std::byte* ApiCompatibilityCmd::getCmdPtr() {
-  return reinterpret_cast<std::byte*>(&cmd_);
+  return templ::bit_cast<std::byte*>(&cmd_);
 }
 
 size_t ApiCompatibilityCmd::getCmdSize() {
@@ -159,7 +159,7 @@ IDevOpsApiCmd::CmdType FwVersionCmd::whoAmI() {
 }
 
 std::byte* FwVersionCmd::getCmdPtr() {
-  return reinterpret_cast<std::byte*>(&cmd_);
+  return templ::bit_cast<std::byte*>(&cmd_);
 }
 
 size_t FwVersionCmd::getCmdSize() {
@@ -207,7 +207,7 @@ IDevOpsApiCmd::CmdType DataWriteCmd::whoAmI() {
 }
 
 std::byte* DataWriteCmd::getCmdPtr() {
-  return reinterpret_cast<std::byte*>(&cmd_);
+  return templ::bit_cast<std::byte*>(&cmd_);
 }
 
 size_t DataWriteCmd::getCmdSize() {
@@ -255,7 +255,7 @@ IDevOpsApiCmd::CmdType DataReadCmd::whoAmI() {
 }
 
 std::byte* DataReadCmd::getCmdPtr() {
-  return reinterpret_cast<std::byte*>(&cmd_);
+  return templ::bit_cast<std::byte*>(&cmd_);
 }
 
 size_t DataReadCmd::getCmdSize() {
@@ -283,7 +283,7 @@ std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createDmaWriteListCmd(device_ops_a
 DmaWriteListCmd::DmaWriteListCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
                                  device_ops_api::dma_write_node list[], uint32_t nodeCount) {
   cmdMem_.resize(sizeof(*cmd_) + sizeof(list[0]) * nodeCount);
-  cmd_ = reinterpret_cast<device_ops_api::device_ops_dma_writelist_cmd_t*>(cmdMem_.data());
+  cmd_ = templ::bit_cast<device_ops_api::device_ops_dma_writelist_cmd_t*>(cmdMem_.data());
   cmd_->command_info.cmd_hdr.tag_id = tagId;
   cmd_->command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD;
   cmd_->command_info.cmd_hdr.size = cmdMem_.size();
@@ -302,7 +302,7 @@ IDevOpsApiCmd::CmdType DmaWriteListCmd::whoAmI() {
 }
 
 std::byte* DmaWriteListCmd::getCmdPtr() {
-  return reinterpret_cast<std::byte*>(cmd_);
+  return templ::bit_cast<std::byte*>(cmd_);
 }
 
 size_t DmaWriteListCmd::getCmdSize() {
@@ -330,7 +330,7 @@ std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createDmaReadListCmd(device_ops_ap
 DmaReadListCmd::DmaReadListCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
                                device_ops_api::dma_read_node list[], uint32_t nodeCount) {
   cmdMem_.resize(sizeof(*cmd_) + sizeof(list[0]) * nodeCount);
-  cmd_ = reinterpret_cast<device_ops_api::device_ops_dma_readlist_cmd_t*>(cmdMem_.data());
+  cmd_ = templ::bit_cast<device_ops_api::device_ops_dma_readlist_cmd_t*>(cmdMem_.data());
   cmd_->command_info.cmd_hdr.tag_id = tagId;
   cmd_->command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD;
   cmd_->command_info.cmd_hdr.size = cmdMem_.size();
@@ -349,7 +349,7 @@ IDevOpsApiCmd::CmdType DmaReadListCmd::whoAmI() {
 }
 
 std::byte* DmaReadListCmd::getCmdPtr() {
-  return reinterpret_cast<std::byte*>(cmd_);
+  return templ::bit_cast<std::byte*>(cmd_);
 }
 
 size_t DmaReadListCmd::getCmdSize() {
@@ -381,7 +381,7 @@ KernelLaunchCmd::KernelLaunchCmd(device_ops_api::tag_id_t tagId, device_ops_api:
                                  uint32_t sizeOfArgPayload, std::string kernelName) {
   cmdMem_.resize(sizeof(*cmd_) + sizeOfArgPayload);
   kernelName_ = kernelName;
-  cmd_ = reinterpret_cast<device_ops_api::device_ops_kernel_launch_cmd_t*>(cmdMem_.data());
+  cmd_ = templ::bit_cast<device_ops_api::device_ops_kernel_launch_cmd_t*>(cmdMem_.data());
   cmd_->command_info.cmd_hdr.tag_id = tagId;
   cmd_->command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD;
   cmd_->command_info.cmd_hdr.size = cmdMem_.size();
@@ -407,7 +407,7 @@ IDevOpsApiCmd::CmdType KernelLaunchCmd::whoAmI() {
 }
 
 std::byte* KernelLaunchCmd::getCmdPtr() {
-  return reinterpret_cast<std::byte*>(cmd_);
+  return templ::bit_cast<std::byte*>(cmd_);
 }
 
 size_t KernelLaunchCmd::getCmdSize() {
@@ -463,7 +463,7 @@ IDevOpsApiCmd::CmdType KernelAbortCmd::whoAmI() {
 }
 
 std::byte* KernelAbortCmd::getCmdPtr() {
-  return reinterpret_cast<std::byte*>(&cmd_);
+  return templ::bit_cast<std::byte*>(&cmd_);
 }
 
 size_t KernelAbortCmd::getCmdSize() {
@@ -507,7 +507,7 @@ TraceRtConfigCmd::~TraceRtConfigCmd() {
 }
 
 std::byte* TraceRtConfigCmd::getCmdPtr() {
-  return reinterpret_cast<std::byte*>(&cmd_);
+  return templ::bit_cast<std::byte*>(&cmd_);
 }
 
 IDevOpsApiCmd::CmdType TraceRtConfigCmd::whoAmI() {
@@ -552,7 +552,7 @@ TraceRtControlCmd::~TraceRtControlCmd() {
 }
 
 std::byte* TraceRtControlCmd::getCmdPtr() {
-  return reinterpret_cast<std::byte*>(&cmd_);
+  return templ::bit_cast<std::byte*>(&cmd_);
 }
 
 IDevOpsApiCmd::CmdType TraceRtControlCmd::whoAmI() {
@@ -576,7 +576,7 @@ std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createCustomCmd(std::byte* cmdPtr,
     return nullptr;
   }
 
-  auto* customCmd = reinterpret_cast<device_ops_api::cmd_header_t*>(cmdPtr);
+  const auto* customCmd = templ::bit_cast<device_ops_api::cmd_header_t*>(cmdPtr);
   if (!addRspEntry(customCmd->cmd_hdr.tag_id, status)) {
     return nullptr;
   }
@@ -586,14 +586,14 @@ std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createCustomCmd(std::byte* cmdPtr,
 
 CustomCmd::CustomCmd(std::byte* cmdPtr, size_t cmdSize) {
   cmd_ = cmdPtr;
-  auto* customCmd = reinterpret_cast<device_ops_api::cmd_header_t*>(cmd_);
+  auto* customCmd = templ::bit_cast<device_ops_api::cmd_header_t*>(cmd_);
   customCmd->cmd_hdr.size = cmdSize;
 
   TEST_VLOG(1) << "Created Custom Command (tagId: " << std::hex << customCmd->cmd_hdr.tag_id << ")";
 }
 
 CustomCmd::~CustomCmd() {
-  auto* customCmd = reinterpret_cast<device_ops_api::cmd_header_t*>(cmd_);
+  const auto* customCmd = templ::bit_cast<device_ops_api::cmd_header_t*>(cmd_);
   deleteRspEntry(customCmd->cmd_hdr.tag_id);
 }
 
@@ -606,11 +606,11 @@ std::byte* CustomCmd::getCmdPtr() {
 }
 
 size_t CustomCmd::getCmdSize() {
-  auto* customCmd = reinterpret_cast<device_ops_api::cmd_header_t*>(cmd_);
+  const auto* customCmd = templ::bit_cast<device_ops_api::cmd_header_t*>(cmd_);
   return customCmd->cmd_hdr.size;
 }
 
 device_ops_api::tag_id_t CustomCmd::getCmdTagId() {
-  auto* customCmd = reinterpret_cast<device_ops_api::cmd_header_t*>(cmd_);
+  const auto* customCmd = templ::bit_cast<device_ops_api::cmd_header_t*>(cmd_);
   return customCmd->cmd_hdr.tag_id;
 }

@@ -34,7 +34,6 @@ DECLARE_bool(enable_trace_dump);
 DECLARE_bool(loopback_driver);
 DECLARE_bool(use_epoll);
 
-namespace {
 constexpr int32_t kEchoPayload = 0xDEADBEEF;
 const uint8_t kDevFWMajor = DEVICE_OPS_API_MAJOR;
 const uint8_t kDevFWMinor = DEVICE_OPS_API_MINOR;
@@ -70,8 +69,6 @@ struct trace_string_t {
   char dataString[64];
 } __attribute__((packed));
 }
-
-} // namespace
 
 enum class CmdStatus { CMD_RSP_NOT_RECEIVED, CMD_TIMED_OUT, CMD_FAILED, CMD_RSP_DUPLICATE, CMD_SUCCESSFUL };
 

@@ -75,12 +75,12 @@ void TestDevOpsApiKernelCmds::launchAddVectorKernel_PositiveTesting_4_1(uint64_t
       auto vResultDevAddr = vBDevAddr + alignedBufSize;
 
       // Copy kernel input data to device
-      auto vAHostVirtAddr = reinterpret_cast<uint64_t>(vDataAStorageAddKer.back().data());
+      auto vAHostVirtAddr = templ::bit_cast<uint64_t>(vDataAStorageAddKer.back().data());
       auto vAHostPhysAddr = vAHostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       streamAddKer.push_back(IDevOpsApiCmd::createDataWriteCmd(false, vADevAddr, vAHostVirtAddr, vAHostPhysAddr,
                                                                vDataAStorageAddKer.back().size() * sizeof(int),
                                                                device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-      auto vBHostVirtAddr = reinterpret_cast<uint64_t>(vDataBStorageAddKer.back().data());
+      auto vBHostVirtAddr = templ::bit_cast<uint64_t>(vDataBStorageAddKer.back().data());
       auto vBHostPhysAddr = vBHostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       streamAddKer.push_back(IDevOpsApiCmd::createDataWriteCmd(false, vBDevAddr, vBHostVirtAddr, vBHostPhysAddr,
                                                                vDataBStorageAddKer.back().size() * sizeof(int),
@@ -109,13 +109,13 @@ void TestDevOpsApiKernelCmds::launchAddVectorKernel_PositiveTesting_4_1(uint64_t
       // Launch Kernel Command
       streamAddKer.push_back(
         IDevOpsApiCmd::createKernelLaunchCmd(true, kernelEntryDevAddrAddKer, kernelArgsDevAddr, kernelExceptionDevAddr,
-                                             shire_mask, 0, reinterpret_cast<void*>(&parameters), sizeof(parameters),
+                                             shire_mask, 0, templ::bit_cast<void*>(&parameters), sizeof(parameters),
                                              device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
 
       // Read back Kernel Results from device
       vTempDataResultAddKer.resize(numElemsAddKer, 0);
       vResultStorageAddKer.push_back(std::move(vTempDataResultAddKer));
-      auto vResultHostVirtAddr = reinterpret_cast<uint64_t>(vResultStorageAddKer.back().data());
+      auto vResultHostVirtAddr = templ::bit_cast<uint64_t>(vResultStorageAddKer.back().data());
       auto vResultHostPhysAddr =
         vResultHostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       streamAddKer.push_back(
@@ -173,7 +173,7 @@ void TestDevOpsApiKernelCmds::launchUberKernel_PositiveTesting_4_4(uint64_t shir
     uint64_t length;
     uint32_t shire_count;
   };
-  layer_parameters_t launchArgs[2];
+  std::array<layer_parameters_t, 2> launchArgs;
 
   int deviceCountUberKer = getDevicesCount();
   for (int deviceIdxUberKer = 0; deviceIdxUberKer < deviceCountUberKer; deviceIdxUberKer++) {
@@ -184,7 +184,8 @@ void TestDevOpsApiKernelCmds::launchUberKernel_PositiveTesting_4_4(uint64_t shir
       auto devAddrBufLayer1 = getDmaWriteAddr(deviceIdxUberKer, bufSizeLayer1);
       TEST_VLOG(1) << "SQ : " << queueIdxUberKer << " devAddrBufLayer0: 0x" << std::hex << devAddrBufLayer0;
       TEST_VLOG(1) << "SQ : " << queueIdxUberKer << " devAddrBufLayer1: 0x" << std::hex << devAddrBufLayer1;
-      auto devAddrKernelArgs = getDmaWriteAddr(deviceIdxUberKer, ALIGN(sizeof(launchArgs), kCacheLineSize));
+      auto devAddrKernelArgs =
+        getDmaWriteAddr(deviceIdxUberKer, ALIGN(sizeof(launchArgs[0]) * launchArgs.size(), kCacheLineSize));
       // allocate 1MB space for kernel error/exception buffer
       auto kernelExceptionDevAddr = getDmaWriteAddr(deviceIdxUberKer, 0x100000);
 
@@ -202,13 +203,13 @@ void TestDevOpsApiKernelCmds::launchUberKernel_PositiveTesting_4_4(uint64_t shir
       // Kernel launch Command
       streamUberKer.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
         device_ops_api::CMD_FLAGS_BARRIER_ENABLE, kernelEntryDevAddrUberKer, devAddrKernelArgs, kernelExceptionDevAddr,
-        shire_mask, 0, reinterpret_cast<void*>(launchArgs), sizeof(launchArgs),
+        shire_mask, 0, templ::bit_cast<void*>(launchArgs.data()), sizeof(launchArgs[0]) * launchArgs.size(),
         device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
 
       // Read back data written by layer 0
       vResultUberKer.resize(numElemsLayer0, 0xEEEEEEEEEEEEEEEEULL);
       vResultStorageUberKer.push_back(std::move(vResultUberKer));
-      auto hostVirtAddr = reinterpret_cast<uint64_t>(vResultStorageUberKer.back().data());
+      auto hostVirtAddr = templ::bit_cast<uint64_t>(vResultStorageUberKer.back().data());
       auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       streamUberKer.push_back(
         IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrBufLayer0, hostVirtAddr,
@@ -218,7 +219,7 @@ void TestDevOpsApiKernelCmds::launchUberKernel_PositiveTesting_4_4(uint64_t shir
       // Read back data written by layer 1
       vResultUberKer.resize(numElemsLayer1, 0xEEEEEEEEEEEEEEEEULL);
       vResultStorageUberKer.push_back(std::move(vResultUberKer));
-      hostVirtAddr = reinterpret_cast<uint64_t>(vResultStorageUberKer.back().data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(vResultStorageUberKer.back().data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       streamUberKer.push_back(
         IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrBufLayer1, hostVirtAddr,
@@ -270,8 +271,8 @@ void TestDevOpsApiKernelCmds::launchEmptyKernel_PositiveTesting_4_5(uint64_t shi
       uint64_t kernelEntryDevAddrEmptyKer;
       loadElfToDevice(deviceIdx, readers[queueIdx], elfPath, streamEmptyKer, kernelEntryDevAddrEmptyKer);
       // allocate space for kernel args
-      auto devAddrKernelArgs = getDmaWriteAddr(deviceIdx,
-        ALIGN(dummyKernelArgs.size() * sizeof(unsigned long int), kCacheLineSize));
+      auto devAddrKernelArgs =
+        getDmaWriteAddr(deviceIdx, ALIGN(dummyKernelArgs.size() * sizeof(unsigned long int), kCacheLineSize));
       // allocate 4KB space for dummy kernel result
       auto devAddrKernelResult = getDmaWriteAddr(deviceIdx, ALIGN(sizeof(0x1000), kCacheLineSize));
       // allocate 1MB space for kernel error/exception buffer
@@ -285,7 +286,7 @@ void TestDevOpsApiKernelCmds::launchEmptyKernel_PositiveTesting_4_5(uint64_t shi
       // Do a dummy read back Kernel Results from device
       vResult.resize(0x1000, 0);
       vResultStorage.push_back(std::move(vResult));
-      auto hostVirtAddr = reinterpret_cast<uint64_t>(vResultStorage.back().data());
+      auto hostVirtAddr = templ::bit_cast<uint64_t>(vResultStorage.back().data());
       auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       streamEmptyKer.push_back(IDevOpsApiCmd::createDataReadCmd(
         device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrKernelResult, hostVirtAddr, hostPhysAddr,
@@ -331,7 +332,7 @@ void TestDevOpsApiKernelCmds::launchExceptionKernel_NegativeTesting_4_6(uint64_t
       // pull the exception buffer from device
       vResult.resize(0x1000, 0);
       vResultStorage.push_back(std::move(vResult));
-      auto hostVirtAddr = reinterpret_cast<uint64_t>(vResultStorage.back().data());
+      auto hostVirtAddr = templ::bit_cast<uint64_t>(vResultStorage.back().data());
       auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       streamExceptKer.push_back(IDevOpsApiCmd::createDataReadCmd(
         device_ops_api::CMD_FLAGS_BARRIER_ENABLE, kernelExceptionDevAddr, hostVirtAddr, hostPhysAddr,
@@ -348,8 +349,7 @@ void TestDevOpsApiKernelCmds::launchExceptionKernel_NegativeTesting_4_6(uint64_t
   for (int deviceIdxExceptKer = 0, i = 0; deviceIdxExceptKer < deviceCountExceptKer; deviceIdxExceptKer++) {
     int queueCountExceptKer = getSqCount(deviceIdxExceptKer);
     for (int queueIdxExceptKer = 0; queueIdxExceptKer < queueCountExceptKer; queueIdxExceptKer++) {
-      printErrorContext(queueIdxExceptKer, reinterpret_cast<void*>(vResultStorage[i].data()), 0x3,
-                        kernelLaunchTagId[i]);
+      printErrorContext(queueIdxExceptKer, templ::bit_cast<void*>(vResultStorage[i].data()), 0x3, kernelLaunchTagId[i]);
       i++;
     }
   }
@@ -393,7 +393,7 @@ void TestDevOpsApiKernelCmds::abortHangKernel_PositiveTesting_4_10(uint64_t shir
       // pull the exception buffer from device
       vResultHangKer.resize(0x100000, 0);
       vResultStorageHangKer.push_back(std::move(vResultHangKer));
-      auto hostVirtAddr = reinterpret_cast<uint64_t>(vResultStorageHangKer.back().data());
+      auto hostVirtAddr = templ::bit_cast<uint64_t>(vResultStorageHangKer.back().data());
       auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       streamHangKer.push_back(IDevOpsApiCmd::createDataReadCmd(
         device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrkernelException, hostVirtAddr, hostPhysAddr,
@@ -410,7 +410,7 @@ void TestDevOpsApiKernelCmds::abortHangKernel_PositiveTesting_4_10(uint64_t shir
   for (int deviceIdxHangKer = 0, i = 0; deviceIdxHangKer < deviceCountHangKer; deviceIdxHangKer++) {
     int queueCountHangKer = getSqCount(deviceIdxHangKer);
     for (int queueIdxHangKer = 0; queueIdxHangKer < queueCountHangKer; queueIdxHangKer++) {
-      printErrorContext(queueIdxHangKer, reinterpret_cast<void*>(vResultStorageHangKer[i].data()), 0x3,
+      printErrorContext(queueIdxHangKer, templ::bit_cast<void*>(vResultStorageHangKer[i].data()), 0x3,
                         kernelLaunchTagId[i]);
       i++;
     }
@@ -473,9 +473,9 @@ void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(bool singleDevi
       for (int i = 0; i < totalKer / queueCountSameKer; i++) {
         generateRandomData(numElemsSameKer, vDataAStorageSameKer, vDataBStorageSameKer, vSumStorageSameKer);
 
-        auto hostVirtAddrVecA = reinterpret_cast<uint64_t>(vDataAStorageSameKer.back().data());
+        auto hostVirtAddrVecA = templ::bit_cast<uint64_t>(vDataAStorageSameKer.back().data());
         auto hostPhysAddrVecA = hostVirtAddrVecA; // Should be handled in SysEmu, userspace should not fill this value
-        auto hostVirtAddrVecB = reinterpret_cast<uint64_t>(vDataBStorageSameKer.back().data());
+        auto hostVirtAddrVecB = templ::bit_cast<uint64_t>(vDataBStorageSameKer.back().data());
         auto hostPhysAddrVecB = hostVirtAddrVecB; // Should be handled in SysEmu, userspace should not fill this value
         // Load kernel ELF
         uint64_t kernelEntryDevAddrSameKer;
@@ -502,7 +502,7 @@ void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(bool singleDevi
         // Launch Kernel Command
         streamSameKer.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
           device_ops_api::CMD_FLAGS_BARRIER_ENABLE, kernelEntryDevAddrSameKer, devAddrKernelArgs,
-          devAddrkernelException, shire_mask, 0, reinterpret_cast<void*>(&kerParams), sizeof(kerParams),
+          devAddrkernelException, shire_mask, 0, templ::bit_cast<void*>(&kerParams), sizeof(kerParams),
           device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
         kernelCount++;
       }
@@ -511,7 +511,7 @@ void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(bool singleDevi
       for (int i = 0; i < totalKer / queueCountSameKer; i++) {
         vTempDataResultSameKer.resize(numElemsSameKer, 0);
         vResultStorageSameKer.push_back(std::move(vTempDataResultSameKer));
-        auto hostVirtAddrRes = reinterpret_cast<uint64_t>(vResultStorageSameKer.back().data());
+        auto hostVirtAddrRes = templ::bit_cast<uint64_t>(vResultStorageSameKer.back().data());
         auto hostPhysAddrRes = hostVirtAddrRes; // Should be handled in SysEmu, userspace should not fill this value
         streamSameKer.push_back(IDevOpsApiCmd::createDataReadCmd(
           (i == 0) ? device_ops_api::CMD_FLAGS_BARRIER_ENABLE
@@ -620,12 +620,12 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(bool singl
           auto devAddrVecA = dataLoadAddr;
           auto devAddrVecB = devAddrVecA + alignedBufSize;
           // Copy kernel input data to device
-          auto hostVirtAddrA = reinterpret_cast<uint64_t>(vDataAStorageDiffKer.back().data());
+          auto hostVirtAddrA = templ::bit_cast<uint64_t>(vDataAStorageDiffKer.back().data());
           auto hostPhysAddrA = hostVirtAddrA; // Should be handled in SysEmu, userspace should not fill this value
           streamDiffKer.push_back(IDevOpsApiCmd::createDataWriteCmd(
             device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecA, hostVirtAddrA, hostPhysAddrA,
             vDataAStorageDiffKer.back().size() * sizeof(int), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-          auto hostVirtAddrB = reinterpret_cast<uint64_t>(vDataBStorageDiffKer.back().data());
+          auto hostVirtAddrB = templ::bit_cast<uint64_t>(vDataBStorageDiffKer.back().data());
           auto hostPhysAddrB = hostVirtAddrB; // Should be handled in SysEmu, userspace should not fill this value
           streamDiffKer.push_back(IDevOpsApiCmd::createDataWriteCmd(
             device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecB, hostVirtAddrB, hostPhysAddrB,
@@ -641,7 +641,7 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(bool singl
           // Launch Kernel Command for add kernel
           streamDiffKer.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
             device_ops_api::CMD_FLAGS_BARRIER_ENABLE, addKernelEntryAddrDiffKer, devAddrKernelArgs,
-            devAddrkernelException, shire_mask, 0, reinterpret_cast<void*>(&addKerParams), sizeof(Params),
+            devAddrkernelException, shire_mask, 0, templ::bit_cast<void*>(&addKerParams), sizeof(Params),
             device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
           kerCount++;
           addKernelPerSq++;
@@ -656,7 +656,7 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(bool singl
           // Launch Kernel Command for exception kernel
           streamDiffKer.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
             device_ops_api::CMD_FLAGS_BARRIER_ENABLE, excepKerEntryAddr, 0 /* No kernel args */, devAddrkernelException,
-            shire_mask, 0, reinterpret_cast<void*>(&addKerParams), sizeof(Params),
+            shire_mask, 0, templ::bit_cast<void*>(&addKerParams), sizeof(Params),
             device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_EXCEPTION));
           kerCount++;
           break;
@@ -688,7 +688,7 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(bool singl
       for (int i = 0; i < addKernelPerSq; i++) {
         vTempDataResultDiffKer.resize(numElemsDiffKer, 0);
         vResultStorageDiffKer.push_back(std::move(vTempDataResultDiffKer));
-        auto hostVirtAddrRes = reinterpret_cast<uint64_t>(vResultStorageDiffKer.back().data());
+        auto hostVirtAddrRes = templ::bit_cast<uint64_t>(vResultStorageDiffKer.back().data());
         auto hostPhysAddrRes = hostVirtAddrRes; // Should be handled in SysEmu, userspace should not fill this value
         streamDiffKer.push_back(IDevOpsApiCmd::createDataReadCmd(
           (i == 0) ? device_ops_api::CMD_FLAGS_BARRIER_ENABLE
@@ -733,7 +733,7 @@ void TestDevOpsApiKernelCmds::backToBackEmptyKernelLaunch_3_3(uint64_t totalKer,
 
   std::vector<std::vector<uint8_t>> vResultStorageEmptyKer;
   std::vector<uint8_t> vResultEmptyKer;
-  uint8_t dummyKernelArgs[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF};
+  std::array<uint8_t, 8> dummyKernelArgs = {0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF};
   auto deviceCountEmptyKer = getDevicesCount();
   for (int deviceIdxEmptyKer = 0; deviceIdxEmptyKer < deviceCountEmptyKer; deviceIdxEmptyKer++) {
     auto queueCountEmptyKer = getSqCount(deviceIdxEmptyKer);
@@ -756,7 +756,7 @@ void TestDevOpsApiKernelCmds::backToBackEmptyKernelLaunch_3_3(uint64_t totalKer,
         streamEmptyKer.push_back(IDevOpsApiCmd::createKernelLaunchCmd(
           (device_ops_api::CMD_FLAGS_BARRIER_ENABLE | (flushL3 ? device_ops_api::CMD_FLAGS_KERNEL_LAUNCH_FLUSH_L3 : 0)),
           kernelEntryAddr, devAddrKernelArgs, devAddrkernelException, shire_mask, 0,
-          reinterpret_cast<void*>(dummyKernelArgs), sizeof(dummyKernelArgs),
+          templ::bit_cast<void*>(dummyKernelArgs.data()), sizeof(dummyKernelArgs[0]) * dummyKernelArgs.size(),
           device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
       }
 
@@ -764,7 +764,7 @@ void TestDevOpsApiKernelCmds::backToBackEmptyKernelLaunch_3_3(uint64_t totalKer,
       for (int i = 0; i < totalKer / queueCountEmptyKer; i++) {
         vResultEmptyKer.resize(0x1000, 0);
         vResultStorageEmptyKer.push_back(std::move(vResultEmptyKer));
-        auto hostVirtAddrRes = reinterpret_cast<uint64_t>(vResultStorageEmptyKer.back().data());
+        auto hostVirtAddrRes = templ::bit_cast<uint64_t>(vResultStorageEmptyKer.back().data());
         auto hostPhysAddrRes = hostVirtAddrRes; // Should be handled in SysEmu, userspace should not fill this value
         streamEmptyKer.push_back(IDevOpsApiCmd::createDataReadCmd(
           i == 0, /* Barrier only for first read to make sure that all kernels execution done */

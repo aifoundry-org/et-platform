@@ -78,7 +78,7 @@ void TestDevOpsApiBasicCmds::devUnknownCmd_NegativeTest_2_7() {
   unknownCmd.cmd_hdr.flags = 0;       // No barrier
 
   // Create unknown command
-  auto cmd = IDevOpsApiCmd::createCustomCmd(reinterpret_cast<std::byte*>(&unknownCmd), sizeof(unknownCmd), 0);
+  auto cmd = IDevOpsApiCmd::createCustomCmd(templ::bit_cast<std::byte*>(&unknownCmd), sizeof(unknownCmd), 0);
 
   // TODO SW-6818: Use executeAsync()/executeSync() instead when waitForEpollEventsMasterMinion()
   // is functional with timeout in sysemu

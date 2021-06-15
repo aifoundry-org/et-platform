@@ -40,7 +40,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdWithBasicCmds_3_4() {
       stream.push_back(IDevOpsApiCmd::createFwVersionCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 1));
 
       auto devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuf.size());
-      auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
+      auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuf.data());
       auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                          hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
@@ -48,7 +48,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdWithBasicCmds_3_4() {
       dmaWrBufs.push_back(std::move(dmaWrBuf));
       dmaRdBuf.resize(bufSize, 0);
       devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devPhysAddr,
                                                         hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
@@ -93,7 +93,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixed_3_5() {
         dmaWrBuf[i] = rand() % 0x100;
       }
       auto devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuf.size());
-      auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
+      auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuf.data());
       auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                          hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
@@ -105,7 +105,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixed_3_5() {
         dmaWrBuf[i] = rand() % 0x100;
       }
       devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                          hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
@@ -114,7 +114,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixed_3_5() {
 
       dmaRdBuf.resize(buffSizeA, 0);
       devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devPhysAddr,
                                                         hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
@@ -123,7 +123,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixed_3_5() {
 
       dmaRdBuf.resize(buffSizeA, 0);
       devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                         hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
@@ -135,7 +135,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixed_3_5() {
         dmaWrBuf[i] = rand() % 0x100;
       }
       devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                          hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
@@ -144,7 +144,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixed_3_5() {
 
       dmaRdBuf.resize(buffSizeB, 0);
       devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devPhysAddr,
                                                         hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
@@ -196,7 +196,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixedWithVarSize_3_6() {
         dmaWrBuf[i] = rand() % 0x100;
       }
       auto devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuf.size());
-      auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
+      auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuf.data());
       auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                          hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
@@ -209,7 +209,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixedWithVarSize_3_6() {
         dmaWrBuf[i] = rand() % 0x100;
       }
       devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                          hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
@@ -218,7 +218,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixedWithVarSize_3_6() {
 
       // Data Read Cmd1 with bufSize[0]
       devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devPhysAddr,
                                                         hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
@@ -228,7 +228,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixedWithVarSize_3_6() {
       // Data Read Cmd2 with bufSize[1]
       dmaRdBuf.resize(bufSize[1], 0);
       devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                         hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
@@ -241,7 +241,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixedWithVarSize_3_6() {
         dmaWrBuf[i] = rand() % 0x100;
       }
       devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                          hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
@@ -251,7 +251,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixedWithVarSize_3_6() {
       // Data Read Cmd3 with bufSize[2]
       dmaRdBuf.resize(bufSize[2], 0);
       devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devPhysAddr,
                                                         hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
@@ -295,7 +295,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdAllChannels_3_7() {
         dmaWrBuf[i] = rand() % 0x100;
       }
       auto devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuf.size());
-      auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
+      auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuf.data());
       auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                          hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
@@ -308,7 +308,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdAllChannels_3_7() {
         dmaWrBuf[i] = rand() % 0x100;
       }
       devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                          hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
@@ -321,7 +321,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdAllChannels_3_7() {
         dmaWrBuf[i] = rand() % 0x100;
       }
       devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                          hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
@@ -334,7 +334,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdAllChannels_3_7() {
         dmaWrBuf[i] = rand() % 0x100;
       }
       devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                          hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
@@ -343,7 +343,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdAllChannels_3_7() {
 
       // Data Read Cmd1 with bufSize[0] with barrier
       devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devPhysAddr,
                                                         hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
@@ -353,7 +353,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdAllChannels_3_7() {
       // Data Read Cmd2 with bufSize[1]
       dmaRdBuf.resize(bufSize[1], 0);
       devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                         hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
@@ -363,7 +363,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdAllChannels_3_7() {
       // Data Read Cmd3 with bufSize[2]
       dmaRdBuf.resize(bufSize[2], 0);
       devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devPhysAddr,
                                                         hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
@@ -373,7 +373,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdAllChannels_3_7() {
       // Data Read Cmd4 with bufSize[3]
       dmaRdBuf.resize(bufSize[3], 0);
       devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devPhysAddr,
                                                         hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
@@ -420,7 +420,7 @@ void TestDevOpsApiDmaCmds::dataRWCmd_PositiveTesting_3_1() {
         dmaWrBuf[i] = static_cast<uint8_t>(rand() % 0x100);
       }
       auto devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuf.size());
-      auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
+      auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuf.data());
       auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                          hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
@@ -430,7 +430,7 @@ void TestDevOpsApiDmaCmds::dataRWCmd_PositiveTesting_3_1() {
       // Read data
       dmaRdBuf.resize(bufSize, 0);
       devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devPhysAddr,
                                                         hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
@@ -472,7 +472,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdWithBarrier_PositiveTesting_3_10() {
         dmaWrBuf[i] = rand() % 0x100;
       }
       auto devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuf.size());
-      auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
+      auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuf.data());
       auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                          hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
@@ -484,7 +484,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdWithBarrier_PositiveTesting_3_10() {
         dmaWrBuf[i] = rand() % 0x100;
       }
       devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                          hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
@@ -496,7 +496,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdWithBarrier_PositiveTesting_3_10() {
         dmaWrBuf[i] = rand() % 0x100;
       }
       devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                          hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
@@ -508,7 +508,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdWithBarrier_PositiveTesting_3_10() {
         dmaWrBuf[i] = rand() % 0x100;
       }
       devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                          hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
@@ -518,7 +518,7 @@ void TestDevOpsApiDmaCmds::dataRWCmdWithBarrier_PositiveTesting_3_10() {
       // since we sent 4 DMA write cmd, we need to read back all the data in a single DMA read cmd
       dmaRdBuf.resize(dmaRdBufsize, 0);
       devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBuf.size());
-      hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
+      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBuf.data());
       hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devPhysAddr,
                                                         hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
@@ -584,14 +584,14 @@ void TestDevOpsApiDmaCmds::dataRWListCmd_PositiveTesting_3_11() {
     for (int queueIdx = 0; queueIdx < queueCount; ++queueIdx) {
       for (int nodeIdx = 0; nodeIdx < kNodeCount; ++nodeIdx) {
         // NOTE: host_phys_addr should be handled in SysEmu, userspace should not fill this value
-        wrList[nodeIdx] = {.src_host_virt_addr = reinterpret_cast<uint64_t>(wrBufPtr),
-                           .src_host_phy_addr = reinterpret_cast<uint64_t>(wrBufPtr),
+        wrList[nodeIdx] = {.src_host_virt_addr = templ::bit_cast<uint64_t>(wrBufPtr),
+                           .src_host_phy_addr = templ::bit_cast<uint64_t>(wrBufPtr),
                            .dst_device_phy_addr = getDmaWriteAddr(deviceIdx, kBufSize),
                            .size = kBufSize};
         wrBufPtr += kBufSize;
 
-        rdList[nodeIdx] = {.dst_host_virt_addr = reinterpret_cast<uint64_t>(rdBufPtr),
-                           .dst_host_phy_addr = reinterpret_cast<uint64_t>(rdBufPtr),
+        rdList[nodeIdx] = {.dst_host_virt_addr = templ::bit_cast<uint64_t>(rdBufPtr),
+                           .dst_host_phy_addr = templ::bit_cast<uint64_t>(rdBufPtr),
                            .src_device_phy_addr = getDmaReadAddr(deviceIdx, kBufSize),
                            .size = kBufSize};
         rdBufPtr += kBufSize;
@@ -653,14 +653,14 @@ void TestDevOpsApiDmaCmds::dataRWListCmd_NegativeTesting_3_12() {
 
     for (int nodeIdx = 0; nodeIdx < kNodeCount; ++nodeIdx) {
       // NOTE: host_phys_addr should be handled in SysEmu, userspace should not fill this value
-      wrList[nodeIdx] = {.src_host_virt_addr = reinterpret_cast<uint64_t>(wrBufPtr),
-                         .src_host_phy_addr = reinterpret_cast<uint64_t>(wrBufPtr),
+      wrList[nodeIdx] = {.src_host_virt_addr = templ::bit_cast<uint64_t>(wrBufPtr),
+                         .src_host_phy_addr = templ::bit_cast<uint64_t>(wrBufPtr),
                          .dst_device_phy_addr = (nodeIdx == 0) ? 0 : getDmaWriteAddr(deviceIdx, kBufSize),
                          .size = kBufSize};
       wrBufPtr += kBufSize;
 
-      rdList[nodeIdx] = {.dst_host_virt_addr = reinterpret_cast<uint64_t>(rdBufPtr),
-                         .dst_host_phy_addr = reinterpret_cast<uint64_t>(rdBufPtr),
+      rdList[nodeIdx] = {.dst_host_virt_addr = templ::bit_cast<uint64_t>(rdBufPtr),
+                         .dst_host_phy_addr = templ::bit_cast<uint64_t>(rdBufPtr),
                          .src_device_phy_addr = (nodeIdx == 0) ? 0 : getDmaReadAddr(deviceIdx, kBufSize),
                          .size = kBufSize};
       rdBufPtr += kBufSize;
@@ -705,7 +705,7 @@ void TestDevOpsApiDmaCmds::dataWRStressSize_2_1(uint8_t maxExp2) {
           dmaWrBuf[i] = i % 0x100;
         }
         auto devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuf.size());
-        auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
+        auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuf.data());
         auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
         stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                            hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
@@ -717,7 +717,7 @@ void TestDevOpsApiDmaCmds::dataWRStressSize_2_1(uint8_t maxExp2) {
         const uint64_t bufSize = 1ULL << n;
         dmaRdBuf.resize(bufSize, 0);
         auto devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBuf.size());
-        auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
+        auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBuf.data());
         auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
         stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                           hostVirtAddr, hostPhysAddr, dmaRdBuf.size(),
@@ -762,7 +762,7 @@ void TestDevOpsApiDmaCmds::dataWRStressSpeed_2_2(uint8_t maxExp2) {
           dmaWrBuf[i] = i % 0x100;
         }
         auto devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuf.size());
-        auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
+        auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuf.data());
         auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
         stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                            hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
@@ -775,7 +775,7 @@ void TestDevOpsApiDmaCmds::dataWRStressSpeed_2_2(uint8_t maxExp2) {
         const uint64_t bufSize = 1ULL << n;
         dmaRdBuf.resize(bufSize, 0);
         auto devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBuf.size());
-        auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
+        auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBuf.data());
         auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
         stream.push_back(IDevOpsApiCmd::createDataReadCmd(isFirstCommand, devPhysAddr, hostVirtAddr, hostPhysAddr,
                                                           dmaRdBuf.size(),
@@ -816,7 +816,7 @@ void TestDevOpsApiDmaCmds::dataWRStressChannelsSingleDeviceSingleQueue_2_3(uint3
     for (uint8_t queueId = 0; queueId < queueCount; ++queueId) {
       for (int i = 1; i <= (numOfLoopbackCmds / deviceCount) / queueCount; i++) {
         auto devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuf.size());
-        auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
+        auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuf.data());
         auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
         stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                            hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
@@ -827,7 +827,7 @@ void TestDevOpsApiDmaCmds::dataWRStressChannelsSingleDeviceSingleQueue_2_3(uint3
       for (int i = 1; i <= (numOfLoopbackCmds / deviceCount) / queueCount; i++) {
         std::vector<uint8_t> dmaRdBuf(bufSize, 0);
         auto devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBuf.size());
-        auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
+        auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBuf.data());
         auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
         stream.push_back(IDevOpsApiCmd::createDataReadCmd(isFirstCommand, devPhysAddr, hostVirtAddr, hostPhysAddr,
                                                           dmaRdBuf.size(),
@@ -868,7 +868,7 @@ void TestDevOpsApiDmaCmds::dataWRStressChannelsSingleDeviceMultiQueue_2_4(uint32
     for (uint8_t queueId = 0; queueId < queueCount; ++queueId) {
       for (int i = 1; i <= (numOfLoopbackCmds / deviceCount) / queueCount; i++) {
         auto devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuf.size());
-        auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
+        auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuf.data());
         auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
         stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                            hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
@@ -879,7 +879,7 @@ void TestDevOpsApiDmaCmds::dataWRStressChannelsSingleDeviceMultiQueue_2_4(uint32
       for (int i = 1; i <= (numOfLoopbackCmds / deviceCount) / queueCount; i++) {
         std::vector<uint8_t> dmaRdBuf(bufSize, 0);
         auto devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBuf.size());
-        auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
+        auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBuf.data());
         auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
         stream.push_back(IDevOpsApiCmd::createDataReadCmd(isFirstCommand, devPhysAddr, hostVirtAddr, hostPhysAddr,
                                                           dmaRdBuf.size(),
@@ -920,7 +920,7 @@ void TestDevOpsApiDmaCmds::dataWRStressChannelsMultiDeviceMultiQueue_2_5(uint32_
     for (uint8_t queueId = 0; queueId < queueCount; ++queueId) {
       for (int i = 1; i <= (numOfLoopbackCmds / deviceCount) / queueCount; i++) {
         auto devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuf.size());
-        auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaWrBuf.data());
+        auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuf.data());
         auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
         stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
                                                            hostVirtAddr, hostPhysAddr, dmaWrBuf.size(),
@@ -931,7 +931,7 @@ void TestDevOpsApiDmaCmds::dataWRStressChannelsMultiDeviceMultiQueue_2_5(uint32_
       for (int i = 1; i <= (numOfLoopbackCmds / deviceCount) / queueCount; i++) {
         std::vector<uint8_t> dmaRdBuf(bufSize, 0);
         auto devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBuf.size());
-        auto hostVirtAddr = reinterpret_cast<uint64_t>(dmaRdBuf.data());
+        auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBuf.data());
         auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
         stream.push_back(IDevOpsApiCmd::createDataReadCmd(isFirstCommand, devPhysAddr, hostVirtAddr, hostPhysAddr,
                                                           dmaRdBuf.size(),
@@ -992,8 +992,8 @@ void TestDevOpsApiDmaCmds::dmaListWrAndRd(bool singleDevice, bool singleQueue, u
     for (int queueIdx = 0; queueIdx < queueCount; ++queueIdx) {
       for (int i = 0; i < numOfDmaEntriesPerQueue;) {
         // NOTE: host_phys_addr should be handled in SysEmu, userspace should not fill this value
-        wrList[i % kMaxNodeCountPerCmd] = {.src_host_virt_addr = reinterpret_cast<uint64_t>(wrBufPtr),
-                                           .src_host_phy_addr = reinterpret_cast<uint64_t>(wrBufPtr),
+        wrList[i % kMaxNodeCountPerCmd] = {.src_host_virt_addr = templ::bit_cast<uint64_t>(wrBufPtr),
+                                           .src_host_phy_addr = templ::bit_cast<uint64_t>(wrBufPtr),
                                            .dst_device_phy_addr = getDmaWriteAddr(deviceIdx, kBufSize),
                                            .size = kBufSize};
         wrBufPtr += kBufSize;
@@ -1007,8 +1007,8 @@ void TestDevOpsApiDmaCmds::dmaListWrAndRd(bool singleDevice, bool singleQueue, u
 
       for (int i = 0; i < numOfDmaEntriesPerQueue;) {
         // NOTE: host_phys_addr should be handled in SysEmu, userspace should not fill this value
-        rdList[i % kMaxNodeCountPerCmd] = {.dst_host_virt_addr = reinterpret_cast<uint64_t>(rdBufPtr),
-                                           .dst_host_phy_addr = reinterpret_cast<uint64_t>(rdBufPtr),
+        rdList[i % kMaxNodeCountPerCmd] = {.dst_host_virt_addr = templ::bit_cast<uint64_t>(rdBufPtr),
+                                           .dst_host_phy_addr = templ::bit_cast<uint64_t>(rdBufPtr),
                                            .src_device_phy_addr = getDmaReadAddr(deviceIdx, kBufSize),
                                            .size = kBufSize};
         rdBufPtr += kBufSize;

@@ -409,14 +409,14 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
     return res;
   }
 
-  auto response_header = reinterpret_cast<device_ops_api::rsp_header_t*>(message.data());
+  auto response_header = templ::bit_cast<device_ops_api::rsp_header_t*>(message.data());
   auto rsp_msg_id = response_header->rsp_hdr.msg_id;
   auto rsp_tag_id = response_header->rsp_hdr.tag_id;
   auto rsp_size = response_header->rsp_hdr.size;
   CmdStatus status;
 
   if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_ECHO_RSP) {
-    auto response = reinterpret_cast<device_ops_api::device_ops_echo_rsp_t*>(message.data());
+    auto response = templ::bit_cast<device_ops_api::device_ops_echo_rsp_t*>(message.data());
     TEST_VLOG(1) << "=====> Echo response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
     if (response->echo_payload == kEchoPayload) {
       status = CmdStatus::CMD_SUCCESSFUL;
@@ -425,7 +425,7 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
     }
 
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_API_COMPATIBILITY_RSP) {
-    auto response = reinterpret_cast<device_ops_api::device_ops_api_compatibility_rsp_t*>(message.data());
+    auto response = templ::bit_cast<device_ops_api::device_ops_api_compatibility_rsp_t*>(message.data());
     TEST_VLOG(1) << "=====> API_Compatibilty response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
     if (response->major == kDevFWMajor && response->minor == kDevFWMinor && response->patch == kDevFWPatch) {
       status = CmdStatus::CMD_SUCCESSFUL;
@@ -434,7 +434,7 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
     }
 
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_FW_VERSION_RSP) {
-    auto response = reinterpret_cast<device_ops_api::device_ops_fw_version_rsp_t*>(message.data());
+    auto response = templ::bit_cast<device_ops_api::device_ops_fw_version_rsp_t*>(message.data());
     TEST_VLOG(1) << "=====> FW_Version response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
     if (response->major == 1 && response->minor == 0 && response->patch == 0) {
       status = CmdStatus::CMD_SUCCESSFUL;
@@ -443,7 +443,7 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
     }
 
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP) {
-    auto response = reinterpret_cast<device_ops_api::device_ops_data_read_rsp_t*>(message.data());
+    auto response = templ::bit_cast<device_ops_api::device_ops_data_read_rsp_t*>(message.data());
     TEST_VLOG(1) << "=====> DMA data read command response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
     TEST_VLOG(1) << "     => Total measured latencies (in cycles) ";
     TEST_VLOG(1) << "      - Command Start time: " << response->device_cmd_start_ts;
@@ -459,7 +459,7 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
     }
 
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP) {
-    auto response = reinterpret_cast<device_ops_api::device_ops_data_write_rsp_t*>(message.data());
+    auto response = templ::bit_cast<device_ops_api::device_ops_data_write_rsp_t*>(message.data());
     TEST_VLOG(1) << "=====> DMA data write command response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
     TEST_VLOG(1) << "     => Total measured latencies (in cycles)";
     TEST_VLOG(1) << "      - Command Start time: " << response->device_cmd_start_ts;
@@ -475,7 +475,7 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
     }
 
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP) {
-    auto response = reinterpret_cast<device_ops_api::device_ops_dma_readlist_rsp_t*>(message.data());
+    auto response = templ::bit_cast<device_ops_api::device_ops_dma_readlist_rsp_t*>(message.data());
     TEST_VLOG(1) << "=====> DMA readlist command response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
     TEST_VLOG(1) << "     => Total measured latencies (in cycles) ";
     TEST_VLOG(1) << "      - Command Start time: " << response->device_cmd_start_ts;
@@ -491,7 +491,7 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
     }
 
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP) {
-    auto response = reinterpret_cast<device_ops_api::device_ops_dma_writelist_rsp_t*>(message.data());
+    auto response = templ::bit_cast<device_ops_api::device_ops_dma_writelist_rsp_t*>(message.data());
     TEST_VLOG(1) << "=====> DMA writelist command response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
     TEST_VLOG(1) << "     => Total measured latencies (in cycles)";
     TEST_VLOG(1) << "      - Command Start time: " << response->device_cmd_start_ts;
@@ -507,7 +507,7 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
     }
 
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP) {
-    auto response = reinterpret_cast<device_ops_api::device_ops_kernel_launch_rsp_t*>(message.data());
+    auto response = templ::bit_cast<device_ops_api::device_ops_kernel_launch_rsp_t*>(message.data());
     TEST_VLOG(1) << "=====> Kernel Launch command response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
     TEST_VLOG(1) << "     => Total measured latencies (in cycles)";
     TEST_VLOG(1) << "      - Command Start time: " << response->device_cmd_start_ts;
@@ -524,7 +524,7 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
                         response->device_cmd_execute_dur);
 
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP) {
-    auto response = reinterpret_cast<device_ops_api::device_ops_kernel_abort_rsp_t*>(message.data());
+    auto response = templ::bit_cast<device_ops_api::device_ops_kernel_abort_rsp_t*>(message.data());
     TEST_VLOG(1) << "=====> Kernel Abort command response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
     if (response->status == IDevOpsApiCmd::getExpectedRsp(rsp_tag_id)) {
       status = CmdStatus::CMD_SUCCESSFUL;
@@ -533,7 +533,7 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
     }
 
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_RSP) {
-    auto response = reinterpret_cast<device_ops_api::device_ops_trace_rt_control_rsp_t*>(message.data());
+    auto response = templ::bit_cast<device_ops_api::device_ops_trace_rt_control_rsp_t*>(message.data());
     TEST_VLOG(1) << "=====> Trace RT config command response received (tag_id: " << std::hex << rsp_tag_id
                  << ") <====" << std::endl;
     if (response->status == IDevOpsApiCmd::getExpectedRsp(rsp_tag_id)) {
@@ -741,7 +741,7 @@ void TestDevOpsApi::printErrorContext(int queueId, void* buffer, uint64_t shireM
     logfile.open(FLAGS_trace_logfile, std::ios_base::app);
   }
 
-  hartExecutionContext* context = reinterpret_cast<hartExecutionContext*>(buffer);
+  const hartExecutionContext* context = templ::bit_cast<hartExecutionContext*>(buffer);
   logs << "\n*** Error Context Start (Queue ID: " << queueId << ")***" << std::endl;
   logs << "  * RUNTIME CONTEXT *" << std::endl;
   printKernelRtContext(tagId, logs);
@@ -817,7 +817,7 @@ bool TestDevOpsApi::printMMTraceStringData(unsigned char* traceBuf, size_t size)
     logfile.open(FLAGS_trace_logfile, std::ios_base::app);
   }
 
-  auto dataPtr = reinterpret_cast<trace_string_t*>(traceBuf);
+  auto dataPtr = templ::bit_cast<trace_string_t*>(traceBuf);
   auto start = dataPtr;
   bool validStringEventFound = false;
   while ((dataPtr - start) < size) {
@@ -849,7 +849,7 @@ bool TestDevOpsApi::printCMTraceStringData(unsigned char* traceBuf, size_t size)
   auto hartDataPtr = traceBuf;
   bool validStringEventFound = false;
   for (int i = 0; i < WORKER_HART_COUNT; ++i) {
-    auto dataPtr = reinterpret_cast<trace_string_t*>(hartDataPtr);
+    auto dataPtr = templ::bit_cast<trace_string_t*>(hartDataPtr);
     auto start = dataPtr;
     while ((dataPtr - start) < size) {
       if ((dataPtr->header.type == TRACE_TYPE_STRING) && (dataPtr->dataString[0] != '\0')) {
@@ -882,8 +882,8 @@ void TestDevOpsApi::extractAndPrintTraceData(int deviceIdx) {
   std::array<device_ops_api::dma_read_node, kBufCount> rdList;
   auto rdBufPtr = static_cast<uint8_t*>(rdBufMem);
   for (int nodeIdx = 0; nodeIdx < kBufCount; nodeIdx++) {
-    rdList[nodeIdx] = {.dst_host_virt_addr = reinterpret_cast<uint64_t>(rdBufPtr),
-                       .dst_host_phy_addr = reinterpret_cast<uint64_t>(rdBufPtr),
+    rdList[nodeIdx] = {.dst_host_virt_addr = templ::bit_cast<uint64_t>(rdBufPtr),
+                       .dst_host_phy_addr = templ::bit_cast<uint64_t>(rdBufPtr),
                        .src_device_phy_addr = 0,
                        .size = bufSizes[nodeIdx]};
     rdBufPtr += bufSizes[nodeIdx];
@@ -951,7 +951,7 @@ void TestDevOpsApi::loadElfToDevice(int deviceIdx, ELFIO::elfio& reader, const s
   TEST_VLOG(1) << " Kernel entry at device address: 0x" << kernelEntryAddr;
 
   // Create DMA write command
-  auto hostVirtAddr = reinterpret_cast<uint64_t>(segment0->get_data());
+  auto hostVirtAddr = templ::bit_cast<uint64_t>(segment0->get_data());
   auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
   stream.push_back(IDevOpsApiCmd::createDataWriteCmd(false, deviceElfSegment0Buffer, hostVirtAddr, hostPhysAddr,
                                                      fileSize, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
