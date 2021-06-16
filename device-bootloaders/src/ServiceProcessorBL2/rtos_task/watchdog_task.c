@@ -72,7 +72,6 @@ static void watchdog_task_entry(void *pvParameter)
 
     while (1) {
         vTaskDelayUntil(&last_wake_time, frequency);
-        /* Feed the watch dog */
-        //TODO validate integration with the driver under SW-6751
+        watchdog_kick();
     }
 }
