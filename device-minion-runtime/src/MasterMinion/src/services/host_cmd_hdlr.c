@@ -455,7 +455,7 @@ static inline int8_t kernel_abort_cmd_handler(void* command_buffer, uint8_t sqw_
 *
 *   FUNCTION
 *
-*       kernel_abort_cmd_handler
+*       dma_readlist_cmd_process_trace_flags
 *
 *   DESCRIPTION
 *
@@ -470,7 +470,7 @@ static inline int8_t kernel_abort_cmd_handler(void* command_buffer, uint8_t sqw_
 *       int8_t           Successful status or error code.
 *
 ***********************************************************************/
-static inline int8_t process_host_cmd_dma_flags(struct device_ops_dma_readlist_cmd_t *cmd)
+static inline int8_t dma_readlist_cmd_process_trace_flags(struct device_ops_dma_readlist_cmd_t *cmd)
 {
     int8_t status = STATUS_SUCCESS;
     uint64_t cm_shire_mask;
@@ -493,9 +493,7 @@ static inline int8_t process_host_cmd_dma_flags(struct device_ops_dma_readlist_c
             /* Send command to CM RT to disable Trace and evict Trace buffer. */
             status = CM_Iface_Multicast_Send(cm_shire_mask, &cm_msg);
 
-            asm volatile("fence");
-            evict(to_Mem, (uint64_t *) MM_TRACE_BUFFER_BASE, MM_TRACE_BUFFER_SIZE);
-            WAIT_CACHEOPS;
+            ETSOC_MEM_EVICT((uint64_t *)MM_TRACE_BUFFER_BASE, MM_TRACE_BUFFER_SIZE, to_Mem)
 
             cmd->list[TRACE_NODE_INDEX].src_device_phy_addr = MM_TRACE_BUFFER_BASE;
         }
@@ -512,9 +510,7 @@ static inline int8_t process_host_cmd_dma_flags(struct device_ops_dma_readlist_c
             /* Disable MM Trace.*/
             Trace_RT_Control_MM(TRACE_DISABLE);
 
-            asm volatile("fence");
-            evict(to_Mem, (uint64_t *) MM_TRACE_BUFFER_BASE, MM_TRACE_BUFFER_SIZE);
-            WAIT_CACHEOPS;
+            ETSOC_MEM_EVICT((uint64_t *)MM_TRACE_BUFFER_BASE, MM_TRACE_BUFFER_SIZE, to_Mem)
 
             cmd->list[TRACE_NODE_INDEX].src_device_phy_addr = MM_TRACE_BUFFER_BASE;
         }
@@ -597,7 +593,7 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
     {
         dma_xfer_count = 1;
         dma_flag = DMA_SOC_NO_BOUNDS_CHECK;
-        status = process_host_cmd_dma_flags(cmd);
+        status = dma_readlist_cmd_process_trace_flags(cmd);
     }
     else
     {

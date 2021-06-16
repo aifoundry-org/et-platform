@@ -159,7 +159,7 @@ static int64_t post_kernel_cleanup(uint64_t thread_count)
 
 static inline void unlock_required_sw(void)
 {
-    // Unlock sets 14-15: enabling scratchpad will reset sets 0-13
+    /* Unlock sets 14-15: enabling scratchpad will reset sets 0-13 */
     for (uint64_t set = 14; set < 16; set++) {
         for (uint64_t way = 0; way < 4; way++) {
             unlock_sw(way, set);

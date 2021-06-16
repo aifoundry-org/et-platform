@@ -74,6 +74,17 @@ typedef struct kw_cb_ {
     uint32_t            resource_timeout_flag[SQW_NUM];
 } kw_cb_t;
 
+/*! \struct kw_internal_status
+    \brief Kernel Worker's internal status structure to
+    track different types of errors.
+*/
+struct kw_internal_status{
+    bool kernel_done;
+    bool cw_exception;
+    bool cw_error;
+    int8_t status;
+};
+
 /*! \var kw_cb_t KW_CB
     \brief Global Kernel Worker Control Block
     \warning Not thread safe!
@@ -697,6 +708,177 @@ void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle, uint8_t sw_timer_idx)
 *
 *   FUNCTION
 *
+*       kw_cm_to_mm_process_single_message
+*
+*   DESCRIPTION
+*
+*       Helper function to proccess a single CM-to-MM message.
+*
+*   INPUTS
+*
+*       message             CM to MM Message.
+*       kernel_shire_mask   Shire mask of compute workers.
+*       status_internal     Status control block to return status.
+*       kernel              Kernel pointer.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static inline void kw_cm_to_mm_process_single_message(cm_iface_message_t *message,
+    uint64_t kernel_shire_mask, struct kw_internal_status *status_internal, const kernel_instance_t *kernel)
+{
+    switch (message->header.id)
+    {
+        case CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE:
+            /* Set the flag to indicate that kernel launch has completed */
+            status_internal->kernel_done = true;
+
+            const cm_to_mm_message_kernel_launch_completed_t *completed =
+                (cm_to_mm_message_kernel_launch_completed_t *)message;
+
+            Log_Write(LOG_LEVEL_DEBUG,
+                "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE from S%d:Status:%d\r\n",
+                completed->shire_id, completed->status);
+
+            /* Check the completion status for any error
+            First time we get an error, set the error flag */
+            if((!status_internal->cw_error) && (completed->status < KERNEL_COMPLETE_STATUS_SUCCESS))
+            {
+                status_internal->cw_error = true;
+            }
+            break;
+
+        case CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION:
+        {   //NOSONAR Is not feasible to break this code block into a new method.
+            const cm_to_mm_message_exception_t *exception =
+                (cm_to_mm_message_exception_t *)message;
+
+            Log_Write(LOG_LEVEL_DEBUG,
+                "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION from S%" PRId32 "\r\n",
+                exception->shire_id);
+
+            /* First time we get an exception: abort kernel */
+            if((atomic_load_local_32(&kernel->kernel_state) != KERNEL_STATE_ABORTED_BY_HOST) &&
+                (!status_internal->cw_exception))
+            {
+                /* Only update the kernel state to exception and send abort
+                   if it was not previously aborted by host.
+                   Multicast abort to shires associated with current kernel slot
+                   excluding the shire which took an exception */
+                message->header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
+
+                /* Blocking call (with timeout) that blocks till
+                all shires ack */
+                status_internal->status = CM_Iface_Multicast_Send(
+                    MASK_RESET_BIT(kernel_shire_mask, exception->shire_id),
+                    message);
+
+                if(status_internal->status != STATUS_SUCCESS)
+                {
+                    SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
+                }
+            }
+
+            if (!status_internal->cw_exception)
+            {
+                status_internal->cw_exception = true;
+            }
+            break;
+        }
+        case CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ERROR:
+            /* Multicast abort to shires associated with current kernel slot */
+            message->header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
+
+            const cm_to_mm_message_kernel_launch_error_t *error_mesg =
+                (cm_to_mm_message_kernel_launch_error_t *)message;
+
+            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM2MM_KERNEL_LAUNCH_ERROR);
+
+            Log_Write(LOG_LEVEL_DEBUG,
+                "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ERROR from H%" PRId64 "\r\n",
+                error_mesg->hart_id);
+
+            /* Fatal error received. Try to recover kernel shires by sending abort message.
+               Blocking call (with timeout) that blocks till all shires ack */
+            status_internal->status = CM_Iface_Multicast_Send(kernel_shire_mask, message);
+
+            if(status_internal->status != STATUS_SUCCESS)
+            {
+                SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
+            }
+
+            /* Set error and done flag */
+            status_internal->cw_error = true;
+            status_internal->kernel_done = true;
+            break;
+
+        default:
+            break;
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       kw_get_kernel_launch_completion_status
+*
+*   DESCRIPTION
+*
+*       Helper function to get kernel launch completion status.
+*       NOTE: In case of multiple error, it return high priority error only.
+*
+*   INPUTS
+*
+*       kernel_state    Launched kernel status
+*       status_internal Internal status conataining all states codes.
+*
+*   OUTPUTS
+*
+*       uint32_t        Kernel launch completion status
+*
+***********************************************************************/
+static inline uint32_t kw_get_kernel_launch_completion_status(uint32_t kernel_state,
+    const struct kw_internal_status *status_internal)
+{
+    uint32_t status;
+
+    /* These checks below are in order of priority */
+    if(kernel_state == KERNEL_STATE_ABORTED_BY_HOST)
+    {
+        /* Update the kernel launch response to indicate that it was aborted by host */
+        status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED;
+    }
+    else if(kernel_state == KERNEL_STATE_ABORTING)
+    {
+        /* Update the kernel launch response to indicate that it was aborted by host */
+        status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG;
+    }
+    else if(status_internal->cw_exception)
+    {
+        /* Exception was detected in kernel run, update response */
+        status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_EXCEPTION;
+    }
+    else if(status_internal->cw_error)
+    {
+        /* Error was detected in kernel run, update response */
+        status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
+    }
+    else
+    {
+        /* Everything went normal, update response to kernel completed */
+        status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED;
+    }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       KW_Launch
 *
 *   DESCRIPTION
@@ -717,14 +899,12 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     uint64_t sip;
     cm_iface_message_t message;
     int8_t status;
-    int8_t status_internal;
     int8_t status_hang_abort;
     uint8_t local_sqw_idx;
     uint32_t kernel_state;
     uint64_t kernel_shire_mask;
-    bool kernel_done;
-    bool cw_exception;
-    bool cw_error;
+    struct kw_internal_status status_internal;
+
     /* Get the kernel instance */
     kernel_instance_t *const kernel = &KW_CB.kernels[kw_idx];
     exec_cycles_t cycles;
@@ -740,17 +920,18 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         Log_Write(LOG_LEVEL_DEBUG, "KW:Received:FCCEvent\r\n");
 
         /* Reset state */
-        kernel_done = false;
-        cw_exception = false;
-        cw_error = false;
-        status_internal = STATUS_SUCCESS;
+        status_internal.kernel_done = false;
+        status_internal.cw_exception = false;
+        status_internal.cw_error = false;
+        status_internal.status = STATUS_SUCCESS;
+        status_hang_abort = STATUS_SUCCESS;
 
         /* Read the shire mask for the current kernel */
         kernel_shire_mask = atomic_load_local_64(&kernel->kernel_shire_mask);
 
         /* Process kernel command responses from CM, for all shires
         associated with the kernel launch */
-        while(!kernel_done && (status_internal == STATUS_SUCCESS))
+        while(!status_internal.kernel_done && (status_internal.status == STATUS_SUCCESS))
         {
             /* Wait for an interrupt */
             asm volatile("wfi");
@@ -780,13 +961,6 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                 /* Blocking call (with timeout) that blocks till all shires ack */
                 status_hang_abort = CM_Iface_Multicast_Send(kernel_shire_mask, &message);
 
-                if(status_hang_abort != STATUS_SUCCESS)
-                {
-                    /* TODO: SW-6569: Do the reset of the shires involved in kernel launch. */
-                    SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
-                    Log_Write(LOG_LEVEL_ERROR, "KW:MM->CM:Abort hanged, doing reset of shires.\r\n");
-                }
-
                 /* Break the loop waiting to complete the kernel as it is timeout */
                 break;
             }
@@ -795,114 +969,27 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             status = CM_Iface_Unicast_Receive(
                 CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx, &message);
 
-            if (status != STATUS_SUCCESS)
-            {
-                /* No more pending messages left */
-                if ((status != CIRCBUFF_ERROR_BAD_LENGTH) &&
-                    (status != CIRCBUFF_ERROR_EMPTY))
-                {
-                    SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM2MM_CMD_ERROR);
-                    Log_Write(LOG_LEVEL_ERROR,
-                        "KW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n", status);
-                }
-            }
-            else
+            if (status == STATUS_SUCCESS)
             {
                 /* Handle message from Compute Worker */
-                switch (message.header.id)
-                {
-                    case CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE:
-                    {
-                        cm_to_mm_message_kernel_launch_completed_t *completed =
-                            (cm_to_mm_message_kernel_launch_completed_t *)&message;
-
-                        Log_Write(LOG_LEVEL_DEBUG,
-                            "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE from S%d:Status:%d\r\n",
-                            completed->shire_id, completed->status);
-
-                        /* Check the completion status for any error
-                        First time we get an error, set the error flag */
-                        if((!cw_error) && (completed->status < KERNEL_COMPLETE_STATUS_SUCCESS))
-                        {
-                            cw_error = true;
-                        }
-
-                        /* Set the flag to indicate that kernel launch has completed */
-                        kernel_done = true;
-                        break;
-                    }
-                    case CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION:
-                    {
-                        cm_to_mm_message_exception_t *exception =
-                            (cm_to_mm_message_exception_t *)&message;
-
-                        Log_Write(LOG_LEVEL_DEBUG,
-                            "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION from S%" PRId32 "\r\n",
-                            exception->shire_id);
-
-                        /* First time we get an exception: abort kernel */
-                        if(!cw_exception)
-                        {
-                            /* Only update the kernel state to exception and send abort
-                            if it was not previously aborted by host */
-                            if(atomic_load_local_32(&kernel->kernel_state) !=
-                                KERNEL_STATE_ABORTED_BY_HOST)
-                            {
-                                /* Multicast abort to shires associated with current kernel slot
-                                excluding the shire which took an exception */
-                                message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
-
-                                /* Blocking call (with timeout) that blocks till
-                                all shires ack */
-                                status_internal = CM_Iface_Multicast_Send(
-                                    MASK_RESET_BIT(kernel_shire_mask, exception->shire_id),
-                                    &message);
-
-                                if(status_internal != STATUS_SUCCESS)
-                                {
-                                    SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
-                                }
-                            }
-
-                            cw_exception = true;
-                        }
-                        break;
-                    }
-                    case CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ERROR:
-                    {
-                        cm_to_mm_message_kernel_launch_error_t *error =
-                            (cm_to_mm_message_kernel_launch_error_t *)&message;
-
-                        /* Fatal error received. Try to recover kernel shires by sending abort message */
-                        /* TODO: Inform SP about this error */
-
-                        Log_Write(LOG_LEVEL_DEBUG,
-                            "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ERROR from H%" PRId64 "\r\n",
-                            error->hart_id);
-
-                        /* Multicast abort to shires associated with current kernel slot */
-                        message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
-
-                        /* Blocking call (with timeout) that blocks till
-                        all shires ack */
-                        status_internal = CM_Iface_Multicast_Send(kernel_shire_mask, &message);
-
-                        if(status_internal != STATUS_SUCCESS)
-                        {
-                            SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
-                        }
-
-                        /* Set error and done flag */
-                        cw_error = true;
-                        kernel_done = true;
-                        break;
-                    }
-                    default:
-                    {
-                        break;
-                    }
-                }
+                kw_cm_to_mm_process_single_message(&message, kernel_shire_mask, &status_internal, kernel);
             }
+            else if ((status != CIRCBUFF_ERROR_BAD_LENGTH) &&
+                     (status != CIRCBUFF_ERROR_EMPTY))
+            {
+                /* No more pending messages left */
+                SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM2MM_CMD_ERROR);
+                Log_Write(LOG_LEVEL_ERROR,
+                    "KW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n", status);
+            }
+        }
+
+        if(status_hang_abort != STATUS_SUCCESS)
+        {
+            /* TODO: SW-6569: Do the reset of the shires involved in kernel launch. */
+            SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
+            Log_Write(LOG_LEVEL_ERROR,
+                "KW:MM->CM:Abort hanged, doing reset of shires.status:%d\r\n", status_hang_abort);
         }
 
         /* Kernel run complete with host abort, exception or success.
@@ -920,32 +1007,8 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             SW_Timer_Cancel_Timeout(atomic_load_local_8(&kernel->sw_timer_idx));
         }
 
-        /* NOTE: These checks below are in order of priority */
-        if(kernel_state == KERNEL_STATE_ABORTED_BY_HOST)
-        {
-            /* Update the kernel launch response to indicate that it was aborted by host */
-            launch_rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED;
-        }
-        else if(kernel_state == KERNEL_STATE_ABORTING)
-        {
-            /* Update the kernel launch response to indicate that it was aborted by host */
-            launch_rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG;
-        }
-        else if(cw_exception)
-        {
-            /* Exception was detected in kernel run, update response */
-            launch_rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_EXCEPTION;
-        }
-        else if(cw_error)
-        {
-            /* Error was detected in kernel run, update response */
-            launch_rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
-        }
-        else
-        {
-            /* Everything went normal, update response to kernel completed */
-            launch_rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED;
-        }
+        /* Get completion status of kernel launch. */
+        launch_rsp.status = kw_get_kernel_launch_completion_status(kernel_state, &status_internal);
 
         /* Read the execution cycles info */
         cycles.cmd_start_cycles = atomic_load_local_64(&kernel->kw_cycles.cmd_start_cycles);
@@ -973,12 +1036,10 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         /* Send kernel launch response to host */
         status = Host_Iface_CQ_Push_Cmd(0, &launch_rsp, sizeof(launch_rsp));
 
-        if(status == STATUS_SUCCESS)
-        {
-            Log_Write(LOG_LEVEL_DEBUG, "KW:Pushed:KERNEL_LAUNCH_CMD_RSP:tag_id=%x->Host_CQ\r\n",
-                launch_rsp.response_info.rsp_hdr.tag_id);
-        }
-        else
+        Log_Write(LOG_LEVEL_DEBUG, "KW:Pushed:KERNEL_LAUNCH_CMD_RSP:tag_id=%x->Host_CQ\r\n",
+            launch_rsp.response_info.rsp_hdr.tag_id);
+
+        if(status != STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_ERROR, "KW:Push:Failed\r\n");
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);

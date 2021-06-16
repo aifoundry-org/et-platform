@@ -205,13 +205,38 @@ void SQW_Notify(uint8_t sqw_idx)
     return;
 }
 
-static inline void sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_cached, uint64_t start_cycles,
+/************************************************************************
+*
+*   FUNCTION
+*
+*       sqw_process_waiting_commands
+*
+*   DESCRIPTION
+*
+*       Notify SQ Worker
+*
+*   INPUTS
+*
+*       sqw_idx         Submission Queue Worker index
+*       vq_cached       VQ pointer
+*       start_cycles    Command processing start cycles.
+*       shared_mem_ptr  Shared memory pointer of VQ
+*
+*   OUTPUTS
+*
+*       bool            True to update tail of VG.
+*                       False means no data was available to process.
+*
+***********************************************************************/
+static inline bool sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_cached, uint64_t start_cycles,
     void* shared_mem_ptr)
 {
     uint8_t cmd_buff[MM_CMD_MAX_SIZE] __attribute__((aligned(64))) = { 0 };
     const struct cmd_header_t *cmd_hdr = (void*)cmd_buff;
     int32_t pop_ret_val;
     int8_t status = STATUS_SUCCESS;
+    bool update_tail = false;
+
     /* Calculate the total number of bytes available in the VQ */
     uint64_t vq_used_space = VQ_Get_Used_Space(vq_cached, CIRCBUFF_FLAG_NO_READ);
 
@@ -257,7 +282,13 @@ static inline void sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_ca
 
         /* Re-calculate the total number of bytes available in the VQ */
         vq_used_space = VQ_Get_Used_Space(vq_cached, CIRCBUFF_FLAG_NO_READ);
+
+        /* Set the SQ tail update flag so that we can updated shared
+        memory circular buffer CB with new tail offset */
+        update_tail = true;
     }
+
+    return update_tail;
 }
 
 /************************************************************************
@@ -356,13 +387,8 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
             vq_cached.circbuff_cb->tail_offset = tail_prev;
         }
 
-        if(VQ_Get_Used_Space(&vq_cached, CIRCBUFF_FLAG_NO_READ))
-        {
-            sqw_process_waiting_commands(sqw_idx, &vq_cached, start_cycles, shared_mem_ptr);
-            /* Set the SQ tail update flag so that we can updated shared
-            memory circular buffer CB with new tail offset */
-            update_sq_tail = true;
-        }
+        update_sq_tail = sqw_process_waiting_commands(sqw_idx, &vq_cached, start_cycles,
+                                                      shared_mem_ptr);
 
         if(update_sq_tail)
         {

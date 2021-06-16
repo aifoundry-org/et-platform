@@ -47,7 +47,7 @@ inline void __attribute__((always_inline)) evict_sw(uint64_t use_tmask, uint64_t
                       ((dst       & 0x3                   ) << 58 ) |
                       ((set       & 0xF                   ) << 14 ) |
                       ((way       & 0x3                   ) << 6  ) |
-                      ((num_lines & 0xF                   )       ) ;
+                      (num_lines & 0xF);
 
    __asm__ __volatile__ ( "csrw 0x7f9, %[csr_enc]\n" : : [csr_enc] "r" (csr_enc));
 
@@ -68,7 +68,7 @@ inline void __attribute__((always_inline)) flush_sw(uint64_t use_tmask, uint64_t
                       ((dst       & 0x3                   ) << 58 ) |
                       ((set       & 0xF                   ) << 14 ) |
                       ((way       & 0x3                   ) << 6  ) |
-                      ((num_lines & 0xF                   )       ) ;
+                      (num_lines  & 0xF);
 
    __asm__ __volatile__ ( "csrw 0x7fb, %[csr_enc]\n" : : [csr_enc] "r" (csr_enc));
 }
@@ -85,7 +85,7 @@ inline void __attribute__((always_inline)) flush_sw(uint64_t use_tmask, uint64_t
 inline void __attribute__((always_inline)) lock_sw(uint64_t way, uint64_t paddr)
 {
    uint64_t csr_enc = ((way   & 0x3                   ) << 55 ) |
-                      ((paddr & 0xFFFFFFFFC0ULL       )       ) ;
+                      (paddr  & 0xFFFFFFFFC0ULL);
 
    __asm__ __volatile__ ( "csrw 0x7fd, %[csr_enc]\n" : : [csr_enc] "r" (csr_enc));
 }
@@ -119,8 +119,8 @@ inline void __attribute__((always_inline)) evict_va(uint64_t use_tmask, uint64_t
 {
    uint64_t csr_enc = ((use_tmask & 1                     ) << 63 ) |
                       ((dst       & 0x3                   ) << 58 ) | //00=L1, 01=L2, 10=L3, 11=MEM
-                      ((addr      & 0xFFFFFFFFFFC0ULL     )       ) |
-                      ((num_lines & 0xF                   )       ) ;
+                      (addr       & 0xFFFFFFFFFFC0ULL)              |
+                      (num_lines  & 0xF);
 
    register uint64_t x31_enc asm("x31") = (stride & 0xFFFFFFFFFFC0ULL) | (id & 0x1);
 
@@ -158,8 +158,8 @@ inline void __attribute__((always_inline)) flush_va(uint64_t use_tmask, uint64_t
 {
    uint64_t csr_enc = ((use_tmask & 1                     ) << 63 ) |
                       ((dst       & 0x3                   ) << 58 ) |
-                      ((addr      & 0xFFFFFFFFFFC0ULL     )       ) |
-                      ((num_lines & 0xF                   )       ) ;
+                      (addr       & 0xFFFFFFFFFFC0ULL)              |
+                      (num_lines  & 0xF);
 
    register uint64_t x31_enc asm("x31") = (stride & 0xFFFFFFFFFFC0ULL) | (id & 0x1);
 
@@ -185,8 +185,8 @@ inline void __attribute__((always_inline)) prefetch_va(uint64_t use_tmask, uint6
 {
    uint64_t csr_enc = ((use_tmask & 1                     ) << 63 ) |
                       ((dst       & 0x3                   ) << 58 ) |
-                      ((addr      & 0xFFFFFFFFFFC0ULL     )       ) |
-                      ((num_lines & 0xF                   )       ) ;
+                      (addr       & 0xFFFFFFFFFFC0ULL)              |
+                      (num_lines  & 0xF);
 
    register uint64_t x31_enc asm ("x31") = (stride & 0xFFFFFFFFFFC0ULL) | (id & 0x1);
 
@@ -211,8 +211,8 @@ inline void __attribute__((always_inline)) prefetch_va(uint64_t use_tmask, uint6
 inline void __attribute__((always_inline)) lock_va(uint64_t use_tmask, uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id)
 {
    uint64_t csr_enc = ((use_tmask & 1                     ) << 63 ) |
-                      ((addr      & 0xFFFFFFFFFFC0ULL     )       ) |
-                      ((num_lines & 0xF                   )       ) ;
+                      (addr       & 0xFFFFFFFFFFC0ULL)              |
+                      (num_lines  & 0xF);
 
    register uint64_t x31_enc asm("x31") = (stride & 0xFFFFFFFFFFC0ULL) | (id & 0x1);
 
@@ -236,8 +236,8 @@ inline void __attribute__((always_inline)) lock_va(uint64_t use_tmask, uint64_t 
 inline void __attribute__((always_inline)) unlock_va(uint64_t use_tmask, uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id)
 {
    uint64_t csr_enc = ((use_tmask & 1                     ) << 63 ) |
-                      ((addr      & 0xFFFFFFFFFFC0ULL     )       ) |
-                      ((num_lines & 0xF                   )       ) ;
+                      (addr       & 0xFFFFFFFFFFC0ULL)              |
+                      (num_lines  & 0xF);
 
    register uint64_t x31_enc asm("x31") = (stride & 0xFFFFFFFFFFC0ULL) | (id & 0x1);
 
@@ -257,8 +257,8 @@ inline void __attribute__((always_inline)) unlock_va(uint64_t use_tmask, uint64_
 //
 inline void __attribute__((always_inline)) cache_invalidate(uint64_t inval_instr_cache, uint64_t inval_TLBs_and_PTW)
 {
-   uint64_t csr_enc = ((inval_TLBs_and_PTW & 1            )       ) |
-                      ((inval_instr_cache & 1             ) << 1  ) ;
+   uint64_t csr_enc = (inval_TLBs_and_PTW & 1) |
+                      ((inval_instr_cache & 1) << 1);
 
    __asm__ __volatile__ (
       "csrw 0x7d0, %[csr_enc]\n"
@@ -358,7 +358,7 @@ inline void __attribute__((always_inline)) scp(uint64_t warl, uint64_t DEscratch
 
     // Enable scratchpad
     uint64_t csr_enc = ((warl & 0x7FFFFFFFFFFFFFFF) << 1) |
-                       ((DEscratchpad & 0x1));
+                       (DEscratchpad & 0x1);
 
    __asm__ __volatile__ (
       "csrw 0x810, %[csr_enc]\n"

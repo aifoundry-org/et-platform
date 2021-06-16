@@ -44,14 +44,14 @@
 #define  DMAW_FOR_WRITE        DMAW_FOR_READ + WORKER_HART_FACTOR
 
 /*! \def DMAW_ERROR_GENERAL
-    \brief DMA Worker - General error
+    \brief DMA Worker - General error. DMA Stack error codes start from -10.
 */
-#define DMAW_ERROR_GENERAL                  -1
+#define DMAW_ERROR_GENERAL                  -10
 
 /*! \def DMAW_ERROR_FIND_IDLE_CHANNEL_TIMEOUT
     \brief DMA Worker - Find DMA idle channel timeoeut error
 */
-#define DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL -10
+#define DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL -11
 
 /*! \def TIMEOUT_DMAW_FIND_IDLE_CH
     \brief Timeout value (in mS) for finding DMA idle channel

@@ -57,9 +57,10 @@ static sp_iface_cb_t MM_SP_SQ __attribute__((aligned(64))) = {0};
 */
 static sp_iface_cb_t MM_SP_CQ __attribute__((aligned(64))) = {0};
 
-static inline void notify(uint8_t target, int32_t issuing_hart_id)
+static inline int8_t notify(uint8_t target, int32_t issuing_hart_id)
 {
     uint64_t target_hart_msk = 0;
+    int8_t status = 0;
 
     switch (target)
     {
@@ -95,9 +96,11 @@ static inline void notify(uint8_t target, int32_t issuing_hart_id)
             break;
         }
         default:
-            /* TODO: This should never execute. Add error handling. */
+            status = VQ_ERROR_BAD_TARGET;
             break;
     }
+
+    return status;
 }
 
 /************************************************************************
@@ -250,7 +253,7 @@ int8_t SP_MM_Iface_Push(uint8_t target, void* p_buff,
 
         if(!status)
         {
-            notify(target, issuing_hart_id);
+            status = notify(target, issuing_hart_id);
         }
     }
 

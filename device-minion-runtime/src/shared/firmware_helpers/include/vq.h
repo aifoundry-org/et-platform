@@ -28,6 +28,7 @@
  */
 #define VQ_ERROR_INVLD_CMD_SIZE       (CIRCBUFF_ERROR_END - 1)
 #define VQ_ERROR_BAD_PAYLOAD_LENGTH   (CIRCBUFF_ERROR_END - 2)
+#define VQ_ERROR_BAD_TARGET           (CIRCBUFF_ERROR_END - 3)
 
 /*! \def VQ_CIRCBUFF_BASE_ADDR(base, idx, size)
     \brief Macro to return circbuff's base address.

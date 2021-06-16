@@ -428,11 +428,6 @@ int8_t SP_Iface_Get_Shire_Mask(uint64_t *shire_mask)
                 "ERROR: Received a notification from SP with no data\r\n");
         }
     }
-    else
-    {
-        Log_Write(LOG_LEVEL_ERROR,
-            "ERROR:Timeout while waiting to get shire mask from SP\r\n");
-    }
 
     /* Release the lock */
     release_local_spinlock(&SP_SQ_CB.vq_lock);
@@ -515,11 +510,6 @@ int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq)
             Log_Write(LOG_LEVEL_ERROR,
                 "ERROR: Received a notification from SP and no data");
         }
-    }
-    else
-    {
-        Log_Write(LOG_LEVEL_ERROR,
-            "ERROR:Timeout while waiting to get boot frequency from SP\r\n");
     }
 
     /* Release the lock */

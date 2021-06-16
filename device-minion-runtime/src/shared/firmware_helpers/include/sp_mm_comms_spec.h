@@ -17,19 +17,21 @@
 /* For these errors, mm will just inform SP and SP will increment the counter.
 When the threshold is hit on SP side, SP will inform the Host */
 enum mm2sp_mm_recoverable_error_code_e {
-    MM_HANG_ERROR                = -1,
-    MM_EXCEPTION_ERROR           = -2,
-    MM_DMA_CONFIG_ERROR          = -3,
-    MM_DMA_TIMEOUT_ERROR         = -4,
-    MM_KERNEL_LAUNCH_ERROR       = -5,
-    MM_CQ_PUSH_ERROR             = -6,
-    MM_SQ_PROCESSING_ERROR       = -7,
-    MM_SQ_BUFFER_ALIGNMENT_ERROR = -8,
-    MM_CMD_BARRIER_TIMEOUT_ERROR = -9,
-    MM_CM_RESERVE_SLOT_ERROR     = -10,
-    MM_CM_RESERVE_TIMEOUT_ERROR  = -11,
-    MM_MM2CM_CMD_ERROR           = -12,
-    MM_CM2MM_CMD_ERROR           = -13
+    MM_HANG_ERROR                     = -1,
+    MM_EXCEPTION_ERROR                = -2,
+    MM_DMA_CONFIG_ERROR               = -3,
+    MM_DMA_TIMEOUT_ERROR              = -4,
+    MM_KERNEL_LAUNCH_ERROR            = -5,
+    MM_CQ_PUSH_ERROR                  = -6,
+    MM_SQ_PROCESSING_ERROR            = -7,
+    MM_SQ_BUFFER_ALIGNMENT_ERROR      = -8,
+    MM_CMD_BARRIER_TIMEOUT_ERROR      = -9,
+    MM_CM_RESERVE_SLOT_ERROR          = -10,
+    MM_CM_RESERVE_TIMEOUT_ERROR       = -11,
+    MM_MM2CM_CMD_ERROR                = -12,
+    MM_CM2MM_CMD_ERROR                = -13,
+    MM_CM2MM_KERNEL_LAUNCH_ERROR      = -14,
+    MM_CM2MM_KERNEL_EXCEPTION_ERROR   = -15
 };
 
 /* For the errors, mm is not able to recover from error state, so it will require intervention
