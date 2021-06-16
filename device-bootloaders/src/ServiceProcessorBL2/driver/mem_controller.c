@@ -74,6 +74,9 @@ int ddr_config(void)
     uint32_t config_disable_unused_clks = 0;
     uint32_t config_train_poll_max_iterations = 50000;
     uint32_t config_train_poll_iteration_delay = 10000;
+    uint32_t config_4gb = 0;
+    uint32_t config_8gb = 0;
+    uint32_t config_32gb = 0;
     bool config_training = false;
     bool config_training_2d = true;
 
@@ -92,7 +95,8 @@ int ddr_config(void)
     ms_pll_init(0x4, config_real_pll, 1, config_800mhz, config_933mhz);
 
     FOR_EACH_MEMSHIRE(
-        ms_init_seq_phase1(memshire, config_ecc, config_real_pll, config_800mhz, config_933mhz, config_training)
+        ms_init_seq_phase1(memshire, config_ecc, config_real_pll, config_800mhz, config_933mhz,
+          config_training, config_4gb, config_8gb, config_32gb)
     );
 
     FOR_EACH_MEMSHIRE(
@@ -124,7 +128,7 @@ int ddr_config(void)
         }
 
         FOR_EACH_MEMSHIRE(
-            ms_init_seq_phase3_08 (memshire, config_ecc, config_800mhz, config_933mhz)
+            ms_init_seq_phase3_08 (memshire, config_ecc, config_800mhz, config_933mhz, config_4gb, config_8gb, config_32gb)
         );
     }
     FOR_EACH_MEMSHIRE(
