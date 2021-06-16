@@ -55,5 +55,9 @@ TEST_F(TestDevOpsApiLoopbackBasicCmdsPcie, backToBackDiff50kCmdsSingleDeviceMult
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   google::ParseCommandLineFlags(&argc, &argv, true);
+  if (FLAGS_loopback_driver) {
+    // Loopback driver does not support trace
+    FLAGS_enable_trace_dump = false;
+  }
   return RUN_ALL_TESTS();
 }

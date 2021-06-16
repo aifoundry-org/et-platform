@@ -25,9 +25,9 @@ auto kPollingInterval = 10ms;
 DEFINE_uint32(exec_timeout, 100, "Internal execution timeout");
 DEFINE_string(kernels_dir, "", "Directory where different kernel ELF files are located");
 DEFINE_string(trace_logfile, "TestHelper.log", "File where the MM and CM buffers will be dumped");
-DEFINE_bool(enable_trace_dump, true,
-            "Enable device trace dump to file specified by flag: trace_logfile, otherwise on UART");
 DEFINE_bool(loopback_driver, false, "Run on loopback driver");
+DEFINE_bool(enable_trace_dump, FLAGS_loopback_driver ? false : true,
+            "Enable device trace dump to file specified by flag: trace_logfile, otherwise on UART");
 DEFINE_bool(use_epoll, true, "Use EPOLL if true, otherwise use interval based polling");
 
 void TestDevOpsApi::initTestHelperSysEmu(const emu::SysEmuOptions& options) {
