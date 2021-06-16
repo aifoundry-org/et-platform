@@ -11,152 +11,98 @@
 #include "TestDevOpsApiDmaCmds.h"
 #include "Autogen.h"
 #include <fcntl.h>
+#include <random>
+
+namespace {
+
+void inline fillRandData(uint8_t* buf, size_t size) {
+  auto randFd = open("/dev/urandom", O_RDONLY);
+  // Randomize write buffer
+  read(randFd, buf, size);
+  close(randFd);
+}
+
+} // namespace
+
+bool TestDevOpsApiDmaCmds::fillDmaStream(int deviceIdx, std::vector<std::unique_ptr<IDevOpsApiCmd>>& stream,
+                                         const std::vector<DmaType>& cmdSequence,
+                                         const std::vector<size_t>& sizeSequence,
+                                         std::vector<std::vector<uint8_t>>& dmaWrBufs,
+                                         std::vector<std::vector<uint8_t>>& dmaRdBufs) {
+  if (!cmdSequence.size() || !sizeSequence.size() || cmdSequence.size() != sizeSequence.size()) {
+    return false;
+  }
+  std::vector<uint8_t> dmaWrBuf;
+  std::vector<uint8_t> dmaRdBuf;
+  bool isFirstRead = true;
+  for (int cmdIdx = 0; cmdIdx < cmdSequence.size(); cmdIdx++) {
+    switch (cmdSequence[cmdIdx]) {
+    case DmaType::DMA_WRITE:
+      dmaWrBuf.resize(sizeSequence[cmdIdx], 0);
+      fillRandData(dmaWrBuf.data(), dmaWrBuf.size());
+      dmaWrBufs.push_back(std::move(dmaWrBuf));
+      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(
+        device_ops_api::CMD_FLAGS_BARRIER_DISABLE, getDmaWriteAddr(deviceIdx, dmaWrBufs.back().size()),
+        templ::bit_cast<uint64_t>(dmaWrBufs.back().data()), templ::bit_cast<uint64_t>(dmaWrBufs.back().data()),
+        dmaWrBufs.back().size(), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+      isFirstRead = true;
+      break;
+    case DmaType::DMA_READ:
+      dmaRdBuf.resize(sizeSequence[cmdIdx], 0);
+      dmaRdBufs.push_back(std::move(dmaRdBuf));
+      stream.push_back(IDevOpsApiCmd::createDataReadCmd(
+        isFirstRead ? device_ops_api::CMD_FLAGS_BARRIER_ENABLE : device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+        getDmaReadAddr(deviceIdx, dmaRdBufs.back().size()), templ::bit_cast<uint64_t>(dmaRdBufs.back().data()),
+        templ::bit_cast<uint64_t>(dmaRdBufs.back().data()), dmaRdBufs.back().size(),
+        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+      isFirstRead = false;
+      break;
+    default:
+      return false;
+    }
+  }
+  return true;
+}
+
+bool TestDevOpsApiDmaCmds::executeDmaCmds(bool singleDevice, bool singleQueue, bool isAsync,
+                                          const std::vector<DmaType>& cmdSequence,
+                                          const std::vector<size_t>& sizeSequence,
+                                          std::vector<std::vector<uint8_t>>& dmaWrBufs,
+                                          std::vector<std::vector<uint8_t>>& dmaRdBufs) {
+  int deviceCount = singleDevice ? 1 : getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
+    int queueCount = singleQueue ? 1 : getSqCount(deviceIdx);
+    for (int queueIdx = 0; queueIdx < queueCount; ++queueIdx) {
+      if (!fillDmaStream(deviceIdx, stream, cmdSequence, sizeSequence, dmaWrBufs, dmaRdBufs)) {
+        return false;
+      }
+      // Move stream of commands to streams_
+      streams_.try_emplace(key(deviceIdx, queueIdx), std::move(stream));
+    }
+  }
+
+  isAsync ? executeAsync() : executeSync();
+
+  return true;
+}
 
 /**********************************************************
  *                                                         *
  *              DMA Basic Testing Functions                *
  *                                                         *
  **********************************************************/
-void TestDevOpsApiDmaCmds::dataRWCmdWithBasicCmds_3_4() {
-  std::vector<std::vector<uint8_t>> dmaWrBufs;
-  std::vector<std::vector<uint8_t>> dmaRdBufs;
-  const uint64_t bufSizeBasicCmds = 64;
-
-  int deviceCount = getDevicesCount();
-
-  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
-    int queueCount = getSqCount(deviceIdx);
-
-    for (int queueId = 0; queueId < queueCount; ++queueId) {
-      std::vector<uint8_t> dmaWrBuf;
-      std::vector<uint8_t> dmaRdBuf;
-      dmaWrBuf.resize(bufSizeBasicCmds, 0);
-      for (int i = 0; i < dmaWrBuf.size(); ++i) {
-        dmaWrBuf[i] = rand() % 0x100;
-      }
-      stream.push_back(IDevOpsApiCmd::createEchoCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kEchoPayload));
-      stream.push_back(IDevOpsApiCmd::createApiCompatibilityCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kDevFWMajor,
-                                                                kDevFWMinor, kDevFWPatch));
-      stream.push_back(IDevOpsApiCmd::createFwVersionCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 1));
-
-      dmaWrBufs.push_back(std::move(dmaWrBuf));
-      auto devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBufs.back().size());
-      auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBufs.back().data());
-      auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                         hostVirtAddr, hostPhysAddr, dmaWrBufs.back().size(),
-                                                         device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-      dmaRdBuf.resize(bufSizeBasicCmds, 0);
-      dmaRdBufs.push_back(std::move(dmaRdBuf));
-      devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devPhysAddr,
-                                                        hostVirtAddr, hostPhysAddr, dmaRdBufs.back().size(),
-                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      // Move stream of commands to streams_
-      streams_.try_emplace(key(deviceIdx, queueId), std::move(stream));
-    }
-  }
-  executeAsync();
-
-  // Skip data validation in case of loopback driver
-  if (FLAGS_loopback_driver) {
-    return;
-  }
-
-  // For DMA received Data Validation
-  for (size_t i = 0; i < dmaWrBufs.size(); ++i) {
-    EXPECT_EQ(dmaWrBufs[i], dmaRdBufs[i]);
-  }
-}
-
 // Read/Write access mixed b2b .. i.e. DMA WRITE, DMA READ,
 // DMA READ, DMA WRITE. The address would be orthogonal to each other.
 void TestDevOpsApiDmaCmds::dataRWCmdMixed_3_5() {
   std::vector<std::vector<uint8_t>> dmaWrBufs;
   std::vector<std::vector<uint8_t>> dmaRdBufs;
-  int deviceCount = getDevicesCount();
-  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
-    int queueCount = getSqCount(deviceIdx);
-    const int buffSizeA = 512;
-    const int buffSizeB = 256;
+  std::vector<DmaType> cmdSequence = {DmaType::DMA_WRITE, DmaType::DMA_WRITE, DmaType::DMA_READ,
+                                      DmaType::DMA_READ,  DmaType::DMA_WRITE, DmaType::DMA_READ};
+  std::vector<size_t> sizeSequence = {512, 512, 512, 512, 256, 256};
 
-    for (int queueIdMixCmds = 0; queueIdMixCmds < queueCount; ++queueIdMixCmds) {
-      // Create some buffers for send and receiving data
-      std::vector<uint8_t> dmaWrBuf;
-      std::vector<uint8_t> dmaRdBuf;
-      dmaWrBuf.resize(buffSizeA, 0);
-      for (int i = 0; i < dmaWrBuf.size(); ++i) {
-        dmaWrBuf[i] = rand() % 0x100;
-      }
-      dmaWrBufs.push_back(std::move(dmaWrBuf));
-      auto devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBufs.back().size());
-      auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBufs.back().data());
-      auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                         hostVirtAddr, hostPhysAddr, dmaWrBufs.back().size(),
-                                                         device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      dmaWrBuf.resize(buffSizeA);
-      for (int i = 0; i < dmaWrBuf.size(); ++i) {
-        dmaWrBuf[i] = rand() % 0x100;
-      }
-      dmaWrBufs.push_back(std::move(dmaWrBuf));
-      devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                         hostVirtAddr, hostPhysAddr, dmaWrBufs.back().size(),
-                                                         device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      dmaRdBuf.resize(buffSizeA, 0);
-      dmaRdBufs.push_back(std::move(dmaRdBuf));
-      devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devPhysAddr,
-                                                        hostVirtAddr, hostPhysAddr, dmaRdBufs.back().size(),
-                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      dmaRdBuf.resize(buffSizeA, 0);
-      dmaRdBufs.push_back(std::move(dmaRdBuf));
-      devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                        hostVirtAddr, hostPhysAddr, dmaRdBufs.back().size(),
-                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      dmaWrBuf.resize(buffSizeB, 0);
-      for (int i = 0; i < dmaWrBuf.size(); ++i) {
-        dmaWrBuf[i] = rand() % 0x100;
-      }
-      dmaWrBufs.push_back(std::move(dmaWrBuf));
-      devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                         hostVirtAddr, hostPhysAddr, dmaWrBufs.back().size(),
-                                                         device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      dmaRdBuf.resize(buffSizeB, 0);
-      dmaRdBufs.push_back(std::move(dmaRdBuf));
-      devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devPhysAddr,
-                                                        hostVirtAddr, hostPhysAddr, dmaRdBufs.back().size(),
-                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      // Move stream of commands to streams_
-      streams_.try_emplace(key(deviceIdx, queueIdMixCmds), std::move(stream));
-    }
-  }
-  executeAsync();
+  EXPECT_TRUE(executeDmaCmds(false /* multiple devices */, false /* multiple queues */, true /* execute async */,
+                             cmdSequence, sizeSequence, dmaWrBufs, dmaRdBufs));
 
   // Skip data validation in case of loopback driver
   if (FLAGS_loopback_driver) {
@@ -175,95 +121,25 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixed_3_5() {
 void TestDevOpsApiDmaCmds::dataRWCmdMixedWithVarSize_3_6() {
   std::vector<std::vector<uint8_t>> dmaWrBufs;
   std::vector<std::vector<uint8_t>> dmaRdBufs;
+  std::vector<DmaType> cmdSequence;
+  std::vector<size_t> sizeSequence;
   static const std::array<uint64_t, 10> bufSizeArray = {8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096};
+  const int kMaxLoopbackCount = 3;
+  std::random_device rd;
+  std::mt19937_64 gen(rd());
+  std::uniform_int_distribution<> dis(0, bufSizeArray.size() - 1);
 
-  int deviceCount = getDevicesCount();
-  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
-    int queueCount = getSqCount(deviceIdx);
-    srand(time(0));
-    uint64_t bufSize[3];
-    bufSize[0] = bufSizeArray[rand() % bufSizeArray.size()];
-    bufSize[1] = bufSizeArray[rand() % bufSizeArray.size()];
-    bufSize[2] = bufSizeArray[rand() % bufSizeArray.size()];
-    TEST_VLOG(1) << "rwBuffer Values are " << bufSize[0] << ", " << bufSize[1] << ", " << bufSize[2] << std::endl;
-
-    for (int queueId = 0; queueId < queueCount; ++queueId) {
-
-      std::vector<uint8_t> dmaWrBuf(bufSize[0], 0);
-      std::vector<uint8_t> dmaRdBuf(bufSize[0], 0);
-      // Data Write Cmd1 with bufSize[0]
-      for (std::size_t i = 0; i < dmaWrBuf.size(); ++i) {
-        dmaWrBuf[i] = rand() % 0x100;
-      }
-      dmaWrBufs.push_back(std::move(dmaWrBuf));
-      auto devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBufs.back().size());
-      auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBufs.back().data());
-      auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                         hostVirtAddr, hostPhysAddr, dmaWrBufs.back().size(),
-                                                         device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      // Data Write Cmd2 with bufSize[1]
-      dmaWrBuf.resize(bufSize[1], 0);
-      for (std::size_t i = 0; i < dmaWrBuf.size(); ++i) {
-        dmaWrBuf[i] = rand() % 0x100;
-      }
-      dmaWrBufs.push_back(std::move(dmaWrBuf));
-      devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                         hostVirtAddr, hostPhysAddr, dmaWrBufs.back().size(),
-                                                         device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      // Data Read Cmd1 with bufSize[0]
-      dmaRdBufs.push_back(std::move(dmaRdBuf));
-      devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devPhysAddr,
-                                                        hostVirtAddr, hostPhysAddr, dmaRdBufs.back().size(),
-                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      // Data Read Cmd2 with bufSize[1]
-      dmaRdBuf.resize(bufSize[1], 0);
-      dmaRdBufs.push_back(std::move(dmaRdBuf));
-      devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                        hostVirtAddr, hostPhysAddr, dmaRdBufs.back().size(),
-                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      // Data Write Cmd3 with bufSize[2]
-      dmaWrBuf.resize(bufSize[2], 0);
-      for (std::size_t i = 0; i < dmaWrBuf.size(); ++i) {
-        dmaWrBuf[i] = rand() % 0x100;
-      }
-      dmaWrBufs.push_back(std::move(dmaWrBuf));
-      devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                         hostVirtAddr, hostPhysAddr, dmaWrBufs.back().size(),
-                                                         device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      // Data Read Cmd3 with bufSize[2]
-      dmaRdBuf.resize(bufSize[2], 0);
-      dmaRdBufs.push_back(std::move(dmaRdBuf));
-      devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devPhysAddr,
-                                                        hostVirtAddr, hostPhysAddr, dmaRdBufs.back().size(),
-                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      // Move stream of commands to streams_
-      streams_.try_emplace(key(deviceIdx, queueId), std::move(stream));
-    }
+  for (int i = 0; i < kMaxLoopbackCount; i++) {
+    auto bufSize = bufSizeArray[dis(gen)];
+    TEST_VLOG(1) << "Chosen buffer size is: " << bufSize;
+    sizeSequence.push_back(bufSize); // Write buffer size
+    cmdSequence.push_back(DmaType::DMA_WRITE);
+    sizeSequence.push_back(bufSize); // Read buffer size
+    cmdSequence.push_back(DmaType::DMA_READ);
   }
-  executeAsync();
+
+  EXPECT_TRUE(executeDmaCmds(false /* multiple devices */, false /* multiple queues */, true /* execute async */,
+                             cmdSequence, sizeSequence, dmaWrBufs, dmaRdBufs));
 
   // Skip data validation in case of loopback driver
   if (FLAGS_loopback_driver) {
@@ -282,109 +158,20 @@ void TestDevOpsApiDmaCmds::dataRWCmdMixedWithVarSize_3_6() {
 void TestDevOpsApiDmaCmds::dataRWCmdAllChannels_3_7() {
   std::vector<std::vector<uint8_t>> dmaWrBufs;
   std::vector<std::vector<uint8_t>> dmaRdBufs;
-  const uint64_t bufSize[4] = {256, 512, 1024, 2048};
-  int deviceCount = getDevicesCount();
-  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
-    int queueCount = getSqCount(deviceIdx);
-    for (int queueId = 0; queueId < queueCount; ++queueId) {
-      std::vector<uint8_t> dmaWrBuf(bufSize[0], 0);
-      std::vector<uint8_t> dmaRdBuf(bufSize[0], 0);
-      // Data Write Cmd1 with bufSize[0]
-      for (std::size_t i = 0; i < dmaWrBuf.size(); ++i) {
-        dmaWrBuf[i] = rand() % 0x100;
-      }
-      dmaWrBufs.push_back(std::move(dmaWrBuf));
-      auto devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBufs.back().size());
-      auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBufs.back().data());
-      auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                         hostVirtAddr, hostPhysAddr, dmaWrBufs.back().size(),
-                                                         device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+  std::vector<DmaType> cmdSequence;
+  std::vector<size_t> sizeSequence;
+  const int kMaxLoopbackCount = 4;
 
-      // Data Write Cmd2 with bufSize[1]
-      dmaWrBuf.resize(bufSize[1], 0);
-      for (std::size_t i = 0; i < dmaWrBuf.size(); ++i) {
-        dmaWrBuf[i] = rand() % 0x100;
-      }
-      dmaWrBufs.push_back(std::move(dmaWrBuf));
-      devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                         hostVirtAddr, hostPhysAddr, dmaWrBufs.back().size(),
-                                                         device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      // Data Write Cmd3 with bufSize[2]
-      dmaWrBuf.resize(bufSize[2], 0);
-      for (std::size_t i = 0; i < dmaWrBuf.size(); ++i) {
-        dmaWrBuf[i] = rand() % 0x100;
-      }
-      dmaWrBufs.push_back(std::move(dmaWrBuf));
-      devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                         hostVirtAddr, hostPhysAddr, dmaWrBufs.back().size(),
-                                                         device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      // Data Write Cmd4 with bufSize[3]
-      dmaWrBuf.resize(bufSize[3], 0);
-      for (std::size_t i = 0; i < dmaWrBuf.size(); ++i) {
-        dmaWrBuf[i] = rand() % 0x100;
-      }
-      dmaWrBufs.push_back(std::move(dmaWrBuf));
-      devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                         hostVirtAddr, hostPhysAddr, dmaWrBufs.back().size(),
-                                                         device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      // Data Read Cmd1 with bufSize[0] with barrier
-      dmaRdBufs.push_back(std::move(dmaRdBuf));
-      devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devPhysAddr,
-                                                        hostVirtAddr, hostPhysAddr, dmaRdBufs.back().size(),
-                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      // Data Read Cmd2 with bufSize[1]
-      dmaRdBuf.resize(bufSize[1], 0);
-      dmaRdBufs.push_back(std::move(dmaRdBuf));
-      devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                        hostVirtAddr, hostPhysAddr, dmaRdBufs.back().size(),
-                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      // Data Read Cmd3 with bufSize[2]
-      dmaRdBuf.resize(bufSize[2], 0);
-      dmaRdBufs.push_back(std::move(dmaRdBuf));
-      devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devPhysAddr,
-                                                        hostVirtAddr, hostPhysAddr, dmaRdBufs.back().size(),
-                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      // Data Read Cmd4 with bufSize[3]
-      dmaRdBuf.resize(bufSize[3], 0);
-      dmaRdBufs.push_back(std::move(dmaRdBuf));
-      devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devPhysAddr,
-                                                        hostVirtAddr, hostPhysAddr, dmaRdBufs.back().size(),
-                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      // Move stream of commands to streams_[queueId]
-      streams_.try_emplace(key(deviceIdx, queueId), std::move(stream));
-    }
+  for (int i = 0; i < kMaxLoopbackCount; i++) {
+    auto bufSize = 256 * (i + 1);
+    sizeSequence.push_back(bufSize); // Write buffer size
+    cmdSequence.push_back(DmaType::DMA_WRITE);
+    sizeSequence.push_back(bufSize); // Read buffer size
+    cmdSequence.push_back(DmaType::DMA_READ);
   }
-  executeAsync();
+
+  EXPECT_TRUE(executeDmaCmds(false /* multiple devices */, false /* multiple queues */, true /* execute async */,
+                             cmdSequence, sizeSequence, dmaWrBufs, dmaRdBufs));
 
   // Skip data validation in case of loopback driver
   if (FLAGS_loopback_driver) {
@@ -405,41 +192,11 @@ void TestDevOpsApiDmaCmds::dataRWCmdAllChannels_3_7() {
 void TestDevOpsApiDmaCmds::dataRWCmd_PositiveTesting_3_1() {
   std::vector<std::vector<uint8_t>> dmaWrBufs;
   std::vector<std::vector<uint8_t>> dmaRdBufs;
-  int deviceCount = getDevicesCount();
-  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
-    int queueCount = getSqCount(deviceIdx);
-    const uint64_t bufSize = 64;
-    for (int queueId = 0; queueId < queueCount; ++queueId) {
-      std::vector<uint8_t> dmaRdBuf;
-      std::vector<uint8_t> dmaWrBuf;
-      dmaWrBuf.resize(bufSize, 0);
-      for (std::size_t i = 0; i < dmaWrBuf.size(); ++i) {
-        dmaWrBuf[i] = static_cast<uint8_t>(rand() % 0x100);
-      }
-      dmaWrBufs.push_back(std::move(dmaWrBuf));
-      auto devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBufs.back().size());
-      auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBufs.back().data());
-      auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                         hostVirtAddr, hostPhysAddr, dmaWrBufs.back().size(),
-                                                         device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+  std::vector<DmaType> cmdSequence = {DmaType::DMA_WRITE, DmaType::DMA_READ};
+  std::vector<size_t> sizeSequence = {64, 64};
 
-      // Read data
-      dmaRdBuf.resize(bufSize, 0);
-      dmaRdBufs.push_back(std::move(dmaRdBuf));
-      devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devPhysAddr,
-                                                        hostVirtAddr, hostPhysAddr, dmaRdBufs.back().size(),
-                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      // Move stream of commands to streams_[queueId]
-      streams_.try_emplace(key(deviceIdx, queueId), std::move(stream));
-    }
-  }
-  executeAsync();
+  EXPECT_TRUE(executeDmaCmds(false /* multiple devices */, false /* multiple queues */, true /* execute async */,
+                             cmdSequence, sizeSequence, dmaWrBufs, dmaRdBufs));
 
   // Skip data validation in case of loopback driver
   if (FLAGS_loopback_driver) {
@@ -455,79 +212,12 @@ void TestDevOpsApiDmaCmds::dataRWCmd_PositiveTesting_3_1() {
 void TestDevOpsApiDmaCmds::dataRWCmdWithBarrier_PositiveTesting_3_10() {
   std::vector<std::vector<uint8_t>> dmaWrBufs;
   std::vector<std::vector<uint8_t>> dmaRdBufs;
-  int deviceCount = getDevicesCount();
-  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
-    int queueCount = getSqCount(deviceIdx);
-    const uint64_t dmaWrBufsize = 512;
-    const uint64_t dmaRdBufsize = 4 * dmaWrBufsize;
+  std::vector<DmaType> cmdSequence = {DmaType::DMA_WRITE, DmaType::DMA_WRITE, DmaType::DMA_WRITE, DmaType::DMA_WRITE,
+                                      DmaType::DMA_READ};
+  std::vector<size_t> sizeSequence = {512, 512, 512, 512, 4 * 512};
 
-    for (int queueId = 0; queueId < queueCount; ++queueId) {
-      std::vector<uint8_t> dmaWrBuf;
-      std::vector<uint8_t> dmaRdBuf;
-      dmaWrBuf.resize(dmaWrBufsize, 0);
-      for (std::size_t i = 0; i < dmaWrBuf.size(); ++i) {
-        dmaWrBuf[i] = rand() % 0x100;
-      }
-      dmaWrBufs.push_back(std::move(dmaWrBuf));
-      auto devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBufs.back().size());
-      auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBufs.back().data());
-      auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                         hostVirtAddr, hostPhysAddr, dmaWrBufs.back().size(),
-                                                         device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      dmaWrBuf.resize(dmaWrBufsize, 0);
-      for (std::size_t i = 0; i < dmaWrBuf.size(); ++i) {
-        dmaWrBuf[i] = rand() % 0x100;
-      }
-      dmaWrBufs.push_back(std::move(dmaWrBuf));
-      devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                         hostVirtAddr, hostPhysAddr, dmaWrBufs.back().size(),
-                                                         device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      dmaWrBuf.resize(dmaWrBufsize, 0);
-      for (std::size_t i = 0; i < dmaWrBuf.size(); ++i) {
-        dmaWrBuf[i] = rand() % 0x100;
-      }
-      dmaWrBufs.push_back(std::move(dmaWrBuf));
-      devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                         hostVirtAddr, hostPhysAddr, dmaWrBufs.back().size(),
-                                                         device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      dmaWrBuf.resize(dmaWrBufsize, 0);
-      for (std::size_t i = 0; i < dmaWrBuf.size(); ++i) {
-        dmaWrBuf[i] = rand() % 0x100;
-      }
-      dmaWrBufs.push_back(std::move(dmaWrBuf));
-      devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                         hostVirtAddr, hostPhysAddr, dmaWrBufs.back().size(),
-                                                         device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      // since we sent 4 DMA write cmd, we need to read back all the data in a single DMA read cmd
-      dmaRdBuf.resize(dmaRdBufsize, 0);
-      dmaRdBufs.push_back(std::move(dmaRdBuf));
-      devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBufs.back().size());
-      hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBufs.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devPhysAddr,
-                                                        hostVirtAddr, hostPhysAddr, dmaRdBufs.back().size(),
-                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-
-      // Move stream of commands to streams_
-      streams_.try_emplace(key(deviceIdx, queueId), std::move(stream));
-    }
-  }
-  executeAsync();
+  EXPECT_TRUE(executeDmaCmds(false /* multiple devices */, false /* multiple queues */, true /* execute async */,
+                             cmdSequence, sizeSequence, dmaWrBufs, dmaRdBufs));
 
   // Skip data validation in case of loopback driver
   if (FLAGS_loopback_driver) {
@@ -564,7 +254,6 @@ void TestDevOpsApiDmaCmds::dataRWListCmd_PositiveTesting_3_11() {
   device_ops_api::dma_write_node wrList[kNodeCount];
   device_ops_api::dma_read_node rdList[kNodeCount];
 
-  auto randFd = open("/dev/urandom", O_RDONLY);
   int deviceCount = getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     auto queueCount = getSqCount(deviceIdx);
@@ -573,8 +262,7 @@ void TestDevOpsApiDmaCmds::dataRWListCmd_PositiveTesting_3_11() {
     dmaWrMemPtrs.push_back(allocDmaBuffer(deviceIdx, queueCount * kNodeCount * kBufSize, true));
     dmaRdMemPtrs.push_back(allocDmaBuffer(deviceIdx, queueCount * kNodeCount * kBufSize, false));
 
-    // Randomize write buffer
-    read(randFd, dmaWrMemPtrs[deviceIdx], queueCount * kNodeCount * kBufSize);
+    fillRandData(static_cast<uint8_t*>(dmaWrMemPtrs[deviceIdx]), queueCount * kNodeCount * kBufSize);
 
     uint8_t* rdBufPtr = static_cast<uint8_t*>(dmaRdMemPtrs[deviceIdx]);
     uint8_t* wrBufPtr = static_cast<uint8_t*>(dmaWrMemPtrs[deviceIdx]);
@@ -603,8 +291,6 @@ void TestDevOpsApiDmaCmds::dataRWListCmd_PositiveTesting_3_11() {
       streams_.try_emplace(key(deviceIdx, queueIdx), std::move(stream));
     }
   }
-  close(randFd);
-
   executeAsync();
 
   // Validate data received from DMA
@@ -634,7 +320,6 @@ void TestDevOpsApiDmaCmds::dataRWListCmd_NegativeTesting_3_12() {
   device_ops_api::dma_write_node wrList[kNodeCount];
   device_ops_api::dma_read_node rdList[kNodeCount];
 
-  auto randFd = open("/dev/urandom", O_RDONLY);
   int deviceCount = getDevicesCount();
   int queueIdx = 0;
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -643,8 +328,7 @@ void TestDevOpsApiDmaCmds::dataRWListCmd_NegativeTesting_3_12() {
     dmaWrMemPtrs.push_back(allocDmaBuffer(deviceIdx, kNodeCount * kBufSize, true));
     dmaRdMemPtrs.push_back(allocDmaBuffer(deviceIdx, kNodeCount * kBufSize, false));
 
-    // Randomize write buffer
-    read(randFd, dmaWrMemPtrs[deviceIdx], kNodeCount * kBufSize);
+    fillRandData(static_cast<uint8_t*>(dmaWrMemPtrs[deviceIdx]), kNodeCount * kBufSize);
 
     uint8_t* rdBufPtr = static_cast<uint8_t*>(dmaRdMemPtrs[deviceIdx]);
     uint8_t* wrBufPtr = static_cast<uint8_t*>(dmaWrMemPtrs[deviceIdx]);
@@ -672,8 +356,6 @@ void TestDevOpsApiDmaCmds::dataRWListCmd_NegativeTesting_3_12() {
     // Move stream of commands to streams_[queueId]
     streams_.try_emplace(key(deviceIdx, queueIdx), std::move(stream));
   }
-  close(randFd);
-
   executeAsync();
 }
 
@@ -683,164 +365,81 @@ void TestDevOpsApiDmaCmds::dataRWListCmd_NegativeTesting_3_12() {
  *                                                         *
  **********************************************************/
 void TestDevOpsApiDmaCmds::dataWRStressSize_2_1(uint8_t maxExp2) {
-  std::vector<std::vector<uint8_t>> dmaWrBuffs;
-  std::vector<std::vector<uint8_t>> dmaRdBuffs;
-  int deviceCount = 1;
-  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
-    // This test is intended to execute different size of buffers on single queue.
-    // This test exeutes commands and responses synchronously i.e. next command is sent after the response of previous
-    // command is received.
-    uint8_t queueCount = 1;
-    std::vector<uint8_t> dmaRdBuf;
-    std::vector<uint8_t> dmaWrBuf;
-    for (uint8_t queueId = 0; queueId < queueCount; ++queueId) {
-      for (uint8_t n = 2; n <= maxExp2; n++) {
-        const uint64_t bufSize = 1ULL << n;
-        dmaWrBuf.resize(bufSize, 0);
-        for (std::size_t i = 0; i < dmaWrBuf.size(); ++i) {
-          dmaWrBuf[i] = i % 0x100;
-        }
-        dmaWrBuffs.push_back(std::move(dmaWrBuf));
-        auto devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuffs.back().size());
-        auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuffs.back().data());
-        auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-        stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                           hostVirtAddr, hostPhysAddr, dmaWrBuffs.back().size(),
-                                                           device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-      }
+  std::vector<std::vector<uint8_t>> dmaWrBufs;
+  std::vector<std::vector<uint8_t>> dmaRdBufs;
+  std::vector<DmaType> cmdSequence;
+  std::vector<size_t> sizeSequence;
 
-      for (uint8_t n = 2; n <= maxExp2; n++) {
-        const uint64_t bufSize = 1ULL << n;
-        dmaRdBuf.resize(bufSize, 0);
-        dmaRdBuffs.push_back(std::move(dmaRdBuf));
-        auto devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBuffs.back().size());
-        auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBuffs.back().data());
-        auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-        stream.push_back(IDevOpsApiCmd::createDataReadCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                          hostVirtAddr, hostPhysAddr, dmaRdBuffs.back().size(),
-                                                          device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-      }
-
-      // Move stream of commands to streams_
-      streams_.try_emplace(key(deviceIdx, queueId), std::move(stream));
-    }
+  for (uint8_t n = 2; n <= maxExp2; n++) {
+    cmdSequence.push_back(DmaType::DMA_WRITE);
+    sizeSequence.push_back(1ULL << n);
   }
-  executeSync();
+
+  for (uint8_t n = 2; n <= maxExp2; n++) {
+    cmdSequence.push_back(DmaType::DMA_READ);
+    sizeSequence.push_back(1ULL << n);
+  }
+
+  EXPECT_TRUE(executeDmaCmds(true /* single queue */, true /* single device */, false /* execute sync */, cmdSequence,
+                             sizeSequence, dmaWrBufs, dmaRdBufs));
 
   // Skip data validation in case of loopback driver
   if (FLAGS_loopback_driver) {
     return;
   }
 
-  for (std::size_t i = 0; i < dmaWrBuffs.size(); ++i) {
-    EXPECT_EQ(dmaWrBuffs[i], dmaRdBuffs[i]);
+  for (std::size_t i = 0; i < dmaWrBufs.size(); ++i) {
+    EXPECT_EQ(dmaWrBufs[i], dmaRdBufs[i]);
   }
 }
 
 void TestDevOpsApiDmaCmds::dataWRStressSpeed_2_2(uint8_t maxExp2) {
-  std::vector<std::vector<uint8_t>> dmaWrBuffs;
-  std::vector<std::vector<uint8_t>> dmaRdBuffs;
-  int deviceCount = 1;
-  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
-    // This test is intended to execute different size of buffers on single queue.
-    // This test exeutes commands and responses asynchronously i.e. commands and responses are processed using seprate
-    // threads.
-    uint8_t queueCount = 1;
-    std::vector<uint8_t> dmaRdBuf;
-    std::vector<uint8_t> dmaWrBuf;
+  std::vector<std::vector<uint8_t>> dmaWrBufs;
+  std::vector<std::vector<uint8_t>> dmaRdBufs;
+  std::vector<DmaType> cmdSequence;
+  std::vector<size_t> sizeSequence;
 
-    for (uint8_t queueId = 0; queueId < queueCount; ++queueId) {
-      for (uint8_t n = 2; n <= maxExp2; n++) {
-        const uint64_t bufSize = 1ULL << n;
-        dmaWrBuf.resize(bufSize, 0);
-        for (std::size_t i = 0; i < dmaWrBuf.size(); ++i) {
-          dmaWrBuf[i] = i % 0x100;
-        }
-        dmaWrBuffs.push_back(std::move(dmaWrBuf));
-        auto devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBuffs.back().size());
-        auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBuffs.back().data());
-        auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-        stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                           hostVirtAddr, hostPhysAddr, dmaWrBuffs.back().size(),
-                                                           device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-      }
-
-      bool isFirstCommand = true; // Barrier for the first command
-      for (uint8_t n = 2; n <= maxExp2; n++) {
-        const uint64_t bufSize = 1ULL << n;
-        dmaRdBuf.resize(bufSize, 0);
-        dmaRdBuffs.push_back(std::move(dmaRdBuf));
-        auto devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBuffs.back().size());
-        auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBuffs.back().data());
-        auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-        stream.push_back(IDevOpsApiCmd::createDataReadCmd(
-          isFirstCommand ? device_ops_api::CMD_FLAGS_BARRIER_ENABLE : device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
-          devPhysAddr, hostVirtAddr, hostPhysAddr, dmaRdBuffs.back().size(),
-          device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-        isFirstCommand = false;
-      }
-
-      // Move stream of commands to streams_
-      streams_.try_emplace(key(deviceIdx, queueId), std::move(stream));
-    }
+  for (uint8_t n = 2; n <= maxExp2; n++) {
+    cmdSequence.push_back(DmaType::DMA_WRITE);
+    sizeSequence.push_back(1ULL << n);
   }
-  executeAsync();
+
+  for (uint8_t n = 2; n <= maxExp2; n++) {
+    cmdSequence.push_back(DmaType::DMA_READ);
+    sizeSequence.push_back(1ULL << n);
+  }
+
+  EXPECT_TRUE(executeDmaCmds(true /* single queue */, true /* single device */, true /* execute Async */, cmdSequence,
+                             sizeSequence, dmaWrBufs, dmaRdBufs));
 
   // Skip data validation in case of loopback driver
   if (FLAGS_loopback_driver) {
     return;
   }
 
-  for (std::size_t i = 0; i < dmaWrBuffs.size(); ++i) {
-    EXPECT_EQ(dmaWrBuffs[i], dmaRdBuffs[i]);
+  for (std::size_t i = 0; i < dmaWrBufs.size(); ++i) {
+    EXPECT_EQ(dmaWrBufs[i], dmaRdBufs[i]);
   }
 }
 
 void TestDevOpsApiDmaCmds::dataWRStressChannels(bool singleDevice, bool singleQueue, uint32_t numOfLoopbackCmds) {
-  const uint64_t bufSize = 4 * 1024; // 4K buffer size
   std::vector<std::vector<uint8_t>> dmaRdBufs;
   std::vector<std::vector<uint8_t>> dmaWrBufs;
+  std::vector<DmaType> cmdSequence;
+  std::vector<size_t> sizeSequence;
   int deviceCount = singleDevice ? 1 : getDevicesCount();
-  auto randFd = open("/dev/urandom", O_RDONLY);
-  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
-    int queueCount = singleQueue ? 1 : getSqCount(deviceIdx);
-    for (int queueId = 0; queueId < queueCount; ++queueId) {
-      for (int i = 1; i <= (numOfLoopbackCmds / deviceCount) / queueCount; i++) {
-        std::vector<uint8_t> dmaWrBuf(bufSize, 0);
-        read(randFd, dmaWrBuf.data(), dmaWrBuf.size());
-        dmaWrBufs.push_back(std::move(dmaWrBuf));
-        auto devPhysAddr = getDmaWriteAddr(deviceIdx, dmaWrBufs.back().size());
-        auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaWrBufs.back().data());
-        auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-        stream.push_back(IDevOpsApiCmd::createDataWriteCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devPhysAddr,
-                                                           hostVirtAddr, hostPhysAddr, dmaWrBufs.back().size(),
-                                                           device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-      }
-
-      bool isFirstCommand = true; // Barrier for the first command
-      for (int i = 1; i <= (numOfLoopbackCmds / deviceCount) / queueCount; i++) {
-        std::vector<uint8_t> dmaRdBuf(bufSize, 0);
-        dmaRdBufs.push_back(std::move(dmaRdBuf));
-        auto devPhysAddr = getDmaReadAddr(deviceIdx, dmaRdBufs.back().size());
-        auto hostVirtAddr = templ::bit_cast<uint64_t>(dmaRdBufs.back().data());
-        auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-        stream.push_back(IDevOpsApiCmd::createDataReadCmd(
-          isFirstCommand ? device_ops_api::CMD_FLAGS_BARRIER_ENABLE : device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
-          devPhysAddr, hostVirtAddr, hostPhysAddr, dmaRdBufs.back().size(),
-          device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-        isFirstCommand = false;
-      }
-
-      // Move stream of commands to streams_[queueId]
-      streams_.try_emplace(key(deviceIdx, queueId), std::move(stream));
-    }
+  int queueCount = singleQueue ? 1 : getSqCount(0);
+  for (int i = 1; i <= (numOfLoopbackCmds / deviceCount) / queueCount; i++) {
+    cmdSequence.push_back(DmaType::DMA_WRITE);
+    sizeSequence.push_back(4096 /* 4K */);
   }
-  close(randFd);
+  for (int i = 1; i <= (numOfLoopbackCmds / deviceCount) / queueCount; i++) {
+    cmdSequence.push_back(DmaType::DMA_READ);
+    sizeSequence.push_back(4096 /* 4K */);
+  }
 
-  executeAsync();
+  EXPECT_TRUE(executeDmaCmds(singleDevice, singleQueue, true /* execute Async */, cmdSequence, sizeSequence, dmaWrBufs,
+                             dmaRdBufs));
 
   // Skip data validation in case of loopback driver
   if (FLAGS_loopback_driver) {
@@ -870,15 +469,13 @@ void TestDevOpsApiDmaCmds::dmaListWrAndRd(bool singleDevice, bool singleQueue, u
   device_ops_api::dma_write_node wrList[kMaxNodeCountPerCmd];
   device_ops_api::dma_read_node rdList[kMaxNodeCountPerCmd];
 
-  auto randFd = open("/dev/urandom", O_RDONLY);
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
 
     dmaWrMemPtrs.push_back(allocDmaBuffer(deviceIdx, numOfDmaEntriesPerDev * kBufSize, true));
     dmaRdMemPtrs.push_back(allocDmaBuffer(deviceIdx, numOfDmaEntriesPerDev * kBufSize, false));
 
-    // Randomize write buffer
-    read(randFd, dmaWrMemPtrs[deviceIdx], numOfDmaEntriesPerDev * kBufSize);
+    fillRandData(static_cast<uint8_t*>(dmaWrMemPtrs[deviceIdx]), numOfDmaEntriesPerDev * kBufSize);
 
     uint8_t* rdBufPtr = static_cast<uint8_t*>(dmaRdMemPtrs[deviceIdx]);
     uint8_t* wrBufPtr = static_cast<uint8_t*>(dmaWrMemPtrs[deviceIdx]);
@@ -919,8 +516,6 @@ void TestDevOpsApiDmaCmds::dmaListWrAndRd(bool singleDevice, bool singleQueue, u
       streams_.try_emplace(key(deviceIdx, queueIdx), std::move(stream));
     }
   }
-  close(randFd);
-
   executeAsync();
 
   // Validate data received from DMA

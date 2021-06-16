@@ -13,7 +13,6 @@
 class TestDevOpsApiDmaCmds : public TestDevOpsApi {
 protected:
   /* DMA Basic Testing Functions */
-  void dataRWCmdWithBasicCmds_3_4();
   void dataRWCmdMixed_3_5();
   void dataRWCmdMixedWithVarSize_3_6();
   void dataRWCmdAllChannels_3_7();
@@ -35,4 +34,14 @@ protected:
 
   /* DMA List Stress Testing Functions */
   void dmaListWrAndRd(bool singleDevice, bool singleQueue, uint32_t numOfDmaEntries);
+
+private:
+  enum class DmaType { DMA_WRITE, DMA_READ };
+
+  bool fillDmaStream(int deviceIdx, std::vector<std::unique_ptr<IDevOpsApiCmd>>& stream,
+                     const std::vector<DmaType>& cmdSequence, const std::vector<size_t>& sizeSequence,
+                     std::vector<std::vector<uint8_t>>& dmaWrBufs, std::vector<std::vector<uint8_t>>& dmaRdBufs);
+  bool executeDmaCmds(bool singleDevice, bool singleQueue, bool isAsync, const std::vector<DmaType>& cmdSequence,
+                      const std::vector<size_t>& sizeSequence, std::vector<std::vector<uint8_t>>& dmaWrBufs,
+                      std::vector<std::vector<uint8_t>>& dmaRdBufs);
 };

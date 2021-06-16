@@ -57,10 +57,6 @@ TEST_F(TestDevOpsApiFuncDmaCmdsSysEmu, dataRWCmd_PositiveTesting_3_1) {
   dataRWCmd_PositiveTesting_3_1();
 }
 
-TEST_F(TestDevOpsApiFuncDmaCmdsSysEmu, dataRWCmdWithBasicCmds_3_4) {
-  dataRWCmdWithBasicCmds_3_4();
-}
-
 TEST_F(TestDevOpsApiFuncDmaCmdsSysEmu, dataRWCmdMixed_3_5) {
   dataRWCmdMixed_3_5();
 }
@@ -91,7 +87,6 @@ TEST_F(TestDevOpsApiFuncDmaCmdsSysEmu, dataRWListCmd_NegativeTesting_3_12) {
  */
 TEST_F(TestDevOpsApiFuncDmaCmdsSysEmu, allTestsConsecutively) {
   dataRWCmd_PositiveTesting_3_1();
-  dataRWCmdWithBasicCmds_3_4();
   dataRWCmdMixed_3_5();
   dataRWCmdMixedWithVarSize_3_6();
   dataRWCmdAllChannels_3_7();

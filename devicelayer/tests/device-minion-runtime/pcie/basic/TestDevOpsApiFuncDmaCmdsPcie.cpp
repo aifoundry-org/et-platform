@@ -27,10 +27,6 @@ TEST_F(TestDevOpsApiFuncDmaCmdsPcie, dataRWCmd_PositiveTesting_3_1) {
   dataRWCmd_PositiveTesting_3_1();
 }
 
-TEST_F(TestDevOpsApiFuncDmaCmdsPcie, dataRWCmdWithBasicCmds_3_4) {
-  dataRWCmdWithBasicCmds_3_4();
-}
-
 TEST_F(TestDevOpsApiFuncDmaCmdsPcie, dataRWCmdMixed_3_5) {
   dataRWCmdMixed_3_5();
 }
