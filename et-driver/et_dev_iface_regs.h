@@ -257,6 +257,13 @@ static inline bool valid_vq_region(struct et_dir_vqueue *vq_region,
 	syndrome_str[0] = '\0';
 	rv = true;
 
+	if (is_mgmt)
+		strcat(syndrome_str, "\nDevice: Mgmt\n");
+	else
+		strcat(syndrome_str, "\nDevice: Ops\n");
+
+	strcat(syndrome_str, "Region: VQ Region\n");
+
 	if (!vq_region->sq_count) {
 		strcat(syndrome_str, "VQ SQ count is 0\n");
 		rv = false;
@@ -321,6 +328,11 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 
 	syndrome_str[0] = '\0';
 	rv = true;
+
+	if (is_mgmt)
+		strcat(syndrome_str, "\nDevice: Mgmt\n");
+	else
+		strcat(syndrome_str, "\nDevice: Ops\n");
 
 	if (!region->bar_size) {
 		strcat(syndrome_str, "BAR size is 0\n");

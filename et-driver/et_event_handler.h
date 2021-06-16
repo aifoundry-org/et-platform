@@ -15,6 +15,8 @@
 #ifndef __ET_EVENT_HANDLER_H
 #define __ET_EVENT_HANDLER_H
 
+#include <linux/pci.h>
+
 #include "et_device_api.h"
 #include "et_vqueue.h"
 
@@ -122,6 +124,16 @@ struct event_dbg_msg {
 };
 
 #define ET_EVENT_SYNDROME_LEN		320
+
+static inline void et_print_event(struct pci_dev *pdev,
+				  struct event_dbg_msg *dbg_msg) {
+	dev_info(&pdev->dev,
+		 "Error Event Detected\nLevel     : %s\nDesc      : %s\nCount     : %d\nSyndrome  : %s",
+		 dbg_msg->level,
+		 dbg_msg->desc,
+		 dbg_msg->count,
+		 dbg_msg->syndrome);
+}
 
 int et_handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr);
 

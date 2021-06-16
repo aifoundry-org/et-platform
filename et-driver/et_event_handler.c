@@ -354,12 +354,7 @@ int et_handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
 		break;
 	}
 
-	dev_info(&pdev->dev,
-		"Error Event Detected\nLevel     : %s\nDesc      : %s\nCount     : %d\nSyndrome  : %s",
-		dbg_msg.level,
-		dbg_msg.desc,
-		dbg_msg.count,
-		dbg_msg.syndrome);
+	et_print_event(pdev, &dbg_msg);
 
 	return rv;
 }
