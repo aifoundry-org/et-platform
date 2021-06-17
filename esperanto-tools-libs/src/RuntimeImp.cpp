@@ -283,8 +283,8 @@ bool RuntimeImp::waitForEvent(EventId event, std::chrono::milliseconds timeout) 
 }
 
 bool RuntimeImp::waitForStream(StreamId stream, std::chrono::milliseconds timeout) {
-  ScopedProfileEvent profileEvent(Class::WaitForStream, profiler_, stream);
   std::unique_lock<std::recursive_mutex> lock(mutex_);
+  ScopedProfileEvent profileEvent(Class::WaitForStream, profiler_, stream);
   auto it = find(streams_, stream, "Invalid stream");
   auto evt = it->second.lastEventId_;
   lock.unlock();
