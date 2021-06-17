@@ -1890,6 +1890,21 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 						ET_CB_SYNC_FOR_DEVICE))
 			rv = -EAGAIN;
 		break;
+
+	case DM_CMD_GET_DEVICE_ERROR_EVENTS:
+		FILL_RSP_HEADER(dm_def_rsp,
+				header.tag_id,
+				DM_CMD_GET_DEVICE_ERROR_EVENTS,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_def_rsp,
+					sizeof(dm_def_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+		rv = -EAGAIN;
+		break;
 	}
 	mutex_unlock(&cq->pop_mutex);
 

@@ -295,7 +295,7 @@ static inline bool valid_vq_region(struct et_dir_vqueue *vq_region,
 	}
 
 	if (!rv)
-		strncpy(syndrome, syndrome_str, len);
+		memcpy(syndrome, syndrome_str, strlen(syndrome_str) + 1);
 
 	kfree(syndrome_str);
 	return rv;
@@ -434,7 +434,7 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 	}
 
 	if (!rv)
-		strncpy(syndrome, syndrome_str, len);
+		memcpy(syndrome, syndrome_str, strlen(syndrome_str) + 1);
 
 	kfree(syndrome_str);
 	return rv;
