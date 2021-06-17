@@ -131,7 +131,7 @@ static void pc_vq_task(void *pvParameters)
 
             // No new messages
             if (length == 0) {
-                Log_Write(LOG_LEVEL_WARNING, "Host_Iface: DM request received with 0 length.\n");
+                Log_Write(LOG_LEVEL_DEBUG, "Host_Iface: DM request received with 0 length.\n");
                 break;
             }
 
