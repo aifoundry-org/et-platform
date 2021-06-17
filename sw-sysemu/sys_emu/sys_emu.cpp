@@ -874,7 +874,7 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
 
     // Setup SPIO UART1 RX stream
     if (!cmd_options.spio_uart1_rx_file.empty()) {
-        int fd = open(cmd_options.spio_uart1_rx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        int fd = open(cmd_options.spio_uart1_rx_file.c_str(), O_RDONLY | O_NONBLOCK | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
             LOG_AGENT(FTL, agent, "Error opening \"%s\"", cmd_options.spio_uart1_rx_file.c_str());
         }
