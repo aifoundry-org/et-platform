@@ -9,19 +9,39 @@
  *-------------------------------------------------------------------------*/
 #pragma once
 #include "ProfilerImp.h"
+
 #include <optional>
 #include <tuple>
 #include <atomic>
 
-namespace rt {
-namespace profiling {
+namespace rt::profiling {
+
 class ScopedProfileEvent {
 public:
-  explicit ScopedProfileEvent(Class cls, ProfilerImp& profiler, StreamId streamId,
-                              std::unordered_map<std::string, uint64_t> extra = {})
+  explicit ScopedProfileEvent(Class cls, ProfilerImp& profiler, StreamId streamId, KernelId kernelId,
+                              uint64_t loadAddress)
     : profiler_(profiler)
     , event_{Type::Start, cls} {
-    event_.extra_ = std::move(extra);
+    event_.setStream(streamId);
+    event_.setKernelId(kernelId);
+    event_.setLoadAddress(loadAddress);
+    init();
+  }
+  explicit ScopedProfileEvent(Class cls, ProfilerImp& profiler, KernelId kernelId)
+    : profiler_(profiler)
+    , event_{Type::Start, cls} {
+    event_.setKernelId(kernelId);
+    init();
+  }
+  explicit ScopedProfileEvent(Class cls, ProfilerImp& profiler, DeviceId deviceId)
+    : profiler_(profiler)
+    , event_{Type::Start, cls} {
+    event_.setDeviceId(deviceId);
+    init();
+  }
+  explicit ScopedProfileEvent(Class cls, ProfilerImp& profiler, StreamId streamId)
+    : profiler_(profiler)
+    , event_{Type::Start, cls} {
     event_.setStream(streamId);
     init();
   }
@@ -37,7 +57,7 @@ public:
     init();
   }
   void init() {
-    event_.addExtra("pair_id", nextPairId_++);
+    event_.setPairId(nextPairId_++);
     profiler_.record(event_);
   }
 
@@ -52,9 +72,9 @@ public:
   }
 
 private:
-  inline static std::atomic<int> nextPairId_ = 0;
+  inline static std::atomic<uint64_t> nextPairId_ = 0;
   ProfilerImp& profiler_;
   ProfileEvent event_;
 };
-} // namespace profiling
-} // namespace rt
+
+} // namespace rt::profiling

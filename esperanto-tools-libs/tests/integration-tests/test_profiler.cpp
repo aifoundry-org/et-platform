@@ -9,10 +9,17 @@
 //------------------------------------------------------------------------------
 
 #include "common/Constants.h"
+
+#include "runtime/IProfileEvent.h"
 #include "runtime/IProfiler.h"
 #include "runtime/IRuntime.h"
+
 #include <hostUtils/logging/Logging.h>
 #include <device-layer/IDeviceLayer.h>
+
+#include <cereal/archives/binary.hpp>
+#include <cereal/archives/json.hpp>
+
 #include <experimental/filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
@@ -27,6 +34,7 @@ constexpr uint64_t kSysEmuMaxCycles = std::numeric_limits<uint64_t>::max();
 constexpr uint64_t kSysEmuMinionShiresMask = 0x1FFFFFFFFu;
 } // namespace
 
+namespace rt::tests {
 
 TEST(Profiler, add_2_vectors_profiling) {
   auto kernel_file = std::ifstream((fs::path(KERNELS_DIR) / fs::path("add_vector.elf")).string(), std::ios::binary);
@@ -113,6 +121,74 @@ TEST(Profiler, add_2_vectors_profiling) {
   LOG(INFO) << "Trace: " << str;
 }
 
+class ProfileEventDeserializationTest : public ::testing::Test {
+protected:
+  void SetUp() override {
+    CreateProfileEvent();
+
+    std::ostringstream oss_json;
+    SerializeToJson(oss_json);
+    trace_contents_json = oss_json.str();
+
+    std::ostringstream oss_binary(std::ios_base::binary);
+    SerializeToBinary(oss_binary);
+    trace_contents_binary = oss_binary.str();
+  }
+private:
+  void CreateProfileEvent() {
+      rt::profiling::ProfileEvent evt(rt::profiling::Type::Start, rt::profiling::Class::GetDevices);
+      evt.setPairId(33);
+      // etc..
+      reference_evt = evt;
+  }
+  void SerializeToJson(std::ostringstream& oss_json) {
+      cereal::JSONOutputArchive archive_json(oss_json);
+      archive_json(reference_evt);
+  }
+  void SerializeToBinary(std::ostringstream& oss_binary) {
+    cereal::BinaryOutputArchive archive_binary(oss_binary);
+    archive_binary(reference_evt);
+  }
+protected:
+  rt::profiling::ProfileEvent reference_evt;
+
+  std::string trace_contents_json;
+  std::string trace_contents_binary;
+};
+
+TEST_F(ProfileEventDeserializationTest, DeserializeJson) {
+  std::istringstream iss(trace_contents_json);
+  cereal::JSONInputArchive archive(iss);
+
+  rt::profiling::ProfileEvent deserialized_evt;
+  archive(deserialized_evt);
+
+  EXPECT_EQ(deserialized_evt.getType(), reference_evt.getType());
+  EXPECT_EQ(deserialized_evt.getClass(), reference_evt.getClass());
+  EXPECT_EQ(deserialized_evt.getTimeStamp(), reference_evt.getTimeStamp());
+  EXPECT_EQ(deserialized_evt.getThreadId(), reference_evt.getThreadId());
+
+  EXPECT_TRUE(deserialized_evt.getPairId().has_value());
+  EXPECT_EQ(deserialized_evt.getPairId().value(), 33);
+}
+
+TEST_F(ProfileEventDeserializationTest, DeserializeBinary) {
+  std::istringstream iss(trace_contents_binary, std::ios_base::binary);
+  cereal::BinaryInputArchive archive(iss);
+
+  rt::profiling::ProfileEvent deserialized_evt;
+  archive(deserialized_evt);
+
+  EXPECT_EQ(deserialized_evt.getType(), reference_evt.getType());
+  EXPECT_EQ(deserialized_evt.getClass(), reference_evt.getClass());
+  EXPECT_EQ(deserialized_evt.getTimeStamp(), reference_evt.getTimeStamp());
+  EXPECT_EQ(deserialized_evt.getThreadId(), reference_evt.getThreadId());
+
+  EXPECT_TRUE(deserialized_evt.getPairId().has_value());
+  EXPECT_EQ(deserialized_evt.getPairId().value(), 33);
+}
+
+} // namespace rt::tests
 
 int main(int argc, char** argv) {
   logging::LoggerDefault logger_;

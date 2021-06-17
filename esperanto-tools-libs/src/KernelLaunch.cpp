@@ -33,10 +33,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
                                  uint64_t shire_mask, bool barrier, bool flushL3) {
   std::unique_lock<std::recursive_mutex> lock(mutex_);
   auto&& kernel = find(kernels_, kernelId)->second;
-
-  ScopedProfileEvent profileEvent(Class::KernelLaunch, profiler_, streamId,
-                                  {{"load_address", kernel->getLoadAddress()},
-                                   {"kernel_id", static_cast<std::underlying_type<KernelId>::type>(kernelId)}});
+  ScopedProfileEvent profileEvent(Class::KernelLaunch, profiler_, streamId, kernelId, kernel->getLoadAddress());
 
   if (kernel_args_size > kMinAllocationSize) {
     char buffer[1024];

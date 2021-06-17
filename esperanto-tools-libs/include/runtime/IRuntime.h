@@ -9,10 +9,12 @@
  *-------------------------------------------------------------------------*/
 
 #pragma once
+
+#include <hostUtils/debug/StackException.h>
+
 #include <chrono>
 #include <cstddef>
 #include <exception>
-#include <hostUtils/debug/StackException.h>
 #include <memory>
 #include <stdexcept>
 #include <vector>

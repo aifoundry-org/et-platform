@@ -10,17 +10,21 @@
 
 #include "RuntimeImp.h"
 #include "KernelParametersCache.h"
-#include "ProfileEvent.h"
 #include "ScopedProfileEvent.h"
+
 #include "runtime/DmaBuffer.h"
 #include "runtime/IRuntime.h"
+
+#include <device-layer/IDeviceLayer.h>
+#include <esperanto/device-apis/operations-api/device_ops_api_cxx.h>
+
+#include <elfio/elfio.hpp>
+
 #include <chrono>
 #include <cstdio>
-#include <device-layer/IDeviceLayer.h>
-#include <elfio/elfio.hpp>
-#include <esperanto/device-apis/operations-api/device_ops_api_cxx.h>
 #include <memory>
 #include <sstream>
+
 using namespace rt;
 using namespace rt::profiling;
 
@@ -53,7 +57,7 @@ std::vector<DeviceId> RuntimeImp::getDevices() {
 }
 
 KernelId RuntimeImp::loadCode(DeviceId device, const void* data, size_t size) {
-  ScopedProfileEvent profileEvent(Class::LoadCode, profiler_);
+  ScopedProfileEvent profileEvent(Class::LoadCode, profiler_, device);
   std::unique_lock<std::recursive_mutex> lock(mutex_);
 
   // allocate a buffer in the device to load the code
@@ -106,7 +110,7 @@ KernelId RuntimeImp::loadCode(DeviceId device, const void* data, size_t size) {
 }
 
 void RuntimeImp::unloadCode(KernelId kernel) {
-  ScopedProfileEvent profileEvent(Class::UnloadCode, profiler_);
+  ScopedProfileEvent profileEvent(Class::UnloadCode, profiler_, kernel);
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   auto it = find(kernels_, kernel);
 
@@ -118,7 +122,7 @@ void RuntimeImp::unloadCode(KernelId kernel) {
 }
 
 void* RuntimeImp::mallocDevice(DeviceId device, size_t size, int alignment) {
-  ScopedProfileEvent profileEvent(Class::MallocDevice, profiler_);
+  ScopedProfileEvent profileEvent(Class::MallocDevice, profiler_, device);
   RT_DLOG(INFO) << "Malloc requested device " << std::hex << static_cast<std::underlying_type_t<DeviceId>>(device)
                 << " size: " << size << " alignment: " << alignment;
   std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -128,7 +132,7 @@ void* RuntimeImp::mallocDevice(DeviceId device, size_t size, int alignment) {
   return static_cast<void*>(it->second.malloc(size, alignment));
 }
 void RuntimeImp::freeDevice(DeviceId device, void* buffer) {
-  ScopedProfileEvent profileEvent(Class::FreeDevice, profiler_);
+  ScopedProfileEvent profileEvent(Class::FreeDevice, profiler_, device);
   RT_DLOG(INFO) << "Free at device: " << static_cast<std::underlying_type_t<DeviceId>>(device)
                 << " buffer address: " << std::hex << buffer;
   std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -137,7 +141,7 @@ void RuntimeImp::freeDevice(DeviceId device, void* buffer) {
 }
 
 StreamId RuntimeImp::createStream(DeviceId device) {
-  ScopedProfileEvent profileEvent(Class::CreateStream, profiler_);
+  ScopedProfileEvent profileEvent(Class::CreateStream, profiler_, device);
   RT_DLOG(INFO) << "Creating stream at device: " << static_cast<std::underlying_type_t<DeviceId>>(device);
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   auto streamId = static_cast<StreamId>(nextStreamId_++);
@@ -279,8 +283,8 @@ bool RuntimeImp::waitForEvent(EventId event, std::chrono::milliseconds timeout) 
 }
 
 bool RuntimeImp::waitForStream(StreamId stream, std::chrono::milliseconds timeout) {
-  ScopedProfileEvent profileEvent(Class::WaitForStream, profiler_, stream);
   std::unique_lock<std::recursive_mutex> lock(mutex_);
+  ScopedProfileEvent profileEvent(Class::WaitForStream, profiler_, stream);
   auto it = find(streams_, stream, "Invalid stream");
   auto evt = it->second.lastEventId_;
   lock.unlock();
@@ -307,17 +311,15 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
   auto header = reinterpret_cast<const device_ops_api::rsp_header_t*>(response.data());
   auto eventId = EventId{header->rsp_hdr.tag_id};
 
-  ProfileEvent event(Type::Single, Class::KernelTimestamps);
+  ProfileEvent event(Type::Instant, Class::KernelTimestamps);
   event.setEvent(eventId);
   auto fillEvent = [](ProfileEvent& evt, const auto& response) {
     RT_VLOG(HIGH) << std::hex << " Start time: " << response.device_cmd_start_ts
                   << " Wait time: " << response.device_cmd_wait_dur
                   << " Execution time: " << response.device_cmd_execute_dur;
-    evt.addExtra("device_cmd_start_ts", response.device_cmd_start_ts);
-    evt.addExtra("device_cmd_wait_dur", response.device_cmd_wait_dur);
-    evt.addExtra("device_cmd_execute_dur", response.device_cmd_execute_dur);
-    evt.addExtra("cmd_wait_time", response.device_cmd_wait_dur);
-    evt.addExtra("cmd_execution_time", response.device_cmd_execute_dur);
+    evt.setDeviceCmdStartTs(response.device_cmd_start_ts);
+    evt.setDeviceCmdWaitDur(response.device_cmd_wait_dur);
+    evt.setDeviceCmdExecDur(response.device_cmd_execute_dur);
   };
 
   RT_VLOG(MID) << "Response received eventId: " << std::hex << static_cast<int>(eventId)
