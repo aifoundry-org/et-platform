@@ -5,7 +5,6 @@
 #include "services/log.h"
 #include "services/trace.h"
 
-#include <errno.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -37,10 +36,25 @@
     (PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_1_ADDRESS - \
      PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_ADDRESS)
 
-/*! \def DMA_CHAN_GET_LL_BASE
-    \brief It returns DMA link list base address for specified channel.
+/*! \def DMA_READ_CHAN_GET_LL_BASE
+    \brief It returns DMA link list base address for specified DMA read channel.
 */
-#define DMA_CHAN_GET_LL_BASE(chan) (DMA_CHAN_READ_0_LL_BASE + (chan * DMA_LL_SIZE))
+#define DMA_READ_CHAN_GET_LL_BASE(chan)  ((uint64_t)(DMA_CHAN_READ_0_LL_BASE + (chan * DMA_LL_SIZE)))
+
+/*! \def DMA_WRITE_CHAN_GET_LL_BASE
+    \brief It returns DMA link list base address for specified DMA write channel.
+*/
+#define DMA_WRITE_CHAN_GET_LL_BASE(chan) ((uint64_t)(DMA_CHAN_WRITE_0_LL_BASE + (chan * DMA_LL_SIZE)))
+
+/*! \def IS_DMA_READ_CHAN_VALID
+    \brief Check if specified DMA read channel is valid.
+*/
+#define IS_DMA_READ_CHAN_VALID(chan)          (chan <= DMA_CHAN_ID_READ_3)
+
+/*! \def IS_DMA_WRITE_CHAN_VALID
+    \brief Check if specified DMA write channel is valid.
+*/
+#define IS_DMA_WRITE_CHAN_VALID(chan)         (chan <= DMA_CHAN_ID_WRITE_3)
 
 /*! \struct dma_mem_region
     \brief Structure for a memory region, used to verify DMA bounds check.
@@ -73,18 +87,22 @@ static const struct dma_mem_region valid_dma_targets[] = {
 *
 *   INPUTS
 *
-*       chan       DMA channel ID
-*       index      Index of current data node
+*       ll_address  Address of DMA kink list base for required DMA channel.
+*       index       Index of current data node
+*       sar         Source address
+*       dar         Destination address
+*       size        Size of DMA transaction
+*       lie         Local Interrupt Enable/Disable
 *
 *   OUTPUTS
 *
-*       int8_t     Status success or error
+*       None
 *
 ***********************************************************************/
-static inline void write_xfer_list_data(dma_chan_id_e id, uint32_t index, uint64_t sar,
+static inline void write_xfer_list_data(uint64_t ll_address, uint32_t index, uint64_t sar,
                                         uint64_t dar, uint32_t size, bool lie)
 {
-    transfer_list_elem_t *transfer = (transfer_list_elem_t*)DMA_CHAN_GET_LL_BASE(id);
+    transfer_list_elem_t *transfer = (transfer_list_elem_t *)ll_address;
 
     uint32_t ctrl_dword = CTRL_CB;
     if (lie)
@@ -105,26 +123,26 @@ static inline void write_xfer_list_data(dma_chan_id_e id, uint32_t index, uint64
 *
 *   DESCRIPTION
 *
-*       Writes one data element of a DMA transfer list. This structure is used
+*       Writes one link element of a DMA transfer list. This structure is used
 *       to configure the DMA engine.
 *
 *   INPUTS
 *
-*       chan       DMA channel ID
+*       ll_address  Address of DMA kink list base for required DMA channel.
 *       index      Index of current link node
 *
 *   OUTPUTS
 *
-*       int8_t     Status success or error
+*       None
 *
 ***********************************************************************/
-static inline void write_xfer_list_link(dma_chan_id_e id, uint32_t index, uint64_t ptr)
+static inline void write_xfer_list_link(uint64_t ll_address, uint32_t index)
 {
-    transfer_list_elem_t *transfer = (transfer_list_elem_t*)DMA_CHAN_GET_LL_BASE(id);
+    transfer_list_elem_t *transfer = (transfer_list_elem_t *)ll_address;
 
     /* Populate DMA list link node's data. */
     transfer[index].link.ctrl.R = CTRL_TCB | CTRL_LLP;
-    transfer[index].link.ptr = ptr;
+    transfer[index].link.ptr = ll_address; /* circular link */
 
     /* This is last element for a single DMA list transfer. Evict whole list here.
        Total number of elements is calculated by index of this link element,
@@ -175,18 +193,64 @@ static inline int8_t dma_bounds_check(uint64_t soc_addr, uint64_t size)
 *
 *   FUNCTION
 *
-*       dma_config_add_data_node
+*       dma_config_read_add_data_node
 *
 *   DESCRIPTION
 *
-*       This function adds a new data node in DMA transfer list. After adding
-*       all data nodes user must to add a link node as well.
+*       This function adds a new data node in DMA read transfer list. After
+*       adding all data nodes user must to add a link node as well.
 *
 *   INPUTS
 *
 *       src_addr        Source address
 *       dest_addr       Destination address
-*       xfer_count      Number of transfer nodes in command.
+*       size            Size of DMA transaction
+*       chan            DMA channel ID
+*       index           Index of current data node
+*       local_interrupt Enable/Disable DMA local interrupt.
+*
+*   OUTPUTS
+*
+*       int8_t     status success or error
+*
+***********************************************************************/
+int8_t dma_config_read_add_data_node(uint64_t src_addr, uint64_t dest_addr,
+    uint32_t size, dma_read_chan_id_e chan, uint32_t index, bool local_interrupt)
+{
+    /* Reads data from Host to Device memory */
+    int8_t status = DMA_ERROR_INVALID_PARAM;
+
+    /* Validate the params */
+    if (IS_DMA_READ_CHAN_VALID(chan))
+    {
+        /* Validate the bounds. Read: source is on host, dest is on SoC */
+        status = dma_bounds_check(dest_addr, size);
+
+        if (status == DMA_OPERATION_SUCCESS)
+        {
+            /* Add a data node in xfer list */
+            write_xfer_list_data(DMA_READ_CHAN_GET_LL_BASE(chan), index, src_addr, dest_addr, size, local_interrupt);
+        }
+    }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       dma_config_write_add_data_node
+*
+*   DESCRIPTION
+*
+*       This function adds a new data node in DMA write transfer list. After
+*       adding all data nodes user must to add a link node as well.
+*
+*   INPUTS
+*
+*       src_addr        Source address
+*       dest_addr       Destination address
 *       size            Size of DMA transaction
 *       chan            DMA channel ID
 *       index           Index of current data node
@@ -198,36 +262,29 @@ static inline int8_t dma_bounds_check(uint64_t soc_addr, uint64_t size)
 *       int8_t     status success or error
 *
 ***********************************************************************/
-int8_t dma_config_add_data_node(uint64_t src_addr, uint64_t dest_addr,
-    uint32_t size, dma_chan_id_e chan, uint32_t index, dma_flags_e dma_flags,
+int8_t dma_config_write_add_data_node(uint64_t src_addr, uint64_t dest_addr,
+    uint32_t size, dma_write_chan_id_e chan, uint32_t index, dma_flags_e dma_flags,
     bool local_interrupt)
 {
     /* Reads data from Host to Device memory */
     int8_t status = DMA_OPERATION_SUCCESS;
 
     /* Validate the params */
-    if (!(chan >= DMA_CHAN_ID_READ_0 && chan <= DMA_CHAN_ID_WRITE_3))
+    if (!IS_DMA_WRITE_CHAN_VALID(chan))
     {
         status = DMA_ERROR_INVALID_PARAM;
     }
     else if(!(dma_flags & DMA_SOC_NO_BOUNDS_CHECK))
     {
-        if (chan <= DMA_CHAN_ID_READ_3)
-        {
-            /* Validate the bounds. Read: source is on host, dest is on SoC */
-            status = dma_bounds_check(dest_addr, size);
-        }
-        else
-        {
-            /* Validate the bounds. Write: source is on SoC, dest is on host */
-            status = dma_bounds_check(src_addr, size);
-        }
+
+        /* Validate the bounds. Write: source is on SoC, dest is on host */
+        status = dma_bounds_check(src_addr, size);
     }
 
     if (status == DMA_OPERATION_SUCCESS)
     {
         /* Add a data node in xfer list */
-        write_xfer_list_data(chan, index, src_addr, dest_addr, size, local_interrupt);
+        write_xfer_list_data(DMA_WRITE_CHAN_GET_LL_BASE(chan), index, src_addr, dest_addr, size, local_interrupt);
     }
 
     return status;
@@ -237,11 +294,11 @@ int8_t dma_config_add_data_node(uint64_t src_addr, uint64_t dest_addr,
 *
 *   FUNCTION
 *
-*       dma_config_add_link_node
+*       dma_config_read_add_link_node
 *
 *   DESCRIPTION
 *
-*       This function adds a new link node in DMA transfer list.
+*       This function adds a new link node in DMA read transfer list.
 *
 *   INPUTS
 *
@@ -253,12 +310,50 @@ int8_t dma_config_add_data_node(uint64_t src_addr, uint64_t dest_addr,
 *       int8_t     status success or error
 *
 ***********************************************************************/
-int8_t dma_config_add_link_node(dma_chan_id_e chan, uint32_t index)
+int8_t dma_config_read_add_link_node(dma_read_chan_id_e chan, uint32_t index)
 {
-    /* Add a link node in xfer list */
-    write_xfer_list_link(chan, index, (uint64_t)(DMA_CHAN_GET_LL_BASE(chan)) /* circular link */);
+    if(IS_DMA_READ_CHAN_VALID(chan))
+    {
+        /* Add a link node in xfer list */
+        write_xfer_list_link(DMA_READ_CHAN_GET_LL_BASE(chan), index);
 
-    return DMA_OPERATION_SUCCESS;
+        return DMA_OPERATION_SUCCESS;
+    }
+
+    return DMA_ERROR_INVALID_PARAM;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       dma_config_write_add_link_node
+*
+*   DESCRIPTION
+*
+*       This function adds a new link node in DMA write transfer list.
+*
+*   INPUTS
+*
+*       chan            DMA channel ID
+*       index           Index of current data node
+*
+*   OUTPUTS
+*
+*       int8_t     status success or error
+*
+***********************************************************************/
+int8_t dma_config_write_add_link_node(dma_write_chan_id_e chan, uint32_t index)
+{
+    if(IS_DMA_WRITE_CHAN_VALID(chan))
+    {
+        /* Add a link node in xfer list */
+        write_xfer_list_link(DMA_WRITE_CHAN_GET_LL_BASE(chan), index);
+
+        return DMA_OPERATION_SUCCESS;
+    }
+
+    return DMA_ERROR_INVALID_PARAM;
 }
 
 /************************************************************************
@@ -281,16 +376,16 @@ int8_t dma_config_add_link_node(dma_chan_id_e chan, uint32_t index)
 *       int8_t     Status success or error
 *
 ***********************************************************************/
-int8_t dma_configure_read(dma_chan_id_e chan)
+int8_t dma_configure_read(dma_read_chan_id_e chan)
 {
     uint32_t read_engine_en;
     uint32_t transfer_list_low_addr;
     uint32_t transfer_list_high_addr;
 
-    if (chan > DMA_CHAN_ID_READ_3)
+    if (!IS_DMA_READ_CHAN_VALID(chan))
     {
         Log_Write(LOG_LEVEL_CRITICAL, "Invalid DMA read channel %d\r\n", chan);
-        return -EINVAL;
+        return DMA_ERROR_INVALID_PARAM;
     }
 
     read_engine_en =
@@ -304,15 +399,15 @@ int8_t dma_configure_read(dma_chan_id_e chan)
     iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_ENGINE_EN_OFF_ADDRESS,
               read_engine_en);
 
-    transfer_list_low_addr = (uint32_t)((uint64_t)DMA_CHAN_GET_LL_BASE(chan) & 0xFFFFFFFF);
-    transfer_list_high_addr = (uint32_t)((uint64_t)DMA_CHAN_GET_LL_BASE(chan) >> 32);
+    transfer_list_low_addr = (uint32_t)(DMA_READ_CHAN_GET_LL_BASE(chan) & 0xFFFFFFFF);
+    transfer_list_high_addr = (uint32_t)(DMA_READ_CHAN_GET_LL_BASE(chan) >> 32);
 
     iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_LLP_LOW_OFF_RDCH_0_ADDRESS
                     + (chan * RD_DMA_REG_CHANNEL_STRIDE), transfer_list_low_addr);
     iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_LLP_HIGH_OFF_RDCH_0_ADDRESS
                     + (chan * RD_DMA_REG_CHANNEL_STRIDE), transfer_list_high_addr);
 
-    return 0;
+    return DMA_OPERATION_SUCCESS;
 }
 
 /************************************************************************
@@ -335,17 +430,16 @@ int8_t dma_configure_read(dma_chan_id_e chan)
 *       int8_t     Status success or error
 *
 ***********************************************************************/
-int8_t dma_configure_write(dma_chan_id_e chan)
+int8_t dma_configure_write(dma_write_chan_id_e chan)
 {
-    uint32_t wr_chan_num;
     uint32_t write_engine_en;
     uint32_t transfer_list_low_addr;
     uint32_t transfer_list_high_addr;
 
-    if (chan < DMA_CHAN_ID_WRITE_0 || chan > DMA_CHAN_ID_WRITE_3)
+    if (!IS_DMA_WRITE_CHAN_VALID(chan))
     {
         Log_Write(LOG_LEVEL_CRITICAL, "Invalid DMA write channel %d\r\n", chan);
-        return -EINVAL;
+        return DMA_ERROR_INVALID_PARAM;
     }
 
     write_engine_en =
@@ -359,16 +453,15 @@ int8_t dma_configure_write(dma_chan_id_e chan)
     iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_ENGINE_EN_OFF_ADDRESS,
               write_engine_en);
 
-    transfer_list_low_addr = (uint32_t)((uint64_t)DMA_CHAN_GET_LL_BASE(chan) & 0xFFFFFFFF);
-    transfer_list_high_addr = (uint32_t)((uint64_t)DMA_CHAN_GET_LL_BASE(chan) >> 32);
+    transfer_list_low_addr = (uint32_t)(DMA_WRITE_CHAN_GET_LL_BASE(chan) & 0xFFFFFFFF);
+    transfer_list_high_addr = (uint32_t)(DMA_WRITE_CHAN_GET_LL_BASE(chan) >> 32);
 
-    wr_chan_num = chan - DMA_CHAN_ID_WRITE_0;
     iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_LLP_LOW_OFF_WRCH_0_ADDRESS
-                    + (wr_chan_num * WR_DMA_REG_CHANNEL_STRIDE), transfer_list_low_addr);
+                    + (chan * WR_DMA_REG_CHANNEL_STRIDE), transfer_list_low_addr);
     iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_LLP_HIGH_OFF_WRCH_0_ADDRESS
-                    + (wr_chan_num * WR_DMA_REG_CHANNEL_STRIDE), transfer_list_high_addr);
+                    + (chan * WR_DMA_REG_CHANNEL_STRIDE), transfer_list_high_addr);
 
-    return 0;
+    return DMA_OPERATION_SUCCESS;
 }
 
 /************************************************************************
@@ -390,11 +483,11 @@ int8_t dma_configure_write(dma_chan_id_e chan)
 *       int8_t  Status success or error
 *
 ***********************************************************************/
-int8_t dma_start_read(dma_chan_id_e chan)
+int8_t dma_start_read(dma_read_chan_id_e chan)
 {
     uint32_t control1;
 
-    if (chan >= DMA_CHAN_ID_READ_0 && chan <= DMA_CHAN_ID_READ_3)
+    if (IS_DMA_READ_CHAN_VALID(chan))
     {
         /* Use linked list mode. All of the control 1 registers have the same layout. */
         control1 =
@@ -413,10 +506,10 @@ int8_t dma_start_read(dma_chan_id_e chan)
     else
     {
         Log_Write(LOG_LEVEL_ERROR, "Invalid DMA Read channel %d\r\n", chan);
-        return -EINVAL;
+        return DMA_ERROR_INVALID_PARAM;
     }
 
-    return 0;
+    return DMA_OPERATION_SUCCESS;
 }
 
 /************************************************************************
@@ -438,15 +531,12 @@ int8_t dma_start_read(dma_chan_id_e chan)
 *       int8_t     Status success or error
 *
 ***********************************************************************/
-int8_t dma_start_write(dma_chan_id_e chan)
+int8_t dma_start_write(dma_write_chan_id_e chan)
 {
     uint32_t control1;
-    uint32_t wr_chan_num;
 
-    if (chan >= DMA_CHAN_ID_WRITE_0 && chan <= DMA_CHAN_ID_WRITE_3)
+    if (IS_DMA_WRITE_CHAN_VALID(chan))
     {
-        wr_chan_num = chan - DMA_CHAN_ID_WRITE_0;
-
         /* Use linked list mode. All of the control 1 registers have the same layout. */
         control1 =
             PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_0_CCS_SET(1) |
@@ -454,20 +544,20 @@ int8_t dma_start_write(dma_chan_id_e chan)
             PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_0_DMA_MEM_TYPE_SET(1);
 
         iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_0_ADDRESS
-                        + (wr_chan_num * WR_DMA_REG_CHANNEL_STRIDE), control1);
+                        + (chan * WR_DMA_REG_CHANNEL_STRIDE), control1);
 
         /* Ring the doorbell. This prefetches the first transfer list element and enables
         DMA to begin very quickly once started. */
         iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_DOORBELL_OFF_ADDRESS,
-                  wr_chan_num);
+                  chan);
     }
     else
     {
         Log_Write(LOG_LEVEL_ERROR, "Invalid DMA Write channel %d\r\n", chan);
-        return -EINVAL;
+        return DMA_ERROR_INVALID_PARAM;
     }
 
-    return 0;
+    return DMA_OPERATION_SUCCESS;
 }
 
 /************************************************************************
@@ -489,9 +579,9 @@ int8_t dma_start_write(dma_chan_id_e chan)
 *       int8_t     Status success or error
 *
 ***********************************************************************/
-void dma_clear_read_done(dma_chan_id_e chan)
+void dma_clear_read_done(dma_read_chan_id_e chan)
 {
-    if (chan >= DMA_CHAN_ID_READ_0 && chan <= DMA_CHAN_ID_READ_3)
+    if (IS_DMA_READ_CHAN_VALID(chan))
     {
         iowrite32(
             PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_CLEAR_OFF_ADDRESS,
@@ -523,14 +613,14 @@ void dma_clear_read_done(dma_chan_id_e chan)
 *       int8_t     Status success or error
 *
 ***********************************************************************/
-void dma_clear_write_done(dma_chan_id_e chan)
+void dma_clear_write_done(dma_write_chan_id_e chan)
 {
-    if (chan >= DMA_CHAN_ID_WRITE_0 && chan <= DMA_CHAN_ID_WRITE_3)
+    if (IS_DMA_WRITE_CHAN_VALID(chan))
     {
         iowrite32(
             PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_CLEAR_OFF_ADDRESS,
             PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_CLEAR_OFF_WR_DONE_INT_CLEAR_SET(
-                (1U << (chan - DMA_CHAN_ID_WRITE_0)) & 0xF));
+                (1U << (chan)) & 0xF));
     }
     else
     {
@@ -557,11 +647,11 @@ void dma_clear_write_done(dma_chan_id_e chan)
 *       int8_t     Status success or error
 *
 ***********************************************************************/
-int8_t dma_clear_read_abort(dma_chan_id_e chan)
+int8_t dma_clear_read_abort(dma_read_chan_id_e chan)
 {
     int8_t status = DMA_OPERATION_SUCCESS;
 
-    if (chan <= DMA_CHAN_ID_READ_3)
+    if (IS_DMA_READ_CHAN_VALID(chan))
     {
         iowrite32(
             PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_CLEAR_OFF_ADDRESS,
@@ -596,16 +686,16 @@ int8_t dma_clear_read_abort(dma_chan_id_e chan)
 *       int8_t     Status success or error
 *
 ***********************************************************************/
-int8_t dma_clear_write_abort(dma_chan_id_e chan)
+int8_t dma_clear_write_abort(dma_write_chan_id_e chan)
 {
     int8_t status = DMA_OPERATION_SUCCESS;
 
-    if (chan >= DMA_CHAN_ID_WRITE_0 && chan <= DMA_CHAN_ID_WRITE_3)
+    if (IS_DMA_WRITE_CHAN_VALID(chan))
     {
         iowrite32(
             PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_CLEAR_OFF_ADDRESS,
             PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_CLEAR_OFF_WR_ABORT_INT_CLEAR_SET(
-                (1U << (chan - DMA_CHAN_ID_WRITE_0)) & 0xF));
+                (1U << (chan)) & 0xF));
     }
     else
     {
@@ -635,10 +725,10 @@ int8_t dma_clear_write_abort(dma_chan_id_e chan)
 *       int8_t     Status success or error
 *
 ***********************************************************************/
-int8_t dma_abort_read(dma_chan_id_e chan)
+int8_t dma_abort_read(dma_read_chan_id_e chan)
 {
     /* Verify the channel ID */
-    if ((chan < DMA_CHAN_ID_READ_0) || (chan > DMA_CHAN_ID_READ_3))
+    if (!IS_DMA_READ_CHAN_VALID(chan))
     {
         Log_Write(LOG_LEVEL_ERROR, "Invalid DMA read channel %d\r\n", chan);
         return DMA_ERROR_CHANNEL_NOT_AVAILABLE;
@@ -657,8 +747,8 @@ int8_t dma_abort_read(dma_chan_id_e chan)
     /* If the respective channel is running, abort it */
     if (1 == PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_CS_GET(control1))
     {
-        uint32_t dma_abort = (uint32_t)chan |
-            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_DOORBELL_OFF_RD_STOP_FIELD_MASK;
+        uint32_t dma_abort = (uint32_t)(chan |
+            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_DOORBELL_OFF_RD_STOP_FIELD_MASK);
         iowrite32(
             PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_DOORBELL_OFF_ADDRESS, dma_abort);
     }
@@ -685,16 +775,14 @@ int8_t dma_abort_read(dma_chan_id_e chan)
 *       int8_t     Status success or error
 *
 ***********************************************************************/
-int8_t dma_abort_write(dma_chan_id_e chan)
+int8_t dma_abort_write(dma_write_chan_id_e chan)
 {
     /* Verify the channel ID */
-    if ((chan < DMA_CHAN_ID_WRITE_0) || (chan > DMA_CHAN_ID_WRITE_3))
+    if (!IS_DMA_WRITE_CHAN_VALID(chan))
     {
         Log_Write(LOG_LEVEL_ERROR, "Invalid DMA write channel %d\r\n", chan);
         return DMA_ERROR_CHANNEL_NOT_AVAILABLE;
     }
-
-    uint32_t wr_chan_num = chan - DMA_CHAN_ID_WRITE_0;
 
     /* Get the DMA error status DMA of respective channel */
     uint32_t dma_error_stat  = ioread32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_DMA_CAP_DMA_WRITE_ERR_STATUS_OFF_ADDRESS);
@@ -703,13 +791,13 @@ int8_t dma_abort_write(dma_chan_id_e chan)
     /* Get the control1 register of the respective channel */
     uint32_t control1 =
             ioread32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_0_ADDRESS
-                           + (wr_chan_num * WR_DMA_REG_CHANNEL_STRIDE));
+                           + (chan * WR_DMA_REG_CHANNEL_STRIDE));
 
     /* If the respective channel is running, abort it */
     if (1 == PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_CS_GET(control1))
     {
-        uint32_t dma_abort = (chan - DMA_CHAN_ID_WRITE_0) |
-            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_DOORBELL_OFF_WR_STOP_FIELD_MASK;
+        uint32_t dma_abort = (uint32_t)(chan |
+            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_DOORBELL_OFF_WR_STOP_FIELD_MASK);
         iowrite32(
             PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_DOORBELL_OFF_ADDRESS, dma_abort);
     }

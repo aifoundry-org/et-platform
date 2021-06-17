@@ -574,7 +574,7 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
         (struct device_ops_dma_readlist_cmd_t *)command_buffer;
     struct device_ops_dma_readlist_rsp_t rsp;
     dma_flags_e dma_flag;
-    dma_chan_id_e chan=DMA_CHAN_ID_INVALID;
+    dma_write_chan_id_e chan = DMA_CHAN_ID_WRITE_INVALID;
     int8_t status = STATUS_SUCCESS;
     uint64_t total_dma_size = 0;
     uint8_t dma_xfer_count;
@@ -753,7 +753,7 @@ static inline int8_t dma_writelist_cmd_handler(void* command_buffer, uint8_t sqw
     struct device_ops_dma_writelist_cmd_t *cmd =
         (struct device_ops_dma_writelist_cmd_t *)command_buffer;
     struct device_ops_dma_writelist_rsp_t rsp;
-    dma_chan_id_e chan=DMA_CHAN_ID_INVALID;
+    dma_read_chan_id_e chan = DMA_CHAN_ID_READ_INVALID;
     uint64_t total_dma_size=0;
     uint8_t dma_xfer_count;
     uint8_t loop_cnt;
