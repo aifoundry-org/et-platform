@@ -34,16 +34,37 @@
 #define MODE_NUMBER 6
 
 /**
- * @enum ms_config_frequeny
- * @brief Frequency enum defines for memshire
+ * @enum ddr_frequency_t
+ * @brief Frequency enum defines for DDR memory
  */
-
 typedef enum {
-    MEMSHIRE_FREQUENCY_800,
-    MEMSHIRE_FREQUENCY_933,
-    MEMSHIRE_FREQUENCY_1067,
-} ms_config_frequeny;
+    DDR_FREQUENCY_800MHZ,
+    DDR_FREQUENCY_933MHZ,
+    DDR_FREQUENCY_1066MHZ
+} ddr_frequency_t;
 
+/**
+ * @enum ddr_capacity_t
+ * @brief Capacity enum defines for DDR memory
+ */
+typedef enum {
+    DDR_CAPACITY_4GB,
+    DDR_CAPACITY_8GB,
+    DDR_CAPACITY_16GB,
+    DDR_CAPACITY_32GB,
+} ddr_capacity_t;
+
+/**
+ * @struct DDR_MODE
+ * @brief Structure for passing into DDR driver
+ */
+typedef struct {
+    ddr_frequency_t  frequency;
+    ddr_capacity_t   capacity;
+    bool             ecc;
+    bool             training;
+    bool             sim_only;
+} DDR_MODE;
 
 /*!
  * @struct struct ddr_event_control_block
@@ -57,13 +78,21 @@ struct ddr_event_control_block
     dm_event_isr_callback event_cb; /**< Event callback handler. */
 };
 
-/*! \fn int ddr_config(void)
+/*! \fn int configure_memshire_plls(DDR_MODE *ddr_mode)
     \brief This function initializes every memshire present in system. It internally
            calls ddr_init with memshire id
-    \param None
-    \return Status indicating success or negative error
+    \param ddr_mode point to a DDR_MODE structure, which contains the parameters for DDR init
+    \return Zero indicating success or non-zero for error
 */
-int ddr_config(void);
+int configure_memshire_plls(DDR_MODE *ddr_mode);
+
+/*! \fn int ddr_config(DDR_MODE *ddr_mode)
+    \brief This function initializes every memshire present in system. It internally
+           calls ddr_init with memshire id
+    \param ddr_mode point to a DDR_MODE structure, which contains the parameters for DDR init
+    \return Zero indicating success or non-zero for error
+*/
+int ddr_config(DDR_MODE *ddr_mode);
 
 /*! \fn int32_t ddr_error_control_init(dm_event_isr_callback event_cb)
     \brief This function initializes the ddr error control subsystem, including

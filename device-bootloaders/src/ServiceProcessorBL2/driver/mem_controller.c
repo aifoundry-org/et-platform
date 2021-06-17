@@ -31,7 +31,6 @@
 #include "bl2_sp_memshire_pll.h"
 #include "dm_event_control.h"
 #include "hal_ddr_init.h"
-#include "layout.h"   // Memory_read()/Memory_write() dependent on this
 
 #define NUMBER_OF_MEMSHIRE     8
 #define FOR_EACH_MEMSHIRE(statement)                                               \
@@ -47,38 +46,111 @@
                    statement;                                                      \
             }
 
-static int configure_memshire_plls(void)
+int configure_memshire_plls(DDR_MODE *ddr_mode)
 {
-    if (0 != program_memshire_pll(0, 19))
+    uint8_t pll_mode;
+
+    if(ddr_mode->frequency == DDR_FREQUENCY_800MHZ) {
+        pll_mode = 19;
+    }
+    else if(ddr_mode->frequency == DDR_FREQUENCY_933MHZ) {
+        pll_mode = 19;      // TODO: Need correct value here
+    }
+    else if(ddr_mode->frequency == DDR_FREQUENCY_1066MHZ) {
+        pll_mode = 19;      // TODO: Need correct value here
+    }
+    else {
+        return -1;
+    }
+
+    if (0 != program_memshire_pll(0, pll_mode))
         return -1;
 
-    if (0 != program_memshire_pll(4, 19))
+    if (0 != program_memshire_pll(4, pll_mode))
         return -1;
 
     return 0;
 }
 
+#if !FAST_BOOT
 /*
 ** following DDR initialization flow from hardware team
 */
-int ddr_config(void)
+int ddr_config(DDR_MODE *ddr_mode)
 {
     // algorithm/flow and config parameters are from hardware team
-    uint32_t config_ecc = 0;
-    uint32_t config_real_pll = 1;
-    uint32_t config_800mhz = 1;   //TODO 800Mhz for first boot.  Production should have it as zero.
-    uint32_t config_933mhz = 0;
-    uint32_t config_auto_precharge = 0;
-    uint32_t config_debug_level = 1;
-    uint32_t config_sim_only = 0;
-    uint32_t config_disable_unused_clks = 0;
-    uint32_t config_train_poll_max_iterations = 50000;
-    uint32_t config_train_poll_iteration_delay = 10000;
-    uint32_t config_4gb = 0;
-    uint32_t config_8gb = 0;
-    uint32_t config_32gb = 0;
-    bool config_training = false;
-    bool config_training_2d = true;
+    uint32_t config_ecc;
+    uint32_t config_real_pll;
+    uint32_t config_800mhz;
+    uint32_t config_933mhz;
+    uint32_t config_auto_precharge;
+    uint32_t config_debug_level;
+    uint32_t config_sim_only;
+    uint32_t config_disable_unused_clks;
+    uint32_t config_train_poll_max_iterations;
+    uint32_t config_train_poll_iteration_delay;
+    uint32_t config_4gb;
+    uint32_t config_8gb;
+    uint32_t config_32gb;
+    bool config_training;
+    bool config_training_2d;
+
+    // local variables
+    uint32_t memshire;
+
+   // decide frequency paramters
+    if(ddr_mode->frequency == DDR_FREQUENCY_800MHZ) {
+        config_800mhz = 1;
+        config_933mhz = 0;
+    }
+    else if(ddr_mode->frequency == DDR_FREQUENCY_933MHZ) {
+        config_800mhz = 0;
+        config_933mhz = 1;
+    }
+    else if(ddr_mode->frequency == DDR_FREQUENCY_1066MHZ) {
+        config_800mhz = 0;
+        config_933mhz = 0;
+    }
+    else {
+        return -1;
+    }
+
+    // decide capacity parameters
+    if(ddr_mode->capacity == DDR_CAPACITY_4GB) {
+        config_4gb  = 1;
+        config_8gb  = 0;
+        config_32gb = 0;
+    }
+    else if(ddr_mode->capacity == DDR_CAPACITY_8GB) {
+        config_4gb  = 0;
+        config_8gb  = 1;
+        config_32gb = 0;
+    }
+    else if(ddr_mode->capacity == DDR_CAPACITY_16GB) {
+        config_4gb  = 0;
+        config_8gb  = 0;
+        config_32gb = 0;
+    }
+    else if(ddr_mode->capacity == DDR_CAPACITY_32GB) {
+        config_4gb  = 0;
+        config_8gb  = 0;
+        config_32gb = 1;
+    }
+    else {
+        return -1;
+    }
+
+    config_ecc       = ddr_mode->ecc ? 1 : 0;
+    config_training  = ddr_mode->training ? 1 : 0;
+    config_sim_only  = ddr_mode->sim_only ? 1 : 0;
+
+    config_real_pll = 1;
+    config_auto_precharge = 0;
+    config_debug_level = 1;
+    config_disable_unused_clks = 0;
+    config_train_poll_max_iterations = 50000;
+    config_train_poll_iteration_delay = 10000;
+    config_training_2d = true;
 
     /* for simuation only
     config_real_pll = 0;
@@ -88,8 +160,7 @@ int ddr_config(void)
     config_train_poll_iteration_delay = 10000;
     */
 
-    uint32_t memshire;
-
+    //TODO: To be removed.  Will be replaced by configure_memshire_plls() above
     // only #0 and #4 has PLL, kick them off before phy init
     ms_pll_init(0x0, config_real_pll, 1, config_800mhz, config_933mhz);
     ms_pll_init(0x4, config_real_pll, 1, config_800mhz, config_933mhz);
@@ -141,6 +212,7 @@ int ddr_config(void)
 
     return 0;
 }
+#endif //!FAST_BOOT
 
 static struct ddr_event_control_block  event_control_block __attribute__((section(".data")));
 
@@ -210,6 +282,16 @@ int ddr_get_memory_type(char *mem_type)
 
 int32_t configure_memshire(void)
 {
+    DDR_MODE ddr_mode = {
+        .frequency = DDR_FREQUENCY_800MHZ,  // First boot on 800Mhz, production should be 1066Mhz
+        .capacity = DDR_CAPACITY_16GB,
+        .ecc = false,
+        .training = false,
+        .sim_only = false
+    };
+
+    //TODO: decide ddr_mode based on, e.g. from storage
+
     // FIXME Program the DDR Voltage if required
     //pmic_get_voltage(DDR, voltage)
 
@@ -217,12 +299,12 @@ int32_t configure_memshire(void)
         Log_Write(LOG_LEVEL_ERROR, "release_memshire_from_reset() failed!\n");
         return MEMSHIRE_COLD_RESET_CONFIG_ERROR;
     }
-    if (0 != configure_memshire_plls()) {
+    if (0 != configure_memshire_plls(&ddr_mode)) {
         Log_Write(LOG_LEVEL_ERROR, "configure_memshire_plls() failed!\n");
         return MEMSHIRE_PLL_CONFIG_ERROR;
     }
 #if !FAST_BOOT
-    if (0 != ddr_config()) {
+    if (0 != ddr_config(&ddr_mode)) {
         Log_Write(LOG_LEVEL_ERROR, "ddr_config() failed!\n");
         return MEMSHIRE_DDR_CONFIG_ERROR;
     }
