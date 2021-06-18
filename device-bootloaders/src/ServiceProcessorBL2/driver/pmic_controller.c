@@ -308,7 +308,7 @@ void setup_pmic(void)
     /* Set temperature threshold values */
     pmic_set_temperature_threshold(PMIC_TEMP_THRESHOLD_HI);
 
-    /* FIXME: set power threshold upon SW-8059 resolution */
+    /* TODO: set power threshold upon SW-8059 resolution */
     /* Set power threshold values */
     /*if(0 != flash_fs_get_form_factor(form_factor))
     {

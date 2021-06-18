@@ -11,22 +11,6 @@
 // symbol named 'g_image_version_info'.
 // The symbol is expected to be of type IMAGE_VERSION_INFO_t as defined in esperanto_executable_image.h
 //
-// typedef struct IMAGE_VERSION_INFO {
-//     unsigned int prolog_tag;
-//     union {
-//         uint32_t file_version;
-//         struct {
-//             uint8_t file_version_revision;
-//             uint8_t file_version_minor;
-//             uint8_t file_version_major;
-//             uint8_t file_version_reserved;
-//         };
-//     };
-//     unsigned char git_hash[32];
-//     char git_version[MAX_GIT_VERSION_LENGTH];
-//     unsigned int epilog_tag;
-// } IMAGE_VERSION_INFO_t;
-//
 // if the symbol size is equal to sizeof(IMAGE_VERSION_INFO_t)
 // and the IMAGE_VERSION_INFO_t.prolog value is equal to IMAGE_VERSION_INFO_PROLOG_TAG
 // and the IMAGE_VERSION_INFO_t.epilog value is equal to IMAGE_VERSION_INFO_EPILOG_TAG
@@ -41,7 +25,7 @@ static IMAGE_VERSION_INFO_t g_image_version_info __attribute__((used)) = {
     .git_hash = GIT_HASH_ARRAY,
     .git_version = GIT_VERSION_ARRAY,
     .epilog_tag = IMAGE_VERSION_INFO_EPILOG_TAG
-};
+} ;
 
 const IMAGE_VERSION_INFO_t *get_image_version_info(void);
 

@@ -180,14 +180,13 @@ static void pcie_init_pshire(void)
     uint32_t tmp;
     /* TODO: ABP Reset deassert? In "PCIe Initialization Sequence" doc, TBD what state to check */
 
-    /* Wait for PERST_N
-      TODO FIXME JIRA SW-330: Don't monopolize the HART to poll
-      Log_Write(LOG_LEVEL_ERROR, "Waiting for PCIe bus out of reset..."); */
+    /* Wait for PERST_N */
+    Log_Write(LOG_LEVEL_ERROR, "Waiting for PCIe bus out of reset...");
     do 
     {
         tmp = ioread32(PCIE_ESR + PSHIRE_PSHIRE_STAT_ADDRESS);
     } while (PSHIRE_PSHIRE_STAT_PERST_N_GET(tmp) == 0);
-    /* Log_Write(LOG_LEVEL_ERROR, " done\r\n"); */
+    Log_Write(LOG_LEVEL_ERROR, " done\r\n");
 
     /* Deassert PCIe cold reset */
     tmp = ioread32(PCIE_ESR + PSHIRE_PSHIRE_RESET_ADDRESS);
@@ -432,8 +431,7 @@ static void pcie_init_link(void)
     iowrite32(PCIE_CUST_SS + DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_GEN_CTRL_3_ADDRESS,
               tmp);
 
-    /* Wait for link training to finish
-       TODO FIXME JIRA SW-330: Don't monopolize the HART to poll, add a 100ms timeout */
+    /* Wait for link training to finish*/
     Log_Write(LOG_LEVEL_CRITICAL, "Link training...");
     do {
         tmp = ioread32(PCIE_CUST_SS +
@@ -521,7 +519,6 @@ static void pcie_init_atus(void)
       memory space. Once the memory space is enabled, the BAR values cannot change anymore. So, it's
       critical to wait to program the iATUs until after memory space is enabled. */
 
-    /* TODO FIXME JIRA SW-330: Don't monopolize the HART to poll */
     /* This wait could be long (tens of seconds), depending on when the OS enables PCIe */
     Log_Write(LOG_LEVEL_CRITICAL, "Waiting for host to enable memory space...");
     uint32_t status_command_reg;
@@ -654,10 +651,8 @@ void pcie_error_threshold_isr(void)
        The final driver implementation will read these values from the
        hardware, create a message and invoke call back with message and error type as parameters.
     */
-    uint8_t error_type = CORRECTABLE;
 
-    if ((error_type == UNCORRECTABLE) ||
-        (++event_control_block.ce_count > event_control_block.ce_threshold))
+    if (++event_control_block.ce_count > event_control_block.ce_threshold)
     {
         struct event_message_t message;
 

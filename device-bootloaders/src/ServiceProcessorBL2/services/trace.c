@@ -271,5 +271,7 @@ void Trace_Process_CMD(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
             /* send response for trace config command */
             send_trace_config_response(tag_id, msg_id, req_start_time);
             break;
+        default:
+            break;
     }
 }

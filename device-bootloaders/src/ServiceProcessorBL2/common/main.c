@@ -26,6 +26,7 @@
 #include "bl2_reset.h"
 #include "bl2_sp_pll.h"
 
+#include "noc_configuration.h"
 #include "minion_configuration.h"
 #include "mem_controller.h"
 
@@ -64,21 +65,6 @@ static SERVICE_PROCESSOR_BL2_DATA_t g_service_processor_bl2_data;
 SERVICE_PROCESSOR_BL2_DATA_t *get_service_processor_bl2_data(void)
 {
     return &g_service_processor_bl2_data;
-}
-
-static int32_t configure_noc(void)
-{
-    /* Configure NOC to 400 Mhz */
-    if (0 != configure_sp_pll_2(5)) {
-        Log_Write(LOG_LEVEL_ERROR, "configure_sp_pll_2() failed!\n");
-        return NOC_MAIN_CLOCK_CONFIGURE_ERROR;
-    }
-
-   // TBD: Configure Main NOC Registers via Regbus
-   // Remap NOC ID based on MM OTP value
-   // Other potential NOC workarounds
-
-   return SUCCESS;
 }
 
 static TaskHandle_t gs_taskHandleMain;
@@ -124,8 +110,8 @@ static void taskMain(void *pvParameters)
     Log_Write(LOG_LEVEL_CRITICAL, "time: %lu\n", timer_get_ticks_count());
 
    // Setup NOC
-
-    if (0 != configure_noc()) {
+   /* Configure NOC to 400 Mhz */
+    if (0 != NOC_Configure(5)) {
         Log_Write(LOG_LEVEL_ERROR, "configure_noc() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }

@@ -212,7 +212,7 @@ static int flash_fs_scan_regions(uint32_t partition_size,
             case ESPERANTO_FLASH_REGION_ID_MAXION_BL1:
                 break;
             default:
-                /* Log_Write(LOG_LEVEL_ERROR, "flash_fs_scan_regions: ignoring region %u.\n", n); */
+                Log_Write(LOG_LEVEL_WARNING, "flash_fs_scan_regions: ignoring region %u.\n", n);
                 continue;
         }
 
@@ -680,7 +680,6 @@ int flash_fs_read_file(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t offset, v
         MESSAGE_ERROR("flash_fs_read_file: flash_fs_load_file_info(0x%x) failed!\n", region_id);
         return ERROR_SPI_FLASH_LOAD_FILE_INFO_FAILED;
     }
-    /* Log_Write(LOG_LEVEL_ERROR, "file data address: 0x%x\n", file_data_address); */
 
     if (offset >= file_size)
     {
@@ -1016,36 +1015,13 @@ int flash_fs_increment_completed_boot_count(void)
                         attempted counter region is full!\n");
         return ERROR_SPI_FLASH_BOOT_COUNTER_REGION_FULL;
     }
-    /* To be added once we have Trace integrated */
-    /* Log_Write(LOG_LEVEL_ERROR, "First unset increment offset: 0x%x, bit offset: 0x%x\n",
-         increment_offset, bit_offset); */
 
     page_address = increment_offset & 0xFFFFFFF0u;
     /* Log_Write(LOG_LEVEL_ERROR, "page_address: 0x%x\n", page_address); */
-
     mask = (uint8_t) ~(1u << bit_offset);
-
-    /*Log_Write(LOG_LEVEL_ERROR, "Original data: %02x\n",
-           sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
-               .boot_counters_region_data.b[increment_offset]);*/
 
     sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
         .boot_counters_region_data.b[increment_offset] &= mask;
-
-    /*Log_Write(LOG_LEVEL_ERROR, "Updated data: %02x\n",
-           sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
-               .boot_counters_region_data.b[increment_offset]);*/
-
-    /*Log_Write(LOG_LEVEL_ERROR, "Writing 16 bytes @ %lx\n",
-           (uintptr_t)(sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
-                           .boot_counters_region_data.b +
-                       page_address));
-    for (uint32_t n = 0; n < 16; n++) {
-        Log_Write(LOG_LEVEL_ERROR, " %02x", sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
-                            .boot_counters_region_data.b[page_address + n]);
-    }
-    Log_Write(LOG_LEVEL_ERROR, "\n to flash address 0x%x\n", counter_data_address + page_address
-            + FLASH_PAGE_SIZE / 2); */
 
     if (0 != spi_flash_page_program(sg_flash_fs_bl2_info.flash_id,
                                     counter_data_address + page_address + FLASH_PAGE_SIZE / 2,

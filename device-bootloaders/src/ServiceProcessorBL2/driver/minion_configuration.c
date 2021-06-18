@@ -153,6 +153,7 @@ static void minion_error_update_count(uint8_t error_type)
                 /* call the callback function and post message */
                 event_control_block.event_cb(CORRECTABLE, &message);
             }
+            break;
 
         default:
             break;
@@ -298,7 +299,7 @@ int Minion_Program_Step_Clock_PLL(uint8_t mode)
 int Minion_Enable_Compute_Minion(uint64_t minion_shires_mask, uint8_t mode )
 {
 
-    /* FIXME: Update Minion Voltage if neccesary
+    /* TODO: Update Minion Voltage if neccesary
       Minion_Shire_Voltage_Update(voltage);
     */
     /* Configure Minon Step clock to 650 Mhz */
@@ -419,8 +420,7 @@ int Minion_Load_Authenticate_Firmware(void)
         Log_Write(LOG_LEVEL_ERROR, "Failed to load Master Minion firmware!\n");
         return FW_MM_LOAD_ERROR;
     }
-    Log_Write(LOG_LEVEL_INFO, "MM FW loaded.\n\r \
-                              Attempting to load Worker Minion firmware...\n");
+    Log_Write(LOG_LEVEL_INFO, "MM FW loaded.\n");
 
     if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_WORKER_MINION)) {
         Log_Write(LOG_LEVEL_ERROR, "Failed to load Worker Minion firmware!\n");
@@ -653,6 +653,8 @@ void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
             }
             break;
         }
+        default:
+            break;
     }
 }
 

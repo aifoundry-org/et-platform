@@ -71,6 +71,33 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
 // FIXME: Need to add Freq to mode convertion equation
 #define FREQ2MODE(X) X
 
+/* Macro implementing temperature reduction algorithm */
+#define REDUCE_SYSTEM_TEMPERATURE(current_temperature)                                                 \
+    uint8_t current_power=0;                                                                           \
+                                                                                                       \
+       do                                                                                              \
+       {                                                                                               \
+           /* Get the current power */                                                                 \
+           if(0 != pmic_read_soc_power(&current_power)) {                                              \
+               Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");  \
+           }                                                                                           \
+                                                                                                       \
+           /* TODO: Scale it down by 10 % of current value and change the frequency accordingly */    \
+           /* Take care that current_power is binary encoded */                                        \
+           current_power = (uint8_t)((current_power * 10) / 100);                                      \
+                                                                                                       \
+           /* Program the new operating point  */                                                      \
+           set_operating_point(current_power);                                                         \
+                                                                                                       \
+          /* TODO: What should be this delay? */                                                      \
+          vTaskDelay(pdMS_TO_TICKS(THERMAL_THROTTLE_SAMPLE_PERIOD));                                   \
+                                                                                                       \
+          /* Sample the temperature again */                                                           \
+          if(0 != pmic_get_temperature(&current_temperature)) {                                        \
+                Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get temperature\r\n");\
+          }                                                                                            \
+       } while(current_temperature > get_soc_power_reg()->temperature_threshold.hi_temperature_c);     \
+
 /************************************************************************
 *
 *   FUNCTION
@@ -856,7 +883,6 @@ void thermal_power_task_entry(void *pvParameter)
     uint8_t current_temperature=DEF_SYS_TEMP_VALUE;
     struct event_message_t message;
     uint32_t notificationValue;
-    uint8_t current_power=0;
 
     (void)pvParameter;
 
@@ -878,28 +904,7 @@ void thermal_power_task_entry(void *pvParameter)
             /* We need to throttle the voltage and frequency, lets keep track of throttling time */
             start_time = timer_get_ticks_count();
 
-            do
-            {
-                /* Get the current power */
-                if(0 != pmic_read_soc_power(&current_power)) {
-                    Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");
-                }
-
-                /* FIXME: Scale it down by 10 % of current value and change the frequency accordingly
-                Take care that current_power is binary encoded */
-                current_power = (uint8_t)((current_power * 10) / 100);
-
-                /* Program the new operating point  */
-                set_operating_point(current_power);
-
-                /* FIXME: What should be this delay? */
-                vTaskDelay(pdMS_TO_TICKS(THERMAL_THROTTLE_SAMPLE_PERIOD));
-
-                /* Sample the temperature again */
-                if(0 != pmic_get_temperature(&current_temperature)) {
-                    Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get temperature\r\n");
-                }
-            } while(current_temperature > get_soc_power_reg()->temperature_threshold.hi_temperature_c);
+            REDUCE_SYSTEM_TEMPERATURE(current_temperature)
 
             end_time = timer_get_ticks_count();
 

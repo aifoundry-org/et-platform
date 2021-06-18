@@ -53,6 +53,27 @@ static log_cb_t Log_CB __attribute__((aligned(64))) =
 static SemaphoreHandle_t xSemaphore = NULL;
 static StaticSemaphore_t xMutexBuffer;
 
+/*! \def  PRINT_TO_SERIAL
+    \brief Macro to print to serial output
+*/
+#define PRINT_TO_SERIAL(level, str)                                                  \
+        if (level <= Log_CB.current_log_level)                                       \
+        {                                                                            \
+            if (xSemaphore && (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING))   \
+            {                                                                        \
+                if(xSemaphoreTake( xSemaphore, ( TickType_t ) 20 ) == pdTRUE )       \
+                {                                                                    \
+                    bytes_written = printf("%s", str);                               \
+                    xSemaphoreGive( xSemaphore );                                    \
+                }                                                                    \
+            }                                                                        \
+            else                                                                     \
+            {                                                                        \
+                bytes_written = printf("%s", str);                                   \
+            }                                                                        \
+        }                                                                            \
+
+
 /************************************************************************
 *
 *   FUNCTION
@@ -235,13 +256,13 @@ int32_t Log_Write(log_level_t level, const char *const fmt, ...)
             {
                 if(xSemaphoreTake( xSemaphore, ( TickType_t ) 20 ) == pdTRUE )
                 {
-                    bytes_written = printf(buff);
+                    bytes_written = printf("%s", buff);
                     xSemaphoreGive( xSemaphore );
                 }
             }
             else
             {
-                bytes_written = printf(buff);
+                bytes_written = printf("%s", buff);
             }
         }
     }
@@ -286,21 +307,7 @@ int32_t Log_Write_String(log_level_t level, const char *str, size_t length)
     }
     else
     {
-        if (level <= Log_CB.current_log_level)
-        {
-            if (xSemaphore && (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING))
-            {
-                if(xSemaphoreTake( xSemaphore, ( TickType_t ) 20 ) == pdTRUE )
-                {
-                    bytes_written = printf(str);
-                    xSemaphoreGive( xSemaphore );
-                }
-            }
-            else
-            {
-                bytes_written = printf(str);
-            }
-        }
+        PRINT_TO_SERIAL(level, str)
     }
 
     return bytes_written;
