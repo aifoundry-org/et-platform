@@ -13,10 +13,12 @@
 #include "common/Constants.h"
 #include <hostUtils/logging/Logger.h>
 #include <device-layer/IDeviceLayer.h>
+#include <gtest/gtest.h>
+
 #include <experimental/filesystem>
 #include <fstream>
-#include <gtest/gtest.h>
 #include <ios>
+#include <random>
 
 namespace {
 constexpr uint64_t kSysEmuMaxCycles = std::numeric_limits<uint64_t>::max();
@@ -57,6 +59,8 @@ public:
 
 // Load and removal of a single kernel.
 TEST_F(TestMemcpy, SimpleMemcpy) {
+  std::mt19937 gen(std::random_device{}());
+  std::uniform_int_distribution dis;
 
   int numElems = 1024 * 1024 * 10;
   auto dev = devices_[0];
@@ -64,7 +68,7 @@ TEST_F(TestMemcpy, SimpleMemcpy) {
   auto random_trash = std::vector<int>();
 
   for (int i = 0; i < numElems; ++i) {
-    random_trash.emplace_back(rand());
+    random_trash.emplace_back(dis(gen));
   }
 
   // alloc memory in device

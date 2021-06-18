@@ -36,6 +36,10 @@ public:
     auto dev = devices_[0];
     for (int i = 0; i < threads; ++i) {
       threads_.emplace_back([=] {
+        
+        std::mt19937 gen(std::random_device{}());
+        std::uniform_int_distribution dis;
+
         std::vector<rt::StreamId> streams_(streams);
         auto stream = runtime_->createStream(dev);
         std::vector<std::vector<int>> host_src1(num_executions);
@@ -54,10 +58,10 @@ public:
             host_dst[idx] = std::vector<int>(elems);
             // put random junk
             for (auto& v : host_src1[idx]) {
-              v = rand();
+              v = dis(gen);
             }
             for (auto& v : host_src2[idx]) {
-              v = rand();
+              v = dis(gen);
             }
             dev_mem_src1[idx] = runtime_->mallocDevice(dev, elems * sizeof(int));
             dev_mem_src2[idx] = runtime_->mallocDevice(dev, elems * sizeof(int));

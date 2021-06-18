@@ -1,12 +1,14 @@
 #include <common/Constants.h>
 #include <hostUtils/logging/Logger.h>
 #include <device-layer/IDeviceLayer.h>
-#include <experimental/filesystem>
-#include <fstream>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <runtime/IRuntime.h>
 #include <sw-sysemu/SysEmuOptions.h>
+
+#include <experimental/filesystem>
+#include <fstream>
+#include <random>
 
 inline std::vector<std::byte> readFile(const std::string &path) {
   auto file = std::ifstream(path, std::ios_base::binary);
@@ -76,9 +78,12 @@ inline
 void run_stress_mem(rt::IRuntime* runtime, size_t bytes, int transactions, int streams, int threads, bool check_results=true) {
   std::vector<std::thread> threads_;
   using namespace testing;
-
+  
   for (int i = 0; i < threads; ++i) {
     threads_.emplace_back([=]{
+      std::mt19937 gen(std::random_device{}());
+      std::uniform_int_distribution dis(0, 256);
+
       auto dev = runtime->getDevices()[0];
       std::vector<rt::StreamId> streams_(streams);
       std::vector<std::vector<std::byte>> host_src(transactions);
@@ -92,7 +97,7 @@ void run_stress_mem(rt::IRuntime* runtime, size_t bytes, int transactions, int s
           host_dst[idx] = std::vector<std::byte>(bytes);
           //put random junk
           for (auto& v : host_src[idx]) {
-            v = static_cast<std::byte>(rand() % 256);
+            v = std::byte{static_cast<uint8_t>(dis(gen))};
           }
           dev_mem[idx] = runtime->mallocDevice(dev, bytes);
           runtime->memcpyHostToDevice(streams_[j], host_src[idx].data(), dev_mem[idx], bytes);

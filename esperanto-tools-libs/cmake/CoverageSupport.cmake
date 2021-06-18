@@ -49,18 +49,20 @@ if(USE_COVERAGE)
 
   # Add coverage target.
   add_custom_target(coverage
+    COMMENT "Starting coverage analysis"
+
     # Cleanup lcov counters.
     COMMAND ${LCOV_PATH} --directory . --zerocounters
     COMMAND echo "Cleaning is done. Running tests"
 
     # Run all tests.
-    COMMAND ${CMAKE_CTEST_COMMAND} -j 4 -L Generic -L DeviceFW
+    COMMAND ${CMAKE_CTEST_COMMAND} -j 4 -L Generic
 
     # Capture lcov counters based on the test run.
     COMMAND ${LCOV_PATH} --no-checksum --directory . --capture --output-file coverage.info
 
     # Ignore not related files.
-    COMMAND ${LCOV_PATH} --remove coverage.info '*v1*' '/usr/*' '*tests/*' '*llvm_install*' 'build/*' --output-file ${PROJECT_BINARY_DIR}/coverage_result.info
+    COMMAND ${LCOV_PATH} --remove coverage.info '*v1*' '/usr/*' '/opt/*' '*sw-platform-x86_64-sysroot/*' '*tests/*' '*llvm_install*' 'build/*' --output-file ${PROJECT_BINARY_DIR}/coverage_result.info
 
     # Generate HTML report based on the profiles.
     COMMAND ${GENHTML_PATH} -o coverage ${PROJECT_BINARY_DIR}/coverage_result.info

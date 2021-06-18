@@ -19,13 +19,14 @@
 
 #include <cereal/archives/binary.hpp>
 #include <cereal/archives/json.hpp>
+#include <gtest/gtest.h>
 
 #include <experimental/filesystem>
 #include <fstream>
-#include <gtest/gtest.h>
 #include <ios>
 #include <sstream>
 #include <thread>
+#include <random>
 
 namespace fs = std::experimental::filesystem;
 
@@ -77,12 +78,15 @@ TEST(Profiler, add_2_vectors_profiling) {
   auto dev = devices[0];
 
   auto kernelId = runtime->loadCode(dev, kernelContent.data(), kernelContent.size());
+  
+  std::mt19937 gen(std::random_device{}());
+  std::uniform_int_distribution dis;
 
   std::vector<int> vA, vB, vResult;
   int numElems = 10496;
   for (int i = 0; i < numElems; ++i) {
-    vA.emplace_back(rand());
-    vB.emplace_back(rand());
+    vA.emplace_back(dis(gen));
+    vB.emplace_back(dis(gen));
     vResult.emplace_back(vA.back() + vB.back());
   }
   auto bufferSize = numElems * sizeof(int);

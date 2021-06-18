@@ -71,6 +71,12 @@ public:
     profiler_.record(event_);
   }
 
+  ScopedProfileEvent(const ScopedProfileEvent&) = delete;
+  ScopedProfileEvent& operator=(const ScopedProfileEvent&) = delete;
+
+  ScopedProfileEvent(ScopedProfileEvent&&) noexcept = delete;
+  ScopedProfileEvent& operator=(ScopedProfileEvent&&) = delete;
+
 private:
   inline static std::atomic<uint64_t> nextPairId_ = 0;
   ProfilerImp& profiler_;
