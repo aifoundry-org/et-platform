@@ -205,7 +205,9 @@ void TestDevOpsApi::executeAsync() {
   cleanUpExecution();
 
   for (int deviceIdx = 0; FLAGS_enable_trace_dump && deviceIdx < deviceCount; deviceIdx++) {
-    extractAndPrintTraceData(deviceIdx);
+    if (::testing::Test::HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+    }
     redirectTraceLogging(deviceIdx, false /* to UART */);
   }
 }
@@ -889,15 +891,27 @@ void TestDevOpsApi::extractAndPrintTraceData(int deviceIdx) {
     rdBufPtr += bufSizes[nodeIdx];
   }
   std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
-  stream.push_back(IDevOpsApiCmd::createDmaReadListCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, rdList.data(),
-                                                       kBufCount, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+  // TODO SW-8239: Perform both DMA pulls in single DMA list command
+  stream.push_back(IDevOpsApiCmd::createDmaReadListCmd(
+    device_ops_api::CMD_FLAGS_BARRIER_DISABLE | device_ops_api::CMD_FLAGS_MMFW_TRACEBUF, &rdList[0],
+    1 /* single node */, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+  stream.push_back(IDevOpsApiCmd::createDmaReadListCmd(
+    device_ops_api::CMD_FLAGS_BARRIER_DISABLE | device_ops_api::CMD_FLAGS_CMFW_TRACEBUF, &rdList[1],
+    1 /* single node */, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+
+  cmdResults_.clear();
   executeSyncPerDevicePerQueue(deviceIdx, 0 /* queueIdx */, stream);
 
-  printMMTraceStringData(static_cast<unsigned char*>(rdBufMem), bufSizes[0]);
-  printCMTraceStringData(static_cast<unsigned char*>(rdBufMem) + bufSizes[0], bufSizes[1]);
+  if (std::count_if(cmdResults_.begin(), cmdResults_.end(),
+                    [](auto& e) { return std::get<1>(e) == CmdStatus::CMD_SUCCESSFUL; }) == stream.size()) {
+    printMMTraceStringData(static_cast<unsigned char*>(rdBufMem), bufSizes[0]);
+    printCMTraceStringData(static_cast<unsigned char*>(rdBufMem) + bufSizes[0], bufSizes[1]);
+  } else {
+    TEST_VLOG(0) << "Failed to pull DMA trace buffers!";
+  }
 
   freeDmaBuffer(rdBufMem);
-
+  stream.clear();
   cmdResults_.clear();
 }
 
@@ -913,8 +927,15 @@ void TestDevOpsApi::redirectTraceLogging(int deviceIdx, bool toTraceBuf) {
                                                           toTraceBuf ? 0x3 : 0x0,
                                                           device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
 
+  cmdResults_.clear();
   executeSyncPerDevicePerQueue(deviceIdx, 0 /* queueIdx */, stream);
 
+  if (std::count_if(cmdResults_.begin(), cmdResults_.end(),
+                    [](auto& e) { return std::get<1>(e) == CmdStatus::CMD_SUCCESSFUL; }) != stream.size()) {
+    TEST_VLOG(0) << "Failed to redirect tracing of buffer, disabling trace dump!";
+    FLAGS_enable_trace_dump = false;
+  }
+  stream.clear();
   cmdResults_.clear();
 }
 
