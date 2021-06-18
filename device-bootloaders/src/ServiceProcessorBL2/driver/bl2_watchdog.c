@@ -31,6 +31,7 @@
 #include <interrupt.h>
 #include <bl2_pmic_controller.h>
 #include "dm_event_control.h"
+#include "bl2_exception.h"
 
 /* The driver can populate this structure with the defaults that will be used during the init
  phase.*/
@@ -259,7 +260,9 @@ void watchdog_isr(void)
 {
     /* Restart and clear the interrupt */
     iowrite32(R_SP_WDT_BASEADDR + SPIO_DW_APB_WDT_WDT_CRR_ADDRESS, SPIO_DW_APB_WDT_WDT_CRR_WDT_CRR_WDT_CRR_RESTART);
-    
+
+    bl2_dump_stack_frame();
+
     /* Invoke the event handler callback */
     if (wdog_control_block.event_cb)
     {

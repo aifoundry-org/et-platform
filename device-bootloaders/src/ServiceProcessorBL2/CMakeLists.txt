@@ -89,6 +89,7 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
         ${CMAKE_CURRENT_SOURCE_DIR}/services/thermal_pwr_mgmt.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/trace.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/log.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/services/bl2_exception.c
     )
     target_include_directories(${TARGET_NAME}.elf
         PRIVATE

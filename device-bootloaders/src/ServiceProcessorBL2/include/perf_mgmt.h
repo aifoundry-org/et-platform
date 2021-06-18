@@ -1,3 +1,5 @@
+#ifndef __PERF_MGMT_H__
+#define __PERF_MGMT_H__
 /***********************************************************************
 *
 * Copyright (C) 2020 Esperanto Technologies Inc.
@@ -107,3 +109,11 @@ int get_asic_stalls(uint8_t *asic_stalls);
     \returns int
 */
 int get_asic_latency(uint8_t *asic_latency);
+
+/*! \fn void dump_perf_globals(void)
+    \brief This function prints the performance globals
+    \param none
+    \returns none
+*/
+void dump_perf_globals(void);
+#endif

@@ -959,3 +959,53 @@ static void pmic_isr_callback(enum error_type type, struct event_message_t *msg)
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       dump_power_globals
+*
+*   DESCRIPTION
+*
+*       Dumps important power and thermal globals
+*
+*   INPUTS
+*
+*       none
+*
+*   OUTPUTS
+*
+*       void                       none
+*
+***********************************************************************/
+void dump_power_globals(void)
+{
+    volatile struct soc_power_reg_t *soc_power_reg = get_soc_power_reg();
+
+    /* Dump power mgmt globals */
+    Log_Write(LOG_LEVEL_CRITICAL,"power_state = %u, tdp_level = %u, temperature = %u c, power = %u W, max_temperature = %u c\n",
+            soc_power_reg->module_power_state, soc_power_reg->module_tdp_level, soc_power_reg->soc_temperature, soc_power_reg->soc_power,
+            soc_power_reg->max_temp);
+
+    Log_Write(LOG_LEVEL_CRITICAL,"Module uptime (day:hours:mins): %d:%d:%d\n",
+            soc_power_reg->module_uptime.day, soc_power_reg->module_uptime.hours, soc_power_reg->module_uptime.mins);
+
+    Log_Write(LOG_LEVEL_CRITICAL,"Module throttled residency = %lu\n",
+             soc_power_reg->throttled_states_residency);
+
+    Log_Write(LOG_LEVEL_CRITICAL,
+            "Module Voltages (mV) :  ddr = %u , l2_cache = %u, maxion = %u, minion = %u, pcie = %u, noc = %u, pcie_logic = %u, vddqlp = %u, vddq = %u\n",
+            soc_power_reg->module_voltage.ddr,
+            soc_power_reg->module_voltage.l2_cache,
+            soc_power_reg->module_voltage.maxion,
+            soc_power_reg->module_voltage.minion,
+            soc_power_reg->module_voltage.pcie,
+            soc_power_reg->module_voltage.noc,
+            soc_power_reg->module_voltage.pcie_logic,
+            soc_power_reg->module_voltage.vddqlp,
+            soc_power_reg->module_voltage.vddq);
+
+    Log_Write(LOG_LEVEL_CRITICAL,"Module throttled residency = %lu\n",
+             soc_power_reg->throttled_states_residency);
+
+}

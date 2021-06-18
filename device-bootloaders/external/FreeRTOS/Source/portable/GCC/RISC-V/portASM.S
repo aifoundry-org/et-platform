@@ -113,6 +113,7 @@ at the top of this file. */
 .extern uxTimerIncrementsForOneTick /* size_t type so 32-bit on 32-bit core and 64-bits on 64-bit core. */
 .extern xISRStackTop
 .extern portasmHANDLE_INTERRUPT
+.extern  bl2_exception_entry
 
 /*-----------------------------------------------------------*/
 
@@ -221,6 +222,7 @@ handle_asynchronous:
 
 #endif /* portasmHAS_MTIME */
 
+	mv a7, sp							/* Save SP here to print stack dump for critical interrupts */
 	load_x sp, xISRStackTop				/* Switch to ISR stack before function call. */
 	jal portasmHANDLE_INTERRUPT			/* Jump to the interrupt handler if there is no CLINT or if there is a CLINT and it has been determined that an external interrupt is pending. */
 	j processed_source
@@ -237,10 +239,9 @@ test_if_environment_call:
 	j processed_source
 
 is_exception:
-	csrr t0, mcause						/* For viewing in the debugger only. */
-	csrr t1, mepc						/* For viewing in the debugger only */
-	csrr t2, mstatus
-	j is_exception						/* No other exceptions handled yet. */
+	mv a0, sp
+	load_x sp, xISRStackTop
+	j bl2_exception_entry            /* Branch to exception handler. */
 
 as_yet_unhandled:
 	csrr t0, mcause						/* For viewing in the debugger only. */

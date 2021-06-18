@@ -1,3 +1,5 @@
+#ifndef __THERMAL_POWER_H__
+#define __THERMAL_POWER_H__
 /***********************************************************************
 *
 * Copyright (C) 2020 Esperanto Technologies Inc.
@@ -177,3 +179,12 @@ int set_power_event_cb(dm_event_isr_callback event_cb);
     \returns Status indicating success or negative error
 */
 int init_thermal_pwr_mgmt_service(void);
+
+/*! \fn void dump_power_globals(void)
+    \brief This function prints the performance globals
+    \param none
+    \returns none
+*/
+void dump_power_globals(void);
+
+#endif

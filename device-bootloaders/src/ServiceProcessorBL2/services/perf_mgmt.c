@@ -23,7 +23,7 @@
     get_asic_utilization
     get_asic_stalls
     get_asic_latency
-        
+    dump_perf_globals
 */
 /***********************************************************************/
 #include "perf_mgmt.h"
@@ -153,10 +153,10 @@ int get_module_max_dram_bw(struct max_dram_bw_t *max_dram_bw)
 *
 *   INPUTS
 *       void
-*     
+*
 *   OUTPUTS
 *
-*      minion_frequencies_t  New Minion Frequency in Mhz 
+*      minion_frequencies_t  New Minion Frequency in Mhz
 *
 ***********************************************************************/
 int32_t Get_Minion_Frequency(void)
@@ -176,7 +176,7 @@ int32_t Get_Minion_Frequency(void)
 *
 *   INPUTS
 *
-*       minion_frequencies_t  New Minion Frequency in Mhz 
+*       minion_frequencies_t  New Minion Frequency in Mhz
 *
 *   OUTPUTS
 *
@@ -233,14 +233,14 @@ int get_module_asic_frequencies(struct asic_frequencies_t *asic_frequencies)
 *
 *   DESCRIPTION
 *
-*       This function updates the DRAM Capacity utilization 
+*       This function updates the DRAM Capacity utilization
 *
 *   INPUTS
 *
 *       None
 *
 *   OUTPUTS
-* 
+*
 *       int          Return status
 *
 ***********************************************************************/
@@ -260,7 +260,7 @@ int update_dram_capacity_percent(void)
 *
 *   DESCRIPTION
 *
-*       This function gets the DRAM Capacity utilization from global 
+*       This function gets the DRAM Capacity utilization from global
 *       variable.
 *
 *   INPUTS
@@ -268,7 +268,7 @@ int update_dram_capacity_percent(void)
 *       uint32_t*     Pointer to DRAM Capacity(in percentage)
 *
 *   OUTPUTS
-* 
+*
 *       int           Return status
 *
 ***********************************************************************/
@@ -350,7 +350,7 @@ int get_asic_utilization(uint8_t *asic_util)
 *
 *   OUTPUTS
 *
-*        int       Return status 
+*        int       Return status
 *
 ***********************************************************************/
 int get_asic_stalls(uint8_t *asic_stalls)
@@ -378,7 +378,7 @@ int get_asic_stalls(uint8_t *asic_stalls)
 *
 *   OUTPUTS
 *
-*       int         Return status 
+*       int         Return status
 *
 ***********************************************************************/
 int get_asic_latency(uint8_t *asic_latency)
@@ -388,4 +388,52 @@ int get_asic_latency(uint8_t *asic_latency)
     // https://esperantotech.atlassian.net/browse/SW-6608
     (void)asic_latency;
     return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       dump_globals
+*
+*   DESCRIPTION
+*
+*       This function prints the performance globals
+*
+*   INPUTS
+*
+*       none
+*
+*   OUTPUTS
+*
+*       none
+*
+***********************************************************************/
+void dump_perf_globals(void)
+{
+    volatile struct soc_perf_reg_t *soc_perf_reg = get_soc_perf_reg();
+
+    /* Dump performance globals */
+    Log_Write(LOG_LEVEL_CRITICAL,
+                "Module Frequency (MHz) : minion_shire = %u, noc = %u, memshire = %u, ddr = %u, pcie_shire = %u, io_shire = %u\n",
+                soc_perf_reg->asic_frequency.minion_shire_mhz,
+                soc_perf_reg->asic_frequency.noc_mhz,
+                soc_perf_reg->asic_frequency.mem_shire_mhz,
+                soc_perf_reg->asic_frequency.ddr_mhz,
+                soc_perf_reg->asic_frequency.pcie_shire_mhz,
+                soc_perf_reg->asic_frequency.io_shire_mhz);
+
+    Log_Write(LOG_LEVEL_CRITICAL,
+                "DRAM BW Read = %u, DRAM BW Write = %u\n", soc_perf_reg->dram_bw.read_req_sec,
+                soc_perf_reg->dram_bw.write_req_sec);
+
+    Log_Write(LOG_LEVEL_CRITICAL,
+                "DRAM BW Read (Max) = %u, DRAM BW Write  (Max)= %u\n", soc_perf_reg->max_dram_bw.max_bw_rd_req_sec,
+                soc_perf_reg->max_dram_bw.max_bw_wr_req_sec);
+
+    Log_Write(LOG_LEVEL_CRITICAL,
+                "DRAM capacity = %u\n", soc_perf_reg->dram_capacity_percent);
+
+    Log_Write(LOG_LEVEL_CRITICAL,
+                "Last update TS = %lu\n", soc_perf_reg->last_ts_min);
 }
