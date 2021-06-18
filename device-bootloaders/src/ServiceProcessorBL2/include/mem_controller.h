@@ -84,7 +84,7 @@ struct ddr_event_control_block
     \param ddr_mode point to a DDR_MODE structure, which contains the parameters for DDR init
     \return Zero indicating success or non-zero for error
 */
-int configure_memshire_plls(DDR_MODE *ddr_mode);
+int configure_memshire_plls(const DDR_MODE *ddr_mode);
 
 /*! \fn int ddr_config(DDR_MODE *ddr_mode)
     \brief This function initializes every memshire present in system. It internally

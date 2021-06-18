@@ -46,7 +46,7 @@
                    statement;                                                      \
             }
 
-int configure_memshire_plls(DDR_MODE *ddr_mode)
+int configure_memshire_plls(const DDR_MODE *ddr_mode)
 {
     uint8_t pll_mode;
 
