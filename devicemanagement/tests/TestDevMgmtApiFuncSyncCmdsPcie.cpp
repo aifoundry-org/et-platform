@@ -89,7 +89,7 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleUptime_1_15) {
   getModuleUptime_1_15();
 }
 
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, DISABLED_getModulePower_1_16) {
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModulePower_1_16) {
   getModulePower_1_16();
 }
 
@@ -97,7 +97,7 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleVoltage_1_17) {
   getModuleVoltage_1_17();
 }
 
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, DISABLED_getModuleCurrentTemperature_1_18) {
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleCurrentTemperature_1_18) {
   getModuleCurrentTemperature_1_18();
 }
 
