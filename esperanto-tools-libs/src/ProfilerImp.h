@@ -16,6 +16,7 @@
 
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/portable_binary.hpp>
+
 #include <mutex>
 #include <variant>
 
@@ -48,7 +49,7 @@ public:
   void record(const ProfileEvent& event) {
     const std::scoped_lock lock{mutex_};
     std::visit(
-      [&](auto&& archive) {
+      [&event](auto&& archive) {
         using T = std::decay_t<decltype(archive)>;
         if constexpr (!std::is_same_v<T, std::monostate>) {
           archive(event);

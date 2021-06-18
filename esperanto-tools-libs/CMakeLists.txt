@@ -89,6 +89,7 @@ target_include_directories(etrt_obj
 )
 target_set_project_warnings(etrt_obj)
 target_add_sanitizers(etrt_obj)
+target_compile_options(etrt_obj PRIVATE -Wno-missing-field-initializers)
 
 target_link_libraries(etrt_obj
     PUBLIC

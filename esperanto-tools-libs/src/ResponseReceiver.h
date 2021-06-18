@@ -19,6 +19,7 @@ namespace rt {
 class ResponseReceiver {
 public:
   struct IReceiverServices {
+    virtual ~IReceiverServices() = default;
     virtual std::vector<int> getDevicesWithEventsOnFly() const = 0;
     virtual void onResponseReceived(const std::vector<std::byte>& response) = 0;
   };

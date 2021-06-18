@@ -11,16 +11,19 @@
 #include "ResponseReceiver.h"
 #include "RuntimeImp.h"
 #include "utils.h"
+
 #include <algorithm>
 #include <array>
 #include <chrono>
 #include <thread>
 #include <utility>
+#include <random>
+
 using namespace rt;
 
 namespace {
 using namespace std::chrono_literals;
-auto kPollingInterval = 10ms;
+constexpr auto kPollingInterval = 10ms;
 } // namespace
 
 ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServices* receiverServices)
@@ -34,9 +37,12 @@ ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServ
 
     std::vector<std::byte> buffer(kMaxMsgSize);
     
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    
     while (run_) {
       auto devicesToCheck = receiverServices_->getDevicesWithEventsOnFly();
-      std::random_shuffle(begin(devicesToCheck), end(devicesToCheck));
+      std::shuffle(begin(devicesToCheck), end(devicesToCheck), gen);
       int responsesCount = 0;
       for (auto dev : devicesToCheck) {
         while (deviceLayer_->receiveResponseMasterMinion(dev, buffer)) {

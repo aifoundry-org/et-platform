@@ -93,6 +93,9 @@ KernelId RuntimeImp::loadCode(DeviceId device, const void* data, size_t size) {
                          memSize);
     }
   }
+  if (!basePhysicalAddressCalculated) {
+    throw Exception("Error calculating kernel entrypoint");
+  }
 
   auto kernel = std::make_unique<Kernel>(device, deviceBuffer, entry - basePhysicalAddress);
 
@@ -129,7 +132,7 @@ void* RuntimeImp::mallocDevice(DeviceId device, size_t size, int alignment) {
   auto it = find(memoryManagers_, device);
   // enforce size is multiple of alignment
   size = alignment * ((size + alignment - 1) / alignment);
-  return static_cast<void*>(it->second.malloc(size, alignment));
+  return it->second.malloc(size, alignment);
 }
 void RuntimeImp::freeDevice(DeviceId device, void* buffer) {
   ScopedProfileEvent profileEvent(Class::FreeDevice, profiler_, device);
@@ -170,7 +173,6 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
   auto evt = eventManager_.getNextId();
   it->second.lastEventId_ = evt;
   auto device = it->second.deviceId_;
-  auto vq = it->second.vq_;
   
   //TODO this is using a wrong command; to be fixed when implementing the DMA list: https://esperantotech.atlassian.net/browse/SW-7830
   device_ops_api::device_ops_data_write_cmd_t cmd = {0};
@@ -222,7 +224,6 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
   auto& st = it->second;
   st.lastEventId_ = evt;
   auto device = st.deviceId_;
-  auto vq = st.vq_;
 
   //TODO this is using a wrong command; to be fixed when implementing the DMA list: https://esperantotech.atlassian.net/browse/SW-7830
   device_ops_api::device_ops_data_read_cmd_t cmd = {0};

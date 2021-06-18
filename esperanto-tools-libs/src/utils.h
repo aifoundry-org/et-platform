@@ -16,7 +16,7 @@
 #include <string>
 namespace rt {
 template <typename Container, typename Key> auto find(Container&& c, Key&& k, std::string error = "Not found") {
-  auto it = c.find(k);
+  auto it = c.find(std::forward<Key>(k));
   if (it == end(c)) {
     throw Exception(std::move(error));
   }
