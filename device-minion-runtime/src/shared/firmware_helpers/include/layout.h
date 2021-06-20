@@ -43,9 +43,34 @@
 #define BROADCAST_MESSAGE_CTRL_SIZE 64
 #define CM_MM_IFACE_CIRCBUFFER_SIZE 4096
 #define CM_MM_MESSAGE_COUNTER_SIZE  64
+#define KERNEL_LAUNCH_FLAG_SIZE     64
 
 /* FW trace related defines */
 #define TRACE_CB_MAX_SIZE           64
+
+/* SCP related defines */
+/* TODO: SW-8195: See if these values can come from HAL */
+#define ETSOC_SCP_REGION_BASEADDR                   0x80000000ULL
+#define ETSOC_SCP_GET_SHIRE_OFFSET(scp_addr)        (scp_addr & 0x7FFFFFULL)
+#define ETSOC_SCP_GET_SHIRE_SIZE                    0x280000 /* 2.5 MB */
+#define ETSOC_SCP_GET_SHIRE_ID(scp_addr)            ((scp_addr >> 23) & 0x7FULL)
+#define ETSOC_SCP_GET_SHIRE_ADDR(shire_id, offset)  (((shire_id << 23) & 0x3F800000ULL) + \
+                                                    ETSOC_SCP_REGION_BASEADDR + offset)
+
+/*****************************************************************/
+/*          - Shire 32 L2 SCP Region Layout (2.5M) -             */
+/*                (Base Address: 0x80000000)                     */
+/*     - user            - base-offset   - size                  */
+/*     CM Unicast buff   0x0             0x5000 (20K)            */
+/*     CM Kernel flags   0x5000          0x100 (256 bytes)       */
+/*****************************************************************/
+#define CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_OFFSET  0x0
+#define CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR    ETSOC_SCP_GET_SHIRE_ADDR(32, CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_OFFSET)
+#define CM_MM_IFACE_UNICAST_CIRCBUFFERS_SIZE         ((1 + MAX_SIMULTANEOUS_KERNELS) * CM_MM_IFACE_CIRCBUFFER_SIZE)
+
+#define CM_KERNEL_LAUNCHED_FLAG_BASE_OFFSET          CM_MM_IFACE_UNICAST_CIRCBUFFERS_SIZE
+#define CM_KERNEL_LAUNCHED_FLAG_BASEADDR             ETSOC_SCP_GET_SHIRE_ADDR(32, CM_KERNEL_LAUNCHED_FLAG_BASE_OFFSET)
+#define CM_KERNEL_LAUNCHED_FLAG_BASEADDR_SIZE        (MAX_SIMULTANEOUS_KERNELS * KERNEL_LAUNCH_FLAG_SIZE)
 
 /*****************************************************************/
 /*              - Low MCODE Region Layout (2M) -                 */

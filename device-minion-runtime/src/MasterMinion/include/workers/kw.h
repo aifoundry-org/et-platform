@@ -70,6 +70,18 @@
 */
 #define KW_ERROR_KERNEL_INVLD_ARGS_SIZE  -7
 
+/*! \def KW_ERROR_SW_TIMER_REGISTER_FAIL
+    \brief Kernel Worker - Unable to register SW timer
+*/
+#define KW_ERROR_SW_TIMER_REGISTER_FAIL  -8
+
+/*! \def KW_ERROR_TIMEDOUT_ABORT_WAIT
+    \brief Kernel Worker - Timed out waiting for sending the abort to CM
+*/
+#define KW_ERROR_TIMEDOUT_ABORT_WAIT     -9
+
+/* Timeouts */
+
 /*! \def TIMEOUT_KERNEL_LAUNCH
     \brief Timeout value (in mS) for kernel launch
 */
@@ -84,6 +96,12 @@
     \brief Timeout value (in mS) for waiting for the shires to get free
 */
 #define KERNEL_FREE_SHIRES_TIMEOUT       5
+
+/*! \def KERNEL_ABORT_WAIT_TIMEOUT
+    \brief Timeout value (in mS) for waiting for kernel abort to be issued
+    from MM.
+*/
+#define KERNEL_ABORT_WAIT_TIMEOUT        2
 
 /*! \enum kernel_state_e
     \brief Enum that provides the state of a kernel

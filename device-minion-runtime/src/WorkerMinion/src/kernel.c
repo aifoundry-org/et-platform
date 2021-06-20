@@ -5,6 +5,7 @@
 #include "device-common/fcc.h"
 #include "device-common/flb.h"
 #include "device-common/hart.h"
+#include "etsoc_memory.h"
 #include "layout.h"
 #include "log.h"
 #include "device-common/macros.h"
@@ -17,6 +18,8 @@
 
 #include <stdbool.h>
 #include <inttypes.h>
+
+#define CM_KERNEL_LAUNCHED_FLAG ((cm_kernel_launched_flag_t *)CM_KERNEL_LAUNCHED_FLAG_BASEADDR)
 
 // Align the struct to cache line so that we can use local atomics on the array created below
 typedef struct kernel_launch_info {
@@ -58,11 +61,12 @@ static inline bool find_last_thread(spinlock_t *lock, uint32_t num_threads)
 }
 
 // This barrier is required to synchronize all Shires before launching the Kernels
-static void pre_launch_synchronize_shires(spinlock_t *lock, uint32_t num_shires)
+static bool pre_launch_synchronize_shires(spinlock_t *lock, uint32_t num_shires)
 {
     const uint64_t shire_id = get_shire_id();
     const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
     bool last;
+    bool kernel_last_thread = false;
 
     last = find_last_thread(&pre_launch_local_barrier[shire_id], thread_count);
 
@@ -79,6 +83,8 @@ static void pre_launch_synchronize_shires(spinlock_t *lock, uint32_t num_shires)
         if (prev_shire == (num_shires - 1))
         {
             init_global_spinlock(&pre_launch_global_barrier, 0);
+
+            kernel_last_thread = true;
         }
         /* Reset the local barrier flag */
         init_local_spinlock(&pre_launch_local_barrier[shire_id], 0);
@@ -86,6 +92,8 @@ static void pre_launch_synchronize_shires(spinlock_t *lock, uint32_t num_shires)
 
     /* All threads in Shire wait for Last Thread to clear flag */
     local_spinwait_wait(&pre_launch_local_barrier[shire_id], 0, 0);
+
+    return kernel_last_thread;
 }
 
 bool kernel_launch_set_global_abort_flag(void)
@@ -212,6 +220,7 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_s
     uint64_t *firmware_sp;
     int64_t return_value;
     uint64_t tensor_error;
+    bool kernel_last_thread;
 
     asm volatile("csrr  %0, sscratch \n"
                  "addi  %0, %0, 8    \n"
@@ -221,10 +230,22 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_s
         kernel.exception_buffer);
 
     /* Wait until all the Shires involved in the kernel launch reach this sync point */
-    pre_launch_synchronize_shires(&pre_launch_global_barrier, (uint32_t)__builtin_popcountll(kernel.shire_mask));
+    kernel_last_thread = pre_launch_synchronize_shires(&pre_launch_global_barrier,
+        (uint32_t)__builtin_popcountll(kernel.shire_mask));
 
     /* Set the thread state to kernel launched */
     kernel_info_set_thread_launched(get_shire_id(), get_hart_id() & (HARTS_PER_SHIRE - 1));
+
+    /* Last thread in kernel launch sets the kernel launch global flag for MM */
+    if (kernel_last_thread)
+    {
+        cm_kernel_launched_flag_t kernel_launched;
+
+        /* Set the L2 SCP kernel launched flag for the acquired kernel worker slot */
+        kernel_launched.flag = 1;
+        ETSOC_Memory_Write_SCP(&kernel_launched, &CM_KERNEL_LAUNCHED_FLAG[kernel.slot_index].flag,
+            sizeof(kernel_launched.flag));
+    }
 
     // -Save firmware context on supervisor stack and sp to supervisor stack SP region
     // -Switch sp to kernel_stack_addr

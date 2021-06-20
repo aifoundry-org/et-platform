@@ -45,15 +45,6 @@ enum ETSOC_MEM_TYPES
 */
 #define ETSOC_MEM_ERROR_INVALID_PARAM              -1
 
-/* SCP related defines */
-/* TODO: SW-8195: See if these values can come from HAL */
-#define ETSOC_SCP_REGION_BASEADDR                   0x80000000ULL
-#define ETSOC_SCP_GET_SHIRE_OFFSET(scp_addr)        (scp_addr & 0x7FFFFFULL)
-#define ETSOC_SCP_GET_SHIRE_SIZE                    0x280000 /* 2.5 MB */
-#define ETSOC_SCP_GET_SHIRE_ID(scp_addr)            ((scp_addr >> 23) & 0x7FULL)
-#define ETSOC_SCP_GET_SHIRE_ADDR(shire_id, offset)  (((shire_id << 23) & 0x3F800000ULL) + \
-                                                    ETSOC_SCP_REGION_BASEADDR + offset)
-
 /*! \def ETSOC_MEM_EVICT
     \brief Macro that is used to evict the data to destination cache level from the address
     provided upto to the length (in bytes)

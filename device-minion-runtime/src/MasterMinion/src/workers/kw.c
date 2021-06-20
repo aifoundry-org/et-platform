@@ -47,6 +47,11 @@
 #include    "vq.h"
 #include    "syscall_internal.h"
 
+/*! \def CM_KERNEL_LAUNCHED_FLAG
+    \brief Macro that defines the flag for kernel launch status of CM side.
+*/
+#define CM_KERNEL_LAUNCHED_FLAG ((cm_kernel_launched_flag_t *)CM_KERNEL_LAUNCHED_FLAG_BASEADDR)
+
 /*! \typedef kernel_instance_t
     \brief Kernel Instance Control Block structure.
     Kernel instance maintains information related to
@@ -72,6 +77,7 @@ typedef struct kw_cb_ {
     spinlock_t          resource_lock;
     kernel_instance_t   kernels[MM_MAX_PARALLEL_KERNELS];
     uint32_t            resource_timeout_flag[SQW_NUM];
+    uint32_t            abort_wait_timeout_flag[SQW_NUM];
 } kw_cb_t;
 
 /*! \struct kw_internal_status
@@ -111,6 +117,31 @@ static inline bool kw_check_address_bounds(uint64_t dev_address, bool is_optiona
 *
 *   FUNCTION
 *
+*       kernel_abort_wait_timeout_callback
+*
+*   DESCRIPTION
+*
+*       Callback for kernel abort wait timeout
+*
+*   INPUTS
+*
+*       sqw_idx    Submission queue index
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void kernel_abort_wait_timeout_callback(uint8_t sqw_idx)
+{
+    /* Set the kernel abort wait timeout flag */
+    atomic_store_local_32(&KW_CB.abort_wait_timeout_flag[sqw_idx], 1U);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       kernel_acquire_resource_timeout_callback
 *
 *   DESCRIPTION
@@ -130,6 +161,71 @@ static void kernel_acquire_resource_timeout_callback(uint8_t sqw_idx)
 {
     /* Set the kernel slot timeout flag */
     atomic_store_local_32(&KW_CB.resource_timeout_flag[sqw_idx], 1U);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       kw_wait_for_kernel_launch_flag
+*
+*   DESCRIPTION
+*
+*       Local fn helper to wait for all the Compute Minions to complete
+*       the launch of kernel.
+*
+*   INPUTS
+*
+*       sqw_idx        Submission queue index
+*       slot_index     Index of available KW
+*
+*   OUTPUTS
+*
+*       int8_t         status success or error
+*
+***********************************************************************/
+static int8_t kw_wait_for_kernel_launch_flag(uint8_t sqw_idx, uint8_t slot_index)
+{
+    int8_t status = STATUS_SUCCESS;
+    int8_t sw_timer_idx;
+    uint32_t timeout_flag;
+    cm_kernel_launched_flag_t kernel_launched;
+
+    /* Create timeout to wait for kernel launch completion flag from CM */
+    sw_timer_idx = SW_Timer_Create_Timeout(&kernel_abort_wait_timeout_callback, sqw_idx,
+        KERNEL_ABORT_WAIT_TIMEOUT);
+
+    if(sw_timer_idx < 0)
+    {
+        Log_Write(LOG_LEVEL_ERROR,
+            "KW: Unable to register kernel abort wait timeout!\r\n");
+        status = KW_ERROR_SW_TIMER_REGISTER_FAIL;
+    }
+    else
+    {
+        do
+        {
+            /* Read the kernel launch flag from MM L2 SCP */
+            ETSOC_Memory_Read_SCP(&CM_KERNEL_LAUNCHED_FLAG[slot_index].flag,
+                &kernel_launched, sizeof(kernel_launched.flag));
+
+            /* Read the timeout flag */
+            timeout_flag = atomic_compare_and_exchange_local_32(
+                &KW_CB.abort_wait_timeout_flag[sqw_idx], 1, 0);
+
+        } while ((kernel_launched.flag == 0) && (timeout_flag == 0));
+
+        /* Free the registered SW Timeout slot */
+        SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
+
+        /* Check for timeout */
+        if(timeout_flag == 1)
+        {
+            status = KW_ERROR_TIMEDOUT_ABORT_WAIT;
+        }
+    }
+
+    return status;
 }
 
 /************************************************************************
@@ -240,14 +336,14 @@ static kernel_instance_t* kw_reserve_kernel_slot(uint8_t sqw_idx, uint8_t *slot_
     } while (!slot_reserved &&
         (atomic_compare_and_exchange_local_32(&KW_CB.resource_timeout_flag[sqw_idx], 1, 0) == 0U));
 
+    /* Free the registered SW Timeout slot */
+    SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
+
     /* If timeout occurs then report this event to SP. */
     if(!slot_reserved)
     {
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM_RESERVE_SLOT_ERROR);
     }
-
-    /* Free the registered SW Timeout slot */
-    SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
 
     return kernel;
 }
@@ -480,6 +576,8 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
 
     if(status == STATUS_SUCCESS)
     {
+        cm_kernel_launched_flag_t kernel_launched;
+
         /* Populate the tag_id and sqw_idx for KW */
         atomic_store_local_16(&kernel->launch_tag_id, cmd->command_info.cmd_hdr.tag_id);
         atomic_store_local_16(&kernel->sqw_idx, sqw_idx);
@@ -505,6 +603,11 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
         {
             launch_args.kernel.trace_buffer = cmd->kernel_trace_buffer;
         }
+
+        /* Reset the L2 SCP kernel launched flag for the acquired kernel worker slot */
+        kernel_launched.flag = 0;
+        ETSOC_Memory_Write_SCP(&kernel_launched, &CM_KERNEL_LAUNCHED_FLAG[slot_index].flag,
+            sizeof(kernel_launched.flag));
 
         /* Blocking call that blocks till all shires ack command */
         status = CM_Iface_Multicast_Send(launch_args.kernel.shire_mask,
@@ -563,53 +666,64 @@ int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
 
     if(status == STATUS_SUCCESS)
     {
-        /* Update the kernel state to aborted */
-        atomic_store_local_32(&KW_CB.kernels[slot_index].kernel_state,
-            KERNEL_STATE_ABORTED_BY_HOST);
-
-        /* Set the kernel abort message */
-        message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
-
-        /* Blocking call that blocks till all shires ack */
-        status = CM_Iface_Multicast_Send(
-            atomic_load_local_64(&KW_CB.kernels[slot_index].kernel_shire_mask),
-            &message);
-
-        /* Construct and transmit kernel abort response to host */
-        abort_rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
-        abort_rsp.response_info.rsp_hdr.msg_id =
-            DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP;
-        abort_rsp.response_info.rsp_hdr.size =
-            sizeof(abort_rsp) - sizeof(struct cmn_header_t);
-
-        /* Check the multicast send for errors */
-        if(status == STATUS_SUCCESS)
-        {
-            abort_rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS;
-        }
-        else
-        {
-            abort_rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_ERROR;
-            SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
-            Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:MM2CMAbort:CommandMulticast:Failed\r\n");
-        }
-
-        /* Send kernel abort response to host */
-        status = Host_Iface_CQ_Push_Cmd(0, &abort_rsp, sizeof(abort_rsp));
+        /* Wait until all the harts on CM side have launched kernel */
+        status = kw_wait_for_kernel_launch_flag(sqw_idx, slot_index);
 
         if(status == STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_DEBUG, "KW:Pushed:KERNEL_ABORT_CMD_RSP:tag_id=%x->Host_CQ\r\n",
-                abort_rsp.response_info.rsp_hdr.tag_id);
+            /* Update the kernel state to aborted */
+            atomic_store_local_32(&KW_CB.kernels[slot_index].kernel_state,
+                KERNEL_STATE_ABORTED_BY_HOST);
+
+            /* Set the kernel abort message */
+            message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
+
+            /* Blocking call that blocks till all shires ack */
+            status = CM_Iface_Multicast_Send(
+                atomic_load_local_64(&KW_CB.kernels[slot_index].kernel_shire_mask),
+                &message);
+
+            /* Construct and transmit kernel abort response to host */
+            abort_rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
+            abort_rsp.response_info.rsp_hdr.msg_id =
+                DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP;
+            abort_rsp.response_info.rsp_hdr.size =
+                sizeof(abort_rsp) - sizeof(struct cmn_header_t);
+
+            /* Check the multicast send for errors */
+            if(status == STATUS_SUCCESS)
+            {
+                abort_rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS;
+            }
+            else
+            {
+                abort_rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_ERROR;
+                SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
+                Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:MM2CMAbort:CommandMulticast:Failed\r\n");
+            }
+
+            /* Send kernel abort response to host */
+            status = Host_Iface_CQ_Push_Cmd(0, &abort_rsp, sizeof(abort_rsp));
+
+            if(status == STATUS_SUCCESS)
+            {
+                Log_Write(LOG_LEVEL_DEBUG, "KW:Pushed:KERNEL_ABORT_CMD_RSP:tag_id=%x->Host_CQ\r\n",
+                    abort_rsp.response_info.rsp_hdr.tag_id);
+            }
+            else
+            {
+                SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+                Log_Write(LOG_LEVEL_ERROR, "KW:Push:KERNEL_ABORT_CMD_RSP:Failed\r\n");
+            }
+
+            /* Decrement commands count being processed by given SQW */
+            SQW_Decrement_Command_Count(sqw_idx);
         }
         else
         {
-            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
-            Log_Write(LOG_LEVEL_ERROR, "KW:Push:KERNEL_ABORT_CMD_RSP:Failed\r\n");
+            /* Report error to SP */
+            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM_KERNEL_ABORT_TIMEOUT_ERROR);
         }
-
-        /* Decrement commands count being processed by given SQW */
-        SQW_Decrement_Command_Count(sqw_idx);
     }
 
     return status;

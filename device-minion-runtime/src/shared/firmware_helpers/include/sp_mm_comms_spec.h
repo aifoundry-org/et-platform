@@ -30,10 +30,11 @@ enum mm2sp_mm_recoverable_error_code {
     MM_CMD_BARRIER_TIMEOUT_ERROR      = -9,
     MM_CM_RESERVE_SLOT_ERROR          = -10,
     MM_CM_RESERVE_TIMEOUT_ERROR       = -11,
-    MM_MM2CM_CMD_ERROR                = -12,
-    MM_CM2MM_CMD_ERROR                = -13,
-    MM_CM2MM_KERNEL_LAUNCH_ERROR      = -14,
-    MM_CM2MM_KERNEL_EXCEPTION_ERROR   = -15
+    MM_CM_KERNEL_ABORT_TIMEOUT_ERROR  = -12,
+    MM_MM2CM_CMD_ERROR                = -13,
+    MM_CM2MM_CMD_ERROR                = -14,
+    MM_CM2MM_KERNEL_LAUNCH_ERROR      = -15,
+    MM_CM2MM_KERNEL_EXCEPTION_ERROR   = -16
 };
 
 typedef int16_t mm2sp_sp_recoverable_error_code_e;

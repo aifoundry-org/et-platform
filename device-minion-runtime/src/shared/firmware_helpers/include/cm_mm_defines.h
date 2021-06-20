@@ -5,18 +5,6 @@
 #include "sync.h"
 #include "layout.h"
 
-/*! \def CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR
-    \brief A macro that provides the base address of CM-MM unicast buffers.
-    Unicast buffers are placed at offset zero of shire 32 SCP.
-*/
-#define CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR    ETSOC_SCP_GET_SHIRE_ADDR(32, 0)
-
-/*! \def CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR
-    \brief A macro that provides the total size for unicast buffers.
-    Slot 0 is for Thread 0 (Dispatcher), rest for Kernel Workers.
-*/
-#define CM_MM_IFACE_UNICAST_CIRCBUFFERS_SIZE         ((1 + MAX_SIMULTANEOUS_KERNELS) * CM_MM_IFACE_CIRCBUFFER_SIZE)
-
 /*! \def CM_MM_MASTER_HART_DISPATCHER_IDX
     \brief A macro that provides the index of the hart within master shire
     used for dispatcher.
@@ -73,6 +61,17 @@ typedef struct {
     int64_t user_error;
     uint64_t gpr[31];
 } __attribute__((packed, aligned(64))) execution_context_t;
+
+/*! \struct cm_kernel_launched_flag_t
+    \brief A structure that is used to store the kernel launch status on Compute
+    Minion side.
+*/
+typedef struct {
+    union {
+        uint32_t flag;
+        uint8_t raw[64];
+    };
+} __attribute__((aligned(64))) cm_kernel_launched_flag_t;
 
 /*! \fn static inline void CM_Iface_Unicast_Acquire_Lock(uint64_t cb_idx)
     \brief Function to acquire the global unicast lock.
