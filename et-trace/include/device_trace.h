@@ -56,10 +56,12 @@
 #define TRACE_FILTER_MARKERS_MASK       0x00FF0000UL
 #define TRACE_FILTER_ENABLE_ALL         0XFFFFFFFFFFFFFFFFUL
 
+typedef uint8_t trace_enable_e;
+
 /*
  * Trace string events filters.
  */
-enum trace_enable_e {
+enum trace_enable {
     TRACE_ENABLE = 0,
     TRACE_DISABLE = 1
 };
