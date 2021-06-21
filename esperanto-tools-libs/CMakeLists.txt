@@ -75,7 +75,7 @@ add_library(etrt_obj OBJECT
 )
 
 set_target_properties(etrt_obj PROPERTIES
-    PUBLIC_HEADER "include/runtime/IProfiler.h;include/runtime/IRuntime.h"
+    PUBLIC_HEADER "include/runtime/IProfiler.h;include/runtime/IRuntime.h;include/runtime/IProfileEvent.h;include/runtime/DmaBuffer.h"
     POSITION_INDEPENDENT_CODE ON
 )
 
