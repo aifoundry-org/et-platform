@@ -875,37 +875,26 @@ bool TestDevOpsApi::printCMTraceStringData(unsigned char* traceBuf, size_t size)
 }
 
 void TestDevOpsApi::extractAndPrintTraceData(int deviceIdx) {
-  const int kBufCount = 2;
-  const std::array<uint32_t, kBufCount> bufSizes = {1024 * 1024, CM_SIZE_PER_HART * WORKER_HART_COUNT};
-  auto totalSize = std::accumulate(bufSizes.begin(), bufSizes.end(), 0);
-
-  auto rdBufMem = allocDmaBuffer(deviceIdx, totalSize, false /* read buffer */);
-
-  std::array<device_ops_api::dma_read_node, kBufCount> rdList;
-  auto rdBufPtr = static_cast<uint8_t*>(rdBufMem);
-  for (int nodeIdx = 0; nodeIdx < kBufCount; nodeIdx++) {
-    rdList[nodeIdx] = {.dst_host_virt_addr = templ::bit_cast<uint64_t>(rdBufPtr),
-                       .dst_host_phy_addr = templ::bit_cast<uint64_t>(rdBufPtr),
-                       .src_device_phy_addr = 0,
-                       .size = bufSizes[nodeIdx]};
-    rdBufPtr += bufSizes[nodeIdx];
-  }
+  const size_t mmBufSize = 1024 * 1024;
+  const size_t cmBufSize = CM_SIZE_PER_HART * WORKER_HART_COUNT;
+  auto rdBufMem = allocDmaBuffer(deviceIdx, mmBufSize + cmBufSize, false /* read buffer */);
+  device_ops_api::dma_read_node rdNode = {.dst_host_virt_addr = templ::bit_cast<uint64_t>(rdBufMem),
+                                          .dst_host_phy_addr = templ::bit_cast<uint64_t>(rdBufMem),
+                                          .src_device_phy_addr = 0,
+                                          .size = static_cast<uint32_t>(mmBufSize + cmBufSize)};
   std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
-  // TODO SW-8239: Perform both DMA pulls in single DMA list command
   stream.push_back(IDevOpsApiCmd::createDmaReadListCmd(
-    device_ops_api::CMD_FLAGS_BARRIER_DISABLE | device_ops_api::CMD_FLAGS_MMFW_TRACEBUF, &rdList[0],
-    1 /* single node */, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-  stream.push_back(IDevOpsApiCmd::createDmaReadListCmd(
-    device_ops_api::CMD_FLAGS_BARRIER_DISABLE | device_ops_api::CMD_FLAGS_CMFW_TRACEBUF, &rdList[1],
-    1 /* single node */, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+    device_ops_api::CMD_FLAGS_BARRIER_DISABLE | device_ops_api::CMD_FLAGS_MMFW_TRACEBUF |
+      device_ops_api::CMD_FLAGS_CMFW_TRACEBUF,
+    &rdNode, 1 /* single node */, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
   cmdResults_.clear();
   executeSyncPerDevicePerQueue(deviceIdx, 0 /* queueIdx */, stream);
 
   if (std::count_if(cmdResults_.begin(), cmdResults_.end(),
                     [](auto& e) { return std::get<1>(e) == CmdStatus::CMD_SUCCESSFUL; }) == stream.size()) {
-    printMMTraceStringData(static_cast<unsigned char*>(rdBufMem), bufSizes[0]);
-    printCMTraceStringData(static_cast<unsigned char*>(rdBufMem) + bufSizes[0], bufSizes[1]);
+    printMMTraceStringData(static_cast<unsigned char*>(rdBufMem), mmBufSize);
+    printCMTraceStringData(static_cast<unsigned char*>(rdBufMem) + mmBufSize, cmBufSize);
   } else {
     TEST_VLOG(0) << "Failed to pull DMA trace buffers!";
   }
