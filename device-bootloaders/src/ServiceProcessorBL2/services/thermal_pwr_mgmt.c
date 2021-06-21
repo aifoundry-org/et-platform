@@ -628,7 +628,7 @@ void update_module_uptime()
 *
 *   DESCRIPTION
 *
-*       This function gets the cumulative time starting from Device 
+*       This function gets the cumulative time starting from Device
 *       Reset.
 *
 *   INPUTS
@@ -843,7 +843,7 @@ static int set_operating_point(uint8_t power)
     int delta_freq = (delta_power * DP_per_Mhz)*(increase? 1 : -1);
 
     uint32_t new_freq = (uint32_t)( Get_Minion_Frequency() + delta_freq );
-    
+
     // FIXME: Need check to see if Voltage update is required for new
     //        frequency
     // Minion_Shire_Voltage_Update(voltage);
@@ -914,7 +914,7 @@ void thermal_power_task_entry(void *pvParameter)
                 FILL_EVENT_HEADER(&message.header, THROTTLE_TIME, sizeof(struct event_message_t) - sizeof(struct cmn_header_t));
 
                 FILL_EVENT_PAYLOAD(&message.payload, INFO, 0, end_time - start_time, 0);
-            
+
                 /* call the callback function and post message */
                 get_soc_power_reg()->event_cb(0, &message);
             }
@@ -980,7 +980,7 @@ static void pmic_isr_callback(enum error_type type, struct event_message_t *msg)
 ***********************************************************************/
 void dump_power_globals(void)
 {
-    volatile struct soc_power_reg_t *soc_power_reg = get_soc_power_reg();
+    volatile struct soc_power_reg_t const *soc_power_reg = get_soc_power_reg();
 
     /* Dump power mgmt globals */
     Log_Write(LOG_LEVEL_CRITICAL,"power_state = %u, tdp_level = %u, temperature = %u c, power = %u W, max_temperature = %u c\n",

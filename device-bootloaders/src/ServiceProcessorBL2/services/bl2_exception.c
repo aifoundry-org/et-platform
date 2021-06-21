@@ -20,7 +20,7 @@
 #include "bl2_exception.h"
 
 /* Local functions */
-static void dump_stack_frame(void *stack_frame);
+static void dump_stack_frame(const void *stack_frame);
 static void dump_csrs(void);
 
 /************************************************************************
@@ -43,7 +43,7 @@ static void dump_csrs(void);
 *       None
 *
 ***********************************************************************/
-void bl2_exception_entry(void *stack_frame)
+__attribute__((noreturn)) void bl2_exception_entry(const void *stack_frame)
 {
     Log_Write (LOG_LEVEL_CRITICAL, "SP runtime exception handler: %s\n", __func__);
 
@@ -118,10 +118,9 @@ void bl2_dump_stack_frame(void)
 *       None
 *
 ***********************************************************************/
-static void dump_stack_frame(void *stack_frame)
+static void dump_stack_frame(const void *stack_frame)
 {
-    uint64_t *stack_pointer = (uint64_t *)stack_frame;
-    uint64_t idx;
+    const uint64_t *stack_pointer = (const uint64_t *)stack_frame;
 
     /* Dump the stack frame - for stack frame defintion,
         see the comments in the portASM.c file */
@@ -133,9 +132,9 @@ static void dump_stack_frame(void *stack_frame)
     Log_Write(LOG_LEVEL_CRITICAL, "x1 = 0x%lx\n", *stack_pointer++);
 
     /* Log x5-x31,x2-x4 are not preserved */
-    for (idx = 5; idx < 32; idx++)
+    for (uint8_t idx = 5; idx < 32; idx++)
     {
-        Log_Write(LOG_LEVEL_CRITICAL, "x%lu = 0x%lx\n", idx, *stack_pointer++);
+        Log_Write(LOG_LEVEL_CRITICAL, "x%u = 0x%lx\n", idx, *stack_pointer++);
     }
 }
 
@@ -160,7 +159,10 @@ static void dump_stack_frame(void *stack_frame)
 ***********************************************************************/
 static void dump_csrs(void)
 {
-    uint64_t mcause_reg, mstatus_reg, mepc_reg, mtval_reg;
+    uint64_t mcause_reg;
+    uint64_t mstatus_reg;
+    uint64_t mepc_reg;
+    uint64_t mtval_reg;
 
     asm volatile ("csrr %0, mcause\n"
                 "csrr %1, mstatus\n"

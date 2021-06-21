@@ -29,7 +29,7 @@
     \param none
     \returns none
 */
-void bl2_exception_entry(void *stack_frame);
+void bl2_exception_entry(const void *stack_frame);
 
 /*! \fn void bl2_exception_entry(stack_frame)
     \brief Dumps system stack frame from ISR context

@@ -411,7 +411,7 @@ int get_asic_latency(uint8_t *asic_latency)
 ***********************************************************************/
 void dump_perf_globals(void)
 {
-    volatile struct soc_perf_reg_t *soc_perf_reg = get_soc_perf_reg();
+    volatile struct soc_perf_reg_t const *soc_perf_reg = get_soc_perf_reg();
 
     /* Dump performance globals */
     Log_Write(LOG_LEVEL_CRITICAL,
