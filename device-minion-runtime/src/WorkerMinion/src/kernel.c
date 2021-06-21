@@ -100,19 +100,19 @@ uint64_t kernel_launch_get_pending_shire_mask(void)
 
 static inline uint64_t kernel_launch_reset_shire_mask(uint32_t shire_id)
 {
-    return atomic_and_global_64(&kernel_launch_shire_mask, ~(1ull << shire_id));
+    return atomic_and_global_64(&kernel_launch_shire_mask, ~(1ULL << shire_id));
 }
 
 uint64_t kernel_info_reset_launched_thread(uint32_t shire_id, uint64_t thread_id)
 {
     return atomic_and_local_64(&kernel_launch_info[shire_id].launched_threads,
-        (uint64_t)~(1ull << thread_id));
+        (uint64_t)~(1ULL << thread_id));
 }
 
 static inline uint64_t kernel_info_set_thread_launched(uint32_t shire_id, uint64_t thread_id)
 {
     return atomic_or_local_64(&kernel_launch_info[shire_id].launched_threads,
-        1ull << thread_id);
+        1ULL << thread_id);
 }
 
 bool kernel_info_has_thread_launched(uint32_t shire_id, uint64_t thread_id)
@@ -153,7 +153,7 @@ static inline void kernel_info_reset_thread_returned(uint32_t shire_id)
 uint64_t kernel_info_set_thread_returned(uint32_t shire_id, uint64_t thread_id)
 {
     return atomic_or_local_64(&kernel_launch_info[shire_id].returned_threads,
-        1ull << thread_id);
+        1ULL << thread_id);
 }
 
 static inline void kernel_info_reset_completed_threads(uint32_t shire_id)
@@ -165,7 +165,7 @@ static inline void kernel_info_reset_completed_threads(uint32_t shire_id)
 static inline uint64_t kernel_info_set_thread_completed(uint32_t shire_id, uint64_t thread_id)
 {
     return atomic_or_local_64(&kernel_launch_info[shire_id].completed_threads,
-        1ull << thread_id);
+        1ULL << thread_id);
 }
 
 bool kernel_info_has_thread_completed(uint32_t shire_id, uint64_t thread_id)
@@ -207,9 +207,7 @@ static inline void kernel_info_set_attributes(uint32_t shire_id, uint8_t kw_base
 static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_shire_mask,
     uint64_t kernel_launch_flags, uint64_t kernel_exception_buffer);
 
-int64_t launch_kernel(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_entry_addr,
-    uint64_t kernel_stack_addr, uint64_t kernel_params_ptr, uint64_t kernel_launch_flags,
-    uint64_t kernel_shire_mask, uint64_t kernel_exception_buffer, uint64_t kernel_trace_buffer)
+int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_stack_addr)
 {
     uint64_t *firmware_sp;
     int64_t return_value;
@@ -219,11 +217,11 @@ int64_t launch_kernel(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_en
                  "addi  %0, %0, 8    \n"
                  : "=r"(firmware_sp));
 
-    pre_kernel_setup(kw_base_id, slot_index, kernel_shire_mask, kernel_launch_flags,
-        kernel_exception_buffer);
+    pre_kernel_setup(kernel.kw_base_id, kernel.slot_index, kernel.shire_mask, kernel.flags,
+        kernel.exception_buffer);
 
     /* Wait until all the Shires involved in the kernel launch reach this sync point */
-    pre_launch_synchronize_shires(&pre_launch_global_barrier, (uint32_t)__builtin_popcountll(kernel_shire_mask));
+    pre_launch_synchronize_shires(&pre_launch_global_barrier, (uint32_t)__builtin_popcountll(kernel.shire_mask));
 
     /* Set the thread state to kernel launched */
     kernel_info_set_thread_launched(get_shire_id(), get_hart_id() & (HARTS_PER_SHIRE - 1));
@@ -233,7 +231,7 @@ int64_t launch_kernel(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_en
     // -Setup ra and user stack frame so the kernel can ret to kernel_return_function
     // -Set kernel arguments
     // -Wipe register state (no leakage from S to U mode)
-    // -sret to kernel_entry_addr in user mode
+    // -sret to kernel.code_start_address in user mode
     asm volatile(
         "addi  sp, sp, -(32 * 8)   \n" // save context on stack (except ra, which is in clobber list)
         "la    ra,  1f             \n" // set return address to instruction after sret
@@ -267,8 +265,8 @@ int64_t launch_kernel(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_en
         "sd    x29, 29 * 8( sp )   \n"
         "sd    x30, 30 * 8( sp )   \n"
         "sd    x31, 31 * 8( sp )   \n"
-        "mv    x10, %[k_param_a0]  \n" // a0 = kernel_params_ptr
-        "mv    x11, %[k_param_a1]  \n" // a1 = kernel_trace_buffer
+        "mv    x10, %[k_param_a0]  \n" // a0 = kernel.pointer_to_args
+        "mv    x11, %[k_param_a1]  \n" // a1 = kernel.trace_buffer
         "mv    x12, %[k_param_a2]  \n" // a2 = UNUSED
         "mv    x13, %[k_param_a3]  \n" // a3 = UNUSED
         "sd    sp, %[firmware_sp]  \n" // save sp to supervisor stack SP region (sscratch + 8)
@@ -340,7 +338,7 @@ int64_t launch_kernel(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_en
         "fcvt.s.w f30, x0          \n"
         "fcvt.s.w f31, x0          \n"
 #endif
-        "sret                      \n" /* ret to kernel_entry_addr in user mode */
+        "sret                      \n" /* ret to kernel.code_start_address in user mode */
         "1:                        \n" /* firmware context resumes from here via return_from_kernel() */
         "mv    %[return_value], a0 \n" /* collect kernel return value */
         "csrr  %[tensor_error], tensor_error \n" /* collect tensor_error */
@@ -349,15 +347,15 @@ int64_t launch_kernel(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_en
           [tensor_error] "=r"(tensor_error)
         : [k_ret_addr]    "r"(0),
           [k_stack_addr]  "r"(kernel_stack_addr),
-          [k_entry]       "r"(kernel_entry_addr),
-          [k_param_a0]    "r"(kernel_params_ptr),
-          [k_param_a1]    "r"(kernel_trace_buffer),
+          [k_entry]       "r"(kernel.code_start_address),
+          [k_param_a0]    "r"(kernel.pointer_to_args),
+          [k_param_a1]    "r"(kernel.trace_buffer),
           [k_param_a2]    "r"(0), /* Unused for now */
           [k_param_a3]    "r"(0)  /* Unused for now */
     );
 
     /* Do post kernel launch cleanup */
-    kernel_launch_post_cleanup(kw_base_id, slot_index, return_value);
+    kernel_launch_post_cleanup(kernel.kw_base_id, kernel.slot_index, return_value);
 
     return return_value;
 }
@@ -407,12 +405,13 @@ static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t ke
         local_fcc_barrier_init(&post_launch_barrier[shire_id]);
     }
 
-    // [SW-3260] Force L3 evict in the firmware before starting a kernel - for performance analysis
-    if (kernel_launch_flags & KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH) {
-        // First Thread of first Minion of Shires 0-31 evict their L3 chunk
-        // NOTE: This will only evict the whole L3 if all the 32 Shires participate in the launch
-        if ((hart_id % 64U == 0) && (shire_id < 32))
-            syscall(SYSCALL_EVICT_L3_INT, 0, 0, 0);
+    /* [SW-3260] Force L3 evict in the firmware before starting a kernel - for performance analysis
+       First Thread of first Minion of Shires 0-31 evict their L3 chunk
+       NOTE: This will only evict the whole L3 if all the 32 Shires participate in the launch */
+    if ((kernel_launch_flags & KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH) &&
+        (hart_id % 64U == 0) && (shire_id < 32))
+    {
+        syscall(SYSCALL_EVICT_L3_INT, 0, 0, 0);
     }
 
     // Empty all FCCs
@@ -494,24 +493,21 @@ void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t 
     /* Last thread to reach here decrements the kernel launch shire count */
     prev_completed_threads = kernel_info_set_thread_completed(shire_id, thread_id);
 
-    /* Kernel error handling for MM */
-    if ((prev_completed_threads | (1ull << thread_id)) == thread_mask)
+    /* Kernel error handling for MM, Save the kernel error code per shire (if any) */
+    if (((prev_completed_threads | (1ULL << thread_id)) == thread_mask) &&
+        (kernel_ret_val < KERNEL_COMPLETE_STATUS_SUCCESS))
     {
-        /* Save the kernel error code per shire (if any) */
-        if (kernel_ret_val < KERNEL_COMPLETE_STATUS_SUCCESS)
+        /* Save the kernel launch status for sending response to MM */
+        kernel_info_set_execution_status(shire_id, KERNEL_COMPLETE_STATUS_ERROR);
+
+        /* Get the kernel exception buffer */
+        uint64_t exception_buffer = kernel_info_get_exception_buffer(shire_id);
+
+        /* If the kernel exception buffer is available */
+        if (exception_buffer != 0)
         {
-            /* Save the kernel launch status for sending response to MM */
-            kernel_info_set_execution_status(shire_id, KERNEL_COMPLETE_STATUS_ERROR);
-
-            /* Get the kernel exception buffer */
-            uint64_t exception_buffer = kernel_info_get_exception_buffer(shire_id);
-
-            /* If the kernel exception buffer is available */
-            if (exception_buffer != 0)
-            {
-                CM_To_MM_Save_Kernel_Error((execution_context_t *)exception_buffer,
-                    get_hart_id(), kernel_ret_val);
-            }
+            CM_To_MM_Save_Kernel_Error((execution_context_t *)exception_buffer,
+                get_hart_id(), kernel_ret_val);
         }
     }
 
@@ -541,13 +537,13 @@ void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t 
     syscall(SYSCALL_POST_KERNEL_CLEANUP_INT, thread_count, 0, 0);
 
     /* Check if messages need to be sent to MM */
-    if ((prev_completed_threads | (1ull << thread_id)) == thread_mask)
+    if ((prev_completed_threads | (1ULL << thread_id)) == thread_mask)
     {
         /* Decrement the kernel launch shire count */
         prev_shire_mask = kernel_launch_reset_shire_mask(shire_id);
 
         /* Last shire in kernel launch sends a complete message to MM */
-        if((prev_shire_mask & ~(1ull << shire_id)) == 0)
+        if((prev_shire_mask & ~(1ULL << shire_id)) == 0)
         {
             cm_to_mm_message_kernel_launch_completed_t msg;
             msg.header.number = 0; // Not used. TODO: Remove

@@ -52,6 +52,12 @@ uint64_t Trace_Get_CM_Shire_Mask(void);
     \return None
 */
 void Trace_Set_CM_Shire_Mask(uint64_t cm_mask);
-void Trace_RT_Control_MM(enum trace_enable_e state);
+
+/*! \fn void Trace_RT_Control_MM(trace_enable_e state)
+    \brief This function enable/disable Trace for Master Minion.
+    \param state Enable/Disable Trace.
+    \return None
+*/
+void Trace_RT_Control_MM(trace_enable_e state);
 
 #endif

@@ -3,6 +3,7 @@
 
 #include "kernel_error.h"
 #include "kernel_return.h"
+#include "message_types.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -91,22 +92,13 @@ uint64_t kernel_launch_get_pending_shire_mask(void);
 */
 bool kernel_launch_set_global_abort_flag(void);
 
-/*! \fn int64_t launch_kernel(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_entry_addr,
-    uint64_t kernel_stack_addr, uint64_t kernel_params_ptr, uint64_t kernel_launch_flags,
-    uint64_t kernel_shire_mask)
+/*! \fn int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel,
+            uint64_t kernel_stack_addr)
     \brief Function used to launch kernel with the given parameters.
-    \param kw_base_id Kernel worker base hart ID
-    \param slot_index Slot ID of the kernel
-    \param kernel_entry_addr Address of the kernel entry point
+    \param kernel Kernel parameters og the kernel to be launched.
     \param kernel_stack_addr Address of the kernel stack
-    \param kernel_params_ptr Address of the kernel parameters
-    \param kernel_launch_flags Any extra kernel launch flags
-    \param kernel_exception_buffer Address of the kernel launch exception buffer
-    \param kernel_trace_buffer Address of the kernel launch trace buffer
     \return Success or error
 */
-int64_t launch_kernel(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_entry_addr,
-    uint64_t kernel_stack_addr, uint64_t kernel_params_ptr, uint64_t kernel_launch_flags,
-    uint64_t kernel_shire_mask, uint64_t kernel_exception_buffer, uint64_t kernel_trace_buffer);
+int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_stack_addr);
 
 #endif

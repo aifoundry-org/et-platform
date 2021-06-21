@@ -62,7 +62,7 @@ extern bool SW_Timer_Interrupt_Flag;
 
 /* Local functions */
 
-static inline void dispatcher_assert(bool condition, enum mm2sp_sp_recoverable_error_code_e error,
+static inline void dispatcher_assert(bool condition, mm2sp_sp_recoverable_error_code_e error,
     const char* error_log)
 {
     if (!condition)

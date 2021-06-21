@@ -13,7 +13,7 @@
     \brief This is shared build configuration between master minion
     and service processor runtimes.
 
-Allows for configuration of;
+    Allows for configuration of
     1. Location and configuration of SP to MM Virtual Queues
     2. Location and configuration of MM to SP Virtual Quques
 */

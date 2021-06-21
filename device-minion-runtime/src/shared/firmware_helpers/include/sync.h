@@ -230,7 +230,7 @@ static inline bool local_spinwait_wait(const spinlock_t *lock, uint32_t value, u
     if(timeout != 0)
     {
         /* Poll with timeout */
-        while ((atomic_load_local_32(&lock->flag) != value) && (timeout)) {
+        while ((atomic_load_local_32(&lock->flag) != value) && timeout) {
             asm volatile("fence\n" ::: "memory");
             timeout--;
         }

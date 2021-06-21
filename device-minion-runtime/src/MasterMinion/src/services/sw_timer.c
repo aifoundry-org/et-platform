@@ -185,10 +185,10 @@ static void SW_Timer_isr(void)
 *
 *   OUTPUTS
 *
-*       SW_TIMER_STATUS_e         status success or error
+*       int8_t         status success or error
 *
 ***********************************************************************/
-SW_TIMER_STATUS_e SW_Timer_Init(void)
+int8_t SW_Timer_Init(void)
 {
     for(uint8_t i = 0; i < SW_TIMER_MAX_SLOTS; i++)
     {
@@ -294,7 +294,7 @@ void SW_Timer_Cancel_Timeout(uint8_t sw_timer_idx)
 *   DESCRIPTION
 *
 *       Returns the elapsed time from last Periodic timer update
-*       
+*
 *   INPUTS
 *
 *       sw_timer_idx     Slot number of the timer

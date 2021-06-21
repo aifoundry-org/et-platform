@@ -35,9 +35,12 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
         /* If the kernel exception buffer is available */
         if(exception_buffer != 0)
         {
+            swi_execution_context_t context = {.scause = scause, .sepc = sepc,
+                .sstatus = sstatus, .stval = stval, .regs = reg};
+
             /* Save the execution context in the buffer provided */
             CM_To_MM_Save_Execution_Context((execution_context_t*)exception_buffer,
-                CM_CONTEXT_TYPE_SMODE_EXCEPTION, hart_id, scause, sepc, stval, sstatus, reg);
+                CM_CONTEXT_TYPE_SMODE_EXCEPTION, hart_id, &context);
         }
 
         log_write(LOG_LEVEL_CRITICAL,
@@ -51,9 +54,12 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
         /* If the kernel exception buffer is available */
         if(exception_buffer != 0)
         {
+            swi_execution_context_t context = {.scause = scause, .sepc = sepc,
+                .sstatus = sstatus, .stval = stval, .regs = reg};
+
             /* Save the execution context in the buffer provided */
             CM_To_MM_Save_Execution_Context((execution_context_t*)exception_buffer,
-                CM_CONTEXT_TYPE_UMODE_EXCEPTION, hart_id, scause, sepc, stval, sstatus, reg);
+                CM_CONTEXT_TYPE_UMODE_EXCEPTION, hart_id, &context);
         }
     }
 

@@ -39,12 +39,12 @@ struct trace_control_block_t* Trace_Get_CM_CB(void);
 */
 void Trace_Evict_CM_Buffer(void);
 
-/*! \fn void Trace_RT_Control_CM(enum trace_enable_e enable)
+/*! \fn void Trace_RT_Control_CM(trace_enable_e enable)
     \brief This function updates the control of Trace for Computer Minnion
           runtime.
     \param trace_enable_e Enable / Disbale Trace.
     \return None
 */
-void Trace_RT_Control_CM(enum trace_enable_e enable);
+void Trace_RT_Control_CM(trace_enable_e enable);
 
 #endif

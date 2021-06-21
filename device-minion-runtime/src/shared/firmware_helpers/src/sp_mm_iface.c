@@ -126,7 +126,7 @@ static inline int8_t notify(uint8_t target, int32_t issuing_hart_id)
 ***********************************************************************/
 int8_t SP_MM_Iface_Init(void)
 {
-    int8_t status = 0;
+    int8_t status = STATUS_SUCCESS;
 
 #if defined(MASTER_MINION)
 
@@ -140,22 +140,32 @@ int8_t SP_MM_Iface_Init(void)
     status = VQ_Init(&SP_MM_SQ.vqueue, SP_MM_SQ.vqueue_base,
                         SP_MM_SQ.vqueue_size, 0, sizeof(cmd_size_t),
                         SP2MM_SQ_MEM_TYPE);
-    status = VQ_Init(&SP_MM_CQ.vqueue, SP_MM_CQ.vqueue_base,
-                        SP_MM_CQ.vqueue_size, 0, sizeof(cmd_size_t),
-                        SP2MM_CQ_MEM_TYPE);
 
+    if (status == STATUS_SUCCESS)
+    {
+        status = VQ_Init(&SP_MM_CQ.vqueue, SP_MM_CQ.vqueue_base,
+                            SP_MM_CQ.vqueue_size, 0, sizeof(cmd_size_t),
+                            SP2MM_CQ_MEM_TYPE);
+    }
 
-    temp = ((((uint64_t)MM2SP_SQ_SIZE) << 32) | ((uint64_t)MM2SP_SQ_BASE));
-    atomic_store_local_64((uint64_t*)&MM_SP_SQ, temp);
-    temp = (((uint64_t)(MM2SP_CQ_SIZE << 32)) | MM2SP_CQ_BASE);
-    atomic_store_local_64((uint64_t*)&MM_SP_CQ, temp);
+    if (status == STATUS_SUCCESS)
+    {
+        temp = ((((uint64_t)MM2SP_SQ_SIZE) << 32) | ((uint64_t)MM2SP_SQ_BASE));
+        atomic_store_local_64((uint64_t*)&MM_SP_SQ, temp);
+        temp = (((uint64_t)(MM2SP_CQ_SIZE << 32)) | MM2SP_CQ_BASE);
+        atomic_store_local_64((uint64_t*)&MM_SP_CQ, temp);
 
-    status = VQ_Init(&MM_SP_SQ.vqueue, MM_SP_SQ.vqueue_base,
-                        MM_SP_SQ.vqueue_size, 0, sizeof(cmd_size_t),
-                        MM2SP_SQ_MEM_TYPE);
-    status = VQ_Init(&MM_SP_CQ.vqueue, MM_SP_CQ.vqueue_base,
-                        MM_SP_CQ.vqueue_size, 0, sizeof(cmd_size_t),
-                        MM2SP_CQ_MEM_TYPE);
+        status = VQ_Init(&MM_SP_SQ.vqueue, MM_SP_SQ.vqueue_base,
+                            MM_SP_SQ.vqueue_size, 0, sizeof(cmd_size_t),
+                            MM2SP_SQ_MEM_TYPE);
+    }
+
+    if (status == STATUS_SUCCESS)
+    {
+        status = VQ_Init(&MM_SP_CQ.vqueue, MM_SP_CQ.vqueue_base,
+                            MM_SP_CQ.vqueue_size, 0, sizeof(cmd_size_t),
+                            MM2SP_CQ_MEM_TYPE);
+    }
 
 #elif defined(SERVICE_PROCESSOR_BL2)
 
@@ -166,20 +176,31 @@ int8_t SP_MM_Iface_Init(void)
     status = VQ_Init(&SP_MM_SQ.vqueue, SP_MM_SQ.vqueue_base,
                         SP_MM_SQ.vqueue_size, 0, sizeof(cmd_size_t),
                         SP2MM_SQ_MEM_TYPE);
-    status = VQ_Init(&SP_MM_CQ.vqueue, SP_MM_CQ.vqueue_base,
-                        SP_MM_CQ.vqueue_size, 0, sizeof(cmd_size_t),
-                        SP2MM_CQ_MEM_TYPE);
 
-    MM_SP_SQ.vqueue_base = MM2SP_SQ_BASE;
-    MM_SP_SQ.vqueue_size = MM2SP_SQ_SIZE;
-    MM_SP_CQ.vqueue_base = MM2SP_CQ_BASE;
-    MM_SP_CQ.vqueue_size = MM2SP_CQ_SIZE;
-    status = VQ_Init(&MM_SP_SQ.vqueue, MM_SP_SQ.vqueue_base,
-                        MM_SP_SQ.vqueue_size, 0, sizeof(cmd_size_t),
-                        MM2SP_SQ_MEM_TYPE);
-    status = VQ_Init(&MM_SP_CQ.vqueue, MM_SP_CQ.vqueue_base,
-                        MM_SP_CQ.vqueue_size, 0, sizeof(cmd_size_t),
-                        MM2SP_CQ_MEM_TYPE);
+    if (status == STATUS_SUCCESS)
+    {
+        status = VQ_Init(&SP_MM_CQ.vqueue, SP_MM_CQ.vqueue_base,
+                            SP_MM_CQ.vqueue_size, 0, sizeof(cmd_size_t),
+                            SP2MM_CQ_MEM_TYPE);
+    }
+
+    if (status == STATUS_SUCCESS)
+    {
+        MM_SP_SQ.vqueue_base = MM2SP_SQ_BASE;
+        MM_SP_SQ.vqueue_size = MM2SP_SQ_SIZE;
+        MM_SP_CQ.vqueue_base = MM2SP_CQ_BASE;
+        MM_SP_CQ.vqueue_size = MM2SP_CQ_SIZE;
+        status = VQ_Init(&MM_SP_SQ.vqueue, MM_SP_SQ.vqueue_base,
+                            MM_SP_SQ.vqueue_size, 0, sizeof(cmd_size_t),
+                            MM2SP_SQ_MEM_TYPE);
+    }
+
+    if (status == STATUS_SUCCESS)
+    {
+        status = VQ_Init(&MM_SP_CQ.vqueue, MM_SP_CQ.vqueue_base,
+                            MM_SP_CQ.vqueue_size, 0, sizeof(cmd_size_t),
+                            MM2SP_CQ_MEM_TYPE);
+    }
 #endif
 
     return status;

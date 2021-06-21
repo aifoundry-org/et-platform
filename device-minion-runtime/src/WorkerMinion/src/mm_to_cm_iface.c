@@ -139,12 +139,20 @@ static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
         int64_t rv = -1;
         mm_to_cm_message_kernel_launch_t *launch = (mm_to_cm_message_kernel_launch_t *)message_ptr;
         /* Check if this Shire is involved in the kernel launch */
-        if (launch->shire_mask & (1ULL << shire))
+        if (launch->kernel.shire_mask & (1ULL << shire))
         {
+            mm_to_cm_message_kernel_params_t kernel;
+            kernel.kw_base_id           = launch->kernel.kw_base_id;
+            kernel.slot_index           = launch->kernel.slot_index;
+            kernel.flags                = launch->kernel.flags;
+            kernel.code_start_address   = launch->kernel.code_start_address;
+            kernel.pointer_to_args      = launch->kernel.pointer_to_args;
+            kernel.shire_mask           = launch->kernel.shire_mask;
+            kernel.exception_buffer     = launch->kernel.exception_buffer;
+            kernel.trace_buffer         = launch->kernel.trace_buffer;
+
             uint64_t kernel_stack_addr = KERNEL_UMODE_STACK_BASE - (hart * KERNEL_UMODE_STACK_SIZE);
-            rv = launch_kernel(launch->kw_base_id, launch->slot_index, launch->code_start_address,
-                kernel_stack_addr, launch->pointer_to_args, launch->flags, launch->shire_mask,
-                launch->exception_buffer, launch->trace_buffer);
+            rv = launch_kernel(kernel, kernel_stack_addr);
         }
 
         if (rv != 0)
@@ -175,8 +183,7 @@ static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
 
                 /* Save the execution context in the buffer provided */
                 CM_To_MM_Save_Execution_Context((execution_context_t*)exception_buffer,
-                    CM_CONTEXT_TYPE_SYSTEM_ABORT, hart, context->scause, context->sepc,
-                    context->stval, context->sstatus, context->regs);
+                    CM_CONTEXT_TYPE_SYSTEM_ABORT, hart, context);
             }
 
             return_from_kernel(KERNEL_LAUNCH_ERROR_ABORTED);

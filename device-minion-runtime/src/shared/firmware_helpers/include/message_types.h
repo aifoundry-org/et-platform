@@ -66,7 +66,6 @@ typedef enum {
 #define KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH (1u << 0)
 
 typedef struct {
-    cm_iface_message_header_t header;
     uint8_t kw_base_id;
     uint8_t slot_index;
     uint8_t flags;
@@ -75,6 +74,11 @@ typedef struct {
     uint64_t shire_mask;
     uint64_t exception_buffer;
     uint64_t trace_buffer;
+} __attribute__((packed)) mm_to_cm_message_kernel_params_t;
+
+typedef struct {
+    cm_iface_message_header_t header;
+    mm_to_cm_message_kernel_params_t kernel;
 } __attribute__((packed, aligned(64))) mm_to_cm_message_kernel_launch_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(mm_to_cm_message_kernel_launch_t);

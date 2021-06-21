@@ -364,9 +364,6 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
 
         Log_Write(LOG_LEVEL_DEBUG, "SQW:H%d:received FCC event!\r\n", hart_id);
 
-        /* Reset the flag for updating the SQ tail offset in shared SRAM */
-        update_sq_tail = false;
-
         /* Get the cached tail pointer */
         tail_prev = VQ_Get_Tail_Offset(&vq_cached);
 

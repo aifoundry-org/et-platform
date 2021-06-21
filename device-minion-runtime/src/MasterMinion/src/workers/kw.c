@@ -487,27 +487,27 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
         /* Populate the kernel launch params */
         mm_to_cm_message_kernel_launch_t launch_args = {0};
         launch_args.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH;
-        launch_args.kw_base_id = (uint8_t)KW_MS_BASE_HART;
-        launch_args.slot_index = slot_index;
-        launch_args.code_start_address = cmd->code_start_address;
-        launch_args.pointer_to_args = cmd->pointer_to_args;
-        launch_args.shire_mask = cmd->shire_mask;
-        launch_args.exception_buffer = cmd->exception_buffer;
+        launch_args.kernel.kw_base_id = (uint8_t)KW_MS_BASE_HART;
+        launch_args.kernel.slot_index = slot_index;
+        launch_args.kernel.code_start_address = cmd->code_start_address;
+        launch_args.kernel.pointer_to_args = cmd->pointer_to_args;
+        launch_args.kernel.shire_mask = cmd->shire_mask;
+        launch_args.kernel.exception_buffer = cmd->exception_buffer;
 
         /* If the flag bit flush L3 is set */
         if(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_KERNEL_FLUSH_L3)
         {
-            launch_args.flags = KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH;
+            launch_args.kernel.flags = KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH;
         }
 
         /* If the flag bit for U-mode trace buffer is set */
         if(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_KERNEL_TRACE_BUF)
         {
-            launch_args.trace_buffer = cmd->kernel_trace_buffer;
+            launch_args.kernel.trace_buffer = cmd->kernel_trace_buffer;
         }
 
         /* Blocking call that blocks till all shires ack command */
-        status = CM_Iface_Multicast_Send(launch_args.shire_mask,
+        status = CM_Iface_Multicast_Send(launch_args.kernel.shire_mask,
                     (cm_iface_message_t*)&launch_args);
 
         if (status == STATUS_SUCCESS)
@@ -684,7 +684,7 @@ void KW_Init(void)
 ***********************************************************************/
 void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle, uint8_t sw_timer_idx)
 {
-    uint32_t minion = (uint32_t)KW_WORKER_0 + (kw_idx / (2 / WORKER_HART_FACTOR));
+    uint32_t minion = KW_WORKER_0 + (kw_idx / (2 / WORKER_HART_FACTOR));
     uint32_t thread = kw_idx % (2 / WORKER_HART_FACTOR);
 
     Log_Write(LOG_LEVEL_DEBUG, "Notifying:KW:minion=%d:thread=%d\r\n",
@@ -1081,5 +1081,5 @@ void KW_Set_Abort_Status(uint8_t kw_idx)
 
     /* Trigger IPI to KW */
     syscall(SYSCALL_IPI_TRIGGER_INT,
-        1ull << ((KW_BASE_HART_ID + (kw_idx * WORKER_HART_FACTOR)) % 64), MASTER_SHIRE, 0);
+        1ULL << ((KW_BASE_HART_ID + (kw_idx * WORKER_HART_FACTOR)) % 64), MASTER_SHIRE, 0);
 }

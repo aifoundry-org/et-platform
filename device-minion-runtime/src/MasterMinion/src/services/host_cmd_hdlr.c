@@ -681,7 +681,7 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
         rsp.response_info.rsp_hdr.msg_id = (msg_id_t)(cmd->command_info.cmd_hdr.msg_id + 1U);
         /* TODO: SW-7137: Add dma_readlist_cmd handling
         rsp.response_info.rsp_hdr.msg_id =
-            DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP; */
+            DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP */
         rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);
         /* Compute Wait Cycles (cycles the command was sitting
         in SQ prior to launch) Snapshot current cycle */
@@ -750,7 +750,7 @@ static inline int8_t dma_writelist_cmd_handler(void* command_buffer, uint8_t sqw
     uint64_t start_cycles)
 {
 
-    struct device_ops_dma_writelist_cmd_t *cmd =
+    const struct device_ops_dma_writelist_cmd_t *cmd =
         (struct device_ops_dma_writelist_cmd_t *)command_buffer;
     struct device_ops_dma_writelist_rsp_t rsp;
     dma_read_chan_id_e chan = DMA_CHAN_ID_READ_INVALID;
@@ -845,7 +845,7 @@ static inline int8_t dma_writelist_cmd_handler(void* command_buffer, uint8_t sqw
         rsp.response_info.rsp_hdr.msg_id = (msg_id_t)(cmd->command_info.cmd_hdr.msg_id + 1U);
         /* TODO: SW-7137: Add dma_writelist_cmd handling
         rsp.response_info.rsp_hdr.msg_id =
-            DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP; */
+            DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP */
         rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);
         /* Compute Wait Cycles (cycles the command was sitting
         in SQ prior to launch) Snapshot current cycle */

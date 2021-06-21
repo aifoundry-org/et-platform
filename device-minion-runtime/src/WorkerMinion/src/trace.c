@@ -170,7 +170,7 @@ struct trace_control_block_t* Trace_Get_CM_CB(void)
 *       None.
 *
 ***********************************************************************/
-void Trace_RT_Control_CM(enum trace_enable_e enable)
+void Trace_RT_Control_CM(trace_enable_e enable)
 {
     CM_TRACE_CB[GET_CB_INDEX(get_hart_id())].cb.enable = (uint8_t)enable;
 }

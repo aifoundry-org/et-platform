@@ -70,7 +70,7 @@ static void sp_iface_mm_heartbeat_cb(uint8_t param)
     /* Initialize event header */
     SP_MM_IFACE_INIT_MSG_HDR(&event.msg_hdr, MM2SP_EVENT_HEARTBEAT,
         sizeof(struct mm2sp_heartbeat_event_t),
-        (int32_t) get_hart_id());
+        (int32_t) get_hart_id())
 
     /* Acquire the lock. Multiple threads can call this function. */
     acquire_local_spinlock(&SP_SQ_CB.vq_lock);
@@ -102,7 +102,7 @@ static void sp_iface_sp_response_timeout_cb(uint8_t thread_id)
     atomic_store_local_32(&SP_SQ_CB.timeout_flag, 1);
 
     /* Trigger IPI to respective hart */
-    syscall(SYSCALL_IPI_TRIGGER_INT, (1ull << thread_id), MASTER_SHIRE, 0);
+    syscall(SYSCALL_IPI_TRIGGER_INT, (1ULL << thread_id), MASTER_SHIRE, 0);
 }
 
 /************************************************************************
@@ -198,7 +198,7 @@ static int8_t sp_command_handler(void* cmd_buffer)
     {
         case SP2MM_CMD_ECHO:
         {
-            struct sp2mm_echo_cmd_t *echo_cmd = (void*) hdr;
+            const struct sp2mm_echo_cmd_t *echo_cmd = (void*) hdr;
             struct sp2mm_echo_rsp_t rsp;
 
             Log_Write(LOG_LEVEL_DEBUG,
@@ -209,7 +209,7 @@ static int8_t sp_command_handler(void* cmd_buffer)
 
             /* Initialize response header */
             SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, SP2MM_RSP_ECHO,
-                sizeof(struct sp2mm_echo_rsp_t), echo_cmd->msg_hdr.issuing_hart_id);
+                sizeof(struct sp2mm_echo_rsp_t), echo_cmd->msg_hdr.issuing_hart_id)
 
             rsp.payload = echo_cmd->payload;
 
@@ -227,7 +227,7 @@ static int8_t sp_command_handler(void* cmd_buffer)
         }
         case SP2MM_CMD_UPDATE_FREQ:
         {
-            struct sp2mm_update_freq_cmd_t *update_active_freq_cmd =
+            const struct sp2mm_update_freq_cmd_t *update_active_freq_cmd =
                 (void*) hdr;
 
             Log_Write(LOG_LEVEL_DEBUG,
@@ -383,7 +383,7 @@ int8_t SP_Iface_Get_Shire_Mask(uint64_t *shire_mask)
     /* Initialize command header */
     SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, MM2SP_CMD_GET_ACTIVE_SHIRE_MASK,
         sizeof(struct mm2sp_get_active_shire_mask_cmd_t),
-        (int32_t) get_hart_id());
+        (int32_t) get_hart_id())
 
     /* Acquire the lock. Multiple threads can call this function. */
     acquire_local_spinlock(&SP_SQ_CB.vq_lock);
@@ -412,7 +412,7 @@ int8_t SP_Iface_Get_Shire_Mask(uint64_t *shire_mask)
             hdr = (void*)rsp_buff;
             if(hdr->msg_id == MM2SP_RSP_GET_ACTIVE_SHIRE_MASK)
             {
-                struct mm2sp_get_active_shire_mask_rsp_t *rsp = (void *)rsp_buff;
+                const struct mm2sp_get_active_shire_mask_rsp_t *rsp = (void *)rsp_buff;
                 *shire_mask = rsp->active_shire_mask;
             }
             else
@@ -466,7 +466,7 @@ int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq)
     /* Initialize command header */
     SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, MM2SP_CMD_GET_CM_BOOT_FREQ,
         sizeof(struct mm2sp_get_cm_boot_freq_cmd_t),
-        (int32_t) get_hart_id());
+        (int32_t) get_hart_id())
 
     /* Acquire the lock. Multiple threads can call this function. */
     acquire_local_spinlock(&SP_SQ_CB.vq_lock);
@@ -495,7 +495,7 @@ int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq)
             hdr = (void*)rsp_buff;
             if(hdr->msg_id == MM2SP_RSP_GET_CM_BOOT_FREQ)
             {
-                struct mm2sp_get_cm_boot_freq_rsp_t *rsp = (void *)rsp_buff;
+                const struct mm2sp_get_cm_boot_freq_rsp_t *rsp = (void *)rsp_buff;
                 *boot_freq = rsp->cm_boot_freq;
             }
             else
@@ -538,7 +538,7 @@ int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq)
 *       int8_t       status success or failure
 *
 ***********************************************************************/
-int8_t SP_Iface_Report_Error(enum mm2sp_error_type_e error_type, int16_t error_code)
+int8_t SP_Iface_Report_Error(mm2sp_error_type_e error_type, int16_t error_code)
 {
     struct mm2sp_report_error_event_t event;
     int8_t status = STATUS_SUCCESS;
@@ -546,7 +546,7 @@ int8_t SP_Iface_Report_Error(enum mm2sp_error_type_e error_type, int16_t error_c
     /* Initialize event header */
     SP_MM_IFACE_INIT_MSG_HDR(&event.msg_hdr, MM2SP_EVENT_REPORT_ERROR,
         sizeof(struct mm2sp_report_error_event_t),
-        (int32_t) get_hart_id());
+        (int32_t) get_hart_id())
     event.error_type = error_type;
     event.error_code = error_code;
 

@@ -90,7 +90,7 @@ static void mm_to_cm_iface_multicast_timeout_cb(uint8_t thread_id)
     atomic_store_local_32(&MM_CM_CB.timeout_flag, 1);
 
     /* Trigger IPI to respective hart */
-    syscall(SYSCALL_IPI_TRIGGER_INT, (1ull << thread_id), MASTER_SHIRE, 0);
+    syscall(SYSCALL_IPI_TRIGGER_INT, (1ULL << thread_id), MASTER_SHIRE, 0);
 }
 
 /************************************************************************

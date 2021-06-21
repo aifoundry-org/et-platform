@@ -50,11 +50,11 @@ typedef enum {
     SW_TIMER_OPERATION_SUCCESS = 0
 } SW_TIMER_STATUS_e;
 
-/*! \fn SW_TIMER_STATUS_e SW_Timer_Init(void)
+/*! \fn int8_t SW_Timer_Init(void)
     \brief Initializes the SW Timer
     \return Status indicating success or negative error
 */
-SW_TIMER_STATUS_e SW_Timer_Init(void);
+int8_t SW_Timer_Init(void);
 
 /*! \fn int8_t SW_Timer_Create_Timeout(void (*timeout_callback_fn)(uint8_t),
                                 uint8_t callback_arg, uint32_t sw_ticks)
@@ -76,9 +76,9 @@ int8_t SW_Timer_Create_Timeout(void (*timeout_callback_fn)(uint8_t),
 void SW_Timer_Cancel_Timeout(uint8_t sw_timer_idx);
 
 /*! \fn uint32_t SW_Timer_Get_Elapsed_Time(void)
-    \brief Returns the elapsed time from last 
-           periodic timer update 
-    \param none 
+    \brief Returns the elapsed time from last
+           periodic timer update
+    \param none
     \return Residue delta time
 */
 uint32_t SW_Timer_Get_Elapsed_Time(void);

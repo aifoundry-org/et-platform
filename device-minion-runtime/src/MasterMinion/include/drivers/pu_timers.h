@@ -19,8 +19,10 @@
 
 #include <stdint.h>
 
-/*! \fn void PU_Timers_Init(void (*timeout_callback_fn)(void), uint32_t timeout)
+/*! \fn void PU_Timer_Init(void *timeout_callback_fn, uint32_t timeout)
     \brief Initialize Driver, and starts the PU Timer channel 0 from counting down
+    \param timeout_callback_fn Timout callback function.
+    \param timeout Timeout.
     \returns SUCCESS or ERROR
 */
 void PU_Timer_Init(void (*timeout_callback_fn)(void), uint32_t timeout);

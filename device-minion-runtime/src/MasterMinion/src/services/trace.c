@@ -15,7 +15,7 @@
     Public interfaces:
         Trace_Init_MM
         Trace_Get_MM_CB
-    
+
 */
 /***********************************************************************/
 
@@ -29,8 +29,8 @@
 #include "common_trace_defs.h"
 
 /*! \def MM_DEFAULT_THREAD_MASK
-    \brief Default masks to enable Trace for Dispatcher, SQ Worker (SQW), 
-        DMA Worker : Read & Write, and Kernel Worker (KW) 
+    \brief Default masks to enable Trace for Dispatcher, SQ Worker (SQW),
+        DMA Worker : Read & Write, and Kernel Worker (KW)
 */
 #define MM_DEFAULT_THREAD_MASK   ((1UL << (DISPATCHER_BASE_HART_ID - MM_BASE_ID)) |              \
                                   (1UL << (DMAW_BASE_HART_ID - MM_BASE_ID)) |                    \
@@ -47,7 +47,7 @@ typedef struct mm_trace_control_block {
 } __attribute__((aligned(64))) mm_trace_control_block_t;
 
 /* A local Trace control block for all Master Minions. */
-static mm_trace_control_block_t MM_Trace_CB = 
+static mm_trace_control_block_t MM_Trace_CB =
                 {.cb = {0}, .cm_shire_mask = CM_DEFAULT_TRACE_SHIRE_MASK};
 
 /************************************************************************
@@ -59,7 +59,7 @@ static mm_trace_control_block_t MM_Trace_CB =
 *   DESCRIPTION
 *
 *       This function initializes Trace for all harts in Master Minion
-*       Shire. This should be called once by a single MM Hart only. 
+*       Shire. This should be called once by a single MM Hart only.
 *
 *   INPUTS
 *
@@ -98,11 +98,11 @@ void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
     else
     {
         MM_Trace_CB.cb.enable = TRACE_DISABLE;
-    
+
         /* Trace init information is invalid. */
         internal_status = INVALID_TRACE_INIT_INFO;
     }
-    
+
     if(internal_status == STATUS_SUCCESS)
     {
         /* Common buffer for all MM Harts. */
@@ -115,7 +115,7 @@ void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
 
     /* Evict an updated control block to L2 memory. */
     asm volatile("fence");
-    evict(to_L2, &MM_Trace_CB, sizeof(mm_trace_control_block_t));      
+    evict(to_L2, &MM_Trace_CB, sizeof(mm_trace_control_block_t));
     WAIT_CACHEOPS;
 }
 
@@ -127,7 +127,7 @@ void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
 *
 *   DESCRIPTION
 *
-*       This function returns the common Trace control block (CB) for all 
+*       This function returns the common Trace control block (CB) for all
 *       MM Harts.
 *
 *   INPUTS
@@ -152,7 +152,7 @@ struct trace_control_block_t* Trace_Get_MM_CB(void)
 *
 *   DESCRIPTION
 *
-*       This function returns shire mask of Compute Minions for which 
+*       This function returns shire mask of Compute Minions for which
 *       Trace is enabled.
 *
 *   INPUTS
@@ -177,7 +177,7 @@ uint64_t Trace_Get_CM_Shire_Mask(void)
 *
 *   DESCRIPTION
 *
-*       This function sets shire mask of Compute Minions for which 
+*       This function sets shire mask of Compute Minions for which
 *       Trace is enabled.
 *
 *   INPUTS
@@ -206,14 +206,14 @@ void Trace_Set_CM_Shire_Mask(uint64_t cm_mask)
 *
 *   INPUTS
 *
-*       enum trace_enable_e    Enable/Disable Trace.
+*       trace_enable_e    Enable/Disable Trace.
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-void Trace_RT_Control_MM(enum trace_enable_e state)
+void Trace_RT_Control_MM(trace_enable_e state)
 {
     atomic_store_local_8(&(MM_Trace_CB.cb.enable), state);
 }

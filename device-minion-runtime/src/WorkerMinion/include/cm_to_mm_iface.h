@@ -2,6 +2,7 @@
 #define CM_TO_MM_IFACE_H
 
 #include "cm_mm_defines.h"
+#include "mm_to_cm_iface.h"
 #include "message_types.h"
 
 /*! \fn int8_t CM_To_MM_Iface_Unicast_Send(uint64_t ms_thread_id, uint64_t cb_idx,
@@ -17,23 +18,17 @@
 int8_t CM_To_MM_Iface_Unicast_Send(uint64_t ms_thread_id, uint64_t cb_idx,
     const cm_iface_message_t *const message);
 
-/*! \fn int8_t CM_To_MM_Save_Execution_Context(execution_context_t *context_buffer, uint64_t type,
-    uint64_t hart_id, uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t sstatus,
-    uint64_t *const reg)
+/*! \fn int8_t CM_To_MM_Save_Execution_Context(execution_context_t *context_buffer,
+    uint64_t type, uint64_t hart_id, const swi_execution_context_t *context)
     \brief Function to save execution context in a buffer
     \param context_buffer Pointer to context buffer
     \param type Type of exception
     \param hart_id Hart ID of thread that took exception
-    \param scause Cause of exception
-    \param sepc PC value
-    \param stval tval value
-    \param sstatus status value
-    \param reg Pointer to GPRs
+    \param context Context of exception
     \return success or error
 */
-int8_t CM_To_MM_Save_Execution_Context(execution_context_t *context_buffer, uint64_t type,
-    uint64_t hart_id, uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t sstatus,
-    uint64_t *const reg);
+int8_t CM_To_MM_Save_Execution_Context(execution_context_t *context_buffer,
+    uint64_t type, uint64_t hart_id, const swi_execution_context_t *context);
 
 /*! \fn int8_t CM_To_MM_Save_Kernel_Error(execution_context_t *context_buffer, uint64_t hart_id,
     int64_t kernel_error_code)

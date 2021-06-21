@@ -166,7 +166,7 @@ static inline void VQ_Get_Head_And_Tail(vq_cb_t* src_vq_cb, vq_cb_t* dest_vq_cb)
     \param flags Extra flags passed to determine memory operations
     \return Number of bytes available in VQ
 */
-static inline uint64_t VQ_Get_Used_Space(vq_cb_t* vq_cb, uint32_t flags)
+static inline uint64_t VQ_Get_Used_Space(const vq_cb_t* vq_cb, uint32_t flags)
 {
     return Circbuffer_Get_Used_Space(vq_cb->circbuff_cb, flags);
 }

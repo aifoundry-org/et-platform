@@ -97,7 +97,7 @@ int8_t SP_Iface_Init(void);
     SP_MM_Iface_Push(SP_CQ, p_cmd, cmd_size)
 
 /*! \fn void SP_Iface_Processing(void)
-    \brief An API to process messages from SP on receving;
+    \brief An API to process messages from SP on receiving
     1. MM2SP_CQ post notification
     2. SP2MM SQ post notification
     \return Status indicating success or negative error
@@ -118,13 +118,13 @@ int8_t SP_Iface_Get_Shire_Mask(uint64_t *shire_mask);
 */
 int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq);
 
-/*! \fn int8_t SP_Iface_Report_Error(enum mm2sp_error_type_e error_type, int16_t error_code)
+/*! \fn int8_t SP_Iface_Report_Error(mm2sp_error_type_e error_type, int16_t error_code)
     \brief A non-blocking API to report Master Minion error codes to Service Processor
     \param error_type Error type
     \param error_code Error Code
     \return Status indicating success or negative error
 */
-int8_t SP_Iface_Report_Error(enum mm2sp_error_type_e error_type, int16_t error_code);
+int8_t SP_Iface_Report_Error(mm2sp_error_type_e error_type, int16_t error_code);
 
 /*! \fn int8_t SP_Iface_Setup_MM_HeartBeat(void)
     \brief This function initializes the MM->SP heartbeat with a periodic timer.

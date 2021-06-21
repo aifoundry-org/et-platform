@@ -17,7 +17,7 @@
     and management, of compute shires available on the device. Additionally
     a helper fn is provided by this component to handle messages from
     compute minion S mode firmware.
-    It implements the interfaces listed below;
+    It implements the interfaces listed below
 
     Public interfaces:
         CW_Init
@@ -246,14 +246,13 @@ void CW_Process_CM_SMode_Messages(void)
         switch (message.header.id)
         {
             case CM_TO_MM_MESSAGE_ID_NONE:
-            {
                 Log_Write(LOG_LEVEL_DEBUG,
                     "Dispatcher:CM_TO_MM:MESSAGE_ID_NONE\r\n");
                 break;
-            }
+
             case CM_TO_MM_MESSAGE_ID_FW_EXCEPTION:
             {
-                cm_to_mm_message_exception_t *exception =
+                const cm_to_mm_message_exception_t *exception =
                     (cm_to_mm_message_exception_t *)&message;
 
                 Log_Write(LOG_LEVEL_CRITICAL,
@@ -267,7 +266,7 @@ void CW_Process_CM_SMode_Messages(void)
             }
             case CM_TO_MM_MESSAGE_ID_FW_ERROR:
             {
-                cm_to_mm_message_fw_error_t *error =
+                const cm_to_mm_message_fw_error_t *error =
                     (cm_to_mm_message_fw_error_t *)&message;
 
                 Log_Write(LOG_LEVEL_CRITICAL,
@@ -277,12 +276,10 @@ void CW_Process_CM_SMode_Messages(void)
                 break;
             }
             default:
-            {
                 Log_Write(LOG_LEVEL_CRITICAL,
                     "Dispatcher:CM_TO_MM:Unknown message id = 0x%x\r\n",
                     message.header.id);
                 break;
-            }
         }
     }
 }

@@ -13,10 +13,12 @@
 
 #include <inttypes.h>
 
+typedef int16_t mm2sp_mm_recoverable_error_code_e;
+
 /***************/
 /* For these errors, mm will just inform SP and SP will increment the counter.
 When the threshold is hit on SP side, SP will inform the Host */
-enum mm2sp_mm_recoverable_error_code_e {
+enum mm2sp_mm_recoverable_error_code {
     MM_HANG_ERROR                     = -1,
     MM_EXCEPTION_ERROR                = -2,
     MM_DMA_CONFIG_ERROR               = -3,
@@ -34,9 +36,11 @@ enum mm2sp_mm_recoverable_error_code_e {
     MM_CM2MM_KERNEL_EXCEPTION_ERROR   = -15
 };
 
+typedef int16_t mm2sp_sp_recoverable_error_code_e;
+
 /* For the errors, mm is not able to recover from error state, so it will require intervention
 from SP and perform the reset sequence */
-enum mm2sp_sp_recoverable_error_code_e {
+enum mm2sp_sp_recoverable_error_code {
     MM_CM2MM_MM_HANG             = -1,
     MM_CM_IFACE_INIT_ERROR       = -2,
     MM_SP_IFACE_INIT_ERROR       = -3,
@@ -46,7 +50,9 @@ enum mm2sp_sp_recoverable_error_code_e {
     MM_SQ_INIT_ERROR             = -7
 };
 
-enum mm2sp_error_type_e {
+typedef uint16_t mm2sp_error_type_e;
+
+enum mm2sp_error_type {
     MM_RECOVERABLE               = 0,
     SP_RECOVERABLE
 };

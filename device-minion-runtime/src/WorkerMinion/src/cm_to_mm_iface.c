@@ -1,5 +1,6 @@
 #include "circbuff.h"
 #include "cm_to_mm_iface.h"
+#include "mm_to_cm_iface.h"
 #include "etsoc_memory.h"
 #include "layout.h"
 #include "pmu.h"
@@ -24,20 +25,21 @@ int8_t CM_To_MM_Iface_Unicast_Send(uint64_t ms_thread_id, uint64_t cb_idx, const
     return status;
 }
 
-int8_t CM_To_MM_Save_Execution_Context(execution_context_t *context_buffer, uint64_t type,
-    uint64_t hart_id, uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t sstatus, uint64_t *const reg)
+int8_t CM_To_MM_Save_Execution_Context(execution_context_t *context_buffer,
+    uint64_t type, uint64_t hart_id, const swi_execution_context_t *context)
 {
     const uint64_t buffer_index = (hart_id < 2048U) ? hart_id: (hart_id - 32U);
+
     context_buffer[buffer_index].type = type;
     context_buffer[buffer_index].cycles = PMC_Get_Current_Cycles();
     context_buffer[buffer_index].hart_id = hart_id;
-    context_buffer[buffer_index].scause = scause;
-    context_buffer[buffer_index].sepc = sepc;
-    context_buffer[buffer_index].stval = stval;
-    context_buffer[buffer_index].sstatus = sstatus;
+    context_buffer[buffer_index].scause = context->scause;
+    context_buffer[buffer_index].sepc = context->sepc;
+    context_buffer[buffer_index].stval = context->stval;
+    context_buffer[buffer_index].sstatus = context->sstatus;
 
     /* Copy all the GPRs except x0 (hardwired to zero) */
-    memcpy(context_buffer[buffer_index].gpr, &reg[1], sizeof(uint64_t) * 31);
+    memcpy(context_buffer[buffer_index].gpr, &context->regs[1], sizeof(uint64_t) * 31);
 
     /* Evict the data to L3 */
     ETSOC_MEM_EVICT(&context_buffer[buffer_index], sizeof(execution_context_t), to_L3)
