@@ -12,41 +12,50 @@
 #include <cassert>
 #include <cstring>
 #include <dirent.h>
+#include <experimental/filesystem>
 #include <fcntl.h>
 #include <regex>
 #include <stdio.h>
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
-#include <unistd.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
 using namespace dev;
 using namespace std::string_literals;
+namespace fs = std::experimental::filesystem;
 
 namespace dev {
 namespace {
-int countDeviceNodes() {
-  dirent* entry;
-  DIR* dir = opendir("/dev");
-  int count = 0;
-
-  if (dir == NULL) {
-    throw Exception("Unable to open directory");
-  }
-  while ((entry = readdir(dir)) != NULL) {
-    if (regex_match(entry->d_name, std::regex("(et)(.*)(_ops)"))) {
-      count++;
-    }
-  }
-  closedir(dir);
-  return count;
+int countDeviceNodes(bool isMngmt) {
+  auto it = fs::directory_iterator("/dev");
+  return static_cast<int>(std::count_if(fs::begin(it), fs::end(it), [isMngmt](auto& e) {
+    return regex_match(e.path().filename().string(), std::regex(isMngmt ? "(et)(.*)(_mgmt)" : "(et)(.*)(_ops)"));
+  }));
 }
+
 struct IoctlResult {
   int rc_;
   operator bool() const {
     return rc_ >= 0;
   }
 };
+
+int openAndConfigEpoll(int fd) {
+  int epFd = epoll_create(1);
+  if (epFd < 0) {
+    throw Exception("Error opening epoll file for fd: '" + std::to_string(fd) + "', '"s + std::strerror(errno) + "'"s);
+  }
+
+  epoll_event epEvent;
+  epEvent.events = EPOLLIN | EPOLLOUT | EPOLLET;
+  epEvent.data.fd = fd;
+
+  if (epoll_ctl(epFd, EPOLL_CTL_ADD, fd, &epEvent) < 0) {
+    throw Exception("Error setting up epoll for fd: '" + std::to_string(fd) + "', '"s + std::strerror(errno) + "'"s);
+  }
+  return epFd;
+}
 
 template <typename... Types> IoctlResult wrap_ioctl(int fd, unsigned long int request, Types... args) {
   std::stringstream params;
@@ -121,11 +130,24 @@ size_t DevicePcie::getSubmissionQueueSizeServiceProcessor(int device) const {
 DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
   : opsEnabled_(enableOps)
   , mngmtEnabled_(enableMngmt) {
-  LOG_IF(FATAL, !(enableOps || enableMngmt)) << "Ops or Mngmt must be enabled";
+  if (!(enableOps || enableMngmt)) {
+    throw Exception("Ops or Mngmt must be enabled");
+  }
 
-  int devCount = countDeviceNodes();
+  int mngmtDevCount = countDeviceNodes(true);
+  int opsDevCount = countDeviceNodes(false);
 
-  for (int i = 0; i < devCount; ++i) {
+  // A device always has a mngmt node but ops node is optional.
+  if (mngmtDevCount == 0) {
+    throw Exception("No device available");
+  }
+
+  // If ops node does not exist then device is in recovery mode.
+  if (opsDevCount != mngmtDevCount && enableOps) {
+    throw Exception("Only Mngmt can be enabled in recovery mode");
+  }
+
+  for (int i = 0; i < mngmtDevCount; ++i) {
     DevInfo deviceInfo;
 
     if (mngmtEnabled_) {
@@ -136,23 +158,13 @@ DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
       if (deviceInfo.fdMgmt_ < 0) {
         throw Exception("Error opening mgmt file: '"s + std::strerror(errno) + "'"s);
       }
-      DV_LOG(INFO) << "PCIe target mgmt opened: \"" << path << "\"";
 
       wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE, &deviceInfo.spSqMaxMsgSize_);
-      DV_LOG(INFO) << "SP VQ Maximum message size: " << deviceInfo.spSqMaxMsgSize_;
 
-      deviceInfo.epFdMgmt_ = epoll_create(1);
-      if (deviceInfo.epFdMgmt_ < 0) {
-        throw Exception("Error opening epoll file for mgmt: '"s + std::strerror(errno) + "'"s);
-      }
+      deviceInfo.epFdMgmt_ = openAndConfigEpoll(deviceInfo.fdMgmt_);
 
-      epoll_event epEvent;
-      epEvent.events = EPOLLIN | EPOLLOUT | EPOLLET;
-      epEvent.data.fd = deviceInfo.fdMgmt_;
-
-      if (epoll_ctl(deviceInfo.epFdMgmt_, EPOLL_CTL_ADD, deviceInfo.fdMgmt_, &epEvent) < 0) {
-        throw Exception("Error setting up epoll on mgmt file: '"s + std::strerror(errno) + "'"s);
-      }
+      DV_LOG(INFO) << "PCIe target mgmt opened: \"" << path << "\""
+                   << "\nSP VQ Maximum message size: " << deviceInfo.mmSqMaxMsgSize_ << std::endl;
     }
     if (opsEnabled_) {
       char path[32];
@@ -161,31 +173,18 @@ DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
       if (deviceInfo.fdOps_ < 0) {
         throw Exception("Error opening ops file: '"s + std::strerror(errno) + "'"s);
       }
-      DV_LOG(INFO) << "PCIe target ops opened: \"" << path << "\"";
 
       wrap_ioctl(deviceInfo.fdOps_, ETSOC1_IOCTL_GET_USER_DRAM_INFO, &deviceInfo.userDram_);
-      DV_LOG(INFO) << "DRAM base: 0x" << std::hex << deviceInfo.userDram_.base;
-      DV_LOG(INFO) << "DRAM size: 0x" << std::hex << deviceInfo.userDram_.size;
-      DV_LOG(INFO) << "DRAM alignment: " << deviceInfo.userDram_.align_in_bits << "bits";
-
       wrap_ioctl(deviceInfo.fdOps_, ETSOC1_IOCTL_GET_SQ_COUNT, &deviceInfo.mmSqCount_);
-      DV_LOG(INFO) << "MM SQ count: " << deviceInfo.mmSqCount_;
-
       wrap_ioctl(deviceInfo.fdOps_, ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE, &deviceInfo.mmSqMaxMsgSize_);
-      DV_LOG(INFO) << "MM VQ Maximum message size: " << deviceInfo.mmSqMaxMsgSize_ << "\n";
 
-      deviceInfo.epFdOps_ = epoll_create(1);
-      if (deviceInfo.epFdOps_ < 0) {
-        throw Exception("Error opening epoll file for ops: '"s + std::strerror(errno) + "'"s);
-      }
+      deviceInfo.epFdOps_ = openAndConfigEpoll(deviceInfo.fdOps_);
 
-      epoll_event epEvent;
-      epEvent.events = EPOLLIN | EPOLLOUT | EPOLLET;
-      epEvent.data.fd = deviceInfo.fdOps_;
-
-      if (epoll_ctl(deviceInfo.epFdOps_, EPOLL_CTL_ADD, deviceInfo.fdOps_, &epEvent) < 0) {
-        throw Exception("Error setting up epoll on ops file: '"s + std::strerror(errno) + "'"s);
-      }
+      DV_LOG(INFO) << "PCIe target ops opened: \"" << path << "\""
+                   << "\nDRAM base: 0x" << std::hex << deviceInfo.userDram_.base << "\nDRAM size: 0x" << std::hex
+                   << deviceInfo.userDram_.size << "\nDRAM alignment: " << deviceInfo.userDram_.align_in_bits << "bits"
+                   << "\nMM SQ count: " << deviceInfo.mmSqCount_
+                   << "\nMM VQ Maximum message size: " << deviceInfo.mmSqMaxMsgSize_ << std::endl;
     }
     devices_.emplace_back(deviceInfo);
   }
@@ -398,15 +397,16 @@ void* DevicePcie::allocDmaBuffer(int device, size_t sizeInBytes, bool writeable)
     throw Exception("Invalid device");
   }
   // NOTE fdOps_ must be open with O_RDWR for PROT_READ/PROT_WRITE with MAP_SHARED
-  // Argument "prot" can be one of PROT_WRITE, PROT_READ, or both. Refer: https://man7.org/linux/man-pages/man2/mmap.2.html
-  auto res = mmap(NULL, sizeInBytes, PROT_READ | (writeable ? PROT_WRITE : 0), MAP_SHARED, devices_[static_cast<uint32_t>(device)].fdOps_, 0);
+  // Argument "prot" can be one of PROT_WRITE, PROT_READ, or both.
+  // Refer: https://man7.org/linux/man-pages/man2/mmap.2.html
+  auto res = mmap(nullptr, sizeInBytes, PROT_READ | (writeable ? PROT_WRITE : 0), MAP_SHARED,
+                  devices_[static_cast<uint32_t>(device)].fdOps_, 0);
 
   if (res == MAP_FAILED) {
-    throw Exception("Error mmap: '"s+ std::strerror(errno)+"'");
+    throw Exception("Error mmap: '"s + std::strerror(errno) + "'");
   }
   dmaBuffers_[res] = sizeInBytes;
   return res;
-
 }
 void DevicePcie::freeDmaBuffer(void* dmaBuffer) {
   auto it = dmaBuffers_.find(dmaBuffer);
@@ -414,7 +414,7 @@ void DevicePcie::freeDmaBuffer(void* dmaBuffer) {
     throw Exception("Can't free a non previously allocated DmaBuffer");
   }
   if (munmap(dmaBuffer, it->second) != 0) {
-    throw Exception("Error munmap: '"s+ std::strerror(errno)+"'");
+    throw Exception("Error munmap: '"s + std::strerror(errno) + "'");
   }
   dmaBuffers_.erase(it);
 }
