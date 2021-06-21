@@ -54,6 +54,7 @@ enum event_ids {
     MINION_EXCEPT_TH,      /**< Minion error count threshold exceeded. */
     MINION_HANG_TH,        /**< Minion hang threshold exceeded. */
     THROTTLE_TIME,         /** < Event for time in throttling state */
+    SP_RUNTIME_ERROR,      /** < SP runtime error */
     MAX_ERROR_EVENT = 512, /**< Max limit for error IDs. */ 
 };
 
