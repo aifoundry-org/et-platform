@@ -29,14 +29,14 @@
  */
 static struct trace_control_block_t SP_Trace_CB;
 
-static void Trace_Run_Control(enum trace_enable_e state);
+static void Trace_Run_Control(trace_enable_e state);
 static void Trace_CONFIGURE(uint32_t event_mask, uint32_t filter_mask);
 
 static void trace_process_control_cmd(void *buffer)
 {
-    struct device_mgmt_trace_run_control_cmd_t *dm_cmd = 
+    struct device_mgmt_trace_run_control_cmd_t *dm_cmd =
         (struct device_mgmt_trace_run_control_cmd_t *)buffer;
-    
+
     /* Check flag to Enable/Disable Trace. */
     if (dm_cmd->control & SP_TRACE_ENABLE)
     {
@@ -44,7 +44,7 @@ static void trace_process_control_cmd(void *buffer)
         Log_Write(LOG_LEVEL_INFO,
                             "TRACE_RT_CONTROL:SP:Trace Enabled.\r\n");
     }
-    else 
+    else
     {
         Trace_Run_Control(TRACE_DISABLE);
         Log_Write(LOG_LEVEL_INFO,
@@ -62,7 +62,7 @@ static void trace_process_control_cmd(void *buffer)
         Log_Set_Interface(LOG_DUMP_TO_TRACE);
         Log_Write(LOG_LEVEL_INFO,
                 "TRACE_RT_CONTROL:SP:Logs redirected to Trace buffer\r\n");
-                
+
     }
 }
 
@@ -75,8 +75,8 @@ static void send_trace_control_response(tag_id_t tag_id, msg_id_t msg_id, uint64
 
     dm_rsp.payload = DM_STATUS_SUCCESS;
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, 
-                                        sizeof(struct device_mgmt_default_rsp_t))) 
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
+                                        sizeof(struct device_mgmt_default_rsp_t)))
     {
         Log_Write(LOG_LEVEL_ERROR, "send_trace_control_response: Cqueue push error!\n");
     }
@@ -84,7 +84,7 @@ static void send_trace_control_response(tag_id_t tag_id, msg_id_t msg_id, uint64
 
 static void trace_process_config_cmd(void *buffer)
 {
-    struct device_mgmt_trace_config_cmd_t *dm_cmd = 
+    struct device_mgmt_trace_config_cmd_t *dm_cmd =
         (struct device_mgmt_trace_config_cmd_t *)buffer;
 
     Trace_CONFIGURE(dm_cmd->event_mask, dm_cmd->filter_mask);
@@ -100,9 +100,9 @@ static void send_trace_config_response(tag_id_t tag_id, msg_id_t msg_id, uint64_
                      DM_STATUS_SUCCESS);
 
     dm_rsp.payload = DM_STATUS_SUCCESS;
-    
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, 
-                                        sizeof(struct device_mgmt_trace_config_rsp_t))) 
+
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
+                                        sizeof(struct device_mgmt_trace_config_rsp_t)))
     {
         Log_Write(LOG_LEVEL_ERROR, "send_trace_config_response: Cqueue push error!\n");
     }
@@ -190,14 +190,14 @@ struct trace_control_block_t* Trace_Get_SP_CB(void)
 *
 *   INPUTS
 *
-*       enum trace_enable_e    Enable/Disable Trace.
+*       trace_enable_e    Enable/Disable Trace.
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-static void Trace_Run_Control(enum trace_enable_e state)
+static void Trace_Run_Control(trace_enable_e state)
 {
     SP_Trace_CB.enable = state;
 }
@@ -249,10 +249,9 @@ static void Trace_CONFIGURE(uint32_t event_mask, uint32_t filter_mask)
 ***********************************************************************/
 void Trace_Process_CMD(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
 {
-    
     uint64_t req_start_time = timer_get_ticks_count();
-    
-    switch (msg_id) 
+
+    switch (msg_id)
     {
         case DM_CMD_SET_DM_TRACE_RUN_CONTROL:
 

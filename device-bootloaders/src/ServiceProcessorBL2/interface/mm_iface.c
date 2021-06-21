@@ -109,7 +109,7 @@ int32_t MM_Iface_Send_Echo_Cmd(void)
 
     /* Initialize command header */
     SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, SP2MM_CMD_ECHO,
-    sizeof(struct sp2mm_echo_cmd_t), SP2MM_CMD_NOTIFY_HART);
+    sizeof(struct sp2mm_echo_cmd_t), SP2MM_CMD_NOTIFY_HART)
 
     cmd.payload = 0xDEADBEEF;
 

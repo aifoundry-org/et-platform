@@ -278,7 +278,7 @@ static void mm_cmd_hdlr_task(void *pvParameters)
 
                     /* Initialize command header */
                     SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_ECHO,
-                    sizeof(struct mm2sp_echo_rsp_t), cmd->msg_hdr.issuing_hart_id);
+                    sizeof(struct mm2sp_echo_rsp_t), cmd->msg_hdr.issuing_hart_id)
 
                     rsp.payload = cmd->payload;
 
@@ -296,7 +296,7 @@ static void mm_cmd_hdlr_task(void *pvParameters)
 
                     SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_GET_ACTIVE_SHIRE_MASK,
                     sizeof(struct mm2sp_get_active_shire_mask_rsp_t),
-                    cmd->msg_hdr.issuing_hart_id);
+                    cmd->msg_hdr.issuing_hart_id)
 
                     rsp.active_shire_mask = Minion_State_MM_Iface_Get_Active_Shire_Mask();
 
@@ -314,7 +314,7 @@ static void mm_cmd_hdlr_task(void *pvParameters)
 
                     SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_GET_CM_BOOT_FREQ,
                     sizeof(struct mm2sp_get_cm_boot_freq_rsp_t),
-                    cmd->msg_hdr.issuing_hart_id);
+                    cmd->msg_hdr.issuing_hart_id)
 
                     get_pll_frequency(PLL_ID_SP_PLL_4, &rsp.cm_boot_freq);
 
