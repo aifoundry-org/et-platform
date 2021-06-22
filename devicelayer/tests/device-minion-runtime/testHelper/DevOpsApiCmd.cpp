@@ -42,21 +42,20 @@ void IDevOpsApiCmd::deleteRspEntry(device_ops_api::tag_id_t tagId) {
 /*
  * Device Ops Api Echo Command creation and it's handling
  */
-std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createEchoCmd(device_ops_api::cmd_flags_e flag, int32_t echoPayload) {
+std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createEchoCmd(device_ops_api::cmd_flags_e flag) {
   auto tagId = tagId_++;
   // Add default expected response `0` for command that does not have expected response
   if (!addRspEntry(tagId, 0)) {
     return nullptr;
   }
-  return std::make_unique<EchoCmd>(tagId, flag, echoPayload);
+  return std::make_unique<EchoCmd>(tagId, flag);
 }
 
-EchoCmd::EchoCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, int32_t echoPayload) {
+EchoCmd::EchoCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag) {
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
   cmd_.command_info.cmd_hdr.flags = flag;
-  cmd_.echo_payload = echoPayload;
 
   TEST_VLOG(1) << "Created Echo Command (tagId: " << std::hex << tagId << ")";
 }

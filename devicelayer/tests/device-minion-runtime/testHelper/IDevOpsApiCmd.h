@@ -67,7 +67,7 @@ public:
   }
   virtual ~IDevOpsApiCmd() = default;
 
-  static std::unique_ptr<IDevOpsApiCmd> createEchoCmd(device_ops_api::cmd_flags_e flag, int32_t echoPayload);
+  static std::unique_ptr<IDevOpsApiCmd> createEchoCmd(device_ops_api::cmd_flags_e flag);
   static std::unique_ptr<IDevOpsApiCmd> createApiCompatibilityCmd(device_ops_api::cmd_flags_e flag, uint8_t major,
                                                                   uint8_t minor, uint8_t patch);
   static std::unique_ptr<IDevOpsApiCmd> createFwVersionCmd(device_ops_api::cmd_flags_e flag, uint8_t firmwareType);
@@ -118,7 +118,7 @@ public:
   size_t getCmdSize() override;
   device_ops_api::tag_id_t getCmdTagId() override;
   CmdType whoAmI() override;
-  explicit EchoCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, int32_t echoPayload);
+  explicit EchoCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag);
   ~EchoCmd();
 
 private:

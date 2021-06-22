@@ -24,7 +24,7 @@ void TestDevOpsApiBasicCmds::echoCmd_PositiveTest_2_1() {
 
     for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
       // Add cmd to stream
-      stream.push_back(IDevOpsApiCmd::createEchoCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kEchoPayload));
+      stream.push_back(IDevOpsApiCmd::createEchoCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE));
 
       // Move stream to streams_
       streams_.emplace(key(deviceIdx, queueIdx), std::move(stream));
@@ -115,7 +115,7 @@ void TestDevOpsApiBasicCmds::backToBackSameCmds(bool singleDevice, bool singleQu
     for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
       for (int i = 0; i < perDevPerQueueIterations; i++) {
         // Add cmd to stream
-        stream.push_back(IDevOpsApiCmd::createEchoCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kEchoPayload));
+        stream.push_back(IDevOpsApiCmd::createEchoCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE));
       }
 
       // Move stream to streams_
@@ -135,7 +135,7 @@ void TestDevOpsApiBasicCmds::backToBackDiffCmds(bool singleDevice, bool singleQu
     for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
       for (int i = 0; i < perDevPerQueueIterations; i++) {
         // Add cmd to stream
-        stream.push_back(IDevOpsApiCmd::createEchoCmd(false, kEchoPayload));
+        stream.push_back(IDevOpsApiCmd::createEchoCmd(false));
         stream.push_back(IDevOpsApiCmd::createFwVersionCmd(false, 1));
         stream.push_back(IDevOpsApiCmd::createApiCompatibilityCmd(false, kDevFWMajor, kDevFWMinor, kDevFWPatch));
       }

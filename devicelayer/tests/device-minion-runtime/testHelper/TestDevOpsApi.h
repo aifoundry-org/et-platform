@@ -34,7 +34,6 @@ DECLARE_bool(enable_trace_dump);
 DECLARE_bool(loopback_driver);
 DECLARE_bool(use_epoll);
 
-constexpr int32_t kEchoPayload = 0xDEADBEEF;
 const uint8_t kDevFWMajor = DEVICE_OPS_API_MAJOR;
 const uint8_t kDevFWMinor = DEVICE_OPS_API_MINOR;
 const uint8_t kDevFWPatch = DEVICE_OPS_API_PATCH;
@@ -163,6 +162,16 @@ private:
   bool updateCmdResult(device_ops_api::tag_id_t tagId, CmdStatus status);
   void deleteCmdResultEntry(device_ops_api::tag_id_t tagId);
   void redirectTraceLogging(int deviceIdx, bool toTraceBuf);
+  CmdStatus processEchoRsp(const device_ops_api::device_ops_echo_rsp_t* echoResponse) const;
+  CmdStatus processApiCompatibilityRsp(const device_ops_api::device_ops_api_compatibility_rsp_t* response) const;
+  CmdStatus processFwVersionRsp(const device_ops_api::device_ops_fw_version_rsp_t* response) const;
+  CmdStatus processDataReadRsp(const device_ops_api::device_ops_data_read_rsp_t* response) const;
+  CmdStatus processDataWriteRsp(const device_ops_api::device_ops_data_write_rsp_t* response) const;
+  CmdStatus processDmaReadListRsp(const device_ops_api::device_ops_dma_readlist_rsp_t* response) const;
+  CmdStatus processDmaWriteListRsp(const device_ops_api::device_ops_dma_writelist_rsp_t* response) const;
+  CmdStatus processKernelLaunchRsp(const device_ops_api::device_ops_kernel_launch_rsp_t* response);
+  CmdStatus processKernelAbortRsp(const device_ops_api::device_ops_kernel_abort_rsp_t* response) const;
+  CmdStatus processTraceRtControlRsp(const device_ops_api::device_ops_trace_rt_control_rsp_t* response) const;
 
   struct DeviceInfo {
     uint64_t dmaWriteAddr_;

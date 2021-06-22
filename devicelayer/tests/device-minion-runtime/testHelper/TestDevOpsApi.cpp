@@ -404,6 +404,167 @@ bool TestDevOpsApi::pushCmd(int deviceIdx, int queueIdx, std::unique_ptr<IDevOps
   return res;
 }
 
+CmdStatus TestDevOpsApi::processEchoRsp(const device_ops_api::device_ops_echo_rsp_t* echoResponse) const {
+  CmdStatus echoStatus;
+  TEST_VLOG(1) << "=====> Echo response received (tag_id: " << std::hex << echoResponse->response_info.rsp_hdr.tag_id
+               << ") <====";
+  TEST_VLOG(1) << "     => Echo response: device_cmd_start_ts: " << echoResponse->device_cmd_start_ts;
+  if (echoResponse->device_cmd_start_ts != 0) {
+    echoStatus = CmdStatus::CMD_SUCCESSFUL;
+  } else {
+    echoStatus = CmdStatus::CMD_FAILED;
+  }
+  return echoStatus;
+}
+
+CmdStatus
+TestDevOpsApi::processApiCompatibilityRsp(const device_ops_api::device_ops_api_compatibility_rsp_t* apiResponse) const {
+  CmdStatus apiStatus;
+  TEST_VLOG(1) << "=====> API_Compatibilty response received (tag_id: " << std::hex
+               << apiResponse->response_info.rsp_hdr.tag_id << ") <====";
+  if (apiResponse->major == kDevFWMajor && apiResponse->minor == kDevFWMinor && apiResponse->patch == kDevFWPatch) {
+    apiStatus = CmdStatus::CMD_SUCCESSFUL;
+  } else {
+    apiStatus = CmdStatus::CMD_FAILED;
+  }
+  return apiStatus;
+}
+
+CmdStatus TestDevOpsApi::processFwVersionRsp(const device_ops_api::device_ops_fw_version_rsp_t* fwResponse) const {
+  CmdStatus fwStatus;
+  TEST_VLOG(1) << "=====> FW_Version response received (tag_id: " << std::hex
+               << fwResponse->response_info.rsp_hdr.tag_id << ") <====";
+  if (fwResponse->major == 1 && fwResponse->minor == 0 && fwResponse->patch == 0) {
+    fwStatus = CmdStatus::CMD_SUCCESSFUL;
+  } else {
+    fwStatus = CmdStatus::CMD_FAILED;
+  }
+  return fwStatus;
+}
+
+CmdStatus TestDevOpsApi::processDataReadRsp(const device_ops_api::device_ops_data_read_rsp_t* readResponse) const {
+  CmdStatus dataReadStatus;
+  TEST_VLOG(1) << "=====> DMA data read command response received (tag_id: " << std::hex
+               << readResponse->response_info.rsp_hdr.tag_id << ") <====";
+  TEST_VLOG(1) << "     => Total measured latencies (in cycles) ";
+  TEST_VLOG(1) << "      - Command Start time: " << readResponse->device_cmd_start_ts;
+  TEST_VLOG(1) << "      - Command Wait time: " << readResponse->device_cmd_wait_dur;
+  TEST_VLOG(1) << "      - Command Execution time: " << readResponse->device_cmd_execute_dur;
+  if (readResponse->status == IDevOpsApiCmd::getExpectedRsp(readResponse->response_info.rsp_hdr.tag_id)) {
+    dataReadStatus = CmdStatus::CMD_SUCCESSFUL;
+  } else if ((readResponse->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE) ||
+             (readResponse->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG)) {
+    dataReadStatus = CmdStatus::CMD_TIMED_OUT;
+  } else {
+    dataReadStatus = CmdStatus::CMD_FAILED;
+  }
+  return dataReadStatus;
+}
+
+CmdStatus TestDevOpsApi::processDataWriteRsp(const device_ops_api::device_ops_data_write_rsp_t* writeResponse) const {
+  CmdStatus dataWriteStatus;
+  TEST_VLOG(1) << "=====> DMA data write command response received (tag_id: " << std::hex
+               << writeResponse->response_info.rsp_hdr.tag_id << ") <====";
+  TEST_VLOG(1) << "     => Total measured latencies (in cycles)";
+  TEST_VLOG(1) << "      - Command Start time: " << writeResponse->device_cmd_start_ts;
+  TEST_VLOG(1) << "      - Command Wait time: " << writeResponse->device_cmd_wait_dur;
+  TEST_VLOG(1) << "      - Command Execution time: " << writeResponse->device_cmd_execute_dur;
+  if (writeResponse->status == IDevOpsApiCmd::getExpectedRsp(writeResponse->response_info.rsp_hdr.tag_id)) {
+    dataWriteStatus = CmdStatus::CMD_SUCCESSFUL;
+  } else if ((writeResponse->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE) ||
+             (writeResponse->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG)) {
+    dataWriteStatus = CmdStatus::CMD_TIMED_OUT;
+  } else {
+    dataWriteStatus = CmdStatus::CMD_FAILED;
+  }
+  return dataWriteStatus;
+}
+
+CmdStatus TestDevOpsApi::processDmaReadListRsp(const device_ops_api::device_ops_dma_readlist_rsp_t* readListRsp) const {
+  CmdStatus readListStatus;
+  TEST_VLOG(1) << "=====> DMA readlist command response received (tag_id: " << std::hex
+               << readListRsp->response_info.rsp_hdr.tag_id << ") <====";
+  TEST_VLOG(1) << "     => Total measured latencies (in cycles) ";
+  TEST_VLOG(1) << "      - Command Start time: " << readListRsp->device_cmd_start_ts;
+  TEST_VLOG(1) << "      - Command Wait time: " << readListRsp->device_cmd_wait_dur;
+  TEST_VLOG(1) << "      - Command Execution time: " << readListRsp->device_cmd_execute_dur;
+  if (readListRsp->status == IDevOpsApiCmd::getExpectedRsp(readListRsp->response_info.rsp_hdr.tag_id)) {
+    readListStatus = CmdStatus::CMD_SUCCESSFUL;
+  } else if ((readListRsp->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE) ||
+             (readListRsp->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG)) {
+    readListStatus = CmdStatus::CMD_TIMED_OUT;
+  } else {
+    readListStatus = CmdStatus::CMD_FAILED;
+  }
+  return readListStatus;
+}
+
+CmdStatus
+TestDevOpsApi::processDmaWriteListRsp(const device_ops_api::device_ops_dma_writelist_rsp_t* writeListRsp) const {
+  CmdStatus writeListStatus;
+  TEST_VLOG(1) << "=====> DMA writelist command response received (tag_id: " << std::hex
+               << writeListRsp->response_info.rsp_hdr.tag_id << ") <====";
+  TEST_VLOG(1) << "     => Total measured latencies (in cycles)";
+  TEST_VLOG(1) << "      - Command Start time: " << writeListRsp->device_cmd_start_ts;
+  TEST_VLOG(1) << "      - Command Wait time: " << writeListRsp->device_cmd_wait_dur;
+  TEST_VLOG(1) << "      - Command Execution time: " << writeListRsp->device_cmd_execute_dur;
+  if (writeListRsp->status == IDevOpsApiCmd::getExpectedRsp(writeListRsp->response_info.rsp_hdr.tag_id)) {
+    writeListStatus = CmdStatus::CMD_SUCCESSFUL;
+  } else if ((writeListRsp->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE) ||
+             (writeListRsp->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG)) {
+    writeListStatus = CmdStatus::CMD_TIMED_OUT;
+  } else {
+    writeListStatus = CmdStatus::CMD_FAILED;
+  }
+  return writeListStatus;
+}
+
+CmdStatus TestDevOpsApi::processKernelLaunchRsp(const device_ops_api::device_ops_kernel_launch_rsp_t* kernelLaunchRsp) {
+  CmdStatus launchStatus;
+  TEST_VLOG(1) << "=====> Kernel Launch command response received (tag_id: " << std::hex
+               << kernelLaunchRsp->response_info.rsp_hdr.tag_id << ") <====";
+  TEST_VLOG(1) << "     => Total measured latencies (in cycles)";
+  TEST_VLOG(1) << "      - Command Start time: " << kernelLaunchRsp->device_cmd_start_ts;
+  TEST_VLOG(1) << "      - Command Wait time: " << kernelLaunchRsp->device_cmd_wait_dur;
+  TEST_VLOG(1) << "      - Command Execution time: " << kernelLaunchRsp->device_cmd_execute_dur;
+  addkernelRspContext(kernelLaunchRsp->response_info.rsp_hdr.tag_id, kernelLaunchRsp->device_cmd_start_ts,
+                      kernelLaunchRsp->device_cmd_wait_dur, kernelLaunchRsp->device_cmd_execute_dur);
+  if (kernelLaunchRsp->status == IDevOpsApiCmd::getExpectedRsp(kernelLaunchRsp->response_info.rsp_hdr.tag_id)) {
+    launchStatus = CmdStatus::CMD_SUCCESSFUL;
+  } else if (kernelLaunchRsp->status == device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG) {
+    launchStatus = CmdStatus::CMD_TIMED_OUT;
+  } else {
+    launchStatus = CmdStatus::CMD_FAILED;
+  }
+  return launchStatus;
+}
+
+CmdStatus
+TestDevOpsApi::processKernelAbortRsp(const device_ops_api::device_ops_kernel_abort_rsp_t* kernelAbortRsp) const {
+  CmdStatus abortStatus;
+  TEST_VLOG(1) << "=====> Kernel Abort command response received (tag_id: " << std::hex
+               << kernelAbortRsp->response_info.rsp_hdr.tag_id << ") <====";
+  if (kernelAbortRsp->status == IDevOpsApiCmd::getExpectedRsp(kernelAbortRsp->response_info.rsp_hdr.tag_id)) {
+    abortStatus = CmdStatus::CMD_SUCCESSFUL;
+  } else {
+    abortStatus = CmdStatus::CMD_FAILED;
+  }
+  return abortStatus;
+}
+
+CmdStatus
+TestDevOpsApi::processTraceRtControlRsp(const device_ops_api::device_ops_trace_rt_control_rsp_t* traceRtRsp) const {
+  CmdStatus traceRtStatus;
+  TEST_VLOG(1) << "=====> Trace RT config command response received (tag_id: " << std::hex
+               << traceRtRsp->response_info.rsp_hdr.tag_id << ") <====" << std::endl;
+  if (traceRtRsp->status == IDevOpsApiCmd::getExpectedRsp(traceRtRsp->response_info.rsp_hdr.tag_id)) {
+    traceRtStatus = CmdStatus::CMD_SUCCESSFUL;
+  } else {
+    traceRtStatus = CmdStatus::CMD_FAILED;
+  }
+  return traceRtStatus;
+}
+
 bool TestDevOpsApi::popRsp(int deviceIdx) {
   std::vector<std::byte> message;
   auto res = devLayer_->receiveResponseMasterMinion(deviceIdx, message);
@@ -414,135 +575,39 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
   auto response_header = templ::bit_cast<device_ops_api::rsp_header_t*>(message.data());
   auto rsp_msg_id = response_header->rsp_hdr.msg_id;
   auto rsp_tag_id = response_header->rsp_hdr.tag_id;
-  auto rsp_size = response_header->rsp_hdr.size;
   CmdStatus status;
 
   if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_ECHO_RSP) {
-    auto response = templ::bit_cast<device_ops_api::device_ops_echo_rsp_t*>(message.data());
-    TEST_VLOG(1) << "=====> Echo response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
-    if (response->echo_payload == kEchoPayload) {
-      status = CmdStatus::CMD_SUCCESSFUL;
-    } else {
-      status = CmdStatus::CMD_FAILED;
-    }
+    status = processEchoRsp(templ::bit_cast<device_ops_api::device_ops_echo_rsp_t*>(message.data()));
 
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_API_COMPATIBILITY_RSP) {
-    auto response = templ::bit_cast<device_ops_api::device_ops_api_compatibility_rsp_t*>(message.data());
-    TEST_VLOG(1) << "=====> API_Compatibilty response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
-    if (response->major == kDevFWMajor && response->minor == kDevFWMinor && response->patch == kDevFWPatch) {
-      status = CmdStatus::CMD_SUCCESSFUL;
-    } else {
-      status = CmdStatus::CMD_FAILED;
-    }
+    status =
+      processApiCompatibilityRsp(templ::bit_cast<device_ops_api::device_ops_api_compatibility_rsp_t*>(message.data()));
 
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_FW_VERSION_RSP) {
-    auto response = templ::bit_cast<device_ops_api::device_ops_fw_version_rsp_t*>(message.data());
-    TEST_VLOG(1) << "=====> FW_Version response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
-    if (response->major == 1 && response->minor == 0 && response->patch == 0) {
-      status = CmdStatus::CMD_SUCCESSFUL;
-    } else {
-      status = CmdStatus::CMD_FAILED;
-    }
+    status = processFwVersionRsp(templ::bit_cast<device_ops_api::device_ops_fw_version_rsp_t*>(message.data()));
 
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP) {
-    auto response = templ::bit_cast<device_ops_api::device_ops_data_read_rsp_t*>(message.data());
-    TEST_VLOG(1) << "=====> DMA data read command response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
-    TEST_VLOG(1) << "     => Total measured latencies (in cycles) ";
-    TEST_VLOG(1) << "      - Command Start time: " << response->device_cmd_start_ts;
-    TEST_VLOG(1) << "      - Command Wait time: " << response->device_cmd_wait_dur;
-    TEST_VLOG(1) << "      - Command Execution time: " << response->device_cmd_execute_dur;
-    if (response->status == IDevOpsApiCmd::getExpectedRsp(rsp_tag_id)) {
-      status = CmdStatus::CMD_SUCCESSFUL;
-    } else if (response->status == (device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE ||
-                                    device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG)) {
-      status = CmdStatus::CMD_TIMED_OUT;
-    } else {
-      status = CmdStatus::CMD_FAILED;
-    }
+    status = processDataReadRsp(templ::bit_cast<device_ops_api::device_ops_data_read_rsp_t*>(message.data()));
 
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP) {
-    auto response = templ::bit_cast<device_ops_api::device_ops_data_write_rsp_t*>(message.data());
-    TEST_VLOG(1) << "=====> DMA data write command response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
-    TEST_VLOG(1) << "     => Total measured latencies (in cycles)";
-    TEST_VLOG(1) << "      - Command Start time: " << response->device_cmd_start_ts;
-    TEST_VLOG(1) << "      - Command Wait time: " << response->device_cmd_wait_dur;
-    TEST_VLOG(1) << "      - Command Execution time: " << response->device_cmd_execute_dur;
-    if (response->status == IDevOpsApiCmd::getExpectedRsp(rsp_tag_id)) {
-      status = CmdStatus::CMD_SUCCESSFUL;
-    } else if (response->status == (device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE ||
-                                    device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG)) {
-      status = CmdStatus::CMD_TIMED_OUT;
-    } else {
-      status = CmdStatus::CMD_FAILED;
-    }
+    status = processDataWriteRsp(templ::bit_cast<device_ops_api::device_ops_data_write_rsp_t*>(message.data()));
 
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP) {
-    auto response = templ::bit_cast<device_ops_api::device_ops_dma_readlist_rsp_t*>(message.data());
-    TEST_VLOG(1) << "=====> DMA readlist command response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
-    TEST_VLOG(1) << "     => Total measured latencies (in cycles) ";
-    TEST_VLOG(1) << "      - Command Start time: " << response->device_cmd_start_ts;
-    TEST_VLOG(1) << "      - Command Wait time: " << response->device_cmd_wait_dur;
-    TEST_VLOG(1) << "      - Command Execution time: " << response->device_cmd_execute_dur;
-    if (response->status == IDevOpsApiCmd::getExpectedRsp(rsp_tag_id)) {
-      status = CmdStatus::CMD_SUCCESSFUL;
-    } else if (response->status == (device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE ||
-                                    device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG)) {
-      status = CmdStatus::CMD_TIMED_OUT;
-    } else {
-      status = CmdStatus::CMD_FAILED;
-    }
+    status = processDmaReadListRsp(templ::bit_cast<device_ops_api::device_ops_dma_readlist_rsp_t*>(message.data()));
 
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP) {
-    auto response = templ::bit_cast<device_ops_api::device_ops_dma_writelist_rsp_t*>(message.data());
-    TEST_VLOG(1) << "=====> DMA writelist command response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
-    TEST_VLOG(1) << "     => Total measured latencies (in cycles)";
-    TEST_VLOG(1) << "      - Command Start time: " << response->device_cmd_start_ts;
-    TEST_VLOG(1) << "      - Command Wait time: " << response->device_cmd_wait_dur;
-    TEST_VLOG(1) << "      - Command Execution time: " << response->device_cmd_execute_dur;
-    if (response->status == IDevOpsApiCmd::getExpectedRsp(rsp_tag_id)) {
-      status = CmdStatus::CMD_SUCCESSFUL;
-    } else if (response->status == (device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE ||
-                                    device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG)) {
-      status = CmdStatus::CMD_TIMED_OUT;
-    } else {
-      status = CmdStatus::CMD_FAILED;
-    }
+    status = processDmaWriteListRsp(templ::bit_cast<device_ops_api::device_ops_dma_writelist_rsp_t*>(message.data()));
 
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP) {
-    auto response = templ::bit_cast<device_ops_api::device_ops_kernel_launch_rsp_t*>(message.data());
-    TEST_VLOG(1) << "=====> Kernel Launch command response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
-    TEST_VLOG(1) << "     => Total measured latencies (in cycles)";
-    TEST_VLOG(1) << "      - Command Start time: " << response->device_cmd_start_ts;
-    TEST_VLOG(1) << "      - Command Wait time: " << response->device_cmd_wait_dur;
-    TEST_VLOG(1) << "      - Command Execution time: " << response->device_cmd_execute_dur;
-    if (response->status == IDevOpsApiCmd::getExpectedRsp(rsp_tag_id)) {
-      status = CmdStatus::CMD_SUCCESSFUL;
-    } else if (response->status == device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG) {
-      status = CmdStatus::CMD_TIMED_OUT;
-    } else {
-      status = CmdStatus::CMD_FAILED;
-    }
-    addkernelRspContext(rsp_tag_id, response->device_cmd_start_ts, response->device_cmd_wait_dur,
-                        response->device_cmd_execute_dur);
+    status = processKernelLaunchRsp(templ::bit_cast<device_ops_api::device_ops_kernel_launch_rsp_t*>(message.data()));
 
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP) {
-    auto response = templ::bit_cast<device_ops_api::device_ops_kernel_abort_rsp_t*>(message.data());
-    TEST_VLOG(1) << "=====> Kernel Abort command response received (tag_id: " << std::hex << rsp_tag_id << ") <====";
-    if (response->status == IDevOpsApiCmd::getExpectedRsp(rsp_tag_id)) {
-      status = CmdStatus::CMD_SUCCESSFUL;
-    } else {
-      status = CmdStatus::CMD_FAILED;
-    }
+    status = processKernelAbortRsp(templ::bit_cast<device_ops_api::device_ops_kernel_abort_rsp_t*>(message.data()));
 
   } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_RSP) {
-    auto response = templ::bit_cast<device_ops_api::device_ops_trace_rt_control_rsp_t*>(message.data());
-    TEST_VLOG(1) << "=====> Trace RT config command response received (tag_id: " << std::hex << rsp_tag_id
-                 << ") <====" << std::endl;
-    if (response->status == IDevOpsApiCmd::getExpectedRsp(rsp_tag_id)) {
-      status = CmdStatus::CMD_SUCCESSFUL;
-    } else {
-      status = CmdStatus::CMD_FAILED;
-    }
+    status =
+      processTraceRtControlRsp(templ::bit_cast<device_ops_api::device_ops_trace_rt_control_rsp_t*>(message.data()));
 
   } else {
     EXPECT_TRUE(false) << "ERROR: Unknown response!" << std::endl;
@@ -561,7 +626,7 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
     return popRsp(deviceIdx);
   }
 
-  bytesReceived_ += rsp_size;
+  bytesReceived_ += response_header->rsp_hdr.size;
 
   return res;
 }
