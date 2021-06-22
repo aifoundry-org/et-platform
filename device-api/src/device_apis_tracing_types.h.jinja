@@ -8,7 +8,7 @@
  * agreement/contract under which the program(s) have been supplied.
  ------------------------------------------------------------------------------ */
 
-// WARNING: this file is auto-generated do not edit directly
+/* WARNING: this file is auto-generated do not edit directly */
 
 #ifndef ET_DEVICE_<< cgh.c_api_name | upper >>_API_TRACING_TYPES_H
 #define ET_DEVICE_<< cgh.c_api_name | upper >>_API_TRACING_TYPES_H
@@ -19,111 +19,139 @@
 #include "device_<< cgh.c_api_name | lower >>_api_spec.h"
 #include "device_<< cgh.c_api_name | lower >>_api_rpc_types.h"
 
-/// @brief Default trace buffer size
+/*! \def DEVICE_MRT_DEFAULT_BUFFER_SIZE
+    \brief Default trace buffer size
+*/
 #define DEVICE_MRT_DEFAULT_BUFFER_SIZE  4096UL
 
-/// @brief Maximum allowed events in a group
- #define TRACE_GROUP_EVENTS_MAX  64U
+/*! \def TRACE_GROUP_EVENTS_MAX
+    \brief Maximum allowed events in a group
+*/
+#define TRACE_GROUP_EVENTS_MAX  64U
 
-// Checks if a worker shire is enabled for tracing
+/*! \def WORKER_SHIRE_ENABLED(shire_mask, shire_id)
+    \brief Checks if a worker shire is enabled for tracing
+*/
 #define WORKER_SHIRE_ENABLED(shire_mask, shire_id) ((shire_mask >> shire_id) & 1UL)
 
-// Checks if master shire is enabled for tracing
+/*! \def MASTER_SHIRE_ENABLED(shire_mask)
+    \brief Checks if master shire is enabled for tracing
+*/
 #define MASTER_SHIRE_ENABLED(shire_mask) (shire_mask & 1UL)
 
-// Checks if hart is enabled for tracing
+/*! \def HART_ENABLED(harts_mask, hart_id)
+    \brief Checks if hart is enabled for tracing
+*/
 #define HART_ENABLED(harts_mask, hart_id)   ((harts_mask >> (hart_id % 64)) && 1UL)
 
-/// @brief Alignemnt requirement for trace buffer region
+/*! \def TRACE_BUFFER_REGION_ALIGNEMNT
+    \brief Alignemnt requirement for trace buffer region
+*/
 #define TRACE_BUFFER_REGION_ALIGNEMNT  4096UL
 
-/// @brief Number of trace buffers in trace memory
+/*! \def NUMBER_OF_TRACE_BUFFERS
+    \brief Number of trace buffers in trace memory
+*/
 #define NUMBER_OF_TRACE_BUFFERS         2112UL
 
+/*! \def ALIGN(x, a)
+    \brief Alignemnt checking macro
+*/
 #define ALIGN(x, a) (((x) + ((a) - 1)) & ~((a) - 1))
 
-// Trace Enumerations
 typedef uint64_t trace_events_e;
 
-/// @brief Supported trace events Enumberation
+/*! \enum TRACE_EVENTS
+    \brief Supported trace events Enumberation
+*/
 enum TRACE_EVENTS {
-  TRACE_EVENT_ID_NONE = 0, ///< Event ID zero is reserved
+  TRACE_EVENT_ID_NONE = 0, /**< Event ID zero is reserved */
 <%- for group in cgh.trace_groups() %><% set group_index = loop %><%- set max_events = 64%>
   <%- for trace in group.get("Events", []) %>
-  TRACE_EVENT_ID_<< group["Name"] | upper >>_<< trace["Name"] | upper >> = << group_index.index*max_events+loop.index-1 >>, ///< << trace["Description"] >>
+  TRACE_EVENT_ID_<< group["Name"] | upper >>_<< trace["Name"] | upper >> = << group_index.index*max_events+loop.index-1 >>, /**< << trace["Description"] >> */
   <%- endfor %>
 <%- endfor %>
-  TRACE_EVENT_ID_LAST, ///< Last event marker
-  TRACE_EVENT_ID_OVERFLOW /// Event ID OVERFLOW is reserved
+  TRACE_EVENT_ID_LAST, /**< Last event marker */
+  TRACE_EVENT_ID_OVERFLOW  /**< Event ID OVERFLOW is reserved */
 };
 
 typedef uint64_t trace_groups_e;
 
-/// @brief Supported trace groups Enumeration
+/*! \enum TRACE_GROUPS
+    \brief Supported trace groups Enumeration
+*/
 enum TRACE_GROUPS {
-  TRACE_GROUP_ID_NONE = 0, ///< Group ID zero is reserved
+  TRACE_GROUP_ID_NONE = 0, /**< Group ID zero is reserved */
 <%- for group in cgh.trace_groups() %>
-  TRACE_GROUP_ID_<< group["Name"] | upper >>, ///< << group["Description"] >>
+  TRACE_GROUP_ID_<< group["Name"] | upper >>, /**< << group["Description"] >> */
 <%- endfor %>
-  TRACE_GROUP_ID_LAST ///< Last group marker
+  TRACE_GROUP_ID_LAST /**< Last group marker */
 };
 
 typedef uint32_t trace_status_e;
 
-/// @brief Trace status Enumeration
+/*! \enum TRACE_STATUS
+    \brief Trace status Enumeration
+*/
 enum TRACE_STATUS {
-  TRACE_STATUS_SUCCESS = 0, ///< Operation successful
-  TRACE_STATUS_BUFFER_FULL = 1, ///< Trace buffer is full
-  TRACE_STATUS_INVALID_VAL = 2, ///< Invalid argument/field
-  TRACE_STATUS_DISABLED = 3, ///< Trace/event/group is disabled
-  TRACE_STATUS_LAST ///< Last status marker
+  TRACE_STATUS_SUCCESS = 0, /**< Operation successful */
+  TRACE_STATUS_BUFFER_FULL = 1, /**< Trace buffer is full */
+  TRACE_STATUS_INVALID_VAL = 2, /**< Invalid argument/field */
+  TRACE_STATUS_DISABLED = 3, /**< Trace/event/group is disabled */
+  TRACE_STATUS_LAST /**< Last status marker */
 };
 
-/// @brief This structure represents trace control region, located at the start of the trace memory.
-/// This contains all the trace control knobs used to control tracing for all the minions
+/*! \struct trace_control_t
+    \brief This structure represents trace control region, located at the start of the trace memory.
+           This contains all the trace control knobs used to control tracing for all the minions
+*/
 struct trace_control_t {
-  uint64_t event_knobs[TRACE_GROUP_ID_LAST - 1]; ///< Array of event masks used for event control knobs
-  uint64_t thread_mask;            ///< Bit Mask of Thread within a Shire to enable Trace Capture. It will be the 
-                                   ///  same bit mask for both Master and all Worker Shires.
-  uint32_t master_shire_mask;      ///< Bit 0 indicates if master shire mask is enabled/disabled
-  uint32_t worker_shire_mask;      ///< Bit Mask of Compute Shires to enable Trace Capture (0-31 shires) 
-  uint32_t trace_buffer_base;      ///< Base Address of Trace Buffer
-  uint32_t trace_buffer_size;      ///< Size (in bytes) of bufffer per hart
-  uint32_t buffer_threshold_level; ///< Size (in bytes) relative to trace_buffer_size which will cause an overflow event
-                                   ///  Example, user can say when hit 70 bytes, detect event. Expectation is Size 
-                                   ///  of buffer is bigger than this 
-  uint32_t overflow_event_ctrl;    ///< When an overflow condition is hit, this will allow control:
-                                   ///  Bit 0 - Send Event to Host - Full event defined below 
-                                   ///  Bit 1 - Stop Device from overwriting data buffer
-  uint8_t log_op_target;           ///< target could be in-memory buffer, or console
-  uint8_t log_level;               ///< Determines Trace Log Level
-  uint8_t enable;                  ///< ENABLE or DISABLE 
+  uint64_t event_knobs[TRACE_GROUP_ID_LAST - 1]; /**< Array of event masks used for event control knobs */
+  uint64_t thread_mask;            /**< Bit Mask of Thread within a Shire to enable Trace Capture. It will be the
+                                         same bit mask for both Master and all Worker Shires. */
+  uint32_t master_shire_mask;      /**< Bit 0 indicates if master shire mask is enabled/disabled */
+  uint32_t worker_shire_mask;      /**< Bit Mask of Compute Shires to enable Trace Capture (0-31 shires) */
+  uint32_t trace_buffer_base;      /**< Base Address of Trace Buffer */
+  uint32_t trace_buffer_size;      /**< Size (in bytes) of bufffer per hart */
+  uint32_t buffer_threshold_level; /**< Size (in bytes) relative to trace_buffer_size which will cause an overflow event
+                                         Example, user can say when hit 70 bytes, detect event. Expectation is Size
+                                         of buffer is bigger than this */
+  uint32_t overflow_event_ctrl;    /**< When an overflow condition is hit, this will allow control:
+                                         Bit 0 - Send Event to Host - Full event defined below
+                                         Bit 1 - Stop Device from overwriting data buffer */
+  uint8_t log_op_target;           /**< target could be in-memory buffer, or console */
+  uint8_t log_level;               /**< Determines Trace Log Level */
+  uint8_t enable;                  /**< ENABLE or DISABLE */
 };
 
-/// @brief This structure represents common Event header, present at the start of each trace event
+/*! \struct message_header_t
+    \brief This structure represents common Event header, present at the start of each trace event
+*/
 struct message_header_t {
-  uint64_t event_id; ///< Event id of the event
-  uint64_t mtime; ///< Timestamp on the device size when the event is logged.
+  uint64_t event_id; /**< Event id of the event */
+  uint64_t mtime; /**< Timestamp on the device size when the event is logged. */
 };
 
-// The real structures that go into memory
+/* The real structures that go into memory */
 <%- for group in cgh.trace_groups() %>
   <%- for trace in group.get("Events", []) %>
 
-/// @brief The structure represents TRACE_EVENT_ID_<< group["Name"] | upper >>_<< trace["Name"] | upper >> event
+/*! \struct trace_<< trace["Name"] >>_t
+    \brief The structure represents TRACE_EVENT_ID_<< group["Name"] | upper >>_<< trace["Name"] | upper >> event
+*/
 struct trace_<< trace["Name"] >>_t {
-  struct message_header_t header;
+  struct message_header_t header; /**< Command header >> */
   <%- set dummy = cgh.validate_trace(trace) -%>
   <%- for field in trace.get("Fields", []) %>
     <%- if field["Type"] == "bytes" %>
-  size_t size;  ///< Size of the character string
-  char << field["Name"] >>[]; ///< << field["Description"] >>
+  size_t size;  /**< Size of the character string */
+  char << field["Name"] >>[]; /**< << field["Description"] >> */
     <%- else %>
-  << cgh.message_field_type(field) >>  << field["Name"] >>; ///< << field["Description"] >>
+  << cgh.message_field_type(field) >>  << field["Name"] >>; /**< << field["Description"] >> */
     <%- endif %>
   <%- endfor %>
 };
   <%- endfor %>
 <%- endfor %>
 
-#endif // ET_DEVICE_API_TRACING_TYPES_<< cgh.c_api_name | upper >>_H
+#endif /* ET_DEVICE_API_TRACING_TYPES_<< cgh.c_api_name | upper >>_H */

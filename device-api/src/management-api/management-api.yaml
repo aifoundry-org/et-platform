@@ -301,7 +301,7 @@ Modules:
         - Name: key_blob[48]
           Type: char
         - Name: associated_data[48]
-          Type: char          
+          Type: char
     - Name: temperature_threshold_t
       Fields:
         - Name: lo_temperature_c
@@ -407,16 +407,22 @@ Modules:
     - Name: asic_frequencies_t
       Fields:
         - Name: minion_shire_mhz
+          Description: Minion Shire frequency in MHz
           Type: uint32_t
         - Name: noc_mhz
+          Description: NOC frequency in MHz
           Type: uint32_t
         - Name: mem_shire_mhz
+          Description: Mem Shire frequency in MHz
           Type: uint32_t
         - Name: ddr_mhz
+          Description: DDR frequency in MHz
           Type: uint32_t
         - Name: pcie_shire_mhz
+          Description: PCIe Shire frequency in MHz
           Type: uint32_t
         - Name: io_shire_mhz
+          Description: IO Shire frequency in MHz
           Type: uint32_t
     - Name: dram_bw_t
       Fields:
@@ -429,6 +435,7 @@ Modules:
     - Name: percentage_cap_t
       Fields:
         - Name: pct_cap
+          Description: PCT cap
           Type: uint32_t
         - Name: pad
           Description: Padding for alignment
@@ -436,32 +443,43 @@ Modules:
     - Name: mm_error_count_t
       Fields:
         - Name: hang_count
+          Description: MM Hang count
           Type: uint32_t
         - Name: exception_count
+          Description: MM Exception count
           Type: uint32_t
     - Name: module_voltage_t
       Fields:
         - Name: ddr
+          Description: DDR Voltage
           Type: uint8_t
         - Name: l2_cache
+          Description: L2 Cache Voltage
           Type: uint8_t
         - Name: maxion
+          Description: Maxion's Voltage
           Type: uint8_t
         - Name: minion
+          Description: Minion's Voltage
           Type: uint8_t
         - Name: pcie
+          Description: PCIe's Voltage
           Type: uint8_t
         - Name: noc
+          Description: NOC's Voltage
           Type: uint8_t
         - Name: pcie_logic
+          Description: PCIE Logic Voltage
           Type: uint8_t
         - Name: vddqlp
+          Description: Vddlp Voltage
           Type: uint8_t
         - Name: vddq
+          Description: Vddq Voltage
           Type: uint8_t
         - Name: pad[7]
           Description: Padding for alignment
-          Type: uint8_t       
+          Type: uint8_t
   # List of Commands, Responses, Events
   Messages :
       #-------------------------------------------------------------------------------
@@ -1041,10 +1059,10 @@ Modules:
         - Name: control
           Description: |-
               This is a bit mask, each bit corresponds control a Trace run control.
-                  /// Bit 0 - 0 - Disable - instructs service processor to stop tracing
-                  ///         1 - Enable - instructs service processor to start tracing (Default)
-                  /// Bit 1 - 0 - Dump to Trace Buffer (Default)
-                  ///         1 - Redirect to UART
+                      Bit 0 - 0 - Disable - instructs service processor to stop tracing
+                              1 - Enable - instructs service processor to start tracing (Default)
+                      Bit 1 - 0 - Dump to Trace Buffer (Default)
+                              1 - Redirect to UART
 
           Type: enum
           Enum: trace_control

@@ -286,8 +286,8 @@ Messages :
       - Name: argument_payload[]
         Description: |-
                 These are user provided values and can go up to 64 bytes
-                            /// Device will copy this to the pointer_to_args address
-                            /// User will update the Size in the header to reflect the actual size of this payload
+                            Device will copy this to the pointer_to_args address
+                            User will update the Size in the header to reflect the actual size of this payload
         Type : uint64_t
   - Name: device_ops_kernel_launch_rsp
     Description: Response and result of a kernel launch on the device
@@ -431,7 +431,7 @@ Messages :
       - Name: list[]
         Description: |-
                 Arrays of Structs containing Src/Dst/Size of numerous data transfers to be performed in a single command.
-                            /// Each entry is 1 Data transfer with its own Src/Dst/Size
+                            Each entry is 1 Data transfer with its own Src/Dst/Size
         Type: struct
         Struct: dma_read_node
   - Name: device_ops_dma_readlist_rsp
@@ -464,7 +464,7 @@ Messages :
       - Name: list[]
         Description: |-
                 Arrays of Structs containing Src/Dst/Size of numerous data transfers to be performed in a single command.
-                            /// Each entry is 1 Data transfer with its own Src/Dst/Size
+                            Each entry is 1 Data transfer with its own Src/Dst/Size
         Type: struct
         Struct: dma_write_node
   - Name: device_ops_dma_writelist_rsp
@@ -529,16 +529,16 @@ Messages :
       - Name: rt_type
         Description: |-
             This is a bit mask, each bit corresponds to a Trace RT component.
-                /// Bit 0 - MM Trace Runtime buffer as per DIR:- MEM_OPS_MM_FW_TRACE
-                /// Bit 1 - CM Trace Runtime buffer as per DIR:- MEM_OPS_CM_FW_TRACE
+                Bit 0 - MM Trace Runtime buffer as per DIR:- MEM_OPS_MM_FW_TRACE
+                Bit 1 - CM Trace Runtime buffer as per DIR:- MEM_OPS_CM_FW_TRACE
         Type: uint32_t
       - Name: control
         Description: |-
             This is a bit mask, each bit corresponds control a Trace RT control.
-                /// Bit 0 - 0 - Disable - instructs device runtime to stop tracing
-                ///         1 - Enable - instructs device runtime to start tracing (Default)
-                /// Bit 1 - 0 - Dump to Trace Buffer (Default)
-                ///         1 - Redirect to UART
+                Bit 0 - 0 - Disable - instructs device runtime to stop tracing
+                        1 - Enable - instructs device runtime to start tracing (Default)
+                Bit 1 - 0 - Dump to Trace Buffer (Default)
+                        1 - Redirect to UART
 
         Type: uint32_t
   - Name: device_ops_trace_rt_control_rsp
@@ -563,6 +563,7 @@ Messages :
     PairedMessage: None
     Fields:
       - Name: error_type
+        Description: Error Type
         Type: enum
         Enum: dev_ops_api_error_type
       - Name: pad[4]
@@ -575,6 +576,8 @@ Messages :
     PairedMessage: None
     Fields:
       - Name: ring_buffer_start
+        Description: Buffer
         Type: uint64_t
       - Name: size
+        Description: Size of buffer
         Type: uint64_t
