@@ -17,7 +17,7 @@ protected:
   void launchUberKernel_PositiveTesting_4_4(uint64_t shire_mask);
   void launchEmptyKernel_PositiveTesting_4_5(uint64_t shire_mask);
   void launchExceptionKernel_NegativeTesting_4_6(uint64_t shire_mask);
-  void abortHangKernel_PositiveTesting_4_10(uint64_t shire_mask);
+  void launchHangKernel(uint64_t shire_mask, bool sendAbortCmd);
 
   /* Kernel Stress Tests*/
   void backToBackSameKernelLaunchCmds_3_1(bool singleDevice, bool singleQueue, uint64_t totalKer,uint64_t shire_mask);

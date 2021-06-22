@@ -44,11 +44,7 @@ TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, launchUberKernel_PositiveTesting_4_4)
 TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, launchExceptionKernel_NegativeTesting_4_6) {
   launchExceptionKernel_NegativeTesting_4_6(0x1FFFFFFFF); // all shires
 }
-/* TODO: SW-7827
-TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, abortHangKernel_PositiveTesting_5_1) {
-  abortHangKernel_PositiveTesting_4_10(0x1FFFFFFFF); // all shires
-}
-*/
+
 TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackSameKernelLaunchCmdsSingleDeviceSingleQueue_3_1) {
   backToBackSameKernelLaunchCmds_3_1(true, true, 100, 0x1FFFFFFFF); // all shires
 }
@@ -87,6 +83,10 @@ TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackEmptyKernelLaunch_3_9) {
 
 TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackEmptyKernelLaunchFlushL3_3_10) {
   backToBackEmptyKernelLaunch_3_3(100, 0x1FFFFFFFF, true); // all shires
+}
+
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, abortHangKernel_PositiveTesting_5_1) {
+  launchHangKernel(0x1FFFFFFFF, true); // all shires
 }
 
 int main(int argc, char** argv) {

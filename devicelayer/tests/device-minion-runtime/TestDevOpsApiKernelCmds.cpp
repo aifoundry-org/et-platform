@@ -357,7 +357,7 @@ void TestDevOpsApiKernelCmds::launchExceptionKernel_NegativeTesting_4_6(uint64_t
   TEST_VLOG(1) << "====> EXCEPTION KERNEL DONE <====" << std::endl;
 }
 
-void TestDevOpsApiKernelCmds::abortHangKernel_PositiveTesting_4_10(uint64_t shire_mask) {
+void TestDevOpsApiKernelCmds::launchHangKernel(uint64_t shire_mask, bool sendAbortCmd) {
   std::vector<std::unique_ptr<IDevOpsApiCmd>> streamHangKer;
   std::vector<std::vector<ELFIO::elfio>> readersStorageHangKer;
   std::vector<ELFIO::elfio> readersHangKer;
@@ -368,6 +368,12 @@ void TestDevOpsApiKernelCmds::abortHangKernel_PositiveTesting_4_10(uint64_t shir
   std::vector<device_ops_api::tag_id_t> kernelLaunchTagId;
   int tagIdIdx = 0;
   int deviceCountHangKer = getDevicesCount();
+  device_ops_api::dev_ops_api_kernel_launch_response_e hangKerExpectedRsp;
+  if (sendAbortCmd) {
+    hangKerExpectedRsp = device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED;
+  } else {
+    hangKerExpectedRsp = device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG;
+  }
   for (int deviceIdxHangKer = 0; deviceIdxHangKer < deviceCountHangKer; deviceIdxHangKer++) {
     int queueCountHangKer = getSqCount(deviceIdxHangKer);
     readersHangKer.resize(queueCountHangKer);
@@ -379,17 +385,18 @@ void TestDevOpsApiKernelCmds::abortHangKernel_PositiveTesting_4_10(uint64_t shir
                       kernelEntryDevAddrHangKer);
       // Kernel launch
       auto kernelCmd = IDevOpsApiCmd::createKernelLaunchCmd(
-        device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kernelEntryDevAddrHangKer, 0 /* No kernel args */,
-        devAddrkernelException, shire_mask, 0, nullptr, 0,
-        device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED, "hang.elf");
+        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, kernelEntryDevAddrHangKer, 0 /* No kernel args */,
+        devAddrkernelException, shire_mask, 0, nullptr, 0, hangKerExpectedRsp, "hang.elf");
       kernelLaunchTagId.push_back(kernelCmd->getCmdTagId());
       streamHangKer.push_back(std::move(kernelCmd));
 
-      // Kernel Abort
-      streamHangKer.push_back(
-        IDevOpsApiCmd::createKernelAbortCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kernelLaunchTagId[tagIdIdx],
-                                            device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS));
-      tagIdIdx++;
+      if (sendAbortCmd) {
+        // Kernel Abort
+        streamHangKer.push_back(
+          IDevOpsApiCmd::createKernelAbortCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kernelLaunchTagId[tagIdIdx],
+                                              device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS));
+        tagIdIdx++;
+      }
       // pull the exception buffer from device
       vResultHangKer.resize(0x100000, 0);
       vResultStorageHangKer.push_back(std::move(vResultHangKer));

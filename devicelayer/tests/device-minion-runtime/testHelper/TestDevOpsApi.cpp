@@ -454,8 +454,10 @@ CmdStatus TestDevOpsApi::processDataReadRsp(const device_ops_api::device_ops_dat
     dataReadStatus = CmdStatus::CMD_SUCCESSFUL;
   } else if ((readResponse->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE) ||
              (readResponse->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG)) {
+    TEST_VLOG(0) << "==> Data Read commmand timed-out! (Status code: " << readResponse->status << ") ";
     dataReadStatus = CmdStatus::CMD_TIMED_OUT;
   } else {
+    TEST_VLOG(0) << "==> Data Read commmand failed! (Status code: " << readResponse->status << ") ";
     dataReadStatus = CmdStatus::CMD_FAILED;
   }
   return dataReadStatus;
@@ -473,8 +475,10 @@ CmdStatus TestDevOpsApi::processDataWriteRsp(const device_ops_api::device_ops_da
     dataWriteStatus = CmdStatus::CMD_SUCCESSFUL;
   } else if ((writeResponse->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE) ||
              (writeResponse->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG)) {
+    TEST_VLOG(0) << "==> Data Write commmand timed-out! (Status code: " << writeResponse->status << ") ";
     dataWriteStatus = CmdStatus::CMD_TIMED_OUT;
   } else {
+    TEST_VLOG(0) << "==> Data Write commmand failed! (Status code: " << writeResponse->status << ") ";
     dataWriteStatus = CmdStatus::CMD_FAILED;
   }
   return dataWriteStatus;
@@ -492,8 +496,10 @@ CmdStatus TestDevOpsApi::processDmaReadListRsp(const device_ops_api::device_ops_
     readListStatus = CmdStatus::CMD_SUCCESSFUL;
   } else if ((readListRsp->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE) ||
              (readListRsp->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG)) {
+    TEST_VLOG(0) << "==> DMA Read List commmand timed-out! (Status code: " << readListRsp->status << ") ";
     readListStatus = CmdStatus::CMD_TIMED_OUT;
   } else {
+    TEST_VLOG(0) << "==> DMA Read List commmand failed! (Status code: " << readListRsp->status << ") ";
     readListStatus = CmdStatus::CMD_FAILED;
   }
   return readListStatus;
@@ -512,8 +518,10 @@ TestDevOpsApi::processDmaWriteListRsp(const device_ops_api::device_ops_dma_write
     writeListStatus = CmdStatus::CMD_SUCCESSFUL;
   } else if ((writeListRsp->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE) ||
              (writeListRsp->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG)) {
+    TEST_VLOG(0) << "==> DMA Write List commmand timed-out! (Status code: " << writeListRsp->status << ") ";
     writeListStatus = CmdStatus::CMD_TIMED_OUT;
   } else {
+    TEST_VLOG(0) << "==> DMA Write List commmand failed! (Status code: " << writeListRsp->status << ") ";
     writeListStatus = CmdStatus::CMD_FAILED;
   }
   return writeListStatus;
@@ -532,8 +540,10 @@ CmdStatus TestDevOpsApi::processKernelLaunchRsp(const device_ops_api::device_ops
   if (kernelLaunchRsp->status == IDevOpsApiCmd::getExpectedRsp(kernelLaunchRsp->response_info.rsp_hdr.tag_id)) {
     launchStatus = CmdStatus::CMD_SUCCESSFUL;
   } else if (kernelLaunchRsp->status == device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG) {
+    TEST_VLOG(0) << "==> Kernel Launch commmand timed-out! (Status code: " << kernelLaunchRsp->status << ") ";
     launchStatus = CmdStatus::CMD_TIMED_OUT;
   } else {
+    TEST_VLOG(0) << "==> Kernel Launch commmand failed! (Status code: " << kernelLaunchRsp->status << ") ";
     launchStatus = CmdStatus::CMD_FAILED;
   }
   return launchStatus;
