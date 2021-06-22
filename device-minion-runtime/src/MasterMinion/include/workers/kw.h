@@ -83,25 +83,25 @@
 /* Timeouts */
 
 /*! \def KERNEL_LAUNCH_TIMEOUT(x)
-    \brief Timeout value (in mS) for kernel launch
+    \brief Timeout value (per 10s) for kernel launch
 */
-#define KERNEL_LAUNCH_TIMEOUT(x)         (x * 2)
+#define KERNEL_LAUNCH_TIMEOUT(x)         (x * 1U)
 
-/*! \def KERNEL_SLOT_SEARCH_TIMEOUT
-    \brief Timeout value (in mS) for finding kernel free slot
+/*! \def KERNEL_SLOT_SEARCH_TIMEOUT(x)
+    \brief Timeout value (per 10s) for finding kernel free slot
 */
-#define KERNEL_SLOT_SEARCH_TIMEOUT       5
+#define KERNEL_SLOT_SEARCH_TIMEOUT(x)     (x * 1U)
 
 /*! \def KERNEL_FREE_SHIRES_TIMEOUT
-    \brief Timeout value (in mS) for waiting for the shires to get free
+    \brief Timeout value (per 10s) for waiting for the shires to get free
 */
-#define KERNEL_FREE_SHIRES_TIMEOUT       5
+#define KERNEL_FREE_SHIRES_TIMEOUT(x)     (x * 1U)
 
-/*! \def KERNEL_ABORT_WAIT_TIMEOUT
-    \brief Timeout value (in mS) for waiting for kernel abort to be issued
+/*! \def KERNEL_ABORT_WAIT_TIMEOUT(x)
+    \brief Timeout value (per 10s) for waiting for kernel abort to be issued
     from MM.
 */
-#define KERNEL_ABORT_WAIT_TIMEOUT        2
+#define KERNEL_ABORT_WAIT_TIMEOUT(x)      (x * 1U)
 
 /*! \enum kernel_state_e
     \brief Enum that provides the state of a kernel
@@ -123,12 +123,11 @@ void KW_Init(void);
     \brief Notify Kernel Worker
     \param kw_idx Kernel worker ID
     \param cycle Pointer containing 2 elements:
-    \param sw_timer_idx Index of SW Timer used for timeout
     -Wait Latency(time the command sits in Submission Queue)
     -Start cycles when Kernels are Launched on the Compute Minions
     \return none
 */
-void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle, uint8_t sw_timer_idx);
+void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle);
 
 /*! \fn void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     \brief Launch the Kernel Worker thread
@@ -159,12 +158,5 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
 */
 int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
     uint8_t sqw_idx);
-
-/*! \fn void KW_Set_Abort_Status(uint8_t kw_idx)
-    \brief Sets the status of a kernel to abort and notifies the KW
-    \param kw_idx Kernel Worker index
-    \return none
-*/
-void KW_Set_Abort_Status(uint8_t kw_idx);
 
 #endif /* KW_DEFS_H */

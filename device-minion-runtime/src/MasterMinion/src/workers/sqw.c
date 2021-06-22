@@ -101,7 +101,7 @@ static inline void sqw_command_barrier(uint8_t sqw_idx)
 
     /* Create timeout for kernel_launch command to complete */
     sw_timer_idx = SW_Timer_Create_Timeout(&SQW_Command_Barrier_Timeout_Cb,
-        sqw_idx, TIMEOUT_SQW_BARRIER);
+        sqw_idx, TIMEOUT_SQW_BARRIER(5));
 
     /* If there is no timeout slot, we will skip the timeout registeration */
     if(sw_timer_idx < 0)

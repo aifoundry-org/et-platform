@@ -182,7 +182,7 @@ int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask,
     /* Create timeout for MM->CM multicast complete */
     sw_timer_idx = SW_Timer_Create_Timeout(
         &mm_to_cm_iface_multicast_timeout_cb, thread_id,
-        TIMEOUT_MM_CM_MSG);
+        TIMEOUT_MM_CM_MSG(5));
 
     if(sw_timer_idx < 0)
     {

@@ -21,10 +21,10 @@
 #include "cm_mm_defines.h"
 #include "message_types.h"
 
-/*! \def TIMEOUT_MM_CM_MSG
-    \brief Timeout value (in mS) for MM->CM messages
+/*! \def TIMEOUT_MM_CM_MSG(x)
+    \brief Timeout value (10s) for MM->CM messages
 */
-#define TIMEOUT_MM_CM_MSG    1
+#define TIMEOUT_MM_CM_MSG(x)    (x * 1U)
 
 /*! \fn void CM_Iface_Init(void)
     \brief Function to initialize messaging infrastucture to compute

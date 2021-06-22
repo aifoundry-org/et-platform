@@ -276,7 +276,6 @@ static inline int8_t kernel_launch_cmd_handler(void* command_buffer, uint8_t sqw
     uint8_t kw_idx;
     exec_cycles_t cycles;
     int8_t status = STATUS_SUCCESS;
-    int8_t sw_timer_idx = -1;
 
     Log_Write(LOG_LEVEL_DEBUG,
         "SQ[%d] HostCommandHandler:Processing:KERNEL_LAUNCH_CMD\r\n", sqw_idx);
@@ -292,27 +291,12 @@ static inline int8_t kernel_launch_cmd_handler(void* command_buffer, uint8_t sqw
 
     if(status == STATUS_SUCCESS)
     {
-        /* Create timeout for kernel_launch command to complete */
-        /* TODO Add support in Device API Kernel Launch command to override timeout */
-        /* cmd->timeout */
-        sw_timer_idx = SW_Timer_Create_Timeout(&KW_Set_Abort_Status, kw_idx, KERNEL_LAUNCH_TIMEOUT(5));
-        if(sw_timer_idx >= 0)
-        {
-            /* Notify kernel worker to aggregate
-            kernel completion responses, and construct
-            and transmit command response to host
-            completion queue */
-            KW_Notify(kw_idx, &cycles, (uint8_t)sw_timer_idx);
+        /* Notify kernel worker to aggregate kernel completion responses, and construct
+        and transmit command response to host completion queue */
+        KW_Notify(kw_idx, &cycles);
 
-            Log_Write(LOG_LEVEL_DEBUG,
-                "SQ[%d] HostCommandHandler:KW:%d:Notified\r\n", sqw_idx, kw_idx);
-        }
-        else
-        {
-            Log_Write(LOG_LEVEL_ERROR,
-                "SQ[%d] HostCommandHandler:CreateTimeot:Failed Tag ID:%d\r\n",
-                    sqw_idx, cmd->command_info.cmd_hdr.tag_id);
-        }
+        Log_Write(LOG_LEVEL_DEBUG,
+            "SQ[%d] HostCommandHandler:KW:%d:Notified\r\n", sqw_idx, kw_idx);
     }
     else
     {
@@ -639,7 +623,7 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
 
         /* Create timeout for DMA_Write command to complete */
         sw_timer_idx = SW_Timer_Create_Timeout(&DMAW_Write_Set_Abort_Status, chan,
-                            DMA_TIMEOUT_FACTOR(total_dma_size));
+            DMA_TRANSFER_TIMEOUT);
 
         if(sw_timer_idx >= 0)
         {
@@ -656,7 +640,7 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
         else
         {
             Log_Write(LOG_LEVEL_ERROR,
-                "HostCommandHandler:CreateTimeot:Failed\r\n");
+                "HostCommandHandler:CreateTimeout:Failed\r\n");
         }
     }
 
@@ -803,7 +787,7 @@ static inline int8_t dma_writelist_cmd_handler(void* command_buffer, uint8_t sqw
 
         /* Create timeout for DMA_Read command to complete */
         sw_timer_idx = SW_Timer_Create_Timeout(&DMAW_Read_Set_Abort_Status, chan,
-                                DMA_TIMEOUT_FACTOR(total_dma_size));
+            DMA_TRANSFER_TIMEOUT);
 
         if(sw_timer_idx >= 0)
         {
@@ -819,7 +803,7 @@ static inline int8_t dma_writelist_cmd_handler(void* command_buffer, uint8_t sqw
         }
         else
         {
-            Log_Write(LOG_LEVEL_ERROR, "HostCommandHandler:Tag_ID=%u:CreateTimeot:Failed\r\n",
+            Log_Write(LOG_LEVEL_ERROR, "HostCommandHandler:Tag_ID=%u:CreateTimeout:Failed\r\n",
                 cmd->command_info.cmd_hdr.tag_id);
         }
     }

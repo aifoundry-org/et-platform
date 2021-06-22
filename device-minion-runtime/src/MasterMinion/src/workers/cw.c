@@ -200,8 +200,8 @@ int8_t CW_Init(void)
         }
         else
         {
-            Log_Write(LOG_LEVEL_ERROR,
-            "Dispatcher:CW_Init:Unexpected condition,broke wfi without a SWI during CW_Init...\r\n");
+            /* We are only interested in IPIs */
+            continue;
         }
     }
 

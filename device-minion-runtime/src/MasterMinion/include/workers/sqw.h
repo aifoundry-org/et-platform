@@ -36,12 +36,12 @@
 */
 #define     SQW_WORKER_0         ((SQW_BASE_HART_ID - MM_BASE_ID) / HARTS_PER_MINION)
 
-/*! \def TIMEOUT_SQW_BARRIER
-    \brief Timeout value (in mS) for SQW commands barrier.
+/*! \def TIMEOUT_SQW_BARRIER(x)
+    \brief Timeout value (per 10s) for SQW commands barrier.
     Keep the barrier timeout a higher value since the barrier is
     supposed to block and if it blocks indefinitely, timeout will occur.
 */
-#define TIMEOUT_SQW_BARRIER     5
+#define TIMEOUT_SQW_BARRIER(x)     (x * 10U)
 
 /*! \fn void SQW_Init(void)
     \brief Initialize resources used by the Submission Queue Worker

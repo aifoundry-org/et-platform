@@ -19,6 +19,7 @@
 
 #include "common_defs.h"
 #include "sp_mm_comms_spec.h"
+#include "vq.h"
 
 /*! \def SP_MM_IFACE_INIT_MSG_HDR
     \brief Helper to initialize msg header

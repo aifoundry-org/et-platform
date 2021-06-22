@@ -65,6 +65,7 @@ static int8_t wait_for_response_from_service_processor(void);
 static void sp_iface_mm_heartbeat_cb(uint8_t param)
 {
     struct mm2sp_heartbeat_event_t event;
+    int8_t status;
     (void)param;
 
     /* Initialize event header */
@@ -76,9 +77,10 @@ static void sp_iface_mm_heartbeat_cb(uint8_t param)
     acquire_local_spinlock(&SP_SQ_CB.vq_lock);
 
     /* Send event to Service Processor */
-    if(SP_Iface_Push_Cmd_To_MM2SP_SQ(&event, sizeof(event)) != STATUS_SUCCESS)
+    status = SP_Iface_Push_Cmd_To_MM2SP_SQ(&event, sizeof(event));
+    if((status != STATUS_SUCCESS) && (status != CIRCBUFF_ERROR_FULL))
     {
-        Log_Write(LOG_LEVEL_ERROR, "ERROR: Pushing event to MM to SP SQ");
+        Log_Write(LOG_LEVEL_ERROR, "ERROR: Pushing event to MM to SP SQ\r\n");
     }
 
     /* Release the lock */
@@ -125,13 +127,20 @@ static int8_t wait_for_response_from_service_processor(void)
     /* Create timeout for SP response */
     sw_timer_idx = SW_Timer_Create_Timeout(
         &sp_iface_sp_response_timeout_cb, (get_hart_id() & (HARTS_PER_SHIRE - 1)),
-        TIMEOUT_SP_IFACE_RESPONSE);
+        TIMEOUT_SP_IFACE_RESPONSE(5));
 
     /* If the timer was successfully registered */
-    if(sw_timer_idx >= 0)
+    if(sw_timer_idx < 0)
     {
-        Log_Write(LOG_LEVEL_DEBUG, "Waiting on SP\r\n");
+        Log_Write(LOG_LEVEL_ERROR,
+            "ERROR: Unable to register SP response timeout!\r\n");
+        return SP_IFACE_TIMER_REGISTER_FAILED;
+    }
 
+    Log_Write(LOG_LEVEL_DEBUG, "Waiting on SP\r\n");
+
+    while(1)
+    {
         /* Wait for an interrupt */
         asm volatile("wfi");
 
@@ -156,18 +165,13 @@ static int8_t wait_for_response_from_service_processor(void)
                 Log_Write(LOG_LEVEL_ERROR,
                     "Error:Timed-out waiting for response from SP\r\n");
             }
+            break;
         }
         else
         {
-            Log_Write(LOG_LEVEL_ERROR,
-                "Error:unexpected interrupt while waiting for IPI from SP\r\n");
+            /* We are only interested in IPIs */
+            continue;
         }
-    }
-    else
-    {
-        status = SP_IFACE_TIMER_REGISTER_FAILED;
-        Log_Write(LOG_LEVEL_ERROR,
-            "ERROR: Unable to register SP response timeout!\r\n");
     }
 
     return status;
@@ -508,7 +512,7 @@ int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq)
         else
         {
             Log_Write(LOG_LEVEL_ERROR,
-                "ERROR: Received a notification from SP and no data");
+                "ERROR: Received a notification from SP and no data\r\n");
         }
     }
 
@@ -557,7 +561,7 @@ int8_t SP_Iface_Report_Error(mm2sp_error_type_e error_type, int16_t error_code)
     status = SP_Iface_Push_Cmd_To_MM2SP_SQ(&event, sizeof(event));
     if(status != STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_ERROR, "ERROR: Pushing event to MM to SP SQ");
+        Log_Write(LOG_LEVEL_ERROR, "ERROR: Pushing event to MM to SP SQ\r\n");
     }
 
     /* Release the lock */
@@ -594,7 +598,7 @@ int8_t SP_Iface_Setup_MM_HeartBeat(void)
     /* Create timer for MM heartbeat */
     /* TODO: Fine tune the heartbeat interval */
     sw_timer_idx = SW_Timer_Create_Timeout(&sp_iface_mm_heartbeat_cb, 0,
-        SP_IFACE_MM_HEARTBEAT_INTERVAL);
+        SP_IFACE_MM_HEARTBEAT_INTERVAL(5));
 
     /* If the timer was not successfully registered */
     if(sw_timer_idx < 0)

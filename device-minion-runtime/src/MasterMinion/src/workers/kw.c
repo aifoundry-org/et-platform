@@ -62,9 +62,10 @@ typedef struct kernel_instance_ {
     uint32_t kernel_state;
     tag_id_t launch_tag_id;
     uint16_t sqw_idx;
-    uint8_t  sw_timer_idx;
     exec_cycles_t kw_cycles;
     uint64_t kernel_shire_mask;
+    uint8_t sw_timer_idx;
+    uint8_t pad[7];
 } kernel_instance_t;
 
 /*! \typedef kw_cb_t
@@ -111,6 +112,81 @@ static inline bool kw_check_address_bounds(uint64_t dev_address, bool is_optiona
     /* Verify the bounds */
     return ((dev_address >= HOST_MANAGED_DRAM_START) &&
             (dev_address < HOST_MANAGED_DRAM_END));
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       kw_set_abort_status_cb
+*
+*   DESCRIPTION
+*
+*       Sets the status of a kernel to abort and notifies the KW
+*
+*   INPUTS
+*
+*       kw_idx    ID of the kernel worker
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void kw_set_abort_status_cb(uint8_t kw_idx)
+{
+    /* Free the registered SW Timeout slot */
+    SW_Timer_Cancel_Timeout(atomic_load_local_8(&KW_CB.kernels[kw_idx].sw_timer_idx));
+
+    atomic_store_local_32(&KW_CB.kernels[kw_idx].kernel_state, KERNEL_STATE_ABORTING);
+
+    /* Trigger IPI to KW */
+    syscall(SYSCALL_IPI_TRIGGER_INT,
+        1ULL << ((KW_BASE_HART_ID + (kw_idx * WORKER_HART_FACTOR)) % 64), MASTER_SHIRE, 0);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       kw_create_kernel_launch_timer
+*
+*   DESCRIPTION
+*
+*       Registers a timer with kernel launch
+*
+*   INPUTS
+*
+*       slot_index    ID of the kernel worker
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static inline void kw_create_kernel_launch_timer(uint8_t slot_index)
+{
+    int8_t sw_timer_idx = -1;
+
+    /* Create timeout for kernel_launch command to complete */
+    /* TODO: Add support in Device API Kernel Launch command to override timeout
+    cmd->timeout */
+    sw_timer_idx = SW_Timer_Create_Timeout(&kw_set_abort_status_cb, slot_index,
+        KERNEL_LAUNCH_TIMEOUT(1));
+    if(sw_timer_idx >= 0)
+    {
+        /* Save the SW timer index */
+        atomic_store_local_8(&KW_CB.kernels[slot_index].sw_timer_idx,
+            (uint8_t)sw_timer_idx);
+    }
+    else
+    {
+        /* If the SW timer creating fails, we would still return success to the caller
+        since the kernel has already launched and we want that kernel to complete so
+        that we don't end up having unpredictable behaviors in next kernel runs */
+        Log_Write(LOG_LEVEL_ERROR,
+            "KW:ERROR:Kernel launch timeout creation:Failed\r\n");
+    }
 }
 
 /************************************************************************
@@ -193,7 +269,7 @@ static int8_t kw_wait_for_kernel_launch_flag(uint8_t sqw_idx, uint8_t slot_index
 
     /* Create timeout to wait for kernel launch completion flag from CM */
     sw_timer_idx = SW_Timer_Create_Timeout(&kernel_abort_wait_timeout_callback, sqw_idx,
-        KERNEL_ABORT_WAIT_TIMEOUT);
+        KERNEL_ABORT_WAIT_TIMEOUT(3));
 
     if(sw_timer_idx < 0)
     {
@@ -310,7 +386,7 @@ static kernel_instance_t* kw_reserve_kernel_slot(uint8_t sqw_idx, uint8_t *slot_
 
     /* Create timeout to wait for free kernel slot */
     sw_timer_idx = SW_Timer_Create_Timeout(&kernel_acquire_resource_timeout_callback, sqw_idx,
-        KERNEL_SLOT_SEARCH_TIMEOUT);
+        KERNEL_SLOT_SEARCH_TIMEOUT(4));
 
     if(sw_timer_idx < 0)
     {
@@ -404,7 +480,7 @@ static int8_t kw_reserve_kernel_shires(uint8_t sqw_idx, uint64_t req_shire_mask)
 
     /* Create timeout for waiting for free shires for kernel */
     sw_timer_idx = SW_Timer_Create_Timeout(&kernel_acquire_resource_timeout_callback, sqw_idx,
-        KERNEL_FREE_SHIRES_TIMEOUT);
+        KERNEL_FREE_SHIRES_TIMEOUT(4));
 
     if(sw_timer_idx < 0)
     {
@@ -519,11 +595,6 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
        kw_check_address_bounds(cmd->kernel_trace_buffer,
         !(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_KERNEL_TRACE_BUF)))
     {
-        status = STATUS_SUCCESS;
-    }
-
-    if(status == STATUS_SUCCESS)
-    {
         /* First we allocate resources needed for the kernel launch */
         /* Reserve a slot for the kernel */
         kernel = kw_reserve_kernel_slot(sqw_idx, &slot_index);
@@ -615,6 +686,8 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
 
         if (status == STATUS_SUCCESS)
         {
+            /* Register SW timer */
+            kw_create_kernel_launch_timer(slot_index);
             *kw_idx = slot_index;
         }
         else
@@ -789,14 +862,13 @@ void KW_Init(void)
 *                         Queue)
 *                       -Start cycles when Kernels are Launched on the
 *                       Compute Minions
-*       sw_timer_idx    Index of SW Timer used for timeout
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle, uint8_t sw_timer_idx)
+void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle)
 {
     uint32_t minion = KW_WORKER_0 + (kw_idx / (2 / WORKER_HART_FACTOR));
     uint32_t thread = kw_idx % (2 / WORKER_HART_FACTOR);
@@ -809,8 +881,6 @@ void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle, uint8_t sw_timer_idx)
 
     atomic_store_local_64((void*)&KW_CB.kernels[kw_idx].kw_cycles.raw_u64,
                           cycle->raw_u64);
-
-    atomic_store_local_8(&KW_CB.kernels[kw_idx].sw_timer_idx, sw_timer_idx);
 
     global_fcc_notify(atomic_load_local_8(&KW_CB.host2kw[kw_idx].fcc_id),
         &KW_CB.host2kw[kw_idx].fcc_flag, minion, thread);
@@ -967,7 +1037,7 @@ static inline uint32_t kw_get_kernel_launch_completion_status(uint32_t kernel_st
     }
     else if(kernel_state == KERNEL_STATE_ABORTING)
     {
-        /* Update the kernel launch response to indicate that it was aborted by host */
+        /* Update the kernel launch response to indicate that it was aborted by device */
         status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG;
     }
     else if(status_internal->cw_exception)
@@ -1012,6 +1082,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 {
     uint64_t sip;
     cm_iface_message_t message;
+    bool timeout_abort_serviced;
     int8_t status;
     int8_t status_hang_abort;
     uint8_t local_sqw_idx;
@@ -1037,6 +1108,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         status_internal.kernel_done = false;
         status_internal.cw_exception = false;
         status_internal.cw_error = false;
+        timeout_abort_serviced = false;
         status_internal.status = STATUS_SUCCESS;
         status_hang_abort = STATUS_SUCCESS;
 
@@ -1062,9 +1134,11 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             /* Clear IPI pending interrupt */
             asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
 
-            /* Check the kernel_state is set to abort after timeout*/
-            if(atomic_load_local_32(&kernel->kernel_state) == KERNEL_STATE_ABORTING)
+            /* Check the kernel_state is set to abort after timeout */
+            if((!timeout_abort_serviced) &&
+                (atomic_load_local_32(&kernel->kernel_state) == KERNEL_STATE_ABORTING))
             {
+                timeout_abort_serviced = true;
                 Log_Write(LOG_LEVEL_ERROR, "Aborting:KW:kw_idx=%d\r\n", kw_idx);
 
                 /* Multicast abort to shires associated with current kernel slot
@@ -1074,8 +1148,17 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 
                 /* Blocking call (with timeout) that blocks till all shires ack */
                 status_hang_abort = CM_Iface_Multicast_Send(kernel_shire_mask, &message);
+            }
 
-                /* Break the loop waiting to complete the kernel as it is timeout */
+            /* Verify that there is no abort hang situation recovery failure */
+            if(status_hang_abort != STATUS_SUCCESS)
+            {
+                /* TODO: SW-6569: Do the reset of the shires involved in kernel launch. */
+                SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
+                Log_Write(LOG_LEVEL_ERROR,
+                    "KW:MM->CM:Abort hanged, doing reset of shires.status:%d\r\n",
+                    status_hang_abort);
+                /* After reset, we will simply break this loop and respond back to host */
                 break;
             }
 
@@ -1096,14 +1179,6 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                 Log_Write(LOG_LEVEL_ERROR,
                     "KW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n", status);
             }
-        }
-
-        if(status_hang_abort != STATUS_SUCCESS)
-        {
-            /* TODO: SW-6569: Do the reset of the shires involved in kernel launch. */
-            SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
-            Log_Write(LOG_LEVEL_ERROR,
-                "KW:MM->CM:Abort hanged, doing reset of shires.status:%d\r\n", status_hang_abort);
         }
 
         /* Kernel run complete with host abort, exception or success.
@@ -1165,35 +1240,4 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     } /* loop forever */
 
     /* will not return */
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       KW_Set_Abort_Status
-*
-*   DESCRIPTION
-*
-*       Sets the status of a kernel to abort and notifies the KW
-*
-*   INPUTS
-*
-*       kw_idx    ID of the kernel worker
-*
-*   OUTPUTS
-*
-*       None
-*
-***********************************************************************/
-void KW_Set_Abort_Status(uint8_t kw_idx)
-{
-    /* Free the registered SW Timeout slot */
-    SW_Timer_Cancel_Timeout(atomic_load_local_8(&KW_CB.kernels[kw_idx].sw_timer_idx));
-
-    atomic_store_local_32(&KW_CB.kernels[kw_idx].kernel_state, KERNEL_STATE_ABORTING);
-
-    /* Trigger IPI to KW */
-    syscall(SYSCALL_IPI_TRIGGER_INT,
-        1ULL << ((KW_BASE_HART_ID + (kw_idx * WORKER_HART_FACTOR)) % 64), MASTER_SHIRE, 0);
 }

@@ -22,15 +22,15 @@
 #include "sp_mm_iface.h" /* header from shared/helper lib */
 #include "sp_mm_comms_spec.h"
 
-/*! \def TIMEOUT_SP_IFACE_RESPONSE
-    \brief Timeout value for SP response wait
+/*! \def TIMEOUT_SP_IFACE_RESPONSE(x)
+    \brief Timeout value (per 100ms) for SP response wait
 */
-#define TIMEOUT_SP_IFACE_RESPONSE          1
+#define TIMEOUT_SP_IFACE_RESPONSE(x)       (x * 2U)
 
-/*! \def SP_IFACE_MM_HEARTBEAT_INTERVAL
+/*! \def SP_IFACE_MM_HEARTBEAT_INTERVAL(x)
     \brief Periodic Interval value after which a heartbeat is sent to SP
 */
-#define SP_IFACE_MM_HEARTBEAT_INTERVAL     1
+#define SP_IFACE_MM_HEARTBEAT_INTERVAL(x)   (x * 1U)
 
 /*! \def SP_IFACE_INVALID_SHIRE_MASK
     \brief SP iface error code - Invalid shire mask

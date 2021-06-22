@@ -25,7 +25,6 @@
 #include "sp_mm_comms_spec.h"
 #include "device-common/esr_defines.h"
 #include "hal_device.h"
-#include "vq.h"
 
 typedef struct sp_iface_cb_ {
     uint32_t vqueue_base;
