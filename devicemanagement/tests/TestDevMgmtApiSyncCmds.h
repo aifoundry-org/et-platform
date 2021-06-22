@@ -17,7 +17,7 @@
 #include <glog/logging.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <hostUtils/logging/Logger.h>
+#include "utils.h"
 
 #define DM_LOG(severity) ET_LOG(DM, severity)
 #define DM_DLOG(severity) ET_DLOG(DM, severity)
@@ -25,64 +25,65 @@
 
 DECLARE_bool(loopback_driver);
 
-void testSerial(device_management::DeviceManagement& dm, uint32_t index, uint32_t timeout, int* result);
+void testSerial(device_management::DeviceManagement& dm, uint32_t deviceIdx, uint32_t index, uint32_t timeout, int* result);
 
 class TestDevMgmtApiSyncCmds : public ::testing::Test {
 protected:
   device_management::getDM_t getInstance();
 
-  void getModuleManufactureName_1_1();
-  void getModulePartNumber_1_2();
-  void getModuleSerialNumber_1_3();
-  void getASICChipRevision_1_4();
-  void getModulePCIENumPortsMaxSpeed_1_5();
-  void getModuleMemorySizeMB_1_6();
-  void getModuleRevision_1_7();
-  void getModuleFormFactor_1_8();
-  void getModuleMemoryVendorPartNumber_1_9();
-  void getModuleMemoryType_1_10();
-  void setAndGetModulePowerState_1_11();
-  void setAndGetModuleStaticTDPLevel_1_12();
-  void setAndGetModuleTemperatureThreshold_1_13();
-  void getModuleResidencyThrottleState_1_14();
-  void getModuleUptime_1_15();
-  void getModulePower_1_16();
-  void getModuleVoltage_1_17();
-  void getModuleCurrentTemperature_1_18();
-  void getModuleMaxTemperature_1_19();
-  void getModuleMaxMemoryErrors_1_20();
-  void getModuleMaxDDRBW_1_21();
-  void getModuleMaxThrottleTime_1_22();
-  void setAndGetDDRECCThresholdCount_1_23();
-  void setAndGetSRAMECCThresholdCount_1_24();
-  void setAndGetPCIEECCThresholdCount_1_25();
-  void getPCIEECCUECCCount_1_26();
-  void getDDRECCUECCCount_1_27();
-  void getSRAMECCUECCCount_1_28();
-  void getDDRBWCounter_1_29();
-  void setPCIELinkSpeed_1_30();
-  void setPCIELaneWidth_1_31();
-  void setPCIERetrainPhy_1_32();
-  void getASICFrequencies_1_33();
-  void getDRAMBW_1_34();
-  void getDRAMCapacityUtilization_1_35();
-  void getASICPerCoreDatapathUtilization_1_36();
-  void getASICUtilization_1_37();
-  void getASICStalls_1_38();
-  void getASICLatency_1_39();
+  void getModuleManufactureName_1_1(bool singleDevice);
+  void getModulePartNumber_1_2(bool singleDevice);
+  void getModuleSerialNumber_1_3(bool singleDevice);
+  void getASICChipRevision_1_4(bool singleDevice);
+  void getModulePCIENumPortsMaxSpeed_1_5(bool singleDevice);
+  void getModuleMemorySizeMB_1_6(bool singleDevice);
+  void getModuleRevision_1_7(bool singleDevice);
+  void getModuleFormFactor_1_8(bool singleDevice);
+  void getModuleMemoryVendorPartNumber_1_9(bool singleDevice);
+  void getModuleMemoryType_1_10(bool singleDevice);
+  void setAndGetModulePowerState_1_11(bool singleDevice);
+  void setAndGetModuleStaticTDPLevel_1_12(bool singleDevice);
+  void setAndGetModuleTemperatureThreshold_1_13(bool singleDevice);
+  void getModuleResidencyThrottleState_1_14(bool singleDevice);
+  void getModuleUptime_1_15(bool singleDevice);
+  void getModulePower_1_16(bool singleDevice);
+  void getModuleVoltage_1_17(bool singleDevice);
+  void getModuleCurrentTemperature_1_18(bool singleDevice);
+  void getModuleMaxTemperature_1_19(bool singleDevice);
+  void getModuleMaxMemoryErrors_1_20(bool singleDevice);
+  void getModuleMaxDDRBW_1_21(bool singleDevice);
+  void getModuleMaxThrottleTime_1_22(bool singleDevice);
+  void setAndGetDDRECCThresholdCount_1_23(bool singleDevice);
+  void setAndGetSRAMECCThresholdCount_1_24(bool singleDevice);
+  void setAndGetPCIEECCThresholdCount_1_25(bool singleDevice);
+  void getPCIEECCUECCCount_1_26(bool singleDevice);
+  void getDDRECCUECCCount_1_27(bool singleDevice);
+  void getSRAMECCUECCCount_1_28(bool singleDevice);
+  void getDDRBWCounter_1_29(bool singleDevice);
+  void setPCIELinkSpeed_1_30(bool singleDevice);
+  void setPCIELaneWidth_1_31(bool singleDevice);
+  void setPCIERetrainPhy_1_32(bool singleDevice);
+  void getASICFrequencies_1_33(bool singleDevice);
+  void getDRAMBW_1_34(bool singleDevice);
+  void getDRAMCapacityUtilization_1_35(bool singleDevice);
+  void getASICPerCoreDatapathUtilization_1_36(bool singleDevice);
+  void getASICUtilization_1_37(bool singleDevice);
+  void getASICStalls_1_38(bool singleDevice);
+  void getASICLatency_1_39(bool singleDevice);
 
-  void getMMErrorCount_1_40();
-  void getFWBootstatus_1_41();
-  void getModuleFWRevision_1_42();
+  void getMMErrorCount_1_40(bool singleDevice);
+  void getFWBootstatus_1_41(bool singleDevice);
+  void getModuleFWRevision_1_42(bool singleDevice);
 
-  void serializeAccessMgmtNode_1_43();
-  void getDeviceErrorEvents_1_44();
-  void isUnsupportedService_1_45();
-  void setSpRootCertificate_1_46();
-  void setTraceControl();
-  void setTraceConfigure();
+  void serializeAccessMgmtNode_1_43(bool singleDevice);
+  void getDeviceErrorEvents_1_44(bool singleDevice);
+  void isUnsupportedService_1_45(bool singleDevice);
+  void setSpRootCertificate_1_46(bool singleDevice);
+  void setTraceControl(bool singleDevice);
+  void setTraceConfigure(bool singleDevice);
   void* handle_ = nullptr;
   std::unique_ptr<IDeviceLayer> devLayer_;
+  
 };
 
 #endif // TEST_DEVICE_M_H

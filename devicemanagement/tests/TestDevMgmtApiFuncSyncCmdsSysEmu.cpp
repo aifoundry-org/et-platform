@@ -60,175 +60,177 @@ public:
 };
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleManufactureName_1_1) {
-  getModuleManufactureName_1_1();
+  getModuleManufactureName_1_1(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModulePartNumber_1_2) {
-  getModulePartNumber_1_2();
+  getModulePartNumber_1_2(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleSerialNumber_1_3) {
-  getModuleSerialNumber_1_3();
+  getModuleSerialNumber_1_3(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModulePCIENumPortsMaxSpeed_1_5) {
-  getModulePCIENumPortsMaxSpeed_1_5();
+  getModulePCIENumPortsMaxSpeed_1_5(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleMemorySizeMB_1_6) {
-  getModuleMemorySizeMB_1_6();
+  getModuleMemorySizeMB_1_6(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleRevision_1_7) {
-  getModuleRevision_1_7();
+  getModuleRevision_1_7(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleFormFactor_1_8) {
-  getModuleFormFactor_1_8();
+  getModuleFormFactor_1_8(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleMemoryVendorPartNumber_1_9) {
-  getModuleMemoryVendorPartNumber_1_9();
+
+  getModuleMemoryVendorPartNumber_1_9(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleMemoryType_1_10) {
-  getModuleMemoryType_1_10();
+  getModuleMemoryType_1_10(false /* Multiple Devices */);
 }
 
 // Thermal and Power
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setAndGetModulePowerState_1_11) {
-  setAndGetModulePowerState_1_11();
+  setAndGetModulePowerState_1_11(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setAndGetModuleStaticTDPLevel_1_12) {
-  setAndGetModuleStaticTDPLevel_1_12();
+  setAndGetModuleStaticTDPLevel_1_12(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setAndGetModuleTemperatureThreshold_1_13) {
-  setAndGetModuleTemperatureThreshold_1_13();
+  setAndGetModuleTemperatureThreshold_1_13(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleResidencyThrottleState_1_14) {
-  getModuleResidencyThrottleState_1_14();
+  getModuleResidencyThrottleState_1_14(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleUptime_1_15) {
-  getModuleUptime_1_15();
+  getModuleUptime_1_15(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleMaxTemperature_1_19) {
-  getModuleMaxTemperature_1_19();
+  getModuleMaxTemperature_1_19(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleMaxMemoryErrors_1_20) {
-  getModuleMaxMemoryErrors_1_20();
+  getModuleMaxMemoryErrors_1_20(false /* Multiple Devices */);
 }
 /* TODO Require SysEMU modelling fix
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleMaxDDRBW_1_21) {
-  getModuleMaxDDRBW_1_21();
+
+  getModuleMaxDDRBW_1_21(false);
 }
 */
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleMaxThrottleTime_1_22) {
-  getModuleMaxThrottleTime_1_22();
+  getModuleMaxThrottleTime_1_22(false /* Multiple Devices */);
 }
 
 // Error Control
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setAndGetDDRECCThresholdCount_1_23) {
-  setAndGetDDRECCThresholdCount_1_23();
+  setAndGetDDRECCThresholdCount_1_23(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setAndGetSRAMECCThresholdCount_1_24) {
-  setAndGetSRAMECCThresholdCount_1_24();
+  setAndGetSRAMECCThresholdCount_1_24(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setAndGetPCIEECThresholdCount_1_25) {
-  setAndGetPCIEECCThresholdCount_1_25();
+  setAndGetPCIEECCThresholdCount_1_25(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getPCIEECCUECCCount_1_26) {
-  getPCIEECCUECCCount_1_26();
+  getPCIEECCUECCCount_1_26(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getDDRECCUECCCount_1_27) {
-  getDDRECCUECCCount_1_27();
+  getDDRECCUECCCount_1_27(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getSRAMECCUECCCount_1_28) {
-  getSRAMECCUECCCount_1_28();
+  getSRAMECCUECCCount_1_28(false /* Multiple Devices */);
 }
 
 /* TODO: Remove this test
    Note: Device(BL2 DM TASK) initializes the DDR BW Counter. DM task is dependent on PMIC as well
    This test should be run only on Zebu.
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleDDRBWCounter_1_29) {
-  getModuleDDRBWCounter_1_29();
+  getModuleDDRBWCounter_1_29(false);
 }
 */
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setPCIELinkSpeed_1_30) {
-  setPCIELinkSpeed_1_30();
+  setPCIELinkSpeed_1_30(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setPCIELaneWidth_1_31) {
-  setPCIELaneWidth_1_31();
+  setPCIELaneWidth_1_31(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setPCIERetrainPhy_1_32) {
-  setPCIERetrainPhy_1_32();
+  setPCIERetrainPhy_1_32(false /* Multiple Devices */);
 }
 
 // Performance
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getASICFrequencies_1_33) {
-  getASICFrequencies_1_33();
+  getASICFrequencies_1_33(false /* Multiple Devices */);
 }
 
 /* TODO Require SysEMU modelling fix
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getDRAMBW_1_34) {
-  getDRAMBW_1_34();
+  getDRAMBW_1_34(false);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getDRAMCapacityUtilization_1_35) {
-  getDRAMCapacityUtilization_1_35();
+  getDRAMCapacityUtilization_1_35(false);
 }
 */
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getASICPerCoreDatapathUtilization_1_36) {
-  getASICPerCoreDatapathUtilization_1_36();
+  getASICPerCoreDatapathUtilization_1_36(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getASICUtilization_1_37) {
-  getASICUtilization_1_37();
+  getASICUtilization_1_37(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getASICStalls_1_38) {
-  getASICStalls_1_38();
+  getASICStalls_1_38(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getASICLatency_1_39) {
-  getASICLatency_1_39();
+  getASICLatency_1_39(false /* Multiple Devices */);
 }
 
 // Test serial access
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, serializeAccessMgmtNode_1_43) {
-  serializeAccessMgmtNode_1_43();
+  serializeAccessMgmtNode_1_43(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, isUnsupportedService_1_45) {
-  isUnsupportedService_1_45();
+  isUnsupportedService_1_45(false /* Multiple Devices */);
 }
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setTraceControl) {
-  setTraceControl();
+  setTraceControl(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setTraceConfigure) {
-  setTraceConfigure();
+  setTraceConfigure(false /* Multiple Devices */);
 }
 
 // retrieve MM FW error counts. This test should be run last so that we are
 // able to capture any errors in the previous test runs
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getMMErrorCount_1_40) {
-  getMMErrorCount_1_40();
+  getMMErrorCount_1_40(false /* Multiple Devices */);
 }
 
 int main(int argc, char** argv) {

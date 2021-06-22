@@ -29,158 +29,158 @@ public:
 };
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleManufactureName_1_1) {
-  getModuleManufactureName_1_1();
+  getModuleManufactureName_1_1(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModulePartNumber_1_2) {
-  getModulePartNumber_1_2();
+  getModulePartNumber_1_2(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleSerialNumber_1_3) {
-  getModuleSerialNumber_1_3();
+  getModuleSerialNumber_1_3(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModulePCIENumPortsMaxSpeed_1_5) {
-  getModulePCIENumPortsMaxSpeed_1_5();
+  getModulePCIENumPortsMaxSpeed_1_5(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleMemorySizeMB_1_6) {
-  getModuleMemorySizeMB_1_6();
+  getModuleMemorySizeMB_1_6(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleRevision_1_7) {
-  getModuleRevision_1_7();
+  getModuleRevision_1_7(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleFormFactor_1_8) {
-  getModuleFormFactor_1_8();
+  getModuleFormFactor_1_8(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleMemoryVendorPartNumber_1_9) {
-  getModuleMemoryVendorPartNumber_1_9();
+  getModuleMemoryVendorPartNumber_1_9(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleMemoryType_1_10) {
-  getModuleMemoryType_1_10();
+  getModuleMemoryType_1_10(true);
 }
 
 // Thermal and Power
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setAndGetModulePowerState_1_11) {
-  setAndGetModulePowerState_1_11();
+  setAndGetModulePowerState_1_11(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setAndGetModuleStaticTDPLevel_1_12) {
-  setAndGetModuleStaticTDPLevel_1_12();
+  setAndGetModuleStaticTDPLevel_1_12(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setAndGetModuleTemperatureThreshold_1_13) {
-  setAndGetModuleTemperatureThreshold_1_13();
+  setAndGetModuleTemperatureThreshold_1_13(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleResidencyThrottleState_1_14) {
-  getModuleResidencyThrottleState_1_14();
+  getModuleResidencyThrottleState_1_14(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleUptime_1_15) {
-  getModuleUptime_1_15();
+  getModuleUptime_1_15(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleMaxTemperature_1_19) {
-  getModuleMaxTemperature_1_19();
+  getModuleMaxTemperature_1_19(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleMaxMemoryErrors_1_20) {
-  getModuleMaxMemoryErrors_1_20();
+  getModuleMaxMemoryErrors_1_20(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleMaxThrottleTime_1_22) {
-  getModuleMaxThrottleTime_1_22();
+  getModuleMaxThrottleTime_1_22(true);
 }
 
 // Error Control
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setAndGetDDRECCThresholdCount_1_23) {
-  setAndGetDDRECCThresholdCount_1_23();
+  setAndGetDDRECCThresholdCount_1_23(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setAndGetSRAMECCThresholdCount_1_24) {
-  setAndGetSRAMECCThresholdCount_1_24();
+  setAndGetSRAMECCThresholdCount_1_24(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setAndGetPCIEECCThresholdCount_1_25) {
-  setAndGetPCIEECCThresholdCount_1_25();
+  setAndGetPCIEECCThresholdCount_1_25(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getPCIEECCUECCCount_1_26) {
-  getPCIEECCUECCCount_1_26();
+  getPCIEECCUECCCount_1_26(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getDDRECCUECCCount_1_27) {
-  getDDRECCUECCCount_1_27();
+  getDDRECCUECCCount_1_27(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getSRAMECCUECCCount_1_28) {
-  getSRAMECCUECCCount_1_28();
+  getSRAMECCUECCCount_1_28(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setPCIELinkSpeed_1_30) {
-  setPCIELinkSpeed_1_30();
+  setPCIELinkSpeed_1_30(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setPCIELaneWidth_1_31) {
-  setPCIELaneWidth_1_31();
+  setPCIELaneWidth_1_31(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setPCIERetrainPhy_1_32) {
-  setPCIERetrainPhy_1_32();
+  setPCIERetrainPhy_1_32(true);
 }
 
 // Performance
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICFrequencies_1_33) {
-  getASICFrequencies_1_33();
+  getASICFrequencies_1_33(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICPerCoreDatapathUtilization_1_36) {
-  getASICPerCoreDatapathUtilization_1_36();
+  getASICPerCoreDatapathUtilization_1_36(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICUtilization_1_37) {
-  getASICUtilization_1_37();
+  getASICUtilization_1_37(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICStalls_1_38) {
-  getASICStalls_1_38();
+  getASICStalls_1_38(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICLatency_1_39) {
-  getASICLatency_1_39();
+  getASICLatency_1_39(true);
 }
 
 #ifdef TARGET_PCIE
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getFWBootstatus_1_41) {
-  getFWBootstatus_1_41();
+  getFWBootstatus_1_41(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleFWRevision_1_42) {
-  getModuleFWRevision_1_42();
+  getModuleFWRevision_1_42(true);
 }
 #endif
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getDeviceErrorEvents_1_44) {
-  getDeviceErrorEvents_1_44();
+  getDeviceErrorEvents_1_44(true);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, isUnsupportedService_1_45) {
-  isUnsupportedService_1_45();
+  isUnsupportedService_1_45(true);
 }
 
 /*TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setSpRootCertificate_1_46) {
-  setSpRootCertificate_1_46();
+  setSpRootCertificate_1_46(true);
 }*/
 
 // retrieve MM FW error counts. This test should be run last so that we are
 // able to capture any errors in the previous test runs
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getMMErrorCount_1_40) {
-  getMMErrorCount_1_40();
+  getMMErrorCount_1_40(true);
 }
 
 

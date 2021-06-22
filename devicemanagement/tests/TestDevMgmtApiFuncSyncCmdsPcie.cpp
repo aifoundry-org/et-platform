@@ -29,109 +29,90 @@ public:
 };
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleManufactureName_1_1) {
-  getModuleManufactureName_1_1();
+  getModuleManufactureName_1_1(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModulePartNumber_1_2) {
-  getModulePartNumber_1_2();
+  getModulePartNumber_1_2(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleSerialNumber_1_3) {
-  getModuleSerialNumber_1_3();
-}
-
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getASICChipRevision_1_4) {
-  getASICChipRevision_1_4();
+  getModuleSerialNumber_1_3(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModulePCIENumPortsMaxSpeed_1_5) {
-  getModulePCIENumPortsMaxSpeed_1_5();
+  getModulePCIENumPortsMaxSpeed_1_5(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleMemorySizeMB_1_6) {
-  getModuleMemorySizeMB_1_6();
+  getModuleMemorySizeMB_1_6(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleRevision_1_7) {
-  getModuleRevision_1_7();
+  getModuleRevision_1_7(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleFormFactor_1_8) {
-  getModuleFormFactor_1_8();
+  getModuleFormFactor_1_8(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleMemoryVendorPartNumber_1_9) {
-  getModuleMemoryVendorPartNumber_1_9();
+  getModuleMemoryVendorPartNumber_1_9(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleMemoryType_1_10) {
-  getModuleMemoryType_1_10();
+  getModuleMemoryType_1_10(false /* Multiple devices */);
 }
 
 // Thermal and Power
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setAndGetModulePowerState_1_11) {
-  setAndGetModulePowerState_1_11();
+  setAndGetModulePowerState_1_11(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setAndGetModuleStaticTDPLevel_1_12) {
-  setAndGetModuleStaticTDPLevel_1_12();
+  setAndGetModuleStaticTDPLevel_1_12(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setAndGetModuleTemperatureThreshold_1_13) {
-  setAndGetModuleTemperatureThreshold_1_13();
+  setAndGetModuleTemperatureThreshold_1_13(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleResidencyThrottleState_1_14) {
-  getModuleResidencyThrottleState_1_14();
+  getModuleResidencyThrottleState_1_14(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleUptime_1_15) {
-  getModuleUptime_1_15();
-}
-
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModulePower_1_16) {
-  getModulePower_1_16();
-}
-
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleVoltage_1_17) {
-  getModuleVoltage_1_17();
-}
-
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleCurrentTemperature_1_18) {
-  getModuleCurrentTemperature_1_18();
+  getModuleUptime_1_15(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleMaxTemperature_1_19) {
-  getModuleMaxTemperature_1_19();
+  getModuleMaxTemperature_1_19(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleMaxMemoryErrors_1_20) {
-  getModuleMaxMemoryErrors_1_20();
-}
 
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleMaxDDRBW_1_21) {
-  getModuleMaxDDRBW_1_21();
+  getModuleMaxMemoryErrors_1_20(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleMaxThrottleTime_1_22) {
-  getModuleMaxThrottleTime_1_22();
+  getModuleMaxThrottleTime_1_22(false /* Multiple devices */);
 }
 
 // Error Control
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setAndGetDDRECCThresholdCount_1_23) {
-  setAndGetDDRECCThresholdCount_1_23();
+  setAndGetDDRECCThresholdCount_1_23(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setAndGetSRAMECCThresholdCount_1_24) {
-  setAndGetSRAMECCThresholdCount_1_24();
+  setAndGetSRAMECCThresholdCount_1_24(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setAndGetPCIEECCThresholdCount_1_25) {
-  setAndGetPCIEECCThresholdCount_1_25();
+  setAndGetPCIEECCThresholdCount_1_25(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getPCIEECCUECCCount_1_26) {
-  getPCIEECCUECCCount_1_26();
+  getPCIEECCUECCCount_1_26(false /* Multiple devices */);
 }
 
 // Link Management
@@ -159,65 +140,59 @@ TEST_F(TestDevMgmtApiSyncCmds, test_DM_CMD_SET_PCIE_RESET) {
 */
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getDDRECCUECCCount_1_27) {
-  getDDRECCUECCCount_1_27();
+  getDDRECCUECCCount_1_27(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getSRAMECCUECCCount_1_28) {
-  getSRAMECCUECCCount_1_28();
-}
-
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getDDRBWCounter_1_29) {
-  getDDRBWCounter_1_29();
+  getSRAMECCUECCCount_1_28(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setPCIELinkSpeed_1_30) {
-  setPCIELinkSpeed_1_30();
+  setPCIELinkSpeed_1_30(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setPCIELaneWidth_1_31) {
-  setPCIELaneWidth_1_31();
+  setPCIELaneWidth_1_31(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setPCIERetrainPhy_1_32) {
-  setPCIERetrainPhy_1_32();
+  setPCIERetrainPhy_1_32(false /* Multiple devices */);
 }
 
 // Performance
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getASICFrequencies_1_33) {
-  getASICFrequencies_1_33();
-}
-
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getDRAMBW_1_34) {
-  getDRAMBW_1_34();
-}
-
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getDRAMCapacityUtilization_1_35) {
-  getDRAMCapacityUtilization_1_35();
+  getASICFrequencies_1_33(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getASICPerCoreDatapathUtilization_1_36) {
-  getASICPerCoreDatapathUtilization_1_36();
+  getASICPerCoreDatapathUtilization_1_36(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getASICUtilization_1_37) {
-  getASICUtilization_1_37();
+  getASICUtilization_1_37(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getASICStalls_1_38) {
-  getASICStalls_1_38();
+  getASICStalls_1_38(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getASICLatency_1_39) {
-  getASICLatency_1_39();
+  getASICLatency_1_39(false /* Multiple devices */);
+}
+
+// retrieve MM FW error counts. This test should be run last so that we are
+// able to capture any errors in the previous test runs
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getMMErrorCount_1_40) {
+  getMMErrorCount_1_40(false /* Multiple devices */);
 }
 
 #ifdef TARGET_PCIE
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getFWBootstatus_1_41) {
-  getFWBootstatus_1_41();
+  getFWBootstatus_1_41(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleFWRevision_1_42) {
-  getModuleFWRevision_1_42();
+  getModuleFWRevision_1_42(false /* Multiple devices */);
 }
 #endif
 
@@ -225,26 +200,17 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleFWRevision_1_42) {
 // Test serial access
 // SW-6404 Test failing in Zebu
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, serializeAccessMgmtNode_1_43) {
-  serializeAccessMgmtNode_1_43();
+  serializeAccessMgmtNode_1_43(false );
 }
 */
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getDeviceErrorEvents_1_44) {
-  getDeviceErrorEvents_1_44();
-}
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, isUnsupportedService_1_45) {
-  isUnsupportedService_1_45();
+  isUnsupportedService_1_45(false /* Multiple devices */);
 }
 
 /*TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setSpRootCertificate_1_46) {
-  setSpRootCertificate_1_46();
+  setSpRootCertificate_1_46(false);
 }*/
-
-// retrieve MM FW error counts. This test should be run last so that we are
-// able to capture any errors in the previous test runs
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getMMErrorCount_1_40) {
-  getMMErrorCount_1_40();
-}
 
 // TODO: conditional to be removed with https://esperantotech.atlassian.net/browse/SW-6044
 #ifdef TARGET_PCIE

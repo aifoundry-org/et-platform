@@ -135,7 +135,12 @@ public:
   ///
   /// @return DeviceManagement object
   static DeviceManagement &getInstance(IDeviceLayer *devLayer);
-
+  
+  /// @brief  Get total number of devices in system
+  ///
+  /// @return Total number of devices
+  int getDevicesCount();
+  
   /// @brief Send service request to device and wait for response
   ///
   /// @param[in] device_node  device index to use

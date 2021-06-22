@@ -64,15 +64,11 @@ itCmd DeviceManagement::isValidCommand(uint32_t cmd_code) {
 }
 
 bool DeviceManagement::isValidDeviceNode(const uint32_t device_node) {
-  std::string str = std::to_string(device_node);
-  std::regex re("^[0-5]{1}$");
-  std::smatch m;
+  return device_node < devLayer_->getDevicesCount();
+}
 
-  if (!std::regex_search(str, m, re)) {
-    return false;
-  }
-
-  return true;
+int DeviceManagement::getDevicesCount() {
+  devLayer_->getDevicesCount();
 }
 
 bool DeviceManagement::isSetCommand(itCmd &cmd) {
