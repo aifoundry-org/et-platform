@@ -152,11 +152,6 @@ int ddr_config(DDR_MODE *ddr_mode)
     config_train_poll_iteration_delay = 10000;
     config_training_2d = true;
 
-    //TODO: To be removed.  Will be replaced by configure_memshire_plls() above
-    // only #0 and #4 has PLL, kick them off before phy init
-    ms_pll_init(0x0, config_real_pll, 1, config_800mhz, config_933mhz);
-    ms_pll_init(0x4, config_real_pll, 1, config_800mhz, config_933mhz);
-
     FOR_EACH_MEMSHIRE(
         ms_init_seq_phase1(memshire, config_ecc, config_real_pll, config_800mhz, config_933mhz,
           config_training, config_4gb, config_8gb, config_32gb)
