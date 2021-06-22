@@ -199,13 +199,15 @@ static inline int8_t fw_version_cmd_handler(void* command_buffer, uint8_t sqw_id
 *
 *       command_buffer   Buffer containing command to process
 *       sqw_idx          Submission queue index
+*       start_cycle      Cycle count to measure wait latency
 *
 *   OUTPUTS
 *
 *       int8_t           Successful status or error code.
 *
 ***********************************************************************/
-static inline int8_t echo_cmd_handler(void* command_buffer, uint8_t sqw_idx)
+static inline int8_t echo_cmd_handler(void* command_buffer, uint8_t sqw_idx,
+    uint64_t start_cycles)
 {
     const struct device_ops_echo_cmd_t *cmd =
         (struct device_ops_echo_cmd_t *)command_buffer;
@@ -221,7 +223,7 @@ static inline int8_t echo_cmd_handler(void* command_buffer, uint8_t sqw_idx)
         DEV_OPS_API_MID_DEVICE_OPS_ECHO_RSP;
     rsp.response_info.rsp_hdr.size =
         sizeof(struct device_ops_echo_rsp_t) - sizeof(struct cmn_header_t);
-    rsp.echo_payload = cmd->echo_payload;
+    rsp.device_cmd_start_ts = start_cycles;
 
     status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
 
@@ -1085,7 +1087,7 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             status = fw_version_cmd_handler(command_buffer, sqw_idx);
             break;
         case DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD:
-            status = echo_cmd_handler(command_buffer, sqw_idx);
+            status = echo_cmd_handler(command_buffer, sqw_idx, start_cycles);
             break;
         case DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD:
             status = kernel_launch_cmd_handler(command_buffer, sqw_idx, start_cycles);
