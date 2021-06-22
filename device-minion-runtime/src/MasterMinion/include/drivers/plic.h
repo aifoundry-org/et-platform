@@ -9,7 +9,7 @@
 * agreement/contract under which the program(s) have been supplied.
 *
 ************************************************************************/
-/*! \file dir_regs.h
+/*! \file plic.h
     \brief A C header that defines the PLIC Driver's public
     interfaces
 */

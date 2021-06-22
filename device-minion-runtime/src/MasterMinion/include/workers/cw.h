@@ -61,7 +61,6 @@ int8_t CW_Init(void);
     \brief CW helper to process messages from CM firmware
     running in S Mode. Used by dispatcher to handle
     exceptions that occur during CM firmware in S Mode.
-    \param none
     \return none
 */
 void CW_Process_CM_SMode_Messages(void);

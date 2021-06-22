@@ -271,7 +271,7 @@
 */
 #define MM_HART_MASK             (0xFFFFFFFFUL)
 
-/*! \def MM_HARTS_COUNT
+/*! \def MM_HART_COUNT
     \brief Number of Harts running MMFW.
 */
 #define MM_HART_COUNT           32U

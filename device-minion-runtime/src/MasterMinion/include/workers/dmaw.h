@@ -48,7 +48,7 @@
 */
 #define DMAW_ERROR_GENERAL                  -10
 
-/*! \def DMAW_ERROR_FIND_IDLE_CHANNEL_TIMEOUT
+/*! \def DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL
     \brief DMA Worker - Find DMA idle channel timeoeut error
 */
 #define DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL -11
@@ -58,7 +58,7 @@
 */
 #define TIMEOUT_DMAW_FIND_IDLE_CH  2
 
-/*! \def TIMEOUT_DMA_FACTOR
+/*! \def DMA_TIMEOUT_FACTOR(x)
     \brief Timeout value (in mS) for DMA per 2Kb (1ms)
 */
 #define DMA_TIMEOUT_FACTOR(x)  (x < 0x800) ? 1:5
@@ -184,7 +184,7 @@ void DMAW_Read_Set_Abort_Status(uint8_t read_chan);
 
 /*! \fn DMAW_Write_Set_Abort_Status(uint8_t write_chan)
     \brief Sets the status of DMA's write channel to abort it
-    \param read_chan DMA write channel index
+    \param write_chan DMA write channel index
     \return none
 */
 void DMAW_Write_Set_Abort_Status(uint8_t write_chan);

@@ -82,7 +82,7 @@
 
 /* Timeouts */
 
-/*! \def TIMEOUT_KERNEL_LAUNCH
+/*! \def KERNEL_LAUNCH_TIMEOUT(x)
     \brief Timeout value (in mS) for kernel launch
 */
 #define KERNEL_LAUNCH_TIMEOUT(x)         (x * 2)

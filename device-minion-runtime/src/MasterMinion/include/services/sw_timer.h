@@ -62,7 +62,6 @@ int8_t SW_Timer_Init(void);
     \param timeout_callback_fn Callback to be triggerd at timeout
     \param callback_arg argument for timeout callback
     \param sw_ticks SW ticks for timeout the cammand
-    \param free_timer_slot Free Slot number to register timer
     \return SW Timer slot used to register the tiemout or negative error
 */
 int8_t SW_Timer_Create_Timeout(void (*timeout_callback_fn)(uint8_t),
@@ -78,7 +77,6 @@ void SW_Timer_Cancel_Timeout(uint8_t sw_timer_idx);
 /*! \fn uint32_t SW_Timer_Get_Elapsed_Time(void)
     \brief Returns the elapsed time from last
            periodic timer update
-    \param none
     \return Residue delta time
 */
 uint32_t SW_Timer_Get_Elapsed_Time(void);

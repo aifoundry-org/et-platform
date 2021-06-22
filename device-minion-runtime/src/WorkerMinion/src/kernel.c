@@ -198,22 +198,23 @@ void kernel_info_get_attributes(uint32_t shire_id, uint8_t *kw_base_id, uint8_t 
     *slot_index = kernel_info.slot_index;
 }
 
-static inline void kernel_info_set_attributes(uint32_t shire_id, uint8_t kw_base_id,
-    uint8_t slot_index, uint64_t kernel_exception_buffer)
+static inline void kernel_info_set_attributes(uint32_t shire_id,
+    const mm_to_cm_message_kernel_params_t *kernel)
 {
     kernel_launch_info_t kernel_info;
 
     /* Save the attributes */
-    kernel_info.kw_base_id = kw_base_id;
-    kernel_info.slot_index = slot_index;
+    kernel_info.kw_base_id = kernel->kw_base_id;
+    kernel_info.slot_index = kernel->slot_index;
     atomic_store_local_16(&kernel_launch_info[shire_id].raw_u16, kernel_info.raw_u16);
 
     /* Save the exception buffer */
-    atomic_store_local_64(&kernel_launch_info[shire_id].exception_buffer, kernel_exception_buffer);
+    atomic_store_local_64(&kernel_launch_info[shire_id].exception_buffer, kernel->exception_buffer);
 }
 
-static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_shire_mask,
-    uint64_t kernel_launch_flags, uint64_t kernel_exception_buffer);
+static void pre_kernel_setup(const mm_to_cm_message_kernel_params_t *kernel);
+static void kernel_launch_post_cleanup(const mm_to_cm_message_kernel_params_t *kernel,
+    int64_t kernel_ret_val);
 
 int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_stack_addr)
 {
@@ -226,8 +227,7 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_s
                  "addi  %0, %0, 8    \n"
                  : "=r"(firmware_sp));
 
-    pre_kernel_setup(kernel.kw_base_id, kernel.slot_index, kernel.shire_mask, kernel.flags,
-        kernel.exception_buffer);
+    pre_kernel_setup(&kernel);
 
     /* Wait until all the Shires involved in the kernel launch reach this sync point */
     kernel_last_thread = pre_launch_synchronize_shires(&pre_launch_global_barrier,
@@ -376,13 +376,12 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_s
     );
 
     /* Do post kernel launch cleanup */
-    kernel_launch_post_cleanup(kernel.kw_base_id, kernel.slot_index, return_value);
+    kernel_launch_post_cleanup(&kernel, return_value);
 
     return return_value;
 }
 
-static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t kernel_shire_mask,
-    uint64_t kernel_launch_flags, uint64_t kernel_exception_buffer)
+static void pre_kernel_setup(const mm_to_cm_message_kernel_params_t *kernel)
 {
     const uint32_t shire_id = get_shire_id();
     const uint64_t hart_id = get_hart_id();
@@ -404,12 +403,12 @@ static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t ke
     if ((hart_id % 64U) == (first_worker + 1)) {
 
         // Initialize the kernel execution status
-        kernel_info_set_attributes(shire_id, kw_base_id, slot_index, kernel_exception_buffer);
+        kernel_info_set_attributes(shire_id, kernel);
         kernel_info_set_execution_status(shire_id, KERNEL_COMPLETE_STATUS_SUCCESS);
         kernel_info_reset_completed_threads(shire_id);
         kernel_info_reset_thread_returned(shire_id);
         kernel_info_reset_abort_flag(shire_id);
-        atomic_store_global_64(&kernel_launch_shire_mask, kernel_shire_mask);
+        atomic_store_global_64(&kernel_launch_shire_mask, kernel->shire_mask);
         atomic_store_global_32(&kernel_launch_global_abort_flag, 0);
 
         // Init all FLBs except reserved FLBs 28-31
@@ -429,7 +428,7 @@ static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t ke
     /* [SW-3260] Force L3 evict in the firmware before starting a kernel - for performance analysis
        First Thread of first Minion of Shires 0-31 evict their L3 chunk
        NOTE: This will only evict the whole L3 if all the 32 Shires participate in the launch */
-    if ((kernel_launch_flags & KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH) &&
+    if ((kernel->flags & KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH) &&
         (hart_id % 64U == 0) && (shire_id < 32))
     {
         syscall(SYSCALL_EVICT_L3_INT, 0, 0, 0);
@@ -497,7 +496,7 @@ static void pre_kernel_setup(uint8_t kw_base_id, uint8_t slot_index, uint64_t ke
     asm volatile("fence");
 }
 
-void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t kernel_ret_val)
+static void kernel_launch_post_cleanup(const mm_to_cm_message_kernel_params_t *kernel, int64_t kernel_ret_val)
 {
     const uint32_t shire_id = get_shire_id();
     const uint64_t thread_id = get_hart_id() & (HARTS_PER_SHIRE - 1);
@@ -570,10 +569,10 @@ void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t 
             msg.header.number = 0; // Not used. TODO: Remove
             msg.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE;
             msg.shire_id = shire_id;
-            msg.slot_index = slot_index;
+            msg.slot_index = kernel->slot_index;
             msg.status = kernel_info_get_execution_status(shire_id);
-            status = CM_To_MM_Iface_Unicast_Send((uint64_t)(kw_base_id + slot_index),
-                (uint64_t)(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + slot_index),
+            status = CM_To_MM_Iface_Unicast_Send((uint64_t)(kernel->kw_base_id + kernel->slot_index),
+                (uint64_t)(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kernel->slot_index),
                 (cm_iface_message_t *)&msg);
 
             if(status != STATUS_SUCCESS)

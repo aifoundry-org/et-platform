@@ -1,3 +1,18 @@
+/***********************************************************************
+*
+* Copyright (C) 2021 Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*
+************************************************************************/
+/*! \file kernel.h
+    \brief A C header that define kernel module for Compute Worker.
+*/
+/***********************************************************************/
 #ifndef KERNEL_H
 #define KERNEL_H
 
@@ -69,15 +84,6 @@ void kernel_info_get_attributes(uint32_t shire_id, uint8_t *kw_base_id, uint8_t 
     \return Previous value of the thread mask
 */
 uint64_t kernel_info_set_thread_returned(uint32_t shire_id, uint64_t thread_id);
-
-/*! \fn void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t kernel_ret_val)
-    \brief This function does the post kernel launch cleanup
-    \param kw_base_id Kernel worker base hart ID
-    \param slot_index Slot ID of the kernel
-    \param kernel_ret_val Return value of a U-mode kernel
-    \return none
-*/
-void kernel_launch_post_cleanup(uint8_t kw_base_id, uint8_t slot_index, int64_t kernel_ret_val);
 
 /*! \fn uint64_t kernel_launch_get_pending_shire_mask(void)
     \brief This function returns the shires pending to complete the kernel launch.

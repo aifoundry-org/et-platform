@@ -42,12 +42,12 @@
 */
 #define SP_IFACE_INVALID_BOOT_FREQ        -2
 
-/*! \def SP_IFACE_TIMEOUT_REGISTER_FAILED
+/*! \def SP_IFACE_TIMER_REGISTER_FAILED
     \brief SP iface error code - Timer resgistration failure
 */
 #define SP_IFACE_TIMER_REGISTER_FAILED    -3
 
-/*! \def SP_IFACE_TIMEOUT_REGISTER_FAILED
+/*! \def SP_IFACE_SP_RSP_TIMEDOUT
     \brief SP iface error code - SP response timeout occurred
 */
 #define SP_IFACE_SP_RSP_TIMEDOUT          -4

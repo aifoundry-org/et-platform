@@ -29,7 +29,6 @@
 /*! \fn void CM_Iface_Init(void)
     \brief Function to initialize messaging infrastucture to compute
     minions.
-    \param None
     \return Status success or error
 */
 int8_t CM_Iface_Init(void);

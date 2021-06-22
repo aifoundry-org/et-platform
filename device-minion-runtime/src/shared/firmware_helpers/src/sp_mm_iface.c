@@ -339,7 +339,7 @@ int32_t SP_MM_Iface_Pop(uint8_t target, void* rx_buff)
         retval = VQ_Pop(p_vq_cb, rx_buff);
     }
 
-    return (retval);
+    return retval;
 }
 
 /************************************************************************

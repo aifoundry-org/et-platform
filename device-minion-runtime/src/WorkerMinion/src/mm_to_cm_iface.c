@@ -179,7 +179,7 @@ static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
             /* If the kernel exception buffer is available */
             if (exception_buffer != 0)
             {
-                swi_execution_context_t *context = (swi_execution_context_t*)optional_arg;
+                const internal_execution_context_t *context = (internal_execution_context_t*)optional_arg;
 
                 /* Save the execution context in the buffer provided */
                 CM_To_MM_Save_Execution_Context((execution_context_t*)exception_buffer,

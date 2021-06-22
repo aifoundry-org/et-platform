@@ -30,7 +30,7 @@ void swi_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const
         /* If the kernel exception buffer is available */
         if(exception_buffer != 0)
         {
-            swi_execution_context_t context = {.scause = scause, .sepc = sepc,
+            internal_execution_context_t context = {.scause = scause, .sepc = sepc,
                 .sstatus = sstatus, .stval = stval, .regs = reg};
 
             /* Save the execution context in the buffer provided (system abort case) */
@@ -43,7 +43,7 @@ void swi_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const
     else
     {
         /* Save the execution context so that it may be used in abort cases */
-        swi_execution_context_t context = {.scause = scause, .sepc = sepc, .stval = stval, .regs = reg};
+        internal_execution_context_t context = {.scause = scause, .sepc = sepc, .stval = stval, .regs = reg};
 
         /* Handle messages from MM */
         MM_To_CM_Iface_Multicast_Receive((void*)&context);

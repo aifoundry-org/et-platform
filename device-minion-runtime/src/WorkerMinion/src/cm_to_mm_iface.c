@@ -26,7 +26,7 @@ int8_t CM_To_MM_Iface_Unicast_Send(uint64_t ms_thread_id, uint64_t cb_idx, const
 }
 
 int8_t CM_To_MM_Save_Execution_Context(execution_context_t *context_buffer,
-    uint64_t type, uint64_t hart_id, const swi_execution_context_t *context)
+    uint64_t type, uint64_t hart_id, const internal_execution_context_t *context)
 {
     const uint64_t buffer_index = (hart_id < 2048U) ? hart_id: (hart_id - 32U);
 

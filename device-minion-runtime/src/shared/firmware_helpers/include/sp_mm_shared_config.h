@@ -9,7 +9,7 @@
 * agreement/contract under which the program(s) have been supplied.
 *
 ************************************************************************/
-/*! \file shared_config.h
+/*! \file sp_mm_shared_config.h
     \brief This is shared build configuration between master minion
     and service processor runtimes.
 

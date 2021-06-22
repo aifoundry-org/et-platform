@@ -1,4 +1,5 @@
-/*-------------------------------------------------------------------------
+/***********************************************************************
+*
 * Copyright (C) 2020, Esperanto Technologies Inc.
 * The copyright to the computer program(s) herein is the
 * property of Esperanto Technologies, Inc. All Rights Reserved.
@@ -6,8 +7,11 @@
 * the written permission of Esperanto Technologies and
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
-*-------------------------------------------------------------------------
+************************************************************************/
+/*! \file shire_cache.h
+    \brief A C header that define shire cache interface.
 */
+/***********************************************************************/
 
 #ifndef SHIRE_CACHE_H
 #define SHIRE_CACHE_H

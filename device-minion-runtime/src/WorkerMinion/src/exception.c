@@ -35,7 +35,7 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
         /* If the kernel exception buffer is available */
         if(exception_buffer != 0)
         {
-            swi_execution_context_t context = {.scause = scause, .sepc = sepc,
+            internal_execution_context_t context = {.scause = scause, .sepc = sepc,
                 .sstatus = sstatus, .stval = stval, .regs = reg};
 
             /* Save the execution context in the buffer provided */
@@ -54,7 +54,7 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
         /* If the kernel exception buffer is available */
         if(exception_buffer != 0)
         {
-            swi_execution_context_t context = {.scause = scause, .sepc = sepc,
+            internal_execution_context_t context = {.scause = scause, .sepc = sepc,
                 .sstatus = sstatus, .stval = stval, .regs = reg};
 
             /* Save the execution context in the buffer provided */
