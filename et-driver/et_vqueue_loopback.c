@@ -467,8 +467,6 @@ struct device_mgmt_mm_state_rsp_t {
  */
 struct device_ops_echo_cmd_t {
 	struct cmd_header_t command_info;
-	s32 echo_payload;
-	u32 pad;
 } __packed __aligned(8);
 
 /*
@@ -476,8 +474,7 @@ struct device_ops_echo_cmd_t {
  */
 struct device_ops_echo_rsp_t {
 	struct rsp_header_t response_info;
-	s32 echo_payload;
-	u32 pad;
+	u64 device_cmd_start_ts;  // device timestamp when the command was popped from SQ.
 } __packed __aligned(8);
 
 /*
@@ -1034,7 +1031,8 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 			echo_cmd->command_info.cmd_hdr.tag_id;
 		echo_rsp.response_info.rsp_hdr.msg_id =
 			DEV_OPS_API_MID_ECHO_RSP;
-		echo_rsp.echo_payload = echo_cmd->echo_payload;
+		// send dummy timestamp
+		echo_rsp.device_cmd_start_ts = 0xdeadbeef;
 		if (!et_circbuffer_push(&cq->cb,
 					cq->cb_mem,
 					(u8 *)&echo_rsp,

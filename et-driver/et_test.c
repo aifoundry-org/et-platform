@@ -109,7 +109,6 @@ long test_virtqueue(struct et_pci_dev *et_dev, u16 cmd_count)
 
 		for (; cmd_sent < cmd_count; cmd_sent++) {
 			echo_cmd.command_info.cmd_hdr.tag_id = cmd_sent;
-			echo_cmd.echo_payload = (s32)(cmd_sent * 0xbeef);
 
 			rv = et_squeue_push(et_dev->ops.sq_pptr[sq_idx],
 					    &echo_cmd,
@@ -132,9 +131,7 @@ long test_virtqueue(struct et_pci_dev *et_dev, u16 cmd_count)
 			if (rv <= 0)
 				break;
 
-			if (echo_rsp.echo_payload !=
-			    (s32)(echo_rsp.response_info.rsp_hdr.tag_id *
-				  0xbeef)) {
+			if (echo_rsp.device_cmd_start_ts == 0) {
 				rv = -EINVAL;
 				break;
 			}

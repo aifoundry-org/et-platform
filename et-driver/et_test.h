@@ -24,8 +24,6 @@
  */
 struct device_ops_echo_cmd_t {
 	struct cmd_header_t command_info;
-	s32 echo_payload;	// Echo payload field
-	u32 pad;		// Padding for alignment
 } __packed __aligned(8);
 
 /*
@@ -33,8 +31,7 @@ struct device_ops_echo_cmd_t {
  */
 struct device_ops_echo_rsp_t {
 	struct rsp_header_t response_info;
-	s32 echo_payload;	// Echo payload field
-	u32 pad;		// Padding for alignment
+	u64 device_cmd_start_ts;  // device timestamp when the command was popped from SQ.
 } __packed __aligned(8);
 
 // clang-format off
