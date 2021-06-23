@@ -70,7 +70,7 @@ int32_t watchdog_init(uint32_t timeout_msec)
     wdog_control_block.timeout_msec = timeout_msec;
     
     //TODO: calculate precise register value for milisec provided
-    iowrite32(R_SP_WDT_BASEADDR + SPIO_DW_APB_WDT_WDT_TORR_ADDRESS, 0xf);
+    iowrite32(R_SP_WDT_BASEADDR + SPIO_DW_APB_WDT_WDT_TORR_ADDRESS, timeout_msec);
 
     INT_enableInterrupt(SPIO_PLIC_WDT_INTR, 1, watchdog_isr);
 

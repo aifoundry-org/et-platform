@@ -179,13 +179,10 @@ void wdog_timeout_callback(enum error_type type, struct event_message_t *msg)
 {
     if (type == CORRECTABLE) {
         //TODO: Handle wdog timeouts
+         (void) type;
     } else {
-
-       (void) type;
-       (void) *msg;
-       // TODO should be cleared b4 hitting this point
        /* Post message to the queue */
-       //xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
+       xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
     }
 }
 

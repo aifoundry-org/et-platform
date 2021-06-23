@@ -35,11 +35,9 @@ static void watchdog_task_entry(void *pvParameter);
 int32_t init_watchdog_service(void)
 {
     int32_t status = 0;
-    uint32_t timeout_msec = 1;
 
-    /* Init watch dog timer here */
-    //TODO validate integration with the driver under SW-6751
-    status = watchdog_init(timeout_msec);
+   /* Use 40% of the scheduling delays.*/ 
+    status = watchdog_init((WDOG_DEFAULT_TIMEOUT_MSEC * 40) / 100);
     if (!status) {
         /* Create the watchdog feeding task */
         t_handle = xTaskCreateStatic(watchdog_task_entry, "WDOG_TASK", WDOG_TASK_STACK_SIZE,
