@@ -51,13 +51,13 @@ int configure_memshire_plls(const DDR_MODE *ddr_mode)
     uint8_t pll_mode;
 
     if(ddr_mode->frequency == DDR_FREQUENCY_800MHZ) {
-        pll_mode = 19;
+        pll_mode = 50;
     }
     else if(ddr_mode->frequency == DDR_FREQUENCY_933MHZ) {
-        pll_mode = 19;      // TODO: Need correct value here
+        pll_mode = 28;
     }
     else if(ddr_mode->frequency == DDR_FREQUENCY_1066MHZ) {
-        pll_mode = 19;      // TODO: Need correct value here
+        pll_mode = 19;
     }
     else {
         return -1;
