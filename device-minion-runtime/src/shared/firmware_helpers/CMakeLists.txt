@@ -80,6 +80,7 @@ install(TARGETS sp_firmware_helpers
 
 install(FILES
     include/etsoc_ddr_region_map.h
+    include/hal_device.h
     include/layout.h
     include/minion_esr_defines.h
     include/minion_fw_boot_config.h
