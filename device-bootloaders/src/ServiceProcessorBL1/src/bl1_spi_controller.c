@@ -14,9 +14,9 @@
 #include "io.h"
 #include "printx.h"
 #include "bl1_spi_controller.h"
-#include "etsoc_hal/inc/DW_apb_ssi.h"
+#include "hwinc/sp_spi0.h"
 #include "spio_DW_apb_ssi_config.h"
-#include "etsoc_hal/inc/hal_device.h"
+#include "hwinc/hal_device.h"
 #include "bl1_main.h"
 
 #pragma GCC push_options
@@ -208,7 +208,7 @@ static int spi_controller_tx32_data(uintptr_t spi_regs, const uint8_t *spi_comma
 
     // wait for all the command/data bytes to be sent by polling on FIFO Empty and Busy bit
     timeout = 0;
-    empty_flag = ioread32(spi_regs + SSI_SR_ADDRESS) & 0x5; //Bit[2]- FIFO Empty, Bit[0]- Busy  
+    empty_flag = ioread32(spi_regs + SSI_SR_ADDRESS) & 0x5; //Bit[2]- FIFO Empty, Bit[0]- Busy
     while (empty_flag != 0x4) {
         timeout++;
         if (timeout > TX_TIMEOUT) {
@@ -288,7 +288,7 @@ static int spi_controller_tx_data(uintptr_t spi_regs, const uint8_t *spi_command
 
     // wait for all the command/data bytes to be sent by polling on FIFO Empty and Busy bit
     timeout = 0;
-    empty_flag = ioread32(spi_regs + SSI_SR_ADDRESS) & 0x5; //Bit[2]- FIFO Empty, Bit[0]- Busy  
+    empty_flag = ioread32(spi_regs + SSI_SR_ADDRESS) & 0x5; //Bit[2]- FIFO Empty, Bit[0]- Busy
     while (empty_flag != 0x4) {
         timeout++;
         if (timeout > TX_TIMEOUT) {

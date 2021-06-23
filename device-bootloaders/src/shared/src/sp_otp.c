@@ -19,9 +19,9 @@
 #include "io.h"
 #include "sp_otp.h"
 
-#include "etsoc_hal/inc/rm_esr.h"
-#include "etsoc_hal/inc/cm_esr.h"
-#include "etsoc_hal/inc/hal_device.h"
+#include "hwinc/sp_cru_reset.h"
+#include "hwinc/sp_cru.h"
+#include "hwinc/hal_device.h"
 
 #define OTP_ENTRY_SIZE_BYTES 4u
 #define OTP_BANK_SIZE_BYTES  16u
