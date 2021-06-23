@@ -15,9 +15,9 @@
 
 #include "bl1_main.h"
 #include "bl1_crypto.h"
-#include "vaultip_hw.h"
-#include "vaultip_sw.h"
-#include "vaultip_sw_asset.h"
+#include "etsoc_hal/inc/vaultip_hw.h"
+#include "etsoc_hal/inc/vaultip_sw.h"
+#include "etsoc_hal/inc/vaultip_sw_asset.h"
 #include "bl1_vaultip_controller.h"
 #include "bl1_flash_fs.h"
 #include "printx.h"

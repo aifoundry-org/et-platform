@@ -26,8 +26,8 @@
 #include "log.h"
 #include "io.h"
 #include <bl2_watchdog.h>
-#include "hal_device.h"
-#include <spio_wdt.h>
+#include "hwinc/hal_device.h"
+#include "etsoc_hal/inc/spio_wdt.h"
 #include <interrupt.h>
 #include <bl2_pmic_controller.h>
 #include "dm_event_control.h"
@@ -60,15 +60,15 @@ static struct watchdog_control_block wdog_control_block __attribute__((section("
 int32_t watchdog_init(uint32_t timeout_msec)
 {
     /*
-      Init Watchdog counter with the given timeout 
+      Init Watchdog counter with the given timeout
       Enable interrupt handler for the SPIO_WDT_INTR
       Enable PMIC interface to handle second interrupt
       and reset the system, spio_wdt_sys_rstn*.
-      Start the watch dog 
+      Start the watch dog
     */
 
     wdog_control_block.timeout_msec = timeout_msec;
-    
+
     //TODO: calculate precise register value for milisec provided
     iowrite32(R_SP_WDT_BASEADDR + SPIO_DW_APB_WDT_WDT_TORR_ADDRESS, timeout_msec);
 
@@ -118,7 +118,7 @@ int32_t watchdog_error_init(dm_event_isr_callback event_cb)
 *
 *   INPUTS
 *
-*       none    
+*       none
 *
 *   OUTPUTS
 *
@@ -148,7 +148,7 @@ int32_t watchdog_start(void)
 *
 *   INPUTS
 *
-*       none    
+*       none
 *
 *   OUTPUTS
 *
@@ -174,7 +174,7 @@ int32_t watchdog_stop(void)
 *
 *   INPUTS
 *
-*       none    
+*       none
 *
 *   OUTPUTS
 *
@@ -199,7 +199,7 @@ void watchdog_kick(void)
 *
 *   INPUTS
 *
-*       pointer to timeout variable to be populated    
+*       pointer to timeout variable to be populated
 *
 *   OUTPUTS
 *
@@ -224,7 +224,7 @@ int32_t get_watchdog_timeout(uint32_t *timeout_msec)
 *
 *   INPUTS
 *
-*       pointer to timeout variable to be populated    
+*       pointer to timeout variable to be populated
 *
 *   OUTPUTS
 *
@@ -249,7 +249,7 @@ int32_t get_watchdog_max_timeout(uint32_t *timeout_msec)
 *
 *   INPUTS
 *
-*       none   
+*       none
 *
 *   OUTPUTS
 *

@@ -18,18 +18,18 @@
 
 #include "dm_event_def.h"
 
-#include "pmic_i2c.h"
+#include "etsoc_hal/inc/pmic_i2c.h"
 
-typedef enum { 
+typedef enum {
      DDR = 0,
-     L2CACHE, 
-     MAXION, 
-     MINION, 
-     PCIE, 
-     NOC, 
-     PCIE_LOGIC, 
-     VDDQLP, 
-     VDDQ 
+     L2CACHE,
+     MAXION,
+     MINION,
+     PCIE,
+     NOC,
+     PCIE_LOGIC,
+     VDDQLP,
+     VDDQ
 }voltage_type_e ;
 
 /*!

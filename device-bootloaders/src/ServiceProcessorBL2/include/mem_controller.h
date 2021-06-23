@@ -21,8 +21,8 @@
 
 #include <stdint.h>
 
-#include "ms_reg_def.h"
-#include "ddrc_reg_def.h"
+#include "etsoc_hal/inc/ms_reg_def.h"
+#include "etsoc_hal/inc/ddrc_reg_def.h"
 #include "dm_event_def.h"
 #include "bl2_pmic_controller.h"
 #include "bl2_reset.h"

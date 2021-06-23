@@ -16,15 +16,15 @@
         gpio_config_interrupt
         gpio_enable_interrupt
         gpio_disable_interrupt
-        
+
 */
 /***********************************************************************/
 
 #include <stdio.h>
 
 #include "io.h"
-#include "spio_gpio.h"
-#include "hal_device.h"
+#include "etsoc_hal/inc/spio_gpio.h"
+#include "hwinc/hal_device.h"
 #include "bl2_gpio_controller.h"
 #include "error.h"
 #include "bl2_main.h"
@@ -140,7 +140,7 @@ int gpio_config_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number, GPIO_INT_
         reg_value = reg_value | (uint32_t)(1 << pin_number);
     }
     iowrite32(gpio_regs + SPIO_GPIO_GPIO_DEBOUNCE_ADDRESS, reg_value);
-    
+
     return 0;
 }
 

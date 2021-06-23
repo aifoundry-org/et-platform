@@ -10,7 +10,7 @@
 */
 
 #include "esr_defines.h"
-#include "hal_device.h"
+#include "hwinc/hal_device.h"
 #include "interrupt.h"
 #include "pcie_int.h"
 #include "bl2_asset_trk.h"

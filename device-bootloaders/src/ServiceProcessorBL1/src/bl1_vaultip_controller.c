@@ -17,9 +17,9 @@
 #include "printx.h"
 #include "crc32.h"
 
-#include "vaultip_hw.h"
-#include "vaultip_sw.h"
-#include "vaultip_sw_asset.h"
+#include "etsoc_hal/inc/vaultip_hw.h"
+#include "etsoc_hal/inc/vaultip_sw.h"
+#include "etsoc_hal/inc/vaultip_sw_asset.h"
 #include "vaultip_static_assets.h"
 #include "system_registers.h"
 #include "bl1_flash_fs.h"
@@ -30,7 +30,7 @@
 
 #include "bl1_vaultip_controller.h"
 
-#include "hal_device.h"
+#include "hwinc/hal_device.h"
 
 #include "bl1_main.h"
 

@@ -14,7 +14,7 @@
 
 #include "bl2_crypto.h"
 #include "vaultip_static_assets.h"
-#include "vaultip_sw.h"
+#include "etsoc_hal/inc/vaultip_sw.h"
 #include "error.h"
 
 /*! \fn uint8_t* Vault_Initialize(void)
@@ -26,7 +26,7 @@ int Vault_Initialize(void);
 
 /*! \fn uint8_t* Vault_Command_Issue (uint32_t command, uint32_t payload)
     \brief Interface to issue command to ValutIP
-    \param req request with required parameters 
+    \param req request with required parameters
     \returns Status indicating success or negative error
 */
 int Vault_Command_Issue(void *req);

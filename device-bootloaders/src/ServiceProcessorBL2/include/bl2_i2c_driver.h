@@ -16,7 +16,7 @@
 */
 /***********************************************************************/
 #pragma once
-#include "DW_apb_i2c.h"
+#include "etsoc_hal/inc/DW_apb_i2c.h"
 #include <stdbool.h>
 
 /*!
@@ -44,7 +44,7 @@ typedef enum ET_I2C_CONTROLLER {
  */
 typedef enum ET_I2C_SPEED {
     ET_I2C_SPEED_100k = 0,
-    ET_I2C_SPEED_400k 
+    ET_I2C_SPEED_400k
 } ET_I2C_SPEED_t;
 
 /*!
@@ -71,7 +71,7 @@ int i2c_init(ET_I2C_DEV_t* dev, ET_I2C_SPEED_t speed, uint8_t addr_slave);
 /*! \fn int i2c_write(ET_I2C_DEV_t* dev, uint8_t regAddr, uint8_t* txDataBuff, uint8_t txDataCount)
     \brief Interface to write data onto I2C slave
     \param dev pointer to I2C device control block
-    \param regAddr register address 
+    \param regAddr register address
     \param txDataBuff buffer containing data to be written
     \param txDataCount data size
     \return Status indicating success or negative error
@@ -81,8 +81,8 @@ int i2c_write(ET_I2C_DEV_t* dev, uint8_t regAddr, uint8_t* txDataBuff, uint8_t t
 /*! \fn int i2c_read(ET_I2C_DEV_t* dev, uint8_t regAddr, uint8_t* rxDataBuff, uint8_t rxDataCount)
     \brief Interface to read data from I2C slave
     \param dev pointer to I2C device control block
-    \param regAddr register address 
-    \param txDataBuff buffer for rx data 
+    \param regAddr register address
+    \param txDataBuff buffer for rx data
     \param txDataCount data size
     \return Status indicating success or negative error
 */

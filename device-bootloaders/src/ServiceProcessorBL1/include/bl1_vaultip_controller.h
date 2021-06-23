@@ -15,7 +15,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "vaultip_sw.h"
+#include "etsoc_hal/inc/vaultip_sw.h"
 #include "vaultip_static_assets.h"
 
 int vaultip_self_test(void);

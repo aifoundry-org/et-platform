@@ -34,9 +34,9 @@
 #include "semphr.h"
 #include "bl2_main.h"
 #include "bl2_crypto.h"
-#include "vaultip_hw.h"
-#include "vaultip_sw.h"
-#include "vaultip_sw_asset.h"
+#include "etsoc_hal/inc/vaultip_hw.h"
+#include "etsoc_hal/inc/vaultip_sw.h"
+#include "etsoc_hal/inc/vaultip_sw_asset.h"
 #include "bl2_vaultip_controller.h"
 #include "bl2_vaultip_driver.h"
 
@@ -81,10 +81,10 @@
 
 #include "ec_domain_parameters.h"
 
-typedef union ASSET_POLICY_u 
+typedef union ASSET_POLICY_u
 {
     uint64_t u64;
-    struct 
+    struct
     {
         uint32_t lo;
         uint32_t hi;
@@ -110,7 +110,7 @@ static bool coid_provisioned = false;
 
 uint32_t get_rom_identity(void)
 {
-    if (coid_provisioned) 
+    if (coid_provisioned)
     {
         return ESPERANTO_COID;
     }
@@ -166,7 +166,7 @@ int crypto_derive_kdk_key(const void *kdk_derivation_data, size_t kdk_derivation
 
     /* create KDK */
     if (0 != vaultip_drv_asset_create(get_rom_identity(), kdk_policy.lo, kdk_policy.hi,
-                                      kdk_other_settings, kdk_lifetime, kdk_asset_id)) 
+                                      kdk_other_settings, kdk_lifetime, kdk_asset_id))
     {
         MESSAGE_ERROR_DEBUG("derive_kdk: vaultip_drv_asset_create() failed!\n");
         return -1;
@@ -175,7 +175,7 @@ int crypto_derive_kdk_key(const void *kdk_derivation_data, size_t kdk_derivation
     /* derive KDK */
     if (0 != vaultip_drv_asset_load_derive(get_rom_identity(), *kdk_asset_id, huk_asset_id, NULL,
                                            0, (const uint8_t *)kdk_derivation_data,
-                                           (uint32_t)kdk_derivation_data_size, NULL, 0)) 
+                                           (uint32_t)kdk_derivation_data_size, NULL, 0))
     {
         MESSAGE_ERROR_DEBUG("derive_kdk: vaultip_drv_asset_load_derive() failed!\n");
         return -1;
@@ -277,7 +277,7 @@ int crypto_derive_enc_key(uint32_t kdk_asset_id, const void *enck_derivation_dat
 
 int crypto_delete_key(uint32_t key)
 {
-    if (0 != vaultip_drv_asset_delete(get_rom_identity(), key)) 
+    if (0 != vaultip_drv_asset_delete(get_rom_identity(), key))
     {
         MESSAGE_ERROR_DEBUG("crypto_delete_key: vaultip_drv_asset_delete() failed!\n");
         return -1;
@@ -299,12 +299,12 @@ int crypto_verify_public_key_params(const PUBLIC_KEY_t *public_key)
                 return -1;
             }
 
-            switch (public_key->rsa.keySize) 
+            switch (public_key->rsa.keySize)
             {
                 case 2048:
                 case 3072:
                 case 4096:
-                    if (public_key->rsa.pubModSize > (public_key->rsa.keySize / 8)) 
+                    if (public_key->rsa.pubModSize > (public_key->rsa.keySize / 8))
                     {
                         MESSAGE_ERROR_DEBUG("verify_public_key_params: invalid RSA public \
                             modulus size!\n");
@@ -319,7 +319,7 @@ int crypto_verify_public_key_params(const PUBLIC_KEY_t *public_key)
             break;
 
         case PUBLIC_KEY_TYPE_EC:
-            switch (public_key->ec.curveID) 
+            switch (public_key->ec.curveID)
             {
 #ifdef SUPPORT_EC_P256
             case EC_KEY_CURVE_NIST_P256:
@@ -390,12 +390,12 @@ int crypto_verify_signature_params(const PUBLIC_SIGNATURE_t *signature)
     switch (signature->keyType)
     {
         case PUBLIC_KEY_TYPE_RSA:
-            switch (signature->rsa.keySize) 
+            switch (signature->rsa.keySize)
             {
                 case 2048:
                 case 3072:
                 case 4096:
-                    if (signature->rsa.sigSize > (signature->rsa.keySize / 8)) 
+                    if (signature->rsa.sigSize > (signature->rsa.keySize / 8))
                     {
                         MESSAGE_ERROR_DEBUG("verify_signature_params: invalid RSA \
                             signature size!\n");
@@ -440,13 +440,13 @@ int crypto_verify_signature_params(const PUBLIC_SIGNATURE_t *signature)
                     return -1;
             }
 
-            if (signature->ec.rSize > maxRsize) 
+            if (signature->ec.rSize > maxRsize)
             {
                 MESSAGE_ERROR_DEBUG(
                     "verify_signature_params: invalid EC signature R component size!\n");
                 return -1;
             }
-            if (signature->ec.sSize > maxSsize) 
+            if (signature->ec.sSize > maxSsize)
             {
                 MESSAGE_ERROR_DEBUG(
                     "verify_signature_params: invalid EC signature S component size!\n");
@@ -477,14 +477,14 @@ int crypto_hash_init(CRYPTO_HASH_CONTEXT_t *hash_context, HASH_ALG_t hash_alg)
             .LifetimeUse = VAL_ASSET_LIFETIME_INFINITE,
         };
 
-    if (NULL == hash_context) 
+    if (NULL == hash_context)
     {
         MESSAGE_ERROR_DEBUG("crypto_hash_init: invalid arguments!\n");
         return -1;
     }
 
     hash_context->hash_alg = HASH_ALG_INVALID;
-    switch (hash_alg) 
+    switch (hash_alg)
     {
         case HASH_ALG_SHA2_256:
             temp_digest_asset_policy.u64 = VAL_POLICY_SHA256 | VAL_POLICY_TEMP_MAC;
@@ -504,10 +504,10 @@ int crypto_hash_init(CRYPTO_HASH_CONTEXT_t *hash_context, HASH_ALG_t hash_alg)
     }
 
     if (0 != vaultip_drv_asset_create(get_rom_identity(), temp_digest_asset_policy.lo,
-                                      temp_digest_asset_policy.hi, 
+                                      temp_digest_asset_policy.hi,
                                       temp_digest_asset_other_settings,
                                       0, /* lifetime, */
-                                      &(hash_context->temp_digest_asset_id))) 
+                                      &(hash_context->temp_digest_asset_id)))
     {
         MESSAGE_ERROR_DEBUG("crypto_hash_init: vaultip_drv_asset_create() failed!\n");
         return -1;
@@ -612,7 +612,7 @@ static void crypto_reverse_copy(void *dst, const void *src, size_t size)
     const uint8_t *ps = (const uint8_t *)src;
     const uint8_t *p = ps + size;
 
-    while (p != ps) 
+    while (p != ps)
     {
         p--;
         *pd = *p;
@@ -623,7 +623,7 @@ static void crypto_reverse_copy(void *dst, const void *src, size_t size)
 int crypto_mac_verify(ESPERANTO_MAC_TYPE_t mac_alg, const uint32_t mack_key, const void *data,
                       size_t data_size, const void *mac)
 {
-    if (NULL == data || 0 == data_size) 
+    if (NULL == data || 0 == data_size)
     {
         return -1;
     }
@@ -942,7 +942,7 @@ static int crypto_create_ec_256_parameters_asset(VAULTIP_EC_256_DOMAIN_PARAMETER
 
     /* copy curve constant a */
     if (0 != crypto_write_subvector_256(&(ec_256->curve_constant_a), 7, 1, domain_parameters->A_p,
-                                        domain_parameters->ALen)) 
+                                        domain_parameters->ALen))
     {
         MESSAGE_ERROR_DEBUG(
             "crypto_create_ec_256_parameters_asset: crypto_write_subvector_256(const_A) \
@@ -952,7 +952,7 @@ static int crypto_create_ec_256_parameters_asset(VAULTIP_EC_256_DOMAIN_PARAMETER
 
     /* copy curve constant b */
     if (0 != crypto_write_subvector_256(&(ec_256->curve_constant_b), 7, 2, domain_parameters->B_p,
-                                        domain_parameters->BLen)) 
+                                        domain_parameters->BLen))
     {
         MESSAGE_ERROR_DEBUG(
             "crypto_create_ec_256_parameters_asset: crypto_write_subvector_256(const_B) \
@@ -993,12 +993,12 @@ static int crypto_create_ec_256_parameters_asset(VAULTIP_EC_256_DOMAIN_PARAMETER
     }
 
     /* copy curve cofactor */
-    if (0 != domain_parameters->Cofactor && 1 != domain_parameters->Cofactor) 
+    if (0 != domain_parameters->Cofactor && 1 != domain_parameters->Cofactor)
     {
         uint8_t n = domain_parameters->Cofactor;
 
         bits = 0;
-        while (n != 0) 
+        while (n != 0)
         {
             bits++;
             n >>= 1;
@@ -1006,7 +1006,7 @@ static int crypto_create_ec_256_parameters_asset(VAULTIP_EC_256_DOMAIN_PARAMETER
         CoFactor[3] = domain_parameters->Cofactor;
     }
     if (0 != crypto_write_subvector_32(&(ec_256->curve_cofactor), 7, 6, CoFactor, sizeof(CoFactor),
-                                       bits)) 
+                                       bits))
     {
         MESSAGE_ERROR_DEBUG(
             "crypto_create_ec_256_parameters_asset: crypto_write_subvector_32(cofactor) \
@@ -1025,7 +1025,7 @@ static int crypto_create_ec_384_parameters_asset(VAULTIP_EC_384_DOMAIN_PARAMETER
     uint8_t bits = 1;
     uint8_t CoFactor[4] = { 0, 0, 0, 1 };
 
-    if (NULL == ec_384 || NULL == domain_parameters) 
+    if (NULL == ec_384 || NULL == domain_parameters)
     {
         MESSAGE_ERROR_DEBUG("crypto_create_ec_384_parameters_asset: invalid arguments!\n");
         return -1;
@@ -1263,18 +1263,18 @@ static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id,
             .LifetimeUse = VAL_ASSET_LIFETIME_INFINITE,
         };
 
-    if (pdPASS != xSemaphoreTake(gs_mutex_crypto_create_ec_parameters_asset, portMAX_DELAY)) 
+    if (pdPASS != xSemaphoreTake(gs_mutex_crypto_create_ec_parameters_asset, portMAX_DELAY))
     {
         MESSAGE_ERROR_DEBUG("crypto_create_ec_parameters_asset: xSemaphoreTake() failed!\n");
         return -1;
     }
 
-    switch (curve_id) 
+    switch (curve_id)
     {
 #if defined(SUPPORT_EC_P256)
         case EC_KEY_CURVE_NIST_P256:
             if (0 != crypto_create_ec_256_parameters_asset(&(domain_parameters_data.ec_256),
-                                                        &ECurve_NIST_P256)) 
+                                                        &ECurve_NIST_P256))
             {
                 MESSAGE_ERROR_DEBUG(
                     "crypto_create_ec_parameters_asset: crypto_create_ec_256_parameters_asset() \
@@ -1289,7 +1289,7 @@ static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id,
 #if defined(SUPPORT_EC_P384)
         case EC_KEY_CURVE_NIST_P384:
             if (0 != crypto_create_ec_384_parameters_asset(&(domain_parameters_data.ec_384),
-                                                        &ECurve_NIST_P384)) 
+                                                        &ECurve_NIST_P384))
             {
                 MESSAGE_ERROR_DEBUG(
                     "crypto_create_ec_parameters_asset: crypto_create_ec_384_parameters_asset() \
@@ -1304,7 +1304,7 @@ static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id,
 #if defined(SUPPORT_EC_P521)
         case EC_KEY_CURVE_NIST_P521:
             if (0 != crypto_create_ec_521_parameters_asset(&(domain_parameters_data.ec_521),
-                                                        &ECurve_NIST_P521)) 
+                                                        &ECurve_NIST_P521))
             {
                 MESSAGE_ERROR_DEBUG(
                     "crypto_create_ec_parameters_asset: crypto_create_ec_521_parameters_asset() \
@@ -1319,7 +1319,7 @@ static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id,
 #if defined(SUPPORT_EC_CURVE25519)
         case EC_KEY_CURVE_CURVE25519:
             if (0 != crypto_create_ec_256_parameters_asset(&(domain_parameters_data.ec_256),
-                                                        &ECurve_25519)) 
+                                                        &ECurve_25519))
             {
                 MESSAGE_ERROR_DEBUG(
                     "crypto_create_ec_parameters_asset: crypto_create_ec_256_parameters_asset() \
@@ -1334,7 +1334,7 @@ static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id,
 #if defined(SUPPORT_EC_EDWARDS25519)
         case EC_KEY_CURVE_EDWARDS25519:
             if (0 != crypto_create_ec_256_parameters_asset(&(domain_parameters_data.ec_256),
-                                                        &ECurve_Ed25519)) 
+                                                        &ECurve_Ed25519))
             {
                 MESSAGE_ERROR_DEBUG(
                     "crypto_create_ec_parameters_asset: crypto_create_ec_256_parameters_asset() \
@@ -1352,12 +1352,12 @@ static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id,
             goto DONE;
     }
 
-    /* MESSAGE_INFO_DEBUG("crypto_create_ec_parameters_asset: asset size = 0x%x\n", 
+    /* MESSAGE_INFO_DEBUG("crypto_create_ec_parameters_asset: asset size = 0x%x\n",
         domain_parameters_size); */
     public_key_parameters_asset_other_settings.DataLength = domain_parameters_size & 0x3FFu;
     if (0 != vaultip_drv_asset_create(get_rom_identity(), public_key_parameters_asset_policy.lo,
                                       public_key_parameters_asset_policy.hi,
-                                      public_key_parameters_asset_other_settings, 0, &asset_id)) 
+                                      public_key_parameters_asset_other_settings, 0, &asset_id))
     {
         MESSAGE_ERROR_DEBUG(
             "crypto_create_ec_parameters_asset: vaultip_drv_asset_create() failed!\n");
@@ -1414,7 +1414,7 @@ static int crypto_create_ec_p256_public_key_asset(VAULTIP_PUBLIC_KEY_ECDSA_P256_
 
     /* copy point Y coordinate */
     if (0 !=
-        crypto_write_subvector_256(&(ec_256->point_y), 2, 1, public_key->pY, public_key->pYsize)) 
+        crypto_write_subvector_256(&(ec_256->point_y), 2, 1, public_key->pY, public_key->pYsize))
     {
         MESSAGE_ERROR_DEBUG(
             "crypto_create_ec_p256_public_key_asset: crypto_write_subvector_256(pY) failed!\n");
@@ -1429,7 +1429,7 @@ static int crypto_create_ec_p256_public_key_asset(VAULTIP_PUBLIC_KEY_ECDSA_P256_
 static int crypto_create_ec_p384_public_key_asset(VAULTIP_PUBLIC_KEY_ECDSA_P384_t *ec_384,
                                                   const PUBLIC_KEY_EC_t *public_key)
 {
-    if (NULL == ec_384 || NULL == public_key || EC_KEY_CURVE_NIST_P384 != public_key->curveID) 
+    if (NULL == ec_384 || NULL == public_key || EC_KEY_CURVE_NIST_P384 != public_key->curveID)
     {
         MESSAGE_ERROR_DEBUG("crypto_create_ec_p384_public_key_asset: invalid arguments!\n");
         return -1;
@@ -1446,7 +1446,7 @@ static int crypto_create_ec_p384_public_key_asset(VAULTIP_PUBLIC_KEY_ECDSA_P384_
 
     /* copy point Y coordinate */
     if (0 !=
-        crypto_write_subvector_384(&(ec_384->point_y), 2, 1, public_key->pY, public_key->pYsize)) 
+        crypto_write_subvector_384(&(ec_384->point_y), 2, 1, public_key->pY, public_key->pYsize))
     {
         MESSAGE_ERROR_DEBUG(
             "crypto_create_ec_p384_public_key_asset: crypto_write_subvector_384(pY) failed!\n");
@@ -1461,7 +1461,7 @@ static int crypto_create_ec_p384_public_key_asset(VAULTIP_PUBLIC_KEY_ECDSA_P384_
 static int crypto_create_ec_p521_public_key_asset(VAULTIP_PUBLIC_KEY_ECDSA_P521_t *ec_521,
                                                   const PUBLIC_KEY_EC_t *public_key)
 {
-    if (NULL == ec_521 || NULL == public_key || EC_KEY_CURVE_NIST_P521 != public_key->curveID) 
+    if (NULL == ec_521 || NULL == public_key || EC_KEY_CURVE_NIST_P521 != public_key->curveID)
     {
         MESSAGE_ERROR_DEBUG("crypto_create_ec_p521_public_key_asset: invalid arguments!\n");
         return -1;
@@ -1469,7 +1469,7 @@ static int crypto_create_ec_p521_public_key_asset(VAULTIP_PUBLIC_KEY_ECDSA_P521_
 
     /* copy point X coordinate */
     if (0 !=
-        crypto_write_subvector_521(&(ec_521->point_x), 2, 0, public_key->pX, public_key->pXsize)) 
+        crypto_write_subvector_521(&(ec_521->point_x), 2, 0, public_key->pX, public_key->pXsize))
     {
         MESSAGE_ERROR_DEBUG(
             "crypto_create_ec_p521_public_key_asset: crypto_write_subvector_521(pX) failed!\n");
@@ -1478,7 +1478,7 @@ static int crypto_create_ec_p521_public_key_asset(VAULTIP_PUBLIC_KEY_ECDSA_P521_
 
     /* copy point Y coordinate */
     if (0 !=
-        crypto_write_subvector_521(&(ec_521->point_y), 2, 1, public_key->pY, public_key->pYsize)) 
+        crypto_write_subvector_521(&(ec_521->point_y), 2, 1, public_key->pY, public_key->pYsize))
     {
         MESSAGE_ERROR_DEBUG(
             "crypto_create_ec_p521_public_key_asset: crypto_write_subvector_521(pY) failed!\n");
@@ -1493,7 +1493,7 @@ static int crypto_create_ec_p521_public_key_asset(VAULTIP_PUBLIC_KEY_ECDSA_P521_
 static int crypto_create_ec_curve25519_public_key_asset(VAULTIP_PUBLIC_KEY_ECDSA_25519_t *ec_25519,
                                                         const PUBLIC_KEY_EC_t *public_key)
 {
-    if (NULL == ec_25519 || NULL == public_key || EC_KEY_CURVE_CURVE25519 != public_key->curveID) 
+    if (NULL == ec_25519 || NULL == public_key || EC_KEY_CURVE_CURVE25519 != public_key->curveID)
     {
         MESSAGE_ERROR_DEBUG("crypto_create_ec_curve25519_public_key_asset: invalid arguments!\n");
         return -1;
@@ -1501,7 +1501,7 @@ static int crypto_create_ec_curve25519_public_key_asset(VAULTIP_PUBLIC_KEY_ECDSA
 
     /* copy point X coordinate */
     if (0 != crypto_write_subvector_256(&(ec_25519->point_x), 1, 0, public_key->pX,
-                                        public_key->pXsize)) 
+                                        public_key->pXsize))
     {
         MESSAGE_ERROR_DEBUG(
             "crypto_create_ec_curve25519_public_key_asset: crypto_write_subvector_256(pX) \
@@ -1519,7 +1519,7 @@ crypto_create_ec_edwards25519_public_key_asset(VAULTIP_PUBLIC_KEY_ECDSA_25519_t 
                                                const PUBLIC_KEY_EC_t *public_key)
 {
     if (NULL == ec_25519 || NULL == public_key ||
-        EC_KEY_CURVE_EDWARDS25519 != public_key->curveID) 
+        EC_KEY_CURVE_EDWARDS25519 != public_key->curveID)
     {
         MESSAGE_ERROR_DEBUG("crypto_create_ec_edwards25519_public_key_asset: invalid \
             arguments!\n");
@@ -1528,7 +1528,7 @@ crypto_create_ec_edwards25519_public_key_asset(VAULTIP_PUBLIC_KEY_ECDSA_25519_t 
 
     /* copy point X coordinate */
     if (0 != crypto_write_subvector_256(&(ec_25519->point_x), 1, 0, public_key->pX,
-                                        public_key->pXsize)) 
+                                        public_key->pXsize))
     {
         MESSAGE_ERROR_DEBUG(
             "crypto_create_ec_edwards25519_public_key_asset: crypto_write_subvector_256(pX) \
@@ -1545,7 +1545,7 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg,
                                              uint32_t *ec_public_key_asset_id)
 {
     int rv;
-    static union 
+    static union
     {
 #if defined(SUPPORT_EC_P256)
         VAULTIP_PUBLIC_KEY_ECDSA_P256_t p256;
@@ -1577,13 +1577,13 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg,
             .LifetimeUse = VAL_ASSET_LIFETIME_INFINITE,
         };
 
-    if (NULL == ec_public_key || NULL == ec_public_key_asset_id) 
+    if (NULL == ec_public_key || NULL == ec_public_key_asset_id)
     {
         MESSAGE_ERROR_DEBUG("crypto_create_ec_public_key_asset: invalid arguments!\n");
         return -1;
     }
 
-    switch (hash_alg) 
+    switch (hash_alg)
     {
         case HASH_ALG_SHA2_256:
             public_key_asset_policy.u64 |= VAL_POLICY_SHA256;
@@ -1599,17 +1599,17 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg,
             return -1;
     }
 
-    if (pdPASS != xSemaphoreTake(gs_mutex_crypto_create_ec_public_key_asset, portMAX_DELAY)) 
+    if (pdPASS != xSemaphoreTake(gs_mutex_crypto_create_ec_public_key_asset, portMAX_DELAY))
     {
         MESSAGE_ERROR_DEBUG("crypto_create_ec_public_key_asset: xSemaphoreTake() failed!\n");
         return -1;
     }
 
-    switch (ec_public_key->curveID) 
+    switch (ec_public_key->curveID)
     {
 #if defined(SUPPORT_EC_P256)
         case EC_KEY_CURVE_NIST_P256:
-            if (HASH_ALG_SHA2_256 != hash_alg) 
+            if (HASH_ALG_SHA2_256 != hash_alg)
             {
                 MESSAGE_ERROR_DEBUG(
                     "crypto_create_ec_public_key_asset: curve p256 can only be used with \
@@ -1617,7 +1617,7 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg,
                 rv = -1;
                 goto DONE;
             }
-            if (0 != crypto_create_ec_p256_public_key_asset(&(public_key_data.p256), ec_public_key)) 
+            if (0 != crypto_create_ec_p256_public_key_asset(&(public_key_data.p256), ec_public_key))
             {
                 MESSAGE_ERROR_DEBUG(
                     "crypto_create_ec_public_key_asset: crypto_create_ec_p256_public_key_asset() \
@@ -1631,7 +1631,7 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg,
 #endif
 #if defined(SUPPORT_EC_P384)
         case EC_KEY_CURVE_NIST_P384:
-            if (HASH_ALG_SHA2_256 != hash_alg && HASH_ALG_SHA2_384 != hash_alg) 
+            if (HASH_ALG_SHA2_256 != hash_alg && HASH_ALG_SHA2_384 != hash_alg)
             {
                 MESSAGE_ERROR_DEBUG(
                     "crypto_create_ec_public_key_asset: curve p384 can only be used with SHA256 \
@@ -1639,7 +1639,7 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg,
                 rv = -1;
                 goto DONE;
             }
-            if (0 != crypto_create_ec_p384_public_key_asset(&(public_key_data.p384), ec_public_key)) 
+            if (0 != crypto_create_ec_p384_public_key_asset(&(public_key_data.p384), ec_public_key))
             {
                 MESSAGE_ERROR_DEBUG(
                     "crypto_create_ec_public_key_asset: crypto_create_ec_p384_public_key_asset() \
@@ -1653,7 +1653,7 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg,
 #endif
 #if defined(SUPPORT_EC_P521)
         case EC_KEY_CURVE_NIST_P521:
-            if (0 != crypto_create_ec_p521_public_key_asset(&(public_key_data.p521), ec_public_key)) 
+            if (0 != crypto_create_ec_p521_public_key_asset(&(public_key_data.p521), ec_public_key))
             {
                 MESSAGE_ERROR_DEBUG(
                     "crypto_create_ec_public_key_asset: crypto_create_ec_p521_public_key_asset() \
@@ -1668,7 +1668,7 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg,
 #if defined(SUPPORT_EC_CURVE25519)
         case EC_KEY_CURVE_CURVE25519:
             /* todo: verify if this is true */
-            if (HASH_ALG_SHA2_256 != hash_alg) 
+            if (HASH_ALG_SHA2_256 != hash_alg)
             {
                 MESSAGE_ERROR_DEBUG(
                     "crypto_create_ec_public_key_asset: curve 25519 can only be used with SHA256 \
@@ -1677,7 +1677,7 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg,
                 goto DONE;
             }
             if (0 != crypto_create_ec_curve25519_public_key_asset(&(public_key_data.curve25519),
-                                                                ec_public_key)) 
+                                                                ec_public_key))
             {
                 MESSAGE_ERROR_DEBUG(
                     "crypto_create_ec_public_key_asset: \
@@ -1691,7 +1691,7 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg,
 #endif
 #if defined(SUPPORT_EC_EDWARDS25519)
         case EC_KEY_CURVE_EDWARDS25519:
-            if (HASH_ALG_SHA2_512 != hash_alg) 
+            if (HASH_ALG_SHA2_512 != hash_alg)
             {
                 MESSAGE_ERROR_DEBUG(
                     "crypto_create_ec_public_key_asset: curve ed25519 can only be used with \
@@ -1699,7 +1699,7 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg,
                 return -1;
             }
             if (0 != crypto_create_ec_edwards25519_public_key_asset(&(public_key_data.edwards25519),
-                                                                    ec_public_key)) 
+                                                                    ec_public_key))
             {
                 MESSAGE_ERROR_DEBUG(
                     "crypto_create_ec_public_key_asset: \
@@ -1722,7 +1722,7 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg,
     public_key_asset_other_settings.DataLength = public_key_data_size & 0x3FFu;
     if (0 != vaultip_drv_asset_create(get_rom_identity(), public_key_asset_policy.lo,
                                       public_key_asset_policy.hi, public_key_asset_other_settings,
-                                      0, &asset_id)) 
+                                      0, &asset_id))
     {
         MESSAGE_ERROR_DEBUG(
             "crypto_create_ec_public_key_asset: vaultip_drv_asset_create() failed!\n");
@@ -1731,11 +1731,11 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg,
     }
     /* MESSAGE_INFO_DEBUG("crypto_create_ec_public_key_asset: asset created.\n"); */
     if (0 != vaultip_drv_asset_load_plaintext(get_rom_identity(), asset_id, public_key_data_ptr,
-                                              public_key_data_size)) 
+                                              public_key_data_size))
     {
         MESSAGE_ERROR_DEBUG(
             "crypto_create_ec_public_key_asset: vaultip_drv_asset_load_plaintext() failed!\n");
-        if (0 != vaultip_drv_asset_delete(get_rom_identity(), asset_id)) 
+        if (0 != vaultip_drv_asset_delete(get_rom_identity(), asset_id))
         {
             MESSAGE_ERROR_DEBUG(
                 "crypto_create_ec_public_key_asset: vaultip_drv_asset_delete() failed!\n");
@@ -1751,7 +1751,7 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg,
     rv = 0;
 
 DONE:
-    if (pdPASS != xSemaphoreGive(gs_mutex_crypto_create_ec_public_key_asset)) 
+    if (pdPASS != xSemaphoreGive(gs_mutex_crypto_create_ec_public_key_asset))
     {
         MESSAGE_ERROR_DEBUG("crypto_create_ec_public_key_asset: xSemaphoreGive() failed!\n");
         rv = -1;
@@ -1769,7 +1769,7 @@ static int crypto_ecdsa_verify(const PUBLIC_KEY_EC_t *ecdsa_public_key,
     const void *signature_data_ptr;
     uint32_t signature_data_size;
 
-    static union 
+    static union
     {
 #if defined(SUPPORT_EC_P256)
         VAULTIP_SIGNATURE_EC_P256_t p256;
@@ -1785,31 +1785,31 @@ static int crypto_ecdsa_verify(const PUBLIC_KEY_EC_t *ecdsa_public_key,
 #endif
     } signature_data;
 
-    if (NULL == signature) 
+    if (NULL == signature)
     {
         MESSAGE_ERROR_DEBUG("crypto_ecdsa_verify: invalid arguments!\n");
         return -1;
     }
 
-    if (pdPASS != xSemaphoreTake(gs_mutex_crypto_ecdsa_verify, portMAX_DELAY)) 
+    if (pdPASS != xSemaphoreTake(gs_mutex_crypto_ecdsa_verify, portMAX_DELAY))
     {
         MESSAGE_ERROR_DEBUG("crypto_ecdsa_verify: xSemaphoreTake() failed!\n");
         return -1;
     }
 
-    switch (signature->ec.curveID) 
+    switch (signature->ec.curveID)
     {
 #if defined(SUPPORT_EC_P256)
         case EC_KEY_CURVE_NIST_P256:
             if (0 != crypto_write_subvector_256(&(signature_data.p256.r), 2, 0, signature->ec.r,
-                                                signature->ec.rSize)) 
+                                                signature->ec.rSize))
             {
                 MESSAGE_ERROR_DEBUG("crypto_ecdsa_verify: crypto_write_subvector_256(r) failed!\n");
                 rv = -1;
                 goto DONE;
             }
             if (0 != crypto_write_subvector_256(&(signature_data.p256.s), 2, 1, signature->ec.s,
-                                                signature->ec.sSize)) 
+                                                signature->ec.sSize))
             {
                 MESSAGE_ERROR_DEBUG("crypto_ecdsa_verify: crypto_write_subvector_256(r) failed!\n");
                 rv = -1;
@@ -1822,14 +1822,14 @@ static int crypto_ecdsa_verify(const PUBLIC_KEY_EC_t *ecdsa_public_key,
 #if defined(SUPPORT_EC_P384)
         case EC_KEY_CURVE_NIST_P384:
             if (0 != crypto_write_subvector_384(&(signature_data.p384.r), 2, 0, signature->ec.r,
-                                                signature->ec.rSize)) 
+                                                signature->ec.rSize))
             {
                 MESSAGE_ERROR_DEBUG("crypto_ecdsa_verify: crypto_write_subvector_384(r) failed!\n");
                 rv = -1;
                 goto DONE;
             }
             if (0 != crypto_write_subvector_384(&(signature_data.p384.s), 2, 1, signature->ec.s,
-                                                signature->ec.sSize)) 
+                                                signature->ec.sSize))
             {
                 MESSAGE_ERROR_DEBUG("crypto_ecdsa_verify: crypto_write_subvector_384(r) failed!\n");
                 rv = -1;
@@ -1842,14 +1842,14 @@ static int crypto_ecdsa_verify(const PUBLIC_KEY_EC_t *ecdsa_public_key,
 #if defined(SUPPORT_EC_P521)
         case EC_KEY_CURVE_NIST_P521:
             if (0 != crypto_write_subvector_521(&(signature_data.p521.r), 2, 0, signature->ec.r,
-                                                signature->ec.rSize)) 
+                                                signature->ec.rSize))
             {
                 MESSAGE_ERROR_DEBUG("crypto_ecdsa_verify: crypto_write_subvector_521(r) failed!\n");
                 rv = -1;
                 goto DONE;
             }
             if (0 != crypto_write_subvector_521(&(signature_data.p521.s), 2, 1, signature->ec.s,
-                                                signature->ec.sSize)) 
+                                                signature->ec.sSize))
             {
                 MESSAGE_ERROR_DEBUG("crypto_ecdsa_verify: crypto_write_subvector_521(r) failed!\n");
                 rv = -1;
@@ -1867,7 +1867,7 @@ static int crypto_ecdsa_verify(const PUBLIC_KEY_EC_t *ecdsa_public_key,
 #endif
 #if defined(SUPPORT_EC_CURVE25519) || defined(SUPPORT_EC_EDWARDS25519)
         if (0 != crypto_write_subvector_256(&(signature_data.c25519.r), 1, 0, signature->ec.r,
-                                            signature->ec.rSize)) 
+                                            signature->ec.rSize))
         {
             MESSAGE_ERROR_DEBUG("crypto_ecdsa_verify: crypto_write_subvector_256(r) failed!\n");
             rv = -1;
@@ -1885,7 +1885,7 @@ static int crypto_ecdsa_verify(const PUBLIC_KEY_EC_t *ecdsa_public_key,
 
     /* create the ecdsa parameters asset */
     if (0 != crypto_create_ec_parameters_asset(ecdsa_public_key->curveID,
-                                               &public_key_parameters_asset_id)) 
+                                               &public_key_parameters_asset_id))
     {
         MESSAGE_ERROR_DEBUG("crypto_ecdsa_verify: crypto_create_ec_parameters_asset() failed!\n");
         rv = -1;
@@ -1895,7 +1895,7 @@ static int crypto_ecdsa_verify(const PUBLIC_KEY_EC_t *ecdsa_public_key,
 
     /* create the ecdsa public key asset */
     if (0 != crypto_create_ec_public_key_asset(signature->hashAlg, ecdsa_public_key,
-                                               &public_key_asset_id)) 
+                                               &public_key_asset_id))
     {
         MESSAGE_ERROR_DEBUG("crypto_ecdsa_verify: crypto_create_ec_public_key_asset() failed!\n");
         rv = -1;
@@ -1912,7 +1912,7 @@ static int crypto_ecdsa_verify(const PUBLIC_KEY_EC_t *ecdsa_public_key,
     if (0 != vaultip_drv_public_key_ecdsa_verify(
                  ecdsa_public_key->curveID, get_rom_identity(), public_key_asset_id,
                  public_key_parameters_asset_id, temp_hash_asset_id, data, (uint32_t)data_size,
-                 total_data_size, signature_data_ptr, signature_data_size)) 
+                 total_data_size, signature_data_ptr, signature_data_size))
     {
         MESSAGE_ERROR_DEBUG("crypto_ecdsa_verify: vaultip_drv_public_key_ecdsa_verify() \
                                 failed!\n");
@@ -1927,23 +1927,23 @@ DONE:
     /* delete the public key asset */
     if (0 != public_key_parameters_asset_id)
     {
-        if (0 != vaultip_drv_asset_delete(get_rom_identity(), public_key_parameters_asset_id)) 
+        if (0 != vaultip_drv_asset_delete(get_rom_identity(), public_key_parameters_asset_id))
         {
             MESSAGE_ERROR_DEBUG(
                 "crypto_ecdsa_verify: vaultip_drv_asset_delete(public_key_parameters_asset_id) \
                      failed!\n");
         }
     }
-    if (0 != public_key_asset_id) 
+    if (0 != public_key_asset_id)
     {
-        if (0 != vaultip_drv_asset_delete(get_rom_identity(), public_key_asset_id)) 
+        if (0 != vaultip_drv_asset_delete(get_rom_identity(), public_key_asset_id))
         {
             MESSAGE_ERROR_DEBUG(
                 "crypto_ecdsa_verify: vaultip_drv_asset_delete(public_key_asset_id) failed!\n");
         }
     }
 
-    if (pdPASS != xSemaphoreGive(gs_mutex_crypto_ecdsa_verify)) 
+    if (pdPASS != xSemaphoreGive(gs_mutex_crypto_ecdsa_verify))
     {
         MESSAGE_ERROR_DEBUG("crypto_ecdsa_verify: xSemaphoreGive() failed!\n");
         rv = -1;
@@ -1956,7 +1956,7 @@ DONE:
 static int crypto_create_rsa_2048_public_key_asset(VAULTIP_PUBLIC_KEY_RSA_2048_t *rsa_2048,
                                                    const PUBLIC_KEY_RSA_t *public_key)
 {
-    if (NULL == rsa_2048 || NULL == public_key || 2048 != public_key->keySize) 
+    if (NULL == rsa_2048 || NULL == public_key || 2048 != public_key->keySize)
     {
         MESSAGE_ERROR_DEBUG("crypto_create_rsa_2048_public_key_asset: invalid arguments!\n");
         return -1;
@@ -1964,7 +1964,7 @@ static int crypto_create_rsa_2048_public_key_asset(VAULTIP_PUBLIC_KEY_RSA_2048_t
 
     /* copy modulus */
     if (0 != crypto_write_subvector_2048(&(rsa_2048->modulus), 2, 0, public_key->pubMod,
-                                         public_key->pubModSize)) 
+                                         public_key->pubModSize))
     {
         MESSAGE_ERROR_DEBUG(
             "crypto_create_rsa_2048_public_key_asset: crypto_write_subvector_2048(modulus) failed!\n");
@@ -1973,7 +1973,7 @@ static int crypto_create_rsa_2048_public_key_asset(VAULTIP_PUBLIC_KEY_RSA_2048_t
 
     /* copy exponent */
     if (0 != crypto_write_subvector_64(&(rsa_2048->exponent), 2, 1, public_key->pubExp,
-                                       public_key->pubExpSize)) 
+                                       public_key->pubExpSize))
     {
         MESSAGE_ERROR_DEBUG(
             "crypto_create_rsa_2048_public_key_asset: crypto_write_subvector_64(exponent) failed!\n");
@@ -1988,7 +1988,7 @@ static int crypto_create_rsa_2048_public_key_asset(VAULTIP_PUBLIC_KEY_RSA_2048_t
 static int crypto_create_rsa_3072_public_key_asset(VAULTIP_PUBLIC_KEY_RSA_3072_t *rsa_3072,
                                                    const PUBLIC_KEY_RSA_t *public_key)
 {
-    if (NULL == rsa_3072 || NULL == public_key || 3072 != public_key->keySize) 
+    if (NULL == rsa_3072 || NULL == public_key || 3072 != public_key->keySize)
     {
         MESSAGE_ERROR_DEBUG("crypto_create_rsa_3072_public_key_asset: invalid arguments!\n");
         return -1;
@@ -1996,7 +1996,7 @@ static int crypto_create_rsa_3072_public_key_asset(VAULTIP_PUBLIC_KEY_RSA_3072_t
 
     /* copy modulus */
     if (0 != crypto_write_subvector_3072(&(rsa_3072->modulus), 2, 0, public_key->pubMod,
-                                         public_key->pubModSize)) 
+                                         public_key->pubModSize))
     {
         MESSAGE_ERROR_DEBUG(
             "crypto_create_rsa_3072_public_key_asset: crypto_write_subvector_3072(modulus) \
@@ -2006,7 +2006,7 @@ static int crypto_create_rsa_3072_public_key_asset(VAULTIP_PUBLIC_KEY_RSA_3072_t
 
     /* copy exponent */
     if (0 != crypto_write_subvector_64(&(rsa_3072->exponent), 2, 1, public_key->pubExp,
-                                       public_key->pubExpSize)) 
+                                       public_key->pubExpSize))
     {
         MESSAGE_ERROR_DEBUG(
             "crypto_create_rsa_3072_public_key_asset: crypto_write_subvector_64(exponent) \
@@ -2022,7 +2022,7 @@ static int crypto_create_rsa_3072_public_key_asset(VAULTIP_PUBLIC_KEY_RSA_3072_t
 static int crypto_create_rsa_4096_public_key_asset(VAULTIP_PUBLIC_KEY_RSA_4096_t *rsa_4096,
                                                    const PUBLIC_KEY_RSA_t *public_key)
 {
-    if (NULL == rsa_4096 || NULL == public_key || 4096 != public_key->keySize) 
+    if (NULL == rsa_4096 || NULL == public_key || 4096 != public_key->keySize)
     {
         MESSAGE_ERROR_DEBUG("crypto_create_rsa_4096_public_key_asset: invalid arguments!\n");
         return -1;
@@ -2030,7 +2030,7 @@ static int crypto_create_rsa_4096_public_key_asset(VAULTIP_PUBLIC_KEY_RSA_4096_t
 
     /* copy modulus */
     if (0 != crypto_write_subvector_4096(&(rsa_4096->modulus), 2, 0, public_key->pubMod,
-                                         public_key->pubModSize)) 
+                                         public_key->pubModSize))
     {
         MESSAGE_ERROR_DEBUG(
             "crypto_create_rsa_4096_public_key_asset: crypto_write_subvector_4096(modulus) \
@@ -2040,7 +2040,7 @@ static int crypto_create_rsa_4096_public_key_asset(VAULTIP_PUBLIC_KEY_RSA_4096_t
 
     /* copy exponent */
     if (0 != crypto_write_subvector_64(&(rsa_4096->exponent), 2, 1, public_key->pubExp,
-                                       public_key->pubExpSize)) 
+                                       public_key->pubExpSize))
     {
         MESSAGE_ERROR_DEBUG(
             "crypto_create_rsa_4096_public_key_asset: crypto_write_subvector_64(exponent) \
@@ -2057,7 +2057,7 @@ static int crypto_create_rsa_public_key_asset(HASH_ALG_t hash_alg,
                                               uint32_t *rsa_public_key_asset_id)
 {
     int rv;
-    static union 
+    static union
     {
 #if defined(SUPPORT_RSA_2048)
         VAULTIP_PUBLIC_KEY_RSA_2048_t rsa2048;
@@ -2083,13 +2083,13 @@ static int crypto_create_rsa_public_key_asset(HASH_ALG_t hash_alg,
             .LifetimeUse = VAL_ASSET_LIFETIME_INFINITE,
         };
 
-    if (NULL == rsa_public_key || NULL == rsa_public_key_asset_id) 
+    if (NULL == rsa_public_key || NULL == rsa_public_key_asset_id)
     {
         MESSAGE_ERROR_DEBUG("crypto_create_rsa_public_key_asset: invalid arguments!\n");
         return -1;
     }
 
-    switch (hash_alg) 
+    switch (hash_alg)
     {
         case HASH_ALG_SHA2_256:
             public_key_asset_policy.u64 |= VAL_POLICY_SHA256;
@@ -2105,18 +2105,18 @@ static int crypto_create_rsa_public_key_asset(HASH_ALG_t hash_alg,
             return -1;
     }
 
-    if (pdPASS != xSemaphoreTake(gs_mutex_crypto_create_rsa_public_key_asset, portMAX_DELAY)) 
+    if (pdPASS != xSemaphoreTake(gs_mutex_crypto_create_rsa_public_key_asset, portMAX_DELAY))
     {
         MESSAGE_ERROR_DEBUG("crypto_create_rsa_public_key_asset: xSemaphoreTake() failed!\n");
         return -1;
     }
 
-    switch (rsa_public_key->keySize) 
+    switch (rsa_public_key->keySize)
     {
 #if defined(SUPPORT_RSA_2048)
         case 2048:
             if (0 !=
-                crypto_create_rsa_2048_public_key_asset(&(public_key_data.rsa2048), rsa_public_key)) 
+                crypto_create_rsa_2048_public_key_asset(&(public_key_data.rsa2048), rsa_public_key))
             {
                 MESSAGE_ERROR_DEBUG(
                     "crypto_create_rsa_public_key_asset: \
@@ -2131,7 +2131,7 @@ static int crypto_create_rsa_public_key_asset(HASH_ALG_t hash_alg,
 #if defined(SUPPORT_RSA_3072)
         case 3072:
             if (0 !=
-                crypto_create_rsa_3072_public_key_asset(&(public_key_data.rsa3072), rsa_public_key)) 
+                crypto_create_rsa_3072_public_key_asset(&(public_key_data.rsa3072), rsa_public_key))
             {
                 MESSAGE_ERROR_DEBUG(
                     "crypto_create_rsa_public_key_asset: \
@@ -2146,7 +2146,7 @@ static int crypto_create_rsa_public_key_asset(HASH_ALG_t hash_alg,
 #if defined(SUPPORT_RSA_4096)
         case 4096:
             if (0 !=
-                crypto_create_rsa_4096_public_key_asset(&(public_key_data.rsa4096), rsa_public_key)) 
+                crypto_create_rsa_4096_public_key_asset(&(public_key_data.rsa4096), rsa_public_key))
             {
                 MESSAGE_ERROR_DEBUG(
                     "crypto_create_rsa_public_key_asset: crypto_create_rsa_4096_public_key_asset()\
@@ -2169,7 +2169,7 @@ static int crypto_create_rsa_public_key_asset(HASH_ALG_t hash_alg,
     public_key_asset_other_settings.DataLength = public_key_data_size & 0x3FFu;
     if (0 != vaultip_drv_asset_create(get_rom_identity(), public_key_asset_policy.lo,
                                       public_key_asset_policy.hi, public_key_asset_other_settings,
-                                      0, &asset_id)) 
+                                      0, &asset_id))
     {
         MESSAGE_ERROR_DEBUG(
             "crypto_create_rsa_public_key_asset: vaultip_drv_asset_create() failed!\n");
@@ -2180,11 +2180,11 @@ static int crypto_create_rsa_public_key_asset(HASH_ALG_t hash_alg,
     MESSAGE_ERROR_DEBUG("crypto_create_rsa_public_key_asset: asset created, assetid=0x%x\n",
                         asset_id);
     if (0 != vaultip_drv_asset_load_plaintext(get_rom_identity(), asset_id, public_key_data_ptr,
-                                              public_key_data_size)) 
+                                              public_key_data_size))
     {
         MESSAGE_ERROR_DEBUG(
             "crypto_create_rsa_public_key_asset: vaultip_drv_asset_load_plaintext() failed!\n");
-        if (0 != vaultip_drv_asset_delete(get_rom_identity(), asset_id)) 
+        if (0 != vaultip_drv_asset_delete(get_rom_identity(), asset_id))
         {
             MESSAGE_ERROR_DEBUG(
                 "crypto_create_rsa_public_key_asset: vaultip_drv_asset_delete() failed!\n");
@@ -2199,7 +2199,7 @@ static int crypto_create_rsa_public_key_asset(HASH_ALG_t hash_alg,
     rv = 0;
 
 DONE:
-    if (pdPASS != xSemaphoreGive(gs_mutex_crypto_create_rsa_public_key_asset)) 
+    if (pdPASS != xSemaphoreGive(gs_mutex_crypto_create_rsa_public_key_asset))
     {
         MESSAGE_ERROR_DEBUG("crypto_create_rsa_public_key_asset: xSemaphoreGivee() failed!\n");
         rv = -1;
@@ -2218,7 +2218,7 @@ static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t *rsa_public_key,
     const void *signature_data_ptr;
     uint32_t signature_data_size;
 
-    static union 
+    static union
     {
 #if defined(SUPPORT_RSA_2048)
         VAULTIP_SIGNATURE_RSA_2048_t rsa2048;
@@ -2231,24 +2231,24 @@ static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t *rsa_public_key,
 #endif
     } signature_data;
 
-    if (NULL == signature) 
+    if (NULL == signature)
     {
         MESSAGE_ERROR_DEBUG("crypto_rsa_verify: invalid arguments!\n");
         return -1;
     }
 
-    if (pdPASS != xSemaphoreTake(gs_mutex_crypto_rsa_verify, portMAX_DELAY)) 
+    if (pdPASS != xSemaphoreTake(gs_mutex_crypto_rsa_verify, portMAX_DELAY))
     {
         MESSAGE_ERROR_DEBUG("crypto_rsa_verify: xSemaphoreTake() failed!\n");
         return -1;
     }
 
-    switch (signature->rsa.keySize) 
+    switch (signature->rsa.keySize)
     {
 #if defined(SUPPORT_RSA_2048)
         case 2048:
             if (0 != crypto_write_subvector_2048(&(signature_data.rsa2048.s), 1, 0,
-                                                signature->rsa.signature, signature->rsa.sigSize)) 
+                                                signature->rsa.signature, signature->rsa.sigSize))
             {
                 MESSAGE_ERROR_DEBUG("crypto_rsa_verify: crypto_write_subvector_2048(r) failed!\n");
                 rv = -1;
@@ -2261,7 +2261,7 @@ static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t *rsa_public_key,
 #if defined(SUPPORT_RSA_3072)
         case 3072:
             if (0 != crypto_write_subvector_3072(&(signature_data.rsa3072.s), 1, 0,
-                                                signature->rsa.signature, signature->rsa.sigSize)) 
+                                                signature->rsa.signature, signature->rsa.sigSize))
             {
                 MESSAGE_ERROR_DEBUG("crypto_rsa_verify: crypto_write_subvector_3072(r) failed!\n");
                 rv = -1;
@@ -2274,7 +2274,7 @@ static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t *rsa_public_key,
 #if defined(SUPPORT_RSA_4096)
         case 4096:
             if (0 != crypto_write_subvector_4096(&(signature_data.rsa4096.s), 1, 0,
-                                                signature->rsa.signature, signature->rsa.sigSize)) 
+                                                signature->rsa.signature, signature->rsa.sigSize))
             {
                 MESSAGE_ERROR_DEBUG("crypto_rsa_verify: crypto_write_subvector_4096(r) failed!\n");
                 rv = -1;
@@ -2290,7 +2290,7 @@ static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t *rsa_public_key,
             goto DONE;
     }
 
-    switch (signature->hashAlg) 
+    switch (signature->hashAlg)
     {
         case HASH_ALG_SHA2_256:
             salt_length = 256 / 8;
@@ -2309,7 +2309,7 @@ static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t *rsa_public_key,
 
     /* create the rsa public key asset */
     if (0 != crypto_create_rsa_public_key_asset(signature->hashAlg, rsa_public_key,
-                                                &public_key_asset_id)) 
+                                                &public_key_asset_id))
     {
         MESSAGE_ERROR_DEBUG("crypto_rsa_verify: crypto_create_rsa_public_key_asset() failed!\n");
         rv = -1;
@@ -2319,8 +2319,8 @@ static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t *rsa_public_key,
     /* verify the signature */
     if (0 != vaultip_drv_public_key_rsa_pss_verify(
                  rsa_public_key->keySize, get_rom_identity(), public_key_asset_id,
-                 temp_hash_asset_id, data, (uint32_t)data_size, total_data_size, 
-                 signature_data_ptr, signature_data_size, salt_length)) 
+                 temp_hash_asset_id, data, (uint32_t)data_size, total_data_size,
+                 signature_data_ptr, signature_data_size, salt_length))
     {
         MESSAGE_ERROR_DEBUG("crypto_rsa_verify: vaultip_drv_public_key_rsa_pss_verify() \
              failed!\n");
@@ -2333,16 +2333,16 @@ static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t *rsa_public_key,
 DONE:
 
     /* delete the public key asset */
-    if (0 != public_key_asset_id) 
+    if (0 != public_key_asset_id)
     {
-        if (0 != vaultip_drv_asset_delete(get_rom_identity(), public_key_asset_id)) 
+        if (0 != vaultip_drv_asset_delete(get_rom_identity(), public_key_asset_id))
         {
             MESSAGE_ERROR_DEBUG(
                 "crypto_rsa_verify: vaultip_drv_asset_delete(public_key_asset_id) failed!\n");
         }
     }
 
-    if (pdPASS != xSemaphoreGive(gs_mutex_crypto_rsa_verify)) 
+    if (pdPASS != xSemaphoreGive(gs_mutex_crypto_rsa_verify))
     {
         MESSAGE_ERROR_DEBUG("crypto_rsa_verify: xSemaphoreGive() failed!\n");
         rv = -1;
@@ -2368,13 +2368,13 @@ int crypto_verify_pk_signature(const PUBLIC_KEY_t *public_key, const PUBLIC_SIGN
     uint32_t prehash_length = 0;
     uint32_t total_message_length = (uint32_t)data_size;
 
-    if (NULL == data || 0 == data_size) 
+    if (NULL == data || 0 == data_size)
     {
         MESSAGE_ERROR_DEBUG("crypto_verify_pk_signature: invalid arguments!\n");
         return -1;
     }
 
-    switch (public_key->keyType) 
+    switch (public_key->keyType)
     {
         case PUBLIC_KEY_TYPE_EC:
         case PUBLIC_KEY_TYPE_RSA:
@@ -2383,12 +2383,12 @@ int crypto_verify_pk_signature(const PUBLIC_KEY_t *public_key, const PUBLIC_SIGN
             MESSAGE_ERROR_DEBUG("crypto_verify_pk_signature: not supported key type!\n");
             return -1;
     }
-    if (signature->keyType != public_key->keyType) 
+    if (signature->keyType != public_key->keyType)
     {
         MESSAGE_ERROR_DEBUG("crypto_verify_pk_signature: key type does not match signature!\n");
         return -1;
     }
-    if (data_size > 4096) 
+    if (data_size > 4096)
     {
         /* prehash the first part of the data up to the last 4096 bytes (or less) */
 
@@ -2396,7 +2396,7 @@ int crypto_verify_pk_signature(const PUBLIC_KEY_t *public_key, const PUBLIC_SIGN
         prehash_length = (prehash_length + 0x7Fu) & 0xFFFFFF80;
         MESSAGE_INFO_DEBUG("crypto_verify_pk_signature: prehash_length=0x%x, \n", prehash_length);
 
-        switch (signature->hashAlg) 
+        switch (signature->hashAlg)
         {
             case HASH_ALG_SHA2_256:
                 temp_digest_asset_policy.u64 |= VAL_POLICY_SHA256;
@@ -2418,7 +2418,7 @@ int crypto_verify_pk_signature(const PUBLIC_KEY_t *public_key, const PUBLIC_SIGN
         /* create temp_digest asset */
         if (0 != vaultip_drv_asset_create(
                      get_rom_identity(), temp_digest_asset_policy.lo, temp_digest_asset_policy.hi,
-                     temp_digest_asset_other_settings, 0, &temp_digest_asset_id)) 
+                     temp_digest_asset_other_settings, 0, &temp_digest_asset_id))
         {
             MESSAGE_ERROR_DEBUG("crypto_verify_pk_signature: vaultip_drv_asset_create() \
                 failed!\n");
@@ -2427,7 +2427,7 @@ int crypto_verify_pk_signature(const PUBLIC_KEY_t *public_key, const PUBLIC_SIGN
 
         /* pre-hash the data */
         if (0 != vaultip_drv_hash_update(get_rom_identity(), signature->hashAlg,
-                                         temp_digest_asset_id, data, prehash_length, true)) 
+                                         temp_digest_asset_id, data, prehash_length, true))
         {
             MESSAGE_ERROR_DEBUG("crypto_verify_pk_signature: vaultip_drv_hash_update() failed!\n");
             rv = -1;
@@ -2441,7 +2441,7 @@ int crypto_verify_pk_signature(const PUBLIC_KEY_t *public_key, const PUBLIC_SIGN
     MESSAGE_INFO_DEBUG(
         "crypto_verify_pk_signature: message_length=0x%lx, total_message_length=0x%x\n", data_size,
         total_message_length);
-    switch (public_key->keyType) 
+    switch (public_key->keyType)
     {
         case PUBLIC_KEY_TYPE_EC:
             rv = crypto_ecdsa_verify(&(public_key->ec), signature, temp_digest_asset_id, data,
@@ -2457,9 +2457,9 @@ int crypto_verify_pk_signature(const PUBLIC_KEY_t *public_key, const PUBLIC_SIGN
     }
 
 DONE:
-    if (0 != temp_digest_asset_id) 
+    if (0 != temp_digest_asset_id)
     {
-        if (0 != vaultip_drv_asset_delete(get_rom_identity(), temp_digest_asset_id)) 
+        if (0 != vaultip_drv_asset_delete(get_rom_identity(), temp_digest_asset_id))
         {
             MESSAGE_ERROR_DEBUG("crypto_verify_pk_signature: vaultip_drv_asset_delete() \
                 failed!\n");
@@ -2474,18 +2474,18 @@ int crypto_load_public_key_hash_from_otp(VAULTIP_STATIC_ASSET_ID_t static_asset_
     uint32_t asset_id;
     uint32_t asset_size;
 
-    if (NULL == hash_size) 
+    if (NULL == hash_size)
     {
         return -1;
     }
 
-    if ((NULL == buffer && 0 != buffer_size) || (NULL != buffer && 0 == buffer_size)) 
+    if ((NULL == buffer && 0 != buffer_size) || (NULL != buffer && 0 == buffer_size))
     {
         return -1;
     }
 
     if (0 != vaultip_drv_static_asset_search(get_rom_identity(), static_asset_id, &asset_id,
-                                             &asset_size)) 
+                                             &asset_size))
     {
         MESSAGE_ERROR_DEBUG(
             "load_public_key_hash_from_otp: vaultip_drv_static_asset_search(%u) failed!\n",
@@ -2494,18 +2494,18 @@ int crypto_load_public_key_hash_from_otp(VAULTIP_STATIC_ASSET_ID_t static_asset_
     }
 
     *hash_size = asset_size;
-    if (NULL == buffer && 0 == buffer_size) 
+    if (NULL == buffer && 0 == buffer_size)
     {
         return 0;
     }
 
-    if (asset_size > buffer_size) 
+    if (asset_size > buffer_size)
     {
         return -1;
     }
 
     if (0 != vaultip_drv_public_data_read(get_rom_identity(), asset_id, buffer,
-                                          (uint32_t)buffer_size, hash_size)) 
+                                          (uint32_t)buffer_size, hash_size))
     {
         MESSAGE_ERROR_DEBUG(
             "load_public_key_hash_from_otp: vaultip_drv_public_data_read() failed!\n");
@@ -2520,18 +2520,18 @@ int crypto_load_monotonic_counter_from_otp(VAULTIP_STATIC_ASSET_ID_t static_asse
     uint32_t asset_id;
     uint32_t asset_size;
 
-    if (NULL == counter_size) 
+    if (NULL == counter_size)
     {
         return -1;
     }
 
-    if ((NULL == buffer && 0 != buffer_size) || (NULL != buffer && 0 == buffer_size)) 
+    if ((NULL == buffer && 0 != buffer_size) || (NULL != buffer && 0 == buffer_size))
     {
         return -1;
     }
 
     if (0 != vaultip_drv_static_asset_search(get_rom_identity(), static_asset_id, &asset_id,
-                                             &asset_size)) 
+                                             &asset_size))
     {
         MESSAGE_ERROR_DEBUG(
             "crypto_load_monotonic_counter_from_otp: vaultip_drv_static_asset_search(%u) \
@@ -2541,18 +2541,18 @@ int crypto_load_monotonic_counter_from_otp(VAULTIP_STATIC_ASSET_ID_t static_asse
     }
 
     *counter_size = asset_size;
-    if (NULL == buffer && 0 == buffer_size) 
+    if (NULL == buffer && 0 == buffer_size)
     {
         return 0;
     }
 
-    if (asset_size > buffer_size) 
+    if (asset_size > buffer_size)
     {
         return -1;
     }
 
     if (0 != vaultip_drv_monotonic_counter_read(get_rom_identity(), asset_id, buffer,
-                                                (uint32_t)buffer_size, counter_size)) 
+                                                (uint32_t)buffer_size, counter_size))
     {
         MESSAGE_ERROR_DEBUG(
             "crypto_load_monotonic_counter_from_otp: vaultip_drv_monotonic_counter_read() \
@@ -2570,7 +2570,7 @@ static int crypto_get_monotonic_counter_value(VAULTIP_STATIC_ASSET_ID_t static_a
 {
     int rv = 0;
 
-    static union 
+    static union
     {
         uint8_t u8[MAXIMUM_COUNTER_BYTES];
         uint64_t u64[MAXIMUM_COUNTER_WORDS];
@@ -2578,30 +2578,30 @@ static int crypto_get_monotonic_counter_value(VAULTIP_STATIC_ASSET_ID_t static_a
     uint32_t counter_size;
     uint32_t n, w, count;
 
-    if (NULL == value) 
+    if (NULL == value)
     {
         return -1;
     }
 
-    if (pdPASS != xSemaphoreTake(gs_mutex_crypto_get_monotonic_counter_value, portMAX_DELAY)) 
+    if (pdPASS != xSemaphoreTake(gs_mutex_crypto_get_monotonic_counter_value, portMAX_DELAY))
     {
         MESSAGE_ERROR_DEBUG("crypto_get_monotonic_counter_value: xSemaphoreTake() failed!\n");
         return -1;
     }
 
     if (0 != crypto_load_monotonic_counter_from_otp(static_asset_id, buffer.u8,
-                                                    MAXIMUM_COUNTER_BYTES, &counter_size)) 
+                                                    MAXIMUM_COUNTER_BYTES, &counter_size))
     {
         *value = 0;
     }
     else
     {
         count = 0;
-        for (w = 0; w < MAXIMUM_COUNTER_WORDS; w++) 
+        for (w = 0; w < MAXIMUM_COUNTER_WORDS; w++)
         {
-            for (n = 0; n < 64; n++) 
+            for (n = 0; n < 64; n++)
             {
-                if (0 != (buffer.u64[w] & 1)) 
+                if (0 != (buffer.u64[w] & 1))
                 {
                     count++;
                 }
@@ -2612,7 +2612,7 @@ static int crypto_get_monotonic_counter_value(VAULTIP_STATIC_ASSET_ID_t static_a
         *value = count;
     }
 
-    if (pdPASS != xSemaphoreGive(gs_mutex_crypto_get_monotonic_counter_value)) 
+    if (pdPASS != xSemaphoreGive(gs_mutex_crypto_get_monotonic_counter_value))
     {
         MESSAGE_ERROR_DEBUG("crypto_get_monotonic_counter_value: xSemaphoreGive() failed!\n");
         rv = -1;

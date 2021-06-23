@@ -17,9 +17,9 @@
 #include <stdio.h>
 #endif
 #include <unistd.h>
-#include "hal_device.h"
+#include "hwinc/hal_device.h"
 #include "hal_ddr_init.h"
-#include "ddrc_reg_def.h"
+#include "etsoc_hal/inc/ddrc_reg_def.h"
 #include "log.h"
 
 /*

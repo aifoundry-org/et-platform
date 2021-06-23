@@ -20,7 +20,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "vaultip_sw.h"
+#include "etsoc_hal/inc/vaultip_sw.h"
 #include "vaultip_static_assets.h"
 
 
@@ -57,7 +57,7 @@ int vaultip_get_system_information(uint32_t v,
     \param address address of register to read
     \param result pointer to result containing value
     \return The function call status, pass/fail.
-*/                                   
+*/
 int vaultip_register_read(uint32_t identity, bool incremental_read, uint32_t number,
                           const uint32_t *address, uint32_t *result);
 
@@ -138,7 +138,7 @@ int vaultip_hash_update(uint32_t identity, HASH_ALG_t hash_alg, uint32_t digest_
     \param msg pointer to data containing hash
     \param msg_size size of msg data
     \param init flag to ste initialization
-    \param total_msg_length total msg length 
+    \param total_msg_length total msg length
     \param hash pointer to hash context
     \return The function call status, pass/fail.
 */
@@ -202,7 +202,7 @@ int vaultip_mac_update(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t
     \param msg pointer to data containing hash
     \param msg_size size of msg data
     \param init flag to ste initialization
-    \param total_msg_size total msg length 
+    \param total_msg_size total msg length
     \param mac pointer to mac context
     \return The function call status, pass/fail.
 */
@@ -221,7 +221,7 @@ int vaultip_mac_final_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg,
     \param msg pointer to data containing hash
     \param msg_size size of msg data
     \param init flag to ste initialization
-    \param total_msg_size total msg length 
+    \param total_msg_size total msg length
     \param mac pointer to mac context
     \return The function call status, pass/fail.
 */
@@ -234,7 +234,7 @@ int vaultip_mac_final_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, ui
     \brief This function used to encrypt data using AES algorithm
     \param identity system ID
     \param key_asset_id key asset key id
-    \param IV 
+    \param IV
     \param data data to be encrypted
     \param data_size size of data
     \return The function call status, pass/fail.
@@ -247,7 +247,7 @@ int vaultip_aes_cbc_encrypt(uint32_t identity, uint32_t key_asset_id, uint8_t *I
     \brief This function used to decrypt data using AES algorithm
     \param identity system ID
     \param key_asset_id key asset key id
-    \param IV 
+    \param IV
     \param data data to be encrypted
     \param data_size size of data
     \return The function call status, pass/fail.
@@ -273,7 +273,7 @@ int vaultip_asset_create(uint32_t identity, uint32_t policy_31_00, uint32_t poli
 
 /*! \fn int vaultip_asset_load_plaintext(uint32_t identity, uint32_t asset_id, const void *data,
                                  uint32_t data_size)
-    \brief This function used to load plain text 
+    \brief This function used to load plain text
     \param identity system ID
     \param asset_id identity of asset
     \param data data to be loaded
@@ -296,7 +296,7 @@ int vaultip_asset_load_plaintext(uint32_t identity, uint32_t asset_id, const voi
     \param associated_data pointer to associated data
     \param associated_data_size associated data size
     \param salt pointer to salt
-    \param salt_size 
+    \param salt_size
     \return The function call status, pass/fail.
 */
 int vaultip_asset_load_derive(uint32_t identity, uint32_t asset_id, uint32_t kdk_asset_id,
