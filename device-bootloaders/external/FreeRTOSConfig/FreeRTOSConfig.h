@@ -70,8 +70,8 @@
 #ifndef FREERTOS_CONFIG_H
 #define FREERTOS_CONFIG_H
 
-#include "etsoc_hal/inc/rvtimer.h"
-#include "etsoc_hal/inc/hal_device.h"
+#include "hwinc/sp_rvtim.h"
+#include "hwinc/hal_device.h"
 
 /* See https://www.freertos.org/Using-FreeRTOS-on-RISC-V.html */
 #define configMTIME_BASE_ADDRESS 	( ( R_SP_RVTIM_BASEADDR ) + RVTIMER_MTIME_ADDRESS )

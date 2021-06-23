@@ -12,7 +12,7 @@
 #ifndef __BL2_SP_MEMSHIRE_PLL__
 #define __BL2_SP_MEMSHIRE_PLL__
 
-#include "etsoc_hal/inc/movellus_hpdpll_modes_config.h"
+#include "hwinc/hpdpll_modes_config.h"
 
 #define MEMSHIRE_PLL_CONFIG_BASE 0x61000000
 
@@ -50,13 +50,13 @@ static int program_memshire_pll(uint8_t ms_num, uint8_t mode)
     uint16_t reg0;
 
     /* Start programming PLL to mode N */
-    if (!mode) 
+    if (!mode)
     {
         return -1;
-    } 
-    else 
+    }
+    else
     {
-        for (int i = 0; i < gs_hpdpll_settings[(uint32_t)(mode - 1)].count; i++) 
+        for (int i = 0; i < gs_hpdpll_settings[(uint32_t)(mode - 1)].count; i++)
         {
             write_memshire_pll_reg(ms_num, gs_hpdpll_settings[(mode - 1)].offsets[i],
                                    gs_hpdpll_settings[(mode - 1)].values[i]);
@@ -76,7 +76,7 @@ static int program_memshire_pll(uint8_t ms_num, uint8_t mode)
     update_memshire_pll_regs(ms_num);
 
     lock = 0;
-    while (lock == 0) 
+    while (lock == 0)
     {
         lock = read_memshire_pll_reg(ms_num, 0x39) & 1;
     }

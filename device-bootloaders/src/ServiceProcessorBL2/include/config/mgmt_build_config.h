@@ -23,7 +23,7 @@
 #define __MGMT_BUILD_CONFIG_H__
 
 #include <common_defs.h>
-#include "etsoc_hal/inc/hal_device.h"
+#include "hwinc/hal_device.h"
 #include "layout.h"
 
 /************************************************/

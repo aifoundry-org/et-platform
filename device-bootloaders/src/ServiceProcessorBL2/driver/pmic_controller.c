@@ -9,9 +9,9 @@
 *-------------------------------------------------------------------------
 ************************************************************************/
 /*! \file pmic_controller.c
-    \brief A C module that implements the PMIC controller's functionality. It 
-    provides functions to set/get voltage of different components and set/clear 
-    gpio bits. It also configures different error thresholds and report error 
+    \brief A C module that implements the PMIC controller's functionality. It
+    provides functions to set/get voltage of different components and set/clear
+    gpio bits. It also configures different error thresholds and report error
     events to host.
 
     Public interfaces:
@@ -67,8 +67,6 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include "hal_device.h"
-#include "rm_esr.h"
 #include "io.h"
 #include "bl2_i2c_driver.h"
 #include "bl2_gpio_controller.h"
@@ -77,6 +75,9 @@
 #include "interrupt.h"
 #include "error.h"
 #include "log.h"
+
+#include "hwinc/hal_device.h"
+#include "hwinc/sp_cru_reset.h"
 
 /*! \def MSI_TWO_VECTORS
     \brief MSI two verctor enable
@@ -163,7 +164,7 @@ int I2C_PMIC_Initialize(void)
 
 inline static int get_pmic_reg(uint8_t reg, uint8_t *reg_value)
 {
-    if (0 != i2c_read(&g_pmic_i2c_dev_reg, reg, reg_value, 1)) 
+    if (0 != i2c_read(&g_pmic_i2c_dev_reg, reg, reg_value, 1))
     {
         MESSAGE_ERROR("PMIC read failed!");
         return ERROR_PMIC_I2C_READ_FAILED;
@@ -195,7 +196,7 @@ inline static int get_pmic_reg(uint8_t reg, uint8_t *reg_value)
 
 inline static int set_pmic_reg(uint8_t reg, uint8_t value)
 {
-    if (0 != i2c_write(&g_pmic_i2c_dev_reg, reg, &value, 1)) 
+    if (0 != i2c_write(&g_pmic_i2c_dev_reg, reg, &value, 1))
     {
         MESSAGE_ERROR("PMIC write failed!");
         return ERROR_PMIC_I2C_WRITE_FAILED;
@@ -280,7 +281,7 @@ void setup_pmic(void)
 {
     set_pmic_i2c_dev();
 
-    if (0 != i2c_init(&g_pmic_i2c_dev_reg, ET_I2C_SPEED_400k, PMIC_SLAVE_ADDRESS)) 
+    if (0 != i2c_init(&g_pmic_i2c_dev_reg, ET_I2C_SPEED_400k, PMIC_SLAVE_ADDRESS))
     {
         MESSAGE_ERROR("PMIC connection failed to establish link\n");
     }
@@ -431,7 +432,7 @@ void pmic_error_isr(void)
     uint8_t reg_value = 0;
 
     gpio_clear_interrupt(GPIO_CONTROLLER_ID_SPIO, PMIC_GPIO_INT_PIN_NUMBER);
-    
+
     pmic_get_int_cause(&int_cause);
 
     if(PMIC_I2C_INT_CTRL_OV_TEMP_GET(int_cause) || PMIC_I2C_INT_CTRL_OV_POWER_GET(int_cause))
@@ -563,13 +564,13 @@ int pmic_get_gpo_bit(uint8_t index, uint8_t *gpo_bit_value)
 {
     uint8_t reg_value;
 
-    if (index > 7) 
+    if (index > 7)
     {
         MESSAGE_ERROR("Index out of range!");
         return ERROR_PMIC_I2C_INVALID_ARGUMENTS;
     }
 
-    if (0 != get_pmic_reg(PMIC_I2C_GPO_CTRL_ADDRESS, &reg_value)) 
+    if (0 != get_pmic_reg(PMIC_I2C_GPO_CTRL_ADDRESS, &reg_value))
     {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
@@ -604,13 +605,13 @@ int pmic_set_gpo_bit(uint8_t index)
 {
     uint8_t reg_value;
 
-    if (index > 7) 
+    if (index > 7)
     {
         MESSAGE_ERROR("Index out of range!");
         return ERROR_PMIC_I2C_INVALID_ARGUMENTS;
     }
 
-    if (0 != get_pmic_reg(PMIC_I2C_GPO_CTRL_ADDRESS, &reg_value)) 
+    if (0 != get_pmic_reg(PMIC_I2C_GPO_CTRL_ADDRESS, &reg_value))
     {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
@@ -645,13 +646,13 @@ int pmic_clear_gpo_bit(uint8_t index)
 {
     uint8_t reg_value;
 
-    if (index > 7) 
+    if (index > 7)
     {
         MESSAGE_ERROR("Index out of range!");
         return ERROR_PMIC_I2C_INVALID_ARGUMENTS;
     }
 
-    if (0 != get_pmic_reg(PMIC_I2C_GPO_CTRL_ADDRESS, &reg_value)) 
+    if (0 != get_pmic_reg(PMIC_I2C_GPO_CTRL_ADDRESS, &reg_value))
     {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
@@ -735,7 +736,7 @@ int pmic_get_temperature_threshold(uint8_t *temp_threshold)
 
 int pmic_set_temperature_threshold(uint8_t temp_limit)
 {
-    if ((temp_limit < PMIC_TEMP_LOWER_SET_LIMIT) || (temp_limit > PMIC_TEMP_UPPER_SET_LIMIT)) 
+    if ((temp_limit < PMIC_TEMP_LOWER_SET_LIMIT) || (temp_limit > PMIC_TEMP_UPPER_SET_LIMIT))
     {
         MESSAGE_ERROR("Error unsupported Temperature limits\n");
         return ERROR_PMIC_I2C_INVALID_ARGUMENTS;
@@ -818,7 +819,7 @@ int pmic_enable_etsoc_reset_after_perst(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS, &reg_value)) 
+    if (0 != get_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS, &reg_value))
     {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
@@ -852,7 +853,7 @@ int pmic_disable_etsoc_reset_after_perst(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS, &reg_value)) 
+    if (0 != get_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS, &reg_value))
     {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
@@ -909,7 +910,7 @@ int pmic_get_reset_cause(uint8_t *reset_cause)
 
 int pmic_get_voltage(voltage_type_e voltage_type, uint8_t *voltage)
 {
-    switch (voltage_type) 
+    switch (voltage_type)
     {
         case DDR:
             return (get_pmic_reg(PMIC_I2C_DDR_VOLTAGE_ADDRESS, voltage));
@@ -929,7 +930,7 @@ int pmic_get_voltage(voltage_type_e voltage_type, uint8_t *voltage)
             return (get_pmic_reg(PMIC_I2C_VDDQLP_VOLTAGE_ADDRESS, voltage));
         case VDDQ:
             return (get_pmic_reg(PMIC_I2C_VDDQ_VOLTAGE_ADDRESS, voltage));
-        default: 
+        default:
         {
             MESSAGE_ERROR("Error invalid voltage type to extract Voltage");
             return ERROR_PMIC_I2C_INVALID_VOLTAGE_TYPE;
@@ -960,7 +961,7 @@ int pmic_get_voltage(voltage_type_e voltage_type, uint8_t *voltage)
 
 int pmic_set_voltage(voltage_type_e voltage_type, uint8_t voltage)
 {
-    switch (voltage_type) 
+    switch (voltage_type)
     {
         case DDR:
             return (
@@ -989,7 +990,7 @@ int pmic_set_voltage(voltage_type_e voltage_type, uint8_t voltage)
         case VDDQ:
             return (
                 set_pmic_reg(PMIC_I2C_VDDQ_VOLTAGE_ADDRESS, PMIC_I2C_VDDQ_VOLTAGE_VOLTAGE_SET(voltage)));
-        default: 
+        default:
         {
             MESSAGE_ERROR("Error invalid voltage type to set Voltage");
             return ERROR_PMIC_I2C_INVALID_VOLTAGE_TYPE;
@@ -1019,7 +1020,7 @@ int pmic_set_voltage(voltage_type_e voltage_type, uint8_t voltage)
 
 int pmic_get_minion_group_voltage(uint8_t group_id, uint8_t *voltage)
 {
-    switch (group_id) 
+    switch (group_id)
     {
         case 1:
             return (get_pmic_reg(PMIC_I2C_MINION_G1_VOLTAGE_ADDRESS, voltage));
@@ -1055,7 +1056,7 @@ int pmic_get_minion_group_voltage(uint8_t group_id, uint8_t *voltage)
             return (get_pmic_reg(PMIC_I2C_MINION_G16_VOLTAGE_ADDRESS, voltage));
         case 17:
             return (get_pmic_reg(PMIC_I2C_MINION_G17_VOLTAGE_ADDRESS, voltage));
-        default: 
+        default:
         {
             MESSAGE_ERROR("Error invalid minion group to extract Voltage");
             return ERROR_PMIC_I2C_INVALID_MINION_GROUP;
@@ -1086,7 +1087,7 @@ int pmic_get_minion_group_voltage(uint8_t group_id, uint8_t *voltage)
 
 int pmic_set_minion_group_voltage(uint8_t group_id, uint8_t voltage)
 {
-    switch (group_id) 
+    switch (group_id)
     {
         case 1:
             return (set_pmic_reg(PMIC_I2C_MINION_G1_VOLTAGE_ADDRESS,
@@ -1139,7 +1140,7 @@ int pmic_set_minion_group_voltage(uint8_t group_id, uint8_t voltage)
         case 17:
             return (set_pmic_reg(PMIC_I2C_MINION_G17_VOLTAGE_ADDRESS,
                                 PMIC_I2C_MINION_G17_VOLTAGE_VOLTAGE_SET(voltage)));
-        default: 
+        default:
         {
             MESSAGE_ERROR("Error invalid minion group to set Voltage");
             return ERROR_PMIC_I2C_INVALID_MINION_GROUP;
@@ -1171,7 +1172,7 @@ int pmic_enable_wdog_timer(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value)) 
+    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value))
     {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
@@ -1205,7 +1206,7 @@ int pmic_disable_wdog_timer(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value)) 
+    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value))
     {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
@@ -1239,7 +1240,7 @@ int pmic_enable_wdog_timeout_reset(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value)) 
+    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value))
     {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
@@ -1273,7 +1274,7 @@ int pmic_disable_wdog_timeout_reset(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value)) 
+    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value))
     {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
@@ -1308,7 +1309,7 @@ int pmic_get_wdog_timeout_time(uint32_t *wdog_time)
     uint8_t reg_value;
     uint8_t timeout_time;
 
-    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value)) 
+    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value))
     {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
@@ -1347,7 +1348,7 @@ int pmic_set_wdog_timeout_time(uint32_t timeout_time)
     uint8_t new_reg_value;
     uint8_t new_timeout_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value)) 
+    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value))
     {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
@@ -1432,7 +1433,7 @@ int pmic_force_shutdown(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_RESET_COMMANDS_ADDRESS, &reg_value)) 
+    if (0 != get_pmic_reg(PMIC_I2C_RESET_COMMANDS_ADDRESS, &reg_value))
     {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
@@ -1466,7 +1467,7 @@ int pmic_force_power_off_on(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_RESET_COMMANDS_ADDRESS, &reg_value)) 
+    if (0 != get_pmic_reg(PMIC_I2C_RESET_COMMANDS_ADDRESS, &reg_value))
     {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
@@ -1500,7 +1501,7 @@ int pmic_force_reset(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_RESET_COMMANDS_ADDRESS, &reg_value)) 
+    if (0 != get_pmic_reg(PMIC_I2C_RESET_COMMANDS_ADDRESS, &reg_value))
     {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
@@ -1534,7 +1535,7 @@ int pmic_force_perst(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_RESET_COMMANDS_ADDRESS, &reg_value)) 
+    if (0 != get_pmic_reg(PMIC_I2C_RESET_COMMANDS_ADDRESS, &reg_value))
     {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
@@ -1568,7 +1569,7 @@ int pmic_reset_wdog_timer(void)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_RESET_ADDRESS, &reg_value)) 
+    if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_RESET_ADDRESS, &reg_value))
     {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
@@ -1626,7 +1627,7 @@ int I2C_PMIC_Read (uint8_t reg)
 {
     uint8_t reg_value;
 
-    if (0 != get_pmic_reg(reg, &reg_value)) 
+    if (0 != get_pmic_reg(reg, &reg_value))
     {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
