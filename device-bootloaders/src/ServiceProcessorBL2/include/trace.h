@@ -42,6 +42,13 @@ void Trace_Init_SP(const struct trace_init_info_t *sp_init_info);
 */
 struct trace_control_block_t* Trace_Get_SP_CB(void);
 
+/*! \fn uint32_t Trace_Get_SP_Buffer(void)
+    \brief This function returns the common Trace control block buffer offset per
+*       SP Hart.
+    \return value of buffer offset.
+*/
+uint32_t Trace_Get_SP_Buffer(void);
+
 /*! \fn void Trace_RT_Process_CMD(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
     \brief This function processes trace commands from host, this includes
             configuring trace for Service Processor.

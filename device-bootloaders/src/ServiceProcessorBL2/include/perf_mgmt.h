@@ -110,6 +110,13 @@ int get_asic_stalls(uint8_t *asic_stalls);
 */
 int get_asic_latency(uint8_t *asic_latency);
 
+/*! \fn int get_last_update_ts(uint64_t *last_ts)
+    \brief Interface to get last update timestamp
+    \param uint64_t *last_ts
+    \returns int
+*/
+int get_last_update_ts(uint64_t *last_ts);
+
 /*! \fn void dump_perf_globals(void)
     \brief This function prints the performance globals
     \param none

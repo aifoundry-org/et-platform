@@ -437,6 +437,31 @@ int get_asic_latency(uint8_t *asic_latency)
 *
 *   FUNCTION
 *
+*       get_last_update_ts
+*
+*   DESCRIPTION
+*
+*       This function gets the last update timestamp
+*
+*   INPUTS
+*
+*       uint8_t    Pointer to ts
+*
+*   OUTPUTS
+*
+*       int         Return status
+*
+***********************************************************************/
+int get_last_update_ts(uint64_t *last_ts)
+{
+    *last_ts = get_soc_perf_reg()->last_ts_min;
+    return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       dump_globals
 *
 *   DESCRIPTION

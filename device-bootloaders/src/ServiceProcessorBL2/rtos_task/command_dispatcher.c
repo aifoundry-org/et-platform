@@ -223,7 +223,7 @@ static void pc_vq_task(void *pvParameters)
                 break;
             case DM_CMD_SET_DM_TRACE_RUN_CONTROL:
             case DM_CMD_SET_DM_TRACE_CONFIG:
-                    Trace_Process_CMD(tag_id, msg_id, (void *)buffer);
+                Trace_Process_CMD(tag_id, msg_id, (void *)buffer);
                 break;
             default:
                 Log_Write(LOG_LEVEL_ERROR, "[PC VQ] Invalid message id: %d\r\n", msg_id);

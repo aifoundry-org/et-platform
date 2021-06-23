@@ -72,18 +72,6 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
     FILL_EVENT_PAYLOAD(&message.payload, FATAL, 33, 0xFF, 0xC35A);
     power_event_callback(UNCORRECTABLE, &message);
 
-    /* Generate Internal Watchdog Timeout Error */
-    FILL_EVENT_HEADER(&message.header, WDOG_INTERNAL_TIMEOUT,
-            sizeof(struct event_message_t));
-    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 22, 0xA0A0A0A0B0B0B0B0, 0xECECECEC1D2D3D4D);
-    wdog_timeout_callback(UNCORRECTABLE, &message);
-
-    /* Generate External Watchdog Timeout Error */
-    FILL_EVENT_HEADER(&message.header, WDOG_EXTERNAL_TIMEOUT,
-            sizeof(struct event_message_t));
-    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 11, 0xCACACACA09110911, 0xAAAAAAAA1234CDEF);
-    wdog_timeout_callback(UNCORRECTABLE, &message);
-
     /* Generate Thermal Throttling Error */
      FILL_EVENT_HEADER(&message.header, THROTTLE_TIME,
              sizeof(struct event_message_t));
@@ -115,3 +103,9 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
 
 #endif
 
+void SP_Send_Exception_Event(tag_id_t tag_id, msg_id_t msg_id)
+{
+    //NOSONAR TODO: Geberate an SP Exception 
+    (void)tag_id;
+    (void)msg_id;
+}

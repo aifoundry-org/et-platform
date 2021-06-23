@@ -182,6 +182,31 @@ struct trace_control_block_t* Trace_Get_SP_CB(void)
 *
 *   FUNCTION
 *
+*       Trace_Get_SP_Buffer
+*
+*   DESCRIPTION
+*
+*       This function returns the common Trace control block buffer offset per
+*       SP Hart.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       offset value per hart.
+*
+***********************************************************************/
+uint32_t Trace_Get_SP_Buffer(void)
+{
+    return SP_Trace_CB.offset_per_hart;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       Trace_Run_Control
 *
 *   DESCRIPTION

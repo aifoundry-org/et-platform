@@ -259,6 +259,8 @@ int32_t get_watchdog_max_timeout(uint32_t *timeout_msec)
 ***********************************************************************/
 void watchdog_isr(void)
 {
+    uint32_t trace_buf = Trace_Get_SP_Buffer();
+
     /* Restart and clear the interrupt */
     iowrite32(R_SP_WDT_BASEADDR + WDT_WDT_CRR_ADDRESS, WDT_WDT_CRR_WDT_CRR_WDT_CRR_RESTART);
 
@@ -269,9 +271,9 @@ void watchdog_isr(void)
     {
         struct event_message_t message;
         /* add details in message header and fill payload */
-        FILL_EVENT_HEADER(&message.header, WDOG_INTERNAL_TIMEOUT,
-                          sizeof(struct event_message_t) - sizeof(struct cmn_header_t));
-        FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, 0, 0);
+        FILL_EVENT_HEADER(&message.header, SP_RUNTIME_HANG,
+                          sizeof(struct event_message_t) - sizeof(struct cmn_header_t))
+        FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, timer_get_ticks_count(), trace_buf)
         wdog_control_block.event_cb(CORRECTABLE, &message);
     }
 }

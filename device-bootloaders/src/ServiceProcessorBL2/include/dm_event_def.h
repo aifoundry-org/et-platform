@@ -48,13 +48,12 @@ enum event_ids {
     SRAM_UCE,              /**< Uncorrectable SRAM error. */
     THERMAL_LOW,           /**< Lower thermal threshold exceeded. */
     PMIC_ERROR,            /**<  */
-    WDOG_INTERNAL_TIMEOUT, /**< Internal WDT Interrupt. */
-    WDOG_EXTERNAL_TIMEOUT, /**< External PMIC Reset. */
     FW_BOOT,               /**< FW boot error. */
     MINION_EXCEPT_TH,      /**< Minion error count threshold exceeded. */
     MINION_HANG_TH,        /**< Minion hang threshold exceeded. */
     THROTTLE_TIME,         /** < Event for time in throttling state */
-    SP_RUNTIME_ERROR,      /** < SP runtime error */
+    SP_RUNTIME_EXCEPT,     /** < SP runtime exception event */
+    SP_RUNTIME_HANG,       /** < SP runtime hang event */
     MAX_ERROR_EVENT = 512, /**< Max limit for error IDs. */ 
 };
 
