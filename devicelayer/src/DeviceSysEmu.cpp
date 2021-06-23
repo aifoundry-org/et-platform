@@ -519,9 +519,16 @@ void DeviceSysEmu::setupMasterMinion() {
 }
 
 void* DeviceSysEmu::allocDmaBuffer(int, size_t sizeInBytes, bool) {
-  return malloc(sizeInBytes);
+  auto res = malloc(sizeInBytes);
+  if (!res) {
+    throw Exception("Error allocating memory buffer");
+  }
+  return res;
 }
 
 void DeviceSysEmu::freeDmaBuffer(void* dmaBuffer) {
+  if (!dmaBuffer) {
+    throw Exception("Can't free a null pointer");
+  }
   free(dmaBuffer);
 }
