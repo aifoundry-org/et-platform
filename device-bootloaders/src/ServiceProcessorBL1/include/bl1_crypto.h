@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 #include "esperanto_signed_image_format/public_key_data.h"
-#include "vaultip_static_assets.h"
+#include "hal_vaultip_static_assets.h"
 
 typedef struct CRYPTO_HASH_CONTEXT_s {
     HASH_ALG_t hash_alg;

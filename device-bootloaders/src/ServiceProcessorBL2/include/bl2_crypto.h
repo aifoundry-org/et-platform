@@ -22,7 +22,7 @@
 #include <stdlib.h>
 
 #include "esperanto_signed_image_format/public_key_data.h"
-#include "vaultip_static_assets.h"
+#include "hal_vaultip_static_assets.h"
 
 /*!
  * @struct typedef struct CRYPTO_HASH_CONTEXT_s
@@ -52,7 +52,7 @@ typedef struct CRYPTO_AES_CONTEXT_s {
 int crypto_init(uint32_t vaultip_coid_set);
 
 /*! \fn int crypto_verify_public_key_params(const PUBLIC_KEY_t *public_key)
-    \brief This function validates public key paramteres with respect to 
+    \brief This function validates public key paramteres with respect to
            crypto algorithm used
     \param public_key control block of public key
     \return Status indicating success or negative error
@@ -62,7 +62,7 @@ int crypto_verify_public_key_params(const PUBLIC_KEY_t *public_key);
 
 /*! \fn int crypto_verify_signature_params(const PUBLIC_SIGNATURE_t *signature)
     \brief This function verify signature parameters which includes hash algorithm
-           and key type with it's size, 
+           and key type with it's size,
     \param signature control block of public key
     \return Status indicating success or negative error
 */
@@ -70,7 +70,7 @@ int crypto_verify_public_key_params(const PUBLIC_KEY_t *public_key);
 int crypto_verify_signature_params(const PUBLIC_SIGNATURE_t *signature);
 
 /*! \fn int crypto_hash(HASH_ALG_t hash_alg, const void *msg, size_t msg_size, uint8_t *hash)
-    \brief This function retrieves driver hash 
+    \brief This function retrieves driver hash
     \param hash_alg hashing algorithm type
     \param msg pointer to message cb
     \param msg_size size of msg cb
@@ -106,7 +106,7 @@ int crypto_hash_update(CRYPTO_HASH_CONTEXT_t *hash_context, const void *msg, siz
     \param msg pointer to message cb
     \param msg_size size of msg cb
     \param total_msg_length total length of message
-    \param hash pointer to hash 
+    \param hash pointer to hash
     \return Status indicating success or negative error
 */
 

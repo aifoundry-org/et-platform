@@ -14,9 +14,9 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-
-#include "etsoc_hal/inc/vaultip_sw.h"
-#include "vaultip_static_assets.h"
+#define a
+#include "hal_vaultip_sw.h"
+#include "hal_vaultip_static_assets.h"
 
 int vaultip_self_test(void);
 int vaultip_get_system_information(uint32_t identity,

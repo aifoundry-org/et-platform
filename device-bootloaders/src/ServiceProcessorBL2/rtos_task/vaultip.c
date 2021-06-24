@@ -10,9 +10,9 @@
 
 #include "bl2_task_priorities.h"
 
-#include "etsoc_hal/inc/vaultip_hw.h"
-#include "etsoc_hal/inc/vaultip_sw.h"
-#include "etsoc_hal/inc/vaultip_sw_asset.h"
+#include "hal_vaultip_hw.h"
+#include "hal_vaultip_sw.h"
+#include "hal_vaultip_sw_asset.h"
 #include "bl2_flash_fs.h"
 
 #include "bl2_vaultip_controller.h"

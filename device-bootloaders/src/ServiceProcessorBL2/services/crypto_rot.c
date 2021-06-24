@@ -34,11 +34,12 @@
 #include "semphr.h"
 #include "bl2_main.h"
 #include "bl2_crypto.h"
-#include "etsoc_hal/inc/vaultip_hw.h"
-#include "etsoc_hal/inc/vaultip_sw.h"
-#include "etsoc_hal/inc/vaultip_sw_asset.h"
 #include "bl2_vaultip_controller.h"
 #include "bl2_vaultip_driver.h"
+
+#include "hal_vaultip_hw.h"
+#include "hal_vaultip_sw.h"
+#include "hal_vaultip_sw_asset.h"
 
 #pragma GCC diagnostic ignored "-Wswitch-enum"
 

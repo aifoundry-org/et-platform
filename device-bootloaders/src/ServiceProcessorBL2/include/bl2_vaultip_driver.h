@@ -13,8 +13,8 @@
 #define __BL2_VAULTIP_DRIVER_H__
 
 #include "bl2_crypto.h"
-#include "vaultip_static_assets.h"
-#include "etsoc_hal/inc/vaultip_sw.h"
+#include "hal_vaultip_static_assets.h"
+#include "hal_vaultip_sw.h"
 #include "error.h"
 
 /*! \fn uint8_t* Vault_Initialize(void)

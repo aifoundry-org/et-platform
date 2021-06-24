@@ -15,14 +15,13 @@
 
 #include "bl1_main.h"
 #include "bl1_crypto.h"
-#include "etsoc_hal/inc/vaultip_hw.h"
-#include "etsoc_hal/inc/vaultip_sw.h"
-#include "etsoc_hal/inc/vaultip_sw_asset.h"
 #include "bl1_vaultip_controller.h"
 #include "bl1_flash_fs.h"
 #include "printx.h"
-//#include "bl1_sp_gpio.h"
-//#include "sp_otp.h"
+
+#include "hal_vaultip_hw.h"
+#include "hal_vaultip_sw.h"
+#include "hal_vaultip_sw_asset.h"
 
 #pragma GCC diagnostic ignored "-Wswitch-enum"
 

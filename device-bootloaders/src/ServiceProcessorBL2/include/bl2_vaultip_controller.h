@@ -20,8 +20,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "etsoc_hal/inc/vaultip_sw.h"
-#include "vaultip_static_assets.h"
+#include "hal_vaultip_sw.h"
+#include "hal_vaultip_static_assets.h"
 
 
 /*! \fn bool is_vaultip_disabled(void)
