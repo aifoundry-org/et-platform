@@ -40,10 +40,6 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleSerialNumber_1_3) {
   getModuleSerialNumber_1_3();
 }
 
-
-
-
-
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModulePCIENumPortsMaxSpeed_1_5) {
   getModulePCIENumPortsMaxSpeed_1_5();
 }
@@ -118,30 +114,6 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getPCIEECCUECCCount_1_26) {
   getPCIEECCUECCCount_1_26();
 }
 
-// Link Management
-/*
-TEST_F(TestDevMgmtApiSyncCmds, test_DM_CMD_SET_PCIE_RESET) {
-  getDM_t dmi = getInstance();
-  ASSERT_TRUE(dmi);
-  DeviceManagement &dm = (*dmi)(devLayer_.get());
-
-  const uint32_t input_size = sizeof(device_mgmt_api::pcie_reset_e);
-  const char input_buff[input_size] = {device_mgmt_api::PCIE_RESET_FLR};
-
-  //Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
-  const uint32_t output_size = sizeof(uint32_t);
-  char output_buff[output_size] = {0};
-  auto hst_latency = std::make_unique<uint32_t>();
-  auto dev_latency = std::make_unique<uint64_t>();
-
-  ASSERT_EQ(dm.serviceRequest("et0_mgmt", device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_RESET, input_buff, input_size,
-                              output_buff, output_size, hst_latency.get(), dev_latency.get(), 2000),
-            device_mgmt_api::DM_STATUS_SUCCESS);
-
-  ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
-}
-*/
-
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getDDRECCUECCCount_1_27) {
   getDDRECCUECCCount_1_27();
 }
@@ -193,13 +165,6 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleFWRevision_1_42) {
 }
 #endif
 
-/*
-// Test serial access
-// SW-6404 Test failing in Zebu
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, serializeAccessMgmtNode_1_43) {
-  serializeAccessMgmtNode_1_43();
-}
-*/
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getDeviceErrorEvents_1_44) {
   getDeviceErrorEvents_1_44();
 }
