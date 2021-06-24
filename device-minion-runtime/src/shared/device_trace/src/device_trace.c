@@ -32,14 +32,13 @@
 #include <string.h>
 #include "device_trace.h"
 #include "device-common/hart.h"
-#include "device-common/cacheops.h"
 #if defined(MASTER_MINION)
 #include "device-common/atomic.h"
 #include "etsoc_memory.h"
 #endif
 
-/* For Master Minion all Trace data is based on L2 Cache, that is we need to perform all updates in L2.
-   On other hand, for Service Processor and Compute Minion, Trace data is in L1 Cache, and updated are
+/* For Master Minion all Trace data is based on L2 Cache, that means we need to perform all updates in L2.
+   On other hand, for Service Processor and Compute Minion, Trace data is in L1 Cache, and updates are
    done by normal load/store operations. */
 #if defined(MASTER_MINION)
 /* All Trace CB operations are Atomic operations in L2 Cache. */
@@ -65,9 +64,6 @@ union data_u32_f
                                          atomic_store_local_32((void *)&addr, data.value_u32);})
 #define MEM_CPY(dest, src, size)        ETSOC_Memory_Write_Local_Atomic(src, dest, size)
 
-#define EVICT(dest, cb, size)           ({asm volatile("fence");                                                        \
-                                         evict(dest, (void*)(uintptr_t)atomic_load_local_64(&cb->base_per_hart), size); \
-                                         __asm__ __volatile__ ( "csrwi tensor_wait, 6\n" : : );})
 #define IS_TRACE_ENABLED(cb)            (READ_U8(cb->enable) == TRACE_ENABLE)
 #define IS_TRACE_STR_ENABLED(cb, log)   (IS_TRACE_ENABLED(cb) &&                                        \
                                         (atomic_load_local_32(&cb->event_mask) & TRACE_EVENT_STRING) && \
@@ -89,28 +85,12 @@ union data_u32_f
 #define WRITE_F(var, value)             (var = value)
 #define MEM_CPY(dest, src, size)        memcpy(dest, src, size)
 
-#define EVICT(dest, cb, size)           ({asm volatile("fence");                                   \
-                                         evict(dest, (void*)(uintptr_t)(cb->base_per_hart), size); \
-                                         __asm__ __volatile__ ( "csrwi tensor_wait, 6\n" : : );})
 #define IS_TRACE_ENABLED(cb)            (cb->enable == TRACE_ENABLE)
 #define IS_TRACE_STR_ENABLED(cb, log)   (IS_TRACE_ENABLED(cb) &&                    \
                                         (cb->event_mask & TRACE_EVENT_STRING) &&    \
                                         (CHECK_STRING_FILTER(cb, log)))
 
 #endif
-
-inline static bool trace_check_buffer_full(struct trace_control_block_t *cb, uint64_t size, uint32_t *current_offset)
-{
-    *current_offset = READ_U32(cb->offset_per_hart);
-    if((*current_offset + size) > READ_U32(cb->threshold))
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
 
 union trace_header_u {
     struct
@@ -161,29 +141,130 @@ static inline uint64_t PMU_Get_Counter(enum pmc_counter_e counter)
     return val;
 }
 
-static inline void *TraceBuffer_Reserve(struct trace_control_block_t *cb, uint64_t size)
+/************************************************************************
+*
+*   FUNCTION
+*
+*       trace_check_buffer_full
+*
+*   DESCRIPTION
+*
+*       This function checks if buffer is completely filled upto maximum size.
+
+*
+*   INPUTS
+*
+*       trace_control_block_t   Trace control block.
+*       uint64_t                Size of buffer to be reserved.
+*
+*   OUTPUTS
+*
+*       bool                    True: Buffer Is full, and reset is done.
+*                               False: Buffer is not full yet.
+*
+***********************************************************************/
+inline static bool trace_check_buffer_full(const struct trace_control_block_t *cb,
+    uint64_t size)
+{
+    if((READ_U32(cb->offset_per_hart) + size) > READ_U32(cb->size_per_hart))
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       trace_check_buffer_threshold
+*
+*   DESCRIPTION
+*
+*       This function checks if buffer is filled upto threshold limit.
+*
+*   INPUTS
+*
+*       trace_control_block_t   Trace control block.
+*       uint64_t                Size of buffer to be reserved.
+*       uint32_t                Pointer to return current offest in buffer.
+*                               NOTE: this offset does not include new
+*                               reserved buffer size.
+*
+*   OUTPUTS
+*
+*       bool                    True: Buffer crossed threshold
+*                               False: Buffer is not filled upto threshold.
+*
+***********************************************************************/
+inline static bool trace_check_buffer_threshold(const struct trace_control_block_t *cb,
+    uint64_t size, uint32_t *current_offset)
+{
+    *current_offset = READ_U32(cb->offset_per_hart);
+    if((*current_offset + size) > READ_U32(cb->threshold))
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       trace_buffer_reserve
+*
+*   DESCRIPTION
+*
+*       This function reserves buffer for given size of data.
+*       And if buffer threshold reached it notifies the Host,
+*       but if buffer is full upto maximum size then it resets the buffer.
+*
+*   INPUTS
+*
+*       trace_control_block_t   Trace control block.
+*       uint64_t                Size of buffer to be reserved.
+*
+*   OUTPUTS
+*
+*       void*                   Pointer to buffer head.
+*
+***********************************************************************/
+static inline void *trace_buffer_reserve(struct trace_control_block_t *cb, uint64_t size)
 {
     void *head;
     uint32_t current_offset = 0;
 
-    if (trace_check_buffer_full(cb, size, &current_offset))
+    /* Check if Trace buffer is filled upto threshold. */
+    if (trace_check_buffer_threshold(cb, size, &current_offset))
     {
-        /* Flush buffer to Mem (dst = 3) */
-        EVICT(to_Mem, cb, current_offset);
+        /* Check if host needs to be notified about reaching buffer threshold limit.
+           This notification is only needed once when it reaches threshold for the first time,
+           so this checks if we just reached threshold by including current data size.
+           TODO: If "current_offset" is less than threshold then
+           Notify the Host that we reached the notification threshold
+           syscall(SYSCALL_TRACE_BUFFER_THRESHOLD_HIT) */
 
-        // TODO: Notify that we reached the notification threshold
-        //       syscall(SYSCALL_TRACE_BUFFER_THRESHOLD_HIT);
+        /* Check if Trace buffer is filled upto threshold. Then do reset the buffer. */
+        if (trace_check_buffer_full(cb, size))//NOSONAR Do not merge this "if" with enclosing because of task pending above
+        {
+            /* Reset buffer. */
+            WRITE_U32(cb->offset_per_hart, 0U);
+            head = (void *)(uintptr_t)(READ_U64(cb->base_per_hart));
 
-        /* Reset buffer. */
-        WRITE_U32(cb->offset_per_hart, 0U);
-        head = (void *)(uintptr_t)(READ_U64(cb->base_per_hart));
+            return head;
+        }
     }
-    else
-    {
-        /* Update offset. */
-        WRITE_U32(cb->offset_per_hart, (uint32_t)(current_offset + size));
-        head = (void *) (READ_U64(cb->base_per_hart) + current_offset);
-    }
+
+    /* Update offset. */
+    WRITE_U32(cb->offset_per_hart, (uint32_t)(current_offset + size));
+    head = (void *) (READ_U64(cb->base_per_hart) + current_offset);
 
     return head;
 }
@@ -204,7 +285,6 @@ static inline void *TraceBuffer_Reserve(struct trace_control_block_t *cb, uint64
 *       trace_init_info_t       Global tracing information used to initialize Trace.
 *       trace_control_block_t   A return pointer to hold intialized Trace control block for
 *                               given Hart ID.
-*       uint64_t                Hart ID for which user needs Trace control block.
 *
 *   OUTPUTS
 *
@@ -252,7 +332,7 @@ void Trace_String(enum trace_string_event log_level, struct trace_control_block_
     if (IS_TRACE_STR_ENABLED(cb, log_level))
     {
         struct trace_string_t *entry =
-            TraceBuffer_Reserve(cb, sizeof(*entry));
+            trace_buffer_reserve(cb, sizeof(*entry));
 
         union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_STRING};
 
@@ -290,7 +370,7 @@ void Trace_Format_String(enum trace_string_event log_level, struct trace_control
     {
         va_list args;
         struct trace_string_t *entry =
-            TraceBuffer_Reserve(cb, sizeof(*entry));
+            trace_buffer_reserve(cb, sizeof(*entry));
 
         union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_STRING};
 
@@ -359,7 +439,7 @@ void Trace_PMC_Counter(struct trace_control_block_t *cb, enum pmc_counter_e coun
     if(IS_TRACE_ENABLED(cb))
     {
         struct trace_pmc_counter_t *entry =
-            TraceBuffer_Reserve(cb, sizeof(*entry));
+            trace_buffer_reserve(cb, sizeof(*entry));
 
         union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_PMC_COUNTER};
 
@@ -396,7 +476,7 @@ void Trace_Value_u64(struct trace_control_block_t *cb, uint32_t tag, uint64_t va
     if(IS_TRACE_ENABLED(cb))
     {
         struct trace_value_u64_t *entry =
-                TraceBuffer_Reserve(cb, sizeof(*entry));
+                trace_buffer_reserve(cb, sizeof(*entry));
 
         union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_VALUE_U64};
 
@@ -433,7 +513,7 @@ void Trace_Value_u32(struct trace_control_block_t *cb, uint32_t tag, uint32_t va
     if(IS_TRACE_ENABLED(cb))
     {
         struct trace_value_u32_t *entry =
-                TraceBuffer_Reserve(cb, sizeof(*entry));
+                trace_buffer_reserve(cb, sizeof(*entry));
 
         union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_VALUE_U32};
 
@@ -470,7 +550,7 @@ void Trace_Value_u16(struct trace_control_block_t *cb, uint32_t tag, uint16_t va
     if(IS_TRACE_ENABLED(cb))
     {
         struct trace_value_u16_t *entry =
-            TraceBuffer_Reserve(cb, sizeof(*entry));
+            trace_buffer_reserve(cb, sizeof(*entry));
 
         union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_VALUE_U16};
 
@@ -507,7 +587,7 @@ void Trace_Value_u8(struct trace_control_block_t *cb, uint32_t tag, uint8_t valu
     if(IS_TRACE_ENABLED(cb))
     {
         struct trace_value_u8_t *entry =
-                TraceBuffer_Reserve(cb, sizeof(*entry));
+                trace_buffer_reserve(cb, sizeof(*entry));
 
         union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_VALUE_U8};
 
@@ -544,7 +624,7 @@ void Trace_Value_float(struct trace_control_block_t *cb, uint32_t tag, float val
     if(IS_TRACE_ENABLED(cb))
     {
         struct trace_value_float_t *entry =
-            TraceBuffer_Reserve(cb, sizeof(*entry));
+            trace_buffer_reserve(cb, sizeof(*entry));
 
         union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_VALUE_FLOAT};
 
@@ -582,7 +662,7 @@ void Trace_Memory(struct trace_control_block_t *cb, const uint8_t *src,
     if(IS_TRACE_ENABLED(cb))
     {
         struct trace_memory_t *entry =
-            TraceBuffer_Reserve(cb, sizeof(*entry) + (uint32_t)(num_cache_line*8));
+            trace_buffer_reserve(cb, sizeof(*entry) + (uint32_t)(num_cache_line*8));
 
         union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_MEMORY};
 
