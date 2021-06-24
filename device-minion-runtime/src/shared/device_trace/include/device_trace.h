@@ -124,5 +124,6 @@ void Trace_Value_u16(struct trace_control_block_t *cb, uint32_t tag, uint16_t va
 void Trace_Value_u8(struct trace_control_block_t *cb, uint32_t tag, uint8_t value);
 void Trace_Value_float(struct trace_control_block_t *cb, uint32_t tag, float value);
 void Trace_Memory(struct trace_control_block_t *cb, const uint8_t *src, uint16_t num_cache_line);
+void *Trace_Buffer_Reserve(struct trace_control_block_t *cb, uint64_t size);
 
 #endif

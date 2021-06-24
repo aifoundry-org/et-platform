@@ -224,7 +224,7 @@ inline static bool trace_check_buffer_threshold(const struct trace_control_block
 *
 *   FUNCTION
 *
-*       trace_buffer_reserve
+*       Trace_Buffer_Reserve
 *
 *   DESCRIPTION
 *
@@ -242,7 +242,7 @@ inline static bool trace_check_buffer_threshold(const struct trace_control_block
 *       void*                   Pointer to buffer head.
 *
 ***********************************************************************/
-static inline void *trace_buffer_reserve(struct trace_control_block_t *cb, uint64_t size)
+void *Trace_Buffer_Reserve(struct trace_control_block_t *cb, uint64_t size)
 {
     void *head;
     uint32_t current_offset = 0;
@@ -347,7 +347,7 @@ void Trace_String(enum trace_string_event log_level, struct trace_control_block_
     if (IS_TRACE_STR_ENABLED(cb, log_level))
     {
         struct trace_string_t *entry =
-            trace_buffer_reserve(cb, sizeof(*entry));
+            Trace_Buffer_Reserve(cb, sizeof(*entry));
 
         ADD_MESSAGE_HEADER(entry, TRACE_TYPE_STRING)
 
@@ -383,7 +383,7 @@ void Trace_Format_String(enum trace_string_event log_level, struct trace_control
     {
         va_list args;
         struct trace_string_t *entry =
-            trace_buffer_reserve(cb, sizeof(*entry));
+            Trace_Buffer_Reserve(cb, sizeof(*entry));
 
         ADD_MESSAGE_HEADER(entry, TRACE_TYPE_STRING)
 
@@ -449,7 +449,7 @@ void Trace_PMC_Counter(struct trace_control_block_t *cb, enum pmc_counter_e coun
     if(IS_TRACE_ENABLED(cb))
     {
         struct trace_pmc_counter_t *entry =
-            trace_buffer_reserve(cb, sizeof(*entry));
+            Trace_Buffer_Reserve(cb, sizeof(*entry));
 
         ADD_MESSAGE_HEADER(entry, TRACE_TYPE_PMC_COUNTER)
 
@@ -483,7 +483,7 @@ void Trace_Value_u64(struct trace_control_block_t *cb, uint32_t tag, uint64_t va
     if(IS_TRACE_ENABLED(cb))
     {
         struct trace_value_u64_t *entry =
-                trace_buffer_reserve(cb, sizeof(*entry));
+                Trace_Buffer_Reserve(cb, sizeof(*entry));
 
         ADD_MESSAGE_HEADER(entry, TRACE_TYPE_VALUE_U64)
 
@@ -518,7 +518,7 @@ void Trace_Value_u32(struct trace_control_block_t *cb, uint32_t tag, uint32_t va
     if(IS_TRACE_ENABLED(cb))
     {
         struct trace_value_u32_t *entry =
-                trace_buffer_reserve(cb, sizeof(*entry));
+                Trace_Buffer_Reserve(cb, sizeof(*entry));
 
         ADD_MESSAGE_HEADER(entry, TRACE_TYPE_VALUE_U32)
 
@@ -553,7 +553,7 @@ void Trace_Value_u16(struct trace_control_block_t *cb, uint32_t tag, uint16_t va
     if(IS_TRACE_ENABLED(cb))
     {
         struct trace_value_u16_t *entry =
-            trace_buffer_reserve(cb, sizeof(*entry));
+            Trace_Buffer_Reserve(cb, sizeof(*entry));
 
         ADD_MESSAGE_HEADER(entry, TRACE_TYPE_VALUE_U16)
 
@@ -588,7 +588,7 @@ void Trace_Value_u8(struct trace_control_block_t *cb, uint32_t tag, uint8_t valu
     if(IS_TRACE_ENABLED(cb))
     {
         struct trace_value_u8_t *entry =
-                trace_buffer_reserve(cb, sizeof(*entry));
+                Trace_Buffer_Reserve(cb, sizeof(*entry));
 
         ADD_MESSAGE_HEADER(entry, TRACE_TYPE_VALUE_U8)
 
@@ -623,7 +623,7 @@ void Trace_Value_float(struct trace_control_block_t *cb, uint32_t tag, float val
     if(IS_TRACE_ENABLED(cb))
     {
         struct trace_value_float_t *entry =
-            trace_buffer_reserve(cb, sizeof(*entry));
+            Trace_Buffer_Reserve(cb, sizeof(*entry));
 
         ADD_MESSAGE_HEADER(entry, TRACE_TYPE_VALUE_FLOAT)
 
@@ -659,7 +659,7 @@ void Trace_Memory(struct trace_control_block_t *cb, const uint8_t *src,
     if(IS_TRACE_ENABLED(cb))
     {
         struct trace_memory_t *entry =
-            trace_buffer_reserve(cb, sizeof(*entry) + (uint32_t)(num_cache_line*8));
+            Trace_Buffer_Reserve(cb, sizeof(*entry) + (uint32_t)(num_cache_line*8));
 
         ADD_MESSAGE_HEADER(entry, TRACE_TYPE_MEMORY)
 
@@ -672,4 +672,3 @@ void Trace_Memory(struct trace_control_block_t *cb, const uint8_t *src,
         }
     }
 }
-
