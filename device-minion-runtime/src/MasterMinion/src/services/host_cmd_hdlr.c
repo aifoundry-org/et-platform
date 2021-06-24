@@ -924,15 +924,15 @@ static inline int8_t trace_rt_control_cmd_handler(void* command_buffer, uint8_t 
         /* Check flag to redirect logs to Trace or UART. */
         if (cmd->control & (1U << 1))
         {
-            Log_Set_Interface(LOG_DUMP_TO_TRACE);
-            Log_Write(LOG_LEVEL_CRITICAL,
-                    "TRACE_RT_CONTROL:MM:Logs redirected to Trace buffer.\r\n");
-        }
-        else
-        {
             Log_Set_Interface(LOG_DUMP_TO_UART);
             Log_Write(LOG_LEVEL_DEBUG,
                     "TRACE_RT_CONTROL:MM:Logs redirected to UART.\r\n");
+        }
+        else
+        {
+            Log_Set_Interface(LOG_DUMP_TO_TRACE);
+            Log_Write(LOG_LEVEL_CRITICAL,
+                    "TRACE_RT_CONTROL:MM:Logs redirected to Trace buffer.\r\n");
         }
     }
 
@@ -960,15 +960,15 @@ static inline int8_t trace_rt_control_cmd_handler(void* command_buffer, uint8_t 
         /* Check flag to redirect logs to Trace or UART. */
         if (cmd->control & (1U << 1))
         {
-            cm_msg.log_interface = LOG_DUMP_TO_TRACE;
-            Log_Write(LOG_LEVEL_DEBUG,
-                    "TRACE_RT_CONTROL:CM:Redirecting logs to Trace buffer.\r\n");
-        }
-        else
-        {
             cm_msg.log_interface = LOG_DUMP_TO_UART;
             Log_Write(LOG_LEVEL_DEBUG,
                     "TRACE_RT_CONTROL:CM:Redirecting logs to UART.\r\n");
+        }
+        else
+        {
+            cm_msg.log_interface = LOG_DUMP_TO_TRACE;
+            Log_Write(LOG_LEVEL_DEBUG,
+                    "TRACE_RT_CONTROL:CM:Redirecting logs to Trace buffer.\r\n");
         }
 
         cm_shire_mask = Trace_Get_CM_Shire_Mask();
