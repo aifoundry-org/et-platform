@@ -984,11 +984,11 @@ void TestDevOpsApi::redirectTraceLogging(int deviceIdx, bool toTraceBuf) {
 
   // redirect MM trace logging to TraceBuf/UART
   stream.push_back(IDevOpsApiCmd::createTraceRtControlCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 0x1,
-                                                          toTraceBuf ? 0x3 : 0x0,
+                                                          toTraceBuf ? 0x1 : 0x3,
                                                           device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
   // redirect CM trace logging to TraceBuf/UART
   stream.push_back(IDevOpsApiCmd::createTraceRtControlCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 0x2,
-                                                          toTraceBuf ? 0x3 : 0x0,
+                                                          toTraceBuf ? 0x1 : 0x3,
                                                           device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
 
   cmdResults_.clear();

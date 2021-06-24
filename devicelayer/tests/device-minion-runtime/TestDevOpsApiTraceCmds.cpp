@@ -29,7 +29,7 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractMMFwData_5_1() {
     std::vector<uint8_t> compBuf(size, 0);
 
     // start MM trace and dump logs to trace buffer
-    stream.push_back(IDevOpsApiCmd::createTraceRtControlCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 0x1, 0x3,
+    stream.push_back(IDevOpsApiCmd::createTraceRtControlCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 0x1, 0x1,
                                                             device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
 
     // Read Trace data from MM
@@ -41,7 +41,7 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractMMFwData_5_1() {
                                                       device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
     // stop MM trace and redirect logs to UART
-    stream.push_back(IDevOpsApiCmd::createTraceRtControlCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, 0x1, 0x0,
+    stream.push_back(IDevOpsApiCmd::createTraceRtControlCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, 0x1, 0x3,
                                                             device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
     readBufs.push_back(std::move(readBuf));
     compBufs.push_back(std::move(compBuf));
@@ -71,7 +71,7 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractCMFwData_5_2() {
     std::vector<uint8_t> compBuf(size, 0);
 
     // start CM trace and dump logs to trace buffer
-    stream.push_back(IDevOpsApiCmd::createTraceRtControlCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 0x2, 0x3,
+    stream.push_back(IDevOpsApiCmd::createTraceRtControlCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 0x2, 0x1,
                                                             device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
 
     // Read Trace data from CM
