@@ -47,7 +47,8 @@ enum trace_type_e {
     TRACE_TYPE_VALUE_U16,
     TRACE_TYPE_VALUE_U8,
     TRACE_TYPE_VALUE_FLOAT,
-    TRACE_TYPE_MEMORY
+    TRACE_TYPE_MEMORY,
+    TRACE_TYPE_EXCEPTION
 };
 
 enum pmc_counter_e {
