@@ -16,7 +16,7 @@
 */
 /***********************************************************************/
 #pragma once
-#include "etsoc_hal/inc/DW_apb_i2c.h"
+#include "hwinc/sp_i2c0.h"
 #include <stdbool.h>
 
 /*!

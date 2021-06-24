@@ -23,11 +23,12 @@
 #include <stdio.h>
 
 #include "io.h"
-#include "etsoc_hal/inc/spio_gpio.h"
-#include "hwinc/hal_device.h"
 #include "bl2_gpio_controller.h"
 #include "error.h"
 #include "bl2_main.h"
+
+#include "hwinc/sp_gpio.h"
+#include "hwinc/hal_device.h"
 
 /************************************************************************
 *

@@ -31,7 +31,7 @@
 
 #include "hwinc/sp_cru_reset.h"
 #include "hwinc/sp_cru.h"
-#include "etsoc_hal/inc/pshire_esr.h"
+#include "hwinc/pcie_esr.h"
 #include "hwinc/hal_device.h"
 #include "hwinc/hpdpll_modes_config.h"
 
@@ -223,8 +223,8 @@ static int clock_manager_pll_bypass(PLL_ID_t pll, bool bypass_enable)
                     CLOCK_MANAGER_CM_PLL4_CTRL_ENABLE_SET(bypass_enable ? 0 : 1));
             break;
         case PLL_ID_PSHIRE:
-            iowrite32(R_PCIE_ESR_BASEADDR + PSHIRE_PSHIRE_CTRL_ADDRESS,
-                    PSHIRE_PSHIRE_CTRL_PLL0_BYP_SET(bypass_enable ? 1 : 0));
+            iowrite32(R_PCIE_ESR_BASEADDR + PCIE_ESR_PSHIRE_CTRL_ADDRESS,
+                    PCIE_ESR_PSHIRE_CTRL_PLL0_BYP_SET(bypass_enable ? 1 : 0));
             break;
 
         case PLL_ID_SP_PLL_3:
