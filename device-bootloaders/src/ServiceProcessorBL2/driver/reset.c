@@ -10,9 +10,9 @@
 *
 ************************************************************************/
 /*! \file pmic_controller.c
-    \brief A C module that implements the PMIC controller's functionality. It 
-    provides functions to set/get voltage of different components and set/clear 
-    gpio bits. It also configures different error thresholds and report error 
+    \brief A C module that implements the PMIC controller's functionality. It
+    provides functions to set/get voltage of different components and set/clear
+    gpio bits. It also configures different error thresholds and report error
     events to host.
 
     Public interfaces:
@@ -29,9 +29,10 @@
 #include "log.h"
 #include "io.h"
 #include "bl2_reset.h"
-#include "etsoc_hal/inc/cm_esr.h"
-#include "etsoc_hal/inc/rm_esr.h"
-#include "etsoc_hal/inc/hal_device.h"
+
+#include "hwinc/sp_cru.h"
+#include "hwinc/sp_cru_reset.h"
+#include "hwinc/hal_device.h"
 
 int release_memshire_from_reset(void)
 {

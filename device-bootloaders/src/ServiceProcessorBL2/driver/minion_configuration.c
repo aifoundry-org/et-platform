@@ -37,7 +37,6 @@
 #include <stdio.h>
 
 #include <etsoc_hal/inc/etsoc_shire_other_esr.h>
-#include <etsoc_hal/inc/sp_minion_cold_reset_sequence.h>
 
 #include "minion_esr_defines.h"
 #include "minion_configuration.h"
@@ -122,7 +121,7 @@ static void minion_error_update_count(uint8_t error_type)
 {
     /* TODO: This is just an example implementation.
        The final driver implementation will read these values from the
-       hardware, create a message and invoke call back with message and 
+       hardware, create a message and invoke call back with message and
        error type as parameters. */
 
     struct event_message_t message;

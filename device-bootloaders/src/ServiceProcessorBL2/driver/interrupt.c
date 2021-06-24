@@ -8,7 +8,7 @@
 * agreement/contract under which the program(s) have been supplied.
 ************************************************************************/
 /*! \file interrupt.c
-    \brief A C module that implements the interrupt controller services. It 
+    \brief A C module that implements the interrupt controller services. It
     provides functionality interrupt enable/disable.
 
     Public interfaces:
@@ -21,15 +21,17 @@
 #include "interrupt.h"
 #include "io.h"
 #include "FreeRTOS.h"
-#include "etsoc_hal/inc/pu_plic.h"
-#include "etsoc_hal/inc/pu_plic_intr_device.h"
-#include "etsoc_hal/inc/spio_plic.h"
-#include "etsoc_hal/inc/spio_plic_intr_device.h"
-#include "etsoc_hal/inc/hal_device.h"
+
 #include "task.h"
 #include "log.h"
 #include <stdio.h>
 #include <inttypes.h>
+
+#include "hwinc/pu_plic.h"
+#include "hwinc/pu_plic_intr_device.h"
+#include "hwinc/sp_plic.h"
+#include "hwinc/spio_plic_intr_device.h"
+#include "hwinc/hal_device.h"
 
 /*! \def SPIO_PLIC
 */
@@ -82,7 +84,7 @@ void INT_enableInterrupt(interrupt_t interrupt, uint32_t priority, void (*isr)(v
 {
     taskENTER_CRITICAL();
 
-    if (interrupt < PU_PLIC_NO_INTERRUPT_INTR) 
+    if (interrupt < PU_PLIC_NO_INTERRUPT_INTR)
     {
         /* Interrupt comes from SPIO_PLIC */
         vectorTable[interrupt] = isr;
@@ -90,8 +92,8 @@ void INT_enableInterrupt(interrupt_t interrupt, uint32_t priority, void (*isr)(v
         plicEnableInterrupt((volatile uint32_t *const)(SPIO_PLIC + SPIO_PLIC_PRIORITY_0_ADDRESS),
                             (volatile uint32_t *const)(SPIO_PLIC + SPIO_PLIC_ENABLE_T0_R0_ADDRESS),
                             (uint32_t)interrupt, priority);
-    } 
-    else 
+    }
+    else
     {
         /* Interrupt from PU_PLIC and is forwarded to SP through SPIO_PLIC */
         uint32_t pu_plicIntID = (uint32_t)interrupt - PU_PLIC_NO_INTERRUPT_INTR;
@@ -116,7 +118,7 @@ void INT_disableInterrupt(interrupt_t interrupt)
 {
     taskENTER_CRITICAL();
 
-    if (interrupt < PU_PLIC_NO_INTERRUPT_INTR) 
+    if (interrupt < PU_PLIC_NO_INTERRUPT_INTR)
     {
         /* Interrupt comes from SPIO_PLIC */
         plicDisableInterrupt((volatile uint32_t *const)
@@ -125,8 +127,8 @@ void INT_disableInterrupt(interrupt_t interrupt)
                                 (SPIO_PLIC + SPIO_PLIC_ENABLE_T0_R0_ADDRESS),
                              (uint32_t)interrupt);
         vectorTable[interrupt] = NULL;
-    } 
-    else 
+    }
+    else
     {
         /* Interrupt comes from PU_PLIC */
         uint32_t pu_plicIntID = (uint32_t)interrupt - PU_PLIC_NO_INTERRUPT_INTR;
@@ -138,7 +140,7 @@ void INT_disableInterrupt(interrupt_t interrupt)
 
         --pu_plicEnabledIntCnt;
 
-        if (pu_plicEnabledIntCnt == 0) 
+        if (pu_plicEnabledIntCnt == 0)
         {
             plicDisableInterrupt(
                 (volatile uint32_t *const)(SPIO_PLIC + SPIO_PLIC_PRIORITY_0_ADDRESS),
@@ -177,7 +179,7 @@ static void plicDisableInterrupt(volatile uint32_t *const basePriorityReg,
 
 void external_interrupt_handler(uint64_t cause)
 {
-    /* Assumption: taskENTER_CRITICAL is met. This is called from machine interrupt 
+    /* Assumption: taskENTER_CRITICAL is met. This is called from machine interrupt
        context (highest HART priority), and the RTOS is single-threaded */
 
     (void) cause;
@@ -198,8 +200,8 @@ void external_interrupt_handler(uint64_t cause)
 
 static void pu_plicISR(void)
 {
-    /* Assumption: taskENTER_CRITICAL is met. This is called from machine 
-      interrupt context (highest HART priority), and the RTOS is single-threaded 
+    /* Assumption: taskENTER_CRITICAL is met. This is called from machine
+      interrupt context (highest HART priority), and the RTOS is single-threaded
     Assumption: external_interrupt_handler reads SP_PLIC's MaxID reg before vectoring here,
     claiming the SP_PLIC int */
 
@@ -217,6 +219,6 @@ static void pu_plicISR(void)
     /* Important: it needs to match the int ID read above */
     iowrite32(PU_PLIC + PU_PLIC_MAXID_T0_ADDRESS, pu_plicIntID);
 
-    /* Assumption: external_interrupt_handler will write 
+    /* Assumption: external_interrupt_handler will write
        the SP_PLIC's MaxID reg after this returns, */
 }

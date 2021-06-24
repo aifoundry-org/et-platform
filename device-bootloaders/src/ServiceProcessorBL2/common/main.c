@@ -29,9 +29,9 @@
 #include "noc_configuration.h"
 #include "minion_configuration.h"
 #include "mem_controller.h"
-
-#include "etsoc_hal/inc/rm_esr.h"
-#include "etsoc_hal/inc/hal_device.h"
+#define a
+#include "hwinc/sp_cru_reset.h"
+#include "hwinc/hal_device.h"
 
 #include <inttypes.h>
 #include <stdio.h>

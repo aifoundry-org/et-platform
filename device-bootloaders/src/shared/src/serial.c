@@ -1,6 +1,6 @@
 #include "io.h"
 #include "serial.h"
-#include "etsoc_hal/inc/DW_apb_uart.h"
+#include "hwinc/sp_uart0.h"
 
 static void set_baud_divisor(uintptr_t uartRegs, unsigned int baudRate, unsigned int clkFreq);
 

@@ -14,10 +14,10 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "etsoc_hal/inc/hal_device.h"
-#include "etsoc_hal/inc/rm_esr.h"
-#include "etsoc_hal/inc/spio_misc_esr.h"
-#include "etsoc_hal/inc/usb2_config_esrs.h"
+#include "hwinc/hal_device.h"
+#include "hwinc/sp_cru_reset.h"
+#include "hwinc/sp_misc.h"
+#include "hwinc/sp_u0esr.h"
 #include "io.h"
 #include "log.h"
 #include "usb2_0.h"

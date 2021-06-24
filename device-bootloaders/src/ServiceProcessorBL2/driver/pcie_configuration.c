@@ -15,11 +15,12 @@
 #include <stdio.h>
 #include "log.h"
 #include "io.h"
-#include "etsoc_hal/inc/rm_esr.h"
-#include "etsoc_hal/inc/hal_device.h"
 #include "layout.h"
 #include "pcie_device.h"
 #include "pcie_configuration.h"
+
+#include "hwinc/sp_cru_reset.h"
+#include "hwinc/hal_device.h"
 
 static void pcie_init_pshire(void);
 static void pcie_init_caps_list(void);
@@ -88,7 +89,7 @@ static struct pcie_event_control_block event_control_block __attribute__((sectio
  * @struct struct pcie_event_control_block
  * @brief PCIE driver error mgmt control block
  */
-struct pcie_event_control_block 
+struct pcie_event_control_block
 {
     uint32_t ce_count; /**< Correctable error count. */
     uint32_t uce_count; /**< Un-Correctable error count. */
@@ -131,12 +132,12 @@ void PCIe_init(bool expect_link_up)
       slow enough that the device will not be enumerated by the host properly. */
     bool init_link = true;
 
-    if (expect_link_up) 
+    if (expect_link_up)
     {
         tmp = ioread32(PCIE_CUST_SS +
                        DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_ADDRESS);
         if (DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_SMLH_LTSSM_STATE_GET(
-                tmp) == SMLH_LTSSM_STATE_LINK_UP) 
+                tmp) == SMLH_LTSSM_STATE_LINK_UP)
         {
             init_link = false;
         }
@@ -146,7 +147,7 @@ void PCIe_init(bool expect_link_up)
         }
     }
 
-    if (init_link) 
+    if (init_link)
     {
         pcie_init_pshire();
         pcie_init_caps_list();
@@ -158,7 +159,7 @@ void PCIe_init(bool expect_link_up)
 }
 
 /*! \brief This is the last step to enable PCIe link so Host/Device can communicate.
-    \param[in] none 
+    \param[in] none
     These steps don't block the PCIe IP from responding to config space messages,
     so their timing does not contribute to the PERST_n requirements. Always do
     them as late as possible (i.e. not in pcie_boot_config()) to simplfy things. */
@@ -182,7 +183,7 @@ static void pcie_init_pshire(void)
 
     /* Wait for PERST_N */
     Log_Write(LOG_LEVEL_ERROR, "Waiting for PCIe bus out of reset...");
-    do 
+    do
     {
         tmp = ioread32(PCIE_ESR + PSHIRE_PSHIRE_STAT_ADDRESS);
     } while (PSHIRE_PSHIRE_STAT_PERST_N_GET(tmp) == 0);
@@ -194,7 +195,7 @@ static void pcie_init_pshire(void)
     iowrite32(PCIE_ESR + PSHIRE_PSHIRE_RESET_ADDRESS, tmp);
 
     /* Wait for CDM (controller, dual-mode; all of the "PCIE0" regs) to be ready */
-    do 
+    do
     {
         tmp = ioread32(PCIE_CUST_SS +
                        DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_ADDRESS);
@@ -215,7 +216,7 @@ static void pcie_init_caps_list(void)
     /* The config registers are protected by a write-enable bit */
     misc_control =
         ioread32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
-    misc_control = 
+    misc_control =
         PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
         misc_control, 1);
     iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
@@ -225,7 +226,7 @@ static void pcie_init_caps_list(void)
     iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_PCI_CAP_PTR_REG_ADDRESS,
               PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_PCI_CAP_PTR_REG_CAP_POINTER_SET(0x50));
 
-    misc_control = 
+    misc_control =
         PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
         misc_control, 0);
     iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
@@ -240,7 +241,7 @@ static void pcie_init_bars(void)
     /* The BAR config registers are protected by a write-enable bit */
     misc_control =
         ioread32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
-    misc_control = 
+    misc_control =
         PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
         misc_control, 1);
     iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
@@ -275,7 +276,7 @@ static void pcie_init_bars(void)
         PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_RESBAR_CAP_RESBAR_CAP_REG_0_REG_RESBAR_CAP_REG_0_32GB_SET(
             1));
 
-    /* Default BAR0 to 32GB. 32GB = 2^35. BAR size is encoded as 
+    /* Default BAR0 to 32GB. 32GB = 2^35. BAR size is encoded as
        2^(RESBAR_CTRL_REG_BAR_SIZE + 20) - set to 15 to get 32GB. */
     iowrite32(
         PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_RESBAR_CAP_RESBAR_CTRL_REG_0_REG_ADDRESS,
@@ -284,15 +285,15 @@ static void pcie_init_bars(void)
 
     /* BAR0 config (maps DRAM) */
     bar0 = ioread32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_ADDRESS);
-    bar0 = 
+    bar0 =
         PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_BAR0_MEM_IO_MODIFY(
             bar0, BAR_IN_MEM_SPACE);
-    bar0 = 
+    bar0 =
         (uint32_t)PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_BAR0_TYPE_MODIFY(
             bar0, BAR_TYPE_64BIT);
-    bar0 = 
+    bar0 =
         /* IMPORTANT: Many hosts do not tolerate > 1 gb BARs that are not prefetchable */
-        PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_BAR0_PREFETCH_MODIFY(bar0, 1); 
+        PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_BAR0_PREFETCH_MODIFY(bar0, 1);
     iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_ADDRESS, bar0);
 
     /* BAR2 config (maps registers) */
@@ -301,14 +302,14 @@ static void pcie_init_bars(void)
                 bar2, BAR_IN_MEM_SPACE);
     bar2 = (uint32_t)PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR2_REG_BAR2_TYPE_MODIFY(
                 bar2, BAR_TYPE_64BIT);
-    
+
     /* IMPORTANT - not prefetchable (registers with read side effects mapped here) */
-    bar2 = PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR2_REG_BAR2_PREFETCH_MODIFY(bar2, 0); 
+    bar2 = PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR2_REG_BAR2_PREFETCH_MODIFY(bar2, 0);
     iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR2_REG_ADDRESS, bar2);
 
     /* Wait to init iATUs until BAR addresses are assigned - see PCIe_initATUs. */
 
-    misc_control = 
+    misc_control =
         PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
                 misc_control, 0);
     iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
@@ -323,7 +324,7 @@ static void pcie_init_ints(void)
     /* Open access to MSI Capability Register */
     misc_control =
         ioread32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
-    misc_control = 
+    misc_control =
         PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
             misc_control, 1);
     iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
@@ -346,7 +347,7 @@ static void pcie_init_ints(void)
     iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_ADDRESS,
               msi_ctrl);
     /* Close access to MSI Capability Register */
-    misc_control = 
+    misc_control =
         PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
             misc_control, 0);
     iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
@@ -360,7 +361,7 @@ static void pcie_init_link(void)
     /*  Setup FSM tracker per Synopsis testbench */
     iowrite32(
         PCIE_CUST_SS + DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_FSM_TRACK_1_ADDRESS,
-        0xCC); 
+        0xCC);
         /*TODO in "PCIe Initialization Sequence" doc, this comes before polling CDM_IN_REST.
            Matching order from DV code. */
 
@@ -441,7 +442,7 @@ static void pcie_init_link(void)
     Log_Write(LOG_LEVEL_CRITICAL, "done\r\n");
 }
 /*! \def CONFIG_INBOUND_IATU
-    \brief  See DWC_pcie_ctl_dm_databook section 3.10.11 
+    \brief  See DWC_pcie_ctl_dm_databook section 3.10.11
             Since the regmap codegen does not make an array of iATU registers, parameterize with macros */
 #define CONFIG_INBOUND_IATU(num)                                                                                        \
     static void config_inbound_iatu_##num(uint64_t baseAddr, uint64_t targetAddr, uint64_t size)                        \
@@ -504,7 +505,7 @@ static void pcie_init_atus(void)
     uint32_t miscControl1;
     miscControl1 =
         ioread32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
-    miscControl1 = 
+    miscControl1 =
         PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
         miscControl1, 1);
     iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
@@ -522,7 +523,7 @@ static void pcie_init_atus(void)
     /* This wait could be long (tens of seconds), depending on when the OS enables PCIe */
     Log_Write(LOG_LEVEL_CRITICAL, "Waiting for host to enable memory space...");
     uint32_t status_command_reg;
-    do 
+    do
     {
         status_command_reg =
             ioread32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_STATUS_COMMAND_REG_ADDRESS);
@@ -530,7 +531,7 @@ static void pcie_init_atus(void)
                  status_command_reg) == 0);
     Log_Write(LOG_LEVEL_CRITICAL, " done\r\n");
 
-    /* TODO: I need to ensure the host does not try and send Mem Rd / Mem Wr before the iATUs 
+    /* TODO: I need to ensure the host does not try and send Mem Rd / Mem Wr before the iATUs
        are configured. The latency of a PCIe transaction (1-10s of uS) is probably long enough
        that the iATUs will always be programmed between the PCIe config TLP to enable mem
        space and the first PCIe MRd/MWr. However, we should make sure. Send the host an interrupt
@@ -549,7 +550,7 @@ static void pcie_init_atus(void)
                           DRAM_MEMMAP_BEGIN, /* targetAddr */
                           DRAM_MEMMAP_SIZE); /* size */
 
-    /* Setup BAR2 
+    /* Setup BAR2
        Name              Host Addr       SoC Addr      Size   Notes
        R_PU_MBOX_PC_MM   BAR2 + 0x0000   0x0020007000  4k     Mailbox shared memory
        R_PU_MBOX_PC_SP   BAR2 + 0x1000   0x0030003000  4k     Mailbox shared memory
@@ -594,7 +595,7 @@ static void pcie_wait_for_ints(void)
     uint32_t msi_ctrl;
 
     Log_Write(LOG_LEVEL_CRITICAL, "Waiting for host to enable MSI...");
-    do 
+    do
     {
         msi_ctrl = ioread32(
             PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_ADDRESS);

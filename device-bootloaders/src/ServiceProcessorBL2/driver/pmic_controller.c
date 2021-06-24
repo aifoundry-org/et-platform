@@ -67,8 +67,6 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include "hwinc/hal_device.h"
-#include "etsoc_hal/inc/rm_esr.h"
 #include "io.h"
 #include "bl2_i2c_driver.h"
 #include "bl2_gpio_controller.h"
@@ -77,6 +75,9 @@
 #include "interrupt.h"
 #include "error.h"
 #include "log.h"
+
+#include "hwinc/hal_device.h"
+#include "hwinc/sp_cru_reset.h"
 
 /*! \def MSI_TWO_VECTORS
     \brief MSI two verctor enable

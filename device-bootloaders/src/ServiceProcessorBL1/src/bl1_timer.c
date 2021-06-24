@@ -3,8 +3,8 @@
 
 #include "io.h"
 #include "bl1_timer.h"
-#include "etsoc_hal/inc/rvtimer.h"
-#include "etsoc_hal/inc/hal_device.h"
+#include "hwinc/sp_rvtim.h"
+#include "hwinc/hal_device.h"
 #include "bl1_main.h"
 
 /*

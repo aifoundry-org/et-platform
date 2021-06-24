@@ -24,12 +24,13 @@
 #include "bl2_firmware_loader.h"
 #include "bl2_flash_fs.h"
 #include "bl2_main.h"
-#include "etsoc_hal/inc/hal_device.h"
 #include "bl2_pmic_controller.h"
 #include "bl2_crypto.h"
 #include "bl2_vaultip_driver.h"
 #include "sp_host_iface.h"
 #include "bl2_reset.h"
+
+#include "hwinc/hal_device.h"
 
 /**
  * @enum DEVICE_FW_UPDATE_STATUS

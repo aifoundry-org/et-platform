@@ -11,17 +11,17 @@
 #ifndef __SP_VQ_BUILD_CONFIG_H__
 #define __SP_VQ_BUILD_CONFIG_H__
 
-#include "etsoc_hal/inc/hal_device.h"
+#include "hwinc/hal_device.h"
 #include "common_defs.h"
 /************************************************************************
 *
 *   DESCRIPTION
 *
-*       This file contains all the build time defines for configuring the 
+*       This file contains all the build time defines for configuring the
 *       VQ parametes for :
 *        - SP -> Host (Over PCIe)
 *        - SP - Master Minion
-*       
+*
 ***********************************************************************/
 
 /*************************************************
@@ -44,7 +44,7 @@
 /**************************************************
  * SP -> Master Minion Submission Queue Parameters
  *************************************************/
-#define SP_MM_SQ_BASE_ADDRESS     R_PU_MBOX_MM_SP_BASEADDR    
+#define SP_MM_SQ_BASE_ADDRESS     R_PU_MBOX_MM_SP_BASEADDR
 #define SP_MM_SQ_ELEMENT_COUNT    10U
 #define SP_MM_SQ_MAX_ELEMENT_SIZE 64U
 #define SP_MM_SQ_SIZE             SP_MM_SQ_ELEMENT_COUNT * SP_MM_SQ_MAX_ELEMENT_SIZE
@@ -52,7 +52,7 @@
 /**************************************************
  * SP -> Master Minion Completion Queue Parameters
  *************************************************/
-#define SP_MM_CQ_BASE_ADDRESS     R_PU_MBOX_MM_SP_BASEADDR + SP_MM_SQ_SIZE    
+#define SP_MM_CQ_BASE_ADDRESS     R_PU_MBOX_MM_SP_BASEADDR + SP_MM_SQ_SIZE
 #define SP_MM_CQ_ELEMENT_COUNT    10U
 #define SP_MM_CQ_MAX_ELEMENT_SIZE 64U
 #define SP_MM_CQ_SIZE             SP_MM_CQ_ELEMENT_COUNT * SP_MM_CQ_MAX_ELEMENT_SIZE

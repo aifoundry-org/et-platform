@@ -36,9 +36,11 @@
 /*#include "bl2_pll.h" */
 #include "bl2_timer.h"
 #include "bl2_vaultip_controller.h"
-#include "etsoc_hal/inc/rm_esr.h"
-#include "etsoc_hal/inc/spio_misc_esr.h"
-#include "etsoc_hal/inc/hal_device.h"
+
+#include "hwinc/sp_cru_reset.h"
+#include "hwinc/sp_misc.h"
+#include "hwinc/hal_device.h"
+
 #include "bl2_main.h"
 #pragma GCC diagnostic ignored "-Wswitch-enum"
 
