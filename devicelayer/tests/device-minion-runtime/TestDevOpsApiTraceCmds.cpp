@@ -29,10 +29,13 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractMMFwData_5_1() {
     uint16_t queueIdx = 0; // Default SQ for dmaLoopback
     std::vector<uint8_t> readBuf(size, 0);
     std::vector<uint8_t> compBuf(size, 0);
+    uint32_t trace_control = device_ops_api::TRACE_RT_CONTROL_ENABLE_TRACE |
+                             device_ops_api::TRACE_RT_CONTROL_LOG_TO_TRACE;
 
     // start MM trace and dump logs to trace buffer
-    stream.push_back(IDevOpsApiCmd::createCmd<TraceRtControlCmd>(
-      device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 0x1, 0x1, device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
+    stream.push_back(IDevOpsApiCmd::createCmd<TraceRtControlCmd>(device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                    device_ops_api::TRACE_RT_TYPE_MM, trace_control,
+                                    device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
 
     // Read Trace data from MM
     auto devPhysAddr = 0;
@@ -43,8 +46,11 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractMMFwData_5_1() {
                                                            device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
     // stop MM trace and redirect logs to UART
-    stream.push_back(IDevOpsApiCmd::createCmd<TraceRtControlCmd>(
-      device_ops_api::CMD_FLAGS_BARRIER_ENABLE, 0x1, 0x3, device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
+    trace_control |= device_ops_api::TRACE_RT_CONTROL_LOG_TO_UART;
+    stream.push_back(IDevOpsApiCmd::createCmd<TraceRtControlCmd>(device_ops_api::CMD_FLAGS_BARRIER_ENABLE,
+                                    device_ops_api::TRACE_RT_TYPE_MM, trace_control,
+                                    device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
+
     readBufs.push_back(std::move(readBuf));
     compBufs.push_back(std::move(compBuf));
     insertStream(deviceIdx, queueIdx, std::move(stream));
@@ -72,10 +78,13 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractCMFwData_5_2() {
     uint16_t queueIdx = 0; // Default SQ for dmaLoopback
     std::vector<uint8_t> readBuf(size, 0);
     std::vector<uint8_t> compBuf(size, 0);
+    uint32_t trace_control = device_ops_api::TRACE_RT_CONTROL_ENABLE_TRACE |
+                             device_ops_api::TRACE_RT_CONTROL_LOG_TO_TRACE;
 
     // start CM trace and dump logs to trace buffer
-    stream.push_back(IDevOpsApiCmd::createCmd<TraceRtControlCmd>(
-      device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 0x2, 0x1, device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
+    stream.push_back(IDevOpsApiCmd::createCmd<TraceRtControlCmd>(device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                    device_ops_api::TRACE_RT_TYPE_CM, trace_control,
+                                    device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
 
     // Read Trace data from CM
     auto devPhysAddr = 0;

@@ -25,7 +25,7 @@ auto kPollingInterval = 10ms;
 
 DEFINE_uint32(exec_timeout, 100, "Internal execution timeout");
 DEFINE_string(kernels_dir, "", "Directory where different kernel ELF files are located");
-DEFINE_string(trace_logfile, "TestHelper.log", "File where the MM and CM buffers will be dumped");
+DEFINE_string(trace_logfile, "DeviceFwTrace.log", "File where the MM and CM buffers will be dumped");
 DEFINE_bool(loopback_driver, false, "Run on loopback driver");
 DEFINE_bool(enable_trace_dump, FLAGS_loopback_driver ? false : true,
             "Enable device trace dump to file specified by flag: trace_logfile, otherwise on UART");
@@ -168,7 +168,7 @@ void TestDevOpsApi::executeAsync() {
             << ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() << "."
             << ::testing::UnitTest::GetInstance()->current_test_info()->name() << std::endl;
     for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-      redirectTraceLogging(deviceIdx, true /* to trace buffer */);
+      controlTraceLogging(deviceIdx, true /* to trace buffer */, true /* Reset trace buffer. */);
     }
     logfile.close();
   }
@@ -206,10 +206,8 @@ void TestDevOpsApi::executeAsync() {
   cleanUpExecution();
 
   for (int deviceIdx = 0; FLAGS_enable_trace_dump && deviceIdx < deviceCount; deviceIdx++) {
-    if (::testing::Test::HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-    }
-    redirectTraceLogging(deviceIdx, false /* to UART */);
+    extractAndPrintTraceData(deviceIdx);
+    controlTraceLogging(deviceIdx, false /* to UART */, false /* don't reset Trace buffer*/);
   }
 }
 
@@ -593,20 +591,38 @@ void TestDevOpsApi::printErrorContext(int queueId, const std::byte* buffer, uint
   }
 }
 
-bool TestDevOpsApi::printMMTraceStringData(unsigned char* traceBuf, size_t size) const {
+bool TestDevOpsApi::printMMTraceStringData(unsigned char* traceBuf, size_t bufSize) const {
   std::stringstream logs;
   std::ofstream logfile;
   if (FLAGS_enable_trace_dump) {
     logfile.open(FLAGS_trace_logfile, std::ios_base::app);
   }
 
-  auto dataPtr = templ::bit_cast<trace_string_t*>(traceBuf);
-  auto start = dataPtr;
+  // Get Trace buffer header
+  auto traceHeader = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf);
+  size_t dataSize = traceHeader->data_size - sizeof(struct trace_buffer_std_header_t);
+
+  // Check if it is valid MM Trace buffer.
+  if ((traceHeader->magic_header != TRACE_MAGIC_HEADER) || (traceHeader->type != TRACE_MM_BUFFER) ||
+      ((dataSize + sizeof(struct trace_buffer_std_header_t)) > bufSize)) {
+    TEST_VLOG(0) << "Invalid MM Trace Buffer!";
+    return false;
+  }
+
+  std::string stringLog(TRACE_STRING_MAX_SIZE + 1, '\0');
+  // Get size from Trace buffer header
+  traceBuf = traceBuf + sizeof(struct trace_buffer_std_header_t);
+  auto dataPtr = templ::bit_cast<trace_string_mm_t*>(traceBuf);
   bool validStringEventFound = false;
-  while ((dataPtr - start) < size) {
-    if ((dataPtr->header.type == TRACE_TYPE_STRING) && (dataPtr->dataString[0] != '\0')) {
-      logs << "H:" << dataPtr->header.hart_id << ":" << dataPtr->dataString;
+  size_t dataPopped = 0;
+
+  while (dataPopped < dataSize) {
+    if ((dataPtr->mm_header.type == TRACE_TYPE_STRING) && (dataPtr->dataString[0] != '\0')) {
+      strncpy(&stringLog[0], dataPtr->dataString, TRACE_STRING_MAX_SIZE);
+      stringLog[TRACE_STRING_MAX_SIZE] = '\0';
+      logs << "H:" << dataPtr->mm_header.hart_id << ":" << stringLog << std::endl;
       dataPtr++;
+      dataPopped += sizeof(struct trace_string_mm_t);
       validStringEventFound = true;
     } else {
       break;
@@ -622,28 +638,66 @@ bool TestDevOpsApi::printMMTraceStringData(unsigned char* traceBuf, size_t size)
   return validStringEventFound;
 }
 
-bool TestDevOpsApi::printCMTraceStringData(unsigned char* traceBuf, size_t size) const {
+bool TestDevOpsApi::printCMTraceStringData(unsigned char* traceBuf, size_t bufSize) const {
   std::stringstream logs;
   std::ofstream logfile;
   if (FLAGS_enable_trace_dump) {
     logfile.open(FLAGS_trace_logfile, std::ios_base::app);
   }
 
+  // Get size from Trace buffer header
+  auto traceHeader = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf);
+
+  // Check if it is valid CM Trace buffer.
+  if ((traceHeader->magic_header != TRACE_MAGIC_HEADER) || (traceHeader->type != TRACE_CM_BUFFER)) {
+    TEST_VLOG(0) << "Invalid CM Trace Buffer!";
+    return false;
+  }
+
+  size_t headerSize = sizeof(struct trace_buffer_std_header_t);
+  size_t dataSize = traceHeader->data_size - headerSize;
+  auto perHartBufSize = bufSize / WORKER_HART_COUNT;
+  uint32_t cmHartID;
+  size_t dataPopped;
+  std::string stringLog(TRACE_STRING_MAX_SIZE + 1, '\0');
   auto hartDataPtr = traceBuf;
   bool validStringEventFound = false;
+
   for (int i = 0; i < WORKER_HART_COUNT; ++i) {
+    // For CM buffers (except first HART's buffer) Header is just size of data in buffer.
+    if (i != 0) {
+      headerSize = sizeof(struct trace_buffer_size_header_t);
+      auto size_header = templ::bit_cast<struct trace_buffer_size_header_t*>(hartDataPtr);
+      dataSize = size_header->data_size - sizeof(struct trace_buffer_size_header_t);
+    }
+
+    // Last 32 harts of MM Shire are working as Compute worker, adjust HART ID based on that.
+    cmHartID = i < MM_BASE_ID ? i : i + 32;
+
+    if ((dataSize + headerSize) > perHartBufSize) {
+      // This buffer is not valid, no need parse this. Move to next Hart's buffer
+      hartDataPtr += CM_SIZE_PER_HART;
+      continue;
+    }
+
+    // Move the pointer on top of trace buffer header.
+    hartDataPtr = hartDataPtr + headerSize;
     auto dataPtr = templ::bit_cast<trace_string_t*>(hartDataPtr);
-    auto start = dataPtr;
-    while ((dataPtr - start) < size) {
+    dataPopped = 0;
+
+    while (dataPopped < dataSize) {
       if ((dataPtr->header.type == TRACE_TYPE_STRING) && (dataPtr->dataString[0] != '\0')) {
-        logs << "H:" << dataPtr->header.hart_id << ":" << dataPtr->dataString;
+        strncpy(&stringLog[0], dataPtr->dataString, TRACE_STRING_MAX_SIZE);
+        stringLog[TRACE_STRING_MAX_SIZE] = '\0';
+        logs << "H:" << cmHartID << ":" << stringLog << std::endl;
         dataPtr++;
+        dataPopped += sizeof(struct trace_string_mm_t);
         validStringEventFound = true;
       } else {
         break;
       }
     }
-    hartDataPtr += CM_SIZE_PER_HART;
+    hartDataPtr += (CM_SIZE_PER_HART - headerSize);
   }
   if (FLAGS_enable_trace_dump) {
     logfile << logs.str();
@@ -674,8 +728,8 @@ void TestDevOpsApi::extractAndPrintTraceData(int deviceIdx) {
   if (std::count_if(stream.begin(), stream.end(), [](auto tagId) {
         return IDevOpsApiCmd::getDevOpsApiCmd(tagId)->getCmdStatus() == CmdStatus::CMD_SUCCESSFUL;
       }) == stream.size()) {
-    printMMTraceStringData(static_cast<unsigned char*>(rdBufMem), mmBufSize);
-    printCMTraceStringData(static_cast<unsigned char*>(rdBufMem) + mmBufSize, cmBufSize);
+    printMMTraceStringData(static_cast<unsigned char*>(rdBufMem), cmBufSize);
+    printCMTraceStringData(static_cast<unsigned char*>(rdBufMem) + mmBufSize, mmBufSize);
   } else {
     TEST_VLOG(0) << "Failed to pull DMA trace buffers!";
   }
@@ -684,17 +738,19 @@ void TestDevOpsApi::extractAndPrintTraceData(int deviceIdx) {
   stream.clear();
 }
 
-void TestDevOpsApi::redirectTraceLogging(int deviceIdx, bool toTraceBuf) {
+void TestDevOpsApi::controlTraceLogging(int deviceIdx, bool toTraceBuf, bool resetTraceBuf) {
   std::vector<CmdTag> stream;
 
-  // redirect MM trace logging to TraceBuf/UART
-  stream.push_back(
-    IDevOpsApiCmd::createCmd<TraceRtControlCmd>(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 0x1, toTraceBuf ? 0x1 : 0x3,
-                                                device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
-  // redirect CM trace logging to TraceBuf/UART
-  stream.push_back(
-    IDevOpsApiCmd::createCmd<TraceRtControlCmd>(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 0x2, toTraceBuf ? 0x1 : 0x3,
-                                                device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
+  uint32_t control = device_ops_api::TRACE_RT_CONTROL_ENABLE_TRACE;
+  // Redirect logs to Trace or UART.
+  control |= toTraceBuf ? device_ops_api::TRACE_RT_CONTROL_LOG_TO_TRACE : device_ops_api::TRACE_RT_CONTROL_LOG_TO_UART;
+  // Reset Trace buffer.
+  control |= resetTraceBuf ? device_ops_api::TRACE_RT_CONTROL_RESET_TRACEBUF : 0x0;
+
+  // redirect MM and CM trace logging to TraceBuf/UART
+  stream.push_back(IDevOpsApiCmd::createCmd<TraceRtControlCmd>(
+    device_ops_api::CMD_FLAGS_BARRIER_DISABLE, device_ops_api::TRACE_RT_TYPE_MM | device_ops_api::TRACE_RT_TYPE_CM,
+    control, device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
 
   executeSyncPerDevicePerQueue(deviceIdx, 0 /* queueIdx */, stream);
 

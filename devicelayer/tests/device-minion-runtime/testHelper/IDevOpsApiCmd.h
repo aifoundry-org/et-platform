@@ -384,8 +384,8 @@ public:
   uint32_t getRspStatusCode() const override;
   std::string printSummary() override;
   explicit TraceRtControlCmd(
-    CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint32_t /*rt_type*/, uint32_t /*control*/,
-                                   device_ops_api::dev_ops_trace_rt_control_response_e /*expStatus*/>&
+    CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /*flags*/, device_ops_api::trace_rt_type_e /*rt_type*/,
+                    uint32_t /*control*/, device_ops_api::dev_ops_trace_rt_control_response_e /*expStatus*/>&
                     args);
   ~TraceRtControlCmd() final = default;
 
