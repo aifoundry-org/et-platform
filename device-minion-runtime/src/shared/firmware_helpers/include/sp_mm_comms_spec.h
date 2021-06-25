@@ -87,6 +87,8 @@ enum mm_sp_msg_e {
     MM2SP_RSP_GET_ACTIVE_SHIRE_MASK,
     MM2SP_CMD_GET_CM_BOOT_FREQ,
     MM2SP_RSP_GET_CM_BOOT_FREQ,
+    MM2SP_CMD_GET_FW_VERSION,
+    MM2SP_RSP_GET_FW_VERSION,
     MM2SP_EVENT_REPORT_ERROR, /* this is more flexible, the payload now can report error codes in a scalable fashion */
     MM2SP_EVENT_HEARTBEAT
 };
@@ -109,6 +111,17 @@ enum sp_mm_msg_e {
     SP2MM_RSP_KERNEL_LAUNCH,
     SP2MM_CMD_GET_DRAM_BW,
     SP2MM_RSP_GET_DRAM_BW
+};
+
+typedef uint8_t mm2sp_fw_type_e;
+
+/*! \enum mm2sp_fw_type_e
+    \brief Enum that specifies the FW version type
+*/
+enum mm2sp_fw_type {
+    MM2SP_MASTER_MINION_FW = 0,
+    MM2SP_MACHINE_MINION_FW = 1,
+    MM2SP_WORKER_MINION_FW = 2
 };
 
 /* TODO: We should invent a new cmd and rsp header for the mrt messages
@@ -191,6 +204,25 @@ struct mm2sp_report_error_event_t {
 */
 struct mm2sp_heartbeat_event_t {
   struct dev_cmd_hdr_t  msg_hdr;
+};
+
+/*! \struct mm2sp_get_fw_version_t
+    \brief MM to SP command structure to get fw version.
+*/
+struct mm2sp_get_fw_version_t {
+  struct dev_cmd_hdr_t msg_hdr;
+  mm2sp_fw_type_e fw_type;
+};
+
+/*! \struct mm2sp_get_fw_version_rsp_t
+    \brief MM to SP response strutcure to receive fw version.
+*/
+struct mm2sp_get_fw_version_rsp_t {
+  struct dev_cmd_hdr_t msg_hdr;
+  uint8_t major;
+  uint8_t minor;
+  uint8_t revision;
+  uint8_t pad;
 };
 
 /*********************************

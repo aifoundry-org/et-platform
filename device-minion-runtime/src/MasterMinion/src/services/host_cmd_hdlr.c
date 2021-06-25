@@ -124,8 +124,9 @@ static inline int8_t fw_version_cmd_handler(void* command_buffer, uint8_t sqw_id
 {
     const struct device_ops_device_fw_version_cmd_t *cmd =
         (struct device_ops_device_fw_version_cmd_t *)command_buffer;
-    struct device_ops_fw_version_rsp_t rsp;
+    struct device_ops_fw_version_rsp_t rsp = { 0 };
     int8_t status = STATUS_SUCCESS;
+    mm2sp_fw_type_e fw_type = 0;
 
     Log_Write(LOG_LEVEL_DEBUG,
         "SQ[%d] HostCommandHandler:Processing:FW_VERSION_CMD\r\n", sqw_idx);
@@ -136,34 +137,50 @@ static inline int8_t fw_version_cmd_handler(void* command_buffer, uint8_t sqw_id
         DEV_OPS_API_MID_DEVICE_OPS_FW_VERSION_RSP;
     rsp.response_info.rsp_hdr.size =
         sizeof(struct device_ops_fw_version_rsp_t) - sizeof(struct cmn_header_t);
+
     if (cmd->firmware_type == DEV_OPS_FW_TYPE_MASTER_MINION_FW)
     {
-        /* TODO: implement proper logic to fetch and
-        return firmware version */
-        rsp.major = 1;
-        rsp.minor = 0;
-        rsp.patch = 0;
+        fw_type = MM2SP_MASTER_MINION_FW;
         rsp.type = DEV_OPS_FW_TYPE_MASTER_MINION_FW;
     }
     else if (cmd->firmware_type == DEV_OPS_FW_TYPE_MACHINE_MINION_FW)
     {
-        /*TODO: implement proper logic to fetch and return
-        firmware version */
-        rsp.major = 1;
-        rsp.minor = 0;
-        rsp.patch = 0;
+        fw_type = MM2SP_MACHINE_MINION_FW;
         rsp.type = DEV_OPS_FW_TYPE_MACHINE_MINION_FW;
     }
     else if (cmd->firmware_type == DEV_OPS_FW_TYPE_WORKER_MINION_FW)
     {
-        /*TODO: implement proper logic to fetch and return
-        firmware version */
-        rsp.major = 1;
-        rsp.minor = 0;
-        rsp.patch = 0;
+        fw_type = MM2SP_WORKER_MINION_FW;
         rsp.type = DEV_OPS_FW_TYPE_WORKER_MINION_FW;
     }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR,
+            "SQ[%d] HostCommandHandler:FW_VERSION_CMD:Invalid FW type received from host\r\n",
+            sqw_idx);
+        status = GENERAL_ERROR;
+    }
 
+    if(status == STATUS_SUCCESS)
+    {
+        /* Request SP for FW version */
+        status = SP_Iface_Get_Fw_Version(fw_type, (uint8_t*)&rsp.major, (uint8_t*)&rsp.minor,
+            (uint8_t*)&rsp.patch);
+
+        if(status != STATUS_SUCCESS)
+        {
+            /* Reset values */
+            rsp.major = 0;
+            rsp.minor = 0;
+            rsp.patch = 0;
+
+            Log_Write(LOG_LEVEL_ERROR,
+                "SQ[%d] HostCommandHandler:FW_VERSION_CMD:Request to SP failed:%d\r\n",
+                sqw_idx, status);
+        }
+    }
+
+    /* Push response to Host */
     status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
 
     if(status == STATUS_SUCCESS)

@@ -52,6 +52,11 @@
 */
 #define SP_IFACE_SP_RSP_TIMEDOUT          -4
 
+/*! \def SP_IFACE_INVALID_FW_VERSION
+    \brief SP iface error code - Invalid fw version
+*/
+#define SP_IFACE_INVALID_FW_VERSION       -5
+
 /*! \fn int8_t SP_Iface_Init(void)
     \brief Initialize Mm interface to Service Processor (SP)
     \return Status indicating success or negative error
@@ -112,11 +117,23 @@ int8_t SP_Iface_Processing(void);
 int8_t SP_Iface_Get_Shire_Mask(uint64_t *shire_mask);
 
 /*! \fn int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq)
-    \brief A blocking API to obtain ccompute minin boot frequency from service processor
+    \brief A blocking API to obtain compute minin boot frequency from service processor
     \param boot_freq Pointer to boot frequency variable, as return arg.
     \return Status indicating success or negative error
 */
 int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq);
+
+/*! \fn int8_t SP_Iface_Get_Fw_Version(enum mm2sp_fw_type_e fw_type, uint16_t *major, uint16_t *minor,
+    uint16_t *patch)
+    \brief A blocking API to obtain FW version from service processor
+    \param fw_type Type of the FW
+    \param major Pointer to variable where major version is stored
+    \param minor Pointer to variable where minor version is stored
+    \param revision Pointer to variable where revision version is stored
+    \return Status indicating success or negative error
+*/
+int8_t SP_Iface_Get_Fw_Version(mm2sp_fw_type_e fw_type, uint8_t *major, uint8_t *minor,
+    uint8_t *revision);
 
 /*! \fn int8_t SP_Iface_Report_Error(mm2sp_error_type_e error_type, int16_t error_code)
     \brief A non-blocking API to report Master Minion error codes to Service Processor

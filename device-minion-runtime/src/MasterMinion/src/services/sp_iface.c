@@ -526,6 +526,97 @@ int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq)
 *
 *   FUNCTION
 *
+*       SP_Iface_Get_Fw_Version
+*
+*   DESCRIPTION
+*
+*       A blocking call to obtain FW version from SP
+*
+*   INPUTS
+*
+*       fw_type     Type of FW
+*       major       Pointer to variable where major version is stored
+*       minor       Pointer to variable where minor version is stored
+*       revision    Pointer to variable where revision version is stored
+*
+*   OUTPUTS
+*
+*       int8_t      status success or failure of Interface initialization
+*
+***********************************************************************/
+int8_t SP_Iface_Get_Fw_Version(mm2sp_fw_type_e fw_type, uint8_t *major, uint8_t *minor,
+    uint8_t *revision)
+{
+    uint8_t rsp_buff[64] __attribute__((aligned(64))) = { 0 };
+    const struct dev_cmd_hdr_t *hdr;
+    uint64_t rsp_length = 0;
+    struct mm2sp_get_fw_version_t cmd;
+    int8_t status = STATUS_SUCCESS;
+
+    /* Set the firmware type */
+    cmd.fw_type = fw_type;
+
+    /* Initialize command header */
+    SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, MM2SP_CMD_GET_FW_VERSION,
+        sizeof(struct mm2sp_get_fw_version_t),
+        (int32_t) get_hart_id())
+
+    /* Acquire the lock. Multiple threads can call this function. */
+    acquire_local_spinlock(&SP_SQ_CB.vq_lock);
+
+    /* Send command to Service Processor */
+    status = SP_Iface_Push_Cmd_To_MM2SP_SQ(&cmd, sizeof(cmd));
+
+    if(status == STATUS_SUCCESS)
+    {
+        /* Wait for response from Service Processor */
+        status = wait_for_response_from_service_processor();
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR, "ERROR: Pushing command to MM to SP SQ\r\n");
+    }
+
+    if(status == STATUS_SUCCESS)
+    {
+        /* Pop response from MM to SP completion queue */
+        rsp_length = (uint64_t) SP_Iface_Pop_Cmd_From_MM2SP_CQ(&rsp_buff[0]);
+
+        /* Process response and fetch shire mask */
+        if(rsp_length != 0)
+        {
+            hdr = (void*)rsp_buff;
+            if(hdr->msg_id == MM2SP_RSP_GET_FW_VERSION)
+            {
+                const struct mm2sp_get_fw_version_rsp_t *rsp = (void *)rsp_buff;
+                *major = rsp->major;
+                *minor = rsp->minor;
+                *revision = rsp->revision;
+            }
+            else
+            {
+                status = SP_IFACE_INVALID_FW_VERSION;
+                Log_Write(LOG_LEVEL_ERROR,
+                    "ERROR: Received unexpected response, for fw version from SP\r\n");
+            }
+        }
+        else
+        {
+            Log_Write(LOG_LEVEL_ERROR,
+                "ERROR: Received a notification from SP with no data\r\n");
+        }
+    }
+
+    /* Release the lock */
+    release_local_spinlock(&SP_SQ_CB.vq_lock);
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       SP_Iface_Report_Error
 *
 *   DESCRIPTION
