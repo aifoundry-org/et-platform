@@ -74,7 +74,7 @@ enum trace_string_event {
     TRACE_EVENT_STRING_ERROR    = 1,
     TRACE_EVENT_STRING_WARNING  = 2,
     TRACE_EVENT_STRING_INFO     = 3,
-    TRACE_EVENT_STRING_DEBUG    = 5
+    TRACE_EVENT_STRING_DEBUG    = 4
 };
 
 /*! \def CHECK_STRING_FILTER
@@ -109,9 +109,11 @@ struct trace_control_block_t {
     uint32_t event_mask;        /*!< This is a bit mask, each bit corresponds to a specific Event to trace. */
     uint64_t filter_mask;       /*!< This is a bit mask representing a list of filters for a given event to trace. */
     uint8_t  enable;            /*!< Enable/Disable Trace. */
+    uint8_t  header;            /*!< Buffer header type of value trace_header_type_e */
 } __attribute__((aligned(64)));
 
-void Trace_Init(const struct trace_init_info_t *init_info, struct trace_control_block_t *cb);
+void Trace_Init(const struct trace_init_info_t *init_info, struct trace_control_block_t *cb,
+    trace_header_type_e);
 void Trace_String(enum trace_string_event log_level, struct trace_control_block_t *cb, const char *str);
 void Trace_Format_String(enum trace_string_event log_level, struct trace_control_block_t *cb, const char *format, ...);
 void Trace_PMC_All_Counters(struct trace_control_block_t *cb);
