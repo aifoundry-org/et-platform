@@ -53,11 +53,26 @@ uint64_t Trace_Get_CM_Shire_Mask(void);
 */
 void Trace_Set_CM_Shire_Mask(uint64_t cm_mask);
 
-/*! \fn void Trace_RT_Control_MM(trace_enable_e state)
-    \brief This function enable/disable Trace for Master Minion.
-    \param state Enable/Disable Trace.
+/*! \fn void Trace_RT_Control_MM(uint32_t control)
+    \brief This function updates control of MM Trace runtime.
+    \param control Bit encoded trace control flags.
     \return None
 */
-void Trace_RT_Control_MM(trace_enable_e state);
+void Trace_RT_Control_MM(uint32_t control);
+
+/*! \fn uint32_t Trace_Evict_Buffer_MM(void)
+    \brief  This function Evict the MM Trace buffer upto current used buffer,
+            it also updates the trace buffer header to include buffer usage.
+    \return Size of buffer that was used and victed.
+*/
+uint32_t Trace_Evict_Buffer_MM(void);
+
+/*! \fn void Trace_Set_Enable_MM(trace_enable_e enable)
+    \brief This function enables/disables Trace for Master Minnion.
+    \param control Enum to Enable/Disable Trace
+    \return None
+*/
+void Trace_Set_Enable_MM(trace_enable_e control);
+
 
 #endif

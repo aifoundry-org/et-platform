@@ -19,6 +19,7 @@
 */
 /***********************************************************************/
 
+#include <esperanto/device-apis/operations-api/device_ops_api_spec.h>
 #include "device-common/atomic.h"
 #include "device-common/cacheops.h"
 #include "device-common/hart.h"
@@ -27,6 +28,7 @@
 #include "services/log.h"
 #include "services/trace.h"
 #include "common_trace_defs.h"
+#include "etsoc_memory.h"
 
 /*! \def MM_DEFAULT_THREAD_MASK
     \brief Default masks to enable Trace for Dispatcher, SQ Worker (SQW),
@@ -82,7 +84,7 @@ void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
         hart_init_info.shire_mask    = MM_SHIRE_MASK;
         hart_init_info.thread_mask   = MM_DEFAULT_THREAD_MASK;
         hart_init_info.event_mask    = TRACE_EVENT_STRING;
-        hart_init_info.filter_mask   = TRACE_EVENT_STRING_WARNING;
+        hart_init_info.filter_mask   = TRACE_EVENT_STRING_INFO;
         hart_init_info.threshold     = MM_TRACE_BUFFER_SIZE;
     }
     /* Check if shire mask is of Master Minion and atleast one thread is enabled. */
@@ -110,13 +112,20 @@ void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
         MM_Trace_CB.cb.base_per_hart = MM_TRACE_BUFFER_BASE;
 
         /* Initialize Trace for each all Harts in Master Minion. */
-        Trace_Init(&hart_init_info, &MM_Trace_CB.cb);
+        Trace_Init(&hart_init_info, &MM_Trace_CB.cb, TRACE_STD_HEADER);
+
+        /* Initialize trace buffer header. */
+        struct trace_buffer_std_header_t *trace_header =
+            (struct trace_buffer_std_header_t *)MM_TRACE_BUFFER_BASE;
+
+        atomic_store_local_32(&(trace_header->magic_header), TRACE_MAGIC_HEADER);
+        atomic_store_local_32(&trace_header->data_size,
+                            sizeof(struct trace_buffer_std_header_t));
+        atomic_store_local_16(&(trace_header->type), TRACE_MM_BUFFER);
     }
 
     /* Evict an updated control block to L2 memory. */
-    asm volatile("fence");
-    evict(to_L2, &MM_Trace_CB, sizeof(mm_trace_control_block_t));
-    WAIT_CACHEOPS;
+    ETSOC_MEM_EVICT(&MM_Trace_CB, sizeof(mm_trace_control_block_t), to_L2)
 }
 
 /************************************************************************
@@ -202,18 +211,109 @@ void Trace_Set_CM_Shire_Mask(uint64_t cm_mask)
 *
 *   DESCRIPTION
 *
-*       This function enable/disable Trace for Master Minion.
+*       This function updates the control of MM Trace runtime.
 *
 *   INPUTS
 *
-*       trace_enable_e    Enable/Disable Trace.
+*       uint32_t    Bit encoded trace control flags.
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-void Trace_RT_Control_MM(trace_enable_e state)
+void Trace_RT_Control_MM(uint32_t control)
 {
-    atomic_store_local_8(&(MM_Trace_CB.cb.enable), state);
+    /* Check flag to reset Trace buffer. */
+    if (control & TRACE_RT_CONTROL_RESET_TRACEBUF)
+    {
+        atomic_store_local_32(&(MM_Trace_CB.cb.offset_per_hart),
+            sizeof(struct trace_buffer_std_header_t));
+    }
+
+    /* Check flag to Enable/Disable Trace. */
+    if (control & TRACE_RT_CONTROL_ENABLE_TRACE)
+    {
+        Trace_Set_Enable_MM(TRACE_ENABLE);
+        Log_Write(LOG_LEVEL_DEBUG,
+                "TRACE_RT_CONTROL:MM:Trace Enabled.\r\n");
+    }
+    else
+    {
+        Trace_Set_Enable_MM(TRACE_DISABLE);
+        Log_Write(LOG_LEVEL_DEBUG,
+                "TRACE_RT_CONTROL:MM:Trace Disabled.\r\n");
+    }
+
+    /* Check flag to redirect logs to Trace or UART. */
+    if (control & TRACE_RT_CONTROL_LOG_TO_UART)
+    {
+        Log_Set_Interface(LOG_DUMP_TO_UART);
+        Log_Write(LOG_LEVEL_DEBUG,
+                "TRACE_RT_CONTROL:MM:Logs redirected to UART.\r\n");
+    }
+    else
+    {
+        Log_Set_Interface(LOG_DUMP_TO_TRACE);
+        Log_Write(LOG_LEVEL_CRITICAL,
+                "TRACE_RT_CONTROL:MM:Logs redirected to Trace buffer.\r\n");
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Evict_Buffer_MM
+*
+*   DESCRIPTION
+*
+*       This function Evict the MM Trace buffer upto current used buffer,
+*       it also updates the trace buffer header to include buffer usage.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       uint32_t    Size of buffer that was used and evicted.
+*
+***********************************************************************/
+uint32_t Trace_Evict_Buffer_MM(void)
+{
+    struct trace_buffer_std_header_t *trace_header =
+        (struct trace_buffer_std_header_t *)MM_TRACE_BUFFER_BASE;
+    uint32_t offset = atomic_load_local_32(&(MM_Trace_CB.cb.offset_per_hart));
+
+    /* Store used buffer size in buffer header. */
+    atomic_store_local_32(&trace_header->data_size, offset);
+
+    ETSOC_MEM_EVICT((uint64_t *)MM_TRACE_BUFFER_BASE, offset, to_Mem)
+
+    return offset;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Set_Enable_MM
+*
+*   DESCRIPTION
+*
+*       This function enables/disables Trace for Master Minion.
+*
+*   INPUTS
+*
+*       trace_enable_e  Enum to Enable/Disable Trace.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Trace_Set_Enable_MM(trace_enable_e control)
+{
+    atomic_store_local_8(&(MM_Trace_CB.cb.enable), control);
 }

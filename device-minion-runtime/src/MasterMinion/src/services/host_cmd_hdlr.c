@@ -492,14 +492,14 @@ static inline int8_t dma_readlist_cmd_process_trace_flags(struct device_ops_dma_
         (cm_shire_mask & CW_Get_Booted_Shires()) == cm_shire_mask)
         {
             /* Disable MM Trace.*/
-            Trace_RT_Control_MM(TRACE_DISABLE);
+            Trace_Set_Enable_MM(TRACE_DISABLE);
 
             cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT;
 
             /* Send command to CM RT to disable Trace and evict Trace buffer. */
             status = CM_Iface_Multicast_Send(cm_shire_mask, &cm_msg);
 
-            ETSOC_MEM_EVICT((uint64_t *)MM_TRACE_BUFFER_BASE, MM_TRACE_BUFFER_SIZE, to_Mem)
+            Trace_Evict_Buffer_MM();
 
             cmd->list[TRACE_NODE_INDEX].src_device_phy_addr = MM_TRACE_BUFFER_BASE;
         }
@@ -514,9 +514,9 @@ static inline int8_t dma_readlist_cmd_process_trace_flags(struct device_ops_dma_
         if(cmd->list[TRACE_NODE_INDEX].size <= MM_TRACE_BUFFER_SIZE)
         {
             /* Disable MM Trace.*/
-            Trace_RT_Control_MM(TRACE_DISABLE);
+            Trace_Set_Enable_MM(TRACE_DISABLE);
 
-            ETSOC_MEM_EVICT((uint64_t *)MM_TRACE_BUFFER_BASE, MM_TRACE_BUFFER_SIZE, to_Mem)
+            Trace_Evict_Buffer_MM();
 
             cmd->list[TRACE_NODE_INDEX].src_device_phy_addr = MM_TRACE_BUFFER_BASE;
         }
@@ -924,33 +924,7 @@ static inline int8_t trace_rt_control_cmd_handler(void* command_buffer, uint8_t 
     /* Check if RT Component is MM Trace. */
     if(cmd->rt_type & TRACE_RT_CTRL_MM)
     {
-        /* Check flag to Enable/Disable Trace. */
-        if (cmd->control & (1U << 0))
-        {
-            Trace_RT_Control_MM(TRACE_ENABLE);
-            Log_Write(LOG_LEVEL_DEBUG,
-                    "TRACE_RT_CONTROL:MM:Trace Enabled.\r\n");
-        }
-        else
-        {
-            Trace_RT_Control_MM(TRACE_DISABLE);
-            Log_Write(LOG_LEVEL_DEBUG,
-                    "TRACE_RT_CONTROL:MM:Trace Disabled.\r\n");
-        }
-
-        /* Check flag to redirect logs to Trace or UART. */
-        if (cmd->control & (1U << 1))
-        {
-            Log_Set_Interface(LOG_DUMP_TO_UART);
-            Log_Write(LOG_LEVEL_DEBUG,
-                    "TRACE_RT_CONTROL:MM:Logs redirected to UART.\r\n");
-        }
-        else
-        {
-            Log_Set_Interface(LOG_DUMP_TO_TRACE);
-            Log_Write(LOG_LEVEL_CRITICAL,
-                    "TRACE_RT_CONTROL:MM:Logs redirected to Trace buffer.\r\n");
-        }
+        Trace_RT_Control_MM(cmd->control);
     }
 
     /* Check if RT Component is CM Trace. */
@@ -958,37 +932,9 @@ static inline int8_t trace_rt_control_cmd_handler(void* command_buffer, uint8_t 
     {
         mm_to_cm_message_trace_rt_control_t cm_msg;
         cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL;
-        uint64_t cm_shire_mask;
+        cm_msg.cm_control = cmd->control;
 
-        /* Check flag to Enable/Disable Trace. */
-        if (cmd->control & (1U << 0))
-        {
-            cm_msg.enable = TRACE_ENABLE;
-            Log_Write(LOG_LEVEL_DEBUG,
-                    "TRACE_RT_CONTROL:CM:Enabling Trace.\r\n");
-        }
-        else
-        {
-            cm_msg.enable = TRACE_DISABLE;
-            Log_Write(LOG_LEVEL_DEBUG,
-                    "TRACE_RT_CONTROL:CM:Disabling Trace.\r\n");
-        }
-
-        /* Check flag to redirect logs to Trace or UART. */
-        if (cmd->control & (1U << 1))
-        {
-            cm_msg.log_interface = LOG_DUMP_TO_UART;
-            Log_Write(LOG_LEVEL_DEBUG,
-                    "TRACE_RT_CONTROL:CM:Redirecting logs to UART.\r\n");
-        }
-        else
-        {
-            cm_msg.log_interface = LOG_DUMP_TO_TRACE;
-            Log_Write(LOG_LEVEL_DEBUG,
-                    "TRACE_RT_CONTROL:CM:Redirecting logs to Trace buffer.\r\n");
-        }
-
-        cm_shire_mask = Trace_Get_CM_Shire_Mask();
+        uint64_t cm_shire_mask = Trace_Get_CM_Shire_Mask();
 
         if((cm_shire_mask & CW_Get_Booted_Shires()) != cm_shire_mask)
         {

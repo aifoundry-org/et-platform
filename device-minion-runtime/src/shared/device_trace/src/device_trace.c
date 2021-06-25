@@ -69,6 +69,10 @@ union data_u32_f
                                         (atomic_load_local_32(&cb->event_mask) & TRACE_EVENT_STRING) && \
                                         (CHECK_STRING_FILTER(cb, log)))
 
+#define ADD_MESSAGE_HEADER(msg, id)     {WRITE_U64(msg->header.cycle, PMU_Get_hpmcounter3());   \
+                                         WRITE_U32(msg->header.hart_id, get_hart_id());        \
+                                         WRITE_U16(msg->header.type, id);}
+
 #else
 /* All Trace CB operations are normal operations in L1 Cache. */
 
@@ -90,6 +94,8 @@ union data_u32_f
                                         (cb->event_mask & TRACE_EVENT_STRING) &&    \
                                         (CHECK_STRING_FILTER(cb, log)))
 
+#define ADD_MESSAGE_HEADER(msg, id)     {WRITE_U64(msg->header.cycle, PMU_Get_hpmcounter3());   \
+                                         WRITE_U16(msg->header.type, id);}
 #endif
 
 union trace_header_u {
@@ -255,7 +261,10 @@ static inline void *trace_buffer_reserve(struct trace_control_block_t *cb, uint6
         if (trace_check_buffer_full(cb, size))//NOSONAR Do not merge this "if" with enclosing because of task pending above
         {
             /* Reset buffer. */
-            WRITE_U32(cb->offset_per_hart, 0U);
+            (READ_U8(cb->header) == TRACE_STD_HEADER) ?
+                WRITE_U32(cb->offset_per_hart, sizeof(struct trace_buffer_std_header_t)) :
+                WRITE_U32(cb->offset_per_hart, sizeof(struct trace_buffer_size_header_t));
+
             head = (void *)(uintptr_t)(READ_U64(cb->base_per_hart));
 
             return head;
@@ -285,13 +294,16 @@ static inline void *trace_buffer_reserve(struct trace_control_block_t *cb, uint6
 *       trace_init_info_t       Global tracing information used to initialize Trace.
 *       trace_control_block_t   A return pointer to hold intialized Trace control block for
 *                               given Hart ID.
+*       trace_header_type_e     Device Buffer header type. MM and only use TRACE_STD_HEADER type.
+*                               CM use both types.
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-void Trace_Init(const struct trace_init_info_t *init_info, struct trace_control_block_t *cb)
+void Trace_Init(const struct trace_init_info_t *init_info, struct trace_control_block_t *cb,
+    trace_header_type_e buff_header)
 {
     if (!init_info || !cb)
         return;
@@ -300,9 +312,12 @@ void Trace_Init(const struct trace_init_info_t *init_info, struct trace_control_
     cb->filter_mask = (init_info->event_mask == TRACE_EVENT_ENABLE_ALL) ?
                      TRACE_FILTER_ENABLE_ALL : init_info->filter_mask;
 
+    cb->offset_per_hart = (buff_header == TRACE_STD_HEADER) ?
+        sizeof(struct trace_buffer_std_header_t): sizeof(struct trace_buffer_size_header_t);
+
     cb->event_mask = init_info->event_mask;
-    cb->offset_per_hart = 0;
     cb->threshold = init_info->threshold;
+    cb->header = buff_header;
     cb->enable = TRACE_ENABLE;
 }
 
@@ -334,10 +349,8 @@ void Trace_String(enum trace_string_event log_level, struct trace_control_block_
         struct trace_string_t *entry =
             trace_buffer_reserve(cb, sizeof(*entry));
 
-        union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_STRING};
+        ADD_MESSAGE_HEADER(entry, TRACE_TYPE_STRING)
 
-        WRITE_U64(entry->header.cycle, PMU_Get_hpmcounter3());
-        WRITE_U64(entry->header.raw_u64, head.header_raw);
         MEM_CPY(entry->string, str, sizeof(entry->string));
     }
 }
@@ -372,10 +385,7 @@ void Trace_Format_String(enum trace_string_event log_level, struct trace_control
         struct trace_string_t *entry =
             trace_buffer_reserve(cb, sizeof(*entry));
 
-        union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_STRING};
-
-        WRITE_U64(entry->header.cycle, PMU_Get_hpmcounter3());
-        WRITE_U64(entry->header.raw_u64, head.header_raw);
+        ADD_MESSAGE_HEADER(entry, TRACE_TYPE_STRING)
 
         va_start(args, format);
         vsnprintf(entry->string, sizeof(entry->string), format, args);
@@ -441,10 +451,7 @@ void Trace_PMC_Counter(struct trace_control_block_t *cb, enum pmc_counter_e coun
         struct trace_pmc_counter_t *entry =
             trace_buffer_reserve(cb, sizeof(*entry));
 
-        union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_PMC_COUNTER};
-
-        WRITE_U64(entry->header.cycle, PMU_Get_hpmcounter3());
-        WRITE_U64(entry->header.raw_u64, head.header_raw);
+        ADD_MESSAGE_HEADER(entry, TRACE_TYPE_PMC_COUNTER)
 
         WRITE_U64(entry->value, PMU_Get_Counter(counter));
     }
@@ -478,10 +485,8 @@ void Trace_Value_u64(struct trace_control_block_t *cb, uint32_t tag, uint64_t va
         struct trace_value_u64_t *entry =
                 trace_buffer_reserve(cb, sizeof(*entry));
 
-        union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_VALUE_U64};
+        ADD_MESSAGE_HEADER(entry, TRACE_TYPE_VALUE_U64)
 
-        WRITE_U64(entry->header.cycle, PMU_Get_hpmcounter3());
-        WRITE_U64(entry->header.raw_u64, head.header_raw);
         WRITE_U32(entry->tag, tag);
         WRITE_U64(entry->value, value);
     }
@@ -515,10 +520,8 @@ void Trace_Value_u32(struct trace_control_block_t *cb, uint32_t tag, uint32_t va
         struct trace_value_u32_t *entry =
                 trace_buffer_reserve(cb, sizeof(*entry));
 
-        union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_VALUE_U32};
+        ADD_MESSAGE_HEADER(entry, TRACE_TYPE_VALUE_U32)
 
-        WRITE_U64(entry->header.cycle, PMU_Get_hpmcounter3());
-        WRITE_U64(entry->header.raw_u64, head.header_raw);
         WRITE_U32(entry->tag, tag);
         WRITE_U32(entry->value, value);
     }
@@ -552,10 +555,8 @@ void Trace_Value_u16(struct trace_control_block_t *cb, uint32_t tag, uint16_t va
         struct trace_value_u16_t *entry =
             trace_buffer_reserve(cb, sizeof(*entry));
 
-        union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_VALUE_U16};
+        ADD_MESSAGE_HEADER(entry, TRACE_TYPE_VALUE_U16)
 
-        WRITE_U64(entry->header.cycle, PMU_Get_hpmcounter3());
-        WRITE_U64(entry->header.raw_u64, head.header_raw);
         WRITE_U32(entry->tag, tag);
         WRITE_U16(entry->value, value);
     }
@@ -589,10 +590,8 @@ void Trace_Value_u8(struct trace_control_block_t *cb, uint32_t tag, uint8_t valu
         struct trace_value_u8_t *entry =
                 trace_buffer_reserve(cb, sizeof(*entry));
 
-        union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_VALUE_U8};
+        ADD_MESSAGE_HEADER(entry, TRACE_TYPE_VALUE_U8)
 
-        WRITE_U64(entry->header.cycle, PMU_Get_hpmcounter3());
-        WRITE_U64(entry->header.raw_u64, head.header_raw);
         WRITE_U32(entry->tag, tag);
         WRITE_U8(entry->value, value);
     }
@@ -626,10 +625,8 @@ void Trace_Value_float(struct trace_control_block_t *cb, uint32_t tag, float val
         struct trace_value_float_t *entry =
             trace_buffer_reserve(cb, sizeof(*entry));
 
-        union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_VALUE_FLOAT};
+        ADD_MESSAGE_HEADER(entry, TRACE_TYPE_VALUE_FLOAT)
 
-        WRITE_U64(entry->header.cycle, PMU_Get_hpmcounter3());
-        WRITE_U64(entry->header.raw_u64, head.header_raw);
         WRITE_U32(entry->tag, tag);
         WRITE_F(entry->value, value);
     }
@@ -664,10 +661,8 @@ void Trace_Memory(struct trace_control_block_t *cb, const uint8_t *src,
         struct trace_memory_t *entry =
             trace_buffer_reserve(cb, sizeof(*entry) + (uint32_t)(num_cache_line*8));
 
-        union trace_header_u head = {.hart_id = get_hart_id(), .type = TRACE_TYPE_MEMORY};
+        ADD_MESSAGE_HEADER(entry, TRACE_TYPE_MEMORY)
 
-        WRITE_U64(entry->header.cycle, PMU_Get_hpmcounter3());
-        WRITE_U64(entry->header.raw_u64, head.header_raw);
         WRITE_U64(entry->src_addr, (uint64_t)(src));
         WRITE_U64(entry->size, (uint64_t)(num_cache_line*8));
 

@@ -197,8 +197,7 @@ static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
     {
         mm_to_cm_message_trace_rt_control_t *cmd =
                                 (mm_to_cm_message_trace_rt_control_t *)message_ptr;
-        Trace_RT_Control_CM(cmd->enable);
-        log_set_interface(cmd->log_interface);
+        Trace_RT_Control_CM(cmd->cm_control);
         break;
     }
     case MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_RESET:
@@ -207,7 +206,7 @@ static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
         // TRACE_init_buffer();
         break;
     case MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT:
-        Trace_RT_Control_CM(TRACE_DISABLE);
+        Trace_Set_Enable_CM(TRACE_DISABLE);
         Trace_Evict_CM_Buffer();
         break;
     case MM_TO_CM_MESSAGE_ID_PMC_CONFIGURE:

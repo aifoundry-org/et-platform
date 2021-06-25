@@ -159,4 +159,14 @@ int8_t ETSOC_Memory_Write_SCP(const void *src_ptr, void *dest_ptr, uint64_t leng
     ETSOC_MEM_EVICT(src_addr, size, cache_dest)                              \
     ETSOC_Memory_Read_Write_Cacheable(src_addr, dest_addr, size);
 
+/*! \def ETSOC_MEM_SET_AND_EVICT
+    \brief Macro that is used to set memory at given address
+    upto the size specified (in bytes) and evict the cache-lines upto the cache destination
+    \warning Source address must be cache-line aligned!
+    cache_dest parameter value must be one of enum cop_dest
+*/
+#define ETSOC_MEM_SET_AND_EVICT(src_addr, data, size, cache_dest)           \
+    memset(src_addr, data, size);                                           \
+    ETSOC_MEM_EVICT(src_addr, size, cache_dest)
+
 #endif /* ETSOC_MEMORY_DEFS_H_ */
