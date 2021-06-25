@@ -19,7 +19,7 @@
 #include <unistd.h>
 #include "hwinc/hal_device.h"
 #include "hal_ddr_init.h"
-#include "etsoc_hal/inc/ddrc_reg_def.h"
+#include "hwinc/ddrc_reg_def.h"
 #include "log.h"
 
 /*
