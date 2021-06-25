@@ -227,7 +227,7 @@ void ProfileEvent::setDeviceCmdWaitDur(uint64_t wait_dur) {
 }
 
 void ProfileEvent::setDeviceCmdExecDur(uint64_t exec_dur) {
-  addExtra("device_cmd_execute_dur", exec_dur);
+  addExtra("device_cmd_exec_dur", exec_dur);
   addExtra("cmd_execution_time", exec_dur);
 }
 
