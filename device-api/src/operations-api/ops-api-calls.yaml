@@ -10,6 +10,33 @@
 Name: Ops_API_Calls
 ## List of Enums that are used in our messages
 Enums:
+  - Name: trace_rt_type
+    Type: uint32_t
+    Values:
+      - Name: MM
+        Value: 1
+        Description: Master Minion Trace
+      - Name: CM
+        Value: 2
+        Description: Compute Minion Trace
+  - Name: trace_rt_control
+    Type: uint32_t
+    Values:
+      - Name: DISABLE_TRACE
+        Value: 0
+        Description: Disable Trace
+      - Name: ENABLE_TRACE
+        Value: 1
+        Description: Enable Trace
+      - Name: LOG_TO_UART
+        Value: 2
+        Description: Redirect Logs to UART
+      - Name: LOG_TO_TRACE
+        Value: 0
+        Description: Redirect Logs to Trace
+      - Name: RESET_TRACEBUF
+        Value: 4
+        Description: Reset Trace buffer, it discards all existing data into Trace buffer.
   - Name: cmd_flags
     Type: uint16_t
     Values:
