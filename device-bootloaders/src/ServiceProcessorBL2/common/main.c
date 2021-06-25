@@ -205,6 +205,9 @@ static void taskMain(void *pvParameters)
     // Init DM sampling task
     init_dm_sampling_task();
 
+    /* Redirect the log messages to trace buffer after initialization is done */
+    Log_Set_Interface(LOG_DUMP_TO_TRACE);
+
     goto DONE;
 
 FIRMWARE_LOAD_ERROR:
