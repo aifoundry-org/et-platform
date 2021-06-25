@@ -80,11 +80,17 @@ macro(test_kernel)
   include_directories(${SHARED_INC_DIRS})
   include_directories(${SHARED_KERNEL_INC_DIR})
 
+###############
+#include cm-umode lib and include paths
+ include(${CMAKE_INSTALL_PREFIX}/cm-umode/cmake/cm-umode-libs/cm-umodeTargets.cmake)
+ include_directories(${CMAKE_INSTALL_PREFIX}/cm-umode/include)
+###############
+
   add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
   set(EXPORT_NAME EsperantoTestKernelsTargets)
 
-  target_link_libraries(${TARGET_NAME}.elf EsperantoDeviceMinionRuntime::device_common)
+  target_link_libraries(${TARGET_NAME}.elf EsperantoDeviceMinionRuntime::device_common cm-umode-lib::cm-umode)
 
   install(TARGETS ${TARGET_NAME}.elf
     EXPORT ${EXPORT_NAME}
@@ -163,6 +169,7 @@ macro(randomized_test)
 endmacro(randomized_test)
 
 add_subdirectory("add_vector")
+add_subdirectory("cm_umode_test")
 add_subdirectory("memset")
 add_subdirectory("beef")
 # Trace tests disabled for now until we have the new Tracing lib
