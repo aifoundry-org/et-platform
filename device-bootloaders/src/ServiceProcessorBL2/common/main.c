@@ -29,7 +29,7 @@
 #include "noc_configuration.h"
 #include "minion_configuration.h"
 #include "mem_controller.h"
-#define a
+
 #include "hwinc/sp_cru_reset.h"
 #include "hwinc/hal_device.h"
 

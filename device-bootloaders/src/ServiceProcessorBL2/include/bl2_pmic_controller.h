@@ -18,7 +18,7 @@
 
 #include "dm_event_def.h"
 
-#include "etsoc_hal/inc/pmic_i2c.h"
+#include "hwinc/pmic_i2c.h"
 
 typedef enum {
      DDR = 0,

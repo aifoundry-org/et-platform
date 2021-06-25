@@ -14,7 +14,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#define a
+
 #include "hal_vaultip_sw.h"
 #include "hal_vaultip_static_assets.h"
 

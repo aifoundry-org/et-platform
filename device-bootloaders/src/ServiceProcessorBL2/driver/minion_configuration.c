@@ -36,7 +36,7 @@
 /***********************************************************************/
 #include <stdio.h>
 
-#include <etsoc_hal/inc/etsoc_shire_other_esr.h>
+#include <hwinc/etsoc_shire_other_esr.h>
 
 #include "minion_esr_defines.h"
 #include "minion_configuration.h"
