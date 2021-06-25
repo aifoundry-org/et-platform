@@ -46,10 +46,16 @@
                    statement;                                                      \
             }
 
+static uint32_t memshire_frequency;
+static uint32_t ddr_frequency;
+
 int configure_memshire_plls(const DDR_MODE *ddr_mode)
 {
     uint8_t pll_mode;
 
+    /* [PLL Mode Spreadsheet]
+    https://docs.google.com/spreadsheets/d/0B45kZDfsf1VrbE5QOW1LZ1Zoc0VmWXRyMDJQMDViLUM2NGMw/ */
+    
     if(ddr_mode->frequency == DDR_FREQUENCY_800MHZ) {
         pll_mode = 50;
     }
@@ -63,10 +69,10 @@ int configure_memshire_plls(const DDR_MODE *ddr_mode)
         return -1;
     }
 
-    if (0 != program_memshire_pll(0, pll_mode))
+    if (0 != program_memshire_pll(0, pll_mode, &memshire_frequency))
         return -1;
 
-    if (0 != program_memshire_pll(4, pll_mode))
+    if (0 != program_memshire_pll(4, pll_mode, &memshire_frequency))
         return -1;
 
     return 0;
@@ -269,6 +275,9 @@ int ddr_get_memory_type(char *mem_type)
 
 int32_t configure_memshire(void)
 {
+    memshire_frequency = 0;
+    ddr_frequency = 0;
+
     DDR_MODE ddr_mode = {
         .frequency = DDR_FREQUENCY_800MHZ,  // First boot on 800Mhz, production should be 1066Mhz
         .capacity = DDR_CAPACITY_16GB,
@@ -278,9 +287,6 @@ int32_t configure_memshire(void)
     };
 
     //TODO: decide ddr_mode based on, e.g. from storage
-
-    // TODO Program the DDR Voltage if required
-    //pmic_get_voltage(DDR, voltage)
 
     if (0 != release_memshire_from_reset()) {
         Log_Write(LOG_LEVEL_ERROR, "release_memshire_from_reset() failed!\n");
@@ -295,7 +301,26 @@ int32_t configure_memshire(void)
         Log_Write(LOG_LEVEL_ERROR, "ddr_config() failed!\n");
         return MEMSHIRE_DDR_CONFIG_ERROR;
     }
+    if(ddr_mode.frequency == DDR_FREQUENCY_800MHZ) {
+        ddr_frequency = 800;
+    }
+    else if(ddr_mode.frequency == DDR_FREQUENCY_933MHZ) {
+        ddr_frequency = 933;
+    }
+    else if(ddr_mode.frequency == DDR_FREQUENCY_1066MHZ) {
+        ddr_frequency = 1066;
+    }
     Log_Write(LOG_LEVEL_INFO, "DRAM ready.\n");
 #endif
    return SUCCESS;
+}
+
+uint32_t get_memshire_frequency( void )
+{
+   return memshire_frequency;
+}
+
+uint32_t get_ddr_frequency( void )
+{
+   return ddr_frequency;
 }

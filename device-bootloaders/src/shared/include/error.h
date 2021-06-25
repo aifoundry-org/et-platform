@@ -67,4 +67,8 @@
 #define MM_IFACE_SP2MM_INVALID_RESPONSE              -8052
 #define MM_IFACE_SP2MM_CMD_PUSH_ERROR                -8053
 
+/* PERF MGMT Error Codes. */
+#define ERROR_PERF_MGMT_FAILED_TO_GET_DRAM_BW        -9000
+#define ERROR_PERF_MGMT_FAILED_TO_GET_FREQ           -9001
+
 #endif

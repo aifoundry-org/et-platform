@@ -19,6 +19,11 @@
 #define DCO_NORMALIZATION_ENABLE__SHIFT 7u
 #define DCO_NORMALIZATION_ENABLE__MASK  (1u << DCO_NORMALIZATION_ENABLE__SHIFT)
 
+/*! \def FREQUENCY_HZ_TO_MHZ(x)
+    \brief Converts HZ to MHZ
+*/
+#define FREQUENCY_HZ_TO_MHZ(x) ((x) / 1000000u)
+
 static void write_memshire_pll_reg(uint8_t ms_num, uint16_t reg_addr, uint16_t reg_data)
 {
     uint64_t address = MEMSHIRE_PLL_CONFIG_BASE;
@@ -44,7 +49,7 @@ static void update_memshire_pll_regs(uint8_t ms_num)
     write_memshire_pll_reg(ms_num, 0x38, 1);
 }
 
-static int program_memshire_pll(uint8_t ms_num, uint8_t mode)
+static int program_memshire_pll(uint8_t ms_num, uint8_t mode, uint32_t* target_freq)
 {
     uint16_t lock;
     uint16_t reg0;
@@ -80,6 +85,10 @@ static int program_memshire_pll(uint8_t ms_num, uint8_t mode)
     {
         lock = read_memshire_pll_reg(ms_num, 0x39) & 1;
     }
+
+    *target_freq = 
+        (uint32_t) FREQUENCY_HZ_TO_MHZ(gs_hpdpll_settings[(mode - 1)].output_frequency);
+
     return 0;
 }
 

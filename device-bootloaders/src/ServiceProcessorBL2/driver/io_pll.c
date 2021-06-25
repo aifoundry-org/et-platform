@@ -80,6 +80,11 @@
 */
 #define DCO_NORMALIZATION_ENABLE__MASK       (1u << DCO_NORMALIZATION_ENABLE__SHIFT)
 
+/*! \def FREQUENCY_HZ_TO_MHZ(x)
+    \brief Converts HZ to MHZ
+*/
+#define FREQUENCY_HZ_TO_MHZ(x) ((x) / 1000000u)
+
 static uint32_t gs_sp_pll_0_frequency;
 static uint32_t gs_sp_pll_1_frequency;
 static uint32_t gs_sp_pll_2_frequency;
@@ -152,8 +157,9 @@ FOUND_CONFIG_DATA:
         register_value = gs_hpdpll_settings[pll_settings_index].values[entry_index];
         pll_registers[register_index] = register_value;
     }
-
-    *target_freq = (uint32_t) gs_hpdpll_settings[pll_settings_index].output_frequency;
+ 
+    *target_freq = 
+        (uint32_t) FREQUENCY_HZ_TO_MHZ(gs_hpdpll_settings[pll_settings_index].output_frequency);
 
     /* Update PLL registers */
     update_pll_registers(pll_registers);

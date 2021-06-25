@@ -46,6 +46,15 @@ int8_t MM_Iface_Update_MM_Heartbeat(void);
 */
 int32_t MM_Iface_Send_Echo_Cmd(void);
 
+/*! \fn int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw)
+    \brief This sends Get DRAM BW command to Master Minion. It is a blocking call
+    and it waits for response for a given time.
+    \param read_bw response containing read BW
+    \param write_bw response containing write BW
+    \return Status indicating success or negative error
+*/
+int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw);
+
 #define MM_Iface_Push_Cmd_To_SP2MM_SQ(p_cmd, cmd_size)   \
         SP_MM_Iface_Push(SP_SQ, p_cmd, cmd_size)
 #define MM_Iface_Pop_Cmd_From_SP2MM_CQ(rx_buff)   \

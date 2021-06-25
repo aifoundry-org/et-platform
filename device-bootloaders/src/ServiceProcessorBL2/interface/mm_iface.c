@@ -155,6 +155,75 @@ int32_t MM_Iface_Send_Echo_Cmd(void)
 *
 *   FUNCTION
 *
+*       MM_Iface_Get_DRAM_BW
+*
+*   DESCRIPTION
+*
+*       This sends Get DRAM BW command to Master Minion. It is a blocking call
+*       and it waits for response for a given time.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       int32_t  Success or error code.
+*
+***********************************************************************/
+int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw)
+{
+    int32_t status = MM_IFACE_SP2MM_CMD_ERROR;
+    struct sp2mm_get_dram_bw_cmd_t cmd;
+    struct sp2mm_get_dram_bw_rsp_t rsp;
+
+    /* Initialize command header */
+    SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, SP2MM_CMD_GET_DRAM_BW,
+    sizeof(struct sp2mm_get_dram_bw_cmd_t), SP2MM_CMD_NOTIFY_HART);
+
+    if(xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
+    {
+        /* Send command to MM. */
+        if(0 != MM_Iface_Push_Cmd_To_SP2MM_SQ((void*)&cmd, sizeof(cmd)))
+        {
+            Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error!\r\n");
+            xSemaphoreGive(mm_cmd_lock);
+            return MM_IFACE_SP2MM_CMD_PUSH_ERROR;
+        }
+
+        /* Wait for response from MM with default timeout. */
+        if(mm2sp_wait_for_response(true))
+        {
+            /* Get response from MM. */
+            status = MM_Iface_Pop_Cmd_From_SP2MM_CQ(&rsp);
+
+            if ((status > 0) &&
+                ((rsp.msg_hdr.msg_id == SP2MM_RSP_GET_DRAM_BW)))
+            {
+                *read_bw = rsp.read_bw;
+                *write_bw = rsp.write_bw;
+                status = ERROR_NO_ERROR;
+            }
+            else
+            {
+                status = MM_IFACE_SP2MM_INVALID_RESPONSE;
+            }
+        }
+
+        xSemaphoreGive(mm_cmd_lock);
+    }
+    else
+    {
+        return MM_IFACE_SP2MM_TIMEOUT_ERROR;
+    }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       MM_Iface_Update_MM_Heartbeat
 *
 *   DESCRIPTION

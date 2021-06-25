@@ -180,6 +180,19 @@ int ddr_get_memory_type(char *mem_type);
 */
 int32_t configure_memshire(void);
 
+/*! \fn uint32_t get_memshire_frequency(void)
+    \brief This function returns Memshire frequency
+    \param NA
+    \return memshire frequency
+*/
+uint32_t get_memshire_frequency(void);
+
+/*! \fn uint32_t get_ddr_frequency(void)
+    \brief This function returns DDR frequency
+    \param NA
+    \return DDR frequency
+*/
+uint32_t get_ddr_frequency(void);
 
 #endif
 

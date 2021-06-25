@@ -27,6 +27,11 @@
 */
 /***********************************************************************/
 #include "perf_mgmt.h"
+#include "mm_iface.h"
+#include "bl2_sp_pll.h"
+#include "mem_controller.h"
+#include "error.h"
+#include "log.h"
 
 struct soc_perf_reg_t {
     struct asic_frequencies_t asic_frequency;
@@ -65,25 +70,34 @@ volatile struct soc_perf_reg_t *get_soc_perf_reg(void)
 ***********************************************************************/
 int update_dram_bw(void)
 {
-    // TODO : Populate the valid DRAM BW value. Read it from HW
-    // https://esperantotech.atlassian.net/browse/SW-6560
+    /*uint32_t read_bw;
+    uint32_t write_bw;
+
+    if(0 != MM_Iface_Get_DRAM_BW(&read_bw, &write_bw))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Failed to get DRAM BW!");
+        return ERROR_PERF_MGMT_FAILED_TO_GET_DRAM_BW;
+    }
 
     // Update the global variable. DRAM BW
+    get_soc_perf_reg()->dram_bw.read_req_sec = read_bw;
+    get_soc_perf_reg()->dram_bw.write_req_sec = write_bw;*/
+
+    /* TODO: Upon SW-5688 resolution delete bellow two lines and uncomment lines above */
     get_soc_perf_reg()->dram_bw.read_req_sec = 16;
     get_soc_perf_reg()->dram_bw.write_req_sec = 16;
 
-    // Update the max DRAM BW values if condition met
+    /* Update the max DRAM BW values if condition met */
     if (get_soc_perf_reg()->max_dram_bw.max_bw_rd_req_sec <
         get_soc_perf_reg()->dram_bw.read_req_sec) {
-        //TODO : Make the size of both members same.
         get_soc_perf_reg()->max_dram_bw.max_bw_rd_req_sec =
-            (uint8_t)get_soc_perf_reg()->dram_bw.read_req_sec;
+            get_soc_perf_reg()->dram_bw.read_req_sec;
     }
 
     if (get_soc_perf_reg()->max_dram_bw.max_bw_wr_req_sec <
         get_soc_perf_reg()->dram_bw.write_req_sec) {
         get_soc_perf_reg()->max_dram_bw.max_bw_wr_req_sec =
-            (uint8_t)get_soc_perf_reg()->dram_bw.write_req_sec;
+            get_soc_perf_reg()->dram_bw.write_req_sec;
     }
 
     return 0;
@@ -210,15 +224,44 @@ void Update_Minion_Frequency(uint32_t new_freq)
 ***********************************************************************/
 int get_module_asic_frequencies(struct asic_frequencies_t *asic_frequencies)
 {
-    // TODO : Populate the valid frequncies values. Read it from HW
-    // https://esperantotech.atlassian.net/browse/SW-6560
+    uint32_t freq;
 
-    get_soc_perf_reg()->asic_frequency.minion_shire_mhz = 800;
-    get_soc_perf_reg()->asic_frequency.noc_mhz = 400;
-    get_soc_perf_reg()->asic_frequency.mem_shire_mhz = 1067;
-    get_soc_perf_reg()->asic_frequency.ddr_mhz = 1067;
-    get_soc_perf_reg()->asic_frequency.pcie_shire_mhz = 1010;
-    get_soc_perf_reg()->asic_frequency.io_shire_mhz = 500;
+    /* TODO: DVFS will keep get_soc_perf_reg()->asic_frequency.minion_shire_mhz up to date,
+    initial value will be set upon SW-8063 resolution after which this comment will be deleted
+    get_soc_perf_reg()->asic_frequency.minion_shire_mhz = 800; */
+    
+    if(0 != get_pll_frequency(PLL_ID_SP_PLL_2, &freq))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Failed to get NOC frequency!");
+        return ERROR_PERF_MGMT_FAILED_TO_GET_FREQ;
+    }
+    else 
+    {
+        get_soc_perf_reg()->asic_frequency.noc_mhz = freq;
+    }
+
+    get_soc_perf_reg()->asic_frequency.mem_shire_mhz = get_memshire_frequency();
+    get_soc_perf_reg()->asic_frequency.ddr_mhz = get_ddr_frequency();
+
+    if(0 != get_pll_frequency(PLL_ID_PSHIRE, &freq))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Failed to get PSHIRE frequency!");
+        return ERROR_PERF_MGMT_FAILED_TO_GET_FREQ;
+    }
+    else 
+    {
+        get_soc_perf_reg()->asic_frequency.pcie_shire_mhz = freq;
+    }
+
+    if(0 != get_pll_frequency(PLL_ID_SP_PLL_0, &freq))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Failed to get IOSHIRE frequency!");
+        return ERROR_PERF_MGMT_FAILED_TO_GET_FREQ;
+    }
+    else 
+    {
+        get_soc_perf_reg()->asic_frequency.io_shire_mhz = freq;
+    }
 
     *asic_frequencies = get_soc_perf_reg()->asic_frequency;
 
