@@ -368,13 +368,10 @@ Modules:
       Fields:
         - Name: max_bw_rd_req_sec
           Description: Max BW Read Req Secs
-          Type: uint8_t
+          Type: uint32_t
         - Name: max_bw_wr_req_sec
           Description: Max BW Write Req Secs
-          Type: uint8_t
-        - Name: pad[6]
-          Description: Padding for alignment
-          Type: uint8_t
+          Type: uint32_t
     - Name: max_throttle_time_t
       Fields:
         - Name: time_usec
