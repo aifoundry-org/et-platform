@@ -37,6 +37,16 @@ DECLARE_bool(use_epoll);
 const uint8_t kDevFWMajor = DEVICE_OPS_API_MAJOR;
 const uint8_t kDevFWMinor = DEVICE_OPS_API_MINOR;
 const uint8_t kDevFWPatch = DEVICE_OPS_API_PATCH;
+// TODO: SW-8297: The FW versions are coming put to be zero
+#ifdef TARGET_PCIE
+const uint16_t kMachineFWVersionMajor = 0;
+const uint16_t kMachineFWVersionMinor = 0;
+const uint16_t kMachineFWVersionPatch = 0;
+#else
+const uint16_t kMachineFWVersionMajor = 0;
+const uint16_t kMachineFWVersionMinor = 0;
+const uint16_t kMachineFWVersionPatch = 0;
+#endif
 const uint64_t kCacheLineSize = 64;
 
 /* TODO: All trace packet information should be in common files

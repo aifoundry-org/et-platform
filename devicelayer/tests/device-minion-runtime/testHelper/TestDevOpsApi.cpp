@@ -434,7 +434,8 @@ CmdStatus TestDevOpsApi::processFwVersionRsp(const device_ops_api::device_ops_fw
   CmdStatus fwStatus;
   TEST_VLOG(1) << "=====> FW_Version response received (tag_id: " << std::hex
                << fwResponse->response_info.rsp_hdr.tag_id << ") <====";
-  if (fwResponse->major == 1 && fwResponse->minor == 0 && fwResponse->patch == 0) {
+  if (fwResponse->major == kMachineFWVersionMajor && fwResponse->minor == kMachineFWVersionMinor &&
+      fwResponse->patch == kMachineFWVersionPatch) {
     fwStatus = CmdStatus::CMD_SUCCESSFUL;
   } else {
     fwStatus = CmdStatus::CMD_FAILED;
