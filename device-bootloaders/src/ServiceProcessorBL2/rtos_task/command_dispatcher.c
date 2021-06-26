@@ -307,6 +307,55 @@ static void mm_cmd_hdlr_task(void *pvParameters)
 
                     break;
                 }
+                case MM2SP_CMD_GET_FW_VERSION:
+                {
+                    struct mm2sp_get_fw_version_t *cmd = (void *)buffer;
+                    struct mm2sp_get_fw_version_rsp_t rsp;
+
+                    SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_GET_FW_VERSION,
+                    sizeof(struct mm2sp_get_fw_version_rsp_t),
+                    cmd->msg_hdr.issuing_hart_id)
+
+                    Log_Write(LOG_LEVEL_DEBUG, "mm_cmd_hldr: MM requesting FW type: %d\n", cmd->fw_type);
+
+                    /* Call the API to get the FW version */
+                    if(cmd->fw_type == MM2SP_MASTER_MINION_FW)
+                    {
+                        /* Request firmware service for version */
+                        firmware_service_get_mm_version(&rsp.major, &rsp.minor, &rsp.revision);
+
+                        Log_Write(LOG_LEVEL_DEBUG, "mm_cmd_hldr: MM FW version:major:%d:minor:%d:revision:%d\n",
+                            rsp.major, rsp.minor, rsp.revision);
+                    }
+                    else if(cmd->fw_type == MM2SP_MACHINE_MINION_FW)
+                    {
+                        /* Request firmware service for version */
+                        firmware_service_get_machm_version(&rsp.major, &rsp.minor, &rsp.revision);
+
+                        Log_Write(LOG_LEVEL_DEBUG, "mm_cmd_hldr: Machine FW version:major:%d:minor:%d:revision:%d\n",
+                            rsp.major, rsp.minor, rsp.revision);
+                    }
+                    else if(cmd->fw_type == MM2SP_WORKER_MINION_FW)
+                    {
+                        /* Request firmware service for version */
+                        firmware_service_get_wm_version(&rsp.major, &rsp.minor, &rsp.revision);
+
+                        Log_Write(LOG_LEVEL_DEBUG, "mm_cmd_hldr: Worker FW version:major:%d:minor:%d:revision:%d\n",
+                            rsp.major, rsp.minor, rsp.revision);
+                    }
+                    else
+                    {
+                        /* Unknown FW type */
+                        Log_Write(LOG_LEVEL_ERROR, "mm_cmd_hldr: ERROR:Unknown FW type:%d\n", cmd->fw_type);
+                    }
+
+                    if(0 != MM_Iface_Push_Cmd_To_MM2SP_CQ((void*)&rsp, sizeof(rsp)))
+                    {
+                        Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_MM2SP_CQ: Cqueue push error!\n");
+                    }
+
+                    break;
+                }
                 case MM2SP_CMD_GET_CM_BOOT_FREQ:
                 {
                     struct mm2sp_get_cm_boot_freq_cmd_t *cmd = (void *)buffer;

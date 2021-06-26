@@ -176,27 +176,16 @@ static int32_t dm_svc_firmware_update(void)
 
 static void dm_svc_get_firmware_version(tag_id_t tag_id, uint64_t req_start_time)
 {
-    struct device_mgmt_firmware_versions_rsp_t dm_rsp;
-    ESPERANTO_IMAGE_FILE_HEADER_t *master_image_file_header;
-    ESPERANTO_IMAGE_FILE_HEADER_t *machine_image_file_header;
-    ESPERANTO_IMAGE_FILE_HEADER_t *worker_image_file_header;
+    struct device_mgmt_firmware_versions_rsp_t dm_rsp = { 0 };
     SERVICE_PROCESSOR_BL2_DATA_t *sp_bl2_data;
+    uint8_t major;
+    uint8_t minor;
+    uint8_t revision;
 
     Log_Write(LOG_LEVEL_INFO, "FW mgmt request: %s\n", __func__);
 
-    //Get BL1 version from BL2 data.
+    // Get BL1 version from BL2 data.
     sp_bl2_data = get_service_processor_bl2_data();
-
-    // Get firmware version info for master minion
-    master_image_file_header = get_master_minion_image_file_header();
-
-    // Get firmware version info for worker minion
-    worker_image_file_header = get_worker_minion_image_file_header();
-
-    // Get firmware version for machine minion
-    machine_image_file_header = get_machine_minion_image_file_header();
-
-    memset(&dm_rsp, 0, sizeof(struct device_mgmt_firmware_versions_rsp_t));
 
     dm_rsp.firmware_version.bl1_v =
         FORMAT_VERSION((uint32_t)sp_bl2_data->service_processor_bl1_image_file_version_major,
@@ -208,35 +197,17 @@ static void dm_svc_get_firmware_version(tag_id_t tag_id, uint64_t req_start_time
                        (uint32_t)get_image_version_info()->file_version_minor,
                        (uint32_t)get_image_version_info()->file_version_revision);
 
-    dm_rsp.firmware_version.mm_v = FORMAT_VERSION(
-        ((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-         0xFF0000) >>
-            16,
-        ((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-         0xFF00) >>
-            8,
-        ((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-         0xFF));
+    // Get the MM FW version values
+    firmware_service_get_mm_version(&major, &minor, &revision);
+    dm_rsp.firmware_version.mm_v = FORMAT_VERSION((uint32_t)major, (uint32_t)minor, (uint32_t)revision);
 
-    dm_rsp.firmware_version.wm_v = FORMAT_VERSION(
-        ((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-         0xFF0000) >>
-            16,
-        ((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-         0xFF00) >>
-            8,
-        ((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-         0xFF));
+    // Get the WM FW version values
+    firmware_service_get_wm_version(&major, &minor, &revision);
+    dm_rsp.firmware_version.wm_v = FORMAT_VERSION((uint32_t)major, (uint32_t)minor, (uint32_t)revision);
 
-    dm_rsp.firmware_version.machm_v = FORMAT_VERSION(
-        ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-         0xFF0000) >>
-            16,
-        ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-         0xFF00) >>
-            8,
-        ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-         0xFF));
+    // Get the Machine FW version values
+    firmware_service_get_machm_version(&major, &minor, &revision);
+    dm_rsp.firmware_version.machm_v = FORMAT_VERSION((uint32_t)major, (uint32_t)minor, (uint32_t)revision);
 
     FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_GET_MODULE_FIRMWARE_REVISIONS,
                     timer_get_ticks_count() - req_start_time, DM_STATUS_SUCCESS);
@@ -267,6 +238,120 @@ static int32_t dm_svc_update_sp_boot_root_certificate_hash(
     }
 
     return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       firmware_service_get_mm_version
+*
+*   DESCRIPTION
+*
+*       This function takes pointer to major, minor and revision variable
+*       and populates them with versions of Master Minion firmware.
+*
+*   INPUTS
+*
+*       major      Pointer to store major version
+*       minor      Pointer to store minor version
+*       revision   Pointer to store revision version
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void firmware_service_get_mm_version(uint8_t *major, uint8_t *minor, uint8_t *revision)
+{
+    ESPERANTO_IMAGE_FILE_HEADER_t *master_image_file_header;
+
+    // Get firmware version info for master minion
+    master_image_file_header = get_master_minion_image_file_header();
+
+    // Populate the required values
+    *major = (((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+        0xFF0000) >> 16);
+    *minor = (((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+        0xFF00) >> 8);
+    *revision = ((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+        0xFF);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       firmware_service_get_wm_version
+*
+*   DESCRIPTION
+*
+*       This function takes pointer to major, minor and revision variable
+*       and populates them with versions of Worker Minion firmware.
+*
+*   INPUTS
+*
+*       major      Pointer to store major version
+*       minor      Pointer to store minor version
+*       revision   Pointer to store revision version
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void firmware_service_get_wm_version(uint8_t *major, uint8_t *minor, uint8_t *revision)
+{
+    ESPERANTO_IMAGE_FILE_HEADER_t *worker_image_file_header;
+
+    // Get firmware version info for worker minion
+    worker_image_file_header = get_worker_minion_image_file_header();
+
+    // Populate the required values
+    *major = (((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+        0xFF0000) >> 16);
+    *minor = (((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+        0xFF00) >> 8);
+    *revision = ((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+        0xFF);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       firmware_service_get_machm_version
+*
+*   DESCRIPTION
+*
+*       This function takes pointer to major, minor and revision variable
+*       and populates them with versions of Machine Minion firmware.
+*
+*   INPUTS
+*
+*       major      Pointer to store major version
+*       minor      Pointer to store minor version
+*       revision   Pointer to store revision version
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void firmware_service_get_machm_version(uint8_t *major, uint8_t *minor, uint8_t *revision)
+{
+    ESPERANTO_IMAGE_FILE_HEADER_t *machine_image_file_header;
+
+    // Get firmware version for machine minion
+    machine_image_file_header = get_machine_minion_image_file_header();
+
+    // Populate the required values
+    *major = (((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+        0xFF0000) >> 16);
+    *minor = (((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+        0xFF00) >> 8);
+    *revision = ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+        0xFF);
 }
 
 /************************************************************************

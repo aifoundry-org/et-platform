@@ -71,4 +71,31 @@ enum DEVICE_FW_UPDATE_STATUS {
 */
 void firmware_service_process_request(tag_id_t tag_id, msg_id_t msg_id, void *buffer);
 
+/*! \fn void firmware_service_get_mm_version(uint8_t *major, uint8_t *minor, uint8_t *revision)
+    \brief Function to get Master Minion FW version
+    \param major FW major version
+    \param minor FW minor version
+    \param revision FW revision version
+    \returns none
+*/
+void firmware_service_get_mm_version(uint8_t *major, uint8_t *minor, uint8_t *revision);
+
+/*! \fn void firmware_service_get_wm_version(uint8_t *major, uint8_t *minor, uint8_t *revision)
+    \brief Function to get Worker Minion FW version
+    \param major FW major version
+    \param minor FW minor version
+    \param revision FW revision version
+    \returns none
+*/
+void firmware_service_get_wm_version(uint8_t *major, uint8_t *minor, uint8_t *revision);
+
+/*! \fn void firmware_service_get_machm_version(uint8_t *major, uint8_t *minor, uint8_t *revision)
+    \brief Function to get Machine Minion FW version
+    \param major FW major version
+    \param minor FW minor version
+    \param revision FW revision version
+    \returns none
+*/
+void firmware_service_get_machm_version(uint8_t *major, uint8_t *minor, uint8_t *revision);
+
 #endif
