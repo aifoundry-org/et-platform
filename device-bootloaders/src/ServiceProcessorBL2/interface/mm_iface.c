@@ -179,7 +179,7 @@ int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw)
 
     /* Initialize command header */
     SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, SP2MM_CMD_GET_DRAM_BW,
-    sizeof(struct sp2mm_get_dram_bw_cmd_t), SP2MM_CMD_NOTIFY_HART);
+    sizeof(struct sp2mm_get_dram_bw_cmd_t), SP2MM_CMD_NOTIFY_HART)
 
     if(xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
     {
@@ -198,7 +198,7 @@ int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw)
             status = MM_Iface_Pop_Cmd_From_SP2MM_CQ(&rsp);
 
             if ((status > 0) &&
-                ((rsp.msg_hdr.msg_id == SP2MM_RSP_GET_DRAM_BW)))
+                (rsp.msg_hdr.msg_id == SP2MM_RSP_GET_DRAM_BW))
             {
                 *read_bw = rsp.read_bw;
                 *write_bw = rsp.write_bw;

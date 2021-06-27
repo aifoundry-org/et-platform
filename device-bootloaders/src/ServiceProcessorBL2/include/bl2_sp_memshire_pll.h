@@ -87,7 +87,7 @@ static int program_memshire_pll(uint8_t ms_num, uint8_t mode, uint32_t* target_f
     }
 
     *target_freq = 
-        (uint32_t) FREQUENCY_HZ_TO_MHZ(gs_hpdpll_settings[(mode - 1)].output_frequency);
+        FREQUENCY_HZ_TO_MHZ(gs_hpdpll_settings[(mode - 1)].output_frequency);
 
     return 0;
 }

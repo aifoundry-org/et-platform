@@ -159,7 +159,7 @@ FOUND_CONFIG_DATA:
     }
  
     *target_freq = 
-        (uint32_t) FREQUENCY_HZ_TO_MHZ(gs_hpdpll_settings[pll_settings_index].output_frequency);
+        FREQUENCY_HZ_TO_MHZ(gs_hpdpll_settings[pll_settings_index].output_frequency);
 
     /* Update PLL registers */
     update_pll_registers(pll_registers);

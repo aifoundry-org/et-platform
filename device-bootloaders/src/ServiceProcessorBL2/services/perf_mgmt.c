@@ -70,20 +70,20 @@ volatile struct soc_perf_reg_t *get_soc_perf_reg(void)
 ***********************************************************************/
 int update_dram_bw(void)
 {
-    /*uint32_t read_bw;
-    uint32_t write_bw;
+    //NOSONAR uint32_t read_bw;
+    //NOSONAR uint32_t write_bw;
 
-    if(0 != MM_Iface_Get_DRAM_BW(&read_bw, &write_bw))
-    {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to get DRAM BW!");
-        return ERROR_PERF_MGMT_FAILED_TO_GET_DRAM_BW;
-    }
+    //NOSONAR if(0 != MM_Iface_Get_DRAM_BW(&read_bw, &write_bw))
+    //NOSONAR {
+    //NOSONAR     Log_Write(LOG_LEVEL_ERROR, "Failed to get DRAM BW!");
+    //NOSONAR     return ERROR_PERF_MGMT_FAILED_TO_GET_DRAM_BW;
+    //NOSONAR }
 
-    // Update the global variable. DRAM BW
-    get_soc_perf_reg()->dram_bw.read_req_sec = read_bw;
-    get_soc_perf_reg()->dram_bw.write_req_sec = write_bw;*/
+    //NOSONAR  Update the global variable. DRAM BW
+    //NOSONAR get_soc_perf_reg()->dram_bw.read_req_sec = read_bw;
+    //NOSONAR get_soc_perf_reg()->dram_bw.write_req_sec = write_bw;
 
-    /* TODO: Upon SW-5688 resolution delete bellow two lines and uncomment lines above */
+    //NOSONAR FIXME: Upon SW-5688 resolution delete bellow two lines and uncomment lines above
     get_soc_perf_reg()->dram_bw.read_req_sec = 16;
     get_soc_perf_reg()->dram_bw.write_req_sec = 16;
 
@@ -226,9 +226,9 @@ int get_module_asic_frequencies(struct asic_frequencies_t *asic_frequencies)
 {
     uint32_t freq;
 
-    /* TODO: DVFS will keep get_soc_perf_reg()->asic_frequency.minion_shire_mhz up to date,
-    initial value will be set upon SW-8063 resolution after which this comment will be deleted
-    get_soc_perf_reg()->asic_frequency.minion_shire_mhz = 800; */
+    //NOSONAR FIXME: DVFS will keep get_soc_perf_reg()->asic_frequency.minion_shire_mhz up to date,
+    //NOSONAR initial value will be set upon SW-8063 resolution after which this comment will be deleted
+    //NOSONAR get_soc_perf_reg()->asic_frequency.minion_shire_mhz = 800;
     
     if(0 != get_pll_frequency(PLL_ID_SP_PLL_2, &freq))
     {
