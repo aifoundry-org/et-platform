@@ -1070,7 +1070,7 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 			fw_version_cmd->command_info.cmd_hdr.tag_id;
 		fw_version_rsp.response_info.rsp_hdr.msg_id =
 			DEV_OPS_API_MID_FW_VERSION_RSP;
-		fw_version_rsp.major = 1;
+		fw_version_rsp.major = 0;
 		fw_version_rsp.minor = 0;
 		fw_version_rsp.patch = 0;
 		if (!et_circbuffer_push(&cq->cb,
