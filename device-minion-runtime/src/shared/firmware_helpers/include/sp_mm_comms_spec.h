@@ -58,7 +58,8 @@ enum mm2sp_sp_recoverable_error_code_e {
     MM_CW_INIT_ERROR             = -4,
     MM_SERIAL_INIT_ERROR         = -5,
     MM_CQ_INIT_ERROR             = -6,
-    MM_SQ_INIT_ERROR             = -7
+    MM_SQ_INIT_ERROR             = -7,
+    MM_UNHANDLED_EXCEPTION       = -8
 };
 
 typedef uint16_t mm2sp_error_type_e;

@@ -28,6 +28,16 @@
 #include "io.h"
 #include "device-common/atomic.h"
 
+/*! \def ENABLE_256_BIT_ACCESS
+    \brief Macro that is used to enable 256-bit non-atomic access primitive.
+*/
+#define ENABLE_256_BIT_ACCESS   1
+
+/*! \def DISABLE_256_BIT_ACCESS
+    \brief Macro that is used to disable 256-bit non-atomic access primitive.
+*/
+#define DISABLE_256_BIT_ACCESS  0
+
 static inline uint8_t io_read_8(const volatile uint8_t *addr)
 {
     return ioread8((uintptr_t)addr);
@@ -68,10 +78,24 @@ static inline void io_write_64(volatile uint64_t *addr, uint64_t val)
     iowrite64((uintptr_t)addr,  val);
 }
 
-#define optimized_memory_read_body(read_8, read_16, read_32, read_64, src_ptr, dst_ptr, length)     \
+#define optimized_memory_read_body(read_8, read_16, read_32, read_64, read_256_available, src_ptr, dst_ptr, length)\
 ({                                                                                                  \
     const uint8_t *byte_src_ptr = src_ptr;                                                          \
     uint8_t *byte_dest_ptr = dst_ptr;                                                               \
+                                                                                                    \
+    /* If 256-bit primitive is available and the addresses are 256-bit aligned */                   \
+    if ((length >= 32) && (read_256_available) &&                                                   \
+        !((uintptr_t)byte_src_ptr & 0x1F) && !((uintptr_t)byte_dest_ptr & 0x1F))                    \
+    {                                                                                               \
+        /* Non-atomic 256-bit read/write primitive */                                               \
+        do                                                                                          \
+        {                                                                                           \
+            memcpy256((uintptr_t)byte_dest_ptr, (uintptr_t)byte_src_ptr);                           \
+            byte_src_ptr += 32;                                                                     \
+            byte_dest_ptr += 32;                                                                    \
+            length -= 32;                                                                           \
+        } while (length >= 32);                                                                     \
+    }                                                                                               \
                                                                                                     \
     /* If the addresses are 64-bit aligned */                                                       \
     if (!((uintptr_t)byte_src_ptr & 0x7) && !((uintptr_t)byte_dest_ptr & 0x7))                      \
@@ -120,10 +144,24 @@ static inline void io_write_64(volatile uint64_t *addr, uint64_t val)
     }                                                                                               \
 })
 
-#define optimized_memory_write_body(write_8, write_16, write_32, write_64, src_ptr, dst_ptr, length)\
+#define optimized_memory_write_body(write_8, write_16, write_32, write_64, write_256_available, src_ptr, dst_ptr, length)\
 ({                                                                                                  \
     const uint8_t *byte_src_ptr = src_ptr;                                                          \
     uint8_t *byte_dest_ptr = dst_ptr;                                                               \
+                                                                                                    \
+    /* If 256-bit primitive is available and the addresses are 256-bit aligned */                   \
+    if ((length >= 32) && (write_256_available) &&                                                  \
+        !((uintptr_t)byte_src_ptr & 0x1F) && !((uintptr_t)byte_dest_ptr & 0x1F))                    \
+    {                                                                                               \
+        /* Non-atomic 256-bit read/write primitive */                                               \
+        do                                                                                          \
+        {                                                                                           \
+            memcpy256((uintptr_t)byte_dest_ptr, (uintptr_t)byte_src_ptr);                           \
+            byte_src_ptr += 32;                                                                     \
+            byte_dest_ptr += 32;                                                                    \
+            length -= 32;                                                                           \
+        } while (length >= 32);                                                                     \
+    }                                                                                               \
                                                                                                     \
     /* If the addresses are 64-bit aligned */                                                       \
     if (!((uintptr_t)byte_src_ptr & 0x7) && !((uintptr_t)byte_dest_ptr & 0x7))                      \
@@ -197,7 +235,7 @@ static inline void io_write_64(volatile uint64_t *addr, uint64_t val)
 int8_t ETSOC_Memory_Read_Uncacheable(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
     optimized_memory_read_body(io_read_8, io_read_16, io_read_32, \
-        io_read_64, src_ptr, dest_ptr, length);
+        io_read_64, ENABLE_256_BIT_ACCESS, src_ptr, dest_ptr, length);
 
     return ETSOC_MEM_OPERATION_SUCCESS;
 }
@@ -227,7 +265,7 @@ int8_t ETSOC_Memory_Read_Uncacheable(const void *src_ptr, void *dest_ptr, uint64
 int8_t ETSOC_Memory_Write_Uncacheable(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
     optimized_memory_write_body(io_write_8, io_write_16, io_write_32, \
-        io_write_64, src_ptr, dest_ptr, length);
+        io_write_64, ENABLE_256_BIT_ACCESS, src_ptr, dest_ptr, length);
 
     return ETSOC_MEM_OPERATION_SUCCESS;
 }
@@ -256,9 +294,8 @@ int8_t ETSOC_Memory_Write_Uncacheable(const void *src_ptr, void *dest_ptr, uint6
 ***********************************************************************/
 int8_t ETSOC_Memory_Read_Local_Atomic(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
-    optimized_memory_read_body(atomic_load_local_8,      \
-        atomic_load_local_16, atomic_load_local_32,      \
-        atomic_load_local_64, src_ptr, dest_ptr, length);
+    optimized_memory_read_body(atomic_load_local_8, atomic_load_local_16, atomic_load_local_32, \
+        atomic_load_local_64, DISABLE_256_BIT_ACCESS, src_ptr, dest_ptr, length);
 
     return ETSOC_MEM_OPERATION_SUCCESS;
 }
@@ -287,9 +324,8 @@ int8_t ETSOC_Memory_Read_Local_Atomic(const void *src_ptr, void *dest_ptr, uint6
 ***********************************************************************/
 int8_t ETSOC_Memory_Write_Local_Atomic(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
-    optimized_memory_write_body(atomic_store_local_8,     \
-        atomic_store_local_16, atomic_store_local_32,     \
-        atomic_store_local_64, src_ptr, dest_ptr, length);
+    optimized_memory_write_body(atomic_store_local_8,atomic_store_local_16, atomic_store_local_32, \
+        atomic_store_local_64, DISABLE_256_BIT_ACCESS, src_ptr, dest_ptr, length);
 
     return ETSOC_MEM_OPERATION_SUCCESS;
 }
@@ -318,9 +354,8 @@ int8_t ETSOC_Memory_Write_Local_Atomic(const void *src_ptr, void *dest_ptr, uint
 ***********************************************************************/
 int8_t ETSOC_Memory_Read_Global_Atomic(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
-    optimized_memory_read_body(atomic_load_global_8,      \
-        atomic_load_global_16, atomic_load_global_32,     \
-        atomic_load_global_64, src_ptr, dest_ptr, length);
+    optimized_memory_read_body(atomic_load_global_8,atomic_load_global_16, atomic_load_global_32, \
+        atomic_load_global_64, DISABLE_256_BIT_ACCESS, src_ptr, dest_ptr, length);
 
     return ETSOC_MEM_OPERATION_SUCCESS;
 }
@@ -349,9 +384,8 @@ int8_t ETSOC_Memory_Read_Global_Atomic(const void *src_ptr, void *dest_ptr, uint
 ***********************************************************************/
 int8_t ETSOC_Memory_Write_Global_Atomic(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
-    optimized_memory_write_body(atomic_store_global_8,     \
-        atomic_store_global_16, atomic_store_global_32,    \
-        atomic_store_global_64, src_ptr, dest_ptr, length);
+    optimized_memory_write_body(atomic_store_global_8, atomic_store_global_16, atomic_store_global_32, \
+        atomic_store_global_64, DISABLE_256_BIT_ACCESS, src_ptr, dest_ptr, length);
 
     return ETSOC_MEM_OPERATION_SUCCESS;
 }
@@ -381,6 +415,22 @@ int8_t ETSOC_Memory_Write_Global_Atomic(const void *src_ptr, void *dest_ptr, uin
 ***********************************************************************/
 int8_t ETSOC_Memory_Read_Write_Cacheable(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
+    /* If the addresses are 256-bit aligned */
+    if ((length >= 32) && !((uintptr_t)src_ptr & 0x1F) && !((uintptr_t)dest_ptr & 0x1F))
+    {
+        const uint8_t *byte_src_ptr = src_ptr;
+        uint8_t *byte_dest_ptr = dest_ptr;
+
+        do
+        {
+            memcpy256((uintptr_t)byte_dest_ptr, (uintptr_t)byte_src_ptr);
+            byte_src_ptr += 32;
+            byte_dest_ptr += 32;
+            length -= 32;
+        } while (length >= 32);
+    }
+
+    /* Copy the remaining bytes */
     memcpy(dest_ptr, src_ptr, length);
 
     return ETSOC_MEM_OPERATION_SUCCESS;

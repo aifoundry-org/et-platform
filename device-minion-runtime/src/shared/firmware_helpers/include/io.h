@@ -61,4 +61,14 @@ static inline void iowrite64(uintptr_t addr, uint64_t val)
     asm volatile("sd %1, %0\n" : "=m"(*(volatile uint64_t *)addr) : "r"(val));
 }
 
+static inline void memcpy256(uintptr_t dest_addr, uintptr_t src_addr)
+{
+    asm volatile(
+        "flq2 f0, 0(%[src_addr])\n"
+        "fsq2 f0, 0(%[dest_addr])\n"
+        :
+        : [src_addr] "r" (src_addr),  [dest_addr] "r" (dest_addr)
+    );
+}
+
 #endif

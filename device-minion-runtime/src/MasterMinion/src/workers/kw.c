@@ -172,7 +172,7 @@ static inline void kw_create_kernel_launch_timer(uint8_t slot_index)
     /* TODO: Add support in Device API Kernel Launch command to override timeout
     cmd->timeout */
     sw_timer_idx = SW_Timer_Create_Timeout(&kw_set_abort_status_cb, slot_index,
-        KERNEL_LAUNCH_TIMEOUT(1));
+        KERNEL_LAUNCH_TIMEOUT(4));
     if(sw_timer_idx >= 0)
     {
         /* Save the SW timer index */

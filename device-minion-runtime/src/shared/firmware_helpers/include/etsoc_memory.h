@@ -45,38 +45,6 @@ enum ETSOC_MEM_TYPES
 */
 #define ETSOC_MEM_ERROR_INVALID_PARAM              -1
 
-/*! \def ETSOC_MEM_EVICT
-    \brief Macro that is used to evict the data to destination cache level from the address
-    provided upto to the length (in bytes)
-    \warning Address must be cache-line aligned!
-    cache_dest parameter value must be one of enum cop_dest
-*/
-#define ETSOC_MEM_EVICT(addr, size, cache_dest)                             \
-    asm volatile("fence");                                                  \
-    evict(cache_dest, addr, size);                                          \
-    WAIT_CACHEOPS;
-
-/*! \def ETSOC_MEM_COPY_AND_EVICT
-    \brief Macro that is used to copy data from source address to destination address
-    upto the size specified (in bytes) and evict the cache-lines upto the cache destination
-    \warning Destination address must be cache-line aligned!
-    cache_dest parameter value must be one of enum cop_dest
-*/
-#define ETSOC_MEM_COPY_AND_EVICT(dest_addr, src_addr, size, cache_dest)     \
-    memcpy(dest_addr, src_addr, size);                                      \
-    ETSOC_MEM_EVICT(dest_addr, size, cache_dest)
-
-/*! \def ETSOC_MEM_EVICT_AND_COPY
-    \brief Macro that is used to invalidate the source address cache-lines upto the cache
-    destination and copy data from source address to destination address upto the size
-    specified (in bytes)
-    \warning Source address must be cache-line aligned!
-    cache_dest parameter value must be one of enum cop_dest
-*/
-#define ETSOC_MEM_EVICT_AND_COPY(dest_addr, src_addr, size, cache_dest)      \
-    ETSOC_MEM_EVICT(src_addr, size, cache_dest)                              \
-    memcpy(dest_addr, src_addr, size);
-
 /*********************/
 /*! \fn int8_t ETSOC_Memory_Read_Uncacheable(void *src_ptr, void *dest_ptr, uint64_t length)
     \brief Reads data from ETSOC uncacheable memory.
@@ -158,5 +126,37 @@ int8_t ETSOC_Memory_Read_SCP(const void *src_ptr, void *dest_ptr, uint64_t lengt
     \returns None.
 */
 int8_t ETSOC_Memory_Write_SCP(const void *src_ptr, void *dest_ptr, uint64_t length);
+
+/*! \def ETSOC_MEM_EVICT
+    \brief Macro that is used to evict the data to destination cache level from the address
+    provided upto to the length (in bytes)
+    \warning Address must be cache-line aligned!
+    cache_dest parameter value must be one of enum cop_dest
+*/
+#define ETSOC_MEM_EVICT(addr, size, cache_dest)                             \
+    asm volatile("fence");                                                  \
+    evict(cache_dest, addr, size);                                          \
+    WAIT_CACHEOPS;
+
+/*! \def ETSOC_MEM_COPY_AND_EVICT
+    \brief Macro that is used to copy data from source address to destination address
+    upto the size specified (in bytes) and evict the cache-lines upto the cache destination
+    \warning Destination address must be cache-line aligned!
+    cache_dest parameter value must be one of enum cop_dest
+*/
+#define ETSOC_MEM_COPY_AND_EVICT(dest_addr, src_addr, size, cache_dest)     \
+    ETSOC_Memory_Read_Write_Cacheable(src_addr, dest_addr, size);           \
+    ETSOC_MEM_EVICT(dest_addr, size, cache_dest)
+
+/*! \def ETSOC_MEM_EVICT_AND_COPY
+    \brief Macro that is used to invalidate the source address cache-lines upto the cache
+    destination and copy data from source address to destination address upto the size
+    specified (in bytes)
+    \warning Source address must be cache-line aligned!
+    cache_dest parameter value must be one of enum cop_dest
+*/
+#define ETSOC_MEM_EVICT_AND_COPY(dest_addr, src_addr, size, cache_dest)      \
+    ETSOC_MEM_EVICT(src_addr, size, cache_dest)                              \
+    ETSOC_Memory_Read_Write_Cacheable(src_addr, dest_addr, size);
 
 #endif /* ETSOC_MEMORY_DEFS_H_ */
