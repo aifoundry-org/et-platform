@@ -8,8 +8,9 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 
-#include "RuntimeImp.h"
+#include "RuntimeImp.h" 
 #include "KernelParametersCache.h"
+#include "MemoryManager.h"
 #include "ScopedProfileEvent.h"
 
 #include "runtime/DmaBuffer.h"
@@ -44,8 +45,8 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
   RT_LOG(INFO) << std::hex << "Runtime initialization. Dram base addr: " << dramBaseAddress
                << " Dram size: " << dramSize;
   for (auto&& d : devices_) {
-    memoryManagers_.insert({d, MemoryManager{dramBaseAddress, dramSize, kMinAllocationSize}});
-    dmaBufferManagers_.insert({d, std::make_unique<DmaBufferManager>(deviceLayer_, static_cast<int>(d))});
+    memoryManagers_.try_emplace(d, MemoryManager{dramBaseAddress, dramSize, kBlockSize});
+    dmaBufferManagers_.try_emplace(d, std::make_unique<DmaBufferManager>(deviceLayer_, static_cast<int>(d)));
   }
   kernelParametersCache_ = std::make_unique<KernelParametersCache>(this);
   responseReceiver_ = std::make_unique<ResponseReceiver>(deviceLayer_, this);
@@ -123,17 +124,20 @@ void RuntimeImp::unloadCode(KernelId kernel) {
   // and remove the kernel
   kernels_.erase(it);
 }
-
-void* RuntimeImp::mallocDevice(DeviceId device, size_t size, int alignment) {
+ 
+void* RuntimeImp::mallocDevice(DeviceId device, size_t size, uint32_t alignment) {
   ScopedProfileEvent profileEvent(Class::MallocDevice, profiler_, device);
   RT_DLOG(INFO) << "Malloc requested device " << std::hex << static_cast<std::underlying_type_t<DeviceId>>(device)
                 << " size: " << size << " alignment: " << alignment;
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
-  auto it = find(memoryManagers_, device);
-  // enforce size is multiple of alignment
-  size = alignment * ((size + alignment - 1) / alignment);
+  if (__builtin_popcount(alignment) != 1) {
+    throw Exception("Alignment must be power of two");
+  }
+
+  std::lock_guard lock(mutex_);
+  auto it = find(memoryManagers_, device);  
   return it->second.malloc(size, alignment);
 }
+
 void RuntimeImp::freeDevice(DeviceId device, void* buffer) {
   ScopedProfileEvent profileEvent(Class::FreeDevice, profiler_, device);
   RT_DLOG(INFO) << "Free at device: " << static_cast<std::underlying_type_t<DeviceId>>(device)
