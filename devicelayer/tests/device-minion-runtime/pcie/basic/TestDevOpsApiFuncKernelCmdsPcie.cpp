@@ -60,15 +60,6 @@ TEST_F(TestDevOpsApiFuncKernelCmdsPcie, abortHangKernel_PositiveTesting_5_1) {
   launchHangKernel(0x3, true); /* Shire 0 and 1 */
 }
 
-TEST_F(TestDevOpsApiFuncKernelCmdsPcie, timeoutHangKernel_NegativeTesting_5_2) {
-  // Skip Test, if loopback driver
-  if (FLAGS_loopback_driver) {
-    TEST_VLOG(0) << "Skipping: timeoutHangKernel_NegativeTesting_5_2, not supported on loopback driver" << std::endl;
-    return;
-  }
-  launchHangKernel(0x3, false); /* Shire 0 and 1 */
-}
-
 TEST_F(TestDevOpsApiFuncKernelCmdsPcie, kernelAbortCmd_InvalidTagIdNegativeTesting_6_2) {
   // Skip Test, if loopback driver
   if (FLAGS_loopback_driver) {

@@ -89,6 +89,10 @@ TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, abortHangKernel_PositiveTesting_5_1) 
   launchHangKernel(0x1FFFFFFFF, true); // all shires
 }
 
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, timeoutHangKernel_NegativeTesting_5_2) {
+  launchHangKernel(0x1FFFFFFFF, false); // all shires
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   google::ParseCommandLineFlags(&argc, &argv, true);
