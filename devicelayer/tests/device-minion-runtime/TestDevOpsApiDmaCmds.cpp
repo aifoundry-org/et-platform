@@ -27,7 +27,9 @@ void inline fillRandData(uint8_t* buf, size_t size) {
 
 } // namespace
 
-bool TestDevOpsApiDmaCmds::fillDmaStream(int deviceIdx, std::vector<std::unique_ptr<IDevOpsApiCmd>>& stream,
+using namespace dev::dl_tests;
+
+bool TestDevOpsApiDmaCmds::fillDmaStream(int deviceIdx, std::vector<CmdTag>& stream,
                                          const std::vector<std::pair<DmaType, size_t>>& cmdSequence,
                                          std::vector<std::vector<uint8_t>>& dmaWrBufs,
                                          std::vector<std::vector<uint8_t>>& dmaRdBufs) {
@@ -40,7 +42,7 @@ bool TestDevOpsApiDmaCmds::fillDmaStream(int deviceIdx, std::vector<std::unique_
       dmaWrBuf.resize(cmdSequence[cmdIdx].second, 0);
       fillRandData(dmaWrBuf.data(), dmaWrBuf.size());
       dmaWrBufs.push_back(std::move(dmaWrBuf));
-      stream.push_back(IDevOpsApiCmd::createDataWriteCmd(
+      stream.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(
         device_ops_api::CMD_FLAGS_BARRIER_DISABLE, getDmaWriteAddr(deviceIdx, dmaWrBufs.back().size()),
         templ::bit_cast<uint64_t>(dmaWrBufs.back().data()), templ::bit_cast<uint64_t>(dmaWrBufs.back().data()),
         dmaWrBufs.back().size(), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
@@ -49,7 +51,7 @@ bool TestDevOpsApiDmaCmds::fillDmaStream(int deviceIdx, std::vector<std::unique_
     case DmaType::DMA_READ:
       dmaRdBuf.resize(cmdSequence[cmdIdx].second, 0);
       dmaRdBufs.push_back(std::move(dmaRdBuf));
-      stream.push_back(IDevOpsApiCmd::createDataReadCmd(
+      stream.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(
         isFirstRead ? device_ops_api::CMD_FLAGS_BARRIER_ENABLE : device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
         getDmaReadAddr(deviceIdx, dmaRdBufs.back().size()), templ::bit_cast<uint64_t>(dmaRdBufs.back().data()),
         templ::bit_cast<uint64_t>(dmaRdBufs.back().data()), dmaRdBufs.back().size(),
@@ -69,19 +71,21 @@ bool TestDevOpsApiDmaCmds::executeDmaCmds(bool singleDevice, bool singleQueue, b
                                           std::vector<std::vector<uint8_t>>& dmaRdBufs) {
   int deviceCount = singleDevice ? 1 : getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
+    std::vector<CmdTag> stream;
     int queueCount = singleQueue ? 1 : getSqCount(deviceIdx);
     for (int queueIdx = 0; queueIdx < queueCount; ++queueIdx) {
       if (!fillDmaStream(deviceIdx, stream, cmdSequence, dmaWrBufs, dmaRdBufs)) {
         return false;
       }
-      // Move stream of commands to streams_
-      streams_.try_emplace(key(deviceIdx, queueIdx), std::move(stream));
+      // Save stream against deviceIdx and queueIdx
+      insertStream(deviceIdx, queueIdx, std::move(stream));
+      stream.clear();
     }
   }
 
   isAsync ? executeAsync() : executeSync();
 
+  deleteStreams();
   return true;
 }
 
@@ -169,8 +173,7 @@ bool TestDevOpsApiDmaCmds::validateAndDeallocDmaBufferSequence(
   return res;
 }
 
-bool TestDevOpsApiDmaCmds::fillDmaListStream(int deviceIdx, int queueIdx,
-                                             std::vector<std::unique_ptr<IDevOpsApiCmd>>& stream,
+bool TestDevOpsApiDmaCmds::fillDmaListStream(int deviceIdx, int queueIdx, std::vector<CmdTag>& stream,
                                              const std::vector<std::pair<DmaType, size_t>>& dmaMoveSequence,
                                              std::unordered_map<size_t, std::vector<uint8_t*>>& dmaWrBufs,
                                              std::unordered_map<size_t, std::vector<uint8_t*>>& dmaRdBufs) {
@@ -218,16 +221,16 @@ bool TestDevOpsApiDmaCmds::fillDmaListStream(int deviceIdx, int queueIdx,
     if (dmaMoveSequence[i].first == DmaType::DMA_WRITE &&
           (i + 1 == dmaMoveSequence.size() || wrNodesFilled == kNodeCount) ||
         wrNodesFilled > 0 && rdNodesFilled > 0 && dmaMoveSequence[i].first == DmaType::DMA_READ) {
-      stream.push_back(IDevOpsApiCmd::createDmaWriteListCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, wrList.data(),
-                                                            wrNodesFilled,
-                                                            device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+      stream.push_back(IDevOpsApiCmd::createCmd<DmaWriteListCmd>(device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                                 wrList.data(), wrNodesFilled,
+                                                                 device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
       wrNodesFilled = 0;
       isFirstRead = true;
     }
     if (dmaMoveSequence[i].first == DmaType::DMA_READ &&
           (i + 1 == dmaMoveSequence.size() || rdNodesFilled == kNodeCount) ||
         wrNodesFilled > 0 && rdNodesFilled > 0 && dmaMoveSequence[i].first == DmaType::DMA_WRITE) {
-      stream.push_back(IDevOpsApiCmd::createDmaReadListCmd(
+      stream.push_back(IDevOpsApiCmd::createCmd<DmaReadListCmd>(
         isFirstRead ? device_ops_api::CMD_FLAGS_BARRIER_ENABLE : device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
         rdList.data(), rdNodesFilled, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
       rdNodesFilled = 0;
@@ -252,16 +255,17 @@ bool TestDevOpsApiDmaCmds::executeDmaListCmds(bool singleDevice, bool singleQueu
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     auto queueCount = singleQueue ? 1 : getSqCount(deviceIdx);
     for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
-      std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
+      std::vector<CmdTag> stream;
       if (!fillDmaListStream(deviceIdx, queueIdx, stream, dmaMoveSequence, dmaWrBufs, dmaRdBufs)) {
         TEST_VLOG(0) << "fillDmaListStream() failed for device:" << deviceIdx << ", queue: " << queueIdx;
         validateAndDeallocDmaBufferSequence(singleDevice, singleQueue, false /* only dealloc data */, dmaMoveSequence,
                                             dmaWrBufs, dmaRdBufs);
-        streams_.clear();
+        deleteStreams();
         return false;
       }
-      // Move stream of commands to streams_
-      streams_.try_emplace(key(deviceIdx, queueIdx), std::move(stream));
+      // Save stream against deviceIdx and queueIdx
+      insertStream(deviceIdx, queueIdx, std::move(stream));
+      stream.clear();
     }
   }
 
@@ -274,6 +278,7 @@ bool TestDevOpsApiDmaCmds::executeDmaListCmds(bool singleDevice, bool singleQueu
     TEST_VLOG(0) << "validateAndDeallocDmaBufferSequence() failed!";
   }
 
+  deleteStreams();
   return res;
 }
 
@@ -517,7 +522,7 @@ void TestDevOpsApiDmaCmds::dataRWListCmd_NegativeTesting_3_12() {
   int deviceCount = getDevicesCount();
   int queueIdx = 0;
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
+    std::vector<CmdTag> stream;
 
     dmaWrMemPtrs.push_back(allocDmaBuffer(deviceIdx, kNodeCount * kBufSize, true));
     dmaRdMemPtrs.push_back(allocDmaBuffer(deviceIdx, kNodeCount * kBufSize, false));
@@ -542,15 +547,17 @@ void TestDevOpsApiDmaCmds::dataRWListCmd_NegativeTesting_3_12() {
       rdBufPtr += kBufSize;
     }
     stream.push_back(
-      IDevOpsApiCmd::createDmaWriteListCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, wrList.data(), kNodeCount,
-                                           device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ADDRESS));
+      IDevOpsApiCmd::createCmd<DmaWriteListCmd>(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, wrList.data(), kNodeCount,
+                                                device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ADDRESS));
     stream.push_back(
-      IDevOpsApiCmd::createDmaReadListCmd(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, rdList.data(), kNodeCount,
-                                          device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ADDRESS));
-    // Move stream of commands to streams_[queueId]
-    streams_.try_emplace(key(deviceIdx, queueIdx), std::move(stream));
+      IDevOpsApiCmd::createCmd<DmaReadListCmd>(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, rdList.data(), kNodeCount,
+                                               device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ADDRESS));
+    // Save stream against deviceIdx and queueIdx
+    insertStream(deviceIdx, queueIdx, std::move(stream));
+    stream.clear();
   }
   executeAsync();
+  deleteStreams();
 }
 
 /**********************************************************

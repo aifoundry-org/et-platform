@@ -10,6 +10,8 @@
 
 #include "testHelper/TestDevOpsApi.h"
 
+namespace dev::dl_tests {
+
 class TestDevOpsApiDmaCmds : public TestDevOpsApi {
 protected:
   /* DMA Basic Testing Functions */
@@ -48,7 +50,7 @@ private:
   enum class DmaType { DMA_WRITE, DMA_READ };
 
   /* Fill a stream for specified device and queue. Only the first read command will be sent with barrier. */
-  bool fillDmaStream(int deviceIdx, std::vector<std::unique_ptr<IDevOpsApiCmd>>& stream,
+  bool fillDmaStream(int deviceIdx, std::vector<CmdTag>& stream,
                      const std::vector<std::pair<DmaType, size_t>>& cmdSequence,
                      std::vector<std::vector<uint8_t>>& dmaWrBufs, std::vector<std::vector<uint8_t>>& dmaRdBufs);
 
@@ -72,7 +74,7 @@ private:
 
   /* Fill a stream for specified device and queue. It merges consecutive DMA moves in single DMA list command. Only the
    * first DMA readlist command will be sent with barrier. */
-  bool fillDmaListStream(int deviceIdx, int queueIdx, std::vector<std::unique_ptr<IDevOpsApiCmd>>& stream,
+  bool fillDmaListStream(int deviceIdx, int queueIdx, std::vector<CmdTag>& stream,
                          const std::vector<std::pair<DmaType, size_t>>& dmaMoveSequence,
                          std::unordered_map<size_t, std::vector<uint8_t*>>& dmaWrBufs,
                          std::unordered_map<size_t, std::vector<uint8_t*>>& dmaRdBufs);
@@ -81,3 +83,5 @@ private:
   bool executeDmaListCmds(bool singleDevice, bool singleQueue, bool isAsync,
                           const std::vector<std::pair<DmaType, size_t>>& dmaMoveSequence);
 };
+
+} // namespace dev::dl_tests

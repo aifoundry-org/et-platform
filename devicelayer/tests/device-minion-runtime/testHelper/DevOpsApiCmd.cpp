@@ -9,63 +9,34 @@
 //------------------------------------------------------------------------------
 
 #include "IDevOpsApiCmd.h"
+#include <bitset>
 #include <iostream>
 
-// NOTE: This file can later be auto-generated using device-ops-api yaml files if needed
+using namespace dev::dl_tests;
 
-std::unordered_map<device_ops_api::tag_id_t, uint32_t> IDevOpsApiCmd::rspStorage_;
-std::atomic<device_ops_api::tag_id_t> IDevOpsApiCmd::tagId_ = 0x1;
+std::unordered_map<CmdTag, std::unique_ptr<IDevOpsApiCmd>> IDevOpsApiCmd::cmds_;
+std::atomic<CmdTag> IDevOpsApiCmd::tagId_ = 0x1;
 
-bool IDevOpsApiCmd::addRspEntry(device_ops_api::tag_id_t tagId, uint32_t expectedRsp) {
-  auto it = rspStorage_.find(tagId);
-  if (it != rspStorage_.end()) {
-    return false;
+IDevOpsApiCmd* IDevOpsApiCmd::getDevOpsApiCmd(CmdTag tagId) {
+  if (tagId <= cmds_.size()) {
+    return cmds_[tagId].get();
   }
-
-  rspStorage_.emplace(tagId, expectedRsp);
-  return true;
+  return nullptr;
 }
 
-uint32_t IDevOpsApiCmd::getExpectedRsp(device_ops_api::tag_id_t tagId) {
-  auto it = rspStorage_.find(tagId);
-  if (it == rspStorage_.end()) {
-    return 0; // Default response
-  }
-
-  return it->second;
-}
-
-void IDevOpsApiCmd::deleteRspEntry(device_ops_api::tag_id_t tagId) {
-  rspStorage_.erase(tagId);
+void IDevOpsApiCmd::deleteDevOpsApiCmds() {
+  cmds_.clear();
+  tagId_ = 0x1;
 }
 
 /*
- * Device Ops Api Echo Command creation and it's handling
+ * Device Ops Api Echo Command
  */
-std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createEchoCmd(device_ops_api::cmd_flags_e flag) {
-  auto tagId = tagId_++;
-  // Add default expected response `0` for command that does not have expected response
-  if (!addRspEntry(tagId, 0)) {
-    return nullptr;
-  }
-  return std::make_unique<EchoCmd>(tagId, flag);
-}
-
-EchoCmd::EchoCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag) {
+EchoCmd::EchoCmd(CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /*flags*/>& args) {
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.cmd_hdr.flags = flag;
-
-  TEST_VLOG(1) << "Created Echo Command (tagId: " << std::hex << tagId << ")";
-}
-
-EchoCmd::~EchoCmd() {
-  deleteRspEntry(cmd_.command_info.cmd_hdr.tag_id);
-}
-
-IDevOpsApiCmd::CmdType EchoCmd::whoAmI() {
-  return CmdType::ECHO_CMD;
+  cmd_.command_info.cmd_hdr.flags = std::get<0>(args);
 }
 
 std::byte* EchoCmd::getCmdPtr() {
@@ -76,42 +47,58 @@ size_t EchoCmd::getCmdSize() {
   return sizeof(cmd_);
 }
 
-device_ops_api::tag_id_t EchoCmd::getCmdTagId() {
+CmdTag EchoCmd::getCmdTagId() {
   return cmd_.command_info.cmd_hdr.tag_id;
 }
 
-/*
- * Device Ops Api compatibility command creation and handling
- */
-std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createApiCompatibilityCmd(device_ops_api::cmd_flags_e flag, uint8_t major,
-                                                                        uint8_t minor, uint8_t patch) {
-  auto tagId = tagId_++;
-  // Add default expected response `0` for command that does not have expected response
-  if (!addRspEntry(tagId, 0)) {
-    return nullptr;
-  }
-  return std::make_unique<ApiCompatibilityCmd>(tagId, flag, major, minor, patch);
+CmdType EchoCmd::whoAmI() {
+  return CmdType::ECHO_CMD;
 }
 
-ApiCompatibilityCmd::ApiCompatibilityCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
-                                         uint8_t major, uint8_t minor, uint8_t patch) {
+CmdStatus EchoCmd::setRsp(const std::vector<std::byte>& rsp) {
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    return cmdStatus_ = CmdStatus::CMD_RSP_DUPLICATE;
+  }
+  if (rsp.size() < sizeof(rsp_)) {
+    return cmdStatus_;
+  }
+
+  memcpy(static_cast<void*>(&rsp_), rsp.data(), sizeof(rsp_));
+
+  if (rsp_.response_info.rsp_hdr.tag_id != cmd_.command_info.cmd_hdr.tag_id ||
+      rsp_.response_info.rsp_hdr.msg_id != device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_ECHO_RSP) {
+    return cmdStatus_;
+  }
+
+  return cmdStatus_ = CmdStatus::CMD_SUCCESSFUL;
+}
+
+std::string EchoCmd::printSummary() {
+  std::stringstream summary;
+  summary << "\n"
+          << whoAmI() << " (tagId: " << getCmdTagId() << ")\n\t" << cmdStatus_ << "\n\tCmd Flags: 0b"
+          << std::bitset<sizeof(cmd_.command_info.cmd_hdr.flags) * 8>(cmd_.command_info.cmd_hdr.flags) << std::endl;
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    summary << "Response\n\tdevice_cmd_start_ts: " << rsp_.device_cmd_start_ts << std::endl;
+  }
+  return summary.str();
+}
+
+/*
+ * Device Ops Api compatibility command
+ */
+ApiCompatibilityCmd::ApiCompatibilityCmd(
+  CmdTag tagId,
+  const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint8_t /*major*/, uint8_t /*minor*/, uint8_t /*patch*/>&
+    args) {
+  const auto& [flags, major, minor, patch] = args;
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.cmd_hdr.flags = flag;
+  cmd_.command_info.cmd_hdr.flags = flags;
   cmd_.major = major;
-  cmd_.major = minor;
-  cmd_.major = patch;
-
-  TEST_VLOG(1) << "Created Api Compatibility Command (tagId: " << std::hex << tagId << ")";
-}
-
-ApiCompatibilityCmd::~ApiCompatibilityCmd() {
-  deleteRspEntry(cmd_.command_info.cmd_hdr.tag_id);
-}
-
-IDevOpsApiCmd::CmdType ApiCompatibilityCmd::whoAmI() {
-  return CmdType::API_COMPATIBILITY_CMD;
+  cmd_.minor = minor;
+  cmd_.patch = patch;
 }
 
 std::byte* ApiCompatibilityCmd::getCmdPtr() {
@@ -122,39 +109,56 @@ size_t ApiCompatibilityCmd::getCmdSize() {
   return sizeof(cmd_);
 }
 
-device_ops_api::tag_id_t ApiCompatibilityCmd::getCmdTagId() {
+CmdTag ApiCompatibilityCmd::getCmdTagId() {
   return cmd_.command_info.cmd_hdr.tag_id;
 }
 
-/*
- * Device Ops Api Firmware Version command creation and handling
- */
-std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createFwVersionCmd(device_ops_api::cmd_flags_e flag,
-                                                                 uint8_t firmwareType) {
-  auto tagId = tagId_++;
-  // Add default expected response `0` for command that does not have expected response
-  if (!addRspEntry(tagId, 0)) {
-    return nullptr;
-  }
-  return std::make_unique<FwVersionCmd>(tagId, flag, firmwareType);
+CmdType ApiCompatibilityCmd::whoAmI() {
+  return CmdType::API_COMPATIBILITY_CMD;
 }
 
-FwVersionCmd::FwVersionCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, uint8_t firmwareType) {
+CmdStatus ApiCompatibilityCmd::setRsp(const std::vector<std::byte>& rsp) {
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    return cmdStatus_ = CmdStatus::CMD_RSP_DUPLICATE;
+  }
+  if (rsp.size() < sizeof(rsp_)) {
+    return cmdStatus_;
+  }
+
+  memcpy(static_cast<void*>(&rsp_), rsp.data(), sizeof(rsp_));
+
+  if (rsp_.response_info.rsp_hdr.tag_id != cmd_.command_info.cmd_hdr.tag_id ||
+      rsp_.response_info.rsp_hdr.msg_id != device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_API_COMPATIBILITY_RSP) {
+    return cmdStatus_;
+  }
+
+  return cmdStatus_ = CmdStatus::CMD_SUCCESSFUL;
+}
+
+std::string ApiCompatibilityCmd::printSummary() {
+  std::stringstream summary;
+  summary << "\n"
+          << whoAmI() << " (tagId: " << getCmdTagId() << ")\n\t" << cmdStatus_ << "\n\tCmd Flags: 0b"
+          << std::bitset<sizeof(cmd_.command_info.cmd_hdr.flags) * 8>(cmd_.command_info.cmd_hdr.flags)
+          << "\n\tmajor: " << cmd_.major << "\n\tminor: " << cmd_.minor << "patch: " << cmd_.patch << std::endl;
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    summary << "Response\n\tmajor: " << rsp_.major << "\n\tminor: " << rsp_.minor << "\n\tpatch: " << rsp_.patch
+            << std::endl;
+  }
+  return summary.str();
+}
+
+/*
+ * Device Ops Api Firmware Version command
+ */
+FwVersionCmd::FwVersionCmd(CmdTag tagId,
+                           const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint8_t /*firmwareType*/>& args) {
+  const auto& [flags, firmwareType] = args;
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.cmd_hdr.flags = flag;
+  cmd_.command_info.cmd_hdr.flags = flags;
   cmd_.firmware_type = firmwareType;
-
-  TEST_VLOG(1) << "Created Firmware Version Command (tagId: " << std::hex << tagId << ")";
-}
-
-FwVersionCmd::~FwVersionCmd() {
-  deleteRspEntry(cmd_.command_info.cmd_hdr.tag_id);
-}
-
-IDevOpsApiCmd::CmdType FwVersionCmd::whoAmI() {
-  return CmdType::FW_VERSION_CMD;
 }
 
 std::byte* FwVersionCmd::getCmdPtr() {
@@ -165,44 +169,64 @@ size_t FwVersionCmd::getCmdSize() {
   return sizeof(cmd_);
 }
 
-device_ops_api::tag_id_t FwVersionCmd::getCmdTagId() {
+CmdTag FwVersionCmd::getCmdTagId() {
   return cmd_.command_info.cmd_hdr.tag_id;
 }
 
-/*
- * Device Ops Api Data Write command creation and handling
- */
-std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createDataWriteCmd(device_ops_api::cmd_flags_e flag, uint64_t devPhysAddr,
-                                                                 uint64_t hostVirtAddr, uint64_t hostPhysAddr,
-                                                                 uint64_t dataSize,
-                                                                 device_ops_api::dev_ops_api_dma_response_e status) {
-  auto tagId = tagId_++;
-  if (!addRspEntry(tagId, status)) {
-    return nullptr;
-  }
-  return std::make_unique<DataWriteCmd>(tagId, flag, devPhysAddr, hostVirtAddr, hostPhysAddr, dataSize);
+CmdType FwVersionCmd::whoAmI() {
+  return CmdType::FW_VERSION_CMD;
 }
 
-DataWriteCmd::DataWriteCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, uint64_t devPhysAddr,
-                           uint64_t hostVirtAddr, uint64_t hostPhysAddr, uint64_t dataSize) {
+CmdStatus FwVersionCmd::setRsp(const std::vector<std::byte>& rsp) {
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    return cmdStatus_ = CmdStatus::CMD_RSP_DUPLICATE;
+  }
+  if (rsp.size() < sizeof(rsp_)) {
+    return cmdStatus_;
+  }
+
+  memcpy(static_cast<void*>(&rsp_), rsp.data(), sizeof(rsp_));
+
+  if (rsp_.response_info.rsp_hdr.tag_id != cmd_.command_info.cmd_hdr.tag_id ||
+      rsp_.response_info.rsp_hdr.msg_id != device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_FW_VERSION_RSP) {
+    return cmdStatus_;
+  }
+
+  return cmdStatus_ = CmdStatus::CMD_SUCCESSFUL;
+}
+
+std::string FwVersionCmd::printSummary() {
+  std::stringstream summary;
+  summary << "\n"
+          << whoAmI() << " (tagId: " << getCmdTagId() << ")\n\t" << cmdStatus_ << "\n\tCmd Flags: 0b"
+          << std::bitset<sizeof(cmd_.command_info.cmd_hdr.flags) * 8>(cmd_.command_info.cmd_hdr.flags)
+          << "\n\tfirmware_type: " << cmd_.firmware_type << std::endl;
+  summary << "\n" << whoAmI() << " (tagId: " << getCmdTagId() << ")\n\t" << cmdStatus_ << std::endl;
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    summary << "Response\n\tmajor: " << rsp_.major << "\n\tminor: " << rsp_.minor << "\n\tpatch: " << rsp_.patch
+            << "\n\tfirmware_type: " << rsp_.type << std::endl;
+  }
+  return summary.str();
+}
+
+/*
+ * Device Ops Api Data Write command
+ */
+DataWriteCmd::DataWriteCmd(CmdTag tagId,
+                           const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint64_t /*devPhysAddr*/,
+                                            uint64_t /*hostVirtAddr*/, uint64_t /*hostPhysAddr*/, uint64_t /*dataSize*/,
+                                            device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>&
+                             args) {
+  const auto& [flags, devPhysAddr, hostVirtAddr, hostPhysAddr, dataSize, expStatus] = args;
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.cmd_hdr.flags = flag;
+  cmd_.command_info.cmd_hdr.flags = flags;
   cmd_.dst_device_phy_addr = devPhysAddr;
   cmd_.src_host_virt_addr = hostVirtAddr;
   cmd_.src_host_phy_addr = hostPhysAddr;
   cmd_.size = dataSize;
-
-  TEST_VLOG(1) << "Created Data Write Command (tagId: " << std::hex << tagId << ")";
-}
-
-DataWriteCmd::~DataWriteCmd() {
-  deleteRspEntry(cmd_.command_info.cmd_hdr.tag_id);
-}
-
-IDevOpsApiCmd::CmdType DataWriteCmd::whoAmI() {
-  return CmdType::DATA_WRITE_CMD;
+  expStatus_ = expStatus;
 }
 
 std::byte* DataWriteCmd::getCmdPtr() {
@@ -213,44 +237,83 @@ size_t DataWriteCmd::getCmdSize() {
   return sizeof(cmd_);
 }
 
-device_ops_api::tag_id_t DataWriteCmd::getCmdTagId() {
+CmdTag DataWriteCmd::getCmdTagId() {
   return cmd_.command_info.cmd_hdr.tag_id;
 }
 
-/*
- * Device Ops Api Data Read command creation and handling
- */
-std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createDataReadCmd(device_ops_api::cmd_flags_e flag, uint64_t devPhysAddr,
-                                                                uint64_t hostVirtAddr, uint64_t hostPhysAddr,
-                                                                uint64_t dataSize,
-                                                                device_ops_api::dev_ops_api_dma_response_e status) {
-  auto tagId = tagId_++;
-  if (!addRspEntry(tagId, status)) {
-    return nullptr;
-  }
-  return std::make_unique<DataReadCmd>(tagId, flag, devPhysAddr, hostVirtAddr, hostPhysAddr, dataSize);
+CmdType DataWriteCmd::whoAmI() {
+  return CmdType::DATA_WRITE_CMD;
 }
 
-DataReadCmd::DataReadCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, uint64_t devPhysAddr,
-                         uint64_t hostVirtAddr, uint64_t hostPhysAddr, uint64_t dataSize) {
+CmdStatus DataWriteCmd::setRsp(const std::vector<std::byte>& rsp) {
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    return cmdStatus_ = CmdStatus::CMD_RSP_DUPLICATE;
+  }
+
+  if (rsp.size() < sizeof(rsp_)) {
+    return cmdStatus_;
+  }
+
+  memcpy(static_cast<void*>(&rsp_), rsp.data(), sizeof(rsp_));
+
+  if (rsp_.response_info.rsp_hdr.tag_id != cmd_.command_info.cmd_hdr.tag_id ||
+      rsp_.response_info.rsp_hdr.msg_id != device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP) {
+    return cmdStatus_;
+  }
+
+  if (rsp_.status == expStatus_) {
+    cmdStatus_ = CmdStatus::CMD_SUCCESSFUL;
+  } else if (rsp_.status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE) {
+    cmdStatus_ = CmdStatus::CMD_TIMED_OUT;
+  } else {
+    cmdStatus_ = CmdStatus::CMD_FAILED;
+  }
+
+  return cmdStatus_;
+}
+
+uint32_t DataWriteCmd::getRspStatusCode() const {
+  if (cmdStatus_ == CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    throw Exception("No response received!");
+  }
+  return rsp_.status;
+}
+
+std::string DataWriteCmd::printSummary() {
+  std::stringstream summary;
+  summary << "\n"
+          << whoAmI() << " (tagId: " << getCmdTagId() << ")\n\t" << cmdStatus_ << "\n\tCmd Flags: 0b"
+          << std::bitset<sizeof(cmd_.command_info.cmd_hdr.flags) * 8>(cmd_.command_info.cmd_hdr.flags)
+          << "\n\tsrc_host_virt_addr: 0x" << std::hex << cmd_.src_host_virt_addr << "\n\tdst_device_phy_addr: 0x"
+          << cmd_.dst_device_phy_addr << "\n\tsize: " << std::dec << cmd_.size << std::endl;
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    summary << "Response\n\tdevice_cmd_start_ts: " << rsp_.device_cmd_start_ts
+            << "\n\tdevice_cmd_wait_dur: " << rsp_.device_cmd_wait_dur
+            << "\n\tdevice_cmd_execute_dur: " << rsp_.device_cmd_execute_dur << "\n\tstatus code: " << rsp_.status
+            << "\n\texpected status code: " << expStatus_ << std::endl;
+  }
+
+  return summary.str();
+}
+
+/*
+ * Device Ops Api Data Read command
+ */
+DataReadCmd::DataReadCmd(CmdTag tagId,
+                         const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint64_t /*devPhysAddr*/,
+                                          uint64_t /*hostVirtAddr*/, uint64_t /*hostPhysAddr*/, uint64_t /*dataSize*/,
+                                          device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>&
+                           args) {
+  const auto& [flags, devPhysAddr, hostVirtAddr, hostPhysAddr, dataSize, expStatus] = args;
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.cmd_hdr.flags = flag;
+  cmd_.command_info.cmd_hdr.flags = flags;
   cmd_.src_device_phy_addr = devPhysAddr;
   cmd_.dst_host_virt_addr = hostVirtAddr;
   cmd_.dst_host_phy_addr = hostPhysAddr;
   cmd_.size = dataSize;
-
-  TEST_VLOG(1) << "Created Data Read Command (tagId: " << std::hex << tagId << ")";
-}
-
-DataReadCmd::~DataReadCmd() {
-  deleteRspEntry(cmd_.command_info.cmd_hdr.tag_id);
-}
-
-IDevOpsApiCmd::CmdType DataReadCmd::whoAmI() {
-  return CmdType::DATA_READ_CMD;
+  expStatus_ = expStatus;
 }
 
 std::byte* DataReadCmd::getCmdPtr() {
@@ -261,43 +324,81 @@ size_t DataReadCmd::getCmdSize() {
   return sizeof(cmd_);
 }
 
-device_ops_api::tag_id_t DataReadCmd::getCmdTagId() {
+CmdTag DataReadCmd::getCmdTagId() {
   return cmd_.command_info.cmd_hdr.tag_id;
 }
 
-/*
- * Device Ops Api DMA Writelist command creation and handling
- */
-std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createDmaWriteListCmd(device_ops_api::cmd_flags_e flag,
-                                                                    device_ops_api::dma_write_node list[],
-                                                                    uint32_t nodeCount,
-                                                                    device_ops_api::dev_ops_api_dma_response_e status) {
-  auto tagId = tagId_++;
-  if (!addRspEntry(tagId, status) || !nodeCount) {
-    return nullptr;
-  }
-  return std::make_unique<DmaWriteListCmd>(tagId, flag, list, nodeCount);
+CmdType DataReadCmd::whoAmI() {
+  return CmdType::DATA_READ_CMD;
 }
 
-DmaWriteListCmd::DmaWriteListCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
-                                 device_ops_api::dma_write_node list[], uint32_t nodeCount) {
+CmdStatus DataReadCmd::setRsp(const std::vector<std::byte>& rsp) {
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    return cmdStatus_ = CmdStatus::CMD_RSP_DUPLICATE;
+  }
+
+  if (rsp.size() < sizeof(rsp_)) {
+    return cmdStatus_;
+  }
+
+  memcpy(static_cast<void*>(&rsp_), rsp.data(), sizeof(rsp_));
+
+  if (rsp_.response_info.rsp_hdr.tag_id != cmd_.command_info.cmd_hdr.tag_id ||
+      rsp_.response_info.rsp_hdr.msg_id != device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP) {
+    return cmdStatus_;
+  }
+
+  if (rsp_.status == expStatus_) {
+    cmdStatus_ = CmdStatus::CMD_SUCCESSFUL;
+  } else if (rsp_.status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE) {
+    cmdStatus_ = CmdStatus::CMD_TIMED_OUT;
+  } else {
+    cmdStatus_ = CmdStatus::CMD_FAILED;
+  }
+
+  return cmdStatus_;
+}
+
+uint32_t DataReadCmd::getRspStatusCode() const {
+  if (cmdStatus_ == CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    throw Exception("No response received!");
+  }
+  return rsp_.status;
+}
+
+std::string DataReadCmd::printSummary() {
+  std::stringstream summary;
+  summary << "\n"
+          << whoAmI() << " (tagId: " << getCmdTagId() << ")\n\t" << cmdStatus_ << "\n\tCmd Flags: 0b"
+          << std::bitset<sizeof(cmd_.command_info.cmd_hdr.flags) * 8>(cmd_.command_info.cmd_hdr.flags)
+          << "\n\tdst_host_virt_addr: 0x" << std::hex << cmd_.dst_host_virt_addr << "\n\tsrc_device_phy_addr: 0x"
+          << cmd_.src_device_phy_addr << "\n\tsize: " << std::dec << cmd_.size << std::endl;
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    summary << "Response\n\tdevice_cmd_start_ts: " << rsp_.device_cmd_start_ts
+            << "\n\tdevice_cmd_wait_dur: " << rsp_.device_cmd_wait_dur
+            << "\n\tdevice_cmd_execute_dur: " << rsp_.device_cmd_execute_dur << "\n\tstatus code: " << rsp_.status
+            << "\n\texpected status code: " << expStatus_ << std::endl;
+  }
+
+  return summary.str();
+}
+
+/*
+ * Device Ops Api DMA Writelist command
+ */
+DmaWriteListCmd::DmaWriteListCmd(
+  CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /*flags*/, const device_ops_api::dma_write_node* /*list*/,
+                                 uint32_t /*nodeCount*/, device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>&
+                  args) {
+  const auto& [flags, list, nodeCount, expStatus] = args;
   cmdMem_.resize(sizeof(*cmd_) + sizeof(list[0]) * nodeCount);
   cmd_ = templ::bit_cast<device_ops_api::device_ops_dma_writelist_cmd_t*>(cmdMem_.data());
   cmd_->command_info.cmd_hdr.tag_id = tagId;
   cmd_->command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD;
   cmd_->command_info.cmd_hdr.size = cmdMem_.size();
-  cmd_->command_info.cmd_hdr.flags = flag;
+  cmd_->command_info.cmd_hdr.flags = flags;
   memcpy(cmd_->list, list, sizeof(list[0]) * nodeCount);
-
-  TEST_VLOG(1) << "Created DMA Writelist Command (tagId: " << std::hex << tagId << ", nodeCount: " << nodeCount << ")";
-}
-
-DmaWriteListCmd::~DmaWriteListCmd() {
-  deleteRspEntry(cmd_->command_info.cmd_hdr.tag_id);
-}
-
-IDevOpsApiCmd::CmdType DmaWriteListCmd::whoAmI() {
-  return CmdType::DMA_WRITELIST_CMD;
+  expStatus_ = expStatus;
 }
 
 std::byte* DmaWriteListCmd::getCmdPtr() {
@@ -308,43 +409,84 @@ size_t DmaWriteListCmd::getCmdSize() {
   return cmd_->command_info.cmd_hdr.size;
 }
 
-device_ops_api::tag_id_t DmaWriteListCmd::getCmdTagId() {
+CmdTag DmaWriteListCmd::getCmdTagId() {
   return cmd_->command_info.cmd_hdr.tag_id;
 }
 
-/*
- * Device Ops Api DMA Readlist command creation and handling
- */
-std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createDmaReadListCmd(device_ops_api::cmd_flags_e flag,
-                                                                   device_ops_api::dma_read_node list[],
-                                                                   uint32_t nodeCount,
-                                                                   device_ops_api::dev_ops_api_dma_response_e status) {
-  auto tagId = tagId_++;
-  if (!addRspEntry(tagId, status) || !nodeCount) {
-    return nullptr;
-  }
-  return std::make_unique<DmaReadListCmd>(tagId, flag, list, nodeCount);
+CmdType DmaWriteListCmd::whoAmI() {
+  return CmdType::DMA_WRITELIST_CMD;
 }
 
-DmaReadListCmd::DmaReadListCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
-                               device_ops_api::dma_read_node list[], uint32_t nodeCount) {
+CmdStatus DmaWriteListCmd::setRsp(const std::vector<std::byte>& rsp) {
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    return cmdStatus_ = CmdStatus::CMD_RSP_DUPLICATE;
+  }
+  if (rsp.size() < sizeof(rsp_)) {
+    return cmdStatus_;
+  }
+
+  memcpy(static_cast<void*>(&rsp_), rsp.data(), sizeof(rsp_));
+
+  if (rsp_.response_info.rsp_hdr.tag_id != cmd_->command_info.cmd_hdr.tag_id ||
+      rsp_.response_info.rsp_hdr.msg_id != device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP) {
+    return cmdStatus_;
+  }
+
+  if (rsp_.status == expStatus_) {
+    cmdStatus_ = CmdStatus::CMD_SUCCESSFUL;
+  } else if (rsp_.status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE) {
+    cmdStatus_ = CmdStatus::CMD_TIMED_OUT;
+  } else {
+    cmdStatus_ = CmdStatus::CMD_FAILED;
+  }
+
+  return cmdStatus_;
+}
+
+uint32_t DmaWriteListCmd::getRspStatusCode() const {
+  if (cmdStatus_ == CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    throw Exception("No response received!");
+  }
+  return rsp_.status;
+}
+
+std::string DmaWriteListCmd::printSummary() {
+  std::stringstream summary;
+  summary << "\n"
+          << whoAmI() << " (tagId: " << getCmdTagId() << ")\n\t" << cmdStatus_ << "\n\tCmd Flags: 0b"
+          << std::bitset<sizeof(cmd_->command_info.cmd_hdr.flags) * 8>(cmd_->command_info.cmd_hdr.flags) << std::endl;
+  auto nodeCount = (cmd_->command_info.cmd_hdr.size - sizeof(*cmd_)) / sizeof(cmd_->list[0]);
+  for (int i = 0; i < nodeCount; i++) {
+    summary << "\tnode: " << i << "\n\t\tsrc_host_virt_addr: 0x" << std::hex << cmd_->list[i].src_host_virt_addr
+            << "\n\t\tdst_device_phy_addr: 0x" << cmd_->list[i].dst_device_phy_addr << "\n\t\tsize: " << std::dec
+            << cmd_->list[i].size << std::endl;
+  }
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    summary << "Response\n\tdevice_cmd_start_ts: " << rsp_.device_cmd_start_ts
+            << "\n\tdevice_cmd_wait_dur: " << rsp_.device_cmd_wait_dur
+            << "\n\tdevice_cmd_execute_dur: " << rsp_.device_cmd_execute_dur << "\n\tstatus code: " << rsp_.status
+            << "\n\texpected status code: " << expStatus_ << std::endl;
+  }
+
+  return summary.str();
+}
+
+/*
+ * Device Ops Api DMA Readlist command
+ */
+DmaReadListCmd::DmaReadListCmd(
+  CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /*flags*/, const device_ops_api::dma_read_node* /*list*/,
+                                 uint32_t /*nodeCount*/, device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>&
+                  args) {
+  const auto& [flags, list, nodeCount, expStatus] = args;
   cmdMem_.resize(sizeof(*cmd_) + sizeof(list[0]) * nodeCount);
   cmd_ = templ::bit_cast<device_ops_api::device_ops_dma_readlist_cmd_t*>(cmdMem_.data());
   cmd_->command_info.cmd_hdr.tag_id = tagId;
   cmd_->command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD;
   cmd_->command_info.cmd_hdr.size = cmdMem_.size();
-  cmd_->command_info.cmd_hdr.flags = flag;
+  cmd_->command_info.cmd_hdr.flags = flags;
   memcpy(cmd_->list, list, sizeof(list[0]) * nodeCount);
-
-  TEST_VLOG(1) << "Created DMA Readlist Command (tagId: " << std::hex << tagId << ", nodeCount: " << nodeCount << ")";
-}
-
-DmaReadListCmd::~DmaReadListCmd() {
-  deleteRspEntry(cmd_->command_info.cmd_hdr.tag_id);
-}
-
-IDevOpsApiCmd::CmdType DmaReadListCmd::whoAmI() {
-  return CmdType::DMA_READLIST_CMD;
+  expStatus_ = expStatus;
 }
 
 std::byte* DmaReadListCmd::getCmdPtr() {
@@ -355,36 +497,86 @@ size_t DmaReadListCmd::getCmdSize() {
   return cmd_->command_info.cmd_hdr.size;
 }
 
-device_ops_api::tag_id_t DmaReadListCmd::getCmdTagId() {
+CmdTag DmaReadListCmd::getCmdTagId() {
   return cmd_->command_info.cmd_hdr.tag_id;
 }
 
-/*
- * Device Ops Api Kernel Launch command creation and handling
- */
-std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createKernelLaunchCmd(
-  device_ops_api::cmd_flags_e flag, uint64_t codeStartAddr, uint64_t ptrToArgs, uint64_t exceptionBuffer,
-  uint64_t shireMask, uint64_t traceBuffer, void* argumentPayload, uint32_t sizeOfArgPayload,
-  device_ops_api::dev_ops_api_kernel_launch_response_e status, std::string kernelName) {
-  auto tagId = tagId_++;
-  if (!addRspEntry(tagId, status)) {
-    return nullptr;
-  }
-  return std::make_unique<KernelLaunchCmd>(tagId, flag, codeStartAddr, ptrToArgs, exceptionBuffer, shireMask,
-                                           traceBuffer, argumentPayload, sizeOfArgPayload, kernelName);
+CmdType DmaReadListCmd::whoAmI() {
+  return CmdType::DMA_READLIST_CMD;
 }
 
-KernelLaunchCmd::KernelLaunchCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
-                                 uint64_t codeStartAddr, uint64_t ptrToArgs, uint64_t exceptionBuffer,
-                                 uint64_t shireMask, uint64_t traceBuffer, void* argumentPayload,
-                                 uint32_t sizeOfArgPayload, std::string kernelName) {
+CmdStatus DmaReadListCmd::setRsp(const std::vector<std::byte>& rsp) {
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    return cmdStatus_ = CmdStatus::CMD_RSP_DUPLICATE;
+  }
+  if (rsp.size() < sizeof(rsp_)) {
+    return cmdStatus_;
+  }
+
+  memcpy(static_cast<void*>(&rsp_), rsp.data(), sizeof(rsp_));
+
+  if (rsp_.response_info.rsp_hdr.tag_id != cmd_->command_info.cmd_hdr.tag_id ||
+      rsp_.response_info.rsp_hdr.msg_id != device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP) {
+    return cmdStatus_;
+  }
+
+  if (rsp_.status == expStatus_) {
+    cmdStatus_ = CmdStatus::CMD_SUCCESSFUL;
+  } else if (rsp_.status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE) {
+    cmdStatus_ = CmdStatus::CMD_TIMED_OUT;
+  } else {
+    cmdStatus_ = CmdStatus::CMD_FAILED;
+  }
+
+  return cmdStatus_;
+}
+
+uint32_t DmaReadListCmd::getRspStatusCode() const {
+  if (cmdStatus_ == CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    throw Exception("No response received!");
+  }
+  return rsp_.status;
+}
+
+std::string DmaReadListCmd::printSummary() {
+  std::stringstream summary;
+  summary << "\n"
+          << whoAmI() << " (tagId: " << getCmdTagId() << ")\n\t" << cmdStatus_ << "\n\tCmd Flags: 0b"
+          << std::bitset<sizeof(cmd_->command_info.cmd_hdr.flags) * 8>(cmd_->command_info.cmd_hdr.flags) << std::endl;
+  auto nodeCount = (cmd_->command_info.cmd_hdr.size - sizeof(*cmd_)) / sizeof(cmd_->list[0]);
+  for (int i = 0; i < nodeCount; i++) {
+    summary << "\tnode: " << i << "\n\t\tdst_host_virt_addr: 0x" << std::hex << cmd_->list[i].dst_host_virt_addr
+            << "\n\t\tsrc_device_phy_addr: 0x" << cmd_->list[i].src_device_phy_addr << "\n\t\tsize: " << std::dec
+            << cmd_->list[i].size << std::endl;
+  }
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    summary << "Response\n\tdevice_cmd_start_ts: " << rsp_.device_cmd_start_ts
+            << "\n\tdevice_cmd_wait_dur: " << rsp_.device_cmd_wait_dur
+            << "\n\tdevice_cmd_execute_dur: " << rsp_.device_cmd_execute_dur << "\n\tstatus code: " << rsp_.status
+            << "\n\texpected status code: " << expStatus_ << std::endl;
+  }
+
+  return summary.str();
+}
+
+/*
+ * Device Ops Api Kernel Launch command
+ */
+KernelLaunchCmd::KernelLaunchCmd(
+  CmdTag tagId,
+  const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint64_t /*codeStartAddr*/, uint64_t /*ptrToArgs*/,
+                   uint64_t /*exceptionBuffer*/, uint64_t /*shireMask*/, uint64_t /*traceBuffer*/,
+                   const uint64_t* /*argumentPayload*/, uint32_t /*sizeOfArgPayload*/, std::string /*kernelName*/,
+                   device_ops_api::dev_ops_api_kernel_launch_response_e /*expStatus*/>&
+    args) {
+  const auto& [flags, codeStartAddr, ptrToArgs, exceptionBuffer, shireMask, traceBuffer, argumentPayload,
+              sizeOfArgPayload, kernelName, expStatus] = args;
   cmdMem_.resize(sizeof(*cmd_) + sizeOfArgPayload);
-  kernelName_ = kernelName;
   cmd_ = templ::bit_cast<device_ops_api::device_ops_kernel_launch_cmd_t*>(cmdMem_.data());
   cmd_->command_info.cmd_hdr.tag_id = tagId;
   cmd_->command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD;
   cmd_->command_info.cmd_hdr.size = cmdMem_.size();
-  cmd_->command_info.cmd_hdr.flags = flag;
+  cmd_->command_info.cmd_hdr.flags = flags;
   cmd_->code_start_address = codeStartAddr;
   cmd_->pointer_to_args = ptrToArgs;
   cmd_->exception_buffer = exceptionBuffer;
@@ -393,16 +585,8 @@ KernelLaunchCmd::KernelLaunchCmd(device_ops_api::tag_id_t tagId, device_ops_api:
   if (sizeOfArgPayload > 0) {
     memcpy(cmd_->argument_payload, argumentPayload, sizeOfArgPayload);
   }
-
-  TEST_VLOG(1) << "Created Kernel Launch Command (tagId: " << std::hex << tagId << ")";
-}
-
-KernelLaunchCmd::~KernelLaunchCmd() {
-  deleteRspEntry(cmd_->command_info.cmd_hdr.tag_id);
-}
-
-IDevOpsApiCmd::CmdType KernelLaunchCmd::whoAmI() {
-  return CmdType::KERNEL_LAUNCH_CMD;
+  kernelName_ = kernelName;
+  expStatus_ = expStatus;
 }
 
 std::byte* KernelLaunchCmd::getCmdPtr() {
@@ -413,52 +597,81 @@ size_t KernelLaunchCmd::getCmdSize() {
   return cmd_->command_info.cmd_hdr.size;
 }
 
-device_ops_api::tag_id_t KernelLaunchCmd::getCmdTagId() {
+CmdTag KernelLaunchCmd::getCmdTagId() {
   return cmd_->command_info.cmd_hdr.tag_id;
 }
 
-std::string KernelLaunchCmd::getKernelName() {
-  return kernelName_;
+CmdType KernelLaunchCmd::whoAmI() {
+  return CmdType::KERNEL_LAUNCH_CMD;
 }
 
-uint16_t KernelLaunchCmd::getCmdFlags() {
-  return cmd_->command_info.cmd_hdr.flags;
+CmdStatus KernelLaunchCmd::setRsp(const std::vector<std::byte>& rsp) {
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    return cmdStatus_ = CmdStatus::CMD_RSP_DUPLICATE;
+  }
+  if (rsp.size() < sizeof(rsp_)) {
+    return cmdStatus_;
+  }
+
+  memcpy(static_cast<void*>(&rsp_), rsp.data(), sizeof(rsp_));
+
+  if (rsp_.response_info.rsp_hdr.tag_id != cmd_->command_info.cmd_hdr.tag_id ||
+      rsp_.response_info.rsp_hdr.msg_id != device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP) {
+    return cmdStatus_;
+  }
+
+  if (rsp_.status == expStatus_) {
+    cmdStatus_ = CmdStatus::CMD_SUCCESSFUL;
+  } else if (rsp_.status == device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG) {
+    cmdStatus_ = CmdStatus::CMD_TIMED_OUT;
+  } else {
+    cmdStatus_ = CmdStatus::CMD_FAILED;
+  }
+
+  return cmdStatus_;
 }
 
-uint64_t KernelLaunchCmd::getShireMask() {
-  return cmd_->shire_mask;
+uint32_t KernelLaunchCmd::getRspStatusCode() const {
+  if (cmdStatus_ == CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    throw Exception("No response received!");
+  }
+  return rsp_.status;
+}
+
+std::string KernelLaunchCmd::printSummary() {
+  std::stringstream summary;
+  auto payloadSize = cmd_->command_info.cmd_hdr.size - sizeof(*cmd_);
+  summary << "\n"
+          << whoAmI() << " (tagId: " << getCmdTagId() << ")\n\t" << cmdStatus_ << "\n\tCmd Flags: 0b"
+          << std::bitset<sizeof(cmd_->command_info.cmd_hdr.flags) * 8>(cmd_->command_info.cmd_hdr.flags)
+          << "\n\tcode_start_address: 0x" << std::hex << cmd_->code_start_address << "\n\tpointer_to_args: 0x"
+          << cmd_->pointer_to_args << "\n\texception_buffer: 0x" << cmd_->exception_buffer << "\n\tshire_mask: 0x"
+          << cmd_->shire_mask << "\n\tkernel_trace_buffer: 0x" << cmd_->kernel_trace_buffer
+          << "\n\tpayload size: " << std::dec << payloadSize << std::endl;
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    summary << "Response\n\tdevice_cmd_start_ts: " << rsp_.device_cmd_start_ts
+            << "\n\tdevice_cmd_wait_dur: " << rsp_.device_cmd_wait_dur
+            << "\n\tdevice_cmd_execute_dur: " << rsp_.device_cmd_execute_dur << "\n\tstatus code: " << rsp_.status
+            << "\n\texpected status code: " << expStatus_ << std::endl;
+  }
+
+  return summary.str();
 }
 
 /*
- * Device Ops Api Kernel Abort command creation and handling
+ * Device Ops Api Kernel Abort command
  */
-std::unique_ptr<IDevOpsApiCmd>
-IDevOpsApiCmd::createKernelAbortCmd(device_ops_api::cmd_flags_e flag, device_ops_api::tag_id_t kernelToAbortTagId,
-                                    device_ops_api::dev_ops_api_kernel_abort_response_e status) {
-  auto tagId = tagId_++;
-  if (!addRspEntry(tagId, status)) {
-    return nullptr;
-  }
-  return std::make_unique<KernelAbortCmd>(tagId, flag, kernelToAbortTagId);
-}
-
-KernelAbortCmd::KernelAbortCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
-                               device_ops_api::tag_id_t kernelToAbortTagId) {
+KernelAbortCmd::KernelAbortCmd(CmdTag tagId,
+                               const std::tuple<device_ops_api::cmd_flags_e /*flags*/, CmdTag /*kernelToAbortTagId*/,
+                                                device_ops_api::dev_ops_api_kernel_abort_response_e /*expStatus*/>&
+                                 args) {
+  const auto& [flags, kernelToAbortTagId, expStatus] = args;
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.cmd_hdr.flags = flag;
+  cmd_.command_info.cmd_hdr.flags = flags;
   cmd_.kernel_launch_tag_id = kernelToAbortTagId;
-
-  TEST_VLOG(1) << "Created Kernel Abort Command (tagId: " << std::hex << tagId << ")";
-}
-
-KernelAbortCmd::~KernelAbortCmd() {
-  deleteRspEntry(cmd_.command_info.cmd_hdr.tag_id);
-}
-
-IDevOpsApiCmd::CmdType KernelAbortCmd::whoAmI() {
-  return CmdType::KERNEL_ABORT_CMD;
+  expStatus_ = expStatus;
 }
 
 std::byte* KernelAbortCmd::getCmdPtr() {
@@ -469,135 +682,230 @@ size_t KernelAbortCmd::getCmdSize() {
   return sizeof(cmd_);
 }
 
-device_ops_api::tag_id_t KernelAbortCmd::getCmdTagId() {
+CmdTag KernelAbortCmd::getCmdTagId() {
   return cmd_.command_info.cmd_hdr.tag_id;
 }
 
-/*
- * Device Ops Api trace configuration command creation and handling
- */
-std::unique_ptr<IDevOpsApiCmd>
-IDevOpsApiCmd::createTraceRtConfigCmd(device_ops_api::cmd_flags_e flag, uint32_t shire_mask, uint32_t thread_mask,
-                                      uint32_t event_mask, uint32_t filter_mask,
-                                      device_ops_api::dev_ops_trace_rt_config_response_e status) {
-  auto tagId = tagId_++;
-  if (!addRspEntry(tagId, status)) {
-    return nullptr;
-  }
-  return std::make_unique<TraceRtConfigCmd>(tagId, flag, shire_mask, thread_mask, event_mask, filter_mask);
+CmdType KernelAbortCmd::whoAmI() {
+  return CmdType::KERNEL_ABORT_CMD;
 }
 
-TraceRtConfigCmd::TraceRtConfigCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag,
-                                   uint32_t shire_mask, uint32_t thread_mask, uint32_t event_mask,
-                                   uint32_t filter_mask) {
+CmdStatus KernelAbortCmd::setRsp(const std::vector<std::byte>& rsp) {
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    return cmdStatus_ = CmdStatus::CMD_RSP_DUPLICATE;
+  }
+  if (rsp.size() < sizeof(rsp_)) {
+    return cmdStatus_;
+  }
 
+  memcpy(static_cast<void*>(&rsp_), rsp.data(), sizeof(rsp_));
+
+  if (rsp_.response_info.rsp_hdr.tag_id != cmd_.command_info.cmd_hdr.tag_id ||
+      rsp_.response_info.rsp_hdr.msg_id != device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP) {
+    return cmdStatus_;
+  }
+
+  if (rsp_.status == expStatus_) {
+    cmdStatus_ = CmdStatus::CMD_SUCCESSFUL;
+  } else {
+    cmdStatus_ = CmdStatus::CMD_FAILED;
+  }
+
+  return cmdStatus_;
+}
+
+uint32_t KernelAbortCmd::getRspStatusCode() const {
+  if (cmdStatus_ == CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    throw Exception("No response received!");
+  }
+  return rsp_.status;
+}
+
+std::string KernelAbortCmd::printSummary() {
+  std::stringstream summary;
+  summary << "\n"
+          << whoAmI() << " (tagId: " << getCmdTagId() << ")\n\t" << cmdStatus_ << "\n\tCmd Flags: 0b"
+          << std::bitset<sizeof(cmd_.command_info.cmd_hdr.flags) * 8>(cmd_.command_info.cmd_hdr.flags)
+          << "\n\tkernel_launch_tag_id: " << cmd_.kernel_launch_tag_id << std::endl;
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    summary << "Response\n\tstatus code: " << rsp_.status << "\n\texpected status code: " << expStatus_ << std::endl;
+  }
+
+  return summary.str();
+}
+
+/*
+ * Device Ops Api trace configuration command
+ */
+TraceRtConfigCmd::TraceRtConfigCmd(
+  CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint32_t /*shireMask*/, uint32_t /*threadMask*/,
+                                 uint32_t /*eventMask*/, uint32_t /*filterMask*/,
+                                 device_ops_api::dev_ops_trace_rt_config_response_e /*expStatus*/>&
+                  args) {
+  const auto& [flags, shireMask, threadMask, eventMask, filterMask, expStatus] = args;
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.cmd_hdr.flags = flag;
-  cmd_.shire_mask = shire_mask;
-  cmd_.thread_mask = thread_mask;
-  cmd_.event_mask = event_mask;
-  cmd_.filter_mask = filter_mask;
-}
-
-TraceRtConfigCmd::~TraceRtConfigCmd() {
-  deleteRspEntry(cmd_.command_info.cmd_hdr.tag_id);
+  cmd_.command_info.cmd_hdr.flags = flags;
+  cmd_.shire_mask = shireMask;
+  cmd_.thread_mask = threadMask;
+  cmd_.event_mask = eventMask;
+  cmd_.filter_mask = filterMask;
+  expStatus_ = expStatus;
 }
 
 std::byte* TraceRtConfigCmd::getCmdPtr() {
   return templ::bit_cast<std::byte*>(&cmd_);
 }
 
-IDevOpsApiCmd::CmdType TraceRtConfigCmd::whoAmI() {
-  return CmdType::TRACE_CONFIG_CMD;
-}
-
 size_t TraceRtConfigCmd::getCmdSize() {
   return sizeof(cmd_);
 }
 
-device_ops_api::tag_id_t TraceRtConfigCmd::getCmdTagId() {
+CmdTag TraceRtConfigCmd::getCmdTagId() {
   return cmd_.command_info.cmd_hdr.tag_id;
 }
 
-/*
- * Device Ops Api trace control command creation and handling
- */
-
-std::unique_ptr<IDevOpsApiCmd>
-IDevOpsApiCmd::createTraceRtControlCmd(device_ops_api::cmd_flags_e flag, uint32_t rt_type, uint32_t control,
-                                       device_ops_api::dev_ops_trace_rt_control_response_e status) {
-  auto tagId = tagId_++;
-  if (!addRspEntry(tagId, status)) {
-    return nullptr;
-  }
-  return std::make_unique<TraceRtControlCmd>(tagId, flag, rt_type, control);
+CmdType TraceRtConfigCmd::whoAmI() {
+  return CmdType::TRACE_CONFIG_CMD;
 }
 
-TraceRtControlCmd::TraceRtControlCmd(device_ops_api::tag_id_t tagId, device_ops_api::cmd_flags_e flag, uint32_t rt_type,
-                                     uint32_t control) {
+CmdStatus TraceRtConfigCmd::setRsp(const std::vector<std::byte>& rsp) {
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    return cmdStatus_ = CmdStatus::CMD_RSP_DUPLICATE;
+  }
+  if (rsp.size() < sizeof(rsp_)) {
+    return cmdStatus_;
+  }
 
+  memcpy(static_cast<void*>(&rsp_), rsp.data(), sizeof(rsp_));
+
+  if (rsp_.response_info.rsp_hdr.tag_id != cmd_.command_info.cmd_hdr.tag_id ||
+      rsp_.response_info.rsp_hdr.msg_id != device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_RSP) {
+    return cmdStatus_;
+  }
+
+  if (rsp_.status == expStatus_) {
+    cmdStatus_ = CmdStatus::CMD_SUCCESSFUL;
+  } else {
+    cmdStatus_ = CmdStatus::CMD_FAILED;
+  }
+
+  return cmdStatus_;
+}
+
+uint32_t TraceRtConfigCmd::getRspStatusCode() const {
+  if (cmdStatus_ == CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    throw Exception("No response received!");
+  }
+  return rsp_.status;
+}
+
+std::string TraceRtConfigCmd::printSummary() {
+  std::stringstream summary;
+  summary << "\n"
+          << whoAmI() << " (tagId: " << getCmdTagId() << ")\n\t" << cmdStatus_ << "\n\tCmd Flags: 0b"
+          << std::bitset<sizeof(cmd_.command_info.cmd_hdr.flags) * 8>(cmd_.command_info.cmd_hdr.flags)
+          << "\n\tshire_mask: 0x" << std::hex << cmd_.shire_mask << "\n\tthread_mask: 0x" << cmd_.thread_mask
+          << "\n\tevent_mask: 0x" << cmd_.event_mask << "\n\tfilter_mask: 0x" << cmd_.filter_mask << std::dec
+          << std::endl;
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    summary << "Response\n\tstatus code: " << rsp_.status << "\n\texpected status code: " << expStatus_ << std::endl;
+  }
+
+  return summary.str();
+}
+
+/*
+ * Device Ops Api trace control command
+ */
+TraceRtControlCmd::TraceRtControlCmd(
+  CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint32_t /*rtType*/, uint32_t /*control*/,
+                                 device_ops_api::dev_ops_trace_rt_control_response_e /*expStatus*/>&
+                  args) {
+  const auto& [flags, rtType, control, expStatus] = args;
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
-  cmd_.command_info.cmd_hdr.flags = flag;
-  cmd_.rt_type = rt_type;
+  cmd_.command_info.cmd_hdr.flags = flags;
+  cmd_.rt_type = rtType;
   cmd_.control = control;
-}
-
-TraceRtControlCmd::~TraceRtControlCmd() {
-  deleteRspEntry(cmd_.command_info.cmd_hdr.tag_id);
+  expStatus_ = expStatus;
 }
 
 std::byte* TraceRtControlCmd::getCmdPtr() {
   return templ::bit_cast<std::byte*>(&cmd_);
 }
 
-IDevOpsApiCmd::CmdType TraceRtControlCmd::whoAmI() {
-  return CmdType::TRACE_CONTROL_CMD;
-}
-
 size_t TraceRtControlCmd::getCmdSize() {
   return sizeof(cmd_);
 }
 
-device_ops_api::tag_id_t TraceRtControlCmd::getCmdTagId() {
+CmdTag TraceRtControlCmd::getCmdTagId() {
   return cmd_.command_info.cmd_hdr.tag_id;
 }
 
+CmdType TraceRtControlCmd::whoAmI() {
+  return CmdType::TRACE_CONTROL_CMD;
+}
+
+CmdStatus TraceRtControlCmd::setRsp(const std::vector<std::byte>& rsp) {
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    return cmdStatus_ = CmdStatus::CMD_RSP_DUPLICATE;
+  }
+  if (rsp.size() < sizeof(rsp_)) {
+    return cmdStatus_;
+  }
+
+  memcpy(static_cast<void*>(&rsp_), rsp.data(), sizeof(rsp_));
+
+  if (rsp_.response_info.rsp_hdr.tag_id != cmd_.command_info.cmd_hdr.tag_id ||
+      rsp_.response_info.rsp_hdr.msg_id != device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_RSP) {
+    return cmdStatus_;
+  }
+
+  if (rsp_.status == expStatus_) {
+    cmdStatus_ = CmdStatus::CMD_SUCCESSFUL;
+  } else {
+    cmdStatus_ = CmdStatus::CMD_FAILED;
+  }
+
+  return cmdStatus_;
+}
+
+uint32_t TraceRtControlCmd::getRspStatusCode() const {
+  if (cmdStatus_ == CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    throw Exception("No response received!");
+  }
+  return rsp_.status;
+}
+
+std::string TraceRtControlCmd::printSummary() {
+  std::stringstream summary;
+  summary << "\n"
+          << whoAmI() << " (tagId: " << getCmdTagId() << ")\n\t" << cmdStatus_ << "\n\tCmd Flags: 0b"
+          << std::bitset<sizeof(cmd_.command_info.cmd_hdr.flags) * 8>(cmd_.command_info.cmd_hdr.flags)
+          << "\n\trt_type: 0x" << std::hex << cmd_.rt_type << "\n\tcontrol: 0x" << cmd_.control << std::dec
+          << std::endl;
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    summary << "Response\n\tstatus code: " << rsp_.status << "\n\texpected status code: " << expStatus_ << std::endl;
+  }
+
+  return summary.str();
+}
+
 /*
- * Device Ops Api Custom command creation and handling. Custom command can be any of device Ops API
- * commands.
+ * Device Ops Api Custom command.
+ * Custom command can be any of device Ops API commands.
  */
-std::unique_ptr<IDevOpsApiCmd> IDevOpsApiCmd::createCustomCmd(std::byte* cmdPtr, size_t cmdSize, uint32_t status) {
-  if (cmdSize < sizeof(device_ops_api::cmd_header_t)) {
-    return nullptr;
-  }
-
-  const auto* customCmd = templ::bit_cast<device_ops_api::cmd_header_t*>(cmdPtr);
-  if (!addRspEntry(customCmd->cmd_hdr.tag_id, status)) {
-    return nullptr;
-  }
-
-  return std::make_unique<CustomCmd>(cmdPtr, cmdSize);
-}
-
-CustomCmd::CustomCmd(std::byte* cmdPtr, size_t cmdSize) {
-  cmd_ = cmdPtr;
+CustomCmd::CustomCmd(CmdTag tagId, const std::tuple<const std::byte* /*cmdPtr*/, size_t /*cmdSize*/>& args) {
+  const auto& [cmdPtr, cmdSize] = args;
+  cmdMem_.resize(cmdSize);
+  cmd_ = cmdMem_.data();
+  memcpy(cmd_, cmdPtr, cmdSize);
   auto* customCmd = templ::bit_cast<device_ops_api::cmd_header_t*>(cmd_);
+  customCmd->cmd_hdr.tag_id = tagId;
   customCmd->cmd_hdr.size = cmdSize;
-
-  TEST_VLOG(1) << "Created Custom Command (tagId: " << std::hex << customCmd->cmd_hdr.tag_id << ")";
-}
-
-CustomCmd::~CustomCmd() {
-  const auto* customCmd = templ::bit_cast<device_ops_api::cmd_header_t*>(cmd_);
-  deleteRspEntry(customCmd->cmd_hdr.tag_id);
-}
-
-IDevOpsApiCmd::CmdType CustomCmd::whoAmI() {
-  return CmdType::CUSTOM_CMD;
 }
 
 std::byte* CustomCmd::getCmdPtr() {
@@ -609,7 +917,39 @@ size_t CustomCmd::getCmdSize() {
   return customCmd->cmd_hdr.size;
 }
 
-device_ops_api::tag_id_t CustomCmd::getCmdTagId() {
+CmdTag CustomCmd::getCmdTagId() {
   const auto* customCmd = templ::bit_cast<device_ops_api::cmd_header_t*>(cmd_);
   return customCmd->cmd_hdr.tag_id;
+}
+
+CmdType CustomCmd::whoAmI() {
+  return CmdType::CUSTOM_CMD;
+}
+
+CmdStatus CustomCmd::setRsp(const std::vector<std::byte>& rsp) {
+  if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    return cmdStatus_ = CmdStatus::CMD_RSP_DUPLICATE;
+  }
+
+  rspMem_.resize(rsp.size());
+  rsp_ = rspMem_.data();
+  memcpy(rsp_, rsp.data(), rsp.size());
+
+  if (templ::bit_cast<device_ops_api::rsp_header_t*>(rsp_)->rsp_hdr.tag_id !=
+        templ::bit_cast<device_ops_api::cmd_header_t*>(cmd_)->cmd_hdr.tag_id ||
+      templ::bit_cast<device_ops_api::rsp_header_t*>(rsp_)->rsp_hdr.msg_id !=
+        templ::bit_cast<device_ops_api::cmd_header_t*>(cmd_)->cmd_hdr.msg_id + 1) {
+    return cmdStatus_;
+  }
+
+  return cmdStatus_ = CmdStatus::CMD_SUCCESSFUL;
+}
+
+std::string CustomCmd::printSummary() {
+  std::stringstream summary;
+  const auto* customCmd = templ::bit_cast<device_ops_api::cmd_header_t*>(cmd_);
+  summary << "\n"
+          << whoAmI() << " (tagId: " << getCmdTagId() << ")\n\t" << cmdStatus_ << "\n\tCmd Flags: 0b"
+          << std::bitset<sizeof(customCmd->cmd_hdr.flags) * 8>(customCmd->cmd_hdr.flags) << std::endl;
+  return summary.str();
 }

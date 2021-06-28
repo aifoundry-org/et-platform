@@ -11,6 +11,8 @@
 #include "TestDevOpsApiBasicCmds.h"
 #include "Autogen.h"
 
+using namespace dev::dl_tests;
+
 /***********************************************************
  *                                                         *
  *                   Functional Tests                      *
@@ -19,54 +21,60 @@
 void TestDevOpsApiBasicCmds::echoCmd_PositiveTest_2_1() {
   int deviceCount = getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
+    std::vector<CmdTag> stream;
     int queueCount = getSqCount(deviceIdx);
 
     for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
       // Add cmd to stream
-      stream.push_back(IDevOpsApiCmd::createEchoCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE));
+      stream.push_back(IDevOpsApiCmd::createCmd<EchoCmd>(device_ops_api::CMD_FLAGS_BARRIER_DISABLE));
 
-      // Move stream to streams_
-      streams_.emplace(key(deviceIdx, queueIdx), std::move(stream));
+      // Save stream against deviceIdx and queueIdx
+      insertStream(deviceIdx, queueIdx, std::move(stream));
+      stream.clear();
     }
   }
 
   executeAsync();
+  deleteStreams();
 }
 
 void TestDevOpsApiBasicCmds::devCompatCmd_PositiveTest_2_3() {
   int deviceCount = getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
+    std::vector<CmdTag> stream;
     uint8_t queueCount = getSqCount(deviceIdx);
 
     for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
       // Add cmd to stream
-      stream.push_back(IDevOpsApiCmd::createApiCompatibilityCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, kDevFWMajor,
-                                                                kDevFWMinor, kDevFWPatch));
-
-      // Move stream to streams_
-      streams_.emplace(key(deviceIdx, queueIdx), std::move(stream));
+      stream.push_back(IDevOpsApiCmd::createCmd<ApiCompatibilityCmd>(device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                                                     kDevFWMajor, kDevFWMinor, kDevFWPatch));
+      // Save stream against deviceIdx and queueIdx
+      insertStream(deviceIdx, queueIdx, std::move(stream));
+      stream.clear();
     }
   }
+
   executeAsync();
+  deleteStreams();
 }
 
 void TestDevOpsApiBasicCmds::devFWCmd_PostiveTest_2_5() {
   int deviceCount = getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
+    std::vector<CmdTag> stream;
     uint8_t queueCount = getSqCount(deviceIdx);
 
     for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
       // Add cmd to stream
-      stream.push_back(IDevOpsApiCmd::createFwVersionCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 1));
+      stream.push_back(IDevOpsApiCmd::createCmd<FwVersionCmd>(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 1));
 
-      // Move stream to streams_
-      streams_.emplace(key(deviceIdx, queueIdx), std::move(stream));
+      // Save stream against deviceIdx and queueIdx
+      insertStream(deviceIdx, queueIdx, std::move(stream));
+      stream.clear();
     }
   }
   executeAsync();
+  deleteStreams();
 }
 
 void TestDevOpsApiBasicCmds::devUnknownCmd_NegativeTest_2_7() {
@@ -78,7 +86,7 @@ void TestDevOpsApiBasicCmds::devUnknownCmd_NegativeTest_2_7() {
   unknownCmd.cmd_hdr.flags = 0;       // No barrier
 
   // Create unknown command
-  auto cmd = IDevOpsApiCmd::createCustomCmd(templ::bit_cast<std::byte*>(&unknownCmd), sizeof(unknownCmd), 0);
+  auto tagId = IDevOpsApiCmd::createCmd<CustomCmd>(templ::bit_cast<std::byte*>(&unknownCmd), sizeof(unknownCmd));
 
   // TODO SW-6818: Use executeAsync()/executeSync() instead when waitForEpollEventsMasterMinion()
   // is functional with timeout in sysemu
@@ -86,7 +94,7 @@ void TestDevOpsApiBasicCmds::devUnknownCmd_NegativeTest_2_7() {
 
   for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
     // Push command to all the availabel queus one by one.
-    auto res = pushCmd(deviceIdx, queueIdx, cmd);
+    auto res = pushCmd(deviceIdx, queueIdx, tagId);
     ASSERT_TRUE(res) << "Unable to send the unknown command!";
   }
 
@@ -96,8 +104,6 @@ void TestDevOpsApiBasicCmds::devUnknownCmd_NegativeTest_2_7() {
   auto res = popRsp(deviceIdx);
   ASSERT_FALSE(res) << "ERROR: Response received for unknown command!";
   TEST_VLOG(1) << "No response received for unknown command as expected";
-
-  deleteCmdResults();
 }
 
 /***********************************************************
@@ -108,40 +114,44 @@ void TestDevOpsApiBasicCmds::devUnknownCmd_NegativeTest_2_7() {
 void TestDevOpsApiBasicCmds::backToBackSameCmds(bool singleDevice, bool singleQueue, int numOfCmds) {
   int deviceCount = (singleDevice) ? 1 : getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
+    std::vector<CmdTag> stream;
 
     auto queueCount = (singleQueue) ? 1 : getSqCount(deviceIdx);
     auto perDevPerQueueIterations = numOfCmds / deviceCount / queueCount;
     for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
       for (int i = 0; i < perDevPerQueueIterations; i++) {
         // Add cmd to stream
-        stream.push_back(IDevOpsApiCmd::createEchoCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE));
+        stream.push_back(IDevOpsApiCmd::createCmd<EchoCmd>(device_ops_api::CMD_FLAGS_BARRIER_DISABLE));
       }
 
-      // Move stream to streams_
-      streams_.emplace(key(deviceIdx, queueIdx), std::move(stream));
+      // Save stream against deviceIdx and queueIdx
+      insertStream(deviceIdx, queueIdx, std::move(stream));
+      stream.clear();
     }
   }
   executeAsync();
+  deleteStreams();
 }
 
 void TestDevOpsApiBasicCmds::backToBackDiffCmds(bool singleDevice, bool singleQueue, int numOfCmds) {
   int deviceCount = (singleDevice) ? 1 : getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
+    std::vector<CmdTag> stream;
 
     auto queueCount = (singleQueue) ? 1 : getSqCount(deviceIdx);
     auto perDevPerQueueIterations = numOfCmds / 3 / deviceCount / queueCount;
     for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
       for (int i = 0; i < perDevPerQueueIterations; i++) {
         // Add cmd to stream
-        stream.push_back(IDevOpsApiCmd::createEchoCmd(false));
-        stream.push_back(IDevOpsApiCmd::createFwVersionCmd(false, 1));
-        stream.push_back(IDevOpsApiCmd::createApiCompatibilityCmd(false, kDevFWMajor, kDevFWMinor, kDevFWPatch));
+        stream.push_back(IDevOpsApiCmd::createCmd<EchoCmd>(false));
+        stream.push_back(IDevOpsApiCmd::createCmd<FwVersionCmd>(false, 1));
+        stream.push_back(IDevOpsApiCmd::createCmd<ApiCompatibilityCmd>(false, kDevFWMajor, kDevFWMinor, kDevFWPatch));
       }
-      // Move stream to streams_
-      streams_.emplace(key(deviceIdx, queueIdx), std::move(stream));
+      // Save stream against deviceIdx and queueIdx
+      insertStream(deviceIdx, queueIdx, std::move(stream));
+      stream.clear();
     }
   }
   executeAsync();
+  deleteStreams();
 }

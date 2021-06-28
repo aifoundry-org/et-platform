@@ -14,6 +14,8 @@
  * Test Labels: PCIE, OPS, FUNCTIONAL, SYSTEM
  */
 
+using namespace dev::dl_tests;
+
 class TestDevOpsApiLoopbackDmaCmdsPcie : public TestDevOpsApiDmaCmds {
 protected:
   void SetUp() override {
@@ -62,7 +64,6 @@ TEST_F(TestDevOpsApiLoopbackDmaCmdsPcie, dataWRListStressSize_2_9) {
 TEST_F(TestDevOpsApiLoopbackDmaCmdsPcie, dataWRListStressSpeed_2_10) {
   dataWRListStressSpeed(25);
 }
-
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);

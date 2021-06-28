@@ -23,16 +23,18 @@
 #include <thread>
 #include <unordered_map>
 
-using Clock = std::chrono::system_clock;
-using Timepoint = Clock::time_point;
-using TimeDuration = Clock::duration;
-
 DECLARE_uint32(exec_timeout);
 DECLARE_string(kernels_dir);
 DECLARE_string(trace_logfile);
 DECLARE_bool(enable_trace_dump);
 DECLARE_bool(loopback_driver);
 DECLARE_bool(use_epoll);
+
+namespace dev::dl_tests {
+
+using Clock = std::chrono::system_clock;
+using Timepoint = Clock::time_point;
+using TimeDuration = Clock::duration;
 
 const uint8_t kDevFWMajor = DEVICE_OPS_API_MAJOR;
 const uint8_t kDevFWMinor = DEVICE_OPS_API_MINOR;
@@ -77,9 +79,6 @@ struct trace_string_t {
   struct trace_entry_header_t header;
   char dataString[64];
 } __attribute__((packed));
-}
-
-enum class CmdStatus { CMD_RSP_NOT_RECEIVED, CMD_TIMED_OUT, CMD_FAILED, CMD_RSP_DUPLICATE, CMD_SUCCESSFUL };
 
 enum cm_context_type {
   CM_CONTEXT_TYPE_HANG = 0,
@@ -111,6 +110,7 @@ struct __attribute__((packed, aligned(64))) hartExecutionContext {
   int64_t user_error;
   uint64_t gpr[31];
 };
+}
 
 class TestDevOpsApi : public ::testing::Test {
 protected:
@@ -121,18 +121,17 @@ protected:
   uint64_t getDmaWriteAddr(int deviceIdx, size_t bufSize);
   uint64_t getDmaReadAddr(int deviceIdx, size_t bufSize);
   void resetMemPooltoDefault(int deviceIdx);
-  void loadElfToDevice(int deviceIdx, ELFIO::elfio& reader, const std::string& path,
-                       std::vector<std::unique_ptr<IDevOpsApiCmd>>& stream, uint64_t& kernelEntryAddr);
+  void loadElfToDevice(int deviceIdx, ELFIO::elfio& reader, const std::string& path, std::vector<CmdTag>& stream,
+                       uint64_t& kernelEntryAddr);
 
   void fExecutor(int deviceIdx, int queueIdx);
   void fListener(int deviceIdx);
-  bool pushCmd(int deviceIdx, int queueIdx, std::unique_ptr<IDevOpsApiCmd>& devOpsApiCmd);
+  bool pushCmd(int deviceIdx, int queueIdx, CmdTag tagId);
   bool popRsp(int deviceIdx);
   void printCmdExecutionSummary();
-  void printErrorContext(int queueId, void* buffer, uint64_t shireMask, device_ops_api::tag_id_t tagId);
+  void printErrorContext(int queueId, const std::byte* buffer, uint64_t shireMask, CmdTag tagId) const;
   void cleanUpExecution();
-  void deleteCmdResults();
-  void executeSyncPerDevicePerQueue(int deviceIdx, int queueIdx, std::vector<std::unique_ptr<IDevOpsApiCmd>>& stream);
+  void executeSyncPerDevicePerQueue(int deviceIdx, int queueIdx, const std::vector<CmdTag>& stream);
 
   bool printMMTraceStringData(unsigned char* traceBuf, size_t size) const;
   bool printCMTraceStringData(unsigned char* traceBuf, size_t size) const;
@@ -158,30 +157,14 @@ protected:
     return (size_t)deviceIdx << 32 | (size_t)queueIdx;
   }
 
-  std::unordered_map<size_t, std::vector<std::unique_ptr<IDevOpsApiCmd>>> streams_;
+  void insertStream(int deviceIdx, int queueIdx, std::vector<CmdTag> stream);
+  void deleteStream(int deviceIdx, int queueIdx);
+  void deleteStreams();
+
   TimeDuration execTimeout_;
 
 private:
-  bool addkernelCmdContext(device_ops_api::tag_id_t tagId, std::string kernelName, uint64_t shireMask, bool barrier,
-                           bool flushL3);
-  bool addkernelRspContext(device_ops_api::tag_id_t tagId, uint64_t startTime, uint32_t waitDuration,
-                           uint32_t execDuration);
-  bool printKernelRtContext(device_ops_api::tag_id_t tagId, std::stringstream& logs);
-  bool addCmdResultEntry(device_ops_api::tag_id_t tagId, CmdStatus status);
-  CmdStatus getCmdResult(device_ops_api::tag_id_t tagId);
-  bool updateCmdResult(device_ops_api::tag_id_t tagId, CmdStatus status);
-  void deleteCmdResultEntry(device_ops_api::tag_id_t tagId);
   void redirectTraceLogging(int deviceIdx, bool toTraceBuf);
-  CmdStatus processEchoRsp(const device_ops_api::device_ops_echo_rsp_t* echoResponse) const;
-  CmdStatus processApiCompatibilityRsp(const device_ops_api::device_ops_api_compatibility_rsp_t* response) const;
-  CmdStatus processFwVersionRsp(const device_ops_api::device_ops_fw_version_rsp_t* response) const;
-  CmdStatus processDataReadRsp(const device_ops_api::device_ops_data_read_rsp_t* response) const;
-  CmdStatus processDataWriteRsp(const device_ops_api::device_ops_data_write_rsp_t* response) const;
-  CmdStatus processDmaReadListRsp(const device_ops_api::device_ops_dma_readlist_rsp_t* response) const;
-  CmdStatus processDmaWriteListRsp(const device_ops_api::device_ops_dma_writelist_rsp_t* response) const;
-  CmdStatus processKernelLaunchRsp(const device_ops_api::device_ops_kernel_launch_rsp_t* response);
-  CmdStatus processKernelAbortRsp(const device_ops_api::device_ops_kernel_abort_rsp_t* response) const;
-  CmdStatus processTraceRtControlRsp(const device_ops_api::device_ops_trace_rt_control_rsp_t* response) const;
 
   struct DeviceInfo {
     uint64_t dmaWriteAddr_;
@@ -196,10 +179,8 @@ private:
   logging::LoggerDefault logger_;
   std::unique_ptr<dev::IDeviceLayer> devLayer_;
   std::vector<std::unique_ptr<DeviceInfo>> devices_;
-  std::unordered_map<device_ops_api::tag_id_t, CmdStatus> cmdResults_;
-  std::recursive_mutex cmdResultsMtx_;
-  std::unordered_map<device_ops_api::tag_id_t, kernelRuntimeContext> kernelRtContext_;
-  std::recursive_mutex kernelRtContextMtx_;
+  std::unordered_map<size_t, std::vector<CmdTag>> streams_;
+  std::vector<CmdTag> invalidRsps_;
 
   Timepoint firstCmdTimepoint_;
   Timepoint lastCmdTimepoint_;
@@ -209,5 +190,7 @@ private:
   size_t bytesSent_ = 0;
   size_t bytesReceived_ = 0;
 };
+
+} // namespace dev::dl_tests
 
 #endif // TEST_DEV_OPS_API_H

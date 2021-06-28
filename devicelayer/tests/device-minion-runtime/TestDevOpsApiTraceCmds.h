@@ -10,9 +10,13 @@
 
 #include "testHelper/TestDevOpsApi.h"
 
+namespace dev::dl_tests {
+
 class TestDevOpsApiTraceCmds : public TestDevOpsApi {
 protected:
   /* Trace testing */
   void traceCtrlAndExtractMMFwData_5_1();
   void traceCtrlAndExtractCMFwData_5_2();
 };
+
+} // namespace dev::dl_tests

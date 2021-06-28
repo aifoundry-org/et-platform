@@ -14,6 +14,8 @@
  * Test Labels: PCIE, OPS, FUNCTIONAL, SYSTEM
  */
 
+using namespace dev::dl_tests;
+
 class TestDevOpsApiLoopbackBasicCmdsPcie : public TestDevOpsApiBasicCmds {
 protected:
   void SetUp() override {

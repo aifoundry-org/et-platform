@@ -17,8 +17,9 @@
 
 namespace {
 using namespace ELFIO;
-namespace fs = std::experimental::filesystem;
 using namespace std::chrono_literals;
+using namespace dev::dl_tests;
+namespace fs = std::experimental::filesystem;
 auto kPollingInterval = 10ms;
 } // namespace
 
@@ -212,8 +213,7 @@ void TestDevOpsApi::executeAsync() {
   }
 }
 
-void TestDevOpsApi::executeSyncPerDevicePerQueue(int deviceIdx, int queueIdx,
-                                                 std::vector<std::unique_ptr<IDevOpsApiCmd>>& stream) {
+void TestDevOpsApi::executeSyncPerDevicePerQueue(int deviceIdx, int queueIdx, const std::vector<CmdTag>& stream) {
   auto start = Clock::now();
   auto end = start + execTimeout_;
   uint64_t sqBitmap = 0x1U << queueIdx;
@@ -264,76 +264,59 @@ void TestDevOpsApi::executeSync() {
 
 void TestDevOpsApi::cleanUpExecution() {
   int deviceCount = getDevicesCount();
-  std::unordered_map<int, std::vector<device_ops_api::tag_id_t>> kernelTagIdsToAbort;
+  std::unordered_map<int, std::vector<CmdTag>> kernelTagIdsToAbort;
   int abortCmdCount = 0;
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     auto queueCount = getSqCount(deviceIdx);
-    std::vector<device_ops_api::tag_id_t> kernelTagIdsToAbortPerDev;
+    std::vector<CmdTag> kernelTagIdsToAbortPerDev;
 
     for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
       if (streams_.find(key(deviceIdx, queueIdx)) == streams_.end()) {
         continue;
       }
 
-      for (auto& it : streams_[key(deviceIdx, queueIdx)]) {
-        if (it->whoAmI() == IDevOpsApiCmd::CmdType::KERNEL_LAUNCH_CMD &&
-            getCmdResult(it->getCmdTagId()) == CmdStatus::CMD_RSP_NOT_RECEIVED) {
-          kernelTagIdsToAbortPerDev.push_back(it->getCmdTagId());
-          ++abortCmdCount;
-        }
-      }
+      kernelTagIdsToAbortPerDev.resize(streams_[key(deviceIdx, queueIdx)].size());
+      auto it =
+        std::copy_if(streams_[key(deviceIdx, queueIdx)].begin(), streams_[key(deviceIdx, queueIdx)].end(),
+                     kernelTagIdsToAbortPerDev.begin(), [](auto tagId) {
+                       return IDevOpsApiCmd::getDevOpsApiCmd(tagId)->whoAmI() == CmdType::KERNEL_LAUNCH_CMD &&
+                              IDevOpsApiCmd::getDevOpsApiCmd(tagId)->getCmdStatus() == CmdStatus::CMD_RSP_NOT_RECEIVED;
+                     });
+      kernelTagIdsToAbortPerDev.resize(std::distance(kernelTagIdsToAbortPerDev.begin(), it));
+      abortCmdCount += kernelTagIdsToAbortPerDev.size();
       kernelTagIdsToAbort.emplace(deviceIdx, std::move(kernelTagIdsToAbortPerDev));
     }
   }
 
-  streams_.clear();
-
   if (abortCmdCount > 0) {
-    // Cleaning up command results except for the ones whose responses are not received
-    for (auto it = cmdResults_.begin(); it != cmdResults_.end();) {
-      if (it->second != CmdStatus::CMD_RSP_NOT_RECEIVED) {
-        it = cmdResults_.erase(it);
-      } else {
-        ++it;
-      }
-    }
-
+    TEST_VLOG(0) << "Sending abort command(s) for incomplete kernel(s)";
     std::vector<std::thread> threadVector;
     for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
       if (kernelTagIdsToAbort.find(deviceIdx) == kernelTagIdsToAbort.end()) {
         continue;
       }
-      TEST_VLOG(0) << "Sending abort command(s) for incomplete kernel(s)";
 
       // Make a stream of abort kernel commands
-      std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
+      std::vector<CmdTag> stream;
       for (auto it : kernelTagIdsToAbort[deviceIdx]) {
-        stream.push_back(
-          IDevOpsApiCmd::createKernelAbortCmd(false, it, device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS));
+        stream.push_back(IDevOpsApiCmd::createCmd<KernelAbortCmd>(
+          false, it, device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS));
       }
-      // using SQ_0 to abort kernels
-      streams_.emplace(key(deviceIdx, 0), std::move(stream));
 
-      // Execute the abort commands
+      // Execute the abort commands using SQ_0
       execTimeout_ = std::chrono::seconds(20);
-      threadVector.push_back(std::thread([this, deviceIdx]() { this->fListener(deviceIdx); }));
-      threadVector.push_back(std::thread([this, deviceIdx]() { this->fExecutor(deviceIdx, 0); }));
+      executeSyncPerDevicePerQueue(deviceIdx, 0 /* queueIdx */, stream);
+      stream.clear();
     }
 
-    for (auto& t : threadVector) {
-      if (t.joinable()) {
-        t.join();
-      }
+    int missingRspCmdsCount = 0;
+    for (auto& [devIdx, tagIdsVec] : kernelTagIdsToAbort) {
+      missingRspCmdsCount += std::count_if(tagIdsVec.begin(), tagIdsVec.end(), [](auto tagId) {
+        return IDevOpsApiCmd::getDevOpsApiCmd(tagId)->getCmdStatus() == CmdStatus::CMD_RSP_NOT_RECEIVED;
+      });
     }
-
-    auto missingRspCmdsCount = std::count_if(cmdResults_.begin(), cmdResults_.end(),
-                                             [](auto& e) { return std::get<1>(e) == CmdStatus::CMD_RSP_NOT_RECEIVED; });
-    EXPECT_EQ(missingRspCmdsCount, 0) << "Failed to abort kernel launches!" << std::endl;
-
-    streams_.clear();
+    EXPECT_EQ(missingRspCmdsCount, 0) << "Failed to abort kernel launches!";
   }
-
-  cmdResults_.clear();
 }
 
 void TestDevOpsApi::resetMemPooltoDefault(int deviceIdx) {
@@ -381,430 +364,153 @@ uint64_t TestDevOpsApi::getDmaReadAddr(int deviceIdx, size_t bufSize) {
   return 0;
 }
 
-bool TestDevOpsApi::pushCmd(int deviceIdx, int queueIdx, std::unique_ptr<IDevOpsApiCmd>& devOpsApiCmd) {
-  addCmdResultEntry(devOpsApiCmd->getCmdTagId(), CmdStatus::CMD_RSP_NOT_RECEIVED);
-  // save kernel command context
-  if (devOpsApiCmd->whoAmI() == IDevOpsApiCmd::CmdType::KERNEL_LAUNCH_CMD) {
-    KernelLaunchCmd* cmd = static_cast<KernelLaunchCmd*>(devOpsApiCmd.get());
-    uint16_t flags = cmd->getCmdFlags();
-    addkernelCmdContext(
-      devOpsApiCmd->getCmdTagId(), cmd->getKernelName(), cmd->getShireMask(),
-      ((flags & device_ops_api::CMD_FLAGS_BARRIER_ENABLE) == device_ops_api::CMD_FLAGS_BARRIER_ENABLE),
-      ((flags & device_ops_api::CMD_FLAGS_KERNEL_LAUNCH_FLUSH_L3) == device_ops_api::CMD_FLAGS_KERNEL_LAUNCH_FLUSH_L3));
+bool TestDevOpsApi::pushCmd(int deviceIdx, int queueIdx, CmdTag tagId) {
+  auto devOpsApiCmd = IDevOpsApiCmd::getDevOpsApiCmd(tagId);
+  if (devOpsApiCmd == nullptr) {
+    throw Exception("Invalid CmdTag: " + std::to_string(tagId));
   }
+
   auto res = devLayer_->sendCommandMasterMinion(deviceIdx, queueIdx, devOpsApiCmd->getCmdPtr(),
                                                 devOpsApiCmd->getCmdSize(), devOpsApiCmd->isDma());
-  if (res) {
-    bytesSent_ += devOpsApiCmd->getCmdSize();
-    TEST_VLOG(1) << "=====> Command Sent (tag_id: " << std::hex << devOpsApiCmd->getCmdTagId() << ") <====";
-  } else {
-    deleteCmdResultEntry(devOpsApiCmd->getCmdTagId());
-  }
-
-  return res;
-}
-
-CmdStatus TestDevOpsApi::processEchoRsp(const device_ops_api::device_ops_echo_rsp_t* echoResponse) const {
-  CmdStatus echoStatus;
-  TEST_VLOG(1) << "=====> Echo response received (tag_id: " << std::hex << echoResponse->response_info.rsp_hdr.tag_id
-               << ") <====";
-  TEST_VLOG(1) << "     => Echo response: device_cmd_start_ts: " << echoResponse->device_cmd_start_ts;
-  if (echoResponse->device_cmd_start_ts != 0) {
-    echoStatus = CmdStatus::CMD_SUCCESSFUL;
-  } else {
-    echoStatus = CmdStatus::CMD_FAILED;
-  }
-  return echoStatus;
-}
-
-CmdStatus
-TestDevOpsApi::processApiCompatibilityRsp(const device_ops_api::device_ops_api_compatibility_rsp_t* apiResponse) const {
-  CmdStatus apiStatus;
-  TEST_VLOG(1) << "=====> API_Compatibilty response received (tag_id: " << std::hex
-               << apiResponse->response_info.rsp_hdr.tag_id << ") <====";
-  if (apiResponse->major == kDevFWMajor && apiResponse->minor == kDevFWMinor && apiResponse->patch == kDevFWPatch) {
-    apiStatus = CmdStatus::CMD_SUCCESSFUL;
-  } else {
-    apiStatus = CmdStatus::CMD_FAILED;
-  }
-  return apiStatus;
-}
-
-CmdStatus TestDevOpsApi::processFwVersionRsp(const device_ops_api::device_ops_fw_version_rsp_t* fwResponse) const {
-  CmdStatus fwStatus;
-  TEST_VLOG(1) << "=====> FW_Version response received (tag_id: " << std::hex
-               << fwResponse->response_info.rsp_hdr.tag_id << ") <====";
-  if (fwResponse->major == kMachineFWVersionMajor && fwResponse->minor == kMachineFWVersionMinor &&
-      fwResponse->patch == kMachineFWVersionPatch) {
-    fwStatus = CmdStatus::CMD_SUCCESSFUL;
-  } else {
-    fwStatus = CmdStatus::CMD_FAILED;
-  }
-  return fwStatus;
-}
-
-CmdStatus TestDevOpsApi::processDataReadRsp(const device_ops_api::device_ops_data_read_rsp_t* readResponse) const {
-  CmdStatus dataReadStatus;
-  TEST_VLOG(1) << "=====> DMA data read command response received (tag_id: " << std::hex
-               << readResponse->response_info.rsp_hdr.tag_id << ") <====";
-  TEST_VLOG(1) << "     => Total measured latencies (in cycles) ";
-  TEST_VLOG(1) << "      - Command Start time: " << readResponse->device_cmd_start_ts;
-  TEST_VLOG(1) << "      - Command Wait time: " << readResponse->device_cmd_wait_dur;
-  TEST_VLOG(1) << "      - Command Execution time: " << readResponse->device_cmd_execute_dur;
-  if (readResponse->status == IDevOpsApiCmd::getExpectedRsp(readResponse->response_info.rsp_hdr.tag_id)) {
-    dataReadStatus = CmdStatus::CMD_SUCCESSFUL;
-  } else if ((readResponse->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE) ||
-             (readResponse->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG)) {
-    TEST_VLOG(0) << "==> Data Read commmand timed-out! (Status code: " << readResponse->status << ") ";
-    dataReadStatus = CmdStatus::CMD_TIMED_OUT;
-  } else {
-    TEST_VLOG(0) << "==> Data Read commmand failed! (Status code: " << readResponse->status << ") ";
-    dataReadStatus = CmdStatus::CMD_FAILED;
-  }
-  return dataReadStatus;
-}
-
-CmdStatus TestDevOpsApi::processDataWriteRsp(const device_ops_api::device_ops_data_write_rsp_t* writeResponse) const {
-  CmdStatus dataWriteStatus;
-  TEST_VLOG(1) << "=====> DMA data write command response received (tag_id: " << std::hex
-               << writeResponse->response_info.rsp_hdr.tag_id << ") <====";
-  TEST_VLOG(1) << "     => Total measured latencies (in cycles)";
-  TEST_VLOG(1) << "      - Command Start time: " << writeResponse->device_cmd_start_ts;
-  TEST_VLOG(1) << "      - Command Wait time: " << writeResponse->device_cmd_wait_dur;
-  TEST_VLOG(1) << "      - Command Execution time: " << writeResponse->device_cmd_execute_dur;
-  if (writeResponse->status == IDevOpsApiCmd::getExpectedRsp(writeResponse->response_info.rsp_hdr.tag_id)) {
-    dataWriteStatus = CmdStatus::CMD_SUCCESSFUL;
-  } else if ((writeResponse->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE) ||
-             (writeResponse->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG)) {
-    TEST_VLOG(0) << "==> Data Write commmand timed-out! (Status code: " << writeResponse->status << ") ";
-    dataWriteStatus = CmdStatus::CMD_TIMED_OUT;
-  } else {
-    TEST_VLOG(0) << "==> Data Write commmand failed! (Status code: " << writeResponse->status << ") ";
-    dataWriteStatus = CmdStatus::CMD_FAILED;
-  }
-  return dataWriteStatus;
-}
-
-CmdStatus TestDevOpsApi::processDmaReadListRsp(const device_ops_api::device_ops_dma_readlist_rsp_t* readListRsp) const {
-  CmdStatus readListStatus;
-  TEST_VLOG(1) << "=====> DMA readlist command response received (tag_id: " << std::hex
-               << readListRsp->response_info.rsp_hdr.tag_id << ") <====";
-  TEST_VLOG(1) << "     => Total measured latencies (in cycles) ";
-  TEST_VLOG(1) << "      - Command Start time: " << readListRsp->device_cmd_start_ts;
-  TEST_VLOG(1) << "      - Command Wait time: " << readListRsp->device_cmd_wait_dur;
-  TEST_VLOG(1) << "      - Command Execution time: " << readListRsp->device_cmd_execute_dur;
-  if (readListRsp->status == IDevOpsApiCmd::getExpectedRsp(readListRsp->response_info.rsp_hdr.tag_id)) {
-    readListStatus = CmdStatus::CMD_SUCCESSFUL;
-  } else if ((readListRsp->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE) ||
-             (readListRsp->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG)) {
-    TEST_VLOG(0) << "==> DMA Read List commmand timed-out! (Status code: " << readListRsp->status << ") ";
-    readListStatus = CmdStatus::CMD_TIMED_OUT;
-  } else {
-    TEST_VLOG(0) << "==> DMA Read List commmand failed! (Status code: " << readListRsp->status << ") ";
-    readListStatus = CmdStatus::CMD_FAILED;
-  }
-  return readListStatus;
-}
-
-CmdStatus
-TestDevOpsApi::processDmaWriteListRsp(const device_ops_api::device_ops_dma_writelist_rsp_t* writeListRsp) const {
-  CmdStatus writeListStatus;
-  TEST_VLOG(1) << "=====> DMA writelist command response received (tag_id: " << std::hex
-               << writeListRsp->response_info.rsp_hdr.tag_id << ") <====";
-  TEST_VLOG(1) << "     => Total measured latencies (in cycles)";
-  TEST_VLOG(1) << "      - Command Start time: " << writeListRsp->device_cmd_start_ts;
-  TEST_VLOG(1) << "      - Command Wait time: " << writeListRsp->device_cmd_wait_dur;
-  TEST_VLOG(1) << "      - Command Execution time: " << writeListRsp->device_cmd_execute_dur;
-  if (writeListRsp->status == IDevOpsApiCmd::getExpectedRsp(writeListRsp->response_info.rsp_hdr.tag_id)) {
-    writeListStatus = CmdStatus::CMD_SUCCESSFUL;
-  } else if ((writeListRsp->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE) ||
-             (writeListRsp->status == device_ops_api::DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG)) {
-    TEST_VLOG(0) << "==> DMA Write List commmand timed-out! (Status code: " << writeListRsp->status << ") ";
-    writeListStatus = CmdStatus::CMD_TIMED_OUT;
-  } else {
-    TEST_VLOG(0) << "==> DMA Write List commmand failed! (Status code: " << writeListRsp->status << ") ";
-    writeListStatus = CmdStatus::CMD_FAILED;
-  }
-  return writeListStatus;
-}
-
-CmdStatus TestDevOpsApi::processKernelLaunchRsp(const device_ops_api::device_ops_kernel_launch_rsp_t* kernelLaunchRsp) {
-  CmdStatus launchStatus;
-  TEST_VLOG(1) << "=====> Kernel Launch command response received (tag_id: " << std::hex
-               << kernelLaunchRsp->response_info.rsp_hdr.tag_id << ") <====";
-  TEST_VLOG(1) << "     => Total measured latencies (in cycles)";
-  TEST_VLOG(1) << "      - Command Start time: " << kernelLaunchRsp->device_cmd_start_ts;
-  TEST_VLOG(1) << "      - Command Wait time: " << kernelLaunchRsp->device_cmd_wait_dur;
-  TEST_VLOG(1) << "      - Command Execution time: " << kernelLaunchRsp->device_cmd_execute_dur;
-  addkernelRspContext(kernelLaunchRsp->response_info.rsp_hdr.tag_id, kernelLaunchRsp->device_cmd_start_ts,
-                      kernelLaunchRsp->device_cmd_wait_dur, kernelLaunchRsp->device_cmd_execute_dur);
-  if (kernelLaunchRsp->status == IDevOpsApiCmd::getExpectedRsp(kernelLaunchRsp->response_info.rsp_hdr.tag_id)) {
-    launchStatus = CmdStatus::CMD_SUCCESSFUL;
-  } else if (kernelLaunchRsp->status == device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG) {
-    TEST_VLOG(0) << "==> Kernel Launch commmand timed-out! (Status code: " << kernelLaunchRsp->status << ") ";
-    launchStatus = CmdStatus::CMD_TIMED_OUT;
-  } else {
-    TEST_VLOG(0) << "==> Kernel Launch commmand failed! (Status code: " << kernelLaunchRsp->status << ") ";
-    launchStatus = CmdStatus::CMD_FAILED;
-  }
-  return launchStatus;
-}
-
-CmdStatus
-TestDevOpsApi::processKernelAbortRsp(const device_ops_api::device_ops_kernel_abort_rsp_t* kernelAbortRsp) const {
-  CmdStatus abortStatus;
-  TEST_VLOG(1) << "=====> Kernel Abort command response received (tag_id: " << std::hex
-               << kernelAbortRsp->response_info.rsp_hdr.tag_id << ") <====";
-  if (kernelAbortRsp->status == IDevOpsApiCmd::getExpectedRsp(kernelAbortRsp->response_info.rsp_hdr.tag_id)) {
-    abortStatus = CmdStatus::CMD_SUCCESSFUL;
-  } else {
-    abortStatus = CmdStatus::CMD_FAILED;
-  }
-  return abortStatus;
-}
-
-CmdStatus
-TestDevOpsApi::processTraceRtControlRsp(const device_ops_api::device_ops_trace_rt_control_rsp_t* traceRtRsp) const {
-  CmdStatus traceRtStatus;
-  TEST_VLOG(1) << "=====> Trace RT config command response received (tag_id: " << std::hex
-               << traceRtRsp->response_info.rsp_hdr.tag_id << ") <====" << std::endl;
-  if (traceRtRsp->status == IDevOpsApiCmd::getExpectedRsp(traceRtRsp->response_info.rsp_hdr.tag_id)) {
-    traceRtStatus = CmdStatus::CMD_SUCCESSFUL;
-  } else {
-    traceRtStatus = CmdStatus::CMD_FAILED;
-  }
-  return traceRtStatus;
-}
-
-bool TestDevOpsApi::popRsp(int deviceIdx) {
-  std::vector<std::byte> message;
-  auto res = devLayer_->receiveResponseMasterMinion(deviceIdx, message);
   if (!res) {
     return res;
   }
 
-  auto response_header = templ::bit_cast<device_ops_api::rsp_header_t*>(message.data());
-  auto rsp_msg_id = response_header->rsp_hdr.msg_id;
-  auto rsp_tag_id = response_header->rsp_hdr.tag_id;
-  CmdStatus status;
+  TEST_VLOG(1) << "=====> Command Sent (tag_id: " << devOpsApiCmd->getCmdTagId() << ") <====";
 
-  if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_ECHO_RSP) {
-    status = processEchoRsp(templ::bit_cast<device_ops_api::device_ops_echo_rsp_t*>(message.data()));
-
-  } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_API_COMPATIBILITY_RSP) {
-    status =
-      processApiCompatibilityRsp(templ::bit_cast<device_ops_api::device_ops_api_compatibility_rsp_t*>(message.data()));
-
-  } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_FW_VERSION_RSP) {
-    status = processFwVersionRsp(templ::bit_cast<device_ops_api::device_ops_fw_version_rsp_t*>(message.data()));
-
-  } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP) {
-    status = processDataReadRsp(templ::bit_cast<device_ops_api::device_ops_data_read_rsp_t*>(message.data()));
-
-  } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP) {
-    status = processDataWriteRsp(templ::bit_cast<device_ops_api::device_ops_data_write_rsp_t*>(message.data()));
-
-  } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP) {
-    status = processDmaReadListRsp(templ::bit_cast<device_ops_api::device_ops_dma_readlist_rsp_t*>(message.data()));
-
-  } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP) {
-    status = processDmaWriteListRsp(templ::bit_cast<device_ops_api::device_ops_dma_writelist_rsp_t*>(message.data()));
-
-  } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP) {
-    status = processKernelLaunchRsp(templ::bit_cast<device_ops_api::device_ops_kernel_launch_rsp_t*>(message.data()));
-
-  } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP) {
-    status = processKernelAbortRsp(templ::bit_cast<device_ops_api::device_ops_kernel_abort_rsp_t*>(message.data()));
-
-  } else if (rsp_msg_id == device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_RSP) {
-    status =
-      processTraceRtControlRsp(templ::bit_cast<device_ops_api::device_ops_trace_rt_control_rsp_t*>(message.data()));
-
+  if (bytesSent_ == 0) {
+    firstCmdTimepoint_ = Clock::now();
   } else {
-    EXPECT_TRUE(false) << "ERROR: Unknown response!" << std::endl;
+    lastCmdTimepoint_ = Clock::now();
+  }
+  bytesSent_ += devOpsApiCmd->getCmdSize();
+  return res;
+}
+
+bool TestDevOpsApi::popRsp(int deviceIdx) {
+  std::vector<std::byte> rspMem;
+  auto res = devLayer_->receiveResponseMasterMinion(deviceIdx, rspMem);
+  if (!res) {
+    return res;
+  }
+
+  auto rspHdr = templ::bit_cast<device_ops_api::rsp_header_t*>(rspMem.data());
+  if (bytesReceived_ == 0) {
+    firstRspTimepoint_ = Clock::now();
+  } else {
+    lastRspTimepoint_ = Clock::now();
+  }
+  bytesReceived_ += rspHdr->rsp_hdr.size;
+  auto rspTagId = rspHdr->rsp_hdr.tag_id;
+
+  auto devOpsApiCmd = IDevOpsApiCmd::getDevOpsApiCmd(rspTagId);
+  if (devOpsApiCmd == nullptr) {
+    return false;
+  }
+
+  if (devOpsApiCmd->setRsp(rspMem) == CmdStatus::CMD_RSP_NOT_RECEIVED) {
+    invalidRsps_.push_back(rspTagId);
     return popRsp(deviceIdx);
   }
 
-  // verify the response status for duplication
-  if (getCmdResult(rsp_tag_id) != CmdStatus::CMD_RSP_NOT_RECEIVED) {
-    updateCmdResult(rsp_tag_id, CmdStatus::CMD_RSP_DUPLICATE);
-    return popRsp(deviceIdx);
-  }
-
-  if (!updateCmdResult(rsp_tag_id, status)) {
-    TEST_VLOG(0) << "Command (tagId: " << std::hex << rsp_tag_id
-                 << ") wasn't sent under this scope, discarding this response!";
-    return popRsp(deviceIdx);
-  }
-
-  bytesReceived_ += response_header->rsp_hdr.size;
+  TEST_VLOG(1) << devOpsApiCmd->printSummary();
 
   return res;
 }
 
-bool TestDevOpsApi::addkernelCmdContext(device_ops_api::tag_id_t tagId, std::string kernelName, uint64_t shireMask,
-                                        bool barrier, bool flushL3) {
-  std::unique_lock<std::recursive_mutex> lock(kernelRtContextMtx_);
-  auto it = kernelRtContext_.find(tagId);
-  if (it != kernelRtContext_.end()) {
-    return false;
-  }
-  kernelRuntimeContext context;
-  context.kernelName = kernelName;
-  context.shireMask = shireMask;
-  context.cmdBarrier = barrier;
-  context.flushL3 = flushL3;
-  kernelRtContext_.emplace(tagId, context);
-  return true;
-}
-
-bool TestDevOpsApi::addkernelRspContext(device_ops_api::tag_id_t tagId, uint64_t startTime, uint32_t waitDuration,
-                                        uint32_t execDuration) {
-  std::unique_lock<std::recursive_mutex> lock(kernelRtContextMtx_);
-  auto it = kernelRtContext_.find(tagId);
-  if (it == kernelRtContext_.end()) {
-    return false;
-  }
-  it->second.startCycles = startTime;
-  it->second.waitDuration = waitDuration;
-  it->second.executionDuration = execDuration;
-  return true;
-}
-
-bool TestDevOpsApi::printKernelRtContext(device_ops_api::tag_id_t tagId, std::stringstream& logs) {
-  std::unique_lock<std::recursive_mutex> lock(kernelRtContextMtx_);
-  auto it = kernelRtContext_.find(tagId);
-  if (it == kernelRtContext_.end()) {
-    return false;
-  }
-  logs << "* Tag ID: 0x" << std::hex << tagId << std::endl;
-  logs << "* Kernel Name: " << it->second.kernelName << std::endl;
-  logs << "* Shire Mask: 0x" << std::hex << it->second.shireMask << std::endl;
-  logs << "* Barrier: " << it->second.cmdBarrier << std::endl;
-  logs << "* Flush L3: " << it->second.flushL3 << std::endl;
-  logs << "* Kernel Start cycles: " << it->second.startCycles << std::endl;
-  logs << "* Kernel Wait duration: " << it->second.waitDuration << std::endl;
-  logs << "* Kernel Execution duration: " << it->second.executionDuration << std::endl;
-  return true;
-}
-
-bool TestDevOpsApi::addCmdResultEntry(device_ops_api::tag_id_t tagId, CmdStatus status) {
-  std::unique_lock<std::recursive_mutex> lock(cmdResultsMtx_);
-  auto it = cmdResults_.find(tagId);
-  if (it != cmdResults_.end()) {
-    return false;
-  }
-
-  if (cmdResults_.size() == 0) {
-    firstCmdTimepoint_ = Clock::now();
-    firstRspTimepoint_ = firstCmdTimepoint_;
-  } else {
-    lastCmdTimepoint_ = Clock::now();
-  }
-
-  cmdResults_.emplace(tagId, status);
-  return true;
-}
-
-bool TestDevOpsApi::updateCmdResult(device_ops_api::tag_id_t tagId, CmdStatus status) {
-  std::unique_lock<std::recursive_mutex> lock(cmdResultsMtx_);
-  auto it = cmdResults_.find(tagId);
-  if (it == cmdResults_.end()) {
-    return false;
-  }
-
-  lastRspTimepoint_ = Clock::now();
-
-  it->second = status;
-  return true;
-}
-
-CmdStatus TestDevOpsApi::getCmdResult(device_ops_api::tag_id_t tagId) {
-  std::unique_lock<std::recursive_mutex> lock(cmdResultsMtx_);
-  auto it = cmdResults_.find(tagId);
-  if (it == cmdResults_.end()) {
-    return CmdStatus::CMD_RSP_NOT_RECEIVED; // Default response
-  }
-
-  return it->second;
-}
-
-void TestDevOpsApi::deleteCmdResultEntry(device_ops_api::tag_id_t tagId) {
-  std::unique_lock<std::recursive_mutex> lock(cmdResultsMtx_);
-  auto it = cmdResults_.find(tagId);
-  if (it == cmdResults_.end()) {
-    return;
-  }
-  cmdResults_.erase(it);
-}
-
 void TestDevOpsApi::printCmdExecutionSummary() {
-  std::vector<device_ops_api::tag_id_t> successfulCmdTags, failedCmdTags, timeoutCmdTags, missingRspCmdTags,
-    duplicateRspCmdTags;
+  std::vector<CmdTag> allCmdTags;
 
-  for (auto it : cmdResults_) {
-    switch (it.second) {
-    case CmdStatus::CMD_SUCCESSFUL:
-      successfulCmdTags.push_back(it.first);
-      break;
-    case CmdStatus::CMD_FAILED:
-      failedCmdTags.push_back(it.first);
-      break;
-    case CmdStatus::CMD_TIMED_OUT:
-      timeoutCmdTags.push_back(it.first);
-      break;
-    case CmdStatus::CMD_RSP_NOT_RECEIVED:
-      missingRspCmdTags.push_back(it.first);
-      break;
-    case CmdStatus::CMD_RSP_DUPLICATE:
-      duplicateRspCmdTags.push_back(it.first);
+  for (auto& [tagId, stream] : streams_) {
+    if (!stream.size()) {
+      continue;
     }
+    allCmdTags.insert(allCmdTags.end(), stream.begin(), stream.end());
   }
 
-  TEST_VLOG(0) << "=============== TEST SUMMARY ===================";
-  TEST_VLOG(0) << "====> Total Commands: " << cmdResults_.size();
-  TEST_VLOG(0) << "  ====> Commands successful: " << successfulCmdTags.size();
-  TEST_VLOG(0) << "  ====> Commands failed: " << failedCmdTags.size();
-  if (failedCmdTags.size() > 0) {
-    std::stringstream tagIdsStream;
-    for (auto it : failedCmdTags) {
-      tagIdsStream << "0x" << std::hex << it << " ";
+  std::vector<CmdTag> successfulCmdTags(allCmdTags.size());
+  auto it = std::copy_if(allCmdTags.begin(), allCmdTags.end(), successfulCmdTags.begin(), [](auto tagId) {
+    return IDevOpsApiCmd::getDevOpsApiCmd(tagId)->getCmdStatus() == CmdStatus::CMD_SUCCESSFUL;
+  });
+  successfulCmdTags.resize(std::distance(successfulCmdTags.begin(), it));
+
+  std::vector<CmdTag> failedCmdTags(allCmdTags.size());
+  it = std::copy_if(allCmdTags.begin(), allCmdTags.end(), failedCmdTags.begin(), [](auto tagId) {
+    return IDevOpsApiCmd::getDevOpsApiCmd(tagId)->getCmdStatus() == CmdStatus::CMD_FAILED;
+  });
+  failedCmdTags.resize(std::distance(failedCmdTags.begin(), it));
+
+  std::vector<CmdTag> timeoutCmdTags(allCmdTags.size());
+  it = std::copy_if(allCmdTags.begin(), allCmdTags.end(), timeoutCmdTags.begin(), [](auto tagId) {
+    return IDevOpsApiCmd::getDevOpsApiCmd(tagId)->getCmdStatus() == CmdStatus::CMD_TIMED_OUT;
+  });
+  timeoutCmdTags.resize(std::distance(timeoutCmdTags.begin(), it));
+
+  std::vector<CmdTag> missingRspCmdTags(allCmdTags.size());
+  it = std::copy_if(allCmdTags.begin(), allCmdTags.end(), missingRspCmdTags.begin(), [](auto tagId) {
+    return IDevOpsApiCmd::getDevOpsApiCmd(tagId)->getCmdStatus() == CmdStatus::CMD_RSP_NOT_RECEIVED;
+  });
+  missingRspCmdTags.resize(std::distance(missingRspCmdTags.begin(), it));
+
+  std::vector<CmdTag> duplicateRspCmdTags(allCmdTags.size());
+  it = std::copy_if(allCmdTags.begin(), allCmdTags.end(), duplicateRspCmdTags.begin(), [](auto tagId) {
+    return IDevOpsApiCmd::getDevOpsApiCmd(tagId)->getCmdStatus() == CmdStatus::CMD_RSP_DUPLICATE;
+  });
+  duplicateRspCmdTags.resize(std::distance(duplicateRspCmdTags.begin(), it));
+
+  std::stringstream summary;
+  summary << "\n=============== TEST SUMMARY ==================="
+          << "\n====> Total Commands: " << allCmdTags.size()
+          << "\n\t====> Commands successful: " << successfulCmdTags.size()
+          << "\n\t====> Commands failed: " << failedCmdTags.size();
+  if (!failedCmdTags.empty()) {
+    summary << "\n\t\t----> Tag IDs: ";
+    for (auto tagIdIt : failedCmdTags) {
+      summary << "0x" << std::hex << tagIdIt << " ";
     }
-    TEST_VLOG(0) << "    ----> Tag IDs: " << tagIdsStream.str();
   }
-  TEST_VLOG(0) << "  ====> Commands timed out: " << timeoutCmdTags.size();
-  if (timeoutCmdTags.size() > 0) {
-    std::stringstream tagIdsStream;
-    for (auto it : timeoutCmdTags) {
-      tagIdsStream << "0x" << std::hex << it << " ";
+
+  summary << "\n\t====> Commands timed out: " << timeoutCmdTags.size();
+  if (!timeoutCmdTags.empty()) {
+    summary << "\n\t\t----> Tag IDs: ";
+    for (auto tagIdIt : timeoutCmdTags) {
+      summary << "0x" << std::hex << tagIdIt << " ";
     }
-    TEST_VLOG(0) << "    ----> Tag IDs: " << tagIdsStream.str();
   }
-  TEST_VLOG(0) << "  ====> Commands missing responses: " << missingRspCmdTags.size();
-  if (missingRspCmdTags.size() > 0) {
-    std::stringstream tagIdsStream;
-    for (auto it : missingRspCmdTags) {
-      tagIdsStream << "0x" << std::hex << it << " ";
+  summary << "\n\t====> Commands missing responses: " << missingRspCmdTags.size();
+  if (!missingRspCmdTags.empty()) {
+    summary << "\n\t\t----> Tag IDs: ";
+    for (auto tagIdIt : missingRspCmdTags) {
+      summary << "0x" << std::hex << tagIdIt << " ";
     }
-    TEST_VLOG(0) << "    ----> Tag IDs: " << tagIdsStream.str();
   }
-  TEST_VLOG(0) << "  ====> Commands duplicate responses: " << duplicateRspCmdTags.size();
-  if (duplicateRspCmdTags.size() > 0) {
-    std::stringstream tagIdsStream;
-    for (auto it : duplicateRspCmdTags) {
-      tagIdsStream << "0x" << std::hex << it << " ";
+  summary << "\n\t====> Commands duplicate responses: " << duplicateRspCmdTags.size();
+  if (!duplicateRspCmdTags.empty()) {
+    summary << "\n\t\t----> Tag IDs: ";
+    for (auto tagIdIt : duplicateRspCmdTags) {
+      summary << "0x" << std::hex << tagIdIt << " ";
     }
-    TEST_VLOG(0) << "    ----> Tag IDs: " << tagIdsStream.str();
+  }
+  summary << "\n\t====> Corrupted/old responses: " << invalidRsps_.size();
+  if (!invalidRsps_.empty()) {
+    summary << "\n\t\t----> Tag IDs: ";
+    for (auto tagIdIt : invalidRsps_) {
+      summary << "0x" << std::hex << tagIdIt << " ";
+    }
   }
   std::chrono::duration<double> cmdsTotalDuration = lastCmdTimepoint_ - firstCmdTimepoint_;
   std::chrono::duration<double> rspsTotalDuration = lastRspTimepoint_ - firstRspTimepoint_;
-  TEST_VLOG(0) << "  ====> Commands Sent / second: " << std::ceil(cmdResults_.size() / cmdsTotalDuration.count());
-  TEST_VLOG(0) << "  ====> Bytes Sent / second: " << std::setprecision(10)
-               << std::ceil(bytesSent_ / cmdsTotalDuration.count());
-  TEST_VLOG(0) << "  ====> Responses Received / second: " << std::ceil(cmdResults_.size() / rspsTotalDuration.count());
-  TEST_VLOG(0) << "  ====> Bytes Received / second: " << std::setprecision(10)
-               << std::ceil(bytesReceived_ / rspsTotalDuration.count());
-  TEST_VLOG(0) << "================================================";
+  summary << "\n\t====> Commands Sent / second: "
+          << std::ceil(static_cast<double>(allCmdTags.size()) / cmdsTotalDuration.count())
+          << "\n\t====> Bytes Sent / second: " << std::setprecision(10)
+          << std::ceil(static_cast<double>(bytesSent_) / cmdsTotalDuration.count())
+          << "\n\t====> Responses Received / second: "
+          << std::ceil(static_cast<double>(allCmdTags.size()) / rspsTotalDuration.count())
+          << "\n\t====> Bytes Received / second: " << std::setprecision(10)
+          << std::ceil(static_cast<double>(bytesReceived_) / rspsTotalDuration.count())
+          << "\n================================================";
+
+  TEST_VLOG(0) << summary.str();
 
   EXPECT_EQ(failedCmdTags.size(), 0);
   EXPECT_EQ(missingRspCmdTags.size(), 0);
@@ -812,17 +518,21 @@ void TestDevOpsApi::printCmdExecutionSummary() {
   EXPECT_EQ(timeoutCmdTags.size(), 0);
 }
 
-void TestDevOpsApi::printErrorContext(int queueId, void* buffer, uint64_t shireMask, device_ops_api::tag_id_t tagId) {
+void TestDevOpsApi::printErrorContext(int queueId, const std::byte* buffer, uint64_t shireMask, CmdTag tagId) const {
   std::stringstream logs;
   std::ofstream logfile;
   if (FLAGS_enable_trace_dump) {
     logfile.open(FLAGS_trace_logfile, std::ios_base::app);
   }
 
-  const hartExecutionContext* context = templ::bit_cast<hartExecutionContext*>(buffer);
+  auto context = templ::bit_cast<const hartExecutionContext*>(buffer);
   logs << "\n*** Error Context Start (Queue ID: " << queueId << ")***" << std::endl;
   logs << "  * RUNTIME CONTEXT *" << std::endl;
-  printKernelRtContext(tagId, logs);
+  auto devOpsApiCmd = IDevOpsApiCmd::getDevOpsApiCmd(tagId);
+  if (devOpsApiCmd == nullptr) {
+    throw Exception("Command with tagId: " + std::to_string(tagId) + " does not exist!");
+  }
+  logs << devOpsApiCmd->printSummary();
   logs << "--------------------------" << std::endl;
   for (int shireId = 0; shireId < 32; shireId++) {
     if (!(shireMask & (1 << shireId))) {
@@ -881,11 +591,6 @@ void TestDevOpsApi::printErrorContext(int queueId, void* buffer, uint64_t shireM
   } else {
     TEST_VLOG(0) << logs.str();
   }
-}
-
-void TestDevOpsApi::deleteCmdResults() {
-  std::unique_lock<std::recursive_mutex> lock(cmdResultsMtx_);
-  cmdResults_.clear();
 }
 
 bool TestDevOpsApi::printMMTraceStringData(unsigned char* traceBuf, size_t size) const {
@@ -958,17 +663,17 @@ void TestDevOpsApi::extractAndPrintTraceData(int deviceIdx) {
                                           .dst_host_phy_addr = templ::bit_cast<uint64_t>(rdBufMem),
                                           .src_device_phy_addr = 0,
                                           .size = static_cast<uint32_t>(mmBufSize + cmBufSize)};
-  std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
-  stream.push_back(IDevOpsApiCmd::createDmaReadListCmd(
+  std::vector<CmdTag> stream;
+  stream.push_back(IDevOpsApiCmd::createCmd<DmaReadListCmd>(
     device_ops_api::CMD_FLAGS_BARRIER_DISABLE | device_ops_api::CMD_FLAGS_MMFW_TRACEBUF |
       device_ops_api::CMD_FLAGS_CMFW_TRACEBUF,
     &rdNode, 1 /* single node */, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
-  cmdResults_.clear();
   executeSyncPerDevicePerQueue(deviceIdx, 0 /* queueIdx */, stream);
 
-  if (std::count_if(cmdResults_.begin(), cmdResults_.end(),
-                    [](auto& e) { return std::get<1>(e) == CmdStatus::CMD_SUCCESSFUL; }) == stream.size()) {
+  if (std::count_if(stream.begin(), stream.end(), [](auto tagId) {
+        return IDevOpsApiCmd::getDevOpsApiCmd(tagId)->getCmdStatus() == CmdStatus::CMD_SUCCESSFUL;
+      }) == stream.size()) {
     printMMTraceStringData(static_cast<unsigned char*>(rdBufMem), mmBufSize);
     printCMTraceStringData(static_cast<unsigned char*>(rdBufMem) + mmBufSize, cmBufSize);
   } else {
@@ -977,35 +682,33 @@ void TestDevOpsApi::extractAndPrintTraceData(int deviceIdx) {
 
   freeDmaBuffer(rdBufMem);
   stream.clear();
-  cmdResults_.clear();
 }
 
 void TestDevOpsApi::redirectTraceLogging(int deviceIdx, bool toTraceBuf) {
-  std::vector<std::unique_ptr<IDevOpsApiCmd>> stream;
+  std::vector<CmdTag> stream;
 
   // redirect MM trace logging to TraceBuf/UART
-  stream.push_back(IDevOpsApiCmd::createTraceRtControlCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 0x1,
-                                                          toTraceBuf ? 0x1 : 0x3,
-                                                          device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
+  stream.push_back(
+    IDevOpsApiCmd::createCmd<TraceRtControlCmd>(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 0x1, toTraceBuf ? 0x1 : 0x3,
+                                                device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
   // redirect CM trace logging to TraceBuf/UART
-  stream.push_back(IDevOpsApiCmd::createTraceRtControlCmd(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 0x2,
-                                                          toTraceBuf ? 0x1 : 0x3,
-                                                          device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
+  stream.push_back(
+    IDevOpsApiCmd::createCmd<TraceRtControlCmd>(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, 0x2, toTraceBuf ? 0x1 : 0x3,
+                                                device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
 
-  cmdResults_.clear();
   executeSyncPerDevicePerQueue(deviceIdx, 0 /* queueIdx */, stream);
 
-  if (std::count_if(cmdResults_.begin(), cmdResults_.end(),
-                    [](auto& e) { return std::get<1>(e) == CmdStatus::CMD_SUCCESSFUL; }) != stream.size()) {
+  if (std::count_if(stream.begin(), stream.end(), [](auto tagId) {
+        return IDevOpsApiCmd::getDevOpsApiCmd(tagId)->getCmdStatus() == CmdStatus::CMD_SUCCESSFUL;
+      }) != stream.size()) {
     TEST_VLOG(0) << "Failed to redirect tracing of buffer, disabling trace dump!";
     FLAGS_enable_trace_dump = false;
   }
   stream.clear();
-  cmdResults_.clear();
 }
 
 void TestDevOpsApi::loadElfToDevice(int deviceIdx, ELFIO::elfio& reader, const std::string& path,
-                                    std::vector<std::unique_ptr<IDevOpsApiCmd>>& stream, uint64_t& kernelEntryAddr) {
+                                    std::vector<CmdTag>& stream, uint64_t& kernelEntryAddr) {
   bool elfLoadSuccess = reader.load(path);
   ASSERT_TRUE(elfLoadSuccess);
 
@@ -1039,6 +742,22 @@ void TestDevOpsApi::loadElfToDevice(int deviceIdx, ELFIO::elfio& reader, const s
   // Create DMA write command
   auto hostVirtAddr = templ::bit_cast<uint64_t>(segment0->get_data());
   auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-  stream.push_back(IDevOpsApiCmd::createDataWriteCmd(false, deviceElfSegment0Buffer, hostVirtAddr, hostPhysAddr,
-                                                     fileSize, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+  stream.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(false, deviceElfSegment0Buffer, hostVirtAddr, hostPhysAddr,
+                                                          fileSize, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+}
+
+void TestDevOpsApi::insertStream(int deviceIdx, int queueIdx, std::vector<CmdTag> stream) {
+  streams_.insert_or_assign(key(deviceIdx, queueIdx), std::move(stream));
+}
+
+void TestDevOpsApi::deleteStream(int deviceIdx, int queueIdx) {
+  auto it = streams_.find(key(deviceIdx, queueIdx));
+  if (it != streams_.end()) {
+    streams_.erase(it);
+  }
+}
+
+void TestDevOpsApi::deleteStreams() {
+  streams_.clear();
+  IDevOpsApiCmd::deleteDevOpsApiCmds();
 }

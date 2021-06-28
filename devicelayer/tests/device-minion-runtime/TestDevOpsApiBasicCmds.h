@@ -10,6 +10,8 @@
 
 #include "testHelper/TestDevOpsApi.h"
 
+namespace dev::dl_tests {
+
 class TestDevOpsApiBasicCmds : public TestDevOpsApi {
 protected:
   /* Basic Testing Functions */
@@ -22,3 +24,5 @@ protected:
   void backToBackSameCmds(bool singleDevice, bool singleQueue, int numOfCmds);
   void backToBackDiffCmds(bool singleDevice, bool singleQueue, int numOfCmds);
 };
+
+} // namespace dev::dl_tests

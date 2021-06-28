@@ -16,6 +16,7 @@
  * Test Labels: SYSEMU, OPS, FUNCTIONAL, UNIT
  */
 
+using namespace dev::dl_tests;
 namespace fs = std::experimental::filesystem;
 
 namespace {

@@ -16,6 +16,7 @@
  * Test Labels: SYSEMU, OPS, FUNCTIONAL, SYSTEM
  */
 
+using namespace dev::dl_tests;
 namespace fs = std::experimental::filesystem;
 
 DEFINE_string(sysemu_params, "", "Extra parameters to pass to SysEMU");
@@ -61,28 +62,12 @@ TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackSameKernelLaunchCmdsSingle
   backToBackSameKernelLaunchCmds_3_1(true, false, 100, kSysEmuMinionShiresMask);
 }
 
-TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackSameKernelLaunchCmdsMultiDeviceSingleQueue_3_3) {
-  backToBackSameKernelLaunchCmds_3_1(false, true, 100, kSysEmuMinionShiresMask);
-}
-
-TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackSameKernelLaunchCmdsMultiDeviceMultiQueue_3_4) {
-  backToBackSameKernelLaunchCmds_3_1(false, false, 100, kSysEmuMinionShiresMask);
-}
-
 TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackDifferentKernelLaunchCmdsSingleDeviceSingleQueue_3_5) {
   backToBackDifferentKernelLaunchCmds_3_2(true, true, 100, kSysEmuMinionShiresMask);
 }
 
 TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackDifferentKernelLaunchCmdsSingleDeviceMultileQueue_3_6) {
   backToBackDifferentKernelLaunchCmds_3_2(true, false, 100, kSysEmuMinionShiresMask);
-}
-
-TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackDifferentKernelLaunchCmdsMultiDeviceSingleQueue_3_7) {
-  backToBackDifferentKernelLaunchCmds_3_2(false, true, 100, kSysEmuMinionShiresMask);
-}
-
-TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackDifferentKernelLaunchCmdsMultiDeviceMultileQueue_3_8) {
-  backToBackDifferentKernelLaunchCmds_3_2(false, false, 100, kSysEmuMinionShiresMask);
 }
 
 TEST_F(TestDevOpsApiStressKernelCmdsSysEmu, backToBackEmptyKernelLaunch_3_9) {

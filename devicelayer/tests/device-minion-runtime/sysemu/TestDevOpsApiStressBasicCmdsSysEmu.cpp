@@ -16,6 +16,7 @@
  * Test Labels: SYSEMU, OPS, FUNCTIONAL, SYSTEM
  */
 
+using namespace dev::dl_tests;
 namespace fs = std::experimental::filesystem;
 
 DEFINE_string(sysemu_params, "", "Extra parameters to pass to SysEMU");

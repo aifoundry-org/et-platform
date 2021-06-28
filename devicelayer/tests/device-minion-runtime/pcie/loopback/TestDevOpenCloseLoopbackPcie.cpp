@@ -14,6 +14,8 @@
  * Test Labels: PCIE, OPS, FUNCTIONAL, UNIT
  */
 
+using namespace dev::dl_tests;
+
 class TestDevOpenCloseLoopbackPcie : public TestDevOpsApi {};
 
 TEST_F(TestDevOpenCloseLoopbackPcie, instantiateIDeviceLayer_1_1) {

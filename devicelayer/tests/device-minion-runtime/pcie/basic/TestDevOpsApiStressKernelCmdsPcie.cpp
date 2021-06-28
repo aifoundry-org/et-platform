@@ -14,6 +14,8 @@
  * Test Labels: PCIE, OPS, FUNCTIONAL, SYSTEM
  */
 
+using namespace dev::dl_tests;
+
 class TestDevOpsApiStressKernelCmdsPcie : public TestDevOpsApiKernelCmds {
 protected:
   void SetUp() override {
@@ -31,56 +33,12 @@ TEST_F(TestDevOpsApiStressKernelCmdsPcie, backToBackSameKernelLaunchCmdsSingleDe
   backToBackSameKernelLaunchCmds_3_1(true, false, 100, 0x1);
 }
 
-TEST_F(TestDevOpsApiStressKernelCmdsPcie, backToBackSameKernelLaunchCmdsMultiDeviceSingleQueue_3_3) {
-  backToBackSameKernelLaunchCmds_3_1(false, true, 100, 0x1);
-}
-
-TEST_F(TestDevOpsApiStressKernelCmdsPcie, backToBackSameKernelLaunchCmdsMultiDeviceMultiQueue_3_4) {
-  backToBackSameKernelLaunchCmds_3_1(false, false, 100, 0x1);
-}
-
 TEST_F(TestDevOpsApiStressKernelCmdsPcie, backToBackDifferentKernelLaunchCmdsSingleDeviceSingleQueue_3_5) {
-  // Skip Test, if loopback driver
-  if (FLAGS_loopback_driver) {
-    TEST_VLOG(0)
-      << "Skipping: backToBackDifferentKernelLaunchCmdsSingleDeviceSingleQueue_3_3, not supported on loopback driver"
-      << std::endl;
-    return;
-  }
   backToBackDifferentKernelLaunchCmds_3_2(true, true, 100, 0x3);
 }
 
 TEST_F(TestDevOpsApiStressKernelCmdsPcie, backToBackDifferentKernelLaunchCmdsSingleDeviceMultileQueue_3_6) {
-  // Skip Test, if loopback driver
-  if (FLAGS_loopback_driver) {
-    TEST_VLOG(0)
-      << "Skipping: backToBackDifferentKernelLaunchCmdsSingleDeviceMultileQueue_3_4, not supported on loopback driver"
-      << std::endl;
-    return;
-  }
   backToBackDifferentKernelLaunchCmds_3_2(true, false, 100, 0x3);
-}
-
-TEST_F(TestDevOpsApiStressKernelCmdsPcie, backToBackDifferentKernelLaunchCmdsMultiDeviceSingleQueue_3_7) {
-  // Skip Test, if loopback driver
-  if (FLAGS_loopback_driver) {
-    TEST_VLOG(0)
-      << "Skipping: backToBackDifferentKernelLaunchCmdsSingleDeviceSingleQueue_3_3, not supported on loopback driver"
-      << std::endl;
-    return;
-  }
-  backToBackDifferentKernelLaunchCmds_3_2(false, true, 100, 0x3);
-}
-
-TEST_F(TestDevOpsApiStressKernelCmdsPcie, backToBackDifferentKernelLaunchCmdsMultiDeviceMultileQueue_3_8) {
-  // Skip Test, if loopback driver
-  if (FLAGS_loopback_driver) {
-    TEST_VLOG(0)
-      << "Skipping: backToBackDifferentKernelLaunchCmdsSingleDeviceMultileQueue_3_4, not supported on loopback driver"
-      << std::endl;
-    return;
-  }
-  backToBackDifferentKernelLaunchCmds_3_2(false, false, 100, 0x3);
 }
 
 TEST_F(TestDevOpsApiStressKernelCmdsPcie, backToBackEmptyKernelLaunch_3_9) {

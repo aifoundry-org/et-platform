@@ -14,6 +14,8 @@
  * Test Labels: PCIE, OPS, FUNCTIONAL, SYSTEM
  */
 
+using namespace dev::dl_tests;
+
 class TestDevOpsApiFuncKernelCmdsPcie : public TestDevOpsApiKernelCmds {
 protected:
   void SetUp() override {

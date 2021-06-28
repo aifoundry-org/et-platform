@@ -14,6 +14,8 @@
  * Test Labels: NIGHTLY, PCIE, OPS, FUNCTIONAL, SYSTEM
  */
 
+using namespace dev::dl_tests;
+
 class TestDevOpsApiNightlyBasicCmdsPcie : public TestDevOpsApiBasicCmds {
 protected:
   void SetUp() override {
