@@ -70,8 +70,8 @@ class Exception : public dbg::StackException {
 
 /// \brief Constants
 namespace {
-constexpr int kCacheLineSize = 64; // TODO This should not be here, it should be
-                                   // in a header with project-wide constants
+constexpr auto kCacheLineSize = 64U; // TODO This should not be here, it should be
+                                     // in a header with project-wide constants
 }
 
 /// \brief Facade Runtime interface declaration, all runtime interactions should
@@ -115,7 +115,7 @@ public:
   ///
   /// @returns a device memory pointer
   ///
-  virtual void* mallocDevice(DeviceId device, size_t size, int alignment = kCacheLineSize) = 0;
+  virtual void* mallocDevice(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize) = 0;
 
   /// \brief Deallocates previously allocated memory on the given device.
   ///

@@ -16,14 +16,16 @@
 #include <unordered_map>
 #include <vector>
 namespace rt {
-constexpr auto kMinAllocationSize = 1024;
+constexpr auto kBlockSize = 1024U;
 
 class MemoryManager {
 public:
-  explicit MemoryManager(uint64_t dramBaseAddr, size_t totalMemoryBytes, int minAllocationSize = kMinAllocationSize);
+  explicit MemoryManager(uint64_t dramBaseAddr, size_t totalMemoryBytes, uint32_t blockSize = kBlockSize);
 
-  void* malloc(size_t size, int alignment);
+  void* malloc(size_t size, uint32_t alignment);
   void free(void* ptr);
+
+  uint32_t getBlockSize() const;
 
 private:
   struct FreeChunk {
@@ -37,13 +39,13 @@ private:
   uint32_t compressPointer(void* ptr) const {
     auto tmp = reinterpret_cast<uint64_t>(ptr);
     tmp -= dramBaseAddr_;
-    tmp >>= minAlignmentLog2_;
+    tmp >>= blockSizeLog2_;
     assert(tmp < std::numeric_limits<uint32_t>::max());
     return static_cast<uint32_t>(tmp);
   }
   void* uncompressPointer(uint32_t ptr) const {
     auto tmp = static_cast<uint64_t>(ptr);
-    tmp <<= minAlignmentLog2_;
+    tmp <<= blockSizeLog2_;
     assert(tmp < totalMemoryBytes_);
     tmp += dramBaseAddr_;
     return reinterpret_cast<void*>(tmp);
@@ -55,6 +57,6 @@ private:
   std::vector<FreeChunk> free_;
   uint64_t dramBaseAddr_;
   size_t totalMemoryBytes_;
-  int minAlignmentLog2_; // size of the minimum block in log2
+  uint32_t blockSizeLog2_; // size of the minimum block in log2
 };
 } // namespace rt

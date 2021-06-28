@@ -17,21 +17,21 @@
 #include <ios>
 using namespace rt;
 
-MemoryManager::MemoryManager(uint64_t dramBaseAddr, size_t totalMemoryBytes, int minAllocationSize)
-  : dramBaseAddr_(dramBaseAddr == 0 ? dramBaseAddr + minAllocationSize : dramBaseAddr)
+MemoryManager::MemoryManager(uint64_t dramBaseAddr, size_t totalMemoryBytes, uint32_t blockSize)
+  : dramBaseAddr_(dramBaseAddr == 0 ? dramBaseAddr + blockSize : dramBaseAddr)
   , totalMemoryBytes_(totalMemoryBytes)
-  , minAlignmentLog2_(static_cast<int>(std::log2(minAllocationSize))) {
+  , blockSizeLog2_(static_cast<uint32_t>(std::log2(blockSize))) {
 
-  if ((1 << minAlignmentLog2_) != minAllocationSize) {
-    throw Exception("MinAllocationSize must be POT");
+  if ((1U << blockSizeLog2_) != blockSize) {
+    throw Exception("BlockSize must be POT");
   }
-  if (dramBaseAddr_ % (1 << minAlignmentLog2_)) {
-    throw Exception("DramBaseAddr must be multiple of minAllocationSize");
+  if (dramBaseAddr_ % (1U << blockSizeLog2_)) {
+    throw Exception("DramBaseAddr must be multiple of BlockSize");
   }
-  if (totalMemoryBytes_ % (1 << minAlignmentLog2_)) {
-    throw Exception("TotalMemoryBytes must be multiple of minAllocationSize");
+  if (totalMemoryBytes_ % (1U << blockSizeLog2_)) {
+    throw Exception("TotalMemoryBytes must be multiple of BlockSize");
   }
-  free_.emplace_back(FreeChunk{0, static_cast<uint32_t>(totalMemoryBytes_ >> minAlignmentLog2_)});
+  free_.emplace_back(FreeChunk{0, static_cast<uint32_t>(totalMemoryBytes_ >> blockSizeLog2_)});
 }
 
 void MemoryManager::addChunk(FreeChunk chunk) {
@@ -40,8 +40,8 @@ void MemoryManager::addChunk(FreeChunk chunk) {
     return;
   }
 
-  auto tryToMerge = [](FreeChunk chunk, FreeChunk& target) {
-    auto c0 = chunk;
+  auto tryToMerge = [](FreeChunk c, FreeChunk& target) {
+    auto c0 = c;
     auto c1 = target;
     if (c1.startAddress_ < c0.startAddress_) {
       std::swap(c0, c1);
@@ -87,54 +87,52 @@ void MemoryManager::free(void* ptr) {
   addChunk(FreeChunk{it->first, it->second});
 }
 
-void* MemoryManager::malloc(size_t size, int alignment) {
-  if ((1ul << __builtin_ctz(alignment)) != static_cast<size_t>(alignment) || alignment <= 0) {
-    throw Exception("Alignment must be power of two and greater than 0");
-  }
-  if (size % alignment != 0) {
-    throw Exception("Size must be multiple of alignment");
-  }
-
-  // size must be at least multiple of minAlignment
-  size = std::max(1ul << minAlignmentLog2_, size);
-
+void* MemoryManager::malloc(size_t size, uint32_t alignment) {
   // calculate size in number of blocks
-  auto countBlocks = size >> minAlignmentLog2_;
+  auto blockSize = getBlockSize();
 
-  // adjust alignment as requested and calculate extraBlocks
-  auto alignmentBlocks = std::max(__builtin_ctz(alignment), minAlignmentLog2_) >> minAlignmentLog2_;
+  // if alignment is lower than blockSize, then we force the alignment to blockSize
+  alignment = std::max(alignment, blockSize);
+
+  auto countBlocks = static_cast<uint32_t>((size + blockSize - 1) / blockSize);
+
+  // extra potential blocks for alignment
+  auto extraBlocks = alignment / blockSize - 1;
+
+  auto totalBlocks = countBlocks + extraBlocks;
 
   // find a suitable chunk, if not return nullptr
-  auto it = std::find_if(begin(free_), end(free_), [countBlocks, alignmentBlocks](const auto& elem) {
-    return elem.size_ >= countBlocks + alignmentBlocks;
-  });
+  auto it =
+    std::find_if(begin(free_), end(free_), [totalBlocks](const auto& elem) { return elem.size_ >= totalBlocks; });
   if (it == end(free_)) {
     throw Exception("Out of memory");
   }
 
-  // fix the startAddress to match alignment
-  auto addr = it->startAddress_;
+  // calculate the alignment in blocks
+  auto addr = it->startAddress_;  
+  auto tmp = reinterpret_cast<uint64_t>(uncompressPointer(addr));
+  auto extraBytes = (tmp % alignment == 0) ? 0 : static_cast<uint32_t>(alignment - tmp % alignment);
 
-  if (alignmentBlocks > 0 && addr % alignmentBlocks != 0) {
-    auto padding = alignmentBlocks - (addr % alignmentBlocks);
-    addr += padding;
+  // fullfill the requested alignment
+  auto missAlignment = extraBytes / blockSize;
 
-    // update the existing chunk
-    it->startAddress_ = addr + countBlocks;
-    it->size_ -= (countBlocks + padding);
+  // take countBlocks from freeChunk
+  it->startAddress_ += countBlocks + missAlignment;
+  it->size_ -= countBlocks + missAlignment;
 
-    // check if the chunk is empty
-    if (it->size_ == 0) {
-      free_.erase(it);
-    }
-  } else {
-    it->startAddress_ += countBlocks;
-    it->size_ -= countBlocks;
+  // if we needed extra blocks for alignment, add a freeChunk with those extra blocks (which are actually not used)
+  if (missAlignment > 0) {
+    addChunk(FreeChunk{addr, missAlignment});
   }
-
   // bookkeep the allocation and return pointer
+  addr += missAlignment;
   allocated_.insert({addr, countBlocks});
+
   RT_DLOG(INFO) << "Malloc at device address: " << std::hex << uncompressPointer(addr)
                 << " compressed pointer (not address): " << addr;
   return uncompressPointer(addr);
+}
+
+uint32_t MemoryManager::getBlockSize() const {
+  return 1U << blockSizeLog2_;
 }

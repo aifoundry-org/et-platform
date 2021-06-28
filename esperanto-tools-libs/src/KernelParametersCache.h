@@ -29,7 +29,7 @@ public:
     IRuntime* runtime_;
   };
 
-  explicit KernelParametersCache(IRuntime* runtime, int initialFreeListSize = 10, int bufferSize = kMinAllocationSize);
+  explicit KernelParametersCache(IRuntime* runtime, int initialFreeListSize = 10, int bufferSize = kBlockSize);
 
   // returns a buffer from the free list, if there are no free list then it will allocate a buffer and use that
   Buffer* allocBuffer(DeviceId deviceId);

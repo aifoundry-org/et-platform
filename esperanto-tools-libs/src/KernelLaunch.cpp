@@ -35,9 +35,9 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
   auto&& kernel = find(kernels_, kernelId)->second;
   ScopedProfileEvent profileEvent(Class::KernelLaunch, profiler_, streamId, kernelId, kernel->getLoadAddress());
 
-  if (kernel_args_size > kMinAllocationSize) {
+  if (kernel_args_size > kBlockSize) {
     char buffer[1024];
-    std::snprintf(buffer, sizeof buffer, "Maximum kernel arg size is %d", kMinAllocationSize);
+    std::snprintf(buffer, sizeof buffer, "Maximum kernel arg size is %d", kBlockSize);
     throw Exception(buffer);
   }
 

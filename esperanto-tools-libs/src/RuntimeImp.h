@@ -36,8 +36,8 @@ public:
 
   KernelId loadCode(DeviceId device, const void* elf, size_t elf_size) override;
   void unloadCode(KernelId kernel) override;
-
-  void* mallocDevice(DeviceId device, size_t size, int alignment = kCacheLineSize) override;
+ 
+  void* mallocDevice(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize) override;
   void freeDevice(DeviceId device, void* buffer) override;
 
   StreamId createStream(DeviceId device) override;
