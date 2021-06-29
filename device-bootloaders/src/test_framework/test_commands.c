@@ -54,6 +54,17 @@ extern int8_t Minion_Shire_Boot_Cmd_Handler(void* test_cmd);
 extern int8_t Minion_Kernel_Launch_Cmd_Handler(void* test_cmd);
 extern int8_t Minion_ESR_Read_Cmd_Handler(void* test_cmd);
 extern int8_t Minion_ESR_Write_Cmd_Handler(void* test_cmd);
+/* Asset Tracking Tests */
+extern int8_t Asset_Tracking_Manufacturer_Name_Cmd_Handler(void* test_cmd);
+extern int8_t Asset_Tracking_Part_Number_Cmd_Handler(void* test_cmd);
+extern int8_t Asset_Tracking_Serial_Number_Cmd_Handler(void* test_cmd);
+extern int8_t Asset_Tracking_Chip_Revision_Cmd_Handler(void* test_cmd);
+extern int8_t Asset_Tracking_PCIe_Max_Speed_Cmd_Handler(void* test_cmd);
+extern int8_t Asset_Tracking_Module_Revision_Cmd_Handler(void* test_cmd);
+extern int8_t Asset_Tracking_Form_Factor_Cmd_Handler(void* test_cmd);
+extern int8_t Asset_Tracking_Memory_Details_Cmd_Handler(void* test_cmd);
+extern int8_t Asset_Tracking_Memory_Size_Cmd_Handler(void* test_cmd);
+extern int8_t Asset_Tracking_Memory_Type_Cmd_Handler(void* test_cmd);
 #endif  // !TF_CORE
 
 /* Unregistered Handler */
@@ -77,7 +88,7 @@ int8_t Unregistered_Handler(void* test_cmd)
  array index based on tf_cmd_t enum */
 int8_t (*TF_Test_Cmd_Handler[TF_NUM_COMMANDS])(void *test_cmd) = 
 {
-    Unregistered_Handler,   
+    Unregistered_Handler, // Dummy handler to cater the initialization index
     SP_Fw_Version_Cmd_Handler,
     MM_Fw_Version_Cmd_Handler,
     Echo_To_SP_Cmd_Handler,
@@ -106,14 +117,19 @@ int8_t (*TF_Test_Cmd_Handler[TF_NUM_COMMANDS])(void *test_cmd) =
     PCIE_PSHIRE_PLL_Program_Cmd_Handler,
     PCIE_PSHIRE_NOC_Update_Routing_Table_Cmd_Handler,
     PCIE_PSHIRE_Cntr_Init_Cmd_Handler,
+    Unregistered_Handler, // TF_CMD_PCIE_CNTR_INIT_INTERRUPTS
+    Unregistered_Handler, // TF_CMD_PCIE_CNTR_INIT_LINK_PARAMS
+    Unregistered_Handler, // TF_CMD_PCIE_CNTR_ATU_INIT
     PCIE_PSHIRE_Phy_Init_Cmd_Handler,
+    Unregistered_Handler, // TF_CMD_PCIE_PHY_FW_INIT
     NOC_Voltage_update_Cmd_Handler,
     NOC_PLL_Program_Cmd_Handler,
     NOC_Routing_Table_Update_Cmd_Handler,
-    Mem_MemShire_Init_Cmd_Handler,
     Mem_MemShire_PLL_Program_Cmd_Handler,
     Mem_MemShire_Voltage_Update_Cmd_Handler,
+    Mem_MemShire_Init_Cmd_Handler,
     Mem_DDR_Cntr_Init_Cmd_Handler,
+    Unregistered_Handler, // TF_CMD_MEM_SUBSYSTEM_CONFIG
     Mem_DDR_Cntr_Read_Word_Cmd_Handler,
     Mem_DDR_Cntr_Write_Word_Cmd_Handler,
     Minion_Step_Clk_PLL_Program_Cmd_Handler,
@@ -122,6 +138,26 @@ int8_t (*TF_Test_Cmd_Handler[TF_NUM_COMMANDS])(void *test_cmd) =
     Minion_Shire_Boot_Cmd_Handler,
     Minion_Kernel_Launch_Cmd_Handler,
     Minion_ESR_Read_Cmd_Handler,
-    Minion_ESR_Write_Cmd_Handler
+    Minion_ESR_Write_Cmd_Handler,
+    Unregistered_Handler, // TF_CMD_MINION_ESR_RMW
+    Unregistered_Handler, // TF_CMD_SPIO_PLL_PROGRAM
+    Unregistered_Handler, // TF_CMD_PU_PLL_PROGRAM
+    Unregistered_Handler, // TF_CMD_SPIO_IO_READ
+    Unregistered_Handler, // TF_CMD_SPIO_IO_WRITE
+    Unregistered_Handler, // TF_CMD_SPIO_IO_RMW
+    Unregistered_Handler, // TF_CMD_MAXION_RESET_DEASSERT
+    Unregistered_Handler, // TF_CMD_MAXION_CORE_PLL_PROGRAM
+    Unregistered_Handler, // TF_CMD_MAXION_UNCORE_PLL_PROGRAM
+    Unregistered_Handler, // TF_CMD_MAXION_INTERNAL_INIT
+    Asset_Tracking_Manufacturer_Name_Cmd_Handler,
+    Asset_Tracking_Part_Number_Cmd_Handler,
+    Asset_Tracking_Serial_Number_Cmd_Handler,
+    Asset_Tracking_Chip_Revision_Cmd_Handler,
+    Asset_Tracking_PCIe_Max_Speed_Cmd_Handler,
+    Asset_Tracking_Module_Revision_Cmd_Handler,
+    Asset_Tracking_Form_Factor_Cmd_Handler,
+    Asset_Tracking_Memory_Details_Cmd_Handler,
+    Asset_Tracking_Memory_Size_Cmd_Handler,
+    Asset_Tracking_Memory_Type_Cmd_Handler,
 #endif  // !TF_CORE
 };

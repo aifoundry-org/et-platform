@@ -42,6 +42,7 @@ target_sources(test_framework
     ${CMAKE_CURRENT_SOURCE_DIR}/tf_pcie_tests.c
     ${CMAKE_CURRENT_SOURCE_DIR}/tf_pu_tests.c
     ${CMAKE_CURRENT_SOURCE_DIR}/tf_spio_tests.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/tf_asset_tracking_tests.c
 )
 
 target_link_libraries(test_framework
