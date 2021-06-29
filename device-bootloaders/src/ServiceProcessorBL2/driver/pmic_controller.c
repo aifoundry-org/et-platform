@@ -73,7 +73,7 @@
 #include "bl2_pmic_controller.h"
 #include "bl2_main.h"
 #include "interrupt.h"
-#include "error.h"
+#include "bl_error_code.h"
 #include "log.h"
 
 #include "hwinc/hal_device.h"

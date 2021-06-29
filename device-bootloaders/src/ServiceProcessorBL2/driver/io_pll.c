@@ -24,7 +24,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "error.h"
+#include "bl_error_code.h"
 #include "io.h"
 #include "bl2_sp_pll.h"
 #include "bl2_main.h"

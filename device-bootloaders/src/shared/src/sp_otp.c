@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "error.h"
+#include "bl_error_code.h"
 #include "io.h"
 #include "sp_otp.h"
 

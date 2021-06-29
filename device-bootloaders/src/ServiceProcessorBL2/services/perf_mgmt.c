@@ -30,7 +30,7 @@
 #include "mm_iface.h"
 #include "bl2_sp_pll.h"
 #include "mem_controller.h"
-#include "error.h"
+#include "bl_error_code.h"
 #include "log.h"
 
 struct soc_perf_reg_t {

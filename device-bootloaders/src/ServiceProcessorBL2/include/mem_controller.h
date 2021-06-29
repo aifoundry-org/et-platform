@@ -26,8 +26,7 @@
 #include "dm_event_def.h"
 #include "bl2_pmic_controller.h"
 #include "bl2_reset.h"
-#include "error.h"
-#include "config/sp_bl2_return_code.h"
+#include "bl_error_code.h"
 
 /*! \def MODE_NUMBER
 */

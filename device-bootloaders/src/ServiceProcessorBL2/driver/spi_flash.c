@@ -15,7 +15,7 @@
 #include "bl2_spi_controller.h"
 #include "bl2_spi_flash.h"
 #include "bl2_main.h"
-#include "error.h"
+#include "bl_error_code.h"
 
 #pragma GCC push_options
 #pragma GCC diagnostic ignored "-Wswitch-enum"

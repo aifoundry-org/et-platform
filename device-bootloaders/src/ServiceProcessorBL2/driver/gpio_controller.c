@@ -24,7 +24,7 @@
 
 #include "io.h"
 #include "bl2_gpio_controller.h"
-#include "error.h"
+#include "bl_error_code.h"
 #include "bl2_main.h"
 
 #include "hwinc/sp_gpio.h"

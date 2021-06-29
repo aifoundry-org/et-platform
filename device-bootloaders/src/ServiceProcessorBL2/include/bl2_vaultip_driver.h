@@ -15,7 +15,7 @@
 #include "bl2_crypto.h"
 #include "hal_vaultip_static_assets.h"
 #include "hal_vaultip_sw.h"
-#include "error.h"
+#include "bl_error_code.h"
 
 /*! \fn uint8_t* Vault_Initialize(void)
     \brief Interface to initialize ValutIP

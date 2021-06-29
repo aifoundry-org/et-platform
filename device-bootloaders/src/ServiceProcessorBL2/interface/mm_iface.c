@@ -31,7 +31,7 @@
 #include "sp_mm_shared_config.h"
 #include "interrupt.h"
 #include "semphr.h"
-#include "error.h"
+#include "bl_error_code.h"
 #include "config/mgmt_build_config.h"
 
 typedef struct mm_iface_cb_ {
@@ -132,7 +132,7 @@ int32_t MM_Iface_Send_Echo_Cmd(void)
             if ((status > 0) &&
                 ((rsp.msg_hdr.msg_id == SP2MM_RSP_ECHO) && (cmd.payload == rsp.payload)))
             {
-                status = ERROR_NO_ERROR;
+                status = SUCCESS;
                 Log_Write(LOG_LEVEL_ERROR, "SP2MM:ECHO:Response: %x\r\n", rsp.payload);
             }
             else
@@ -202,7 +202,7 @@ int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw)
             {
                 *read_bw = rsp.read_bw;
                 *write_bw = rsp.write_bw;
-                status = ERROR_NO_ERROR;
+                status = SUCCESS;
             }
             else
             {

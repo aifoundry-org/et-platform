@@ -16,12 +16,6 @@
 
 #include "sp_otp_data_layout.h"
 
-#define ERROR_SP_OTP_OTP_NOT_AVAILABLE  -1000
-#define ERROR_SP_OTP_OTP_READ           -1001
-#define ERROR_SP_OTP_BANK_LOCKED        -1002
-#define ERROR_SP_OTP_BANK_NOT_LOCKED    -1003
-#define ERROR_SP_OTP_SP_WRCK_NOT_100MHZ -1004
-
 int sp_otp_init(void);
 int sp_otp_read(uint32_t offset, uint32_t *result);
 int sp_otp_write(uint32_t offset, uint32_t value);

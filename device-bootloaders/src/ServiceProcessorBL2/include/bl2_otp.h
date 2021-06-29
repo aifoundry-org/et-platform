@@ -16,7 +16,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "sp_otp.h"
-#include "error.h"
+#include "bl_error_code.h"
 #include "io.h"
 #include "hwinc/hal_device.h"
 #include "hwinc/sp_cru_reset.h"

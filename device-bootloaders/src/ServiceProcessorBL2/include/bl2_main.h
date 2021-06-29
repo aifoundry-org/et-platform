@@ -12,7 +12,7 @@
 #ifndef __BL2_MAIN_H__
 #define __BL2_MAIN_H__
 
-#include "config/sp_bl2_return_code.h"
+#include "bl_error_code.h"
 #include "service_processor_BL2_data.h"
 #include "log.h"
 

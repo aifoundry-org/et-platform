@@ -23,7 +23,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "bl2_main.h"
-#include "error.h"
+#include "bl_error_code.h"
 
 struct soc_power_reg_t g_soc_power_reg __attribute__((section(".data")));
 

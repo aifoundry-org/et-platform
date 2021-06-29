@@ -18,7 +18,7 @@
 #include <stdint.h>
 #include "bl2_sp_pll.h"
 
-#include "config/sp_bl2_return_code.h"
+#include "bl_error_code.h"
 #include "log.h"
 
 #include "noc_configuration.h"

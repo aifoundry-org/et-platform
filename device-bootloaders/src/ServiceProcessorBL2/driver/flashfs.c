@@ -46,7 +46,7 @@
 #include "bl2_flash_fs.h"
 #include "jedec_sfdp.h"
 #include "bl2_main.h"
-#include "error.h"
+#include "bl_error_code.h"
 
 #pragma GCC push_options
 /* #pragma GCC optimize ("O2") */
