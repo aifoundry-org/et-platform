@@ -89,6 +89,8 @@ typedef enum {
     TF_CMD_MAXION_CORE_PLL_PROGRAM=57,
     TF_CMD_MAXION_UNCORE_PLL_PROGRAM=58,
     TF_CMD_MAXION_INTERNAL_INIT=59,
+    TF_CMD_PMIC_MODULE_TEMPERATURE=60,
+    TF_CMD_PMIC_MODULE_POWER=61,
     /* SW TF commands from 97 - 255 */
     TF_CMD_AT_MANUFACTURER_NAME=97,
     TF_CMD_AT_PART_NUMBER=98,
@@ -165,6 +167,8 @@ typedef enum {
     TF_RSP_MAXION_CORE_PLL_PROGRAM=313,
     TF_RSP_MAXION_UNCORE_PLL_PROGRAM=314,
     TF_RSP_MAXION_INTERNAL_INIT=315,
+    TF_RSP_PMIC_MODULE_TEMPERATURE=316,
+    TF_RSP_PMIC_MODULE_POWER=317,
     /* SW TF response from 352 - 511 */
     TF_RSP_AT_MANUFACTURER_NAME=352,
     TF_RSP_AT_PART_NUMBER=353,
@@ -265,6 +269,11 @@ struct tf_get_mmfw_ver_rsp_t {
 struct tf_asset_tracking_rsp_t {
     tf_rsp_hdr_t rsp_hdr;
     char         data[8];
+};
+
+struct tf_pmic_rsp_t {
+    tf_rsp_hdr_t rsp_hdr;
+    uint8_t      value;
 };
 
 #endif

@@ -75,6 +75,9 @@ extern int8_t Asset_Tracking_Form_Factor_Cmd_Handler(void* test_cmd);
 extern int8_t Asset_Tracking_Memory_Details_Cmd_Handler(void* test_cmd);
 extern int8_t Asset_Tracking_Memory_Size_Cmd_Handler(void* test_cmd);
 extern int8_t Asset_Tracking_Memory_Type_Cmd_Handler(void* test_cmd);
+/* PMIC Tests */
+extern int8_t PMIC_Module_Temperature_Cmd_Handler(void* test_cmd);
+extern int8_t PMIC_Module_Power_Cmd_Handler(void* test_cmd);
 #endif  // !TF_CORE
 
 /* Unregistered Handler */
@@ -220,9 +223,9 @@ int8_t (*TF_Test_Cmd_Handler[TF_NUM_COMMANDS])(void *test_cmd) =
 // 59
     Maxion_Internal_Init_Cmd_Handler,
 // 60
-    Unregistered_Handler, // Future HW Use
+    PMIC_Module_Temperature_Cmd_Handler,
 // 61
-    Unregistered_Handler, // Future HW Use
+    PMIC_Module_Power_Cmd_Handler,
 // 62
     Unregistered_Handler, // Future HW Use
 // 63
