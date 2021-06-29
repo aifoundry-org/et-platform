@@ -415,12 +415,12 @@ int8_t ETSOC_Memory_Write_Global_Atomic(const void *src_ptr, void *dest_ptr, uin
 ***********************************************************************/
 int8_t ETSOC_Memory_Read_Write_Cacheable(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
+    const uint8_t *byte_src_ptr = src_ptr;
+    uint8_t *byte_dest_ptr = dest_ptr;
+
     /* If the addresses are 256-bit aligned */
     if ((length >= 32) && !((uintptr_t)src_ptr & 0x1F) && !((uintptr_t)dest_ptr & 0x1F))
     {
-        const uint8_t *byte_src_ptr = src_ptr;
-        uint8_t *byte_dest_ptr = dest_ptr;
-
         do
         {
             memcpy256((uintptr_t)byte_dest_ptr, (uintptr_t)byte_src_ptr);
@@ -431,7 +431,7 @@ int8_t ETSOC_Memory_Read_Write_Cacheable(const void *src_ptr, void *dest_ptr, ui
     }
 
     /* Copy the remaining bytes */
-    memcpy(dest_ptr, src_ptr, length);
+    memcpy(byte_dest_ptr, byte_src_ptr, length);
 
     return ETSOC_MEM_OPERATION_SUCCESS;
 }
