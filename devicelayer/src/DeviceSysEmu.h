@@ -29,6 +29,7 @@ struct CircBuffCb {
   uint64_t head_offset; /**< Offset of the circular buffer to write data to */
   uint64_t tail_offset; /**< Offset of the circular buffer to read data from */
   uint64_t length;      /**< Total length (in bytes) of the circular buffer */
+  uint64_t pad;         /**< Padding to make the struct 32-bytes aligned */
 } __attribute__((__packed__));
 
 class DeviceSysEmu : public IDeviceLayer {
