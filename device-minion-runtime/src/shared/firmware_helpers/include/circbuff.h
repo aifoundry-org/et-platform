@@ -59,6 +59,7 @@ typedef struct __attribute__((__packed__)) circ_buff_cb {
     uint64_t head_offset;   /**< Offset of the circular buffer to write data to */
     uint64_t tail_offset;   /**< Offset of the circular buffer to read data from */
     uint64_t length;        /**< Total length (in bytes) of the circular buffer */
+    uint64_t pad;           /**< Padding to make the struct 32-bytes aligned */
     uint8_t buffer_ptr[];   /**< Flexible array to access circular buffer memory
                             located just after circ_buff_cb_t */
 } circ_buff_cb_t;

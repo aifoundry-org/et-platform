@@ -239,12 +239,8 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_s
     /* Last thread in kernel launch sets the kernel launch global flag for MM */
     if (kernel_last_thread)
     {
-        cm_kernel_launched_flag_t kernel_launched;
-
         /* Set the L2 SCP kernel launched flag for the acquired kernel worker slot */
-        kernel_launched.flag = 1;
-        ETSOC_Memory_Write_SCP(&kernel_launched, &CM_KERNEL_LAUNCHED_FLAG[kernel.slot_index].flag,
-            sizeof(kernel_launched.flag));
+        atomic_store_global_32(&CM_KERNEL_LAUNCHED_FLAG[kernel.slot_index].flag, 1);
     }
 
     // -Save firmware context on supervisor stack and sp to supervisor stack SP region

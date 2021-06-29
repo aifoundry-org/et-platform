@@ -390,6 +390,14 @@ static_assert(((MM_SQ_COUNT * MM_SQ_SIZE) + (MM_CQ_COUNT * MM_CQ_SIZE)) <= MM_VQ
 static_assert((SPW_BASE_HART_ID > DISPATCHER_BASE_HART_ID) && (SPW_BASE_HART_ID < SQW_BASE_HART_ID),
     "SP Worker Hart ID overlapping");
 
+/* Ensure that MM SQs are in sync with FW memory layout */
+static_assert(MM_SQ_COUNT <= MM_SQ_COUNT_MAX,
+    "Number of MM Submission Queues not synced with memory layout file.");
+
+/* Ensure that MM SQ size is in sync with FW memory layout */
+static_assert(MM_SQ_SIZE <= MM_SQ_SIZE_MAX,
+    "Size of MM Submission Queues not synced with memory layout file.");
+
 #endif /* __ASSEMBLER__ */
 
 #endif /* __MM_CONFIG_H__ */

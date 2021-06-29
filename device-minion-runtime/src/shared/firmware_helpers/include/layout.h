@@ -48,6 +48,10 @@
 /* FW trace related defines */
 #define TRACE_CB_MAX_SIZE           64
 
+/* MM VQs related defines */
+#define MM_SQ_COUNT_MAX             4
+#define MM_SQ_SIZE_MAX              0x900
+
 /* SCP related defines */
 /* TODO: SW-8195: See if these values can come from HAL */
 #define ETSOC_SCP_REGION_BASEADDR                   0x80000000ULL
@@ -63,14 +67,19 @@
 /*     - user            - base-offset   - size                  */
 /*     CM Unicast buff   0x0             0x5000 (20K)            */
 /*     CM Kernel flags   0x5000          0x100 (256 bytes)       */
+/*     MM SQ prefetch    0x5100          0x2400 (9K)             */
 /*****************************************************************/
 #define CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_OFFSET  0x0
-#define CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR    ETSOC_SCP_GET_SHIRE_ADDR(32, CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_OFFSET)
+#define CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR    ETSOC_SCP_GET_SHIRE_ADDR(MASTER_SHIRE, CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_OFFSET)
 #define CM_MM_IFACE_UNICAST_CIRCBUFFERS_SIZE         ((1 + MAX_SIMULTANEOUS_KERNELS) * CM_MM_IFACE_CIRCBUFFER_SIZE)
 
 #define CM_KERNEL_LAUNCHED_FLAG_BASE_OFFSET          CM_MM_IFACE_UNICAST_CIRCBUFFERS_SIZE
-#define CM_KERNEL_LAUNCHED_FLAG_BASEADDR             ETSOC_SCP_GET_SHIRE_ADDR(32, CM_KERNEL_LAUNCHED_FLAG_BASE_OFFSET)
+#define CM_KERNEL_LAUNCHED_FLAG_BASEADDR             ETSOC_SCP_GET_SHIRE_ADDR(MASTER_SHIRE, CM_KERNEL_LAUNCHED_FLAG_BASE_OFFSET)
 #define CM_KERNEL_LAUNCHED_FLAG_BASEADDR_SIZE        (MAX_SIMULTANEOUS_KERNELS * KERNEL_LAUNCH_FLAG_SIZE)
+
+#define MM_SQ_PREFETCHED_COPY_BASE_OFFSET            (CM_KERNEL_LAUNCHED_FLAG_BASE_OFFSET + CM_KERNEL_LAUNCHED_FLAG_BASEADDR_SIZE)
+#define MM_SQ_PREFETCHED_COPY_BASEADDR               ETSOC_SCP_GET_SHIRE_ADDR(MASTER_SHIRE, MM_SQ_PREFETCHED_COPY_BASE_OFFSET)
+#define MM_SQ_PREFETCHED_COPY_SIZE                   (MM_SQ_COUNT_MAX * MM_SQ_SIZE_MAX)
 
 /*****************************************************************/
 /*              - Low MCODE Region Layout (2M) -                 */

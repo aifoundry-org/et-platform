@@ -282,8 +282,8 @@ static int8_t kw_wait_for_kernel_launch_flag(uint8_t sqw_idx, uint8_t slot_index
         do
         {
             /* Read the kernel launch flag from MM L2 SCP */
-            ETSOC_Memory_Read_SCP(&CM_KERNEL_LAUNCHED_FLAG[slot_index].flag,
-                &kernel_launched, sizeof(kernel_launched.flag));
+            kernel_launched.flag =
+                atomic_load_global_32(&CM_KERNEL_LAUNCHED_FLAG[slot_index].flag);
 
             /* Read the timeout flag */
             timeout_flag = atomic_compare_and_exchange_local_32(
@@ -647,8 +647,6 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
 
     if(status == STATUS_SUCCESS)
     {
-        cm_kernel_launched_flag_t kernel_launched;
-
         /* Populate the tag_id and sqw_idx for KW */
         atomic_store_local_16(&kernel->launch_tag_id, cmd->command_info.cmd_hdr.tag_id);
         atomic_store_local_16(&kernel->sqw_idx, sqw_idx);
@@ -676,9 +674,7 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
         }
 
         /* Reset the L2 SCP kernel launched flag for the acquired kernel worker slot */
-        kernel_launched.flag = 0;
-        ETSOC_Memory_Write_SCP(&kernel_launched, &CM_KERNEL_LAUNCHED_FLAG[slot_index].flag,
-            sizeof(kernel_launched.flag));
+        atomic_store_global_32(&CM_KERNEL_LAUNCHED_FLAG[slot_index].flag, 0);
 
         /* Blocking call that blocks till all shires ack command */
         status = CM_Iface_Multicast_Send(launch_args.kernel.shire_mask,

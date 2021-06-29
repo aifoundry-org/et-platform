@@ -27,6 +27,9 @@
 #include "etsoc_memory.h"
 #include "io.h"
 #include "device-common/atomic.h"
+#ifdef MEM_DEBUG
+#include "../../../MasterMinion/include/services/log.h"
+#endif
 
 /*! \def ENABLE_256_BIT_ACCESS
     \brief Macro that is used to enable 256-bit non-atomic access primitive.
@@ -234,6 +237,12 @@ static inline void io_write_64(volatile uint64_t *addr, uint64_t val)
 ***********************************************************************/
 int8_t ETSOC_Memory_Read_Uncacheable(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
+#ifdef MEM_DEBUG
+    Log_Write(LOG_LEVEL_DEBUG,
+        "ETSOC_MEM_Uncache:read_len: %ld, src_aligned_256: %d, dst_aligned_256: %d\r\n",
+        length, !((uintptr_t)src_ptr & 0x1F), !((uintptr_t)dest_ptr & 0x1F));
+#endif
+
     optimized_memory_read_body(io_read_8, io_read_16, io_read_32, \
         io_read_64, ENABLE_256_BIT_ACCESS, src_ptr, dest_ptr, length);
 
@@ -264,6 +273,12 @@ int8_t ETSOC_Memory_Read_Uncacheable(const void *src_ptr, void *dest_ptr, uint64
 ***********************************************************************/
 int8_t ETSOC_Memory_Write_Uncacheable(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
+#ifdef MEM_DEBUG
+    Log_Write(LOG_LEVEL_DEBUG,
+        "ETSOC_MEM_Uncache:write_len: %ld, src_aligned_256: %d, dst_aligned_256: %d\r\n",
+        length, !((uintptr_t)src_ptr & 0x1F), !((uintptr_t)dest_ptr & 0x1F));
+#endif
+
     optimized_memory_write_body(io_write_8, io_write_16, io_write_32, \
         io_write_64, ENABLE_256_BIT_ACCESS, src_ptr, dest_ptr, length);
 

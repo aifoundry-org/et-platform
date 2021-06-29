@@ -221,35 +221,45 @@ void SQW_Notify(uint8_t sqw_idx)
 *       vq_cached       VQ pointer
 *       start_cycles    Command processing start cycles.
 *       shared_mem_ptr  Shared memory pointer of VQ
+*       vq_used_space   Total number of data bytes to process
 *
 *   OUTPUTS
 *
-*       bool            True to update tail of VG.
-*                       False means no data was available to process.
+*       None
 *
 ***********************************************************************/
-static inline bool sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_cached, uint64_t start_cycles,
-    void* shared_mem_ptr)
+static inline void sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_cached, uint64_t start_cycles,
+    void* shared_mem_ptr, uint64_t vq_used_space)
 {
-    uint8_t cmd_buff[MM_CMD_MAX_SIZE] __attribute__((aligned(64))) = { 0 };
-    const struct cmd_header_t *cmd_hdr = (void*)cmd_buff;
+    uint8_t *cmd_buff = (uint8_t*)(MM_SQ_PREFETCHED_COPY_BASEADDR + sqw_idx * MM_SQ_SIZE_MAX);
+    const struct cmd_header_t *cmd_hdr;
     int32_t pop_ret_val;
     int8_t status = STATUS_SUCCESS;
-    bool update_tail = false;
+    uint32_t cmd_buff_idx = 0;
 
-    /* Calculate the total number of bytes available in the VQ */
-    uint64_t vq_used_space = VQ_Get_Used_Space(vq_cached, CIRCBUFF_FLAG_NO_READ);
+    /* Create a shadow copy of data from SQ to L2 SCP */
+    status = VQ_Pop_Optimized(vq_cached, vq_used_space, shared_mem_ptr, cmd_buff);
 
-    /* Process commands until there is no more data in VQ */
-    while(vq_used_space)
+    if(status != STATUS_SUCCESS)
     {
-        /* Pop from Submission Queue */
-        pop_ret_val = VQ_Pop_Optimized(vq_cached, vq_used_space, shared_mem_ptr, cmd_buff);
+        Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:VQ pop_optimized failed:%d\r\n",
+            status);
+        return;
+    }
+
+    while(cmd_buff_idx < vq_used_space)
+    {
+        /* Process commands from L2 SCP prefetched copy */
+        pop_ret_val = VQ_Verify_Cmd_Optimized(cmd_buff, vq_used_space, cmd_buff_idx);
 
         if(pop_ret_val > 0)
         {
-            Log_Write(LOG_LEVEL_DEBUG, "SQW:Processing:SQW_IDX=%d:tag_id=%x\r\n",
-                sqw_idx, cmd_hdr->cmd_hdr.tag_id);
+            /* Set the command starting address */
+            cmd_hdr = (void*)&cmd_buff[cmd_buff_idx];
+
+            Log_Write(LOG_LEVEL_DEBUG,
+                "SQW:Processing:SQW_IDX=%d:tag_id=%x:Popped_length:%d\r\n",
+                sqw_idx, cmd_hdr->cmd_hdr.tag_id, pop_ret_val);
 
             /* If barrier flag is set, wait until all cmds are
             processed in the current SQ */
@@ -264,7 +274,7 @@ static inline bool sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_ca
             takes to process a command. */
             SQW_Increment_Command_Count((uint8_t)sqw_idx);
 
-            status = Host_Command_Handler(cmd_buff,
+            status = Host_Command_Handler(&cmd_buff[cmd_buff_idx],
                 (uint8_t)sqw_idx, start_cycles);
 
             if(status != STATUS_SUCCESS)
@@ -272,23 +282,19 @@ static inline bool sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_ca
                 Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:Processing failed:%d\r\n",
                     status);
             }
+
+            /* Update the command buffer index */
+            cmd_buff_idx += (uint32_t)pop_ret_val;
         }
         else if(pop_ret_val < 0)
         {
-            Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:VQ pop failed:%d\r\n",
-                pop_ret_val);
+            Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:VQ cmd processing failed:%d\r\n", pop_ret_val);
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_PROCESSING_ERROR);
+
+            /* Being pessimistic and update the command buffer index with VQ cmd header size */
+            cmd_buff_idx += DEVICE_CMD_HEADER_SIZE;
         }
-
-        /* Re-calculate the total number of bytes available in the VQ */
-        vq_used_space = VQ_Get_Used_Space(vq_cached, CIRCBUFF_FLAG_NO_READ);
-
-        /* Set the SQ tail update flag so that we can updated shared
-        memory circular buffer CB with new tail offset */
-        update_tail = true;
     }
-
-    return update_tail;
 }
 
 /************************************************************************
@@ -316,15 +322,13 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
     uint64_t tail_prev;
     uint64_t start_cycles = 0;
     void* shared_mem_ptr;
-    circ_buff_cb_t circ_buff_cached __attribute__((aligned(8)));
+    circ_buff_cb_t circ_buff_cached __attribute__((aligned(64)));
     vq_cb_t vq_cached;
 
     /* Declare a pointer to the VQ control block that is pointing to the VQ attributes in
     global memory and the actual Circular Buffer CB in SRAM (which is shared with host) */
     vq_cb_t *vq_shared = Host_Iface_Get_VQ_Base_Addr(SQ, (uint8_t)sqw_idx);
 
-    /* TODO: This could also be achieved by using VQ CB as always cached,
-    by locking the global variable in cache - VQ CB could be kept in SCP */
     /* Make a copy of the VQ CB in cached DRAM to cached L1 stack variable */
     ETSOC_Memory_Read_Local_Atomic((void*)vq_shared, (void*)&vq_cached, sizeof(vq_cached));
 
@@ -384,8 +388,26 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
             vq_cached.circbuff_cb->tail_offset = tail_prev;
         }
 
-        update_sq_tail = sqw_process_waiting_commands(sqw_idx, &vq_cached, start_cycles,
-                                                      shared_mem_ptr);
+        /* Reset the update tail flag */
+        update_sq_tail = false;
+
+        /* Calculate the total number of bytes available in the VQ */
+        uint64_t vq_used_space = VQ_Get_Used_Space(&vq_cached, CIRCBUFF_FLAG_NO_READ);
+
+        /* Process commands until there is no more data in VQ */
+        while(vq_used_space)
+        {
+            /* Process the pending commands */
+            sqw_process_waiting_commands(sqw_idx, &vq_cached, start_cycles, shared_mem_ptr,
+                vq_used_space);
+
+            /* Re-calculate the total number of bytes available in the VQ */
+            vq_used_space = VQ_Get_Used_Space(&vq_cached, CIRCBUFF_FLAG_NO_READ);
+
+            /* Set the SQ tail update flag so that we can updated shared
+            memory circular buffer CB with new tail offset */
+            update_sq_tail = true;
+        }
 
         if(update_sq_tail)
         {

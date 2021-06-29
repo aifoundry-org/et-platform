@@ -18,6 +18,7 @@
         VQ_Push
         VQ_Pop
         VQ_Pop_Optimized
+        VQ_Verify_Cmd_Optimized
         VQ_Data_Avail
         VQ_Deinit
 */
@@ -118,7 +119,7 @@ int8_t VQ_Init(vq_cb_t *vq_cb, uint64_t vq_base, uint32_t vq_size,
 *
 *   OUTPUTS
 *
-*       uint8_t    status of virtual queue push operation
+*       int8_t    status of virtual queue push operation
 *
 ***********************************************************************/
 int8_t VQ_Push(vq_cb_t* vq_cb, void* data, uint32_t data_size)
@@ -267,26 +268,52 @@ int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
 *
 *   OUTPUTS
 *
+*       int8_t         Returns successful status or error code.
+*
+***********************************************************************/
+int8_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint64_t vq_used_space,
+    void *const shared_mem_ptr,  void* rx_buff)
+{
+    int8_t status;
+
+    /* Pop the bytes from circular buffer */
+    status = Circbuffer_Read(vq_cb->circbuff_cb, shared_mem_ptr,
+        rx_buff, vq_used_space, vq_cb->flags);
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       VQ_Verify_Cmd_Optimized
+*
+*   DESCRIPTION
+*
+*       This function is used to verify a popped command from virtual queue.
+*
+*   INPUTS
+*
+*       cmds_buff      Pointer to rx buffer to process from
+*       buffer_size    Number of bytes available to process
+*       buffer_idx     Index of the commands buffer from where the data
+*                      is to be read
+*
+*   OUTPUTS
+*
 *       int32_t        Negative value - error
 *                      Positive value - Number of bytes popped
 *
 ***********************************************************************/
-int32_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint64_t vq_used_space,
-    void *const shared_mem_ptr,  void* rx_buff)
+int32_t VQ_Verify_Cmd_Optimized(void* cmds_buff, uint64_t buffer_size, uint32_t buffer_idx)
 {
     int32_t return_val;
-    uint16_t cmd_size = 0;
+    uint16_t cmd_size;
     uint32_t payload_size;
 
-    /* Pop the header from circular buffer */
-    return_val = Circbuffer_Read(vq_cb->circbuff_cb, shared_mem_ptr,
-        rx_buff, DEVICE_CMD_HEADER_SIZE, vq_cb->flags);
-
-    if (return_val == STATUS_SUCCESS)
-    {
-        /* Get the size of the command header + payload */
-        cmd_size = DEVICE_GET_CMD_SIZE(rx_buff);
-    }
+    /* Get the size of the command header + payload */
+    cmd_size = DEVICE_GET_CMD_SIZE(&(((uint8_t*)cmds_buff)[buffer_idx]));
 
     /* If payload is available.
        Command size should be at least equal to command header + payload. */
@@ -295,17 +322,9 @@ int32_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint64_t vq_used_space,
         payload_size = (cmd_size - DEVICE_CMD_HEADER_SIZE);
 
         /* Verify the payload size */
-        if (payload_size <= vq_used_space)
+        if (payload_size <= (buffer_size - buffer_idx))
         {
-            /* Pop the command payload from circular buffer */
-            return_val = Circbuffer_Read(vq_cb->circbuff_cb, shared_mem_ptr,
-                ((uint8_t*)rx_buff) + DEVICE_CMD_HEADER_SIZE, payload_size, vq_cb->flags);
-
-            /* Populate the popped size */
-            if (return_val == STATUS_SUCCESS)
-            {
-                return_val = cmd_size;
-            }
+            return_val = cmd_size;
         }
         else
         {
@@ -315,7 +334,7 @@ int32_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint64_t vq_used_space,
     }
     else if(cmd_size == DEVICE_CMD_HEADER_SIZE)
     {
-        /* Populate the popped size */
+        /* Populate the total command size */
         return_val = cmd_size;
     }
     else

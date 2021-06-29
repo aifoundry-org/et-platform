@@ -45,6 +45,11 @@
 */
 #define IS_ALIGNED(address, alignment)   (!((uintptr_t)address & (alignment - 1U)))
 
+/*! \def ALIGN_TO(address, alignment)
+    \brief A macro that is used to align the specified address to the next byte specified boundary
+*/
+#define ALIGN_TO(address, alignment)     (((address + (alignment - 1)) / alignment) * alignment)
+
 /*! \def HARTS_PER_SHIRE
     \brief A macro that provides number of Harts per Shire
 */
@@ -65,7 +70,7 @@
     \brief A macro that provides the total size (in bytes) of command
     stored in command header
 */
-#define DEVICE_GET_CMD_SIZE(header_ptr)  *((uint16_t*)header_ptr)
+#define DEVICE_GET_CMD_SIZE(header_ptr)  *((uint16_t*)(uintptr_t)header_ptr)
 
 /*! \struct exec_cycle_t
      \brief Struct containing 2 elements:

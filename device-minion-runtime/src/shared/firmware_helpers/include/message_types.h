@@ -82,14 +82,14 @@ typedef enum {
 #define KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH (1u << 0)
 
 typedef struct {
-    uint8_t kw_base_id;
-    uint8_t slot_index;
-    uint8_t flags;
     uint64_t code_start_address;
     uint64_t pointer_to_args;
     uint64_t shire_mask;
     uint64_t exception_buffer;
     uint64_t trace_buffer;
+    uint8_t kw_base_id;
+    uint8_t slot_index;
+    uint8_t flags;
 } __attribute__((packed)) mm_to_cm_message_kernel_params_t;
 
 typedef struct {

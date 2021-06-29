@@ -65,7 +65,7 @@ int8_t (*memory_write[MEM_TYPES_COUNT])
 ***********************************************************************/
 int8_t Circbuffer_Init(circ_buff_cb_t *circ_buff_cb_ptr, uint64_t buffer_length, uint32_t flags)
 {
-    circ_buff_cb_t circ_buff __attribute__((aligned(8)));
+    circ_buff_cb_t circ_buff __attribute__((aligned(64)));
 
     /* Reset the head and tail offsets */
     circ_buff.head_offset = 0;
@@ -109,7 +109,7 @@ int8_t Circbuffer_Push(circ_buff_cb_t *  const circ_buff_cb_ptr,
 {
     int8_t status = CIRCBUFF_OPERATION_SUCCESS;
     const uint8_t *src_u8 = (const uint8_t *)src_buffer;
-    circ_buff_cb_t circ_buff __attribute__((aligned(8)));
+    circ_buff_cb_t circ_buff __attribute__((aligned(64)));
 
     /* Read the circular buffer CB from memory */
     (*memory_read[flags]) (circ_buff_cb_ptr, &circ_buff, sizeof(circ_buff));
@@ -184,7 +184,7 @@ int8_t Circbuffer_Pop(circ_buff_cb_t *const circ_buff_cb_ptr,
 {
     int8_t status = CIRCBUFF_OPERATION_SUCCESS;
     uint8_t *dest_u8 = (uint8_t *)dest_buffer;
-    circ_buff_cb_t circ_buff __attribute__((aligned(8)));
+    circ_buff_cb_t circ_buff __attribute__((aligned(64)));
     uint64_t used_space;
 
     /* Read the circular buffer CB from memory */
@@ -336,7 +336,7 @@ int8_t Circbuffer_Peek(circ_buff_cb_t *const circ_buff_cb_ptr,
 {
     int8_t status = CIRCBUFF_OPERATION_SUCCESS;
     uint8_t *dest_u8 = (uint8_t *)dest_buffer;
-    circ_buff_cb_t circ_buff __attribute__((aligned(8)));
+    circ_buff_cb_t circ_buff __attribute__((aligned(64)));
     uint64_t used_space;
 
     /* Read the circular buffer CB from memory */
