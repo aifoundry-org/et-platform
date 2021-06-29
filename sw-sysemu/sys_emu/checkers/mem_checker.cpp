@@ -1182,7 +1182,7 @@ void mem_checker::l2_evict(uint32_t shire_id, uint32_t cache_bank)
     {
         uint64_t addr = it_shire->first;
         bool bank = (((addr & 0xC0) >> 6) == cache_bank);
-        if(bank && !it_shire->second.cb_dirty)
+        if(bank)
         {
             MD_LOG(addr, log_minion + 1, LOG_AGENT(DEBUG, *this, "mem_checker::l2_evict => evicting addr %016llX, shire_id %i\n", (long long unsigned int) addr, shire_id));
 
