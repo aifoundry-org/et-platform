@@ -50,8 +50,16 @@ int OTP_Write_Word (uint32_t Bank, uint32_t Row, uint32_t mask, uint32_t data);
 
 /*! \fn int otp_get_chip_revision(char *chip_rev)
     \brief Interface to get the chip revision
-    \param *chip_rev  Pointer to chip revision variable
+    \param *chip_rev Pointer to chip revision variable
     \returns Status indicating success or negative error
 */
 int otp_get_chip_revision(char *chip_rev);
+
+/*! \fn int otp_get_master_shire_id(uint8_t *mm_id)
+    \brief Interface to get the chip master shire ID
+    \param mm_id Pointer to master shire ID variable
+    \returns Status indicating success or negative error
+*/
+int otp_get_master_shire_id(uint8_t *mm_id);
+
 #endif

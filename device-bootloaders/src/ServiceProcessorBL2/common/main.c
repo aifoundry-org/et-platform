@@ -74,6 +74,7 @@ static StaticTask_t gs_taskBufferMain;
 static void taskMain(void *pvParameters)
 {
     uint64_t minion_shires_mask;
+    uint8_t mm_id;
     (void)pvParameters;
 
     // Disable buffering on stdout
@@ -154,8 +155,16 @@ static void taskMain(void *pvParameters)
         goto FIRMWARE_LOAD_ERROR;
     }
 
-    // TODO: SW-3877 need to READ Master Shire ID from OTP, potentially reprogram NOC
-    if (0 != Minion_Enable_Master_Shire_Threads(32)) {
+    // Potentially reprogram NOC?
+    if (0 != otp_get_master_shire_id(&mm_id)){
+        Log_Write(LOG_LEVEL_ERROR, "Failed to read master minion shire ID!\n");
+        goto FIRMWARE_LOAD_ERROR;        
+    }
+    
+    //Value wasn't burned into fuse, using default value
+    if (mm_id == 0xff) mm_id = 32;
+
+    if (0 != Minion_Enable_Master_Shire_Threads(mm_id)) {
         Log_Write(LOG_LEVEL_ERROR, "Failed to enable Master minion threads!\n");
         goto FIRMWARE_LOAD_ERROR;
     }

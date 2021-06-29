@@ -167,12 +167,12 @@ int OTP_Write_Word (uint32_t bank, uint32_t row, uint32_t mask, uint32_t value)
 
     if (!gs_is_otp_available)
     {
-        return -1;
+        return ERROR_SP_OTP_OTP_NOT_AVAILABLE;
     }
 
     if (otp_is_bank_locked(bank_index))
     {
-        return -1;
+        return ERROR_SP_OTP_OTP_NOT_AVAILABLE;
     }
 
     old_value = sp_otp_data[offset];
@@ -211,13 +211,15 @@ int OTP_Write_Word (uint32_t bank, uint32_t row, uint32_t mask, uint32_t value)
 ***********************************************************************/
 int otp_get_chip_revision(char *chip_rev)
 {
+    int status;
     uint64_t chip_revision;
     OTP_SILICON_REVISION_t silicon_revision;
 
-    if (0 != sp_otp_get_silicon_revision(&silicon_revision)) 
+    status = sp_otp_get_silicon_revision(&silicon_revision);
+    if (status != 0) 
     {
         Log_Write(LOG_LEVEL_ERROR, "sp_otp_get_silicon_revision() failed!\n");
-        return -1;
+        return status;
     }
 
     chip_revision =
@@ -225,5 +227,41 @@ int otp_get_chip_revision(char *chip_rev)
 
     sprintf(chip_rev, "%ld", chip_revision);
 
-    return 0;
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       otp_get_master_shire_id
+*
+*   DESCRIPTION
+*
+*       This function reads Master shire ID from OTP memory
+*
+*   INPUTS
+*
+*       *mm_id    Pointer to MM ID variable
+*
+*   OUTPUTS
+*
+*       int          Return status
+*
+***********************************************************************/
+int otp_get_master_shire_id(uint8_t *mm_id)
+{
+    int status;
+    OTP_NEIGHBORHOOD_STATUS_NH128_NH135_OTHER_t neigh_config;
+
+    status = sp_otp_get_neighborhood_status_nh128_nh135_other(&neigh_config);
+    if (status != 0) 
+    {
+        Log_Write(LOG_LEVEL_ERROR, "sp_otp_get_neighborhood_status_nh128_nh135_other() failed!\n");
+        return status;
+    }
+
+    *mm_id = neigh_config.B.shire_master_id;
+
+    return status;
 }
