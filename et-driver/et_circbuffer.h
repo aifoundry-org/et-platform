@@ -25,6 +25,7 @@ struct et_circbuffer {
 	u64 head;
 	u64 tail;
 	u64 len;
+	u64 pad;
 	u8 __iomem buf[];
 } __packed;
 
