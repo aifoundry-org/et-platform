@@ -150,7 +150,7 @@ void Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
     SP_Trace_CB.base_per_hart = SP_TRACE_BUFFER_BASE;
 
     /* Initialize Trace for each all Harts in Service Processor. */
-    Trace_Init(&sp_init_info_l, &SP_Trace_CB);
+    Trace_Init(&sp_init_info_l, &SP_Trace_CB, TRACE_STD_HEADER);
 }
 
 /************************************************************************
