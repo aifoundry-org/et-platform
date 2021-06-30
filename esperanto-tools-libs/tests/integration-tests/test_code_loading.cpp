@@ -54,7 +54,7 @@ public:
     elf_file.seekg(0, std::ios::end);
     auto size = elf_file.tellg();
     ASSERT_GT(size, 0);
-    convolutionContent_.resize(size);
+    convolutionContent_.resize(static_cast<unsigned long>(size));
     elf_file.seekg(0);
     elf_file.read(reinterpret_cast<char*>(convolutionContent_.data()), size);
   }

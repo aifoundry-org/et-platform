@@ -55,7 +55,15 @@ public:
   bool waitForEvent(EventId event, std::chrono::milliseconds timeout) override;
   void waitForStream(StreamId stream) override;
   bool waitForStream(StreamId stream, std::chrono::milliseconds timeout) override;
-  std::unique_ptr<DmaBuffer> allocateDmaBuffer(DeviceId device, size_t size, bool writeable) override;
+
+  std::unique_ptr<DmaBuffer> allocateDmaBuffer(DeviceId device, size_t size, bool writeable) final;
+
+  EventId setupDeviceTracing(StreamId stream, uint32_t shireMask, uint32_t threadMask, uint32_t eventMask,
+                             uint32_t filterMask, bool barrier = true) override;
+  EventId startDeviceTracing(StreamId stream, std::ostream* mmOutput, std::ostream* cmOutput,
+                             bool barrier = true) override;
+
+  EventId stopDeviceTracing(StreamId stream, bool barrier = true) override;
 
   IProfiler* getProfiler() override {
     return &profiler_;
@@ -107,9 +115,14 @@ private:
     int queueCount_;
   };
 
+  struct DeviceFwTracing {
+    std::unique_ptr<DmaBuffer> dmaBuffer_;
+    std::ostream* mmOutput_;
+    std::ostream* cmOutput_;
+  };
 
-  template<typename Command, typename Lock>
-  void sendCommandMasterMinion(Stream& stream, EventId event, Command&& command, Lock& lock, bool isDma=false) {
+  template <typename Command, typename Lock>
+  void sendCommandMasterMinion(Stream& stream, EventId event, Command&& command, Lock& lock, bool isDma = false) {
     auto sqIdx = stream.vq_;
     auto device = static_cast<int>(stream.deviceId_);
     bool done = false;
@@ -136,6 +149,7 @@ private:
   std::vector<QueueHelper> queueHelpers_;
   std::unordered_map<DeviceId, MemoryManager> memoryManagers_;
   std::unordered_map<DeviceId, std::unique_ptr<DmaBufferManager>> dmaBufferManagers_;
+  std::unordered_map<DeviceId, DeviceFwTracing> deviceTracing_;
   std::unordered_map<StreamId, Stream> streams_;
 
   EventManager eventManager_;
@@ -147,6 +161,9 @@ private:
   int nextStreamId_ = 0;
 
   mutable std::recursive_mutex mutex_;
+
+  // this mutex should be used when accessing stream related internals
+  mutable std::mutex streamsMutex_;
 
   profiling::ProfilerImp profiler_;
   std::unique_ptr<KernelParametersCache> kernelParametersCache_;

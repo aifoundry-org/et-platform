@@ -22,7 +22,7 @@ inline std::vector<std::byte> readFile(const std::string &path) {
   auto size = endF - iniF;
   file.seekg(0, std::ios::beg);
 
-  std::vector<std::byte> fileContent(size);
+  std::vector<std::byte> fileContent(static_cast<uint32_t>(size));
   file.read(reinterpret_cast<char *>(fileContent.data()), size);
   return fileContent;
 }
@@ -37,7 +37,7 @@ public:
       devices_ = runtime_->getDevices();
   }
 
-  rt::KernelId loadKernel(const std::string& kernel_name, int deviceIdx = 0) {
+  rt::KernelId loadKernel(const std::string& kernel_name, uint32_t deviceIdx = 0) {
     auto kernelContent = readFile(std::string{KERNELS_DIR} + "/" + kernel_name);
     EXPECT_FALSE(kernelContent.empty());
     EXPECT_TRUE(devices_.size() > deviceIdx);
@@ -74,12 +74,12 @@ inline auto getDefaultOptions() {
   return sysEmuOptions;
 }
 
-inline
-void run_stress_mem(rt::IRuntime* runtime, size_t bytes, int transactions, int streams, int threads, bool check_results=true) {
+inline void run_stress_mem(rt::IRuntime* runtime, size_t bytes, uint32_t transactions, uint32_t streams,
+                           uint32_t threads, bool check_results = true) {
   std::vector<std::thread> threads_;
   using namespace testing;
-  
-  for (int i = 0; i < threads; ++i) {
+
+  for (auto i = 0u; i < threads; ++i) {
     threads_.emplace_back([=]{
       std::mt19937 gen(std::random_device{}());
       std::uniform_int_distribution dis(0, 256);
@@ -89,9 +89,9 @@ void run_stress_mem(rt::IRuntime* runtime, size_t bytes, int transactions, int s
       std::vector<std::vector<std::byte>> host_src(transactions);
       std::vector<std::vector<std::byte>> host_dst(transactions);
       std::vector<void*> dev_mem(transactions);
-      for (int j = 0; j < streams; ++j) {
+      for (auto j = 0u; j < streams; ++j) {
         streams_[j] = runtime->createStream(dev);
-        for (int k = 0; k < transactions / streams; ++k) {
+        for (auto k = 0u; k < transactions / streams; ++k) {
           auto idx = k + j * transactions / streams;
           host_src[idx] = std::vector<std::byte>(bytes);
           host_dst[idx] = std::vector<std::byte>(bytes);
@@ -104,16 +104,16 @@ void run_stress_mem(rt::IRuntime* runtime, size_t bytes, int transactions, int s
           runtime->memcpyDeviceToHost(streams_[j], dev_mem[idx], host_dst[idx].data(), bytes);
         }
       }
-      for (int j = 0; j < streams; ++j) {
+      for (auto j = 0u; j < streams; ++j) {
         runtime->waitForStream(streams_[j]);
         if (check_results) {
-          for (int k = 0; k < transactions / streams; ++k) {
+          for (auto k = 0u; k < transactions / streams; ++k) {
             auto idx = k + j * transactions / streams;
             runtime->freeDevice(dev, dev_mem[idx]);
             ASSERT_THAT(host_dst[idx], ElementsAreArray(host_src[idx]));
           }
         }
-        runtime->destroyStream(streams_[j]);        
+        runtime->destroyStream(streams_[j]);
       };
       for (auto m: dev_mem) {
           runtime->freeDevice(dev, m);

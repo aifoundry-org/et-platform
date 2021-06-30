@@ -8,7 +8,7 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 
-#include "RuntimeImp.h" 
+#include "RuntimeImp.h"
 #include "KernelParametersCache.h"
 #include "MemoryManager.h"
 #include "ScopedProfileEvent.h"
@@ -22,12 +22,21 @@
 #include <elfio/elfio.hpp>
 
 #include <chrono>
-#include <cstdio>
 #include <memory>
 #include <sstream>
 
 using namespace rt;
 using namespace rt::profiling;
+
+namespace {
+// these constants are based on documentation:
+// https://esperantotech.atlassian.net/wiki/spaces/SW/pages/1289355429/Device+Ops+Interface+-+Command+Response+Events+Bindings#Trace-setup-and-execution-flow
+constexpr auto kTracingFwMmSize = 4 * (1 << 20);
+constexpr auto kTracingFwCmSize = 1 * (1 << 20);
+constexpr auto kTracingFwBufferSize = kTracingFwCmSize + kTracingFwMmSize;
+constexpr int kEnableTracingBit = 1 << 0;
+constexpr int kResetTraceBufferAddressBit = 1 << 2; // Reset Trace buffer point to device side Trace Buffer base address
+} // namespace
 
 RuntimeImp::~RuntimeImp() {
   RT_LOG(INFO) << "Destroying runtime";
@@ -47,6 +56,7 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
   for (auto&& d : devices_) {
     memoryManagers_.try_emplace(d, MemoryManager{dramBaseAddress, dramSize, kBlockSize});
     dmaBufferManagers_.try_emplace(d, std::make_unique<DmaBufferManager>(deviceLayer_, static_cast<int>(d)));
+    deviceTracing_.try_emplace(d, DeviceFwTracing{allocateDmaBuffer(d, kTracingFwBufferSize, false), nullptr, nullptr});
   }
   kernelParametersCache_ = std::make_unique<KernelParametersCache>(this);
   responseReceiver_ = std::make_unique<ResponseReceiver>(deviceLayer_, this);
@@ -59,7 +69,7 @@ std::vector<DeviceId> RuntimeImp::getDevices() {
 
 KernelId RuntimeImp::loadCode(DeviceId device, const void* data, size_t size) {
   ScopedProfileEvent profileEvent(Class::LoadCode, profiler_, device);
-  std::unique_lock<std::recursive_mutex> lock(mutex_);
+  std::unique_lock lock(mutex_);
 
   // allocate a buffer in the device to load the code
   auto deviceBuffer = mallocDevice(device, size);
@@ -115,7 +125,7 @@ KernelId RuntimeImp::loadCode(DeviceId device, const void* data, size_t size) {
 
 void RuntimeImp::unloadCode(KernelId kernel) {
   ScopedProfileEvent profileEvent(Class::UnloadCode, profiler_, kernel);
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  std::lock_guard lock(mutex_);
   auto it = find(kernels_, kernel);
 
   // free the buffer
@@ -124,17 +134,18 @@ void RuntimeImp::unloadCode(KernelId kernel) {
   // and remove the kernel
   kernels_.erase(it);
 }
- 
+
 void* RuntimeImp::mallocDevice(DeviceId device, size_t size, uint32_t alignment) {
   ScopedProfileEvent profileEvent(Class::MallocDevice, profiler_, device);
   RT_DLOG(INFO) << "Malloc requested device " << std::hex << static_cast<std::underlying_type_t<DeviceId>>(device)
                 << " size: " << size << " alignment: " << alignment;
+
   if (__builtin_popcount(alignment) != 1) {
     throw Exception("Alignment must be power of two");
   }
 
   std::lock_guard lock(mutex_);
-  auto it = find(memoryManagers_, device);  
+  auto it = find(memoryManagers_, device);
   return it->second.malloc(size, alignment);
 }
 
@@ -142,7 +153,7 @@ void RuntimeImp::freeDevice(DeviceId device, void* buffer) {
   ScopedProfileEvent profileEvent(Class::FreeDevice, profiler_, device);
   RT_DLOG(INFO) << "Free at device: " << static_cast<std::underlying_type_t<DeviceId>>(device)
                 << " buffer address: " << std::hex << buffer;
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  std::lock_guard lock(mutex_);
   auto it = find(memoryManagers_, device);
   it->second.free(buffer);
 }
@@ -150,7 +161,7 @@ void RuntimeImp::freeDevice(DeviceId device, void* buffer) {
 StreamId RuntimeImp::createStream(DeviceId device) {
   ScopedProfileEvent profileEvent(Class::CreateStream, profiler_, device);
   RT_DLOG(INFO) << "Creating stream at device: " << static_cast<std::underlying_type_t<DeviceId>>(device);
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  std::lock_guard lock(streamsMutex_);
   auto streamId = static_cast<StreamId>(nextStreamId_++);
   auto it = streams_.find(streamId);
   if (it != end(streams_)) {
@@ -163,30 +174,34 @@ StreamId RuntimeImp::createStream(DeviceId device) {
 void RuntimeImp::destroyStream(StreamId stream) {
   ScopedProfileEvent profileEvent(Class::DestroyStream, profiler_, stream);
   RT_DLOG(INFO) << "Destroy stream: " << static_cast<std::underlying_type_t<StreamId>>(stream);
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  std::lock_guard lock(streamsMutex_);
   auto it = find(streams_, stream);
   streams_.erase(it);
 }
 
-EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void* d_dst, size_t size,
-                                       [[maybe_unused]] bool barrier) {
+EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void* d_dst, size_t size, bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, profiler_, stream);
-  std::unique_lock<std::recursive_mutex> lock(mutex_);
+  std::unique_lock lock(mutex_);
+  std::unique_lock lock2(streamsMutex_);
   auto it = find(streams_, stream);
 
   auto evt = eventManager_.getNextId();
   it->second.lastEventId_ = evt;
+  auto s = it->second;
   auto device = it->second.deviceId_;
-  
-  //TODO this is using a wrong command; to be fixed when implementing the DMA list: https://esperantotech.atlassian.net/browse/SW-7830
-  device_ops_api::device_ops_data_write_cmd_t cmd = {0};
+  lock2.unlock();
+
+  // TODO this is using a wrong command; to be fixed when implementing the DMA list:
+  // https://esperantotech.atlassian.net/browse/SW-7830
+  device_ops_api::device_ops_data_write_cmd_t cmd;
+  std::memset(&cmd, 0, sizeof(cmd));
   cmd.dst_device_phy_addr = reinterpret_cast<uint64_t>(d_dst);
   RT_VLOG(LOW) << "MemcpyHostToDevice stream: " << static_cast<std::underlying_type_t<StreamId>>(stream) << std::hex
                << " Host address: " << h_src << " Device address: " << cmd.dst_device_phy_addr << " Size: " << size;
 
   // first check if its a DmaBuffer
   auto dmaBufferManager = find(dmaBufferManagers_, device)->second.get();
-  if (dmaBufferManager->isDmaBuffer(reinterpret_cast<const std::byte*>(h_src), size)) {
+  if (dmaBufferManager->isDmaBuffer(reinterpret_cast<const std::byte*>(h_src))) {
     cmd.src_host_virt_addr = cmd.src_host_phy_addr = reinterpret_cast<uint64_t>(h_src);
   } else {
     // if not, allocate a buffer, and stage the memory first into it
@@ -205,13 +220,14 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
     });
     t.detach();
   }
-  cmd.size = size;
+  cmd.size = static_cast<uint32_t>(size);
 
-  cmd.command_info.cmd_hdr.tag_id = static_cast<uint16_t>(evt);  
+  cmd.command_info.cmd_hdr.tag_id = static_cast<uint16_t>(evt);
   cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD;
   cmd.command_info.cmd_hdr.size = sizeof(cmd);
-  cmd.command_info.cmd_hdr.flags = barrier ? 1 : 0;
-  sendCommandMasterMinion(it->second, evt, cmd, lock, true);
+  if (barrier)
+    cmd.command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
+  sendCommandMasterMinion(s, evt, cmd, lock, true);
   profileEvent.setEventId(evt);
   return evt;
 }
@@ -221,26 +237,31 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
   ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, profiler_, stream);
   RT_VLOG(LOW) << "MemcpyDeviceToHost stream: " << static_cast<std::underlying_type_t<StreamId>>(stream) << std::hex
                << " Host address: " << h_dst << " Device address: " << d_src << " Size: " << size;
-  std::unique_lock<std::recursive_mutex> lock(mutex_);
+  std::unique_lock lock(mutex_);
+  std::unique_lock lock2(streamsMutex_);
   auto it = find(streams_, stream);
 
   auto evt = eventManager_.getNextId();
-  auto& st = it->second;
+  auto st = it->second;
   st.lastEventId_ = evt;
   auto device = st.deviceId_;
+  lock2.unlock();
 
-  //TODO this is using a wrong command; to be fixed when implementing the DMA list: https://esperantotech.atlassian.net/browse/SW-7830
-  device_ops_api::device_ops_data_read_cmd_t cmd = {0};
-  cmd.size = size;
+  // TODO this is using a wrong command; to be fixed when implementing the DMA list:
+  // https://esperantotech.atlassian.net/browse/SW-7830
+  device_ops_api::device_ops_data_read_cmd_t cmd;
+  std::memset(&cmd, 0, sizeof(cmd));
+  cmd.size = static_cast<uint32_t>(size);
   cmd.src_device_phy_addr = reinterpret_cast<uint64_t>(d_src);
   cmd.command_info.cmd_hdr.tag_id = static_cast<uint16_t>(evt);
   cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD;
   cmd.command_info.cmd_hdr.size = sizeof(cmd);
-  cmd.command_info.cmd_hdr.flags = barrier ? 1 : 0;
+  if (barrier)
+    cmd.command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
 
   // first check if its a DmaBuffer
   auto dmaBufferManager = find(dmaBufferManagers_, device)->second.get();
-  if (dmaBufferManager->isDmaBuffer(reinterpret_cast<std::byte*>(h_dst), size)) {
+  if (dmaBufferManager->isDmaBuffer(reinterpret_cast<std::byte*>(h_dst))) {
     cmd.dst_host_virt_addr = cmd.dst_host_phy_addr = reinterpret_cast<uint64_t>(h_dst);
     sendCommandMasterMinion(st, evt, cmd, lock, true);
   } else {
@@ -253,7 +274,12 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
     // replace the event (because we need to do the copy before dispatching the final event to the user)
     auto memcpyEvt = evt;
     evt = eventManager_.getNextId();
-    st.lastEventId_ = evt;
+
+    // we look again for the stream because its possible that the stream got destroyed and we should throw an exception
+    // in that case
+    lock2.lock();
+    find(streams_, stream)->second.lastEventId_ = evt;
+    lock.unlock();
     auto t = std::thread([this, memcpyEvt, size, evt, h_dst, tmpBuffer = std::move(tmpBuffer)]() mutable {
       // first wait till the copy ends
       waitForEvent(memcpyEvt);
@@ -266,7 +292,7 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
     });
     t.detach();
   }
-  
+
   profileEvent.setEventId(evt);
   return evt;
 }
@@ -288,8 +314,8 @@ bool RuntimeImp::waitForEvent(EventId event, std::chrono::milliseconds timeout) 
 }
 
 bool RuntimeImp::waitForStream(StreamId stream, std::chrono::milliseconds timeout) {
-  std::unique_lock<std::recursive_mutex> lock(mutex_);
   ScopedProfileEvent profileEvent(Class::WaitForStream, profiler_, stream);
+  std::unique_lock lock(streamsMutex_);
   auto it = find(streams_, stream, "Invalid stream");
   auto evt = it->second.lastEventId_;
   lock.unlock();
@@ -300,6 +326,7 @@ bool RuntimeImp::waitForStream(StreamId stream, std::chrono::milliseconds timeou
 std::vector<int> RuntimeImp::getDevicesWithEventsOnFly() const {
   auto events = eventManager_.getOnflyEvents();
   std::vector<int> busyDevices;
+  std::lock_guard lock(streamsMutex_);
   for (auto& [key, s] : streams_) {
     (void)(key);
     if (std::find(begin(busyDevices), end(busyDevices), static_cast<int>(s.deviceId_)) == end(busyDevices) &&
@@ -318,13 +345,12 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
 
   ProfileEvent event(Type::Instant, Class::KernelTimestamps);
   event.setEvent(eventId);
-  auto fillEvent = [](ProfileEvent& evt, const auto& response) {
-    RT_VLOG(HIGH) << std::hex << " Start time: " << response.device_cmd_start_ts
-                  << " Wait time: " << response.device_cmd_wait_dur
-                  << " Execution time: " << response.device_cmd_execute_dur;
-    evt.setDeviceCmdStartTs(response.device_cmd_start_ts);
-    evt.setDeviceCmdWaitDur(response.device_cmd_wait_dur);
-    evt.setDeviceCmdExecDur(response.device_cmd_execute_dur);
+  auto fillEvent = [](ProfileEvent& evt, const auto& rsp) {
+    RT_VLOG(HIGH) << std::hex << " Start time: " << rsp.device_cmd_start_ts << " Wait time: " << rsp.device_cmd_wait_dur
+                  << " Execution time: " << rsp.device_cmd_execute_dur;
+    evt.setDeviceCmdStartTs(rsp.device_cmd_start_ts);
+    evt.setDeviceCmdWaitDur(rsp.device_cmd_wait_dur);
+    evt.setDeviceCmdExecDur(rsp.device_cmd_execute_dur);
   };
 
   RT_VLOG(MID) << "Response received eventId: " << std::hex << static_cast<int>(eventId)
@@ -333,9 +359,9 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP: {
     auto r = reinterpret_cast<const device_ops_api::device_ops_data_read_rsp_t*>(response.data());
     if (r->status != device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
-      char msg[128];
-      snprintf(msg, sizeof msg, "Error on DMA read: %d. Tag id: %d", r->status, static_cast<int>(eventId));
-      throw Exception(msg);
+      std::stringstream ss;
+      ss << "Error on DMA read: " << r->status << ". Tag id: " << static_cast<int>(eventId);
+      throw Exception(ss.str());
     }
     fillEvent(event, *r);
     break;
@@ -343,9 +369,9 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP: {
     auto r = reinterpret_cast<const device_ops_api::device_ops_data_write_rsp_t*>(response.data());
     if (r->status != device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
-      char msg[128];
-      snprintf(msg, sizeof msg, "Error on DMA write: %d. Tag id: %d", r->status, static_cast<int>(eventId));
-      throw Exception(msg);
+      std::stringstream ss;
+      ss << "Error on DMA write: " << r->status << ". Tag id: " << static_cast<int>(eventId);
+      throw Exception(ss.str());
     }
     fillEvent(event, *r);
     break;
@@ -354,10 +380,29 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
     auto r = reinterpret_cast<const device_ops_api::device_ops_kernel_launch_rsp_t*>(response.data());
     fillEvent(event, *r);
     kernelParametersCache_->releaseBuffer(eventId);
-    if (r->status != device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED) {
-      char msg[128];
-      snprintf(msg, sizeof msg, "Error on kernel launch: %d. Tag id: %d", r->status, static_cast<int>(eventId));
-      throw Exception(msg);
+    if (r->status !=
+        device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED) {
+      std::stringstream ss;
+      ss << "Error on kernel launch: " << r->status << ". Tag id: " << static_cast<int>(eventId);
+      throw Exception(ss.str());
+    }
+    break;
+  }
+  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_RSP: {
+    auto r = reinterpret_cast<const device_ops_api::device_ops_trace_rt_config_rsp_t*>(response.data());
+    if (r->status != device_ops_api::DEV_OPS_TRACE_RT_CONFIG_RESPONSE::DEV_OPS_TRACE_RT_CONFIG_RESPONSE_SUCCESS) {
+      std::stringstream ss;
+      ss << "Error on firmware trace configure: " << r->status << ". Tag id: " << static_cast<int>(eventId);
+      throw Exception(ss.str());
+    }
+    break;
+  }
+  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_RSP: {
+    auto r = reinterpret_cast<const device_ops_api::device_ops_trace_rt_control_rsp_t*>(response.data());
+    if (r->status != device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS) {
+      std::stringstream ss;
+      ss << "Error on firmware trace control (start/stop): " << r->status << ". Tag id: " << static_cast<int>(eventId);
+      throw Exception(ss.str());
     }
     break;
   }
@@ -367,7 +412,127 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
 }
 
 std::unique_ptr<DmaBuffer> RuntimeImp::allocateDmaBuffer(DeviceId device, size_t size, bool writeable) {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  std::lock_guard lock(mutex_);
   auto it = find(dmaBufferManagers_, device);
   return it->second->allocate(size, writeable);
+}
+
+EventId RuntimeImp::setupDeviceTracing(StreamId stream, uint32_t shireMask, uint32_t threadMask, uint32_t eventMask,
+                                       uint32_t filterMask, bool barrier) {
+
+  std::unique_lock lock(mutex_);
+  std::unique_lock lock2(streamsMutex_);
+  auto it = find(streams_, stream);
+
+  auto evt = eventManager_.getNextId();
+  it->second.lastEventId_ = evt;
+  auto st = it->second;
+  lock2.unlock();
+
+  device_ops_api::device_ops_trace_rt_config_cmd_t cmd;
+  std::memset(&cmd, 0, sizeof(cmd));
+  cmd.event_mask = eventMask;
+  cmd.filter_mask = filterMask;
+  cmd.shire_mask = shireMask;
+  cmd.thread_mask = threadMask;
+  cmd.command_info.cmd_hdr.tag_id = static_cast<uint16_t>(evt);
+  cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD;
+  cmd.command_info.cmd_hdr.size = sizeof(cmd);
+  if (barrier)
+    cmd.command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
+  sendCommandMasterMinion(st, evt, cmd, lock, false);
+  return evt;
+}
+
+EventId RuntimeImp::startDeviceTracing(StreamId stream, std::ostream* mmOutput, std::ostream* cmOutput, bool barrier) {
+  std::unique_lock lock(mutex_);
+  if (!mmOutput && !cmOutput) {
+    throw Exception("At least one output stream must be provided in order to record traces");
+  }
+  std::unique_lock lock2(streamsMutex_);
+  auto it = find(streams_, stream);
+
+  auto evt = eventManager_.getNextId();
+  it->second.lastEventId_ = evt;
+  auto st = it->second;
+  lock2.unlock();
+  auto device = st.deviceId_;
+  auto& deviceTracing = find(deviceTracing_, device)->second;
+
+  device_ops_api::device_ops_trace_rt_control_cmd_t cmd;
+  std::memset(&cmd, 0, sizeof(cmd));
+  if (mmOutput)
+    cmd.rt_type |= 1; // defined in host_iface.h
+  if (cmOutput)
+    cmd.rt_type |= 2; // defined in host_iface.h
+
+  cmd.control |= kEnableTracingBit | kResetTraceBufferAddressBit;
+
+  cmd.command_info.cmd_hdr.tag_id = static_cast<uint16_t>(evt);
+  cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD;
+  cmd.command_info.cmd_hdr.size = sizeof(cmd);
+  if (barrier)
+    cmd.command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
+  sendCommandMasterMinion(st, evt, cmd, lock, false);
+  deviceTracing.cmOutput_ = cmOutput;
+  deviceTracing.mmOutput_ = mmOutput;
+  return evt;
+}
+
+EventId RuntimeImp::stopDeviceTracing(StreamId stream, bool barrier) {
+  std::unique_lock lock(mutex_);
+  std::unique_lock lock2(streamsMutex_);
+  auto it = find(streams_, stream);
+
+  auto evt = eventManager_.getNextId();
+  it->second.lastEventId_ = evt;
+  auto& st = it->second;
+  auto device = st.deviceId_;
+  lock2.unlock();
+  auto& deviceTracing = find(deviceTracing_, device)->second;
+
+  device_ops_api::device_ops_data_read_cmd_t cmd;
+  std::memset(&cmd, 0, sizeof(cmd));
+  cmd.command_info.cmd_hdr.tag_id = static_cast<uint16_t>(evt);
+  cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD;
+  cmd.command_info.cmd_hdr.size = sizeof(cmd);
+  if (barrier) {
+    cmd.command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
+  }
+  if (deviceTracing.mmOutput_) {
+    cmd.command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_MMFW_TRACEBUF;
+    cmd.size += kTracingFwMmSize;
+  }
+  if (deviceTracing.cmOutput_) {
+    cmd.command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_CMFW_TRACEBUF;
+    cmd.size += kTracingFwCmSize;
+  }
+  cmd.dst_host_virt_addr = cmd.dst_host_phy_addr = reinterpret_cast<uint64_t>(deviceTracing.dmaBuffer_->getPtr());
+
+  sendCommandMasterMinion(st, evt, cmd, lock, true);
+
+  // TODO: There are many ways to optimize this, future work.
+  // replace the event (because we need to do the copy before dispatching the final event to the user)
+  auto memcpyEvt = evt;
+  evt = eventManager_.getNextId();
+  lock2.lock();
+  find(streams_, stream)->second.lastEventId_ = evt;
+  lock2.unlock();
+  auto t = std::thread([this, memcpyEvt, dmaPtr = deviceTracing.dmaBuffer_->getPtr(), mmOut = deviceTracing.mmOutput_,
+                        cmOut = deviceTracing.cmOutput_, evt]() mutable {
+    // first wait till the copy ends
+    waitForEvent(memcpyEvt);
+
+    if (mmOut) {
+      mmOut->write(reinterpret_cast<const char*>(dmaPtr), kTracingFwMmSize);
+      dmaPtr += kTracingFwMmSize;
+    }
+    if (cmOut) {
+      cmOut->write(reinterpret_cast<const char*>(dmaPtr), kTracingFwCmSize);
+    }
+    eventManager_.dispatch(evt);
+  });
+  t.detach();
+
+  return evt;
 }

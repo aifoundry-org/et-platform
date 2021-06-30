@@ -18,20 +18,16 @@
 #include <device-layer/IDeviceLayer.h>
 #include <elfio/elfio.hpp>
 #include <esperanto/device-apis/operations-api/device_ops_api_cxx.h>
+#include <esperanto/device-apis/operations-api/device_ops_api_spec.h>
 #include <sstream>
 #include <type_traits>
 
 using namespace rt;
 using namespace rt::profiling;
-namespace {
-// these bit flags are defined in device-apis/device_apis_message_types.h
-constexpr auto kBarrierBitset = 1 << 0;
-constexpr auto kFlushL3Bitset = 1 << 4;
-} // namespace
 
 EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const void* kernel_args, size_t kernel_args_size,
                                  uint64_t shire_mask, bool barrier, bool flushL3) {
-  std::unique_lock<std::recursive_mutex> lock(mutex_);
+  std::unique_lock lock(mutex_);
   auto&& kernel = find(kernels_, kernelId)->second;
   ScopedProfileEvent profileEvent(Class::KernelLaunch, profiler_, streamId, kernelId, kernel->getLoadAddress());
 
@@ -41,7 +37,9 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
     throw Exception(buffer);
   }
 
-  auto&& stream = find(streams_, streamId)->second;
+  std::unique_lock lock2(streamsMutex_);
+  auto stream = find(streams_, streamId)->second;
+  lock2.unlock();
 
   if (stream.deviceId_ != kernel->deviceId_) {
     throw Exception("Can't execute stream and kernel associated to a different device");
@@ -54,11 +52,12 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
     //stage parameters in host buffer
     auto args = reinterpret_cast<const std::byte*>(kernel_args);
     std::copy(args, args + kernel_args_size, begin(pBuffer->hostBuffer_));
-    auto memcpyEvt = memcpyHostToDevice(streamId, pBuffer->hostBuffer_.data(), pBuffer->deviceBuffer_, kernel_args_size);
-    stream.lastEventId_ = memcpyEvt;
+    memcpyHostToDevice(streamId, pBuffer->hostBuffer_.data(), pBuffer->deviceBuffer_, kernel_args_size);
   }
   auto event = eventManager_.getNextId();
-
+  lock2.lock();
+  find(streams_, streamId)->second.lastEventId_ = event;
+  lock2.unlock();
   if (kernel_args_size > 0) {
     kernelParametersCache_->reserveBuffer(event, pBuffer);
   }
@@ -66,16 +65,17 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
   // todo: SW-7616 - Allocation/extraction of Error buffer
   // SW-7615 - Allocation/extraction of U mode Kernel Trace buffer
   // SW-7558 - Embed kernel parameters into kernel command to avoid DMA
-  device_ops_api::device_ops_kernel_launch_cmd_t cmd = {0};
+  device_ops_api::device_ops_kernel_launch_cmd_t cmd;
+  memset(&cmd, 0, sizeof(cmd));
   cmd.command_info.cmd_hdr.tag_id = static_cast<uint16_t>(event);
   cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD;
   cmd.command_info.cmd_hdr.size = sizeof(cmd);
   cmd.command_info.cmd_hdr.flags = 0;
   if (barrier) {
-    cmd.command_info.cmd_hdr.flags |= kBarrierBitset;
+    cmd.command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
   }
   if (flushL3) {
-    cmd.command_info.cmd_hdr.flags |= kFlushL3Bitset;
+    cmd.command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_KERNEL_LAUNCH_FLUSH_L3;
   }
 
   cmd.code_start_address = kernel->getEntryAddress();

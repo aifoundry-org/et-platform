@@ -14,7 +14,7 @@
 #include <memory>
 namespace rt {
 class DmaBufferManager;
-class DmaBufferImp;
+struct DmaBufferImp;
 
 class DmaBuffer {
 

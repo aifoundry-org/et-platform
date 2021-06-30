@@ -235,7 +235,7 @@ template <typename... Args> void ProfileEvent::addExtra(std::string name, Args&&
   extra_.emplace(std::move(name), std::forward<Args>(args)...);
 }
 
-template <typename T> std::optional<T> ProfileEvent::getExtra(std::string name) const {
+template <typename T> std::optional<T> ProfileEvent::getExtra(const std::string& name) const {
   std::optional<T> optValue;
   if (auto it = extra_.find(name); it != extra_.end()) {
     optValue = std::get<T>(it->second);

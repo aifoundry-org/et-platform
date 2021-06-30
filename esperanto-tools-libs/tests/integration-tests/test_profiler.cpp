@@ -47,7 +47,7 @@ TEST(Profiler, add_2_vectors_profiling) {
   auto size = endF - iniF;
   kernel_file.seekg(0, std::ios::beg);
 
-  std::vector<std::byte> kernelContent(size);
+  std::vector<std::byte> kernelContent(static_cast<unsigned long>(size));
   kernel_file.read(reinterpret_cast<char*>(kernelContent.data()), size);
 
   emu::SysEmuOptions sysEmuOptions;
@@ -83,13 +83,13 @@ TEST(Profiler, add_2_vectors_profiling) {
   std::uniform_int_distribution dis;
 
   std::vector<int> vA, vB, vResult;
-  int numElems = 10496;
+  auto numElems = 10496;
   for (int i = 0; i < numElems; ++i) {
     vA.emplace_back(dis(gen));
     vB.emplace_back(dis(gen));
     vResult.emplace_back(vA.back() + vB.back());
   }
-  auto bufferSize = numElems * sizeof(int);
+  auto bufferSize = static_cast<unsigned long>(numElems) * sizeof(int);
   auto bufA = runtime->mallocDevice(devices[0], bufferSize);
   auto bufB = runtime->mallocDevice(devices[0], bufferSize);
   auto bufResult = runtime->mallocDevice(devices[0], bufferSize);
@@ -105,13 +105,13 @@ TEST(Profiler, add_2_vectors_profiling) {
     int numElements;
   } parameters{bufA, bufB, bufResult, numElems};
 
-  std::vector<int> resultFromDevice(numElems);
-  for (int i = 0; i < numElems; ++i) {
+  std::vector<int> resultFromDevice(static_cast<unsigned long>(numElems));
+  for (auto i = 0u; i < static_cast<unsigned long>(numElems); ++i) {
     resultFromDevice[i] = 0xF;
   }
   runtime->memcpyHostToDevice(stream, resultFromDevice.data(), bufResult, bufferSize);
   runtime->kernelLaunch(stream, kernelId, &parameters, sizeof(parameters), 0x1);
-  for (int i = 0; i < numElems; ++i) {
+  for (auto i = 0u; i < static_cast<unsigned long>(numElems); ++i) {
     resultFromDevice[i] = 0x0;
   }
   runtime->memcpyDeviceToHost(stream, bufResult, resultFromDevice.data(), bufferSize);

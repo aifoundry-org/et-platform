@@ -8,9 +8,10 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-set(SIM_DEVFW_TEST_LIST
+set(INTEGRATION_TEST_LIST
   test_code_loading.cpp:"--kernels_dir ${KERNELS_DIR}"
+  test_fwtraces.cpp:""
   test_memcpy.cpp:""
   test_profiler.cpp:"--kernels_dir ${KERNELS_DIR}"
   )
-create_test_targets("${SIM_DEVFW_TEST_LIST}" "LABELS;Generic;LABELS;SYSEMU;TIMEOUT;120")
+create_test_targets("${INTEGRATION_TEST_LIST}" "LABELS;Generic;LABELS;SYSEMU;TIMEOUT;120")

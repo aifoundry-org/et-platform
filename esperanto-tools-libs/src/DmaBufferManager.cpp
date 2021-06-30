@@ -14,27 +14,35 @@
 #include <algorithm>
 using namespace rt;
 
-bool DmaBufferManager::isDmaBuffer(const std::byte* address, size_t size) const {
+bool DmaBufferManager::isDmaBuffer(const std::byte* address) const {
+  std::lock_guard lock(mutex_);
   if (inUseBuffers_.empty())
     return false;
   // this tmp is just because I don't want to specialize the less operator for checking against address instead of
   // DmaBuffers
   auto tmp = DmaBufferImp{};
   tmp.address_ = const_cast<decltype(tmp.address_)>(address);
-  auto it = std::upper_bound(begin(inUseBuffers_), end(inUseBuffers_), tmp);
-  if (it == begin(inUseBuffers_))
+  auto it = std::lower_bound(begin(inUseBuffers_), end(inUseBuffers_), tmp);
+  if (it == end(inUseBuffers_))
     return false;
-  return (it - 1)->containsAddr(address);
+  return it->containsAddr(address);
 }
 
 std::unique_ptr<DmaBuffer> DmaBufferManager::allocate(size_t size, bool writeable) {
+  std::lock_guard lock(mutex_);
   auto bufferImp = std::make_unique<DmaBufferImp>(device_, size, writeable, deviceLayer_);
   auto it = std::upper_bound(begin(inUseBuffers_), end(inUseBuffers_), *bufferImp);
   inUseBuffers_.emplace(it, *bufferImp);
-  auto res = std::make_unique<DmaBuffer>(std::move(bufferImp), this);
-  return std::move(res);
+  return std::make_unique<DmaBuffer>(std::move(bufferImp), this);
 }
 
 void DmaBufferManager::release(DmaBufferImp* dmaBuffer) {
+  std::lock_guard lock(mutex_);
+  // TODO: in the future we will use a pool
   deviceLayer_->freeDmaBuffer(dmaBuffer->address_);
+  auto it = std::lower_bound(begin(inUseBuffers_), end(inUseBuffers_), *dmaBuffer);
+  if (it == end(inUseBuffers_) || it->address_ != dmaBuffer->address_) {
+    throw Exception("Trying to release a DmaBuffer that wasn't previously allocated");
+  }
+  inUseBuffers_.erase(it);
 }
