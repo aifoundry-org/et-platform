@@ -13,20 +13,25 @@
 #define DEBUG_INFO  1                   // true to enable preliminary debug codes
 
 #include <stdint.h>
-#if DEBUG_INFO
-#include <stdio.h>
-#endif
 #include <unistd.h>
-#include "hwinc/hal_device.h"
-#include "hal_ddr_init.h"
-#include "hwinc/ddrc_reg_def.h"
+#include "mem_controller.h"
 #include "log.h"
+
+#include "hwinc/hal_device.h"
+#include "hwinc/ddrc_reg_def.h"
+#include "hal_ddr_init.h"
 
 /*
 ** Private functions/macros used only in this file
 */
 #define GET_MEMSHIRE_ESR(memshire, reg) \
         ((((uint64_t)memshire&0x7)|0xe8) << 22 | reg)      // 0xe8=232
+
+static inline uint32_t ms_peek_ddrc_reg(uint32_t memshire, uint32_t blk, uint64_t reg, uint32_t wait_value, uint32_t wait_mask)
+{
+    uint32_t value = ms_read_ddrc_reg(memshire, blk, reg);
+    return (value ^ wait_value) & wait_mask;
+}
 
 static inline volatile void *get_ddrc_address(uint32_t memshire, uint32_t block, uint64_t reg)
 {
@@ -42,7 +47,7 @@ typedef enum
 }training_stage;
 
 #if DEBUG_INFO
-static const char* get_training_status_text(uint32_t train_msg)
+static const char* get_training_status_text(uint8_t train_msg)
 {
   switch(train_msg) {
     case 0x07:
@@ -82,7 +87,7 @@ static const char* get_training_status_text(uint32_t train_msg)
   }
 }
 
-static void log_training_error(training_stage stage, uint32_t memshire, uint32_t train_msg)
+static void log_training_error(training_stage stage, uint32_t memshire, uint8_t train_msg)
 {
   if(stage == TRAINING_1D)
     Log_Write(LOG_LEVEL_INFO, "DDR TRAIN (S%d) received DDRC PHY message 0x%02x (%s)", memshire+232, train_msg, get_training_status_text(train_msg));
@@ -100,25 +105,44 @@ static void log_training_error(training_stage stage, uint32_t memshire, uint32_t
 
 static void wait_for_training_internal(training_stage stage, uint32_t memshire, uint32_t train_poll_max_iterations, uint32_t train_poll_iteration_delay)
 {
-  uint32_t train_msg;
-  uint32_t training_complete;
+  uint8_t train_msg;
+  uint8_t number_of_shire_completed;
+  uint8_t shire_completed[NUMBER_OF_MEMSHIRE] = { 0 };
 
-  training_complete = 0;
-  while(!training_complete) {
-    ms_poll_ddrc_reg(memshire, 2, APBONLY0_UctShadowRegs, 0x0, 0x1, train_poll_max_iterations, train_poll_iteration_delay);
-    train_msg = ms_read_ddrc_reg(memshire, 2, APBONLY0_UctWriteOnlyShadow);
-    LOG_TRAINING(stage, memshire, train_msg);
-    if(train_msg == 0x7) {
-      training_complete = 1;
+  // memshire is not define outside, use it as a local variable
+  memshire = 0;
+  number_of_shire_completed = 0;
+  while(number_of_shire_completed < NUMBER_OF_MEMSHIRE) {
+
+    if(!shire_completed[memshire] && ms_peek_ddrc_reg(memshire, 2, APBONLY0_UctShadowRegs, 0x0, 0x1) == 0) {
+
+      train_msg = (uint8_t)(ms_read_ddrc_reg(memshire, 2, APBONLY0_UctWriteOnlyShadow) & 0xff);     // read message
+
+      ms_write_ddrc_reg(memshire, 2, APBONLY0_DctWriteProt, 0x00000000);                            // ack message
+      ms_poll_ddrc_reg(memshire, 2, APBONLY0_UctShadowRegs, 0x00000001, 0x1, 100, 1);               // wait for handshake
+      ms_write_ddrc_reg(memshire, 2, APBONLY0_DctWriteProt, 0x00000001);                            // ack handshake
+
+      LOG_TRAINING(stage, memshire, train_msg);
+      if(train_msg == 0x7 || train_msg == 0xff || train_msg == 0x0b) {
+        if(train_msg == 0xff || train_msg == 0x0b) {
+          // report error if needed
+        }
+        shire_completed[memshire] = 1;
+        ++number_of_shire_completed;
+      }
+
     }
-    else if(train_msg == 0xff || train_msg == 0x0b) {
-      break;   // return immediately on error
+
+    ++memshire;
+    if(memshire == NUMBER_OF_MEMSHIRE) {
+      // usleep(train_poll_iteration_delay);      // delay between each cycle
+      memshire = 0;
     }
-    ms_write_ddrc_reg(memshire, 2, APBONLY0_DctWriteProt, 0x00000000);                // ack message
-    ms_poll_ddrc_reg(memshire, 2, APBONLY0_UctShadowRegs, 0x00000001, 0x1, 100, 1);   // wait for handshake
-    ms_write_ddrc_reg(memshire, 2, APBONLY0_DctWriteProt, 0x00000001);                // ack handshake
+
   }
 
+  (void)train_poll_max_iterations;    // suppress compilation warning
+  (void)train_poll_iteration_delay;   // suppress compilation warning
   return;
 }
 

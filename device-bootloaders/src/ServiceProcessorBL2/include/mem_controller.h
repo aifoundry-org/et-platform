@@ -28,9 +28,9 @@
 #include "bl2_reset.h"
 #include "bl_error_code.h"
 
-/*! \def MODE_NUMBER
+/*! \def NUMBER_OF_MEMSHIRE
 */
-#define MODE_NUMBER 6
+#define NUMBER_OF_MEMSHIRE     8
 
 /**
  * @enum ddr_frequency_t

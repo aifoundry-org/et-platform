@@ -32,7 +32,6 @@
 #include "dm_event_control.h"
 #include "hal_ddr_init.h"
 
-#define NUMBER_OF_MEMSHIRE     8
 #define FOR_EACH_MEMSHIRE(statement)                                               \
             {                                                                      \
                 for(memshire = 0;memshire < NUMBER_OF_MEMSHIRE;++memshire)         \
@@ -55,7 +54,7 @@ int configure_memshire_plls(const DDR_MODE *ddr_mode)
 
     /* [PLL Mode Spreadsheet]
     https://docs.google.com/spreadsheets/d/0B45kZDfsf1VrbE5QOW1LZ1Zoc0VmWXRyMDJQMDViLUM2NGMw/ */
-    
+
     if(ddr_mode->frequency == DDR_FREQUENCY_800MHZ) {
         pll_mode = 50;
     }
