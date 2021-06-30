@@ -114,30 +114,32 @@ static void wait_for_training_internal(training_stage stage, uint32_t memshire, 
   number_of_shire_completed = 0;
   while(number_of_shire_completed < NUMBER_OF_MEMSHIRE) {
 
-    if(!shire_completed[memshire] && ms_peek_ddrc_reg(memshire, 2, APBONLY0_UctShadowRegs, 0x0, 0x1) == 0) {
-
-      train_msg = (uint8_t)(ms_read_ddrc_reg(memshire, 2, APBONLY0_UctWriteOnlyShadow) & 0xff);     // read message
-
-      ms_write_ddrc_reg(memshire, 2, APBONLY0_DctWriteProt, 0x00000000);                            // ack message
-      ms_poll_ddrc_reg(memshire, 2, APBONLY0_UctShadowRegs, 0x00000001, 0x1, 100, 1);               // wait for handshake
-      ms_write_ddrc_reg(memshire, 2, APBONLY0_DctWriteProt, 0x00000001);                            // ack handshake
-
-      LOG_TRAINING(stage, memshire, train_msg);
-      if(train_msg == 0x7 || train_msg == 0xff || train_msg == 0x0b) {
-        if(train_msg == 0xff || train_msg == 0x0b) {
-          // report error if needed
-        }
-        shire_completed[memshire] = 1;
-        ++number_of_shire_completed;
-      }
-
-    }
-
-    ++memshire;
     if(memshire == NUMBER_OF_MEMSHIRE) {
       // usleep(train_poll_iteration_delay);      // delay between each cycle
       memshire = 0;
     }
+
+    if(shire_completed[memshire] || ms_peek_ddrc_reg(memshire, 2, APBONLY0_UctShadowRegs, 0x0, 0x1) != 0) {
+      ++memshire;
+      continue;
+    }
+
+    train_msg = (uint8_t)(ms_read_ddrc_reg(memshire, 2, APBONLY0_UctWriteOnlyShadow) & 0xff);     // read message
+
+    ms_write_ddrc_reg(memshire, 2, APBONLY0_DctWriteProt, 0x00000000);                            // ack message
+    ms_poll_ddrc_reg(memshire, 2, APBONLY0_UctShadowRegs, 0x00000001, 0x1, 100, 1);               // wait for handshake
+    ms_write_ddrc_reg(memshire, 2, APBONLY0_DctWriteProt, 0x00000001);                            // ack handshake
+
+    LOG_TRAINING(stage, memshire, train_msg);
+    if(train_msg == 0x7 || train_msg == 0xff || train_msg == 0x0b) {
+      if(train_msg == 0xff || train_msg == 0x0b) {
+        // report error if needed
+      }
+      shire_completed[memshire] = 1;
+      ++number_of_shire_completed;
+    }
+
+    ++memshire;
 
   }
 
