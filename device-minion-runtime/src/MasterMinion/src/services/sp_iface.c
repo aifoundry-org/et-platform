@@ -194,7 +194,7 @@ static int8_t sp_command_handler(void* cmd_buffer)
     int8_t status = STATUS_SUCCESS;
     struct dev_cmd_hdr_t *hdr = cmd_buffer;
 
-    Log_Write(LOG_LEVEL_DEBUG, "SP_Command_Handler:hdr:%s%d%s%d%s",
+    Log_Write(LOG_LEVEL_DEBUG, "SP2MM:CMD:SP_Command_Handler:hdr:%s%d%s%d%s",
             ":msg_id:",hdr->msg_id,
             ":msg_size:",hdr->msg_size, "\r\n");
 
@@ -213,18 +213,21 @@ static int8_t sp_command_handler(void* cmd_buffer)
 
             /* Initialize response header */
             SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, SP2MM_RSP_ECHO,
-                sizeof(struct sp2mm_echo_rsp_t), echo_cmd->msg_hdr.issuing_hart_id)
+                sizeof(struct sp2mm_echo_rsp_t),
+                echo_cmd->msg_hdr.issuing_hart_id)
 
             rsp.payload = echo_cmd->payload;
 
-            status = SP_Iface_Push_Cmd_To_SP2MM_CQ((void*)&rsp, sizeof(rsp));
+            status = SP_Iface_Push_Rsp_To_SP2MM_CQ((void*)&rsp, sizeof(rsp));
             if(status == STATUS_SUCCESS)
             {
-                Log_Write(LOG_LEVEL_DEBUG, "SP_Iface_Push_Cmd_To_SP2MM_CQ: CQ push success!\r\n");
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "MM2SP:RSP:SP_Iface_Push_Cmd_To_SP2MM_CQ: CQ push success!\r\n");
             }
             else
             {
-                Log_Write(LOG_LEVEL_ERROR, "SP_Iface_Push_Cmd_To_SP2MM_CQ: CQ push error!\r\n");
+                Log_Write(LOG_LEVEL_ERROR,
+                    "SP_Iface_Push_Cmd_To_SP2MM_CQ: CQ push error!\r\n");
             }
 
             break;
@@ -235,7 +238,7 @@ static int8_t sp_command_handler(void* cmd_buffer)
                 (void*) hdr;
 
             Log_Write(LOG_LEVEL_DEBUG,
-                "SP_Command_Handler:UpdateActiveFreq:%s%d%s%d%s0x%x%s",
+                "SP2MM:CMD:SP_Command_Handler:UpdateActiveFreq:%s%d%s%d%s0x%x%s",
                 ":msg_id:",hdr->msg_id,
                 ":msg_size:",hdr->msg_size,
                 ":payload", update_active_freq_cmd->freq,"\r\n");
@@ -248,7 +251,7 @@ static int8_t sp_command_handler(void* cmd_buffer)
             /* struct sp2mm_teardown_mm_cmd_t *teardown_mm_cmd = (void*) hdr */
 
             Log_Write(LOG_LEVEL_DEBUG,
-                "SP_Command_Handler:TearDownMM:%s%d%s%d%s",
+                "SP2MM:CMD:SP_Command_Handler:TearDownMM:%s%d%s%d%s",
                 ":msg_id:",hdr->msg_id,
                 ":msg_size:",hdr->msg_size, "\r\n");
 
@@ -260,7 +263,7 @@ static int8_t sp_command_handler(void* cmd_buffer)
             /* struct sp2mm_quiesce_traffic_cmd_t *quiese_traffic_cmd = (void*) hdr */
 
             Log_Write(LOG_LEVEL_DEBUG,
-                "SP_Command_Handler:QuieseTraffic:%s%d%s%d%s",
+                "SP2MM:CMD:SP_Command_Handler:QuieseTraffic:%s%d%s%d%s",
                 ":msg_id:",hdr->msg_id,
                 ":msg_size:",hdr->msg_size, "\r\n");
 
@@ -384,6 +387,8 @@ int8_t SP_Iface_Get_Shire_Mask(uint64_t *shire_mask)
     struct mm2sp_get_active_shire_mask_cmd_t cmd;
     int8_t status = STATUS_SUCCESS;
 
+    Log_Write(LOG_LEVEL_DEBUG, "MM2SP:SP_Iface_Get_Shire_Mask.\r\n");
+
     /* Initialize command header */
     SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, MM2SP_CMD_GET_ACTIVE_SHIRE_MASK,
         sizeof(struct mm2sp_get_active_shire_mask_cmd_t),
@@ -408,11 +413,14 @@ int8_t SP_Iface_Get_Shire_Mask(uint64_t *shire_mask)
     if(status == STATUS_SUCCESS)
     {
         /* Pop response from MM to SP completion queue */
-        rsp_length = (uint64_t) SP_Iface_Pop_Cmd_From_MM2SP_CQ(&rsp_buff[0]);
+        rsp_length = (uint64_t) SP_Iface_Pop_Rsp_From_MM2SP_CQ(&rsp_buff[0]);
 
         /* Process response and fetch shire mask */
         if(rsp_length != 0)
         {
+            Log_Write(LOG_LEVEL_DEBUG,
+                "SP2MM:received response of size %ld bytes.\r\n", rsp_length);
+
             hdr = (void*)rsp_buff;
             if(hdr->msg_id == MM2SP_RSP_GET_ACTIVE_SHIRE_MASK)
             {
@@ -467,6 +475,9 @@ int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq)
     struct mm2sp_get_cm_boot_freq_cmd_t cmd;
     int8_t status = STATUS_SUCCESS;
 
+    Log_Write(LOG_LEVEL_DEBUG, "MM2SP:SP_Iface_Get_Boot_Freq.\r\n");
+
+
     /* Initialize command header */
     SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, MM2SP_CMD_GET_CM_BOOT_FREQ,
         sizeof(struct mm2sp_get_cm_boot_freq_cmd_t),
@@ -491,11 +502,14 @@ int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq)
     if(status == STATUS_SUCCESS)
     {
         /* Pop response from MM to SP completion queue */
-        rsp_length = (uint64_t) SP_Iface_Pop_Cmd_From_MM2SP_CQ(&rsp_buff[0]);
+        rsp_length = (uint64_t) SP_Iface_Pop_Rsp_From_MM2SP_CQ(&rsp_buff[0]);
 
         /* Process response and fetch boot frequency */
         if(rsp_length != 0)
         {
+            Log_Write(LOG_LEVEL_DEBUG,
+                "SP2MM:received response of size %ld bytes.\r\n", rsp_length);
+
             hdr = (void*)rsp_buff;
             if(hdr->msg_id == MM2SP_RSP_GET_CM_BOOT_FREQ)
             {
@@ -556,6 +570,8 @@ int8_t SP_Iface_Get_Fw_Version(mm2sp_fw_type_e fw_type, uint8_t *major, uint8_t 
     /* Set the firmware type */
     cmd.fw_type = fw_type;
 
+    Log_Write(LOG_LEVEL_DEBUG, "MM2SP:SP_Iface_Get_Fw_Version.\r\n");
+
     /* Initialize command header */
     SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, MM2SP_CMD_GET_FW_VERSION,
         sizeof(struct mm2sp_get_fw_version_t),
@@ -580,11 +596,14 @@ int8_t SP_Iface_Get_Fw_Version(mm2sp_fw_type_e fw_type, uint8_t *major, uint8_t 
     if(status == STATUS_SUCCESS)
     {
         /* Pop response from MM to SP completion queue */
-        rsp_length = (uint64_t) SP_Iface_Pop_Cmd_From_MM2SP_CQ(&rsp_buff[0]);
+        rsp_length = (uint64_t) SP_Iface_Pop_Rsp_From_MM2SP_CQ(&rsp_buff[0]);
 
         /* Process response and fetch shire mask */
         if(rsp_length != 0)
         {
+            Log_Write(LOG_LEVEL_DEBUG,
+                "SP2MM:received response of size %ld bytes.\r\n", rsp_length);
+
             hdr = (void*)rsp_buff;
             if(hdr->msg_id == MM2SP_RSP_GET_FW_VERSION)
             {

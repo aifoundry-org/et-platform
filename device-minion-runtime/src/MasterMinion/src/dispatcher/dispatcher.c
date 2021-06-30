@@ -107,7 +107,7 @@ void Dispatcher_Launch(uint32_t hart_id)
     /* Initialize Trace for Master Minions in default configuration. */
     Trace_Init_MM(NULL);
 
-   /* Initialize Service Processor interface, it consists
+    /* Initialize Service Processor interface, it consists
     1. MM to SP SQ, and MM to SQ CQ
     2. SP to MM SQ, and Sp to MM CQ */
     status = SP_Iface_Init();

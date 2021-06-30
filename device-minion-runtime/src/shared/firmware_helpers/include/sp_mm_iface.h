@@ -21,6 +21,11 @@
 #include "sp_mm_comms_spec.h"
 #include "vq.h"
 
+/*! \def SP_MM_IFACE_INTERRUPT_SP
+    \brief Macro used to direct interrupt to SP
+*/
+#define SP_MM_IFACE_INTERRUPT_SP   -1
+
 /*! \def SP_MM_IFACE_INIT_MSG_HDR
     \brief Helper to initialize msg header
 */
@@ -31,10 +36,10 @@
 
 /* Supported SP to MM interface targets */
 enum sp_mm_target_t {
-    SP_SQ=0,
-    SP_CQ,
-    MM_SQ,
-    MM_CQ
+    SP_SQ=0, /* For MM to submit commands to SP, Push from MM */
+    SP_CQ, /* For SP to submit responses to MM, Push from SP */
+    MM_SQ, /* For SP to submit commands to MM, Push from SP */
+    MM_CQ /* For MM to submit responses to SP, Push from MM */
 };
 
 /*! \fn int8_t SP_MM_Iface_Init(void)
