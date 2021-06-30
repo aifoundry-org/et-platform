@@ -35,14 +35,12 @@ DmaBuffer& DmaBuffer::operator=(DmaBuffer&&) = default;
 DmaBuffer::DmaBuffer(std::unique_ptr<DmaBufferImp> impl, DmaBufferManager* dmaBufferManager)
   : impl_(std::move(impl))
   , dmaBufferManager_(dmaBufferManager) {
-  LOG(INFO) << "Dma buffer manager at ctor: " << dmaBufferManager_;
 }
 
 DmaBuffer::~DmaBuffer() {
   // call to deallocate DmaBufferImp
   if (impl_) {
     auto dmaBuffer = impl_.release();
-    LOG(INFO) << "Dma buffer manager at dtor: " << dmaBufferManager_;
     dmaBufferManager_->release(dmaBuffer);
   }
 }

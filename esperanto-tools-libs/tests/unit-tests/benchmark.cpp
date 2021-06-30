@@ -108,7 +108,7 @@ TEST_F(RuntimeBenchmark, H2D_K_D2H_Sync_On_Iters) {
 }
 
 TEST_F(RuntimeBenchmark, H2D_K_D2H_NoSync_On_Iters) {
-  sendH2D_K_D2H(1e4, stream_, kernel_, runtime_, false);
+  sendH2D_K_D2H(1e2, stream_, kernel_, runtime_, false);
   runtime_->waitForStream(stream_);
 }
 

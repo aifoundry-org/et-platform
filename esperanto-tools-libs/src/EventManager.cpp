@@ -19,20 +19,20 @@
 using namespace rt;
 
 EventId EventManager::getNextId() {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::lock_guard lock(mutex_);
   auto res = EventId{nextEventId_++};
   onflyEvents_.emplace(res);
   RT_VLOG(HIGH) << "Last event id: " << static_cast<int>(res);
   return res;
 }
 std::set<EventId> EventManager::getOnflyEvents() const {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::lock_guard lock(mutex_);
   return onflyEvents_;
 }
 
 void EventManager::dispatch(EventId event) {
   RT_VLOG(HIGH) << "Dispatching event " << static_cast<int>(event);
-  std::unique_lock<std::mutex> lock(mutex_);
+  std::unique_lock lock(mutex_);
   if (onflyEvents_.erase(event) != 1) {
 
     std::stringstream ss;
@@ -57,7 +57,7 @@ bool EventManager::isDispatched(EventId event) const {
 }
 
 bool EventManager::blockUntilDispatched(EventId event, std::chrono::milliseconds timeout) {
-  std::unique_lock<std::mutex> lock(mutex_);
+  std::unique_lock lock(mutex_);
   if (isDispatched(event)) {
     return true; // no block if the event is already dispatched
   }

@@ -10,6 +10,7 @@
 #pragma once
 #include <device-layer/IDeviceLayer.h>
 #include <runtime/DmaBuffer.h>
+#include <runtime/IRuntime.h>
 
 namespace rt {
 struct DmaBufferImp {

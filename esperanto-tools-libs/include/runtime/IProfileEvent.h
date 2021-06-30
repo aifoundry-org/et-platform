@@ -120,13 +120,13 @@ protected:
 
 private:
   template <typename... Args> void addExtra(std::string name, Args&&... args);
-  template <typename T> std::optional<T> getExtra(std::string name) const;
+  template <typename T> std::optional<T> getExtra(const std::string& name) const;
 
+  ExtraMetadata extra_;
+  std::string threadId_;
+  TimePoint timeStamp_;
   Type type_;
   Class class_;
-  TimePoint timeStamp_;
-  std::string threadId_;
-  ExtraMetadata extra_;
 };
 } // end namespace profiling
 } // end namespace rt
