@@ -183,6 +183,11 @@
 				"fields": {
 					"low_temperature_c": "int32_t",
 					"high_temperature_c": "int32_t"
+				},
+
+				"default_temp_threshold" : {
+					"low_temp_c" : 70,
+					"high_temp_c" : 80
 				}
 			},
 			"power_state": {
@@ -194,7 +199,9 @@
 
 				"fields": {
 					"state": "enum POWER_STATE"
-				}
+				},
+
+				"default_power_state" : "POWER_STATE_LOWEST"
 			},
 
 			"tdp_level": {
@@ -206,7 +213,9 @@
 
 				"fields": {
 					"tdp": "enum TDP_LEVEL"
-				}
+				},
+
+				"default_tdp_level" : "TDP_LEVEL_ONE"
 			},
 
 			"current_temperature": {
@@ -251,7 +260,15 @@
 					"output_buff": "DM_CMD_GET_MODULE_VOLTAGE"
 				},
 				"fields": {
-					"volts": "uint32_t"
+					"ddr" : "uint8_t",
+					"l2_cache" : "uint8_t",
+					"maxion" : "uint8_t",
+					"minion" : "uint8_t",
+					"pcie" : "uint8_t",
+					"noc" : "uint8_t",
+					"pcie_logic" : "uint8_t",
+					"vddqlp" : "uint8_t",
+					"vddq" : "uint8_t"
 				}
 			},
 
@@ -329,7 +346,9 @@
 				},
 				"fields": {
 					"ecc_error_count": "uint32_t"
-				}
+				},
+
+				"default_error_threshold" : 10
 			}
 		},
 
@@ -379,7 +398,9 @@
 				},
 				"fields": {
 					"speed": "enum PCIE_LINK_SPEED"
-				}
+				},
+
+				"default_link_speed" : "PCIE_LINK_SPEED_GEN3"
 			},
 
 			"pcie_lane_width": {
@@ -418,12 +439,21 @@
 					"output_buff": "DM_CMD_GET_ASIC_FREQUENCIES"
 				},
 				"fields": {
-					"minion_shire_mhz": "uint32_t",
-					"noc_mhz": "uint32_t",
-					"mem_shire_mhz": "uint32_t",
-					"dram_mhz": "uint32_t",
-					"p_shire_mhz": "uint32_t",
-					"io_shire_mhz": "uint32_t"
+					"minion_shire_mhz": "uint8_t",
+					"noc_mhz": "uint8_t",
+					"mem_shire_mhz": "uint8_t",
+					"dram_mhz": "uint8_t",
+					"p_shire_mhz": "uint8_t",
+					"io_shire_mhz": "uint8_t"
+				},
+
+				"default_freqs" : {
+					"minion_shire": 800,
+					"noc": 400,
+					"mem_shire":1067,
+					"dram": 1067,
+					"p_shire": 1010,
+					"io_shire": 500
 				}
 			},
 			"dram_bw": {
@@ -532,8 +562,8 @@
 				"cmd_id": "const uint32_t",
 				"input_buff": "const char *",
 				"input_size": "const uint32_t",
-				"output_buff": "const char *",
-				"output_size": "const char *",
+				"output_buff": "char *",
+				"output_size": "const uint32_t",
 				"host_latency_usec": "uint64_t *",
 				"device_latency_usec": "uint64_t *",
 				"timeout_msec": "const uint32_t"
