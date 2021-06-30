@@ -139,6 +139,8 @@ Modules:
           Value: 57
         - Name: SET_DM_TRACE_CONFIG
           Value: 58
+        - Name: SET_SP_EXCEPTION
+          Value: 59
         - Name: MID_END
           Value: 255
   ## List of Enums that are used in our messages
@@ -1080,3 +1082,11 @@ Modules:
           Description: Padding for alignment
           Type: uint8_t
 #------------------------------------------------------------------------------
+    - Name: device_mgmt_sp_exception_cmd
+      Description:  Command to send SP Exception event
+      Type: Command
+      PairedMessage: None
+      Fields:
+        - Name: dummy
+          Description: Dummy field.
+          Type: uint64_t
