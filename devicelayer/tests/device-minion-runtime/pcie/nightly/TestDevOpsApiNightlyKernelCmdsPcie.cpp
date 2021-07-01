@@ -23,6 +23,7 @@ protected:
 
     initTestHelperPcie();
   }
+
 };
 
 TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, launchAddVectorKernel_PositiveTesting_4_1) {
@@ -94,6 +95,83 @@ TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, abortHangKernel_PositiveTesting_5_1) 
 TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, timeoutHangKernel_NegativeTesting_5_2) {
   launchHangKernel(0x1FFFFFFFF, false); // all shires
 }
+
+/**********************************************************
+*                                                         *
+*          Kernel DMA LIST Tests                          *
+*                                                         *
+**********************************************************/
+
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, launchAddVectorKernelDMAList_PositiveTesting_4_11) {
+  launchAddVectorKernelListCmd(0x1FFFFFFFF); // all shires
+}
+
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, launchAddVectorKernelDMAList_VariableShireMasks) {
+  launchAddVectorKernelListCmd(0x1);         /* Shire 0 */
+  launchAddVectorKernelListCmd(0x3);         /* Shire 0-1 */
+  launchAddVectorKernelListCmd(0x7);         /* Shire 0-2 */
+  launchAddVectorKernelListCmd(0xF);         /* Shire 0-4 */
+  launchAddVectorKernelListCmd(0xFF);        /* Shire 0-8 */
+  launchAddVectorKernelListCmd(0xFFFF);      /* Shire 0-16 */
+  launchAddVectorKernelListCmd(0x1FFFFFFFF); /* Shire 0-32 */
+}
+
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, launchUberKernelDMAList_PositiveTesting_4_14) {
+  launchUberKernelListCmd(0x1FFFFFFFF); // all shires
+}
+
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, launchExceptionKernelDMAList_NegativeTesting_4_16) {
+  launchExceptionKernelListCmd(0x1FFFFFFFF); // all shires
+}
+
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackSameKernelDMAListLaunchCmdsSingleDeviceSingleQueue_3_11) {
+  backToBackSameKernelLaunchListCmds(true, true, 100, 0x1FFFFFFFF); // all shires
+}
+
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackSameKernelDMAListLaunchCmdsSingleDeviceMultiQueue_3_12) {
+  backToBackSameKernelLaunchListCmds(true, false, 100, 0x1FFFFFFFF); // all shires
+}
+
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackSameKernelDMAListLaunchCmdsMultiDeviceSingleQueue_3_13) {
+  backToBackSameKernelLaunchListCmds(false, true, 100, 0x1FFFFFFFF); // all shires
+}
+
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackSameKernelDMAListLaunchCmdsMultiDeviceMultiQueue_3_14) {
+  backToBackSameKernelLaunchListCmds(false, false, 100, 0x1FFFFFFFF); // all shires
+}
+
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackDifferentKernelDMAListLaunchCmdsSingleDeviceSingleQueue_3_15) {
+  backToBackDifferentKernelLaunchListCmds(true, true, 100, 0x1FFFFFFFF); // all shires
+}
+
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackDifferentKernelDMAListLaunchCmdsSingleDeviceMultileQueue_3_14) {
+  backToBackDifferentKernelLaunchListCmds(true, false, 100, 0x1FFFFFFFF); // all shires
+}
+
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackDifferentKernelDMAListLaunchCmdsMultiDeviceSingleQueue_3_17) {
+  backToBackDifferentKernelLaunchListCmds(false, true, 100, 0x1FFFFFFFF); // all shires
+}
+
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackDifferentKernelDMAListLaunchCmdsMultiDeviceMultileQueue_3_18) {
+  backToBackDifferentKernelLaunchListCmds(false, false, 100, 0x1FFFFFFFF); // all shires
+}
+
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackEmptyKernelDMAListLaunch_3_19) {
+  backToBackEmptyKernelLaunchListCmds(100, 0x1FFFFFFFF, false); // all shires
+}
+
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, backToBackEmptyKernelDMAListLaunchFlushL3_3_20) {
+  backToBackEmptyKernelLaunchListCmds(100, 0x1FFFFFFFF, true); // all shires
+}
+
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, abortHangKernelDMAList_PositiveTesting_5_11) {
+  launchHangKernelListCmd(0x1FFFFFFFF, true); // all shires
+}
+
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, timeoutHangKernelDMAList_NegativeTesting_5_12) {
+  launchHangKernelListCmd(0x1FFFFFFFF, false); // all shires
+}
+
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);

@@ -12,6 +12,48 @@
 
 namespace dev::dl_tests {
 
+enum class KernelTypes {
+  ADD_KERNEL_TYPE = 0,
+  EXCEP_KERNEL_TYPE,
+  HANG_KERNEL_TYPE,
+  UBER_KERNEL_TYPE,
+  EMPTY_KERNEL_TYPE,
+  CMUMODE_KERNEL_TYPE,
+};
+
+struct PerDevPerQueKernels {
+  int deviceIdx;
+  int queueIdx;
+  std::vector<KernelTypes> kernels;
+};
+
+typedef std::vector<PerDevPerQueKernels> kernelContainer_t;
+
+struct AddKerParams_t {
+  uint64_t vAAddr;
+  uint64_t vBAddr;
+  uint64_t resultABAddr;
+  int numElemts;
+};
+
+struct UberLayerParameters_t {
+  uint64_t data_ptr;
+  uint64_t length;
+  uint32_t shire_count;
+};
+
+struct AddKerInfo {
+  int devIdx;
+  int queueIdx;
+  std::vector<int> data;
+};
+
+struct ExcepContextInfo {
+  device_ops_api::tag_id_t tagId;
+  int queueIdx;
+  void *data;
+};
+
 class TestDevOpsApiKernelCmds : public TestDevOpsApi {
 protected:
   /* Kernel Functional Tests */
@@ -28,6 +70,69 @@ protected:
   void backToBackEmptyKernelLaunch_3_3(uint64_t totalKer, uint64_t shire_mask, bool flushL3);
   /* Kernel Negative Tests */
   void kernelAbortCmd_InvalidTagIdNegativeTesting_6_2();
+
+
+  /**********************************************************
+   *                                                         *
+   *          Kernel DMA LIST Functions                      *
+   *                                                         *
+   **********************************************************/
+
+  /* Kernel Functional Tests */
+  void launchAddVectorKernelListCmd(uint64_t shire_mask, KernelTypes kernelType = KernelTypes::ADD_KERNEL_TYPE);
+  void launchUberKernelListCmd(uint64_t shire_mask);
+  void launchEmptyKernelListCmd(uint64_t shire_mask);
+  void launchExceptionKernelListCmd(uint64_t shire_mask);
+  void launchHangKernelListCmd(uint64_t shire_mask, bool sendAbortCmd);
+
+  /* Kernel Stress Tests*/
+  void backToBackSameKernelLaunchListCmds(bool singleDevice, bool singleQueue, uint64_t totalKer, uint64_t shire_mask);
+  void backToBackDifferentKernelLaunchListCmds(bool singleDevice, bool singleQueue, uint64_t totalKer, uint64_t shire_mask);
+  void backToBackEmptyKernelLaunchListCmds(uint64_t totalKer, uint64_t shire_mask, bool flushL3);
+
+private:
+  void launchKernelDMAListCmds(uint64_t shireMask, std::vector<KernelTypes> totalKer, bool singleDevice = false, bool singleQueue = false);
+  kernelContainer_t buildKernelsInfo(std::vector<KernelTypes> totalKer, bool singleDevice, bool singleQueue);
+  void launchKernelDMAListPerQueue(uint64_t shireMask, std::vector<KernelTypes> totalKer, bool singleDevice = false, bool singleQueue = false);
+  uint64_t loadElf(int deviceIdx, KernelTypes kerType, device_ops_api::dma_write_node &node);
+  device_ops_api::dma_write_node fillDMAWriteNode(uint64_t srcHostVirtAddr, uint64_t dstDevPhyAddr, uint32_t size) const;
+  device_ops_api::dma_read_node fillDMAReadNode(uint64_t dstHostVirtAddr, uint64_t srcDevPhyAddr, uint32_t size) const;
+  uint64_t kernelExceptionSpace(int deviceIdx);
+  std::vector<KernelTypes> generateKernelTypes(KernelTypes kernelType, uint64_t totalKernel = 1, int numKernelTypes = 1) const;
+
+  // DMA management
+  void calculateDMABuffer(const kernelContainer_t, int totalDevices);
+  uint8_t* getMmapBuffer(int devicesIdx, size_t bytes, bool write=true);
+  void cleanDMABuffer();
+
+  // Add kernel functions
+  uint64_t handleAddKernelDMAListCmd(int, uint64_t, std::vector<int>&, std::vector<CmdTag>&);
+  void addKernelResultReadBackPerQueue(int, std::vector<int*>&, std::vector<uint64_t>, std::vector<CmdTag>&);
+  void validataAddKernel(std::vector<AddKerInfo> addKerneksumAB, std::vector<int*> addKernelResultAB) const;
+
+  // Exception and hang kernel functions
+  void handleExceptionOrAbortKernelDMAListCmd(int, int, uint64_t, KernelTypes, std::vector<ExcepContextInfo>&, std::vector<CmdTag>&);
+  void printExceptionContext(const std::vector<ExcepContextInfo>) const;
+
+  // Empty kernel functions
+  uint64_t handleEmptyKernelDMAListCmd(int deviceIdx, uint64_t shireMask, std::vector<CmdTag> &stream);
+  void emptyKernelReadBackResults(int, std::vector<uint64_t>, std::vector<CmdTag> &stream);
+
+  // Uber kernel functions
+  void handleUberKernelDMAListCmd(int deviceIdx, uint64_t shireMask, std::vector<uint64_t*> &layersResult, std::vector<CmdTag> &stream);
+  void validateUberKernelResult(std::vector<uint64_t*> layersResults) const;
+
+  int addKerNumElems_ = 4 * 1024;
+  bool isReadExceptionContext_ = true;
+  uint64_t exceptionShireMask_ = 0x3;
+  bool flushL3_ = false;
+  bool sendAbortCmd_ = true;
+  KernelTypes addKernelType_ = KernelTypes::ADD_KERNEL_TYPE;
+  std::map<int, uint8_t*> allocatedWriteDMABuffers_;
+  std::map<int, uint8_t*> allocatedReadDMABuffers_;
+  std::vector<void*> dmaBufferRefernces_;
+  static std::map<KernelTypes, std::string> kernelELFNames_;
+
 };
 
 } // namespace dev::dl_tests

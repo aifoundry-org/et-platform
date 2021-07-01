@@ -52,6 +52,7 @@ protected:
 
     initTestHelperSysEmu(sysEmuOptions);
   }
+
 };
 
 TEST_F(TestDevOpsApiFuncKernelCmdsSysEmu, launchAddVectorKernel_PositiveTesting_4_1) {
@@ -104,6 +105,61 @@ TEST_F(TestDevOpsApiFuncKernelCmdsSysEmu, launchAddVectorKernel_CM_UModeTesting_
   // provide the new kernel elf that uses the cm-umode lib
   launchAddVectorKernel_PositiveTesting_4_1(kSysEmuMinionShiresMask, "cm_umode_test.elf");
 }
+
+/**********************************************************
+*                                                         *
+*          Kernel DMA LIST Tests                          *
+*                                                         *
+**********************************************************/
+
+TEST_F(TestDevOpsApiFuncKernelCmdsSysEmu, launchAddVectorKernelDMAList_PositiveTesting_4_11) {
+  launchAddVectorKernelListCmd(kSysEmuMinionShiresMask);
+}
+
+TEST_F(TestDevOpsApiFuncKernelCmdsSysEmu, launchAddVectorKernelDMAList_VariableShireMasks) {
+  launchAddVectorKernelListCmd((0x1 & kSysEmuMinionShiresMask));         /* Shire 0 (if available) */
+  launchAddVectorKernelListCmd((0x3 & kSysEmuMinionShiresMask));         /* Shire 0-1 (if available) */
+  launchAddVectorKernelListCmd((0x7 & kSysEmuMinionShiresMask));         /* Shire 0-2 (if available) */
+  launchAddVectorKernelListCmd((0xF & kSysEmuMinionShiresMask));         /* Shire 0-4 (if available) */
+  launchAddVectorKernelListCmd((0xFF & kSysEmuMinionShiresMask));        /* Shire 0-8 (if available) */
+  launchAddVectorKernelListCmd((0xFFFF & kSysEmuMinionShiresMask));      /* Shire 0-16 (if available) */
+  launchAddVectorKernelListCmd((0x1FFFFFFFF & kSysEmuMinionShiresMask)); /* Shire 0-32 (if available) */
+}
+
+TEST_F(TestDevOpsApiFuncKernelCmdsSysEmu, launchUberKernelDMAList_PositiveTesting_4_14) {
+  launchUberKernelListCmd(kSysEmuMinionShiresMask);
+}
+
+TEST_F(TestDevOpsApiFuncKernelCmdsSysEmu, launchEmptyKernelDMAList_PositiveTesting_4_15) {
+  launchEmptyKernelListCmd(kSysEmuMinionShiresMask);
+}
+
+TEST_F(TestDevOpsApiFuncKernelCmdsSysEmu, launchExceptionKernelDMAList_NegativeTesting_4_16) {
+  launchExceptionKernelListCmd(kSysEmuMinionShiresMask);
+}
+
+TEST_F(TestDevOpsApiFuncKernelCmdsSysEmu, abortHangKernelDMAList_PositiveTesting_4_17) {
+  launchHangKernelListCmd(kSysEmuMinionShiresMask, true);
+}
+
+/*
+ * This test fixture executes all tests under same deviceLayer instantiation.
+ * It helps validate cumulative effect of tests in SysEMU.
+ */
+TEST_F(TestDevOpsApiFuncKernelCmdsSysEmu, allTestsConsecutivelyKernelDMAList) {
+  launchAddVectorKernelListCmd(kSysEmuMinionShiresMask);
+  launchUberKernelListCmd(kSysEmuMinionShiresMask);
+  launchEmptyKernelListCmd(kSysEmuMinionShiresMask);
+  launchExceptionKernelListCmd(kSysEmuMinionShiresMask);
+  launchHangKernelListCmd(kSysEmuMinionShiresMask, true);
+}
+
+
+TEST_F(TestDevOpsApiFuncKernelCmdsSysEmu, launchAddVectorKernelDMAList_CM_UModeTesting_6_11) {
+  // provide the new kernel elf that uses the cm-umode lib
+  launchAddVectorKernelListCmd(kSysEmuMinionShiresMask, KernelTypes::CMUMODE_KERNEL_TYPE);
+}
+
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);

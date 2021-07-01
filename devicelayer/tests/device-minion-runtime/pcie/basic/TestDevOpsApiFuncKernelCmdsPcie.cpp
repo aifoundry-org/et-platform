@@ -23,6 +23,7 @@ protected:
 
     initTestHelperPcie();
   }
+
 };
 
 TEST_F(TestDevOpsApiFuncKernelCmdsPcie, launchAddVectorKernel_PositiveTesting_4_1) {
@@ -70,6 +71,49 @@ TEST_F(TestDevOpsApiFuncKernelCmdsPcie, kernelAbortCmd_InvalidTagIdNegativeTesti
     return;
   }
   kernelAbortCmd_InvalidTagIdNegativeTesting_6_2();
+}
+
+/**********************************************************
+*                                                         *
+*          Kernel DMA LIST Tests                          *
+*                                                         *
+**********************************************************/
+
+TEST_F(TestDevOpsApiFuncKernelCmdsPcie, launchAddVectorKernelDMAList_PositiveTesting_4_10) {
+  launchAddVectorKernelListCmd(0x1);
+}
+
+TEST_F(TestDevOpsApiFuncKernelCmdsPcie, launchAddVectorKernelDMAList_VariableShireMasks_4_11) {
+  launchAddVectorKernelListCmd(0x1);                /* Shire 0 */
+  launchAddVectorKernelListCmd(0x3);                /* Shire 0, 1 */
+  launchAddVectorKernelListCmd(0x3 | (1ull << 32)); /* Shire 0, 1, 32 */
+}
+
+TEST_F(TestDevOpsApiFuncKernelCmdsPcie, launchUberKernelDMAList_PositiveTesting_4_14) {
+  launchUberKernelListCmd(0x3 | (1ull << 32)); /* Shire 0, 1 and 32 */
+}
+
+TEST_F(TestDevOpsApiFuncKernelCmdsPcie, launchEmptyKernelDMAList_PositiveTesting_4_15) {
+  launchEmptyKernelListCmd(0x3 | (1ull << 32)); /* Shire 0, 1 and 32 */
+}
+
+TEST_F(TestDevOpsApiFuncKernelCmdsPcie, launchExceptionKernelDMAList_NegativeTesting_4_16) {
+  // Skip Test, if loopback driver
+  if (FLAGS_loopback_driver) {
+    TEST_VLOG(0) << "Skipping: launchExceptionKernelDMAList_NegativeTesting_4_16, not supported on loopback driver"
+                 << std::endl;
+    return;
+  }
+  launchExceptionKernelListCmd(0x3); /* Shire 0 and 1 */
+}
+
+TEST_F(TestDevOpsApiFuncKernelCmdsPcie, abortHangKernelDMAList_PositiveTesting_5_11) {
+  // Skip Test, if loopback driver
+  if (FLAGS_loopback_driver) {
+    TEST_VLOG(0) << "Skipping: abortHangKernelDMAList_PositiveTesting_5_11, not supported on loopback driver" << std::endl;
+    return;
+  }
+  launchHangKernelListCmd(0x3, true); /* Shire 0 and 1 */
 }
 
 int main(int argc, char** argv) {

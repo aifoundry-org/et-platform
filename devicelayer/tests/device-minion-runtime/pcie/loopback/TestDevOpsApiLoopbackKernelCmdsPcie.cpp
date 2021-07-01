@@ -23,6 +23,7 @@ protected:
 
     initTestHelperPcie();
   }
+
 };
 
 TEST_F(TestDevOpsApiLoopbackKernelCmdsPcie, backToBackSameKernelLaunchCmdsSingleDeviceSingleQueue_3_1) {
@@ -47,6 +48,36 @@ TEST_F(TestDevOpsApiLoopbackKernelCmdsPcie, backToBackEmptyKernelLaunch_3_5) {
 
 TEST_F(TestDevOpsApiLoopbackKernelCmdsPcie, backToBackEmptyKernelLaunchFlushL3_3_6) {
   backToBackEmptyKernelLaunch_3_3(100, 0x3 | (1ull << 32), true); /* Shire 0, 1 and 32 */
+}
+
+/**********************************************************
+*                                                         *
+*          Kernel DMA LIST Tests                          *
+*                                                         *
+**********************************************************/
+
+TEST_F(TestDevOpsApiLoopbackKernelCmdsPcie, backToBackSameKernelDMAListLaunchCmdsSingleDeviceSingleQueue_3_11) {
+  backToBackSameKernelLaunchListCmds(true, true, 100, 0x1);
+}
+
+TEST_F(TestDevOpsApiLoopbackKernelCmdsPcie, backToBackSameKernelDMAListLaunchCmdsSingleDeviceMultiQueue_3_12) {
+  backToBackSameKernelLaunchListCmds(true, false, 100, 0x1);
+}
+
+TEST_F(TestDevOpsApiLoopbackKernelCmdsPcie, backToBackSameKernelDMAListLaunchCmdsMultiDeviceSingleQueue_3_13) {
+  backToBackSameKernelLaunchListCmds(false, true, 100, 0x1);
+}
+
+TEST_F(TestDevOpsApiLoopbackKernelCmdsPcie, backToBackSameKernelDMAListLaunchCmdsMultiDeviceMultiQueue_3_14) {
+  backToBackSameKernelLaunchListCmds(false, false, 100, 0x1);
+}
+
+TEST_F(TestDevOpsApiLoopbackKernelCmdsPcie, backToBackEmptyKernelDMAListLaunch_3_15) {
+  backToBackEmptyKernelLaunchListCmds(100, 0x3 | (1ull << 32), false); /* Shire 0, 1 and 32 */
+}
+
+TEST_F(TestDevOpsApiLoopbackKernelCmdsPcie, backToBackEmptyKernelDMAListLaunchFlushL3_3_16) {
+  backToBackEmptyKernelLaunchListCmds(100, 0x3 | (1ull << 32), true); /* Shire 0, 1 and 32 */
 }
 
 int main(int argc, char** argv) {

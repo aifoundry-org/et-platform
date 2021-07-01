@@ -18,6 +18,11 @@ using namespace ELFIO;
 using namespace dev::dl_tests;
 namespace fs = std::experimental::filesystem;
 
+const uint64_t kExceptionSize = 1024 * 1024; // 1 MB
+const uint64_t kEmptyKerDummyRead = 1024 * 4; // 4KB
+const uint64_t kUberKerLayerBuf0 = 200 * sizeof(uint64_t);
+const uint64_t kUberKerLayerBuf1 = 400 * sizeof(uint64_t);
+
 void static generateRandomData(int totalNumbers, std::vector<std::vector<int>>& dataAStorage,
                                std::vector<std::vector<int>>& dataBStorage,
                                std::vector<std::vector<int>>& dataSumStorage) {
@@ -40,6 +45,22 @@ void static generateRandomData(int totalNumbers, std::vector<std::vector<int>>& 
   dataBStorage.push_back(std::move(tempDataB));
   dataSumStorage.push_back(std::move(tempDataSum));
 }
+
+static std::vector<int>
+addKernelRandomData(int numElems, int* vecA, int* vecB) {
+  std::vector<int> sumOfAB(numElems);
+
+  std::minstd_rand simple_rand;
+  simple_rand.seed(time(nullptr));
+  for (int i = 0; i < numElems; ++i) {
+      vecA[i] = static_cast<int>(simple_rand());
+      vecB[i] = static_cast<int>(simple_rand());
+      sumOfAB[i] = vecA[i] + vecB[i];
+    }
+
+  return sumOfAB;
+}
+
 /**********************************************************
  *                                                         *
  *               Kernel Functional Tests                   *
@@ -807,4 +828,638 @@ void TestDevOpsApiKernelCmds::backToBackEmptyKernelLaunch_3_3(uint64_t totalKer,
   deleteStreams();
 
   TEST_VLOG(1) << "====> BACK TO BACK " << totalKer << " KERNEL LAUNCH (EMPTY KERNEL) DONE <====\n" << std::endl;
+}
+
+/**********************************************************
+*                                                         *
+*          Kernel DMA LIST Functions                      *
+*                                                         *
+**********************************************************/
+
+std::map<KernelTypes, std::string> TestDevOpsApiKernelCmds::kernelELFNames_ = {
+    { KernelTypes::ADD_KERNEL_TYPE, "add_vector.elf" },
+    { KernelTypes::EXCEP_KERNEL_TYPE, "exception.elf" },
+    { KernelTypes::HANG_KERNEL_TYPE, "hang.elf" },
+    { KernelTypes::UBER_KERNEL_TYPE, "uberkernel.elf" },
+    { KernelTypes::EMPTY_KERNEL_TYPE, "empty.elf" },
+    { KernelTypes::CMUMODE_KERNEL_TYPE, "cm_umode_test.elf" },
+};
+
+device_ops_api::dma_write_node
+TestDevOpsApiKernelCmds::fillDMAWriteNode(uint64_t srcHostVirtAddr, uint64_t dstDevPhyAddr, uint32_t size) const {
+  device_ops_api::dma_write_node node;
+
+  node.src_host_virt_addr = srcHostVirtAddr;
+  node.src_host_phy_addr = srcHostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
+  node.dst_device_phy_addr = dstDevPhyAddr;
+  node.size = size;
+  return node;
+}
+
+device_ops_api::dma_read_node
+TestDevOpsApiKernelCmds::fillDMAReadNode(uint64_t dstHostVirtAddr, uint64_t srcDevPhyAddr, uint32_t size) const {
+  device_ops_api::dma_read_node node;
+
+  node.dst_host_virt_addr = dstHostVirtAddr;
+  node.dst_host_phy_addr = dstHostVirtAddr; //  // Should be handled in SysEmu, userspace should not fill this value
+  node.src_device_phy_addr = srcDevPhyAddr;
+  node.size = size;
+  return node;
+}
+
+uint64_t
+TestDevOpsApiKernelCmds::loadElf(int deviceIdx, KernelTypes kerType, device_ops_api::dma_write_node& node) {
+  ELFIO::elfio reader;
+  uint64_t kernelEntryAddr;
+
+  auto elfPath = (fs::path(FLAGS_kernels_dir) / fs::path(kernelELFNames_[kerType])).string();
+
+  if (!reader.load(elfPath))
+    throw Exception("Uanble to load elf file");
+
+  // We only allow ELFs with 1 segment, and the code should be relocatable.
+  // TODO: Properly generate static PIE ELFs
+  if (reader.segments.size() != 1)
+    throw Exception("File segment size is not equal to 1");
+
+  const segment *segment0 = reader.segments[0];
+  if (!(segment0->get_type() & PT_LOAD))
+    throw Exception("File segment type is not PT_LOAD");
+
+  // Copy segment to device memory
+  auto entry = reader.get_entry();
+  auto vAddr = segment0->get_virtual_address();
+  auto pAddr = segment0->get_physical_address();
+  auto fileSize = segment0->get_file_size();
+  auto memSize = segment0->get_memory_size();
+
+  TEST_VLOG(1)<< std::endl << "Loading ELF: " << elfPath << std::endl
+      << "  ELF Entry: 0x" << std::hex << entry
+      << "  Segment [0]: "
+      << "vAddr: 0x" << std::hex << vAddr << ", pAddr: 0x" << std::hex << pAddr << ", Mem Size: 0x" << memSize
+      << ", File Size: 0x" << fileSize;
+
+  // Allocate device buffer for the ELF segment
+  uint64_t deviceElfSegment0Buffer = getDmaWriteAddr(deviceIdx, ALIGN(memSize, 0x1000));
+  kernelEntryAddr = deviceElfSegment0Buffer + (entry - vAddr);
+
+  TEST_VLOG(1)<< " Allocated buffer at device address: 0x" << deviceElfSegment0Buffer << " for segment 0"
+      << " Kernel entry at device address: 0x" << kernelEntryAddr;
+
+  // Fill DMA write list node
+  auto fileData = static_cast<char*>(static_cast<void*>(getMmapBuffer(deviceIdx, ALIGN(fileSize, 0x1000))));
+  memcpy(fileData, segment0->get_data(), fileSize);
+  node =  fillDMAWriteNode(templ::bit_cast<uint64_t>(fileData), deviceElfSegment0Buffer, static_cast<uint32_t>(fileSize));
+
+  return kernelEntryAddr;
+}
+
+std::vector<KernelTypes> TestDevOpsApiKernelCmds::generateKernelTypes (
+    KernelTypes kernelType, uint64_t totalKernel, int numKernelTypes) const {
+  std::vector<KernelTypes> kerTypes;
+
+  if (numKernelTypes > static_cast<int>(KernelTypes::EMPTY_KERNEL_TYPE)) {
+    numKernelTypes = static_cast<int>(KernelTypes::EMPTY_KERNEL_TYPE);
+  }
+
+  std::minstd_rand simpleRand;
+  simpleRand.seed(time(nullptr));
+  for (auto i = 0; i < totalKernel; ++i) {
+    if (numKernelTypes == 1)
+      kerTypes.push_back(kernelType);
+    else {
+      int val = simpleRand() % numKernelTypes;
+      kerTypes.push_back(static_cast<KernelTypes>(val));
+    }
+  }
+
+  return kerTypes;
+}
+
+uint64_t
+TestDevOpsApiKernelCmds::kernelExceptionSpace(int deviceIdx) {
+  return getDmaWriteAddr(deviceIdx, kExceptionSize);
+}
+
+void
+TestDevOpsApiKernelCmds::validataAddKernel(std::vector<AddKerInfo> ExpectedResultAB,
+    std::vector<int*> addKernelResultAB) const {
+
+  // Skip data validation in case of loopback driver
+  if (FLAGS_loopback_driver) {
+    return;
+  }
+
+  for (int i = 0; i < ExpectedResultAB.size(); ++i) {
+      ASSERT_EQ(memcmp(ExpectedResultAB[i].data.data(), addKernelResultAB[i], addKerNumElems_ * sizeof(int)), 0)
+          << "Vectors result mismatch for device: " << ExpectedResultAB[i].devIdx
+          << ", queue: " << ExpectedResultAB[i].queueIdx
+          << " at Index: " << i;
+    }
+
+  TEST_VLOG(1) << "====> ADD TWO VECTORS KERNEL RESPONSE DATA VERIFIED <====" << std::endl;
+}
+
+void
+TestDevOpsApiKernelCmds::addKernelResultReadBackPerQueue(int deviceIdx,
+    std::vector<int*>& addKernelResultsVector,
+    std::vector<uint64_t> perQueueResultDevAddrs,
+    std::vector<CmdTag> &stream) {
+
+  auto bufSize = addKerNumElems_ * sizeof(int);
+  auto alignedBufSize = ALIGN(bufSize, kCacheLineSize);
+  std::vector<device_ops_api::dma_read_node> readNodes;
+
+  for (size_t i = 0 ; i < perQueueResultDevAddrs.size(); ++i) {
+    auto readPtr = static_cast<void*>(getMmapBuffer(deviceIdx, alignedBufSize, false));
+
+    // save result vector
+    addKernelResultsVector.push_back(static_cast<int*>(readPtr));
+    readNodes.push_back(fillDMAReadNode(templ::bit_cast<uint64_t>(readPtr), perQueueResultDevAddrs[i], static_cast<uint32_t>(bufSize)));
+
+    if (readNodes.size() == 4 || i == perQueueResultDevAddrs.size() - 1) {
+      // create DMA read list command
+      stream.push_back(
+          IDevOpsApiCmd::createCmd<DmaReadListCmd>(
+              i < 4 ? // Barrier only for first read to make sure that all kernels execution done
+              device_ops_api::CMD_FLAGS_BARRIER_ENABLE : device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+              readNodes.data(), static_cast<uint32_t>(readNodes.size()),
+              device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+      readNodes.clear();
+    }
+  }
+}
+
+uint64_t
+TestDevOpsApiKernelCmds::handleAddKernelDMAListCmd(int deviceIdx,
+    uint64_t shireMask, std::vector<int> &sumOfAB,
+    std::vector<CmdTag> &stream) {
+
+  auto bufSize = addKerNumElems_ * sizeof(int);
+  auto alignedBufSize = ALIGN(bufSize, kCacheLineSize);
+  std::vector<device_ops_api::dma_write_node> wrNodes(3);
+
+  auto vectorA = static_cast<int*>(static_cast<void*>(getMmapBuffer(deviceIdx, 2 * alignedBufSize)));
+  auto vectorB = vectorA + alignedBufSize / sizeof(int);
+
+  // generate random data
+  sumOfAB = addKernelRandomData(addKerNumElems_, vectorA, vectorB);
+
+  // load elf
+  auto kernelEntryAddr = loadElf(deviceIdx, addKernelType_, wrNodes[0]);
+
+  auto vectorADevAddr = getDmaWriteAddr(deviceIdx, 3 * alignedBufSize);
+  auto vectorBDevAddr = vectorADevAddr + alignedBufSize;
+  auto kernelResultAddr = vectorBDevAddr + alignedBufSize;
+
+  // DMA node for vector A
+  wrNodes[1] = fillDMAWriteNode(templ::bit_cast<uint64_t>(vectorA), vectorADevAddr, static_cast<uint32_t>(bufSize));
+
+  // DMA node for vector B
+  wrNodes[2] = fillDMAWriteNode(templ::bit_cast<uint64_t>(vectorB), vectorBDevAddr, static_cast<uint32_t>(bufSize));
+
+  // add kernel parameters
+  AddKerParams_t params = { vectorADevAddr, vectorBDevAddr,  kernelResultAddr, addKerNumElems_ };
+  // alocate space for argument
+  auto devKernelArgsAddr = getDmaWriteAddr(deviceIdx, ALIGN(sizeof(AddKerParams_t), kCacheLineSize));
+
+  // create DMA write list command
+  stream.push_back(
+      IDevOpsApiCmd::createCmd<DmaWriteListCmd>(
+          device_ops_api::CMD_FLAGS_BARRIER_DISABLE, wrNodes.data(), wrNodes.size(),
+          device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+
+  // Add kernel launch command
+  stream.push_back(
+      IDevOpsApiCmd::createCmd<KernelLaunchCmd>(
+          device_ops_api::CMD_FLAGS_BARRIER_ENABLE, kernelEntryAddr,
+          devKernelArgsAddr, kernelExceptionSpace(deviceIdx), shireMask, 0,
+          templ::bit_cast<uint64_t*>(&params), sizeof(params), "",
+          device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
+
+  return kernelResultAddr;
+}
+
+void TestDevOpsApiKernelCmds::printExceptionContext(const std::vector<ExcepContextInfo> exceptionContexts) const {
+  for (auto context : exceptionContexts)
+    printErrorContext(context.queueIdx,
+        templ::bit_cast<std::byte*>(context.data), exceptionShireMask_,
+        context.tagId);
+}
+
+void
+TestDevOpsApiKernelCmds::handleExceptionOrAbortKernelDMAListCmd(
+    int deviceIdx,int queueIdx, uint64_t shireMask, KernelTypes kertype, std::vector<ExcepContextInfo>& contexts,
+    std::vector<CmdTag> &stream) {
+
+  ExcepContextInfo info;
+  std::vector<device_ops_api::dma_write_node> wrNodes(1);
+
+  // load elf
+  auto kernelEntryAddr = loadElf(deviceIdx, kertype, wrNodes[0]);
+
+  // create DMA write list command
+  stream.push_back(
+      IDevOpsApiCmd::createCmd<DmaWriteListCmd>(
+          device_ops_api::CMD_FLAGS_BARRIER_DISABLE, wrNodes.data(), wrNodes.size(),
+          device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+
+  // hang kernel expected status
+  device_ops_api::dev_ops_api_kernel_launch_response_e hangKerExpectedRsp = sendAbortCmd_ ?
+      device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED :
+      device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG;
+
+  // Kernel launch
+  stream.push_back(
+      IDevOpsApiCmd::createCmd<KernelLaunchCmd>(
+      device_ops_api::CMD_FLAGS_BARRIER_ENABLE,
+      kernelEntryAddr, 0 /* No kernel args */,
+      kernelExceptionSpace(deviceIdx), shireMask, 0, nullptr, 0,"",
+      kertype == KernelTypes::EXCEP_KERNEL_TYPE ?
+          device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_EXCEPTION : // exception kernel
+          hangKerExpectedRsp)); // hang kernel
+
+  info.tagId = stream.back();
+  info.queueIdx = queueIdx;
+
+  // kernel abort
+  if (kertype == KernelTypes::HANG_KERNEL_TYPE && sendAbortCmd_)
+    stream.push_back(
+        IDevOpsApiCmd::createCmd<KernelAbortCmd>(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, info.tagId,
+            device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS));
+
+  // pull the exception buffer from device
+  if (isReadExceptionContext_) {
+      std::vector<device_ops_api::dma_read_node> contextNodes;
+      // DMA list node
+    auto readPtr = static_cast<void*>(getMmapBuffer(deviceIdx, kExceptionSize, false));
+    contextNodes.push_back(
+        fillDMAReadNode(templ::bit_cast<uint64_t>(readPtr),
+            kernelExceptionSpace(deviceIdx), kExceptionSize));
+
+      // create DMA read list command
+      stream.push_back(
+          IDevOpsApiCmd::createCmd<DmaReadListCmd>(
+                  device_ops_api::CMD_FLAGS_BARRIER_ENABLE,
+                  contextNodes.data(), contextNodes.size(),
+                  device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+
+      info.data = static_cast<std::byte*> (readPtr);
+      contexts.push_back(info);
+    }
+}
+
+void
+TestDevOpsApiKernelCmds::emptyKernelReadBackResults(int deviceIdx,
+    std::vector<uint64_t> dummyResultAddrs,
+    std::vector<CmdTag> &stream) {
+
+  std::vector<device_ops_api::dma_read_node> rdNodes;
+  for (size_t i = 0 ; i < dummyResultAddrs.size(); ++i) {
+    rdNodes.push_back(fillDMAReadNode(templ::bit_cast<uint64_t>(getMmapBuffer(deviceIdx, kEmptyKerDummyRead, false)),
+        dummyResultAddrs[i], kEmptyKerDummyRead));
+
+    if (rdNodes.size() == 4 || i == dummyResultAddrs.size() - 1) {
+      // create DMA read list command
+      stream.push_back(
+          IDevOpsApiCmd::createCmd<DmaReadListCmd>(
+              i < 4 ? // Barrier only for first read to make sure that all kernels execution done
+                  device_ops_api::CMD_FLAGS_BARRIER_ENABLE : device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                  rdNodes.data(), static_cast<uint32_t>(rdNodes.size()),
+                  device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+      rdNodes.clear();
+    }
+  }
+}
+
+uint64_t
+TestDevOpsApiKernelCmds::handleEmptyKernelDMAListCmd(
+    int deviceIdx, uint64_t shireMask,
+    std::vector<CmdTag> &stream) {
+
+  std::vector<device_ops_api::dma_write_node> wrNodes(1);
+
+  // load elf
+  auto kernelEntryAddr = loadElf(deviceIdx, KernelTypes::EMPTY_KERNEL_TYPE, wrNodes[0]);
+
+  // create DMA write list command
+  stream.push_back(
+      IDevOpsApiCmd::createCmd<DmaWriteListCmd>(
+          device_ops_api::CMD_FLAGS_BARRIER_DISABLE, wrNodes.data(), wrNodes.size(),
+          device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+
+  // dummy argument
+  std::array<uint8_t, 8> dummyKernelArgs = {0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF};
+  // alocate space for dummy arguments
+  auto kernelArgsAddr = getDmaWriteAddr(deviceIdx, ALIGN(sizeof(dummyKernelArgs), kCacheLineSize));
+
+  // Add kernel launch command
+  stream.push_back(
+      IDevOpsApiCmd::createCmd<KernelLaunchCmd>(
+          (device_ops_api::CMD_FLAGS_BARRIER_ENABLE | (flushL3_ ? device_ops_api::CMD_FLAGS_KERNEL_LAUNCH_FLUSH_L3 : 0)),
+          kernelEntryAddr, kernelArgsAddr,
+          kernelExceptionSpace(deviceIdx), shireMask, 0,
+          templ::bit_cast<uint64_t*>(&dummyKernelArgs), sizeof(dummyKernelArgs), "",
+          device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
+
+  // allocate 4KB space for dummy kernel result
+  return getDmaWriteAddr(deviceIdx, ALIGN(kEmptyKerDummyRead, kCacheLineSize));
+}
+
+void TestDevOpsApiKernelCmds::validateUberKernelResult(std::vector<uint64_t*> layersResults) const{
+
+  // Skip data validation in case of loopback driver
+  if (FLAGS_loopback_driver) {
+    return;
+  }
+
+  // Verification data
+  const std::vector<uint64_t> refdata0(kUberKerLayerBuf0 / sizeof(uint64_t), 0xBEEFBEEFBEEFBEEFULL);
+  const std::vector<uint64_t> refdata1(kUberKerLayerBuf1 / sizeof(uint64_t), 0xBEEFBEEFBEEFBEEFULL);
+
+  for (size_t i = 0; i < layersResults.size(); i += 2) {
+    ASSERT_EQ(memcmp(layersResults[i], refdata0.data(), kUberKerLayerBuf0), 0);
+    ASSERT_EQ(memcmp(layersResults[i + 1], refdata1.data(), kUberKerLayerBuf1), 0);
+  }
+
+  TEST_VLOG(1) << "====> UBERKERNEL KERNEL RESPONSE DATA VERIFIED <====" << std::endl;
+}
+
+void TestDevOpsApiKernelCmds::handleUberKernelDMAListCmd(int deviceIdx,
+    uint64_t shireMask, std::vector<uint64_t*> &layersResult,
+    std::vector<CmdTag> &stream) {
+
+  std::vector<device_ops_api::dma_write_node> wrNodes(1);
+  std::vector<device_ops_api::dma_read_node> rdNodes;
+
+  std::vector<std::vector<uint64_t>> vResultStorageUberKer;
+  std::vector<uint64_t> vResultUberKer;
+
+  std::array<UberLayerParameters_t, 2> uberKerArgs;
+
+  // get device address
+  auto devAddrLayer0 = getDmaWriteAddr(deviceIdx, kUberKerLayerBuf0);
+  auto devAddrLayer1 = getDmaWriteAddr(deviceIdx, kUberKerLayerBuf1);
+  auto uberKerArgSpace =  getDmaWriteAddr(deviceIdx, ALIGN(sizeof(uberKerArgs[0]) * uberKerArgs.size(), kCacheLineSize));
+
+  uberKerArgs[0].data_ptr = devAddrLayer0;
+  uberKerArgs[0].length = kUberKerLayerBuf0;
+  uberKerArgs[0].shire_count = static_cast<uint32_t>(std::bitset<64>(shireMask).count());
+  uberKerArgs[1].data_ptr = devAddrLayer1;
+  uberKerArgs[1].length = kUberKerLayerBuf1;
+  uberKerArgs[1].shire_count = static_cast<uint32_t>(std::bitset<64>(shireMask).count());
+
+  // Load elf
+  auto uberKerEntryAddr = loadElf(deviceIdx, KernelTypes::UBER_KERNEL_TYPE, wrNodes[0]);
+
+  // create DMA write list command
+  stream.push_back(
+      IDevOpsApiCmd::createCmd<DmaWriteListCmd>(
+          device_ops_api::CMD_FLAGS_BARRIER_DISABLE, wrNodes.data(), wrNodes.size(),
+          device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+
+    // Kernel launch Command
+  stream.push_back(IDevOpsApiCmd::createCmd<KernelLaunchCmd>(
+      device_ops_api::CMD_FLAGS_BARRIER_ENABLE, uberKerEntryAddr, uberKerArgSpace, kernelExceptionSpace(deviceIdx),
+      shireMask, 0, templ::bit_cast<uint64_t*>(uberKerArgs.data()), sizeof(uberKerArgs[0]) * uberKerArgs.size(), "",
+      device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
+
+  // Read back data written by layer 0
+  layersResult.push_back(static_cast<uint64_t*>(static_cast<void*>(getMmapBuffer(deviceIdx, kUberKerLayerBuf0, false))));
+  rdNodes.push_back(fillDMAReadNode(templ::bit_cast<uint64_t>(layersResult.back()), devAddrLayer0, kUberKerLayerBuf0));
+
+
+  // Read back data written by layer 1
+  layersResult.push_back(static_cast<uint64_t*>(static_cast<void*>(getMmapBuffer(deviceIdx, kUberKerLayerBuf1, false))));
+  rdNodes.push_back(fillDMAReadNode(templ::bit_cast<uint64_t>(layersResult.back()), devAddrLayer1, kUberKerLayerBuf1));
+
+  // create DMA read list command
+  stream.push_back(
+      IDevOpsApiCmd::createCmd<DmaReadListCmd>(
+          device_ops_api::CMD_FLAGS_BARRIER_ENABLE,
+          rdNodes.data(), rdNodes.size(),
+          device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+}
+
+void TestDevOpsApiKernelCmds::cleanDMABuffer() {
+  for (auto m : dmaBufferRefernces_)
+    freeDmaBuffer(m);
+
+  dmaBufferRefernces_.clear();
+  allocatedWriteDMABuffers_.clear();
+  allocatedReadDMABuffers_.clear();
+}
+
+uint8_t* TestDevOpsApiKernelCmds::getMmapBuffer(int devicesIdx, size_t bytes, bool write) {
+  if (write) {
+    auto p = allocatedWriteDMABuffers_[devicesIdx];
+    allocatedWriteDMABuffers_[devicesIdx] += bytes;
+    return p;
+  }
+
+  auto p = allocatedReadDMABuffers_[devicesIdx];
+  allocatedReadDMABuffers_[devicesIdx] += bytes;
+  return p;
+}
+
+void TestDevOpsApiKernelCmds::calculateDMABuffer(const kernelContainer_t kernels, int totalDevices) {
+
+  std::vector<int> devicesWriteMemSize(totalDevices);
+  std::vector<int> devicesReadMemSize(totalDevices);
+
+  for (const auto& perQueueKernels : kernels) {
+    size_t perDevWriteMemBytes = 0;
+    size_t perDevReadMemBytes = 0;
+    auto deviceIdx = perQueueKernels.deviceIdx;
+    for (auto kerType : perQueueKernels.kernels) {
+      switch(kerType) {
+        case KernelTypes::ADD_KERNEL_TYPE: {
+          // Two add vector and their results
+          perDevWriteMemBytes += ALIGN((addKerNumElems_ * sizeof(int)), kCacheLineSize) * 2;
+          perDevReadMemBytes += ALIGN((addKerNumElems_ * sizeof(int)), kCacheLineSize);
+          break;
+        }
+        case KernelTypes::EXCEP_KERNEL_TYPE:
+        case KernelTypes::HANG_KERNEL_TYPE: {
+          // Read exception
+          perDevReadMemBytes += kExceptionSize;
+          break;
+        }
+        case KernelTypes::EMPTY_KERNEL_TYPE: {
+          perDevReadMemBytes += kEmptyKerDummyRead;
+          break;
+        }
+        case KernelTypes::UBER_KERNEL_TYPE: {
+          perDevWriteMemBytes += kUberKerLayerBuf0 + kUberKerLayerBuf1;
+          perDevReadMemBytes += kUberKerLayerBuf0 + kUberKerLayerBuf1;
+          break;
+        }
+        default:
+          break;
+      }
+
+      // 2 MB for kernel elf
+      perDevWriteMemBytes += 1024 * 1024 * 2;
+
+      // 1 MB margin
+      perDevReadMemBytes += 1024 * 1024 * 1;
+    }
+
+    devicesWriteMemSize[deviceIdx] += perDevWriteMemBytes;
+    devicesReadMemSize[deviceIdx] += perDevReadMemBytes;
+  }
+
+  // alocate DMA memory per device
+  for (int dev = 0; dev < totalDevices ; ++dev) {
+    // Write DMA memory
+    dmaBufferRefernces_.push_back(allocDmaBuffer(dev, devicesWriteMemSize[dev], true));
+    allocatedWriteDMABuffers_[dev] = static_cast<uint8_t*>(dmaBufferRefernces_.back());
+
+    // Read DMA memory
+    dmaBufferRefernces_.push_back(allocDmaBuffer(dev, devicesReadMemSize[dev], false));
+    allocatedReadDMABuffers_[dev] = static_cast<uint8_t*>(dmaBufferRefernces_.back());
+  }
+}
+
+kernelContainer_t
+TestDevOpsApiKernelCmds::buildKernelsInfo(std::vector<KernelTypes> totalKer, bool singleDevice, bool singleQueue) {
+  int kernelsCount = 0;
+  kernelContainer_t kernels;
+  auto perQueueKernels = totalKer;
+
+  auto devCount = singleDevice ? 1 : getDevicesCount();
+  for (auto devIdx = 0; devIdx < devCount; ++devIdx) {
+    auto queueCount = singleQueue ? 1 : getSqCount(devIdx);
+    for (auto queueIdx = 0; queueIdx < queueCount; ++queueIdx) {
+      if (totalKer.size() > 1) {
+        // Use all remaining kernels at the end
+        int perQueueKersCount =
+            (devIdx == (devCount - 1) && queueIdx == (queueCount - 1)) ?
+                static_cast<int>(totalKer.size()) - kernelsCount :
+                static_cast<int>(totalKer.size()) / devCount / queueCount;
+        perQueueKernels = {totalKer.begin() + kernelsCount, totalKer.begin() + kernelsCount + perQueueKersCount};
+        kernelsCount += perQueueKersCount;
+      }
+      // save kernel info
+      kernels.push_back({ devIdx, queueIdx, perQueueKernels });
+    }
+  }
+
+  calculateDMABuffer(kernels, devCount);
+  return kernels;
+}
+
+void TestDevOpsApiKernelCmds::launchKernelDMAListCmds(uint64_t shireMask, std::vector<KernelTypes> totalKer, bool singleDevice, bool singleQueue) {
+  // Add kernel parameters
+  std::vector<AddKerInfo> addKernelSumVectorAB;
+  std::vector<int*> addKernelResultVectorAB;
+
+  // Exception/hang kernel parameters
+  std::vector<ExcepContextInfo> exceptionContexts;
+
+  // Empty kernel parameters
+  std::vector<uint64_t> emptyKerDummyAddrs;
+
+  // Uber kernel parametsr
+  std::vector<uint64_t*> uberKerlayersResult;
+
+  kernelContainer_t kernels = buildKernelsInfo(totalKer, singleDevice, singleQueue);
+
+  for (const auto& perQueueKernels : kernels) {
+    auto devIdx = perQueueKernels.deviceIdx;
+    auto queueIdx = perQueueKernels.queueIdx;
+    std::vector<CmdTag> stream;
+    std::vector<uint64_t> addKernelResultDevAddrs;
+    for (auto kerType : perQueueKernels.kernels) {
+      switch(kerType) {
+        case KernelTypes::ADD_KERNEL_TYPE: {
+
+          std::vector<int> sumOfvectors;
+          addKernelResultDevAddrs.push_back(handleAddKernelDMAListCmd(devIdx, shireMask, sumOfvectors, stream));
+          addKernelSumVectorAB.push_back({devIdx, queueIdx, sumOfvectors});
+          break;
+        }
+          case KernelTypes::EXCEP_KERNEL_TYPE:
+          case KernelTypes::HANG_KERNEL_TYPE: {
+
+            handleExceptionOrAbortKernelDMAListCmd(devIdx, queueIdx, shireMask,kerType, exceptionContexts, stream);
+            break;
+          }
+          case KernelTypes::EMPTY_KERNEL_TYPE: {
+
+            emptyKerDummyAddrs.push_back(handleEmptyKernelDMAListCmd(devIdx, shireMask, stream));
+            break;
+          }
+          case KernelTypes::UBER_KERNEL_TYPE: {
+
+            handleUberKernelDMAListCmd(devIdx, shireMask, uberKerlayersResult, stream);
+            break;
+          }
+          default:
+            break;
+      }
+    }
+
+    // Read back add kernel results
+    addKernelResultReadBackPerQueue(devIdx, addKernelResultVectorAB, addKernelResultDevAddrs, stream);
+
+    // Read back empty kernel result
+    emptyKernelReadBackResults(devIdx, emptyKerDummyAddrs, stream);
+
+    // Save stream against deviceIdx and queueIdx
+    insertStream(devIdx, queueIdx, std::move(stream));
+  }
+
+  // Execute all commands
+  executeAsync();
+
+  // validate Add kernel commands
+  validataAddKernel(addKernelSumVectorAB, addKernelResultVectorAB);
+
+ // print exception context
+  printExceptionContext(exceptionContexts);
+
+  // validate uber kernel command
+  validateUberKernelResult(uberKerlayersResult);
+
+  deleteStreams();
+  cleanDMABuffer();
+}
+
+/* Kernel Functional Tests */
+void TestDevOpsApiKernelCmds::launchAddVectorKernelListCmd(uint64_t shire_mask, KernelTypes kernelType) {
+  addKernelType_ = kernelType;
+  addKerNumElems_ = 10496;
+  launchKernelDMAListCmds(shire_mask, generateKernelTypes(KernelTypes::ADD_KERNEL_TYPE));
+}
+void TestDevOpsApiKernelCmds::launchUberKernelListCmd(uint64_t shire_mask) {
+  launchKernelDMAListCmds(shire_mask, generateKernelTypes(KernelTypes::UBER_KERNEL_TYPE));
+}
+
+void TestDevOpsApiKernelCmds::launchEmptyKernelListCmd(uint64_t shire_mask) {
+  launchKernelDMAListCmds(shire_mask, generateKernelTypes(KernelTypes::EMPTY_KERNEL_TYPE));
+}
+
+void TestDevOpsApiKernelCmds::launchExceptionKernelListCmd(uint64_t shire_mask) {
+  launchKernelDMAListCmds(shire_mask, generateKernelTypes(KernelTypes::EXCEP_KERNEL_TYPE));
+}
+
+void TestDevOpsApiKernelCmds::launchHangKernelListCmd(uint64_t shire_mask, bool sendAbortCmd){
+  sendAbortCmd_ = sendAbortCmd;
+  launchKernelDMAListCmds(shire_mask, generateKernelTypes(KernelTypes::HANG_KERNEL_TYPE));
+}
+
+/* Kernel Stress Tests*/
+void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchListCmds(bool singleDevice, bool singleQueue, uint64_t totalKer, uint64_t shire_mask) {
+  launchKernelDMAListCmds(shire_mask, generateKernelTypes(KernelTypes::ADD_KERNEL_TYPE, totalKer), singleDevice, singleQueue);
+}
+
+void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchListCmds(bool singleDevice, bool singleQueue, uint64_t totalKer, uint64_t shire_mask) {
+  isReadExceptionContext_ = false;
+  launchKernelDMAListCmds(shire_mask, generateKernelTypes(KernelTypes::ADD_KERNEL_TYPE, totalKer, 0x3), singleDevice, singleQueue);
+}
+
+void TestDevOpsApiKernelCmds::backToBackEmptyKernelLaunchListCmds(uint64_t totalKer, uint64_t shire_mask, bool flushL3) {
+  flushL3_ = flushL3;
+  launchKernelDMAListCmds(shire_mask, generateKernelTypes(KernelTypes::EMPTY_KERNEL_TYPE, totalKer));
 }
