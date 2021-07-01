@@ -31,7 +31,7 @@ target_include_directories(debug
 target_link_libraries(debug PUBLIC g3log::g3log)
 
 set_target_properties(debug PROPERTIES
-  PUBLIC_HEADER "include/debug/StackException.h"
+  PUBLIC_HEADER "include/debug/StackException.h;include/debug/Check.h"
 )
 set_target_properties(debug PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
