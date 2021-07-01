@@ -213,13 +213,15 @@ void SQW_Notify(uint8_t sqw_idx)
 *
 *   DESCRIPTION
 *
-*       Notify SQ Worker
+*       This function prefetches the VQ data in L2 SCP and processes each
+*       command.
 *
 *   INPUTS
 *
 *       sqw_idx         Submission Queue Worker index
-*       vq_cached       VQ pointer
-*       start_cycles    Command processing start cycles.
+*       vq_cached       VQ cached local pointer
+*       vq_shared       VQ shared SRAM pointer
+*       start_cycles    Command processing start cycles
 *       shared_mem_ptr  Shared memory pointer of VQ
 *       vq_used_space   Total number of data bytes to process
 *
@@ -228,17 +230,20 @@ void SQW_Notify(uint8_t sqw_idx)
 *       None
 *
 ***********************************************************************/
-static inline void sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_cached, uint64_t start_cycles,
-    void* shared_mem_ptr, uint64_t vq_used_space)
+static inline void sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_cached,
+    vq_cb_t *vq_shared, uint64_t start_cycles, void* shared_mem_ptr, uint64_t vq_used_space)
 {
-    uint8_t *cmd_buff = (uint8_t*)(MM_SQ_PREFETCHED_COPY_BASEADDR + sqw_idx * MM_SQ_SIZE_MAX);
+    uint8_t *cmd_buff = (uint8_t*)(MM_SQ_PREFETCHED_BUFFER_BASEADDR + sqw_idx * MM_SQ_SIZE_MAX);
     const struct cmd_header_t *cmd_hdr;
     int32_t pop_ret_val;
     int8_t status = STATUS_SUCCESS;
     uint32_t cmd_buff_idx = 0;
 
     /* Create a shadow copy of data from SQ to L2 SCP */
-    status = VQ_Pop_Optimized(vq_cached, vq_used_space, shared_mem_ptr, cmd_buff);
+    status = VQ_Prefetch_Buffer(vq_cached, vq_used_space, shared_mem_ptr, cmd_buff);
+
+    /* Update the tail offset in VQ shared memory so that host is able to push new commands */
+    Host_Iface_Optimized_SQ_Update_Tail(vq_shared, vq_cached);
 
     if(status != STATUS_SUCCESS)
     {
@@ -250,7 +255,7 @@ static inline void sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_ca
     while(cmd_buff_idx < vq_used_space)
     {
         /* Process commands from L2 SCP prefetched copy */
-        pop_ret_val = VQ_Verify_Cmd_Optimized(cmd_buff, vq_used_space, cmd_buff_idx);
+        pop_ret_val = VQ_Process_Command(cmd_buff, vq_used_space, cmd_buff_idx);
 
         if(pop_ret_val > 0)
         {
@@ -279,8 +284,7 @@ static inline void sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_ca
 
             if(status != STATUS_SUCCESS)
             {
-                Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:Processing failed:%d\r\n",
-                    status);
+                Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:Processing failed:%d\r\n", status);
             }
 
             /* Update the command buffer index */
@@ -318,7 +322,6 @@ static inline void sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_ca
 ***********************************************************************/
 void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
 {
-    bool update_sq_tail;
     uint64_t tail_prev;
     uint64_t start_cycles = 0;
     void* shared_mem_ptr;
@@ -388,9 +391,6 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
             vq_cached.circbuff_cb->tail_offset = tail_prev;
         }
 
-        /* Reset the update tail flag */
-        update_sq_tail = false;
-
         /* Calculate the total number of bytes available in the VQ */
         uint64_t vq_used_space = VQ_Get_Used_Space(&vq_cached, CIRCBUFF_FLAG_NO_READ);
 
@@ -398,21 +398,11 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
         while(vq_used_space)
         {
             /* Process the pending commands */
-            sqw_process_waiting_commands(sqw_idx, &vq_cached, start_cycles, shared_mem_ptr,
-                vq_used_space);
+            sqw_process_waiting_commands(sqw_idx, &vq_cached, vq_shared, start_cycles,
+                shared_mem_ptr, vq_used_space);
 
             /* Re-calculate the total number of bytes available in the VQ */
             vq_used_space = VQ_Get_Used_Space(&vq_cached, CIRCBUFF_FLAG_NO_READ);
-
-            /* Set the SQ tail update flag so that we can updated shared
-            memory circular buffer CB with new tail offset */
-            update_sq_tail = true;
-        }
-
-        if(update_sq_tail)
-        {
-            /* Update the tail offset in VQ shared memory so that host is able to push new commands */
-            Host_Iface_Optimized_SQ_Update_Tail(vq_shared, &vq_cached);
         }
     } /* loop forever */
 

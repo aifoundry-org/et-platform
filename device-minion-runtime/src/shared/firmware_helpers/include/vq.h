@@ -90,9 +90,9 @@ int8_t VQ_Push(vq_cb_t* vq_cb, void* data, uint32_t data_size);
 */
 int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff);
 
-/*! \fn int32_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint32_t vq_used_space,
+/*! \fn int32_t VQ_Prefetch_Buffer(vq_cb_t* vq_cb, uint32_t vq_used_space,
     void *const shared_mem_ptr, void* rx_buff)
-    \brief Pops a command from a virtual queue.
+    \brief Prefetches the data from a virtual queue.
     \param vq_cb Pointer to virtual queue control block.
     \param vq_used_space Number of bytes used in VQ
     \param shared_mem_ptr Pointer to the VQ shared memory buffer used as
@@ -100,17 +100,17 @@ int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff);
     \param rx_buff Pointer to rx command buffer.
     \return Success status or negative error code.
 */
-int8_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint64_t vq_used_space,
+int8_t VQ_Prefetch_Buffer(vq_cb_t* vq_cb, uint64_t vq_used_space,
     void *const shared_mem_ptr, void* rx_buff);
 
-/*! \fn int32_t VQ_Verify_Cmd_Optimized(void* cmds_buff, uint64_t buffer_size, uint32_t buffer_idx)
-    \brief This function is used to verify a popped command from virtual queue.
+/*! \fn int32_t VQ_Process_Command(void* cmds_buff, uint64_t buffer_size, uint32_t buffer_idx)
+    \brief This function is used to process a popped command from prefetched VQ buffer.
     \param cmds_buff Pointer to rx command buffer.
     \param buffer_size Number of bytes used in VQ
     \param buffer_idx Index of the commands buffer from where the data is to be read
     \return The size of the command in bytes or negative error code.
 */
-int32_t VQ_Verify_Cmd_Optimized(void* cmds_buff, uint64_t buffer_size, uint32_t buffer_idx);
+int32_t VQ_Process_Command(void* cmds_buff, uint64_t buffer_size, uint32_t buffer_idx);
 
 /*! \fn int8_t VQ_Peek(vq_cb_t* vq_cb, void* peek_buff,
         uint16_t peek_offset, uint16_t peek_length)

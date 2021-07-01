@@ -17,8 +17,8 @@
         VQ_Init
         VQ_Push
         VQ_Pop
-        VQ_Pop_Optimized
-        VQ_Verify_Cmd_Optimized
+        VQ_Prefetch_Buffer
+        VQ_Process_Command
         VQ_Data_Avail
         VQ_Deinit
 */
@@ -251,11 +251,11 @@ int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
 *
 *   FUNCTION
 *
-*       VQ_Pop_Optimized
+*       VQ_Prefetch_Buffer
 *
 *   DESCRIPTION
 *
-*       This function is used to pop a command from virtual queue. Note that
+*       This function is used prefetch data from virtual queue. Note that
 *       this is an optimized version of VQ pop which operates on cached VQ
 *       pointers.
 *
@@ -271,7 +271,7 @@ int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
 *       int8_t         Returns successful status or error code.
 *
 ***********************************************************************/
-int8_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint64_t vq_used_space,
+int8_t VQ_Prefetch_Buffer(vq_cb_t* vq_cb, uint64_t vq_used_space,
     void *const shared_mem_ptr,  void* rx_buff)
 {
     int8_t status;
@@ -287,11 +287,11 @@ int8_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint64_t vq_used_space,
 *
 *   FUNCTION
 *
-*       VQ_Verify_Cmd_Optimized
+*       VQ_Process_Command
 *
 *   DESCRIPTION
 *
-*       This function is used to verify a popped command from virtual queue.
+*       This function is used to process a popped command from VQ buffer.
 *
 *   INPUTS
 *
@@ -306,7 +306,7 @@ int8_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint64_t vq_used_space,
 *                      Positive value - Number of bytes popped
 *
 ***********************************************************************/
-int32_t VQ_Verify_Cmd_Optimized(void* cmds_buff, uint64_t buffer_size, uint32_t buffer_idx)
+int32_t VQ_Process_Command(void* cmds_buff, uint64_t buffer_size, uint32_t buffer_idx)
 {
     int32_t return_val;
     uint16_t cmd_size;

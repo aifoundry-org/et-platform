@@ -33,6 +33,7 @@ typedef uint8_t cm_iface_message_number_t;
 typedef struct {
     cm_iface_message_number_t number;
     cm_iface_message_id_t id;
+    uint8_t pad[6]; /* Padding to make struct 64-bit aligned */
 } cm_iface_message_header_t;
 
 #define MESSAGE_MAX_PAYLOAD_SIZE (64 - sizeof(cm_iface_message_header_t))
@@ -90,6 +91,7 @@ typedef struct {
     uint8_t kw_base_id;
     uint8_t slot_index;
     uint8_t flags;
+    uint8_t pad[5]; /* Padding to make struct 64-bit aligned */
 } __attribute__((packed)) mm_to_cm_message_kernel_params_t;
 
 typedef struct {
@@ -117,6 +119,7 @@ typedef struct {
     cm_iface_message_header_t header;
     uint8_t log_interface;
     uint8_t enable;
+    uint8_t pad[6]; /* Padding to make struct 64-bit aligned */
 } __attribute__((packed, aligned(64))) mm_to_cm_message_trace_rt_control_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(mm_to_cm_message_trace_rt_control_t);
@@ -147,18 +150,20 @@ typedef enum {
 typedef struct {
     cm_iface_message_header_t header;
     uint32_t shire_id;
+    uint8_t pad[4]; /* Padding to make struct 64-bit aligned */
 } __attribute__((packed, aligned(64))) mm_to_cm_message_shire_ready_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(mm_to_cm_message_shire_ready_t);
 
 typedef struct {
     cm_iface_message_header_t header;
-    uint32_t shire_id;
     uint64_t hart_id;
     uint64_t mcause;
     uint64_t mepc;
     uint64_t mtval;
     uint64_t mstatus;
+    uint32_t shire_id;
+    uint8_t pad[4]; /* Padding to make struct 64-bit aligned */
 } __attribute__((packed, aligned(64))) cm_to_mm_message_exception_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_exception_t);
@@ -167,6 +172,7 @@ typedef struct {
     cm_iface_message_header_t header;
     uint64_t hart_id;
     int8_t error_code;
+    uint8_t pad[7]; /* Padding to make struct 64-bit aligned */
 } __attribute__((packed, aligned(64))) cm_to_mm_message_fw_error_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_fw_error_t);
@@ -176,6 +182,7 @@ typedef struct {
     uint64_t hart_id;
     uint8_t slot_index;
     int8_t error_code;
+    uint8_t pad[6]; /* Padding to make struct 64-bit aligned */
 } __attribute__((packed, aligned(64))) cm_to_mm_message_kernel_launch_error_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_kernel_launch_error_t);
@@ -185,6 +192,7 @@ typedef struct {
     uint32_t shire_id;
     uint8_t slot_index;
     int8_t status;
+    uint8_t pad[2]; /* Padding to make struct 64-bit aligned */
 } __attribute__((packed, aligned(64))) cm_to_mm_message_kernel_launch_completed_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_kernel_launch_completed_t);
