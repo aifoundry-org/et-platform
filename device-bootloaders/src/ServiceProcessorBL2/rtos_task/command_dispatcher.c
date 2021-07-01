@@ -236,11 +236,144 @@ static void pc_vq_task(void *pvParameters)
     }
 }
 
+static void mm2sp_echo_cmd_handler(const void *cmd_buffer)
+{
+    const struct mm2sp_echo_cmd_t *cmd = cmd_buffer;
+    struct mm2sp_echo_rsp_t rsp;
+
+    /* Initialize command header */
+    SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_ECHO,
+    sizeof(struct mm2sp_echo_rsp_t), cmd->msg_hdr.issuing_hart_id)
+
+    rsp.payload = cmd->payload;
+
+    if(0 != MM_Iface_Push_Rsp_To_MM2SP_CQ((void*)&rsp, sizeof(rsp)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Rsp_To_MM2SP_CQ: Cqueue push error!\n");
+    }
+}
+
+static void mm2sp_get_active_shire_mask_cmd_handler(const void *cmd_buffer)
+{
+    const struct mm2sp_get_active_shire_mask_cmd_t *cmd = cmd_buffer;
+    struct mm2sp_get_active_shire_mask_rsp_t rsp;
+
+    SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_GET_ACTIVE_SHIRE_MASK,
+    sizeof(struct mm2sp_get_active_shire_mask_rsp_t),
+    cmd->msg_hdr.issuing_hart_id)
+
+    rsp.active_shire_mask = Minion_State_MM_Iface_Get_Active_Shire_Mask();
+
+    if(0 != MM_Iface_Push_Rsp_To_MM2SP_CQ((void*)&rsp, sizeof(rsp)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Rsp_To_MM2SP_CQ: Cqueue push error!\n");
+    }
+}
+
+static void mm2sp_get_fw_version_cmd_handler(const void *cmd_buffer)
+{
+    const struct mm2sp_get_fw_version_t *cmd = cmd_buffer;
+    struct mm2sp_get_fw_version_rsp_t rsp;
+
+    SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_GET_FW_VERSION,
+    sizeof(struct mm2sp_get_fw_version_rsp_t),
+    cmd->msg_hdr.issuing_hart_id)
+
+    Log_Write(LOG_LEVEL_DEBUG, "mm_cmd_hldr: MM requesting FW type: %d\n", cmd->fw_type);
+
+    /* Call the API to get the FW version */
+    if(cmd->fw_type == MM2SP_MASTER_MINION_FW)
+    {
+        /* Request firmware service for version */
+        firmware_service_get_mm_version(&rsp.major, &rsp.minor, &rsp.revision);
+
+        Log_Write(LOG_LEVEL_DEBUG, "mm_cmd_hldr: MM FW version:major:%d:minor:%d:revision:%d\n",
+            rsp.major, rsp.minor, rsp.revision);
+    }
+    else if(cmd->fw_type == MM2SP_MACHINE_MINION_FW)
+    {
+        /* Request firmware service for version */
+        firmware_service_get_machm_version(&rsp.major, &rsp.minor, &rsp.revision);
+
+        Log_Write(LOG_LEVEL_DEBUG, "mm_cmd_hldr: Machine FW version:major:%d:minor:%d:revision:%d\n",
+            rsp.major, rsp.minor, rsp.revision);
+    }
+    else if(cmd->fw_type == MM2SP_WORKER_MINION_FW)
+    {
+        /* Request firmware service for version */
+        firmware_service_get_wm_version(&rsp.major, &rsp.minor, &rsp.revision);
+
+        Log_Write(LOG_LEVEL_DEBUG, "mm_cmd_hldr: Worker FW version:major:%d:minor:%d:revision:%d\n",
+            rsp.major, rsp.minor, rsp.revision);
+    }
+    else
+    {
+        /* Unknown FW type */
+        Log_Write(LOG_LEVEL_ERROR, "mm_cmd_hldr: ERROR:Unknown FW type:%d\n", cmd->fw_type);
+    }
+
+    if(0 != MM_Iface_Push_Rsp_To_MM2SP_CQ((void*)&rsp, sizeof(rsp)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Rsp_To_MM2SP_CQ: Cqueue push error!\n");
+    }
+}
+
+static void mm2sp_get_cm_boot_freq_cmd_handler(const void *cmd_buffer)
+{
+    const struct mm2sp_get_cm_boot_freq_cmd_t *cmd = cmd_buffer;
+    struct mm2sp_get_cm_boot_freq_rsp_t rsp;
+
+    SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_GET_CM_BOOT_FREQ,
+    sizeof(struct mm2sp_get_cm_boot_freq_rsp_t),
+    cmd->msg_hdr.issuing_hart_id)
+
+    get_pll_frequency(PLL_ID_SP_PLL_4, &rsp.cm_boot_freq);
+
+    if(0 != MM_Iface_Push_Rsp_To_MM2SP_CQ((void*)&rsp, sizeof(rsp)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Rsp_To_MM2SP_CQ: Cqueue push error!\n");
+    }
+}
+
+static void mm2sp_report_error_event_handler(const void *cmd_buffer)
+{
+    const struct mm2sp_report_error_event_t *event = cmd_buffer;
+
+    Log_Write(LOG_LEVEL_INFO, "MM_Error_Reported: Code = %d \r\n", event->error_code);
+
+    if (event->error_type == MM_RECOVERABLE)
+    {
+        Minion_State_MM_Error_Handler(event->error_code);
+    }
+    else if (event->error_type == SP_RECOVERABLE)
+    {
+        /* Restart the Master Minion */
+    }
+    else
+    {
+        /* Not supported */
+        Log_Write(LOG_LEVEL_ERROR, "MM2SP:Unsupported error type!\r\n");
+    }
+}
+
+static void mm2sp_heartbeat_event_handler(const void *cmd_buffer)
+{
+    (void)cmd_buffer;
+    /* TODO: SW-8081: Register watchdog timer for MM->SP heartbeats in MM_Iface_Update_MM_Heartbeat().
+    Whenever a heatbeat is received from MM, SP will reset WD timer. If the heartbeat is not
+    received within specified time interval of SP WD timer (error threshold of timer should
+    be incorporated), SP detects a MM hang and resets the MM FW with taking approriate measures */
+    if(0 != MM_Iface_Update_MM_Heartbeat())
+    {
+        Log_Write(LOG_LEVEL_ERROR, "MM2SP:MM Heartbeat update error!\r\n");
+    }
+}
+
 static void mm_cmd_hdlr_task(void *pvParameters)
 {
     (void)pvParameters;
     uint8_t buffer[SP_MM_CQ_MAX_ELEMENT_SIZE] __attribute__((aligned(8))) = { 0 };
-    struct dev_cmd_hdr_t *hdr;
+    const struct dev_cmd_hdr_t *hdr;
     int64_t cmd_length = 0;
 
     /* Disable buffering on stdout */
@@ -272,152 +405,33 @@ static void mm_cmd_hdlr_task(void *pvParameters)
             switch (hdr->msg_id)
             {
                 case MM2SP_CMD_ECHO:
-                {
-                    struct mm2sp_echo_cmd_t *cmd = (void *)buffer;
-                    struct mm2sp_echo_rsp_t rsp;
-
-                    /* Initialize command header */
-                    SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_ECHO,
-                    sizeof(struct mm2sp_echo_rsp_t), cmd->msg_hdr.issuing_hart_id)
-
-                    rsp.payload = cmd->payload;
-
-                    if(0 != MM_Iface_Push_Cmd_To_MM2SP_CQ((void*)&rsp, sizeof(rsp)))
-                    {
-                        Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_MM2SP_CQ: Cqueue push error!\n");
-                    }
-
+                    mm2sp_echo_cmd_handler(buffer);
                     break;
-                }
+
                 case MM2SP_CMD_GET_ACTIVE_SHIRE_MASK:
-                {
-                    struct mm2sp_get_active_shire_mask_cmd_t *cmd = (void *)buffer;
-                    struct mm2sp_get_active_shire_mask_rsp_t rsp;
-
-                    SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_GET_ACTIVE_SHIRE_MASK,
-                    sizeof(struct mm2sp_get_active_shire_mask_rsp_t),
-                    cmd->msg_hdr.issuing_hart_id)
-
-                    rsp.active_shire_mask = Minion_State_MM_Iface_Get_Active_Shire_Mask();
-
-                    if(0 != MM_Iface_Push_Cmd_To_MM2SP_CQ((void*)&rsp, sizeof(rsp)))
-                    {
-                        Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_MM2SP_CQ: Cqueue push error!\n");
-                    }
-
+                    mm2sp_get_active_shire_mask_cmd_handler(buffer);
                     break;
-                }
+
                 case MM2SP_CMD_GET_FW_VERSION:
-                {
-                    struct mm2sp_get_fw_version_t *cmd = (void *)buffer;
-                    struct mm2sp_get_fw_version_rsp_t rsp;
-
-                    SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_GET_FW_VERSION,
-                    sizeof(struct mm2sp_get_fw_version_rsp_t),
-                    cmd->msg_hdr.issuing_hart_id)
-
-                    Log_Write(LOG_LEVEL_DEBUG, "mm_cmd_hldr: MM requesting FW type: %d\n", cmd->fw_type);
-
-                    /* Call the API to get the FW version */
-                    if(cmd->fw_type == MM2SP_MASTER_MINION_FW)
-                    {
-                        /* Request firmware service for version */
-                        firmware_service_get_mm_version(&rsp.major, &rsp.minor, &rsp.revision);
-
-                        Log_Write(LOG_LEVEL_DEBUG, "mm_cmd_hldr: MM FW version:major:%d:minor:%d:revision:%d\n",
-                            rsp.major, rsp.minor, rsp.revision);
-                    }
-                    else if(cmd->fw_type == MM2SP_MACHINE_MINION_FW)
-                    {
-                        /* Request firmware service for version */
-                        firmware_service_get_machm_version(&rsp.major, &rsp.minor, &rsp.revision);
-
-                        Log_Write(LOG_LEVEL_DEBUG, "mm_cmd_hldr: Machine FW version:major:%d:minor:%d:revision:%d\n",
-                            rsp.major, rsp.minor, rsp.revision);
-                    }
-                    else if(cmd->fw_type == MM2SP_WORKER_MINION_FW)
-                    {
-                        /* Request firmware service for version */
-                        firmware_service_get_wm_version(&rsp.major, &rsp.minor, &rsp.revision);
-
-                        Log_Write(LOG_LEVEL_DEBUG, "mm_cmd_hldr: Worker FW version:major:%d:minor:%d:revision:%d\n",
-                            rsp.major, rsp.minor, rsp.revision);
-                    }
-                    else
-                    {
-                        /* Unknown FW type */
-                        Log_Write(LOG_LEVEL_ERROR, "mm_cmd_hldr: ERROR:Unknown FW type:%d\n", cmd->fw_type);
-                    }
-
-                    if(0 != MM_Iface_Push_Cmd_To_MM2SP_CQ((void*)&rsp, sizeof(rsp)))
-                    {
-                        Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_MM2SP_CQ: Cqueue push error!\n");
-                    }
-
+                    mm2sp_get_fw_version_cmd_handler(buffer);
                     break;
-                }
+
                 case MM2SP_CMD_GET_CM_BOOT_FREQ:
-                {
-                    struct mm2sp_get_cm_boot_freq_cmd_t *cmd = (void *)buffer;
-                    struct mm2sp_get_cm_boot_freq_rsp_t rsp;
-
-                    SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_GET_CM_BOOT_FREQ,
-                    sizeof(struct mm2sp_get_cm_boot_freq_rsp_t),
-                    cmd->msg_hdr.issuing_hart_id)
-
-                    get_pll_frequency(PLL_ID_SP_PLL_4, &rsp.cm_boot_freq);
-
-                    if(0 != MM_Iface_Push_Cmd_To_MM2SP_CQ((void*)&rsp, sizeof(rsp)))
-                    {
-                        Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_MM2SP_CQ: Cqueue push error!\n");
-                    }
-
+                    mm2sp_get_cm_boot_freq_cmd_handler(buffer);
                     break;
-                }
+
                 case MM2SP_EVENT_REPORT_ERROR:
-                {
-                    struct mm2sp_report_error_event_t *event = (void *)buffer;
-
-                    Log_Write(LOG_LEVEL_INFO, "MM_Error_Reported: Code = %d \r\n", event->error_code);
-
-                    if (event->error_type == MM_RECOVERABLE)
-                    {
-                        Minion_State_MM_Error_Handler(event->error_code);
-                    }
-                    else if (event->error_type == SP_RECOVERABLE)
-                    {
-                        /* Restart the Master Minion */
-                    }
-                    else
-                    {
-                        /* Not supported */
-                        Log_Write(LOG_LEVEL_ERROR, "MM2SP:Unsupported error type!\r\n");
-                    }
-
+                    mm2sp_report_error_event_handler(buffer);
                     break;
-                }
+
                 case MM2SP_EVENT_HEARTBEAT:
-                {
-                    int8_t status;
-
-                    /* TODO: SW-8081: Register watchdog timer for MM->SP heartbeats in MM_Iface_Update_MM_Heartbeat().
-                    Whenever a heatbeat is received from MM, SP will reset WD timer. If the heartbeat is not
-                    received within specified time interval of SP WD timer (error threshold of timer should
-                    be incorporated), SP detects a MM hang and resets the MM FW with taking approriate measures */
-                    status = MM_Iface_Update_MM_Heartbeat();
-                    if(status != 0)
-                    {
-                        Log_Write(LOG_LEVEL_ERROR, "MM2SP:MM Heartbeat update error!\r\n");
-                    }
-
+                    mm2sp_heartbeat_event_handler(buffer);
                     break;
-                }
+
                 default:
-                {
                     Log_Write(LOG_LEVEL_ERROR, "[MM VQ] Invalid message id: %" PRIu16 "\r\n", hdr->msg_id);
                     Log_Write(LOG_LEVEL_ERROR, "message length: %" PRIi64 ", buffer:\r\n", cmd_length);
                     break;
-                }
             }
         }
     }

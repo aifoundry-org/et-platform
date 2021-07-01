@@ -55,14 +55,42 @@ int32_t MM_Iface_Send_Echo_Cmd(void);
 */
 int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw);
 
+/*! \fn int8_t MM_Iface_Push_Cmd_To_SP2MM_SQ(void* p_cmd, uint32_t cmd_size)
+    \brief Push command to Service Processor (SP) to Master Minion (MM)
+    Submission Queue(SQ)
+    \param p_cmd Pointer to command buffer
+    \param cmd_size Size of command
+    \return Status indicating success or negative error
+*/
 #define MM_Iface_Push_Cmd_To_SP2MM_SQ(p_cmd, cmd_size)   \
-        SP_MM_Iface_Push(SP_SQ, p_cmd, cmd_size)
-#define MM_Iface_Pop_Cmd_From_SP2MM_CQ(rx_buff)   \
-        SP_MM_Iface_Pop(SP_CQ, rx_buff)
+        SP_MM_Iface_Push(MM_SQ, p_cmd, cmd_size)
 
-#define MM_Iface_Pop_Cmd_From_MM2SP_SQ(rx_buff)   \
-        SP_MM_Iface_Pop(MM_SQ, rx_buff)
-#define MM_Iface_Push_Cmd_To_MM2SP_CQ(p_cmd, cmd_size)   \
-        SP_MM_Iface_Push(MM_CQ, p_cmd, cmd_size)
+/*! \fn int8_t MM_Iface_Pop_Rsp_From_SP2MM_CQ(void* rx_buff)
+    \brief Pop response from to Service Processor (SP) to Master Minion (MM)
+    Completion Queue(CQ)
+    \param rx_buff Buffer to receive response popped
+    \return Status indicating success or negative error
+*/
+#define MM_Iface_Pop_Rsp_From_SP2MM_CQ(rx_buff)          \
+        SP_MM_Iface_Pop(MM_CQ, rx_buff)
+
+/*! \fn int8_t MM_Iface_Pop_Cmd_From_MM2SP_SQ(void* rx_buff)
+    \brief Pop command from Master Minion (MM) to Service Processor (SP)
+    Submission Queue(SQ)
+    \param rx_buff Buffer to receive response popped
+    \return Status indicating success or negative error
+*/
+#define MM_Iface_Pop_Cmd_From_MM2SP_SQ(rx_buff)           \
+        SP_MM_Iface_Pop(SP_SQ, rx_buff)
+
+/*! \fn int8_t MM_Iface_Push_Rsp_To_MM2SP_CQ(void* p_cmd, uint32_t cmd_size)
+    \brief Push response to Master Minion (MM) to Service Processor (SP)
+    Completion Queue(CQ)
+    \param p_cmd Pointer to command buffer
+    \param cmd_size Size of command
+    \return Status indicating success or negative error
+*/
+#define MM_Iface_Push_Rsp_To_MM2SP_CQ(p_cmd, cmd_size)    \
+        SP_MM_Iface_Push(SP_CQ, p_cmd, cmd_size)
 
 #endif

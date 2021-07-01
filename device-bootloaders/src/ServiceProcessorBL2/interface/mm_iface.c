@@ -127,7 +127,7 @@ int32_t MM_Iface_Send_Echo_Cmd(void)
         if(mm2sp_wait_for_response(true))
         {
             /* Get response from MM. */
-            status = MM_Iface_Pop_Cmd_From_SP2MM_CQ(&rsp);
+            status = MM_Iface_Pop_Rsp_From_SP2MM_CQ(&rsp);
 
             if ((status > 0) &&
                 ((rsp.msg_hdr.msg_id == SP2MM_RSP_ECHO) && (cmd.payload == rsp.payload)))
@@ -195,7 +195,7 @@ int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw)
         if(mm2sp_wait_for_response(true))
         {
             /* Get response from MM. */
-            status = MM_Iface_Pop_Cmd_From_SP2MM_CQ(&rsp);
+            status = MM_Iface_Pop_Rsp_From_SP2MM_CQ(&rsp);
 
             if ((status > 0) &&
                 (rsp.msg_hdr.msg_id == SP2MM_RSP_GET_DRAM_BW))
