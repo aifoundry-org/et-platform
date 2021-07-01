@@ -119,7 +119,9 @@ static void wait_for_training_internal(training_stage stage, uint32_t memshire, 
       memshire = 0;
     }
 
+    // Check if a specific shire is completed or a message is ready to be processed
     if(shire_completed[memshire] || ms_peek_ddrc_reg(memshire, 2, APBONLY0_UctShadowRegs, 0x0, 0x1) != 0) {
+      // none of above happen, try next memshire
       ++memshire;
       continue;
     }
@@ -131,6 +133,8 @@ static void wait_for_training_internal(training_stage stage, uint32_t memshire, 
     ms_write_ddrc_reg(memshire, 2, APBONLY0_DctWriteProt, 0x00000001);                            // ack handshake
 
     LOG_TRAINING(stage, memshire, train_msg);
+
+    // mark the memshire as completed if it is either success(0x7) or fail(0xff/0x0b).
     if(train_msg == 0x7 || train_msg == 0xff || train_msg == 0x0b) {
       if(train_msg == 0xff || train_msg == 0x0b) {
         // report error if needed
@@ -143,6 +147,7 @@ static void wait_for_training_internal(training_stage stage, uint32_t memshire, 
 
   }
 
+  // System software doesn't use these 2 variables.  But we want to keep the same interface by hardware team
   (void)train_poll_max_iterations;    // suppress compilation warning
   (void)train_poll_iteration_delay;   // suppress compilation warning
   return;
