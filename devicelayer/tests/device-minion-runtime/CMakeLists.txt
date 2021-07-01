@@ -237,6 +237,73 @@ create_test(
 )
 
 #################
+# PCIE SYSEMU TESTS #
+#################
+create_test(
+    TARGET     TestDevOpenClosePcieSysEmu
+    TARGET_DEF TARGET_PCIE
+    SOURCES    pcie/sysemu/TestDevOpenClosePcieSysEmu.cpp
+    ARGS       ""
+    PROPERTIES "LABELS;PCIE-SYSEMU;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;UNIT;TIMEOUT;120"
+)
+
+create_test(
+    TARGET     TestDevOpsApiFuncBasicCmdsPcieSysEmu
+    TARGET_DEF TARGET_PCIE
+    SOURCES    pcie/sysemu/TestDevOpsApiFuncBasicCmdsPcieSysEmu.cpp TestDevOpsApiBasicCmds.cpp
+    ARGS       ""
+    PROPERTIES "LABELS;PCIE-SYSEMU;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;SYSTEM;TIMEOUT;120"
+)
+
+create_test(
+    TARGET     TestDevOpsApiFuncDmaCmdsPcieSysEmu
+    TARGET_DEF TARGET_PCIE
+    SOURCES    pcie/sysemu/TestDevOpsApiFuncDmaCmdsPcieSysEmu.cpp TestDevOpsApiDmaCmds.cpp
+    ARGS       ""
+    PROPERTIES "LABELS;PCIE-SYSEMU;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;SYSTEM;TIMEOUT;120"
+)
+
+create_test(
+    TARGET     TestDevOpsApiFuncKernelCmdsPcieSysEmu
+    TARGET_DEF TARGET_PCIE
+    SOURCES    pcie/sysemu/TestDevOpsApiFuncKernelCmdsPcieSysEmu.cpp TestDevOpsApiKernelCmds.cpp
+    ARGS       --kernels_dir=${KERNELS_DIR}
+    PROPERTIES "LABELS;PCIE-SYSEMU;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;SYSTEM;TIMEOUT;120"
+)
+
+create_test(
+    TARGET     TestDevOpsApiFuncTraceCmdsPcieSysEmu
+    TARGET_DEF TARGET_PCIE
+    SOURCES    pcie/sysemu/TestDevOpsApiFuncTraceCmdsPcieSysEmu.cpp TestDevOpsApiTraceCmds.cpp
+    ARGS       --enable_trace_dump=false
+    PROPERTIES "LABELS;PCIE-SYSEMU;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;SYSTEM;TIMEOUT;120"
+)
+
+create_test(
+    TARGET     TestDevOpsApiStressBasicCmdsPcieSysEmu
+    TARGET_DEF TARGET_PCIE
+    SOURCES    pcie/sysemu/TestDevOpsApiStressBasicCmdsPcieSysEmu.cpp TestDevOpsApiBasicCmds.cpp
+    ARGS       ""
+    PROPERTIES "LABELS;PCIE-SYSEMU;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;120"
+)
+
+create_test(
+    TARGET     TestDevOpsApiStressDmaCmdsPcieSysEmu
+    TARGET_DEF TARGET_PCIE
+    SOURCES    pcie/sysemu/TestDevOpsApiStressDmaCmdsPcieSysEmu.cpp TestDevOpsApiDmaCmds.cpp
+    ARGS       ""
+    PROPERTIES "LABELS;PCIE-SYSEMU;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;120"
+)
+
+create_test(
+    TARGET     TestDevOpsApiStressKernelCmdsPcieSysEmu
+    TARGET_DEF TARGET_PCIE
+    SOURCES    pcie/sysemu/TestDevOpsApiStressKernelCmdsPcieSysEmu.cpp TestDevOpsApiKernelCmds.cpp
+    ARGS       --kernels_dir=${KERNELS_DIR}
+    PROPERTIES "LABELS;PCIE-SYSEMU;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;500"
+)
+
+#################
 # SYSEMU TESTS #
 #################
 create_test(
