@@ -10,11 +10,11 @@
 
  #pragma once
 
- #include "Logger.h"
- #include "DefaultSinks.h" 
-
-
-#define ET_LOG(channel, severity) LOG(severity) << "ET [" << #channel << "]: "
-#define ET_DLOG(channel, severity) LOG(DEBUG) << "ET [" << #channel << "]: "
+#include "DefaultSinks.h"
+#include "Logger.h"
+#include <thread>
+#define ET_LOG(channel, severity) LOG(severity) << "ET [" << #channel << "]: [TH: " << std::this_thread::get_id() << "]"
+#define ET_DLOG(channel, severity) LOG(DEBUG) << "ET [" << #channel << "]: [TH: " << std::this_thread::get_id() << "]"
 #define CAT_NX(A, B) A ## B
-#define ET_VLOG(channel, level) LOG(CAT_NX(logging::VLOG_, level)) << "ET [" << #channel << "]: "
+#define ET_VLOG(channel, level)                                                                                        \
+  LOG(CAT_NX(logging::VLOG_, level)) << "ET [" << #channel << "]: [TH: " << std::this_thread::get_id() << "]"
