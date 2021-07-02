@@ -56,3 +56,9 @@ create_test(
     SOURCES    test_idevice_mgmt_api_pcie.cpp test_idevice_mgmt_api.cpp
     PROPERTIES "LABELS;Generic;LABELS;PCIE;LABELS;Bootloaders;TIMEOUT;120"
 )
+
+create_test(
+    TARGET     TestIDeviceMgmtApiPcieSysEmu
+    SOURCES    TestIDeviceMgmtApiPcieSysEmu.cpp test_idevice_mgmt_api.cpp
+    PROPERTIES "LABELS;Generic;LABELS;PCIE-SYSEMU;LABELS;Bootloaders;TIMEOUT;120"
+)
