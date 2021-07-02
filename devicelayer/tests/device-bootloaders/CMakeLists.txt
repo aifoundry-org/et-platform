@@ -45,11 +45,6 @@ function(create_test)
 endfunction()
 
 #all tests should be created using the helper
-create_test(
-    TARGET     test_idevice_mgmt_api_sysemu
-    SOURCES    test_idevice_mgmt_api_sysemu.cpp test_idevice_mgmt_api.cpp
-    PROPERTIES "LABELS;Generic;LABELS;SYSEMU;LABELS;Bootloaders;TIMEOUT;120"
-)
 
 create_test(
     TARGET     test_idevice_mgmt_api_pcie
