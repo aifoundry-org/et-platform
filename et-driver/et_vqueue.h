@@ -45,6 +45,7 @@ struct et_vq_common {
 	spinlock_t abort_lock;		/* serializes access to aborting */
 	struct pci_dev *pdev;
 	u8 vec_idx_offset;
+	struct et_mapped_region *trace_region;
 };
 
 struct et_squeue {

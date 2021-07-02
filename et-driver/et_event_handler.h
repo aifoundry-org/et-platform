@@ -89,6 +89,12 @@ enum error_type {
 #define MM_DMW_ERROR			4
 #define MM_KW_ERROR			5
 
+#define SP_GPR_REGISTERS                        (28)
+#define SP_EXCEPTION_STACK_FRAME_SIZE           (sizeof(uint64_t)*SP_GPR_REGISTERS)
+#define SP_EXCEPTION_CSRS_FRAME_SIZE            (sizeof(uint64_t)*4)
+#define SP_EXCEPTION_FRAME_SIZE                 (SP_EXCEPTION_STACK_FRAME_SIZE + \
+                                                    SP_EXCEPTION_CSRS_FRAME_SIZE)
+
 #define GET_ESR_SC_ERR_LOG_INFO_V_BIT(reg)		\
 	((reg)  & 0x0000000000000001ULL)
 #define GET_ESR_SC_ERR_LOG_INFO_M_BIT(reg)		\

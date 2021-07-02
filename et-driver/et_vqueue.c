@@ -289,11 +289,15 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	ssize_t rv;
 	struct et_vq_common *vq_common;
 	struct et_mapped_region *intrpt_region =
-		&et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_INTRPT_TRG];
+		&et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_INTRPT_TRG];		
 	char wq_name[32];
 
 	if (is_mgmt) {
 		vq_common = &et_dev->mgmt.vq_common;
+		
+		/* populate trace region */
+		vq_common->trace_region = 
+		  				&et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE];
 
 		// Initialize Mgmt device workqueue
 		snprintf(wq_name,
