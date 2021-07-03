@@ -14,25 +14,30 @@ parameters:
     description: Repository name
     type: string
     default_value: "pcie-driver"
-  RUN_ZEBU:
-    description: Run Zebu Job
+  RUN_OPS_PCIE_SYSEMU:
+    description: Run OPS PCIE SysEMU job
+    type: bool
+    default_value: true
+  RUN_MGMT_PCIE_SYSEMU:
+    description: Run MGMT PCIE SysEMU job
+    type: bool
+    default_value: true
+  RUN_VIRTUAL_PLATFORM:
+    description: Run VIRTUAL_PLATFORM job
     type: bool
     default_value: true
 
+
 stages:
-  JOB_PCIE_ZEBU:
+  JOB_OPS_PCIE_SYSEMU:
     cmds:
       - job: sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"
-
-  JOB_PCIE_SYSEMU:
+  JOB_MGMT_PCIE_SYSEMU:
     cmds:
-      - job: sw-platform/system-sw-integration/pipelines/device-ops-zebu-tests
+      - job: sw-platform/system-sw-integration/pipelines/device-management-checkin-tests
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"
-
-
-

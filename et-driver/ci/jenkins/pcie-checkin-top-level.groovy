@@ -88,10 +88,10 @@ pipeline {
     }
     stage('PARALLEL0') {
       parallel {
-        stage('JOB_PCIE_SYSEMU') {
+        stage('JOB_OPS_PCIE_SYSEMU') {
           steps {
             build job:
-              'sw-platform/system-sw-integration/pipelines/device-ops-zebu-tests',
+              'sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests',
               propagate: true,
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
@@ -100,10 +100,10 @@ pipeline {
               ]
           }
         }
-        stage('JOB_PCIE_ZEBU') {
+        stage('JOB_MGMT_PCIE_SYSEMU') {
           steps {
             build job:
-              'sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests',
+              'sw-platform/system-sw-integration/pipelines/device-management-checkin-tests',
               propagate: true,
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
