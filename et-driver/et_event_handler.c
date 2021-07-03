@@ -130,28 +130,31 @@ static void parse_pmic_syndrome(struct device_mgmt_event_msg_t *event_msg,
 {
 	int value_whole;
 	int value_fract;
+	char value_str[VALUE_STR_MAX_LEN];
 
 	if (event_msg->event_syndrome[0] & PMIC_ERROR_OVER_TEMP_INT_MASK) {
 		value_fract = 25 * (event_msg->event_syndrome[1] &
 				    SYNDROME_TEMP_FRACT_MASK);
 		value_whole = (event_msg->event_syndrome[1] >> 2) &
 			      SYNDROME_TEMP_MASK;
-		snprintf(dbg_msg->syndrome,
+		snprintf(value_str,
 			 VALUE_STR_MAX_LEN,
 			 "Temperature Overshoot Beyond Threshold: %d.%d C\n",
 			 value_whole,
 			 value_fract);
+		strcat(dbg_msg->syndrome, value_str);
 	}
 	if (event_msg->event_syndrome[0] & PMIC_ERROR_OVER_POWER_INT_MASK) {
 		value_fract = 25 * ((event_msg->event_syndrome[1] >> 8) &
 				    SYNDROME_PWR_FRACT_MASK);
 		value_whole = (event_msg->event_syndrome[1] >> 10) &
 			      SYNDROME_PWR_MASK;
-		snprintf(dbg_msg->syndrome,
+		snprintf(value_str,
 			 VALUE_STR_MAX_LEN,
 			 "Power Overshoot Beyond Threshold: %d.%d W\n",
 			 value_whole,
 			 value_fract);
+		strcat(dbg_msg->syndrome, value_str);
 	}
 	if (event_msg->event_syndrome[0] &
 	    PMIC_ERROR_INPUT_VOLTAGE_TOO_LOW_INT_MASK)
@@ -190,6 +193,7 @@ static void parse_wdog_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				struct event_dbg_msg *dbg_msg)
 {
 	u32 a0, mepc, mcause, mtval;
+	char value_str[VALUE_STR_MAX_LEN];
 
 	a0 = event_msg->event_syndrome[0] >> 32;
 	mepc = event_msg->event_syndrome[0];
@@ -197,13 +201,14 @@ static void parse_wdog_syndrome(struct device_mgmt_event_msg_t *event_msg,
 	mtval = event_msg->event_syndrome[1];
 
 	snprintf(
-		dbg_msg->syndrome,
+		value_str,
 		VALUE_STR_MAX_LEN,
 		"a0        : 0x%x\nmepc      : 0x%x\nmcause    : 0x%x\nmtval     : 0x%x\n",
 		a0,
 		mepc,
 		mcause,
 		mtval);
+	strcat(dbg_msg->syndrome, value_str);
 }
 
 static void parse_cm_err_syndrome(struct device_mgmt_event_msg_t *event_msg,
@@ -244,6 +249,7 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				      struct event_dbg_msg *dbg_msg, struct et_mapped_region *trace_region)
 {
 	
+	char value_str[VALUE_STR_MAX_LEN];
 	void __iomem *trace_addr;
 	uint16_t idx=0;
 	uint64_t *data  = kmalloc(SP_EXCEPTION_STACK_FRAME_SIZE, GFP_KERNEL);
@@ -262,22 +268,28 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 					(u8*)&data, SP_EXCEPTION_STACK_FRAME_SIZE);
 		
 		/* print GPRs */
-		snprintf(dbg_msg->syndrome, VALUE_STR_MAX_LEN,
+		snprintf(value_str, VALUE_STR_MAX_LEN,
 			"x1        : 0x%lld\n", *data);
+		strcat(dbg_msg->syndrome, value_str);
 		for(idx = 5; idx< SP_GPR_REGISTERS; idx++, data++)
 		{
 			snprintf(
-			dbg_msg->syndrome,
+			value_str,
 			VALUE_STR_MAX_LEN,
 			"x%d        : 0x%llx\n",
 			idx,*data);
+			strcat(dbg_msg->syndrome, value_str);
 		}
 
 		/* print CSRs */
-		snprintf(dbg_msg->syndrome, VALUE_STR_MAX_LEN,"mepc = 0x%llx\n",*++data);
-		snprintf(dbg_msg->syndrome, VALUE_STR_MAX_LEN,"mstatus = 0x%llx\n",*++data);
-		snprintf(dbg_msg->syndrome, VALUE_STR_MAX_LEN,"mtval = 0x%llx\n",*++data);
-		snprintf(dbg_msg->syndrome, VALUE_STR_MAX_LEN,"mcause = 0x%llx\n",*++data);
+		snprintf(value_str, VALUE_STR_MAX_LEN,"mepc = 0x%llx\n",*++data);
+		strcat(dbg_msg->syndrome, value_str);
+		snprintf(value_str, VALUE_STR_MAX_LEN,"mstatus = 0x%llx\n",*++data);
+		strcat(dbg_msg->syndrome, value_str);
+		snprintf(value_str, VALUE_STR_MAX_LEN,"mtval = 0x%llx\n",*++data);
+		strcat(dbg_msg->syndrome, value_str);
+		snprintf(value_str, VALUE_STR_MAX_LEN,"mcause = 0x%llx\n",*++data);
+		strcat(dbg_msg->syndrome, value_str);
 	}
 }
 
