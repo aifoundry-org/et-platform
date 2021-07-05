@@ -163,6 +163,17 @@ public:
                      char* output_buff, const uint32_t output_size, uint32_t* host_latency, uint64_t* dev_latency,
                      uint32_t timeout);
 
+  /// @brief Get Service Process's trace buffer
+  ///
+  /// @param[in] device_node  device index to use
+  /// @param[inout] response  trace buffer received from the device after
+  /// servicing the request
+  /// @param[in] timeout  Time to wait for the request to complete, i.e.
+  /// to receive a message.
+  ///
+  /// @return Zero if the call was succesfull.
+  int getTraceBufferServiceProcessor(const uint32_t device_node, std::vector<std::byte>& response, uint32_t timeout);
+
 private:
   /// @brief DeviceManagement constructors
   DeviceManagement(){};

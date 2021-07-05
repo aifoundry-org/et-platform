@@ -157,6 +157,25 @@ int DeviceManagement::processHashFile(const char *filePath, std::vector<unsigned
   return 0;
 }
 
+int DeviceManagement::getTraceBufferServiceProcessor(const uint32_t device_node, std::vector<std::byte>& response, uint32_t timeout) {
+  if (!isValidDeviceNode(device_node)) {
+    return -EINVAL;
+  }
+
+  auto lockable = getDevice(device_node);
+
+  if (lockable->devGuard.try_lock_for(
+          std::chrono::milliseconds(timeout))) {
+    const std::lock_guard<std::timed_mutex> lock(lockable->devGuard,
+                                                  std::adopt_lock_t());
+    devLayer_->getTraceBufferServiceProcessor(lockable->idx, response);
+    return 0;
+  }
+
+  return -EAGAIN;
+}
+
+
 int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_code, const char* input_buff,
                                      const uint32_t input_size, char* output_buff, const uint32_t output_size,
                                      uint32_t* host_latency, uint64_t* dev_latency, uint32_t timeout) {

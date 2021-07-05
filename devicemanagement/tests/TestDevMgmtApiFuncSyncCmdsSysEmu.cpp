@@ -219,12 +219,13 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, serializeAccessMgmtNode_1_43) {
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, isUnsupportedService_1_45) {
   isUnsupportedService_1_45(false /* Multiple Devices */);
 }
-TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setTraceControl) {
-  setTraceControl(false /* Multiple Devices */);
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setTraceControl_1_47) {
+  setTraceControl_1_47(false /* Multiple Devices */);
 }
 
-TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setTraceConfigure) {
-  setTraceConfigure(false /* Multiple Devices */);
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setTraceConfigure_1_48) {
+  setTraceConfigure_1_48(false /* Multiple Devices */);
 }
 
 // retrieve MM FW error counts. This test should be run last so that we are

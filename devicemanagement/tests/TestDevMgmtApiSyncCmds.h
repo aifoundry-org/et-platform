@@ -79,8 +79,9 @@ protected:
   void getDeviceErrorEvents_1_44(bool singleDevice);
   void isUnsupportedService_1_45(bool singleDevice);
   void setSpRootCertificate_1_46(bool singleDevice);
-  void setTraceControl(bool singleDevice);
-  void setTraceConfigure(bool singleDevice);
+  void setTraceControl_1_47(bool singleDevice);
+  void setTraceConfigure_1_48(bool singleDevice);
+  void getTraceBuffer_1_49(bool singleDevice);
   void* handle_ = nullptr;
   std::unique_ptr<IDeviceLayer> devLayer_;
   

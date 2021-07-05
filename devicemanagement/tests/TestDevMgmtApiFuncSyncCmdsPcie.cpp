@@ -352,6 +352,21 @@ rev2_output_buff, rev2_output_size, hst_latency.get(), dev_latency.get(), 2000),
 */
 #endif
 
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setTraceControl_1_47) {
+  setTraceControl_1_47(false /* Multiple devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setTraceConfigure_1_48) {
+  setTraceConfigure_1_48(false /* Multiple devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getTraceBuffer_1_49) {
+  setTraceControl_1_47(false /* Multiple devices */);
+  setTraceConfigure_1_48(false /* Multiple devices */);
+  setAndGetModuleStaticTDPLevel_1_12(false /* Multiple devices */);
+  getTraceBuffer_1_49(false /* Multiple devices */);
+}
+
 int main(int argc, char** argv) {
   logging::LoggerDefault loggerDefault_;
   google::InitGoogleLogging(argv[0]);

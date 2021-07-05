@@ -177,6 +177,21 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, isUnsupportedService_1_45) {
   setSpRootCertificate_1_46(false);
 }*/
 
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setTraceControl_1_47) {
+  setTraceControl_1_47(false /* Multiple devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setTraceConfigure_1_48) {
+  setTraceConfigure_1_48(false /* Multiple devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getTraceBuffer_1_49) {
+  setTraceControl_1_47(false /* Multiple devices */);
+  setTraceConfigure_1_48(false /* Multiple devices */);
+  setAndGetModuleStaticTDPLevel_1_12(false /* Multiple devices */);
+  getTraceBuffer_1_49(false /* Multiple devices */);
+}
+
 // retrieve MM FW error counts. This test should be run last so that we are
 // able to capture any errors in the previous test runs
 // Note after fix from: SW-8409, counters needs to adjusted to handle expected failures
