@@ -67,6 +67,10 @@ protected:
   void backToBackSameKernelLaunchCmds_3_1(bool singleDevice, bool singleQueue, uint64_t totalKer, uint64_t shire_mask);
   void backToBackDifferentKernelLaunchCmds_3_2(bool singleDevice, bool singleQueue, uint64_t totalKer,
                                                uint64_t shire_mask);
+  void varifyAddKernelLaunchKernel(bool singleDevice, bool singleQueue,
+      const std::vector<std::vector<int>> sumOfVectorAB,
+      const std::vector<std::vector<int>> resultOfVectorAB,
+      std::unordered_map<size_t, int> kerCountStorage);
   void backToBackEmptyKernelLaunch_3_3(uint64_t totalKer, uint64_t shire_mask, bool flushL3);
   /* Kernel Negative Tests */
   void kernelAbortCmd_InvalidTagIdNegativeTesting_6_2();
@@ -92,7 +96,7 @@ protected:
 
 private:
   void launchKernelDMAListCmds(uint64_t shireMask, std::vector<KernelTypes> totalKer, bool singleDevice = false, bool singleQueue = false);
-  kernelContainer_t buildKernelsInfo(std::vector<KernelTypes> totalKer, bool singleDevice, bool singleQueue);
+  kernelContainer_t buildKernelsInfo(std::vector<KernelTypes> totalKer, bool singleDevice, bool singleQueue, bool calculateDmaListSize=true);
   void launchKernelDMAListPerQueue(uint64_t shireMask, std::vector<KernelTypes> totalKer, bool singleDevice = false, bool singleQueue = false);
   uint64_t loadElf(int deviceIdx, KernelTypes kerType, device_ops_api::dma_write_node &node);
   device_ops_api::dma_write_node fillDMAWriteNode(uint64_t srcHostVirtAddr, uint64_t dstDevPhyAddr, uint32_t size) const;
