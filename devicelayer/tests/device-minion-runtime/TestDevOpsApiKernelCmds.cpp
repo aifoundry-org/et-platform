@@ -506,13 +506,13 @@ void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(bool singleDevi
     int numElementsSameKer;
   };
   auto deviceCountSameKer = singleDevice ? 1 : getDevicesCount();
+  int kernelCount = 0;
   for (int deviceIdxSameKer = 0; deviceIdxSameKer < deviceCountSameKer; deviceIdxSameKer++) {
     auto queueCountSameKer = singleQueue ? 1 : getSqCount(deviceIdxSameKer);
     readersSameKer.resize(totalKer);
-    int kernelCount = 0;
     for (uint16_t queueIdxSameKer = 0; queueIdxSameKer < queueCountSameKer; queueIdxSameKer++) {
-      std::vector<uint64_t> devAddrVecResult(totalKer / queueCountSameKer);
-      for (int i = 0; i < totalKer / queueCountSameKer; i++) {
+      std::vector<uint64_t> devAddrVecResultPerQueue;
+      for (int i = 0; i < totalKer / deviceCountSameKer/  queueCountSameKer; i++) {
         generateRandomData(numElemsSameKer, vDataAStorageSameKer, vDataBStorageSameKer, vSumStorageSameKer);
 
         auto hostVirtAddrVecA = templ::bit_cast<uint64_t>(vDataAStorageSameKer.back().data());
@@ -535,12 +535,12 @@ void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(bool singleDevi
           vDataBStorageSameKer.back().size() * sizeof(int), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
         // allocate space for kernel args
-        devAddrVecResult[i] = getDmaWriteAddr(deviceIdxSameKer, alignedBufSize);
+        devAddrVecResultPerQueue.push_back(getDmaWriteAddr(deviceIdxSameKer, alignedBufSize));
         auto devAddrKernelArgs = getDmaWriteAddr(deviceIdxSameKer, ALIGN(sizeof(Params), kCacheLineSize));
         // allocate 1MB space for kernel error/exception buffer
         auto devAddrkernelException = getDmaWriteAddr(deviceIdxSameKer, 0x100000);
 
-        Params kerParams = {devAddrVecA, devAddrVecB, devAddrVecResult[i], numElemsSameKer};
+        Params kerParams = {devAddrVecA, devAddrVecB, devAddrVecResultPerQueue.back(), numElemsSameKer};
         // Launch Kernel Command
         streamSameKer.push_back(IDevOpsApiCmd::createCmd<KernelLaunchCmd>(
           device_ops_api::CMD_FLAGS_BARRIER_ENABLE, kernelEntryDevAddrSameKer, devAddrKernelArgs,
@@ -550,7 +550,7 @@ void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(bool singleDevi
       }
 
       // Read back Kernel Results from device
-      for (int i = 0; i < totalKer / queueCountSameKer; i++) {
+      for (int i = 0; i < devAddrVecResultPerQueue.size(); i++) {
         vTempDataResultSameKer.resize(numElemsSameKer, 0);
         vResultStorageSameKer.push_back(std::move(vTempDataResultSameKer));
         auto hostVirtAddrRes = templ::bit_cast<uint64_t>(vResultStorageSameKer.back().data());
@@ -559,7 +559,7 @@ void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(bool singleDevi
           (i == 0) ? device_ops_api::CMD_FLAGS_BARRIER_ENABLE
                    : device_ops_api::CMD_FLAGS_BARRIER_DISABLE, /* Barrier only for first read to make sure that all
                                                                    kernels execution done */
-          devAddrVecResult[i], hostVirtAddrRes, hostPhysAddrRes,
+                     devAddrVecResultPerQueue[i], hostVirtAddrRes, hostPhysAddrRes,
           vResultStorageSameKer.back().size() * sizeof(vTempDataResultSameKer[0]),
           device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
       }
@@ -581,7 +581,7 @@ void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(bool singleDevi
   for (int deviceIdxSameKer = 0, i = 0; deviceIdxSameKer < deviceCountSameKer; deviceIdxSameKer++) {
     int queueCountSameKer = singleQueue ? 1 : getSqCount(deviceIdxSameKer);
     for (int queueIdxSameKer = 0; queueIdxSameKer < queueCountSameKer; queueIdxSameKer++) {
-      for (int kernelIdx = 0; kernelIdx < totalKer / queueCountSameKer; kernelIdx++) {
+      for (int kernelIdx = 0; kernelIdx < totalKer / deviceCountSameKer / queueCountSameKer; kernelIdx++) {
         ASSERT_EQ(vSumStorageSameKer[i], vResultStorageSameKer[i])
           << "Vectors result mismatch for device: " << deviceIdxSameKer << ", queue: " << queueIdxSameKer
           << " at Index: " << i;
@@ -648,9 +648,8 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(bool singl
     auto queueCountDiffKer = singleQueue ? 1 : getSqCount(deviceIdxDiffKer);
     readersDiffKer.resize(totalKer);
     for (uint16_t queueIdxDiffKer = 0; queueIdxDiffKer < queueCountDiffKer; queueIdxDiffKer++) {
-      std::vector<uint64_t> devAddrVecResult(totalAddKer);
-      int addKernelPerSq = 0;
-      for (int i = 0; i < totalKer / queueCountDiffKer; i++) {
+      std::vector<uint64_t> devAddrVecResultPerQueue;
+      for (int i = 0; i < totalKer / deviceCountDiffKer / queueCountDiffKer; i++) {
         device_ops_api::tag_id_t kernelLaunchTagId;
 
         switch (kerTypes[kerCount]) {
@@ -676,8 +675,8 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(bool singl
             vDataBStorageDiffKer.back().size() * sizeof(int), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
           // Copy kernel args to device
-          devAddrVecResult[addKernelPerSq] = getDmaWriteAddr(deviceIdxDiffKer, alignedBufSize);
-          addKerParams = {devAddrVecA, devAddrVecB, devAddrVecResult[addKernelPerSq], numElemsDiffKer};
+          devAddrVecResultPerQueue.push_back(getDmaWriteAddr(deviceIdxDiffKer, alignedBufSize));
+          addKerParams = {devAddrVecA, devAddrVecB, devAddrVecResultPerQueue.back(), numElemsDiffKer};
           auto devAddrKernelArgs = getDmaWriteAddr(deviceIdxDiffKer, ALIGN(sizeof(Params), kCacheLineSize));
           // allocate 1MB space for kernel error/exception buffer
           auto devAddrkernelException = getDmaWriteAddr(deviceIdxDiffKer, 0x100000);
@@ -688,7 +687,6 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(bool singl
             devAddrkernelException, shire_mask, 0, templ::bit_cast<uint64_t*>(&addKerParams), sizeof(Params), "",
             device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
           kerCount++;
-          addKernelPerSq++;
           break;
         }
         case excKerType: {
@@ -726,9 +724,9 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(bool singl
           break;
         }
       }
-      kerCountStorage.try_emplace(key(deviceIdxDiffKer, queueIdxDiffKer), addKernelPerSq);
+      kerCountStorage.try_emplace(key(deviceIdxDiffKer, queueIdxDiffKer), devAddrVecResultPerQueue.size());
       // Read back add Kernel Results from device
-      for (int i = 0; i < addKernelPerSq; i++) {
+      for (int i = 0; i < devAddrVecResultPerQueue.size(); i++) {
         vTempDataResultDiffKer.resize(numElemsDiffKer, 0);
         vResultStorageDiffKer.push_back(std::move(vTempDataResultDiffKer));
         auto hostVirtAddrRes = templ::bit_cast<uint64_t>(vResultStorageDiffKer.back().data());
@@ -737,7 +735,7 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(bool singl
           (i == 0) ? device_ops_api::CMD_FLAGS_BARRIER_ENABLE
                    : device_ops_api::CMD_FLAGS_BARRIER_DISABLE, /* Barrier only for first read to make sure that all
                                                                    kernels execution done */
-          devAddrVecResult[i], hostVirtAddrRes, hostPhysAddrRes,
+                     devAddrVecResultPerQueue[i], hostVirtAddrRes, hostPhysAddrRes,
           vResultStorageDiffKer.back().size() * sizeof(vTempDataResultDiffKer[0]),
           device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
       }
