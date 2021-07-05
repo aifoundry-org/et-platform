@@ -205,7 +205,6 @@ struct Hart : public Agent {
     uint32_t    mie;
     uint64_t    mtvec;
     uint16_t    mcounteren;             // 9b
-    std::array<uint8_t,6>  mhpmevent;   // 5b
     uint64_t    mscratch;
     uint64_t    mepc;
     uint64_t    mcause;

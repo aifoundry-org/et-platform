@@ -1336,12 +1336,13 @@ void Hart::take_trap(const trap_t& t)
     trap_to_mmode(*this, t.cause(), t.tval());
 }
 
+
 void Hart::notify_pmu_minion_event(uint8_t event)
 {
     // The first four counters count Minion-related events
     for (int i = 0; i < 4; i++) {
-        if (mhpmevent[i] == event) {
-            chip->neigh_pmu_counters[neigh_index(*this)][mhartid & 1][i]++;
+        if (chip->neigh_pmu_events[neigh_index(*this)][i][mhartid % EMU_THREADS_PER_MINION] == event) {
+            ++chip->neigh_pmu_counters[neigh_index(*this)][i][mhartid % EMU_THREADS_PER_MINION];
         }
     }
 }

@@ -10,6 +10,7 @@
 
 #include <cstdio>       // for snprintf()
 #include <unordered_map>
+#include <utility>
 
 #include "emu_defines.h"
 #include "emu_gio.h"
@@ -136,6 +137,29 @@ static void check_counter_is_enabled(const Hart& cpu, int n)
 }
 
 
+#ifdef SYS_EMU
+static std::pair<int,int> counter_matches_event(const Hart& cpu, size_t counter, uint64_t event)
+{
+    int this_count = 0;
+    int other_count = 0;
+
+    const auto& events = cpu.chip->neigh_pmu_events[neigh_index(cpu)][counter];
+    for (auto index = cpu.mhartid % EMU_THREADS_PER_MINION;
+         index < EMU_THREADS_PER_NEIGH;
+         index += EMU_THREADS_PER_MINION)
+    {
+        if (events[index] == event) {
+            ++this_count;
+        } else if (events[index] != PMU_MINION_EVENT_NONE) {
+            ++other_count;
+        }
+    }
+
+    return { this_count, other_count };
+}
+#endif
+
+
 static uint64_t csrget(Hart& cpu, uint16_t csr)
 {
     uint64_t val;
@@ -211,7 +235,7 @@ static uint64_t csrget(Hart& cpu, uint16_t csr)
     case CSR_MHPMEVENT6:
     case CSR_MHPMEVENT7:
     case CSR_MHPMEVENT8:
-        val = cpu.mhpmevent[csr - CSR_MHPMEVENT3];
+        val = cpu.chip->neigh_pmu_events[neigh_index(cpu)][csr - CSR_MHPMEVENT3][cpu.mhartid % EMU_THREADS_PER_NEIGH];
         break;
     case CSR_MHPMEVENT9:
     case CSR_MHPMEVENT10:
@@ -277,11 +301,14 @@ static uint64_t csrget(Hart& cpu, uint16_t csr)
     case CSR_MHPMCOUNTER6:
     case CSR_MHPMCOUNTER7:
     case CSR_MHPMCOUNTER8:
-        val = cpu.chip->neigh_pmu_counters[neigh_index(cpu)][cpu.mhartid & 1][csr - CSR_MHPMCOUNTER3];
+        val = cpu.chip->neigh_pmu_counters[neigh_index(cpu)][csr - CSR_MHPMCOUNTER3][cpu.mhartid % EMU_THREADS_PER_MINION];
 #ifdef SYS_EMU
-        // Special case for PMU_MINION_EVENT_CYCLES, use simulator cycle as baseline
-        if (cpu.mhpmevent[csr - CSR_MHPMCOUNTER3] == PMU_MINION_EVENT_CYCLES) {
-            val = SYS_EMU_PTR->get_emu_cycle() - val;
+        {
+            auto match = counter_matches_event(cpu, csr - CSR_MHPMCOUNTER3, PMU_MINION_EVENT_CYCLES);
+            if (match.first) {
+                // Special case for PMU_MINION_EVENT_CYCLES, use simulator cycle as baseline
+                val = match.first * (SYS_EMU_PTR->get_emu_cycle() - val);
+            }
         }
 #endif
         break;
@@ -322,11 +349,14 @@ static uint64_t csrget(Hart& cpu, uint16_t csr)
     case CSR_HPMCOUNTER7:
     case CSR_HPMCOUNTER8:
         check_counter_is_enabled(cpu, csr - CSR_CYCLE);
-        val = cpu.chip->neigh_pmu_counters[neigh_index(cpu)][cpu.mhartid & 1][csr - CSR_HPMCOUNTER3];
+        val = cpu.chip->neigh_pmu_counters[neigh_index(cpu)][csr - CSR_HPMCOUNTER3][cpu.mhartid % EMU_THREADS_PER_MINION];
 #ifdef SYS_EMU
-        // Special case for PMU_MINION_EVENT_CYCLES, use simulator cycle as baseline
-        if (cpu.mhpmevent[csr - CSR_HPMCOUNTER3] == PMU_MINION_EVENT_CYCLES) {
-            val = SYS_EMU_PTR->get_emu_cycle() - val;
+        {
+            auto match = counter_matches_event(cpu, csr - CSR_HPMCOUNTER3, PMU_MINION_EVENT_CYCLES);
+            if (match.first) {
+                // Special case for PMU_MINION_EVENT_CYCLES, use simulator cycle as baseline
+                val = match.first * (SYS_EMU_PTR->get_emu_cycle() - val);
+            }
         }
 #endif
         break;
@@ -688,15 +718,20 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
     case CSR_MHPMEVENT8:
         val &= 0x1F;
 #ifdef SYS_EMU
-        tmpval = cpu.mhpmevent[csr - CSR_MHPMEVENT3];
+        tmpval = cpu.chip->neigh_pmu_events[neigh_index(cpu)][csr - CSR_MHPMEVENT3][cpu.mhartid % EMU_THREADS_PER_NEIGH];
         // Special case for PMU_MINION_EVENT_CYCLES, use simulator cycle as baseline
-        // When an event switches from EVENT_CYCLES to non-EVENT_CYCLES or vice versa, we need to change the baseline
-        if ((val != tmpval) && ((val == PMU_MINION_EVENT_CYCLES) || (tmpval == PMU_MINION_EVENT_CYCLES))) {
-            uint64_t& counter = cpu.chip->neigh_pmu_counters[neigh_index(cpu)][cpu.mhartid & 1][csr - CSR_MHPMEVENT3];
-            counter = SYS_EMU_PTR->get_emu_cycle() - counter;
+        // When an event switches from EVENT_CYCLES to non-EVENT_CYCLES or vice versa, we may need to change the baseline
+        if (val != tmpval) {
+            auto match = counter_matches_event(cpu, csr - CSR_MHPMEVENT3, PMU_MINION_EVENT_CYCLES);
+            if (((val == PMU_MINION_EVENT_CYCLES) && (match.first == 1)) ||
+                ((tmpval == PMU_MINION_EVENT_CYCLES) && (match.first == 0)))
+            {
+                uint64_t& counter = cpu.chip->neigh_pmu_counters[neigh_index(cpu)][csr - CSR_MHPMEVENT3][cpu.mhartid % EMU_THREADS_PER_MINION];
+                counter = SYS_EMU_PTR->get_emu_cycle() - counter;
+            }
         }
 #endif
-        cpu.mhpmevent[csr - CSR_MHPMEVENT3] = val;
+        cpu.chip->neigh_pmu_events[neigh_index(cpu)][csr - CSR_MHPMEVENT3][cpu.mhartid % EMU_THREADS_PER_NEIGH] = val;
         break;
     case CSR_MHPMEVENT9:
     case CSR_MHPMEVENT10:
@@ -794,12 +829,15 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
     case CSR_MHPMCOUNTER8:
         tmpval = val;
 #ifdef SYS_EMU
-        // Special case for PMU_MINION_EVENT_CYCLES, use simulator cycle as baseline
-        if (cpu.mhpmevent[csr - CSR_MHPMCOUNTER3] == PMU_MINION_EVENT_CYCLES) {
-            tmpval = SYS_EMU_PTR->get_emu_cycle() - val;
+        {
+            auto match = counter_matches_event(cpu, csr - CSR_MHPMCOUNTER3, PMU_MINION_EVENT_CYCLES);
+            if (match.first) {
+                // Special case for PMU_MINION_EVENT_CYCLES, use simulator cycle as baseline
+                tmpval = SYS_EMU_PTR->get_emu_cycle() - val;
+            }
         }
 #endif
-        cpu.chip->neigh_pmu_counters[neigh_index(cpu)][cpu.mhartid & 1][csr - CSR_MHPMCOUNTER3] = tmpval;
+        cpu.chip->neigh_pmu_counters[neigh_index(cpu)][csr - CSR_MHPMCOUNTER3][cpu.mhartid % EMU_THREADS_PER_MINION] = tmpval;
         break;
     case CSR_MHPMCOUNTER9:
     case CSR_MHPMCOUNTER10:
