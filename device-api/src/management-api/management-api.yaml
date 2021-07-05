@@ -260,6 +260,21 @@ Modules:
           Value: 3
         - Name: TRACE_EVENT_ENABLE_ALL
           Value: 0xFFFF
+    - Name: trace_configure_filter_mask
+      Description: Trace string events filters
+      Type: uint32_t
+      Values:
+        - Name: EVENT_STRING_CRITICAL
+          Value: 0
+        - Name: EVENT_STRING_ERROR
+          Value: 1
+        - Name: EVENT_STRING_WARNING
+          Value: 2
+        - Name: EVENT_STRING_INFO
+          Value: 3
+        - Name: EVENT_STRING_DEBUG
+          Value: 4
+
   Structs:
     - Name: asset_info_t
       Description: Asset Information
