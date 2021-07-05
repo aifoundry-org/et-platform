@@ -237,6 +237,7 @@ int32_t Log_Write(log_level_t level, const char *const fmt, ...)
         {
             va_start(va, fmt);
             vsnprintf(buff, sizeof(buff), fmt, va);
+            va_end(va);
 
             Trace_String(level, Trace_Get_SP_CB(), buff);
 
@@ -251,6 +252,7 @@ int32_t Log_Write(log_level_t level, const char *const fmt, ...)
         {
             va_start(va, fmt);
             vsnprintf(buff, sizeof(buff), fmt, va);
+            va_end(va);
 
             if (xSemaphore && (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING))
             {
