@@ -659,7 +659,7 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(bool singl
     readersDiffKer.resize(totalKer);
     for (auto kerType : perQueueKernels.kernels) {
       device_ops_api::tag_id_t kernelLaunchTagId;
-      switch (kerTypes[kerCount]) {
+      switch (kerType) {
       case KernelTypes::ADD_KERNEL_TYPE: /* Add Kernel */ {
         generateRandomData(numElemsDiffKer, vDataAStorageDiffKer, vDataBStorageDiffKer, vSumStorageDiffKer);
         uint64_t addKernelEntryAddrDiffKer;
