@@ -13,16 +13,16 @@
 
 /// @file
 
-#include "deviceManagement/dm.h"
 #include "device-layer/IDeviceLayer.h"
+#include "deviceManagement/dm.h"
 
+#include <atomic>
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <tuple>
-#include <atomic>
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
 using namespace dev;
 
@@ -78,7 +78,8 @@ static std::unordered_map<std::string, device_mgmt_api::DM_CMD> const commandCod
   {"DM_CMD_GET_ASIC_FREQUENCIES", device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_FREQUENCIES},
   {"DM_CMD_GET_DRAM_BANDWIDTH", device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_BANDWIDTH},
   {"DM_CMD_GET_DRAM_CAPACITY_UTILIZATION", device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_CAPACITY_UTILIZATION},
-  {"DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION", device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION},
+  {"DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION",
+   device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION},
   {"DM_CMD_GET_ASIC_UTILIZATION", device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_UTILIZATION},
   {"DM_CMD_GET_ASIC_STALLS", device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_STALLS},
   {"DM_CMD_GET_ASIC_LATENCY", device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_LATENCY},
@@ -113,7 +114,6 @@ static std::unordered_map<std::string, device_mgmt_api::PCIE_LANE_W_SPLIT> const
   {"PCIE_LANE_W_SPLIT_x4", device_mgmt_api::PCIE_LANE_W_SPLIT::PCIE_LANE_W_SPLIT_x4},
   {"PCIE_LANE_W_SPLIT_x8", device_mgmt_api::PCIE_LANE_W_SPLIT::PCIE_LANE_W_SPLIT_x8}};
 
-
 struct lockable_;
 
 struct dm_cmd {
@@ -134,13 +134,13 @@ public:
   /// @brief Get instance to DeviceManagement
   ///
   /// @return DeviceManagement object
-  static DeviceManagement &getInstance(IDeviceLayer *devLayer);
-  
+  static DeviceManagement& getInstance(IDeviceLayer* devLayer);
+
   /// @brief  Get total number of devices in system
   ///
   /// @return Total number of devices
   int getDevicesCount();
-  
+
   /// @brief Send service request to device and wait for response
   ///
   /// @param[in] device_node  device index to use
@@ -178,7 +178,7 @@ private:
   /// @brief DeviceManagement constructors
   DeviceManagement(){};
   // DeviceManagement(IDeviceLayer *devLayer){devLayer_ = devLayer;};
-  DeviceManagement(const DeviceManagement &dm){};
+  DeviceManagement(const DeviceManagement& dm){};
 
   /// @brief DeviceManagement Destructor
   ~DeviceManagement(){};
@@ -189,7 +189,7 @@ private:
   /// @param[in] cmd  Command code table iterator
   ///
   /// @return True if 'set' command
-  bool isSetCommand(itCmd &cmd);
+  bool isSetCommand(itCmd& cmd);
 
   /// @brief Determine if command code is a valid command
   ///
@@ -217,21 +217,21 @@ private:
   /// @param[in] lockable  Smart shared pointer to lockable_ struct wrapping
   /// the device index
   /// @param[inout] filePath  Pointer to firmware image path on filesystem
-  int processFirmwareImage(std::shared_ptr<lockable_> lockable, const char *filePath);
+  int processFirmwareImage(std::shared_ptr<lockable_> lockable, const char* filePath);
 
   /// @brief Determine if provided SHA512 is valid
   ///
   /// @param[in] str  Command code to check
   ///
   /// @return True if valid SHA512
-  bool isValidSHA512(const std::string &str);
+  bool isValidSHA512(const std::string& str);
 
   /// @brief Read provided file and extract potential SHA512
   ///
   /// @param[inout] filePath  Pointer to hash file on filesystem
   ///
   /// @param[inout] hash  reference to unsigned char vector
-  int processHashFile(const char *filePath, std::vector<unsigned char> &hash);
+  int processHashFile(const char* filePath, std::vector<unsigned char>& hash);
 
   /// @brief Get the provided IDeviceLayer pointer
   ///
@@ -244,11 +244,11 @@ private:
   void setDeviceLayer(IDeviceLayer* ptr);
 
   std::unordered_map<uint32_t, std::shared_ptr<lockable_>> deviceMap_;
-  IDeviceLayer *devLayer_;
+  IDeviceLayer* devLayer_;
   std::atomic<device_mgmt_api::tag_id_t> tag_id_;
 };
 
-typedef DeviceManagement &(*getDM_t)(IDeviceLayer *devLayer);
+typedef DeviceManagement& (*getDM_t)(IDeviceLayer* devLayer);
 
 } // namespace device_management
 

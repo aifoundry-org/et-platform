@@ -13,11 +13,11 @@
 
 #include "DeviceSysEmu.h"
 #include "deviceManagement/DeviceManagement.h"
+#include "utils.h"
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include "utils.h"
 
 #define DM_LOG(severity) ET_LOG(DM, severity)
 #define DM_DLOG(severity) ET_DLOG(DM, severity)
@@ -25,7 +25,8 @@
 
 DECLARE_bool(loopback_driver);
 
-void testSerial(device_management::DeviceManagement& dm, uint32_t deviceIdx, uint32_t index, uint32_t timeout, int* result);
+void testSerial(device_management::DeviceManagement& dm, uint32_t deviceIdx, uint32_t index, uint32_t timeout,
+                int* result);
 
 class TestDevMgmtApiSyncCmds : public ::testing::Test {
 protected:
@@ -84,7 +85,6 @@ protected:
   void getTraceBuffer_1_49(bool singleDevice);
   void* handle_ = nullptr;
   std::unique_ptr<IDeviceLayer> devLayer_;
-  
 };
 
 #endif // TEST_DEVICE_M_H

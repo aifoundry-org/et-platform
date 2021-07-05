@@ -199,7 +199,6 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getTraceBuffer_1_49) {
 //  getMMErrorCount_1_40(false /* single device */);
 //}
 
-
 int main(int argc, char** argv) {
   logging::LoggerDefault loggerDefault_;
   google::InitGoogleLogging(argv[0]);

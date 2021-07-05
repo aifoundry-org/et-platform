@@ -39,10 +39,12 @@ struct lockable_ {
 };
 
 struct DeviceManagement::destruction_ {
-  void operator()(const DeviceManagement *const ptr) { delete ptr; }
+  void operator()(const DeviceManagement* const ptr) {
+    delete ptr;
+  }
 };
 
-DeviceManagement &DeviceManagement::getInstance(IDeviceLayer *devLayer) {
+DeviceManagement& DeviceManagement::getInstance(IDeviceLayer* devLayer) {
   static std::unique_ptr<DeviceManagement, destruction_> instance(new DeviceManagement());
   (*instance).setDeviceLayer(devLayer);
   return *instance;
@@ -71,7 +73,7 @@ int DeviceManagement::getDevicesCount() {
   devLayer_->getDevicesCount();
 }
 
-bool DeviceManagement::isSetCommand(itCmd &cmd) {
+bool DeviceManagement::isSetCommand(itCmd& cmd) {
   if (cmd->first.find("DM_CMD_SET") == 0) {
     return true;
   }
@@ -89,7 +91,7 @@ std::shared_ptr<lockable_> DeviceManagement::getDevice(const uint32_t index) {
   return deviceMap_[index];
 }
 
-int DeviceManagement::processFirmwareImage(std::shared_ptr<lockable_> lockable, const char *filePath) {
+int DeviceManagement::processFirmwareImage(std::shared_ptr<lockable_> lockable, const char* filePath) {
   std::ifstream file(filePath, std::ios::binary);
 
   if (!file.good()) {
@@ -101,21 +103,21 @@ int DeviceManagement::processFirmwareImage(std::shared_ptr<lockable_> lockable, 
   // TODO: Validate firmware and DM Lib compatibility
   //       pushed out to WP3 or later
 
-//  uintptr_t addr = lockable->dev.FWBaseAddr();
-//  DV_LOG(INFO) << "Retrieved firmware memory region: " << std::hex << addr << std::endl;
+  //  uintptr_t addr = lockable->dev.FWBaseAddr();
+  //  DV_LOG(INFO) << "Retrieved firmware memory region: " << std::hex << addr << std::endl;
 
-  //auto res = lockable->dev.writeDevMemMMIO(addr, fwImage.size(), fwImage.data());
+  // auto res = lockable->dev.writeDevMemMMIO(addr, fwImage.size(), fwImage.data());
 
-//  if (!res) {
-//    return -EIO;
-//  }
+  //  if (!res) {
+  //    return -EIO;
+  //  }
 
   DV_LOG(INFO) << "Wrote firmware image of size: " << fwImage.size() << std::endl;
 
   return 0;
 }
 
-bool DeviceManagement::isValidSHA512(const std::string &str) {
+bool DeviceManagement::isValidSHA512(const std::string& str) {
   std::regex re("^[[:xdigit:]]{128}$");
   std::smatch m;
 
@@ -126,7 +128,7 @@ bool DeviceManagement::isValidSHA512(const std::string &str) {
   return true;
 }
 
-int DeviceManagement::processHashFile(const char *filePath, std::vector<unsigned char> &hash) {
+int DeviceManagement::processHashFile(const char* filePath, std::vector<unsigned char>& hash) {
   std::ifstream file(filePath);
 
   if (!file.good()) {
@@ -140,11 +142,11 @@ int DeviceManagement::processHashFile(const char *filePath, std::vector<unsigned
     return -EINVAL;
   }
 
-  for (uint32_t i = 0; i < contents.size(); i+=2) {
+  for (uint32_t i = 0; i < contents.size(); i += 2) {
     std::stringstream ss("");
     unsigned long value = 0;
 
-    ss << contents[i] << contents[i+1];
+    ss << contents[i] << contents[i + 1];
 
     if (ss.fail()) {
       return -EIO;
@@ -157,24 +159,22 @@ int DeviceManagement::processHashFile(const char *filePath, std::vector<unsigned
   return 0;
 }
 
-int DeviceManagement::getTraceBufferServiceProcessor(const uint32_t device_node, std::vector<std::byte>& response, uint32_t timeout) {
+int DeviceManagement::getTraceBufferServiceProcessor(const uint32_t device_node, std::vector<std::byte>& response,
+                                                     uint32_t timeout) {
   if (!isValidDeviceNode(device_node)) {
     return -EINVAL;
   }
 
   auto lockable = getDevice(device_node);
 
-  if (lockable->devGuard.try_lock_for(
-          std::chrono::milliseconds(timeout))) {
-    const std::lock_guard<std::timed_mutex> lock(lockable->devGuard,
-                                                  std::adopt_lock_t());
+  if (lockable->devGuard.try_lock_for(std::chrono::milliseconds(timeout))) {
+    const std::lock_guard<std::timed_mutex> lock(lockable->devGuard, std::adopt_lock_t());
     devLayer_->getTraceBufferServiceProcessor(lockable->idx, response);
     return 0;
   }
 
   return -EAGAIN;
 }
-
 
 int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_code, const char* input_buff,
                                      const uint32_t input_size, char* output_buff, const uint32_t output_size,
@@ -215,10 +215,8 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
   auto inputSize = input_size;
   auto lockable = getDevice(device_node);
 
-  if (lockable->devGuard.try_lock_for(
-          std::chrono::milliseconds(timeout))) {
-    const std::lock_guard<std::timed_mutex> lock(lockable->devGuard,
-                                                  std::adopt_lock_t());
+  if (lockable->devGuard.try_lock_for(std::chrono::milliseconds(timeout))) {
+    const std::lock_guard<std::timed_mutex> lock(lockable->devGuard, std::adopt_lock_t());
 
     auto wCB = std::make_unique<dm_cmd>();
     wCB->info.cmd_hdr.tag_id = tag_id_++;
@@ -237,7 +235,7 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
     case device_mgmt_api::DM_CMD::DM_CMD_SET_SP_BOOT_ROOT_CERT:
     case device_mgmt_api::DM_CMD::DM_CMD_SET_SW_BOOT_ROOT_CERT: {
       std::vector<unsigned char> hash;
-      
+
       int res = processHashFile(input_buff, hash);
 
       if (res != 0) {
@@ -245,7 +243,7 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
         return res;
       }
       inputSize = hash.size();
-      if(sizeof(wCB->payload) < inputSize) {
+      if (sizeof(wCB->payload) < inputSize) {
         DV_LOG(INFO) << "not enough space in cmd payload ";
         return -EAGAIN;
       }
@@ -253,23 +251,22 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
       DV_LOG(INFO) << "Mem copy ";
       memcpy(wCB->payload, tmp, inputSize);
       DV_LOG(INFO) << "Size: " << inputSize;
-      wCB->info.cmd_hdr.size = (sizeof(*(wCB.get()))-1) + inputSize;
+      wCB->info.cmd_hdr.size = (sizeof(*(wCB.get())) - 1) + inputSize;
       DV_LOG(INFO) << "input_buff: " << tmp;
     } break;
-    case device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL: 
-    case device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG:
-    {
+    case device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL:
+    case device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG: {
       memcpy(wCB->payload, input_buff, inputSize);
-      wCB->info.cmd_hdr.size = (sizeof(*(wCB.get()))-1) + inputSize;
+      wCB->info.cmd_hdr.size = (sizeof(*(wCB.get())) - 1) + inputSize;
       break;
     }
     default: {
-        if (isSet && input_buff && inputSize) {
-          memcpy(wCB->payload, input_buff, inputSize);
-        }
+      if (isSet && input_buff && inputSize) {
+        memcpy(wCB->payload, input_buff, inputSize);
+      }
 
-        wCB->info.cmd_hdr.size = (inputSize) ? (sizeof(*(wCB.get()))-1) + inputSize : sizeof(*(wCB.get()));
-      } break;
+      wCB->info.cmd_hdr.size = (inputSize) ? (sizeof(*(wCB.get())) - 1) + inputSize : sizeof(*(wCB.get()));
+    } break;
     }
 
     if (!devLayer_->sendCommandServiceProcessor(lockable->idx, reinterpret_cast<std::byte*>(wCB.get()),
@@ -277,7 +274,8 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
       return -EIO;
     }
 
-    DV_LOG(INFO) << "Sent cmd: " << wCB->info.cmd_hdr.msg_id << " with header size: " << wCB->info.cmd_hdr.size << std::endl;
+    DV_LOG(INFO) << "Sent cmd: " << wCB->info.cmd_hdr.msg_id << " with header size: " << wCB->info.cmd_hdr.size
+                 << std::endl;
 
     int responseReceived = 0;
     bool sq_available = true, cq_available = true, event_pending = true;
@@ -301,12 +299,14 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
         auto rCB = reinterpret_cast<dm_rsp*>(message.data());
 
         if (rCB->info.rsp_hdr.msg_id != wCB->info.cmd_hdr.msg_id) {
-          DV_LOG(INFO) << "Read rsp to cmd: " << rCB->info.rsp_hdr.msg_id << " but expected: " << wCB->info.cmd_hdr.msg_id << std::endl;
-          //TODO: How to handle different response than expected
-          continue; 
+          DV_LOG(INFO) << "Read rsp to cmd: " << rCB->info.rsp_hdr.msg_id
+                       << " but expected: " << wCB->info.cmd_hdr.msg_id << std::endl;
+          // TODO: How to handle different response than expected
+          continue;
         }
 
-        DV_LOG(INFO) << "Read rsp to cmd: " << rCB->info.rsp_hdr.msg_id << " with header size: " << rCB->info.rsp_hdr.size << std::endl;
+        DV_LOG(INFO) << "Read rsp to cmd: " << rCB->info.rsp_hdr.msg_id
+                     << " with header size: " << rCB->info.rsp_hdr.size << std::endl;
 
         memcpy(output_buff, rCB->payload, output_size);
 
@@ -331,7 +331,7 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
   return -EAGAIN;
 }
 
-extern "C" DeviceManagement &getInstance(IDeviceLayer *devLayer) {
+extern "C" DeviceManagement& getInstance(IDeviceLayer* devLayer) {
   return DeviceManagement::getInstance(devLayer);
 }
 

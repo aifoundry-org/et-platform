@@ -41,11 +41,7 @@ enum trace_type_e {
   TRACE_TYPE_VALUE_FLOAT
 };
 
-enum trace_buffer_type_e {
-  TRACE_MM_BUFFER,
-  TRACE_CM_BUFFER,
-  TRACE_SP_BUFFER
-};
+enum trace_buffer_type_e { TRACE_MM_BUFFER, TRACE_CM_BUFFER, TRACE_SP_BUFFER };
 
 struct trace_buffer_size_header_t {
   uint32_t data_size;
@@ -55,12 +51,12 @@ struct trace_buffer_std_header_t {
   uint32_t magic_header;
   uint32_t data_size;
   uint16_t type;
-  uint8_t  pad[6];
+  uint8_t pad[6];
 } __attribute__((packed));
 
 struct trace_entry_header_t {
-  uint64_t cycle;   // Current cycle
-  uint16_t type;    // One of enum trace_type_e
+  uint64_t cycle; // Current cycle
+  uint16_t type;  // One of enum trace_type_e
 } __attribute__((packed));
 
 struct trace_string_t {

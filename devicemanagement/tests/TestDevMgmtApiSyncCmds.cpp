@@ -1558,8 +1558,11 @@ void TestDevMgmtApiSyncCmds::setTraceConfigure_1_48(bool singleDevice) {
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    const uint32_t input_size = (sizeof(device_mgmt_api::trace_configure_e) + sizeof(device_mgmt_api::trace_configure_filter_mask_e)) / sizeof(uint32_t);
-    const uint32_t input_buff[input_size] = {device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING, device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_DEBUG};
+    const uint32_t input_size =
+      (sizeof(device_mgmt_api::trace_configure_e) + sizeof(device_mgmt_api::trace_configure_filter_mask_e)) /
+      sizeof(uint32_t);
+    const uint32_t input_buff[input_size] = {device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
+                                             device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_DEBUG};
 
     const uint32_t set_output_size = sizeof(uint8_t);
     char set_output_buff[set_output_size] = {0};
@@ -1567,7 +1570,8 @@ void TestDevMgmtApiSyncCmds::setTraceConfigure_1_48(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG, reinterpret_cast<const char *>(input_buff), input_size * sizeof(uint32_t),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG,
+                                reinterpret_cast<const char*>(input_buff), input_size * sizeof(uint32_t),
                                 set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
@@ -1588,7 +1592,8 @@ void TestDevMgmtApiSyncCmds::getTraceBuffer_1_49(bool singleDevice) {
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    ASSERT_EQ(dm.getTraceBufferServiceProcessor(deviceIdx, response, DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    ASSERT_EQ(dm.getTraceBufferServiceProcessor(deviceIdx, response, DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
