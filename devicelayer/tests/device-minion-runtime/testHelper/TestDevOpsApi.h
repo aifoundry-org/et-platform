@@ -71,33 +71,29 @@ enum trace_type_e {
   TRACE_TYPE_VALUE_FLOAT
 };
 
-enum trace_buffer_type_e {
-    TRACE_MM_BUFFER,
-    TRACE_CM_BUFFER,
-    TRACE_SP_BUFFER
-};
+enum trace_buffer_type_e { TRACE_MM_BUFFER, TRACE_CM_BUFFER, TRACE_SP_BUFFER };
 
 struct trace_buffer_size_header_t {
-    uint32_t data_size;
+  uint32_t data_size;
 } __attribute__((packed));
 
 struct trace_buffer_std_header_t {
-    uint32_t magic_header;
-    uint32_t data_size;
-    uint16_t type;
-    uint8_t  pad[6];
+  uint32_t magic_header;
+  uint32_t data_size;
+  uint16_t type;
+  uint8_t pad[6];
 } __attribute__((packed));
 
 struct trace_entry_header_t {
-  uint64_t cycle;   // Current cycle
-  uint16_t type;    // One of enum trace_type_e
+  uint64_t cycle; // Current cycle
+  uint16_t type;  // One of enum trace_type_e
 } __attribute__((packed));
 
 struct trace_entry_header_mm_t {
   uint64_t cycle;   // Current cycle
   uint32_t hart_id; // Hart ID of the Hart which is logging Trace
   uint16_t type;    // One of enum trace_type_e
-  uint8_t  pad[2];
+  uint8_t pad[2];
 } __attribute__((packed));
 
 struct trace_string_t {
@@ -109,7 +105,6 @@ struct trace_string_mm_t {
   struct trace_entry_header_mm_t mm_header;
   char dataString[64];
 } __attribute__((packed));
-
 }
 
 enum cm_context_type {
@@ -145,6 +140,13 @@ struct __attribute__((packed, aligned(64))) hartExecutionContext {
 
 class TestDevOpsApi : public ::testing::Test {
 protected:
+  struct PopRspResult {
+    CmdTag tagId_;
+    explicit operator bool() const {
+      return tagId_ > 0;
+    }
+  };
+
   void initTestHelperSysEmu(const emu::SysEmuOptions& options);
   void initTestHelperPcie();
   void executeAsync();
@@ -158,11 +160,11 @@ protected:
   void fExecutor(int deviceIdx, int queueIdx);
   void fListener(int deviceIdx);
   bool pushCmd(int deviceIdx, int queueIdx, CmdTag tagId);
-  bool popRsp(int deviceIdx);
+  PopRspResult popRsp(int deviceIdx);
   void printCmdExecutionSummary();
   void printErrorContext(int queueId, const std::byte* buffer, uint64_t shireMask, CmdTag tagId) const;
   void cleanUpExecution();
-  void executeSyncPerDevicePerQueue(int deviceIdx, int queueIdx, const std::vector<CmdTag>& stream);
+  void executeSyncPerDevice(int deviceIdx);
 
   bool printMMTraceStringData(unsigned char* traceBuf, size_t bufSize) const;
   bool printCMTraceStringData(unsigned char* traceBuf, size_t bufSize) const;
@@ -188,30 +190,72 @@ protected:
     return (size_t)deviceIdx << 32 | (size_t)queueIdx;
   }
 
-  void insertStream(int deviceIdx, int queueIdx, std::vector<CmdTag> stream);
-  void deleteStream(int deviceIdx, int queueIdx);
+  void insertStream(int deviceIdx, int queueIdx, std::vector<CmdTag> cmds, unsigned int retryCount = 0);
   void deleteStreams();
 
   TimeDuration execTimeout_;
 
 private:
-  void controlTraceLogging(int deviceIdx, bool toTraceBuf, bool resetTraceBuf);
-
   struct DeviceInfo {
     uint64_t dmaWriteAddr_;
     std::mutex dmaWriteAddrMtx_;
     uint64_t dmaReadAddr_;
     std::mutex dmaReadAddrMtx_;
     uint64_t sqBitmap_;
-    std::condition_variable sqBitmapCondVar_;
-    std::mutex sqBitmapMtx_;
+    std::condition_variable asyncEpollCondVar_;
+    std::mutex asyncEpollMtx_;
+    std::atomic<bool> abort_ = false;
   };
 
+  struct Stream {
+    Stream(int deviceIdx, int queueIdx, std::vector<CmdTag> cmds, unsigned int retryCount = 0)
+      : deviceIdx_(deviceIdx)
+      , queueIdx_(queueIdx)
+      , retryCount_(retryCount) {
+      if (cmds.empty()) {
+        throw Exception("Stream must atleast contain one command!");
+      }
+      cmds_ = std::move(cmds);
+    }
+    std::shared_ptr<Stream> getReTransmissionStream() {
+      if (retryCount_ == 0 || reTransmitted_) {
+        return nullptr;
+      }
+      auto newStream = std::make_shared<Stream>(*this);
+      newStream->retryCount_ = retryCount_ - 1;
+      newStream->cmds_.clear();
+      // Clone stream commands with new tagIds
+      for (const auto& cmd : cmds_) {
+        newStream->cmds_.push_back(IDevOpsApiCmd::cloneDevOpsApiCmd(cmd));
+      }
+      if (newStream->cmds_.empty()) {
+        return nullptr;
+      }
+      retryCount_ = 0;
+      reTransmitted_ = true;
+      return newStream;
+    }
+    ~Stream() = default;
+    const int deviceIdx_;
+    const int queueIdx_;
+    bool reTransmitted_ = false;
+    unsigned int retryCount_;
+    std::vector<CmdTag> cmds_;
+  };
+
+  void controlTraceLogging(int deviceIdx, bool toTraceBuf, bool resetTraceBuf);
+  void waitForSqAvailability(int deviceIdx, int queueIdx);
+  void waitForCqAvailability(int deviceIdx, TimeDuration timeout);
+  void dispatchStreamAsync(const std::shared_ptr<Stream>& stream);
+
+  void dispatchStreamSync(const std::shared_ptr<Stream>& stream, TimeDuration timeout);
+  size_t handleStreamReTransmission(CmdTag tagId);
+
   logging::LoggerDefault logger_;
-  std::unique_ptr<dev::IDeviceLayer> devLayer_;
-  std::vector<std::unique_ptr<DeviceInfo>> devices_;
-  std::unordered_map<size_t, std::vector<CmdTag>> streams_;
   std::vector<CmdTag> invalidRsps_;
+  std::unique_ptr<dev::IDeviceLayer> devLayer_;
+  std::vector<std::shared_ptr<Stream>> streams_;
+  std::vector<std::unique_ptr<DeviceInfo>> devices_;
 
   Timepoint firstCmdTimepoint_;
   Timepoint lastCmdTimepoint_;

@@ -87,6 +87,7 @@ public:
   }
 
   static IDevOpsApiCmd* getDevOpsApiCmd(CmdTag tagId);
+  static CmdTag cloneDevOpsApiCmd(CmdTag origCmdTagId);
   static void deleteDevOpsApiCmds();
 
   virtual std::byte* getCmdPtr() = 0;
@@ -121,6 +122,7 @@ public:
   };
   std::string printSummary() override;
   explicit EchoCmd(CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /* flags */>& args);
+  explicit EchoCmd(CmdTag tagId, const EchoCmd* orig);
   ~EchoCmd() final = default;
 
 private:
@@ -140,10 +142,10 @@ public:
     return cmdStatus_;
   };
   std::string printSummary() override;
-  explicit ApiCompatibilityCmd(
-    CmdTag tagId,
-    const std::tuple<device_ops_api::cmd_flags_e /* flags */, uint8_t /*major*/, uint8_t /*minor*/, uint8_t /*patch*/>&
-      args);
+  explicit ApiCompatibilityCmd(CmdTag tagId,
+                               const std::tuple<device_ops_api::cmd_flags_e /* flags */, uint8_t /*major*/,
+                                                uint8_t /*minor*/, uint8_t /*patch*/>& args);
+  explicit ApiCompatibilityCmd(CmdTag tagId, const ApiCompatibilityCmd* orig);
   ~ApiCompatibilityCmd() final = default;
 
 private:
@@ -165,6 +167,7 @@ public:
   std::string printSummary() override;
   explicit FwVersionCmd(CmdTag tagId,
                         const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint8_t /*firmwareType*/>& args);
+  explicit FwVersionCmd(CmdTag tagId, const FwVersionCmd* orig);
   ~FwVersionCmd() final = default;
 
 private:
@@ -188,8 +191,8 @@ public:
   explicit DataWriteCmd(CmdTag tagId,
                         const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint64_t /*devPhysAddr*/,
                                          uint64_t /*hostVirtAddr*/, uint64_t /*hostPhysAddr*/, uint64_t /*dataSize*/,
-                                         device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>&
-                          args);
+                                         device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>& args);
+  explicit DataWriteCmd(CmdTag tagId, const DataWriteCmd* orig);
   ~DataWriteCmd() final = default;
   bool isDma() const override {
     return true;
@@ -217,8 +220,8 @@ public:
   explicit DataReadCmd(CmdTag tagId,
                        const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint64_t /*devPhysAddr*/,
                                         uint64_t /*hostVirtAddr*/, uint64_t /*hostPhysAddr*/, uint64_t /*dataSize*/,
-                                        device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>&
-                         args);
+                                        device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>& args);
+  explicit DataReadCmd(CmdTag tagId, const DataReadCmd* orig);
   ~DataReadCmd() final = default;
   bool isDma() const override {
     return true;
@@ -246,8 +249,8 @@ public:
   explicit DmaWriteListCmd(
     CmdTag tagId,
     const std::tuple<device_ops_api::cmd_flags_e /*flags*/, const device_ops_api::dma_write_node* /*list*/,
-                     uint32_t /*nodeCount*/, device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>&
-      args);
+                     uint32_t /*nodeCount*/, device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>& args);
+  explicit DmaWriteListCmd(CmdTag tagId, const DmaWriteListCmd* orig);
   ~DmaWriteListCmd() final = default;
   bool isDma() const override {
     return true;
@@ -274,9 +277,10 @@ public:
   uint32_t getRspStatusCode() const override;
   std::string printSummary() override;
   explicit DmaReadListCmd(
-    CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /*flags*/, const device_ops_api::dma_read_node* /*list*/,
-                                   uint32_t /*nodeCount*/, device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>&
-                    args);
+    CmdTag tagId,
+    const std::tuple<device_ops_api::cmd_flags_e /*flags*/, const device_ops_api::dma_read_node* /*list*/,
+                     uint32_t /*nodeCount*/, device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>& args);
+  explicit DmaReadListCmd(CmdTag tagId, const DmaReadListCmd* orig);
   ~DmaReadListCmd() final = default;
   bool isDma() const override {
     return true;
@@ -307,8 +311,8 @@ public:
     const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint64_t /*codeStartAddr*/, uint64_t /*ptrToArgs*/,
                      uint64_t /*exceptionBuffer*/, uint64_t /*shireMask*/, uint64_t /*traceBuffer*/,
                      const uint64_t* /*argumentPayload*/, uint32_t /*sizeOfArgPayload*/, std::string /*kernelName*/,
-                     device_ops_api::dev_ops_api_kernel_launch_response_e /*expStatus*/>&
-      args);
+                     device_ops_api::dev_ops_api_kernel_launch_response_e /*expStatus*/>& args);
+  explicit KernelLaunchCmd(CmdTag tagId, const KernelLaunchCmd* orig);
   ~KernelLaunchCmd() final = default;
 
 private:
@@ -334,8 +338,8 @@ public:
   std::string printSummary() override;
   explicit KernelAbortCmd(CmdTag tagId,
                           const std::tuple<device_ops_api::cmd_flags_e /*flags*/, CmdTag /*kernelToAbortTagId*/,
-                                           device_ops_api::dev_ops_api_kernel_abort_response_e /*expStatus*/>&
-                            args);
+                                           device_ops_api::dev_ops_api_kernel_abort_response_e /*expStatus*/>& args);
+  explicit KernelAbortCmd(CmdTag tagId, const KernelAbortCmd* orig);
   ~KernelAbortCmd() final = default;
 
 private:
@@ -360,8 +364,8 @@ public:
   explicit TraceRtConfigCmd(
     CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint32_t /*shire_mask*/,
                                    uint32_t /*thread_mask*/, uint32_t /*event_mask*/, uint32_t /*filter_mask*/,
-                                   device_ops_api::dev_ops_trace_rt_config_response_e /*expStatus*/>&
-                    args);
+                                   device_ops_api::dev_ops_trace_rt_config_response_e /*expStatus*/>& args);
+  explicit TraceRtConfigCmd(CmdTag tagId, const TraceRtConfigCmd* orig);
   ~TraceRtConfigCmd() final = default;
 
 private:
@@ -384,9 +388,10 @@ public:
   uint32_t getRspStatusCode() const override;
   std::string printSummary() override;
   explicit TraceRtControlCmd(
-    CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /*flags*/, device_ops_api::trace_rt_type_e /*rt_type*/,
-                    uint32_t /*control*/, device_ops_api::dev_ops_trace_rt_control_response_e /*expStatus*/>&
-                    args);
+    CmdTag tagId,
+    const std::tuple<device_ops_api::cmd_flags_e /*flags*/, device_ops_api::trace_rt_type_e /*rt_type*/,
+                     uint32_t /*control*/, device_ops_api::dev_ops_trace_rt_control_response_e /*expStatus*/>& args);
+  explicit TraceRtControlCmd(CmdTag tagId, const TraceRtControlCmd* orig);
   ~TraceRtControlCmd() final = default;
 
 private:
@@ -408,6 +413,7 @@ public:
   };
   std::string printSummary() override;
   explicit CustomCmd(CmdTag tagId, const std::tuple<const std::byte* /*cmdPtr*/, size_t /*cmdSize*/>& args);
+  explicit CustomCmd(CmdTag tagId, const CustomCmd* orig);
   ~CustomCmd() final = default;
   bool isDma() const override {
     auto* customCmd = reinterpret_cast<device_ops_api::cmd_header_t*>(cmd_);

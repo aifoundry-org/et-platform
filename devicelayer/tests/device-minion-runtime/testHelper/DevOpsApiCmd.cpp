@@ -24,6 +24,57 @@ IDevOpsApiCmd* IDevOpsApiCmd::getDevOpsApiCmd(CmdTag tagId) {
   return nullptr;
 }
 
+CmdTag IDevOpsApiCmd::cloneDevOpsApiCmd(CmdTag origCmdTagId) {
+  auto devOpsApiCmd = getDevOpsApiCmd(origCmdTagId);
+  if (!devOpsApiCmd) {
+    throw Exception("Command with tagId: " + std::to_string(origCmdTagId) + " does not exist!");
+  }
+  auto tagId = tagId_++;
+  switch (devOpsApiCmd->whoAmI()) {
+  case CmdType::ECHO_CMD:
+    cmds_.emplace(tagId, std::make_unique<EchoCmd>(tagId, static_cast<const EchoCmd*>(devOpsApiCmd)));
+    break;
+  case CmdType::API_COMPATIBILITY_CMD:
+    cmds_.emplace(tagId,
+                  std::make_unique<ApiCompatibilityCmd>(tagId, static_cast<const ApiCompatibilityCmd*>(devOpsApiCmd)));
+    break;
+  case CmdType::FW_VERSION_CMD:
+    cmds_.emplace(tagId, std::make_unique<FwVersionCmd>(tagId, static_cast<const FwVersionCmd*>(devOpsApiCmd)));
+    break;
+  case CmdType::DATA_WRITE_CMD:
+    cmds_.emplace(tagId, std::make_unique<DataWriteCmd>(tagId, static_cast<const DataWriteCmd*>(devOpsApiCmd)));
+    break;
+  case CmdType::DATA_READ_CMD:
+    cmds_.emplace(tagId, std::make_unique<DataReadCmd>(tagId, static_cast<const DataReadCmd*>(devOpsApiCmd)));
+    break;
+  case CmdType::DMA_WRITELIST_CMD:
+    cmds_.emplace(tagId, std::make_unique<DmaWriteListCmd>(tagId, static_cast<const DmaWriteListCmd*>(devOpsApiCmd)));
+    break;
+  case CmdType::DMA_READLIST_CMD:
+    cmds_.emplace(tagId, std::make_unique<DmaReadListCmd>(tagId, static_cast<const DmaReadListCmd*>(devOpsApiCmd)));
+    break;
+  case CmdType::KERNEL_LAUNCH_CMD:
+    cmds_.emplace(tagId, std::make_unique<KernelLaunchCmd>(tagId, static_cast<const KernelLaunchCmd*>(devOpsApiCmd)));
+    break;
+  case CmdType::KERNEL_ABORT_CMD:
+    cmds_.emplace(tagId, std::make_unique<KernelAbortCmd>(tagId, static_cast<const KernelAbortCmd*>(devOpsApiCmd)));
+    break;
+  case CmdType::TRACE_CONFIG_CMD:
+    cmds_.emplace(tagId, std::make_unique<TraceRtConfigCmd>(tagId, static_cast<const TraceRtConfigCmd*>(devOpsApiCmd)));
+    break;
+  case CmdType::TRACE_CONTROL_CMD:
+    cmds_.emplace(tagId,
+                  std::make_unique<TraceRtControlCmd>(tagId, static_cast<const TraceRtControlCmd*>(devOpsApiCmd)));
+    break;
+  case CmdType::CUSTOM_CMD:
+    cmds_.emplace(tagId, std::make_unique<CustomCmd>(tagId, static_cast<const CustomCmd*>(devOpsApiCmd)));
+    break;
+  default:
+    throw Exception("Unknown command type!");
+  }
+  return tagId;
+}
+
 void IDevOpsApiCmd::deleteDevOpsApiCmds() {
   cmds_.clear();
   tagId_ = 0x1;
@@ -37,6 +88,11 @@ EchoCmd::EchoCmd(CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /*fl
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
   cmd_.command_info.cmd_hdr.flags = std::get<0>(args);
+}
+
+EchoCmd::EchoCmd(CmdTag tagId, const EchoCmd* orig) {
+  memcpy(static_cast<void*>(&cmd_), static_cast<const void*>(&orig->cmd_), sizeof(cmd_));
+  cmd_.command_info.cmd_hdr.tag_id = tagId;
 }
 
 std::byte* EchoCmd::getCmdPtr() {
@@ -87,10 +143,9 @@ std::string EchoCmd::printSummary() {
 /*
  * Device Ops Api compatibility command
  */
-ApiCompatibilityCmd::ApiCompatibilityCmd(
-  CmdTag tagId,
-  const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint8_t /*major*/, uint8_t /*minor*/, uint8_t /*patch*/>&
-    args) {
+ApiCompatibilityCmd::ApiCompatibilityCmd(CmdTag tagId,
+                                         const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint8_t /*major*/,
+                                                          uint8_t /*minor*/, uint8_t /*patch*/>& args) {
   const auto& [flags, major, minor, patch] = args;
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD;
@@ -99,6 +154,11 @@ ApiCompatibilityCmd::ApiCompatibilityCmd(
   cmd_.major = major;
   cmd_.minor = minor;
   cmd_.patch = patch;
+}
+
+ApiCompatibilityCmd::ApiCompatibilityCmd(CmdTag tagId, const ApiCompatibilityCmd* orig) {
+  memcpy(static_cast<void*>(&cmd_), static_cast<const void*>(&orig->cmd_), sizeof(cmd_));
+  cmd_.command_info.cmd_hdr.tag_id = tagId;
 }
 
 std::byte* ApiCompatibilityCmd::getCmdPtr() {
@@ -161,6 +221,11 @@ FwVersionCmd::FwVersionCmd(CmdTag tagId,
   cmd_.firmware_type = firmwareType;
 }
 
+FwVersionCmd::FwVersionCmd(CmdTag tagId, const FwVersionCmd* orig) {
+  memcpy(static_cast<void*>(&cmd_), static_cast<const void*>(&orig->cmd_), sizeof(cmd_));
+  cmd_.command_info.cmd_hdr.tag_id = tagId;
+}
+
 std::byte* FwVersionCmd::getCmdPtr() {
   return templ::bit_cast<std::byte*>(&cmd_);
 }
@@ -215,8 +280,7 @@ std::string FwVersionCmd::printSummary() {
 DataWriteCmd::DataWriteCmd(CmdTag tagId,
                            const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint64_t /*devPhysAddr*/,
                                             uint64_t /*hostVirtAddr*/, uint64_t /*hostPhysAddr*/, uint64_t /*dataSize*/,
-                                            device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>&
-                             args) {
+                                            device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>& args) {
   const auto& [flags, devPhysAddr, hostVirtAddr, hostPhysAddr, dataSize, expStatus] = args;
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD;
@@ -227,6 +291,11 @@ DataWriteCmd::DataWriteCmd(CmdTag tagId,
   cmd_.src_host_phy_addr = hostPhysAddr;
   cmd_.size = dataSize;
   expStatus_ = expStatus;
+}
+
+DataWriteCmd::DataWriteCmd(CmdTag tagId, const DataWriteCmd* orig) {
+  memcpy(static_cast<void*>(&cmd_), static_cast<const void*>(&orig->cmd_), sizeof(cmd_));
+  cmd_.command_info.cmd_hdr.tag_id = tagId;
 }
 
 std::byte* DataWriteCmd::getCmdPtr() {
@@ -302,8 +371,7 @@ std::string DataWriteCmd::printSummary() {
 DataReadCmd::DataReadCmd(CmdTag tagId,
                          const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint64_t /*devPhysAddr*/,
                                           uint64_t /*hostVirtAddr*/, uint64_t /*hostPhysAddr*/, uint64_t /*dataSize*/,
-                                          device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>&
-                           args) {
+                                          device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>& args) {
   const auto& [flags, devPhysAddr, hostVirtAddr, hostPhysAddr, dataSize, expStatus] = args;
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD;
@@ -314,6 +382,11 @@ DataReadCmd::DataReadCmd(CmdTag tagId,
   cmd_.dst_host_phy_addr = hostPhysAddr;
   cmd_.size = dataSize;
   expStatus_ = expStatus;
+}
+
+DataReadCmd::DataReadCmd(CmdTag tagId, const DataReadCmd* orig) {
+  memcpy(static_cast<void*>(&cmd_), static_cast<const void*>(&orig->cmd_), sizeof(cmd_));
+  cmd_.command_info.cmd_hdr.tag_id = tagId;
 }
 
 std::byte* DataReadCmd::getCmdPtr() {
@@ -387,9 +460,9 @@ std::string DataReadCmd::printSummary() {
  * Device Ops Api DMA Writelist command
  */
 DmaWriteListCmd::DmaWriteListCmd(
-  CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /*flags*/, const device_ops_api::dma_write_node* /*list*/,
-                                 uint32_t /*nodeCount*/, device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>&
-                  args) {
+  CmdTag tagId,
+  const std::tuple<device_ops_api::cmd_flags_e /*flags*/, const device_ops_api::dma_write_node* /*list*/,
+                   uint32_t /*nodeCount*/, device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>& args) {
   const auto& [flags, list, nodeCount, expStatus] = args;
   cmdMem_.resize(sizeof(*cmd_) + sizeof(list[0]) * nodeCount);
   cmd_ = templ::bit_cast<device_ops_api::device_ops_dma_writelist_cmd_t*>(cmdMem_.data());
@@ -399,6 +472,13 @@ DmaWriteListCmd::DmaWriteListCmd(
   cmd_->command_info.cmd_hdr.flags = flags;
   memcpy(cmd_->list, list, sizeof(list[0]) * nodeCount);
   expStatus_ = expStatus;
+}
+
+DmaWriteListCmd::DmaWriteListCmd(CmdTag tagId, const DmaWriteListCmd* orig) {
+  cmdMem_.resize(orig->cmdMem_.size());
+  cmd_ = templ::bit_cast<device_ops_api::device_ops_dma_writelist_cmd_t*>(cmdMem_.data());
+  memcpy(static_cast<void*>(cmd_), static_cast<const void*>(orig->cmd_), cmdMem_.size());
+  cmd_->command_info.cmd_hdr.tag_id = tagId;
 }
 
 std::byte* DmaWriteListCmd::getCmdPtr() {
@@ -475,9 +555,9 @@ std::string DmaWriteListCmd::printSummary() {
  * Device Ops Api DMA Readlist command
  */
 DmaReadListCmd::DmaReadListCmd(
-  CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /*flags*/, const device_ops_api::dma_read_node* /*list*/,
-                                 uint32_t /*nodeCount*/, device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>&
-                  args) {
+  CmdTag tagId,
+  const std::tuple<device_ops_api::cmd_flags_e /*flags*/, const device_ops_api::dma_read_node* /*list*/,
+                   uint32_t /*nodeCount*/, device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>& args) {
   const auto& [flags, list, nodeCount, expStatus] = args;
   cmdMem_.resize(sizeof(*cmd_) + sizeof(list[0]) * nodeCount);
   cmd_ = templ::bit_cast<device_ops_api::device_ops_dma_readlist_cmd_t*>(cmdMem_.data());
@@ -487,6 +567,13 @@ DmaReadListCmd::DmaReadListCmd(
   cmd_->command_info.cmd_hdr.flags = flags;
   memcpy(cmd_->list, list, sizeof(list[0]) * nodeCount);
   expStatus_ = expStatus;
+}
+
+DmaReadListCmd::DmaReadListCmd(CmdTag tagId, const DmaReadListCmd* orig) {
+  cmdMem_.resize(orig->cmdMem_.size());
+  cmd_ = templ::bit_cast<device_ops_api::device_ops_dma_readlist_cmd_t*>(cmdMem_.data());
+  memcpy(static_cast<void*>(cmd_), static_cast<const void*>(orig->cmd_), cmdMem_.size());
+  cmd_->command_info.cmd_hdr.tag_id = tagId;
 }
 
 std::byte* DmaReadListCmd::getCmdPtr() {
@@ -567,10 +654,9 @@ KernelLaunchCmd::KernelLaunchCmd(
   const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint64_t /*codeStartAddr*/, uint64_t /*ptrToArgs*/,
                    uint64_t /*exceptionBuffer*/, uint64_t /*shireMask*/, uint64_t /*traceBuffer*/,
                    const uint64_t* /*argumentPayload*/, uint32_t /*sizeOfArgPayload*/, std::string /*kernelName*/,
-                   device_ops_api::dev_ops_api_kernel_launch_response_e /*expStatus*/>&
-    args) {
+                   device_ops_api::dev_ops_api_kernel_launch_response_e /*expStatus*/>& args) {
   const auto& [flags, codeStartAddr, ptrToArgs, exceptionBuffer, shireMask, traceBuffer, argumentPayload,
-              sizeOfArgPayload, kernelName, expStatus] = args;
+               sizeOfArgPayload, kernelName, expStatus] = args;
   cmdMem_.resize(sizeof(*cmd_) + sizeOfArgPayload);
   cmd_ = templ::bit_cast<device_ops_api::device_ops_kernel_launch_cmd_t*>(cmdMem_.data());
   cmd_->command_info.cmd_hdr.tag_id = tagId;
@@ -587,6 +673,13 @@ KernelLaunchCmd::KernelLaunchCmd(
   }
   kernelName_ = kernelName;
   expStatus_ = expStatus;
+}
+
+KernelLaunchCmd::KernelLaunchCmd(CmdTag tagId, const KernelLaunchCmd* orig) {
+  cmdMem_.resize(orig->cmdMem_.size());
+  cmd_ = templ::bit_cast<device_ops_api::device_ops_kernel_launch_cmd_t*>(cmdMem_.data());
+  memcpy(static_cast<void*>(cmd_), static_cast<const void*>(orig->cmd_), cmdMem_.size());
+  cmd_->command_info.cmd_hdr.tag_id = tagId;
 }
 
 std::byte* KernelLaunchCmd::getCmdPtr() {
@@ -661,10 +754,9 @@ std::string KernelLaunchCmd::printSummary() {
 /*
  * Device Ops Api Kernel Abort command
  */
-KernelAbortCmd::KernelAbortCmd(CmdTag tagId,
-                               const std::tuple<device_ops_api::cmd_flags_e /*flags*/, CmdTag /*kernelToAbortTagId*/,
-                                                device_ops_api::dev_ops_api_kernel_abort_response_e /*expStatus*/>&
-                                 args) {
+KernelAbortCmd::KernelAbortCmd(
+  CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /*flags*/, CmdTag /*kernelToAbortTagId*/,
+                                 device_ops_api::dev_ops_api_kernel_abort_response_e /*expStatus*/>& args) {
   const auto& [flags, kernelToAbortTagId, expStatus] = args;
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD;
@@ -672,6 +764,11 @@ KernelAbortCmd::KernelAbortCmd(CmdTag tagId,
   cmd_.command_info.cmd_hdr.flags = flags;
   cmd_.kernel_launch_tag_id = kernelToAbortTagId;
   expStatus_ = expStatus;
+}
+
+KernelAbortCmd::KernelAbortCmd(CmdTag tagId, const KernelAbortCmd* orig) {
+  memcpy(static_cast<void*>(&cmd_), static_cast<const void*>(&orig->cmd_), sizeof(cmd_));
+  cmd_.command_info.cmd_hdr.tag_id = tagId;
 }
 
 std::byte* KernelAbortCmd::getCmdPtr() {
@@ -740,8 +837,7 @@ std::string KernelAbortCmd::printSummary() {
 TraceRtConfigCmd::TraceRtConfigCmd(
   CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint32_t /*shireMask*/, uint32_t /*threadMask*/,
                                  uint32_t /*eventMask*/, uint32_t /*filterMask*/,
-                                 device_ops_api::dev_ops_trace_rt_config_response_e /*expStatus*/>&
-                  args) {
+                                 device_ops_api::dev_ops_trace_rt_config_response_e /*expStatus*/>& args) {
   const auto& [flags, shireMask, threadMask, eventMask, filterMask, expStatus] = args;
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD;
@@ -752,6 +848,11 @@ TraceRtConfigCmd::TraceRtConfigCmd(
   cmd_.event_mask = eventMask;
   cmd_.filter_mask = filterMask;
   expStatus_ = expStatus;
+}
+
+TraceRtConfigCmd::TraceRtConfigCmd(CmdTag tagId, const TraceRtConfigCmd* orig) {
+  memcpy(static_cast<void*>(&cmd_), static_cast<const void*>(&orig->cmd_), sizeof(cmd_));
+  cmd_.command_info.cmd_hdr.tag_id = tagId;
 }
 
 std::byte* TraceRtConfigCmd::getCmdPtr() {
@@ -820,9 +921,9 @@ std::string TraceRtConfigCmd::printSummary() {
  * Device Ops Api trace control command
  */
 TraceRtControlCmd::TraceRtControlCmd(
-  CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /*flags*/, device_ops_api::trace_rt_type_e /*rtType*/,
-                  uint32_t /*control*/, device_ops_api::dev_ops_trace_rt_control_response_e /*expStatus*/>&
-                  args) {
+  CmdTag tagId,
+  const std::tuple<device_ops_api::cmd_flags_e /*flags*/, device_ops_api::trace_rt_type_e /*rtType*/,
+                   uint32_t /*control*/, device_ops_api::dev_ops_trace_rt_control_response_e /*expStatus*/>& args) {
   const auto& [flags, rtType, control, expStatus] = args;
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD;
@@ -831,6 +932,11 @@ TraceRtControlCmd::TraceRtControlCmd(
   cmd_.rt_type = rtType;
   cmd_.control = control;
   expStatus_ = expStatus;
+}
+
+TraceRtControlCmd::TraceRtControlCmd(CmdTag tagId, const TraceRtControlCmd* orig) {
+  memcpy(static_cast<void*>(&cmd_), static_cast<const void*>(&orig->cmd_), sizeof(cmd_));
+  cmd_.command_info.cmd_hdr.tag_id = tagId;
 }
 
 std::byte* TraceRtControlCmd::getCmdPtr() {
@@ -906,6 +1012,14 @@ CustomCmd::CustomCmd(CmdTag tagId, const std::tuple<const std::byte* /*cmdPtr*/,
   auto* customCmd = templ::bit_cast<device_ops_api::cmd_header_t*>(cmd_);
   customCmd->cmd_hdr.tag_id = tagId;
   customCmd->cmd_hdr.size = cmdSize;
+}
+
+CustomCmd::CustomCmd(CmdTag tagId, const CustomCmd* orig) {
+  cmdMem_.resize(orig->cmdMem_.size());
+  cmd_ = cmdMem_.data();
+  memcpy(cmd_, orig->cmd_, cmdMem_.size());
+  auto* customCmd = templ::bit_cast<device_ops_api::cmd_header_t*>(cmd_);
+  customCmd->cmd_hdr.tag_id = tagId;
 }
 
 std::byte* CustomCmd::getCmdPtr() {
