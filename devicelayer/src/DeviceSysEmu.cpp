@@ -94,6 +94,11 @@ size_t DeviceSysEmu::getSubmissionQueueSizeServiceProcessor(int) const {
   return submissionQueueSP_.size_ - sizeof(CircBuffCb);
 }
 
+// Stub only since SysEmu is to be deprecated
+bool DeviceSysEmu::getTraceBufferServiceProcessor(int , std::vector<std::byte>&) {
+  return false;
+}
+
 DeviceSysEmu::DeviceSysEmu(const emu::SysEmuOptions& options) {
   // Selected by the BIOS
   barAddress_[0] = 0x1000000000;

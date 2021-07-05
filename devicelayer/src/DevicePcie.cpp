@@ -160,6 +160,7 @@ DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
       }
 
       wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE, &deviceInfo.spSqMaxMsgSize_);
+      wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_GET_DEVICE_MGMT_TRACE_BUFFER_SIZE, &deviceInfo.spTraceRegionSize_);
 
       deviceInfo.epFdMgmt_ = openAndConfigEpoll(deviceInfo.fdMgmt_);
 
@@ -390,6 +391,18 @@ bool DevicePcie::receiveResponseServiceProcessor(int device, std::vector<std::by
   rspInfo.size = deviceInfo.spSqMaxMsgSize_;
   rspInfo.cq_index = 0;
   return wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_POP_CQ, &rspInfo);
+}
+
+bool DevicePcie::getTraceBufferServiceProcessor(int device, std::vector<std::byte>& response) {
+  if (!mngmtEnabled_) {
+    throw Exception("Can't use Service Processor operations if service processor port is not enabled");
+  }
+  if (device >= static_cast<int>(devices_.size())) {
+    throw Exception("Invalid device");
+  }
+  auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
+  response.resize(deviceInfo.spTraceRegionSize_);
+  return wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_EXTRACT_DEVICE_MGMT_TRACE_BUFFER, response.data());
 }
 
 void* DevicePcie::allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) {

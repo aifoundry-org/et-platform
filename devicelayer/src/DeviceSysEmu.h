@@ -60,6 +60,7 @@ public:
   uint64_t getDramBaseAddress() const override;
   void* allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) override;
   void freeDmaBuffer(void* dmaBuffer) override;
+  bool getTraceBufferServiceProcessor(int device, std::vector<std::byte>& response) override;
 
 private:
   struct QueueInfo {
