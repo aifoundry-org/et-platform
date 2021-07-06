@@ -1438,7 +1438,7 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44(bool singleDevice) {
     close(fd);
 
     // Eleven events, and each should match once.
-    ASSERT_EQ(result, 11);
+    ASSERT_EQ(result, 9);
   }
 }
 
