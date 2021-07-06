@@ -756,10 +756,6 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(bool singl
   // Verify kernel's data
   varifyAddKernelLaunchKernel(singleDevice, singleQueue, vSumStorageDiffKer, vResultStorageDiffKer, kerCountStorage);
 
-  if (FLAGS_loopback_driver) {
-    return;
-  }
-
   deleteStreams();
 
   TEST_VLOG(1) << "====> BACK TO BACK " << totalKer << " DIFFERENT KERNEL LAUNCH VERIFIED" << std::endl;
