@@ -54,7 +54,7 @@
 #define TRACE_FILTER_STRING_MASK        0x000000FFUL
 #define TRACE_FILTER_PMC_MASK           0x0000FF00UL
 #define TRACE_FILTER_MARKERS_MASK       0x00FF0000UL
-#define TRACE_FILTER_ENABLE_ALL         0XFFFFFFFFFFFFFFFFUL
+#define TRACE_FILTER_ENABLE_ALL         0XFFFFFFFFU
 
 typedef uint8_t trace_enable_e;
 
@@ -81,7 +81,7 @@ enum trace_string_event {
     \brief This checks if trace string log level is enabled to log the given level.
 */
 #if defined(MASTER_MINION)
-#define CHECK_STRING_FILTER(cb, log_level) ((atomic_load_local_64(&cb->filter_mask) & TRACE_FILTER_STRING_MASK) >= log_level)
+#define CHECK_STRING_FILTER(cb, log_level) ((atomic_load_local_32(&cb->filter_mask) & TRACE_FILTER_STRING_MASK) >= log_level)
 #else
 #define CHECK_STRING_FILTER(cb, log_level) ((cb->filter_mask & TRACE_FILTER_STRING_MASK) >= log_level)
 #endif
@@ -95,7 +95,7 @@ struct trace_init_info_t {
     uint64_t shire_mask;        /*!< Bit Mask of Shire to enable Trace Capture. */
     uint64_t thread_mask;       /*!< Bit Mask of Thread within a Shire to enable Trace Capture. */
     uint32_t event_mask;        /*!< This is a bit mask, each bit corresponds to a specific Event to trace. */
-    uint64_t filter_mask;       /*!< This is a bit mask representing a list of filters for a given event to trace. */
+    uint32_t filter_mask;       /*!< This is a bit mask representing a list of filters for a given event to trace. */
 };
 
 /*
@@ -107,7 +107,7 @@ struct trace_control_block_t {
     uint32_t offset_per_hart;   /*!< Head pointer within the chunk of struct trace_init_info_t::buffer for each hart */
     uint32_t threshold;         /*!< Threshold for free memory in the buffer for each hart. */
     uint32_t event_mask;        /*!< This is a bit mask, each bit corresponds to a specific Event to trace. */
-    uint64_t filter_mask;       /*!< This is a bit mask representing a list of filters for a given event to trace. */
+    uint32_t filter_mask;       /*!< This is a bit mask representing a list of filters for a given event to trace. */
     uint8_t  enable;            /*!< Enable/Disable Trace. */
     uint8_t  header;            /*!< Buffer header type of value trace_header_type_e */
 } __attribute__((aligned(64)));
