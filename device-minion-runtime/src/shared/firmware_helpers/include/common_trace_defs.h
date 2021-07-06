@@ -17,13 +17,36 @@
 #ifndef COMMON_TRACE_DEFS
 #define COMMON_TRACE_DEFS
 
+/*! \def CM_SHIRE_MASK
+    \brief Shire mask of Compute Workers.
+*/
+#define CM_SHIRE_MASK    0xFFFFFFFFULL
+
+/*! \def CW_IN_MM_SHIRE
+    \brief Computer worker HART index in MM Shire.
+*/
+#define CW_IN_MM_SHIRE   0xFFFFFFFF00000000ULL
+
+/*! \def TRACE_CONFIG_CHECK_MM_HART
+    \brief Helper macro to check if given shire and thread masks contains any MM HART.
+*/
+#define TRACE_CONFIG_CHECK_MM_HART(shire_mask, thread_mask)                             \
+                    (shire_mask & MM_SHIRE_MASK) && (thread_mask & MM_HART_MASK)
+
+/*! \def TRACE_CONFIG_CHECK_CM_HART
+    \brief Helper macro to check if given shire and thread masks contains any CM HART.
+*/
+#define TRACE_CONFIG_CHECK_CM_HART(shire_mask, thread_mask)                             \
+                    (((shire_mask & CM_SHIRE_MASK) && (thread_mask & MM_HART_MASK)) ||  \
+                    ((shire_mask & MM_SHIRE_MASK) && (thread_mask & CW_IN_MM_SHIRE)))
+
 /*! \def CM_DEFAULT_TRACE_THREAD_MASK
-    \brief Default masks to enable Trace for first hart in CM Shires. 
+    \brief Default masks to enable Trace for first hart in CM Shires.
 */
 #define CM_DEFAULT_TRACE_THREAD_MASK      (0x1UL)
 
 /*! \def CM_DEFAULT_TRACE_SHIRE_MASK
-    \brief Default masks to enable Trace for first CM shire. 
+    \brief Default masks to enable Trace for first CM shire.
 */
 #define CM_DEFAULT_TRACE_SHIRE_MASK       (0x1UL)
 

@@ -73,9 +73,8 @@ typedef enum {
     MM_TO_CM_MESSAGE_ID_NONE = 0,
     MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH,
     MM_TO_CM_MESSAGE_ID_KERNEL_ABORT,
-    MM_TO_CM_MESSAGE_ID_SET_LOG_LEVEL,
     MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL,
-    MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_RESET,
+    MM_TO_CM_MESSAGE_ID_TRACE_CONFIGURE,
     MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT,
     MM_TO_CM_MESSAGE_ID_PMC_CONFIGURE
 } mm_to_cm_message_id_e;
@@ -122,6 +121,18 @@ typedef struct {
 } __attribute__((packed, aligned(64))) mm_to_cm_message_trace_rt_control_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(mm_to_cm_message_trace_rt_control_t);
+
+typedef struct {
+    cm_iface_message_header_t header;
+    uint64_t  shire_mask;   /**< Bit Mask of Shire to enable Trace Capture */
+    uint64_t  thread_mask;  /**< Bit Mask of Thread within a Shire to enable Trace Capture */
+    uint32_t  event_mask;   /**< This is a bit mask, each bit corresponds to a specific Event to trace */
+    uint32_t  filter_mask;  /**< This is a bit mask representing a list of filters for a given event to trace */
+    uint32_t  threshold;    /**< Trace buffer threshold, device will notify Host when buffer is filled up-to this threshold value. */
+    uint8_t   pad[4];       /**< Padding for alignment. */
+} __attribute__((packed, aligned(64))) mm_to_cm_message_trace_rt_config_t;
+
+ASSERT_CACHE_LINE_CONSTRAINTS(mm_to_cm_message_trace_rt_config_t);
 
 /*
  * CM to MM messages

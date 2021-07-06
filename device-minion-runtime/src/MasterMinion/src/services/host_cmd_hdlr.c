@@ -32,6 +32,7 @@
 #include "pmu.h"
 #include "device-common/cacheops.h"
 #include "layout.h"
+#include "common_trace_defs.h"
 
 /*! \def TRACE_NODE_INDEX
     \brief Default trace node index in DMA list command when flag is set to extract Trace buffers.
@@ -1001,6 +1002,121 @@ static inline int8_t trace_rt_control_cmd_handler(void* command_buffer, uint8_t 
 *
 *   FUNCTION
 *
+*       trace_rt_config_cmd_handler
+*
+*   DESCRIPTION
+*
+*       Process host Trace runtime config command, and transmit response.
+*
+*   INPUTS
+*
+*       command_buffer   Buffer containing command to process
+*       sqw_idx          Submission queue index
+*
+*   OUTPUTS
+*
+*       int8_t           Successful status or error code.
+*
+***********************************************************************/
+static inline int8_t trace_rt_config_cmd_handler(void* command_buffer, uint8_t sqw_idx)
+{
+    const struct device_ops_trace_rt_config_cmd_t *cmd =
+        (struct device_ops_trace_rt_config_cmd_t *)command_buffer;
+    struct device_ops_trace_rt_config_rsp_t rsp;
+    int8_t status = STATUS_SUCCESS;
+
+    Log_Write(LOG_LEVEL_DEBUG,
+        "HostCmdHdlr:TID:%u:TRACE_CONFIG:Shire:%lx:Thread:%lx\r\n",
+        cmd->command_info.cmd_hdr.tag_id, cmd->shire_mask, cmd->thread_mask);
+
+    /* Check if MM Trace needs to configured. */
+    if(TRACE_CONFIG_CHECK_MM_HART(cmd->shire_mask, cmd->thread_mask))
+    {
+        struct trace_init_info_t mm_trace_init = {.shire_mask = MM_SHIRE_MASK, .thread_mask= MM_HART_MASK,
+            .filter_mask = cmd->filter_mask,
+            .event_mask  = cmd->event_mask, .threshold   = MM_TRACE_BUFFER_SIZE};
+
+        /* Configure MM Trace. */
+        Trace_Init_MM(&mm_trace_init);
+    }
+
+    /* Check if CM Trace needs to configured. */
+    if(TRACE_CONFIG_CHECK_CM_HART(cmd->shire_mask, cmd->thread_mask))
+    {
+        Log_Write(LOG_LEVEL_DEBUG,
+            "HostCmdHdlr:TID:%u:TRACE_CONFIG: Configure CM.\r\n",
+            cmd->command_info.cmd_hdr.tag_id);
+
+        mm_to_cm_message_trace_rt_config_t cm_msg;
+        cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_CONFIGURE;
+        cm_msg.shire_mask = cmd->shire_mask;
+        cm_msg.thread_mask = cmd->thread_mask;
+        cm_msg.filter_mask = cmd->filter_mask;
+        cm_msg.event_mask = cmd->event_mask;
+        cm_msg.threshold = cmd->threshold;
+
+        /* Configure CM Trace. Send MM to CM command to previously enabled and new to enable Shires.
+           Get previously enabled shires from MM Trace. */
+        uint64_t cm_shire_mask = Trace_Get_CM_Shire_Mask() | (cmd->shire_mask & CM_SHIRE_MASK);
+
+        if((cm_shire_mask & CW_Get_Booted_Shires()) != cm_shire_mask)
+        {
+            status = INVALID_CM_SHIRE_MASK;
+        }
+        else
+        {
+            status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t*)&cm_msg);
+        }
+    }
+
+    /* Construct and transmit command response. */
+    rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
+    rsp.response_info.rsp_hdr.msg_id =
+        DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_RSP;
+    rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);
+
+    /* Populate the response status */
+    if((cmd->shire_mask & MM_SHIRE_MASK) && (!(cmd->thread_mask & MM_HART_MASK)))
+    {
+        rsp.status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_BAD_THREAD_MASK;
+    }
+    else if((status == INVALID_CM_SHIRE_MASK) ||
+        ((!(cmd->shire_mask & MM_SHIRE_MASK)) && (!(cmd->shire_mask & CM_SHIRE_MASK))))
+    {
+        rsp.status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_BAD_SHIRE_MASK;
+    }
+    else if(status == STATUS_SUCCESS)
+    {
+        rsp.status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_SUCCESS;
+    }
+    else
+    {
+        rsp.status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_RT_CONFIG_ERROR;
+    }
+
+    Log_Write(LOG_LEVEL_DEBUG,
+        "HostCmdHdlr:Pushing:TRACE_RT_CONFIG_RSP:tag_id=%x:Host_CQ\r\n",
+        rsp.response_info.rsp_hdr.tag_id);
+
+    status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+
+    if(status != STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "HostCmdHdlr:Tag_ID=%u:HostIface:Push:Failed\r\n",
+                        cmd->command_info.cmd_hdr.tag_id);
+        SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+    }
+
+    /* Decrement commands count being processed by given SQW */
+    SQW_Decrement_Command_Count(sqw_idx);
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       Host_Command_Handler
 *
 *   DESCRIPTION
@@ -1051,6 +1167,9 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             break;
         case DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD:
             status = trace_rt_control_cmd_handler(command_buffer, sqw_idx);
+            break;
+        case DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD:
+            status = trace_rt_config_cmd_handler(command_buffer, sqw_idx);
             break;
         default:
             /* Decrement commands count being processed by given SQW */

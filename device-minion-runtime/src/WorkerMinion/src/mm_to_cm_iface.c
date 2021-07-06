@@ -190,9 +190,6 @@ static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
         }
         break;
     }
-    case MM_TO_CM_MESSAGE_ID_SET_LOG_LEVEL:
-        log_set_level(((mm_to_cm_message_set_log_level_t *)message_ptr)->log_level);
-        break;
     case MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL:
     {
         mm_to_cm_message_trace_rt_control_t *cmd =
@@ -200,11 +197,19 @@ static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
         Trace_RT_Control_CM(cmd->cm_control);
         break;
     }
-    case MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_RESET:
-        // Reset trace buffer for next run
-        // TODO: Implement new Tracing
-        // TRACE_init_buffer();
+    case MM_TO_CM_MESSAGE_ID_TRACE_CONFIGURE:
+    {
+        const mm_to_cm_message_trace_rt_config_t *cmd =
+                                (mm_to_cm_message_trace_rt_config_t *)message_ptr;
+
+        struct trace_init_info_t mm_trace_init = {.shire_mask = cmd->shire_mask,
+            .thread_mask= cmd->thread_mask, .filter_mask = cmd->filter_mask,
+            .event_mask  = cmd->event_mask, .threshold   = cmd->threshold};
+
+        Trace_Init_CM(&mm_trace_init);
+        Trace_String(TRACE_EVENT_STRING_CRITICAL, Trace_Get_CM_CB(), "CM:TRACE_RT_CONFIG:Done!!\n");
         break;
+    }
     case MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT:
         Trace_Set_Enable_CM(TRACE_DISABLE);
         Trace_Evict_CM_Buffer();

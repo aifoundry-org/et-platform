@@ -92,13 +92,15 @@ void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
     {
         /* Populate given init information into per-thread Trace information structure. */
         hart_init_info.shire_mask    = MM_SHIRE_MASK;
-        hart_init_info.thread_mask   = mm_init_info->thread_mask & MM_HART_MASK;
+        hart_init_info.thread_mask   = MM_HART_MASK;
         hart_init_info.filter_mask   = mm_init_info->filter_mask;
         hart_init_info.event_mask    = mm_init_info->event_mask;
         hart_init_info.threshold     = mm_init_info->threshold;
     }
     else
     {
+        Log_Write(LOG_LEVEL_ERROR,
+            "MM:TRACE_CONFIG:Invalid Init Info.\r\n");
         MM_Trace_CB.cb.enable = TRACE_DISABLE;
 
         /* Trace init information is invalid. */
