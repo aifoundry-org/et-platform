@@ -289,15 +289,15 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	ssize_t rv;
 	struct et_vq_common *vq_common;
 	struct et_mapped_region *intrpt_region =
-		&et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_INTRPT_TRG];		
+		&et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_INTRPT_TRG];
 	char wq_name[32];
 
 	if (is_mgmt) {
 		vq_common = &et_dev->mgmt.vq_common;
-		
+
 		/* populate trace region */
-		vq_common->trace_region = 
-		  				&et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE];
+		vq_common->trace_region =
+			&et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE];
 
 		// Initialize Mgmt device workqueue
 		snprintf(wq_name,
@@ -340,7 +340,9 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	vq_common->vec_idx_offset = et_dev->used_irq_vecs;
 
 	bitmap_zero(vq_common->sq_bitmap, ET_MAX_QUEUES);
+	mutex_init(&vq_common->sq_bitmap_mutex);
 	bitmap_zero(vq_common->cq_bitmap, ET_MAX_QUEUES);
+	mutex_init(&vq_common->cq_bitmap_mutex);
 	init_waitqueue_head(&vq_common->waitqueue);
 	vq_common->aborting = false;
 	spin_lock_init(&vq_common->abort_lock);
@@ -441,6 +443,8 @@ void et_vqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 
 	et_dev->used_irq_vecs -= vq_common->dir_vq.cq_count;
 	destroy_workqueue(vq_common->workqueue);
+	mutex_destroy(&vq_common->sq_bitmap_mutex);
+	mutex_destroy(&vq_common->cq_bitmap_mutex);
 }
 
 static inline void interrupt_device(struct et_squeue *sq)
@@ -498,10 +502,16 @@ update_sq_bitmap:
 	mutex_unlock(&sq->push_mutex);
 
 	// Update sq_bitmap
-	if (et_circbuffer_free(&sq->cb) >= atomic_read(&sq->sq_threshold))
-		set_bit(sq->index, sq->vq_common->sq_bitmap);
-	else
+	mutex_lock(&sq->vq_common->sq_bitmap_mutex);
+
+	if (et_circbuffer_free(&sq->cb) < atomic_read(&sq->sq_threshold)) {
 		clear_bit(sq->index, sq->vq_common->sq_bitmap);
+		mutex_unlock(&sq->vq_common->sq_bitmap_mutex);
+
+		wake_up_interruptible(&sq->vq_common->waitqueue);
+	} else {
+		mutex_unlock(&sq->vq_common->sq_bitmap_mutex);
+	}
 
 	return rv;
 }
@@ -697,10 +707,16 @@ ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev,
 
 update_cq_bitmap:
 	// Update cq_bitmap
-	if (et_cqueue_msg_available(cq))
-		set_bit(cq->index, cq->vq_common->cq_bitmap);
-	else
+	mutex_lock(&cq->vq_common->cq_bitmap_mutex);
+
+	if (!et_cqueue_msg_available(cq)) {
 		clear_bit(cq->index, cq->vq_common->cq_bitmap);
+		mutex_unlock(&cq->vq_common->cq_bitmap_mutex);
+
+		wake_up_interruptible(&cq->vq_common->waitqueue);
+	} else {
+		mutex_unlock(&cq->vq_common->cq_bitmap_mutex);
+	}
 
 	return rv;
 }
@@ -760,7 +776,10 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	// Enqueue msg node to user msg_list of CQ
 	enqueue_msg_node(cq, msg_node);
 
+	mutex_lock(&cq->vq_common->cq_bitmap_mutex);
 	set_bit(cq->index, cq->vq_common->cq_bitmap);
+	mutex_unlock(&cq->vq_common->cq_bitmap_mutex);
+
 	wake_up_interruptible(&cq->vq_common->waitqueue);
 
 	return header.size;

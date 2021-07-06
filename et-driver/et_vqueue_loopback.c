@@ -474,7 +474,7 @@ struct device_ops_echo_cmd_t {
  */
 struct device_ops_echo_rsp_t {
 	struct rsp_header_t response_info;
-	u64 device_cmd_start_ts;  // device timestamp when the command was popped from SQ.
+	u64 device_cmd_start_ts; // device timestamp when the command was popped from SQ.
 } __packed __aligned(8);
 
 /*
@@ -855,7 +855,9 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	}
 
 	bitmap_zero(vq_common->sq_bitmap, ET_MAX_QUEUES);
+	mutex_init(&vq_common->sq_bitmap_mutex);
 	bitmap_zero(vq_common->cq_bitmap, ET_MAX_QUEUES);
+	mutex_init(&vq_common->cq_bitmap_mutex);
 	init_waitqueue_head(&vq_common->waitqueue);
 	vq_common->aborting = false;
 	spin_lock_init(&vq_common->abort_lock);
@@ -952,6 +954,8 @@ void et_vqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	et_squeue_destroy_all(et_dev, is_mgmt);
 
 	destroy_workqueue(vq_common->workqueue);
+	mutex_destroy(&vq_common->sq_bitmap_mutex);
+	mutex_destroy(&vq_common->cq_bitmap_mutex);
 }
 
 static ssize_t cmd_loopback_handler(struct et_squeue *sq)
@@ -1901,7 +1905,7 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 					sizeof(dm_def_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
-		rv = -EAGAIN;
+			rv = -EAGAIN;
 		break;
 	}
 	mutex_unlock(&cq->pop_mutex);
@@ -1959,10 +1963,15 @@ update_sq_bitmap:
 	mutex_unlock(&sq->push_mutex);
 
 	// Update sq_bitmap
-	if (et_circbuffer_free(&sq->cb) >= atomic_read(&sq->sq_threshold))
-		set_bit(sq->index, sq->vq_common->sq_bitmap);
-	else
+	mutex_lock(&sq->vq_common->sq_bitmap_mutex);
+
+	if (et_circbuffer_free(&sq->cb) < atomic_read(&sq->sq_threshold)) {
 		clear_bit(sq->index, sq->vq_common->sq_bitmap);
+		mutex_unlock(&sq->vq_common->sq_bitmap_mutex);
+
+		wake_up_interruptible(&sq->vq_common->waitqueue);
+	}
+	mutex_unlock(&sq->vq_common->sq_bitmap_mutex);
 
 	return rv;
 }
@@ -2158,10 +2167,15 @@ ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev,
 
 update_cq_bitmap:
 	// Update cq_bitmap
-	if (et_cqueue_msg_available(cq))
-		set_bit(cq->index, cq->vq_common->cq_bitmap);
-	else
+	mutex_lock(&cq->vq_common->cq_bitmap_mutex);
+
+	if (!et_cqueue_msg_available(cq)) {
 		clear_bit(cq->index, cq->vq_common->cq_bitmap);
+		mutex_unlock(&cq->vq_common->cq_bitmap_mutex);
+
+		wake_up_interruptible(&cq->vq_common->waitqueue);
+	}
+	mutex_unlock(&cq->vq_common->cq_bitmap_mutex);
 
 	return rv;
 }
@@ -2221,7 +2235,10 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	// Enqueue msg node to user msg_list of CQ
 	enqueue_msg_node(cq, msg_node);
 
+	mutex_lock(&cq->vq_common->cq_bitmap_mutex);
 	set_bit(cq->index, cq->vq_common->cq_bitmap);
+	mutex_unlock(&cq->vq_common->cq_bitmap_mutex);
+
 	wake_up_interruptible(&cq->vq_common->waitqueue);
 
 	return header.size;

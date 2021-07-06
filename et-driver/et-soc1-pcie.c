@@ -88,10 +88,15 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 	if (ops->vq_common.aborting)
 		return mask;
 
+	mutex_lock(&ops->vq_common.sq_bitmap_mutex);
+	mutex_lock(&ops->vq_common.cq_bitmap_mutex);
+
 	// Update sq_bitmap for all SQs, set corresponding bit when space
 	// available is more than threshold
 	for (i = 0; i < ops->vq_common.dir_vq.sq_count; i++)
 		et_squeue_event_available(ops->sq_pptr[i]);
+
+	mutex_unlock(&ops->vq_common.sq_bitmap_mutex);
 
 	// Generate EPOLLOUT event if any SQ has space more than its threshold
 	if (!bitmap_empty(ops->vq_common.sq_bitmap,
@@ -102,6 +107,8 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 	if (!bitmap_empty(ops->vq_common.cq_bitmap,
 			  ops->vq_common.dir_vq.cq_count))
 		mask |= EPOLLIN;
+
+	mutex_unlock(&ops->vq_common.cq_bitmap_mutex);
 
 	return mask;
 }
@@ -258,10 +265,11 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			   sq_threshold_info.bytes_needed);
 
 		// Update sq_bitmap w.r.t new threshold
+		mutex_lock(&ops->vq_common.sq_bitmap_mutex);
 		clear_bit(sq_idx, ops->vq_common.sq_bitmap);
-		if (et_squeue_event_available(ops->sq_pptr[sq_idx]))
-			wake_up_interruptible(
-				&ops->sq_pptr[sq_idx]->vq_common->waitqueue);
+		mutex_unlock(&ops->vq_common.sq_bitmap_mutex);
+		wake_up_interruptible(
+			&ops->sq_pptr[sq_idx]->vq_common->waitqueue);
 
 		return 0;
 
@@ -296,6 +304,9 @@ static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 	if (mgmt->vq_common.aborting)
 		return mask;
 
+	mutex_lock(&mgmt->vq_common.sq_bitmap_mutex);
+	mutex_lock(&mgmt->vq_common.cq_bitmap_mutex);
+
 	// Update sq_bitmap for all SQs, set corresponding bit when space
 	// available is more than threshold
 	for (i = 0; i < mgmt->vq_common.dir_vq.sq_count; i++)
@@ -306,10 +317,14 @@ static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 			  mgmt->vq_common.dir_vq.sq_count))
 		mask |= EPOLLOUT;
 
+	mutex_unlock(&mgmt->vq_common.sq_bitmap_mutex);
+
 	// Generate EPOLLIN event if any CQ msg list has message for userspace
 	if (!bitmap_empty(mgmt->vq_common.cq_bitmap,
 			  mgmt->vq_common.dir_vq.cq_count))
 		mask |= EPOLLIN;
+
+	mutex_unlock(&mgmt->vq_common.cq_bitmap_mutex);
 
 	return mask;
 }
@@ -560,10 +575,11 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			   sq_threshold_info.bytes_needed);
 
 		// Update sq_bitmap w.r.t new threshold
+		mutex_lock(&mgmt->vq_common.sq_bitmap_mutex);
 		clear_bit(sq_idx, mgmt->vq_common.sq_bitmap);
-		if (et_squeue_event_available(mgmt->sq_pptr[sq_idx]))
-			wake_up_interruptible(
-				&mgmt->sq_pptr[sq_idx]->vq_common->waitqueue);
+		mutex_unlock(&mgmt->vq_common.sq_bitmap_mutex);
+		wake_up_interruptible(
+			&mgmt->sq_pptr[sq_idx]->vq_common->waitqueue);
 
 		return 0;
 

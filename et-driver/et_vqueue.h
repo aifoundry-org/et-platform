@@ -37,7 +37,9 @@ struct et_msg_node {
 struct et_vq_common {
 	struct et_dir_vqueue dir_vq;
 	DECLARE_BITMAP(sq_bitmap, ET_MAX_QUEUES);
+	struct mutex sq_bitmap_mutex;
 	DECLARE_BITMAP(cq_bitmap, ET_MAX_QUEUES);
+	struct mutex cq_bitmap_mutex;
 	void __iomem *intrpt_addr;
 	struct workqueue_struct *workqueue;
 	wait_queue_head_t waitqueue;
