@@ -273,7 +273,6 @@ void TestDevOpsApi::execute(bool isAsync) {
 
   for (int deviceIdx = 0; FLAGS_enable_trace_dump && deviceIdx < deviceCount; deviceIdx++) {
     extractAndPrintTraceData(deviceIdx);
-    controlTraceLogging(deviceIdx, false /* to UART */, false /* don't reset Trace buffer*/);
   }
 }
 
@@ -653,7 +652,7 @@ bool TestDevOpsApi::printMMTraceStringData(unsigned char* traceBuf, size_t bufSi
     return false;
   }
 
-  std::string stringLog(TRACE_STRING_MAX_SIZE + 1, '\0');
+  char stringLog[TRACE_STRING_MAX_SIZE + 1]; //NOSONAR For Device Trace string processing.
   // Get size from Trace buffer header
   traceBuf = traceBuf + sizeof(struct trace_buffer_std_header_t);
   auto dataPtr = templ::bit_cast<trace_string_mm_t*>(traceBuf);
@@ -703,7 +702,7 @@ bool TestDevOpsApi::printCMTraceStringData(unsigned char* traceBuf, size_t bufSi
   auto perHartBufSize = bufSize / WORKER_HART_COUNT;
   uint32_t cmHartID;
   size_t dataPopped;
-  std::string stringLog(TRACE_STRING_MAX_SIZE + 1, '\0');
+  char stringLog[TRACE_STRING_MAX_SIZE + 1]; //NOSONAR For Device Trace string processing.
   auto hartDataPtr = traceBuf;
   bool validStringEventFound = false;
 

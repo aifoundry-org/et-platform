@@ -58,6 +58,11 @@ constexpr uint32_t WORKER_HART_COUNT = 2080;
 constexpr uint32_t MM_BASE_ID = 2048;
 constexpr uint32_t TRACE_STRING_MAX_SIZE = 64;
 constexpr uint32_t TRACE_MAGIC_HEADER = 0x76543210;
+constexpr uint64_t MM_SHIRE_MASK = (0x1ULL << 32);
+constexpr uint64_t CM_SHIRE_MASK = 0x1;
+constexpr uint64_t HART_ID = 0x1;
+constexpr uint32_t TRACE_STRING_FILTER = 0x1;
+constexpr uint32_t TRACE_STRING_LOG_INFO = 0x3;
 
 extern "C" {
 enum trace_type_e {

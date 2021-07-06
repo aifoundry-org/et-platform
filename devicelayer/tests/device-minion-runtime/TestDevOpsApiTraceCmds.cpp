@@ -32,6 +32,11 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractMMFwData_5_1() {
     uint32_t trace_control = device_ops_api::TRACE_RT_CONTROL_ENABLE_TRACE |
                              device_ops_api::TRACE_RT_CONTROL_LOG_TO_TRACE;
 
+    // Trace Config for MM
+    stream.push_back(IDevOpsApiCmd::createCmd<TraceRtConfigCmd>(device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                    MM_SHIRE_MASK, HART_ID, TRACE_STRING_FILTER, TRACE_STRING_LOG_INFO,
+                                    device_ops_api::DEV_OPS_TRACE_RT_CONFIG_RESPONSE_SUCCESS));
+
     // start MM trace and dump logs to trace buffer
     stream.push_back(IDevOpsApiCmd::createCmd<TraceRtControlCmd>(device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
                                     device_ops_api::TRACE_RT_TYPE_MM, trace_control,
@@ -65,6 +70,7 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractMMFwData_5_1() {
   for (size_t i = 0; i < readBufs.size(); ++i) {
     EXPECT_TRUE(printMMTraceStringData(readBufs[i].data(), readBufs[i].size()))
       << "No Trace String event found!" << std::endl;
+      deleteStreams();
   }
   deleteStreams();
 }
@@ -81,6 +87,11 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractCMFwData_5_2() {
     std::vector<uint8_t> compBuf(size, 0);
     uint32_t trace_control = device_ops_api::TRACE_RT_CONTROL_ENABLE_TRACE |
                              device_ops_api::TRACE_RT_CONTROL_LOG_TO_TRACE;
+
+    // Trace Config the first Hart of CM
+    stream.push_back(IDevOpsApiCmd::createCmd<TraceRtConfigCmd>(device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+                                    CM_SHIRE_MASK, HART_ID, TRACE_STRING_FILTER, TRACE_STRING_LOG_INFO,
+                                    device_ops_api::DEV_OPS_TRACE_RT_CONFIG_RESPONSE_SUCCESS));
 
     // start CM trace and dump logs to trace buffer
     stream.push_back(IDevOpsApiCmd::createCmd<TraceRtControlCmd>(device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
@@ -109,6 +120,7 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractCMFwData_5_2() {
   for (size_t i = 0; i < readBufs.size(); ++i) {
     EXPECT_TRUE(printCMTraceStringData(readBufs[i].data(), readBufs[i].size()))
       << "No Trace String event found!" << std::endl;
+      deleteStreams();
   }
   deleteStreams();
 }

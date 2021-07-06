@@ -362,9 +362,9 @@ public:
   uint32_t getRspStatusCode() const override;
   std::string printSummary() override;
   explicit TraceRtConfigCmd(
-    CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint32_t /*shire_mask*/,
-                                   uint32_t /*thread_mask*/, uint32_t /*event_mask*/, uint32_t /*filter_mask*/,
-                                   device_ops_api::dev_ops_trace_rt_config_response_e /*expStatus*/>& args);
+    CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint64_t /*shire_mask*/,
+                                   uint64_t /*thread_mask*/, uint32_t /*event_mask*/, uint32_t /*filter_mask*/,
+                                   device_ops_api::dev_ops_trace_rt_config_response_e /*expStatus*/>&args);
   explicit TraceRtConfigCmd(CmdTag tagId, const TraceRtConfigCmd* orig);
   ~TraceRtConfigCmd() final = default;
 

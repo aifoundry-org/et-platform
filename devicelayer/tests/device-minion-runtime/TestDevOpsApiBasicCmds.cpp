@@ -101,8 +101,6 @@ void TestDevOpsApiBasicCmds::devUnknownCmd_NegativeTest_2_7() {
   std::this_thread::sleep_for(std::chrono::seconds(5));
 
   EXPECT_FALSE(popRsp(deviceIdx)) << "ERROR: Response received for unknown command!";
-
-  controlTraceLogging(deviceIdx, false /* to UART */, false /* don't reset Trace buffer*/);
 }
 
 /***********************************************************
