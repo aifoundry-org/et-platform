@@ -16,7 +16,12 @@
 #include <gtest/gtest.h>
 #include <thread>
 
+#pragma GCC diagnostic push
+#ifdef __clang__
+#pragma GCC diagnostic ignored "-Wkeyword-macro"
+#endif
 #define private public
+#pragma GCC diagnostic pop
 #include "EventManager.h"
 
 using namespace rt;
@@ -43,13 +48,16 @@ public:
     return t;
   };
 
-  void createBlockedThreadsAndEvents(int numEvents, int numThreads, bool detach = true, std::function<void()> functor = [](){}) {
+  void createBlockedThreadsAndEvents(
+    uint32_t numEvents, uint32_t numThreads, bool detach = true,
+    std::function<void()> functor = [] { /*default do nothing */ }) {
+    ASSERT_TRUE(numEvents > 0);
     ASSERT_TRUE(events_.empty());
     ASSERT_TRUE(threads_.empty());
-    for (int i = 0; i < numEvents; ++i) {
+    for (auto i = 0U; i < numEvents; ++i) {
       events_.emplace_back(em_.getNextId());
     }
-    for (int i = 0; i < numThreads; ++i) {
+    for (auto i = 0U; i < numThreads; ++i) {
       threads_.emplace_back(createAndBlockThread(events_[i % numEvents], detach, functor));
     }
   }
@@ -81,12 +89,12 @@ TEST_F(EventManagerF, severalEvents) {
     EXPECT_FALSE(em_.isDispatched(events.back()));
   }
   // dispatch only even
-  for (int i = 0; i < 100; i += 2) {
+  for (auto i = 0U; i < 100; i += 2) {
     em_.dispatch(events[i]);
   }
 
   // check even are dispatched, odd aren't
-  for (int i = 0; i < 100; i += 2) {
+  for (auto i = 0U; i < 100; i += 2) {
     EXPECT_TRUE(em_.isDispatched(events[i]));
     EXPECT_FALSE(em_.isDispatched(events[i + 1]));
   }
@@ -94,19 +102,19 @@ TEST_F(EventManagerF, severalEvents) {
   EXPECT_EQ(em_.onflyEvents_.size(), 50);
 
   // also dispatch odd events
-  for (int i = 1; i < 100; i += 2) {
+  for (auto i = 1U; i < 100; i += 2) {
     em_.dispatch(events[i]);
   }
 
   // check all are dispatched
-  for (int i = 0; i < 100; ++i) {
+  for (auto i = 0U; i < 100; ++i) {
     EXPECT_TRUE(em_.isDispatched(events[i]));
   }
 }
 
 TEST_F(EventManagerF, blockingThreads) {
-  int nEvents = 10;
-  int nThreads = 10000;
+  auto nEvents = 10U;
+  auto nThreads = 10000U;
   std::atomic<int> unblockedThreads = 0;
 
   createBlockedThreadsAndEvents(nEvents, nThreads, false, [&](){

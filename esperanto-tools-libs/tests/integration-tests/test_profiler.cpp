@@ -13,7 +13,7 @@
 #include "runtime/IProfileEvent.h"
 #include "runtime/IProfiler.h"
 #include "runtime/IRuntime.h"
-
+#include "RuntimeImp.h"
 #include <hostUtils/logging/Logging.h>
 #include <device-layer/IDeviceLayer.h>
 
@@ -68,6 +68,7 @@ TEST(Profiler, add_2_vectors_profiling) {
 
   auto deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(sysEmuOptions);
   auto runtime = rt::IRuntime::create(deviceLayer.get());
+  
 
   // setup the profiler
   auto profiler = runtime->getProfiler();
@@ -76,6 +77,8 @@ TEST(Profiler, add_2_vectors_profiling) {
 
   auto devices = runtime->getDevices();
   auto dev = devices[0];
+  auto imp = static_cast<rt::RuntimeImp*>(runtime.get());
+  imp->setMemoryManagerDebugMode(dev, true);
 
   auto kernelId = runtime->loadCode(dev, kernelContent.data(), kernelContent.size());
   

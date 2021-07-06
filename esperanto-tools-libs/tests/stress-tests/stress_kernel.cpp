@@ -11,9 +11,15 @@
 #include <algorithm>
 #include <device-layer/IDeviceLayerMock.h>
 #include <g3log/loglevels.hpp>
+#include <limits>
 #include <thread>
 
+#pragma GCC diagnostic push
+#ifdef __clang__
+#pragma GCC diagnostic ignored "-Wkeyword-macro"
+#endif
 #define private public
+#pragma GCC diagnostic pop
 #include "RuntimeImp.h"
 #undef private
 
@@ -31,72 +37,62 @@ public:
     init(std::move(deviceLayer));
     kernel_ = loadKernel("add_vector.elf");
   }
-  void run_stress_kernel(size_t elems, int num_executions, int streams, int threads, bool check_results = true) {
-    std::vector<std::thread> threads_;
+  void run_stress_kernel(size_t elems, uint32_t num_executions, uint32_t num_streams, uint32_t num_threads,
+                         bool check_results = true) {
+    std::vector<std::thread> threads;
     auto dev = devices_[0];
-    for (int i = 0; i < threads; ++i) {
-      threads_.emplace_back([=] {
-        
-        std::mt19937 gen(std::random_device{}());
-        std::uniform_int_distribution dis;
-
-        std::vector<rt::StreamId> streams_(streams);
-        auto stream = runtime_->createStream(dev);
-        std::vector<std::vector<int>> host_src1(num_executions);
-        std::vector<std::vector<int>> host_src2(num_executions);
-        std::vector<std::vector<int>> host_dst(num_executions);
-        std::vector<void*> dev_mem_src1(num_executions);
-        std::vector<void*> dev_mem_src2(num_executions);
-        std::vector<void*> dev_mem_dst(num_executions);
-        for (int j = 0; j < streams; ++j) {
-          streams_[j] = runtime_->createStream(dev);
-          for (int k = 0; k < num_executions / streams; ++k) {
-            LOG(INFO) << "Num execution: " << k;
-            auto idx = k + j * num_executions / streams;
-            host_src1[idx] = std::vector<int>(elems);
-            host_src2[idx] = std::vector<int>(elems);
-            host_dst[idx] = std::vector<int>(elems);
-            // put random junk
-            for (auto& v : host_src1[idx]) {
-              v = dis(gen);
-            }
-            for (auto& v : host_src2[idx]) {
-              v = dis(gen);
-            }
-            dev_mem_src1[idx] = runtime_->mallocDevice(dev, elems * sizeof(int));
-            dev_mem_src2[idx] = runtime_->mallocDevice(dev, elems * sizeof(int));
-            dev_mem_dst[idx] = runtime_->mallocDevice(dev, elems * sizeof(int));
-            runtime_->memcpyHostToDevice(streams_[j], host_src1[idx].data(), dev_mem_src1[idx], elems * sizeof(int));
-            runtime_->memcpyHostToDevice(streams_[j], host_src2[idx].data(), dev_mem_src2[idx], elems * sizeof(int));
-            struct {
-              void* src1;
-              void* src2;
-              void* dst;
-              int elements;
-            } params{dev_mem_src1[idx], dev_mem_src2[idx], dev_mem_dst[idx], static_cast<int>(elems)};
-            runtime_->kernelLaunch(streams_[j], kernel_, &params, sizeof(params), 0x1);
-            runtime_->memcpyDeviceToHost(streams_[j], dev_mem_dst[idx], host_dst[idx].data(), elems * sizeof(int));
+    auto thread_func = [this, num_streams, num_executions, elems, dev, check_results](int thread_num) {
+      std::vector<rt::StreamId> streams_(num_streams);
+      std::vector<std::vector<int>> host_src1(num_executions);
+      std::vector<std::vector<int>> host_src2(num_executions);
+      std::vector<std::vector<int>> host_dst(num_executions);
+      std::vector<void*> dev_mem_src1(num_executions);
+      std::vector<void*> dev_mem_src2(num_executions);
+      std::vector<void*> dev_mem_dst(num_executions);
+      for (auto j = 0U; j < num_streams; ++j) {
+        streams_[j] = runtime_->createStream(dev);
+        for (auto k = 0U; k < num_executions / num_streams; ++k) {
+          auto idx = k + j * num_executions / num_streams;
+          host_src1[idx] = std::vector<int>(elems);
+          host_src2[idx] = std::vector<int>(elems);
+          host_dst[idx] = std::vector<int>(elems);
+          // put random junk
+          randomize(host_src1[idx], std::numeric_limits<int>::lowest(), std::numeric_limits<int>::max());
+          randomize(host_src2[idx], std::numeric_limits<int>::lowest(), std::numeric_limits<int>::max());
+          dev_mem_src1[idx] = runtime_->mallocDevice(dev, elems * sizeof(int));
+          dev_mem_src2[idx] = runtime_->mallocDevice(dev, elems * sizeof(int));
+          dev_mem_dst[idx] = runtime_->mallocDevice(dev, elems * sizeof(int));
+          runtime_->memcpyHostToDevice(streams_[j], host_src1[idx].data(), dev_mem_src1[idx], elems * sizeof(int));
+          runtime_->memcpyHostToDevice(streams_[j], host_src2[idx].data(), dev_mem_src2[idx], elems * sizeof(int));
+          struct {
+            void* src1;
+            void* src2;
+            void* dst;
+            int elements;
+          } params{dev_mem_src1[idx], dev_mem_src2[idx], dev_mem_dst[idx], static_cast<int>(elems)};
+          runtime_->kernelLaunch(streams_[j], kernel_, &params, sizeof(params), 0x1);
+          runtime_->memcpyDeviceToHost(streams_[j], dev_mem_dst[idx], host_dst[idx].data(), elems * sizeof(int));
+        }
+      }
+      for (auto j = 0U; j < num_streams; ++j) {
+        runtime_->waitForStream(streams_[j]);
+        for (auto k = 0U; k < num_executions / num_streams; ++k) {
+          auto idx = k + j * num_executions / num_streams;
+          ASSERT_LT(idx, num_executions);
+          runtime_->freeDevice(dev, dev_mem_src1[idx]);
+          runtime_->freeDevice(dev, dev_mem_src2[idx]);
+          runtime_->freeDevice(dev, dev_mem_dst[idx]);
+          for (auto l = 0U; check_results && l < elems; ++l) {
+            ASSERT_PRED5(areEqual, host_dst[idx][l], host_src1[idx][l] + host_src2[idx][l], l, thread_num, j);
           }
         }
-        for (int j = 0; j < streams; ++j) {
-          runtime_->waitForStream(streams_[j]);
-          if (check_results) {
-            for (int k = 0; k < num_executions / streams; ++k) {
-              auto idx = k + j * num_executions / streams;
-              ASSERT_LT(idx, num_executions);
-              runtime_->freeDevice(dev, dev_mem_src1[idx]);
-              runtime_->freeDevice(dev, dev_mem_src2[idx]);
-              runtime_->freeDevice(dev, dev_mem_dst[idx]);
-              for (int l = 0; l < elems; ++l) {
-                ASSERT_PRED5(areEqual, host_dst[idx][l], host_src1[idx][l] + host_src2[idx][l], l, i, j);
-              }
-            }
-          }
-          runtime_->destroyStream(streams_[j]);
-        };
-      });
+        runtime_->destroyStream(streams_[j]);
+      };
+    };
+    for (auto i = 0U; i < num_threads; ++i) {
+      threads.emplace_back(std::bind(thread_func, i));
     }
-    for (auto& t : threads_) {
+    for (auto& t : threads) {
       t.join();
     }
   }

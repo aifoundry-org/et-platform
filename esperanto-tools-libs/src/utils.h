@@ -10,9 +10,7 @@
 
 #pragma once
 #include "runtime/IRuntime.h"
-#include <chrono>
 #include <hostUtils/logging/Logging.h>
-#include <iomanip>
 #include <string>
 namespace rt {
 template <typename Container, typename Key> auto find(Container&& c, Key&& k, std::string error = "Not found") {
@@ -21,12 +19,6 @@ template <typename Container, typename Key> auto find(Container&& c, Key&& k, st
     throw Exception(std::move(error));
   }
   return it;
-}
-
-inline auto getTime() {
-  auto now = std::chrono::system_clock::now();
-  auto t_c = std::chrono::system_clock::to_time_t(now);
-  return std::put_time(std::localtime(&t_c), "%F %T");
 }
 } // namespace rt
 

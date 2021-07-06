@@ -8,13 +8,17 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 
-#include "utils.h"
 #include "MemoryManager.h"
 #include "runtime/IRuntime.h"
+#include "utils.h"
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <functional>
+#include <hostUtils/debug/Check.h>
 #include <ios>
+#include <numeric>
+
 using namespace rt;
 
 MemoryManager::MemoryManager(uint64_t dramBaseAddr, size_t totalMemoryBytes, uint32_t blockSize)
@@ -32,6 +36,82 @@ MemoryManager::MemoryManager(uint64_t dramBaseAddr, size_t totalMemoryBytes, uin
     throw Exception("TotalMemoryBytes must be multiple of BlockSize");
   }
   free_.emplace_back(FreeChunk{0, static_cast<uint32_t>(totalMemoryBytes_ >> blockSizeLog2_)});
+}
+
+size_t MemoryManager::getNumAllocations() const {
+  return allocated_.size();
+}
+
+size_t MemoryManager::getNumFreeChunks() const {
+  return free_.size();
+}
+
+void MemoryManager::sanityCheck() const {
+  RT_LOG(INFO) << "Doing sanity check";
+
+  constexpr auto getAllocationStr = [](const auto& allocation) {
+    return std::string("Address: ") + std::to_string(allocation.first) + "Size: " + std::to_string(allocation.second);
+  };
+
+  dbg::Check(std::is_sorted(begin(free_), end(free_)), std::string{"Free list is not sorted!"});
+
+  // check all chunks have valid values
+  for (auto& elem : free_) {
+    dbg::Check(elem.size_ > 0, "Invalid free chunk: " + elem.str());
+  }
+  // check there are no overlapping chunks
+  for (auto current = begin(free_), next = current + 1; next != end(free_); ++current, ++next) {
+    dbg::Check(current->startAddress_ + current->size_ <= next->startAddress_,
+               "Free list overlapping chunks: \n\tChunk1: " + current->str() + " \n\tChunk2: " + next->str());
+  }
+  // check all allocations have valid values
+  for (auto& alloc : allocated_) {
+    dbg::Check(alloc.second > 0, "Invalid allocation: " + getAllocationStr(alloc));
+  }
+  // check there are no overlapping allocations
+  for (auto current = begin(allocated_), next = std::next(current);
+       current != end(allocated_) && next != end(allocated_); ++current, ++next) {
+    dbg::Check(current->first + current->second <= next->first,
+               "Allocation overlap! \n\tAllocation 1: " + getAllocationStr(*current) +
+                 " \n\tAllocation 2: " + std::to_string(next->first) + " size: " + std::to_string(next->second));
+  }
+
+  // check there are not collisions between allocations and free list
+  auto freePtr = begin(free_);
+  auto allocPtr = begin(allocated_);
+  while (freePtr != end(free_) && allocPtr != end(allocated_)) {
+    if (freePtr->startAddress_ > allocPtr->first) {
+      dbg::Check(allocPtr->first + allocPtr->second <= freePtr->startAddress_,
+                 "Memory collision between allocation and free chunk. \n\tFree Chunk: " + freePtr->str() +
+                   "\n\tAllocation: " + getAllocationStr(*allocPtr));
+      ++allocPtr;
+    } else {
+      dbg::Check(freePtr->startAddress_ + freePtr->size_ <= allocPtr->first,
+                 "Memory collision between allocation and free chunk. \n\tFree Chunk: " + freePtr->str() +
+                   "\n\tAllocation: " + getAllocationStr(*allocPtr));
+      ++freePtr;
+    }
+  }
+  // check the sum of all allocated + free space equals to total bytes
+  auto freeBytes = getFreeBytes();
+  auto allocatedBytes = getAllocatedBytes();
+  dbg::Check(freeBytes + allocatedBytes == totalMemoryBytes_,
+             "Memory inconsistency: freebytes (" + std::to_string(freeBytes) + ") + allocatedBytes (" +
+               std::to_string(allocatedBytes) + ") doesn't equals to total memory (" +
+               std::to_string(totalMemoryBytes_) + ")");
+  RT_LOG(INFO) << "Sanity check ended successfully";
+}
+
+size_t MemoryManager::getFreeBytes() const {
+  return std::accumulate(begin(free_), end(free_), 0UL,
+                         [](const auto& accumulate, const auto& e) { return accumulate + e.size_; }) *
+         getBlockSize();
+}
+
+size_t MemoryManager::getAllocatedBytes() const {
+  return std::accumulate(begin(allocated_), end(allocated_), 0UL,
+                         [](const auto& accumulate, const auto& e) { return accumulate + e.second; }) *
+         getBlockSize();
 }
 
 void MemoryManager::addChunk(FreeChunk chunk) {
@@ -78,6 +158,10 @@ void MemoryManager::addChunk(FreeChunk chunk) {
   }
 }
 
+void MemoryManager::setDebugMode(bool enabled) {
+  debugMode_ = enabled;
+}
+
 void MemoryManager::free(void* ptr) {
   auto tmp = compressPointer(ptr);
   auto it = allocated_.find(tmp);
@@ -85,6 +169,10 @@ void MemoryManager::free(void* ptr) {
     throw Exception("Ptr not allocated previously or double free");
   }
   addChunk(FreeChunk{it->first, it->second});
+  allocated_.erase(it);
+  if (debugMode_) {
+    sanityCheck();
+  }
 }
 
 void* MemoryManager::malloc(size_t size, uint32_t alignment) {
@@ -119,6 +207,9 @@ void* MemoryManager::malloc(size_t size, uint32_t alignment) {
   // take countBlocks from freeChunk
   it->startAddress_ += countBlocks + missAlignment;
   it->size_ -= countBlocks + missAlignment;
+  if (it->empty()) { // we exhausted all free space, so remove the chunk
+    free_.erase(it);
+  }
 
   // if we needed extra blocks for alignment, add a freeChunk with those extra blocks (which are actually not used)
   if (missAlignment > 0) {
@@ -130,6 +221,9 @@ void* MemoryManager::malloc(size_t size, uint32_t alignment) {
 
   RT_DLOG(INFO) << "Malloc at device address: " << std::hex << uncompressPointer(addr)
                 << " compressed pointer (not address): " << addr;
+  if (debugMode_) {
+    sanityCheck();
+  }
   return uncompressPointer(addr);
 }
 

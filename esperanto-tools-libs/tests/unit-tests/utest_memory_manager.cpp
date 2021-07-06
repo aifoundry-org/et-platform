@@ -8,12 +8,21 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
+#include "runtime/IRuntime.h"
+#include <algorithm>
 #include <device-layer/IDeviceLayerFake.h>
 #include <gtest/gtest-death-test.h>
 #include <hostUtils/logging/Logging.h>
 #include <ios>
+#include <random>
+#include <string_view>
 
+#pragma GCC diagnostic push
+#ifdef __clang__
+#pragma GCC diagnostic ignored "-Wkeyword-macro"
+#endif
 #define private public
+#pragma GCC diagnostic pop
 #include "MemoryManager.h"
 #include "RuntimeImp.h"
 #include <chrono>
@@ -58,6 +67,83 @@ TEST(MemoryManager, SW8240) {
   auto allocated = memManager.allocated_.find(memManager.compressPointer(ptr));
   ASSERT_NE(allocated, end(memManager.allocated_));
   ASSERT_GE(allocated->second * kBlockSize, size);
+}
+
+TEST(MemoryManager, SW8240_2) {
+  dev::IDeviceLayerFake deviceLayer;
+  auto runtime = IRuntime::create(&deviceLayer);
+  auto device = runtime->getDevices()[0];
+  auto rimp = static_cast<RuntimeImp*>(runtime.get());
+  rimp->setMemoryManagerDebugMode(device, true);
+  static constexpr auto sizes =
+    std::array{1024,   1024,   1024,   1024,   1024,   1024,   1024,   1024,   1024,   1024,   377600, 27754496, 540672,
+               925696, 540672, 472,    925696, 472,    540672, 925696, 472,    540672, 925696, 472,    540672,   925696,
+               472,    540672, 925696, 472,    540672, 925696, 472,    540672, 925696, 472,    540672, 925696,   472,
+               540672, 925696, 472,    540672, 925696, 472,    540672, 925696, 472,    540672, 925696, 472,      540672,
+               925696, 472,    540672, 925696, 472,    540672, 925696, 472,    540672, 540672, 925696, 925696,   472,
+               472,    540672, 925696, 472,    540672, 925696, 472,    540672, 925696, 472,    540672, 925696,   472,
+               540672, 925696, 472,    540672, 925696, 472,    540672, 925696, 472};
+
+  std::vector<std::thread> threads;
+  for (auto i = 0; i < 50; ++i) {
+    threads.emplace_back(std::thread([rimp, device] {
+      for (auto s : sizes) {
+        rimp->mallocDevice(device, static_cast<uint32_t>(s));
+      }
+      RT_LOG(INFO) << "End mallocs";
+    }));
+  }
+  for (auto& t : threads) {
+    t.join();
+  }
+}
+TEST(MemoryManager, SW8240_3) {
+  dev::IDeviceLayerFake deviceLayer;
+  auto runtime = IRuntime::create(&deviceLayer);
+  auto device = runtime->getDevices()[0];
+  auto rimp = static_cast<RuntimeImp*>(runtime.get());
+  rimp->setMemoryManagerDebugMode(device, true);
+  for (int i = 0; i < 1000; ++i) {
+    auto ptr = rimp->mallocDevice(device, 0xe2000);
+    RT_LOG(INFO) << "Malloc addr: " << std::hex << ptr;
+  }
+}
+
+TEST(MemoryManager, SW8240_4) {
+  dev::IDeviceLayerFake deviceLayer;
+  auto runtime = IRuntime::create(&deviceLayer);
+  auto device = runtime->getDevices()[0];
+  auto rimp = static_cast<RuntimeImp*>(runtime.get());
+  rimp->setMemoryManagerDebugMode(device, true);
+
+  std::default_random_engine e1(12389);
+  std::uniform_int_distribution<uint32_t> uniform_dist(1U, 1U << 29);
+  std::vector<void*> ptrs;
+  auto&& mm = rimp->memoryManagers_.find(device)->second;
+  for (int i = 0; i < 10000; ++i) {
+    auto size = uniform_dist(e1);
+    RT_LOG(INFO) << std::dec << "Iter: " << i << std::hex << " Size: " << size;
+    bool done = false;
+    while (!done) {
+      try {
+        ptrs.emplace_back(rimp->mallocDevice(device, size));
+        done = true;
+      } catch (const rt::Exception& e) {
+        if (std::string_view(e.what()).find("Out of memory")) {
+          RT_LOG(INFO) << std::hex << "Requesting " << size
+                       << " but free space is not enough (perhaps there is some fragmentation) " << mm.getFreeBytes();
+          std::random_shuffle(begin(ptrs), end(ptrs));
+          auto freeBefore = mm.getFreeBytes();
+          rimp->freeDevice(device, ptrs.back());
+          auto freeAfter = mm.getFreeBytes();
+          ASSERT_GT(freeAfter, freeBefore);
+          ptrs.pop_back();
+        } else {
+          RT_LOG(FATAL) << std::dec << "Exception iteration: " << i;
+        }
+      }
+    }
+  }
 }
 
 using FreeChunk = MemoryManager::FreeChunk;
@@ -128,6 +214,7 @@ TEST(MemoryManager, malloc_free_basic) {
     for (auto baseAddr : {0UL, 1UL << 13, 1UL << 20}) {
       for (auto minAllocation : {1U << 10, 1U << 11, 1U << 13}) {
         auto mm = MemoryManager(baseAddr, totalRam, minAllocation);
+        mm.setDebugMode(true);
         std::vector<void*> ptrs;
         for (auto mallocSize : {1UL << 11, 1UL << 12, 1UL << 30}) {   
           auto ptr = mm.malloc(mallocSize, alignment);
@@ -146,6 +233,7 @@ TEST(MemoryManager, malloc_free_basic) {
 TEST(MemoryManager, malloc_free_holes) {
   auto totalRam = 1UL << 34;
   auto mm = MemoryManager(1 << 10, totalRam);
+  mm.setDebugMode(true);
 
   EXPECT_THROW({ mm.malloc(totalRam + 1024, 1024); }, Exception);
 

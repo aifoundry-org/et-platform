@@ -27,8 +27,8 @@ public:
   explicit DmaBuffer(std::unique_ptr<DmaBufferImp> impl, DmaBufferManager* dmaBufferManager);
   ~DmaBuffer();
 
-  DmaBuffer(DmaBuffer&&);
-  DmaBuffer& operator=(DmaBuffer&&);
+  DmaBuffer(DmaBuffer&&) noexcept;
+  DmaBuffer& operator=(DmaBuffer&&) noexcept;
 
 private:
   std::unique_ptr<DmaBufferImp> impl_;

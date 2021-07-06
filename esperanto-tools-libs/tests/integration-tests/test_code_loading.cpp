@@ -8,6 +8,7 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
+#include "RuntimeImp.h"
 #include "common/Constants.h"
 #include "device-layer/IDeviceLayer.h"
 #include "runtime/IRuntime.h"
@@ -57,6 +58,8 @@ public:
     convolutionContent_.resize(static_cast<unsigned long>(size));
     elf_file.seekg(0);
     elf_file.read(reinterpret_cast<char*>(convolutionContent_.data()), size);
+    auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
+    imp->setMemoryManagerDebugMode(devices_[0], true);
   }
 
   void TearDown() override {

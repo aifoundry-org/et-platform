@@ -1,8 +1,9 @@
+#include "RuntimeImp.h"
 #include <common/Constants.h>
-#include <hostUtils/logging/Logger.h>
 #include <device-layer/IDeviceLayer.h>
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
+#include <hostUtils/logging/Logger.h>
 #include <runtime/IRuntime.h>
 #include <sw-sysemu/SysEmuOptions.h>
 
@@ -35,6 +36,8 @@ public:
       deviceLayer_ = std::move(deviceLayer);
       runtime_ = rt::IRuntime::create(deviceLayer_.get());
       devices_ = runtime_->getDevices();
+      auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
+      imp->setMemoryManagerDebugMode(devices_[0], true);
   }
 
   rt::KernelId loadKernel(const std::string& kernel_name, uint32_t deviceIdx = 0) {
@@ -73,52 +76,51 @@ inline auto getDefaultOptions() {
     sysEmuOptions.startGdb = false;
   return sysEmuOptions;
 }
+template <typename TContainer> void randomize(TContainer& container, int init, int end) {
+  std::mt19937 gen(std::random_device{}());
+  std::uniform_int_distribution dis(init, end);
+  for (auto& v : container) {
+    v = static_cast<typename TContainer::value_type>(dis(gen));
+  }
+}
 
 inline void run_stress_mem(rt::IRuntime* runtime, size_t bytes, uint32_t transactions, uint32_t streams,
                            uint32_t threads, bool check_results = true) {
   std::vector<std::thread> threads_;
   using namespace testing;
 
-  for (auto i = 0u; i < threads; ++i) {
-    threads_.emplace_back([=]{
-      std::mt19937 gen(std::random_device{}());
-      std::uniform_int_distribution dis(0, 256);
-
-      auto dev = runtime->getDevices()[0];
-      std::vector<rt::StreamId> streams_(streams);
-      std::vector<std::vector<std::byte>> host_src(transactions);
-      std::vector<std::vector<std::byte>> host_dst(transactions);
-      std::vector<void*> dev_mem(transactions);
-      for (auto j = 0u; j < streams; ++j) {
-        streams_[j] = runtime->createStream(dev);
-        for (auto k = 0u; k < transactions / streams; ++k) {
-          auto idx = k + j * transactions / streams;
-          host_src[idx] = std::vector<std::byte>(bytes);
-          host_dst[idx] = std::vector<std::byte>(bytes);
-          //put random junk
-          for (auto& v : host_src[idx]) {
-            v = std::byte{static_cast<uint8_t>(dis(gen))};
-          }
-          dev_mem[idx] = runtime->mallocDevice(dev, bytes);
-          runtime->memcpyHostToDevice(streams_[j], host_src[idx].data(), dev_mem[idx], bytes);
-          runtime->memcpyDeviceToHost(streams_[j], dev_mem[idx], host_dst[idx].data(), bytes);
-        }
+  auto thread_func = [streams, transactions, runtime, bytes, check_results] {
+    auto dev = runtime->getDevices()[0];
+    std::vector<rt::StreamId> streams_(streams);
+    std::vector<std::vector<std::byte>> host_src(transactions);
+    std::vector<std::vector<std::byte>> host_dst(transactions);
+    std::vector<void*> dev_mem(transactions);
+    for (auto j = 0U; j < streams; ++j) {
+      streams_[j] = runtime->createStream(dev);
+      for (auto k = 0U; k < transactions / streams; ++k) {
+        auto idx = k + j * transactions / streams;
+        host_src[idx] = std::vector<std::byte>(bytes);
+        host_dst[idx] = std::vector<std::byte>(bytes);
+        randomize(host_src[idx], 0, 256);
+        dev_mem[idx] = runtime->mallocDevice(dev, bytes);
+        runtime->memcpyHostToDevice(streams_[j], host_src[idx].data(), dev_mem[idx], bytes);
+        runtime->memcpyDeviceToHost(streams_[j], dev_mem[idx], host_dst[idx].data(), bytes);
       }
-      for (auto j = 0u; j < streams; ++j) {
-        runtime->waitForStream(streams_[j]);
+    }
+    for (auto j = 0U; j < streams; ++j) {
+      runtime->waitForStream(streams_[j]);
+      for (auto k = 0U; k < transactions / streams; ++k) {
+        auto idx = k + j * transactions / streams;
+        runtime->freeDevice(dev, dev_mem[idx]);
         if (check_results) {
-          for (auto k = 0u; k < transactions / streams; ++k) {
-            auto idx = k + j * transactions / streams;
-            runtime->freeDevice(dev, dev_mem[idx]);
-            ASSERT_THAT(host_dst[idx], ElementsAreArray(host_src[idx]));
-          }
+          ASSERT_THAT(host_dst[idx], ElementsAreArray(host_src[idx]));
         }
-        runtime->destroyStream(streams_[j]);
-      };
-      for (auto m: dev_mem) {
-          runtime->freeDevice(dev, m);
       }
-    });
+      runtime->destroyStream(streams_[j]);
+    }
+  };
+  for (auto i = 0U; i < threads; ++i) {
+    threads_.emplace_back(thread_func);
   }
   for (auto& t: threads_) {
     t.join();

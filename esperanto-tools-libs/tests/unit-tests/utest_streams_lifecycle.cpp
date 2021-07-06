@@ -12,7 +12,12 @@
 #include <ios>
 #include <sstream>
 
+#pragma GCC diagnostic push
+#ifdef __clang__
+#pragma GCC diagnostic ignored "-Wkeyword-macro"
+#endif
 #define private public
+#pragma GCC diagnostic pop
 #include "runtime/IRuntime.h"
 #include "MemoryManager.h"
 #include "RuntimeImp.h"
@@ -41,7 +46,7 @@ TEST(StreamsLifeCycle, create_and_destroy_10k_streams) {
   auto devices = runtime->getDevices();
   ASSERT_GE(devices.size(), 0);
   std::vector<StreamId> streams_;
-  for (int i = 0; i < 10000; ++i) {
+  for (auto i = 0U; i < 10000; ++i) {
     streams_.emplace_back(runtime->createStream(devices[0]));
     if (i > 0) {
       EXPECT_GT(static_cast<uint32_t>(streams_[i]), static_cast<uint32_t>(streams_[i - 1]));

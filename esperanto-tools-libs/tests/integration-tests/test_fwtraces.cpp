@@ -8,10 +8,9 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "runtime/IRuntime.h"
-
 #include "TestUtils.h"
 #include "common/Constants.h"
+#include "runtime/IRuntime.h"
 #include "utils.h"
 #include <device-layer/IDeviceLayer.h>
 #include <hostUtils/logging/Logger.h>
