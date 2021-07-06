@@ -9,12 +9,8 @@
  *-------------------------------------------------------------------------*/
 
 #pragma once
-#include <glog/logging.h>
-#include <iomanip>
+#include <hostUtils/logging/Logging.h>
 
-
-#define ET_LOG(channel, severity) LOG(severity) << "ET [" << #channel << "]: "
-#define ET_DLOG(channel, severity) DLOG(severity) << "ET [" << #channel << "]: "
-
-#define DV_LOG(severity) ET_DLOG(DEVICE_MANAGEMENT, severity)
-#define DV_DLOG(severity) ET_DLOG(DEVICE_MANAGEMENT, severity)
+#define DV_LOG(severity) ET_LOG(DEVICE_LAYER, severity)
+#define DV_DLOG(severity) ET_DLOG(DEVICE_LAYER, severity)
+#define DV_VLOG(level) ET_VLOG(DEVICE_LAYER, level)
