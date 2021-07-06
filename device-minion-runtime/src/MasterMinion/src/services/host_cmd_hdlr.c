@@ -136,8 +136,6 @@ static inline int8_t fw_version_cmd_handler(void* command_buffer, uint8_t sqw_id
     rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
     rsp.response_info.rsp_hdr.msg_id =
         DEV_OPS_API_MID_DEVICE_OPS_FW_VERSION_RSP;
-    rsp.response_info.rsp_hdr.size =
-        sizeof(struct device_ops_fw_version_rsp_t) - sizeof(struct cmn_header_t);
 
     if (cmd->firmware_type == DEV_OPS_FW_TYPE_MASTER_MINION_FW)
     {
@@ -181,24 +179,34 @@ static inline int8_t fw_version_cmd_handler(void* command_buffer, uint8_t sqw_id
         }
     }
 
+#if TEST_FRAMEWORK
+    /* For SP2MM command response, we need to provide the total size = header + payload */
+    rsp.response_info.rsp_hdr.size = sizeof(struct device_ops_fw_version_rsp_t);
+    status = SP_Iface_Push_Rsp_To_SP2MM_CQ(&rsp, sizeof(rsp));
+#else
+    rsp.response_info.rsp_hdr.size =
+        sizeof(struct device_ops_fw_version_rsp_t) - sizeof(struct cmn_header_t);
     /* Push response to Host */
     status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+#endif
 
     if(status == STATUS_SUCCESS)
     {
         Log_Write(LOG_LEVEL_DEBUG,
-            "SQ [%d] HostCommandHandler:Pushed:FW_VERSION_CMD_RSP:tag_id=%x->Host_CQ\r\n",
+            "SQ [%d] HostCommandHandler:CQ_Push:FW_VERSION_CMD_RSP:tag_id=%x\r\n",
             sqw_idx, rsp.response_info.rsp_hdr.tag_id);
     }
     else
     {
-        Log_Write(LOG_LEVEL_ERROR, "SQ[%d]:HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n",
+        Log_Write(LOG_LEVEL_ERROR, "SQ[%d]:HostCommandHandler:Tag_ID=%u:CQ_Push:Failed\r\n",
                                     sqw_idx, cmd->command_info.cmd_hdr.tag_id);
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
     }
 
+#if !TEST_FRAMEWORK
     /* Decrement commands count being processed by given SQW */
     SQW_Decrement_Command_Count(sqw_idx);
+#endif
 
     return status;
 }
@@ -239,27 +247,35 @@ static inline int8_t echo_cmd_handler(void* command_buffer, uint8_t sqw_idx,
     rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
     rsp.response_info.rsp_hdr.msg_id =
         DEV_OPS_API_MID_DEVICE_OPS_ECHO_RSP;
-    rsp.response_info.rsp_hdr.size =
-        sizeof(struct device_ops_echo_rsp_t) - sizeof(struct cmn_header_t);
     rsp.device_cmd_start_ts = start_cycles;
 
+#if TEST_FRAMEWORK
+    /* For SP2MM command response, we need to provide the total size = header + payload */
+    rsp.response_info.rsp_hdr.size = sizeof(struct device_ops_echo_rsp_t);
+    status = SP_Iface_Push_Rsp_To_SP2MM_CQ(&rsp, sizeof(rsp));
+#else
+    rsp.response_info.rsp_hdr.size =
+        sizeof(struct device_ops_echo_rsp_t) - sizeof(struct cmn_header_t);
     status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+#endif
 
     if(status == STATUS_SUCCESS)
     {
         Log_Write(LOG_LEVEL_DEBUG,
-            "SQ[%d] HostCommandHandler:Pushed:ECHO_CMD_RSP:tag_id=%x->Host_CQ\r\n",
+            "SQ[%d] HostCommandHandler:CQ_Push:ECHO_CMD_RSP:tag_id=%x\r\n",
             sqw_idx, rsp.response_info.rsp_hdr.tag_id);
     }
     else
     {
-        Log_Write(LOG_LEVEL_ERROR, "SQ[%d]:HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n",
+        Log_Write(LOG_LEVEL_ERROR, "SQ[%d]:HostCommandHandler:Tag_ID=%u:CQ_Push:Failed\r\n",
                     sqw_idx, cmd->command_info.cmd_hdr.tag_id);
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
     }
 
+#if !TEST_FRAMEWORK
     /* Decrement commands count being processed by given SQW */
     SQW_Decrement_Command_Count(sqw_idx);
+#endif
 
     return status;
 }
@@ -330,8 +346,6 @@ static inline int8_t kernel_launch_cmd_handler(void* command_buffer, uint8_t sqw
         rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
         rsp.response_info.rsp_hdr.msg_id =
             DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
-        rsp.response_info.rsp_hdr.size =
-            sizeof(struct device_ops_kernel_launch_rsp_t) - sizeof(struct cmn_header_t);
         rsp.device_cmd_start_ts = start_cycles;
         rsp.device_cmd_wait_dur = cycles.wait_cycles;
         rsp.device_cmd_execute_dur = 0U;
@@ -354,7 +368,15 @@ static inline int8_t kernel_launch_cmd_handler(void* command_buffer, uint8_t sqw
             rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
         }
 
+#if TEST_FRAMEWORK
+        /* For SP2MM command response, we need to provide the total size = header + payload */
+        rsp.response_info.rsp_hdr.size = sizeof(struct device_ops_kernel_launch_rsp_t);
+        status = SP_Iface_Push_Rsp_To_SP2MM_CQ(&rsp, sizeof(rsp));
+#else
+        rsp.response_info.rsp_hdr.size =
+            sizeof(struct device_ops_kernel_launch_rsp_t) - sizeof(struct cmn_header_t);
         status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+#endif
 
         if(status == STATUS_SUCCESS)
         {
@@ -370,8 +392,10 @@ static inline int8_t kernel_launch_cmd_handler(void* command_buffer, uint8_t sqw
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
         }
 
+#if !TEST_FRAMEWORK
         /* Decrement commands count being processed by given SQW */
         SQW_Decrement_Command_Count(sqw_idx);
+#endif
     }
 
     return status;

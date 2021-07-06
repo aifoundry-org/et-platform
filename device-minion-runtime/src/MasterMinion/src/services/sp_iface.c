@@ -30,6 +30,8 @@
 #include "services/sw_timer.h"
 #include "services/log.h"
 #include "sp_mm_comms_spec.h"
+#include "services/host_cmd_hdlr.h"
+#include "pmu.h"
 
 /*! \struct sp_iface_sq_cb_t
     \brief SP interface control block that manages
@@ -181,6 +183,29 @@ static int8_t wait_for_response_from_service_processor(void)
 *
 *   FUNCTION
 *
+*       tf_command_handler
+*
+*   DESCRIPTION
+*
+*       Simply tunnel command to MM command handler
+*
+***********************************************************************/
+static int8_t tf_command_handler(void* cmd_buffer)
+{
+    int8_t status = STATUS_SUCCESS;
+
+    Log_Write(LOG_LEVEL_DEBUG, "SP2MM:CMD:TF_Command_Handler. \r\n");
+
+    /* Process command and pass current minion cycle */
+    status = Host_Command_Handler(cmd_buffer, 0xFF, PMC_Get_Current_Cycles());
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       sp_command_handler
 *
 *   DESCRIPTION
@@ -192,7 +217,7 @@ static int8_t wait_for_response_from_service_processor(void)
 static int8_t sp_command_handler(void* cmd_buffer)
 {
     int8_t status = STATUS_SUCCESS;
-    struct dev_cmd_hdr_t *hdr = cmd_buffer;
+    const struct dev_cmd_hdr_t *hdr = cmd_buffer;
 
     Log_Write(LOG_LEVEL_DEBUG, "SP2MM:CMD:SP_Command_Handler:hdr:%s%d%s%d%s",
             ":msg_id:",hdr->msg_id,
@@ -202,7 +227,7 @@ static int8_t sp_command_handler(void* cmd_buffer)
     {
         case SP2MM_CMD_ECHO:
         {
-            const struct sp2mm_echo_cmd_t *echo_cmd = (void*) hdr;
+            const struct sp2mm_echo_cmd_t *echo_cmd = (const void*) hdr;
             struct sp2mm_echo_rsp_t rsp;
 
             Log_Write(LOG_LEVEL_DEBUG,
@@ -235,7 +260,7 @@ static int8_t sp_command_handler(void* cmd_buffer)
         case SP2MM_CMD_UPDATE_FREQ:
         {
             const struct sp2mm_update_freq_cmd_t *update_active_freq_cmd =
-                (void*) hdr;
+                (const void*) hdr;
 
             Log_Write(LOG_LEVEL_DEBUG,
                 "SP2MM:CMD:SP_Command_Handler:UpdateActiveFreq:%s%d%s%d%s0x%x%s",
@@ -248,7 +273,7 @@ static int8_t sp_command_handler(void* cmd_buffer)
         }
         case SP2MM_CMD_TEARDOWN_MM:
         {
-            /* struct sp2mm_teardown_mm_cmd_t *teardown_mm_cmd = (void*) hdr */
+            /* struct sp2mm_teardown_mm_cmd_t *teardown_mm_cmd = (const void*) hdr */
 
             Log_Write(LOG_LEVEL_DEBUG,
                 "SP2MM:CMD:SP_Command_Handler:TearDownMM:%s%d%s%d%s",
@@ -260,7 +285,7 @@ static int8_t sp_command_handler(void* cmd_buffer)
         }
         case SP2MM_CMD_QUIESCE_TRAFFIC:
         {
-            /* struct sp2mm_quiesce_traffic_cmd_t *quiese_traffic_cmd = (void*) hdr */
+            /* struct sp2mm_quiesce_traffic_cmd_t *quiese_traffic_cmd = (const void*) hdr */
 
             Log_Write(LOG_LEVEL_DEBUG,
                 "SP2MM:CMD:SP_Command_Handler:QuieseTraffic:%s%d%s%d%s",
@@ -339,23 +364,33 @@ int8_t SP_Iface_Init(void)
 int8_t SP_Iface_Processing(void)
 {
     static uint8_t cmd_buff[64] __attribute__((aligned(64))) = { 0 };
-    uint64_t cmd_length = 0;
+    int32_t cmd_length = 0;
     int8_t status = STATUS_SUCCESS;
 
     Log_Write(LOG_LEVEL_DEBUG, "SP_Iface_Processing..\r\n");
 
-    do
+    /* SP2MM commands are blocking, i.e, SP sends a single command only,
+    hence pop a single command from the virtual queue */
+    cmd_length = SP_Iface_Pop_Cmd_From_SP2MM_SQ(&cmd_buff[0]);
+
+    if(cmd_length > 0)
     {
-        cmd_length = (uint64_t) SP_Iface_Pop_Cmd_From_SP2MM_SQ(&cmd_buff[0]);
-
-        if(cmd_length != 0)
-        {
-            Log_Write(LOG_LEVEL_DEBUG,
-                "SP_Iface_Processing:cmd_length: 0x%" PRIx64 "\r\n", cmd_length);
-
-            status = sp_command_handler(cmd_buff);
-        }
-    } while(cmd_length != 0);
+        Log_Write(LOG_LEVEL_DEBUG,
+            "SP_Iface_Processing:cmd_length: 0x%" PRIx32 "\r\n", cmd_length);
+#if TEST_FRAMEWORK
+        status = tf_command_handler(cmd_buff);
+        (void)&sp_command_handler;
+#else
+        status = sp_command_handler(cmd_buff);
+        (void)&tf_command_handler;
+#endif
+    }
+    else if(cmd_length < 0)
+    {
+        Log_Write(LOG_LEVEL_DEBUG,
+            "SP_Iface_Processing:Failed: %" PRIi32 "\r\n", cmd_length);
+        status = SP_IFACE_SP2MM_CMD_POP_FAILED;
+    }
 
     return status;
 }

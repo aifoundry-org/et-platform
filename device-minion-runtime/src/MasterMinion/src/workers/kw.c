@@ -1180,7 +1180,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         /* Kernel run complete with host abort, exception or success.
         reclaim resources and Prepare response */
 
-        struct device_ops_kernel_launch_rsp_t launch_rsp;
+        struct device_ops_kernel_launch_rsp_t launch_rsp = {0};
 
         /* Read the kernel state to detect abort by host */
         kernel_state = atomic_load_local_32(&kernel->kernel_state);
@@ -1204,8 +1204,6 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             atomic_load_local_16(&kernel->launch_tag_id);
         launch_rsp.response_info.rsp_hdr.msg_id =
             DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
-        launch_rsp.response_info.rsp_hdr.size =
-            sizeof(launch_rsp) - sizeof(struct cmn_header_t);
         launch_rsp.device_cmd_start_ts = cycles.cmd_start_cycles;
         launch_rsp.device_cmd_wait_dur = cycles.wait_cycles;
         launch_rsp.device_cmd_execute_dur = (PMC_GET_LATENCY(cycles.exec_start_cycles) & 0xFFFFFFFF);
@@ -1218,21 +1216,33 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         /* Make reserved kernel slot available again */
         kw_unreserve_kernel_slot(kernel);
 
+#if TEST_FRAMEWORK
+        /* For SP2MM command response, we need to provide the total size = header + payload */
+        launch_rsp.response_info.rsp_hdr.size = sizeof(launch_rsp);
+        /* Send kernel launch response to SP */
+        status = SP_Iface_Push_Rsp_To_SP2MM_CQ(&launch_rsp, sizeof(launch_rsp));
+#else
+        launch_rsp.response_info.rsp_hdr.size =
+            sizeof(launch_rsp) - sizeof(struct cmn_header_t);
         /* Send kernel launch response to host */
         status = Host_Iface_CQ_Push_Cmd(0, &launch_rsp, sizeof(launch_rsp));
+#endif
 
-        Log_Write(LOG_LEVEL_DEBUG, "KW:Pushed:KERNEL_LAUNCH_CMD_RSP:tag_id=%x->Host_CQ\r\n",
+        Log_Write(LOG_LEVEL_DEBUG, "KW:CQ_Push:KERNEL_LAUNCH_CMD_RSP:tag_id=%x\r\n",
             launch_rsp.response_info.rsp_hdr.tag_id);
 
         if(status != STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_ERROR, "KW:Push:Failed\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "KW:CQ_Push:Failed\r\n");
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
         }
 
+#if !TEST_FRAMEWORK
         /* Decrement commands count being processed by given SQW */
         SQW_Decrement_Command_Count(local_sqw_idx);
-
+#else
+        (void)local_sqw_idx;
+#endif
     } /* loop forever */
 
     /* will not return */

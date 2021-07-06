@@ -57,6 +57,11 @@
 */
 #define SP_IFACE_INVALID_FW_VERSION       -5
 
+/*! \def SP_IFACE_SP2MM_CMD_POP_FAILED
+    \brief SP iface error code - SP2MM cmd pop failure
+*/
+#define SP_IFACE_SP2MM_CMD_POP_FAILED      -6
+
 /*! \fn int8_t SP_Iface_Init(void)
     \brief Initialize Mm interface to Service Processor (SP)
     \return Status indicating success or negative error

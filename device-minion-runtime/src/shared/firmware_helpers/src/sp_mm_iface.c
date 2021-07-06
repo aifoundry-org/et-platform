@@ -84,6 +84,8 @@ static inline int8_t notify(uint8_t target, int32_t hart_id_to_notify)
     switch (target)
     {
         case    MM_CQ:
+            /* SP polls for response in MM CQ, hence no notification required */
+            break;
         case    SP_SQ:
         {
             /* Notify SP using PLIC */

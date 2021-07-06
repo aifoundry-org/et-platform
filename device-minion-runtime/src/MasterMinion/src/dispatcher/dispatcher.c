@@ -122,6 +122,9 @@ void Dispatcher_Launch(uint32_t hart_id)
     Log_Write(LOG_LEVEL_CRITICAL,
         "Dispatcher:launched on H%d\r\n", hart_id);
 
+    Log_Write(LOG_LEVEL_DEBUG,
+        "Dispatcher:Master Minion variant: " MM_VARIANT "\r\n");
+
     /* Initialize Device Interface Registers */
     DIR_Init();
     Log_Write(LOG_LEVEL_DEBUG,
