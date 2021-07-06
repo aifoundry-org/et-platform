@@ -55,6 +55,9 @@ const uint64_t kCacheLineSize = 64;
          for both Host and Device usage. */
 constexpr uint32_t CM_SIZE_PER_HART = 4096;
 constexpr uint32_t WORKER_HART_COUNT = 2080;
+constexpr uint32_t MM_BASE_ID = 2048;
+constexpr uint32_t TRACE_STRING_MAX_SIZE = 64;
+constexpr uint32_t TRACE_MAGIC_HEADER = 0x76543210;
 
 extern "C" {
 enum trace_type_e {
@@ -68,17 +71,46 @@ enum trace_type_e {
   TRACE_TYPE_VALUE_FLOAT
 };
 
+enum trace_buffer_type_e {
+    TRACE_MM_BUFFER,
+    TRACE_CM_BUFFER,
+    TRACE_SP_BUFFER
+};
+
+struct trace_buffer_size_header_t {
+    uint32_t data_size;
+} __attribute__((packed));
+
+struct trace_buffer_std_header_t {
+    uint32_t magic_header;
+    uint32_t data_size;
+    uint16_t type;
+    uint8_t  pad[6];
+} __attribute__((packed));
+
 struct trace_entry_header_t {
+  uint64_t cycle;   // Current cycle
+  uint16_t type;    // One of enum trace_type_e
+} __attribute__((packed));
+
+struct trace_entry_header_mm_t {
   uint64_t cycle;   // Current cycle
   uint32_t hart_id; // Hart ID of the Hart which is logging Trace
   uint16_t type;    // One of enum trace_type_e
-  uint8_t pad[2];
+  uint8_t  pad[2];
 } __attribute__((packed));
 
 struct trace_string_t {
   struct trace_entry_header_t header;
   char dataString[64];
 } __attribute__((packed));
+
+struct trace_string_mm_t {
+  struct trace_entry_header_mm_t mm_header;
+  char dataString[64];
+} __attribute__((packed));
+
+}
 
 enum cm_context_type {
   CM_CONTEXT_TYPE_HANG = 0,
@@ -110,7 +142,6 @@ struct __attribute__((packed, aligned(64))) hartExecutionContext {
   int64_t user_error;
   uint64_t gpr[31];
 };
-}
 
 class TestDevOpsApi : public ::testing::Test {
 protected:
@@ -133,8 +164,8 @@ protected:
   void cleanUpExecution();
   void executeSyncPerDevicePerQueue(int deviceIdx, int queueIdx, const std::vector<CmdTag>& stream);
 
-  bool printMMTraceStringData(unsigned char* traceBuf, size_t size) const;
-  bool printCMTraceStringData(unsigned char* traceBuf, size_t size) const;
+  bool printMMTraceStringData(unsigned char* traceBuf, size_t bufSize) const;
+  bool printCMTraceStringData(unsigned char* traceBuf, size_t bufSize) const;
   void extractAndPrintTraceData(int deviceIdx);
 
   inline int getDevicesCount() {
@@ -164,7 +195,7 @@ protected:
   TimeDuration execTimeout_;
 
 private:
-  void redirectTraceLogging(int deviceIdx, bool toTraceBuf);
+  void controlTraceLogging(int deviceIdx, bool toTraceBuf, bool resetTraceBuf);
 
   struct DeviceInfo {
     uint64_t dmaWriteAddr_;

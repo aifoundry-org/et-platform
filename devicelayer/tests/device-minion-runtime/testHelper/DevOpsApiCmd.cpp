@@ -820,8 +820,8 @@ std::string TraceRtConfigCmd::printSummary() {
  * Device Ops Api trace control command
  */
 TraceRtControlCmd::TraceRtControlCmd(
-  CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint32_t /*rtType*/, uint32_t /*control*/,
-                                 device_ops_api::dev_ops_trace_rt_control_response_e /*expStatus*/>&
+  CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /*flags*/, device_ops_api::trace_rt_type_e /*rtType*/,
+                  uint32_t /*control*/, device_ops_api::dev_ops_trace_rt_control_response_e /*expStatus*/>&
                   args) {
   const auto& [flags, rtType, control, expStatus] = args;
   cmd_.command_info.cmd_hdr.tag_id = tagId;

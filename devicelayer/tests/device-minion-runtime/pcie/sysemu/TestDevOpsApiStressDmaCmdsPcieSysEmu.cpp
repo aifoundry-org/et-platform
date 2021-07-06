@@ -26,11 +26,11 @@ protected:
 };
 
 TEST_F(TestDevOpsApiStressDmaCmdsPcieSysEmu, dataWRStressSize_2_1) {
-  dataWRStressSize_2_1(30);
+  dataWRStressSize_2_1(25);
 }
 
 TEST_F(TestDevOpsApiStressDmaCmdsPcieSysEmu, dataWRStressSpeed_2_2) {
-  dataWRStressSpeed_2_2(30);
+  dataWRStressSpeed_2_2(25);
 }
 
 TEST_F(TestDevOpsApiStressDmaCmdsPcieSysEmu, dataWRStressChannelsSingleDeviceSingleQueue_2_3) {
@@ -50,11 +50,11 @@ TEST_F(TestDevOpsApiStressDmaCmdsPcieSysEmu, dmaList1kWrAndRdSingleDeviceMultiQu
 }
 
 TEST_F(TestDevOpsApiStressDmaCmdsPcieSysEmu, dataWRListStressSize_2_8) {
-  dataWRListStressSize(30);
+  dataWRListStressSize(25);
 }
 
 TEST_F(TestDevOpsApiStressDmaCmdsPcieSysEmu, dataWRListStressSpeed_2_9) {
-  dataWRListStressSpeed(30);
+  dataWRListStressSpeed(25);
 }
 
 int main(int argc, char** argv) {
