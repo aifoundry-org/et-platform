@@ -5,10 +5,10 @@
 
 /* THIS FILE IS MANUALLY WRITTEN FOR NOW
 THIS FILE IS GOING TO BE AUTO GENERATED
-FROM THE JSON TEST SPECIFICATION USED BY 
+FROM THE JSON TEST SPECIFICATION USED BY
 TF */
 
-/* command/payload format */ 
+/* command/payload format */
 /* -----$<command header 64 bytes><payload..>#<checksum>% -----*/
 
 /* Protocol delimiters and size parameters */
@@ -28,6 +28,7 @@ TF */
 #define TF_RSP_WITH_PAYLOAD_NEXT        (0x01 << 5)
 
 typedef enum {
+    /* HW TF commands from 0 - 69 */
     TF_CMD_OFFSET=0,
     TF_CMD_SP_FW_VERSION=1,
     TF_CMD_MM_FW_VERSION=2,
@@ -88,20 +89,22 @@ typedef enum {
     TF_CMD_MAXION_CORE_PLL_PROGRAM=57,
     TF_CMD_MAXION_UNCORE_PLL_PROGRAM=58,
     TF_CMD_MAXION_INTERNAL_INIT=59,
-    TF_CMD_AT_MANUFACTURER_NAME=60,
-    TF_CMD_AT_PART_NUMBER=61,
-    TF_CMD_AT_SERIAL_NUMBER=62,
-    TF_CMD_AT_CHIP_REVISION=63,
-    TF_CMD_AT_PCIE_MAX_SPEED=64,
-    TF_CMD_AT_MODULE_REVISION=65,
-    TF_CMD_AT_FORM_FACTOR=66,
-    TF_CMD_AT_MEMORY_DETAILS=67,
-    TF_CMD_AT_MEMORY_SIZE_MB=68,
-    TF_CMD_AT_MEMORY_TYPE=69,
-    TF_CMD_MM_TESTS_OFFSET=70
+    /* SW TF commands from 97 - 255 */
+    TF_CMD_AT_MANUFACTURER_NAME=97,
+    TF_CMD_AT_PART_NUMBER=98,
+    TF_CMD_AT_SERIAL_NUMBER=99,
+    TF_CMD_AT_CHIP_REVISION=100,
+    TF_CMD_AT_PCIE_MAX_SPEED=101,
+    TF_CMD_AT_MODULE_REVISION=102,
+    TF_CMD_AT_FORM_FACTOR=103,
+    TF_CMD_AT_MEMORY_DETAILS=104,
+    TF_CMD_AT_MEMORY_SIZE_MB=105,
+    TF_CMD_AT_MEMORY_TYPE=106,
+    TF_CMD_UNSUPPORTED=107
 }tf_cmd_t;
 
 typedef enum {
+    /* HW TF response from 256 - 351 */
     TF_RSP_OFFSET=256,
     TF_RSP_SP_FW_VERSION=257,
     TF_RSP_MM_FW_VERSION=258,
@@ -158,26 +161,27 @@ typedef enum {
     TF_RSP_SPIO_IO_READ=309,
     TF_RSP_SPIO_IO_WRITE=310,
     TF_RSP_SPIO_IO_RMW=311,
-    TF_RSP_MAXION_RESET_DEASSERT=312,
+    TF_RSP_MAXION_INIT=312,
     TF_RSP_MAXION_CORE_PLL_PROGRAM=313,
     TF_RSP_MAXION_UNCORE_PLL_PROGRAM=314,
     TF_RSP_MAXION_INTERNAL_INIT=315,
-    TF_RSP_AT_MANUFACTURER_NAME=316,
-    TF_RSP_AT_PART_NUMBER=317,
-    TF_RSP_AT_SERIAL_NUMBER=318,
-    TF_RSP_AT_CHIP_REVISION=319,
-    TF_RSP_AT_PCIE_MAX_SPEED=320,
-    TF_RSP_AT_MODULE_REVISION=321,
-    TF_RSP_AT_FORM_FACTOR=322,
-    TF_RSP_AT_MEMORY_DETAILS=323,
-    TF_RSP_AT_MEMORY_SIZE_MB=324,
-    TF_RSP_AT_MEMORY_TYPE=325,
-    TF_RSP_MM_TESTS_OFFSET=326,
-    TF_RSP_UNSUPPORTED_COMMAND=512
+    /* SW TF response from 352 - 511 */
+    TF_RSP_AT_MANUFACTURER_NAME=352,
+    TF_RSP_AT_PART_NUMBER=353,
+    TF_RSP_AT_SERIAL_NUMBER=354,
+    TF_RSP_AT_CHIP_REVISION=355,
+    TF_RSP_AT_PCIE_MAX_SPEED=356,
+    TF_RSP_AT_MODULE_REVISION=357,
+    TF_RSP_AT_FORM_FACTOR=358,
+    TF_RSP_AT_MEMORY_DETAILS=359,
+    TF_RSP_AT_MEMORY_SIZE_MB=360,
+    TF_RSP_AT_MEMORY_TYPE=361,
+    TF_RSP_MM_TESTS_OFFSET=362,
+    TF_RSP_UNSUPPORTED=363
 }tf_rsp_t;
 
-#define TF_NUM_COMMANDS (TF_CMD_MM_TESTS_OFFSET - TF_CMD_OFFSET)
-#define TF_NUM_CMD_RSPONSES (TF_RSP_MM_TESTS_OFFSET - TF_RSP_OFFSET)
+#define TF_NUM_COMMANDS (TF_CMD_UNSUPPORTED - TF_CMD_OFFSET)
+#define TF_NUM_CMD_RSPONSES (TF_RSP_UNSUPPORTED - TF_RSP_OFFSET)
 
 #define TF_GET_PAYLOAD_SIZE(cmd_struct)  (sizeof(cmd_struct)-sizeof(struct header_t))
 
@@ -191,6 +195,11 @@ typedef struct header_t tf_cmd_hdr_t;
 typedef struct header_t tf_rsp_hdr_t;
 
 /* Test Commands and responses */
+struct tf_cmd_rsp_t {
+    tf_rsp_hdr_t  rsp_hdr;
+    uint32_t      status;
+};
+
 struct tf_echo_cmd_t {
     tf_cmd_hdr_t  cmd_hdr;
     uint32_t      cmd_payload;
@@ -200,11 +209,44 @@ struct tf_echo_rsp_t {
     uint32_t      rsp_payload;
 };
 
+struct tf_flash_cmd_t {
+    tf_cmd_hdr_t  cmd_hdr;
+    uint8_t      flash_id;
+};
+struct tf_pll_cmd_t {
+    tf_cmd_hdr_t  cmd_hdr;
+    uint8_t      cmd_payload;
+};
+struct __attribute__((__packed__)) tf_shire_cmd_t {
+    tf_cmd_hdr_t  cmd_hdr;
+    uint64_t      shire_mask;
+    uint8_t      pll4_mode;
+};
+
+struct __attribute__((__packed__)) tf_esr_cmd_t {
+    tf_cmd_hdr_t  cmd_hdr;
+    uint32_t      addr;
+    uint64_t      value;
+    uint64_t      mask;
+};
+struct __attribute__((__packed__)) tf_io_cmd_t {
+    tf_cmd_hdr_t  cmd_hdr;
+    uint8_t       width;
+    uint32_t      addr;
+    uint64_t      value;
+    uint64_t      mask;
+};
+struct tf_read_rsp_t {
+    tf_rsp_hdr_t  rsp_hdr;
+    uint64_t      value;
+};
+
 struct tf_get_spfw_ver_cmd_t {
     tf_cmd_hdr_t  cmd_hdr;
 };
+
 struct tf_get_spfw_ver_rsp_t {
-    tf_rsp_hdr_t  rsp_hdr;    
+    tf_rsp_hdr_t  rsp_hdr;
     uint32_t      major;
     uint32_t      minor;
     uint32_t      version;
@@ -214,7 +256,7 @@ struct tf_get_mmfw_ver_cmd_t {
     tf_cmd_hdr_t  cmd_hdr;
 };
 struct tf_get_mmfw_ver_rsp_t {
-    tf_rsp_hdr_t  rsp_hdr;    
+    tf_rsp_hdr_t  rsp_hdr;
     uint32_t      major;
     uint32_t      minor;
     uint32_t      version;

@@ -45,6 +45,8 @@ typedef enum PLL_ID_e {
     PLL_ID_SP_PLL_2,
     PLL_ID_SP_PLL_3,
     PLL_ID_SP_PLL_4,
+    PLL_ID_MAXION_CORE,
+    PLL_ID_MAXION_UNCORE,
     PLL_ID_PSHIRE
 } PLL_ID_t;
 
@@ -66,6 +68,13 @@ typedef enum SP_PLL_STATE_e {
     \return clock index
 */
 uint32_t get_input_clock_index(void);
+
+/*! \fn int configure_sp_pll_0(uint8_t mode)
+    \brief This function configures service processor PLL 0
+    \param None 
+    \return The function call status, pass/fail.
+*/
+int configure_sp_pll_0(const uint8_t mode);
 
 /*! \fn int configure_sp_pll_2(uint8_t mode)
     \brief This function configures service processor PLL 2
@@ -94,6 +103,20 @@ int configure_pshire_pll(const uint8_t mode);
     \return The function call status, pass/fail.
 */
 int configure_minion_plls(const uint8_t mode);
+
+/*! \fn int configure_maxion_pll_core(const uint8_t mode)
+    \brief This function configures Maxion core PLL
+    \param mode mode of PLL config
+    \return The function call status, pass/fail.
+*/
+int configure_maxion_pll_core(const uint8_t mode);
+
+/*! \fn int configure_maxion_pll_uncore(const uint8_t mode)
+    \brief This function configures Maxion uncore PLL
+    \param mode mode of PLL config
+    \return The function call status, pass/fail.
+*/
+int configure_maxion_pll_uncore(const uint8_t mode);
 
 /*! \fn int get_pll_frequency(PLL_ID_t pll_id, uint32_t *frequency)
     \brief This function returns current configured PLL frequency of 

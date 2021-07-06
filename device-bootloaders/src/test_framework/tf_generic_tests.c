@@ -77,7 +77,7 @@ int8_t Move_Data_To_Device_Cmd_Handler(void* test_cmd)
     (void)test_cmd;
     tf_rsp_hdr_t rsp_hdr;
     
-    rsp_hdr.id = TF_RSP_UNSUPPORTED_COMMAND;
+    rsp_hdr.id = TF_RSP_UNSUPPORTED;
     rsp_hdr.flags = TF_RSP_ONLY;
     rsp_hdr.payload_size =  0;
 
@@ -91,7 +91,7 @@ int8_t Move_Data_To_Host_Cmd_Handler(void* test_cmd)
     (void)test_cmd;
     tf_rsp_hdr_t rsp_hdr;
     
-    rsp_hdr.id = TF_RSP_UNSUPPORTED_COMMAND;
+    rsp_hdr.id = TF_RSP_UNSUPPORTED;
     rsp_hdr.flags = TF_RSP_ONLY;
     rsp_hdr.payload_size =  0;
 

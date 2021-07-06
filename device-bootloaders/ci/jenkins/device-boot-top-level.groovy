@@ -131,18 +131,6 @@ pipeline {
               ]
           }
         }
-        stage('JOB_FULL_BOOT_BUILD') {
-          steps {
-            build job:
-              'sw-platform/system-sw-integration/pipelines/device-full-boot-build',
-              propagate: true,
-              parameters: [
-                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"),
-                string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-              ]
-          }
-        }
         stage('JOB_RUNTIME') {
           steps {
             build job:

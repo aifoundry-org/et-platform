@@ -38,6 +38,7 @@ target_sources(test_framework
     ${CMAKE_CURRENT_SOURCE_DIR}/tf_generic_tests.c
     ${CMAKE_CURRENT_SOURCE_DIR}/tf_mem_tests.c
     ${CMAKE_CURRENT_SOURCE_DIR}/tf_minion_tests.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/tf_maxion_tests.c
     ${CMAKE_CURRENT_SOURCE_DIR}/tf_noc_tests.c
     ${CMAKE_CURRENT_SOURCE_DIR}/tf_pcie_tests.c
     ${CMAKE_CURRENT_SOURCE_DIR}/tf_pu_tests.c
