@@ -10,13 +10,13 @@
 
 #include "runtime/IRuntime.h"
 
+#include "RuntimeImp.h"
 #include "common/Constants.h"
-#include <hostUtils/logging/Logger.h>
 #include <device-layer/IDeviceLayer.h>
-#include <gtest/gtest.h>
-
 #include <experimental/filesystem>
 #include <fstream>
+#include <gtest/gtest.h>
+#include <hostUtils/logging/Logger.h>
 #include <ios>
 #include <random>
 
@@ -46,6 +46,8 @@ public:
     runtime_ = rt::IRuntime::create(deviceLayer_.get());
     devices_ = runtime_->getDevices();
     ASSERT_GE(devices_.size(), 1);
+    auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
+    imp->setMemoryManagerDebugMode(devices_[0], true);
   }
 
   void TearDown() override {

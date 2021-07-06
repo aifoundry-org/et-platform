@@ -536,3 +536,8 @@ EventId RuntimeImp::stopDeviceTracing(StreamId stream, bool barrier) {
 
   return evt;
 }
+
+void RuntimeImp::setMemoryManagerDebugMode(DeviceId device, bool enable) {
+  RT_LOG(INFO) << "Setting memory manager debug mode: " << (enable ? "True" : "False");
+  find(memoryManagers_, device)->second.setDebugMode(enable);
+}

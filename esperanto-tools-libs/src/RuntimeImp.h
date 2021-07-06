@@ -72,6 +72,8 @@ public:
   std::vector<int> getDevicesWithEventsOnFly() const override;
   void onResponseReceived(const std::vector<std::byte>& response) override;
 
+  void setMemoryManagerDebugMode(DeviceId device, bool enable);
+
 private:
   struct Kernel {
     Kernel(DeviceId deviceId, void* deviceBuffer, uint64_t entryPoint)

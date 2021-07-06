@@ -29,8 +29,8 @@ bool DmaBuffer::containsAddr(const std::byte* address) const {
   return impl_->containsAddr(address);
 }
 
-DmaBuffer::DmaBuffer(DmaBuffer&&) = default;
-DmaBuffer& DmaBuffer::operator=(DmaBuffer&&) = default;
+DmaBuffer::DmaBuffer(DmaBuffer&&) noexcept = default;
+DmaBuffer& DmaBuffer::operator=(DmaBuffer&&) noexcept = default;
 
 DmaBuffer::DmaBuffer(std::unique_ptr<DmaBufferImp> impl, DmaBufferManager* dmaBufferManager)
   : impl_(std::move(impl))
