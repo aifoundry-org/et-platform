@@ -20,6 +20,9 @@
 
 #ifdef FPU_DEBUG
 #include <cmath>
+#ifdef  NEUMAIER_TOWARDZERO
+#include <cfenv>
+#endif
 #endif
 
 
@@ -565,34 +568,40 @@ static float32_t f32_add3_neumaier(float32_t src1, float32_t src2, float32_t src
     fs2.ui32 = src2.v;
     fs3.ui32 = src3.v;
 
-    double sum = 0.0;
-    double c = 0.0;
+    float sum = 0.0;
+    float c = 0.0;
 
-    double t = sum + double(fs1.fp32);
-    if (fabs(sum) >= fabs(double(fs1.fp32))) {
-        c += (sum - t) + double(fs1.fp32);
+    float t = sum + fs1.fp32;
+    if (fabs(sum) >= fabs(fs1.fp32)) {
+        c += (sum - t) + fs1.fp32;
     } else {
-        c += (double(fs1.fp32) - t) + sum;
+        c += (fs1.fp32 - t) + sum;
     }
     sum = t;
 
-    t = sum + double(fs2.fp32);
-    if (fabs(sum) >= fabs(double(fs2.fp32))) {
-        c += (sum - t) + double(fs2.fp32);
+    t = sum + fs2.fp32;
+    if (fabs(sum) >= fabs(fs2.fp32)) {
+        c += (sum - t) + fs2.fp32;
     } else {
-        c += (double(fs2.fp32) - t) + sum;
+        c += (fs2.fp32 - t) + sum;
     }
     sum = t;
 
-    t = sum + double(fs3.fp32);
-    if (fabs(sum) >= fabs(double(fs3.fp32))) {
-        c += (sum - t) + double(fs3.fp32);
+    t = sum + fs3.fp32;
+    if (fabs(sum) >= fabs(fs3.fp32)) {
+        c += (sum - t) + fs3.fp32;
     } else {
-        c += (double(fs3.fp32) - t) + sum;
+        c += (fs3.fp32 - t) + sum;
     }
     sum = t;
 
+#ifdef NEUMAIER_TOWARDZERO
+    fesetround(FE_TOWARDZERO);
     fd.fp32 = sum + c;
+    fesetround(FE_TONEAREST);
+#else
+    fd.fp32 = sum + c;
+#endif
     return float32_t { fd.ui32 };
 }
 #endif

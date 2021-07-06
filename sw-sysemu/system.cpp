@@ -96,8 +96,8 @@ void System::reset_hart(unsigned thread)
     cpu[thread].mideleg = 0;
     cpu[thread].mie = 0;
     cpu[thread].mcounteren = 0;
-    for (auto &elem : cpu[thread].mhpmevent) {
-        elem = 0;
+    for (auto counter = 0; counter < 6; ++counter) {
+        neigh_pmu_events[thread / EMU_THREADS_PER_NEIGH][thread % EMU_THREADS_PER_NEIGH][counter] = PMU_MINION_EVENT_NONE;
     }
     cpu[thread].mcause = 0;
     cpu[thread].mip = 0;

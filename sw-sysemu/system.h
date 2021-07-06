@@ -36,7 +36,8 @@ namespace bemu {
 class System {
 public:
     // ----- Types -----
-    typedef std::array<std::array<uint64_t, 6>, 2> neigh_pmu_counters_t;
+    typedef std::array<std::array<uint64_t, EMU_THREADS_PER_MINION>, 6> neigh_pmu_counters_t;
+    typedef std::array<std::array<uint8_t, EMU_THREADS_PER_NEIGH>, 6> neigh_pmu_events_t;
 
     using msg_func_t = std::function<void(unsigned)>;
     using hart_mask_t = std::bitset<EMU_NUM_THREADS>;
@@ -168,6 +169,7 @@ public:
 
     // Performance monitoring counters
     std::array<neigh_pmu_counters_t, EMU_NUM_NEIGHS> neigh_pmu_counters {};
+    std::array<neigh_pmu_events_t, EMU_NUM_NEIGHS> neigh_pmu_events {};
 
     // System registers
     std::array<neigh_esrs_t, EMU_NUM_NEIGHS>       neigh_esrs {};
