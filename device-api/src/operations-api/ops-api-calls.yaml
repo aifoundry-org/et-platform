@@ -147,6 +147,8 @@ Enums:
         Value: 3
       - Name: BAD_FILTER_MASK
         Value: 4
+      - Name: RT_CONFIG_ERROR
+        Value: 5
   - Name: dev_ops_trace_rt_control_response
     Type: uint32_t
     Values:
@@ -525,15 +527,21 @@ Messages :
     Fields:
       - Name: shire_mask
         Description: Bit Mask of Shire to enable Trace Capture
-        Type: uint32_t
+        Type: uint64_t
       - Name: thread_mask
         Description: Bit Mask of Thread within a Shire to enable Trace Capture
-        Type: uint32_t
+        Type: uint64_t
       - Name: event_mask
         Description: This is a bit mask, each bit corresponds to a specific Event to trace
         Type: uint32_t
       - Name: filter_mask
         Description: This is a bit mask representing a list of filters for a given event to trace
+        Type: uint32_t
+      - Name: threshold
+        Description: Trace buffer threshold, device will notify Host when buffer is filled up-to this threshold value.
+        Type: uint32_t
+      - Name: pad
+        Description: Padding for alignment.
         Type: uint32_t
   - Name: device_ops_trace_rt_config_rsp
     Description:  Trace configure command reply
