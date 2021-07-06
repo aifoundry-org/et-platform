@@ -116,6 +116,26 @@ TEST_F(TestDevOpsApiFuncKernelCmdsPcie, abortHangKernelDMAList_PositiveTesting_5
   launchHangKernelListCmd(0x3, true); /* Shire 0 and 1 */
 }
 
+TEST_F(TestDevOpsApiFuncKernelCmdsPcie, kernelLaunchCmd_InvalidAddressNegativeTesting_6_3) {
+  kernelLaunchCmd_InvalidAddressNegativeTesting(0x3);
+}
+// TODO: Enable this test once runtime has switched to using new kernel launch command
+TEST_F(TestDevOpsApiFuncKernelCmdsPcie, DISABLED_kernelLaunchCmd_InvalidArgSizeNegativeTesting_6_4) {
+  kernelLaunchCmd_InvalidArgSizeNegativeTesting(0x3);
+}
+
+TEST_F(TestDevOpsApiFuncKernelCmdsPcie, kernelLaunchCmd_ExceptionKernelNegativeTesting_6_5) {
+  launchExceptionKernelListCmd(0x3);
+}
+
+TEST_F(TestDevOpsApiFuncKernelCmdsPcie, kernelLaunchCmd_AbortKernelNegativeTesting_6_7) {
+  launchHangKernelListCmd(0x3, true);
+}
+
+TEST_F(TestDevOpsApiFuncKernelCmdsPcie, kernelLaunchCmd_InvalidShireMaskNegativeTesting_6_8) {
+  kernelLaunchCmd_InvalidShireMaskNegativeTesting(0x0);
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   google::ParseCommandLineFlags(&argc, &argv, true);

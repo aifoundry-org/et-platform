@@ -94,6 +94,12 @@ protected:
   void backToBackDifferentKernelLaunchListCmds(bool singleDevice, bool singleQueue, uint64_t totalKer, uint64_t shire_mask);
   void backToBackEmptyKernelLaunchListCmds(uint64_t totalKer, uint64_t shire_mask, bool flushL3);
 
+  /* Kernel Negative Tests*/
+  void kernelLaunchCmd_NegativeTesting(bool invalidAddr, int size, uint64_t shireMask, device_ops_api::dev_ops_api_kernel_launch_response_e status);
+  void kernelLaunchCmd_InvalidAddressNegativeTesting(uint64_t shireMask);
+  void kernelLaunchCmd_InvalidArgSizeNegativeTesting(uint64_t shireMask);
+  void kernelLaunchCmd_InvalidShireMaskNegativeTesting(uint64_t shireMask);
+
 private:
   void launchKernelDMAListCmds(uint64_t shireMask, std::vector<KernelTypes> totalKer, bool singleDevice = false, bool singleQueue = false);
   kernelContainer_t buildKernelsInfo(std::vector<KernelTypes> totalKer, bool singleDevice, bool singleQueue, bool calculateDmaListSize=true);

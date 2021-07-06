@@ -168,7 +168,7 @@ TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, abortHangKernelDMAList_PositiveTestin
   launchHangKernelListCmd(0x1FFFFFFFF, true); // all shires
 }
 
-TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, timeoutHangKernelDMAList_NegativeTesting_5_12) {
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, kernelLaunchCmd_HangKernelNegativeTesting_5_12) {
   launchHangKernelListCmd(0x1FFFFFFFF, false); // all shires
 }
 

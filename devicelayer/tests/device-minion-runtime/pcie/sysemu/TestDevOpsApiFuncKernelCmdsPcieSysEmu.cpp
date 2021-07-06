@@ -134,6 +134,22 @@ TEST_F(TestDevOpsApiFuncKernelCmdsPcieSysEmu, launchAddVectorKernelDMAList_CM_UM
   launchAddVectorKernelListCmd(kSysEmuMinionShiresMask, KernelTypes::CMUMODE_KERNEL_TYPE);
 }
 
+TEST_F(TestDevOpsApiFuncKernelCmdsPcieSysEmu, kernelLaunchCmd_InvalidAddressNegativeTesting_6_3) {
+  kernelLaunchCmd_InvalidAddressNegativeTesting(kSysEmuMinionShiresMask);
+}
+// TODO: Enable this test once runtime has switched to using new kernel launch command
+TEST_F(TestDevOpsApiFuncKernelCmdsPcieSysEmu, DISABLED_kernelLaunchCmd_InvalidArgSizeNegativeTesting_6_4) {
+  kernelLaunchCmd_InvalidArgSizeNegativeTesting(kSysEmuMinionShiresMask);
+}
+
+TEST_F(TestDevOpsApiFuncKernelCmdsPcieSysEmu, kernelLaunchCmd_ExceptionKernelNegativeTesting_6_5) {
+  launchExceptionKernelListCmd(kSysEmuMinionShiresMask);
+}
+
+TEST_F(TestDevOpsApiFuncKernelCmdsPcieSysEmu, kernelLaunchCmd_AbortKernelNegativeTesting_6_7) {
+  launchHangKernelListCmd(kSysEmuMinionShiresMask, true);
+}
+
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
