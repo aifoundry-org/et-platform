@@ -452,6 +452,8 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	struct rsp_desc rsp_info;
 	struct sq_threshold sq_threshold_info;
 	struct fw_update_desc fw_update_info;
+	u32 trace_region_size;
+	void *trace_region_start;
 	void __user *usr_arg = (void __user *)arg;
 	u16 sq_idx;
 	size_t size;
@@ -581,6 +583,41 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		wake_up_interruptible(
 			&mgmt->sq_pptr[sq_idx]->vq_common->waitqueue);
 
+		return 0;
+
+	case ETSOC1_IOCTL_GET_DEVICE_MGMT_TRACE_BUFFER_SIZE:
+		if (!mgmt->regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE].is_valid)
+			return -EINVAL;
+
+		trace_region_size =
+		(u32)mgmt->regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE].size;
+
+		if (size >= sizeof(u32) &&
+		    copy_to_user(usr_arg, &trace_region_size, size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_DEVICE_MGMT_TRACE_BUFFER_SIZE: failed to copy to user\n");
+			return -ENOMEM;
+		}
+		return 0;
+
+	case ETSOC1_IOCTL_EXTRACT_DEVICE_MGMT_TRACE_BUFFER:
+		if (!mgmt->regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE].is_valid)
+			return -EINVAL;
+
+		trace_region_start =
+			mgmt->regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE]
+				.mapped_baseaddr;
+		trace_region_size =
+			mgmt->regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE].size;
+
+		et_ioread(trace_region_start,
+			  0,
+			  mgmt->trace_buf,
+			  trace_region_size);
+
+		if (copy_to_user(usr_arg, mgmt->trace_buf, trace_region_size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_EXTRACT_DEVICE_MGMT_TRACE_BUFFER: failed to copy to user\n");
+			return -ENOMEM;
+		}
 		return 0;
 
 	default:
@@ -1145,6 +1182,19 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 
 	kfree(dir_data);
 
+	if (et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE].is_valid) {
+		et_dev->mgmt.trace_buf = kmalloc
+			(et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE]
+				.size,
+			GFP_KERNEL);
+		if (!et_dev->mgmt.trace_buf) {
+			dev_err(&et_dev->pdev->dev,
+				"Mgmt: kmalloc for trace buffered failed!\n");
+			rv = -ENOMEM;
+			goto error_unmap_discovered_regions;
+		}
+	}
+
 	// VQs initialization
 	rv = et_vqueue_init_all(et_dev, true /* mgmt_dev */);
 	if (rv) {
@@ -1172,6 +1222,7 @@ error_vqueue_destroy_all:
 	et_vqueue_destroy_all(et_dev, true /* mgmt_dev */);
 
 error_unmap_discovered_regions:
+	kfree(et_dev->mgmt.trace_buf);
 	et_unmap_discovered_regions(et_dev, true /* mgmt_dev */);
 
 error_free_dir_data:
@@ -1187,6 +1238,7 @@ static void et_mgmt_dev_destroy(struct et_pci_dev *et_dev)
 {
 	misc_deregister(&et_dev->mgmt.misc_mgmt_dev);
 	et_vqueue_destroy_all(et_dev, true /* mgmt_dev */);
+	kfree(et_dev->mgmt.trace_buf);
 	et_unmap_discovered_regions(et_dev, true /* mgmt_dev */);
 	et_unmap_bar(et_dev->mgmt.dir);
 }

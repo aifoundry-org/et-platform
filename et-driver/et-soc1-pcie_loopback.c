@@ -447,6 +447,7 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	struct rsp_desc rsp_info;
 	struct sq_threshold sq_threshold_info;
 	struct fw_update_desc fw_update_info;
+	u32 trace_region_size = 4 * 1024;
 	void __user *usr_arg = (void __user *)arg;
 	u16 sq_idx;
 	size_t size;
@@ -576,6 +577,21 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		wake_up_interruptible(
 			&mgmt->sq_pptr[sq_idx]->vq_common->waitqueue);
 
+		return 0;
+
+	case ETSOC1_IOCTL_GET_DEVICE_MGMT_TRACE_BUFFER_SIZE:
+		if (size >= sizeof(u32) &&
+		    copy_to_user(usr_arg, &trace_region_size, size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_DEVICE_MGMT_TRACE_BUFFER_SIZE: failed to copy to user\n");
+			return -ENOMEM;
+		}
+		return 0;
+
+	case ETSOC1_IOCTL_EXTRACT_DEVICE_MGMT_TRACE_BUFFER:
+		if (copy_to_user(usr_arg, mgmt->trace_buf, trace_region_size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_EXTRACT_DEVICE_MGMT_TRACE_BUFFER: failed to copy to user\n");
+			return -ENOMEM;
+		}
 		return 0;
 
 	default:
@@ -717,6 +733,16 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	region->mapped_baseaddr =
 		(void __iomem __force *)kzalloc(region->size, GFP_KERNEL);
 
+	et_dev->mgmt.trace_buf = kmalloc(4 * 1024, GFP_KERNEL);
+	if (!et_dev->mgmt.trace_buf) {
+		dev_err(&et_dev->pdev->dev,
+			"Mgmt: kmalloc for trace buffered failed!\n");
+		rv = -ENOMEM;
+		goto error_free_vq_buffer;
+	}
+	// Write dummy data to SP trace buffer
+	memset(et_dev->mgmt.trace_buf, '\xE7', 4 * 1024);
+
 	// VQs initialization
 	rv = et_vqueue_init_all(et_dev, true /* mgmt_dev */);
 	if (rv) {
@@ -744,6 +770,7 @@ error_vqueue_destroy_all:
 	et_vqueue_destroy_all(et_dev, true /* mgmt_dev */);
 
 error_free_vq_buffer:
+	kfree(et_dev->mgmt.trace_buf);
 	kfree((void __force *)et_dev->mgmt
 		      .regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER]
 		      .mapped_baseaddr);
@@ -756,7 +783,7 @@ static void et_mgmt_dev_destroy(struct et_pci_dev *et_dev)
 {
 	misc_deregister(&et_dev->mgmt.misc_mgmt_dev);
 	et_vqueue_destroy_all(et_dev, true /* mgmt_dev */);
-
+	kfree(et_dev->mgmt.trace_buf);
 	kfree((void __force *)et_dev->mgmt
 		      .regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER]
 		      .mapped_baseaddr);

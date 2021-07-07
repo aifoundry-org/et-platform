@@ -68,4 +68,9 @@ struct dram_info {
 
 #define ETSOC1_IOCTL_TEST_VQ _IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 11, __u16)
 
+#define ETSOC1_IOCTL_GET_DEVICE_MGMT_TRACE_BUFFER_SIZE                         \
+	_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 12, __u32)
+
+#define ETSOC1_IOCTL_EXTRACT_DEVICE_MGMT_TRACE_BUFFER                          \
+	_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 13, void *)
 #endif

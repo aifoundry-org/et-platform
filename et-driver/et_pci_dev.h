@@ -42,7 +42,7 @@ struct et_ops_dev {
 	bool is_ops_open;
 	spinlock_t ops_open_lock;	/* serializes access to is_ops_open */
 	void __iomem *dir;
-	struct et_mapped_region regions[MGMT_MEM_REGION_TYPE_NUM];
+	struct et_mapped_region regions[OPS_MEM_REGION_TYPE_NUM];
 	struct et_squeue **sq_pptr;
 	struct et_cqueue **cq_pptr;
 	struct et_vq_common vq_common;
@@ -55,10 +55,11 @@ struct et_mgmt_dev {
 	bool is_mgmt_open;
 	spinlock_t mgmt_open_lock;	/* serializes access to is_mgmt_open */
 	void __iomem *dir;
-	struct et_mapped_region regions[OPS_MEM_REGION_TYPE_NUM];
+	struct et_mapped_region regions[MGMT_MEM_REGION_TYPE_NUM];
 	struct et_squeue **sq_pptr;
 	struct et_cqueue **cq_pptr;
 	struct et_vq_common vq_common;
+	void *trace_buf;
 	u64 minion_shires;
 };
 
