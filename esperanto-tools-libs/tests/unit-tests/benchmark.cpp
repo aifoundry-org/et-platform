@@ -68,13 +68,13 @@ void sendH2D_K_D2H(int iterations, StreamId stream, KernelId kernel, RuntimePtr&
   RT_LOG(INFO) << "Submitting " << iterations
                << " HostToDevice DMA + Kernel + DeviceToHost DMA. Syncing on each iteration? "
                << (sync_on_each_iter ? "True" : "False");
-  static char args[128];
+  static std::array<char, 128> args;
   const size_t transferSize = 16;
-  static std::byte dummyBuffer[transferSize];
+  static std::array<std::byte, transferSize> dummyBuffer;
   for (int i = 0; i < iterations; ++i) {
-    runtime->memcpyHostToDevice(stream, dummyBuffer, nullptr, transferSize);
-    runtime->kernelLaunch(stream, kernel, args, sizeof args, 0x3);
-    runtime->memcpyDeviceToHost(stream, nullptr, dummyBuffer, transferSize);
+    runtime->memcpyHostToDevice(stream, dummyBuffer.data(), nullptr, transferSize);
+    runtime->kernelLaunch(stream, kernel, args.data(), sizeof args, 0x3);
+    runtime->memcpyDeviceToHost(stream, nullptr, dummyBuffer.data(), transferSize);
     if (sync_on_each_iter) {
       runtime->waitForStream(stream);
     }

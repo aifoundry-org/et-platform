@@ -52,7 +52,7 @@ private:
     std::string str() const {
       return std::string("Address: ") + std::to_string(startAddress_) + "Size: " + std::to_string(size_);
     }
-  }; 
+  };
 
   uint32_t compressPointer(void* ptr) const {
     auto tmp = reinterpret_cast<uint64_t>(ptr);

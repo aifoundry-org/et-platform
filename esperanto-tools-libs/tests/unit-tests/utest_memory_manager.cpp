@@ -120,19 +120,20 @@ TEST(MemoryManager, SW8240_4) {
   std::uniform_int_distribution<uint32_t> uniform_dist(1U, 1U << 29);
   std::vector<void*> ptrs;
   auto&& mm = rimp->memoryManagers_.find(device)->second;
+
   for (int i = 0; i < 10000; ++i) {
     auto size = uniform_dist(e1);
     RT_LOG(INFO) << std::dec << "Iter: " << i << std::hex << " Size: " << size;
     bool done = false;
     while (!done) {
       try {
-        ptrs.emplace_back(rimp->mallocDevice(device, size));
+        ptrs.emplace_back(rimp->mallocDevice(device, size, kCacheLineSize));
         done = true;
       } catch (const rt::Exception& e) {
         if (std::string_view(e.what()).find("Out of memory")) {
           RT_LOG(INFO) << std::hex << "Requesting " << size
                        << " but free space is not enough (perhaps there is some fragmentation) " << mm.getFreeBytes();
-          std::random_shuffle(begin(ptrs), end(ptrs));
+          std::shuffle(begin(ptrs), end(ptrs), e1);
           auto freeBefore = mm.getFreeBytes();
           rimp->freeDevice(device, ptrs.back());
           auto freeAfter = mm.getFreeBytes();
@@ -216,7 +217,7 @@ TEST(MemoryManager, malloc_free_basic) {
         auto mm = MemoryManager(baseAddr, totalRam, minAllocation);
         mm.setDebugMode(true);
         std::vector<void*> ptrs;
-        for (auto mallocSize : {1UL << 11, 1UL << 12, 1UL << 30}) {   
+        for (auto mallocSize : {1UL << 11, 1UL << 12, 1UL << 30}) {
           auto ptr = mm.malloc(mallocSize, alignment);
           ASSERT_EQ(reinterpret_cast<uint64_t>(ptr) % alignment, 0UL);
           ptrs.emplace_back(ptr);

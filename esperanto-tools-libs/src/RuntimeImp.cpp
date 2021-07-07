@@ -72,7 +72,7 @@ KernelId RuntimeImp::loadCode(DeviceId device, const void* data, size_t size) {
   std::unique_lock lock(mutex_);
 
   // allocate a buffer in the device to load the code
-  auto deviceBuffer = mallocDevice(device, size);
+  auto deviceBuffer = mallocDevice(device, size, kCacheLineSize);
 
   auto memStream = std::istringstream(std::string(reinterpret_cast<const char*>(data), size), std::ios::binary);
   ELFIO::elfio elf;
@@ -97,11 +97,11 @@ KernelId RuntimeImp::loadCode(DeviceId device, const void* data, size_t size) {
         basePhysicalAddress = loadAddress - offset;
         basePhysicalAddressCalculated = true;
       }
-      RT_DLOG(INFO) << "Found segment: " << segment->get_index() << std::hex << " Offset: 0x" << offset
-                    << " Physical Address: 0x" << loadAddress << " Mem Size: 0x" << memSize << " Copying to address: 0x"
-                    << addr << " Entry: 0x" << entry << "\n";
+      RT_VLOG(LOW) << "Found segment: " << segment->get_index() << std::hex << " Offset: 0x" << offset
+                   << " Physical Address: 0x" << loadAddress << " Mem Size: 0x" << memSize << " Copying to address: 0x"
+                   << addr << " Entry: 0x" << entry << "\n";
       memcpyHostToDevice(sstream, reinterpret_cast<const uint8_t*>(data) + offset, reinterpret_cast<void*>(addr),
-                         memSize);
+                         memSize, false);
     }
   }
   if (!basePhysicalAddressCalculated) {
@@ -137,8 +137,8 @@ void RuntimeImp::unloadCode(KernelId kernel) {
 
 void* RuntimeImp::mallocDevice(DeviceId device, size_t size, uint32_t alignment) {
   ScopedProfileEvent profileEvent(Class::MallocDevice, profiler_, device);
-  RT_DLOG(INFO) << "Malloc requested device " << std::hex << static_cast<std::underlying_type_t<DeviceId>>(device)
-                << " size: " << size << " alignment: " << alignment;
+  RT_LOG(INFO) << "Malloc requested device " << std::hex << static_cast<std::underlying_type_t<DeviceId>>(device)
+               << " size: " << size << " alignment: " << alignment;
 
   if (__builtin_popcount(alignment) != 1) {
     throw Exception("Alignment must be power of two");
@@ -151,8 +151,8 @@ void* RuntimeImp::mallocDevice(DeviceId device, size_t size, uint32_t alignment)
 
 void RuntimeImp::freeDevice(DeviceId device, void* buffer) {
   ScopedProfileEvent profileEvent(Class::FreeDevice, profiler_, device);
-  RT_DLOG(INFO) << "Free at device: " << static_cast<std::underlying_type_t<DeviceId>>(device)
-                << " buffer address: " << std::hex << buffer;
+  RT_LOG(INFO) << "Free at device: " << static_cast<std::underlying_type_t<DeviceId>>(device)
+               << " buffer address: " << std::hex << buffer;
   std::lock_guard lock(mutex_);
   auto it = find(memoryManagers_, device);
   it->second.free(buffer);
@@ -160,7 +160,7 @@ void RuntimeImp::freeDevice(DeviceId device, void* buffer) {
 
 StreamId RuntimeImp::createStream(DeviceId device) {
   ScopedProfileEvent profileEvent(Class::CreateStream, profiler_, device);
-  RT_DLOG(INFO) << "Creating stream at device: " << static_cast<std::underlying_type_t<DeviceId>>(device);
+  RT_LOG(INFO) << "Creating stream at device: " << static_cast<std::underlying_type_t<DeviceId>>(device);
   std::lock_guard lock(streamsMutex_);
   auto streamId = static_cast<StreamId>(nextStreamId_++);
   auto it = streams_.find(streamId);
@@ -173,7 +173,7 @@ StreamId RuntimeImp::createStream(DeviceId device) {
 
 void RuntimeImp::destroyStream(StreamId stream) {
   ScopedProfileEvent profileEvent(Class::DestroyStream, profiler_, stream);
-  RT_DLOG(INFO) << "Destroy stream: " << static_cast<std::underlying_type_t<StreamId>>(stream);
+  RT_LOG(INFO) << "Destroy stream: " << static_cast<std::underlying_type_t<StreamId>>(stream);
   std::lock_guard lock(streamsMutex_);
   auto it = find(streams_, stream);
   streams_.erase(it);
@@ -196,17 +196,19 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
   device_ops_api::device_ops_data_write_cmd_t cmd;
   std::memset(&cmd, 0, sizeof(cmd));
   cmd.dst_device_phy_addr = reinterpret_cast<uint64_t>(d_dst);
-  RT_VLOG(LOW) << "MemcpyHostToDevice stream: " << static_cast<std::underlying_type_t<StreamId>>(stream) << std::hex
-               << " Host address: " << h_src << " Device address: " << cmd.dst_device_phy_addr << " Size: " << size;
 
   // first check if its a DmaBuffer
   auto dmaBufferManager = find(dmaBufferManagers_, device)->second.get();
+  RT_VLOG(LOW) << "MemcpyHostToDevice stream: " << static_cast<std::underlying_type_t<StreamId>>(stream) << std::hex
+               << " Host address: " << h_src << " Device address: " << cmd.dst_device_phy_addr << " Size: " << size;
   if (dmaBufferManager->isDmaBuffer(reinterpret_cast<const std::byte*>(h_src))) {
     cmd.src_host_virt_addr = cmd.src_host_phy_addr = reinterpret_cast<uint64_t>(h_src);
   } else {
     // if not, allocate a buffer, and stage the memory first into it
     auto tmpBuffer = dmaBufferManager->allocate(size, true);
     cmd.src_host_virt_addr = cmd.src_host_phy_addr = reinterpret_cast<uint64_t>(tmpBuffer->getPtr());
+    RT_VLOG(LOW) << std::hex << "Staging memory transfer into a DmaBuffer to enable DMA. Dma address (actual address): "
+                 << tmpBuffer->getPtr();
 
     // TODO: It can be copied in background and return control to the user. Future work.
     auto srcPtr = reinterpret_cast<const std::byte*>(h_src);
@@ -267,6 +269,8 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
   } else {
     // if not, allocate a buffer, and copy the results from it to h_dst
     auto tmpBuffer = dmaBufferManager->allocate(size, false);
+    RT_VLOG(LOW) << std::hex << "Staging memory transfer into a DmaBuffer to enable DMA. Dma address (actual address): "
+                 << tmpBuffer->getPtr();
     cmd.dst_host_virt_addr = cmd.dst_host_phy_addr = reinterpret_cast<uint64_t>(tmpBuffer->getPtr());
     sendCommandMasterMinion(st, evt, cmd, lock, true);
 
@@ -307,9 +311,9 @@ void RuntimeImp::waitForStream(StreamId stream) {
 
 bool RuntimeImp::waitForEvent(EventId event, std::chrono::milliseconds timeout) {
   ScopedProfileEvent profileEvent(Class::WaitForEvent, profiler_, event);
-  RT_DLOG(INFO) << "Waiting for event " << static_cast<int>(event) << " to be dispatched.";
+  RT_VLOG(HIGH) << "Waiting for event " << static_cast<int>(event) << " to be dispatched.";
   auto res = eventManager_.blockUntilDispatched(event, timeout);
-  RT_DLOG(INFO) << "Finished wait for event " << static_cast<int>(event) << " timed out? " << (res ? "false" : "true");
+  RT_VLOG(HIGH) << "Finished wait for event " << static_cast<int>(event) << " timed out? " << (res ? "false" : "true");
   return res;
 }
 
@@ -319,7 +323,7 @@ bool RuntimeImp::waitForStream(StreamId stream, std::chrono::milliseconds timeou
   auto it = find(streams_, stream, "Invalid stream");
   auto evt = it->second.lastEventId_;
   lock.unlock();
-  RT_DLOG(INFO) << "WaitForStream: Waiting for event " << static_cast<int>(evt);
+  RT_VLOG(LOW) << "WaitForStream: Waiting for event " << static_cast<int>(evt);
   return waitForEvent(evt, timeout);
 }
 

@@ -52,7 +52,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
     //stage parameters in host buffer
     auto args = reinterpret_cast<const std::byte*>(kernel_args);
     std::copy(args, args + kernel_args_size, begin(pBuffer->hostBuffer_));
-    memcpyHostToDevice(streamId, pBuffer->hostBuffer_.data(), pBuffer->deviceBuffer_, kernel_args_size);
+    memcpyHostToDevice(streamId, pBuffer->hostBuffer_.data(), pBuffer->deviceBuffer_, kernel_args_size, false);
   }
   auto event = eventManager_.getNextId();
   lock2.lock();
