@@ -131,18 +131,6 @@ pipeline {
               ]
           }
         }
-        stage('JOB_RUNTIME') {
-          steps {
-            build job:
-              'sw-platform/runtime-integration/pipelines/runtime-checkin-tests',
-              propagate: true,
-              parameters: [
-                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"),
-                string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-              ]
-          }
-        }
       }
     }
   }

@@ -33,13 +33,6 @@ stages:
             raw_cmd: '"${env.gitlabMergeRequestIid}"'
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"
 
-  JOB_RUNTIME:
-    cmds:
-      - job: sw-platform/runtime-integration/pipelines/runtime-checkin-tests
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"
-
   JOB_DEVICE_MANAGEMENT_ZEBU:
     cmds:
       - job: sw-platform/system-sw-integration/pipelines/device-management-zebu-tests
