@@ -24,6 +24,7 @@
 #include <chrono>
 #include <memory>
 #include <sstream>
+#include <type_traits>
 
 using namespace rt;
 using namespace rt::profiling;
@@ -127,9 +128,13 @@ void RuntimeImp::unloadCode(KernelId kernel) {
   ScopedProfileEvent profileEvent(Class::UnloadCode, profiler_, kernel);
   std::lock_guard lock(mutex_);
   auto it = find(kernels_, kernel);
+  auto deviceId = it->second->deviceId_;
+  auto deviceBuffer = it->second->deviceBuffer_;
+  RT_VLOG(LOW) << "Unloading kernel from deviceId " << static_cast<std::underlying_type_t<DeviceId>>(deviceId)
+               << " buffer: " << deviceBuffer;
 
   // free the buffer
-  freeDevice(it->second->deviceId_, it->second->deviceBuffer_);
+  freeDevice(deviceId, it->second->deviceBuffer_);
 
   // and remove the kernel
   kernels_.erase(it);

@@ -31,6 +31,7 @@ option(ENABLE_SANITIZER_LEAK "" ON)
 option(ENABLE_SANITIZER_UNDEFINED_BEHAVIOR "" ON)
 option(ENABLE_SANITIZER_THREAD "" OFF)
 option(ENABLE_SANITIZER_MEMORY "" OFF)
+option(DISABLE_SANITY_CHECKS "Disable completely sanity checks" OFF)
 
 # If not empty install any runtime python packages
 set(DOCUMENTATION_INSTALL_DIR "${CMAKE_INSTALL_DIR}/doc" CACHE PATH "Documentation installation path")
@@ -78,6 +79,10 @@ set_target_properties(etrt_obj PROPERTIES
     PUBLIC_HEADER "include/runtime/IProfiler.h;include/runtime/IRuntime.h;include/runtime/IProfileEvent.h;include/runtime/DmaBuffer.h"
     POSITION_INDEPENDENT_CODE ON
 )
+
+if(DISABLE_SANITY_CHECKS)
+    target_compile_definitions(etrt_obj PRIVATE DISABLE_SANITY_CHECKS)
+endif()
 
 target_include_directories(etrt_obj
     PUBLIC

@@ -19,6 +19,7 @@
 #include "utils.h"
 #include <mutex>
 #include <thread>
+#include <type_traits>
 #include <unordered_map>
 
 using namespace std::chrono_literals;
@@ -77,6 +78,8 @@ private:
       : deviceId_(deviceId)
       , deviceBuffer_(deviceBuffer)
       , entryPoint_(entryPoint) {
+      RT_VLOG(LOW) << std::hex << "Kernel loaded at device: " << static_cast<std::underlying_type_t<DeviceId>>(deviceId)
+                   << " at address: " << deviceBuffer_ << " with entry point: " << entryPoint;
     }
 
     uint64_t getEntryAddress() const {

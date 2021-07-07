@@ -49,7 +49,7 @@ KernelParametersCache::KernelParametersCache(IRuntime* runtime, int initialFreeL
 }
 
 Buffer* KernelParametersCache::allocBuffer(DeviceId deviceId) {
-  RT_DLOG(INFO) << "Allocating parameter buffer for device " << static_cast<int>(deviceId);
+  RT_VLOG(HIGH) << "Allocating parameter buffer for device " << static_cast<int>(deviceId);
   std::lock_guard lock(mutex_);
   auto&& list = freeBuffers_[deviceId];
   if (list.empty()) {
@@ -64,7 +64,7 @@ Buffer* KernelParametersCache::allocBuffer(DeviceId deviceId) {
 }
 
 void KernelParametersCache::reserveBuffer(EventId event, Buffer* buffer) {
-  RT_DLOG(INFO) << "Reserving buffer " << buffer << " for event " << static_cast<int>(event);
+  RT_VLOG(HIGH) << "Reserving buffer " << buffer << " for event " << static_cast<int>(event);
   std::lock_guard lock(mutex_);
   auto it = find(allocBuffers_, buffer, "Trying to reserve a buffer which wasn't allocated previously");
   [[maybe_unused]] auto [insertion, res] = reservedBuffers_.emplace(event, *it);
@@ -73,10 +73,10 @@ void KernelParametersCache::reserveBuffer(EventId event, Buffer* buffer) {
 }
 
 void KernelParametersCache::releaseBuffer(EventId id) {
-  RT_DLOG(INFO) << "Releasing buffer for event " << static_cast<int>(id);
+  RT_VLOG(HIGH) << "Releasing buffer for event " << static_cast<int>(id);
   std::lock_guard lock(mutex_);
   auto it = find(reservedBuffers_, id);
   freeBuffers_[it->second->device_].emplace_back(it->second);
   reservedBuffers_.erase(it);
-  RT_DLOG(INFO) << "Buffer erased. In use buffers count: " << reservedBuffers_.size();
+  RT_VLOG(HIGH) << "Buffer erased. In use buffers count: " << reservedBuffers_.size();
 }

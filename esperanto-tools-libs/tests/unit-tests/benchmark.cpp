@@ -21,7 +21,9 @@ using namespace testing;
 using namespace std::chrono;
 
 #pragma GCC diagnostic push
+#ifdef __clang__
 #pragma GCC diagnostic ignored "-Wkeyword-macro"
+#endif
 #define private public
 #pragma GCC diagnostic pop
 #include "RuntimeImp.h"

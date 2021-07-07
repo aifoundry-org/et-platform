@@ -75,7 +75,7 @@ public:
 // Load and removal of a single kernel.
 TEST_F(TestCodeLoading, LoadKernel) {
 
-  rt::KernelId kernel;
+  rt::KernelId kernel{0};
   EXPECT_NO_THROW(kernel =
                     runtime_->loadCode(devices_.front(), convolutionContent_.data(), convolutionContent_.size()));
   EXPECT_NO_THROW(runtime_->unloadCode(kernel));
