@@ -63,15 +63,15 @@ bool mem_checker::write(uint64_t pc, uint64_t address, op_location_t location, u
 
     if(minion_found && !shire_found)
     {
-       LOG_AGENT(FTL, *this, "mem_checker::write minion entry found and shire entry not found for addr %llX when doing write\n", (long long unsigned int) address);
+       LOG_AGENT(FTL, *this, "mem_checker::write minion entry found and shire entry not found for addr %llX when doing write", (long long unsigned int) address);
     }
     if(shire_found && !global_found)
     {
-       LOG_AGENT(FTL, *this, "mem_checker::write shire entry found and global entry not found for addr %llX when doing write\n", (long long unsigned int) address);
+       LOG_AGENT(FTL, *this, "mem_checker::write shire entry found and global entry not found for addr %llX when doing write", (long long unsigned int) address);
     }
 
     // Info
-    MD_LOG(address, minion, LOG_AGENT(DEBUG, *this, "mem_checker::write => pc %016llX, addr %016llX, location %i, shire_id %i, minion_id %i, thread_id %i, size %i, cb quarter %i, found (%i, %i, %i)\n",
+    MD_LOG(address, minion, LOG_AGENT(DEBUG, *this, "mem_checker::write => pc %016llX, addr %016llX, location %i, shire_id %i, minion_id %i, thread_id %i, size %i, cb quarter %i, found (%i, %i, %i)",
         (long long unsigned int) pc, (long long unsigned int) address, location, shire_id, minion_id, thread_id,
         (int) size, cb_quarter, global_found, shire_found, minion_found));
 
@@ -81,7 +81,7 @@ bool mem_checker::write(uint64_t pc, uint64_t address, op_location_t location, u
     {
         for(uint32_t way = 0; way < L1D_NUM_WAYS; way++)
         {
-            MD_LOG(address, minion, LOG_AGENT(DEBUG, *this, "mem_checker::write => setting l1 set %i and way %i\n", l1_set, way));
+            MD_LOG(address, minion, LOG_AGENT(DEBUG, *this, "mem_checker::write => setting l1 set %i and way %i", l1_set, way));
             l1_minion_valid[minion][l1_set][way] = true;
         }
     }
@@ -290,15 +290,15 @@ bool mem_checker::read(uint64_t pc, uint64_t address, op_location_t location, ui
 
     if(minion_found && !shire_found)
     {
-       LOG_AGENT(FTL, *this, "mem_checker::read minion entry found and shire entry not found for addr %llX when doing write\n", (long long unsigned int) address);
+       LOG_AGENT(FTL, *this, "mem_checker::read minion entry found and shire entry not found for addr %llX when doing write", (long long unsigned int) address);
     }
     if(shire_found && !global_found)
     {
-       LOG_AGENT(FTL, *this, "mem_checker::read shire entry found and global entry not found for addr %llX when doing write\n", (long long unsigned int) address);
+       LOG_AGENT(FTL, *this, "mem_checker::read shire entry found and global entry not found for addr %llX when doing write", (long long unsigned int) address);
     }
 
     // Info
-    MD_LOG(address, minion, LOG_AGENT(DEBUG, *this, "mem_checker::read => pc %016llX, addr %016llX, location %i, shire_id %i, minion_id %i, thread_id %i, found (%i, %i, %i)\n",
+    MD_LOG(address, minion, LOG_AGENT(DEBUG, *this, "mem_checker::read => pc %016llX, addr %016llX, location %i, shire_id %i, minion_id %i, thread_id %i, found (%i, %i, %i)",
         (long long unsigned int) pc, (long long unsigned int) address, location, shire_id, minion_id, thread_id,
         global_found, shire_found, minion_found));
 
@@ -308,7 +308,7 @@ bool mem_checker::read(uint64_t pc, uint64_t address, op_location_t location, ui
     {
         for(uint32_t way = 0; way < L1D_NUM_WAYS; way++)
         {
-            MD_LOG(address, minion, LOG_AGENT(DEBUG, *this, "mem_checker::read => setting l1 set %i and way %i\n", l1_set, way));
+            MD_LOG(address, minion, LOG_AGENT(DEBUG, *this, "mem_checker::read => setting l1 set %i and way %i", l1_set, way));
             l1_minion_valid[minion][l1_set][way] = true;
         }
     }
@@ -494,14 +494,14 @@ bool mem_checker::evict_va(uint64_t pc, uint64_t address, op_location_t location
     bool global_found = it_global != global_directory_map.end();
     if(minion_found && !shire_found)
     {
-       LOG_AGENT(FTL, *this, "mem_checker::evict_va minion entry found and shire entry not found for addr %llX when doing write\n", (long long unsigned int) address);
+       LOG_AGENT(FTL, *this, "mem_checker::evict_va minion entry found and shire entry not found for addr %llX when doing write", (long long unsigned int) address);
     }
     if(shire_found && !global_found)
     {
-       LOG_AGENT(FTL, *this, "mem_checker::evict_va shire entry found and global entry not found for addr %llX when doing write\n", (long long unsigned int) address);
+       LOG_AGENT(FTL, *this, "mem_checker::evict_va shire entry found and global entry not found for addr %llX when doing write", (long long unsigned int) address);
     }
 
-    MD_LOG(address, minion, LOG_AGENT(DEBUG, *this, "mem_checker::evict_va => pc %016llX addr %016llX, location %i, shire_id %i, minion_id %i, thread_id %i, found (%i, %i, %i)\n",
+    MD_LOG(address, minion, LOG_AGENT(DEBUG, *this, "mem_checker::evict_va => pc %016llX addr %016llX, location %i, shire_id %i, minion_id %i, thread_id %i, found (%i, %i, %i)",
         (long long unsigned int) pc, (long long unsigned int) address, location, shire_id, minion_id, thread_id,
         global_found, shire_found, minion_found));
 
@@ -518,7 +518,7 @@ bool mem_checker::evict_va(uint64_t pc, uint64_t address, op_location_t location
     if(update_minion)
     {
         uint32_t adjusted_thread_id = (l1_minion_control[minion] == 0) ? 0 : thread_id;
-        MD_LOG(address, minion, LOG_AGENT(DEBUG, *this, "mem_checker::evict_va update minion directory => addr %016llX, shire_id %i, minion_id %i\n", (long long unsigned int) address, shire_id, minion_id));
+        MD_LOG(address, minion, LOG_AGENT(DEBUG, *this, "mem_checker::evict_va update minion directory => addr %016llX, shire_id %i, minion_id %i", (long long unsigned int) address, shire_id, minion_id));
 
         // Gets if dirty data from L1 is dirty
         * dirty_evict = it_minion->second.thread_mask_write[adjusted_thread_id];
@@ -541,12 +541,12 @@ bool mem_checker::evict_va(uint64_t pc, uint64_t address, op_location_t location
         // Line is no longer dirty in minion, update shire state
         if(!is_minion_dirty(it_minion))
         {
-            MD_LOG(address, minion, LOG_AGENT(DEBUG, *this, "mem_checker::evict_va => line no longer dirty in minion %i\n", minion));
+            MD_LOG(address, minion, LOG_AGENT(DEBUG, *this, "mem_checker::evict_va => line no longer dirty in minion %i", minion));
 
             // Clears the minion dirty flag in shire, must have an entry
             if((it_shire->second.l2_dirty_minion_id != 255) && (it_shire->second.l2_dirty_minion_id != minion_id))
             {
-                LOG_AGENT(FTL, *this, "\t(Coherency EvictVA Hazard wrong minion) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u, l2_dirty_minion_id=%u\n", (long long unsigned int) address, location, shire_id, minion_id, thread_id, it_shire->second.l2_dirty_minion_id);
+                LOG_AGENT(FTL, *this, "\t(Coherency EvictVA Hazard wrong minion) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u, l2_dirty_minion_id=%u", (long long unsigned int) address, location, shire_id, minion_id, thread_id, it_shire->second.l2_dirty_minion_id);
             }
             it_shire->second.l2_dirty_minion_id     = 255;
             if(* dirty_evict)
@@ -559,7 +559,7 @@ bool mem_checker::evict_va(uint64_t pc, uint64_t address, op_location_t location
         // Line is no longer in minion, update shire state and remove in minion
         if(is_minion_clean(it_minion))
         {
-            MD_LOG(address, minion, LOG_AGENT(DEBUG, *this, "mem_checker::evict_va => line no longer in minion %i\n", minion));
+            MD_LOG(address, minion, LOG_AGENT(DEBUG, *this, "mem_checker::evict_va => line no longer in minion %i", minion));
 
             it_shire->second.minion_mask[minion_id] = false;
             dump_shire(&it_shire->second, "evict_va", "update", address, shire_id, minion);
@@ -592,7 +592,7 @@ bool mem_checker::evict_va(uint64_t pc, uint64_t address, op_location_t location
         // Line is no longer dirty in shire, update global state
         if(!is_shire_dirty(it_shire))
         {
-            MD_LOG(address, minion, LOG_AGENT(DEBUG, *this, "mem_checker::evict_va => line no longer dirty in shire %i\n", shire_id));
+            MD_LOG(address, minion, LOG_AGENT(DEBUG, *this, "mem_checker::evict_va => line no longer dirty in shire %i", shire_id));
 
             // Clears the minion dirty flag in global, must have an entry
             if((it_global->second.l2_dirty_shire_id != 255) && (it_global->second.l2_dirty_shire_id != shire_id))
@@ -620,7 +620,7 @@ bool mem_checker::evict_va(uint64_t pc, uint64_t address, op_location_t location
     {
         if(is_shire_clean(it_shire))
         {
-            MD_LOG(address, minion, LOG_AGENT(DEBUG, *this, "mem_checker::evict_va => line no longer in shire %i\n", shire_id));
+            MD_LOG(address, minion, LOG_AGENT(DEBUG, *this, "mem_checker::evict_va => line no longer in shire %i", shire_id));
 
             dump_shire(&it_shire->second, "evict_va", "remove", address, shire_id, minion);
             shire_directory_map[shire_id].erase(it_shire);
@@ -644,7 +644,7 @@ bool mem_checker::evict_va(uint64_t pc, uint64_t address, op_location_t location
 void mem_checker::l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t set, bool evict)
 {
     uint32_t minion = shire_id * EMU_MINIONS_PER_SHIRE + minion_id;
-    MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "mem_checker::l1_clear_set => clearing set %i of minion %i with size %i and evict %i\n", set, minion, (int) minion_directory_map[minion].size(), evict));
+    MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "mem_checker::l1_clear_set => clearing set %i of minion %i with size %i and evict %i", set, minion, (int) minion_directory_map[minion].size(), evict));
 
     // Runs through all elements that match in same set
     minion_directory_map_t::iterator it_minion = minion_directory_map[minion].begin();
@@ -654,7 +654,7 @@ void mem_checker::l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t s
         uint64_t addr = it_minion->first;       // Address of current entry
         bool     dirty_evict = false;           // Tracks if entry is doing a dirty evict (can be true for both flushes and evicts)
         uint64_t minion_evict_time_stamp = -1;  // Timestamp of the minion data being evicted
-        MD_LOG(addr, minion, LOG_AGENT(DEBUG, *this, "mem_checker::l1_clear_set => addr %016llX belongs to minion\n", (long long unsigned int) addr));
+        MD_LOG(addr, minion, LOG_AGENT(DEBUG, *this, "mem_checker::l1_clear_set => addr %016llX belongs to minion", (long long unsigned int) addr));
 
         // Clears the valids if set match
         for(uint32_t thread = 0; thread < EMU_THREADS_PER_MINION; thread++)
@@ -681,7 +681,7 @@ void mem_checker::l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t s
             // Must have an entry
             if(it_shire == shire_directory_map[shire_id].end())
             {
-                LOG_AGENT(FTL, *this, "Should have found address %llX in shire when doing l1_clear_set\n", (long long unsigned int) addr);
+                LOG_AGENT(FTL, *this, "Should have found address %llX in shire when doing l1_clear_set", (long long unsigned int) addr);
             }
             bool is_l2_scp              = bemu::paddr_is_scratchpad(addr);
             it_shire->second.l2         = !is_l2_scp;
@@ -704,7 +704,7 @@ void mem_checker::l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t s
             // Must have an entry
             if(it_shire == shire_directory_map[shire_id].end())
             {
-                LOG_AGENT(FTL, *this, "Should have found address %llX in shire when doing l1_clear_set\n", (long long unsigned int) addr);
+                LOG_AGENT(FTL, *this, "Should have found address %llX in shire when doing l1_clear_set", (long long unsigned int) addr);
             }
 
             it_shire->second.l2_dirty_minion_id = 255;
@@ -734,7 +734,7 @@ void mem_checker::l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t s
             // Must have an entry
             if(it_global == global_directory_map.end())
             {
-                LOG_AGENT(FTL, *this, "Should have found address %llX in global when doing l1_clear_set\n", (long long unsigned int) addr);
+                LOG_AGENT(FTL, *this, "Should have found address %llX in global when doing l1_clear_set", (long long unsigned int) addr);
             }
 
             it_global->second.l2_dirty_shire_id = 255;
@@ -746,7 +746,7 @@ void mem_checker::l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t s
             // Must have an entry
             if(it_global == global_directory_map.end())
             {
-                LOG_AGENT(FTL, *this, "Should have found address %llX in global when doing l1_clear_set\n", (long long unsigned int) addr);
+                LOG_AGENT(FTL, *this, "Should have found address %llX in global when doing l1_clear_set", (long long unsigned int) addr);
             }
 
             // Removes entry from shire
@@ -838,7 +838,7 @@ void mem_checker::dump_minion(minion_mem_info_t * minion_info, std::string func,
     uint32_t minion = shire_id * EMU_MINIONS_PER_SHIRE + minion_id;
     uint32_t adjusted_thread_id = (l1_minion_control[minion] == 0) ? 0 : thread_id;
 
-    MD_LOG(addr, minion, LOG_AGENT(DEBUG, *this, "mem_checker::%s %s minion directory => addr %016llX, shire_id %i, minion_id %i, thread_id %i, mask_write: 0x%X, mask_read: 0x%X, set: 0x%X, time_stamp: [ %llu, %llu ]\n",
+    MD_LOG(addr, minion, LOG_AGENT(DEBUG, *this, "mem_checker::%s %s minion directory => addr %016llX, shire_id %i, minion_id %i, thread_id %i, mask_write: 0x%X, mask_read: 0x%X, set: 0x%X, time_stamp: [ %llu, %llu ]",
           func.c_str(), op.c_str(), (long long unsigned int) addr, shire_id, minion_id, thread_id, (int32_t) bool_array_to_int(minion_info->thread_mask_write, EMU_THREADS_PER_MINION),
           (int32_t) bool_array_to_int(minion_info->thread_mask_read, EMU_THREADS_PER_MINION), minion_info->thread_set[adjusted_thread_id], (long long unsigned int) minion_info->time_stamp[0],
           (long long unsigned int) minion_info->time_stamp[1]));
@@ -847,7 +847,7 @@ void mem_checker::dump_minion(minion_mem_info_t * minion_info, std::string func,
 // Dumps the contents of a shire entry
 void mem_checker::dump_shire(shire_mem_info_t * shire_info, std::string func, std::string op, uint64_t addr, uint32_t shire_id, uint32_t minion)
 {
-    MD_LOG(addr, minion, LOG_AGENT(DEBUG, *this, "mem_checker::%s %s shire directory => addr %016llX, shire_id %i, l2: %i, l2_dirty: %i, l2_dirty_minion_id: %i, cb_dirty: %i, cb_quarter: 0x%X, minion_mask: 0x%X, time_stamp: %llu\n",
+    MD_LOG(addr, minion, LOG_AGENT(DEBUG, *this, "mem_checker::%s %s shire directory => addr %016llX, shire_id %i, l2: %i, l2_dirty: %i, l2_dirty_minion_id: %i, cb_dirty: %i, cb_quarter: 0x%X, minion_mask: 0x%X, time_stamp: %llu",
           func.c_str(), op.c_str(), (long long unsigned int) addr, shire_id, shire_info->l2, shire_info->l2_dirty, shire_info->l2_dirty_minion_id,
           shire_info->cb_dirty, (int32_t) bool_array_to_int(shire_info->cb_dirty_quarter, 4), (int32_t) bool_array_to_int(shire_info->minion_mask, 32), (long long unsigned int) shire_info->time_stamp));
 }
@@ -855,7 +855,7 @@ void mem_checker::dump_shire(shire_mem_info_t * shire_info, std::string func, st
 // Dumps the contents of a global entry
 void mem_checker::dump_global(global_mem_info_t * global_info, std::string func, std::string op, uint64_t addr, uint32_t minion)
 {
-    MD_LOG(addr, minion, LOG_AGENT(DEBUG, *this, "mem_checker::%s %s global directory => addr %016llX, l2_dirty_shire_id: %i, shire_mask: 0x%llX, cb_dirty: %i, cb_quarter: 0x%X, time_stamp: %llu, latest_time_stamp: %llu\n",
+    MD_LOG(addr, minion, LOG_AGENT(DEBUG, *this, "mem_checker::%s %s global directory => addr %016llX, l2_dirty_shire_id: %i, shire_mask: 0x%llX, cb_dirty: %i, cb_quarter: 0x%X, time_stamp: %llu, latest_time_stamp: %llu",
           func.c_str(), op.c_str(), (long long unsigned int) addr, global_info->l2_dirty_shire_id, (long long unsigned int) bool_array_to_int(global_info->shire_mask, EMU_NUM_SHIRES),
           global_info->cb_dirty, (uint32_t) bool_array_to_int(global_info->cb_dirty_quarter, 4), (long long unsigned int) global_info->time_stamp, (long long unsigned int) global_info->latest_time_stamp));
 }
@@ -865,41 +865,41 @@ void mem_checker::dump_state(global_directory_map_t::iterator it_global, shire_d
 {
     if(it_global != global_directory_map.end())
     {
-        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "Dumping global state for address %016llX\n", (long long unsigned int) 0x0));
-        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  latest time_stamp: %llu\n", (long long unsigned int) it_global->second.latest_time_stamp));
-        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  time_stamp: %llu\n", (long long unsigned int) it_global->second.time_stamp));
-        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  l2_dirty_shire_id: %i\n", it_global->second.l2_dirty_shire_id));
-        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  cb_dirty: %i\n", it_global->second.cb_dirty));
-        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  cb_dirty_quarter: %i%i%i%i\n", it_global->second.cb_dirty_quarter[3], it_global->second.cb_dirty_quarter[2], it_global->second.cb_dirty_quarter[1], it_global->second.cb_dirty_quarter[0]));
+        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "Dumping global state for address %016llX", (long long unsigned int) 0x0));
+        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  latest time_stamp: %llu", (long long unsigned int) it_global->second.latest_time_stamp));
+        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  time_stamp: %llu", (long long unsigned int) it_global->second.time_stamp));
+        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  l2_dirty_shire_id: %i", it_global->second.l2_dirty_shire_id));
+        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  cb_dirty: %i", it_global->second.cb_dirty));
+        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  cb_dirty_quarter: %i%i%i%i", it_global->second.cb_dirty_quarter[3], it_global->second.cb_dirty_quarter[2], it_global->second.cb_dirty_quarter[1], it_global->second.cb_dirty_quarter[0]));
         for(uint32_t shire = 0; shire < EMU_NUM_SHIRES; shire++)
         {
-            MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  shire_mask[%i] = %i\n", shire, it_global->second.shire_mask[shire]));
+            MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  shire_mask[%i] = %i", shire, it_global->second.shire_mask[shire]));
         }
     }
     if(it_shire != shire_directory_map[shire_id].end())
     {
-        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "Dumping shire state %i\n", shire_id));
-        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  time_stamp: %llu\n", (long long unsigned int) it_shire->second.time_stamp));
-        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  l2: %i\n", it_shire->second.l2));
-        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  l2_dirty: %i\n", it_shire->second.l2_dirty));
-        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  l2_dirty_minion_id: %i\n", it_shire->second.l2_dirty_minion_id));
-        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  cb_dirty: %i\n", it_shire->second.cb_dirty));
-        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  cb_dirty_quarter: %i%i%i%i\n", it_shire->second.cb_dirty_quarter[3], it_shire->second.cb_dirty_quarter[2], it_shire->second.cb_dirty_quarter[1], it_shire->second.cb_dirty_quarter[0]));
+        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "Dumping shire state %i", shire_id));
+        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  time_stamp: %llu", (long long unsigned int) it_shire->second.time_stamp));
+        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  l2: %i", it_shire->second.l2));
+        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  l2_dirty: %i", it_shire->second.l2_dirty));
+        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  l2_dirty_minion_id: %i", it_shire->second.l2_dirty_minion_id));
+        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  cb_dirty: %i", it_shire->second.cb_dirty));
+        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  cb_dirty_quarter: %i%i%i%i", it_shire->second.cb_dirty_quarter[3], it_shire->second.cb_dirty_quarter[2], it_shire->second.cb_dirty_quarter[1], it_shire->second.cb_dirty_quarter[0]));
         for(uint32_t i = 0; i < EMU_MINIONS_PER_SHIRE; i++)
         {
-            MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  minion_mask[%i] = %i\n", i, it_shire->second.minion_mask[i]));
+            MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  minion_mask[%i] = %i", i, it_shire->second.minion_mask[i]));
         }
     }
     if(it_minion != minion_directory_map[minion].end())
     {
-        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "Dumping minion state %i\n", 0));
-        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  time_stamp: [ %llu, %llu ]\n", (long long unsigned int) it_minion->second.time_stamp[0],
+        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "Dumping minion state %i", 0));
+        MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  time_stamp: [ %llu, %llu ]", (long long unsigned int) it_minion->second.time_stamp[0],
               (long long unsigned int) it_minion->second.time_stamp[1]));
         for(uint32_t thread = 0; thread < EMU_THREADS_PER_MINION; thread++)
         {
-              MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  thread_mask_write[%i] = %i\n", thread, it_minion->second.thread_mask_write[thread]));
-              MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  thread_mask_read[%i] = %i\n", thread, it_minion->second.thread_mask_read[thread]));
-              MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  thread_set[%i] = %i\n", thread, it_minion->second.thread_set[thread]));
+              MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  thread_mask_write[%i] = %i", thread, it_minion->second.thread_mask_write[thread]));
+              MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  thread_mask_read[%i] = %i", thread, it_minion->second.thread_mask_read[thread]));
+              MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "  thread_set[%i] = %i", thread, it_minion->second.thread_set[thread]));
         }
     }
 }
@@ -957,7 +957,7 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
         else if(cop == bemu::CacheOp_PrefetchL3)
             location = COH_GLOBAL;
         else
-            LOG_AGENT(FTL, *this, "Invalid CacheOp type %i for prefetch!!\n", (int) cop);
+            LOG_AGENT(FTL, *this, "Invalid CacheOp type %i for prefetch!!", (int) cop);
         break;
     case bemu::Mem_Access_Store:
         operation = 2;
@@ -987,7 +987,7 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
         if((cop == bemu::CacheOp_EvictL2) || (cop == bemu::CacheOp_EvictL3) || (cop == bemu::CacheOp_EvictDDR))
             operation = 6;
         else
-            LOG_AGENT(FTL, *this, "CacheOp %i not supported yet!!\n", (int) cop);
+            LOG_AGENT(FTL, *this, "CacheOp %i not supported yet!!", (int) cop);
         if((cop == bemu::CacheOp_EvictL3) || (cop == bemu::CacheOp_EvictDDR) ||
            (cop == bemu::CacheOp_EvictL2 && bemu::paddr_is_scratchpad(addr))) // evict l2 scp to l2 can be interpreted as 'global' (it cannot be evicted to l3)
             location = COH_GLOBAL;
@@ -1082,7 +1082,7 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
 // Public function called when there's an ESR write that drains an L2 coallescing buffer
 void mem_checker::cb_drain(uint32_t shire_id, uint32_t cache_bank)
 {
-    MD_LOG(0, 0, LOG_AGENT(DEBUG, *this, "mem_checker::cb_drain => shire_id %i, bank %i\n", shire_id, cache_bank));
+    MD_LOG(0, 0, LOG_AGENT(DEBUG, *this, "mem_checker::cb_drain => shire_id %i, bank %i", shire_id, cache_bank));
 
     shire_directory_map_t::iterator it_shire;
 
@@ -1165,8 +1165,8 @@ void mem_checker::cb_drain(uint32_t shire_id, uint32_t cache_bank)
 // Public function called when there's an ESR write that flushes an L2 bank
 void mem_checker::l2_flush(uint32_t shire_id, uint32_t cache_bank)
 {
-    MD_LOG(0, 0, LOG_AGENT(DEBUG, *this, "mem_checker::l2_flush => shire_id %i, bank %ir\n", shire_id, cache_bank));
-    LOG_AGENT(FTL, *this, "L2 flush not implemented yet!!%s\n", "");
+    MD_LOG(0, 0, LOG_AGENT(DEBUG, *this, "mem_checker::l2_flush => shire_id %i, bank %i", shire_id, cache_bank));
+    LOG_AGENT(FTL, *this, "L2 flush not implemented yet!!%s", "");
 
     // L2 flush drains CB as well
     cb_drain(shire_id, cache_bank);
@@ -1175,7 +1175,7 @@ void mem_checker::l2_flush(uint32_t shire_id, uint32_t cache_bank)
 // Public function called when there's an ESR write that evicts an L2 bank
 void mem_checker::l2_evict(uint32_t shire_id, uint32_t cache_bank)
 {
-    MD_LOG(0, log_minion + 1, LOG_AGENT(DEBUG, *this, "mem_checker::l2_evict => shire_id %i, bank %i\n", shire_id, cache_bank));
+    MD_LOG(0, log_minion + 1, LOG_AGENT(DEBUG, *this, "mem_checker::l2_evict => shire_id %i, bank %i", shire_id, cache_bank));
     shire_directory_map_t::iterator it_shire = shire_directory_map[shire_id].begin();
 
     while(it_shire != shire_directory_map[shire_id].end())
@@ -1184,7 +1184,7 @@ void mem_checker::l2_evict(uint32_t shire_id, uint32_t cache_bank)
         bool bank = (((addr & 0xC0) >> 6) == cache_bank);
         if(bank)
         {
-            MD_LOG(addr, log_minion + 1, LOG_AGENT(DEBUG, *this, "mem_checker::l2_evict => evicting addr %016llX, shire_id %i\n", (long long unsigned int) addr, shire_id));
+            MD_LOG(addr, log_minion + 1, LOG_AGENT(DEBUG, *this, "mem_checker::l2_evict => evicting addr %016llX, shire_id %i", (long long unsigned int) addr, shire_id));
 
             global_directory_map_t::iterator it_global;
             it_global = global_directory_map.find(addr);
@@ -1249,7 +1249,7 @@ void mem_checker::l1_evict_sw(uint32_t shire_id, uint32_t minion_id, uint32_t se
     uint32_t minion = shire_id * EMU_MINIONS_PER_SHIRE + minion_id;
     l1_minion_valid[minion][set][way] = false;
 
-    MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "mem_checker::l1_evict_sw => shire_id %i, minion_id %i, set %i, way %i\n", shire_id, minion_id, set, way));
+    MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "mem_checker::l1_evict_sw => shire_id %i, minion_id %i, set %i, way %i", shire_id, minion_id, set, way));
 
     // Checks if all ways of a set are clear
     bool all_clear = true;
@@ -1268,8 +1268,8 @@ void mem_checker::l1_flush_sw(uint32_t shire_id, uint32_t minion_id, uint32_t se
     // Clears set and way
     uint32_t minion = shire_id * EMU_MINIONS_PER_SHIRE + minion_id;
     l1_minion_valid[minion][set][way] = false;
-    MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "mem_checker::l1_flush_sw => shire_id %i, minion_id %i, set %i, way %i\n", shire_id, minion_id, set, way));
-    LOG_AGENT(FTL, *this, "L1 flush not implemented yet!!%s\n", "");
+    MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "mem_checker::l1_flush_sw => shire_id %i, minion_id %i, set %i, way %i", shire_id, minion_id, set, way));
+    LOG_AGENT(FTL, *this, "L1 flush not implemented yet!!%s", "");
 
     // Checks if all ways of a set are clear
     bool all_clear = true;
@@ -1287,7 +1287,7 @@ void mem_checker::mcache_control_up(uint32_t shire_id, uint32_t minion_id, uint3
 {
     // Checks that all sets and ways are clear
     uint32_t minion = shire_id * EMU_MINIONS_PER_SHIRE + minion_id;
-    MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "mem_checker::mcache_control_up => shire_id %i, minion_id %i, val %i\n", shire_id, minion_id, val));
+    MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "mem_checker::mcache_control_up => shire_id %i, minion_id %i, val %i", shire_id, minion_id, val));
 
     bool all_clear = true;
     for(uint32_t set = 0; set < L1D_NUM_SETS; set++)
