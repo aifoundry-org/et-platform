@@ -22,7 +22,7 @@ def test_env_initialize():
 
 # PMIC helper
 def check_pmic_ranged(cmd, ret_field, ret_min, ret_max):
-    command = tf_spec.command(cmd)
+    command = tf_spec.command(cmd, "SP")
     print(str(command))
     response = dut_fifo_iface.execute_test(command)
     tf_spec.prettyprint(response)

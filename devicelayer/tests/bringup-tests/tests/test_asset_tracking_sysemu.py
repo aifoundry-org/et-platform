@@ -22,7 +22,7 @@ def test_env_initialize():
 
 # Helper for asset tracking tests
 def check_asset_tracking(cmd, ret_field, ret_expected):
-    command = tf_spec.command(cmd)
+    command = tf_spec.command(cmd, "SP")
     print(str(command))
     response = dut_fifo_iface.execute_test(command)
     tf_spec.prettyprint(response)
