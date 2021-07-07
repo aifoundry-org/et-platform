@@ -46,7 +46,7 @@ void *tf_sim_thread(void *thread_data)
     sysEmuOptions.bootromTrampolineToBL2ElfPath = BOOTROM_TRAMPOLINE_TO_BL2_ELF;
     sysEmuOptions.spBL2ElfPath = BL2_ELF_TF; // point to testframework build of SPFW
     sysEmuOptions.machineMinionElfPath = MACHINE_MINION_ELF;
-    sysEmuOptions.masterMinionElfPath = MASTER_MINION_ELF;
+    sysEmuOptions.masterMinionElfPath = MASTER_MINION_ELF_TF; // point to testframework build of MMFW
     sysEmuOptions.workerMinionElfPath = WORKER_MINION_ELF;
     sysEmuOptions.executablePath = std::string(SYSEMU_INSTALL_DIR) + "sys_emu";
     sysEmuOptions.runDir = fs::current_path();
