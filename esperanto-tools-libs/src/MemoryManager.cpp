@@ -47,6 +47,9 @@ size_t MemoryManager::getNumFreeChunks() const {
 }
 
 void MemoryManager::sanityCheck() const {
+#ifdef DISABLE_SANITY_CHECKS
+  RT_VLOG(LOW) << "Sanity checks are disabled on compile time; cant run them";
+#else
   RT_LOG(INFO) << "Doing sanity check";
 
   constexpr auto getAllocationStr = [](const auto& allocation) {
@@ -100,6 +103,7 @@ void MemoryManager::sanityCheck() const {
                std::to_string(allocatedBytes) + ") doesn't equals to total memory (" +
                std::to_string(totalMemoryBytes_) + ")");
   RT_LOG(INFO) << "Sanity check ended successfully";
+#endif
 }
 
 size_t MemoryManager::getFreeBytes() const {

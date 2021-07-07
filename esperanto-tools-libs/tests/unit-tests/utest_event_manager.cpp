@@ -33,9 +33,8 @@ public:
     ASSERT_TRUE(em_.onflyEvents_.empty());
     ASSERT_TRUE(em_.blockedThreads_.empty());
   }
-
-  std::thread createAndBlockThread(EventId evt, bool detach, std::function<void()> functor) {
-    auto t = std::thread([=]() {
+  template <typename Functor> std::thread createAndBlockThread(EventId evt, bool detach, Functor&& functor) {
+    auto t = std::thread([this, evt, functor = std::forward<Functor>(functor)]() {
       LOG(DEBUG) << "Thread " << std::this_thread::get_id() << " blocking.";
       em_.blockUntilDispatched(evt, std::chrono::hours(5));
       functor();
@@ -45,11 +44,11 @@ public:
       t.detach();
     }
     return t;
-  };
+  }
 
   template <typename Func>
   void createBlockedThreadsAndEvents(
-    uint32_t numEvents, uint32_t numThreads, bool detach = true, Func&& functor = [] { /*do nothing */ }) {
+    uint32_t numEvents, uint32_t numThreads, bool detach = true, const Func& functor = [] { /*do nothing */ }) {
     ASSERT_TRUE(numEvents > 0);
     ASSERT_TRUE(events_.empty());
     ASSERT_TRUE(threads_.empty());

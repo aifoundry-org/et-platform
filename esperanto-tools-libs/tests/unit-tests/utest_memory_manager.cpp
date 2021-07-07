@@ -64,6 +64,7 @@ TEST(MemoryManager, SW8240) {
   auto ptr = runtime->mallocDevice(device, size);
   auto runtimeImp = static_cast<RuntimeImp*>(runtime.get());
   auto& memManager = runtimeImp->memoryManagers_.find(device)->second;
+  ASSERT_NE(ptr, nullptr);
   auto allocated = memManager.allocated_.find(memManager.compressPointer(ptr));
   ASSERT_NE(allocated, end(memManager.allocated_));
   ASSERT_GE(allocated->second * kBlockSize, size);
