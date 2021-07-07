@@ -714,7 +714,7 @@ void TestDevOpsApi::extractAndPrintTraceData(int deviceIdx) {
   const size_t cmBufSize = CM_SIZE_PER_HART * WORKER_HART_COUNT;
   auto rdBufMem = allocDmaBuffer(deviceIdx, mmBufSize + cmBufSize, false /* read buffer */);
   device_ops_api::dma_read_node rdNode = {.dst_host_virt_addr = templ::bit_cast<uint64_t>(rdBufMem),
-                                          .dst_host_phy_addr = templ::bit_cast<uint64_t>(rdBufMem),
+                                          .dst_host_phy_addr = 0,
                                           .src_device_phy_addr = 0,
                                           .size = static_cast<uint32_t>(mmBufSize + cmBufSize)};
   std::vector<CmdTag> stream;
@@ -797,8 +797,7 @@ void TestDevOpsApi::loadElfToDevice(int deviceIdx, ELFIO::elfio& reader, const s
 
   // Create DMA write command
   auto hostVirtAddr = templ::bit_cast<uint64_t>(segment0->get_data());
-  auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-  stream.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(false, deviceElfSegment0Buffer, hostVirtAddr, hostPhysAddr,
+  stream.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(false, deviceElfSegment0Buffer, hostVirtAddr,
                                                           fileSize, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 }
 

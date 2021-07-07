@@ -40,9 +40,8 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractMMFwData_5_1() {
     // Read Trace data from MM
     auto devPhysAddr = 0;
     auto hostVirtAddr = templ::bit_cast<uint64_t>(readBuf.data());
-    auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
     stream.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(device_ops_api::CMD_FLAGS_MMFW_TRACEBUF, devPhysAddr,
-                                                           hostVirtAddr, hostPhysAddr, readBuf.size(),
+                                                           hostVirtAddr, readBuf.size(),
                                                            device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
     // stop MM trace and redirect logs to UART
@@ -89,9 +88,8 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractCMFwData_5_2() {
     // Read Trace data from CM
     auto devPhysAddr = 0;
     auto hostVirtAddr = templ::bit_cast<uint64_t>(readBuf.data());
-    auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
     stream.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(device_ops_api::CMD_FLAGS_CMFW_TRACEBUF, devPhysAddr,
-                                                           hostVirtAddr, hostPhysAddr, readBuf.size(),
+                                                           hostVirtAddr, readBuf.size(),
                                                            device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
     readBufs.push_back(std::move(readBuf));

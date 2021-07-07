@@ -44,8 +44,8 @@ bool TestDevOpsApiDmaCmds::fillDmaStream(int deviceIdx, std::vector<CmdTag>& str
       dmaWrBufs.push_back(std::move(dmaWrBuf));
       stream.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(
         device_ops_api::CMD_FLAGS_BARRIER_DISABLE, getDmaWriteAddr(deviceIdx, dmaWrBufs.back().size()),
-        templ::bit_cast<uint64_t>(dmaWrBufs.back().data()), templ::bit_cast<uint64_t>(dmaWrBufs.back().data()),
-        dmaWrBufs.back().size(), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+        templ::bit_cast<uint64_t>(dmaWrBufs.back().data()), dmaWrBufs.back().size(),
+        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
       isFirstRead = true;
       break;
     case DmaType::DMA_READ:
@@ -54,8 +54,7 @@ bool TestDevOpsApiDmaCmds::fillDmaStream(int deviceIdx, std::vector<CmdTag>& str
       stream.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(
         isFirstRead ? device_ops_api::CMD_FLAGS_BARRIER_ENABLE : device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
         getDmaReadAddr(deviceIdx, dmaRdBufs.back().size()), templ::bit_cast<uint64_t>(dmaRdBufs.back().data()),
-        templ::bit_cast<uint64_t>(dmaRdBufs.back().data()), dmaRdBufs.back().size(),
-        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+        dmaRdBufs.back().size(), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
       isFirstRead = false;
       break;
     default:

@@ -214,17 +214,16 @@ std::string FwVersionCmd::printSummary() {
  */
 DataWriteCmd::DataWriteCmd(CmdTag tagId,
                            const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint64_t /*devPhysAddr*/,
-                                            uint64_t /*hostVirtAddr*/, uint64_t /*hostPhysAddr*/, uint64_t /*dataSize*/,
+                                            uint64_t /*hostVirtAddr*/, uint64_t /*dataSize*/,
                                             device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>&
                              args) {
-  const auto& [flags, devPhysAddr, hostVirtAddr, hostPhysAddr, dataSize, expStatus] = args;
+  const auto& [flags, devPhysAddr, hostVirtAddr, dataSize, expStatus] = args;
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
   cmd_.command_info.cmd_hdr.flags = flags;
   cmd_.dst_device_phy_addr = devPhysAddr;
   cmd_.src_host_virt_addr = hostVirtAddr;
-  cmd_.src_host_phy_addr = hostPhysAddr;
   cmd_.size = dataSize;
   expStatus_ = expStatus;
 }
@@ -284,8 +283,8 @@ std::string DataWriteCmd::printSummary() {
   summary << "\n"
           << whoAmI() << " (tagId: " << getCmdTagId() << ")\n\t" << cmdStatus_ << "\n\tCmd Flags: 0b"
           << std::bitset<sizeof(cmd_.command_info.cmd_hdr.flags) * 8>(cmd_.command_info.cmd_hdr.flags)
-          << "\n\tsrc_host_virt_addr: 0x" << std::hex << cmd_.src_host_virt_addr << "\n\tdst_device_phy_addr: 0x"
-          << cmd_.dst_device_phy_addr << "\n\tsize: " << std::dec << cmd_.size << std::endl;
+          << "\n\tsrc_host_virt_addr: 0x" << std::hex << cmd_.src_host_virt_addr
+          << "\n\tsize: " << std::dec << cmd_.size << std::endl;
   if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
     summary << "Response\n\tdevice_cmd_start_ts: " << rsp_.device_cmd_start_ts
             << "\n\tdevice_cmd_wait_dur: " << rsp_.device_cmd_wait_dur
@@ -301,17 +300,16 @@ std::string DataWriteCmd::printSummary() {
  */
 DataReadCmd::DataReadCmd(CmdTag tagId,
                          const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint64_t /*devPhysAddr*/,
-                                          uint64_t /*hostVirtAddr*/, uint64_t /*hostPhysAddr*/, uint64_t /*dataSize*/,
+                                          uint64_t /*hostVirtAddr*/, uint64_t /*dataSize*/,
                                           device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>&
                            args) {
-  const auto& [flags, devPhysAddr, hostVirtAddr, hostPhysAddr, dataSize, expStatus] = args;
+  const auto& [flags, devPhysAddr, hostVirtAddr, dataSize, expStatus] = args;
   cmd_.command_info.cmd_hdr.tag_id = tagId;
   cmd_.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD;
   cmd_.command_info.cmd_hdr.size = sizeof(cmd_);
   cmd_.command_info.cmd_hdr.flags = flags;
   cmd_.src_device_phy_addr = devPhysAddr;
   cmd_.dst_host_virt_addr = hostVirtAddr;
-  cmd_.dst_host_phy_addr = hostPhysAddr;
   cmd_.size = dataSize;
   expStatus_ = expStatus;
 }
@@ -371,8 +369,8 @@ std::string DataReadCmd::printSummary() {
   summary << "\n"
           << whoAmI() << " (tagId: " << getCmdTagId() << ")\n\t" << cmdStatus_ << "\n\tCmd Flags: 0b"
           << std::bitset<sizeof(cmd_.command_info.cmd_hdr.flags) * 8>(cmd_.command_info.cmd_hdr.flags)
-          << "\n\tdst_host_virt_addr: 0x" << std::hex << cmd_.dst_host_virt_addr << "\n\tsrc_device_phy_addr: 0x"
-          << cmd_.src_device_phy_addr << "\n\tsize: " << std::dec << cmd_.size << std::endl;
+          << "\n\tdst_host_virt_addr: 0x" << std::hex << cmd_.dst_host_virt_addr
+          << "\n\tsize: " << std::dec << cmd_.size << std::endl;
   if (cmdStatus_ != CmdStatus::CMD_RSP_NOT_RECEIVED) {
     summary << "Response\n\tdevice_cmd_start_ts: " << rsp_.device_cmd_start_ts
             << "\n\tdevice_cmd_wait_dur: " << rsp_.device_cmd_wait_dur

@@ -187,7 +187,7 @@ public:
   std::string printSummary() override;
   explicit DataWriteCmd(CmdTag tagId,
                         const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint64_t /*devPhysAddr*/,
-                                         uint64_t /*hostVirtAddr*/, uint64_t /*hostPhysAddr*/, uint64_t /*dataSize*/,
+                                         uint64_t /*hostVirtAddr*/, uint64_t /*dataSize*/,
                                          device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>&
                           args);
   ~DataWriteCmd() final = default;
@@ -216,7 +216,7 @@ public:
   std::string printSummary() override;
   explicit DataReadCmd(CmdTag tagId,
                        const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint64_t /*devPhysAddr*/,
-                                        uint64_t /*hostVirtAddr*/, uint64_t /*hostPhysAddr*/, uint64_t /*dataSize*/,
+                                        uint64_t /*hostVirtAddr*/, uint64_t /*dataSize*/,
                                         device_ops_api::dev_ops_api_dma_response_e /*expStatus*/>&
                          args);
   ~DataReadCmd() final = default;

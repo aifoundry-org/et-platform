@@ -98,11 +98,11 @@ void TestDevOpsApiKernelCmds::launchAddVectorKernel_PositiveTesting_4_1(uint64_t
 
       // Copy kernel input data to device
       auto vAHostVirtAddr = templ::bit_cast<uint64_t>(vDataAStorageAddKer.back().data());
-      streamAddKer.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(false, vADevAddr, vAHostVirtAddr, 0,
+      streamAddKer.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(false, vADevAddr, vAHostVirtAddr,
                                                                     vDataAStorageAddKer.back().size() * sizeof(int),
                                                                     device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
       auto vBHostVirtAddr = templ::bit_cast<uint64_t>(vDataBStorageAddKer.back().data());
-      streamAddKer.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(false, vBDevAddr, vBHostVirtAddr, 0,
+      streamAddKer.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(false, vBDevAddr, vBHostVirtAddr,
                                                                     vDataBStorageAddKer.back().size() * sizeof(int),
                                                                     device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
@@ -137,7 +137,7 @@ void TestDevOpsApiKernelCmds::launchAddVectorKernel_PositiveTesting_4_1(uint64_t
       vResultStorageAddKer.push_back(std::move(vTempDataResultAddKer));
       auto vResultHostVirtAddr = templ::bit_cast<uint64_t>(vResultStorageAddKer.back().data());
       streamAddKer.push_back(
-        IDevOpsApiCmd::createCmd<DataReadCmd>(true, vResultDevAddr, vResultHostVirtAddr, 0,
+        IDevOpsApiCmd::createCmd<DataReadCmd>(true, vResultDevAddr, vResultHostVirtAddr,
                                               vResultStorageAddKer.back().size() * sizeof(vTempDataResultAddKer[0]),
                                               device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
@@ -231,7 +231,7 @@ void TestDevOpsApiKernelCmds::launchUberKernel_PositiveTesting_4_4(uint64_t shir
       vResultStorageUberKer.push_back(std::move(vResultUberKer));
       auto hostVirtAddr = templ::bit_cast<uint64_t>(vResultStorageUberKer.back().data());
       streamUberKer.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(
-        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrBufLayer0, hostVirtAddr, 0,
+        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrBufLayer0, hostVirtAddr,
         vResultStorageUberKer.back().size() * sizeof(vResultUberKer[0]),
         device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
@@ -240,7 +240,7 @@ void TestDevOpsApiKernelCmds::launchUberKernel_PositiveTesting_4_4(uint64_t shir
       vResultStorageUberKer.push_back(std::move(vResultUberKer));
       hostVirtAddr = templ::bit_cast<uint64_t>(vResultStorageUberKer.back().data());
       streamUberKer.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(
-        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrBufLayer1, hostVirtAddr, 0,
+        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrBufLayer1, hostVirtAddr,
         vResultStorageUberKer.back().size() * sizeof(vResultUberKer[0]),
         device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
@@ -309,7 +309,7 @@ void TestDevOpsApiKernelCmds::launchEmptyKernel_PositiveTesting_4_5(uint64_t shi
       vResultStorage.push_back(std::move(vResult));
       auto hostVirtAddr = templ::bit_cast<uint64_t>(vResultStorage.back().data());
       streamEmptyKer.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(
-        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrKernelResult, hostVirtAddr, 0,
+        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrKernelResult, hostVirtAddr,
         vResultStorage.back().size(), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
       // Save stream against deviceIdx and queueIdx
@@ -355,7 +355,7 @@ void TestDevOpsApiKernelCmds::launchExceptionKernel_NegativeTesting_4_6(uint64_t
       vResultStorage.push_back(std::move(vResult));
       auto hostVirtAddr = templ::bit_cast<uint64_t>(vResultStorage.back().data());
       streamExceptKer.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(
-        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, kernelExceptionDevAddr, hostVirtAddr, 0,
+        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, kernelExceptionDevAddr, hostVirtAddr,
         vResultStorage.back().size(), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
       // Save stream against deviceIdx and queueIdx
@@ -424,7 +424,7 @@ void TestDevOpsApiKernelCmds::launchHangKernel(uint64_t shire_mask, bool sendAbo
       vResultStorageHangKer.push_back(std::move(vResultHangKer));
       auto hostVirtAddr = templ::bit_cast<uint64_t>(vResultStorageHangKer.back().data());
       streamHangKer.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(
-        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrkernelException, hostVirtAddr, 0,
+        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrkernelException, hostVirtAddr,
         vResultStorageHangKer.back().size(), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
       // Save stream against deviceIdx and queueIdx
@@ -544,10 +544,10 @@ void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(bool singleDevi
         auto devAddrVecA = dataLoadAddr;
         auto devAddrVecB = devAddrVecA + alignedBufSize;
         streamSameKer.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(
-          device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecA, hostVirtAddrVecA, 0,
+          device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecA, hostVirtAddrVecA,
           vDataAStorageSameKer.back().size() * sizeof(int), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
         streamSameKer.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(
-          device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecB, hostVirtAddrVecB, 0,
+          device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecB, hostVirtAddrVecB,
           vDataBStorageSameKer.back().size() * sizeof(int), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
         // allocate space for kernel args
@@ -575,7 +575,7 @@ void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(bool singleDevi
           (i == 0) ? device_ops_api::CMD_FLAGS_BARRIER_ENABLE
                    : device_ops_api::CMD_FLAGS_BARRIER_DISABLE, /* Barrier only for first read to make sure that all
                                                                    kernels execution done */
-                     devAddrVecResultPerQueue[i], hostVirtAddrRes, 0,
+                     devAddrVecResultPerQueue[i], hostVirtAddrRes,
           vResultStorageSameKer.back().size() * sizeof(vTempDataResultSameKer[0]),
           device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
       }
@@ -660,11 +660,11 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(bool singl
         // Copy kernel input data to device
         auto hostVirtAddrA = templ::bit_cast<uint64_t>(vDataAStorageDiffKer.back().data());
         streamDiffKer.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(
-            device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecA, hostVirtAddrA, 0,
+            device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecA, hostVirtAddrA,
             vDataAStorageDiffKer.back().size() * sizeof(int), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
         auto hostVirtAddrB = templ::bit_cast<uint64_t>(vDataBStorageDiffKer.back().data());
         streamDiffKer.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(
-            device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecB, hostVirtAddrB, 0,
+            device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecB, hostVirtAddrB,
             vDataBStorageDiffKer.back().size() * sizeof(int), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
         // Copy kernel args to device
@@ -727,7 +727,7 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(bool singl
           (i == 0) ? device_ops_api::CMD_FLAGS_BARRIER_ENABLE
               : device_ops_api::CMD_FLAGS_BARRIER_DISABLE, /* Barrier only for first read to make sure that all
                                                                    kernels execution done */
-                devAddrVecResultPerQueue[i], hostVirtAddrRes, 0,
+                devAddrVecResultPerQueue[i], hostVirtAddrRes,
                 vResultStorageDiffKer.back().size() * sizeof(vTempDataResultDiffKer[0]),
                 device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     }
@@ -788,7 +788,7 @@ void TestDevOpsApiKernelCmds::backToBackEmptyKernelLaunch_3_3(uint64_t totalKer,
         auto hostVirtAddrRes = templ::bit_cast<uint64_t>(vResultStorageEmptyKer.back().data());
         streamEmptyKer.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(
           i == 0, /* Barrier only for first read to make sure that all kernels execution done */
-          devAddrResult[i], hostVirtAddrRes, 0, vResultStorageEmptyKer.back().size(),
+          devAddrResult[i], hostVirtAddrRes, vResultStorageEmptyKer.back().size(),
           device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
       }
 
