@@ -1,4 +1,4 @@
-add_library(test_framework_core)
+add_library(test_framework_core OBJECT)
 
 target_include_directories(test_framework_core
   PUBLIC
@@ -24,7 +24,7 @@ target_compile_definitions(test_framework_core
 )
 
 ####
-add_library(test_framework)
+add_library(test_framework OBJECT)
 
 target_include_directories(test_framework
   PUBLIC
