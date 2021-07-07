@@ -34,8 +34,7 @@ public:
     ASSERT_TRUE(em_.blockedThreads_.empty());
   }
 
-  std::thread createAndBlockThread(
-    EventId evt, bool detach, std::function<void()> functor) {
+  std::thread createAndBlockThread(EventId evt, bool detach, std::function<void()> functor) {
     auto t = std::thread([=]() {
       LOG(DEBUG) << "Thread " << std::this_thread::get_id() << " blocking.";
       em_.blockUntilDispatched(evt, std::chrono::hours(5));
@@ -48,9 +47,9 @@ public:
     return t;
   };
 
+  template <typename Func>
   void createBlockedThreadsAndEvents(
-    uint32_t numEvents, uint32_t numThreads, bool detach = true,
-    std::function<void()> functor = [] { /*default do nothing */ }) {
+    uint32_t numEvents, uint32_t numThreads, bool detach = true, Func&& functor = [] { /*do nothing */ }) {
     ASSERT_TRUE(numEvents > 0);
     ASSERT_TRUE(events_.empty());
     ASSERT_TRUE(threads_.empty());
@@ -69,16 +68,16 @@ public:
 
 TEST_F(EventManagerF, simple) {
   EventId ev{8193};
-  //any event not onfly will be considered dispatched
+  // any event not onfly will be considered dispatched
   EXPECT_TRUE(em_.isDispatched(ev));
 
   ev = em_.getNextId();
-  //we just asked for the event so it shouldn't be dispatched
+  // we just asked for the event so it shouldn't be dispatched
   EXPECT_FALSE(em_.isDispatched(ev));
   em_.dispatch(ev);
   EXPECT_TRUE(em_.isDispatched(ev));
 
-  //we can't dispatch an event that its not onfly
+  // we can't dispatch an event that its not onfly
   EXPECT_THROW(em_.dispatch(ev), Exception);
 }
 
@@ -117,9 +116,7 @@ TEST_F(EventManagerF, blockingThreads) {
   auto nThreads = 10000U;
   std::atomic<int> unblockedThreads = 0;
 
-  createBlockedThreadsAndEvents(nEvents, nThreads, false, [&](){
-    unblockedThreads.fetch_add(1);
-  });
+  createBlockedThreadsAndEvents(nEvents, nThreads, false, [&unblockedThreads]() { unblockedThreads.fetch_add(1); });
 
   for (auto evt : events_) {
     int prev = unblockedThreads.load();

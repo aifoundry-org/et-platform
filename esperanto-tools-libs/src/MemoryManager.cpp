@@ -197,7 +197,7 @@ void* MemoryManager::malloc(size_t size, uint32_t alignment) {
   }
 
   // calculate the alignment in blocks
-  auto addr = it->startAddress_;  
+  auto addr = it->startAddress_;
   auto tmp = reinterpret_cast<uint64_t>(uncompressPointer(addr));
   auto extraBytes = (tmp % alignment == 0) ? 0 : static_cast<uint32_t>(alignment - tmp % alignment);
 

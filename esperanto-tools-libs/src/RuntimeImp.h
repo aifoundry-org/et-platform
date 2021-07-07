@@ -36,7 +36,7 @@ public:
 
   KernelId loadCode(DeviceId device, const void* elf, size_t elf_size) override;
   void unloadCode(KernelId kernel) override;
- 
+
   void* mallocDevice(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize) override;
   void freeDevice(DeviceId device, void* buffer) override;
 
@@ -44,12 +44,10 @@ public:
   void destroyStream(StreamId stream) override;
 
   EventId kernelLaunch(StreamId stream, KernelId kernel, const void* kernel_args, size_t kernel_args_size,
-                       uint64_t shire_mask, bool barrier = true, bool flushL3 = true) override;
+                       uint64_t shire_mask, bool barrier, bool flushL3) override;
 
-  EventId memcpyHostToDevice(StreamId stream, const void* src, void* dst, size_t size,
-                             bool barrier = false) override;
-  EventId memcpyDeviceToHost(StreamId stream, const void* src, void* dst, size_t size,
-                             bool barrier = true) override;
+  EventId memcpyHostToDevice(StreamId stream, const void* src, void* dst, size_t size, bool barrier) override;
+  EventId memcpyDeviceToHost(StreamId stream, const void* src, void* dst, size_t size, bool barrier) override;
 
   void waitForEvent(EventId event) override;
   bool waitForEvent(EventId event, std::chrono::milliseconds timeout) override;
@@ -59,11 +57,10 @@ public:
   std::unique_ptr<DmaBuffer> allocateDmaBuffer(DeviceId device, size_t size, bool writeable) final;
 
   EventId setupDeviceTracing(StreamId stream, uint32_t shireMask, uint32_t threadMask, uint32_t eventMask,
-                             uint32_t filterMask, bool barrier = true) override;
-  EventId startDeviceTracing(StreamId stream, std::ostream* mmOutput, std::ostream* cmOutput,
-                             bool barrier = true) override;
+                             uint32_t filterMask, bool barrier) override;
+  EventId startDeviceTracing(StreamId stream, std::ostream* mmOutput, std::ostream* cmOutput, bool barrier) override;
 
-  EventId stopDeviceTracing(StreamId stream, bool barrier = true) override;
+  EventId stopDeviceTracing(StreamId stream, bool barrier) override;
 
   IProfiler* getProfiler() override {
     return &profiler_;

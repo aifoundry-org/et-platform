@@ -57,8 +57,8 @@ Buffer* KernelParametersCache::allocBuffer(DeviceId deviceId) {
     list.emplace_back(buffers_.back().get());
   }
   auto result = list.back();
-  [[maybe_unused]] auto r = allocBuffers_.insert(result);
-  assert(r.second);
+  [[maybe_unused]] auto [insertion, res] = allocBuffers_.insert(result);
+  assert(res);
   list.pop_back();
   return result;
 }
@@ -67,8 +67,8 @@ void KernelParametersCache::reserveBuffer(EventId event, Buffer* buffer) {
   RT_DLOG(INFO) << "Reserving buffer " << buffer << " for event " << static_cast<int>(event);
   std::lock_guard lock(mutex_);
   auto it = find(allocBuffers_, buffer, "Trying to reserve a buffer which wasn't allocated previously");
-  [[maybe_unused]] auto res = reservedBuffers_.emplace(event, *it);
-  assert(res.second);
+  [[maybe_unused]] auto [insertion, res] = reservedBuffers_.emplace(event, *it);
+  assert(res);
   allocBuffers_.erase(it);
 }
 
