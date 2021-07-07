@@ -98,13 +98,11 @@ void TestDevOpsApiKernelCmds::launchAddVectorKernel_PositiveTesting_4_1(uint64_t
 
       // Copy kernel input data to device
       auto vAHostVirtAddr = templ::bit_cast<uint64_t>(vDataAStorageAddKer.back().data());
-      auto vAHostPhysAddr = vAHostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      streamAddKer.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(false, vADevAddr, vAHostVirtAddr, vAHostPhysAddr,
+      streamAddKer.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(false, vADevAddr, vAHostVirtAddr, 0,
                                                                     vDataAStorageAddKer.back().size() * sizeof(int),
                                                                     device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
       auto vBHostVirtAddr = templ::bit_cast<uint64_t>(vDataBStorageAddKer.back().data());
-      auto vBHostPhysAddr = vBHostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
-      streamAddKer.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(false, vBDevAddr, vBHostVirtAddr, vBHostPhysAddr,
+      streamAddKer.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(false, vBDevAddr, vBHostVirtAddr, 0,
                                                                     vDataBStorageAddKer.back().size() * sizeof(int),
                                                                     device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
@@ -138,10 +136,8 @@ void TestDevOpsApiKernelCmds::launchAddVectorKernel_PositiveTesting_4_1(uint64_t
       vTempDataResultAddKer.resize(numElemsAddKer, 0);
       vResultStorageAddKer.push_back(std::move(vTempDataResultAddKer));
       auto vResultHostVirtAddr = templ::bit_cast<uint64_t>(vResultStorageAddKer.back().data());
-      auto vResultHostPhysAddr =
-        vResultHostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       streamAddKer.push_back(
-        IDevOpsApiCmd::createCmd<DataReadCmd>(true, vResultDevAddr, vResultHostVirtAddr, vResultHostPhysAddr,
+        IDevOpsApiCmd::createCmd<DataReadCmd>(true, vResultDevAddr, vResultHostVirtAddr, 0,
                                               vResultStorageAddKer.back().size() * sizeof(vTempDataResultAddKer[0]),
                                               device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
@@ -234,9 +230,8 @@ void TestDevOpsApiKernelCmds::launchUberKernel_PositiveTesting_4_4(uint64_t shir
       vResultUberKer.resize(numElemsLayer0, 0xEEEEEEEEEEEEEEEEULL);
       vResultStorageUberKer.push_back(std::move(vResultUberKer));
       auto hostVirtAddr = templ::bit_cast<uint64_t>(vResultStorageUberKer.back().data());
-      auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       streamUberKer.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(
-        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrBufLayer0, hostVirtAddr, hostPhysAddr,
+        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrBufLayer0, hostVirtAddr, 0,
         vResultStorageUberKer.back().size() * sizeof(vResultUberKer[0]),
         device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
@@ -244,9 +239,8 @@ void TestDevOpsApiKernelCmds::launchUberKernel_PositiveTesting_4_4(uint64_t shir
       vResultUberKer.resize(numElemsLayer1, 0xEEEEEEEEEEEEEEEEULL);
       vResultStorageUberKer.push_back(std::move(vResultUberKer));
       hostVirtAddr = templ::bit_cast<uint64_t>(vResultStorageUberKer.back().data());
-      hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       streamUberKer.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(
-        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrBufLayer1, hostVirtAddr, hostPhysAddr,
+        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrBufLayer1, hostVirtAddr, 0,
         vResultStorageUberKer.back().size() * sizeof(vResultUberKer[0]),
         device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
@@ -314,9 +308,8 @@ void TestDevOpsApiKernelCmds::launchEmptyKernel_PositiveTesting_4_5(uint64_t shi
       vResult.resize(0x1000, 0);
       vResultStorage.push_back(std::move(vResult));
       auto hostVirtAddr = templ::bit_cast<uint64_t>(vResultStorage.back().data());
-      auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       streamEmptyKer.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(
-        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrKernelResult, hostVirtAddr, hostPhysAddr,
+        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrKernelResult, hostVirtAddr, 0,
         vResultStorage.back().size(), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
       // Save stream against deviceIdx and queueIdx
@@ -361,9 +354,8 @@ void TestDevOpsApiKernelCmds::launchExceptionKernel_NegativeTesting_4_6(uint64_t
       vResult.resize(0x1000, 0);
       vResultStorage.push_back(std::move(vResult));
       auto hostVirtAddr = templ::bit_cast<uint64_t>(vResultStorage.back().data());
-      auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       streamExceptKer.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(
-        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, kernelExceptionDevAddr, hostVirtAddr, hostPhysAddr,
+        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, kernelExceptionDevAddr, hostVirtAddr, 0,
         vResultStorage.back().size(), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
       // Save stream against deviceIdx and queueIdx
@@ -431,9 +423,8 @@ void TestDevOpsApiKernelCmds::launchHangKernel(uint64_t shire_mask, bool sendAbo
       vResultHangKer.resize(0x100000, 0);
       vResultStorageHangKer.push_back(std::move(vResultHangKer));
       auto hostVirtAddr = templ::bit_cast<uint64_t>(vResultStorageHangKer.back().data());
-      auto hostPhysAddr = hostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
       streamHangKer.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(
-        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrkernelException, hostVirtAddr, hostPhysAddr,
+        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrkernelException, hostVirtAddr, 0,
         vResultStorageHangKer.back().size(), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
       // Save stream against deviceIdx and queueIdx
@@ -543,9 +534,7 @@ void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(bool singleDevi
         generateRandomData(numElemsSameKer, vDataAStorageSameKer, vDataBStorageSameKer, vSumStorageSameKer);
 
         auto hostVirtAddrVecA = templ::bit_cast<uint64_t>(vDataAStorageSameKer.back().data());
-        auto hostPhysAddrVecA = hostVirtAddrVecA; // Should be handled in SysEmu, userspace should not fill this value
         auto hostVirtAddrVecB = templ::bit_cast<uint64_t>(vDataBStorageSameKer.back().data());
-        auto hostPhysAddrVecB = hostVirtAddrVecB; // Should be handled in SysEmu, userspace should not fill this value
         // Load kernel ELF
         uint64_t kernelEntryDevAddrSameKer;
         loadElfToDevice(deviceIdxSameKer, readersSameKer[kernelCount], elfPathSameKer, streamSameKer,
@@ -555,10 +544,10 @@ void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(bool singleDevi
         auto devAddrVecA = dataLoadAddr;
         auto devAddrVecB = devAddrVecA + alignedBufSize;
         streamSameKer.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(
-          device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecA, hostVirtAddrVecA, hostPhysAddrVecA,
+          device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecA, hostVirtAddrVecA, 0,
           vDataAStorageSameKer.back().size() * sizeof(int), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
         streamSameKer.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(
-          device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecB, hostVirtAddrVecB, hostPhysAddrVecB,
+          device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecB, hostVirtAddrVecB, 0,
           vDataBStorageSameKer.back().size() * sizeof(int), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
         // allocate space for kernel args
@@ -582,12 +571,11 @@ void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(bool singleDevi
         vTempDataResultSameKer.resize(numElemsSameKer, 0);
         vResultStorageSameKer.push_back(std::move(vTempDataResultSameKer));
         auto hostVirtAddrRes = templ::bit_cast<uint64_t>(vResultStorageSameKer.back().data());
-        auto hostPhysAddrRes = hostVirtAddrRes; // Should be handled in SysEmu, userspace should not fill this value
         streamSameKer.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(
           (i == 0) ? device_ops_api::CMD_FLAGS_BARRIER_ENABLE
                    : device_ops_api::CMD_FLAGS_BARRIER_DISABLE, /* Barrier only for first read to make sure that all
                                                                    kernels execution done */
-                     devAddrVecResultPerQueue[i], hostVirtAddrRes, hostPhysAddrRes,
+                     devAddrVecResultPerQueue[i], hostVirtAddrRes, 0,
           vResultStorageSameKer.back().size() * sizeof(vTempDataResultSameKer[0]),
           device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
       }
@@ -671,14 +659,12 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(bool singl
         auto devAddrVecB = devAddrVecA + alignedBufSize;
         // Copy kernel input data to device
         auto hostVirtAddrA = templ::bit_cast<uint64_t>(vDataAStorageDiffKer.back().data());
-        auto hostPhysAddrA = hostVirtAddrA; // Should be handled in SysEmu, userspace should not fill this value
         streamDiffKer.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(
-            device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecA, hostVirtAddrA, hostPhysAddrA,
+            device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecA, hostVirtAddrA, 0,
             vDataAStorageDiffKer.back().size() * sizeof(int), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
         auto hostVirtAddrB = templ::bit_cast<uint64_t>(vDataBStorageDiffKer.back().data());
-        auto hostPhysAddrB = hostVirtAddrB; // Should be handled in SysEmu, userspace should not fill this value
         streamDiffKer.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(
-            device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecB, hostVirtAddrB, hostPhysAddrB,
+            device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecB, hostVirtAddrB, 0,
             vDataBStorageDiffKer.back().size() * sizeof(int), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
         // Copy kernel args to device
@@ -737,12 +723,11 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(bool singl
       vTempDataResultDiffKer.resize(numElemsDiffKer, 0);
       vResultStorageDiffKer.push_back(std::move(vTempDataResultDiffKer));
       auto hostVirtAddrRes = templ::bit_cast<uint64_t>(vResultStorageDiffKer.back().data());
-      auto hostPhysAddrRes = hostVirtAddrRes; // Should be handled in SysEmu, userspace should not fill this value
       streamDiffKer.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(
           (i == 0) ? device_ops_api::CMD_FLAGS_BARRIER_ENABLE
               : device_ops_api::CMD_FLAGS_BARRIER_DISABLE, /* Barrier only for first read to make sure that all
                                                                    kernels execution done */
-                devAddrVecResultPerQueue[i], hostVirtAddrRes, hostPhysAddrRes,
+                devAddrVecResultPerQueue[i], hostVirtAddrRes, 0,
                 vResultStorageDiffKer.back().size() * sizeof(vTempDataResultDiffKer[0]),
                 device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     }
@@ -801,10 +786,9 @@ void TestDevOpsApiKernelCmds::backToBackEmptyKernelLaunch_3_3(uint64_t totalKer,
         vResultEmptyKer.resize(0x1000, 0);
         vResultStorageEmptyKer.push_back(std::move(vResultEmptyKer));
         auto hostVirtAddrRes = templ::bit_cast<uint64_t>(vResultStorageEmptyKer.back().data());
-        auto hostPhysAddrRes = hostVirtAddrRes; // Should be handled in SysEmu, userspace should not fill this value
         streamEmptyKer.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(
           i == 0, /* Barrier only for first read to make sure that all kernels execution done */
-          devAddrResult[i], hostVirtAddrRes, hostPhysAddrRes, vResultStorageEmptyKer.back().size(),
+          devAddrResult[i], hostVirtAddrRes, 0, vResultStorageEmptyKer.back().size(),
           device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
       }
 
@@ -841,7 +825,6 @@ TestDevOpsApiKernelCmds::fillDMAWriteNode(uint64_t srcHostVirtAddr, uint64_t dst
   device_ops_api::dma_write_node node;
 
   node.src_host_virt_addr = srcHostVirtAddr;
-  node.src_host_phy_addr = srcHostVirtAddr; // Should be handled in SysEmu, userspace should not fill this value
   node.dst_device_phy_addr = dstDevPhyAddr;
   node.size = size;
   return node;
@@ -852,7 +835,6 @@ TestDevOpsApiKernelCmds::fillDMAReadNode(uint64_t dstHostVirtAddr, uint64_t srcD
   device_ops_api::dma_read_node node;
 
   node.dst_host_virt_addr = dstHostVirtAddr;
-  node.dst_host_phy_addr = dstHostVirtAddr; //  // Should be handled in SysEmu, userspace should not fill this value
   node.src_device_phy_addr = srcDevPhyAddr;
   node.size = size;
   return node;

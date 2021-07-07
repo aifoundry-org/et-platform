@@ -200,7 +200,7 @@ bool TestDevOpsApiDmaCmds::fillDmaListStream(int deviceIdx, int queueIdx, std::v
     case DmaType::DMA_WRITE:
       wrList[wrNodesFilled] = {
         .src_host_virt_addr = templ::bit_cast<uint64_t>(dmaWrBufs[key(deviceIdx, queueIdx)][wrIdx]),
-        .src_host_phy_addr = templ::bit_cast<uint64_t>(dmaWrBufs[key(deviceIdx, queueIdx)][wrIdx]),
+        .src_host_phy_addr = 0,
         .dst_device_phy_addr = getDmaWriteAddr(deviceIdx, dmaMoveSequence[i].second),
         .size = static_cast<uint32_t>(dmaMoveSequence[i].second)};
       wrNodesFilled++;
@@ -209,7 +209,7 @@ bool TestDevOpsApiDmaCmds::fillDmaListStream(int deviceIdx, int queueIdx, std::v
     case DmaType::DMA_READ:
       rdList[rdNodesFilled] = {
         .dst_host_virt_addr = templ::bit_cast<uint64_t>(dmaRdBufs[key(deviceIdx, queueIdx)][rdIdx]),
-        .dst_host_phy_addr = templ::bit_cast<uint64_t>(dmaRdBufs[key(deviceIdx, queueIdx)][rdIdx]),
+        .dst_host_phy_addr = 0,
         .src_device_phy_addr = getDmaReadAddr(deviceIdx, dmaMoveSequence[i].second),
         .size = static_cast<uint32_t>(dmaMoveSequence[i].second)};
       rdNodesFilled++;
@@ -533,15 +533,14 @@ void TestDevOpsApiDmaCmds::dataRWListCmd_NegativeTesting_3_12() {
     auto* wrBufPtr = static_cast<uint8_t*>(dmaWrMemPtrs[deviceIdx]);
 
     for (int nodeIdx = 0; nodeIdx < kNodeCount; ++nodeIdx) {
-      // NOTE: host_phys_addr should be handled in SysEmu, userspace should not fill this value
       wrList[nodeIdx] = {.src_host_virt_addr = templ::bit_cast<uint64_t>(wrBufPtr),
-                         .src_host_phy_addr = templ::bit_cast<uint64_t>(wrBufPtr),
+                         .src_host_phy_addr = 0,
                          .dst_device_phy_addr = (nodeIdx == 0) ? 0 : getDmaWriteAddr(deviceIdx, kBufSize),
                          .size = kBufSize};
       wrBufPtr += kBufSize;
 
       rdList[nodeIdx] = {.dst_host_virt_addr = templ::bit_cast<uint64_t>(rdBufPtr),
-                         .dst_host_phy_addr = templ::bit_cast<uint64_t>(rdBufPtr),
+                         .dst_host_phy_addr = 0,
                          .src_device_phy_addr = (nodeIdx == 0) ? 0 : getDmaReadAddr(deviceIdx, kBufSize),
                          .size = kBufSize};
       rdBufPtr += kBufSize;
