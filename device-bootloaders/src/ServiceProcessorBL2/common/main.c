@@ -162,7 +162,10 @@ static void taskMain(void *pvParameters)
     }
     
     //Value wasn't burned into fuse, using default value
-    if (mm_id == 0xff) mm_id = 32;
+    if (mm_id == 0xff){
+       Log_Write(LOG_LEVEL_WARNING, "Master shire ID was not found in the OTP, using default value of 32!\n");
+       mm_id = 32;
+    }
 
     if (0 != Minion_Enable_Master_Shire_Threads(mm_id)) {
         Log_Write(LOG_LEVEL_ERROR, "Failed to enable Master minion threads!\n");
