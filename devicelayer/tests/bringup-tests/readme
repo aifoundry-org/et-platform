@@ -1,17 +1,24 @@
 Instructions to use the test framework:
 
-> To create a suite of tests it is recommended a new pttest file be
-created. See test_sp.py for example.
+1. To create a suite of tests it is recommended a new pytest file be
+created. See test_sp_fifo.py for an example of SP tests on Simulator
+over the FIFO interface.
 
-> tf_target class implements support to connect to supported target
-intarfaces (fifo for sysemu, serial for silicon, JTAG)
+2. tf_target_fifo class implements support to connect to supported target
+intarfaces (fifo for sysemu).
 
->tf_specification class implements services to create and processes
-supported test commands. test_specificication.json documents meta
+tf_target_serial class implements support to connect to supported target
+intarfaces (serial for silicon, and Zebu)
+
+tf_target_jtag class implements support to connect to supported target
+intarfaces (jtag for silicon, and Zebu)
+
+3. tf_specification class implements services to create and processes
+supported test commands. test_specification.json documents meta
 data needed for TF commands and responses
 
 > JSON test specifiction: to add a new test command and response:
-    >Add command and response <name><id> to "command_ids" and 
+    >Add command and response <name><id> to "command_ids" and
     "response_ids" in the JSON file
     >Add command/response binding:
     Example command binding for echo command to SP
@@ -34,76 +41,94 @@ data needed for TF commands and responses
         }
     },
 
-> To run the pytest use command below
-    pytest <testfile> -s
-    Example, >pytest test_sp.py -s
+4. NOTE: Before running any pytests please install following using command below within your Docker runtime
+        > pip install pyserial
+        > pip install pyelftools
+
+5. To run the pytest use command below
+        > pytest <testfile> -s
+
+    Example,
+    bash-4.2$ pytest test_sp_fifo.py -s -v
 
 > Output from test run
-
 *********************************************************************************************************
+bash-4.2$ pytest test_sp_fifo.py -s -v
+collected 6 items
 
-pytest test_sp.py -s
-============================= test session starts ==============================
-platform linux -- Python 3.6.8, pytest-5.2.0, py-1.10.0, pluggy-0.13.1
-rootdir: /eng/arvindr/work/repo/sw-platform/build/host-software/deviceLayer/tests/bringup-tests
-plugins: forked-1.3.0, html-2.0.0, metadata-1.11.0, rerunfailures-9.0, xdist-1.30.0
-collected 6 items                                                              
-
-test_sp.py Launching sysemu..
-mkfifo: cannot create fifo 'sp_uart0_tx': File exists
-mkfifo: cannot create fifo 'sp_uart0_rx': File exists
-Test project /eng/arvindr/work/repo/sw-platform/build/host-software/deviceLayer/tests/bringup-tests
-    Start 1: device-layer:TestLaunchSysemu.LaunchSuccess
-test initialization
-Fifo Target Instance: sp_uart0_tx:sp_uart0_rx
-Serial Target Instance: /dev/ttyS0:115200
-.Testing echo to SP..
+test_sp_fifo.py::test_env_initialize Setup environment
+Launch TF Manager
+TF Manager: Waiting on client!.............
+Client connected !....
+Read socket.....
+Processing user command, size: 1
+start_sim:0size:1
+stop_sim:-1size:1
+Start Simulator (start_sim)..
+Read socket.....
+Sim thread spawned ..:
+LOGGER NOT INITIALIZED:
+		ET [DEVICE_LAYER]: BAR0 selected: 0x1000000000
+Fifo Target Instance: run/sp_uart1_tx:run/sp_uart1_rx
+PASSED
+test_sp_fifo.py::test_echo_to_sp Testing echo to SP..
+b'$\x03\x00\x02\x00\x04\x00\x00\x00\xef\xbe\xad\xde#\xa5\xa5\xa5\xa5%'
+b'\r$\x03\x01\x10\x00\x04\x00\x00\x00\xef\xbe\xad\xde#\xa5\xa5\xa5\xa5'
 id
-        259
+	259
 flags
-        16
+	16
 payload_size
-        4
+	4
 cmd_payload
-        3735928559
-.Testing echo to MM..
+	3735928559
+PASSED
+test_sp_fifo.py::test_echo_to_mm Testing echo to MM..
+b'$\x04\x00\x02\x00\x04\x00\x00\x00\xef\xbe\xad\xde#\xa5\xa5\xa5\xa5%'
+b'$\x04\x01\x10\x00\x04\x00\x00\x00\xef\xbe\xad\xde#\xa5\xa5\xa5\xa5'
 id
-        259
+	260
 flags
-        16
+	16
 payload_size
-        4
+	4
 cmd_payload
-        3735928559
-.SP FW version ..
+	3735928559
+PASSED
+test_sp_fifo.py::test_sp_fw_ver SP FW version ..
+b'$\x01\x00\x01\x00\x00\x00\x00\x00#\xa5\xa5\xa5\xa5%'
+b'$\x01\x01\x10\x00\x0c\x00\x00\x00\x01\x00\x00\x00\x02\x00\x00\x00\x03\x00\x00\x00#\xa5\xa5\xa5\xa5'
 id
-        257
+	257
 flags
-        16
+	16
 payload_size
-        12
+	12
 major
-        1
+	1
 minor
-        2
+	2
 revision
-        3
-.MM FW Version ..
+	3
+PASSED
+test_sp_fifo.py::test_mm_fw_ver MM FW Version ..
+b'$\x02\x00\x01\x00\x00\x00\x00\x00#\xa5\xa5\xa5\xa5%'
+b'$\x02\x01\x10\x00\x0c\x00\x00\x00\x01\x00\x00\x00\x02\x00\x00\x00\x03\x00\x00\x00#\xa5\xa5\xa5\xa5'
 id
-        258
+	258
 flags
-        16
+	16
 payload_size
-        12
+	12
 major
-        1
+	1
 minor
-        2
+	2
 revision
-        3
-.test finalize
-.
-
-============================== 6 passed in 5.07s ===============================
+	3
+PASSED
+test_sp_fifo.py::test_env_finalize Tear down environment
+Tear down environment
+PASSED
 
 *********************************************************************************************************

@@ -1,0 +1,78 @@
+#!/usr/bin/python3.6
+
+import time, sys 
+
+sys.path.append(".")
+
+# Import test framework 
+from tf_target import *
+from tf_specification import *
+import argparse
+
+supported_ports = ['TCP', 'COM']
+supported_buads = [19200, 38400, 57600, 115200]
+tcp_port = 23456
+snps_cloud_machine = { "rt001" : "10.8.32.73",
+                       "rt002" : "10.8.32.74",
+                       "rt003" : "10.8.32.75",
+                       "rt004" : "10.8.32.76",
+                       "rt005" : "10.8.32.81",
+                       "rt006" : "10.8.32.82",
+                       "rt007" : "10.8.32.83",
+                       "rt008" : "10.8.32.84",
+                       "rt009" : "10.8.32.85",
+                       "rt010" : "10.8.32.86",
+                       "rt011" : "10.8.32.87",
+                       "rt012" : "10.8.32.88"
+                   }
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-c', '--cmd', nargs='+', help="TF Command with or without payload - Example usage - -c (--cmd) <cmd0>:<payload0> <cmd3> <cmd1>:<payload1> <cmd2>")
+parser.add_argument("-p", "--port", required=True, help="Port type - TCP or COM")
+parser.add_argument("-a", "--attr", type=int, help="Port number - 0:65536 or Baud Rate - {supported_bauds}")
+parser.add_argument("-m", "--machine", type=str, help="Host name or IP address of the machine to connect to for TCP port type")
+args = parser.parse_args()
+
+if args.cmd is None:
+        print (f'*** Warning *** no command specified uart communicator will be skipped')
+        exit()
+else:
+    args.port = args.port.upper()
+    if not args.port in supported_ports:
+        print ('\n')
+        print (f'Port type "{args.port}" is not supported. Supported port types are {supported_ports}')
+        print ('\n')
+        parser.print_help()
+        exit(1)
+
+    if not args.machine or not args.attr:
+        print ('\n')
+        if args.port in 'TCP':
+            print (f'Port type "{args.port}" requires hostname with -m / --machine  and port number with --attr / -a option')
+        else:
+            print (f'Port type "{args.port}" requires com port with -m / --machine  and baud rate with --attr / -a option')
+        print ('\n')
+        parser.print_help()
+        exit(1)
+
+# Instantiate TF Specification handle
+global tf_spec
+tf_spec = tf_specification("tf_specification.json")
+
+# Instantiate a global dut_serial_iface handle
+global dut_serial_iface
+dut_serial_iface = Target("serial", args.port, snps_cloud_machine[args.machine], args.attr)
+# Open test interface
+dut_serial_iface.open()
+
+for cmd in args.cmd:
+    command = tf_spec.command(cmd)
+    dut_serial_iface.uart_send(command)
+    rbytes = b''
+    while True:
+        recv_byte = dut_serial_iface.uart_receive()
+        if b'#' in recv_byte:
+            break
+        rbytes += recv_byte
+    response = tf_spec.response(rbytes) 
+    print (response)
