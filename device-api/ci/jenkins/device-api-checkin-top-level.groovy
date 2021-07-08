@@ -116,7 +116,7 @@ pipeline {
         stage('JOB_RUNTIME') {
           steps {
             build job:
-              'sw-platform/runtime-integration/pipelines/runtime-checkin-tests',
+              'sw-platform/runtime-integration/pipelines/runtime-checkin-tests-release',
               propagate: true,
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
