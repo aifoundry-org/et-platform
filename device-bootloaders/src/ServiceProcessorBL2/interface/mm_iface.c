@@ -58,7 +58,7 @@ static bool mm2sp_wait_for_response(bool enable_timeout)
     do
     {
         /* Check if response from MM is received. */
-        if(SP_MM_Iface_Data_Available(SP_CQ) == true)
+        if(SP_MM_Iface_Data_Available(MM_CQ) == true)
         {
             return true;
         }
@@ -67,7 +67,7 @@ static bool mm2sp_wait_for_response(bool enable_timeout)
             /* Data not available, suspend the task for a fix time. and then check again.
                 This suspension time (in ticks) is a temporary number can be made
                 dynamic based on caller timeout. */
-            vTaskDelay(50);
+            vTaskDelay(10);
         }
 
         /* If timeout was enabled */
@@ -78,6 +78,77 @@ static bool mm2sp_wait_for_response(bool enable_timeout)
     } while(wait_for_rsp);
 
     return false;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       MM_Iface_MM_Command_Shell
+*
+*   DESCRIPTION
+*
+*       This interface allows SP to push MM device api commands to
+*       MM FW.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       int32_t  Success or error code.
+*
+***********************************************************************/
+int32_t MM_Iface_MM_Command_Shell(void* cmd, uint32_t cmd_size,
+    char* rsp, uint32_t *rsp_size)
+{
+    int32_t retval = SUCCESS;
+
+    Log_Write(LOG_LEVEL_INFO, "SP2MM:MM_Iface_MM_Command_Shell.\r\n");
+
+    if(xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
+    {
+        /* Send command to MM. */
+        if(0 != MM_Iface_Push_Cmd_To_SP2MM_SQ(cmd, cmd_size))
+        {
+            Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error!\r\n");
+            xSemaphoreGive(mm_cmd_lock);
+            return MM_IFACE_SP2MM_CMD_PUSH_ERROR;
+        }
+
+        /* Wait for response from MM with default timeout. */
+        if(mm2sp_wait_for_response(false))
+        {
+            Log_Write(LOG_LEVEL_INFO,
+                "MM2SP:MM_Iface_Push_Cmd_To_SP2MM_SQ: Waiting on response ... \r\n");
+
+            /* Get response from MM. */
+            retval = MM_Iface_Pop_Rsp_From_SP2MM_CQ(rsp);
+
+            Log_Write(LOG_LEVEL_INFO,
+                "MM2SP:MM_Iface_Push_Cmd_To_SP2MM_SQ: Got response size = %d \r\n", retval);
+
+            if (retval <= 0)
+            {
+                retval = MM_IFACE_SP2MM_INVALID_RESPONSE;
+                *rsp_size = 0;
+            }
+            else
+            {
+                *rsp_size = (uint32_t)retval;
+                retval = SUCCESS;
+            }
+        }
+
+        xSemaphoreGive(mm_cmd_lock);
+    }
+    else
+    {
+        return MM_IFACE_SP2MM_TIMEOUT_ERROR;
+    }
+
+    return retval;
 }
 
 /************************************************************************

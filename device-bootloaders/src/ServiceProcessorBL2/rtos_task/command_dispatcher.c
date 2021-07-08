@@ -241,6 +241,8 @@ static void mm2sp_echo_cmd_handler(const void *cmd_buffer)
     const struct mm2sp_echo_cmd_t *cmd = cmd_buffer;
     struct mm2sp_echo_rsp_t rsp;
 
+    Log_Write(LOG_LEVEL_INFO, "MM2SP_CMD_ECHO: \n");
+
     /* Initialize command header */
     SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_ECHO,
     sizeof(struct mm2sp_echo_rsp_t), cmd->msg_hdr.issuing_hart_id)
@@ -257,6 +259,10 @@ static void mm2sp_get_active_shire_mask_cmd_handler(const void *cmd_buffer)
 {
     const struct mm2sp_get_active_shire_mask_cmd_t *cmd = cmd_buffer;
     struct mm2sp_get_active_shire_mask_rsp_t rsp;
+
+    Log_Write(LOG_LEVEL_INFO,
+        "MM2SP_CMD_GET_ACTIVE_SHIRE_MASK: response going to  MM HART: %d\n",
+        cmd->msg_hdr.issuing_hart_id);
 
     SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_GET_ACTIVE_SHIRE_MASK,
     sizeof(struct mm2sp_get_active_shire_mask_rsp_t),
@@ -275,6 +281,8 @@ static void mm2sp_get_fw_version_cmd_handler(const void *cmd_buffer)
     const struct mm2sp_get_fw_version_t *cmd = cmd_buffer;
     struct mm2sp_get_fw_version_rsp_t rsp;
 
+    Log_Write(LOG_LEVEL_INFO, "MM2SP_CMD_GET_FW_VERSION: \n");
+
     SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_GET_FW_VERSION,
     sizeof(struct mm2sp_get_fw_version_rsp_t),
     cmd->msg_hdr.issuing_hart_id)
@@ -284,6 +292,8 @@ static void mm2sp_get_fw_version_cmd_handler(const void *cmd_buffer)
     /* Call the API to get the FW version */
     if(cmd->fw_type == MM2SP_MASTER_MINION_FW)
     {
+        Log_Write(LOG_LEVEL_INFO, "MM2SP_MASTER_MINION_FW: \n");
+
         /* Request firmware service for version */
         firmware_service_get_mm_version(&rsp.major, &rsp.minor, &rsp.revision);
 
@@ -292,6 +302,8 @@ static void mm2sp_get_fw_version_cmd_handler(const void *cmd_buffer)
     }
     else if(cmd->fw_type == MM2SP_MACHINE_MINION_FW)
     {
+        Log_Write(LOG_LEVEL_INFO, "MM2SP_MACHINE_MINION_FW: \n");
+
         /* Request firmware service for version */
         firmware_service_get_machm_version(&rsp.major, &rsp.minor, &rsp.revision);
 
@@ -300,6 +312,8 @@ static void mm2sp_get_fw_version_cmd_handler(const void *cmd_buffer)
     }
     else if(cmd->fw_type == MM2SP_WORKER_MINION_FW)
     {
+        Log_Write(LOG_LEVEL_INFO, "MM2SP_WORKER_MINION_FW: \n");
+
         /* Request firmware service for version */
         firmware_service_get_wm_version(&rsp.major, &rsp.minor, &rsp.revision);
 
@@ -437,27 +451,17 @@ static void mm_cmd_hdlr_task(void *pvParameters)
     }
 }
 
-void sp_intf_init(void)
-{
-    /* Setup and Initialize the SP -> Host Transport layer*/
-    SP_Host_Iface_SQ_Init();
-    SP_Host_Iface_CQ_Init();
-
-    /* MM Iface initialization */
-    MM_Iface_Init();
-}
-
-void launch_command_dispatcher(void)
+void launch_host_sp_command_handler(void)
 {
     /* Launch the SP-HOST Command Dispatcher*/
     create_pc_vq_task();
     INT_enableInterrupt(SPIO_PLIC_MBOX_HOST_INTR, 1, vqueue_pcie_isr);
+}
 
+void launch_mm_sp_command_handler(void)
+{
     /* Launch the SP-MM Command Dispatcher*/
     create_mm_cmd_hdlr_task();
 
     INT_enableInterrupt(SPIO_PLIC_MBOX_MMIN_INTR, 1, vqueue_mm_isr);
 }
-
-
-

@@ -78,6 +78,7 @@ int8_t TF_Send_Response(void* rsp, uint32_t rsp_size)
     byte_copy(p_rsp, (char*)&magic, TF_CHECKSUM_SIZE);
     p_rsp += TF_CHECKSUM_SIZE;size += TF_CHECKSUM_SIZE;
     *p_rsp = TF_CHECKSUM_END;
+    size++;
 
     SERIAL_write(UART1, &Output_Rsp_Buffer[0], (int)size);
 

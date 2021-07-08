@@ -22,6 +22,13 @@
 #include "vq.h"
 #include "sp_vq_build_config.h"
 
+/*! \fn int8_t SP_Host_Iface_Init(void)
+    \brief Initialize SP to Host Interface
+    \param none
+    \return status
+*/
+int8_t SP_Host_Iface_Init(void);
+
 /*! \fn int8_t SP_Iface_SQs_Init(void)
     \brief Initialize SP Interface SQs
     \param none

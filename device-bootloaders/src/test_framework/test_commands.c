@@ -3,9 +3,9 @@
 
 /* Extern prototypes for TF command handlers */
 extern int8_t SP_Fw_Version_Cmd_Handler(void* test_cmd);
-extern int8_t MM_Fw_Version_Cmd_Handler(void* test_cmd);
+extern int8_t MM_Cmd_Shell_Debug_Print_Cmd_Handler(void* test_cmd);
 extern int8_t Echo_To_SP_Cmd_Handler(void* test_cmd);
-extern int8_t Echo_To_MM_Cmd_Handler(void* test_cmd);
+extern int8_t MM_Cmd_Shell_Cmd_Handler(void* test_cmd);
 extern int8_t Move_Data_To_Device_Cmd_Handler(void* test_cmd);
 extern int8_t Move_Data_To_Host_Cmd_Handler(void* test_cmd);
 
@@ -86,7 +86,7 @@ int8_t Unregistered_Handler(void* test_cmd)
 {
     (void)test_cmd;
     tf_rsp_hdr_t rsp_hdr;
-    
+
     rsp_hdr.id = TF_RSP_UNSUPPORTED;
     rsp_hdr.flags = TF_RSP_ONLY;
     rsp_hdr.payload_size =  0;
@@ -99,18 +99,18 @@ int8_t Unregistered_Handler(void* test_cmd)
 /* Modify the fn pointer table below to add new test,
  for each new test added, define the test handler at the
  array index based on tf_cmd_t enum */
-int8_t (*TF_Test_Cmd_Handler[TF_NUM_COMMANDS])(void *test_cmd) = 
+int8_t (*TF_Test_Cmd_Handler[TF_NUM_COMMANDS])(void *test_cmd) =
 {
 // 0
-    Unregistered_Handler, 
-// 1  
+    Unregistered_Handler,
+// 1
     SP_Fw_Version_Cmd_Handler,
 // 2
-    MM_Fw_Version_Cmd_Handler,
+    Unregistered_Handler,
 // 3
     Echo_To_SP_Cmd_Handler,
 // 4
-    Echo_To_MM_Cmd_Handler,
+    Unregistered_Handler,
 // 5
     Move_Data_To_Device_Cmd_Handler,
 // 6
@@ -316,5 +316,9 @@ int8_t (*TF_Test_Cmd_Handler[TF_NUM_COMMANDS])(void *test_cmd) =
     Asset_Tracking_Memory_Size_Cmd_Handler,
 // 106
     Asset_Tracking_Memory_Type_Cmd_Handler,
+// 107
+    MM_Cmd_Shell_Cmd_Handler,
+// 108
+    MM_Cmd_Shell_Debug_Print_Cmd_Handler,
 #endif  // !TF_CORE
 };

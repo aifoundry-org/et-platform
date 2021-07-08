@@ -48,7 +48,7 @@ static void dump_power_globals_trace(void *buf);
 __attribute__((noreturn)) void bl2_exception_entry(const void *stack_frame)
 {
 
-    //NOSONAR  TODO: Disbale global interrupts 
+    //NOSONAR  TODO: Disbale global interrupts
 
     /* get trace buffer start pointer */
     uint32_t trace_buf_offset = Trace_Get_SP_CB()->offset_per_hart;
@@ -63,9 +63,9 @@ __attribute__((noreturn)) void bl2_exception_entry(const void *stack_frame)
         in the context switch code.
     */
     dump_stack_frame(stack_frame, trace_buf);
-    
+
     trace_buf += SP_EXCEPTION_STACK_FRAME_SIZE;
-    
+
     /* Dump the important CSRs */
     dump_csrs(trace_buf);
 
@@ -106,7 +106,7 @@ __attribute__((noreturn)) void bl2_exception_entry(const void *stack_frame)
 void bl2_dump_stack_frame(void)
 {
     uint64_t stack_frame;
-    uint64_t *trace_buf = Trace_Buffer_Reserve(Trace_Get_SP_CB(), 
+    uint64_t *trace_buf = Trace_Buffer_Reserve(Trace_Get_SP_CB(),
                                                 SP_EXCEPTION_FRAME_SIZE);
     *trace_buf++ = timer_get_ticks_count();
     *trace_buf++ = TRACE_TYPE_EXCEPTION;
@@ -250,7 +250,7 @@ static void *dump_perf_globals_trace(void * buf)
     {
         *trace_buf++ = last_ts;
     }
-    
+
     return (void *)trace_buf;
 }
 
@@ -276,10 +276,10 @@ static void *dump_perf_globals_trace(void * buf)
 static void dump_power_globals_trace(void *buf)
 {
     uint8_t *trace_buf = (uint8_t *)buf;
-    struct module_uptime_t module_uptime;
-    struct module_voltage_t module_voltage;
-    power_state_e power_state;
-    tdp_level_e tdp_level;
+    struct module_uptime_t module_uptime = {0};
+    struct module_voltage_t module_voltage = {0};
+    power_state_e power_state = 0;
+    tdp_level_e tdp_level = 0;
     uint64_t throttle_time=0;
     uint8_t temp=0;
 
@@ -353,7 +353,7 @@ void SP_Exception_Event(uint32_t buf)
 {
     struct event_message_t message;
 
-    /* add details in message header and fill payload */ 
+    /* add details in message header and fill payload */
     FILL_EVENT_HEADER(&message.header, SP_RUNTIME_EXCEPT,
             sizeof(struct event_message_t) - sizeof(struct cmn_header_t))
     FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, timer_get_ticks_count(), buf)

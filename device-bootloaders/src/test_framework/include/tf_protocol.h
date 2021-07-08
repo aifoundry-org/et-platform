@@ -31,9 +31,9 @@ typedef enum {
     /* HW TF commands from 0 - 69 */
     TF_CMD_OFFSET=0,
     TF_CMD_SP_FW_VERSION=1,
-    TF_CMD_MM_FW_VERSION=2,
+    TF_CMD_UNUSED1=2,
     TF_CMD_ECHO_TO_SP=3,
-    TF_CMD_ECHO_TO_MM=4,
+    TF_CMD_UNUSED2=4,
     TF_CMD_MOVE_DATA_TO_DEVICE=5,
     TF_CMD_MOVE_DATA_To_HOST=6,
     TF_CMD_SPIO_RAM_READ_WORD=7,
@@ -102,16 +102,18 @@ typedef enum {
     TF_CMD_AT_MEMORY_DETAILS=104,
     TF_CMD_AT_MEMORY_SIZE_MB=105,
     TF_CMD_AT_MEMORY_TYPE=106,
-    TF_CMD_UNSUPPORTED=107
+    TF_CMD_MM_CMD_SHELL=107,
+    TF_CMD_MM_CMD_SHELL_DEBUG_PRINT=108,
+    TF_CMD_UNSUPPORTED=109
 }tf_cmd_t;
 
 typedef enum {
     /* HW TF response from 256 - 351 */
     TF_RSP_OFFSET=256,
     TF_RSP_SP_FW_VERSION=257,
-    TF_RSP_MM_FW_VERSION=258,
+    TF_RSP_UNUSED1=258,
     TF_RSP_ECHO_TO_SP=259,
-    TF_RSP_ECHO_TO_MM=260,
+    TF_RSP_UNUSED2=260,
     TF_RSP_MOVE_DATA_TO_DEVICE=261,
     TF_RSP_MOVE_DATA_To_HOST=262,
     TF_RSP_SPIO_RAM_READ_WORD=263,
@@ -180,8 +182,9 @@ typedef enum {
     TF_RSP_AT_MEMORY_DETAILS=359,
     TF_RSP_AT_MEMORY_SIZE_MB=360,
     TF_RSP_AT_MEMORY_TYPE=361,
-    TF_RSP_MM_TESTS_OFFSET=362,
-    TF_RSP_UNSUPPORTED=363
+    TF_RSP_MM_CMD_SHELL=362,
+    TF_RSP_UNUSED3=363,
+    TF_RSP_UNSUPPORTED=364,
 }tf_rsp_t;
 
 #define TF_NUM_COMMANDS (TF_CMD_UNSUPPORTED - TF_CMD_OFFSET)
@@ -198,7 +201,7 @@ struct header_t {
 typedef struct header_t tf_cmd_hdr_t;
 typedef struct header_t tf_rsp_hdr_t;
 
-/* Test Commands and responses */
+/* Generic test command and response prototypes */
 struct tf_cmd_rsp_t {
     tf_rsp_hdr_t  rsp_hdr;
     uint32_t      status;
@@ -256,16 +259,41 @@ struct tf_get_spfw_ver_rsp_t {
     uint32_t      version;
 };
 
-struct tf_get_mmfw_ver_cmd_t {
+struct tf_mm_cmd_shell_cmd_t {
     tf_cmd_hdr_t  cmd_hdr;
-};
-struct tf_get_mmfw_ver_rsp_t {
-    tf_rsp_hdr_t  rsp_hdr;
-    uint32_t      major;
-    uint32_t      minor;
-    uint32_t      version;
+    uint32_t      size;
+    char          data[];
 };
 
+struct tf_mm_rsp_shell_rsp_t {
+    tf_rsp_hdr_t  rsp_hdr;
+    uint32_t      size;
+    char          data[256];
+};
+
+struct tf_move_data_to_device_cmd_t {
+    tf_cmd_hdr_t  cmd_hdr;
+    uint64_t      dst_addr;
+    uint32_t      size;
+    char          data[TF_MAX_CMD_SIZE];
+};
+struct tf_move_data_to_device_rsp_t {
+    tf_rsp_hdr_t  rsp_hdr;
+    uint32_t      bytes_written;
+};
+
+struct tf_move_data_to_host_cmd_t {
+    tf_cmd_hdr_t  cmd_hdr;
+    uint64_t      src_addr;
+    uint32_t      size;
+};
+struct tf_move_data_to_host_rsp_t {
+    tf_rsp_hdr_t  rsp_hdr;
+    uint32_t      bytes_read;
+    char          data[TF_MAX_RSP_SIZE];
+};
+
+/* DM test command and response prototypes */
 struct tf_asset_tracking_rsp_t {
     tf_rsp_hdr_t rsp_hdr;
     char         data[8];

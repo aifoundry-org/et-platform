@@ -51,6 +51,21 @@
 #include "tf.h"
 #endif
 
+/*! \def ASSERT_FATAL(cond, log)
+    \brief A blocking assertion macro with serial log for SP runtime
+*/
+#define ASSERT_FATAL(cond, log)                                                    \
+    if (!(cond))                                                                   \
+    {                                                                              \
+        Log_Write(LOG_LEVEL_ERROR,                                                 \
+        "Fatal error on line %d in %s: %s\r\n", __LINE__, __FUNCTION__, log);      \
+        while (1)                                                                  \
+        {                                                                          \
+            Log_Write(LOG_LEVEL_CRITICAL, "M");                                    \
+            vTaskDelay(2U);                                                        \
+        }                                                                          \
+    }
+
 #define TASK_STACK_SIZE 4096 // overkill for now
 
 void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
@@ -75,6 +90,7 @@ static void taskMain(void *pvParameters)
 {
     uint64_t minion_shires_mask;
     uint8_t mm_id;
+    int status;
     (void)pvParameters;
 
     // Disable buffering on stdout
@@ -90,89 +106,89 @@ static void taskMain(void *pvParameters)
     configure_pshire_pll(6);
     PCIe_init(false /*expect_link_up*/);
 #else
+    #if !TEST_FRAMEWORK /* Do not initialize PCIe for TF */
     PCIe_init(true /*expect_link_up*/);
+    #endif
 #endif
 
+    // Initialize Compute Minions based on active compute minion mask
     minion_shires_mask = Minion_Get_Active_Compute_Minion_Mask();
 
     Minion_State_Init(minion_shires_mask);
 
-    // Create and Initialize all VQ for SP interfaces (Host and MM)
-    sp_intf_init();
+    // Initialize Host to Service Processor Interface
+    #if !TEST_FRAMEWORK
+    status = SP_Host_Iface_Init();
+    ASSERT_FATAL(status == STATUS_SUCCESS, "SP Host Interface Initialization failed!")
+    #endif
+
+    // Initialize Service Processor to Master Minion FW interface
+    status = MM_Iface_Init();
+    ASSERT_FATAL(status == STATUS_SUCCESS, "SP to Master Minion FW Interface Initialization failed!")
 
     /* Initialize the DIRs */
     DIR_Init();
 
     /* Set the minion shires available */
     DIR_Set_Minion_Shires(minion_shires_mask);
-
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_VQ_READY);
-
     Log_Write(LOG_LEVEL_CRITICAL, "time: %lu\n", timer_get_ticks_count());
 
-   // Setup NOC
-   /* Configure NOC to 400 Mhz */
-    if (0 != NOC_Configure(5)) {
-        Log_Write(LOG_LEVEL_ERROR, "configure_noc() failed!\n");
-        goto FIRMWARE_LOAD_ERROR;
-    }
+    // Setup NOC
+    status = NOC_Configure(5); /* Configure NOC to 400 Mhz */
+    ASSERT_FATAL(status == STATUS_SUCCESS, "configure_noc() failed!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_NOC_INITIALIZED);
 
-   // Setup MemShire/DDR
-
-    if (0 != configure_memshire()) {
-        Log_Write(LOG_LEVEL_ERROR, "configure_memshire() failed!\n");
-        goto FIRMWARE_LOAD_ERROR;
-    }
-
+    // Setup MemShire/DDR
+    status = configure_memshire();
+    ASSERT_FATAL(status == STATUS_SUCCESS, "configure_memshire() failed!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DDR_INITIALIZED);
 
-   // Setup Minions
-      /* Setup default PLL to be 650 Mhz (Mode -3) */
-    if (0 != Minion_Enable_Compute_Minion(minion_shires_mask, 3)) {
-        Log_Write(LOG_LEVEL_ERROR, "Enable Compute Minion failed!\n");
-        goto FIRMWARE_LOAD_ERROR;
-    }
+    // Setup Minions
+    /* Setup default PLL to be 650 Mhz (Mode -3) */
+    status = Minion_Enable_Compute_Minion(minion_shires_mask, 3);
+    ASSERT_FATAL(status == STATUS_SUCCESS, "Enable Compute Minion failed!")
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_INITIALIZED);
 
+#if !TEST_FRAMEWORK
     // Minion FW Authenticate and load to DDR
-    if (0 != Minion_Load_Authenticate_Firmware()) {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to load Minion Firmware!\n");
-        goto FIRMWARE_LOAD_ERROR;
-    }
-
+    status = Minion_Load_Authenticate_Firmware();
+    ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to load Minion Firmware!")
+#endif
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_FW_AUTHENTICATED_INITIALIZED);
 
     // Launch Dispatcher
-
-    launch_command_dispatcher();
+#if !TEST_FRAMEWORK
+    launch_host_sp_command_handler();
+#endif
+    launch_mm_sp_command_handler();
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_COMMAND_DISPATCHER_INITIALIZED);
 
-    if (0 != Minion_Enable_Neighborhoods(minion_shires_mask)) {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to enable minion neighborhoods!\n");
-        goto FIRMWARE_LOAD_ERROR;
-    }
+    status = Minion_Enable_Neighborhoods(minion_shires_mask);
+    ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to enable minion neighborhoods!")
 
     // Potentially reprogram NOC?
-    if (0 != otp_get_master_shire_id(&mm_id)){
-        Log_Write(LOG_LEVEL_ERROR, "Failed to read master minion shire ID!\n");
-        goto FIRMWARE_LOAD_ERROR;        
-    }
-    
+    status = otp_get_master_shire_id(&mm_id);
+    ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to read master minion shire ID!")
+
     //Value wasn't burned into fuse, using default value
     if (mm_id == 0xff){
        Log_Write(LOG_LEVEL_WARNING, "Master shire ID was not found in the OTP, using default value of 32!\n");
        mm_id = 32;
     }
 
-    if (0 != Minion_Enable_Master_Shire_Threads(mm_id)) {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to enable Master minion threads!\n");
-        goto FIRMWARE_LOAD_ERROR;
-    }
+    status = Minion_Enable_Master_Shire_Threads(mm_id);
+    ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to enable Master minion threads!")
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MM_FW_LAUNCHED);
+
+#if (TEST_FRAMEWORK)
+    Log_Write(LOG_LEVEL_INFO, "TF SW bring up ...\r\n");
+    /* Control does not return from call below for now .. */
+    TF_Wait_And_Process_TF_Cmds();
+#endif
 
     // Program ATUs here
     pcie_enable_link();
@@ -180,34 +196,24 @@ static void taskMain(void *pvParameters)
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_ATU_PROGRAMMED);
 
     // init thermal power management service
-    if (0 != init_thermal_pwr_mgmt_service()) {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to init thermal power management!\n");
-        goto FIRMWARE_LOAD_ERROR;
-    }
-
+    status = init_thermal_pwr_mgmt_service();
+    ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to init thermal power management!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_PM_READY);
 
     // init watchdog service
-     if (0 != init_watchdog_service()) {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to init watchdog service!\n");
-        goto FIRMWARE_LOAD_ERROR;
-    }
-
+    status = init_watchdog_service();
+    ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to init watchdog service!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_SP_WATCHDOG_TASK_READY);
 
     // init DM event handler task
-    if (0 != dm_event_control_init()) {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to create dm event handler task!\n");
-        goto FIRMWARE_LOAD_ERROR;
-    }
+    status = dm_event_control_init();
+    ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to create dm event handler task!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_EVENT_HANDLER_READY);
 
 #if !FAST_BOOT
     // SP and minions have booted successfully. Increment the completed boot counter
-    if (0 != flashfs_drv_increment_completed_boot_count()) {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to increment the completed boot counter!\n");
-        goto FIRMWARE_LOAD_ERROR;
-    }
+    status = flashfs_drv_increment_completed_boot_count();
+    ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to increment the completed boot counter!")
     Log_Write(LOG_LEVEL_CRITICAL, "Incremented the completed boot counter!\n");
 #endif
 
@@ -220,12 +226,6 @@ static void taskMain(void *pvParameters)
     /* Redirect the log messages to trace buffer after initialization is done */
     Log_Set_Interface(LOG_DUMP_TO_TRACE);
 
-    goto DONE;
-
-FIRMWARE_LOAD_ERROR:
-    Log_Write(LOG_LEVEL_ERROR, "Fatal error... waiting for reset!\n");
-
-DONE:
     while (1) {
         Log_Write(LOG_LEVEL_CRITICAL, "M");
         vTaskDelay(2U);
@@ -286,7 +286,7 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     setbuf(stdout, NULL);
 
     // In fast-boot mode, generate fake BL1-data (we are not running BL1)
-#if FAST_BOOT
+#if FAST_BOOT || TEST_FRAMEWORK
     static SERVICE_PROCESSOR_BL1_DATA_t fake_bl1_data;
     fake_bl1_data.service_processor_bl1_data_size = sizeof(fake_bl1_data);
     fake_bl1_data.service_processor_bl1_version = SERVICE_PROCESSOR_BL1_DATA_VERSION;
@@ -322,11 +322,6 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     Log_Write(LOG_LEVEL_CRITICAL, "BL2 version: %u.%u.%u:" GIT_VERSION_STRING " (" BL2_VARIANT ")\n",
            image_version_info->file_version_major, image_version_info->file_version_minor,
            image_version_info->file_version_revision);
-
-#if TEST_FRAMEWORK
-    /* control does not return from call below for now .. */
-    TF_Wait_And_Process_TF_Cmds();
-#endif
 
     memset(&g_service_processor_bl2_data, 0, sizeof(g_service_processor_bl2_data));
     g_service_processor_bl2_data.service_processor_bl2_data_size =
@@ -370,7 +365,7 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     }
 
     // In fast-boot mode we skip loading from flash, and assume everything is already pre-loaded
-#if !FAST_BOOT
+#if !(FAST_BOOT || TEST_FRAMEWORK)
     if (0 != flashfs_drv_init(&g_service_processor_bl2_data.flash_fs_bl2_info,
                               &bl1_data->flash_fs_bl1_info)) {
         Log_Write(LOG_LEVEL_ERROR, "flashfs_drv_init() failed!\n");

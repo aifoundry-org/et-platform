@@ -46,6 +46,16 @@ int8_t MM_Iface_Update_MM_Heartbeat(void);
 */
 int32_t MM_Iface_Send_Echo_Cmd(void);
 
+/*! \fn int32_t MM_Iface_MM_Command_Shell(void* cmd, uint32_t cmd_size,
+    char* rsp, uint32_t *rsp_size)
+    \brief This interface receives TF command shell command, sends
+    encapsulatedMM command to MM FW, wait and receive response from
+    MM FW, wrap MM response in TF response shell, and return response.
+    \return Status indicating success or negative error
+*/
+int32_t MM_Iface_MM_Command_Shell(void* cmd, uint32_t cmd_size,
+    char* rsp, uint32_t *rsp_size);
+
 /*! \fn int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw)
     \brief This sends Get DRAM BW command to Master Minion. It is a blocking call
     and it waits for response for a given time.

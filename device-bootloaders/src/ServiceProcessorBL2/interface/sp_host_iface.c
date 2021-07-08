@@ -68,6 +68,39 @@ static sp_host_iface_cqs_cb_t SP_Host_CQ = {0};
 *
 *   FUNCTION
 *
+*       SP_Host_Iface_Init
+*
+*   DESCRIPTION
+*
+*       Initiliaze SQs and CQs used for Host to SP communications
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       int8_t      status success or failure of Interface initialization
+*
+***********************************************************************/
+int8_t SP_Host_Iface_Init(void)
+{
+    int8_t status = STATUS_SUCCESS;
+
+    status = SP_Host_Iface_SQ_Init();
+
+    if(status == STATUS_SUCCESS)
+    {
+        status = SP_Host_Iface_CQ_Init();
+    }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       SP_Host_Iface_SQs_Init
 *
 *   DESCRIPTION

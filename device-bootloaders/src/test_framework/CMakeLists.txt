@@ -36,6 +36,7 @@ target_sources(test_framework
     ${CMAKE_CURRENT_SOURCE_DIR}/tf/tf.c
     ${CMAKE_CURRENT_SOURCE_DIR}/test_commands.c
     ${CMAKE_CURRENT_SOURCE_DIR}/tf_generic_tests.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/tf_mm_tests.c
     ${CMAKE_CURRENT_SOURCE_DIR}/tf_mem_tests.c
     ${CMAKE_CURRENT_SOURCE_DIR}/tf_minion_tests.c
     ${CMAKE_CURRENT_SOURCE_DIR}/tf_maxion_tests.c
@@ -51,6 +52,7 @@ target_link_libraries(test_framework
   PUBLIC
     EsperantoDeviceMinionRuntime::sp_firmware_helpers
     deviceFirmware::device_serial
+    FreeRTOS::FreeRTOS
     BL2_driver
 )
 
