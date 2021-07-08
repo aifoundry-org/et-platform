@@ -18,7 +18,7 @@ parameters:
 stages:
   JOB_RUNTIME:
     cmds:
-      - job: sw-platform/runtime-integration/pipelines/runtime-checkin-tests
+      - job: sw-platform/runtime-integration/pipelines/runtime-checkin-tests-release
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},tools/sw-sysemu:${BRANCH}"
@@ -37,7 +37,7 @@ stages:
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},tools/sw-sysemu:${BRANCH}"
-  
+
   JOB_CODE_QUALITY:
     cmds:
       - job: sw-platform/code-analysis/sw-sysemu-sonarqube
@@ -46,7 +46,7 @@ stages:
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},tools/sw-sysemu:${BRANCH}"
           GITLAB_SOURCE_BRANCH:
             raw_cmd: '"${env.gitlabSourceBranch}"'
-          GITLAB_TARGET_BRANCH: 
+          GITLAB_TARGET_BRANCH:
             raw_cmd: '"${env.gitlabTargetBranch}"'
-          GITLAB_MR_ID: 
+          GITLAB_MR_ID:
             raw_cmd: '"${env.gitlabMergeRequestIid}"'
