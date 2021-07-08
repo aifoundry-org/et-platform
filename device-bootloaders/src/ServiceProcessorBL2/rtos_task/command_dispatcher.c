@@ -44,7 +44,7 @@
 
 
 #define VQUEUE_TASK_PRIORITY 2
-#define VQUEUE_STACK_SIZE    256
+#define VQUEUE_STACK_SIZE    2048
 
 static TaskHandle_t g_pc_vq_task_handle;
 static StackType_t g_pc_vq_task_stack[VQUEUE_STACK_SIZE];

@@ -13,7 +13,7 @@
 #include "log.h"
 #include "dm_event_control.h"
 #include "sp_host_iface.h"
-
+#include "bl2_exception.h"
 
 #ifdef TEST_EVENT_GEN
 
@@ -21,8 +21,6 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
 {
     struct event_message_t message;
     uint64_t req_start_time = timer_get_ticks_count();
-
-    Log_Write(LOG_LEVEL_INFO, "Generating error event\r\n");
     
     /* Generate PCIE Correctable Error */
     FILL_EVENT_HEADER(&message.header, PCIE_CE,
@@ -89,7 +87,7 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
              sizeof(struct event_message_t));
     FILL_EVENT_PAYLOAD(&message.payload, WARNING, 80, 2, 0);
     minion_event_callback(UNCORRECTABLE, &message);
-
+ 
     struct device_mgmt_default_rsp_t dm_rsp;
 
     FILL_RSP_HEADER(dm_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, 0);
@@ -102,10 +100,3 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
 }
 
 #endif
-
-void SP_Send_Exception_Event(tag_id_t tag_id, msg_id_t msg_id)
-{
-    //NOSONAR TODO: Geberate an SP Exception 
-    (void)tag_id;
-    (void)msg_id;
-}

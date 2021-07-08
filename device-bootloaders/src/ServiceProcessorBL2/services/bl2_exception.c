@@ -18,6 +18,7 @@
 */
 /***********************************************************************/
 #include "bl2_exception.h"
+#include "portmacro.h"
 
 /* Local functions */
 static void dump_stack_frame(const void *stack_frame, void *trace_buf);
@@ -47,8 +48,8 @@ static void dump_power_globals_trace(void *buf);
 ***********************************************************************/
 __attribute__((noreturn)) void bl2_exception_entry(const void *stack_frame)
 {
-
-    //NOSONAR  TODO: Disbale global interrupts
+    /* Disable global interrupts - no nested exceptions */
+    portDISABLE_INTERRUPTS();
 
     /* get trace buffer start pointer */
     uint32_t trace_buf_offset = Trace_Get_SP_CB()->offset_per_hart;
@@ -355,7 +356,7 @@ void SP_Exception_Event(uint32_t buf)
 
     /* add details in message header and fill payload */
     FILL_EVENT_HEADER(&message.header, SP_RUNTIME_EXCEPT,
-            sizeof(struct event_message_t) - sizeof(struct cmn_header_t))
+                        sizeof(struct event_message_t))
     FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, timer_get_ticks_count(), buf)
 
     /* Post message to the queue */
