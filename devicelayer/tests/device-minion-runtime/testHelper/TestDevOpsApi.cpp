@@ -57,31 +57,23 @@ void TestDevOpsApi::initTestHelperPcie() {
   }
 }
 
-void TestDevOpsApi::fExecutor(int deviceIdx, int queueIdx) {
-  TEST_VLOG(1) << "Device [" << deviceIdx << "], Queue [" << queueIdx << "] started.";
-  auto start = Clock::now();
-  auto end = start + execTimeout_;
-
-  size_t cmdIdx = 0;
-  if (deviceIdx >= static_cast<int>(devices_.size())) {
-    EXPECT_TRUE(false) << "Error: No device[" << deviceIdx << "] found, fExecutor can't be run!" << std::endl;
-    return;
-  }
+void TestDevOpsApi::waitForSqAvailability(int deviceIdx, int queueIdx) {
   auto& deviceInfo = devices_[static_cast<unsigned long>(deviceIdx)];
 
-  while (cmdIdx < streams_[key(deviceIdx, queueIdx)].size()) {
-    if (Clock::now() > end) {
-      EXPECT_TRUE(false) << "Error: fExecutor timed out!" << std::endl;
-      return;
-    }
+  std::unique_lock lk(deviceInfo->asyncEpollMtx_);
+  deviceInfo->asyncEpollCondVar_.wait(
+    lk, [&deviceInfo, queueIdx]() { return deviceInfo->sqBitmap_ & (0x1U << queueIdx) || deviceInfo->abort_; });
+  deviceInfo->sqBitmap_ &= ~(0x1U << queueIdx);
+}
+
+void TestDevOpsApi::dispatchStreamAsync(const std::shared_ptr<Stream>& stream) {
+  const auto& deviceInfo = devices_[static_cast<unsigned long>(stream->deviceIdx_)];
+
+  int cmdIdx = 0;
+  while (!deviceInfo->abort_ && cmdIdx < stream->cmds_.size()) {
     try {
-      if (!pushCmd(deviceIdx, queueIdx, streams_[key(deviceIdx, queueIdx)][cmdIdx])) {
-        {
-          std::unique_lock<std::mutex> lk(deviceInfo->sqBitmapMtx_);
-          deviceInfo->sqBitmapCondVar_.wait(
-            lk, [this, &deviceInfo, queueIdx]() -> bool { return deviceInfo->sqBitmap_ & (0x1U << queueIdx); });
-          deviceInfo->sqBitmap_ &= ~(0x1U << queueIdx);
-        }
+      if (!pushCmd(stream->deviceIdx_, stream->queueIdx_, stream->cmds_[cmdIdx])) {
+        waitForSqAvailability(stream->deviceIdx_, stream->queueIdx_);
       } else {
         cmdIdx++;
       }
@@ -92,67 +84,76 @@ void TestDevOpsApi::fExecutor(int deviceIdx, int queueIdx) {
   }
 }
 
-void TestDevOpsApi::fListener(int deviceIdx) {
-  TEST_VLOG(1) << "Device [" << deviceIdx << "] started.";
+void TestDevOpsApi::fExecutor(int deviceIdx, int queueIdx) {
+  TEST_VLOG(1) << "Device [" << deviceIdx << "], Queue [" << queueIdx << "] started.";
   auto start = Clock::now();
   auto end = start + execTimeout_;
-
-  if (deviceIdx >= static_cast<int>(devices_.size())) {
-    EXPECT_TRUE(false) << "Error: No device[" << deviceIdx << "] found, fListener can't be run!" << std::endl;
-    return;
-  }
   auto& deviceInfo = devices_[static_cast<unsigned long>(deviceIdx)];
 
-  auto queueCount = getSqCount(deviceIdx);
-  uint64_t sqBitmap = (0x1U << queueCount) - 1;
-  bool cqAvailable = true;
-
-  ssize_t rspsToReceive = 0;
-  for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
-    auto streamIt = streams_.find(key(deviceIdx, queueIdx));
+  auto streamIt = streams_.begin();
+  while (!deviceInfo->abort_) {
     if (streamIt != streams_.end()) {
-      rspsToReceive += streamIt->second.size();
+      if ((*streamIt)->deviceIdx_ == deviceIdx && (*streamIt)->queueIdx_ == queueIdx) {
+        dispatchStreamAsync(*streamIt);
+      }
+      streamIt++;
+    } else {
+      waitForSqAvailability(deviceIdx, queueIdx);
     }
   }
+}
 
-  bool isPendingEvent = true;
-  while (rspsToReceive > 0) {
-    if (Clock::now() > end) {
-      EXPECT_TRUE(false) << "Error: fListener timed out! responses left: " << rspsToReceive << std::endl;
-      // wake all executor threads to exit after timeout
-      deviceInfo->sqBitmap_ = (0x1U << queueCount) - 1;
-      deviceInfo->sqBitmapCondVar_.notify_all();
-      return;
+void TestDevOpsApi::waitForCqAvailability(int deviceIdx, TimeDuration timeout) {
+  auto end = Clock::now() + timeout;
+  auto& deviceInfo = devices_[static_cast<unsigned long>(deviceIdx)];
+  auto queueCount = getSqCount(deviceIdx);
+
+  uint64_t sqBitmap = 0;
+  bool cqAvailable = false;
+  while (end > Clock::now() && !cqAvailable) {
+    if (FLAGS_use_epoll) {
+      devLayer_->waitForEpollEventsMasterMinion(deviceIdx, sqBitmap, cqAvailable);
+    } else {
+      std::this_thread::sleep_for(kPollingInterval);
+      sqBitmap = (0x1U << queueCount) - 1;
+      cqAvailable = true;
     }
+    if (sqBitmap > 0) {
+      std::scoped_lock lk(deviceInfo->asyncEpollMtx_);
+      deviceInfo->sqBitmap_ |= sqBitmap;
+      deviceInfo->asyncEpollCondVar_.notify_all();
+    }
+  }
+}
+
+void TestDevOpsApi::fListener(int deviceIdx) {
+  TEST_VLOG(1) << "Device [" << deviceIdx << "] started.";
+  auto end = Clock::now() + execTimeout_;
+
+  auto& deviceInfo = devices_[static_cast<unsigned long>(deviceIdx)];
+
+  auto rspsToReceive = std::accumulate(streams_.begin(), streams_.end(), 0ULL, [deviceIdx](auto& a, auto& b) {
+    return b->deviceIdx_ == deviceIdx ? a + b->cmds_.size() : a;
+  });
+
+  while (end > Clock::now() && rspsToReceive > 0) {
     try {
-      if (isPendingEvent) {
-        isPendingEvent = false;
+      auto res = popRsp(deviceIdx);
+      if (!res) {
+        waitForCqAvailability(deviceIdx, end - Clock::now());
       } else {
-        if (FLAGS_use_epoll) {
-          devLayer_->waitForEpollEventsMasterMinion(deviceIdx, sqBitmap, cqAvailable);
-        } else {
-          std::this_thread::sleep_for(kPollingInterval);
-          sqBitmap = (0x1U << queueCount) - 1;
-          cqAvailable = true;
-        }
-      }
-      if (cqAvailable) {
-        while (popRsp(deviceIdx)) {
-          rspsToReceive--;
-        }
-      }
-      if (sqBitmap > 0) {
-        {
-          std::lock_guard<std::mutex> lk(deviceInfo->sqBitmapMtx_);
-          deviceInfo->sqBitmap_ |= sqBitmap;
-        }
-        deviceInfo->sqBitmapCondVar_.notify_all();
+        rspsToReceive--;
+        rspsToReceive += handleStreamReTransmission(res.tagId_);
       }
     } catch (const std::exception& e) {
       TEST_VLOG(0) << "Exception: " << e.what();
       assert(false);
     }
   }
+  std::scoped_lock lk(deviceInfo->asyncEpollMtx_);
+  deviceInfo->abort_ = true;
+  deviceInfo->sqBitmap_ = ~0ULL;
+  deviceInfo->asyncEpollCondVar_.notify_all();
 }
 
 void TestDevOpsApi::executeAsync() {
@@ -173,25 +174,30 @@ void TestDevOpsApi::executeAsync() {
     logfile.close();
   }
 
+  invalidRsps_.clear();
+
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    auto& deviceInfo = devices_[static_cast<unsigned long>(deviceIdx)];
+    deviceInfo->abort_ = false;
+
     int executorThreadCount = 0;
     auto queueCount = getSqCount(deviceIdx);
 
     // Create submission threads
     for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
-      if (streams_.find(key(deviceIdx, queueIdx)) == streams_.end()) {
+      if (std::count_if(streams_.begin(), streams_.end(), [deviceIdx, queueIdx](auto& stream) {
+            return stream->deviceIdx_ == deviceIdx && stream->queueIdx_ == queueIdx;
+          }) <= 0) {
         continue;
       }
       executorThreadCount++;
       threadVector.push_back(std::thread([this, deviceIdx, queueIdx]() { this->fExecutor(deviceIdx, queueIdx); }));
     }
 
-    if (executorThreadCount == 0) {
-      continue;
+    if (executorThreadCount != 0) {
+      // Create one listener thread per device
+      threadVector.push_back(std::thread([this, deviceIdx]() { this->fListener(deviceIdx); }));
     }
-
-    // Create one listener thread
-    threadVector.push_back(std::thread([this, deviceIdx]() { this->fListener(deviceIdx); }));
   }
 
   for (auto& t : threadVector) {
@@ -211,20 +217,20 @@ void TestDevOpsApi::executeAsync() {
   }
 }
 
-void TestDevOpsApi::executeSyncPerDevicePerQueue(int deviceIdx, int queueIdx, const std::vector<CmdTag>& stream) {
+void TestDevOpsApi::dispatchStreamSync(const std::shared_ptr<Stream>& stream, TimeDuration timeout) {
   auto start = Clock::now();
-  auto end = start + execTimeout_;
-  uint64_t sqBitmap = 0x1U << queueIdx;
+  auto end = start + timeout;
+  uint64_t sqBitmap = 0x1U << stream->queueIdx_;
   bool cqAvailable = true;
-  for (auto& cmd : stream) {
+  for (const auto& cmd : stream->cmds_) {
     try {
-      while (!(sqBitmap & (1ULL << queueIdx)) || !pushCmd(deviceIdx, queueIdx, cmd)) {
+      while (!(sqBitmap & (1ULL << stream->queueIdx_)) || !pushCmd(stream->deviceIdx_, stream->queueIdx_, cmd)) {
         ASSERT_TRUE(end > Clock::now()) << "\nexecuteSync timed out!\n" << std::endl;
-        devLayer_->waitForEpollEventsMasterMinion(deviceIdx, sqBitmap, cqAvailable);
+        devLayer_->waitForEpollEventsMasterMinion(stream->deviceIdx_, sqBitmap, cqAvailable);
       }
-      while (!cqAvailable || !popRsp(deviceIdx)) {
+      while (!cqAvailable || !popRsp(stream->deviceIdx_)) {
         ASSERT_TRUE(end > Clock::now()) << "\nexecuteSync timed out!\n" << std::endl;
-        devLayer_->waitForEpollEventsMasterMinion(deviceIdx, sqBitmap, cqAvailable);
+        devLayer_->waitForEpollEventsMasterMinion(stream->deviceIdx_, sqBitmap, cqAvailable);
       }
     } catch (const std::exception& e) {
       TEST_VLOG(0) << "Exception: " << e.what();
@@ -233,20 +239,28 @@ void TestDevOpsApi::executeSyncPerDevicePerQueue(int deviceIdx, int queueIdx, co
   }
 }
 
+void TestDevOpsApi::executeSyncPerDevice(int deviceIdx) {
+  auto start = Clock::now();
+  auto end = start + execTimeout_;
+
+  for (auto& stream : streams_) {
+    if (stream->deviceIdx_ != deviceIdx) {
+      continue;
+    }
+    dispatchStreamSync(stream, end - Clock::now());
+  }
+}
+
 void TestDevOpsApi::executeSync() {
   std::vector<std::thread> threadVector;
   int deviceCount = getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     auto queueCount = getSqCount(deviceIdx);
-    for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
-      if (streams_.find(key(deviceIdx, queueIdx)) == streams_.end()) {
-        continue;
-      }
-      TEST_VLOG(0) << "Device[" << deviceIdx << "], Queue[" << queueIdx << "]: test execution started...";
-      threadVector.push_back(std::thread([this, deviceIdx, queueIdx]() {
-        this->executeSyncPerDevicePerQueue(deviceIdx, queueIdx, streams_[key(deviceIdx, queueIdx)]);
-      }));
+    if (std::count_if(streams_.begin(), streams_.end(),
+                      [deviceIdx](auto& stream) { return stream->deviceIdx_ == deviceIdx; }) <= 0) {
+      continue;
     }
+    threadVector.push_back(std::thread([this, deviceIdx]() { this->executeSyncPerDevice(deviceIdx); }));
   }
 
   for (auto& t : threadVector) {
@@ -264,63 +278,54 @@ void TestDevOpsApi::cleanUpExecution() {
   int deviceCount = getDevicesCount();
   std::unordered_map<int, std::vector<CmdTag>> kernelTagIdsToAbort;
   int abortCmdCount = 0;
+  for (const auto& stream : streams_) {
+    for (const auto& cmd : stream->cmds_) {
+      if (kernelTagIdsToAbort.count(stream->deviceIdx_) == 0) {
+        kernelTagIdsToAbort[stream->deviceIdx_] = std::vector<CmdTag>();
+      }
+      if (IDevOpsApiCmd::getDevOpsApiCmd(cmd)->whoAmI() == CmdType::KERNEL_LAUNCH_CMD &&
+          IDevOpsApiCmd::getDevOpsApiCmd(cmd)->getCmdStatus() == CmdStatus::CMD_RSP_NOT_RECEIVED) {
+        kernelTagIdsToAbort[stream->deviceIdx_].push_back(cmd);
+        abortCmdCount++;
+      }
+    }
+  }
+
+  if (abortCmdCount <= 0) {
+    return;
+  }
+
+  TEST_VLOG(0) << "Sending abort command(s) for incomplete kernel(s)";
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    auto queueCount = getSqCount(deviceIdx);
-    std::vector<CmdTag> kernelTagIdsToAbortPerDev;
-
-    for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
-      if (streams_.find(key(deviceIdx, queueIdx)) == streams_.end()) {
-        continue;
-      }
-
-      kernelTagIdsToAbortPerDev.resize(streams_[key(deviceIdx, queueIdx)].size());
-      auto it =
-        std::copy_if(streams_[key(deviceIdx, queueIdx)].begin(), streams_[key(deviceIdx, queueIdx)].end(),
-                     kernelTagIdsToAbortPerDev.begin(), [](auto tagId) {
-                       return IDevOpsApiCmd::getDevOpsApiCmd(tagId)->whoAmI() == CmdType::KERNEL_LAUNCH_CMD &&
-                              IDevOpsApiCmd::getDevOpsApiCmd(tagId)->getCmdStatus() == CmdStatus::CMD_RSP_NOT_RECEIVED;
-                     });
-      kernelTagIdsToAbortPerDev.resize(std::distance(kernelTagIdsToAbortPerDev.begin(), it));
-      abortCmdCount += kernelTagIdsToAbortPerDev.size();
-      kernelTagIdsToAbort.emplace(deviceIdx, std::move(kernelTagIdsToAbortPerDev));
+    if (kernelTagIdsToAbort.find(deviceIdx) == kernelTagIdsToAbort.end()) {
+      continue;
     }
+
+    // Make a stream of abort kernel commands
+    std::vector<CmdTag> cmds;
+    for (auto it : kernelTagIdsToAbort[deviceIdx]) {
+      cmds.push_back(
+        IDevOpsApiCmd::createCmd<KernelAbortCmd>(false, it, device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS));
+    }
+
+    // Execute the abort commands using SQ_0
+    auto stream = std::make_shared<Stream>(deviceIdx, 0 /* queueIdx */, std::move(cmds));
+    dispatchStreamSync(stream, std::chrono::seconds(20));
+    cmds.clear();
   }
 
-  if (abortCmdCount > 0) {
-    TEST_VLOG(0) << "Sending abort command(s) for incomplete kernel(s)";
-    std::vector<std::thread> threadVector;
-    for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-      if (kernelTagIdsToAbort.find(deviceIdx) == kernelTagIdsToAbort.end()) {
-        continue;
-      }
-
-      // Make a stream of abort kernel commands
-      std::vector<CmdTag> stream;
-      for (auto it : kernelTagIdsToAbort[deviceIdx]) {
-        stream.push_back(IDevOpsApiCmd::createCmd<KernelAbortCmd>(
-          false, it, device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS));
-      }
-
-      // Execute the abort commands using SQ_0
-      execTimeout_ = std::chrono::seconds(20);
-      executeSyncPerDevicePerQueue(deviceIdx, 0 /* queueIdx */, stream);
-      stream.clear();
-    }
-
-    int missingRspCmdsCount = 0;
-    for (auto& [devIdx, tagIdsVec] : kernelTagIdsToAbort) {
-      missingRspCmdsCount += std::count_if(tagIdsVec.begin(), tagIdsVec.end(), [](auto tagId) {
-        return IDevOpsApiCmd::getDevOpsApiCmd(tagId)->getCmdStatus() == CmdStatus::CMD_RSP_NOT_RECEIVED;
-      });
-    }
-    EXPECT_EQ(missingRspCmdsCount, 0) << "Failed to abort kernel launches!";
+  int missingRspCmdsCount = 0;
+  for (auto& [devIdx, tagIdsVec] : kernelTagIdsToAbort) {
+    missingRspCmdsCount += std::count_if(tagIdsVec.begin(), tagIdsVec.end(), [](auto tagId) {
+      return IDevOpsApiCmd::getDevOpsApiCmd(tagId)->getCmdStatus() == CmdStatus::CMD_RSP_NOT_RECEIVED;
+    });
   }
+  EXPECT_EQ(missingRspCmdsCount, 0) << "Failed to abort kernel launches!";
 }
 
 void TestDevOpsApi::resetMemPooltoDefault(int deviceIdx) {
   if (deviceIdx >= static_cast<int>(devices_.size())) {
-    TEST_VLOG(0) << "Device[" << deviceIdx << "] not found.";
-    assert(false);
+    throw Exception("deviceIdx: " + std::to_string(deviceIdx) + " does not exist!");
   }
   auto& deviceInfo = devices_[static_cast<unsigned long>(deviceIdx)];
   deviceInfo->dmaWriteAddr_ = deviceInfo->dmaReadAddr_ = devLayer_->getDramBaseAddress();
@@ -332,7 +337,7 @@ uint64_t TestDevOpsApi::getDmaWriteAddr(int deviceIdx, size_t bufSize) {
     assert(false);
   }
   auto& deviceInfo = devices_[static_cast<unsigned long>(deviceIdx)];
-  std::lock_guard<std::mutex> lock(deviceInfo->dmaWriteAddrMtx_);
+  std::scoped_lock lock(deviceInfo->dmaWriteAddrMtx_);
   auto dramEnd = devLayer_->getDramBaseAddress() + devLayer_->getDramSize();
   if (deviceInfo->dmaWriteAddr_ + bufSize < dramEnd) {
     auto currentDmaPtr = deviceInfo->dmaWriteAddr_;
@@ -350,7 +355,7 @@ uint64_t TestDevOpsApi::getDmaReadAddr(int deviceIdx, size_t bufSize) {
     assert(false);
   }
   auto& deviceInfo = devices_[static_cast<unsigned long>(deviceIdx)];
-  std::lock_guard<std::mutex> lock(deviceInfo->dmaReadAddrMtx_);
+  std::scoped_lock lock(deviceInfo->dmaReadAddrMtx_);
   auto dramEnd = devLayer_->getDramBaseAddress() + devLayer_->getDramSize();
   if (deviceInfo->dmaReadAddr_ + bufSize < dramEnd) {
     auto currentDmaPtr = deviceInfo->dmaReadAddr_;
@@ -364,7 +369,7 @@ uint64_t TestDevOpsApi::getDmaReadAddr(int deviceIdx, size_t bufSize) {
 
 bool TestDevOpsApi::pushCmd(int deviceIdx, int queueIdx, CmdTag tagId) {
   auto devOpsApiCmd = IDevOpsApiCmd::getDevOpsApiCmd(tagId);
-  if (devOpsApiCmd == nullptr) {
+  if (!devOpsApiCmd) {
     throw Exception("Invalid CmdTag: " + std::to_string(tagId));
   }
 
@@ -385,11 +390,11 @@ bool TestDevOpsApi::pushCmd(int deviceIdx, int queueIdx, CmdTag tagId) {
   return res;
 }
 
-bool TestDevOpsApi::popRsp(int deviceIdx) {
+TestDevOpsApi::PopRspResult TestDevOpsApi::popRsp(int deviceIdx) {
   std::vector<std::byte> rspMem;
   auto res = devLayer_->receiveResponseMasterMinion(deviceIdx, rspMem);
   if (!res) {
-    return res;
+    return {0};
   }
 
   auto rspHdr = templ::bit_cast<device_ops_api::rsp_header_t*>(rspMem.data());
@@ -402,8 +407,9 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
   auto rspTagId = rspHdr->rsp_hdr.tag_id;
 
   auto devOpsApiCmd = IDevOpsApiCmd::getDevOpsApiCmd(rspTagId);
-  if (devOpsApiCmd == nullptr) {
-    return false;
+  if (!devOpsApiCmd) {
+    invalidRsps_.push_back(rspTagId);
+    return popRsp(deviceIdx);
   }
 
   if (devOpsApiCmd->setRsp(rspMem) == CmdStatus::CMD_RSP_NOT_RECEIVED) {
@@ -413,17 +419,48 @@ bool TestDevOpsApi::popRsp(int deviceIdx) {
 
   TEST_VLOG(1) << devOpsApiCmd->printSummary();
 
-  return res;
+  return {rspTagId};
+}
+
+size_t TestDevOpsApi::handleStreamReTransmission(CmdTag tagId) {
+  auto devOpsApiCmd = IDevOpsApiCmd::getDevOpsApiCmd(tagId);
+  if (!devOpsApiCmd) {
+    return 0;
+  }
+
+  if (devOpsApiCmd->getCmdStatus() == CmdStatus::CMD_SUCCESSFUL) {
+    return 0;
+  }
+
+  std::shared_ptr<Stream> stream = nullptr;
+  for (auto& it : streams_) {
+    if (std::find(it->cmds_.begin(), it->cmds_.end(), tagId) != it->cmds_.end()) {
+      // found the stream corresponding to defaulter tagId
+      stream = it;
+      break;
+    }
+  }
+
+  if (!stream || !stream->retryCount_) {
+    return 0;
+  }
+
+  if (auto newStream = stream->getReTransmissionStream()) {
+    streams_.push_back(std::move(newStream));
+    return streams_.back()->cmds_.size();
+  }
+  return 0;
 }
 
 void TestDevOpsApi::printCmdExecutionSummary() {
+  int reTransmittedStreams = 0;
   std::vector<CmdTag> allCmdTags;
-
-  for (auto& [tagId, stream] : streams_) {
-    if (!stream.size()) {
+  for (const auto& stream : streams_) {
+    if (stream->reTransmitted_) {
+      reTransmittedStreams++;
       continue;
     }
-    allCmdTags.insert(allCmdTags.end(), stream.begin(), stream.end());
+    allCmdTags.insert(allCmdTags.end(), stream->cmds_.begin(), stream->cmds_.end());
   }
 
   std::vector<CmdTag> successfulCmdTags(allCmdTags.size());
@@ -496,6 +533,7 @@ void TestDevOpsApi::printCmdExecutionSummary() {
       summary << "0x" << std::hex << tagIdIt << " ";
     }
   }
+  summary << "\n\t====> Retransmitted Streams: " << reTransmittedStreams;
   std::chrono::duration<double> cmdsTotalDuration = lastCmdTimepoint_ - firstCmdTimepoint_;
   std::chrono::duration<double> rspsTotalDuration = lastRspTimepoint_ - firstRspTimepoint_;
   summary << "\n\t====> Commands Sent / second: "
@@ -527,7 +565,7 @@ void TestDevOpsApi::printErrorContext(int queueId, const std::byte* buffer, uint
   logs << "\n*** Error Context Start (Queue ID: " << queueId << ")***" << std::endl;
   logs << "  * RUNTIME CONTEXT *" << std::endl;
   auto devOpsApiCmd = IDevOpsApiCmd::getDevOpsApiCmd(tagId);
-  if (devOpsApiCmd == nullptr) {
+  if (!devOpsApiCmd) {
     throw Exception("Command with tagId: " + std::to_string(tagId) + " does not exist!");
   }
   logs << devOpsApiCmd->printSummary();
@@ -717,17 +755,18 @@ void TestDevOpsApi::extractAndPrintTraceData(int deviceIdx) {
                                           .dst_host_phy_addr = 0,
                                           .src_device_phy_addr = 0,
                                           .size = static_cast<uint32_t>(mmBufSize + cmBufSize)};
-  std::vector<CmdTag> stream;
-  stream.push_back(IDevOpsApiCmd::createCmd<DmaReadListCmd>(
+  std::vector<CmdTag> cmds;
+  cmds.push_back(IDevOpsApiCmd::createCmd<DmaReadListCmd>(
     device_ops_api::CMD_FLAGS_BARRIER_DISABLE | device_ops_api::CMD_FLAGS_MMFW_TRACEBUF |
       device_ops_api::CMD_FLAGS_CMFW_TRACEBUF,
     &rdNode, 1 /* single node */, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
-  executeSyncPerDevicePerQueue(deviceIdx, 0 /* queueIdx */, stream);
+  auto stream = std::make_shared<Stream>(deviceIdx, 0 /* queueIdx */, std::move(cmds));
+  dispatchStreamSync(stream, std::chrono::seconds(10));
 
-  if (std::count_if(stream.begin(), stream.end(), [](auto tagId) {
+  if (std::count_if(stream->cmds_.begin(), stream->cmds_.end(), [](auto tagId) {
         return IDevOpsApiCmd::getDevOpsApiCmd(tagId)->getCmdStatus() == CmdStatus::CMD_SUCCESSFUL;
-      }) == stream.size()) {
+      }) == stream->cmds_.size()) {
     printMMTraceStringData(static_cast<unsigned char*>(rdBufMem), cmBufSize);
     printCMTraceStringData(static_cast<unsigned char*>(rdBufMem) + mmBufSize, mmBufSize);
   } else {
@@ -735,11 +774,10 @@ void TestDevOpsApi::extractAndPrintTraceData(int deviceIdx) {
   }
 
   freeDmaBuffer(rdBufMem);
-  stream.clear();
 }
 
 void TestDevOpsApi::controlTraceLogging(int deviceIdx, bool toTraceBuf, bool resetTraceBuf) {
-  std::vector<CmdTag> stream;
+  std::vector<CmdTag> cmds;
 
   uint32_t control = device_ops_api::TRACE_RT_CONTROL_ENABLE_TRACE;
   // Redirect logs to Trace or UART.
@@ -748,23 +786,23 @@ void TestDevOpsApi::controlTraceLogging(int deviceIdx, bool toTraceBuf, bool res
   control |= resetTraceBuf ? device_ops_api::TRACE_RT_CONTROL_RESET_TRACEBUF : 0x0;
 
   // redirect MM and CM trace logging to TraceBuf/UART
-  stream.push_back(IDevOpsApiCmd::createCmd<TraceRtControlCmd>(
+  cmds.push_back(IDevOpsApiCmd::createCmd<TraceRtControlCmd>(
     device_ops_api::CMD_FLAGS_BARRIER_DISABLE, device_ops_api::TRACE_RT_TYPE_MM | device_ops_api::TRACE_RT_TYPE_CM,
     control, device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
 
-  executeSyncPerDevicePerQueue(deviceIdx, 0 /* queueIdx */, stream);
+  auto stream = std::make_shared<Stream>(deviceIdx, 0 /* queueIdx */, std::move(cmds));
+  dispatchStreamSync(stream, std::chrono::seconds(10));
 
-  if (std::count_if(stream.begin(), stream.end(), [](auto tagId) {
+  if (std::count_if(stream->cmds_.begin(), stream->cmds_.end(), [](auto tagId) {
         return IDevOpsApiCmd::getDevOpsApiCmd(tagId)->getCmdStatus() == CmdStatus::CMD_SUCCESSFUL;
-      }) != stream.size()) {
+      }) != stream->cmds_.size()) {
     TEST_VLOG(0) << "Failed to redirect tracing of buffer, disabling trace dump!";
     FLAGS_enable_trace_dump = false;
   }
-  stream.clear();
 }
 
 void TestDevOpsApi::loadElfToDevice(int deviceIdx, ELFIO::elfio& reader, const std::string& path,
-                                    std::vector<CmdTag>& stream, uint64_t& kernelEntryAddr) {
+                                    std::vector<CmdTag>& cmds, uint64_t& kernelEntryAddr) {
   bool elfLoadSuccess = reader.load(path);
   ASSERT_TRUE(elfLoadSuccess);
 
@@ -797,19 +835,12 @@ void TestDevOpsApi::loadElfToDevice(int deviceIdx, ELFIO::elfio& reader, const s
 
   // Create DMA write command
   auto hostVirtAddr = templ::bit_cast<uint64_t>(segment0->get_data());
-  stream.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(false, deviceElfSegment0Buffer, hostVirtAddr,
-                                                          fileSize, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+  cmds.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(false, deviceElfSegment0Buffer, hostVirtAddr,
+                                                        fileSize, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 }
 
-void TestDevOpsApi::insertStream(int deviceIdx, int queueIdx, std::vector<CmdTag> stream) {
-  streams_.insert_or_assign(key(deviceIdx, queueIdx), std::move(stream));
-}
-
-void TestDevOpsApi::deleteStream(int deviceIdx, int queueIdx) {
-  auto it = streams_.find(key(deviceIdx, queueIdx));
-  if (it != streams_.end()) {
-    streams_.erase(it);
-  }
+void TestDevOpsApi::insertStream(int deviceIdx, int queueIdx, std::vector<CmdTag> cmds, unsigned int retryCount) {
+  streams_.push_back(std::make_shared<Stream>(deviceIdx, queueIdx, std::move(cmds), retryCount));
 }
 
 void TestDevOpsApi::deleteStreams() {
