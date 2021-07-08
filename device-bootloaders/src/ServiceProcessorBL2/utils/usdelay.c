@@ -10,16 +10,17 @@
 *
 ************************************************************************/
 
-#include <unistd.h>
+#include <stdint.h>
+#include "usdelay.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
 
 /*
-** Implementation for usleep of libc
+** Implementation for us delay
 ** This function should only be called after vTaskStartScheduler()
 */
-int usleep(useconds_t usec)
+int usdelay(uint32_t usec)
 {
   vTaskDelay(usec/portTICK_PERIOD_MS/1000);
   return 0;

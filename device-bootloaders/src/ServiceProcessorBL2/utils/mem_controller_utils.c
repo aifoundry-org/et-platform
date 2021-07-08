@@ -13,7 +13,7 @@
 #define DEBUG_INFO  1                   // true to enable preliminary debug codes
 
 #include <stdint.h>
-#include <unistd.h>
+#include "usdelay.h"
 #include "mem_controller.h"
 #include "log.h"
 
@@ -115,7 +115,7 @@ static void wait_for_training_internal(training_stage stage, uint32_t memshire, 
   while(number_of_shire_completed < NUMBER_OF_MEMSHIRE) {
 
     if(memshire == NUMBER_OF_MEMSHIRE) {
-      usleep(train_poll_iteration_delay);      // delay between each cycle
+      usdelay(train_poll_iteration_delay);      // delay between each cycle
       memshire = 0;
     }
 
@@ -207,7 +207,7 @@ uint32_t ms_poll_pll_reg(uint32_t memshire, uint64_t reg, uint32_t wait_value, u
     if(timeout_tries == 0) {
       break;
     }
-    usleep(1);
+    usdelay(1);
   }
 
   return timeout_tries;
@@ -224,7 +224,7 @@ uint32_t ms_poll_ddrc_reg(uint32_t memshire, uint32_t blk, uint64_t reg, uint32_
     if(timeout_tries == 0) {
       break;
     }
-    usleep(wait_count);
+    usdelay(wait_count);
   }
 
   return timeout_tries;

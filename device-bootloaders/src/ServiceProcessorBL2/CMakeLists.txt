@@ -46,7 +46,7 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/crc32.c
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/memory_copy_8x32.S
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/mem_controller_utils.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/utils/usleep.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/usdelay.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/io_pll.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/minion_configuration.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/maxion_configuration.c
