@@ -115,7 +115,7 @@ static void wait_for_training_internal(training_stage stage, uint32_t memshire, 
   while(number_of_shire_completed < NUMBER_OF_MEMSHIRE) {
 
     if(memshire == NUMBER_OF_MEMSHIRE) {
-      // usleep(train_poll_iteration_delay);      // delay between each cycle
+      usleep(train_poll_iteration_delay);      // delay between each cycle
       memshire = 0;
     }
 
@@ -149,7 +149,6 @@ static void wait_for_training_internal(training_stage stage, uint32_t memshire, 
 
   // System software doesn't use these 2 variables.  But we want to keep the same interface by hardware team
   (void)train_poll_max_iterations;    // suppress compilation warning
-  (void)train_poll_iteration_delay;   // suppress compilation warning
   return;
 }
 
@@ -208,7 +207,7 @@ uint32_t ms_poll_pll_reg(uint32_t memshire, uint64_t reg, uint32_t wait_value, u
     if(timeout_tries == 0) {
       break;
     }
-    // usleep(1);
+    usleep(1);
   }
 
   return timeout_tries;
@@ -225,8 +224,7 @@ uint32_t ms_poll_ddrc_reg(uint32_t memshire, uint32_t blk, uint64_t reg, uint32_
     if(timeout_tries == 0) {
       break;
     }
-    // usleep(wait_count);
-    (void)wait_count;
+    usleep(wait_count);
   }
 
   return timeout_tries;

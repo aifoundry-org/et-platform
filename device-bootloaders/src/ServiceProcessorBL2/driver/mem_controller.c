@@ -154,7 +154,7 @@ int ddr_config(DDR_MODE *ddr_mode)
     config_debug_level = 1;
     config_disable_unused_clks = 0;
     config_train_poll_max_iterations = 50000;
-    config_train_poll_iteration_delay = 10000;
+    config_train_poll_iteration_delay = 1000;   // unit in ns.  less than 1000ns will simply do task yield
     config_training_2d = true;
 
     FOR_EACH_MEMSHIRE(
