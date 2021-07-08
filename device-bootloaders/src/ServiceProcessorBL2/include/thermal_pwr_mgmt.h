@@ -26,7 +26,7 @@
 #define HI 0x1 // High
 
 // Default Reset values
-#define DEF_SYS_TEMP_VALUE 52 // Expected average temperature 
+#define DEF_SYS_TEMP_VALUE 52 // Expected average temperature
 
 // Defines for uptime calc
 #define HOURS_IN_DAY      24
@@ -117,8 +117,7 @@ int get_module_soc_power(uint8_t *soc_power);
 */
 int get_module_voltage(struct module_voltage_t *module_voltage);
 
-
-/*! \fn int update_module_uptime(void);
+/*! \fn int update_module_uptime(void)
     \brief Interface to update the module's uptime.
     \param none
     \returns Status indicating success or negative error
@@ -132,7 +131,7 @@ int update_module_uptime(void);
 */
 int get_module_uptime(struct module_uptime_t *module_uptime);
 
-/*! \fn int update_module_throttle_time(uint64_t time_usec);
+/*! \fn int update_module_throttle_time(uint64_t time_usec)
     \brief Interface to update the module's throttle time.
     \param time_usec throttle time in usec
     \returns Status indicating success or negative error
