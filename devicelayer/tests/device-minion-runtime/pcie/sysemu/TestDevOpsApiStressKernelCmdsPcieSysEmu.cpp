@@ -26,7 +26,6 @@ protected:
     execTimeout_ = std::chrono::seconds(FLAGS_exec_timeout);
     initTestHelperPcie();
   }
-
 };
 
 TEST_F(TestDevOpsApiStressKernelCmdsPcieSysEmu, backToBackSameKernelLaunchCmdsSingleDeviceSingleQueue_3_1) {
@@ -41,7 +40,7 @@ TEST_F(TestDevOpsApiStressKernelCmdsPcieSysEmu, backToBackDifferentKernelLaunchC
   backToBackDifferentKernelLaunchCmds_3_2(true, true, 100, kSysEmuMinionShiresMask);
 }
 
-TEST_F(TestDevOpsApiStressKernelCmdsPcieSysEmu, backToBackDifferentKernelLaunchCmdsSingleDeviceMultileQueue_3_6) {
+TEST_F(TestDevOpsApiStressKernelCmdsPcieSysEmu, backToBackDifferentKernelLaunchCmdsSingleDeviceMultiQueue_3_6) {
   backToBackDifferentKernelLaunchCmds_3_2(true, false, 100, kSysEmuMinionShiresMask);
 }
 
@@ -54,10 +53,10 @@ TEST_F(TestDevOpsApiStressKernelCmdsPcieSysEmu, backToBackEmptyKernelLaunchFlush
 }
 
 /**********************************************************
-*                                                         *
-*          Kernel DMA LIST Tests                          *
-*                                                         *
-**********************************************************/
+ *                                                         *
+ *          Kernel DMA LIST Tests                          *
+ *                                                         *
+ **********************************************************/
 
 TEST_F(TestDevOpsApiStressKernelCmdsPcieSysEmu, backToBackSameKernelDMAListLaunchCmdsSingleDeviceSingleQueue_3_11) {
   backToBackSameKernelLaunchListCmds(true, true, 100, kSysEmuMinionShiresMask);
@@ -75,11 +74,13 @@ TEST_F(TestDevOpsApiStressKernelCmdsPcieSysEmu, backToBackSameKernelDMAListLaunc
   backToBackSameKernelLaunchListCmds(false, false, 100, kSysEmuMinionShiresMask);
 }
 
-TEST_F(TestDevOpsApiStressKernelCmdsPcieSysEmu, backToBackDifferentKernelDMAListLaunchCmdsSingleDeviceSingleQueue_3_15) {
+TEST_F(TestDevOpsApiStressKernelCmdsPcieSysEmu,
+       backToBackDifferentKernelDMAListLaunchCmdsSingleDeviceSingleQueue_3_15) {
   backToBackDifferentKernelLaunchListCmds(true, true, 100, kSysEmuMinionShiresMask);
 }
 
-TEST_F(TestDevOpsApiStressKernelCmdsPcieSysEmu, backToBackDifferentKernelDMAListLaunchCmdsSingleDeviceMultileQueue_3_16) {
+TEST_F(TestDevOpsApiStressKernelCmdsPcieSysEmu,
+       backToBackDifferentKernelDMAListLaunchCmdsSingleDeviceMultiQueue_3_16) {
   backToBackDifferentKernelLaunchListCmds(true, false, 100, kSysEmuMinionShiresMask);
 }
 
@@ -87,16 +88,17 @@ TEST_F(TestDevOpsApiStressKernelCmdsPcieSysEmu, backToBackDifferentKernelDMAList
   backToBackDifferentKernelLaunchListCmds(false, true, 100, kSysEmuMinionShiresMask);
 }
 
-TEST_F(TestDevOpsApiStressKernelCmdsPcieSysEmu, backToBackDifferentKernelDMAListLaunchCmdsMultiDeviceMultileQueue_3_18) {
+TEST_F(TestDevOpsApiStressKernelCmdsPcieSysEmu,
+       backToBackDifferentKernelDMAListLaunchCmdsMultiDeviceMultiQueue_3_18) {
   backToBackDifferentKernelLaunchListCmds(false, false, 100, kSysEmuMinionShiresMask);
 }
 
 TEST_F(TestDevOpsApiStressKernelCmdsPcieSysEmu, backToBackEmptyKernelDMAListLaunch_3_19) {
-  backToBackEmptyKernelLaunchListCmds(100, kSysEmuMinionShiresMask, false);
+  backToBackEmptyKernelLaunchListCmds(true, true, 100, kSysEmuMinionShiresMask, false);
 }
 
 TEST_F(TestDevOpsApiStressKernelCmdsPcieSysEmu, backToBackEmptyKernelDMAListLaunchFlushL3_3_20) {
-  backToBackEmptyKernelLaunchListCmds(100, kSysEmuMinionShiresMask, true);
+  backToBackEmptyKernelLaunchListCmds(true, true, 100, kSysEmuMinionShiresMask, true);
 }
 
 int main(int argc, char** argv) {

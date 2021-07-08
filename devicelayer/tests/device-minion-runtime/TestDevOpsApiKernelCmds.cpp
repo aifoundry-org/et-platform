@@ -18,6 +18,7 @@ using namespace ELFIO;
 using namespace dev::dl_tests;
 namespace fs = std::experimental::filesystem;
 
+const uint8_t kNodeCount = 4;
 const uint64_t kExceptionSize = 1024 * 1024;  // 1 MB
 const uint64_t kEmptyKerDummyRead = 1024 * 4; // 4KB
 const uint64_t kUberKerLayerBuf0 = 200 * sizeof(uint64_t);
@@ -229,19 +230,19 @@ void TestDevOpsApiKernelCmds::launchUberKernel_PositiveTesting_4_4(uint64_t shir
       vResultUberKer.resize(numElemsLayer0, 0xEEEEEEEEEEEEEEEEULL);
       vResultStorageUberKer.push_back(std::move(vResultUberKer));
       auto hostVirtAddr = templ::bit_cast<uint64_t>(vResultStorageUberKer.back().data());
-      streamUberKer.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(
-        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrBufLayer0, hostVirtAddr,
-        vResultStorageUberKer.back().size() * sizeof(vResultUberKer[0]),
-        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+      streamUberKer.push_back(
+        IDevOpsApiCmd::createCmd<DataReadCmd>(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrBufLayer0, hostVirtAddr,
+                                              vResultStorageUberKer.back().size() * sizeof(vResultUberKer[0]),
+                                              device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
       // Read back data written by layer 1
       vResultUberKer.resize(numElemsLayer1, 0xEEEEEEEEEEEEEEEEULL);
       vResultStorageUberKer.push_back(std::move(vResultUberKer));
       hostVirtAddr = templ::bit_cast<uint64_t>(vResultStorageUberKer.back().data());
-      streamUberKer.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(
-        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrBufLayer1, hostVirtAddr,
-        vResultStorageUberKer.back().size() * sizeof(vResultUberKer[0]),
-        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+      streamUberKer.push_back(
+        IDevOpsApiCmd::createCmd<DataReadCmd>(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrBufLayer1, hostVirtAddr,
+                                              vResultStorageUberKer.back().size() * sizeof(vResultUberKer[0]),
+                                              device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
       // Save stream against deviceIdx and queueIdx
       insertStream(deviceIdxUberKer, queueIdxUberKer, std::move(streamUberKer));
@@ -308,8 +309,8 @@ void TestDevOpsApiKernelCmds::launchEmptyKernel_PositiveTesting_4_5(uint64_t shi
       vResultStorage.push_back(std::move(vResult));
       auto hostVirtAddr = templ::bit_cast<uint64_t>(vResultStorage.back().data());
       streamEmptyKer.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(
-        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrKernelResult, hostVirtAddr,
-        vResultStorage.back().size(), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, devAddrKernelResult, hostVirtAddr, vResultStorage.back().size(),
+        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
       // Save stream against deviceIdx and queueIdx
       insertStream(deviceIdx, queueIdx, std::move(streamEmptyKer));
@@ -354,8 +355,8 @@ void TestDevOpsApiKernelCmds::launchExceptionKernel_NegativeTesting_4_6(uint64_t
       vResultStorage.push_back(std::move(vResult));
       auto hostVirtAddr = templ::bit_cast<uint64_t>(vResultStorage.back().data());
       streamExceptKer.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(
-        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, kernelExceptionDevAddr, hostVirtAddr,
-        vResultStorage.back().size(), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+        device_ops_api::CMD_FLAGS_BARRIER_ENABLE, kernelExceptionDevAddr, hostVirtAddr, vResultStorage.back().size(),
+        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
       // Save stream against deviceIdx and queueIdx
       insertStream(deviceIdxExceptKer, queueIdxExceptKer, std::move(streamExceptKer));
@@ -573,7 +574,7 @@ void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(bool singleDevi
           (i == 0) ? device_ops_api::CMD_FLAGS_BARRIER_ENABLE
                    : device_ops_api::CMD_FLAGS_BARRIER_DISABLE, /* Barrier only for first read to make sure that all
                                                                    kernels execution done */
-                     devAddrVecResultPerQueue[i], hostVirtAddrRes,
+          devAddrVecResultPerQueue[i], hostVirtAddrRes,
           vResultStorageSameKer.back().size() * sizeof(vTempDataResultSameKer[0]),
           device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
       }
@@ -658,12 +659,12 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(bool singl
         // Copy kernel input data to device
         auto hostVirtAddrA = templ::bit_cast<uint64_t>(vDataAStorageDiffKer.back().data());
         streamDiffKer.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(
-            device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecA, hostVirtAddrA,
-            vDataAStorageDiffKer.back().size() * sizeof(int), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+          device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecA, hostVirtAddrA,
+          vDataAStorageDiffKer.back().size() * sizeof(int), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
         auto hostVirtAddrB = templ::bit_cast<uint64_t>(vDataBStorageDiffKer.back().data());
         streamDiffKer.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(
-            device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecB, hostVirtAddrB,
-            vDataBStorageDiffKer.back().size() * sizeof(int), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+          device_ops_api::CMD_FLAGS_BARRIER_DISABLE, devAddrVecB, hostVirtAddrB,
+          vDataBStorageDiffKer.back().size() * sizeof(int), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
         // Copy kernel args to device
         devAddrVecResultPerQueue.push_back(getDmaWriteAddr(deviceIdxDiffKer, alignedBufSize));
@@ -721,12 +722,12 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(bool singl
       vResultStorageDiffKer.push_back(std::move(vTempDataResultDiffKer));
       auto hostVirtAddrRes = templ::bit_cast<uint64_t>(vResultStorageDiffKer.back().data());
       streamDiffKer.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(
-          (i == 0) ? device_ops_api::CMD_FLAGS_BARRIER_ENABLE
-              : device_ops_api::CMD_FLAGS_BARRIER_DISABLE, /* Barrier only for first read to make sure that all
-                                                                   kernels execution done */
-                devAddrVecResultPerQueue[i], hostVirtAddrRes,
-                vResultStorageDiffKer.back().size() * sizeof(vTempDataResultDiffKer[0]),
-                device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+        (i == 0) ? device_ops_api::CMD_FLAGS_BARRIER_ENABLE
+                 : device_ops_api::CMD_FLAGS_BARRIER_DISABLE, /* Barrier only for first read to make sure that all
+                                                                      kernels execution done */
+        devAddrVecResultPerQueue[i], hostVirtAddrRes,
+        vResultStorageDiffKer.back().size() * sizeof(vTempDataResultDiffKer[0]),
+        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
     }
     // Save stream against deviceIdx and queueIdx
     insertStream(deviceIdxDiffKer, queueIdxDiffKer, std::move(streamDiffKer));
@@ -814,69 +815,58 @@ std::map<KernelTypes, std::string> TestDevOpsApiKernelCmds::kernelELFNames_ = {
   {KernelTypes::EMPTY_KERNEL_TYPE, "empty.elf"},    {KernelTypes::CMUMODE_KERNEL_TYPE, "cm_umode_test.elf"},
 };
 
-device_ops_api::dma_write_node TestDevOpsApiKernelCmds::fillDMAWriteNode(uint64_t srcHostVirtAddr,
-                                                                         uint64_t dstDevPhyAddr, uint32_t size) const {
-  device_ops_api::dma_write_node node;
-
-  node.src_host_virt_addr = srcHostVirtAddr;
-  node.dst_device_phy_addr = dstDevPhyAddr;
-  node.size = size;
-  return node;
-}
-
-device_ops_api::dma_read_node TestDevOpsApiKernelCmds::fillDMAReadNode(uint64_t dstHostVirtAddr, uint64_t srcDevPhyAddr,
-                                                                       uint32_t size) const {
-  device_ops_api::dma_read_node node;
-
-  node.dst_host_virt_addr = dstHostVirtAddr;
-  node.src_device_phy_addr = srcDevPhyAddr;
-  node.size = size;
-  return node;
-}
-
 uint64_t TestDevOpsApiKernelCmds::loadElf(int deviceIdx, KernelTypes kerType, device_ops_api::dma_write_node& node) {
-  ELFIO::elfio reader;
-  uint64_t kernelEntryAddr;
+  auto kernelElfName = kernelELFNames_[kerType];
+  if (kernelElfStore_.count(kernelElfName) == 0) {
+    auto kernelElf = std::make_unique<KernelElf>();
+    ELFIO::elfio reader;
+    auto elfPath = (fs::path(FLAGS_kernels_dir) / fs::path(kernelElfName)).string();
 
-  auto elfPath = (fs::path(FLAGS_kernels_dir) / fs::path(kernelELFNames_[kerType])).string();
+    if (!reader.load(elfPath)) {
+      throw Exception("Unable to load elf file");
+    }
 
-  if (!reader.load(elfPath))
-    throw Exception("Uanble to load elf file");
+    // We only allow ELFs with 1 segment, and the code should be relocatable.
+    // TODO: Properly generate static PIE ELFs
+    if (reader.segments.size() != 1)
+      throw Exception("File segment size is not equal to 1");
 
-  // We only allow ELFs with 1 segment, and the code should be relocatable.
-  // TODO: Properly generate static PIE ELFs
-  if (reader.segments.size() != 1)
-    throw Exception("File segment size is not equal to 1");
+    const segment* segment0 = reader.segments[0];
+    if (!(segment0->get_type() & PT_LOAD))
+      throw Exception("File segment type is not PT_LOAD");
 
-  const segment* segment0 = reader.segments[0];
-  if (!(segment0->get_type() & PT_LOAD))
-    throw Exception("File segment type is not PT_LOAD");
+    // Copy segment to device memory
+    auto entry = reader.get_entry();
+    auto vAddr = segment0->get_virtual_address();
+    auto pAddr = segment0->get_physical_address();
+    auto fileSize = segment0->get_file_size();
+    auto memSize = segment0->get_memory_size();
 
-  // Copy segment to device memory
-  auto entry = reader.get_entry();
-  auto vAddr = segment0->get_virtual_address();
-  auto pAddr = segment0->get_physical_address();
-  auto fileSize = segment0->get_file_size();
-  auto memSize = segment0->get_memory_size();
+    TEST_VLOG(1) << std::endl
+                 << "Loading ELF: " << elfPath << std::endl
+                 << "  ELF Entry: 0x" << std::hex << entry << "  Segment [0]: "
+                 << "vAddr: 0x" << std::hex << vAddr << ", pAddr: 0x" << std::hex << pAddr << ", Mem Size: 0x"
+                 << memSize << ", File Size: 0x" << fileSize;
 
-  TEST_VLOG(1) << std::endl
-               << "Loading ELF: " << elfPath << std::endl
-               << "  ELF Entry: 0x" << std::hex << entry << "  Segment [0]: "
-               << "vAddr: 0x" << std::hex << vAddr << ", pAddr: 0x" << std::hex << pAddr << ", Mem Size: 0x" << memSize
-               << ", File Size: 0x" << fileSize;
+    kernelElf->segment0.resize(fileSize);
+    memcpy(kernelElf->segment0.data(), segment0->get_data(), kernelElf->segment0.size());
+    kernelElf->entryOffset = entry - vAddr;
+    kernelElfStore_.try_emplace(kernelElfName, std::move(kernelElf));
+  }
 
   // Allocate device buffer for the ELF segment
-  uint64_t deviceElfSegment0Buffer = getDmaWriteAddr(deviceIdx, ALIGN(memSize, 0x1000));
-  kernelEntryAddr = deviceElfSegment0Buffer + (entry - vAddr);
+  const auto& savedElf = kernelElfStore_[kernelElfName];
+  uint64_t deviceElfSegment0Buffer = getDmaWriteAddr(deviceIdx, ALIGN(savedElf->segment0.size(), 0x1000));
+  auto kernelEntryAddr = deviceElfSegment0Buffer + savedElf->entryOffset;
 
   TEST_VLOG(1) << " Allocated buffer at device address: 0x" << deviceElfSegment0Buffer << " for segment 0"
                << " Kernel entry at device address: 0x" << kernelEntryAddr;
 
   // Fill DMA write list node
-  auto fileData = static_cast<char*>(static_cast<void*>(getMmapBuffer(deviceIdx, ALIGN(fileSize, 0x1000))));
-  memcpy(fileData, segment0->get_data(), fileSize);
-  node =
-    fillDMAWriteNode(templ::bit_cast<uint64_t>(fileData), deviceElfSegment0Buffer, static_cast<uint32_t>(fileSize));
+  auto mmapMem = static_cast<void*>(getMmapBuffer(deviceIdx, ALIGN(savedElf->segment0.size(), 0x1000)));
+  memcpy(mmapMem, savedElf->segment0.data(), savedElf->segment0.size());
+  node = {templ::bit_cast<uint64_t>(mmapMem), 0, deviceElfSegment0Buffer,
+          static_cast<uint32_t>(savedElf->segment0.size())};
 
   return kernelEntryAddr;
 }
@@ -930,24 +920,26 @@ void TestDevOpsApiKernelCmds::addKernelResultReadBackPerQueue(int deviceIdx, std
 
   auto bufSize = addKerNumElems_ * sizeof(int);
   auto alignedBufSize = ALIGN(bufSize, kCacheLineSize);
-  std::vector<device_ops_api::dma_read_node> readNodes;
+  std::array<device_ops_api::dma_read_node, kNodeCount> readNodes;
 
+  uint8_t nodesFilled = 0;
   for (size_t i = 0; i < perQueueResultDevAddrs.size(); ++i) {
     auto readPtr = static_cast<void*>(getMmapBuffer(deviceIdx, alignedBufSize, false));
 
     // save result vector
     addKernelResultsVector.push_back(static_cast<int*>(readPtr));
-    readNodes.push_back(
-      fillDMAReadNode(templ::bit_cast<uint64_t>(readPtr), perQueueResultDevAddrs[i], static_cast<uint32_t>(bufSize)));
+    readNodes[nodesFilled] = {templ::bit_cast<uint64_t>(readPtr), 0, perQueueResultDevAddrs[i],
+                              static_cast<uint32_t>(bufSize)};
+    nodesFilled++;
 
-    if (readNodes.size() == 4 || i == perQueueResultDevAddrs.size() - 1) {
+    if (nodesFilled == kNodeCount || i == perQueueResultDevAddrs.size() - 1) {
       // create DMA read list command
       stream.push_back(IDevOpsApiCmd::createCmd<DmaReadListCmd>(
-        i < 4 ? // Barrier only for first read to make sure that all kernels execution done
+        i < kNodeCount ? // Barrier only for first read to make sure that all kernels execution done
           device_ops_api::CMD_FLAGS_BARRIER_ENABLE
-              : device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
-        readNodes.data(), static_cast<uint32_t>(readNodes.size()), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-      readNodes.clear();
+                       : device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+        readNodes.data(), nodesFilled, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+      nodesFilled = 0;
     }
   }
 }
@@ -973,10 +965,10 @@ uint64_t TestDevOpsApiKernelCmds::handleAddKernelDMAListCmd(int deviceIdx, uint6
   auto kernelResultAddr = vectorBDevAddr + alignedBufSize;
 
   // DMA node for vector A
-  wrNodes[1] = fillDMAWriteNode(templ::bit_cast<uint64_t>(vectorA), vectorADevAddr, static_cast<uint32_t>(bufSize));
+  wrNodes[1] = {templ::bit_cast<uint64_t>(vectorA), 0, vectorADevAddr, static_cast<uint32_t>(bufSize)};
 
   // DMA node for vector B
-  wrNodes[2] = fillDMAWriteNode(templ::bit_cast<uint64_t>(vectorB), vectorBDevAddr, static_cast<uint32_t>(bufSize));
+  wrNodes[2] = {templ::bit_cast<uint64_t>(vectorB), 0, vectorBDevAddr, static_cast<uint32_t>(bufSize)};
 
   // add kernel parameters
   AddKerParams_t params = {vectorADevAddr, vectorBDevAddr, kernelResultAddr, addKerNumElems_};
@@ -1042,15 +1034,13 @@ void TestDevOpsApiKernelCmds::handleExceptionOrAbortKernelDMAListCmd(int deviceI
 
   // pull the exception buffer from device
   if (isReadExceptionContext_) {
-    std::vector<device_ops_api::dma_read_node> contextNodes;
+    device_ops_api::dma_read_node contextNode;
     // DMA list node
     auto readPtr = static_cast<void*>(getMmapBuffer(deviceIdx, kExceptionSize, false));
-    contextNodes.push_back(
-      fillDMAReadNode(templ::bit_cast<uint64_t>(readPtr), kernelExceptionSpace(deviceIdx), kExceptionSize));
+    contextNode = {templ::bit_cast<uint64_t>(readPtr), 0, kernelExceptionSpace(deviceIdx), kExceptionSize};
 
     // create DMA read list command
-    stream.push_back(IDevOpsApiCmd::createCmd<DmaReadListCmd>(device_ops_api::CMD_FLAGS_BARRIER_ENABLE,
-                                                              contextNodes.data(), contextNodes.size(),
+    stream.push_back(IDevOpsApiCmd::createCmd<DmaReadListCmd>(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, &contextNode, 1,
                                                               device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
     info.data = static_cast<std::byte*>(readPtr);
@@ -1061,19 +1051,21 @@ void TestDevOpsApiKernelCmds::handleExceptionOrAbortKernelDMAListCmd(int deviceI
 void TestDevOpsApiKernelCmds::emptyKernelReadBackResults(int deviceIdx, std::vector<uint64_t> dummyResultAddrs,
                                                          std::vector<CmdTag>& stream) {
 
-  std::vector<device_ops_api::dma_read_node> rdNodes;
+  std::array<device_ops_api::dma_read_node, kNodeCount> rdNodes;
+  uint8_t nodesFilled = 0;
   for (size_t i = 0; i < dummyResultAddrs.size(); ++i) {
-    rdNodes.push_back(fillDMAReadNode(templ::bit_cast<uint64_t>(getMmapBuffer(deviceIdx, kEmptyKerDummyRead, false)),
-                                      dummyResultAddrs[i], kEmptyKerDummyRead));
+    rdNodes[nodesFilled] = {templ::bit_cast<uint64_t>(getMmapBuffer(deviceIdx, kEmptyKerDummyRead, false)), 0,
+                            dummyResultAddrs[i], kEmptyKerDummyRead};
+    nodesFilled++;
 
-    if (rdNodes.size() == 4 || i == dummyResultAddrs.size() - 1) {
+    if (nodesFilled == kNodeCount || i == dummyResultAddrs.size() - 1) {
       // create DMA read list command
       stream.push_back(IDevOpsApiCmd::createCmd<DmaReadListCmd>(
-        i < 4 ? // Barrier only for first read to make sure that all kernels execution done
+        i < kNodeCount ? // Barrier only for first read to make sure that all kernels execution done
           device_ops_api::CMD_FLAGS_BARRIER_ENABLE
-              : device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
-        rdNodes.data(), static_cast<uint32_t>(rdNodes.size()), device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
-      rdNodes.clear();
+                       : device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
+        rdNodes.data(), nodesFilled, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+      nodesFilled = 0;
     }
   }
 }
@@ -1081,7 +1073,7 @@ void TestDevOpsApiKernelCmds::emptyKernelReadBackResults(int deviceIdx, std::vec
 uint64_t TestDevOpsApiKernelCmds::handleEmptyKernelDMAListCmd(int deviceIdx, uint64_t shireMask,
                                                               std::vector<CmdTag>& stream) {
 
-  std::vector<device_ops_api::dma_write_node> wrNodes(1);
+  std::array<device_ops_api::dma_write_node, 1> wrNodes;
 
   // load elf
   auto kernelEntryAddr = loadElf(deviceIdx, KernelTypes::EMPTY_KERNEL_TYPE, wrNodes[0]);
@@ -1099,9 +1091,8 @@ uint64_t TestDevOpsApiKernelCmds::handleEmptyKernelDMAListCmd(int deviceIdx, uin
   // Add kernel launch command
   stream.push_back(IDevOpsApiCmd::createCmd<KernelLaunchCmd>(
     (device_ops_api::CMD_FLAGS_BARRIER_ENABLE | (flushL3_ ? device_ops_api::CMD_FLAGS_KERNEL_LAUNCH_FLUSH_L3 : 0)),
-    kernelEntryAddr, kernelArgsAddr, kernelExceptionSpace(deviceIdx), shireMask, 0,
-    templ::bit_cast<uint64_t*>(&dummyKernelArgs), sizeof(dummyKernelArgs), "",
-    device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
+    kernelEntryAddr, kernelArgsAddr, 0, shireMask, 0, templ::bit_cast<uint64_t*>(&dummyKernelArgs),
+    sizeof(dummyKernelArgs), "", device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED));
 
   // allocate 4KB space for dummy kernel result
   return getDmaWriteAddr(deviceIdx, ALIGN(kEmptyKerDummyRead, kCacheLineSize));
@@ -1130,8 +1121,8 @@ void TestDevOpsApiKernelCmds::handleUberKernelDMAListCmd(int deviceIdx, uint64_t
                                                          std::vector<uint64_t*>& layersResult,
                                                          std::vector<CmdTag>& stream) {
 
-  std::vector<device_ops_api::dma_write_node> wrNodes(1);
-  std::vector<device_ops_api::dma_read_node> rdNodes;
+  std::array<device_ops_api::dma_write_node, 1> wrNodes;
+  std::array<device_ops_api::dma_read_node, 2> rdNodes;
 
   std::vector<std::vector<uint64_t>> vResultStorageUberKer;
   std::vector<uint64_t> vResultUberKer;
@@ -1167,12 +1158,12 @@ void TestDevOpsApiKernelCmds::handleUberKernelDMAListCmd(int deviceIdx, uint64_t
   // Read back data written by layer 0
   layersResult.push_back(
     static_cast<uint64_t*>(static_cast<void*>(getMmapBuffer(deviceIdx, kUberKerLayerBuf0, false))));
-  rdNodes.push_back(fillDMAReadNode(templ::bit_cast<uint64_t>(layersResult.back()), devAddrLayer0, kUberKerLayerBuf0));
+  rdNodes[0] = {templ::bit_cast<uint64_t>(layersResult.back()), 0, devAddrLayer0, kUberKerLayerBuf0};
 
   // Read back data written by layer 1
   layersResult.push_back(
     static_cast<uint64_t*>(static_cast<void*>(getMmapBuffer(deviceIdx, kUberKerLayerBuf1, false))));
-  rdNodes.push_back(fillDMAReadNode(templ::bit_cast<uint64_t>(layersResult.back()), devAddrLayer1, kUberKerLayerBuf1));
+  rdNodes[1] = {templ::bit_cast<uint64_t>(layersResult.back()), 0, devAddrLayer1, kUberKerLayerBuf1};
 
   // create DMA read list command
   stream.push_back(IDevOpsApiCmd::createCmd<DmaReadListCmd>(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, rdNodes.data(),
@@ -1237,11 +1228,8 @@ void TestDevOpsApiKernelCmds::calculateDMABuffer(const kernelContainer_t kernels
         break;
       }
 
-      // 2 MB for kernel elf
-      perDevWriteMemBytes += 1024 * 1024 * 2;
-
-      // 1 MB margin
-      perDevReadMemBytes += 1024 * 1024 * 1;
+      // 4 KB for kernel elf
+      perDevWriteMemBytes += 4 * 1024;
     }
 
     devicesWriteMemSize[deviceIdx] += perDevWriteMemBytes;
@@ -1298,9 +1286,6 @@ void TestDevOpsApiKernelCmds::launchKernelDMAListCmds(uint64_t shireMask, std::v
   // Exception/hang kernel parameters
   std::vector<ExcepContextInfo> exceptionContexts;
 
-  // Empty kernel parameters
-  std::vector<uint64_t> emptyKerDummyAddrs;
-
   // Uber kernel parametsr
   std::vector<uint64_t*> uberKerlayersResult;
 
@@ -1311,6 +1296,7 @@ void TestDevOpsApiKernelCmds::launchKernelDMAListCmds(uint64_t shireMask, std::v
     auto queueIdx = perQueueKernels.queueIdx;
     std::vector<CmdTag> stream;
     std::vector<uint64_t> addKernelResultDevAddrs;
+    std::vector<uint64_t> emptyKerDummyAddrs;
     for (auto kerType : perQueueKernels.kernels) {
       switch (kerType) {
       case KernelTypes::ADD_KERNEL_TYPE: {
@@ -1404,10 +1390,12 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchListCmds(bool singl
                           singleQueue);
 }
 
-void TestDevOpsApiKernelCmds::backToBackEmptyKernelLaunchListCmds(uint64_t totalKer, uint64_t shire_mask,
+void TestDevOpsApiKernelCmds::backToBackEmptyKernelLaunchListCmds(bool singleDevice, bool singleQueue,
+                                                                  uint64_t totalKer, uint64_t shire_mask,
                                                                   bool flushL3) {
   flushL3_ = flushL3;
-  launchKernelDMAListCmds(shire_mask, generateKernelTypes(KernelTypes::EMPTY_KERNEL_TYPE, totalKer));
+  launchKernelDMAListCmds(shire_mask, generateKernelTypes(KernelTypes::EMPTY_KERNEL_TYPE, totalKer), singleDevice,
+                          singleQueue);
 }
 
 /* Kernel Negative Tests*/
