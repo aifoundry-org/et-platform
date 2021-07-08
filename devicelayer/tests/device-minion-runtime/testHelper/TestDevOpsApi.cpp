@@ -150,6 +150,7 @@ void TestDevOpsApi::fListener(int deviceIdx) {
       assert(false);
     }
   }
+
   std::scoped_lock lk(deviceInfo->asyncEpollMtx_);
   deviceInfo->abort_ = true;
   deviceInfo->sqBitmap_ = ~0ULL;
@@ -159,23 +160,6 @@ void TestDevOpsApi::fListener(int deviceIdx) {
 void TestDevOpsApi::executeAsync() {
   std::vector<std::thread> threadVector;
   int deviceCount = getDevicesCount();
-  TEST_VLOG(0) << "Test execution started...";
-
-  std::ofstream logfile;
-  if (FLAGS_enable_trace_dump) {
-    TEST_VLOG(1) << "Trace data is available at " << fs::current_path() / FLAGS_trace_logfile;
-    logfile.open(FLAGS_trace_logfile, std::ios_base::app);
-    logfile << "\n\n"
-            << ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() << "."
-            << ::testing::UnitTest::GetInstance()->current_test_info()->name() << std::endl;
-    for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-      controlTraceLogging(deviceIdx, true /* to trace buffer */, true /* Reset trace buffer. */);
-    }
-    logfile.close();
-  }
-
-  invalidRsps_.clear();
-
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     auto& deviceInfo = devices_[static_cast<unsigned long>(deviceIdx)];
     deviceInfo->abort_ = false;
@@ -205,29 +189,20 @@ void TestDevOpsApi::executeAsync() {
       t.join();
     }
   }
-
-  // Print and validate command results
-  printCmdExecutionSummary();
-
-  cleanUpExecution();
-
-  for (int deviceIdx = 0; FLAGS_enable_trace_dump && deviceIdx < deviceCount; deviceIdx++) {
-    extractAndPrintTraceData(deviceIdx);
-    controlTraceLogging(deviceIdx, false /* to UART */, false /* don't reset Trace buffer*/);
-  }
 }
 
 void TestDevOpsApi::dispatchStreamSync(const std::shared_ptr<Stream>& stream, TimeDuration timeout) {
   auto start = Clock::now();
   auto end = start + timeout;
-  uint64_t sqBitmap = 0x1U << stream->queueIdx_;
-  bool cqAvailable = true;
   for (const auto& cmd : stream->cmds_) {
     try {
+      uint64_t sqBitmap = 0x1U << stream->queueIdx_;
+      bool cqAvailable;
       while (!(sqBitmap & (1ULL << stream->queueIdx_)) || !pushCmd(stream->deviceIdx_, stream->queueIdx_, cmd)) {
         ASSERT_TRUE(end > Clock::now()) << "\nexecuteSync timed out!\n" << std::endl;
         devLayer_->waitForEpollEventsMasterMinion(stream->deviceIdx_, sqBitmap, cqAvailable);
       }
+      cqAvailable = true;
       while (!cqAvailable || !popRsp(stream->deviceIdx_)) {
         ASSERT_TRUE(end > Clock::now()) << "\nexecuteSync timed out!\n" << std::endl;
         devLayer_->waitForEpollEventsMasterMinion(stream->deviceIdx_, sqBitmap, cqAvailable);
@@ -252,8 +227,8 @@ void TestDevOpsApi::executeSyncPerDevice(int deviceIdx) {
 }
 
 void TestDevOpsApi::executeSync() {
-  std::vector<std::thread> threadVector;
   int deviceCount = getDevicesCount();
+  std::vector<std::thread> threadVector;
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     auto queueCount = getSqCount(deviceIdx);
     if (std::count_if(streams_.begin(), streams_.end(),
@@ -268,10 +243,38 @@ void TestDevOpsApi::executeSync() {
       t.join();
     }
   }
+}
+
+void TestDevOpsApi::execute(bool isAsync) {
+  int deviceCount = getDevicesCount();
+
+  std::ofstream logfile;
+  if (FLAGS_enable_trace_dump) {
+    TEST_VLOG(1) << "Trace data is available at " << fs::current_path() / FLAGS_trace_logfile;
+    logfile.open(FLAGS_trace_logfile, std::ios_base::app);
+    logfile << "\n\n"
+            << ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() << "."
+            << ::testing::UnitTest::GetInstance()->current_test_info()->name() << std::endl;
+    for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+      controlTraceLogging(deviceIdx, true /* to trace buffer */, true /* Reset trace buffer. */);
+    }
+    logfile.close();
+  }
+
+  invalidRsps_.clear();
+
+  TEST_VLOG(0) << "Test execution started...";
+  isAsync ? executeAsync() : executeSync();
+
   // Print and validate command results
   printCmdExecutionSummary();
 
   cleanUpExecution();
+
+  for (int deviceIdx = 0; FLAGS_enable_trace_dump && deviceIdx < deviceCount; deviceIdx++) {
+    extractAndPrintTraceData(deviceIdx);
+    controlTraceLogging(deviceIdx, false /* to UART */, false /* don't reset Trace buffer*/);
+  }
 }
 
 void TestDevOpsApi::cleanUpExecution() {
@@ -312,6 +315,10 @@ void TestDevOpsApi::cleanUpExecution() {
     auto stream = std::make_shared<Stream>(deviceIdx, 0 /* queueIdx */, std::move(cmds));
     dispatchStreamSync(stream, std::chrono::seconds(20));
     cmds.clear();
+
+    // Extract and discard any pending responses
+    while (popRsp(deviceIdx))
+      ;
   }
 
   int missingRspCmdsCount = 0;
@@ -394,7 +401,7 @@ TestDevOpsApi::PopRspResult TestDevOpsApi::popRsp(int deviceIdx) {
   std::vector<std::byte> rspMem;
   auto res = devLayer_->receiveResponseMasterMinion(deviceIdx, rspMem);
   if (!res) {
-    return {0};
+    return {res};
   }
 
   auto rspHdr = templ::bit_cast<device_ops_api::rsp_header_t*>(rspMem.data());
@@ -407,13 +414,12 @@ TestDevOpsApi::PopRspResult TestDevOpsApi::popRsp(int deviceIdx) {
   auto rspTagId = rspHdr->rsp_hdr.tag_id;
 
   auto devOpsApiCmd = IDevOpsApiCmd::getDevOpsApiCmd(rspTagId);
-  if (!devOpsApiCmd) {
+  if (!devOpsApiCmd || devOpsApiCmd->setRsp(rspMem) == CmdStatus::CMD_RSP_NOT_RECEIVED) {
     invalidRsps_.push_back(rspTagId);
     return popRsp(deviceIdx);
   }
 
-  if (devOpsApiCmd->setRsp(rspMem) == CmdStatus::CMD_RSP_NOT_RECEIVED) {
-    invalidRsps_.push_back(rspTagId);
+  if (devOpsApiCmd->getCmdStatus() == CmdStatus::CMD_RSP_DUPLICATE) {
     return popRsp(deviceIdx);
   }
 

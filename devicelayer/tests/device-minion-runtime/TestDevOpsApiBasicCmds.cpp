@@ -34,7 +34,7 @@ void TestDevOpsApiBasicCmds::echoCmd_PositiveTest_2_1() {
     }
   }
 
-  executeAsync();
+  execute(true);
   deleteStreams();
 }
 
@@ -54,7 +54,7 @@ void TestDevOpsApiBasicCmds::devCompatCmd_PositiveTest_2_3() {
     }
   }
 
-  executeAsync();
+  execute(true);
   deleteStreams();
 }
 
@@ -73,12 +73,11 @@ void TestDevOpsApiBasicCmds::devFWCmd_PostiveTest_2_5() {
       stream.clear();
     }
   }
-  executeAsync();
+  execute(true);
   deleteStreams();
 }
 
 void TestDevOpsApiBasicCmds::devUnknownCmd_NegativeTest_2_7() {
-  int deviceIdx = 0;
   device_ops_api::cmd_header_t unknownCmd;
   unknownCmd.cmd_hdr.size = sizeof(unknownCmd);
   unknownCmd.cmd_hdr.tag_id = 0x1;
@@ -88,22 +87,22 @@ void TestDevOpsApiBasicCmds::devUnknownCmd_NegativeTest_2_7() {
   // Create unknown command
   auto tagId = IDevOpsApiCmd::createCmd<CustomCmd>(templ::bit_cast<std::byte*>(&unknownCmd), sizeof(unknownCmd));
 
-  // TODO SW-6818: Use executeAsync()/executeSync() instead when waitForEpollEventsMasterMinion()
-  // is functional with timeout in sysemu
-  uint8_t queueCount = getSqCount(deviceIdx);
+  int deviceIdx = 0;
+  controlTraceLogging(deviceIdx, true /* to trace buffer */, true /* Reset trace buffer. */);
 
+  auto queueCount = getSqCount(deviceIdx);
   for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
     // Push command to all the availabel queus one by one.
     auto res = pushCmd(deviceIdx, queueIdx, tagId);
-    ASSERT_TRUE(res) << "Unable to send the unknown command!";
+    EXPECT_TRUE(res) << "Unable to send the unknown command!";
   }
 
   TEST_VLOG(1) << "Waiting for some time to see if response is received for unknown command ...";
   std::this_thread::sleep_for(std::chrono::seconds(5));
 
-  auto res = popRsp(deviceIdx);
-  ASSERT_FALSE(res) << "ERROR: Response received for unknown command!";
-  TEST_VLOG(1) << "No response received for unknown command as expected";
+  EXPECT_FALSE(popRsp(deviceIdx)) << "ERROR: Response received for unknown command!";
+
+  controlTraceLogging(deviceIdx, false /* to UART */, false /* don't reset Trace buffer*/);
 }
 
 /***********************************************************
@@ -129,7 +128,7 @@ void TestDevOpsApiBasicCmds::backToBackSameCmds(bool singleDevice, bool singleQu
       stream.clear();
     }
   }
-  executeAsync();
+  execute(true);
   deleteStreams();
 }
 
@@ -152,6 +151,6 @@ void TestDevOpsApiBasicCmds::backToBackDiffCmds(bool singleDevice, bool singleQu
       stream.clear();
     }
   }
-  executeAsync();
+  execute(true);
   deleteStreams();
 }

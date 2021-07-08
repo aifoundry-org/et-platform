@@ -56,7 +56,7 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractMMFwData_5_1() {
     insertStream(deviceIdx, queueIdx, std::move(stream));
     stream.clear();
   }
-  executeSync();
+  execute(false);
 
   for (size_t i = 0; i < readBufs.size(); ++i) {
     ASSERT_NE(readBufs[i], compBufs[i]);
@@ -100,7 +100,7 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractCMFwData_5_2() {
     insertStream(deviceIdx, queueIdx, std::move(stream));
     stream.clear();
   }
-  executeSync();
+  execute(false);
 
   for (size_t i = 0; i < readBufs.size(); ++i) {
     ASSERT_NE(readBufs[i], compBufs[i]);

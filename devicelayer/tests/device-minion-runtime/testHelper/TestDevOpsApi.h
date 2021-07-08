@@ -149,23 +149,18 @@ protected:
 
   void initTestHelperSysEmu(const emu::SysEmuOptions& options);
   void initTestHelperPcie();
-  void executeAsync();
-  void executeSync();
+  void execute(bool isAsync);
   uint64_t getDmaWriteAddr(int deviceIdx, size_t bufSize);
   uint64_t getDmaReadAddr(int deviceIdx, size_t bufSize);
   void resetMemPooltoDefault(int deviceIdx);
   void loadElfToDevice(int deviceIdx, ELFIO::elfio& reader, const std::string& path, std::vector<CmdTag>& stream,
                        uint64_t& kernelEntryAddr);
 
-  void fExecutor(int deviceIdx, int queueIdx);
-  void fListener(int deviceIdx);
   bool pushCmd(int deviceIdx, int queueIdx, CmdTag tagId);
   PopRspResult popRsp(int deviceIdx);
-  void printCmdExecutionSummary();
   void printErrorContext(int queueId, const std::byte* buffer, uint64_t shireMask, CmdTag tagId) const;
-  void cleanUpExecution();
-  void executeSyncPerDevice(int deviceIdx);
 
+  void controlTraceLogging(int deviceIdx, bool toTraceBuf, bool resetTraceBuf);
   bool printMMTraceStringData(unsigned char* traceBuf, size_t bufSize) const;
   bool printCMTraceStringData(unsigned char* traceBuf, size_t bufSize) const;
   void extractAndPrintTraceData(int deviceIdx);
@@ -243,13 +238,20 @@ private:
     std::vector<CmdTag> cmds_;
   };
 
-  void controlTraceLogging(int deviceIdx, bool toTraceBuf, bool resetTraceBuf);
   void waitForSqAvailability(int deviceIdx, int queueIdx);
-  void waitForCqAvailability(int deviceIdx, TimeDuration timeout);
   void dispatchStreamAsync(const std::shared_ptr<Stream>& stream);
+  void fExecutor(int deviceIdx, int queueIdx);
+  void fListener(int deviceIdx);
+  void executeAsync();
 
+  void waitForCqAvailability(int deviceIdx, TimeDuration timeout);
   void dispatchStreamSync(const std::shared_ptr<Stream>& stream, TimeDuration timeout);
+  void executeSyncPerDevice(int deviceIdx);
+  void executeSync();
+
   size_t handleStreamReTransmission(CmdTag tagId);
+  void printCmdExecutionSummary();
+  void cleanUpExecution();
 
   logging::LoggerDefault logger_;
   std::vector<CmdTag> invalidRsps_;
