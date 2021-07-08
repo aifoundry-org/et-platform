@@ -122,7 +122,19 @@ pipeline {
         stage('JOB_DEVICE_LAYER_SYSEMU') {
           steps {
             build job:
-              'sw-platform/system-sw-integration/pipelines/device-ops-zebu-tests',
+              'sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests',
+              propagate: true,
+              parameters: [
+                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"),
+                string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+              ]
+          }
+        }
+        stage('JOB_RUNTIME') {
+          steps {
+            build job:
+              'sw-platform/runtime-integration/pipelines/runtime-checkin-tests-release',
               propagate: true,
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
@@ -134,7 +146,7 @@ pipeline {
         stage('JOB_DEVICE_LAYER_ZEBU') {
           steps {
             build job:
-              'sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests',
+              'sw-platform/system-sw-integration/pipelines/device-ops-zebu-tests',
               propagate: true,
               parameters: [
                 string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),

@@ -30,7 +30,7 @@ stages:
 
   JOB_DEVICE_LAYER_ZEBU:
     cmds:
-      - job: sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests
+      - job: sw-platform/system-sw-integration/pipelines/device-ops-zebu-tests
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"
@@ -38,11 +38,20 @@ stages:
 
   JOB_DEVICE_LAYER_SYSEMU:
     cmds:
-      - job: sw-platform/system-sw-integration/pipelines/device-ops-zebu-tests
+      - job: sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"
     exec_after: [CHECK_IN]
+
+  JOB_RUNTIME:
+    cmds:
+      - job: sw-platform/runtime-integration/pipelines/runtime-checkin-tests-release
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"
+    exec_after: [CHECK_IN]
+
 
   JOB_CODE_QUALITY:
     cmds:
