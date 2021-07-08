@@ -117,19 +117,13 @@ int get_module_soc_power(uint8_t *soc_power);
 */
 int get_module_voltage(struct module_voltage_t *module_voltage);
 
-/*! \fn void update_module_max_temp(void);
-    \brief Interface to update the module's max temperature value.
-    \param none
-    \returns none
-*/
-void update_module_max_temp(void);
 
-/*! \fn void update_module_uptime(void);
+/*! \fn int update_module_uptime(void);
     \brief Interface to update the module's uptime.
     \param none
-    \returns none
+    \returns Status indicating success or negative error
 */
-void update_module_uptime(void);
+int update_module_uptime(void);
 
 /*! \fn int get_module_uptime(struct module_uptime_t  *module_uptime);
     \brief Interface to get the module's uptime.
@@ -138,12 +132,12 @@ void update_module_uptime(void);
 */
 int get_module_uptime(struct module_uptime_t *module_uptime);
 
-/*! \fn void update_module_throttle_time(uint64_t time_usec);
+/*! \fn int update_module_throttle_time(uint64_t time_usec);
     \brief Interface to update the module's throttle time.
     \param time_usec throttle time in usec
-    \returns none
+    \returns Status indicating success or negative error
 */
-void update_module_throttle_time(uint64_t time_msec);
+int update_module_throttle_time(uint64_t time_msec);
 
 /*! \fn int get_throttle_time(uint64_t *throttle_time)
     \brief Interface to get the module's throttle time.

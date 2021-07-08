@@ -108,12 +108,8 @@ static int minion_configure_plls_and_dlls(uint64_t shire_mask)
 
 static int mm_get_error_count(struct mm_error_count_t *mm_error_count)
 {
-    /* TODO : Get the thread state from MM.
-       https://esperantotech.atlassian.net/browse/SW-6744
-       Currently providing dummy response.*/
-    mm_error_count->hang_count = 0;
-    mm_error_count->exception_count = 0;
-
+    mm_error_count->hang_count = event_control_block.hang_count;
+    mm_error_count->exception_count = event_control_block.except_count;
     return 0;
 }
 

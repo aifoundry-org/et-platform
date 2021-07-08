@@ -301,7 +301,13 @@ int update_module_current_temperature(void)
         status = THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
     else {
+
         get_soc_power_reg()->soc_temperature = temperature;
+
+        /* Update max temperature so far */
+        if (get_soc_power_reg()->max_temp < temperature) {
+            get_soc_power_reg()->max_temp = temperature;
+        }
     }
 
     get_module_temperature_threshold(&temperature_threshold);
@@ -523,38 +529,6 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
 *
 *   FUNCTION
 *
-*       update_module_max_temp
-*
-*   DESCRIPTION
-*
-*       This function updates the max temperature in global variable.
-*
-*   INPUTS
-*
-*       None
-*
-*   OUTPUTS
-*
-*       None
-*
-***********************************************************************/
-void update_module_max_temp(void)
-{
-    uint8_t curr_temp = DEF_SYS_TEMP_VALUE;
-
-    if(0 != pmic_get_temperature(&curr_temp)) {
-        Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get temperature\r\n");
-    }
-
-    if (get_soc_power_reg()->max_temp < curr_temp) {
-        get_soc_power_reg()->max_temp = curr_temp;
-    }
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
 *       get_soc_max_temperature
 *
 *   DESCRIPTION
@@ -593,10 +567,10 @@ int get_soc_max_temperature(uint8_t *max_temp)
 *
 *   OUTPUTS
 *
-*       None
+*       int                     Return status
 *
 ***********************************************************************/
-void update_module_uptime()
+int update_module_uptime()
 {
     uint64_t module_uptime;
     uint64_t seconds;
@@ -618,6 +592,8 @@ void update_module_uptime()
     get_soc_power_reg()->module_uptime.day = day; //days
     get_soc_power_reg()->module_uptime.hours = hours; //hours
     get_soc_power_reg()->module_uptime.mins = minutes; //mins;
+
+    return 0;
 }
 
 /************************************************************************
@@ -663,14 +639,11 @@ int get_module_uptime(struct module_uptime_t *module_uptime)
 *
 *   OUTPUTS
 *
-*       None
+*       int                            Return status
 *
 ***********************************************************************/
-void update_module_throttle_time(uint64_t time_usec)
+int  update_module_throttle_time(uint64_t time_usec)
 {
-    // TODO : Set it to throttle time to valid value. Compute/Read from HW.
-    // https://esperantotech.atlassian.net/browse/SW-6559
-    // Update the value in get_soc_power_reg()->throttled_states_residency.
     get_soc_power_reg()->throttled_states_residency += time_usec;
 
     // Update the MAX throttle time
@@ -678,6 +651,8 @@ void update_module_throttle_time(uint64_t time_usec)
     {
         get_soc_power_reg()->max_throttled_states_residency = time_usec;
     }
+
+    return 0;
 }
 
 /************************************************************************
