@@ -25,6 +25,7 @@ include(CompilerSanitizers)
 include(CoverageSupport)
 
 option(BUILD_TESTS "Enable/disable building tests" ON)
+option(BUILD_DOCS "Enable/disable building documentation" ON)
 option(ENABLE_CCACHE "Enable ccahe in the builds" OFF)
 option(ENABLE_SANITIZER_ADDRESS "" ON)
 option(ENABLE_SANITIZER_LEAK "" ON)
@@ -53,14 +54,11 @@ set(LIB_INSTALL_DIR  ${CMAKE_INSTALL_PREFIX}/lib/  CACHE STRING "Library install
 # System dependencies
 find_package(cereal REQUIRED)
 find_package(elfio REQUIRED)
-find_package(fmt REQUIRED)
-find_package(hostUtils REQUIRED)
-find_package(GTest CONFIG REQUIRED)
 
 # Esperanto dependencies
 find_package(deviceApi REQUIRED)
-find_package(DeviceLayer REQUIRED)
-find_package(sw-sysemu REQUIRED)
+find_package(deviceLayer REQUIRED)
+find_package(hostUtils REQUIRED)
 
 # Runtime base object library
 add_library(etrt_obj OBJECT
@@ -105,6 +103,7 @@ target_link_libraries(etrt_obj
         deviceApi::deviceApi
         deviceLayer::deviceLayer
         hostUtils::logging
+        elfio::elfio
 )
 
 ## Build shared library
@@ -133,10 +132,14 @@ install(EXPORT runtimeTargets
 )
 
 ## project documentation
-add_subdirectory(docs)
+if (BUILD_DOCS)
+    add_subdirectory(docs)
+endif()
 
 ## tests
 if (BUILD_TESTS)
+    find_package(GTest CONFIG REQUIRED)
+
     enable_testing()
     add_subdirectory(tests)
 endif()
