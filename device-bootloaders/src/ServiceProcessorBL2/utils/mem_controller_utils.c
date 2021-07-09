@@ -47,9 +47,9 @@ typedef enum
 }training_stage;
 
 #if DEBUG_INFO
-static const char* get_training_status_text(uint8_t train_msg)
+static const char* get_training_status_text(uint8_t major_msg)
 {
-  switch(train_msg) {
+  switch(major_msg) {
     case 0x07:
       return "training has run successfully ... firmware complete";
     case 0xff:
@@ -87,25 +87,56 @@ static const char* get_training_status_text(uint8_t train_msg)
   }
 }
 
-static void log_training_error(training_stage stage, uint32_t memshire, uint8_t train_msg)
+static void log_training_error(training_stage stage, uint32_t memshire, uint8_t major_msg)
 {
   if(stage == TRAINING_1D)
-    Log_Write(LOG_LEVEL_INFO, "DDR TRAIN (S%d) received DDRC PHY message 0x%02x (%s)", memshire+232, train_msg, get_training_status_text(train_msg));
+    Log_Write(LOG_LEVEL_DEBUG, "DDR TRAIN (S%d) received DDRC PHY message 0x%02x (%s)", memshire+232, major_msg, get_training_status_text(major_msg));
   else
-    Log_Write(LOG_LEVEL_INFO, "DDR TRAIN 2d (S%d) received DDRC PHY message 0x%02x (%s)", memshire+232, train_msg, get_training_status_text(train_msg));
+    Log_Write(LOG_LEVEL_DEBUG, "DDR TRAIN 2d (S%d) received DDRC PHY message 0x%02x (%s)", memshire+232, major_msg, get_training_status_text(major_msg));
 }
 
-#define LOG_TRAINING(stage, memshire, train_msg)    log_training_error(stage, memshire, train_msg)
+#define LOG_TRAINING(stage, memshire, major_msg)    log_training_error(stage, memshire, major_msg)
 
 #else   // DEBUG_INFO
 
-#define LOG_TRAINING(stage, memshire, train_msg)    (stage = stage)     // to suppress compilation warning
+#define LOG_TRAINING(stage, memshire, major_msg)    ((void)stage)     // to suppress compilation warning
 
 #endif  // DEBUG_INFO
 
+static uint32_t get_mail(uint32_t memshire)
+{
+  uint32_t mail;
+
+  ms_poll_ddrc_reg(memshire, 2, APBONLY0_UctShadowRegs, 0x00000001, 0x0, 100, 1);               // wait for handshake
+
+  mail = ms_read_ddrc_reg(memshire, 2, APBONLY0_UctWriteOnlyShadow) |
+         (ms_read_ddrc_reg(memshire, 2, APBONLY0_UctDatWriteOnlyShadow) << 16);                 // read message
+
+  ms_write_ddrc_reg(memshire, 2, APBONLY0_DctWriteProt, 0x00000000);                            // ack message
+  ms_poll_ddrc_reg(memshire, 2, APBONLY0_UctShadowRegs, 0x00000001, 0x1, 100, 1);               // wait for handshake
+  ms_write_ddrc_reg(memshire, 2, APBONLY0_DctWriteProt, 0x00000001);                            // ack handshake
+
+  return mail;
+}
+
+static void get_streaming_messages(uint32_t memshire)
+{
+  uint32_t mail;
+  uint16_t count;
+
+  mail = get_mail(memshire);
+  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][sms]0x%08x", memshire, mail);
+
+  count = mail & 0xffff;
+  while(count-- > 0) {
+    mail = get_mail(memshire);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][smd]0x%08x", memshire, mail);
+  }
+}
+
 static void wait_for_training_internal(training_stage stage, uint32_t memshire, uint32_t train_poll_max_iterations, uint32_t train_poll_iteration_delay)
 {
-  uint8_t train_msg;
+  uint8_t major_msg;
   uint8_t number_of_shire_completed;
   uint8_t shire_completed[NUMBER_OF_MEMSHIRE] = { 0 };
 
@@ -126,19 +157,28 @@ static void wait_for_training_internal(training_stage stage, uint32_t memshire, 
       continue;
     }
 
-    train_msg = (uint8_t)(ms_read_ddrc_reg(memshire, 2, APBONLY0_UctWriteOnlyShadow) & 0xff);     // read message
+    major_msg = (uint8_t)(ms_read_ddrc_reg(memshire, 2, APBONLY0_UctWriteOnlyShadow) & 0xff);     // read message
 
     ms_write_ddrc_reg(memshire, 2, APBONLY0_DctWriteProt, 0x00000000);                            // ack message
     ms_poll_ddrc_reg(memshire, 2, APBONLY0_UctShadowRegs, 0x00000001, 0x1, 100, 1);               // wait for handshake
     ms_write_ddrc_reg(memshire, 2, APBONLY0_DctWriteProt, 0x00000001);                            // ack handshake
 
-    LOG_TRAINING(stage, memshire, train_msg);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][mms]0x%08x", memshire, major_msg);
+    LOG_TRAINING(stage, memshire, major_msg);
 
-    // mark the memshire as completed if it is either success(0x7) or fail(0xff/0x0b).
-    if(train_msg == 0x7 || train_msg == 0xff || train_msg == 0x0b) {
-      if(train_msg == 0xff || train_msg == 0x0b) {
-        // report error if needed
-      }
+    if(major_msg == 0x08) {
+      // process streaming messages on 0x08
+      get_streaming_messages(memshire);
+    }
+    else if(major_msg == 0x7) {
+      // mark the memshire as completed on success(0x7).
+      Log_Write(LOG_LEVEL_CRITICAL, "DDR:[%d][txt]Training success.", memshire);
+      shire_completed[memshire] = 1;
+      ++number_of_shire_completed;
+    }
+    else if(major_msg == 0xff || major_msg == 0x0b) {
+      // mark the memshire as completed on fail(0xff/0x0b).
+      Log_Write(LOG_LEVEL_ERROR, "DDR:[%d][txt]Training failure!", memshire);
       shire_completed[memshire] = 1;
       ++number_of_shire_completed;
     }

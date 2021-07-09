@@ -89,7 +89,7 @@ int ddr_config(DDR_MODE *ddr_mode)
     uint32_t config_800mhz;
     uint32_t config_933mhz;
     uint32_t config_auto_precharge;
-    uint32_t config_debug_level;
+    uint32_t config_debug_level;    // one of PHY_MSG_VERBOSITY_xxxx
     uint32_t config_sim_only;
     uint32_t config_disable_unused_clks;
     uint32_t config_train_poll_max_iterations;
@@ -151,7 +151,7 @@ int ddr_config(DDR_MODE *ddr_mode)
 
     config_real_pll = 1;
     config_auto_precharge = 0;
-    config_debug_level = 1;
+    config_debug_level = PHY_MSG_VERBOSITY_MORE_DETAILED_DEBUG;
     config_disable_unused_clks = 0;
     config_train_poll_max_iterations = 50000;
     config_train_poll_iteration_delay = 1000;   // unit in ns.  less than 1000ns will simply do task yield
@@ -172,9 +172,12 @@ int ddr_config(DDR_MODE *ddr_mode)
 
     if(config_training) {
 
+        Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]config_debug_level = 0x%02x", 0, config_debug_level);
+
         ms_init_seq_phase3_02_no_loop(memshire, config_800mhz, config_933mhz);
 
         FOR_EACH_MEMSHIRE_EVEN_FIRST(
+            Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]start training", memshire);
             ms_init_seq_phase3_03(memshire, config_debug_level, config_sim_only)
         );
 
