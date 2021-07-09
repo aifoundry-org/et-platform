@@ -77,6 +77,8 @@ enum mgmt_device_msg_e {
 	DM_CMD_GET_ASIC_LATENCY = 54,
 	DM_CMD_GET_MM_ERROR_COUNT = 55,
 	DM_CMD_GET_DEVICE_ERROR_EVENTS = 56,
+	DM_CMD_SET_DM_TRACE_RUN_CONTROL = 57,
+	DM_CMD_SET_DM_TRACE_CONFIG = 58,
 };
 
 /*
@@ -1897,6 +1899,36 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		FILL_RSP_HEADER(dm_def_rsp,
 				header.tag_id,
 				DM_CMD_GET_DEVICE_ERROR_EVENTS,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_def_rsp,
+					sizeof(dm_def_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_SET_DM_TRACE_RUN_CONTROL:
+		FILL_RSP_HEADER(dm_def_rsp,
+				header.tag_id,
+				DM_CMD_SET_DM_TRACE_RUN_CONTROL,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_def_rsp,
+					sizeof(dm_def_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_SET_DM_TRACE_CONFIG:
+		FILL_RSP_HEADER(dm_def_rsp,
+				header.tag_id,
+				DM_CMD_SET_DM_TRACE_CONFIG,
 				0,
 				DM_STATUS_SUCCESS);
 		if (!et_circbuffer_push(&cq->cb,
