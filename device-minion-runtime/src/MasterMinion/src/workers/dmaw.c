@@ -40,6 +40,7 @@
 #include    "services/host_iface.h"
 #include    "services/sp_iface.h"
 #include    "services/sw_timer.h"
+#include    "services/trace.h"
 #include    "pmu.h"
 #include    "sync.h"
 
@@ -330,6 +331,9 @@ int8_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
     {
         dma_start_read(read_chan_id);
 
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
+
         /* Update cycles value into the Global Channel Status data structure */
         atomic_store_local_64(
             &DMAW_Read_CB.chan_status_cb[read_chan_id].dmaw_cycles.cmd_start_cycles, cycles->cmd_start_cycles);
@@ -344,6 +348,9 @@ int8_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
     }
     else
     {
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
+
         /* Release the DMA resources */
         chan_status.tag_id = 0;
         chan_status.sqw_idx = 0;
@@ -439,6 +446,9 @@ int8_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
     {
         dma_start_write(write_chan_id);
 
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
+
         /* Update cycles value into the Global Channel Status data structure */
         atomic_store_local_64(
             &DMAW_Write_CB.chan_status_cb[write_chan_id].dmaw_cycles.cmd_start_cycles, cycles->cmd_start_cycles);
@@ -455,6 +465,9 @@ int8_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
     }
     else
     {
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
+
         /* Release the DMA resources */
         chan_status.tag_id = 0;
         chan_status.sqw_idx = 0;
@@ -577,6 +590,9 @@ struct device_ops_data_write_rsp_t *write_rsp)
             /* DMA transfer complete, clear interrupt status */
             dma_clear_read_done(read_chan);
             write_rsp->status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
+
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD,
+                read_chan_status.sqw_idx, read_chan_status.tag_id, CMD_STATUS_SUCCEEDED)
             Log_Write(LOG_LEVEL_DEBUG,"DMAW: Read Transfer Completed\r\n");
         }
         else
@@ -585,6 +601,9 @@ struct device_ops_data_write_rsp_t *write_rsp)
             dma_clear_read_abort(read_chan);
             dma_configure_read(read_chan);
             write_rsp->status = DEV_OPS_API_DMA_RESPONSE_ERROR;
+
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD,
+                read_chan_status.sqw_idx, read_chan_status.tag_id, CMD_STATUS_ABORTED)
             Log_Write(LOG_LEVEL_ERROR,"DMAW:Tag_ID=%u:Read Transfer Aborted\r\n",
                         read_chan_status.tag_id);
         }
@@ -790,6 +809,8 @@ static inline void process_dma_write_chan_in_use(dma_write_chan_id_e write_chan,
             dma_clear_write_done(write_chan);
             read_rsp->status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
             Log_Write(LOG_LEVEL_DEBUG,"DMAW: Write Transfer Completed\r\n");
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD,
+                write_chan_status.sqw_idx, write_chan_status.tag_id, CMD_STATUS_SUCCEEDED)
         }
         else
         {
@@ -799,6 +820,8 @@ static inline void process_dma_write_chan_in_use(dma_write_chan_id_e write_chan,
             read_rsp->status = DEV_OPS_API_DMA_RESPONSE_ERROR;
             Log_Write(LOG_LEVEL_ERROR,"DMAW:Tag_ID=%u:Write Transfer Aborted\r\n",
                         write_chan_status.tag_id);
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD,
+                write_chan_status.sqw_idx, write_chan_status.tag_id, CMD_STATUS_ABORTED)
         }
 
         /* TODO: SW-7137: To be removed */

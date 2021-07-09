@@ -36,6 +36,7 @@
 #include    "services/sp_iface.h"
 #include    "services/log.h"
 #include    "services/sw_timer.h"
+#include    "services/trace.h"
 #include    "workers/cw.h"
 #include    "workers/kw.h"
 #include    "workers/sqw.h"
@@ -675,6 +676,9 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
         /* Reset the L2 SCP kernel launched flag for the acquired kernel worker slot */
         atomic_store_global_32(&CM_KERNEL_LAUNCHED_FLAG[slot_index].flag, 0);
 
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD, sqw_idx,
+            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
+
         /* Blocking call that blocks till all shires ack command */
         status = CM_Iface_Multicast_Send(launch_args.kernel.shire_mask,
                     (cm_iface_message_t*)&launch_args);
@@ -1030,26 +1034,31 @@ static inline uint32_t kw_get_kernel_launch_completion_status(uint32_t kernel_st
     {
         /* Update the kernel launch response to indicate that it was aborted by host */
         status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED;
+
     }
     else if(kernel_state == KERNEL_STATE_ABORTING)
     {
         /* Update the kernel launch response to indicate that it was aborted by device */
         status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG;
+
     }
     else if(status_internal->cw_exception)
     {
         /* Exception was detected in kernel run, update response */
         status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_EXCEPTION;
+
     }
     else if(status_internal->cw_error)
     {
         /* Error was detected in kernel run, update response */
         status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
+
     }
     else
     {
         /* Everything went normal, update response to kernel completed */
         status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED;
+
     }
 
     return status;
@@ -1192,9 +1201,6 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             SW_Timer_Cancel_Timeout(atomic_load_local_8(&kernel->sw_timer_idx));
         }
 
-        /* Get completion status of kernel launch. */
-        launch_rsp.status = kw_get_kernel_launch_completion_status(kernel_state, &status_internal);
-
         /* Read the execution cycles info */
         cycles.cmd_start_cycles = atomic_load_local_64(&kernel->kw_cycles.cmd_start_cycles);
         cycles.raw_u64 = atomic_load_local_64(&kernel->kw_cycles.raw_u64);
@@ -1209,6 +1215,11 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         launch_rsp.device_cmd_execute_dur = (PMC_GET_LATENCY(cycles.exec_start_cycles) & 0xFFFFFFFF);
 
         local_sqw_idx = (uint8_t)atomic_load_local_16(&kernel->sqw_idx);
+
+        /* Get completion status of kernel launch. */
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD,
+            local_sqw_idx, launch_rsp.response_info.rsp_hdr.tag_id, kernel_state);
+        launch_rsp.status = kw_get_kernel_launch_completion_status(kernel_state, &status_internal);
 
         /* Give back the reserved compute shires. */
         kw_unreserve_kernel_shires(kernel_shire_mask);

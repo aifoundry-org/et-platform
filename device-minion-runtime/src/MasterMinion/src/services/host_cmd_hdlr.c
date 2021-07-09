@@ -314,6 +314,9 @@ static inline int8_t kernel_launch_cmd_handler(void* command_buffer, uint8_t sqw
     Log_Write(LOG_LEVEL_DEBUG,
         "SQ[%d] HostCommandHandler:Processing:KERNEL_LAUNCH_CMD\r\n", sqw_idx);
 
+    TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD, sqw_idx,
+        cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
+
     /* Compute Wait Cycles (cycles the command was sitting in SQ prior to launch)
         Snapshot current cycle */
     cycles.cmd_start_cycles = start_cycles;
@@ -621,6 +624,9 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
     Log_Write(LOG_LEVEL_DEBUG,
         "SQ[%d] HostCommandHandler:Processing:DATA_READ_CMD\r\n", sqw_idx);
 
+    TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
+
     /* Check if no special flag is set. */
     if((cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_MM_TRACE_BUF) ||
         (cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_CM_TRACE_BUF))
@@ -692,6 +698,9 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
 
     if(status != STATUS_SUCCESS)
     {
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
+
         Log_Write(LOG_LEVEL_ERROR,
             "SQ[%d]:TID:%u:HostCmdHdlr:DMARead:Fail:%d\r\n",
                 sqw_idx, cmd->command_info.cmd_hdr.tag_id, status);
@@ -799,6 +808,8 @@ static inline int8_t dma_writelist_cmd_handler(void* command_buffer, uint8_t sqw
     to move data from device to host */
     Log_Write(LOG_LEVEL_DEBUG,
         "SQ[%d] HostCommandHandler:Processing:DATA_WRITE_CMD\r\n", sqw_idx);
+    TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD, sqw_idx,
+            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
 
     /* Get number of transfer commands in the list, based on message payload length. */
     dma_xfer_count = (uint8_t)(cmd->command_info.cmd_hdr.size - DEVICE_CMD_HEADER_SIZE) /
@@ -857,6 +868,9 @@ static inline int8_t dma_writelist_cmd_handler(void* command_buffer, uint8_t sqw
 
     if(status != STATUS_SUCCESS)
     {
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
+
         Log_Write(LOG_LEVEL_ERROR, "HostCmdHdlr:DMAWrite:TID:%u:Fail:%d\r\n",
                   cmd->command_info.cmd_hdr.tag_id, status);
 

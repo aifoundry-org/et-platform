@@ -40,6 +40,7 @@
 #include "services/host_iface.h"
 #include "services/host_cmd_hdlr.h"
 #include "services/sw_timer.h"
+#include "services/trace.h"
 #include <esperanto/device-apis/device_apis_message_types.h>
 #include "pmu.h"
 #include "etsoc_memory.h"
@@ -85,6 +86,7 @@ static sqw_cb_t SQW_CB __attribute__((aligned(64))) = {0};
 *
 *   INPUTS
 *
+*       cmd_hdr     Command header which is waiting on barrier.
 *       sqw_idx     Submission Queue Index
 *
 *   OUTPUTS
@@ -270,6 +272,8 @@ static inline void sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_ca
             processed in the current SQ */
             if(cmd_hdr->cmd_hdr.flags & CMD_HEADER_FLAG_BARRIER)
             {
+                TRACE_LOG_CMD_STATUS(cmd_hdr->cmd_hdr.msg_id, (uint8_t)sqw_idx, 
+                                     cmd_hdr->cmd_hdr.tag_id, CMD_STATUS_WAIT_BARRIER);
                 sqw_command_barrier((uint8_t)sqw_idx);
             }
 

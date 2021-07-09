@@ -48,7 +48,19 @@ enum trace_type_e {
     TRACE_TYPE_VALUE_U8,
     TRACE_TYPE_VALUE_FLOAT,
     TRACE_TYPE_MEMORY,
-    TRACE_TYPE_EXCEPTION
+    TRACE_TYPE_EXCEPTION,
+    TRACE_TYPE_CMD_STATUS
+};
+
+typedef uint8_t trace_cmd_status_e;
+
+enum trace_cmd_status {
+    CMD_STATUS_WAIT_BARRIER = 1, /**< Conditional: Command is awaiting for Barrier to be released */
+    CMD_STATUS_RECEIVED,    /**< Command is popped/received from submission Queue. */
+    CMD_STATUS_EXECUTING,   /**< Command is submitted for execution to respective component of device. */
+    CMD_STATUS_FAILED,      /**< Command completed with a failure. */
+    CMD_STATUS_ABORTED,     /**< Command is aborted. */
+    CMD_STATUS_SUCCEEDED,   /**< Command completed successfully. */
 };
 
 enum pmc_counter_e {
@@ -88,6 +100,24 @@ struct trace_pmc_counter_t {
     uint64_t value;
     uint8_t  counter; // One of enum pmc_counter_e
     uint8_t  pad[7];
+} __attribute__((packed));
+
+struct trace_cmd_status_internal_t {
+    union{
+        struct{
+            uint16_t mesg_id;               /**< Command message ID */
+            trace_cmd_status_e cmd_status;  /**< Command execution status, One of enum trace_cmd_status */
+            uint8_t queue_slot_id;          /**< Submission Queue ID from which command is popped */
+            uint16_t trans_id;              /**< transaction ID of command e.g. Tag ID. */
+            uint8_t reserved[2];            /**< Reserved */
+        }__attribute__((packed));
+        uint64_t raw_cmd;
+    };
+} __attribute__((packed));
+
+struct trace_cmd_status_t {
+    struct trace_entry_header_t header;
+    struct trace_cmd_status_internal_t cmd;
 } __attribute__((packed));
 
 struct trace_string_t {

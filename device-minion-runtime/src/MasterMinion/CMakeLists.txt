@@ -16,6 +16,8 @@
 set(LINKER_SCRIPT src/sections.ld)
 set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
 
+option(ENABLE_CMD_EXECUTION_TRACE "Enable Command Tracing support" OFF)
+
 # MM build variants
 foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
 
@@ -75,6 +77,9 @@ foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
             -DMASTER_MINION=1
             -DMM_VARIANT="${MM_BUILD_VARIANT}"
             -DTEST_FRAMEWORK=${TEST_FRAMEWORK}
+        PRIVATE
+            $<$<BOOL:${ENABLE_CMD_EXECUTION_TRACE}>: MM_ENABLE_CMD_EXECUTION_TRACE>
+    
     )
     target_link_libraries(${MM_BUILD_VARIANT}.elf
         PUBLIC

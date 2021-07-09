@@ -125,5 +125,7 @@ void Trace_Value_u8(struct trace_control_block_t *cb, uint32_t tag, uint8_t valu
 void Trace_Value_float(struct trace_control_block_t *cb, uint32_t tag, float value);
 void Trace_Memory(struct trace_control_block_t *cb, const uint8_t *src, uint16_t num_cache_line);
 void *Trace_Buffer_Reserve(struct trace_control_block_t *cb, uint64_t size);
+void Trace_Cmd_Status(struct trace_control_block_t *cb,
+        const struct trace_cmd_status_internal_t *cmd_data);
 
 #endif
