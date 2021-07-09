@@ -14,8 +14,8 @@
 
 #include "et_event_handler.h"
 #include "et_circbuffer.h"
-#include "et_pci_dev.h"
 #include "et_io.h"
+#include "et_pci_dev.h"
 
 #define VALUE_STR_MAX_LEN 128
 
@@ -246,49 +246,63 @@ static void parse_throttling_syndrome(struct device_mgmt_event_msg_t *event_msg,
 }
 
 static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
-				      struct event_dbg_msg *dbg_msg, struct et_mapped_region *trace_region)
+				      struct event_dbg_msg *dbg_msg,
+				      struct et_mapped_region *trace_region)
 {
-	
 	char value_str[VALUE_STR_MAX_LEN];
 	void __iomem *trace_addr;
-	uint16_t idx=0;
-	uint64_t *data  = kmalloc(SP_EXCEPTION_STACK_FRAME_SIZE, GFP_KERNEL);
+	uint16_t idx = 0;
+	uint64_t *data = kmalloc(SP_EXCEPTION_STACK_FRAME_SIZE, GFP_KERNEL);
 
 	strcat(dbg_msg->syndrome, "Service Processor Error\n");
 
 	if (!trace_region->is_valid) {
 		strcat(dbg_msg->syndrome, "Invalid Trace Region");
-	}
-	else {
-                /* Get the Device Trace base address */
+	} else {
+		/* Get the Device Trace base address */
 		trace_addr = (u8 __iomem *)trace_region->mapped_baseaddr;
-		
-                /* Read the Device Trace buffer (Base + Offset(from Syndrome) */
-		et_ioread(trace_addr, event_msg->event_syndrome[1], 
-					(u8*)&data, SP_EXCEPTION_STACK_FRAME_SIZE);
-		
+
+		/* Read the Device Trace buffer (Base + Offset(from Syndrome) */
+		et_ioread(trace_addr,
+			  event_msg->event_syndrome[1],
+			  (u8 *)&data,
+			  SP_EXCEPTION_STACK_FRAME_SIZE);
+
 		/* print GPRs */
-		snprintf(value_str, VALUE_STR_MAX_LEN,
-			"x1        : 0x%lld\n", *data);
+		snprintf(value_str,
+			 VALUE_STR_MAX_LEN,
+			 "x1        : 0x%lld\n",
+			 *data);
 		strcat(dbg_msg->syndrome, value_str);
-		for(idx = 5; idx< SP_GPR_REGISTERS; idx++, data++)
-		{
-			snprintf(
-			value_str,
-			VALUE_STR_MAX_LEN,
-			"x%d        : 0x%llx\n",
-			idx,*data);
+		for (idx = 5; idx < SP_GPR_REGISTERS; idx++, data++) {
+			snprintf(value_str,
+				 VALUE_STR_MAX_LEN,
+				 "x%d        : 0x%llx\n",
+				 idx,
+				 *data);
 			strcat(dbg_msg->syndrome, value_str);
 		}
 
 		/* print CSRs */
-		snprintf(value_str, VALUE_STR_MAX_LEN,"mepc = 0x%llx\n",*++data);
+		snprintf(value_str,
+			 VALUE_STR_MAX_LEN,
+			 "mepc = 0x%llx\n",
+			 *++data);
 		strcat(dbg_msg->syndrome, value_str);
-		snprintf(value_str, VALUE_STR_MAX_LEN,"mstatus = 0x%llx\n",*++data);
+		snprintf(value_str,
+			 VALUE_STR_MAX_LEN,
+			 "mstatus = 0x%llx\n",
+			 *++data);
 		strcat(dbg_msg->syndrome, value_str);
-		snprintf(value_str, VALUE_STR_MAX_LEN,"mtval = 0x%llx\n",*++data);
+		snprintf(value_str,
+			 VALUE_STR_MAX_LEN,
+			 "mtval = 0x%llx\n",
+			 *++data);
 		strcat(dbg_msg->syndrome, value_str);
-		snprintf(value_str, VALUE_STR_MAX_LEN,"mcause = 0x%llx\n",*++data);
+		snprintf(value_str,
+			 VALUE_STR_MAX_LEN,
+			 "mcause = 0x%llx\n",
+			 *++data);
 		strcat(dbg_msg->syndrome, value_str);
 	}
 }
@@ -392,7 +406,9 @@ int et_handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
 	case DEV_MGMT_API_MID_SP_RUNTIME_EXCEPTION_EVENT:
 	case DEV_MGMT_API_MID_SP_RUNTIME_HANG_EVENT:
 		dbg_msg.desc = "SP Runtime Error";
-		parse_sp_runtime_syndrome(&event_msg, &dbg_msg, cq->vq_common->trace_region);
+		parse_sp_runtime_syndrome(&event_msg,
+					  &dbg_msg,
+					  cq->vq_common->trace_region);
 		break;
 	default:
 		dbg_msg.desc = "Un-Supported Event MSG ID";

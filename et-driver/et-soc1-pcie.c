@@ -453,7 +453,7 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	struct sq_threshold sq_threshold_info;
 	struct fw_update_desc fw_update_info;
 	u32 trace_region_size;
-	void *trace_region_start;
+	void __iomem *trace_region_start;
 	void __user *usr_arg = (void __user *)arg;
 	u16 sq_idx;
 	size_t size;
@@ -590,7 +590,7 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			return -EINVAL;
 
 		trace_region_size =
-		(u32)mgmt->regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE].size;
+			(u32)mgmt->regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE].size;
 
 		if (size >= sizeof(u32) &&
 		    copy_to_user(usr_arg, &trace_region_size, size)) {
@@ -1183,8 +1183,8 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	kfree(dir_data);
 
 	if (et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE].is_valid) {
-		et_dev->mgmt.trace_buf = kmalloc
-			(et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE]
+		et_dev->mgmt.trace_buf = kmalloc(
+			et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE]
 				.size,
 			GFP_KERNEL);
 		if (!et_dev->mgmt.trace_buf) {
