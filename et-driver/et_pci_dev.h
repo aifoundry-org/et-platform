@@ -7,7 +7,6 @@
 #include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
-#include <linux/timer.h>
 #include <linux/workqueue.h>
 
 // clang-format off

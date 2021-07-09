@@ -381,9 +381,6 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 			 "%s_mgmt_wq%d",
 			 dev_name(&et_dev->pdev->dev),
 			 et_dev->dev_index);
-		vq_common->workqueue = create_singlethread_workqueue(wq_name);
-		if (!vq_common->workqueue)
-			return -ENOMEM;
 	} else {
 		vq_common = &et_dev->ops.vq_common;
 
@@ -393,10 +390,10 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 			 "%s_ops_wq%d",
 			 dev_name(&et_dev->pdev->dev),
 			 et_dev->dev_index);
-		vq_common->workqueue = create_singlethread_workqueue(wq_name);
-		if (!vq_common->workqueue)
-			return -ENOMEM;
 	}
+	vq_common->workqueue = create_singlethread_workqueue(wq_name);
+	if (!vq_common->workqueue)
+		return -ENOMEM;
 
 	// Set interrupt address
 	if (!intrpt_region->is_valid) {
