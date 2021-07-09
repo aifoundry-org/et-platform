@@ -14,6 +14,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/rbtree.h>
+#include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
@@ -23,6 +24,12 @@
 #include "et_device_api.h"
 
 #define ET_MAX_QUEUES 64
+
+/*
+ * We'll have a 5 sec timeout, just to cater for zebu as well
+ * ideally this should be commandline configurable
+ */
+#define ET_MSG_TIMEOUT (5 * HZ)
 
 struct et_pci_dev;
 
@@ -48,6 +55,10 @@ struct et_vq_common {
 	struct pci_dev *pdev;
 	u8 vec_idx_offset;
 	struct et_mapped_region *trace_region;
+	struct timer_list msg_timeout_timer;
+	bool msg_timer_running;
+	spinlock_t msg_timer_lock;	/* serializes timer modifications */
+	u16 host_timedout_errs;
 };
 
 struct et_squeue {
@@ -57,6 +68,7 @@ struct et_squeue {
 	struct mutex push_mutex;	/* serializes access to cb */
 	atomic_t sq_threshold;
 	struct et_vq_common *vq_common;
+	atomic_t msg_count;
 };
 
 // clang-format on
@@ -80,6 +92,7 @@ struct et_cqueue {
 	struct list_head msg_list;
 	struct mutex msg_list_mutex;	/* serializes access to msg_list */
 	struct work_struct isr_work;
+	atomic_t msg_count;
 };
 
 // clang-format on

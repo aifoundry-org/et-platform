@@ -19,6 +19,78 @@
 #include "et_pci_dev.h"
 #include "et_vqueue.h"
 
+static void et_process_msg_count(struct et_squeue **sq_pptr,
+				 struct et_cqueue **cq_pptr,
+				 bool is_mgmt)
+{
+	u64 cq_msg_count = 0, sq_msg_count = 0;
+	int i;
+	struct event_dbg_msg dbg_msg;
+	char syndrome_str[ET_EVENT_SYNDROME_LEN];
+	unsigned long flags;
+	struct et_vq_common *vq_common = cq_pptr[0]->vq_common;
+
+	// Compute the total SQ(s) message count
+	for (i = 0; i < vq_common->dir_vq.sq_count; i++)
+		sq_msg_count += atomic_read(&sq_pptr[i]->msg_count);
+
+	// Compute the total CQ(s) message count
+	for (i = 0; i < vq_common->dir_vq.cq_count; i++)
+		cq_msg_count += atomic_read(&cq_pptr[i]->msg_count);
+
+	// Check if we have a message timeout
+	if (cq_msg_count != sq_msg_count) {
+		dbg_msg.level = LEVEL_FATAL;
+		dbg_msg.desc = "Host timed out waiting for device!";
+		dbg_msg.count = ++vq_common->host_timedout_errs;
+
+		syndrome_str[0] = '\0';
+		dbg_msg.syndrome = syndrome_str;
+		sprintf(dbg_msg.syndrome,
+			"\nDevice: %s\n"
+			"SQ Message Count: %lld\n"
+			"CQ Message Count: %lld\n"
+			"SQ/CQ message counters will be reset\n",
+			(is_mgmt) ? "Mgmt" : "Ops",
+			sq_msg_count,
+			cq_msg_count);
+
+		et_print_event(vq_common->pdev, &dbg_msg);
+
+		// Reset the message counters
+		for (i = 0; i < vq_common->dir_vq.sq_count; i++)
+			atomic_set(&sq_pptr[i]->msg_count, 0);
+
+		for (i = 0; i < vq_common->dir_vq.cq_count; i++)
+			atomic_set(&cq_pptr[i]->msg_count, 0);
+	}
+
+	// Clear the timer running check so next push to SQ wakes it
+	spin_lock_irqsave(&vq_common->msg_timer_lock, flags);
+	vq_common->msg_timer_running = false;
+	spin_unlock_irqrestore(&vq_common->msg_timer_lock, flags);
+}
+
+static void et_msg_timeout_mgmt(struct timer_list *timer)
+{
+	struct et_vq_common *vq_common =
+		container_of(timer, struct et_vq_common, msg_timeout_timer);
+	struct et_mgmt_dev *mgmt =
+		container_of(vq_common, struct et_mgmt_dev, vq_common);
+
+	et_process_msg_count(mgmt->sq_pptr, mgmt->cq_pptr, true);
+}
+
+static void et_msg_timeout_ops(struct timer_list *timer)
+{
+	struct et_vq_common *vq_common =
+		container_of(timer, struct et_vq_common, msg_timeout_timer);
+	struct et_ops_dev *ops =
+		container_of(vq_common, struct et_ops_dev, vq_common);
+
+	et_process_msg_count(ops->sq_pptr, ops->cq_pptr, false);
+}
+
 static struct et_msg_node *create_msg_node(u32 msg_size)
 {
 	struct et_msg_node *new_node;
@@ -177,6 +249,8 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 			   (vq_common->dir_vq.per_sq_size -
 			    sizeof(struct et_circbuffer)) /
 				   4);
+
+		atomic_set(&sq_pptr[i]->msg_count, 0);
 	}
 
 	if (is_mgmt)
@@ -262,6 +336,8 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 			dev_err(&et_dev->pdev->dev, "request irq failed\n");
 			goto error_free_irq;
 		}
+
+		atomic_set(&cq_pptr[i]->msg_count, 0);
 	}
 
 	if (is_mgmt)
@@ -358,6 +434,23 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 
 	et_dev->used_irq_vecs += vq_common->dir_vq.cq_count;
 
+	/*
+	 * In order to get to the count from the vqueue we need to
+	 * identify if this is the mgmt or ops node. We achieve this
+	 * by implementing timer callbacks separately.
+	 */
+	spin_lock_init(&vq_common->msg_timer_lock);
+	vq_common->msg_timer_running = false;
+	vq_common->host_timedout_errs = 0;
+	if (is_mgmt)
+		timer_setup(&vq_common->msg_timeout_timer,
+			    et_msg_timeout_mgmt,
+			    0);
+	else
+		timer_setup(&vq_common->msg_timeout_timer,
+			    et_msg_timeout_ops,
+			    0);
+
 	return rv;
 
 error_squeue_destroy_all:
@@ -432,6 +525,9 @@ void et_vqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	else
 		vq_common = &et_dev->ops.vq_common;
 
+	// Delete the message timeout timer
+	del_timer_sync(&vq_common->msg_timeout_timer);
+
 	spin_lock_irqsave(&vq_common->abort_lock, flags);
 	vq_common->aborting = true;
 	spin_unlock_irqrestore(&vq_common->abort_lock, flags);
@@ -497,6 +593,18 @@ ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count)
 
 	// Inform device that message has been pushed to SQ
 	interrupt_device(sq);
+
+	// Increment the message count
+	atomic_inc(&sq->msg_count);
+
+	// Kick the message timeout timer if it is not running already
+	spin_lock(&sq->vq_common->msg_timer_lock);
+	if (!sq->vq_common->msg_timer_running) {
+		mod_timer(&sq->vq_common->msg_timeout_timer,
+			  jiffies + ET_MSG_TIMEOUT);
+		sq->vq_common->msg_timer_running = true;
+	}
+	spin_unlock(&sq->vq_common->msg_timer_lock);
 
 update_sq_bitmap:
 	mutex_unlock(&sq->push_mutex);
@@ -772,6 +880,13 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	}
 
 	mutex_unlock(&cq->pop_mutex);
+
+	/*
+	 * Now that we have popped a message increment the message count and
+	 * modify the timer so we can check once after the last received message
+	 */
+	atomic_inc(&cq->msg_count);
+	mod_timer(&cq->vq_common->msg_timeout_timer, jiffies + ET_MSG_TIMEOUT);
 
 	// Enqueue msg node to user msg_list of CQ
 	enqueue_msg_node(cq, msg_node);
