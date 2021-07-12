@@ -38,9 +38,9 @@ target_include_directories(WorkerMinion.elf
 )
 target_link_libraries(WorkerMinion.elf
     PRIVATE
+        deviceApi::deviceApi
         deviceFirmware::firmware_helpers_interface
         deviceFirmware::firmware_helpers_serial
-    PRIVATE
         deviceFirmware::device_configuration
 )
 

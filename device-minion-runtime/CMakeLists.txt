@@ -11,6 +11,11 @@
 cmake_minimum_required(VERSION 3.5)
 project(deviceMinionRuntime VERSION 0.0.1 LANGUAGES C ASM)
 
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
+message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
+message(STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
+
 include(ExternalProject)
 include(GNUInstallDirs)
 include(DeviceUtils)
@@ -44,13 +49,15 @@ find_package(signedImageFormat REQUIRED)
 
 ########## Documentation #####################################
 
-# check if Doxygen is installed
-find_package(Doxygen)
-if (DOXYGEN_FOUND)
-  add_subdirectory(doc)
-else (DOXYGEN_FOUND)
-  message("Doxygen need to be installed to generate the doxygen documentation")
-endif (DOXYGEN_FOUND)
+if (BUILD_DOC)
+    # check if Doxygen is installed
+    find_package(Doxygen)
+    if (DOXYGEN_FOUND)
+    add_subdirectory(doc)
+    else (DOXYGEN_FOUND)
+    message("Doxygen need to be installed to generate the doxygen documentation")
+    endif (DOXYGEN_FOUND)
+endif()
 
 ############################ FW build Rules ############### ####################
 
