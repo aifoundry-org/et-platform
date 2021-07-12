@@ -9,7 +9,6 @@
  *-------------------------------------------------------------------------*/
 #pragma once
 
-
 #include <hostUtils/debug/StackException.h>
 #include <sw-sysemu/SysEmuOptions.h>
 
@@ -167,6 +166,15 @@ public:
   ///
   virtual size_t getSubmissionQueueSizeServiceProcessor(int device) const = 0;
 
+  /// \brief Receives Service Processor's trace buffer associated to given device in response
+  ///
+  /// @param[in] device indicating which device to receive the response from.
+  /// @param[out] response buffer containing Service Processor's trace buffer
+  ///
+  /// @returns false if there was no response to be received
+  ///
+  virtual bool getTraceBufferServiceProcessor(int device, std::vector<std::byte>& response) = 0;
+
   /// \brief Returns the DMA alignment requirement
   ///
   /// @returns User DRAM alignment(in bits)
@@ -189,23 +197,21 @@ public:
   /// instances
   virtual ~IDeviceSync() = default;
 
-
-  /// \brief Allocates a consecutive chunk of memory, able to do DMA. This chunk of memory must be deallocated properly 
+  /// \brief Allocates a consecutive chunk of memory, able to do DMA. This chunk of memory must be deallocated properly
   ///  using the freeDmaBuffer function.
   ///
-  /// @param[in] sizeInBytes size, in bytes, for the memory allocation. 
+  /// @param[in] sizeInBytes size, in bytes, for the memory allocation.
   /// @param[in] writeable indicates if the memory should be writeable or, if false, readonly.
   ///
   /// @returns a chunk of memory which is suitable to be used in DMA operations.
   ///
-  virtual void* allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) = 0; 
+  virtual void* allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) = 0;
 
   /// \brief Deallocates a previously allocated dmaBuffer.
   ///
   /// @param[in] dmaBuffer the buffer to be deallocated.
   ///
   virtual void freeDmaBuffer(void* dmaBuffer) = 0;
-
 };
 
 class IDeviceLayer : public IDeviceAsync, public IDeviceSync {

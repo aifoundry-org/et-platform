@@ -82,7 +82,7 @@ bool TestDevOpsApiDmaCmds::executeDmaCmds(bool singleDevice, bool singleQueue, b
     }
   }
 
-  isAsync ? executeAsync() : executeSync();
+  execute(isAsync);
 
   deleteStreams();
   return true;
@@ -268,7 +268,7 @@ bool TestDevOpsApiDmaCmds::executeDmaListCmds(bool singleDevice, bool singleQueu
     }
   }
 
-  isAsync ? executeAsync() : executeSync();
+  execute(isAsync);
 
   auto validateData = !FLAGS_loopback_driver;
   res =
@@ -554,7 +554,7 @@ void TestDevOpsApiDmaCmds::dataRWListCmd_NegativeTesting_3_12() {
     insertStream(deviceIdx, queueIdx, std::move(stream));
     stream.clear();
   }
-  executeAsync();
+  execute(true);
   deleteStreams();
 }
 

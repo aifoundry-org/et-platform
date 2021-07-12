@@ -148,7 +148,7 @@ void TestDevOpsApiKernelCmds::launchAddVectorKernel_PositiveTesting_4_1(uint64_t
     readersStorageAddKer.push_back(std::move(readersAddKer));
   }
 
-  executeAsync();
+  execute(true);
 
   // Skip data validation in case of loopback driver
   if (FLAGS_loopback_driver) {
@@ -250,7 +250,7 @@ void TestDevOpsApiKernelCmds::launchUberKernel_PositiveTesting_4_4(uint64_t shir
     }
     readersStorageUberKer.push_back(std::move(readersUberKer));
   }
-  executeAsync();
+  execute(true);
 
   // Skip data validation in case of loopback driver
   if (FLAGS_loopback_driver) {
@@ -318,7 +318,7 @@ void TestDevOpsApiKernelCmds::launchEmptyKernel_PositiveTesting_4_5(uint64_t shi
     }
     readersStorageEmptyKer.push_back(std::move(readers));
   }
-  executeAsync();
+  execute(true);
   deleteStreams();
 
   TEST_VLOG(1) << "====> EMPTY KERNEL DONE <====" << std::endl;
@@ -364,7 +364,7 @@ void TestDevOpsApiKernelCmds::launchExceptionKernel_NegativeTesting_4_6(uint64_t
     }
     readersStorageExceptKer.push_back(std::move(readersExceptKer));
   }
-  executeAsync();
+  execute(true);
 
   // print the exception buffer for the first two shires
   for (int deviceIdxExceptKer = 0, i = 0; deviceIdxExceptKer < deviceCountExceptKer; deviceIdxExceptKer++) {
@@ -433,7 +433,7 @@ void TestDevOpsApiKernelCmds::launchHangKernel(uint64_t shire_mask, bool sendAbo
     }
     readersStorageHangKer.push_back(std::move(readersHangKer));
   }
-  executeAsync();
+  execute(true);
 
   // print the exception buffer for the first two shires
   for (int deviceIdxHangKer = 0, i = 0; deviceIdxHangKer < deviceCountHangKer; deviceIdxHangKer++) {
@@ -464,7 +464,7 @@ void TestDevOpsApiKernelCmds::kernelAbortCmd_InvalidTagIdNegativeTesting_6_2() {
       streamAbortCmd.clear();
     }
   }
-  executeAsync();
+  execute(true);
   deleteStreams();
 }
 
@@ -586,7 +586,7 @@ void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(bool singleDevi
     readersStorageSameKer.push_back(std::move(readersSameKer));
   }
 
-  executeAsync();
+  execute(true);
 
   // Verify kernel's data
   varifyAddKernelLaunchKernel(singleDevice, singleQueue, vSumStorageSameKer, vResultStorageSameKer, kerCountStorage);
@@ -736,7 +736,7 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(bool singl
     readersStorageDiffKer.push_back(std::move(readersDiffKer));
   }
 
-  executeAsync();
+  execute(true);
 
   // Verify kernel's data
   varifyAddKernelLaunchKernel(singleDevice, singleQueue, vSumStorageDiffKer, vResultStorageDiffKer, kerCountStorage);
@@ -799,7 +799,7 @@ void TestDevOpsApiKernelCmds::backToBackEmptyKernelLaunch_3_3(uint64_t totalKer,
     readersStorageEmptyKer.push_back(std::move(readersEmptyKer));
   }
 
-  executeAsync();
+  execute(true);
   deleteStreams();
 
   TEST_VLOG(1) << "====> BACK TO BACK " << totalKer << " KERNEL LAUNCH (EMPTY KERNEL) DONE <====\n" << std::endl;
@@ -1386,7 +1386,7 @@ void TestDevOpsApiKernelCmds::launchKernelDMAListCmds(uint64_t shireMask, std::v
   }
 
   // Execute all commands
-  executeAsync();
+  execute(true);
 
   // validate Add kernel commands
   validataAddKernel(addKernelSumVectorAB, addKernelResultVectorAB);

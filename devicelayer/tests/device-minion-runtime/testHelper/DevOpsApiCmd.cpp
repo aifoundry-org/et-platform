@@ -833,7 +833,7 @@ std::string KernelAbortCmd::printSummary() {
  * Device Ops Api trace configuration command
  */
 TraceRtConfigCmd::TraceRtConfigCmd(
-  CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint32_t /*shireMask*/, uint32_t /*threadMask*/,
+  CmdTag tagId, const std::tuple<device_ops_api::cmd_flags_e /*flags*/, uint64_t /*shireMask*/, uint64_t /*threadMask*/,
                                  uint32_t /*eventMask*/, uint32_t /*filterMask*/,
                                  device_ops_api::dev_ops_trace_rt_config_response_e /*expStatus*/>& args) {
   const auto& [flags, shireMask, threadMask, eventMask, filterMask, expStatus] = args;

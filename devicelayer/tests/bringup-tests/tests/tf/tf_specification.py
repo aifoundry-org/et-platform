@@ -32,6 +32,11 @@ class TfSpecification:
                     self.tf_rsp_id_list[tf_rsp_ids[key]] = key
                     rsp_id_count += 1
                 self.tf_rsp_id_count = rsp_id_count
+                #device-ops api responses
+                tf_ops_rsp_ids = self.data["tf_mm_device_api_rsp_ids"]
+                self.tf_ops_rsp_id_list = {}
+                for key in tf_ops_rsp_ids:
+                    self.tf_ops_rsp_id_list[tf_ops_rsp_ids[key]] = key
         except Exception:
             print("Error opening test specification JSON file")
 
@@ -46,7 +51,44 @@ class TfSpecification:
             else:
                 print('\t' * (indent+1) + str(value))
 
-    def response_get_payload_args(self, processed_rsp, raw_rsp, rsp_spec, end_idx):
+    def response_process_shell_payload(self, raw_rsp, start_idx, payload_size):
+        new_processed_rsp = {}
+        ctypes = self.data["cdata_types"]
+        rsp_hdr = self.data["tf_mm_device_api_rsp_hdr"]
+        #obtain size
+        end_idx = start_idx + ctypes[rsp_hdr["size"]]
+        new_processed_rsp["size"] = int.from_bytes(raw_rsp[start_idx:end_idx],"little")
+        start_idx = end_idx
+        #obtain tag id
+        end_idx = start_idx + ctypes[rsp_hdr["tag_id"]]
+        new_processed_rsp["tag_id"] = int.from_bytes(raw_rsp[start_idx:end_idx],"little")
+        start_idx = end_idx
+        #obtain msg id
+        end_idx = start_idx + ctypes[rsp_hdr["msg_id"]]
+        rsp_id = int.from_bytes(raw_rsp[start_idx:end_idx],"little")
+        new_processed_rsp["msg_id"] = rsp_id
+        start_idx = end_idx
+        #obtain flags
+        end_idx = start_idx + ctypes[rsp_hdr["flags"]]
+        new_processed_rsp["flags"] = int.from_bytes(raw_rsp[start_idx:end_idx],"little")
+        start_idx = end_idx
+        #obtain rsp name and spec
+        rsp_name = self.tf_ops_rsp_id_list[rsp_id]
+        rsp_spec = self.data["tf_mm_device_api_rsp_spec"][rsp_name]
+        rsp_hdr_size = ctypes[rsp_hdr["size"]] + ctypes[rsp_hdr["tag_id"]] + ctypes[rsp_hdr["msg_id"]] + ctypes[rsp_hdr["flags"]]
+        #populate payload args
+        if new_processed_rsp["size"] > rsp_hdr_size:
+            payload_args = rsp_spec["payload_args"]
+            idx = start_idx
+            for arg in payload_args:
+                start_idx = idx
+                end_idx = start_idx + ctypes[payload_args[arg]]
+                new_processed_rsp[arg] = int.from_bytes(raw_rsp[start_idx:end_idx],"little")
+                idx = idx + (end_idx-start_idx)
+
+        return new_processed_rsp
+
+    def response_get_payload_args(self, processed_rsp, raw_rsp, rsp_spec, end_idx, mm_rsp_shell):
         ctypes = self.data["cdata_types"]
         if processed_rsp["payload_size"] != 0:
             payload_args = rsp_spec["payload_args"]
@@ -57,6 +99,8 @@ class TfSpecification:
                 start_idx = idx
                 if(payload_args[arg] == "unknown_bytes"):
                     processed_rsp[arg] = "This is variable sized data."
+                    if mm_rsp_shell == True:
+                        processed_rsp = self.response_process_shell_payload(raw_rsp, start_idx, processed_rsp["mm_rsp_size"])
                 else:
                     end_idx = start_idx + ctypes[payload_args[arg]]
                     processed_rsp[arg] = int.from_bytes(raw_rsp[start_idx:end_idx],"little")
@@ -98,7 +142,7 @@ class TfSpecification:
             data.write(user_args[0].to_bytes(ctypes[payload_args["dst_addr"]],byteorder='little'))
             data.write(user_args[1].to_bytes(ctypes[payload_args["size"]],byteorder='little'))
             data.write(user_args[2])
-        elif(cmd_id == self.data["tf_sp_command_ids"]["TF_CMD_MM_COMMAND_SHELL"]):
+        elif(cmd_id == self.data["tf_sp_command_ids"]["TF_CMD_MM_CMD_SHELL"]):
             data.write(user_args[0].to_bytes(ctypes[payload_args["mm_cmd_size"]],byteorder='little'))
             data.write(user_args[1])
         else:
@@ -129,6 +173,8 @@ class TfSpecification:
                 end_idx = start_idx + ctypes["uint16_t"]
                 rsp_id = int.from_bytes(raw_rsp[start_idx:end_idx],"little")
                 processed_rsp["id"] = rsp_id
+                #check for shell command response
+                mm_rsp_shell = rsp_id == self.data["tf_sp_response_ids"]["TF_RSP_MM_CMD_SHELL"]
                 #obtain response name
                 rsp_name = self.tf_rsp_id_list[rsp_id]
                 #obtain response spec
@@ -143,7 +189,7 @@ class TfSpecification:
                 end_idx = start_idx + ctypes[rsp_hdr["payload_size"]]
                 processed_rsp["payload_size"] = int.from_bytes(raw_rsp[start_idx:end_idx],"little")
                 #obtain payload args
-                processed_rsp = self.response_get_payload_args(processed_rsp, raw_rsp, rsp_spec, end_idx)
+                processed_rsp = self.response_get_payload_args(processed_rsp, raw_rsp, rsp_spec, end_idx, mm_rsp_shell)
                 break
             byte_idx += 1
         return processed_rsp

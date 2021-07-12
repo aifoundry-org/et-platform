@@ -19,9 +19,9 @@ class TargetFifo:
         #close both tx and rx fifos
         os.close(self.tx_fd)
         os.close(self.rx_fd)
-    def execute_test(self, command):
+    def execute_test(self, command, wait_for_response_secs = 1):
         os.write(self.rx_fd, command)
-        time.sleep(2)
+        time.sleep(wait_for_response_secs)
         #TODO:this can be improved.
         raw_response = os.read(self.tx_fd, 4096)
         print(raw_response)

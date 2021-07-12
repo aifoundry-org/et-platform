@@ -37,15 +37,17 @@ public:
   int getSubmissionQueuesCount(int device) const override;
   size_t getSubmissionQueueSizeMasterMinion(int device) const override;
   size_t getSubmissionQueueSizeServiceProcessor(int device) const override;
+  bool getTraceBufferServiceProcessor(int device, std::vector<std::byte>& response) override;
   int getDmaAlignment() const override;
   uint64_t getDramSize() const override;
   uint64_t getDramBaseAddress() const override;
-  void* allocDmaBuffer(int device,size_t sizeInBytes, bool writeable) override;
+  void* allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) override;
   void freeDmaBuffer(void* dmaBuffer) override;
 
 private:
   struct DevInfo {
     dram_info userDram_;
+    uint32_t spTraceRegionSize_;
     uint16_t mmSqCount_;
     uint16_t spSqMaxMsgSize_;
     uint16_t mmSqMaxMsgSize_;
@@ -54,7 +56,6 @@ private:
     int fdMgmt_;
     int epFdMgmt_;
   };
-
 
   bool opsEnabled_;
   bool mngmtEnabled_;
