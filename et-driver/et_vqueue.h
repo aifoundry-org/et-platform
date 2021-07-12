@@ -26,10 +26,11 @@
 #define ET_MAX_QUEUES 64
 
 /*
- * We'll have a 5 sec timeout, just to cater for zebu as well
- * ideally this should be commandline configurable
+ * We'll have a 300 sec timeout, just to cater for zebu as well. The DMA
+ * commands take a lot of time and ideally this should be commandline
+ * configurable.
  */
-#define ET_MSG_TIMEOUT (5 * HZ)
+#define ET_MSG_TIMEOUT (300 * HZ)
 
 struct et_pci_dev;
 
