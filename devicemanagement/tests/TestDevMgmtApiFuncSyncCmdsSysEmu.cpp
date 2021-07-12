@@ -124,12 +124,11 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleMaxTemperature_1_19) {
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleMaxMemoryErrors_1_20) {
   getModuleMaxMemoryErrors_1_20(false /* Multiple Devices */);
 }
-/* TODO Require SysEMU modelling fix
+
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleMaxDDRBW_1_21) {
 
   getModuleMaxDDRBW_1_21(false);
 }
-*/
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleMaxThrottleTime_1_22) {
   getModuleMaxThrottleTime_1_22(false /* Multiple Devices */);
@@ -160,13 +159,10 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getSRAMECCUECCCount_1_28) {
   getSRAMECCUECCCount_1_28(false /* Multiple Devices */);
 }
 
-/* TODO: Remove this test
-   Note: Device(BL2 DM TASK) initializes the DDR BW Counter. DM task is dependent on PMIC as well
-   This test should be run only on Zebu.
-TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleDDRBWCounter_1_29) {
-  getModuleDDRBWCounter_1_29(false);
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getDDRBWCounter_1_29) {
+  getDDRBWCounter_1_29(false);
 }
-*/
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setPCIELinkSpeed_1_30) {
   setPCIELinkSpeed_1_30(false /* Multiple Devices */);
@@ -185,7 +181,7 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getASICFrequencies_1_33) {
   getASICFrequencies_1_33(false /* Multiple Devices */);
 }
 
-/* TODO Require SysEMU modelling fix
+
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getDRAMBW_1_34) {
   getDRAMBW_1_34(false);
 }
@@ -193,7 +189,7 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getDRAMBW_1_34) {
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getDRAMCapacityUtilization_1_35) {
   getDRAMCapacityUtilization_1_35(false);
 }
-*/
+
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getASICPerCoreDatapathUtilization_1_36) {
   getASICPerCoreDatapathUtilization_1_36(false /* Multiple Devices */);
