@@ -57,6 +57,10 @@ TEST_F(TestDevOpsApiStressDmaCmdsPcieSysEmu, dataWRListStressSpeed_2_9) {
   dataWRListStressSpeed(25);
 }
 
+TEST_F(TestDevOpsApiStressDmaCmdsPcieSysEmu, dataWRCmdSingleWriteMultipleReads_2_10) {
+  dataWRCmdSingleWriteMultipleReads(50);
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   google::ParseCommandLineFlags(&argc, &argv, true);

@@ -49,6 +49,10 @@ TEST_F(TestDevOpsApiStressDmaCmdsPcie, dmaList1kWrAndRdSingleDeviceMultiQueue_2_
   dmaListWrAndRd(true /* single device */, false /* multiple queues */, 1000);
 }
 
+TEST_F(TestDevOpsApiStressDmaCmdsPcie, dataWRCmdSingleWriteMultipleReads_2_7) {
+  dataWRCmdSingleWriteMultipleReads(50);
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   google::ParseCommandLineFlags(&argc, &argv, true);

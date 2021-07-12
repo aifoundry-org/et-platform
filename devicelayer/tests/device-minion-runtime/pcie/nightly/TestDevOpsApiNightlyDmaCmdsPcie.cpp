@@ -25,7 +25,9 @@ protected:
   }
 };
 
-// Todo: Add DMA related tests here.
+TEST_F(TestDevOpsApiNightlyDmaCmdsPcie, dataWRCmdSingleWriteMultipleReads_2_1) {
+  dataWRCmdSingleWriteMultipleReads(50);
+}
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);

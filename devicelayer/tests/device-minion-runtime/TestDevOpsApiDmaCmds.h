@@ -27,6 +27,7 @@ protected:
   void dataWRStressSize_2_1(uint8_t maxExp2);
   void dataWRStressSpeed_2_2(uint8_t maxExp2);
   void dataWRStressChannels(bool singleDevice, bool singleQueue, uint32_t numOfLoopbackCmds);
+  void dataWRCmdSingleWriteMultipleReads(int kMaxDmaSequenceIterations);
 
   /* DMA List Basic Testing Functions */
   void dataRWListCmdWithBasicCmds();
@@ -47,17 +48,19 @@ protected:
   void dataWRListStressSpeed(uint8_t maxExp2);
 
 private:
-  enum class DmaType { DMA_WRITE, DMA_READ };
+  enum class DmaType { DMA_WRITE, DMA_READ, DMA_ADJUST_READ, DMA_ADJUST_WRITE };
 
   /* Fill a stream for specified device and queue. Only the first read command will be sent with barrier. */
   bool fillDmaStream(int deviceIdx, std::vector<CmdTag>& stream,
                      const std::vector<std::pair<DmaType, size_t>>& cmdSequence,
-                     std::vector<std::vector<uint8_t>>& dmaWrBufs, std::vector<std::vector<uint8_t>>& dmaRdBufs);
+                     std::vector<std::vector<uint8_t>>& dmaWrBufs, std::vector<std::vector<uint8_t>>& dmaRdBufs,
+                     std::vector<bool>* barrierSequence);
 
   /* Execute same sequence of DMA commands on either multiple/single device(s) and multiple/single queue(s). */
   bool executeDmaCmds(bool singleDevice, bool singleQueue, bool isAsync,
                       const std::vector<std::pair<DmaType, size_t>>& cmdSequence,
-                      std::vector<std::vector<uint8_t>>& dmaWrBufs, std::vector<std::vector<uint8_t>>& dmaRdBufs);
+                      std::vector<std::vector<uint8_t>>& dmaWrBufs, std::vector<std::vector<uint8_t>>& dmaRdBufs,
+                      std::vector<bool>* barrierSequence = nullptr);
 
   /* Allocate memory using allocDmaBuffer(). The total memory for one device is allocated at once in a chunk and then
    * it is broken down while filling the commands. */
