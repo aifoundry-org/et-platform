@@ -58,10 +58,10 @@
 */
 #define TIMEOUT_DMAW_FIND_IDLE_CH             10U
 
-/*! \def DMA_TRANSFER_TIMEOUT
-    \brief Timeout value (per 10s) for DMA
+/*! \def DMA_TRANSFER_TIMEOUT(x)
+    \brief Timeout value (per 1s) for DMA
 */
-#define DMA_TRANSFER_TIMEOUT                  100U
+#define DMA_TRANSFER_TIMEOUT(x)             (x * 100U)                  
 
 /*! \enum dma_chan_state_e
     \brief Enum that provides the state of a DMA channel

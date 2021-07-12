@@ -157,22 +157,21 @@ static void kw_set_abort_status_cb(uint8_t kw_idx)
 *
 *   INPUTS
 *
-*       slot_index    ID of the kernel worker
+*       slot_index     ID of the kernel worker
+*       timeout_factor Timeout scale factor
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-static inline void kw_create_kernel_launch_timer(uint8_t slot_index)
+static inline void kw_create_kernel_launch_timer(uint8_t slot_index, uint8_t timeout_factor)
 {
     int8_t sw_timer_idx = -1;
 
     /* Create timeout for kernel_launch command to complete */
-    /* TODO: Add support in Device API Kernel Launch command to override timeout
-    cmd->timeout */
     sw_timer_idx = SW_Timer_Create_Timeout(&kw_set_abort_status_cb, slot_index,
-        KERNEL_LAUNCH_TIMEOUT(4));
+        KERNEL_LAUNCH_TIMEOUT((timeout_factor > 0) ? timeout_factor : 1));
     if(sw_timer_idx >= 0)
     {
         /* Save the SW timer index */
@@ -682,8 +681,10 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
 
         if (status == STATUS_SUCCESS)
         {
+            uint8_t timeout_factor = (uint8_t)CMD_HEADER_FLAG_EXTRACT_TIMEOUT_FACTOR(cmd->command_info.cmd_hdr.flags);
+
             /* Register SW timer */
-            kw_create_kernel_launch_timer(slot_index);
+            kw_create_kernel_launch_timer(slot_index,timeout_factor);
             *kw_idx = slot_index;
         }
         else
@@ -797,7 +798,6 @@ int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
 
     return status;
 }
-
 /************************************************************************
 *
 *   FUNCTION

@@ -83,9 +83,9 @@
 /* Timeouts */
 
 /*! \def KERNEL_LAUNCH_TIMEOUT(x)
-    \brief Timeout value (per 10s) for kernel launch
+    \brief Timeout value (per 100ms) for kernel launch
 */
-#define KERNEL_LAUNCH_TIMEOUT(x)         (x * 1U)
+#define KERNEL_LAUNCH_TIMEOUT(x)         (x * 10U)
 
 /*! \def KERNEL_SLOT_SEARCH_TIMEOUT(x)
     \brief Timeout value (per 10s) for finding kernel free slot

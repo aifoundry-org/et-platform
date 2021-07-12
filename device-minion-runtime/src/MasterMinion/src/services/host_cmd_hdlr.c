@@ -662,10 +662,11 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
         cycles.cmd_start_cycles = start_cycles;
         cycles.wait_cycles = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
         cycles.exec_start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
-
+        
         /* Create timeout for DMA_Write command to complete */
+        uint8_t timeout_factor = (uint8_t)CMD_HEADER_FLAG_EXTRACT_TIMEOUT_FACTOR(cmd->command_info.cmd_hdr.flags);
         sw_timer_idx = SW_Timer_Create_Timeout(&DMAW_Write_Set_Abort_Status, chan,
-            DMA_TRANSFER_TIMEOUT);
+           DMA_TRANSFER_TIMEOUT((timeout_factor > 0) ? timeout_factor : 1));
 
         if(sw_timer_idx >= 0)
         {
@@ -828,8 +829,9 @@ static inline int8_t dma_writelist_cmd_handler(void* command_buffer, uint8_t sqw
         cycles.exec_start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
 
         /* Create timeout for DMA_Read command to complete */
+        uint8_t timeout_factor = (uint8_t)CMD_HEADER_FLAG_EXTRACT_TIMEOUT_FACTOR(cmd->command_info.cmd_hdr.flags);
         sw_timer_idx = SW_Timer_Create_Timeout(&DMAW_Read_Set_Abort_Status, chan,
-            DMA_TRANSFER_TIMEOUT);
+           DMA_TRANSFER_TIMEOUT((timeout_factor > 0) ? timeout_factor : 1));
 
         if(sw_timer_idx >= 0)
         {

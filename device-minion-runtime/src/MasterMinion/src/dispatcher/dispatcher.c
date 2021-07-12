@@ -197,7 +197,8 @@ void Dispatcher_Launch(uint32_t hart_id)
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_READY);
 
     /* Master Minion boot is completed, now redirect logs to Trace. */
-    Log_Set_Interface(LOG_DUMP_TO_TRACE);
+    /* TODO: To be updated when Runtime/Glow has migrated to Traces */
+    /* Log_Set_Interface(LOG_DUMP_TO_TRACE); */
 
     Log_Write(LOG_LEVEL_DEBUG,
         "Dispatcher:Master Minion READY!\r\n");

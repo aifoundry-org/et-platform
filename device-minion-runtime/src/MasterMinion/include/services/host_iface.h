@@ -51,6 +51,11 @@
 */
 #define CMD_HEADER_FLAG_KERNEL_FLUSH_L3     (1 << 4)
 
+/*! \def CMD_HEADER_FLAG_EXTRACT_TIMEOUT_FACTOR(flags)
+    \brief Host Command flag to scale the timeout value from the base
+*/
+#define CMD_HEADER_FLAG_EXTRACT_TIMEOUT_FACTOR(flags) ((flags >> 5) & 0xF)
+
 /*! \def TRACE_RT_CTRL_MM
     \brief Flag inside trace runtime control command for
             Master Minion Trace component.
