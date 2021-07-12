@@ -61,23 +61,19 @@ static bool gs_aes_context_created;
 static bool gs_vaultip_disabled;
 static bool gs_ignore_signatures;
 
-static ESPERANTO_IMAGE_FILE_HEADER_t master_minion_image_file_header = { 0 };
-static ESPERANTO_IMAGE_FILE_HEADER_t worker_minion_image_file_header = { 0 };
-static ESPERANTO_IMAGE_FILE_HEADER_t machine_minion_image_file_header = { 0 };
-
 ESPERANTO_IMAGE_FILE_HEADER_t *get_master_minion_image_file_header(void)
 {
-    return &master_minion_image_file_header;
+    return &(get_service_processor_bl2_data()->master_minion_header);
 }
 
 ESPERANTO_IMAGE_FILE_HEADER_t *get_worker_minion_image_file_header(void)
 {
-    return &worker_minion_image_file_header;
+    return &(get_service_processor_bl2_data()->worker_minion_header);
 }
 
 ESPERANTO_IMAGE_FILE_HEADER_t *get_machine_minion_image_file_header(void)
 {
-    return &machine_minion_image_file_header;
+    return &(get_service_processor_bl2_data()->machine_minion_header);
 }
 
 static int get_fw_monotonic_counter_value(const ESPERANTO_IMAGE_TYPE_t image_type,
@@ -613,19 +609,16 @@ int load_firmware(const ESPERANTO_IMAGE_TYPE_t image_type)
             region_id = ESPERANTO_FLASH_REGION_ID_MACHINE_MINION;
             image_name = "MACHINE_MINION";
             image_file_header = &(bl2_data->machine_minion_header);
-            machine_minion_image_file_header = *image_file_header;
             break;
         case ESPERANTO_IMAGE_TYPE_MASTER_MINION:
             region_id = ESPERANTO_FLASH_REGION_ID_MASTER_MINION;
             image_name = "MASTER_MINION";
             image_file_header = &(bl2_data->master_minion_header);
-            master_minion_image_file_header = *image_file_header;
             break;
         case ESPERANTO_IMAGE_TYPE_WORKER_MINION:
             region_id = ESPERANTO_FLASH_REGION_ID_WORKER_MINION;
             image_name = "WORKER_MINION";
             image_file_header = &(bl2_data->worker_minion_header);
-            worker_minion_image_file_header = *image_file_header;
             break;
         case ESPERANTO_IMAGE_TYPE_MAXION_BL1:
             region_id = ESPERANTO_FLASH_REGION_ID_MAXION_BL1;
