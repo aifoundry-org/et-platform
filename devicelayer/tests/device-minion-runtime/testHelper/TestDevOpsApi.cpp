@@ -634,6 +634,22 @@ void TestDevOpsApi::printErrorContext(int queueId, const std::byte* buffer, uint
   }
 }
 
+// Trace Command type packet decoding string messages
+const std::array<std::string, 5> mmCmdTypeString = {"",
+  "MM_DMA_READ_CMD",
+  "MM_DMA_WRITE_CMD",
+  "MM_KERNEL_LAUNCH_CMD",
+  "MM_KERNEL_ABORT_CMD"};
+
+// Trace Command status packet decoding string messages
+const std::array<std::string, 7> cmdStatusString = {"",
+  "CMD_STATUS_WAIT_BARRIER",
+  "CMD_STATUS_RECEIVED",
+  "CMD_STATUS_EXECUTING",
+  "CMD_STATUS_FAILED",
+  "CMD_STATUS_ABORTED",
+  "CMD_STATUS_SUCCEEDED"};
+
 bool TestDevOpsApi::printMMTraceStringData(unsigned char* traceBuf, size_t bufSize) const {
   std::stringstream logs;
   std::ofstream logfile;
@@ -655,21 +671,35 @@ bool TestDevOpsApi::printMMTraceStringData(unsigned char* traceBuf, size_t bufSi
   char stringLog[TRACE_STRING_MAX_SIZE + 1]; //NOSONAR For Device Trace string processing.
   // Get size from Trace buffer header
   traceBuf = traceBuf + sizeof(struct trace_buffer_std_header_t);
-  auto dataPtr = templ::bit_cast<trace_string_mm_t*>(traceBuf);
+  auto packetHeader = templ::bit_cast<trace_entry_header_mm_t*>(traceBuf);
+  const mm_trace_string_t* tracePacketString;
+  const mm_trace_cmd_status_t* tracePacketCmdStatus;
+
   bool validStringEventFound = false;
   size_t dataPopped = 0;
 
   while (dataPopped < dataSize) {
-    if ((dataPtr->mm_header.type == TRACE_TYPE_STRING) && (dataPtr->dataString[0] != '\0')) {
-      strncpy(&stringLog[0], dataPtr->dataString, TRACE_STRING_MAX_SIZE);
+    if (packetHeader->type == TRACE_TYPE_STRING) {
+      tracePacketString = templ::bit_cast<mm_trace_string_t*>(traceBuf + dataPopped);
+      strncpy(&stringLog[0], tracePacketString->dataString, TRACE_STRING_MAX_SIZE);
       stringLog[TRACE_STRING_MAX_SIZE] = '\0';
-      logs << "H:" << dataPtr->mm_header.hart_id << ":" << stringLog << std::endl;
-      dataPtr++;
-      dataPopped += sizeof(struct trace_string_mm_t);
+      logs << "Timestamp:" << tracePacketString->mm_header.cycle                \
+        << " H:" << tracePacketString->mm_header.hart_id << " :" << stringLog << std::endl;
+      dataPopped += sizeof(struct mm_trace_string_t);
       validStringEventFound = true;
+    }
+    else if (packetHeader->type == TRACE_TYPE_CMD_STATUS) {
+      tracePacketCmdStatus = templ::bit_cast<mm_trace_cmd_status_t*>(traceBuf + dataPopped);
+      logs << "Timestamp:" << tracePacketCmdStatus->mm_header.cycle             \
+       << "\tCMD:" << mmCmdTypeString[tracePacketCmdStatus->cmd.cmd_type]       \
+       << "\tSTATUS:" << cmdStatusString[tracePacketCmdStatus->cmd.cmd_status]  \
+       << "\tSQ_ID:" << (uint16_t)tracePacketCmdStatus->cmd.queue_slot_id       \
+       << "\tTAG_ID:" << tracePacketCmdStatus->cmd.trans_id << std::endl;
+      dataPopped += sizeof(struct mm_trace_cmd_status_t);
     } else {
       break;
     }
+    packetHeader = templ::bit_cast<trace_entry_header_mm_t*>(traceBuf + dataPopped);
   }
   if (FLAGS_enable_trace_dump) {
     logfile << logs.str();
@@ -725,20 +755,33 @@ bool TestDevOpsApi::printCMTraceStringData(unsigned char* traceBuf, size_t bufSi
 
     // Move the pointer on top of trace buffer header.
     hartDataPtr = hartDataPtr + headerSize;
-    auto dataPtr = templ::bit_cast<trace_string_t*>(hartDataPtr);
+    const cm_trace_string_t* tracePacketString;
+    const cm_trace_cmd_status_t* tracePacketCmdStatus;
+    auto packetHeader = templ::bit_cast<trace_entry_header_t*>(hartDataPtr);
     dataPopped = 0;
 
     while (dataPopped < dataSize) {
-      if ((dataPtr->header.type == TRACE_TYPE_STRING) && (dataPtr->dataString[0] != '\0')) {
-        strncpy(&stringLog[0], dataPtr->dataString, TRACE_STRING_MAX_SIZE);
+      if (packetHeader->type == TRACE_TYPE_STRING) {
+        tracePacketString = templ::bit_cast<cm_trace_string_t*>(hartDataPtr + dataPopped);
+        strncpy(&stringLog[0], tracePacketString->dataString, TRACE_STRING_MAX_SIZE);
         stringLog[TRACE_STRING_MAX_SIZE] = '\0';
-        logs << "H:" << cmHartID << ":" << stringLog << std::endl;
-        dataPtr++;
-        dataPopped += sizeof(struct trace_string_mm_t);
+        logs << "Timestamp:" << tracePacketString->header.cycle << "H:"           \
+          << cmHartID << ":" << stringLog << std::endl;
+        dataPopped += sizeof(struct cm_trace_string_t);
         validStringEventFound = true;
+      }
+      else if (packetHeader->type == TRACE_TYPE_CMD_STATUS) {
+        tracePacketCmdStatus = templ::bit_cast<cm_trace_cmd_status_t*>(hartDataPtr + dataPopped);
+        logs << "Timestamp:" << tracePacketCmdStatus->header.cycle                \
+          << "\tCMD:" << mmCmdTypeString[tracePacketCmdStatus->cmd.cmd_type]      \
+          << "\tSTATUS:" << cmdStatusString[tracePacketCmdStatus->cmd.cmd_status] \
+          << "\tSQ_ID:" << (uint16_t)tracePacketCmdStatus->cmd.queue_slot_id      \
+          << "\tTAD_ID:" << tracePacketCmdStatus->cmd.trans_id << std::endl;
+        dataPopped += sizeof(struct cm_trace_cmd_status_t);
       } else {
         break;
       }
+      packetHeader = templ::bit_cast<trace_entry_header_t*>(hartDataPtr + dataPopped);
     }
     hartDataPtr += (CM_SIZE_PER_HART - headerSize);
   }

@@ -73,10 +73,24 @@ enum trace_type_e {
   TRACE_TYPE_VALUE_U32,
   TRACE_TYPE_VALUE_U16,
   TRACE_TYPE_VALUE_U8,
-  TRACE_TYPE_VALUE_FLOAT
+  TRACE_TYPE_VALUE_FLOAT,
+  TRACE_TYPE_MEMORY,
+  TRACE_TYPE_EXCEPTION,
+  TRACE_TYPE_CMD_STATUS
 };
 
 enum trace_buffer_type_e { TRACE_MM_BUFFER, TRACE_CM_BUFFER, TRACE_SP_BUFFER };
+
+typedef uint8_t trace_cmd_status_e;
+
+enum trace_cmd_status {
+  CMD_STATUS_RECEIVED,    /**< Command is popped/received from submission Queue. */
+  CMD_STATUS_VALIDATED,   /**< Command is validted. Means command has all required paramters. */
+  CMD_STATUS_EXECUTING,   /**< Command is submitted for execution to respective component of device. */
+  CMD_STATUS_FAILED,      /**< Command completed with a failure. */
+  CMD_STATUS_ABORTED,     /**< Command is aborted. */
+  CMD_STATUS_SUCCEEDED,   /**< Command completed successfully. */
+};
 
 struct trace_buffer_size_header_t {
   uint32_t data_size;
@@ -101,15 +115,39 @@ struct trace_entry_header_mm_t {
   uint8_t pad[2];
 } __attribute__((packed));
 
-struct trace_string_t {
+struct cm_trace_string_t {
   struct trace_entry_header_t header;
   char dataString[64];
 } __attribute__((packed));
 
-struct trace_string_mm_t {
+struct mm_trace_string_t {
   struct trace_entry_header_mm_t mm_header;
   char dataString[64];
 } __attribute__((packed));
+
+struct trace_cmd_status_internal_t {
+  union{
+    struct{
+      uint8_t cmd_type;      /**< Command type, One of enum trace_cmd_type */
+      trace_cmd_status_e cmd_status;  /**< Command execution status, One of enum trace_cmd_status */
+      uint8_t queue_slot_id;          /**< Submission Queue ID from which command is popped */
+      uint16_t trans_id;              /**< transaction ID of command e.g. Tag ID. */
+      uint8_t reserved[3];            /**< Reserved */
+    }__attribute__((packed));
+    uint64_t raw_cmd;
+  };
+} __attribute__((packed));
+
+struct mm_trace_cmd_status_t {
+  struct trace_entry_header_mm_t mm_header;
+  struct trace_cmd_status_internal_t cmd;
+} __attribute__((packed));
+
+struct cm_trace_cmd_status_t {
+  struct trace_entry_header_t header;
+  struct trace_cmd_status_internal_t cmd;
+} __attribute__((packed));
+
 }
 
 enum cm_context_type {
