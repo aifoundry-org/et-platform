@@ -293,9 +293,6 @@ int8_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
     chan_status.channel_state = DMA_CHAN_STATE_IN_USE;
     chan_status.sw_timer_idx = sw_timer_idx;
 
-    atomic_store_local_64(&DMAW_Read_CB.chan_status_cb[read_chan_id].status.raw_u64,
-        chan_status.raw_u64);
-
     /* TODO: SW-7137: To be removed */
     uint16_t t_msg_id = cmd->command_info.cmd_hdr.msg_id;
     atomic_store_local_16(
@@ -338,6 +335,10 @@ int8_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
             &DMAW_Read_CB.chan_status_cb[read_chan_id].dmaw_cycles.cmd_start_cycles, cycles->cmd_start_cycles);
         atomic_store_local_64(
             &DMAW_Read_CB.chan_status_cb[read_chan_id].dmaw_cycles.raw_u64, cycles->raw_u64);
+
+        /* Update the global structure to make it visible to DMAW */
+        atomic_store_local_64(&DMAW_Read_CB.chan_status_cb[read_chan_id].status.raw_u64,
+            chan_status.raw_u64);
 
         Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] DMAW_Read_Trigger_Transfer:Success!\r\n", sqw_idx);
     }
@@ -401,9 +402,6 @@ int8_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
     chan_status.channel_state = DMA_CHAN_STATE_IN_USE;
     chan_status.sw_timer_idx = sw_timer_idx;
 
-    atomic_store_local_64(&DMAW_Write_CB.chan_status_cb[write_chan_id].status.raw_u64,
-        chan_status.raw_u64);
-
     /* TODO: SW-7137: To be removed */
     uint16_t t_msg_id = cmd->command_info.cmd_hdr.msg_id;
     atomic_store_local_16(
@@ -446,6 +444,10 @@ int8_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
             &DMAW_Write_CB.chan_status_cb[write_chan_id].dmaw_cycles.cmd_start_cycles, cycles->cmd_start_cycles);
         atomic_store_local_64(
             &DMAW_Write_CB.chan_status_cb[write_chan_id].dmaw_cycles.raw_u64, cycles->raw_u64);
+
+        /* Update the global structure to make it visible to DMAW */
+        atomic_store_local_64(&DMAW_Write_CB.chan_status_cb[write_chan_id].status.raw_u64,
+            chan_status.raw_u64);
 
         Log_Write(LOG_LEVEL_DEBUG, "SQ[%d]:DMAW_Write_Trigger_Transfer:Success!\r\n", sqw_idx);
 
