@@ -39,8 +39,10 @@ void TestDevOpsApi::initTestHelperSysEmu(const emu::SysEmuOptions& options) {
   auto deviceCount = getDevicesCount();
   for (unsigned long i = 0; i < deviceCount; i++) {
     devices_.emplace_back(new DeviceInfo);
-    devices_[i]->dmaWriteAddr_ = devices_[i]->dmaReadAddr_ = devLayer_->getDramBaseAddress();
-    devices_[i]->sqBitmap_ = ~0ULL;
+    try {
+      devices_[i]->dmaWriteAddr_ = devices_[i]->dmaReadAddr_ = devLayer_->getDramBaseAddress();
+      devices_[i]->sqBitmap_ = ~0ULL;
+    } CATCH_ERROR
   }
 }
 
@@ -52,8 +54,10 @@ void TestDevOpsApi::initTestHelperPcie() {
   auto deviceCount = getDevicesCount();
   for (unsigned long i = 0; i < deviceCount; i++) {
     devices_.emplace_back(new DeviceInfo);
-    devices_[i]->dmaWriteAddr_ = devices_[i]->dmaReadAddr_ = devLayer_->getDramBaseAddress();
-    devices_[i]->sqBitmap_ = ~0ULL;
+    try {
+      devices_[i]->dmaWriteAddr_ = devices_[i]->dmaReadAddr_ = devLayer_->getDramBaseAddress();
+      devices_[i]->sqBitmap_ = ~0ULL;
+    } CATCH_ERROR 
   }
 }
 
@@ -77,10 +81,7 @@ void TestDevOpsApi::dispatchStreamAsync(const std::shared_ptr<Stream>& stream) {
       } else {
         cmdIdx++;
       }
-    } catch (const std::exception& e) {
-      TEST_VLOG(0) << "Exception: " << e.what();
-      assert(false);
-    }
+    } CATCH_ERROR 
   }
 }
 
@@ -112,7 +113,9 @@ void TestDevOpsApi::waitForCqAvailability(int deviceIdx, TimeDuration timeout) {
   bool cqAvailable = false;
   while (end > Clock::now() && !cqAvailable) {
     if (FLAGS_use_epoll) {
-      devLayer_->waitForEpollEventsMasterMinion(deviceIdx, sqBitmap, cqAvailable);
+      try {
+        devLayer_->waitForEpollEventsMasterMinion(deviceIdx, sqBitmap, cqAvailable);
+      } CATCH_ERROR 
     } else {
       std::this_thread::sleep_for(kPollingInterval);
       sqBitmap = (0x1U << queueCount) - 1;
@@ -145,10 +148,7 @@ void TestDevOpsApi::fListener(int deviceIdx) {
         rspsToReceive--;
         rspsToReceive += handleStreamReTransmission(res.tagId_);
       }
-    } catch (const std::exception& e) {
-      TEST_VLOG(0) << "Exception: " << e.what();
-      assert(false);
-    }
+    } CATCH_ERROR
   }
 
   std::scoped_lock lk(deviceInfo->asyncEpollMtx_);
@@ -207,10 +207,7 @@ void TestDevOpsApi::dispatchStreamSync(const std::shared_ptr<Stream>& stream, Ti
         ASSERT_TRUE(end > Clock::now()) << "\nexecuteSync timed out!\n" << std::endl;
         devLayer_->waitForEpollEventsMasterMinion(stream->deviceIdx_, sqBitmap, cqAvailable);
       }
-    } catch (const std::exception& e) {
-      TEST_VLOG(0) << "Exception: " << e.what();
-      assert(false);
-    }
+    } CATCH_ERROR 
   }
 }
 
@@ -334,7 +331,9 @@ void TestDevOpsApi::resetMemPooltoDefault(int deviceIdx) {
     throw Exception("deviceIdx: " + std::to_string(deviceIdx) + " does not exist!");
   }
   auto& deviceInfo = devices_[static_cast<unsigned long>(deviceIdx)];
-  deviceInfo->dmaWriteAddr_ = deviceInfo->dmaReadAddr_ = devLayer_->getDramBaseAddress();
+  try {
+    deviceInfo->dmaWriteAddr_ = deviceInfo->dmaReadAddr_ = devLayer_->getDramBaseAddress();
+  } CATCH_ERROR 
 }
 
 uint64_t TestDevOpsApi::getDmaWriteAddr(int deviceIdx, size_t bufSize) {
@@ -344,7 +343,10 @@ uint64_t TestDevOpsApi::getDmaWriteAddr(int deviceIdx, size_t bufSize) {
   }
   auto& deviceInfo = devices_[static_cast<unsigned long>(deviceIdx)];
   std::scoped_lock lock(deviceInfo->dmaWriteAddrMtx_);
-  auto dramEnd = devLayer_->getDramBaseAddress() + devLayer_->getDramSize();
+  uint64_t dramEnd;
+  try {
+    dramEnd = devLayer_->getDramBaseAddress() + devLayer_->getDramSize();
+  } CATCH_ERROR 
   if (deviceInfo->dmaWriteAddr_ + bufSize < dramEnd) {
     auto currentDmaPtr = deviceInfo->dmaWriteAddr_;
     deviceInfo->dmaWriteAddr_ += bufSize;
@@ -378,9 +380,11 @@ bool TestDevOpsApi::pushCmd(int deviceIdx, int queueIdx, CmdTag tagId) {
   if (!devOpsApiCmd) {
     throw Exception("Invalid CmdTag: " + std::to_string(tagId));
   }
-
-  auto res = devLayer_->sendCommandMasterMinion(deviceIdx, queueIdx, devOpsApiCmd->getCmdPtr(),
-                                                devOpsApiCmd->getCmdSize(), devOpsApiCmd->isDma());
+  bool res;
+  try {
+    res = devLayer_->sendCommandMasterMinion(deviceIdx, queueIdx, devOpsApiCmd->getCmdPtr(), devOpsApiCmd->getCmdSize(),
+                                             devOpsApiCmd->isDma());
+  } CATCH_ERROR 
   if (!res) {
     return res;
   }
@@ -398,7 +402,10 @@ bool TestDevOpsApi::pushCmd(int deviceIdx, int queueIdx, CmdTag tagId) {
 
 TestDevOpsApi::PopRspResult TestDevOpsApi::popRsp(int deviceIdx) {
   std::vector<std::byte> rspMem;
-  auto res = devLayer_->receiveResponseMasterMinion(deviceIdx, rspMem);
+  bool res;
+  try {
+    res = devLayer_->receiveResponseMasterMinion(deviceIdx, rspMem);
+  } CATCH_ERROR 
   if (!res) {
     return {res};
   }
@@ -665,7 +672,7 @@ bool TestDevOpsApi::printMMTraceData(unsigned char* traceBuf, size_t bufSize) co
     return false;
   }
 
-  char stringLog[TRACE_STRING_MAX_SIZE + 1]; //NOSONAR For Device Trace string processing.
+  char stringLog[TRACE_STRING_MAX_SIZE + 1]; // NOSONAR For Device Trace string processing.
   // Get size from Trace buffer header
   traceBuf = traceBuf + sizeof(struct trace_buffer_std_header_t);
   auto packetHeader = templ::bit_cast<trace_entry_header_mm_t*>(traceBuf);
@@ -927,8 +934,8 @@ void TestDevOpsApi::loadElfToDevice(int deviceIdx, ELFIO::elfio& reader, const s
 
   // Create DMA write command
   auto hostVirtAddr = templ::bit_cast<uint64_t>(segment0->get_data());
-  cmds.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(false, deviceElfSegment0Buffer, hostVirtAddr,
-                                                        fileSize, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
+  cmds.push_back(IDevOpsApiCmd::createCmd<DataWriteCmd>(false, deviceElfSegment0Buffer, hostVirtAddr, fileSize,
+                                                        device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 }
 
 void TestDevOpsApi::insertStream(int deviceIdx, int queueIdx, std::vector<CmdTag> cmds, unsigned int retryCount) {

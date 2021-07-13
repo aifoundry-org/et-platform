@@ -143,7 +143,7 @@ create_test(
     TARGET     TestDevOpsApiFuncTraceCmdsPcie
     TARGET_DEF TARGET_PCIE
     SOURCES    pcie/basic/TestDevOpsApiFuncTraceCmdsPcie.cpp TestDevOpsApiTraceCmds.cpp
-    ARGS       --enable_trace_dump=false
+    ARGS       --enable_trace_dump=true
     PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;SYSTEM;TIMEOUT;120"
 )
 
@@ -275,7 +275,7 @@ create_test(
     TARGET     TestDevOpsApiFuncTraceCmdsPcieSysEmu
     TARGET_DEF TARGET_PCIE
     SOURCES    pcie/sysemu/TestDevOpsApiFuncTraceCmdsPcieSysEmu.cpp TestDevOpsApiTraceCmds.cpp
-    ARGS       --enable_trace_dump=false
+    ARGS       --enable_trace_dump=true
     PROPERTIES "LABELS;PCIE-SYSEMU;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;SYSTEM;TIMEOUT;120"
 )
 
