@@ -39,7 +39,10 @@ struct cmn_header_t {
                                                - 01 MEM_OPS_MMFW_TRACE
                                                - 10 MEM_OPS_CMFW_TRACE
                                                - 11 MEM_OPS_{MM+CM}_TRACE
-                                           Bit [4] - Flush L3 prior to launching Kernel on Compute Minions */
+                                           Bit [4] - Flush L3 prior to launching Kernel on Compute Minions 
+                                           Bit [5:8] - Scale factor for Command (Note today only DMA/Kernel) Execution timeout 
+                                                       is supported. The scale will be multiplied with the base period-> 100 mS. 
+                                                       So example if 300 mS is required, Scale[8:5] = 0x3 */
 } __attribute__((packed, aligned(8)));
 
 /*! \struct cmd_header_t
