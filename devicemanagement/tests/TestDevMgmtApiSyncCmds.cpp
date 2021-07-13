@@ -736,14 +736,6 @@ void TestDevMgmtApiSyncCmds::getModuleMaxDDRBW_1_21(bool singleDevice) {
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
-
-    // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
-      device_mgmt_api::max_dram_bw_t* max_dram_bw = (device_mgmt_api::max_dram_bw_t*)output_buff;
-
-      ASSERT_EQ(max_dram_bw->max_bw_rd_req_sec, 16);
-      ASSERT_EQ(max_dram_bw->max_bw_wr_req_sec, 16);
-    }
   }
 }
 
@@ -970,14 +962,6 @@ void TestDevMgmtApiSyncCmds::getDDRBWCounter_1_29(bool singleDevice) {
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
-
-    // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
-      device_mgmt_api::dram_bw_counter_t* dram_bw_counter = (device_mgmt_api::dram_bw_counter_t*)output_buff;
-
-      ASSERT_EQ(dram_bw_counter->bw_rd_req_sec, 16);
-      ASSERT_EQ(dram_bw_counter->bw_wr_req_sec, 16);
-    }
   }
 }
 
@@ -1107,14 +1091,6 @@ void TestDevMgmtApiSyncCmds::getDRAMBW_1_34(bool singleDevice) {
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
-
-    // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
-      device_mgmt_api::dram_bw_t* dram_bw = (device_mgmt_api::dram_bw_t*)output_buff;
-
-      ASSERT_EQ(dram_bw->read_req_sec, 16);
-      ASSERT_EQ(dram_bw->write_req_sec, 16);
-    }
   }
 }
 
@@ -1135,13 +1111,6 @@ void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilization_1_35(bool singleDevice) 
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
-
-    // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
-      device_mgmt_api::percentage_cap_t* percentage_cap = (device_mgmt_api::percentage_cap_t*)output_buff;
-
-      ASSERT_EQ(percentage_cap->pct_cap, 80);
-    }
   }
 }
 
@@ -1263,13 +1232,6 @@ void TestDevMgmtApiSyncCmds::getMMErrorCount_1_40(bool singleDevice) {
               device_mgmt_api::DM_STATUS_SUCCESS);
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
-    // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
-      device_mgmt_api::mm_error_count_t* mm_err_count = (device_mgmt_api::mm_error_count_t*)output_buff;
-
-      ASSERT_EQ(mm_err_count->hang_count, 0);
-      ASSERT_EQ(mm_err_count->exception_count, 0);
-    }
   }
 }
 
