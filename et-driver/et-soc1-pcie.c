@@ -57,6 +57,16 @@ static const struct pci_device_id esperanto_pcie_tbl[] = {
 	{}
 };
 
+/*
+ * DIR discovery timeout in seconds for mgmt/ops nodes, should be removed
+ * in production
+ */
+static int mgmt_discovery_timeout = 300;
+module_param(mgmt_discovery_timeout, int, 0);
+
+static int ops_discovery_timeout = 300;
+module_param(ops_discovery_timeout, int, 0);
+
 static DECLARE_BITMAP(dev_bitmap, ET_MAX_DEVS);
 
 static u8 get_index(void)
@@ -981,16 +991,18 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	dir_mgmt_mem = (struct et_mgmt_dir_header __iomem *)et_dev->mgmt.dir;
 
 	// TODO: Improve device discovery
-	// Waiting for device to be ready, wait for 300 secs
-	for (i = 0; !dir_ready && i < 30; i++) {
+	// Waiting for device to be ready, wait for mgmt_discovery_timeout
+	for (i = 0; !dir_ready && i < mgmt_discovery_timeout; i++) {
 		rv = (int)ioread16(&dir_mgmt_mem->status);
 		if (rv == MGMT_BOOT_STATUS_DEV_READY) {
 			pr_debug("Mgmt: DIRs ready, status: %d", rv);
 			dir_ready = true;
 		} else {
-			pr_debug("Mgmt: DIRs not ready, status: %d, waiting...",
+			// Do not flood the console, only print once in 10s
+			if (i % 10 == 0)
+				pr_debug("Mgmt: DIRs not ready, status: %d",
 				 rv);
-			msleep(10000);
+			msleep(1000);
 		}
 	}
 
@@ -1275,16 +1287,18 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	dir_ops_mem = (struct et_ops_dir_header __iomem *)et_dev->ops.dir;
 
 	// TODO: Improve device discovery
-	// Waiting for device to be ready, wait for 300 secs
-	for (i = 0; !dir_ready && i < 30; i++) {
+	// Waiting for device to be ready, wait for ops_discovery_timeout
+	for (i = 0; !dir_ready && i < ops_discovery_timeout; i++) {
 		rv = (int)ioread16(&dir_ops_mem->status);
 		if (rv == OPS_BOOT_STATUS_MM_READY) {
 			pr_debug("Ops: DIRs ready, status: %d", rv);
 			dir_ready = true;
 		} else {
-			pr_debug("Ops: DIRs not ready, status: %d, waiting...",
+			// Do not flood the console, only print once in 10s
+			if (i % 10 == 0)
+				pr_debug("Ops: DIRs not ready, status: %d",
 				 rv);
-			msleep(10000);
+			msleep(1000);
 		}
 	}
 
