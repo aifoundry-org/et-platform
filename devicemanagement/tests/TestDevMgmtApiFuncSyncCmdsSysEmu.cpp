@@ -230,6 +230,26 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getMMErrorCount_1_40) {
   getMMErrorCount_1_40(false /* Multiple Devices */);
 }
 
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setModulePowerStateRange_1_50) {
+  setModulePowerStateRange_1_50(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setModuleSetTemperatureThresholdRange_1_51) {
+  setModuleSetTemperatureThresholdRange_1_51(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setModuleStaticTDPLevelRange_1_52) {
+  setModuleStaticTDPLevelRange_1_52(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setPCIEMaxLinkSpeedRange_1_53) {
+  setPCIEMaxLinkSpeedRange_1_53(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setPCIELaneWidthRange_1_54) {
+  setPCIELaneWidthRange_1_54(false /* Multiple Devices */);
+}
+
 int main(int argc, char** argv) {
   logging::LoggerDefault loggerDefault_;
   google::InitGoogleLogging(argv[0]);

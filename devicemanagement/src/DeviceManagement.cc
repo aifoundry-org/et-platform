@@ -176,6 +176,106 @@ int DeviceManagement::getTraceBufferServiceProcessor(const uint32_t device_node,
   return -EAGAIN;
 }
 
+bool DeviceManagement::isValidTdpLevel(const char* input_buff) {
+  for (auto it = TDPLevelTable.begin(); it != TDPLevelTable.end(); ++it) {
+    if (it->second == *input_buff) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool DeviceManagement::isValidPowerState(const char* input_buff) {
+  for (auto it = powerStateTable.begin(); it != powerStateTable.end(); ++it) {
+    if (it->second == *input_buff) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool DeviceManagement::isValidTemprature(const char* input_buff) {
+  device_mgmt_api::temperature_threshold_t* temperature_threshold = (device_mgmt_api::temperature_threshold_t*)input_buff;
+  if(temperature_threshold->lo_temperature_c >= 20 && temperature_threshold->lo_temperature_c <= 125 && temperature_threshold->hi_temperature_c >= 20 && temperature_threshold->hi_temperature_c <= 125) {
+    return true;
+  }
+  return false;
+}
+
+bool DeviceManagement::isValidPcieLinkSpeed(const char* input_buff) {
+  for (auto it = pcieLinkSpeedTable.begin(); it != pcieLinkSpeedTable.end(); ++it) {
+    if (it->second == *input_buff) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool DeviceManagement::isValidPcieLaneWidth(const char* input_buff) {
+  for (auto it = pcieLaneWidthTable.begin(); it != pcieLaneWidthTable.end(); ++it) {
+    if (it->second == *input_buff) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool DeviceManagement::isValidParameter(uint32_t cmd_code, const char* input_buff) {
+  bool ret;
+  switch (cmd_code)
+  {
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE:
+    if (!isValidPowerState(input_buff)) {
+      ret = false;
+    }
+    else {
+      ret = true;
+    }
+    break;
+  
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS:
+    if (!isValidTemprature(input_buff)) {
+      ret = false;
+    }
+    else {
+      ret = true;
+    }
+    break;
+  
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL:
+    if (!isValidTdpLevel(input_buff)) {
+      ret = false;
+    }
+    else {
+      ret = true;
+    }
+    break;
+  
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED:
+    if (!isValidPcieLinkSpeed(input_buff)) {
+      ret = false;
+    }
+    else {
+      ret = true;
+    }
+    break;
+  
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH:
+    if (!isValidPcieLaneWidth(input_buff)) {
+      ret = false;
+    }
+    else {
+      ret = true;
+    }
+    break;
+  
+  default:
+    ret = true;
+    break;
+  }
+  return ret;
+}
+
 int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_code, const char* input_buff,
                                      const uint32_t input_size, char* output_buff, const uint32_t output_size,
                                      uint32_t* host_latency, uint64_t* dev_latency, uint32_t timeout) {
@@ -209,6 +309,10 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
   }
 
   if (!devLayer_) {
+    return -EINVAL;
+  }
+
+  if (!isValidParameter(cmd_code, input_buff)) {
     return -EINVAL;
   }
 

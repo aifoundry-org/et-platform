@@ -1594,3 +1594,124 @@ void TestDevMgmtApiSyncCmds::getTraceBuffer_1_49(bool singleDevice) {
     }
   }
 }
+
+void TestDevMgmtApiSyncCmds::setModulePowerStateRange_1_50(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    const uint32_t input_size = sizeof(device_mgmt_api::power_state_e);
+    const char input_buff[input_size] = {9}; // Invalid power state
+
+    const uint32_t set_output_size = sizeof(uint8_t);
+    char set_output_buff[set_output_size] = {0};
+
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE, input_buff,
+                                input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              -EINVAL);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::setModuleSetTemperatureThresholdRange_1_51(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    const uint32_t input_size = sizeof(device_mgmt_api::temperature_threshold_t);
+    const char input_buff[input_size] = {(uint8_t)2, (uint8_t)80}; // Invalid temperature ranges
+
+    // Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
+    const uint32_t set_output_size = sizeof(uint32_t);
+    char set_output_buff[set_output_size] = {0};
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS,
+                                input_buff, input_size, set_output_buff, set_output_size, hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              -EINVAL);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::setModuleStaticTDPLevelRange_1_52(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    const uint32_t input_size = sizeof(device_mgmt_api::tdp_level_e);
+    const char input_buff[input_size] = {10}; // Invalid TDP level
+
+    const uint32_t set_output_size = sizeof(uint32_t);
+    char set_output_buff[set_output_size] = {0};
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL, input_buff,
+                                input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              -EINVAL);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::setPCIEMaxLinkSpeedRange_1_53(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    const uint32_t input_size = sizeof(device_mgmt_api::pcie_link_speed_e);
+    const char input_buff[input_size] = {6}; // Invalid link speed
+
+    // Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
+    const uint32_t output_size = sizeof(uint32_t);
+    char output_buff[output_size] = {0};
+
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED, input_buff,
+                                input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              -EINVAL);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::setPCIELaneWidthRange_1_54(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    const uint32_t input_size = sizeof(device_mgmt_api::pcie_lane_w_split_e);
+    const char input_buff[input_size] = {16}; // Invalid lane width
+
+    // Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
+    const uint32_t output_size = sizeof(uint32_t);
+    char output_buff[output_size] = {0};
+
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH, input_buff, input_size,
+                                output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              -EINVAL);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}

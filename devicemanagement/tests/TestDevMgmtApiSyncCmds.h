@@ -83,6 +83,11 @@ protected:
   void setTraceControl_1_47(bool singleDevice);
   void setTraceConfigure_1_48(bool singleDevice);
   void getTraceBuffer_1_49(bool singleDevice);
+  void setModulePowerStateRange_1_50(bool singleDevice);
+  void setModuleSetTemperatureThresholdRange_1_51(bool singleDevice);
+  void setModuleStaticTDPLevelRange_1_52(bool singleDevice);
+  void setPCIEMaxLinkSpeedRange_1_53(bool singleDevice);
+  void setPCIELaneWidthRange_1_54(bool singleDevice);
   void* handle_ = nullptr;
   std::unique_ptr<IDeviceLayer> devLayer_;
 };

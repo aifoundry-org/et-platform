@@ -198,6 +198,49 @@ private:
   /// @return Command code table iterator
   itCmd isValidCommand(uint32_t cmd_code);
 
+  /// @brief Determine if power satate is a valid
+  ///
+  /// @param[in] input_buff  Input buffer to check
+  ///
+  /// @return True if power state is valid
+  bool isValidPowerState(const char* input_buff);
+
+  /// @brief Determine if TDP is a valid 
+  ///
+  /// @param[in] input_buff  Input buffer to check
+  ///
+  /// @return True if TDP level is valid
+  bool isValidTdpLevel(const char* input_buff);
+
+  /// @brief Determine if Temprature is in valid range 
+  ///
+  /// @param[in] input_buff  Input buffer to check
+  ///
+  /// @return True if Temprature is in valid range
+  bool isValidTemprature(const char* input_buff);
+
+  /// @brief Determine if PCIE  link speed is in valid range 
+  ///
+  /// @param[in] input_buff  Input buffer to check
+  ///
+  /// @return True if PCIE link speed is in valid range
+  bool isValidPcieLinkSpeed(const char* input_buff);
+
+  /// @brief Determine if PCIE Lane Width is valid 
+  ///
+  /// @param[in] input_buff  Input buffer to check
+  ///
+  /// @return True if PCIE Lane Width is valid 
+  bool isValidPcieLaneWidth(const char* input_buff);
+
+  /// @brief Determine if parameter related to command is valid 
+  ///
+  /// @param[in] cmd_code  Command code for which parameter needs validation
+  ///
+  /// @param[in] input_buff  Input buffer containing parameter
+  /// @return True if parameter is valid 
+  bool isValidParameter(uint32_t cmd_code, const char* input_buff);
+
   /// @brief Determine if device node is a valid node
   ///
   /// @param[in] device_node  Device node to check
