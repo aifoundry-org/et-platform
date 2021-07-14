@@ -45,13 +45,28 @@ struct trace_control_block_t* Trace_Get_MM_CB(void);
 */
 uint64_t Trace_Get_CM_Shire_Mask(void);
 
-/*! \fn void Trace_Set_CM_Shire_Mask(uint64_t cm_mask)
+/*! \fn uint64_t Trace_Get_CM_Thread_Mask(void)
+    \brief This function returns Thread mask of Compute Minions for which
+           Trace is enabled.
+    \return CM Thread Mask.
+*/
+uint64_t Trace_Get_CM_Thread_Mask(void);
+
+/*! \fn void Trace_Set_CM_Shire_Mask(uint64_t shire_mask)
     \brief This function sets shire mask of Compute Minions for which
            Trace is enabled.
-    \param cm_mask CM Shire Mask.
+    \param shire_mask CM Shire Mask.
     \return None
 */
-void Trace_Set_CM_Shire_Mask(uint64_t cm_mask);
+void Trace_Set_CM_Shire_Mask(uint64_t shire_mask);
+
+/*! \fn void Trace_Set_CM_Thread_Mask(uint64_t thread_mask)
+    \brief This function sets Thread mask of Compute Minions for which
+           Trace is enabled.
+    \param thread_mask CM Thread Mask.
+    \return None
+*/
+void Trace_Set_CM_Thread_Mask(uint64_t thread_mask);
 
 /*! \fn void Trace_RT_Control_MM(uint32_t control)
     \brief This function updates control of MM Trace runtime.

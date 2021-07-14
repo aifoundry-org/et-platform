@@ -505,13 +505,12 @@ static inline int8_t dma_readlist_cmd_process_trace_flags(struct device_ops_dma_
 {
     int8_t status = STATUS_SUCCESS;
     uint64_t cm_shire_mask;
-    cm_iface_message_t cm_msg;
 
     /* If flags are set to extract both MM and CM Trace buffers. */
     if((cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_MM_TRACE_BUF) &&
     (cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_CM_TRACE_BUF))
     {
-        cm_shire_mask = Trace_Get_CM_Shire_Mask ();
+        cm_shire_mask = Trace_Get_CM_Shire_Mask();
 
         if((cmd->list[TRACE_NODE_INDEX].size <= (MM_TRACE_BUFFER_SIZE + CM_TRACE_BUFFER_SIZE)) &&
         (cm_shire_mask & CW_Get_Booted_Shires()) == cm_shire_mask)
@@ -519,10 +518,12 @@ static inline int8_t dma_readlist_cmd_process_trace_flags(struct device_ops_dma_
             /* Disable MM Trace.*/
             Trace_Set_Enable_MM(TRACE_DISABLE);
 
-            cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT;
+            mm_to_cm_message_trace_buffer_evict_t cm_msg =
+                {.header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT,
+                 .thread_mask = Trace_Get_CM_Thread_Mask()};
 
             /* Send command to CM RT to disable Trace and evict Trace buffer. */
-            status = CM_Iface_Multicast_Send(cm_shire_mask, &cm_msg);
+            status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t*)&cm_msg);
 
             Trace_Evict_Buffer_MM();
 
@@ -558,10 +559,12 @@ static inline int8_t dma_readlist_cmd_process_trace_flags(struct device_ops_dma_
         if((cmd->list[TRACE_NODE_INDEX].size <= CM_TRACE_BUFFER_SIZE) &&
         ((cm_shire_mask & CW_Get_Booted_Shires()) == cm_shire_mask))
         {
-            cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT;
+            mm_to_cm_message_trace_buffer_evict_t cm_msg =
+                {.header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT,
+                 .thread_mask = Trace_Get_CM_Thread_Mask()};
 
             /* Send command to CM RT to disable Trace and evict Trace buffer. */
-            status = CM_Iface_Multicast_Send(cm_shire_mask, &cm_msg);
+            status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t*)&cm_msg);
 
             cmd->list[TRACE_NODE_INDEX].src_device_phy_addr = CM_TRACE_BUFFER_BASE;
         }
@@ -662,7 +665,7 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
         cycles.cmd_start_cycles = start_cycles;
         cycles.wait_cycles = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
         cycles.exec_start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
-        
+
         /* Create timeout for DMA_Write command to complete */
         uint8_t timeout_factor = (uint8_t)CMD_HEADER_FLAG_EXTRACT_TIMEOUT_FACTOR(cmd->command_info.cmd_hdr.flags);
         sw_timer_idx = SW_Timer_Create_Timeout(&DMAW_Write_Set_Abort_Status, chan,
@@ -960,6 +963,7 @@ static inline int8_t trace_rt_control_cmd_handler(void* command_buffer, uint8_t 
         mm_to_cm_message_trace_rt_control_t cm_msg;
         cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL;
         cm_msg.cm_control = cmd->control;
+        cm_msg.thread_mask = Trace_Get_CM_Thread_Mask();
 
         uint64_t cm_shire_mask = Trace_Get_CM_Shire_Mask();
 
@@ -1064,6 +1068,7 @@ static inline int8_t trace_rt_config_cmd_handler(void* command_buffer, uint8_t s
 
         /* Configure MM Trace. */
         Trace_Init_MM(&mm_trace_init);
+        Trace_String(TRACE_EVENT_STRING_CRITICAL, Trace_Get_MM_CB(), "MM:TRACE_RT_CONFIG:Done!!");
     }
 
     /* Check if CM Trace needs to configured. */
@@ -1081,9 +1086,7 @@ static inline int8_t trace_rt_config_cmd_handler(void* command_buffer, uint8_t s
         cm_msg.event_mask = cmd->event_mask;
         cm_msg.threshold = cmd->threshold;
 
-        /* Configure CM Trace. Send MM to CM command to previously enabled and new to enable Shires.
-           Get previously enabled shires from MM Trace. */
-        uint64_t cm_shire_mask = Trace_Get_CM_Shire_Mask() | (cmd->shire_mask & CM_SHIRE_MASK);
+        uint64_t cm_shire_mask = cmd->shire_mask & CM_SHIRE_MASK;
 
         if((cm_shire_mask & CW_Get_Booted_Shires()) != cm_shire_mask)
         {
@@ -1092,6 +1095,12 @@ static inline int8_t trace_rt_config_cmd_handler(void* command_buffer, uint8_t s
         else
         {
             status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t*)&cm_msg);
+
+            if(status == STATUS_SUCCESS)
+            {
+                Trace_Set_CM_Shire_Mask(cmd->shire_mask & CM_SHIRE_MASK);
+                Trace_Set_CM_Thread_Mask(cmd->thread_mask);
+            }
         }
     }
 

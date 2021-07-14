@@ -17,6 +17,7 @@ typedef struct {
     cm_iface_message_number_t number;
 } __attribute__((aligned(64))) cm_iface_message_number_internal_t;
 
+#define CURRENT_THREAD_MASK   ((0x1UL << (get_hart_id()%64)))
 /* MM -> CM message counters */
 #define mm_cm_msg_number ((cm_iface_message_number_internal_t*)CM_MM_HART_MESSAGE_COUNTER)
 static spinlock_t pre_msg_local_barrier[NUM_SHIRES] = { 0 };
@@ -194,7 +195,10 @@ static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
     {
         mm_to_cm_message_trace_rt_control_t *cmd =
                                 (mm_to_cm_message_trace_rt_control_t *)message_ptr;
-        Trace_RT_Control_CM(cmd->cm_control);
+        if (cmd->thread_mask & CURRENT_THREAD_MASK)
+        {
+            Trace_RT_Control_CM(cmd->cm_control);
+        }
         break;
     }
     case MM_TO_CM_MESSAGE_ID_TRACE_CONFIGURE:
@@ -202,18 +206,29 @@ static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
         const mm_to_cm_message_trace_rt_config_t *cmd =
                                 (mm_to_cm_message_trace_rt_config_t *)message_ptr;
 
-        struct trace_init_info_t mm_trace_init = {.shire_mask = cmd->shire_mask,
-            .thread_mask= cmd->thread_mask, .filter_mask = cmd->filter_mask,
-            .event_mask  = cmd->event_mask, .threshold   = cmd->threshold};
+        if (cmd->thread_mask & CURRENT_THREAD_MASK)
+        {
+            struct trace_init_info_t mm_trace_init = {.shire_mask = cmd->shire_mask,
+                .thread_mask= cmd->thread_mask, .filter_mask = cmd->filter_mask,
+                .event_mask  = cmd->event_mask, .threshold   = cmd->threshold};
 
-        Trace_Init_CM(&mm_trace_init);
-        Trace_String(TRACE_EVENT_STRING_CRITICAL, Trace_Get_CM_CB(), "CM:TRACE_RT_CONFIG:Done!!\n");
+            Trace_Init_CM(&mm_trace_init);
+            Trace_String(TRACE_EVENT_STRING_CRITICAL, Trace_Get_CM_CB(), "CM:TRACE_RT_CONFIG:Done!!\n");
+        }
         break;
     }
     case MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT:
-        Trace_Set_Enable_CM(TRACE_DISABLE);
-        Trace_Evict_CM_Buffer();
+    {
+        const mm_to_cm_message_trace_buffer_evict_t *cmd =
+                                (mm_to_cm_message_trace_buffer_evict_t *)message_ptr;
+
+        if (cmd->thread_mask & CURRENT_THREAD_MASK)
+        {
+            Trace_Set_Enable_CM(TRACE_DISABLE);
+            Trace_Evict_CM_Buffer();
+        }
         break;
+    }
     case MM_TO_CM_MESSAGE_ID_PMC_CONFIGURE:
         // Make a syscall to M-mode to configure PMCs
         syscall(SYSCALL_CONFIGURE_PMCS_INT, 0,

@@ -44,13 +44,15 @@
  * Master Minion Trace control block.
  */
 typedef struct mm_trace_control_block {
-    struct trace_control_block_t cb;    /*!< Common Trace library control block. */
-    uint64_t cm_shire_mask;         /* Compute Minion Shire mask to fetch Trace data from CM. */
+    struct trace_control_block_t cb; /**!< Common Trace library control block. */
+    uint64_t cm_shire_mask;          /**!< Compute Minion Shire mask to fetch Trace data from CM. */
+    uint64_t cm_thread_mask;         /**!< Compute Minion Shire mask to fetch Trace data from CM. */
 } __attribute__((aligned(64))) mm_trace_control_block_t;
 
 /* A local Trace control block for all Master Minions. */
 static mm_trace_control_block_t MM_Trace_CB =
-                {.cb = {0}, .cm_shire_mask = CM_DEFAULT_TRACE_SHIRE_MASK};
+                {.cb = {0}, .cm_shire_mask = CM_DEFAULT_TRACE_SHIRE_MASK,
+                 .cm_thread_mask = CM_DEFAULT_TRACE_THREAD_MASK};
 
 /************************************************************************
 *
@@ -184,6 +186,31 @@ uint64_t Trace_Get_CM_Shire_Mask(void)
 *
 *   FUNCTION
 *
+*       Trace_Get_CM_Thread_Mask
+*
+*   DESCRIPTION
+*
+*       This function returns thread mask of Compute Minions for which
+*       Trace is enabled.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       uint64_t    CM Thread Mask.
+*
+***********************************************************************/
+uint64_t Trace_Get_CM_Thread_Mask(void)
+{
+    return atomic_load_local_64(&MM_Trace_CB.cm_thread_mask);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       Trace_Set_CM_Shire_Mask
 *
 *   DESCRIPTION
@@ -200,9 +227,34 @@ uint64_t Trace_Get_CM_Shire_Mask(void)
 *       None
 *
 ***********************************************************************/
-void Trace_Set_CM_Shire_Mask(uint64_t cm_mask)
+void Trace_Set_CM_Shire_Mask(uint64_t shire_mask)
 {
-    atomic_store_local_64(&MM_Trace_CB.cm_shire_mask, cm_mask);
+    atomic_store_local_64(&MM_Trace_CB.cm_shire_mask, shire_mask);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Set_CM_Thread_Mask
+*
+*   DESCRIPTION
+*
+*       This function sets thread mask of Compute Minions for which
+*       Trace is enabled.
+*
+*   INPUTS
+*
+*       uint64_t    CM Thread Mask.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Trace_Set_CM_Thread_Mask(uint64_t thread_mask)
+{
+    atomic_store_local_64(&MM_Trace_CB.cm_thread_mask, thread_mask);
 }
 
 /************************************************************************
@@ -257,7 +309,7 @@ void Trace_RT_Control_MM(uint32_t control)
     else
     {
         Log_Set_Interface(LOG_DUMP_TO_TRACE);
-        Log_Write(LOG_LEVEL_CRITICAL,
+        Log_Write(LOG_LEVEL_DEBUG,
                 "TRACE_RT_CONTROL:MM:Logs redirected to Trace buffer.\r\n");
     }
 }

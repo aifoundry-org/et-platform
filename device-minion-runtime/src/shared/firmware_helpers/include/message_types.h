@@ -116,11 +116,19 @@ ASSERT_CACHE_LINE_CONSTRAINTS(mm_to_cm_message_pmc_configure_t);
 
 typedef struct {
     cm_iface_message_header_t header;
-    uint32_t cm_control;
-    uint8_t pad[4];
+    uint64_t thread_mask;  /**< Bit Mask of Thread. */
+    uint32_t cm_control;   /**< Bit encoded CM Trace control. */
+    uint8_t  pad[4];       /**< Padding for alignment. */
 } __attribute__((packed, aligned(64))) mm_to_cm_message_trace_rt_control_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(mm_to_cm_message_trace_rt_control_t);
+
+typedef struct {
+    cm_iface_message_header_t header;
+    uint64_t thread_mask;  /**< Bit Mask of Thread. */
+} __attribute__((packed, aligned(64))) mm_to_cm_message_trace_buffer_evict_t;
+
+ASSERT_CACHE_LINE_CONSTRAINTS(mm_to_cm_message_trace_buffer_evict_t);
 
 typedef struct {
     cm_iface_message_header_t header;
