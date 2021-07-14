@@ -182,7 +182,7 @@ int32_t Get_Minion_Frequency(void)
 *
 *   FUNCTION
 *
-*       Update_Minion_Frequency
+*       Update_Minion_Frequency_Global_Reg
 *
 *   DESCRIPTION
 *
@@ -197,7 +197,7 @@ int32_t Get_Minion_Frequency(void)
 *      int                    Return status
 *
 ***********************************************************************/
-void Update_Minion_Frequency(uint32_t new_freq)
+void Update_Minion_Frequency_Global_Reg(uint32_t new_freq)
 {
     get_soc_perf_reg()->asic_frequency.minion_shire_mhz = new_freq;
 }

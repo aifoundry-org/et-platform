@@ -281,10 +281,11 @@
 */
 #define PMIC_TEMP_THRESHOLD_LO      70
 
-/*! \def THERMAL_THROTTLE_SAMPLE_PERIOD
-    \brief A macro that provides thermal throttle sample period
+/*! \def DELTA_TEMP_UPDATE_PERIOD 
+    \brief A macro that provides dTj/dt - time(uS) for Junction temperature to be updated
+           This value needs to be characterized in Silicon
 */
-#define THERMAL_THROTTLE_SAMPLE_PERIOD      500
+#define DELTA_TEMP_UPDATE_PERIOD   1000
 
 /************************/
 /* Compile-time checks  */

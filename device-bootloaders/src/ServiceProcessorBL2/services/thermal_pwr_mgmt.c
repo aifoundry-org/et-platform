@@ -46,16 +46,18 @@ static StaticTask_t g_staticTask_ptr;
 static void pmic_isr_callback(enum error_type type, struct event_message_t *msg);
 
 struct soc_power_reg_t {
-    power_state_e module_power_state;
-    tdp_level_e module_tdp_level;
-    struct temperature_threshold_t temperature_threshold;
-    uint8_t soc_temperature;
-    uint8_t soc_power;
-    uint8_t max_temp;
-    struct module_uptime_t module_uptime;
-    struct module_voltage_t module_voltage;
     uint64_t throttled_states_residency;
     uint64_t max_throttled_states_residency;
+    power_state_e module_power_state;
+    tdp_level_e module_tdp_level;
+    uint8_t module_power_threshold;
+    uint8_t soc_temperature;
+    uint8_t soc_power;
+    uint8_t power_scale_factor;
+    uint8_t max_temp;
+    struct temperature_threshold_t temperature_threshold;
+    struct module_uptime_t module_uptime;
+    struct module_voltage_t module_voltage;
     dm_event_isr_callback event_cb;
 };
 
@@ -64,39 +66,53 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
     return &g_soc_power_reg;
 }
 
+/*! \def POWER_HEX_TO_mW(x)
+    \brief Converts hex encoded power to mW
+*/
+#define POWER_HEX_TO_mW(x) (int)((((x) >> 2) * 1000u) + ((x) & 0x3u) * 250u)
 
-// FIXME: This needs to extracted from OTP Fuse
+/*! \def POWER_mW_TO_HEX(x)
+    \brief Converts mW to Hex encoded power
+*/
+#define POWER_mW_TO_HEX(x) (int)((((x) / 1000u) << 2) & (((x) % 1000u) / 250u))
+
+//NOSONAR TODO: Need to create mapping between Power State to actual value in W
+#define POWER_STATE_TO_W(state) 25
+
+//NOSONAR TODO: This needs to extracted from OTP Fuse
 #define DP_per_Mhz 1
 
-// FIXME: Need to add Freq to mode convertion equation
+//NOSONAR TODO: Need to add Freq to mode convertion equation
 #define FREQ2MODE(X) X
 
+//NOSONAR TODO: Need to add logic to calculate new Voltage given
+//       a new frequency 
+#define RECOMPUTE_VOLTAGE(current_voltage, delta_freq)  current_voltage
+
 /* Macro implementing temperature reduction algorithm */
-#define REDUCE_SYSTEM_TEMPERATURE(current_temperature)                                                 \
-    uint8_t current_power=0;                                                                           \
-                                                                                                       \
-       do                                                                                              \
-       {                                                                                               \
-           /* Get the current power */                                                                 \
-           if(0 != pmic_read_soc_power(&current_power)) {                                              \
-               Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");  \
-           }                                                                                           \
-                                                                                                       \
-           /* TODO: Scale it down by 10 % of current value and change the frequency accordingly */    \
-           /* Take care that current_power is binary encoded */                                        \
-           current_power = (uint8_t)((current_power * 10) / 100);                                      \
-                                                                                                       \
-           /* Program the new operating point  */                                                      \
-           set_operating_point(current_power);                                                         \
-                                                                                                       \
-          /* TODO: What should be this delay? */                                                      \
-          vTaskDelay(pdMS_TO_TICKS(THERMAL_THROTTLE_SAMPLE_PERIOD));                                   \
-                                                                                                       \
-          /* Sample the temperature again */                                                           \
-          if(0 != pmic_get_temperature(&current_temperature)) {                                        \
+#define REDUCE_SYSTEM_TEMPERATURE(current_temperature,cma_power)                                        \
+   int32_t delta_power_mW = 0;                                                                          \
+                                                                                                        \
+       do                                                                                               \
+       {                                                                                                \
+           /* Get the current power */                                                                  \
+           if(0 != pmic_read_soc_power(&cma_power)) {                                               \
+               Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");   \
+           }                                                                                            \
+           /* Scale down based on SW controlled scaling factor */                                       \
+           delta_power_mW = (POWER_HEX_TO_mW(cma_power) *                                           \
+                                   (get_soc_power_reg()->power_scale_factor));                          \
+                                                                                                        \
+           /* Reduce Minion operating point  */                                                         \
+           reduce_minion_operating_point(delta_power_mW);                                               \
+                                                                                                        \
+          vTaskDelay(pdMS_TO_TICKS(DELTA_TEMP_UPDATE_PERIOD));                                          \
+                                                                                                        \
+          /* Sample the temperature again */                                                            \
+          if(0 != pmic_get_temperature(&current_temperature)) {                                         \
                 Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get temperature\r\n");\
-          }                                                                                            \
-       } while(current_temperature > get_soc_power_reg()->temperature_threshold.hi_temperature_c);     \
+          }                                                                                             \
+       } while(current_temperature > get_soc_power_reg()->temperature_threshold.lo_temperature_c);      \
 
 /************************************************************************
 *
@@ -121,6 +137,7 @@ int update_module_power_state(power_state_e state)
 {
     // TODO : https://esperantotech.atlassian.net/browse/SW-6503
     get_soc_power_reg()->module_power_state = state;
+    get_soc_power_reg()->module_power_threshold = POWER_STATE_TO_W(state);
     return 0;
 }
 
@@ -157,7 +174,7 @@ int get_module_power_state(power_state_e *power_state)
 *
 *   DESCRIPTION
 *
-*       This function updates the TDP level of the module.
+*       This function updates the TDP level in the Global Power Register.
 *
 *   INPUTS
 *
@@ -170,17 +187,9 @@ int get_module_power_state(power_state_e *power_state)
 ***********************************************************************/
 int update_module_tdp_level(tdp_level_e tdp)
 {
-    int status;
-
-    status = pmic_set_tdp_threshold(tdp);
-
-    if (0 != status) {
-        MESSAGE_ERROR("thermal pwr mgmt svc: update module tdp level error\r\n");
-    } else {
-        get_soc_power_reg()->module_tdp_level = tdp;
-    }
-
-    return status;
+    Log_Write(LOG_LEVEL_DEBUG,"thermal pwr mgmt svc: Update module tdp level threshold to new level: %d\r\n", tdp);
+    get_soc_power_reg()->module_tdp_level = tdp;
+    return 0;
 }
 
 /************************************************************************
@@ -191,7 +200,7 @@ int update_module_tdp_level(tdp_level_e tdp)
 *
 *   DESCRIPTION
 *
-*       This function gets the TDP level of the module.
+*       This function gets the TDP level of the module as per Global Power Register.
 *
 *   INPUTS
 *
@@ -199,7 +208,7 @@ int update_module_tdp_level(tdp_level_e tdp)
 *
 *   OUTPUTS
 *
-*       int                Return status
+*       int                 Return status
 *
 ***********************************************************************/
 int get_module_tdp_level(tdp_level_e *tdp_level)
@@ -261,7 +270,7 @@ int update_module_temperature_threshold(uint8_t hi_threshold, uint8_t lo_thresho
 *
 *   OUTPUTS
 *
-*       int                            Return status
+*       int                 Return status
 *
 ***********************************************************************/
 int get_module_temperature_threshold(struct temperature_threshold_t *temperature_threshold)
@@ -303,12 +312,13 @@ int update_module_current_temperature(void)
     else {
 
         get_soc_power_reg()->soc_temperature = temperature;
-
         /* Update max temperature so far */
         if (get_soc_power_reg()->max_temp < temperature) {
             get_soc_power_reg()->max_temp = temperature;
         }
     }
+
+
 
     get_module_temperature_threshold(&temperature_threshold);
 
@@ -529,6 +539,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
 *
 *   FUNCTION
 *
+*
 *       get_soc_max_temperature
 *
 *   DESCRIPTION
@@ -541,7 +552,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
 *
 *   OUTPUTS
 *
-*       int     max temperature value
+*       int                     Return status
 *
 ***********************************************************************/
 int get_soc_max_temperature(uint8_t *max_temp)
@@ -592,8 +603,8 @@ int update_module_uptime()
     get_soc_power_reg()->module_uptime.day = day; //days
     get_soc_power_reg()->module_uptime.hours = hours; //hours
     get_soc_power_reg()->module_uptime.mins = minutes; //mins;
-
     return 0;
+
 }
 
 /************************************************************************
@@ -613,7 +624,7 @@ int update_module_uptime()
 *
 *   OUTPUTS
 *
-*       None
+*       int                     Return status
 *
 ***********************************************************************/
 int get_module_uptime(struct module_uptime_t *module_uptime)
@@ -639,7 +650,7 @@ int get_module_uptime(struct module_uptime_t *module_uptime)
 *
 *   OUTPUTS
 *
-*       int                            Return status
+*       int                     Return status
 *
 ***********************************************************************/
 int  update_module_throttle_time(uint64_t time_usec)
@@ -787,46 +798,81 @@ int init_thermal_pwr_mgmt_service(void)
 *
 *   FUNCTION
 *
-*       set_operating_point
+*       reduce_minion_operating_point
 *
 *   DESCRIPTION
 *
-*       This function sets the new operating point based on the
-*       given power value.
+*       This function will algorithmically lower down frequency/voltage 
+*       of the Minion Shire to compensate for Over-Temperature OR 
+*       Over-Power operating regions
 *
 *   INPUTS
 *
-*       event_cb                  Power value to set
+*       uint32_t                  Amount of Power to be reduced by (in mW)
 *
 *   OUTPUTS
 *
 *       int                       Return status
 *
 ***********************************************************************/
-static int set_operating_point(uint8_t power)
+int reduce_minion_operating_point(int32_t delta_power)
 {
-    tdp_level_e tdp;
-    get_module_tdp_level(&tdp);
-
-    // FIXME: Add Binary Encoding to floatiing point: BCD2FP(power);
-    // Use this value to compare against TDP which should also
-    // be converted to a floatng point value
-
-    //calculate Delta Power then re-compute new Minion Freq
-    bool increase = (power > tdp) ? true: false;
-    int delta_power = increase ? (power - tdp): (tdp - power);
-    int delta_freq = (delta_power * DP_per_Mhz)*(increase? 1 : -1);
-
-    uint32_t new_freq = (uint32_t)( Get_Minion_Frequency() + delta_freq );
-
-    // FIXME: Need check to see if Voltage update is required for new
-    //        frequency
-    // Minion_Shire_Voltage_Update(voltage);
-    // FIXME: Need to add error handling in case Minion was not able to be updated
+    /* Compute delta freq to compensate for delta Power */
+    int32_t delta_freq = delta_power * DP_per_Mhz;
+    int32_t new_freq  = Get_Minion_Frequency()-delta_freq;
+    
+    // TODO: Need to add error handling in case Minion was not able to be updated
     //        check for error, then return Error enum instead
     Minion_Shire_Update_PLL_Freq((uint8_t)FREQ2MODE(new_freq));
 
-    Update_Minion_Frequency(new_freq);
+    int32_t new_voltage = RECOMPUTE_VOLTAGE(get_soc_power_reg()->module_voltage.minion,new_freq); 
+    if(new_voltage != get_soc_power_reg()->module_voltage.minion) {
+         //NOSONAR Minion_Shire_Voltage_Update(new_voltage);
+    }
+
+    Update_Minion_Frequency_Global_Reg((uint32_t)new_freq);
+
+    return 0;
+
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       increase_minion_operating_point
+*
+*   DESCRIPTION
+*
+*       This function will algorithmically increase frequency/voltage 
+*       of the Minion Shire to hit most efficient operating point
+*
+*   INPUTS
+*
+*       uint32_t                  Amount of Power to be increased by (in mW)
+*
+*   OUTPUTS
+*
+*       int                       Return status
+*
+***********************************************************************/
+int increase_minion_operating_point(int32_t delta_power)
+{
+
+    /* Compute delta freq to compensate for delta Power */
+    int32_t delta_freq = delta_power * DP_per_Mhz;
+    int32_t new_freq  = Get_Minion_Frequency() + delta_freq;
+
+    int32_t new_voltage = RECOMPUTE_VOLTAGE(get_soc_power_reg()->module_voltage.minion,new_freq); 
+    if(new_voltage != get_soc_power_reg()->module_voltage.minion) {
+         //NOSONAR Minion_Shire_Voltage_Update(new_voltage);
+    }
+ 
+    // TODO: Need to add error handling in case Minion was not able to be updated
+    //        check for error, then return Error enum instead
+    Minion_Shire_Update_PLL_Freq((uint8_t)FREQ2MODE(new_freq));
+
+    Update_Minion_Frequency_Global_Reg((uint32_t)new_freq);
 
     return 0;
 
@@ -856,6 +902,7 @@ void thermal_power_task_entry(void *pvParameter)
     uint64_t start_time;
     uint64_t end_time;
     uint8_t current_temperature=DEF_SYS_TEMP_VALUE;
+    uint8_t cma_power=0;
     struct event_message_t message;
     uint32_t notificationValue;
 
@@ -873,13 +920,19 @@ void thermal_power_task_entry(void *pvParameter)
                 Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get temperature\r\n");
             }
 
-            if (current_temperature < get_soc_power_reg()->temperature_threshold.hi_temperature_c)
+             /* Sample the Cumulative Moving Average system input power consumption */
+             /* CMA starts at 100 samples and is updated every system tick which is between 4 to 10ms depending on PMIC Controller load */
+            if(0 != pmic_get_average_soc_power(&cma_power)) {
+                Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get temperature\r\n");
+            }
+            if (current_temperature < get_soc_power_reg()->temperature_threshold.lo_temperature_c &&
+                cma_power < get_soc_power_reg()->module_power_threshold)
                 continue;
 
-            /* We need to throttle the voltage and frequency, lets keep track of throttling time */
+            /* We need to throttle operating point, lets keep track of throttling time */
             start_time = timer_get_ticks_count();
 
-            REDUCE_SYSTEM_TEMPERATURE(current_temperature)
+            REDUCE_SYSTEM_TEMPERATURE(current_temperature,cma_power)
 
             end_time = timer_get_ticks_count();
 

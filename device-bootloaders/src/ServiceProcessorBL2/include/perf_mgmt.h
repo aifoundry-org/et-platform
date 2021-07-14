@@ -54,12 +54,12 @@ int get_module_max_dram_bw(struct max_dram_bw_t *max_dram_bw);
 */
 int32_t Get_Minion_Frequency(void);
 
-/*! \fn void Update_Minion_Frequency(int new_freq)
+/*! \fn void Update_Minion_Frequency_Global_Reg(int new_freq)
     \brief Interface to update Minion frequency in global variable
     \param New Frequency in Mhz
     \returns int
 */
-void Update_Minion_Frequency(uint32_t new_freq);
+void Update_Minion_Frequency_Global_Reg(uint32_t new_freq);
 
 /*! \fn int get_module_asic_frequencies(struct asic_frequencies_t *asic_frequencies)
     \brief Interface to get module's ASIC frequencies from global variable

@@ -159,6 +159,20 @@ int get_max_throttle_time(uint64_t *max_throttle_time);
 */
 int get_soc_max_temperature(uint8_t *max_temp);
 
+/*! \fn int increase_minion_operating_point(int32_t delta_power) 
+    \brief This function will increase the Minion Voltage/Freq
+    \param Amount of Power to be increased by (in mW)
+    \returns Status indicating success or negative error
+*/
+int increase_minion_operating_point(int32_t delta_power);
+
+/*! \fn int reduce_minion_operating_point(int32_t delta_power) 
+    \brief This function will reduce the Minion Voltage/Freq
+    \param Amount of Power to be reduced by (in mW)
+    \returns Status indicating success or negative error
+*/
+int reduce_minion_operating_point(int32_t delta_power);
+
 /*! \fn int set_power_event_cb(dm_event_isr_callback event_cb)
     \brief Interface to set temperature event callback variable
     \param event_cb  Temperature event callback function ptr
