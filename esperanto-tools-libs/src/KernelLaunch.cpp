@@ -38,7 +38,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
   }
 
   std::unique_lock lock2(streamsMutex_);
-  auto stream = find(streams_, streamId)->second;
+  const auto& stream = find(streams_, streamId)->second;
   lock2.unlock();
 
   if (stream.deviceId_ != kernel->deviceId_) {
@@ -56,7 +56,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
   }
   auto event = eventManager_.getNextId();
   lock2.lock();
-  find(streams_, streamId)->second.lastEventId_ = event;
+  find(streams_, streamId)->second.addEvent(event);
   lock2.unlock();
   if (kernel_args_size > 0) {
     kernelParametersCache_->reserveBuffer(event, pBuffer);
@@ -85,7 +85,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
   RT_VLOG(LOW) << "Pushing kernel Launch Command on SQ: " << stream.vq_ << " Tag id: " << std::hex
                << cmd.command_info.cmd_hdr.tag_id << ", parameters: " << cmd.pointer_to_args
                << ", PC: " << cmd.code_start_address << ", shire_mask: " << shire_mask;
-  sendCommandMasterMinion(stream, event, cmd, lock);  
+  sendCommandMasterMinion(stream.vq_, static_cast<int>(stream.deviceId_), cmd, lock);
   profileEvent.setEventId(event);
   return event;
 }

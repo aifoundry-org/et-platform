@@ -17,6 +17,7 @@
 #include "ResponseReceiver.h"
 #include "runtime/IRuntime.h"
 #include "utils.h"
+#include <algorithm>
 #include <mutex>
 #include <thread>
 #include <type_traits>
@@ -99,8 +100,21 @@ private:
       : deviceId_(deviceId)
       , vq_(vq) {
     }
+    Stream(const Stream&) = delete;
+    Stream& operator=(const Stream&) = delete;
+    Stream& operator=(Stream&&) noexcept = default;
+    Stream(Stream&&) noexcept = default;
+
+    bool removeEvent(EventId event) {
+      return submittedEvents_.erase(event) > 0;
+    }
+
+    void addEvent(EventId event) {
+      submittedEvents_.emplace(event);
+    }
+
+    std::set<EventId> submittedEvents_;
     DeviceId deviceId_;
-    EventId lastEventId_; // last submitted event to this stream
     int vq_;
   };
 
@@ -124,13 +138,11 @@ private:
   };
 
   template <typename Command, typename Lock>
-  void sendCommandMasterMinion(Stream& stream, EventId event, Command&& command, Lock& lock, bool isDma = false) {
-    auto sqIdx = stream.vq_;
-    auto device = static_cast<int>(stream.deviceId_);
+  void sendCommandMasterMinion(int sqIdx, int deviceId, Command& command, Lock& lock, bool isDma = false) {
     bool done = false;
     while (!done) {
-      done = deviceLayer_->sendCommandMasterMinion(device, sqIdx,
-                                                  reinterpret_cast<std::byte*>(&command), sizeof(command), isDma);
+      done = deviceLayer_->sendCommandMasterMinion(deviceId, sqIdx, reinterpret_cast<std::byte*>(&command),
+                                                   sizeof(command), isDma);
       if (!done) {
         lock.unlock();
         RT_VLOG(LOW) << "Submission queue " << sqIdx
@@ -143,7 +155,6 @@ private:
         lock.lock();
       }
     }
-    stream.lastEventId_ = event;
   }
 
   dev::IDeviceLayer* deviceLayer_;
