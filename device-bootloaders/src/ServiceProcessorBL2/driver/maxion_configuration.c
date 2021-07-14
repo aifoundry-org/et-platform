@@ -23,7 +23,7 @@
 /***********************************************************************/
 #include <stdio.h>
 
-#include "etsoc_hal/inc/etsoc_shire_other_esr.h"
+#include "hwinc/etsoc_shire_other_esr.h"
 #include "esr.h"
 //#include "minion_esr_defines.h"
 #include "maxion_configuration.h"
@@ -33,10 +33,10 @@ void Maxion_Shire_Channel_Enable(void) {
 
     #define IOSHIRE_ID 0xFE
     #define ALL_NEIGH_MASK 0xF
-    
+
     #define SUB_REGION_ADDR 0x02
-    
-    volatile uint64_t *p = get_esr_address(PP_MACHINE, IOSHIRE_ID, REGION_OTHER, SUB_REGION_ADDR, 
+
+    volatile uint64_t *p = get_esr_address(PP_MACHINE, IOSHIRE_ID, REGION_OTHER, SUB_REGION_ADDR,
                                            ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS,0x0);
 
     *p =    ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_RESET_VALUE |
@@ -80,12 +80,12 @@ void Maxion_Reset_PLL_Core_Deassert(void) {
     rwVal |= RESET_MANAGER_RM_MAX_PLL_CORE_RSTN_SET(1);
 
     iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_MAX_OFFSET, rwVal);
-                 
+
 }
 
 int Maxion_Reset_Warm_Core_Deassert(uint8_t coreNumber) {
-      
-    switch (coreNumber) 
+
+    switch (coreNumber)
       {
         case 0:
           iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_MAX_WARM_OFFSET,
@@ -104,16 +104,16 @@ int Maxion_Reset_Warm_Core_Deassert(uint8_t coreNumber) {
                     RESET_MANAGER_RM_MAX_WARM_CORE_RSTN_SET(0x8));
           break;
         default:
-          return (int)coreNumber;   
+          return (int)coreNumber;
       }
-    
-    return 0; 
+
+    return 0;
 }
 
 void Maxion_Reset_Warm_Core_All_Deassert(void) {
     iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_MAX_WARM_OFFSET,
                 RESET_MANAGER_RM_MAX_WARM_CORE_RSTN_SET(0xF));
-} 
+}
 
 
 
