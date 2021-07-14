@@ -128,11 +128,11 @@ struct mm_trace_string_t {
 struct trace_cmd_status_internal_t {
   union{
     struct{
-      uint8_t cmd_type;      /**< Command type, One of enum trace_cmd_type */
+      uint16_t mesg_id;               /**< Command message ID */
       trace_cmd_status_e cmd_status;  /**< Command execution status, One of enum trace_cmd_status */
       uint8_t queue_slot_id;          /**< Submission Queue ID from which command is popped */
       uint16_t trans_id;              /**< transaction ID of command e.g. Tag ID. */
-      uint8_t reserved[3];            /**< Reserved */
+      uint8_t reserved[2];            /**< Reserved */
     }__attribute__((packed));
     uint64_t raw_cmd;
   };
@@ -204,8 +204,9 @@ protected:
   void printErrorContext(int queueId, const std::byte* buffer, uint64_t shireMask, CmdTag tagId) const;
 
   void controlTraceLogging(int deviceIdx, bool toTraceBuf, bool resetTraceBuf);
-  bool printMMTraceStringData(unsigned char* traceBuf, size_t bufSize) const;
-  bool printCMTraceStringData(unsigned char* traceBuf, size_t bufSize) const;
+  bool printMMTraceData(unsigned char* traceBuf, size_t bufSize) const;
+  bool printCMTraceData(unsigned char* traceBuf, size_t bufSize) const;
+  bool printCMTraceSingleHartData(unsigned char* hartDataPtr, uint32_t cmHartID, size_t dataSize) const;
   void extractAndPrintTraceData(int deviceIdx);
 
   inline int getDevicesCount() {

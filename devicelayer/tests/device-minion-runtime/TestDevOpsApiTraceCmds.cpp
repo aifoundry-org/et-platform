@@ -67,7 +67,7 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractMMFwData_5_1() {
   }
 
   for (size_t i = 0; i < readBufs.size(); ++i) {
-    EXPECT_TRUE(printMMTraceStringData(readBufs[i].data(), readBufs[i].size()))
+    EXPECT_TRUE(printMMTraceData(readBufs[i].data(), readBufs[i].size()))
       << "No Trace String event found!" << std::endl;
       deleteStreams();
   }
@@ -116,7 +116,7 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractCMFwData_5_2() {
   }
 
   for (size_t i = 0; i < readBufs.size(); ++i) {
-    EXPECT_TRUE(printCMTraceStringData(readBufs[i].data(), readBufs[i].size()))
+    EXPECT_TRUE(printCMTraceData(readBufs[i].data(), readBufs[i].size()))
       << "No Trace String event found!" << std::endl;
       deleteStreams();
   }
