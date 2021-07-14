@@ -32,6 +32,7 @@ option(ENABLE_SANITIZER_UNDEFINED_BEHAVIOR "" ON)
 option(ENABLE_SANITIZER_THREAD "" OFF)
 option(ENABLE_SANITIZER_MEMORY "" OFF)
 option(DISABLE_SANITY_CHECKS "Disable completely sanity checks" OFF)
+option(SYNCHRONOUS_MODE "Runs the runtime in synchronous mode, no need to do a waitForEvent/waitForStream" OFF)
 
 # If not empty install any runtime python packages
 set(DOCUMENTATION_INSTALL_DIR "${CMAKE_INSTALL_DIR}/doc" CACHE PATH "Documentation installation path")
@@ -79,10 +80,11 @@ set_target_properties(etrt_obj PROPERTIES
     PUBLIC_HEADER "include/runtime/IProfiler.h;include/runtime/IRuntime.h;include/runtime/IProfileEvent.h;include/runtime/DmaBuffer.h"
     POSITION_INDEPENDENT_CODE ON
 )
-
-if(DISABLE_SANITY_CHECKS)
-    target_compile_definitions(etrt_obj PRIVATE DISABLE_SANITY_CHECKS)
-endif()
+    target_compile_definitions(etrt_obj
+        PRIVATE
+            $<$<BOOL:${SYNCHRONOUS_MODE}>: RUNTIME_SYNCHRONOUS_MODE>
+            $<$<BOOL:${DISABLE_SANITY_CHECKS}>: DISABLE_SANITY_CHECKS>
+    )
 
 target_include_directories(etrt_obj
     PUBLIC
@@ -94,7 +96,6 @@ target_include_directories(etrt_obj
 )
 target_set_project_warnings(etrt_obj)
 target_add_sanitizers(etrt_obj)
-target_compile_options(etrt_obj PRIVATE -Wno-missing-field-initializers)
 
 target_link_libraries(etrt_obj
     PUBLIC

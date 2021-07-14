@@ -235,6 +235,7 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
     cmd.command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
   sendCommandMasterMinion(st.vq_, static_cast<int>(device), cmd, lock, true);
   profileEvent.setEventId(evt);
+  Sync(evt);
   return evt;
 }
 
@@ -309,6 +310,7 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
   }
 
   profileEvent.setEventId(evt);
+  Sync(evt);
   return evt;
 }
 
@@ -473,6 +475,7 @@ EventId RuntimeImp::setupDeviceTracing(StreamId stream, uint32_t shireMask, uint
   if (barrier)
     cmd.command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
   sendCommandMasterMinion(st.vq_, static_cast<int>(st.deviceId_), cmd, lock, false);
+  Sync(evt);
   return evt;
 }
 
@@ -508,6 +511,7 @@ EventId RuntimeImp::startDeviceTracing(StreamId stream, std::ostream* mmOutput, 
   sendCommandMasterMinion(st.vq_, static_cast<int>(st.deviceId_), cmd, lock, false);
   deviceTracing.cmOutput_ = cmOutput;
   deviceTracing.mmOutput_ = mmOutput;
+  Sync(evt);
   return evt;
 }
 
@@ -572,6 +576,7 @@ EventId RuntimeImp::stopDeviceTracing(StreamId stream, bool barrier) {
   });
   t.detach();
 
+  Sync(evt);
   return evt;
 }
 

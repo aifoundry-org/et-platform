@@ -87,5 +87,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
                << ", PC: " << cmd.code_start_address << ", shire_mask: " << shire_mask;
   sendCommandMasterMinion(stream.vq_, static_cast<int>(stream.deviceId_), cmd, lock);
   profileEvent.setEventId(event);
+
+  Sync(event);
   return event;
 }

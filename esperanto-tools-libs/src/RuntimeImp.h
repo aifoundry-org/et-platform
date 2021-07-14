@@ -137,6 +137,12 @@ private:
     std::ostream* cmOutput_;
   };
 
+  inline void Sync([[maybe_unused]] EventId e) {
+#ifdef RUNTIME_SYNCHRONOUS_MODE
+    RT_VLOG(HIGH) << "Runtime running in sync mode. Waiting for event: " << static_cast<int>(e);
+    waitForEvent(e);
+#endif
+  }
   template <typename Command, typename Lock>
   void sendCommandMasterMinion(int sqIdx, int deviceId, Command& command, Lock& lock, bool isDma = false) {
     bool done = false;
