@@ -29,15 +29,27 @@ parameters:
 
 
 stages:
+  CLANG_CHECK:
+    cmds:
+      - job: sw-platform/system-sw-integration/pipelines/linux-driver-clang-tests
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"
+          NODE: WORKER
+          TIMEOUT: "1"
+    exec_before: [r"JOB_.*"]
+    exec_after: ['DSL_JOB']
   JOB_OPS_PCIE_SYSEMU:
     cmds:
       - job: sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"
+    exec_after: ['CLANG_CHECK']
   JOB_MGMT_PCIE_SYSEMU:
     cmds:
       - job: sw-platform/system-sw-integration/pipelines/device-management-checkin-tests
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"
+    exec_after: ['CLANG_CHECK']

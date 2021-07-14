@@ -86,6 +86,18 @@ pipeline {
           ]
       }
     }
+    stage('CLANG_CHECK') {
+      steps {
+        build job:
+          'sw-platform/system-sw-integration/pipelines/linux-driver-clang-tests',
+          propagate: true,
+          parameters: [
+            string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+            string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"),
+            string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+          ]
+      }
+    }
     stage('PARALLEL0') {
       parallel {
         stage('JOB_OPS_PCIE_SYSEMU') {
