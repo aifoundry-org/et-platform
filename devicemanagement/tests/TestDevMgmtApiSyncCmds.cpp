@@ -37,6 +37,8 @@ using TimeDuration = Clock::duration;
 
 DEFINE_bool(loopback_driver, false, "Run on loopback driver");
 
+#define FORMAT_VERSION(major, minor, revision) ((major << 24) | (minor << 16) | (revision << 8))
+
 void testSerial(DeviceManagement& dm, uint32_t deviceIdx, uint32_t index, uint32_t timeout, int* result) {
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char output_buff[output_size] = {0};
@@ -1256,13 +1258,7 @@ void TestDevMgmtApiSyncCmds::getFWBootstatus_1_41(bool singleDevice) {
 
     // Skip printing and validation if loopback driver
     if (!FLAGS_loopback_driver) {
-      printf("output_buff: %.*s\n", output_size, output_buff);
-
-      char expected[output_size] = {0};
-      strncpy(expected, "0", output_size);
-      printf("expected: %.*s\n", output_size, expected);
-
-      ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+      ASSERT_EQ(output_buff[0], 0);
     }
   }
 }
@@ -1291,11 +1287,11 @@ void TestDevMgmtApiSyncCmds::getModuleFWRevision_1_42(bool singleDevice) {
 
       device_mgmt_api::firmware_version_t* firmware_versions = (device_mgmt_api::firmware_version_t*)output_buff;
 
-      ASSERT_EQ(firmware_versions->bl1_v, 0010);
-      ASSERT_EQ(firmware_versions->bl2_v, 0010);
-      ASSERT_EQ(firmware_versions->mm_v, 0010);
-      ASSERT_EQ(firmware_versions->wm_v, 0010);
-      ASSERT_EQ(firmware_versions->machm_v, 0010);
+      ASSERT_EQ(firmware_versions->bl1_v, FORMAT_VERSION(0, 0, 1));
+      ASSERT_EQ(firmware_versions->bl2_v, FORMAT_VERSION(0, 0, 1));
+      ASSERT_EQ(firmware_versions->mm_v, FORMAT_VERSION(3, 17, 3));
+      ASSERT_EQ(firmware_versions->wm_v, FORMAT_VERSION(3, 17, 3));
+      ASSERT_EQ(firmware_versions->machm_v, FORMAT_VERSION(3, 17, 3));
     }
   }
 }
@@ -1334,7 +1330,6 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44(bool singleDevice) {
   int result = 0;
   int mode = O_RDONLY | O_NONBLOCK;
   const int max_err_types = 11;
-  int err_count[max_err_types] = {0};
   std::string line;
   std::string err_types[max_err_types] = {
     "PCIe Correctable Error",        "PCIe Un-Correctable Error",  "DRAM Correctable Error",
@@ -1348,6 +1343,9 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44(bool singleDevice) {
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    int err_count[max_err_types] = {0};
+    result = 0;
+    size = 0;
     fd = open("/dev/kmsg", mode);
     lseek(fd, 0, SEEK_END);
     DM_LOG(INFO) << "waiting for error events...\n";

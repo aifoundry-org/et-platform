@@ -40,6 +40,10 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleSerialNumber_1_3) {
   getModuleSerialNumber_1_3(false /* Multiple devices */);
 }
 
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getASICChipRevision_1_4) {
+  getASICChipRevision_1_4(false /* Multiple devices */);
+}
+
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModulePCIENumPortsMaxSpeed_1_5) {
   getModulePCIENumPortsMaxSpeed_1_5(false /* Multiple devices */);
 }
@@ -85,6 +89,18 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleUptime_1_15) {
   getModuleUptime_1_15(false /* Multiple devices */);
 }
 
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModulePower_1_16) {
+  getModulePower_1_16(false /* Multiple devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleVoltage_1_17) {
+  getModuleVoltage_1_17(false /* Multiple devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleCurrentTemperature_1_18) {
+  getModuleCurrentTemperature_1_18(false /* Multiple devices */);
+}
+
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleMaxTemperature_1_19) {
   getModuleMaxTemperature_1_19(false /* Multiple devices */);
 }
@@ -92,6 +108,10 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleMaxTemperature_1_19) {
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleMaxMemoryErrors_1_20) {
 
   getModuleMaxMemoryErrors_1_20(false /* Multiple devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleMaxDDRBW_1_21) {
+  getModuleMaxDDRBW_1_21(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleMaxThrottleTime_1_22) {
@@ -147,6 +167,10 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getSRAMECCUECCCount_1_28) {
   getSRAMECCUECCCount_1_28(false /* Multiple devices */);
 }
 
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getDDRBWCounter_1_29) {
+  getDDRBWCounter_1_29(false /* Multiple devices */);
+}
+
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setPCIELinkSpeed_1_30) {
   setPCIELinkSpeed_1_30(false /* Multiple devices */);
 }
@@ -162,6 +186,14 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setPCIERetrainPhy_1_32) {
 // Performance
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getASICFrequencies_1_33) {
   getASICFrequencies_1_33(false /* Multiple devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getDRAMBW_1_34) {
+  getDRAMBW_1_34(false /* Multiple devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getDRAMCapacityUtilization_1_35) {
+  getDRAMCapacityUtilization_1_35(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getASICPerCoreDatapathUtilization_1_36) {
@@ -184,23 +216,19 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getMMErrorCount_1_40) {
  getMMErrorCount_1_40(false /* Multiple devices */);
 }
 
-#ifdef TARGET_PCIE
+
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getFWBootstatus_1_41) {
   getFWBootstatus_1_41(false /* Multiple devices */);
 }
 
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleFWRevision_1_42) {
-  getModuleFWRevision_1_42(false /* Multiple devices */);
-}
-#endif
-
-/*
 // Test serial access
-// SW-6404 Test failing in Zebu
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, serializeAccessMgmtNode_1_43) {
   serializeAccessMgmtNode_1_43(false );
 }
-*/
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getDeviceErrorEvents_1_44) {
+  getDeviceErrorEvents_1_44(false /* Multiple devices */);
+}
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, isUnsupportedService_1_45) {
   isUnsupportedService_1_45(false /* Multiple devices */);
