@@ -172,7 +172,7 @@ void pcie_enable_link(void)
 
     tmp = ioread32(PCIE_CUST_SS +
                    DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_ADDRESS);
-    Log_Write(LOG_LEVEL_ERROR, "PCIe link up at Gen %ld\r\n",
+    Log_Write(LOG_LEVEL_CRITICAL, "PCIe link up at Gen %ld\r\n",
            DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_RATE_GET(tmp) + 1);
 }
 
@@ -182,12 +182,12 @@ static void pcie_init_pshire(void)
     /* TODO: ABP Reset deassert? In "PCIe Initialization Sequence" doc, TBD what state to check */
 
     /* Wait for PERST_N */
-    Log_Write(LOG_LEVEL_ERROR, "Waiting for PCIe bus out of reset...");
+    Log_Write(LOG_LEVEL_CRITICAL, "Waiting for PCIe bus out of reset...");
     do
     {
         tmp = ioread32(PCIE_ESR + PSHIRE_PSHIRE_STAT_ADDRESS);
     } while (PSHIRE_PSHIRE_STAT_PERST_N_GET(tmp) == 0);
-    Log_Write(LOG_LEVEL_ERROR, " done\r\n");
+    Log_Write(LOG_LEVEL_CRITICAL, " done\r\n");
 
     /* Deassert PCIe cold reset */
     tmp = ioread32(PCIE_ESR + PSHIRE_PSHIRE_RESET_ADDRESS);

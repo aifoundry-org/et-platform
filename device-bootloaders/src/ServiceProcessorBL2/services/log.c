@@ -27,9 +27,15 @@
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include "task.h"
+#include "portmacro.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include "dm_event_def.h"
+
+
+static void update_runtime_error_count(void);
+
 /*
  * Log control block for current logging information.
  */
@@ -43,6 +49,8 @@ typedef struct log_cb {
     };
 } log_cb_t;
 
+
+
 /*! \var log_level_t Log_CB
     \brief Global variable that maintains the current log information
     \warning Not thread safe!
@@ -52,6 +60,7 @@ static log_cb_t Log_CB __attribute__((aligned(64))) =
 
 static SemaphoreHandle_t xSemaphore = NULL;
 static StaticSemaphore_t xMutexBuffer;
+
 
 /*! \def  PRINT_TO_SERIAL
     \brief Macro to print to serial output
@@ -269,6 +278,12 @@ int32_t Log_Write(log_level_t level, const char *const fmt, ...)
         }
     }
 
+    /* Update runtime error count for error events */
+    if (level == LOG_LEVEL_ERROR)
+    {
+        update_runtime_error_count();
+    }
+
     return bytes_written;
 }
 
@@ -312,5 +327,62 @@ int32_t Log_Write_String(log_level_t level, const char *str, size_t length)
         PRINT_TO_SERIAL(level, str)
     }
 
+    /* Check if severity of message is error or above */
+    if (level == LOG_LEVEL_ERROR)
+    {
+        update_runtime_error_count();
+    }
+
     return bytes_written;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       update_runtime_error_count
+*
+*   DESCRIPTION
+*
+*       This function updates runtime error count and send an event to host when the
+*       errors count exceeds the predefined threshold.
+*
+*   INPUTS
+*
+*       none
+*
+*   OUTPUTS
+*
+*       none
+*
+***********************************************************************/
+static void update_runtime_error_count(void)
+{
+    static uint32_t rt_error_count = 0;
+    uint32_t error_count;
+
+    /* Increment the global error count atomically */
+    portDISABLE_INTERRUPTS();
+    error_count = ++rt_error_count;
+    portENABLE_INTERRUPTS();
+
+    /* Check if the error threshold has reached */
+    if (error_count > RT_ERROR_THRESHOLD)
+    {
+        /* Create an event message to notify the host */
+        struct event_message_t message;
+
+        /* Add details in message header and fill payload */
+        FILL_EVENT_HEADER(&message.header, SP_RUNTIME_ERROR,
+                        sizeof(struct event_message_t) - sizeof(struct cmn_header_t))
+
+        /* Fill in the syndrome 2 with the error count above the threshold */
+        FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, timer_get_ticks_count(), error_count - RT_ERROR_THRESHOLD);
+
+        /* Send the event message to the host */
+        if(0 != SP_Host_Iface_CQ_Push_Cmd((void *)&message, sizeof(message)))
+        {
+            Log_Write(LOG_LEVEL_WARNING, "update_runtime_error_count :  push to CQ failed!\n");
+        }
+    }
 }

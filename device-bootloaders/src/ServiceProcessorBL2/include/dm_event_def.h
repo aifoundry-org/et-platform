@@ -54,7 +54,8 @@ enum event_ids {
     THROTTLE_TIME,         /** < Event for time in throttling state */
     SP_RUNTIME_EXCEPT,     /** < SP runtime exception event */
     SP_RUNTIME_HANG,       /** < SP runtime hang event */
-    MAX_ERROR_EVENT = 512, /**< Max limit for error IDs. */ 
+    SP_RUNTIME_ERROR,      /** < SP runtime error event */
+    MAX_ERROR_EVENT = 512, /**< Max limit for error IDs. */
 };
 
 /*!
