@@ -50,6 +50,16 @@ typedef uint8_t cw_shire_state_t;
 */
 #define CW_SHIRES_NOT_FREE   -3
 
+/*! \def CW_ERROR_INIT_TIMEOUT
+    \brief Compute Worker - Init timeout occured
+*/
+#define CW_ERROR_INIT_TIMEOUT -4
+
+/*! \def CW_INIT_TIMEOUT
+    \brief Timeout value for Compute Workers initialization
+*/
+#define CW_INIT_TIMEOUT      2U
+
 /*! \fn int8_t CW_Init(void)
     \brief Initialize Compute Workers, used by dispatcher
     to initialize compute shires
@@ -64,7 +74,6 @@ int8_t CW_Init(void);
     \return none
 */
 void CW_Process_CM_SMode_Messages(void);
-
 
 /*! \fn void CW_Update_Shire_State
             (uint64_t shire_mask, cw_shire_state_t shire_state)

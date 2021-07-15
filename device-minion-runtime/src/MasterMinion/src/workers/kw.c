@@ -916,7 +916,7 @@ void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle)
 *
 *   INPUTS
 *
-*       message             CM to MM Message.
+*       kw_id               Index of kernel worker.
 *       kernel_shire_mask   Shire mask of compute workers.
 *       status_internal     Status control block to return status.
 *       kernel              Kernel pointer.
@@ -926,17 +926,52 @@ void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle)
 *       None
 *
 ***********************************************************************/
-static inline void kw_cm_to_mm_process_single_message(cm_iface_message_t *message,
-    uint64_t kernel_shire_mask, struct kw_internal_status *status_internal, const kernel_instance_t *kernel)
+static inline void kw_cm_to_mm_process_single_message(uint32_t kw_idx, uint64_t kernel_shire_mask,
+    struct kw_internal_status *status_internal, const kernel_instance_t *kernel)
 {
-    switch (message->header.id)
+    cm_iface_message_t message;
+    int8_t status;
+
+    /* In case of kernel exception response, we need to acquire the CM->MM unicast
+    lock to make sure that the access to buffers is serialized */
+    if (status_internal->cw_exception)
+    {
+        /* Acquire the unicast lock */
+        CM_Iface_Unicast_Acquire_Lock(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx);
+
+        /* Receive the CM->MM message */
+        status = CM_Iface_Unicast_Receive(
+            CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx, &message);
+
+        /* Release the unicast lock */
+        CM_Iface_Unicast_Release_Lock(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx);
+    }
+    else
+    {
+        /* Receive the CM->MM message */
+        status = CM_Iface_Unicast_Receive(
+            CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx, &message);
+    }
+
+    if ((status != STATUS_SUCCESS) && (status != CIRCBUFF_ERROR_BAD_LENGTH) &&
+        (status != CIRCBUFF_ERROR_EMPTY))
+    {
+        /* No more pending messages left */
+        SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM2MM_CMD_ERROR);
+        Log_Write(LOG_LEVEL_ERROR,
+            "KW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n", status);
+
+        return;
+    }
+
+    switch (message.header.id)
     {
         case CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE:
             /* Set the flag to indicate that kernel launch has completed */
             status_internal->kernel_done = true;
 
             const cm_to_mm_message_kernel_launch_completed_t *completed =
-                (cm_to_mm_message_kernel_launch_completed_t *)message;
+                (cm_to_mm_message_kernel_launch_completed_t *)&message;
 
             Log_Write(LOG_LEVEL_DEBUG,
                 "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE from S%d:Status:%d\r\n",
@@ -953,7 +988,7 @@ static inline void kw_cm_to_mm_process_single_message(cm_iface_message_t *messag
         case CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION:
         {   //NOSONAR Is not feasible to break this code block into a new method.
             const cm_to_mm_message_exception_t *exception =
-                (cm_to_mm_message_exception_t *)message;
+                (cm_to_mm_message_exception_t *)&message;
 
             Log_Write(LOG_LEVEL_DEBUG,
                 "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION from S%" PRId32 "\r\n",
@@ -967,13 +1002,13 @@ static inline void kw_cm_to_mm_process_single_message(cm_iface_message_t *messag
                    if it was not previously aborted by host.
                    Multicast abort to shires associated with current kernel slot
                    excluding the shire which took an exception */
-                message->header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
+                message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
 
                 /* Blocking call (with timeout) that blocks till
                 all shires ack */
                 status_internal->status = CM_Iface_Multicast_Send(
                     MASK_RESET_BIT(kernel_shire_mask, exception->shire_id),
-                    message);
+                    &message);
 
                 if(status_internal->status != STATUS_SUCCESS)
                 {
@@ -989,10 +1024,10 @@ static inline void kw_cm_to_mm_process_single_message(cm_iface_message_t *messag
         }
         case CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ERROR:
             /* Multicast abort to shires associated with current kernel slot */
-            message->header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
+            message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
 
             const cm_to_mm_message_kernel_launch_error_t *error_mesg =
-                (cm_to_mm_message_kernel_launch_error_t *)message;
+                (cm_to_mm_message_kernel_launch_error_t *)&message;
 
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM2MM_KERNEL_LAUNCH_ERROR);
 
@@ -1002,7 +1037,7 @@ static inline void kw_cm_to_mm_process_single_message(cm_iface_message_t *messag
 
             /* Fatal error received. Try to recover kernel shires by sending abort message.
                Blocking call (with timeout) that blocks till all shires ack */
-            status_internal->status = CM_Iface_Multicast_Send(kernel_shire_mask, message);
+            status_internal->status = CM_Iface_Multicast_Send(kernel_shire_mask, &message);
 
             if(status_internal->status != STATUS_SUCCESS)
             {
@@ -1183,23 +1218,8 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                 break;
             }
 
-            /* Receive the CM->MM message */
-            status = CM_Iface_Unicast_Receive(
-                CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx, &message);
-
-            if (status == STATUS_SUCCESS)
-            {
-                /* Handle message from Compute Worker */
-                kw_cm_to_mm_process_single_message(&message, kernel_shire_mask, &status_internal, kernel);
-            }
-            else if ((status != CIRCBUFF_ERROR_BAD_LENGTH) &&
-                     (status != CIRCBUFF_ERROR_EMPTY))
-            {
-                /* No more pending messages left */
-                SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM2MM_CMD_ERROR);
-                Log_Write(LOG_LEVEL_ERROR,
-                    "KW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n", status);
-            }
+            /* Handle message from Compute Worker */
+            kw_cm_to_mm_process_single_message(kw_idx, kernel_shire_mask, &status_internal, kernel);
         }
 
         /* Kernel run complete with host abort, exception or success.

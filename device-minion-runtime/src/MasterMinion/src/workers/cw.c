@@ -28,6 +28,7 @@
 */
 /***********************************************************************/
 #include "device-common/atomic.h"
+#include "device-common/hart.h"
 #include "cm_mm_defines.h"
 #include "common_defs.h"
 #include "layout.h"
@@ -35,6 +36,7 @@
 #include "services/cm_iface.h"
 #include "services/log.h"
 #include "services/sp_iface.h"
+#include "services/sw_timer.h"
 #include "device-common/syscall.h"
 #include "syscall_internal.h"
 #include "message_types.h"
@@ -49,6 +51,7 @@ typedef struct cw_cb_t_{
     uint64_t physically_avail_shires_mask;
     uint64_t booted_shires_mask;
     uint64_t shire_state;
+    uint32_t timeout_flag;
 } cw_cb_t;
 
 /*! \var cw_cb_t CW_CB
@@ -56,6 +59,33 @@ typedef struct cw_cb_t_{
     \warning Not thread safe!
 */
 static cw_cb_t CW_CB __attribute__((aligned(64))) = {0};
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       cw_set_init_timeout_cb
+*
+*   DESCRIPTION
+*
+*       Sets the timeout flag for CW init and sends IPI
+*
+*   INPUTS
+*
+*       thread_id    ID of the thread to send IPI to
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void cw_set_init_timeout_cb(uint8_t thread_id)
+{
+    atomic_store_local_32(&CW_CB.timeout_flag, 1);
+
+    /* Trigger IPI to respective hart */
+    syscall(SYSCALL_IPI_TRIGGER_INT, (1ULL << thread_id), MASTER_SHIRE, 0);
+}
 
 /************************************************************************
 *
@@ -155,6 +185,9 @@ int8_t CW_Init(void)
     uint64_t shire_mask = 0;
     uint64_t booted_shires_mask = 0ULL;
     int8_t status = STATUS_SUCCESS;
+    int8_t sw_timer_idx;
+    uint8_t thread_id = get_hart_id() & (HARTS_PER_SHIRE - 1);
+    bool exit_loop = false;
 
     /* Obtain the number of shires to be used from SP and initialize the CW control block */
     status = SP_Iface_Get_Shire_Mask(&shire_mask);
@@ -172,11 +205,21 @@ int8_t CW_Init(void)
 
     atomic_store_local_64(&CW_CB.shire_state, 0ULL);
 
+    /* Create timeout to wait for all Compute Workers to boot up */
+    sw_timer_idx = SW_Timer_Create_Timeout(&cw_set_init_timeout_cb, thread_id,
+        CW_INIT_TIMEOUT);
+
+    if(sw_timer_idx < 0)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "CW: Unable to register CW init timeout!\r\n");
+        return CW_ERROR_GENERAL;
+    }
+
     /* Bring up Compute Workers */
     syscall(SYSCALL_CONFIGURE_COMPUTE_MINION, shire_mask, 0x1u, 0);
 
     /* Wait for all workers to be initialized */
-    while(1)
+    while(!exit_loop)
     {
         /* Wait for an interrupt */
         asm volatile("wfi");
@@ -189,15 +232,18 @@ int8_t CW_Init(void)
             /* Clear IPI pending interrupt */
             asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
 
-            /* Get booted shires, keeping previously booted shire mask as well. */
-            booted_shires_mask |= cw_get_booted_shires();
-
-            /* Break loop if all compute minions are booted and ready */
-            if((booted_shires_mask & shire_mask) == shire_mask)
+            /* Check for SW timer timeout */
+            if(atomic_compare_and_exchange_local_32(&CW_CB.timeout_flag, 1, 0) == 1)
             {
-                atomic_store_local_64(&CW_CB.booted_shires_mask,
-                                      booted_shires_mask);
-                break;
+                Log_Write(LOG_LEVEL_ERROR,
+                    "CW_Int: Timed-out waiting for rsp from compute workers!\r\n");
+                status = CW_ERROR_INIT_TIMEOUT;
+                exit_loop = true;
+            }
+            else
+            {
+                /* Get booted shires, keeping previously booted shire mask as well. */
+                booted_shires_mask |= cw_get_booted_shires();
             }
         }
         else
@@ -205,7 +251,17 @@ int8_t CW_Init(void)
             /* We are only interested in IPIs */
             continue;
         }
+
+        /* Break loop if all compute minions are booted and ready */
+        if((status == STATUS_SUCCESS) && ((booted_shires_mask & shire_mask) == shire_mask))
+        {
+            atomic_store_local_64(&CW_CB.booted_shires_mask, booted_shires_mask);
+            exit_loop = true;
+        }
     }
+
+    /* Free the registered SW Timeout slot */
+    SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
 
     return status;
 }

@@ -506,16 +506,17 @@ static void kernel_launch_post_cleanup(const mm_to_cm_message_kernel_params_t *k
     /* Reset the launched bit for the current thread */
     kernel_info_reset_launched_thread(shire_id, thread_id);
 
-    /* Last thread to reach here decrements the kernel launch shire count */
-    prev_completed_threads = kernel_info_set_thread_completed(shire_id, thread_id);
-
-    /* Kernel error handling for MM, Save the kernel error code per shire (if any) */
-    if (((prev_completed_threads | (1ULL << thread_id)) == thread_mask) &&
-        (kernel_ret_val < KERNEL_COMPLETE_STATUS_SUCCESS))
+    /* Kernel error handling for MM, Save the kernel error code from any hart */
+    if (kernel_ret_val < KERNEL_COMPLETE_STATUS_SUCCESS)
     {
         /* Save the kernel launch status for sending response to MM */
         kernel_info_set_execution_status(shire_id, KERNEL_COMPLETE_STATUS_ERROR);
+    }
 
+    /* Last thread to reach here decrements the kernel launch shire count */
+    prev_completed_threads = kernel_info_set_thread_completed(shire_id, thread_id);
+    if ((prev_completed_threads | (1ULL << thread_id)) == thread_mask)
+    {
         /* Get the kernel exception buffer */
         uint64_t exception_buffer = kernel_info_get_exception_buffer(shire_id);
 
@@ -567,9 +568,29 @@ static void kernel_launch_post_cleanup(const mm_to_cm_message_kernel_params_t *k
             msg.shire_id = shire_id;
             msg.slot_index = kernel->slot_index;
             msg.status = kernel_info_get_execution_status(shire_id);
-            status = CM_To_MM_Iface_Unicast_Send((uint64_t)(kernel->kw_base_id + kernel->slot_index),
-                (uint64_t)(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kernel->slot_index),
-                (cm_iface_message_t *)&msg);
+
+            /* If there was error/exception, acquire the unicast lock */
+            if(msg.status < KERNEL_COMPLETE_STATUS_SUCCESS)
+            {
+                /* Acquire the unicast lock */
+                CM_Iface_Unicast_Acquire_Lock(
+                    (uint64_t)(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kernel->slot_index));
+
+                status = CM_To_MM_Iface_Unicast_Send(
+                    (uint64_t)(kernel->kw_base_id + kernel->slot_index),
+                    (uint64_t)(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kernel->slot_index),
+                    (cm_iface_message_t *)&msg);
+
+                /* Release the unicast lock */
+                CM_Iface_Unicast_Release_Lock(
+                    (uint64_t)(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kernel->slot_index));
+            }
+            else
+            {
+                status = CM_To_MM_Iface_Unicast_Send((uint64_t)(kernel->kw_base_id + kernel->slot_index),
+                    (uint64_t)(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kernel->slot_index),
+                    (cm_iface_message_t *)&msg);
+            }
 
             if(status != STATUS_SUCCESS)
             {

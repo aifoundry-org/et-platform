@@ -91,7 +91,7 @@
     \brief This macro provides the base timeout factor for all kernel launch related
     timeouts.
 */
-#define KERNEL_LAUNCH_TIMEOUT_BASE_FACTOR 10U
+#define KERNEL_LAUNCH_TIMEOUT_BASE_FACTOR 100U
 
 /*! \def KERNEL_LAUNCH_TIMEOUT(x)
     \brief Timeout value for kernel launch
