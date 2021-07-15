@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 
 #include "../src/utils.h"
+#include <boost/multiprecision/cpp_int.hpp>
 #include "deviceManagement/DeviceManagement.h"
 #include "DeviceSysEmu.h"
 #include <cerrno>
@@ -32,6 +33,7 @@ using namespace dev;
 using namespace device_mgmt_api;
 using namespace device_management;
 using namespace std::chrono_literals;
+using namespace boost::multiprecision;
 using Clock = std::chrono::system_clock;
 using Timepoint = Clock::time_point;
 using TimeDuration = Clock::duration;
@@ -236,10 +238,15 @@ int verifyService() {
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
+    
+    try{
+       std::string str_output = std::string(output_buff, output_size);
+       DV_LOG(INFO) << "ASIC Revision: " << std::stoi (str_output,nullptr,16) << std::endl;
+    }
+    catch (const std::invalid_argument& ia) {
+	     DV_LOG(INFO) << "Invalid response from device: " << ia.what() << '\n';
+    }
 
-    std::string str_output = std::string(output_buff, output_size);
-
-    DV_LOG(INFO) << "ASIC Revision: " << std::stoi (str_output,nullptr,16) << std::endl;
   } break;
 #endif
   case DM_CMD::DM_CMD_GET_MODULE_POWER_STATE: {
@@ -750,7 +757,7 @@ int verifyService() {
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
-
+    
     device_mgmt_api::firmware_version_t* firmware_versions = (device_mgmt_api::firmware_version_t*)output_buff;
 
     uint32_t versions = firmware_versions->bl1_v;
@@ -770,9 +777,63 @@ int verifyService() {
 
     versions = firmware_versions->machm_v;
     DV_LOG(INFO) << "Machine Minion versions: Major: " << (versions >> 24)
-        << " Minor: " << (versions >> 16) << " Revision: " << (versions >> 8) << std::endl;
+        << " Minor: " << (versions >> 16) << " Revision: " << (versions >> 8) << std::endl;  
+
+  } break;          
+
+  case DM_CMD::DM_CMD_SET_FIRMWARE_VERSION_COUNTER: {
+    const uint32_t input_size = sizeof(uint256_t);
+    const char input_buff[input_size] = {123}; //TODO: provide the counter by argument
+
+    const uint32_t output_size = sizeof(uint32_t);
+    char output_buff[output_size] = {0};
+
+    if ((ret = runService(input_buff, input_size, output_buff, output_size)) != DM_STATUS_SUCCESS) {
+      return ret;
+    }
   } break;
 
+  case DM_CMD::DM_CMD_SET_SP_BOOT_ROOT_CERT: {
+    const uint32_t input_size = sizeof(uint512_t);
+    const char input_buff[input_size] = {123}; //TODO: provide the hash by argument
+
+    const uint32_t output_size = sizeof(uint32_t);
+    char output_buff[output_size] = {0};
+
+    if ((ret = runService(input_buff, input_size, output_buff, output_size)) != DM_STATUS_SUCCESS) {
+      return ret;
+    }
+  } break; 
+
+  case DM_CMD::DM_CMD_SET_SW_BOOT_ROOT_CERT: {
+    const uint32_t input_size = sizeof(uint512_t);
+    const char input_buff[input_size] = {123}; //TODO: provide the hash by argument
+
+    const uint32_t output_size = sizeof(uint32_t);
+    char output_buff[output_size] = {0};
+
+    if ((ret = runService(input_buff, input_size, output_buff, output_size)) != DM_STATUS_SUCCESS) {
+      return ret;
+    }
+  } break; 
+
+  case DM_CMD::DM_CMD_GET_FUSED_PUBLIC_KEYS: {
+    const uint32_t output_size = sizeof(uint256_t);
+    char output_buff[output_size] = {0};
+
+    if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
+      return ret;
+    }
+    
+    try{
+       std::string str_output = std::string(output_buff, output_size);
+       DV_LOG(INFO) << "Public keys: " << std::stoi (str_output,nullptr,16) << std::endl;
+    }
+    catch (const std::invalid_argument& ia) {
+	     DV_LOG(INFO) << "Invalid response from device: " << ia.what() << '\n';
+    }
+  } break;
+  
   default:
     DV_LOG(FATAL) << "Aborting, command: " << cmd << " (" << code << ") is currently unsupported" << std::endl;
     return -EINVAL;
