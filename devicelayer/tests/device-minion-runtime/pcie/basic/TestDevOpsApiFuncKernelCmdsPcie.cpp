@@ -133,7 +133,9 @@ TEST_F(TestDevOpsApiFuncKernelCmdsPcie, kernelLaunchCmd_AbortKernelNegativeTesti
 }
 
 TEST_F(TestDevOpsApiFuncKernelCmdsPcie, kernelLaunchCmd_InvalidShireMaskNegativeTesting_6_8) {
-  kernelLaunchCmd_InvalidShireMaskNegativeTesting(0x0);
+  // this test runs on BEMU model, hence all shires are not available. For negative testing,
+  // provide all shires.
+  kernelLaunchCmd_InvalidShireMaskNegativeTesting(0x1FFFFFFFF);
 }
 
 int main(int argc, char** argv) {

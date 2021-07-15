@@ -50,7 +50,7 @@ TEST_F(TestDevOpsApiStressDmaCmdsPcie, dmaList1kWrAndRdSingleDeviceMultiQueue_2_
 }
 
 TEST_F(TestDevOpsApiStressDmaCmdsPcie, dataWRCmdSingleWriteMultipleReads_2_7) {
-  dataWRCmdSingleWriteMultipleReads(50);
+  dataWRCmdSingleWriteMultipleReads(30);
 }
 
 int main(int argc, char** argv) {

@@ -168,10 +168,10 @@ TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, abortHangKernelDMAList_PositiveTestin
   launchHangKernelListCmd(0x1FFFFFFFF, true); // all shires
 }
 
-TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, kernelLaunchCmd_HangKernelNegativeTesting_5_12) {
+// this test takes too much time to execute, hence disabling it for now.
+TEST_F(TestDevOpsApiNightlyKernelCmdsPcie, DISABLED_kernelLaunchCmd_HangKernelNegativeTesting_5_12) {
   launchHangKernelListCmd(0x1FFFFFFFF, false); // all shires
 }
-
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
