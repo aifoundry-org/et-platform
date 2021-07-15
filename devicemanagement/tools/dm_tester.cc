@@ -732,6 +732,47 @@ int verifyService() {
     DV_LOG(INFO) << "MM Exception Count: " << +mm_error_count->exception_count << std::endl;
   } break;
 
+  case DM_CMD::DM_CMD_GET_FIRMWARE_BOOT_STATUS: {
+    const uint32_t output_size = sizeof(uint32_t);
+    char output_buff[output_size] = {0};
+
+    if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
+      return ret;
+    }
+
+    DV_LOG(INFO) << "Firmware Boot Status: Success! " << std::endl;
+  } break;
+
+  case DM_CMD::DM_CMD_GET_MODULE_FIRMWARE_REVISIONS: {
+    const uint32_t output_size = sizeof(device_mgmt_api::firmware_version_t);
+    char output_buff[output_size] = {0};
+
+    if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
+      return ret;
+    }
+
+    device_mgmt_api::firmware_version_t* firmware_versions = (device_mgmt_api::firmware_version_t*)output_buff;
+
+    uint32_t versions = firmware_versions->bl1_v;
+    DV_LOG(INFO) << "BL1 Firmware versions: Major: " << (versions >> 24)
+        << " Minor: " << (versions >> 16) << " Revision: " << (versions >> 8) << std::endl;
+    versions = firmware_versions->bl2_v;
+    DV_LOG(INFO) << "BL2 Firmware versions: Major: " << (versions >> 24)
+        << " Minor: " << (versions >> 16) << " Revision: " << (versions >> 8) << std::endl;
+
+    versions = firmware_versions->mm_v;
+    DV_LOG(INFO) << "Master Minion Firmware versions: Major: " << (versions >> 24)
+        << " Minor: " << (versions >> 16) << " Revision: " << (versions >> 8) << std::endl;
+
+    versions = firmware_versions->wm_v;
+    DV_LOG(INFO) << "Worker Minion versions: Major: " << (versions >> 24)
+        << " Minor: " << (versions >> 16) << " Revision: " << (versions >> 8) << std::endl;
+
+    versions = firmware_versions->machm_v;
+    DV_LOG(INFO) << "Machine Minion versions: Major: " << (versions >> 24)
+        << " Minor: " << (versions >> 16) << " Revision: " << (versions >> 8) << std::endl;
+  } break;
+
   default:
     DV_LOG(FATAL) << "Aborting, command: " << cmd << " (" << code << ") is currently unsupported" << std::endl;
     return -EINVAL;
