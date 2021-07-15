@@ -163,8 +163,9 @@ static void pc_vq_task(void *pvParameters)
             case DM_CMD_SET_FIRMWARE_UPDATE:
             case DM_CMD_GET_MODULE_FIRMWARE_REVISIONS:
             case DM_CMD_GET_FIRMWARE_BOOT_STATUS:
-            case DM_CMD_SET_SP_BOOT_ROOT_CERT:
+            case DM_CMD_SET_FIRMWARE_VERSION_COUNTER:
             case DM_CMD_SET_SW_BOOT_ROOT_CERT:
+            case DM_CMD_SET_SP_BOOT_ROOT_CERT:
             case DM_CMD_RESET_ETSOC:
                 // Process firmware service request cmd
                 firmware_service_process_request(tag_id, msg_id, (void *)buffer);

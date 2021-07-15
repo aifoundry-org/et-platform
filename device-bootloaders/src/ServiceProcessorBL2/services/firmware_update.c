@@ -52,53 +52,41 @@ static int32_t dm_svc_get_firmware_status(void)
     return 0;
 }
 
-/*  TODO: This feature is to be supported in v 0.0.7
-static int32_t dm_svc_set_firmware_version_counter(void)
+static int32_t dm_svc_set_bl2_monotonic_counter(uint32_t counter)
 {
     int32_t ret = 0;
 
-    // Release 0.0.7
-    // SW-4553 implements this and is blocked by
-    // SW-4570  FW Update Dev: BL2 driver to update the vault IP & SP fuses for monotonic counters
+    Log_Write(LOG_LEVEL_INFO, "BL2 monotonic counter is %d\n", counter);
+    //TODO: Placeholder, needs implementation
 
     return ret;
 }
-*/
 
-/* TODO: This feature is to be supported in v 0.0.7
-static int32_t dm_svc_set_firmware_valid_counter(void)
+static int32_t update_sw_boot_root_certificate_hash(char *key_blob, char* associated_data)
 {
-    int32_t ret = 0;
-    // Release 0.0.7
-    // SW-4546 FW Update Dev: Implement device side runtime firmware validation
-
-    return ret;
-}
-*/
-
-/* TODO: This feature is to be supported in v 0.0.7
-static int32_t update_sw_boot_root_certificate_hash(char *hash)
-{
-    (void)hash;
-
+    Log_Write(LOG_LEVEL_DEBUG, "recieved key_blob:\n");
+    for (int i = 0; i < 48; i++) {
+        Log_Write(LOG_LEVEL_DEBUG, "%02x ", *(unsigned char *)&key_blob[i]);
+    }
+    Log_Write(LOG_LEVEL_DEBUG, "recieved associated_data:\n");
+    for (int i = 0; i < 48; i++) {
+        Log_Write(LOG_LEVEL_DEBUG, "%02x ", *(unsigned char *)&associated_data[i]);
+    }
     //TODO : SW-5133 SP BL2 Vault IP driver needs to provide support for provisioning SW BOOT ROOT Certificate and hash.
 
     return 0;
 }
 
-static int32_t dm_svc_update_sw_boot_root_certificate_hash(struct dm_control_block *dm_req)
+static int32_t dm_svc_update_sw_boot_root_certificate_hash(struct device_mgmt_certificate_hash_cmd_t *certificate_hash_cmd)
 {
-   Log_Write(LOG_LEVEL_INFO, "hash :%s\n", dm_req->cmd_payload);
-
    //cmd_payload contains the hash for new certificate.
-   if(0 != update_sw_boot_root_certificate_hash(dm_req->cmd_payload)) {
-        Log_Write(LOG_LEVEL_ERROR, " dm_svc_update_sp_boot_root_certificate_hash : vault_ip_update_sp_boot_root_certificate_hash failed!\n");
+   if(0 != update_sw_boot_root_certificate_hash(certificate_hash_cmd->certificate_hash.key_blob, certificate_hash_cmd->certificate_hash.associated_data)) {
+        Log_Write(LOG_LEVEL_ERROR, " dm_svc_update_sw_boot_root_certificate_hash : vault_ip_update_sp_boot_root_certificate_hash failed!\n");
         return -1;
    }
 
    return 0;
 }
-*/
 
 static int32_t update_sp_boot_root_certificate_hash(char *key_blob, char* associated_data)
 {
@@ -386,28 +374,32 @@ void firmware_service_process_request(tag_id_t tag_id, msg_id_t msg_id, void *bu
         ret = dm_svc_firmware_update();
         send_status_response(tag_id, msg_id, req_start_time, ret);
         break;
+
     case DM_CMD_GET_MODULE_FIRMWARE_REVISIONS:
         dm_svc_get_firmware_version(tag_id, req_start_time);
         break;
+
     case DM_CMD_GET_FIRMWARE_BOOT_STATUS:
         ret = dm_svc_get_firmware_status();
         send_status_response(tag_id, msg_id, req_start_time, ret);
         break;
-    /*  TODO: These feature is to be supported in v 0.0.7
-    case DM_CMD_SET_FIRMWARE_VERSION_COUNTER:
-        ret = dm_svc_set_firmware_version_counter();
-        break;
 
-    case DM_CMD_SET_FIRMWARE_VALID:
-        ret = dm_svc_set_firmware_valid_counter();
+    case DM_CMD_SET_FIRMWARE_VERSION_COUNTER: {
+        uint32_t counter = *((uint32_t*)buffer);
+        ret = dm_svc_set_bl2_monotonic_counter(counter);
+        send_status_response(tag_id, msg_id, req_start_time, ret);
         break;
+    }
 
-    case DM_CMD_SET_SW_BOOT_ROOT_CERT:
+    case DM_CMD_SET_SW_BOOT_ROOT_CERT:{
+        struct device_mgmt_certificate_hash_cmd_t *dm_cmd_req = (void*)buffer;
         ret = dm_svc_update_sw_boot_root_certificate_hash(dm_cmd_req);
+        send_status_response(tag_id, msg_id, req_start_time, ret);
         break;
-*/
+    }
+
     case DM_CMD_SET_SP_BOOT_ROOT_CERT: {
-        struct device_mgmt_certificate_hash_cmd_t *dm_cmd_req = (void *)buffer;
+        struct device_mgmt_certificate_hash_cmd_t *dm_cmd_req = (void*)buffer;
         ret = dm_svc_update_sp_boot_root_certificate_hash(dm_cmd_req);
         send_status_response(tag_id, msg_id, req_start_time, ret);
         break;
