@@ -163,6 +163,8 @@ int8_t CW_Init(void)
         return status;
     }
 
+    Log_Write(LOG_LEVEL_DEBUG, "CW_Init:Shire mask from SP: 0x%lx\r\n", shire_mask);
+
     /* Initialize Global CW_CB */
     atomic_store_local_64(&CW_CB.physically_avail_shires_mask,
         shire_mask);

@@ -80,28 +80,38 @@
 */
 #define KW_ERROR_TIMEDOUT_ABORT_WAIT     -9
 
+/*! \def KW_ERROR_KERNEL_INVLD_SHIRE_MASK
+    \brief Kernel Worker - Inavlid kernel shire mask
+*/
+#define KW_ERROR_KERNEL_INVLD_SHIRE_MASK -10
+
 /* Timeouts */
 
-/*! \def KERNEL_LAUNCH_TIMEOUT(x)
-    \brief Timeout value (per 100ms) for kernel launch
+/*! \def KERNEL_LAUNCH_TIMEOUT_BASE_FACTOR
+    \brief This macro provides the base timeout factor for all kernel launch related
+    timeouts.
 */
-#define KERNEL_LAUNCH_TIMEOUT(x)         (x * 10U)
+#define KERNEL_LAUNCH_TIMEOUT_BASE_FACTOR 10U
+
+/*! \def KERNEL_LAUNCH_TIMEOUT(x)
+    \brief Timeout value for kernel launch
+*/
+#define KERNEL_LAUNCH_TIMEOUT(x)         (x * KERNEL_LAUNCH_TIMEOUT_BASE_FACTOR)
 
 /*! \def KERNEL_SLOT_SEARCH_TIMEOUT(x)
-    \brief Timeout value (per 10s) for finding kernel free slot
+    \brief Timeout value for finding kernel free slot
 */
-#define KERNEL_SLOT_SEARCH_TIMEOUT(x)     (x * 1U)
+#define KERNEL_SLOT_SEARCH_TIMEOUT(x)    (x * (KERNEL_LAUNCH_TIMEOUT_BASE_FACTOR + 5U))
 
 /*! \def KERNEL_FREE_SHIRES_TIMEOUT
-    \brief Timeout value (per 10s) for waiting for the shires to get free
+    \brief Timeout value for waiting for the shires to get free
 */
-#define KERNEL_FREE_SHIRES_TIMEOUT(x)     (x * 1U)
+#define KERNEL_FREE_SHIRES_TIMEOUT(x)    (x * (KERNEL_LAUNCH_TIMEOUT_BASE_FACTOR + 5U))
 
-/*! \def KERNEL_ABORT_WAIT_TIMEOUT(x)
-    \brief Timeout value (per 10s) for waiting for kernel abort to be issued
-    from MM.
+/*! \def KERNEL_ABORT_WAIT_TIMEOUT
+    \brief Timeout value for waiting for kernel abort to be issued from MM.
 */
-#define KERNEL_ABORT_WAIT_TIMEOUT(x)      (x * 1U)
+#define KERNEL_ABORT_WAIT_TIMEOUT        KERNEL_LAUNCH_TIMEOUT_BASE_FACTOR
 
 /*! \enum kernel_state_e
     \brief Enum that provides the state of a kernel

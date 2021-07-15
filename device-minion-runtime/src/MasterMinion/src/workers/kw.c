@@ -172,7 +172,7 @@ static inline void kw_create_kernel_launch_timer(uint8_t slot_index, uint8_t tim
 
     /* Create timeout for kernel_launch command to complete */
     sw_timer_idx = SW_Timer_Create_Timeout(&kw_set_abort_status_cb, slot_index,
-        KERNEL_LAUNCH_TIMEOUT((timeout_factor > 0) ? timeout_factor : 1));
+        KERNEL_LAUNCH_TIMEOUT(timeout_factor));
     if(sw_timer_idx >= 0)
     {
         /* Save the SW timer index */
@@ -269,7 +269,7 @@ static int8_t kw_wait_for_kernel_launch_flag(uint8_t sqw_idx, uint8_t slot_index
 
     /* Create timeout to wait for kernel launch completion flag from CM */
     sw_timer_idx = SW_Timer_Create_Timeout(&kernel_abort_wait_timeout_callback, sqw_idx,
-        KERNEL_ABORT_WAIT_TIMEOUT(3));
+        KERNEL_ABORT_WAIT_TIMEOUT);
 
     if(sw_timer_idx < 0)
     {
@@ -371,6 +371,7 @@ static int8_t kw_find_used_kernel_slot(uint16_t launch_tag_id, uint8_t *slot)
 *   INPUTS
 *
 *       sqw_idx             Submission queue index
+*       timeout_factor      Timeout scale factor
 *       slot_index          Index of available KW
 *
 *   OUTPUTS
@@ -378,7 +379,8 @@ static int8_t kw_find_used_kernel_slot(uint16_t launch_tag_id, uint8_t *slot)
 *       kernel_instance_t*  Reference to kernel instance
 *
 ***********************************************************************/
-static kernel_instance_t* kw_reserve_kernel_slot(uint8_t sqw_idx, uint8_t *slot_index)
+static kernel_instance_t* kw_reserve_kernel_slot(uint8_t sqw_idx, uint8_t timeout_factor,
+    uint8_t *slot_index)
 {
     kernel_instance_t* kernel = 0;
     int8_t sw_timer_idx;
@@ -386,7 +388,7 @@ static kernel_instance_t* kw_reserve_kernel_slot(uint8_t sqw_idx, uint8_t *slot_
 
     /* Create timeout to wait for free kernel slot */
     sw_timer_idx = SW_Timer_Create_Timeout(&kernel_acquire_resource_timeout_callback, sqw_idx,
-        KERNEL_SLOT_SEARCH_TIMEOUT(4));
+        KERNEL_SLOT_SEARCH_TIMEOUT(timeout_factor));
 
     if(sw_timer_idx < 0)
     {
@@ -463,24 +465,32 @@ static void kw_unreserve_kernel_slot(kernel_instance_t* kernel)
 *
 *       sqw_idx         Submission queue index
 *       req_shire_mask  Shire mask of compute minions to be marked in-use
+*       timeout_factor  Timeout scale factor
 *
 *   OUTPUTS
 *
 *       int8_t          status success or error
 *
 ***********************************************************************/
-static int8_t kw_reserve_kernel_shires(uint8_t sqw_idx, uint64_t req_shire_mask)
+static int8_t kw_reserve_kernel_shires(uint8_t sqw_idx, uint64_t req_shire_mask,
+    uint8_t timeout_factor)
 {
     int8_t status;
     int8_t sw_timer_idx;
     bool timeout = false;
+
+    /* Verify the shire mask */
+    if (req_shire_mask == 0)
+    {
+        return KW_ERROR_KERNEL_INVLD_SHIRE_MASK;
+    }
 
     /* Acquire the lock */
     acquire_local_spinlock(&KW_CB.resource_lock);
 
     /* Create timeout for waiting for free shires for kernel */
     sw_timer_idx = SW_Timer_Create_Timeout(&kernel_acquire_resource_timeout_callback, sqw_idx,
-        KERNEL_FREE_SHIRES_TIMEOUT(4));
+        KERNEL_FREE_SHIRES_TIMEOUT(timeout_factor));
 
     if(sw_timer_idx < 0)
     {
@@ -585,6 +595,14 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
     kernel_instance_t *kernel = 0;
     int8_t status = KW_ERROR_KERNEL_INVALID_ADDRESS;
     uint8_t slot_index;
+    uint8_t timeout_factor;
+
+    /* Extract the timeout factor for kernel launch related timeouts */
+    timeout_factor =
+        (uint8_t)CMD_HEADER_FLAG_EXTRACT_TIMEOUT_FACTOR(cmd->command_info.cmd_hdr.flags);
+
+    /* Assign default factor of 1 if no timeout scale factor was provided in cmd */
+    timeout_factor = ((timeout_factor > 0) ? timeout_factor : 1);
 
     /* Verify address bounds
        kernel start address (not optional)
@@ -597,13 +615,13 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
     {
         /* First we allocate resources needed for the kernel launch */
         /* Reserve a slot for the kernel */
-        kernel = kw_reserve_kernel_slot(sqw_idx, &slot_index);
+        kernel = kw_reserve_kernel_slot(sqw_idx, timeout_factor, &slot_index);
 
         if(kernel)
         {
             /* Reserve compute shires needed for the requested
             kernel launch */
-            status = kw_reserve_kernel_shires(sqw_idx, cmd->shire_mask);
+            status = kw_reserve_kernel_shires(sqw_idx, cmd->shire_mask, timeout_factor);
 
             if(status == STATUS_SUCCESS)
             {
@@ -685,8 +703,6 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
 
         if (status == STATUS_SUCCESS)
         {
-            uint8_t timeout_factor = (uint8_t)CMD_HEADER_FLAG_EXTRACT_TIMEOUT_FACTOR(cmd->command_info.cmd_hdr.flags);
-
             /* Register SW timer */
             kw_create_kernel_launch_timer(slot_index,timeout_factor);
             *kw_idx = slot_index;

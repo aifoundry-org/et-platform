@@ -86,15 +86,15 @@ static sqw_cb_t SQW_CB __attribute__((aligned(64))) = {0};
 *
 *   INPUTS
 *
-*       cmd_hdr     Command header which is waiting on barrier.
-*       sqw_idx     Submission Queue Index
+*       sqw_idx        Submission Queue Index
+*       timeout_factor Timeout scale factor
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-static inline void sqw_command_barrier(uint8_t sqw_idx)
+static inline void sqw_command_barrier(uint8_t sqw_idx, uint8_t timeout_factor)
 {
     int8_t sw_timer_idx;
     sqw_cmds_barrier_t cmds_barrier;
@@ -103,7 +103,7 @@ static inline void sqw_command_barrier(uint8_t sqw_idx)
 
     /* Create timeout for kernel_launch command to complete */
     sw_timer_idx = SW_Timer_Create_Timeout(&SQW_Command_Barrier_Timeout_Cb,
-        sqw_idx, TIMEOUT_SQW_BARRIER(5));
+        sqw_idx, TIMEOUT_SQW_BARRIER(timeout_factor));
 
     /* If there is no timeout slot, we will skip the timeout registeration */
     if(sw_timer_idx < 0)
@@ -272,9 +272,17 @@ static inline void sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_ca
             processed in the current SQ */
             if(cmd_hdr->cmd_hdr.flags & CMD_HEADER_FLAG_BARRIER)
             {
-                TRACE_LOG_CMD_STATUS(cmd_hdr->cmd_hdr.msg_id, (uint8_t)sqw_idx, 
+                TRACE_LOG_CMD_STATUS(cmd_hdr->cmd_hdr.msg_id, (uint8_t)sqw_idx,
                                      cmd_hdr->cmd_hdr.tag_id, CMD_STATUS_WAIT_BARRIER);
-                sqw_command_barrier((uint8_t)sqw_idx);
+
+                /* Extract the cmd timeout factor */
+                uint8_t timeout_factor =
+                    (uint8_t)CMD_HEADER_FLAG_EXTRACT_TIMEOUT_FACTOR(cmd_hdr->cmd_hdr.flags);
+
+                /* Assign default factor of 1 if no timeout scale factor was provided in cmd */
+                timeout_factor = ((timeout_factor > 0) ? timeout_factor : 1);
+
+                sqw_command_barrier((uint8_t)sqw_idx, timeout_factor);
             }
 
             /* Increment the SQW command count.
