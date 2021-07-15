@@ -297,6 +297,16 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 	kfree(trace_buf);
 }
 
+static void
+parse_runtime_error_syndrome(struct device_mgmt_event_msg_t *event_msg,
+			     struct event_dbg_msg *dbg_msg)
+{
+	/* The error count above the threshold is present in the syndrome[1] */
+	sprintf(dbg_msg->syndrome,
+		"Runtime Error Count Beyond Threshold: %llu \n",
+		event_msg->event_syndrome[1]);
+}
+
 int et_handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
 {
 	char syndrome_str[ET_EVENT_SYNDROME_LEN];
@@ -394,6 +404,11 @@ int et_handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
 		parse_sp_runtime_syndrome(&event_msg,
 					  &dbg_msg,
 					  cq->vq_common->trace_region);
+		break;
+
+	case DEV_MGMT_API_MID_SP_RUNTIME_ERROR_EVENT:
+		dbg_msg.desc = "SP Runtime Error";
+		parse_runtime_error_syndrome(&event_msg, &dbg_msg);
 		break;
 	default:
 		dbg_msg.desc = "Un-Supported Event MSG ID";
