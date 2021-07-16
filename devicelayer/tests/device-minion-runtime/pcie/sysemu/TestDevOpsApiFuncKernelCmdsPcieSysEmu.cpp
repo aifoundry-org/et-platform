@@ -150,6 +150,10 @@ TEST_F(TestDevOpsApiFuncKernelCmdsPcieSysEmu, kernelLaunchCmd_AbortKernelNegativ
   launchHangKernelListCmd(kSysEmuMinionShiresMask, true);
 }
 
+TEST_F(TestDevOpsApiFuncKernelCmdsPcieSysEmu, kernelLaunchCmd_InvalidShireMaskNegativeTesting_6_8) {
+  // the device supports shires from 0 to 32. Give a mask greater than this for negative testing
+  kernelLaunchCmd_InvalidShireMaskNegativeTesting(0xFFFFFFFFFF);
+}
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
