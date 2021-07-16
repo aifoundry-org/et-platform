@@ -29,6 +29,7 @@ public:
 
   DmaBuffer(DmaBuffer&&) noexcept;
   DmaBuffer& operator=(DmaBuffer&&) noexcept;
+  DmaBuffer(const DmaBuffer&) = delete;
 
 private:
   std::unique_ptr<DmaBufferImp> impl_;

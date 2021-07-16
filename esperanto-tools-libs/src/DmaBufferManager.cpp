@@ -28,12 +28,12 @@ bool DmaBufferManager::isDmaBuffer(const std::byte* address) const {
   return it->containsAddr(address);
 }
 
-std::unique_ptr<DmaBuffer> DmaBufferManager::allocate(size_t size, bool writeable) {
+DmaBuffer DmaBufferManager::allocate(size_t size, bool writeable) {
   std::lock_guard lock(mutex_);
   auto bufferImp = std::make_unique<DmaBufferImp>(device_, size, writeable, deviceLayer_);
   auto it = std::upper_bound(begin(inUseBuffers_), end(inUseBuffers_), *bufferImp);
   inUseBuffers_.emplace(it, *bufferImp);
-  return std::make_unique<DmaBuffer>(std::move(bufferImp), this);
+  return DmaBuffer{std::move(bufferImp), this};
 }
 
 void DmaBufferManager::release(DmaBufferImp* dmaBuffer) {

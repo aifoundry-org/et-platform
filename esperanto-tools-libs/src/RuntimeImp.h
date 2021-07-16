@@ -56,7 +56,7 @@ public:
   void waitForStream(StreamId stream) override;
   bool waitForStream(StreamId stream, std::chrono::milliseconds timeout) override;
 
-  std::unique_ptr<DmaBuffer> allocateDmaBuffer(DeviceId device, size_t size, bool writeable) final;
+  DmaBuffer allocateDmaBuffer(DeviceId device, size_t size, bool writeable) final;
 
   EventId setupDeviceTracing(StreamId stream, uint32_t shireMask, uint32_t threadMask, uint32_t eventMask,
                              uint32_t filterMask, bool barrier) override;
@@ -132,7 +132,7 @@ private:
   };
 
   struct DeviceFwTracing {
-    std::unique_ptr<DmaBuffer> dmaBuffer_;
+    DmaBuffer dmaBuffer_;
     std::ostream* mmOutput_;
     std::ostream* cmOutput_;
   };

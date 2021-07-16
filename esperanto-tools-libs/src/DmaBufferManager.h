@@ -18,7 +18,7 @@ public:
     : deviceLayer_(deviceLayer)
     , device_(device) {
   }
-  std::unique_ptr<DmaBuffer> allocate(size_t size, bool writeable);
+  DmaBuffer allocate(size_t size, bool writeable);
   // check if this region of memory falls into an already allocated dmaBuffer
   bool isDmaBuffer(const std::byte* address) const;
   void release(DmaBufferImp* dmaBuffer);

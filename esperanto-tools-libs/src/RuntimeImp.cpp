@@ -210,13 +210,13 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
   } else {
     // if not, allocate a buffer, and stage the memory first into it
     auto tmpBuffer = dmaBufferManager->allocate(size, true);
-    cmd.src_host_virt_addr = cmd.src_host_phy_addr = reinterpret_cast<uint64_t>(tmpBuffer->getPtr());
+    cmd.src_host_virt_addr = cmd.src_host_phy_addr = reinterpret_cast<uint64_t>(tmpBuffer.getPtr());
     RT_VLOG(LOW) << std::hex << "Staging memory transfer into a DmaBuffer to enable DMA. Dma address (actual address): "
-                 << tmpBuffer->getPtr();
+                 << tmpBuffer.getPtr();
 
     // TODO: It can be copied in background and return control to the user. Future work.
     auto srcPtr = reinterpret_cast<const std::byte*>(h_src);
-    std::copy(srcPtr, srcPtr + size, tmpBuffer->getPtr());
+    std::copy(srcPtr, srcPtr + size, tmpBuffer.getPtr());
 
     // TODO: There are more efficient ways of achieving this. Future work.
     auto t = std::thread([this, evt, tmpBuffer = std::move(tmpBuffer)]() mutable {
@@ -275,8 +275,8 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
     // if not, allocate a buffer, and copy the results from it to h_dst
     auto tmpBuffer = dmaBufferManager->allocate(size, false);
     RT_VLOG(LOW) << std::hex << "Staging memory transfer into a DmaBuffer to enable DMA. Dma address (actual address): "
-                 << tmpBuffer->getPtr();
-    cmd.dst_host_virt_addr = cmd.dst_host_phy_addr = reinterpret_cast<uint64_t>(tmpBuffer->getPtr());
+                 << tmpBuffer.getPtr();
+    cmd.dst_host_virt_addr = cmd.dst_host_phy_addr = reinterpret_cast<uint64_t>(tmpBuffer.getPtr());
     sendCommandMasterMinion(st.vq_, static_cast<int>(device), cmd, lock, true);
 
     // TODO: There are many ways to optimize this, future work.
@@ -293,9 +293,7 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
       // first wait till the copy ends
       waitForEvent(memcpyEvt);
       // copy results to user buffer
-      std::copy(tmpBuffer->getPtr(), tmpBuffer->getPtr() + size, reinterpret_cast<std::byte*>(h_dst));
-      // release the dmaBuffer before exiting the thread
-      tmpBuffer.reset();
+      std::copy(tmpBuffer.getPtr(), tmpBuffer.getPtr() + size, reinterpret_cast<std::byte*>(h_dst));
       std::unique_lock slock(streamsMutex_);
       for ([[maybe_unused]] auto& [key, s] : streams_) {
         if (s.removeEvent(evt)) {
@@ -445,7 +443,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
   eventManager_.dispatch(eventId);
 }
 
-std::unique_ptr<DmaBuffer> RuntimeImp::allocateDmaBuffer(DeviceId device, size_t size, bool writeable) {
+DmaBuffer RuntimeImp::allocateDmaBuffer(DeviceId device, size_t size, bool writeable) {
   std::lock_guard lock(mutex_);
   auto& dmaBufferManager = find(dmaBufferManagers_, device)->second;
   return dmaBufferManager->allocate(size, writeable);
@@ -542,7 +540,7 @@ EventId RuntimeImp::stopDeviceTracing(StreamId stream, bool barrier) {
     cmd.command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_CMFW_TRACEBUF;
     cmd.size += kTracingFwCmSize;
   }
-  cmd.dst_host_virt_addr = cmd.dst_host_phy_addr = reinterpret_cast<uint64_t>(deviceTracing.dmaBuffer_->getPtr());
+  cmd.dst_host_virt_addr = cmd.dst_host_phy_addr = reinterpret_cast<uint64_t>(deviceTracing.dmaBuffer_.getPtr());
 
   sendCommandMasterMinion(st.vq_, static_cast<int>(st.deviceId_), cmd, lock, true);
 
@@ -553,7 +551,7 @@ EventId RuntimeImp::stopDeviceTracing(StreamId stream, bool barrier) {
   lock2.lock();
   find(streams_, stream)->second.addEvent(evt);
   lock2.unlock();
-  auto t = std::thread([this, memcpyEvt, dmaPtr = deviceTracing.dmaBuffer_->getPtr(), mmOut = deviceTracing.mmOutput_,
+  auto t = std::thread([this, memcpyEvt, dmaPtr = deviceTracing.dmaBuffer_.getPtr(), mmOut = deviceTracing.mmOutput_,
                         cmOut = deviceTracing.cmOutput_, evt]() mutable {
     // first wait till the copy ends
     waitForEvent(memcpyEvt);
