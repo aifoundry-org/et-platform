@@ -27,15 +27,16 @@ typedef struct kernel_launch_info {
     uint64_t returned_threads;
     uint64_t completed_threads; /* Bitmask of threads that have already completed the launch */
     uint64_t exception_buffer;
+    uint32_t abort_flag;
     union {
         struct {
             uint8_t kw_base_id;
             uint8_t slot_index;
+            uint8_t reserved[2];
         };
-        uint16_t raw_u16;
+        uint32_t raw_u32;
     };
     int8_t execution_status;
-    uint32_t abort_flag;
 } __attribute__((aligned(CACHE_LINE_SIZE))) kernel_launch_info_t;
 
 static const uint8_t tensor_zeros[64] __attribute__((aligned(64))) = { 0 };
@@ -191,7 +192,7 @@ void kernel_info_get_attributes(uint32_t shire_id, uint8_t *kw_base_id, uint8_t 
     kernel_launch_info_t kernel_info;
 
     /* Load the kernel info */
-    kernel_info.raw_u16 = atomic_load_local_16(&kernel_launch_info[shire_id].raw_u16);
+    kernel_info.raw_u32 = atomic_load_local_32(&kernel_launch_info[shire_id].raw_u32);
 
     /* Return the required attributes */
     *kw_base_id = kernel_info.kw_base_id;
@@ -206,7 +207,7 @@ static inline void kernel_info_set_attributes(uint32_t shire_id,
     /* Save the attributes */
     kernel_info.kw_base_id = kernel->kw_base_id;
     kernel_info.slot_index = kernel->slot_index;
-    atomic_store_local_16(&kernel_launch_info[shire_id].raw_u16, kernel_info.raw_u16);
+    atomic_store_local_32(&kernel_launch_info[shire_id].raw_u32, kernel_info.raw_u32);
 
     /* Save the exception buffer */
     atomic_store_local_64(&kernel_launch_info[shire_id].exception_buffer, kernel->exception_buffer);
