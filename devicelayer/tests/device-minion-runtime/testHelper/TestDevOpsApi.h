@@ -30,12 +30,12 @@ DECLARE_bool(enable_trace_dump);
 DECLARE_bool(loopback_driver);
 DECLARE_bool(use_epoll);
 
-#define CATCH_ERROR                                   \
-      catch (const std::system_error &ex) {           \
+#define CATCH_EXCEPTION                               \
+      catch (const Exception &ex) {                   \
           TEST_VLOG(0) << "Exception: " << ex.what(); \
-          assert(false);                              \
+          std::exit(EXIT_FAILURE);                    \
       }
- 
+
 namespace dev::dl_tests {
 
 using Clock = std::chrono::system_clock;
