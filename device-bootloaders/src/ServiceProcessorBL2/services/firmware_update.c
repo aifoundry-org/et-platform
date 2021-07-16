@@ -22,6 +22,25 @@
 #define SPI_FLASH_WRITES_128B_CHUNK_SIZE 128
 #define SPI_FLASH_WRITES_64B_CHUNK_SIZE  64
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       reset_etsoc
+*
+*   DESCRIPTION
+*
+*       This function resets ETSOC
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
 static void reset_etsoc(void)
 {
     Log_Write(LOG_LEVEL_INFO, "Resetting ETSOC..!\n");
@@ -30,6 +49,50 @@ static void reset_etsoc(void)
     release_etsoc_reset();
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       dm_svc_get_public_keys
+*
+*   DESCRIPTION
+*
+*       This function reads public keys from Vault OTP
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       Public keys
+*
+***********************************************************************/
+static int32_t dm_svc_get_public_keys(void)
+{
+     //TODO: Placeholder, needs implementation
+    return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       dm_svc_get_firmware_status
+*
+*   DESCRIPTION
+*
+*       This function checks firmware boot status
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       Firmware boot status
+*
+***********************************************************************/
 static int32_t dm_svc_get_firmware_status(void)
 {
     uint32_t attempted_boot_counter;
@@ -52,6 +115,25 @@ static int32_t dm_svc_get_firmware_status(void)
     return 0;
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       dm_svc_set_bl2_monotonic_counter
+*
+*   DESCRIPTION
+*
+*       This function sets BL2 monotonic counter value in the OTP
+*
+*   INPUTS
+*
+*       counter     Counter value
+*
+*   OUTPUTS
+*
+*       Status
+*
+***********************************************************************/
 static int32_t dm_svc_set_bl2_monotonic_counter(uint32_t counter)
 {
     int32_t ret = 0;
@@ -62,8 +144,30 @@ static int32_t dm_svc_set_bl2_monotonic_counter(uint32_t counter)
     return ret;
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       update_sw_boot_root_certificate_hash
+*
+*   DESCRIPTION
+*
+*       This is a helper function for writing SW boot root ceritifcate hash
+*
+*   INPUTS
+*
+*       Key blob            Pointer to key blob
+*       Associated data     Pointer to associated data
+*
+*   OUTPUTS
+*
+*       Status
+*
+***********************************************************************/
 static int32_t update_sw_boot_root_certificate_hash(char *key_blob, char* associated_data)
 {
+    int32_t ret = 0;
+
     Log_Write(LOG_LEVEL_DEBUG, "recieved key_blob:\n");
     for (int i = 0; i < 48; i++) {
         Log_Write(LOG_LEVEL_DEBUG, "%02x ", *(unsigned char *)&key_blob[i]);
@@ -72,11 +176,30 @@ static int32_t update_sw_boot_root_certificate_hash(char *key_blob, char* associ
     for (int i = 0; i < 48; i++) {
         Log_Write(LOG_LEVEL_DEBUG, "%02x ", *(unsigned char *)&associated_data[i]);
     }
-    //TODO : SW-5133 SP BL2 Vault IP driver needs to provide support for provisioning SW BOOT ROOT Certificate and hash.
+    //TODO: Needs a future implementation. Currently we do not have a OTP field for SW boot certificate hash
 
-    return 0;
+    return ret;
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       dm_svc_update_sw_boot_root_certificate_hash
+*
+*   DESCRIPTION
+*
+*       This is a function for writing SW boot root ceritifcate hash to Vault OTP
+*
+*   INPUTS
+*
+*       certificate_hash_cmd    Pointer to Certificate hash structure containing key blob and associated data
+*
+*   OUTPUTS
+*
+*       Status
+*
+***********************************************************************/
 static int32_t dm_svc_update_sw_boot_root_certificate_hash(struct device_mgmt_certificate_hash_cmd_t *certificate_hash_cmd)
 {
    //cmd_payload contains the hash for new certificate.
@@ -88,6 +211,26 @@ static int32_t dm_svc_update_sw_boot_root_certificate_hash(struct device_mgmt_ce
    return 0;
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       update_sp_boot_root_certificate_hash
+*
+*   DESCRIPTION
+*
+*       This is a helper function for writing SP boot root ceritifcate hash
+*
+*   INPUTS
+*
+*       Key blob            Pointer to key blob
+*       Associated data     Pointer to associated data
+*
+*   OUTPUTS
+*
+*       Status
+*
+***********************************************************************/
 static int32_t update_sp_boot_root_certificate_hash(char *key_blob, char* associated_data)
 {
     static const uint32_t asset_policy = 4;
@@ -117,6 +260,70 @@ static int32_t update_sp_boot_root_certificate_hash(char *key_blob, char* associ
     return 0;
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       dm_svc_update_sp_boot_root_certificate_hash
+*
+*   DESCRIPTION
+*
+*       This is a function for writing SP boot root ceritifcate hash to Vault OTP
+*
+*   INPUTS
+*
+*       certificate_hash_cmd    Pointer to Certificate hash structure containing key blob and associated data
+*
+*   OUTPUTS
+*
+*       Status
+*
+***********************************************************************/
+static int32_t dm_svc_update_sp_boot_root_certificate_hash(
+    struct device_mgmt_certificate_hash_cmd_t *certificate_hash_cmd)
+{
+    Log_Write(LOG_LEVEL_INFO, "FW mgmt request: %s\n", __func__);
+
+    Log_Write(LOG_LEVEL_DEBUG, "recieved key_blob:\n");
+    for (int i = 0; i < 48; i++) {
+        Log_Write(LOG_LEVEL_DEBUG, "%02x ", *(unsigned char *)&certificate_hash_cmd->certificate_hash.key_blob[i]);
+    }
+    Log_Write(LOG_LEVEL_DEBUG, "recieved associated_data:\n");
+    for (int i = 0; i < 48; i++) {
+        Log_Write(LOG_LEVEL_DEBUG, "%02x ", *(unsigned char *)&certificate_hash_cmd->certificate_hash.associated_data[i]);
+    }
+    //Command payload contains the hash for new certificate.
+    if (0 != update_sp_boot_root_certificate_hash(certificate_hash_cmd->certificate_hash.key_blob, certificate_hash_cmd->certificate_hash.associated_data)) {
+        Log_Write(LOG_LEVEL_ERROR,
+            " dm_svc_update_sp_boot_root_certificate_hash : vault_ip_update_sp_boot_root_certificate_hash failed!\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       send_status_response
+*
+*   DESCRIPTION
+*
+*       This is a helper function for sending device response to host interface 
+*
+*   INPUTS
+*
+*       tag_id              Unique ID for message/response correlation
+*       msg_id              Command ID
+*       req_start_time      Timer value at the moment response was sent
+*       status              Status
+*
+*   OUTPUTS
+*
+*       Status
+*
+***********************************************************************/
 static void send_status_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time,
                                  int32_t status)
 {
@@ -135,6 +342,25 @@ static void send_status_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_
     }
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       dm_svc_firmware_update
+*
+*   DESCRIPTION
+*
+*       This is a function for updating firmware on flash memory
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       Status
+*
+***********************************************************************/
 static int32_t dm_svc_firmware_update(void)
 {
     // Firmware image is available in the memory.
@@ -162,6 +388,26 @@ static int32_t dm_svc_firmware_update(void)
     return DEVICE_FW_FLASH_UPDATE_SUCCESS;
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       dm_svc_get_firmware_version
+*
+*   DESCRIPTION
+*
+*       This function returns values for BL1, BL2, MM, WM and MachM firmware versions
+*
+*   INPUTS
+*
+*       tag_id              Message tag ID
+*       req_start_time      Message start time
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
 static void dm_svc_get_firmware_version(tag_id_t tag_id, uint64_t req_start_time)
 {
     struct device_mgmt_firmware_versions_rsp_t dm_rsp = { 0 };
@@ -203,29 +449,6 @@ static void dm_svc_get_firmware_version(tag_id_t tag_id, uint64_t req_start_time
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(dm_rsp))) {
         Log_Write(LOG_LEVEL_ERROR, "dm_svc_get_firmware_version: Cqueue push error!\n");
     }
-}
-
-static int32_t dm_svc_update_sp_boot_root_certificate_hash(
-    struct device_mgmt_certificate_hash_cmd_t *certificate_hash_cmd)
-{
-    Log_Write(LOG_LEVEL_INFO, "FW mgmt request: %s\n", __func__);
-
-    Log_Write(LOG_LEVEL_DEBUG, "recieved key_blob:\n");
-    for (int i = 0; i < 48; i++) {
-        Log_Write(LOG_LEVEL_DEBUG, "%02x ", *(unsigned char *)&certificate_hash_cmd->certificate_hash.key_blob[i]);
-    }
-    Log_Write(LOG_LEVEL_DEBUG, "recieved associated_data:\n");
-    for (int i = 0; i < 48; i++) {
-        Log_Write(LOG_LEVEL_DEBUG, "%02x ", *(unsigned char *)&certificate_hash_cmd->certificate_hash.associated_data[i]);
-    }
-    //Command payload contains the hash for new certificate.
-    if (0 != update_sp_boot_root_certificate_hash(certificate_hash_cmd->certificate_hash.key_blob, certificate_hash_cmd->certificate_hash.associated_data)) {
-        Log_Write(LOG_LEVEL_ERROR,
-            " dm_svc_update_sp_boot_root_certificate_hash : vault_ip_update_sp_boot_root_certificate_hash failed!\n");
-        return -1;
-    }
-
-    return 0;
 }
 
 /************************************************************************
@@ -404,6 +627,12 @@ void firmware_service_process_request(tag_id_t tag_id, msg_id_t msg_id, void *bu
         send_status_response(tag_id, msg_id, req_start_time, ret);
         break;
     }
+
+    case DM_CMD_GET_FUSED_PUBLIC_KEYS:
+        ret = dm_svc_get_public_keys();
+        send_status_response(tag_id, msg_id, req_start_time, ret);
+        break;
+
     case DM_CMD_RESET_ETSOC:
         reset_etsoc();
         break;
