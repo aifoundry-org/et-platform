@@ -89,11 +89,13 @@ enum error_type {
 #define MM_DMW_ERROR			4
 #define MM_KW_ERROR			5
 
-#define SP_GPR_REGISTERS                        (28)
+#define SP_GPR_REGISTERS			28
+#define SP_CSR_REGISTERS			4
 #define SP_EXCEPTION_STACK_FRAME_SIZE           (sizeof(uint64_t)*SP_GPR_REGISTERS)
 #define SP_EXCEPTION_CSRS_FRAME_SIZE            (sizeof(uint64_t)*4)
 #define SP_EXCEPTION_FRAME_SIZE                 (SP_EXCEPTION_STACK_FRAME_SIZE + \
                                                     SP_EXCEPTION_CSRS_FRAME_SIZE)
+#define SP_NUM_REGISTERS                        (SP_GPR_REGISTERS + SP_CSR_REGISTERS)
 
 #define GET_ESR_SC_ERR_LOG_INFO_V_BIT(reg)		\
 	((reg)  & 0x0000000000000001ULL)
@@ -129,7 +131,7 @@ struct event_dbg_msg {
 	char *syndrome;
 };
 
-#define ET_EVENT_SYNDROME_LEN		320
+#define ET_EVENT_SYNDROME_LEN		500
 
 static inline void et_print_event(struct pci_dev *pdev,
 				  struct event_dbg_msg *dbg_msg) {

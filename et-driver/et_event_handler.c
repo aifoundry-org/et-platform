@@ -189,28 +189,6 @@ static void parse_thermal_syndrome(struct device_mgmt_event_msg_t *event_msg,
 	sprintf(dbg_msg->syndrome, "%d.%d C", temp_whole, temp_fract);
 }
 
-static void parse_wdog_syndrome(struct device_mgmt_event_msg_t *event_msg,
-				struct event_dbg_msg *dbg_msg)
-{
-	u32 a0, mepc, mcause, mtval;
-	char value_str[VALUE_STR_MAX_LEN];
-
-	a0 = event_msg->event_syndrome[0] >> 32;
-	mepc = event_msg->event_syndrome[0];
-	mcause = event_msg->event_syndrome[1] >> 32;
-	mtval = event_msg->event_syndrome[1];
-
-	snprintf(
-		value_str,
-		VALUE_STR_MAX_LEN,
-		"a0        : 0x%x\nmepc      : 0x%x\nmcause    : 0x%x\nmtval     : 0x%x\n",
-		a0,
-		mepc,
-		mcause,
-		mtval);
-	strcat(dbg_msg->syndrome, value_str);
-}
-
 static void parse_cm_err_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				  struct event_dbg_msg *dbg_msg)
 {
@@ -252,9 +230,18 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 	char value_str[VALUE_STR_MAX_LEN];
 	void __iomem *trace_addr;
 	uint16_t idx = 0;
-	uint64_t *data = kmalloc(SP_EXCEPTION_STACK_FRAME_SIZE, GFP_KERNEL);
+	uint64_t *trace_data;
+	void *trace_buf = kmalloc(SP_EXCEPTION_FRAME_SIZE, GFP_KERNEL);
 
-	strcat(dbg_msg->syndrome, "Service Processor Error\n");
+	trace_data = (uint64_t *)trace_buf;
+
+	strcat(dbg_msg->syndrome, "Service Processor Error");
+
+	if (IS_ERR(trace_data)) {
+		pr_err("Failed to allocate trace_data , error %ld\n",
+		       PTR_ERR(trace_data));
+		return;
+	}
 
 	if (!trace_region->is_valid) {
 		strcat(dbg_msg->syndrome, "Invalid Trace Region");
@@ -265,46 +252,49 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 		/* Read the Device Trace buffer (Base + Offset(from Syndrome) */
 		et_ioread(trace_addr,
 			  event_msg->event_syndrome[1],
-			  (u8 *)&data,
-			  SP_EXCEPTION_STACK_FRAME_SIZE);
+			  (u8 *)trace_data,
+			  SP_EXCEPTION_FRAME_SIZE);
 
 		/* print GPRs */
 		snprintf(value_str,
 			 VALUE_STR_MAX_LEN,
-			 "x1        : 0x%lld\n",
-			 *data);
+			 "x1: 0x%llX\n",
+			 *trace_data++);
 		strcat(dbg_msg->syndrome, value_str);
-		for (idx = 5; idx < SP_GPR_REGISTERS; idx++, data++) {
+		for (idx = 1; idx < SP_GPR_REGISTERS; idx++) {
 			snprintf(value_str,
 				 VALUE_STR_MAX_LEN,
-				 "x%d        : 0x%llx\n",
-				 idx,
-				 *data);
+				 "x%d: 0x%llX\n",
+				 idx + 4,
+				 *trace_data++);
 			strcat(dbg_msg->syndrome, value_str);
 		}
 
 		/* print CSRs */
 		snprintf(value_str,
 			 VALUE_STR_MAX_LEN,
-			 "mepc = 0x%llx\n",
-			 *++data);
+			 "mepc = 0x%llX\n",
+			 *trace_data++);
 		strcat(dbg_msg->syndrome, value_str);
 		snprintf(value_str,
 			 VALUE_STR_MAX_LEN,
-			 "mstatus = 0x%llx\n",
-			 *++data);
+			 "mstatus = 0x%llX\n",
+			 *trace_data++);
 		strcat(dbg_msg->syndrome, value_str);
 		snprintf(value_str,
 			 VALUE_STR_MAX_LEN,
-			 "mtval = 0x%llx\n",
-			 *++data);
+			 "mtval = 0x%llX\n",
+			 *trace_data++);
 		strcat(dbg_msg->syndrome, value_str);
 		snprintf(value_str,
 			 VALUE_STR_MAX_LEN,
-			 "mcause = 0x%llx\n",
-			 *++data);
+			 "mcause = 0x%llX\n",
+			 *trace_data);
 		strcat(dbg_msg->syndrome, value_str);
 	}
+
+	/* free up trace buffer */
+	kfree(trace_buf);
 }
 
 int et_handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
@@ -385,11 +375,6 @@ int et_handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
 	case DEV_MGMT_API_MID_PMIC_ERROR_EVENT:
 		dbg_msg.desc = "Power Management IC Errors";
 		parse_pmic_syndrome(&event_msg, &dbg_msg);
-		break;
-	case DEV_MGMT_API_MID_WDOG_EXTERNAL_TIMEOUT_EVENT:
-		dbg_msg.desc = "WatchDog Timeout - External PMIC Reset";
-		strcat(dbg_msg.syndrome, "Service Processor Stack Trace\n");
-		parse_wdog_syndrome(&event_msg, &dbg_msg);
 		break;
 	case DEV_MGMT_API_MID_CM_ETH_EVENT:
 		dbg_msg.desc = "Compute Minion Exception";
