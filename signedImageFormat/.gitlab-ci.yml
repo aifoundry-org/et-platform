@@ -1,12 +1,23 @@
 stages:
   - package
 
+include:
+  - project: 'software/conan/conan-ci-pipelines-common'
+    file: 'conan-config.yaml'
+  - project: 'software/conan/conan-ci-pipelines-common'
+    file: 'package.yaml'
+
 package:
   stage: package
-  tags:
-    - docker
-  image: conanio/gcc8
-  before_script:
-    - conan --version
+  variables:
+    DOCKER_IMAGE: conanio/${COMPILER}${COMPILER_VERSION}
+  parallel:
+    matrix:
+      - COMPILER: [ gcc ]
+        COMPILER_VERSION: [ 7 ]
+        CONAN_GCC_VERSIONS: [ 7 ]
+      - COMPILER: [ clang ]
+        COMPILER_VERSION: [ 10 ]
+        CONAN_CLANG_VERSIONS: [ 10 ]
   script:
-    - conan create . -tf conan/test_package
+    - ./conan/ci/package.sh
