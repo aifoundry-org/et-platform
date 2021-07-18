@@ -15,6 +15,7 @@
 #include "MemoryManager.h"
 #include "ProfilerImp.h"
 #include "ResponseReceiver.h"
+#include "StreamManager.h"
 #include "runtime/IRuntime.h"
 #include "utils.h"
 #include <algorithm>
@@ -93,29 +94,6 @@ private:
     DeviceId deviceId_;
     void* deviceBuffer_;
     uint64_t entryPoint_;
-  };
-
-  struct Stream {
-    Stream(DeviceId deviceId, int vq)
-      : deviceId_(deviceId)
-      , vq_(vq) {
-    }
-    Stream(const Stream&) = delete;
-    Stream& operator=(const Stream&) = delete;
-    Stream& operator=(Stream&&) noexcept = default;
-    Stream(Stream&&) noexcept = default;
-
-    bool removeEvent(EventId event) {
-      return submittedEvents_.erase(event) > 0;
-    }
-
-    void addEvent(EventId event) {
-      submittedEvents_.emplace(event);
-    }
-
-    std::set<EventId> submittedEvents_;
-    DeviceId deviceId_;
-    int vq_;
   };
 
   struct QueueHelper {

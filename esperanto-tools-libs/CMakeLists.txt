@@ -72,6 +72,7 @@ add_library(etrt_obj OBJECT
     src/DmaBufferManager.cpp
     src/DmaBuffer.cpp
     src/ProfileEvent.cpp
+    src/StreamManager.cpp
 )
 
 set_target_properties(etrt_obj PROPERTIES
