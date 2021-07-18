@@ -35,6 +35,8 @@ include(CompilerSanitizers)
 
 option(ENABLE_TESTS "Enable compiling tests" ON)
 
+option(ENABLE_DEPRECATED "Generate Deprecated config file" ON)
+
 find_package(linuxDriver REQUIRED)
 find_package(sw-sysemu REQUIRED)
 find_package(hostUtils REQUIRED)
@@ -108,19 +110,39 @@ endif()
 ##### Package
 
 configure_package_config_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/DeviceLayerConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/DeviceLayerConfig.cmake
+    ${CMAKE_CURRENT_SOURCE_DIR}/deviceLayerConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/deviceLayerConfig.cmake
     INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/deviceLayer
 )
 
 write_basic_package_version_file(
-    ${CMAKE_CURRENT_BINARY_DIR}/DeviceLayerConfigVersion.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/deviceLayerConfigVersion.cmake
     VERSION ${CMAKE_PROJECT_VERSION}
     COMPATIBILITY SameMajorVersion
 )
 
 install(FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/DeviceLayerConfig.cmake
-    ${CMAKE_CURRENT_BINARY_DIR}/DeviceLayerConfigVersion.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/deviceLayerConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/deviceLayerConfigVersion.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/deviceLayer
 )
+
+if (ENABLE_DEPRECATED)
+    configure_package_config_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/DeviceLayerConfig.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/DeviceLayerConfig.cmake
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/deviceLayer
+    )
+
+    write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/DeviceLayerConfigVersion.cmake
+        VERSION ${CMAKE_PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion
+    )
+
+    install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/DeviceLayerConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/DeviceLayerConfigVersion.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/deviceLayer
+    )
+endif()

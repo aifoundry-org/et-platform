@@ -43,6 +43,7 @@ class DeviceLayerConan(ConanFile):
     def generate(self):
         tc = CMakeToolchain(self)
         tc.variables["ENABLE_TESTS"] = False
+        tc.variables["ENABLE_DEPRECATED"] = False
         tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.deps_cpp_info["cmake-modules"].rootpath, "cmake")
         tc.generate()
     
