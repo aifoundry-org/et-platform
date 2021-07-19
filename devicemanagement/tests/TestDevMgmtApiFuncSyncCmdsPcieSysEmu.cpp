@@ -238,6 +238,11 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setModuleActivePowerManagementRange
   setModuleActivePowerManagementRangeInvalidInputBuffer_1_61(false /* Multiple Devices */);
 }
 
+// Pending SysEMU pointer update. Stuck behind a modelling bug
+//TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, updateFirmwareImage_1_63) {
+//  updateFirmwareImage_1_63(false);
+//}
+
 // retrieve MM FW error counts. This test should be run last so that we are
 // able to capture any errors in the previous test runs
 // Note after fix from: SW-8409, counters needs to adjusted to handle expected failures

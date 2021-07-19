@@ -103,6 +103,7 @@ protected:
   void getModuleManufactureNameInvalidOutputBuffer_1_60(bool singleDevice);
   void setModuleActivePowerManagementRangeInvalidInputBuffer_1_61(bool singleDevice);
   void setModuleActivePowerManagement_1_62(bool singleDevice);
+  void updateFirmwareImage_1_63(bool singleDevice);
   void* handle_ = nullptr;
   std::unique_ptr<IDeviceLayer> devLayer_;
 };

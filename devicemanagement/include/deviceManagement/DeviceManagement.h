@@ -254,12 +254,12 @@ private:
   /// @return Smart shared pointer to lockable_ struct wrapping the device
   std::shared_ptr<lockable_> getDevice(const uint32_t index);
 
-  /// @brief Fetch firmware image, verify, and write to FW region via MMIO
+  /// @brief Fetch firmware image, verify, and write to FW region
   ///
   /// @param[in] lockable  Smart shared pointer to lockable_ struct wrapping
   /// the device index
   /// @param[inout] filePath  Pointer to firmware image path on filesystem
-  int processFirmwareImage(std::shared_ptr<lockable_> lockable, const char* filePath);
+  int updateFirmwareImage(std::shared_ptr<lockable_> lockable, const char* filePath);
 
   /// @brief Determine if provided SHA512 is valid
   ///

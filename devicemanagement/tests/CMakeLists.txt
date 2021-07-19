@@ -31,8 +31,17 @@ get_property(MASTER_MINION_ELF_TF TARGET EsperantoDeviceMinionRuntime::MasterMin
 get_property(MACHINE_MINION_ELF TARGET EsperantoDeviceMinionRuntime::MachineMinion.elf PROPERTY LOCATION)
 get_property(WORKER_MINION_ELF TARGET EsperantoDeviceMinionRuntime::WorkerMinion.elf PROPERTY LOCATION)
 
+# This will be used by test case to verify f/w update support as this is CMakeLists for DM tests.
+# End user can use f/w image of choice by passing it as argument to dm-tester.
+set(FLASH_IMG_PATH "${FLASH_INSTALL_DIR}/dev-image/production-signed-with-test-keys/flash_32Mbit.bin")
+
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 configure_file(Autogen.h.in Autogen.h)
+
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/Autogen.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/device-management
+)
 
 # Helper to create tests
 function(create_test)
@@ -78,13 +87,6 @@ endif()
 ###############
 # BASIC TESTS #
 ###############
-create_test(
-    TARGET     TestDevMgmtApiFuncSyncCmdsSysEmu
-    SOURCES    TestDevMgmtApiFuncSyncCmdsSysEmu.cpp TestDevMgmtApiSyncCmds.cpp
-    ARGS       ""
-    PROPERTIES "LABELS;SYSEMU;LABELS;MGMT;LABELS;FUNCTIONAL;LABELS;SYSTEM;TIMEOUT;120"
-)
-
 create_test(
     TARGET     TestDevMgmtApiFuncSyncCmdsPcie
     SOURCES    TestDevMgmtApiFuncSyncCmdsPcie.cpp TestDevMgmtApiSyncCmds.cpp

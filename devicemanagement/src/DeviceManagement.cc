@@ -100,7 +100,8 @@ std::shared_ptr<lockable_> DeviceManagement::getDevice(const uint32_t index) {
   return deviceMap_[index];
 }
 
-int DeviceManagement::processFirmwareImage(std::shared_ptr<lockable_> lockable, const char* filePath) {
+int DeviceManagement::updateFirmwareImage(std::shared_ptr<lockable_> lockable, const char* filePath) {
+
   std::ifstream file(filePath, std::ios::binary);
 
   if (!file.good()) {
@@ -109,20 +110,12 @@ int DeviceManagement::processFirmwareImage(std::shared_ptr<lockable_> lockable, 
 
   std::vector<unsigned char> fwImage(std::istreambuf_iterator<char>(file), {});
 
-  // TODO: Validate firmware and DM Lib compatibility
-  //       pushed out to WP3 or later
+  if (!devLayer_->updateFirmwareImage(lockable->idx, fwImage)) {
+    DV_LOG(INFO) << "DeviceManagement::updateFirmwareImage failed" << std::endl;
+    return -EIO;
+  }
 
-  //  uintptr_t addr = lockable->dev.FWBaseAddr();
-  //  DV_LOG(INFO) << "Retrieved firmware memory region: " << std::hex << addr << std::endl;
-
-  // auto res = lockable->dev.writeDevMemMMIO(addr, fwImage.size(), fwImage.data());
-
-  //  if (!res) {
-  //    return -EIO;
-  //  }
-
-  DV_LOG(INFO) << "Wrote firmware image of size: " << fwImage.size() << std::endl;
-
+  DV_LOG(DEBUG) << "Written firmware image of size: " << fwImage.size() << std::endl;
   return 0;
 }
 
@@ -306,13 +299,14 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
 
     switch (cmd_code) {
     case device_mgmt_api::DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE: {
-      int res = processFirmwareImage(lockable, input_buff);
+      wCB->info.cmd_hdr.size = sizeof(wCB->info);
+      DV_LOG(DEBUG) << "Size: " << std::dec << wCB->info.cmd_hdr.size;
+      int res = updateFirmwareImage(lockable, input_buff);
 
       if (res != 0) {
+        DV_LOG(INFO) << "failed to write firmware image to device DRAM";
         return res;
       }
-
-      inputSize = 0;
     } break;
     case device_mgmt_api::DM_CMD::DM_CMD_SET_SP_BOOT_ROOT_CERT:
     case device_mgmt_api::DM_CMD::DM_CMD_SET_SW_BOOT_ROOT_CERT: {

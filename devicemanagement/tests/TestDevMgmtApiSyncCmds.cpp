@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 
 #include "TestDevMgmtApiSyncCmds.h"
+#include "Autogen.h"
 #include "TestDevMgmtApi.h"
 #include <array>
 #include <atomic>
@@ -2039,5 +2040,34 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRangeInvalidInputBuff
               -EINVAL);
 
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::updateFirmwareImage_1_63(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    // DM_CMD_SET_FIRMWARE_UPDATE : Device returns response of type device_mgmt_default_rsp_t.
+    // Payload in response is of type uint32_t
+    const uint32_t output_size = sizeof(uint32_t);
+
+    char output_buff[output_size] = {0};
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE, FLASH_IMG_PATH, 1,
+                                output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
+
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+
+    // Skip validation if loopback driver
+    if (!FLAGS_loopback_driver) {
+      ASSERT_EQ(output_buff[0], 0);
+    }
   }
 }
