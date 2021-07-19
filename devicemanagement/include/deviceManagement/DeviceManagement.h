@@ -89,17 +89,11 @@ static std::unordered_map<std::string, device_mgmt_api::DM_CMD> const commandCod
   {"DM_CMD_SET_DM_TRACE_CONFIG", device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG}};
 
 static std::unordered_map<std::string, device_mgmt_api::POWER_STATE> const powerStateTable = {
-  {"POWER_STATE_FULL", device_mgmt_api::POWER_STATE::POWER_STATE_FULL},
-  {"POWER_STATE_REDUCED", device_mgmt_api::POWER_STATE::POWER_STATE_REDUCED},
-  {"POWER_STATE_LOWEST", device_mgmt_api::POWER_STATE::POWER_STATE_LOWEST},
+  {"POWER_STATE_MAX_POWER", device_mgmt_api::POWER_STATE::POWER_STATE_MAX_POWER},
+  {"POWER_STATE_MANAGED_POWER", device_mgmt_api::POWER_STATE::POWER_STATE_MANAGED_POWER},
+  {"POWER_STATE_SAFE_POWER", device_mgmt_api::POWER_STATE::POWER_STATE_SAFE_POWER},
+  {"POWER_STATE_LOW_POWER", device_mgmt_api::POWER_STATE::POWER_STATE_LOW_POWER},
   {"POWER_STATE_INVALID", device_mgmt_api::POWER_STATE::POWER_STATE_INVALID}};
-
-static std::unordered_map<std::string, device_mgmt_api::TDP_LEVEL> const TDPLevelTable = {
-  {"TDP_LEVEL_ONE", device_mgmt_api::TDP_LEVEL::TDP_LEVEL_ONE},
-  {"TDP_LEVEL_TWO", device_mgmt_api::TDP_LEVEL::TDP_LEVEL_TWO},
-  {"TDP_LEVEL_THREE", device_mgmt_api::TDP_LEVEL::TDP_LEVEL_THREE},
-  {"TDP_LEVEL_FOUR", device_mgmt_api::TDP_LEVEL::TDP_LEVEL_FOUR},
-  {"TDP_LEVEL_INVALID", device_mgmt_api::TDP_LEVEL::TDP_LEVEL_INVALID}};
 
 static std::unordered_map<std::string, device_mgmt_api::PCIE_RESET> const pcieResetTable = {
   {"PCIE_RESET_FLR", device_mgmt_api::PCIE_RESET::PCIE_RESET_FLR},

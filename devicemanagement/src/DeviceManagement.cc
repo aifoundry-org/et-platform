@@ -177,10 +177,9 @@ int DeviceManagement::getTraceBufferServiceProcessor(const uint32_t device_node,
 }
 
 bool DeviceManagement::isValidTdpLevel(const char* input_buff) {
-  for (auto it = TDPLevelTable.begin(); it != TDPLevelTable.end(); ++it) {
-    if (it->second == *input_buff) {
-      return true;
-    }
+  uint8_t tdp_level = input_buff[0];
+  if (tdp_level < 40) {
+    return true;
   }
   return false;
 }

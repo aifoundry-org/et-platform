@@ -395,7 +395,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModulePowerState_1_11(bool singleDevice) {
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     const uint32_t input_size = sizeof(device_mgmt_api::power_state_e);
-    const char input_buff[input_size] = {device_mgmt_api::POWER_STATE_REDUCED};
+    const char input_buff[input_size] = {device_mgmt_api::POWER_STATE_MANAGED_POWER};
 
     const uint32_t set_output_size = sizeof(uint8_t);
     char set_output_buff[set_output_size] = {0};
@@ -425,10 +425,12 @@ void TestDevMgmtApiSyncCmds::setAndGetModulePowerState_1_11(bool singleDevice) {
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       uint8_t powerstate = get_output_buff[0];
-      ASSERT_EQ(powerstate, device_mgmt_api::POWER_STATE_REDUCED);
+      ASSERT_EQ(powerstate, device_mgmt_api::POWER_STATE_MANAGED_POWER);
     }
   }
 }
+
+#define DM_TDP_LEVEL 25
 
 void TestDevMgmtApiSyncCmds::setAndGetModuleStaticTDPLevel_1_12(bool singleDevice) {
   getDM_t dmi = getInstance();
@@ -437,8 +439,8 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleStaticTDPLevel_1_12(bool singleDevic
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    const uint32_t input_size = sizeof(device_mgmt_api::tdp_level_e);
-    const char input_buff[input_size] = {device_mgmt_api::TDP_LEVEL_TWO};
+    const uint32_t input_size = sizeof(uint8_t);
+    const char input_buff[input_size] = {DM_TDP_LEVEL};
 
     const uint32_t set_output_size = sizeof(uint32_t);
     char set_output_buff[set_output_size] = {0};
@@ -455,7 +457,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleStaticTDPLevel_1_12(bool singleDevic
       ASSERT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
     }
 
-    const uint32_t get_output_size = sizeof(device_mgmt_api::tdp_level_e);
+    const uint32_t get_output_size = sizeof(uint8_t);
     char get_output_buff[get_output_size] = {0};
 
     ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_STATIC_TDP_LEVEL, nullptr, 0,
@@ -466,7 +468,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleStaticTDPLevel_1_12(bool singleDevic
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       uint8_t tdp_level = get_output_buff[0];
-      ASSERT_EQ(tdp_level, device_mgmt_api::TDP_LEVEL_TWO);
+      ASSERT_EQ(tdp_level, DM_TDP_LEVEL);
     }
   }
 }
@@ -511,7 +513,6 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold_1_13(bool singl
       device_mgmt_api::temperature_threshold_t* temperature_threshold =
         (device_mgmt_api::temperature_threshold_t*)get_output_buff;
       ASSERT_EQ(temperature_threshold->lo_temperature_c, 56);
-      ASSERT_EQ(temperature_threshold->hi_temperature_c, 84);
     }
   }
 }
@@ -1650,8 +1651,8 @@ void TestDevMgmtApiSyncCmds::setModuleStaticTDPLevelRange_1_52(bool singleDevice
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    const uint32_t input_size = sizeof(device_mgmt_api::tdp_level_e);
-    const char input_buff[input_size] = {10}; // Invalid TDP level
+    const uint32_t input_size = sizeof(uint8_t);
+    const char input_buff[input_size] = {80}; // Invalid TDP level
 
     const uint32_t set_output_size = sizeof(uint32_t);
     char set_output_buff[set_output_size] = {0};

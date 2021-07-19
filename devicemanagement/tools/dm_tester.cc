@@ -129,7 +129,7 @@ static bool timeout_flag = true;
 static power_state_e power_state;
 static bool power_state_flag = false;
 
-static tdp_level_e tdp_level;
+static uint8_t tdp_level;
 static bool tdp_level_flag = false;
 
 static pcie_reset_e pcie_reset;
@@ -293,31 +293,15 @@ int verifyService() {
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_STATIC_TDP_LEVEL: {
-    const uint32_t output_size = sizeof(tdp_level_e);
+    const uint32_t output_size = sizeof(uint8_t);
     char output_buff[output_size] = {0};
-    char tdp_level[32] = {0};
+    uint8_t tdp_level = 0;
 
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
 
-    switch(TDP_LEVEL(*output_buff)) {
-      case 0:
-        strncpy(tdp_level,"TDP_LEVEL_ONE", sizeof(tdp_level));
-        break;
-      case 1:
-        strncpy(tdp_level,"TDP_LEVEL_TWO", sizeof(tdp_level));
-        break;
-      case 2:
-        strncpy(tdp_level,"TDP_LEVEL_THREE", sizeof(tdp_level));
-        break;
-      case 3:
-        strncpy(tdp_level,"TDP_LEVEL_FOUR", sizeof(tdp_level));
-        break;
-      default:
-        DV_LOG(INFO) << "Invalid tdp level: "  << std::endl;
-        break;
-    }
+    tdp_level = (uint8_t)output_buff[0];
     DV_LOG(INFO) << "TDP Level Output: " << tdp_level << std::endl;
   } break;
 
@@ -326,8 +310,9 @@ int verifyService() {
       DV_LOG(FATAL) << "Aborting, --tdplevel was not defined" << std::endl;
       return -EINVAL;
     }
-    const uint32_t input_size = sizeof(tdp_level_e);
-    const char input_buff[input_size] = {(char)tdp_level}; // bounds check prevents issues with narrowing
+    const uint32_t input_size = sizeof(uint8_t);
+    const char input_buff[input_size] = 
+                                {(char)tdp_level}; // bounds check prevents issues with narrowing
 
     const uint32_t output_size = sizeof(uint32_t);
     char output_buff[output_size] = {0};
@@ -1018,6 +1003,8 @@ bool validReset() {
   return true;
 }
 
+#define TDP_LEVEL_MAX 40
+
 bool validTDPLevel() {
   if (!validDigitsOnly()) {
     return false;
@@ -1028,12 +1015,12 @@ bool validTDPLevel() {
 
   auto level = std::strtoul(optarg, &end, 10);
 
-  if (level > 4 || end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(FATAL) << "Aborting, argument: " << optarg << " is not valid tdp level ( 0-4 )" << std::endl;
+  if (level > TDP_LEVEL_MAX || end == optarg || *end != '\0' || errno != 0) {
+    DV_LOG(FATAL) << "Aborting, argument: " << optarg << " is not valid tdp level ( 0-40 )" << std::endl;
     return false;
   }
 
-  tdp_level = (tdp_level_e)level;
+  tdp_level = level;
 
   return true;
 }
@@ -1290,10 +1277,6 @@ void printTDPLevel(char* argv) {
   std::cout << "\t\t"
             << "Set TDP level:" << std::endl;
   std::cout << std::endl;
-
-  for (auto const& [key, val] : TDPLevelTable) {
-    std::cout << "\t\t\t" << val << ": " << key << std::endl;
-  }
 
   std::cout << std::endl;
   std::cout << "\t\t"
