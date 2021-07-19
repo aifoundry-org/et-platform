@@ -27,7 +27,6 @@ public:
   MOCK_METHOD4(waitForEpollEventsServiceProcessor,
                void(int device, bool& sq_available, bool& cq_available, std::chrono::seconds timeout));
   MOCK_METHOD2(receiveResponseServiceProcessor, bool(int device, std::vector<std::byte>& response));
-  MOCK_METHOD0(getDevicesCount, int());
   MOCK_CONST_METHOD1(getSubmissionQueuesCount, int(int device));
   MOCK_CONST_METHOD1(getSubmissionQueueSizeMasterMinion, size_t(int device));
   MOCK_CONST_METHOD1(getSubmissionQueueSizeServiceProcessor, size_t(int device));
