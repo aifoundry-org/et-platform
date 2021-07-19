@@ -166,22 +166,13 @@ void RuntimeImp::freeDevice(DeviceId device, void* buffer) {
 StreamId RuntimeImp::createStream(DeviceId device) {
   ScopedProfileEvent profileEvent(Class::CreateStream, profiler_, device);
   RT_LOG(INFO) << "Creating stream at device: " << static_cast<std::underlying_type_t<DeviceId>>(device);
-  std::lock_guard lock(streamsMutex_);
-  auto streamId = static_cast<StreamId>(nextStreamId_++);
-  auto it = streams_.find(streamId);
-  if (it != end(streams_)) {
-    throw Exception("Can't create stream");
-  }
-  streams_.emplace(streamId, Stream{device, queueHelpers_[static_cast<uint32_t>(device)].nextQueue()});
-  return streamId;
+  return streamManager_.createStream(device);
 }
 
 void RuntimeImp::destroyStream(StreamId stream) {
   ScopedProfileEvent profileEvent(Class::DestroyStream, profiler_, stream);
-  RT_LOG(INFO) << "Destroy stream: " << static_cast<std::underlying_type_t<StreamId>>(stream);
-  std::lock_guard lock(streamsMutex_);
-  auto it = find(streams_, stream);
-  streams_.erase(it);
+  RT_LOG(INFO) << "Destroying stream: " << static_cast<std::underlying_type_t<StreamId>>(stream);
+  streamManager_.destroyStream(stream);
 }
 
 EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void* d_dst, size_t size, bool barrier) {

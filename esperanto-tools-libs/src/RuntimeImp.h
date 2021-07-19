@@ -106,7 +106,7 @@ private:
       return res;
     }
     int nextQueue_ = 0;
-    int queueCount_;
+    const int queueCount_;
   };
 
   struct DeviceFwTracing {
@@ -147,9 +147,9 @@ private:
   std::unordered_map<DeviceId, MemoryManager> memoryManagers_;
   std::unordered_map<DeviceId, std::unique_ptr<DmaBufferManager>> dmaBufferManagers_;
   std::unordered_map<DeviceId, DeviceFwTracing> deviceTracing_;
-  std::unordered_map<StreamId, Stream> streams_;
 
   EventManager eventManager_;
+  StreamManager streamManager_;
 
   // using unique_ptr to not have to deal with elfio mess (the class is not friendly with modern c++)
   std::unordered_map<KernelId, std::unique_ptr<Kernel>> kernels_;
@@ -158,9 +158,6 @@ private:
   int nextStreamId_ = 0;
 
   mutable std::recursive_mutex mutex_;
-
-  // this mutex should be used when accessing stream related internals
-  mutable std::mutex streamsMutex_;
 
   profiling::ProfilerImp profiler_;
   std::unique_ptr<KernelParametersCache> kernelParametersCache_;

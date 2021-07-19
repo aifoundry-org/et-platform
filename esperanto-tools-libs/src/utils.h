@@ -13,7 +13,7 @@
 #include <hostUtils/logging/Logging.h>
 #include <string>
 namespace rt {
-template <typename Container, typename Key> auto find(Container&& c, Key&& k, std::string error = "Not found") {
+template <typename Container, typename Key> auto find(Container& c, Key&& k, std::string error = "Not found") {
   auto it = c.find(std::forward<Key>(k));
   if (it == end(c)) {
     throw Exception(std::move(error));
@@ -25,3 +25,4 @@ template <typename Container, typename Key> auto find(Container&& c, Key&& k, st
 #define RT_LOG(severity) ET_LOG(RUNTIME, severity)
 #define RT_DLOG(severity) ET_DLOG(RUNTIME, severity)
 #define RT_VLOG(severity) ET_VLOG(RUNTIME, severity)
+#define RT_LOG_IF(severity, condition) ET_LOG_IF(RUNTIME, severity, condition)
