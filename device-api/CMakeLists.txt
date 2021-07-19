@@ -17,12 +17,6 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 option(DEVICEAPI_BUILD_DOC "Build documentation" OFF)
 option(DEVICEAPI_DEPRECATED "Enable deprecated install targets" ON)
 
-if (DEVICEAPI_DEPRECATED)
-    set(INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/include/ CACHE STRING "Include install dir")
-    set(LIB_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/lib/ CACHE STRING "Library install dir")
-    set(SYSCONFIG_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/etc/et-runtime/ CACHE STRING "Config install dir")
-endif()
-
 include(GNUInstallDirs)
 
 add_subdirectory(src)
@@ -61,23 +55,3 @@ install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/deviceApiConfigVersion.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/deviceApi
 )
-
-if (DEVICEAPI_DEPRECATED)
-    export(PACKAGE esperanto-device-api)
-
-    configure_package_config_file(esperanto-device-api-config.cmake.in
-        ${CMAKE_CURRENT_BINARY_DIR}/esperanto-device-api-config.cmake
-        INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}
-        INSTALL_DESTINATION ${LIB_INSTALL_DIR}/esperanto-device-api/cmake
-        PATH_VARS INCLUDE_INSTALL_DIR LIB_INSTALL_DIR)
-    write_basic_package_version_file(
-        ${CMAKE_CURRENT_BINARY_DIR}/esperanto-device-api-config-version.cmake
-        VERSION ${VERSION}
-        COMPATIBILITY SameMajorVersion)
-
-    install(FILES
-        "${CMAKE_CURRENT_BINARY_DIR}/esperanto-device-api-config.cmake"
-        "${CMAKE_CURRENT_BINARY_DIR}/esperanto-device-api-config-version.cmake"
-        DESTINATION ${LIB_INSTALL_DIR}/cmake/esperanto-device-api
-        COMPONENT device-api)
-endif()

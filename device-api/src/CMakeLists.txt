@@ -69,31 +69,3 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/device_apis_codegen.py
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/esperanto/deviceApi
     PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
     COMPONENT device-api)
-
-
-if (DEVICEAPI_DEPRECATED)
-    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/device_apis_message_types.h
-        DESTINATION ${INCLUDE_INSTALL_DIR}/esperanto/device-apis
-        COMPONENT device-api)
-
-    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/esperanto/device-apis/
-        DESTINATION ${INCLUDE_INSTALL_DIR}/esperanto/device-apis
-        COMPONENT device-api)
-
-    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/operations-api
-        DESTINATION ${LIB_INSTALL_DIR}/esperanto/device-apis
-        COMPONENT device-api)
-
-    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/management-api
-        DESTINATION ${LIB_INSTALL_DIR}/esperanto/device-apis
-        COMPONENT device-api)
-
-    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/schema/device-apis.schema.json
-        DESTINATION ${LIB_INSTALL_DIR}/esperanto/device-apis/schema
-        COMPONENT device-api)
-
-    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/device_apis_codegen.py
-        DESTINATION ${LIB_INSTALL_DIR}/esperanto/device-apis
-        PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
-        COMPONENT device-api)
-endif ()
