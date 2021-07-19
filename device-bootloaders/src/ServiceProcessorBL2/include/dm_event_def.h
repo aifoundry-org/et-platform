@@ -18,7 +18,6 @@
 #ifndef __DM_EVENT_DEF_H__
 #define __DM_EVENT_DEF_H__
 
-
 #include <stdint.h>
 #include "dm.h"
 #include "sp_mm_comms_spec.h"
@@ -27,11 +26,12 @@
  * @enum enum event_class
  * @brief Enum defining error severity class
  */
-enum event_class {
-    INFO,           /**< Information. */
-    WARNING,        /**< Warning */
-    CRITICAL,       /**< Critical */
-    FATAL,          /**< FATAL */
+enum event_class
+{
+    INFO,     /**< Information. */
+    WARNING,  /**< Warning */
+    CRITICAL, /**< Critical */
+    FATAL,    /**< FATAL */
 };
 
 /*!
@@ -62,7 +62,8 @@ enum event_ids {
  * @enum error_type
  * @brief Enum defining event/error type
  */
-enum error_type {
+enum error_type
+{
     CORRECTABLE,
     UNCORRECTABLE,
 };
@@ -71,7 +72,8 @@ enum error_type {
  * @struct struct event_message_t
  * @brief structure defining the event message format
  */
-struct event_payload {
+struct event_payload
+{
     uint16_t class_count; /**< payload containing the event class[1:0], event count[15:2] */
     uint64_t syndrome[2]; /**< Hardware defined syndrome info */
 } __attribute__((__packed__));
@@ -80,27 +82,28 @@ struct event_payload {
  * @struct struct event_message_t
  * @brief structure defining the event message format
  */
-struct event_message_t {
-    struct cmn_header_t header; /**< See struct cmn_header_t. */
+struct event_message_t
+{
+    struct cmn_header_t header;   /**< See struct cmn_header_t. */
     struct event_payload payload; /**< See struct event_payload */
 } __attribute__((packed, aligned(8)));
-
 
 #define EVENT_CLASS_MASK       0x3
 #define EVENT_ERROR_COUNT_MASK 0x3FFF
 
 #define FILL_EVENT_HEADER(header, id, sz) \
-                                (header)->msg_id = id; \
-                                (header)->size = sz;
+    (header)->msg_id = id;                \
+    (header)->size = sz;
 
 #define FILL_EVENT_PAYLOAD(payload, class, count, syndrome1, syndrome2) \
-                                    (payload)->class_count =  (((count)&EVENT_ERROR_COUNT_MASK) << 2) | \
-                                     ((class) & EVENT_CLASS_MASK); \
-                                    (payload)->syndrome[0] = (syndrome1); \
-                                    (payload)->syndrome[1] = (syndrome2); \
+    (payload)->class_count = (((count)&EVENT_ERROR_COUNT_MASK) << 2) |  \
+                             ((class) & EVENT_CLASS_MASK);              \
+    (payload)->syndrome[0] = (syndrome1);                               \
+    (payload)->syndrome[1] = (syndrome2);
 
 #define EVENT_PAYLOAD_GET_EVENT_CLASS(payload) (((payload)->class_count) & EVENT_ERROR_CLASS_MASK)
-#define EVENT_PAYLOAD_GET_ERROR_COUNT(payload) ((((payload)->class_count) >> 2) & EVENT_ERROR_COUNT_MASK)
+#define EVENT_PAYLOAD_GET_ERROR_COUNT(payload) \
+    ((((payload)->class_count) >> 2) & EVENT_ERROR_COUNT_MASK)
 
 typedef void (*dm_event_isr_callback)(enum error_type, struct event_message_t *msg);
 

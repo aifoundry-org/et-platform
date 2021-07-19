@@ -25,23 +25,18 @@
 #include "trace.h"
 #include "dm_event_control.h"
 
-#define SP_NUM_REGISTERS                        (32)
-#define SP_EXCEPTION_STACK_FRAME_SIZE           (sizeof(uint64_t)*28)
-#define SP_EXCEPTION_CSRS_FRAME_SIZE            (sizeof(uint64_t)*4)
-#define SP_EXCEPTION_FRAME_SIZE                 (SP_EXCEPTION_STACK_FRAME_SIZE + \
-                                                    SP_EXCEPTION_CSRS_FRAME_SIZE)
-#define SP_PERF_GLOBALS_SIZE                    (sizeof(struct asic_frequencies_t)+\
-                                                    sizeof(struct dram_bw_t) +\
-                                                    sizeof(struct max_dram_bw_t) + \
-                                                    sizeof(uint32_t) + sizeof(uint64_t))
-#define SP_POWER_GLOBALS_SIZE                    (sizeof(power_state_e) +\
-                                                    sizeof(tdp_level_e)+\
-                                                    (sizeof(uint8_t)*3) +\
-                                                    sizeof(struct module_uptime_t) +\
-                                                    sizeof(struct module_voltage_t) +\
-                                                    sizeof(uint64_t) +\
-                                                    sizeof(uint64_t))
-#define SP_GLOBALS_SIZE                         (SP_PERF_GLOBALS_SIZE + SP_POWER_GLOBALS_SIZE)
+#define SP_NUM_REGISTERS              (32)
+#define SP_EXCEPTION_STACK_FRAME_SIZE (sizeof(uint64_t) * 28)
+#define SP_EXCEPTION_CSRS_FRAME_SIZE  (sizeof(uint64_t) * 4)
+#define SP_EXCEPTION_FRAME_SIZE       (SP_EXCEPTION_STACK_FRAME_SIZE + SP_EXCEPTION_CSRS_FRAME_SIZE)
+#define SP_PERF_GLOBALS_SIZE                                                                       \
+    (sizeof(struct asic_frequencies_t) + sizeof(struct dram_bw_t) + sizeof(struct max_dram_bw_t) + \
+     sizeof(uint32_t) + sizeof(uint64_t))
+#define SP_POWER_GLOBALS_SIZE                                                              \
+    (sizeof(power_state_e) + sizeof(uint8_t) + (sizeof(uint8_t) * 3) +                     \
+     sizeof(struct module_uptime_t) + sizeof(struct module_voltage_t) + sizeof(uint64_t) + \
+     sizeof(uint64_t))
+#define SP_GLOBALS_SIZE (SP_PERF_GLOBALS_SIZE + SP_POWER_GLOBALS_SIZE)
 
 /*! \fn void bl2_exception_entry(stack_frame)
     \brief High level exception handler - dumps the system state to trace buffer or console

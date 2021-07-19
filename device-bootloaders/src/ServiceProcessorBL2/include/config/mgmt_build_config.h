@@ -165,7 +165,7 @@
     \brief A macro that provides the PCI BAR region offset relative to
     SP_VQ_BAR using which the Service Processor submission queues can be accessed
 */
-#define SP_SQ_OFFSET       0x0UL
+#define SP_SQ_OFFSET        0x0UL
 
 /*! \def SP_SQS_BASE_ADDR
     \brief A macro that provides the Service Processor's 32 bit base address
@@ -177,7 +177,7 @@
     \brief A macro that provides the total size for SP VQs (SQs + CQs)
     on PCI BAR.
 */
-#define SP_VQ_BAR_SIZE     0xF00UL
+#define SP_VQ_BAR_SIZE      0xF00UL
 
 /*! \def SP_SQ_COUNT
     \brief A macro that provides the Service Processor submission queue
@@ -271,21 +271,36 @@
 */
 #define PMIC_TEMP_UPPER_SET_LIMIT      85
 
-/*! \def PMIC_TEMP_THRESHOLD_HI
+/*! \def TEMP_THRESHOLD_HI
     \brief A macro that provides pmic temperature threshold value
 */
-#define PMIC_TEMP_THRESHOLD_HI      80
+#define TEMP_THRESHOLD_HI         80
 
-/*! \def PMIC_TEMP_THRESHOLD_LO
+/*! \def TEMP_THRESHOLD_LO
     \brief A macro that provides early indication temperature threshold value
 */
-#define PMIC_TEMP_THRESHOLD_LO      70
+#define TEMP_THRESHOLD_LO         70
+
+/*! \def POWER_THRESHOLD_HI
+    \brief A macro that provides power threshold value
+*/
+#define POWER_THRESHOLD_HI        40
+
+/*! \def POWER_THRESHOLD_LO
+    \brief A macro that provides early indication power threshold value
+*/
+#define POWER_THRESHOLD_LO        25
+
+/*! \def SAFE_STATE_FREQUENCY
+    \brief A macro that provides safe state frequency
+*/
+#define SAFE_STATE_FREQUENCY      400
 
 /*! \def DELTA_TEMP_UPDATE_PERIOD 
     \brief A macro that provides dTj/dt - time(uS) for Junction temperature to be updated
            This value needs to be characterized in Silicon
 */
-#define DELTA_TEMP_UPDATE_PERIOD   1000
+#define DELTA_TEMP_UPDATE_PERIOD  1000
 
 /************************/
 /* Compile-time checks  */
@@ -294,15 +309,15 @@
 
 /* Ensure that DIRs and SP SQs base address don't overlap */
 static_assert((SP_DEV_INTF_BASE_ADDR + SP_DEV_INTF_SIZE - 1) < SP_SQ_BASE_ADDRESS,
-    "DIRs and SQs base address overlapping.");
+              "DIRs and SQs base address overlapping.");
 
 /* Ensure that DIRs and SP SQs base address don't overlap */
 static_assert((SP_SQ_BASE_ADDRESS + (SP_SQ_COUNT * SP_SQ_SIZE) - 1) < SP_CQ_BASE_ADDRESS,
-    "SQs and CQs base address overlapping.");
+              "SQs and CQs base address overlapping.");
 
 /* Ensure that SP SQs and CQs size is within limits */
 static_assert(((SP_SQ_COUNT * SP_SQ_SIZE) + (SP_CQ_COUNT * SP_CQ_SIZE)) <= SP_VQ_BAR_SIZE,
-    "SP VQs size not within limits.");
+              "SP VQs size not within limits.");
 
 #endif /* __ASSEMBLER__ */
 

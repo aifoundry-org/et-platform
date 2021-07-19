@@ -23,69 +23,59 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
     uint64_t req_start_time = timer_get_ticks_count();
 
     /* Generate PCIE Correctable Error */
-    FILL_EVENT_HEADER(&message.header, PCIE_CE,
-            sizeof(struct event_message_t) );
-    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 1024, 1, 0);
+    FILL_EVENT_HEADER(&message.header, PCIE_CE, sizeof(struct event_message_t))
+    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 1024, 1, 0)
     pcie_event_callback(CORRECTABLE, &message);
 
     /* Generate PCIE Un-Correctable Error */
-    FILL_EVENT_HEADER(&message.header, PCIE_UCE,
-            sizeof(struct event_message_t) );
-    FILL_EVENT_PAYLOAD(&message.payload, FATAL, 100, 16, 0);
+    FILL_EVENT_HEADER(&message.header, PCIE_UCE, sizeof(struct event_message_t))
+    FILL_EVENT_PAYLOAD(&message.payload, FATAL, 100, 16, 0)
     pcie_event_callback(UNCORRECTABLE, &message);
 
     /* Generate DRAM Correctable Error */
-    FILL_EVENT_HEADER(&message.header, DRAM_CE,
-            sizeof(struct event_message_t));
-    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 100, 1, 0);
+    FILL_EVENT_HEADER(&message.header, DRAM_CE, sizeof(struct event_message_t))
+    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 100, 1, 0)
     ddr_event_callback(CORRECTABLE, &message);
 
     /* Generate DRAM Un-Correctable Error */
-    FILL_EVENT_HEADER(&message.header, DRAM_UCE,
-            sizeof(struct event_message_t));
-    FILL_EVENT_PAYLOAD(&message.payload, FATAL, 100, 1, 0);
+    FILL_EVENT_HEADER(&message.header, DRAM_UCE, sizeof(struct event_message_t))
+    FILL_EVENT_PAYLOAD(&message.payload, FATAL, 100, 1, 0)
     ddr_event_callback(UNCORRECTABLE, &message);
 
     /* Generate SRAM Correctable Error */
-    FILL_EVENT_HEADER(&message.header, SRAM_CE,
-            sizeof(struct event_message_t));
-    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 100, 1, 0);
+    FILL_EVENT_HEADER(&message.header, SRAM_CE, sizeof(struct event_message_t))
+    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 100, 1, 0)
     sram_event_callback(CORRECTABLE, &message);
 
     /* Generate SRAM UN-Correctable Error */
-    FILL_EVENT_HEADER(&message.header, SRAM_UCE,
-            sizeof(struct event_message_t));
-    FILL_EVENT_PAYLOAD(&message.payload, FATAL, 100, 1, 0);
+    FILL_EVENT_HEADER(&message.header, SRAM_UCE, sizeof(struct event_message_t))
+    FILL_EVENT_PAYLOAD(&message.payload, FATAL, 100, 1, 0)
     sram_event_callback(UNCORRECTABLE, &message);
 
     /* Generate Low Temperature Error */
-    FILL_EVENT_HEADER(&message.header, THERMAL_LOW,
-            sizeof(struct event_message_t));
-    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 1, 50, 0);
+    FILL_EVENT_HEADER(&message.header, THERMAL_LOW, sizeof(struct event_message_t))
+    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 1, 50, 0)
     power_event_callback(UNCORRECTABLE, &message);
 
     /* Generate PMIC Error */
-    FILL_EVENT_HEADER(&message.header, PMIC_ERROR,
-            sizeof(struct event_message_t));
-    FILL_EVENT_PAYLOAD(&message.payload, FATAL, 33, 0xFF, 0xC35A);
+    FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
+    FILL_EVENT_PAYLOAD(&message.payload, FATAL, 33, 0xFF, 0xC35A)
     power_event_callback(UNCORRECTABLE, &message);
 
     /* Generate Thermal Throttling Error */
-     FILL_EVENT_HEADER(&message.header, THROTTLE_TIME,
-             sizeof(struct event_message_t));
-    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 65, 5000, 0);
+    // NOSONAR TODO: Add events for all throttle states
+    FILL_EVENT_HEADER(&message.header, THROTTLE_TIME, sizeof(struct event_message_t))
+    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 65, 5000, 0)
     power_event_callback(UNCORRECTABLE, &message);
 
     /* Generate Minion Exception threshold Error */
-     FILL_EVENT_HEADER(&message.header, MINION_EXCEPT_TH,
-             sizeof(struct event_message_t));
-    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 20, 3, 0);
+    FILL_EVENT_HEADER(&message.header, MINION_EXCEPT_TH, sizeof(struct event_message_t))
+    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 20, 3, 0)
     minion_event_callback(UNCORRECTABLE, &message);
 
     /* Generate Minion hang threshold Error */
-     FILL_EVENT_HEADER(&message.header, MINION_HANG_TH,
-             sizeof(struct event_message_t));
-    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 80, 2, 0);
+    FILL_EVENT_HEADER(&message.header, MINION_HANG_TH, sizeof(struct event_message_t))
+    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 80, 2, 0)
     minion_event_callback(UNCORRECTABLE, &message);
 
     /* Generate runtime error */
@@ -96,11 +86,12 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
 
     struct device_mgmt_default_rsp_t dm_rsp;
 
-    FILL_RSP_HEADER(dm_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, 0);
+    FILL_RSP_HEADER(dm_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, 0)
 
     dm_rsp.payload = 0;
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t)))
+    {
         Log_Write(LOG_LEVEL_ERROR, "send_status_response: Cqueue push error!\n");
     }
 }

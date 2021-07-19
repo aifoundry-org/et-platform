@@ -33,6 +33,32 @@
 #define SECONDS_IN_HOUR   3600
 #define SECONDS_IN_MINUTE 60
 
+/*! \enum POWER_THROTTLE_STATE
+    \brief Power Throttle State of the ETSOC
+*/
+enum POWER_THROTTLE_STATE
+{
+    POWER_IDLE = 0,            /**<  */
+    THERMAL_IDLE = 1,          /**<  */
+    POWER_THROTTLE_UP = 2,     /**<  */
+    POWER_THROTTLE_DOWN = 3,   /**<  */
+    THERMAL_THROTTLE_DOWN = 4, /**<  */
+    POWER_THROTTLE_SAFE = 5,   /**<  */
+    THERMAL_THROTTLE_SAFE = 6, /**<  */
+};
+typedef uint8_t power_throttle_state_e;
+
+/*! \struct residency_t
+    \brief 
+*/
+struct residency_t
+{
+    uint64_t cumulative;
+    uint64_t average;
+    uint64_t maximum;
+    uint64_t minimum;
+};
+
 /*! \fn volatile struct soc_power_reg_t *get_soc_power_reg(void)
     \brief Interface to get the SOC power register
     \param none
@@ -54,26 +80,26 @@ int update_module_power_state(power_state_e state);
 */
 int get_module_power_state(power_state_e *power_state);
 
-/*! \fn int update_module_tdp_level(tdp_level_e tdp)
+/*! \fn int update_module_tdp_level(uint8_t tdp)
     \brief Interface to update the module tdp level.
     \param tdp   TDP Level
     \returns Status indicating success or negative error
 */
-int update_module_tdp_level(tdp_level_e tdp);
+int update_module_tdp_level(uint8_t tdp);
 
-/*! \fn int get_module_tdp_level(tdp_level_e *tdp_level);
+/*! \fn int get_module_tdp_level(uint8_t *tdp_level)
     \brief Interface to get the module tdp level.
     \param tdp_level*  Pointer to TDP Level
     \returns Status indicating success or negative error
 */
-int get_module_tdp_level(tdp_level_e *tdp_level);
+int get_module_tdp_level(uint8_t *tdp_level);
 
-/*! \fn int update_module_temperature_threshold(uint8_t hi_threshold, uint8_t lo_threshold);
+/*! \fn int update_module_temperature_threshold(uint8_t lo_threshold)
     \brief Interface to update the temperature threshold.
     \param threshold  Threshold for temperature
     \returns Status indicating success or negative error
 */
-int update_module_temperature_threshold(uint8_t hi_threshold, uint8_t lo_threshold);
+int update_module_temperature_threshold(uint8_t lo_threshold);
 
 /*! \fn int get_module_temperature_threshold(struct temperature_threshold_t *temperature_threshold);
     \brief Interface to get the temperature threshold.
@@ -131,16 +157,25 @@ int update_module_uptime(void);
 */
 int get_module_uptime(struct module_uptime_t *module_uptime);
 
-/*! \fn int update_module_throttle_time(uint64_t time_usec)
+/*! \fn int update_module_throttle_time(power_throttle_state_e throttle_state, uint64_t time_usec)
     \brief Interface to update the module's throttle time.
+    \param throttle_state Throttle state for which residency is updated
     \param time_usec throttle time in usec
     \returns Status indicating success or negative error
 */
-int update_module_throttle_time(uint64_t time_msec);
+int update_module_throttle_time(power_throttle_state_e throttle_state, uint64_t time_msec);
+
+/*! \fn int update_module_power_residency(power_state_e power_state, uint64_t time_msec)
+    \brief Interface to update the module's power residency.
+    \param power_state Power state for which residency is updated
+    \param time_usec power residency in usec
+    \returns Status indicating success or negative error
+*/
+int update_module_power_residency(power_state_e power_state, uint64_t time_msec);
 
 /*! \fn int get_throttle_time(uint64_t *throttle_time)
     \brief Interface to get the module's throttle time.
-    \param *throttle_time  Pointer to throttle time variable
+    \param throttle_time  Pointer to throttle time variable
     \returns Status indicating success or negative error
 */
 int get_throttle_time(uint64_t *throttle_time);
@@ -193,5 +228,26 @@ int init_thermal_pwr_mgmt_service(void);
     \returns none
 */
 void dump_power_globals(void);
+
+/*! \fn int go_to_safe_state(void)
+    \brief This function will switch frequency and voltage to safe predefined values
+    \param none
+    \returns Status indicating success or negative error
+*/
+int go_to_safe_state(void);
+
+/*! \fn void power_throttling(power_throttle_state_e throttle_state)
+    \brief This function handles power throttling
+    \param none
+    \returns none
+*/
+void power_throttling(power_throttle_state_e throttle_state);
+
+/*! \fn void thermal_throttling(power_throttle_state_e throttle_state)
+    \brief This function handles thermal throttling
+    \param none
+    \returns none
+*/
+void thermal_throttling(power_throttle_state_e throttle_state);
 
 #endif

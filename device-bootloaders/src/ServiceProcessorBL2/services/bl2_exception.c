@@ -55,8 +55,8 @@ __attribute__((noreturn)) void bl2_exception_entry(const void *stack_frame)
     uint32_t trace_buf_offset = Trace_Get_SP_CB()->offset_per_hart;
 
     /* prepare exception trace header */
-    uint64_t *trace_buf = Trace_Buffer_Reserve(Trace_Get_SP_CB(),
-                                                SP_EXCEPTION_FRAME_SIZE + SP_GLOBALS_SIZE);
+    uint64_t *trace_buf =
+        Trace_Buffer_Reserve(Trace_Get_SP_CB(), SP_EXCEPTION_FRAME_SIZE + SP_GLOBALS_SIZE);
     *trace_buf++ = timer_get_ticks_count();
     *trace_buf++ = TRACE_TYPE_EXCEPTION;
 
@@ -81,7 +81,8 @@ __attribute__((noreturn)) void bl2_exception_entry(const void *stack_frame)
     SP_Exception_Event(trace_buf_offset);
 
     /* No recovery for now - spin forever */
-    while(1);
+    while (1)
+        ;
 }
 
 /************************************************************************
@@ -107,8 +108,7 @@ __attribute__((noreturn)) void bl2_exception_entry(const void *stack_frame)
 void bl2_dump_stack_frame(void)
 {
     uint64_t stack_frame;
-    uint64_t *trace_buf = Trace_Buffer_Reserve(Trace_Get_SP_CB(),
-                                                SP_EXCEPTION_FRAME_SIZE);
+    uint64_t *trace_buf = Trace_Buffer_Reserve(Trace_Get_SP_CB(), SP_EXCEPTION_FRAME_SIZE);
     *trace_buf++ = timer_get_ticks_count();
     *trace_buf++ = TRACE_TYPE_EXCEPTION;
 
@@ -117,7 +117,7 @@ void bl2_dump_stack_frame(void)
         The trap handler saves the sp in the a7 and it is preserved till we reach
         the driver ISR handler.
     */
-    asm volatile ("mv %0, a7": "=r"(stack_frame));
+    asm volatile("mv %0, a7" : "=r"(stack_frame));
     dump_stack_frame((void *)stack_frame, trace_buf);
     dump_csrs(trace_buf);
 }
@@ -154,7 +154,6 @@ static void dump_stack_frame(const void *stack_frame, void *buf)
 
     /* dum stack frame on trace buffer */
     memcpy(trace_buf, stack_pointer, SP_EXCEPTION_STACK_FRAME_SIZE);
-
 }
 
 /************************************************************************
@@ -184,11 +183,11 @@ static void dump_csrs(void *buf)
     uint64_t mepc_reg;
     uint64_t mtval_reg;
 
-    asm volatile ("csrr %0, mcause\n"
-                "csrr %1, mstatus\n"
-                "csrr %2, mepc\n"
-                "csrr %3, mtval"
-                :"=r"(mcause_reg),"=r"(mstatus_reg),"=r"(mepc_reg), "=r"(mtval_reg));
+    asm volatile("csrr %0, mcause\n"
+                 "csrr %1, mstatus\n"
+                 "csrr %2, mepc\n"
+                 "csrr %3, mtval"
+                 : "=r"(mcause_reg), "=r"(mstatus_reg), "=r"(mepc_reg), "=r"(mtval_reg));
 
     /* log above reterived registers to trace */
     *trace_buf++ = mepc_reg;
@@ -218,14 +217,14 @@ static void dump_csrs(void *buf)
 *       none
 *
 ***********************************************************************/
-static void *dump_perf_globals_trace(void * buf)
+static void *dump_perf_globals_trace(void *buf)
 {
     uint64_t *trace_buf = (uint64_t *)buf;
     struct asic_frequencies_t asic_frequencies;
     struct dram_bw_t dram_bw;
     struct max_dram_bw_t max_dram_bw;
-    uint32_t pct_cap=0;
-    uint64_t last_ts=0;
+    uint32_t pct_cap = 0;
+    uint64_t last_ts = 0;
 
     if (0 != get_module_asic_frequencies(&asic_frequencies))
     {
@@ -237,7 +236,7 @@ static void *dump_perf_globals_trace(void * buf)
         memcpy(trace_buf, &dram_bw, sizeof(struct dram_bw_t));
         trace_buf += sizeof(struct dram_bw_t);
     }
-    if( 0 != get_module_max_dram_bw(&max_dram_bw))
+    if (0 != get_module_max_dram_bw(&max_dram_bw))
     {
         memcpy(trace_buf, &max_dram_bw, sizeof(struct max_dram_bw_t));
         trace_buf += sizeof(struct max_dram_bw_t);
@@ -277,55 +276,55 @@ static void *dump_perf_globals_trace(void * buf)
 static void dump_power_globals_trace(void *buf)
 {
     uint8_t *trace_buf = (uint8_t *)buf;
-    struct module_uptime_t module_uptime = {0};
-    struct module_voltage_t module_voltage = {0};
+    struct module_uptime_t module_uptime = { 0 };
+    struct module_voltage_t module_voltage = { 0 };
     power_state_e power_state = 0;
-    tdp_level_e tdp_level = 0;
-    uint64_t throttle_time=0;
-    uint8_t temp=0;
+    uint8_t tdp_level = 0;
+    uint64_t throttle_time = 0;
+    uint8_t temp = 0;
 
-    if(0 != get_module_power_state(&power_state))
+    if (0 != get_module_power_state(&power_state))
     {
         *trace_buf++ = power_state;
     }
-    if(0 != get_module_tdp_level(&tdp_level))
+    if (0 != get_module_tdp_level(&tdp_level))
     {
         *trace_buf++ = tdp_level;
     }
-    if(0 != get_module_current_temperature(&temp))
+    if (0 != get_module_current_temperature(&temp))
     {
         *trace_buf++ = temp;
     }
 
-    if(0 != get_module_soc_power(&temp))
+    if (0 != get_module_soc_power(&temp))
     {
         *trace_buf++ = temp;
     }
 
-    if(0 != get_soc_max_temperature(&temp))
+    if (0 != get_soc_max_temperature(&temp))
     {
         *trace_buf++ = temp;
     }
 
-    if(0 != get_module_uptime(&module_uptime))
+    if (0 != get_module_uptime(&module_uptime))
     {
         memcpy(trace_buf, &module_uptime, sizeof(struct module_uptime_t));
         trace_buf += sizeof(struct module_uptime_t);
     }
 
-    if(0 != get_module_voltage(&module_voltage))
+    if (0 != get_module_voltage(&module_voltage))
     {
         memcpy(trace_buf, &module_voltage, sizeof(struct module_voltage_t));
         trace_buf += sizeof(struct module_voltage_t);
     }
 
-    if(0 != get_throttle_time(&throttle_time))
+    if (0 != get_throttle_time(&throttle_time))
     {
         memcpy(trace_buf, &throttle_time, sizeof(uint64_t));
         trace_buf += sizeof(uint64_t);
     }
 
-    if(0 != get_max_throttle_time(&throttle_time))
+    if (0 != get_max_throttle_time(&throttle_time))
     {
         memcpy(trace_buf, &throttle_time, sizeof(uint64_t));
     }
@@ -360,7 +359,7 @@ void SP_Exception_Event(uint32_t buf)
     FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, timer_get_ticks_count(), buf)
 
     /* Post message to the queue */
-    if(0 != SP_Host_Iface_CQ_Push_Cmd((void *)&message, sizeof(message)))
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((void *)&message, sizeof(message)))
     {
         Log_Write(LOG_LEVEL_ERROR, "exception_event :  push to CQ failed!\n");
     }
