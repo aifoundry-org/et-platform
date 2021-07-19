@@ -490,6 +490,20 @@ bool DevicePcie::getTraceBufferServiceProcessor(int device, std::vector<std::byt
   return wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_EXTRACT_DEVICE_MGMT_TRACE_BUFFER, response.data());
 }
 
+int DevicePcie::updateFirmwareImage(int device, std::vector<unsigned char>& fwImage) {
+  if (!mngmtEnabled_) {
+    throw Exception("Can't use Service Processor operations if service processor port is not enabled");
+  }
+  if (device >= static_cast<int>(devices_.size())) {
+    throw Exception("Invalid device");
+  }
+  const auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
+  fw_update_desc fwUpdateInfo;
+  fwUpdateInfo.ubuf = fwImage.data();
+  fwUpdateInfo.size = fwImage.size();
+  return wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_FW_UPDATE, &fwUpdateInfo);
+}
+
 void* DevicePcie::allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) {
   if (device >= static_cast<int>(devices_.size())) {
     throw Exception("Invalid device");

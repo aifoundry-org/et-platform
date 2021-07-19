@@ -41,6 +41,7 @@ public:
   size_t getSubmissionQueueSizeMasterMinion(int device) const override;
   size_t getSubmissionQueueSizeServiceProcessor(int device) const override;
   bool getTraceBufferServiceProcessor(int device, std::vector<std::byte>& response) override;
+  int updateFirmwareImage(int device, std::vector<unsigned char>& fwImage) override;
   int getDmaAlignment() const override;
   uint64_t getDramSize() const override;
   uint64_t getDramBaseAddress() const override;

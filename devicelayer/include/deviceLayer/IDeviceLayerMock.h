@@ -40,5 +40,6 @@ public:
   MOCK_METHOD1(freeDmaBuffer, void(void*));
   MOCK_METHOD2(getTraceBufferServiceProcessor, bool(int, std::vector<std::byte>&));
   MOCK_METHOD1(getDeviceConfig, DeviceConfig(int));
+  MOCK_METHOD2(updateFirmwareImage, int(int, std::vector<unsigned char>&));
 };
 } // namespace dev

@@ -103,8 +103,13 @@ size_t DeviceSysEmu::getSubmissionQueueSizeServiceProcessor(int) const {
 }
 
 // Stub only since SysEmu is to be deprecated
-bool DeviceSysEmu::getTraceBufferServiceProcessor(int , std::vector<std::byte>&) {
+bool DeviceSysEmu::getTraceBufferServiceProcessor(int, std::vector<std::byte>&) {
   return false;
+}
+
+// Stub only since SysEmu is to be deprecated
+int DeviceSysEmu::updateFirmwareImage(int, std::vector<unsigned char>&) {
+  return 0;
 }
 
 DeviceSysEmu::DeviceSysEmu(const emu::SysEmuOptions& options) {

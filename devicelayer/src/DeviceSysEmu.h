@@ -65,7 +65,7 @@ public:
   void freeDmaBuffer(void* dmaBuffer) override;
   bool getTraceBufferServiceProcessor(int device, std::vector<std::byte>& response) override;
   DeviceConfig getDeviceConfig(int device) override;
-
+  int updateFirmwareImage(int device, std::vector<unsigned char>& fwImage) override;
 private:
   struct QueueInfo {
     uint64_t bufferAddress_;

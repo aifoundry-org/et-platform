@@ -172,6 +172,9 @@ public:
   DeviceConfig getDeviceConfig(int) override {
     return DeviceConfig{};
   }
+  int updateFirmwareImage(int device, std::vector<unsigned char>& fwImage) override {
+    return 0;
+  }
 };
 
 } // namespace dev

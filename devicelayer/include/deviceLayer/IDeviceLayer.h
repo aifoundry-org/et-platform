@@ -214,6 +214,15 @@ public:
   ///
   virtual bool getTraceBufferServiceProcessor(int device, std::vector<std::byte>& response) = 0;
 
+  /// \brief Writes firmware image on DRAM of given device
+  ///
+  /// @param[in] device indicating which device's DRAM to be written.
+  /// @param[in] firmware image to be written
+  ///
+  /// @returns bytes written
+  ///
+  virtual int updateFirmwareImage(int device, std::vector<unsigned char>& fwImage) = 0;
+
   /// \brief Returns the DMA alignment requirement
   ///
   /// @returns User DRAM alignment(in bits)
