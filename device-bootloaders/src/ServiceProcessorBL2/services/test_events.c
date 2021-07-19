@@ -21,7 +21,7 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
 {
     struct event_message_t message;
     uint64_t req_start_time = timer_get_ticks_count();
-    
+
     /* Generate PCIE Correctable Error */
     FILL_EVENT_HEADER(&message.header, PCIE_CE,
             sizeof(struct event_message_t) );
@@ -87,7 +87,13 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
              sizeof(struct event_message_t));
     FILL_EVENT_PAYLOAD(&message.payload, WARNING, 80, 2, 0);
     minion_event_callback(UNCORRECTABLE, &message);
- 
+
+    /* Generate runtime error */
+    FILL_EVENT_HEADER(&message.header, SP_RUNTIME_ERROR,
+             sizeof(struct event_message_t))
+    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, 2, 15)
+    minion_event_callback(UNCORRECTABLE, &message);
+
     struct device_mgmt_default_rsp_t dm_rsp;
 
     FILL_RSP_HEADER(dm_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, 0);

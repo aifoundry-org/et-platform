@@ -49,8 +49,6 @@ typedef struct log_cb {
     };
 } log_cb_t;
 
-
-
 /*! \var log_level_t Log_CB
     \brief Global variable that maintains the current log information
     \warning Not thread safe!
@@ -60,7 +58,6 @@ static log_cb_t Log_CB __attribute__((aligned(64))) =
 
 static SemaphoreHandle_t xSemaphore = NULL;
 static StaticSemaphore_t xMutexBuffer;
-
 
 /*! \def  PRINT_TO_SERIAL
     \brief Macro to print to serial output
@@ -373,11 +370,10 @@ static void update_runtime_error_count(void)
         struct event_message_t message;
 
         /* Add details in message header and fill payload */
-        FILL_EVENT_HEADER(&message.header, SP_RUNTIME_ERROR,
-                        sizeof(struct event_message_t) - sizeof(struct cmn_header_t))
+        FILL_EVENT_HEADER(&message.header, SP_RUNTIME_ERROR, sizeof(struct event_message_t))
 
         /* Fill in the syndrome 2 with the error count above the threshold */
-        FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, timer_get_ticks_count(), error_count - RT_ERROR_THRESHOLD);
+        FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, timer_get_ticks_count(), error_count - RT_ERROR_THRESHOLD)
 
         /* Send the event message to the host */
         if(0 != SP_Host_Iface_CQ_Push_Cmd((void *)&message, sizeof(message)))

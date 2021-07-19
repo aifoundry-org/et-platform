@@ -75,6 +75,6 @@ int32_t Log_Write_String(log_level_t level, const char *str, size_t length);
 /*! \def RT_ERROR_THRESHOLD
     \brief Predefined runtime error threshold.
 */
-#define RT_ERROR_THRESHOLD  10
+#define RT_ERROR_THRESHOLD  1  //TODO: Change it after bring up
 
 #endif /* LOG_DEFS_H */
