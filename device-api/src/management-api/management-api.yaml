@@ -146,28 +146,16 @@ Modules:
       Description: Power State of the ETSOC
       Type: uint8_t
       Values:
-        - Name: FULL
+        - Name: MAX_POWER
           Value: 0
-        - Name: REDUCED
+        - Name: MANAGED_POWER
           Value: 1
-        - Name: LOWEST
+        - Name: SAFE_POWER
           Value: 2
-        - Name: INVALID
+        - Name: LOW_POWER
           Value: 3
-    - Name: tdp_level
-      Description: Thermal Design power level
-      Type: uint8_t
-      Values:
-        - Name: ONE
-          Value: 0
-        - Name : TWO
-          Value : 1
-        - Name : THREE
-          Value : 2
-        - Name : FOUR
-          Value : 3
-        - Name : INVALID
-          Value : 4
+        - Name: INVALID
+          Value: 4
     - Name: module
       Description: Module type
       Type: uint8_t
@@ -656,8 +644,7 @@ Modules:
       Fields:
         - Name: tdp_level
           Description: TDP Level
-          Type: enum
-          Enum: tdp_level
+          Type: uint8_t
         - Name: pad[7]
           Description: Padding for alignment
           Type: uint8_t
@@ -668,8 +655,7 @@ Modules:
       Fields:
         - Name: tdp_level
           Description: TDP Level
-          Type: enum
-          Enum: tdp_level
+          Type: uint8_t
         - Name: pad[7]
           Description: Padding for alignment
           Type: uint8_t
