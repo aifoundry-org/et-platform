@@ -72,9 +72,4 @@ int32_t Log_Write_String(log_level_t level, const char *str, size_t length);
 
 #define ASSERT_LOG(log_level,msg,expr) if (!(expr)) Log_Write(log_level,"%s || File:%s Line:%d\r\n", msg, __FILE__, __LINE__)
 
-/*! \def RT_ERROR_THRESHOLD
-    \brief Predefined runtime error threshold.
-*/
-#define RT_ERROR_THRESHOLD  1  //TODO: Change it after bring up
-
 #endif /* LOG_DEFS_H */

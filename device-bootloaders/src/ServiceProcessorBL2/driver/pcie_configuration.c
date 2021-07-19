@@ -659,8 +659,8 @@ void pcie_error_threshold_isr(void)
 
         /* add details in message header and fill payload */
         FILL_EVENT_HEADER(&message.header, PCIE_UCE,
-                          sizeof(struct event_message_t) - sizeof(struct cmn_header_t));
-        FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 1024, 1, 0);
+                          sizeof(struct event_message_t))
+        FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 1024, 1, 0)
 
         /* call the callback function and post message */
         event_control_block.event_cb(CORRECTABLE, &message);

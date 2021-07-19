@@ -41,28 +41,28 @@ int32_t sram_disable_uce_interrupt(void)
     return  0;
 }
 
-int32_t sram_set_ce_threshold(uint32_t ce_threshold) 
+int32_t sram_set_ce_threshold(uint32_t ce_threshold)
 {
     /* set countable errors threshold */
     event_control_block.ce_threshold = ce_threshold;
     return 0;
 }
 
-int32_t sram_get_ce_count(uint32_t *ce_count) 
+int32_t sram_get_ce_count(uint32_t *ce_count)
 {
     /* get correctable errors count */
     *ce_count = event_control_block.ce_count;
     return 0;
 }
 
-int32_t sram_get_uce_count(uint32_t *uce_count) 
+int32_t sram_get_uce_count(uint32_t *uce_count)
 {
     /* get un-correctable errors count */
     *uce_count = event_control_block.uce_count;
     return 0;
 }
 
-void sram_error_threshold_isr(void) 
+void sram_error_threshold_isr(void)
 {
     /* TODO: This is just an example implementation.
        The final driver implementation will read these values from the
@@ -70,14 +70,14 @@ void sram_error_threshold_isr(void)
     */
 
     if (++event_control_block.ce_count > event_control_block.ce_threshold) {
-            
+
             struct event_message_t message;
 
-            /* add details in message header and fill payload */ 
+            /* add details in message header and fill payload */
             FILL_EVENT_HEADER(&message.header, SRAM_UCE,
-                    sizeof(struct event_message_t) - sizeof(struct cmn_header_t));
-            FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 1024, 1, 0);
-        
+                    sizeof(struct event_message_t))
+            FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 1024, 1, 0)
+
             /* call the callback function and post message */
             event_control_block.event_cb(CORRECTABLE, &message);
     }

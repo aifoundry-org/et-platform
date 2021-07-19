@@ -296,11 +296,17 @@
 */
 #define SAFE_STATE_FREQUENCY      400
 
-/*! \def DELTA_TEMP_UPDATE_PERIOD 
+/*! \def DELTA_TEMP_UPDATE_PERIOD
     \brief A macro that provides dTj/dt - time(uS) for Junction temperature to be updated
            This value needs to be characterized in Silicon
 */
 #define DELTA_TEMP_UPDATE_PERIOD  1000
+
+
+/*! \def RT_ERROR_THRESHOLD
+    \brief Predefined runtime error threshold.
+*/
+#define RT_ERROR_THRESHOLD  1  //TODO: Change it after bring up
 
 /************************/
 /* Compile-time checks  */

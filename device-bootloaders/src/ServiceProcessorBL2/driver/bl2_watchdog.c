@@ -272,7 +272,7 @@ void watchdog_isr(void)
         struct event_message_t message;
         /* add details in message header and fill payload */
         FILL_EVENT_HEADER(&message.header, SP_RUNTIME_HANG,
-                          sizeof(struct event_message_t) - sizeof(struct cmn_header_t))
+                          sizeof(struct event_message_t))
         FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, timer_get_ticks_count(), trace_buf)
         wdog_control_block.event_cb(CORRECTABLE, &message);
     }
