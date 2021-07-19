@@ -1339,13 +1339,13 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44(bool singleDevice) {
   ssize_t size = 0;
   int result = 0;
   int mode = O_RDONLY | O_NONBLOCK;
-  const int max_err_types = 12;
+  const int max_err_types = 13;
   std::string line;
   std::string err_types[max_err_types] = {
     "PCIe Correctable Error",        "PCIe Un-Correctable Error",  "DRAM Correctable Error",
     "DRAM Un-Correctable Error",     "SRAM Correctable Error",     "SRAM Un-Correctable Error",
     "Temperature Overshoot Warning", "Power Management IC Errors", "Thermal Throttling Error",
-    "Compute Minion Exception",      "Compute Minion Hang", "SP Runtime Error"};
+    "Compute Minion Exception",      "Compute Minion Hang",        "SP Runtime Error", "SP Runtime Exception"};
 
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
@@ -1359,6 +1359,7 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44(bool singleDevice) {
     fd = open("/dev/kmsg", mode);
     lseek(fd, 0, SEEK_END);
     DM_LOG(INFO) << "waiting for error events...\n";
+    
     // Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
     const uint32_t output_size = sizeof(uint32_t);
     char output_buff[output_size] = {0};
@@ -1386,10 +1387,10 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44(bool singleDevice) {
 
     do {
       do {
-        buff[0] = '\0';
+        memset(buff,0,BUFSIZ);
         size = read(fd, buff, BUFSIZ - 1);
       } while (size < 0 && errno == EPIPE);
-
+      
       line.assign(buff);
       for (i = 0; i < max_err_types; i++) {
         if (std::string::npos != line.find(err_types[i])) {
@@ -1408,8 +1409,8 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44(bool singleDevice) {
 
     close(fd);
 
-    // Eleven events, and each should match once
-    ASSERT_EQ(result, 12);
+    // all events should match once
+    ASSERT_EQ(result, max_err_types);
   }
 }
 
