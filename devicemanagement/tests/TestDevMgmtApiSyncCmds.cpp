@@ -1330,13 +1330,13 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44(bool singleDevice) {
   ssize_t size = 0;
   int result = 0;
   int mode = O_RDONLY | O_NONBLOCK;
-  const int max_err_types = 11;
+  const int max_err_types = 12;
   std::string line;
   std::string err_types[max_err_types] = {
     "PCIe Correctable Error",        "PCIe Un-Correctable Error",  "DRAM Correctable Error",
     "DRAM Un-Correctable Error",     "SRAM Correctable Error",     "SRAM Un-Correctable Error",
     "Temperature Overshoot Warning", "Power Management IC Errors", "Thermal Throttling Error",
-    "Compute Minion Exception",      "Compute Minion Hang"};
+    "Compute Minion Exception",      "Compute Minion Hang", "SP Runtime Error"};
 
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
@@ -1400,7 +1400,7 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44(bool singleDevice) {
     close(fd);
 
     // Eleven events, and each should match once
-    ASSERT_EQ(result, 11);
+    ASSERT_EQ(result, 12);
   }
 }
 
