@@ -42,11 +42,12 @@ def test_at_serial_number():
     print('Asset Tracking Serial Number ..')
     check_asset_tracking("TF_CMD_AT_SERIAL_NUMBER", "ser_num", "ETSER_1")
 
-def test_at_chip_revision():
-    print('Asset Tracking Chip Revision ..')
-    # TODO: fix expected value when the test is ported over to zebu
-    #       probably true for most of the AT tests
-    check_asset_tracking("TF_CMD_AT_CHIP_REVISION", "chip_rev", "")
+# TODO: This is only supported for ZEBU. Port this for ZEBU
+#def test_at_chip_revision():
+#    print('Asset Tracking Chip Revision ..')
+#    # TODO: fix expected value when the test is ported over to zebu
+#    #       probably true for most of the AT tests
+#    check_asset_tracking("TF_CMD_AT_CHIP_REVISION", "chip_rev", "")
 
 def test_at_pcie_max_speed():
     print('Asset Tracking PCIe Max Speed ..')
