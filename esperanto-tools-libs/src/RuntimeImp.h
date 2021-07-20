@@ -96,19 +96,6 @@ private:
     uint64_t entryPoint_;
   };
 
-  struct QueueHelper {
-    explicit QueueHelper(int count)
-      : queueCount_(count) {
-    }
-    int nextQueue() {
-      auto res = nextQueue_;
-      nextQueue_ = (nextQueue_ + 1) % queueCount_;
-      return res;
-    }
-    int nextQueue_ = 0;
-    const int queueCount_;
-  };
-
   struct DeviceFwTracing {
     DmaBuffer dmaBuffer_;
     std::ostream* mmOutput_;
@@ -143,7 +130,6 @@ private:
 
   dev::IDeviceLayer* deviceLayer_;
   std::vector<DeviceId> devices_;
-  std::vector<QueueHelper> queueHelpers_;
   std::unordered_map<DeviceId, MemoryManager> memoryManagers_;
   std::unordered_map<DeviceId, std::unique_ptr<DmaBufferManager>> dmaBufferManagers_;
   std::unordered_map<DeviceId, DeviceFwTracing> deviceTracing_;

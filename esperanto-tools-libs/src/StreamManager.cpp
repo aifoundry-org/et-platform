@@ -69,3 +69,12 @@ void StreamManager::removeEvent(EventId event) {
   RT_LOG(WARNING) << "Trying to remove a non-existing event: " << static_cast<uint32_t>(event)
                   << ". Perhaps the associated Stream was already destroyed";
 }
+
+std::optional<EventId> StreamManager::getLastEvent(StreamId stream) const {
+  std::lock_guard lock(mutex_);
+  auto& events = find(streams_, stream)->second.submittedEvents_;
+  if (!events.empty()) {
+    return *rbegin(events);
+  }
+  return {};
+}

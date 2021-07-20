@@ -47,8 +47,9 @@ RuntimeImp::~RuntimeImp() {
 RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
   : deviceLayer_(deviceLayer) {
   for (int i = 0; i < deviceLayer_->getDevicesCount(); ++i) {
-    devices_.emplace_back(DeviceId{i});
-    queueHelpers_.emplace_back(QueueHelper{deviceLayer->getSubmissionQueuesCount(i)});
+    auto id = DeviceId{i};
+    devices_.emplace_back(id);
+    streamManager_.addDevice(id, deviceLayer->getSubmissionQueuesCount(i));
   }
   auto dramBaseAddress = deviceLayer_->getDramBaseAddress();
   auto dramSize = deviceLayer_->getDramSize();
@@ -159,8 +160,7 @@ void RuntimeImp::freeDevice(DeviceId device, void* buffer) {
   RT_LOG(INFO) << "Free at device: " << static_cast<std::underlying_type_t<DeviceId>>(device)
                << " buffer address: " << std::hex << buffer;
   std::lock_guard lock(mutex_);
-  auto it = find(memoryManagers_, device);
-  it->second.free(buffer);
+  find(memoryManagers_, device)->second.free(buffer);
 }
 
 StreamId RuntimeImp::createStream(DeviceId device) {
@@ -178,13 +178,9 @@ void RuntimeImp::destroyStream(StreamId stream) {
 EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void* d_dst, size_t size, bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, profiler_, stream);
   std::unique_lock lock(mutex_);
-  std::unique_lock lock2(streamsMutex_);
-  auto& st = find(streams_, stream)->second;
-
+  auto streamInfo = streamManager_.getStreamInfo(stream);
   auto evt = eventManager_.getNextId();
-  st.addEvent(evt);
-  auto device = st.deviceId_;
-  lock2.unlock();
+  streamManager_.addEvent(stream, evt);
 
   // TODO this is using a wrong command; to be fixed when implementing the DMA list:
   // https://esperantotech.atlassian.net/browse/SW-7830
@@ -193,7 +189,7 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
   cmd.dst_device_phy_addr = reinterpret_cast<uint64_t>(d_dst);
 
   // first check if its a DmaBuffer
-  auto dmaBufferManager = find(dmaBufferManagers_, device)->second.get();
+  auto dmaBufferManager = find(dmaBufferManagers_, streamInfo.device_)->second.get();
   RT_VLOG(LOW) << "MemcpyHostToDevice stream: " << static_cast<std::underlying_type_t<StreamId>>(stream) << std::hex
                << " Host address: " << h_src << " Device address: " << cmd.dst_device_phy_addr << " Size: " << size;
   if (dmaBufferManager->isDmaBuffer(reinterpret_cast<const std::byte*>(h_src))) {
@@ -224,7 +220,7 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
   cmd.command_info.cmd_hdr.size = sizeof(cmd);
   if (barrier)
     cmd.command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
-  sendCommandMasterMinion(st.vq_, static_cast<int>(device), cmd, lock, true);
+  sendCommandMasterMinion(streamInfo.vq_, streamInfo.device_, cmd, lock, true);
   profileEvent.setEventId(evt);
   Sync(evt);
   return evt;
@@ -236,14 +232,10 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
   RT_VLOG(LOW) << "MemcpyDeviceToHost stream: " << static_cast<std::underlying_type_t<StreamId>>(stream) << std::hex
                << " Host address: " << h_dst << " Device address: " << d_src << " Size: " << size;
   std::unique_lock lock(mutex_);
-  std::unique_lock lock2(streamsMutex_);
-  auto it = find(streams_, stream);
 
   auto evt = eventManager_.getNextId();
-  auto& st = it->second;
-  st.addEvent(evt);
-  auto device = st.deviceId_;
-  lock2.unlock();
+  auto streamInfo = streamManager_.getStreamInfo(stream);
+  streamManager_.addEvent(stream, evt);
 
   // TODO this is using a wrong command; to be fixed when implementing the DMA list:
   // https://esperantotech.atlassian.net/browse/SW-7830
@@ -258,40 +250,30 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
     cmd.command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
 
   // first check if its a DmaBuffer
-  auto dmaBufferManager = find(dmaBufferManagers_, device)->second.get();
+  auto dmaBufferManager = find(dmaBufferManagers_, DeviceId{streamInfo.device_})->second.get();
   if (dmaBufferManager->isDmaBuffer(reinterpret_cast<std::byte*>(h_dst))) {
     cmd.dst_host_virt_addr = cmd.dst_host_phy_addr = reinterpret_cast<uint64_t>(h_dst);
-    sendCommandMasterMinion(st.vq_, static_cast<int>(device), cmd, lock, true);
+    sendCommandMasterMinion(streamInfo.vq_, streamInfo.device_, cmd, lock, true);
   } else {
     // if not, allocate a buffer, and copy the results from it to h_dst
     auto tmpBuffer = dmaBufferManager->allocate(size, false);
     RT_VLOG(LOW) << std::hex << "Staging memory transfer into a DmaBuffer to enable DMA. Dma address (actual address): "
                  << tmpBuffer.getPtr();
     cmd.dst_host_virt_addr = cmd.dst_host_phy_addr = reinterpret_cast<uint64_t>(tmpBuffer.getPtr());
-    sendCommandMasterMinion(st.vq_, static_cast<int>(device), cmd, lock, true);
+    sendCommandMasterMinion(streamInfo.vq_, streamInfo.device_, cmd, lock, true);
 
     // TODO: There are many ways to optimize this, future work.
     // replace the event (because we need to do the copy before dispatching the final event to the user)
     auto memcpyEvt = evt;
     evt = eventManager_.getNextId();
+    streamManager_.addEvent(stream, evt);
 
-    // we look again for the stream because its possible that the stream got destroyed and we should throw an exception
-    // in that case
-    lock2.lock();
-    find(streams_, stream)->second.addEvent(evt);
-    lock.unlock();
     auto t = std::thread([this, memcpyEvt, size, evt, h_dst, tmpBuffer = std::move(tmpBuffer)]() mutable {
       // first wait till the copy ends
       waitForEvent(memcpyEvt);
       // copy results to user buffer
       std::copy(tmpBuffer.getPtr(), tmpBuffer.getPtr() + size, reinterpret_cast<std::byte*>(h_dst));
-      std::unique_lock slock(streamsMutex_);
-      for ([[maybe_unused]] auto& [key, s] : streams_) {
-        if (s.removeEvent(evt)) {
-          break;
-        }
-      }
-      slock.unlock();
+      streamManager_.removeEvent(evt);
       // dispatch the event
       eventManager_.dispatch(evt);
     });
@@ -321,37 +303,18 @@ bool RuntimeImp::waitForEvent(EventId event, std::chrono::milliseconds timeout) 
 
 bool RuntimeImp::waitForStream(StreamId stream, std::chrono::milliseconds timeout) {
   ScopedProfileEvent profileEvent(Class::WaitForStream, profiler_, stream);
-  bool done = false;
-  while (!done) {
-    std::unique_lock lock(streamsMutex_);
-    const auto& st = find(streams_, stream, "Invalid stream")->second;
-    if (st.submittedEvents_.empty()) {
-      done = true;
-    } else {
-      auto e = *st.submittedEvents_.rbegin();
-      RT_VLOG(LOW) << "WaitForStream: Waiting for event " << static_cast<int>(e);
-      lock.unlock();
-      auto res = waitForEvent(e, timeout);
-      if (!res) {
+  while (true) {
+    auto lastEvent = streamManager_.getLastEvent(stream);
+
+    if (lastEvent) {
+      RT_VLOG(LOW) << "WaitForStream: Waiting for event " << static_cast<int>(lastEvent.value());
+      if (!waitForEvent(lastEvent.value(), timeout)) {
         return false;
       }
+    } else {
+      return true;
     }
   }
-  return true;
-}
-
-std::vector<int> RuntimeImp::getDevicesWithEventsOnFly() const {
-  auto events = eventManager_.getOnflyEvents();
-  std::vector<int> busyDevices;
-  std::lock_guard lock(streamsMutex_);
-  for (auto& [key, s] : streams_) {
-    (void)(key);
-    if (std::find(begin(busyDevices), end(busyDevices), static_cast<int>(s.deviceId_)) == end(busyDevices) &&
-        !s.submittedEvents_.empty()) {
-      busyDevices.emplace_back(static_cast<int>(s.deviceId_));
-    }
-  }
-  return busyDevices;
 }
 
 void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
@@ -425,12 +388,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
   }
   }
   profiler_.record(event);
-  std::unique_lock lock(streamsMutex_);
-  for ([[maybe_unused]] auto& [key, s] : streams_) {
-    if (s.removeEvent(eventId)) {
-      break;
-    }
-  }
+  streamManager_.removeEvent(eventId);
   eventManager_.dispatch(eventId);
 }
 
@@ -444,13 +402,10 @@ EventId RuntimeImp::setupDeviceTracing(StreamId stream, uint32_t shireMask, uint
                                        uint32_t filterMask, bool barrier) {
 
   std::unique_lock lock(mutex_);
-  std::unique_lock lock2(streamsMutex_);
-  auto it = find(streams_, stream);
 
+  auto streamInfo = streamManager_.getStreamInfo(stream);
   auto evt = eventManager_.getNextId();
-  auto& st = it->second;
-  st.addEvent(evt);
-  lock2.unlock();
+  streamManager_.addEvent(stream, evt);
 
   device_ops_api::device_ops_trace_rt_config_cmd_t cmd;
   std::memset(&cmd, 0, sizeof(cmd));
@@ -463,7 +418,7 @@ EventId RuntimeImp::setupDeviceTracing(StreamId stream, uint32_t shireMask, uint
   cmd.command_info.cmd_hdr.size = sizeof(cmd);
   if (barrier)
     cmd.command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
-  sendCommandMasterMinion(st.vq_, static_cast<int>(st.deviceId_), cmd, lock, false);
+  sendCommandMasterMinion(streamInfo.vq_, streamInfo.device_, cmd, lock, false);
   Sync(evt);
   return evt;
 }
@@ -473,15 +428,11 @@ EventId RuntimeImp::startDeviceTracing(StreamId stream, std::ostream* mmOutput, 
   if (!mmOutput && !cmOutput) {
     throw Exception("At least one output stream must be provided in order to record traces");
   }
-  std::unique_lock lock2(streamsMutex_);
-  auto& st = find(streams_, stream)->second;
-
+  auto streamInfo = streamManager_.getStreamInfo(stream);
   auto evt = eventManager_.getNextId();
+  streamManager_.addEvent(stream, evt);
 
-  st.addEvent(evt);
-  lock2.unlock();
-  auto device = st.deviceId_;
-  auto& deviceTracing = find(deviceTracing_, device)->second;
+  auto& deviceTracing = find(deviceTracing_, DeviceId{streamInfo.device_})->second;
 
   device_ops_api::device_ops_trace_rt_control_cmd_t cmd;
   std::memset(&cmd, 0, sizeof(cmd));
@@ -497,7 +448,7 @@ EventId RuntimeImp::startDeviceTracing(StreamId stream, std::ostream* mmOutput, 
   cmd.command_info.cmd_hdr.size = sizeof(cmd);
   if (barrier)
     cmd.command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
-  sendCommandMasterMinion(st.vq_, static_cast<int>(st.deviceId_), cmd, lock, false);
+  sendCommandMasterMinion(streamInfo.vq_, streamInfo.device_, cmd, lock, false);
   deviceTracing.cmOutput_ = cmOutput;
   deviceTracing.mmOutput_ = mmOutput;
   Sync(evt);
@@ -506,14 +457,11 @@ EventId RuntimeImp::startDeviceTracing(StreamId stream, std::ostream* mmOutput, 
 
 EventId RuntimeImp::stopDeviceTracing(StreamId stream, bool barrier) {
   std::unique_lock lock(mutex_);
-  std::unique_lock lock2(streamsMutex_);
-  auto& st = find(streams_, stream)->second;
 
+  auto streamInfo = streamManager_.getStreamInfo(stream);
   auto evt = eventManager_.getNextId();
-  st.addEvent(evt);
-  auto device = st.deviceId_;
-  lock2.unlock();
-  auto& deviceTracing = find(deviceTracing_, device)->second;
+  streamManager_.addEvent(stream, evt);
+  auto& deviceTracing = find(deviceTracing_, DeviceId{streamInfo.device_})->second;
 
   device_ops_api::device_ops_data_read_cmd_t cmd;
   std::memset(&cmd, 0, sizeof(cmd));
@@ -533,15 +481,13 @@ EventId RuntimeImp::stopDeviceTracing(StreamId stream, bool barrier) {
   }
   cmd.dst_host_virt_addr = cmd.dst_host_phy_addr = reinterpret_cast<uint64_t>(deviceTracing.dmaBuffer_.getPtr());
 
-  sendCommandMasterMinion(st.vq_, static_cast<int>(st.deviceId_), cmd, lock, true);
+  sendCommandMasterMinion(streamInfo.vq_, streamInfo.device_, cmd, lock, true);
 
   // TODO: There are many ways to optimize this, future work.
   // replace the event (because we need to do the copy before dispatching the final event to the user)
   auto memcpyEvt = evt;
   evt = eventManager_.getNextId();
-  lock2.lock();
-  find(streams_, stream)->second.addEvent(evt);
-  lock2.unlock();
+  streamManager_.addEvent(stream, evt);
   auto t = std::thread([this, memcpyEvt, dmaPtr = deviceTracing.dmaBuffer_.getPtr(), mmOut = deviceTracing.mmOutput_,
                         cmOut = deviceTracing.cmOutput_, evt]() mutable {
     // first wait till the copy ends
@@ -554,13 +500,7 @@ EventId RuntimeImp::stopDeviceTracing(StreamId stream, bool barrier) {
     if (cmOut) {
       cmOut->write(reinterpret_cast<const char*>(dmaPtr), kTracingFwCmSize);
     }
-    std::unique_lock slock(streamsMutex_);
-    for ([[maybe_unused]] auto& [key, s] : streams_) {
-      if (s.removeEvent(evt)) {
-        break;
-      }
-    }
-    slock.unlock();
+    streamManager_.removeEvent(evt);
     eventManager_.dispatch(evt);
   });
   t.detach();

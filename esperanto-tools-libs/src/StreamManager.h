@@ -63,9 +63,10 @@ class StreamManager {
 public:
   Stream::Info getStreamInfo(StreamId stream) const;
   StreamId createStream(DeviceId device);
-  void destroyStream(StreamId device);
+  void destroyStream(StreamId stream);
   bool hasEventsOnFly(DeviceId device) const;
   void addDevice(DeviceId, int queueCount);
+  std::optional<EventId> getLastEvent(StreamId stream) const;
 
   void addEvent(StreamId stream, EventId event);
   void removeEvent(EventId event);
