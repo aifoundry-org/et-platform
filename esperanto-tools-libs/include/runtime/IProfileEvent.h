@@ -131,12 +131,9 @@ private:
 } // end namespace profiling
 } // end namespace rt
 
-namespace std {
-std::string to_string(rt::profiling::Class cls);
-std::string to_string(rt::profiling::Type type);
-} // namespace std
-
 namespace rt::profiling {
+std::string getString(rt::profiling::Class cls);
+std::string getString(rt::profiling::Type type);
 
 template <typename Archive> void serialize(Archive& ar, rt::EventId& id) {
   ar(cereal::make_nvp("event_id", id));
@@ -176,8 +173,8 @@ template <class Archive> void load(Archive& ar, ProfileEvent& evt) {
 }
 
 template <class Archive> void save(Archive& ar, const ProfileEvent& evt) {
-  ar(cereal::make_nvp("type", std::to_string(evt.getType())));
-  ar(cereal::make_nvp("class", std::to_string(evt.getClass())));
+  ar(cereal::make_nvp("type", getString(evt.getType())));
+  ar(cereal::make_nvp("class", getString(evt.getClass())));
   ar(cereal::make_nvp("timeStamp", evt.getTimeStamp()));
   ar(cereal::make_nvp("thread_id", evt.getThreadId()));
   ar(cereal::make_nvp("extra", evt.getExtras()));

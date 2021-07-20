@@ -13,10 +13,10 @@
 #include <hostUtils/logging/Logging.h>
 #include <string>
 namespace rt {
-template <typename Container, typename Key> auto find(Container& c, Key&& k, std::string error = "Not found") {
+template <typename Container, typename Key> auto find(Container& c, Key&& k, const std::string& error = "Not found") {
   auto it = c.find(std::forward<Key>(k));
   if (it == end(c)) {
-    throw Exception(std::move(error));
+    throw Exception(error);
   }
   return it;
 }
