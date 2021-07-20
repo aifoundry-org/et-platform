@@ -78,7 +78,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
   cmd.pointer_to_args = kernel_args_size > 0 ? reinterpret_cast<uint64_t>(pBuffer->deviceBuffer_) : 0;
   cmd.shire_mask = shire_mask;
 
-  RT_VLOG(LOW) << "Pushing kernel Launch Command on SQ: " << stream.vq_ << " Tag id: " << std::hex
+  RT_VLOG(LOW) << "Pushing kernel Launch Command on SQ: " << streamInfo.vq_ << " Tag id: " << std::hex
                << cmd.command_info.cmd_hdr.tag_id << ", parameters: " << cmd.pointer_to_args
                << ", PC: " << cmd.code_start_address << ", shire_mask: " << shire_mask;
   sendCommandMasterMinion(streamInfo.vq_, streamInfo.device_, cmd, lock);

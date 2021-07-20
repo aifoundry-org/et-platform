@@ -43,7 +43,7 @@ void EventManager::dispatch(EventId event) {
 
     throw Exception("Couldn't dispatch event: " + std::to_string(static_cast<int>(event)) +
                     ". Perhaps it was already dispatched?");
-  };
+  }
 
   auto it = blockedThreads_.find(event);
   if (it != end(blockedThreads_)) {

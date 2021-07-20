@@ -54,15 +54,15 @@ TEST(StreamsLifeCycle, create_and_destroy_10k_streams) {
   }
   // check these are the same as inside the runtime
   auto rt = static_cast<RuntimeImp*>(runtime.get());
-  EXPECT_EQ(rt->streams_.size(), streams_.size());
+  EXPECT_EQ(rt->streamManager_.streams_.size(), streams_.size());
   for (auto s : streams_) {
-    EXPECT_NE(rt->streams_.find(s), end(rt->streams_));
+    EXPECT_NE(rt->streamManager_.streams_.find(s), end(rt->streamManager_.streams_));
   }
   // destroy all streams and expect there are no streams inside the runtime
   for (auto s : streams_) {
     runtime->destroyStream(s);
   }
-  EXPECT_TRUE(rt->streams_.empty());
+  EXPECT_TRUE(rt->streamManager_.streams_.empty());
 }
 
 int main(int argc, char** argv) {

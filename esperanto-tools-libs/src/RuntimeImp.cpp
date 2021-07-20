@@ -189,7 +189,7 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
   cmd.dst_device_phy_addr = reinterpret_cast<uint64_t>(d_dst);
 
   // first check if its a DmaBuffer
-  auto dmaBufferManager = find(dmaBufferManagers_, streamInfo.device_)->second.get();
+  auto dmaBufferManager = find(dmaBufferManagers_, DeviceId{streamInfo.device_})->second.get();
   RT_VLOG(LOW) << "MemcpyHostToDevice stream: " << static_cast<std::underlying_type_t<StreamId>>(stream) << std::hex
                << " Host address: " << h_src << " Device address: " << cmd.dst_device_phy_addr << " Size: " << size;
   if (dmaBufferManager->isDmaBuffer(reinterpret_cast<const std::byte*>(h_src))) {
@@ -512,4 +512,14 @@ EventId RuntimeImp::stopDeviceTracing(StreamId stream, bool barrier) {
 void RuntimeImp::setMemoryManagerDebugMode(DeviceId device, bool enable) {
   RT_LOG(INFO) << "Setting memory manager debug mode: " << (enable ? "True" : "False");
   find(memoryManagers_, device)->second.setDebugMode(enable);
+}
+
+std::vector<int> RuntimeImp::getDevicesWithEventsOnFly() const {
+  std::vector<int> result;
+  std::for_each(begin(devices_), end(devices_), [this, &result](const auto& device) {
+    if (streamManager_.hasEventsOnFly(device)) {
+      result.emplace_back(static_cast<int>(device));
+    }
+  });
+  return result;
 }

@@ -38,9 +38,10 @@ KernelParametersCache::KernelParametersCache(IRuntime* runtime, int initialFreeL
   , bufferSize_(bufferSize) {
   auto devices = runtime->getDevices();
   for (auto dev : devices) {
-    auto it = freeBuffers_.emplace(dev, std::vector<Buffer*>{});
-    assert(it.second);
-    auto&& list = it.first->second;
+    auto [it, res] = freeBuffers_.try_emplace(dev, std::vector<Buffer*>{});
+    (void)res;
+    assert(res);
+    auto&& list = it->second;
     for (int i = 0; i < initialFreeListSize; ++i) {
       buffers_.emplace_back(std::make_unique<Buffer>(dev, runtime_, bufferSize_));
       list.emplace_back(buffers_.back().get());
@@ -57,7 +58,9 @@ Buffer* KernelParametersCache::allocBuffer(DeviceId deviceId) {
     list.emplace_back(buffers_.back().get());
   }
   auto result = list.back();
-  [[maybe_unused]] auto [insertion, res] = allocBuffers_.insert(result);
+  auto [insertion, res] = allocBuffers_.insert(result);
+  (void)insertion;
+  (void)res;
   assert(res);
   list.pop_back();
   return result;
@@ -67,7 +70,9 @@ void KernelParametersCache::reserveBuffer(EventId event, Buffer* buffer) {
   RT_VLOG(HIGH) << "Reserving buffer " << buffer << " for event " << static_cast<int>(event);
   std::lock_guard lock(mutex_);
   auto it = find(allocBuffers_, buffer, "Trying to reserve a buffer which wasn't allocated previously");
-  [[maybe_unused]] auto [insertion, res] = reservedBuffers_.emplace(event, *it);
+  auto [insertion, res] = reservedBuffers_.emplace(event, *it);
+  (void)insertion;
+  (void)res;
   assert(res);
   allocBuffers_.erase(it);
 }
