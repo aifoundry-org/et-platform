@@ -37,11 +37,9 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
     throw Exception(buffer);
   }
 
-  std::unique_lock lock2(streamsMutex_);
-  const auto& stream = find(streams_, streamId)->second;
-  lock2.unlock();
+  auto streamInfo = streamManager_.getStreamInfo(streamId);
 
-  if (stream.deviceId_ != kernel->deviceId_) {
+  if (DeviceId{streamInfo.device_} != kernel->deviceId_) {
     throw Exception("Can't execute stream and kernel associated to a different device");
   }
 
@@ -55,9 +53,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
     memcpyHostToDevice(streamId, pBuffer->hostBuffer_.data(), pBuffer->deviceBuffer_, kernel_args_size, false);
   }
   auto event = eventManager_.getNextId();
-  lock2.lock();
-  find(streams_, streamId)->second.addEvent(event);
-  lock2.unlock();
+  streamManager_.addEvent(streamId, event);
   if (kernel_args_size > 0) {
     kernelParametersCache_->reserveBuffer(event, pBuffer);
   }
@@ -85,7 +81,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
   RT_VLOG(LOW) << "Pushing kernel Launch Command on SQ: " << stream.vq_ << " Tag id: " << std::hex
                << cmd.command_info.cmd_hdr.tag_id << ", parameters: " << cmd.pointer_to_args
                << ", PC: " << cmd.code_start_address << ", shire_mask: " << shire_mask;
-  sendCommandMasterMinion(stream.vq_, static_cast<int>(stream.deviceId_), cmd, lock);
+  sendCommandMasterMinion(streamInfo.vq_, streamInfo.device_, cmd, lock);
   profileEvent.setEventId(event);
 
   Sync(event);
