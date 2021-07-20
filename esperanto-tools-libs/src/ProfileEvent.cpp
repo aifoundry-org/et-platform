@@ -21,8 +21,7 @@
 #include <string>
 #include <thread>
 
-namespace std {
-std::string to_string(rt::profiling::Class cls) {
+std::string getString(rt::profiling::Class cls) {
   using event = rt::profiling::Class;
   switch (cls) {
   case event::GetDevices:
@@ -61,7 +60,7 @@ std::string to_string(rt::profiling::Class cls) {
   }
 }
 
-std::string to_string(rt::profiling::Type type) {
+std::string getString(rt::profiling::Type type) {
   using Type = rt::profiling::Type;
   switch (type) {
   case Type::Start:
@@ -77,7 +76,6 @@ std::string to_string(rt::profiling::Type type) {
     return "Unknown type";
   }
 }
-} // end namespace std
 
 namespace rt::profiling {
 
@@ -85,21 +83,21 @@ Class class_from_string(const std::string& str) {
   static std::once_flag s_once_flag;
   static std::unordered_map<std::string, Class> s_map;
   std::call_once(s_once_flag, []() {
-    s_map[std::to_string(Class::GetDevices)] = Class::GetDevices;
-    s_map[std::to_string(Class::LoadCode)] = Class::LoadCode;
-    s_map[std::to_string(Class::UnloadCode)] = Class::UnloadCode;
-    s_map[std::to_string(Class::MallocDevice)] = Class::MallocDevice;
-    s_map[std::to_string(Class::FreeDevice)] = Class::FreeDevice;
-    s_map[std::to_string(Class::CreateStream)] = Class::CreateStream;
-    s_map[std::to_string(Class::DestroyStream)] = Class::DestroyStream;
-    s_map[std::to_string(Class::KernelLaunch)] = Class::KernelLaunch;
-    s_map[std::to_string(Class::MemcpyHostToDevice)] = Class::MemcpyHostToDevice;
-    s_map[std::to_string(Class::MemcpyDeviceToHost)] = Class::MemcpyDeviceToHost;
-    s_map[std::to_string(Class::WaitForEvent)] = Class::WaitForEvent;
-    s_map[std::to_string(Class::WaitForStream)] = Class::WaitForStream;
-    s_map[std::to_string(Class::DeviceCommand)] = Class::DeviceCommand;
-    s_map[std::to_string(Class::KernelTimestamps)] = Class::KernelTimestamps;
-    s_map[std::to_string(Class::Pmc)] = Class::Pmc;
+    s_map[getString(Class::GetDevices)] = Class::GetDevices;
+    s_map[getString(Class::LoadCode)] = Class::LoadCode;
+    s_map[getString(Class::UnloadCode)] = Class::UnloadCode;
+    s_map[getString(Class::MallocDevice)] = Class::MallocDevice;
+    s_map[getString(Class::FreeDevice)] = Class::FreeDevice;
+    s_map[getString(Class::CreateStream)] = Class::CreateStream;
+    s_map[getString(Class::DestroyStream)] = Class::DestroyStream;
+    s_map[getString(Class::KernelLaunch)] = Class::KernelLaunch;
+    s_map[getString(Class::MemcpyHostToDevice)] = Class::MemcpyHostToDevice;
+    s_map[getString(Class::MemcpyDeviceToHost)] = Class::MemcpyDeviceToHost;
+    s_map[getString(Class::WaitForEvent)] = Class::WaitForEvent;
+    s_map[getString(Class::WaitForStream)] = Class::WaitForStream;
+    s_map[getString(Class::DeviceCommand)] = Class::DeviceCommand;
+    s_map[getString(Class::KernelTimestamps)] = Class::KernelTimestamps;
+    s_map[getString(Class::Pmc)] = Class::Pmc;
   });
 
   return s_map[str];
@@ -109,10 +107,10 @@ Type type_from_string(const std::string& str) {
   static std::once_flag s_once_flag;
   static std::unordered_map<std::string, Type> s_map;
   std::call_once(s_once_flag, []() {
-    s_map[std::to_string(Type::Start)] = Type::Start;
-    s_map[std::to_string(Type::End)] = Type::End;
-    s_map[std::to_string(Type::Complete)] = Type::Complete;
-    s_map[std::to_string(Type::Instant)] = Type::Instant;
+    s_map[getString(Type::Start)] = Type::Start;
+    s_map[getString(Type::End)] = Type::End;
+    s_map[getString(Type::Complete)] = Type::Complete;
+    s_map[getString(Type::Instant)] = Type::Instant;
   });
   return s_map[str];
 }

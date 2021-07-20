@@ -24,11 +24,14 @@ public:
     virtual void onResponseReceived(const std::vector<std::byte>& response) = 0;
   };
   explicit ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServices* receiverServices);
+
   ~ResponseReceiver();
 
 private:
+  void threadFunction();
+
   std::thread receiver_;
-  std::atomic<bool> run_;
+  std::atomic<bool> run_ = true;
   dev::IDeviceLayer* deviceLayer_;
   IReceiverServices* receiverServices_;
 };

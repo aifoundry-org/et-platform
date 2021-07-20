@@ -26,37 +26,38 @@ using namespace std::chrono_literals;
 constexpr auto kPollingInterval = 10ms;
 } // namespace
 
-ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServices* receiverServices)
-  : run_(true)
-  , deviceLayer_(deviceLayer)
-  , receiverServices_(receiverServices) {
+void ResponseReceiver::threadFunction() {
+  // Max ioctl size is 14b
+  constexpr uint32_t kMaxMsgSize = (1ul << 14) - 1;
 
-  receiver_ = std::thread([this]() {
-    // Max ioctl size is 14b
-    constexpr uint32_t kMaxMsgSize = (1ul << 14) - 1;
+  std::vector<std::byte> buffer(kMaxMsgSize);
 
-    std::vector<std::byte> buffer(kMaxMsgSize);
-    
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    
-    while (run_) {
-      auto devicesToCheck = receiverServices_->getDevicesWithEventsOnFly();
-      std::shuffle(begin(devicesToCheck), end(devicesToCheck), gen);
-      int responsesCount = 0;
-      for (auto dev : devicesToCheck) {
-        while (deviceLayer_->receiveResponseMasterMinion(dev, buffer)) {
-          RT_VLOG(HIGH) << "Got response from deviceId: " << dev;
-          responsesCount++;
-          receiverServices_->onResponseReceived(buffer);
-          RT_VLOG(HIGH) << "Response processed";
-        }
-      }
-      if (responsesCount == 0) {
-        std::this_thread::sleep_for(kPollingInterval);
+  std::random_device rd;
+  std::mt19937 gen(rd());
+
+  while (run_) {
+    auto devicesToCheck = receiverServices_->getDevicesWithEventsOnFly();
+    std::shuffle(begin(devicesToCheck), end(devicesToCheck), gen);
+    int responsesCount = 0;
+    for (auto dev : devicesToCheck) {
+      while (deviceLayer_->receiveResponseMasterMinion(dev, buffer)) {
+        RT_VLOG(HIGH) << "Got response from deviceId: " << dev;
+        responsesCount++;
+        receiverServices_->onResponseReceived(buffer);
+        RT_VLOG(HIGH) << "Response processed";
       }
     }
-  });
+    if (responsesCount == 0) {
+      std::this_thread::sleep_for(kPollingInterval);
+    }
+  }
+}
+
+ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServices* receiverServices)
+  : deviceLayer_(deviceLayer)
+  , receiverServices_(receiverServices) {
+
+  receiver_ = std::thread(std::bind(&ResponseReceiver::threadFunction, this));
 }
 
 ResponseReceiver::~ResponseReceiver() {

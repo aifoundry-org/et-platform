@@ -20,8 +20,7 @@
 #include <mutex>
 #include <variant>
 
-namespace rt {
-namespace profiling {
+namespace rt::profiling {
 
 class ProfilerImp : public IProfiler {
 public:
@@ -63,5 +62,4 @@ private:
   std::mutex mutex_;
 };
 
-} // namespace profiling
-} // namespace rt
+} // namespace rt::profiling
