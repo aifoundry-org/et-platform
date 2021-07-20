@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 
 #include <deviceLayer/IDeviceLayer.h>
+#include <deviceLayer/IDeviceLayerMock.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <hostUtils/logging/Logging.h>
@@ -17,6 +18,9 @@ TEST(Simple, test_nothing) {
   ASSERT_TRUE(true);
 }
 
+TEST(Simple, mock_compiles) {
+  [[maybe_unused]] dev::IDeviceLayerMock mock;
+}
 
 TEST(VerboseLog, High) {
   ET_VLOG("CTEST", HIGH) << "VLOG_HIGH enabled";

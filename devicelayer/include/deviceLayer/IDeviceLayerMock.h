@@ -8,13 +8,14 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #pragma once
+#include "IDeviceLayer.h"
 #include <gmock/gmock.h>
-#include <device-layer/IDeviceLayer.h>
 
 namespace dev {
-class IDeviceLayerMock : public  IDeviceLayer {
+class IDeviceLayerMock : public IDeviceLayer {
 public:
-  MOCK_METHOD5(sendCommandMasterMinion, bool(int device, int sqIdx, std::byte* command, size_t commandSize, bool isDma));
+  MOCK_METHOD5(sendCommandMasterMinion,
+               bool(int device, int sqIdx, std::byte* command, size_t commandSize, bool isDma));
   MOCK_METHOD3(setSqThresholdMasterMinion, void(int device, int sqIdx, uint32_t bytesNeeded));
   MOCK_METHOD3(waitForEpollEventsMasterMinion, void(int device, uint64_t& sq_bitmap, bool& cq_available));
   MOCK_METHOD4(waitForEpollEventsMasterMinion,
@@ -28,13 +29,14 @@ public:
   MOCK_METHOD2(receiveResponseServiceProcessor, bool(int device, std::vector<std::byte>& response));
   MOCK_METHOD0(getDevicesCount, int());
   MOCK_CONST_METHOD1(getSubmissionQueuesCount, int(int device));
-  MOCK_CONST_METHOD1(getSubmissionQueueSizeMasterMinion, size_t(int device)); 
-  MOCK_CONST_METHOD1(getSubmissionQueueSizeServiceProcessor, size_t(int device)); 
-  MOCK_CONST_METHOD0(getDmaAlignment, int()); 
-  MOCK_CONST_METHOD0(getDramSize, uint64_t()); 
+  MOCK_CONST_METHOD1(getSubmissionQueueSizeMasterMinion, size_t(int device));
+  MOCK_CONST_METHOD1(getSubmissionQueueSizeServiceProcessor, size_t(int device));
+  MOCK_CONST_METHOD0(getDmaAlignment, int());
+  MOCK_CONST_METHOD0(getDramSize, uint64_t());
   MOCK_CONST_METHOD0(getDramBaseAddress, uint64_t());
   MOCK_CONST_METHOD0(getDevicesCount, int());
-  MOCK_METHOD3(allocDmaBuffer, void*(int, size_t sizeInBytes, bool ));
-  MOCK_METHOD1(freeDmaBuffer, void(void* ));
+  MOCK_METHOD3(allocDmaBuffer, void*(int, size_t sizeInBytes, bool));
+  MOCK_METHOD1(freeDmaBuffer, void(void*));
+  MOCK_METHOD2(getTraceBufferServiceProcessor, bool(int, std::vector<std::byte>&));
 };
-}
+} // namespace dev

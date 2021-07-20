@@ -59,7 +59,7 @@ target_include_directories(deviceLayer
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 set_target_properties(deviceLayer PROPERTIES
-    PUBLIC_HEADER "include/deviceLayer/IDeviceLayer.h;include/deviceLayer/mocks/IDeviceLayerMock.h;include/deviceLayer/mocks/IDeviceLayerFake.h"
+    PUBLIC_HEADER "include/deviceLayer/IDeviceLayer.h;include/deviceLayer/IDeviceLayerMock.h;include/deviceLayer/IDeviceLayerFake.h"
     POSITION_INDEPENDENT_CODE TRUE
 )
 target_link_libraries(deviceLayer
