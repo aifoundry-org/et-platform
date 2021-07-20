@@ -119,6 +119,19 @@ pipeline {
               ]
           }
         }
+        stage('JOB_DEVICELAYER_SYSEMU_TF') {
+          steps {
+            build job:
+              'sw-platform/system-sw-integration/pipelines/device-layer-sysemu-tf-tests',
+              propagate: true,
+              parameters: [
+                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}"),
+                string(name: 'PYTEST_RETRIES', value: '0'),
+                string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+              ]
+          }
+        }
       }
     }
   }

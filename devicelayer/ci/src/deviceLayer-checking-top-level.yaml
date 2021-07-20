@@ -23,6 +23,14 @@ stages:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}"
           PYTEST_RETRIES: "0"
+
+  JOB_DEVICELAYER_SYSEMU_TF:
+    cmds:
+      - job: sw-platform/system-sw-integration/pipelines/device-layer-sysemu-tf-tests
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}"
+          PYTEST_RETRIES: "0"
   
   JOB_CODE_QUALITY:
     cmds:
