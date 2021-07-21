@@ -48,6 +48,15 @@ enum minion_error_type {
 */
 int Minion_Shire_Update_Voltage( uint8_t voltage);
 
+
+/*! \fn Minion_Get_Voltage_Given_Freq(int32_t target_frequency)
+    \brief This function returns a voltage operating value given
+            a freq value
+    \param Target Minion Frequency
+    \return Target Minion Voltage
+*/
+int Minion_Get_Voltage_Given_Freq(int32_t target_frequency);
+
 /*! \fn int Minion_Program_Step_Clock_PLL(uint8_t mode)
     \brief This function provide support to program the
            Minion Shire Step Clock which is coming from
@@ -56,6 +65,14 @@ int Minion_Shire_Update_Voltage( uint8_t voltage);
     \return The function call status, pass/fail.
 */
 int Minion_Program_Step_Clock_PLL(uint8_t mode);
+
+/*! \fn uint8_t pll_freq_to_mode(int32_t freq)
+    \brief This function returns the mode for a given 
+           frequency
+    \param frequency
+    \return corresponding mode
+*/
+uint8_t pll_freq_to_mode(int32_t freq);
 
 /*! \fn int Minion_Enable_Neighborhoods(uint64_t shire_mask)
     \brief This function enables minion neighborhoods PLL and DLLs for a given

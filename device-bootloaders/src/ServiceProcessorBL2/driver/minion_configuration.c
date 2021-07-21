@@ -59,6 +59,12 @@ struct minion_event_control_block {
 
 static struct minion_event_control_block event_control_block __attribute__((section(".data")));
 
+/* This Threashold voltage would need to be extracted from OTP */
+#define THRESHOLD_VOLTAGE 400
+
+/* This chracterized co-efficient needs to be extracted from OTP */
+#define DeltaVolt_per_DeltaFreq 0
+
 static uint64_t g_active_shire_mask = 0;
 
 /*==================== Function Separator =============================*/
@@ -74,6 +80,13 @@ static uint64_t g_active_shire_mask = 0;
 #define TIMEOUT_PLL_LOCK   100000
 
 /*==================== Function Separator =============================*/
+
+uint8_t pll_freq_to_mode(int32_t freq)
+{
+//NOSONAR TODO: Need to add Freq to mode convertion equation
+   (void) freq;
+   return 6; 
+}
 
 // Fixme: SW-8063  Replace with version from HAL
 static int pll_config(uint8_t shire_id)
@@ -241,6 +254,32 @@ int Minion_Enable_Master_Shire_Threads(uint8_t mm_id)
 int Minion_Shire_Update_Voltage( uint8_t voltage)
 {
     return pmic_set_voltage(MINION, voltage);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_Get_Voltage_Given_Freq
+*
+*   DESCRIPTION
+*
+*       This function returns a voltage operating value given a freq value.
+*
+*   INPUTS
+*
+*       freq            Target Minion Frequency 
+*
+*   OUTPUTS
+*
+*       voltage          Target Minion Voltage 
+*
+***********************************************************************/
+int Minion_Get_Voltage_Given_Freq(int32_t target_frequency)
+{
+    int target_voltage = THRESHOLD_VOLTAGE + (target_frequency * DeltaVolt_per_DeltaFreq);
+     
+    return target_voltage;
 }
 
 /************************************************************************

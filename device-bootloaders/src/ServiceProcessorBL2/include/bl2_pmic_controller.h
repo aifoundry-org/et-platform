@@ -334,4 +334,18 @@ int I2C_PMIC_Write (uint8_t reg, uint8_t data);
 */
 int pmic_get_int_config(uint8_t* int_config);
 
+/*! \fn Power_Convert_Hex_to_mW(int8_t power_hex) 
+    \brief This function converts PMIC encoded HEX value to real Power(mW)
+    \param Hex  Power in PMIC encoded Hex value 
+    \return Power in mW after conversion
+*/
+int32_t Power_Convert_Hex_to_mW(uint8_t power_hex);
+
+/*! \fn Power_Convert_mW_to_Hex(int8_t power_mW) 
+    \brief This function converts real Power(mW) to PMIC encoded HEX value
+    \param Power in mW after conversion
+    \return Hex  Power in PMIC encoded Hex value 
+*/
+int32_t Power_Convert_mW_to_Hex(uint8_t power_mW);
+
 #endif

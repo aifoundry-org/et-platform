@@ -86,6 +86,8 @@
 #define PMIC_GPIO_INT_PIN_NUMBER   0x1
 #define ENABLE_ALL_PMIC_INTERRUPTS 0xFF
 
+
+
 static struct pmic_event_control_block event_control_block __attribute__((section(".data")));
 
 /* Generic PMIC setup */
@@ -1640,4 +1642,52 @@ int I2C_PMIC_Read(uint8_t reg)
 int I2C_PMIC_Write(uint8_t reg, uint8_t data)
 {
     return set_pmic_reg(reg, data);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Power_Convert_Hex_to_mW
+*
+*   DESCRIPTION
+*
+*       This function converts PMIC encoded HEX value to real Power(mW).
+*
+*   INPUTS
+*
+*       Hex  Power in PMIC encoded Hex value
+*
+*   OUTPUTS
+*
+*       Power in mW after conversion
+*
+***********************************************************************/
+int32_t Power_Convert_Hex_to_mW(uint8_t power_hex) 
+{
+    return (((power_hex >> 2) * 1000) + ((power_hex & 0x3) * 250));
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Power_Convert_mW_to_Hex
+*
+*   DESCRIPTION
+*
+*       This function converts real Power(mW)to PMIC encoded HEX value
+*
+*   INPUTS
+*
+*       Power in mW after conversion
+*
+*   OUTPUTS
+*
+*       Hex  Power in PMIC encoded Hex value
+*
+***********************************************************************/
+int32_t Power_Convert_mW_to_Hex(uint8_t power_mW) 
+{
+    return (((power_mW / 1000) << 2) & ((power_mW % 1000) / 250));
 }

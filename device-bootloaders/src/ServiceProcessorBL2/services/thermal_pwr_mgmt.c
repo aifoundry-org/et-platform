@@ -77,28 +77,13 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
     return &g_soc_power_reg;
 }
 
-/*! \def POWER_HEX_TO_mW(x)
-    \brief Converts hex encoded power to mW
-*/
-#define POWER_HEX_TO_mW(x) ((((x) >> 2) * 1000u) + ((x)&0x3u) * 250u)
-
-/*! \def POWER_mW_TO_HEX(x)
-    \brief Converts mW to Hex encoded power
-*/
-#define POWER_mW_TO_HEX(x) ((((x) / 1000u) << 2) & (((x) % 1000u) / 250u))
-
 // TODO: Need to create mapping between Power State to actual value in W
 #define POWER_STATE_TO_W(state) 25
 
 // TODO: This needs to extracted from OTP Fuse
 #define DP_per_Mhz 1
 
-// TODO: Need to add Freq to mode convertion equation
-#define FREQ2MODE(X) X
 
-// TODO: Need to add logic to calculate new Voltage given
-//       a new frequency
-#define RECOMPUTE_VOLTAGE(current_voltage, new_freq) current_voltage
 
 /*! \def SEND_THROTTLE_EVENT(THROTTLE_EVENT_TYPE)
     \brief Sends throttle event to host
@@ -145,7 +130,7 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
     \brief TDP level safe guard, (power_scale_factor)% above TDP level
 */
 #define TDP_LEVEL_SAFE_GUARD \
-    ((tdp_level_mW * (uint32_t)(100 + (get_soc_power_reg()->power_scale_factor))) / 100)
+    ((tdp_level_mW * (100 + (get_soc_power_reg()->power_scale_factor))) / 100)
 
 /************************************************************************
 *
@@ -456,8 +441,8 @@ int get_module_current_temperature(uint8_t *soc_temperature)
 int update_module_soc_power(void)
 {
     uint8_t soc_pwr;
-    uint32_t soc_pwr_mW;
-    uint32_t tdp_level_mW;
+    int32_t soc_pwr_mW;
+    int32_t tdp_level_mW;
 
     if (0 != pmic_read_soc_power(&soc_pwr))
     {
@@ -469,8 +454,8 @@ int update_module_soc_power(void)
         get_soc_power_reg()->soc_power = soc_pwr;
     }
 
-    soc_pwr_mW = POWER_HEX_TO_mW(soc_pwr);
-    tdp_level_mW = POWER_HEX_TO_mW(get_soc_power_reg()->module_tdp_level);
+    soc_pwr_mW = Power_Convert_Hex_to_mW(soc_pwr);
+    tdp_level_mW = Power_Convert_Hex_to_mW(get_soc_power_reg()->module_tdp_level);
 
     if ((soc_pwr_mW > TDP_LEVEL_SAFE_GUARD) &&
         (get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_DOWN))
@@ -1010,13 +995,13 @@ int reduce_minion_operating_point(int32_t delta_power)
     int32_t delta_freq = delta_power * DP_per_Mhz;
     int32_t new_freq = Get_Minion_Frequency() - delta_freq;
 
-    if (0 != Minion_Shire_Update_PLL_Freq((uint8_t)FREQ2MODE(new_freq)))
+    if (0 != Minion_Shire_Update_PLL_Freq(pll_freq_to_mode(new_freq)))
     {
         Log_Write(LOG_LEVEL_ERROR, "Failed to update minion frequency!\n");
         return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
     }
 
-    int32_t new_voltage = RECOMPUTE_VOLTAGE(get_soc_power_reg()->module_voltage.minion, new_freq);
+    int32_t new_voltage = Minion_Get_Voltage_Given_Freq(new_freq);
     if (new_voltage != get_soc_power_reg()->module_voltage.minion)
     {
         //NOSONAR Minion_Shire_Voltage_Update(new_voltage);
@@ -1053,13 +1038,13 @@ int increase_minion_operating_point(int32_t delta_power)
     int32_t delta_freq = delta_power * DP_per_Mhz;
     int32_t new_freq = Get_Minion_Frequency() + delta_freq;
 
-    int32_t new_voltage = RECOMPUTE_VOLTAGE(get_soc_power_reg()->module_voltage.minion, new_freq);
+    int32_t new_voltage = Minion_Get_Voltage_Given_Freq(new_freq);
     if (new_voltage != get_soc_power_reg()->module_voltage.minion)
     {
         //NOSONAR Minion_Shire_Voltage_Update(new_voltage);
     }
 
-    if (0 != Minion_Shire_Update_PLL_Freq((uint8_t)FREQ2MODE(new_freq)))
+    if (0 != Minion_Shire_Update_PLL_Freq(pll_freq_to_mode(new_freq)))
     {
         Log_Write(LOG_LEVEL_ERROR, "Failed to update minion frequency!\n");
         return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
@@ -1094,14 +1079,13 @@ int go_to_safe_state(void)
 {
     if (SAFE_STATE_FREQUENCY < Get_Minion_Frequency())
     {
-        if (0 != Minion_Shire_Update_PLL_Freq((uint8_t)FREQ2MODE(SAFE_STATE_FREQUENCY)))
+        if (0 != Minion_Shire_Update_PLL_Freq(pll_freq_to_mode(SAFE_STATE_FREQUENCY)))
         {
             Log_Write(LOG_LEVEL_ERROR, "Failed to go to safe state!\n");
             return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
         }
 
-        int32_t new_voltage =
-            RECOMPUTE_VOLTAGE(get_soc_power_reg()->module_voltage.minion, SAFE_STATE_FREQUENCY);
+        int32_t new_voltage = Minion_Get_Voltage_Given_Freq(SAFE_STATE_FREQUENCY);
         if (new_voltage != get_soc_power_reg()->module_voltage.minion)
         {
             //NOSONAR Minion_Shire_Voltage_Update(new_voltage);
@@ -1109,14 +1093,13 @@ int go_to_safe_state(void)
     }
     else if (SAFE_STATE_FREQUENCY > Get_Minion_Frequency())
     {
-        int32_t new_voltage =
-            RECOMPUTE_VOLTAGE(get_soc_power_reg()->module_voltage.minion, SAFE_STATE_FREQUENCY);
+        int32_t new_voltage = Minion_Get_Voltage_Given_Freq(SAFE_STATE_FREQUENCY);
         if (new_voltage != get_soc_power_reg()->module_voltage.minion)
         {
             //NOSONAR Minion_Shire_Voltage_Update(new_voltage);
         }
 
-        if (0 != Minion_Shire_Update_PLL_Freq((uint8_t)FREQ2MODE(SAFE_STATE_FREQUENCY)))
+        if (0 != Minion_Shire_Update_PLL_Freq(pll_freq_to_mode(SAFE_STATE_FREQUENCY)))
         {
             Log_Write(LOG_LEVEL_ERROR, "Failed to go to safe state!\n");
             return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
@@ -1158,8 +1141,8 @@ void power_throttling(power_throttle_state_e throttle_state)
     uint64_t start_time;
     uint64_t end_time;
     uint8_t current_power = 0;
-    uint32_t current_power_mW;
-    uint32_t tdp_level_mW;
+    int32_t current_power_mW;
+    int32_t tdp_level_mW;
     int32_t delta_power_mW;
     uint8_t throttle_condition_met = 0;
 
@@ -1176,8 +1159,8 @@ void power_throttling(power_throttle_state_e throttle_state)
         Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");
     }
 
-    current_power_mW = POWER_HEX_TO_mW(current_power);
-    tdp_level_mW = POWER_HEX_TO_mW(get_soc_power_reg()->module_tdp_level);
+    current_power_mW = Power_Convert_Hex_to_mW(current_power);
+    tdp_level_mW = Power_Convert_Hex_to_mW(get_soc_power_reg()->module_tdp_level);
 
     while (!throttle_condition_met &&
            (get_soc_power_reg()->power_throttle_state <= throttle_state))
@@ -1213,7 +1196,7 @@ void power_throttling(power_throttle_state_e throttle_state)
         {
             Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");
         }
-        current_power_mW = POWER_HEX_TO_mW(current_power);
+        current_power_mW = Power_Convert_Hex_to_mW(current_power);
 
         /* Check if throttle condition is met */
         switch (throttle_state)
@@ -1282,7 +1265,7 @@ void thermal_throttling(power_throttle_state_e throttle_state)
     uint8_t current_temperature = DEF_SYS_TEMP_VALUE;
     struct event_message_t message;
     uint8_t current_power = 0;
-    uint32_t current_power_mW;
+    int32_t current_power_mW;
     int32_t delta_power_mW;
 
     /* We need to throttle the voltage and frequency, lets keep track of throttling time */
@@ -1311,7 +1294,7 @@ void thermal_throttling(power_throttle_state_e throttle_state)
                               "thermal pwr mgmt svc error: failed to get soc power\r\n");
                 }
 
-                current_power_mW = POWER_HEX_TO_mW(current_power);
+                current_power_mW = Power_Convert_Hex_to_mW(current_power);
                 delta_power_mW =
                     (int32_t)((current_power_mW * (get_soc_power_reg()->power_scale_factor)) / 100);
 
