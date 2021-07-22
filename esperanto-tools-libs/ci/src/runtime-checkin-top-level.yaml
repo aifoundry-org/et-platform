@@ -5,7 +5,7 @@ parameters:
   SW_PLATFORM_BRANCH:
     description: SW-Platform branch to track
     type: string
-    default_value: "origin/develop/system-sw"
+    default_value: "origin/develop/runtime"
   REPO_SSH_URL:
     description: Repository URL
     type: string

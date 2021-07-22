@@ -17,6 +17,7 @@
 #include <functional>
 #include <hostUtils/debug/Check.h>
 #include <ios>
+#include <limits>
 #include <numeric>
 
 using namespace rt;
@@ -34,6 +35,11 @@ MemoryManager::MemoryManager(uint64_t dramBaseAddr, size_t totalMemoryBytes, uin
   }
   if (totalMemoryBytes_ % (1U << blockSizeLog2_)) {
     throw Exception("TotalMemoryBytes must be multiple of BlockSize");
+  }
+  if ((totalMemoryBytes_ >> blockSizeLog2_) > std::numeric_limits<uint32_t>::max()) {
+    totalMemoryBytes_ = static_cast<uint64_t>(std::numeric_limits<uint32_t>::max()) << blockSizeLog2_;
+    RT_LOG(WARNING) << "TotalMemoryBytes is bigger than supported, clamping it to max supported: " << std::hex
+                    << totalMemoryBytes_ << " bytes.";
   }
   free_.emplace_back(FreeChunk{0, static_cast<uint32_t>(totalMemoryBytes_ >> blockSizeLog2_)});
 }

@@ -19,7 +19,7 @@ pipeline {
     string(name: 'EMAIL_NIGHTLY_RECIPIENTS', defaultValue: 'et-sw-infra@esperantotech.com', description: 'Comma seperated list of email recipients for a given project')
     string(name: 'CRON_STRING', defaultValue: '', description: 'Cron string to cause a job to execute automatically, Syntax is normal cron with %param_name=value at the end.  Additional details can be found at: https://plugins.jenkins.io/parameterized-scheduler/')
     booleanParam(name: 'CHECK_ON_TOP_OF_MASTER', defaultValue: 'true', description: 'when true this executes checks that ensures Merge Request has merged origin/master with their MR at the time the MR was submiteted')
-    string(name: 'SW_PLATFORM_BRANCH', defaultValue: 'origin/develop/system-sw', description: 'SW-Platform branch to track')
+    string(name: 'SW_PLATFORM_BRANCH', defaultValue: 'origin/develop/runtime', description: 'SW-Platform branch to track')
     booleanParam(name: 'RUN_ZEBU', defaultValue: 'true', description: 'Run Zebu Job')
     string(name: 'INPUT_TAGS', defaultValue: '', description: 'Parameter to receive tags from parent pipelines')
   }

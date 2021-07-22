@@ -11,8 +11,6 @@
 #pragma once
 #include "DmaBufferImp.h"
 #include "utils.h"
-#include <device-layer/IDeviceLayer.h>
-
 namespace rt {
 class DmaBufferManager {
 public:
