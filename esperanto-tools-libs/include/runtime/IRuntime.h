@@ -10,14 +10,10 @@
 
 #pragma once
 
-#include <hostUtils/debug/StackException.h>
-
+#include "Types.h"
 #include <chrono>
 #include <cstddef>
-#include <exception>
-#include <memory>
 #include <ostream>
-#include <stdexcept>
 #include <vector>
 
 // forward declarations
@@ -41,40 +37,6 @@ class IDeviceLayer;
 ///
 /// @{
 namespace rt {
-
-/// \brief Forward declaration of \ref DmaBuffer
-class DmaBuffer;
-
-/// \brief Forward declaration of \ref IProfiler
-class IProfiler;
-
-/// \brief Event Handler
-enum class EventId : uint16_t {};
-
-/// \brief Stream Handler
-enum class StreamId : int {};
-
-/// \brief Device Handler
-enum class DeviceId : int {};
-
-/// \brief KernelId Handler
-enum class KernelId : int {};
-
-/// \brief RuntimePtr is an alias for a pointer to a Runtime instantation
-using RuntimePtr = std::unique_ptr<class IRuntime>;
-
-/// \brief The error handling in the runtime is trough exceptions. This is the
-/// only exception kind that the runtime can throw
-class Exception : public dbg::StackException {
-  using dbg::StackException::StackException;
-};
-
-/// \brief Constants
-namespace {
-constexpr auto kCacheLineSize = 64U; // TODO This should not be here, it should be
-                                     // in a header with project-wide constants
-}
-
 /// \brief Facade Runtime interface declaration, all runtime interactions should
 /// be made using this interface. There is a static method \ref create to make
 /// runtime instances (factory method)
@@ -96,7 +58,7 @@ public:
   ///
   /// @returns a kernel handler which will identify the uploaded code
   ///
-  virtual KernelId loadCode(DeviceId device, const void* elf, size_t elf_size) = 0;
+  virtual KernelId loadCode(DeviceId device, const std::byte* elf, size_t elf_size) = 0;
   /// \brief Unloads a previously loaded elf code, identified by the kernel
   /// handler
   ///
@@ -116,7 +78,7 @@ public:
   ///
   /// @returns a device memory pointer
   ///
-  virtual void* mallocDevice(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize) = 0;
+  virtual std::byte* mallocDevice(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize) = 0;
 
   /// \brief Deallocates previously allocated memory on the given device.
   ///
@@ -125,7 +87,7 @@ public:
   /// @param[in] buffer device memory pointer previously allocated with
   /// mallocDevice to be deallocated
   ///
-  virtual void freeDevice(DeviceId device, void* buffer) = 0;
+  virtual void freeDevice(DeviceId device, std::byte* buffer) = 0;
 
   /// \brief Creates a new stream and associates it to the given device.
   /// A stream is an abstraction of a "pipeline" where you can push operations
@@ -172,7 +134,7 @@ public:
   /// @returns EventId is a handler of an event which can be waited for
   /// (waitForEventId) to syncrhonize when the kernel ends the execution
   ///
-  virtual EventId kernelLaunch(StreamId stream, KernelId kernel, const void* kernel_args, size_t kernel_args_size,
+  virtual EventId kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
                                uint64_t shire_mask, bool barrier = true, bool flushL3 = false) = 0;
 
   /// \brief Queues a memcpy operation from host memory to device memory. The
@@ -192,7 +154,7 @@ public:
   /// @returns EventId is a handler of an event which can be waited for
   /// (waitForEventId) to synchronize when the memcpy ends
   ///
-  virtual EventId memcpyHostToDevice(StreamId stream, const void* h_src, void* d_dst, size_t size,
+  virtual EventId memcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size,
                                      bool barrier = false) = 0;
   /// \brief Queues a memcpy operation from device memory to host memory. The
   /// device memory must be a valid region previously allocated by a
@@ -213,18 +175,20 @@ public:
   /// @returns EventId is a handler of an event which can be waited for
   /// (waitForEventId) to synchronize when the memcpy ends
   ///
-  virtual EventId memcpyDeviceToHost(StreamId stream, const void* d_src, void* h_dst, size_t size,
+  virtual EventId memcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size,
                                      bool barrier = true) = 0;
 
   /// \brief This will block the caller thread until the given event is
   /// dispatched. This primitive allows to synchronize with the device
   /// execution. This method is deprecated and will be removed in a future releaes. Please use
-  /// bool waitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::seconds::max)
+  /// StreamStatus waitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::seconds::max)
   ///
   /// @param[in] event is the event to wait for, result of a memcpy operation or a
   /// kernel launch.
   ///
-  virtual void waitForEvent(EventId event) = 0;
+  /// @returns StreamStatus contains the state of the associated stream.
+  ///
+  virtual StreamStatus waitForEvent(EventId event) = 0;
 
   /// \brief This will block the caller thread until the given event is
   /// dispatched or the timeout is reached. This primitive allows to synchronize with the device
@@ -234,29 +198,40 @@ public:
   /// kernel launch.
   /// @param[in] timeout is the number of seconds to wait till aborting the wait.
   ///
-  /// @returns false if the timeout was reached, true otherwise.
+  /// @returns StreamStatus contains the state of the associated stream.
   ///
-  virtual bool waitForEvent(EventId event, std::chrono::milliseconds timeout) = 0;
+  virtual StreamStatus waitForEvent(EventId event, std::chrono::milliseconds timeout) = 0;
 
   /// \brief This will block the caller thread until all commands issued to the
   /// given stream finish. This primitive allows to synchronize with the device
   /// execution. This method is deprecated and will be removed in a future releaes. Please use
-  /// bool waitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::seconds::max)
+  /// StreamStatus waitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::seconds::max)
   ///
   /// @param[in] stream this is the stream to synchronize with.
   ///
-  virtual void waitForStream(StreamId stream) = 0;
+  /// @returns StreamStatus contains the state of the associated stream.
+  ///
+  virtual StreamStatus waitForStream(StreamId stream) = 0;
 
   /// \brief This will block the caller thread until all commands issued to the
   /// given stream finish or if the timeout is reached. This primitive allows to synchronize with the device
-  /// execution. 
+  /// execution.
   ///
   /// @param[in] stream this is the stream to synchronize with.
   /// @param[in] timeout is the number of seconds to wait till aborting the wait.
   ///
-  /// @returns false if the timeout was reached, true otherwise.
+  /// @returns StreamStatus contains the state of the associated stream.
   ///
-  virtual bool waitForStream(StreamId stream, std::chrono::milliseconds timeout) = 0;
+  virtual StreamStatus waitForStream(StreamId stream, std::chrono::milliseconds timeout) = 0;
+
+  /// \brief This will return a list of errors and their execution context (if any)
+  ///
+  /// @param[in] stream this is the stream to synchronize with.
+  /// @param[in] timeout is the number of seconds to wait till aborting the wait.
+  ///
+  /// @returns StreamStatus contains the state of the associated stream.
+  ///
+  /// >>>>>>>>>>>>>>>>>>>>>>> HERE retrieveErrors
 
   /// \brief Virtual Destructor to enable polymorphic release of the runtime
   /// instances
