@@ -49,7 +49,8 @@ enum trace_type_e {
     TRACE_TYPE_VALUE_FLOAT,
     TRACE_TYPE_MEMORY,
     TRACE_TYPE_EXCEPTION,
-    TRACE_TYPE_CMD_STATUS
+    TRACE_TYPE_CMD_STATUS,
+    TRACE_TYPE_POWER_STATUS
 };
 
 typedef uint8_t trace_cmd_status_e;
@@ -118,6 +119,25 @@ struct trace_cmd_status_internal_t {
 struct trace_cmd_status_t {
     struct trace_entry_header_t header;
     struct trace_cmd_status_internal_t cmd;
+} __attribute__((packed));
+
+struct trace_power_event_status_t {
+    union{
+        struct{
+            uint8_t throttle_state;            /**< Power Throttle State: UP, Down */
+            uint8_t power_state;               /**< Power State: Max, Managed, Safe, Low */
+            uint8_t current_power;             /**< Current Power in mW*/
+            uint8_t current_temp;              /**< Current Temperature in C */
+            uint16_t tgt_freq;                 /**< Target Frequency in Mhz*/
+            uint16_t tgt_voltage;              /**< Target Voltage in mV*/
+        }__attribute__((packed));
+        uint64_t raw_cmd;
+    };
+} __attribute__((packed));
+
+struct trace_power_status_t {
+    struct trace_entry_header_t header;
+    struct trace_power_event_status_t cmd;
 } __attribute__((packed));
 
 struct trace_string_t {

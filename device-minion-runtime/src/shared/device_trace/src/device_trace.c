@@ -427,6 +427,36 @@ void Trace_Cmd_Status(struct trace_control_block_t *cb,
 *
 *   FUNCTION
 *
+*       Trace_Power_Status
+*
+*   DESCRIPTION
+*
+*       A function to log Power event status messages.
+*
+*   INPUTS
+*
+*       trace_control_block_t   Trace control block
+*       trace_power_status_t    Power status data.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Trace_Power_Status(struct trace_control_block_t *cb,
+    const struct trace_power_event_status_t *cmd_data)
+{
+    struct trace_cmd_status_t *entry =
+        Trace_Buffer_Reserve(cb, sizeof(*entry));
+
+    ADD_MESSAGE_HEADER(entry, TRACE_TYPE_POWER_STATUS)
+    WRITE_U64(entry->cmd.raw_cmd, cmd_data->raw_cmd);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       Trace_PMC_All_Counters
 *
 *   DESCRIPTION
