@@ -127,5 +127,6 @@ void Trace_Memory(struct trace_control_block_t *cb, const uint8_t *src, uint16_t
 void *Trace_Buffer_Reserve(struct trace_control_block_t *cb, uint64_t size);
 void Trace_Cmd_Status(struct trace_control_block_t *cb,
         const struct trace_cmd_status_internal_t *cmd_data);
-
+void Trace_Power_Status(struct trace_control_block_t *cb,
+    const struct trace_power_event_status_t *cmd_data);
 #endif
