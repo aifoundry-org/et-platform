@@ -13,6 +13,8 @@ include(ExternalProject)
 find_package(DeviceLayer REQUIRED)
 find_package(fmt REQUIRED)
 find_package(sw-sysemu REQUIRED)
+find_package(gflags REQUIRED)
+find_package(glog REQUIRED)
 find_package(Threads REQUIRED)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
@@ -26,8 +28,9 @@ link_directories(${RT_EXTERNAL_INSTALL_PREFIX}/lib64
 )
 
 set(COMMON_LIBRARIES
-  glog
-  pthread
+  glog::glog
+  gflags::gflags
+  ${CMAKE_THREAD_LIBS_INIT}
   ${CMAKE_DL_LIBS}
   deviceManagement::deviceManagement
   deviceLayer::deviceLayer

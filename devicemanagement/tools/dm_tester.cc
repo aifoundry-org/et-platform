@@ -26,6 +26,7 @@
 #include <iostream>
 #include <regex>
 #include <unistd.h>
+#include <glog/logging.h>
 
 namespace fs = std::experimental::filesystem;
 
@@ -1325,6 +1326,9 @@ void printUsage(char* argv) {
 int main(int argc, char** argv) {
   int c;
   int option_index = 0;
+
+  // Initialize Google's logging library.
+  logging::LoggerDefault loggerDefault_;
 
   while (1) {
 
