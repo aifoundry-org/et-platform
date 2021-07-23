@@ -109,25 +109,6 @@ private:
     waitForEvent(e);
 #endif
   }
-  template <typename Command, typename Lock>
-  void sendCommandMasterMinion(int sqIdx, int deviceId, Command& command, Lock& lock, bool isDma = false) {
-    bool done = false;
-    while (!done) {
-      done = deviceLayer_->sendCommandMasterMinion(deviceId, sqIdx, reinterpret_cast<std::byte*>(&command),
-                                                   sizeof(command), isDma);
-      if (!done) {
-        lock.unlock();
-        RT_VLOG(LOW) << "Submission queue " << sqIdx
-                     << " is full. Can't send command now, blocking the thread till an event has been dispatched.";
-        auto events = eventManager_.getOnflyEvents();
-        if (events.empty()) {
-          throw Exception("Submission queue is full but there are not on-fly events. There could be a firmware bug.");
-        }        
-        waitForEvent(*events.begin(), 1s);
-        lock.lock();
-      }
-    }
-  }
 
   dev::IDeviceLayer* deviceLayer_;
   std::vector<DeviceId> devices_;
@@ -137,6 +118,32 @@ private:
 
   EventManager eventManager_;
   StreamManager streamManager_;
+
+  template <typename Command, typename Lock>
+  void sendCommandMasterMinion(int sqIdx, int deviceId, Command& command, Lock& lock, bool isDma = false) {
+    bool done = false;
+    while (!done) {
+      done = deviceLayer_->sendCommandMasterMinion(deviceId, sqIdx, reinterpret_cast<std::byte*>(&command),
+                                                   sizeof(command), isDma);
+      if (!done) {
+        lock.unlock();
+        RT_LOG(INFO) << "Submission queue " << sqIdx
+                     << " is full. Can't send command now, blocking the thread till an event has been dispatched.";
+        if (!streamManager_.hasEventsOnFly(DeviceId{deviceId}))
+          throw Exception("Submission queue is full but there are not on-fly events. There could be a firmware bug.");
+        uint64_t sq_bitmap;
+        bool cq_available;
+        deviceLayer_->waitForEpollEventsMasterMinion(deviceId, sq_bitmap, cq_available, std::chrono::seconds(1));
+        if (sq_bitmap & (1UL << sqIdx)) {
+          RT_LOG(WARNING) << "Submission queue " << sqIdx
+                          << " is still unavailable after waitForEpoll, trying again nevertheless";
+        } else {
+          RT_VLOG(LOW) << "Submission queue " << sqIdx << " available.";
+        }
+        lock.lock();
+      }
+    }
+  }
 
   // using unique_ptr to not have to deal with elfio mess (the class is not friendly with modern c++)
   std::unordered_map<KernelId, std::unique_ptr<Kernel>> kernels_;

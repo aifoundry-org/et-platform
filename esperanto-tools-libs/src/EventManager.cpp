@@ -25,10 +25,6 @@ EventId EventManager::getNextId() {
   RT_VLOG(HIGH) << "Last event id: " << static_cast<int>(res);
   return res;
 }
-std::set<EventId> EventManager::getOnflyEvents() const {
-  std::lock_guard lock(mutex_);
-  return onflyEvents_;
-}
 
 void EventManager::dispatch(EventId event) {
   RT_VLOG(HIGH) << "Dispatching event " << static_cast<int>(event);

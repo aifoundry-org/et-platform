@@ -20,11 +20,10 @@
 #include <random>
 
 using namespace rt;
-
-namespace {
 using namespace std::chrono_literals;
+namespace {
 constexpr auto kPollingInterval = 10ms;
-} // namespace
+}
 
 void ResponseReceiver::threadFunction() {
   // Max ioctl size is 14b

@@ -24,7 +24,6 @@ public:
   void dispatch(EventId event);
   // returns false if the timeout is reached; true otherwise
   bool blockUntilDispatched(EventId event, std::chrono::milliseconds timeout);
-  std::set<EventId> getOnflyEvents() const;
 
 private:
 

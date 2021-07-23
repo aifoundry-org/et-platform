@@ -22,7 +22,7 @@
 #include <thread>
 
 namespace rt::profiling {
-std::string getString(rt::profiling::Class cls) {
+std::string getString(Class cls) {
   using event = rt::profiling::Class;
   switch (cls) {
   case event::GetDevices:
@@ -61,8 +61,7 @@ std::string getString(rt::profiling::Class cls) {
   }
 }
 
-std::string getString(rt::profiling::Type type) {
-  using Type = rt::profiling::Type;
+std::string getString(Type type) {
   switch (type) {
   case Type::Start:
     return "Start";
