@@ -7,8 +7,12 @@
  * in accordance with the terms and conditions stipulated in the
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
+#pragma once
+#include <functional>
 #include <hostUtils/debug/StackException.h>
 #include <memory>
+#include <optional>
+#include <vector>
 
 /// \defgroup runtime_types Runtime Types
 /// These are custom types declared by Runtime
@@ -32,13 +36,6 @@ enum class DeviceId : int {};
 /// \brief KernelId Handler
 enum class KernelId : int {};
 
-/// \brief Stream Status
-enum class StreamStatus : int {
-  Ok,     ///< Stream do not have any error
-  Error,  ///< Stream is in an erroneous state, at least one command reported an error in the response
-  Timeout ///< The wait operation timed-out
-};
-
 /// \brief RuntimePtr is an alias for a pointer to a Runtime instantation
 using RuntimePtr = std::unique_ptr<class IRuntime>;
 
@@ -48,7 +45,31 @@ class Exception : public dbg::StackException {
   using dbg::StackException::StackException;
 };
 
+/// \brief This is the device kernel error context which is a result of a running kernel terminating on a abnormal state
+/// (exception / abort)
+struct ErrorContext {
+  uint64_t type_;   ///< 0: compute hang, 1: U-mode exception, 2: system abort, 3: self abort, 4: kernel execution error
+  uint64_t cycle_;  ///< The cycle as sampled from the system counters at the point where the event type has happened.
+                    ///< Its accurate to within 100 cycles.
+  uint64_t hartId_; ///< The Hart thread ID which took the error event.
+  std::array<uint64_t, 31> gpr_; ///< RiscV ABI, corresponds to x1-x31 registers
+  uint64_t mepc_;                ///< Device exception program counter
+  uint64_t mstatus_;             ///< Device status register
+  uint64_t mtval_;               ///< Device bad address or instruction
+  uint64_t mcause_;              ///< Device trap cause
+  uint64_t userDefinedError_;    ///< User defined error (Depending on the Type)
+};
+
+/// \brief This struct contains the errorCode given by de device when some command fail and the associated
+/// \ref ErrorContext (if any)
+struct StreamError {
+  int errorCode_; ///<
+  std::optional<ErrorContext> errorContext_;
+};
+/// \brief This callback can be optionally set to automatically retrieve stream errors when produced
+using StreamErrorCallback = std::function<void(EventId, StreamError)>;
 /// \brief Constants
 constexpr auto kCacheLineSize = 64U; // TODO This should not be here, it should be
                                      // in a header with project-wide constants
+
 } // namespace rt

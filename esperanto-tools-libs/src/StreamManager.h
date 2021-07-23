@@ -9,9 +9,9 @@
  *-------------------------------------------------------------------------*/
 
 #pragma once
+#include "runtime/Types.h"
 #include "utils.h"
 #include <mutex>
-#include <runtime/IRuntime.h>
 #include <set>
 #include <type_traits>
 #include <unordered_map>
@@ -24,12 +24,14 @@ struct Stream {
   }
   ~Stream() {
     RT_LOG_IF(WARNING, !submittedEvents_.empty()) << "Destroying stream with pending events";
+    RT_LOG_IF(WARNING, !errors_.empty()) << "Destroying stream with pending errors";
   }
   std::set<EventId> submittedEvents_;
   struct Info {
     int device_;
     int vq_;
   } info_;
+  std::vector<StreamError> errors_;
 };
 
 class QueueHelper {
@@ -55,7 +57,6 @@ private:
     int nextQueue_;
     const int queueCount_;
   };
-
   std::unordered_map<DeviceId, QueueInfo> queues_;
 };
 
@@ -70,11 +71,15 @@ public:
 
   void addEvent(StreamId stream, EventId event);
   void removeEvent(EventId event);
+  std::vector<StreamError> retrieveErrors(StreamId stream);
+  void setErrorCallback(StreamErrorCallback callback);
+  void addError(EventId event, StreamError error);
 
 private:
   QueueHelper queueHelper_;
   std::unordered_map<StreamId, Stream> streams_;
   std::underlying_type<StreamId>::type nextStreamId_ = 0;
+  StreamErrorCallback streamErrorCallback_;
   mutable std::mutex mutex_;
 };
 

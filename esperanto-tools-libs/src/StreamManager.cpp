@@ -12,6 +12,7 @@
 #include "runtime/IRuntime.h"
 #include "utils.h"
 #include <g3log/loglevels.hpp>
+#include <mutex>
 #include <type_traits>
 using namespace rt;
 
@@ -77,4 +78,29 @@ std::optional<EventId> StreamManager::getLastEvent(StreamId stream) const {
     return *rbegin(events);
   }
   return {};
+}
+
+std::vector<StreamError> StreamManager::retrieveErrors(StreamId stream) {
+  std::lock_guard lock(mutex_);
+  return std::move(find(streams_, stream)->second.errors_);
+}
+
+void StreamManager::setErrorCallback(StreamErrorCallback callback) {
+  streamErrorCallback_ = std::move(callback);
+}
+
+void StreamManager::addError(EventId event, StreamError error) {
+  std::lock_guard lock(mutex_);
+  if (streamErrorCallback_) {
+    std::thread([cb = streamErrorCallback_, error = std::move(error), event] { cb(event, error); });
+  } else {
+    for (auto& [id, stream] : streams_) {
+      if (stream.submittedEvents_.find(event) != end(stream.submittedEvents_)) {
+        stream.errors_.emplace_back(std::move(error));
+        return;
+      }
+      RT_LOG(WARNING) << "Trying to process an error without a host callback set and the stream was already destroyed. "
+                         "So this error will be unnoticed by host.";
+    }
+  }
 }

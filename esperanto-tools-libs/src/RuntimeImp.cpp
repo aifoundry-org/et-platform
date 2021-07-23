@@ -285,15 +285,7 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
   return evt;
 }
 
-void RuntimeImp::waitForEvent(EventId event) {
-  waitForEvent(event, std::chrono::hours(24)); // we can't use seconds::max
-}
-
-void RuntimeImp::waitForStream(StreamId stream) {
-  waitForStream(stream, std::chrono::hours(24));
-}
-
-bool RuntimeImp::waitForEvent(EventId event, std::chrono::milliseconds timeout) {
+bool RuntimeImp::waitForEvent(EventId event, std::chrono::seconds timeout) {
   ScopedProfileEvent profileEvent(Class::WaitForEvent, profiler_, event);
   RT_VLOG(HIGH) << "Waiting for event " << static_cast<int>(event) << " to be dispatched.";
   auto res = eventManager_.blockUntilDispatched(event, timeout);
@@ -301,7 +293,7 @@ bool RuntimeImp::waitForEvent(EventId event, std::chrono::milliseconds timeout) 
   return res;
 }
 
-bool RuntimeImp::waitForStream(StreamId stream, std::chrono::milliseconds timeout) {
+bool RuntimeImp::waitForStream(StreamId stream, std::chrono::seconds timeout) {
   ScopedProfileEvent profileEvent(Class::WaitForStream, profiler_, stream);
   while (true) {
     auto lastEvent = streamManager_.getLastEvent(stream);

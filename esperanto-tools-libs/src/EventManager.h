@@ -37,7 +37,7 @@ private:
     // returns false if the timeout is reached; true otherwise
     bool wait(std::unique_lock<std::mutex>& lock, std::chrono::milliseconds timeout) {
       count_++;
-      LOG_IF(FATAL, timeout.count() == 0) << "Count can't be zero!";
+      RT_LOG_IF(FATAL, timeout.count() == 0) << "Count can't be zero!";
       RT_DLOG(INFO) << "Blocking thread for a max of " << timeout.count() << " milliseconds.";
       auto res = condVar_.wait_for(lock, timeout, [this]() { return ready_; });
       RT_DLOG(INFO) << "Thread unblocked ready value: " << ready_ << " wait_for result: " << res;

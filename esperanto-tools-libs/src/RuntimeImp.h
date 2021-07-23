@@ -27,9 +27,7 @@
 using namespace std::chrono_literals;
 namespace rt {
 class KernelParametersCache;
-class MailboxReader;
 class MemoryManager;
-class ITarget;
 class RuntimeImp : public IRuntime, public ResponseReceiver::IReceiverServices {
 public:
   RuntimeImp(dev::IDeviceLayer* deviceLayer);
@@ -52,10 +50,8 @@ public:
   EventId memcpyHostToDevice(StreamId stream, const void* src, void* dst, size_t size, bool barrier) override;
   EventId memcpyDeviceToHost(StreamId stream, const void* src, void* dst, size_t size, bool barrier) override;
 
-  void waitForEvent(EventId event) override;
-  bool waitForEvent(EventId event, std::chrono::milliseconds timeout) override;
-  void waitForStream(StreamId stream) override;
-  bool waitForStream(StreamId stream, std::chrono::milliseconds timeout) override;
+  bool waitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::hours(24)) override;
+  bool waitForStream(StreamId stream, std::chrono::seconds timeout = std::chrono::hours(24)) override;
 
   DmaBuffer allocateDmaBuffer(DeviceId device, size_t size, bool writeable) final;
 

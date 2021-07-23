@@ -9,8 +9,8 @@
  *-------------------------------------------------------------------------*/
 
 #pragma once
-#include "runtime/IRuntime.h"
 #include <hostUtils/logging/Logging.h>
+#include <runtime/Types.h>
 #include <string>
 namespace rt {
 template <typename Container, typename Key> auto find(Container& c, Key&& k, const std::string& error = "Not found") {
