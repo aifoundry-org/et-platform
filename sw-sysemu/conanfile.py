@@ -99,13 +99,12 @@ class SwSysemuConan(ConanFile):
         self.cpp_info.components["libsw-sysemu"].names["cmake_find_package_multi"] = "sw-sysemu"
         self.cpp_info.components["libsw-sysemu"].requires = ["libsysemu", "libfpu", "glog::glog"]
 
-
         # utilities
         bin_path = os.path.join(self.package_folder, "bin")
+        bin_ext = ".exe" if self.settings.os == "Windows" else ""
+
         self.output.info("Appending PATH env var with : {}".format(bin_path))
         self.env_info.PATH.append(bin_path)
-
-        bin_ext = ".exe" if self.settings.os == "Windows" else ""
 
         sys_emu = tools.unix_path(os.path.join(self.package_folder, "bin", "sys_emu" + bin_ext))
         self.output.info("Setting SYS_EMU to {}".format(sys_emu))
