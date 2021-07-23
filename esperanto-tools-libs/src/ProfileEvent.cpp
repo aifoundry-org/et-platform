@@ -21,6 +21,7 @@
 #include <string>
 #include <thread>
 
+namespace rt::profiling {
 std::string getString(rt::profiling::Class cls) {
   using event = rt::profiling::Class;
   switch (cls) {
@@ -76,8 +77,6 @@ std::string getString(rt::profiling::Type type) {
     return "Unknown type";
   }
 }
-
-namespace rt::profiling {
 
 Class class_from_string(const std::string& str) {
   static std::once_flag s_once_flag;

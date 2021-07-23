@@ -65,6 +65,8 @@ public:
     return &profiler_;
   }
 
+  void onStreamErrors(StreamErrorCallback callback) override;
+
   std::vector<StreamError> retrieveStreamErrors(StreamId stream) override;
 
   // IResponseServices

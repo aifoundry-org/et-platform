@@ -22,6 +22,15 @@ template <typename Container, typename Key> auto find(Container& c, Key&& k, con
 }
 } // namespace rt
 
+template <typename T> void unused(T t) {
+  (void)t;
+}
+
+template <typename T, typename... Args> void unused(T t, Args... args) {
+  unused(t);
+  unused(std::forward(args...));
+}
+
 #define RT_LOG(severity) ET_LOG(RUNTIME, severity)
 #define RT_DLOG(severity) ET_DLOG(RUNTIME, severity)
 #define RT_VLOG(severity) ET_VLOG(RUNTIME, severity)

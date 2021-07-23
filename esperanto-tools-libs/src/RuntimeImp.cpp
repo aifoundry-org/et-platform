@@ -309,6 +309,10 @@ bool RuntimeImp::waitForStream(StreamId stream, std::chrono::seconds timeout) {
   }
 }
 
+void RuntimeImp::onStreamErrors(StreamErrorCallback callback) {
+  streamManager_.setErrorCallback(std::move(callback));
+}
+
 void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
 
   // check the response header

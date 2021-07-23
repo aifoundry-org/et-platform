@@ -44,6 +44,7 @@ void StreamManager::destroyStream(StreamId stream) {
 bool StreamManager::hasEventsOnFly(DeviceId device) const {
   std::lock_guard lock(mutex_);
   for (auto& [id, stream] : streams_) {
+    unused(id);
     if (stream.info_.device_ == static_cast<int>(device) && !stream.submittedEvents_.empty()) {
       return true;
     }
@@ -64,6 +65,7 @@ void StreamManager::addEvent(StreamId stream, EventId event) {
 void StreamManager::removeEvent(EventId event) {
   std::lock_guard lock(mutex_);
   for (auto& [id, stream] : streams_) {
+    unused(id);
     if (stream.submittedEvents_.erase(event) > 0)
       return;
   }
@@ -95,6 +97,7 @@ void StreamManager::addError(EventId event, StreamError error) {
     std::thread([cb = streamErrorCallback_, error = std::move(error), event] { cb(event, error); });
   } else {
     for (auto& [id, stream] : streams_) {
+      unused(id);
       if (stream.submittedEvents_.find(event) != end(stream.submittedEvents_)) {
         stream.errors_.emplace_back(std::move(error));
         return;

@@ -215,7 +215,7 @@ public:
   /// @param[in] callback see \ref StreamErrorCallbac. This is the callback which will be called when a StreamError
   /// occurs.
   ///
-  virtual void onStreamErrors(StreamErrorCallback callback);
+  virtual void onStreamErrors(StreamErrorCallback callback) = 0;
 
   /// \brief Virtual Destructor to enable polymorphic release of the runtime
   /// instances
